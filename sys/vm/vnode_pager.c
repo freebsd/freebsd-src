@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.54 1995/12/07 12:48:31 davidg Exp $
+ *	$Id: vnode_pager.c,v 1.55 1995/12/11 04:58:32 dyson Exp $
  */
 
 /*
@@ -71,11 +71,15 @@
 #include <vm/vnode_pager.h>
 #include <vm/vm_extern.h>
 
-extern vm_offset_t vnode_pager_addr __P((struct vnode *vp, vm_ooffset_t address,
+static vm_offset_t vnode_pager_addr __P((struct vnode *vp, vm_ooffset_t address,
 					 int *run));
-extern void vnode_pager_iodone __P((struct buf *bp));
-extern int vnode_pager_input_smlfs __P((vm_object_t object, vm_page_t m));
-extern int vnode_pager_input_old __P((vm_object_t object, vm_page_t m));
+static void vnode_pager_iodone __P((struct buf *bp));
+static int vnode_pager_input_smlfs __P((vm_object_t object, vm_page_t m));
+static int vnode_pager_input_old __P((vm_object_t object, vm_page_t m));
+static void vnode_pager_dealloc __P((vm_object_t));
+static int vnode_pager_getpages __P((vm_object_t, vm_page_t *, int, int));
+static int vnode_pager_putpages __P((vm_object_t, vm_page_t *, int, boolean_t, int *));
+static boolean_t vnode_pager_haspage __P((vm_object_t, vm_pindex_t, int *, int *));
 
 struct pagerops vnodepagerops = {
 	NULL,
@@ -167,7 +171,7 @@ vnode_pager_alloc(handle, size, prot, offset)
 	return (object);
 }
 
-void
+static void
 vnode_pager_dealloc(object)
 	vm_object_t object;
 {
@@ -193,7 +197,7 @@ vnode_pager_dealloc(object)
 	vrele(vp);
 }
 
-boolean_t
+static boolean_t
 vnode_pager_haspage(object, pindex, before, after)
 	vm_object_t object;
 	vm_pindex_t pindex;
@@ -370,7 +374,7 @@ vnode_pager_freepage(m)
  * calculate the linear (byte) disk address of specified virtual
  * file address
  */
-vm_offset_t
+static vm_offset_t
 vnode_pager_addr(vp, address, run)
 	struct vnode *vp;
 	vm_ooffset_t address;
@@ -413,7 +417,7 @@ vnode_pager_addr(vp, address, run)
 /*
  * interrupt routine for I/O completion
  */
-void
+static void
 vnode_pager_iodone(bp)
 	struct buf *bp;
 {
@@ -424,7 +428,7 @@ vnode_pager_iodone(bp)
 /*
  * small block file system vnode pager input
  */
-int
+static int
 vnode_pager_input_smlfs(object, m)
 	vm_object_t object;
 	vm_page_t m;
@@ -514,7 +518,7 @@ vnode_pager_input_smlfs(object, m)
 /*
  * old style vnode pager output routine
  */
-int
+static int
 vnode_pager_input_old(object, m)
 	vm_object_t object;
 	vm_page_t m;
@@ -574,7 +578,7 @@ vnode_pager_input_old(object, m)
  * generic vnode pager input routine
  */
 
-int
+static int
 vnode_pager_getpages(object, m, count, reqpage)
 	vm_object_t object;
 	vm_page_t *m;
@@ -816,7 +820,7 @@ vnode_pager_leaf_getpages(object, m, count, reqpage)
 	return (error ? VM_PAGER_ERROR : VM_PAGER_OK);
 }
 
-int
+static int
 vnode_pager_putpages(object, m, count, sync, rtvals)
 	vm_object_t object;
 	vm_page_t *m;
@@ -911,7 +915,7 @@ vnode_pager_leaf_putpages(object, m, count, sync, rtvals)
 		printf("vnode_pager_putpages: I/O error %d\n", error);
 	}
 	if (auio.uio_resid) {
-		printf("vnode_pager_putpages: residual I/O %d at %d\n",
+		printf("vnode_pager_putpages: residual I/O %d at %ld\n",
 			auio.uio_resid, m[0]->pindex);
 	}
 	for (i = 0; i < count; i++) {

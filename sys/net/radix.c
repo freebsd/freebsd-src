@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)radix.c	8.4 (Berkeley) 11/2/94
- *	$Id: radix.c,v 1.9 1995/05/30 08:08:20 rgrimes Exp $
+ *	$Id: radix.c,v 1.10 1995/12/02 19:37:31 bde Exp $
  */
 
 /*
@@ -51,15 +51,23 @@
 #include <net/radix.h>
 #endif
 
-extern struct radix_node *
+static struct radix_node *
 		rn_lookup __P((void *v_arg, void *m_arg,
 			       struct radix_node_head *head));
-extern int	rn_walktree_from __P((struct radix_node_head *h, void *a,
+static int	rn_walktree_from __P((struct radix_node_head *h, void *a,
 				      void *m, walktree_f_t *f, void *w));
+static int rn_walktree __P((struct radix_node_head *, walktree_f_t *, void *));
+static struct radix_node
+	 *rn_delete __P((void *, void *, struct radix_node_head *)),
+	 *rn_insert __P((void *, struct radix_node_head *, int *,
+			struct radix_node [2])),
+	 *rn_newpair __P((void *, int, struct radix_node[2])),
+	 *rn_search __P((void *, struct radix_node *)),
+	 *rn_search_m __P((void *, struct radix_node *, void *));
 
-int	max_keylen;
-struct radix_mask *rn_mkfreelist;
-struct radix_node_head *mask_rnhead;
+static int	max_keylen;
+static struct radix_mask *rn_mkfreelist;
+static struct radix_node_head *mask_rnhead;
 static char *addmask_key;
 static char normal_chars[] = {0, 0x80, 0xc0, 0xe0, 0xf0, 0xf8, 0xfc, 0xfe, -1};
 static char *rn_zeros, *rn_ones;
@@ -109,7 +117,7 @@ static int	rn_satsifies_leaf __P((char *trial, struct radix_node *leaf,
  * that governs a subtree.
  */
 
-struct radix_node *
+static struct radix_node *
 rn_search(v_arg, head)
 	void *v_arg;
 	struct radix_node *head;
@@ -126,7 +134,7 @@ rn_search(v_arg, head)
 	return (x);
 };
 
-struct radix_node *
+static struct radix_node *
 rn_search_m(v_arg, head, m_arg)
 	struct radix_node *head;
 	void *v_arg, *m_arg;
@@ -322,7 +330,7 @@ int	rn_saveinfo;
 int	rn_debug =  1;
 #endif
 
-struct radix_node *
+static struct radix_node *
 rn_newpair(v, b, nodes)
 	void *v;
 	int b;
@@ -340,7 +348,7 @@ rn_newpair(v, b, nodes)
 	return t;
 }
 
-struct radix_node *
+static struct radix_node *
 rn_insert(v_arg, head, dupentry, nodes)
 	void *v_arg;
 	struct radix_node_head *head;
@@ -665,7 +673,7 @@ on2:
 	return tt;
 }
 
-struct radix_node *
+static struct radix_node *
 rn_delete(v_arg, netmask_arg, head)
 	void *v_arg, *netmask_arg;
 	struct radix_node_head *head;
@@ -829,7 +837,7 @@ out:
  * This is the same as rn_walktree() except for the parameters and the
  * exit.
  */
-int
+static int
 rn_walktree_from(h, a, m, f, w)
 	struct radix_node_head *h;
 	void *a, *m;
@@ -919,7 +927,7 @@ rn_walktree_from(h, a, m, f, w)
 	return 0;
 }
 
-int
+static int
 rn_walktree(h, f, w)
 	struct radix_node_head *h;
 	walktree_f_t *f;

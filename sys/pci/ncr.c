@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.49 1995/09/21 17:27:28 se Exp $
+**  $Id: ncr.c,v 1.50 1995/12/07 12:47:40 davidg Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -174,6 +174,7 @@
 #include <sys/malloc.h>
 #include <sys/buf.h>
 #include <sys/kernel.h>
+#include <sys/sysctl.h>
 #ifndef __NetBSD__
 #include <machine/clock.h>
 #include <machine/cpu.h> /* bootverbose */
@@ -1253,9 +1254,9 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.49 1995/09/21 17:27:28 se Exp $\n";
+	"\n$Id: ncr.c,v 1.50 1995/12/07 12:47:40 davidg Exp $\n";
 
-u_long	ncr_version = NCR_VERSION	* 11
+static u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
 	+ (u_long) sizeof (struct ccb)	*  5
 	+ (u_long) sizeof (struct lcb)	*  3
@@ -1264,13 +1265,13 @@ u_long	ncr_version = NCR_VERSION	* 11
 #ifdef KERNEL
 
 #ifndef __NetBSD__
-u_long		nncr=MAX_UNITS;
-ncb_p		ncrp [MAX_UNITS];
+static ncb_p		ncrp [MAX_UNITS];
 #endif /* !__NetBSD__ */
 
 static int ncr_debug = SCSI_DEBUG_FLAGS;
+SYSCTL_INT(_debug, OID_AUTO, ncr_debug, CTLFLAG_RW, &ncr_debug, 0, "");
 
-int ncr_cache; /* to be aligned _NOT_ static */
+static int ncr_cache; /* to be aligned _NOT_ static */
 
 /*==========================================================
 **
@@ -1298,7 +1299,7 @@ struct	cfdriver ncrcd = {
 
 static u_long ncr_count;
 
-struct	pci_device ncr_device = {
+static struct	pci_device ncr_device = {
 	"ncr",
 	ncr_probe,
 	ncr_attach,
@@ -1310,7 +1311,7 @@ DATA_SET (pcidevice_set, ncr_device);
 
 #endif /* !__NetBSD__ */
 
-struct scsi_adapter ncr_switch =
+static struct scsi_adapter ncr_switch =
 {
 	ncr_start,
 	ncr_min_phys,
@@ -1322,7 +1323,7 @@ struct scsi_adapter ncr_switch =
 #endif /* !__NetBSD__ */
 };
 
-struct scsi_device ncr_dev =
+static struct scsi_device ncr_dev =
 {
 	NULL,			/* Use default error handler */
 	NULL,			/* have a queue, served by this */
@@ -3506,7 +3507,7 @@ ncr_intr(arg)
 {               
         ncb_p np = arg;
 #else /* !__NetBSD__ */
-int
+static int
 ncr_intr(np)
 	ncb_p np;
 {

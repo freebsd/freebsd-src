@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.28 1995/11/14 20:34:14 phk Exp $
+ * $Id: ip_input.c,v 1.29 1995/12/06 23:37:34 bde Exp $
  */
 
 #include <sys/param.h>
@@ -64,7 +64,7 @@
 
 #include <sys/socketvar.h>
 int rsvp_on = 0;
-int ip_rsvp_on;
+static int ip_rsvp_on;
 struct socket *ip_rsvpd;
 
 #ifndef	IPFORWARDING
@@ -116,7 +116,7 @@ SYSCTL_INT(_net_inet_ip, IPCTL_INTRQDROPS, intr_queue_drops, CTLFLAG_RD,
 	&ipintrq.ifq_drops, 0, "");
 
 struct ipstat ipstat;
-struct ipq ipq;
+static struct ipq ipq;
 
 #ifdef IPCTL_DEFMTU
 SYSCTL_INT(_net_inet_ip, IPCTL_DEFMTU, mtu, CTLFLAG_RW,
@@ -175,7 +175,7 @@ ip_init()
 }
 
 static struct	sockaddr_in ipaddr = { sizeof(ipaddr), AF_INET };
-struct	route ipforward_rt;
+static struct	route ipforward_rt;
 
 /*
  * Ip input routine.  Checksum and byte swap header.  If fragmented

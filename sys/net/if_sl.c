@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.33 1995/10/31 19:22:30 peter Exp $
+ * $Id: if_sl.c,v 1.34 1995/11/05 20:25:55 bde Exp $
  */
 
 /*
@@ -188,6 +188,14 @@ static int slinit __P((struct sl_softc *));
 static struct mbuf *sl_btom __P((struct sl_softc *, int));
 static timeout_t sl_keepalive;
 static timeout_t sl_outfill;
+static int	slclose __P((struct tty *,int));
+static int	slinput __P((int, struct tty *));
+static int	slioctl __P((struct ifnet *, int, caddr_t));
+static int	sltioctl __P((struct tty *, int, caddr_t, int, struct proc *));
+static int	slopen __P((dev_t, struct tty *));
+static int	sloutput __P((struct ifnet *,
+	    struct mbuf *, struct sockaddr *, struct rtentry *));
+static int	slstart __P((struct tty *));
 
 static struct linesw slipdisc = {
 	slopen,		slclose,	l_noread,	l_nowrite,
@@ -251,7 +259,7 @@ slinit(sc)
  * Attach the given tty to the first available sl unit.
  */
 /* ARGSUSED */
-int
+static int
 slopen(dev, tp)
 	dev_t dev;
 	register struct tty *tp;
@@ -306,7 +314,7 @@ slopen(dev, tp)
  * Line specific close routine.
  * Detach the tty from the sl unit.
  */
-int
+static int
 slclose(tp,flag)
 	struct tty *tp;
 	int flag;
@@ -351,7 +359,7 @@ slclose(tp,flag)
  * Provide a way to get the sl unit number.
  */
 /* ARGSUSED */
-int
+static int
 sltioctl(tp, cmd, data, flag, p)
 	struct tty *tp;
 	int cmd;
@@ -416,7 +424,7 @@ sltioctl(tp, cmd, data, flag, p)
  * will cause us to not compress "background" packets, because
  * ordering gets trashed.  It can be done for all packets in slstart.
  */
-int
+static int
 sloutput(ifp, m, dst, rtp)
 	struct ifnet *ifp;
 	register struct mbuf *m;
@@ -477,7 +485,7 @@ sloutput(ifp, m, dst, rtp)
  * to send from the interface queue and map it to
  * the interface before starting output.
  */
-int
+static int
 slstart(tp)
 	register struct tty *tp;
 {
@@ -715,7 +723,7 @@ sl_btom(sc, len)
 /*
  * tty interface receiver interrupt.
  */
-int
+static int
 slinput(c, tp)
 	register int c;
 	register struct tty *tp;
@@ -894,7 +902,7 @@ newpack:
 /*
  * Process an ioctl request.
  */
-int
+static int
 slioctl(ifp, cmd, data)
 	register struct ifnet *ifp;
 	int cmd;

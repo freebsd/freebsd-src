@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: default_pager.c,v 1.3 1995/12/07 12:48:00 davidg Exp $
+ *	$Id: default_pager.c,v 1.4 1995/12/11 04:57:56 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -46,6 +46,14 @@
 #include <vm/default_pager.h>
 #include <vm/swap_pager.h>
 
+static vm_object_t default_pager_alloc __P((void *, vm_size_t, vm_prot_t,
+		vm_ooffset_t));
+static void default_pager_dealloc __P((vm_object_t));
+static int default_pager_getpages __P((vm_object_t, vm_page_t *, int, int));
+static int default_pager_putpages __P((vm_object_t, vm_page_t *, int, 
+		boolean_t, int *));
+static boolean_t default_pager_haspage __P((vm_object_t, vm_pindex_t, int *, 
+		int *));
 /*
  * pagerops for OBJT_DEFAULT - "default pager".
  */
@@ -62,7 +70,7 @@ struct pagerops defaultpagerops = {
 /*
  * no_pager_alloc just returns an initialized object.
  */
-vm_object_t
+static vm_object_t
 default_pager_alloc(handle, size, prot, offset)
 	void *handle;
 	register vm_size_t size;
@@ -75,7 +83,7 @@ default_pager_alloc(handle, size, prot, offset)
 	return vm_object_allocate(OBJT_DEFAULT, offset + size);
 }
 
-void
+static void
 default_pager_dealloc(object)
 	vm_object_t object;
 {
@@ -88,7 +96,7 @@ default_pager_dealloc(object)
  * The default pager has no backing store, so we always return
  * failure.
  */
-int
+static int
 default_pager_getpages(object, m, count, reqpage)
 	vm_object_t object;
 	vm_page_t *m;
@@ -98,7 +106,7 @@ default_pager_getpages(object, m, count, reqpage)
 	return VM_PAGER_FAIL;
 }
 
-int
+static int
 default_pager_putpages(object, m, c, sync, rtvals)
 	vm_object_t object;
 	vm_page_t *m;
@@ -126,7 +134,7 @@ default_pager_putpages(object, m, c, sync, rtvals)
 	return swap_pager_putpages(object, m, c, sync, rtvals);
 }
 
-boolean_t
+static boolean_t
 default_pager_haspage(object, pindex, before, after)
 	vm_object_t object;
 	vm_pindex_t pindex;

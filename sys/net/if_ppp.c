@@ -69,7 +69,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: if_ppp.c,v 1.27 1995/11/03 08:42:21 peter Exp $ */
+/* $Id: if_ppp.c,v 1.28 1995/11/13 22:09:39 peter Exp $ */
 /* from if_ppp.c,v 1.5 1995/08/16 01:36:38 paulus Exp */
 /* from if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp */
 
@@ -127,8 +127,8 @@
 static void	pppattach __P((void *));
 PSEUDO_SET(pppattach, if_ppp);
 
-int	pppsioctl __P((struct ifnet *ifp, int cmd, caddr_t data));
-void	pppintr __P((void));
+static int	pppsioctl __P((struct ifnet *ifp, int cmd, caddr_t data));
+static void	pppintr __P((void));
 
 static void	ppp_requeue __P((struct ppp_softc *));
 static void	ppp_outpkt __P((struct ppp_softc *));
@@ -167,7 +167,7 @@ static void	pppdumpm __P((struct mbuf *m0));
 
 extern struct compressor ppp_bsd_compress;
 
-struct compressor *ppp_compressors[8] = {
+static struct compressor *ppp_compressors[8] = {
 #if DO_BSD_COMPRESS
     &ppp_bsd_compress,
 #endif
@@ -469,7 +469,7 @@ pppioctl(sc, cmd, data, flag, p)
 /*
  * Process an ioctl request to the ppp network interface.
  */
-int
+static int
 pppsioctl(ifp, cmd, data)
     register struct ifnet *ifp;
     int cmd;
@@ -833,7 +833,7 @@ ppp_dequeue(sc)
 /*
  * Software interrupt routine, called at splnet.
  */
-void
+static void
 pppintr()
 {
     struct ppp_softc *sc;

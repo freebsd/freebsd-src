@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.55 1995/12/11 15:43:33 dyson Exp $
+ * $Id: swap_pager.c,v 1.56 1995/12/14 08:32:45 phk Exp $
  */
 
 /*
@@ -76,12 +76,11 @@
 #define NPENDINGIO	10
 #endif
 
-int nswiodone;
+static int nswiodone;
 int swap_pager_full;
 extern int vm_swap_size;
 static int no_swap_space = 1;
 struct rlist *swaplist;
-int nswaplist;
 
 #define MAX_PAGEOUT_CLUSTER 16
 
@@ -89,7 +88,7 @@ TAILQ_HEAD(swpclean, swpagerclean);
 
 typedef struct swpagerclean *swp_clean_t;
 
-struct swpagerclean {
+static struct swpagerclean {
 	TAILQ_ENTRY(swpagerclean) spc_list;
 	int spc_flags;
 	struct buf *spc_bp;
@@ -105,15 +104,24 @@ struct swpagerclean {
 
 #define SWB_EMPTY (-1)
 
-struct swpclean swap_pager_done;	/* list of completed page cleans */
-struct swpclean swap_pager_inuse;	/* list of pending page cleans */
-struct swpclean swap_pager_free;	/* list of free pager clean structs */
-struct pagerlst swap_pager_object_list;	/* list of "named" anon region objects */
-struct pagerlst swap_pager_un_object_list; /* list of "unnamed" anon region objects */
+/* list of completed page cleans */
+static struct swpclean swap_pager_done;
+
+/* list of pending page cleans */
+static struct swpclean swap_pager_inuse;
+
+/* list of free pager clean structs */
+static struct swpclean swap_pager_free;
+
+/* list of "named" anon region objects */
+static struct pagerlst swap_pager_object_list;
+
+/* list of "unnamed" anon region objects */
+struct pagerlst swap_pager_un_object_list;
 
 #define	SWAP_FREE_NEEDED	0x1	/* need a swap block */
 #define SWAP_FREE_NEEDED_BY_PAGEOUT 0x2
-int swap_pager_needflags;
+static int swap_pager_needflags;
 
 static struct pagerlst *swp_qs[] = {
 	&swap_pager_object_list, &swap_pager_un_object_list, (struct pagerlst *) 0
@@ -129,7 +137,10 @@ static void	swap_pager_dealloc __P((vm_object_t object));
 static boolean_t
 		swap_pager_haspage __P((vm_object_t object, vm_pindex_t pindex,
 					int *before, int *after));
+static int	swap_pager_getpages __P((vm_object_t, vm_page_t *, int, int));
 static void	swap_pager_init __P((void));
+static void	swap_pager_sync __P((void));
+
 struct pagerops swappagerops = {
 	swap_pager_init,
 	swap_pager_alloc,
@@ -141,7 +152,8 @@ struct pagerops swappagerops = {
 };
 
 static int npendingio = NPENDINGIO;
-int dmmin, dmmax;
+static int dmmin;
+int dmmax;
 
 static __pure int
 		swap_pager_block_index __P((vm_offset_t offset)) __pure2;
@@ -832,7 +844,7 @@ swap_pager_iodone1(bp)
 	wakeup(bp);
 }
 
-int
+static int
 swap_pager_getpages(object, m, count, reqpage)
 	vm_object_t object;
 	vm_page_t *m;
@@ -1451,7 +1463,7 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 	return (rv);
 }
 
-void
+static void
 swap_pager_sync()
 {
 	register swp_clean_t spc, tspc;

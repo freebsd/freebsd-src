@@ -1,7 +1,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.15 1995/10/10 07:12:27 julian Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.16 1995/11/09 08:16:50 bde Exp $
  *
  * symlinks can wait 'til later.
  */
@@ -65,7 +65,8 @@
  *
  * NOTE: (LOOKUP | LOCKPARENT) currently returns the parent node unlocked.
  */
-int devfs_lookup(struct vop_lookup_args *ap) /*proto*/
+static int
+devfs_lookup(struct vop_lookup_args *ap)
         /*struct vop_lookup_args {
                 struct vnode * a_dvp; directory vnode ptr
                 struct vnode ** a_vpp; where to put the result
@@ -366,7 +367,8 @@ DBPRINT(("GOT\n"));
  *
  *  Always  error... no such thing in this FS
  */
-int devfs_create(struct vop_mknod_args  *ap) /*proto*/
+static int
+devfs_create(struct vop_mknod_args  *ap)
         /*struct vop_mknod_args  {
                 struct vnode *a_dvp;
                 struct vnode **a_vpp;
@@ -378,7 +380,8 @@ DBPRINT(("create\n"));
         return EINVAL;
 }
 
-int devfs_mknod( struct vop_mknod_args *ap) /*proto*/
+static int
+devfs_mknod( struct vop_mknod_args *ap)
         /*struct vop_mknod_args  {
                 struct vnode *a_dvp;
                 struct vnode **a_vpp;
@@ -419,7 +422,8 @@ DBPRINT(("mknod\n"));
 	return error;
 }
 
-int devfs_open(struct vop_open_args *ap) /*proto*/
+static int
+devfs_open(struct vop_open_args *ap)
         /*struct vop_open_args  {
                 struct vnode *a_vp;
                 int  a_mode;
@@ -431,7 +435,8 @@ DBPRINT(("open\n"));
 	return 0;
 }
 
-int devfs_close( struct vop_close_args *ap) /*proto*/
+static int
+devfs_close( struct vop_close_args *ap)
         /*struct vop_close_args  {
                 struct vnode *a_vp;
                 int  a_fflag;
@@ -443,7 +448,8 @@ DBPRINT(("close\n"));
 	return 0;
 }
 
-int devfs_access(struct vop_access_args *ap) /*proto*/
+static int
+devfs_access(struct vop_access_args *ap)
         /*struct vop_access_args  {
                 struct vnode *a_vp;
                 int  a_mode;
@@ -504,7 +510,8 @@ found:
 	return (EACCES);
 }
 
-int devfs_getattr(struct vop_getattr_args *ap) /*proto*/
+static int
+devfs_getattr(struct vop_getattr_args *ap)
         /*struct vop_getattr_args {
                 struct vnode *a_vp;
                 struct vattr *a_vap;
@@ -584,7 +591,8 @@ DBPRINT(("getattr\n"));
 	return 0;
 }
 
-int devfs_setattr(struct vop_setattr_args *ap) /*proto*/
+static int
+devfs_setattr(struct vop_setattr_args *ap)
         /*struct vop_setattr_args  {
                 struct vnode *a_vp;
                 struct vattr *a_vap;
@@ -663,7 +671,8 @@ DBPRINT(("setattr\n"));
 }
 
 
-int devfs_read(struct vop_read_args *ap) /*proto*/
+static int
+devfs_read(struct vop_read_args *ap)
         /*struct vop_read_args {
                 struct vnode *a_vp;
                 struct uio *a_uio;
@@ -704,7 +713,8 @@ DBPRINT(("read\n"));
 /*
  *  Write data to a file or directory.
  */
-int devfs_write(struct vop_write_args *ap) /*proto*/
+static int
+devfs_write(struct vop_write_args *ap)
         /*struct vop_write_args  {
                 struct vnode *a_vp;
                 struct uio *a_uio;
@@ -741,7 +751,8 @@ DBPRINT(("write\n"));
 }
 
 /* presently not called from devices anyhow */
-int devfs_ioctl(struct vop_ioctl_args *ap) /*proto*/
+static int
+devfs_ioctl(struct vop_ioctl_args *ap)
         /*struct vop_ioctl_args  {
                 struct vnode *a_vp;
                 int  a_command;
@@ -755,7 +766,8 @@ DBPRINT(("ioctl\n"));
 	return ENOTTY;
 }
 
-int devfs_select(struct vop_select_args *ap) /*proto*/
+static int
+devfs_select(struct vop_select_args *ap)
         /*struct vop_select_args {
                 struct vnode *a_vp;
                 int  a_which;
@@ -768,7 +780,8 @@ DBPRINT(("select\n"));
 	return 1;		/* filesystems never block? */
 }
 
-int devfs_mmap(struct vop_mmap_args *ap) /*proto*/
+static int
+devfs_mmap(struct vop_mmap_args *ap)
         /*struct vop_mmap_args  {
                 struct vnode *a_vp;
                 int  a_fflags;
@@ -783,7 +796,8 @@ DBPRINT(("mmap\n"));
 /*
  *  Flush the blocks of a file to disk.
  */
-int devfs_fsync(struct vop_fsync_args *ap) /*proto*/
+static int
+devfs_fsync(struct vop_fsync_args *ap)
         /*struct vop_fsync_args {
                 struct vnode *a_vp;
                 struct ucred *a_cred;
@@ -795,7 +809,8 @@ DBPRINT(("fsync\n"));
 	return(0);
 }
 
-int devfs_seek(struct vop_seek_args *ap) /*proto*/
+static int
+devfs_seek(struct vop_seek_args *ap)
         /*struct vop_seek_args  {
                 struct vnode *a_vp;
                 off_t  a_oldoff;
@@ -808,7 +823,8 @@ DBPRINT(("seek\n"));
 	return 0;
 }
 
-int devfs_remove(struct vop_remove_args *ap) /*proto*/
+static int
+devfs_remove(struct vop_remove_args *ap)
         /*struct vop_remove_args  {
                 struct vnode *a_dvp;
                 struct vnode *a_vp;
@@ -912,7 +928,8 @@ abortit:
 
 /*
  */
-int devfs_link(struct vop_link_args *ap) /*proto*/
+static int
+devfs_link(struct vop_link_args *ap)
         /*struct vop_link_args  {
                 struct vnode *a_tdvp;
                 struct vnode *a_vp;
@@ -1009,7 +1026,8 @@ out:
  *    is different from the source, patch the ".." entry in the
  *    directory.
  */
-int devfs_rename(struct vop_rename_args *ap) /*proto*/
+static int
+devfs_rename(struct vop_rename_args *ap)
         /*struct vop_rename_args  {
                 struct vnode *a_fdvp;
                 struct vnode *a_fvp;
@@ -1226,7 +1244,8 @@ out:
 }
 
 
-int devfs_mkdir(struct vop_mkdir_args *ap) /*proto*/
+static int
+devfs_mkdir(struct vop_mkdir_args *ap)
         /*struct vop_mkdir_args {
                 struct vnode *a_dvp;
                 struct vnode **a_vpp;
@@ -1238,7 +1257,8 @@ DBPRINT(("mkdir\n"));
 	return EINVAL;
 }
 
-int devfs_rmdir(struct vop_rmdir_args *ap) /*proto*/
+static int
+devfs_rmdir(struct vop_rmdir_args *ap)
         /*struct vop_rmdir_args {
                 struct vnode *a_dvp;
                 struct vnode *a_vp;
@@ -1249,7 +1269,8 @@ DBPRINT(("rmdir\n"));
 	return 0;
 }
 
-int devfs_symlink(struct vop_symlink_args *ap) /*proto*/
+static int
+devfs_symlink(struct vop_symlink_args *ap)
         /*struct vop_symlink_args {
                 struct vnode *a_dvp;
                 struct vnode **a_vpp;
@@ -1265,7 +1286,8 @@ DBPRINT(("symlink\n"));
 /*
  * Vnode op for readdir
  */
-int devfs_readdir(struct vop_readdir_args *ap) /*proto*/
+static int
+devfs_readdir(struct vop_readdir_args *ap)
         /*struct vop_readdir_args {
                 struct vnode *a_vp;
                 struct uio *a_uio;
@@ -1371,7 +1393,8 @@ DBPRINT(("readdir\n"));
 
 /*
  */
-int devfs_readlink(struct vop_readlink_args *ap) /*proto*/
+static int
+devfs_readlink(struct vop_readlink_args *ap)
         /*struct vop_readlink_args {
                 struct vnode *a_vp;
                 struct uio *a_uio;
@@ -1382,7 +1405,8 @@ DBPRINT(("readlink\n"));
 	return 0;
 }
 
-int devfs_abortop(struct vop_abortop_args *ap) /*proto*/
+static int
+devfs_abortop(struct vop_abortop_args *ap)
         /*struct vop_abortop_args {
                 struct vnode *a_dvp;
                 struct componentname *a_cnp;
@@ -1394,7 +1418,8 @@ DBPRINT(("abortop\n"));
 	return 0;
 }
 
-int devfs_inactive(struct vop_inactive_args *ap) /*proto*/
+static int
+devfs_inactive(struct vop_inactive_args *ap)
         /*struct vop_inactive_args {
                 struct vnode *a_vp;
         } */
@@ -1402,19 +1427,22 @@ int devfs_inactive(struct vop_inactive_args *ap) /*proto*/
 DBPRINT(("inactive\n"));
 	return 0;
 }
-int devfs_lock(struct vop_lock_args *ap) /*proto*/
+static int
+devfs_lock(struct vop_lock_args *ap)
 {
 DBPRINT(("lock\n"));
 	return 0;
 }
 
-int devfs_unlock( struct vop_unlock_args *ap) /*proto*/
+static int
+devfs_unlock( struct vop_unlock_args *ap)
 {
 DBPRINT(("unlock\n"));
 	return 0;
 }
 
-int devfs_islocked(struct vop_islocked_args *ap) /*proto*/
+static int
+devfs_islocked(struct vop_islocked_args *ap)
         /*struct vop_islocked_args {
                 struct vnode *a_vp;
         } */
@@ -1423,7 +1451,8 @@ DBPRINT(("islocked\n"));
 	return 0;
 }
 
-int devfs_bmap(struct vop_bmap_args *ap) /*proto*/
+static int
+devfs_bmap(struct vop_bmap_args *ap)
         /*struct vop_bmap_args {
                 struct vnode *a_vp;
                 daddr_t  a_bn;
@@ -1437,7 +1466,8 @@ DBPRINT(("bmap\n"));
 		return 0;
 }
 
-int devfs_strategy(struct vop_strategy_args *ap) /*proto*/
+static int
+devfs_strategy(struct vop_strategy_args *ap)
         /*struct vop_strategy_args {
                 struct buf *a_bp;
         } */
@@ -1452,7 +1482,8 @@ DBPRINT(("strategy\n"));
 }
 
 
-int devfs_advlock(struct vop_advlock_args *ap) /*proto*/
+static int
+devfs_advlock(struct vop_advlock_args *ap)
         /*struct vop_advlock_args {
                 struct vnode *a_vp;
                 caddr_t  a_id;
@@ -1465,7 +1496,8 @@ DBPRINT(("advlock\n"));
 	return EINVAL;		/* we don't do locking yet		*/
 }
 
-int	devfs_reclaim(struct vop_reclaim_args *ap) /*proto*/
+static int
+devfs_reclaim(struct vop_reclaim_args *ap)
         /*struct vop_reclaim_args {
 		struct vnode *a_vp;
         } */
@@ -1488,7 +1520,8 @@ DBPRINT(("reclaim\n"));
 /*
  * Return POSIX pathconf information applicable to special devices.
  */
-int devfs_pathconf(struct vop_pathconf_args *ap) /*proto*/
+static int
+devfs_pathconf(struct vop_pathconf_args *ap)
         /*struct vop_pathconf_args {
                 struct vnode *a_vp;
                 int a_name;
@@ -1525,7 +1558,8 @@ int devfs_pathconf(struct vop_pathconf_args *ap) /*proto*/
 /*
  * Print out the contents of a /devfs vnode.
  */
-int devfs_print(struct vop_print_args *ap) /*proto*/
+static int
+devfs_print(struct vop_print_args *ap)
 	/*struct vop_print_args {
 		struct vnode *a_vp;
 	} */
@@ -1535,7 +1569,8 @@ int devfs_print(struct vop_print_args *ap) /*proto*/
 	return (0);
 }
 
-int devfs_vfree(struct vop_vfree_args *ap) /*proto*/
+static int
+devfs_vfree(struct vop_vfree_args *ap)
 	/*struct vop_vfree_args {
 		struct vnode *a_pvp;
 		ino_t a_ino;
@@ -1553,7 +1588,8 @@ int devfs_vfree(struct vop_vfree_args *ap) /*proto*/
 /*
  * /devfs vnode unsupported operation
  */
-int devfs_enotsupp(void *junk) /*proto*/
+static int
+devfs_enotsupp(void *junk)
 {
 
 	return (EOPNOTSUPP);
@@ -1562,7 +1598,8 @@ int devfs_enotsupp(void *junk) /*proto*/
 /*
  * /devfs "should never get here" operation
  */
-int devfs_badop(void *junk) /*proto*/
+static int
+devfs_badop(void *junk)
 {
 
 	panic("devfs: bad op");
@@ -1572,14 +1609,15 @@ int devfs_badop(void *junk) /*proto*/
 /*
  * devfs vnode null operation
  */
-int devfs_nullop(void *junk) /*proto*/
+static int
+devfs_nullop(void *junk)
 {
 
 	return (0);
 }
 
 
-void	devfs_dropvnode(dn_p dnp) /*proto*/
+void	devfs_dropvnode(dn_p dnp)
 {
 	struct vnode *vn_p;
 
@@ -1635,7 +1673,7 @@ void	devfs_dropvnode(dn_p dnp) /*proto*/
 /* These are the operations used by directories etc in a devfs */
 
 vop_t **devfs_vnodeop_p;
-struct vnodeopv_entry_desc devfs_vnodeop_entries[] = {
+static struct vnodeopv_entry_desc devfs_vnodeop_entries[] = {
 	{ &vop_default_desc, (vop_t *)vn_default_error },
 	{ &vop_lookup_desc, (vop_t *)devfs_lookup },		/* lookup */
 	{ &vop_create_desc, (vop_t *)devfs_create },		/* create */
@@ -1679,7 +1717,7 @@ struct vnodeopv_entry_desc devfs_vnodeop_entries[] = {
 	{ &vop_bwrite_desc, (vop_t *)devfs_bwrite },		/* bwrite */
 	{ NULL, NULL }
 };
-struct vnodeopv_desc devfs_vnodeop_opv_desc =
+static struct vnodeopv_desc devfs_vnodeop_opv_desc =
 	{ &devfs_vnodeop_p, devfs_vnodeop_entries };
 
 VNODEOP_SET(devfs_vnodeop_opv_desc);
@@ -1725,7 +1763,7 @@ VNODEOP_SET(devfs_vnodeop_opv_desc);
 
 
 vop_t **dev_spec_vnodeop_p;
-struct vnodeopv_entry_desc dev_spec_vnodeop_entries[] = {
+static struct vnodeopv_entry_desc dev_spec_vnodeop_entries[] = {
 	{ &vop_default_desc, (vop_t *)vn_default_error },
 	{ &vop_lookup_desc, (vop_t *)spec_lookup },	/* lookup */
 	{ &vop_create_desc, (vop_t *)spec_create },	/* create */
@@ -1769,7 +1807,7 @@ struct vnodeopv_entry_desc dev_spec_vnodeop_entries[] = {
 	{ &vop_bwrite_desc, (vop_t *)spec_bwrite },	/* bwrite */
 	{ NULL, NULL }
 };
-struct vnodeopv_desc dev_spec_vnodeop_opv_desc =
+static struct vnodeopv_desc dev_spec_vnodeop_opv_desc =
 	{ &dev_spec_vnodeop_p, dev_spec_vnodeop_entries };
 
 VNODEOP_SET(dev_spec_vnodeop_opv_desc);

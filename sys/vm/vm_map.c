@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.28 1995/12/07 12:48:15 davidg Exp $
+ * $Id: vm_map.c,v 1.29 1995/12/11 04:58:12 dyson Exp $
  */
 
 /*
@@ -148,15 +148,24 @@
 
 vm_offset_t kentry_data;
 vm_size_t kentry_data_size;
-vm_map_entry_t kentry_free;
-vm_map_t kmap_free;
+static vm_map_entry_t kentry_free;
+static vm_map_t kmap_free;
 
-int kentry_count;
+static int kentry_count;
 static vm_offset_t mapvm_start, mapvm, mapvmmax;
 static int mapvmpgcnt;
 
 static void _vm_map_clip_end __P((vm_map_t, vm_map_entry_t, vm_offset_t));
 static void _vm_map_clip_start __P((vm_map_t, vm_map_entry_t, vm_offset_t));
+static vm_map_entry_t vm_map_entry_create __P((vm_map_t));
+static void vm_map_entry_delete __P((vm_map_t, vm_map_entry_t));
+static void vm_map_entry_dispose __P((vm_map_t, vm_map_entry_t));
+static void vm_map_entry_unwire __P((vm_map_t, vm_map_entry_t));
+static void vm_map_copy_entry __P((vm_map_t, vm_map_t, vm_map_entry_t,
+		vm_map_entry_t));
+#ifdef notyet
+static void vm_map_simplify_entry __P((vm_map_t, vm_map_entry_t));
+#endif
 
 void
 vm_map_startup()
@@ -311,7 +320,7 @@ vm_map_init(map, min, max, pageable)
 static struct vm_map_entry *mappool;
 static int mappoolcnt;
 
-vm_map_entry_t
+static vm_map_entry_t
 vm_map_entry_create(map)
 	vm_map_t map;
 {
@@ -388,7 +397,7 @@ vm_map_entry_create(map)
  *
  *	Inverse of vm_map_entry_create.
  */
-void
+static void
 vm_map_entry_dispose(map, entry)
 	vm_map_t map;
 	vm_map_entry_t entry;
@@ -795,6 +804,7 @@ vm_map_find(map, object, offset, addr, length, find_space)
 	return (result);
 }
 
+#ifdef notyet
 /*
  *	vm_map_simplify_entry:	[ internal use only ]
  *
@@ -802,7 +812,7 @@ vm_map_find(map, object, offset, addr, length, find_space)
  *		removing extra sharing maps
  *		[XXX maybe later] merging with a neighbor
  */
-void
+static void
 vm_map_simplify_entry(map, entry)
 	vm_map_t map;
 	vm_map_entry_t entry;
@@ -853,6 +863,7 @@ vm_map_simplify_entry(map, entry)
 		 */
 	}
 }
+#endif
 
 /*
  *	vm_map_clip_start:	[ internal use only ]
@@ -1524,7 +1535,7 @@ vm_map_clean(map, start, end, syncio, invalidate)
  *	The map in question should be locked.
  *	[This is the reason for this routine's existence.]
  */
-void
+static void
 vm_map_entry_unwire(map, entry)
 	vm_map_t map;
 	register vm_map_entry_t entry;
@@ -1538,7 +1549,7 @@ vm_map_entry_unwire(map, entry)
  *
  *	Deallocate the given entry from the target map.
  */
-void
+static void
 vm_map_entry_delete(map, entry)
 	register vm_map_t map;
 	register vm_map_entry_t entry;
@@ -1735,7 +1746,7 @@ vm_map_check_protection(map, start, end, protection)
  *	Copies the contents of the source entry to the destination
  *	entry.  The entries *must* be aligned properly.
  */
-void
+static void
 vm_map_copy_entry(src_map, dst_map, src_entry, dst_entry)
 	vm_map_t src_map, dst_map;
 	register vm_map_entry_t src_entry, dst_entry;

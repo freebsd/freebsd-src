@@ -1,7 +1,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vfsops.c,v 1.5 1995/09/06 09:29:17 julian Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vfsops.c,v 1.6 1995/09/07 06:01:35 julian Exp $
  *
  *
  */
@@ -19,8 +19,10 @@
 #include "malloc.h"
 #include "devfsdefs.h"
 
+static int devfs_statfs( struct mount *mp, struct statfs *sbp, struct proc *p);
 
-int devfs_init(void) /*proto*/
+static int
+devfs_init(void)
 {
 	printf("devfs ready to run\n");
 	return 0; /*XXX*/
@@ -84,7 +86,8 @@ DBPRINT(("mount "));
 	return 0;
 }
 
-int mountdevfs( struct mount *mp, struct proc *p) /*proto*/
+static int
+mountdevfs( struct mount *mp, struct proc *p)
 {
 	int error = 0;
 	int ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
@@ -113,7 +116,8 @@ int mountdevfs( struct mount *mp, struct proc *p) /*proto*/
 	return error;
 }
 
-int devfs_start(struct mount *mp, int flags, struct proc *p) /*proto*/
+static int
+devfs_start(struct mount *mp, int flags, struct proc *p)
 {
 DBPRINT(("start "));
 	return 0;
@@ -124,7 +128,8 @@ DBPRINT(("start "));
  * Note: vnodes from this FS may hang around if being used..
  * This should not be a problem, they should be self contained.
  */
-int devfs_unmount( struct mount *mp, int mntflags, struct proc *p) /*proto*/
+static int
+devfs_unmount( struct mount *mp, int mntflags, struct proc *p)
 {
 	int flags = 0;
 	int error = 0;
@@ -139,7 +144,8 @@ DBPRINT(("unmount "));
 }
 
 /* return the address of the root vnode  in *vpp */
-int devfs_root(struct mount *mp, struct vnode **vpp) /*proto*/
+static int
+devfs_root(struct mount *mp, struct vnode **vpp)
 {
 	struct devfsmount *devfs_mp_p = (struct devfsmount *)(mp->mnt_data);
 
@@ -148,13 +154,15 @@ DBPRINT(("root "));
 	return 0;
 }
 
-int devfs_quotactl( struct mount *mp, int cmds, uid_t uid, caddr_t arg, struct proc *p) /*proto*/
+static int
+devfs_quotactl( struct mount *mp, int cmds, uid_t uid, caddr_t arg, struct proc *p)
 {
 DBPRINT(("quotactl "));
 	return EOPNOTSUPP;
 }
 
-int devfs_statfs( struct mount *mp, struct statfs *sbp, struct proc *p) /*proto*/
+static int
+devfs_statfs( struct mount *mp, struct statfs *sbp, struct proc *p)
 {
 	struct devfsmount *devfs_mp_p = (struct devfsmount *)mp->mnt_data;
 
@@ -188,13 +196,15 @@ DBPRINT(("statfs "));
 	return 0;
 }
 
-int devfs_sync(struct mount *mp, int waitfor,struct ucred *cred,struct proc *p) /*proto*/
+static int
+devfs_sync(struct mount *mp, int waitfor,struct ucred *cred,struct proc *p)
 {
 DBPRINT(("sync "));
 	return 0;
 }
 
-int devfs_vget(struct mount *mp, ino_t ino,struct vnode **vpp) /*proto*/
+static int
+devfs_vget(struct mount *mp, ino_t ino,struct vnode **vpp)
 {
 DBPRINT(("vget "));
 	return EOPNOTSUPP;
@@ -205,20 +215,22 @@ DBPRINT(("vget "));
  * So don't handle filehandles
  */
 
-int devfs_fhtovp (struct mount *mp, struct fid *fhp, struct mbuf *nam, struct vnode **vpp, int *exflagsp, struct ucred **credanonp) /*proto*/
+static int
+devfs_fhtovp (struct mount *mp, struct fid *fhp, struct mbuf *nam, struct vnode **vpp, int *exflagsp, struct ucred **credanonp)
 {
 DBPRINT(("fhtovp "));
 	return (EINVAL);
 }
 
 
-int devfs_vptofh (struct vnode *vp, struct fid *fhp) /*proto*/
+static int
+devfs_vptofh (struct vnode *vp, struct fid *fhp)
 {
 DBPRINT(("vptofh "));
 	return (EINVAL);
 }
 
-struct vfsops devfs_vfsops = {
+static struct vfsops devfs_vfsops = {
 	devfs_mount,
 	devfs_start,
 	devfs_unmount,

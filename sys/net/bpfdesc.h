@@ -37,7 +37,7 @@
  *
  *      @(#)bpfdesc.h	8.1 (Berkeley) 6/10/93
  *
- * $Id: bpfdesc.h,v 1.4 1994/08/21 05:11:39 paul Exp $
+ * $Id: bpfdesc.h,v 1.5 1995/06/15 18:11:00 pst Exp $
  */
 
 #ifndef _NET_BPFDESC_H_
@@ -100,9 +100,5 @@ struct bpf_if {
 	u_int bif_hdrlen;		/* length of header (with padding) */
 	struct ifnet *bif_ifp;		/* correspoding interface */
 };
-
-#ifdef KERNEL
-int	 bpf_setf __P((struct bpf_d *, struct bpf_program *));
-#endif
 
 #endif

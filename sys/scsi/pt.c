@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: pt.c,v 1.9 1995/12/08 11:18:48 julian Exp $
+ *      $Id: pt.c,v 1.10 1995/12/08 23:22:23 phk Exp $
  */
 
 /*
@@ -63,9 +63,9 @@ struct scsi_data {
 	struct buf_queue_head buf_queue;
 };
 
-void ptstart(u_int32 unit, u_int32 flags);
-void pt_strategy(struct buf *bp, struct scsi_link *sc_link);
-int	pt_sense(struct scsi_xfer *scsi_xfer);
+static void ptstart(u_int32 unit, u_int32 flags);
+static void pt_strategy(struct buf *bp, struct scsi_link *sc_link);
+static int	pt_sense(struct scsi_xfer *scsi_xfer);
 
 static	d_open_t	ptopen;
 static	d_close_t	ptclose;
@@ -81,7 +81,7 @@ static struct cdevsw pt_cdevsw =
 SCSI_DEVICE_ENTRIES(pt)
 
 
-struct scsi_device pt_switch =
+static struct scsi_device pt_switch =
 {
     pt_sense,
     ptstart,			/* we have a queue, and this is how we service it */
@@ -117,7 +117,7 @@ struct scsi_device pt_switch =
  * continues to be drained.
  * ptstart() is called at splbio
  */
-void
+static void
 ptstart(unit, flags)
 	u_int32	unit;
 	u_int32 flags;
@@ -190,10 +190,9 @@ ptstart(unit, flags)
 	} /* go back and see if we can cram more work in.. */
 }
 
-void
+static void
 pt_strategy(struct buf *bp, struct scsi_link *sc_link)
 {
-	struct buf **dp;
 	unsigned char unit;
 	u_int32 opri;
 	struct scsi_data *pt;
@@ -236,7 +235,8 @@ pt_strategy(struct buf *bp, struct scsi_link *sc_link)
  * For the processor type devices we try to handle the "info" field.
  */
 
-int pt_sense(struct scsi_xfer *xs)
+static int
+pt_sense(struct scsi_xfer *xs)
 {
 	struct scsi_sense_data *sense = &(xs->sense);
 	struct buf *bp;

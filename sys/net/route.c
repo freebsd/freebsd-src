@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.c	8.2 (Berkeley) 11/15/93
- *	$Id: route.c,v 1.27 1995/10/29 15:32:14 phk Exp $
+ *	$Id: route.c,v 1.28 1995/12/02 19:28:24 bde Exp $
  */
 
 #include <sys/param.h>
@@ -56,13 +56,16 @@
 #define	SA(p) ((struct sockaddr *)(p))
 
 struct route_cb route_cb;
-struct rtstat rtstat;
+static struct rtstat rtstat;
 struct radix_node_head *rt_tables[AF_MAX+1];
 
-int	rttrash;		/* routes not in table but not freed */
-struct	sockaddr wildcard;	/* zero valued cookie for wildcard searches */
+static int	rttrash;		/* routes not in table but not freed */
 
-void
+static void rt_maskedcopy __P((struct sockaddr *,
+	    struct sockaddr *, struct sockaddr *));
+static void rtable_init __P((void **));
+
+static void
 rtable_init(table)
 	void **table;
 {
@@ -700,7 +703,7 @@ rt_setgate(rt0, dst, gate)
 	return 0;
 }
 
-void
+static void
 rt_maskedcopy(src, dst, netmask)
 	struct sockaddr *src, *dst, *netmask;
 {

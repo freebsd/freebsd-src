@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.31 1995/12/02 17:11:18 bde Exp $
+ * $Id: vm_glue.c,v 1.32 1995/12/07 12:48:11 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -107,6 +107,8 @@ SYSINIT(vm_limits, SI_SUB_VM_CONF, SI_ORDER_FIRST, vm_init_limits, &proc0)
 static void scheduler __P((void *));
 SYSINIT(scheduler, SI_SUB_RUN_SCHEDULER, SI_ORDER_FIRST, scheduler, NULL)
 
+
+static void swapout __P((struct proc *));
 
 extern char kstack[];
 
@@ -505,7 +507,7 @@ retry:
 		wakeup(&proc0);
 }
 
-void
+static void
 swapout(p)
 	register struct proc *p;
 {

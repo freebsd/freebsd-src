@@ -36,17 +36,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)device_pager.h	8.3 (Berkeley) 12/13/93
- * $Id: device_pager.h,v 1.4 1995/07/13 08:48:11 davidg Exp $
+ * $Id: device_pager.h,v 1.5 1995/12/11 04:58:00 dyson Exp $
  */
 
 #ifndef	_DEVICE_PAGER_
 #define	_DEVICE_PAGER_	1
 
-void dev_pager_init __P((void));
-vm_object_t dev_pager_alloc __P((void *, vm_size_t, vm_prot_t, vm_ooffset_t));
-void dev_pager_dealloc __P((vm_object_t));
-int dev_pager_getpages __P((vm_object_t, vm_page_t *, int, int));
-int dev_pager_putpages __P((vm_object_t, vm_page_t *, int, boolean_t, int *));
-boolean_t dev_pager_haspage __P((vm_object_t, vm_pindex_t, int *, int *));
 
 #endif				/* _DEVICE_PAGER_ */

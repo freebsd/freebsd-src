@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_swap.c	8.5 (Berkeley) 2/17/94
- * $Id: vm_swap.c,v 1.31 1995/12/10 19:53:42 bde Exp $
+ * $Id: vm_swap.c,v 1.32 1995/12/13 15:13:57 julian Exp $
  */
 
 #include <sys/param.h>
@@ -52,6 +52,7 @@
 
 #include <miscfs/specfs/specdev.h>
 
+static void swstrategy __P((struct buf *));
 
 #define CDEV_MAJOR 4
 #define BDEV_MAJOR 1
@@ -76,11 +77,12 @@ static struct cdevsw sw_cdevsw =
 static struct swdevt should_be_malloced[NSWAPDEV];
 static struct swdevt *swdevt = should_be_malloced;
 struct vnode *swapdev_vp;
+/* XXX swapinfo(8) needs this one I belive */
 int nswap;			/* first block after the interleaved devs */
 static int nswdev = NSWAPDEV;
 int vm_swap_size;
 
-void
+static void
 swstrategy(bp)
 	register struct buf *bp;
 {
