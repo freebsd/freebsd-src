@@ -23,3 +23,6 @@
 # ava assembler/linker Uros Platise <uros.platise@ijs.si>
 0       string          avaobj  AVR assembler object code
 >7      string          >\0     version '%s'
+# gnu gmon magic From: Eugen Dedu <dedu@ese-metz.fr>
+0	string		gmon		GNU prof performance data
+>4	long		x		- version %ld

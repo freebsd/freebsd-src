@@ -14,7 +14,7 @@
 #include "readelf.h"
 
 #ifndef lint
-FILE_RCSID("@(#)$Id: readelf.c,v 1.16 2000/08/05 18:18:50 christos Exp $")
+FILE_RCSID("@(#)$Id: readelf.c,v 1.17 2000/08/05 19:00:12 christos Exp $")
 #endif
 
 #ifdef	ELFCORE
@@ -394,8 +394,6 @@ dophn_core(class, swap, fd, off, num, size)
 			offset += nh_descsz;
 			offset = ((offset + 3)/4)*4;
 		}
-	out:
-		;
 	}
 }
 #endif
