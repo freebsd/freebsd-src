@@ -212,18 +212,22 @@ _kvm_open(kd, uf, mf, sf, flag, errout)
 		 * make it work for either /dev/mem or /dev/kmem -- in either
 		 * case you're working with a live kernel.)
 		 */
-		if (strcmp(mf, _PATH_MEM) != 0) {	/* XXX */
+		if (strcmp(mf, _PATH_DEVNULL) == 0) {
+			kd->vmfd = open(_PATH_DEVNULL, O_RDONLY);
+			kd->swfd = open(_PATH_DEVNULL, O_RDONLY);
+		} else if (strcmp(mf, _PATH_MEM) != 0) {
 			_kvm_err(kd, kd->program,
 				 "%s: not physical memory device", mf);
 			goto failed;
-		}
-		if ((kd->vmfd = open(_PATH_KMEM, flag)) < 0) {
-			_kvm_syserr(kd, kd->program, "%s", _PATH_KMEM);
-			goto failed;
-		}
-		if ((kd->swfd = open(sf, flag, 0)) < 0) {
-			_kvm_syserr(kd, kd->program, "%s", sf);
-			goto failed;
+		} else {
+			if ((kd->vmfd = open(_PATH_KMEM, flag)) < 0) {
+				_kvm_syserr(kd, kd->program, "%s", _PATH_KMEM);
+				goto failed;
+			}
+			if ((kd->swfd = open(sf, flag, 0)) < 0) {
+				_kvm_syserr(kd, kd->program, "%s", sf);
+				goto failed;
+			}
 		}
 		/*
 		 * Open kvm nlist database.  We go ahead and do this
@@ -241,7 +245,7 @@ _kvm_open(kd, uf, mf, sf, flag, errout)
 	} else {
 		/*
 		 * This is a crash dump.
-		 * Initalize the virtual address translation machinery,
+		 * Initialize the virtual address translation machinery,
 		 * but first setup the namelist fd.
 		 */
 		if ((kd->nlfd = open(uf, O_RDONLY, 0)) < 0) {
