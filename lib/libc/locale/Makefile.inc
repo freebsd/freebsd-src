@@ -4,14 +4,14 @@
 # locale sources
 .PATH: ${.CURDIR}/${MACHINE_ARCH}/locale ${.CURDIR}/locale
 
-SRCS+=	big5.c btowc.c collate.c collcmp.c euc.c fix_grouping.c frune.c \
+SRCS+=	big5.c btowc.c collate.c collcmp.c euc.c fix_grouping.c \
 	gb18030.c gb2312.c gbk.c isctype.c iswctype.c \
 	ldpart.c lmessages.c lmonetary.c lnumeric.c localeconv.c mblen.c \
 	mbrlen.c \
-	mbrtowc.c mbrune.c mbsinit.c mbsnrtowcs.c \
+	mbrtowc.c mbsinit.c mbsnrtowcs.c \
 	mbsrtowcs.c mbtowc.c mbstowcs.c \
 	mskanji.c nextwctype.c nl_langinfo.c nomacros.c none.c rune.c \
-	runetype.c setinvalidrune.c setlocale.c setrunelocale.c srune.c \
+	runetype.c setlocale.c setrunelocale.c \
 	table.c \
 	tolower.c toupper.c utf8.c wcrtomb.c wcsnrtombs.c \
 	wcsrtombs.c wcsftime.c \
@@ -27,10 +27,9 @@ MAN+=	btowc.3 \
 	ispunct.3 isrune.3 isspace.3 isspecial.3 \
 	isupper.3 iswalnum.3 isxdigit.3 localeconv.3 mblen.3 mbrlen.3 \
 	mbrtowc.3 \
-	mbrune.3 mbsinit.3 \
+	mbsinit.3 \
 	mbsrtowcs.3 mbstowcs.3 mbtowc.3 multibyte.3 \
 	nextwctype.3 nl_langinfo.3 \
-	rune.3 \
 	setlocale.3 toascii.3 tolower.3 toupper.3 towlower.3 towupper.3 \
 	wcsftime.3 \
 	wcrtomb.3 \
@@ -48,11 +47,7 @@ MLINKS+=iswalnum.3 iswalpha.3 iswalnum.3 iswascii.3 iswalnum.3 iswblank.3 \
 	iswalnum.3 iswrune.3 iswalnum.3 iswspace.3 iswalnum.3 iswspecial.3 \
 	iswalnum.3 iswupper.3 iswalnum.3 iswxdigit.3
 MLINKS+=isxdigit.3 ishexnumber.3
-MLINKS+=mbrune.3 mbmb.3 mbrune.3 mbrrune.3
 MLINKS+=mbsrtowcs.3 mbsnrtowcs.3
-MLINKS+=rune.3 fgetrune.3 rune.3 fputrune.3 rune.3 fungetrune.3 \
-	rune.3 setinvalidrune.3 rune.3 setrunelocale.3 rune.3 sgetrune.3 \
-	rune.3 sputrune.3
 MLINKS+=wcsrtombs.3 wcsnrtombs.3
 MLINKS+=wcstod.3 wcstof.3 wcstod.3 wcstold.3
 MLINKS+=wcstol.3 wcstoul.3 wcstol.3 wcstoll.3 wcstol.3 wcstoull.3 \
