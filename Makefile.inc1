@@ -640,10 +640,13 @@ legacy:
 _strfile=	games/fortune/strfile
 .endif
 
+.if !defined(NO_CXX)
+_gperf=	gnu/usr.bin/gperf
 .if ${BOOTSTRAPPING} < 500113
 _groff=		gnu/usr.bin/groff
 .else
 _groff=		gnu/usr.bin/groff/tmac
+.endif
 .endif
 
 .if ( ${BOOTSTRAPPING} < 450005 || \
@@ -670,7 +673,7 @@ bootstrap-tools:
     usr.bin/makewhatis usr.bin/rpcgen ${_uudecode} \
     ${_xargs} usr.bin/xinstall ${_yacc} \
     usr.sbin/config ${_kbdcontrol} \
-    gnu/usr.bin/gperf ${_groff} gnu/usr.bin/texinfo
+    ${_gperf} ${_groff} gnu/usr.bin/texinfo
 	@${ECHODIR} "===> ${_tool}"; \
 		cd ${.CURDIR}/${_tool}; \
 		${MAKE} DIRPRFX=${_tool}/ obj; \
