@@ -98,9 +98,7 @@ uart_pccard_probe(dev)
 	struct uart_softc *sc;
 	sc = device_get_softc(dev);
 	sc->sc_class = &uart_ns8250_class;
-#ifdef PC98
-	SET_FLAG(dev, SET_IFTYPE(COM_IF_MODEM_CARD));
-#endif
+
 	/* Do not probe IRQ - pccard doesn't turn on the interrupt line */
 	/* until bus_setup_intr but how can I do so?*/
 	return (uart_bus_probe(dev, 0, 0, 0));
