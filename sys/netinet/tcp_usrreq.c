@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)tcp_usrreq.c	8.2 (Berkeley) 1/3/94
- *	$Id: tcp_usrreq.c,v 1.22 1996/03/11 15:13:37 davidg Exp $
+ *	$Id: tcp_usrreq.c,v 1.23 1996/07/11 16:32:38 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -398,7 +398,7 @@ tcp_usrreq(so, req, m, nam, control)
 #ifdef TCPDEBUG
 #define	TCPDEBUG0	int ostate
 #define	TCPDEBUG1()	ostate = tp ? tp->t_state : 0
-#define	TCPDEBUG2(req)	if (tp && (so->so_options & SO_DEBUG)) && \
+#define	TCPDEBUG2(req)	if (tp && (so->so_options & SO_DEBUG)) \
 				tcp_trace(TA_USER, ostate, tp, 0, req)
 #else
 #define	TCPDEBUG0
