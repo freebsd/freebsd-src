@@ -96,7 +96,7 @@ int getent __P((char *, char *, char *));
 int tnchktc __P((void));
 int tnamatch __P((char *));
 static char *tskip __P((char *));
-long long tgetnum __P((char *));
+int64_t tgetnum __P((char *));
 int tgetflag __P((char *));
 char *tgetstr __P((char *, char **));
 static char *tdecode __P((char *, char **));
@@ -308,11 +308,11 @@ breakbreak:
  * a # character.  If the option is not found we return -1.
  * Note that we handle octal numbers beginning with 0.
  */
-long long
+int64_t
 tgetnum(id)
 	char *id;
 {
-	long long i;
+	int64_t i;
 	int base;
 	char *bp = tbuf;
 

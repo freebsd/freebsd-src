@@ -85,7 +85,7 @@ getconfig(intface)
 	char tbuf[BUFSIZ];
 	struct rainfo *tmp;
 	long val;
-	long long val64;
+	int64_t val64;
 	char buf[BUFSIZ];
 	char *bp = buf;
 	char *addr;
@@ -93,7 +93,7 @@ getconfig(intface)
 
 #define MUSTHAVE(var, cap)	\
     do {								\
-	int t;								\
+	int64_t t;							\
 	if ((t = agetnum(cap)) < 0) {					\
 		fprintf(stderr, "rtadvd: need %s for interface %s\n",	\
 			cap, intface);					\
