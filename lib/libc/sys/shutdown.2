@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)shutdown.2	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
 .\"
 .Dd June 4, 1993
 .Dt SHUTDOWN 2
@@ -50,13 +51,19 @@ the socket associated with
 to be shut down.
 If
 .Fa how
-is 0, further receives will be disallowed.
+is 
+.No Dv SHUT_RD Pq 0 ,
+further receives will be disallowed.
 If
 .Fa how
-is 1, further sends will be disallowed.
+is
+.No Dv SHUT_WR Pq 1 ,
+further sends will be disallowed.
 If
 .Fa how
-is 2, further sends and receives will be disallowed.
+is 
+.No Dv SHUT_RDWR Pq 2 ,
+further sends and receives will be disallowed.
 .Sh RETURN VALUES
 A 0 is returned if the call succeeds, -1 if it fails.
 .Sh ERRORS
@@ -74,8 +81,19 @@ The specified socket is not connected.
 .Sh SEE ALSO
 .Xr connect 2 ,
 .Xr socket 2
+.Sh STANDARDS
+The
+.Fn shutdown
+function is expected to comply with
+.St -p1003.1g ,
+when finalized.
 .Sh HISTORY
 The
 .Fn shutdown
 function call appeared in
 .Bx 4.2 .
+The
+.Dv SHUT_
+constants appeared in
+.St -p1003.1g .
+
