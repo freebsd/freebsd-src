@@ -456,10 +456,12 @@ do_irix-shared:
 		if [ "${SHLIBDIRS}" = "ssl" -a -n "$(LIBKRB5)" ]; then \
 			libs="$(LIBKRB5) $$libs"; \
 		fi; \
-		( set -x; ${CC} ${SHARED_LDFLAGS} \
+		( WHOLELIB="-all lib$$i.a -notall"; \
+		  (${CC} -v 2>&1 | grep gcc) > /dev/null && WHOLELIB="-Wl,-all,lib$$i.a,-notall"; \
+		  set -x; ${CC} ${SHARED_LDFLAGS} \
 			-shared -o lib$$i.so.${SHLIB_MAJOR}.${SHLIB_MINOR} \
 			-Wl,-soname,lib$$i.so.${SHLIB_MAJOR}.${SHLIB_MINOR} \
-			-all lib$$i.a $$libs ${EX_LIBS} -lc) || exit 1; \
+			$${WHOLELIB} $$libs ${EX_LIBS} -lc) || exit 1; \
 		libs="-l$$i $$libs"; \
 		done; \
 	fi
@@ -832,7 +834,7 @@ install: all install_docs
 		fi; \
 	fi
 	cp openssl.pc $(INSTALL_PREFIX)$(INSTALLTOP)/lib/pkgconfig
-	chmod 644 $(INSTALL_PREFIX)$(INSTALLTOP)/lib/pkgconfig
+	chmod 644 $(INSTALL_PREFIX)$(INSTALLTOP)/lib/pkgconfig/openssl.pc
 
 install_docs:
 	@$(PERL) $(TOP)/util/mkdir-p.pl \
@@ -857,6 +859,7 @@ install_docs:
 			>  $(INSTALL_PREFIX)$(MANDIR)/man$$sec/$$fn.$${sec}$(MANSUFFIX); \
 		$(PERL) util/extract-names.pl < $$i | \
 			grep -v $$filecase "^$$fn\$$" | \
+			grep -v "[	]" | \
 			(cd $(INSTALL_PREFIX)$(MANDIR)/man$$sec/; \
 			 while read n; do \
 				$$here/util/point.sh $$fn.$${sec}$(MANSUFFIX) "$$n".$${sec}$(MANSUFFIX); \
@@ -873,6 +876,7 @@ install_docs:
 			>  $(INSTALL_PREFIX)$(MANDIR)/man$$sec/$$fn.$${sec}$(MANSUFFIX); \
 		$(PERL) util/extract-names.pl < $$i | \
 			grep -v $$filecase "^$$fn\$$" | \
+			grep -v "[	]" | \
 			(cd $(INSTALL_PREFIX)$(MANDIR)/man$$sec/; \
 			 while read n; do \
 				$$here/util/point.sh $$fn.$${sec}$(MANSUFFIX) "$$n".$${sec}$(MANSUFFIX); \
