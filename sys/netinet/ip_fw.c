@@ -77,6 +77,7 @@ static int fw_verbose_limit = IPFIREWALL_VERBOSE_LIMIT;
 #else
 static int fw_verbose_limit = 0;
 #endif
+static int fw_permanent_rules = 0;
 
 /*
  * Right now, two fields in the IP header are changed to host format
@@ -107,6 +108,8 @@ SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, verbose, CTLFLAG_RW,
     &fw_verbose, 0, "Log matches to ipfw rules");
 SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, verbose_limit, CTLFLAG_RW, 
     &fw_verbose_limit, 0, "Set upper limit of matches of ipfw rules logged");
+SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, permanent_rules, CTLFLAG_RW, 
+    &fw_permanent_rules, 0, "Set rule number, below which rules are permanent");
 
 /*
  * Extension for stateful ipfw.
@@ -1898,16 +1901,22 @@ ip_fw_ctl(struct sockopt *sopt)
 		s = splnet();
 		remove_dyn_rule(NULL, 1 /* force delete */);
 		splx(s);
-		while ( (fcp = LIST_FIRST(&ip_fw_chain_head)) &&
-		     fcp->rule->fw_number != IPFW_DEFAULT_RULE ) {
-			s = splnet();
-			LIST_REMOVE(fcp, next);
+		fcp = LIST_FIRST(&ip_fw_chain_head);
+		while (fcp) {
+			struct ip_fw_chain *next;
+			next = LIST_NEXT(fcp, next);
+			if (fcp->rule->fw_number > fw_permanent_rules &&
+			     fcp->rule->fw_number != IPFW_DEFAULT_RULE ) {
+				s = splnet();
+				LIST_REMOVE(fcp, next);
 #ifdef DUMMYNET
-			dn_rule_delete(fcp);
+				dn_rule_delete(fcp);
 #endif
-			FREE(fcp->rule, M_IPFW);
-			FREE(fcp, M_IPFW);
-			splx(s);
+				FREE(fcp->rule, M_IPFW);
+				FREE(fcp, M_IPFW);
+				splx(s);
+			}
+			fcp = next;
 		}
 		break;
 
