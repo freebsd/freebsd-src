@@ -130,7 +130,7 @@ ppsattach(device_t dev)
 	sc->ppbus = ppbus;
 	unit = device_get_unit(ppbus);
 	d = make_dev(&pps_cdevsw, unit,
-	    UID_ROOT, GID_WHEEL, 0644, PPS_NAME "%d", unit);
+	    UID_ROOT, GID_WHEEL, 0600, PPS_NAME "%d", unit);
 	sc->devs[0] = d;
 	sc->pps[0].ppscap = PPS_CAPTUREASSERT | PPS_ECHOASSERT;
 	d->si_drv1 = sc;
@@ -178,7 +178,7 @@ ppsattach(device_t dev)
 
 		for (i = 1; i < 9; i++) {
 			d = make_dev(&pps_cdevsw, unit + 0x10000 * i,
-			  UID_ROOT, GID_WHEEL, 0644, PPS_NAME "%db%d", unit, i - 1);
+			  UID_ROOT, GID_WHEEL, 0600, PPS_NAME "%db%d", unit, i - 1);
 			sc->devs[i] = d;
 			sc->pps[i].ppscap = PPS_CAPTUREASSERT | PPS_CAPTURECLEAR;
 			d->si_drv1 = sc;
