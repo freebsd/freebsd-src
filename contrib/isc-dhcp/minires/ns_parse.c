@@ -16,7 +16,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: ns_parse.c,v 1.2 2001/01/16 22:33:08 mellon Exp $";
+static const char rcsid[] = "$Id: ns_parse.c,v 1.2.2.1 2002/02/19 19:16:52 mellon Exp $";
 #endif
 
 /* Import. */
@@ -37,8 +37,6 @@ static const char rcsid[] = "$Id: ns_parse.c,v 1.2 2001/01/16 22:33:08 mellon Ex
 static void	setsection(ns_msg *msg, ns_sect sect);
 
 /* Macros. */
-
-#define RETERR(err) do { errno = (err); return (-1); } while (0)
 
 /* Public. */
 
@@ -62,8 +60,9 @@ struct _ns_flagdata _ns_flagdata[16] = {
 	{ 0x0000, 0 },		/* expansion (6/6). */
 };
 
-int
-ns_skiprr(const u_char *ptr, const u_char *eom, ns_sect section, int count) {
+isc_result_t
+ns_skiprr(const u_char *ptr, const u_char *eom, ns_sect section, int count,
+	  int *rc) {
 	const u_char *optr = ptr;
 
 	for ((void)NULL; count > 0; count--) {
@@ -71,11 +70,11 @@ ns_skiprr(const u_char *ptr, const u_char *eom, ns_sect section, int count) {
 
 		b = dn_skipname(ptr, eom);
 		if (b < 0)
-			RETERR(EMSGSIZE);
+			return ISC_R_INCOMPLETE;
 		ptr += b/*Name*/ + NS_INT16SZ/*Type*/ + NS_INT16SZ/*Class*/;
 		if (section != ns_s_qd) {
 			if (ptr + NS_INT32SZ + NS_INT16SZ > eom)
-				RETERR(EMSGSIZE);
+				return ISC_R_INCOMPLETE;
 			ptr += NS_INT32SZ/*TTL*/;
 			rdlength = getUShort(ptr);
 			ptr += 2;
@@ -83,11 +82,13 @@ ns_skiprr(const u_char *ptr, const u_char *eom, ns_sect section, int count) {
 		}
 	}
 	if (ptr > eom)
-		RETERR(EMSGSIZE);
-	return (ptr - optr);
+		return ISC_R_INCOMPLETE;
+	if (rc)
+		*rc = ptr - optr;
+	return ISC_R_SUCCESS;
 }
 
-int
+isc_result_t
 ns_initparse(const u_char *msg, unsigned msglen, ns_msg *handle) {
 	const u_char *eom = msg + msglen;
 	int i;
@@ -96,16 +97,16 @@ ns_initparse(const u_char *msg, unsigned msglen, ns_msg *handle) {
 	handle->_msg = msg;
 	handle->_eom = eom;
 	if (msg + NS_INT16SZ > eom)
-		RETERR(EMSGSIZE);
+		return ISC_R_INCOMPLETE;
 	handle->_id = getUShort (msg);
 	msg += 2;
 	if (msg + NS_INT16SZ > eom)
-		RETERR(EMSGSIZE);
+		return ISC_R_INCOMPLETE;
 	handle->_flags = getUShort (msg);
 	msg += 2;
 	for (i = 0; i < ns_s_max; i++) {
 		if (msg + NS_INT16SZ > eom)
-			RETERR(EMSGSIZE);
+			return ISC_R_INCOMPLETE;
 		handle->_counts[i] = getUShort (msg);
 		msg += 2;
 	}
@@ -113,23 +114,26 @@ ns_initparse(const u_char *msg, unsigned msglen, ns_msg *handle) {
 		if (handle->_counts[i] == 0)
 			handle->_sections[i] = NULL;
 		else {
-			int b = ns_skiprr(msg, eom, (ns_sect)i,
-					  handle->_counts[i]);
+			int b;
+			isc_result_t status =
+				ns_skiprr(msg, eom, (ns_sect)i,
+					  handle->_counts[i], &b);
 
-			if (b < 0)
-				return (-1);
+			if (status != ISC_R_SUCCESS)
+				return STATUS;
 			handle->_sections[i] = msg;
 			msg += b;
 		}
 	if (msg != eom)
-		RETERR(EMSGSIZE);
+		return ISC_R_INCOMPLETE;
 	setsection(handle, ns_s_max);
-	return (0);
+	return ISC_R_SUCCESS;
 }
 
 isc_result_t
 ns_parserr(ns_msg *handle, ns_sect section, int rrnum, ns_rr *rr) {
 	int b;
+	isc_result_t status;
 
 	/* Make section right. */
 	if (section < 0 || section >= ns_s_max)
@@ -141,15 +145,15 @@ ns_parserr(ns_msg *handle, ns_sect section, int rrnum, ns_rr *rr) {
 	if (rrnum == -1)
 		rrnum = handle->_rrnum;
 	if (rrnum < 0 || rrnum >= handle->_counts[(int)section])
-		RETERR(ENODEV);
+		return ISC_R_UNKNOWNATTRIBUTE;
 	if (rrnum < handle->_rrnum)
 		setsection(handle, section);
 	if (rrnum > handle->_rrnum) {
-		b = ns_skiprr(handle->_ptr, handle->_eom, section,
-			      rrnum - handle->_rrnum);
+		status = ns_skiprr(handle->_ptr, handle->_eom, section,
+			      rrnum - handle->_rrnum, &b);
 
-		if (b < 0)
-			return (-1);
+		if (status != ISC_R_SUCCESS)
+			return status;
 		handle->_ptr += b;
 		handle->_rrnum = rrnum;
 	}
@@ -158,10 +162,10 @@ ns_parserr(ns_msg *handle, ns_sect section, int rrnum, ns_rr *rr) {
 	b = dn_expand(handle->_msg, handle->_eom,
 		      handle->_ptr, rr->name, NS_MAXDNAME);
 	if (b < 0)
-		return (-1);
+		return ISC_R_FORMERR;
 	handle->_ptr += b;
 	if (handle->_ptr + NS_INT16SZ + NS_INT16SZ > handle->_eom)
-		return ISC_R_NOSPACE;
+		return ISC_R_INCOMPLETE;
 	rr->type = getUShort (handle->_ptr);
 	handle -> _ptr += 2;
 	rr->rr_class = getUShort (handle->_ptr);
@@ -172,13 +176,13 @@ ns_parserr(ns_msg *handle, ns_sect section, int rrnum, ns_rr *rr) {
 		rr->rdata = NULL;
 	} else {
 		if (handle->_ptr + NS_INT32SZ + NS_INT16SZ > handle->_eom)
-			return ISC_R_NOSPACE;
+			return ISC_R_INCOMPLETE;
 		rr->ttl = getULong (handle->_ptr);
 		handle -> _ptr += 4;
 		rr->rdlength = getUShort (handle->_ptr);
 		handle -> _ptr += 2;
 		if (handle->_ptr + rr->rdlength > handle->_eom)
-			return ISC_R_NOSPACE;
+			return ISC_R_INCOMPLETE;
 		rr->rdata = handle->_ptr;
 		handle->_ptr += rr->rdlength;
 	}
