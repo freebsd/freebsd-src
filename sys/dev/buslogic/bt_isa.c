@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bt_isa.c,v 1.7 1999/04/06 21:15:18 phk Exp $
+ *	$Id: bt_isa.c,v 1.8 1999/04/18 15:50:35 peter Exp $
  */
 
 #include <sys/param.h>
@@ -105,9 +105,9 @@ bt_isa_release_resources(device_t dev)
 	if (bt->port)
 		bus_release_resource(dev, SYS_RES_IOPORT, 0, bt->port);
 	if (bt->irq)
-		bus_release_resource(dev, SYS_RES_IOPORT, 0, bt->irq);
+		bus_release_resource(dev, SYS_RES_IRQ, 0, bt->irq);
 	if (bt->drq)
-		bus_release_resource(dev, SYS_RES_IOPORT, 0, bt->drq);
+		bus_release_resource(dev, SYS_RES_DRQ, 0, bt->drq);
 	bt_free_softc(dev);
 }
 
@@ -169,6 +169,7 @@ bt_isa_probe(device_t dev)
 
 		bt_isa_release_resources(dev);
 
+		isa_set_port(dev, ioport);
 		isa_set_drq(dev, info.drq);
 		isa_set_irq(dev, info.irq);
 
@@ -188,7 +189,7 @@ bt_isa_attach(device_t dev)
 	bus_dma_filter_t *filter;
 	void		 *filter_arg;
 	bus_addr_t	 lowaddr;
-	int		 error;
+	int		 error, drq;
 
 	/* Initialise softc */
 	error = bt_isa_alloc_resources(dev);
@@ -196,6 +197,10 @@ bt_isa_attach(device_t dev)
 		device_printf(dev, "can't allocate resources in bt_isa_attach\n");
 		return error;
 	}
+
+	/* Program the DMA channel for external control */
+	if ((drq = isa_get_drq(dev)) != -1)
+		isa_dmacascade(drq);
 
 	/* Allocate our parent dmatag */
 	filter = NULL;
@@ -236,7 +241,8 @@ bt_isa_attach(device_t dev)
                 return (ENOMEM);
         }                              
 
-        if (bt_init(dev)) {
+        error = bt_init(dev);
+        if (error) {
 		bt_isa_release_resources(dev);
                 return (ENOMEM);
         }
