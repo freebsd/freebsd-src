@@ -47,6 +47,7 @@ Boolean		RunningAsInit;	/* Are we running as init? */
 Boolean		DialogActive;	/* Is libdialog initialized? */
 Boolean		ColorDisplay;	/* Are we on a color display? */
 Boolean		OnVTY;		/* Are we on a VTY? */
+Boolean		USAResident;	/* Are we cryptographically challenged? */
 Variable	*VarHead;	/* The head of the variable chain */
 Device		*mediaDevice;	/* Where we're installing from */
 int		BootMgr;	/* Which boot manager we're using */
@@ -68,4 +69,5 @@ globalsInit(void)
     VarHead = NULL;
     mediaDevice = NULL;
     RunningAsInit = FALSE;
+    USAResident = TRUE;
 }

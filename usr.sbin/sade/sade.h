@@ -340,6 +340,7 @@ extern Boolean		RunningAsInit;		/* Are we running stand-alone?			*/
 extern Boolean		DialogActive;		/* Is the dialog() stuff up?			*/
 extern Boolean		ColorDisplay;		/* Are we on a color display?			*/
 extern Boolean		OnVTY;			/* On a syscons VTY?				*/
+Boolean			USAResident;		/* Are we cryptographically challenged? */
 extern Variable		*VarHead;		/* The head of the variable chain		*/
 extern Device		*mediaDevice;		/* Where we're getting our distribution from	*/
 extern unsigned int	Dists;			/* Which distributions we want			*/
@@ -420,6 +421,7 @@ extern void	command_func_add(char *key, commandFunc func, void *data);
 extern void	configEnvironmentRC_conf(void);
 extern void	configEnvironmentResolv(char *config);
 extern void	configRC_conf(void);
+extern void	configMake_conf(char *config);
 extern int	configFstab(dialogMenuItem *self);
 extern int	configRC(dialogMenuItem *self);
 extern int	configResolv(dialogMenuItem *self);
