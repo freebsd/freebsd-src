@@ -1222,7 +1222,9 @@ again:
 
 			if (f->fw_tcpopt != f->fw_tcpnopt && !tcpopts_match(tcp, f))
 				continue;
-			if (f->fw_tcpf != f->fw_tcpnf && !tcpflg_match(tcp, f))
+			if (((f->fw_tcpf != f->fw_tcpnf) ||
+			    (f->fw_ipflg & IP_FW_IF_TCPEST)) &&
+			    !tcpflg_match(tcp, f))
 				continue;
 			goto check_ports;
 		    }
