@@ -761,14 +761,13 @@ out:	if (((m = m0)->m_flags & M_PKTHDR) && (m->m_pkthdr.len < totlen))
  */
 int
 m_apply(struct mbuf *m, int off, int len,
-    int (*f)(void *, caddr_t, unsigned int), void *arg)
+    int (*f)(void *, void *, u_int), void *arg)
 {
-	unsigned int count;
+	u_int count;
 	int rval;
 
 	KASSERT(off >= 0, ("m_apply, negative off %d", off));
 	KASSERT(len >= 0, ("m_apply, negative len %d", len));
-
 	while (off > 0) {
 		KASSERT(m != NULL, ("m_apply, offset > size of mbuf chain"));
 		if (off < m->m_len)
@@ -779,16 +778,13 @@ m_apply(struct mbuf *m, int off, int len,
 	while (len > 0) {
 		KASSERT(m != NULL, ("m_apply, offset > size of mbuf chain"));
 		count = min(m->m_len - off, len);
-
 		rval = (*f)(arg, mtod(m, caddr_t) + off, count);
 		if (rval)
 			return (rval);
-
 		len -= count;
 		off = 0;
 		m = m->m_next;
 	}
-
 	return (0);
 }
 
@@ -800,25 +796,23 @@ m_getptr(struct mbuf *m, int loc, int *off)
 {
 
 	while (loc >= 0) {
-		/* Normal end of search */
+		/* Normal end of search. */
 		if (m->m_len > loc) {
 			*off = loc;
 			return (m);
 		} else {
 			loc -= m->m_len;
-
 			if (m->m_next == NULL) {
 				if (loc == 0) {
-					/* Point at the end of valid data */
+					/* Point at the end of valid data. */
 					*off = m->m_len;
 					return (m);
-				} else
-					return (NULL);
-			} else
-				m = m->m_next;
+				}
+				return (NULL);
+			}
+			m = m->m_next;
 		}
 	}
-
 	return (NULL);
 }
 

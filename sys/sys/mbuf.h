@@ -436,7 +436,7 @@ extern	int nsfbufs;			/* Number of sendfile(2) bufs */
 void		 _mext_free(struct mbuf *);
 void		 m_adj(struct mbuf *, int);
 int		 m_apply(struct mbuf *, int, int,
-		 int (*)(void *, caddr_t, unsigned int), void *);
+		 int (*)(void *, void *, unsigned int), void *);
 void		 m_cat(struct mbuf *, struct mbuf *);
 void		 m_chtype(struct mbuf *, short);
 void		 m_clget(struct mbuf *, int);
