@@ -1,21 +1,21 @@
 /* Specific flags and argument handling of the Fortran front-end.
-   Copyright (C) 1997, 1999, 2000, 2001, 2002, 2003
+   Copyright (C) 1997, 1999, 2000, 2001, 2002, 2003, 2004
    Free Software Foundation, Inc.
 
-This file is part of GNU CC.
+This file is part of GCC.
 
-GNU CC is free software; you can redistribute it and/or modify
+GCC is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
-GNU CC is distributed in the hope that it will be useful,
+GCC is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU CC; see the file COPYING.  If not, write to
+along with GCC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
@@ -49,7 +49,10 @@ Boston, MA 02111-1307, USA.  */
 
 #include "config.h"
 #include "system.h"
+#include "coretypes.h"
+#include "tm.h"
 #include "gcc.h"
+#include "intl.h"
 
 #ifndef MATH_LIBRARY
 #define MATH_LIBRARY "-lm"
@@ -103,9 +106,8 @@ typedef enum
 /* The original argument list and related info is copied here.  */
 static int g77_xargc;
 static const char *const *g77_xargv;
-static void lookup_option PARAMS ((Option *, int *, const char **,
-				   const char *));
-static void append_arg PARAMS ((const char *));
+static void lookup_option (Option *, int *, const char **, const char *);
+static void append_arg (const char *);
 
 /* The new argument list will be built here.  */
 static int g77_newargc;
@@ -128,11 +130,7 @@ static const char **g77_newargv;
    to short ones, where available, has already been run.  */
 
 static void
-lookup_option (xopt, xskip, xarg, text)
-     Option *xopt;
-     int *xskip;
-     const char **xarg;
-     const char *text;
+lookup_option (Option *xopt, int *xskip, const char **xarg, const char *text)
 {
   Option opt = OPTION_;
   int skip;
@@ -215,8 +213,7 @@ lookup_option (xopt, xskip, xarg, text)
    the new arg count.  Otherwise allocate a new list, etc.  */
 
 static void
-append_arg (arg)
-     const char *arg;
+append_arg (const char *arg)
 {
   static int newargsize;
 
@@ -238,7 +235,7 @@ append_arg (arg)
       int i;
 
       newargsize = (g77_xargc << 2) + 20;	/* This should handle all. */
-      g77_newargv = (const char **) xmalloc (newargsize * sizeof (char *));
+      g77_newargv = xmalloc (newargsize * sizeof (char *));
 
       /* Copy what has been done so far.  */
       for (i = 0; i < g77_newargc; ++i)
@@ -252,10 +249,8 @@ append_arg (arg)
 }
 
 void
-lang_specific_driver (in_argc, in_argv, in_added_libraries)
-     int *in_argc;
-     const char *const **in_argv;
-     int *in_added_libraries ATTRIBUTE_UNUSED;
+lang_specific_driver (int *in_argc, const char *const **in_argv,
+		      int *in_added_libraries ATTRIBUTE_UNUSED)
 {
   int argc = *in_argc;
   const char *const *argv = *in_argv;
@@ -374,16 +369,17 @@ lang_specific_driver (in_argc, in_argv, in_added_libraries)
 	  break;
 
 	case OPTION_version:
-	  printf ("\
-GNU Fortran (GCC) %s\n\
-Copyright (C) 2002 Free Software Foundation, Inc.\n\
-\n\
+	  printf ("GNU Fortran (GCC) %s\n", version_string);
+	  printf ("Copyright %s 2004 Free Software Foundation, Inc.\n",
+		  _("(C)"));
+	  printf ("\n");
+	  printf (_("\
 GNU Fortran comes with NO WARRANTY, to the extent permitted by law.\n\
 You may redistribute copies of GNU Fortran\n\
 under the terms of the GNU General Public License.\n\
 For more information about these matters, see the file named COPYING\n\
 or type the command `info -f g77 Copying'.\n\
-", version_string);
+"));
 	  exit (0);
 	  break;
 
@@ -472,11 +468,7 @@ or type the command `info -f g77 Copying'.\n\
 	saw_library = 0;	/* -xfoo currently active. */
       else
 	{			/* -lfoo or filename. */
-	  if (strcmp (argv[i], MATH_LIBRARY) == 0
-#ifdef ALT_LIBM
-	      || strcmp (argv[i], ALT_LIBM) == 0
-#endif
-	      )
+	  if (strcmp (argv[i], MATH_LIBRARY) == 0)
 	    {
 	      if (saw_library == 1)
 		saw_library = 2;	/* -l<library> -lm. */
@@ -561,7 +553,7 @@ or type the command `info -f g77 Copying'.\n\
 }
 
 /* Called before linking.  Returns 0 on success and -1 on failure. */
-int lang_specific_pre_link ()  /* Not used for F77. */
+int lang_specific_pre_link (void)  /* Not used for F77. */
 {
   return 0;
 }
