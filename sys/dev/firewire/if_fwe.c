@@ -58,7 +58,7 @@
 #include <dev/firewire/firewirereg.h>
 #include <dev/firewire/if_fwevar.h>
 
-#define FWEDEBUG	if (fwedebug) printf
+#define FWEDEBUG	if (fwedebug) if_printf
 #define TX_MAX_QUEUE	(FWMAXQUEUE - 1)
 #define RX_MAX_QUEUE	FWMAXQUEUE
 
@@ -210,7 +210,7 @@ fwe_attach(device_t dev)
 #endif
 
 
-	FWEDEBUG("interface %s created.\n", ifp->if_xname);
+	FWEDEBUG(ifp, "interface created\n");
 	return 0;
 }
 
@@ -286,7 +286,7 @@ fwe_init(void *arg)
 	struct mbuf *m;
 	int i;
 
-	FWEDEBUG("initializing %s\n", ifp->if_xname);
+	FWEDEBUG(ifp, "initializing\n");
 
 	/* XXX keep promiscoud mode */
 	ifp->if_flags |= IFF_PROMISC;
@@ -441,7 +441,7 @@ fwe_output_callback(struct fw_xfer *xfer)
 	fwe = (struct fwe_softc *)xfer->sc;
 	ifp = &fwe->fwe_if;
 	/* XXX error check */
-	FWEDEBUG("resp = %d\n", xfer->resp);
+	FWEDEBUG(ifp, "resp = %d\n", xfer->resp);
 	if (xfer->resp != 0)
 		ifp->if_oerrors ++;
 		
@@ -463,12 +463,12 @@ fwe_start(struct ifnet *ifp)
 	struct fwe_softc *fwe = ((struct fwe_eth_softc *)ifp->if_softc)->fwe;
 	int s;
 
-	FWEDEBUG("%s starting\n", ifp->if_xname);
+	FWEDEBUG(ifp, "starting\n");
 
 	if (fwe->dma_ch < 0) {
 		struct mbuf	*m = NULL;
 
-		FWEDEBUG("%s not ready.\n", ifp->if_xname);
+		FWEDEBUG(ifp, "not ready\n");
 
 		s = splimp();
 		do {
@@ -602,7 +602,7 @@ fwe_as_input(struct fw_xferq *xferq)
 				fp->mode.stream.len - ETHER_ALIGN;
 		m->m_pkthdr.rcvif = ifp;
 #if 0
-		FWEDEBUG("%02x %02x %02x %02x %02x %02x\n"
+		FWEDEBUG(ifp, "%02x %02x %02x %02x %02x %02x\n"
 			 "%02x %02x %02x %02x %02x %02x\n"
 			 "%02x %02x %02x %02x\n"
 			 "%02x %02x %02x %02x\n"
