@@ -1,8 +1,8 @@
-#	$Id: Makefile,v 1.11 1994/11/08 03:58:52 phk Exp $
+#	$Id: Makefile,v 1.12 1994/11/08 18:54:33 phk Exp $
 #
 # Doing a make install builds /usr/share/examples
 
-DIRS=etc FreeBSD_version ibcs2 lkm sunrpc syscons
+DIRS=etc FreeBSD_version ibcs2 lkm sunrpc
 
 DDIR=${DESTDIR}/usr/share/examples
 
