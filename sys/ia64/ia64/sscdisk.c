@@ -26,6 +26,7 @@
 #include <sys/mutex.h>
 #include <sys/queue.h>
 #include <sys/sysctl.h>
+#include <sys/proc.h>
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_page.h>
