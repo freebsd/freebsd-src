@@ -1263,7 +1263,7 @@ nfsm_srvstrsiz_xx(int *s, int m, struct mbuf **md, caddr_t *dpos)
 }
 
 int
-nfsm_srvnamesiz_xx(int *s, struct mbuf **md, caddr_t *dpos)
+nfsm_srvnamesiz_xx(int *s, int m, struct mbuf **md, caddr_t *dpos)
 {
 	u_int32_t *tl;
 
@@ -1271,7 +1271,7 @@ nfsm_srvnamesiz_xx(int *s, struct mbuf **md, caddr_t *dpos)
 	if (tl == NULL)
 		return EBADRPC;
 	*s = fxdr_unsigned(int32_t, *tl);
-	if (*s > NFS_MAXNAMLEN)
+	if (*s > m)
 		return NFSERR_NAMETOL;
 	if (*s <= 0)
 		return EBADRPC;
