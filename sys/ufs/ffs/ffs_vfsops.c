@@ -598,7 +598,7 @@ ffs_mountfs(devvp, mp, td)
 
 	/*
 	 * If we are a root mount, drop the E flag so fsck can do its magic.
-	 * We will pick it up again when we remounte R/W.
+	 * We will pick it up again when we remount R/W.
 	 */
 	if (error == 0 && ronly && (mp->mnt_flag & MNT_ROOTFS))
 		error = g_access(cp, 0, 0, -1);
