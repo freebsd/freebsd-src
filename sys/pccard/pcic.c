@@ -457,6 +457,10 @@ pcic_power(struct slot *slt)
 			pcic_setb(sp, PCIC_MISC1, PCIC_MISC1_VCC_33);
 			break;
 		}
+		if (sc->flags & PCIC_RICOH_POWER) {
+			pcic_setb(sp, PCIC_RICOH_MCR2, PCIC_MCR2_VCC_33);
+			break;
+		}
 
 		/*
 		 * Technically, The A, B, C stepping didn't support the 3.3V
@@ -480,6 +484,8 @@ pcic_power(struct slot *slt)
 			pcic_clrb(sp, PCIC_CVSR, PCIC_CVSR_VS);
 		else if (sc->flags & PCIC_PD_POWER)
 			pcic_clrb(sp, PCIC_MISC1, PCIC_MISC1_VCC_33);
+		else if (sc->flags & PCIC_RICOH_POWER)
+			pcic_clrb(sp, PCIC_RICOH_MCR2, PCIC_MCR2_VCC_33);
 		break;
 	}
 	sp->putb(sp, PCIC_POWER, reg);
