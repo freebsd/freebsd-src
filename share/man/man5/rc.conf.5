@@ -428,6 +428,11 @@ must also be set to
 and
 .Xr divert 4
 sockets must be enabled in the kernel.
+If the kernel was not built with
+.Cd "options IPDIVERT" ,
+the
+.Pa ipdivert.ko
+kernel module will be loaded.
 .It Va natd_interface
 .Pq Vt str
 This is the name of the public interface on which
