@@ -124,25 +124,25 @@ display(fd, pw)
 	p = strsep(&bp, ",");
 	if (p)
 	  list[E_NAME].save = strdup(p);
-	if (!list[E_NAME].restricted)
+	if (!list[E_NAME].restricted || !uid)
 	  (void)fprintf(fp, "Full Name: %s\n", p ? p : "");
 	
         p = strsep(&bp, ",");
 	if (p)
 	  list[E_LOCATE].save = strdup(p);
-	if (!list[E_LOCATE].restricted)
+	if (!list[E_LOCATE].restricted || !uid)
 	  (void)fprintf(fp, "Location: %s\n", p ? p : "");
 	
         p = strsep(&bp, ",");
 	if (p)
 	  list[E_BPHONE].save = strdup(p);
-	if (!list[E_BPHONE].restricted)
+	if (!list[E_BPHONE].restricted || !uid)
 	  (void)fprintf(fp, "Office Phone: %s\n", p ? p : "");
 	
         p = strsep(&bp, ",");
 	if (p)
 	  list[E_HPHONE].save = strdup(p);
-	if (!list[E_HPHONE].restricted)
+	if (!list[E_HPHONE].restricted || !uid)
 	  (void)fprintf(fp, "Home Phone: %s\n", p ? p : "");
 
 	(void)fchown(fd, getuid(), getgid());
