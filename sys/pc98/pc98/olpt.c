@@ -232,19 +232,12 @@ static	d_ioctl_t	lptioctl;
 
 #define CDEV_MAJOR 16
 static struct cdevsw lpt_cdevsw = {
-	/* open */	lptopen,
-	/* close */	lptclose,
-	/* read */	noread,
-	/* write */	lptwrite,
-	/* ioctl */	lptioctl,
-	/* poll */	nopoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"lpt",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
+	.d_open =	lptopen,
+	.d_close =	lptclose,
+	.d_write =	lptwrite,
+	.d_ioctl =	lptioctl,
+	.d_name =	"lpt",
+	.d_maj =	CDEV_MAJOR,
 };
 
 static bus_addr_t lpt_iat[] = {0, 2, 4, 6};

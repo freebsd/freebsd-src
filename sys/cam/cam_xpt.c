@@ -636,19 +636,11 @@ static d_close_t xptclose;
 static d_ioctl_t xptioctl;
 
 static struct cdevsw xpt_cdevsw = {
-	/* open */	xptopen,
-	/* close */	xptclose,
-	/* read */	noread,
-	/* write */	nowrite,
-	/* ioctl */	xptioctl,
-	/* poll */	nopoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"xpt",
-	/* maj */	XPT_CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
+	.d_open =	xptopen,
+	.d_close =	xptclose,
+	.d_ioctl =	xptioctl,
+	.d_name =	"xpt",
+	.d_maj =	XPT_CDEV_MAJOR,
 };
 
 static struct intr_config_hook *xpt_config_hook;

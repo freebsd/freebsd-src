@@ -41,19 +41,11 @@ static d_close_t sndstat_close;
 static d_read_t sndstat_read;
 
 static struct cdevsw sndstat_cdevsw = {
-	/* open */	sndstat_open,
-	/* close */	sndstat_close,
-	/* read */	sndstat_read,
-	/* write */	nowrite,
-	/* ioctl */	noioctl,
-	/* poll */	nopoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"sndstat",
-	/* maj */	SND_CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
+	.d_open =	sndstat_open,
+	.d_close =	sndstat_close,
+	.d_read =	sndstat_read,
+	.d_name =	"sndstat",
+	.d_maj =	SND_CDEV_MAJOR,
 };
 
 struct sndstat_entry {

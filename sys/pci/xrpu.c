@@ -44,19 +44,12 @@ static d_mmap_t xrpu_mmap;
 
 #define CDEV_MAJOR 100
 static struct cdevsw xrpu_cdevsw = {
-	/* open */	xrpu_open,
-	/* close */	xrpu_close,
-	/* read */	noread,
-	/* write */	nowrite,
-	/* ioctl */	xrpu_ioctl,
-	/* poll */	nopoll,
-	/* mmap */	xrpu_mmap,
-	/* strategy */	nostrategy,
-	/* name */	"xrpu",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
+	.d_open =	xrpu_open,
+	.d_close =	xrpu_close,
+	.d_ioctl =	xrpu_ioctl,
+	.d_mmap =	xrpu_mmap,
+	.d_name =	"xrpu",
+	.d_maj =	CDEV_MAJOR,
 };
 
 static MALLOC_DEFINE(M_XRPU, "xrpu", "XRPU related");

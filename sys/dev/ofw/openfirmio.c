@@ -66,20 +66,11 @@ static d_ioctl_t openfirm_ioctl;
 #define	OPENFIRM_MINOR	0
 
 static struct cdevsw openfirm_cdevsw = {
-	/* open */	nullopen,
-	/* close */	nullclose,
-	/* read */	noread,
-	/* write */	nowrite,
-	/* ioctl */	openfirm_ioctl,
-	/* poll */	nopoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"openfirm",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
-	/* kqfilter */	nokqfilter
+	.d_open =	nullopen,
+	.d_close =	nullclose,
+	.d_ioctl =	openfirm_ioctl,
+	.d_name =	"openfirm",
+	.d_maj =	CDEV_MAJOR,
 };
 
 static phandle_t lastnode;	/* speed hack */

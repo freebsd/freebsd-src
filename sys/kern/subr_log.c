@@ -67,19 +67,13 @@ static	void logtimeout(void *arg);
 
 #define CDEV_MAJOR 7
 static struct cdevsw log_cdevsw = {
-	/* open */	logopen,
-	/* close */	logclose,
-	/* read */	logread,
-	/* write */	nowrite,
-	/* ioctl */	logioctl,
-	/* poll */	logpoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"log",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
+	.d_open =	logopen,
+	.d_close =	logclose,
+	.d_read =	logread,
+	.d_ioctl =	logioctl,
+	.d_poll =	logpoll,
+	.d_name =	"log",
+	.d_maj =	CDEV_MAJOR,
 };
 
 static struct logsoftc {

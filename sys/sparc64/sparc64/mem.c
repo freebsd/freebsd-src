@@ -79,19 +79,13 @@ static	d_read_t	mmrw;
 
 #define CDEV_MAJOR 2
 static struct cdevsw mem_cdevsw = {
-	/* open */	mmopen,
-	/* close */	mmclose,
-	/* read */	mmrw,
-	/* write */	mmrw,
-	/* ioctl */	noioctl,
-	/* poll */	(d_poll_t *)seltrue,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"mem",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	D_MEM,
+	.d_open =	mmopen,
+	.d_close =	mmclose,
+	.d_read =	mmrw,
+	.d_write =	mmrw,
+	.d_name =	"mem",
+	.d_maj =	CDEV_MAJOR,
+	.d_flags =	D_MEM,
 };
 
 static int

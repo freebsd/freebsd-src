@@ -507,19 +507,7 @@ fore_reset(fup)
  * Driver entry points
  */
 static struct cdevsw fore_cdev = {
-	/* open */	noopen,
-	/* close */	noclose,
-	/* read */	noread,
-	/* write */	nowrite,
-	/* ioctl */	noioctl,
-	/* poll */	nopoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	noname,
-	/* maj */	-1,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
+	.d_maj =	-1,
 };
 
 

@@ -105,19 +105,12 @@ SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_minttllog, CTLFLAG_RW,
 
 #define CDEV_MAJOR 79
 static struct cdevsw ipl_cdevsw = {
-	/* open */	iplopen,
-	/* close */	iplclose,
-	/* read */	iplread,
-	/* write */	nowrite,
-	/* ioctl */	iplioctl,
-	/* poll */	nopoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"ipl",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
+	.d_open =	iplopen,
+	.d_close =	iplclose,
+	.d_read =	iplread,
+	.d_ioctl =	iplioctl,
+	.d_name =	"ipl",
+	.d_maj =	CDEV_MAJOR,
 };
 
 static int

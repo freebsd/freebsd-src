@@ -397,20 +397,16 @@ static	d_ioctl_t	sioioctl;
 
 #define	CDEV_MAJOR	48
 static struct cdevsw sio_cdevsw = {
-	/* open */	sioopen,
-	/* close */	sioclose,
-	/* read */	ttyread,
-	/* write */	siowrite,
-	/* ioctl */	sioioctl,
-	/* poll */	ttypoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	driver_name,
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	D_TTY | D_KQFILTER,
-	/* kqfilter */	ttykqfilter,
+	.d_open =	sioopen,
+	.d_close =	sioclose,
+	.d_read =	ttyread,
+	.d_write =	siowrite,
+	.d_ioctl =	sioioctl,
+	.d_poll =	ttypoll,
+	.d_name =	driver_name,
+	.d_maj =	CDEV_MAJOR,
+	.d_flags =	D_TTY | D_KQFILTER,
+	.d_kqfilter =	ttykqfilter,
 };
 
 static	int	comconsole = -1;

@@ -131,20 +131,13 @@ static d_ioctl_t	netioctl;
 static d_kqfilter_t	netkqfilter;
 
 static struct cdevsw net_cdevsw = {
-	/* open */	netopen,
-	/* close */	netclose,
-	/* read */	noread,
-	/* write */	nowrite,
-	/* ioctl */	netioctl,
-	/* poll */	nopoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"net",
-	/* maj */	MAJOR_AUTO,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	D_KQFILTER,
-	/* kqfilter */	netkqfilter,
+	.d_open =	netopen,
+	.d_close =	netclose,
+	.d_ioctl =	netioctl,
+	.d_name =	"net",
+	.d_maj =	MAJOR_AUTO,
+	.d_flags =	D_KQFILTER,
+	.d_kqfilter =	netkqfilter,
 };
 
 static int

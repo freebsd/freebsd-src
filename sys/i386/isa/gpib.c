@@ -73,19 +73,12 @@ static	d_ioctl_t	gpioctl;
 
 #define CDEV_MAJOR 44
 static struct cdevsw gp_cdevsw = {
-	/* open */	gpopen,
-	/* close */	gpclose,
-	/* read */	noread,
-	/* write */	gpwrite,
-	/* ioctl */	gpioctl,
-	/* poll */	nopoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"gp",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
+	.d_open =	gpopen,
+	.d_close =	gpclose,
+	.d_write =	gpwrite,
+	.d_ioctl =	gpioctl,
+	.d_name =	"gp",
+	.d_maj =	CDEV_MAJOR,
 };
 
 #define	BUFSIZE		1024

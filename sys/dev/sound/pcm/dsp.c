@@ -42,19 +42,15 @@ static d_poll_t dsp_poll;
 static d_mmap_t dsp_mmap;
 
 static struct cdevsw dsp_cdevsw = {
-	/* open */	dsp_open,
-	/* close */	dsp_close,
-	/* read */	dsp_read,
-	/* write */	dsp_write,
-	/* ioctl */	dsp_ioctl,
-	/* poll */	dsp_poll,
-	/* mmap */	dsp_mmap,
-	/* strategy */	nostrategy,
-	/* name */	"dsp",
-	/* maj */	SND_CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
+	.d_open =	dsp_open,
+	.d_close =	dsp_close,
+	.d_read =	dsp_read,
+	.d_write =	dsp_write,
+	.d_ioctl =	dsp_ioctl,
+	.d_poll =	dsp_poll,
+	.d_mmap =	dsp_mmap,
+	.d_name =	"dsp",
+	.d_maj =	SND_CDEV_MAJOR,
 };
 
 #ifdef USING_DEVFS

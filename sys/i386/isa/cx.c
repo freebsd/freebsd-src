@@ -73,20 +73,16 @@ static	d_ioctl_t	cxioctl;
 #define	CDEV_MAJOR	42
 /* Don't make this static, since if_cx.c uses it. */
 struct cdevsw cx_cdevsw = {
-	/* open */	cxopen,
-	/* close */	cxclose,
-	/* read */	ttyread,
-	/* write */	ttywrite,
-	/* ioctl */	cxioctl,
-	/* poll */	ttypoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"cx",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	D_TTY | D_KQFILTER,
-	/* kqfilter */	ttykqfilter,
+	.d_open =	cxopen,
+	.d_close =	cxclose,
+	.d_read =	ttyread,
+	.d_write =	ttywrite,
+	.d_ioctl =	cxioctl,
+	.d_poll =	ttypoll,
+	.d_name =	"cx",
+	.d_maj =	CDEV_MAJOR,
+	.d_flags =	D_TTY | D_KQFILTER,
+	.d_kqfilter =	ttykqfilter,
 };
 
 static void cxoproc (struct tty *tp);

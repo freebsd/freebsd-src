@@ -68,19 +68,12 @@ static	d_read_t	joyread;
 static	d_ioctl_t	joyioctl;
 
 static struct cdevsw joy_cdevsw = {
-	/* open */	joyopen,
-	/* close */	joyclose,
-	/* read */	joyread,
-	/* write */	nowrite,
-	/* ioctl */	joyioctl,
-	/* poll */	nopoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"joy",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
+	.d_open =	joyopen,
+	.d_close =	joyclose,
+	.d_read =	joyread,
+	.d_ioctl =	joyioctl,
+	.d_name =	"joy",
+	.d_maj =	CDEV_MAJOR,
 };
 
 devclass_t joy_devclass;

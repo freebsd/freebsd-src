@@ -147,19 +147,12 @@ Static d_ioctl_t ulptioctl;
 #define ULPT_CDEV_MAJOR 113
 
 Static struct cdevsw ulpt_cdevsw = {
-	/* open */	ulptopen,
-	/* close */	ulptclose,
-	/* read */	noread,
-	/* write */	ulptwrite,
-	/* ioctl */	ulptioctl,
-	/* poll */	nopoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"ulpt",
-	/* maj */	ULPT_CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
+	.d_open =	ulptopen,
+	.d_close =	ulptclose,
+	.d_write =	ulptwrite,
+	.d_ioctl =	ulptioctl,
+	.d_name =	"ulpt",
+	.d_maj =	ULPT_CDEV_MAJOR,
 #if __FreeBSD_version < 500014
 	/* bmaj */	-1
 #endif

@@ -101,19 +101,14 @@ static d_ioctl_t	tapioctl;
 static d_poll_t		tappoll;
 
 static struct cdevsw	tap_cdevsw = {
-	/* open */	tapopen,
-	/* close */	tapclose,
-	/* read */	tapread,
-	/* write */	tapwrite,
-	/* ioctl */	tapioctl,
-	/* poll */	tappoll,
-	/* mmap */	nommap,
-	/* startegy */	nostrategy,
-	/* dev name */	CDEV_NAME,
-	/* dev major */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
+	.d_open =	tapopen,
+	.d_close =	tapclose,
+	.d_read =	tapread,
+	.d_write =	tapwrite,
+	.d_ioctl =	tapioctl,
+	.d_poll =	tappoll,
+	.d_name =	CDEV_NAME,
+	.d_maj =	CDEV_MAJOR,
 };
 
 static int			tapdebug = 0;        /* debug flag   */

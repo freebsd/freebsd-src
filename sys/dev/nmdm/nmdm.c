@@ -70,19 +70,15 @@ static d_ioctl_t	nmdmioctl;
 
 #define	CDEV_MAJOR	18
 static struct cdevsw nmdm_cdevsw = {
-	/* open */	nmdmopen,
-	/* close */	nmdmclose,
-	/* read */	nmdmread,
-	/* write */	nmdmwrite,
-	/* ioctl */	nmdmioctl,
-	/* poll */	ttypoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"pts",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	D_TTY,
+	.d_open =	nmdmopen,
+	.d_close =	nmdmclose,
+	.d_read =	nmdmread,
+	.d_write =	nmdmwrite,
+	.d_ioctl =	nmdmioctl,
+	.d_poll =	ttypoll,
+	.d_name =	"pts",
+	.d_maj =	CDEV_MAJOR,
+	.d_flags =	D_TTY,
 };
 
 #define BUFSIZ 		100		/* Chunk size iomoved to/from user */

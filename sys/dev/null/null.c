@@ -51,37 +51,23 @@ static d_read_t null_read;
 #define ZERO_MINOR	12
 
 static struct cdevsw null_cdevsw = {
-	/* open */	nullopen,
-	/* close */	nullclose,
-	/* read */	null_read,
-	/* write */	null_write,
-	/* ioctl */	null_ioctl,
-	/* poll */	nopoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"null",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
-	/* kqfilter */	NULL
+	.d_open =	nullopen,
+	.d_close =	nullclose,
+	.d_read =	null_read,
+	.d_write =	null_write,
+	.d_ioctl =	null_ioctl,
+	.d_name =	"null",
+	.d_maj =	CDEV_MAJOR,
 };
 
 static struct cdevsw zero_cdevsw = {
-	/* open */	nullopen,
-	/* close */	nullclose,
-	/* read */	zero_read,
-	/* write */	null_write,
-	/* ioctl */	noioctl,
-	/* poll */	nopoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"zero",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	D_MMAP_ANON,
-	/* kqfilter */	NULL
+	.d_open =	nullopen,
+	.d_close =	nullclose,
+	.d_read =	zero_read,
+	.d_write =	null_write,
+	.d_name =	"zero",
+	.d_maj =	CDEV_MAJOR,
+	.d_flags =	D_MMAP_ANON,
 };
 
 static void *zbuf;

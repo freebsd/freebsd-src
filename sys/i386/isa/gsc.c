@@ -193,19 +193,12 @@ static	d_ioctl_t	gscioctl;
 
 #define CDEV_MAJOR 47
 static struct cdevsw gsc_cdevsw = {
-	/* open */	gscopen,
-	/* close */	gscclose,
-	/* read */	gscread,
-	/* write */	nowrite,
-	/* ioctl */	gscioctl,
-	/* poll */	nopoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"gsc",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
+	.d_open =	gscopen,
+	.d_close =	gscclose,
+	.d_read =	gscread,
+	.d_ioctl =	gscioctl,
+	.d_name =	"gsc",
+	.d_maj =	CDEV_MAJOR,
 };
 
 

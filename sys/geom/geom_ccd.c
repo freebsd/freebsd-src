@@ -115,19 +115,11 @@ static d_ioctl_t ccdctlioctl;
 #define CDEV_MAJOR 74
 
 static struct cdevsw ccdctl_cdevsw = {
-	/* open */	nullopen,
-	/* close */	nullclose,
-	/* read */	noread,
-	/* write */	nowrite,
-	/* ioctl */	ccdctlioctl,
-	/* poll */	nopoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"ccdctl",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0
+	.d_open =	nullopen,
+	.d_close =	nullclose,
+	.d_ioctl =	ccdctlioctl,
+	.d_name =	"ccdctl",
+	.d_maj =	CDEV_MAJOR,
 };
 
 static LIST_HEAD(, ccd_s) ccd_softc_list =
