@@ -5,7 +5,7 @@ AC_CANONICAL_SYSTEM
 AC_DEFINE_UNQUOTED(STR_SYSTEM, "$target")
 AM_CONFIG_HEADER(config.h)
 AC_ARG_PROGRAM
-AM_INIT_AUTOMAKE(ntp, 4.0.98f)
+AM_INIT_AUTOMAKE(ntp, 4.0.99b)
 AC_PREREQ(2.13)
 
 ac_cv_var_oncore_ok=no
@@ -27,6 +27,14 @@ case "$target" in
 	CFLAGS="$CFLAGS -Wc,+Abi-socket"
 	;;
     esac
+    ;;
+ alpha*-dec-osf*)
+    case "$CC" in
+     cc)
+	CFLAGS="$CFLAGS -std1"
+	;;
+    esac
+    ;;
 esac
 
 case "$host" in
@@ -181,7 +189,7 @@ AC_HEADER_STDC
 AC_CHECK_HEADERS(bstring.h errno.h fcntl.h memory.h netdb.h poll.h resolv.h)
 AC_CHECK_HEADERS(sched.h sgtty.h stdlib.h string.h termio.h termios.h)
 AC_CHECK_HEADERS(timepps.h timex.h unistd.h utmp.h utmpx.h)
-AC_CHECK_HEADERS(arpa/nameser.h net/if.h netinet/in.h netinet/ip.h)
+AC_CHECK_HEADERS(arpa/nameser.h net/if.h netinet/in_systm.h netinet/in.h)
 AC_CHECK_HEADERS(netinfo/ni.h, [AC_DEFINE(HAVE_NETINFO)])
 AC_CHECK_HEADERS(sun/audioio.h sys/audioio.h)
 dnl AC_CHECK_HEADERS(sys/chudefs.h)
@@ -197,15 +205,10 @@ case "$target" in
  *-*-sco*)
     AC_CHECK_HEADERS(sys/sio.h)
     ;;
- *sgi*)
-    AC_CHECK_HEADERS(sys/syssgi.h)
-    ;;
- *)
-    AC_CHECK_HEADERS(sys/select.h)
-    ;;
 esac
-AC_CHECK_HEADERS(sys/sockio.h sys/stat.h sys/stream.h sys/stropts.h)
-AC_CHECK_HEADERS(sys/sysctl.h sys/termios.h sys/time.h)
+AC_CHECK_HEADERS(sys/select.h sys/sockio.h sys/stat.h sys/stream.h)
+AC_CHECK_HEADERS(sys/stropts.h sys/sysctl.h sys/syssgi.h sys/termios.h)
+AC_CHECK_HEADERS(sys/time.h)
 AC_EGREP_CPP(yes,
 [#include <sys/timepps.h>
 #ifdef PPS_API_VERS_1
@@ -726,7 +729,7 @@ esac
 
 dnl See if char *sys_errlist[] is OK.
 dnl If you get the quoting right on the next line, you tried something I didn't.
-AC_CACHE_CHECK(if declaring 'char *sys_errlist[]' is ok, ac_cv_decl_sys_errlist,
+AC_CACHE_CHECK([[if declaring 'char *sys_errlist[]' is ok]], ac_cv_decl_sys_errlist,
 [AC_TRY_COMPILE([#include <stdio.h>
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
@@ -760,9 +763,11 @@ case "$ac_cv_decl_syscall" in
 esac
 
 case "$target" in
+changequote(<<, >>)dnl
  *-*-osf[45]*)
+changequote([, ])dnl
     AC_DEFINE(DECL_PLOCK_0)
-    AC_DEFINE(DECL_STIME_0)
+    AC_DEFINE(DECL_STIME_1)
     ;;
  *-*-riscos4*)
     AC_DEFINE(DECL_ADJTIME_0)
@@ -1171,6 +1176,12 @@ case "$ac_cv_header_sys_sio_h" in
     ;;
 esac
 
+case "$ac_cv_hdr_def_tiocdcdtimestamp" in
+ yes)
+    ac_cv_var_oncore_ok=yes
+    ;;
+esac
+
 AC_CACHE_CHECK(if nlist() values might require extra indirection,
 ac_cv_var_nlist_extra_indirection,
 [ans=no
@@ -1359,7 +1370,6 @@ if test "$ac_cv_header_termios_h" = "yes"; then
 else
 ntp_ok=no
 fi
-
 if test "$ntp_ok" = "yes"; then
     AC_DEFINE(HAVE_TIOCGPPSEV)
     ac_cv_var_oncore_ok=yes
@@ -1396,7 +1406,6 @@ if test "$ac_cv_header_sys_ppsclock_h" = "yes"; then
 else
 ntp_ok=no
 fi
-
 if test "$ntp_ok" = "yes"; then
     ac_cv_var_oncore_ok=yes
     AC_DEFINE(HAVE_CIOGETEV)
@@ -1444,9 +1453,19 @@ typedef int u_int;
 	ntp_ok=no
 	;;
 esac
-
 if test "$ntp_ok" = "yes"; then
     AC_DEFINE(HAVE_TIO_SERIAL_STUFF)
+fi
+AC_MSG_RESULT($ntp_ok)
+
+# Check for SHMEM_STATUS support
+AC_MSG_CHECKING(SHMEM_STATUS support)
+case "$ac_cv_header_sys_mman_h" in
+ yes) ntp_ok=yes ;;
+ *)   ntp_ok=no  ;;
+esac
+if test "$ntp_ok" = "yes"; then
+    AC_DEFINE(ONCORE_SHMEM_STATUS)
 fi
 AC_MSG_RESULT($ntp_ok)
 
@@ -1529,6 +1548,13 @@ case "$ac_cv_header_termio_h$ac_cv_header_termios_h" in
 esac
 AC_MSG_RESULT($ntp_canparse)
 
+AC_MSG_CHECKING([if we have support for audio clocks])
+case "$ac_cv_header_sun_audioio_h$ac_cv_header_sys_audioio_h" in
+ *yes*)	ntp_canaudio=yes ;;
+ *)	ntp_canaudio=no  ;;
+esac
+AC_MSG_RESULT($ntp_canaudio)
+
 # Requires modem control
 AC_MSG_CHECKING(ACTS modem service)
 AC_ARG_ENABLE(ACTS,		[  --enable-ACTS           + ACTS modem service],
@@ -1585,7 +1611,7 @@ fi
 AC_MSG_RESULT($ntp_ok)
 
 AC_MSG_CHECKING(CHU modem/decoder)
-AC_ARG_ENABLE(CHU,    		[  --enable-CHU            + CHU modem/decoder],
+AC_ARG_ENABLE(CHU,    		[  --enable-CHU            - CHU modem/decoder],
     [ntp_ok=$enableval], [ntp_ok=$ntp_eac])
 if test "$ntp_ok" = "yes"; then
     ntp_refclock=yes
@@ -1595,16 +1621,19 @@ AC_MSG_RESULT($ntp_ok)
 ac_refclock_chu=$ntp_ok
 
 AC_MSG_CHECKING(CHU audio/decoder)
-AC_ARG_ENABLE(AUDIO-CHU,	[  --enable-AUDIO-CHU      s - CHU audio/decoder],
-    [ntp_ok=$enableval], [ntp_ok=no])
+AC_ARG_ENABLE(AUDIO-CHU,	[  --enable-AUDIO-CHU      s CHU audio/decoder],
+    [ntp_ok=$enableval],
+    [case "$ntp_eac$ac_refclock_chu$ntp_canaudio" in
+ *no*)	ntp_ok=no  ;;
+ *)	ntp_ok=yes ;;
+esac])
 if test "$ntp_ok" = "yes"; then
     AC_DEFINE(AUDIO_CHU)
 fi
 AC_MSG_RESULT($ntp_ok)
-case "$ntp_ok$ac_refclock_chu$target" in
- yesyes*-*-sunos*) ;;
- yesyes*-*-solaris*) ;;
- yes*) AC_WARN(*** But the expected answer is...no ***) ;;
+# We used to check for sunos/solaris target...
+case "$ntp_ok$ac_refclock_chu$ntp_canaudio" in
+ yes*no*) AC_WARN(*** But the expected answer is...no ***) ;;
 esac
 
 # Not under HP-UX
@@ -1621,6 +1650,15 @@ AC_ARG_ENABLE(DATUM,		[  --enable-DATUM          s Datum Programmable Time Syste
 if test "$ntp_ok" = "yes"; then
     ntp_refclock=yes
     AC_DEFINE(CLOCK_DATUM)
+fi
+AC_MSG_RESULT($ntp_ok)
+
+AC_MSG_CHECKING(Forum Graphic GPS)
+AC_ARG_ENABLE(FG,		[  --enable-FG             + Forum Graphic GPS],
+    [ntp_ok=$enableval], [ntp_ok=$ntp_eac])
+if test "$ntp_ok" = "yes"; then
+    ntp_refclock=yes
+    AC_DEFINE(CLOCK_FG)
 fi
 AC_MSG_RESULT($ntp_ok)
 
@@ -1655,20 +1693,17 @@ AC_MSG_RESULT($ntp_ok)
 AC_MSG_CHECKING(Sun IRIG audio decoder)
 AC_ARG_ENABLE(IRIG,  		[  --enable-IRIG           s Sun IRIG audio decoder],
     [ntp_ok=$enableval],
-    [case "$ac_cv_header_sun_audioio_h$ac_cv_header_sys_audioio_h" in
-     *yes*)
-	ntp_ok=$ntp_eac
-	;;
-     *)	ntp_ok=no
-	;;
+    [case "$ntp_eac$ntp_canaudio" in
+     *no*)	ntp_ok=no  ;;
+     *)		ntp_ok=yes ;;
     esac])
 if test "$ntp_ok" = "yes"; then
     ntp_refclock=yes
     AC_DEFINE(CLOCK_IRIG)
 fi
 AC_MSG_RESULT($ntp_ok)
-case "$ntp_ok$ac_cv_header_sun_audioio_h$ac_cv_header_sys_audioio_h" in
- yesnono) AC_WARN(*** But the expected answer is... no ***) ;;
+case "$ntp_ok$ntp_canaudio" in
+ yesno) AC_WARN(*** But the expected answer is... no ***) ;;
 esac
 
 AC_MSG_CHECKING(Leitch CSD 5300 Master Clock System Driver)
@@ -1848,6 +1883,24 @@ if test "$ntp_ok" = "yes"; then
 fi
 AC_MSG_RESULT($ntp_ok)
 
+AC_MSG_CHECKING(Conrad parallel port radio clock)
+AC_ARG_ENABLE(PCF,		[  --enable-PCF            + Conrad parallel port radio clock],
+    [ntp_ok=$enableval], [ntp_ok=$ntp_eac])
+if test "$ntp_ok" = "yes"; then
+    ntp_refclock=yes
+    AC_DEFINE(CLOCK_PCF)
+fi
+AC_MSG_RESULT($ntp_ok)
+
+AC_MSG_CHECKING(Spectracom 8170/Netclock/2 WWVB receiver)
+AC_ARG_ENABLE(SPECTRACOM,	[  --enable-SPECTRACOM     + Spectracom 8170/Netclock/2 WWVB receiver],
+    [ntp_ok=$enableval], [ntp_ok=$ntp_eac])
+if test "$ntp_ok" = "yes"; then
+    ntp_refclock=yes
+    AC_DEFINE(CLOCK_SPECTRACOM)
+fi
+AC_MSG_RESULT($ntp_ok)
+
 # Not on a vax-dec-bsd
 AC_MSG_CHECKING(Kinemetrics/TrueTime receivers)
 AC_ARG_ENABLE(TRUETIME,		[  --enable-TRUETIME       s Kinemetrics/TrueTime receivers],
@@ -1869,23 +1922,30 @@ case "$ntp_ok$target" in
  yesvax-dec-bsd) AC_WARN(*** But the expected answer is... no ***) ;;
 esac
 
-AC_MSG_CHECKING(Spectracom 8170/Netclock/2 WWVB receiver)
-AC_ARG_ENABLE(WWVB,		[  --enable-WWVB           + Spectracom 8170/Netclock/2 WWVB receiver],
-    [ntp_ok=$enableval], [ntp_ok=$ntp_eac])
-if test "$ntp_ok" = "yes"; then
-    ntp_refclock=yes
-    AC_DEFINE(CLOCK_WWVB)
-fi
-AC_MSG_RESULT($ntp_ok)
-
 AC_MSG_CHECKING(Ultralink M320 WWVB receiver)
-AC_ARG_ENABLE(ULINK,		[  --enable-ULINK           + Ultralink WWVB receiver],
+AC_ARG_ENABLE(ULINK,		[  --enable-ULINK          + Ultralink WWVB receiver],
     [ntp_ok=$enableval], [ntp_ok=$ntp_eac])
 if test "$ntp_ok" = "yes"; then
     ntp_refclock=yes
     AC_DEFINE(CLOCK_ULINK)
 fi
 AC_MSG_RESULT($ntp_ok)
+
+AC_MSG_CHECKING(WWV receiver)
+AC_ARG_ENABLE(WWV, 		[  --enable-WWV            + WWV Audio receiver],
+    [ntp_ok=$enableval],
+    [case "$ntp_eac$ntp_canaudio" in
+     *no*)	ntp_ok=no  ;;
+     *)		ntp_ok=yes ;;
+    esac])
+if test "$ntp_ok" = "yes"; then
+    ntp_refclock=yes
+    AC_DEFINE(CLOCK_WWV)
+fi
+AC_MSG_RESULT($ntp_ok)
+case "$ntp_ok$ntp_canaudio" in
+ yesno) AC_WARN(*** But the expected answer is... no ***) ;;
+esac
 
 # Requires modem control
 AC_MSG_CHECKING(USNO modem service)

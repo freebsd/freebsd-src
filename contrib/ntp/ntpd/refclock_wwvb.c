@@ -6,7 +6,7 @@
 #include <config.h>
 #endif
 
-#if defined(REFCLOCK) && defined(CLOCK_WWVB)
+#if defined(REFCLOCK) && defined(CLOCK_SPECTRACOM)
 
 #include <stdio.h>
 #include <ctype.h>

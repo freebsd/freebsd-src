@@ -25,12 +25,6 @@
 #include "ntp_unixtime.h"
 #include "ntp_stdlib.h"
 
-#if defined SYS_WINNT
-#include "ntp_timer.h"
-extern DWORD units_per_tick;
-static long last_Adj = 0;
-#endif
-
 int	systime_10ms_ticks = 0;	/* adj sysclock in 10ms increments */
 
 #define MAXFREQ 500e-6
@@ -80,6 +74,7 @@ get_systime(
 	(void) GETTIMEOFDAY(&tv, (struct timezone *)0);
 	now->l_i = tv.tv_sec + JAN_1970;
 
+#if defined RELIANTUNIX_CLOCK || defined SCO5_CLOCK
 	if (systime_10ms_ticks) {
 		/* fake better than 10ms resolution by interpolating 
 	   	accumulated residual (in adj_systime(), see below) */
@@ -92,9 +87,10 @@ get_systime(
 			}
 		}
 		dtemp *= FRAC;
-	} else {
-		dtemp = tv.tv_usec * FRAC / 1e6;
-	}
+	} else
+#endif
+
+	dtemp = tv.tv_usec * FRAC / 1e6;
 
 	if (dtemp >= FRAC)
 		now->l_i++;
@@ -108,6 +104,7 @@ get_systime(
  * adj_systime - called once every second to make system time adjustments.
  * Returns 1 if okay, 0 if trouble.
  */
+#if !defined SYS_WINNT
 int
 adj_systime(
 	double now
@@ -116,12 +113,7 @@ adj_systime(
 	double dtemp;
 	struct timeval adjtv;
 	u_char isneg = 0;
-#if !defined SYS_WINNT && !defined SYS_CYGWIN32
 	struct timeval oadjtv;
-#else
-	int rc;
-   long dwTimeAdjustment;
-#endif
 
 	/*
 	 * Add the residual from the previous adjustment to the new
@@ -134,6 +126,7 @@ adj_systime(
 		dtemp = -dtemp;
 	}
 
+#if defined RELIANTUNIX_CLOCK || defined SCO5_CLOCK
 	if (systime_10ms_ticks) {
 		/* accumulate changes until we have enough to adjust a tick */
 		if (dtemp < 5000e-6) {
@@ -145,43 +138,18 @@ adj_systime(
 			else sys_residual = dtemp - 10000e-6;
 			dtemp = 10000e-6;
 		}
-	} else {
+	} else 
+#endif
 		if (dtemp > sys_maxfreq)
 			dtemp = sys_maxfreq;
-	}
 
-#ifdef SYS_WINNT
-	dtemp = dtemp * 1000000.0;
-#else
 	dtemp = dtemp * 1e6 + .5;
-#endif
+
 	if (isneg)
 		dtemp = -dtemp;
 	adjtv.tv_sec = 0;
 	adjtv.tv_usec = (int32)dtemp;
 
-#if defined SYS_WINNT || defined SYS_CYGWIN32	
-	/* dtemp is in micro seconds. NT uses 100 ns units,
-	 * so a unit change in dwTimeAdjustment corresponds
-	 * to slewing 10 ppm. 
-	 * Calculate the number of 100ns units to add, 
-	 * and leave the remainder in dtemp */
-	dwTimeAdjustment = dtemp / 10;
-	dtemp +=  (double) -dwTimeAdjustment * 10.0;	
-	dwTimeAdjustment += units_per_tick;
-
-	/* only adjust the clock if adjustment changes */
-	if (last_Adj != dwTimeAdjustment) { 	
-			last_Adj = dwTimeAdjustment;  
-# ifdef DEBUG
-		if (debug > 1) 
-			printf("SetSystemTimeAdjustment( %ld)\n", dwTimeAdjustment);			
-# endif
-			rc = !SetSystemTimeAdjustment(dwTimeAdjustment, FALSE);
-	}
-	else rc = 0;
-	if (rc)
-#else
 	/*
 	 * Here we do the actual adjustment. If for some reason the adjtime()
 	 * call fails, like it is not implemented or something like that,
@@ -190,17 +158,12 @@ adj_systime(
 	 */
 	/* casey - we need a posix type thang here */
 	if (adjtime(&adjtv, &oadjtv) < 0)
-#endif /* SYS_WINNT */
 	{
 		msyslog(LOG_ERR, "Can't adjust time: %m");
 		return 0;
 	} 
 	else {
-#if !defined (SYS_WINNT) && !defined (SYS_CYGWIN32)
 	sys_residual += oadjtv.tv_usec / 1e6;
-#else
-	sys_residual = dtemp / 1000000.0;
-#endif /* SYS_WINNT */
 	}
 #ifdef DEBUG
 	if (debug > 6)
@@ -208,6 +171,7 @@ adj_systime(
 #endif
 	return 1;
 }
+#endif
 
 
 /*

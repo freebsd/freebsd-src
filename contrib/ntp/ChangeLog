@@ -1,9 +1,627 @@
+2000-01-19  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: 4.0.99b
+
+2000-01-18  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/refclock_chu.c: NCHAN is used with generic ICOM.
+
+	* ntpd/refclock_wwv.c: Use new auido stuff
+	* ntpd/refclock_irig.c: Use new audio stuff
+	* ntpd/refclock_chu.c: Use new audio stuff
+	* ntpd/ntp_proto.c: Clean up
+	* ntpd/ntp_loopfilter.c (local_clock): Clean up error message
+	* include/icom.h: Number of arguments changed
+	* libntp/Makefile.am (libntp_a_SOURCES): Added audio.c
+	* libntp/audio.c: New file
+	* include/Makefile.am (noinst_HEADERS): audio.h added
+	* include/audio.h: New file
+	From: Dave Mills <mills@udel.edu>
+
+	* scripts/freq_adj: Added.  FreeBSD frequency adjustment script.
+
+	* configure.in: Do a better job on my oncore_ok check for SCO.
+
+2000-01-15  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: 4.0.99a
+
+	* scripts/ntpsweep: New version
+	* html/copyright.htm: Added Hans Lambermont
+	From: Hans Lambermont <Hans.Lambermont@nl.origin-it.com>
+
+2000-01-14  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/refclock_oncore.c (oncore_start): Only dance with the
+	pps_device if it's there.
+	From: reg@dwf.com
+
+	* configure.in: ONCORE is OK if ac_cv_hdr_def_tiocdcdtimestamp=yes
+
+	* build: Just overwrite the log file each time; sometimes NFS goes
+	a little goofy.
+
+	* ntpd/refclock_fg.c: Syntax/punctuation cleanup
+
+2000-01-13  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* scripts/ntpsweep: New version
+	From: Hans Lambermont <Hans.Lambermont@nl.origin-it.com> 
+
+	* ntpd/refclock_fg.c: New version
+	* html/driver37.htm: New version
+	From: Dmitry Smirnov <das@online.nsk.su>
+
+2000-01-12  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* README.des: Cleanup
+
+2000-01-12  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: 4.0.99
+
+	* html/driver36.htm: Cleanup
+	* html/monopt.htm: Ditto
+	From: Dave Mills <mills@udel.edu>
+	
+	* ntpd/ntp_intres.c (ntp_intres): Put "NTP_INTRES running" at a
+	higher debug level
+
+2000-01-11  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/refclock_wwv.c: More improvements
+	From: Dave Mills <mills@udel.edu>
+
+2000-01-10  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/refclock_wwv.c: Bugfixes/improvements
+	From: Dave Mills <mills@udel.edu>
+
+	* configure.in: Get the quoting right on the sys_errlist check.
+	From documentation by: Akim Demaille <akim@epita.fr>
+
+2000-01-08  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: <netinet/ip.h> cannot be detected... 
+	* ntpd/ntp_io.h: ...but every OS has it 
+	* ntpd/refclock_oncore.c: Lint removal 
+	* ntpq/ntpq_ops.c: Lint removal 
+	* ntpq/refclock_chu.c: chu_major() is not an audio routine (?), lint 
+	* libntp/icom.c: AIX doesn't have <sys/termios.h> 
+	From: Marc.Brett@westgeo.com
+
+	* ntpd/refclock_chu.c: NetBSD needs sys/ioctl.h
+	(chu_debug): NetBSED-specific debug output.
+	From: Frederick Bruckman <fb@enteract.com>
+
+2000-01-06  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: 4.0.98m
+	I skipped `l' - it looks like a `1'.
+	
+	* html/driver7.htm: Doc update
+	* html/driver36.htm: Ditto
+	* html/audio.htm: Ditto
+
+	* ntpd/refclock_wwv.c: Dvae snuck another fix/change in on me.
+
+	* configure.in: 4.0.98k
+
+	* ntpd/refclock_chu.c (chu_start): Call icom_init with the speed
+	* ntpd/refclock_wwv.c (wwv_start): Ditto, plus other improvements.
+	* libntp/icom.c (icom_init): Add speed parameter
+	* include/icom.h: Update declaration
+	From: Dave Mills <mills@udel.edu>
+
+	* include/Makefile.am (noinst_HEADERS): Added icom.h
+	From: Frederick Bruckman <fb@enteract.com>
+
+2000-01-05  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: 4.0.98j
+
+	* ntpd/refclock_wwv.c (timecode): Make definition == declaration
+	(wwv_newchan): Ditto
+	(wwv_corr4): Dave fixed the declaration.
+
+	* flock-build: Add rackety to the flock - it runs SunOS 4.1.3/cc
+
+	* ntpd/refclock_wwv.c: Undo that declaration cleanup for now...
+
+	* ntpd/ntp_io.c (open_socket): TOS support
+	From: Marc.Brett@westgeo.com
+
+2000-01-04  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/refclock_wwv.c: Declaration cleanup
+	* ntpd/refclock_fg.c (fg_receive): Not all sprintf's are created
+	equal...
+	From: Marc.Brett@westgeo.com
+
+	* ntpd/refclock_wwv.c: Dave Cleaned and Improved things.
+	* ntpd/ntp_loopfilter.c (local_clock): Dave fixed something.
+
+	* ntpd/refclock_wwv.c: Rename max to p_max or s_max as appropriate
+	to avoid native SunOS compiler collision.
+	(wwv_epoch): Make declaration == definition
+	(wwv_rsec): Ditto
+	(wwv_newchan): Ditto
+	(wwv_qsy): Ditto
+	(timecode): Ditto
+
+	* ntpd/refclock_oncore.c (oncore_init_shmem): Use a cast to widen
+	mmap's NIL offset.
+
+	* ntpd/refclock_chu.c (chu_rf): Make declaration == definition.
+	Rename min/max to es_min/es_max to avoid native SunOS compiler
+	collision.
+	(chu_uart): Make declaration == definition.
+
+	* libntp/icom.c (sndpkt): Make declaration and definition equivalent.
+	(doublefreq): Ditto.
+
+	* ntpd/refclock_oncore.c (MAP_FAILED): Some systems do not #define
+	this.
+
+	* ntpd/refclock_wwv.c: 
+	* ntpd/refclock_chu.c: 
+	* libntp/icom.c: 
+	* libntp/Makefile.am: 
+	* include/icom.h: 
+	* html/driver7.htm: 
+	* html/driver36.htm: 
+	Support for ICOM.  The WWV/H driver, by the way, is getting truly
+	awesome.  The CHU autotune function works okay as it is.  I'd like
+	to find somebody else to test the audio drivers just to make sure
+	I haven't done something stupid.  There is a new define ICOM
+	intended for the driver autotune function; however, I crafted the
+	thing in much the same way as the refclock_atom.c thing - it tries
+	to open /dev/icom and, if that fails, goes quietly to sleep.
+	From: Dave Mills <mills@udel.edu>
+
+2000-01-03  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/refclock_oncore.c (oncore_read_config): Patches and cleanup
+	From: Poul-Henning Kamp <phk@critter.freebsd.dk>
+	more isascii() stuff from HMS.
+
+	* ntpd/refclock_fg.c (fg_receive): Cast.
+	From: Tom Smith <smith@cag.lkg.dec.com>
+
+	* ntpd/map_vme.c (map_vme): tx.access_result indicates failure on
+	< 0, not <= 0.  A fix that apparently did not get brought over
+	from the ntp3 base.
+	From: Michael Barone <michael.barone@lmco.com>
+
+	* configure.in: Move the ONCORE_SHMEM_STATUS check and definition
+	here.
+
+	* ntpd/refclock_oncore.c (oncore_init_shmem): Some systems do not
+	have MAP_HASSEMAPHORE.
+
+	* ntpd/refclock_oncore.c: Drive ONCORE_SHMEM_STATUS based on
+	HAVE_SYS_MMAN_H .  If this needs finer checks, do it in
+	configure.in .
+	(oncore_read_config): Add the isascii() checks; older versions of
+	Unix don't guarantee correct behavior of is*() without it.
+
+	* ntpd/refclock_oncore.c: Add proof-of-concept support for 
+	  delivering receiver data stream to other processes through
+	  a memory-mapped file.
+	  From: Poul-Henning Kamp <phk@FreeBSD.org>
+
+2000-01-02  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in (ac_refclock_chu): Provide the CHU driver by
+	default, and by default prefer the AUDIO version.  We used to
+	limit this to SunOS or Solaris; now we drive by the availability
+	of the audioio header file.
+	Select the IRIG and WWV audio drivers the same way.
+
+	* flock-build: build ignores the -l flag; lose it.
+	(BUILD_ARGS): added.
+	* build: Remove unused -l stuff (LOG variable).
+
+	* ntpd/ntp_refclock.c: HAVE_PPSAPI header cleanup
+	From: Reg Clemens <reg@dwf.com>
+
+2000-01-01  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in (CLOCK_WWV): Require <sys/audioio.h> or <sun/audioio.h>
+
+1999-12-29  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: 4.0.98i
+
+	* ntpd/refclock_gpsvme.c: Fixes
+	From: Michael Barone <michael.barone@lmco.com>
+	Patch severely hacked by HMS to "make it conform".  I hope I
+	didn't break anything.
+
+	* scripts/ntpsweep: Nifty utility
+	From: Hans.Lambermont@nl.origin-it.com
+
+	* ntpd/refclock_fg.c: 
+	* ntpd/refclock_conf.c: 
+	* ntpd/ntp_control.c: 
+	* ntpd/Makefile.am: 
+	* libntp/clocktypes.c: 
+	* include/ntp.h: 
+	* html/refclock.htm: 
+	* html/driver37.htm: 
+	* configure.in: 
+	* acconfig.h: 
+	Forum Graphic GPS clock support
+	From: Dmitry Smirnov <das@online.nsk.su>
+	
+	* configure.in: Default to compile the IRIG, CHU and WWV/H
+	drivers and compile the CHU driver for audio, not modem.
+	Requested by Dave Mills.
+
+	* html/audio.htm: 
+	* html/driver36.htm: 
+	* html/qth.htm: 
+	Dave wrote these to go along with the changes I checked in yesterday.
+	
+1999-12-28  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/refclock_wwv.c: 
+	* ntpd/refclock_conf.c: 
+	* ntpd/refclock_chu.c: 
+	* ntpd/ntp_refclock.c: 
+	* ntpd/ntp_loopfilter.c: 
+	* html/refclock.htm: 
+	* html/pps.htm: 
+	* html/index.htm: 
+	* html/driver7.htm: 
+	* html/driver6.htm: 
+	* html/copyright.htm: 
+
+	I indulged an old agenda to polish up some programs originally
+	written for a DSP evaluation board. The result is a really hot
+	audio driver for the NIST WWV/WWVH time/frequency station plus a
+	makeover for the CHU audio driver. Currently, they and their IRIG
+	audio driver buddy use the SunOS/Solaris audio interface, which is
+	clean and simple. I hook the line in jack to a shortwave radio and
+	these drivers (driver 7 for CHU and driver 36 for WWV) and the
+	drivers do the rest. The WWV/H driver is really hot - I am
+	currently watching the ionosphere move from the doppler that shows
+	up on the tick modulation tracked by the program. During midday
+	when the F2 layer settles down, the program closes in on a few
+	tens of microseconds of spare jitter and wander.  This watch on
+	whichever 15/20 MHz signal sounds the best. At night on 5/10 MHz
+	and even 2.5 HMz where the multipath, interference and noise are
+	much worse, the driver bangs around somewhat more.
+
+	The CHU driver makeover discovered a few broken bones after all
+	these years, but its majority decoder is back in business. For
+	various reasons to icky to reveal here, its 103-modem demodulator
+	is not quite as good as the chip, but it comes close and hey,
+	2025/2125 FSK is just not a good idea for HF radio. This driver is
+	not nearly as sophisitcated as the WWV/H driver, but here a few
+	hundred miles south of Ottawa, it does a passably good job.
+
+	I tell you this in the hopes of getting somebody interested in
+	porting the audio interface to other machines, in particular
+	Linux, FreeBSD and anything else with a sound card. When the
+	ionosphere stays cool, the WWV/H driver is as good as anything
+	else around here and with much less jitter than a serial port. The
+	only downside is all the audio drivers chew up a modest fraction
+	of cycles for the DSP routines - a few percent on the newer
+	silicon, up to half the cycles on an old Sparc IPC. Whattheheck,
+	these old machines aren't doing anything else around here except
+	serving time, and even when sucking cycles for DSP they still mind
+	the PPS microseconds.
+
+	The audio driver documentation had a makeover, too.
+	From: Dave Mills <mills@udel.edu>
+
+1999-12-20  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: 4.0.98h
+
+1999-12-19  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* libntp/syssignal.c: Small cleanup to Marc's patch.
+
+	* ntpd/ntp_refclock.c: 
+	* ntpd/refclock_atom.c: Header cleanup
+	* html/driver30.htm: Cleanup and improvements.
+	From: Reg Clemens <reg@dwf.com>
+
+	* ntpd/ntp_refclock.c:
+	* ntpd/refclock_jupiter.c:
+	* ntpd/refclock_msfees.c:
+	* ntpd/refclock_mx4200.c:
+	Portability (Solaris) patches
+	* ntpd/refclock_mx4200.c:
+	Self-survey improvements, cleanup for, PPS re-activation
+	* libntp/syssignal.c:
+ 	Fix for "interrupted system call" (EINTR) failure of the PPS
+	ioctl(TIOCGPPSEV) call in Solaris.  Not sure why it was
+	interrupted, but this works around the failure.  Not sure if
+	the (now silent) interrupt affects the timing accuracy.
+		THERE IS A CHANCE THIS PART OF THE PATCH MAY ADVERSELY
+		AFFECT OTHER SYSTEMS!
+	* scripts/ntp-status: Added.
+	From: Marc.Brett@westgeo.com
+	
+	* ntpdate/ntpdate.c: Deal with multiple addresses.
+	From: Jeffrey C Honig <jch@bsdi.com>
+
+	* ntpd/refclock_conf.c: Replaced macro SHM with CLOCK_SHM.
+	* ntpd/refclock_shm.c (shm_poll): Take clock time in UTC.
+		pp->day starts at 1, t->tm_yday starts at 0.
+	From: Jakob Stoklund Olesen <stoklund@taxidriver.dk>
+
+1999-12-16  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* NEWS: Updated ONCORE instructions
+	From: Kamal A Mostafa <kamal@whence.com>
+
+1999-12-13  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: 4.0.98g
+
+	* ntpd/refclock_oncore.c: Cleanup and fixes
+	From: Reg Clemens <reg@dwf.com> and Kamal A Mostafa <kamal@whence.com>
+
+1999-12-11  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/refclock_wwv.c: Cleanup/checkin of the current state of affairs.
+	From: Dave Mills <mills@udel.edu>
+
+	* ntpd/refclock_oncore.c: #elif conversion.  I can only hope I did
+	it right.
+
+	* ntpd/refclock_oncore.c: Various patches
+	From: Reg Clemens <reg@dwf.com> and Kamal A Mostafa <kamal@whence.com>
+
+1999-12-09  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/ntp_proto.c (default_get_precision): Use the right arg type
+	to pass "sizeof freq" to sysctlbyname().
+	From: Ollivier Robert <roberto@eurocontrol.fr>
+
+	* ntpd/refclock_wwv.c: Cleanup and fixes.
+	From: Dave Mills <mills@udel.edu>
+
+1999-12-08  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/refclock_wwv.c: Cleanup and fixes
+	* ntpd/refclock_conf.c: WWV declaration cleanup.
+	From: Dave Mills <mills@udel.edu>
+	
+1999-12-07  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* libparse/clk_rawdcf.c (cvt_rawdcf): Buglet.
+	From: Frank Kardel <kardel@acm.org>
+
+1999-12-06  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/Makefile.am (ntpd_SOURCES): Added refclock_wwv.c
+
+	* ntpd/refclock_wwvb.c: 
+	* ntpd/refclock_wwv.c: 
+	* ntpd/refclock_conf.c: 
+	* ntpd/refclock_chu.c: 
+	* libntp/clocktypes.c:
+	* include/ntp.h: Dave cleaned some things up
+	Dave cleaned some things up (WWVB -> SPECTRACOM, CHU -> CHU_AUDIO,
+	WWV_AUDIO)
+
+	* acconfig.h: REFCLOCK_WWVB -> REFCLOCK_SPECTRACOM, added REFCLOCK_WWV
+	* configure.in: Deal with it.
+
+1999-12-05  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/ntp_refclock.c (refclock_open): More PPS cleanup
+	From: Dave Mills <mills@udel.edu>
+
+	* ntpq/ntpq.c:
+	* ntpq/ntpq_ops.c:
+	Make `ntpq -pn' independent of DNS, ad advertised.
+	From: Kamal A Mostafa <kamal@whence.com>
+	
+	* ntpd/refclock_mx4200.c (mx4200_start): make missing 3rd
+	parameter a 0.
+
+1999-12-04  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/ntp_refclock.c (refclock_open): "flags" processing cleanup
+	(refclock_open): PPS device initialization cleanup
+	* include/ntp_refclock.h (LDISC_CHU): 
+	(LDISC_PPS): Clean up comments
+	From: Dave Mills <mills@udel.edu>
+
+1999-12-03  Sven Dietrich <sven_dietrich@trimble.com>
+
+	* libntp/mexit.c: Moved WINNT port specific file to ports/winnt/libntp
+	* ports/winnt/libntp/libntp.dsp: Fix WinNT makefile for new source loc.
+
+1999-12-03  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* libntp/Makefile.am (libntp_a_SOURCES): Lose mexit.c - Sven will
+	move it to the winnt port area.
+
+1999-12-03  Sven Dietrich <sven_dietrich@trimble.com>
+
+	* libntp/systime.c: Removed adjtime hack for WINNT
+	* ports/winnt/ntpd/nt_clockstuff.c: Winnt double precision adjtime 
+	* ports/winnt/inlcude/clockstuff.h: Remove no longer needed externs
+
+1999-12-02  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* libparse/Makefile.in: Manually hacked to remove the
+	libparse_kernel.a.[co] cruft
+
+	* libparse/Makefile.am (k*.o): Generate these form the Makefile,
+	not from separate .c files
+
+	* html/tickadj.htm:
+	* html/notes.htm:
+	* html/hints/solaris.html:
+	Point to the new dosynctodr report.
+
+	* html/hints/solaris.xtra.S99ntpd:
+	Update.  Should be rewritten to take advantage of the new -g
+	switch and perhaps a loop to wait until ntpd hits a reasonable
+	"state".
+	
+	* html/hints/solaris-dosynctodr.html: New information
+	From: "John W. Sopko Jr." <sopko@cs.unc.edu>
+
+1999-12-01  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* libntp/authkeys.c (auth_moremem): Clear memory allocated for sk.
+	From: Hugo Mildenberger <hugo.mildenberger@topmail.de>
+
+1999-12-01  Sven Dietrich <sven_dietrich@trimble.com>
+
+	* libntp/recvbuff.c: Unused functions cleanup
+	* ntpd/ntpd.c: ProcessorAffinity, IO cleanup
+	* ports/winnt/instsrv/instsrv.c: Service name changed to NTP
+
+	NT port shouldn;t hop between CPUs. Set affinity to first processor.
+	Service name was NetworkTimeProtocol. Too long. Now NTP.
+
+1999-12-01  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* scripts/plot_summary.pl: Improved option parsing.  Fixed one
+	minor Perl compatibility error.
+	* scripts/summary.pl: Official revision for NTPv4: Parse new
+	statistic file formats correctly, provide error checking for bad
+	input files, and guard against negative arguments to sqrt()
+	because of numeric effects.  Use one pattern to select valid
+	statistic files.  Add selectable output directory
+	(``--output-directory'') and improved option parsing.  Directory
+	with statistic files (now settable also with
+	``--input-directory'') defaults to ``/var/log/ntp''.
+	From: Ulrich Windl  <Ulrich.Windl@rz.uni-regensburg.de>
+
+	* html/driver8.htm: 
+	* libparse/clk_computime.c: 
+	* libparse/clk_dcf7000.c: 
+	* libparse/clk_hopf6021.c: 
+	* libparse/clk_meinberg.c: 
+	* libparse/clk_rawdcf.c: 
+	* libparse/clk_rcc8000.c: 
+	* libparse/clk_schmid.c: 
+	* libparse/clk_trimtaip.c: 
+	* libparse/clk_trimtsip.c: 
+	* libparse/data_mbg.c: 
+	* libparse/kclk_computime.c: 
+	* libparse/kclk_dcf7000.c: 
+	* libparse/kclk_hopf6021.c: 
+	* libparse/kclk_meinberg.c: 
+	* libparse/kclk_rawdcf.c: 
+	* libparse/kclk_rcc8000.c: 
+	* libparse/kclk_schmid.c: 
+	* libparse/kclk_trimtaip.c: 
+	* libparse/kclk_trimtsip.c: 
+	* libparse/kparse.c: 
+	* libparse/kparse_conf.c: 
+	* libparse/parse.c: 
+	* libparse/parse_conf.c: 
+	* libparse/parsesolaris.c: 
+	* libparse/parsestreams.c: 
+	* ntpd/refclock_parse.c: 
+	Mods and updates
+	From: Frank Kardel <kardel@acm.org>
+	
+	* acconfig.h: PCF refclock
+	* configure.in: 
+	* html/driver35.htm: 
+	* html/refclock.htm: 
+	* include/ntp.h: 
+	* libntp/clocktypes.c: 
+	* ntpd/Makefile.am: 
+	* ntpd/ntp_control.c: 
+	* ntpd/refclock_conf.c: 
+	* ntpd/refclock_pcf.c: 
+	From: Andreas Voegele <andreas.voegele@gmx.de>
+	
+	* acconfig.h: DECL_STIME_1
+
+	* configure.in (iCFLAGS): Use -std1 for alpha*-dec-osf* if we are
+	using "cc".
+	Reported by: Tom Smith <smith@cag.lkg.dec.com>
+
+1999-11-30  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* include/l_stdlib.h: DECL_SYSTIME_1 --- a long *
+	* configure.in: Use it for DEC OSF[45]
+	Reported by: Tom Smith <smith@cag.lkg.dec.com>
+
+	* ntpd/refclock_parse.c: Add missing declarations
+	* ntptrace/ntptrace.c: Ditto
+	* ntpd/ntp_proto.c: Ditto
+	* ntpd/refclock_palisade.c: Ditto
+	From: Jonathan Stone <jonathan@dsg.stanford.edu> 
+
+1999-11-18  Sven Dietrich  <sven_dietrich@trimble.com>
+	* Win NT port updates
+	* ntpd.dsp: makefile only builds supported refclocks
+	* config.h: cleanup, undefine unsupported clock_atom
+	* win32_io, clock_NMEA: foundation for future refclock support
+	* recvbuff, transmitbuff, IOcompletionport: streamline packet handler
+	* html/hints/winnt.htm: Added up-to-date html docs for WINNT
+
+1999-11-17  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* html/copyright.htm: Credit Jack for his work.
+
+	* html/pic/*: Save a *ton* of space on the pictures.
+	From: Jack Sasportas <jack@innovativeinternet.com>
+
+1999-11-16  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in :  changequote for osf[45] test.
+	Reported by: Tom Smith <smith@cag.lkg.dec.com>
+
+	* ntp_update: Ignore stuff in any A.* directory.
+
+1999-11-15  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: Clean up header checks for sys/syssgi.h and
+	sys/select.h .  Originally, we did not check for sys/select.h
+	under some versions of SCO (see xntp3-5).  Somewhere in ntp4 we
+	dropped the SCO check and added the check for sys/syssgi.h,
+	exclusive of checking for sys/select.h.  Marc Brett can't think of
+	a reason why we should not be checking for sys/select.h, so let's
+	look for it now.
+
+1999-11-13  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpdate/ntpdate.c: Add the ability for ntpdate to query a
+	multicast address.  We use the response to the multicast address
+	to learn new servers which we then add to the peer list and query.
+	In changing this I made the list of peers a linked list.
+
+	To be complete I should detect a broadcast address and make it
+	behave the same way.  But that requires a scan of the interface
+	list which is more complicated that I want to deal with...
+
+	Fix a bug, allowing ntpdate to compile if SLEWALWAYS and STEP_SLEW
+	are both defined.
+
+	From: Jeffrey C Honig <jch@bsdi.com>
+	
+	* ntpd/ntp_refclock.c: sys/sio.h and SCO5_CLOCK cleanup
+	From: Kamal A Mostafa <kamal@whence.com>	
+
+	* ntpd/ntp_loopfilter.c: Let -g do a "correct any" for the first
+	time adjustment.
+	From: Dave Mills <mills@udel.edu>
+
+	* configure.in: sys/sio.h needs to be checked independently.
+	Reported by: Kamal A Mostafa <kamal@whence.com>	
+
 1999-11-11  Harlan Stenn  <stenn@whimsy.udel.edu>
 
 	* configure.in: 4.0.98f
 
 	* configure.in: DECL_PLOCK_0 and DECL_STIME_0 are for dec-osf5*, too
-
 	* ntpd/ntpd.c: 	DEC OSF cleanup (editorial comments by HMS)
 	From: Tom Smith <smith@cag.lkg.dec.com> 
 	

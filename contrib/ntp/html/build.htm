@@ -177,28 +177,8 @@ function.</DD>
 </DL>
 
 <H4>Building and Installing under Windows NT</H4>
-
-Under Windows NT, you will need <TT>Visual C++ 5.0</TT> or above,
-<TT>InstallShield</TT> SDK, <TT>Perl5</TT> and some version of the
-archiving program <TT>ZIP</TT>. Note that the version of
-<TT>InstallShield</TT> that comes with VC++5.0 is not useable here,
-since it does not include the command line tools.
-
-<P>See the <TT>./scripts/wininstall/readme.nt</TT> file for directions
-to compile the sources, build the libraries and link the executables.
-Initiate the build by running either <TT>bldrel.bat</TT> or
-<TT>blddbg.bat</TT> to compile all of the source and create an
-<TT>InstallShield</TT> based graphical installation package.
-
-<P>To install the executables, make sure that you are logged in as a
-system account, or one with administrator privileges such as the
-"administrator" account. As part of the build an <TT>InstallShield</TT>
-based graphical installer was created. Run
-<TT>\ntp\scripts\wininstall\intel\disk1\setup.exe</TT> to begin the
-installation. This installer will prompt for basic defaults,
-copy the binaries, install the service, and start it up. The other
-option is to run <TT>\ntp\scripts\wininstall\distrib\install.bat</TT>
-which will do the basic installation from the command line.
+See <tt><a href="hints/winnt.htm">hints/winnt.htm</a> </tt>for directions
+to compile the sources and install the executables. 
 
 <hr><a href=index.htm><img align=left
 src=pic/home.gif></a><address><a href="mailto:mills@udel.edu"> David L.

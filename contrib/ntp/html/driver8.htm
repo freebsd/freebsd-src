@@ -82,7 +82,7 @@ available. refclock_ppstime lists then the PPS timestamp and
 refclock_ppsskew lists the difference between RS232
 derived timestamp and the PPS timestamp.
 
-<P>Currently, fourteen clock types (devices /dev/refclock-0 -
+<P>Currently, eighteen clock types (devices /dev/refclock-0 -
 /dev/refclock-3) are supported by the PARSE driver.
 <BR>A note on the implementations:
 <UL><li>These implementations where mainly done <B><I>WITHOUT</I></B>
@@ -120,16 +120,16 @@ the vendors web pages. They are linked to the respective vendors.
 <B><TT>server 127.127.8.0-3 mode 0</TT></B>
 
 <p><B><TT><A HREF="http://www.meinberg.de">Meinberg </A>PZF535/<A
-HREF="http://www.meinberg.de/english/pzf509.htm">PZF509 receiver</A> (FM
+HREF="http://www.meinberg.de/english/products/pzf509.htm">PZF509 receiver</A> (FM
 demodulation/TCXO / 50us)</TT></B>
 <BR>
 <LI>
 <B><TT>server 127.127.8.0-3 mode 1</TT></B>
 
 <p><B><TT><A HREF="http://www.meinberg.de">Meinberg </A> PZF535/<A
-HREF="http://www.meinberg.de/english/pzf509.htm">PZF509
+HREF="http://www.meinberg.de/english/products/pzf509.htm">PZF509
 receiver</A> (FM demodulation/OCXO / 50us)</TT></B>
-<BR><A HREF="http://www.meinberg.de/english/pzf509.htm"><IMG
+<BR><A HREF="http://www.meinberg.de/english/products/pzf509.htm"><IMG
 SRC="pic/pzf509.jpg" ALT="BILD PZF509" HEIGHT=300 WIDTH=260
 ALIGN=TEXTTOP></A>
 <BR>
@@ -137,9 +137,9 @@ ALIGN=TEXTTOP></A>
 <B><TT>server 127.127.8.0-3 mode 2</TT></B>
 
 <p><B><TT><A HREF="http://www.meinberg.de">Meinberg </A> DCF U/A
-31/<A HREF="http://www.meinberg.de/english/c51.htm">DCF C51 receiver</A>
+31/<A HREF="http://www.meinberg.de/english/products/c51.htm">DCF C51 receiver</A>
 (AM demodulation / 4ms)</TT></B>
-<BR><A HREF="http://www.meinberg.de/english/c51.htm"><IMG
+<BR><A HREF="http://www.meinberg.de/english/products/c51.htm"><IMG
 SRC="pic/c51.jpg" ALT="BILD C51" HEIGHT=180 WIDTH=330 ALIGN=TEXTTOP></A>
 <BR>
 <LI>
@@ -171,9 +171,9 @@ demodulation
 <B><TT>server 127.127.8.0-3 mode 7</TT></B>
 
 <p><B><TT><A HREF="http://www.meinberg.de">Meinberg </A> <A
-HREF="http://www.meinberg.de/english/gps167.htm">GPS166/GPS167
+HREF="http://www.meinberg.de/english/products/gps167.htm">GPS166/GPS167
 receiver</A> (GPS / &lt;&lt;1us)</TT></B>
-<BR><A HREF="http://www.meinberg.de/english/gps167.htm"><IMG
+<BR><A HREF="http://www.meinberg.de/english/products/gps167.htm"><IMG
 SRC="pic/gps167.jpg" ALT="BILD GPS167" HEIGHT=300 WIDTH=280
 ALIGN=TEXTTOP></A>
 <BR>
@@ -237,6 +237,16 @@ ALIGN=TEXTTOP></A>
 
 <p><B><TT>WHARTON 400A Series Clocks with a 404.2 Serial
 Interface</TT></B>
+<LI>
+<B><TT>server 127.127.8.0-3 mode 16</TT></B>
+
+<p><B><TT>RAWDCF receiver (DTR=low/RTS=high)
+</TT></B>
+<LI>
+<B><TT>server 127.127.8.0-3 mode 17</TT></B>
+
+<p><B><TT>VARITEXT Receiver (MSF)
+</TT></B>
 </UL>
 <p>
 Actual data formats and set-up requirements of the various clocks can be

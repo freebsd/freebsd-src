@@ -63,15 +63,18 @@ host_alias = @host_alias@
 host_triplet = @host@
 target_alias = @target_alias@
 target_triplet = @target@
+AMDEP = @AMDEP@
 AMTAR = @AMTAR@
-AMTARFLAGS = @AMTARFLAGS@
 AWK = @AWK@
 CC = @CC@
 CFLAGS = @CFLAGS@
 CHUTEST = @CHUTEST@
 CLKTEST = @CLKTEST@
 CPP = @CPP@
+CXX = @CXX@
+CXXCPP = @CXXCPP@
 DCFD = @DCFD@
+DEPDIR = @DEPDIR@
 LDFLAGS = @LDFLAGS@
 LIBPARSE = @LIBPARSE@
 LIBRSAREF = @LIBRSAREF@
@@ -93,6 +96,7 @@ RSAREF = @RSAREF@
 TESTDCF = @TESTDCF@
 U = @U@
 VERSION = @VERSION@
+install_sh = @install_sh@
 
 #AUTOMAKE_OPTIONS = ../ansi2knr no-dependencies
 
@@ -186,6 +190,12 @@ DIST_COMMON =  README Makefile.am Makefile.in ansi2knr.1 ansi2knr.c
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 
 GZIP_ENV = --best
+depcomp = $(SHELL) $(top_srcdir)/depcomp
+DEP_FILES =  @AMDEP@ $(DEPDIR)/byteorder$U.Po $(DEPDIR)/hist$U.Po \
+$(DEPDIR)/jitter$U.Po $(DEPDIR)/kern$U.Po $(DEPDIR)/longsize$U.Po \
+$(DEPDIR)/ntptime$U.Po $(DEPDIR)/precision$U.Po $(DEPDIR)/sht$U.Po \
+$(DEPDIR)/testrs6000$U.Po $(DEPDIR)/tickadj$U.Po \
+$(DEPDIR)/timetrim$U.Po
 SOURCES = byteorder.c hist.c jitter.c kern.c longsize.c ntptime.c precision.c sht.c testrs6000.c tickadj.c timetrim.c
 OBJECTS = byteorder$U.o hist$U.o jitter$U.o kern$U.o longsize$U.o ntptime$U.o precision$U.o sht$U.o testrs6000$U.o tickadj$U.o timetrim$U.o
 
@@ -193,9 +203,9 @@ all: all-redirect
 .SUFFIXES:
 .SUFFIXES: .c .o
 $(srcdir)/Makefile.in: Makefile.am $(top_srcdir)/configure.in $(ACLOCAL_M4) 
-	cd $(top_srcdir) && $(AUTOMAKE) --gnu --include-deps util/Makefile
+	cd $(top_srcdir) && $(AUTOMAKE) --gnu util/Makefile
 
-Makefile: $(srcdir)/Makefile.in  $(top_builddir)/config.status
+Makefile: $(srcdir)/Makefile.in  $(top_builddir)/config.status $(BUILT_SOURCES)
 	cd $(top_builddir) \
 	  && CONFIG_FILES=$(subdir)/$@ CONFIG_HEADERS= $(SHELL) ./config.status
 
@@ -228,9 +238,6 @@ uninstall-binPROGRAMS:
 	  rm -f $(DESTDIR)$(bindir)/$$f; \
 	done
 
-.c.o:
-	$(COMPILE) -c $<
-
 mostlyclean-compile:
 	-rm -f *.o core *.core
 
@@ -262,57 +269,46 @@ clean-kr:
 distclean-kr:
 
 maintainer-clean-kr:
-byteorder$U.o:
 
 byteorder: $(byteorder_OBJECTS) $(byteorder_DEPENDENCIES)
 	@rm -f byteorder
 	$(LINK) $(byteorder_LDFLAGS) $(byteorder_OBJECTS) $(byteorder_LDADD) $(LIBS)
-hist$U.o:
 
 hist: $(hist_OBJECTS) $(hist_DEPENDENCIES)
 	@rm -f hist
 	$(LINK) $(hist_LDFLAGS) $(hist_OBJECTS) $(hist_LDADD) $(LIBS)
-jitter$U.o:
 
 jitter: $(jitter_OBJECTS) $(jitter_DEPENDENCIES)
 	@rm -f jitter
 	$(LINK) $(jitter_LDFLAGS) $(jitter_OBJECTS) $(jitter_LDADD) $(LIBS)
-kern$U.o:
 
 kern: $(kern_OBJECTS) $(kern_DEPENDENCIES)
 	@rm -f kern
 	$(LINK) $(kern_LDFLAGS) $(kern_OBJECTS) $(kern_LDADD) $(LIBS)
-longsize$U.o:
 
 longsize: $(longsize_OBJECTS) $(longsize_DEPENDENCIES)
 	@rm -f longsize
 	$(LINK) $(longsize_LDFLAGS) $(longsize_OBJECTS) $(longsize_LDADD) $(LIBS)
-ntptime$U.o:
 
 ntptime: $(ntptime_OBJECTS) $(ntptime_DEPENDENCIES)
 	@rm -f ntptime
 	$(LINK) $(ntptime_LDFLAGS) $(ntptime_OBJECTS) $(ntptime_LDADD) $(LIBS)
-precision$U.o:
 
 precision: $(precision_OBJECTS) $(precision_DEPENDENCIES)
 	@rm -f precision
 	$(LINK) $(precision_LDFLAGS) $(precision_OBJECTS) $(precision_LDADD) $(LIBS)
-sht$U.o:
 
 sht: $(sht_OBJECTS) $(sht_DEPENDENCIES)
 	@rm -f sht
 	$(LINK) $(sht_LDFLAGS) $(sht_OBJECTS) $(sht_LDADD) $(LIBS)
-testrs6000$U.o:
 
 testrs6000: $(testrs6000_OBJECTS) $(testrs6000_DEPENDENCIES)
 	@rm -f testrs6000
 	$(LINK) $(testrs6000_LDFLAGS) $(testrs6000_OBJECTS) $(testrs6000_LDADD) $(LIBS)
-tickadj$U.o:
 
 tickadj: $(tickadj_OBJECTS) $(tickadj_DEPENDENCIES)
 	@rm -f tickadj
 	$(LINK) $(tickadj_LDFLAGS) $(tickadj_OBJECTS) $(tickadj_LDADD) $(LIBS)
-timetrim$U.o:
 
 timetrim: $(timetrim_OBJECTS) $(timetrim_DEPENDENCIES)
 	@rm -f timetrim
@@ -344,23 +340,27 @@ precision_.o sht_.o testrs6000_.o tickadj_.o timetrim_.o : $(ANSI2KNR)
 
 tags: TAGS
 
-ID: $(HEADERS) $(SOURCES) $(LISP)
-	list='$(SOURCES) $(HEADERS)'; \
-	unique=`for i in $$list; do echo $$i; done | \
-	  ${AWK:-awk} '    { files[$$0] = 1; } \
+ID: $(HEADERS) $(SOURCES) $(LISP) $(TAGS_FILES)
+	list='$(SOURCES) $(HEADERS) $(TAGS_FILES)'; \
+	unique=`for i in $$list; do \
+	    if test -f "$$i"; then echo $$i; else echo $(srcdir)/$$i; fi; \
+	  done | \
+	  $(AWK) '    { files[$$0] = 1; } \
 	       END { for (i in files) print i; }'`; \
-	here=`pwd` && cd $(srcdir) \
-	  && mkid -f$$here/ID $$unique $(LISP)
+	mkid -f$$here/ID $$unique $(LISP)
 
-TAGS:  $(HEADERS) $(SOURCES)  $(TAGS_DEPENDENCIES) $(LISP)
+TAGS:  $(HEADERS) $(SOURCES)  $(TAGS_DEPENDENCIES) \
+		$(TAGS_FILES) $(LISP)
 	tags=; \
 	here=`pwd`; \
-	list='$(SOURCES) $(HEADERS)'; \
-	unique=`for i in $$list; do echo $$i; done | \
-	  ${AWK:-awk} '    { files[$$0] = 1; } \
+	list='$(SOURCES) $(HEADERS) $(TAGS_FILES)'; \
+	unique=`for i in $$list; do \
+	    if test -f "$$i"; then echo $$i; else echo $(srcdir)/$$i; fi; \
+	  done | \
+	  $(AWK) '    { files[$$0] = 1; } \
 	       END { for (i in files) print i; }'`; \
 	test -z "$(ETAGS_ARGS)$$unique$(LISP)$$tags" \
-	  || (cd $(srcdir) && etags $(ETAGS_ARGS) $$tags  $$unique $(LISP) -o $$here/TAGS)
+	  || etags $(ETAGS_ARGS) $$tags  $$unique $(LISP)
 
 mostlyclean-tags:
 
@@ -377,34 +377,42 @@ distdir: $(DISTFILES)
 	@for file in $(DISTFILES); do \
 	  d=$(srcdir); \
 	  if test -d $$d/$$file; then \
-	    cp -pr $$d/$$file $(distdir)/$$file; \
+	    cp -pR $$d/$$file $(distdir); \
 	  else \
 	    test -f $(distdir)/$$file \
 	    || ln $$d/$$file $(distdir)/$$file 2> /dev/null \
 	    || cp -p $$d/$$file $(distdir)/$$file || :; \
 	  fi; \
 	done
-byteorder.o byteorder.lo: byteorder.c
-hist.o hist.lo: hist.c ../config.h ../include/ntp_types.h \
-	../include/ntp_machine.h ../include/ntp_proto.h
-jitter.o jitter.lo: jitter.c
-kern.o kern.lo: kern.c ../config.h
-longsize.o longsize.lo: longsize.c
-ntptime.o: ntptime.c ../config.h ../include/ntp_fp.h \
-	../include/ntp_types.h ../include/ntp_machine.h \
-	../include/ntp_proto.h ../include/ntp_unixtime.h \
-	../include/ntp_syscall.h ../include/ntp_stdlib.h \
-	../include/ntp_string.h ../include/l_stdlib.h
-precision.o precision.lo: precision.c ../include/ntp_unixtime.h \
-	../include/ntp_types.h ../include/ntp_machine.h ../config.h \
-	../include/ntp_proto.h
-sht.o sht.lo: sht.c
-testrs6000.o testrs6000.lo: testrs6000.c
-tickadj.o: tickadj.c ../config.h ../include/ntp_types.h \
-	../include/ntp_machine.h ../include/ntp_proto.h \
-	../include/l_stdlib.h ../include/ntp_io.h \
-	../include/ntp_stdlib.h ../include/ntp_string.h
-timetrim.o timetrim.lo: timetrim.c
+
+@AMDEP@include $(DEPDIR)/byteorder$U.Po
+@AMDEP@include $(DEPDIR)/hist$U.Po
+@AMDEP@include $(DEPDIR)/jitter$U.Po
+@AMDEP@include $(DEPDIR)/kern$U.Po
+@AMDEP@include $(DEPDIR)/longsize$U.Po
+@AMDEP@include $(DEPDIR)/ntptime$U.Po
+@AMDEP@include $(DEPDIR)/precision$U.Po
+@AMDEP@include $(DEPDIR)/sht$U.Po
+@AMDEP@include $(DEPDIR)/testrs6000$U.Po
+@AMDEP@include $(DEPDIR)/tickadj$U.Po
+@AMDEP@include $(DEPDIR)/timetrim$U.Po
+
+mostlyclean-depend:
+
+clean-depend:
+
+distclean-depend:
+	-rm -rf $(DEPDIR)
+
+maintainer-clean-depend:
+
+@AMDEP@CCDEPMODE = @CCDEPMODE@
+
+.c.o:
+@AMDEP@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
+@AMDEP@	depfile='$(DEPDIR)/$*.Po' tmpdepfile='$(DEPDIR)/$*.TPo' @AMDEPBACKSLASH@
+@AMDEP@	$(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+	$(COMPILE) -c -o $@ $<
 
 info-am:
 info: info-am
@@ -442,26 +450,29 @@ distclean-generic:
 	-rm -f config.cache config.log stamp-h stamp-h[0-9]*
 
 maintainer-clean-generic:
+	-rm -f Makefile.in
 mostlyclean-am:  mostlyclean-binPROGRAMS mostlyclean-compile \
 		mostlyclean-krextra mostlyclean-kr mostlyclean-tags \
-		mostlyclean-generic
+		mostlyclean-depend mostlyclean-generic
 
 mostlyclean: mostlyclean-am
 
 clean-am:  clean-binPROGRAMS clean-compile clean-krextra clean-kr \
-		clean-tags clean-generic mostlyclean-am
+		clean-tags clean-depend clean-generic mostlyclean-am
 
 clean: clean-am
 
 distclean-am:  distclean-binPROGRAMS distclean-compile distclean-krextra \
-		distclean-kr distclean-tags distclean-generic clean-am
+		distclean-kr distclean-tags distclean-depend \
+		distclean-generic clean-am
 
 distclean: distclean-am
 
 maintainer-clean-am:  maintainer-clean-binPROGRAMS \
 		maintainer-clean-compile maintainer-clean-krextra \
 		maintainer-clean-kr maintainer-clean-tags \
-		maintainer-clean-generic distclean-am
+		maintainer-clean-depend maintainer-clean-generic \
+		distclean-am
 	@echo "This command is intended for maintainers to use;"
 	@echo "it deletes files that may require special tools to rebuild."
 
@@ -473,12 +484,13 @@ mostlyclean-compile distclean-compile clean-compile \
 maintainer-clean-compile mostlyclean-krextra distclean-krextra \
 clean-krextra maintainer-clean-krextra mostlyclean-kr distclean-kr \
 clean-kr maintainer-clean-kr tags mostlyclean-tags distclean-tags \
-clean-tags maintainer-clean-tags distdir info-am info dvi-am dvi check \
-check-am installcheck-am installcheck install-exec-am install-exec \
-install-data-am install-data install-am install uninstall-am uninstall \
-all-redirect all-am all install-strip installdirs mostlyclean-generic \
-distclean-generic clean-generic maintainer-clean-generic clean \
-mostlyclean distclean maintainer-clean
+clean-tags maintainer-clean-tags distdir mostlyclean-depend \
+distclean-depend clean-depend maintainer-clean-depend info-am info \
+dvi-am dvi check check-am installcheck-am installcheck install-exec-am \
+install-exec install-data-am install-data install-am install \
+uninstall-am uninstall all-redirect all-am all install-strip \
+installdirs mostlyclean-generic distclean-generic clean-generic \
+maintainer-clean-generic clean mostlyclean distclean maintainer-clean
 
 
 ../libntp/libntp.a:

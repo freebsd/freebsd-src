@@ -550,7 +550,7 @@ EOF
 	echo t90-cray-unicos${UNAME_RELEASE}
 	exit 0 ;;
     CRAY*T3E:*:*:*)
-	echo t3e-cray-unicosmk${UNAME_RELEASE}
+	echo alpha-cray-unicosmk${UNAME_RELEASE}
 	exit 0 ;;
     CRAY-2:*:*:*)
 	echo cray2-cray-unicos
@@ -636,14 +636,15 @@ EOF
 				    s/ .*//
 				    p'`
         case "$ld_supported_emulations" in
+	  *ia64)      echo "${UNAME_MACHINE}-unknown-linux"         ; exit 0 ;;
 	  i?86linux)  echo "${UNAME_MACHINE}-pc-linux-gnuaout"      ; exit 0 ;;
 	  i?86coff)   echo "${UNAME_MACHINE}-pc-linux-gnucoff"      ; exit 0 ;;
 	  sparclinux) echo "${UNAME_MACHINE}-unknown-linux-gnuaout" ; exit 0 ;;
 	  armlinux)   echo "${UNAME_MACHINE}-unknown-linux-gnuaout" ; exit 0 ;;
 	  m68klinux)  echo "${UNAME_MACHINE}-unknown-linux-gnuaout" ; exit 0 ;;
-	  elf32ppc)
+	  elf32ppc | elf32ppclinux)
 		# Determine Lib Version
-		cat >dummy.c <<EOF
+		cat >$dummy.c <<EOF
 #include <features.h>
 #if defined(__GLIBC__)
 extern char __libc_version[];
@@ -662,14 +663,14 @@ main(argc, argv)
 }
 EOF
 		LIBC=""
-		${CC-cc} dummy.c -o dummy 2>/dev/null
+		$CC_FOR_BUILD $dummy.c -o $dummy 2>/dev/null
 		if test "$?" = 0 ; then
-			./dummy | grep 1\.99 > /dev/null
+			./$dummy | grep 1\.99 > /dev/null
 			if test "$?" = 0 ; then
 				LIBC="libc1"
 			fi
 		fi	
-		rm -f dummy.c dummy
+		rm -f $dummy.c $dummy
 		echo powerpc-unknown-linux-gnu${LIBC} ; exit 0 ;;
 	esac
 
@@ -915,7 +916,7 @@ EOF
     news*:NEWS-OS:*:6*)
 	echo mips-sony-newsos6
 	exit 0 ;;
-    R[34]000:*System_V*:*:* | R4000:UNIX_SYSV:*:* | R4000:UNIX_SV:*:*)
+    R[34]000:*System_V*:*:* | R4000:UNIX_SYSV:*:* | R*000:UNIX_SV:*:*)
 	if [ -d /usr/nec ]; then
 	        echo mips-nec-sysv${UNAME_RELEASE}
 	else
@@ -942,9 +943,6 @@ EOF
 	exit 0 ;;
     *:Rhapsody:*:*)
 	echo ${UNAME_MACHINE}-apple-rhapsody${UNAME_RELEASE}
-	exit 0 ;;
-    *:"Mac OS":*:*)
-	echo `uname -p`-apple-macos${UNAME_RELEASE}
 	exit 0 ;;
 esac
 
