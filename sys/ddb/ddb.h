@@ -39,8 +39,12 @@
 
 #include <machine/db_machdep.h>		/* type definitions */
 
+#define	DB_LINES_PER_PAGE	20
+
 typedef void db_cmdfcn_t(db_expr_t addr, boolean_t have_addr, db_expr_t count,
 	    char *modif);
+
+typedef void db_page_calloutfcn_t(void *arg);
 
 #define DB_COMMAND(cmd_name, func_name) \
 	DB_SET(cmd_name, func_name, db_cmd_set, 0, NULL)
@@ -100,6 +104,8 @@ void		db_read_bytes(vm_offset_t addr, size_t size, char *data);
 int		db_readline(char *lstart, int lsize);
 void		db_restart_at_pc(boolean_t watchpt);
 void		db_set_watchpoints(void);
+void		db_setup_paging(db_page_calloutfcn_t *callout, void *arg,
+				int maxlines);
 void		db_skip_to_eol(void);
 boolean_t	db_stop_at_pc(boolean_t *is_breakpoint);
 #define		db_strcpy	strcpy
@@ -138,6 +144,8 @@ db_cmdfcn_t	db_show_all_threads;
 db_cmdfcn_t	ipc_port_print;
 db_cmdfcn_t	vm_page_print;
 #endif
+
+db_page_calloutfcn_t db_simple_pager;
 
 /* Scare the user with backtrace of curthread to console. */
 void		db_print_backtrace(void);

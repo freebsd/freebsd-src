@@ -62,6 +62,10 @@ db_expr_t	db_tab_stop_width = 8;		/* how wide are tab stops? */
 #define	NEXT_TAB(i) \
 	((((i) + db_tab_stop_width) / db_tab_stop_width) * db_tab_stop_width)
 db_expr_t	db_max_width = 79;		/* output line width */
+static int	db_newlines;			/* # lines this page */
+static int	db_maxlines = -1;		/* max lines per page */
+static db_page_calloutfcn_t *db_page_callout = NULL;
+static void	*db_page_callout_arg = NULL;
 
 static void db_putchar(int c, void *arg);
 
@@ -98,6 +102,7 @@ db_putchar(c, arg)
 	int	c;		/* character to output */
 	void *	arg;
 {
+
 	if (c > ' ' && c <= '~') {
 	    /*
 	     * Printing character.
@@ -115,6 +120,13 @@ db_putchar(c, arg)
 	    db_output_position = 0;
 	    db_last_non_space = 0;
 	    db_check_interrupt();
+	    if (db_maxlines > 0 && db_page_callout != NULL) {
+		    db_newlines++;
+		    if (db_newlines >= db_maxlines) {
+			    db_maxlines = -1;
+			    db_page_callout(db_page_callout_arg);
+		    }
+	    }
 	}
 	else if (c == '\r') {
 	    /* Return */
@@ -136,6 +148,60 @@ db_putchar(c, arg)
 	    cnputc(c);
 	}
 	/* other characters are assumed non-printing */
+}
+
+/*
+ * Register callout for providing a pager for output.
+ */
+void
+db_setup_paging(db_page_calloutfcn_t *callout, void *arg, int maxlines)
+{
+
+	db_page_callout = callout;
+	db_page_callout_arg = arg;
+	db_maxlines = maxlines;
+	db_newlines = 0;
+}
+
+/*
+ * A simple paging callout function.  If the argument is not null, it
+ * points to an integer that will be set to 1 if the user asks to quit.
+ */
+void
+db_simple_pager(void *arg)
+{
+	int c;
+
+	db_printf("--More--\r");
+	for (;;) {
+		c = cngetc();
+		switch (c) {
+		case '\n':
+			/* Just one more line. */
+			db_setup_paging(db_simple_pager, arg, 1);
+			return;
+		case ' ':
+			/* Another page. */
+			db_setup_paging(db_simple_pager, arg,
+			    DB_LINES_PER_PAGE);
+			return;
+		case 'q':
+		case 'Q':
+		case 'x':
+		case 'X':
+			/* Quit */
+			if (arg != NULL) {
+				*(int *)arg = 1;
+				db_printf("\n");
+				return;
+			}
+#if 0
+			/* FALLTHROUGH */
+		default:
+			cnputc('\007');
+#endif
+		}
+	}
 }
 
 /*

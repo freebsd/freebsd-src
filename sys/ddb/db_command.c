@@ -344,6 +344,7 @@ db_command(last_cmdp, cmd_table, aux_cmd_tablep, aux_cmd_tablep_end)
 	     * Execute the command.
 	     */
 	    (*cmd->fcn)(addr, have_addr, count, modif);
+	    db_setup_paging(NULL, NULL, -1);
 
 	    if (cmd->flag & CS_SET_DOT) {
 		/*
