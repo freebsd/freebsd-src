@@ -6,7 +6,7 @@
 * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 * ----------------------------------------------------------------------------
 *
-* $Id: libdisk.h,v 1.27 1997/03/19 01:54:04 bde Exp $
+* $Id: libdisk.h,v 1.28 1998/01/20 11:03:15 bde Exp $
 *
 */
 
@@ -33,7 +33,9 @@ struct disk {
 	u_long		bios_sect;
 	u_char		*bootmgr;
 	u_char		*boot1;
+#if defined(__i386__)		/* the alpha only has one boot program */
 	u_char		*boot2;
+#endif
 	struct chunk	*chunks;
 };
 
