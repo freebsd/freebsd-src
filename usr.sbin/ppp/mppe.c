@@ -47,7 +47,11 @@
 #include "hdlc.h"
 #include "lcp.h"
 #include "ccp.h"
+#include "throughput.h"
+#include "layer.h"
+#include "link.h"
 #include "chap_ms.h"
+#include "proto.h"
 #include "mppe.h"
 
 /*
@@ -221,6 +225,21 @@ MPPEDispOpts(struct lcp_opt *o)
   static char buf[32];
   sprintf(buf, "value 0x%08x", (int)ntohl(*(u_int32_t *)(o->data)));
   return buf;
+}
+
+static int
+MPPEUsable(struct fsm *fp)
+{
+  struct lcp *lcp;
+  int ok;
+
+  lcp = &fp->link->lcp;
+  ok = (lcp->want_auth == PROTO_CHAP && lcp->want_authtype == 0x81) ||
+       (lcp->his_auth == PROTO_CHAP && lcp->his_authtype == 0x81);
+  if (!ok)
+    log_Printf(LogCCP, "MPPE: Not usable without CHAP81\n");
+
+  return ok;
 }
 
 static void
@@ -414,6 +433,7 @@ const struct ccp_algorithm MPPEAlgorithm = {
   TY_MPPE,
   CCP_NEG_MPPE,
   MPPEDispOpts,
+  MPPEUsable,
   {
     MPPESetOptsInput,
     MPPEInitInput,
