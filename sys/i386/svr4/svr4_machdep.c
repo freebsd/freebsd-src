@@ -66,7 +66,7 @@ extern int svr4_szsigcode;
 extern char svr4_sigcode[];
 extern int _udatasel, _ucodesel;
 
-static void svr4_getsiginfo __P((union svr4_siginfo *, int, u_long, caddr_t));
+static void svr4_getsiginfo(union svr4_siginfo *, int, u_long, caddr_t);
 
 #if !defined(__NetBSD__)
   /* taken from /sys/arch/i386/include/psl.h on NetBSD-1.3 */

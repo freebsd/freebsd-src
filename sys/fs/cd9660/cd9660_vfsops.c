@@ -64,14 +64,14 @@
 MALLOC_DEFINE(M_ISOFSMNT, "ISOFS mount", "ISOFS mount structure");
 MALLOC_DEFINE(M_ISOFSNODE, "ISOFS node", "ISOFS vnode private part");
 
-static int cd9660_mount __P((struct mount *,
-	    char *, caddr_t, struct nameidata *, struct thread *));
-static int cd9660_unmount __P((struct mount *, int, struct thread *));
-static int cd9660_root __P((struct mount *, struct vnode **));
-static int cd9660_statfs __P((struct mount *, struct statfs *, struct thread *));
-static int cd9660_vget __P((struct mount *, ino_t, int, struct vnode **));
-static int cd9660_fhtovp __P((struct mount *, struct fid *, struct vnode **));
-static int cd9660_vptofh __P((struct vnode *, struct fid *));
+static int cd9660_mount(struct mount *,
+	    char *, caddr_t, struct nameidata *, struct thread *);
+static int cd9660_unmount(struct mount *, int, struct thread *);
+static int cd9660_root(struct mount *, struct vnode **);
+static int cd9660_statfs(struct mount *, struct statfs *, struct thread *);
+static int cd9660_vget(struct mount *, ino_t, int, struct vnode **);
+static int cd9660_fhtovp(struct mount *, struct fid *, struct vnode **);
+static int cd9660_vptofh(struct vnode *, struct fid *);
 
 static struct vfsops cd9660_vfsops = {
 	cd9660_mount,
@@ -97,9 +97,9 @@ MODULE_VERSION(cd9660, 1);
  * Called by vfs_mountroot when iso is going to be mounted as root.
  */
 
-static int iso_get_ssector __P((dev_t dev, struct thread *td));
-static int iso_mountfs __P((struct vnode *devvp, struct mount *mp,
-			    struct thread *td, struct iso_args *argp));
+static int iso_get_ssector(dev_t dev, struct thread *td);
+static int iso_mountfs(struct vnode *devvp, struct mount *mp,
+			    struct thread *td, struct iso_args *argp);
 
 /*
  * Try to find the start of the last data track on this CD-ROM.  This
@@ -141,7 +141,7 @@ iso_get_ssector(dev, td)
 	return ntohl(t.entry.addr.lba);
 }
 
-static int iso_mountroot __P((struct mount *mp, struct thread *td));
+static int iso_mountroot(struct mount *mp, struct thread *td);
 
 static int
 iso_mountroot(mp, td)

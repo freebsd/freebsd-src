@@ -61,8 +61,8 @@ static u_long isohash;
 #define	INOHASH(device, inum)	((minor(device) + ((inum)>>12)) & isohash)
 static struct mtx cd9660_ihash_mtx;
 
-static void cd9660_ihashrem __P((struct iso_node *));
-static unsigned	cd9660_chars2ui __P((unsigned char *begin, int len));
+static void cd9660_ihashrem(struct iso_node *);
+static unsigned	cd9660_chars2ui(unsigned char *begin, int len);
 
 /*
  * Initialize hash links for inodes and dnodes.

@@ -92,14 +92,14 @@ extern struct sysent linux_sysent[LINUX_SYS_MAXSYSCALL];
 
 SET_DECLARE(linux_ioctl_handler_set, struct linux_ioctl_handler);
 
-static int	linux_fixup __P((register_t **stack_base,
-				 struct image_params *iparams));
-static int	elf_linux_fixup __P((register_t **stack_base,
-				     struct image_params *iparams));
-static void	linux_prepsyscall __P((struct trapframe *tf, int *args,
-				       u_int *code, caddr_t *params));
-static void     linux_sendsig __P((sig_t catcher, int sig, sigset_t *mask,
-				   u_long code));
+static int	linux_fixup(register_t **stack_base,
+				 struct image_params *iparams);
+static int	elf_linux_fixup(register_t **stack_base,
+				     struct image_params *iparams);
+static void	linux_prepsyscall(struct trapframe *tf, int *args,
+				       u_int *code, caddr_t *params);
+static void     linux_sendsig(sig_t catcher, int sig, sigset_t *mask,
+				   u_long code);
 
 /*
  * Linux syscalls return negative errno's, we do positive and map them
@@ -717,7 +717,7 @@ linux_prepsyscall(struct trapframe *tf, int *args, u_int *code, caddr_t *params)
  * be able to modify the interpreter path.  We only do this if a linux
  * binary is doing the exec, so we do not create an EXEC module for it.
  */
-static int	exec_linux_imgact_try __P((struct image_params *iparams));
+static int	exec_linux_imgact_try(struct image_params *iparams);
 
 static int
 exec_linux_imgact_try(imgp)

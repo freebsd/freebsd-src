@@ -50,12 +50,12 @@ u_int bs_bounce_used[NTARGETS];
 int bs_debug_flag = 0;
 #endif	/* BS_DEBUG */
 
-static void bs_print_syncmsg __P((struct targ_info *, char*));
-static void bs_timeout_target __P((struct targ_info *));
-static void bs_kill_msg __P((struct bsccb *cb));
+static void bs_print_syncmsg(struct targ_info *, char*);
+static void bs_timeout_target(struct targ_info *);
+static void bs_kill_msg(struct bsccb *cb);
 
-static int bs_start_target __P((struct targ_info *));
-static int bs_check_target __P((struct targ_info *));
+static int bs_start_target(struct targ_info *);
+static int bs_check_target(struct targ_info *);
 
 /*************************************************************
  * CCB

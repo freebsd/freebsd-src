@@ -95,80 +95,80 @@ static char *l2event_text[N_EVENTS] = {
 };
 #endif
 
-static void F_TU01 __P((l2_softc_t *));
-static void F_TU03 __P((l2_softc_t *));
+static void F_TU01(l2_softc_t *);
+static void F_TU03(l2_softc_t *);
 
-static void F_TA03 __P((l2_softc_t *));
-static void F_TA04 __P((l2_softc_t *));
-static void F_TA05 __P((l2_softc_t *));
+static void F_TA03(l2_softc_t *);
+static void F_TA04(l2_softc_t *);
+static void F_TA05(l2_softc_t *);
 
-static void F_TE03 __P((l2_softc_t *));
-static void F_TE04 __P((l2_softc_t *));
-static void F_TE05 __P((l2_softc_t *));
+static void F_TE03(l2_softc_t *);
+static void F_TE04(l2_softc_t *);
+static void F_TE05(l2_softc_t *);
 
-static void F_T01 __P((l2_softc_t *));
-static void F_T05 __P((l2_softc_t *));
-static void F_T06 __P((l2_softc_t *));
-static void F_T07 __P((l2_softc_t *));
-static void F_T08 __P((l2_softc_t *));
-static void F_T09 __P((l2_softc_t *));
-static void F_T10 __P((l2_softc_t *));
-static void F_T13 __P((l2_softc_t *));
+static void F_T01(l2_softc_t *);
+static void F_T05(l2_softc_t *);
+static void F_T06(l2_softc_t *);
+static void F_T07(l2_softc_t *);
+static void F_T08(l2_softc_t *);
+static void F_T09(l2_softc_t *);
+static void F_T10(l2_softc_t *);
+static void F_T13(l2_softc_t *);
 
-static void F_AE01 __P((l2_softc_t *));
-static void F_AE05 __P((l2_softc_t *));
-static void F_AE06 __P((l2_softc_t *));
-static void F_AE07 __P((l2_softc_t *));
-static void F_AE08 __P((l2_softc_t *));
-static void F_AE09 __P((l2_softc_t *));
-static void F_AE10 __P((l2_softc_t *));
-static void F_AE11 __P((l2_softc_t *));
-static void F_AE12 __P((l2_softc_t *));
+static void F_AE01(l2_softc_t *);
+static void F_AE05(l2_softc_t *);
+static void F_AE06(l2_softc_t *);
+static void F_AE07(l2_softc_t *);
+static void F_AE08(l2_softc_t *);
+static void F_AE09(l2_softc_t *);
+static void F_AE10(l2_softc_t *);
+static void F_AE11(l2_softc_t *);
+static void F_AE12(l2_softc_t *);
 
-static void F_AR05 __P((l2_softc_t *));
-static void F_AR06 __P((l2_softc_t *));
-static void F_AR07 __P((l2_softc_t *));
-static void F_AR08 __P((l2_softc_t *));
-static void F_AR09 __P((l2_softc_t *));
-static void F_AR10 __P((l2_softc_t *));
-static void F_AR11 __P((l2_softc_t *));
+static void F_AR05(l2_softc_t *);
+static void F_AR06(l2_softc_t *);
+static void F_AR07(l2_softc_t *);
+static void F_AR08(l2_softc_t *);
+static void F_AR09(l2_softc_t *);
+static void F_AR10(l2_softc_t *);
+static void F_AR11(l2_softc_t *);
 
-static void F_MF01 __P((l2_softc_t *));
-static void F_MF05 __P((l2_softc_t *));
-static void F_MF06 __P((l2_softc_t *));
-static void F_MF07 __P((l2_softc_t *));
-static void F_MF08 __P((l2_softc_t *));
-static void F_MF09 __P((l2_softc_t *));
-static void F_MF10 __P((l2_softc_t *));
-static void F_MF11 __P((l2_softc_t *));
-static void F_MF12 __P((l2_softc_t *));
-static void F_MF13 __P((l2_softc_t *));
-static void F_MF14 __P((l2_softc_t *));
-static void F_MF15 __P((l2_softc_t *));
-static void F_MF16 __P((l2_softc_t *));
-static void F_MF17 __P((l2_softc_t *));
-static void F_MF18 __P((l2_softc_t *));
-static void F_MF19 __P((l2_softc_t *));
-static void F_MF20 __P((l2_softc_t *));
+static void F_MF01(l2_softc_t *);
+static void F_MF05(l2_softc_t *);
+static void F_MF06(l2_softc_t *);
+static void F_MF07(l2_softc_t *);
+static void F_MF08(l2_softc_t *);
+static void F_MF09(l2_softc_t *);
+static void F_MF10(l2_softc_t *);
+static void F_MF11(l2_softc_t *);
+static void F_MF12(l2_softc_t *);
+static void F_MF13(l2_softc_t *);
+static void F_MF14(l2_softc_t *);
+static void F_MF15(l2_softc_t *);
+static void F_MF16(l2_softc_t *);
+static void F_MF17(l2_softc_t *);
+static void F_MF18(l2_softc_t *);
+static void F_MF19(l2_softc_t *);
+static void F_MF20(l2_softc_t *);
 
-static void F_TR01 __P((l2_softc_t *));
-static void F_TR05 __P((l2_softc_t *));
-static void F_TR06 __P((l2_softc_t *));
-static void F_TR07 __P((l2_softc_t *));
-static void F_TR08 __P((l2_softc_t *));
-static void F_TR09 __P((l2_softc_t *));
-static void F_TR10 __P((l2_softc_t *));
-static void F_TR11 __P((l2_softc_t *));
-static void F_TR12 __P((l2_softc_t *));
-static void F_TR13 __P((l2_softc_t *));
-static void F_TR15 __P((l2_softc_t *));
-static void F_TR16 __P((l2_softc_t *));
-static void F_TR17 __P((l2_softc_t *));
-static void F_TR18 __P((l2_softc_t *));
-static void F_TR19 __P((l2_softc_t *));
-static void F_TR20 __P((l2_softc_t *));
-static void F_ILL __P((l2_softc_t *));
-static void F_NCNA __P((l2_softc_t *));
+static void F_TR01(l2_softc_t *);
+static void F_TR05(l2_softc_t *);
+static void F_TR06(l2_softc_t *);
+static void F_TR07(l2_softc_t *);
+static void F_TR08(l2_softc_t *);
+static void F_TR09(l2_softc_t *);
+static void F_TR10(l2_softc_t *);
+static void F_TR11(l2_softc_t *);
+static void F_TR12(l2_softc_t *);
+static void F_TR13(l2_softc_t *);
+static void F_TR15(l2_softc_t *);
+static void F_TR16(l2_softc_t *);
+static void F_TR17(l2_softc_t *);
+static void F_TR18(l2_softc_t *);
+static void F_TR19(l2_softc_t *);
+static void F_TR20(l2_softc_t *);
+static void F_ILL(l2_softc_t *);
+static void F_NCNA(l2_softc_t *);
 
 /*---------------------------------------------------------------------------*
  *	FSM illegal state default action
@@ -192,7 +192,7 @@ F_NCNA(l2_softc_t *l2sc)
  *	layer 2 state transition table
  *---------------------------------------------------------------------------*/	
 struct l2state_tab {
-	void (*func) __P((l2_softc_t *));	/* function to execute */
+	void (*func)(l2_softc_t *);	/* function to execute */
 	int newstate;				/* next state */
 } l2state_tab[N_EVENTS][N_STATES] = {
 

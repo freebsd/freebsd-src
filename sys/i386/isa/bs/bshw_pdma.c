@@ -35,9 +35,9 @@
 
 #define	LC_SMIT_TIMEOUT	2	/* 2 sec: timeout for a fifo status ready */
 
-static BS_INLINE void bshw_lc_smit_start __P((struct bs_softc *, int, u_int));
-static int bshw_lc_smit_fstat __P((struct bs_softc *, int, int));
-static void bshw_lc_smit_stop __P((struct bs_softc *));
+static BS_INLINE void bshw_lc_smit_start(struct bs_softc *, int, u_int);
+static int bshw_lc_smit_fstat(struct bs_softc *, int, int);
+static void bshw_lc_smit_stop(struct bs_softc *);
 
 /*********************************************************
  * SM FIFO (GENERIC)

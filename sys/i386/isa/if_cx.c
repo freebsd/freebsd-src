@@ -53,13 +53,13 @@
 /* XXX exported. */
 void cxswitch (cx_chan_t *c, cx_soft_opt_t new);
 
-static int cxprobe __P((struct isa_device *id));
-static int cxattach __P((struct isa_device *id));
-static void cxput __P((cx_chan_t *c, char b));
-static void cxsend __P((cx_chan_t *c));
-static void cxrinth __P((cx_chan_t *c));
+static int cxprobe(struct isa_device *id);
+static int cxattach(struct isa_device *id);
+static void cxput(cx_chan_t *c, char b);
+static void cxsend(cx_chan_t *c);
+static void cxrinth(cx_chan_t *c);
 static ointhand2_t cxintr;
-static int cxtinth __P((cx_chan_t *c));
+static int cxtinth(cx_chan_t *c);
 
 #ifdef DEBUG
 #   define print(s)     printf s

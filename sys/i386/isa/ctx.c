@@ -133,8 +133,8 @@ static int     waitvb(int port);
 
 #define   UNIT(x) ((x) & 0x07)
 
-static int	ctxprobe __P((struct isa_device *devp));
-static int	ctxattach __P((struct isa_device *devp));
+static int	ctxprobe(struct isa_device *devp);
+static int	ctxattach(struct isa_device *devp);
 struct isa_driver ctxdriver = {
 	INTR_TYPE_MISC,
 	ctxprobe,

@@ -49,9 +49,9 @@ struct CCBTYPE##que {							\
 	u_int flags;							\
 };									\
 									\
-void DEV##_init_ccbque __P((int));					\
-struct CCBTYPE *DEV##_get_ccb __P((void));				\
-void DEV##_free_ccb __P((register struct CCBTYPE *));
+void DEV##_init_ccbque(int);					\
+struct CCBTYPE *DEV##_get_ccb(void);				\
+void DEV##_free_ccb(register struct CCBTYPE *);
 
 /* (II)  static allocated memory */
 #define GENERIC_CCB_STATIC_ALLOC(DEV, CCBTYPE)				\

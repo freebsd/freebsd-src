@@ -195,8 +195,8 @@ static void (*le_intrvec[NLE])(le_softc_t *sc);
  */
 struct le_softc {
     struct arpcom le_ac;		/* Common Ethernet/ARP Structure */
-    void (*if_init) __P((le_softc_t *));/* Interface init routine */
-    void (*if_reset) __P((le_softc_t *));/* Interface reset routine */
+    void (*if_init)(le_softc_t *);/* Interface init routine */
+    void (*if_reset)(le_softc_t *);/* Interface reset routine */
     caddr_t le_membase;			/* Starting memory address (virtual) */
     unsigned le_iobase;			/* Starting I/O base address */
     unsigned le_irq;			/* Interrupt Request Value */

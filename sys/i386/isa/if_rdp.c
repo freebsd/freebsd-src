@@ -166,8 +166,8 @@ static u_short allowed_ouis[] = {
 /*
  * ISA bus support.
  */
-static int rdp_probe		__P((struct isa_device *));
-static int rdp_attach		__P((struct isa_device *));
+static int rdp_probe		(struct isa_device *);
+static int rdp_attach		(struct isa_device *);
 
 /*
  * Required entry points.

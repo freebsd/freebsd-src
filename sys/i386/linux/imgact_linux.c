@@ -53,7 +53,7 @@
 
 #include <i386/linux/linux.h>
 
-static int	exec_linux_imgact __P((struct image_params *iparams));
+static int	exec_linux_imgact(struct image_params *iparams);
 
 static int
 exec_linux_imgact(imgp)
