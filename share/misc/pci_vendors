@@ -24,6 +24,7 @@
 0700	Lava Computer MFG Inc.
 	0100	LavaPort PCI
 	0200	LavaPort PCI
+0784	Vivitar Corporation
 0815	LinTech GmbH
 	0002	ELKA SO-PCI
 0871	Berkom
@@ -149,7 +150,7 @@
 	0020	ispLSI1032E Universal digital I/O PCI-Interface
 1002	ATI Technologies
 	4136	Radeon Mobility A3
-	4144	R300 Radeon 9700/9500 Series
+	4144	R300 Radeon 9500 Series
 	4147	ATI Fire GL Z1 4P Video Accelerator
 	4158	Mach32 (68800AX)
 	4164	Fire GL Z1/Z1 Pro Video Accelerator
@@ -182,7 +183,9 @@
 	4759	Rage 3D IIC
 	475A	Rage 3D IIC AGP (PQFP Package)
 	4966	RV250 Radeon 9000/9000 Pro
+	4967	RV250 Radeon 9000
 	496E	RV250 Radeon 9000/9000 Pro - Secondary
+	496F	RV250 Radeon 9000 - Secondary
 	4C42	Rage 3D LT Pro AGP 133MHz (BGA-312 Package)
 	4C44	Rage 3D LT Pro AGP 66MHz (BGA-312 Package)
 	4C45	Rage Mobility M3 AGP
@@ -206,10 +209,12 @@
 	4D4C	Rage Mobility 128 AGP
 	4E44	R300 Radeon 9700/9500 Series
 	4E45	R300 Radeon 9700/9500 Series
+	4E46	Radeon 9600TX
 	4E47	ATI Fire GL X1/Z1 Video Accelerator
 	4E64	R300 Radeon 9700/9500 Series - Secondary
 	4E65	R300 Radeon 9700/9500 Series - Secondary
-	4E67	ATI Fire GL X1/Z1 SECONDARY Video
+	4E66	Radeon 9600TX - Secondary
+	4E67	Fire GL X1/Z1 AGP [Pro] Secondary Video
 	5041	Rage 128 Pro PA PCI
 	5042	Rage 128 Pro PB AGP 2x
 	5043	Rage 128 Pro PC AGP 4x
@@ -243,17 +248,19 @@
 	514A	Radeon R200 QJ
 	514B	Radeon R200 QK
 	514C	R200 Radeon 8500 / 8500LE
+	514D	R200 Redeon 9100 Series
 	514E	Radeon R200 QM
 	514F	Radeon R200 QN
 	5157	RV200 Radeon 7500
 	5158	Radeon 7500 QX
-	5159	Radeon VE QY Radeon 7000 / Radeon VE
+	5159	RV100 Radeon 7000 / Radeon VE
 	515A	Radeon VE QZ
 	5168	Radeon R200 Qh
 	5169	Radeon R200 Qi
 	516A	Radeon R200 Qj
 	516B	Radeon R200 Qk
 	516C	Radeon 8500 / 8500LE
+	516D	R200 Redeon 9100 Series - Secondary
 	5245	Rage 128 GL PCI
 	5246	Rage 128 GL AGP 2x Rage Fury 16/32MB
 	5247	Rage 128 RG
@@ -2007,7 +2014,7 @@
 	8938	EV1938 Sound
 1103	HighPoint Technologies Inc.
 	0003	HPT343/5/6,HPT363 UDMA EIDE Controller
-	0004	HPT3xx UDMA66/100/133 EIDE Controller
+	0004	HPT366/368/370/372 UDMA66/100 EIDE Controller
 	0005	HPT372A UDMA/ATA133 RAID Controller
 	0006	HPT302 UDMA/ATA133 EIDE Controller
 	0007	HPT371 UDMA/ATA133 EIDE Controller
@@ -3218,7 +3225,7 @@
 	0020	LS242 MPEG/DVD video decoder
 1288	Timestep Corp.
 1289	AVC Technology Inc.
-128A	Asante Technologies Inc.
+128A	Asanté Technologies Inc.
 	F001	Ethernet 10/100 AsanteFAST 10/100 PCI Ethernet Adapter
 128B	Transwitch Corporation
 128C	Retix Corp.
@@ -3491,7 +3498,7 @@
 1312	Robotic Vision Systems Incorporated
 1313	Yaskawa Electric Co.
 1316	Teradyne Inc.
-1317	Admtek Inc
+1317	ADMtek Inc
 	0981	AM981 Ethernet Adapter
 	0985	ADM983 fast ethernet controller
 	1985	ADM985 10/100 cardbus ethernet controller
@@ -3778,7 +3785,7 @@
 13CF	Studio Audio & Video Ltd
 13D0	Techsan Electronics Co Ltd
 	2103	T228502 B2C2 Sky2PC Core Chip
-13D1	Abocom Systems Inc
+13D1	AboCom Systems, Inc
 	AB06	FE2000VX 10/10 CardBus /Atelco Fibreline Ethernet Adapter
 13D2	Shark Multimedia Inc
 13D3	IMC Networks
@@ -3837,7 +3844,7 @@
 	1240	PCI-1240-A 4-Axis Stepping/Servo Motor Card
 	1750	PCI-1750 Opto Isolated Digital I/O Card w/Counter
 13FF	Silicon Spice Inc.
-1400	ARTX Inc
+1400	ArtX Inc
 	1401	9432 TX
 1401	CR-Systems A/S
 1402	Meilhaus Electronic GmbH Germany
@@ -4030,7 +4037,7 @@
 1489	KYE Systems Corporation
 148A	Opto 22
 148B	Innomedialogic Inc.
-148C	C.P. Technology Co Ltd
+148C	C.P. Technology Co. Ltd
 148D	Digicom Systems Inc.
 	1003	Rockwell HCF chipset Creative ModemBlaster V.90 PCI DI5635
 148E	OSI Plus Corporation
@@ -4446,7 +4453,7 @@
 1542	Vivid Technology Inc
 1543	Silicon Laboratories
 1544	DCM Technologies Ltd.
-1545	Visiontek
+1545	VisionTek
 1546	IOI Technology Corp.
 1547	Mitutoyo Corporation
 1548	Jet Propulsion Laboratory
@@ -4877,6 +4884,7 @@
 16E7	Keisoku Giken Co Ltd
 16E9	Silicon Sccess Networks
 16EB	Inside Telnetcom Co Ltd
+16EC	U.S. Robotics
 16ED	Sycron N.V.
 16EE	Canberra Industries Inc
 16EF	Amigo Technology
@@ -4947,7 +4955,7 @@
 1747	Test Research Inc
 1749	RLX Technologies Inc
 174A	Spirent Communications
-174B	PC Partner Ltd
+174B	PC Partner Limited
 174C	Intelitek
 174D	Wellx Telecom
 174E	Xi'an Tongshi Data Co Ltd
@@ -5078,7 +5086,7 @@
 17EB	Aplux Communications Ltd
 17EC	Chip Engines Inc
 17ED	Arbor Technology Corp
-17EE	Connect Components Ltd
+17EE	Connect Components, Ltd.
 17EF	Sonexis
 17F0	Velio Communications Inc
 17F1	Interactive Silicon Inc
@@ -5183,6 +5191,7 @@
 1855	Cascade Semiconductor Solutions Inc
 1856	Silicon Logic Engineering Inc
 1860	Primagraphics Ltd.
+1887	Elan Digital Systems Ltd
 1888	Varisys Limited
 	2503	Bt881 Video Capture (10 bit High qualtiy cap)
 	2504	Bt878 Video Capture
@@ -5280,6 +5289,7 @@
 4143	Digital Equipment Corp.
 4144	Alpha Data Parallel Systems Ltd
 	0043	ADM-XPL Virtex-II Pro Bridge
+4161	Acco Europe
 416C	Aladdin Knowledge Systems
 	0100	AlladinCARD
 	0200	CPC
@@ -5442,7 +5452,7 @@
 	4D02	ULTRA24 SCSI Host
 	4E02	ULTRA24 SCSI Host
 	4F02	ULTRA24 SCSI Host
-6374	c't Magazin f_r Computertechnik
+6374	ct Magazin fuer Computertechnik
 	6773	CT-GPPCI General Purpose PCI Interface
 6409	Logitec Corp.
 6666	Decision Computer International Co.
@@ -5876,6 +5886,7 @@
 	0258	AAC-RAID RAID Controller
 	0285	AAC-RAID RAID Controller
 	801F	AIC-7902 Ultra320 SCSI Host Adapter
+9006	SAGEM SA
 907F	Atronics
 	2015	IDE-2015PL EIDE Controller
 919A	Gigapixel Corp
@@ -5954,12 +5965,14 @@ DEAF	Middle Digital, Inc
 	9052	PC Weasel PCI
 E000	Winbond
 	E000	W89C940 Ethernet Adapter
+E111	Aivea Corporation
 E159	Tiger Jet Network Inc
 	0001	Tiger 300/320 128k ISDN Adapter
 	0002	Sedlbauer Speed PCI
 	0600	Tiger 600 PCI-to-PCI Bridge
 E4BF	EKF Elektronik GMBH
 EA01	Eagle Technology
+EA60	RME
 EABB	Aashima Technology B.V.
 EACE	Endace Measurement Systems Ltd.
 	3100	DAG 3.10 OC-3/OC-12
@@ -5973,7 +5986,8 @@ EACE	Endace Measurement Systems Ltd.
 	4110	DAG 4.11 OC-48
 	4200	DAG 4.2 OC-48
 	420E	DAG 4.2E Dual Gigabit Ethernet
-ECC0	Echo Corporation
+EC80	Belkin Components
+ECC0	Echo Digital Audio Corporation
 EDD8	ARK Logic, Inc
 	A091	ARK1000PV Stingray GUI Accelerator
 	A099	ARK2000PV Stingray GUI Accelerator
@@ -5987,6 +6001,7 @@ FA57	Fast Search & Transfer ASA
 FEBD	Ultraview Corp.
 FEDA	Broadcom (Was: Epigram Inc; Bought out in 1999)
 	A0FA	BCM4210 OEM Chip for 10meg/s over phone line
+FF80	3com US Robotics
 FFFE	VMWare Inc (Older Product Versions)
 	0710	Virtual SVGA
 FFFF	ILLEGITIMATE VENDOR ID
