@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/aic7xxx/freebsd/dev/aic7xxx/ahd_pci.c#7 $
+ * $Id: //depot/aic7xxx/freebsd/dev/aic7xxx/ahd_pci.c#9 $
  *
  * $FreeBSD$
  */
@@ -157,8 +157,7 @@ ahd_pci_map_registers(struct ahd_softc *ahd)
 	regs_type = 0;
 	regs_id = 0;
 	if ((command & PCIM_CMD_MEMEN) != 0
-	 && ((ahd->chip & AHD_BUS_MASK) != AHD_PCIX
-	  || (ahd->bugs & AHD_PCIX_MMAPIO_BUG) == 0)) {
+	 && (ahd->bugs & AHD_PCIX_MMAPIO_BUG) == 0) {
 
 		regs_type = SYS_RES_MEMORY;
 		regs_id = AHD_PCI_MEMADDR;
@@ -178,7 +177,8 @@ ahd_pci_map_registers(struct ahd_softc *ahd)
 			 * Do a quick test to see if memory mapped
 			 * I/O is functioning correctly.
 			 */
-			if (error != 0 || ahd_inb(ahd, HCNTRL) == 0xFF) {
+			if (error != 0
+			 || ahd_pci_test_register_access(ahd) != 0) {
 				device_printf(ahd->dev_softc,
 				       "PCI Device %d:%d:%d failed memory "
 				       "mapped test.  Using PIO.\n",
