@@ -46,7 +46,7 @@
 #define MSG_IDENTIFY_DISCFLAG	0x40 
 #define MSG_IDENTIFY(lun, disc)	(((disc) ? 0xc0 : MSG_IDENTIFYFLAG) | (lun))
 #define MSG_ISIDENTIFY(m)	((m) & MSG_IDENTIFYFLAG)
-#define MSG_IDENTIFY_LUNMASK	0x03F 
+#define MSG_IDENTIFY_LUNMASK	0x3F 
 
 /* Extended messages (opcode and length) */
 #define MSG_EXT_SDTR		0x01
