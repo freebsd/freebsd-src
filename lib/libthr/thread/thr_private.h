@@ -682,15 +682,6 @@ SCLASS int    _clock_res_usec		/* Clock resolution in usec.	*/
 ;
 #endif
 
-/* Giant lock. */
-SCLASS struct umtx _giant_mutex
-#ifdef GLOBAL_PTHREAD_PRIVATE
-=  UMTX_INITIALIZER
-#endif
-;
-
-SCLASS int _giant_count;
-
 /* Garbage collector condition variable. */
 SCLASS	pthread_cond_t  _gc_cond
 #ifdef GLOBAL_PTHREAD_PRIVATE
@@ -712,13 +703,6 @@ SCLASS	volatile int	_spinblock_count
 = 0
 #endif
 ;
-
-/* 
- * And, should we climb the beanstalk,
- * We'll meet his brother, Giant.
- */
-void GIANT_LOCK(pthread_t);
-void GIANT_UNLOCK(pthread_t);
 
 /* Undefine the storage class specifier: */
 #undef  SCLASS
