@@ -3808,7 +3808,16 @@ nfsrv_statfs(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		tval = (u_quad_t)sf->f_bfree;
 		tval *= (u_quad_t)sf->f_bsize;
 		txdr_hyper(tval, &sfp->sf_fbytes);
-		tval = (u_quad_t)sf->f_bavail;
+		/*
+		 * Don't send negative values for available space,
+		 * since this field is unsigned in the NFS protocol.
+		 * Otherwise, the client would see absurdly high
+		 * numbers for free space.
+		 */
+		if (sf->f_bavail < 0)
+			tval = 0;
+		else
+			tval = (u_quad_t)sf->f_bavail;
 		tval *= (u_quad_t)sf->f_bsize;
 		txdr_hyper(tval, &sfp->sf_abytes);
 		sfp->sf_tfiles.nfsuquad[0] = 0;
@@ -3823,7 +3832,10 @@ nfsrv_statfs(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		sfp->sf_bsize = txdr_unsigned(sf->f_bsize);
 		sfp->sf_blocks = txdr_unsigned(sf->f_blocks);
 		sfp->sf_bfree = txdr_unsigned(sf->f_bfree);
-		sfp->sf_bavail = txdr_unsigned(sf->f_bavail);
+		if (sf->f_bavail < 0)
+			sfp->sf_bavail = 0;
+		else
+			sfp->sf_bavail = txdr_unsigned(sf->f_bavail);
 	}
 nfsmout:
 	if (vp)
