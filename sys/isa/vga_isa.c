@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: vga_isa.c,v 1.6 1999/05/08 20:20:18 peter Exp $
+ * $Id: vga_isa.c,v 1.7 1999/05/08 21:59:32 dfr Exp $
  */
 
 #include "vga.h"
@@ -52,13 +52,8 @@
 #include <dev/fb/fbreg.h>
 #include <dev/fb/vgareg.h>
 
-#if 1
 #include <isa/isareg.h>
 #include <isa/isavar.h>
-#else
-#include <i386/isa/isa.h>
-#include <i386/isa/isa_device.h>
-#endif
 
 #define DRIVER_NAME		"vga"
 
@@ -70,8 +65,6 @@
 typedef struct isavga_softc {
 	video_adapter_t	*adp;
 } isavga_softc_t;
-
-#if 1
 
 #define ISAVGA_SOFTC(unit)		\
 	((isavga_softc_t *)devclass_get_softc(isavga_devclass, unit))
@@ -95,24 +88,6 @@ static driver_t isavga_driver = {
 
 DRIVER_MODULE(vga, isa, isavga_driver, isavga_devclass, 0, 0);
 
-#else /* __i386__ */
-
-#define ISAVGA_SOFTC(unit)	(isavga_softc[unit])
-
-static isavga_softc_t	*isavga_softc[NVGA];
-
-static int		isavga_probe(struct isa_device *dev);
-static int		isavga_attach(struct isa_device *dev);
-
-struct isa_driver vgadriver = {
-	isavga_probe,
-	isavga_attach,
-	DRIVER_NAME,
-	0,
-};
-
-#endif /* __i386__ */
-
 static int		isavga_probe_unit(int unit, isavga_softc_t *sc,
 					  int flags);
 static int		isavga_attach_unit(int unit, isavga_softc_t *sc,
@@ -134,8 +109,6 @@ static struct  cdevsw vga_cdevsw = {
 
 #endif /* FB_INSTALL_CDEV */
 
-#if 1
-
 static int
 isavga_probe(device_t dev)
 {
@@ -154,51 +127,6 @@ isavga_attach(device_t dev)
 	sc = device_get_softc(dev);
 	return isavga_attach_unit(device_get_unit(dev), sc, isa_get_flags(dev));
 }
-
-#else /* __i386__ */
-
-static int
-isavga_probe(struct isa_device *dev)
-{
-	isavga_softc_t *sc;
-	int error;
-
-	if (dev->id_unit >= sizeof(isavga_softc)/sizeof(isavga_softc[0]))
-		return 0;
-	sc = isavga_softc[dev->id_unit]
-	   = malloc(sizeof(*sc), M_DEVBUF, M_NOWAIT);
-	if (sc == NULL)
-		return 0;
-
-	error = isavga_probe_unit(dev->id_unit, sc, dev->id_flags);
-	if (error) {
-		isavga_softc[dev->id_unit] = NULL;
-		free(sc, M_DEVBUF);
-		return 0;
-	}
-
-	dev->id_iobase = sc->adp->va_io_base;
-	dev->id_maddr = (caddr_t)BIOS_PADDRTOVADDR(sc->adp->va_mem_base);
-	dev->id_msize = sc->adp->va_mem_size;
-
-	return sc->adp->va_io_size;
-}
-
-static int
-isavga_attach(struct isa_device *dev)
-{
-	isavga_softc_t *sc;
-
-	if (dev->id_unit >= sizeof(isavga_softc)/sizeof(isavga_softc[0]))
-		return 0;
-	sc = isavga_softc[dev->id_unit];
-	if (sc == NULL)
-		return 0;
-
-	return ((isavga_attach_unit(dev->id_unit, sc, dev->id_flags)) ? 0 : 1);
-}
-
-#endif /* __i386__ */
 
 static int
 isavga_probe_unit(int unit, isavga_softc_t *sc, int flags)
