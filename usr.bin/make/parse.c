@@ -1428,16 +1428,17 @@ Parse_DoVar (line, ctxt)
 	    while(((pid = wait(&status)) != cpid) && (pid >= 0))
 		continue;
 
-	    res = (char *)Buf_GetAll (buf, &cc);
-	    Buf_Destroy (buf, FALSE);
-
-	    if (cc == 0) {
+	    if (cc == -1) {
 		/*
-		 * Couldn't read the child's output -- tell the user and
-		 * set the variable to null
+		 * Couldn't read all of the child's output -- tell the user
+		 * but still use whatever we read.  Null output isn't an
+		 * error unless there was an error reading it.
 		 */
 		Parse_Error(PARSE_WARNING, "Couldn't read shell's output");
 	    }
+
+	    res = (char *)Buf_GetAll (buf, &cc);
+	    Buf_Destroy (buf, FALSE);
 
 	    if (status) {
 		/*
