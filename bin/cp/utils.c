@@ -58,7 +58,7 @@ __FBSDID("$FreeBSD$");
 #include "extern.h"
 
 int
-copy_file(FTSENT *entp, int dne)
+copy_file(const FTSENT *entp, int dne)
 {
 	static char buf[MAXBSIZE];
 	struct stat *fs;
@@ -193,7 +193,7 @@ copy_file(FTSENT *entp, int dne)
 }
 
 int
-copy_link(FTSENT *p, int exists)
+copy_link(const FTSENT *p, int exists)
 {
 	int len;
 	char llink[PATH_MAX];
