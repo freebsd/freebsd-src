@@ -26,13 +26,20 @@
  * $FreeBSD$
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
+#include <sys/mbuf.h>
 #include <sys/socket.h>
+#include <sys/systm.h>
 #include <sys/time.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
+#include <net/netisr.h>
 #include <net/intrq.h>
+
+#ifdef __i386__
+#include <netatm/atm_if.h>
+#endif
 
 /*
  * If the appropriate intrq_present variable is zero, don't use
@@ -40,21 +47,71 @@
  * When defined, each of the network stacks declares their own
  * *intrq_present variable to be non-zero.
  */
-
 const int	atintrq1_present;
 const int	atintrq2_present;
+#ifdef NETISR_ATM
 const int	atmintrq_present;
+#endif
 const int	ipintrq_present;
 const int	ip6intrq_present;
 const int	ipxintrq_present;
 const int	natmintrq_present;
 const int	nsintrq_present;
 
-struct ifqueue	atintrq1;
-struct ifqueue	atintrq2;
-struct ifqueue	atm_intrq;
+struct ifqueue	at1intrq;
+struct ifqueue	at2intrq;
+#ifdef NETISR_ATM
+struct ifqueue	atmintrq;
+#endif
 struct ifqueue	ipintrq;
 struct ifqueue	ip6intrq;
 struct ifqueue	ipxintrq;
 struct ifqueue	natmintrq;
 struct ifqueue	nsintrq;
+
+
+static const struct {
+	sa_family_t family;
+	struct ifqueue *q;
+	int const *present;
+	int isr;
+} queue[] = {
+#ifdef NETISR_ATM
+	{ AF_ATM, &atm_intrq, &atmintrq_present, NETISR_ATM },
+#endif
+	{ AF_INET, &ipintrq, &ipintrq_present, NETISR_IP },
+	{ AF_INET6, &ip6intrq, &ip6intrq_present, NETISR_IPV6 },
+	{ AF_IPX, &ipxintrq, &ipxintrq_present, NETISR_IPX },
+	{ AF_NATM, &natmintrq, &natmintrq_present, NETISR_NATM },
+	{ AF_APPLETALK, &at2intrq, &atintrq2_present, NETISR_ATALK },
+	{ AF_NS, &nsintrq, &nsintrq_present, NETISR_NS }
+};
+
+int
+family_enqueue(family, m)
+	sa_family_t family;
+	struct mbuf *m;
+{
+	int entry, s;
+
+	for (entry = 0; entry < sizeof queue / sizeof queue[0]; entry++)
+		if (queue[entry].family == family) {
+			if (queue[entry].present) {
+				s = splimp();
+				if (IF_QFULL(queue[entry].q)) {
+					IF_DROP(queue[entry].q);
+					splx(s);
+					m_freem(m);
+					return ENOBUFS;
+				}
+				IF_ENQUEUE(queue[entry].q, m);
+				splx(s);
+				schednetisr(queue[entry].isr);
+				return 0;
+			} else
+				break;
+		}
+
+	m_freem(m);
+	return EAFNOSUPPORT;
+}
