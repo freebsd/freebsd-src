@@ -27,7 +27,7 @@ CFLAGS+=	-x assembler-with-cpp	# Ugly hack
 TGTOBJS=	crtsavres.o
 SRCS+=		crtsavres.asm
 .endif
-.if ${TARGET_ARCH} == "sparc64"
+.if ${TARGET_ARCH} == "alpha" || ${TARGET_ARCH} == "sparc64"
 TGTOBJS=	crtfastmath.o
 SRCS+=		crtfastmath.c
 .endif
