@@ -248,7 +248,7 @@ main(argc, argv)
 			for (c = 0;
 			    c < sizeof(namelist)/sizeof(namelist[0]); c++)
 				if (namelist[c].n_type == 0)
-					fprintf(stderr, " %s",
+					(void)fprintf(stderr, " %s",
 					    namelist[c].n_name);
 			(void)fputc('\n', stderr);
 		} else
@@ -471,15 +471,16 @@ dovmstat(interval, reps)
 		mib[0] = CTL_VM;
 		mib[1] = VM_METER;
 		if (sysctl(mib, 2, &total, &size, NULL, 0) < 0) {
-			printf("Can't get kerninfo: %s\n", strerror(errno));
+			(void)printf("Can't get kerninfo: %s\n",
+				     strerror(errno));
 			bzero(&total, sizeof(total));
 		}
 		(void)printf("%2d %1d %1d",
 		    total.t_rq - 1, total.t_dw + total.t_pw, total.t_sw);
 #define vmstat_pgtok(a) ((a) * sum.v_page_size >> 10)
 #define	rate(x)	(((x) + halfuptime) / uptime)	/* round */
-		(void)printf(" %7ld %6ld ",
-		    (long)vmstat_pgtok(total.t_avm), (long)vmstat_pgtok(total.t_free));
+		(void)printf(" %7ld %6ld ", (long)vmstat_pgtok(total.t_avm),
+			     (long)vmstat_pgtok(total.t_free));
 		(void)printf("%4lu ",
 		    (u_long)rate(sum.v_vm_faults - osum.v_vm_faults));
 		(void)printf("%3lu ",
@@ -686,14 +687,13 @@ devstats()
 
 		di = dev_select[dn].position;
 
-		if (compute_stats(&cur.dinfo->devices[di],
-				  &last.dinfo->devices[di], busy_seconds,
-				  NULL, NULL, NULL,
-				  NULL, &transfers_per_second, NULL,
-				  NULL, NULL) != 0)
+		if (devstat_compute_statistics(&cur.dinfo->devices[di],
+		    &last.dinfo->devices[di], busy_seconds,
+		    DSM_TRANSFERS_PER_SECOND, &transfers_per_second,
+		    DSM_NONE) != 0)
 			errx(1, "%s", devstat_errbuf);
 
-		printf("%3.0Lf ", transfers_per_second);
+		(void)printf("%3.0Lf ", transfers_per_second);
 	}
 }
 
@@ -814,20 +814,20 @@ domem()
 			name = ks->ks_shortdesc;
 			len += 2 + strlen(name);
 			if (first && j < 1024)
-				printf("%4d  %s", j, name);
+				(void)printf("%4d  %s", j, name);
 			else if (first)
-				printf("%3dK  %s", j>>10, name);
+				(void)printf("%3dK  %s", j>>10, name);
 			else
-				printf(",");
+				(void)printf(",");
 			if (len >= 79) {
-				printf("\n\t ");
+				(void)printf("\n\t ");
 				len = 10 + strlen(name);
 			}
 			if (!first)
-				printf(" %s", name);
+				(void)printf(" %s", name);
 			first = 0;
 		}
-		printf("\n");
+		(void)printf("\n");
 	}
 
 	(void)printf(
@@ -848,16 +848,16 @@ domem()
 			if ((ks->ks_size & j) == 0)
 				continue;
 			if (first)
-				printf("  ");
+				(void)printf("  ");
 			else
-				printf(",");
+				(void)printf(",");
 			if(j<1024)
-				printf("%d",j);
+				(void)printf("%d",j);
 			else
-				printf("%dK",j>>10);
+				(void)printf("%dK",j>>10);
 			first = 0;
 		}
-		printf("\n");
+		(void)printf("\n");
 		totuse += ks->ks_memuse;
 		totreq += ks->ks_calls;
 	}
