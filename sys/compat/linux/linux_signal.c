@@ -435,5 +435,5 @@ linux_kill(struct thread *td, struct linux_kill_args *args)
 		tmp.signum = args->signum;
 
 	tmp.pid = args->pid;
-	return (kill(td, &tmp));
+	return (kern_kill(td, &tmp, 0));
 }
