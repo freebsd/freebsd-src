@@ -1,7 +1,7 @@
 /*
  * Fundamental constants relating to ethernet.
  *
- * $Id: ethernet.h,v 1.1 1996/08/05 14:02:38 phk Exp $
+ * $Id: ethernet.h,v 1.2 1996/08/06 21:14:21 phk Exp $
  *
  */
 
@@ -59,5 +59,15 @@ struct	ether_header {
 struct	ether_addr {
 	u_char octet[ETHER_ADDR_LEN];
 };
+
+/*
+ * Ethernet address conversion/parsing routines.
+ */
+struct	ether_addr
+	*ether_aton __P(( char * ));
+char 	*ether_ntoa __P (( struct ether_addr * ));
+int	ether_line __P(( char *, struct ether_addr *, char * ));
+int	ether_ntohost __P(( char *, struct ether_addr * ));
+int	ether_hostton __P(( char *, struct ether_addr * ));
 
 #endif
