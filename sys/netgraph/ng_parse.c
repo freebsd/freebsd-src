@@ -465,7 +465,8 @@ ng_int32_parse(const struct ng_parse_type *type,
 	char *eptr;
 
 	val = strtol(s + *off, &eptr, 0);
-	if (val < -0x80000000 || val > 0xffffffff || eptr == s + *off)
+	if (val < (long)-0x80000000
+	    || val > (u_long)0xffffffff || eptr == s + *off)
 		return (EINVAL);
 	*off = eptr - s;
 	val32 = (int32_t)val;
