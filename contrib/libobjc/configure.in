@@ -1,5 +1,5 @@
 # Process this file with autoconf to produce a configure script.
-#   Copyright (C) 1995, 1997, 1998, 1999 Free Software Foundation, Inc.
+#   Copyright (C) 1995, 1997, 1998, 1999, 2002 Free Software Foundation, Inc.
 #   Contributed by Dave Love (d.love@dl.ac.uk).
 #
 #This file is part of GNU Objective C.
@@ -21,20 +21,20 @@
 
 AC_PREREQ(2.13)
 AC_INIT(objc/objc.h)
-#AC_CONFIG_HEADER(config.h)
+AC_CONFIG_HEADER(config.h)
 
-if test "${srcdir}" = "." ; then
-  if test "${with_target_subdir}" != "." ; then
-    topsrcdir=${with_multisrctop}../..
-  else
-    topsrcdir=${with_multisrctop}..
-  fi
-else
-  topsrcdir=${srcdir}/..
-fi
-dnl This is needed for a multilibbed build in the source tree so
-dnl that install-sh and config.sub get found.
-AC_CONFIG_AUX_DIR($topsrcdir)
+# This works around the fact that libtool configuration may change LD
+# for this particular configuration, but some shells, instead of
+# keeping the changes in LD private, export them just because LD is
+# exported.
+ORIGINAL_LD_FOR_MULTILIBS=$LD
+
+AC_CANONICAL_SYSTEM
+target_alias=${target_alias-$target}
+AC_SUBST(target_alias)
+
+GLIBCPP_CONFIGURE(.)
+GLIBCPP_EXPORT_INSTALL_INFO
 
 # If the language specific compiler does not exist, but the "gcc" directory 
 # does, we do not build anything. Note, $r is set by the top-level Makefile.
@@ -65,10 +65,16 @@ then
 fi
 
 dnl Checks for programs.
-# For ObjC we'll set CC to point at the built gcc, but this will get it into
-# the makefiles
-AC_PROG_CC
 
+# Disable shared libs by default
+AC_DISABLE_SHARED
+# Enable Win32 DLL on MS Windows - FIXME 
+AC_LIBTOOL_WIN32_DLL 
+
+AC_PROG_LIBTOOL
+
+dnl These should be inherited in the recursive make, but ensure they are
+dnl defined:
 test "$AR" || AR=ar
 AC_SUBST(AR)
 if test "$RANLIB"; then :
@@ -77,8 +83,7 @@ else
   AC_PROG_RANLIB
 fi
 AC_PROG_INSTALL
-
-dnl Checks for libraries.
+AC_PROG_MAKE_SET
 
 dnl Checks for header files.
 # Sanity check for the cross-compilation case:
@@ -91,17 +96,19 @@ the Objective C runtime system.  If necessary, install gcc now with
 
 AC_HEADER_STDC
 
-# Determine the name of the GCC thread file.
+AC_CHECK_HEADERS(sched.h)
 
-AC_CACHE_CHECK([for thread file],objc_cv_thread_file,
+# Determine CFLAGS for gthread.
+
+AC_CACHE_CHECK([for gthread cflags],objc_cv_gthread_flags,
 [if test -f "$r"/gcc/Makefile
 then
-  objc_cv_thread_file=`grep \^GCC_THREAD_FILE "$r"/gcc/Makefile | awk -F= '{ print $2 }'`
+  objc_cv_gthread_flags=`grep \^GTHREAD_FLAGS "$r"/gcc/Makefile | awk -F= '{ print $2 }'`
 else
   AC_MSG_ERROR([not found])
 fi])
-OBJC_THREAD_FILE=$objc_cv_thread_file
-AC_SUBST(OBJC_THREAD_FILE)
+GTHREAD_FLAGS=$objc_cv_gthread_flags
+AC_SUBST(GTHREAD_FLAGS)
 
 AC_ARG_ENABLE(objc-gc,
 [  --enable-objc-gc       enable the use of Boehm's garbage collector with
@@ -109,7 +116,7 @@ AC_ARG_ENABLE(objc-gc,
 if [[[ x$enable_objc_gc = xno ]]]; then
         OBJC_BOEHM_GC=''
 else
-        OBJC_BOEHM_GC=libobjc_gc.a
+        OBJC_BOEHM_GC=libobjc_gc.la
 fi,
 OBJC_BOEHM_GC='')
 AC_SUBST(OBJC_BOEHM_GC)
@@ -117,12 +124,13 @@ AC_SUBST(OBJC_BOEHM_GC)
 
 # We need multilib support, but only if configuring for the target.
 AC_OUTPUT(Makefile,
-[test -z "$CONFIG_HEADERS" || echo timestamp > stamp-h
+ [test -z "$CONFIG_HEADERS" || echo timestamp > stamp-h
 if test -n "$CONFIG_FILES"; then
   if test -n "${with_target_subdir}"; then
     # FIXME: We shouldn't need to set ac_file
     ac_file=Makefile
-    . ${topsrcdir}/config-ml.in
+    LD="${ORIGINAL_LD_FOR_MULTILIBS}"
+    . ${toplevel_srcdir}/config-ml.in
   fi
 fi],
 srcdir=${srcdir}
@@ -131,9 +139,10 @@ target=${target}
 with_target_subdir=${with_target_subdir}
 with_multisubdir=${with_multisubdir}
 ac_configure_args="--enable-multilib ${ac_configure_args}"
+toplevel_srcdir=${toplevel_srcdir}
 CONFIG_SHELL=${CONFIG_SHELL-/bin/sh}
-topsrcdir=${topsrcdir}
 )
+
 
 dnl Local Variables:
 dnl comment-start: "dnl "

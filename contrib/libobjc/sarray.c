@@ -44,10 +44,6 @@ const char* __objc_sparse2_id = "2 level sparse indices";
 const char* __objc_sparse3_id = "3 level sparse indices";
 #endif
 
-#ifdef __alpha__
-const void *memcpy (void*, const void*, size_t);
-#endif
-
 /* This function removes any structures left over from free operations
    that were not safe in a multi-threaded environment. */
 void
