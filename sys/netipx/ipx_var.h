@@ -86,7 +86,6 @@ struct sockaddr;
 struct socket;
 struct sockopt;
 
-void	ipx_abort(struct ipxpcb *ipxp);
 u_short	ipx_cksum(struct mbuf *m, int len);
 int	ipx_control(struct socket *so, u_long cmd, caddr_t data,
 			 struct ifnet *ifp, struct thread *td);

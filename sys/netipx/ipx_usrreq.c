@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004 Robert N. M. Watson
+ * Copyright (c) 2004-2005 Robert N. M. Watson
  * Copyright (c) 1995, Mike Mitchell
  * Copyright (c) 1984, 1985, 1986, 1987, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -128,7 +128,7 @@ ipx_input(m, ipxp)
 	struct ifnet *ifp = m->m_pkthdr.rcvif;
 	struct sockaddr_ipx ipx_ipx;
 
-	KASSERT(ipxp != NULL, ("ipx_input: NUL ipxpcb"));
+	KASSERT(ipxp != NULL, ("ipx_input: NULL ipxpcb"));
 	/*
 	 * Construct sockaddr format source address.
 	 * Stuff source address and datagram in user buffer.
@@ -161,16 +161,6 @@ ipx_input(m, ipxp)
 		m_freem(m);
 	else
 		sorwakeup(ipxp->ipxp_socket);
-}
-
-void
-ipx_abort(ipxp)
-	struct ipxpcb *ipxp;
-{
-	struct socket *so = ipxp->ipxp_socket;
-
-	ipx_pcbdisconnect(ipxp);
-	soisdisconnected(so);
 }
 
 /*
