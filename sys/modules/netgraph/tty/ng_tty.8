@@ -42,14 +42,16 @@
 .Nm ng_tty
 .Nd netgraph node type that is also a line discipline
 .Sh SYNOPSIS
+.Fd #include <sys/ttycom.h>
 .Fd #include <netgraph/ng_message.h>
 .Fd #include <netgraph/ng_tty.h>
 .Sh DESCRIPTION
 The
 .Nm tty
 node type is both a netgraph node type and a line discipline.
-A new node is created when the corresponding line discipline is
-registered on a tty device (see
+A new node is created when the corresponding line discipline,
+.Dv NETGRAPHDISC ,
+is registered on a tty device (see
 .Xr tty 4 ")."
 .Pp
 The node has a single hook called
@@ -112,18 +114,6 @@ The
 control message is not valid, and always returns the error
 .Er EOPNOTSUPP .
 .Sh BUGS
-The
-.Nm tty
-type registers its line discipline when the type is installed,
-where it is dynamically assigned an integer index.
-Unfortunately, there's no way to know what this integer is
-except by reading the output of
-.Xr dmesg 8 .
-The fix for this is to have line disciplines identified by
-unique ASCII strings instead of fixed integer constants,
-or else to assign one of those constants to
-.Nm ng_tty .
-.Pp
 The serial driver code also has a notion of a ``hot character.''
 Unfortunately, this value is statically defined in terms of the
 line discipline and cannot be changed.

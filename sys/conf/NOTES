@@ -404,6 +404,7 @@ options			NETGRAPH_RFC1490
 options			NETGRAPH_TEE
 options			NETGRAPH_TTY
 options			NETGRAPH_UI
+options			NETGRAPH_VJC
 
 #
 # Network interfaces:
