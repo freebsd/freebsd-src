@@ -15,6 +15,7 @@ man
 sshd
 bind
 proxy
+_pflogd
 uucp
 pop
 www
