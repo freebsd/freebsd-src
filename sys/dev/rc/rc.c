@@ -205,11 +205,11 @@ rcprobe(dvp)
 	if (dvp->id_unit > NRC)
 		return 0;
 	if (!RC_VALIDADDR(nec)) {
-		printf("rc%d: illegal base address %x\n", nec);
+		printf("rc%d: illegal base address %x\n", dvp->id_unit, nec);
 		return 0;
 	}
 	if (!RC_VALIDIRQ(irq)) {
-		printf("rc%d: illegal IRQ value %d\n", irq);
+		printf("rc%d: illegal IRQ value %d\n", dvp->id_unit, irq);
 		return 0;
 	}
 	rcout(CD180_PPRL, 0x22); /* Random values to Prescale reg. */
@@ -273,7 +273,7 @@ rcattach(dvp)
 	rcb->rcb_probed = RC_ATTACHED;
 	if (!rc_wakeup_started) {
 		rc_wakeup((void *)NULL);
-		rc_wakeup_started = 0;
+		rc_wakeup_started = 1;
 	}
 	return 1;
 }
