@@ -86,11 +86,27 @@
             papers
             ..
             psd
+                01.cacm
+                ..
+                02.implement
+                ..
+                03.iosys
+                ..
+                04.uprog
+                ..
                 05.sysman
+                ..
+                06.Clang
                 ..
                 12.make
                 ..
                 13.rcs
+                ..
+                15.yacc
+                ..
+                16.lex
+                ..
+                17.m4
                 ..
                 18.gprof
                 ..
@@ -157,6 +173,10 @@
                 19.memacros
                 ..
                 20.meref
+                ..
+                21.troff
+                ..
+                22.trofftut
                 ..
                 30.rogue
                 ..
