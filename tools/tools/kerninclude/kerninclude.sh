@@ -150,7 +150,7 @@ if $init ; then
 	echo "Configuring kernels"
 	(
 		cd i386/conf
-		perl ./makeLINT.pl < NOTES > LINT
+		make LINT
 		config -r -p LINT
 		config -r GENERIC
 	)
