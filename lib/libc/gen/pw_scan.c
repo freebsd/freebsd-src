@@ -103,7 +103,7 @@ __pw_scan(char *bp, struct passwd *pw, int flags)
 	id = strtoul(p, (char **)NULL, 10);
 	if (errno == ERANGE) {
 		if (flags & _PWSCAN_WARN)
-			warnx("%s > max uid value (%u)", p, ULONG_MAX);
+			warnx("%s > max uid value (%lu)", p, ULONG_MAX);
 		return (0);
 	}
 	if (root && id) {
@@ -123,7 +123,7 @@ __pw_scan(char *bp, struct passwd *pw, int flags)
 	id = strtoul(p, (char **)NULL, 10);
 	if (errno == ERANGE) {
 		if (flags & _PWSCAN_WARN)
-			warnx("%s > max gid value (%u)", p, ULONG_MAX);
+			warnx("%s > max gid value (%lu)", p, ULONG_MAX);
 		return (0);
 	}
 	if (flags & _PWSCAN_WARN && pw_big_ids_warning && id > USHRT_MAX) {
