@@ -404,7 +404,6 @@ extern char **rl_completion_matches __P((const char *, rl_compentry_func_t *));
 extern char *rl_username_completion_function __P((const char *, int));
 extern char *rl_filename_completion_function __P((const char *, int));
 
-#if 0
 /* Backwards compatibility (compat.c).  These will go away sometime. */
 extern void free_undo_list __P((void));
 extern int maybe_save_line __P((void));
@@ -418,7 +417,6 @@ extern int crlf __P((void));
 extern char **completion_matches __P((char *, rl_compentry_func_t *));
 extern char *username_completion_function __P((const char *, int));
 extern char *filename_completion_function __P((const char *, int));
-#endif
 
 /* **************************************************************** */
 /*								    */
