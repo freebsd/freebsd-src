@@ -505,8 +505,7 @@ trap(frame)
 				frame.tf_eip = (int)doreti_popl_fs_fault;
 				goto out;
 			}
-			if (PCPU_GET(curpcb) != NULL &&
-			    PCPU_GET(curpcb)->pcb_onfault != NULL) {
+			if (PCPU_GET(curpcb)->pcb_onfault != NULL) {
 				frame.tf_eip =
 				    (int)PCPU_GET(curpcb)->pcb_onfault;
 				goto out;
@@ -727,7 +726,6 @@ trap_pfault(frame, usermode, eva)
 nogo:
 	if (!usermode) {
 		if (td->td_intr_nesting_level == 0 &&
-		    PCPU_GET(curpcb) != NULL &&
 		    PCPU_GET(curpcb)->pcb_onfault != NULL) {
 			frame->tf_eip = (int)PCPU_GET(curpcb)->pcb_onfault;
 			return (0);
