@@ -7,8 +7,8 @@
  * to the original author and the contributors.
  */
 #if !defined(lint)
-static const char sccsid[] = "@(#)ipmon.c	1.21 6/5/96 (C)1993-1998 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipmon.c,v 2.3.2.4 2000/01/24 12:45:25 darrenr Exp $";
+static const char sccsid[] = "@(#)ipmon.c	1.21 6/5/96 (C)1993-2000 Darren Reed";
+static const char rcsid[] = "@(#)$Id: ipmon.c,v 2.12.2.2 2000/07/15 14:50:06 darrenr Exp $";
 #endif
 
 #ifndef SOLARIS
@@ -208,11 +208,11 @@ static void init_tabs()
 		if (s->s_proto == NULL)
 			continue;
 		else if (!strcmp(s->s_proto, "tcp")) {
-			port = (u_int)s->s_port;
+			port = ntohs(s->s_port);
 			name = s->s_name;
 			tab = tcp_ports;
 		} else if (!strcmp(s->s_proto, "udp")) {
-			port = (u_int)s->s_port;
+			port = ntohs(s->s_port);
 			name = s->s_name;
 			tab = udp_ports;
 		} else
@@ -385,6 +385,10 @@ int	blen;
 		strcpy(t, "NAT:RDR ");
 	else if (nl->nl_type == NL_EXPIRE)
 		strcpy(t, "NAT:EXPIRE ");
+	else if (nl->nl_type == NL_NEWBIMAP)
+		strcpy(t, "NAT:BIMAP ");
+	else if (nl->nl_type == NL_NEWBLOCK)
+		strcpy(t, "NAT:MAPBLOCK ");
 	else
 		sprintf(t, "Type: %d ", nl->nl_type);
 	t += strlen(t);

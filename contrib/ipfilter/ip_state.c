@@ -6,8 +6,8 @@
  * to the original author and the contributors.
  */
 #if !defined(lint)
-static const char sccsid[] = "@(#)ip_state.c	1.8 6/5/96 (C) 1993-1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ip_state.c,v 2.3.2.18 2000/01/27 08:51:30 darrenr Exp $";
+static const char sccsid[] = "@(#)ip_state.c	1.8 6/5/96 (C) 1993-2000 Darren Reed";
+static const char rcsid[] = "@(#)$Id: ip_state.c,v 2.30.2.12 2000/06/19 02:38:37 darrenr Exp $";
 #endif
 
 #include <sys/errno.h>
@@ -248,6 +248,156 @@ int mode;
 		break;
 	}
 	return error;
+}
+
+
+int fr_stgetent(data)
+caddr_t data;
+{
+	register ipstate_t *is, *isn;
+	ipstate_save_t ips, *ipsp;
+	int error;
+
+	error = IRCOPY(data, (caddr_t)&ipsp, sizeof(ipsp));
+	if (error)
+		return EFAULT;
+	error = IRCOPY((caddr_t)ipsp, (caddr_t)&ips, sizeof(ips));
+	if (error)
+		return EFAULT;
+
+	isn = ips.ips_next;
+	if (!isn) {
+		isn = ips_list;
+		if (isn == NULL) {
+			if (ips.ips_next == NULL)
+				return ENOENT;
+			return 0;
+		}
+	} else {
+		/*
+		 * Make sure the pointer we're copying from exists in the
+		 * current list of entries.  Security precaution to prevent
+		 * copying of random kernel data.
+		 */
+		for (is = ips_list; is; is = is->is_next)
+			if (is == isn)
+				break;
+		if (!is)
+			return ESRCH;
+	}
+	ips.ips_next = isn->is_next;
+	bcopy((char *)isn, (char *)&ips.ips_is, sizeof(ips.ips_is));
+	if (isn->is_rule)
+		bcopy((char *)isn->is_rule, (char *)&ips.ips_fr,
+		      sizeof(ips.ips_fr));
+	error = IWCOPY((caddr_t)&ips, ipsp, sizeof(ips));
+	if (error)
+		return EFAULT;
+	return 0;
+}
+
+
+int fr_stputent(data)
+caddr_t data;
+{
+	register ipstate_t *is, *isn;
+	ipstate_save_t ips, *ipsp;
+	int error, out;
+	frentry_t *fr;
+
+	error = IRCOPY(data, (caddr_t)&ipsp, sizeof(ipsp));
+	if (error)
+		return EFAULT;
+	error = IRCOPY((caddr_t)ipsp, (caddr_t)&ips, sizeof(ips));
+	if (error)
+		return EFAULT;
+
+	KMALLOC(isn, ipstate_t *);
+	if (isn == NULL)
+		return ENOMEM;
+
+	bcopy((char *)&ips.ips_is, (char *)isn, sizeof(*isn));
+	fr = isn->is_rule;
+	if (fr != NULL) {
+		if (isn->is_flags & FI_NEWFR) {
+			KMALLOC(fr, frentry_t *);
+			if (fr == NULL) {
+				KFREE(isn);
+				return ENOMEM;
+			}
+			bcopy((char *)&ips.ips_fr, (char *)fr, sizeof(*fr));
+			out = fr->fr_flags & FR_OUTQUE ? 1 : 0;
+			isn->is_rule = fr;
+			ips.ips_is.is_rule = fr;
+			if (*fr->fr_ifname) {
+				fr->fr_ifa = GETUNIT(fr->fr_ifname, fr->fr_v);
+				if (fr->fr_ifa == NULL)
+					fr->fr_ifa = (void *)-1;
+#ifdef	_KERNEL
+				else {
+					strncpy(isn->is_ifname[out],
+						IFNAME(fr->fr_ifa), IFNAMSIZ);
+					isn->is_ifp[out] = fr->fr_ifa;
+				}
+#endif
+			} else
+				fr->fr_ifa = NULL;
+			/*
+			 * send a copy back to userland of what we ended up
+			 * to allow for verification.
+			 */
+			error = IWCOPY((caddr_t)&ips, ipsp, sizeof(ips));
+			if (error) {
+				KFREE(isn);
+				KFREE(fr);
+				return EFAULT;
+			}
+		} else {
+			for (is = ips_list; is; is = is->is_next)
+				if (is->is_rule == fr)
+					break;
+			if (!is) {
+				KFREE(isn);
+				return ESRCH;
+			}
+		}
+	}
+	fr_stinsert(isn);
+	return 0;
+}
+
+
+void fr_stinsert(is)
+register ipstate_t *is;
+{
+	register u_int hv = is->is_hv;
+
+	MUTEX_INIT(&is->is_lock, "ipf state entry", NULL);
+
+	is->is_ifname[0][sizeof(is->is_ifname[0]) - 1] = '\0';
+	if (is->is_ifname[0][0] != '\0') {
+		is->is_ifp[0] = GETUNIT(is->is_ifname[0], is->is_v);
+	}
+	is->is_ifname[1][sizeof(is->is_ifname[0]) - 1] = '\0';
+	if (is->is_ifname[1][0] != '\0') {
+		is->is_ifp[1] = GETUNIT(is->is_ifname[1], is->is_v);
+	}
+
+	/*
+	 * add into list table.
+	 */
+	if (ips_list)
+		ips_list->is_pnext = &is->is_next;
+	is->is_pnext = &ips_list;
+	is->is_next = ips_list;
+	ips_list = is;
+	if (ips_table[hv])
+		ips_table[hv]->is_phnext = &is->is_hnext;
+	else
+		ips_stats.iss_inuse++;
+	is->is_phnext = ips_table + hv;
+	is->is_hnext = ips_table[hv];
+	ips_table[hv] = is;
 }
 
 
@@ -1191,13 +1341,140 @@ void *ifp;
 	register ipstate_t *is;
 	register int i;
 
-	WRITE_ENTER(&ipf_state);
-	for (i = fr_statesize - 1; i >= 0; i--)
-		for (is = ips_table[i]; is != NULL; is = is->is_next) {
-			if (is->is_ifpin == ifp)
-				is->is_ifpin = NULL;
-			if (is->is_ifpout == ifp)
-				is->is_ifpout = NULL;
+	/*
+	 * Does it at least have the return (basic) IP header ?
+	 * Only a basic IP header (no options) should be with
+	 * an ICMP error header.
+	 */
+	if ((fin->fin_v != 6) || (fin->fin_plen < ICMP6ERR_MINPKTLEN))
+		return NULL;
+	ic = (struct icmp6_hdr *)fin->fin_dp;
+	type = ic->icmp6_type;
+	/*
+	 * If it's not an error type, then return
+	 */
+	if ((type != ICMP6_DST_UNREACH) && (type != ICMP6_PACKET_TOO_BIG) &&
+	    (type != ICMP6_TIME_EXCEEDED) && (type != ICMP6_PARAM_PROB))
+		return NULL;
+
+	oip = (ip6_t *)((char *)ic + ICMPERR_ICMPHLEN);
+	if (fin->fin_plen < sizeof(*oip))
+		return NULL;
+
+	if (oip->ip6_nxt == IPPROTO_ICMPV6) {
+		oic = (struct icmp6_hdr *)(oip + 1);
+		/*
+		 * a ICMP error can only be generated as a result of an
+		 * ICMP query, not as the response on an ICMP error
+		 *
+		 * XXX theoretically ICMP_ECHOREP and the other reply's are
+		 * ICMP query's as well, but adding them here seems strange XXX
+		 */
+		 if (!(oic->icmp6_type & ICMP6_INFOMSG_MASK))
+		    	return NULL;
+
+		/*
+		 * perform a lookup of the ICMP packet in the state table
+		 */
+		hv = (pr = oip->ip6_nxt);
+		src.in6 = oip->ip6_src;
+		hv += src.in4.s_addr;
+		dst.in6 = oip->ip6_dst;
+		hv += dst.in4.s_addr;
+		hv += oic->icmp6_id;
+		hv += oic->icmp6_seq;
+		hv %= fr_statesize;
+
+		oip->ip6_plen = ntohs(oip->ip6_plen);
+		fr_makefrip(sizeof(*oip), (ip_t *)oip, &ofin);
+		oip->ip6_plen = htons(oip->ip6_plen);
+		ofin.fin_ifp = fin->fin_ifp;
+		ofin.fin_out = !fin->fin_out;
+		ofin.fin_mp = NULL; /* if dereferenced, panic XXX */
+
+		READ_ENTER(&ipf_state);
+		for (isp = &ips_table[hv]; (is = *isp); isp = &is->is_hnext)
+			if ((is->is_p == pr) &&
+			    (oic->icmp6_id == is->is_icmp.ics_id) &&
+			    (oic->icmp6_seq == is->is_icmp.ics_seq) &&
+			    fr_matchsrcdst(is, src, dst, &ofin, NULL)) {
+			    	/*
+			    	 * in the state table ICMP query's are stored
+			    	 * with the type of the corresponding ICMP
+			    	 * response. Correct here
+			    	 */
+				if (((is->is_type == ICMP6_ECHO_REPLY) &&
+				     (oic->icmp6_type == ICMP6_ECHO_REQUEST)) ||
+				     (is->is_type - 1 == oic->icmp6_type )) {
+				    	ips_stats.iss_hits++;
+    					is->is_pkts++;
+					is->is_bytes += fin->fin_plen;
+					return is->is_rule;
+				}
+			}
+		RWLOCK_EXIT(&ipf_state);
+
+		return NULL;
+	};
+
+	if ((oip->ip6_nxt != IPPROTO_TCP) && (oip->ip6_nxt != IPPROTO_UDP))
+		return NULL;
+	tcp = (tcphdr_t *)(oip + 1);
+	dport = tcp->th_dport;
+	sport = tcp->th_sport;
+
+	hv = (pr = oip->ip6_nxt);
+	src.in6 = oip->ip6_src;
+	hv += src.in4.s_addr;
+	dst.in6 = oip->ip6_dst;
+	hv += dst.in4.s_addr;
+	hv += dport;
+	hv += sport;
+	hv %= fr_statesize;
+	/*
+	 * we make an fin entry to be able to feed it to
+	 * matchsrcdst note that not all fields are encessary
+	 * but this is the cleanest way. Note further we fill
+	 * in fin_mp such that if someone uses it we'll get
+	 * a kernel panic. fr_matchsrcdst does not use this.
+	 *
+	 * watch out here, as ip is in host order and oip in network
+	 * order. Any change we make must be undone afterwards.
+	 */
+	savelen = oip->ip6_plen;
+	oip->ip6_plen = ip->ip6_plen - sizeof(*ip) - ICMPERR_ICMPHLEN;
+	ofin.fin_v = 6;
+	fr_makefrip(sizeof(*oip), (ip_t *)oip, &ofin);
+	oip->ip6_plen = savelen;
+	ofin.fin_ifp = fin->fin_ifp;
+	ofin.fin_out = !fin->fin_out;
+	ofin.fin_mp = NULL; /* if dereferenced, panic XXX */
+	READ_ENTER(&ipf_state);
+	for (isp = &ips_table[hv]; (is = *isp); isp = &is->is_hnext) {
+		/*
+		 * Only allow this icmp though if the
+		 * encapsulated packet was allowed through the
+		 * other way around. Note that the minimal amount
+		 * of info present does not allow for checking against
+		 * tcp internals such as seq and ack numbers.
+		 */
+		if ((is->is_p == pr) && (is->is_v == 6) &&
+		    fr_matchsrcdst(is, src, dst, &ofin, tcp)) {
+			fr = is->is_rule;
+			ips_stats.iss_hits++;
+			/*
+			 * we must swap src and dst here because the icmp
+			 * comes the other way around
+			 */
+			is->is_pkts++;
+			is->is_bytes += fin->fin_plen;
+			/*
+			 * we deliberately do not touch the timeouts
+			 * for the accompanying state table entry.
+			 * It remains to be seen if that is correct. XXX
+			 */
+			RWLOCK_EXIT(&ipf_state);
+			return fr;
 		}
 	RWLOCK_EXIT(&ipf_state);
 }

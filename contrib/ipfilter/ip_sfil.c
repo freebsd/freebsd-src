@@ -8,8 +8,8 @@
  * I hate legaleese, don't you ?
  */
 #if !defined(lint)
-static const char sccsid[] = "%W% %G% (C) 1993-1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ip_sfil.c,v 2.1.2.6 2000/01/16 10:12:44 darrenr Exp $";
+static const char sccsid[] = "%W% %G% (C) 1993-2000 Darren Reed";
+static const char rcsid[] = "@(#)$Id: ip_sfil.c,v 2.23.2.3 2000/07/08 02:20:14 darrenr Exp $";
 #endif
 
 #include <sys/types.h>
@@ -477,6 +477,10 @@ caddr_t data;
 	 * Look for a matching filter rule, but don't include the next or
 	 * interface pointer in the comparison (fr_next, fr_ifa).
 	 */
+	for (fp->fr_cksum = 0, p = (u_int *)&fp->fr_ip, pp = &fp->fr_cksum;
+	     p < pp; p++)
+		fp->fr_cksum += *p;
+
 	for (; (f = *ftail); ftail = &f->fr_next)
 		if (bcmp((char *)&f->fr_ip, (char *)&fp->fr_ip,
 			 FR_CMPSIZ) == 0)

@@ -6,8 +6,8 @@
  * to the original author and the contributors.
  */
 #if !defined(lint)
-static const char sccsid[] = "@(#)ip_fil.c	2.41 6/5/96 (C) 1993-1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ip_fil.c,v 2.4.2.16 2000/01/16 10:12:42 darrenr Exp $";
+static const char sccsid[] = "@(#)ip_fil.c	2.41 6/5/96 (C) 1993-2000 Darren Reed";
+static const char rcsid[] = "@(#)$Id: ip_fil.c,v 2.42.2.14 2000/07/18 13:57:55 darrenr Exp $";
 #endif
 
 #ifndef	SOLARIS
@@ -617,6 +617,10 @@ caddr_t data;
 	fp = &frd;
 	IRCOPY(data, (caddr_t)fp, sizeof(*fp));
 	fp->fr_ref = 0;
+#if (BSD >= 199306) && defined(_KERNEL)
+	if ((securelevel > 0) && (fp->fr_func != NULL))
+		return EPERM;
+#endif
 
 	/*
 	 * Check that the group number does exist and that if a head group
@@ -682,6 +686,10 @@ caddr_t data;
 	 * Look for a matching filter rule, but don't include the next or
 	 * interface pointer in the comparison (fr_next, fr_ifa).
 	 */
+	for (fp->fr_cksum = 0, p = (u_int *)&fp->fr_ip, pp = &fp->fr_cksum;
+	     p < pp; p++)
+		fp->fr_cksum += *p;
+
 	for (; (f = *ftail); ftail = &f->fr_next)
 		if (bcmp((char *)&f->fr_ip, (char *)&fp->fr_ip,
 			 FR_CMPSIZ) == 0)
@@ -964,6 +972,32 @@ struct in_addr dst;
 	struct mbuf *m;
 	ip_t *nip;
 
+	if ((type < 0) || (type > ICMP_MAXTYPE))
+		return -1;
+
+	code = fin->fin_icode;
+#ifdef USE_INET6
+	if ((code < 0) || (code > sizeof(icmptoicmp6unreach)/sizeof(int)))
+		return -1;
+#endif
+
+	avail = 0;
+	m = NULL;
+	ifp = fin->fin_ifp;
+	if (fin->fin_v == 4) {
+		if ((oip->ip_p == IPPROTO_ICMP) &&
+		    !(fin->fin_fi.fi_fl & FI_SHORT))
+			switch (ntohs(fin->fin_data[0]) >> 8)
+			{
+			case ICMP_ECHO :
+			case ICMP_TSTAMP :
+			case ICMP_IREQ :
+			case ICMP_MASKREQ :
+				break;
+			default :
+				return 0;
+			}
+
 # if	(BSD < 199306) || defined(__sgi)
 	m = m_get(M_DONTWAIT, MT_HEADER);
 # else
@@ -1129,7 +1163,8 @@ frdest_t *fdp;
 			ATOMIC_INC(frstats[1].fr_acct);
 		}
 		fin->fin_fr = NULL;
-		(void) fr_checkstate(ip, fin);
+		if (!fr || !(fr->fr_flags & FR_RETMASK))
+			(void) fr_checkstate(ip, fin);
 		(void) ip_natout(ip, fin);
 	} else
 		ip->ip_sum = 0;
@@ -1337,15 +1372,29 @@ char *name;
 
 	if (!ifneta) {
 		ifneta = (struct ifnet **)malloc(sizeof(ifp) * 2);
+		if (!ifneta)
+			return NULL;
 		ifneta[1] = NULL;
 		ifneta[0] = (struct ifnet *)calloc(1, sizeof(*ifp));
+		if (!ifneta[0]) {
+			free(ifneta);
+			return NULL;
+		}
 		nifs = 1;
 	} else {
 		nifs++;
 		ifneta = (struct ifnet **)realloc(ifneta,
 						  (nifs + 1) * sizeof(*ifa));
+		if (!ifneta) {
+			nifs = 0;
+			return NULL;
+		}
 		ifneta[nifs] = NULL;
 		ifneta[nifs - 1] = (struct ifnet *)malloc(sizeof(*ifp));
+		if (!ifneta[nifs - 1]) {
+			nifs--;
+			return NULL;
+		}
 	}
 	ifp = ifneta[nifs - 1];
 

@@ -1,12 +1,18 @@
 /*
  * Simple FTP transparent proxy for in-kernel use.  For use with the NAT
  * code.
+ *
+ * $Id: ip_ftp_pxy.c,v 2.7.2.12 2000/07/19 13:06:13 darrenr Exp $
  */
 #if SOLARIS && defined(_KERNEL)
 extern	kmutex_t	ipf_rw;
 #endif
 
 #define	isdigit(x)	((x) >= '0' && (x) <= '9')
+#define	isupper(x)	(((unsigned)(x) >= 'A') && ((unsigned)(x) <= 'Z'))
+#define	islower(x)	(((unsigned)(x) >= 'a') && ((unsigned)(x) <= 'z'))
+#define	isalpha(x)	(isupper(x) || islower(x))
+#define	toupper(x)	(isupper(x) ? (x) : (x) - 'a' + 'A')
 
 #define	IPF_FTP_PROXY
 
@@ -25,6 +31,8 @@ int ippr_ftp_pasvmsg __P((fr_info_t *, ip_t *, nat_t *));
 u_short ipf_ftp_atoi __P((char **));
 
 static	frentry_t	natfr;
+int	ippr_ftp_pasvonly = 0;
+int	ippr_ftp_insecure = 0;
 
 
 /*
@@ -88,32 +96,12 @@ nat_t *nat;
 #endif
 
 	tcp = (tcphdr_t *)fin->fin_dp;
-	bzero(portbuf, sizeof(portbuf));
-	off = (ip->ip_hl << 2) + (tcp->th_off << 2);
-
-#if	SOLARIS
-	m = fin->fin_qfm;
-
-	dlen = msgdsize(m) - off;
-	if (dlen > 0)
-		copyout_mblk(m, off, MIN(sizeof(portbuf), dlen), portbuf);
-#else
-	m = *(mb_t **)fin->fin_mp;
-
-	dlen = mbufchainlen(m) - off;
-	if (dlen > 0)
-		m_copydata(m, off, MIN(sizeof(portbuf), dlen), portbuf);
-#endif
-	if (dlen == 0)
+	/*
+	 * Check for client sending out PORT message.
+	 */
+	if (dlen < IPF_MINPORTLEN)
 		return 0;
-	portbuf[sizeof(portbuf) - 1] = '\0';
-	*newbuf = '\0';
-	if (!strncmp(portbuf, "PORT ", 5)) { 
-		if (dlen < IPF_MINPORTLEN)
-			return 0;
-	} else
-		return 0;
-
+	off = fin->fin_hlen + (tcp->th_off << 2);
 	/*
 	 * Skip the PORT command + space
 	 */
@@ -198,6 +186,10 @@ nat_t *nat;
 		m_adj(m, inc);
 	/* the mbuf chain will be extended if necessary by m_copyback() */
 	m_copyback(m, off, nlen, newbuf);
+# ifdef	M_PKTHDR
+	if (!(m->m_flags & M_PKTHDR))
+		m->m_pkthdr.len += inc;
+# endif
 #endif
 	if (inc != 0) {
 #if SOLARIS || defined(__sgi)
@@ -259,7 +251,41 @@ ip_t *ip;
 ap_session_t *aps;
 nat_t *nat;
 {
-	return ippr_ftp_portmsg(fin, ip, nat);
+	char *rptr, *wptr, cmd[6], c;
+	ftpside_t *f;
+	int inc, i;
+
+	inc = 0;
+	f = &ftp->ftp_side[0];
+	rptr = f->ftps_rptr;
+	wptr = f->ftps_wptr;
+
+	for (i = 0; (i < 5) && (i < dlen); i++) {
+		c = rptr[i];
+		if (isalpha(c)) {
+			cmd[i] = toupper(c);
+		} else {
+			cmd[i] = c;
+		}
+	}
+	cmd[i] = '\0';
+
+	if ((ftp->ftp_passok == 0) && !strncmp(cmd, "USER ", 5))
+		 ftp->ftp_passok = 1;
+	else if ((ftp->ftp_passok == 2) && !strncmp(cmd, "PASS ", 5))
+		 ftp->ftp_passok = 3;
+	else if ((ftp->ftp_passok == 4) && !ippr_ftp_pasvonly &&
+		 !strncmp(cmd, "PORT ", 5)) {
+		inc = ippr_ftp_port(fin, ip, nat, f, dlen);
+	} else if (ippr_ftp_insecure && !ippr_ftp_pasvonly &&
+		   !strncmp(cmd, "PORT ", 5)) {
+		inc = ippr_ftp_port(fin, ip, nat, f, dlen);
+	}
+
+	while ((*rptr++ != '\n') && (rptr < wptr))
+		;
+	f->ftps_rptr = rptr;
+	return inc;
 }
 
 
@@ -277,18 +303,8 @@ nat_t *nat;
 	tcphdr_t *tcp;
 	fr_info_t fi;
 	nat_t *ipn;
-	mb_t *m;
-#if	SOLARIS
-	mb_t *m1;
-#endif
-
-	tcp = (tcphdr_t *)fin->fin_dp;
-	off = (ip->ip_hl << 2) + (tcp->th_off << 2);
-	m = *(mb_t **)fin->fin_mp;
-	bzero(portbuf, sizeof(portbuf));
-
-#if	SOLARIS
-	m = fin->fin_qfm;
+	int inc;
+	char *s;
 
 	dlen = msgdsize(m) - off;
 	if (dlen > 0)
@@ -310,6 +326,9 @@ nat_t *nat;
 			return 0;
 	} else
 		return 0;
+
+	tcp = (tcphdr_t *)fin->fin_dp;
+
 	/*
 	 * Skip the PORT command + space
 	 */
@@ -387,13 +406,14 @@ nat_t *nat;
 	} else {
 		m1->b_wptr += inc;
 	}
-	copyin_mblk(m, off, nlen, newbuf);
-#else
+	/*copyin_mblk(m, off, nlen, newbuf);*/
+#else /* SOLARIS */
+	m = *((mb_t **)fin->fin_mp);
 	if (inc < 0)
 		m_adj(m, inc);
 	/* the mbuf chain will be extended if necessary by m_copyback() */
-	m_copyback(m, off, nlen, newbuf);
-#endif
+	/*m_copyback(m, off, nlen, newbuf);*/
+#endif /* SOLARIS */
 	if (inc != 0) {
 #if SOLARIS || defined(__sgi)
 		register u_32_t	sum1, sum2;
@@ -408,9 +428,10 @@ nat_t *nat;
 		sum2 = (sum2 & 0xffff) + (sum2 >> 16);
 
 		fix_outcksum(&ip->ip_sum, sum2, 0);
-#endif
+#endif /* SOLARIS || defined(__sgi) */
 		ip->ip_len += inc;
 	}
+#endif /* 0 */
 
 	/*
 	 * Add skeleton NAT entry for connection which will come back the
@@ -443,6 +464,241 @@ nat_t *nat;
 		ip->ip_dst = swip2;
 	}
 	return inc;
+}
+
+
+int ippr_ftp_server(fin, ip, nat, ftp, dlen)
+fr_info_t *fin;
+ip_t *ip;
+nat_t *nat;
+ftpinfo_t *ftp;
+int dlen;
+{
+	char *rptr, *wptr;
+	ftpside_t *f;
+	int inc;
+
+	inc = 0;
+	f = &ftp->ftp_side[1];
+	rptr = f->ftps_rptr;
+	wptr = f->ftps_wptr;
+
+	if ((ftp->ftp_passok == 1) && !strncmp(rptr, "331", 3))
+		 ftp->ftp_passok = 2;
+	else if ((ftp->ftp_passok == 3) && !strncmp(rptr, "230", 3))
+		 ftp->ftp_passok = 4;
+	else if ((ftp->ftp_passok == 3) && !strncmp(rptr, "530", 3))
+		 ftp->ftp_passok = 0;
+	else if ((ftp->ftp_passok == 4) && !strncmp(rptr, "227 ", 4)) {
+		inc = ippr_ftp_pasv(fin, ip, nat, f, dlen);
+	} else if (ippr_ftp_insecure && !strncmp(rptr, "227 ", 4)) {
+		inc = ippr_ftp_pasv(fin, ip, nat, f, dlen);
+	}
+	while ((*rptr++ != '\n') && (rptr < wptr))
+		;
+	f->ftps_rptr = rptr;
+	return inc;
+}
+
+
+/*
+ * Look to see if the buffer starts with something which we recognise as
+ * being the correct syntax for the FTP protocol.
+ */
+int ippr_ftp_valid(buf, len)
+char *buf;
+size_t len;
+{
+	register char *s, c;
+	register size_t i = len;
+
+	if (i < 5)
+		return 2;
+	s = buf;
+	c = *s++;
+	i--;
+
+	if (isdigit(c)) {
+		c = *s++;
+		i--;
+		if (isdigit(c)) {
+			c = *s++;
+			i--;
+			if (isdigit(c)) {
+				c = *s++;
+				i--;
+				if ((c != '-') && (c != ' '))
+					return 1;
+			} else
+				return 1;
+		} else
+			return 1;
+	} else if (isalpha(c)) {
+		c = *s++;
+		i--;
+		if (isalpha(c)) {
+			c = *s++;
+			i--;
+			if (isalpha(c)) {
+				c = *s++;
+				i--;
+				if (isalpha(c)) {
+					c = *s++;
+					i--;
+					if ((c != ' ') && (c != '\r'))
+						return 1;
+				} else if ((c != ' ') && (c != '\r'))
+					return 1;
+			} else
+				return 1;
+		} else
+			return 1;
+	} else
+		return 1;
+	for (; i; i--) {
+		c = *s++;
+		if (c == '\n')
+			return 0;
+	}
+	return 2;
+}
+
+
+int ippr_ftp_process(fin, ip, nat, ftp, rv)
+fr_info_t *fin;
+ip_t *ip;
+nat_t *nat;
+ftpinfo_t *ftp;
+int rv;
+{
+	int mlen, len, off, inc, i, sel;
+	char *rptr, *wptr;
+	ftpside_t *f, *t;
+	tcphdr_t *tcp;
+	mb_t *m;
+
+	tcp = (tcphdr_t *)fin->fin_dp;
+	off = fin->fin_hlen + (tcp->th_off << 2);
+
+#if	SOLARIS
+	m = fin->fin_qfm;
+#else
+	m = *((mb_t **)fin->fin_mp);
+#endif
+
+#if	SOLARIS
+	mlen = msgdsize(m) - off;
+#else
+	mlen = mbufchainlen(m) - off;
+#endif
+	t = &ftp->ftp_side[1 - rv];
+	if (!mlen) {
+		t->ftps_seq = ntohl(tcp->th_ack);
+		return 0;
+	}
+
+	inc = 0;
+	f = &ftp->ftp_side[rv];
+	rptr = f->ftps_rptr;
+	wptr = f->ftps_wptr;
+
+	sel = nat->nat_aps->aps_sel[1 - rv];
+	if (rv)
+		i = nat->nat_aps->aps_ackoff[sel];
+	else
+		i = nat->nat_aps->aps_seqoff[sel];
+	/*
+	 * XXX - Ideally, this packet should get dropped because we now know
+	 * that it is out of order (and there is no real danger in doing so
+	 * apart from causing packets to go through here ordered).
+	 */
+	if (ntohl(tcp->th_seq) + i != f->ftps_seq) {
+		return APR_ERR(-1);
+	}
+
+	while (mlen > 0) {
+		len = MIN(mlen, FTP_BUFSZ / 2);
+
+#if	SOLARIS
+		copyout_mblk(m, off, len, wptr);
+#else
+		m_copydata(m, off, len, wptr);
+#endif
+		mlen -= len;
+		off += len;
+		wptr += len;
+		f->ftps_wptr = wptr;
+		if (f->ftps_junk == 2)
+			f->ftps_junk = ippr_ftp_valid(rptr, wptr - rptr);
+
+		while ((f->ftps_junk == 0) && (wptr > rptr)) {
+			f->ftps_junk = ippr_ftp_valid(rptr, wptr - rptr);
+			if (f->ftps_junk == 0) {
+				len = wptr - rptr;
+				f->ftps_rptr = rptr;
+				if (rv)
+					inc += ippr_ftp_server(fin, ip, nat,
+							       ftp, len);
+				else
+					inc += ippr_ftp_client(fin, ip, nat,
+							       ftp, len);
+				rptr = f->ftps_rptr;
+			}
+		}
+
+		while ((f->ftps_junk == 1) && (rptr < wptr)) {
+			while ((rptr < wptr) && (*rptr != '\r'))
+				rptr++;
+
+			if ((*rptr == '\r') && (rptr + 1 < wptr)) {
+				if (*(rptr + 1) == '\n') {
+					rptr += 2;
+					f->ftps_junk = 0;
+				} else
+					rptr++;
+			}
+			f->ftps_rptr = rptr;
+		}
+
+		if (rptr == wptr) {
+			rptr = wptr = f->ftps_buf;
+		} else {
+			if ((wptr > f->ftps_buf + FTP_BUFSZ / 2)) {
+				i = wptr - rptr;
+				if ((rptr == f->ftps_buf) ||
+				    (wptr - rptr > FTP_BUFSZ / 2)) {
+					f->ftps_junk = 1;
+					rptr = wptr = f->ftps_buf;
+				} else {
+					bcopy(rptr, f->ftps_buf, i);
+					wptr = f->ftps_buf + i;
+					rptr = f->ftps_buf;
+				}
+			}
+			f->ftps_rptr = rptr;
+			f->ftps_wptr = wptr;
+		}
+	}
+
+	t->ftps_seq = ntohl(tcp->th_ack);
+	f->ftps_rptr = rptr;
+	f->ftps_wptr = wptr;
+	return inc;
+}
+
+
+int ippr_ftp_out(fin, ip, aps, nat)
+fr_info_t *fin;
+ip_t *ip;
+ap_session_t *aps;
+nat_t *nat;
+{
+	ftpinfo_t *ftp;
+
+	ftp = aps->aps_data;
+	if (ftp == NULL)
+		return 0;
+	return ippr_ftp_process(fin, ip, nat, ftp, 0);
 }
 
 
