@@ -31,11 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)endian.h	7.8 (Berkeley) 4/3/91
- *	$Id: endian.h,v 1.7 1996/10/21 17:15:05 nate Exp $
+ *	$Id: endian.h,v 1.8 1996/11/29 07:04:03 dyson Exp $
  */
 
 #ifndef _MACHINE_ENDIAN_H_
-#define _MACHINE_ENDIAN_H_ 1
+#define	_MACHINE_ENDIAN_H_
 
 /*
  * Define the order of 32-bit words in 64-bit words.
@@ -58,20 +58,22 @@
 #endif
 
 #define __word_swap_long(x) \
-({ register u_long __X = (x); \
+__extension__ ({ register u_long __X = (x); \
    __asm ("rorl $16, %1" \
 	: "=r" (__X) \
 	: "0" (__X)); \
    __X; })
-#if __GNUC__ >= 2
+
 #if defined(KERNEL) && !defined(I386_CPU)
+
 #define __byte_swap_long(x) \
 __extension__ ({ register u_long __X = (x); \
    __asm ("bswap %0" \
-	: "=q" (__X) \
+	: "=r" (__X) \
 	: "0" (__X)); \
    __X; })
 #else
+
 #define __byte_swap_long(x) \
 __extension__ ({ register u_long __X = (x); \
    __asm ("xchgb %h1, %b1\n\trorl $16, %1\n\txchgb %h1, %b1" \
@@ -79,26 +81,13 @@ __extension__ ({ register u_long __X = (x); \
 	: "0" (__X)); \
    __X; })
 #endif
+
 #define __byte_swap_word(x) \
 __extension__ ({ register u_short __X = (x); \
    __asm ("xchgb %h1, %b1" \
 	: "=q" (__X) \
 	: "0" (__X)); \
    __X; })
-#else /* __GNUC__ >= 2 */
-#define __byte_swap_long(x) \
-({ register u_long __X = (x); \
-   __asm ("rorw $8, %w1\n\trorl $16, %1\n\trorw $8, %w1" \
-	: "=r" (__X) \
-	: "0" (__X)); \
-   __X; })
-#define __byte_swap_word(x) \
-({ register u_short __X = (x); \
-   __asm ("rorw $8, %w1" \
-	: "=r" (__X) \
-	: "0" (__X)); \
-   __X; })
-#endif /* __GNUC__ >= 2 */
 
 /*
  * Macros for network/external number representation conversion.
@@ -116,14 +105,17 @@ __extension__ ({ register u_short __X = (x); \
 
 #else
 
+#ifdef __GNUC__
 #define	ntohl	__byte_swap_long
 #define	ntohs	__byte_swap_word
 #define	htonl	__byte_swap_long
 #define	htons	__byte_swap_word
-
-#define	NTOHL(x)	(x) = ntohl((u_long)x)
-#define	NTOHS(x)	(x) = ntohs((u_short)x)
-#define	HTONL(x)	(x) = htonl((u_long)x)
-#define	HTONS(x)	(x) = htons((u_short)x)
 #endif
-#endif /* _MACHINE_ENDIAN_H_ */
+
+#define	NTOHL(x)	((x) = ntohl((u_long)(x)))
+#define	NTOHS(x)	((x) = ntohs((u_short)(x)))
+#define	HTONL(x)	((x) = htonl((u_long)(x)))
+#define	HTONS(x)	((x) = htons((u_short)(x)))
+#endif
+
+#endif /* !_MACHINE_ENDIAN_H_ */
