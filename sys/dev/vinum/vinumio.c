@@ -33,6 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
+ * $Id: vinumio.c,v 1.26 1999/10/12 04:31:54 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -487,7 +488,8 @@ check_drive(char *devicename)
     } else {
 	if (drive->lasterror == 0)
 	    drive->lasterror = ENODEV;
-	set_drive_state(drive->driveno, drive_down, setstate_force);
+	close_drive(drive);
+	drive->state = drive_down;
     }
     return drive;
 }
@@ -836,13 +838,6 @@ write_volume_label(int volno)
     return error;
 }
 
-/* Initialize a subdisk */
-int
-initsd(int sdno)
-{
-    return 0;
-}
-
 /* Look at all disks on the system for vinum slices */
 int
 vinum_scandisk(char *devicename[], int drives)
@@ -955,8 +950,13 @@ vinum_scandisk(char *devicename[], int drives)
 	else
 	    log(LOG_INFO, "vinum: updating configuration from %s\n", drive->devicename);
 
-	/* Read in both copies of the configuration information */
-	error = read_drive(drive, config_text, MAXCONFIG * 2, VINUM_CONFIG_OFFSET);
+	if (drive->state == drive_up)
+	    /* Read in both copies of the configuration information */
+	    error = read_drive(drive, config_text, MAXCONFIG * 2, VINUM_CONFIG_OFFSET);
+	else {
+	    error = EIO;
+	    printf("vinum_scandisk: %s is %s\n", drive->devicename, drive_state(drive->state));
+	}
 
 	if (error != 0) {
 	    log(LOG_ERR, "vinum: Can't read device %s, error %d\n", drive->devicename, error);
