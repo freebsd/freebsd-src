@@ -121,9 +121,23 @@ otherwise 0.
 .Pp
 Parentheses are used for grouping in the usual manner.
 .Pp
-Unless the
-.Ev EXPR_COMPAT
-variable is defined in the process environment, this version of
+The
+.Nm
+utility makes no lexical distinction between arguments which may be
+operators and arguments which may be operands.
+An operand which is lexically identical to an operator will be considered a
+syntax error.
+See the examples below for a work-around.
+.Pp
+The syntax of the
+.Nm
+command in general is historic and inconvenient.
+New applications are advised to use shell arithmetic rather than
+.Nm .
+.Ss Compatibility with previous implementations
+Unless 
+.Fx 4.x
+compatibility is enabled, this version of
 .Nm
 adheres to the
 \*[Px]
@@ -140,43 +154,31 @@ will not permit this syntax.
 See the examples below for portable ways to guarantee the correct
 interpretation.
 The
-.Ev EXPR_COMPAT
-variable is intended for use as a transition and debugging aid, when
+.Xr check_utility_compat 3
+function (with a
+.Fa utility
+argument of
+.Dq Li expr )
+is used to determine whether compatibility mode should be enabled.
+This feature is intended for use as a transition and debugging aid, when
 .Nm
 is used in complex scripts which cannot easily be recast to avoid the
 non-portable usage.
-Defining
-.Ev EXPR_COMPAT
+Enabling compatibility mode
 also implicitly enables the
 .Fl e
 option, since this matches the historic behavior of
 .Nm
 in
 .Fx .
+For historical reasons, defining the environment variable
+.Ev EXPR_COMPAT
+also enables compatibility mode.
 .Pp
-The
-.Nm
-utility makes no lexical distinction between arguments which may be
-operators and arguments which may be operands.
-An operand which is lexically identical to an operator will be considered a
-syntax error.
-See the examples below for a work-around.
-.Pp
-The syntax of the
-.Nm
-command in general is historic and inconvenient.
-New applications are advised to use shell arithmetic rather than
-.Nm .
 .Sh ENVIRONMENT
 .Bl -tag -width ".Ev EXPR_COMPAT"
 .It Ev EXPR_COMPAT
-If set,
-.Nm
-will emulate historic
-.Nm
-implementations which did not obey the Utility Syntax Guidelines.
-Implies
-.Fl e .
+If set, enables compatibility mode.
 .El
 .Sh EXAMPLES
 .Bl -bullet
@@ -248,15 +250,14 @@ the expression is invalid.
 .El
 .Sh SEE ALSO
 .Xr sh 1 ,
-.Xr test 1
+.Xr test 1 ,
+.Xr check_utility_compat 3
 .Sh STANDARDS
 The
 .Nm
 utility conforms to
 .St -p1003.1-2001 ,
-provided that the
-.Ev EXPR_COMPAT
-environment variable is not defined.
+provided that compatibility mode is not enabled.
 The
 .Fl e
 flag is an extension.

@@ -437,6 +437,7 @@ struct timeval;				/* select(2) */
 int	 acct(const char *);
 int	 async_daemon(void);
 int	 brk(const void *);
+int	 check_utility_compat(const char *);
 int	 chroot(const char *);
 const char *
 	 crypt_get_format(void);
