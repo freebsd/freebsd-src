@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)dd.h	8.3 (Berkeley) 4/2/94
- *	$Id: dd.h,v 1.8 1998/02/11 02:23:31 asami Exp $
+ *	$Id: dd.h,v 1.10 1999/06/20 14:58:51 green Exp $
  */
 
 /* Input/output stream state. */
@@ -49,7 +49,8 @@ typedef struct {
 #define	ISCHR		0x01		/* character device (warn on short) */
 #define	ISPIPE		0x02		/* pipe (not truncatable) */
 #define	ISTAPE		0x04		/* tape (not seekable) */
-#define	NOREAD		0x08		/* not readable */
+#define	ISDISK		0x08		/* disk (valid to seek on) */
+#define	NOREAD		0x10		/* not readable */
 	u_int	flags;
 
 	char 	*name;			/* name */
