@@ -540,7 +540,7 @@ swapmode_kvm(void)
 	int i, n;
 
 	n = kvm_getswapinfo(kd, kswap, sizeof kswap / sizeof kswap[0],
-	    ((swapflag > 1) ? SWIF_DUMP_TREE : 0) | SWIF_DEV_PREFIX);
+	    SWIF_DEV_PREFIX);
 
 	print_swap_header();
 	for (i = 0; i < n; ++i)
