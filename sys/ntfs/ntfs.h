@@ -255,7 +255,9 @@ struct ntfsmount {
 	cn_t		ntm_cfree;
 	struct ntvattrdef *ntm_ad;
 	int		ntm_adnum;
+#if !defined(__FreeBSD__)
 	struct netexport ntm_export;	/* export information */
+#endif
 };
 
 #define ntm_mftcn	ntm_bootfile.bf_mftcn

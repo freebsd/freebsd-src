@@ -93,8 +93,6 @@ static int	mountmsdosfs __P((struct vnode *devvp, struct mount *mp,
 				  struct proc *p, struct msdosfs_args *argp));
 static int	msdosfs_fhtovp __P((struct mount *, struct fid *,
 				    struct vnode **));
-static int	msdosfs_checkexp __P((struct mount *, struct sockaddr *, 
-				    int *, struct ucred **));
 static int	msdosfs_mount __P((struct mount *, char *, caddr_t,
 				   struct nameidata *, struct proc *));
 static int	msdosfs_root __P((struct mount *, struct vnode **));
@@ -292,7 +290,7 @@ msdosfs_mount(mp, path, data, ndp, p)
 			/*
 			 * Process export requests.
 			 */
-			return (vfs_export(mp, &pmp->pm_export, &args.export));
+			return (vfs_export(mp, &args.export));
 		}
 	}
 	/*
@@ -932,24 +930,6 @@ msdosfs_fhtovp(mp, fhp, vpp)
 }
 
 static int
-msdosfs_checkexp(mp, nam,  exflagsp, credanonp)
-	struct mount *mp;
-	struct sockaddr *nam;
-	int *exflagsp;
-	struct ucred **credanonp;
-{
-	struct msdosfsmount *pmp = VFSTOMSDOSFS(mp);
-	struct netcred *np;
-
-	np = vfs_export_lookup(mp, &pmp->pm_export, nam);
-	if (np == NULL)
-		return (EACCES);
-	*exflagsp = np->netc_exflags;
-	*credanonp = &np->netc_anon;
-	return (0);
-}
-
-static int
 msdosfs_vptofh(vp, fhp)
 	struct vnode *vp;
 	struct fid *fhp;
@@ -976,7 +956,7 @@ static struct vfsops msdosfs_vfsops = {
 	msdosfs_sync,
 	vfs_stdvget,
 	msdosfs_fhtovp,
-	msdosfs_checkexp,
+	vfs_stdcheckexp,
 	msdosfs_vptofh,
 	msdosfs_init,
 	msdosfs_uninit,

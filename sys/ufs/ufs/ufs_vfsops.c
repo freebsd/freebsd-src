@@ -214,32 +214,3 @@ ufs_fhtovp(mp, ufhp, vpp)
 	return (0);
 }
 
-
-/*
- * This is the generic part of fhtovp called after the underlying
- * filesystem has validated the file handle.
- *
- * Verify that a host should have access to a filesystem.
- */
-int
-ufs_check_export(mp, nam, exflagsp, credanonp)
-	register struct mount *mp;
-	struct sockaddr *nam;
-	int *exflagsp;
-	struct ucred **credanonp;
-{
-	register struct netcred *np;
-	register struct ufsmount *ump;;
-
-	ump = VFSTOUFS(mp);
-	/*
-	 * Get the export permission structure for this <mp, client> tuple.
-	 */
-	np = vfs_export_lookup(mp, &ump->um_export, nam);
-	if (np == NULL)
-		return (EACCES);
-
-	*exflagsp = np->netc_exflags;
-	*credanonp = &np->netc_anon;
-	return (0);
-}

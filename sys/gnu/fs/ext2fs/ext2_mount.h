@@ -68,7 +68,6 @@ struct timeval;
 struct ucred;
 struct uio;
 struct vnode;
-struct netexport;
 struct ufs_extattr_per_mount;
 
 /* This structure describes the UFS specific mount structure data. */
@@ -94,7 +93,6 @@ struct ufsmount {
 	time_t	um_btime[MAXQUOTAS];		/* block quota time limit */
 	time_t	um_itime[MAXQUOTAS];		/* inode quota time limit */
 	char	um_qflags[MAXQUOTAS];		/* quota specific flags */
-	struct	netexport um_export;		/* export information */
 	int64_t	um_savedmaxfilesize;		/* XXX - limit maxfilesize */
 	struct malloc_type *um_malloctype;	/* The inodes malloctype */
 	int	um_i_effnlink_valid;		/* i_effnlink valid? */

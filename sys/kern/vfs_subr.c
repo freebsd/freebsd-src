@@ -73,7 +73,7 @@
 #include <sys/vnode.h>
 
 #include <machine/limits.h>
-
+#include <net/radix.h>
 #include <vm/vm.h>
 #include <vm/vm_object.h>
 #include <vm/vm_extern.h>
@@ -257,6 +257,23 @@ static void	vfs_free_addrlist __P((struct netexport *nep));
 static int	vfs_free_netcred __P((struct radix_node *rn, void *w));
 static int	vfs_hang_addrlist __P((struct mount *mp, struct netexport *nep,
 				       struct export_args *argp));
+
+/*
+ * Network address lookup element
+ */
+struct netcred {
+	struct	radix_node netc_rnodes[2];
+	int	netc_exflags;
+	struct	ucred netc_anon;
+};
+
+/*
+ * Network export information
+ */
+struct netexport {
+	struct	netcred ne_defexported;		      /* Default export */
+	struct	radix_node_head *ne_rtable[AF_MAX+1]; /* Individual exports */
+};
 
 /*
  * Initialize the vnode management data structures.
@@ -2448,22 +2465,31 @@ vfs_free_addrlist(nep)
  * the structure is described in sys/mount.h
  */
 int
-vfs_export(mp, nep, argp)
+vfs_export(mp, argp)
 	struct mount *mp;
-	struct netexport *nep;
 	struct export_args *argp;
 {
+	struct netexport *nep;
 	int error;
 
+	nep = mp->mnt_export;
 	if (argp->ex_flags & MNT_DELEXPORT) {
+		if (nep == NULL)
+			return (EINVAL);
 		if (mp->mnt_flag & MNT_EXPUBLIC) {
 			vfs_setpublicfs(NULL, NULL, NULL);
 			mp->mnt_flag &= ~MNT_EXPUBLIC;
 		}
 		vfs_free_addrlist(nep);
+		mp->mnt_export = NULL;
+		free(nep, M_MOUNT);
 		mp->mnt_flag &= ~(MNT_EXPORTED | MNT_DEFEXPORTED);
 	}
 	if (argp->ex_flags & MNT_EXPORTED) {
+		if (nep == NULL) {
+			nep = malloc(sizeof(struct netexport), M_MOUNT, M_WAITOK | M_ZERO);
+			mp->mnt_export = nep;
+		}
 		if (argp->ex_flags & MNT_EXPUBLIC) {
 			if ((error = vfs_setpublicfs(mp, nep, argp)) != 0)
 				return (error);
@@ -2563,15 +2589,18 @@ vfs_setpublicfs(mp, nep, argp)
  * access rights (read/write/etc).
  */
 struct netcred *
-vfs_export_lookup(mp, nep, nam)
+vfs_export_lookup(mp, nam)
 	register struct mount *mp;
-	struct netexport *nep;
 	struct sockaddr *nam;
 {
+	struct netexport *nep;
 	register struct netcred *np;
 	register struct radix_node_head *rnh;
 	struct sockaddr *saddr;
 
+	nep = mp->mnt_export;
+	if (nep == NULL)
+		return (NULL);
 	np = NULL;
 	if (mp->mnt_flag & MNT_EXPORTED) {
 		/*
@@ -3176,3 +3205,30 @@ privcheck:
 
 	return ((acc_mode & VADMIN) ? EPERM : EACCES);
 }
+
+/*
+ * XXX: This comment comes from the deprecated ufs_check_export()
+ * XXX: and may not entirely apply, but lacking something better:
+ * This is the generic part of fhtovp called after the underlying
+ * filesystem has validated the file handle.
+ *
+ * Verify that a host should have access to a filesystem.
+ */
+
+int 
+vfs_stdcheckexp(mp, nam, extflagsp, credanonp)
+	struct mount *mp;
+	struct sockaddr *nam;
+	int *extflagsp;
+	struct ucred **credanonp;
+{
+	struct netcred *np;
+
+	np = vfs_export_lookup(mp, nam);
+	if (np == NULL)
+		return (EACCES);
+	*extflagsp = np->netc_exflags;
+	*credanonp = &np->netc_anon;
+	return (0);
+}
+
