@@ -77,9 +77,6 @@ SYSCTL_NODE(, CTL_P1003_1B,  p1003_1b,   CTLFLAG_RW, 0,
 SYSCTL_NODE(, OID_AUTO,  compat, CTLFLAG_RW, 0,
 	"Compatibility code");
 
-SYSCTL_NODE(_kern, OID_AUTO,  prison,   CTLFLAG_RW, 0,
-	"Prison rules");
-
 SYSCTL_STRING(_kern, KERN_OSRELEASE, osrelease, CTLFLAG_RD, 
     osrelease, 0, "Operating system type");
 
@@ -145,11 +142,6 @@ static char	machine_arch[] = MACHINE_ARCH;
 SYSCTL_STRING(_hw, HW_MACHINE_ARCH, machine_arch, CTLFLAG_RD,
     machine_arch, 0, "System architecture");
 
-static int	prison_set_hostname_allowed = 1;
-SYSCTL_INT(_kern_prison, OID_AUTO, set_hostname_allowed, CTLFLAG_RW,
-	&prison_set_hostname_allowed, 0,
-	"Processes in prison can set their hostnames");
-
 char hostname[MAXHOSTNAMELEN];
 
 static int
@@ -158,7 +150,7 @@ sysctl_hostname SYSCTL_HANDLER_ARGS
 	int error;
 
 	if (req->p->p_prison) {
-		if (!prison_set_hostname_allowed)
+		if (!jail_set_hostname_allowed && req->newptr)
 			return(EPERM);
 		error = sysctl_handle_string(oidp, 
 		    req->p->p_prison->pr_host,
