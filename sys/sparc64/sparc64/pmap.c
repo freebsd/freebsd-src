@@ -1347,9 +1347,6 @@ pmap_protect(pmap_t pm, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 	CTR4(KTR_PMAP, "pmap_protect: ctx=%#lx sva=%#lx eva=%#lx prot=%#lx",
 	    pm->pm_context[PCPU_GET(cpuid)], sva, eva, prot);
 
-	KASSERT(pm == &curproc->p_vmspace->vm_pmap || pm == kernel_pmap,
-	    ("pmap_protect: non current pmap"));
-
 	if ((prot & VM_PROT_READ) == VM_PROT_NONE) {
 		pmap_remove(pm, sva, eva);
 		return;
@@ -1520,16 +1517,12 @@ void
 pmap_object_init_pt(pmap_t pm, vm_offset_t addr, vm_object_t object,
 		    vm_pindex_t pindex, vm_size_t size, int limit)
 {
-	KASSERT(pm == &curproc->p_vmspace->vm_pmap || pm == kernel_pmap,
-	    ("pmap_object_init_pt: non current pmap"));
 	/* XXX */
 }
 
 void
 pmap_prefault(pmap_t pm, vm_offset_t va, vm_map_entry_t entry)
 {
-	KASSERT(pm == &curproc->p_vmspace->vm_pmap || pm == kernel_pmap,
-	    ("pmap_prefault: non current pmap"));
 	/* XXX */
 }
 
@@ -1674,8 +1667,6 @@ pmap_remove_pages(pmap_t pm, vm_offset_t sva, vm_offset_t eva)
 	pv_entry_t pv;
 	vm_page_t m;
 
-	KASSERT(pm == &curproc->p_vmspace->vm_pmap || pm == kernel_pmap,
-	    ("pmap_remove_pages: non current pmap"));
 	npv = NULL;
 	for (pv = TAILQ_FIRST(&pm->pm_pvlist); pv != NULL; pv = npv) {
 		npv = TAILQ_NEXT(pv, pv_plist);
