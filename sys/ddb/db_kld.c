@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_kld.c,v 1.1 1998/06/28 00:57:28 dfr Exp $
+ *	$Id: db_kld.c,v 1.2 1998/07/05 10:11:20 dfr Exp $
  *	from db_aout.c,v 1.20 1998/06/07 17:09:36 dfr Exp
  */
 
@@ -35,6 +35,8 @@
  * Symbol table routines for a.out format files.
  */
 
+#if defined(__ELF__) && !defined(__alpha__)
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/linker.h>
@@ -44,10 +46,6 @@
 #include <ddb/ddb.h>
 #include <ddb/db_sym.h>
 
-extern linker_file_t linker_kernel_file;
-
-#define KF linker_kernel_file
-
 db_sym_t
 X_db_lookup(stab, symstr)
 	db_symtab_t	*stab;
@@ -55,10 +53,7 @@ X_db_lookup(stab, symstr)
 {
 	linker_sym_t sym;
 
-	if (!KF)
-		return 0;
-
-	if (KF->ops->lookup_symbol(KF, symstr, &sym) == 0)
+	if (linker_ddb_lookup(symstr, &sym) == 0)
 	    return (db_sym_t) sym;
 	else
 	    return (db_sym_t) 0;
@@ -75,10 +70,7 @@ X_db_search_symbol(symtab, off, strategy, diffp)
 	linker_sym_t sym;
 	long diff;
 
-	if (!KF)
-		return 0;
-
-	if (KF->ops->search_symbol(KF, (caddr_t) off, &sym, &diff) == 0) {
+	if (linker_ddb_search_symbol((caddr_t) off, &sym, &diff) == 0) {
 		*diffp = (db_expr_t) diff;
 		return (db_sym_t) sym;
 	}
@@ -99,7 +91,7 @@ X_db_symbol_values(symtab, dbsym, namep, valuep)
 	linker_sym_t sym = (linker_sym_t) dbsym;
 	linker_symval_t symval;
 
-	KF->ops->symbol_values(KF, sym, &symval);
+	linker_ddb_symbol_values(sym, &symval);
 	if (namep)
 	    *namep = (char*) symval.name;
 	if (valuep)
@@ -136,3 +128,4 @@ kdb_init()
 {
 	db_add_symbol_table(0, 0, "kernel", 0);
 }
+#endif
