@@ -44,8 +44,8 @@
 /*
  * Define the order of 32-bit words in 64-bit words.
  */
-#define _QUAD_HIGHWORD 1
-#define _QUAD_LOWWORD 0
+#define	_QUAD_HIGHWORD 1
+#define	_QUAD_LOWWORD 0
 
 /*
  * Definitions for byte order, according to byte significance from low
@@ -71,26 +71,27 @@
 #ifdef __GNUC__
 
 static __inline __uint64_t
-__bswap64(__uint64_t __x)
+__bswap64(__uint64_t _x)
 {
 	__uint64_t __r;
+
 	__asm __volatile("mux1 %0=%1,@rev"
-			 : "=r" (__r) : "r"(__x));
+			 : "=r" (__r) : "r"(_x));
 	return __r;
 }
 
 static __inline __uint32_t
-__bswap32(__uint32_t __x)
+__bswap32(__uint32_t _x)
 {
 
-	return (__bswap64(__x) >> 32);
+	return (__bswap64(_x) >> 32);
 }
 
 static __inline __uint16_t
-__bswap16(__uint16_t __x)
+__bswap16(__uint16_t _x)
 {
 
-	return (__bswap64(__x) >> 48);
+	return (__bswap64(_x) >> 48);
 }
 
 #define	__htonl(x)	__bswap32(x)

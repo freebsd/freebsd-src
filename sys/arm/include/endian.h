@@ -33,6 +33,6 @@
 #ifndef _ENDIAN_H_
 #define	_ENDIAN_H_
 
-#define	BYTE_ORDER	LITTLE_ENDIAN
+#define	BYTE_ORDER	_LITTLE_ENDIAN
 
 #endif /* !_ENDIAN_H_ */
