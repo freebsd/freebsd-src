@@ -53,12 +53,12 @@
 #include <pc98/apm/apm.h>
 
 /* Used by the apm_saver screen saver module */
-int apm_display __P((int newstate));
+int apm_display(int newstate);
 struct apm_softc apm_softc;
 
-static void apm_resume __P((void));
+static void apm_resume(void);
 static int apm_bioscall(void);
-static int apm_check_function_supported __P((u_int version, u_int func));
+static int apm_check_function_supported(u_int version, u_int func);
 
 static int apm_pm_func(u_long, void*, ...);
 
@@ -75,14 +75,14 @@ int	apm_evindex;
 #define APMDEV_CTL	8
 
 #ifdef PC98
-extern int bios32_apm98 __P((struct bios_regs *, u_int, u_short));
+extern int bios32_apm98(struct bios_regs *, u_int, u_short);
 
 /* PC98's SMM definition */
 #define	APM_NECSMM_PORT		0x6b8e
 #define	APM_NECSMM_PORTSZ	1
 #define	APM_NECSMM_EN		0x10
-static __inline void apm_enable_smm __P((struct apm_softc *));
-static __inline void apm_disable_smm __P((struct apm_softc *));
+static __inline void apm_enable_smm(struct apm_softc *);
+static __inline void apm_disable_smm(struct apm_softc *);
 int apm_necsmm_addr;
 u_int32_t apm_necsmm_mask;
 #endif
@@ -464,7 +464,7 @@ apm_hook_disestablish(int apmh, struct apmhook *ah)
 	apm_del_hook(&hook[apmh], ah);
 }
 
-static int apm_record_event __P((struct apm_softc *, u_int));
+static int apm_record_event(struct apm_softc *, u_int);
 static void apm_processevent(void);
 
 static u_int apm_op_inprog = 0;
