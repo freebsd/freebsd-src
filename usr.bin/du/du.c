@@ -231,7 +231,7 @@ main(argc, argv)
 				
 				if (p->fts_level <= depth)
 					if (hflag) {
-						(void) prthumanval(howmany(savednumber, blocksize));
+						(void) prthumanval(howmany(p->fts_number, blocksize));
 						(void) printf("\t%s\n", p->fts_path);
 					} else {
 					(void) printf("%ld\t%s\n",
