@@ -1,14 +1,13 @@
 .\"
 .\"  Device driver optimized for the Symbios/LSI 53C896/53C895A/53C1010
-.\"  PCI-SCSI controllers.
+.\"  PCI SCSI controllers.
 .\"
 .\"  Copyright (C) 1999-2000  Gerard Roudier <groudier@club-internet.fr>
 .\"
-.\"  This driver also supports the following Symbios/LSI PCI-SCSI chips:
-.\"	53C810A, 53C825A, 53C860, 53C875, 53C876, 53C885, 53C895.
+.\"  This driver also supports the following Symbios/LSI PCI SCSI chips:
+.\"	53C810A, 53C825A, 53C860, 53C875, 53C876, 53C885, 53C895,
+.\"	53C810,  53C815,  53C825 and the 53C1510D is 53C8XX mode.
 .\"
-.\"  but does not support earlier chips as the following ones:
-.\"	53C810, 53C815, 53C825.
 .\"
 .\"  This driver for FreeBSD-CAM is derived from the Linux sym53c8xx driver.
 .\"  Copyright (C) 1998-1999  Gerard Roudier
@@ -62,7 +61,7 @@
 .Os FreeBSD
 .Sh NAME
 .Nm sym
-.Nd Symbios/LSI Logic PCI-SCSI host adapter driver
+.Nd NCR/Symbios/LSI Logic 53C8XX PCI SCSI host adapter driver
 .Sh SYNOPSIS
 For any number of cards:
 .Cd device sym
@@ -77,6 +76,9 @@ To control chip attachment balancing between the ncr driver and this driver
 .Cd options SYM_SETUP_LP_PROBE_MAP=<bit combination>
 .Sh DESCRIPTION
 This driver provides support for the Symbios/LSI Logic
+.Tn 53C810,
+.Tn 53C815,
+.Tn 53C825,
 .Tn 53C810A,
 .Tn 53C825A,
 .Tn 53C860,
@@ -89,7 +91,7 @@ This driver provides support for the Symbios/LSI Logic
 .Tn 53C1510D,
 and
 .Tn 53C1010
-PCI-SCSI controllers.
+PCI SCSI controllers.
 .Pp
 Driver features include support for wide SCSI busses, fast10, fast20,
 fast40 and fast80-dt synchronous data transfers depending on controller
@@ -104,48 +106,33 @@ as have been considered reasonable values for current SCSI technology.
 These values can be increased by changing appropriate
 constants in driver header files (not recommended).
 .Pp
-This driver requires the PCI-SCSI chip to implement LOAD/STORE SCRIPTS
-instructions and therefore it does not provide support for 53C810 revid < 16,
-53C825 revid < 16 and all 53C815 revisions.
-The generic
-.Nm ncr
-driver can be used to support these early chips.
+This driver supports the entire Symbios 53C8XX family of PCI SCSI
+controllers.
+It also offers the advantage of architectural improvements available
+only with newer chips.
 .Pp
-By default, when both the
-.Nm ncr
-and
 .Nm
-drivers are configured, the
-.Nm
-driver takes precedence over the
-.Nm ncr
-driver for all chips that are supported by
-both drivers.
-As result, the
-.Nm ncr
-driver does only attach the 53C8XX
-chips that donnot support LOAD/STORE (i.e.: 53C810, 53C815 and 53C825).
-User can change the balancing of chip types between drivers by defining
-the
-.Ar SYM_SETUP_LP_PROBE_MAP
-kernel configuration option as follows:
-.Bl -column "Bit   " "53C8XXA, 53C8XX, 53C8XX, 53C8XX, 53C8XX, 53C8XX"
-.Em Bit	Devices attached by ncr instead
-1	53C810a, 53C860
-2	53C825a, 53C875, 53C876, 53C885, 53C895
-4	53C895a, 53C896, 53C897, 53C1510d
-.El
-.Ed
+notably handles phase mismatch from SCRIPTS for the 53C896, 53C895A,
+and 53C1010 cores.
+As a result, it guarantees that no more than 1 interrupt
+per IO completion is delivered to the CPU, and that the SCRIPTS processor
+is never stalled waiting for CPU attention in normal situations.
 .Pp
-For example, if
-.Ar SYM_SETUP_LP_PROBE_MAP
-is supplied with value 7, all the
-above chips will be attached by the
-.Nm ncr
-driver and the
 .Nm
-driver will only
-attach the 53C1010 Ultra-3 controllers.
+also uses LOAD/STORE SCRIPTS instructions for chips that support it.
+Only the early 810, 815 and 825 NCR chips do not support LOAD/STORE.
+Use of LOAD/STORE instead of MEMORY MOVE allows SCRIPTS to access IO
+registers internally to the chip (no external PCI cycles).
+As a result, the driver guarantees that no PCI self-mastering will occur
+for chips that support LOAD/STORE.
+.Pp
+LOAD/STORE instructions are also faster than MEMORY MOVE because
+they do not involve the chip DMA fifo and are coded on 2 DWORDs
+instead of 3.
+.Pp
+For the early NCR 810, 815 and 825 chips, the driver uses a separate
+SCRIPTS set that uses MEMORY MOVE instructions for data movements.
+This is because LOAD/STORE are not supported by these chips.
 .Pp
 HVD/LVD capable controllers (895, 895A, 896, 897 and 1010) report
 the actual bus mode from the STEST4 chip IO registers.
@@ -168,11 +155,58 @@ When supplied as 0, the
 kernel configuration option
 indicates the driver not to enable PCI parity checking.
 PCI parity
-checking should not be an option for PCI-SCSI controllers, but some
+checking should not be an option for PCI SCSI controllers, but some
 systems have been reported to fail using 53C8XX chips due to spurious or
 permanent PCI parity errors detected.
 This option is supplied for
 convenience but it is not recommended nor supported.
+.Pp
+The generic
+.Nm ncr
+driver also supports SYM53C8XX based PCI SCSI controllers,
+except for the SYM53C1010 that is only supported by the
+.Nm
+driver.
+.Pp
+By default, when both the
+.Nm ncr
+and
+.Nm
+drivers are configured, the
+.Nm
+driver takes precedence over the
+.Nm ncr
+driver.
+User can indicate a balancing of chip types between the two drivers
+by defining the
+.Ar SYM_SETUP_LP_PROBE_MAP
+kernel configuration option as follows:
+.Bl -column "Bit   " "53C8XXA, 53C8XX, 53C8XX, 53C8XX, 53C8XX, 53C8XX"
+.Em Bit	Devices attached by ncr instead
+0x01	53C810a, 53C860
+0x02	53C825a, 53C875, 53C876, 53C885, 53C895
+0x04	53C895a, 53C896, 53C897, 53C1510d
+0x40	53C810, 53C815, 53C825
+.El
+.Pp
+For example, if
+.Ar SYM_SETUP_LP_PROBE_MAP
+is supplied with value 0x41, the
+.Nm ncr
+driver will attach to 53C810, 53C815, 53C825, 53C810a, and 53C860 based
+controllers.
+And the
+.Nm
+driver will attach to all other 53C8XX based controllers.
+.Pp
+When only the
+.Nm
+driver is configured, the
+.Ar SYM_SETUP_LP_PROBE_MAP
+option has no effect.
+Thus in this case the
+.Nm
+driver will attach all 53C8XX based controllers present in the system.
 .Pp
 This driver offers other options that are not currently exported to user.
 They are defined and documented in the sym_conf.h driver file.
@@ -217,14 +251,14 @@ the
 command.
 .Pp
 The table below summarizes the main features and capabilities of the
-NCR/Symbios/LSI Logic 53C8XX family of PCI-SCSI controllers.
+NCR/Symbios/LSI Logic 53C8XX family of PCI SCSI controllers.
 .Pp
 .Bl -column sym53c1510d "Sync   " "Width  " "SRAM  " "PCI64"
 .Em Chip	Sync	Width	SRAM	PCI64	Supported
-sym53c810	10MHz	8Bit	N	N	N
+sym53c810	10MHz	8Bit	N	N	Y
 sym53c810a	10MHz	8Bit	N	N	Y
-sym53c815	10MHz	8Bit	N	N	N
-sym53c825	10MHz	16Bit	N	N	N
+sym53c815	10MHz	8Bit	N	N	Y
+sym53c825	10MHz	16Bit	N	N	Y
 sym53c825a	10MHz	16Bit	4KB	N	Y
 sym53c860	20MHz	8Bit	N	N	Y
 sym53c875	20MHz	16Bit	4KB	N	Y
@@ -267,4 +301,5 @@ The
 .Nm
 driver appeared in
 .Fx 4.0 .
+
 
