@@ -72,9 +72,6 @@ print(tp, wp, ldisc, fmt)
 	/* Line discipline. */
 	if (ldisc != TTYDISC) {
 		switch(ldisc) {
-		case TABLDISC:
-			cnt += printf("tablet disc; ");
-			break;
 		case NTTYDISC:
 			cnt += printf("new tty disc; ");
 			break;
