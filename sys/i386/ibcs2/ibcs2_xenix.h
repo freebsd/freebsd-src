@@ -12,70 +12,70 @@
 
 struct proc;
 
-#define PAD_(t) sizeof(register_t) <= sizeof(t) ? \
-		0 : sizeof(register_t) - sizeof(t)
+#define	PAD_(t)	(sizeof(register_t) <= sizeof(t) ? \
+		0 : sizeof(register_t) - sizeof(t))
 
 struct	xenix_rdchk_args {
-	int fd;	char fd_[PAD_(int)];
+	int	fd;	char fd_[PAD_(int)];
 };
 struct	xenix_chsize_args {
-	int fd;	char fd_[PAD_(int)];
-	long size;	char size_[PAD_(long)];
+	int	fd;	char fd_[PAD_(int)];
+	long	size;	char size_[PAD_(long)];
 };
 struct	xenix_ftime_args {
-	struct timeb * tp;	char tp_[PAD_(struct timeb *)];
+	struct timeb *	tp;	char tp_[PAD_(struct timeb *)];
 };
 struct	xenix_nap_args {
-	int millisec;	char millisec_[PAD_(int)];
+	int	millisec;	char millisec_[PAD_(int)];
 };
 struct	xenix_scoinfo_args {
 	register_t dummy;
 };
 struct	xenix_eaccess_args {
-	char * path;	char path_[PAD_(char *)];
-	int flags;	char flags_[PAD_(int)];
+	char *	path;	char path_[PAD_(char *)];
+	int	flags;	char flags_[PAD_(int)];
 };
 struct	ibcs2_sigaction_args {
-	int sig;	char sig_[PAD_(int)];
-	struct ibcs2_sigaction * act;	char act_[PAD_(struct ibcs2_sigaction *)];
-	struct ibcs2_sigaction * oact;	char oact_[PAD_(struct ibcs2_sigaction *)];
+	int	sig;	char sig_[PAD_(int)];
+	struct ibcs2_sigaction *	act;	char act_[PAD_(struct ibcs2_sigaction *)];
+	struct ibcs2_sigaction *	oact;	char oact_[PAD_(struct ibcs2_sigaction *)];
 };
 struct	ibcs2_sigprocmask_args {
-	int how;	char how_[PAD_(int)];
-	ibcs2_sigset_t * set;	char set_[PAD_(ibcs2_sigset_t *)];
-	ibcs2_sigset_t * oset;	char oset_[PAD_(ibcs2_sigset_t *)];
+	int	how;	char how_[PAD_(int)];
+	ibcs2_sigset_t *	set;	char set_[PAD_(ibcs2_sigset_t *)];
+	ibcs2_sigset_t *	oset;	char oset_[PAD_(ibcs2_sigset_t *)];
 };
 struct	ibcs2_sigpending_args {
-	ibcs2_sigset_t * mask;	char mask_[PAD_(ibcs2_sigset_t *)];
+	ibcs2_sigset_t *	mask;	char mask_[PAD_(ibcs2_sigset_t *)];
 };
 struct	ibcs2_sigsuspend_args {
-	ibcs2_sigset_t * mask;	char mask_[PAD_(ibcs2_sigset_t *)];
+	ibcs2_sigset_t *	mask;	char mask_[PAD_(ibcs2_sigset_t *)];
 };
 struct	ibcs2_getgroups_args {
-	int gidsetsize;	char gidsetsize_[PAD_(int)];
-	ibcs2_gid_t * gidset;	char gidset_[PAD_(ibcs2_gid_t *)];
+	int	gidsetsize;	char gidsetsize_[PAD_(int)];
+	ibcs2_gid_t *	gidset;	char gidset_[PAD_(ibcs2_gid_t *)];
 };
 struct	ibcs2_setgroups_args {
-	int gidsetsize;	char gidsetsize_[PAD_(int)];
-	ibcs2_gid_t * gidset;	char gidset_[PAD_(ibcs2_gid_t *)];
+	int	gidsetsize;	char gidsetsize_[PAD_(int)];
+	ibcs2_gid_t *	gidset;	char gidset_[PAD_(ibcs2_gid_t *)];
 };
 struct	ibcs2_sysconf_args {
-	int name;	char name_[PAD_(int)];
+	int	name;	char name_[PAD_(int)];
 };
 struct	ibcs2_pathconf_args {
-	char * path;	char path_[PAD_(char *)];
-	int name;	char name_[PAD_(int)];
+	char *	path;	char path_[PAD_(char *)];
+	int	name;	char name_[PAD_(int)];
 };
 struct	ibcs2_fpathconf_args {
-	int fd;	char fd_[PAD_(int)];
-	int name;	char name_[PAD_(int)];
+	int	fd;	char fd_[PAD_(int)];
+	int	name;	char name_[PAD_(int)];
 };
 struct	ibcs2_rename_args {
-	char * from;	char from_[PAD_(char *)];
-	char * to;	char to_[PAD_(char *)];
+	char *	from;	char from_[PAD_(char *)];
+	char *	to;	char to_[PAD_(char *)];
 };
 struct	xenix_utsname_args {
-	long addr;	char addr_[PAD_(long)];
+	long	addr;	char addr_[PAD_(long)];
 };
 int	xenix_rdchk __P((struct proc *, struct xenix_rdchk_args *));
 int	xenix_chsize __P((struct proc *, struct xenix_chsize_args *));
