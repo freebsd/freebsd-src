@@ -68,7 +68,7 @@
 #define	SVR4_SIGPROF	29
 #define	SVR4_SIGXCPU	30
 #define	SVR4_SIGXFSZ	31
-#define SVR4_NSIG	128
+#define SVR4_NSIG	32
 #define SVR4_SIGTBLSZ	31
 
 #define	SVR4_SIGNO_MASK		0x00FF
