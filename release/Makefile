@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.246.2.42 1997/06/06 02:11:31 brian Exp $
+#	$Id: Makefile,v 1.246.2.43 1997/06/11 10:02:36 jkh Exp $
 #
 # How to roll a release:
 #
@@ -20,11 +20,13 @@
 #RELEASETAG=RELENG_2_2
 
 # Things which without too much trouble can be considered variables
-
+# BIN_DISTS are special in that they get full /etc installation sets.
+#
 COMPAT_DISTS=	compat1x compat20 compat21
 EXPORT_DISTS=	games manpages catpages proflibs dict info doc ${COMPAT_DISTS}
-EXTRA_DISTS=	krb des ${EXPORT_DISTS}
-ALL_DISTS=	bin ${EXTRA_DISTS}
+EXTRA_DISTS=	krb des
+BIN_DISTS?=	bin
+ALL_DISTS?=	${BIN_DISTS} ${EXPORT_DISTS} ${EXTRA_DISTS}
 KERNELS?=	GENERIC
 
 # Extra source tarballs; each argument is a pair of source dir and
@@ -50,8 +52,8 @@ MFSINODE=		8000
 FIXITINODE=		6000
 BOOTINODE=		100000
 
-# Things which will get you into trouble if you change them
-DISTRIBUTIONS=		${ALL_DISTS}
+# Things which may get you into trouble if you change them
+DISTRIBUTIONS?=		${ALL_DISTS}
 MTREEFILES=		${.CURDIR}/../etc/mtree
 RD=			/R/stage
 FD=			/R/ftp
@@ -74,8 +76,8 @@ BOOTSTRAPUTILS=	/sbin/mount /sbin/umount
 # 3.0 cpio tries to reference lchown(2) which is not available in 2.2
 BOOTSTRAPUTILS+= /usr/bin/cpio
 
-.if !defined(WHICH_CRUNCH)
-WHICH_CRUNCH=	boot fixit
+.if !defined(CRUNCH_TARGETS)
+CRUNCH_TARGETS=	boot fixit
 .endif
 
 REDO?=		sysinstall
@@ -145,6 +147,7 @@ rerelease release:
 .endif
 .endif
 .endif
+	# Add version information to those things that need it.
 	( cd ${CHROOTDIR}/usr/src/sys/conf && \
 	  mv newvers.sh foo && \
 	  sed "s/^RELEASE=.*/RELEASE=${BUILDNAME}/" foo > newvers.sh&& rm foo )
@@ -156,6 +159,7 @@ rerelease release:
 	echo "#!/bin/sh"			> ${CHROOTDIR}/mk
 	echo "set -ex"				>> ${CHROOTDIR}/mk
 	echo "export CFLAGS='-O2 -pipe'"	>> ${CHROOTDIR}/mk
+	echo "export DISTRIBUTIONS=\"${DISTRIBUTIONS}\"" >> ${CHROOTDIR}/mk
 	echo "export BUILDNAME=${BUILDNAME}"	>> ${CHROOTDIR}/mk
 .if defined(RELEASETAG)
 	echo "export RELEASETAG=${RELEASETAG}"	>> ${CHROOTDIR}/mk
@@ -197,10 +201,6 @@ rerelease release:
 	chmod 755 ${CHROOTDIR}/mk
 	chroot ${CHROOTDIR} /mk
 
-whap:
-	( cd ${CHROOTDIR}/usr/src/release/sysinstall && \
-	  sed "s/__RELEASE/${BUILDNAME}/" version.h > version.h.new && mv version.h.new version.h )
-
 clean:
 	rm -rf boot_crunch release.[0-9]
 
@@ -214,7 +214,7 @@ release.1:
 	mkdir ${RD}/trees
 	mkdir ${RD}/dists
 	mkdir ${RD}/kernels
-	for i in ${ALL_DISTS} ; do \
+	for i in ${DISTRIBUTIONS} ; do \
 		mkdir ${RD}/trees/$$i && \
 		mkdir ${RD}/dists/$$i && \
 		mtree -deU -f ${MTREEFILES}/BSD.root.dist \
@@ -230,9 +230,11 @@ release.1:
 
 # Install the system into the various distributions.
 release.2:
-	cd ${.CURDIR}/../etc && make distrib-dirs DESTDIR=${RD}/trees/bin
+	for i in ${BIN_DISTS}; do \
+	  cd ${.CURDIR}/../etc && make distrib-dirs DESTDIR=${RD}/trees/$$i; \
+	done
 	cd ${.CURDIR}/.. && make distribute DISTDIR=${RD}/trees
-.if exists(${.CURDIR}/../eBones)
+.if exists(${.CURDIR}/../eBones) && !defined(NOKERBEROS)
 	cd ${.CURDIR}/../eBones && ( \
 		make bootstrap &&\
 		make obj all help-distribute DISTDIR=${RD}/trees &&\
@@ -259,11 +261,11 @@ release.3:
 # NB: the "RELEASE_BUILD_FIXIT" magic prevents vi from including the
 # Tcl and Perl APIs.  See also /usr/src/usr.bin/vi/Makefile.
 release.4:
-	cd ${.CURDIR}/sysinstall && make depend all
+	cd ${.CURDIR}/sysinstall && make obj depend all
 	rm -rf ${RD}/crunch
 	mkdir -p ${RD}/crunch
 	export RELEASE_BUILD_FIXIT=noway ; \
-	for j in ${WHICH_CRUNCH} ; do \
+	for j in ${CRUNCH_TARGETS} ; do \
 		rm -rf $${j}_crunch && \
 		mkdir $${j}_crunch && \
 		( cd $${j}_crunch && \
@@ -285,60 +287,15 @@ release.5:
 		  make -DNOCRYPT clean all distribute DISTDIR=${RD}/trees ) ; \
 	done
 
-	# Move all the manpages out to their own dist
-	if [ -d ${RD}/trees/bin/usr/share/man ] ; then \
-		( cd ${RD}/trees/bin/usr/share/man; \
-		find . | cpio -dumpl ${RD}/trees/manpages/usr/share/man ) && \
-		rm -rf ${RD}/trees/bin/usr/share/man; \
-	fi
-	# Create the catpages
-	if [ -d ${RD}/trees/manpages/usr/share/man ] ; then \
-		su -m man -c 'catman ${RD}/trees/manpages/usr/share/man'; \
-		( cd ${RD}/trees/manpages/usr/share/man; \
-		find cat* | cpio -dumpl ${RD}/trees/catpages/usr/share/man ) && \
-		rm -rf ${RD}/trees/manpages/usr/share/man/cat*; \
-	fi
-	# Move all the games out to their own dist
-	if [ -d ${RD}/trees/bin/usr/games ] ; then \
-		tar -cf - -C ${RD}/trees/bin/usr/games . | \
-			tar -xf - -C ${RD}/trees/games/usr/games && \
-		rm -rf ${RD}/trees/bin/usr/games; \
-	fi
-	if [ -d ${RD}/trees/bin/usr/share/games ] ; then \
-		tar -cf - -C ${RD}/trees/bin/usr/share/games . | \
-			tar -xf - -C ${RD}/trees/games/usr/share/games && \
-		rm -rf ${RD}/trees/bin/usr/share/games; \
-	fi
-	if [ -d ${RD}/trees/bin/var/games ] ; then \
-		tar -cf - -C ${RD}/trees/bin/var/games . | \
-			tar -xf - -C ${RD}/trees/games/var/games && \
-		rm -rf ${RD}/trees/bin/var/games; \
-	fi
-	# Move the dict out to their own dist
-	if [ -d ${RD}/trees/bin/usr/share/dict ] ; then \
-		tar -cf - -C ${RD}/trees/bin/usr/share/dict . | \
-			tar -xf - -C ${RD}/trees/dict/usr/share/dict && \
-		rm -rf ${RD}/trees/bin/usr/share/dict; \
-	fi
-	for i in airport birthtoken flowers na.phone zipcodes ; do \
-		if [ -f ${RD}/trees/bin/usr/share/misc/$$i ] ; then \
-			mv ${RD}/trees/bin/usr/share/misc/$$i \
-				${RD}/trees/dict/usr/share/misc; \
-		fi ; \
-	done
-	# Move the info files out to their own dist
-	if [ -d ${RD}/trees/bin/usr/share/info ] ; then \
-		tar -cf - -C ${RD}/trees/bin/usr/share/info . | \
-			tar -xf - -C ${RD}/trees/info/usr/share/info && \
-		rm -rf ${RD}/trees/bin/usr/share/info; \
-	fi
-	# Move the profiled libraries out to their own dist
-	for i in ${RD}/trees/bin/usr/lib/*_p.a ; do \
-		if [ -f $$i ] ; then \
-			mv $$i \
-				${RD}/trees/proflibs/usr/lib ; \
-		fi ; \
-	done
+	# Create any "synthetic dists" now.
+	@for i in ${DISTRIBUTIONS}; do \
+		if [ -f ${.CURDIR}/scripts/$${i}-make.sh ]; then \
+			echo -n "Running $$i dist creation script... "; \
+			env RD=${RD} sh ${.CURDIR}/scripts/$${i}-make.sh || echo "$$i distribution script returned bad status."; \
+			echo "Done."; \
+		fi \
+	done \
+
 	# Create symlinks for the MD5-based crypt lib, too.  The
 	# automatically created links still point to the DES stuff,
 	# which went into its own distribution.
@@ -352,11 +309,11 @@ release.5:
 	cd ${RD}/trees/bin/usr/share/misc && rm -f termcap.db vgrindefs.db
 	# Remove all the directories we don't need.
 	-cd ${RD}/trees && \
-		find ${EXTRA_DISTS} -depth -type d -print | xargs rmdir
+		find ${EXPORT_DISTS} ${EXTRA_DISTS} -depth -type d -print | xargs rmdir
 	touch release.5
 
 #
-# --==## Make binary dists ##==--
+# --==## Package up the tarballs from assembled trees ##==--
 #
 release.6:
 	rm -rf ${RD}/dists
@@ -370,6 +327,7 @@ release.6:
 			echo "$${i} distribution is finished."; \
 		fi ; \
 	done
+	# More munition braindeadness.
 	( cd ${RD}/dists && \
 		if [ -f krb/krb.aa ] ; then mv krb/* des && rmdir krb ; fi )
 	touch release.6
@@ -596,11 +554,11 @@ floppies:
 
 boot.flp:
 	rm -f release.4 release.8
-	cd ${.CURDIR} && ${MAKE} release.4 release.8 WHICH_CRUNCH=boot
+	cd ${.CURDIR} && ${MAKE} release.4 release.8 CRUNCH_TARGETS=boot
 
 fixit.flp:
 	rm -f release.4 release.9
-	cd ${.CURDIR} && ${MAKE} release.4 release.9 WHICH_CRUNCH=fixit
+	cd ${.CURDIR} && ${MAKE} release.4 release.9 CRUNCH_TARGETS=fixit
 
 write_mfs_in_kernel:	${.CURDIR}/write_mfs_in_kernel.c
 	${CC} ${CFLAGS} -o write_mfs_in_kernel ${.CURDIR}/write_mfs_in_kernel.c

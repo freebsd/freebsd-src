@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.51.2.52 1997/06/11 08:39:26 jkh Exp $
+ * $Id: config.c,v 1.51.2.53 1997/06/13 14:18:45 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -503,7 +503,7 @@ configUsers(dialogMenuItem *self)
 }
 
 int
-configXFree86(dialogMenuItem *self)
+configXEnvironment(dialogMenuItem *self)
 {
 #ifndef USE_XIG_ENVIRONMENT
     char *config, *execfile;
