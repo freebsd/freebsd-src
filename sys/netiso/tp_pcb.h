@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_pcb.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: tp_pcb.h,v 1.2 1994/08/02 07:51:21 davidg Exp $
  */
+
+#ifndef _NETISO_TP_PCB_H_
+#define _NETISO_TP_PCB_H_
 
 /***********************************************************
 		Copyright IBM Corporation 1987
@@ -63,16 +66,13 @@ SOFTWARE.
 /* 
  * ARGO TP
  *
- * $Header: /home/ncvs/src/sys/netiso/tp_pcb.h,v 1.1.1.1 1994/05/24 10:06:49 rgrimes Exp $
+ * $Header: /home/ncvs/src/sys/netiso/tp_pcb.h,v 1.2 1994/08/02 07:51:21 davidg Exp $
  * $Source: /home/ncvs/src/sys/netiso/tp_pcb.h,v $
  *
  * 
  * This file defines the transport protocol control block (tpcb).
  * and a bunch of #define values that are used in the tpcb.
  */
-
-#ifndef  __TP_PCB__
-#define  __TP_PCB__
 
 #include <netiso/tp_param.h>
 #include <netiso/tp_timer.h>
@@ -354,4 +354,4 @@ extern struct tp_pcb	*tp_ftimeolist;
 #define	tpcbtoso(tp)	((struct socket *)((tp)->tp_sock))
 #define	tpcbtoref(tp)	((struct tp_ref *)((tp)->tp_ref))
 
-#endif  /* __TP_PCB__ */
+#endif  

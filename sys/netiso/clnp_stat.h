@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)clnp_stat.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: clnp_stat.h,v 1.2 1994/08/02 07:49:47 davidg Exp $
  */
+
+#ifndef _NETISO_CLNP_STAT_H_
+#define _NETISO_CLNP_STAT_H_
 
 /***********************************************************
 		Copyright IBM Corporation 1987
@@ -60,12 +63,8 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* $Header: /home/ncvs/src/sys/netiso/clnp_stat.h,v 1.1.1.1 1994/05/24 10:07:21 rgrimes Exp $ */
+/* $Header: /home/ncvs/src/sys/netiso/clnp_stat.h,v 1.2 1994/08/02 07:49:47 davidg Exp $ */
 /* $Source: /home/ncvs/src/sys/netiso/clnp_stat.h,v $ */
-
-
-#ifndef __CLNP_STAT__
-#define __CLNP_STAT__
 
 struct clnp_stat {
 	int cns_total;			/* total pkts received */
@@ -101,4 +100,4 @@ struct clnp_stat {
 #endif /* INCSTAT */
 #define INCSTAT(x) clnp_stat./**/x/**/++
 
-#endif /* __CLNP_STAT__ */
+#endif 
