@@ -1,4 +1,4 @@
-<!-- $Id: scsi.sgml,v 1.1.1.1.4.2 1995/10/12 03:16:32 jfieber Exp $ -->
+<!-- $Id: scsi.sgml,v 1.1.1.1.4.3 1995/10/30 15:23:57 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -224,7 +224,7 @@
             is important to get clean signals on the bus, without
             reflections or ringing.  If you once made a long distance
             telephone call on a bad line you probably know what reflections
-            are.  With 20Mbytes/sec travelling over your SCSI bus, you
+            are.  With 20Mbytes/sec traveling over your SCSI bus, you
             don't want signals echoing back.
 
             Terminators come in various incarnations, with more or less
@@ -259,7 +259,7 @@
             by far the most misunderstood part of SCSI. And it is by far
             the simplest..  The rule is: <bf>every SCSI bus has 2 (two)
             terminators, one at each end of the bus.</bf> So, two and not
-            one or three or whatever. Do yourself a favour and stick to
+            one or three or whatever. Do yourself a favor and stick to
             this rule. It will save you endless grief, because wrong
             termination has the potential to introduce highly mysterious
             bugs.
@@ -464,7 +464,7 @@ Feb  9 19:33:46 yedi /386bsd: sd0: 636MB (1303250 total sec), 1632 cyl, 15 head,
 
           The multi level design allows a decoupling of low-level bit
           banging and more high level stuff. Adding support for another
-          piece of hardware is a much more managable problem.
+          piece of hardware is a much more manageable problem.
         
       <sect2><heading>Kernel configuration</heading>
         <p>
@@ -681,7 +681,7 @@ options        "TUNE_1542"             #dynamic tune of bus DMA speed
           <item>
             Check for loose connectors and cables.
           <item>
-            Check and doublecheck the location and number of your terminators.
+            Check and double check the location and number of your terminators.
           <item>
             Check if your bus has at least one supplier of terminator power
             (especially with external terminators.

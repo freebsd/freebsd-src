@@ -1,4 +1,4 @@
-<!-- $Id: dma.sgml,v 1.1.2.1 1995/10/30 15:23:53 jfieber Exp $ -->
+<!-- $Id: dma.sgml,v 1.1.2.2 1995/11/01 16:40:14 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -386,7 +386,7 @@
 	un-masked.  That DMA channel is now considered to be
 	``armed'', and will respond when DRQ is asserted.
 
-	Refer to a hardware databook for precise programming
+	Refer to a hardware data book for precise programming
 	details for the 8237.  You will also need to refer to the
 	I/O port map for the PC system.  This map describes where
 	the DMA and Page Register ports are located.  A complete

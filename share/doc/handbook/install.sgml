@@ -1,4 +1,4 @@
-<!-- $Id: install.sgml,v 1.9.2.3 1995/10/22 00:50:28 jfieber Exp $ -->
+<!-- $Id: install.sgml,v 1.9.2.5 1995/10/30 17:48:19 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -160,7 +160,7 @@ Boot:
 	To run the X-window system, eight megabytes of RAM is the
 	recommended minimum.
 
-	Following is a list of all disk controllers and ethernet
+	Following is a list of all disk controllers and Ethernet
 	cards currently known to work with FreeBSD.  Other
 	configurations may very well work, and we have simply not
 	received any indication of this.
@@ -230,7 +230,7 @@ Boot:
 	  time:
 
 	  <itemize>
-	    <item>Soundblaster SCSI and ProAudio Spectrum SCSI (<tt>cd</tt>)
+	    <item>SoundBlaster SCSI and ProAudio Spectrum SCSI (<tt>cd</tt>)
 	    <item>Mitsumi (all models) proprietary interface (<tt>mcd</tt>)
 	    <item>Matsushita/Panasonic (Creative)
 	      CR-562/CR-563 proprietary interface (<tt>matcd</tt>) 
@@ -247,7 +247,7 @@ Boot:
 
             <item>Allied-Telesis AT1700 and RE2000 cards
 
-	    <item>SMC Elite 16 WD8013 ethernet interface, and
+	    <item>SMC Elite 16 WD8013 Ethernet interface, and
 	      most other WD8003E, WD8003EBT, WD8003W, WD8013W,
 	      WD8003S, WD8003SBT and WD8013EBT based clones.  SMC
 	      Elite Ultra is also supported.
@@ -282,7 +282,7 @@ Boot:
 	      Semiconductor are also supported.
 	  </itemize>
 
-        <p><em>Note:</em> FreeBSD does not currently suppport
+        <p><em>Note:</em> FreeBSD does not currently support
           PnP (plug-n-play) features present on some ethernet
           cards.  If your card has PnP, it should be disabled.
 
@@ -704,11 +704,11 @@ ftp://foo.bar.com:1234/pub/FreeBSD
 	  <item>Select a Custom or Express install, depending on
 	    whether or not you would like the installation to give
 	    you a high degree of control over each step of the
-	    installation or simply lead you through it, chosing
+	    installation or simply lead you through it, choosing
 	    reasonable defaults when possible.  See details on
 	    both installation types below.
 
-	  <item>The Configure menu choice allows you to furthur
+	  <item>The Configure menu choice allows you to further
 	    configure your FreeBSD installation by giving you
 	    menu-driven access to various system defaults.  Some
 	    items, like networking, may be especially important
@@ -758,7 +758,7 @@ ftp://foo.bar.com:1234/pub/FreeBSD
 	      your disk so far, nor will it until you give the
 	      final confirmation).  All new or changed partition
 	      information will be written out, file systems will
-	      be created and/or non-destructively labelled
+	      be created and/or non-destructively labeled
 	      (depending on how you set their newfs flags in the
 	      Label Editor) and all selected distributions will
 	      be extracted.
@@ -783,7 +783,7 @@ ftp://foo.bar.com:1234/pub/FreeBSD
 	  altering your system <em>except</em> for ``Commit'',
 	  which will perform any requests to alter your system
 	  you may have made.  Some of the menu options will also
-	  have direct `Write' commands available for commiting an
+	  have direct `Write' commands available for committing an
 	  operation immediately, but they should only be used if
 	  you are absolutely sure it is necessary.  It is generally
 	  better to make your changes and then commit them all at

@@ -1,7 +1,7 @@
 <!-- This is an SGML document in the linuxdoc DTD describing
      Printing with FreeBSD.  By Sean Kelly, 1995.
 
-     $Id: printing.sgml,v 1.1 1995/10/01 04:43:13 jfieber Exp $
+     $Id: printing.sgml,v 1.2 1995/10/01 22:16:19 jfieber Exp $
 
      The FreeBSD Documentation Project
 
@@ -399,7 +399,7 @@ cd /dev
 		<item>The <em/interrupt-driven/ method is the default
 		  with the GENERIC kernel.  With this method, the
 		  operating system uses an IRQ line to determine when
-		  the printer's ready for data.
+		  the printer is ready for data.
 
 		<item>The <em/polled/ method directs the operating
 		  system to repeatedly ask the printer if it's ready
@@ -424,7 +424,7 @@ cd /dev
 		  <tt/lpt2/ for the third port, and so on.
 		  <itemize>
 		    <item>If you want interrupt-driven mode, add the <tt/irq/
-		      specifer:
+		      specifier:
 <tscreen>
 <tt>device lpt0 at isa? port? tty irq <it/N/ vector lptintr</tt>
 </tscreen>
@@ -495,7 +495,7 @@ showpage
 	      functionality, you can intermingle plain text with its
 	      escape sequences.  PostScript cannot directly print
 	      plain text, and that's the kind of printer language for
-	      which we must make special accomodations.
+	      which we must make special accommodations.
 
 	    <sect4><heading>Checking a Parallel Printer<label
 		  id="printing:checking:parallel"></heading>
@@ -657,7 +657,7 @@ tip printer
 		printer, and note it in <tt>/etc/printcap</tt> with
 		the <tt/lp/ capability; see <ref id="printing:device"
 		name="Identifying the Printer Device">.  Also, if the
-		printer's on a serial port, set up the communication
+		printer is on a serial port, set up the communication
 		parameters with the <tt/fs/, <tt/fc/, <tt/xs/, and
 		<tt/xc/ capabilities; see <ref id="printing:commparam"
 		name="Configuring Spooler Communications Parameters">.
@@ -687,7 +687,7 @@ tip printer
 	    add an additional step to the simple setup outlined above:
 	    install an automatic plain-text--to--PostScript (or other
 	    printer language) conversion program.  Section <ref
-	    id="printing:advanced:if-conversion" name="Accomodating
+	    id="printing:advanced:if-conversion" name="Accommodating
 	    Plain Text Jobs on PostScript Printers"> tells how to do
 	    this.
 
@@ -960,7 +960,7 @@ bamboo|ps|PS|S|panasonic|Panasonic KX-P4455 PostScript v51.4:\
 	      input to the job to print, and its standard output to
 	      the printer device specified with the <tt/lp/
 	      capability.  The filter is expected to read the job from
-	      standard input, peform any necessary translation for the
+	      standard input, perform any necessary translation for the
 	      printer, and write the results to standard output, which
 	      will get printed.  For more information on the text
 	      filter, see section <ref id="printing:advanced:filters"
@@ -1069,13 +1069,13 @@ $%&ero;'()*+,-./01234567
 		id="printing:troubleshooting"></heading>
 
 	    <p> After performing the simple test with <tt/lptest/, you
-	      might've gotten one of the following results instead of
+	      might have gotten one of the following results instead of
 	      the correct printout:
 	      <descrip>
 		<tag/It worked, after awhile; or, it didn't eject a full sheet./
 
 		  The printer printed the above, but it sat for awhile
-		  and did nothing.  In fact, you might've needed to
+		  and did nothing.  In fact, you might have needed to
 		  press a PRINT REMAINING or FORM FEED button on the
 		  printer to get any results to appear.
 
@@ -1232,7 +1232,7 @@ Printer received LF		Printer prints CR + LF
 		<tag/The printer lost characters./
 
 		  While printing, the printer didn't print a few
-		  characters in each line.  The problem might've
+		  characters in each line.  The problem might have
 		  gotten worse as the printer ran, losing more and
 		  more characters.
 
@@ -1553,7 +1553,7 @@ lpr -P bamboo -d fish-report.dvi
 
 		Print literal text data, including control characters.
 
-	      <tag/<tt/-n// Print ditroff (device indepdendent troff) data.
+	      <tag/<tt/-n// Print ditroff (device independent troff) data.
 
 	      <tag/-p/
 
@@ -1744,7 +1744,7 @@ lpr -#3 parser.c parser.h
 	      This command is useful while you're testing a new
 	      printer or filter installation: disable the queue and
 	      submit jobs as root.  Other users won't be able to
-	      submit jobs until you complete your testing and reenable
+	      submit jobs until you complete your testing and re-enable
 	      the queue with the <tt/enable/ command.
 
 	    <tag/<tt/down <it/printer-name/ <it/message...///
@@ -1857,7 +1857,7 @@ lpr -#3 parser.c parser.h
 	      text by default.  This presents a problem for PostScript
 	      (or other language-based printers) which can't directly
 	      print plain text.  Section <ref
-	      id="printing:advanced:if-conversion" name="Accomodating
+	      id="printing:advanced:if-conversion" name="Accommodating
 	      Plain Text Jobs on PostScript Printers"> tells you what
 	      you should do to overcome this problem.  I recommend
 	      reading this section if you have a PostScript printer.
@@ -2100,7 +2100,7 @@ lpr -#3 parser.c parser.h
 	    You should also specify the <tt/rw/ capability; that tells
 	    LPD to open the printer in read-write mode.
 
-	    If you have a parralel PostScript printer (and therefore
+	    If you have a parallel PostScript printer (and therefore
 	    can't use two-way communication with the printer, which
 	    <tt/lprps/ needs), you can use the following shell script
 	    as the text filter:
@@ -2143,7 +2143,7 @@ fi
 	  <p> PostScript is the <it/de facto/ standard for high
 	    quality typesetting and printing.  PostScript is, however,
 	    an <em/expensive/ standard.  Thankfully, Alladin
-	    Enterprises has a free PostScript workalike called
+	    Enterprises has a free PostScript work-alike called
 	    <it/Ghostscript/ that runs with FreeBSD.  Ghostscript can
 	    read most PostScript files and can render their pages onto
 	    a variety of devices, including many brands of
@@ -2344,7 +2344,7 @@ exec /usr/local/bin/dvips -f | /usr/local/libexec/lprps "$@"
 	      argument) on standard input, which is the job to print.
 	      It then starts the PostScript printer filter <tt/lprps/
 	      (see section <ref id="printing:advanced:if-conversion"
-	      name="Accomodating Plain Text Jobs on PostScript
+	      name="Accommodating Plain Text Jobs on PostScript
 	      Printers">) with the arguments LPD passed to this script.
 	      <tt/lprps/ will use those arguments to account for the
 	      pages printed.
@@ -2634,12 +2634,12 @@ exit 0
 	    this is probably <em/not/ what you want.  In almost all
 	    cases, you need a text filter.
 
-	    The program <tt/lpf/, whch we introduced earlier as a text
+	    The program <tt/lpf/, which we introduced earlier as a text
 	    filter, can also run as an output filter.  If you need a
 	    quick-and-dirty output filter but don't want to write the
 	    byte detection and signal sending code, try <tt/lpf/.  You
 	    can also wrap <tt/lpf/ in a shell script to handle any
-	    intialization codes the printer might require.
+	    initialization codes the printer might require.
 
 	<sect2><heading><tt/lpf/: a Text Filter<label
 	      id="printing:advanced:lpf"></heading>
@@ -3350,7 +3350,7 @@ bamboo|ps|PS|S|panasonic|Panasonic KX-P4455 PostScript v51.4:\
 	    By using the <tt/sc/ capability, we prevent the use of
 	    <tt/lpr -&num;/, but that still doesn't prevent users from
 	    running <tt/lpr/ multiple times, or from submitting the
-	    same file mutliple times in one job like this:
+	    same file multiple times in one job like this:
 <tscreen><verb>
 lpr forsale.sign forsale.sign forsale.sign forsale.sign forsale.sign 
 </verb></tscreen>
@@ -3697,7 +3697,7 @@ total                     337.00  154   $  6.74
 
 		Compute charges with <it/price/ dollars per page or
 		per foot instead of the price from the <tt/pc/
-		capabilty in <tt>/etc/printcap</tt>, or two cents (the
+		capability in <tt>/etc/printcap</tt>, or two cents (the
 		default).  You can specify <it/price/ as a floating
 		point number.
 
@@ -3738,7 +3738,7 @@ total                     337.00  154   $  6.74
 	    want to charge for printouts in this capability.  You can
 	    override this value when you run <tt/pac/ with the <tt/-p/
 	    option.  The units for the <tt/-p/ option are in dollars,
-	    though, not hundreths of cents.  For example,
+	    though, not hundredths of cents.  For example,
 <tscreen><verb>
 pac -p1.50
 </verb></tscreen>
@@ -3858,7 +3858,7 @@ pac -p1.50
 
     <sect><heading>Acknowledgments</heading>
 
-      <p> I'd like to thank the following people who've assisted in
+      <p> I'd like to thank the following people who have assisted in
 	the development of this document:
 
 	<descrip>
