@@ -52,6 +52,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/rman.h>
 
+#include <vm/uma.h>
+
 #include <net/if.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
@@ -82,6 +84,8 @@ __stdcall static void ndis_setdone_func(ndis_handle, ndis_status);
 __stdcall static void ndis_getdone_func(ndis_handle, ndis_status);
 __stdcall static void ndis_resetdone_func(ndis_handle, ndis_status, uint8_t);
 
+static uma_zone_t ndis_packet_zone, ndis_buffer_zone;
+
 /*
  * This allows us to export our symbols to other modules.
  * Note that we call ourselves 'ndisapi' to avoid a namespace
@@ -91,7 +95,28 @@ __stdcall static void ndis_resetdone_func(ndis_handle, ndis_status, uint8_t);
 static int
 ndis_modevent(module_t mod, int cmd, void *arg)
 {
-	return(0);
+	int			error = 0;
+
+	switch (cmd) {
+	case MOD_LOAD:
+		ndis_packet_zone = uma_zcreate("NDIS packet",
+		    sizeof(ndis_packet), NULL, NULL, NULL,
+		    NULL, UMA_ALIGN_PTR, 0);
+		ndis_buffer_zone = uma_zcreate("NDIS buffer",
+		    sizeof(ndis_buffer), NULL, NULL, NULL,
+		    NULL, UMA_ALIGN_PTR, 0);
+		break;
+	case MOD_UNLOAD:
+	case MOD_SHUTDOWN:
+		uma_zdestroy(ndis_packet_zone);
+		uma_zdestroy(ndis_buffer_zone);
+		break;
+	default:
+		error = EINVAL;
+		break;
+	}
+
+	return(error);
 }
 DEV_MODULE(ndisapi, ndis_modevent, NULL);
 MODULE_VERSION(ndisapi, 1);
@@ -104,7 +129,10 @@ ndis_status_func(adapter, status, sbuf, slen)
 	void			*sbuf;
 	uint32_t		slen;
 {
-	printf ("status: %x\n", status);
+	ndis_miniport_block	*block;
+	block = adapter;
+
+	device_printf (block->nmb_dev, "status: %x\n", status);
 	return;
 }
 
@@ -112,7 +140,10 @@ __stdcall static void
 ndis_statusdone_func(adapter)
 	ndis_handle		adapter;
 {
-	printf ("status complete\n");
+	ndis_miniport_block	*block;
+	block = adapter;
+	
+	device_printf (block->nmb_dev, "status complete\n");
 	return;
 }
 
@@ -148,7 +179,10 @@ ndis_resetdone_func(adapter, status, addressingreset)
 	ndis_status		status;
 	uint8_t			addressingreset;
 {
-	printf ("reset done...\n");
+	ndis_miniport_block	*block;
+	block = adapter;
+
+	device_printf (block->nmb_dev, "reset done...\n");
 	return;
 }
 
@@ -170,8 +204,8 @@ ndis_alloc_amem(arg)
 	    &rid, 0UL, ~0UL, 0x1000, RF_ACTIVE);
 
 	if (sc->ndis_res_am == NULL) {
-		printf("ndis%d: failed to allocate attribute memory\n",
-		    sc->ndis_unit);
+		device_printf(sc->ndis_dev,
+		    "failed to allocate attribute memory\n");
 		return(ENXIO);
 	}
 
@@ -179,8 +213,8 @@ ndis_alloc_amem(arg)
 	    sc->ndis_dev, rid, 0, NULL);
 
 	if (error) {
-		printf("ndis%d: CARD_SET_MEMORY_OFFSET() returned 0x%x\n",
-		    sc->ndis_unit, error);
+		device_printf(sc->ndis_dev,
+		    "CARD_SET_MEMORY_OFFSET() returned 0x%x\n", error);
 		return(error);
 	}
 
@@ -188,8 +222,8 @@ ndis_alloc_amem(arg)
 	    sc->ndis_dev, SYS_RES_MEMORY, rid, PCCARD_A_MEM_ATTR);
 
 	if (error) {
-		printf("ndis%d: CARD_SET_RES_FLAGS() returned 0x%x\n",
-		    sc->ndis_unit, error);
+		device_printf(sc->ndis_dev,
+		    "CARD_SET_RES_FLAGS() returned 0x%x\n", error);
 		return(error);
 	}
 
@@ -369,7 +403,7 @@ ndis_free_bufs(b0)
 
 	while(b0 != NULL) {
 		next = b0->nb_next;
-		free (b0, M_DEVBUF);
+		uma_zfree (ndis_buffer_zone, b0);
 		b0 = next;
 	}
 
@@ -384,7 +418,7 @@ ndis_free_packet(p)
 		return;
 
 	ndis_free_bufs(p->np_private.npp_head);
-	free(p, M_DEVBUF);
+	uma_zfree(ndis_packet_zone, p);
 
 	return;
 }
@@ -538,7 +572,7 @@ ndis_mtop(m0, p)
 
 	/* If caller didn't supply a packet, make one. */
 	if (*p == NULL) {
-		*p = malloc(sizeof(ndis_packet), M_DEVBUF, M_NOWAIT|M_ZERO);
+		*p = uma_zalloc(ndis_packet_zone, M_NOWAIT|M_ZERO);
 
 		if (*p == NULL)
 			return(ENOMEM);
@@ -551,7 +585,7 @@ ndis_mtop(m0, p)
 	for (m = m0; m != NULL; m = m->m_next) {
 		if (m->m_len == 0)
 			continue;
-		buf = malloc(sizeof(ndis_buffer), M_DEVBUF, M_NOWAIT|M_ZERO);
+		buf = uma_zalloc(ndis_buffer_zone, M_NOWAIT | M_ZERO);
 		if (buf == NULL) {
 			ndis_free_packet(*p);
 			*p = NULL;
@@ -567,6 +601,7 @@ ndis_mtop(m0, p)
 	}
 
 	priv->npp_tail = buf;
+	priv->npp_totlen = m0->m_pkthdr.len;
 
 	return(0);
 }

@@ -141,15 +141,28 @@ static device_method_t ndis_methods[] = {
 };
 
 static driver_t ndis_driver = {
+#ifdef NDIS_DEVNAME
+	NDIS_DEVNAME,
+#else
 	"ndis",
+#endif
 	ndis_methods,
 	sizeof(struct ndis_softc)
 };
 
 static devclass_t ndis_devclass;
 
+#ifdef NDIS_MODNAME
+#define NDIS_MODNAME_OVERRIDE_PCI(x)					\
+	DRIVER_MODULE(x, pci, ndis_driver, ndis_devclass, 0, 0)
+#define NDIS_MODNAME_OVERRIDE_CARDBUS(x)				\
+	DRIVER_MODULE(x, cardbus, ndis_driver, ndis_devclass, 0, 0)
+NDIS_MODNAME_OVERRIDE_PCI(NDIS_MODNAME);
+NDIS_MODNAME_OVERRIDE_CARDBUS(NDIS_MODNAME);
+#else
 DRIVER_MODULE(ndis, pci, ndis_driver, ndis_devclass, 0, 0);
 DRIVER_MODULE(ndis, cardbus, ndis_driver, ndis_devclass, 0, 0);
+#endif
 
 /*
  * Program the 64-bit multicast hash filter.
@@ -240,8 +253,8 @@ ndis_attach(dev)
 				    SYS_RES_IOPORT, &sc->ndis_io_rid,
 				    0, ~0, 1, RF_ACTIVE);
 				if (sc->ndis_res_io == NULL) {
-					printf("ndis%d: couldn't map "
-					    "iospace\n", unit);
+					device_printf(dev,
+					    "couldn't map iospace");
 					error = ENXIO;
 					goto fail;
 				}
@@ -249,8 +262,8 @@ ndis_attach(dev)
 			case SYS_RES_MEMORY:
 				if (sc->ndis_res_altmem != NULL &&
 				    sc->ndis_res_mem != NULL) {
-					printf ("ndis%d: too many memory "
-					    "resources", sc->ndis_unit);
+					device_printf(dev,
+					    "too many memory resources");
 					error = ENXIO;
 					goto fail;
 				}
@@ -262,8 +275,8 @@ ndis_attach(dev)
 						&sc->ndis_altmem_rid,
 						0, ~0, 1, RF_ACTIVE);
 					if (sc->ndis_res_altmem == NULL) {
-						printf("ndis%d: couldn't map "
-						    "alt memory\n", unit);
+						device_printf(dev,
+						    "couldn't map alt memory");
 						error = ENXIO;
 						goto fail;
 					}
@@ -275,8 +288,8 @@ ndis_attach(dev)
 						&sc->ndis_mem_rid,
 						0, ~0, 1, RF_ACTIVE);
 					if (sc->ndis_res_mem == NULL) {
-						printf("ndis%d: couldn't map "
-						    "memory\n", unit);
+						device_printf(dev,
+						    "couldn't map memory");
 						error = ENXIO;
 						goto fail;
 					}
@@ -288,8 +301,8 @@ ndis_attach(dev)
 				    SYS_RES_IRQ, &rid, 0, ~0, 1,
 	    			    RF_SHAREABLE | RF_ACTIVE);
 				if (sc->ndis_irq == NULL) {
-					printf("ndis%d: couldn't map "
-					    "interrupt\n", unit);
+					device_printf(dev,
+					    "couldn't map interrupt");
 					error = ENXIO;
 					goto fail;
 				}
@@ -310,7 +323,7 @@ ndis_attach(dev)
 	    ndis_intr, sc, &sc->ndis_intrhand);
 
 	if (error) {
-		printf("ndis%d: couldn't set up irq\n", unit);
+		device_printf(dev, "couldn't set up irq\n");
 		goto fail;
 	}
 
@@ -377,7 +390,7 @@ ndis_attach(dev)
 
 	/* Call driver's init routine. */
 	if (ndis_init_nic(sc)) {
-		printf ("ndis%d: init handler failed\n", sc->ndis_unit);
+		device_printf (dev, "init handler failed\n");
 		error = ENXIO;
 		goto fail;
 	}
@@ -436,11 +449,8 @@ ndis_attach(dev)
 	/*
 	 * An NDIS device was detected. Inform the world.
 	 */
-	if (sc->ndis_80211)
-		printf("ndis%d: 802.11 address: %6D\n", unit, eaddr, ":");
-	else
-		printf("ndis%d: Ethernet address: %6D\n", unit, eaddr, ":");
-
+	device_printf(dev, "%s address: %6D\n",
+	    sc->ndis_80211 ? "802.11" : "Ethernet", eaddr, ":");
 
 	ifp = &sc->arpcom.ac_if;
 	ifp->if_softc = sc;
@@ -477,7 +487,7 @@ ndis_attach(dev)
 		r = ndis_get_info(sc, OID_802_11_SUPPORTED_RATES,
 		    (void *)rates, &len);
 		if (r)
-			printf ("get rates failed: 0x%x\n", r);
+			device_printf (dev, "get rates failed: 0x%x\n", r);
 		/*
 		 * We need a way to distinguish between 802.11b cards
 		 * and 802.11g cards. Unfortunately, Microsoft doesn't
@@ -685,7 +695,7 @@ ndis_rxeof(adapter, packets, pktcnt)
 		/* Stash the softc here so ptom can use it. */
 		p->np_softc = sc;
 		if (ndis_ptom(&m0, p)) {
-			printf ("ndis%d: ptom failed\n", sc->ndis_unit);
+			device_printf (sc->ndis_dev, "ptom failed\n");
 			if (p->np_oob.npo_status == NDIS_STATUS_SUCCESS)
 				ndis_return_packet(sc, p);
 		} else {
@@ -786,14 +796,14 @@ ndis_linksts_done(adapter)
 	switch (block->nmb_getstat) {
 	case NDIS_STATUS_MEDIA_CONNECT:
 		sc->ndis_link = 1;
-		printf("ndis%d: link up\n", sc->ndis_unit);
+		device_printf(sc->ndis_dev, "link up\n");
 		if (sc->ndis_80211)
 			ndis_getstate_80211(sc);
 		if (ifp->if_snd.ifq_head != NULL)
 			ndis_start(ifp);
 		break;
 	case NDIS_STATUS_MEDIA_DISCONNECT:
-		printf("ndis%d: link down\n", sc->ndis_unit);
+		device_printf(sc->ndis_dev, "link down\n");
 		if (sc->ndis_80211)
 			ndis_getstate_80211(sc);
 		sc->ndis_link = 0;
@@ -1050,7 +1060,7 @@ ndis_init(xsc)
 	sc->ndis_filter = ndis_filter;
 
 	if (error)
-		printf ("set filter failed: %d\n", error);
+		device_printf (sc->ndis_dev, "set filter failed: %d\n", error);
 
 	sc->ndis_txidx = 0;
 	sc->ndis_txpending = sc->ndis_maxpkts;
@@ -1131,8 +1141,7 @@ ndis_ifmedia_sts(ifp, ifmr)
 		ifmr->ifm_active |= IFM_1000_T;
 		break;
 	default:
-		printf("ndis%d: unknown speed: %d\n",
-		    sc->ndis_unit, media_info);
+		device_printf(sc->ndis_dev, "unknown speed: %d\n", media_info);
 		break;
 	}
 
@@ -1161,7 +1170,7 @@ ndis_setstate_80211(sc)
 	rval = ndis_set_info(sc, OID_802_11_AUTHENTICATION_MODE, &arg, &len);
 
 	if (rval)
-		printf ("ndis%d: set auth failed: %d\n", sc->ndis_unit, rval);
+		device_printf (sc->ndis_dev, "set auth failed: %d\n", rval);
 
 	/* Set network infrastructure mode. */
 
@@ -1174,7 +1183,7 @@ ndis_setstate_80211(sc)
 	rval = ndis_set_info(sc, OID_802_11_INFRASTRUCTURE_MODE, &arg, &len);
 
 	if (rval)
-		printf ("ndis%d: set infra failed: %d\n", sc->ndis_unit, rval);
+		device_printf (sc->ndis_dev, "set infra failed: %d\n", rval);
 
 	/* Set WEP */
 
@@ -1202,17 +1211,16 @@ ndis_setstate_80211(sc)
 				rval = ndis_set_info(sc,
 				    OID_802_11_ADD_WEP, &wep, &len);
 				if (rval)
-					printf("ndis%d: set wepkey "
-					    "failed: %d\n", sc->ndis_unit,
-					    rval);
+					device_printf(sc->ndis_dev,
+					    "set wepkey failed: %d\n", rval);
 			}
 		}
 		arg = NDIS_80211_WEPSTAT_ENABLED;
 		len = sizeof(arg);
 		rval = ndis_set_info(sc, OID_802_11_WEP_STATUS, &arg, &len);
 		if (rval)
-			printf("ndis%d: enable WEP failed: %d\n",
-			    sc->ndis_unit, rval);
+			device_printf(sc->ndis_dev,
+			    "enable WEP failed: %d\n", rval);
 	} else {
 		arg = NDIS_80211_WEPSTAT_DISABLED;
 		len = sizeof(arg);
@@ -1232,7 +1240,7 @@ ndis_setstate_80211(sc)
 	rval = ndis_set_info(sc, OID_802_11_SSID, &ssid, &len);
 
 	if (rval)
-		printf ("ndis%d: set ssid failed: %d\n", sc->ndis_unit, rval);
+		device_printf (sc->ndis_dev, "set ssid failed: %d\n", rval);
 
 	return;
 }
@@ -1262,7 +1270,7 @@ ndis_getstate_80211(sc)
 	rval = ndis_get_info(sc, OID_802_11_INFRASTRUCTURE_MODE, &arg, &len);
 
 	if (rval)
-		printf ("ndis%d: get infra failed: %d\n", sc->ndis_unit, rval);
+		device_printf (sc->ndis_dev, "get infra failed: %d\n", rval);
 
 	switch(arg) {
 	case NDIS_80211_NET_INFRA_IBSS:
@@ -1280,7 +1288,7 @@ ndis_getstate_80211(sc)
 	rval = ndis_get_info(sc, OID_802_11_SSID, &ssid, &len);
 
 	if (rval)
-		printf ("ndis%d: get ssid failed: %d\n", sc->ndis_unit, rval);
+		device_printf (sc->ndis_dev, "get ssid failed: %d\n", rval);
 	bcopy(ssid.ns_ssid, ic->ic_bss->ni_essid, ssid.ns_ssidlen);
 	ic->ic_bss->ni_esslen = ssid.ns_ssidlen;
 
@@ -1307,8 +1315,8 @@ ndis_getstate_80211(sc)
 	}
 
 	if (i == ic->ic_bss->ni_rates.rs_nrates)
-		printf ("ndis%d: no matching rate for: %d\n",
-		    sc->ndis_unit, (arg / 10000) * 2);
+		device_printf (sc->ndis_dev, "no matching rate for: %d\n",
+		    (arg / 10000) * 2);
 	else
 		ic->ic_bss->ni_txrate = i;
 
@@ -1316,8 +1324,8 @@ ndis_getstate_80211(sc)
 	rval = ndis_get_info(sc, OID_802_11_POWER_MODE, &arg, &len);
 
 	if (rval)
-		printf ("ndis%d: get power mode failed: %d\n",
-		    sc->ndis_unit, rval);
+		device_printf (sc->ndis_dev,
+		    "get power mode failed: %d\n", rval);
 	if (arg == NDIS_80211_POWERMODE_CAM)
 		ic->ic_flags &= ~IEEE80211_F_PMGTON;
 	else
@@ -1328,8 +1336,8 @@ ndis_getstate_80211(sc)
 	rval = ndis_get_info(sc, OID_802_11_WEP_STATUS, &arg, &len);
 
 	if (rval)
-		printf ("ndis%d: get wep status failed: %d\n",
-		    sc->ndis_unit, rval);
+		device_printf (sc->ndis_dev,
+		    "get wep status failed: %d\n", rval);
 
 	if (arg == NDIS_80211_WEPSTAT_ENABLED)
 		ic->ic_flags |= IEEE80211_F_WEPON;
@@ -1423,7 +1431,7 @@ ndis_watchdog(ifp)
 
 	NDIS_LOCK(sc);
 	ifp->if_oerrors++;
-	printf("ndis%d: watchdog timeout\n", sc->ndis_unit);
+	device_printf(sc->ndis_dev, "watchdog timeout\n");
 
 	ndis_reset(sc);
 
