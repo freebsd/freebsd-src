@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.41 1995/10/05 10:32:47 phk Exp $
+ *	$Id: cpufunc.h,v 1.42 1995/12/03 13:45:27 bde Exp $
  */
 
 /*
@@ -412,6 +412,6 @@ u_long	kvtop		__P((void *addr));
 typedef void alias_for_inthand_t __P((u_int cs, u_int ef, u_int esp,
 				      u_int ss));
 void	setidt		__P((int idx, alias_for_inthand_t *func, int typ,
-			     int dpl));
+			     int dpl, int selec));
 
 #endif /* !_MACHINE_CPUFUNC_H_ */
