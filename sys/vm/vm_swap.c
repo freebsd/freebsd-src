@@ -290,7 +290,7 @@ swaponvp(td, vp, dev, nblks)
     found:
 	(void) vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 #ifdef MAC
-	error = mac_check_vnode_swapon(td->td_ucred, vp);
+	error = mac_check_system_swapon(td->td_ucred, vp);
 	if (error == 0)
 #endif
 		error = VOP_OPEN(vp, FREAD | FWRITE, td->td_ucred, td);
