@@ -978,7 +978,7 @@ pathname
 				int n;
 
 				memset(&gl, 0, sizeof(gl));
-				flags |= GLOB_MAXPATH;
+				flags |= GLOB_LIMIT;
 				gl.gl_matchc = MAXGLOBARGS;
 				if (glob($1, flags, NULL, &gl) ||
 				    gl.gl_pathc == 0) {
