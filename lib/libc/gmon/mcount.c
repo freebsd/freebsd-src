@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mcount.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: mcount.c,v 1.5 1995/12/30 07:01:50 bde Exp $";
 #endif
 
 #include <sys/param.h>
@@ -107,7 +107,7 @@ _MCOUNT_DECL(frompc, selfpc)	/* _mcount; may be static, inline, etc */
 	 */
 	if (frompci >= p->textsize) {
 		if (frompci + p->lowpc
-		    >= (fptrint_t)(VM_MAXUSER_ADDRESS + UPAGES * NBPG))
+		    >= (fptrint_t)(VM_MAXUSER_ADDRESS + UPAGES * PAGE_SIZE))
 			goto done;
 		frompci = (fptrint_t)user - p->lowpc;
 		if (frompci >= p->textsize)
