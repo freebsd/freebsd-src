@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.22.2.14 1997/05/19 02:02:23 brian Exp $
+ * $Id: main.c,v 1.22.2.15 1997/05/19 03:04:06 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -429,6 +429,7 @@ char **argv;
     ifsin.sin_family = AF_INET;
     ifsin.sin_addr.s_addr = INADDR_ANY;
     ifsin.sin_port = htons(port);
+    setsockopt(server, SOL_SOCKET, SO_REUSEADDR, &server, sizeof server);
     if (bind(server, (struct sockaddr *) &ifsin, sizeof(ifsin)) < 0) {
       perror("bind");
       if (errno == EADDRINUSE)
