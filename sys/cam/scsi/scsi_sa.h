@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_sa.h,v 1.2 1998/12/17 19:04:18 mjacob Exp $
+ *      $Id: scsi_sa.h,v 1.3 1998/12/18 04:29:16 mjacob Exp $
  */
 
 #ifndef	_SCSI_SCSI_SA_H
@@ -252,6 +252,9 @@ struct scsi_tape_locate {
 #define SCSI_DENSITY_HALFINCH_PE	0x06
 #define SCSI_DENSITY_QIC_120		0x0f
 #define SCSI_DENSITY_QIC_150		0x10    
+#define	SCSI_DENSITY_QIC_525_320	0x11
+#define	SCSI_DENSITY_QIC_1320		0x12
+#define	SCSI_DENSITY_QIC_3080		0x29
 
 __BEGIN_DECLS
 void	scsi_read_block_limits(struct ccb_scsiio *, u_int32_t,
