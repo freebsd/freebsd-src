@@ -86,7 +86,7 @@ snd_sysctl_tree_top(device_t dev)
 }
 
 void *
-snd_mtxcreate(const char *desc)
+snd_mtxcreate(const char *desc, const char *type)
 {
 #ifdef USING_MUTEX
 	struct mtx *m;
@@ -94,7 +94,7 @@ snd_mtxcreate(const char *desc)
 	m = malloc(sizeof(*m), M_DEVBUF, M_WAITOK | M_ZERO);
 	if (m == NULL)
 		return NULL;
-	mtx_init(m, desc, MTX_RECURSE);
+	mtx_init(m, desc, type, MTX_RECURSE);
 	return m;
 #else
 	return (void *)0xcafebabe;
@@ -607,7 +607,7 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 		return EINVAL;
 	}
 
-	d->lock = snd_mtxcreate(device_get_nameunit(dev));
+	d->lock = snd_mtxcreate(device_get_nameunit(dev), "sound cdev");
 	snd_mtxlock(d->lock);
 
 	d->flags = 0;
