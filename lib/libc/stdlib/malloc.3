@@ -34,261 +34,390 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)malloc.3	8.1 (Berkeley) 6/4/93
-.\"     $Id: malloc.3,v 1.6 1996/09/23 19:26:38 phk Exp $
+.\"     $Id: malloc.3,v 1.13 1997/07/01 18:39:36 phk Exp $
 .\"
 .Dd August 27, 1996
 .Dt MALLOC 3
 .Os FreeBSD 2
 .Sh NAME
-.Nm malloc
-.Nd general memory allocation function
-.Pp
-.Nm free
-.Nd free up memory allocated with malloc, calloc or realloc
-.Pp
-.Nm realloc
-.Nd reallocation of memory function
+.Nm malloc, calloc, realloc, free
+.Nd general purpose memory allocation functions
 .Sh SYNOPSIS
 .Fd #include <stdlib.h>
 .Ft void *
 .Fn malloc "size_t size"
-.Ft void
-.Fn free "void *ptr"
+.Ft void *
+.Fn calloc "size_t number" "size_t size"
 .Ft void *
 .Fn realloc "void *ptr" "size_t size"
+.Ft void
+.Fn free "void *ptr"
 .Ft char *
-.Va malloc_options
+.Va malloc_options;
 .Sh DESCRIPTION
 The
 .Fn malloc
-function allocates uninitialized space for an object whose
-size is specified by
-.Fa size .
-The
-.Fn malloc
-function maintains multiple lists of free blocks according to size, allocating
-space from the appropriate list.
-.Pp
-The allocated space is
-suitably aligned (after possible pointer
-coercion) for storage of any type of object. If the space is of
+function allocates
+.Fa size
+bytes of memory.
+The allocated space is suitably aligned (after possible pointer coercion)
+for storage of any type of object.
+If the space is at least
 .Em pagesize
-or larger, the memory returned will be page-aligned.
+bytes in length (see
+.Xr getpagesize (3)),
+the returned memory will be page boundary aligned as well.
+If
+.Fn malloc
+fails, a NULL pointer is returned.
+.Pp
+The
+.Fn calloc
+function allocates space for
+.Fa number
+objects,
+each
+.Fa size
+bytes in length.
+The result is identical to calling
+.Fn malloc
+with an argument of
+.Dq "number * size" ,
+with the exception that the allocated memory is initialized to nul bytes.
+.Pp
+The
+.Fn realloc
+function changes the size of the previously allocated memory referenced by
+.Fa ptr
+to
+.Fa size
+bytes.
+The contents of the memory are unchanged up to the lesser of the new and
+old sizes.
+If the new size is larger,
+the value of the newly allocated portion of the memory is undefined.
+If the requested memory cannot be allocated, NULL is returned and
+the memory referenced by
+.Fa ptr
+is valid and unchanged.
+If
+.Fa ptr
+is NULL, the
+.Fn realloc
+function behaves identically to
+.Fn malloc
+for the specified size.
 .Pp
 The
 .Fn free
-function causes the space pointed to by
+function causes the allocated memory referenced by
 .Fa ptr
-to be deallocated, that is, at least made available for further allocation,
-but if possible, it will passed back to the kernel with
-.Xr sbrk 2 .
+to be made available for future allocations.
 If
 .Fa ptr
-is a null pointer, no action occurs.
+is NULL, no action occurs.
+.Sh TUNING
+Once, when the first call is made to one of these memory allocation
+routines, various flags will be set or reset, which affect the
+workings of this allocation implementation.
 .Pp
-The
-.Fn realloc
-function changes the size of the object pointed to by
-.Fa ptr
-to the size specified by
-.Fa size .
-The contents of the object are unchanged up to the lesser
-of the new and old sizes.
-If the new size is larger, the value of the newly allocated portion
-of the object is indeterminate.
-If
-.Fa ptr
-is a null pointer, the
-.Fn realloc
-function behaves like the
-.Fn malloc 
-function for the specified size.
-If the space cannot be allocated, the object 
-pointed to by
-.Fa ptr
-is unchanged.
-If
-.Fa size
-is zero and
-.Fa ptr
-is not a null pointer, the object it points to is freed.
+The ``name'' of the file referenced by the symbolic link named
+.Pa /etc/malloc.conf ,
+the value of the environment variable
+.Ev MALLOC_OPTIONS ,
+and the string pointed to by the global variable
+.Va malloc_options 
+will be interpreted, in that order, character by character as flags.
 .Pp
-Malloc will first look for a symbolic link called
-.Pa /etc/malloc.conf
-and next check the environment for a variable called
-.Ev MALLOC_OPTIONS
-and finally for the global variable
-.Va malloc_options
-and scan them for flags in that order.
-Flags are single letters, uppercase means on, lowercase means off.
+Most flags are single letters,
+where uppercase indicates that the behavior is set, or on,
+and lowercase means that the behavior is not set, or off.
 .Bl -tag -width indent
 .It A
-``abort'' malloc will coredump the process, rather than tolerate failure.
-This is a very handy debugging aid, since the core file will represent the
-time of failure,
-rather than when the NULL pointer was accessed.
-
-.It D
-``dump'' malloc will dump statistics in a file called ``malloc.out'' at exit.
-
+All warnings (except for the warning about unknown
+flags being set), and failure to allocate memory become fatal.
+The process will call
+.Fn abort 3
+in these cases.
 .It J
-``junk'' fill some junk into the area allocated.
-Currently junk is bytes of 0xd0, this is pronounced ``Duh'' :-)
-
-.It H
-``hint'' pass a hint to the kernel about pages we don't use.  If the
-machine is paging a lot this may help a bit.
-
-.It R
-``realloc'' always reallocate when
+Each byte of new memory allocated by
+.Fn malloc
+or
 .Fn realloc
-is called, even if the initial allocation was big enough.
+as well as all memory returned by
+.Fn free
+or 
+.Fn realloc
+will be initialized to 0xd0.
+This options also sets the
+.Dq R
+option.
+This is intended for debugging and will impact performance negatively.
+.It H
+Pass a hint to the kernel about pages unused by the allocation functions.
+This may help performance if the system is paging excessively.
+.It R
+Cause the
+.Fn realloc
+function to always reallocate memory even if the initial allocation was
+sufficiently large.
 This can substantially aid in compacting memory.
-
 .It U
-``utrace'' generate entries for ktrace(1) for all operations.
-Consult the source for this one.
-
+Generate
+.Dq utrace
+entries for
+.Xr ktrace 1 ,
+for all operations.
+Consult the source for details on this option.
+.It V
+Attempting to allocate zero bytes will return a NULL pointer instead of
+a valid pointer.
+(The default behavior is to make a minimal allocation and return a 
+pointer to it.)
+This option is provided for System V compatibility.
+This option is incompatible with the
+.Dq X
+option.
+.It X
+Rather than return failure for any allocation function,
+display a diagnostic message on stderr and cause the program to drop
+core (using
+.Fn abort 3 ).
+This option should be set at compile time by including the following in
+the source code:
+.Bd -literal -offset indent
+extern char *malloc_options;
+malloc_options = "X";
+.Ed
 .It Z
-``zero'' fill some junk into the area allocated (see ``J''),
-except for the exact length the user asked for, which is zeroed.
-
+This option implicitly sets the
+.Dq J
+and
+.Dq R
+options, and then zeros out the bytes that were requested.
+This is intended for debugging and will impact performance negatively.
 .It <
-``Half the cache size'' Reduce the size of the cache by a factor of two.
-
+Reduce the size of the cache by a factor of two.
+The default cache size is 16 pages.
+This option can be specified multiple times.
 .It >
-``Double the cache size'' Double the size of the cache by a factor of two.
+Double the size of the cache by a factor of two.
+The default cache size is 16 pages.
+This option can be specified multiple times.
 .El
 .Pp
-So to set a systemwide reduction of cache size and coredumps on problems
-one would:
-.Li ln -s 'A<' /etc/malloc.conf
+The
+.Dq J
+and
+.Dq Z
+options are intended for testing and debugging.
+An application which changes its behavior when these options are used 
+is flawed.
+.Sh EXAMPLES
+To set a systemwide reduction of cache size, and to dump core whenever
+a problem occurs:
 .Pp
-The ``J'' and ``Z'' is mostly for testing and debugging,
-if a program changes behavior if either of these options are used,
-it is buggy.
+.Bd -literal -offset indent
+ln -s 'A<' /etc/malloc.conf
+.Ed
 .Pp
-The default cache size is 16 pages.
+To specify in the source that a program does no return value checking
+on calls to these functions:
+.Bd -literal -offset indent
+extern char *malloc_options;
+malloc_options = "X";
+.Ed
 .Sh ENVIRONMENT
-See above.
+The following environment variables affect the execution of the allocation
+functions:
+.Bl -tag -width MMM
+.It Ev MALLOC_OPTIONS
+If the environmental variable
+.Ev MALLOC_OPTIONS
+is set, the characters it contains will be interpreted as flags to the
+allocation functions.
 .Sh RETURN VALUES
 The
 .Fn malloc
-function returns
-a pointer to the allocated space if successful; otherwise
-a null pointer is returned.
+and
+.Fn calloc
+functions return a pointer to the allocated memory if successful; otherwise
+a NULL pointer is returned.
+.Pp
+The
+.Fn realloc
+function returns a pointer, possibly identical to
+.Fa ptr ,
+to the allocated memory
+if successful; otherwise a NULL pointer is returned, in which case the
+memory referenced by
+.Fa ptr
+is still available and intact.
 .Pp
 The
 .Fn free
 function returns no value.
+.Sh "DEBUGGING MALLOC PROBLEMS"
 .Pp
-The
-.Fn realloc
-function returns either a null pointer or a pointer
-to the possibly moved allocated space.
-.Sh MESSAGES
+The major difference between this implementation and other allocation
+implementations is that the free pages are not accessed unless allocated,
+and are aggressively returned to the kernel for reuse.
+.Bd -filled -offset indent
+Most allocation implementations will store a data structure containing a
+linked list in the free chunks of memory,
+used to tie all the free memory together.
+That can be suboptimal,
+as every time the free-list is traversed,
+the otherwise unused, and likely paged out,
+pages are faulted into primary memory.
+On systems which are paging,
+this can result in a factor of five increase in the number of page-faults
+done by a process.
+.Ed
+.Pp
+A side effect of this architecture is that many minor transgressions on
+the interface which would traditionally not be detected are in fact 
+detected.  As a result, programs that have been running happily for 
+years may suddenly start to complain loudly, when linked with this
+allocation implementation.
+.Pp
+The first and most important thing to do is to set the
+.Dq A
+option.
+This option forces a coredump (if possible) at the first sign of trouble,
+rather than the normal policy of trying to continue if at all possible.
+.Pp
+It is probably also a good idea to recompile the program with suitable
+options and symbols for debugger support.
+.Pp
+If the program starts to give unusual results, coredump or generally behave
+differently without emitting any of the messages listed in the next
+section, it is likely because it depends on the storage being filled with
+nul bytes.  Try running it with
+.Dq Z
+option set;
+if that improves the situation, this diagnosis has been confirmed.
+If the program still misbehaves,
+the likely problem is accessing memory outside the allocated area,
+more likely after than before the allocated area.
+.Pp
+Alternatively, if the symptoms are not easy to reproduce, setting the
+.Dq J
+option may help provoke the problem.
+.Pp
+In truly difficult cases, the
+.Dq U
+option, if supported by the kernel, can provide a detailed trace of
+all calls made to these functions.
+.Pp
+Unfortunately this implementation does not provide much detail about
+the problems it detects, the performance impact for storing such information
+would be prohibitive.
+There are a number of allocation implementations available on the 'Net
+which focus on detecting and pinpointing problems by trading performance
+for extra sanity checks and detailed diagnostics.
+.Sh "DIAGNOSTIC MESSAGES
 If 
 .Fn malloc ,
+.Fn calloc ,
+.Fn realloc
+or
 .Fn free
-or 
-.Fn realloc
-detects an error or warning condition,
-a message will be printed to filedescriptor
-2 (not using stdio).
-Errors will always result in the process being 
-.Xr abort 2 'ed,
-If the ``A'' option has been specified, also warnings will
-.Xr abort 2 
-the process.
+detect an error or warning condition,
+a message will be printed to file descriptor STDERR_FILENO.
+Errors will result in the process dumping core.
+If the
+.Dq A
+option is set, all warnings are treated as errors.
 .Pp
-Here is a brief description of the error messages and what they mean:
+The following is a brief description of possible error messages and
+their meanings:
 .Pp
-``(ES): mumble mumble mumble'':
-malloc have been compiled with -DEXTRA_SANITY and something looks
-fishy in there.  Consult sources and or wizards.
+.Bl -tag -width indent
+.It "(ES): mumble mumble mumble
+The allocation functions were compiled with
+.Dq EXTRA_SANITY
+defined, and an error was found during the additional error checking.
+Consult the source code for further information.
+.It "allocation failed
+If the
+.Dq A
+option is specified it is a fatal error for an allocation function to fail.
+.It "mmap(2) failed, check limits
+This most likely means that the system is dangerously overloaded or that
+the process' limits are incorrectly specified.
+.It "freelist is destroyed
+The internal free-list has been corrupted.
+.El
 .Pp
-``allocation failed''
-if the ``A'' option is specified it is an error for
-.Fn malloc
-or 
-.Fn realloc
-to return NULL.
+.Bl -tag -width indent
+The following is a brief description of possible warning messages and
+their meanings:
 .Pp
-``mmap(2) failed, check limits.''
-This is a rather weird condition that is most likely to mean that
-the system is seriously overloaded or that your ulimits are sick.
-.Pp
-``freelist is destroyed.''
-mallocs internal freelist has been stomped on.
-.Pp
-Here is a brief description of the warning messages and what they mean:
-.Pp
-``chunk/page is already free.''
-A pointer to a free chunk is attempted freed again.
-.Pp
-``junk pointer, too high to make sense.''
-The pointer doesn't make sense.  It's above the area of memory that
-malloc knows something about.
-This could be a pointer from some
-.Xr mmap 2 'ed 
-memory.
-.Pp
-``junk pointer, too low to make sense.''
-The pointer doesn't make sense.  It's below the area of memory that
-malloc knows something about.
-This pointer probably came from your data or bss segments.
-.Pp
-``malloc() has never been called.''
-Nothing has ever been allocated, yet something is being freed or
+.It "chunk/page is already free
+The process attempted to
+.Fn free
+memory which had already been freed.
+.It "junk pointer ...
+A pointer specified to one of the allocation functions points outside the
+bounds of the memory of which they are aware.
+.It "malloc() has never been called
+No memory has been allocated,
+yet something is being freed or
 realloc'ed.
-.Pp
-``modified (chunk-/page-) pointer.''
-The pointer passed to free or realloc has been modified.
-.Pp
-``pointer to wrong page.''
-The pointer that malloc is trying to free is not pointing to
-a sensible page.
-.Pp
-``recursive call.''
-You have tried to call recursively into these functions.
-I can only imagine this as happening if you call one of these
-functions from a signal function, which happens to be called
-while you're already in here.
-Well, sorry to say: that's not supported.
-If this is a problem for you I'd like to hear about it.  It
-would be possible to add a sigblock() around this package,
-but it would have a performance penalty that is not acceptable
-as the default.
-.Pp
-``unknown char in MALLOC_OPTIONS''
-we found something we didn't understand.
+.It "modified (chunk-/page-) pointer
+The pointer passed to
+.Fn free
+or
+.Fn realloc
+has been modified.
+.It "pointer to wrong page
+The pointer that
+.Fn malloc
+or
+.Fn calloc
+is trying to free does not reference a possible page.
+.It "recursive call
+A process has attempted to call an allocation function recursively.
+This is not permitted.  In particular, signal handlers should not
+attempt to allocate memory.
+.It "out of memory
+The
+.Dq X
+option was specified and an allocation of memory failed.
+.It "unknown char in MALLOC_OPTIONS
+An unknown option was specified.
+Even with the
+.Dq A
+option set, this warning is still only a warning.
 .Sh SEE ALSO
 .Xr brk 2 ,
 .Xr alloca 3 ,
-.Xr calloc 3 ,
 .Xr getpagesize 3 ,
 .Xr memory 3
 .Pa /usr/share/doc/papers/malloc.ascii.gz
 .Sh STANDARDS
 The
-.Fn malloc
-function conforms to
+.Fn malloc ,
+.Fn calloc ,
+.Fn realloc
+and
+.Fn free
+functions conform to
 .St -ansiC .
+.Sh BUGS
+The messages printed in case of problems provide no detail about the
+actual values.
+.Pp
+It can be argued that returning a null pointer when asked to
+allocate zero bytes is a silly response to a silly question.
+.Pp
+This implementation was authored by Poul-Henning Kamp.
+Please report any problems to him at
+.Li <phk@FreeBSD.org> .
 .Sh HISTORY
-The present implementation of malloc started out as a filesystem on a drum
-attached to a 20bit binary challenged computer built with discrete germanium
-transistors, and it has since graduated to handle primary storage rather than
-secondary.
-.Pp
-The main difference from other malloc implementations are believed to be that
-the free pages are not accessed until allocated.
-Most malloc implementations will store a data structure containing a, 
-possibly double-, linked list in the free chunks of memory, used to tie
-all the free memory together.
-That is a quite suboptimal thing to do.
-Every time the free-list is traversed, all the otherwise unused, and very
-likely paged out, pages get faulted into primary memory, just to see what
-lies after them in the list.
-.Pp
-On systems which are paging, this can make a factor five in difference on the
-page-faults of a process.
+The present allocation implementation started out as a filesystem for a
+drum attached to a 20bit binary challenged computer which was built 
+with discrete germanium transistors.  It has since graduated to 
+handle primary storage rather than secondary.
+It first appeared in its new shape and ability in FreeBSD release 2.2.
