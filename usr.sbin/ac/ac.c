@@ -87,6 +87,9 @@ static int Debug = 0;
 int			main(int, char **);
 int			ac(FILE *);
 struct tty_list		*add_tty(char *);
+#ifdef DEBUG
+const char		*debug_pfx(const struct utmp *, const struct utmp *);
+#endif
 int			do_tty(char *);
 FILE			*file(const char *);
 struct utmp_list	*log_in(struct utmp_list *, struct utmp *);
@@ -211,6 +214,72 @@ update_user(struct user_list *head, char *name, time_t secs)
 	Total += secs;
 	return up;
 }
+
+#ifdef DEBUG
+/*
+ * Create a string which is the standard prefix for a debug line.  It
+ * includes a timestamp (perhaps with year), device-name, and user-name.
+ */
+const char *
+debug_pfx(const struct utmp *event_up, const struct utmp *userinf_up)
+{
+	static char str_result[40+UT_LINESIZE+UT_NAMESIZE];
+	static char thisyear[5];
+	size_t maxcopy;
+	time_t ut_timecopy;
+
+	if (thisyear[0] == '\0') {
+		/* Figure out what "this year" is. */
+		time(&ut_timecopy);
+		strlcpy(str_result, ctime(&ut_timecopy), sizeof(str_result));
+		strlcpy(thisyear, &str_result[20], sizeof(thisyear));
+	}
+
+	if (event_up->ut_time == 0)
+		strlcpy(str_result, "*ZeroTime* --:--:-- ", sizeof(str_result));
+	else {
+		/*
+		* The type of utmp.ut_time is not necessary type time_t, as
+		* it is explicitly defined as type int32_t.  Copy the value
+		* for platforms where sizeof(time_t) != sizeof(int32_t).
+		*/
+		ut_timecopy = _time32_to_time(event_up->ut_time);
+		strlcpy(str_result, ctime(&ut_timecopy), sizeof(str_result));
+		/*
+		 * Include the year, if it is not the same year as "now".
+		 */
+		if (strncmp(&str_result[20], thisyear, 4) == 0)
+			str_result[20] = '\0';
+		else {
+			str_result[24] = ' ';		/* Replace a '\n' */
+			str_result[25] = '\0';
+		}
+	}
+
+	if (userinf_up->ut_line[0] == '\0')
+		strlcat(str_result, "NoDev", sizeof(str_result));
+	else {
+		/* ut_line is not necessarily null-terminated. */
+		maxcopy = strlen(str_result) + UT_LINESIZE + 1;
+		if (maxcopy > sizeof(str_result))
+			maxcopy = sizeof(str_result);
+		strlcat(str_result, userinf_up->ut_line, maxcopy);
+	}
+	strlcat(str_result, ": ", sizeof(str_result));
+
+	if (userinf_up->ut_name[0] == '\0')
+		strlcat(str_result, "LogOff", sizeof(str_result));
+	else {
+		/* ut_name is not necessarily null-terminated. */
+		maxcopy = strlen(str_result) + UT_NAMESIZE + 1;
+		if (maxcopy > sizeof(str_result))
+			maxcopy = sizeof(str_result);
+		strlcat(str_result, userinf_up->ut_name, maxcopy);
+	}
+
+	return (str_result);
+}
+#endif
 
 int
 main(int argc, char *argv[])
@@ -350,11 +419,10 @@ log_out(struct utmp_list *head, struct utmp *up)
 			Users = update_user(Users, lp->usr.ut_name, secs);
 #ifdef DEBUG
 			if (Debug)
-				printf("%-.*s %-.*s: %-.*s logged out (%2d:%02d:%02d)\n",
-				    19, ctime(&up->ut_time),
-				    sizeof (lp->usr.ut_line), lp->usr.ut_line,
-				    sizeof (lp->usr.ut_name), lp->usr.ut_name,
-				    secs / 3600, (secs % 3600) / 60, secs % 60);
+				printf("%s logged out (%2d:%02d:%02d)\n",
+				    debug_pfx(up, &lp->usr), (int)(secs / 3600),
+				    (int)((secs % 3600) / 60),
+				    (int)(secs % 60));
 #endif
 			/*
 			 * now lose it
@@ -430,11 +498,10 @@ log_in(struct utmp_list *head, struct utmp *up)
 	memmove((char *)&lp->usr, (char *)up, sizeof (struct utmp));
 #ifdef DEBUG
 	if (Debug) {
-		printf("%-.*s %-.*s: %-.*s logged in", 19,
-		    ctime(&lp->usr.ut_time), sizeof (up->ut_line),
-		    up->ut_line, sizeof (up->ut_name), up->ut_name);
+		printf("%s logged in", debug_pfx(&lp->usr, up));
 		if (*up->ut_host)
-			printf(" (%-.*s)", sizeof (up->ut_host), up->ut_host);
+			printf(" (%-.*s)", (int)sizeof(up->ut_host),
+			    up->ut_host);
 		putchar('\n');
 	}
 #endif
@@ -495,6 +562,12 @@ ac(FILE	*fp)
 				    strchr("pqrsPQRS", usr.ut_line[3]) != 0 ||
 				    *usr.ut_host != '\0')
 					head = log_in(head, &usr);
+#ifdef DEBUG
+				else if (Debug > 1)
+					/* Things such as 'screen' sessions. */
+					printf("%s - record ignored\n",
+					    debug_pfx(&usr, &usr));
+#endif
 			} else
 				head = log_out(head, &usr);
 			break;
