@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: rtld.c,v 1.9 1993/12/09 17:45:43 jkh Exp $
+ *	$Id: rtld.c,v 1.10 1993/12/11 20:08:39 jkh Exp $
  */
 
 #include <machine/vmparam.h>
@@ -129,7 +129,7 @@ static struct ld_entry	ld_entry = {
 	dlopen, dlclose, dlsym
 };
 
-static void		xprintf __P((char *, ...));
+void			xprintf __P((char *, ...));
 static void		init_brk __P((void));
 static void		load_maps __P((struct crt_ldso *));
 static void		map_object __P((struct link_object *, struct link_map *));
@@ -984,12 +984,6 @@ char	*sym;
 	return 0;
 }
 
-/*
- * Private heap functions.
- */
-
-static caddr_t	curbrk;
-
 void
 #if __STDC__
 xprintf(char *fmt, ...)
@@ -1010,37 +1004,3 @@ char	*fmt;
 	(void)write(1, buf, strlen(buf));
 	va_end(ap);
 }
-
-caddr_t
-sbrk(incr)
-int incr;
-{
-	int	fd = -1;
-
-	/* Round-up increment to page size */
-	incr = ((incr + PAGSIZ - 1) & ~(PAGSIZ - 1));
-
-#if DEBUG
-xprintf("sbrk: incr = %#x, curbrk = %#x\n", incr, curbrk);
-#endif
-
-#ifdef NEED_DEV_ZERO
-	fd = open("/dev/zero", O_RDWR, 0);
-	if (fd == -1)
-		perror("/dev/zero");
-#endif
-
-	if ((curbrk = mmap(0, incr,
-			PROT_READ|PROT_WRITE,
-			MAP_ANON|MAP_COPY, fd, 0)) == (caddr_t)-1) {
-		xprintf("Cannot map anonymous memory");
-		_exit(1);
-	}
-
-#ifdef NEED_DEV_ZERO
-	close(fd);
-#endif
-
-	return(curbrk);
-}
-
