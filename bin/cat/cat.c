@@ -45,7 +45,7 @@ static char const copyright[] =
 static char sccsid[] = "@(#)cat.c	8.2 (Berkeley) 4/27/95";
 #endif
 static const char rcsid[] =
-	"$Id: cat.c,v 1.11 1998/05/13 07:16:37 charnier Exp $";
+	"$Id: cat.c,v 1.12 1998/09/11 05:48:06 imp Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -65,11 +65,14 @@ const char *filename;
 
 void cook_args __P((char *argv[]));
 void cook_buf __P((FILE *));
+int main __P((int argc, char *argv[]));
 void raw_args __P((char *argv[]));
 void raw_cat __P((int));
 
 int
-main(int argc, char **argv)
+main(argc, argv)
+	int argc;
+	char *argv[];
 {
 	int ch;
 
@@ -245,12 +248,12 @@ raw_cat(rfd)
 		if (fstat(wfd, &sbuf))
 			err(1, "%s", filename);
 		bsize = MAX(sbuf.st_blksize, 1024);
-		if ((buf = malloc((u_int)bsize)) == NULL)
+		if ((buf = malloc(bsize)) == NULL)
 			err(1, NULL);
 	}
 	while ((nr = read(rfd, buf, bsize)) > 0)
 		for (off = 0; nr; nr -= nw, off += nw)
-			if ((nw = write(wfd, buf + off, (size_t) nr)) < 0)
+			if ((nw = write(wfd, buf + off, (size_t)nr)) < 0)
 				err(1, "stdout");
 	if (nr < 0) {
 		warn("%s", filename);
