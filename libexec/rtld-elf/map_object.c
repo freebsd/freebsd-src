@@ -37,7 +37,8 @@
 
 #include "rtld.h"
 
-static int protflags(int);	/* Elf flags -> mmap protection */
+static int convert_prot(int);	/* Elf flags -> mmap protection */
+static int convert_flags(int); /* Elf flags -> mmap flags */
 
 /*
  * Map a shared object into memory.  The "fd" argument is a file descriptor,
@@ -74,6 +75,7 @@ map_object(int fd, const char *path, const struct stat *sb)
     Elf_Addr data_vlimit;
     caddr_t data_addr;
     int data_prot;
+    int data_flags;
     Elf_Addr clear_vaddr;
     caddr_t clear_addr;
     caddr_t clear_page;
@@ -188,8 +190,8 @@ map_object(int fd, const char *path, const struct stat *sb)
     mapsize = base_vlimit - base_vaddr;
     base_addr = u.hdr.e_type == ET_EXEC ? (caddr_t) base_vaddr : NULL;
 
-    mapbase = mmap(base_addr, mapsize, protflags(segs[0]->p_flags),
-      MAP_PRIVATE, fd, base_offset);
+    mapbase = mmap(base_addr, mapsize, convert_prot(segs[0]->p_flags),
+      convert_flags(segs[0]->p_flags), fd, base_offset);
     if (mapbase == (caddr_t) -1) {
 	_rtld_error("%s: mmap of entire address space failed: %s",
 	  path, strerror(errno));
@@ -208,10 +210,11 @@ map_object(int fd, const char *path, const struct stat *sb)
 	data_vaddr = trunc_page(segs[i]->p_vaddr);
 	data_vlimit = round_page(segs[i]->p_vaddr + segs[i]->p_filesz);
 	data_addr = mapbase + (data_vaddr - base_vaddr);
-	data_prot = protflags(segs[i]->p_flags);
+	data_prot = convert_prot(segs[i]->p_flags);
+	data_flags = convert_flags(segs[i]->p_flags) | MAP_FIXED;
 	/* Do not call mmap on the first segment - this is redundant */
 	if (i && mmap(data_addr, data_vlimit - data_vaddr, data_prot,
-	  MAP_PRIVATE|MAP_FIXED, fd, data_offset) == (caddr_t) -1) {
+	  data_flags, fd, data_offset) == (caddr_t) -1) {
 	    _rtld_error("%s: mmap of data failed: %s", path, strerror(errno));
 	    return NULL;
 	}
@@ -314,7 +317,7 @@ obj_new(void)
  * flags for MMAP.
  */
 static int
-protflags(int elfflags)
+convert_prot(int elfflags)
 {
     int prot = 0;
     if (elfflags & PF_R)
@@ -324,4 +327,18 @@ protflags(int elfflags)
     if (elfflags & PF_X)
 	prot |= PROT_EXEC;
     return prot;
+}
+
+static int
+convert_flags(int elfflags)
+{
+    int flags = MAP_PRIVATE; /* All mappings are private */
+
+    /*
+     * Readonly mappings are marked "MAP_NOCORE", because they can be
+     * reconstructed by a debugger.
+     */
+    if (!(elfflags & PF_W))
+	flags |= MAP_NOCORE;
+    return flags;
 }
