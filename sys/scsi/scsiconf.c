@@ -357,6 +357,10 @@ static struct scsidevs knowndevs[] =
 	 * Doobe-doo-be doooo
 	 * -Mary
 	 */
+	{
+		T_READONLY, T_READONLY, T_REMOV, "NAKAMICH", "MJ-4*" ,"*",
+		"cd", SC_MORE_LUS
+	},
 #endif /* !UKTEST */
 #endif	/* NCD */
 #if NWORM > 0
