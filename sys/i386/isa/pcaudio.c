@@ -540,7 +540,7 @@ pcaintr(struct clockframe *frame)
  		if (pca_status.current > 2)
  			pca_status.current = 0;
 		pca_status.buffer = pca_status.buf[pca_status.current];
-                if (pca_sleep)
+		if (pca_sleep)
 			wakeup(&pca_sleep);
 		if (SEL_WAITING(&pca_status.wsel))
 			selwakeup(&pca_status.wsel);
