@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_malloc.c	8.3 (Berkeley) 1/4/94
- * $Id: kern_malloc.c,v 1.51 1999/01/10 01:58:24 eivind Exp $
+ * $Id: kern_malloc.c,v 1.51.2.1 1999/01/21 21:55:24 msmith Exp $
  */
 
 #include "opt_vm.h"
@@ -122,12 +122,18 @@ malloc(size, type, flags)
 #endif
 	register struct malloc_type *ksp = type;
 
+	/*
+	 * Must be at splmem() prior to initializing segment to handle
+	 * potential initialization race.
+	 */
+
+	s = splmem();
+
 	if (!type->ks_next)
 		malloc_init(type);
 
 	indx = BUCKETINDX(size);
 	kbp = &bucket[indx];
-	s = splmem();
 	while (ksp->ks_memuse >= ksp->ks_limit) {
 		if (flags & M_NOWAIT) {
 			splx(s);
