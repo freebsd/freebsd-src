@@ -85,21 +85,51 @@ dummy_perf(unsigned long vector, struct trapframe *framep)
 void (*perf_irq)(unsigned long, struct trapframe *) = dummy_perf;
 
 static unsigned int ints[MAXCPU];
-static unsigned int clks[MAXCPU];
-static unsigned int asts[MAXCPU];
-static unsigned int rdvs[MAXCPU];
-SYSCTL_OPAQUE(_debug, OID_AUTO, ints, CTLFLAG_RW, &ints, sizeof(ints), "IU","");
-SYSCTL_OPAQUE(_debug, OID_AUTO, clks, CTLFLAG_RW, &clks, sizeof(clks), "IU","");
-SYSCTL_OPAQUE(_debug, OID_AUTO, asts, CTLFLAG_RW, &asts, sizeof(asts), "IU","");
-SYSCTL_OPAQUE(_debug, OID_AUTO, rdvs, CTLFLAG_RW, &rdvs, sizeof(rdvs), "IU","");
+SYSCTL_OPAQUE(_debug, OID_AUTO, ints, CTLFLAG_RW, &ints, sizeof(ints), "IU",
+    "");
 
-static u_int schedclk2;
+static unsigned int clks[MAXCPU];
+#ifdef SMP
+SYSCTL_OPAQUE(_debug, OID_AUTO, clks, CTLFLAG_RW, &clks, sizeof(clks), "IU",
+    "");
+#else
+SYSCTL_INT(_debug, OID_AUTO, clks, CTLFLAG_RW, clks, 0, "");
+#endif
+
+#ifdef SMP
+static unsigned int asts[MAXCPU];
+SYSCTL_OPAQUE(_debug, OID_AUTO, asts, CTLFLAG_RW, &asts, sizeof(asts), "IU",
+    "");
+
+static unsigned int rdvs[MAXCPU];
+SYSCTL_OPAQUE(_debug, OID_AUTO, rdvs, CTLFLAG_RW, &rdvs, sizeof(rdvs), "IU",
+    "");
+#endif
+
+static int adjust_edges = 0;
+SYSCTL_INT(_debug, OID_AUTO, clock_adjust_edges, CTLFLAG_RW,
+    &adjust_edges, 0, "Number of times ITC got more than 12.5% behind");
+
+static int adjust_excess = 0;
+SYSCTL_INT(_debug, OID_AUTO, clock_adjust_excess, CTLFLAG_RW,
+    &adjust_excess, 0, "Total number of ignored ITC interrupts");
+
+static int adjust_lost = 0;
+SYSCTL_INT(_debug, OID_AUTO, clock_adjust_lost, CTLFLAG_RW,
+    &adjust_lost, 0, "Total number of lost ITC interrupts");
+
+static int adjust_ticks = 0;
+SYSCTL_INT(_debug, OID_AUTO, clock_adjust_ticks, CTLFLAG_RW,
+    &adjust_ticks, 0, "Total number of ITC interrupts with adjustment");
 
 void
 interrupt(u_int64_t vector, struct trapframe *framep)
 {
 	struct thread *td;
 	volatile struct ia64_interrupt_block *ib = IA64_INTERRUPT_BLOCK;
+	uint64_t adj, clk, itc;
+	int64_t delta;
+	int count;
 
 	td = curthread;
 	atomic_add_int(&td->td_intr_nesting_level, 1);
@@ -115,39 +145,55 @@ interrupt(u_int64_t vector, struct trapframe *framep)
 
 	if (vector == CLOCK_VECTOR) {/* clock interrupt */
 		/* CTR0(KTR_INTR, "clock interrupt"); */
-			
+
 		cnt.v_intr++;
 #ifdef EVCNT_COUNTERS
 		clock_intr_evcnt.ev_count++;
 #else
 		intrcnt[INTRCNT_CLOCK]++;
 #endif
-		critical_enter();
-		/* Rearm so we get the next clock interrupt */
-		ia64_set_itm(ia64_get_itc() + itm_reload);
-#ifdef SMP
 		clks[PCPU_GET(cpuid)]++;
-		/* Only the BSP runs the real clock */
-		if (PCPU_GET(cpuid) == 0) {
-#endif
-			hardclock((struct clockframe *)framep);
-			/* divide hz (1024) by 8 to get stathz (128) */
-			if ((++schedclk2 & 0x7) == 0) {
-				if (profprocs != 0)
-					profclock((struct clockframe *)framep);
-				statclock((struct clockframe *)framep);
-			}
-#ifdef SMP
-		} else {
-			hardclock_process((struct clockframe *)framep);
-			if ((schedclk2 & 0x7) == 0) {
-				if (profprocs != 0)
-					profclock((struct clockframe *)framep);
-				statclock((struct clockframe *)framep);
-			}
+
+		critical_enter();
+
+		adj = PCPU_GET(clockadj);
+		itc = ia64_get_itc();
+		ia64_set_itm(itc + ia64_clock_reload - adj);
+		clk = PCPU_GET(clock);
+		delta = itc - clk;
+		count = 0;
+		while (delta >= ia64_clock_reload) {
+			/* Only the BSP runs the real clock */
+			if (PCPU_GET(cpuid) == 0)
+				hardclock((struct clockframe *)framep);
+			else
+				hardclock_process((struct clockframe *)framep);
+			if (profprocs != 0)
+				profclock((struct clockframe *)framep);
+			statclock((struct clockframe *)framep);
+			delta -= ia64_clock_reload;
+			clk += ia64_clock_reload;
+			if (adj != 0)
+				adjust_ticks++;
+			count++;
 		}
-#endif
+		if (count > 0) {
+			adjust_lost += count - 1;
+			if (delta > (ia64_clock_reload >> 3)) {
+				if (adj == 0)
+					adjust_edges++;
+				adj = ia64_clock_reload >> 4;
+			} else if (delta < (ia64_clock_reload >> 3))
+				adj = 0;
+		} else {
+			adj = 0;
+			adjust_excess++;
+		}
+		PCPU_SET(clock, clk);
+		PCPU_SET(clockadj, adj);
+
 		critical_exit();
+
 #ifdef SMP
 	} else if (vector == ipi_vector[IPI_AST]) {
 		asts[PCPU_GET(cpuid)]++;
@@ -184,23 +230,6 @@ interrupt(u_int64_t vector, struct trapframe *framep)
 	}
 
 	atomic_subtract_int(&td->td_intr_nesting_level, 1);
-}
-
-int
-badaddr(addr, size)
-	void *addr;
-	size_t size;
-{
-	return(badaddr_read(addr, size, NULL));
-}
-
-int
-badaddr_read(addr, size, rptr)
-	void *addr;
-	size_t size;
-	void *rptr;
-{
-	return (1);		/* XXX implement */
 }
 
 /*
