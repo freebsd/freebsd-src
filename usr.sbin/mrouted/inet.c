@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: inet.c,v 3.5 1995/05/09 01:00:39 fenner Exp $
+ * $Id: inet.c,v 3.6 1995/06/25 18:54:45 fenner Exp $
  */
 
 
@@ -28,7 +28,8 @@ char s4[19];
  * (Without a mask, cannot detect addresses of the form {subnet,0} or
  * {subnet,-1}.)
  */
-int inet_valid_host(naddr)
+int
+inet_valid_host(naddr)
     u_int32 naddr;
 {
     register u_int32 addr;
@@ -50,7 +51,8 @@ int inet_valid_host(naddr)
  * within the [ABC] range and that the host bits of the subnet
  * are all 0.
  */
-int inet_valid_subnet(nsubnet, nmask)
+int
+inet_valid_subnet(nsubnet, nmask)
     u_int32 nsubnet, nmask;
 {
     register u_int32 subnet, mask;
@@ -83,7 +85,8 @@ int inet_valid_subnet(nsubnet, nmask)
 /*
  * Convert an IP address in u_long (network) format into a printable string.
  */
-char *inet_fmt(addr, s)
+char *
+inet_fmt(addr, s)
     u_int32 addr;
     char *s;
 {
@@ -99,7 +102,8 @@ char *inet_fmt(addr, s)
  * Convert an IP subnet number in u_long (network) format into a printable
  * string including the netmask as a number of bits.
  */
-char *inet_fmts(addr, mask, s)
+char *
+inet_fmts(addr, mask, s)
     u_int32 addr, mask;
     char *s;
 {
@@ -129,7 +133,8 @@ char *inet_fmts(addr, mask, s)
  * legal address with that value, you must explicitly compare the string
  * with "255.255.255.255".)
  */
-u_int32 inet_parse(s)
+u_int32
+inet_parse(s)
     char *s;
 {
     u_int32 a = 0;
@@ -167,7 +172,8 @@ u_int32 inet_parse(s)
  * Checksum routine for Internet Protocol family headers (C Version)
  *
  */
-int inet_cksum(addr, len)
+int
+inet_cksum(addr, len)
 	u_short *addr;
 	u_int len;
 {
@@ -182,13 +188,13 @@ int inet_cksum(addr, len)
 	 *  back all the carry bits from the top 16 bits into the lower
 	 *  16 bits.
 	 */
-	while( nleft > 1 )  {
+	while (nleft > 1)  {
 		sum += *w++;
 		nleft -= 2;
 	}
 
 	/* mop up an odd byte, if necessary */
-	if( nleft == 1 ) {
+	if (nleft == 1) {
 		*(u_char *) (&answer) = *(u_char *)w ;
 		sum += answer;
 	}

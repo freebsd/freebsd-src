@@ -1,5 +1,5 @@
 '\"COPYRIGHT 1989 by The Board of Trustees of Leland Stanford Junior University.
-'\"$Id: mrouted.8,v 3.5 1995/05/09 01:00:39 fenner Exp $
+'\"$Id: mrouted.8,v 3.6 1995/06/25 19:10:58 fenner Exp $
 .TH MROUTED 8
 .UC 5
 .SH NAME
@@ -118,7 +118,7 @@ There are four types of configuration commands:
 		   [altnet <network>/<mask-len>]
 
     tunnel <local-addr> <remote-addr> [metric <m>]
-		 [threshold <t>] [srcrt] [rate_limit <b>]
+		 [threshold <t>] [rate_limit <b>]
 		   [boundary (<boundary-name>|<scoped-addr>/<mask-len>)]
 
     cache_lifetime <ct>
@@ -327,7 +327,7 @@ shown at each interface.
 Associated with each subnet from which a multicast datagram can originate
 is the address of the previous hop router (unless the subnet is directly-
 connected), the metric of the path back to the origin, the amount of time
-since we last recieved an update for this subnet, the incoming vif for
+since we last received an update for this subnet, the incoming vif for
 multicasts from that origin, and a list of outgoing vifs.  "*" means that
 the outgoing vif is connected to a leaf of the broadcast tree rooted at the
 origin, and a multicast datagram from that origin will be forwarded on that
@@ -365,7 +365,7 @@ The 'Ptmr' field is simply a dash if no prune was sent upstream, or the
 amount of time until the upstream prune will time out.
 The 'Ivif' field indicates the
 incoming vif for multicast packets from that origin.  Each router also
-maintains a record of the number of prunes received from neighbouring
+maintains a record of the number of prunes received from neighboring
 routers for a particular source and group. If there are no members of
 a multicast group on any downward link of the multicast tree for a
 subnet, a prune message is sent to the upstream router. They are
