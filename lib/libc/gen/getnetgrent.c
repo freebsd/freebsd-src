@@ -136,10 +136,13 @@ static struct {
 	(char *)0,
 };
 static FILE *netf = (FILE *)0;
-static int parse_netgrp();
-static struct linelist *read_for_group();
-void setnetgrent(), endnetgrent();
-int getnetgrent(), innetgr();
+
+static int parse_netgrp(const char *);
+static struct linelist *read_for_group(const char *);
+void setnetgrent(const char *);
+void endnetgrent(void);
+int getnetgrent(char **, char **, char **);
+int innetgr(const char *, const char *, const char *, const char *);
 
 #define	LINSIZ	1024	/* Length of netgroup file line */
 
@@ -150,8 +153,7 @@ int getnetgrent(), innetgr();
  * most of the work.
  */
 void
-setnetgrent(group)
-	char *group;
+setnetgrent(const char *group)
 {
 #ifdef YP
 	struct stat _yp_statp;
@@ -220,8 +222,7 @@ setnetgrent(group)
  * Get the next netgroup off the list.
  */
 int
-getnetgrent(hostp, userp, domp)
-	char **hostp, **userp, **domp;
+getnetgrent(char **hostp, char **userp, char **domp)
 {
 #ifdef YP
 	_yp_innetgr = 0;
@@ -241,7 +242,7 @@ getnetgrent(hostp, userp, domp)
  * endnetgrent() - cleanup
  */
 void
-endnetgrent()
+endnetgrent(void)
 {
 	struct linelist *lp, *olp;
 	struct netgrp *gp, *ogp;
@@ -278,11 +279,11 @@ endnetgrent()
 }
 
 #ifdef YP
-static int _listmatch(list, group, len)
-	char *list, *group;
-	int len;
+static int
+_listmatch(const char *list, const char *group, int len)
 {
-	char *ptr = list, *cptr;
+	const char *ptr = list;
+	const char *cptr;
 	int glen = strlen(group);
 
 	/* skip possible leading whitespace */
@@ -302,9 +303,8 @@ static int _listmatch(list, group, len)
 	return(0);
 }
 
-static int _buildkey(key, str, dom, rotation)
-char *key, *str, *dom;
-int *rotation;
+static int
+_buildkey(char *key, const char *str, const char *dom, int *rotation)
 {
 	(*rotation)++;
 	if (*rotation > 4)
@@ -327,8 +327,7 @@ int *rotation;
  * Search for a match in a netgroup.
  */
 int
-innetgr(group, host, user, dom)
-	const char *group, *host, *user, *dom;
+innetgr(const char *group, const char *host, const char *user, const char *dom)
 {
 	char *hst, *usr, *dm;
 #ifdef YP
@@ -409,8 +408,7 @@ innetgr(group, host, user, dom)
  * Parse the netgroup file setting up the linked lists.
  */
 static int
-parse_netgrp(group)
-	char *group;
+parse_netgrp(const char *group)
 {
 	char *spos, *epos;
 	int len, strpos;
@@ -520,8 +518,7 @@ parse_netgrp(group)
  * is found. Return 1 if eof is encountered.
  */
 static struct linelist *
-read_for_group(group)
-	char *group;
+read_for_group(const char *group)
 {
 	char *pos, *spos, *linep, *olinep;
 	int len, olen;
