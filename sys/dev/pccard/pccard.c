@@ -367,6 +367,7 @@ pccard_function_init(struct pccard_function *pf)
 	device_t bus;
 	int start;
 	int end;
+	int spaces;
 
 	if (pf->pf_flags & PFF_ENABLED) {
 		printf("pccard_function_init: function is enabled");
@@ -378,6 +379,7 @@ pccard_function_init(struct pccard_function *pf)
 		for (i = 0; i < cfe->num_iospace; i++)
 			cfe->iores[i] = NULL;
 		cfe->irqres = NULL;
+		spaces = 0;
 		for (i = 0; i < cfe->num_iospace; i++) {
 			start = cfe->iospace[i].start;
 			if (start)
@@ -385,6 +387,8 @@ pccard_function_init(struct pccard_function *pf)
 			else
 				end = ~0;
 			cfe->iorid[i] = i;
+			DEVPRINTF((bus, "I/O rid %d start %x end %x\n",
+			    i, start, end));
 			r = cfe->iores[i] = bus_alloc_resource(bus,
 			    SYS_RES_IOPORT, &cfe->iorid[i], start, end,
 			    cfe->iospace[i].length,
@@ -397,11 +401,17 @@ pccard_function_init(struct pccard_function *pf)
 			rle = resource_list_find(rl, SYS_RES_IOPORT,
 			    cfe->iorid[i]);
 			rle->res = r;
+			spaces++;
 		}
 		if (cfe->num_memspace > 0) {
 			/*
 			 * Not implement yet, Fix me.
 			 */
+			DEVPRINTF((bus, "Memory space not yet implemented.\n"));
+		}
+		if (spaces == 0) {
+			DEVPRINTF((bus, "Neither memory nor I/O mampped\n"));
+			goto not_this_one;
 		}
 		if (cfe->irqmask) {
 			cfe->irqrid = 0;
@@ -1050,7 +1060,8 @@ pccard_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		device_printf(dev, "WARNING: Resource not reserved by pccard bus\n");
 		return NULL;
 	} else {
-		if (rle->res->r_dev != dev) return NULL;
+		if (rle->res->r_dev != dev)
+			return (NULL);
 		bus_release_resource(dev, type, *rid, rle->res);
 		rle->res = NULL;
 		switch(type) {
@@ -1063,8 +1074,9 @@ pccard_alloc_resource(device_t dev, device_t child, int type, int *rid,
 			flags |= RF_SHAREABLE;
 			break;
 		}
-		return resource_list_alloc(&dinfo->resources, dev, child, type,
-		    rid, rle->start, rle->end, rle->count, flags);
+		rle->res = resource_list_alloc(&dinfo->resources, dev, child,
+		    type, rid, rle->start, rle->end, rle->count, flags);
+		return (rle->res);
 	}
 }
 
