@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bootinfo.c,v 1.16 1999/01/24 00:12:04 msmith Exp $
+ *	$Id$
  */
 
 #include <stand.h>

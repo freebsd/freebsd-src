@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:36:43  rpd
- *	$Id: table.c,v 1.8 1998/10/11 15:09:36 kato Exp $
+ *	$Id$
  */
 
 /*
