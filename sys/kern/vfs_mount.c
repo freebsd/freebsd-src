@@ -389,6 +389,10 @@ nmount(td, uap)
 	int error;
 	u_int iovcnt;
 
+	/* Kick out MNT_ROOTFS early as it is legal internally */
+	if (uap->flags & MNT_ROOTFS)
+		return (EINVAL);
+
 	iovcnt = uap->iovcnt;
 	/*
 	 * Check that we have an even number of iovec's
@@ -396,6 +400,7 @@ nmount(td, uap)
 	 */
 	if ((iovcnt & 1) || (iovcnt < 4))
 		return (EINVAL);
+
 	error = copyinuio(uap->iovp, iovcnt, &auio);
 	if (error)
 		return (error);
@@ -609,6 +614,10 @@ mount(td, uap)
 	char *fstype;
 	char *fspath;
 	int error;
+
+	/* Kick out MNT_ROOTFS early as it is legal internally */
+	if (uap->flags & MNT_ROOTFS)
+		return (EINVAL);
 
 	fstype = malloc(MFSNAMELEN, M_TEMP, M_WAITOK);
 	fspath = malloc(MNAMELEN, M_TEMP, M_WAITOK);
