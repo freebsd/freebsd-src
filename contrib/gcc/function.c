@@ -6427,14 +6427,6 @@ mark_varargs ()
 #define HAS_INIT_SECTION
 #endif
 
-#ifndef GEN_CALL__MAIN
-#define GEN_CALL__MAIN \
-  do {									\
-    emit_library_call (gen_rtx_SYMBOL_REF (Pmode, NAME__MAIN), LCT_NORMAL, \
-		       VOIDmode, 0);					\
-  } while (0)
-#endif
-
 void
 expand_main_function ()
 {
@@ -6474,8 +6466,9 @@ expand_main_function ()
     }
 #endif
 
-#if defined(INVOKE__main) || !defined (HAS_INIT_SECTION)
-  GEN_CALL__MAIN;
+#ifndef HAS_INIT_SECTION
+  emit_library_call (gen_rtx_SYMBOL_REF (Pmode, NAME__MAIN), LCT_NORMAL,
+		     VOIDmode, 0);
 #endif
 }
 

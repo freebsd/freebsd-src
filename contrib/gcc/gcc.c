@@ -3004,17 +3004,6 @@ static int warn_std;
 
 /* Gives value to pass as "warn" to add_prefix for standard prefixes.  */
 static int *warn_std_ptr = 0;
-
-
-#if defined(FREEBSD_NATIVE)
-#include <objformat.h>
-
-typedef enum { OBJFMT_UNKNOWN, OBJFMT_AOUT, OBJFMT_ELF } objf_t;
-
-static objf_t objformat = OBJFMT_UNKNOWN;
-#endif
-
-
 
 #if defined(HAVE_TARGET_OBJECT_SUFFIX) || defined(HAVE_TARGET_EXECUTABLE_SUFFIX)
 
@@ -3368,19 +3357,6 @@ process_command (argc, argv)
 	    endp++;
 	}
     }
-
-#if defined(FREEBSD_NATIVE)
-  {
-    char buf[64];
-    if (getobjformat (buf, sizeof buf, &argc, argv))
-      if (strcmp (buf, "aout") == 0)
-        objformat = OBJFMT_AOUT;
-      else if (strcmp (buf, "elf") == 0)
-        objformat = OBJFMT_ELF;
-      else
-        fprintf(stderr, "Unrecognized object format: %s\n", buf);
-  }
-#endif
 
   /* Options specified as if they appeared on the command line.  */
   temp = getenv ("GCC_OPTIONS");
@@ -3871,20 +3847,8 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n"
   /* Use 2 as fourth arg meaning try just the machine as a suffix,
      as well as trying the machine and the version.  */
 #ifdef FREEBSD_NATIVE
-  switch (objformat)
-    {
-    case OBJFMT_AOUT:
-      n_switches++;		/* add implied -maout */
-      add_prefix (&exec_prefixes, PREFIX"/libexec/aout/", "BINUTILS",
-		  0, 0, warn_std_ptr, 0);
-      break;
-    case OBJFMT_ELF:
       add_prefix (&exec_prefixes, PREFIX"/bin/", "BINUTILS",
 		  0, 0, warn_std_ptr, 0);
-      break;
-    case OBJFMT_UNKNOWN:
-      fatal ("object format unknown");
-    }
 #endif	/* FREEBSD_NATIVE */
 #ifndef OS2
   add_prefix (&exec_prefixes, standard_exec_prefix, "GCC",
@@ -3961,25 +3925,6 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n"
   /* This, time, copy the text of each switch and store a pointer
      to the copy in the vector of switches.
      Store all the infiles in their vector.  */
-
-#if defined(FREEBSD_NATIVE)
-  switch (objformat)
-    {
-    case OBJFMT_AOUT:
-      switches[n_switches].part1 = "maout";
-      switches[n_switches].args = 0;
-      switches[n_switches].live_cond = 0;
-      switches[n_switches].validated = 0;
-      n_switches++;
-      putenv("OBJFORMAT=aout");
-      break;
-    case OBJFMT_ELF:
-      putenv("OBJFORMAT=elf");
-      break;
-    case OBJFMT_UNKNOWN:
-      fatal ("object format unknown");
-    }
-#endif
 
   for (i = 1; i < argc; i++)
     {
