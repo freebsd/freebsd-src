@@ -1,24 +1,23 @@
                                  RELEASE NOTES
-                           FreeBSD Release 3.2-RELEASE
+                           FreeBSD Release 3.2-STABLE
 
-Welcome to 3.2-RELEASE, a full follow-on to the 3.1-RELEASE
-released February 1999 and which marked the beginning of the
-3.0-STABLE branch.  In the 4 months since 3.1 was released, many
-hundreds of bug fixes and general enhancements were made to the
-system.  Please see relevant details below.
+Welcome to this 3.2-STABLE snapshot, a follow-on to 3.2-RELEASE released
+June 1999.  In the months since 3.2 was released, many bug fixes and
+general enhancements have been made to the system.  Please see relevant
+details below.
 
 Any installation failures or crashes should be reported by using the
 send-pr command (those preferring a WEB based interface can also see
 http://www.freebsd.org/send-pr.html).
 
-For information about FreeBSD and the layout of the 3.2-RELEASE
+For information about FreeBSD and the layout of the 3.3-RELEASE
 directory (especially if you're installing from floppies!), see
 ABOUT.TXT.  For installation instructions, see the INSTALL.TXT and
 HARDWARE.TXT files.
 
 Table of contents:
 ------------------
-1. What's new since 3.1-RELEASE
+1. What's new since 3.2-RELEASE
    1.1 KERNEL CHANGES
    1.2 SECURITY FIXES
    1.3 USERLAND CHANGES
@@ -39,82 +38,51 @@ Table of contents:
 6. Acknowledgements
 
 
-1. What's new since 3.1-RELEASE
+1. What's new since 3.2-RELEASE
 ---------------------------------
 
 1.1. KERNEL CHANGES
 -------------------
 
-Added driver support for PCI gigabit ethernet adapters based on
-the Alteon Networks Tigon 1 and Tigon 2 chipsets, including the
-Alteon AceNIC, 3Com 3c985 and Netgear GA620.
+Alpha timecounter code has been improved.
 
-Support for USB devices further improved.
+The al and rl drivers have been ported to the Alpha.
 
-Support has been added for direct access to NTFS filesystems.
+The i386 bootstrap has been enhanced for some problematic systems.
 
-Support has been added for Joliet extensions on ISO 9660 filesystems.
-Only iso8859-1 characters (latin-1) are supported at this time, though.
-
-Support has been added for Adaptec 2930U2 and 3950U2 SCSI cards.
-
-There have been a couple of kernel changes that will break the binary
-interface for clients of the CAM passthrough interface or the devstat(9)
-statistics interface.  These changes were made to fix some interface
-deficiencies.  We regret any inconvenience this will cause, but we
-anticipate that this will have minimal impact as there are no known
-commercial binary-only applications that use either interface.  This will
-require that programs that use those two interfaces be recompiled.  Ports
-that use the CAM interface include xmcd, tosha, SANE, cdrecord and cdda2wav.
-Ports that use the devstat interface include xsysinfo and xperfmon.
-
-Added driver support for Lucent Technologies WaveLAN/IEEE and
-WaveLAN/IEEE Turbo 802.11 wireless networking adapters (PCMCIA
-and ISA versions) and workalikes (NCR WaveLAN/IEEE, Cabletron
-RoamAbout 802.11 DS).
+Driver support has been added for IEEE 802.11 PCMCIA wireless network
+adapters based on the Lucent Hermes chipset, including the Lucent
+WaveLAN/IEEE 802.11 and the Cabletron RoamAbout.  Both 2Mbps and
+6Mbps Turbo adapters are supported. [MERGED]
 
 Driver support has been added for PCI fast ethernet cards based
 on the ADMtek Inc. AL981 Comet chipset.
 
+Driver support has been added for PCI fast ethernet cards based
+on the LC82C115 'PNIC II' chipset.
+
+Driver support has been added for the Compaq Smart Raid family of
+RAID controllers.
+
+USB support has been improved.
+
+Major updates to the Vinum volume manager have been incorporated.
+
+Driver support for a number of Realtek and Avance Asound audio cards
+has been added.
+
+A number of NFS problems have been fixed.
+
+
 1.2. SECURITY FIXES
 -------------------
-Descriptor leak bug which was potentially open to a denial of service attack
-(by local users) was closed.  REF: KKIS.05051999.003b 
 
+(none yet logged)
 
 1.3. USERLAND CHANGES
 ---------------------
-The Internet Software Consortium's DHCP client has been added to the 
-base system.
- 
-Sendmail upgraded to version 8.9.3.
 
-Tar now supports compressing via bzip2 with the new
--y/--bzip2/--bunzip2 flags.
-
-TCP Wrappers is now part of the base system.  inetd, the port mapper,
-and sendmail are now linked agaist libwrap.  The "PROCESS_OPTIONS"
-syntax is the default.  See `man 5 hosts_options' for more information.
-
-Gdb has been updated to version 4.18 and is now part of the standard
-release for FreeBSD/alpha.
-
-Camcontrol now allows users to view the number of tagged openings for
-any given device, and allows users to set the number of tagged openings
-for any device that supports tagged queueing.
-
-Camcontrol also now allows users to change SCSI negotiation parameters
-(e.g. sync rate, offset, bus width, disconnection) for devices on certain
-controllers.  Note that this feature is only fully functional for Adaptec
-7xxx series controllers, Advansys narrow controllers and NCR/Symbios
-controllers.
-
-Systat, vmstat, and iostat now print out statistics in a more "interesting"
-order based on "importance" of the device vs. the probe order.
-
-And quite a number of bugs, both in the user and kernel, fixed as
-a result of user feedback for 3.1-RELEASE.
-
+(none yet logged)
 
 2. Supported Configurations
 ---------------------------
