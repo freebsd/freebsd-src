@@ -34,8 +34,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
+.\" $OpenBSD: ssh_config.5,v 1.38 2004/06/26 09:11:14 jmc Exp $
 .\" $FreeBSD$
-.\" $OpenBSD: ssh_config.5,v 1.28 2003/12/16 15:49:51 markus Exp $
 .Dd September 25, 1999
 .Dt SSH_CONFIG 5
 .Os
@@ -186,6 +186,18 @@ The default is
 Specifies the ciphers allowed for protocol version 2
 in order of preference.
 Multiple ciphers must be comma-separated.
+The supported ciphers are
+.Dq 3des-cbc ,
+.Dq aes128-cbc ,
+.Dq aes192-cbc ,
+.Dq aes256-cbc ,
+.Dq aes128-ctr ,
+.Dq aes192-ctr ,
+.Dq aes256-ctr ,
+.Dq arcfour ,
+.Dq blowfish-cbc ,
+and
+.Dq cast128-cbc .
 The default is
 .Bd -literal
   ``aes128-cbc,3des-cbc,blowfish-cbc,cast128-cbc,arcfour,
@@ -233,6 +245,37 @@ Specifies the timeout (in seconds) used when connecting to the ssh
 server, instead of using the default system TCP timeout.
 This value is used only when the target is down or really unreachable,
 not when it refuses the connection.
+.It Cm ControlMaster
+Enables the sharing of multiple sessions over a single network connection.
+When set to
+.Dq yes
+.Nm ssh
+will listen for connections on a control socket specified using the
+.Cm ControlPath
+argument.
+Additional sessions can connect to this socket using the same
+.Cm ControlPath
+with
+.Cm ControlMaster
+set to
+.Dq no
+(the default).
+These sessions will reuse the master instance's network connection rather
+than initiating new ones.
+Setting this to
+.Dq ask
+will cause
+.Nm ssh
+to listen for control connections, but require confirmation using the
+.Ev SSH_ASKPASS
+program before they are accepted (see
+.Xr ssh-add 1
+for details).
+.It Cm ControlPath
+Specify the path to the control socket used for connection sharing.
+See
+.Cm ControlMaster
+above.
 .It Cm DynamicForward
 Specifies that a TCP/IP port on the local machine be forwarded
 over the secure channel, and the application
@@ -314,7 +357,7 @@ if the
 .Cm ForwardX11Trusted
 option is also enabled.
 .It Cm ForwardX11Trusted
-If the this option is set to
+If this option is set to
 .Dq yes
 then remote X11 clients will have full access to the original X11 display.
 If this option is set to
@@ -411,7 +454,7 @@ identities will be tried in sequence.
 Specifies that
 .Nm ssh
 should only use the authentication identity files configured in the
-.Nm 
+.Nm
 files,
 even if the
 .Nm ssh-agent
@@ -571,6 +614,27 @@ running.
 The default is
 .Dq yes .
 Note that this option applies to protocol version 1 only.
+.It Cm SendEnv
+Specifies what variables from the local
+.Xr environ 7
+should be sent to the server.
+Note that environment passing is only supported for protocol 2, the
+server must also support it, and the server must be configured to
+accept these environment variables.
+Refer to
+.Cm AcceptEnv
+in
+.Xr sshd_config 5
+for how to configure the server.
+Variables are specified by name, which may contain the wildcard characters
+.Ql \&*
+and
+.Ql \&? .
+Multiple environment variables may be separated by whitespace or spread
+across multiple
+.Cm SendEnv
+directives.
+The default is not to send any environment variables.
 .It Cm ServerAliveInterval
 Sets a timeout interval in seconds after which if no data has been received
 from the server,
@@ -719,7 +783,7 @@ Note that this option applies to protocol version 2 only.
 Specifies a string to append to the regular version string to identify
 OS- or site-specific modifications.
 The default is
-.Dq FreeBSD-20040419 .
+.Dq FreeBSD-20041028 .
 .It Cm XAuthLocation
 Specifies the full pathname of the
 .Xr xauth 1
@@ -735,9 +799,8 @@ The format of this file is described above.
 This file is used by the
 .Nm ssh
 client.
-This file does not usually contain any sensitive information,
-but the recommended permissions are read/write for the user, and not
-accessible by others.
+Because of the potential for abuse, this file must have strict permissions:
+read/write for the user, and not accessible by others.
 .It Pa /etc/ssh/ssh_config
 Systemwide configuration file.
 This file provides defaults for those

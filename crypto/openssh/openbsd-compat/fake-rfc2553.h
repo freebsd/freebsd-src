@@ -1,5 +1,5 @@
-/* $FreeBSD$ */
 /* $Id: fake-rfc2553.h,v 1.8 2004/02/10 02:05:41 dtucker Exp $ */
+/* $FreeBSD$ */
 
 /*
  * Copyright (C) 2000-2003 Damien Miller.  All rights reserved.
