@@ -67,6 +67,7 @@ Caveat: if you find yourself staring a the following error after
 booting the installation: "can't find my init, going nowhere CPU panic"
 please make sure there are no other diskdrives attached to the system
 with a valid BSD disklabel on them (can be Linux, Tru64, OpenBSD etc). 
+The problem has also been observed when an OpenVMS bootable disk was present.
 This is a bug (alpha/17642) in need of a fix.
 
 0.1     Installing FreeBSD from CDROM or the Internet
