@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1990, 1993
+ * Copyright (c) 1990, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
@@ -35,7 +35,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)bt_debug.c	8.2 (Berkeley) 2/21/94";
+static char sccsid[] = "@(#)bt_debug.c	8.5 (Berkeley) 8/17/94";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -65,24 +65,22 @@ __bt_dump(dbp)
 
 	t = dbp->internal;
 	(void)fprintf(stderr, "%s: pgsz %d",
-	    ISSET(t, B_INMEM) ? "memory" : "disk", t->bt_psize);
-	if (ISSET(t, R_RECNO))
+	    F_ISSET(t, B_INMEM) ? "memory" : "disk", t->bt_psize);
+	if (F_ISSET(t, R_RECNO))
 		(void)fprintf(stderr, " keys %lu", t->bt_nrecs);
 #undef X
 #define	X(flag, name) \
-	if (ISSET(t, flag)) { \
+	if (F_ISSET(t, flag)) { \
 		(void)fprintf(stderr, "%s%s", sep, name); \
 		sep = ", "; \
 	}
-	if (t->bt_flags) {
+	if (t->flags != 0) {
 		sep = " flags (";
-		X(B_DELCRSR,	"DELCRSR");
 		X(R_FIXLEN,	"FIXLEN");
 		X(B_INMEM,	"INMEM");
 		X(B_NODUPS,	"NODUPS");
 		X(B_RDONLY,	"RDONLY");
 		X(R_RECNO,	"RECNO");
-		X(B_SEQINIT,	"SEQINIT");
 		X(B_METADIRTY,"METADIRTY");
 		(void)fprintf(stderr, ")\n");
 	}
@@ -108,19 +106,19 @@ __bt_dmpage(h)
 	char *sep;
 
 	m = (BTMETA *)h;
-	(void)fprintf(stderr, "magic %lx\n", m->m_magic);
-	(void)fprintf(stderr, "version %lu\n", m->m_version);
-	(void)fprintf(stderr, "psize %lu\n", m->m_psize);
-	(void)fprintf(stderr, "free %lu\n", m->m_free);
-	(void)fprintf(stderr, "nrecs %lu\n", m->m_nrecs);
-	(void)fprintf(stderr, "flags %lu", m->m_flags);
+	(void)fprintf(stderr, "magic %lx\n", m->magic);
+	(void)fprintf(stderr, "version %lu\n", m->version);
+	(void)fprintf(stderr, "psize %lu\n", m->psize);
+	(void)fprintf(stderr, "free %lu\n", m->free);
+	(void)fprintf(stderr, "nrecs %lu\n", m->nrecs);
+	(void)fprintf(stderr, "flags %lu", m->flags);
 #undef X
 #define	X(flag, name) \
-	if (m->m_flags & flag) { \
+	if (m->flags & flag) { \
 		(void)fprintf(stderr, "%s%s", sep, name); \
 		sep = ", "; \
 	}
-	if (m->m_flags) {
+	if (m->flags) {
 		sep = " (";
 		X(B_NODUPS,	"NODUPS");
 		X(R_RECNO,	"RECNO");
@@ -192,7 +190,7 @@ __bt_dpage(h)
 	    h->lower, h->upper, top);
 	for (cur = 0; cur < top; cur++) {
 		(void)fprintf(stderr, "\t[%03d] %4d ", cur, h->linp[cur]);
-		switch(h->flags & P_TYPE) {
+		switch (h->flags & P_TYPE) {
 		case P_BINTERNAL:
 			bi = GETBINTERNAL(h, cur);
 			(void)fprintf(stderr,
@@ -214,14 +212,14 @@ __bt_dpage(h)
 				(void)fprintf(stderr,
 				    "big key page %lu size %u/",
 				    *(pgno_t *)bl->bytes,
-				    *(size_t *)(bl->bytes + sizeof(pgno_t)));
+				    *(u_int32_t *)(bl->bytes + sizeof(pgno_t)));
 			else if (bl->ksize)
 				(void)fprintf(stderr, "%s/", bl->bytes);
 			if (bl->flags & P_BIGDATA)
 				(void)fprintf(stderr,
 				    "big data page %lu size %u",
 				    *(pgno_t *)(bl->bytes + bl->ksize),
-				    *(size_t *)(bl->bytes + bl->ksize +
+				    *(u_int32_t *)(bl->bytes + bl->ksize +
 				    sizeof(pgno_t)));
 			else if (bl->dsize)
 				(void)fprintf(stderr, "%.*s",
@@ -233,7 +231,7 @@ __bt_dpage(h)
 				(void)fprintf(stderr,
 				    "big data page %lu size %u",
 				    *(pgno_t *)rl->bytes,
-				    *(size_t *)(rl->bytes + sizeof(pgno_t)));
+				    *(u_int32_t *)(rl->bytes + sizeof(pgno_t)));
 			else if (rl->dsize)
 				(void)fprintf(stderr,
 				    "%.*s", (int)rl->dsize, rl->bytes);
@@ -267,7 +265,7 @@ __bt_stat(dbp)
 	pcont = pinternal = pleaf = 0;
 	nkeys = ifree = lfree = 0;
 	for (i = P_ROOT; (h = mpool_get(t->bt_mp, i, 0)) != NULL; ++i) {
-		switch(h->flags & P_TYPE) {
+		switch (h->flags & P_TYPE) {
 		case P_BINTERNAL:
 		case P_RINTERNAL:
 			++pinternal;
@@ -295,7 +293,7 @@ __bt_stat(dbp)
 			(void)mpool_put(t->bt_mp, h, 0);
 			break;
 		}
-		i = ISSET(t, R_RECNO) ?
+		i = F_ISSET(t, R_RECNO) ?
 		    GETRINTERNAL(h, 0)->pgno :
 		    GETBINTERNAL(h, 0)->pgno;
 		(void)mpool_put(t->bt_mp, h, 0);
@@ -303,7 +301,7 @@ __bt_stat(dbp)
 
 	(void)fprintf(stderr, "%d level%s with %ld keys",
 	    levels, levels == 1 ? "" : "s", nkeys);
-	if (ISSET(t, R_RECNO))
+	if (F_ISSET(t, R_RECNO))
 		(void)fprintf(stderr, " (%ld header count)", t->bt_nrecs);
 	(void)fprintf(stderr,
 	    "\n%lu pages (leaf %ld, internal %ld, overflow %ld)\n",
