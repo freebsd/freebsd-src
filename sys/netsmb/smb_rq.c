@@ -451,8 +451,8 @@ smb_t2_reply(struct smb_t2rq *t2p)
 		return 0;
 	}
 	/*
-	 * Now we have to get all subseqent responses. The CIFS specification
-	 * says that they can be misordered which is weird.
+	 * Now we have to get all subsequent responses. The CIFS specification
+	 * says that they can be disordered which is weird.
 	 * TODO: timo
 	 */
 	totpgot = totdgot = 0;
@@ -479,7 +479,7 @@ smb_t2_reply(struct smb_t2rq *t2p)
 		    (error = md_get_uint16le(mdp, &pdisp)) != 0)
 			break;
 		if (pcount != 0 && pdisp != totpgot) {
-			SMBERROR("Can't handle misordered parameters %d:%d\n",
+			SMBERROR("Can't handle disordered parameters %d:%d\n",
 			    pdisp, totpgot);
 			error = EINVAL;
 			break;
@@ -489,7 +489,7 @@ smb_t2_reply(struct smb_t2rq *t2p)
 		    (error = md_get_uint16le(mdp, &ddisp)) != 0)
 			break;
 		if (dcount != 0 && ddisp != totdgot) {
-			SMBERROR("Can't handle misordered data\n");
+			SMBERROR("Can't handle disordered data\n");
 			error = EINVAL;
 			break;
 		}

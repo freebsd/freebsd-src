@@ -78,8 +78,8 @@
 #define	SMBV_WIN95		0x0010	/* used to apply bugfixes for this OS */
 #define	SMBV_PRIVATE		0x0020	/* connection can be used only by creator */
 #define	SMBV_RECONNECTING	0x0040	/* conn is in the process of reconnection */
-#define SMBV_SINGLESHARE	0x0080	/* only one share connectin should be allowed */
-#define SMBV_CREATE		0x0100	/* lookup for create opeartion */
+#define SMBV_SINGLESHARE	0x0080	/* only one share connecting should be allowed */
+#define SMBV_CREATE		0x0100	/* lookup for create operation */
 /*#define SMBV_FAILED		0x0200*/	/* last reconnect attempt has failed */
 
 
@@ -114,7 +114,7 @@ struct smb_sopt {
 	u_int16_t	sv_rawmode;
 	u_int32_t	sv_maxraw;	/* maximum raw-buffer size */
 	u_int32_t	sv_skey;	/* session key */
-	u_int32_t	sv_caps;	/* capabilites SMB_CAP_ */
+	u_int32_t	sv_caps;	/* capabilities SMB_CAP_ */
 };
 
 /*
