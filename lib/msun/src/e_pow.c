@@ -1,11 +1,10 @@
-/* @(#)e_pow.c 5.1 93/09/24 */
+/* @(#)e_pow.c 1.5 04/04/22 SMI */
 /*
  * ====================================================
- * Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
+ * Copyright (C) 2004 by Sun Microsystems, Inc. All rights reserved.
  *
- * Developed at SunPro, a Sun Microsystems, Inc. business.
  * Permission to use, copy, modify, and distribute this
- * software is freely granted, provided that this notice
+ * software is freely granted, provided that this notice 
  * is preserved.
  * ====================================================
  */
@@ -21,7 +20,7 @@ static char rcsid[] = "$FreeBSD$";
  *	1. Compute and return log2(x) in two pieces:
  *		log2(x) = w1 + w2,
  *	   where w1 has 53-24 = 29 bit trailing zeros.
- *	2. Perform y*log2(x) = n+y' by simulating muti-precision
+ *	2. Perform y*log2(x) = n+y' by simulating muti-precision 
  *	   arithmetic, where |y'|<=0.5.
  *	3. Return x**y = 2**n*exp(y'*log2)
  *
@@ -49,13 +48,13 @@ static char rcsid[] = "$FreeBSD$";
  * Accuracy:
  *	pow(x,y) returns x**y nearly rounded. In particular
  *			pow(integer,integer)
- *	always returns the correct integer provided it is
+ *	always returns the correct integer provided it is 
  *	representable.
  *
  * Constants :
- * The hexadecimal values are the intended ones for the following
- * constants. The decimal values may be used, provided that the
- * compiler will convert from decimal to binary accurately enough
+ * The hexadecimal values are the intended ones for the following 
+ * constants. The decimal values may be used, provided that the 
+ * compiler will convert from decimal to binary accurately enough 
  * to produce the hexadecimal values shown.
  */
 
@@ -99,7 +98,7 @@ double
 __ieee754_pow(double x, double y)
 {
 	double z,ax,z_h,z_l,p_h,p_l;
-	double y1,t1,t2,r,s,sn,t,u,v,w;
+	double y1,t1,t2,r,s,t,u,v,w;
 	int32_t i,j,k,yisint,n;
 	int32_t hx,hy,ix,iy;
 	u_int32_t lx,ly;
@@ -109,12 +108,12 @@ __ieee754_pow(double x, double y)
 	ix = hx&0x7fffffff;  iy = hy&0x7fffffff;
 
     /* y==zero: x**0 = 1 */
-	if((iy|ly)==0) return one;
+	if((iy|ly)==0) return one; 	
 
     /* +-NaN return x+y */
 	if(ix > 0x7ff00000 || ((ix==0x7ff00000)&&(lx!=0)) ||
-	   iy > 0x7ff00000 || ((iy==0x7ff00000)&&(ly!=0)))
-		return x+y;
+	   iy > 0x7ff00000 || ((iy==0x7ff00000)&&(ly!=0))) 
+		return x+y;	
 
     /* determine if y is an odd int when x < 0
      * yisint = 0	... y is not an integer
@@ -122,7 +121,7 @@ __ieee754_pow(double x, double y)
      * yisint = 2	... y is an even int
      */
 	yisint  = 0;
-	if(hx<0) {
+	if(hx<0) {	
 	    if(iy>=0x43400000) yisint = 2; /* even integer y */
 	    else if(iy>=0x3ff00000) {
 		k = (iy>>20)-0x3ff;	   /* exponent */
@@ -133,11 +132,11 @@ __ieee754_pow(double x, double y)
 		    j = iy>>(20-k);
 		    if((j<<(20-k))==iy) yisint = 2-(j&1);
 		}
-	    }
-	}
+	    }		
+	} 
 
     /* special value of y */
-	if(ly==0) {
+	if(ly==0) { 	
 	    if (iy==0x7ff00000) {	/* y is +-inf */
 	        if(((ix-0x3ff00000)|lx)==0)
 		    return  y - y;	/* inf**+-1 is NaN */
@@ -145,14 +144,14 @@ __ieee754_pow(double x, double y)
 		    return (hy>=0)? y: zero;
 	        else			/* (|x|<1)**-,+inf = inf,0 */
 		    return (hy<0)?-y: zero;
-	    }
+	    } 
 	    if(iy==0x3ff00000) {	/* y is  +-1 */
 		if(hy<0) return one/x; else return x;
 	    }
 	    if(hy==0x40000000) return x*x; /* y is  2 */
 	    if(hy==0x3fe00000) {	/* y is  0.5 */
 		if(hx>=0)	/* x >= +0 */
-		return __ieee754_sqrt(x);
+		return sqrt(x);	
 	    }
 	}
 
@@ -165,13 +164,13 @@ __ieee754_pow(double x, double y)
 		if(hx<0) {
 		    if(((ix-0x3ff00000)|yisint)==0) {
 			z = (z-z)/(z-z); /* (-1)**non-int is NaN */
-		    } else if(yisint==1)
+		    } else if(yisint==1) 
 			z = -z;		/* (x<0)**odd = -(|x|**odd) */
 		}
 		return z;
 	    }
 	}
-
+    
     /* CYGNUS LOCAL + fdlibm-5.3 fix: This used to be
 	n = (hx>>31)+1;
        but ANSI C says a right shift of a signed negative quantity is
@@ -181,8 +180,8 @@ __ieee754_pow(double x, double y)
     /* (x<0)**(non-int) is NaN */
 	if((n|yisint)==0) return (x-x)/(x-x);
 
-	sn = one; /* s (sign of result -ve**odd) = -1 else = 1 */
-	if((n|(yisint-1))==0) sn = -one;/* (-ve)**(odd int) */
+	s = one; /* s (sign of result -ve**odd) = -1 else = 1 */
+	if((n|(yisint-1))==0) s = -one;/* (-ve)**(odd int) */
 
     /* |y| is huge */
 	if(iy>0x41e00000) { /* if |y| > 2**31 */
@@ -191,11 +190,11 @@ __ieee754_pow(double x, double y)
 		if(ix>=0x3ff00000) return (hy>0)? huge*huge:tiny*tiny;
 	    }
 	/* over/underflow if x is not close to one */
-	    if(ix<0x3fefffff) return (hy<0)? sn*huge*huge:sn*tiny*tiny;
-	    if(ix>0x3ff00000) return (hy>0)? sn*huge*huge:sn*tiny*tiny;
-	/* now |1-x| is tiny <= 2**-20, suffice to compute
+	    if(ix<0x3fefffff) return (hy<0)? s*huge*huge:s*tiny*tiny;
+	    if(ix>0x3ff00000) return (hy>0)? s*huge*huge:s*tiny*tiny;
+	/* now |1-x| is tiny <= 2**-20, suffice to compute 
 	   log(x) by x-x^2/2+x^3/3-x^4/4 */
-	    t = ax-1;		/* t has 20 trailing zeros */
+	    t = ax-one;		/* t has 20 trailing zeros */
 	    w = (t*t)*(0.5-t*(0.3333333333333333333333-t*0.25));
 	    u = ivln2_h*t;	/* ivln2_h has 21 sig. bits */
 	    v = t*ivln2_l-w*ivln2;
@@ -203,7 +202,7 @@ __ieee754_pow(double x, double y)
 	    SET_LOW_WORD(t1,0);
 	    t2 = v-(t1-u);
 	} else {
-	    double s2,s_h,s_l,t_h,t_l;
+	    double ss,s2,s_h,s_l,t_h,t_l;
 	    n = 0;
 	/* take care subnormal number */
 	    if(ix<0x00100000)
@@ -217,11 +216,11 @@ __ieee754_pow(double x, double y)
 	    else {k=0;n+=1;ix -= 0x00100000;}
 	    SET_HIGH_WORD(ax,ix);
 
-	/* compute s = s_h+s_l = (x-1)/(x+1) or (x-1.5)/(x+1.5) */
+	/* compute ss = s_h+s_l = (x-1)/(x+1) or (x-1.5)/(x+1.5) */
 	    u = ax-bp[k];		/* bp[0]=1.0, bp[1]=1.5 */
 	    v = one/(ax+bp[k]);
-	    s = u*v;
-	    s_h = s;
+	    ss = u*v;
+	    s_h = ss;
 	    SET_LOW_WORD(s_h,0);
 	/* t_h=ax+bp[k] High */
 	    t_h = zero;
@@ -229,23 +228,23 @@ __ieee754_pow(double x, double y)
 	    t_l = ax - (t_h-bp[k]);
 	    s_l = v*((u-s_h*t_h)-s_h*t_l);
 	/* compute log(ax) */
-	    s2 = s*s;
+	    s2 = ss*ss;
 	    r = s2*s2*(L1+s2*(L2+s2*(L3+s2*(L4+s2*(L5+s2*L6)))));
-	    r += s_l*(s_h+s);
+	    r += s_l*(s_h+ss);
 	    s2  = s_h*s_h;
 	    t_h = 3.0+s2+r;
 	    SET_LOW_WORD(t_h,0);
 	    t_l = r-((t_h-3.0)-s2);
-	/* u+v = s*(1+...) */
+	/* u+v = ss*(1+...) */
 	    u = s_h*t_h;
-	    v = s_l*t_h+t_l*s;
-	/* 2/(3log2)*(s+...) */
+	    v = s_l*t_h+t_l*ss;
+	/* 2/(3log2)*(ss+...) */
 	    p_h = u+v;
 	    SET_LOW_WORD(p_h,0);
 	    p_l = v-(p_h-u);
 	    z_h = cp_h*p_h;		/* cp_h+cp_l = 2/(3*log2) */
 	    z_l = cp_l*p_h+p_l*cp+dp_l[k];
-	/* log2(ax) = (s+..)*2/(3*log2) = n + dp_h + z_h + z_l */
+	/* log2(ax) = (ss+..)*2/(3*log2) = n + dp_h + z_h + z_l */
 	    t = (double)n;
 	    t1 = (((z_h+z_l)+dp_h[k])+t);
 	    SET_LOW_WORD(t1,0);
@@ -261,15 +260,15 @@ __ieee754_pow(double x, double y)
 	EXTRACT_WORDS(j,i,z);
 	if (j>=0x40900000) {				/* z >= 1024 */
 	    if(((j-0x40900000)|i)!=0)			/* if z > 1024 */
-		return sn*huge*huge;			/* overflow */
+		return s*huge*huge;			/* overflow */
 	    else {
-		if(p_l+ovt>z-p_h) return sn*huge*huge;	/* overflow */
+		if(p_l+ovt>z-p_h) return s*huge*huge;	/* overflow */
 	    }
 	} else if((j&0x7fffffff)>=0x4090cc00 ) {	/* z <= -1075 */
-	    if(((j-0xc090cc00)|i)!=0) 			/* z < -1075 */
-		return sn*tiny*tiny;			/* underflow */
+	    if(((j-0xc090cc00)|i)!=0) 		/* z < -1075 */
+		return s*tiny*tiny;		/* underflow */
 	    else {
-		if(p_l<=z-p_h) return sn*tiny*tiny;	/* underflow */
+		if(p_l<=z-p_h) return s*tiny*tiny;	/* underflow */
 	    }
 	}
     /*
@@ -286,7 +285,7 @@ __ieee754_pow(double x, double y)
 	    n = ((n&0x000fffff)|0x00100000)>>(20-k);
 	    if(j<0) n = -n;
 	    p_h -= t;
-	}
+	} 
 	t = p_l+p_h;
 	SET_LOW_WORD(t,0);
 	u = t*lg2_h;
@@ -301,5 +300,5 @@ __ieee754_pow(double x, double y)
 	j += (n<<20);
 	if((j>>20)<=0) z = scalbn(z,n);	/* subnormal output */
 	else SET_HIGH_WORD(z,j);
-	return sn*z;
+	return s*z;
 }

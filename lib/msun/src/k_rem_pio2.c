@@ -1,11 +1,12 @@
-/* @(#)k_rem_pio2.c 5.1 93/09/24 */
+
+/* @(#)k_rem_pio2.c 1.3 95/01/18 */
 /*
  * ====================================================
  * Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
  *
- * Developed at SunPro, a Sun Microsystems, Inc. business.
+ * Developed at SunSoft, a Sun Microsystems, Inc. business.
  * Permission to use, copy, modify, and distribute this
- * software is freely granted, provided that this notice
+ * software is freely granted, provided that this notice 
  * is preserved.
  * ====================================================
  */
@@ -17,12 +18,12 @@ static char rcsid[] = "$FreeBSD$";
 /*
  * __kernel_rem_pio2(x,y,e0,nx,prec,ipio2)
  * double x[],y[]; int e0,nx,prec; int ipio2[];
- *
- * __kernel_rem_pio2 return the last three digits of N with
+ * 
+ * __kernel_rem_pio2 return the last three digits of N with 
  *		y = x - N*pi/2
  * so that |y| < pi/2.
  *
- * The method is to compute the integer (mod 8) and fraction parts of
+ * The method is to compute the integer (mod 8) and fraction parts of 
  * (2/pi)*x without doing the full multiplication. In general we
  * skip the part of the product that are known to be a huge integer (
  * more accurately, = 0 mod 8 ). Thus the number of operations are
@@ -31,10 +32,10 @@ static char rcsid[] = "$FreeBSD$";
  * (2/pi) is represented by an array of 24-bit integers in ipio2[].
  *
  * Input parameters:
- * 	x[]	The input value (must be positive) is broken into nx
+ * 	x[]	The input value (must be positive) is broken into nx 
  *		pieces of 24-bit integers in double precision format.
- *		x[i] will be the i-th 24 bit of x. The scaled exponent
- *		of x[0] is given in input parameter e0 (i.e., x[0]*2^e0
+ *		x[i] will be the i-th 24 bit of x. The scaled exponent 
+ *		of x[0] is given in input parameter e0 (i.e., x[0]*2^e0 
  *		match x's up to 24 bits.
  *
  *		Example of breaking a double positive z into x[0]+x[1]+x[2]:
@@ -71,8 +72,8 @@ static char rcsid[] = "$FreeBSD$";
  *			3	113 bits (quad)
  *
  *	ipio2[]
- *		integer array, contains the (24*i)-th to (24*i+23)-th
- *		bit of 2/pi after binary point. The corresponding
+ *		integer array, contains the (24*i)-th to (24*i+23)-th 
+ *		bit of 2/pi after binary point. The corresponding 
  *		floating value is
  *
  *			ipio2[i] * 2^(-24(i+1)).
@@ -87,8 +88,8 @@ static char rcsid[] = "$FreeBSD$";
  *		in the computation. The recommended value is 2,3,4,
  *		6 for single, double, extended,and quad.
  *
- * 	jz	local integer variable indicating the number of
- *		terms of ipio2[] used.
+ * 	jz	local integer variable indicating the number of 
+ *		terms of ipio2[] used. 
  *
  *	jx	nx - 1
  *
@@ -108,9 +109,9 @@ static char rcsid[] = "$FreeBSD$";
  *		exponent for q[i] would be q0-24*i.
  *
  *	PIo2[]	double precision array, obtained by cutting pi/2
- *		into 24 bits chunks.
+ *		into 24 bits chunks. 
  *
- *	f[]	ipio2[] in floating point
+ *	f[]	ipio2[] in floating point 
  *
  *	iq[]	integer array by breaking up q[] in 24-bits chunk.
  *
@@ -124,9 +125,9 @@ static char rcsid[] = "$FreeBSD$";
 
 /*
  * Constants:
- * The hexadecimal values are the intended ones for the following
- * constants. The decimal values may be used, provided that the
- * compiler will convert from decimal to binary accurately enough
+ * The hexadecimal values are the intended ones for the following 
+ * constants. The decimal values may be used, provided that the 
+ * compiler will convert from decimal to binary accurately enough 
  * to produce the hexadecimal values shown.
  */
 
@@ -146,7 +147,7 @@ static const double PIo2[] = {
   2.16741683877804819444e-51, /* 0x3569F31D, 0x00000000 */
 };
 
-static const double
+static const double			
 zero   = 0.0,
 one    = 1.0,
 two24   =  1.67772160000000000000e+07, /* 0x41700000, 0x00000000 */
@@ -194,7 +195,7 @@ recompute:
 	    i  = (iq[jz-1]>>(24-q0)); n += i;
 	    iq[jz-1] -= i<<(24-q0);
 	    ih = iq[jz-1]>>(23-q0);
-	}
+	} 
 	else if(q0==0) ih = iq[jz-1]>>23;
 	else if(z>=0.5) ih=2;
 
@@ -245,7 +246,7 @@ recompute:
 	    while(iq[jz]==0) { jz--; q0-=24;}
 	} else { /* break z into 24-bit if necessary */
 	    z = scalbn(z,-q0);
-	    if(z>=two24) {
+	    if(z>=two24) { 
 		fw = (double)((int32_t)(twon24*z));
 		iq[jz] = (int32_t)(z-two24*fw);
 		jz += 1; q0 += 24;
@@ -270,29 +271,29 @@ recompute:
 	    case 0:
 		fw = 0.0;
 		for (i=jz;i>=0;i--) fw += fq[i];
-		y[0] = (ih==0)? fw: -fw;
+		y[0] = (ih==0)? fw: -fw; 
 		break;
 	    case 1:
 	    case 2:
 		fw = 0.0;
-		for (i=jz;i>=0;i--) fw += fq[i];
-		y[0] = (ih==0)? fw: -fw;
+		for (i=jz;i>=0;i--) fw += fq[i]; 
+		y[0] = (ih==0)? fw: -fw; 
 		fw = fq[0]-fw;
 		for (i=1;i<=jz;i++) fw += fq[i];
-		y[1] = (ih==0)? fw: -fw;
+		y[1] = (ih==0)? fw: -fw; 
 		break;
 	    case 3:	/* painful */
 		for (i=jz;i>0;i--) {
-		    fw      = fq[i-1]+fq[i];
+		    fw      = fq[i-1]+fq[i]; 
 		    fq[i]  += fq[i-1]-fw;
 		    fq[i-1] = fw;
 		}
 		for (i=jz;i>1;i--) {
-		    fw      = fq[i-1]+fq[i];
+		    fw      = fq[i-1]+fq[i]; 
 		    fq[i]  += fq[i-1]-fw;
 		    fq[i-1] = fw;
 		}
-		for (fw=0.0,i=jz;i>=2;i--) fw += fq[i];
+		for (fw=0.0,i=jz;i>=2;i--) fw += fq[i]; 
 		if(ih==0) {
 		    y[0] =  fq[0]; y[1] =  fq[1]; y[2] =  fw;
 		} else {
