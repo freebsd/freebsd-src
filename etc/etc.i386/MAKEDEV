@@ -71,7 +71,7 @@
 #	tw*	xten power controller
 #	snd*	various sound cards
 #
-#	$Id: MAKEDEV,v 1.16 1993/11/22 05:40:49 rgrimes Exp $
+#	$Id: MAKEDEV,v 1.17 1993/12/14 11:11:37 alm Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -137,10 +137,33 @@ wt*)
 	umask 77
 	;;
 
-fd*|sd*|wd*)
+fd*)
+	umask 2 ; unit=`expr $i : '..\(.*\)'`
+	name=fd; blk=2; chr=9;
+	rm -f $name$unit* r$name$unit*
+	case $unit in
+	0|1|2|3)
+		mknod ${name}${unit}   b $blk `expr $unit '*' 64`
+		mknod r${name}${unit}  c $chr `expr $unit '*' 64`
+		# Fake BSD partitions
+		for i in a b c d e f g h
+		do
+			ln ${name}${unit} ${name}${unit}$i
+			ln r${name}${unit} r${name}${unit}$i
+		done
+		chgrp operator ${name}${unit} r${name}${unit}
+		chmod 640 ${name}${unit} r${name}${unit}
+		;;
+	*)
+		echo bad unit for disk in: $i
+		;;
+	esac
+	umask 77
+	;;
+
+sd*|wd*)
 	umask 2 ; unit=`expr $i : '..\(.*\)'`
 	case $i in
-	fd*) name=fd; blk=2; chr=9;;
 	sd*) name=sd; blk=4; chr=13;;
 	wd*) name=wd; blk=0; chr=3;;
 	esac
