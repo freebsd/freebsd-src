@@ -52,41 +52,52 @@ static const char rcsid[] =
 #include <err.h>
 #include <netdb.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sysexits.h>
 #include <unistd.h>
 
-#define NICHOST         "whois.crsnic.net"
-#define INICHOST        "whois.internic.net"
+#define	NICHOST		"whois.crsnic.net"
+#define	INICHOST	"whois.internic.net"
 #define	DNICHOST	"whois.nic.mil"
 #define	GNICHOST	"whois.nic.gov"
 #define	ANICHOST	"whois.arin.net"
 #define	RNICHOST	"whois.ripe.net"
 #define	PNICHOST	"whois.apnic.net"
-#define RUNICHOST       "whois.ripn.net"
+#define	RUNICHOST	"whois.ripn.net"
+#define	MNICHOST	"whois.ra.net"
+#define	QNICHOST_TAIL	".whois-servers.net"
 #define	WHOIS_PORT	43
 
+#define WHOIS_RECURSE		0x01
+#define WHOIS_INIC_FALLBACK	0x02
+#define WHOIS_QUICK		0x04
+
 static void usage __P((void));
+static void whois __P((char *, struct sockaddr_in *, int));
 
 int
 main(argc, argv)
 	int argc;
 	char **argv;
 {
-	register FILE *sfi, *sfo;
-	register int ch;
-	struct sockaddr_in sin;
-	struct hostent *hp;
-	struct servent *sp;
-	int s;
+	int ch, i, j;
+	int use_qnichost, flags;
 	char *host;
+	char *qnichost;
+	struct servent *sp;
+	struct hostent *hp;
+	struct sockaddr_in sin;
 
 #ifdef	SOCKS
 	SOCKSinit(argv[0]);
 #endif
 
-	host = NICHOST;
-	while ((ch = getopt(argc, argv, "adgh:iprR")) != -1)
+	host = NULL;
+	qnichost = NULL;
+	flags = 0;
+	use_qnichost = 0;
+	while ((ch = getopt(argc, argv, "adgh:impQrR")) != -1)
 		switch((char)ch) {
 		case 'a':
 			host = ANICHOST;
@@ -103,8 +114,14 @@ main(argc, argv)
 		case 'i':
 			host = INICHOST;
 			break;
+		case 'm':
+			host = MNICHOST;
+			break;
 		case 'p':
 			host = PNICHOST;
+			break;
+		case 'Q':
+			flags |= WHOIS_QUICK;
 			break;
 		case 'r':
 			host = RNICHOST;
@@ -122,47 +139,143 @@ main(argc, argv)
 	if (!argc)
 		usage();
 
-	s = socket(PF_INET, SOCK_STREAM, 0);
-	if (s < 0)
-		err(EX_OSERR, "socket");
-
-	memset(&sin, 0, sizeof sin);
-	sin.sin_len = sizeof sin;
+	memset(&sin, 0, sizeof(sin));
+	sin.sin_len = sizeof(sin);
 	sin.sin_family = AF_INET;
-	
-	if (inet_aton(host, &sin.sin_addr) == 0) {
-		hp = gethostbyname2(host, AF_INET);
-		if (hp == NULL)
-			errx(EX_NOHOST, "%s: %s", host, hstrerror(h_errno));
-		host = hp->h_name;
-		sin.sin_addr = *(struct in_addr *)hp->h_addr_list[0];
-	}
-
 	sp = getservbyname("whois", "tcp");
 	if (sp == NULL)
 		sin.sin_port = htons(WHOIS_PORT);
 	else
 		sin.sin_port = sp->s_port;
 
-	if (connect(s, (struct sockaddr *)&sin, sizeof(sin)) < 0)
+	/*
+	 * If no nic host is specified, use whois-servers.net
+	 * if there is a '.' in the name, else fall back to NICHOST.
+	 */
+	if (host == NULL) {
+		use_qnichost = 1;
+		host = NICHOST;
+		if (!(flags & WHOIS_QUICK))
+			flags |= WHOIS_INIC_FALLBACK | WHOIS_RECURSE;
+	}
+	while (argc--) {
+		if (use_qnichost) {
+			if (qnichost) {
+				free(qnichost);
+				qnichost = NULL;
+			}
+			for (i = j = 0; (*argv)[i]; i++)
+				if ((*argv)[i] == '.')
+					j = i;
+			if (j != 0) {
+				qnichost = (char *) calloc(i - j + 1 +
+				    strlen(QNICHOST_TAIL), sizeof(char));
+				if (!qnichost)
+					err(1, "calloc");
+				strcpy(qnichost, *argv + j + 1);
+				strcat(qnichost, QNICHOST_TAIL);
+
+				if (inet_aton(qnichost, &sin.sin_addr) == 0) {
+					hp = gethostbyname2(qnichost, AF_INET);
+					if (hp == NULL) {
+						free(qnichost);
+						qnichost = NULL;
+					} else {
+						sin.sin_addr = *(struct in_addr *)hp->h_addr_list[0];
+					}
+				}
+			}
+		}
+		if (!qnichost && inet_aton(host, &sin.sin_addr) == 0) {
+			hp = gethostbyname2(host, AF_INET);
+			if (hp == NULL)
+				errx(EX_NOHOST, "%s: %s", host,
+				    hstrerror(h_errno));
+			host = hp->h_name;
+			sin.sin_addr = *(struct in_addr *)hp->h_addr_list[0];
+		}
+
+		whois(*argv++, &sin, flags);
+	}
+	exit(0);
+}
+
+static void
+whois(name, sinp, flags)
+	char *name;
+	struct sockaddr_in *sinp;
+	int flags;
+{
+	FILE *sfi, *sfo;
+	char *buf, *p, *nhost;
+	size_t len;
+	int s, nomatch;
+
+	s = socket(PF_INET, SOCK_STREAM, 0);
+	if (s < 0)
+		err(EX_OSERR, "socket");
+
+	if (connect(s, (struct sockaddr *)sinp, sizeof(*sinp)) < 0)
 		err(EX_OSERR, "connect");
 
 	sfi = fdopen(s, "r");
 	sfo = fdopen(s, "w");
 	if (sfi == NULL || sfo == NULL)
 		err(EX_OSERR, "fdopen");
-	while (argc-- > 1)
-		(void)fprintf(sfo, "%s ", *argv++);
-	(void)fprintf(sfo, "%s\r\n", *argv);
+	(void)fprintf(sfo, "%s\r\n", name);
 	(void)fflush(sfo);
-	while ((ch = getc(sfi)) != EOF)
-		putchar(ch);
-	exit(0);
+	nhost = NULL;
+	nomatch = 0;
+	while ((buf = fgetln(sfi, &len))) {
+		if (buf[len - 2] == '\r')
+			buf[len - 2] = '\0';
+		else
+			buf[len - 1] = '\0';
+
+		if ((flags & WHOIS_RECURSE) && !nhost &&
+		    (p = strstr(buf, "Whois Server: "))) {
+			p += sizeof("Whois Server: ") - 1;
+			if ((len = strcspn(p, " \t\n\r"))) {
+				if ((nhost = malloc(len + 1)) == NULL)
+					err(1, "malloc");
+				memcpy(nhost, p, len);
+				nhost[len] = '\0';
+			}
+		}
+		if ((flags & WHOIS_INIC_FALLBACK) && !nhost && !nomatch &&
+		    (p = strstr(buf, "No match for \""))) {
+			p += sizeof("No match for \"") - 1;
+			if ((len = strcspn(p, "\"")) &&
+			    name[len] == '\0' &&
+			    strncasecmp(name, p, len) == 0 &&
+			    strchr(name, '.') == NULL)
+				nomatch = 1;
+		}
+		(void)puts(buf);
+	}
+
+	/* Do second lookup as needed */
+	if (nomatch && !nhost) {
+		(void)printf("Looking up %s at %s.\n\n", name, INICHOST);
+		nhost = INICHOST;
+	}
+	if (nhost) {
+		if (inet_aton(nhost, &sinp->sin_addr) == 0) {
+			struct hostent *hp = gethostbyname2(nhost, AF_INET);
+			if (hp == NULL)
+				return;
+			sinp->sin_addr = *(struct in_addr *)hp->h_addr_list[0];
+		}
+		if (!nomatch)
+			free(nhost);
+		whois(name, sinp, 0);
+	}
 }
 
 static void
 usage()
 {
-	fprintf(stderr, "usage: whois [-adgiprR] [-h hostname] name ...\n");
+	(void)fprintf(stderr,
+	    "usage: whois [-adgimpQrR] [-h hostname] name ...\n");
 	exit(EX_USAGE);
 }
