@@ -69,20 +69,25 @@ map_add(off_t start, off_t size, int type, void *data)
 	}
 
 	if (n->map_start == start && n->map_size == size) {
-		if (n->map_type != MAP_TYPE_UNUSED)
-			warnx("warning: partition(%llu,%llu) mirrored",
-			    (long long)start, (long long)size);
+		if (n->map_type != MAP_TYPE_UNUSED) {
+			if (n->map_type != MAP_TYPE_MBR_PART ||
+			    type != MAP_TYPE_GPT_PART) {
+				warnx("warning: partition(%llu,%llu) mirrored",
+				    (long long)start, (long long)size);
+			}
+		}
 		n->map_type = type;
 		n->map_data = data;
 		return (n);
 	}
 
 	if (n->map_type != MAP_TYPE_UNUSED) {
-		warnx(
-    "error: partition(%llu,%llu) overlaps partition(%llu,%llu)",
-		    (long long)start, (long long)size,
-		    (long long)n->map_start, (long long)n->map_size);
-		return (0);
+		if (n->map_type != MAP_TYPE_MBR_PART ||
+		    type != MAP_TYPE_GPT_PART) {
+			warnx("error: bogus map");
+			return (0);
+		}
+		n->map_type = MAP_TYPE_UNUSED;
 	}
 
 	m = mkmap(start, size, type);
