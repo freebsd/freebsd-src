@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.50 1995/03/22 03:29:52 ache Exp $
+#	$Id: rc.maint,v 1.1 1995/03/23 01:25:51 jkh Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # Various maintainance tasks to be done as the system is coming up
@@ -19,10 +19,6 @@ rm -f /etc/nologin
 rm -f /var/spool/lock/*
 rm -f /var/spool/uucp/.Temp/*
 (cd /var/run && { rm -rf -- *; cp /dev/null utmp; chmod 644 utmp; })
-
-echo 'system logger'
-rm -f /dev/log
-syslogd
 
 # Check the quotas
 if [ "X${check_quotas}" = X"YES" ]; then
