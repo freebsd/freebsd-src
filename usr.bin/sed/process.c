@@ -480,7 +480,7 @@ lputs(s)
 	}
 
 	for (count = 0; *s; ++s) {
-		if (count >= termwidth) {
+		if (count + 5 >= termwidth) {
 			(void)printf("\\\n");
 			count = 0;
 		}
