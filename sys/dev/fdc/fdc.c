@@ -1707,10 +1707,10 @@ fdstrategy(struct bio *bp)
 			bp->bio_flags |= BIO_ERROR;
 			goto bad;
 		}
-		if (bp->bio_blkno < 0) {
+		if (bp->bio_offset < 0) {
 			printf(
-		"fd%d: fdstrat: bad request blkno = %lu, bcount = %ld\n",
-			       fdu, (u_long)bp->bio_blkno, bp->bio_bcount);
+		"fd%d: fdstrat: bad request offset = %ju, bcount = %ld\n",
+			       fdu, (intmax_t)bp->bio_offset, bp->bio_bcount);
 			bp->bio_error = EINVAL;
 			bp->bio_flags |= BIO_ERROR;
 			goto bad;
@@ -1725,16 +1725,12 @@ fdstrategy(struct bio *bp)
 	/*
 	 * Set up block calculations.
 	 */
-	if (bp->bio_blkno > 20000000) {
-		/*
-		 * Reject unreasonably high block number, prevent the
-		 * multiplication below from overflowing.
-		 */
+	if (bp->bio_offset >= ((off_t)128 << fd->ft->secsize) * fd->ft->size) {
 		bp->bio_error = EINVAL;
 		bp->bio_flags |= BIO_ERROR;
 		goto bad;
 	}
-	blknum = bp->bio_blkno * DEV_BSIZE / fdblk;
+	blknum = bp->bio_offset / fdblk;
  	nblocks = fd->ft->size;
 	if (blknum + bp->bio_bcount / fdblk > nblocks) {
 		if (blknum >= nblocks) {
@@ -2593,23 +2589,21 @@ fdmisccmd(dev_t dev, u_int cmd, void *data)
 	bp = malloc(sizeof(struct bio), M_TEMP, M_WAITOK | M_ZERO);
 
 	/*
-	 * Set up a bio request for fdstrategy().  bio_blkno is faked
+	 * Set up a bio request for fdstrategy().  bio_offset is faked
 	 * so that fdstrategy() will seek to the the requested
 	 * cylinder, and use the desired head.
 	 */
 	bp->bio_cmd = cmd;
 	if (cmd == FDBIO_FORMAT) {
-		bp->bio_blkno =
+		bp->bio_offset =
 		    (finfo->cyl * (fd->ft->sectrac * fd->ft->heads) +
-		     finfo->head * fd->ft->sectrac) *
-		    fdblk / DEV_BSIZE;
+		     finfo->head * fd->ft->sectrac) * fdblk;
 		bp->bio_bcount = sizeof(struct fd_idfield_data) *
 		    finfo->fd_formb_nsecs;
 	} else if (cmd == FDBIO_RDSECTID) {
-		bp->bio_blkno =
+		bp->bio_offset =
 		    (idfield->cyl * (fd->ft->sectrac * fd->ft->heads) +
-		     idfield->head * fd->ft->sectrac) *
-		    fdblk / DEV_BSIZE;
+		     idfield->head * fd->ft->sectrac) * fdblk;
 		bp->bio_bcount = sizeof(struct fdc_readid);
 	} else
 		panic("wrong cmd in fdmisccmd()");
