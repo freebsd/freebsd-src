@@ -164,6 +164,11 @@
       should reduce the buffer usage on large systems handling many
       connections.</para>
 
+      <para>A new sysctl <varname>net.inet.ip.check_interface</varname>,
+      which is off by default, causes IP to verify that an incoming
+      packet arrives on an interface that has an address matching the
+      packet's destination address.</para>
+
       <para>A new <literal>options RANDOM_IP_ID</literal> kernel
       option causes the ID field of IP packets to be randomized.  This
       closes a minor information leak which allows a remote observer
@@ -341,7 +346,11 @@
     <para>A vulnerability in &man.procfs.5;, which could allow a
     process to read sensitive information from another process's
     memory space, has been closed (see security advisory
-    FreeBSD-SA-01:54).</para>
+    FreeBSD-SA-01:55).</para>
+
+    <para>The <literal>PARANOID</literal> hostname checking in
+    <application>tcp_wrappers</application> now works as advertised
+    (see security advisory FreeBSD-SA-01:56).</para>
   </sect2>
   <sect2 id="userland">
     <title>Userland Changes</title>
