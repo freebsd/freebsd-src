@@ -1215,7 +1215,7 @@ vinum_dumpconfig(int argc, char *argv[], char *argv0[])
     int i;
 
     if (argc == 0) {					    /* start everything */
-	int devs = getnumdevs();
+	int devs = devstat_getnumdevs(NULL);
 	struct statinfo statinfo;
 	char *namelist;
 	char *enamelist;				    /* end of name list */
@@ -1234,7 +1234,7 @@ vinum_dumpconfig(int argc, char *argv[], char *argv0[])
 	bzero(statinfo.dinfo, sizeof(struct devinfo));
 
 	tokens = 0;					    /* no tokens yet */
-	if (getdevs(&statinfo) < 0) {			    /* find out what devices we have */
+	if (devstat_getdevs(NULL, &statinfo) < 0) {	    /* find out what devices we have */
 	    perror("Can't get device list");
 	    return;
 	}
