@@ -1219,7 +1219,6 @@ _aio_aqueue(struct proc *p, struct aiocb *job, struct aio_liojob *lj, int type)
 	error = copyin(job, &aiocbe->uaiocb, sizeof(aiocbe->uaiocb));
 	if (error) {
 		suword(&job->_aiocb_private.error, error);
-
 		TAILQ_INSERT_HEAD(&aio_freejobs, aiocbe, list);
 		return error;
 	}
@@ -2210,7 +2209,6 @@ aio_waitcomplete(struct proc *p, struct aio_waitcomplete_args *uap)
 #endif /* VFS_AIO */
 }
 
-
 #ifndef VFS_AIO
 static int
 filt_aioattach(struct knote *kn)
@@ -2223,6 +2221,7 @@ struct filterops aio_filtops =
 	{ 0, filt_aioattach, NULL, NULL };
 
 #else
+/* kqueue attach function */
 static int
 filt_aioattach(struct knote *kn)
 {
@@ -2242,6 +2241,7 @@ filt_aioattach(struct knote *kn)
 	return (0);
 }
 
+/* kqueue detach function */
 static void
 filt_aiodetach(struct knote *kn)
 {
@@ -2250,6 +2250,7 @@ filt_aiodetach(struct knote *kn)
 	SLIST_REMOVE(&aiocbe->klist, kn, knote, kn_selnext);
 }
 
+/* kqueue filter function */
 /*ARGSUSED*/
 static int
 filt_aio(struct knote *kn, long hint)
