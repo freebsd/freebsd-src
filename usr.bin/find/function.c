@@ -76,12 +76,12 @@ static PLAN *palloc __P((enum ntype, int (*) __P((PLAN *, FTSENT *))));
  * find_parsenum --
  *	Parse a string of the form [+-]# and return the value.
  */
-static long
+static long long
 find_parsenum(plan, option, vp, endch)
 	PLAN *plan;
 	char *option, *vp, *endch;
 {
-	long value;
+	long long value;
 	char *endchar, *str;	/* Pointer to character ending conversion. */
 
 	/* Determine comparison from leading + or -. */
@@ -101,11 +101,11 @@ find_parsenum(plan, option, vp, endch)
 	}
 
 	/*
-	 * Convert the string with strtol().  Note, if strtol() returns zero
+	 * Convert the string with strtoq().  Note, if strtoq() returns zero
 	 * and endchar points to the beginning of the string we know we have
 	 * a syntax error.
 	 */
-	value = strtol(str, &endchar, 10);
+	value = strtoq(str, &endchar, 10);
 	if (value == 0 && endchar == str)
 		errx(1, "%s: %s: illegal numeric value", option, vp);
 	if (endchar[0] && (endch == NULL || endchar[0] != *endch))
