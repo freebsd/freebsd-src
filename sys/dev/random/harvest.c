@@ -38,10 +38,7 @@
 
 #include <machine/cpu.h>
 
-#include <crypto/blowfish/blowfish.h>
-
-#include <dev/random/hash.h>
-#include <dev/random/yarrow.h>
+#include <dev/random/randomdev.h>
 
 static u_int read_random_phony(void *, u_int);
 

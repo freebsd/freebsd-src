@@ -33,6 +33,7 @@
 #include <sys/fcntl.h>
 #include <sys/uio.h>
 #include <sys/kernel.h>
+#include <sys/kthread.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/bus.h>
@@ -41,23 +42,23 @@
 #include <sys/random.h>
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
+#include <sys/unistd.h>
+
 #include <machine/bus.h>
+#include <machine/cpu.h>
 #include <machine/resource.h>
-#include <crypto/blowfish/blowfish.h>
 
-#include <dev/random/hash.h>
-#include <dev/random/yarrow.h>
+#include <dev/random/randomdev.h>
 
-static d_open_t random_open;
-static d_close_t random_close;
-static d_read_t random_read;
-static d_write_t random_write;
-static d_ioctl_t random_ioctl;
-static d_poll_t random_poll;
+static d_open_t		random_open;
+static d_close_t	random_close;
+static d_read_t		random_read;
+static d_write_t	random_write;
+static d_ioctl_t	random_ioctl;
+static d_poll_t		random_poll;
 
 #define CDEV_MAJOR	2
 #define RANDOM_MINOR	3
-#define URANDOM_MINOR	4
 
 static struct cdevsw random_cdevsw = {
 	/* open */	random_open,
@@ -76,13 +77,63 @@ static struct cdevsw random_cdevsw = {
 	/* bmaj */	-1
 };
 
-/* For use with make_dev(9)/destroy_dev(9). */
-static dev_t random_dev;
-static dev_t urandom_dev; /* XXX Temporary */
+static void random_kthread(void *);
+static void random_harvest_internal(u_int64_t, void *, u_int, u_int, u_int, enum esource);
+static void random_write_internal(void *, u_int);
 
-/* To stash the sysctl's until they are removed */
-static struct sysctl_oid *random_sysctl[12]; /* magic # is sysctl count */
-static int sysctlcount = 0;
+/* Ring buffer holding harvested entropy */
+static struct harvestring {
+	volatile u_int	head;
+	volatile u_int	tail;
+	struct harvest	data[HARVEST_RING_SIZE];
+} harvestring;
+
+static struct random_systat {
+	u_int		seeded;	/* 0 causes blocking 1 allows normal output */
+	u_int		burst;	/* number of events to do before sleeping */
+	struct selinfo	rsel;	/* For poll(2) */
+} random_systat;
+
+/* <0 to end the kthread, 0 to let it run */
+static int random_kthread_control = 0;
+
+static struct proc *random_kthread_proc;
+
+/* For use with make_dev(9)/destroy_dev(9). */
+static dev_t	random_dev;
+static dev_t	urandom_dev;
+
+static int
+random_check_boolean(SYSCTL_HANDLER_ARGS)
+{
+	if (oidp->oid_arg1 != NULL && *(u_int *)(oidp->oid_arg1) != 0)
+		*(u_int *)(oidp->oid_arg1) = 1;
+        return sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2, req);
+}
+
+RANDOM_CHECK_UINT(burst, 0, 20);
+
+SYSCTL_NODE(_kern, OID_AUTO, random, CTLFLAG_RW,
+	0, "Random Number Generator");
+SYSCTL_NODE(_kern_random, OID_AUTO, sys, CTLFLAG_RW,
+	0, "Entropy Device Parameters");
+SYSCTL_PROC(_kern_random_sys, OID_AUTO, seeded,
+	CTLTYPE_INT|CTLFLAG_RW, &random_systat.seeded, 1,
+	random_check_boolean, "I", "Seeded State");
+SYSCTL_PROC(_kern_random_sys, OID_AUTO, burst,
+	CTLTYPE_INT|CTLFLAG_RW, &random_systat.burst, 20,
+	random_check_uint_burst, "I", "Harvest Burst Size");
+SYSCTL_NODE(_kern_random_sys, OID_AUTO, harvest, CTLFLAG_RW,
+	0, "Entropy Sources");
+SYSCTL_PROC(_kern_random_sys_harvest, OID_AUTO, ethernet,
+	CTLTYPE_INT|CTLFLAG_RW, &harvest.ethernet, 0,
+	random_check_boolean, "I", "Harvest NIC entropy");
+SYSCTL_PROC(_kern_random_sys_harvest, OID_AUTO, point_to_point,
+	CTLTYPE_INT|CTLFLAG_RW, &harvest.point_to_point, 0,
+	random_check_boolean, "I", "Harvest serial net entropy");
+SYSCTL_PROC(_kern_random_sys_harvest, OID_AUTO, interrupt,
+	CTLTYPE_INT|CTLFLAG_RW, &harvest.interrupt, 0,
+	random_check_boolean, "I", "Harvest IRQ entropy");
 
 static int
 random_open(dev_t dev, int flags, int fmt, struct proc *p)
@@ -104,15 +155,16 @@ random_close(dev_t dev, int flags, int fmt, struct proc *p)
 static int
 random_read(dev_t dev, struct uio *uio, int flag)
 {
-	u_int c, ret;
-	int error = 0;
-	void *random_buf;
+	u_int	c, ret;
+	int	error = 0;
+	void	*random_buf;
 
-	while (!random_state.seeded) {
+	while (!random_systat.seeded) {
 		if (flag & IO_NDELAY)
 			error =  EWOULDBLOCK;
 		else
-			error = tsleep(&random_state, PUSER|PCATCH, "rndblk", 0);
+			error = tsleep(&random_systat, PUSER|PCATCH,
+				"block", 0);
 		if (error != 0)
 			return error;
 	}
@@ -129,17 +181,18 @@ random_read(dev_t dev, struct uio *uio, int flag)
 static int
 random_write(dev_t dev, struct uio *uio, int flag)
 {
-	u_int c;
-	int error = 0;
-	void *random_buf;
+	u_int	c;
+	int	error;
+	void	*random_buf;
 
+	error = 0;
 	random_buf = (void *)malloc(PAGE_SIZE, M_TEMP, M_WAITOK);
 	while (uio->uio_resid > 0) {
 		c = min(uio->uio_resid, PAGE_SIZE);
 		error = uiomove(random_buf, c, uio);
 		if (error)
 			break;
-		write_random(random_buf, c);
+		random_write_internal(random_buf, c);
 	}
 	free(random_buf, M_TEMP);
 	return error;
@@ -154,14 +207,14 @@ random_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 static int
 random_poll(dev_t dev, int events, struct proc *p)
 {
-	int revents;
+	int	revents;
 
 	revents = 0;
 	if (events & (POLLIN | POLLRDNORM)) {
-		if (random_state.seeded)
+		if (random_systat.seeded)
 			revents = events & (POLLIN | POLLRDNORM);
 		else
-			selrecord(p, &random_state.rsel);
+			selrecord(p, &random_systat.rsel);
 	}
 	return revents;
 }
@@ -169,84 +222,58 @@ random_poll(dev_t dev, int events, struct proc *p)
 static int
 random_modevent(module_t mod, int type, void *data)
 {
-	struct sysctl_oid *node_base, *node1, *node2;
-	int error, i;
+	int	error;
 
 	switch(type) {
 	case MOD_LOAD:
-		error = random_init();
-		if (error != 0)
-			return error;
+		random_init();
 
-		random_sysctl[sysctlcount++] = node_base =
-			SYSCTL_ADD_NODE(NULL, SYSCTL_STATIC_CHILDREN(_kern),
-				OID_AUTO, "random", CTLFLAG_RW, 0,
-				"Random Number Generator");
-		random_sysctl[sysctlcount++] = node1 =
-			SYSCTL_ADD_NODE(NULL, SYSCTL_CHILDREN(node_base),
-				OID_AUTO, "sys", CTLFLAG_RW, 0,
-				"Entropy Device Parameters");
-		random_sysctl[sysctlcount++] =
-			SYSCTL_ADD_INT(NULL, SYSCTL_CHILDREN(node1),
-				OID_AUTO, "seeded", CTLFLAG_RW,
-				&random_state.seeded, 0, "Seeded State");
-		random_sysctl[sysctlcount++] =
-			SYSCTL_ADD_INT(NULL, SYSCTL_CHILDREN(node1),
-				OID_AUTO, "harvest_ethernet", CTLFLAG_RW,
-				&harvest.ethernet, 0, "Harvest NIC entropy");
-		random_sysctl[sysctlcount++] =
-			SYSCTL_ADD_INT(NULL, SYSCTL_CHILDREN(node1),
-				OID_AUTO, "harvest_point_to_point", CTLFLAG_RW,
-				&harvest.point_to_point, 0, "Harvest serial net entropy");
-		random_sysctl[sysctlcount++] =
-			SYSCTL_ADD_INT(NULL, SYSCTL_CHILDREN(node1),
-				OID_AUTO, "harvest_interrupt", CTLFLAG_RW,
-				&harvest.interrupt, 0, "Harvest IRQ entropy");
-		random_sysctl[sysctlcount++] = node2 =
-			SYSCTL_ADD_NODE(NULL, SYSCTL_CHILDREN(node_base),
-				OID_AUTO, "yarrow", CTLFLAG_RW, 0,
-				"Yarrow Parameters");
-		random_sysctl[sysctlcount++] =
-			SYSCTL_ADD_INT(NULL, SYSCTL_CHILDREN(node2),
-				OID_AUTO, "gengateinterval", CTLFLAG_RW,
-				&random_state.gengateinterval, 0,
-				"Generator Gate Interval");
-		random_sysctl[sysctlcount++] =
-			SYSCTL_ADD_INT(NULL, SYSCTL_CHILDREN(node2),
-				OID_AUTO, "bins", CTLFLAG_RW,
-				&random_state.bins, 0,
-				"Execution time tuner");
-		random_sysctl[sysctlcount++] =
-			SYSCTL_ADD_INT(NULL, SYSCTL_CHILDREN(node2),
-				OID_AUTO, "fastthresh", CTLFLAG_RW,
-				&random_state.pool[0].thresh, 0,
-				"Fast pool reseed threshhold");
-		random_sysctl[sysctlcount++] =
-			SYSCTL_ADD_INT(NULL, SYSCTL_CHILDREN(node2),
-				OID_AUTO, "slowthresh", CTLFLAG_RW,
-				&random_state.pool[1].thresh, 0,
-				"Slow pool reseed threshhold");
-		random_sysctl[sysctlcount++] =
-			SYSCTL_ADD_INT(NULL, SYSCTL_CHILDREN(node2),
-				OID_AUTO, "slowoverthresh", CTLFLAG_RW,
-				&random_state.slowoverthresh, 0,
-				"Slow pool over-threshhold reseed");
+		/* This can be turned off by the very paranoid
+		 * a reseed will turn it back on.
+		 */
+		random_systat.seeded = 1;
+
+		/* Number of envents to process off the harvest
+		 * queue before giving it a break and sleeping
+		 */
+		random_systat.burst = 20;
+
+		/* Initialise the harvest ringbuffer */
+		harvestring.head = 0;
+		harvestring.tail = 0;
 
 		if (bootverbose)
 			printf("random: <entropy source>\n");
 		random_dev = make_dev(&random_cdevsw, RANDOM_MINOR, UID_ROOT,
 			GID_WHEEL, 0666, "random");
-		urandom_dev = make_dev(&random_cdevsw, URANDOM_MINOR, UID_ROOT,
-			GID_WHEEL, 0666, "urandom"); /* XXX Temporary */
+		urandom_dev = make_dev_alias(random_dev, "urandom");
+
+		/* Start the hash/reseed thread */
+		error = kthread_create(random_kthread, NULL,
+			&random_kthread_proc, RFHIGHPID, "random");
+		if (error != 0)
+			return error;
+
+		/* Register the randomness harvesting routine */
+		random_init_harvester(random_harvest_internal,
+			read_random_real);
+
 		return 0;
 
 	case MOD_UNLOAD:
+		/* Deregister the randomness harvesting routine */
+		random_deinit_harvester();
+
+		/* Command the hash/reseed thread to end and
+		 * wait for it to finish
+		 */
+		random_kthread_control = -1;
+		tsleep((void *)&random_kthread_control, PUSER, "term", 0);
+
 		random_deinit();
+
 		destroy_dev(random_dev);
-		destroy_dev(urandom_dev); /* XXX Temporary */
-		for (i = sysctlcount - 1; i >= 0; i--)
-			if (sysctl_remove_oid(random_sysctl[i], 1, 0) == EINVAL)
-				panic("random: removing sysctl");
+		destroy_dev(urandom_dev);
 		return 0;
 
 	case MOD_SHUTDOWN:
@@ -258,3 +285,129 @@ random_modevent(module_t mod, int type, void *data)
 }
 
 DEV_MODULE(random, random_modevent, NULL);
+
+static void
+random_kthread(void *arg /* NOTUSED */)
+{
+	struct harvest	*event;
+	int		newtail, burst;
+
+	/* Drain the harvest queue (in 'burst' size chunks,
+	 * if 'burst' > 0. If 'burst' == 0, then completely
+	 * drain the queue.
+	 */
+	for (burst = 0; ; burst++) {
+
+		if ((harvestring.tail == harvestring.head) ||
+			(random_systat.burst && burst == random_systat.burst)) {
+				tsleep(&harvestring, PUSER, "sleep", hz/10);
+				burst = 0;
+
+		}
+		else {
+
+			/* Suck a harvested entropy event out of the queue and
+			 * hand it to the event processor
+			 */
+
+			newtail = (harvestring.tail + 1) & HARVEST_RING_MASK;
+			event = &harvestring.data[harvestring.tail];
+
+			/* Bump the ring counter. This action is assumed
+			 * to be atomic.
+			 */
+			harvestring.tail = newtail;
+
+			random_process_event(event);
+
+		}
+
+		/* Is the thread scheduled for a shutdown? */
+		if (random_kthread_control != 0) {
+#ifdef DEBUG
+			mtx_lock(&Giant);
+			printf("Random kthread setting terminate\n");
+			mtx_unlock(&Giant);
+#endif
+			random_set_wakeup_exit(&random_kthread_control);
+			/* NOTREACHED */
+			break;
+		}
+
+	}
+
+}
+
+/* Entropy harvesting routine. This is supposed to be fast; do
+ * not do anything slow in here!
+ */
+static void
+random_harvest_internal(u_int64_t somecounter, void *entropy, u_int count,
+	u_int bits, u_int frac, enum esource origin)
+{
+	struct harvest	*harvest;
+	int		newhead;
+
+	newhead = (harvestring.head + 1) & HARVEST_RING_MASK;
+
+	if (newhead != harvestring.tail) {
+
+		/* Add the harvested data to the ring buffer */
+
+		harvest = &harvestring.data[harvestring.head];
+
+		/* Stuff the harvested data into the ring */
+		harvest->somecounter = somecounter;
+		count = count > HARVESTSIZE ? HARVESTSIZE : count;
+		memcpy(harvest->entropy, entropy, count);
+		harvest->size = count;
+		harvest->bits = bits;
+		harvest->frac = frac;
+		harvest->source = origin < ENTROPYSOURCE ? origin : 0;
+
+		/* Bump the ring counter. This action is assumed
+		 * to be atomic.
+		 */
+		harvestring.head = newhead;
+
+	}
+
+}
+
+static void
+random_write_internal(void *buf, u_int count)
+{
+	u_int	i;
+
+	/* Break the input up into HARVESTSIZE chunks.
+	 * The writer has too much control here, so "estimate" the
+	 * the entropy as zero.
+	 */
+	for (i = 0; i < count; i += HARVESTSIZE) {
+		random_harvest_internal(get_cyclecount(), (char *)buf + i,
+			HARVESTSIZE, 0, 0, RANDOM_WRITE);
+	}
+
+	/* Maybe the loop iterated at least once */
+	if (i > count)
+		i -= HARVESTSIZE;
+
+	/* Get the last bytes even if the input length is not
+	 * a multiple of HARVESTSIZE.
+	 */
+	count %= HARVESTSIZE;
+	if (count) {
+		random_harvest_internal(get_cyclecount(), (char *)buf + i,
+			count, 0, 0, RANDOM_WRITE);
+	}
+}
+
+void
+random_unblock(void)
+{
+	if (!random_systat.seeded) {
+		random_systat.seeded = 1;
+		selwakeup(&random_systat.rsel);
+		wakeup(&random_systat);
+	}
+}
