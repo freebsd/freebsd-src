@@ -308,8 +308,9 @@ fwohci_pci_detach(device_t self)
 static int
 fwohci_pci_suspend(device_t dev)
 {
-	device_printf(dev, "fwohci_pci_suspend\n");
 	int err;
+
+	device_printf(dev, "fwohci_pci_suspend\n");
 	err = bus_generic_suspend(dev);
 	if (err)
 		return err;
