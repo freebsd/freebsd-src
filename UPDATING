@@ -8,7 +8,7 @@ prior to 4.0 Release.
 
 This is for the 4.3 release branch.  All entries since 4.3 are an
 itemized list of commits to this branch, numbered from the beginning.
-By this count, we're at 4.3.0p20.
+By this count, we're at 4.3.0p22.
 
 The security advisories related to various patches contain information
 on how to build/install a minimal set of binaries and start/stop a
@@ -16,11 +16,11 @@ minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
 
-20011221	p22
+20011221	p22	FreeBSD-SA-02:02:pw.asc
 	A bug was fixed wherein the pw(8) command created a short-lived
 	but world-readable copy of /etc/master.passwd.
 
-20011202	p21
+20011202	p21	FreeBSD-SA-01:63:openssh.asc
 	A security hole in OpenSSH involving `UseLogin yes' has been
 	patched.
 
@@ -30,7 +30,7 @@ build and install as described in the COMMON ITEMS section.
 20010911	p19
 	semop fixes to prevent overflows.
 
-20010910	p18
+20010910	p18	FreeBSD-SA-01:62.asc
 	UUCP fixes.
 
 20010904	p17	FreeBSD-SA-01:59
