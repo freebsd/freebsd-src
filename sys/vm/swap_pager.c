@@ -2411,7 +2411,7 @@ swapgeom_close_ev(void *arg, int flags)
 	struct g_consumer *cp;
 
 	cp = arg;
-	g_access_rel(cp, -1, -1, -1);
+	g_access_rel(cp, -1, -1, 0);
 	g_detach(cp);
 	g_destroy_consumer(cp);
 }
@@ -2465,7 +2465,13 @@ swapongeom_ev(void *arg, int flags)
 	}
 	cp = g_new_consumer(gp);
 	g_attach(cp, pp);
-	error = g_access_rel(cp, 1, 1, 1);
+	/*
+	 * XXX: Everytime you think you can improve the margin for
+	 * footshooting, somebody depends on the ability to do so:
+	 * savecore(8) wants to write to our swapdev so we cannot
+	 * set an exclusive count :-(
+	 */
+	error = g_access_rel(cp, 1, 1, 0);
 	if (error) {
 		g_detach(cp);
 		g_destroy_consumer(cp);
