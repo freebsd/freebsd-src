@@ -2,7 +2,7 @@
 
 LCRYPTO_SRC=	${.CURDIR}/../../../crypto/openssl/crypto
 CFLAGS+= -DTERMIOS -DANSI_SOURCE -I${LCRYPTO_SRC} -I${.OBJDIR}
-.if !defined(WITH_IDEA) || ${WITH_IDEA} != YES
+.if !defined(MAKE_IDEA) || ${MAKE_IDEA} != YES
 CFLAGS+= -DNO_IDEA
 .endif
 
