@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.400 1998/10/07 02:57:16 jkh Exp $
+#	$Id: Makefile,v 1.401 1998/10/07 03:13:36 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -88,6 +88,7 @@ FIXITINODE=		2000
 BOOTLABEL=		fd1440
 BOOTMFSLABEL=		minimum2
 FIXITLABEL=		minimum2
+MFSKERN=		YES
 .endif
 
 ZIPNSPLIT=		gzip --no-name -9 -c | split -b 240640 -
@@ -540,8 +541,8 @@ cdrom.1:
 	mkdir -p ${CD_DISC1} ${CD_DISC2}
 	cd ${RD} && find floppies -print | cpio -dumpl ${CD_DISC1}
 	cd ${RD}/dists && find . -print | cpio -dumpl ${CD_DISC1}
-.if ${MACHINE_ARCH} != "alpha"
 	ln -f ${RD}/kernels/MFSKERNEL.std ${CD_DISC1}/kernel
+.if ${MACHINE_ARCH} != "alpha"
 	ln -f ${RD}/trees/bin/usr/mdec/fbsdboot.exe ${CD_DISC1}
 .endif
 	for i in ${DISTRIBUTIONS} ; \
@@ -703,10 +704,10 @@ doMFSKERN:
 	  echo "options  SCSI_NO_OP_STRINGS" >> BOOTMFS && \
 	  echo "options  SCSI_NO_SENSE_STRINGS" >> BOOTMFS && \
 	  echo "options  USERCONFIG_BOOT" >> BOOTMFS
-	@echo "options \"MFS_ROOT=`cat fs-image.${FSIMAGE}.size`\"" >> \
+	  echo "options	 MFS_ROOT" >> BOOTMFS
+.if defined(MFSKERN)
+	@echo "options \"MFS_ROOT_SIZE=`cat fs-image.${FSIMAGE}.size`\"" >> \
 	  ${.CURDIR}/../sys/i386/conf/BOOTMFS
-.if ${MACHINE_ARCH} == "alpha"
-	@echo "options	MFS_AUTOLOAD"
 .endif
 	cd ${.CURDIR} && ${MAKE} doKERNEL KERNEL=BOOTMFS
 	@rm -rf ${RD}/boot.${FSIMAGE}
@@ -723,11 +724,11 @@ doMFSKERN:
 	@umount /tmp/mnt_xx
 	@vnconfig -u /dev/${VNDEVICE}
 	@rmdir /tmp/mnt_xx
-.if ${MACHINE_ARCH} != "alpha"
+.if defined(MFSKERN)
 	./write_mfs_in_kernel ${RD}/boot.${FSIMAGE}/kernel \
 		fs-image.${FSIMAGE}
 .else
-	cp fs-image.${FSIMAGE} ${RD}/floppies/
+	cp fs-image.${FSIMAGE} ${RD}/floppies/mfs_root.flp
 .endif
 	kzip -v ${RD}/boot.${FSIMAGE}/kernel
 	@mv ${RD}/boot.${FSIMAGE}/kernel ${RD}/kernels/MFSKERNEL.${FSIMAGE}
