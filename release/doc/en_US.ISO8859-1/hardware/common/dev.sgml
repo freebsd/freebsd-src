@@ -254,49 +254,9 @@
 
     &hwlist.ti;
 
-    <para arch="i386,pc98,alpha,amd64">AMD PCnet NICs (&man.lnc.4; and &man.pcn.4; drivers)
-      <itemizedlist>
-        <listitem arch="i386,alpha,amd64">
-          <para>AMD PCnet/PCI (79c970 & 53c974 or 79c974)</para>
-        </listitem>
-        <listitem arch="i386,alpha,amd64">
-          <para>AMD PCnet/FAST</para>
-        </listitem>
-	<listitem arch="i386,alpha,amd64">
-	  <para>Isolan AT 4141-0 (16 bit)</para>
-	</listitem>
-	<listitem arch="i386,alpha,amd64">
-	  <para>Isolink 4110 (8 bit)</para>
-	</listitem>
-        <listitem arch="i386,alpha,amd64">
-          <para>PCnet/FAST+</para>
-        </listitem>
-        <listitem arch="i386,alpha,amd64">
-          <para>PCnet/FAST III</para>
-        </listitem>
-        <listitem arch="i386,alpha,amd64">
-          <para>PCnet/PRO</para>
-        </listitem>
-        <listitem arch="i386,alpha,amd64">
-          <para>PCnet/Home</para>
-        </listitem>
-        <listitem arch="i386,alpha,amd64">
-          <para>HomePNA</para>
-        </listitem>
-        <listitem arch="pc98">
-          <para>Contec C-NET(98)S</para>
-        </listitem>
-        <listitem arch="pc98">
-          <para>PCI NIC using AMD AM79C97x (PCnet-PCI/Fast)</para>
-        </listitem>
-        <listitem arch="pc98">
-          <para>NEC SV-98/2-B05, B06 (PCI)</para>
-        </listitem>
-        <listitem arch="pc98">
-          <para>Allied-Telesis LA-PCI (PCI)</para>
-        </listitem>
-      </itemizedlist>
-    </para>
+    &hwlist.pcn;
+
+    &hwlist.lnc;
 
     <para arch="i386,pc98,amd64">SMC 83c17x (EPIC)-based Ethernet NICs (&man.tx.4; driver)
     </para>
@@ -1329,25 +1289,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98,amd64">USB Host Controllers (&man.ng.ubt.4; driver)
-      <itemizedlist>
-        <listitem>
-	  <para>3Com 3CREB96</para>
-	</listitem>
-        <listitem>
-	  <para>EPoX BT-DG02</para>
-	</listitem>
-        <listitem>
-	  <para>Mitsumi USB Bluetooth adapter</para>
-	</listitem>
-        <listitem>
-	  <para>MSI MS-6967</para>
-	</listitem>
-        <listitem>
-	  <para>TDK Bluetooth USB adapter</para>
-	</listitem>
-      </itemizedlist>
-    </para>
+    &hwlist.ng.ubt;
 
   </sect2>
 
