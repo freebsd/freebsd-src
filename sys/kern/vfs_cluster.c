@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.82 1999/06/16 15:54:30 dg Exp $
+ * $Id: vfs_cluster.c,v 1.83 1999/06/17 01:25:25 julian Exp $
  */
 
 #include "opt_debug_cluster.h"
@@ -139,7 +139,7 @@ cluster_read(vp, filesize, lblkno, size, cred, totread, seqcount, bpp)
 			 * for efficiency.
 			 */
 			s = splbio();
-			for(i=1;i<maxra;i++) {
+			for (i = 1; i < maxra; i++) {
 
 				if (!(tbp = incore(vp, lblkno+i))) {
 					break;
@@ -154,7 +154,7 @@ cluster_read(vp, filesize, lblkno, size, cred, totread, seqcount, bpp)
 					tbp->b_flags |= B_RAM;
 
 				if ((tbp->b_usecount < 1) &&
-					((tbp->b_flags & B_BUSY) == 0) &&
+					BUF_REFCNT(tbp) == 0 &&
 					(tbp->b_qindex == QUEUE_LRU)) {
 					TAILQ_REMOVE(&bufqueues[QUEUE_LRU], tbp, b_freelist);
 					TAILQ_INSERT_TAIL(&bufqueues[QUEUE_LRU], tbp, b_freelist);
@@ -252,6 +252,7 @@ single_block_read:
 		if ((bp->b_flags & B_CLUSTER) == 0)
 			vfs_busy_pages(bp, 0);
 		bp->b_flags &= ~(B_ERROR|B_INVAL);
+		BUF_KERNPROC(bp);
 		error = VOP_STRATEGY(vp, bp);
 		curproc->p_stats->p_ru.ru_inblock++;
 	}
@@ -285,6 +286,7 @@ single_block_read:
 			if ((rbp->b_flags & B_CLUSTER) == 0)
 				vfs_busy_pages(rbp, 0);
 			rbp->b_flags &= ~(B_ERROR|B_INVAL);
+			BUF_KERNPROC(rbp);
 			(void) VOP_STRATEGY(vp, rbp);
 			curproc->p_stats->p_ru.ru_inblock++;
 		}
@@ -346,7 +348,7 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 
 	bp->b_data = (char *)((vm_offset_t)bp->b_data |
 	    ((vm_offset_t)tbp->b_data & PAGE_MASK));
-	bp->b_flags = B_ASYNC | B_READ | B_CALL | B_BUSY | B_CLUSTER | B_VMIO;
+	bp->b_flags = B_ASYNC | B_READ | B_CALL | B_CLUSTER | B_VMIO;
 	bp->b_iodone = cluster_callback;
 	bp->b_blkno = blkno;
 	bp->b_lblkno = lbn;
@@ -370,8 +372,9 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 				break;
 
 			if ((tbp = incore(vp, lbn + i)) != NULL) {
-				if (tbp->b_flags & B_BUSY)
+				if (BUF_LOCK(tbp, LK_EXCLUSIVE | LK_NOWAIT))
 					break;
+				BUF_UNLOCK(tbp);
 
 				for (j = 0; j < tbp->b_npages; j++)
 					if (tbp->b_pages[j]->valid)
@@ -638,14 +641,14 @@ cluster_wbuild(vp, size, start_lbn, len)
 	while (len > 0) {
 		s = splbio();
 		if (((tbp = gbincore(vp, start_lbn)) == NULL) ||
-		  ((tbp->b_flags & (B_INVAL|B_BUSY|B_DELWRI)) != B_DELWRI)) {
+		  ((tbp->b_flags & (B_INVAL | B_DELWRI)) != B_DELWRI) ||
+		  BUF_LOCK(tbp, LK_EXCLUSIVE | LK_NOWAIT)) {
 			++start_lbn;
 			--len;
 			splx(s);
 			continue;
 		}
 		bremfree(tbp);
-		tbp->b_flags |= B_BUSY;
 		tbp->b_flags &= ~B_DONE;
 		splx(s);
 
@@ -687,7 +690,7 @@ cluster_wbuild(vp, size, start_lbn, len)
 		bp->b_offset = tbp->b_offset;
 		bp->b_data = (char *)((vm_offset_t)bp->b_data |
 		    ((vm_offset_t)tbp->b_data & PAGE_MASK));
-		bp->b_flags |= B_CALL | B_BUSY | B_CLUSTER |
+		bp->b_flags |= B_CALL | B_CLUSTER |
 				(tbp->b_flags & (B_VMIO | B_NEEDCOMMIT));
 		bp->b_iodone = cluster_callback;
 		pbgetvp(vp, bp);
@@ -712,16 +715,12 @@ cluster_wbuild(vp, size, start_lbn, len)
 				 * If it IS in core, but has different
 				 * characteristics, don't cluster with it.
 				 */
-				if ((tbp->b_flags &
-				  (B_VMIO | B_CLUSTEROK | B_INVAL | B_BUSY |
-				    B_DELWRI | B_NEEDCOMMIT))
+				if ((tbp->b_flags & (B_VMIO | B_CLUSTEROK |
+				    B_INVAL | B_DELWRI | B_NEEDCOMMIT))
 				  != (B_DELWRI | B_CLUSTEROK |
-				    (bp->b_flags & (B_VMIO | B_NEEDCOMMIT)))) {
-					splx(s);
-					break;
-				}
-
-				if (tbp->b_wcred != bp->b_wcred) {
+				    (bp->b_flags & (B_VMIO | B_NEEDCOMMIT))) ||
+				    tbp->b_wcred != bp->b_wcred ||
+				    BUF_LOCK(tbp, LK_EXCLUSIVE | LK_NOWAIT)) {
 					splx(s);
 					break;
 				}
@@ -736,6 +735,7 @@ cluster_wbuild(vp, size, start_lbn, len)
 				    tbp->b_blkno) ||
 				  ((tbp->b_npages + bp->b_npages) >
 				    (vp->v_maxio / PAGE_SIZE))) {
+					BUF_UNLOCK(tbp);
 					splx(s);
 					break;
 				}
@@ -745,7 +745,6 @@ cluster_wbuild(vp, size, start_lbn, len)
 				 * and mark it busy. We will use it.
 				 */
 				bremfree(tbp);
-				tbp->b_flags |= B_BUSY;
 				tbp->b_flags &= ~B_DONE;
 				splx(s);
 			} /* end of code for non-first buffers only */

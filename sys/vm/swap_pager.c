@@ -64,7 +64,7 @@
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
  *
- * $Id: swap_pager.c,v 1.117 1999/03/14 09:20:00 julian Exp $
+ * $Id: swap_pager.c,v 1.118 1999/05/06 20:00:33 phk Exp $
  */
 
 #include <sys/param.h>
@@ -1108,7 +1108,7 @@ swap_pager_getpages(object, m, count, reqpage)
 
 	pmap_qenter(kva, m + i, j - i);
 
-	bp->b_flags = B_BUSY | B_READ | B_CALL;
+	bp->b_flags = B_READ | B_CALL;
 	bp->b_iodone = swp_pager_async_iodone;
 	bp->b_rcred = bp->b_wcred = proc0.p_ucred;
 	bp->b_data = (caddr_t) kva;
@@ -1358,10 +1358,10 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 
 		if (sync == TRUE) {
 			bp = getpbuf(&nsw_wcount_sync);
-			bp->b_flags = B_BUSY | B_CALL;
+			bp->b_flags = B_CALL;
 		} else {
 			bp = getpbuf(&nsw_wcount_async);
-			bp->b_flags = B_BUSY | B_CALL | B_ASYNC;
+			bp->b_flags = B_CALL | B_ASYNC;
 		}
 		bp->b_spc = NULL;	/* not used, but NULL-out anyway */
 
@@ -1413,6 +1413,7 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 
 		if (sync == FALSE) {
 			bp->b_iodone = swp_pager_async_iodone;
+			BUF_KERNPROC(bp);
 			VOP_STRATEGY(bp->b_vp, bp);
 
 			for (j = 0; j < n; ++j)

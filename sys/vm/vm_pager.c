@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pager.c,v 1.46 1999/05/02 23:57:14 alc Exp $
+ * $Id: vm_pager.c,v 1.47 1999/05/06 20:00:34 phk Exp $
  */
 
 /*
@@ -218,6 +218,8 @@ vm_pager_bufferinit()
 	 */
 	for (i = 0; i < nswbuf; i++, bp++) {
 		TAILQ_INSERT_HEAD(&bswlist, bp, b_freelist);
+		BUF_LOCKINIT(bp);
+		LIST_INIT(&bp->b_dep);
 		bp->b_rcred = bp->b_wcred = NOCRED;
 		bp->b_xflags = 0;
 	}
@@ -338,7 +340,6 @@ vm_pager_object_lookup(pg_list, handle)
 
 static void
 initpbuf(struct buf *bp) {
-	bzero(bp, sizeof *bp);
 	bp->b_rcred = NOCRED;
 	bp->b_wcred = NOCRED;
 	bp->b_qindex = QUEUE_NONE;
@@ -346,6 +347,9 @@ initpbuf(struct buf *bp) {
 	bp->b_kvabase = bp->b_data;
 	bp->b_kvasize = MAXPHYS;
 	bp->b_xflags = 0;
+	bp->b_flags = 0;
+	bp->b_error = 0;
+	BUF_LOCK(bp, LK_EXCLUSIVE);
 }
 
 /*
@@ -448,8 +452,7 @@ relpbuf(bp, pfreecnt)
 	if (bp->b_vp)
 		pbrelvp(bp);
 
-	if (bp->b_flags & B_WANTED)
-		wakeup(bp);
+	BUF_UNLOCK(bp);
 
 	TAILQ_INSERT_HEAD(&bswlist, bp, b_freelist);
 
@@ -499,8 +502,8 @@ vm_pager_chain_iodone(struct buf *nbp)
 		}
 		nbp->b_chain.parent = NULL;
 		--bp->b_chain.count;
-		if (bp->b_flags & B_WANTED) {
-			bp->b_flags &= ~B_WANTED;
+		if (bp->b_flags & B_WANT) {
+			bp->b_flags &= ~B_WANT;
 			wakeup(bp);
 		}
 		if (!bp->b_chain.count && (bp->b_flags & B_AUTOCHAINDONE)) {
@@ -513,7 +516,7 @@ vm_pager_chain_iodone(struct buf *nbp)
 		}
 	}
 	nbp->b_flags |= B_DONE;
-	nbp->b_flags &= ~(B_ASYNC|B_WANTED);
+	nbp->b_flags &= ~B_ASYNC;
 	relpbuf(nbp, NULL);
 }
 
@@ -539,7 +542,7 @@ getchainbuf(struct buf *bp, struct vnode *vp, int flags)
 	if (bp->b_chain.count > 4)
 		waitchainbuf(bp, 4, 0);
 
-	nbp->b_flags = B_BUSY | B_CALL | (bp->b_flags & B_ORDERED) | flags;
+	nbp->b_flags = B_CALL | (bp->b_flags & B_ORDERED) | flags;
 	nbp->b_rcred = nbp->b_wcred = proc0.p_ucred;
 	nbp->b_iodone = vm_pager_chain_iodone;
 
@@ -571,7 +574,7 @@ waitchainbuf(struct buf *bp, int count, int done)
 
 	s = splbio();
 	while (bp->b_chain.count > count) {
-		bp->b_flags |= B_WANTED;
+		bp->b_flags |= B_WANT;
 		tsleep(bp, PRIBIO + 4, "bpchain", 0);
 	}
 	if (done) {

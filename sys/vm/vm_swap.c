@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_swap.c	8.5 (Berkeley) 2/17/94
- * $Id: vm_swap.c,v 1.70 1999/05/31 11:29:30 phk Exp $
+ * $Id: vm_swap.c,v 1.71 1999/06/01 17:11:27 phk Exp $
  */
 
 #include "opt_devfs.h"
@@ -116,7 +116,7 @@ int vm_swap_size;
  *
  *	Perform swap strategy interleave device selection
  *
- *	The bp is expected to be B_BUSY and *not* B_DONE on call.
+ *	The bp is expected to be locked and *not* B_DONE on call.
  */
 
 static void

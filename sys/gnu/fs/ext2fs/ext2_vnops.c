@@ -198,12 +198,11 @@ loop:
 	s = splbio();
 	for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
 		nbp = TAILQ_NEXT(bp, b_vnbufs);
-		if ((bp->b_flags & B_BUSY))
+		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT))
 			continue;
 		if ((bp->b_flags & B_DELWRI) == 0)
 			panic("ext2_fsync: not dirty");
 		bremfree(bp);
-		bp->b_flags |= B_BUSY;
 		splx(s);
 		/*
 		 * Wait for I/O associated with indirect blocks to complete,

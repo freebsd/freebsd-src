@@ -35,7 +35,7 @@
  *
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: atcompat_diskslice.c,v 1.14 1999/01/28 09:18:21 kato Exp $
+ *	$Id: atcompat_diskslice.c,v 1.15 1999/05/12 08:33:18 kato Exp $
  */
 
 /*
@@ -194,7 +194,7 @@ reread_mbr:
 	bp->b_dev = dkmodpart(dkmodslice(dev, WHOLE_DISK_SLICE), RAW_PART);
 	bp->b_blkno = mbr_offset;
 	bp->b_bcount = lp->d_secsize;
-	bp->b_flags |= B_BUSY | B_READ;
+	bp->b_flags |= B_READ;
 	(*strat)(bp);
 	if (biowait(bp) != 0) {
 		diskerr(bp, dname, "error reading primary partition table",
@@ -389,7 +389,7 @@ atcompat_extended(dname, dev, strat, lp, ssp, ext_offset, ext_size,
 	bp->b_dev = dev;
 	bp->b_blkno = ext_offset;
 	bp->b_bcount = lp->d_secsize;
-	bp->b_flags |= B_BUSY | B_READ;
+	bp->b_flags |= B_READ;
 	(*strat)(bp);
 	if (biowait(bp) != 0) {
 		diskerr(bp, dname, "error reading extended partition table",

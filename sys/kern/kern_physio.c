@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: kern_physio.c,v 1.33 1999/05/07 07:03:39 phk Exp $
+ * $Id: kern_physio.c,v 1.34 1999/05/08 06:39:37 phk Exp $
  */
 
 #include <sys/param.h>
@@ -68,17 +68,10 @@ physio(strategy, bp, dev, rw, minp, uio)
 
 	/* create and build a buffer header for a transfer */
 	bpa = (struct buf *)phygetvpbuf(dev, uio->uio_resid);
-	if (!bp_alloc) {
-		spl = splbio();
-		while (bp->b_flags & B_BUSY) {
-			bp->b_flags |= B_WANTED;
-			tsleep((caddr_t)bp, PRIBIO, "physbw", 0);
-		}
-		bp->b_flags |= B_BUSY;
-		splx(spl);
-	} else {
+	if (!bp_alloc)
+		BUF_LOCK(bp, LK_EXCLUSIVE);
+	else
 		bp = bpa;
-	}
 
 	/*
 	 * get a copy of the kva from the physical buffer
@@ -86,12 +79,12 @@ physio(strategy, bp, dev, rw, minp, uio)
 	sa = bpa->b_data;
 	error = bp->b_error = 0;
 
-	for(i=0;i<uio->uio_iovcnt;i++) {
-		while( uio->uio_iov[i].iov_len) {
+	for (i = 0; i < uio->uio_iovcnt; i++) {
+		while (uio->uio_iov[i].iov_len) {
 
 			bp->b_dev = dev;
 			bp->b_bcount = uio->uio_iov[i].iov_len;
-			bp->b_flags = B_BUSY | B_PHYS | B_CALL | bufflags;
+			bp->b_flags = B_PHYS | B_CALL | bufflags;
 			bp->b_iodone = physwakeup;
 			bp->b_data = uio->uio_iov[i].iov_base;
 			bp->b_bcount = minp( bp);
@@ -160,11 +153,8 @@ physio(strategy, bp, dev, rw, minp, uio)
 doerror:
 	relpbuf(bpa, NULL);
 	if (!bp_alloc) {
-		bp->b_flags &= ~(B_BUSY|B_PHYS);
-		if( bp->b_flags & B_WANTED) {
-			bp->b_flags &= ~B_WANTED;
-			wakeup((caddr_t)bp);
-		}
+		bp->b_flags &= ~B_PHYS;
+		BUF_UNLOCK(bp);
 	}
 	/*
 	 * Allow the process UPAGES to be swapped again.

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.130 1999/06/05 05:35:02 peter Exp $
+ * $Id: nfs_vnops.c,v 1.131 1999/06/16 23:27:48 mckusick Exp $
  */
 
 
@@ -2647,7 +2647,7 @@ nfs_strategy(ap)
 	int error = 0;
 
 	KASSERT(!(bp->b_flags & B_DONE), ("nfs_strategy: buffer %p unexpectedly marked B_DONE", bp));
-	KASSERT((bp->b_flags & B_BUSY), ("nfs_strategy: buffer %p not B_BUSY", bp));
+	KASSERT(BUF_REFCNT(bp) == 0, ("nfs_strategy: buffer %p not locked", bp));
 
 	if (bp->b_flags & B_PHYS)
 		panic("nfs physio");
@@ -2762,8 +2762,9 @@ again:
 		bveccount = 0;
 		for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
 			nbp = TAILQ_NEXT(bp, b_vnbufs);
-			if ((bp->b_flags & (B_BUSY | B_DELWRI | B_NEEDCOMMIT))
-			    == (B_DELWRI | B_NEEDCOMMIT))
+			if (BUF_REFCNT(bp) == 0 &&
+			    (bp->b_flags & (B_DELWRI | B_NEEDCOMMIT))
+				== (B_DELWRI | B_NEEDCOMMIT))
 				bveccount++;
 		}
 		/*
@@ -2791,8 +2792,9 @@ again:
 			nbp = TAILQ_NEXT(bp, b_vnbufs);
 			if (bvecpos >= bvecsize)
 				break;
-			if ((bp->b_flags & (B_BUSY | B_DELWRI | B_NEEDCOMMIT))
-				!= (B_DELWRI | B_NEEDCOMMIT))
+			if ((bp->b_flags & (B_DELWRI | B_NEEDCOMMIT)) !=
+			    (B_DELWRI | B_NEEDCOMMIT) ||
+			    BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT))
 				continue;
 			bremfree(bp);
 			/*
@@ -2807,11 +2809,11 @@ again:
 				wcred = bp->b_wcred;
 			else if (wcred != bp->b_wcred)
 				wcred = NOCRED;
-			bp->b_flags |= (B_BUSY | B_WRITEINPROG);
+			bp->b_flags |= B_WRITEINPROG;
 			vfs_busy_pages(bp, 1);
 
 			/*
-			 * bp is protected by being B_BUSY, but nbp is not
+			 * bp is protected by being locked, but nbp is not
 			 * and vfs_busy_pages() may sleep.  We have to
 			 * recalculate nbp.
 			 */
@@ -2904,34 +2906,37 @@ loop:
 	s = splbio();
 	for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
 		nbp = TAILQ_NEXT(bp, b_vnbufs);
-		if (bp->b_flags & B_BUSY) {
+		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT)) {
 			if (waitfor != MNT_WAIT || passone)
 				continue;
-			bp->b_flags |= B_WANTED;
-			error = tsleep((caddr_t)bp, slpflag | (PRIBIO + 1),
-				"nfsfsync", slptimeo);
+			error = BUF_TIMELOCK(bp, LK_EXCLUSIVE | LK_SLEEPFAIL,
+			    "nfsfsync", slpflag, slptimeo);
 			splx(s);
-			if (error) {
-			    if (nfs_sigintr(nmp, (struct nfsreq *)0, p)) {
+			if (error == 0)
+				panic("nfs_fsync: inconsistent lock");
+			if (error == ENOLCK)
+				goto loop;
+			if (nfs_sigintr(nmp, (struct nfsreq *)0, p)) {
 				error = EINTR;
 				goto done;
-			    }
-			    if (slpflag == PCATCH) {
+			}
+			if (slpflag == PCATCH) {
 				slpflag = 0;
 				slptimeo = 2 * hz;
-			    }
 			}
 			goto loop;
 		}
 		if ((bp->b_flags & B_DELWRI) == 0)
 			panic("nfs_fsync: not dirty");
-		if ((passone || !commit) && (bp->b_flags & B_NEEDCOMMIT))
+		if ((passone || !commit) && (bp->b_flags & B_NEEDCOMMIT)) {
+			BUF_UNLOCK(bp);
 			continue;
+		}
 		bremfree(bp);
 		if (passone || !commit)
-		    bp->b_flags |= (B_BUSY|B_ASYNC);
+		    bp->b_flags |= B_ASYNC;
 		else
-		    bp->b_flags |= (B_BUSY|B_ASYNC|B_WRITEINPROG|B_NEEDCOMMIT);
+		    bp->b_flags |= (B_ASYNC | B_WRITEINPROG | B_NEEDCOMMIT);
 		splx(s);
 		VOP_BWRITE(bp->b_vp, bp);
 		goto loop;
@@ -3045,8 +3050,8 @@ nfs_writebp(bp, force, procp)
 	int retv = 1;
 	off_t off;
 
-	if(!(bp->b_flags & B_BUSY))
-		panic("bwrite: buffer is not busy???");
+	if (BUF_REFCNT(bp) == 0)
+		panic("bwrite: buffer is not locked???");
 
 	if (bp->b_flags & B_INVAL) {
 		brelse(bp);
@@ -3090,6 +3095,7 @@ nfs_writebp(bp, force, procp)
 	if (retv) {
 		if (force)
 			bp->b_flags |= B_WRITEINPROG;
+		BUF_KERNPROC(bp);
 		VOP_STRATEGY(bp->b_vp, bp);
 	}
 

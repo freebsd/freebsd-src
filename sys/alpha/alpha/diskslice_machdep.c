@@ -36,7 +36,7 @@
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
  *	from: i386/isa Id: diskslice_machdep.c,v 1.31 1998/08/10 07:22:14 phk Exp
- *	$Id: diskslice_machdep.c,v 1.7 1999/05/10 16:00:01 peter Exp $
+ *	$Id: diskslice_machdep.c,v 1.8 1999/05/14 00:41:02 msmith Exp $
  */
 
 #include <sys/param.h>
@@ -183,7 +183,7 @@ reread_mbr:
 	bp->b_dev = dkmodpart(dkmodslice(dev, WHOLE_DISK_SLICE), RAW_PART);
 	bp->b_blkno = mbr_offset;
 	bp->b_bcount = lp->d_secsize;
-	bp->b_flags |= B_BUSY | B_READ;
+	bp->b_flags |= B_READ;
 	(*strat)(bp);
 	if (biowait(bp) != 0) {
 		diskerr(bp, dname, "error reading primary partition table",
@@ -381,7 +381,7 @@ extended(dname, dev, strat, lp, ssp, ext_offset, ext_size, base_ext_offset,
 	bp->b_dev = dev;
 	bp->b_blkno = ext_offset;
 	bp->b_bcount = lp->d_secsize;
-	bp->b_flags |= B_BUSY | B_READ;
+	bp->b_flags |= B_READ;
 	(*strat)(bp);
 	if (biowait(bp) != 0) {
 		diskerr(bp, dname, "error reading extended partition table",

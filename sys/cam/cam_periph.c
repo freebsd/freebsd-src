@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_periph.c,v 1.16 1999/05/25 17:10:04 ken Exp $
+ *      $Id: cam_periph.c,v 1.17 1999/05/25 20:17:28 gibbs Exp $
  */
 
 #include <sys/param.h>
@@ -612,7 +612,7 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 		mapinfo->bp[i]->b_bufsize = lengths[i];
 
 		/* set the flags */
-		mapinfo->bp[i]->b_flags = flags[i] | B_PHYS | B_BUSY;
+		mapinfo->bp[i]->b_flags = flags[i] | B_PHYS;
 
 		/* map the buffer into kernel memory */
 		vmapbuf(mapinfo->bp[i]);
@@ -673,7 +673,7 @@ cam_periph_unmapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 		vunmapbuf(mapinfo->bp[i]);
 
 		/* clear the flags we set above */
-		mapinfo->bp[i]->b_flags &= ~(B_PHYS|B_BUSY);
+		mapinfo->bp[i]->b_flags &= ~B_PHYS;
 
 		/* release the buffer */
 		relpbuf(mapinfo->bp[i], NULL);
