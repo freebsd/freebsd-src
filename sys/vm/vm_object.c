@@ -1887,12 +1887,14 @@ vm_object_set_writeable_dirty(vm_object_t object)
 	struct vnode *vp;
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	if ((object->flags & (OBJ_MIGHTBEDIRTY|OBJ_WRITEABLE)) ==
+	    (OBJ_MIGHTBEDIRTY|OBJ_WRITEABLE))
+		return;
 	vm_object_set_flag(object, OBJ_WRITEABLE|OBJ_MIGHTBEDIRTY);
 	if (object->type == OBJT_VNODE &&
 	    (vp = (struct vnode *)object->handle) != NULL) {
 		VI_LOCK(vp);
-		if ((vp->v_iflag & VI_OBJDIRTY) == 0)
-			vp->v_iflag |= VI_OBJDIRTY;
+		vp->v_iflag |= VI_OBJDIRTY;
 		VI_UNLOCK(vp);
 	}
 }
