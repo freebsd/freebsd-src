@@ -104,8 +104,8 @@ main(argc, argv)
 	sectimeout = TIMEOUT;
 	mypw = NULL;
 	usemine = 0;
-       no_timeout = 0;
-       while ((ch = getopt(argc, argv, "npt:")) != -1)
+	no_timeout = 0;
+	while ((ch = getopt(argc, argv, "npt:")) != -1)
 		switch((char)ch) {
 		case 't':
 			if ((sectimeout = atoi(optarg)) <= 0)
@@ -117,13 +117,13 @@ main(argc, argv)
 				errx(1, "unknown uid %d", getuid());
 			mypw = strdup(pw->pw_passwd);
 			break;
-               case 'n':
-                       no_timeout = 1;
-                       break;
+		case 'n':
+			no_timeout = 1;
+			break;
 		case '?':
 		default:
 			usage();
-	}
+		}
 	timeout.tv_sec = sectimeout * 60;
 
 	setuid(getuid());		/* discard privs */
@@ -175,18 +175,18 @@ main(argc, argv)
 
 	ntimer.it_interval = zerotime;
 	ntimer.it_value = timeout;
-       if (!no_timeout)
-               setitimer(ITIMER_REAL, &ntimer, &otimer);
+	if (!no_timeout)
+		setitimer(ITIMER_REAL, &ntimer, &otimer);
 
 	/* header info */
-       if (no_timeout) {
+	if (no_timeout) {
 (void)printf("lock: %s on %s. no timeout\ntime now is %.20s%s%s",
-           ttynam, hostname, ap, tzn, ap + 19);
-       } else {
+	    ttynam, hostname, ap, tzn, ap + 19);
+	} else {
 (void)printf("lock: %s on %s. timeout in %d minutes\ntime now is %.20s%s%s",
 	    ttynam, hostname, sectimeout, ap, tzn, ap + 19);
-       }
-       failures = 0;
+	}
+	failures = 0;
 
 	for (;;) {
 		(void)printf("Key: ");
@@ -212,8 +212,8 @@ main(argc, argv)
 		sleep(1);		/* to discourage guessing */
 	}
 	if (getuid() == 0)
-	    syslog(LOG_NOTICE, "ROOT UNLOCK ON hostname %s port %s",
-		   hostname, ttynam);
+		syslog(LOG_NOTICE, "ROOT UNLOCK ON hostname %s port %s",
+		    hostname, ttynam);
 	quit(0);
 	return(0); /* not reached */
 }
@@ -231,16 +231,16 @@ hi(int signo __unused)
 {
 	struct timeval timval;
 
-       if (!gettimeofday(&timval, (struct timezone *)NULL)) {
-               (void)printf("lock: type in the unlock key. ");
-               if (no_timeout) {
-                       (void)putchar('\n');
-               } else {
-                       (void)printf("timeout in %ld:%ld minutes\n",
-                               (nexttime - timval.tv_sec) / 60,
-                               (nexttime - timval.tv_sec) % 60);
-               }
-       }
+	if (!gettimeofday(&timval, (struct timezone *)NULL)) {
+		(void)printf("lock: type in the unlock key. ");
+		if (no_timeout) {
+			(void)putchar('\n');
+		} else {
+			(void)printf("timeout in %ld:%ld minutes\n",
+			    (nexttime - timval.tv_sec) / 60,
+			    (nexttime - timval.tv_sec) % 60);
+		}
+	}
 }
 
 void
@@ -254,9 +254,9 @@ quit(int signo __unused)
 void
 bye(int signo __unused)
 {
-       if (!no_timeout) {
-               (void)ioctl(0, TIOCSETP, &tty);
-               (void)printf("lock: timeout\n");
-               exit(1);
-       }
+	if (!no_timeout) {
+		(void)ioctl(0, TIOCSETP, &tty);
+		(void)printf("lock: timeout\n");
+		exit(1);
+	}
 }
