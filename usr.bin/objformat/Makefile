@@ -10,10 +10,13 @@ CFLAGS+=	-DFREEBSD_ELF
 CFLAGS+=	-DFREEBSD_AOUT
 .endif
 
+LINKS+=	${BINDIR}/objformat ${BINDIR}/addr2line
 LINKS+=	${BINDIR}/objformat ${BINDIR}/ar
 LINKS+=	${BINDIR}/objformat ${BINDIR}/as
 LINKS+=	${BINDIR}/objformat ${BINDIR}/ld
 LINKS+=	${BINDIR}/objformat ${BINDIR}/nm
+LINKS+=	${BINDIR}/objformat ${BINDIR}/objcopy
+LINKS+=	${BINDIR}/objformat ${BINDIR}/objdump
 LINKS+=	${BINDIR}/objformat ${BINDIR}/ranlib
 LINKS+=	${BINDIR}/objformat ${BINDIR}/size
 LINKS+=	${BINDIR}/objformat ${BINDIR}/strings
