@@ -189,10 +189,6 @@ extern caddr_t		preload_search_info(caddr_t _mod, int _inf);
 extern void		preload_delete_name(const char *_name);
 extern void		preload_bootstrap_relocate(vm_offset_t _offset);
 
-#ifdef DDB
-extern void		r_debug_state(void);
-#endif
-
 #ifdef KLD_DEBUG
 
 extern int kld_debug;
