@@ -554,21 +554,21 @@ start_init(void *dummy)
 	mac_create_root_mount(td->td_ucred, TAILQ_FIRST(&mountlist));
 #endif
 
-	if (devfs_present) {
-		/*
-		 * For disk based systems, we probably cannot do this yet
-		 * since the fs will be read-only.  But a NFS root
-		 * might be ok.  It is worth a shot.
-		 */
-		error = kern_mkdir(td, "/dev", UIO_SYSSPACE, 0700);
-		if (error == EEXIST)
-			error = 0;
-		if (error == 0)
-			error = kernel_vmount(0, "fstype", "devfs",
-			    "fspath", "/dev", NULL);
-		if (error != 0)
-			init_does_devfs = 1;
-	}
+#ifndef NODEVFS
+	/*
+	 * For disk based systems, we probably cannot do this yet
+	 * since the fs will be read-only.  But a NFS root
+	 * might be ok.  It is worth a shot.
+	 */
+	error = kern_mkdir(td, "/dev", UIO_SYSSPACE, 0700);
+	if (error == EEXIST)
+		error = 0;
+	if (error == 0)
+		error = kernel_vmount(0, "fstype", "devfs",
+		    "fspath", "/dev", NULL);
+	if (error != 0)
+		init_does_devfs = 1;
+#endif
 
 	/*
 	 * Need just enough stack to hold the faked-up "execve()" arguments.

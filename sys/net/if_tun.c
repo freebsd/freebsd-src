@@ -147,13 +147,13 @@ tunmodevent(module_t mod, int type, void *data)
 		tag = EVENTHANDLER_REGISTER(dev_clone, tunclone, 0, 1000);
 		if (tag == NULL)
 			return (ENOMEM);
-		if (!devfs_present) {
-			err = cdevsw_add(&tun_cdevsw);
-			if (err != 0) {
-				EVENTHANDLER_DEREGISTER(dev_clone, tag);
-				return (err);
-			}
+#ifdef NODEVFS
+		err = cdevsw_add(&tun_cdevsw);
+		if (err != 0) {
+			EVENTHANDLER_DEREGISTER(dev_clone, tag);
+			return (err);
 		}
+#endif
 		tununits.rm_type = RMAN_ARRAY;
 		tununits.rm_descr = "open if_tun units";
 		err = rman_init(&tununits);
@@ -200,8 +200,9 @@ tunmodevent(module_t mod, int type, void *data)
 		if (tunbasedev != NOUDEV)
 			destroy_dev(udev2dev(tunbasedev, 0));
 
-		if (!devfs_present)
-			cdevsw_remove(&tun_cdevsw);
+#ifdef NODEVFS
+		cdevsw_remove(&tun_cdevsw);
+#endif
 		break;
 	} 
 	return 0; 

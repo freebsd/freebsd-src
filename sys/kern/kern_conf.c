@@ -62,7 +62,6 @@ static LIST_HEAD(, cdev) dev_free;
 
 devfs_create_t *devfs_create_hook;
 devfs_destroy_t *devfs_destroy_hook;
-int devfs_present;
 
 static int ready_for_devs;
 
@@ -81,9 +80,11 @@ devsw(dev_t dev)
 	disk_dev_synth(dev);
 	if (dev->si_devsw)
 		return (dev->si_devsw);
-	if (devfs_present)
-		return (NULL);
+#ifndef NODEVFS
+	return (NULL);
+#else
         return(cdevsw[major(dev)]);
+#endif
 }
 
 /*
