@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: imgact_aout.c,v 1.45 1999/01/29 22:59:43 dillon Exp $
+ *	$Id: imgact_aout.c,v 1.46 1999/02/19 14:25:34 luoqi Exp $
  */
 
 #include <sys/param.h>
@@ -82,6 +82,7 @@ exec_aout_imgact(imgp)
 	const struct exec *a_out = (const struct exec *) imgp->image_header;
 	struct vmspace *vmspace;
 	struct vnode *vp;
+	vm_map_t map;
 	vm_object_t object;
 	vm_offset_t text_end, data_end;
 	unsigned long virtual_offset;
@@ -176,6 +177,8 @@ exec_aout_imgact(imgp)
 	vmspace = imgp->proc->p_vmspace;
 
 	vp = imgp->vp;
+	map = &vmspace->vm_map;
+	vm_map_lock(map);
 	object = vp->v_object;
 	vm_object_reference(object);
 
@@ -185,9 +188,10 @@ exec_aout_imgact(imgp)
 		virtual_offset, text_end,
 		VM_PROT_READ | VM_PROT_EXECUTE, VM_PROT_ALL,
 		MAP_COPY_NEEDED | MAP_COPY_ON_WRITE);
-	if (error)
+	if (error) {
+		vm_map_unlock(map);
 		return (error);
-
+	}
 	data_end = text_end + a_out->a_data;
 	if (a_out->a_data) {
 		vm_object_reference(object);
@@ -196,8 +200,10 @@ exec_aout_imgact(imgp)
 			text_end, data_end,
 			VM_PROT_ALL, VM_PROT_ALL,
 			MAP_COPY_NEEDED | MAP_COPY_ON_WRITE);
-		if (error)
+		if (error) {
+			vm_map_unlock(map);
 			return (error);
+		}
 	}
 
 	pmap_object_init_pt(vmspace_pmap(vmspace), virtual_offset,
@@ -208,10 +214,13 @@ exec_aout_imgact(imgp)
 		error = vm_map_insert(&vmspace->vm_map, NULL, 0,
 			data_end, data_end + bss_size,
 			VM_PROT_ALL, VM_PROT_ALL, 0);
-		if (error)
+		if (error) {
+			vm_map_unlock(map);
 			return (error);
+		}
 	}
-		
+	vm_map_unlock(map);
+
 	/* Fill in process VM information */
 	vmspace->vm_tsize = a_out->a_text >> PAGE_SHIFT;
 	vmspace->vm_dsize = (a_out->a_data + bss_size) >> PAGE_SHIFT;
