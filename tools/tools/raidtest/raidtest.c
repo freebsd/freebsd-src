@@ -66,7 +66,7 @@ usage(void)
 {
 
 	fprintf(stderr, "usage: %s genfile [-frw] <-s mediasize> [-S sectorsize] <-n nrequests> [file]\n", getprogname());
-	fprintf(stderr, "       %s test [-rw] <-d device> [-n processes] [file]\n", getprogname());
+	fprintf(stderr, "       %s test [-Rrw] <-d device> [-n processes] [file]\n", getprogname());
 	exit(EXIT_FAILURE);
 }
 
@@ -211,7 +211,18 @@ raidtest_genfile(int argc, char *argv[])
 }
 
 static void
-test_start(int fd, struct ioreq *iorqs, uintmax_t nreqs)
+rand_fill(unsigned char *data, unsigned length)
+{
+	u_int32_t *datap = (u_int32_t *)data;
+	unsigned i;
+
+	length /= sizeof(u_int32_t);
+	for (i = 0; i < length; i++)
+		datap[i] = arc4random();
+}
+
+static void
+test_start(int fd, struct ioreq *iorqs, uintmax_t nreqs, int randdata)
 {
 	unsigned char data[MAX_IO_LENGTH];
 	struct ioreq *iorq;
@@ -230,6 +241,8 @@ test_start(int fd, struct ioreq *iorqs, uintmax_t nreqs)
 			}
 			break;
 		case IO_TYPE_WRITE:
+			if (randdata)
+				rand_fill(data, iorq->iorq_length);
 			if (pwrite(fd, data, iorq->iorq_length,
 			    iorq->iorq_offset) != (ssize_t)iorq->iorq_length) {
 				fprintf(stderr,
@@ -264,12 +277,12 @@ raidtest_test(int argc, char *argv[])
 	unsigned nprocs;
 	struct stat sb;
 	pid_t *procs;
-	int ch, fdd, fdf, j, rdonly, wronly;
+	int ch, fdd, fdf, j, randdata, rdonly, wronly;
 
 	dev = NULL;
 	nprocs = 1;
-	rdonly = wronly = 0;
-	while ((ch = getopt(argc, argv, "d:n:rvw")) != -1) {
+	randdata = rdonly = wronly = 0;
+	while ((ch = getopt(argc, argv, "d:n:Rrvw")) != -1) {
 		switch (ch) {
 		case 'd':
 			dev = optarg;
@@ -281,6 +294,9 @@ raidtest_test(int argc, char *argv[])
 				err(EXIT_FAILURE,
 				    "Invalid value for '%c' argument.", ch);
 			}
+			break;
+		case 'R':
+			randdata = 1;
 			break;
 		case 'r':
 			rdonly = 1;
@@ -373,7 +389,8 @@ raidtest_test(int argc, char *argv[])
 		switch (procs[i]) {
 		case 0:
 			free(procs);
-			test_start(fdd, &iorqs[nstart], reqs_per_proc);
+			test_start(fdd, &iorqs[nstart], reqs_per_proc,
+			    randdata);
 			free(iorqs);
 			close(fdd);
 			exit(EXIT_SUCCESS);
