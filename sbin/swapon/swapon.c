@@ -44,10 +44,14 @@ static char sccsid[] = "@(#)swapon.c	8.1 (Berkeley) 6/5/93";
 #include <fstab.h>
 #include <errno.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
 
-main(argc, argv)
-	int argc;
-	char **argv;
+void	usage __P((void));
+int	add __P((char *name, int ignoreebusy));
+
+int
+main(int argc, char **argv)
 {
 	extern char *optarg;
 	extern int optind;
@@ -69,7 +73,7 @@ main(argc, argv)
 
 	stat = 0;
 	if (doall)
-		while (fsp = getfsent()) {
+		while ((fsp = getfsent()) != NULL) {
 			if (strcmp(fsp->fs_type, FSTAB_SW))
 				continue;
 			if (add(fsp->fs_spec, 1))
@@ -85,9 +89,8 @@ main(argc, argv)
 	exit(stat);
 }
 
-add(name, ignoreebusy)
-	char *name;
-	int ignoreebusy;
+int
+add(char *name, int ignoreebusy)
 {
 	extern int errno;
 
@@ -113,6 +116,7 @@ add(name, ignoreebusy)
 	return(0);
 }
 
+void
 usage()
 {
 	fprintf(stderr, "usage: swapon [-a] [special_file ...]\n");
