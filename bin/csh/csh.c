@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: csh.c,v 1.6 1995/10/23 23:08:25 ache Exp $
+ *	$Id: csh.c,v 1.6.2.1 1997/08/24 21:41:29 jkh Exp $
  */
 
 #ifndef lint
@@ -46,6 +46,7 @@ static char sccsid[] = "@(#)csh.c	8.2 (Berkeley) 10/12/93";
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
+#include <sys/param.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <pwd.h>
@@ -229,7 +230,7 @@ main(argc, argv)
      */
     set(STRstatus, Strsave(STR0));
 
-    if ((tcp = getenv("HOME")) != NULL)
+    if ((tcp = getenv("HOME")) != NULL && strlen(tcp) < MAXPATHLEN)
 	cp = SAVE(tcp);
     else
 	cp = NULL;

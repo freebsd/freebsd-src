@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: err.c,v 1.2 1994/09/24 02:53:57 davidg Exp $
+ *	$Id: err.c,v 1.2.8.1 1997/08/24 21:41:31 jkh Exp $
  */
 
 #ifndef lint
@@ -307,7 +307,7 @@ seterror(id, va_alist)
 #endif
 	if (id < 0 || id > sizeof(errorlist) / sizeof(errorlist[0]))
 	    id = ERR_INVALID;
-	vsprintf(berr, errorlist[id], va);
+	vsnprintf(berr, sizeof(berr), errorlist[id], va);
 	va_end(va);
 
 	seterr = strsave(berr);
