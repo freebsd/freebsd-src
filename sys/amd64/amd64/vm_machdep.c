@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.57 1996/03/03 01:57:45 jkh Exp $
+ *	$Id: vm_machdep.c,v 1.58 1996/04/07 17:39:28 bde Exp $
  */
 
 #include "npx.h"
@@ -588,7 +588,9 @@ cpu_fork(p1, p2)
 	/*
 	 * Returns (0) in parent, (1) in child.
 	 */
-	return (savectx(pcb2));
+	sp = 1;
+	savectx(pcb2,&sp);
+	return (sp);
 }
 
 void
