@@ -99,6 +99,7 @@ static struct _devname {
     { DEVICE_TYPE_NETWORK,	"kue",		"Kawasaki LSI USB ethernet adapter"				},
     { DEVICE_TYPE_NETWORK,	"le",		"DEC EtherWorks 2 or 3 ethernet card"				},
     { DEVICE_TYPE_NETWORK,	"lnc",		"Lance/PCnet (Isolan/Novell NE2100/NE32-VL) ethernet"		},
+    { DEVICE_TYPE_NETWORK,	"pcn",		"AMD Am79c79x PCI ethernet card"				},
     { DEVICE_TYPE_NETWORK,	"rl",		"RealTek 8129/8139 PCI ethernet card"				},
     { DEVICE_TYPE_NETWORK,	"sf",		"Adaptec AIC-6915 PCI ethernet card"				},
     { DEVICE_TYPE_NETWORK,	"sis",		"SiS 900/SiS 7016 PCI ethernet card"				},
