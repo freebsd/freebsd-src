@@ -93,8 +93,6 @@ static struct ndis_type ndis_devs[] = {
 	{ 0, 0, 0, NULL }
 };
 
-#define __stdcall __attribute__((__stdcall__))
-
 static int ndis_probe		(device_t);
 static int ndis_attach		(device_t);
 static int ndis_detach		(device_t);
