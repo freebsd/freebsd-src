@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.149 1998/02/06 12:13:29 eivind Exp $
+ * $Id: vfs_bio.c,v 1.150 1998/02/09 06:09:30 eivind Exp $
  */
 
 /*
@@ -641,7 +641,7 @@ brelse(struct buf * bp)
 		if (bp->b_flags & (B_INVAL | B_RELBUF))
 			vfs_vmio_release(bp);
 	} else if (bp->b_flags & B_VMIO) {
-		if (bp->b_flags && (B_INVAL | B_RELBUF))
+		if (bp->b_flags & (B_INVAL | B_RELBUF))
 			vfs_vmio_release(bp);
 	}
 			
