@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:57  rpd
- *	$Id: io.c,v 1.9 1997/02/22 09:43:08 peter Exp $
+ *	$Id: io.c,v 1.10 1997/05/28 09:22:59 kato Exp $
  */
 
 #include "boot.h"
@@ -102,13 +102,12 @@ printf(const char *format, ...)
 void
 putchar(int c)
 {
-	if (c == '\n') {
-		if (loadflags & RB_SERIAL)
-			serial_putc('\r');
-		else
-			putc('\r');
-	}
-	if (loadflags & RB_SERIAL)
+	if (c == '\n')
+		putchar('\r');
+	if (loadflags & RB_DUAL) {
+		putc(c);
+		serial_putc(c);
+	} else if (loadflags & RB_SERIAL)
 		serial_putc(c);
 	else
 		putc(c);
@@ -120,7 +119,18 @@ getchar(int in_buf)
 	int c;
 
 loop:
-	if ((c = ((loadflags & RB_SERIAL) ? serial_getc() : getc())) == '\r')
+	if (loadflags & RB_DUAL) {
+		if (ischar())
+			c = getc();
+		else if (serial_ischar())
+			c = serial_getc();
+		else
+			goto loop;
+	} else if (loadflags & RB_SERIAL)
+		c = serial_getc();
+	else
+		c = getc();
+	if (c == '\r')
 		c = '\n';
 	if (c == '\b') {
 		if (in_buf != 0) {
@@ -134,7 +144,6 @@ loop:
 	return(c);
 }
 
-#ifdef PROBE_KEYBOARD
 /*
  * This routine uses an inb to an unused port, the time to execute that
  * inb is approximately 1.25uS.  This value is pretty constant across
@@ -158,7 +167,6 @@ delay1ms(void)
 		(void)inb(0x84);
 #endif
 }
-#endif /* PROBE_KEYBOARD */
 
 static __inline int
 isch(void)
@@ -172,10 +180,12 @@ isch(void)
 	 */
 	isc = ischar();
 
-	if (!(loadflags & RB_SERIAL))
+	if (loadflags & RB_DUAL) {
+		if (isc != 0)
+			return (isc);
+	} else if (!(loadflags & RB_SERIAL))
 		return (isc);
 	return (serial_ischar());
-
 }
 
 static __inline unsigned
