@@ -186,7 +186,8 @@ main(argc, argv)
 	struct hostent *hep;
 	char *stmp;
 	int n, ba_len, ra_len;
-	int nfound, readfds;
+	int nfound;
+	fd_set readfds;
 	int standalone;
 #ifdef	SA_NOCLDSTOP	/* Have POSIX sigaction(2). */
 	struct sigaction sa;
@@ -503,14 +504,15 @@ main(argc, argv)
 	/*
 	 * Process incoming requests.
 	 */
+	FD_ZERO(&readfds);
 	for (;;) {
 		struct timeval tv;
 
-		readfds = 1 << s;
+		FD_SET(s, &readfds);
 		if (timeout)
 			tv = *timeout;
 
-		nfound = select(s + 1, (fd_set *)&readfds, NULL, NULL,
+		nfound = select(s + 1, &readfds, NULL, NULL,
 						(timeout) ? &tv : NULL);
 		if (nfound < 0) {
 			if (errno != EINTR) {
@@ -530,7 +532,7 @@ main(argc, argv)
 			}
 			continue;
 		}
-		if (!(readfds & (1 << s))) {
+		if (!FD_ISSET(s, &readfds)) {
 			if (debug > 1)
 				report(LOG_INFO, "exiting after %ld minutes of inactivity",
 					   actualtimeout.tv_sec / 60);
