@@ -118,9 +118,9 @@
 #define	SINCR		1		/* increment of stack/NBPG */
 
 #define	KSTACK_PAGES	2		/* pages of kstack (with pcb) */
+#define	KSTACK_GUARD_PAGES	1	/* pages of kstack guard; 0 disables */
 #define	UAREA_PAGES	1		/* pages of u-area */
 
-#define	KSTACK_GUARD			/* compile in kstack guard page */
 
 /*
  * Mach derived conversion macros

@@ -765,53 +765,6 @@ pmap_track_modified(vm_offset_t va)
 		return 0;
 }
 
-/*
- * Create the KSTACK for a new thread.
- * This routine directly affects the fork perf for a process/thread.
- */
-void
-pmap_new_thread(struct thread *td, int pages)
-{
-
-	/* Bounds check */
-	if (pages <= 1)
-		pages = KSTACK_PAGES;
-	else if (pages > KSTACK_MAX_PAGES)
-		pages = KSTACK_MAX_PAGES;
-	td->td_kstack = (vm_offset_t)malloc(pages * PAGE_SIZE, M_PMAP,
-	    M_WAITOK);
-	td->td_kstack_pages = pages;
-}
-
-/*
- * Dispose the KSTACK for a thread that has exited.
- * This routine directly impacts the exit perf of a process/thread.
- */
-void
-pmap_dispose_thread(struct thread *td)
-{
-
-	free((void*)td->td_kstack, M_PMAP);
-	td->td_kstack = 0;
-	td->td_kstack_pages = 0;
-}
-
-/*
- * Allow the KSTACK for a thread to be prejudicially paged out.
- */
-void
-pmap_swapout_thread(struct thread *td)
-{
-}
-
-/*
- * Bring the KSTACK for a specified thread back in.
- */
-void
-pmap_swapin_thread(struct thread *td)
-{
-}
-
 /***************************************************
  * Page table page management routines.....
  ***************************************************/
