@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.60 1999/08/06 20:04:01 brian Exp $
+ *	$Id: bundle.c,v 1.61 1999/08/09 22:56:17 brian Exp $
  */
 
 #include <sys/param.h>
@@ -231,6 +231,7 @@ bundle_LayerUp(void *v, struct fsm *fp)
    * If it's an LCP, adjust our phys_mode.open value and check the
    * autoload timer.
    * If it's the first NCP, calculate our bandwidth
+   * If it's the first NCP, set our ``upat'' time
    * If it's the first NCP, start the idle timer.
    * If it's an NCP, tell our -background parent to go away.
    * If it's the first NCP, start the autoload timer
@@ -244,6 +245,7 @@ bundle_LayerUp(void *v, struct fsm *fp)
     mp_CheckAutoloadTimer(&bundle->ncp.mp);
   } else if (fp->proto == PROTO_IPCP) {
     bundle_CalculateBandwidth(fp->bundle);
+    time(&bundle->upat);
     bundle_StartIdleTimer(bundle);
     bundle_Notify(bundle, EX_NORMAL);
     mp_CheckAutoloadTimer(&fp->bundle->ncp.mp);
@@ -256,6 +258,7 @@ bundle_LayerDown(void *v, struct fsm *fp)
   /*
    * The given FSM has been told to come down.
    * If it's our last NCP, stop the idle timer.
+   * If it's our last NCP, clear our ``upat'' value.
    * If it's our last NCP, stop the autoload timer
    * If it's an LCP, adjust our phys_type.open value and any timers.
    * If it's an LCP and we're in multilink mode, adjust our tun
@@ -266,6 +269,7 @@ bundle_LayerDown(void *v, struct fsm *fp)
 
   if (fp->proto == PROTO_IPCP) {
     bundle_StopIdleTimer(bundle);
+    bundle->upat = 0;
     mp_StopAutoloadTimer(&bundle->ncp.mp);
   } else if (fp->proto == PROTO_LCP) {
     bundle_LinksRemoved(bundle);  /* adjust timers & phys_type values */
@@ -684,7 +688,8 @@ bundle_Create(const char *prefix, int type, const char **argv)
   bundle.fsm.LayerFinish = bundle_LayerFinish;
   bundle.fsm.object = &bundle;
 
-  bundle.cfg.idle_timeout = NCP_IDLE_TIMEOUT;
+  bundle.cfg.idle.timeout = NCP_IDLE_TIMEOUT;
+  bundle.cfg.idle.min_timeout = 0;
   *bundle.cfg.auth.name = '\0';
   *bundle.cfg.auth.key = '\0';
   bundle.cfg.opt = OPT_SROUTES | OPT_IDCHECK | OPT_LOOPBACK |
@@ -694,6 +699,7 @@ bundle_Create(const char *prefix, int type, const char **argv)
   bundle.cfg.choked.timeout = CHOKED_TIMEOUT;
   bundle.phys_type.all = type;
   bundle.phys_type.open = 0;
+  bundle.upat = 0;
 
   bundle.links = datalink_Create("deflink", &bundle, type);
   if (bundle.links == NULL) {
@@ -1053,10 +1059,17 @@ bundle_ShowStatus(struct cmdargs const *arg)
   prompt_Printf(arg->prompt, "Phase %s\n", bundle_PhaseName(arg->bundle));
   prompt_Printf(arg->prompt, " Title:         %s\n", arg->bundle->argv[0]);
   prompt_Printf(arg->prompt, " Device:        %s\n", arg->bundle->dev.Name);
-  prompt_Printf(arg->prompt, " Interface:     %s @ %lubps\n",
+  prompt_Printf(arg->prompt, " Interface:     %s @ %lubps",
                 arg->bundle->iface->name, arg->bundle->bandwidth);
 
-  prompt_Printf(arg->prompt, "\nDefaults:\n");
+  if (arg->bundle->upat) {
+    int secs = time(NULL) - arg->bundle->upat;
+
+    prompt_Printf(arg->prompt, ", up time %d:%02d:%02d", secs / 3600,
+                  (secs / 60) % 60, secs % 60);
+  }
+
+  prompt_Printf(arg->prompt, "\n\nDefaults:\n");
   prompt_Printf(arg->prompt, " Label:         %s\n", arg->bundle->cfg.label);
   prompt_Printf(arg->prompt, " Auth name:     %s\n",
                 arg->bundle->cfg.auth.name);
@@ -1069,8 +1082,11 @@ bundle_ShowStatus(struct cmdargs const *arg)
 #endif
 
   prompt_Printf(arg->prompt, " Idle Timer:    ");
-  if (arg->bundle->cfg.idle_timeout) {
-    prompt_Printf(arg->prompt, "%ds", arg->bundle->cfg.idle_timeout);
+  if (arg->bundle->cfg.idle.timeout) {
+    prompt_Printf(arg->prompt, "%ds", arg->bundle->cfg.idle.timeout);
+    if (arg->bundle->cfg.idle.min_timeout)
+      prompt_Printf(arg->prompt, ", min %ds",
+                    arg->bundle->cfg.idle.min_timeout);
     remaining = bundle_RemainingIdleTime(arg->bundle);
     if (remaining != -1)
       prompt_Printf(arg->prompt, " (%ds remaining)", remaining);
@@ -1137,20 +1153,31 @@ bundle_StartIdleTimer(struct bundle *bundle)
 {
   timer_Stop(&bundle->idle.timer);
   if ((bundle->phys_type.open & (PHYS_DEDICATED|PHYS_DDIAL)) !=
-      bundle->phys_type.open && bundle->cfg.idle_timeout) {
+      bundle->phys_type.open && bundle->cfg.idle.timeout) {
+    int secs;
+
+    secs = bundle->cfg.idle.timeout;
+    if (bundle->cfg.idle.min_timeout > secs && bundle->upat) {
+      int up = time(NULL) - bundle->upat;
+
+      if ((long long)bundle->cfg.idle.min_timeout - up > (long long)secs)
+        secs = bundle->cfg.idle.min_timeout - up;
+    }
     bundle->idle.timer.func = bundle_IdleTimeout;
     bundle->idle.timer.name = "idle";
-    bundle->idle.timer.load = bundle->cfg.idle_timeout * SECTICKS;
+    bundle->idle.timer.load = secs * SECTICKS;
     bundle->idle.timer.arg = bundle;
     timer_Start(&bundle->idle.timer);
-    bundle->idle.done = time(NULL) + bundle->cfg.idle_timeout;
+    bundle->idle.done = time(NULL) + secs;
   }
 }
 
 void
-bundle_SetIdleTimer(struct bundle *bundle, int value)
+bundle_SetIdleTimer(struct bundle *bundle, int timeout, int min_timeout)
 {
-  bundle->cfg.idle_timeout = value;
+  bundle->cfg.idle.timeout = timeout;
+  if (min_timeout >= 0)
+    bundle->cfg.idle.min_timeout = min_timeout;
   if (bundle_LinkIsUp(bundle))
     bundle_StartIdleTimer(bundle);
 }
