@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.52 1997/08/09 01:54:51 kato Exp $
+ *  $Id: syscons.c,v 1.53 1997/08/09 06:41:06 kato Exp $
  */
 
 #include "sc.h"
@@ -1211,8 +1211,6 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		for (i=0; i<5; i++)
 	    		(*linesw[(MOUSE_TTY)->t_line].l_rint)(buf[i],MOUSE_TTY);
 	    }
-	    cur_console->mouse_xpos += mouse->u.data.x;
-	    cur_console->mouse_ypos += mouse->u.data.y;
 	    if (cur_console->mouse_signal) {
 		cur_console->mouse_buttons = mouse->u.data.buttons;
     		/* has controlling process died? */
@@ -1240,8 +1238,11 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		    }
 		}
 	    }
-	    if (mouse->u.data.x != 0 || mouse->u.data.y != 0)
+	    if (mouse->u.data.x != 0 || mouse->u.data.y != 0) {
+	    	cur_console->mouse_xpos += mouse->u.data.x;
+	    	cur_console->mouse_ypos += mouse->u.data.y;
 		set_mouse_pos(cur_console);
+	    }
 	    break;
 
 	default:
@@ -4885,25 +4886,22 @@ static void
 set_mouse_pos(scr_stat *scp)
 {
     static int last_xpos = -1, last_ypos = -1;
-    /* 
-     * the margins imposed here are not ideal, we loose
-     * a couble of pixels on the borders..
-     */
+
     if (scp->mouse_xpos < 0)
 	scp->mouse_xpos = 0;
     if (scp->mouse_ypos < 0)
 	scp->mouse_ypos = 0;
     if (scp->status & UNKNOWN_MODE) {
-        if (scp->mouse_xpos > scp->xpixel)
+        if (scp->mouse_xpos > scp->xpixel-1)
 	    scp->mouse_xpos = scp->xpixel-1;
-        if (scp->mouse_ypos > scp->ypixel)
+        if (scp->mouse_ypos > scp->ypixel-1)
 	    scp->mouse_ypos = scp->ypixel-1;
 	return;
     }
-    if (scp->mouse_xpos > (scp->xsize*8)-2)
-	scp->mouse_xpos = (scp->xsize*8)-2;
-    if (scp->mouse_ypos > (scp->ysize*scp->font_size)-2)
-	scp->mouse_ypos = (scp->ysize*scp->font_size)-2;
+    if (scp->mouse_xpos > (scp->xsize*8)-1)
+	scp->mouse_xpos = (scp->xsize*8)-1;
+    if (scp->mouse_ypos > (scp->ysize*scp->font_size)-1)
+	scp->mouse_ypos = (scp->ysize*scp->font_size)-1;
 
     if (scp->mouse_xpos != last_xpos || scp->mouse_ypos != last_ypos) {
 	scp->status |= MOUSE_MOVED;
