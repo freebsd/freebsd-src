@@ -87,7 +87,7 @@ MODULE_DEPEND(tx, pci, 1, 1, 1);
 MODULE_DEPEND(tx, ether, 1, 1, 1);
 MODULE_DEPEND(tx, miibus, 1, 1, 1);
 
-static int epic_ifioctl(register struct ifnet *, u_long, caddr_t);
+static int epic_ifioctl(struct ifnet *, u_long, caddr_t);
 static void epic_intr(void *);
 static void epic_tx_underrun(epic_softc_t *);
 static int epic_common_attach(epic_softc_t *);
@@ -159,8 +159,7 @@ DRIVER_MODULE(tx, pci, epic_driver, epic_devclass, 0, 0);
 DRIVER_MODULE(miibus, tx, miibus_driver, miibus_devclass, 0, 0);
 
 static struct epic_type epic_devs[] = {
-	{ SMC_VENDORID, SMC_DEVICEID_83C170,
-		"SMC EtherPower II 10/100" },
+	{ SMC_VENDORID, SMC_DEVICEID_83C170, "SMC EtherPower II 10/100" },
 	{ 0, 0, NULL }
 };
 
@@ -174,10 +173,10 @@ epic_probe(dev)
 
 	if (t != NULL) {
 		device_set_desc(dev, t->name);
-		return(0);
+		return (0);
 	}
 
-	return(ENXIO);
+	return (ENXIO);
 }
 
 static struct epic_type *
@@ -188,17 +187,17 @@ epic_devtype(dev)
 
 	t = epic_devs;
 
-	while(t->name != NULL) {
+	while (t->name != NULL) {
 		if ((pci_get_vendor(dev) == t->ven_id) &&
 		    (pci_get_device(dev) == t->dev_id)) {
-			return(t);
+			return (t);
 		}
 		t++;
 	}
 	return (NULL);
 }
 
-#if defined(EPIC_USEIOSPACE)
+#ifdef EPIC_USEIOSPACE
 #define	EPIC_RES	SYS_RES_IOPORT
 #define	EPIC_RID	PCIR_BASEIO
 #else
@@ -224,12 +223,12 @@ epic_attach(dev)
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
 
-	/* Preinitialize softc structure */
-	bzero(sc, sizeof(epic_softc_t));		
+	/* Preinitialize softc structure. */
+	bzero(sc, sizeof(epic_softc_t));
 	sc->unit = unit;
 	sc->dev = dev;
 
-	/* Fill ifnet structure */
+	/* Fill ifnet structure. */
 	ifp = &sc->sc_if;
 	ifp->if_unit = unit;
 	ifp->if_name = "tx";
@@ -243,7 +242,7 @@ epic_attach(dev)
 	ifp->if_baudrate = 10000000;
 	ifp->if_snd.ifq_maxlen = TX_RING_SIZE - 1;
 
-	/* Enable busmastering */
+	/* Enable busmastering. */
 	pci_enable_busmaster(dev);
 
 	rid = EPIC_RID;
@@ -258,7 +257,7 @@ epic_attach(dev)
 	sc->sc_st = rman_get_bustag(sc->res);
 	sc->sc_sh = rman_get_bushandle(sc->res);
 
-	/* Allocate interrupt */
+	/* Allocate interrupt. */
 	rid = 0;
 	sc->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
 	    RF_SHAREABLE | RF_ACTIVE);
@@ -269,7 +268,7 @@ epic_attach(dev)
 		goto fail;
 	}
 
-	/* Do OS independent part, including chip wakeup and reset */
+	/* Do OS independent part, including chip wakeup and reset. */
 	error = epic_common_attach(sc);
 	if (error) {
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq);
@@ -278,7 +277,7 @@ epic_attach(dev)
 		goto fail;
 	}
 
-	/* Do ifmedia setup */
+	/* Do ifmedia setup. */
 	if (mii_phy_probe(dev, &sc->miibus,
 	    epic_ifmedia_upd, epic_ifmedia_sts)) {
 		device_printf(dev, "ERROR! MII without any PHY!?\n");
@@ -305,20 +304,20 @@ epic_attach(dev)
 	}
 	printf("\n");
 
-	/* Attach to OS's managers */
+	/* Attach to OS's managers. */
 	ether_ifattach(ifp, sc->sc_macaddr);
 	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 	ifp->if_capabilities |= IFCAP_VLAN_MTU;
 	callout_handle_init(&sc->stat_ch);
 
-	/* Initialize rings */
+	/* Initialize rings. */
 	if (epic_init_rings(sc)) {
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq);
 		bus_release_resource(dev, EPIC_RES, EPIC_RID, sc->res);
 		device_printf(dev, "failed to init rings\n");
 		error = ENXIO;
 		goto fail;
-	}	
+	}
 
 	/* Activate our interrupt handler. */
 	error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET,
@@ -336,7 +335,7 @@ fail:
 }
 
 /*
- * Detach driver and free resources
+ * Detach driver and free resources.
  */
 static int
 epic_detach(dev)
@@ -368,8 +367,7 @@ epic_detach(dev)
 	free(sc->rx_desc, M_DEVBUF);
 
 	splx(s);
-
-	return(0);
+	return (0);
 }
 
 #undef	EPIC_RES
@@ -388,8 +386,6 @@ epic_shutdown(dev)
 	sc = device_get_softc(dev);
 
 	epic_stop(sc);
-
-	return;
 }
 
 /*
@@ -416,8 +412,8 @@ epic_ifioctl(ifp, command, data)
 		/* XXX Though the datasheet doesn't imply any
 		 * limitations on RX and TX sizes beside max 64Kb
 		 * DMA transfer, seems we can't send more then 1600
-		 * data bytes per ethernet packet. (Transmitter hangs
-		 * up if more data is sent)
+		 * data bytes per ethernet packet (transmitter hangs
+		 * up if more data is sent).
 		 */
 		if (ifr->ifr_mtu + ifp->if_hdrlen <= EPIC_MAX_MTU) {
 			ifp->if_mtu = ifr->ifr_mtu;
@@ -444,11 +440,11 @@ epic_ifioctl(ifp, command, data)
 			}
 		}
 
-		/* Handle IFF_PROMISC and IFF_ALLMULTI flags */
-		epic_stop_activity(sc);	
+		/* Handle IFF_PROMISC and IFF_ALLMULTI flags. */
+		epic_stop_activity(sc);
 		epic_set_mc_table(sc);
 		epic_set_rx_mode(sc);
-		epic_start_activity(sc);	
+		epic_start_activity(sc);
 		break;
 
 	case SIOCADDMULTI:
@@ -468,14 +464,12 @@ epic_ifioctl(ifp, command, data)
 		break;
 	}
 	splx(x);
-
-	return error;
+	return (error);
 }
 
 /*
  * OS-independed part of attach process. allocate memory for descriptors
  * and frag lists, wake up chip, read MAC address and PHY identyfier.
- * Return -1 on failure.
  */
 static int
 epic_common_attach(sc)
@@ -483,18 +477,21 @@ epic_common_attach(sc)
 {
 	int i;
 
-	sc->tx_flist = malloc(sizeof(struct epic_frag_list)*TX_RING_SIZE,
+	sc->tx_flist = malloc(sizeof(struct epic_frag_list) * TX_RING_SIZE,
 	    M_DEVBUF, M_NOWAIT | M_ZERO);
-	sc->tx_desc = malloc(sizeof(struct epic_tx_desc)*TX_RING_SIZE,
+	sc->tx_desc = malloc(sizeof(struct epic_tx_desc) * TX_RING_SIZE,
 	    M_DEVBUF, M_NOWAIT | M_ZERO);
-	sc->rx_desc = malloc(sizeof(struct epic_rx_desc)*RX_RING_SIZE,
+	sc->rx_desc = malloc(sizeof(struct epic_rx_desc) * RX_RING_SIZE,
 	    M_DEVBUF, M_NOWAIT | M_ZERO);
 
 	if (sc->tx_flist == NULL || sc->tx_desc == NULL || sc->rx_desc == NULL){
 		device_printf(sc->dev, "failed to malloc memory\n");
-		if (sc->tx_flist) free(sc->tx_flist, M_DEVBUF);
-		if (sc->tx_desc) free(sc->tx_desc, M_DEVBUF);
-		if (sc->rx_desc) free(sc->rx_desc, M_DEVBUF);
+		if (sc->tx_flist)
+			free(sc->tx_flist, M_DEVBUF);
+		if (sc->tx_desc)
+			free(sc->tx_desc, M_DEVBUF);
+		if (sc->rx_desc)
+			free(sc->rx_desc, M_DEVBUF);
 		return (ENOMEM);
 	}
 
@@ -502,31 +499,33 @@ epic_common_attach(sc)
 	CSR_WRITE_4(sc, GENCTL, GENCTL_SOFT_RESET);
 	DELAY(500);
 
-	/* Workaround for Application Note 7-15 */
-	for (i=0; i<16; i++) CSR_WRITE_4(sc, TEST1, TEST1_CLOCK_TEST);
+	/* Workaround for Application Note 7-15. */
+	for (i = 0; i < 16; i++)
+		CSR_WRITE_4(sc, TEST1, TEST1_CLOCK_TEST);
 
-	/* Read mac address from EEPROM */
+	/* Read MAC address from EEPROM. */
 	for (i = 0; i < ETHER_ADDR_LEN / sizeof(u_int16_t); i++)
 		((u_int16_t *)sc->sc_macaddr)[i] = epic_read_eeprom(sc,i);
 
-	/* Set Non-Volatile Control Register from EEPROM */
+	/* Set Non-Volatile Control Register from EEPROM. */
 	CSR_WRITE_4(sc, NVCTL, epic_read_eeprom(sc, EEPROM_NVCTL) & 0x1F);
 
-	/* Set defaults */
+	/* Set defaults. */
 	sc->tx_threshold = TRANSMIT_THRESHOLD;
 	sc->txcon = TXCON_DEFAULT;
 	sc->miicfg = MIICFG_SMI_ENABLE;
 	sc->phyid = EPIC_UNKN_PHY;
 	sc->serinst = -1;
 
-	/* Fetch card id */
+	/* Fetch card id. */
 	sc->cardvend = pci_read_config(sc->dev, PCIR_SUBVEND_0, 2);
 	sc->cardid = pci_read_config(sc->dev, PCIR_SUBDEV_0, 2);
 
 	if (sc->cardvend != SMC_VENDORID)
-		device_printf(sc->dev, "unknown card vendor %04xh\n", sc->cardvend);
+		device_printf(sc->dev, "unknown card vendor %04xh\n",
+		    sc->cardvend);
 
-	return 0;
+	return (0);
 }
 
 /*
@@ -542,35 +541,36 @@ epic_ifstart(ifp)
 	struct epic_tx_buffer *buf;
 	struct epic_tx_desc *desc;
 	struct epic_frag_list *flist;
-	struct mbuf *m0;
-	register struct mbuf *m;
-	register int i;
+	struct mbuf *m0, *m;
+	int i;
 
 	while (sc->pending_txs < TX_RING_SIZE) {
 		buf = sc->tx_buffer + sc->cur_tx;
 		desc = sc->tx_desc + sc->cur_tx;
 		flist = sc->tx_flist + sc->cur_tx;
 
-		/* Get next packet to send */
+		/* Get next packet to send. */
 		IF_DEQUEUE(&ifp->if_snd, m0);
 
-		/* If nothing to send, return */
-		if (NULL == m0) return;
+		/* If nothing to send, return. */
+		if (m0 == NULL)
+			return;
 
-		/* Fill fragments list */
-		for (m = m0, i = 0;
-		    (NULL != m) && (i < EPIC_MAX_FRAGS);
+		/* Fill fragments list. */
+		for (m = m0, i = 0; (m != NULL) && (i < EPIC_MAX_FRAGS);
 		    m = m->m_next, i++) {
 			flist->frag[i].fraglen = m->m_len;
 			flist->frag[i].fragaddr = vtophys(mtod(m, caddr_t));
 		}
 		flist->numfrags = i;
 
-		/* If packet was more than EPIC_MAX_FRAGS parts, */
-		/* recopy packet to new allocated mbuf cluster */
-		if( NULL != m ){
+		/*
+		 * If packet was more than EPIC_MAX_FRAGS parts,
+		 * recopy packet to a newly allocated mbuf cluster.
+		 */
+		if (m != NULL) {
 			m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
-			if( NULL == m ){
+			if (m == NULL) {
 				m_freem(m0);
 				ifp->if_oerrors++;
 				continue;
@@ -596,16 +596,13 @@ epic_ifstart(ifp)
 		desc->status = 0x8000;
 		CSR_WRITE_4(sc, COMMAND, COMMAND_TXQUEUED);
 
-		/* Set watchdog timer */
+		/* Set watchdog timer. */
 		ifp->if_timer = 8;
 
 		BPF_MTAP(ifp, m0);
 	}
 
 	ifp->if_flags |= IFF_OACTIVE;
-
-	return;
-	
 }
 
 /*
@@ -625,8 +622,8 @@ epic_rx_done(sc)
 		buf = sc->rx_buffer + sc->cur_rx;
 		desc = sc->rx_desc + sc->cur_rx;
 
-		/* Switch to next descriptor */
-		sc->cur_rx = (sc->cur_rx+1) & RX_RING_MASK;
+		/* Switch to next descriptor. */
+		sc->cur_rx = (sc->cur_rx + 1) & RX_RING_MASK;
 
 		/*
 		 * Check for RX errors. This should only happen if
@@ -639,13 +636,13 @@ epic_rx_done(sc)
 			continue;
 		}
 
-		/* Save packet length and mbuf contained packet */
+		/* Save packet length and mbuf contained packet. */
 		len = desc->rxlength - ETHER_CRC_LEN;
 		m = buf->mbuf;
 
-		/* Try to get mbuf cluster */
+		/* Try to get an mbuf cluster. */
 		buf->mbuf = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
-		if( NULL == buf->mbuf ) { 
+		if (buf->mbuf == NULL) {
 			buf->mbuf = m;
 			desc->status = 0x8000;
 			ifp->if_ierrors++;
@@ -654,22 +651,20 @@ epic_rx_done(sc)
 		buf->mbuf->m_len = buf->mbuf->m_pkthdr.len = MCLBYTES;
 		m_adj(buf->mbuf, ETHER_ALIGN);
 
-		/* Point to new mbuf, and give descriptor to chip */
+		/* Point to new mbuf, and give descriptor to chip. */
 		desc->bufaddr = vtophys(mtod(buf->mbuf, caddr_t));
 		desc->status = 0x8000;
-		
+
 		/* First mbuf in packet holds the ethernet and packet headers */
 		m->m_pkthdr.rcvif = ifp;
 		m->m_pkthdr.len = m->m_len = len;
 
-		/* Give mbuf to OS */
+		/* Give mbuf to OS. */
 		(*ifp->if_input)(ifp, m);
 
 		/* Successfuly received frame */
 		ifp->if_ipackets++;
         }
-
-	return;
 }
 
 /*
@@ -691,24 +686,29 @@ epic_tx_done(sc)
 		desc = sc->tx_desc + sc->dirty_tx;
 		status = desc->status;
 
-		/* If packet is not transmitted, thou followed */
-		/* packets are not transmitted too */
-		if (status & 0x8000) break;
+		/*
+		 * If packet is not transmitted, thou followed
+		 * packets are not transmitted too.
+		 */
+		if (status & 0x8000)
+			break;
 
-		/* Packet is transmitted. Switch to next and */
-		/* free mbuf */
+		/* Packet is transmitted. Switch to next and free mbuf. */
 		sc->pending_txs--;
 		sc->dirty_tx = (sc->dirty_tx + 1) & TX_RING_MASK;
 		m_freem(buf->mbuf);
 		buf->mbuf = NULL;
 
-		/* Check for errors and collisions */
-		if (status & 0x0001) sc->sc_if.if_opackets++;
-		else sc->sc_if.if_oerrors++;
+		/* Check for errors and collisions. */
+		if (status & 0x0001)
+			sc->sc_if.if_opackets++;
+		else
+			sc->sc_if.if_oerrors++;
 		sc->sc_if.if_collisions += (status >> 8) & 0x1F;
-#if defined(EPIC_DIAG)
+#ifdef EPIC_DIAG
 		if ((status & 0x1001) == 0x1001)
-			device_printf(sc->dev,  "Tx ERROR: excessive coll. number\n");
+			device_printf(sc->dev,
+			    "Tx ERROR: excessive coll. number\n");
 #endif
 	}
 
@@ -723,16 +723,18 @@ static void
 epic_intr(arg)
     void *arg;
 {
-    epic_softc_t * sc = (epic_softc_t *) arg;
-    int status, i = 4;
+    epic_softc_t *sc;
+    int status, i;
 
+    sc = arg;
+    i = 4;
     while (i-- && ((status = CSR_READ_4(sc, INTSTAT)) & INTSTAT_INT_ACTV)) {
 	CSR_WRITE_4(sc, INTSTAT, status);
 
 	if (status & (INTSTAT_RQE|INTSTAT_RCC|INTSTAT_OVW)) {
 	    epic_rx_done(sc);
 	    if (status & (INTSTAT_RQE|INTSTAT_OVW)) {
-#if defined(EPIC_DIAG)
+#ifdef EPIC_DIAG
 		if (status & INTSTAT_OVW)
 		    device_printf(sc->dev, "RX buffer overflow\n");
 		if (status & INTSTAT_RQE)
@@ -756,20 +758,18 @@ epic_intr(arg)
     	    if (status & (INTSTAT_FATAL|INTSTAT_PMA|INTSTAT_PTA|
 			  INTSTAT_APE|INTSTAT_DPE)) {
 		device_printf(sc->dev, "PCI fatal errors occured: %s%s%s%s\n",
-		    (status&INTSTAT_PMA)?"PMA ":"",
-		    (status&INTSTAT_PTA)?"PTA ":"",
-		    (status&INTSTAT_APE)?"APE ":"",
-		    (status&INTSTAT_DPE)?"DPE":""
-		);
+		    (status & INTSTAT_PMA) ? "PMA " : "",
+		    (status & INTSTAT_PTA) ? "PTA " : "",
+		    (status & INTSTAT_APE) ? "APE " : "",
+		    (status & INTSTAT_DPE) ? "DPE" : "");
 
 		epic_stop(sc);
 		epic_init(sc);
-		
 	    	break;
 	    }
 
 	    if (status & INTSTAT_RXE) {
-#if defined(EPIC_DIAG)
+#ifdef EPIC_DIAG
 		device_printf(sc->dev, "CRC/Alignment error\n");
 #endif
 		sc->sc_if.if_ierrors++;
@@ -782,10 +782,9 @@ epic_intr(arg)
 	}
     }
 
-    /* If no packets are pending, then no timeouts */
-    if (sc->pending_txs == 0) sc->sc_if.if_timer = 0;
-
-    return;
+    /* If no packets are pending, then no timeouts. */
+    if (sc->pending_txs == 0)
+	    sc->sc_if.if_timer = 0;
 }
 
 /*
@@ -798,26 +797,25 @@ epic_tx_underrun(sc)
 {
 	if (sc->tx_threshold > TRANSMIT_THRESHOLD_MAX) {
 		sc->txcon &= ~TXCON_EARLY_TRANSMIT_ENABLE;
-#if defined(EPIC_DIAG)
+#ifdef EPIC_DIAG
 		device_printf(sc->dev, "Tx UNDERRUN: early TX disabled\n");
 #endif
 	} else {
 		sc->tx_threshold += 0x40;
-#if defined(EPIC_DIAG)
-		device_printf(sc->dev, "Tx UNDERRUN: TX threshold increased to %d\n",
+#ifdef EPIC_DIAG
+		device_printf(sc->dev,
+		    "Tx UNDERRUN: TX threshold increased to %d\n",
 		    sc->tx_threshold);
 #endif
 	}
 
-	/* We must set TXUGO to reset the stuck transmitter */
+	/* We must set TXUGO to reset the stuck transmitter. */
 	CSR_WRITE_4(sc, COMMAND, COMMAND_TXUGO);
 
 	/* Update the TX threshold */
 	epic_stop_activity(sc);
 	epic_set_tx_mode(sc);
 	epic_start_activity(sc);
-
-	return;
 }
 
 /*
@@ -829,31 +827,31 @@ static void
 epic_ifwatchdog(ifp)
 	struct ifnet *ifp;
 {
-	epic_softc_t *sc = ifp->if_softc;
+	epic_softc_t *sc;
 	int x;
 
 	x = splimp();
+	sc = ifp->if_softc;
 
 	device_printf(sc->dev, "device timeout %d packets\n", sc->pending_txs);
 
-	/* Try to finish queued packets */
+	/* Try to finish queued packets. */
 	epic_tx_done(sc);
 
-	/* If not successful */
+	/* If not successful. */
 	if (sc->pending_txs > 0) {
-
 		ifp->if_oerrors+=sc->pending_txs;
 
-		/* Reinitialize board */
+		/* Reinitialize board. */
 		device_printf(sc->dev, "reinitialization\n");
 		epic_stop(sc);
 		epic_init(sc);
-
 	} else
 		device_printf(sc->dev, "seems we can continue normaly\n");
 
-	/* Start output */
-	if (ifp->if_snd.ifq_head) epic_ifstart(ifp);
+	/* Start output. */
+	if (ifp->if_snd.ifq_head)
+		epic_ifstart(ifp);
 
 	splx(x);
 }
@@ -896,25 +894,25 @@ epic_ifmedia_upd(ifp)
 	ifm = &mii->mii_media;
 	media = ifm->ifm_cur->ifm_media;
 
-	/* Do not do anything if interface is not up */
+	/* Do not do anything if interface is not up. */
 	if ((ifp->if_flags & IFF_UP) == 0)
 		return (0);
 
 	/*
-	 * Lookup current selected PHY
+	 * Lookup current selected PHY.
 	 */
 	if (IFM_INST(media) == sc->serinst) {
 		sc->phyid = EPIC_SERIAL;
 		sc->physc = NULL;
 	} else {
-		/* If we're not selecting serial interface, select MII mode */
+		/* If we're not selecting serial interface, select MII mode. */
 		sc->miicfg &= ~MIICFG_SERIAL_ENABLE;
 		CSR_WRITE_4(sc, MIICFG, sc->miicfg);
 
-		/* Default to unknown PHY */
+		/* Default to unknown PHY. */
 		sc->phyid = EPIC_UNKN_PHY;
 
-		/* Lookup selected PHY */
+		/* Lookup selected PHY. */
 		for (miisc = LIST_FIRST(&mii->mii_phys); miisc != NULL;
 		     miisc = LIST_NEXT(miisc, mii_list)) {
 			if (IFM_INST(media) == miisc->mii_inst) {
@@ -923,7 +921,7 @@ epic_ifmedia_upd(ifp)
 			}
 		}
 
-		/* Identify selected PHY */
+		/* Identify selected PHY. */
 		if (sc->physc) {
 			int id1, id2, model, oui;
 
@@ -950,29 +948,30 @@ epic_ifmedia_upd(ifp)
 	}
 
 	/*
-	 * Do PHY specific card setup
+	 * Do PHY specific card setup.
 	 */
 
-	/* Call this, to isolate all not selected PHYs and
-	 * set up selected
+	/*
+	 * Call this, to isolate all not selected PHYs and
+	 * set up selected.
 	 */
 	mii_mediachg(mii);
 
-	/* Do our own setup */
+	/* Do our own setup. */
 	switch (sc->phyid) {
 	case EPIC_QS6612_PHY:
 		break;
 	case EPIC_AC101_PHY:
-		/* We have to powerup fiber tranceivers */
+		/* We have to powerup fiber tranceivers. */
 		if (IFM_SUBTYPE(media) == IFM_100_FX)
 			sc->miicfg |= MIICFG_694_ENABLE;
 		else
 			sc->miicfg &= ~MIICFG_694_ENABLE;
 		CSR_WRITE_4(sc, MIICFG, sc->miicfg);
-	
+
 		break;
 	case EPIC_LXT970_PHY:
-		/* We have to powerup fiber tranceivers */
+		/* We have to powerup fiber tranceivers. */
 		cfg = PHY_READ(sc->physc, MII_LXTPHY_CONFIG);
 		if (IFM_SUBTYPE(media) == IFM_100_FX)
 			cfg |= CONFIG_LEDC1 | CONFIG_LEDC0;
@@ -982,26 +981,26 @@ epic_ifmedia_upd(ifp)
 
 		break;
 	case EPIC_SERIAL:
-		/* Select serial PHY, (10base2/BNC usually) */
+		/* Select serial PHY (10base2/BNC usually). */
 		sc->miicfg |= MIICFG_694_ENABLE | MIICFG_SERIAL_ENABLE;
 		CSR_WRITE_4(sc, MIICFG, sc->miicfg);
 
-		/* There is no driver to fill this */
+		/* There is no driver to fill this. */
 		mii->mii_media_active = media;
 		mii->mii_media_status = 0;
 
-		/* We need to call this manualy as i wasn't called
-		 * in mii_mediachg()
+		/*
+		 * We need to call this manually as it wasn't called
+		 * in mii_mediachg().
 		 */
 		epic_miibus_statchg(sc->dev);
-
 		break;
 	default:
 		device_printf(sc->dev, "ERROR! Unknown PHY selected\n");
 		return (EINVAL);
 	}
 
-	return(0);
+	return (0);
 }
 
 /*
@@ -1020,23 +1019,20 @@ epic_ifmedia_sts(ifp, ifmr)
 	mii = device_get_softc(sc->miibus);
 	ifm = &mii->mii_media;
 
-	/* Nothing should be selected if interface is down */
+	/* Nothing should be selected if interface is down. */
 	if ((ifp->if_flags & IFF_UP) == 0) {
 		ifmr->ifm_active = IFM_NONE;
 		ifmr->ifm_status = 0;
-
 		return;
 	}
 
-	/* Call underlying pollstat, if not serial PHY */
+	/* Call underlying pollstat, if not serial PHY. */
 	if (sc->phyid != EPIC_SERIAL)
 		mii_pollstat(mii);
 
-	/* Simply copy media info */
+	/* Simply copy media info. */
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
-
-	return;
 }
 
 /*
@@ -1056,13 +1052,14 @@ epic_miibus_statchg(dev)
 
 	sc->txcon &= ~(TXCON_LOOPBACK_MODE | TXCON_FULL_DUPLEX);
 
-	/* If we are in full-duplex mode or loopback operation,
+	/*
+	 * If we are in full-duplex mode or loopback operation,
 	 * we need to decouple receiver and transmitter.
 	 */
 	if (IFM_OPTIONS(media) & (IFM_FDX | IFM_LOOP))
  		sc->txcon |= TXCON_FULL_DUPLEX;
 
-	/* On some cards we need manualy set fullduplex led */
+	/* On some cards we need manualy set fullduplex led. */
 	if (sc->cardid == SMC9432FTX ||
 	    sc->cardid == SMC9432FTX_SC) {
 		if (IFM_OPTIONS(media) & IFM_FDX)
@@ -1073,7 +1070,7 @@ epic_miibus_statchg(dev)
 		CSR_WRITE_4(sc, MIICFG, sc->miicfg);
 	}
 
-	/* Update baudrate */
+	/* Update baudrate. */
 	if (IFM_SUBTYPE(media) == IFM_100_TX ||
 	    IFM_SUBTYPE(media) == IFM_100_FX)
 		sc->sc_if.if_baudrate = 100000000;
@@ -1083,8 +1080,6 @@ epic_miibus_statchg(dev)
 	epic_stop_activity(sc);
 	epic_set_tx_mode(sc);
 	epic_start_activity(sc);
-
-	return;
 }
 
 static void
@@ -1100,22 +1095,21 @@ epic_miibus_mediainit(dev)
 	mii = device_get_softc(sc->miibus);
 	ifm = &mii->mii_media;
 
-	/* Add Serial Media Interface if present, this applies to
-	 * SMC9432BTX serie
+	/*
+	 * Add Serial Media Interface if present, this applies to
+	 * SMC9432BTX serie.
 	 */
 	if (CSR_READ_4(sc, MIICFG) & MIICFG_PHY_PRESENT) {
-		/* Store its instance */
+		/* Store its instance. */
 		sc->serinst = mii->mii_instance++;
 
-		/* Add as 10base2/BNC media */
+		/* Add as 10base2/BNC media. */
 		media = IFM_MAKEWORD(IFM_ETHER, IFM_10_2, 0, sc->serinst);
 		ifmedia_add(ifm, media, 0, NULL);
 
-		/* Report to user */
+		/* Report to user. */
 		device_printf(sc->dev, "serial PHY detected (10Base2/BNC)\n");
 	}
-
-	return;
 }
 
 /*
@@ -1131,13 +1125,13 @@ epic_init(xsc)
 
 	s = splimp();
 
-	/* If interface is already running, then we need not do anything */
+	/* If interface is already running, then we need not do anything. */
 	if (ifp->if_flags & IFF_RUNNING) {
 		splx(s);
 		return;
 	}
 
-	/* Soft reset the chip (we have to power up card before) */
+	/* Soft reset the chip (we have to power up card before). */
 	CSR_WRITE_4(sc, GENCTL, 0);
 	CSR_WRITE_4(sc, GENCTL, GENCTL_SOFT_RESET);
 
@@ -1151,24 +1145,25 @@ epic_init(xsc)
 	CSR_WRITE_4(sc, GENCTL, 0);
 
 	/* Workaround for Application Note 7-15 */
-	for (i=0; i<16; i++) CSR_WRITE_4(sc, TEST1, TEST1_CLOCK_TEST);
+	for (i = 0; i < 16; i++)
+		CSR_WRITE_4(sc, TEST1, TEST1_CLOCK_TEST);
 
 	/* Give rings to EPIC */
 	CSR_WRITE_4(sc, PRCDAR, vtophys(sc->rx_desc));
 	CSR_WRITE_4(sc, PTCDAR, vtophys(sc->tx_desc));
 
-	/* Put node address to EPIC */
+	/* Put node address to EPIC. */
 	CSR_WRITE_4(sc, LAN0, ((u_int16_t *)sc->sc_macaddr)[0]);
 	CSR_WRITE_4(sc, LAN1, ((u_int16_t *)sc->sc_macaddr)[1]);
 	CSR_WRITE_4(sc, LAN2, ((u_int16_t *)sc->sc_macaddr)[2]);
 
-	/* Set tx mode, includeing transmit threshold */
+	/* Set tx mode, includeing transmit threshold. */
 	epic_set_tx_mode(sc);
 
 	/* Compute and set RXCON. */
 	epic_set_rx_mode(sc);
 
-	/* Set multicast table */
+	/* Set multicast table. */
 	epic_set_mc_table(sc);
 
 	/* Enable interrupts by setting the interrupt mask. */
@@ -1177,7 +1172,7 @@ epic_init(xsc)
 		/* INTSTAT_TXC | */ INTSTAT_TCC | INTSTAT_TQE | INTSTAT_TXU |
 		INTSTAT_FATAL);
 
-	/* Acknowledge all pending interrupts */
+	/* Acknowledge all pending interrupts. */
 	CSR_WRITE_4(sc, INTSTAT, CSR_READ_4(sc, INTSTAT));
 
 	/* Enable interrupts,  set for PCI read multiple and etc */
@@ -1186,8 +1181,10 @@ epic_init(xsc)
 		GENCTL_ONECOPY | GENCTL_RECEIVE_FIFO_THRESHOLD64);
 
 	/* Mark interface running ... */
-	if (ifp->if_flags & IFF_UP) ifp->if_flags |= IFF_RUNNING;
-	else ifp->if_flags &= ~IFF_RUNNING;
+	if (ifp->if_flags & IFF_UP)
+		ifp->if_flags |= IFF_RUNNING;
+	else
+		ifp->if_flags &= ~IFF_RUNNING;
 
 	/* ... and free */
 	ifp->if_flags &= ~IFF_OACTIVE;
@@ -1211,18 +1208,19 @@ static void
 epic_set_rx_mode(sc)
 	epic_softc_t *sc;
 {
-	u_int32_t 		flags = sc->sc_if.if_flags;
-	u_int32_t 		rxcon = RXCON_DEFAULT;
+	u_int32_t flags;
+	u_int32_t rxcon;
 
-#if defined(EPIC_EARLY_RX)
+	flags = sc->sc_if.if_flags;
+	rxcon = RXCON_DEFAULT;
+
+#ifdef EPIC_EARLY_RX
 	rxcon |= RXCON_EARLY_RX;
 #endif
 
 	rxcon |= (flags & IFF_PROMISC) ? RXCON_PROMISCUOUS_MODE : 0;
 
 	CSR_WRITE_4(sc, RXCON, rxcon);
-
-	return;
 }
 
 /*
@@ -1233,6 +1231,7 @@ static void
 epic_set_tx_mode(sc)
 	epic_softc_t *sc;
 {
+
 	if (sc->txcon & TXCON_EARLY_TRANSMIT_ENABLE)
 		CSR_WRITE_4(sc, ETXTHR, sc->tx_threshold);
 
@@ -1250,17 +1249,17 @@ static void
 epic_set_mc_table(sc)
 	epic_softc_t *sc;
 {
-	struct ifnet *ifp = &sc->sc_if;
+	struct ifnet *ifp;
 	struct ifmultiaddr *ifma;
 	u_int16_t filter[4];
 	u_int8_t h;
 
+	ifp = &sc->sc_if;
 	if (ifp->if_flags & (IFF_ALLMULTI | IFF_PROMISC)) {
 		CSR_WRITE_4(sc, MC0, 0xFFFF);
 		CSR_WRITE_4(sc, MC1, 0xFFFF);
 		CSR_WRITE_4(sc, MC2, 0xFFFF);
 		CSR_WRITE_4(sc, MC3, 0xFFFF);
-
 		return;
 	}
 
@@ -1276,7 +1275,8 @@ epic_set_mc_table(sc)
 #endif
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
-		h = epic_calchash(LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
+		h = epic_calchash(
+		    LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
 		filter[h >> 4] |= 1 << (h & 0xF);
 	}
 
@@ -1284,8 +1284,6 @@ epic_set_mc_table(sc)
 	CSR_WRITE_4(sc, MC1, filter[1]);
 	CSR_WRITE_4(sc, MC2, filter[2]);
 	CSR_WRITE_4(sc, MC3, filter[3]);
-
-	return;
 }
 
 /*
@@ -1324,10 +1322,11 @@ static void
 epic_start_activity(sc)
 	epic_softc_t *sc;
 {
-	/* Start rx process */
+
+	/* Start rx process. */
 	CSR_WRITE_4(sc, COMMAND,
 		COMMAND_RXQUEUED | COMMAND_START_RX |
-		(sc->pending_txs?COMMAND_TXQUEUED:0));
+		(sc->pending_txs ? COMMAND_TXQUEUED : 0));
 }
 
 /*
@@ -1340,19 +1339,20 @@ epic_stop_activity(sc)
 {
 	int status, i;
 
-	/* Stop Tx and Rx DMA */
+	/* Stop Tx and Rx DMA. */
 	CSR_WRITE_4(sc, COMMAND,
 	    COMMAND_STOP_RX | COMMAND_STOP_RDMA | COMMAND_STOP_TDMA);
 
-	/* Wait Rx and Tx DMA to stop (why 1 ms ??? XXX) */
+	/* Wait Rx and Tx DMA to stop (why 1 ms ??? XXX). */
 	for (i=0; i<0x1000; i++) {
-		status = CSR_READ_4(sc, INTSTAT) & (INTSTAT_TXIDLE | INTSTAT_RXIDLE);
+		status = CSR_READ_4(sc, INTSTAT) &
+		    (INTSTAT_TXIDLE | INTSTAT_RXIDLE);
 		if (status == (INTSTAT_TXIDLE | INTSTAT_RXIDLE))
 			break;
 		DELAY(1);
 	}
 
-	/* Catch all finished packets */
+	/* Catch all finished packets. */
 	epic_rx_done(sc);
 	epic_tx_done(sc);
 
@@ -1369,8 +1369,7 @@ epic_stop_activity(sc)
 	 * but existing case.
 	 */
 	if ((status & INTSTAT_TQE) && !(status & INTSTAT_TXIDLE))
-		(void) epic_queue_last_packet(sc);
-
+		(void)epic_queue_last_packet(sc);
 }
 
 /*
@@ -1400,22 +1399,22 @@ epic_queue_last_packet(sc)
 		return (EBUSY);
 
 	MGETHDR(m0, M_DONTWAIT, MT_DATA);
-	if (NULL == m0)
+	if (m0 == NULL)
 		return (ENOBUFS);
 
-	/* Prepare mbuf */
+	/* Prepare mbuf. */
 	m0->m_len = min(MHLEN, ETHER_MIN_LEN-ETHER_CRC_LEN);
 	flist->frag[0].fraglen = m0->m_len;
 	m0->m_pkthdr.len = m0->m_len;
 	m0->m_pkthdr.rcvif = &sc->sc_if;
-	bzero(mtod(m0,caddr_t), m0->m_len);
+	bzero(mtod(m0, caddr_t), m0->m_len);
 
-	/* Fill fragments list */
+	/* Fill fragments list. */
 	flist->frag[0].fraglen = m0->m_len;
 	flist->frag[0].fragaddr = vtophys(mtod(m0, caddr_t));
 	flist->numfrags = 1;
 
-	/* Fill in descriptor */
+	/* Fill in descriptor. */
 	buf->mbuf = m0;
 	sc->pending_txs++;
 	sc->cur_tx = (sc->cur_tx + 1) & TX_RING_MASK;
@@ -1423,11 +1422,11 @@ epic_queue_last_packet(sc)
 	desc->txlength = max(m0->m_pkthdr.len,ETHER_MIN_LEN-ETHER_CRC_LEN);
 	desc->status = 0x8000;
 
-	/* Launch transmition */
+	/* Launch transmission. */
 	CSR_WRITE_4(sc, COMMAND, COMMAND_STOP_TDMA | COMMAND_TXQUEUED);
 
 	/* Wait Tx DMA to stop (for how long??? XXX) */
-	for (i=0; i<1000; i++) {
+	for (i = 0; i < 1000; i++) {
 		if (CSR_READ_4(sc, INTSTAT) & INTSTAT_TXIDLE)
 			break;
 		DELAY(1);
@@ -1438,7 +1437,7 @@ epic_queue_last_packet(sc)
 	else
 		epic_tx_done(sc);
 
-	return 0;
+	return (0);
 }
 
 /*
@@ -1474,7 +1473,6 @@ epic_stop(sc)
 	sc->sc_if.if_flags &= ~IFF_RUNNING;
 
 	splx(s);
-	return;
 }
 
 /*
@@ -1486,19 +1484,20 @@ epic_free_rings(sc)
 {
 	int i;
 
-	for (i=0; i<RX_RING_SIZE; i++) {
+	for (i = 0; i < RX_RING_SIZE; i++) {
 		struct epic_rx_buffer *buf = sc->rx_buffer + i;
 		struct epic_rx_desc *desc = sc->rx_desc + i;
-		
+
 		desc->status = 0;
 		desc->buflength = 0;
 		desc->bufaddr = 0;
 
-		if (buf->mbuf) m_freem(buf->mbuf);
+		if (buf->mbuf)
+			m_freem(buf->mbuf);
 		buf->mbuf = NULL;
 	}
 
-	for (i=0; i<TX_RING_SIZE; i++) {
+	for (i = 0; i < TX_RING_SIZE; i++) {
 		struct epic_tx_buffer *buf = sc->tx_buffer + i;
 		struct epic_tx_desc *desc = sc->tx_desc + i;
 
@@ -1506,7 +1505,8 @@ epic_free_rings(sc)
 		desc->buflength = 0;
 		desc->bufaddr = 0;
 
-		if (buf->mbuf) m_freem(buf->mbuf);
+		if (buf->mbuf)
+			m_freem(buf->mbuf);
 		buf->mbuf = NULL;
 	}
 }
@@ -1534,13 +1534,13 @@ epic_init_rings(sc)
 		if ((desc->next & 3) ||
 		    ((desc->next & PAGE_MASK) + sizeof *desc) > PAGE_SIZE) {
 			epic_free_rings(sc);
-			return EFAULT;
+			return (EFAULT);
 		}
 
 		buf->mbuf = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
-		if( NULL == buf->mbuf ) {
+		if(buf->mbuf == NULL) {
 			epic_free_rings(sc);
-			return ENOBUFS;
+			return (ENOBUFS);
 		}
 		buf->mbuf->m_len = buf->mbuf->m_pkthdr.len = MCLBYTES;
 		m_adj(buf->mbuf, ETHER_ALIGN);
@@ -1560,20 +1560,21 @@ epic_init_rings(sc)
 		if ((desc->next & 3) ||
 		    ((desc->next & PAGE_MASK) + sizeof *desc) > PAGE_SIZE) {
 			epic_free_rings(sc);
-			return EFAULT;
+			return (EFAULT);
 		}
 
 		buf->mbuf = NULL;
 		desc->bufaddr = vtophys(sc->tx_flist + i);
 
 		if ((desc->bufaddr & 3) ||
-		    ((desc->bufaddr & PAGE_MASK) + sizeof(struct epic_frag_list)) > PAGE_SIZE) {
+		    ((desc->bufaddr & PAGE_MASK) +
+		    sizeof(struct epic_frag_list)) > PAGE_SIZE) {
 			epic_free_rings(sc);
-			return EFAULT;
+			return (EFAULT);
 		}
 	}
 
-	return 0;
+	return (0);
 }
 
 /*
@@ -1588,17 +1589,18 @@ epic_write_eepromreg(sc, val)
 
 	CSR_WRITE_1(sc, EECTL, val);
 
-	for (i=0; i<0xFF; i++)
-		if ((CSR_READ_1(sc, EECTL) & 0x20) == 0) break;
-
-	return;
+	for (i=0; i<0xFF; i++) {
+		if ((CSR_READ_1(sc, EECTL) & 0x20) == 0)
+			break;
+	}
 }
 
 static u_int8_t
 epic_read_eepromreg(sc)
 	epic_softc_t *sc;
 {
-	return CSR_READ_1(sc, EECTL);
+
+	return (CSR_READ_1(sc, EECTL));
 }
 
 static u_int8_t
@@ -1606,11 +1608,12 @@ epic_eeprom_clock(sc, val)
 	epic_softc_t *sc;
 	u_int8_t val;
 {
+
 	epic_write_eepromreg(sc, val);
 	epic_write_eepromreg(sc, (val | 0x4));
 	epic_write_eepromreg(sc, val);
-	
-	return epic_read_eepromreg(sc);
+
+	return (epic_read_eepromreg(sc));
 }
 
 static void
@@ -1635,12 +1638,12 @@ epic_input_eepromw(sc)
 	u_int16_t retval = 0;
 	int i;
 
-	for (i = 0xF; i >= 0; i--) {	
+	for (i = 0xF; i >= 0; i--) {
 		if (epic_eeprom_clock(sc, 0x3) & 0x10)
 			retval |= (1 << i);
 	}
 
-	return retval;
+	return (retval);
 }
 
 static int
@@ -1663,12 +1666,12 @@ epic_read_eeprom(sc, loc)
 	dataval = epic_input_eepromw(sc);
 
 	epic_write_eepromreg(sc, 1);
-	
-	return dataval;
+
+	return (dataval);
 }
 
 /*
- * Here goes MII read/write routines
+ * Here goes MII read/write routines.
  */
 static int
 epic_read_phy_reg(sc, phy, reg)
@@ -1680,7 +1683,8 @@ epic_read_phy_reg(sc, phy, reg)
 	CSR_WRITE_4(sc, MIICTL, ((reg << 4) | (phy << 9) | 0x01));
 
 	for (i = 0; i < 0x100; i++) {
-		if ((CSR_READ_4(sc, MIICTL) & 0x01) == 0) break;
+		if ((CSR_READ_4(sc, MIICTL) & 0x01) == 0)
+			break;
 		DELAY(1);
 	}
 
@@ -1697,12 +1701,11 @@ epic_write_phy_reg(sc, phy, reg, val)
 	CSR_WRITE_4(sc, MIIDATA, val);
 	CSR_WRITE_4(sc, MIICTL, ((reg << 4) | (phy << 9) | 0x02));
 
-	for(i=0;i<0x100;i++) {
-		if ((CSR_READ_4(sc, MIICTL) & 0x02) == 0) break;
+	for(i = 0; i < 0x100; i++) {
+		if ((CSR_READ_4(sc, MIICTL) & 0x02) == 0)
+			break;
 		DELAY(1);
 	}
-
-	return;
 }
 
 static int
