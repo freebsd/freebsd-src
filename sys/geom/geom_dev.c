@@ -380,6 +380,10 @@ g_dev_strategy(struct bio *bp)
 	struct bio *bp2;
 	dev_t dev;
 
+	KASSERT(bp->bio_cmd == BIO_READ ||
+	        bp->bio_cmd == BIO_WRITE ||
+	        bp->bio_cmd == BIO_DELETE,
+		("Wrong bio_cmd bio=%p cmd=%d", bp, bp->bio_cmd));
 	dev = bp->bio_dev;
 	gp = dev->si_drv1;
 	cp = dev->si_drv2;
