@@ -1,5 +1,5 @@
 /*-
- *  dgreg.h $Id: dgreg.h,v 1.3 1995/12/22 16:08:15 bde Exp $
+ *  dgreg.h $Id: dgreg.h,v 1.4 1996/06/12 04:59:15 gpalmer Exp $
  *
  *  Digiboard driver.
  *
@@ -15,8 +15,6 @@
  *      (Chelyabinsk, Russia)
  *      babkin@hq.icb.chel.su
  */
-
-#define	DEBUG	1
 
 #define MAX_DGB_PORTS	32
 
@@ -343,18 +341,84 @@ struct channel {
 #define	DGBFLAG_ALTPIN	0x0001	/* chande DCD and DCD */
 #define DGBFLAG_NOWIN	0x0002	/* use windowed PC/Xe as non-windowed */
 
+#define DB_RD	  0x0001
+#define DB_WR	  0x0002
+#define DB_WIN	  0x0004
+#define DB_INFO   0x0008
+#define DB_EXCEPT 0x0010
+#define DB_OPEN   0x0100
+#define DB_CLOSE  0x0200
+#define DB_DATA   0x0400
+#define DB_RXDATA 0x0401
+#define DB_TXDATA 0x0402
+#define DB_EVENT  0x0800
+#define DB_MODEM  0x1000
+#define DB_BREAK  0x2000
+#define DB_PARAM  0x4000
+#define DB_FEP    0x8000
+
 /* debugging printout */
 
 #ifdef DEBUG
-#	define DPRINT1(a1)	(dgbdebug ? printf(a1) : 0)
-#	define DPRINT2(a1,a2)	(dgbdebug ? printf(a1,a2) : 0)
-#	define DPRINT3(a1,a2,a3)	(dgbdebug ? printf(a1,a2,a3) : 0)
-#	define DPRINT4(a1,a2,a3,a4)	(dgbdebug ? printf(a1,a2,a3,a4) : 0)
-#	define DPRINT5(a1,a2,a3,a4,a5)	(dgbdebug ? printf(a1,a2,a3,a4,a5) : 0)
+#define DPRINT1(l,a1)			(dgbdebug&l ? printf(a1) : 0)
+#define DPRINT2(l,a1,a2)		(dgbdebug&l ? printf(a1,a2) : 0)
+#define DPRINT3(l,a1,a2,a3)		(dgbdebug&l ? printf(a1,a2,a3) : 0)
+#define DPRINT4(l,a1,a2,a3,a4)		(dgbdebug&l ? printf(a1,a2,a3,a4) : 0)
+#define DPRINT5(l,a1,a2,a3,a4,a5)	(dgbdebug&l ? printf(a1,a2,a3,a4,a5) : 0)
+#define DPRINT6(l,a1,a2,a3,a4,a5,a6)	(dgbdebug&l ? printf(a1,a2,a3,a4,a5,a6) : 0)
+#define DPRINT7(l,a1,a2,a3,a4,a5,a6,a7) (dgbdebug&l ? printf(a1,a2,a3,a4,a5,a6,a7) : 0)
 #else
-#	define DPRINT1(a1)
-#	define DPRINT2(a1,a2)
-#	define DPRINT3(a1,a2,a3)
-#	define DPRINT4(a1,a2,a3,a4)
-#	define DPRINT5(a1,a2,a3,a4,a5)
+#define DPRINT1(l,a1)
+#define DPRINT2(l,a1,a2)
+#define DPRINT3(l,a1,a2,a3)
+#define DPRINT4(l,a1,a2,a3,a4)
+#define DPRINT5(l,a1,a2,a3,a4,a5)
+#define DPRINT6(l,a1,a2,a3,a4,a5,a6)
+#define DPRINT7(l,a1,a2,a3,a4,a5,a6,a7)
 #endif
+
+
+	/* These are termios bits as the FEP understands them */
+
+/* c_cflag bits */
+#define FEP_CBAUD	0x00000f
+#define  FEP_B0		0x000000		/* hang up */
+#define  FEP_B50	0x000001
+#define  FEP_B75	0x000002
+#define  FEP_B110	0x000003
+#define  FEP_B134	0x000004
+#define  FEP_B150	0x000005
+#define  FEP_B200	0x000006
+#define  FEP_B300	0x000007
+#define  FEP_B600	0x000008
+#define  FEP_B1200	0x000009
+#define  FEP_B1800	0x00000a
+#define  FEP_B2400	0x00000b
+#define  FEP_B4800	0x00000c
+#define  FEP_B9600	0x00000d
+#define  FEP_B19200	0x00000e
+#define  FEP_B38400	0x00000f
+#define FEP_EXTA FEP_B19200
+#define FEP_EXTB FEP_B38400
+#define FEP_CSIZE	0x000030
+#define   FEP_CS5	0x000000
+#define   FEP_CS6	0x000010
+#define   FEP_CS7	0x000020
+#define   FEP_CS8	0x000030
+#define FEP_CSTOPB	0x000040
+#define FEP_CREAD	0x000080
+#define FEP_PARENB	0x000100
+#define FEP_PARODD	0x000200
+#define FEP_CLOCAL	0x000800
+#define FEP_FASTBAUD	0x000400
+/* c_iflag bits */
+#define FEP_IGNBRK	0000001
+#define FEP_BRKINT	0000002
+#define FEP_IGNPAR	0000004
+#define FEP_PARMRK	0000010
+#define FEP_INPCK	0000020
+#define FEP_ISTRIP	0000040
+#define FEP_IXON	0002000
+#define FEP_IXANY	0004000
+#define FEP_IXOFF	0010000
+
