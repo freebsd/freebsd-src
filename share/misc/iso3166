@@ -192,7 +192,7 @@ PT	PRT	620	Portugal
 PR	PRI	630	Puerto Rico
 QA	QAT	634	Qatar
 RE	REU	638	Reunion
-RO	ROM	642	Romania
+RO	ROU	642	Romania
 RU	RUS	643	Russian Federation
 RW	RWA	646	Rwanda
 KN	KNA	659	Saint Kitts and Nevis
@@ -464,4 +464,7 @@ ZW	ZWE	716	Zimbabwe
 # Newsletter IV-2 1997-07-14
 #  ZAIRE (ZA) changed to CONGO, THE DEMOCRATIC REPUBLIC OF THE  (CD)
 #  change of name, alpha-2 and alpha-3, numeric remains 180
-
+#
+# Newsletter V-3 2002-02-01
+#  ROMANIA (RO) changed alpha-3 code from ROM to ROU.  Numeric remains 642.
+#
