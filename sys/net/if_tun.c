@@ -573,15 +573,14 @@ tunread(dev, uio, flag)
 
 	while (m0 && uio->uio_resid > 0 && error == 0) {
 		len = min(uio->uio_resid, m0->m_len);
-		if (len == 0)
-			break;
-		error = uiomove(mtod(m0, caddr_t), len, uio);
+		if (len != 0)
+			error = uiomove(mtod(m0, caddr_t), len, uio);
 		MFREE(m0, m);
 		m0 = m;
 	}
 
 	if (m0) {
-		TUNDEBUG("Dropping mbuf\n");
+		TUNDEBUG("%s%d: Dropping mbuf\n", ifp->if_name, ifp->if_unit);
 		m_freem(m0);
 	}
 	return error;
