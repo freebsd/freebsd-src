@@ -3028,13 +3028,6 @@ several example man pages
 .Xr troff 1 ,
 .Xr mdoc 7
 .Sh BUGS
-Undesirable hyphenation on the dash of a flag
-argument is not yet resolved, and causes
-occasional mishaps in the
-.Sx DESCRIPTION
-section.
-(line break on the hyphen).
-.Pp
 Predefined strings are not declared in documentation.
 .Pp
 Section 3f has not been added to the header routines.
@@ -3050,11 +3043,6 @@ if the line length is too short.
 Occasionally it
 separates the last parenthesis, and sometimes
 looks ridiculous if a line is in fill mode.
-.Pp
-The method used to prevent header and footer page
-breaks (other than the initial header and footer) when using
-nroff occasionally places an unsightly partially filled line (blank)
-at the would be bottom of the page.
 .Pp
 The list and display macros to not do any keeps
 and certainly should be able to.
