@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.129 1998/10/26 19:07:39 brian Exp $
+.\" $Id: ppp.8,v 1.130 1998/10/27 22:53:18 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -2381,6 +2381,8 @@ file.
 This is replaced with the IP number assigned to the local interface.
 .It Li PEER_ENDDISC
 This is replaced with the value of the peers endpoint discriminator.
+.It Li PROCESSID
+This is replaced with the current process id.
 .It Li USER
 This is replaced with the username that has been authenticated with PAP or
 CHAP.  Normally, this variable is assigned only in -direct mode.  This value
