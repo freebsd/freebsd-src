@@ -1,5 +1,5 @@
-.\" $Id: fetch.1,v 1.26 1998/12/08 13:00:48 cracauer Exp $
-.Dd January 15, 1999
+.\" $Id: fetch.1,v 1.29 1999/02/23 18:51:13 wollman Exp $
+.Dd February 22, 1999
 .Dt FETCH 1
 .Os FreeBSD 3.1
 .Sh NAME
@@ -7,7 +7,7 @@
 .Nd retrieve a file by Uniform Resource Locator
 .Sh SYNOPSIS
 .Nm fetch
-.Op Fl MPablmnpqrtv
+.Op Fl AMPablmnpqrtv
 .Op Fl S Ar size
 .Op Fl T Ar timeout
 .Op Fl o Ar file
@@ -49,6 +49,10 @@ flags.
 .Pp
 The following options are available:
 .Bl -tag -width Fl
+.It Fl A
+Do not automatically follow ``temporary'' (302) redirects.  Some
+broken Web sites will return a redirect instead of a not-found error
+when the requested object does not exist.
 .It Fl a
 Automatically retry the transfer upon soft failures.
 .It Fl b
@@ -151,6 +155,12 @@ URL's, a username and password may be specified, using the syntax
 If the path is to be absolute, as opposed to relative to the user's
 home directory, it must start with %2F, as in
 .Li ftp://root:mypass@localhost/%2Fetc/passwd .
+.Nm Fetch
+condenses multiple slashes in an
+.Tn ftp
+URL into a single slash; literal multiple slashes translate to an
+.Tn ftp
+protocol error.
 .Sh PROXY SERVERS
 Many sites use application gateways (``proxy servers'') in their
 firewalls in order to allow communication across the firewall using a
@@ -186,7 +196,7 @@ proxy client passes the remote username, host and port as the
 .Tn FTP
 session's username, in the form
 .Do Va remoteuser Ns Li \&@ Ns Va remotehost
-.Op Li \^@ Ns Va port
+.Op Li \&@ Ns Va port
 .Dc .
 The
 .Tn HTTP
@@ -248,7 +258,7 @@ or
 .Pp
 and
 .Nm
-will prompt for the missing information if it is required.  She might
+will prompt for any missing information when it is required.  She might
 also specify a realm of
 .Dq Li \&*
 instead of
@@ -325,6 +335,27 @@ connection.
 .%T "Hypertext Transfer Protocol \-\- HTTP/1.1"
 .%O RFC 2068
 .%D January 1997
+.Re
+.Rs
+.%A T. Berners-Lee
+.%A L. Masinter
+.%A M. McCahill
+.%T "Uniform Resource Locators (URL)"
+.%O RFC 1738
+.%D December 1994
+.Re
+.Rs
+.%A J. Postel
+.%A J.K. Reynolds
+.%T "File Transfer Protocol"
+.%O RFC 959 / STD 9
+.%D October 1985
+.Re
+.Rs
+.%A M.R. Horton
+.%T "Standard for interchange of USENET messages."
+.%O RFC 850
+.%D June 1983
 .Re
 .Sh HISTORY
 The 
