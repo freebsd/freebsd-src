@@ -135,7 +135,7 @@ struct gctl_req;
 void gctl_dump(struct gctl_req *req, FILE *f);
 #endif
 void gctl_free(struct gctl_req *req);
-struct gctl_req *gctl_get_handle(enum gctl_request req);
+struct gctl_req *gctl_get_handle(void);
 const char *gctl_issue(struct gctl_req *req);
 void gctl_ro_param(struct gctl_req *req, const char *name, int len, const void* val);
 void gctl_rw_param(struct gctl_req *req, const char *name, int len, void* val);
