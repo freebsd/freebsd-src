@@ -11,13 +11,14 @@
 
 #include "includes.h"
 RCSID("$OpenBSD: servconf.c,v 1.111 2002/06/20 23:05:55 markus Exp $");
+RCSID("$FreeBSD$");
 
 #if defined(KRB4)
 #include <krb.h>
 #endif
 #if defined(KRB5)
 #ifdef HEIMDAL
-#include <krb.h>
+#include <krb5.h>
 #else
 /* Bodge - but then, so is using the kerberos IV KEYFILE to get a Kerberos V
  * keytab */
@@ -144,8 +145,6 @@ fill_default_server_options(ServerOptions *options)
 			    _PATH_HOST_KEY_FILE;
 		if (options->protocol & SSH_PROTO_2) {
 			options->host_key_files[options->num_host_key_files++] =
-			    _PATH_HOST_RSA_KEY_FILE;
-			options->host_key_files[options->num_host_key_files++] =
 			    _PATH_HOST_DSA_KEY_FILE;
 		}
 	}
@@ -158,11 +157,11 @@ fill_default_server_options(ServerOptions *options)
 	if (options->server_key_bits == -1)
 		options->server_key_bits = 768;
 	if (options->login_grace_time == -1)
-		options->login_grace_time = 600;
+		options->login_grace_time = 120;
 	if (options->key_regeneration_time == -1)
 		options->key_regeneration_time = 3600;
 	if (options->permit_root_login == PERMIT_NOT_SET)
-		options->permit_root_login = PERMIT_YES;
+		options->permit_root_login = PERMIT_NO;
 	if (options->ignore_rhosts == -1)
 		options->ignore_rhosts = 1;
 	if (options->ignore_user_known_hosts == -1)
@@ -172,7 +171,7 @@ fill_default_server_options(ServerOptions *options)
 	if (options->print_lastlog == -1)
 		options->print_lastlog = 1;
 	if (options->x11_forwarding == -1)
-		options->x11_forwarding = 0;
+		options->x11_forwarding = 1;
 	if (options->x11_display_offset == -1)
 		options->x11_display_offset = 10;
 	if (options->x11_use_localhost == -1)
@@ -199,9 +198,21 @@ fill_default_server_options(ServerOptions *options)
 		options->rsa_authentication = 1;
 	if (options->pubkey_authentication == -1)
 		options->pubkey_authentication = 1;
-#if defined(KRB4) || defined(KRB5)
+#if defined(KRB4) && defined(KRB5)
+        if (options->kerberos_authentication == -1)
+                options->kerberos_authentication =
+                    (access(KEYFILE, R_OK) == 0 ||
+		    access(krb5_defkeyname, R_OK) == 0);
+#elif defined(KRB4)
+        if (options->kerberos_authentication == -1)
+                options->kerberos_authentication =
+		    (access(KEYFILE, R_OK) == 0);
+#elif defined(KRB5)
 	if (options->kerberos_authentication == -1)
-		options->kerberos_authentication = 0;
+                options->kerberos_authentication =
+                    (access(krb5_defkeyname, R_OK) == 0);
+#endif
+#if defined(KRB4) || defined(KRB5)
 	if (options->kerberos_or_local_passwd == -1)
 		options->kerberos_or_local_passwd = 1;
 	if (options->kerberos_ticket_cleanup == -1)
@@ -309,7 +320,9 @@ static struct {
 	ServerOpCodes opcode;
 } keywords[] = {
 	/* Portable-specific options */
+#if 0
 	{ "PAMAuthenticationViaKbdInt", sPAMAuthenticationViaKbdInt },
+#endif
 	/* Standard Options */
 	{ "port", sPort },
 	{ "hostkey", sHostKeyFile },
