@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.168 1998/10/22 02:32:48 brian Exp $
+ * $Id: command.c,v 1.169 1998/10/24 01:08:45 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -132,7 +132,7 @@
 #define NEG_DNS		50
 
 const char Version[] = "2.0";
-const char VersionDate[] = "$Date: 1998/10/22 02:32:48 $";
+const char VersionDate[] = "$Date: 1998/10/24 01:08:45 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -2321,21 +2321,27 @@ IfaceAddCommand(struct cmdargs const *arg)
   int bits, n, how;
   struct in_addr ifa, mask, brd;
 
-  if (arg->argc == arg->argn + 2) {
-    if (!ParseAddr(NULL, 1, arg->argv + arg->argn, &ifa, &mask, &bits))
-      return -1;
-    n = 1;
-  } else if (arg->argc == arg->argn + 3) {
+  if (arg->argc == arg->argn + 1) {
     if (!ParseAddr(NULL, 1, arg->argv + arg->argn, &ifa, NULL, NULL))
       return -1;
-    if (!ParseAddr(NULL, 1, arg->argv + arg->argn + 1, &mask, NULL, NULL))
+    mask.s_addr = brd.s_addr = INADDR_BROADCAST;
+  } else {
+    if (arg->argc == arg->argn + 2) {
+      if (!ParseAddr(NULL, 1, arg->argv + arg->argn, &ifa, &mask, &bits))
+        return -1;
+      n = 1;
+    } else if (arg->argc == arg->argn + 3) {
+      if (!ParseAddr(NULL, 1, arg->argv + arg->argn, &ifa, NULL, NULL))
+        return -1;
+      if (!ParseAddr(NULL, 1, arg->argv + arg->argn + 1, &mask, NULL, NULL))
+        return -1;
+      n = 2;
+    } else
       return -1;
-    n = 2;
-  } else
-    return -1;
 
-  if (!ParseAddr(NULL, 1, arg->argv + arg->argn + n, &brd, NULL, NULL))
-    return -1;
+    if (!ParseAddr(NULL, 1, arg->argv + arg->argn + n, &brd, NULL, NULL))
+      return -1;
+  }
 
   how = IFACE_ADD_LAST;
   if (arg->cmd->args)

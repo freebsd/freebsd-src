@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.126 1998/09/18 23:28:10 brian Exp $
+.\" $Id: ppp.8,v 1.127 1998/10/22 02:32:49 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -2488,7 +2488,7 @@ This command is used to control the interface used by
 .Ar Command
 may be one of the following:
 .Bl -tag -width XX
-.It iface add[!] Ar addr[/bits| mask] peer
+.It iface add[!] Ar addr[[/bits| mask] peer]
 Add the given
 .Ar addr mask peer
 combination to the interface.  Instead of specifying
@@ -2500,6 +2500,20 @@ If the given address already exists, the command fails unless the
 .Dq \&!
 is used - in which case the previous interface address entry is overwritten
 with the new one, allowing a change of netmask or peer address.
+.Pp
+If only
+.Ar addr
+is specified,
+.Ar bits
+defaults to
+.Dq 32
+and
+.Ar peer
+defaults to
+.Dq 255.255.255.255 .
+This address (the broadcast address) is the only duplicate peer address that
+.Nm
+allows.
 .It iface clear
 If this command is used while
 .Nm
