@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pc98gdc.c,v 1.6 1999/03/02 12:34:24 kato Exp $
+ *	$Id: pc98gdc.c,v 1.7 1999/04/18 14:42:18 kato Exp $
  */
 
 #include "gdc.h"
@@ -86,7 +86,6 @@ static device_method_t gdc_methods[] = {
 static driver_t gdcdriver = {
 	DRIVER_NAME,
 	gdc_methods,
-	DRIVER_TYPE_TTY,
 	sizeof(gdc_softc_t),
 };
 
