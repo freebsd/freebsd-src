@@ -84,11 +84,11 @@ g_sysctl_stripe_fast(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 SYSCTL_PROC(_kern_geom_stripe, OID_AUTO, fast, CTLTYPE_INT | CTLFLAG_RW,
-    NULL, 0, g_sysctl_stripe_fast, "I", "Fast, but memory-consuming mode");
+    NULL, 0, g_sysctl_stripe_fast, "I", "Fast, but memory-consuming, mode");
 static u_int g_stripe_maxmem = MAX_IO_SIZE * 10;
 TUNABLE_INT("kern.geom.stripe.maxmem", &g_stripe_maxmem);
 SYSCTL_UINT(_kern_geom_stripe, OID_AUTO, maxmem, CTLFLAG_RD, &g_stripe_maxmem,
-    0, "Maximum memory that could be allocated in \"fast\" mode (in bytes)");
+    0, "Maximum memory that can be allocated in \"fast\" mode (in bytes)");
 
 /*
  * Greatest Common Divisor.
