@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: link_elf.c,v 1.1 1998/08/24 08:25:26 dfr Exp $
+ *	$Id: link_elf.c,v 1.2 1998/09/11 08:46:15 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -47,17 +47,16 @@
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 
-extern int	elf_reloc(linker_file_t lf, const Elf_Rela *rela,
-			  const char *sym);
-
+static int	link_elf_load_module(const char*, linker_file_t*);
 static int	link_elf_load_file(const char*, linker_file_t*);
 static int	link_elf_lookup_symbol(linker_file_t, const char*,
 				       linker_sym_t*);
-static void	link_elf_symbol_values(linker_file_t, linker_sym_t, linker_symval_t*);
+static int	link_elf_symbol_values(linker_file_t, linker_sym_t, linker_symval_t*);
 static int	link_elf_search_symbol(linker_file_t, caddr_t value,
 				       linker_sym_t* sym, long* diffp);
 
-static void	link_elf_unload(linker_file_t);
+static void	link_elf_unload_file(linker_file_t);
+static void	link_elf_unload_module(linker_file_t);
 
 /*
  * The file representing the currently running kernel.  This contains
@@ -67,16 +66,22 @@ static void	link_elf_unload(linker_file_t);
 linker_file_t linker_kernel_file;
 
 static struct linker_class_ops link_elf_class_ops = {
-    link_elf_load_file,
+    link_elf_load_module,
 };
 
 static struct linker_file_ops link_elf_file_ops = {
     link_elf_lookup_symbol,
     link_elf_symbol_values,
     link_elf_search_symbol,
-    link_elf_unload,
+    link_elf_unload_file,
 };
 
+static struct linker_file_ops link_elf_module_ops = {
+    link_elf_lookup_symbol,
+    link_elf_symbol_values,
+    link_elf_search_symbol,
+    link_elf_unload_module,
+};
 typedef struct elf_file {
     caddr_t		address;	/* Relocation address */
 #ifdef SPARSE_MAPPING
@@ -113,7 +118,12 @@ extern struct _dynamic _DYNAMIC;
 static void
 link_elf_init(void* arg)
 {
-    Elf_Dyn* dp = (Elf_Dyn*) &_DYNAMIC;
+#ifdef __ELF__
+    Elf_Dyn	*dp;
+    caddr_t	modptr, baseptr, sizeptr;
+    elf_file_t	ef;
+    char	*modname;
+#endif
 
 #if ELF_TARG_CLASS == ELFCLASS32
     linker_add_class("elf32", NULL, &link_elf_class_ops);
@@ -121,9 +131,9 @@ link_elf_init(void* arg)
     linker_add_class("elf64", NULL, &link_elf_class_ops);
 #endif
 
+#ifdef __ELF__
+    dp = (Elf_Dyn*) &_DYNAMIC;
     if (dp) {
-	elf_file_t ef;
-
 	ef = malloc(sizeof(struct elf_file), M_LINKER, M_NOWAIT);
 	if (ef == NULL)
 	    panic("link_elf_init: Can't create linker structures for kernel");
@@ -133,25 +143,38 @@ link_elf_init(void* arg)
 	ef->object = 0;
 #endif
 	ef->dynamic = dp;
-	linker_kernel_file =
-	    linker_make_file(kernelname, ef, &link_elf_file_ops);
+	modname = NULL;
+	modptr = preload_search_by_type("elf kernel");
+	if (modptr)
+	    modname = (char *)preload_search_info(modptr, MODINFO_NAME);
+	if (modname == NULL)
+	    modname = "kernel";
+	linker_kernel_file = linker_make_file(modname, ef, &link_elf_file_ops);
 	if (linker_kernel_file == NULL)
 	    panic("link_elf_init: Can't create linker structures for kernel");
 	parse_dynamic(linker_kernel_file);
-	/*
-	 * XXX there must be a better way of getting these constants.
-	 */
+	/* Sigh, magic constants. */
 #ifdef __alpha__
 	linker_kernel_file->address = (caddr_t) 0xfffffc0000300000;
 #else
 	linker_kernel_file->address = (caddr_t) 0xf0100000;
 #endif
 	linker_kernel_file->size = -(long)linker_kernel_file->address;
+
+	if (modptr) {
+	    baseptr = preload_search_info(modptr, MODINFO_ADDR);
+	    if (baseptr)
+		linker_kernel_file->address = *(caddr_t *)baseptr;
+	    sizeptr = preload_search_info(modptr, MODINFO_SIZE);
+	    if (sizeptr)
+		linker_kernel_file->size = *(size_t *)sizeptr;
+	}
 	linker_current_file = linker_kernel_file;
     }
+#endif
 }
 
-SYSINIT(link_elf, SI_SUB_KMEM, SI_ORDER_THIRD, link_elf_init, 0);
+SYSINIT(link_elf, SI_SUB_KLD, SI_ORDER_SECOND, link_elf_init, 0);
 
 static int
 parse_dynamic(linker_file_t lf)
@@ -237,6 +260,69 @@ link_elf_error(const char *s)
 }
 
 static int
+link_elf_load_module(const char *filename, linker_file_t *result)
+{
+    caddr_t		modptr, baseptr, sizeptr, dynptr;
+    char		*type;
+    elf_file_t		ef;
+    linker_file_t	lf;
+    int			error;
+    vm_offset_t		dp;
+
+    /* Look to see if we have the module preloaded */
+    modptr = preload_search_by_name(filename);
+    if (modptr == NULL)
+	return (link_elf_load_file(filename, result));
+
+    /* It's preloaded, check we can handle it and collect information */
+    type = (char *)preload_search_info(modptr, MODINFO_TYPE);
+    baseptr = preload_search_info(modptr, MODINFO_ADDR);
+    sizeptr = preload_search_info(modptr, MODINFO_SIZE);
+    dynptr = preload_search_info(modptr, MODINFO_METADATA|MODINFOMD_DYNAMIC);
+    if (type == NULL || strcmp(type, "elf module") != 0)
+	return (EFTYPE);
+    if (baseptr == NULL || sizeptr == NULL || dynptr == NULL)
+	return (EINVAL);
+
+    ef = malloc(sizeof(struct elf_file), M_LINKER, M_WAITOK);
+    if (ef == NULL)
+	return (ENOMEM);
+    ef->address = *(caddr_t *)baseptr;
+#ifdef SPARSE_MAPPING
+    ef->object = 0;
+#endif
+    dp = (vm_offset_t)ef->address + *(vm_offset_t *)dynptr;
+    ef->dynamic = (Elf_Dyn *)dp;
+    lf = linker_make_file(filename, ef, &link_elf_module_ops);
+    if (lf == NULL) {
+	free(ef, M_LINKER);
+	return ENOMEM;
+    }
+    lf->address = ef->address;
+    lf->size = *(size_t *)sizeptr;
+
+    error = parse_dynamic(lf);
+    if (error) {
+	linker_file_unload(lf);
+	return error;
+    }
+
+    /* Try to load dependencies */
+    error = load_dependancies(lf);
+    if (error) {
+	linker_file_unload(lf);
+	return error;
+    }
+    error = relocate_file(lf);
+    if (error) {
+	linker_file_unload(lf);
+	return error;
+    }
+    *result = lf;
+    return (0);
+}
+
+static int
 link_elf_load_file(const char* filename, linker_file_t* result)
 {
     struct nameidata nd;
@@ -272,9 +358,14 @@ link_elf_load_file(const char* filename, linker_file_t* result)
     int resid;
     elf_file_t ef;
     linker_file_t lf;
+    char *pathname;
 
-    NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, filename, p);
+    pathname = linker_search_path(filename);
+    if (pathname == NULL)
+	return ENOENT;
+    NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, pathname, p);
     error = vn_open(&nd, FREAD, 0);
+    free(pathname, M_LINKER);
     if (error)
 	return error;
 
@@ -311,11 +402,6 @@ link_elf_load_file(const char* filename, linker_file_t* result)
     }
     if (u.hdr.e_machine != ELF_TARG_MACH) {
 	link_elf_error("Unsupported machine");
-	error = ENOEXEC;
-	goto out;
-    }
-    if (!ELF_MACHINE_OK(u.hdr.e_machine)) {
-	link_elf_error("Incompatibile elf machine type");
 	error = ENOEXEC;
 	goto out;
     }
@@ -457,9 +543,19 @@ link_elf_load_file(const char* filename, linker_file_t* result)
     lf->address = ef->address;
     lf->size = mapsize;
 
-    if ((error = parse_dynamic(lf)) != 0
-	|| (error = load_dependancies(lf)) != 0
-	|| (error = relocate_file(lf)) != 0) {
+    error = parse_dynamic(lf);
+    if (error) {
+	linker_file_unload(lf);
+	goto out;
+    }
+
+    error = load_dependancies(lf);
+    if (error) {
+	linker_file_unload(lf);
+	goto out;
+    }
+    error = relocate_file(lf);
+    if (error) {
 	linker_file_unload(lf);
 	goto out;
     }
@@ -474,7 +570,7 @@ out:
 }
 
 static void
-link_elf_unload(linker_file_t file)
+link_elf_unload_file(linker_file_t file)
 {
     elf_file_t ef = file->priv;
 
@@ -491,6 +587,17 @@ link_elf_unload(linker_file_t file)
 #endif
 	free(ef, M_LINKER);
     }
+}
+
+static void
+link_elf_unload_module(linker_file_t file)
+{
+    elf_file_t ef = file->priv;
+
+    if (ef)
+	free(ef, M_LINKER);
+    if (file->filename)
+	preload_delete_name(file->filename);
 }
 
 static int
@@ -514,29 +621,6 @@ load_dependancies(linker_file_t lf)
 	if (dp->d_tag == DT_NEEDED) {
 	    name = ef->strtab + dp->d_un.d_val;
 
-	    /*
-	     * Prepend pathname if dep is not an absolute filename.
-	     */
-	    if (name[0] != '/') {
-		char* p;
-		if (!filename) {
-		    filename = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
-		    if (!filename) {
-			error = ENOMEM;
-			goto out;
-		    }
-		}
-		p = lf->filename + strlen(lf->filename) - 1;
-		while (p >= lf->filename && *p != '/')
-		    p--;
-		if (p >= lf->filename) {
-		    strncpy(filename, lf->filename, p - lf->filename);
-		    filename[p - lf->filename] = '\0';
-		    strcat(filename, "/");
-		    strcat(filename, name);
-		    name = filename;
-		}
-	    }
 	    error = linker_load_file(name, &lfdep);
 	    if (error)
 		goto out;
@@ -679,15 +763,21 @@ link_elf_lookup_symbol(linker_file_t lf, const char* name, linker_sym_t* sym)
     return ENOENT;
 }
 
-static void
+static int
 link_elf_symbol_values(linker_file_t lf, linker_sym_t sym, linker_symval_t* symval)
 {
 	elf_file_t ef = lf->priv;
 	Elf_Sym* es = (Elf_Sym*) sym;
+	int symcount = ef->nchains;
 
+	if (es < ef->symtab)
+		return ENOENT;
+	if ((es - ef->symtab) > symcount)
+		return ENOENT;
 	symval->name = ef->strtab + es->st_name;
 	symval->value = (caddr_t) ef->address + es->st_value;
 	symval->size = es->st_size;
+	return 0;
 }
 
 static int
@@ -702,7 +792,7 @@ link_elf_search_symbol(linker_file_t lf, caddr_t value,
 	const Elf_Sym* best = 0;
 	int i;
 
-	for (i = 0, es = ef->symtab; i < ef->nchains; i++, es++) {
+	for (i = 0, es = ef->symtab; i < symcount; i++, es++) {
 		if (es->st_name == 0)
 			continue;
 		if (off >= es->st_value) {
@@ -724,4 +814,3 @@ link_elf_search_symbol(linker_file_t lf, caddr_t value,
 
 	return 0;
 }
-
