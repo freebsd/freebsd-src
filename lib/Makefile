@@ -10,7 +10,7 @@ SUBDIR=csu/${MACHINE}
 .endif
 
 # XXX MISSING:		libplot
-SUBDIR+=libc libcompat libcom_err libcurses libdisk libedit \
+SUBDIR+=libalias libc libcompat libcom_err libcurses libdisk libedit \
 	libf2c libftpio libgnumalloc libipx \
 	libkvm libmd libmytinfo libncurses libpcap libresolv librpcsvc \
 	libscsi libskey libss libtcl libtermcap libutil libxpg4 liby libz
