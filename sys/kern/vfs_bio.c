@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.193.2.2 1999/01/25 01:59:26 dg Exp $
+ * $Id: vfs_bio.c,v 1.193.2.3 1999/01/31 05:30:12 dillon Exp $
  */
 
 /*
@@ -1519,10 +1519,9 @@ loop:
 		/*
 		 * This code is used to make sure that a buffer is not
 		 * created while the getnewbuf routine is blocked.
-		 * Normally the vnode is locked so this isn't a problem.
-		 * VBLK type I/O requests, however, don't lock the vnode.
+		 * This can be a problem whether the vnode is locked or not.
 		 */
-		if (VOP_ISLOCKED(vp) != LK_EXCLUSIVE && gbincore(vp, blkno)) {
+		if (gbincore(vp, blkno)) {
 			bp->b_flags |= B_INVAL;
 			brelse(bp);
 			goto loop;
