@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.41 1995/05/30 08:15:55 rgrimes Exp $
+ * $Id: swap_pager.c,v 1.41.4.1 1995/07/20 05:52:57 davidg Exp $
  */
 
 /*
@@ -565,9 +565,6 @@ swap_pager_copy(srcpager, srcoffset, dstpager, dstoffset, offset)
 
 	if (vm_swap_size)
 		no_swap_space = 0;
-
-	if (no_swap_space)
-		return;
 
 	srcswp = (sw_pager_t) srcpager->pg_data;
 	origsize = srcswp->sw_allocsize;
