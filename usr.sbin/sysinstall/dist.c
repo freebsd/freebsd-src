@@ -583,7 +583,6 @@ distExtract(char *parent, Distribution *me)
     struct sigaction old, new;
 
     status = TRUE;
-    dialog_clear_norefresh();
     if (isDebug())
 	msgDebug("distExtract: parent: %s, me: %s\n", parent ? parent : "(none)", me->my_name);
 
@@ -591,6 +590,8 @@ distExtract(char *parent, Distribution *me)
     new.sa_handler = handle_intr;
     new.sa_flags = 0;
     (void)sigemptyset(&new.sa_mask);
+    dialog_clear_norefresh();
+    dialog_msgbox("Please Wait", "Extracting all requested distributions...", -1, -1, 0);
     sigaction(SIGINT, &new, &old);
 
     /* Loop through to see if we're in our parent's plans */
