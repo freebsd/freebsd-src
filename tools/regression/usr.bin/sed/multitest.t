@@ -34,6 +34,8 @@
 #
 #	@(#)sed.test	8.1 (Berkeley) 6/6/93
 #
+#	$FreeBSD$
+#
 
 # sed Regression Tests
 #
@@ -430,11 +432,7 @@ test_print()
 		</dev/null >lines3
 	# GNU and SunOS sed behave differently here
 	mark '7.1'
-	if [ $BSD -eq 1 ] ; then
-		echo 'BSD sed drops core on this one; TEST SKIPPED'
-	else
-		$SED -n l lines3
-	fi
+	$SED -n l lines3
 	mark '7.2' ; $SED -e '/l2_/=' lines1 lines2
 	rm -f lines4
 	mark '7.3' ; $SED -e '3,12w lines4' lines1
@@ -501,12 +499,22 @@ u2/g' lines1
 	fi
 	mark '8.15' ; $SED -e '1N;2y/\n/X/' lines1
 	mark '8.16'
-	if [ $BSD -eq 1 ] ; then
-		echo 'BSD sed does not handle branch defined REs'
-	else
-		echo 'eeefff' | $SED -e 'p' -e 's/e/X/p' -e ':x' \
-		    -e 's//Y/p' -e '/f/bx'
-	fi
+	echo 'eeefff' | $SED -e '
+		p
+		s/e/X/p
+		:x
+		s//Y/p 
+		# Establish limit counter in the hold space
+		# GNU sed version 3.02 enters into an infinite loop here
+		x 
+		/.\{10\}/ {
+			s/.*/ERROR/
+			b
+		}
+		s/.*/&./
+		x 
+		/f/bx
+	'
 }
 
 test_error()
