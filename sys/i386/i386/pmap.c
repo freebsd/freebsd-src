@@ -224,6 +224,9 @@ static void *pmap_allocf(uma_zone_t zone, int bytes, u_int8_t *flags, int wait);
 
 static pd_entry_t pdir4mb;
 
+CTASSERT(1 << PDESHIFT == sizeof(pd_entry_t));
+CTASSERT(1 << PTESHIFT == sizeof(pt_entry_t));
+
 /*
  *	Routine:	pmap_pte
  *	Function:
@@ -1311,7 +1314,7 @@ pmap_pinit(pmap)
 	mtx_unlock_spin(&allpmaps_lock);
 	/* Wire in kernel global address entries. */
 	/* XXX copies current process, does not fill in MPPTDI */
-	bcopy(PTD + KPTDI, pmap->pm_pdir + KPTDI, nkpt * PTESIZE);
+	bcopy(PTD + KPTDI, pmap->pm_pdir + KPTDI, nkpt * sizeof(pd_entry_t));
 #ifdef SMP
 	pmap->pm_pdir[MPPTDI] = PTD[MPPTDI];
 #endif
@@ -1367,7 +1370,7 @@ pmap_release_free_page(pmap_t pmap, vm_page_t p)
 	 * stuff cleared, so they can go into the zero queue also.
 	 */
 	if (p->pindex == PTDPTDI) {
-		bzero(pde + KPTDI, nkpt * PTESIZE);
+		bzero(pde + KPTDI, nkpt * sizeof(pd_entry_t));
 #ifdef SMP
 		pde[MPPTDI] = 0;
 #endif

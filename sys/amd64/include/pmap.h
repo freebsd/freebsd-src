@@ -139,8 +139,8 @@
 typedef u_int32_t pd_entry_t;
 typedef u_int32_t pt_entry_t;
 
-#define PDESIZE		sizeof(pd_entry_t) /* for assembly files */
-#define PTESIZE		sizeof(pt_entry_t) /* for assembly files */
+#define	PTESHIFT	(2)
+#define	PDESHIFT	(2)
 
 /*
  * Address of current and alternate address space page table maps
