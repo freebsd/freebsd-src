@@ -1,4 +1,4 @@
-.\"	$Id$
+.\"	$Id: catgets.3,v 1.4 1997/02/22 15:00:46 peter Exp $
 .\"
 .\" Copyright (c) 1994 Winning Strategies, Inc.
 .\" All rights reserved.
@@ -37,7 +37,7 @@
 .Sh SYNOPSIS
 .Fd #include <nl_types.h>
 .Ft char *
-.Fn catgets "nl_catd catd" "int set_id" "int msg_id" "char *s"
+.Fn catgets "nl_catd catd" "int set_id" "int msg_id" "const char *s"
 .Sh DESCRIPTION
 The 
 .Fn catgets 
@@ -63,4 +63,5 @@ otherwise it returns
 .Sh STANDARDS
 The
 .Fn catgets
-function conforms to \fBxpg3\fR.
+function conforms to
+.St -xpg4 .
