@@ -33,9 +33,11 @@
 .Nd "download FORE Systems' microcode into host ATM adapter"
 .Sh SYNOPSIS
 .Nm
-.Op Fl Ar intf
+.Op Fl 3
+.Op Fl i Ar intf
 .Op Fl d Ar path
 .Op Fl f Ar objfile
+.Op Fl r
 .Sh DESCRIPTION
 The
 .Nm
@@ -62,7 +64,10 @@ for PCA-200E adapters.
 .El
 .Sh NOTES
 For the PCA200E adapter, if no file is specified on the command
-line a built-in copy of version 3.0.1 microcode is used.
+line a built-in copy of version 4.1.12 microcode is used. When the
+option
+.Fl 3
+is specified version 3.0.1 microcode is used instead.
 .Pp
 Microcode as distributed by FORE Systems is not ready for downloading
 directly into SBA host ATM adapters.
