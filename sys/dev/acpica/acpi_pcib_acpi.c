@@ -50,6 +50,7 @@ ACPI_MODULE_NAME("PCI_ACPI")
 struct acpi_hpcib_softc {
     device_t		ap_dev;
     ACPI_HANDLE		ap_handle;
+    int			ap_flags;
 
     int			ap_segment;	/* analagous to Alpha 'hose' */
     int			ap_bus;		/* bios-assigned bus number */
@@ -253,6 +254,9 @@ acpi_pcib_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
     case ACPI_IVAR_HANDLE:
 	*result = (uintptr_t)sc->ap_handle;
 	return (0);
+    case ACPI_IVAR_FLAGS:
+	*result = (uintptr_t)sc->ap_flags;
+	return (0);
     }
     return (ENOENT);
 }
@@ -265,6 +269,12 @@ acpi_pcib_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
     switch (which) {
     case PCIB_IVAR_BUS:
 	sc->ap_bus = value;
+	return (0);
+    case ACPI_IVAR_HANDLE:
+	sc->ap_handle = (ACPI_HANDLE)value;
+	return (0);
+    case ACPI_IVAR_FLAGS:
+	sc->ap_flags = (int)value;
 	return (0);
     }
     return (ENOENT);

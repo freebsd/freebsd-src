@@ -54,6 +54,7 @@ ACPI_MODULE_NAME("PCI")
 struct acpi_pci_devinfo {
 	struct pci_devinfo	ap_dinfo;
 	ACPI_HANDLE		ap_handle;
+	int			ap_flags;
 };
 
 static int	acpi_pci_attach(device_t dev);
@@ -62,6 +63,8 @@ static int	acpi_pci_child_location_str_method(device_t cbdev,
 static int	acpi_pci_probe(device_t dev);
 static int	acpi_pci_read_ivar(device_t dev, device_t child, int which,
 		    uintptr_t *result);
+static int	acpi_pci_write_ivar(device_t dev, device_t child, int which,
+		    uintptr_t value);
 static ACPI_STATUS acpi_pci_save_handle(ACPI_HANDLE handle, UINT32 level,
 		    void *context, void **status);
 static int	acpi_pci_set_powerstate_method(device_t dev, device_t child,
@@ -80,7 +83,7 @@ static device_method_t acpi_pci_methods[] = {
 	DEVMETHOD(bus_print_child,	pci_print_child),
 	DEVMETHOD(bus_probe_nomatch,	pci_probe_nomatch),
 	DEVMETHOD(bus_read_ivar,	acpi_pci_read_ivar),
-	DEVMETHOD(bus_write_ivar,	pci_write_ivar),
+	DEVMETHOD(bus_write_ivar,	acpi_pci_write_ivar),
 	DEVMETHOD(bus_driver_added,	pci_driver_added),
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
@@ -126,13 +129,33 @@ acpi_pci_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 {
     struct acpi_pci_devinfo *dinfo;
 
+    dinfo = device_get_ivars(child);
     switch (which) {
     case ACPI_IVAR_HANDLE:
-	dinfo = device_get_ivars(child);
 	*result = (uintptr_t)dinfo->ap_handle;
+	return (0);
+    case ACPI_IVAR_FLAGS:
+	*result = (uintptr_t)dinfo->ap_flags;
 	return (0);
     }
     return (pci_read_ivar(dev, child, which, result));
+}
+
+static int
+acpi_pci_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
+{
+    struct acpi_pci_devinfo *dinfo;
+
+    dinfo = device_get_ivars(child);
+    switch (which) {
+    case ACPI_IVAR_HANDLE:
+	dinfo->ap_handle = (ACPI_HANDLE)value;
+	return (0);
+    case ACPI_IVAR_FLAGS:
+	dinfo->ap_flags = (int)value;
+	return (0);
+    }
+    return (pci_write_ivar(dev, child, which, value));
 }
 
 static int
