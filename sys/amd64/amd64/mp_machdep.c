@@ -163,9 +163,9 @@ void
 cpu_add(u_int apic_id, char boot_cpu)
 {
 
-	if (apic_id > MAXCPU) {
+	if (apic_id >= MAXCPU) {
 		printf("SMP: CPU %d exceeds maximum CPU %d, ignoring\n",
-		    apic_id, MAXCPU);
+		    apic_id, MAXCPU - 1);
 		return;
 	}
 	KASSERT(cpu_info[apic_id].cpu_present == 0, ("CPU %d added twice",
