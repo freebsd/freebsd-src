@@ -5,107 +5,25 @@ TARGET_TUPLE?=	powerpc-unknown-freebsd
 .if ${TARGET_ARCH} == "powerpc"
 NATIVE_EMULATION=	elf32ppc
 HOST=	${TARGET_TUPLE}
-CFLAGS+= -DDEFAULT_EMULATION=\"elf_powerpc\"
+CFLAGS+= -DDEFAULT_EMULATION=\"${NATIVE_EMULATION}\"
 CFLAGS+= -DTARGET=\"${TARGET_TUPLE}\"
 _powerpc_path=	\"${TOOLS_PREFIX}/usr/lib\"
 .else
 _powerpc_path=	\"/usr/cross/powerpc-freebsd/usr/lib\"
 .endif
-EMS+=		${NATIVE_EMULATION}	\
-		ppcmacos		\
-		ppcnw			\
-		ppcpe			\
-		aixrs6			\
-		rs6000lynx
+EMS+=		${NATIVE_EMULATION}
 LDSCRIPTS+=	${NATIVE_EMULATION}.x	\
 		${NATIVE_EMULATION}.xbn	\
 		${NATIVE_EMULATION}.xn	\
 		${NATIVE_EMULATION}.xr	\
 		${NATIVE_EMULATION}.xs	\
 		${NATIVE_EMULATION}.xu	\
-		${NATIVE_EMULATION}.xc	\
-		${NATIVE_EMULATION}.xsc	\
-		ppcmacos.x		\
-		ppcmacos.xbn		\
-		ppcmacos.xn		\
-		ppcmacos.xr		\
-		ppcmacos.xu		\
-		ppcmacos.xc		\
-		ppcmacos.xsc		\
-		ppcnw.x			\
-		ppcnw.xbn		\
-		ppcnw.xn		\
-		ppcnw.xr		\
-		ppcnw.xu		\
-		ppcnw.xc		\
-		ppcnw.xsc		\
-		ppcpe.x			\
-		ppcpe.xbn		\
-		ppcpe.xn		\
-		ppcpe.xr		\
-		ppcpe.xu		\
-		ppcpe.xc		\
-		ppcpe.xsc		\
-		aixrs6.x		\
-		aixrs6.xbn		\
-		aixrs6.xn		\
-		aixrs6.xr		\
-		aixrs6.xu		\
-		aixrs6.xc		\
-		aixrs6.xsc		\
-		rs6000lynx.x		\
-		rs6000lynx.xbn		\
-		rs6000lynx.xn		\
-		rs6000lynx.xr		\
-		rs6000lynx.xu		\
-		rs6000lynx.xc		\
-		rs6000lynx.xsc
-SRCS+=		e${NATIVE_EMULATION}.c	\
-		eppcmacos.c		\
-		eppcnw.c		\
-		eppcpe.c		\
-		eaixrs6.c		\
-		ers6000lynx.c
-CLEANFILES+=	e${NATIVE_EMULATION}.c	\
-		eppcmacos.c		\
-		eppcnw.c		\
-		eppcpe.c		\
-		eaixrs6.c		\
-		ers6000lynx.c
+		${NATIVE_EMULATION}.xsc
+SRCS+=		e${NATIVE_EMULATION}.c
+CLEANFILES+=	e${NATIVE_EMULATION}.c
 
-e${NATIVE_EMULATION}.c: emulparams/${NATIVE_EMULATION}.sh emultempl/elf32.em scripttempl/elfppc.sc \
-    genscripts.sh stringify.sed
-	sh ${.CURDIR}/genscripts.sh ${BINUTILSDISTDIR}/ld \
-	    ${_powerpc_path} ${HOST} ${TARGET_TUPLE} \
-	    ${TARGET_TUPLE} ${NATIVE_EMULATION} "" ${NATIVE_EMULATION}
-
-eppcmacos.c: emulparams/ppcmacos.sh emultempl/aix.em scripttempl/aix.sc \
-    genscripts.sh stringify.sed
-	sh ${.CURDIR}/genscripts.sh ${BINUTILSDISTDIR}/ld \
-	    /usr/cross/powerpc_macos/usr/lib ${HOST} \
-	    ${TARGET_TUPLE}macos \
-	    ${TARGET_TUPLE}macos ppcmacos "" ppcmacos
-
-eppcnw.c: emulparams/ppcnw.sh emultempl/elf32.em scripttempl/nw.sc \
-    genscripts.sh stringify.sed
-	sh ${.CURDIR}/genscripts.sh ${BINUTILSDISTDIR}/ld \
-	    /usr/cross/powerpc_nw/usr/lib ${HOST} ${TARGET_TUPLE}nw \
-	    ${TARGET_TUPLE}nw ppcnw "" ppcnw
-
-eppcpe.c: emulparams/ppcpe.sh emultempl/pe.em scripttempl/ppcpe.sc \
-    genscripts.sh stringify.sed
-	sh ${.CURDIR}/genscripts.sh ${BINUTILSDISTDIR}/ld \
-	    /usr/cross/powerpc_pe/usr/lib ${HOST} ${TARGET_TUPLE}pe \
-	    ${TARGET_TUPLE}pe ppcpe "" ppcpe
-
-eaixrs6.c: emulparams/aixrs6.sh emultempl/aix.em scripttempl/aix.sc \
-    genscripts.sh stringify.sed
-	sh ${.CURDIR}/genscripts.sh ${BINUTILSDISTDIR}/ld \
-	    /usr/cross/rs6000-lynx/lib ${HOST} aixcoff-rs6000 \
-	    aixcoff-rs6000 aixrs6 "" aixrs6
-
-ers6000lynx.c: emulparams/rs6000lynx.sh emultempl/aix.em scripttempl/aix.sc \
-    genscripts.sh stringify.sed
-	sh ${.CURDIR}/genscripts.sh ${BINUTILSDISTDIR}/ld \
-	    /usr/cross/rs6000-lynx/lib ${HOST} aixcoff-rs6000 \
-	    aixcoff-rs6000 rs6000lynx "" rs6000lynx
+e${NATIVE_EMULATION}.c: emulparams/${NATIVE_EMULATION}.sh emultempl/elf32.em \
+    scripttempl/elfppc.sc genscripts.sh stringify.sed
+	sh ${.CURDIR}/genscripts.sh ${SRCDIR}/ld ${_powerpc_path} \
+	    ${HOST} ${TARGET_TUPLE} ${TARGET_TUPLE} \
+	    ${NATIVE_EMULATION} ""  ${NATIVE_EMULATION} ${TARGET_TUPLE}
