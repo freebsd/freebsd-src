@@ -211,11 +211,9 @@ socreate(dom, aso, type, proto, cred, td)
 #ifdef MAC
 	mac_create_socket(cred, so);
 #endif
-	SOCK_LOCK(so);
 	knlist_init(&so->so_rcv.sb_sel.si_note, SOCKBUF_MTX(&so->so_rcv));
 	knlist_init(&so->so_snd.sb_sel.si_note, SOCKBUF_MTX(&so->so_snd));
-	soref(so);
-	SOCK_UNLOCK(so);
+	so->so_count = 1;
 	error = (*prp->pr_usrreqs->pru_attach)(so, proto, td);
 	if (error) {
 		ACCEPT_LOCK();
