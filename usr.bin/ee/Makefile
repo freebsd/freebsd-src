@@ -9,7 +9,7 @@ MLINKS=	ee.1 ree.1 ee.1 edit.1
 DPADD=	${LIBNCURSES}
 LDADD=	-lncurses
 
-LANGS=	en_US.US-ASCII fr_FR.ISO8859-1 de_DE.ISO8859-1 pl_PL.ISO8859-2 \
+NLS=	en_US.US-ASCII fr_FR.ISO8859-1 de_DE.ISO8859-1 pl_PL.ISO8859-2 \
 	uk_UA.KOI8-U ru_RU.KOI8-R
 
 NLSLINKS_en_US.US-ASCII= en_US.ISO8859-1 en_US.ISO8859-15
@@ -19,14 +19,9 @@ NLSLINKS_fr_FR.ISO8859-1= fr_BE.ISO8859-1 fr_BE.ISO8859-15 \
 NLSLINKS_de_DE.ISO8859-1= de_AT.ISO8859-1 de_AT.ISO8859-15 de_CH.ISO8859-1 \
         de_CH.ISO8859-15 de_DE.ISO8859-15
 
-NLSNAME=ee
-
 NLSSRCFILES=ee.msg
-
-.for lang in ${LANGS}
-NLSSRCDIR_${lang}.msg=${.CURDIR}/nls/${lang}
-NLS+=${lang}.msg
+.for lang in ${NLS}
+NLSSRCDIR_${lang}= ${.CURDIR}/nls/${lang}
 .endfor
 
 .include <bsd.prog.mk>
-.include <bsd.nls.mk>
