@@ -5,20 +5,19 @@
 .PATH: ${GCCDIR}
 
 PROG=	tradcpp0
-SRCS=	tradcpp.c tradcif.c
+SRCS=	tradcpp.c tradcif+%DIKED.c
 BINDIR=	/usr/libexec
 NOMAN=	1
 
 DPADD+=	${LIBCC_INT}
 LDADD+=	${LIBCC_INT}
 
-#	${YACC} ${GCCDIR}/tradcif.y
-tradcif.c: tradcif.y
-	${YACC} ${.ALLSRC}
+tradcif+%DIKED.c: tradcif.c
 	sed -e "s/malloc/xmalloc/g" \
 	    -e "s/realloc/xrealloc/g" \
-	    y.tab.c >${.TARGET}
+	    ${.ALLSRC} >${.TARGET}
 
-CLEANFILES=	y.tab.c tradcif.c
+CLEANFILES=	tradcif+%DIKED.c tradcif.c
+CLEANFILES+=	y.tab.h # we don't use it, but the system YACC rules are naive
 
 .include <bsd.prog.mk>
