@@ -32,14 +32,11 @@
 .Sh NAME
 .Nm wd
 .Nd
-Generic WD100x/IDE diskcontroller driver
+Generic WD100x/IDE disk controller driver
 .Sh SYNOPSIS
 .Cd "device wdc0 at isa? port IO_WD1 irq 14" Op flags Ar flags
 .Cd device wd0 at wdc0 drive 0
 .Cd "device wd1 at wdc0 drive 1" Op flags Ar flags
-.Pp
-For the CMD640b IDE controller:
-.Cd "options"  CMD640
 .Sh DESCRIPTION
 This driver provides access to disks connected to controllers that emulate
 the Western Digital WD100x series. This range of controllers includes WD1003
@@ -77,28 +74,14 @@ sectors attempted is (flags & 0x00ff).
 The flags can be specified on the line for the drive as a 16 bit int,
 or on the controller line as a 32 bit int, where the top 16 bit is
 relevant to the highest numbered drive.
-.Pp
-The
-.Dq Dv CMD640
-configuration option
-enables a workaround for a deficiency of the CMD640b IDE controller.
-If this option is enabled and the chip is detected by the PCI subsystem,
-the primary and secondary controller will not be used simultaneously.
 .Sh FILES
 .Bl -tag -width Pa -compact
 .It Pa /dev/wd*
-disk block device nodes 
-.It Pa /dev/rwd*
-disk character device nodes
+wd device nodes
 .It Pa /sys/i386/conf/GENERIC
 sample generic kernel config file for (a.o.) wd based systems
 .It Pa /sys/i386/isa/wd.c
 driver source
 .El
-.Sh SEE ALSO
-.Xr bad144 8
 .Sh NOTES
-This controller/disk combo has no provisions for automatic bad block handling.
-You need to run 
-.Xr bad144 8
-to check for bad blocks.
+This driver will soon be completely replaced by the ata and ad drivers.
