@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001 Ian Dowse.  All rights reserved.
+ * Copyright (c) 2001, 2002 Ian Dowse.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -100,7 +100,7 @@ static struct mtx	ufsdirhash_mtx;
  *	ufsdirhash_mtx
  *	dh_mtx
  *
- * The dh_mtx mutex should be aquired either via the inode lock, or via
+ * The dh_mtx mutex should be acquired either via the inode lock, or via
  * ufsdirhash_mtx. Only the owner of the inode may free the associated
  * dirhash, but anything can steal its memory and set dh_hash to NULL.
  */
@@ -173,8 +173,12 @@ ufsdirhash_build(struct inode *ip)
 	 * lookup on failure rather than potentially blocking forever.
 	 */
 	MALLOC(dh, struct dirhash *, sizeof *dh, M_DIRHASH, M_NOWAIT | M_ZERO);
-	if (dh == NULL)
+	if (dh == NULL) {
+		mtx_lock(&ufsdirhash_mtx);
+		ufs_dirhashmem -= memreqd;
+		mtx_unlock(&ufsdirhash_mtx);
 		return (-1);
+	}
 	MALLOC(dh->dh_hash, doff_t **, narrays * sizeof(dh->dh_hash[0]),
 	    M_DIRHASH, M_NOWAIT | M_ZERO);
 	MALLOC(dh->dh_blkfree, u_int8_t *, nblocks * sizeof(dh->dh_blkfree[0]),
@@ -326,7 +330,7 @@ ufsdirhash_lookup(struct inode *ip, char *name, int namelen, doff_t *offp,
 		return (EJUSTRETURN);
 	/*
 	 * Move this dirhash towards the end of the list if it has a
-	 * score higher than the next entry, and aquire the dh_mtx.
+	 * score higher than the next entry, and acquire the dh_mtx.
 	 * Optimise the case where it's already the last by performing
 	 * an unlocked read of the TAILQ_NEXT pointer.
 	 *
@@ -865,8 +869,8 @@ ufsdirhash_hash(struct dirhash *dh, char *name, int namelen)
 	u_int32_t hash;
 
 	/*
-	 * We hash the name and then some ofther bit of data which is
-	 * invarient over the dirhash's lifetime. Otherwise names
+	 * We hash the name and then some other bit of data that is
+	 * invariant over the dirhash's lifetime. Otherwise names
 	 * differing only in the last byte are placed close to one
 	 * another in the table, which is bad for linear probing.
 	 */
