@@ -85,7 +85,7 @@ struct	vlanreq {
 /* shared with if_ethersubr.c: */
 extern	u_int vlan_proto;
 extern	int vlan_input(struct ether_header *eh, struct mbuf *m);
-extern	void vlan_input_tag(struct ether_header *eh,
+extern	int vlan_input_tag(struct ether_header *eh,
 			struct mbuf *m, u_int16_t t);
 #endif
 
