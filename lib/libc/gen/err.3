@@ -29,9 +29,10 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)err.3	8.1 (Berkeley) 6/9/93
+.\"	From: @(#)err.3	8.1 (Berkeley) 6/9/93
+.\"	$Id$
 .\"
-.Dd "June 9, 1993"
+.Dd April 13, 1995
 .Dt ERR 3
 .Os BSD 4
 .Sh NAME
@@ -42,7 +43,9 @@
 .Nm warn ,
 .Nm vwarn ,
 .Nm warnx ,
-.Nm vwarnx
+.Nm vwarnx ,
+.Nm err_set_file ,
+.Nm err_set_exit
 .Nd formatted error messages
 .Sh SYNOPSIS
 .Fd #include <err.h>
@@ -62,13 +65,19 @@
 .Fn warnx "const char *fmt" "..."
 .Ft void
 .Fn vwarnx "const char *fmt" "va_list args"
+.Ft void
+.Fn err_set_file "void *fp"
+.Ft void
+.Fn err_set_exit "void (*exitf)(int)"
 .Sh DESCRIPTION
 The
 .Fn err
 and
 .Fn warn
 family of functions display a formatted error message on the standard
-error output.
+error output, or on another file specified using the
+.Fn err_set_file
+function.
 In all cases, the last component of the program name, a colon character,
 and a space are output.
 If the
@@ -95,6 +104,13 @@ and
 .Fn verrx
 functions do not return, but exit with the value of the argument
 .Fa eval .
+The
+.Fn err_set_exit
+function can be used to specify a function which is called before
+.Xr exit 2
+to perform any necessary cleanup; passing a null function pointer for
+.Va exitf
+resets the hook to do nothing.
 .Sh EXAMPLES
 Display the current errno information string and exit:
 .Bd -literal -offset indent
