@@ -100,7 +100,7 @@ union {
 } stats_all;
 
 void updatestat();
-static stat_is_init = 0;
+static int stat_is_init = 0;
 static kvm_t *kd;
 
 static int	cp_time_xlat[RSTAT_CPUSTATES] = { CP_USER, CP_NICE, CP_SYS,
