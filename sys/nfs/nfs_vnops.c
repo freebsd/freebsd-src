@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.92 1998/05/31 17:27:55 peter Exp $
+ * $Id: nfs_vnops.c,v 1.93 1998/05/31 17:48:05 peter Exp $
  */
 
 
@@ -399,7 +399,9 @@ nfs_open(ap)
 	int error;
 
 	if (vp->v_type != VREG && vp->v_type != VDIR && vp->v_type != VLNK) {
+#ifdef DIAGNOSTIC
 		printf("open eacces vtyp=%d\n",vp->v_type);
+#endif
 		return (EACCES);
 	}
 	/*
