@@ -23,10 +23,19 @@
  */
 #include "includes.h"
 RCSID("$OpenBSD: auth-skey.c,v 1.19 2002/06/19 00:27:55 deraadt Exp $");
+RCSID("$FreeBSD$");
 
 #ifdef SKEY
 
+#ifdef OPIE
+#include <opie.h>
+#define skey			opie
+#define skeychallenge(k, u, c)	opiechallenge((k), (u), (c))
+#define skey_haskey(u)		opie_haskey((u))
+#define skey_passcheck(u, r)	opie_passverify((u), (r))
+#else
 #include <skey.h>
+#endif
 
 #include "xmalloc.h"
 #include "auth.h"
