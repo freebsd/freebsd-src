@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.34 1994/10/07 05:45:27 davidg Exp $
+ *	$Id: locore.s,v 1.35 1994/10/08 06:20:52 rgrimes Exp $
  */
 
 /*
@@ -54,11 +54,12 @@
 #include <machine/cputypes.h>		/* x86 cpu type definitions */
 #include <sys/syscall.h>		/* system call numbers */
 #include <machine/asmacros.h>		/* miscellaneous asm macros */
-#ifdef APM
+#include "apm.h"
+#if NAPM > 0
 #define ASM
 #include <machine/apm_bios.h>
 #include <machine/apm_segments.h>
-#endif
+#endif /* NAPM */
 
 /*
  *	XXX
@@ -130,7 +131,7 @@ _proc0paddr:	.long	0			/* address of proc 0 address space */
 	.globl	_bdb_exists			/* flag to indicate BDE debugger is available */
 _bdb_exists:	.long	0
 #endif
-#ifdef APM
+#if NAPM > 0
 	.globl	_apm_current_gdt_pdesc		/* current GDT pseudo desc. */
 _apm_current_gdt_pdesc:
 	.word	0, 0, 0
@@ -138,7 +139,7 @@ _apm_current_gdt_pdesc:
 	.globl	_bootstrap_gdt
 _bootstrap_gdt:
 	.space	SIZEOF_GDT * BOOTSTRAP_GDT_NUM
-#endif /* APM */
+#endif /* NAPM */
 	.globl	tmpstk
 	.space	0x1000
 tmpstk:
@@ -293,7 +294,7 @@ NON_GPROF_ENTRY(btext)
  	addl	$KERNBASE, %eax
  	movl	%eax, _video_mode_ptr-KERNBASE	
 
-#ifdef APM
+#if NAPM > 0
 	/*
 	 * Setup APM BIOS:
 	 *
@@ -375,7 +376,7 @@ NON_GPROF_ENTRY(btext)
 	shrl	$16, %esi
 	movw	%si, _apm_ds_limit-KERNBASE
 	movw	%di, _apm_flags-KERNBASE
-#endif /* APM */
+#endif /* NAPM */
 
 	/* Find out our CPU type. */
 
