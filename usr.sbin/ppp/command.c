@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  * 
- * $Id:$
+ * $Id: command.c,v 1.2 1995/02/26 12:17:22 amurai Exp $
  * 
  */
 #include <ctype.h>
@@ -67,7 +67,7 @@ struct cmdtab *plist;
 
   if (argc > 0) {
     for (cmd = plist; cmd->name; cmd++) {
-      if (strcmp(cmd->name, *argv) == 0) {
+      if (strcmp(cmd->name, *argv) == 0 && (cmd->lauth & VarLocalAuth)) {
         printf("%s %s\n", cmd->name, cmd->syntax);
         return(1);
       }
@@ -76,8 +76,8 @@ struct cmdtab *plist;
   }
   n = 0;
   for (cmd = plist; cmd->func; cmd++) {
-    c = (n & 1)? '\n' : '\t';
-    if (cmd->name) {
+    if (cmd->name && (cmd->lauth & VarLocalAuth)) {
+      c = (n & 1)? '\n' : '\t';
       printf("  %-8s: %-20s%c", cmd->name, cmd->helpmes, c);
       n++;
     }
@@ -160,7 +160,7 @@ struct cmdtab Commands[] = {
   	"Display option configs",	StrNull},
   { "enable",  NULL,    EnableCommand,	LOCAL_AUTH,
   	"Enable option",		StrOption},
-  { "passwd",  NULL,	LocalAuthCommand,LOCAL_NO_AUTH | LOCAL_NO_AUTH,
+  { "passwd",  NULL,	LocalAuthCommand,LOCAL_NO_AUTH,
   	"Password for manupilation", StrOption},
   { "load",    NULL,    LoadCommand,	LOCAL_AUTH,
   	"Load settings",		StrRemote},
@@ -172,7 +172,7 @@ struct cmdtab Commands[] = {
   	"Show status and statictics", "var"},
   { "term",    NULL,    TerminalCommand,LOCAL_AUTH,
   	"Enter to terminal mode", StrNull},
-  { "quit",    "bye",   QuitCommand,	LOCAL_AUTH,
+  { "quit",    "bye",   QuitCommand,	LOCAL_AUTH | LOCAL_NO_AUTH,
   	"Quit PPP program", StrNull},
   { "help",    "?",     HelpCommand,	LOCAL_AUTH | LOCAL_NO_AUTH,
 	"Display this message", "[command]", (void *)Commands },
@@ -439,7 +439,7 @@ int argc;
 char **argv;
 {
   if (mode & (MODE_DIRECT|MODE_DEDICATED|MODE_AUTO)) {
-    if (argc > 0) {
+    if (argc > 0 && (VarLocalAuth & LOCAL_AUTH)) {
       Cleanup(EX_NORMAL);
     } else {
       VarLocalAuth = LOCAL_NO_AUTH;
