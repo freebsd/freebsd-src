@@ -48,9 +48,6 @@
     can be deleted after a certain amount of time.
 
 
-    This software is placed into the public domain with no restrictions
-    on its distribution.
-
     Initial version: August, 1996  (cjm)
 
     Version 1.4: September 16, 1996 (cjm)
