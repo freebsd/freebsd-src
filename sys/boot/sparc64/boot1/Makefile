@@ -1,19 +1,29 @@
 # $FreeBSD$
 
+PROG=		boot1
+SRCS=		_start.S boot1.c
+NOMAN=
+STRIP=
+BINDIR?=	/boot
+BINMODE=	444
+
 BOOTBLOCKBASE=	0x4000
 
-CFLAGS=	-W -Wall -I../../ -I../../common/ -Os \
-	-DBOOTBLOCKBASE=${BOOTBLOCKBASE} \
-	-ffreestanding -mno-app-regs -mcmodel=medlow
-OBJ=	boot1.o
+CFLAGS=	-W -Wall -I../../ -I../../common/ -Os -ffreestanding -mno-app-regs \
+	-mcmodel=medlow
 
-all:	boot1
+boot1.elf: _start.o boot1.o
+	${LD} -N -Ttext ${BOOTBLOCKBASE} -o ${.TARGET} _start.o boot1.o
 
-boot1.o:	boot1.c
-	${CC} ${CFLAGS} -c -o ${.TARGET} ${.ALLSRC}
+boot1.aout: boot1.elf
+	/usr/local/bin/elftoaout -o ${.TARGET} boot1.elf
 
-boot1:	${OBJ}
-	${LD} -N -Ttext ${BOOTBLOCKBASE} -e main -o boot1 ${OBJ}
-	/usr/local/bin/elftoaout boot1
-clean:
-	rm -f *.o boot1
+# Construct boot1. disklabel expects it to contain zeroed-out space for the
+# label, and to be of the correct size.
+boot1: boot1.aout
+	dd if=/dev/zero of=${.TARGET} bs=512 count=16
+	dd if=boot1.aout of=${.TARGET} bs=512 oseek=1 conv=notrunc
+
+CLEANFILES+=	boot1.elf boot1.aout
+
+.include <bsd.prog.mk>
