@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: eisaconf.c,v 1.45 1999/05/24 03:08:46 peter Exp $
+ *	$Id: eisaconf.c,v 1.46 1999/06/22 09:44:00 peter Exp $
  */
 
 #include "opt_eisa.h"
@@ -104,7 +104,7 @@ mainboard_probe(device_t dev)
 	if (idstring == NULL) {
 		panic("Eisa probe unable to malloc");
 	}
-	sprintf(idstring, "%c%c%c%x%x (System Board)",
+	sprintf(idstring, "%c%c%c%03x%01x (System Board)",
 		EISA_MFCTR_CHAR0(id),
 		EISA_MFCTR_CHAR1(id),
 		EISA_MFCTR_CHAR2(id),
@@ -192,6 +192,24 @@ eisa_probe(device_t dev)
 	 * should be a motherboard "card" there somewhere.
 	 */
 	return devices_found ? 0 : ENXIO;
+}
+
+static void
+eisa_probe_nomatch(device_t dev, device_t child)
+{
+	u_int32_t	eisa_id = eisa_get_id(child);
+	u_int8_t	slot = eisa_get_slot(child);
+
+	device_printf(dev, "unknown card %c%c%c%03x%01x (0x%08x) at slot %d\n",
+		EISA_MFCTR_CHAR0(eisa_id),
+		EISA_MFCTR_CHAR1(eisa_id),
+		EISA_MFCTR_CHAR2(eisa_id),
+		EISA_PRODUCT_ID(eisa_id),
+		EISA_REVISION_ID(eisa_id),
+		eisa_id,
+		slot);
+
+	return;
 }
 
 static void
@@ -476,6 +494,7 @@ static device_method_t eisa_methods[] = {
 
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	eisa_print_child),
+	DEVMETHOD(bus_probe_nomatch,	eisa_probe_nomatch),
 	DEVMETHOD(bus_read_ivar,	eisa_read_ivar),
 	DEVMETHOD(bus_write_ivar,	eisa_write_ivar),
 	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),

@@ -23,7 +23,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	$Id: bus_if.m,v 1.10 1999/05/14 11:22:39 dfr Exp $
+#	$Id: bus_if.m,v 1.11 1999/05/28 09:25:08 dfr Exp $
 #
 
 INTERFACE bus;
@@ -51,6 +51,16 @@ CODE {
 METHOD void print_child {
 	device_t dev;
 	device_t child;
+};
+
+# 
+# Called for each child device that 
+# did not succeed in probing for a
+# driver.
+#    
+METHOD void probe_nomatch {
+        device_t dev;
+        device_t child;
 };
 
 #
