@@ -1,8 +1,5 @@
-#	$Id$
 
 PROG=		apmconf
-# BINMODE=	550
-# BINOWN=		root
-NOMAN=		1
+MAN8=		apmconf.8
 
 .include <bsd.prog.mk>
