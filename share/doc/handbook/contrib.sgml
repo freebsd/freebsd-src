@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.15.2.8 1996/06/19 20:27:31 jkh Exp $ -->
+<!-- $Id: contrib.sgml,v 1.15.2.9 1996/06/26 09:23:56 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -80,7 +80,7 @@
   <sect><heading>The FreeBSD Developers</heading>
 
     <p>These are the people who have commit privileges and do the work on
-       FreeBSD source tree.  All core team members are also developers.
+       the FreeBSD source tree.  All core team members are also developers.
 
       <itemize>
         <item>&a.torstenb;
@@ -93,6 +93,7 @@
         <item>&a.se;  
         <item>&a.fenner;
         <item>&a.jfieber;
+	<item>&a.scrappy;
 	<item>&a.jhay;
         <item>&a.lars;
         <item>&a.tg;
@@ -101,14 +102,15 @@
         <item>&a.hsu;
         <item>&a.ugen;
         <item>&a.gj;
+	<item>&a.andreas;
         <item>&a.ljo;
         <item>&a.erich;
         <item>&a.smace;
         <item>&a.amurai;
         <item>&a.markm;
         <item>&a.alex;
-        <item>&a.olah;
         <item>&a.wpaul; 
+	<item>&a.smpatel;
         <item>&a.jmacd; 
         <item>&a.jdp;
         <item>&a.mpp;
@@ -218,6 +220,7 @@
 	  <item>Janusz Kokot &lt;janek@gaja.ipan.lublin.pl&gt;
 	  <item>Javier Martin Rueda &lt;jmrueda@diatel.upm.es&gt;
 	  <item>Jian-Da Li &lt;jdli@FreeBSD.csie.NCTU.edu.tw&gt;
+	  <item>Jim Lowe &lt;james@miller.cs.uwm.edu&gt;
 	  <item>Jim Wilson &lt;wilson@moria.cygnus.com&gt;
 	  <item>John Capo &lt;jc@irbs.com&gt;
           <item>John Perry &lt;perry@vishnu.alias.net&gt;
