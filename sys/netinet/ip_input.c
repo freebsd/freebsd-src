@@ -318,7 +318,7 @@ ip_input(struct mbuf *m)
 
   	M_ASSERTPKTHDR(m);
   	
-	args.next_hop = ip_claim_next_hop(m);
+	args.next_hop = m_claim_next_hop(m, PACKET_TAG_IPFORWARD);
 	args.rule = ip_dn_claim_rule(m);
   
 	if (m->m_flags & M_FASTFWD_OURS) {
