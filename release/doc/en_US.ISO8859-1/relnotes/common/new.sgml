@@ -239,6 +239,11 @@
       for instance) to allow users to set whether or not a given
       device can wake the system.</para>
 
+    <para arch="i386">The &man.acpi.4; driver has been updated to
+      be disabled automatically when the machine has well-known broken BIOS.
+      This behavior can be disabled by setting a loader tunable
+      <varname>hint.acpi.0.disabled</varname> to <literal>0</literal>.</para>
+
     <para arch="i386">The &man.ctau.4; driver has been added for Cronyx Tau
       synchronous serial adapters. This driver was known for a long time as
       <quote>ct</quote> in its previous life outside the &os; source tree. &merged;
@@ -1212,6 +1217,9 @@
     <para>The timezone database has been updated from
       <filename>tzdata2003a</filename> to
       <filename>tzdata2004a</filename>.</para>
+
+    <para><application>zlib</application> has been updated to
+      from version 1.1.4 to version 1.2.1.</para>
   </sect2>
 
   <sect2 id="ports">
