@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.7.4.5 1997/07/17 15:50:19 nate Exp $
+ *	$Id: cy.c,v 1.7.4.6 1997/07/17 19:47:01 nate Exp $
  */
 
 #include "cy.h"
@@ -2200,7 +2200,6 @@ commctl(com, bits, how)
 		if (mcr & MCR_RTS)
 			/* XXX wired on for Cyclom-8Ys */
 			bits |= TIOCM_RTS;
-		msr = com->prev_modem_status;
 
 		/*
 		 * We must read the modem status from the hardware because
