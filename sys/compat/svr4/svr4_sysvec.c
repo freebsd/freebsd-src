@@ -206,17 +206,19 @@ const char      svr4_emul_path[] = "/compat/svr4";
 static int
 svr4_fixup(register_t **stack_base, struct image_params *imgp)
 {
-	Elf32_Auxargs *args = (Elf32_Auxargs *)imgp->auxargs;
+	Elf32_Auxargs *args;
 	register_t *pos;
              
+	KASSERT(curthread->td_proc == imgp->proc &&
+	    (curthread->td_proc->p_flag & P_THREADED) == 0,
+	    ("unsafe svr4_fixup(), should be curproc"));
+	args = (Elf32_Auxargs *)imgp->auxargs;
 	pos = *stack_base + (imgp->argc + imgp->envc + 2);  
     
-	if (args->trace) {
+	if (args->trace)
 		AUXARGS_ENTRY(pos, AT_DEBUG, 1);
-	}
-	if (args->execfd != -1) {
+	if (args->execfd != -1)
 		AUXARGS_ENTRY(pos, AT_EXECFD, args->execfd);
-	}       
 	AUXARGS_ENTRY(pos, AT_PHDR, args->phdr);
 	AUXARGS_ENTRY(pos, AT_PHENT, args->phent);
 	AUXARGS_ENTRY(pos, AT_PHNUM, args->phnum);
@@ -224,19 +226,17 @@ svr4_fixup(register_t **stack_base, struct image_params *imgp)
 	AUXARGS_ENTRY(pos, AT_FLAGS, args->flags);
 	AUXARGS_ENTRY(pos, AT_ENTRY, args->entry);
 	AUXARGS_ENTRY(pos, AT_BASE, args->base);
-	PROC_LOCK(imgp->proc);
 	AUXARGS_ENTRY(pos, AT_UID, imgp->proc->p_ucred->cr_ruid);
 	AUXARGS_ENTRY(pos, AT_EUID, imgp->proc->p_ucred->cr_svuid);
 	AUXARGS_ENTRY(pos, AT_GID, imgp->proc->p_ucred->cr_rgid);
 	AUXARGS_ENTRY(pos, AT_EGID, imgp->proc->p_ucred->cr_svgid);
-	PROC_UNLOCK(imgp->proc);
 	AUXARGS_ENTRY(pos, AT_NULL, 0);
 	
 	free(imgp->auxargs, M_TEMP);      
 	imgp->auxargs = NULL;
 
 	(*stack_base)--;
-	**stack_base = (int)imgp->argc;
+	**stack_base = (register_t)imgp->argc;
 	return 0;
 }
 
