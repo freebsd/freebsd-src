@@ -1,14 +1,11 @@
-#
-# $Id: Makefile,v 1.40 1999/05/02 11:31:54 dfr Exp $
-#
+#	$Id$
 
 .include "../Makefile.inc0"
 
 .PATH: ${SRCDIR}/binutils
 
-PROG=		nm
-PROG = gdb
-XSRCS = annotate.c ax-general.c ax-gdb.c bcache.c blockframe.c		\
+PROG=	gdb
+XSRCS=	annotate.c ax-general.c ax-gdb.c bcache.c blockframe.c		\
 	breakpoint.c buildsym.c c-exp.y c-lang.c c-typeprint.c		\
 	c-valprint.c ch-exp.c ch-lang.c ch-typeprint.c ch-valprint.c	\
 	coffread.c command.c complaints.c copying.c corefile.c		\
@@ -77,7 +74,7 @@ CLEANFILES=	init.c init.c-tmp
 # object files that will be linked into gdb.
 
 init.c: ${XSRCS}
-	@echo Making ${.TARGET}
+	@${ECHO} Making ${.TARGET}
 	@rm -f init.c-tmp
 	@echo '/* Do not modify this file.  */' >init.c-tmp
 	@echo '/* It is created automatically by the Makefile.  */'>>init.c-tmp
