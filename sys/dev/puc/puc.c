@@ -108,14 +108,26 @@ struct puc_device {
 
 static void puc_intr(void *arg);
 
-static void puc_config_superio(device_t);
-static void puc_config_win877(struct resource *);
 static int puc_find_free_unit(char *);
 #ifdef PUC_DEBUG
-static void puc_print_win877(bus_space_tag_t, bus_space_handle_t, u_int,
-    u_int);
 static void puc_print_resource_list(struct resource_list *);
 #endif
+
+static int
+puc_port_bar_index(struct puc_softc *sc, int bar)
+{
+	int i;
+
+	for (i = 0; i < PUC_MAX_BAR; i += 1) {
+		if (!sc->sc_bar_mappings[i].used)
+			break;
+		if (sc->sc_bar_mappings[i].bar == bar)
+			return (i);
+	}
+	sc->sc_bar_mappings[i].bar = bar;
+	sc->sc_bar_mappings[i].used = 1;
+	return (i);
+}
 
 int
 puc_attach(device_t dev, const struct puc_device_description *desc)
@@ -130,7 +142,6 @@ puc_attach(device_t dev, const struct puc_device_description *desc)
 	sc = (struct puc_softc *)device_get_softc(dev);
 	bzero(sc, sizeof(*sc));
 	sc->sc_desc = desc;
-
 	if (sc->sc_desc == NULL)
 		return (ENXIO);
 
@@ -161,10 +172,10 @@ puc_attach(device_t dev, const struct puc_device_description *desc)
 
 	rid = 0;
 	for (i = 0; PUC_PORT_VALID(sc->sc_desc, i); i++) {
-		if (rid == sc->sc_desc->ports[i].bar)
+		if (i > 0 && rid == sc->sc_desc->ports[i].bar)
 			sc->barmuxed = 1;
 		rid = sc->sc_desc->ports[i].bar;
-		bidx = PUC_PORT_BAR_INDEX(rid);
+		bidx = puc_port_bar_index(sc, rid);
 
 		if (sc->sc_bar_mappings[bidx].res != NULL)
 			continue;
@@ -176,17 +187,21 @@ puc_attach(device_t dev, const struct puc_device_description *desc)
 		}
 		sc->sc_bar_mappings[bidx].res = res;
 #ifdef PUC_DEBUG
-		printf("port bst %x, start %x, end %x\n",
+		printf("port rid %d bst %x, start %x, end %x\n", rid,
 		    (u_int)rman_get_bustag(res), (u_int)rman_get_start(res),
 		    (u_int)rman_get_end(res));
 #endif
 	}
 
-	puc_config_superio(dev);
+	if (desc->init != NULL) {
+		i = desc->init(sc);
+		if (i != 0)
+			return (i);
+	}
 
 	for (i = 0; PUC_PORT_VALID(sc->sc_desc, i); i++) {
 		rid = sc->sc_desc->ports[i].bar;
-		bidx = PUC_PORT_BAR_INDEX(rid);
+		bidx = puc_port_bar_index(sc, rid);
 		if (sc->sc_bar_mappings[bidx].res == NULL)
 			continue;
 
@@ -214,7 +229,7 @@ puc_attach(device_t dev, const struct puc_device_description *desc)
 		res = sc->sc_bar_mappings[bidx].res;
 		resource_list_add(&pdev->resources, SYS_RES_IOPORT, 0,
 		    rman_get_start(res) + sc->sc_desc->ports[i].offset,
-		    rman_get_end(res) + sc->sc_desc->ports[i].offset + 8 - 1,
+		    rman_get_start(res) + sc->sc_desc->ports[i].offset + 8 - 1,
 		    8);
 		rle = resource_list_find(&pdev->resources, SYS_RES_IOPORT, 0);
 
@@ -293,6 +308,7 @@ puc_intr(void *arg)
 	int i;
 	struct puc_softc *sc;
 
+printf("puc_intr\n");
 	sc = (struct puc_softc *)arg;
 	for (i = 0; i < PUC_MAX_PORTS; i++)
 		if (sc->sc_ports[i].ihand != NULL)
@@ -320,142 +336,6 @@ puc_find_description(uint32_t vend, uint32_t prod, uint32_t svend,
 
 	return (NULL);
 }
-
-/*
- * It might be possible to make these more generic if we can detect patterns.
- * For instance maybe if the size of a bar is 0x400 (the old isa space) it
- * might contain one or more superio chips.
- */
-static void
-puc_config_superio(device_t dev)
-{
-	struct puc_softc *sc = (struct puc_softc *)device_get_softc(dev);
-
-	if (sc->sc_desc->rval[PUC_REG_VEND] == 0x1592 &&
-	    sc->sc_desc->rval[PUC_REG_PROD] == 0x0781)
-		puc_config_win877(sc->sc_bar_mappings[0].res);
-}
-
-#define rdspio(indx)		(bus_space_write_1(bst, bsh, efir, indx), \
-				bus_space_read_1(bst, bsh, efdr))
-#define wrspio(indx,data)	(bus_space_write_1(bst, bsh, efir, indx), \
-				bus_space_write_1(bst, bsh, efdr, data))
-
-#ifdef PUC_DEBUG
-static void
-puc_print_win877(bus_space_tag_t bst, bus_space_handle_t bsh, u_int efir,
-	u_int efdr)
-{
-	u_char cr00, cr01, cr04, cr09, cr0d, cr14, cr15, cr16, cr17;
-	u_char cr18, cr19, cr24, cr25, cr28, cr2c, cr31, cr32;
-
-	cr00 = rdspio(0x00);
-	cr01 = rdspio(0x01);
-	cr04 = rdspio(0x04);
-	cr09 = rdspio(0x09);
-	cr0d = rdspio(0x0d);
-	cr14 = rdspio(0x14);
-	cr15 = rdspio(0x15);
-	cr16 = rdspio(0x16);
-	cr17 = rdspio(0x17);
-	cr18 = rdspio(0x18);
-	cr19 = rdspio(0x19);
-	cr24 = rdspio(0x24);
-	cr25 = rdspio(0x25);
-	cr28 = rdspio(0x28);
-	cr2c = rdspio(0x2c);
-	cr31 = rdspio(0x31);
-	cr32 = rdspio(0x32);
-	printf("877T: cr00 %x, cr01 %x, cr04 %x, cr09 %x, cr0d %x, cr14 %x, "
-	    "cr15 %x, cr16 %x, cr17 %x, cr18 %x, cr19 %x, cr24 %x, cr25 %x, "
-	    "cr28 %x, cr2c %x, cr31 %x, cr32 %x\n", cr00, cr01, cr04, cr09,
-	    cr0d, cr14, cr15, cr16, cr17,
-	    cr18, cr19, cr24, cr25, cr28, cr2c, cr31, cr32);
-}
-#endif
-
-static void
-puc_config_win877(struct resource *res)
-{
-	u_char val;
-	u_int efir, efdr;
-	bus_space_tag_t bst;
-	bus_space_handle_t bsh;
-
-	bst = rman_get_bustag(res);
-	bsh = rman_get_bushandle(res);
-
-	/* configure the first W83877TF */
-	bus_space_write_1(bst, bsh, 0x250, 0x89);
-	efir = 0x251;
-	efdr = 0x252;
-	val = rdspio(0x09) & 0x0f;
-	if (val != 0x0c) {
-		printf("conf_win877: Oops not a W83877TF\n");
-		return;
-	}
-
-#ifdef PUC_DEBUG
-	printf("before: ");
-	puc_print_win877(bst, bsh, efir, efdr);
-#endif
-
-	val = rdspio(0x16);
-	val |= 0x04;
-	wrspio(0x16, val);
-	val &= ~0x04;
-	wrspio(0x16, val);
-
-	wrspio(0x24, 0x2e8 >> 2);
-	wrspio(0x25, 0x2f8 >> 2);
-	wrspio(0x17, 0x03);
-	wrspio(0x28, 0x43);
-
-#ifdef PUC_DEBUG
-	printf("after: ");
-	puc_print_win877(bst, bsh, efir, efdr);
-#endif
-
-	bus_space_write_1(bst, bsh, 0x250, 0xaa);
-
-	/* configure the second W83877TF */
-	bus_space_write_1(bst, bsh, 0x3f0, 0x87);
-	bus_space_write_1(bst, bsh, 0x3f0, 0x87);
-	efir = 0x3f0;
-	efdr = 0x3f1;
-	val = rdspio(0x09) & 0x0f;
-	if (val != 0x0c) {
-		printf("conf_win877: Oops not a W83877TF\n");
-		return;
-	}
-
-#ifdef PUC_DEBUG
-	printf("before: ");
-	puc_print_win877(bst, bsh, efir, efdr);
-#endif
-
-	val = rdspio(0x16);
-	val |= 0x04;
-	wrspio(0x16, val);
-	val &= ~0x04;
-	wrspio(0x16, val);
-
-	wrspio(0x24, 0x3e8 >> 2);
-	wrspio(0x25, 0x3f8 >> 2);
-	wrspio(0x17, 0x03);
-	wrspio(0x28, 0x43);
-
-#ifdef PUC_DEBUG
-	printf("after: ");
-	puc_print_win877(bst, bsh, efir, efdr);
-#endif
-
-	bus_space_write_1(bst, bsh, 0x3f0, 0xaa);
-}
-
-#undef rdspio
-#undef wrspio
-
 static int puc_find_free_unit(char *name)
 {
 	devclass_t dc;
@@ -482,12 +362,15 @@ static int puc_find_free_unit(char *name)
 static void
 puc_print_resource_list(struct resource_list *rl)
 {
+#if 0
 	struct resource_list_entry *rle;
 
 	printf("print_resource_list: rl %p\n", rl);
 	SLIST_FOREACH(rle, rl, link)
-		printf("type %x, rid %x\n", rle->type, rle->rid);
+		printf("  type %x, rid %x start %x end %x count %x\n",
+		    rle->type, rle->rid, rle->start, rle->end, rle->count);
 	printf("print_resource_list: end.\n");
+#endif
 }
 #endif
 
@@ -572,6 +455,7 @@ puc_setup_intr(device_t dev, device_t child, struct resource *r, int flags,
 	int i;
 	struct puc_softc *sc;
 
+printf("puc_setup_intr()\n");
 	sc = (struct puc_softc *)device_get_softc(dev);
 	for (i = 0; PUC_PORT_VALID(sc->sc_desc, i); i++) {
 		if (sc->sc_ports[i].dev == child) {
@@ -593,6 +477,7 @@ puc_teardown_intr(device_t dev, device_t child, struct resource *r,
 	int i;
 	struct puc_softc *sc;
 
+printf("puc_teardown_intr()\n");
 	sc = (struct puc_softc *)device_get_softc(dev);
 	for (i = 0; PUC_PORT_VALID(sc->sc_desc, i); i++) {
 		if (sc->sc_ports[i].dev == child) {

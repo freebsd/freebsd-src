@@ -39,6 +39,7 @@
 #define PUC_ENTRAILS 1
 #include <dev/puc/pucvar.h>
 
+#include <dev/sio/sioreg.h>
 #include <dev/pccard/pccardvar.h>
 
 #include <opt_puc.h>
@@ -46,11 +47,12 @@
 const struct puc_device_description rscom_devices = {
 
 	"RS-com 2 port",
+	NULL,
 		{	0,	0,	0,	0	},
 		{	0,	0,	0,	0	},
 	{
-		{ PUC_PORT_TYPE_COM, 0x0, 0x00, 0 },
-		{ PUC_PORT_TYPE_COM, 0x1, 0x00, 0 },
+		{ PUC_PORT_TYPE_COM, 0x0, 0x00, DEFAULT_RCLK },
+		{ PUC_PORT_TYPE_COM, 0x1, 0x00, DEFAULT_RCLK },
 	}
 };
 
@@ -68,8 +70,10 @@ puc_pccard_probe(device_t dev)
 	if (error)
 		return(error);
 	printf("puc_pccard_probe <%s><%s>\n", vendor, product);
-	if (!strcmp(vendor, "PCMCIA") && !strcmp(product, "RS-COM 2P"))
+	if (!strcmp(vendor, "PCMCIA") && !strcmp(product, "RS-COM 2P")) {
+		device_set_desc(dev, rscom_devices.name);
 		return (0);
+	}
 
 	return (ENXIO);
 }
