@@ -99,6 +99,15 @@ fd1720:\
 	:pc#3444:oc#0:bc#4096:fc#512:
 
 #
+# LS-120 floppy-format.
+#
+fd120m|floppy120|floppy120m|3.5in LS-120 Floppy:\
+	:ty=floppy:se#512:nt#8:rm#300:ns#32:nc#963:\
+	:pa#246528:oa#0:ba#4096:fa#512:\
+	:pb#246528:ob#0:bb#4096:fb#512:\
+	:pc#246528:oc#0:bc#4096:fc#512:
+
+#
 # Harddisk formats
 #
 qp120at|Quantum Peripherals 120MB IDE:\
