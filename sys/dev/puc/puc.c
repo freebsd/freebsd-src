@@ -112,6 +112,8 @@ static int puc_find_free_unit(char *);
 static void puc_print_resource_list(struct resource_list *);
 #endif
 
+devclass_t puc_devclass;
+
 static int
 puc_port_bar_index(struct puc_softc *sc, int bar)
 {
@@ -506,6 +508,3 @@ puc_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
 	}
 	return (0);
 }
-
-devclass_t puc_devclass;
-
