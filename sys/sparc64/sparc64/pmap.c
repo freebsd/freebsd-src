@@ -535,7 +535,7 @@ pmap_context_rollover(void)
 
 	mtx_assert(&sched_lock, MA_OWNED);
 	CTR0(KTR_PMAP, "pmap_context_rollover");
-	for (i = 0; i < tlb_slot_count; i++) {
+	for (i = 0; i < tlb_dtlb_entries; i++) {
 		/* XXX - cheetah */
 		data = ldxa(TLB_DAR_SLOT(i), ASI_DTLB_DATA_ACCESS_REG);
 		tag = ldxa(TLB_DAR_SLOT(i), ASI_DTLB_TAG_READ_REG);
