@@ -31,8 +31,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_coda.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
@@ -52,20 +50,6 @@ __FBSDID("$FreeBSD$");
 #include <coda/coda_vnops.h>
 #include <coda/coda_psdev.h>
 
-/* 
-   From: "Jordan K. Hubbard" <jkh@time.cdrom.com>
-   Subject: Re: New 3.0 SNAPshot CDROM about ready for production.. 
-   To: "Robert.V.Baron" <rvb@GLUCK.CODA.CS.CMU.EDU>
-   Date: Fri, 20 Feb 1998 15:57:01 -0800
-
-   > Also I need a character device major number. (and might want to reserve
-   > a block of 10 syscalls.)
-
-   Just one char device number?  No block devices?  Very well, cdev 93 is yours!
-*/
-
-#define VC_DEV_NO      93
-
 static struct cdevsw codadevsw = {
 	.d_version =	D_VERSION,
 	.d_flags =	D_NEEDGIANT,
@@ -76,21 +60,39 @@ static struct cdevsw codadevsw = {
 	.d_ioctl =	vc_nb_ioctl,
 	.d_poll =	vc_nb_poll,
 	.d_name =	"Coda",
-	.d_maj =	VC_DEV_NO,
 };
+
+static eventhandler_tag clonetag;
+
+static LIST_HEAD(, coda_mntinfo) coda_mnttbl;
 
 int     vcdebug = 1;
 #define VCDEBUG if (vcdebug) printf
 
+/* for DEVFS, using bpf & tun drivers as examples*/
+static void coda_fbsd_clone(void *arg, char *name, int namelen,
+    struct cdev **dev);
+
 static int
 codadev_modevent(module_t mod, int type, void *data)
 {
+	struct coda_mntinfo	*mnt;
 
 	switch (type) {
 	case MOD_LOAD:
+		LIST_INIT(&coda_mnttbl);
+		clonetag = EVENTHANDLER_REGISTER(dev_clone, coda_fbsd_clone,
+		    0, 1000);
 		break;
 	case MOD_UNLOAD:
-		return (EBUSY);
+		EVENTHANDLER_DEREGISTER(dev_clone, clonetag);
+		while ((mnt = LIST_FIRST(&coda_mnttbl)) != NULL) {
+			LIST_REMOVE(mnt, mi_list);
+			destroy_dev(mnt->dev);
+			free(mnt, M_CODA);
+		}
+		break;
+
 	default:
 		return (EOPNOTSUPP);
 	}
@@ -101,7 +103,7 @@ static moduledata_t codadev_mod = {
 	codadev_modevent,
 	NULL
 };
-DECLARE_MODULE(codadev, codadev_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE+VC_DEV_NO);
+DECLARE_MODULE(codadev, codadev_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE);
 
 int
 coda_fbsd_getpages(v)
@@ -170,14 +172,6 @@ printf("error = %d\n", error);
 #endif
 }
 
-
-/* for DEVFS, using bpf & tun drivers as examples*/
-static void coda_fbsd_drvinit(void *unused);
-static void coda_fbsd_drvuninit(void *unused);
-static void coda_fbsd_clone(void *arg, char *name, int namelen, struct cdev **dev);
-
-static eventhandler_tag clonetag;
-
 static void coda_fbsd_clone(arg, name, namelen, dev)
     void *arg;
     char *name;
@@ -185,6 +179,7 @@ static void coda_fbsd_clone(arg, name, namelen, dev)
     struct cdev **dev;
 {
     int u;
+    struct coda_mntinfo *mnt;
 
     if (*dev != NULL)
 	return;
@@ -192,31 +187,19 @@ static void coda_fbsd_clone(arg, name, namelen, dev)
 	return;
 
     *dev = make_dev(&codadevsw,unit2minor(u),UID_ROOT,GID_WHEEL,0600,"cfs%d",u);
-    coda_mnttbl[unit2minor(u)].dev = *dev;
-  
+    mnt = malloc(sizeof(struct coda_mntinfo), M_CODA, M_WAITOK|M_ZERO);
+    LIST_INSERT_HEAD(&coda_mnttbl, mnt, mi_list);
 }
 
-static void coda_fbsd_drvinit(unused)
-    void *unused;
+struct coda_mntinfo *
+dev2coda_mntinfo(struct cdev *dev)
 {
-    int i;
+	struct coda_mntinfo	*mnt;
 
-    clonetag = EVENTHANDLER_REGISTER(dev_clone,coda_fbsd_clone,0,1000);
-    for(i=0;i<NVCODA;i++)
-	coda_mnttbl[i].dev = NULL; 
+	LIST_FOREACH(mnt, &coda_mnttbl, mi_list) {
+		if (mnt->dev == dev)
+			break;
+	}
+
+	return mnt;
 }
-
-static void coda_fbsd_drvuninit(unused)
-    void *unused;
-{
-    int i;
-
-    EVENTHANDLER_DEREGISTER(dev_clone,clonetag);
-    for(i=0;i<NVCODA;i++)
-	if(coda_mnttbl[i].dev)
-	    destroy_dev(coda_mnttbl[i].dev);
-}
-
-SYSINIT(coda_fbsd_dev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+VC_DEV_NO,coda_fbsd_drvinit,NULL);
-
-SYSUNINIT(coda_fbsd_dev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+VC_DEV_NO,coda_fbsd_drvuninit,NULL);

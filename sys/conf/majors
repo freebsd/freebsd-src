@@ -56,7 +56,7 @@
 87	wfd		ATAPI floppy client of "wd"
 90	wst		ATAPI tape client of "wd"
 92      *bktr		Bt848 video capture driver (hasty@star-gate.com)
-93	*coda		CODA filesystem.
+93	coda		CODA filesystem.
 96	altq		alternate queueing (including cbq, red, wfq)
 98	loe		Loopback pseudo-ethernet (sbabkin@dcn.att.com)
 99	*ct		Cronyx Tau-ISA serial adapters (driver name "ctau")

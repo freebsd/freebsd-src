@@ -43,8 +43,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_coda.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
@@ -69,7 +67,6 @@ int coda_vfsop_print_entry = 0;
 #define ENTRY    if(coda_vfsop_print_entry) myprintf(("Entered %s\n",__func__))
 
 struct vnode *coda_ctlvp;
-struct coda_mntinfo coda_mnttbl[NVCODA]; /* indexed by minor device number */
 
 /* structure to keep statistics of internally generated/satisfied calls */
 
@@ -161,15 +158,10 @@ coda_omount(vfsp, path, data, td)
 	return(ENXIO);
     }
     
-    if (minor(dev) >= NVCODA || minor(dev) < 0) {
-	MARK_INT_FAIL(CODA_MOUNT_STATS);
-	return(ENXIO);
-    }
-    
     /*
      * Initialize the mount record and link it to the vfs struct
      */
-    mi = &coda_mnttbl[minor(dev)];
+    mi = dev2coda_mntinfo(dev);
     
     if (!VC_OPEN(&mi->mi_vcomm)) {
 	MARK_INT_FAIL(CODA_MOUNT_STATS);
