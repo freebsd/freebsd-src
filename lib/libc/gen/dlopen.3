@@ -123,7 +123,8 @@ from all other shared objects.
 .It Dv RTLD_LOCAL
 Symbols in this shared object and its DAG of needed objects will be
 available for resolving undefined references only from other objects
-in the same DAG.  This is the default, but it may be specified
+in the same DAG.
+This is the default, but it may be specified
 explicitly with this flag.
 .It Dv RTLD_TRACE
 When set, causes dynamic linker to exit after loading all objects
@@ -161,7 +162,8 @@ is called with the special
 .Dv NULL ,
 it is interpreted as a reference to the executable or shared object
 from which the call
-is being made.  Thus a shared object can reference its own symbols.
+is being made.
+Thus a shared object can reference its own symbols.
 .Pp
 If
 .Fn dlsym
@@ -169,7 +171,8 @@ is called with the special
 .Fa handle
 .Dv RTLD_DEFAULT ,
 the search for the symbol follows the algorithm used for resolving
-undefined symbols when objects are loaded.  The objects searched are
+undefined symbols when objects are loaded.
+The objects searched are
 as follows, in the given order:
 .Bl -enum
 .It
@@ -232,12 +235,12 @@ implements all of the behavior of
 .Fn dlsym ,
 but has a return type which can be cast to a function pointer without
 triggering compiler diagnostics.
-.Po Fn dlsym
+.Fn ( dlsym
 returns a data pointer; in the C standard, conversions between
-data and function pointer types are undefined.  Some compilers and
+data and function pointer types are undefined.
+Some compilers and
 .Xr lint 1
-utilities warn about such casts.
-.Pc
+utilities warn about such casts.)
 The precise return type of
 .Fn dlfunc
 is unspecified; applications must cast it to an appropriate function pointer
@@ -256,7 +259,8 @@ If no such error has occurred,
 returns a null pointer.
 At each call to
 .Fn dlerror ,
-the error indication is reset.  Thus in the case of two calls
+the error indication is reset.
+Thus in the case of two calls
 to
 .Fn dlerror ,
 where the second call follows the first immediately, the second call
@@ -296,7 +300,8 @@ for symbols defined in the executable to become visible to
 .Pp
 In previous implementations, it was necessary to prepend an underscore
 to all external symbols in order to gain symbol
-compatibility with object code compiled from the C language.  This is
+compatibility with object code compiled from the C language.
+This is
 still the case when using the (obsolete)
 .Fl aout
 option to the C language compiler.
