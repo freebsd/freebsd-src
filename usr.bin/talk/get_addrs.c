@@ -35,14 +35,13 @@
 static char sccsid[] = "@(#)get_addrs.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <protocols/talkd.h>
+#include <string.h>
 #include <netdb.h>
 #include <stdio.h>
+#include "talk.h"
 #include "talk_ctl.h"
 
+void
 get_addrs(my_machine_name, his_machine_name)
 	char *my_machine_name, *his_machine_name;
 {
@@ -50,28 +49,18 @@ get_addrs(my_machine_name, his_machine_name)
 	struct servent *sp;
 
 	msg.pid = htonl(getpid());
-	/* look up the address of the local host */
-	hp = gethostbyname(my_machine_name);
+
+	hp = gethostbyname(his_machine_name);
 	if (hp == NULL) {
-		fprintf(stderr, "talk: %s: ", my_machine_name);
+		fprintf(stderr, "talk: %s: ", his_machine_name);
 		herror((char *)NULL);
 		exit(-1);
 	}
-	bcopy(hp->h_addr, (char *)&my_machine_addr, hp->h_length);
-	/*
-	 * If the callee is on-machine, just copy the
-	 * network address, otherwise do a lookup...
-	 */
-	if (strcmp(his_machine_name, my_machine_name)) {
-		hp = gethostbyname(his_machine_name);
-		if (hp == NULL) {
-			fprintf(stderr, "talk: %s: ", his_machine_name);
-			herror((char *)NULL);
-			exit(-1);
-		}
-		bcopy(hp->h_addr, (char *) &his_machine_addr, hp->h_length);
-	} else
-		his_machine_addr = my_machine_addr;
+	bcopy(hp->h_addr, (char *) &his_machine_addr, hp->h_length);
+	if (get_iface(&his_machine_addr, &my_machine_addr) == -1) {
+		perror("failed to find my interface address");
+		exit(-1);
+	}
 	/* find the server's port */
 	sp = getservbyname("ntalk", "udp");
 	if (sp == 0) {
