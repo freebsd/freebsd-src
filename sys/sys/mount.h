@@ -471,10 +471,7 @@ extern	struct nfs_public nfs_pub;
  * kern/vfs_default.c, they should be used instead of making "dummy" 
  * functions or casting entries in the VFS op table to "enopnotsupp()".
  */ 
-int	vfs_stdmount(struct mount *mp, char *path, caddr_t data, 
-		struct nameidata *ndp, struct thread *td);
 int	vfs_stdstart(struct mount *mp, int flags, struct thread *td);
-int	vfs_stdunmount(struct mount *mp, int mntflags, struct thread *td);
 int	vfs_stdroot(struct mount *mp, struct vnode **vpp);
 int	vfs_stdquotactl(struct mount *mp, int cmds, uid_t uid,
 		caddr_t arg, struct thread *td);
