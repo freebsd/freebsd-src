@@ -98,12 +98,12 @@
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#include <netinet/ipprotosw.h>
 #include <netinet/ip_var.h>
 #include <netinet/in_var.h>
 
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
-#include <netinet6/in6_gif.h>
 #include <netinet6/in6_var.h>
 #include <netinet/ip_ecn.h>
 
@@ -113,23 +113,7 @@
 
 #include <net/net_osdep.h>
 
-#include "bpf.h"
-#define NBPFILTER	NBPF
-#include "stf.h"
-#include "gif.h"	/*XXX*/
-
-#if NBPFILTER > 0
 #include <net/bpf.h>
-#endif
-
-#if NGIF > 0
-#include <net/if_gif.h>
-#endif
-
-#if NSTF > 0
-#if NSTF != 1
-# error only single stf interface allowed
-#endif
 
 #define IN6_IS_ADDR_6TO4(x)	(ntohs((x)->s6_addr16[0]) == 0x2002)
 #define GET_V4(x)	((struct in_addr *)(&(x)->s6_addr16[1]))
@@ -145,17 +129,20 @@ struct stf_softc {
 };
 
 static struct stf_softc *stf;
-static int nstf;
 
-#if NGIF > 0
-extern int ip_gif_ttl;	/*XXX*/
-#else
-static int ip_gif_ttl = 40;	/*XXX*/
-#endif
+static MALLOC_DEFINE(M_STF, "stf", "6to4 Tunnel Interface");
+static int ip_stf_ttl = 40;
 
-extern struct protosw in_stf_protosw;
+extern  struct domain inetdomain;
+struct ipprotosw in_stf_protosw =
+{ SOCK_RAW,	&inetdomain,	IPPROTO_IPV6,	PR_ATOMIC|PR_ADDR,
+  in_stf_input, rip_output,	0,		rip_ctloutput,
+  0,
+  0,            0,              0,              0,
+  &rip_usrreqs
+};
 
-void stfattach __P((void *));
+static int stfmodevent __P((module_t, int, void *));
 static int stf_encapcheck __P((const struct mbuf *, int, int, void *));
 static struct in6_ifaddr *stf_getsrcifa6 __P((struct ifnet *));
 static int stf_output __P((struct ifnet *, struct mbuf *, struct sockaddr *,
@@ -167,31 +154,31 @@ static int stf_checkaddr6 __P((struct stf_softc *, struct in6_addr *,
 static void stf_rtrequest __P((int, struct rtentry *, struct sockaddr *));
 static int stf_ioctl __P((struct ifnet *, u_long, caddr_t));
 
-void
-stfattach(dummy)
-	void *dummy;
+static int
+stfmodevent(mod, type, data)
+	module_t mod;
+	int type;
+	void *data;
 {
 	struct stf_softc *sc;
-	int i;
+	int err;
 	const struct encaptab *p;
 
-	nstf = NSTF;
-	stf = malloc(nstf * sizeof(struct stf_softc), M_DEVBUF, M_WAITOK);
-	bzero(stf, nstf * sizeof(struct stf_softc));
-	sc = stf;
+	switch (type) {
+	case MOD_LOAD:
+		stf = malloc(sizeof(struct stf_softc), M_STF, M_WAITOK);
+		bzero(stf, sizeof(struct stf_softc));
+		sc = stf;
 
-	/* XXX just in case... */
-	for (i = 0; i < nstf; i++) {
-		sc = &stf[i];
 		bzero(sc, sizeof(*sc));
 		sc->sc_if.if_name = "stf";
-		sc->sc_if.if_unit = i;
+		sc->sc_if.if_unit = 0;
 
 		p = encap_attach_func(AF_INET, IPPROTO_IPV6, stf_encapcheck,
 		    &in_stf_protosw, sc);
 		if (p == NULL) {
 			printf("%s: attach failed\n", if_name(&sc->sc_if));
-			continue;
+			return (ENOMEM);
 		}
 		sc->encap_cookie = p;
 
@@ -206,17 +193,32 @@ stfattach(dummy)
 #endif
 		sc->sc_if.if_snd.ifq_maxlen = IFQ_MAXLEN;
 		if_attach(&sc->sc_if);
-#if NBPFILTER > 0
 #ifdef HAVE_OLD_BPF
 		bpfattach(&sc->sc_if, DLT_NULL, sizeof(u_int));
 #else
 		bpfattach(&sc->sc_if.if_bpf, &sc->sc_if, DLT_NULL, sizeof(u_int));
 #endif
-#endif
+		break;
+	case MOD_UNLOAD:
+		sc = stf;
+		bpfdetach(&sc->sc_if);
+		if_detach(&sc->sc_if);
+		err = encap_detach(sc->encap_cookie);
+		KASSERT(err == 0, ("Unexpected error detaching encap_cookie"));
+		free(sc, M_STF);
+		break;
 	}
+
+	return (0);
 }
 
-PSEUDO_SET(stfattach, if_stf);
+static moduledata_t stf_mod = {
+	"if_stf",
+	stfmodevent,
+	0
+};
+
+DECLARE_MODULE(if_stf, stf_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 
 static int
 stf_encapcheck(m, off, proto, arg)
@@ -413,7 +415,7 @@ stf_output(ifp, m, dst, rt)
 	    &ip->ip_src, sizeof(ip->ip_src));
 	bcopy(in4, &ip->ip_dst, sizeof(ip->ip_dst));
 	ip->ip_p = IPPROTO_IPV6;
-	ip->ip_ttl = ip_gif_ttl;	/*XXX*/
+	ip->ip_ttl = ip_stf_ttl;
 	ip->ip_len = m->m_pkthdr.len;	/*host order*/
 	if (ifp->if_flags & IFF_LINK1)
 		ip_ecn_ingress(ECN_ALLOWED, &ip->ip_tos, &tos);
@@ -607,7 +609,6 @@ in_stf_input(m, va_alist)
 
 	m->m_pkthdr.rcvif = ifp;
 	
-#if NBPFILTER > 0
 	if (ifp->if_bpf) {
 		/*
 		 * We need to prepend the address family as
@@ -629,7 +630,6 @@ in_stf_input(m, va_alist)
 		bpf_mtap(ifp->if_bpf, &m0);
 #endif
 	}
-#endif /*NBPFILTER > 0*/
 
 	/*
 	 * Put the packet to the network layer input queue according to the
@@ -703,5 +703,3 @@ stf_ioctl(ifp, cmd, data)
 
 	return error;
 }
-
-#endif /* NSTF > 0 */

@@ -896,7 +896,7 @@ net/if_ef.c		optional ef
 net/if_ethersubr.c	optional ether
 net/if_faith.c		count faith
 net/if_fddisubr.c	optional fddi
-net/if_gif.c		count gif
+net/if_gif.c		optional gif
 net/if_iso88025subr.c	optional token
 net/if_loop.c		optional loop
 net/if_media.c		standard
@@ -904,7 +904,7 @@ net/if_mib.c		standard
 net/if_ppp.c		count ppp
 net/if_sl.c		optional sl
 net/if_spppsubr.c	optional sppp
-net/if_stf.c		count stf
+net/if_stf.c		optional stf
 net/if_tun.c		optional tun
 net/if_tap.c		optional tap
 net/if_vlan.c		count vlan

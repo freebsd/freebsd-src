@@ -121,7 +121,6 @@
 #include <netinet6/ip6protosw.h>
 
 #include "faith.h"
-#include "gif.h"
 
 #include <net/net_osdep.h>
 

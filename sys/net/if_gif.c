@@ -44,6 +44,9 @@
 #include <sys/time.h>
 #include <sys/syslog.h>
 #include <sys/protosw.h>
+#include <sys/conf.h>
+#include <machine/bus.h>	/* XXX: Shouldn't really be required! */
+#include <sys/rman.h>
 #include <machine/cpu.h>
 
 #include <net/if.h>
@@ -58,6 +61,8 @@
 #ifdef	INET
 #include <netinet/in_var.h>
 #include <netinet/in_gif.h>
+#include <netinet/ip_var.h>
+#include <netinet/ipprotosw.h>
 #endif	/* INET */
 
 #ifdef INET6
@@ -74,28 +79,46 @@
 #include <netinet/ip_encap.h>
 #include <net/if_gif.h>
 
-#include "gif.h"
-#include "bpf.h"
-#define NBPFILTER	NBPF
-
 #include <net/net_osdep.h>
 
-#if NGIF > 0
+#define GIFNAME		"gif"
+#define GIFDEV		"if_gif"
+#define GIF_MAXUNIT	0x7fff	/* ifp->if_unit is only 15 bits */
 
-void gifattach __P((void *));
+static MALLOC_DEFINE(M_GIF, "gif", "Generic Tunnel Interface");
+static struct rman gifunits[1];
+TAILQ_HEAD(gifhead, gif_softc) gifs = TAILQ_HEAD_INITIALIZER(gifs);
+
+int	gif_clone_create __P((struct if_clone *, int *));
+void	gif_clone_destroy __P((struct ifnet *));
+
+struct if_clone gif_cloner =
+    IF_CLONE_INITIALIZER("gif", gif_clone_create, gif_clone_destroy);
+
+static int gifmodevent __P((module_t, int, void *));
+void gif_delete_tunnel __P((struct gif_softc *));
 static int gif_encapcheck __P((const struct mbuf *, int, int, void *));
+
 #ifdef INET
-extern struct protosw in_gif_protosw;
+extern  struct domain inetdomain;
+struct ipprotosw in_gif_protosw =
+{ SOCK_RAW,	&inetdomain,	0/*IPPROTO_IPV[46]*/,	PR_ATOMIC|PR_ADDR,
+  in_gif_input,	rip_output,	0,		rip_ctloutput,
+  0,
+  0,		0,		0,		0,
+  &rip_usrreqs
+};
 #endif
 #ifdef INET6
-extern struct ip6protosw in6_gif_protosw;
+extern  struct domain6 inet6domain;
+struct ip6protosw in6_gif_protosw =
+{ SOCK_RAW,	&inet6domain,	0/*IPPROTO_IPV[46]*/,	PR_ATOMIC|PR_ADDR,
+  in6_gif_input, rip6_output,	0,		rip6_ctloutput,
+  0,
+  0,		0,		0,		0,
+  &rip6_usrreqs
+};
 #endif
-
-/*
- * gif global variable definitions
- */
-static int ngif;		/* number of interfaces */
-static struct gif_softc *gif = 0;
 
 #ifndef MAX_GIF_NEST
 /*
@@ -110,64 +133,158 @@ static struct gif_softc *gif = 0;
 #endif
 static int max_gif_nesting = MAX_GIF_NEST;
 
-void
-gifattach(dummy)
-	void *dummy;
+int
+gif_clone_create(ifc, unit)
+	struct if_clone *ifc;
+	int *unit;
 {
+	struct resource *r;
 	struct gif_softc *sc;
-	int i;
 
-	ngif = NGIF;
-	gif = sc = malloc(ngif * sizeof(struct gif_softc), M_DEVBUF, M_WAITOK);
-	bzero(sc, ngif * sizeof(struct gif_softc));
-	for (i = 0; i < ngif; sc++, i++) {
-		sc->gif_if.if_name = "gif";
-		sc->gif_if.if_unit = i;
+	if (*unit > GIF_MAXUNIT)
+		return (ENXIO);
 
-		sc->encap_cookie4 = sc->encap_cookie6 = NULL;
+	if (*unit < 0) {
+		r = rman_reserve_resource(gifunits, 0, GIF_MAXUNIT, 1,
+		    RF_ALLOCATED | RF_ACTIVE, NULL);
+		if (r == NULL)
+			return (ENOSPC);
+		*unit = rman_get_start(r);
+	} else {
+		r = rman_reserve_resource(gifunits, *unit, *unit, 1,
+		    RF_ALLOCATED | RF_ACTIVE, NULL);
+		if (r == NULL)
+			return (EEXIST);
+	}
+	
+	sc = malloc (sizeof(struct gif_softc), M_GIF, M_WAITOK);
+	bzero(sc, sizeof(struct gif_softc));
+
+	sc->gif_if.if_softc = sc;
+	sc->gif_if.if_name = GIFNAME;
+	sc->gif_if.if_unit = *unit;
+	sc->r_unit = r;
+
+	sc->encap_cookie4 = sc->encap_cookie6 = NULL;
 #ifdef INET
-		sc->encap_cookie4 = encap_attach_func(AF_INET, -1,
-		    gif_encapcheck, &in_gif_protosw, sc);
-		if (sc->encap_cookie4 == NULL) {
-			printf("%s: attach failed\n", if_name(&sc->gif_if));
-			continue;
-		}
+	sc->encap_cookie4 = encap_attach_func(AF_INET, -1,
+	    gif_encapcheck, (struct protosw*)&in_gif_protosw, sc);
+	if (sc->encap_cookie4 == NULL) {
+		printf("%s: unable to attach encap4\n", if_name(&sc->gif_if));
+		free(sc, M_GIF);
+		return (EIO);	/* XXX */
+	}
 #endif
 #ifdef INET6
-		sc->encap_cookie6 = encap_attach_func(AF_INET6, -1,
-		    gif_encapcheck, (struct protosw *)&in6_gif_protosw, sc);
-		if (sc->encap_cookie6 == NULL) {
-			if (sc->encap_cookie4) {
-				encap_detach(sc->encap_cookie4);
-				sc->encap_cookie4 = NULL;
-			}
-			printf("%s: attach failed\n", if_name(&sc->gif_if));
-			continue;
+	sc->encap_cookie6 = encap_attach_func(AF_INET6, -1,
+	    gif_encapcheck, (struct protosw *)&in6_gif_protosw, sc);
+	if (sc->encap_cookie6 == NULL) {
+		if (sc->encap_cookie4) {
+			encap_detach(sc->encap_cookie4);
+			sc->encap_cookie4 = NULL;
 		}
+		printf("%s: unable to attach encap6\n", if_name(&sc->gif_if));
+		free(sc, M_GIF);
+		return (EIO);	/* XXX */
+	}
 #endif
 
-		sc->gif_if.if_mtu    = GIF_MTU;
-		sc->gif_if.if_flags  = IFF_POINTOPOINT | IFF_MULTICAST;
+	sc->gif_if.if_mtu    = GIF_MTU;
+	sc->gif_if.if_flags  = IFF_POINTOPOINT | IFF_MULTICAST;
 #if 0
-		/* turn off ingress filter */
-		sc->gif_if.if_flags  |= IFF_LINK2;
+	/* turn off ingress filter */
+	sc->gif_if.if_flags  |= IFF_LINK2;
 #endif
-		sc->gif_if.if_ioctl  = gif_ioctl;
-		sc->gif_if.if_output = gif_output;
-		sc->gif_if.if_type   = IFT_GIF;
-		sc->gif_if.if_snd.ifq_maxlen = IFQ_MAXLEN;
-		if_attach(&sc->gif_if);
-#if NBPFILTER > 0
-#ifdef HAVE_OLD_BPF
-		bpfattach(&sc->gif_if, DLT_NULL, sizeof(u_int));
-#else
-		bpfattach(&sc->gif_if.if_bpf, &sc->gif_if, DLT_NULL, sizeof(u_int));
-#endif
-#endif
-	}
+	sc->gif_if.if_ioctl  = gif_ioctl;
+	sc->gif_if.if_output = gif_output;
+	sc->gif_if.if_type   = IFT_GIF;
+	sc->gif_if.if_snd.ifq_maxlen = IFQ_MAXLEN;
+	if_attach(&sc->gif_if);
+	bpfattach(&sc->gif_if, DLT_NULL, sizeof(u_int));
+	TAILQ_INSERT_TAIL(&gifs, sc, gif_link);
+	return (0);
 }
 
-PSEUDO_SET(gifattach, if_gif);
+void
+gif_clone_destroy(ifp)
+	struct ifnet *ifp;
+{
+	int err;
+	struct gif_softc *sc = ifp->if_softc;
+
+	gif_delete_tunnel(sc);
+	TAILQ_REMOVE(&gifs, sc, gif_link);
+	if (sc->encap_cookie4 != NULL) {
+		err = encap_detach(sc->encap_cookie4);
+		KASSERT(err == 0, ("Unexpected error detaching encap_cookie4"));
+	}
+	if (sc->encap_cookie6 != NULL) {
+		err = encap_detach(sc->encap_cookie6);
+		KASSERT(err == 0, ("Unexpected error detaching encap_cookie6"));
+	}
+
+	bpfdetach(ifp);
+	if_detach(ifp);
+
+	err = rman_release_resource(sc->r_unit);
+	KASSERT(err == 0, ("Unexpected error freeing resource"));
+
+	free(sc, M_GIF);
+}
+
+static int
+gifmodevent(mod, type, data)
+	module_t mod;
+	int type;
+	void *data;
+{
+	int err;
+
+	switch (type) {
+	case MOD_LOAD:
+		gifunits->rm_type = RMAN_ARRAY;
+		gifunits->rm_descr = "configurable if_gif units";
+		err = rman_init(gifunits);
+		if (err != 0)
+			return (err);
+		err = rman_manage_region(gifunits, 0, GIF_MAXUNIT);
+		if (err != 0) {
+			printf("%s: gifunits: rman_manage_region: Failed %d\n",
+			    GIFNAME, err);
+			rman_fini(gifunits);
+			return (err);
+		}
+		if_clone_attach(&gif_cloner);
+
+#ifdef INET6
+		ip6_gif_hlim = GIF_HLIM;
+#endif
+
+		break;
+	case MOD_UNLOAD:
+		if_clone_detach(&gif_cloner);
+
+		while (!TAILQ_EMPTY(&gifs))
+			gif_clone_destroy(&TAILQ_FIRST(&gifs)->gif_if);
+
+		err = rman_fini(gifunits);
+		if (err != 0)
+			return (err);
+#ifdef INET6
+		ip6_gif_hlim = 0;
+#endif
+		break;
+	}
+	return 0;
+}
+
+static moduledata_t gif_mod = {
+	"if_gif",
+	gifmodevent,
+	0
+};
+
+DECLARE_MODULE(if_gif, gif_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 
 static int
 gif_encapcheck(m, off, proto, arg)
@@ -261,7 +378,6 @@ gif_output(ifp, m, dst, rt)
 		goto end;
 	}
 
-#if NBPFILTER > 0
 	if (ifp->if_bpf) {
 		/*
 		 * We need to prepend the address family as
@@ -277,13 +393,8 @@ gif_output(ifp, m, dst, rt)
 		m0.m_len = 4;
 		m0.m_data = (char *)&af;
 		
-#ifdef HAVE_OLD_BPF
 		bpf_mtap(ifp, &m0);
-#else
-		bpf_mtap(ifp->if_bpf, &m0);
-#endif
 	}
-#endif
 	ifp->if_opackets++;	
 	ifp->if_obytes += m->m_pkthdr.len;
 
@@ -333,7 +444,6 @@ gif_input(m, af, gifp)
 
 	m->m_pkthdr.rcvif = gifp;
 	
-#if NBPFILTER > 0
 	if (gifp->if_bpf) {
 		/*
 		 * We need to prepend the address family as
@@ -349,13 +459,8 @@ gif_input(m, af, gifp)
 		m0.m_len = 4;
 		m0.m_data = (char *)&af1;
 		
-#ifdef HAVE_OLD_BPF
 		bpf_mtap(gifp, &m0);
-#else
-		bpf_mtap(gifp->if_bpf, &m0);
-#endif
 	}
-#endif /*NBPFILTER > 0*/
 
 	/*
 	 * Put the packet to the network layer input queue according to the
@@ -408,8 +513,8 @@ gif_ioctl(ifp, cmd, data)
 	int error = 0, size;
 	struct sockaddr *dst, *src;
 	struct sockaddr *sa;
-	int i;
 	int s;
+	struct ifnet *ifp2;
 	struct gif_softc *sc2;
 		
 	switch (cmd) {
@@ -523,8 +628,10 @@ gif_ioctl(ifp, cmd, data)
 			break;
 		}
 
-		for (i = 0; i < ngif; i++) {
-			sc2 = gif + i;
+		TAILQ_FOREACH(ifp2, &ifnet, if_link) {
+			if (strcmp(ifp2->if_name, GIFNAME) != 0)
+				continue;
+			sc2 = ifp2->if_softc;
 			if (sc2 == sc)
 				continue;
 			if (!sc2->gif_pdst || !sc2->gif_psrc)
@@ -698,4 +805,20 @@ gif_ioctl(ifp, cmd, data)
  bad:
 	return error;
 }
-#endif /*NGIF > 0*/
+
+void
+gif_delete_tunnel(sc)
+	struct gif_softc *sc;
+{
+	/* XXX: NetBSD protects this function with splsoftnet() */
+
+	if (sc->gif_psrc) {
+		free((caddr_t)sc->gif_psrc, M_IFADDR);
+		sc->gif_psrc = NULL;
+	}
+	if (sc->gif_pdst) {
+		free((caddr_t)sc->gif_pdst, M_IFADDR);
+		sc->gif_pdst = NULL;
+	}
+	/* change the IFF_UP flag as well? */
+}

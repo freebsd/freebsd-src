@@ -7,8 +7,9 @@ _random=	random
 .endif
 
 SUBDIR=	3dfx accf_data accf_http agp aha amr an aue \
-	cam ccd cd9660 coda cue dc de digi ed fdescfs fdc fs fxp if_disc if_ef \
-	if_ppp if_sl if_tap if_tun ip6fw ipfilter ipfw ispfw joy kue lge \
+	cam ccd cd9660 coda cue dc de digi ed fdescfs fdc fs fxp \
+	if_disc if_ef if_gif if_ppp if_sl if_stf if_tap if_tun \
+	ip6fw ipfilter ipfw ispfw joy kue lge \
 	libmchain linux lnc md mii mlx msdosfs ncp netgraph nfs nge ntfs \
 	nullfs nwfs pcn portalfs procfs ${_random}  \
 	rl rp sf sis sk sn snp sound sppp ste sym syscons sysvipc ti tl twe \
