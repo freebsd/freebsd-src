@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sysctl.h	8.1 (Berkeley) 6/2/93
- * $Id: sysctl.h,v 1.16 1994/10/08 03:31:53 phk Exp $
+ * $Id: sysctl.h,v 1.17 1994/10/10 00:58:34 phk Exp $
  */
 
 #ifndef _SYS_SYSCTL_H_
@@ -239,7 +239,8 @@ struct kinfo_proc {
 #define	HW_DISKNAMES	 8		/* strings: disk drive names */
 #define	HW_DISKSTATS	 9		/* struct: diskstats[] */
 #define HW_FLOATINGPT	10		/* int: has HW floating point? */
-#define	HW_MAXID	11		/* number of valid hw ids */
+#define HW_DEVCONF	11		/* node: device configuration */
+#define	HW_MAXID	12		/* number of valid hw ids */
 
 #define CTL_HW_NAMES { \
 	{ 0, 0 }, \
@@ -253,6 +254,7 @@ struct kinfo_proc {
 	{ "disknames", CTLTYPE_STRUCT }, \
 	{ "diskstats", CTLTYPE_STRUCT }, \
 	{ "floatingpoint", CTLTYPE_INT }, \
+	{ "devconf", CTLTYPE_NODE }, \
 }
 
 /*
@@ -361,8 +363,8 @@ int	sysctl_clockrate __P((char *, size_t*));
 int	sysctl_vnode __P((char *, size_t*));
 int	sysctl_file __P((char *, size_t*));
 int	sysctl_doproc __P((int *, u_int, char *, size_t*));
-int	kern_sysctl __P((int *, u_int, void *, size_t *, void *, size_t, struct proc *));
-int	hw_sysctl __P((int *, u_int, void *, size_t *, void *, size_t, struct proc *));
+
+sysctlfn	dev_sysctl;
 
 #else	/* !KERNEL */
 #include <sys/cdefs.h>
