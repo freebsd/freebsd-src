@@ -1,5 +1,5 @@
 #
-# $Id: PICOBSD,v 1.5 1999/01/14 23:15:39 abial Exp $
+# $Id: PICOBSD,v 1.5.2.1 1999/02/07 22:19:52 abial Exp $
 #
 machine		"i386"
 cpu		"I386_CPU"
@@ -12,8 +12,8 @@ maxusers	3
 options		MATH_EMULATE		#Support for x87 emulation
 options		INET			#InterNETworking
 options		FFS			#Berkeley Fast Filesystem
-options		FFS_ROOT
-options		MFS
+options		FFS_ROOT		#FFS usable as root device [keep this!]
+options		MFS			#Memory Filesystem
 options		MSDOSFS			#MSDOS Filesystem
 options		"CD9660"		#ISO 9660 Filesystem
 options		"EXT2FS"
@@ -48,12 +48,14 @@ options		ATAPI		#Enable ATAPI support for IDE bus
 options		ATAPI_STATIC	#Don't do it as an LKM
 device		acd0	#IDE CD-ROM
 
-# syscons is the default console driver, resembling an SCO console
-
+# atkbdc0 controlls both the keyboard and the PS/2 mouse
 controller	atkbdc0	at isa? port IO_KBD tty
 device		atkbd0	at isa? tty irq 1
 device		psm0	at isa? tty irq 12
+
 device		vga0	at isa? port ? conflicts
+
+# syscons is the default console driver, resembling an SCO console
 device		sc0	at isa? tty
 
 device		npx0	at isa? port IO_NPX irq 13
@@ -64,13 +66,16 @@ device		sio2	at isa? disable port "IO_COM3" tty irq 5
 device		sio3	at isa? disable port "IO_COM4" tty irq 9
 
 
+#
+# The following Ethernet NICs are all PCI devices.
+#
+device de0		# DEC/Intel DC21x4x (``Tulip'')
+device fxp0		# Intel EtherExpress PRO/100B (82557, 82558
+
 # Order is important here due to intrusive probes, do *not* alphabetize
 # this list of network interfaces until the probes have been fixed.
 # Right now it appears that the ie0 must be probed before ep0. See
 # revision 1.20 of this file.
-device de0
-#device de1
-device fxp0
 
 device ed0 at isa? port 0x280 net irq 5 iomem 0xd8000
 device ep0 at isa? port 0x300 net irq 10

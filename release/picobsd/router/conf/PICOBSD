@@ -1,5 +1,5 @@
 #
-#	$Id: PICOBSD,v 1.11.2.1 1999/02/07 22:19:58 abial Exp $
+#	$Id: PICOBSD,v 1.11.2.2 1999/02/15 02:49:31 des Exp $
 #
 
 machine		"i386"
@@ -13,9 +13,9 @@ maxusers	10
 #options		MATH_EMULATE		#Support for x87 emulation
 options		INET			#InterNETworking
 options		FFS			#Berkeley Fast Filesystem
-options		FFS_ROOT
+options		FFS_ROOT		#FFS usable as root device [keep this!]
 #options		NFS			#Network Filesystem
-options		MFS
+options		MFS			#Memory Filesystem
 #options		MSDOSFS			#MSDOS Filesystem
 #options		"CD9660"		#ISO 9660 Filesystem
 #options		PROCFS			#Process filesystem
@@ -56,32 +56,38 @@ disk		fd0	at fdc0 drive 0
 #options		ATAPI_STATIC	#Don't do it as an LKM
 #device		acd0	#IDE CD-ROM
 
-# syscons is the default console driver, resembling an SCO console
-
+# atkbdc0 controlls both the keyboard and the PS/2 mouse
 controller	atkbdc0	at isa? port IO_KBD tty
 device		atkbd0	at isa? tty irq 1
+
 device		vga0	at isa? port ? conflicts
+
+# syscons is the default console driver, resembling an SCO console
 device		sc0	at isa? tty
 
 device		npx0	at isa? port IO_NPX irq 13
 
 device		sio0	at isa? port "IO_COM1" flags 0x10 tty irq 4
-device		sio1	at isa? port "IO_COM2" tty irq 3 vector siointr
+device		sio1	at isa? port "IO_COM2" tty irq 3
 device		sio2	at isa? disable port "IO_COM3" tty irq 5
 device		sio3	at isa? disable port "IO_COM4" tty irq 9
 
-#device ppc0	at isa? port? net irq 7
+#device ppc0	at isa? port? flags 0x40 net irq 7
 #controller	ppbus0
 #device		nlpt0	at ppbus?
 #device		plip0	at ppbus?
 #device		ppi0	at ppbus?
 
+#
+# The following Ethernet NICs are all PCI devices.
+#
+device de0              # DEC/Intel DC21x4x (``Tulip'')
+device fxp0             # Intel EtherExpress PRO/100B (82557, 82558)
+
 # Order is important here due to intrusive probes, do *not* alphabetize
 # this list of network interfaces until the probes have been fixed.
 # Right now it appears that the ie0 must be probed before ep0. See
 # revision 1.20 of this file.
-device de0
-device fxp0
 
 device ed0 at isa? port 0x280 net irq 5 iomem 0xd8000
 device ed1 at isa? port 0x300 net irq 10 iomem 0xd0000
