@@ -356,7 +356,7 @@ Hash_EnumNext(searchPtr)
 
 	/*
 	 * The hashEntryPtr field points to the most recently returned
-	 * entry, or is nil if we are starting up.  If not nil, we have
+	 * entry, or is NULL if we are starting up.  If not NULL, we have
 	 * to start at the next one in the chain.
 	 */
 	e = searchPtr->hashEntryPtr;

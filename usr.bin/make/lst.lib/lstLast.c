@@ -54,7 +54,7 @@ __RCSID("$FreeBSD$");
  *	Return the last node on the list l.
  *
  * Results:
- *	The requested node or NILLNODE if the list is empty.
+ *	The requested node or NULL if the list is empty.
  *
  * Side Effects:
  *	None.
@@ -66,7 +66,7 @@ Lst_Last (l)
     Lst	    l;
 {
     if (!LstValid(l) || LstIsEmpty (l)) {
-	return (NILLNODE);
+	return (NULL);
     } else {
 	return ((LstNode)((List)l)->lastPtr);
     }

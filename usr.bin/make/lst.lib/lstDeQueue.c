@@ -54,7 +54,7 @@ __RCSID("$FreeBSD$");
  *	Remove and return the datum at the head of the given list.
  *
  * Results:
- *	The datum in the node at the head or (ick) NIL if the list
+ *	The datum in the node at the head or (ick) NULL if the list
  *	is empty.
  *
  * Side Effects:
@@ -70,13 +70,13 @@ Lst_DeQueue (l)
     register ListNode	tln;
 
     tln = (ListNode) Lst_First (l);
-    if (tln == NilListNode) {
-	return ((ClientData) NIL);
+    if (tln == NULL) {
+	return ((ClientData) NULL);
     }
 
     rd = tln->datum;
     if (Lst_Remove (l, (LstNode)tln) == FAILURE) {
-	return ((ClientData) NIL);
+	return ((ClientData) NULL);
     } else {
 	return (rd);
     }
