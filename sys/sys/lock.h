@@ -180,7 +180,7 @@ struct lock_list_entry {
 
 #define	LOCK_LOG_INIT(lo, flags) do {					\
 	if (LOCK_LOG_TEST((lo), (flags)))				\
-		CTR3(KTR_LOCK, __func__ ": %p (%s) %s",	(lo),		\
+		CTR4(KTR_LOCK, "%s: %p (%s) %s", __func__, (lo),	\
  		    (lo)->lo_class->lc_name, (lo)->lo_name);		\
 } while (0)
 
