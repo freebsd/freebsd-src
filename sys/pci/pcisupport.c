@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.13 1995/03/21 23:01:05 se Exp $
+**  $Id: pcisupport.c,v 1.13.4.1 1995/07/20 19:29:46 davidg Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -40,8 +40,6 @@
 **
 ***************************************************************************
 */
-
-#define __PCISUPPORT_C__     "pl4 95/03/21"
 
 #include <sys/types.h>
 #include <sys/param.h>
@@ -86,54 +84,120 @@ struct condmsg {
 static char*
 chipset_probe (pcici_t tag, pcidi_t type)
 {
-	u_long data;
 	unsigned	rev;
 
 	switch (type) {
+	case 0x04868086:
+		return ("Intel 82425EX PCI system controller");
 	case 0x04848086:
 		rev = (unsigned) pci_conf_read (tag, PCI_CLASS_REG) & 0xff;
 		if (rev == 3)
 		    return ("Intel 82378ZB PCI-ISA bridge");
 		return ("Intel 82378IB PCI-ISA bridge");
 	case 0x04838086:
-		return ("Intel 82424ZX cache DRAM controller");
+		return ("Intel 82424ZX (Saturn) cache DRAM controller");
 	case 0x04828086:
 		return ("Intel 82375EB PCI-EISA bridge");
 	case 0x04a38086:
 		rev = (unsigned) pci_conf_read (tag, PCI_CLASS_REG) & 0xff;
 		if (rev == 16 || rev == 17)
-		    return ("Intel 82434NX PCI cache memory controller");
-		return ("Intel 82434LX PCI cache memory controller");
+		    return ("Intel 82434NX (Neptune) PCI cache memory controller");
+		return ("Intel 82434LX (Mercury) PCI cache memory controller");
+	case 0x122d8086:
+		return ("Intel 82437 (Triton)");
+	case 0x122e8086:
+		return ("Intel 82371 (Triton)");
+	case 0x12308086:
+		return ("Intel 82438 (Triton)");
+	case 0x04961039:
+		return ("SiS 85c496");
+	case 0x04061039:
+		return ("SiS 85c501");
+	case 0x00081039:
+		return ("SiS 85c503");
+	case 0x06011039:
+		return ("SiS 85c601");
 	case 0x00011011:
 		return ("DEC 21050 PCI-PCI bridge");
 	};
 
-	/*
-	**	check classes
-	*/
-
-	data = pci_conf_read(tag, PCI_CLASS_REG);
-	switch (data & (PCI_CLASS_MASK|PCI_SUBCLASS_MASK)) {
-
-	case PCI_CLASS_BRIDGE|PCI_SUBCLASS_BRIDGE_HOST:
-		return ("CPU-PCI bridge");
-	case PCI_CLASS_BRIDGE|PCI_SUBCLASS_BRIDGE_ISA:
-		return ("PCI-ISA bridge");
-	case PCI_CLASS_BRIDGE|PCI_SUBCLASS_BRIDGE_EISA:
-		return ("PCI-EISA bridge");
-	case PCI_CLASS_BRIDGE|PCI_SUBCLASS_BRIDGE_MC:
-		return ("PCI-MC bridge");
-	case PCI_CLASS_BRIDGE|PCI_SUBCLASS_BRIDGE_PCI:
-		return ("PCI-PCI bridge");
-	case PCI_CLASS_BRIDGE|PCI_SUBCLASS_BRIDGE_PCMCIA:
-		return ("PCI-PCMCIA bridge");
-	};
 	return ((char*)0);
 }
+
+#ifndef PCI_QUIET
 
 #define M_EQ 0  /* mask and return true if equal */
 #define M_NE 1  /* mask and return true if not equal */
 #define TRUE 2  /* don't read config, always true */
+
+static const struct condmsg conf82425ex[] =
+{
+    { 0x00, 0x00, 0x00, TRUE, "\tClock " },
+    { 0x50, 0x06, 0x00, M_EQ, "25" },
+    { 0x50, 0x06, 0x02, M_EQ, "33" },
+    { 0x50, 0x04, 0x04, M_EQ, "??", },
+    { 0x00, 0x00, 0x00, TRUE, "MHz, L1 Cache " },
+    { 0x50, 0x01, 0x00, M_EQ, "Disabled\n" },
+    { 0x50, 0x09, 0x01, M_EQ, "Write-through\n" },
+    { 0x50, 0x09, 0x09, M_EQ, "Write-back\n" },
+
+    { 0x00, 0x00, 0x00, TRUE, "\tL2 Cache " },
+    { 0x52, 0x07, 0x00, M_EQ, "Disabled" },
+    { 0x52, 0x0f, 0x01, M_EQ, "64KB Write-through" },
+    { 0x52, 0x0f, 0x02, M_EQ, "128KB Write-through" },
+    { 0x52, 0x0f, 0x03, M_EQ, "256KB Write-through" },
+    { 0x52, 0x0f, 0x04, M_EQ, "512KB Write-through" },
+    { 0x52, 0x0f, 0x01, M_EQ, "64KB Write-back" },
+    { 0x52, 0x0f, 0x02, M_EQ, "128KB Write-back" },
+    { 0x52, 0x0f, 0x03, M_EQ, "256KB Write-back" },
+    { 0x52, 0x0f, 0x04, M_EQ, "512KB Write-back" },
+    { 0x53, 0x01, 0x00, M_EQ, ", 3-" },
+    { 0x53, 0x01, 0x01, M_EQ, ", 2-" },
+    { 0x53, 0x06, 0x00, M_EQ, "3-3-3" },
+    { 0x53, 0x06, 0x02, M_EQ, "2-2-2" },
+    { 0x53, 0x06, 0x04, M_EQ, "1-1-1" },
+    { 0x53, 0x06, 0x06, M_EQ, "?-?-?" },
+    { 0x53, 0x18, 0x00, M_EQ, "/4-2-2-2\n" },
+    { 0x53, 0x18, 0x08, M_EQ, "/3-2-2-2\n" },
+    { 0x53, 0x18, 0x10, M_EQ, "/?-?-?-?\n" },
+    { 0x53, 0x18, 0x18, M_EQ, "/2-1-1-1\n" },
+
+    { 0x56, 0x00, 0x00, TRUE, "\tDRAM: " },
+    { 0x56, 0x02, 0x02, M_EQ, "Fast Code Read, " },
+    { 0x56, 0x04, 0x04, M_EQ, "Fast Data Read, " },
+    { 0x56, 0x08, 0x08, M_EQ, "Fast Write, " },
+    { 0x57, 0x20, 0x20, M_EQ, "Pipelined CAS" },
+    { 0x57, 0x2e, 0x00, M_NE, "\n\t" },
+    { 0x57, 0x00, 0x00, TRUE, "Timing: RAS: " },
+    { 0x57, 0x07, 0x00, M_EQ, "4" },
+    { 0x57, 0x07, 0x01, M_EQ, "3" },
+    { 0x57, 0x07, 0x02, M_EQ, "2" },
+    { 0x57, 0x07, 0x04, M_EQ, "1.5" },
+    { 0x57, 0x07, 0x05, M_EQ, "1" },
+    { 0x57, 0x00, 0x00, TRUE, " Clocks, CAS Read: " },
+    { 0x57, 0x18, 0x00, M_EQ, "3/1", },
+    { 0x57, 0x18, 0x00, M_EQ, "2/1", },
+    { 0x57, 0x18, 0x00, M_EQ, "1.5/0.5", },
+    { 0x57, 0x18, 0x00, M_EQ, "1/1", },
+    { 0x57, 0x00, 0x00, TRUE, ", CAS Write: " },
+    { 0x57, 0x20, 0x00, M_EQ, "2/1", },
+    { 0x57, 0x20, 0x20, M_EQ, "1/1", },
+    { 0x57, 0x00, 0x00, TRUE, "\n" },
+
+    { 0x40, 0x01, 0x01, M_EQ, "\tCPU-to-PCI Byte Merging\n" },
+    { 0x40, 0x02, 0x02, M_EQ, "\tCPU-to-PCI Bursting\n" },
+    { 0x40, 0x04, 0x04, M_EQ, "\tPCI Posted Writes\n" },
+    { 0x40, 0x20, 0x00, M_EQ, "\tDRAM Parity Disabled\n" },
+
+    { 0x48, 0x03, 0x01, M_EQ, "\tPCI IDE controller: Primary (1F0h-1F7h,3F6h,3F7h)" },
+    { 0x48, 0x03, 0x02, M_EQ, "\tPCI IDE controller: Secondary (170h-177h,376h,377h)" },
+    { 0x4d, 0x01, 0x01, M_EQ, "\tRTC (70-77h)\n" },
+    { 0x4d, 0x02, 0x02, M_EQ, "\tKeyboard (60,62,64,66h)\n" },
+    { 0x4d, 0x08, 0x08, M_EQ, "\tIRQ12/M Mouse Function\n" },
+
+/* end marker */
+    { 0 }
+};
 
 static const struct condmsg conf82424zx[] =
 {
@@ -260,6 +324,45 @@ static const struct condmsg conf82434lx[] =
     { 0x54, 0x01, 0x00, M_NE, "ON" },
     { 0x54, 0x01, 0x00, M_EQ, "OFF" },
 
+    { 0x57, 0x01, 0x01, M_EQ, "\n\tRefresh:" },
+    { 0x57, 0x03, 0x03, M_EQ, " CAS#/RAS#(Hidden)" },
+    { 0x57, 0x03, 0x01, M_EQ, " RAS#Only" },
+    { 0x57, 0x05, 0x05, M_EQ, " BurstOf4" },
+
+    { 0x00, 0x00, 0x00, TRUE, "\n" },
+
+/* end marker */
+    { 0 }
+};
+
+static const struct condmsg conf82378[] =
+{
+    { 0x00, 0x00, 0x00, TRUE, "\tBus Modes:" },
+    { 0x41, 0x04, 0x04, M_EQ, " Bus Park," },
+    { 0x41, 0x02, 0x02, M_EQ, " Bus Lock," },
+    { 0x41, 0x02, 0x00, M_EQ, " Resource Lock," },
+    { 0x41, 0x01, 0x01, M_EQ, " GAT" },
+    { 0x4d, 0x20, 0x20, M_EQ, "\n\tCoprocessor errors enabled" },
+    { 0x4d, 0x10, 0x10, M_EQ, "\n\tMouse function enabled" },
+
+    { 0x4e, 0x30, 0x10, M_EQ, "\n\tIDE controller: Primary (1F0h-1F7h,3F6h,3F7h)" },
+    { 0x4e, 0x30, 0x30, M_EQ, "\n\tIDE controller: Secondary (170h-177h,376h,377h)" },
+    { 0x4e, 0x28, 0x08, M_EQ, "\n\tFloppy controller: 3F0h,3F1h " },
+    { 0x4e, 0x24, 0x04, M_EQ, "\n\tFloppy controller: 3F2h-3F7h " },
+    { 0x4e, 0x28, 0x28, M_EQ, "\n\tFloppy controller: 370h,371h " },
+    { 0x4e, 0x24, 0x24, M_EQ, "\n\tFloppy controller: 372h-377h " },
+    { 0x4e, 0x02, 0x02, M_EQ, "\n\tKeyboard controller: 60h,62h,64h,66h" },
+    { 0x4e, 0x01, 0x01, M_EQ, "\n\tRTC: 70h-77h" },
+
+    { 0x4f, 0x80, 0x80, M_EQ, "\n\tConfiguration RAM: 0C00h,0800h-08FFh" },
+    { 0x4f, 0x40, 0x40, M_EQ, "\n\tPort 92: enabled" },
+    { 0x4f, 0x03, 0x00, M_EQ, "\n\tSerial Port A: COM1 (3F8h-3FFh)" },
+    { 0x4f, 0x03, 0x01, M_EQ, "\n\tSerial Port A: COM2 (2F8h-2FFh)" },
+    { 0x4f, 0x0c, 0x00, M_EQ, "\n\tSerial Port B: COM1 (3F8h-3FFh)" },
+    { 0x4f, 0x0c, 0x04, M_EQ, "\n\tSerial Port B: COM2 (2F8h-2FFh)" },
+    { 0x4f, 0x30, 0x00, M_EQ, "\n\tParallel Port: LPT1 (3BCh-3BFh)" },
+    { 0x4f, 0x30, 0x04, M_EQ, "\n\tParallel Port: LPT2 (378h-37Fh)" },
+    { 0x4f, 0x30, 0x20, M_EQ, "\n\tParallel Port: LPT3 (278h-27Fh)" },
     { 0x00, 0x00, 0x00, TRUE, "\n" },
 
 /* end marker */
@@ -298,14 +401,20 @@ writeconfig (pcici_t config_id, const struct condmsg *tbl)
     }
 }
 
+#endif /* PCI_QUIET */
+
 static void
 chipset_attach (pcici_t config_id, int unit)
 {
+#ifndef PCI_QUIET
 	if (!bootverbose)
 		return;
 
 	switch (pci_conf_read (config_id, PCI_ID_REG)) {
 
+	case 0x04868086:
+		writeconfig (config_id, conf82425ex);
+		break;
 	case 0x04838086:
 		writeconfig (config_id, conf82424zx);
 		break;
@@ -313,6 +422,8 @@ chipset_attach (pcici_t config_id, int unit)
 		writeconfig (config_id, conf82434lx);
 		break;
 	case 0x04848086:
+		writeconfig (config_id, conf82378);
+		break;
 	case 0x04828086:
 		printf ("\t[40] %lx [50] %lx [54] %lx\n",
 			pci_conf_read (config_id, 0x40),
@@ -320,7 +431,9 @@ chipset_attach (pcici_t config_id, int unit)
 			pci_conf_read (config_id, 0x54));
 		break;
 	};
+#endif /* PCI_QUIET */
 }
+
 
 /*---------------------------------------------------------
 **
@@ -360,7 +473,7 @@ static char* vga_probe (pcici_t tag, pcidi_t type)
 	case PCI_CLASS_DISPLAY:
 		if ((data & PCI_SUBCLASS_MASK)
 		    == PCI_SUBCLASS_DISPLAY_VGA)
-			return "VGA-compatible display device";
+			return ("VGA-compatible display device");
 		else
 			return ("Display device");
 	};
@@ -381,6 +494,7 @@ static void vga_attach (pcici_t tag, int unit)
 		(void) pci_map_mem (tag, reg, &va, &pa);
 #endif
 }
+
 
 /*---------------------------------------------------------
 **
@@ -445,6 +559,7 @@ ign_probe (pcici_t tag, pcidi_t type)
 
 	case 0x10001042ul:	/* wd */
 		return ("");
+/*		return ("SMC FDC 37c665");*/
 	};
 	return ((char*)0);
 }
