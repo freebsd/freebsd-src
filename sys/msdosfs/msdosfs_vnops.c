@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.18 1995/06/28 07:06:48 davidg Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.19 1995/08/01 18:50:55 davidg Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.20 1994/08/21 18:44:13 ws Exp $	*/
 
 /*-
@@ -336,6 +336,7 @@ msdosfs_getattr(ap)
 	vap->va_bytes = (dep->de_FileSize + dep->de_pmp->pm_crbomask) &
 	    			~(dep->de_pmp->pm_crbomask);
 	vap->va_type = ap->a_vp->v_type;
+	vap->va_filerev = dep->de_modrev;
 	return 0;
 }
 
