@@ -1,6 +1,6 @@
 .\"
-.\"  $Id$
-.\"  $Source$
+.\"  $Id: snp.4,v 1.4 1995/02/25 20:15:20 pst Exp $
+.\"  $Source: /a/ncvs/src/share/man/man4/snp.4,v $
 .\"
 .Dd February 24, 1995
 .Dt SNP 4
@@ -58,13 +58,10 @@ Only the superuser may access the
 devices.
 .Sh BUGS
 While in line mode, user input can't be seen.
-.Nm
-snp
-is a read-only device, there is no ability to write to attached tty device.
+No signals to the application on tty possible (i.e. Ctrl+C).
 .Sh AUTHOR
 Ugen J.S. Antsilevich <ugen@NetVision.net.il>
 .Sh HISTORY
 The
-.Nm
-snp
+.Nm snp
 device first appeared in FreeBSD 2.1.
