@@ -42,7 +42,7 @@
 packets to network hosts
 .Sh SYNOPSIS
 .Nm ping
-.Op Fl dfnqrvLRQ
+.Op Fl adfnqrvLRQ
 .Op Fl c Ar count
 .Op Fl i Ar wait
 .Op Fl I Ar interface
@@ -70,6 +70,9 @@ and then an arbitrary number of ``pad'' bytes used to fill out the
 packet.
 The options are as follows:
 .Bl -tag -width Ds
+.It Fl a
+Audible. Include a bell (ASCII 0x07) character in the output when any packet 
+is received. This option is ignored if other format options are present.
 .It Fl c Ar count
 Stop after sending (and receiving)
 .Ar count
