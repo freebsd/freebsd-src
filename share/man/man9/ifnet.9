@@ -50,7 +50,7 @@
 .Ft void
 .Fn if_down "struct ifnet *ifp"
 .Ft int
-.Fn ifioctl "struct socket *so" "int cmd" "caddr_t data" "struct proc *p"
+.Fn ifioctl "struct socket *so" "u_long cmd" "caddr_t data" "struct proc *p"
 .Ft int
 .Fn ifpromisc "struct ifnet *ifp" "int pswitch"
 .Ft int
