@@ -206,7 +206,10 @@ for
 and
 .Fn ftell .
 .It Bq Er ESPIPE
-The file descriptor underlying stream is associated with a pipe or FIFO.
+The file descriptor underlying stream is associated with a pipe or FIFO
+or file-position indicator value is unspecified
+(see
+.Xr ungetc 3 ) .
 .El
 .Pp
 The functions
@@ -226,7 +229,9 @@ for any of the errors specified for the routines
 and
 .Xr malloc 3 .
 .Sh SEE ALSO
-.Xr lseek 2
+.Xr lseek 2 ,
+.Xr clearerr 3 ,
+.Xr ungetc 3
 .Sh STANDARDS
 The
 .Fn fgetpos ,
