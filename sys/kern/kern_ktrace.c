@@ -31,13 +31,14 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_ktrace.c	8.2 (Berkeley) 9/23/93
- * $Id: kern_ktrace.c,v 1.5 1994/10/02 17:35:15 phk Exp $
+ * $Id: kern_ktrace.c,v 1.6 1995/05/30 08:05:28 rgrimes Exp $
  */
 
 #ifdef KTRACE
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/sysproto.h>
 #include <sys/proc.h>
 #include <sys/file.h>
 #include <sys/namei.h>
@@ -223,12 +224,14 @@ ktrcsw(vp, out, user)
 /*
  * ktrace system call
  */
+#ifndef _SYS_SYSPROTO_H_
 struct ktrace_args {
 	char	*fname;
 	int	ops;
 	int	facs;
 	int	pid;
 };
+#endif
 /* ARGSUSED */
 int
 ktrace(curp, uap, retval)

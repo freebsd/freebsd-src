@@ -36,11 +36,12 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_resource.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_resource.c,v 1.14 1995/10/23 19:05:50 bde Exp $
+ * $Id: kern_resource.c,v 1.15 1995/11/11 01:48:17 bde Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/sysproto.h>
 #include <sys/kernel.h>
 #include <sys/file.h>
 #include <sys/resourcevar.h>
@@ -56,10 +57,12 @@ int	dosetrlimit __P((struct proc *, u_int, struct rlimit *));
  * Resource controls and accounting.
  */
 
+#ifndef _SYS_SYSPROTO_H_
 struct getpriority_args {
 	int	which;
 	int	who;
 };
+#endif
 int
 getpriority(curp, uap, retval)
 	struct proc *curp;
@@ -114,11 +117,13 @@ getpriority(curp, uap, retval)
 	return (0);
 }
 
+#ifndef _SYS_SYSPROTO_H_
 struct setpriority_args {
 	int	which;
 	int	who;
 	int	prio;
 };
+#endif
 /* ARGSUSED */
 int
 setpriority(curp, uap, retval)
@@ -197,11 +202,13 @@ donice(curp, chgp, n)
 }
 
 /* rtprio system call */
+#ifndef _SYS_SYSPROTO_H_
 struct rtprio_args {
 	int		function;
 	pid_t		pid;
 	struct rtprio	*rtp;
 };
+#endif
 
 /*
  * Set realtime priority
@@ -266,10 +273,12 @@ rtprio(curp, uap, retval)
 }
 
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
+#ifndef _SYS_SYSPROTO_H_
 struct osetrlimit_args {
 	u_int	which;
 	struct	orlimit *rlp;
 };
+#endif
 /* ARGSUSED */
 int
 osetrlimit(p, uap, retval)
@@ -289,10 +298,12 @@ osetrlimit(p, uap, retval)
 	return (dosetrlimit(p, uap->which, &lim));
 }
 
+#ifndef _SYS_SYSPROTO_H_
 struct ogetrlimit_args {
 	u_int	which;
 	struct	orlimit *rlp;
 };
+#endif
 /* ARGSUSED */
 int
 ogetrlimit(p, uap, retval)
@@ -314,10 +325,12 @@ ogetrlimit(p, uap, retval)
 }
 #endif /* COMPAT_43 || COMPAT_SUNOS */
 
+#ifndef _SYS_SYSPROTO_H_
 struct __setrlimit_args {
 	u_int	which;
 	struct	rlimit *rlp;
 };
+#endif
 /* ARGSUSED */
 int
 setrlimit(p, uap, retval)
@@ -426,10 +439,12 @@ dosetrlimit(p, which, limp)
 	return (0);
 }
 
+#ifndef _SYS_SYSPROTO_H_
 struct __getrlimit_args {
 	u_int	which;
 	struct	rlimit *rlp;
 };
+#endif
 /* ARGSUSED */
 int
 getrlimit(p, uap, retval)
@@ -507,10 +522,12 @@ calcru(p, up, sp, ip)
 	}
 }
 
+#ifndef _SYS_SYSPROTO_H_
 struct getrusage_args {
 	int	who;
 	struct	rusage *rusage;
 };
+#endif
 /* ARGSUSED */
 int
 getrusage(p, uap, retval)
