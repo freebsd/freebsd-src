@@ -3,7 +3,7 @@
 LCRYPTO_SRC=	${.CURDIR}/../../../crypto/openssl
 LCRYPTO_DOC=	${.CURDIR}/../../../crypto/openssl/doc
 
-CFLAGS+=	-DTERMIOS -DANSI_SOURCE -DOPENSSL_NO_KRB5
+CFLAGS+=	-DTERMIOS -DANSI_SOURCE
 CFLAGS+=	-I${LCRYPTO_SRC} -I${LCRYPTO_SRC}/crypto -I${.OBJDIR}
 
 .if !defined(MAKE_IDEA) || ${MAKE_IDEA} != YES
