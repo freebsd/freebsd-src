@@ -341,7 +341,9 @@
 
     <para>The tunable sysctl variables for &man.jail.2; have moved
     from <varname>jail.*</varname> to the
-    <varname>kern.security.*</varname> hierarchy.</para>
+    <varname>security.*</varname> hierarchy.  Other security-related
+    sysctl variables have moved from <varname>kern.security.*</varname> to
+    <varname>security.*</varname>.</para>
 
     <sect3>
       <title>Processor/Motherboard Support</title>
