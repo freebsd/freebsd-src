@@ -44,26 +44,31 @@ static const char sccsid[] = "@(#)str.c	8.2 (Berkeley) 4/28/95";
 
 #include <ctype.h>
 #include <err.h>
+#include <errno.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <wchar.h>
+#include <wctype.h>
 
 #include "extern.h"
 
 static int      backslash(STR *, int *);
 static int	bracket(STR *);
-static int	c_class(const void *, const void *);
 static void	genclass(STR *);
 static void	genequiv(STR *);
 static int      genrange(STR *, int);
 static void	genseq(STR *);
 
-int
+wint_t
 next(s)
 	STR *s;
 {
-	int ch, is_octal;
+	int is_octal;
+	wint_t ch;
+	wchar_t wch;
+	size_t clen;
 
 	switch (s->state) {
 	case EOS:
@@ -71,7 +76,7 @@ next(s)
 	case INFINITE:
 		return (1);
 	case NORMAL:
-		switch (ch = (u_char)*s->str) {
+		switch (*s->str) {
 		case '\0':
 			s->state = EOS;
 			return (0);
@@ -83,9 +88,13 @@ next(s)
 				return (next(s));
 			/* FALLTHROUGH */
 		default:
+			clen = mbrtowc(&wch, s->str, MB_LEN_MAX, NULL);
+			if (clen == (size_t)-1 || clen == (size_t)-2 ||
+			    clen == 0)
+				errc(1, EILSEQ, NULL);
 			is_octal = 0;
-			++s->str;
-			s->lastch = ch;
+			s->lastch = wch;
+			s->str += clen;
 			break;
 		}
 
@@ -106,9 +115,18 @@ next(s)
 			return (next(s));
 		}
 		return (1);
+	case CCLASS:
+	case CCLASS_UPPER:
+	case CCLASS_LOWER:
+		s->cnt++;
+		ch = nextwctype(s->lastch, s->cclass);
+		if (ch == -1) {
+			s->state = NORMAL;
+			return (next(s));
+		}
+		s->lastch = ch;
+		return (1);
 	case SET:
-	case SET_UPPER:
-	case SET_LOWER:
 		if ((ch = s->set[s->cnt++]) == OOBCH) {
 			s->state = NORMAL;
 			return (next(s));
@@ -159,74 +177,21 @@ bracket(s)
 	/* NOTREACHED */
 }
 
-typedef struct {
-	const char *name;
-	int (*func)(int);
-	int *set;
-} CLASS;
-
-static CLASS classes[] = {
-#undef isalnum
-	{ "alnum",  isalnum,  NULL },
-#undef isalpha
-	{ "alpha",  isalpha,  NULL },
-#undef isblank
-	{ "blank",  isblank,  NULL },
-#undef iscntrl
-	{ "cntrl",  iscntrl,  NULL },
-#undef isdigit
-	{ "digit",  isdigit,  NULL },
-#undef isgraph
-	{ "graph",  isgraph,  NULL },
-#undef islower
-	{ "lower",  islower,  NULL },
-#undef isprint
-	{ "print",  isprint,  NULL },
-#undef ispunct
-	{ "punct",  ispunct,  NULL },
-#undef isspace
-	{ "space",  isspace,  NULL },
-#undef isupper
-	{ "upper",  isupper,  NULL },
-#undef isxdigit
-	{ "xdigit", isxdigit, NULL },
-};
-
 static void
 genclass(s)
 	STR *s;
 {
-	int cnt, (*func)(int);
-	CLASS *cp, tmp;
-	int *p;
 
-	tmp.name = s->str;
-	if ((cp = (CLASS *)bsearch(&tmp, classes, sizeof(classes) /
-	    sizeof(CLASS), sizeof(CLASS), c_class)) == NULL)
+	if ((s->cclass = wctype(s->str)) == 0)
 		errx(1, "unknown class %s", s->str);
-
-	if ((cp->set = p = malloc((NCHARS + 1) * sizeof(int))) == NULL)
-		err(1, "genclass() malloc");
-	for (cnt = 0, func = cp->func; cnt < NCHARS; ++cnt)
-		if ((func)(cnt))
-			*p++ = cnt;
-	*p = OOBCH;
-
 	s->cnt = 0;
-	s->set = cp->set;
+	s->lastch = -1;		/* incremented before check in next() */
 	if (strcmp(s->str, "upper") == 0)
-		s->state = SET_UPPER;
+		s->state = CCLASS_UPPER;
 	else if (strcmp(s->str, "lower") == 0)
-		s->state = SET_LOWER;
+		s->state = CCLASS_LOWER;
 	else
-		s->state = SET;
-}
-
-static int
-c_class(a, b)
-	const void *a, *b;
-{
-	return (strcmp(((const CLASS *)a)->name, ((const CLASS *)b)->name));
+		s->state = CCLASS;
 }
 
 static void
@@ -235,6 +200,8 @@ genequiv(s)
 {
 	int i, p, pri;
 	char src[2], dst[3];
+	size_t clen;
+	wchar_t wc;
 
 	if (*s->str == '\\') {
 		s->equiv[0] = backslash(s, NULL);
@@ -242,10 +209,13 @@ genequiv(s)
 			errx(1, "misplaced equivalence equals sign");
 		s->str += 2;
 	} else {
-		s->equiv[0] = s->str[0];
-		if (s->str[1] != '=')
+		clen = mbrtowc(&wc, s->str, MB_LEN_MAX, NULL);
+		if (clen == (size_t)-1 || clen == (size_t)-2 || clen == 0)
+			errc(1, EILSEQ, NULL);
+		s->equiv[0] = wc;
+		if (s->str[clen] != '=')
 			errx(1, "misplaced equivalence equals sign");
-		s->str += 3;
+		s->str += clen + 2;
 	}
 
 	/*
@@ -255,12 +225,13 @@ genequiv(s)
 	 * XXX Knows too much about how strxfrm() is implemented. Assumes
 	 * it fills the string with primary collation weight bytes. Only one-
 	 * to-one mappings are supported.
+	 * XXX Equivalence classes not supported in multibyte locales.
 	 */
-	src[0] = s->equiv[0];
+	src[0] = (char)s->equiv[0];
 	src[1] = '\0';
-	if (strxfrm(dst, src, sizeof(dst)) == 1) {
+	if (MB_CUR_MAX == 1 && strxfrm(dst, src, sizeof(dst)) == 1) {
 		pri = (unsigned char)*dst;
-		for (p = 1, i = 1; i < NCHARS; i++) {
+		for (p = 1, i = 1; i < NCHARS_SB; i++) {
 			*src = i;
 			if (strxfrm(dst, src, sizeof(dst)) == 1 && pri &&
 			    pri == (unsigned char)*dst)
@@ -280,28 +251,41 @@ genrange(STR *s, int was_octal)
 	int stopval, octal;
 	char *savestart;
 	int n, cnt, *p;
+	size_t clen;
+	wchar_t wc;
 
 	octal = 0;
 	savestart = s->str;
-	stopval = *++s->str == '\\' ? backslash(s, &octal) : (u_char)*s->str++;
-	if (!octal)
-		octal = was_octal;
-
-	if ((octal && stopval < s->lastch) ||
-	    (!octal &&
-	     charcoll((const void *)&stopval, (const void *)&(s->lastch)) < 0)) {
-		s->str = savestart;
-		return (0);
+	if (*++s->str == '\\')
+		stopval = backslash(s, &octal);
+	else {
+		clen = mbrtowc(&wc, s->str, MB_LEN_MAX, NULL);
+		if (clen == (size_t)-1 || clen == (size_t)-2)
+			errc(1, EILSEQ, NULL);
+		stopval = wc;
+		s->str += clen;
 	}
-	if (octal) {
+	/*
+	 * XXX Characters are not ordered according to collating sequence in
+	 * multibyte locales.
+	 */
+	if (octal || was_octal || MB_CUR_MAX > 1) {
+		if (stopval < s->lastch) {
+			s->str = savestart;
+			return (0);
+		}
 		s->cnt = stopval - s->lastch + 1;
 		s->state = RANGE;
 		--s->lastch;
 		return (1);
 	}
-	if ((s->set = p = malloc((NCHARS + 1) * sizeof(int))) == NULL)
+	if (charcoll((const void *)&stopval, (const void *)&(s->lastch)) < 0) {
+		s->str = savestart;
+		return (0);
+	}
+	if ((s->set = p = malloc((NCHARS_SB + 1) * sizeof(int))) == NULL)
 		err(1, "genrange() malloc");
-	for (cnt = 0; cnt < NCHARS; cnt++)
+	for (cnt = 0; cnt < NCHARS_SB; cnt++)
 		if (charcoll((const void *)&cnt, (const void *)&(s->lastch)) >= 0 &&
 		    charcoll((const void *)&cnt, (const void *)&stopval) <= 0)
 			*p++ = cnt;
@@ -320,14 +304,21 @@ genseq(s)
 	STR *s;
 {
 	char *ep;
+	wchar_t wc;
+	size_t clen;
 
 	if (s->which == STRING1)
 		errx(1, "sequences only valid in string2");
 
 	if (*s->str == '\\')
 		s->lastch = backslash(s, NULL);
-	else
-		s->lastch = *s->str++;
+	else {
+		clen = mbrtowc(&wc, s->str, MB_LEN_MAX, NULL);
+		if (clen == (size_t)-1 || clen == (size_t)-2)
+			errc(1, EILSEQ, NULL);
+		s->lastch = wc;
+		s->str += clen;
+	}
 	if (*s->str != '*')
 		errx(1, "misplaced sequence asterisk");
 

@@ -49,67 +49,34 @@ static const char sccsid[] = "@(#)tr.c	8.2 (Berkeley) 5/4/95";
 
 #include <ctype.h>
 #include <err.h>
+#include <limits.h>
 #include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <wchar.h>
+#include <wctype.h>
 
+#include "cmap.h"
+#include "cset.h"
 #include "extern.h"
 
-/*
- * For -C option: determine whether a byte is a valid character in the
- * current character set (as defined by LC_CTYPE).
- */
-#define ISCHAR(c) (iscntrl(c) || isprint(c))
+STR s1 = { STRING1, NORMAL, 0, OOBCH, 0, { 0, OOBCH }, NULL, NULL };
+STR s2 = { STRING2, NORMAL, 0, OOBCH, 0, { 0, OOBCH }, NULL, NULL };
 
-static int string1[NCHARS] = {
-	0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,		/* ASCII */
-	0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
-	0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
-	0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
-	0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27,
-	0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f,
-	0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
-	0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e, 0x3f,
-	0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47,
-	0x48, 0x49, 0x4a, 0x4b, 0x4c, 0x4d, 0x4e, 0x4f,
-	0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57,
-	0x58, 0x59, 0x5a, 0x5b, 0x5c, 0x5d, 0x5e, 0x5f,
-	0x60, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67,
-	0x68, 0x69, 0x6a, 0x6b, 0x6c, 0x6d, 0x6e, 0x6f,
-	0x70, 0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77,
-	0x78, 0x79, 0x7a, 0x7b, 0x7c, 0x7d, 0x7e, 0x7f,
-	0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87,
-	0x88, 0x89, 0x8a, 0x8b, 0x8c, 0x8d, 0x8e, 0x8f,
-	0x90, 0x91, 0x92, 0x93, 0x94, 0x95, 0x96, 0x97,
-	0x98, 0x99, 0x9a, 0x9b, 0x9c, 0x9d, 0x9e, 0x9f,
-	0xa0, 0xa1, 0xa2, 0xa3, 0xa4, 0xa5, 0xa6, 0xa7,
-	0xa8, 0xa9, 0xaa, 0xab, 0xac, 0xad, 0xae, 0xaf,
-	0xb0, 0xb1, 0xb2, 0xb3, 0xb4, 0xb5, 0xb6, 0xb7,
-	0xb8, 0xb9, 0xba, 0xbb, 0xbc, 0xbd, 0xbe, 0xbf,
-	0xc0, 0xc1, 0xc2, 0xc3, 0xc4, 0xc5, 0xc6, 0xc7,
-	0xc8, 0xc9, 0xca, 0xcb, 0xcc, 0xcd, 0xce, 0xcf,
-	0xd0, 0xd1, 0xd2, 0xd3, 0xd4, 0xd5, 0xd6, 0xd7,
-	0xd8, 0xd9, 0xda, 0xdb, 0xdc, 0xdd, 0xde, 0xdf,
-	0xe0, 0xe1, 0xe2, 0xe3, 0xe4, 0xe5, 0xe6, 0xe7,
-	0xe8, 0xe9, 0xea, 0xeb, 0xec, 0xed, 0xee, 0xef,
-	0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7,
-	0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff,
-}, string2[NCHARS];
-
-STR s1 = { STRING1, NORMAL, 0, OOBCH, { 0, OOBCH }, NULL, NULL };
-STR s2 = { STRING2, NORMAL, 0, OOBCH, { 0, OOBCH }, NULL, NULL };
-
-static void setup(int *, char *, STR *, int, int);
+static struct cset *setup(char *, STR *, int, int);
 static void usage(void);
 
 int
 main(int argc, char **argv)
 {
-	static int carray[NCHARS];
-	int ch, cnt, n, lastch, *p;
+	static int carray[NCHARS_SB];
+	struct cmap *map;
+	struct cset *delete, *squeeze;
+	int n, *p;
 	int Cflag, cflag, dflag, sflag, isstring2;
+	wint_t ch, cnt, i, lastch;
 
 	(void)setlocale(LC_ALL, "");
 
@@ -162,13 +129,14 @@ main(int argc, char **argv)
 		if (!isstring2)
 			usage();
 
-		setup(string1, argv[0], &s1, cflag, Cflag);
-		setup(string2, argv[1], &s2, 0, 0);
+		delete = setup(argv[0], &s1, cflag, Cflag);
+		squeeze = setup(argv[1], &s2, 0, 0);
 
-		for (lastch = OOBCH; (ch = getchar()) != EOF;)
-			if (!string1[ch] && (!string2[ch] || lastch != ch)) {
+		for (lastch = OOBCH; (ch = getwchar()) != WEOF;)
+			if (!cset_in(delete, ch) &&
+			    (lastch != ch || !cset_in(squeeze, ch))) {
 				lastch = ch;
-				(void)putchar(ch);
+				(void)putwchar(ch);
 			}
 		exit(0);
 	}
@@ -181,11 +149,11 @@ main(int argc, char **argv)
 		if (isstring2)
 			usage();
 
-		setup(string1, argv[0], &s1, cflag, Cflag);
+		delete = setup(argv[0], &s1, cflag, Cflag);
 
-		while ((ch = getchar()) != EOF)
-			if (!string1[ch])
-				(void)putchar(ch);
+		while ((ch = getwchar()) != WEOF)
+			if (!cset_in(delete, ch))
+				(void)putwchar(ch);
 		exit(0);
 	}
 
@@ -194,12 +162,12 @@ main(int argc, char **argv)
 	 * Squeeze all characters (or complemented characters) in string1.
 	 */
 	if (sflag && !isstring2) {
-		setup(string1, argv[0], &s1, cflag, Cflag);
+		squeeze = setup(argv[0], &s1, cflag, Cflag);
 
-		for (lastch = OOBCH; (ch = getchar()) != EOF;)
-			if (!string1[ch] || lastch != ch) {
+		for (lastch = OOBCH; (ch = getwchar()) != WEOF;)
+			if (lastch != ch || !cset_in(squeeze, ch)) {
 				lastch = ch;
-				(void)putchar(ch);
+				(void)putwchar(ch);
 			}
 		exit(0);
 	}
@@ -213,13 +181,19 @@ main(int argc, char **argv)
 	if (!isstring2)
 		usage();
 
+	map = cmap_alloc();
+	if (map == NULL)
+		err(1, NULL);
+	squeeze = cset_alloc();
+	if (squeeze == NULL)
+		err(1, NULL);
+
 	s1.str = argv[0];
-	if (cflag || Cflag) {
+
+	if (Cflag || cflag) {
+		cmap_default(map, OOBCH);
 		if ((s2.str = strdup(argv[1])) == NULL)
 			errx(1, "strdup(argv[1])");
-
-		for (cnt = NCHARS, p = string1; cnt--;)
-			*p++ = OOBCH;
 	} else
 		s2.str = argv[1];
 
@@ -235,52 +209,83 @@ main(int argc, char **argv)
 	/* If string2 runs out of characters, use the last one specified. */
 	while (next(&s1)) {
 	again:
-		if (s1.state == SET_LOWER &&
-		    s2.state == SET_UPPER &&
+		if (s1.state == CCLASS_LOWER &&
+		    s2.state == CCLASS_UPPER &&
 		    s1.cnt == 1 && s2.cnt == 1) {
 			do {
-				string1[s1.lastch] = ch = toupper(s1.lastch);
-				if (sflag && isupper(ch))
-					string2[ch] = 1;
+				ch = towupper(s1.lastch);
+				cmap_add(map, s1.lastch, ch);
+				if (sflag && iswupper(ch))
+					cset_add(squeeze, ch);
 				if (!next(&s1))
 					goto endloop;
-			} while (s1.state == SET_LOWER && s1.cnt > 1);
+			} while (s1.state == CCLASS_LOWER && s1.cnt > 1);
 			/* skip upper set */
 			do {
 				if (!next(&s2))
 					break;
-			} while (s2.state == SET_UPPER && s2.cnt > 1);
+			} while (s2.state == CCLASS_UPPER && s2.cnt > 1);
 			goto again;
-		} else if (s1.state == SET_UPPER &&
-			   s2.state == SET_LOWER &&
+		} else if (s1.state == CCLASS_UPPER &&
+			   s2.state == CCLASS_LOWER &&
 			   s1.cnt == 1 && s2.cnt == 1) {
 			do {
-				string1[s1.lastch] = ch = tolower(s1.lastch);
-				if (sflag && islower(ch))
-					string2[ch] = 1;
+				ch = towlower(s1.lastch);
+				cmap_add(map, s1.lastch, ch);
+				if (sflag && iswlower(ch))
+					cset_add(squeeze, ch);
 				if (!next(&s1))
 					goto endloop;
-			} while (s1.state == SET_UPPER && s1.cnt > 1);
+			} while (s1.state == CCLASS_UPPER && s1.cnt > 1);
 			/* skip lower set */
 			do {
 				if (!next(&s2))
 					break;
-			} while (s2.state == SET_LOWER && s2.cnt > 1);
+			} while (s2.state == CCLASS_LOWER && s2.cnt > 1);
 			goto again;
 		} else {
-			string1[s1.lastch] = s2.lastch;
+			cmap_add(map, s1.lastch, s2.lastch);
 			if (sflag)
-				string2[s2.lastch] = 1;
+				cset_add(squeeze, s2.lastch);
 		}
 		(void)next(&s2);
 	}
 endloop:
-	if (cflag || Cflag) {
-		for (p = carray, cnt = 0; cnt < NCHARS; cnt++) {
-			if (string1[cnt] == OOBCH && (!Cflag || ISCHAR(cnt)))
+	if (cflag || (Cflag && MB_CUR_MAX > 1)) {
+		/*
+		 * This is somewhat tricky: since the character set is
+		 * potentially huge, we need to avoid allocating a map
+		 * entry for every character. Our strategy is to set the
+		 * default mapping to the last character of string #2
+		 * (= the one that gets automatically repeated), then to
+		 * add back identity mappings for characters that should
+		 * remain unchanged. We don't waste space on identity mappings
+		 * for non-characters with the -C option; those are simulated
+		 * in the I/O loop.
+		 */
+		s2.str = argv[1];
+		s2.state = NORMAL;
+		for (cnt = 0; cnt < WCHAR_MAX; cnt++) {
+			if (Cflag && !iswrune(cnt))
+				continue;
+			if (cmap_lookup(map, cnt) == OOBCH) {
+				if (next(&s2))
+					cmap_add(map, cnt, s2.lastch);
+				if (sflag)
+					cset_add(squeeze, s2.lastch);
+			} else
+				cmap_add(map, cnt, cnt);
+			if ((s2.state == EOS || s2.state == INFINITE) &&
+			    cnt >= cmap_max(map))
+				break;
+		}
+		cmap_default(map, s2.lastch);
+	} else if (Cflag) {
+		for (p = carray, cnt = 0; cnt < NCHARS_SB; cnt++) {
+			if (cmap_lookup(map, cnt) == OOBCH && iswrune(cnt))
 				*p++ = cnt;
 			else
-				string1[cnt] = cnt;
+				cmap_add(map, cnt, cnt);
 		}
 		n = p - carray;
 		if (Cflag && n > 1)
@@ -290,46 +295,55 @@ endloop:
 		s2.state = NORMAL;
 		for (cnt = 0; cnt < n; cnt++) {
 			(void)next(&s2);
-			string1[carray[cnt]] = s2.lastch;
+			cmap_add(map, carray[cnt], s2.lastch);
 			/*
 			 * Chars taken from s2 can be different this time
 			 * due to lack of complex upper/lower processing,
 			 * so fill string2 again to not miss some.
 			 */
 			if (sflag)
-				string2[s2.lastch] = 1;
+				cset_add(squeeze, s2.lastch);
 		}
 	}
 
+	cset_cache(squeeze);
+	cmap_cache(map);
+
 	if (sflag)
-		for (lastch = OOBCH; (ch = getchar()) != EOF;) {
-			ch = string1[ch];
-			if (!string2[ch] || lastch != ch) {
+		for (lastch = OOBCH; (ch = getwchar()) != WEOF;) {
+			if (!Cflag || iswrune(ch))
+				ch = cmap_lookup(map, ch);
+			if (lastch != ch || !cset_in(squeeze, ch)) {
 				lastch = ch;
-				(void)putchar(ch);
+				(void)putwchar(ch);
 			}
 		}
 	else
-		while ((ch = getchar()) != EOF)
-			(void)putchar(string1[ch]);
+		while ((ch = getwchar()) != WEOF) {
+			if (!Cflag || iswrune(ch))
+				ch = cmap_lookup(map, ch);
+			(void)putwchar(ch);
+		}
 	exit (0);
 }
 
-static void
-setup(int *string, char *arg, STR *str, int cflag, int Cflag)
+static struct cset *
+setup(char *arg, STR *str, int cflag, int Cflag)
 {
-	int cnt, *p;
+	struct cset *cs;
 
+	cs = cset_alloc();
+	if (cs == NULL)
+		err(1, NULL);
 	str->str = arg;
-	bzero(string, NCHARS * sizeof(int));
 	while (next(str))
-		string[str->lastch] = 1;
-	if (cflag)
-		for (p = string, cnt = NCHARS; cnt--; ++p)
-			*p = !*p;
-	else if (Cflag)
-		for (cnt = 0; cnt < NCHARS; cnt++)
-			string[cnt] = !string[cnt] && ISCHAR(cnt);
+		cset_add(cs, str->lastch);
+	if (Cflag)
+		cset_addclass(cs, wctype("rune"), true);
+	if (cflag || Cflag)
+		cset_invert(cs);
+	cset_cache(cs);
+	return (cs);
 }
 
 int
