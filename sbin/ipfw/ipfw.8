@@ -155,9 +155,9 @@ The following options are available:
 .Bl -tag -width indent
 .It Fl a
 While listing, show counter values.
-See also the
+The
 .Cm show
-command.
+command just implies this option.
 .It Fl d
 While listing, show dynamic rules in addition to static ones.
 .It Fl e
@@ -1240,6 +1240,10 @@ command to see accounting records and timestamp information:
 or in short form without timestamps:
 .Pp
 .Dl ipfw -a list
+.Pp
+which is equivalent to:
+.Pp
+.Dl ipfw show
 .Pp
 Next rule diverts all incoming packets from 192.168.2.0/24
 to divert port 5000:
