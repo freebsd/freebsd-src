@@ -82,7 +82,6 @@
  * - AI_ADDRCONFIG support is supplied
  * - EDNS0 support is not available due to resolver differences
  * - some of FreeBSD style (#define tabify and others)
- * - AI_ADDRCONFIG is turned on by default.
  * - classful IPv4 numeric (127.1) is allowed.
  */
 
@@ -541,10 +540,6 @@ getaddrinfo(hostname, servname, hints, res)
 	if (hostname == NULL)
 		ERR(EAI_NODATA);
 
-#if 1
-	/* XXX: temporarily, behave as if AI_ADDRCONFIG is specified */
-	pai->ai_flags |= AI_ADDRCONFIG;
-#endif
 	if ((pai->ai_flags & AI_ADDRCONFIG) != 0 && !addrconfig(&ai0))
 		ERR(EAI_FAIL);
 
