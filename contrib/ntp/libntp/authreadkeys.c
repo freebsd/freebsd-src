@@ -6,8 +6,8 @@
 
 #include "ntp_fp.h"
 #include "ntp.h"
-#include "ntp_stdlib.h"
 #include "ntp_syslog.h"
+#include "ntp_stdlib.h"
 
 #ifdef	DES
 /*
@@ -22,12 +22,10 @@
 #define	KEY_TYPE_ASCII	3
 #endif
 
-#ifdef	MD5
 /*
  *  Arbitrary long string of ASCII characters.
  */
 #define	KEY_TYPE_MD5	4
-#endif
 
 /* Forwards */
 static char *nexttok P((char **));
@@ -155,11 +153,9 @@ authreadkeys(
 		    case 'a':
 			keytype = KEY_TYPE_ASCII; break;
 #endif
-#ifdef	MD5
 		    case 'M':
 		    case 'm':
 			keytype = KEY_TYPE_MD5; break;
-#endif
 		    default:
 			msyslog(LOG_ERR,
 				"invalid key type for key number %ld, entry ignored",
@@ -188,7 +184,6 @@ authreadkeys(
 					    keyno);
 				break;
 #endif
-#ifdef	MD5
 			    case KEY_TYPE_MD5:
 				if (!authusekey(keyno, keytype,
 						(u_char *)token))
@@ -196,7 +191,6 @@ authreadkeys(
 					    "format/parity error for MD5 key %ld, not used",
 					    keyno);
 				break;
-#endif
 			}
 		}
 	}

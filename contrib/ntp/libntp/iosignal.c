@@ -3,40 +3,27 @@
  *		   was shamelessly stolen from ntpd.
  */
 
-#ifdef HAVE_CONFIG_H
-# include <config.h>
-#endif
-
-#include <stdio.h>
-#include <signal.h>
-#include <sys/types.h>
-#ifdef HAVE_SYS_PARAM_H
-# include <sys/param.h>
-#endif /* HAVE_SYS_PARAM_H */
-#ifdef HAVE_SYS_TIME_H
-# include <sys/time.h>
-#endif
-#ifdef HAVE_NETINET_IN_H
-# include <netinet/in.h>
-#endif
-#ifdef HAVE_SYS_IOCTL_H
-# include <sys/ioctl.h>
-#endif
-#ifdef HAVE_SYS_SOCKIO_H	/* UXPV: SIOC* #defines (Frank Vance <fvance@waii.com>) */
-# include <sys/sockio.h>
-#endif
-#include <arpa/inet.h>
-
-#if _BSDI_VERSION >= 199510
-# include <ifaddrs.h>
-#endif
-/*	98/06/01  */
-#include "ntp_machine.h"	/*  98/06/01  */
+#include "ntp_machine.h"
 #include "ntpd.h"
 #include "ntp_io.h"
 #include "ntp_if.h"
 #include "ntp_stdlib.h"
 #include "iosignal.h"
+
+#include <stdio.h>
+#include <signal.h>
+#ifdef HAVE_SYS_PARAM_H
+# include <sys/param.h>
+#endif /* HAVE_SYS_PARAM_H */
+#ifdef HAVE_SYS_IOCTL_H
+# include <sys/ioctl.h>
+#endif
+
+#include <arpa/inet.h>
+
+#if _BSDI_VERSION >= 199510
+# include <ifaddrs.h>
+#endif
 
 #if defined(HAVE_SIGNALED_IO)
 static int sigio_block_count = 0;

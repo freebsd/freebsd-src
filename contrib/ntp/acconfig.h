@@ -1,9 +1,3 @@
-/* Package */
-#undef PACKAGE
-
-/* Version */
-#undef VERSION
-
 /* debugging code */
 #undef DEBUG
 
@@ -75,6 +69,12 @@
 
 /* HOPF 6021 clock */
 #undef CLOCK_HOPF6021
+
+/* HOPF PCI clock device */
+#undef CLOCK_HOPF_PCI
+
+/* HOPF serial clock device*/
+#undef CLOCK_HOPF_SERIAL
 
 /* HP 58503A GPS receiver */
 #undef CLOCK_HPGPS
@@ -374,9 +374,6 @@
 /* Define if you have the TIOCGSERIAL, TIOCSSERIAL, ASYNC_PPS_CD_POS, and ASYNC_PPS_CD_NEG ioctls (linux) */
 #undef HAVE_TIO_SERIAL_STUFF
 
-/* Define if you use struct timespec rather than struct timeval (time in ns rather than us) */
-#undef HAVE_TIMESPEC
-
 /* Define if you have the interface in the Draft RFC */
 #undef HAVE_PPSAPI
 
@@ -401,6 +398,9 @@
 
 /* cfset[io]speed()? */
 #undef DECL_CFSETISPEED_0
+
+/* hstrerror()? */
+#undef DECL_HSTRERROR_0
 
 /* ioctl()? */
 #undef DECL_IOCTL_0
@@ -472,3 +472,8 @@
 
 /* toupper()? */
 #undef DECL_TOUPPER_0
+
+/* strerror()? */
+#undef DECL_STRERROR_0
+
+#undef ULONG_CONST

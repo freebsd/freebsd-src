@@ -5,16 +5,26 @@
 #include <config.h>
 #endif
 
+#if defined(HAVE_SYS_AUDIOIO_H) || defined(HAVE_SUN_AUDIOIO_H)
+
 #include "audio.h"
-#include <unistd.h>
+#include "ntp_stdlib.h"
+#include "ntp_syslog.h"
+#ifdef HAVE_UNISTD_H
+# include <unistd.h>
+#endif
 #include <stdio.h>
+#include "ntp_string.h"
 
 #ifdef HAVE_SYS_AUDIOIO_H
 #include <sys/audioio.h>
 #endif /* HAVE_SYS_AUDIOIO_H */
+
 #ifdef HAVE_SUN_AUDIOIO_H
+#include <sys/ioccom.h>
 #include <sun/audioio.h>
 #endif /* HAVE_SUN_AUDIOIO_H */
+
 #ifdef HAVE_SYS_IOCTL_H
 #include <sys/ioctl.h>
 #endif /* HAVE_SYS_IOCTL_H */
@@ -26,9 +36,9 @@
  */
 #ifdef HAVE_SYS_AUDIOIO_H
 static struct audio_device device; /* audio device ident */
+#endif /* HAVE_SYS_AUDIOIO_H */
 static struct audio_info info;	/* audio device info */
 static int ctl_fd;		/* audio control file descriptor */
-#endif /* HAVE_SYS_AUDIOIO_H */
 
 
 /*
@@ -43,29 +53,26 @@ static int ctl_fd;		/* audio control file descriptor */
  * default.
  */
 int
-audio_init(void)
+audio_init(
+	char *dname		/* device name */
+	)
 {
 	int fd;
-#ifdef HAVE_SYS_AUDIOIO_H
 	int rval;
-#endif /* HAVE_SYS_AUDIOIO_H */
 
 	/*
-	 * Open audio device
+	 * Open audio device. Do not complain if not there.
 	 */
-	fd = open("/dev/audio", O_RDWR | O_NONBLOCK, 0777);
-	if (fd < 0) {
-		perror("audio:");
+	fd = open(dname, O_RDWR | O_NONBLOCK, 0777);
+	if (fd < 0)
 		return (fd);
-	}
 
-#ifdef HAVE_SYS_AUDIOIO_H
 	/*
-	 * Open audio control device
+	 * Open audio control device.
 	 */
 	ctl_fd = open("/dev/audioctl", O_RDWR);
 	if (ctl_fd < 0) {
-		perror("audioctl:");
+		msyslog(LOG_ERR, "audio: invalid control device\n");
 		close(fd);
 		return(ctl_fd);
 	}
@@ -76,11 +83,11 @@ audio_init(void)
 	rval = audio_gain((AUDIO_MAX_GAIN - AUDIO_MIN_GAIN) / 2,
 	    AUDIO_MICROPHONE);
 	if (rval < 0) {
+		msyslog(LOG_ERR, "audio: invalid control device parameters\n");
 		close(ctl_fd);
 		close(fd);
 		return(rval);
 	}
-#endif /* HAVE_SYS_AUDIOIO_H */
 	return (fd);
 }
 
@@ -94,25 +101,21 @@ audio_gain(
 	int port		/* port */
 	)
 {
-#ifdef HAVE_SYS_AUDIOIO_H
 	int rval;
-#endif /* HAVE_SYS_AUDIOIO_H */
 
-#ifdef HAVE_SYS_AUDIOIO_H
 	AUDIO_INITINFO(&info);
+#ifdef HAVE_SYS_AUDIOIO_H
 	info.record.buffer_size = AUDIO_BUFSIZ;
+#endif /* HAVE_SYS_AUDIOIO_H */
 	info.record.gain = gain;
 	info.record.port = port;
 	info.record.error = 0;
 	rval = ioctl(ctl_fd, (int)AUDIO_SETINFO, &info);
 	if (rval < 0) {
-		perror("audio:");
+		msyslog(LOG_ERR, "audio_gain: %m");
 		return (rval);
 	}
 	return (info.record.error);
-#else
-	return (0);
-#endif /* HAVE_SYS_AUDIOIO_H */
 }
 
 
@@ -129,26 +132,19 @@ audio_show(void)
 	ioctl(ctl_fd, (int)AUDIO_GETDEV, &device);
 	printf("audio: name %s, version %s, config %s\n",
 	    device.name, device.version, device.config);
+#endif /* HAVE_SYS_AUDIOIO_H */
 	ioctl(ctl_fd, (int)AUDIO_GETINFO, &info);
 	printf(
-	    "audio: samples %d, channels %d, precision %d, encoding %d\n",
+	    "audio: samples %d, channels %d, precision %d, encoding %d, gain %d, port %d\n",
 	    info.record.sample_rate, info.record.channels,
-	    info.record.precision, info.record.encoding);
-	printf("audio: gain %d, port %d, buffer %d\n",
-	    info.record.gain, info.record.port,
-	    info.record.buffer_size);
-	printf("audio: gain %d, port %d\n",
+	    info.record.precision, info.record.encoding,
 	    info.record.gain, info.record.port);
 	printf(
 	    "audio: samples %d, eof %d, pause %d, error %d, waiting %d, balance %d\n",
 	    info.record.samples, info.record.eof,
 	    info.record.pause, info.record.error,
 	    info.record.waiting, info.record.balance);
-	printf("audio: monitor %d, muted %d\n",
-	    info.monitor_gain, info.output_muted);
-#endif /* HAVE_SYS_AUDIOIO_H */
-#ifdef __NetBSD__
-	printf("audio: monitor %d, blocksize %d, hiwat %d, lowat %d, mode %d\n",
-	    info.monitor_gain, info.blocksize, info.hiwat, info.lowat, info.mode);
-#endif /* __NetBSD__ */
 }
+#else
+int audio_bs;
+#endif /* HAVE_SYS_AUDIOIO_H HAVE_SUN_AUDIOIO_H */

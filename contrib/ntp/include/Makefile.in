@@ -1,6 +1,7 @@
-# Makefile.in generated automatically by automake 1.4a from Makefile.am
+# Makefile.in generated automatically by automake 1.4e from Makefile.am.
 
-# Copyright (C) 1994, 1995-8, 1999 Free Software Foundation, Inc.
+# Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001
+# Free Software Foundation, Inc.
 # This Makefile.in is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
 # with or without modifications, as long as this notice is preserved.
@@ -31,8 +32,6 @@ mandir = @mandir@
 includedir = @includedir@
 oldincludedir = /usr/include
 
-DESTDIR =
-
 pkgdatadir = $(datadir)/@PACKAGE@
 pkglibdir = $(libdir)/@PACKAGE@
 pkgincludedir = $(includedir)/@PACKAGE@
@@ -48,7 +47,7 @@ INSTALL = @INSTALL@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
 INSTALL_DATA = @INSTALL_DATA@
 INSTALL_SCRIPT = @INSTALL_SCRIPT@
-INSTALL_STRIP_FLAG =
+INSTALL_HEADER = $(INSTALL_DATA)
 transform = @program_transform_name@
 
 NORMAL_INSTALL = :
@@ -57,24 +56,30 @@ POST_INSTALL = :
 NORMAL_UNINSTALL = :
 PRE_UNINSTALL = :
 POST_UNINSTALL = :
+
 build_alias = @build_alias@
 build_triplet = @build@
 host_alias = @host_alias@
 host_triplet = @host@
 target_alias = @target_alias@
 target_triplet = @target@
+
+@SET_MAKE@
 AMDEP = @AMDEP@
 AMTAR = @AMTAR@
+AUTOKEY = @AUTOKEY@
 AWK = @AWK@
 CC = @CC@
 CFLAGS = @CFLAGS@
 CHUTEST = @CHUTEST@
 CLKTEST = @CLKTEST@
 CPP = @CPP@
-CXX = @CXX@
-CXXCPP = @CXXCPP@
 DCFD = @DCFD@
 DEPDIR = @DEPDIR@
+EF_LIBS = @EF_LIBS@
+EF_PROGS = @EF_PROGS@
+INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
+INSTALL_STRIP_PROGRAM_ENV = @INSTALL_STRIP_PROGRAM_ENV@
 LDFLAGS = @LDFLAGS@
 LIBPARSE = @LIBPARSE@
 LIBRSAREF = @LIBRSAREF@
@@ -86,16 +91,27 @@ MAKE_LIBPARSE = @MAKE_LIBPARSE@
 MAKE_LIBPARSE_KERNEL = @MAKE_LIBPARSE_KERNEL@
 MAKE_LIBRSAREF = @MAKE_LIBRSAREF@
 MAKE_NTPTIME = @MAKE_NTPTIME@
+MAKE_NTP_GENKEYS = @MAKE_NTP_GENKEYS@
 MAKE_PARSEKMODULE = @MAKE_PARSEKMODULE@
 MAKE_TICKADJ = @MAKE_TICKADJ@
+MAKE_TIMETRIM = @MAKE_TIMETRIM@
+OPENSSL = @OPENSSL@
+OPENSSL_INC = @OPENSSL_INC@
+OPENSSL_LIB = @OPENSSL_LIB@
 PACKAGE = @PACKAGE@
+PATH_PERL = @PATH_PERL@
 PATH_SH = @PATH_SH@
 PROPDELAY = @PROPDELAY@
 RANLIB = @RANLIB@
+RSADIR = @RSADIR@
+RSAOBJS = @RSAOBJS@
 RSAREF = @RSAREF@
+RSASRCS = @RSASRCS@
+STRIP = @STRIP@
 TESTDCF = @TESTDCF@
 U = @U@
 VERSION = @VERSION@
+_am_include = @_am_include@
 install_sh = @install_sh@
 
 #AUTOMAKE_OPTIONS = ../util/ansi2knr no-dependencies
@@ -107,11 +123,13 @@ ETAGS_ARGS = $(srcdir)/Makefile.am
 
 noinst_HEADERS = \
 	adjtime.h \
+	audio.h \
 	ascii.h \
 	audio.h \
 	binio.h \
 	global.h \
 	gps.h \
+	hopf6039.h \
 	icom.h \
 	ieee754io.h \
 	iosignal.h \
@@ -122,7 +140,10 @@ noinst_HEADERS = \
 	ntif.h \
 	ntp.h \
 	ntp_calendar.h \
+	ntp_cmdargs.h \
+	ntp_config.h \
 	ntp_control.h \
+	ntp_crypto.h \
 	ntp_datum.h \
 	ntp_filegen.h \
 	ntp_fp.h \
@@ -138,6 +159,7 @@ noinst_HEADERS = \
 	ntp_string.h \
 	ntp_syscall.h \
 	ntp_syslog.h \
+	ntp_tty.h \
 	ntp_types.h \
 	ntp_unixtime.h \
 	ntpd.h \
@@ -146,28 +168,29 @@ noinst_HEADERS = \
 	recvbuff.h \
 	trimble.h
 
+EXEEXT =
+OBJEXT = o
 subdir = include
 mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
-CONFIG_HEADER = ../config.h
-CONFIG_CLEAN_FILES = 
-DIST_SOURCES = 
-HEADERS =  $(noinst_HEADERS)
+CONFIG_HEADER = $(top_builddir)/config.h
+CONFIG_CLEAN_FILES =
+DIST_SOURCES =
+HEADERS = $(noinst_HEADERS)
 
-DIST_COMMON =  README $(noinst_HEADERS) Makefile.am Makefile.in
+DIST_COMMON = README $(noinst_HEADERS) Makefile.am Makefile.in
 
+all: all-am
 
-DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
-
-GZIP_ENV = --best
-all: all-redirect
 .SUFFIXES:
-$(srcdir)/Makefile.in: Makefile.am $(top_srcdir)/configure.in $(ACLOCAL_M4) 
-	cd $(top_srcdir) && $(AUTOMAKE) --gnu include/Makefile
 
-Makefile: $(srcdir)/Makefile.in  $(top_builddir)/config.status $(BUILT_SOURCES)
-	cd $(top_builddir) \
-	  && CONFIG_FILES=$(subdir)/$@ CONFIG_HEADERS= $(SHELL) ./config.status
+$(srcdir)/Makefile.in: Makefile.am  $(top_srcdir)/configure.in $(ACLOCAL_M4)
+	cd $(top_srcdir) && \
+	  $(AUTOMAKE) --gnu  include/Makefile
 
+Makefile: $(srcdir)/Makefile.in  $(top_builddir)/config.status
+	cd $(top_builddir) && \
+	  CONFIG_HEADERS= CONFIG_LINKS= \
+	  CONFIG_FILES=$(subdir)/$@ $(SHELL) ./config.status
 
 tags: TAGS
 
@@ -178,9 +201,9 @@ ID: $(HEADERS) $(SOURCES) $(LISP) $(TAGS_FILES)
 	  done | \
 	  $(AWK) '    { files[$$0] = 1; } \
 	       END { for (i in files) print i; }'`; \
-	mkid -f$$here/ID $$unique $(LISP)
+	mkid -fID $$unique $(LISP)
 
-TAGS:  $(HEADERS) $(SOURCES)  $(TAGS_DEPENDENCIES) \
+TAGS: $(HEADERS) $(SOURCES)  $(TAGS_DEPENDENCIES) \
 		$(TAGS_FILES) $(LISP)
 	tags=; \
 	here=`pwd`; \
@@ -193,53 +216,50 @@ TAGS:  $(HEADERS) $(SOURCES)  $(TAGS_DEPENDENCIES) \
 	test -z "$(ETAGS_ARGS)$$unique$(LISP)$$tags" \
 	  || etags $(ETAGS_ARGS) $$tags  $$unique $(LISP)
 
-mostlyclean-tags:
-
-clean-tags:
+GTAGS:
+	here=`CDPATH=: && cd $(top_builddir) && pwd` \
+	  && cd $(top_srcdir) \
+	  && gtags -i $$here
 
 distclean-tags:
 	-rm -f TAGS ID
 
-maintainer-clean-tags:
+DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 
-distdir = $(top_builddir)/$(PACKAGE)-$(VERSION)/$(subdir)
+top_distdir = ..
+distdir = $(top_distdir)/$(PACKAGE)-$(VERSION)
 
 distdir: $(DISTFILES)
 	@for file in $(DISTFILES); do \
 	  d=$(srcdir); \
 	  if test -d $$d/$$file; then \
-	    cp -pR $$d/$$file $(distdir); \
+	    cp -pR $$d/$$file $(distdir) \
+	    || exit 1; \
 	  else \
 	    test -f $(distdir)/$$file \
-	    || ln $$d/$$file $(distdir)/$$file 2> /dev/null \
-	    || cp -p $$d/$$file $(distdir)/$$file || :; \
+	    || cp -p $$d/$$file $(distdir)/$$file \
+	    || exit 1; \
 	  fi; \
 	done
-info-am:
-info: info-am
-dvi-am:
-dvi: dvi-am
 check-am: all-am
 check: check-am
-installcheck-am:
-installcheck: installcheck-am
-install-exec-am:
-install-exec: install-exec-am
+all-am: Makefile $(HEADERS)
 
-install-data-am:
+installdirs:
+
+install: install-am
+install-exec: install-exec-am
 install-data: install-data-am
+uninstall: uninstall-am
 
 install-am: all-am
 	@$(MAKE) $(AM_MAKEFLAGS) install-exec-am install-data-am
-install: install-am
-uninstall-am:
-uninstall: uninstall-am
-all-am: Makefile $(HEADERS)
-all-redirect: all-am
-install-strip:
-	$(MAKE) $(AM_MAKEFLAGS) INSTALL_STRIP_FLAG=-s install
-installdirs:
 
+installcheck: installcheck-am
+
+install-strip:
+	$(MAKE) $(AM_MAKEFLAGS) INSTALL_PROGRAM="$(INSTALL_STRIP_PROGRAM)" \
+	  INSTALL_PROGRAM_ENV='$(INSTALL_STRIP_PROGRAM_ENV)' install
 
 mostlyclean-generic:
 
@@ -250,33 +270,50 @@ distclean-generic:
 	-rm -f config.cache config.log stamp-h stamp-h[0-9]*
 
 maintainer-clean-generic:
+	@echo "This command is intended for maintainers to use"
+	@echo "it deletes files that may require special tools to rebuild."
 	-rm -f Makefile.in
-mostlyclean-am:  mostlyclean-tags mostlyclean-generic
-
-mostlyclean: mostlyclean-am
-
-clean-am:  clean-tags clean-generic mostlyclean-am
-
 clean: clean-am
 
-distclean-am:  distclean-tags distclean-generic clean-am
+clean-am: clean-generic mostlyclean-am
 
 distclean: distclean-am
 
-maintainer-clean-am:  maintainer-clean-tags maintainer-clean-generic \
-		distclean-am
-	@echo "This command is intended for maintainers to use;"
-	@echo "it deletes files that may require special tools to rebuild."
+distclean-am: clean-am distclean-generic distclean-tags
+
+dvi:
+
+dvi-am:
+
+info:
+
+info-am:
+
+install-data-am:
+
+install-exec-am:
+
+install-info:
+
+install-man:
+
+installcheck-am:
 
 maintainer-clean: maintainer-clean-am
 
-.PHONY: tags mostlyclean-tags distclean-tags clean-tags \
-maintainer-clean-tags distdir info-am info dvi-am dvi check check-am \
-installcheck-am installcheck install-exec-am install-exec \
-install-data-am install-data install-am install uninstall-am uninstall \
-all-redirect all-am all install-strip installdirs mostlyclean-generic \
-distclean-generic clean-generic maintainer-clean-generic clean \
-mostlyclean distclean maintainer-clean
+maintainer-clean-am: distclean-am maintainer-clean-generic
+
+mostlyclean: mostlyclean-am
+
+mostlyclean-am: mostlyclean-generic
+
+.PHONY: all all-am check check-am clean clean-generic distclean \
+	distclean-generic distclean-tags distdir dvi dvi-am info \
+	info-am install install-am install-data install-data-am \
+	install-exec install-exec-am install-info install-man \
+	install-strip installcheck installcheck-am installdirs \
+	maintainer-clean maintainer-clean-generic mostlyclean \
+	mostlyclean-generic tags uninstall uninstall-am
 
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.

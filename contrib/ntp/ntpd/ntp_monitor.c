@@ -1,22 +1,21 @@
 /*
  * ntp_monitor.c - monitor who is using the ntpd server
  */
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
 
-#include <stdio.h>
-#include <sys/types.h>
-#include <signal.h>
-# ifdef HAVE_SYS_IOCTL_H
-#  include <sys/ioctl.h>
-# endif
-# include <sys/time.h>
+#ifdef HAVE_CONFIG_H
+# include <config.h>
+#endif
 
 #include "ntpd.h"
 #include "ntp_io.h"
 #include "ntp_if.h"
 #include "ntp_stdlib.h"
+
+#include <stdio.h>
+#include <signal.h>
+#ifdef HAVE_SYS_IOCTL_H
+# include <sys/ioctl.h>
+#endif
 
 /*
  * I'm still not sure I like what I've done here.  It certainly consumes

@@ -1,6 +1,7 @@
-# Makefile.in generated automatically by automake 1.4a from Makefile.am
+# Makefile.in generated automatically by automake 1.4e from Makefile.am.
 
-# Copyright (C) 1994, 1995-8, 1999 Free Software Foundation, Inc.
+# Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001
+# Free Software Foundation, Inc.
 # This Makefile.in is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
 # with or without modifications, as long as this notice is preserved.
@@ -31,8 +32,6 @@ mandir = @mandir@
 includedir = @includedir@
 oldincludedir = /usr/include
 
-DESTDIR =
-
 pkgdatadir = $(datadir)/@PACKAGE@
 pkglibdir = $(libdir)/@PACKAGE@
 pkgincludedir = $(includedir)/@PACKAGE@
@@ -48,7 +47,7 @@ INSTALL = @INSTALL@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
 INSTALL_DATA = @INSTALL_DATA@
 INSTALL_SCRIPT = @INSTALL_SCRIPT@
-INSTALL_STRIP_FLAG =
+INSTALL_HEADER = $(INSTALL_DATA)
 transform = @program_transform_name@
 
 NORMAL_INSTALL = :
@@ -57,24 +56,30 @@ POST_INSTALL = :
 NORMAL_UNINSTALL = :
 PRE_UNINSTALL = :
 POST_UNINSTALL = :
+
 build_alias = @build_alias@
 build_triplet = @build@
 host_alias = @host_alias@
 host_triplet = @host@
 target_alias = @target_alias@
 target_triplet = @target@
+
+@SET_MAKE@
 AMDEP = @AMDEP@
 AMTAR = @AMTAR@
+AUTOKEY = @AUTOKEY@
 AWK = @AWK@
 CC = @CC@
 CFLAGS = @CFLAGS@
 CHUTEST = @CHUTEST@
 CLKTEST = @CLKTEST@
 CPP = @CPP@
-CXX = @CXX@
-CXXCPP = @CXXCPP@
 DCFD = @DCFD@
 DEPDIR = @DEPDIR@
+EF_LIBS = @EF_LIBS@
+EF_PROGS = @EF_PROGS@
+INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
+INSTALL_STRIP_PROGRAM_ENV = @INSTALL_STRIP_PROGRAM_ENV@
 LDFLAGS = @LDFLAGS@
 LIBPARSE = @LIBPARSE@
 LIBRSAREF = @LIBRSAREF@
@@ -86,16 +91,27 @@ MAKE_LIBPARSE = @MAKE_LIBPARSE@
 MAKE_LIBPARSE_KERNEL = @MAKE_LIBPARSE_KERNEL@
 MAKE_LIBRSAREF = @MAKE_LIBRSAREF@
 MAKE_NTPTIME = @MAKE_NTPTIME@
+MAKE_NTP_GENKEYS = @MAKE_NTP_GENKEYS@
 MAKE_PARSEKMODULE = @MAKE_PARSEKMODULE@
 MAKE_TICKADJ = @MAKE_TICKADJ@
+MAKE_TIMETRIM = @MAKE_TIMETRIM@
+OPENSSL = @OPENSSL@
+OPENSSL_INC = @OPENSSL_INC@
+OPENSSL_LIB = @OPENSSL_LIB@
 PACKAGE = @PACKAGE@
+PATH_PERL = @PATH_PERL@
 PATH_SH = @PATH_SH@
 PROPDELAY = @PROPDELAY@
 RANLIB = @RANLIB@
+RSADIR = @RSADIR@
+RSAOBJS = @RSAOBJS@
 RSAREF = @RSAREF@
+RSASRCS = @RSASRCS@
+STRIP = @STRIP@
 TESTDCF = @TESTDCF@
 U = @U@
 VERSION = @VERSION@
+_am_include = @_am_include@
 install_sh = @install_sh@
 
 #AUTOMAKE_OPTIONS = ../ansi2knr no-dependencies
@@ -116,127 +132,136 @@ libntp_a_SOURCES = a_md5encrypt.c adjtime.c atoint.c atolfp.c atouint.c \
 	mfp_mul.c binio.c ieee754io.c gpstolfp.c recvbuff.c iosignal.c \
 	icom.c audio.c
 
+EXTRA_libntp_a_SOURCES = adjtimex.c log.c mktime.c random.c snprintf.c \
+	strdup.c strerror.c
+
 libntp_a_LIBADD = @LIBOBJS@
 libntp_a_DEPENDENCIES = @LIBOBJS@
-INCLUDES = -I$(top_srcdir)/include
+INCLUDES = -I$(top_srcdir)/include -I$(top_srcdir)/librsaref
 ETAGS_ARGS = Makefile.am
 
 noinst_HEADERS = lib_strbuf.h log.h
 
-EXTRA_DIST = README $(HEADERS) adjtimex.c log.c strerror.c mktime.c
+EXTRA_DIST = README
+EXEEXT =
+OBJEXT = o
 subdir = libntp
 mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
-CONFIG_HEADER = ../config.h
-CONFIG_CLEAN_FILES = 
-LIBRARIES =  $(noinst_LIBRARIES)
+CONFIG_HEADER = $(top_builddir)/config.h
+CONFIG_CLEAN_FILES =
+LIBRARIES = $(noinst_LIBRARIES)
 
 
-DEFS = @DEFS@ -I. -I$(srcdir) -I..
+DEFS = @DEFS@ -I. -I$(srcdir) -I$(top_builddir)
 CPPFLAGS = @CPPFLAGS@
 LIBS = @LIBS@
 ANSI2KNR = ../util/ansi2knr
 libntp_a_AR = $(AR) cru
-am_libntp_a_OBJECTS =  a_md5encrypt$U.o adjtime$U.o atoint$U.o \
-atolfp$U.o atouint$U.o authencrypt$U.o authkeys$U.o authparity$U.o \
-authreadkeys$U.o authusekey$U.o buftvtots$U.o caljulian$U.o \
-calleapwhen$U.o caltontp$U.o calyearstart$U.o clocktime$U.o \
-clocktypes$U.o decodenetnum$U.o dofptoa$U.o dolfptoa$U.o emalloc$U.o \
-findconfig$U.o fptoa$U.o fptoms$U.o getopt$U.o hextoint$U.o \
-hextolfp$U.o humandate$U.o inttoa$U.o lib_strbuf$U.o machines$U.o \
-md5c$U.o memmove$U.o mfptoa$U.o mfptoms$U.o modetoa$U.o mstolfp$U.o \
-msutotsf$U.o msyslog$U.o netof$U.o numtoa$U.o numtohost$U.o \
-octtoint$U.o prettydate$U.o ranny$U.o refnumtoa$U.o statestr$U.o \
-syssignal$U.o systime$U.o tsftomsu$U.o tstotv$U.o tvtoa$U.o tvtots$U.o \
-uglydate$U.o uinttoa$U.o utvtoa$U.o ymd2yd$U.o mfp_mul$U.o binio$U.o \
-ieee754io$U.o gpstolfp$U.o recvbuff$U.o iosignal$U.o icom$U.o audio$U.o
-libntp_a_OBJECTS =  $(am_libntp_a_OBJECTS)
+am_libntp_a_OBJECTS = a_md5encrypt$U.$(OBJEXT) adjtime$U.$(OBJEXT) \
+atoint$U.$(OBJEXT) atolfp$U.$(OBJEXT) atouint$U.$(OBJEXT) \
+authencrypt$U.$(OBJEXT) authkeys$U.$(OBJEXT) authparity$U.$(OBJEXT) \
+authreadkeys$U.$(OBJEXT) authusekey$U.$(OBJEXT) buftvtots$U.$(OBJEXT) \
+caljulian$U.$(OBJEXT) calleapwhen$U.$(OBJEXT) caltontp$U.$(OBJEXT) \
+calyearstart$U.$(OBJEXT) clocktime$U.$(OBJEXT) clocktypes$U.$(OBJEXT) \
+decodenetnum$U.$(OBJEXT) dofptoa$U.$(OBJEXT) dolfptoa$U.$(OBJEXT) \
+emalloc$U.$(OBJEXT) findconfig$U.$(OBJEXT) fptoa$U.$(OBJEXT) \
+fptoms$U.$(OBJEXT) getopt$U.$(OBJEXT) hextoint$U.$(OBJEXT) \
+hextolfp$U.$(OBJEXT) humandate$U.$(OBJEXT) inttoa$U.$(OBJEXT) \
+lib_strbuf$U.$(OBJEXT) machines$U.$(OBJEXT) md5c$U.$(OBJEXT) \
+memmove$U.$(OBJEXT) mfptoa$U.$(OBJEXT) mfptoms$U.$(OBJEXT) \
+modetoa$U.$(OBJEXT) mstolfp$U.$(OBJEXT) msutotsf$U.$(OBJEXT) \
+msyslog$U.$(OBJEXT) netof$U.$(OBJEXT) numtoa$U.$(OBJEXT) \
+numtohost$U.$(OBJEXT) octtoint$U.$(OBJEXT) prettydate$U.$(OBJEXT) \
+ranny$U.$(OBJEXT) refnumtoa$U.$(OBJEXT) statestr$U.$(OBJEXT) \
+syssignal$U.$(OBJEXT) systime$U.$(OBJEXT) tsftomsu$U.$(OBJEXT) \
+tstotv$U.$(OBJEXT) tvtoa$U.$(OBJEXT) tvtots$U.$(OBJEXT) \
+uglydate$U.$(OBJEXT) uinttoa$U.$(OBJEXT) utvtoa$U.$(OBJEXT) \
+ymd2yd$U.$(OBJEXT) mfp_mul$U.$(OBJEXT) binio$U.$(OBJEXT) \
+ieee754io$U.$(OBJEXT) gpstolfp$U.$(OBJEXT) recvbuff$U.$(OBJEXT) \
+iosignal$U.$(OBJEXT) icom$U.$(OBJEXT) audio$U.$(OBJEXT)
+libntp_a_OBJECTS = $(am_libntp_a_OBJECTS)
 AR = ar
 COMPILE = $(CC) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
 CCLD = $(CC)
 LINK = $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
-DIST_SOURCES =  $(libntp_a_SOURCES)
-HEADERS =  $(noinst_HEADERS)
+DIST_SOURCES = $(libntp_a_SOURCES) $(EXTRA_libntp_a_SOURCES)
+HEADERS = $(noinst_HEADERS)
 
-DIST_COMMON =  README $(noinst_HEADERS) Makefile.am Makefile.in mktime.c \
-strerror.c
-
-
-DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
-
-GZIP_ENV = --best
 depcomp = $(SHELL) $(top_srcdir)/depcomp
-DEP_FILES =  @AMDEP@ $(DEPDIR)/a_md5encrypt$U.Po $(DEPDIR)/adjtime$U.Po \
-$(DEPDIR)/atoint$U.Po $(DEPDIR)/atolfp$U.Po $(DEPDIR)/atouint$U.Po \
-$(DEPDIR)/audio$U.Po $(DEPDIR)/authencrypt$U.Po $(DEPDIR)/authkeys$U.Po \
-$(DEPDIR)/authparity$U.Po $(DEPDIR)/authreadkeys$U.Po \
-$(DEPDIR)/authusekey$U.Po $(DEPDIR)/binio$U.Po $(DEPDIR)/buftvtots$U.Po \
-$(DEPDIR)/caljulian$U.Po $(DEPDIR)/calleapwhen$U.Po \
-$(DEPDIR)/caltontp$U.Po $(DEPDIR)/calyearstart$U.Po \
-$(DEPDIR)/clocktime$U.Po $(DEPDIR)/clocktypes$U.Po \
-$(DEPDIR)/decodenetnum$U.Po $(DEPDIR)/dofptoa$U.Po \
-$(DEPDIR)/dolfptoa$U.Po $(DEPDIR)/emalloc$U.Po \
-$(DEPDIR)/findconfig$U.Po $(DEPDIR)/fptoa$U.Po $(DEPDIR)/fptoms$U.Po \
-$(DEPDIR)/getopt$U.Po $(DEPDIR)/gpstolfp$U.Po $(DEPDIR)/hextoint$U.Po \
-$(DEPDIR)/hextolfp$U.Po $(DEPDIR)/humandate$U.Po $(DEPDIR)/icom$U.Po \
-$(DEPDIR)/ieee754io$U.Po $(DEPDIR)/inttoa$U.Po $(DEPDIR)/iosignal$U.Po \
-$(DEPDIR)/lib_strbuf$U.Po $(DEPDIR)/machines$U.Po $(DEPDIR)/md5c$U.Po \
-$(DEPDIR)/memmove$U.Po $(DEPDIR)/mfp_mul$U.Po $(DEPDIR)/mfptoa$U.Po \
-$(DEPDIR)/mfptoms$U.Po $(DEPDIR)/mktime.Po $(DEPDIR)/modetoa$U.Po \
-$(DEPDIR)/mstolfp$U.Po $(DEPDIR)/msutotsf$U.Po $(DEPDIR)/msyslog$U.Po \
-$(DEPDIR)/netof$U.Po $(DEPDIR)/numtoa$U.Po $(DEPDIR)/numtohost$U.Po \
-$(DEPDIR)/octtoint$U.Po $(DEPDIR)/prettydate$U.Po $(DEPDIR)/ranny$U.Po \
-$(DEPDIR)/recvbuff$U.Po $(DEPDIR)/refnumtoa$U.Po \
-$(DEPDIR)/statestr$U.Po $(DEPDIR)/strerror.Po $(DEPDIR)/syssignal$U.Po \
-$(DEPDIR)/systime$U.Po $(DEPDIR)/tsftomsu$U.Po $(DEPDIR)/tstotv$U.Po \
-$(DEPDIR)/tvtoa$U.Po $(DEPDIR)/tvtots$U.Po $(DEPDIR)/uglydate$U.Po \
-$(DEPDIR)/uinttoa$U.Po $(DEPDIR)/utvtoa$U.Po $(DEPDIR)/ymd2yd$U.Po
-SOURCES = $(libntp_a_SOURCES)
+@AMDEP@DEP_FILES = $(DEPDIR)/*.Po $(DEPDIR)/a_md5encrypt$U.Po \
+@AMDEP@ $(DEPDIR)/adjtime$U.Po $(DEPDIR)/adjtimex$U.Po \
+@AMDEP@ $(DEPDIR)/atoint$U.Po $(DEPDIR)/atolfp$U.Po \
+@AMDEP@ $(DEPDIR)/atouint$U.Po $(DEPDIR)/audio$U.Po \
+@AMDEP@ $(DEPDIR)/authencrypt$U.Po $(DEPDIR)/authkeys$U.Po \
+@AMDEP@ $(DEPDIR)/authparity$U.Po $(DEPDIR)/authreadkeys$U.Po \
+@AMDEP@ $(DEPDIR)/authusekey$U.Po $(DEPDIR)/binio$U.Po \
+@AMDEP@ $(DEPDIR)/buftvtots$U.Po $(DEPDIR)/caljulian$U.Po \
+@AMDEP@ $(DEPDIR)/calleapwhen$U.Po $(DEPDIR)/caltontp$U.Po \
+@AMDEP@ $(DEPDIR)/calyearstart$U.Po $(DEPDIR)/clocktime$U.Po \
+@AMDEP@ $(DEPDIR)/clocktypes$U.Po $(DEPDIR)/decodenetnum$U.Po \
+@AMDEP@ $(DEPDIR)/dofptoa$U.Po $(DEPDIR)/dolfptoa$U.Po \
+@AMDEP@ $(DEPDIR)/emalloc$U.Po $(DEPDIR)/findconfig$U.Po \
+@AMDEP@ $(DEPDIR)/fptoa$U.Po $(DEPDIR)/fptoms$U.Po $(DEPDIR)/getopt$U.Po \
+@AMDEP@ $(DEPDIR)/gpstolfp$U.Po $(DEPDIR)/hextoint$U.Po \
+@AMDEP@ $(DEPDIR)/hextolfp$U.Po $(DEPDIR)/humandate$U.Po \
+@AMDEP@ $(DEPDIR)/icom$U.Po $(DEPDIR)/ieee754io$U.Po \
+@AMDEP@ $(DEPDIR)/inttoa$U.Po $(DEPDIR)/iosignal$U.Po \
+@AMDEP@ $(DEPDIR)/lib_strbuf$U.Po $(DEPDIR)/log$U.Po \
+@AMDEP@ $(DEPDIR)/machines$U.Po $(DEPDIR)/md5c$U.Po \
+@AMDEP@ $(DEPDIR)/memmove$U.Po $(DEPDIR)/mfp_mul$U.Po \
+@AMDEP@ $(DEPDIR)/mfptoa$U.Po $(DEPDIR)/mfptoms$U.Po \
+@AMDEP@ $(DEPDIR)/mktime$U.Po $(DEPDIR)/mktime.Po $(DEPDIR)/modetoa$U.Po \
+@AMDEP@ $(DEPDIR)/mstolfp$U.Po $(DEPDIR)/msutotsf$U.Po \
+@AMDEP@ $(DEPDIR)/msyslog$U.Po $(DEPDIR)/netof$U.Po \
+@AMDEP@ $(DEPDIR)/numtoa$U.Po $(DEPDIR)/numtohost$U.Po \
+@AMDEP@ $(DEPDIR)/octtoint$U.Po $(DEPDIR)/prettydate$U.Po \
+@AMDEP@ $(DEPDIR)/random$U.Po $(DEPDIR)/ranny$U.Po \
+@AMDEP@ $(DEPDIR)/recvbuff$U.Po $(DEPDIR)/refnumtoa$U.Po \
+@AMDEP@ $(DEPDIR)/snprintf$U.Po $(DEPDIR)/snprintf.Po \
+@AMDEP@ $(DEPDIR)/statestr$U.Po $(DEPDIR)/strdup$U.Po \
+@AMDEP@ $(DEPDIR)/strdup.Po $(DEPDIR)/strerror$U.Po \
+@AMDEP@ $(DEPDIR)/strerror.Po $(DEPDIR)/syssignal$U.Po \
+@AMDEP@ $(DEPDIR)/systime$U.Po $(DEPDIR)/tsftomsu$U.Po \
+@AMDEP@ $(DEPDIR)/tstotv$U.Po $(DEPDIR)/tvtoa$U.Po $(DEPDIR)/tvtots$U.Po \
+@AMDEP@ $(DEPDIR)/uglydate$U.Po $(DEPDIR)/uinttoa$U.Po \
+@AMDEP@ $(DEPDIR)/utvtoa$U.Po $(DEPDIR)/ymd2yd$U.Po
+DIST_COMMON = README $(noinst_HEADERS) Makefile.am Makefile.in mktime.c \
+snprintf.c strdup.c strerror.c
+
+SOURCES = $(libntp_a_SOURCES) $(EXTRA_libntp_a_SOURCES)
 OBJECTS = $(am_libntp_a_OBJECTS)
 
-all: all-redirect
+all: all-am
+
 .SUFFIXES:
-.SUFFIXES: .c .o
-$(srcdir)/Makefile.in: Makefile.am $(top_srcdir)/configure.in $(ACLOCAL_M4) 
-	cd $(top_srcdir) && $(AUTOMAKE) --gnu libntp/Makefile
+.SUFFIXES: .c .o .obj
 
-Makefile: $(srcdir)/Makefile.in  $(top_builddir)/config.status $(BUILT_SOURCES)
-	cd $(top_builddir) \
-	  && CONFIG_FILES=$(subdir)/$@ CONFIG_HEADERS= $(SHELL) ./config.status
+$(srcdir)/Makefile.in: Makefile.am  $(top_srcdir)/configure.in $(ACLOCAL_M4)
+	cd $(top_srcdir) && \
+	  $(AUTOMAKE) --gnu  libntp/Makefile
 
-
-mostlyclean-noinstLIBRARIES:
+Makefile: $(srcdir)/Makefile.in  $(top_builddir)/config.status
+	cd $(top_builddir) && \
+	  CONFIG_HEADERS= CONFIG_LINKS= \
+	  CONFIG_FILES=$(subdir)/$@ $(SHELL) ./config.status
 
 clean-noinstLIBRARIES:
 	-test -z "$(noinst_LIBRARIES)" || rm -f $(noinst_LIBRARIES)
 
-distclean-noinstLIBRARIES:
-
-maintainer-clean-noinstLIBRARIES:
-
 mostlyclean-compile:
-	-rm -f *.o core *.core
-
-clean-compile:
+	-rm -f *.$(OBJEXT) core *.core
 
 distclean-compile:
 	-rm -f *.tab.c
-
-maintainer-clean-compile:
-../util/ansi2knr: ../util/ansi2knr.o
+../util/ansi2knr: ../util/ansi2knr.$(OBJEXT)
 	cd ../util && $(MAKE) $(AM_MAKEFLAGS) ansi2knr
 
-../util/ansi2knr.o:
-	cd ../util && $(MAKE) $(AM_MAKEFLAGS) ansi2knr.o
+../util/ansi2knr.$(OBJEXT):
+	cd ../util && $(MAKE) $(AM_MAKEFLAGS) ansi2knr.$(OBJEXT)
 
 
 mostlyclean-kr:
 	-rm -f *_.c
-
-clean-kr:
-
-distclean-kr:
-
-maintainer-clean-kr:
 
 libntp.a: $(libntp_a_OBJECTS) $(libntp_a_DEPENDENCIES)
 	-rm -f libntp.a
@@ -246,6 +271,8 @@ a_md5encrypt_.c: a_md5encrypt.c $(ANSI2KNR)
 	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/a_md5encrypt.c; then echo $(srcdir)/a_md5encrypt.c; else echo a_md5encrypt.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > a_md5encrypt_.c
 adjtime_.c: adjtime.c $(ANSI2KNR)
 	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/adjtime.c; then echo $(srcdir)/adjtime.c; else echo adjtime.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > adjtime_.c
+adjtimex_.c: adjtimex.c $(ANSI2KNR)
+	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/adjtimex.c; then echo $(srcdir)/adjtimex.c; else echo adjtimex.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > adjtimex_.c
 atoint_.c: atoint.c $(ANSI2KNR)
 	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/atoint.c; then echo $(srcdir)/atoint.c; else echo atoint.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > atoint_.c
 atolfp_.c: atolfp.c $(ANSI2KNR)
@@ -314,6 +341,8 @@ iosignal_.c: iosignal.c $(ANSI2KNR)
 	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/iosignal.c; then echo $(srcdir)/iosignal.c; else echo iosignal.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > iosignal_.c
 lib_strbuf_.c: lib_strbuf.c $(ANSI2KNR)
 	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/lib_strbuf.c; then echo $(srcdir)/lib_strbuf.c; else echo lib_strbuf.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > lib_strbuf_.c
+log_.c: log.c $(ANSI2KNR)
+	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/log.c; then echo $(srcdir)/log.c; else echo log.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > log_.c
 machines_.c: machines.c $(ANSI2KNR)
 	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/machines.c; then echo $(srcdir)/machines.c; else echo machines.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > machines_.c
 md5c_.c: md5c.c $(ANSI2KNR)
@@ -346,14 +375,20 @@ octtoint_.c: octtoint.c $(ANSI2KNR)
 	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/octtoint.c; then echo $(srcdir)/octtoint.c; else echo octtoint.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > octtoint_.c
 prettydate_.c: prettydate.c $(ANSI2KNR)
 	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/prettydate.c; then echo $(srcdir)/prettydate.c; else echo prettydate.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > prettydate_.c
+random_.c: random.c $(ANSI2KNR)
+	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/random.c; then echo $(srcdir)/random.c; else echo random.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > random_.c
 ranny_.c: ranny.c $(ANSI2KNR)
 	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/ranny.c; then echo $(srcdir)/ranny.c; else echo ranny.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > ranny_.c
 recvbuff_.c: recvbuff.c $(ANSI2KNR)
 	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/recvbuff.c; then echo $(srcdir)/recvbuff.c; else echo recvbuff.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > recvbuff_.c
 refnumtoa_.c: refnumtoa.c $(ANSI2KNR)
 	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/refnumtoa.c; then echo $(srcdir)/refnumtoa.c; else echo refnumtoa.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > refnumtoa_.c
+snprintf_.c: snprintf.c $(ANSI2KNR)
+	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/snprintf.c; then echo $(srcdir)/snprintf.c; else echo snprintf.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > snprintf_.c
 statestr_.c: statestr.c $(ANSI2KNR)
 	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/statestr.c; then echo $(srcdir)/statestr.c; else echo statestr.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > statestr_.c
+strdup_.c: strdup.c $(ANSI2KNR)
+	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/strdup.c; then echo $(srcdir)/strdup.c; else echo strdup.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > strdup_.c
 strerror_.c: strerror.c $(ANSI2KNR)
 	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/strerror.c; then echo $(srcdir)/strerror.c; else echo strerror.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > strerror_.c
 syssignal_.c: syssignal.c $(ANSI2KNR)
@@ -376,18 +411,30 @@ utvtoa_.c: utvtoa.c $(ANSI2KNR)
 	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/utvtoa.c; then echo $(srcdir)/utvtoa.c; else echo utvtoa.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > utvtoa_.c
 ymd2yd_.c: ymd2yd.c $(ANSI2KNR)
 	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/ymd2yd.c; then echo $(srcdir)/ymd2yd.c; else echo ymd2yd.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > ymd2yd_.c
-a_md5encrypt_.o adjtime_.o atoint_.o atolfp_.o atouint_.o audio_.o \
-authencrypt_.o authkeys_.o authparity_.o authreadkeys_.o authusekey_.o \
-binio_.o buftvtots_.o caljulian_.o calleapwhen_.o caltontp_.o \
-calyearstart_.o clocktime_.o clocktypes_.o decodenetnum_.o dofptoa_.o \
-dolfptoa_.o emalloc_.o findconfig_.o fptoa_.o fptoms_.o getopt_.o \
-gpstolfp_.o hextoint_.o hextolfp_.o humandate_.o icom_.o ieee754io_.o \
-inttoa_.o iosignal_.o lib_strbuf_.o machines_.o md5c_.o memmove_.o \
-mfp_mul_.o mfptoa_.o mfptoms_.o mktime_.o modetoa_.o mstolfp_.o \
-msutotsf_.o msyslog_.o netof_.o numtoa_.o numtohost_.o octtoint_.o \
-prettydate_.o ranny_.o recvbuff_.o refnumtoa_.o statestr_.o strerror_.o \
-syssignal_.o systime_.o tsftomsu_.o tstotv_.o tvtoa_.o tvtots_.o \
-uglydate_.o uinttoa_.o utvtoa_.o ymd2yd_.o : $(ANSI2KNR)
+a_md5encrypt_.$(OBJEXT) adjtime_.$(OBJEXT) adjtimex_.$(OBJEXT) \
+atoint_.$(OBJEXT) atolfp_.$(OBJEXT) atouint_.$(OBJEXT) audio_.$(OBJEXT) \
+authencrypt_.$(OBJEXT) authkeys_.$(OBJEXT) authparity_.$(OBJEXT) \
+authreadkeys_.$(OBJEXT) authusekey_.$(OBJEXT) binio_.$(OBJEXT) \
+buftvtots_.$(OBJEXT) caljulian_.$(OBJEXT) calleapwhen_.$(OBJEXT) \
+caltontp_.$(OBJEXT) calyearstart_.$(OBJEXT) clocktime_.$(OBJEXT) \
+clocktypes_.$(OBJEXT) decodenetnum_.$(OBJEXT) dofptoa_.$(OBJEXT) \
+dolfptoa_.$(OBJEXT) emalloc_.$(OBJEXT) findconfig_.$(OBJEXT) \
+fptoa_.$(OBJEXT) fptoms_.$(OBJEXT) getopt_.$(OBJEXT) \
+gpstolfp_.$(OBJEXT) hextoint_.$(OBJEXT) hextolfp_.$(OBJEXT) \
+humandate_.$(OBJEXT) icom_.$(OBJEXT) ieee754io_.$(OBJEXT) \
+inttoa_.$(OBJEXT) iosignal_.$(OBJEXT) lib_strbuf_.$(OBJEXT) \
+log_.$(OBJEXT) machines_.$(OBJEXT) md5c_.$(OBJEXT) memmove_.$(OBJEXT) \
+mfp_mul_.$(OBJEXT) mfptoa_.$(OBJEXT) mfptoms_.$(OBJEXT) \
+mktime_.$(OBJEXT) modetoa_.$(OBJEXT) mstolfp_.$(OBJEXT) \
+msutotsf_.$(OBJEXT) msyslog_.$(OBJEXT) netof_.$(OBJEXT) \
+numtoa_.$(OBJEXT) numtohost_.$(OBJEXT) octtoint_.$(OBJEXT) \
+prettydate_.$(OBJEXT) random_.$(OBJEXT) ranny_.$(OBJEXT) \
+recvbuff_.$(OBJEXT) refnumtoa_.$(OBJEXT) snprintf_.$(OBJEXT) \
+statestr_.$(OBJEXT) strdup_.$(OBJEXT) strerror_.$(OBJEXT) \
+syssignal_.$(OBJEXT) systime_.$(OBJEXT) tsftomsu_.$(OBJEXT) \
+tstotv_.$(OBJEXT) tvtoa_.$(OBJEXT) tvtots_.$(OBJEXT) \
+uglydate_.$(OBJEXT) uinttoa_.$(OBJEXT) utvtoa_.$(OBJEXT) \
+ymd2yd_.$(OBJEXT) : $(ANSI2KNR)
 
 tags: TAGS
 
@@ -398,9 +445,9 @@ ID: $(HEADERS) $(SOURCES) $(LISP) $(TAGS_FILES)
 	  done | \
 	  $(AWK) '    { files[$$0] = 1; } \
 	       END { for (i in files) print i; }'`; \
-	mkid -f$$here/ID $$unique $(LISP)
+	mkid -fID $$unique $(LISP)
 
-TAGS:  $(HEADERS) $(SOURCES)  $(TAGS_DEPENDENCIES) \
+TAGS: $(HEADERS) $(SOURCES)  $(TAGS_DEPENDENCIES) \
 		$(TAGS_FILES) $(LISP)
 	tags=; \
 	here=`pwd`; \
@@ -413,105 +460,94 @@ TAGS:  $(HEADERS) $(SOURCES)  $(TAGS_DEPENDENCIES) \
 	test -z "$(ETAGS_ARGS)$$unique$(LISP)$$tags" \
 	  || etags $(ETAGS_ARGS) $$tags  $$unique $(LISP)
 
-mostlyclean-tags:
-
-clean-tags:
+GTAGS:
+	here=`CDPATH=: && cd $(top_builddir) && pwd` \
+	  && cd $(top_srcdir) \
+	  && gtags -i $$here
 
 distclean-tags:
 	-rm -f TAGS ID
 
-maintainer-clean-tags:
-
-distdir = $(top_builddir)/$(PACKAGE)-$(VERSION)/$(subdir)
-
-distdir: $(DISTFILES)
-	@for file in $(DISTFILES); do \
-	  d=$(srcdir); \
-	  if test -d $$d/$$file; then \
-	    cp -pR $$d/$$file $(distdir); \
-	  else \
-	    test -f $(distdir)/$$file \
-	    || ln $$d/$$file $(distdir)/$$file 2> /dev/null \
-	    || cp -p $$d/$$file $(distdir)/$$file || :; \
-	  fi; \
-	done
-
-@AMDEP@include $(DEPDIR)/a_md5encrypt$U.Po
-@AMDEP@include $(DEPDIR)/adjtime$U.Po
-@AMDEP@include $(DEPDIR)/atoint$U.Po
-@AMDEP@include $(DEPDIR)/atolfp$U.Po
-@AMDEP@include $(DEPDIR)/atouint$U.Po
-@AMDEP@include $(DEPDIR)/audio$U.Po
-@AMDEP@include $(DEPDIR)/authencrypt$U.Po
-@AMDEP@include $(DEPDIR)/authkeys$U.Po
-@AMDEP@include $(DEPDIR)/authparity$U.Po
-@AMDEP@include $(DEPDIR)/authreadkeys$U.Po
-@AMDEP@include $(DEPDIR)/authusekey$U.Po
-@AMDEP@include $(DEPDIR)/binio$U.Po
-@AMDEP@include $(DEPDIR)/buftvtots$U.Po
-@AMDEP@include $(DEPDIR)/caljulian$U.Po
-@AMDEP@include $(DEPDIR)/calleapwhen$U.Po
-@AMDEP@include $(DEPDIR)/caltontp$U.Po
-@AMDEP@include $(DEPDIR)/calyearstart$U.Po
-@AMDEP@include $(DEPDIR)/clocktime$U.Po
-@AMDEP@include $(DEPDIR)/clocktypes$U.Po
-@AMDEP@include $(DEPDIR)/decodenetnum$U.Po
-@AMDEP@include $(DEPDIR)/dofptoa$U.Po
-@AMDEP@include $(DEPDIR)/dolfptoa$U.Po
-@AMDEP@include $(DEPDIR)/emalloc$U.Po
-@AMDEP@include $(DEPDIR)/findconfig$U.Po
-@AMDEP@include $(DEPDIR)/fptoa$U.Po
-@AMDEP@include $(DEPDIR)/fptoms$U.Po
-@AMDEP@include $(DEPDIR)/getopt$U.Po
-@AMDEP@include $(DEPDIR)/gpstolfp$U.Po
-@AMDEP@include $(DEPDIR)/hextoint$U.Po
-@AMDEP@include $(DEPDIR)/hextolfp$U.Po
-@AMDEP@include $(DEPDIR)/humandate$U.Po
-@AMDEP@include $(DEPDIR)/icom$U.Po
-@AMDEP@include $(DEPDIR)/ieee754io$U.Po
-@AMDEP@include $(DEPDIR)/inttoa$U.Po
-@AMDEP@include $(DEPDIR)/iosignal$U.Po
-@AMDEP@include $(DEPDIR)/lib_strbuf$U.Po
-@AMDEP@include $(DEPDIR)/machines$U.Po
-@AMDEP@include $(DEPDIR)/md5c$U.Po
-@AMDEP@include $(DEPDIR)/memmove$U.Po
-@AMDEP@include $(DEPDIR)/mfp_mul$U.Po
-@AMDEP@include $(DEPDIR)/mfptoa$U.Po
-@AMDEP@include $(DEPDIR)/mfptoms$U.Po
-@AMDEP@include $(DEPDIR)/mktime.Po
-@AMDEP@include $(DEPDIR)/modetoa$U.Po
-@AMDEP@include $(DEPDIR)/mstolfp$U.Po
-@AMDEP@include $(DEPDIR)/msutotsf$U.Po
-@AMDEP@include $(DEPDIR)/msyslog$U.Po
-@AMDEP@include $(DEPDIR)/netof$U.Po
-@AMDEP@include $(DEPDIR)/numtoa$U.Po
-@AMDEP@include $(DEPDIR)/numtohost$U.Po
-@AMDEP@include $(DEPDIR)/octtoint$U.Po
-@AMDEP@include $(DEPDIR)/prettydate$U.Po
-@AMDEP@include $(DEPDIR)/ranny$U.Po
-@AMDEP@include $(DEPDIR)/recvbuff$U.Po
-@AMDEP@include $(DEPDIR)/refnumtoa$U.Po
-@AMDEP@include $(DEPDIR)/statestr$U.Po
-@AMDEP@include $(DEPDIR)/strerror.Po
-@AMDEP@include $(DEPDIR)/syssignal$U.Po
-@AMDEP@include $(DEPDIR)/systime$U.Po
-@AMDEP@include $(DEPDIR)/tsftomsu$U.Po
-@AMDEP@include $(DEPDIR)/tstotv$U.Po
-@AMDEP@include $(DEPDIR)/tvtoa$U.Po
-@AMDEP@include $(DEPDIR)/tvtots$U.Po
-@AMDEP@include $(DEPDIR)/uglydate$U.Po
-@AMDEP@include $(DEPDIR)/uinttoa$U.Po
-@AMDEP@include $(DEPDIR)/utvtoa$U.Po
-@AMDEP@include $(DEPDIR)/ymd2yd$U.Po
-
-mostlyclean-depend:
-
-clean-depend:
+@AMDEP@@_am_include@ $(DEPDIR)/*.Po
+@AMDEP@@_am_include@ $(DEPDIR)/a_md5encrypt$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/adjtime$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/adjtimex$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/atoint$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/atolfp$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/atouint$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/audio$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/authencrypt$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/authkeys$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/authparity$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/authreadkeys$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/authusekey$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/binio$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/buftvtots$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/caljulian$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/calleapwhen$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/caltontp$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/calyearstart$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/clocktime$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/clocktypes$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/decodenetnum$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/dofptoa$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/dolfptoa$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/emalloc$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/findconfig$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/fptoa$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/fptoms$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/getopt$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/gpstolfp$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/hextoint$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/hextolfp$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/humandate$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/icom$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/ieee754io$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/inttoa$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/iosignal$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/lib_strbuf$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/log$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/machines$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/md5c$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/memmove$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/mfp_mul$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/mfptoa$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/mfptoms$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/mktime$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/mktime.Po
+@AMDEP@@_am_include@ $(DEPDIR)/modetoa$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/mstolfp$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/msutotsf$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/msyslog$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/netof$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/numtoa$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/numtohost$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/octtoint$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/prettydate$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/random$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/ranny$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/recvbuff$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/refnumtoa$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/snprintf$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/snprintf.Po
+@AMDEP@@_am_include@ $(DEPDIR)/statestr$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/strdup$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/strdup.Po
+@AMDEP@@_am_include@ $(DEPDIR)/strerror$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/strerror.Po
+@AMDEP@@_am_include@ $(DEPDIR)/syssignal$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/systime$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/tsftomsu$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/tstotv$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/tvtoa$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/tvtots$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/uglydate$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/uinttoa$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/utvtoa$U.Po
+@AMDEP@@_am_include@ $(DEPDIR)/ymd2yd$U.Po
 
 distclean-depend:
 	-rm -rf $(DEPDIR)
-
-maintainer-clean-depend:
 
 @AMDEP@CCDEPMODE = @CCDEPMODE@
 
@@ -519,33 +555,51 @@ maintainer-clean-depend:
 @AMDEP@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
 @AMDEP@	depfile='$(DEPDIR)/$*.Po' tmpdepfile='$(DEPDIR)/$*.TPo' @AMDEPBACKSLASH@
 @AMDEP@	$(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-	$(COMPILE) -c -o $@ $<
+	$(COMPILE) -c -o $@ `test -f $< || echo '$(srcdir)/'`$<
 
-info-am:
-info: info-am
-dvi-am:
-dvi: dvi-am
+.c.obj:
+@AMDEP@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
+@AMDEP@	depfile='$(DEPDIR)/$*.Po' tmpdepfile='$(DEPDIR)/$*.TPo' @AMDEPBACKSLASH@
+@AMDEP@	$(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+	$(COMPILE) -c -o $@ `cygpath -w $<`
+
+
+DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
+
+top_distdir = ..
+distdir = $(top_distdir)/$(PACKAGE)-$(VERSION)
+
+distdir: $(DISTFILES)
+	@for file in $(DISTFILES); do \
+	  d=$(srcdir); \
+	  if test -d $$d/$$file; then \
+	    cp -pR $$d/$$file $(distdir) \
+	    || exit 1; \
+	  else \
+	    test -f $(distdir)/$$file \
+	    || cp -p $$d/$$file $(distdir)/$$file \
+	    || exit 1; \
+	  fi; \
+	done
 check-am: all-am
 check: check-am
-installcheck-am:
-installcheck: installcheck-am
-install-exec-am:
-install-exec: install-exec-am
+all-am: Makefile $(LIBRARIES) $(HEADERS)
 
-install-data-am:
+installdirs:
+
+install: install-am
+install-exec: install-exec-am
 install-data: install-data-am
+uninstall: uninstall-am
 
 install-am: all-am
 	@$(MAKE) $(AM_MAKEFLAGS) install-exec-am install-data-am
-install: install-am
-uninstall-am:
-uninstall: uninstall-am
-all-am: Makefile $(LIBRARIES) $(HEADERS)
-all-redirect: all-am
-install-strip:
-	$(MAKE) $(AM_MAKEFLAGS) INSTALL_STRIP_FLAG=-s install
-installdirs:
 
+installcheck: installcheck-am
+
+install-strip:
+	$(MAKE) $(AM_MAKEFLAGS) INSTALL_PROGRAM="$(INSTALL_STRIP_PROGRAM)" \
+	  INSTALL_PROGRAM_ENV='$(INSTALL_STRIP_PROGRAM_ENV)' install
 
 mostlyclean-generic:
 
@@ -556,45 +610,53 @@ distclean-generic:
 	-rm -f config.cache config.log stamp-h stamp-h[0-9]*
 
 maintainer-clean-generic:
+	@echo "This command is intended for maintainers to use"
+	@echo "it deletes files that may require special tools to rebuild."
 	-rm -f Makefile.in
-mostlyclean-am:  mostlyclean-noinstLIBRARIES mostlyclean-compile \
-		mostlyclean-kr mostlyclean-tags mostlyclean-depend \
-		mostlyclean-generic
-
-mostlyclean: mostlyclean-am
-
-clean-am:  clean-noinstLIBRARIES clean-compile clean-kr clean-tags \
-		clean-depend clean-generic mostlyclean-am
-
 clean: clean-am
 
-distclean-am:  distclean-noinstLIBRARIES distclean-compile distclean-kr \
-		distclean-tags distclean-depend distclean-generic \
-		clean-am
+clean-am: clean-generic clean-noinstLIBRARIES mostlyclean-am
 
 distclean: distclean-am
 
-maintainer-clean-am:  maintainer-clean-noinstLIBRARIES \
-		maintainer-clean-compile maintainer-clean-kr \
-		maintainer-clean-tags maintainer-clean-depend \
-		maintainer-clean-generic distclean-am
-	@echo "This command is intended for maintainers to use;"
-	@echo "it deletes files that may require special tools to rebuild."
+distclean-am: clean-am distclean-compile distclean-depend \
+	distclean-generic distclean-tags
+
+dvi:
+
+dvi-am:
+
+info:
+
+info-am:
+
+install-data-am:
+
+install-exec-am:
+
+install-info:
+
+install-man:
+
+installcheck-am:
 
 maintainer-clean: maintainer-clean-am
 
-.PHONY: mostlyclean-noinstLIBRARIES distclean-noinstLIBRARIES \
-clean-noinstLIBRARIES maintainer-clean-noinstLIBRARIES \
-mostlyclean-compile distclean-compile clean-compile \
-maintainer-clean-compile mostlyclean-kr distclean-kr clean-kr \
-maintainer-clean-kr tags mostlyclean-tags distclean-tags clean-tags \
-maintainer-clean-tags distdir mostlyclean-depend distclean-depend \
-clean-depend maintainer-clean-depend info-am info dvi-am dvi check \
-check-am installcheck-am installcheck install-exec-am install-exec \
-install-data-am install-data install-am install uninstall-am uninstall \
-all-redirect all-am all install-strip installdirs mostlyclean-generic \
-distclean-generic clean-generic maintainer-clean-generic clean \
-mostlyclean distclean maintainer-clean
+maintainer-clean-am: distclean-am maintainer-clean-generic
+
+mostlyclean: mostlyclean-am
+
+mostlyclean-am: mostlyclean-compile mostlyclean-generic mostlyclean-kr
+
+.PHONY: all all-am check check-am clean clean-generic \
+	clean-noinstLIBRARIES distclean distclean-compile \
+	distclean-depend distclean-generic distclean-tags distdir dvi \
+	dvi-am info info-am install install-am install-data \
+	install-data-am install-exec install-exec-am install-info \
+	install-man install-strip installcheck installcheck-am \
+	installdirs maintainer-clean maintainer-clean-generic \
+	mostlyclean mostlyclean-compile mostlyclean-generic \
+	mostlyclean-kr tags uninstall uninstall-am
 
 
 ../include/des.h:

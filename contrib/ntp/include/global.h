@@ -30,6 +30,9 @@ typedef unsigned short int UINT2;
 /* UINT4 defines a four byte word */
 typedef u_int32 UINT4;			/* local modification */
 
+/* BYTE defines a unsigned character */
+typedef unsigned char BYTE;		/* local modification for RSAEuro */
+
 #ifndef NULL_PTR
 #define NULL_PTR ((POINTER)0)
 #endif

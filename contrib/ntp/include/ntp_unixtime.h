@@ -5,8 +5,6 @@
 
 #include "ntp_types.h"
 
-#include <sys/time.h>
-
 /* gettimeofday() takes two args in BSD and only one in SYSV */
 # if defined(HAVE_SYS_TIMERS_H) && defined(HAVE_GETCLOCK)
 #  include <sys/timers.h>

@@ -11,6 +11,7 @@
 #include "recvbuff.h"
 
 #define MAXINTERFACES	512
+#define MAXFILENAME	128	/* maximum length of a file name */
 
 #ifdef SYS_WINNT
 #define exit service_exit
@@ -25,7 +26,6 @@ void	worker_thread	(void *);
 #endif /* SYS_WINNT */
 
 /* ntp_config.c */
-extern	void	getstartup	P((int, char **));
 extern	void	getconfig	P((int, char **));
 
 /* ntp_config.c */
@@ -71,11 +71,13 @@ extern  void    set_var P((struct ctl_var **, const char *, unsigned long, int))
 extern  void    set_sys_var P((char *, unsigned long, int));
 
 /* ntp_intres.c */
+extern	void	ntp_res_name	P((u_int32, u_short));
+extern	void	ntp_res_recv	P((void));
 extern	void	ntp_intres	P((void));
 
 /* ntp_io.c */
-extern	struct interface *findbcastinter P((struct sockaddr_in *));
 extern	struct interface *findinterface P((struct sockaddr_in *));
+extern  struct interface *findbcastinter P((struct sockaddr_in *));
 
 extern	void	init_io 	P((void));
 extern	void	input_handler	P((l_fp *));
@@ -110,6 +112,7 @@ extern	void	init_loopfilter P((void));
 extern	int 	local_clock P((struct peer *, double, double));
 extern	void	adj_host_clock	P((void));
 extern	void	loop_config P((int, double));
+extern	void	huffpuff	P((void));
 
 /* ntp_monitor.c */
 extern	void	init_mon	P((void));
@@ -121,23 +124,26 @@ extern	void	ntp_monitor P((struct recvbuf *));
 extern	void	init_peer	P((void));
 extern	struct peer *findexistingpeer P((struct sockaddr_in *, struct peer *, int));
 extern	struct peer *findpeer	P((struct sockaddr_in *, struct interface *, int, int, int *));
-extern	struct peer *findpeerbyassoc P((int));
-extern	struct peer *newpeer	P((struct sockaddr_in *, struct interface *, int, int, int, int, int, u_long));
+extern	struct peer *findpeerbyassoc P((u_int));
+extern	struct peer *newpeer	P((struct sockaddr_in *, struct interface *, int, int, int, int, u_int, u_int, int, keyid_t));
 extern	void	peer_all_reset	P((void));
 extern	void	peer_clr_stats	P((void));
-extern	struct peer *peer_config P((struct sockaddr_in *, struct interface *, int, int, int, int, int, int, u_long));
+extern	struct peer *peer_config P((struct sockaddr_in *, struct interface *, int, int, int, int, u_int, int, keyid_t, u_char *));
 extern	void	peer_reset	P((struct peer *));
 extern	int 	peer_unconfig	P((struct sockaddr_in *, struct interface *, int));
 extern	void	unpeer		P((struct peer *));
-extern	void	key_expire_all	P((void));
-extern	struct	peer *findmanycastpeer	P((l_fp *));
-extern	void	peer_config_manycast	P((struct peer *, struct peer *));
+extern	void	clear_all	P((void));
+#ifdef AUTOKEY
+extern	void	expire_all	P((void));
+#endif /* AUTOKEY */
+extern	struct	peer *findmanycastpeer	P((struct recvbuf *));
+extern	void	resetmanycast	P((void));
 
 /* ntp_proto.c */
 extern	void	transmit	P((struct peer *));
 extern	void	receive 	P((struct recvbuf *));
 extern	void	peer_clear	P((struct peer *));
-extern	int 	process_packet	P((struct peer *, struct pkt *, l_fp *));
+extern	void 	process_packet	P((struct peer *, struct pkt *, l_fp *));
 extern	void	clock_select	P((void));
 
 /*
@@ -176,13 +182,17 @@ extern	void	hack_restrict	P((int, struct sockaddr_in *, struct sockaddr_in *, in
 extern	void	init_timer	P((void));
 extern	void	timer		P((void));
 extern	void	timer_clr_stats P((void));
+#ifdef AUTOKEY
+extern	char	*sys_hostname;
+extern	l_fp	sys_revoketime;
+#endif /* AUTOKEY */
 
 /* ntp_util.c */
 extern	void	init_util	P((void));
 extern	void	hourly_stats	P((void));
 extern	void	stats_config	P((int, char *));
 extern	void	record_peer_stats P((struct sockaddr_in *, int, double, double, double, double));
-extern	void	record_loop_stats P((void));
+extern	void	record_loop_stats P((double, double, double, double, int));
 extern	void	record_clock_stats P((struct sockaddr_in *, const char *));
 extern	void	record_raw_stats P((struct sockaddr_in *, struct sockaddr_in *, l_fp *, l_fp *, l_fp *, l_fp *));
 
@@ -203,7 +213,7 @@ extern int	config_priority;
 struct ctl_trap;
 extern struct ctl_trap ctl_trap[];
 extern int	num_ctl_traps;
-extern u_long	ctl_auth_keyid;		/* keyid used for authenticating write requests */
+extern keyid_t	ctl_auth_keyid;		/* keyid used for authenticating write requests */
 
 /*
  * Statistic counters to keep track of requests and responses.
@@ -225,7 +235,7 @@ extern u_long	numctlbadop; 		/* bad op code found in packet */
 extern u_long	numasyncmsgs;		/* number of async messages we've sent */
 
 /* ntp_intres.c */
-extern u_long	req_keyid;		/* request keyid */
+extern keyid_t	req_keyid;		/* request keyid */
 extern char *	req_file;		/* name of the file with configuration info */
 
 /*
@@ -244,8 +254,8 @@ extern u_long	io_timereset;		/* time counters were reset */
 /*
  * Interface stuff
  */
-extern struct interface *any_interface;	/* pointer to default interface */
-extern struct interface *loopback_interface;	/* point to loopback interface */
+extern struct interface *any_interface;	/* default interface */
+extern struct interface *loopback_interface; /* loopback interface */
 
 /*
  * File descriptor masks etc. for call to select
@@ -254,10 +264,16 @@ extern fd_set	activefds;
 extern int	maxactivefd;
 
 /* ntp_loopfilter.c */
-extern double	drift_comp;		/* clock frequency (ppm) */
-extern double	clock_stability;	/* clock stability (ppm) */
-extern double	clock_max;		/* max offset allowed before step (s) */
+extern double	drift_comp;		/* clock frequency (s/s) */
+extern double	clock_stability;	/* clock stability (s/s) */
+extern double	clock_max;		/* max offset before step (s) */
+extern double	clock_panic;		/* max offset before panic (s) */
+extern double	clock_phi;		/* dispersion rate (s/s) */
+extern double	clock_minstep;		/* step timeout (s) */
 extern u_long	pps_control;		/* last pps sample time */
+#ifdef KERNEL_PLL
+extern int	pll_status;		/* status bits for kernel pll */
+#endif /* KERNEL_PLL */
 
 /*
  * Clock state machine control flags
@@ -265,21 +281,26 @@ extern u_long	pps_control;		/* last pps sample time */
 extern int	ntp_enable;		/* clock discipline enabled */
 extern int	pll_control;		/* kernel support available */
 extern int	kern_enable;		/* kernel support enabled */
+extern int	pps_enable;		/* kernel PPS discipline enabled */
 extern int	ext_enable;		/* external clock enabled */
-extern int	pps_update;		/* pps update valid */
-extern int	allow_set_backward;	/* step corrections allowed */
-extern int	correct_any;		/* corrections > 1000 s allowed */
+extern int	cal_enable;		/* refclock calibrate enable */
+extern int	allow_step;		/* allow step correction */
+extern int	allow_panic;		/* allow panic correction */
+extern int	mode_ntpdate;		/* exit on first clock set */
+extern int	peer_ntpdate;		/* count of ntpdate peers */
 
 /*
  * Clock state machine variables
  */
-extern u_char	sys_poll;		/* log2 of system poll interval */
+extern u_char	sys_poll;		/* system poll interval (log2 s) */
+extern u_char	sys_minpoll;		/* min system poll interval (log2 s) */
 extern int	state;			/* clock discipline state */
 extern int	tc_counter;		/* poll-adjust counter */
 extern u_long	last_time;		/* time of last clock update (s) */
 extern double	last_offset;		/* last clock offset (s) */
 extern double	allan_xpt;		/* Allan intercept (s) */
-extern double	sys_error;		/* system standard error (s) */
+extern double	sys_error;		/* system RMS error (s) */
+extern double	sys_jitter;		/* system RMS jitter (s) */
 
 /* ntp_monitor.c */
 extern struct mon_data mon_mru_list;
@@ -317,6 +338,7 @@ extern double	sys_rootdispersion;	/* dispersion of system clock */
 extern u_int32	sys_refid;		/* reference source for local clock */
 extern l_fp	sys_reftime;		/* time we were last updated */
 extern struct peer *sys_peer;		/* our current peer */
+extern struct peer *sys_prefer;		/* our cherished peer */
 extern u_long	sys_automax;		/* maximum session key lifetime */
 
 /*
@@ -326,7 +348,7 @@ extern int	sys_bclient;		/* we set our time to broadcasts */
 extern double	sys_bdelay; 		/* broadcast client default delay */
 extern int	sys_authenticate;	/* requre authentication for config */
 extern l_fp	sys_authdelay;		/* authentication delay */
-extern u_long	sys_private;		/* private value for session seed */
+extern keyid_t	sys_private;		/* private value for session seed */
 extern int	sys_manycastserver;	/* 1 => respond to manycast client pkts */
 
 /*
@@ -350,7 +372,7 @@ extern int	fdpps;			/* pps file descriptor */
 #endif
 
 /* ntp_request.c */
-extern u_long	info_auth_keyid;	/* keyid used to authenticate requests */
+extern keyid_t	info_auth_keyid;	/* keyid used to authenticate requests */
 
 /* ntp_restrict.c */
 extern struct restrictlist *restrictlist; /* the restriction list */
