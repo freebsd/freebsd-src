@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.31 1996/01/28 22:15:46 wollman Exp $
+**  $Id: pcisupport.c,v 1.32 1996/02/17 23:57:04 se Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -47,8 +47,6 @@
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/devconf.h>
-
-#include <machine/cpu.h>
 
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>

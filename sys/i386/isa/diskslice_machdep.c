@@ -35,7 +35,7 @@
  *
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: diskslice_machdep.c,v 1.18 1996/03/01 19:00:53 dyson Exp $
+ *	$Id: diskslice_machdep.c,v 1.19 1996/03/02 01:49:38 dyson Exp $
  */
 
 #include <stddef.h>
@@ -48,7 +48,6 @@
 #include <sys/malloc.h>
 #include <sys/syslog.h>
 #include <sys/systm.h>
-#include <machine/cpu.h>
 
 #define TRACE(str)	do { if (dsi_debug) printf str; } while (0)
 
