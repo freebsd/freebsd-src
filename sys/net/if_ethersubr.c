@@ -62,6 +62,7 @@
 #include <net/bpf.h>
 #include <net/ethernet.h>
 #include <net/bridge.h>
+#include <net/if_vlan_var.h>
 
 #if defined(INET) || defined(INET6)
 #include <netinet/in.h>
@@ -103,17 +104,13 @@ extern u_char	aarp_org_code[3];
 #endif /* NETATALK */
 
 /* netgraph node hooks for ng_ether(4) */
-void	(*ng_ether_input_p)(struct ifnet *ifp,
-		struct mbuf **mp, struct ether_header *eh);
-void	(*ng_ether_input_orphan_p)(struct ifnet *ifp,
-		struct mbuf *m, struct ether_header *eh);
+void	(*ng_ether_input_p)(struct ifnet *ifp, struct mbuf **mp);
+void	(*ng_ether_input_orphan_p)(struct ifnet *ifp, struct mbuf *m);
 int	(*ng_ether_output_p)(struct ifnet *ifp, struct mbuf **mp);
 void	(*ng_ether_attach_p)(struct ifnet *ifp);
 void	(*ng_ether_detach_p)(struct ifnet *ifp);
 
-int	(*vlan_input_p)(struct ether_header *eh, struct mbuf *m);
-int	(*vlan_input_tag_p)(struct ether_header *eh, struct mbuf *m,
-		u_int16_t t);
+void	(*vlan_input_p)(struct ifnet *, struct mbuf *);
 
 /* bridge support */
 int do_bridge;
@@ -130,7 +127,7 @@ u_char	etherbroadcastaddr[6] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
 int
 ether_ipfw_chk(struct mbuf **m0, struct ifnet *dst,
-	struct ip_fw **rule, struct ether_header *eh, int shared);
+	struct ip_fw **rule, int shared);
 static int ether_ipfw;
 
 /*
@@ -385,11 +382,8 @@ bad:			if (m != NULL)
  * in the first mbuf (if BRIDGE'ing).
  */
 int
-ether_output_frame(ifp, m)
-	struct ifnet *ifp;
-	struct mbuf *m;
+ether_output_frame(struct ifnet *ifp, struct mbuf *m)
 {
-	int error = 0;
 	struct ip_fw *rule = NULL;
 
 	/* Extract info from dummynet tag, ignore others */
@@ -397,46 +391,25 @@ ether_output_frame(ifp, m)
 		if (m->m_flags == PACKET_TAG_DUMMYNET)
 			rule = ((struct dn_pkt *)m)->rule;
 
-	if (rule)	/* packet was already bridged */
-		goto no_bridge;
-
-	if (BDG_ACTIVE(ifp) ) {
-		struct ether_header *eh; /* a ptr suffices */
-
+	if (rule == NULL && BDG_ACTIVE(ifp)) {
+		/*
+		 * Beware, the bridge code notices the null rcvif and
+		 * uses that identify that it's being called from
+		 * ether_output as opposd to ether_input.  Yech.
+		 */
 		m->m_pkthdr.rcvif = NULL;
-		eh = mtod(m, struct ether_header *);
-		m_adj(m, ETHER_HDR_LEN);
-		m = bdg_forward_ptr(m, eh, ifp);
+		m = bdg_forward_ptr(m, ifp);
 		if (m != NULL)
 			m_freem(m);
 		return (0);
 	}
-
-no_bridge:
 	if (IPFW_LOADED && ether_ipfw != 0) {
-		struct ether_header save_eh, *eh;
-
-		eh = mtod(m, struct ether_header *);
-		save_eh = *eh;
-		m_adj(m, ETHER_HDR_LEN);
-		if (ether_ipfw_chk(&m, ifp, &rule, eh, 0) == 0) {
+		if (ether_ipfw_chk(&m, ifp, &rule, 0) == 0) {
 			if (m) {
 				m_freem(m);
 				return ENOBUFS;	/* pkt dropped */
 			} else
 				return 0;	/* consumed e.g. in a pipe */
-		}
-		/* packet was ok, restore the ethernet header */
-		if ( (void *)(eh + 1) == (void *)m->m_data) {
-			m->m_data -= ETHER_HDR_LEN ;
-			m->m_len += ETHER_HDR_LEN ;
-			m->m_pkthdr.len += ETHER_HDR_LEN ;
-		} else {
-			M_PREPEND(m, ETHER_HDR_LEN, M_DONTWAIT);
-			if (m == NULL) /* nope... */
-				return ENOBUFS;
-			bcopy(&save_eh, mtod(m, struct ether_header *),
-			    ETHER_HDR_LEN);
 		}
 	}
 
@@ -444,9 +417,7 @@ no_bridge:
 	 * Queue message on interface, update output statistics if
 	 * successful, and start output if interface not yet active.
 	 */
-	if (! IF_HANDOFF(&ifp->if_snd, m, ifp))
-		return (ENOBUFS);
-	return (error);
+	return (IF_HANDOFF(&ifp->if_snd, m, ifp) ? 0 : ENOBUFS);
 }
 
 /*
@@ -458,9 +429,11 @@ no_bridge:
  */
 int
 ether_ipfw_chk(struct mbuf **m0, struct ifnet *dst,
-	struct ip_fw **rule, struct ether_header *eh, int shared)
+	struct ip_fw **rule, int shared)
 {
-	struct ether_header save_eh = *eh;	/* might be a ptr in m */
+	struct ether_header *eh;
+	struct ether_header save_eh;
+	struct mbuf *m;
 	int i;
 	struct ip_fw_args args;
 
@@ -471,24 +444,45 @@ ether_ipfw_chk(struct mbuf **m0, struct ifnet *dst,
 	 * I need some amt of data to be contiguous, and in case others need
 	 * the packet (shared==1) also better be in the first mbuf.
 	 */
-	i = min( (*m0)->m_pkthdr.len, max_protohdr);
-	if ( shared || (*m0)->m_len < i) {
-		*m0 = m_pullup(*m0, i);
-		if (*m0 == NULL)
+	m = *m0;
+	i = min( m->m_pkthdr.len, max_protohdr);
+	if ( shared || m->m_len < i) {
+		m = m_pullup(m, i);
+		if (m == NULL) {
+			*m0 = m;
 			return 0;
+		}
 	}
+	eh = mtod(m, struct ether_header *);
+	save_eh = *eh;			/* save copy for restore below */
+	m_adj(m, ETHER_HDR_LEN);	/* strip ethernet header */
 
-	args.m = *m0;		/* the packet we are looking at		*/
+	args.m = m;		/* the packet we are looking at		*/
 	args.oif = dst;		/* destination, if any			*/
 	args.divert_rule = 0;	/* we do not support divert yet		*/
 	args.rule = *rule;	/* matching rule to restart		*/
 	args.next_hop = NULL;	/* we do not support forward yet	*/
 	args.eh = &save_eh;	/* MAC header for bridged/MAC packets	*/
 	i = ip_fw_chk_ptr(&args);
-	*m0 = args.m;
+	m = args.m;
+	if (m != NULL) {
+		/*
+		 * Restore Ethernet header, as needed, in case the
+		 * mbuf chain was replaced by ipfw.
+		 */
+		M_PREPEND(m, ETHER_HDR_LEN, M_NOWAIT);
+		if (m == NULL) {
+			*m0 = m;
+			return 0;
+		}
+		if (eh != mtod(m, struct ether_header *))
+			bcopy(&save_eh, mtod(m, struct ether_header *),
+				ETHER_HDR_LEN);
+	}
+	*m0 = m;
 	*rule = args.rule;
 
-	if ( (i & IP_FW_PORT_DENY_FLAG) || *m0 == NULL) /* drop */
+	if ( (i & IP_FW_PORT_DENY_FLAG) || m == NULL) /* drop */
 		return 0;
 
 	if (i == 0) /* a PASS rule.  */
@@ -499,30 +493,16 @@ ether_ipfw_chk(struct mbuf **m0, struct ifnet *dst,
 		 * Pass the pkt to dummynet, which consumes it.
 		 * If shared, make a copy and keep the original.
 		 */
-		struct mbuf *m ;
-
 		if (shared) {
-			m = m_copypacket(*m0, M_DONTWAIT);
+			m = m_copypacket(m, M_DONTWAIT);
 			if (m == NULL)
 				return 0;
 		} else {
-			m = *m0 ; /* pass the original to dummynet */
-			*m0 = NULL ; /* and nothing back to the caller */
-		}
-		/*
-		 * Prepend the header, optimize for the common case of
-		 * eh pointing into the mbuf.
-		 */
-		if ( (void *)(eh + 1) == (void *)m->m_data) {
-			m->m_data -= ETHER_HDR_LEN ;
-			m->m_len += ETHER_HDR_LEN ;
-			m->m_pkthdr.len += ETHER_HDR_LEN ;
-		} else {
-			M_PREPEND(m, ETHER_HDR_LEN, M_DONTWAIT);
-			if (m == NULL) /* nope... */
-				return 0;
-			bcopy(&save_eh, mtod(m, struct ether_header *),
-			    ETHER_HDR_LEN);
+			/*
+			 * Pass the original to dummynet and
+			 * nothing back to the caller
+			 */
+			*m0 = NULL ;
 		}
 		ip_dn_io_ptr(m, (i & 0xffff),
 			dst ? DN_TO_ETH_OUT: DN_TO_ETH_DEMUX, &args);
@@ -536,68 +516,89 @@ ether_ipfw_chk(struct mbuf **m0, struct ifnet *dst,
 }
 
 /*
- * Process a received Ethernet packet. We have two different interfaces:
- * one (conventional) assumes the packet in the mbuf, with the ethernet
- * header provided separately in *eh. The second one (new) has everything
- * in the mbuf, and we can tell it because eh == NULL.
- * The caller MUST MAKE SURE that there are at least
- * sizeof(struct ether_header) bytes in the first mbuf.
- *
- * This allows us to concentrate in one place a bunch of code which
- * is replicated in all device drivers. Also, many functions called
- * from ether_input() try to put the eh back into the mbuf, so we
- * can later propagate the 'contiguous packet' interface to them,
- * and handle the old interface just here.
- *
- * NOTA BENE: for many drivers "eh" is a pointer into the first mbuf or
- * cluster, right before m_data. So be very careful when working on m,
- * as you could destroy *eh !!
- *
- * First we perform any link layer operations, then continue
- * to the upper layers with ether_demux().
+ * Process a received Ethernet packet; the packet is in the
+ * mbuf chain m with the ethernet header at the front.
  */
-void
-ether_input(struct ifnet *ifp, struct ether_header *eh, struct mbuf *m)
+static void
+ether_input(struct ifnet *ifp, struct mbuf *m)
 {
-	struct ether_header save_eh;
+	struct ether_header *eh;
+	u_short etype;
 
-	if (eh == NULL) {
-		if (m->m_len < sizeof(struct ether_header)) {
-			/* XXX error in the caller. */
-			m_freem(m);
-			return;
-		}
-		if (ifp->if_bpf != NULL)
-			bpf_mtap(ifp, m);
-		m->m_pkthdr.rcvif = ifp;
-		eh = mtod(m, struct ether_header *);
-		m->m_data += sizeof(struct ether_header);
-		m->m_len -= sizeof(struct ether_header);
-		m->m_pkthdr.len = m->m_len;
-	} else if (ifp->if_bpf != NULL) {
-		struct m_hdr mh;
-
-		/* This kludge is OK; BPF treats the "mbuf" as read-only */
-		mh.mh_next = m;
-		mh.mh_data = (char *)eh;
-		mh.mh_len = ETHER_HDR_LEN;
-		bpf_mtap(ifp, (struct mbuf *)&mh);
-	}
-
-	if (ifp->if_flags & IFF_MONITOR) {
+	/*
+	 * Do consistency checks to verify assumptions
+	 * made by code past this point.
+	 */
+	if ((m->m_flags & M_PKTHDR) == 0) {
+		if_printf(ifp, "discard frame w/o packet header\n");
+		ifp->if_ierrors++;
 		m_freem(m);
 		return;
+	}
+	if (m->m_len < sizeof (struct ether_header)) {
+		/* XXX maybe should pullup? */
+		if_printf(ifp, "discard frame w/o leading ethernet "
+				"header (len %u pkt len %u)\n",
+				m->m_len, m->m_pkthdr.len);
+		ifp->if_ierrors++;
+		m_freem(m);
+		return;
+	}
+	eh = mtod(m, struct ether_header *);
+	etype = ntohs(eh->ether_type);
+	if (m->m_pkthdr.len >
+	    ETHER_MAX_FRAME(ifp, etype, m->m_flags & M_HASFCS)) {
+		if_printf(ifp, "discard oversize frame "
+				"(ether type %x flags %x len %u > max %lu)\n",
+				etype, m->m_flags, m->m_pkthdr.len,
+				ETHER_MAX_FRAME(ifp, etype,
+						m->m_flags & M_HASFCS));
+		ifp->if_ierrors++;
+		m_freem(m);
+		return;
+	}
+	if (m->m_pkthdr.rcvif == NULL) {
+		if_printf(ifp, "discard frame w/o interface pointer\n");
+		ifp->if_ierrors++;
+		m_freem(m);
+		return;
+	}
+#ifdef DIAGNOSTIC
+	if (m->m_pkthdr.rcvif != ifp) {
+		if_printf(ifp, "Warning, frame marked as received on %s%u\n",
+			m->m_pkthdr.rcvif->if_name,
+			m->m_pkthdr.rcvif->if_unit);
+	}
+#endif
+
+	/*
+	 * Give bpf a chance at the packet.
+	 */
+	BPF_MTAP(ifp, m);
+
+	if (ifp->if_flags & IFF_MONITOR) {
+		/*
+		 * Interface marked for monitoring; discard packet.
+		 */
+		m_freem(m);
+		return;
+	}
+
+	/* If the CRC is still on the packet, trim it off. */
+	if (m->m_flags & M_HASFCS) {
+		m_adj(m, -ETHER_CRC_LEN);
+		m->m_flags &= ~M_HASFCS;
 	}
 
 #ifdef MAC
 	mac_create_mbuf_from_ifnet(ifp, m);
 #endif
 
-	ifp->if_ibytes += m->m_pkthdr.len + sizeof (*eh);
+	ifp->if_ibytes += m->m_pkthdr.len;
 
 	/* Handle ng_ether(4) processing, if any */
 	if (ng_ether_input_p != NULL) {
-		(*ng_ether_input_p)(ifp, &m, eh);
+		(*ng_ether_input_p)(ifp, &m);
 		if (m == NULL)
 			return;
 	}
@@ -606,40 +607,53 @@ ether_input(struct ifnet *ifp, struct ether_header *eh, struct mbuf *m)
 	if (BDG_ACTIVE(ifp) ) {
 		struct ifnet *bif;
 
-		/* Check with bridging code */
-		if ((bif = bridge_in_ptr(ifp, eh)) == BDG_DROP) {
+		/*
+		 * Check with bridging code to see how the packet
+		 * should be handled.  Possibilities are:
+		 *
+		 *    BDG_BCAST		broadcast
+		 *    BDG_MCAST		multicast
+		 *    BDG_LOCAL		for local address, don't forward
+		 *    BDG_DROP		discard
+		 *    ifp		forward only to specified interface(s)
+		 *
+		 * Non-local destinations are handled by passing the
+		 * packet back to the bridge code.
+		 */
+		bif = bridge_in_ptr(ifp, eh);
+		if (bif == BDG_DROP) {		/* discard packet */
 			m_freem(m);
 			return;
 		}
-		if (bif != BDG_LOCAL) {
-			save_eh = *eh ; /* because it might change */
-			m = bdg_forward_ptr(m, eh, bif); /* needs forwarding */
+		if (bif != BDG_LOCAL) {		/* non-local, forward */
+			m = bdg_forward_ptr(m, bif);
 			/*
-			 * Do not continue if bdg_forward_ptr() processed our
-			 * packet (and cleared the mbuf pointer m) or if
-			 * it dropped (m_free'd) the packet itself.
+			 * The bridge may consume the packet if it's not
+			 * supposed to be passed up or if a problem occurred
+			 * while doing its job.  This is reflected by it
+			 * returning a NULL mbuf pointer.
 			 */
 			if (m == NULL) {
-			    if (bif == BDG_BCAST || bif == BDG_MCAST)
-				printf("bdg_forward drop MULTICAST PKT\n");
-			    return;
+				if (bif == BDG_BCAST || bif == BDG_MCAST)
+					if_printf(ifp,
+						"bridge dropped %s packet\n",
+						bif == BDG_BCAST ? "broadcast" :
+								   "multicast");
+				return;
 			}
-			eh = &save_eh ;
+			/*
+			 * But in some cases the bridge may return the
+			 * packet for us to free; sigh.
+			 */
+			if (bif != BDG_BCAST && bif != BDG_MCAST) {
+printf("ether_input: drop bdg packet, bif %p\n", bif);/*XXX*/
+				m_freem(m);
+				return;
+			}
 		}
-		if (bif == BDG_LOCAL
-		    || bif == BDG_BCAST
-		    || bif == BDG_MCAST)
-			goto recvLocal;			/* receive locally */
-
-		/* If not local and not multicast, just drop it */
-		if (m != NULL)
-			m_freem(m);
-		return;
 	}
 
-recvLocal:
-	/* Continue with upper layer processing */
-	ether_demux(ifp, eh, m);
+	ether_demux(ifp, m);
 	/* First chunk of an mbuf contains good entropy */
 	if (harvest.ethernet)
 		random_harvest(m, 16, 3, 0, RANDOM_NET);
@@ -649,11 +663,9 @@ recvLocal:
  * Upper layer processing for a received Ethernet packet.
  */
 void
-ether_demux(ifp, eh, m)
-	struct ifnet *ifp;
-	struct ether_header *eh;
-	struct mbuf *m;
+ether_demux(struct ifnet *ifp, struct mbuf *m)
 {
+	struct ether_header *eh;
 	struct ifqueue *inq;
 	u_short ether_type;
 #if defined(NETATALK)
@@ -667,6 +679,10 @@ ether_demux(ifp, eh, m)
 			rule = ((struct dn_pkt *)m)->rule;
 			ifp = m->m_next->m_pkthdr.rcvif;
 		}
+
+	KASSERT(ifp != NULL, ("ether_demux: NULL interface pointer"));
+
+	eh = mtod(m, struct ether_header *);
 
 	if (rule)	/* packet was already bridged */
 		goto post_stats;
@@ -705,14 +721,55 @@ ether_demux(ifp, eh, m)
 
 post_stats:
 	if (IPFW_LOADED && ether_ipfw != 0) {
-		if (ether_ipfw_chk(&m, NULL, &rule, eh, 0 ) == 0) {
+		if (ether_ipfw_chk(&m, NULL, &rule, 0) == 0) {
 			if (m)
 				m_freem(m);
 			return;
 		}
 	}
 
+	/*
+	 * If VLANs are configured on the interface, check to
+	 * see if the device performed the decapsulation and
+	 * provided us with the tag.
+	 */
+	if (ifp->if_nvlans &&
+	    m_tag_locate(m, MTAG_VLAN, MTAG_VLAN_TAG, NULL) != NULL) {
+		/*
+		 * vlan_input() will either recursively call ether_input()
+		 * or drop the packet.
+		 */
+		KASSERT(vlan_input_p != NULL,("ether_input: VLAN not loaded!"));
+		(*vlan_input_p)(ifp, m);
+		return;
+	}
+
 	ether_type = ntohs(eh->ether_type);
+
+	/*
+	 * Handle protocols that expect to have the Ethernet header
+	 * (and possibly FCS) intact.
+	 */
+	switch (ether_type) {
+	case ETHERTYPE_VLAN:
+		if (ifp->if_nvlans != 0) {
+			KASSERT(vlan_input_p,("ether_input: VLAN not loaded!"));
+			(*vlan_input_p)(ifp, m);
+		} else {
+			ifp->if_noproto++;
+			m_freem(m);
+		}
+		return;
+	}
+
+	/* Strip off Ethernet header. */
+	m_adj(m, sizeof (struct ether_header));
+
+	/* If the CRC is still on the packet, trim it off. */
+	if (m->m_flags & M_HASFCS) {
+		m_adj(m, -ETHER_CRC_LEN);
+		m->m_flags &= ~M_HASFCS;
+	}
 
 	switch (ether_type) {
 #ifdef INET
@@ -764,16 +821,6 @@ post_stats:
                 aarpinput(IFP2AC(ifp), m); /* XXX */
                 return;
 #endif /* NETATALK */
-	case ETHERTYPE_VLAN:
-		/* XXX lock ? */
-		if (vlan_input_p != NULL)
-			(*vlan_input_p)(eh, m);
-		else {
-			m->m_pkthdr.rcvif->if_noproto++;
-			m_freem(m);
-		}
-		/* XXX unlock ? */
-		return;
 	default:
 #ifdef IPX
 		if (ef_inputp && ef_inputp(ifp, eh, m) == 0)
@@ -796,14 +843,14 @@ post_stats:
 #endif /* NS */
 #if defined(NETATALK)
 		if (ether_type > ETHERMTU)
-			goto dropanyway;
+			goto discard;
 		l = mtod(m, struct llc *);
 		switch (l->llc_dsap) {
 		case LLC_SNAP_LSAP:
 		    switch (l->llc_control) {
 		    case LLC_UI:
 			if (l->llc_ssap != LLC_SNAP_LSAP)
-			    goto dropanyway;
+			    goto discard;
 	
 			if (Bcmp(&(l->llc_snap_org_code)[0], at_org_code,
 				   sizeof(at_org_code)) == 0 &&
@@ -823,57 +870,88 @@ post_stats:
 			}
 		
 		    default:
-			goto dropanyway;
+			goto discard;
 		    }
 		    break;
-		dropanyway:
 		default:
-			if (ng_ether_input_orphan_p != NULL)
-				(*ng_ether_input_orphan_p)(ifp, m, eh);
-			else
-				m_freem(m);
-			return;
+			goto discard;
 		}
 #else /* NETATALK */
-		if (ng_ether_input_orphan_p != NULL)
-			(*ng_ether_input_orphan_p)(ifp, m, eh);
-		else
-			m_freem(m);
-		return;
+		goto discard;
 #endif /* NETATALK */
 	}
 
 	(void) IF_HANDOFF(inq, m, NULL);
+	return;
+discard:
+	/*
+	 * Packet is to be discarded.  If netgraph is present,
+	 * hand the packet to it for last chance processing;
+	 * otherwise dispose of it.
+	 */
+	if (ng_ether_input_orphan_p != NULL) {
+		/*
+		 * Put back the ethernet header so netgraph has a
+		 * consistent view of inbound packets.
+		 */
+		M_PREPEND(m, sizeof (struct ether_header), M_NOWAIT);
+		(*ng_ether_input_orphan_p)(ifp, m);
+		return;
+	}
+	m_freem(m);
+}
+
+/*
+ * Convert Ethernet address to printable (loggable) representation.
+ * This routine is for compatibility; it's better to just use
+ *
+ *	printf("%6D", <pointer to address>, ":");
+ *
+ * since there's no static buffer involved.
+ */
+char *
+ether_sprintf(const u_char *ap)
+{
+	static char etherbuf[18];
+	snprintf(etherbuf, sizeof (etherbuf), "%6D", ap, ":");
+	return (etherbuf);
 }
 
 /*
  * Perform common duties while attaching to interface list
  */
 void
-ether_ifattach(ifp, bpf)
-	register struct ifnet *ifp;
-	int bpf;
+ether_ifattach(struct ifnet *ifp, const u_int8_t *llc)
 {
 	register struct ifaddr *ifa;
 	register struct sockaddr_dl *sdl;
 
 	ifp->if_type = IFT_ETHER;
-	ifp->if_addrlen = 6;
-	ifp->if_hdrlen = 14;
+	ifp->if_addrlen = ETHER_ADDR_LEN;
+	ifp->if_hdrlen = ETHER_HDR_LEN;
 	if_attach(ifp);
 	ifp->if_mtu = ETHERMTU;
+	ifp->if_output = ether_output;
+	ifp->if_input = ether_input;
 	ifp->if_resolvemulti = ether_resolvemulti;
 	if (ifp->if_baudrate == 0)
-	    ifp->if_baudrate = 10000000;
+		ifp->if_baudrate = IF_Mbps(10);		/* just a default */
 	ifp->if_broadcastaddr = etherbroadcastaddr;
+
 	ifa = ifaddr_byindex(ifp->if_index);
 	KASSERT(ifa != NULL, ("%s: no lladdr!\n", __func__));
 	sdl = (struct sockaddr_dl *)ifa->ifa_addr;
 	sdl->sdl_type = IFT_ETHER;
 	sdl->sdl_alen = ifp->if_addrlen;
-	bcopy((IFP2AC(ifp))->ac_enaddr, LLADDR(sdl), ifp->if_addrlen);
-	if (bpf)
-		bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
+	bcopy(llc, LLADDR(sdl), ifp->if_addrlen);
+	/*
+	 * XXX: This doesn't belong here; we do it until
+	 * XXX:  all drivers are cleaned up
+	 */
+	if (llc != IFP2AC(ifp)->ac_enaddr)
+		bcopy(llc, IFP2AC(ifp)->ac_enaddr, ifp->if_addrlen);
+
+	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 	if (ng_ether_attach_p != NULL)
 		(*ng_ether_attach_p)(ifp);
 	if (BDG_LOADED)
@@ -884,14 +962,11 @@ ether_ifattach(ifp, bpf)
  * Perform common duties while detaching an Ethernet interface
  */
 void
-ether_ifdetach(ifp, bpf)
-	struct ifnet *ifp;
-	int bpf;
+ether_ifdetach(struct ifnet *ifp)
 {
 	if (ng_ether_detach_p != NULL)
 		(*ng_ether_detach_p)(ifp);
-	if (bpf)
-		bpfdetach(ifp);
+	bpfdetach(ifp);
 	if_detach(ifp);
 	if (BDG_LOADED)
 		bdgtakeifaces_ptr();
@@ -999,6 +1074,9 @@ ether_ioctl(ifp, command, data)
 		} else {
 			ifp->if_mtu = ifr->ifr_mtu;
 		}
+		break;
+	default:
+		error = EINVAL;			/* XXX netbsd has ENOTTY??? */
 		break;
 	}
 	return (error);
