@@ -241,7 +241,7 @@ static struct
     { 0x0e11, 0x4070, CISS_BOARD_SA5,	"Compaq Smart Array 5300" },
     { 0x0e11, 0x4080, CISS_BOARD_SA5B,	"Compaq Smart Array 5i" },
     { 0x0e11, 0x4082, CISS_BOARD_SA5B,	"Compaq Smart Array 532" },
-    { 0, 0, NULL }
+    { 0, 0, 0, NULL }
 };
 
 /************************************************************************

@@ -148,7 +148,7 @@ pecoff_fixup(register_t ** stack_base, struct image_params * imgp)
 	pos = *stack_base + (imgp->argc + imgp->envc + 2);
 	ap = (struct pecoff_imghdr *) imgp->auxargs;
 	if (copyout(ap, pos, len)) {
-		return NULL;
+		return 0;
 	}
 	free(ap, M_TEMP);
 	imgp->auxargs = NULL;
