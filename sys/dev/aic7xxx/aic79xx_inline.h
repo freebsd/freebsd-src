@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic79xx_inline.h#41 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic79xx_inline.h#44 $
  *
  * $FreeBSD$
  */
@@ -678,7 +678,8 @@ ahd_inb_scbram(struct ahd_softc *ahd, u_int offset)
 	 * Razor #528
 	 */
 	value = ahd_inb(ahd, offset);
-	ahd_inb(ahd, MODE_PTR);
+	if ((ahd->flags & AHD_PCIX_SCBRAM_RD_BUG) != 0)
+		ahd_inb(ahd, MODE_PTR);
 	return (value);
 }
 
@@ -769,7 +770,7 @@ ahd_queue_scb(struct ahd_softc *ahd, struct scb *scb)
 	ahd_setup_scb_common(ahd, scb);
 
 	/*
-	 * Make sure our data is consistant from the
+	 * Make sure our data is consistent from the
 	 * perspective of the adapter.
 	 */
 	ahd_sync_scb(ahd, scb, BUS_DMASYNC_PREREAD|BUS_DMASYNC_PREWRITE);
