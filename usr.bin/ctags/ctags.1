@@ -37,26 +37,32 @@
 .Os
 .Sh NAME
 .Nm ctags
-.Nd create a tags file
+.Nd create a
+.Pa tags
+file
 .Sh SYNOPSIS
 .Nm
 .Op Fl BFadtuwvx
 .Op Fl f Ar tagsfile
 .Ar name ...
 .Sh DESCRIPTION
-.Nm Ctags
-makes a tags file for
+The
+.Nm
+utility makes a
+.Pa tags
+file for
 .Xr ex 1
 from the specified C,
 Pascal, Fortran,
-Yacc,
-Lex, and Lisp sources.
+.Xr yacc 1 ,
+.Xr lex 1 ,
+and Lisp sources.
 A tags file gives the locations of specified objects in a group of files.
 Each line of the tags file contains the object name, the file in which it
 is defined, and a search pattern for the object definition, separated by
 white-space.
 Using the
-.Ar tags
+.Pa tags
 file,
 .Xr ex 1
 can quickly locate these object definitions.
@@ -76,42 +82,45 @@ Use forward searching patterns
 (the default).
 .It Fl a
 Append to
-.Ar tags
+.Pa tags
 file.
 .It Fl d
 Create tags for
 .Li #defines
-that don't take arguments;
+that do not take arguments;
 .Li #defines
 that take arguments are tagged automatically.
 .It Fl f
 Place the tag descriptions in a file called
 .Ar tagsfile .
 The default behaviour is to place them in a file called
-.Ar tags .
+.Pa tags .
 .It Fl t
 Create tags for typedefs, structs, unions, and enums.
 .It Fl u
 Update the specified files in the
-.Ar tags
+.Pa tags
 file, that is, all
 references to them are deleted, and the new values are appended to the
-file.  (Beware: this option is implemented in a way which is rather
+file.
+(Beware: this option is implemented in a way which is rather
 slow; it is usually faster to simply rebuild the
-.Ar tags
+.Pa tags
 file.)
 .It Fl v
 An index of the form expected by
 .Xr vgrind 1
-is produced on the standard output.  This listing
+is produced on the standard output.
+This listing
 contains the object name, file name, and page number (assuming 64
-line pages).  Since the output will be sorted into lexicographic order,
+line pages).
+Since the output will be sorted into lexicographic order,
 it may be desired to run the output through
 .Xr sort 1 .
 Sample use:
 .Bd -literal -offset indent
-ctags \-v files \&| sort \-f > index
-vgrind \-x index
+ctags -v files | sort -f > index
+vgrind -x index
 .Ed
 .It Fl w
 Suppress warning diagnostics.
@@ -119,99 +128,113 @@ Suppress warning diagnostics.
 .Nm
 produces a list of object
 names, the line number and file name on which each is defined, as well
-as the text of that line and prints this on the standard output.  This
+as the text of that line and prints this on the standard output.
+This
 is a simple index which can be printed out as an off-line readable
 function index.
 .El
 .Pp
 Files whose names end in
-.Em \&.c
+.Pa .c
 or
-.Em \&.h
+.Pa .h
 are assumed to be C
 source files and are searched for C style routine and macro definitions.
 Files whose names end in
-.Em \&.y
+.Pa .y
 are assumed to be
-Yacc
+.Xr yacc 1
 source files.
 Files whose names end in
-.Em \&.l
+.Pa .l
 are assumed to be Lisp files if their
-first non-blank character is `;', `(', or `[',
+first non-blank character is
+.Ql \&; ,
+.Ql \&( ,
+or
+.Ql \&[ ,
 otherwise, they are
-treated as Lex files.  Other files are first examined to see if they
+treated as
+.Xr lex 1
+files.
+Other files are first examined to see if they
 contain any Pascal or Fortran routine definitions, and, if not, are
 searched for C style definitions.
 .Pp
 The tag
-.Li main
-is treated specially in C programs.  The tag formed
+.Dq Li main
+is treated specially in C programs.
+The tag formed
 is created by prepending
-.Ar M
+.Ql M
 to the name of the file, with the
 trailing
-.Em \&.c
-and any leading pathname components removed.  This
-makes use of
+.Pa .c
+and any leading pathname components removed.
+This makes use of
 .Nm
 practical in directories with more than one
 program.
 .Pp
-Yacc and Lex files each have a special tag.
-.Ar Yyparse
+.Xr yacc 1
+and
+.Xr lex 1
+files each have a special tag.
+.Dq Li yyparse
 is the start
-of the second section of the yacc file, and
-.Ar yylex
+of the second section of the
+.Xr yacc 1
+file, and
+.Dq Li yylex
 is the start of
-the second section of the Lex file.
+the second section of the
+.Xr lex 1
+file.
 .Sh FILES
-.Bl -tag -width tags -compact
+.Bl -tag -width ".Pa tags" -compact
 .It Pa tags
 default output tags file
 .El
 .Sh DIAGNOSTICS
-.Nm Ctags
-exits with a value of 1 if an error occurred, 0 otherwise.
+The
+.Nm
+utility exits with a value of 1 if an error occurred, 0 otherwise.
 Duplicate objects are not considered errors.
 .Sh SEE ALSO
 .Xr ex 1 ,
 .Xr vi 1
 .Sh BUGS
-Recognition of
-.Em functions  ,
-.Em subroutines
-and
-.Em procedures
-for
-Fortran
-and Pascal is done is a very simpleminded way.  No attempt
+Recognition of functions, subroutines and procedures
+for Fortran and Pascal is done in a very simpleminded way.
+No attempt
 is made to deal with block structure; if you have two Pascal procedures
 in different blocks with the same name you lose.
-.Nm Ctags
-doesn't
+.Nm
+does not
 understand about Pascal types.
 .Pp
 The method of deciding whether to look for C, Pascal or
 Fortran
 functions is a hack.
 .Pp
-.Nm Ctags
+.Nm
 relies on the input being well formed, and any syntactical
-errors will completely confuse it.  It also finds some legal syntax
-confusing; for example, since it doesn't understand
+errors will completely confuse it.
+It also finds some legal syntax
+confusing; for example, since it does not understand
 .Li #ifdef Ns 's
-(incidentally, that's a feature, not a bug), any code with unbalanced
+(incidentally, that is a feature, not a bug), any code with unbalanced
 braces inside
 .Li #ifdef Ns 's
 will cause it to become somewhat disoriented.
 In a similar fashion, multiple line changes within a definition will
 cause it to enter the last line of the object, rather than the first, as
-the searching pattern.  The last line of multiple line
+the searching pattern.
+The last line of multiple line
 .Li typedef Ns 's
 will similarly be noted.
 .Sh HISTORY
 The
 .Nm
-command appeared in
+utility appeared in
 .Bx 3.0 .
