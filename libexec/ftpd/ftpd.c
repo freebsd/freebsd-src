@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ftpd.c,v 1.34 1997/03/28 15:48:09 imp Exp $
+ *	$Id: ftpd.c,v 1.35 1997/04/23 04:56:39 davidn Exp $
  */
 
 #if 0
@@ -102,7 +102,12 @@ static char sccsid[] = "@(#)ftpd.c	8.4 (Berkeley) 4/16/94";
 #include <varargs.h>
 #endif
 
+#ifdef	INTERNAL_LS
+static char version[] = "Version 6.00LS";
+#undef main
+#else
 static char version[] = "Version 6.00";
+#endif
 
 extern	off_t restart_point;
 extern	char cbuf[];
@@ -1388,7 +1393,7 @@ statfilecmd(filename)
 	int c;
 	char line[LINE_MAX];
 
-	(void)snprintf(line, sizeof(line), "/bin/ls -lgA %s", filename);
+	(void)snprintf(line, sizeof(line), _PATH_LS " -lgA %s", filename);
 	fin = ftpd_popen(line, "r");
 	lreply(211, "status of %s:", filename);
 	while ((c = getc(fin)) != EOF) {
@@ -1899,7 +1904,7 @@ send_file_list(whichf)
 			 */
 			if (dirname[0] == '-' && *dirlist == NULL &&
 			    transflag == 0) {
-				retrieve("/bin/ls %s", dirname);
+				retrieve(_PATH_LS " %s", dirname);
 				goto out;
 			}
 			perror_reply(550, whichf);
