@@ -13,6 +13,12 @@
 /* Define if the `long long' type works.  */
 #undef HAVE_LONG_LONG
 
+/* Define if we have "tm_isdst" in "struct tm".  */
+#undef HAVE_TM_ISDST
+
+/* Define if we have a global "int" variable "daylight".  */
+#undef HAVE_DAYLIGHT
+
 /* Define to `unsigned char' if standard headers don't define.  */
 #undef uint8_t
 
