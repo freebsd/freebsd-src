@@ -85,6 +85,11 @@ static char current_categories[_LC_LAST][ENCODING_LEN + 1] = {
 };
 
 /*
+ * Path to locale storage directory
+ */
+char	*_PathLocale;
+
+/*
  * The locales we are going to try and load
  */
 static char new_categories[_LC_LAST][ENCODING_LEN + 1];
