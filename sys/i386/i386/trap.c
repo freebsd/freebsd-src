@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_clock.h"
 #include "opt_cpu.h"
-#include "opt_ddb.h"
 #include "opt_isa.h"
 #include "opt_ktrace.h"
 #include "opt_npx.h"
@@ -58,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/pioctl.h>
 #include <sys/ptrace.h>
+#include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
@@ -95,8 +95,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 #include <machine/clock.h>
 #endif
-
-#include <ddb/ddb.h>
 
 extern void trap(struct trapframe frame);
 #ifdef I386_CPU
@@ -147,10 +145,10 @@ static char *trap_msg[] = {
 extern int has_f00f_bug;
 #endif
 
-#ifdef DDB
-static int ddb_on_nmi = 1;
-SYSCTL_INT(_machdep, OID_AUTO, ddb_on_nmi, CTLFLAG_RW,
-	&ddb_on_nmi, 0, "Go to DDB on NMI");
+#ifdef KDB
+static int kdb_on_nmi = 1;
+SYSCTL_INT(_machdep, OID_AUTO, kdb_on_nmi, CTLFLAG_RW,
+	&kdb_on_nmi, 0, "Go to KDB on NMI");
 #endif
 static int panic_on_nmi = 1;
 SYSCTL_INT(_machdep, OID_AUTO, panic_on_nmi, CTLFLAG_RW,
@@ -188,10 +186,9 @@ trap(frame)
 	atomic_add_int(&cnt.v_trap, 1);
 	type = frame.tf_trapno;
 
-#ifdef DDB
-	if (db_active) {
-		eva = (type == T_PAGEFLT ? rcr2() : 0);
-		trap_fatal(&frame, eva);
+#ifdef KDB
+	if (kdb_active) {
+		kdb_reenter();
 		goto out;
 	}
 #endif
@@ -363,16 +360,16 @@ trap(frame)
 			/* machine/parity/power fail/"kitchen sink" faults */
 			/* XXX Giant */
 			if (isa_nmi(code) == 0) {
-#ifdef DDB
+#ifdef KDB
 				/*
 				 * NMI can be hooked up to a pushbutton
 				 * for debugging.
 				 */
-				if (ddb_on_nmi) {
+				if (kdb_on_nmi) {
 					printf ("NMI ... going to debugger\n");
-					kdb_trap (type, 0, &frame);
+					kdb_trap(type, 0, &frame);
 				}
-#endif /* DDB */
+#endif /* KDB */
 				goto userout;
 			} else if (panic_on_nmi)
 				panic("NMI indicates hardware failure");
@@ -571,12 +568,12 @@ trap(frame)
 			 */
 		case T_BPTFLT:
 			/*
-			 * If DDB is enabled, let it handle the debugger trap.
+			 * If KDB is enabled, let it handle the debugger trap.
 			 * Otherwise, debugger traps "can't happen".
 			 */
-#ifdef DDB
+#ifdef KDB
 			/* XXX Giant */
-			if (kdb_trap (type, 0, &frame))
+			if (kdb_trap(type, 0, &frame))
 				goto out;
 #endif
 			break;
@@ -596,16 +593,16 @@ trap(frame)
 			/* XXX Giant */
 			/* machine/parity/power fail/"kitchen sink" faults */
 			if (isa_nmi(code) == 0) {
-#ifdef DDB
+#ifdef KDB
 				/*
 				 * NMI can be hooked up to a pushbutton
 				 * for debugging.
 				 */
-				if (ddb_on_nmi) {
+				if (kdb_on_nmi) {
 					printf ("NMI ... going to debugger\n");
-					kdb_trap (type, 0, &frame);
+					kdb_trap(type, 0, &frame);
 				}
-#endif /* DDB */
+#endif /* KDB */
 				goto out;
 			} else if (panic_on_nmi == 0)
 				goto out;
@@ -806,8 +803,8 @@ trap_fatal(frame, eva)
 		printf("Idle\n");
 	}
 
-#ifdef DDB
-	if ((debugger_on_panic || db_active) && kdb_trap(type, 0, frame))
+#ifdef KDB
+	if (kdb_trap(type, 0, frame))
 		return;
 #endif
 	printf("trap number		= %d\n", type);
