@@ -66,3 +66,5 @@ make -s -DNOMAN -DNODOC -DNOINFO -k obj
 make -s -DNOMAN -DNODOC -DNOINFO -k depend
 make -s -DNOMAN -DNODOC -DNOINFO -k 
 make -s -DNOMAN -DNODOC -DNOINFO -k install
+
+chflags -R noschg $MAKEOBJDIRPREFIX
