@@ -4,8 +4,8 @@
 
 LIB     = rcs
 SRCS    = maketime.c partime.c rcsedit.c rcsfcmp.c rcsfnms.c rcsgen.c \
-	  rcskeep.c rcskeys.c rcslex.c rcsmap.c rcsrev.c rcssyn.c rcsutil.c \
-	  merger.c
+	  rcskeep.c rcskeys.c rcslex.c rcsmap.c rcsrev.c rcssyn.c rcstime.c \
+	  rcsutil.c merger.c version.c
 
 NOPROFILE=noprofile
 
