@@ -53,7 +53,13 @@ This interface is obsoleted by
 The
 .Fn utime
 function sets the access and modification times of the named file from
-the structures in the argument array
+the
+.Va actime
+and
+.Va modtime
+fields of the
+.Vt "struct utimbuf"
+pointed at by
 .Fa timep .
 .Pp
 If the times are specified (the
