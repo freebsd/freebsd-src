@@ -51,7 +51,7 @@ inet_ntoa(in)
 {
 	static const char fmt[] = "%u.%u.%u.%u";
 	static char ret[sizeof "255.255.255.255"];
-	char *src = (char *) &in;
+	unsigned char *src = (unsigned char *) &in;
 
 	sprintf(ret, fmt, src[0], src[1], src[2], src[3]);
 	return (ret);
