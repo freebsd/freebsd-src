@@ -70,7 +70,7 @@ struct ttyent *getttynam __P((const char *));
 int setttyent __P((void));
 int endttyent __P((void));
 int isdialuptty __P((const char *));
-int isnetworktty __P((const char *));
+int isnettty __P((const char *));
 __END_DECLS
 
 #endif /* !_TTYENT_H_ */
