@@ -60,6 +60,7 @@ static const char rcsid[] =
 
 struct mntopt mopts[] = {
 	MOPT_STDOPTS,
+	MOPT_ASYNC,
 	MOPT_FORCE,
 	MOPT_SYNC,
 	MOPT_UPDATE,
