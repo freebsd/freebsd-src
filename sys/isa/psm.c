@@ -2508,9 +2508,16 @@ psmsoftintr(void *arg)
 
 	    /* Pressure value. */
 	    z = pb->ipacket[2];
-	    w = ((pb->ipacket[0] & 0x30) >> 2) |
-		((pb->ipacket[0] & 0x04) >> 1) |
-		((pb->ipacket[3] & 0x04) >> 2);
+
+	    /* Finger width value */
+	    if (sc->synhw.capExtended) {
+		w = ((pb->ipacket[0] & 0x30) >> 2) |
+		    ((pb->ipacket[0] & 0x04) >> 1) |
+		    ((pb->ipacket[3] & 0x04) >> 2);
+	    } else {
+		/* Assume a finger of regular width */
+		w = 4;
+	    }
 
 	    /* Button presses */
 	    ms.button = 0;
