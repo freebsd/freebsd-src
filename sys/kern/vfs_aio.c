@@ -1284,7 +1284,7 @@ _aio_aqueue(struct thread *td, struct aiocb *job, struct aio_liojob *lj, int typ
 	struct socket *so;
 	int s;
 	int error;
-	int opcode;
+	int opcode, user_opcode;
 	struct aiocblist *aiocbe;
 	struct aiothreadlist *aiop;
 	struct kaioinfo *ki;
@@ -1318,6 +1318,7 @@ _aio_aqueue(struct thread *td, struct aiocb *job, struct aio_liojob *lj, int typ
 	aiocbe->uuaiocb = job;
 
 	/* Get the opcode. */
+	user_opcode = aiocbe->uaiocb.aio_lio_opcode;
 	if (type != LIO_NOP)
 		aiocbe->uaiocb.aio_lio_opcode = type;
 	opcode = aiocbe->uaiocb.aio_lio_opcode;
@@ -1389,13 +1390,12 @@ _aio_aqueue(struct thread *td, struct aiocb *job, struct aio_liojob *lj, int typ
 		 * via aio_lio_opcode, which is an int.  Use the SIGEV_KEVENT-
 		 * based method instead.
 		 */
-		struct kevent *kevp;
-
-		kevp = (struct kevent *)(uintptr_t)job->aio_lio_opcode;
-		if (kevp == NULL)
+		if (user_opcode == LIO_NOP || user_opcode == LIO_READ ||
+		    user_opcode == LIO_WRITE)
 			goto no_kqueue;
 
-		error = copyin(kevp, &kev, sizeof(kev));
+		error = copyin((struct kevent *)(uintptr_t)user_opcode,
+		    &kev, sizeof(kev));
 		if (error)
 			goto aqueue_fail;
 	}
