@@ -771,6 +771,8 @@ logfile_write (repository, filter, message, logfp, changes)
 	    (void) walklist (changes, title_proc, NULL);
 	}
 
+	free (str_list_format);
+	
 	/* Construct the final string. */
 
 	srepos = Short_Repository (repository);

@@ -4039,6 +4039,8 @@ RCS_deltas (rcs, fp, version, op, text, len, log, loglen)
 	    break;
     } while (next != NULL);
 
+    free (branchversion);
+    
     if (fclose (fp) < 0)
 	error (0, errno, "cannot close %s", rcs->path);
 

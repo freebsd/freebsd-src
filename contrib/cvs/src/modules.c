@@ -445,7 +445,7 @@ do_module (db, mname, m_type, msg, callback_proc, where,
     modargv = xmodargv;
 
     /* parse the args */
-    optind = 1;
+    optind = 0;
     while ((c = getopt (modargc, modargv, CVSMODULE_OPTS)) != -1)
     {
 	switch (c)
@@ -461,7 +461,9 @@ do_module (db, mname, m_type, msg, callback_proc, where,
 		break;
 	    case 'i':
 		nonalias_opt = 1;
-		checkin_prog = optarg;
+		if (checkin_prog)
+		    free (checkin_prog);
+		checkin_prog = xstrdup (optarg);
 		break;
 	    case 'l':
 		nonalias_opt = 1;
@@ -469,19 +471,27 @@ do_module (db, mname, m_type, msg, callback_proc, where,
 		break;
 	    case 'o':
 		nonalias_opt = 1;
-		checkout_prog = optarg;
+		if (checkout_prog)
+		    free (checkout_prog);
+		checkout_prog = xstrdup (optarg);
 		break;
 	    case 'e':
 		nonalias_opt = 1;
-		export_prog = optarg;
+		if (export_prog)
+		    free (export_prog);
+		export_prog = xstrdup (optarg);
 		break;
 	    case 't':
 		nonalias_opt = 1;
-		tag_prog = optarg;
+		if (tag_prog)
+		    free (tag_prog);
+		tag_prog = xstrdup (optarg);
 		break;
 	    case 'u':
 		nonalias_opt = 1;
-		update_prog = optarg;
+		if (update_prog)
+		    free (update_prog);
+		update_prog = xstrdup (optarg);
 		break;
 	    case '?':
 		error (0, 0,
@@ -535,12 +545,7 @@ do_module (db, mname, m_type, msg, callback_proc, where,
     err += callback_proc (&modargc, modargv, where, mwhere, mfile, shorten,
 			  local_specified, mname, msg);
 
-#if 0
-    /* FIXME: I've fixed this so that the correct arguments are called, 
-       but now this fails because there is code below this point that
-       uses optarg values extracted from the arg vector. */
     free_names (&xmodargc, xmodargv);
-#endif
 
     /* if there were special include args, process them now */
 
@@ -718,6 +723,16 @@ do_module (db, mname, m_type, msg, callback_proc, where,
     /* clean up */
     if (mwhere)
 	free (mwhere);
+    if (checkin_prog)
+	free (checkin_prog);
+    if (checkout_prog)
+	free (checkout_prog);
+    if (export_prog)
+	free (export_prog);
+    if (tag_prog)
+	free (tag_prog);
+    if (update_prog)
+	free (update_prog);
     if (cwd_saved)
 	free_cwd (&cwd);
     if (zvalue != NULL)
