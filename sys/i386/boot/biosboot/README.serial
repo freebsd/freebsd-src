@@ -69,6 +69,15 @@ To boot FreeBSD in serial console mode, you must do the following:
   in order to connect the terminal to the PC's serial port. If you don't
   have one, go to Radio Shack and buy one: they're cheap.
 
+  NOTE #3:
+  If you wish to drop into the kernel debugger from the serial console
+  (useful for remote diagnostics, but also dangerous if you generate a
+  spurious BREAK on the serial port!) then you should compile your kernel
+  with the following options:
+
+	options BREAK_TO_DEBUGGER
+	options DDB
+
 - BOOT THE MACHINE. The boot block will probe for a keyboard on your
   system. If it fails to find one, you'll see a prompt appear on the
   terminal that looks something like this:
@@ -152,4 +161,4 @@ CAVEATS:
 	  from the new kernel.
 
 
-$Id: README.serial,v 1.3 1995/04/20 23:15:07 joerg Exp $
+$Id: README.serial,v 1.4 1996/04/07 14:27:58 bde Exp $
