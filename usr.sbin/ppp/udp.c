@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: udp.c,v 1.2 1999/05/24 16:39:17 brian Exp $
+ *	$Id: udp.c,v 1.3 1999/06/05 21:35:59 brian Exp $
  */
 
 #include <sys/types.h>
@@ -45,7 +45,6 @@
 #include "defs.h"
 #include "mbuf.h"
 #include "log.h"
-#include "sync.h"
 #include "timer.h"
 #include "lqr.h"
 #include "hdlc.h"
@@ -133,6 +132,7 @@ udp_device2iov(struct device *d, struct iovec *iov, int *niov,
 static const struct device baseudpdevice = {
   UDP_DEVICE,
   "udp",
+  NULL,
   NULL,
   NULL,
   NULL,

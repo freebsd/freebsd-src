@@ -16,15 +16,12 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id: physical.c,v 1.18 1999/06/11 13:28:29 brian Exp $
+ *  $Id: physical.c,v 1.19 1999/08/05 10:32:13 brian Exp $
  *
  */
 
 #include <sys/param.h>
-#include <sys/socket.h>
 #include <netinet/in.h>
-#include <arpa/inet.h>
-#include <netdb.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <sys/un.h>
@@ -37,7 +34,6 @@
 #include <string.h>
 #include <sys/tty.h>	/* TIOCOUTQ */
 #include <sys/uio.h>
-#include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
 #include <utmp.h>
@@ -91,6 +87,9 @@
 #include "udp.h"
 #include "exec.h"
 #include "tty.h"
+#ifndef NOI4B
+#include "i4b.h"
+#endif
 
 
 static int physical_DescriptorWrite(struct descriptor *, struct bundle *,
@@ -110,6 +109,9 @@ struct {
                                int *niov, int maxiov);
   int (*DeviceSize)(void);
 } devices[] = {
+#ifndef NOI4B
+  { i4b_Create, i4b_iov2device, i4b_DeviceSize },
+#endif
   { tty_Create, tty_iov2device, tty_DeviceSize },
   { tcp_Create, tcp_iov2device, tcp_DeviceSize },
   { udp_Create, udp_iov2device, udp_DeviceSize },
@@ -1001,4 +1003,13 @@ physical_StopDeviceTimer(struct physical *p)
 {
   if (p->handler && p->handler->stoptimer)
     (*p->handler->stoptimer)(p);
+}
+
+int
+physical_AwaitCarrier(struct physical *p)
+{
+  if (p->handler && p->handler->awaitcarrier)
+    return (*p->handler->awaitcarrier)(p);
+
+  return CARRIER_OK;
 }

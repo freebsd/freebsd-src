@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: tcp.c,v 1.3 1999/05/24 16:39:15 brian Exp $
+ *	$Id: tcp.c,v 1.4 1999/06/05 21:35:54 brian Exp $
  */
 
 #include <sys/types.h>
@@ -44,7 +44,6 @@
 #include "defs.h"
 #include "mbuf.h"
 #include "log.h"
-#include "sync.h"
 #include "timer.h"
 #include "lqr.h"
 #include "hdlc.h"
@@ -100,6 +99,7 @@ tcp_OpenConnection(const char *name, char *host, char *port)
 static struct device tcpdevice = {
   TCP_DEVICE,
   "tcp",
+  NULL,
   NULL,
   NULL,
   NULL,

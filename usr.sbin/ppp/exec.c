@@ -23,16 +23,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exec.c,v 1.5 1999/06/05 21:35:50 brian Exp $
+ *	$Id: exec.c,v 1.6 1999/06/09 08:47:36 brian Exp $
  */
 
 #include <sys/param.h>
 #include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <netdb.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
 #include <sys/un.h>
 
 #include <errno.h>
@@ -49,7 +44,6 @@
 #include "defs.h"
 #include "mbuf.h"
 #include "log.h"
-#include "sync.h"
 #include "timer.h"
 #include "lqr.h"
 #include "hdlc.h"
@@ -59,20 +53,11 @@
 #include "ccp.h"
 #include "link.h"
 #include "async.h"
-#include "slcompress.h"
-#include "iplist.h"
-#include "ipcp.h"
-#include "filter.h"
 #include "descriptor.h"
 #include "physical.h"
 #include "mp.h"
-#ifndef NORADIUS
-#include "radius.h"
-#endif
 #include "chat.h"
 #include "command.h"
-#include "bundle.h"
-#include "prompt.h"
 #include "auth.h"
 #include "chap.h"
 #include "cbcp.h"
@@ -82,6 +67,7 @@
 static struct device execdevice = {
   EXEC_DEVICE,
   "exec",
+  NULL,
   NULL,
   NULL,
   NULL,

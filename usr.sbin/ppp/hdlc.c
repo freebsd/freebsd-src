@@ -17,14 +17,11 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.42 1999/05/08 11:06:36 brian Exp $
+ * $Id: hdlc.c,v 1.43 1999/06/02 15:58:59 brian Exp $
  *
  *	TODO:
  */
 #include <sys/param.h>
-#include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
 #include <sys/un.h>
 
 #include <stdio.h>
@@ -40,15 +37,8 @@
 #include "fsm.h"
 #include "lqr.h"
 #include "hdlc.h"
-#include "proto.h"
-#include "iplist.h"
 #include "throughput.h"
-#include "slcompress.h"
-#include "ipcp.h"
-#include "ip.h"
-#include "vjcomp.h"
 #include "auth.h"
-#include "pap.h"
 #include "lcp.h"
 #include "async.h"
 #include "ccp.h"
@@ -61,11 +51,6 @@
 #include "mp.h"
 #include "cbcp.h"
 #include "datalink.h"
-#include "filter.h"
-#ifndef NORADIUS
-#include "radius.h"
-#endif
-#include "bundle.h"
 
 static u_int16_t const fcstab[256] = {
    /* 00 */ 0x0000, 0x1189, 0x2312, 0x329b, 0x4624, 0x57ad, 0x6536, 0x74bf,
