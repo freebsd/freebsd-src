@@ -94,7 +94,7 @@ yarrow_encrypt_init(struct yarrowkey *context, void *data, size_t size)
 	size_t count;
 
 	count = size > KEYSIZE ? KEYSIZE : size;
-	BF_set_key(&context->key, size, data);
+	BF_set_key(&context->key, count, data);
 }
 
 /* Encrypt the supplied data using the key schedule preset in the context */
