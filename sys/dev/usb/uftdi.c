@@ -65,6 +65,8 @@
 #include <sys/select.h>
 #endif
 
+#include <sys/sysctl.h>
+
 #include <dev/usb/usb.h>
 #include <dev/usb/usbhid.h>
 
@@ -76,10 +78,21 @@
 
 #include <dev/usb/uftdireg.h>
 
-#ifdef UFTDI_DEBUG
-#define DPRINTF(x)	if (uftdidebug) printf x
-#define DPRINTFN(n,x)	if (uftdidebug>(n)) printf x
-int uftdidebug = 0;
+#ifdef USB_DEBUG
+static int uftdidebug = 0;
+SYSCTL_NODE(_hw_usb, OID_AUTO, uftdi, CTLFLAG_RW, 0, "USB uftdi");
+SYSCTL_INT(_hw_usb_uftdi, OID_AUTO, debug, CTLFLAG_RW,
+	   &uftdidebug, 0, "uftdi debug level");
+#define DPRINTF(x)      do { \
+				if (uftdidebug) \
+					logprintf x; \
+			} while (0)
+
+#define DPRINTFN(n, x)  do { \
+				if (uftdidebug > (n)) \
+					logprintf x; \
+			} while (0)
+
 #else
 #define DPRINTF(x)
 #define DPRINTFN(n,x)
@@ -294,7 +307,7 @@ USB_DETACH(uftdi)
  
 	int rv = 0;
 
-	DPRINTF(("uftdi_detach: sc=%p flags=%d\n", sc, flags));
+	DPRINTF(("uftdi_detach: sc=%p\n", sc));
 	sc->sc_dying = 1;
 	rv = ucom_detach(&sc->sc_ucom);
 
@@ -355,7 +368,7 @@ uftdi_read(void *vsc, int portno, u_char **ptr, u_int32_t *count)
 	msr = FTDI_GET_MSR(*ptr);
 	lsr = FTDI_GET_LSR(*ptr);
 
-#ifdef UFTDI_DEBUG
+#ifdef USB_DEBUG
 	if (*count != 2)
 		DPRINTFN(10,("uftdi_read: sc=%p, port=%d count=%d data[0]="
 			    "0x%02x\n", sc, portno, *count, (*ptr)[2]));
