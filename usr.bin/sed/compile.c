@@ -64,6 +64,7 @@ static struct labhash {
 } *labels[LHSZ];
 
 static char	 *compile_addr __P((char *, struct s_addr *));
+static char	 *compile_ccl __P((char **, char *));
 static char	 *compile_delimited __P((char *, char *));
 static char	 *compile_flags __P((char *, struct s_subst *));
 static char	 *compile_re __P((char *, regex_t **));
@@ -71,7 +72,7 @@ static char	 *compile_subst __P((char *, struct s_subst *));
 static char	 *compile_text __P((void));
 static char	 *compile_tr __P((char *, char **));
 static struct s_command
-		**compile_stream __P((char *, struct s_command **, char *));
+		**compile_stream __P((struct s_command **));
 static char	 *duptoeol __P((char *, char *));
 static void	  enterlabel __P((struct s_command *));
 static struct s_command
@@ -90,6 +91,7 @@ struct s_format {
 
 static struct s_format cmd_fmts[] = {
 	{'{', 2, GROUP},
+	{'}', 0, ENDGROUP},
 	{'a', 1, TEXT},
 	{'b', 2, BRANCH},
 	{'c', 2, TEXT},
@@ -129,7 +131,7 @@ struct s_command *prog;
 void
 compile()
 {
-	*compile_stream(NULL, &prog, NULL) = NULL;
+	*compile_stream(&prog) = NULL;
 	fixuplabel(prog, NULL);
 	uselabel();
 	appends = xmalloc(sizeof(struct s_appends) * appendnum);
@@ -143,21 +145,19 @@ compile()
 	} while (0)
 
 static struct s_command **
-compile_stream(terminator, link, p)
-	char *terminator;
+compile_stream(link)
 	struct s_command **link;
-	register char *p;
 {
+	register char *p;
 	static char lbuf[_POSIX2_LINE_MAX + 1];	/* To save stack */
-	struct s_command *cmd, *cmd2;
+	struct s_command *cmd, *cmd2, *stack;
 	struct s_format *fp;
 	int naddr;				/* Number of addresses */
 
-	if (p != NULL)
-		goto semicolon;
+	stack = 0;
 	for (;;) {
 		if ((p = cu_fgets(lbuf, sizeof(lbuf))) == NULL) {
-			if (terminator != NULL)
+			if (stack != 0)
 				err(COMPILE, "unexpected EOF (pending }'s)");
 			return (link);
 		}
@@ -165,17 +165,11 @@ compile_stream(terminator, link, p)
 semicolon:	EATSPACE();
 		if (p && (*p == '#' || *p == '\0'))
 			continue;
-		if (*p == '}') {
-			if (terminator == NULL)
-				err(COMPILE, "unexpected }");
-			return (link);
-		}
 		*link = cmd = xmalloc(sizeof(struct s_command));
 		link = &cmd->next;
 		cmd->nonsel = cmd->inrange = 0;
 		/* First parse the addresses */
 		naddr = 0;
-		cmd->a1 = cmd->a2 = NULL;
 
 /* Valid characters to start an address */
 #define	addrchar(c)	(strchr("0123456789/\\$", (c)))
@@ -185,16 +179,18 @@ semicolon:	EATSPACE();
 			p = compile_addr(p, cmd->a1);
 			EATSPACE();				/* EXTENSION */
 			if (*p == ',') {
-				naddr++;
 				p++;
 				EATSPACE();			/* EXTENSION */
+				naddr++;
 				cmd->a2 = xmalloc(sizeof(struct s_addr));
 				p = compile_addr(p, cmd->a2);
-			}
-		}
+				EATSPACE();
+			} else
+				cmd->a2 = 0;
+		} else
+			cmd->a1 = cmd->a2 = 0;
 
 nonsel:		/* Now parse the command */
-		EATSPACE();
 		if (!*p)
 			err(COMPILE, "command expected");
 		cmd->code = *p;
@@ -208,22 +204,31 @@ nonsel:		/* Now parse the command */
 "command %c expects up to %d address(es), found %d", *p, fp->naddr, naddr);
 		switch (fp->args) {
 		case NONSEL:			/* ! */
-			cmd->nonsel = ! cmd->nonsel;
 			p++;
+			EATSPACE();
+			cmd->nonsel = ! cmd->nonsel;
 			goto nonsel;
 		case GROUP:			/* { */
 			p++;
 			EATSPACE();
-			if (!*p)
-				p = NULL;
-			cmd2 = xmalloc(sizeof(struct s_command));
-			cmd2->nonsel = cmd2->inrange = 0;
-			cmd2->a1 = cmd2->a2 = NULL;
-			cmd2->code = '}';
-			*compile_stream("}", &cmd->u.c, p) = cmd2;
-			cmd->next = cmd2;
-			link = &cmd2->next;
+			cmd->next = stack;
+			stack = cmd;
+			link = &cmd->u.c;
+			if (*p)
+				goto semicolon;
 			break;
+		case ENDGROUP:
+			/*
+			 * Short-circuit command processing, since end of
+			 * group is really just a noop.
+			 */
+			cmd->nonsel = 1;
+			if (stack == 0)
+				err(COMPILE, "unexpected }");
+			cmd2 = stack;
+			stack = cmd2->next;
+			cmd2->next = cmd;
+			/*FALLTHROUGH*/
 		case EMPTY:		/* d D g G h H l n N p P q x = \0 */
 			p++;
 			EATSPACE();
@@ -259,7 +264,7 @@ nonsel:		/* Now parse the command */
 			cmd->t = duptoeol(p, "w command");
 			if (aflag)
 				cmd->u.fd = -1;
-			else if ((cmd->u.fd = open(p,
+			else if ((cmd->u.fd = open(p, 
 			    O_WRONLY|O_APPEND|O_CREAT|O_TRUNC,
 			    DEFFILEMODE)) == -1)
 				err(FATAL, "%s: %s\n", p, strerror(errno));
@@ -347,7 +352,13 @@ compile_delimited(p, d)
 	else if (c == '\n')
 		err(COMPILE, "newline can not be used as a string delimiter");
 	while (*p) {
-		if (*p == '\\' && p[1] == c)
+		if (*p == '[') {
+			if ((d = compile_ccl(&p, d)) == NULL)
+				err(COMPILE, "unbalanced brackets ([])");
+			continue;
+		} else if (*p == '\\' && p[1] == '[') {
+			*d++ = *p++;
+		} else if (*p == '\\' && p[1] == c)
 			p++;
 		else if (*p == '\\' && p[1] == 'n') {
 			*d++ = '\n';
@@ -362,6 +373,32 @@ compile_delimited(p, d)
 		*d++ = *p++;
 	}
 	return (NULL);
+}
+
+
+/* compile_ccl: expand a POSIX character class */
+static char *
+compile_ccl(sp, t)
+	char **sp;
+	char *t;
+{
+	int c, d;
+	char *s = *sp;
+
+	*t++ = *s++;
+	if (*s == '^')
+		*t++ = *s++;
+	if (*s == ']')
+		*t++ = *s++;
+	for (; *s && (*t = *s) != ']'; s++, t++)
+		if (*s == '[' && ((d = *(s+1)) == '.' || d == ':' || d == '=')) {
+			*++t = *++s, t++, s++;
+			for (c = *s; (*t = *s) != ']' || c != d; s++, t++)
+				if ((c = *s) == '\0')
+					return NULL;
+		} else if (*s == '\\' && s[1] == 'n')
+			    *t = '\n', s++;
+	return (*s == ']') ? *sp = ++s, ++t : NULL;
 }
 
 /*
