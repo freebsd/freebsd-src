@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.21 1997/04/07 08:08:14 peter Exp $
+#	$Id: Makefile,v 1.22 1997/04/27 21:36:48 gj Exp $
 
 PROG = gdb
 
@@ -29,8 +29,6 @@ SRCS = annotate.c blockframe.c breakpoint.c buildsym.c c-lang.c \
 	scm-valprint.c f-typeprint.c f-valprint.c nlmread.c \
 	callback.c
 SRCS+= i386-dis.c dis-buf.c disassemble.c
-
-MAN1= gdb.1
 
 CFLAGS+= -I$(.CURDIR) -I${DESTDIR}/usr/include/readline -I$(.CURDIR)/../bfd
 # use phkmalloc
