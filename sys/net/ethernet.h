@@ -1,7 +1,7 @@
 /*
  * Fundamental constants relating to ethernet.
  *
- * $Id$
+ * $Id: ethernet.h,v 1.8 1997/02/22 09:40:58 peter Exp $
  *
  */
 
@@ -64,6 +64,7 @@ struct	ether_addr {
 #define	ETHERTYPE_IP		0x0800	/* IP protocol */
 #define ETHERTYPE_ARP		0x0806	/* Addr. resolution protocol */
 #define ETHERTYPE_REVARP	0x8035	/* reverse Addr. resolution protocol */
+#define	ETHERTYPE_VLAN		0x8100 /* IEEE 802.1Q VLAN tagging */
 #define	ETHERTYPE_LOOPBACK	0x9000	/* used to test interfaces */
 /* XXX - add more useful types here */
 
