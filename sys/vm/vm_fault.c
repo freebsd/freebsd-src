@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.25.4.1 1996/06/14 23:21:01 davidg Exp $
+ * $Id: vm_fault.c,v 1.25.4.2 1996/06/14 23:23:39 davidg Exp $
  */
 
 /*
@@ -261,6 +261,7 @@ RetryFault:;
 	while (TRUE) {
 		m = vm_page_lookup(object, offset);
 		if (m != NULL) {
+			int flags;
 			/*
 			 * If the page is being brought in, wait for it and
 			 * then retry.
@@ -280,8 +281,12 @@ RetryFault:;
 				goto RetryFault;
 			}
 
-			if ((m->flags & PG_CACHE) &&
+			flags = m->flags;
+			vm_page_unqueue(m);
+
+			if ((flags & PG_CACHE) &&
 			    (cnt.v_free_count + cnt.v_cache_count) < cnt.v_free_reserved) {
+				vm_page_activate(m);
 				UNLOCK_AND_DEALLOCATE;
 				VM_WAIT;
 				goto RetryFault;
