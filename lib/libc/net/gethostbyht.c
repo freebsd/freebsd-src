@@ -53,7 +53,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)gethostnamadr.c	8.1 (Berkeley) 6/4/93";
-static char rcsid[] = "$Id: gethostbyht.c,v 1.9 1997/02/22 15:00:07 peter Exp $";
+static char rcsid[] = "$Id: gethostbyht.c,v 1.10 1997/06/27 08:22:01 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -74,7 +74,7 @@ static struct hostent host;
 static char *host_aliases[MAXALIASES];
 static char hostbuf[BUFSIZ+1];
 static FILE *hostf = NULL;
-static u_char host_addr[16];	/* IPv4 or IPv6 */
+static u_int32_t host_addr[4];	/* IPv4 or IPv6 */
 static char *h_addr_ptrs[2];
 static int stayopen = 0;
 
