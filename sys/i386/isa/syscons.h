@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.h,v 1.23 1996/10/23 07:29:44 pst Exp $
+ *	$Id: syscons.h,v 1.23.2.1 1996/11/12 09:08:56 phk Exp $
  */
 
 #ifndef _I386_ISA_SYSCONS_H_
@@ -192,6 +192,6 @@ typedef struct default_attr {
 void set_border(u_char color);
 void set_mode(scr_stat *scp);
 void copy_font(int operation, int font_type, char* font_image);
-void load_palette(void);
+void load_palette(char *palette);
 
 #endif /* !_I386_ISA_SYSCONS_H_ */
