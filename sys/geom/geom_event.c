@@ -55,6 +55,7 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/eventhandler.h>
+#include <machine/stdarg.h>
 #endif
 #include <sys/errno.h>
 #include <sys/time.h>
@@ -158,28 +159,25 @@ g_do_event(struct g_event *ep)
 	struct g_provider *pp;
 	int i;
 
-	g_trace(G_T_TOPOLOGY, "g_do_event(%p) %d m:%p g:%p p:%p c:%p - ",
-	    ep, ep->event, ep->class, ep->geom, ep->provider, ep->consumer);
+	g_trace(G_T_TOPOLOGY, "g_do_event(%p) %d - ", ep, ep->event);
 	g_topology_assert();
 	switch (ep->event) {
 	case EV_CALL_ME:
-		ep->func(ep->arg);
+		ep->func(ep->arg, 0);
 		g_topology_assert();
 		break;	
 	case EV_NEW_CLASS:
-		mp2 = ep->class;
 		if (g_shutdown)
 			break;
+		mp2 = ep->ref[0];
 		if (mp2->taste == NULL)
-			break;
-		if (g_shutdown)
 			break;
 		LIST_FOREACH(mp, &g_classes, class) {
 			if (mp2 == mp)
 				continue;
 			LIST_FOREACH(gp, &mp->geom, geom) {
 				LIST_FOREACH(pp, &gp->provider, provider) {
-					mp2->taste(ep->class, pp, 0);
+					mp2->taste(mp2, pp, 0);
 					g_topology_assert();
 				}
 			}
@@ -188,28 +186,26 @@ g_do_event(struct g_event *ep)
 	case EV_NEW_PROVIDER:
 		if (g_shutdown)
 			break;
-		g_trace(G_T_TOPOLOGY, "EV_NEW_PROVIDER(%s)",
-		    ep->provider->name);
+		pp = ep->ref[0];
+		g_trace(G_T_TOPOLOGY, "EV_NEW_PROVIDER(%s)", pp->name);
 		LIST_FOREACH(mp, &g_classes, class) {
 			if (mp->taste == NULL)
 				continue;
-			if (!strcmp(ep->provider->name, "geom.ctl") &&
-			    strcmp(mp->name, "DEV"))
-				continue;
 			i = 1;
-			LIST_FOREACH(cp, &ep->provider->consumers, consumers)
+			LIST_FOREACH(cp, &pp->consumers, consumers)
 				if(cp->geom->class == mp)
 					i = 0;
 			if (i) {
-				mp->taste(mp, ep->provider, 0);
+				mp->taste(mp, pp, 0);
 				g_topology_assert();
 			}
 		}
 		break;
 	case EV_SPOILED:
+		pp = ep->ref[0];
 		g_trace(G_T_TOPOLOGY, "EV_SPOILED(%p(%s),%p)",
-		    ep->provider, ep->provider->name, ep->consumer);
-		cp = LIST_FIRST(&ep->provider->consumers);
+		    pp, pp->name, ep->ref[1]);
+		cp = LIST_FIRST(&pp->consumers);
 		while (cp != NULL) {
 			cp2 = LIST_NEXT(cp, consumers);
 			if (cp->spoiled) {
@@ -257,14 +253,6 @@ one_event(void)
 	}
 	TAILQ_REMOVE(&g_events, ep, events);
 	mtx_unlock(&g_eventlock);
-	if (ep->class != NULL)
-		ep->class->event = NULL;
-	if (ep->geom != NULL)
-		ep->geom->event = NULL;
-	if (ep->provider != NULL)
-		ep->provider->event = NULL;
-	if (ep->consumer != NULL)
-		ep->consumer->event = NULL;
 	g_do_event(ep);
 	g_destroy_event(ep);
 	g_pending_events--;
@@ -284,39 +272,27 @@ g_run_events()
 }
 
 void
-g_post_event(enum g_events ev, struct g_class *mp, struct g_geom *gp, struct g_provider *pp, struct g_consumer *cp)
+g_post_event(enum g_events ev, ...)
 {
 	struct g_event *ep;
+	va_list ap;
+	void *p;
+	int n;
 
-	g_trace(G_T_TOPOLOGY, "g_post_event(%d, %p, %p, %p, %p)",
-	    ev, mp, gp, pp, cp);
+	g_trace(G_T_TOPOLOGY, "g_post_event(%d)", ev);
 	g_topology_assert();
 	ep = g_malloc(sizeof *ep, M_WAITOK | M_ZERO);
 	ep->event = ev;
-	if (mp != NULL) {
-		ep->class = mp;
-		KASSERT(mp->event == NULL, ("Double event on class %d %d",
-		    ep->event, mp->event->event));
-		mp->event = ep;
+	va_start(ap, ev);
+	for (n = 0; n < G_N_EVENTREFS; n++) {
+		p = va_arg(ap, void *);
+		if (p == NULL)
+			break;
+		g_trace(G_T_TOPOLOGY, "  ref %p", p);
+		ep->ref[n++] = p;
 	}
-	if (gp != NULL) {
-		ep->geom = gp;
-		KASSERT(gp->event == NULL, ("Double event on geom %d %d",
-		    ep->event, gp->event->event));
-		gp->event = ep;
-	}
-	if (pp != NULL) {
-		ep->provider = pp;
-		KASSERT(pp->event == NULL, ("Double event on provider %s %d %d",
-		    pp->name, ep->event, pp->event->event));
-		pp->event = ep;
-	}
-	if (cp != NULL) {
-		ep->consumer = cp;
-		KASSERT(cp->event == NULL, ("Double event on consumer %d %d",
-		    ep->event, cp->event->event));
-		cp->event = ep;
-	}
+	va_end(ap);
+	KASSERT(p == NULL, ("Too many references to event"));
 	mtx_lock(&g_eventlock);
 	g_pending_events++;
 	TAILQ_INSERT_TAIL(&g_events, ep, events);
@@ -325,36 +301,49 @@ g_post_event(enum g_events ev, struct g_class *mp, struct g_geom *gp, struct g_p
 }
 
 void
-g_cancel_event(struct g_class *mp, struct g_geom *gp, struct g_provider *pp, struct g_consumer *cp)
+g_cancel_event(void *ref)
 {
 	struct g_event *ep, *epn;
+	u_int n;
 
 	mtx_lock(&g_eventlock);
-	ep = TAILQ_FIRST(&g_events);
-	for (;ep != NULL;) {
+	for (ep = TAILQ_FIRST(&g_events); ep != NULL; ep = epn) {
 		epn = TAILQ_NEXT(ep, events);
-		if (
-		    (ep->class != NULL && ep->class == mp) ||
-		    (ep->geom != NULL && ep->geom == gp) ||
-		    (ep->provider != NULL && ep->provider == pp) ||
-		    (ep->consumer != NULL && ep->consumer == cp)) {
-			TAILQ_REMOVE(&g_events, ep, events);
-			g_free(ep);
+		for (n = 0; n < G_N_EVENTREFS; n++) {
+			if (ep->ref[n] == NULL)
+				break;
+			if (ep->ref[n] == ref) {
+				TAILQ_REMOVE(&g_events, ep, events);
+				g_free(ep);
+				break;
+			}
 		}
-		ep = epn;
 	}
 	mtx_unlock(&g_eventlock);
 }
 
 int
-g_call_me(g_call_me_t *func, void *arg)
+g_call_me(g_call_me_t *func, void *arg, ...)
 {
 	struct g_event *ep;
+	va_list ap;
+	void *p;
+	u_int n;
 
 	g_trace(G_T_TOPOLOGY, "g_call_me(%p, %p", func, arg);
 	ep = g_malloc(sizeof *ep, M_NOWAIT | M_ZERO);
 	if (ep == NULL)
 		return (ENOMEM);
+	va_start(ap, arg);
+	for (n = 0; n < G_N_EVENTREFS; n++) {
+		p = va_arg(ap, void *);
+		if (p == NULL)
+			break;
+		g_trace(G_T_TOPOLOGY, "  ref %p", p);
+		ep->ref[n++] = p;
+	}
+	va_end(ap);
+	KASSERT(p == NULL, ("Too many references to event"));
 	ep->event = EV_CALL_ME;
 	ep->func = func;
 	ep->arg = arg;

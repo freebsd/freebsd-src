@@ -101,7 +101,7 @@ g_confdot_class(struct sbuf *sb, struct g_class *mp)
 }
 
 void
-g_confdot(void *p)
+g_confdot(void *p, int flag __unused)
 {
 	struct g_class *mp;
 	struct sbuf *sb;
@@ -143,7 +143,7 @@ g_conftxt_class(struct sbuf *sb, struct g_class *mp)
 }
 
 void
-g_conftxt(void *p)
+g_conftxt(void *p, int flag __unused)
 {
 	struct g_class *mp;
 	struct sbuf *sb;
@@ -263,7 +263,7 @@ g_conf_specific(struct sbuf *sb, struct g_class *mp, struct g_geom *gp, struct g
 }
 
 void
-g_confxml(void *p)
+g_confxml(void *p, int flag __unused)
 {
 
 	g_topology_assert();

@@ -173,7 +173,7 @@ g_mbr_modify(struct g_geom *gp, struct g_mbr_softc *ms, u_char *sec0)
 }
 
 static void
-g_mbr_ioctl(void *arg)
+g_mbr_ioctl(void *arg, int flag __unused)
 {
 	struct bio *bp;
 	struct g_geom *gp;
@@ -249,7 +249,7 @@ g_mbr_start(struct bio *bp)
 		 * some I/O requests.  Ask the event-handler to schedule
 		 * us in a less restricted environment.
 		 */
-		error = g_call_me(g_mbr_ioctl, bp);
+		error = g_call_me(g_mbr_ioctl, bp, gp, NULL);
 		if (error)
 			g_io_deliver(bp, error);
 		/*
