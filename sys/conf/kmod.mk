@@ -286,6 +286,17 @@ vnode_if.${_ext}: @/tools/vnode_if.awk @/kern/vnode_if.src
 .endif
 .endfor
 
+.if ${SRCS:Mmiidevs.h} != ""
+CLEANFILES+=	miidevs.h
+.if !exists(@)
+miidevs.h: @
+.endif
+.if exists(@)
+miidevs.h: @/tools/devlist2h.awk @/dev/mii/miidevs
+.endif
+	${AWK} -f @/tools/devlist2h.awk @/dev/mii/miidevs
+.endif
+
 regress:
 
 lint: ${SRCS}
