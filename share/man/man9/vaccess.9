@@ -32,7 +32,7 @@
 .Nm vaccess
 .Nd generate an access control decision using vnode parameters
 .Sh SYNOPSIS
-.Fd #include <sys/param.h>
+.Fd #include <sys/types.h>
 .Fd #include <sys/vnode.h>
 .Ft int
 .Fn vaccess "enum vtype type" "mode_t file_mode" "uid_t file_uid" "gid_t file_gid" "mode_t acc_mode" "struct ucred *cred" "int *privused"
@@ -41,6 +41,7 @@ This call implements the logic for the UNIX discretionary file security model
 common to many file systems in FreeBSD.
 It accepts the vnodes type
 .Fa vtype ,
+permissions via
 .Fa mode ,
 owning uid 
 .Fa file_uid ,
