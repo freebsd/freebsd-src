@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_ch.c,v 1.7 1998/12/04 22:54:43 archie Exp $
+ *      $Id: scsi_ch.c,v 1.8 1998/12/12 23:52:46 gibbs Exp $
  */
 /*
  * Derived from the NetBSD SCSI changer driver.
@@ -101,13 +101,13 @@
  * ELEMENT STATUS).
  */
 
-const u_int32_t	CH_TIMEOUT_MODE_SENSE                = 6000;
-const u_int32_t	CH_TIMEOUT_MOVE_MEDIUM               = 100000;
-const u_int32_t	CH_TIMEOUT_EXCHANGE_MEDIUM           = 100000;
-const u_int32_t	CH_TIMEOUT_POSITION_TO_ELEMENT       = 100000;
-const u_int32_t	CH_TIMEOUT_READ_ELEMENT_STATUS       = 10000;
-const u_int32_t	CH_TIMEOUT_SEND_VOLTAG		     = 10000;
-const u_int32_t	CH_TIMEOUT_INITIALIZE_ELEMENT_STATUS = 500000;
+static const u_int32_t	CH_TIMEOUT_MODE_SENSE                = 6000;
+static const u_int32_t	CH_TIMEOUT_MOVE_MEDIUM               = 100000;
+static const u_int32_t	CH_TIMEOUT_EXCHANGE_MEDIUM           = 100000;
+static const u_int32_t	CH_TIMEOUT_POSITION_TO_ELEMENT       = 100000;
+static const u_int32_t	CH_TIMEOUT_READ_ELEMENT_STATUS       = 10000;
+static const u_int32_t	CH_TIMEOUT_SEND_VOLTAG		     = 10000;
+static const u_int32_t	CH_TIMEOUT_INITIALIZE_ELEMENT_STATUS = 500000;
 
 typedef enum {
 	CH_FLAG_INVALID		= 0x001,
