@@ -773,6 +773,7 @@ bad:
 		fdrop(fp, td);
 	} else
 		FILEDESC_UNLOCK(fdp);
+	fdrop(fp, td);
 	return (error);
 }
 
