@@ -3,7 +3,7 @@
   The FreeBSD German Documentation Project
   $FreeBSD$
   $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/early-adopter/article.sgml,v 1.11 2002/12/07 20:59:31 ue Exp $
-  basiert auf: 1.8.2.2
+  basiert auf: 1.8.2.3
 -->
 
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
@@ -46,7 +46,7 @@
     </copyright>
   </articleinfo>
 
-  <sect1>
+  <sect1 id="intro">
     <title>Einf&uuml;hrung</title>
 
     <para>Nach &uuml;ber zwei Jahren steht mit &os; 5.0 wieder eine
@@ -98,7 +98,7 @@
       mu&szlig;.</para>
   </sect1>
 
-  <sect1>
+  <sect1 id="release-overview">
     <title>Ver&ouml;ffentlichung neuer &os;-Versionen</title>
 
     <para>Das Prinzip der &os;-Entwicklung ist die Verwendung mehrerer
@@ -157,7 +157,7 @@
       Engineering</ulink>.</para>
   </sect1>
 
-  <sect1>
+  <sect1 id="new">
     <title>Neuerungen</title>
 
     <para>Die Glanzpunkte von &os; 5.0 sind die vielen Neuerungen.
@@ -234,7 +234,7 @@
       f&uuml;r &os; 5.0.</para>
   </sect1>
 
-  <sect1>
+  <sect1 id="drawbacks">
     <title>Nachteile f&uuml;r fr&uuml;hre Anwender</title>
 
     <para>Ein Nachteil der Neuerungen in &os; 5.0 ist, da&szlig; es in
@@ -323,7 +323,7 @@
       geworden sind.</para>
   </sect1>
 
-  <sect1>
+  <sect1 id="plans-stable">
     <title>Die Zukunft des Entwicklungszweiges 4-STABLE</title>
 
     <para>Die Ver&ouml;ffentlichung von &os; 5.0 bedeutet nicht das
@@ -366,7 +366,7 @@
       Unterst&uuml;tzung auf weitere Versionen auszudehnen.</para>
   </sect1>
 
-  <sect1>
+  <sect1 id="upgrade">
     <title>Hinweise f&uuml;r die Aktualisierung</title>
 
     <para>Dieses Kapitel enth&auml;lt Hinweise f&uuml;r Anwender, die
@@ -479,7 +479,7 @@
     </sect2>
   </sect1>
 
-  <sect1>
+  <sect1 id="summary">
     <title>Zusammenfassung</title>
 
     <para>&os; 5.0 enth&auml;lt zwar viele interessante Neuerungen,

@@ -1,10 +1,9 @@
 <!--
   $FreeBSD$
   $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/ia64/proc-ia64.sgml,v 1.2 2002/03/10 18:41:37 ue Exp $
-  $Id: proc-ia64.sgml,v 1.2 2002/03/10 15:37:16 ue Exp $
-  basiert auf: 1.1
+  basiert auf: 1.1.2.1
 -->
-<sect1>
+<sect1 id="proc-ia64">
   <title>Unterst&uuml;tzte Prozessoren und Mainboards</title>
 
   <para>Schreib mich!.</para>

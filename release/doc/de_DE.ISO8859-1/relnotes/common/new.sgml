@@ -1,6 +1,6 @@
 <!--
   $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.165 2002/12/07 22:08:11 ue Exp $
-  basiert auf: 1.467.2.7
+  basiert auf: 1.467.2.8
 -->
 <articleinfo>
   <title>&os;/&arch; &release.current; Release Notes</title>
@@ -50,7 +50,7 @@
   </abstract>
 </articleinfo>
 
-<sect1>
+<sect1 id="intro">
   <title>Einf&uuml;hrung</title>
 
   <para>Dieses Dokument enth&auml;lt die Release Notes f&uuml;r &os;
@@ -88,7 +88,7 @@
 ]]>
 </sect1>
 
-<sect1>
+<sect1 id="new">
   <title>Neuerungen</title>
 
   <para>In diesem Artikel finden Sie
@@ -5210,7 +5210,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
   </sect2>
 </sect1>
 
-<sect1>
+<sect1 id="upgrade">
   <title>Aktualisierung einer &auml;lteren Version von &os;</title>
 
   <para>Anwender, die schon ein &os;-System im Einsatz haben, sollten

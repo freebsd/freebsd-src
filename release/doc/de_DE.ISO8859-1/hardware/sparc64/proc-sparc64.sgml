@@ -1,9 +1,9 @@
 <!--
 	$FreeBSD$
 	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/sparc64/proc-sparc64.sgml,v 1.5 2002/10/12 09:58:37 mheinen Exp $
-	basiert auf: 1.4
+	basiert auf: 1.4.2.1
 -->
-<sect1>
+<sect1 id="support-sys">
   <title>Unterst&uuml;tzte Systeme</title>
 
   <para>Wir freuen uns &uuml;ber Erg&auml;nzungen, Korrekturen und
