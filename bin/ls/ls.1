@@ -43,7 +43,7 @@
 .Nd list directory contents
 .Sh SYNOPSIS
 .Nm
-.Op Fl ABCFGHLPRTWZabcdfgiklnoqrstu1
+.Op Fl ABCFGHLPRTWZabcdfghiklnoqrstu1
 .Op Ar
 .Sh DESCRIPTION
 For each operand that names a
@@ -146,6 +146,12 @@ with
 it was used to display the group name in the long
 .Pq Fl l
 format output.
+.It Fl h
+When used wih the
+.Fl l
+option, use unit suffixes: Byte, Kilobyte, Megabyte, Gigabyte, Terabyte
+and Petabyte in order to reduce the number of digits to three or less 
+using base 2 for sizes.
 .It Fl i
 For each file, print the file's file serial number (inode number).
 .It Fl k
@@ -586,3 +592,23 @@ specification.
 .Sh BUGS
 To maintain backward compatibility, the relationships between the many
 options are quite complex.
+
+
+
+
+***************
+*** 43,49 ****
+  .Nd list directory contents
+  .Sh SYNOPSIS
+  .Nm
+- .Op Fl ABCFGHLPRTWabcdfgiklnoqrstu1
+  .Op Ar
+  .Sh DESCRIPTION
+  For each operand that names a
+--- 43,49 ----
+  .Nd list directory contents
+  .Sh SYNOPSIS
+  .Nm
+  .Op Ar
+  .Sh DESCRIPTION
+  For each operand that names a
