@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.75 1996/02/04 21:20:35 davidg Exp $
+ *	$Id: pmap.c,v 1.76 1996/02/25 03:02:44 dyson Exp $
  */
 
 /*
@@ -1450,7 +1450,7 @@ pmap_enter_quick(pmap, va, pa)
 	 */
 
 	pte = vtopte(va);
-#if 0
+#if 1
 	/* a fault on the page table might occur here */
 	if (*pte) {
 		pmap_remove(pmap, va, va + PAGE_SIZE);
