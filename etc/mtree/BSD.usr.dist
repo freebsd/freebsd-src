@@ -183,6 +183,8 @@
 		misc
 		..
 	    ..
+	    ncurses
+	    ..
 	    ntp
 	    ..
             papers
