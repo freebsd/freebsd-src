@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.18 1998/06/30 11:10:24 phk Exp $
+#	$Id: Makefile,v 1.19 1998/07/07 02:43:26 bde Exp $
 #
 # Makefile for NETBOOT
 #
@@ -44,7 +44,10 @@ CLEANFILES+=	makerom start2.ro 3c509.o ns8390.o
 ROMLDFLAGS=	${LDFLAGS} -N -T ${RELOCADDR} -e _start -nostdlib
 NOSHARED=	YES
 MAN8=	netboot.8
-STRIP=
+STRIP=	strip -aout
+SIZE=	size -aout
+CFLAGS += -aout
+LDFLAGS += -aout
 
 ROMSIZE=16384
 RELOCADDR=0x90000
@@ -65,27 +68,27 @@ makerom: makerom.c
 
 nb8390.rom:	makerom start2.ro ${SRCS:N*.h:R:S/$/.o/g} ns8390.o
 	${LD} ${ROMLDFLAGS} -o ${.TARGET} ${OBJS:S/start2.o/start2.ro/} ns8390.o
-	strip ${.TARGET}
-	size ${.TARGET}
+	${STRIP} ${.TARGET}
+	${SIZE} ${.TARGET}
 	${.OBJDIR}/makerom ${.TARGET}
 
 nb3c509.rom:	makerom start2.ro ${SRCS:N*.h:R:S/$/.o/g} 3c509.o
 	${LD} ${ROMLDFLAGS} -o ${.TARGET} ${OBJS:S/start2.o/start2.ro/} 3c509.o
-	strip ${.TARGET}
-	size ${.TARGET}
+	${STRIP} ${.TARGET}
+	${SIZE} ${.TARGET}
 	${.OBJDIR}/makerom ${.TARGET}
 
 nb8390.com:	makerom start2.ro ${SRCS:N*.h:R:S/$/.o/g} ns8390.o
 	${LD} ${ROMLDFLAGS} -o ${.TARGET}.tmp ${OBJS} ns8390.o
-	strip ${.TARGET}.tmp
-	size ${.TARGET}.tmp
+	${STRIP} ${.TARGET}.tmp
+	${SIZE} ${.TARGET}.tmp
 	dd ibs=32 skip=1 if=${.TARGET}.tmp of=${.TARGET}
 	rm -f ${.TARGET}.tmp
 
 nb3c509.com:	start2.o ${SRCS:N*.h:R:S/$/.o/g} 3c509.o
 	${LD} ${ROMLDFLAGS} -o ${.TARGET}.tmp ${OBJS} 3c509.o
-	strip ${.TARGET}.tmp
-	size ${.TARGET}.tmp
+	${STRIP} ${.TARGET}.tmp
+	${SIZE} ${.TARGET}.tmp
 	dd ibs=32 skip=1 if=${.TARGET}.tmp of=${.TARGET}
 	rm -f ${.TARGET}.tmp
 
