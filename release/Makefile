@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.206 1996/02/13 09:22:42 joerg Exp $
+#	$Id: Makefile,v 1.207 1996/02/13 13:28:41 joerg Exp $
 #
 # How to roll a release:
 #
@@ -29,8 +29,6 @@ EXTRA_SRC+=	usr.sbin/sendmail/cf smailcf
 #EXTRA_SRC+=	usr.sbin/config kconf
 
 BOOT1=	etc/protocols etc/sysconfig
-
-FAQS=	MIRROR.SITES
 
 # mountpoint for filesystems.
 MNT=			/mnt
@@ -434,7 +432,6 @@ ftp.1:
 	mkdir ${FD}
 	cd ${RD} && find floppies -print | cpio -dumpl ${FD}
 	cd ${RD}/dists && find . -print | cpio -dumpl ${FD}
-	cd ${.CURDIR} && ln -f ${FAQS} ${FD}
 
 #
 # --==## Setup a suitable cdrom-area ##==--
