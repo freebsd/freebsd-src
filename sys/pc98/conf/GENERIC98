@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC98,v 1.8.2.23 1998/05/31 17:28:22 kato Exp $
+#	$Id: GENERIC98,v 1.8.2.24 1998/08/19 02:41:51 kato Exp $
 
 # GENERIC98 -- Generic PC98 machine with WD/SCSI disks
 
@@ -74,7 +74,7 @@ disk		wd0	at wdc0 drive 0
 options		ATAPI		#Enable ATAPI support for IDE bus
 options		ATAPI_STATIC	#Don't do it as an LKM
 device		wcd0		#IDE CD-ROM
-device		wfd0		#IDE floppy (LS-120)
+#device		wfd0		#IDE floppy (LS-120)
 
 # A single entry for any of these controllers (ncr, ahb, ahc, amd) is
 # sufficient for any number of installed devices.
@@ -103,12 +103,6 @@ controller bs0 at isa? port "IO_SCSI" bio irq 5 drq 3 flags 0 vector bsintr
 #controller bs0 at isa? port "IO_SCSI" bio irq 5 drq 3 flags 0x50000 vector bsintr
 
 controller	aic0	at isa? port 0x1840 bio irq 5 flags 0x10000 vector aicintr
-
-options   		DPT_MEASURE_PERFORMANCE	# Required by DPT driver??
-#options		DPT_VERIFY_HINTR	# Some hardware must have it!
-#options		DPT_TRACK_CCB_STATES	# Some hardware must have it!
-#options    		DPT_HANDLE_TIMEOUTS	# Some hardware must have it!
-#options		DPT_TIMEOUT_FACTOR=4	# Some hardware needs more
 
 controller	scbus0
 
@@ -153,6 +147,7 @@ device de0
 device fxp0
 device tx0
 device vx0
+device xl0
 
 #
 # DP8390 NIC
