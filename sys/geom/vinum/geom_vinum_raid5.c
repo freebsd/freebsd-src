@@ -81,6 +81,101 @@ gv_stripe_active(struct gv_plex *p, struct bio *bp)
 }
 
 int
+gv_check_raid5(struct gv_plex *p, struct gv_raid5_packet *wp, struct bio *bp,
+    caddr_t addr, off_t boff, off_t bcount)
+{
+	struct gv_sd *parity, *s;
+	struct gv_bioq *bq;
+	struct bio *cbp, *pbp;
+	int i, psdno;
+	off_t real_len, real_off;
+
+	if (p == NULL || LIST_EMPTY(&p->subdisks))
+		return (ENXIO);
+
+	gv_raid5_offset(p, boff, bcount, &real_off, &real_len, NULL, &psdno);
+
+	/* Find the right subdisk. */
+	parity = NULL;
+	i = 0;
+	LIST_FOREACH(s, &p->subdisks, in_plex) {
+		if (i == psdno) {
+			parity = s;
+			break;
+		}
+		i++;
+	}
+
+	/* Parity stripe not found. */
+	if (parity == NULL)
+		return (ENXIO);
+
+	if (parity->state != GV_SD_UP)
+		return (ENXIO);
+
+	wp->length = real_len;
+	wp->data = addr;
+	wp->lockbase = real_off;
+
+	/* Read all subdisks. */
+	LIST_FOREACH(s, &p->subdisks, in_plex) {
+		/* Skip the parity subdisk. */
+		if (s == parity)
+			continue;
+
+		cbp = g_clone_bio(bp);
+		if (cbp == NULL)
+			return (ENOMEM);
+		cbp->bio_cmd = BIO_READ;
+		cbp->bio_data = g_malloc(real_len, M_WAITOK);
+		cbp->bio_cflags |= GV_BIO_MALLOC;
+		cbp->bio_offset = real_off;
+		cbp->bio_length = real_len;
+		cbp->bio_done = gv_plex_done;
+		cbp->bio_caller2 = s->consumer;
+		cbp->bio_driver1 = wp;
+
+		GV_ENQUEUE(bp, cbp, pbp);
+
+		bq = g_malloc(sizeof(*bq), M_WAITOK | M_ZERO);
+		bq->bp = cbp;
+		TAILQ_INSERT_TAIL(&wp->bits, bq, queue);
+	}
+
+	/* Read the parity data. */
+	cbp = g_clone_bio(bp);
+	if (cbp == NULL)
+		return (ENOMEM);
+	cbp->bio_cmd = BIO_READ;
+	cbp->bio_data = g_malloc(real_len, M_WAITOK | M_ZERO);
+	cbp->bio_cflags |= GV_BIO_MALLOC;
+	cbp->bio_offset = real_off;
+	cbp->bio_length = real_len;
+	cbp->bio_done = gv_plex_done;
+	cbp->bio_caller2 = parity->consumer;
+	cbp->bio_driver1 = wp;
+	wp->waiting = cbp;
+
+	/*
+	 * In case we want to rebuild the parity, create an extra BIO to write
+	 * it out.  It also acts as buffer for the XOR operations.
+	 */
+	cbp = g_clone_bio(bp);
+	if (cbp == NULL)
+		return (ENOMEM);
+	cbp->bio_data = addr;
+	cbp->bio_offset = real_off;
+	cbp->bio_length = real_len;
+	cbp->bio_done = gv_plex_done;
+	cbp->bio_caller2 = parity->consumer;
+	cbp->bio_driver1 = wp;
+	wp->parity = cbp;
+
+	return (0);
+}
+
+/* Rebuild a degraded RAID5 plex. */
+int
 gv_rebuild_raid5(struct gv_plex *p, struct gv_raid5_packet *wp, struct bio *bp,
     caddr_t addr, off_t boff, off_t bcount)
 {
@@ -101,7 +196,7 @@ gv_rebuild_raid5(struct gv_plex *p, struct gv_raid5_packet *wp, struct bio *bp,
 			broken = s;
 	}
 
-	/* Parity stripe not found. */
+	/* Broken stripe not found. */
 	if (broken == NULL)
 		return (ENXIO);
 
