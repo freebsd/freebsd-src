@@ -13,7 +13,7 @@
  *   the SMC Elite Ultra (8216), the 3Com 3c503, the NE1000 and NE2000,
  *   and a variety of similar clones.
  *
- * $Id: if_ed.c,v 1.58 1994/11/26 10:51:49 davidg Exp $
+ * $Id: if_ed.c,v 1.59 1994/12/22 21:56:03 wollman Exp $
  */
 
 #include "ed.h"
@@ -367,15 +367,27 @@ ed_probe_WD80x3(isa_dev)
 		memsize = 16384;
 		isa16bit = 1;
 		break;
-	case ED_TYPE_SMC8216C:
-		sc->type_str = "SMC8216/SMC8216C";
-		memsize = 16384;
+	case ED_TYPE_SMC8216C: /* 8216 has 16K shared mem -- 8416 has 8K */
+		(unsigned int) *(isa_dev->id_maddr+8192) = (unsigned int)0;
+		if ((unsigned int) *(isa_dev->id_maddr+8192)) {
+			sc->type_str = "SMC8416C/SMC8416BT";
+			memsize = 8192;
+		} else {
+			sc->type_str = "SMC8216/SMC8216C";
+			memsize = 16384;
+		}
 		isa16bit = 1;
 		sc->is790 = 1;
 		break;
 	case ED_TYPE_SMC8216T:
-		sc->type_str = "SMC8216T";
-		memsize = 16384;
+		(unsigned int) *(isa_dev->id_maddr+8192) = (unsigned int)0;
+		if ((unsigned int) *(isa_dev->id_maddr+8192)) {
+			sc->type_str = "SMC8416T";
+			memsize = 8192;
+		} else {
+			sc->type_str = "SMC8216T";
+			memsize = 16384;
+		}
 		isa16bit = 1;
 		sc->is790 = 1;
 		break;

@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.84 1994/12/26 17:50:18 ats Exp $
+ *	$Id: syscons.c,v 1.85 1994/12/27 08:43:06 davidg Exp $
  */
 
 #include "sc.h"
@@ -68,6 +68,10 @@
 #include <i386/isa/timerreg.h>
 #include <i386/isa/kbdtables.h>
 #include <i386/i386/cons.h>
+
+#if defined(NOBLINK_CURSOR)
+#undef FAT_CURSOR
+#endif
 
 #if !defined(NCONS)
 #define NCONS 12
@@ -145,6 +149,9 @@ typedef struct scr_stat {
 	u_short 	*crt_base;		/* address of screen memory */
 	u_short 	*scr_buf;		/* buffer when off screen */
 	u_short 	*crtat;			/* cursor address */
+#if defined(NOBLINK_CURSOR)
+	u_short		cur_cursor_attr;	/* cursor attributes */
+#endif
 	int 		xpos;			/* current X position */
 	int 		ypos;			/* current Y position */
 	int 		xsize;			/* X size */
@@ -194,7 +201,9 @@ static	char		*font_8 = NULL, *font_14 = NULL, *font_16 = NULL;
 static  int		fonts_loaded = 0;
 static	char		palette[3*256];
 static 	const u_int 	n_fkey_tab = sizeof(fkey_tab) / sizeof(*fkey_tab);
+#if !defined(NOBLINK_CURSOR)
 static	int 		cur_cursor_pos = -1;
+#endif
 static	char 		in_putc = 0;
 static	char	 	polling = 0;
 #if ASYNCH
@@ -1221,6 +1230,7 @@ pccnputc(dev_t dev, char c)
 	if (c == '\n')
 		scput('\r');
 	scput(c);
+#if !defined(NOBLINK_CURSOR)
 	if (cur_console == &console[0]) {
 	int 	pos = cur_console->crtat - cur_console->crt_base;
 		if (pos != cur_cursor_pos) {
@@ -1231,6 +1241,7 @@ pccnputc(dev_t dev, char c)
 			outb(crtc_addr+1,pos&0xff);
 		}
 	}
+#endif
 }
 
 int 
@@ -1367,7 +1378,9 @@ star_saver(int test)
 	else {
 		if (scrn_blanked) {
 			bcopy(scp->scr_buf, Crtat, scp->xsize*scp->ysize*2);
+#if !defined(NOBLINK_CURSOR)
 			cur_cursor_pos = -1;
+#endif
 			set_border(scp->border);
 			scrn_blanked = 0;
 		}
@@ -1427,7 +1440,9 @@ snake_saver(int test)
 		if (scrn_blanked) {
 			bcopy(scp->scr_buf, Crtat,
 			      scp->xsize * scp->ysize * 2);
+#if !defined(NOBLINK_CURSOR)
 			cur_cursor_pos = -1;
+#endif
 			set_border(scp->border);
 			scrn_blanked = 0;
 		}
@@ -1463,6 +1478,7 @@ cursor_pos(int force)
 		return;
 	if (scrn_blank_time && (time.tv_sec > scrn_time_stamp+scrn_blank_time))
 		SCRN_SAVER(1);
+#if !defined(NOBLINK_CURSOR)
 	pos = cur_console->crtat - cur_console->crt_base;
 	if (force || (!scrn_blanked && pos != cur_cursor_pos)) {
 		cur_cursor_pos = pos;
@@ -1471,6 +1487,7 @@ cursor_pos(int force)
 		outb(crtc_addr, 15);
 		outb(crtc_addr+1, pos&0xff);
 	}
+#endif
 	timeout((timeout_t)cursor_pos, 0, hz/20);
 }
 
@@ -1988,11 +2005,13 @@ scan_esc(scr_stat *scp, u_char c)
 
 		case 'C': 	/* set cursor shape (start & end line) */
 			if (scp->term.num_param == 2) {
+#if !defined(NOBLINK_CURSOR)
 				scp->cursor_start = scp->term.param[0] & 0x1F; 
 				scp->cursor_end = scp->term.param[1] & 0x1F; 
 				if (scp == cur_console)
 					cursor_shape(scp->cursor_start,
 						     scp->cursor_end);
+#endif
 			}
 			break;
 
@@ -2033,7 +2052,10 @@ ansi_put(scr_stat *scp, u_char c)
 {
 	if (scp->status & UNKNOWN_MODE) 
 		return;
-
+#if defined(NOBLINK_CURSOR)
+	/* undraw cursor */
+	*scp->crtat = scp->cur_cursor_attr;
+#endif
 	/* make screensaver happy */
 	if (scp == cur_console) {
 		scrn_time_stamp = time.tv_sec;
@@ -2081,7 +2103,11 @@ ansi_put(scr_stat *scp, u_char c)
 		/* Print only printables */
 		*scp->crtat = (scp->term.cur_attr | scr_map[c]);
 		scp->crtat++;
-		if (++scp->xpos >= scp->xsize) {
+		/*
+		 * Wrap at the *LAST* column, not the last column
+		 * minus one!!!! Arrrghhh!!!
+		 */
+		if (++scp->xpos > /* = */ scp->xsize) {
 			scp->xpos = 0;
 			scp->ypos++;
 		}
@@ -2096,6 +2122,29 @@ ansi_put(scr_stat *scp, u_char c)
 		scp->crtat -= scp->xsize;
 		scp->ypos--;
 	}
+#if defined(NOBLINK_CURSOR)
+	/*
+	 * draw a non-blinking cursor
+	 * We generally want a white cursor, but we have to do some
+	 * sanity checks to avoid stupid combinations like these:
+	 * - white cursor, white background
+	 * - black cursor, black background
+	 * - white cursor, white foreground
+	 * - black cursor, black foreground
+	 * (Okay, so I used raw hex values as bitmasks. Wanna fight
+	 * over it?)
+	 */
+	scp->cur_cursor_attr = *scp->crtat;
+	if ((*scp->crtat & 0x7000) == 0x7000) {
+		*scp->crtat &= 0x8FFF;
+		if(!(*scp->crtat & 0x0700))
+			*scp->crtat |= 0x0700;
+	} else {
+		*scp->crtat |= 0x7000;
+		if ((*scp->crtat & 0x0F00) == 0x0700)
+			*scp->crtat &= 0xF8FF;
+	}
+#endif
 	in_putc--;
 	if (delayed_next_scr)
 		switch_scr(delayed_next_scr - 1);
@@ -2157,12 +2206,16 @@ scinit(void)
 			if (ISMAPPED(pa, 64))
 				video_mode_ptr = (char *)pa_to_va(pa);
 		}
+#if defined(NOBLINK_CURSOR)
+		cursor_shape(start, end);
+#else
 #if defined(FAT_CURSOR)
                 start = 0;
                 end = 18;
 		cursor_shape(start, end);
 #else
 		get_cursor_shape(&start, &end);
+#endif
 #endif
 	}
 	current_default = &user_default;
@@ -2698,9 +2751,13 @@ set_mode(scr_stat *scp)
 
 	/* mode change only on VGA's */
 	if (!crtc_vga || video_mode_ptr == NULL) {
+#if !defined(NOBLINK_CURSOR)
 		/* (re)activate cursor */
 		untimeout((timeout_t)cursor_pos, 0);
 		cursor_pos(1);
+#else
+		cursor_shape (-1, -1);
+#endif
 		return;
 	}
 
@@ -2747,6 +2804,7 @@ set_mode(scr_stat *scp)
 setup_mode:
 		set_vgaregs(modetable);
 		font_size = *(modetable + 2);
+#if !defined(NOBLINK_CURSOR)
 		/* change cursor type if set */
 		if (scp->cursor_start != -1 && scp->cursor_end != -1)
 			cursor_shape(
@@ -2756,7 +2814,7 @@ setup_mode:
 			(scp->cursor_end >= font_size)
 			? font_size - 1
 			: scp->cursor_end);
-
+#endif
 		/* set font type (size) */
  		switch (font_size) {
  		case 0x08:
@@ -2771,10 +2829,14 @@ setup_mode:
  		default:
  	    		outb(TSIDX, 0x03); outb(TSREG, 0x05);	/* font 1 */
  		}
- 
+
+#if !defined(NOBLINK_CURSOR)
  		/* (re)activate cursor */
  		untimeout((timeout_t)cursor_pos, 0);
  		cursor_pos(1);
+#else
+		cursor_shape (-1,-1);
+#endif
 		break;
 
 	case M_BG320:      case M_CG320:      case M_BG640:
