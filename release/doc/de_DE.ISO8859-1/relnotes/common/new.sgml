@@ -1,6 +1,6 @@
 <!--
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.139 2002/10/23 06:06:23 ue Exp $
-  basiert auf: 1.439
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.146 2002/11/01 22:22:55 ue Exp $
+  basiert auf: 1.446
 -->
 <articleinfo>
   <title>&os;/&arch; &release.current; Release Notes</title>
@@ -122,7 +122,7 @@
   <sect2 id="kernel">
     <title>&Auml;nderungen im Kernel</title>
 
-    <para arch="i386">Programme im Format &man.a.out.5; k&ouml;nnen
+    <para arch="i386,pc98">Programme im Format &man.a.out.5; k&ouml;nnen
       nur noch benutzt werden, wenn ein Kernel mit der Option
       <literal>COMPAT_AOUT</literal> verwendet wird oder das Modul
       <filename>aout.ko</filename> geladen wurde.</para>
@@ -136,7 +136,7 @@
       hinzugef&uuml;gt, um Zugriff auf die &Uuml;berwachungsfunktionen
       des AMD 756 Chipsatzes zu erhalten. &merged;</para>
 
-    <para role="historic">Der Treiber &man.agp.4; f&uuml;r AGP-Karten wurde
+    <para arch="i386,alpha,ia64" role="historic">Der Treiber &man.agp.4; f&uuml;r AGP-Karten wurde
       hinzugef&uuml;gt. &merged;</para>
 
     <para>Der Kernel wurde um eine von OpenBSD stammende
@@ -379,7 +379,7 @@
       Kompatibilit&auml;t mit alten Programmen zu gew&auml;hrleisten.
       &merged;</para>
 
-    <para arch="i386" role="historic">Der neue Treiber &man.puc.4; (PCI
+    <para arch="i386,pc98" role="historic">Der neue Treiber &man.puc.4; (PCI
       <quote>Universal</quote> Communications) verbindet serielle
       Schnittstellen auf PCI-Karten mit dem Treiber
       &man.sio.4;.  &merged;</para>
@@ -446,7 +446,7 @@
     <para>Der neue Treiber uaudio unterst&uuml;tzt USB Audio
       Ger&auml;te.  &merged;</para>
 
-    <para arch="i386">Der neue Treiber ubsa unterst&uuml;tzt den
+    <para arch="i386,pc98">Der neue Treiber ubsa unterst&uuml;tzt den
       Belkin F5U103 USB-nach-seriell Konverter und kompatible
       Ger&auml;te.</para>
 
@@ -724,7 +724,7 @@
         f&uuml;r den angepa&szlig;ten Kernel die Zeile
         <literal>CPU_ELAN</literal> stehen.  &merged;</para>
 
-      <para arch="i386">In der Konfigurationsdatei f&uuml;r den
+      <para arch="i386,pc98">In der Konfigurationsdatei f&uuml;r den
 	angepa&szlig;ten Kernel kann jetzt die neue Option
 	<literal>CPU_DISABLE_CMPXCHG</literal> verwendet werden.
 	Durch die Verwendung dieser Option kommt es zu starken
@@ -1454,7 +1454,8 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
         emuliert so SCSI-Ger&auml;te.  Um diese M&ouml;glichkeit
         nutzen zu k&ouml;nnen, mu&szlig; in der Konfigurationsdatei
         f&uuml;r den Kernel die Anweisung <literal>device
-        atapicam</literal> stehen.</para>
+        atapicam</literal> stehen.  Weitergehende Informationen finden
+	Sie in &man.atapicam.4;.</para>
 
       <para>Der Treiber &man.ata.4; unterst&uuml;tzt jetzt die Sil
         0680 und VIA 8233/8235 Controller.  &merged;</para>
@@ -1469,6 +1470,12 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
         Ger&auml;te werden von &man.cdrecord.1; (einem Teil des Ports
         <filename role="package">sysutils/cdrtools</filename>)
         unterst&uuml;tzt. &merged;</para>
+
+      <para>Der Treiber &man.cd.4; unterst&uuml;tzt jetzt wie schon
+	&man.acd.4; die ioctls <literal>CDRIOCREADSPEED</literal> und
+	<literal>CDRIOCWRITESPEED</literal>, mit der die
+	Geschwindigkeit eines CD-ROM Laufwerkes eingestellt werden
+	kann.</para>
 
       <para arch="i386" role="historic">Der neue Treiber ciss unterst&uuml;tzt
         Ger&auml;te, die das Common Interface for SCSI-3 Support
@@ -1487,7 +1494,22 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
 	neue und erweiterbare System stellt diverse Methoden zur
 	Verf&uuml;gung, um Anforderungen f&uuml;r Festplattenzugriffe
 	auf dem Weg vom Kernel zu den eigentlichen Treibern zu
-	manipulieren.</para>
+	manipulieren.
+	<note>
+	  <para>Wenn GEOM im Kernel aktiviert ist, werden
+	    <quote>compatability slices</quote> nicht mehr
+	    unterst&uuml;tzt.  Diese wurden nur auf i386 und pc98
+	    unterst&uuml;tzt und erlaubten es, im Namen eines
+	    Dateisystems die Angabe der MBR-Partition wegzulassen
+	    (also z.B.  <filename>/dev/ad0a</filename>); der Kernel
+	    suchte dann automatisch die erste &os;-Partition und
+	    f&uuml;llte den Namen auf.  Ein GEOM-Kernel
+	    unterst&uuml;tzt nur noch die vollen Namen (also z.B.
+	    <filename>/dev/ad0s1a</filename>), wenn MBR-Partitionen
+	    benutzt werden.  Diese &Auml;nderung sollte allerdings nur
+	    wenige Anwender betreffen.</para>
+	</note>
+      </para>
 
       <para>Das neue Modul <quote>GEOM Based Disk Encryption</quote>
 	erm&ouml;glicht die Verschl&uuml;sselung des
@@ -2519,9 +2541,13 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       <literal>stdin</literal> zu verwenden.  &merged;</para>
 
     <para>In &man.burncd.8; kann mit dem Parameter <option>-d</option>
-      der Modus Disk At Once (DAO) aktiviert werden.</para>
+      der Modus Disk At Once (DAO) aktiviert werden.  &merged;</para>
 
-    <para>&man.burncd.8; kann jetzt VCDs/SVCDs erzeugen.</para>
+    <para>&man.burncd.8; kann jetzt VCDs/SVCDs erzeugen.  &merged;</para>
+
+    <para>Bei &man.burncd.8; kann bei <option>-s</option> jetzt der
+      Wert max angegeben werden, um die maximal m&ouml;glich
+      Geschwindigkeit zu nutzen.</para>
 
     <para>Die neuen Programme &man.bzgrep.1;, &man.bzegrep.1; und
       &man.bzfgrep.1; stellen die von &man.grep.1; bekannte
@@ -2566,9 +2592,20 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       <literal>prev</literal> einen oder mehrere Tracks vor bzw.
       zur&uuml;ck zu springen.  &merged;</para>
 
-    <para>Bei ATAPI CD-ROMs kann &man.cdcontrol.1; jetzt die maximal
-      genutzte Geschwindigkeit mit dem Kommando
-      <literal>speed</literal> einstellen.  &merged;</para>
+    <para>Bei &man.cdcontrol.1; kann jetzt die Geschwindigkeit des
+      CD-ROM-Zugriffs mit dem Kommando <literal>speed</literal>
+      eingestellt werden.  Wird der Wert <literal>max</literal>
+      angegeben, wird die h&ouml;chste m&ouml;gliche Geschwindigkeit
+      verwendet.</para>
+
+    <para>Die Standard-Bibliothek <filename>libc</filename> wurde um
+      die Funktion &man.check.utility.compat.3; erweitert.  Mit dieser
+      Funktion k&ouml;nnen bestimmte Programme im &os;-Standardsystem
+      feststellen, ob sie den &os;  4-kompatiblen Modus oder den
+      <quote>Standard</quote>-Modus benutzen sollen; fehlt die Angabe,
+      wird der Standard-Modus verwendet.  Die Konfiguration erfolgt
+      &auml;hnlich wie bei &man.malloc.3; &uuml;ber eine
+      Environment-Variable oder einen symbolischen Link.</para>
 
     <para>&man.chflags.1; wurde von <filename>/usr/bin</filename> nach
       <filename>/bin</filename> verschoben.</para>
@@ -2728,21 +2765,23 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       wird es leichter, diese Scripte auf das eigene System anzupassen
       und diese &Auml;nderungen zu warten.  &merged;</para>
 
-    <para>Das Programm &man.expr.1; entspricht jetzt den
-      POSIX-Standard f&uuml;r Benutzerprogramme (POSIX Utility Syntax
-      Guidelines).  Einige Programme sind auf die alte Syntax
-      angewiesen; das auff&auml;lligste Beispiel war/ist der Port bzw.
-      das Package <filename role="package">devel/libtool</filename>.
-      F&uuml;r diese Programme kann die Umgebungsvariable
-      <envar>EXPR_COMPAT</envar> gesetzt werden, dadurch verh&auml;lt
-      sich &man.expr.1; wieder wie die &auml;lteren
-      Versionen.</para>
+    <para>Das Programm &man.expr.1; entspricht jetzt POSIX.2-1992 (und
+      damit auch POSIX.1-2001).  Einige Programme sind auf die alte
+      Syntax angewiesen, da sie die Argumente nicht korrekt markieren;
+      dadurch h&auml;lt &man.expr.1; sie f&uuml;r Befehlsoptionen (das
+      auff&auml;lligste Beispiel war/ist der von vielen GNU Programmen
+      genutzt Port bzw.  das Package <filename
+      role="package">devel/libtool</filename>).  Es ist m&ouml;glich,
+      f&uuml;r &man.expr.1; mit einen kompatiblen Modus zu aktivieren,
+      in dem es sich wieder wie die &auml;lteren Versionen
+      verh&auml;lt; weitere Informationen dazu finden Sie in
+      &man.check.utility.compat.3;.</para>
 
     <para>In &man.fbtab.5; k&ouml;nnen die Zielger&auml;te jetzt auch
       mit Wildcards angegeben werden, nicht nur als einzelne
       Ger&auml;te und Verzeichnisse.</para>
 
-    <para arch="i386">&man.fdisk.8; versucht nicht mehr, nach einem
+    <para arch="i386,pc98">&man.fdisk.8; versucht nicht mehr, nach einem
       Ger&auml;t zu suchen, wenn keine Ger&auml;te auf der
       Kommandozeile angegeben wurden, sondern versucht, den Namen des
       standardm&auml;&szlig;ig verwendeten Ger&auml;tes aus dem Namen
@@ -3435,8 +3474,15 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       Sobald die Datei &man.nsswitch.conf.5; angelegt wurde, kann &os;
       so konfiguriert werden, da&szlig; es f&uuml;r Zugriffe auf Daten
       wie &man.passwd.5; und &man.group.5; einfache Dateien, NIS oder
-      Hesiod nutzt.  Die fr&uuml;her verwendete Datei
-      <filename>hosts.conf</filename> wird nicht mehr genutzt.</para>
+      Hesiod nutzt.  Wenn beim Start des Systems die Datei
+      <filename>/etc/nsswitch.conf</filename> noch nicht existiert,
+      wird sie automatisch aus der vorhandenen
+      <filename>/etc/hosts.conf</filename> erzeugt.  Da einige alte
+      Programme immer noch <filename>/etc/hosts.conf</filename>
+      ben&ouml;tigen, wird eine bestehende
+      <filename>/etc/hosts.conf</filename> beim Start des Systems
+      automatisch mit den Daten aus
+      <filename>/etc/nsswitch.conf</filename> aktualisiert.</para>
 
     <para>&man.od.1; unterst&uuml;tzt jetzt die Optionen
       <option>-A</option> zur Angabe der Basisadresse der Eingabe,
@@ -4046,6 +4092,11 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       Programme als &man.b64encode.1; bzw. &man.b64decode.1;
       aufgerufen werden.</para>
 
+    <para>Die Standard-Bibliothek <filename>libc</filename> wurde um
+      Funktionen zur Erzeugung und Manipulation von OSF/DCE
+      1.1-kompatiblen UUIDs erweitert.  Weitergehende Informationen
+      finden Sie in in &man.uuid.3;</para>
+
     <para>Das neue Hilfsprogramm &man.uuidgen.1; nutzt den System Call
       &man.uuidgen.2;, um einen oder mehrere <quote>Universally Unique
       Identifiers</quote> erzeugen, die zu OSF/DCE 1.1 version 1 UUIDs
@@ -4360,8 +4411,8 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       <para><application>ncurses</application> wurde auf Version
         5.2-20020615 aktualisiert.</para>
 
-      <para role="historic">Die diversen <application>NTP</application> Programme
-      wurden auf Version 4.1.0 aktualisiert. &merged;</para>
+      <para>Die diversen <application>NTP</application> Programme
+      wurden auf Version 4.1.1a aktualisiert.</para>
 
       <para><application>OpenPAM</application>
         (<quote>Citronella</quote> Release) wird jetzt statt
@@ -4456,8 +4507,8 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
         <varname>net.inet.ip.ttl</varname> definiert.
         &merged;</para>
 
-      <para role="historic">Die Datenbank der Zeitzonen wurde auf Version
-        <filename>tzdata2002c</filename> aktualisiert.  &merged;</para>
+      <para>Die Datenbank der Zeitzonen wurde auf Version
+        <filename>tzdata2002d</filename> aktualisiert.  &merged;</para>
 
       <sect4>
         <title>CVS</title>
@@ -5055,58 +5106,17 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
 <sect1>
   <title>Aktualisierung einer &auml;lteren Version von &os;</title>
 
-  <para>Wenn Sie eine &auml;ltere Version von &os; aktualisieren
-    wollen, haben Sie drei M&ouml;glichkeiten:</para>
-
-  <itemizedlist>
-    <listitem>
-      <para>Die bin&auml;re Aktualisierung mit &man.sysinstall.8;.
-        Diese Variante ben&ouml;tigt die wenigste Zeit, allerdings
-	geht sie davon aus, da&szlig; Sie keine Optionen zur
-	Compilierung von &os; genutzt haben.</para>
-    </listitem>
-
-    <listitem>
-      <para>Die komplette Neuinstallation von &os;.  Dadurch
-        f&uuml;hren Sie nat&uuml;rlich keine echte Aktualisierung
-        durch und es ist auf jeden Fall nicht so bequem wie die
-        bin&auml;re Aktualisierung, da Sie ihre Konfigurationsdaten in
-        <filename>/etc</filename> selbst sichern und wiederherstellen
-        m&uuml;ssen.  Dennoch kann diese Option sinnvoll sein, wenn
-        Sie die Aufteilung der Partitionen &auml;ndern wollen oder
-        m&uuml;ssen.</para>
-    </listitem>
-
-    <listitem>
-      <para>Mit dem Sourcecode in <filename>/usr/src</filename>.
-        Diese Variante ist flexibler, ben&ouml;tigt aber mehr
-        Plattenplatz, Zeit, und Erfahrung.  Weitere Informationen zu
-        diesem Thema finden Sie im Kapitel <ulink
-        url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/makeworld.html"><quote>Using
-        <command>make world</command></quote></ulink> des <ulink
-        url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">FreeBSD
-        Handbook</ulink>.  Eine Aktualisierung einer sehr alten
-        Version von &os; kann mit Problemen verbunden sein;  in diesen
-        F&auml;llen ist es effektiver, eine bin&auml;re Aktualisierung
-        oder eine komplette Neuinstallation
-        durchzuf&uuml;hren.</para>
-    </listitem>
-  </itemizedlist>
-
-  <para>Bitte lesen Sie den Inhalt der Datei
-    <filename>INSTALL.TXT</filename>, um weitere Informationen zu
-    erhalten, und zwar <emphasis>bevor</emphasis> Sie mit der
-    Aktualisierung beginnen.  Wenn Sie den Sourcecode zur
-    Aktualisierung nutzen, sollten Sie auf jeden Fall auch
-    <filename>/usr/src/UPDATING</filename> lesen.</para>
-
-  <para>Zum guten Schlu&szlig;:  Wenn Sie auf eine der m&ouml;glichen
-    Arten die &os;-Entwicklungszweige -STABLE oder -CURRENT nutzen,
-    sollten Sie auf jeden Fall das Kapitel <ulink
-    url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/current-stable.html"><quote>-CURRENT
-    vs. -STABLE</quote></ulink> im <ulink
-    url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">FreeBSD Handbuch</ulink>
-    lesen.</para>
+  <para>Anwender, die schon ein &os;-System im Einsatz haben, sollten
+    <emphasis>auf jeden Fall</emphasis> die <quote>Hinweise f&uuml;r
+    die ersten Anwender von &os; 5.0</quote> lesen.  Dieses Dokument
+    ist auf den Distributionen in der Regel in der Datei
+    <filename>EARLY.TXT</filename> verf&uuml;gbar; ansonsten sollte es
+    &uuml;berall dort verf&uuml;gbar sein, wo auch die anderen
+    Dokumente der Release Notes verf&uuml;gbar sind.  Das Dokument
+    enth&auml;lt einige Tipps f&uuml;r die Aktualisierung; viel
+    wichtiger ist aber die Analyse der beiden Optionen Wechsel zu &os;
+    5.<replaceable>X</replaceable> bzw Weitere Verwendung von &os;
+    4.<replaceable>X</replaceable>.</para>
 
   <important>
     <para>Sie sollten vor der Aktualisierung von &os; auf jeden Fall 

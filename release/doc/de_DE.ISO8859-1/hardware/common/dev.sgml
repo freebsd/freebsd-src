@@ -28,8 +28,8 @@
 	this file to fix "missed" conversions are likely to break the
 	build.
 
-	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/common/dev.sgml,v 1.40 2002/10/22 21:25:27 ue Exp $
-	basiert auf: 1.111
+	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/common/dev.sgml,v 1.41 2002/10/31 21:33:20 ue Exp $
+	basiert auf: 1.112
 -->
 
 <sect1>
@@ -1440,7 +1440,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">NE2000-kompatible PC-Card (PCMCIA) Ethernet und
+    <para arch="i386,pc98">NE2000-kompatible PC-Card (PCMCIA) Ethernet und
       FastEthernet Karten (&man.ed.4; Treiber) 
       <itemizedlist>
         <listitem>

@@ -1,8 +1,8 @@
 <!--
   The FreeBSD German Documentation Project
   The FreeBSD Documentation Project
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/readme/article.sgml,v 1.10 2002/10/12 18:02:24 ue Exp $
-  basiert auf: 1.17
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/readme/article.sgml,v 1.11 2002/10/31 21:37:53 ue Exp $
+  basiert auf: 1.18
 -->
 
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
@@ -323,6 +323,15 @@
             und ein paar allgemeine Hinweise zum Bezug einer
             Distribution.</para>
         </listitem>
+
+	<listitem>
+	  <para><filename>EARLY.TXT</filename>: Spezielle Hinweise
+	    f&uuml;r die ersten Anwender von &os; 5.0-RELEASE.  Wenn
+	    dies Ihre erste Begegnung mit &os; &release.branch; ist
+	    und/oder Sie noch eine 5.<replaceable>X</replaceable>
+	    Version benutzt haben, sollten Sie diesen Artikel auf
+	    jeden Fall lesen.</para>
+	</listitem>
 
         <listitem>
           <para><filename>RELNOTES.TXT</filename>: Die begleitenden
