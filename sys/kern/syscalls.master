@@ -632,5 +632,16 @@
 442	MSTD	{ int thr_suspend(const struct timespec *timeout); }
 443	MSTD	{ int thr_wake(long id); }
 444	MSTD	{ int kldunloadf(int fileid, int flags); }
+445	MNOSTD	{ int audit(const void *record, u_int length); }
+446	MNOSTD	{ int auditon(int cmd, void *data, u_int length); }
+447	MNOSTD	{ int getauid(uid_t *auid); }
+448	MNOSTD	{ int setauid(uid_t *auid); }
+449	MNOSTD	{ int getaudit(struct auditinfo *auditinfo); }
+450	MNOSTD	{ int setaudit(struct auditinfo *auditinfo); }
+451	MNOSTD	{ int getaudit_addr(struct auditinfo_addr \
+		    *auditinfo_addr, u_int length); }
+452	MNOSTD	{ int setaudit_addr(struct auditinfo_addr \
+		    *auditinfo_addr, u_int length); }
+453	MNOSTD	{ int auditctl(int cmd, char *path); }
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master
