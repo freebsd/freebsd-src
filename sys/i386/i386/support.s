@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: support.s,v 1.28 1995/12/24 08:10:43 davidg Exp $
+ *	$Id: support.s,v 1.29 1995/12/26 13:58:11 bde Exp $
  */
 
 #include "assym.s"				/* system definitions */
@@ -206,8 +206,10 @@ bcopyb:
 	movl	12(%esp),%esi
 	movl	16(%esp),%edi
 	movl	20(%esp),%ecx
-	cmpl	%esi,%edi			/* potentially overlapping? */
-	jnb	1f
+	movl	%edi,%eax
+	subl	%esi,%eax
+	cmpl	%ecx,%eax			/* overlapping? */
+	jb	1f
 	cld					/* nope, copy forwards */
 	rep
 	movsb
@@ -219,9 +221,9 @@ bcopyb:
 1:
 	addl	%ecx,%edi			/* copy backwards. */
 	addl	%ecx,%esi
-	std
 	decl	%edi
 	decl	%esi
+	std
 	rep
 	movsb
 	popl	%edi
@@ -241,8 +243,11 @@ bcopy:
 	movl	12(%esp),%esi
 	movl	16(%esp),%edi
 	movl	20(%esp),%ecx
-	cmpl	%esi,%edi			/* potentially overlapping? */
-	jnb	1f
+
+	movl	%edi,%eax
+	subl	%esi,%eax
+	cmpl	%ecx,%eax			/* overlapping? */
+	jb	1f
 	shrl	$2,%ecx				/* copy by 32-bit words */
 	cld					/* nope, copy forwards */
 	rep
@@ -259,9 +264,9 @@ bcopy:
 1:
 	addl	%ecx,%edi			/* copy backwards */
 	addl	%ecx,%esi
-	andl	$3,%ecx				/* any fractional bytes? */
 	decl	%edi
 	decl	%esi
+	andl	$3,%ecx				/* any fractional bytes? */
 	std
 	rep
 	movsb
