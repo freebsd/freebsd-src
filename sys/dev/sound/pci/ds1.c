@@ -294,7 +294,7 @@ ds_initcd(void *devinfo)
 		 *
 		 * do it for all chips -cg
 		 */
-		DELAY(400000);
+		DELAY(500000);
 	}
 
 	return ds_cdbusy(sc, 0);
