@@ -108,27 +108,27 @@ library sub-directory.
 For more information about the ports build process, see
 .Xr ports 7 .
 .Sh ENVIRONMENT
-.Bl -tag -width ".Ev TARGET_ARCH"
-.It Ev TARGET_ARCH
+.Bl -tag -width ".Va TARGET_ARCH"
+.It Va TARGET_ARCH
 The target machine processor architecture.
 This is analagous to the
 .Dq "uname -p"
 output.
 Set this to cross-build for a different architecture.
-.It Ev TARGET
+.It Va TARGET
 The target hardware platform.
 This is analagous to the
 .Dq "uname -m"
 output.
 This is necessary to cross-build some target architectures.
 For example, cross-building for PC98 machines requires
-.Ev "TARGET_ARCH=i386"
+.Va "TARGET_ARCH=i386"
 and
-.Ev "TARGET=pc98" .
-.It Ev NO_WERROR
+.Va "TARGET=pc98" .
+.It Va NO_WERROR
 If defined, warnings will not cause the build to halt, even if the
 makefile says otherwise.
-.It Ev DESTDIR
+.It Va DESTDIR
 The directory hierarchy where the resulting binaries will be
 installed.
 .El
