@@ -1660,6 +1660,7 @@ NdisAllocatePacketPool(status, pool, descnum, protrsvdlen)
 	}
 
 	cur = (ndis_packet *)*pool;
+	KeInitializeSpinLock(&cur->np_lock);
 	cur->np_private.npp_flags = 0x1; /* mark the head of the list */
 	cur->np_private.npp_totlen = 0; /* init deletetion flag */
 	for (i = 0; i < (descnum + NDIS_POOL_EXTRA); i++) {
@@ -1688,10 +1689,15 @@ NdisPacketPoolUsage(pool)
 	ndis_handle		pool;
 {
 	ndis_packet		*head;
+	uint8_t			irql;
+	uint32_t		cnt;
 
 	head = (ndis_packet *)pool;
+	KeAcquireSpinLock(&head->np_lock, &irql);
+	cnt = head->np_private.npp_count;
+	KeReleaseSpinLock(&head->np_lock, irql);
 
-	return(head->np_private.npp_count);
+	return(cnt);
 }
 
 __stdcall void
@@ -1699,19 +1705,24 @@ NdisFreePacketPool(pool)
 	ndis_handle		pool;
 {
 	ndis_packet		*head;
+	uint8_t			irql;
 
 	head = pool;
 
 	/* Mark this pool as 'going away.' */
 
+	KeAcquireSpinLock(&head->np_lock, &irql);
 	head->np_private.npp_totlen = 1;
 
 	/* If there are no buffers loaned out, destroy the pool. */
 
-	if (head->np_private.npp_count == 0)
+	if (head->np_private.npp_count == 0) {
+		KeReleaseSpinLock(&head->np_lock, irql);
 		free(pool, M_DEVBUF);
-	else
+	} else {
 		printf("NDIS: buggy driver deleting active packet pool!\n");
+		KeReleaseSpinLock(&head->np_lock, irql);
+	}
 
 	return;
 }
@@ -1723,11 +1734,14 @@ NdisAllocatePacket(status, packet, pool)
 	ndis_handle		pool;
 {
 	ndis_packet		*head, *pkt;
+	uint8_t			irql;
 
 	head = (ndis_packet *)pool;
+	KeAcquireSpinLock(&head->np_lock, &irql);
 
 	if (head->np_private.npp_flags != 0x1) {
 		*status = NDIS_STATUS_FAILURE;
+		KeReleaseSpinLock(&head->np_lock, irql);
 		return;
 	}
 
@@ -1738,6 +1752,7 @@ NdisAllocatePacket(status, packet, pool)
 
 	if (head->np_private.npp_totlen) {
 		*status = NDIS_STATUS_FAILURE;
+		KeReleaseSpinLock(&head->np_lock, irql);
 		return;
 	}
 
@@ -1745,6 +1760,7 @@ NdisAllocatePacket(status, packet, pool)
 
 	if (pkt == NULL) {
 		*status = NDIS_STATUS_RESOURCES;
+		KeReleaseSpinLock(&head->np_lock, irql);
 		return;
 	}
 
@@ -1771,6 +1787,8 @@ NdisAllocatePacket(status, packet, pool)
 	head->np_private.npp_count++;
 	*status = NDIS_STATUS_SUCCESS;
 
+	KeReleaseSpinLock(&head->np_lock, irql);
+
 	return;
 }
 
@@ -1779,13 +1797,18 @@ NdisFreePacket(packet)
 	ndis_packet		*packet;
 {
 	ndis_packet		*head;
+	uint8_t			irql;
 
 	if (packet == NULL || packet->np_private.npp_pool == NULL)
 		return;
 
 	head = packet->np_private.npp_pool;
-	if (head->np_private.npp_flags != 0x1)
+	KeAcquireSpinLock(&head->np_lock, &irql);
+
+	if (head->np_private.npp_flags != 0x1) {
+		KeReleaseSpinLock(&head->np_lock, irql);
 		return;
+	}
 
 	packet->np_private.npp_head = head->np_private.npp_head;
 	head->np_private.npp_head = (ndis_buffer *)packet;
@@ -1796,8 +1819,11 @@ NdisFreePacket(packet)
 	 * no more packets outstanding, nuke the pool.
 	 */
 
-	if (head->np_private.npp_totlen && head->np_private.npp_count == 0)
+	if (head->np_private.npp_totlen && head->np_private.npp_count == 0) {
+		KeReleaseSpinLock(&head->np_lock, irql);
 		free(head, M_DEVBUF);
+	} else
+		KeReleaseSpinLock(&head->np_lock, irql);
 
 	return;
 }
@@ -2556,14 +2582,20 @@ ndis_find_sym(lf, filename, suffix, sym)
 	char			*suffix;
 	caddr_t			*sym;
 {
-	char			fullsym[MAXPATHLEN];
+	char			*fullsym;
 	char			*suf;
 	int			i;
 
-	bzero(fullsym, sizeof(fullsym));
-	strcpy(fullsym, filename);
-	if (strlen(filename) < 4)
+	fullsym = ExAllocatePoolWithTag(NonPagedPool, MAXPATHLEN, 0);
+	if (fullsym == NULL)
+		return(ENOMEM);
+
+	bzero(fullsym, MAXPATHLEN);
+	strncpy(fullsym, filename, MAXPATHLEN);
+	if (strlen(filename) < 4) {
+		ExFreePool(fullsym);
 		return(EINVAL);
+	}
 
 	/* If the filename has a .ko suffix, strip if off. */
 	suf = fullsym + (strlen(filename) - 3);
@@ -2578,6 +2610,7 @@ ndis_find_sym(lf, filename, suffix, sym)
 	}
 	strcat(fullsym, suffix);
 	*sym = linker_file_lookup_symbol(lf, fullsym, 0);
+	ExFreePool(fullsym);
 	if (*sym == 0)
 		return(ENOENT);
 
@@ -2600,14 +2633,14 @@ NdisOpenFile(status, filehandle, filelength, filename, highestaddr)
 	struct vattr		vat;
 	struct vattr		*vap = &vat;
 	ndis_fh			*fh;
-	char			path[MAXPATHLEN];
+	char			*path;
 	linker_file_t		head, lf;
 	caddr_t			kldstart, kldend;
 
 	ndis_unicode_to_ascii(filename->us_buf,
 	    filename->us_len, &afilename);
 
-	fh = malloc(sizeof(ndis_fh), M_TEMP, M_NOWAIT);
+	fh = ExAllocatePoolWithTag(NonPagedPool, sizeof(ndis_fh), 0);
 	if (fh == NULL) {
 		*status = NDIS_STATUS_RESOURCES;
 		return;
@@ -2666,7 +2699,13 @@ NdisOpenFile(status, filehandle, filelength, filename, highestaddr)
 		return;
 	}
 
-	sprintf(path, "%s/%s", ndis_filepath, afilename);
+	path = ExAllocatePoolWithTag(NonPagedPool, MAXPATHLEN, 0);
+	if (path == NULL) {
+		*status = NDIS_STATUS_RESOURCES;
+		return;
+	}
+
+	snprintf(path, MAXPATHLEN, "%s/%s", ndis_filepath, afilename);
 	free(afilename, M_DEVBUF);
 
 	mtx_lock(&Giant);
@@ -2685,10 +2724,13 @@ NdisOpenFile(status, filehandle, filelength, filename, highestaddr)
 	if (error) {
 		mtx_unlock(&Giant);
 		*status = NDIS_STATUS_FILE_NOT_FOUND;
-		free(fh, M_TEMP);
+		ExFreePool(fh);
 		printf("NDIS: open file %s failed: %d\n", path, error);
+		ExFreePool(path);
 		return;
 	}
+
+	ExFreePool(path);
 
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 
@@ -2748,7 +2790,7 @@ NdisMapFile(status, mappedbuffer, filehandle)
 		return;
 	}
 
-	fh->nf_map = malloc(fh->nf_maplen, M_DEVBUF, M_NOWAIT);
+	fh->nf_map = ExAllocatePoolWithTag(NonPagedPool, fh->nf_maplen, 0);
 
 	if (fh->nf_map == NULL) {
 		*status = NDIS_STATUS_RESOURCES;
@@ -2781,7 +2823,7 @@ NdisUnmapFile(filehandle)
 		return;
 
 	if (fh->nf_type == NDIS_FH_TYPE_VFS)
-		free(fh->nf_map, M_DEVBUF);
+		ExFreePool(fh->nf_map);
 	fh->nf_map = NULL;
 
 	return;
@@ -2800,7 +2842,7 @@ NdisCloseFile(filehandle)
 	fh = (ndis_fh *)filehandle;
 	if (fh->nf_map != NULL) {
 		if (fh->nf_type == NDIS_FH_TYPE_VFS)
-			free(fh->nf_map, M_DEVBUF);
+			ExFreePool(fh->nf_map);
 		fh->nf_map = NULL;
 	}
 
@@ -2814,7 +2856,7 @@ NdisCloseFile(filehandle)
 	}
 
 	fh->nf_vp = NULL;
-	free(fh, M_DEVBUF);
+	ExFreePool(fh);
 
 	return;
 }
