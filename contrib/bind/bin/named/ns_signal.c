@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)ns_main.c	4.55 (Berkeley) 7/1/91";
-static const char rcsid[] = "$Id: ns_signal.c,v 8.12 2000/04/21 06:54:12 vixie Exp $";
+static const char rcsid[] = "$Id: ns_signal.c,v 8.13 2000/07/11 07:10:12 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -245,6 +245,9 @@ init_signals(void) {
 			      "sigaction failed in set_signal_handler(%d): %s",
 				 sighandlers[sh].sig, strerror(errno));
 	}
+	/* Unblock all signals that we expect to handle. */
+	if (sigprocmask(SIG_UNBLOCK, &mask, NULL) < 0)
+		ns_panic(ns_log_os, 1, "sigblock failed: %s", strerror(errno));
 }
 
 void

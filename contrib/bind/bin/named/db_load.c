@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)db_load.c	4.38 (Berkeley) 3/2/91";
-static const char rcsid[] = "$Id: db_load.c,v 8.103 2000/04/21 06:54:02 vixie Exp $";
+static const char rcsid[] = "$Id: db_load.c,v 8.104 2000/07/17 07:48:09 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -530,7 +530,7 @@ db_load(const char *filename, const char *in_origin,
 					ns_warning(ns_log_load,
 					   "Zone \"%s\" (file %s): %s",
 						zp->z_origin, filename,
-			"No default TTL set using SOA minimum instead");
+		"No default TTL ($TTL <value>) set, using SOA minimum instead");
 					default_warn = 0;
 				}
 				ttl = (u_int32_t)default_ttl;

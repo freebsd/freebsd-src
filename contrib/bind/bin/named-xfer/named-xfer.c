@@ -130,7 +130,7 @@ char copyright[] =
 
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)named-xfer.c	4.18 (Berkeley) 3/7/91";
-static const char rcsid[] = "$Id: named-xfer.c,v 8.93 2000/04/20 07:33:47 vixie Exp $";
+static const char rcsid[] = "$Id: named-xfer.c,v 8.94 2000/07/11 05:38:27 vixie Exp $";
 #endif /* not lint */
 
 #include "port_before.h"
@@ -1215,6 +1215,7 @@ getzone(struct zoneinfo *zp, u_int32_t serial_no, int port) {
 		 * the response.
 		 */
 		loop_cnt = 0;
+		bp = NULL;
 		do {
 			u_char *cp4;
 			u_short type, class, dlen;
@@ -1225,6 +1226,9 @@ getzone(struct zoneinfo *zp, u_int32_t serial_no, int port) {
 				goto badsoa;
 			}
 			tmp += n;
+
+			if (loop_cnt == 0)
+				bp = tmp;
 
 			/* Are type, class, and ttl OK? */
 			cp4 = tmp;	/* Leave tmp pointing to type field */
@@ -1246,7 +1250,6 @@ getzone(struct zoneinfo *zp, u_int32_t serial_no, int port) {
 				break;
 			  }
 			  if ((methode == ISIXFR) && (loop_cnt == 0)) {
-				bp = tmp;
 			  	soa_cnt++;
 				badsoa_msg = soa_zinfo(&zp_finish, tmp, eom);
 				if (badsoa_msg)

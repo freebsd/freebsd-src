@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: ns_update.c,v 8.78 2000/04/23 02:19:00 vixie Exp $";
+static const char rcsid[] = "$Id: ns_update.c,v 8.81 2000/07/11 09:25:14 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -286,16 +286,24 @@ printupdatelog(struct sockaddr_in srcaddr,
 	if (fp == NULL)
 		return;
 
-	ifp = open_ixfr_log(zp);
-	if (ifp == NULL) {
-		(void) close_transaction_log(zp, fp);
-		return;
+	if (zp->z_maintain_ixfr_base == 1) {
+		ifp = open_ixfr_log(zp);
+		if (ifp == NULL) {
+			(void) close_transaction_log(zp, fp);
+			return;
+		}
 	}
+	else
+		ifp = NULL;
+
 	sprintf(time, "at %lu", (u_long)tt.tv_sec);
 	fprintf(fp, "[DYNAMIC_UPDATE] id %u from %s %s (named pid %ld):\n",
 	        ntohs(hp->id), sin_ntoa(srcaddr), time, (long)getpid());
-	fprintf(ifp, "[DYNAMIC_UPDATE] id %u from %s %s (named pid %ld):\n",
-	        ntohs(hp->id), sin_ntoa(srcaddr), time, (long)getpid());
+	if (ifp)
+		fprintf(ifp,
+			"[DYNAMIC_UPDATE] id %u from %s %s (named pid %ld):\n",
+			ntohs(hp->id), sin_ntoa(srcaddr), time,
+			(long)getpid());
 	for (rrecp = HEAD(*updlist); rrecp != NULL; rrecp = NEXT(rrecp, r_link)) {
 		INSIST(zp == &zones[rrecp->r_zone]);
 		switch (rrecp->r_section) {
@@ -303,9 +311,11 @@ printupdatelog(struct sockaddr_in srcaddr,
 			fprintf(fp, "zone:\torigin %s class %s serial %u\n",
 				zp->z_origin, p_class(zp->z_class),
 				old_serial);
-			fprintf(ifp, "zone:\torigin %s class %s serial %u\n",
-				zp->z_origin, p_class(zp->z_class),
-				old_serial);
+			if (ifp)
+				fprintf(ifp,
+				       "zone:\torigin %s class %s serial %u\n",
+					zp->z_origin, p_class(zp->z_class),
+					old_serial);
 			break;
 		case S_PREREQ:
 			opcode = rrecp->r_opcode;
@@ -332,15 +342,17 @@ printupdatelog(struct sockaddr_in srcaddr,
 			while (dp != NULL) {
 				if (dp->d_rcode == 0 &&
 				    !was_added(updlist, dp)) {
-					fprintf(ifp,
-						"update:\t{%s} %s. %u %s %s ",
-						"delete",
-						rrecp->r_dname,
-						dp->d_ttl,
-						p_class(dp->d_class),
-						p_type(dp->d_type));
-					(void) rdata_dump(dp, ifp);
-					fprintf(ifp, "\n");
+					if (ifp) {
+				        	fprintf(ifp,
+					        	"update:\t{%s} %s. %u %s %s ",
+						        "delete",
+						        rrecp->r_dname,
+						        dp->d_ttl,
+						        p_class(dp->d_class),
+						        p_type(dp->d_type));
+					        (void) rdata_dump(dp, ifp);
+					        fprintf(ifp, "\n");
+					}
 				}
 				dp = dp->d_next;
 			}
@@ -353,13 +365,15 @@ printupdatelog(struct sockaddr_in srcaddr,
 			    dp->d_type != T_SOA &&
 			    (dp->d_mark & D_MARK_ADDED) != 0 &&
 			    !was_deleted(updlist, dp)) {
-				fprintf(ifp, "update:\t{%s} %s. ",
-					opcodes[opcode], rrecp->r_dname);
-				fprintf(ifp, "%u ", rrecp->r_ttl);
-				fprintf(ifp, "%s ", p_class(zp->z_class));
-				fprintf(ifp, "%s ", p_type(rrecp->r_type));
-				(void) rdata_dump(dp, ifp);
-				fprintf(ifp, "\n");
+				if (ifp) {
+				        fprintf(ifp, "update:\t{%s} %s. ",
+					        opcodes[opcode], rrecp->r_dname);
+				        fprintf(ifp, "%u ", rrecp->r_ttl);
+				        fprintf(ifp, "%s ", p_class(zp->z_class));
+				        fprintf(ifp, "%s ", p_type(rrecp->r_type));
+				        (void) rdata_dump(dp, ifp);
+				        fprintf(ifp, "\n");
+				}
 			}
 			/* Update log. */
 			fprintf(fp, "update:\t{%s} %s. ",
@@ -398,13 +412,15 @@ printupdatelog(struct sockaddr_in srcaddr,
 			    dp->d_type == T_SOA &&
 			    (dp->d_mark & D_MARK_ADDED) != 0 &&
 			    !was_deleted(updlist, dp)) {
-				fprintf(ifp, "update:\t{%s} %s. ",
-					opcodes[opcode], rrecp->r_dname);
-				fprintf(ifp, "%u ", rrecp->r_ttl);
-				fprintf(ifp, "%s ", p_class(zp->z_class));
-				fprintf(ifp, "%s ", p_type(rrecp->r_type));
-				(void) rdata_dump(dp, ifp);
-				fprintf(ifp, "\n[END_DELTA]\n");
+				if (ifp) {
+				        fprintf(ifp, "update:\t{%s} %s. ",
+					        opcodes[opcode], rrecp->r_dname);
+				        fprintf(ifp, "%u ", rrecp->r_ttl);
+				        fprintf(ifp, "%s ", p_class(zp->z_class));
+				        fprintf(ifp, "%s ", p_type(rrecp->r_type));
+				        (void) rdata_dump(dp, ifp);
+				        fprintf(ifp, "\n[END_DELTA]\n");
+				}
 			}
 			break;
 		default:
@@ -413,7 +429,8 @@ printupdatelog(struct sockaddr_in srcaddr,
 	}
 	fprintf(fp, "\n");
 	(void) close_transaction_log(zp, fp);
-	(void) close_ixfr_log(zp, ifp);
+	if (ifp)
+		(void) close_ixfr_log(zp, ifp);
 }
 
 static void
@@ -547,7 +564,7 @@ process_prereq(ns_updrec *ur, int *rcodep, u_int16_t zclass) {
 	 */
 	if (rdp && (rdp->d_mark & D_MARK_FOUND) != 0) {
 		/* Already processed. */
-	        return (1);
+		return (1);
 	}
 	if (ttl != 0) {
 		ns_debug(ns_log_update, 1,
@@ -2962,32 +2979,35 @@ incr_serial(struct zoneinfo *zp) {
 		old_serial, serial, checked_ctime(&t));
 	if (close_transaction_log(zp, fp)<0)
 		return (-1);
-	ifp = open_ixfr_log(zp);
-	if (ifp == NULL)
-		return (-1);
-	dp = findzonesoa(zp);
-	if (dp) {
-		olddp = memget(DATASIZE(dp->d_size));
-		if (olddp != NULL) {
-			memcpy(olddp, dp, DATASIZE(dp->d_size));
-			cp = findsoaserial(olddp->d_data);
-			PUTLONG(old_serial, cp);
-			fprintf(ifp, "update: {delete} %s. %u %s %s ",
+	if (zp->z_maintain_ixfr_base) {
+		ifp = open_ixfr_log(zp);
+		if (ifp == NULL)
+			return (-1);
+		dp = findzonesoa(zp);
+		if (dp) {
+			olddp = memget(DATASIZE(dp->d_size));
+			if (olddp != NULL) {
+				memcpy(olddp, dp, DATASIZE(dp->d_size));
+				cp = findsoaserial(olddp->d_data);
+				PUTLONG(old_serial, cp);
+				fprintf(ifp, "update: {delete} %s. %u %s %s ",
+					zp->z_origin, dp->d_ttl,
+					p_class(dp->d_class),
+					p_type(dp->d_type));
+				(void) rdata_dump(olddp, ifp);
+				fprintf(ifp, "\n");
+				memput(olddp, DATASIZE(dp->d_size));
+			}
+			fprintf(ifp, "update: {add} %s. %u %s %s ",
 				zp->z_origin, dp->d_ttl,
-				p_class(dp->d_class), p_type(dp->d_type));
-			(void) rdata_dump(olddp, ifp);
+    				p_class(dp->d_class), p_type(dp->d_type));
+			(void) rdata_dump(dp, ifp);
 			fprintf(ifp, "\n");
-			memput(olddp, DATASIZE(dp->d_size));
 		}
-		fprintf(ifp, "update: {add} %s. %u %s %s ",
-				zp->z_origin, dp->d_ttl,
-				p_class(dp->d_class), p_type(dp->d_type));
-		(void) rdata_dump(dp, ifp);
-		fprintf(ifp, "\n");
+		fprintf(ifp, "[END_DELTA]\n");
+		if (close_ixfr_log(zp, ifp) < 0)
+			return (-1);
 	}
-	fprintf(ifp, "[END_DELTA]\n");
-	if (close_ixfr_log(zp, ifp)<0)
-		return (-1);
 
 	/*
 	 * This shouldn't happen, but we check to be sure.

@@ -1,5 +1,5 @@
 #ifdef RSAREF
-static const char rcsid[] = "$Header: /proj/cvs/isc/bind/src/lib/dst/rsaref_link.c,v 1.6 1999/10/13 16:39:24 vixie Exp $";
+static const char rcsid[] = "$Header: /proj/cvs/isc/bind/src/lib/dst/rsaref_link.c,v 1.7 2000/07/17 07:36:53 vixie Exp $";
 
 /*
  * Portions Copyright (c) 1995-1998 by Trusted Information Systems, Inc.
@@ -706,6 +706,7 @@ dst_rsaref_init_random_struct(R_RANDOM_STRUCT * randomstruct)
 	 * This must be the FIRST CALL
 	 */
 	gettimeofday(&tv, 0);
+	assert(tv.tv_usec >= 0 && tv.tv_usec < 1000000);
 	R_RandomUpdate(randomstruct, (u_char *) &tv,
 		       sizeof(struct timeval));
 

@@ -13,7 +13,7 @@
 ## ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 ## SOFTWARE.
 
-# $Id: Makefile,v 8.49 2000/05/09 07:02:22 vixie Exp $
+# $Id: Makefile,v 8.50 2000/07/11 06:41:32 vixie Exp $
 
 DESTDIR=
 CC= cc
@@ -47,7 +47,8 @@ INSTALL_LIB=-o bin -g bin
 
 PS=ps
 LDFLAGS=
-CFLAGS=	${CDEBUG} -I${PORTINCL} -I${INCL} ${DEFS}
+CFLAGS=	${CDEBUG}
+CPPFLAGS= -I${PORTINCL} -I${INCL} ${DEFS}
 
 VER= LOCAL-`date +%y%m%d.%H%M%S`
 HOSTNAMECMD= hostname || uname -n
