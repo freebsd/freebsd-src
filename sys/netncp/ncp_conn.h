@@ -201,6 +201,8 @@ int  ncp_conn_access(struct ncp_conn *conn,struct ucred *cred,mode_t mode);
 int  ncp_conn_lock(struct ncp_conn *conn,struct proc *p,struct ucred *cred,int mode);
 void ncp_conn_unlock(struct ncp_conn *conn,struct proc *p);
 int  ncp_conn_assert_locked(struct ncp_conn *conn,char *checker,struct proc *p);
+void ncp_conn_invalidate(struct ncp_conn *ncp);
+int  ncp_conn_invalid(struct ncp_conn *ncp);
 /*int  ncp_conn_ref(struct ncp_conn *conn, pid_t pid);
 int  ncp_conn_rm_ref(struct ncp_conn *conn, pid_t pid, int force);
 void ncp_conn_list_rm_ref(pid_t pid);*/

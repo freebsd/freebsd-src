@@ -251,11 +251,9 @@ ncp_request_int(struct ncp_rq *rqp)
 	struct mbchain *mbp;
 	int error, len, dosend, plen = 0, gotpacket;
 
-	if (conn->flags & NCPFL_INVALID)
-		return ENOTCONN;
 	if (so == NULL) {
 		printf("%s: ncp_so is NULL !\n",__FUNCTION__);
-		conn->flags |= NCPFL_INVALID;
+		ncp_conn_invalidate(conn);
 		return ENOTCONN;
 	}
 	if (p == NULL)
@@ -386,7 +384,7 @@ ncp_request_int(struct ncp_rq *rqp)
 		 * connection now.
 		 */
 		if (error != EINTR)
-			conn->flags |= NCPFL_INVALID;
+			ncp_conn_invalidate(conn);
 		return (error);
 	}
 	if (conn->flags & NCPFL_SIGNACTIVE) {
@@ -403,7 +401,7 @@ ncp_request_int(struct ncp_rq *rqp)
 	rqp->nr_cs = rp->connection_state;
 	if (rqp->nr_cs & (NCP_CS_BAD_CONN | NCP_CS_SERVER_DOWN)) {
 		NCPSDEBUG("server drop us\n");
-		conn->flags |= NCPFL_INVALID;
+		ncp_conn_invalidate(conn);
 		error = ECONNRESET;
 	}
 	md_get_mem(&rqp->rp, NULL, sizeof(*rp), MB_MSYSTEM);
@@ -420,13 +418,12 @@ ncp_restore_login(struct ncp_conn *conn)
 	int error;
 
 	printf("ncprq: Restoring connection, flags = %x\n", conn->flags);
-	conn->flags &= ~(NCPFL_LOGGED | NCPFL_ATTACHED);
 	conn->flags |= NCPFL_RESTORING;
 	error = ncp_conn_reconnect(conn);
 	if (!error && (conn->flags & NCPFL_WASLOGGED))
 		error = ncp_login_object(conn, conn->li.user, conn->li.objtype, conn->li.password,conn->procp,conn->ucred);
 	if (error)
-		conn->flags |= NCPFL_INVALID;
+		ncp_ncp_disconnect(conn);
 	conn->flags &= ~NCPFL_RESTORING;
 	return error;
 }
@@ -442,9 +439,9 @@ ncp_request(struct ncp_rq *rqp)
 		goto out;
 	rcnt = NCP_RESTORE_COUNT;
 	for(;;) {
-		if ((ncp->flags & NCPFL_INVALID) == 0) {
+		if (ncp->flags & NCPFL_ATTACHED) {
 			error = ncp_request_int(rqp);
-			if ((ncp->flags & NCPFL_INVALID) == 0)
+			if (ncp->flags & NCPFL_ATTACHED)
 				break;
 		}
 		if (rcnt-- == 0) {
