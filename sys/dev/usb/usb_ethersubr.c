@@ -69,16 +69,16 @@
 #include <dev/usb/usb_ethersubr.h>
 
 #ifndef lint
-static const char rcsid[] =
+Static const char rcsid[] =
   "$FreeBSD$";
 #endif
 
-static struct ifqueue usbq_rx;
-static struct ifqueue usbq_tx;
+Static struct ifqueue usbq_rx;
+Static struct ifqueue usbq_tx;
 
-static void usbintr		__P((void));
+Static void usbintr		__P((void));
 
-static void usbintr()
+Static void usbintr()
 {
 	struct ether_header	*eh;
 	struct mbuf		*m;
