@@ -46,7 +46,7 @@ struct bsdtar {
 	/* Options */
 	const char	 *filename; /* -f filename */
 	const char	 *create_format; /* -F format */
-	const char	 *start_dir; /* -C dir */
+	char		 *pending_chdir; /* -C dir */
 	const char	 *names_from_file; /* -T file */
 	int		  bytes_per_block; /* -b block_size */
 	int		  verbose;   /* -v */
@@ -100,6 +100,7 @@ void	bsdtar_errc(struct bsdtar *, int _eval, int _code,
 void	bsdtar_strmode(struct archive_entry *entry, char *bp);
 void	bsdtar_warnc(struct bsdtar *, int _code, const char *fmt, ...);
 void	cleanup_exclusions(struct bsdtar *);
+void	do_chdir(struct bsdtar *);
 int	exclude(struct bsdtar *, const char *pattern);
 int	exclude_from_file(struct bsdtar *, const char *pathname);
 int	excluded(struct bsdtar *, const char *pathname);
@@ -108,6 +109,7 @@ int	include_from_file(struct bsdtar *, const char *pathname);
 int	process_lines(struct bsdtar *bsdtar, const char *pathname,
 	    int (*process)(struct bsdtar *, const char *));
 void	safe_fprintf(FILE *, const char *fmt, ...);
+void	set_chdir(struct bsdtar *, const char *newdir);
 void	tar_mode_c(struct bsdtar *bsdtar);
 void	tar_mode_r(struct bsdtar *bsdtar);
 void	tar_mode_t(struct bsdtar *bsdtar);
