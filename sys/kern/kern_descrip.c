@@ -1216,11 +1216,9 @@ falloc(td, resultfp, resultfd)
 	 * put it at the front of the list of open files.
 	 */
 	fp->f_mtxp = mtx_pool_alloc();
-	fp->f_gcflag = 0;
 	fp->f_count = 1;
 	fp->f_cred = crhold(td->td_ucred);
 	fp->f_ops = &badfileops;
-	fp->f_seqcount = 1;
 	FILEDESC_LOCK(p->p_fd);
 	if ((fq = p->p_fd->fd_ofiles[0])) {
 		LIST_INSERT_AFTER(fq, fp, f_list);
