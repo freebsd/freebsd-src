@@ -175,11 +175,26 @@ static int
 compar(p1, p2)
 	const void *p1, *p2;
 {
-	if ((*(struct queue **)p1)->q_time < (*(struct queue **)p2)->q_time)
-		return(-1);
-	if ((*(struct queue **)p1)->q_time > (*(struct queue **)p2)->q_time)
-		return(1);
-	return(0);
+	const struct queue *qe1, *qe2;
+	qe1 = *(const struct queue **)p1;
+	qe2 = *(const struct queue **)p2;
+	
+	if (qe1->q_time < qe2->q_time)
+		return (-1);
+	if (qe1->q_time > qe2->q_time)
+		return (1);
+	/*
+	 * At this point, the two files have the same last-modification time.
+	 * return a result based on filenames, so that 'cfA001some.host' will
+	 * come before 'cfA002some.host'.  Since the jobid ('001') will wrap
+	 * around when it gets to '999', we also assume that '9xx' jobs are
+	 * older than '0xx' jobs.
+	*/
+	if ((qe1->q_name[3] == '9') && (qe2->q_name[3] == '0'))
+		return (-1);
+	if ((qe1->q_name[3] == '0') && (qe2->q_name[3] == '9'))
+		return (1);
+	return (strcmp(qe1->q_name,qe2->q_name));
 }
 
 /* sleep n milliseconds */
