@@ -460,7 +460,6 @@ archive_read_finish(struct archive *a)
 
 	/* Casting a pointer to int allows us to remove 'const.' */
 	free((void *)(uintptr_t)(const void *)a->nulls);
-	archive_string_free(&a->extract_mkdirpath);
 	archive_string_free(&a->error_string);
 	if (a->entry)
 		archive_entry_free(a->entry);
