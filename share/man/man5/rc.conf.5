@@ -2470,6 +2470,29 @@ is set to
 these are the flags to pass to the
 .Xr lpd 8
 daemon.
+.It Va chkprintcap_enable
+.Pq Vt bool
+If set to
+.Dq Li YES ,
+run the
+.Xr chkprintcap 8
+command before starting the
+.Xr lpd 8
+daemon.
+.It Va chkprintcap_flags
+.Pq Vt str
+If
+.Va lpd_enable
+and
+.Va chkprintcap_enable
+are set to
+.Dq Li YES ,
+these are the flags to pass to the
+.Xr chkprintcap 8
+program.
+The default is
+.Dq Li -d ,
+which causes missing directories to be created.
 .It Va mta_start_script
 .Pq Vt str
 This variable specifies the full path to the script to run to start
@@ -3092,6 +3115,27 @@ The default
 ruleset file to load.
 The default value of this variable is
 .Pa /etc/rc.bsdextended .
+.It Va newsyslog_enable
+.Pq Vt bool
+If set to
+.Dq Li YES ,
+run
+.Xr newsyslog 8
+command at startup.
+.It Va newsyslog_flags
+.Pq Vt str
+If
+.Va newsyslog_enable
+is set to
+.Dq Li YES ,
+these are the flags to pass to the
+.Xr newsyslog 8
+program.
+The default is
+.Dq Li -CN ,
+which causes log files flagged with a
+.Cm C
+to be created.
 .It Va ramdisk_units
 .Pq Vt str
 A list of one or more ramdisk units to configure with
@@ -3174,6 +3218,7 @@ device and the mount point will be changed.
 .Xr amd 8 ,
 .Xr apm 8 ,
 .Xr atm 8 ,
+.Xr chkprintcap 8 ,
 .Xr chown 8 ,
 .Xr cron 8 ,
 .Xr dhclient 8 ,
@@ -3190,6 +3235,7 @@ device and the mount point will be changed.
 .Xr mrouted 8 ,
 .Xr named 8 ,
 .Xr newfs 8 ,
+.Xr newsyslog 8 ,
 .Xr nfsd 8 ,
 .Xr ntpd 8 ,
 .Xr ntpdate 8 ,
