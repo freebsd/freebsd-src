@@ -44,7 +44,7 @@ The
 .Nm
 utility uses L2CAP
 .Dv ECHO_REQUEST
-datagram to elicit a L2CAP
+datagram to elicit an L2CAP
 .Dv ECHO_RESPONSE
 datagram from a remote device.
 .Pp
@@ -77,7 +77,7 @@ This option is ignored if
 has been specified.
 .It Fl n
 Numeric output only.
-No attempt will be made to lookup symbolic names for host addresses.
+No attempt will be made to look up symbolic names for host addresses.
 .It Fl S Ar source
 Specify the local device which should be used to send L2CAP
 .Dv ECHO_REQUEST
@@ -92,7 +92,8 @@ Specify the number of payload bytes to be sent.
 The default size is 44 bytes.
 It is calculated as minimum L2CAP MTU (48 bytes) minus the size of the L2CAP
 signalling command header (4 bytes).
-The maximum size is 65531 bytes. Is is calculated as maximum L2CAP MTU
+The maximum size is 65531 bytes.
+Is is calculated as maximum L2CAP MTU
 (65535 bytes) minus four bytes of payload reserved for
 .Nm
 internal use.
