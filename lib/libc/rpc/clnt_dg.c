@@ -73,7 +73,7 @@ static enum clnt_stat clnt_dg_call(CLIENT *, rpcproc_t, xdrproc_t, void *,
 static void clnt_dg_geterr(CLIENT *, struct rpc_err *);
 static bool_t clnt_dg_freeres(CLIENT *, xdrproc_t, void *);
 static void clnt_dg_abort(CLIENT *);
-static bool_t clnt_dg_control(CLIENT *, u_int, char *);
+static bool_t clnt_dg_control(CLIENT *, u_int, void *);
 static void clnt_dg_destroy(CLIENT *);
 static int __rpc_timeval_to_msec(struct timeval *);
 
@@ -626,7 +626,7 @@ static bool_t
 clnt_dg_control(cl, request, info)
 	CLIENT *cl;
 	u_int request;
-	char *info;
+	void *info;
 {
 	struct cu_data *cu = (struct cu_data *)cl->cl_private;
 	struct netbuf *addr;
@@ -663,40 +663,40 @@ clnt_dg_control(cl, request, info)
 	}
 	switch (request) {
 	case CLSET_TIMEOUT:
-		if (time_not_ok((struct timeval *)(void *)info)) {
+		if (time_not_ok((struct timeval *)info)) {
 			release_fd_lock(cu->cu_fd, mask);
 			return (FALSE);
 		}
-		cu->cu_total = *(struct timeval *)(void *)info;
+		cu->cu_total = *(struct timeval *)info;
 		break;
 	case CLGET_TIMEOUT:
-		*(struct timeval *)(void *)info = cu->cu_total;
+		*(struct timeval *)info = cu->cu_total;
 		break;
 	case CLGET_SERVER_ADDR:		/* Give him the fd address */
 		/* Now obsolete. Only for backward compatibility */
 		(void) memcpy(info, &cu->cu_raddr, (size_t)cu->cu_rlen);
 		break;
 	case CLSET_RETRY_TIMEOUT:
-		if (time_not_ok((struct timeval *)(void *)info)) {
+		if (time_not_ok((struct timeval *)info)) {
 			release_fd_lock(cu->cu_fd, mask);
 			return (FALSE);
 		}
-		cu->cu_wait = *(struct timeval *)(void *)info;
+		cu->cu_wait = *(struct timeval *)info;
 		break;
 	case CLGET_RETRY_TIMEOUT:
-		*(struct timeval *)(void *)info = cu->cu_wait;
+		*(struct timeval *)info = cu->cu_wait;
 		break;
 	case CLGET_FD:
-		*(int *)(void *)info = cu->cu_fd;
+		*(int *)info = cu->cu_fd;
 		break;
 	case CLGET_SVC_ADDR:
-		addr = (struct netbuf *)(void *)info;
+		addr = (struct netbuf *)info;
 		addr->buf = &cu->cu_raddr;
 		addr->len = cu->cu_rlen;
 		addr->maxlen = sizeof cu->cu_raddr;
 		break;
 	case CLSET_SVC_ADDR:		/* set to new address */
-		addr = (struct netbuf *)(void *)info;
+		addr = (struct netbuf *)info;
 		if (addr->len < sizeof cu->cu_raddr) {
 			release_fd_lock(cu->cu_fd, mask);
 			return (FALSE);
@@ -710,14 +710,14 @@ clnt_dg_control(cl, request, info)
 		 * first element in the call structure *.
 		 * This will get the xid of the PREVIOUS call
 		 */
-		*(u_int32_t *)(void *)info =
+		*(u_int32_t *)info =
 		    ntohl(*(u_int32_t *)(void *)cu->cu_outbuf);
 		break;
 
 	case CLSET_XID:
 		/* This will set the xid of the NEXT call */
 		*(u_int32_t *)(void *)cu->cu_outbuf =
-		    htonl(*(u_int32_t *)(void *)info - 1);
+		    htonl(*(u_int32_t *)info - 1);
 		/* decrement by 1 as clnt_dg_call() increments once */
 		break;
 
@@ -728,14 +728,14 @@ clnt_dg_control(cl, request, info)
 		 * begining of the RPC header. MUST be changed if the
 		 * call_struct is changed
 		 */
-		*(u_int32_t *)(void *)info =
+		*(u_int32_t *)info =
 		    ntohl(*(u_int32_t *)(void *)(cu->cu_outbuf +
 		    4 * BYTES_PER_XDR_UNIT));
 		break;
 
 	case CLSET_VERS:
 		*(u_int32_t *)(void *)(cu->cu_outbuf + 4 * BYTES_PER_XDR_UNIT)
-			= htonl(*(u_int32_t *)(void *)info);
+			= htonl(*(u_int32_t *)info);
 		break;
 
 	case CLGET_PROG:
@@ -745,20 +745,20 @@ clnt_dg_control(cl, request, info)
 		 * begining of the RPC header. MUST be changed if the
 		 * call_struct is changed
 		 */
-		*(u_int32_t *)(void *)info =
+		*(u_int32_t *)info =
 		    ntohl(*(u_int32_t *)(void *)(cu->cu_outbuf +
 		    3 * BYTES_PER_XDR_UNIT));
 		break;
 
 	case CLSET_PROG:
 		*(u_int32_t *)(void *)(cu->cu_outbuf + 3 * BYTES_PER_XDR_UNIT)
-			= htonl(*(u_int32_t *)(void *)info);
+			= htonl(*(u_int32_t *)info);
 		break;
 	case CLSET_ASYNC:
-		cu->cu_async = *(int *)(void *)info;
+		cu->cu_async = *(int *)info;
 		break;
 	case CLSET_CONNECT:
-		cu->cu_connect = *(int *)(void *)info;
+		cu->cu_connect = *(int *)info;
 		break;
 	default:
 		release_fd_lock(cu->cu_fd, mask);
