@@ -36,8 +36,8 @@ CFLAGS+=	-DKERBEROS
 DPADD+=		${LIBKRB}
 LDADD+=		-lkrb
 .if !defined(NOSECURE)
-DPADD+=		${LIBDES}
-LDADD+=		-ldes
+DPADD+=		${LIBCRYPTO}
+LDADD+=		-lcrypto
 .endif
 DPADD+=		${LIBGCC_PIC} ${LIBCOM_ERR}
 LDADD+=		-lgcc_pic -lcom_err
