@@ -1,6 +1,6 @@
 <!-- This is an SGML document in the linuxdoc DTD of the Tutorial for
      Configuring a FreeBSD for Dialup Services by Guy Helmer.
-     $Id: serial.sgml,v 1.1 1996/11/28 18:09:30 jfieber Exp $
+     $Id: serial.sgml,v 1.2 1996/12/10 15:24:16 max Exp $
      FreeBSD Japanese Documentation Project
      Original revision: 1.1
 
@@ -9,6 +9,10 @@
 <linuxdoc>
   <article>
       <title> シリアル接続の基礎
+
+<p><em>原作: FAQ</em>
+<date> 24 Nov 1996, (c) 1996
+<p><em>訳: &a.mihoko;9 December 1996.</em>
 
       <abstract> このセクションは, シリアルポートを使うための基本的
 な事柄についての概要が書かれています. もしあなたがモデムに興味がある
@@ -22,10 +26,6 @@
 <sect><heading>シリアル接続の基礎<label id="serial"></heading>
 
 <p><em>Assembled from FAQ.</em>
-
-<p><em>原作: FAQ</em>
-<date> 24 Nov 1996, (c) 1996
-<p><em>訳: &a.mihoko;9 December 1996.</em>
 
 このセクションは, シリアルポートについての一般的な情報が書かれていま
 す. あなたが求めている情報が, もしここで見つからなかった場合には, ハン
@@ -73,4 +73,4 @@
           本来, デバイスの初期状態を変更したり設定を固定するのは, 
 	  <tt/root/ だけが行うべきです. 
 	  <tt/MAKEDEV/ スクリプトがデバイスエントリを作成する時は, 
-	  これをおこない</bf/ません/. 
+	  これをおこない<bf/ません/. 
