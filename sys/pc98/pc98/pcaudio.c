@@ -148,7 +148,6 @@ static unsigned char alaw_linear[] = {
 };
 
 static int pca_sleep = 0;
-static int pca_initialized = 0;
 
 static void pcaintr(struct clockframe *frame);
 
@@ -397,11 +396,6 @@ pcaopen(dev_t dev, int flags, int fmt, struct thread *td)
 		return 0;
 	if (minor(dev) > 0)
 		return ENXIO;
-
-	if (!pca_initialized) {
-		pca_init();
-		pca_initialized = 1;
-	}
 
 	/* audio device can only be open by one process */
 	if (pca_status.open) {
