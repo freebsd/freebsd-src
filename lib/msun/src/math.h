@@ -68,8 +68,12 @@ extern const union __nan_un {
 #define	MATH_ERREXCEPT	2
 #define	math_errhandling	MATH_ERREXCEPT
 
-#ifdef	__ia64__
+/* XXX We need a <machine/math.h>. */
+#if defined(__ia64__) || defined(__sparc64__)
 #define	FP_FAST_FMA
+#endif
+#ifdef __ia64__
+#define	FP_FAST_FMAL
 #endif
 #define	FP_FAST_FMAF
 
@@ -404,19 +408,19 @@ long double	expm1l(long double);
 long double	fabsl(long double) __pure2;
 long double	fdiml(long double, long double);
 long double	floorl(long double);
-#if 0
 long double	fmal(long double, long double, long double);
-#endif
 long double	fmaxl(long double, long double) __pure2;
 long double	fminl(long double, long double) __pure2;
 #if 0
 long double	fmodl(long double, long double);
+#endif
 long double	frexpl(long double value, int *); /* fundamentally !__pure2 */
+#if 0
 long double	hypotl(long double, long double);
 #endif
 int		ilogbl(long double) __pure2;
-#if 0
 long double	ldexpl(long double, int);
+#if 0
 long double	lgammal(long double);
 long long	llrintl(long double);
 long long	llroundl(long double);
@@ -430,17 +434,21 @@ long		lroundl(long double);
 long double	modfl(long double, long double *); /* fundamentally !__pure2 */
 long double	nanl(const char *) __pure2;
 long double	nearbyintl(long double);
+#endif
 long double	nextafterl(long double, long double);
 double		nexttoward(double, long double);
 float		nexttowardf(float, long double);
 long double	nexttowardl(long double, long double);
+#if 0
 long double	powl(long double, long double);
 long double	remainderl(long double, long double);
 long double	remquol(long double, long double, int *);
 long double	rintl(long double);
 long double	roundl(long double);
+#endif
 long double	scalblnl(long double, long);
 long double	scalbnl(long double, int);
+#if 0
 long double	sinhl(long double);
 long double	sinl(long double);
 long double	sqrtl(long double);
