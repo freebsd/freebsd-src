@@ -204,6 +204,7 @@ struct mbuf {
 #define	MT_RIGHTS	12	/* access rights */
 #define	MT_IFADDR	13	/* interface address */
 #endif
+#define	MT_TAG		13	/* volatile metadata associated to pkts */
 #define	MT_CONTROL	14	/* extra-data protocol message */
 #define	MT_OOBDATA	15	/* expedited data  */
 #define	MT_NTYPES	16	/* number of mbuf types for mbtypes[] */
@@ -419,10 +420,10 @@ struct mauxtag {
  *
  * As a temporary and low impact solution to replace the even uglier
  * approach used so far in some parts of the network stack (which relies
- * on global variables), these annotations are stored in MT_CONTROL
+ * on global variables), these annotations are stored in MT_TAG
  * mbufs (or lookalikes) prepended to the actual mbuf chain.
  *
- *	m_type	= MT_CONTROL
+ *	m_type	= MT_TAG
  *	m_flags = m_tag_id
  *	m_next	= next buffer in chain.
  *
