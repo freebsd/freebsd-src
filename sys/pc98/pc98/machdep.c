@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.57 1997/09/22 12:20:41 kato Exp $
+ *	$Id: machdep.c,v 1.58 1997/09/26 09:47:04 kato Exp $
  */
 
 #include "apm.h"
@@ -47,6 +47,7 @@
 #include "opt_perfmon.h"
 #include "opt_smp.h"
 #include "opt_userconfig.h"
+#include "opt_vm86.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -105,6 +106,7 @@
 #include <machine/cons.h>
 #include <machine/bootinfo.h>
 #include <machine/md_var.h>
+#include <machine/pcb_ext.h>		/* pcb.h included via sys/user.h */
 #ifdef SMP
 #include <machine/smp.h>
 #endif
