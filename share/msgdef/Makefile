@@ -15,6 +15,12 @@ LOCALES=	af_ZA.ISO_8859-1 \
 		ru_RU.KOI8-R \
 		sv_SE.ISO_8859-1
 
+ENGLISH=	en_US.ISO_8859-1
+ENGLISHLINKS=	en_AU.ISO_8859-1 en_CA.ISO_8859-1 en_GB.ISO_8859-1 \
+		en_NZ.ISO_8859-1
+FRENCH=		fr_FR.ISO_8859-1
+FRENCHLINKS=	fr_CA.ISO_8859-1 fr_CH.ISO_8859-1
+
 LOCALEDIR=      ${DESTDIR}/usr/share/locale
 
 .SUFFIXES: .src .out
@@ -25,9 +31,15 @@ LOCALEDIR=      ${DESTDIR}/usr/share/locale
 all: ${LOCALES:S/$/.out/g}
 
 afterinstall:
-	for l in ${LOCALES}; do \
-		${INSTALL} ${COPY} -m 644 -o ${BINOWN} -g ${BINGRP} $$l.out \
-			   ${LOCALEDIR}/$$l/LC_MESSAGES; \
-	done
+.for lang in ${LOCALES}
+	${INSTALL} ${COPY} -m 644 -o ${BINOWN} -g ${BINGRP} ${lang}.out \
+			   ${LOCALEDIR}/${lang}/LC_MESSAGES
+.endfor
+.for link in ${ENGLISHLINKS}
+	ln -sf ../${ENGLISH}/LC_MESSAGES ${LOCALEDIR}/${link}/LC_MESSAGES
+.endfor
+.for link in ${FRENCHLINKS}
+	ln -sf ../${FRENCH}/LC_MESSAGES ${LOCALEDIR}/${link}/LC_MESSAGES
+.endfor
 
 .include <bsd.prog.mk>
