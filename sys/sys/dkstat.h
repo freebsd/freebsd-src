@@ -49,7 +49,7 @@
 #define	CP_IDLE		4
 #define	CPUSTATES	5
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 extern long tk_cancc;
 extern long tk_nin;

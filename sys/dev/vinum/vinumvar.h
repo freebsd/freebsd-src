@@ -643,7 +643,7 @@ enum debugflags {
     DEBUG_WARNINGS = 512,				    /* log various relatively harmless warnings  */
 };
 
-#ifdef KERNEL
+#ifdef _KERNEL
 #define longjmp LongJmp					    /* test our longjmps */
 #endif
 #endif

@@ -210,7 +210,7 @@ typedef void if_init_f_t __P((void *));
 	} \
 }
 
-#ifdef KERNEL
+#ifdef _KERNEL
 #define	IF_ENQ_DROP(ifq, m)	if_enq_drop(ifq, m)
 
 #if defined(__GNUC__) && defined(MT_HEADER)
@@ -245,7 +245,7 @@ int	if_enq_drop __P((struct ifqueue *, struct mbuf *));
 #define	IF_MINMTU	72
 #define	IF_MAXMTU	65535
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 /*
  * The ifaddr structure contains information about one address
@@ -306,7 +306,7 @@ struct ifmultiaddr {
 	void	*ifma_protospec;	/* protocol-specific state, if any */
 };
 
-#ifdef KERNEL
+#ifdef _KERNEL
 #define	IFAFREE(ifa) \
 	do { \
 		if ((ifa)->ifa_refcnt <= 0) \
@@ -364,7 +364,7 @@ struct	ifmultiaddr *ifmaof_ifpforaddr __P((struct sockaddr *,
 int	if_simloop __P((struct ifnet *ifp, struct mbuf *m,
 		struct sockaddr *dst, int hlen));
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 
 #endif /* !_NET_IF_VAR_H_ */

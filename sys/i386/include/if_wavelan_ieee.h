@@ -145,7 +145,7 @@ struct wi_sigcache {
 };
 #endif
 
-#ifndef KERNEL
+#ifndef _KERNEL
 struct wi_counters {
 	u_int32_t		wi_tx_unicast_frames;
 	u_int32_t		wi_tx_multicast_frames;

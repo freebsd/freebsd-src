@@ -49,12 +49,12 @@ struct ifnet_en {
 
 #define LOMTU	(1024+512)	/* XXX this is TINY_LOMTU */
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 void	ipxip_ctlinput __P((int cmd, struct sockaddr *sa, void *arg));
 void	ipxip_input __P((struct mbuf *m, int hlen));
 int	ipxip_route __P((struct socket *so, struct sockopt *sopt));
 
-#endif /* KERNEL */
+#endif
 
 #endif /* !_NETIPX_IPXIP_H_ */

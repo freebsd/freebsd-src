@@ -84,14 +84,14 @@ struct esp_algorithm {
 		struct secasvar *, struct esp_algorithm *, int));
 };
 
-#ifdef KERNEL
+#ifdef _KERNEL
 extern struct esp_algorithm esp_algorithms[];
 
 /* crypt routines */
 extern int esp4_output __P((struct mbuf *, struct ipsecrequest *));
 extern void esp4_input __P((struct mbuf *, int, int));
 extern size_t esp_hdrsiz __P((struct ipsecrequest *));
-#endif /*KERNEL*/
+#endif
 
 extern int esp_auth __P((struct mbuf *, size_t, size_t,
 	struct secasvar *, u_char *));

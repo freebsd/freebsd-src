@@ -29,7 +29,7 @@
 #ifndef	_SYS_DISKSLICE_H_
 #define	_SYS_DISKSLICE_H_
 
-#ifndef KERNEL
+#ifndef _KERNEL
 #include <sys/types.h>
 #endif
 #include <sys/ioccom.h>
@@ -79,7 +79,7 @@ struct diskslices {
 		dss_slices[MAX_SLICES];	/* actually usually less */
 };
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 /* Flags for dsopen(). */
 #define	DSO_NOLABELS	1
@@ -105,6 +105,6 @@ int	dsopen __P((dev_t dev, int mode, u_int flags,
 		    struct diskslices **sspp, struct disklabel *lp));
 int	dssize __P((dev_t dev, struct diskslices **sspp));
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 #endif /* !_SYS_DISKSLICE_H_ */

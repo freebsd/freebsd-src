@@ -72,7 +72,7 @@ struct ah_algorithm {
 
 #define	AH_MAXSUMSIZE	16
 
-#ifdef KERNEL
+#ifdef _KERNEL
 extern struct ah_algorithm ah_algorithms[];
 
 /* cksum routines */
@@ -83,6 +83,6 @@ extern void ah4_input __P((struct mbuf *, int, int));
 extern int ah4_output __P((struct mbuf *, struct ipsecrequest *));
 extern int ah4_calccksum __P((struct mbuf *, caddr_t,
 				struct ah_algorithm *, struct secasvar *));
-#endif /*KERNEL*/
+#endif
 
 #endif /*_NETINET6_AH_H_*/

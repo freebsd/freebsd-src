@@ -42,7 +42,7 @@
 #ifndef _SYS_ERRNO_H_
 #define _SYS_ERRNO_H_
 
-#ifndef KERNEL
+#ifndef _KERNEL
 #include <sys/cdefs.h>
 __BEGIN_DECLS
 int *	__error __P((void));
@@ -170,7 +170,7 @@ __END_DECLS
 
 #endif /* _POSIX_SOURCE */
 
-#ifdef KERNEL
+#ifdef _KERNEL
 /* pseudo-errors returned inside kernel to modify return to process */
 #define	ERESTART	(-1)		/* restart syscall */
 #define	EJUSTRETURN	(-2)		/* don't modify regs, just return */

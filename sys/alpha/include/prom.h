@@ -94,7 +94,7 @@ int	prom_getenv __P((int, char *, int));
 	prom_dispatch(PROM_R_GETENV, id, (u_int64_t)buf, len, 0)
 
 #ifndef ASSEMBLER
-#ifdef KERNEL
+#ifdef _KERNEL
 void	promcnputc __P((dev_t, int));
 int	promcngetc __P((dev_t));
 int	promcncheckc __P((dev_t));
@@ -102,5 +102,5 @@ int	promcncheckc __P((dev_t));
 u_int64_t	prom_dispatch __P((u_int64_t, u_int64_t, u_int64_t, u_int64_t,
 		    u_int64_t));
 void		init_bootstrap_console __P((void));
-#endif /* KERNEL */
+#endif /* _KERNEL */
 #endif /* ASSEMBLER */

@@ -89,7 +89,7 @@ struct pollfd {
  */
 #define	INFTIM		(-1)
 
-#ifndef KERNEL
+#ifndef _KERNEL
 
 #include <sys/cdefs.h>
 
@@ -103,6 +103,6 @@ __BEGIN_DECLS
 int	poll __P((struct pollfd *_pfd, unsigned _nfds, int _timeout));
 __END_DECLS
 
-#endif /* !KERNEL */
+#endif /* !_KERNEL */
 
 #endif /* !_SYS_POLL_H_ */

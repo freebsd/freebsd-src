@@ -29,7 +29,7 @@
 #ifndef _SYS_BUS_H_
 #define _SYS_BUS_H_
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 #include <sys/queue.h>
 
@@ -364,6 +364,6 @@ static moduledata_t name##_##busname##_mod = {				\
 DECLARE_MODULE(name##_##busname, name##_##busname##_mod,		\
 	       SI_SUB_DRIVERS, SI_ORDER_MIDDLE)
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 #endif /* !_SYS_BUS_H_ */

@@ -137,14 +137,14 @@ typedef unsigned int *pt_entry_t;
  * Address of current and alternate address space page table maps
  * and directories.
  */
-#ifdef KERNEL
+#ifdef _KERNEL
 extern pt_entry_t PTmap[], APTmap[], Upte;
 extern pd_entry_t PTD[], APTD[], PTDpde, APTDpde, Upde;
 
 extern pd_entry_t IdlePTD;	/* physical address of "Idle" state directory */
 #endif
 
-#ifdef KERNEL
+#ifdef _KERNEL
 /*
  * virtual address to page table entry and
  * to physical address. Likewise for alternate address space.
@@ -208,7 +208,7 @@ struct pmap {
 
 typedef struct pmap	*pmap_t;
 
-#ifdef KERNEL
+#ifdef _KERNEL
 extern pmap_t		kernel_pmap;
 #endif
 
@@ -229,7 +229,7 @@ typedef struct pv_entry {
 #define	PV_CI		0x01	/* all entries must be cache inhibited */
 #define	PV_PTPAGE	0x02	/* entry maps a page table page */
 
-#ifdef	KERNEL
+#ifdef	_KERNEL
 
 #define NPPROVMTRR		8
 #define PPRO_VMTRRphysBase0	0x200
@@ -260,7 +260,7 @@ vm_page_t pmap_use_pt __P((pmap_t, vm_offset_t));
 void	pmap_set_opt __P((void));
 #endif
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 #endif /* !LOCORE */
 

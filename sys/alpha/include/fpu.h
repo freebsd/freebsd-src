@@ -115,7 +115,7 @@
 	__asm__("mt_fpcr %0" : : "f" (x)); \
 	__asm__("trapb")
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 extern int fp_software_completion(u_int64_t regmask, struct proc *p);
 

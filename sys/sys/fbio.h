@@ -42,7 +42,7 @@
 #ifndef _SYS_FBIO_H_
 #define _SYS_FBIO_H_
 
-#ifndef KERNEL
+#ifndef _KERNEL
 #include <sys/types.h>
 #endif
 #include <sys/ioccom.h>

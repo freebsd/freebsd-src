@@ -89,7 +89,7 @@ struct arpreq {
 #define	ATF_PUBL	0x08	/* publish entry (respond for other host) */
 #define	ATF_USETRAILERS	0x10	/* has requested trailers */
 
-#ifdef KERNEL
+#ifdef _KERNEL
 /*
  * Structure shared between the ethernet driver modules and
  * the address resolution code.  For example, each ec_softc or il_softc

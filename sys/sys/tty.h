@@ -130,7 +130,7 @@ struct tty {
 #define	TTYHOG	1024
 #endif
 
-#ifdef KERNEL
+#ifdef _KERNEL
 #define	TTMAXHIWAT	roundup(2048, CBSIZE)
 #define	TTMINHIWAT	roundup(100, CBSIZE)
 #define	TTMAXLOWAT	256
@@ -220,7 +220,7 @@ struct speedtab {
 #define	TSA_PTC_WRITE(tp)	((void *)&(tp)->t_rawq.c_cl)
 #define	TSA_PTS_READ(tp)	((void *)&(tp)->t_canq)
 
-#ifdef KERNEL
+#ifdef _KERNEL
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_TTYS);
 #endif
@@ -271,6 +271,6 @@ int	 ttywait __P((struct tty *tp));
 int	 ttywrite __P((dev_t dev, struct uio *uio, int flag));
 int	 unputc __P((struct clist *q));
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 #endif /* !_SYS_TTY_H_ */

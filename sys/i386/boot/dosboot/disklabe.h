@@ -103,7 +103,7 @@ struct disklabel {
 	 * as found in /boot.  These are returned when using
 	 * getdiskbyname(3) to retrieve the values from /etc/disktab.
 	 */
-#if defined(KERNEL) || defined(STANDALONE)
+#if defined(_KERNEL) || defined(STANDALONE)
 	char	d_packname[16];			/* pack identifier */ 
 #else
 	union {
@@ -116,7 +116,7 @@ struct disklabel {
 #define d_packname	d_un.un_d_packname
 #define d_boot0		d_un.un_b.un_d_boot0
 #define d_boot1		d_un.un_b.un_d_boot1
-#endif	/* ! KERNEL or STANDALONE */
+#endif	/* ! _KERNEL or STANDALONE */
 			/* disk geometry: */
 	u_long	d_secsize;		/* # of bytes per sector */
 	u_long	d_nsectors;		/* # of data sectors per track */
@@ -387,7 +387,7 @@ char *	readMBRtolabel __P(( dev_t dev , void (*strat)(), register struct disklab
 #endif
 #endif
 
-#if !defined(KERNEL) && !defined(LOCORE)
+#if !defined(_KERNEL) && !defined(LOCORE)
 
 #include "cdefs.h"
 

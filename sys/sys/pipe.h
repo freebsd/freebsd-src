@@ -24,7 +24,7 @@
 #ifndef _SYS_PIPE_H_
 #define _SYS_PIPE_H_
 
-#ifndef KERNEL
+#ifndef _KERNEL
 #include <sys/time.h>			/* for struct timespec */
 #include <sys/select.h>			/* for struct selinfo */
 #include <vm/vm.h>			/* for vm_page_t */

@@ -92,7 +92,7 @@ struct msginfo {
 		msgssz,		/* size of a message segment (see notes above) */
 		msgseg;		/* number of message segments */
 };
-#ifdef KERNEL
+#ifdef _KERNEL
 extern struct msginfo	msginfo;
 
 #ifndef MSGSSZ
@@ -141,9 +141,9 @@ extern struct msqid_ds *msqids;	/* MSGMNI msqid_ds struct's */
 
 #define MSG_LOCKED	01000	/* Is this msqid_ds locked? */
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
-#ifndef KERNEL
+#ifndef _KERNEL
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
@@ -153,6 +153,6 @@ int msgget __P((key_t, int));
 int msgsnd __P((int, void *, size_t, int));
 int msgrcv __P((int, void*, size_t, long, int));
 __END_DECLS
-#endif /* !KERNEL */
+#endif
 
 #endif /* !_SYS_MSG_H_ */

@@ -135,7 +135,7 @@ struct ncp_conn_stat {
 	char		user[NCP_MAXUSERNAMELEN+1];
 };
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 #ifndef LK_SHARED
 #include <sys/lock.h>
@@ -234,5 +234,5 @@ extern int ncp_burst_enabled;
 MALLOC_DECLARE(M_NCPDATA);
 #endif
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 #endif /* _NCP_CONN_H_ */

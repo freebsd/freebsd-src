@@ -144,7 +144,7 @@ struct mii_attach_args {
 };
 typedef struct mii_attach_args mii_attach_args_t;
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 #define PHY_READ(p, r) \
 	MIIBUS_READREG((p)->mii_dev, (p)->mii_phy, (r))
@@ -173,6 +173,6 @@ int	mii_phy_auto __P((struct mii_softc *, int));
 void	mii_phy_reset __P((struct mii_softc *));
 
 void	ukphy_status __P((struct mii_softc *));
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 #endif /* _DEV_MII_MIIVAR_H_ */

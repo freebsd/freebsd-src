@@ -36,7 +36,7 @@
 #ifndef _NETINET6_AH6_H_
 #define	_NETINET6_AH6_H_
 
-#ifdef KERNEL
+#ifdef _KERNEL
 struct secasvar;
 
 extern int ah6_input __P((struct mbuf **, int *, int));
@@ -44,6 +44,6 @@ extern int ah6_output __P((struct mbuf *, u_char *, struct mbuf *,
 	struct ipsecrequest *));
 extern int ah6_calccksum __P((struct mbuf *, caddr_t,
 			      struct ah_algorithm *, struct secasvar *));
-#endif /*KERNEL*/
+#endif
 
 #endif /*_NETINET6_AH6_H_*/

@@ -60,7 +60,7 @@ static char	*tanames[] =
 
 #define	TCP_NDEBUG 100
 
-#ifndef KERNEL
+#ifndef _KERNEL
 /* XXX common variables for broken applications. */
 struct	tcp_debug tcp_debug[TCP_NDEBUG];
 int	tcp_debx;

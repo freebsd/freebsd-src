@@ -80,7 +80,7 @@ struct	ether_addr {
 #define	ETHERMTU	(ETHER_MAX_LEN-ETHER_HDR_LEN-ETHER_CRC_LEN)
 #define	ETHERMIN	(ETHER_MIN_LEN-ETHER_HDR_LEN-ETHER_CRC_LEN)
 
-#ifndef KERNEL
+#ifndef _KERNEL
 #include <sys/cdefs.h>
 
 /*
@@ -93,6 +93,6 @@ int	ether_line __P((char *, struct ether_addr *, char *));
 char 	*ether_ntoa __P((struct ether_addr *));
 int	ether_ntohost __P((char *, struct ether_addr *));
 __END_DECLS
-#endif /* !KERNEL */
+#endif
 
 #endif /* !_NET_ETHERNET_H_ */

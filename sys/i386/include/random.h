@@ -56,7 +56,7 @@
 #define	MEM_CLEARIRQ	_IOW('r', 2, u_int16_t)	/* clear interrupt */
 #define	MEM_RETURNIRQ	_IOR('r', 3, u_int16_t)	/* return interrupt */
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 /* Type of the cookie passed to add_interrupt_randomness. */
 
@@ -85,6 +85,6 @@ u_int write_random(const char *buf, u_int nbytes);
 #endif
 int random_poll(dev_t dev, int events, struct proc *p);
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 #endif /* !_MACHINE_RANDOM_H_ */

@@ -93,7 +93,7 @@ struct nameidata {
 	} ni_cnd;
 };
 
-#ifdef KERNEL
+#ifdef _KERNEL
 /*
  * namei operations
  */
@@ -206,7 +206,7 @@ NDINIT(ndp, op, flags, segflg, namep, p)
 
 #endif
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 int	namei __P((struct nameidata *ndp));
 int	lookup __P((struct nameidata *ndp));

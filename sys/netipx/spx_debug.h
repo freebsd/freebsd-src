@@ -61,19 +61,19 @@ char	*spxnames[] =
 #endif
 
 #define	SPX_NDEBUG 100
-#ifndef KERNEL
+#ifndef _KERNEL
 /* XXX common variables for broken applications. */
 struct	spx_debug spx_debug[SPX_NDEBUG];
 int	spx_debx;
 #endif
 
-#ifdef KERNEL
+#ifdef _KERNEL
 extern char *prurequests[];
 extern char *sanames[];
 extern char *tcpstates[];
 
 void	spx_trace __P((int act, int ostate, struct spxpcb *sp, struct spx *si,
 		       int req));
-#endif /* KERNEL */
+#endif
 
 #endif /* !_NETIPX_SPX_DEBUG_H_ */

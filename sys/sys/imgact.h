@@ -58,7 +58,7 @@ struct image_params {
 	unsigned long ps_strings; /* PS_STRINGS for BSD/OS binaries */
 };
 
-#ifdef KERNEL
+#ifdef _KERNEL
 int	exec_check_permissions __P((struct image_params *));
 int	exec_extract_strings __P((struct image_params *));
 int	exec_new_vmspace __P((struct image_params *));

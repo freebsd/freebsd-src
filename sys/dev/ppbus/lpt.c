@@ -62,7 +62,7 @@
  */
 
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -75,7 +75,7 @@
 
 #include <machine/clock.h>
 #include <machine/lpt.h>
-#endif /*KERNEL*/
+#endif
 
 #include <dev/ppbus/ppbconf.h>
 #include <dev/ppbus/ppb_1284.h>
@@ -154,14 +154,14 @@ static void			lptintr(int unit);
 
 static void			lpt_intr(int unit);	/* without spls */
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 static struct ppb_driver lptdriver = {
     lptprobe, lptattach, LPT_NAME
 };
 DATA_SET(ppbdriver_set, lptdriver);
 
-#endif /* KERNEL */
+#endif
 
 /* bits for state */
 #define	OPEN		(1<<0)	/* device is open */

@@ -29,7 +29,7 @@
 #ifndef _SYS_LINKER_H_
 #define _SYS_LINKER_H_
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 #include <machine/elf.h>
 
@@ -198,7 +198,7 @@ int linker_ddb_search_symbol(caddr_t value, c_linker_sym_t *sym, long *diffp);
 int linker_ddb_symbol_values(c_linker_sym_t sym, linker_symval_t *symval);
 
 
-#endif	/* KERNEL */
+#endif	/* _KERNEL */
 
 /*
  * Module information subtypes
@@ -221,7 +221,7 @@ int linker_ddb_symbol_values(c_linker_sym_t sym, linker_symval_t *symval);
 
 #define MODINFOMD_DEPLIST	(0x4001 | MODINFOMD_NOCOPY)	/* depends on */
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 /*
  * Module lookup
@@ -257,7 +257,7 @@ int	elf_reloc(linker_file_t lf, const void *rel, int type, const char *sym);
 #define ELF_RELOC_REL	1
 #define ELF_RELOC_RELA	2
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 struct kld_file_stat {
     int		version;	/* set to sizeof(linker_file_stat) */
@@ -276,7 +276,7 @@ struct kld_sym_lookup {
 };
 #define KLDSYM_LOOKUP	1
 
-#ifndef KERNEL
+#ifndef _KERNEL
 
 #include <sys/cdefs.h>
 

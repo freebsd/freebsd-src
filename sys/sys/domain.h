@@ -63,7 +63,7 @@ struct	domain {
 	int	dom_maxrtkey;		/* for routing layer */
 };
 
-#ifdef KERNEL
+#ifdef _KERNEL
 extern struct	domain *domains;
 extern struct	domain localdomain;
 extern void	net_add_domain(void *);

@@ -133,7 +133,7 @@
 #define PSM_BALLPOINT_ID	2
 #define PSM_INTELLI_ID		3
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 #define ATKBDC_DRIVER_NAME	"atkbdc"
 
@@ -242,6 +242,6 @@ void kbdc_set_device_mask(KBDC kbdc, int mask);
 int get_controller_command_byte(KBDC kbdc);
 int set_controller_command_byte(KBDC kbdc, int command, int flag);
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 #endif /* !_DEV_KBD_ATKBDCREG_H_ */

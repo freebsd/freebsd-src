@@ -12,6 +12,8 @@
  * all derivative works or modified versions.
  *
  * Version 1.9, Wed Oct  4 18:58:15 MSK 1995
+ *
+ * $FreeBSD$
  */
 /*
  * Asynchronous channel mode -------------------------------------------------
@@ -409,7 +411,7 @@ typedef struct _chan_t {
 	unsigned long btphys;           /* transmitter B phys address */
 	unsigned char dtr;              /* DTR signal value */
 	unsigned char rts;              /* RTS signal value */
-#ifdef KERNEL
+#ifdef _KERNEL
 	struct tty *ttyp;               /* tty structure pointer */
 	struct ifnet *ifp;              /* network interface data */
 	struct ifnet *master;           /* master interface, or ==ifp */
@@ -465,7 +467,7 @@ typedef struct _board_t {
 
 #define CX_SPEED_DFLT	9600
 
-#ifdef KERNEL
+#ifdef _KERNEL
 int cx_probe_board (int port);
 void cx_init (cx_board_t *b, int num, int port, int irq, int dma);
 void cx_setup_board (cx_board_t *b);

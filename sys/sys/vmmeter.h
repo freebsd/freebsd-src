@@ -93,7 +93,7 @@ struct vmmeter {
 	u_int v_interrupt_free_min; /* reserved number of pages for int code */
 	u_int v_free_severe;	/* severe depletion of pages below this pt */
 };
-#ifdef KERNEL
+#ifdef _KERNEL
 
 extern struct vmmeter cnt;
 

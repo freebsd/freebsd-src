@@ -20,11 +20,11 @@ struct jail {
 	u_int32_t	ip_number;
 };
 
-#ifndef KERNEL
+#ifndef _KERNEL
 
 int jail __P((struct jail *));
 
-#else /* KERNEL */
+#else /* _KERNEL */
 
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_PRISON);
@@ -43,5 +43,5 @@ struct prison {
 	void		*pr_linux;
 };
 
-#endif /* !KERNEL */
+#endif /* !_KERNEL */
 #endif /* !_SYS_JAIL_H_ */

@@ -1,6 +1,8 @@
 /*
  * Copyright (c) 1990,1991 Regents of The University of Michigan.
  * All Rights Reserved.
+ *
+ * $FreeBSD$
  */
 
 #ifndef _NETATALK_AARP_H_
@@ -53,7 +55,7 @@ struct aarptab {
 #define AARPOP_RESPONSE	0x02
 #define AARPOP_PROBE	0x03
 
-#ifdef KERNEL
+#ifdef _KERNEL
 struct aarptab		*aarptnew(struct at_addr      *);
 #endif
 

@@ -26,7 +26,7 @@
 #ifndef	_SYS_CDIO_H_
 #define	_SYS_CDIO_H_
 
-#ifndef KERNEL
+#ifndef _KERNEL
 #include <sys/types.h>
 #endif
 #include <sys/ioccom.h>

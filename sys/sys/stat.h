@@ -42,7 +42,7 @@
 #ifndef _SYS_STAT_H_
 #define	_SYS_STAT_H_
 
-#if !defined(KERNEL) && !defined(_POSIX_SOURCE)
+#if !defined(_KERNEL) && !defined(_POSIX_SOURCE)
 /*
  * XXX we need this for struct timespec.  We get miscellaneous namespace
  * pollution with it.
@@ -50,7 +50,7 @@
 #include <sys/time.h>
 #endif
 
-#ifdef KERNEL
+#ifdef _KERNEL
 #define __dev_t	udev_t
 #else
 #define __dev_t	dev_t
@@ -223,7 +223,7 @@ struct nstat {
 #define	SF_APPEND	0x00040000	/* writes to file may only append */
 #define	SF_NOUNLINK	0x00100000	/* file may not be removed or renamed */
 
-#ifdef KERNEL
+#ifdef _KERNEL
 /*
  * Shorthand abbreviations of above.
  */
@@ -235,7 +235,7 @@ struct nstat {
 
 #endif /* !_POSIX_SOURCE */
 
-#ifndef KERNEL
+#ifndef _KERNEL
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
@@ -255,6 +255,6 @@ int	lstat __P((const char *, struct stat *));
 #endif
 __END_DECLS
 
-#endif /* !KERNEL */
+#endif /* !_KERNEL */
 
 #endif /* !_SYS_STAT_H_ */

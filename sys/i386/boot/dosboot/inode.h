@@ -264,5 +264,5 @@ extern int indirtrunc(struct inode *, daddr_t, daddr_t, int, long *);
 extern int bmap(struct inode *, daddr_t, daddr_t *);
 extern int balloc(struct inode *, daddr_t, int, struct buf **, int);
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 #endif /* _UFS_INODE_H_ */

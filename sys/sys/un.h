@@ -46,7 +46,7 @@ struct	sockaddr_un {
 	char	sun_path[104];		/* path name (gag) */
 };
 
-#ifdef KERNEL
+#ifdef _KERNEL
 struct mbuf;
 struct socket;
 
@@ -57,12 +57,12 @@ void	unp_dispose __P((struct mbuf *m));
 int	unp_externalize __P((struct mbuf *rights));
 void	unp_init __P((void));
 extern	struct pr_usrreqs uipc_usrreqs;
-#else /* !KERNEL */
+#else /* !_KERNEL */
 
 /* actual length of an initialized sockaddr_un */
 #define SUN_LEN(su) \
 	(sizeof(*(su)) - sizeof((su)->sun_path) + strlen((su)->sun_path))
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 #endif /* !_SYS_UN_H_ */

@@ -19,6 +19,8 @@
  *	Ann Arbor, Michigan
  *	+1-313-763-0525
  *	netatalk@itd.umich.edu
+ *
+ * $FreeBSD$
  */
 
 #ifndef _NETATALK_AT_VAR_H_
@@ -57,7 +59,7 @@ struct at_aliasreq {
 #define AFA_PROBING	0x0002
 #define AFA_PHASE2	0x0004
 
-#ifdef KERNEL
+#ifdef _KERNEL
 extern struct at_ifaddr	*at_ifaddr;
 extern struct ifqueue	atintrq1, atintrq2;
 #endif

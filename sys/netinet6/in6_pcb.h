@@ -67,7 +67,7 @@
 #ifndef _NETINET6_IN6_PCB_H_
 #define	_NETINET6_IN6_PCB_H_
 
-#ifdef KERNEL
+#ifdef _KERNEL
 #define	satosin6(sa)	((struct sockaddr_in6 *)(sa))
 #define	sin6tosa(sin6)	((struct sockaddr *)(sin6))
 #define	ifatoia6(ifa)	((struct in6_ifaddr *)(ifa))
@@ -103,6 +103,6 @@ struct	in6_addr *in6_selectsrc __P((struct sockaddr_in6 *,
 int	in6_selecthlim __P((struct inpcb *, struct ifnet *));
 
 void	init_sin6 __P((struct sockaddr_in6 *sin6, struct mbuf *m));
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 #endif /* !_NETINET6_IN6_PCB_H_ */

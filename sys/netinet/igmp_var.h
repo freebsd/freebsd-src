@@ -62,7 +62,7 @@ struct igmpstat {
 	u_int	igps_snd_reports;	/* sent membership reports */
 };
 
-#ifdef KERNEL
+#ifdef _KERNEL
 #define IGMP_RANDOM_DELAY(X) (random() % (X) + 1)
 
 /*

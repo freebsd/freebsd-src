@@ -32,9 +32,9 @@
 #ifndef _SYS_RMAN_H_
 #define	_SYS_RMAN_H_	1
 
-#ifndef	KERNEL
+#ifndef	_KERNEL
 #include <sys/queue.h>
-#endif /* !KERNEL */
+#endif
 
 /*
  * We use a linked list rather than a bitmap because we need to be able to
@@ -77,7 +77,7 @@ struct	rman {
 };
 TAILQ_HEAD(rman_head, rman);
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 int	rman_activate_resource(struct resource *r);
 int	rman_await_resource(struct resource *r, int pri, int timo);
@@ -101,6 +101,6 @@ struct	resource *rman_reserve_resource(struct rman *rm, u_long start,
 #define rman_get_bushandle(r)	((r)->r_bushandle)
 
 extern	struct rman_head rman_head;
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 #endif /* !_SYS_RMAN_H_ */

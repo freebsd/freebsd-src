@@ -53,9 +53,9 @@
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
-#define KERNEL	/* Avoid userland compatability headers */
+#define _KERNEL	/* Avoid userland compatability headers */
 #include <sys/user.h>
-#undef KERNEL
+#undef _KERNEL
 #include <net/if.h>
 #include <netinet/in.h>
 #include <nfs/nfsv2.h>

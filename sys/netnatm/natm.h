@@ -1,4 +1,5 @@
 /*	$NetBSD: natm.h,v 1.1 1996/07/04 03:20:12 chuck Exp $	*/
+/* $FreeBSD$ */
 
 /*
  *
@@ -57,11 +58,7 @@ struct sockaddr_natm {
 };
 
 
-#if defined(__FreeBSD__) && defined(KERNEL)
-
-#ifndef _KERNEL
-#define _KERNEL
-#endif
+#if defined(__FreeBSD__) && defined(_KERNEL)
 
 #define SPLSOFTNET() splnet()
 

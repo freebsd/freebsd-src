@@ -49,7 +49,7 @@
  */
 typedef u_int16_t comp_t;
 
-#ifdef KERNEL
+#ifdef _KERNEL
 #define __dev_t udev_t
 #else
 #define __dev_t dev_t
@@ -83,7 +83,7 @@ struct acct {
  */
 #define	AHZ	64
 
-#ifdef KERNEL
+#ifdef _KERNEL
 struct proc;
 
 int	acct_process __P((struct proc *p));

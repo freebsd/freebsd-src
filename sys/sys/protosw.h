@@ -44,7 +44,7 @@ struct sockaddr;
 struct socket;
 struct sockopt;
 
-/*#ifdef KERNEL*/
+/*#ifdef _KERNEL*/
 /*
  * Protocol switch table.
  *
@@ -165,7 +165,7 @@ char *prurequests[] = {
 };
 #endif
 
-#ifdef	KERNEL			/* users shouldn't see this decl */
+#ifdef	_KERNEL			/* users shouldn't see this decl */
 
 struct ifnet;
 struct stat;
@@ -240,7 +240,7 @@ int	pru_rcvd_notsupp __P((struct socket *so, int flags));
 int	pru_rcvoob_notsupp __P((struct socket *so, struct mbuf *m, int flags));
 int	pru_sense_null __P((struct socket *so, struct stat *sb));
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 /*
  * The arguments to the ctlinput routine are
@@ -310,7 +310,7 @@ char	*prcorequests[] = {
 };
 #endif
 
-#ifdef KERNEL
+#ifdef _KERNEL
 void	pfctlinput __P((int, struct sockaddr *));
 struct protosw *pffindproto __P((int family, int protocol, int type));
 struct protosw *pffindtype __P((int family, int type));

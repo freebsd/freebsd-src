@@ -69,7 +69,7 @@ struct	fddi_header {
 #define FDDIFC_LLC_SYNC         0xd0
 #define	FDDIFC_SMT		0x40
 
-#if defined(KERNEL) || defined(_KERNEL)
+#if defined(_KERNEL)
 #define	fddibroadcastaddr	etherbroadcastaddr
 #define	fddi_ipmulticast_min	ether_ipmulticast_min
 #define	fddi_ipmulticast_max	ether_ipmulticast_max

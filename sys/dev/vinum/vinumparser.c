@@ -57,7 +57,7 @@
  */
 
 #include <sys/param.h>
-#ifdef KERNEL
+#ifdef _KERNEL
 #include <sys/systm.h>
 #else
 #include <ctype.h>
@@ -115,7 +115,7 @@ struct _keywords keywords[] =
     keypair(prefer),
     keypair(rename),
     keypair(detached),
-#ifndef KERNEL						    /* for vinum(8) only */
+#ifndef _KERNEL						    /* for vinum(8) only */
 #ifdef VINUMDEBUG
     keypair(debug),
     keypair(stripe),
@@ -159,7 +159,7 @@ struct _keywords keywords[] =
 };
 struct keywordset keyword_set = KEYWORDSET(keywords);
 
-#ifndef KERNEL
+#ifndef _KERNEL
 struct _keywords flag_keywords[] =
 {flagkeypair(f),
     flagkeypair(d),

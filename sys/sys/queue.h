@@ -481,7 +481,7 @@ struct {								\
 		    (elm)->field.cqe_next;				\
 } while (0)
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 /*
  * XXX insque() and remque() are an old way of handling certain queues.
@@ -523,6 +523,6 @@ void	remque __P((void *a));
 
 #endif /* __GNUC__ */
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 #endif /* !_SYS_QUEUE_H_ */

@@ -54,7 +54,7 @@ struct utsname {
 #include <sys/cdefs.h>
 
 
-#ifndef KERNEL
+#ifndef _KERNEL
 #ifdef __STDC__
 __BEGIN_DECLS
 int	uname __P((struct utsname *));
@@ -64,6 +64,6 @@ extern int uname();
 #endif
 #else
 extern struct utsname utsname;
-#endif	/* KERNEL */
+#endif	/* _KERNEL */
 
 #endif	/* !_SYS_UTSNAME_H */

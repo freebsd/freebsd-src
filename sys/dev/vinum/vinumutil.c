@@ -42,7 +42,7 @@
 
 #include <dev/vinum/vinumhdr.h>
 #include <dev/vinum/statetexts.h>
-#ifndef KERNEL
+#ifndef _KERNEL
 #include <stdio.h>
 extern jmp_buf command_fail;				    /* return on a failed command */
 #endif
@@ -219,14 +219,14 @@ sizespec(char *spec)
 		return size * sign * 1024 * 1024 * 1024;
 	    }
 	}
-#ifdef KERNEL
+#ifdef _KERNEL
 	throw_rude_remark(EINVAL, "Invalid length specification: %s", spec);
 #else
 	fprintf(stderr, "Invalid length specification: %s", spec);
 	longjmp(command_fail, -1);
 #endif
     }
-#ifdef KERNEL
+#ifdef _KERNEL
     throw_rude_remark(EINVAL, "Missing length specification");
 #else
     fprintf(stderr, "Missing length specification");

@@ -36,12 +36,12 @@
 #define KB_CONF_NO_RESET	(1 << 1) /* don't reset the keyboard */
 #define KB_CONF_ALT_SCANCODESET	(1 << 2) /* assume the XT type keyboard */
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 int		atkbd_probe_unit(int unit, int port, int irq, int flags);
 int		atkbd_attach_unit(int unit, keyboard_t **kbd,
 				 int port, int irq, int flags);
 
-#endif /* KERNEL */
+#endif
 
 #endif /* !_DEV_KBD_ATKBDREG_H_ */

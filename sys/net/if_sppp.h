@@ -161,7 +161,7 @@ struct spppreq {
 	struct sppp defs;
 };
 
-#ifdef KERNEL
+#ifdef _KERNEL
 void sppp_attach (struct ifnet *ifp);
 void sppp_detach (struct ifnet *ifp);
 void sppp_input (struct ifnet *ifp, struct mbuf *m);

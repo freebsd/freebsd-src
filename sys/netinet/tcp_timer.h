@@ -117,7 +117,7 @@ static char *tcptimers[] =
 		(tv) = (tvmax); \
 } while(0)
 
-#ifdef KERNEL
+#ifdef _KERNEL
 extern int tcp_keepinit;		/* time to establish connection */
 extern int tcp_keepidle;		/* time before keepalive probes begin */
 extern int tcp_keepintvl;		/* time between keepalive probes */
@@ -134,6 +134,6 @@ void	tcp_timer_persist __P((void *xtp));
 void	tcp_timer_rexmt __P((void *xtp));
 void	tcp_timer_delack __P((void *xtp));
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 #endif /* !_NETINET_TCP_TIMER_H_ */
