@@ -126,13 +126,6 @@ main(argc, argv)
 	int argc;
 	char * const argv[];
 {
-	const char *mntfromname, **vfslist, *vfstype;
-	struct fstab *fs;
-	struct statfs *mntbuf;
-	FILE *mountdfp;
-	pid_t pid;
-	int all, ch, i, init_flags, mntsize, rval, have_fstab;
-	char *options;
 
         mount_ifs(argc, argv);
         /* NOTREACHED */
