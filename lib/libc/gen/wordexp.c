@@ -141,7 +141,8 @@ we_askshell(const char *words, wordexp_t *we, int flags)
 	close(pdes[1]);
 	if (read(pdes[0], wbuf, 8) != 8 || read(pdes[0], bbuf, 8) != 8) {
 		close(pdes[0]);
-		return (WRDE_NOSPACE);	/* XXX */
+		waitpid(pid, &status, 0);
+		return (flags & WRDE_UNDEF ? WRDE_BADVAL : WRDE_SYNTAX);
 	}
 	wbuf[8] = bbuf[8] = '\0';
 	nwords = strtol(wbuf, NULL, 16);
@@ -154,17 +155,21 @@ we_askshell(const char *words, wordexp_t *we, int flags)
 	 */
 	sofs = we->we_nbytes;
 	vofs = we->we_wordc;
+	if ((flags & (WRDE_DOOFS|WRDE_APPEND)) == (WRDE_DOOFS|WRDE_APPEND))
+		vofs += we->we_offs;
 	we->we_wordc += nwords;
 	we->we_nbytes += nbytes;
 	if ((nwv = realloc(we->we_wordv, (we->we_wordc + 1 +
 	    (flags & WRDE_DOOFS ?  we->we_offs : 0)) *
 	    sizeof(char *))) == NULL) {
 		close(pdes[0]);
+		waitpid(pid, &status, 0);
 		return (WRDE_NOSPACE);
 	}
 	we->we_wordv = nwv;
 	if ((nstrings = realloc(we->we_strings, we->we_nbytes)) == NULL) {
 		close(pdes[0]);
+		waitpid(pid, &status, 0);
 		return (WRDE_NOSPACE);
 	}
 	for (i = 0; i < vofs; i++)
@@ -174,7 +179,8 @@ we_askshell(const char *words, wordexp_t *we, int flags)
 
 	if (read(pdes[0], we->we_strings + sofs, nbytes) != nbytes) {
 		close(pdes[0]);
-		return (WRDE_NOSPACE);	/* XXX */
+		waitpid(pid, &status, 0);
+		return (flags & WRDE_UNDEF ? WRDE_BADVAL : WRDE_SYNTAX);
 	}
 
 	if (waitpid(pid, &status, 0) < 0 || !WIFEXITED(status) ||
@@ -221,7 +227,7 @@ we_check(const char *words, int flags)
 		switch (c) {
 		case '\\':
 			quote ^= 1;
-			break;
+			continue;
 		case '\'':
 			if (quote + dquote == 0)
 				squote ^= 1;
@@ -247,8 +253,8 @@ we_check(const char *words, int flags)
 		case '$':
 			if ((c = *words++) == '\0')
 				break;
-			else if (c == '(') {
-				if (flags & WRDE_NOCMD)
+			else if (quote + squote == 0 && c == '(') {
+				if (flags & WRDE_NOCMD && *words != '(')
 					return (WRDE_CMDSUB);
 				level = 1;
 				while ((c = *words++) != '\0') {
@@ -262,7 +268,7 @@ we_check(const char *words, int flags)
 				}
 				if (c == '\0' || level != 0)
 					return (WRDE_SYNTAX);
-			} else if (c == '{') {
+			} else if (quote + squote == 0 && c == '{') {
 				level = 1;
 				while ((c = *words++) != '\0') {
 					if (c == '\\') {
@@ -275,11 +281,13 @@ we_check(const char *words, int flags)
 				}
 				if (c == '\0' || level != 0)
 					return (WRDE_SYNTAX);
-			}
+			} else
+				c = *--words;
 			break;
 		default:
 			break;
 		}
+		quote = 0;
 	}
 	if (quote + squote + dquote != 0)
 		return (WRDE_SYNTAX);
