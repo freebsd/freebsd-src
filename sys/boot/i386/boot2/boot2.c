@@ -88,6 +88,14 @@
 #define TYPE_FD		3
 #define TYPE_DA		4
 
+/* Buffers that must not span a 64k boundary. */
+static struct dmadat {
+	char blkbuf[VBLKSIZE];				/* filesystem blocks */
+	ufs_daddr_t indbuf[VBLKSIZE / sizeof(ufs_daddr_t)]; /* indir blocks */
+	char sbbuf[SBSIZE];				/* superblock */
+	char secbuf[DEV_BSIZE];				/* for MBR/disklabel */
+} *dmadat;
+
 extern uint32_t _end;
 
 static const char optstr[NOPT] = "DhaCcdgPrsv";
@@ -254,6 +262,7 @@ main(void)
 {
     int autoboot, i;
 
+    dmadat = (void *)(roundup2(__base + _end, 0x10000) - __base);
     v86.ctl = V86_FLAGS;
     dsk.drive = *(uint8_t *)PTOV(ARGS);
     dsk.type = dsk.drive & DRV_HARD ? TYPE_AD : TYPE_FD;
@@ -530,21 +539,23 @@ xfsread(ino_t inode, void *buf, size_t nbyte)
 static ssize_t
 fsread(ino_t inode, void *buf, size_t nbyte)
 {
-    static char blkbuf[VBLKSIZE];
-    static ufs_daddr_t indbuf[VBLKSIZE / sizeof(ufs_daddr_t)];
-    static char sbbuf[SBSIZE];
     static struct dinode din;
-    static struct fs *fs = (struct fs *)sbbuf;
     static ino_t inomap;
     static daddr_t blkmap, indmap;
+    char *blkbuf;
+    ufs_daddr_t *indbuf;
+    struct fs *fs;
     char *s;
     ufs_daddr_t lbn, addr;
     daddr_t vbaddr;
     size_t n, nb, off, vboff;
 
+    blkbuf = dmadat->blkbuf;
+    indbuf = dmadat->indbuf;
+    fs = (struct fs *)dmadat->sbbuf;
     if (!dsk.meta) {
 	inomap = 0;
-	if (dskread(sbbuf, SBOFF / DEV_BSIZE, SBSIZE / DEV_BSIZE))
+	if (dskread(fs, SBOFF / DEV_BSIZE, SBSIZE / DEV_BSIZE))
 	    return -1;
 	if (fs->fs_magic != FS_MAGIC) {
 	    printf("Not ufs\n");
@@ -605,12 +616,13 @@ fsread(ino_t inode, void *buf, size_t nbyte)
 static int
 dskread(void *buf, unsigned lba, unsigned nblk)
 {
-    static char sec[DEV_BSIZE];
     struct dos_partition *dp;
     struct disklabel *d;
+    char *sec;
     unsigned sl, i;
 
     if (!dsk.meta) {
+	sec = dmadat->secbuf;
 	dsk.start = 0;
 	if (drvread(sec, DOSBBSECTOR, 1))
 	    return -1;
