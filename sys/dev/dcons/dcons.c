@@ -36,7 +36,10 @@
  */
 
 #include <sys/param.h>
+#if __FreeBSD_version >= 502122
 #include <sys/kdb.h>
+#include <gdb/gdb.h>
+#endif
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/systm.h>
@@ -74,8 +77,15 @@
 #define DCONS_FORCE_CONSOLE	0	/* mostly for FreeBSD-4 */
 #endif
 
+#ifndef DCONS_FORCE_GDB
+#define DCONS_FORCE_GDB	1
+#endif
+
 #if __FreeBSD_version >= 500101
-#define CONS_NODEV	1	/* for latest current */
+#define CONS_NODEV	1
+#if __FreeBSD_version < 502122
+static struct consdev gdbconsdev;
+#endif
 #endif
 
 
@@ -128,6 +138,7 @@ static struct dcons_softc {
 	struct cdev *dev;
 	struct dcons_ch	o, i;
 	int brk_state;
+#define DC_GDB	1
 	int flags;
 } sc[DCONS_NPORT];
 static void	dcons_tty_start(struct tty *);
@@ -146,6 +157,20 @@ static cn_putc_t	dcons_cnputc;
 
 CONS_DRIVER(dcons, dcons_cnprobe, dcons_cninit, NULL, dcons_cngetc,
     dcons_cncheckc, dcons_cnputc, NULL);
+
+#if __FreeBSD_version >= 502122
+static gdb_probe_f dcons_dbg_probe;
+static gdb_init_f dcons_dbg_init;
+static gdb_term_f dcons_dbg_term;
+static gdb_getc_f dcons_dbg_getc;
+static gdb_checkc_f dcons_dbg_checkc;
+static gdb_putc_f dcons_dbg_putc;
+
+GDB_DBGPORT(dcons, dcons_dbg_probe, dcons_dbg_init, dcons_dbg_term,
+    dcons_dbg_checkc, dcons_dbg_getc, dcons_dbg_putc);
+
+extern struct gdb_dbgport *gdb_cur;
+#endif
 
 #if __FreeBSD_version < 500000
 #define THREAD	proc
@@ -368,9 +393,40 @@ dcons_checkc(struct dcons_softc *dc)
 		ch->pos = 0;
 	}
 
+#if __FreeBSD_version >= 502122
 #if KDB && ALT_BREAK_TO_DEBUGGER
-	if (kdb_alt_break(c, &dc->brk_state))
-		breakpoint();
+	if (kdb_alt_break(c, &dc->brk_state)) {
+		if ((dc->flags & DC_GDB) != 0) {
+			if (gdb_cur == &dcons_gdb_dbgport) {
+				kdb_dbbe_select("gdb");
+				breakpoint();
+			}
+		} else
+			breakpoint();
+	}
+#endif
+#else
+#if DDB && ALT_BREAK_TO_DEBUGGER
+	switch (dc->brk_state) {
+	case STATE1:
+		if (c == KEY_TILDE)
+			dc->brk_state = STATE2;
+		else
+			dc->brk_state = STATE0;
+		break;
+	case STATE2:
+		dc->brk_state = STATE0;
+		if (c == KEY_CTRLB) {
+#if DCONS_FORCE_GDB
+			if (dc->flags & DC_GDB)
+				boothowto |= RB_GDB;
+#endif
+			breakpoint();
+		}
+	}
+	if (c == KEY_CR)
+		dc->brk_state = STATE1;
+#endif
 #endif
 	return (c);
 }
@@ -464,6 +520,22 @@ dcons_drv_init(int stage)
 	dcons_init_port(1, offset, size - size0);
 	dg.buf->version = htonl(DCONS_VERSION);
 	dg.buf->magic = ntohl(DCONS_MAGIC);
+
+#if __FreeBSD_version < 502122
+#if DDB && DCONS_FORCE_GDB
+#if CONS_NODEV
+	gdbconsdev.cn_arg = (void *)&sc[DCONS_GDB];
+#if __FreeBSD_version >= 501109
+	sprintf(gdbconsdev.cn_name, "dgdb");
+#endif
+	gdb_arg = &gdbconsdev;
+#else
+	gdbdev = makedev(CDEV_MAJOR, DCONS_GDB);
+#endif
+	gdb_getc = dcons_cngetc;
+	gdb_putc = dcons_cnputc;
+#endif
+#endif
 	drv_init = 1;
 
 	return 0;
@@ -499,6 +571,7 @@ dcons_attach(void)
 	int polltime;
 
 	dcons_attach_port(DCONS_CON, "dcons", 0);
+	dcons_attach_port(DCONS_GDB, "dgdb", DC_GDB);
 #if __FreeBSD_version < 500000
 	callout_init(&dcons_callout);
 #else
@@ -557,10 +630,20 @@ dcons_modevent(module_t mode, int type, void *data)
 	case MOD_UNLOAD:
 		printf("dcons: unload\n");
 		callout_stop(&dcons_callout);
+#if __FreeBSD_version < 502122
+#if DDB && DCONS_FORCE_GDB
+#if CONS_NODEV
+		gdb_arg = NULL;
+#else
+		gdbdev = NULL;
+#endif
+#endif
+#endif
 #if __FreeBSD_version >= 500000
 		cnremove(&dcons_consdev);
 #endif
 		dcons_detach(DCONS_CON);
+		dcons_detach(DCONS_GDB);
 		dg.buf->magic = 0;
 
 		contigfree(dg.buf, DCONS_BUF_SIZE, M_DEVBUF);
@@ -571,6 +654,44 @@ dcons_modevent(module_t mode, int type, void *data)
 	}
 	return(err);
 }
+
+#if __FreeBSD_version >= 502122
+/* Debugger interface */
+
+static int
+dcons_dbg_probe(void)
+{
+	return(DCONS_FORCE_GDB);
+}
+
+static void
+dcons_dbg_init(void)
+{
+}
+
+static void
+dcons_dbg_term(void)
+{
+}
+
+static void
+dcons_dbg_putc(int c)
+{
+	dcons_putc(&sc[DCONS_GDB], c);
+}
+
+static int
+dcons_dbg_checkc(void)
+{
+	return (dcons_checkc(&sc[DCONS_GDB]));
+}
+
+static int
+dcons_dbg_getc(void)
+{
+	return (dcons_getc(&sc[DCONS_GDB]));
+}
+#endif
 
 DEV_MODULE(dcons, dcons_modevent, NULL);
 MODULE_VERSION(dcons, DCONS_VERSION);
