@@ -2100,9 +2100,14 @@ alpha_fpstate_check(struct proc *p)
 	 * For SMP, we should check the fpcurproc of each cpu.
 	 */
 #ifndef SMP
+	int s;
+
+	s = save_intr();
+	disable_intr();
 	if (p->p_addr->u_pcb.pcb_hw.apcb_flags & ALPHA_PCB_FLAGS_FEN)
 		if (p != PCPU_GET(fpcurproc))
 			panic("alpha_check_fpcurproc: bogus");
+	restore_intr(s);
 #endif
 }
 
