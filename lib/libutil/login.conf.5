@@ -17,7 +17,7 @@
 .\" 5. Modifications may be freely made to this file providing the above
 .\"    conditions are met.
 .\"
-.\" $Id: login.conf.5,v 1.13 1997/10/07 05:40:36 obrien Exp $
+.\" $Id: login.conf.5,v 1.14 1998/02/14 16:12:53 steve Exp $
 .\"
 .Dd November 22, 1996
 .Dt LOGIN.CONF 5
@@ -215,9 +215,9 @@ the class may not access.
 logins are allowed.
 .It times.deny	list		List of time periods during which logins are
 disallowed.
-.It tty.allow	list		List of ttys and ttygroups which users
+.It ttys.allow	list		List of ttys and ttygroups which users
 in the class may use for access.
-.It tty.deny	list		List of ttys and ttygroups which users
+.It ttys.deny	list		List of ttys and ttygroups which users
 in the class may not use for access.
 .El
 .Pp
@@ -283,9 +283,9 @@ Further enforcement over the life of a session requires a separate daemon to
 monitor transitions from an allowed period to a non-allowed one.
 .Pp
 The
-.Em tty.allow
+.Em ttys.allow
 and
-.Em tty.deny
+.Em ttys.deny
 entries contain a comma-separated list of tty devices (without the /dev/ prefix)
 that a user in a class may use to access the system, and/or a list of ttygroups
 (See
@@ -296,15 +296,15 @@ for information on ttygroups).
 If neither entry exists, then the choice of login device used by the user is
 unrestricted.
 If only
-.Em tty.allow
+.Em ttys.allow
 is specified, then the user is restricted only to ttys in the given
 group or device list.
 If only
-.Em tty.deny
+.Em ttys.deny
 is specified, then the user is prevented from using the specified devices or
 devices in the group.
 If both lists are given and are non-empty, the user is restricted to those
-devices allowed by tty.allow that are not available by tty.deny.
+devices allowed by ttys.allow that are not available by ttys.deny.
 .Sh ACCOUNTING LIMITS
 .Bl -column passwordperiod indent indent
 .Sy Name	Type	Notes	Description
@@ -329,9 +329,9 @@ login session accounting is exempted.
 .It sessiontime 	time		Maximum login time per session.
 .It sessionlimit	number		Maximum number of concurrent
 login sessions on ttys in any group.
-.It tty.accounted	list		List of ttys and ttygroups for which
+.It ttys.accounted	list		List of ttys and ttygroups for which
 login accounting is active.
-.It tty.exempt	list		List of ttys and ttygroups for which login accounting
+.It ttys.exempt	list		List of ttys and ttygroups for which login accounting
 is exempt.
 .It warnexpire	time		Advance notice for pending account expiry.
 .It warnpassword	time		Advance notice for pending password expiry.
