@@ -1,6 +1,6 @@
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.48 1994/10/25 19:34:57 bde Exp $
+#	$Id: Makefile.i386,v 1.49 1994/11/15 14:43:45 bde Exp $
 #
 # Makefile for FreeBSD
 #
@@ -41,7 +41,7 @@ CWARNFLAGS?=-W -Wreturn-type -Wcomment -Wredundant-decls
 # When working on removing warnings from code, the `-Werror' flag should be
 # of material assistance.
 #
-COPTFLAGS?=-O
+COPTFLAGS?=-O2
 INCLUDES= -I. -I$S -I$S/sys
 COPTS=	${INCLUDES} ${IDENT} -DKERNEL -Di386 -DLOAD_ADDRESS=0x${LOAD_ADDRESS}
 ASFLAGS=
