@@ -31,12 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_input.c	8.12 (Berkeley) 5/24/95
- *	$Id: tcp_input.c,v 1.70 1998/02/26 05:25:28 dg Exp $
+ *	$Id: tcp_input.c,v 1.71 1998/03/20 00:43:29 fenner Exp $
  */
 
 #include "opt_tcpdebug.h"
 
-#ifndef TUBA_INCLUDE
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -97,7 +96,6 @@ static void	 tcp_pulloutofband __P((struct socket *,
 static int	 tcp_reass __P((struct tcpcb *, struct tcpiphdr *, struct mbuf *));
 static void	 tcp_xmit_timer __P((struct tcpcb *, int));
 
-#endif /* TUBA_INCLUDE */
 
 /*
  * Insert segment ti into reassembly queue of tcp with
@@ -128,7 +126,6 @@ static void	 tcp_xmit_timer __P((struct tcpcb *, int));
 		tp->t_flags |= TF_ACKNOW; \
 	} \
 }
-#ifndef TUBA_INCLUDE
 
 static int
 tcp_reass(tp, ti, m)
@@ -299,7 +296,6 @@ tcp_input(m, iphlen)
 		tcpstat.tcps_rcvbadsum++;
 		goto drop;
 	}
-#endif /* TUBA_INCLUDE */
 
 	/*
 	 * Check that TCP offset makes sense,
@@ -1689,7 +1685,6 @@ drop:
 	if (dropsocket)
 		(void) soabort(so);
 	return;
-#ifndef TUBA_INCLUDE
 }
 
 static void
@@ -2119,4 +2114,3 @@ tcp_mssopt(tp)
 
 	return rt->rt_ifp->if_mtu - sizeof(struct tcpiphdr);
 }
-#endif /* TUBA_INCLUDE */

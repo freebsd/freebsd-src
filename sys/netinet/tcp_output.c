@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_output.c	8.4 (Berkeley) 5/24/95
- *	$Id: tcp_output.c,v 1.27 1997/10/07 21:10:06 fenner Exp $
+ *	$Id: tcp_output.c,v 1.28 1998/02/20 13:37:39 bde Exp $
  */
 
 #include "opt_tcpdebug.h"
@@ -662,11 +662,6 @@ send:
 	 * the template, but need a way to checksum without them.
 	 */
 	m->m_pkthdr.len = hdrlen + len;
-#ifdef TUBA
-	if (tp->t_tuba_pcb)
-		error = tuba_output(m, tp);
-	else
-#endif
     {
 #if 1
 	struct rtentry *rt;
