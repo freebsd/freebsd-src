@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: index.c,v 1.25 1996/04/28 03:27:00 jkh Exp $
+ * $Id: index.c,v 1.26 1996/04/30 06:00:06 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -389,11 +389,12 @@ pkg_checked(dialogMenuItem *self)
 int
 pkg_fire(dialogMenuItem *self)
 {
+    int ret;
     PkgNodePtr sp, kp = self->data, plist = (PkgNodePtr)self->aux;
 
     if (!plist)
-	return DITEM_FAILURE;
-    if (kp->type == PACKAGE) {
+	ret = DITEM_FAILURE;
+    else if (kp->type == PACKAGE) {
 	sp = index_search(plist, kp->name, NULL);
 	/* Not already selected? */
 	if (!sp) {
@@ -408,14 +409,16 @@ pkg_fire(dialogMenuItem *self)
 	    msgInfo("Removed %s from selection list", kp->name);
 	    index_delete(sp);
 	}
+	ret = DITEM_SUCCESS;
     }
     else {	/* Not a package, must be a directory */
 	int p, s;
 		    
 	p = s = 0;
 	index_menu(kp, plist, &p, &s);
+	ret = DITEM_SUCCESS | DITEM_CONTINUE;
     }
-    return DITEM_SUCCESS;
+    return ret;
 }
 
 void
@@ -499,8 +502,6 @@ index_menu(PkgNodePtr top, PkgNodePtr plist, int *pos, int *scroll)
 	    }
 	    continue;
 	}
-	else if (!rval && hasPackages)
-	    continue;
     }
     items_free(nitems, &curr, &max);
     restorescr(w);
