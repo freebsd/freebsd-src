@@ -81,7 +81,7 @@ main(int argc, char **argv)
     int         force_nl;	/* when true, code must be broken */
     int         hd_type = 0;	/* used to store type of stmt for if (...),
 				 * for (...), etc */
-    register int i;		/* local loop counter */
+    int i;		/* local loop counter */
     int         scase;		/* set to true when we see a case, so we will
 				 * know what to do with the following colon */
     int         sp_sw;		/* when true, we are in the expressin of
@@ -251,8 +251,8 @@ main(int argc, char **argv)
 
     parse(semicolon);
     {
-	register char *p = buf_ptr;
-	register int col = 1;
+	char *p = buf_ptr;
+	int col = 1;
 
 	while (1) {
 	    if (*p == ' ')
@@ -1072,7 +1072,7 @@ check_type:
 
 	    if (strncmp(s_lab, "#if", 3) == 0) {
 		if (blanklines_around_conditional_compilation) {
-		    register int c;
+		    int c;
 		    prefix_blankline_requested++;
 		    while ((c = getc(input)) == '\n');
 		    ungetc(c, input);
