@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: sods.c,v 1.5 1997/09/02 21:54:39 jdp Exp $
+ * $Id: sods.c,v 1.6 1997/11/28 19:34:27 jdp Exp $
  */
 
 #include <assert.h>
@@ -39,6 +39,7 @@
 #include <sys/stat.h>
 
 #include <a.out.h>
+#include <elf.h>
 #include <link.h>
 #include <stab.h>
 
@@ -173,6 +174,13 @@ dump_file(const char *fname)
 
     file_base = (const char *) objbase;	/* Makes address arithmetic easier */
 
+    if (IS_ELF(*(Elf32_Ehdr*) file_base)) {
+	error("%s: this is an ELF program; use objdump to examine.", fname);
+	munmap(objbase, sb.st_size);
+	close(fd);
+	return;
+    }
+
     ex = (const struct exec *) file_base;
 
     printf("%s: a_midmag = 0x%lx\n", fname, ex->a_midmag);
@@ -211,7 +219,7 @@ dump_file(const char *fname)
     }
 
     printf("  Entry = 0x%lx\n", ex->a_entry);
-    printf("  Text offset = %x, address = %x\n", N_TXTOFF(*ex),
+    printf("  Text offset = %x, address = %lx\n", N_TXTOFF(*ex),
 	N_TXTADDR(*ex));
     printf("  Data offset = %lx, address = %lx\n", N_DATOFF(*ex),
 	N_DATADDR(*ex));
