@@ -871,7 +871,7 @@ extern void	slice_wizard(Disk *d);
 /*
  * Macros.  Please find a better place for us!
  */
-#define DEVICE_INIT(d)		((d) != NULL ? (d)->init((d)) : NULL)
+#define DEVICE_INIT(d)		((d) != NULL ? (d)->init((d)) : (Boolean)0)
 #define DEVICE_GET(d, b, f)	((d) != NULL ? (d)->get((d), (b), (f)) : NULL)
 #define DEVICE_SHUTDOWN(d)	((d) != NULL ? (d)->shutdown((d)) : (void)0)
 

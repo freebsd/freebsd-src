@@ -102,7 +102,7 @@ static Layout groupLayout[] = {
     { 18, 35, 0, 0,
       "CANCEL", "Select this if you wish to cancel this screen",
       &cancelbutton, BUTTONOBJ, NULL },
-    { NULL },
+    { 0 },
 };
 
 /* The user configuration menu. */
@@ -147,7 +147,7 @@ static Layout userLayout[] = {
     { 18, 35, 0, 0,
       "CANCEL", "Select this if you wish to cancel this screen",
       &cancelbutton, BUTTONOBJ, NULL },
-    { NULL },
+    { 0 },
 };
 
 /* whine */
