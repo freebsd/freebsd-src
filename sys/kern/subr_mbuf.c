@@ -28,10 +28,13 @@
  * $FreeBSD$
  */
 
+#include "opt_mac.h"
 #include "opt_param.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
+#include <sys/mac.h>
 #include <sys/mbuf.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -802,6 +805,11 @@ mb_free(struct mb_lstmngr *mb_list, void *m, short type, short persist,
 	struct mb_bucket *bucket;
 	u_int owner;
 
+#ifdef MAC
+	if (type != MT_NOTMBUF && ((struct mbuf *)m)->m_flags & M_PKTHDR)
+		mac_destroy_mbuf((struct mbuf *)m);
+#endif
+
 	bucket = mb_list->ml_btable[MB_BUCKET_INDX(m, mb_list)];
 
 	/*
@@ -1254,8 +1262,15 @@ m_gethdr(int how, short type)
 	struct mbuf *mb;
 
 	mb = (struct mbuf *)mb_alloc(&mb_list_mbuf, how, type, 0, NULL);
-	if (mb != NULL)
+	if (mb != NULL) {
 		_mbhdr_setup(mb, type);
+#ifdef MAC
+		if (mac_init_mbuf(mb, how) != 0) {
+			mb_free(&mb_list_mbuf, mb, type, 0, NULL);
+			return (NULL);
+		}
+#endif
+	}
 	return (mb);
 }
 
@@ -1298,6 +1313,12 @@ m_gethdr_clrd(int how, short type)
 	mb = (struct mbuf *)mb_alloc(&mb_list_mbuf, how, type, 0, NULL);
 	if (mb != NULL) {
 		_mbhdr_setup(mb, type);
+#ifdef MAC
+		if (mac_init_mbuf(mb, how) != 0) {
+			mb_free(&mb_list_mbuf, mb, type, 0, NULL);
+			return (NULL);
+		}
+#endif
 		bzero(mtod(mb, caddr_t), MHLEN);
 	}
 	return (mb);
