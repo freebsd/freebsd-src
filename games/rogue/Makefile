@@ -10,4 +10,8 @@ LDADD=	-lcurses -ltermcap -lcompat
 HIDEGAME=hidegame
 MAN6=	rogue.6
 
+beforeinstall:
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 664 /dev/null \
+	    ${DESTDIR}/var/games/rogue.scores
+
 .include <bsd.prog.mk>
