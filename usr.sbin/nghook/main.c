@@ -51,7 +51,7 @@
 #include <sys/socket.h>
 #include <sys/select.h>
 
-#include <netgraph.h>
+#include <netgraph/ng_message.h>
 
 #define DEFAULT_HOOKNAME	"debug"
 #define NG_SOCK_HOOK_NAME	"hook"

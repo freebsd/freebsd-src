@@ -539,7 +539,7 @@ p_rtentry(rt)
 	p_sockaddr(&addr.u_sa, &mask.u_sa, rt->rt_flags, WID_DST);
 	p_sockaddr(kgetsa(rt->rt_gateway), NULL, RTF_HOST, WID_GW);
 	p_flags(rt->rt_flags, "%-6.6s ");
-	printf("%6d %8ld ", rt->rt_refcnt, rt->rt_use);
+	printf("%6ld %8ld ", rt->rt_refcnt, rt->rt_use);
 	if (rt->rt_ifp) {
 		if (rt->rt_ifp != lastif) {
 			kget(rt->rt_ifp, ifnet);
