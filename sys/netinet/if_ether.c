@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ether.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ether.c,v 1.49 1998/12/14 18:09:13 luigi Exp $
+ * $Id: if_ether.c,v 1.50 1999/01/10 17:40:10 luigi Exp $
  */
 
 /*
@@ -340,7 +340,7 @@ arpresolve(ac, rt, m, dst, desten, rt0)
 	}
 	if (rt)
 		la = (struct llinfo_arp *)rt->rt_llinfo;
-	else {
+	if (la == 0) {
 		la = arplookup(SIN(dst)->sin_addr.s_addr, 1, 0);
 		if (la)
 			rt = la->la_rt;
