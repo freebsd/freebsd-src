@@ -35,7 +35,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.5 1994/01/16 23:34:15 jkh Exp $
+ *	$Id: mcd.c,v 1.6 1994/01/18 02:20:15 nate Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -596,6 +596,7 @@ int mcd_probe(struct isa_device *dev)
            } 
        }
    }     
+   return 0;
 }
 
 
@@ -807,7 +808,7 @@ loop:
 		timeout((timeout_func_t)mcd_doread,(caddr_t)MCD_S_WAITSTAT,hz/100); /* XXX */
 		return;
 	case MCD_S_WAITSTAT:
-		untimeout(mcd_doread,MCD_S_WAITSTAT);
+		untimeout((timeout_func_t)mcd_doread,(caddr_t)MCD_S_WAITSTAT);
 		if (mbx->count-- >= 0) {
 			if (inb(port+mcd_xfer) & MCD_ST_BUSY) {
 				timeout((timeout_func_t)mcd_doread,(caddr_t)MCD_S_WAITSTAT,hz/100); /* XXX */
@@ -844,7 +845,7 @@ loop:
 		}
 
 	case MCD_S_WAITMODE:
-		untimeout(mcd_doread,MCD_S_WAITMODE);
+		untimeout((timeout_func_t)mcd_doread,(caddr_t)MCD_S_WAITMODE);
 		if (mbx->count-- < 0) {
 #ifdef MCD_TO_WARNING_ON
 			printf("mcd%d: timeout set mode\n",unit);
@@ -882,7 +883,7 @@ nextblock:
 		timeout((timeout_func_t)mcd_doread,(caddr_t)MCD_S_WAITREAD,hz/100); /* XXX */
 		return;
 	case MCD_S_WAITREAD:
-		untimeout(mcd_doread,MCD_S_WAITREAD);
+		untimeout((timeout_func_t)mcd_doread,(caddr_t)MCD_S_WAITREAD);
 		if (mbx->count-- > 0) {
 			k = inb(port+mcd_xfer);
 			if ((k & 2)==0) {
