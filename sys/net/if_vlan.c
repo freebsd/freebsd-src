@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_vlan.c,v 1.9 1999/03/15 00:33:02 wpaul Exp $
+ *	$Id: if_vlan.c,v 1.5 1999/03/15 01:17:26 wpaul Exp $
  */
 
 /*
@@ -39,6 +39,7 @@
  * ether_output() left on our output queue queue when it calls
  * if_start(), rewrite them for use by the real outgoing interface,
  * and ask it to send them.
+ *
  *
  * XXX It's incorrect to assume that we must always kludge up
  * headers on the physical device's behalf: some devices support
