@@ -151,6 +151,14 @@ struct _snddev_info {
 #define SND_CB_STOP     0x03   /* stop dma op */
 #define SND_CB_ABORT    0x04   /* abort dma op */
 #define SND_CB_INIT     0x05   /* init board parameters */
+
+    /*
+     * callback extensions
+     */
+#define SND_CB_DMADONE         0x10
+#define SND_CB_DMAUPDATE       0x11
+#define SND_CB_DMASTOP         0x12
+
 	/* init can only be called with int enabled and
 	 * no pending DMA activity.
 	 */
@@ -288,6 +296,10 @@ struct _snddev_info {
     int     synth_base ; /* base for the synth */
     int     synth_type ; /* type of synth */
     void    *device_data ;	/* just in case it is needed...*/
+    int special_dma ;
+	/* when this is set, dsp_wr_dmaupdate etc.
+	 * are processed using callback extensions.
+	 */
 } ;
 
 /*
@@ -431,6 +443,7 @@ int pcmprobe(struct isa_device * dev);
 int midiprobe(struct isa_device * dev);
 int synthprobe(struct isa_device * dev);
 int pcmattach(struct isa_device * dev);
+int pcminit(snddev_info *d, int unit);
 int midiattach(struct isa_device * dev);
 int synthattach(struct isa_device * dev);
 

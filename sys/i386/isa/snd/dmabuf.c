@@ -4,7 +4,7 @@
  * This file implements the new DMA routines for the sound driver.
  * AUTO DMA MODE (ISA DMA SIDE).
  *
- * Copyright by Luigi Rizzo - 1997-98
+ * Copyright by Luigi Rizzo - 1997-99
  * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -108,7 +108,10 @@ dsp_wr_dmadone(snddev_info *d)
 {
     snd_dbuf *b = & (d->dbuf_out) ;
 
-    dsp_wr_dmaupdate(b);
+    if (d->special_dma)
+	d->callback(d, SND_CB_WR | SND_CB_DMAUPDATE) ;
+    else
+	dsp_wr_dmaupdate(b);
     /*
      * XXX here it would be more efficient to record if there
      * actually is a sleeping process, but this should still work.
@@ -191,7 +194,10 @@ dsp_wrintr(snddev_info *d)
 	     * at high speed, it might well be that the count
 	     * changes in the meantime. So we try to update b->rl
 	     */
-	    dsp_wr_dmaupdate(b) ;
+	    if (d->special_dma)
+		d->callback(d, SND_CB_WR | SND_CB_DMAUPDATE) ;
+	    else
+		dsp_wr_dmaupdate(b) ;
 	    l = min(b->rl, d->play_blocksize );
 	    l &= DMA_ALIGN_MASK ; /* realign things */
 	    b->dl = l; /* record previous transfer size */
@@ -252,7 +258,10 @@ dsp_write_body(snddev_info *d, struct uio *buf)
     while ( (n = buf->uio_resid) ) {
         l = min (n, bsz);       /* at most n bytes ... */
         s = spltty();  /* no interrupts here ... */
-	dsp_wr_dmaupdate(b);
+	if (d->special_dma)
+	    d->callback(d, SND_CB_WR | SND_CB_DMAUPDATE) ;
+	else
+	    dsp_wr_dmaupdate(b);
         l = min( l, b->fl );    /* no more than avail. space */
 	DEB(printf("dsp_write_body: prepare %d bytes out of %d\n", l,n));
 	/*
@@ -406,7 +415,10 @@ dsp_rd_dmadone(snddev_info *d)
 {
     snd_dbuf *b = & (d->dbuf_in) ;
 
-    dsp_rd_dmaupdate(b);
+    if (d->special_dma)
+	d->callback(d, SND_CB_RD | SND_CB_DMAUPDATE) ;
+    else
+	dsp_rd_dmaupdate(b);
     wakeup(b) ;	/* wakeup possibly sleeping processes */
     if (b->sel.si_pid &&
 	    ( !(d->flags & SND_F_HAS_SIZE) || b->rl >= d->rec_blocksize ) )
@@ -530,7 +542,10 @@ dsp_read_body(snddev_info *d, struct uio *buf)
 	DEB(printf("dsp_read_body: start waiting for %d bytes\n", n));
         l = min (n, bsz);
         s = spltty();            /* no interrupts here !             */
-	dsp_rd_dmaupdate(b);
+	if (d->special_dma)
+	    d->callback(d, SND_CB_RD | SND_CB_DMAUPDATE) ;
+	else
+	    dsp_rd_dmaupdate(b);
         l = min( l, b->rl );     /* no more than avail. data     */
         if (l == 0) {
 	    int timeout;
@@ -643,7 +658,8 @@ reset_dbuf(snd_dbuf *b, int chan)
 	chan = B_WRITE | B_RAW ;
     else
 	chan = B_READ | B_RAW ;
-    isa_dmastart( chan , b->buf, b->bufsize, b->chan);
+    if (b->chan != 4 && b->chan < 8) /* XXX hack for pci... */
+	isa_dmastart( chan , b->buf, b->bufsize, b->chan);
 }
 
 /*
@@ -663,10 +679,14 @@ snd_sync(snddev_info *d, int chan, int threshold)
 
     for (;;) {
 	s=spltty();
-        if ( chan==1 )
-	     dsp_wr_dmaupdate(b);
-	else
-	     dsp_rd_dmaupdate(b);
+	if (d->special_dma)
+	    d->callback(d, (chan==1? SND_CB_WR:SND_CB_RD) | SND_CB_DMAUPDATE);
+	else {
+	    if ( chan==1 )
+		dsp_wr_dmaupdate(b);
+	    else
+	        dsp_rd_dmaupdate(b);
+	}
 	if ( (chan == 1 && b->fl <= threshold) ||
 	     (chan == 2 && b->rl <= threshold) ) {
 		 ret = tsleep((caddr_t)b, PRIBIO|PCATCH, "sndsyn", 1);
@@ -701,13 +721,15 @@ dsp_wrabort(snddev_info *d, int restart)
 	d->flags &= ~ SND_F_WRITING ;
 	if (d->callback)
 	    d->callback(d, SND_CB_WR | SND_CB_ABORT);
-	isa_dmastop(b->chan) ;
+	if (!d->special_dma)
+	    isa_dmastop(b->chan) ;
 	dsp_wr_dmadone(d);
 
 	DEB(printf("dsp_wrabort: stopped, %d bytes left\n", b->rl));
     }
     missing = b->rl;
-    isa_dmadone(B_WRITE, b->buf, b->bufsize, b->chan); /*free chan */
+    if (!d->special_dma)
+	isa_dmadone(B_WRITE, b->buf, b->bufsize, b->chan); /*free chan */
     reset_dbuf(b, restart ? SND_CHAN_WR : SND_CHAN_NONE);
     splx(s);
     return missing;
@@ -726,11 +748,13 @@ dsp_rdabort(snddev_info *d, int restart)
 	d->flags &= ~ SND_F_READING ;
 	if (d->callback)
 	    d->callback(d, SND_CB_RD | SND_CB_ABORT);
-	isa_dmastop(b->chan) ;
+	if (!d->special_dma) 
+	    isa_dmastop(b->chan) ;
 	dsp_rd_dmadone(d);
     }
     missing = b->rl ;
-    isa_dmadone(B_READ, b->buf, b->bufsize, b->chan);
+    if (!d->special_dma)
+        isa_dmadone(B_READ, b->buf, b->bufsize, b->chan);
     reset_dbuf(b, restart ? SND_CHAN_RD : SND_CHAN_NONE);
     splx(s);
     return missing;
@@ -758,7 +782,10 @@ snd_flush(snddev_info *d)
 	 * still pending output data.
 	 */
 	ret = tsleep( (caddr_t)b, PRIBIO|PCATCH, "dmafl1", hz);
-	dsp_wr_dmaupdate(b);
+	if (d->special_dma)
+	    d->callback(d, SND_CB_WR | SND_CB_DMAUPDATE);
+	else
+	    dsp_wr_dmaupdate(b);
 	DEB( printf("snd_sync: now rl : fl  %d : %d\n", b->rl, b->fl ) );
 	if (ret == EINTR) {
 	    printf("tsleep returns %d\n", ret);
