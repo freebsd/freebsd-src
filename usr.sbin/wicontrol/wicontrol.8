@@ -35,11 +35,19 @@
 .Os
 .Sh NAME
 .Nm wicontrol
-.Nd configure WaveLAN/IEEE devices
+.Nd configure Lucent, Intersil, & Atheros wireless devices
 .Sh SYNOPSIS
 .Nm
 .Op Fl i
 .Ar iface Op Fl o
+.Nm
+.Op Fl i
+.Ar iface Fl l
+(dump associated stations)
+.Nm
+.Op Fl i
+.Ar iface Fl L
+(list avail access points)
 .Nm
 .Op Fl i
 .Ar iface Fl t Ar tx_rate
@@ -97,39 +105,34 @@
 .Op Fl i
 .Ar iface Fl C
 (display signal cache)
-.Nm
-.Op Fl i
-.Ar iface Fl L
-(list avail access points)
-.Nm
-.Op Fl i
-.Ar iface Fl l
-(dump associated stations)
 .Sh DESCRIPTION
 The
 .Nm
-utility controls the operation of WaveLAN/IEEE wireless networking
-devices via the
+utility controls the operation of Lucent, Intersil, & Atheros-based wireless
+networking devices via
 .Xr wi 4
+or
+.Xr ath 4
 driver.
 .Pp
 You should not use this program to configure IEEE 802.11 paramters.
 Use
 .Xr ifconfig 8
-instead to do those tasks.
+instead to do those tasks (ie: set SSID, WEP key, etc).
 .Pp
 The
 .Nm
-utility can also be used to view the current settings of these parameters
-and to dump out the values of the card's statistics counters.
+utility can also be used to view the current settings of these parameters,
+dump out the values of the card's statistics counters, list assoicated
+stations (in HostAP mode), and scan for available access points.
 .Pp
 The
 .Ar iface
 argument given to
 .Nm
-should be the logical interface name associated with the WaveLAN/IEEE
-device
-.Li ( wi0 , wi1 ,
+should be the logical interface name associated with the Lucent, Intersil, 
+& Atheros device
+.Li ( wi0 , wi1 , ath0 ,
 etc.).
 If none is specified then
 .Dq Li wi0
@@ -138,7 +141,7 @@ is used as default.
 The options are as follows:
 .Bl -tag -width indent
 .It Oo Fl i Oc Ar iface Op Fl o
-Display the current settings of the specified WaveLAN/IEEE interface.
+Display the current settings of the specified wireless interface.
 This retrieves the current card settings from the driver and prints them
 out.
 Using the additional
@@ -520,6 +523,7 @@ is specified in milliseconds.
 The default is 100.
 .El
 .Sh SEE ALSO
+.Xr ath 4 ,
 .Xr awi 4 ,
 .Xr ipsec 4 ,
 .Xr wi 4 ,
