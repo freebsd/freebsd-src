@@ -309,7 +309,8 @@ Debugger(msg)
 	const char *msg;
 {
 	static volatile	u_int in_Debugger;
-	int		flags;
+	critical_t	savecrit;
+
 	/*
 	 * XXX
 	 * Do nothing if the console is in graphics mode.  This is
@@ -319,12 +320,11 @@ Debugger(msg)
 	if (cons_unavail && !(boothowto & RB_GDB))
 	    return;
 
-	if (atomic_cmpset_int(&in_Debugger, 0, 1)) {
-	    flags = save_intr();
-	    disable_intr();
+	if (atomic_cmpset_acq_int(&in_Debugger, 0, 1)) {
+	    savecrit = critical_enter();
 	    db_printf("Debugger(\"%s\")\n", msg);
 	    breakpoint();
-            restore_intr(flags);
-	    in_Debugger = 0;
+	    critical_exit(savecrit);
+	    atomic_store_rel_int(&in_Debugger, 0);
 	}
 }

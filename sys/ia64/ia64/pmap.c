@@ -409,13 +409,12 @@ pmap_invalidate_all(pmap_t pmap)
 {
 	u_int64_t addr;
 	int i, j;
-	u_int32_t psr;
+	critical_t psr;
 
 	KASSERT(pmap == PCPU_GET(current_pmap),
 		("invalidating TLB for non-current pmap"));
 
-	psr = save_intr();
-	disable_intr();
+	psr = critical_enter();
 	addr = pmap_pte_e_base;
 	for (i = 0; i < pmap_pte_e_count1; i++) {
 		for (j = 0; j < pmap_pte_e_count2; j++) {
@@ -424,7 +423,7 @@ pmap_invalidate_all(pmap_t pmap)
 		}
 		addr += pmap_pte_e_stride1;
 	}
-	restore_intr(psr);
+	critical_exit(psr);
 }
 
 static void
