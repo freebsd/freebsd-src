@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: libi386.h,v 1.7 1998/10/02 16:32:45 msmith Exp $
+ *	$Id: libi386.h,v 1.8 1998/10/02 20:53:17 msmith Exp $
  */
 
 
@@ -63,6 +63,7 @@ extern struct devdesc	currdev;	/* our current device */
 /* exported devices XXX rename? */
 extern struct devsw biosdisk;
 
+u_int32_t		bd_getbigeom(int bunit);		/* return geometry in bootinfo format */
 extern int		bd_bios2unit(int biosdev);		/* xlate BIOS device -> biosdisk unit */
 extern int		bd_unit2bios(int unit);			/* xlate biosdisk unit -> BIOS device */
 extern int		bd_getdev(struct i386_devdesc *dev);	/* return dev_t for (dev) */
