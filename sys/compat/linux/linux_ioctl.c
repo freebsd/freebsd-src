@@ -55,11 +55,7 @@
 #include <machine/../linux/linux.h>
 #include <machine/../linux/linux_proto.h>
 
-#ifdef __alpha__
-#include <machine/../linux/linux_ioctl.h>
-#else
 #include <compat/linux/linux_ioctl.h>
-#endif
 #include <compat/linux/linux_mib.h>
 #include <compat/linux/linux_util.h>
 
@@ -497,7 +493,20 @@ bsd_to_linux_termio(struct termios *bios, struct linux_termio *lio)
 	lio->c_cflag = lios.c_cflag;
 	lio->c_lflag = lios.c_lflag;
 	lio->c_line  = lios.c_line;
+#ifdef __alpha__
+	lio->c_cc[LINUX__VINTR] = lios.c_cc[LINUX_VINTR];
+	lio->c_cc[LINUX__VQUIT] = lios.c_cc[LINUX_VQUIT];
+	lio->c_cc[LINUX__VERASE] = lios.c_cc[LINUX_VERASE];
+	lio->c_cc[LINUX__VKILL] = lios.c_cc[LINUX_VKILL];
+	lio->c_cc[LINUX__VEOF] =
+	    lios.c_cc[(lios.c_lflag & ICANON) ? LINUX_VEOF : LINUX_VMIN];
+	lio->c_cc[LINUX__VEOL] =
+	    lios.c_cc[(lios.c_lflag & ICANON) ? LINUX_VEOL : LINUX_VTIME];
+	lio->c_cc[LINUX__VEOL2] = lios.c_cc[LINUX_VEOL2];
+	lio->c_cc[LINUX__VSWTC] = lios.c_cc[LINUX_VSWTC];
+#else
 	memcpy(lio->c_cc, lios.c_cc, LINUX_NCC);
+#endif
 }
 
 static void
@@ -510,9 +519,24 @@ linux_to_bsd_termio(struct linux_termio *lio, struct termios *bios)
 	lios.c_oflag = lio->c_oflag;
 	lios.c_cflag = lio->c_cflag;
 	lios.c_lflag = lio->c_lflag;
+#ifdef __alpha__
+	for (i=0; i<LINUX_NCCS; i++)
+		lios.c_cc[i] = LINUX_POSIX_VDISABLE;
+	lios.c_cc[LINUX_VINTR] = lio->c_cc[LINUX__VINTR];
+	lios.c_cc[LINUX_VQUIT] = lio->c_cc[LINUX__VQUIT];
+	lios.c_cc[LINUX_VERASE] = lio->c_cc[LINUX__VERASE];
+	lios.c_cc[LINUX_VKILL] = lio->c_cc[LINUX__VKILL];
+	lios.c_cc[LINUX_VEOL2] = lio->c_cc[LINUX__VEOL2];
+	lios.c_cc[LINUX_VSWTC] = lio->c_cc[LINUX__VSWTC];
+	lios.c_cc[(lio->c_lflag & ICANON) ? LINUX_VEOF : LINUX_VMIN] =
+	    lio->c_cc[LINUX__VEOF];
+	lios.c_cc[(lio->c_lflag & ICANON) ? LINUX_VEOL : LINUX_VTIME] =
+	    lio->c_cc[LINUX__VEOL];
+#else
 	for (i=LINUX_NCC; i<LINUX_NCCS; i++)
 		lios.c_cc[i] = LINUX_POSIX_VDISABLE;
 	memcpy(lios.c_cc, lio->c_cc, LINUX_NCC);
+#endif
 	linux_to_bsd_termios(&lios, bios);
 }
 
@@ -1344,7 +1368,7 @@ linux_ifname(struct ifnet *ifp, char *name, size_t size)
  * bsdname and lxname need to be least IFNAMSIZ bytes long, but
  * can point to the same buffer.
  */
-
+#if 0
 static struct ifnet *
 ifname_bsd_to_linux(const char *bsdname, char *lxname)
 {
@@ -1370,6 +1394,7 @@ ifname_bsd_to_linux(const char *bsdname, char *lxname)
 	
 	return (ifp);
 }
+#endif
 
 /*
  * Translate a Linux interface name to a FreeBSD interface name,
@@ -1377,7 +1402,6 @@ ifname_bsd_to_linux(const char *bsdname, char *lxname)
  * bsdname and lxname need to be least IFNAMSIZ bytes long, but
  * can point to the same buffer.
  */
-
 static struct ifnet *
 ifname_linux_to_bsd(const char *lxname, char *bsdname)
 {
