@@ -35,6 +35,7 @@ nobody:	root
 operator: root
 pop:	root
 smmsp:	postmaster
+sshd:	root
 system:	root
 toor:	root
 tty:	root
