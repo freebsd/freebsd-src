@@ -221,6 +221,7 @@ SUBDIR+=acpi
 # pnpinfo: crashes (not really useful anyway)
 .if ${MACHINE_ARCH} == "amd64"
 SUBDIR+=acpi \
+	asf \
 	boot0cfg \
 	btxld \
 	lptcontrol \
