@@ -34,7 +34,7 @@
 #ifndef RPC_HDR
 %#ifndef lint
 %/*static char sccsid[] = "from: @(#)yp.x	2.1 88/08/01 4.0 RPCSRC";*/
-%static char rcsid[] = "$Id: yp.x,v 1.1 1993/09/14 17:42:53 jtc Exp $";
+%static char rcsid[] = "$Id$";
 %#endif /* not lint */
 #endif
 
@@ -119,8 +119,13 @@ struct ypresp_val {
 
 struct ypresp_key_val {
 	ypstat stat;
+#ifdef STUPID_SUN_BUG /* These are backwards */
 	keydat key;
 	valdat val;
+#else
+	valdat val;
+	keydat key;
+#endif
 };
 
 
@@ -218,7 +223,7 @@ struct ypbind_setdom {
 	unsigned ypsetdom_vers;
 };
 
-
+#if !defined(YPBIND_ONLY) && !defined(YPPUSH_ONLY)
 /*
  * YP access protocol
  */
@@ -261,8 +266,8 @@ program YPPROG {
 		YPPROC_MAPLIST(domainname) = 11;
 	} = 2;
 } = 100004;
-
-
+#endif
+#if !defined(YPSERV_ONLY) && !defined(YPBIND_ONLY)
 /*
  * YPPUSHPROC_XFRRESP is the callback routine for result of YPPROC_XFR
  */
@@ -275,8 +280,8 @@ program YPPUSH_XFRRESPPROG {
 		YPPUSHPROC_XFRRESP(void) = 1;
 	} = 1;
 } = 0x40000000;	/* transient: could be anything up to 0x5fffffff */
-
-
+#endif
+#if !defined(YPSERV_ONLY) && !defined(YPPUSH_ONLY)
 /*
  * YP binding protocol
  */
@@ -293,4 +298,4 @@ program YPBINDPROG {
 	} = 2;
 } = 100007;
 
-
+#endif
