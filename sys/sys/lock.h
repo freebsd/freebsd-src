@@ -212,6 +212,8 @@ int	witness_list_locks(struct lock_list_entry **);
 int	witness_list(struct thread *);
 int	witness_sleep(int, struct lock_object *, const char *, int);
 void	witness_assert(struct lock_object *, int, const char *, int);
+int	witness_line(struct lock_object *);
+const char *witness_file(struct lock_object *);
 
 #ifdef	WITNESS
 #define	WITNESS_INIT(lock)						\
@@ -245,6 +247,12 @@ void	witness_assert(struct lock_object *, int, const char *, int);
 #define	WITNESS_RESTORE(lock, n) 					\
 	witness_restore((lock), __CONCAT(n, __wf), __CONCAT(n, __wl))
 
+#define	WITNESS_FILE(lock) 						\
+	witness_file(lock)
+
+#define	WITNESS_LINE(lock) 						\
+	witness_line(lock)
+
 #else	/* WITNESS */
 #define	WITNESS_INIT(lock)	((lock)->lo_flags |= LO_INITIALIZED)
 #define	WITNESS_DESTROY(lock)	((lock)->lo_flags &= ~LO_INITIALIZED)
@@ -256,6 +264,8 @@ void	witness_assert(struct lock_object *, int, const char *, int);
 #define	WITNESS_SAVE_DECL(n)
 #define	WITNESS_SAVE(lock, n)
 #define	WITNESS_RESTORE(lock, n)
+#define	WITNESS_FILE(lock) ("?")
+#define	WITNESS_LINE(lock) (0)
 #endif	/* WITNESS */
 
 #endif	/* _KERNEL */
