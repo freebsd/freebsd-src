@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.104 1999/02/27 23:39:28 alc Exp $
+ *	$Id: vnode_pager.c,v 1.105 1999/03/27 02:39:01 eivind Exp $
  */
 
 /*
@@ -624,23 +624,21 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 		cnt.v_vnodepgsin++;
 		return vnode_pager_input_smlfs(object, m[reqpage]);
 	}
+
 	/*
-	 * if ANY DEV_BSIZE blocks are valid on a large filesystem block
-	 * then, the entire page is valid --
-	 * XXX no it isn't
+	 * If we have a completely valid page available to us, we can
+	 * clean up and return.  Otherwise we have to re-read the
+	 * media.
 	 */
 
-	if (m[reqpage]->valid != VM_PAGE_BITS_ALL)
-	    m[reqpage]->valid = 0;
-
-	if (m[reqpage]->valid) {
-		m[reqpage]->valid = VM_PAGE_BITS_ALL;
+	if (m[reqpage]->valid == VM_PAGE_BITS_ALL) {
 		for (i = 0; i < count; i++) {
 			if (i != reqpage)
 				vnode_pager_freepage(m[i]);
 		}
 		return VM_PAGER_OK;
 	}
+	m[reqpage]->valid = 0;
 
 	/*
 	 * here on direct device I/O
@@ -773,12 +771,25 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 		mt = m[i];
 
 		if (nextoff <= size) {
+			/*
+			 * Read filled up entire page.
+			 */
 			mt->valid = VM_PAGE_BITS_ALL;
 			mt->dirty = 0;
 			pmap_clear_modify(VM_PAGE_TO_PHYS(mt));
 		} else {
-			int nvalid = ((size + DEV_BSIZE - 1) - tfoff) & ~(DEV_BSIZE - 1);
-			vm_page_set_validclean(mt, 0, nvalid);
+			/*
+			 * Read did not fill up entire page.  Since this
+			 * is getpages, the page may be mapped, so we have
+			 * to zero the invalid portions of the page even
+			 * though we aren't setting them valid.
+			 *
+			 * Currently we do not set the entire page valid,
+			 * we just try to clear the piece that we couldn't
+			 * read.
+			 */
+			vm_page_set_validclean(mt, 0, size - tfoff);
+			vm_page_zero_invalid(mt, FALSE);
 		}
 		
 		vm_page_flag_clear(mt, PG_ZERO);

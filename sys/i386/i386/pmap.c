@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.225 1999/03/13 07:31:29 alc Exp $
+ *	$Id: pmap.c,v 1.226 1999/04/02 17:59:38 alc Exp $
  */
 
 /*
@@ -2818,10 +2818,8 @@ pmap_kernel()
 }
 
 /*
- *	pmap_zero_page zeros the specified (machine independent)
- *	page by mapping the page into virtual memory and using
- *	bzero to clear its contents, one machine dependent page
- *	at a time.
+ *	pmap_zero_page zeros the specified hardware page by mapping 
+ *	the page into KVM and using bzero to clear its contents.
  */
 void
 pmap_zero_page(phys)
@@ -2863,6 +2861,58 @@ pmap_zero_page(phys)
 	else
 #endif
 		bzero(CADDR2, PAGE_SIZE);
+	*(int *) CMAP2 = 0;
+#endif
+}
+
+/*
+ *	pmap_zero_page_area zeros the specified hardware page by mapping 
+ *	the page into KVM and using bzero to clear its contents.
+ *
+ *	off and size may not cover an area beyond a single hardware page.
+ */
+void
+pmap_zero_page_area(phys, off, size)
+	vm_offset_t phys;
+	int off;
+	int size;
+{
+#ifdef SMP
+#if !defined(MAX_PERF)
+	if (*(int *) prv_CMAP3)
+		panic("pmap_zero_page: prv_CMAP3 busy");
+#endif
+
+	*(int *) prv_CMAP3 = PG_V | PG_RW | (phys & PG_FRAME) | PG_A | PG_M;
+	cpu_invlpg(&prv_CPAGE3);
+
+#if defined(I686_CPU)
+	if (cpu_class == CPUCLASS_686 && off == 0 && size == PAGE_SIZE)
+		i686_pagezero(&prv_CPAGE3);
+	else
+#endif
+		bzero((char *)&prv_CPAGE3 + off, size);
+
+	*(int *) prv_CMAP3 = 0;
+#else
+#if !defined(MAX_PERF)
+	if (*(int *) CMAP2)
+		panic("pmap_zero_page: CMAP2 busy");
+#endif
+
+	*(int *) CMAP2 = PG_V | PG_RW | (phys & PG_FRAME) | PG_A | PG_M;
+	if (cpu_class == CPUCLASS_386) {
+		invltlb();
+	} else {
+		invlpg((u_int)CADDR2);
+	}
+
+#if defined(I686_CPU)
+	if (cpu_class == CPUCLASS_686 && off == 0 && size == PAGE_SIZE)
+		i686_pagezero(CADDR2);
+	else
+#endif
+		bzero((char *)CADDR2 + off, size);
 	*(int *) CMAP2 = 0;
 #endif
 }
