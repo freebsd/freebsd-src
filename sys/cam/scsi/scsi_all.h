@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsi_all.h,v 1.4 1998/10/02 05:25:49 ken Exp $
+ *	$Id: scsi_all.h,v 1.5 1998/10/15 19:08:58 ken Exp $
  */
 
 /*
@@ -486,6 +486,11 @@ struct scsi_inquiry_data
 #define	SID_IS_REMOVABLE(inq_data) (((inq_data)->dev_qual2 & 0x80) != 0)
 	u_int8_t version;
 #define SID_ANSI_REV(inq_data) ((inq_data)->version & 0x07)
+#define		SCSI_REV_0		0
+#define		SCSI_REV_CCS		1
+#define		SCSI_REV_2		2
+#define		SCSI_REV_3		3
+
 #define SID_ECMA	0x38
 #define SID_ISO		0xC0
 	u_int8_t response_format;
@@ -605,6 +610,8 @@ struct	scsi_mode_blk_desc
 	u_int8_t blklen[3];
 };
 
+#define	SCSI_DEFAULT_DENSITY	0x00	/* use 'default' density */
+#define	SCSI_SAME_DENSITY	0x7f	/* use 'same' density- >= SCSI-2 only */
 /*
  * Status Byte
  */
