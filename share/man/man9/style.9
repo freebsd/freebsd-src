@@ -84,7 +84,6 @@ in front of foreign VCS IDs if the file is renamed.
 static char sccsid[] = "@(#)style	1.14 (Berkeley) 4/28/95";
 #endif /* not lint */
 #endif
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 .Ed
@@ -446,13 +445,16 @@ Code that cannot be reached should have a
 .Li NOTREACHED
 comment.
 .Bd -literal
-	while ((ch = getopt(argc, argv, "abn:")) != -1)
+	while ((ch = getopt(argc, argv, "abNn:")) != -1)
 		switch (ch) {		/* Indent the switch. */
 		case 'a':		/* Don't indent the case. */
 			aflag = 1;
 			/* FALLTHROUGH */
 		case 'b':
 			bflag = 1;
+			break;
+		case 'N':
+			Nflag = 1;
 			break;
 		case 'n':
 			num = strtol(optarg, &ep, 10);
