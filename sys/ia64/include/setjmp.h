@@ -103,11 +103,11 @@
  * internally to avoid some run-time errors for mismatches.
  */
 #ifndef _ANSI_SOURCE
-typedef struct {
+typedef struct _sigjmp_buf {
     char	Buffer[ J_END + JMPBUF_ALIGNMENT ];
 } sigjmp_buf[1];
 #endif /* not ANSI */
-typedef struct {
+typedef struct _jmp_buf {
     char	Buffer[ J_END + JMPBUF_ALIGNMENT ];
 } jmp_buf[1];
 #endif
