@@ -1344,7 +1344,7 @@ pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 			break;
 		case SYS_RES_IOPORT:
 		case SYS_RES_MEMORY:
-			if (*rid < PCIR_MAPS + 4*cfg->nummaps) {
+			if (*rid < PCIR_BAR(cfg->nummaps)) {
 				/*
 				 * Enable the I/O mode.  We should
 				 * also be allocating resources
