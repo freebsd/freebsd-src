@@ -985,6 +985,7 @@ configInetd(dialogMenuItem *self)
 	}
     }
     restorescr(w);
+    return DITEM_SUCCESS;
 }
 
 int
