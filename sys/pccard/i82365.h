@@ -104,6 +104,13 @@
 #define	PCIC_TIME_CMD1		0x3e
 #define	PCIC_TIME_RECOV1	0x3f
 
+/* Yenta only registers */
+#define PCIC_MEMORY_HIGH0	0x40	/* A31..A25 of mapping addres for */
+#define PCIC_MEMORY_HIGH1	0x41	/* the memory windows. */
+#define PCIC_MEMORY_HIGH2	0x42
+#define PCIC_MEMORY_HIGH3	0x43
+
+
 #define	PCIC_SLOT_SIZE	0x40	/* Size of register set for one slot */
 
 /* Now register bits, ordered by reg # */
