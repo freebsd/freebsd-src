@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.5 1997/04/29 22:12:32 fsmp Exp $
+ *	$Id: mp_machdep.c,v 1.6 1997/05/01 19:27:58 fsmp Exp $
  */
 
 #include "opt_smp.h"
@@ -887,6 +887,28 @@ get_isa_apic_irq(int isaIRQ)
 
 
 /*
+ * 
+ */
+int
+get_isa_apic_mask(int isaMASK)
+{
+	int apicpin, isairq;
+
+	isairq = ffs(isaMASK);
+	if (isairq == 0) {
+		return 0;
+	}
+
+	apicpin = get_isa_apic_irq(isairq - 1);
+	if (apicpin == -1) {
+		return 0;
+	}
+
+	return (1 << apicpin);
+}
+
+
+/*
  * determine which APIC pin an EISA INT is attached to.
  */
 #define SRCBUSIRQ(I)	(io_apic_ints[(I)].src_bus_irq)
@@ -1441,8 +1463,10 @@ start_ap(int logical_cpu, u_int boot_addr)
 void
 smp_invltlb(void)
 {
+#if defined(APIC_IO)
 	if (smp_active && invltlb_ok)
 		all_but_self_ipi(ICU_OFFSET + XINVLTLB_OFFSET);
+#endif  /* APIC_IO */
 }
 
 void
