@@ -71,7 +71,8 @@
 #define ATA_IOADDR_RID		0
 #define ATA_ALTADDR_RID		1
 #define ATA_BMADDR_RID		2
-#define ATA_MASTERDEV(dev)	((pci_get_progif(dev) & 0x8f) == 0x8a)
+#define ATA_MASTERDEV(dev)	((pci_get_progif(dev) & 0x80) && \
+				 (pci_get_progif(dev) & 0x05) != 0x05)
 
 /* prototypes */
 static int ata_probe(device_t);
