@@ -2252,9 +2252,9 @@ cpi_print(struct ccb_pathinq *cpi)
 	}
 	fprintf(stdout, "%s HBA engine count: %d\n", adapter_str,
 		cpi->hba_eng_cnt);
-	fprintf(stdout, "%s maxium target: %d\n", adapter_str,
+	fprintf(stdout, "%s maximum target: %d\n", adapter_str,
 		cpi->max_target);
-	fprintf(stdout, "%s maxium LUN: %d\n", adapter_str,
+	fprintf(stdout, "%s maximum LUN: %d\n", adapter_str,
 		cpi->max_lun);
 	fprintf(stdout, "%s highest path ID in subsystem: %d\n",
 		adapter_str, cpi->hpath_id);
