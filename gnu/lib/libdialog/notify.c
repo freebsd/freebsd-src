@@ -27,6 +27,7 @@ dialog_notify(char *msg)
  * Desc: display an error message
  */
 {
+    char *tmphlp;
     WINDOW *w;
 
     w = dupwin(newscr);
@@ -35,7 +36,10 @@ dialog_notify(char *msg)
 	fprintf(stderr, "\ndupwin(newscr) failed, malloc memory corrupted\n");
 	exit(1);
     }
+    tmphlp = get_helpline();
+    use_helpline("Press enter to continue");
     dialog_msgbox("Message", msg, -1, -1, TRUE);
+    restore_helpline(tmphlp);
     touchwin(w);
     wrefresh(w);
     delwin(w);

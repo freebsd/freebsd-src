@@ -89,6 +89,110 @@ FreeNames(char **names, int n)
     return;
 } /* FreeNames() */
 
+int
+dialog_dselect(void)
+/*
+ * Desc: starting from the current directory, 
+ *	 choose a new current directory 
+ */
+{
+    DirList		*d = NULL;
+    char		**names, old_dir[MAXPATHLEN];
+    WINDOW		*ds_win;
+    ButtonObj		*okbut, *cancelbut;
+    ListObj		*dirs_obj;
+    StringObj		*dir_obj;
+    char		o_dir[MAXPATHLEN];
+    struct ComposeObj	*obj = NULL;
+    int			n, nd, okbutton, cancelbutton, 
+			quit, cancel, ret;
+
+    ds_win = newwin(LINES-8, COLS-30, 4, 15);
+    if (ds_win == NULL) {
+	fprintf(stderr, "\nnewwin(%d,%d,%d,%d) failed, maybe wrong dims\n", 
+ 		LINES-8, COLS-30, 4, 15);
+	exit(1);
+    }
+    draw_box(ds_win, 0, 0, LINES-8, COLS-30, dialog_attr, border_attr);
+    wattrset(ds_win, dialog_attr);
+    mvwaddstr(ds_win, 0, (COLS-30)/2 - 9, " Directory Select ");
+    draw_shadow(stdscr, 4, 15, LINES-8, COLS-30);
+    display_helpline(ds_win, LINES-9, COLS-30);
+
+    /* the Directory string input field */
+    getcwd(o_dir, MAXPATHLEN);
+    dir_obj = NewStringObj(ds_win, "Directory:", o_dir, 1, 2, COLS-34, MAXPATHLEN-1);
+    AddObj(&obj, STRINGOBJ, (void *) dir_obj);
+
+    /* the list of directories */
+    get_dir(".", "*", &d, &n);
+    get_directories(d, n, &names, &nd);
+    dirs_obj = NewListObj(ds_win, "Directories:", names, o_dir, 5, 2, 
+			  LINES-15, COLS-48, nd);
+    AddObj(&obj, LISTOBJ, (void *) dirs_obj);
+
+    /* the Ok-button */
+    okbutton = FALSE;
+    okbut = NewButtonObj(ds_win, "Ok", &okbutton, 7, COLS-42);
+    AddObj(&obj, BUTTONOBJ, (void *) okbut);
+    
+    /* the Cancel-button */
+    cancelbutton = FALSE;
+    cancelbut = NewButtonObj(ds_win, "Cancel", &cancelbutton, 11, COLS-44);
+    AddObj(&obj, BUTTONOBJ, (void *) cancelbut);
+
+    quit = FALSE;
+    cancel = FALSE;
+    strcpy(old_dir, o_dir);
+    while (!quit) {
+	ret = PollObj(&obj);
+	switch(ret) {
+	case SEL_BUTTON:
+	    if (okbutton) {
+		quit = TRUE;
+	    }
+	    if (cancelbutton) {
+		quit = TRUE;
+		cancel = TRUE;
+	    }
+	    break;
+	case SEL_CR:
+	    if (strcmp(old_dir, o_dir)) {
+		/* the directory was changed, cd into it */
+		if (chdir(o_dir)) {
+		    dialog_notify("Could not change into directory");
+		} else {
+		    getcwd(o_dir, MAXPATHLEN);
+		    strcpy(old_dir, o_dir);
+		    RefreshStringObj(dir_obj);
+		}
+	    } 
+	    get_dir(".", "*", &d, &n);
+	    FreeNames(names, nd);
+	    get_directories(d, n, &names, &nd);
+	    UpdateListObj(dirs_obj, names, nd);
+	    if (((obj->prev)->obj == (void *) dirs_obj)) {
+		obj=obj->prev;
+	    }
+	    break;
+	case SEL_ESC:
+	    quit = TRUE;
+	    cancel = TRUE;
+	    break;
+	case KEY_F(1):
+	    display_helpfile();
+	    break;
+	}
+    }
+    
+    FreeNames(names, nd);
+    DelObj(obj);
+    delwin(ds_win);
+
+    return(cancel);
+
+} /* dialog_dselect() */
+
 char *
 dialog_fselect(char *dir, char *fmask)
 /*
@@ -103,7 +207,7 @@ dialog_fselect(char *dir, char *fmask)
 {
     DirList 		*d = NULL;
     char		msg[512];
-    char		**names, *ret_name;
+    char		**fnames, **dnames, *ret_name;
     WINDOW		*fs_win;
     int			n, nd, nf, ret;
     StringObj		*fm_obj, *dir_obj, *sel_obj;
@@ -146,14 +250,14 @@ dialog_fselect(char *dir, char *fmask)
 
     /* Directory list */
     get_dir(".", fmask, &d, &n);	/* read the entire directory */
-    get_directories(d, n, &names, &nd); /* extract the dir-entries */
-    dirs_obj = NewListObj(fs_win, "Directories:", names, o_dir, 5, 2, 
+    get_directories(d, n, &dnames, &nd); /* extract the dir-entries */
+    dirs_obj = NewListObj(fs_win, "Directories:", dnames, o_dir, 5, 2, 
 			  LINES-16, (COLS-20)/2-2, nd);
     AddObj(&obj, LISTOBJ, (void *) dirs_obj);
 
     /* Filenames list */
-    get_filenames(d, n, &names, &nf);		/* extract the filenames */
-    files_obj = NewListObj(fs_win, "Files:", names, o_sel, 5, (COLS-20)/2+1,
+    get_filenames(d, n, &fnames, &nf);		/* extract the filenames */
+    files_obj = NewListObj(fs_win, "Files:", fnames, o_sel, 5, (COLS-20)/2+1,
 			   LINES-16, (COLS-20)/2-3, nf);
     AddObj(&obj, LISTOBJ, (void *) files_obj);
 
@@ -200,10 +304,12 @@ dialog_fselect(char *dir, char *fmask)
 		    strcpy(old_fmask, o_fm);
 		}
 		get_dir(".", o_fm, &d, &n);
-		get_directories(d, n, &names, &nd);
-		UpdateListObj(dirs_obj, names, nd);
-		get_filenames(d, n, &names, &nf);
-		UpdateListObj(files_obj, names, nf);
+		FreeNames(dnames, nd);
+		get_directories(d, n, &dnames, &nd);
+		UpdateListObj(dirs_obj, dnames, nd);
+		FreeNames(fnames, nf);
+		get_filenames(d, n, &fnames, &nf);
+		UpdateListObj(files_obj, fnames, nf);
 		if (((o->prev)->obj == (void *) dirs_obj)) {
 		    o=o->prev;
 		}
@@ -230,6 +336,9 @@ dialog_fselect(char *dir, char *fmask)
 	}
     }
     DelObj(obj);
+    FreeNames(dnames, nd);
+    FreeNames(fnames, nf);
+    delwin(fs_win);
 
     if (cancel || (strlen(o_sel) == 0)) {
 	return(NULL);

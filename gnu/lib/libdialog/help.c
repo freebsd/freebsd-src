@@ -69,38 +69,37 @@ display_helpfile(void)
     if (in_help) return;	/* dont call help when you're in help */
 
     if (_helpfile != NULL) {
-	if (_helpline != NULL) {
-		savehline = _helpline;
-		_helpline = NULL;
-	}
 	if ((w = dupwin(newscr)) == NULL) {
 	    dialog_notify("No memory to dup previous screen\n");
-	    goto ret;
+	    return;
 	}
 	if ((f = fopen(_helpfile, "r")) == NULL) {
 	    sprintf(msg, "Can't open helpfile : %s\n", _helpfile);
 	    dialog_notify(msg);
-	    goto ret;
+	    return;
 	}
 	if (fstat(fileno(f), &sb)) {
 	    sprintf(msg, "Can't stat helpfile : %s\n", _helpfile);
 	    dialog_notify(msg);
-	    goto ret;
+	    return;
 	}
 	if ((buf = (char *) malloc( sb.st_size )) == NULL) {
 	    sprintf(msg, "Could not malloc space for helpfile : %s\n", _helpfile);
 	    dialog_notify(msg);
-	    goto ret;
+	    return;
 	}
 	if (fread(buf, 1, sb.st_size, f) != sb.st_size) {
 	    sprintf(msg, "Could not read entire help file : %s", _helpfile);
 	    dialog_notify(msg);
 	    free(buf);
-	    goto ret;
+	    return;
 	}
 	buf[sb.st_size] = 0;
 	in_help = TRUE;
+	savehline = get_helpline();
+	use_helpline("Use arrowkeys, PgUp, PgDn, Home and End to move through text");
 	dialog_mesgbox("Online help", buf, LINES-4, COLS-4);
+	restore_helpline(savehline);
 	in_help = FALSE;
 	touchwin(w);
 	wrefresh(w);
@@ -109,10 +108,6 @@ display_helpfile(void)
     } else {
 	/* do nothing */
     }
-
-ret:
-    if (savehline != NULL)
-	_helpline = savehline;
 
     return;
 } /* display_helpfile() */
@@ -167,3 +162,33 @@ display_helpline(WINDOW *w, int y, int width)
 
     return;
 }
+
+char *
+get_helpline(void)
+/*
+ * desc: allocate new space, copy the helpline to it and return a pointer to it
+ */
+{
+    char *hlp;
+
+    if (_helpline) {
+        hlp = (char *) malloc( strlen(_helpline) + 1 );
+        strcpy(hlp, _helpline);
+    } else {
+        hlp = NULL;
+    }
+    
+    return(hlp);
+} /* get_helpline() */
+
+void
+restore_helpline(char *helpline)
+/*
+ * Desc: set the helpline to <helpline> and free the space allocated to it
+ */
+{
+    use_helpline(helpline);
+    free(helpline);
+
+    return;
+} /* restore_helpline() */
