@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 4, 1999
+.Dd January 4, 2000
 .Dt KUE 4 i386
 .Os FreeBSD
 .Sh NAME
@@ -47,10 +47,11 @@ The
 .Nm
 driver provides support for USB ethernet adapters based on the Kawasaki
 LSI KL5KLUSB101B chipset, including the LinkSys USB10T, the 3Com 3c19250,
-the ADS Technologies USB-10BT, the Peracom USB Ethernet Adapter and the
-Entrega NET-USB-E45.
+the ADS Technologies USB-10BT, the Peracom USB Ethernet Adapter, the
+Entrega NET-USB-E45, the ATen UC10T, the Netgear EA101, the D-Link
+DSB-650 and the SMC 2102USB and 2104USB.
 .Pp
-The Pegasus supports a 128-entry multicast filter, single perfect
+The KL5KLUSB101B supports a 128-entry multicast filter, single perfect
 filter entry for the station address and promiscuous mode. Packets are
 received and transmitted over separate USB bulk transfer endpoints.
 .Pp
