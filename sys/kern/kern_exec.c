@@ -162,11 +162,19 @@ execve(td, uap)
 	PROC_LOCK(p);
 	KASSERT((p->p_flag & P_INEXEC) == 0,
 	    ("%s(): process already has P_INEXEC flag", __func__));
-	if ((p->p_flag & P_KSES) && thread_single(SNGLE_EXIT)) {
-		PROC_UNLOCK(p);
-		return (ERESTART);	/* Try again later. */
+	if (p->p_flag & P_KSES) {
+		if (thread_single(SNGLE_EXIT)) {
+			PROC_UNLOCK(p);
+			return (ERESTART);	/* Try again later. */
+		}
+		/*
+		 * If we get here all other threads are dead,
+		 * so unset the associated flags and lose KSE mode.
+		 */
+		p->p_flag &= ~P_KSES;
+		td->td_flags &= ~TDF_UNBOUND;
+		thread_single_end();
 	}
-	/* If we get here all other threads are dead. */
 	p->p_flag |= P_INEXEC;
 	PROC_UNLOCK(p);
 
