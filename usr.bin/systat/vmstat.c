@@ -49,6 +49,7 @@ static const char sccsid[] = "@(#)vmstat.c	8.2 (Berkeley) 1/12/94";
 #include <sys/proc.h>
 #include <sys/uio.h>
 #include <sys/namei.h>
+#include <sys/resource.h>
 #include <sys/sysctl.h>
 #include <sys/vmmeter.h>
 
