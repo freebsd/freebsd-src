@@ -116,33 +116,22 @@ get_real_pos:
 		 */
 		pos -= fp->_r;
 		if (pos < 0) {
-			if (HASUB(fp)) {
-				fp->_p -= pos;
-				fp->_r += pos;
-				pos = 0;
-			} else {
+			fp->_p = fp->_bf._base;
+			fp->_r = 0;
+			if (HASUB(fp))
+				FREEUB(fp);
+			if (spos == -1)
+				goto get_real_pos;
+			pos = spos;
+		} else if (HASUB(fp)) {
+			pos -= fp->_ur;
+			if (pos < 0) {
 				fp->_p = fp->_bf._base;
 				fp->_r = 0;
+				FREEUB(fp);
 				if (spos == -1)
 					goto get_real_pos;
 				pos = spos;
-			}
-		}
-		if (HASUB(fp)) {
-			pos -= fp->_ur;
-			if (pos < 0) {
-				if (-pos <= fp->_r) {
-					fp->_p -= pos;
-					fp->_r += pos;
-					pos = 0;
-				} else {
-					fp->_p = fp->_bf._base;
-					fp->_r = 0;
-					FREEUB(fp);
-					if (spos == -1)
-						goto get_real_pos;
-					pos = spos;
-				}
 			}
 		}
 	} else if ((fp->_flags & __SWR) && fp->_p != NULL) {
