@@ -35,7 +35,7 @@
 # Empty lines, and lines beginning with "#" are ignored.
 # <Driver name><tab><arch>[,<arch>...]
 #
-aac	i386,amd64
+aac	i386,ia64,amd64
 adv	i386,pc98,amd64
 adw	i386,pc98,amd64
 aha	i386
@@ -82,8 +82,8 @@ sk	i386,pc98,alpha,amd64
 stg	i386,pc98
 sym	i386,pc98,alpha,sparc64,amd64
 trm	i386,amd64
-twa	i386
-twe	i386
+twa	i386,amd64
+twe	i386,amd64
 txp	i386,pc98,alpha,amd64
 udav	i386,pc98,amd64
 umodem	i386,pc98,amd64
