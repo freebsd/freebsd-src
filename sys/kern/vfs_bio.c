@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.163 1998/05/01 15:04:35 peter Exp $
+ * $Id: vfs_bio.c,v 1.164 1998/05/01 15:10:59 peter Exp $
  */
 
 /*
@@ -295,7 +295,7 @@ bread(struct vnode * vp, daddr_t blkno, int size, struct ucred * cred,
 			bp->b_rcred = cred;
 		}
 		vfs_busy_pages(bp, 0);
-		VOP_STRATEGY(bp);
+		VOP_STRATEGY(vp, bp);
 		return (biowait(bp));
 	}
 	return (0);
@@ -328,7 +328,7 @@ breadn(struct vnode * vp, daddr_t blkno, int size,
 			bp->b_rcred = cred;
 		}
 		vfs_busy_pages(bp, 0);
-		VOP_STRATEGY(bp);
+		VOP_STRATEGY(vp, bp);
 		++readwait;
 	}
 	for (i = 0; i < cnt; i++, rablkno++, rabsize++) {
@@ -347,7 +347,7 @@ breadn(struct vnode * vp, daddr_t blkno, int size,
 				rabp->b_rcred = cred;
 			}
 			vfs_busy_pages(rabp, 0);
-			VOP_STRATEGY(rabp);
+			VOP_STRATEGY(vp, rabp);
 		} else {
 			brelse(rabp);
 		}
@@ -395,7 +395,7 @@ bwrite(struct buf * bp)
 	vfs_busy_pages(bp, 1);
 	if (curproc != NULL)
 		curproc->p_stats->p_ru.ru_oublock++;
-	VOP_STRATEGY(bp);
+	VOP_STRATEGY(bp->b_vp, bp);
 
 	/*
 	 * Collect statistics on synchronous and asynchronous writes.

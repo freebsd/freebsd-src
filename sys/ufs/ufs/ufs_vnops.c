@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $Id: ufs_vnops.c,v 1.92 1998/07/03 22:17:03 bde Exp $
+ * $Id: ufs_vnops.c,v 1.93 1998/07/03 22:37:43 bde Exp $
  */
 
 #include "opt_quota.h"
@@ -1723,11 +1723,12 @@ ufs_abortop(ap)
 int
 ufs_strategy(ap)
 	struct vop_strategy_args /* {
+		struct vnode *a_vp;
 		struct buf *a_bp;
 	} */ *ap;
 {
 	register struct buf *bp = ap->a_bp;
-	register struct vnode *vp = bp->b_vp;
+	register struct vnode *vp = ap->a_vp;
 	register struct inode *ip;
 	int error;
 
@@ -1751,7 +1752,7 @@ ufs_strategy(ap)
 	}
 	vp = ip->i_devvp;
 	bp->b_dev = vp->v_rdev;
-	VOCALL (vp->v_op, VOFFSET(vop_strategy), ap);
+	VOP_STRATEGY(vp, bp);
 	return (0);
 }
 

@@ -37,11 +37,11 @@
  *
  * Ancestors:
  *	@(#)lofs_vnops.c	1.2 (Berkeley) 6/18/92
- *	$Id: null_vnops.c,v 1.27 1998/04/17 22:36:54 des Exp $
+ *	$Id: null_vnops.c,v 1.28 1998/06/10 06:34:56 peter Exp $
  *	...and...
  *	@(#)null_vnodeops.c 1.20 92/07/07 UCLA Ficus project
  *
- * $Id: null_vnops.c,v 1.27 1998/04/17 22:36:54 des Exp $
+ * $Id: null_vnops.c,v 1.28 1998/06/10 06:34:56 peter Exp $
  */
 
 /*
@@ -612,7 +612,7 @@ null_strategy(ap)
 	savedvp = bp->b_vp;
 	bp->b_vp = NULLVPTOLOWERVP(bp->b_vp);
 
-	error = VOP_STRATEGY(bp);
+	error = VOP_STRATEGY(bp->b_vp, bp);
 
 	bp->b_vp = savedvp;
 

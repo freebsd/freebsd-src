@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.90 1998/03/09 08:58:53 msmith Exp $
+ *	$Id: vnode_pager.c,v 1.91 1998/03/16 01:56:03 dyson Exp $
  */
 
 /*
@@ -415,7 +415,7 @@ vnode_pager_input_smlfs(object, m)
 			bp->b_bufsize = bsize;
 
 			/* do the input */
-			VOP_STRATEGY(bp);
+			VOP_STRATEGY(bp->b_vp, bp);
 
 			/* we definitely need to be at splvm here */
 
@@ -729,7 +729,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	cnt.v_vnodepgsin += count;
 
 	/* do the input */
-	VOP_STRATEGY(bp);
+	VOP_STRATEGY(bp->b_vp, bp);
 
 	s = splvm();
 	/* we definitely need to be at splvm here */

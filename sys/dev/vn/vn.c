@@ -38,7 +38,7 @@
  * from: Utah Hdr: vn.c 1.13 94/04/02
  *
  *	from: @(#)vn.c	8.6 (Berkeley) 4/1/94
- *	$Id: vn.c,v 1.61 1998/06/07 20:10:53 dfr Exp $
+ *	$Id: vn.c,v 1.62 1998/07/04 00:27:48 julian Exp $
  */
 
 /*
@@ -401,7 +401,7 @@ vnstrategy(struct buf *bp)
 			if ((nbp->b_flags & B_READ) == 0)
 				nbp->b_vp->v_numoutput++;
 
-			VOP_STRATEGY(nbp);
+			VOP_STRATEGY(vp, nbp);
 
 			s = splbio();
 			while ((nbp->b_flags & B_DONE) == 0) {
@@ -574,7 +574,7 @@ nvsIOreq(void *private ,struct buf *bp)
 			if ((nbp->b_flags & B_READ) == 0)
 				nbp->b_vp->v_numoutput++;
 
-			VOP_STRATEGY(nbp);
+			VOP_STRATEGY(vp, nbp);
 
 			s = splbio();
 			while ((nbp->b_flags & B_DONE) == 0) {

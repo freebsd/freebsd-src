@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.71 1998/06/10 06:30:31 peter Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.73 1998/06/10 13:46:46 dt Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.68 1998/02/10 14:10:04 mrg Exp $	*/
 
 /*-
@@ -1813,6 +1813,7 @@ msdosfs_bmap(ap)
 static int
 msdosfs_strategy(ap)
 	struct vop_strategy_args /* {
+		struct vnode *a_vp;
 		struct buf *a_bp;
 	} */ *ap;
 {
@@ -1850,7 +1851,7 @@ msdosfs_strategy(ap)
 	 */
 	vp = dep->de_devvp;
 	bp->b_dev = vp->v_rdev;
-	VOCALL(vp->v_op, VOFFSET(vop_strategy), ap);
+	VOP_STRATEGY(vp, bp);
 	return (0);
 }
 
