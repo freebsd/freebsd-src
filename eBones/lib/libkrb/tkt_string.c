@@ -5,13 +5,13 @@
  * <Copyright.MIT>.
  *
  *	from: tkt_string.c,v 4.6 89/01/05 12:31:51 raeburn Exp $
- *	$Id: tkt_string.c,v 1.3 1995/07/18 16:39:52 mark Exp $
+ *	$Id: tkt_string.c,v 1.3 1995/09/07 21:38:35 markm Exp $
  */
 
 #if 0
 #ifndef lint
 static char *rcsid =
-"$Id: tkt_string.c,v 1.3 1995/07/18 16:39:52 mark Exp $";
+"$Id: tkt_string.c,v 1.3 1995/09/07 21:38:35 markm Exp $";
 #endif /* lint */
 #endif
 
@@ -51,7 +51,7 @@ char *tkt_string()
 	} else {
 	    /* 32 bits of signed integer will always fit in 11 characters
 	     (including the sign), so no need to worry about overflow */
-	    (void) sprintf(krb_ticket_string, "%s%ld",TKT_ROOT,getuid());
+	    (void) sprintf(krb_ticket_string, "%s%d",TKT_ROOT,getuid());
         }
     }
     return krb_ticket_string;
