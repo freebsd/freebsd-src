@@ -6,6 +6,7 @@ MODULES		+= pam_echo
 MODULES		+= pam_exec
 MODULES		+= pam_ftp
 MODULES		+= pam_ftpusers
+MODULES		+= pam_group
 .if defined(MAKE_KERBEROS4) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
 MODULES		+= pam_kerberosIV
 .endif
@@ -31,4 +32,3 @@ MODULES		+= pam_ssh
 .endif
 MODULES		+= pam_tacplus
 MODULES		+= pam_unix
-MODULES		+= pam_wheel
