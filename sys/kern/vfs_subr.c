@@ -547,7 +547,7 @@ vfs_getvfs(fsid)
 		    mp->mnt_stat.f_fsid.val[1] == fsid->val[1]) {
 			mtx_unlock(&mountlist_mtx);
 			return (mp);
-	    }
+		}
 	}
 	mtx_unlock(&mountlist_mtx);
 	return ((struct mount *) 0);
