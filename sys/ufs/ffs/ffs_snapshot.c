@@ -198,10 +198,14 @@ restart:
 	}
 	/*
 	 * Allocate shadow blocks to copy all of the other snapshot inodes
-	 * so that we will be able to expunge them from this snapshot.
+	 * so that we will be able to expunge them from this snapshot. Also
+	 * include a copy of ourselves so that we do not deadlock trying
+	 * to copyonwrite ourselves when VOP_FSYNC'ing below.
 	 */
-	for (loc = 0, inoblkcnt = 0; loc < snaploc; loc++) {
+	fs->fs_snapinum[snaploc] = ip->i_number;
+	for (loc = snaploc, inoblkcnt = 0; loc >= 0; loc--) {
 		blkno = fragstoblks(fs, ino_to_fsba(fs, fs->fs_snapinum[loc]));
+		fs->fs_snapinum[snaploc] = 0;
 		for (i = 0; i < inoblkcnt; i++)
 			if (inoblks[i] == blkno)
 				break;
@@ -652,14 +656,14 @@ ffs_snapremove(vp)
 	ip = VTOI(vp);
 	fs = ip->i_fs;
 	/*
-	 * Delete from incore list.
+	 * If active, delete from incore list (this snapshot may
+	 * already have been in the process of being deleted, so
+	 * would not have been active).
+	 *
 	 * Clear copy-on-write flag if last snapshot.
 	 */
-	devvp = ip->i_devvp;
-	if (ip->i_nextsnap.tqe_prev == 0) {
-		printf("ffs_snapremove: lost snapshot vnode %d\n",
-		    ip->i_number);
-	} else {
+	if (ip->i_nextsnap.tqe_prev != 0) {
+		devvp = ip->i_devvp;
 		TAILQ_REMOVE(&devvp->v_rdev->si_snapshots, ip, i_nextsnap);
 		ip->i_nextsnap.tqe_prev = 0;
 		if (TAILQ_FIRST(&devvp->v_rdev->si_snapshots) == 0) {
@@ -832,9 +836,10 @@ ffs_snapblkfree(freeip, bno, size)
 		error = VOP_BALLOC(vp, lblktosize(fs, (off_t)lbn),
 		    fs->fs_bsize, KERNCRED, 0, &cbp);
 		p->p_flag &= ~P_COWINPROGRESS;
-		VOP_UNLOCK(vp, 0, p);
-		if (error)
+		if (error) {
+			VOP_UNLOCK(vp, 0, p);
 			break;
+		}
 #ifdef DEBUG
 		if (snapdebug)
 			printf("%s%d lbn %d for inum %d size %ld to blkno %d\n",
@@ -843,22 +848,44 @@ ffs_snapblkfree(freeip, bno, size)
 #endif
 		/*
 		 * If we have already read the old block contents, then
-		 * simply copy them to the new block.
+		 * simply copy them to the new block. Note that we need
+		 * to synchronously write snapshots that have not been
+		 * unlinked, and hence will be visible after a crash,
+		 * to ensure their integrity.
 		 */
 		if (savedcbp != 0) {
 			bcopy(savedcbp->b_data, cbp->b_data, fs->fs_bsize);
 			bawrite(cbp);
+			if (ip->i_effnlink > 0)
+				(void) VOP_FSYNC(vp, KERNCRED, MNT_WAIT, p);
+			VOP_UNLOCK(vp, 0, p);
 			continue;
 		}
 		/*
 		 * Otherwise, read the old block contents into the buffer.
 		 */
-		if ((error = readblock(cbp, lbn)) != 0)
+		if ((error = readblock(cbp, lbn)) != 0) {
+			bzero(cbp->b_data, fs->fs_bsize);
+			bawrite(cbp);
+			if (ip->i_effnlink > 0)
+				(void) VOP_FSYNC(vp, KERNCRED, MNT_WAIT, p);
+			VOP_UNLOCK(vp, 0, p);
 			break;
+		}
 		savedcbp = cbp;
 	}
-	if (savedcbp)
+	/*
+	 * Note that we need to synchronously write snapshots that
+	 * have not been unlinked, and hence will be visible after
+	 * a crash, to ensure their integrity.
+	 */
+	if (savedcbp) {
+		vp = savedcbp->b_vp;
 		bawrite(savedcbp);
+		if (VTOI(vp)->i_effnlink > 0)
+			(void) VOP_FSYNC(vp, KERNCRED, MNT_WAIT, p);
+		VOP_UNLOCK(vp, 0, p);
+	}
 	/*
 	 * If we have been unable to allocate a block in which to do
 	 * the copy, then return non-zero so that the fragment will
@@ -1014,8 +1041,8 @@ retry:
 		error = VOP_BALLOC(vp, lblktosize(fs, (off_t)lbn),
 		    fs->fs_bsize, KERNCRED, B_NOWAIT, &cbp);
 		p->p_flag &= ~P_COWINPROGRESS;
-		VOP_UNLOCK(vp, 0, p);
 		if (error) {
+			VOP_UNLOCK(vp, 0, p);
 			if (error != EWOULDBLOCK)
 				break;
 			tsleep(vp, p->p_pri.pri_user, "nap", 1);
@@ -1035,22 +1062,44 @@ retry:
 #endif
 		/*
 		 * If we have already read the old block contents, then
-		 * simply copy them to the new block.
+		 * simply copy them to the new block. Note that we need
+		 * to synchronously write snapshots that have not been
+		 * unlinked, and hence will be visible after a crash,
+		 * to ensure their integrity.
 		 */
 		if (savedcbp != 0) {
 			bcopy(savedcbp->b_data, cbp->b_data, fs->fs_bsize);
 			bawrite(cbp);
+			if (ip->i_effnlink > 0)
+				(void) VOP_FSYNC(vp, KERNCRED, MNT_WAIT, p);
+			VOP_UNLOCK(vp, 0, p);
 			continue;
 		}
 		/*
 		 * Otherwise, read the old block contents into the buffer.
 		 */
-		if ((error = readblock(cbp, lbn)) != 0)
+		if ((error = readblock(cbp, lbn)) != 0) {
+			bzero(cbp->b_data, fs->fs_bsize);
+			bawrite(cbp);
+			if (ip->i_effnlink > 0)
+				(void) VOP_FSYNC(vp, KERNCRED, MNT_WAIT, p);
+			VOP_UNLOCK(vp, 0, p);
 			break;
+		}
 		savedcbp = cbp;
 	}
-	if (savedcbp)
+	/*
+	 * Note that we need to synchronously write snapshots that
+	 * have not been unlinked, and hence will be visible after
+	 * a crash, to ensure their integrity.
+	 */
+	if (savedcbp) {
+		vp = savedcbp->b_vp;
 		bawrite(savedcbp);
+		if (VTOI(vp)->i_effnlink > 0)
+			(void) VOP_FSYNC(vp, KERNCRED, MNT_WAIT, p);
+		VOP_UNLOCK(vp, 0, p);
+	}
 	return (error);
 }
 
