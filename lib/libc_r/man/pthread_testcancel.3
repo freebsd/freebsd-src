@@ -23,7 +23,11 @@ The
 function atomically both sets the calling thread's cancelability state
 to the indicated
 .Fa state
-and returns the previous cancelability state at the location referenced by
+and, if
+.Fa oldstate
+is not
+.Dv NULL ,
+returns the previous cancelability state at the location referenced by
 .Fa oldstate .
 Legal values for
 .Fa state
@@ -37,7 +41,11 @@ The
 function atomically both sets the calling thread's cancelability type
 to the indicated
 .Fa type
-and returns the previous cancelability type at the location referenced by
+and, if
+.Fa oldtype
+is not
+.Dv NULL ,
+returns the previous cancelability type at the location referenced by
 .Fa oldtype .
 Legal values for
 .Fa type
