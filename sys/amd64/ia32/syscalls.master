@@ -586,10 +586,10 @@
 413	UNIMPL	BSD	extattr_get_link
 414	UNIMPL	BSD	extattr_delete_link
 415	UNIMPL	BSD	__mac_execve
-416	MSTD BSD	{ int ia32_sigreturn(const struct ia32_ucontext *sigcntxp); }
-417	STD POSIX	{ int ia32_sigaction(int sig, \
+416	STD POSIX	{ int ia32_sigaction(int sig, \
 			    struct sigaction32 *act, \
 			    struct sigaction32 *oact); }
+417	MSTD BSD	{ int ia32_sigreturn(const struct ia32_ucontext *sigcntxp); }
 418	UNIMPL	BSD	__xstat
 419	UNIMPL	BSD	__xfstat
 420	UNIMPL	BSD	__xlstat
