@@ -8,7 +8,7 @@
  *	of this software, nor does the author assume any responsibility
  *	for damages incurred with its use.
  *
- *	$Id: ctx.c,v 1.16 1995/12/15 00:53:55 bde Exp $
+ *	$Id: ctx.c,v 1.17 1996/03/28 14:28:37 scrappy Exp $
  */
 
 /*
@@ -125,11 +125,9 @@
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
 
-#include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/ctxreg.h>
 #include <machine/ioctl_ctx.h>
-
 
 static int     waitvb(short);
 

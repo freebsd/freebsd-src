@@ -38,7 +38,7 @@
  */
 
 /*
- *  $Id: if_ep.c,v 1.47 1996/06/14 22:11:35 nate Exp $
+ *  $Id: if_ep.c,v 1.48 1996/06/15 00:43:03 nate Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -108,9 +108,7 @@
 #include <machine/clock.h>
 #endif
 
-#include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
-#include <i386/isa/icu.h>
 #include <i386/isa/if_epreg.h>
 #include <i386/isa/elink.h>
 

@@ -35,11 +35,10 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.191 1996/05/18 03:36:07 dyson Exp $
+ *	$Id: machdep.c,v 1.192 1996/06/08 11:03:01 bde Exp $
  */
 
 #include "npx.h"
-#include "isa.h"
 #include "opt_sysvipc.h"
 #include "opt_ddb.h"
 #include "opt_bounce.h"
@@ -114,7 +113,6 @@
 #include <machine/perfmon.h>
 #endif
 
-#include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/rtc.h>
 #include <machine/random.h>

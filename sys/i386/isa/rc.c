@@ -53,7 +53,6 @@
 
 #include <machine/clock.h>
 
-#include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/sioreg.h>
 
