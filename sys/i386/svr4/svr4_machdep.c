@@ -418,7 +418,7 @@ svr4_sendsig(catcher, sig, mask, code)
 #if defined(DEBUG_SVR4)
 	printf("svr4_sendsig(%d)\n", sig);
 #endif
-	PROC_LOCK(p);
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 	psp = p->p_sigacts;
 
 	tf = p->p_frame;
@@ -495,6 +495,7 @@ svr4_sendsig(catcher, sig, mask, code)
 	tf->tf_fs = _udatasel;
 	load_gs(_udatasel);
 	tf->tf_ss = _udatasel;
+	PROC_LOCK(p);
 #endif
 }
 

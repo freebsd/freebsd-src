@@ -585,7 +585,7 @@ osf1_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	struct sigacts *psp;
 
 	p = curproc;
-	PROC_LOCK(p);
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 	psp = p->p_sigacts;
 
 	frame = p->p_frame;
@@ -620,7 +620,6 @@ osf1_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		SIGDELSET(p->p_sigcatch, SIGILL);
 		SIGDELSET(p->p_sigmask, SIGILL);
 		psignal(p, SIGILL);
-		PROC_UNLOCK(p);
 		return;
 	}
 
@@ -674,6 +673,7 @@ osf1_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	frame->tf_regs[FRAME_A3]  = (u_int64_t)catcher;		/* a3 is pv */
 	frame->tf_regs[FRAME_FLAGS] = 0;   	/* full restore */
 	alpha_pal_wrusp((unsigned long)sip);
+	PROC_LOCK(p);
 }
 
 

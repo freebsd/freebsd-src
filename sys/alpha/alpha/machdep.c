@@ -1163,7 +1163,6 @@ osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		SIGDELSET(p->p_sigcatch, SIGILL);
 		SIGDELSET(p->p_sigmask, SIGILL);
 		psignal(p, SIGILL);
-		PROC_UNLOCK(p);
 		return;
 	}
 
@@ -1216,7 +1215,6 @@ osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		frame->tf_regs[FRAME_A1] = (u_int64_t)sip;
 	else
 		frame->tf_regs[FRAME_A1] = code;
-	PROC_UNLOCK(p);
 	frame->tf_regs[FRAME_A2] = (u_int64_t)&sip->si_sc;
 	frame->tf_regs[FRAME_T12] = (u_int64_t)catcher;	/* t12 is pv */
 	alpha_pal_wrusp((unsigned long)sip);
@@ -1232,7 +1230,7 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	struct sigframe sf, *sfp;
 	int oonstack, rndfsize;
 
-	PROC_LOCK(p);
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 	psp = p->p_sigacts;
 #ifdef COMPAT_43
 	if (SIGISMEMBER(psp->ps_osigset, sig)) {
@@ -1305,7 +1303,6 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		SIGDELSET(p->p_sigcatch, SIGILL);
 		SIGDELSET(p->p_sigmask, SIGILL);
 		psignal(p, SIGILL);
-		PROC_UNLOCK(p);
 		return;
 	}
 
@@ -1349,7 +1346,6 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	}
 	else
 		frame->tf_regs[FRAME_A1] = code;
-	PROC_UNLOCK(p);
 
 	frame->tf_regs[FRAME_A2] = (u_int64_t)&(sfp->sf_uc);
 	frame->tf_regs[FRAME_T12] = (u_int64_t)catcher;	/* t12 is pv */
