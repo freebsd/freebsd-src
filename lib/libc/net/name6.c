@@ -552,7 +552,7 @@ _hpcopy(struct hostent *hp, int *errp)
 
 	/* count size to be allocated */
 	size = sizeof(struct hostent);
-	if (hp->h_name != NULL && *hp->h_name != '\0')
+	if (hp->h_name != NULL)
 		size += strlen(hp->h_name) + 1;
 	if ((pp = hp->h_aliases) != NULL) {
 		for (i = 0; *pp != NULL; i++, pp++) {
@@ -580,7 +580,7 @@ _hpcopy(struct hostent *hp, int *errp)
 		return NULL;
 	}
 	cp = (char *)&nhp[1];
-	if (hp->h_name != NULL && *hp->h_name != '\0') {
+	if (hp->h_name != NULL) {
 		nhp->h_name = cp;
 		strcpy(cp, hp->h_name);
 		cp += strlen(cp) + 1;
