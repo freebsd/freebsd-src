@@ -1375,7 +1375,7 @@ sf_stop(sc)
  * between setting the indirect address register and reading from the
  * indirect data register, the contents of the address register could
  * be changed out from under us.
- */     
+ */
 static void
 sf_stats_update(xsc)
 	void			*xsc;
