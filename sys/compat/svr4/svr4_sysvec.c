@@ -185,7 +185,7 @@ struct sysentvec svr4_sysvec = {
 };
 
 Elf32_Brandinfo svr4_brand = {
-  ELFOSABI_SOLARIS,		/* XXX  Or should we use ELFOSABI_SYSV here?  */
+  ELFOSABI_SYSV,
   "SVR4",
   svr4_emul_path,
   "/lib/libc.so.1",
