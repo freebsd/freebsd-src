@@ -790,7 +790,7 @@ including the following:
   IBM Creditcard Ethernet I/II
   IC-CARD Ethernet/IC-CARD+ Ethernet
   Linksys EC2T/PCMPC100
-  Melco LPC-T
+  Melco LPC-T/LPC2-T/LPC3-TX
   NDC Ethernet Instant-Link
   National Semiconductor InfoMover NE4100
   Network Everywhere Ethernet 10BaseT PC Card
