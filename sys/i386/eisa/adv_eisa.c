@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: adv_eisa.c,v 1.1 1998/09/15 07:05:39 gibbs Exp $
  */
 
 #include "eisa.h"
@@ -76,9 +76,9 @@ static int	adveisaattach(struct eisa_device *e_dev);
  * The overrun buffer shared amongst all EISA adapters.
  */
 static	u_int8_t*	overrun_buf;
-bus_dma_tag_t		overrun_dmat;
-bus_dmamap_t		overrun_dmamap;
-bus_addr_t		overrun_physbase;
+static	bus_dma_tag_t	overrun_dmat;
+static	bus_dmamap_t	overrun_dmamap;
+static	bus_addr_t	overrun_physbase;
 
 static struct eisa_driver adv_eisa_driver =
 {
