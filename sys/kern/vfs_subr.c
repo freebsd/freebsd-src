@@ -1465,6 +1465,49 @@ static struct kproc_desc up_kp = {
 };
 SYSINIT(syncer, SI_SUB_KTHREAD_UPDATE, SI_ORDER_FIRST, kproc_start, &up_kp)
 
+static int
+sync_vnode(struct bufobj *bo, struct thread *td)
+{
+	struct vnode *vp;
+	struct mount *mp;
+
+	vp = bo->__bo_vnode; 	/* XXX */
+	if (VOP_ISLOCKED(vp, NULL) != 0)
+		return (1);
+	if (vn_start_write(vp, &mp, V_NOWAIT) != 0)
+		return (1);
+	if (VI_TRYLOCK(vp) == 0) {
+		vn_finished_write(mp);
+		return (1);
+	}
+	/*
+	 * We use vhold in case the vnode does not
+	 * successfully sync.  vhold prevents the vnode from
+	 * going away when we unlock the sync_mtx so that
+	 * we can acquire the vnode interlock.
+	 */
+	vholdl(vp);
+	mtx_unlock(&sync_mtx);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY | LK_INTERLOCK, td);
+	(void) VOP_FSYNC(vp, td->td_ucred, MNT_LAZY, td);
+	VOP_UNLOCK(vp, 0, td);
+	vn_finished_write(mp);
+	VI_LOCK(vp);
+	if ((bo->bo_flag & BO_ONWORKLST) != 0) {
+		/*
+		 * Put us back on the worklist.  The worklist
+		 * routine will remove us from our current
+		 * position and then add us back in at a later
+		 * position.
+		 */
+		vn_syncer_add_to_worklist(bo, syncdelay);
+	}
+	vdropl(vp);
+	VI_UNLOCK(vp);
+	mtx_lock(&sync_mtx);
+	return (0);
+}
+
 /*
  * System filesystem synchronizer daemon.
  */
@@ -1473,9 +1516,7 @@ sched_sync(void)
 {
 	struct synclist *next;
 	struct synclist *slp;
-	struct vnode *vp;
 	struct bufobj *bo;
-	struct mount *mp;
 	long starttime;
 	struct thread *td = FIRST_THREAD_IN_PROC(updateproc);
 	static int dummychan;
@@ -1483,6 +1524,7 @@ sched_sync(void)
 	int net_worklist_len;
 	int syncer_final_iter;
 	int first_printf;
+	int error;
 
 	mtx_lock(&Giant);
 	last_work_seen = 0;
@@ -1551,44 +1593,12 @@ sched_sync(void)
 		if (net_worklist_len > 0 && syncer_state == SYNCER_FINAL_DELAY)
 			syncer_state = SYNCER_SHUTTING_DOWN;
 		while ((bo = LIST_FIRST(slp)) != NULL) {
-			vp = bo->__bo_vnode; 	/* XXX */
-			if (VOP_ISLOCKED(vp, NULL) != 0 ||
-			    vn_start_write(vp, &mp, V_NOWAIT) != 0) {
+			error = sync_vnode(bo, td);
+			if (error == 1) {
 				LIST_REMOVE(bo, bo_synclist);
 				LIST_INSERT_HEAD(next, bo, bo_synclist);
 				continue;
 			}
-			if (VI_TRYLOCK(vp) == 0) {
-				LIST_REMOVE(bo, bo_synclist);
-				LIST_INSERT_HEAD(next, bo, bo_synclist);
-				vn_finished_write(mp);
-				continue;
-			}
-			/*
-			 * We use vhold in case the vnode does not
-			 * successfully sync.  vhold prevents the vnode from
-			 * going away when we unlock the sync_mtx so that
-			 * we can acquire the vnode interlock.
-			 */
-			vholdl(vp);
-			mtx_unlock(&sync_mtx);
-			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY | LK_INTERLOCK, td);
-			(void) VOP_FSYNC(vp, td->td_ucred, MNT_LAZY, td);
-			VOP_UNLOCK(vp, 0, td);
-			vn_finished_write(mp);
-			VI_LOCK(vp);
-			if ((bo->bo_flag & BO_ONWORKLST) != 0) {
-				/*
-				 * Put us back on the worklist.  The worklist
-				 * routine will remove us from our current
-				 * position and then add us back in at a later
-				 * position.
-				 */
-				vn_syncer_add_to_worklist(bo, syncdelay);
-			}
-			vdropl(vp);
-			VI_UNLOCK(vp);
-			mtx_lock(&sync_mtx);
 		}
 		if (syncer_state == SYNCER_FINAL_DELAY && syncer_final_iter > 0)
 			syncer_final_iter--;
