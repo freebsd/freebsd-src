@@ -29,6 +29,7 @@ LOCALES=        af_ZA.ISO8859-1 \
 		it_IT.ISO8859-1 \
 		ja_JP.eucJP \
 		ko_KR.eucKR \
+		nl_BE.ISO8859-1 \
 		nl_NL.ISO8859-1 \
 		no_NO.ISO8859-1 \
 		pl_PL.ISO8859-2 \
@@ -51,7 +52,7 @@ LOCALEDIR=      ${DESTDIR}/usr/share/locale
 ASCIILINKS=	en_AU en_CA en_GB en_NZ en_US
 LATIN15LINKS=	af_ZA da_DK de_AT de_CH de_DE en_AU en_CA en_GB en_NZ en_US \
 		es_ES fi_FI fr_BE fr_CA fr_CH fr_FR is_IS is_IS it_IT it_CH \
-		nl_NL no_NO pt_PT sv_SE
+		nl_BE nl_NL no_NO pt_PT sv_SE
 
 CH_SRC=		de_CH
 CH_LINKS=	fr_CH it_CH
