@@ -344,10 +344,9 @@ cbcp_resp(us)
     if (cb_type & ( 1 << CB_CONF_ADMIN ) ) {
 	syslog(LOG_DEBUG, "cbcp_resp CONF_ADMIN");
         PUTCHAR(CB_CONF_ADMIN, bufp);
-	len = 3 + 1;
-	PUTCHAR(len , bufp);
+	len = 3;
+	PUTCHAR(len, bufp);
 	PUTCHAR(5, bufp); /* delay */
-	PUTCHAR(0, bufp);
 	cbcp_send(us, CBCP_RESP, buf, len);
 	return;
     }
@@ -355,9 +354,8 @@ cbcp_resp(us)
     if (cb_type & ( 1 << CB_CONF_NO ) ) {
         syslog(LOG_DEBUG, "cbcp_resp CONF_NO");
 	PUTCHAR(CB_CONF_NO, bufp);
-	len = 3;
+	len = 2;
 	PUTCHAR(len , bufp);
-	PUTCHAR(0, bufp);
 	cbcp_send(us, CBCP_RESP, buf, len);
 	(*ipcp_protent.open)(us->us_unit);
 	return;
