@@ -1,4 +1,4 @@
-/*	$Id: util.c,v 1.3 1997/12/13 20:38:21 pst Exp $	*/
+/*	$Id: util.c,v 1.4 1997/12/16 08:17:26 ache Exp $	*/
 /*	$NetBSD: util.c,v 1.16.2.1 1997/11/18 01:02:33 mellon Exp $	*/
 
 /*
@@ -36,7 +36,7 @@
 
 #include <sys/cdefs.h>
 #ifndef lint
-__RCSID("$Id: util.c,v 1.3 1997/12/13 20:38:21 pst Exp $");
+__RCSID("$Id: util.c,v 1.4 1997/12/16 08:17:26 ache Exp $");
 __RCSID_SOURCE("$NetBSD: util.c,v 1.16.2.1 1997/11/18 01:02:33 mellon Exp $");
 #endif /* not lint */
 
@@ -258,7 +258,8 @@ login(host, user, pass)
 			printf("Name (%s:%s): ", host, myname);
 		else
 			printf("Name (%s): ", host);
-		(void)fgets(tmp, sizeof(tmp) - 1, stdin);
+		if (fgets(tmp, sizeof(tmp) - 1, stdin) == NULL)
+			return (0);
 		tmp[strlen(tmp) - 1] = '\0';
 		if (*tmp == '\0')
 			user = myname;
