@@ -46,8 +46,11 @@ __FBSDID("$FreeBSD$");
  *	Add a new node with a new datum after an existing node
  */
 
-#include "make.h"
+#include <stdio.h>
+
 #include "lst.h"
+#include "make.h"
+#include "util.h"
 
 /*-
  *-----------------------------------------------------------------------

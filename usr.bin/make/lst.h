@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1988, 1989, 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  * Copyright (c) 1988, 1989 by Adam de Boor
@@ -40,16 +40,15 @@
  * $FreeBSD$
  */
 
+#ifndef lst_h_38f3ead1
+#define	lst_h_38f3ead1
+
 /*-
  * lst.h --
  *	Header for using the list library
  */
-#ifndef _LST_H_
-#define	_LST_H_
 
-#include	<sys/param.h>
-#include	<stdlib.h>
-#include	"sprite.h"
+#include "sprite.h"
 
 /*
  * Structure of a list node.
@@ -198,5 +197,4 @@ void		*Lst_DeQueue(Lst *);
  */
 #define Lst_IsEmpty(L)	(!Lst_Valid(L) || (L)->firstPtr == NULL)
 
-
-#endif /* _LST_H_ */
+#endif /* lst_h_38f3ead1 */

@@ -46,7 +46,10 @@ __FBSDID("$FreeBSD$");
  *	See if a given datum is on a given list.
  */
 
+#include <stdio.h>
+
 #include "make.h"
+#include "util.h"
 #include "lst.h"
 
 LstNode *

@@ -46,7 +46,10 @@ __FBSDID("$FreeBSD$");
  *	Find a node on a list from a given starting point. Used by Lst_Find.
  */
 
+#include <stdio.h>
+
 #include "make.h"
+#include "util.h"
 #include "lst.h"
 
 /*-

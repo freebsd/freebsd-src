@@ -39,104 +39,11 @@
  * $FreeBSD$
  */
 
-/* arch.c */
-ReturnStatus Arch_ParseArchive(char **, Lst *, GNode *);
-void Arch_Touch(GNode *);
-void Arch_TouchLib(GNode *);
-int Arch_MTime(GNode *);
-int Arch_MemMTime(GNode *);
-void Arch_FindLib(GNode *, Lst *);
-Boolean Arch_LibOODate(GNode *);
-void Arch_Init(void);
-
-/* compat.c */
-void Compat_Run(Lst *);
-int Compat_RunCommand(void *, void *);
-
-/* cond.c */
-int Cond_Eval(char *);
-void Cond_End(void);
-
-/* for.c */
-int For_Eval(char *);
-void For_Run(int);
+#ifndef nonints_h_33c5dafb
+#define	nonints_h_33c5dafb
 
 /* main.c */
 void Main_ParseArgLine(char *, int);
 char *Cmd_Exec(char *, char **);
-void Debug(const char *, ...);
-void Error(const char *, ...);
-void Fatal(const char *, ...);
-void Punt(const char *, ...);
-void DieHorribly(void);
-int PrintAddr(void *, void *);
-void Finish(int);
-char *estrdup(const char *);
-void *emalloc(size_t);
-void *erealloc(void *, size_t);
-void enomem(void);
-int eunlink(const char *);
 
-/* parse.c */
-void Parse_Error(int, const char *, ...);
-Boolean Parse_AnyExport(void);
-Boolean Parse_IsVar(char *);
-void Parse_DoVar(char *, GNode *);
-void Parse_AddIncludeDir(char *);
-void Parse_File(char *, FILE *);
-void Parse_Init(void);
-void Parse_FromString(char *, int);
-void Parse_MainName(Lst *);
-
-/* str.c */
-void str_init(void);
-char *str_concat(const char *, const char *, int);
-char **brk_string(char *, int *, Boolean);
-char *MAKEFLAGS_quote(const char *);
-char **MAKEFLAGS_break(const char *, int *);
-int Str_Match(const char *, const char *);
-const char *Str_SYSVMatch(const char *, const char *, int *);
-void Str_SYSVSubst(Buffer, const char *, const char *, int);
-
-/* suff.c */
-void Suff_ClearSuffixes(void);
-Boolean Suff_IsTransform(char *);
-GNode *Suff_AddTransform(char *);
-int Suff_EndTransform(void *, void *);
-void Suff_AddSuffix(char *);
-Lst *Suff_GetPath(char *);
-void Suff_DoPaths(void);
-void Suff_AddInclude(char *);
-void Suff_AddLib(char *);
-void Suff_FindDeps(GNode *);
-void Suff_SetNull(char *);
-void Suff_Init(void);
-void Suff_PrintAll(void);
-
-/* targ.c */
-void Targ_Init(void);
-GNode *Targ_NewGN(char *);
-GNode *Targ_FindNode(char *, int);
-void Targ_FindList(Lst *, Lst *, int);
-Boolean Targ_Ignore(GNode *);
-Boolean Targ_Silent(GNode *);
-Boolean Targ_Precious(GNode *);
-void Targ_SetMain(GNode *);
-int Targ_PrintCmd(void *, void *);
-char *Targ_FmtTime(time_t);
-void Targ_PrintType(int);
-void Targ_PrintGraph(int);
-
-/* var.c */
-void Var_Delete(char *, GNode *);
-void Var_Set(char *, char *, GNode *);
-void Var_Append(char *, char *, GNode *);
-Boolean Var_Exists(char *, GNode *);
-char *Var_Value(char *, GNode *, char **);
-char *Var_Quote(const char *);
-char *Var_Parse(char *, GNode *, Boolean, size_t *, Boolean *);
-char *Var_Subst(char *, char *, GNode *, Boolean);
-char *Var_GetTail(char *);
-char *Var_GetHead(char *);
-void Var_Init(void);
-void Var_Dump(GNode *);
+#endif /* nonints_h_33c5dafb */

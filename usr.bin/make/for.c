@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -13,11 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -49,11 +45,19 @@ __FBSDID("$FreeBSD$");
  *
  */
 
-#include    <ctype.h>
-#include    "make.h"
-#include    "hash.h"
-#include    "dir.h"
-#include    "buf.h"
+#include <ctype.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "buf.h"
+#include "dir.h"
+#include "for.h"
+#include "globals.h"
+#include "lst.h"
+#include "make.h"
+#include "parse.h"
+#include "util.h"
+#include "var.h"
 
 /*
  * For statements are of the form:

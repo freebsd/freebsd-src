@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1988, 1989, 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  * Copyright (c) 1988, 1989 by Adam de Boor
@@ -40,14 +40,16 @@
  * $FreeBSD$
  */
 
+#ifndef hash_h_f6312f46
+#define	hash_h_f6312f46
+
 /* hash.h --
  *
  * 	This file contains definitions used by the hash module,
  * 	which maintains hash tables.
  */
 
-#ifndef	_HASH
-#define	_HASH
+#include "sprite.h"
 
 /*
  * The following defines one entry in the hash table.
@@ -98,4 +100,4 @@ void Hash_DeleteEntry(Hash_Table *, Hash_Entry *);
 Hash_Entry *Hash_EnumFirst(const Hash_Table *, Hash_Search *);
 Hash_Entry *Hash_EnumNext(Hash_Search *);
 
-#endif /* _HASH */
+#endif /* hash_h_f6312f46 */

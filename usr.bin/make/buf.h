@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1988, 1989, 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  * Copyright (c) 1988, 1989 by Adam de Boor
@@ -40,15 +40,30 @@
  * $FreeBSD$
  */
 
+#ifndef buf_h_a61a6812
+#define	buf_h_a61a6812
+
 /*-
  * buf.h --
  *	Header for users of the buf library.
  */
 
-#ifndef _BUF_H
-#define	_BUF_H
+#include <sys/types.h>
 
 #include "sprite.h"
+
+/*
+ * There are several places where expandable buffers are used (parse.c and
+ * var.c). This constant is merely the starting point for those buffers. If
+ * lines tend to be much shorter than this, it would be best to reduce BSIZE.
+ * If longer, it should be increased. Reducing it will cause more copying to
+ * be done for longer lines, but will save space for shorter ones. In any
+ * case, it ought to be a power of two simply because most storage allocation
+ * schemes allocate in powers of two.
+ */
+#define	MAKE_BSIZE	256	/* starting size for expandable buffers */
+
+#define	BUF_ERROR 256
 
 typedef char Byte;
 
@@ -65,8 +80,6 @@ typedef struct Buffer {
 	(void)(--(bp)->left <= 0 ? Buf_OvAddByte((bp), (byte)), 1 : \
 		(*(bp)->inPtr++ = (byte), *(bp)->inPtr = 0), 1)
 
-#define	BUF_ERROR 256
-
 void Buf_OvAddByte(Buffer, Byte);
 void Buf_AddBytes(Buffer, size_t, const Byte *);
 void Buf_UngetByte(Buffer, Byte);
@@ -80,4 +93,4 @@ Buffer Buf_Init(size_t);
 void Buf_Destroy(Buffer, Boolean);
 void Buf_ReplaceLastByte(Buffer, Byte);
 
-#endif /* _BUF_H */
+#endif /* buf_h_a61a6812 */

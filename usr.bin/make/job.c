@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1988, 1989, 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  * Copyright (c) 1988, 1989 by Adam de Boor
@@ -103,26 +103,34 @@ __FBSDID("$FreeBSD$");
  */
 
 #include <sys/types.h>
+#include <sys/select.h>
 #include <sys/stat.h>
-#include <sys/file.h>
-#include <sys/time.h>
 #ifdef USE_KQUEUE
 #include <sys/event.h>
 #endif
 #include <sys/wait.h>
-#include <err.h>
+#include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <stdio.h>
 #include <string.h>
 #include <signal.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <utime.h>
-#include "make.h"
-#include "hash.h"
+
+#include "arch.h"
+#include "compat.h"
 #include "dir.h"
+#include "globals.h"
+#include "GNode.h"
 #include "job.h"
+#include "make.h"
+#include "parse.h"
 #include "pathnames.h"
+#include "str.h"
+#include "targ.h"
+#include "util.h"
+#include "var.h"
 
 #define STATIC static
 

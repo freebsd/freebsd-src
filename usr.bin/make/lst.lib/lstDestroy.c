@@ -46,7 +46,10 @@ __FBSDID("$FreeBSD$");
  *	Nuke a list and all its resources
  */
 
+#include <stdlib.h>
+
 #include "make.h"
+#include "util.h"
 #include "lst.h"
 
 /*-
