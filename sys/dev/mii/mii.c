@@ -202,7 +202,9 @@ miibus_child_pnpinfo_str(device_t bus, device_t child, char *buf,
     size_t buflen)
 {
 	struct mii_attach_args *maa = device_get_ivars(child);
-	snprintf(buf, buflen, "id1=0x%x id2=0x%x", maa->mii_id1, maa->mii_id2);
+	snprintf(buf, buflen, "oui=0x%x model=0x%x rev=0x%x",
+	    MII_OUI(maa->mii_id1, maa->mii_id2),
+	    MII_MODEL(maa->mii_id2), MII_REV(maa->mii_id2));
 	return (0);
 }
 
