@@ -40,7 +40,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.75 1996/03/28 14:28:45 scrappy Exp $
+ *	$Id: mcd.c,v 1.76 1996/04/07 17:32:14 bde Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -66,6 +66,7 @@ static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
 
+#include <machine/spl.h>
 #include <machine/clock.h>
 
 #include <i386/i386/cons.h>
@@ -157,7 +158,7 @@ static struct mcd_data {
 	short   curr_mode;
 	struct mcd_read2 lastpb;
 	short	debug;
-	struct buf head;		/* head of buf queue */
+	struct buf_queue_head head;		/* head of buf queue */
 	struct mcd_mbx mbx;
 #ifdef	DEVFS
 	void *ra_devfs_token;		/* store the devfs handle here */
@@ -427,7 +428,6 @@ void
 mcdstrategy(struct buf *bp)
 {
 	struct mcd_data *cd;
-	struct buf *qp;
 	int s;
 
 	int unit = mcd_unit(bp->b_dev);
@@ -479,9 +479,8 @@ MCD_TRACE("strategy: drive not valid\n");
 	}
 
 	/* queue it */
-	qp = &cd->head;
 	s = splbio();
-	disksort(qp,bp);
+	tqdisksort(&cd->head, bp);
 	splx(s);
 
 	/* now check whether we can perform processing */
@@ -499,8 +498,8 @@ done:
 static void mcd_start(int unit)
 {
 	struct mcd_data *cd = mcd_data + unit;
-	struct buf *bp, *qp = &cd->head;
 	struct partition *p;
+	struct buf *bp;
 	register s = splbio();
 
 	if (cd->flags & MCDMBXBSY) {
@@ -508,10 +507,11 @@ static void mcd_start(int unit)
 		return;
 	}
 
-	if ((bp = qp->b_actf) != 0) {
+	bp = TAILQ_FIRST(&cd->head);
+	if (bp != 0) {
 		/* block found to process, dequeue */
 		/*MCD_TRACE("mcd_start: found block bp=0x%x\n",bp,0,0,0);*/
-	    qp->b_actf = bp->b_actf; /* changed from: bp->av_forw <se> */
+		TAILQ_REMOVE(&cd->head, bp, b_act);
 		splx(s);
 	} else {
 		/* nothing to do */
