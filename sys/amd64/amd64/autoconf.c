@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.87 1998/03/09 08:10:21 msmith Exp $
+ *	$Id: autoconf.c,v 1.88 1998/03/09 08:35:33 msmith Exp $
  */
 
 /*
@@ -422,13 +422,14 @@ setdumpdev(dev)
 
 u_long	bootdev = 0;		/* not a dev_t - encoding is different */
 
-static	char devname[][2] = {
-      {'w','d'},      /* 0 = wd */
-      {'s','w'},      /* 1 = sw */
+/* Name lookup for bootable majors XXX extend me */
+static char *devname[] = {
+  "wd",
+  "wfd",
 #define FDMAJOR 2
-      {'f','d'},      /* 2 = fd */
-      {'w','t'},      /* 3 = wt */
-      {'s','d'},      /* 4 = sd -- new SCSI system */
+  "fd",
+  "wt",
+  "st",
 };
 
 #define	PARTITIONMASK	0x7
@@ -446,6 +447,7 @@ setroot()
 {
 	int  majdev, mindev, unit, part, adaptor, slice;
 	dev_t orootdev;
+	char *sname, partname[2];
 
 /*printf("howto %x bootdev %x ", boothowto, bootdev);*/
 	if (boothowto & RB_DFLTROOT ||
@@ -471,15 +473,13 @@ setroot()
 	rootdev = makedev(majdev, mindev);
 	/*
 	 * If the original rootdev is the same as the one
-	 * just calculated, don't need to adjust the swap configuration.
+	 * just calculated modulo the slice number, don't print an otherwise
+	 * confusing diagnostic.
 	 */
-	if (rootdev == orootdev)
+	if ((rootdev & ~0xff0000) == (orootdev & ~0xff0000))
 		return;
-	printf("changing root device to %c%c%ds%d%c\n",
-		devname[majdev][0], devname[majdev][1],
-		(mindev & 0xf) >> (majdev == FDMAJOR ? FDUNITSHIFT : PARTITIONSHIFT),
-		slice,
-		part + 'a');
+	sname = dsname(devname[majdev], unit, slice, part, partname);
+	printf("changing root device to %s%s\n", sname, partname);
 }
 
 static int
