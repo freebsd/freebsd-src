@@ -109,7 +109,7 @@ mbpr(mbaddr)
 			printf("\t%u mbufs allocated to <mbuf type %d>\n",
 			    mbstat.m_mtypes[i], i);
 		}
-	printf("%u/%u mapped pages in use\n",
+	printf("%u/%u mbuf clusters in use\n",
 		mbstat.m_clusters - mbstat.m_clfree, mbstat.m_clusters);
 	totmem = totmbufs * MSIZE + mbstat.m_clusters * MCLBYTES;
 	totfree = mbstat.m_clfree * MCLBYTES;
