@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  */
-#include "y.tab.h"
+#include "parser.tab.h"
 extern int lineno;
 extern int charno;
 extern int off;
