@@ -90,11 +90,14 @@ Process only localized subdirectories corresponding to the locale specified
 in the standard environment variables.
 .El
 .Sh ENVIRONMENT
-.Bl -tag -width ".Ev MANPATH" -compact
+.Bl -tag -width ".Ev MANPATH"
 .It Ev LC_ALL , LC_CTYPE , LANG
 These variables control what subdirectories will be processed if the
 .Fl L
 option is used.
+.It Ev MACHINE
+If set, its value is used to override the current
+machine type when searching machine specific subdirectories.
 .It Ev MANPATH
 Determines the set of directories to be processed if none are given on
 the command line.
