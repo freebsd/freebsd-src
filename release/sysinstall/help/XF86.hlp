@@ -1,6 +1,8 @@
-README for XFree86 3.1.1u1 on FreeBSD 2.0.5
+README for XFree86 3.1.2 on FreeBSD 2.1
 Rich Murphey, David Dawes
 20 January 1995
+[Last Updated: 14 October 1995]
+
 
 1.  What and Where is XFree86?
 ------------------------------
@@ -14,7 +16,7 @@ well as binary distributions for many architectures.
 
 See the Copyright Notice (COPYRIGHT.html).
 
-The sources for XFree86 are available as part of the FreeBSD 2.0.5
+The sources for XFree86 are available as part of the FreeBSD 2.1
 distribution, or by anonymous ftp from:
 
 ftp.XFree86.org:/pub/XFree86/current
@@ -22,7 +24,7 @@ ftp.XFree86.org:/pub/XFree86/current
 
 
 Binaries for XFree86 on FreeBSD are also available as part of
-2.0.5 or from:
+2.1 or from:
 
 ftp.XFree86.org:/pub/XFree86/current/binaries/FreeBSD-2.0
 (ftp://ftp.XFree86.org/pub/XFree86/current/binaries/FreeBSD-2.0)
@@ -37,7 +39,7 @@ comments or suggestions about this file and we'll revise it.
 2.  Installing the Binaries
 ---------------------------
 
-In the FreeBSD 2.0.5 distribution, XFree86 comes in 3 major sections:
+In the FreeBSD 2.1 distribution, XFree86 comes in 3 major sections:
 "basic" distributions, fonts and servers.  At the minimum, you will
 need the binaries and libraries from the basic distribution, the
 "misc" fonts collection and at least one server.  The smallest usable
@@ -47,102 +49,108 @@ If you can't decide what to pick and you have 52Mb of disk
 space, it's safe to unpack everything.
 
 What follows is a description of the various distribution files
-comprising XFree86.  If you are installing this as part of FreeBSD
-2.0.5 then there's no need to use these files directly:  You may
-simply check the desired components off the installation menus
-provided for that purpose.  If you're installing this manually,
-then the following information should prove useful:
+comprising XFree86.  If you are installing this as part of FreeBSD 2.1
+then there's no need to use these files directly: You may simply check
+the desired components off the installation menus provided for that
+purpose.  If you're installing this manually, then the following
+information should prove useful:
 
    Required (6.7Mb):
 
-      X311bin.tgz
+      X312bin.tgz
          all the executable X client applications and shared libs
 
-      X311fnts.tgz
+      X312fnts.tgz
          the misc and 75 dpi fonts
 
-      X311lib.tgz
+      X312lib.tgz
          data files needed at runtime
 
 
    Required unless you have already customized your configuration
       files:
 
-      X311xicf.tgz
+      X312xicf.tgz
          customizable xinit runtime configuration file
 
-      X311xdcf.tgz
+      X312xdcf.tgz
          customizable xdm runtime configuration file
 
    Choose at least one server ( 2.3Mb):
 
-      X3118514.tgz
+      X3128514.tgz
          8-bit color for IBM 8514 and true compatibles.
 
-      X311AGX.tgz
+      X312AGX.tgz
          8-bit color for AGX boards.
 
-      X311Mch3.tgz
+      X312Mch3.tgz
          8 and 16-bit color for ATI Mach32 boards.
 
-      X311Mch8.tgz
+      X312Mch8.tgz
          8-bit color for ATI Mach8 boards.
 
-      X311Mono.tgz
+      X312Mono.tgz
          1-bit monochrome for VGA, Super-VGA, Hercules, and others.
 
-      X311P9K.tgz
+      X312P9K.tgz
          8, 16, and 24-bit color for Weitek P9000 boards (Diamond
          Viper).
 
-      X311S3.tgz
+      X312S3.tgz
          8, 16 and 24-bit color for S3 boards (#9 GXE, Actix GE32,
          SPEA Mercury, STB Pegasus)
 
-      X311SVGA.tgz
+      X312SVGA.tgz
          8-bit color for Super-VGA cards.
 
-      X311VG16.tgz
+      X312VG16.tgz
          4-bit color for VGA and Super-VGA cards
 
-      X311W32.tgz
+      X312W32.tgz
          8-bit Color for ET4000/W32, /W32i and /W32p cards.
 
-      X311nest.tgz
+      X312nest.tgz
          A nested server running as a client window on another
          display.
 
    Optional:
 
-      X311doc.tgz
+      X312doc.tgz
          (.5Mb) READMEs and XFree86 specific man pages
 
-      X311man.tgz
+      X312man.tgz
          (1.7Mb) man pages except XFree86 specific ones in etc archive
 
-      X311f100.tgz
+      X312ctrb.tgz
+         (1.0Mb) Contributed clients like ico, xeyes, etc.
+
+      X312f100.tgz
          (1.8Mb) 100dpi fonts
 
-      X311fscl.tgz
+      X312fcyr.tgz
+         (1.8Mb) Cyrillic fonts
+
+      X312fscl.tgz
          (1.6Mb) Speedo and Type1 fonts
 
-      X311fnon.tgz
+      X312fnon.tgz
          (3.3Mb) Japanese, Chinese and other non-English fonts
 
-      X311fsrv.tgz
+      X312fsrv.tgz
          (.3Mb) the font server and it's man page
 
-      X311prog.tgz
+      X312prog.tgz
          (3.9Mb) config, lib*.a and *.h files needed only for
          compiling
 
-      X311link.tgz
+      X312link.tgz
          (7.8Mb) X server reconfiguration kit
 
-      X311pex.tgz
+      X312pex.tgz
          (.5Mb) PEX fonts and shared libs needed by PEX applications.
 
-      X311lbx.tgz
+      X312lbx.tgz
          (.2Mb) low bandwidth X proxy server and libraries.
 
 Note that there is no longer a separate xdm archive.  FreeBSD 2.0
@@ -154,8 +162,8 @@ us to provide separate tar balls.
 2.1.  Full Install:
 -------------------
 
-[ Note:  Unless you're installing XFree86 3.1.1u1 manually, that is
-  to say not as part of the FreeBSD 2.0.5 installation, you may skip
+[ Note:  Unless you're installing XFree86 3.1.2 manually, that is
+  to say not as part of the FreeBSD 2.1 installation, you may skip
   to section 2.3 ]
 
    1. You must be logged in as root to unpack the archives because
@@ -181,14 +189,14 @@ us to provide separate tar balls.
 
       If you are using sh (as root usually does):
 
-         # for i in X311*.tgz; do
+         # for i in X312*.tgz; do
          #   tar -xzf $i
          # done
 
 
    Else, if you are using csh:
 
-         % foreach i (X311*.tgz)
+         % foreach i (X312*.tgz)
          %   tar -xzf $i
          % end
 
@@ -207,7 +215,7 @@ us to provide separate tar balls.
 First do numbers 1 and 2 above. Then unpack the required archives:
 
       # for i in bin fnts lib xicf; do
-      #   tar -xzf  X311$i.tgz
+      #   tar -xzf  X312$i.tgz
       # done
 
 
@@ -216,7 +224,7 @@ server man pages, X11R6/man/man1/XF86_*, list the vga chip sets
 supported by each server.  For example, if you have an ET4000 based
 card you will use the XF86_SVGA server:
 
-      # tar -xzf X311SVGA.tgz
+      # tar -xzf X312SVGA.tgz
       # cd /usr/X11R6/bin; rm X; ln -s XF86_SVGA X
 
 
@@ -256,7 +264,6 @@ applications.
      abort with the message ``could not open default font
      'fixed'''.
 
-
 3.  Installing The Display Manager (xdm)
 ----------------------------------------
 
@@ -286,6 +293,11 @@ The XF86Config file tells the X server what kind of monitor, video
 card and mouse you have.  You must create it to tell the server what
 specific hardware you have.
 
+If you are installing XFree86 as part of FreeBSD 2.1, you may invoke
+XF86Config automatically from the FreeBSD configuration menu.  You
+should still read this document first, however, as it contains
+valuable information on mouse and VGA card selection below.
+
 XFree86 3.1 uses a new configuration file format. Consult the
 XF86Config man page and the general INSTALL (INSTALL.html) file for
 instructions.
@@ -311,25 +323,61 @@ You'll need info on your hardware:
 
    o  Your monitor's sync frequencies.
 
-The easiest way to find which device your mouse is plugged into is to
+Bus Mice:
+
+In FreeBSD, the bus mouse is generally found on /dev/mse0.  Specify
+/dev/mse0 when asked, and in case of failure ensure that your Bus
+mouse was indeed "probed" when the system was booted.  To make
+sure of this, type:
+
+      % dmesg | grep mse
+
+If you do not see something like this:
+      mse0 at 0x23c irq 5 on isa
+
+then it means that your bus mouse was not detected properly and you
+should reboot with the `-c' flag and verify that the device entry for
+mse0 matches your bus mouse settings.
+
+If the mouse is probed properly but still fails to function then you
+might double check that the /dev entry for the bus mouse exists.  Use
+the script /dev/MAKEDEV to create the entry if it doesn't already
+exist, e.g:
+
+      % cd /dev
+      % sh MAKEDEV mse0
+
+
+Serial Mice:
+
+The easiest way to find which port your mouse is plugged into is to
 use ``cat'' or ``kermit'' to look at the output of the mouse.  Connect
 to it and just make sure that it generates output when the mouse is
-moved or clicked:
+moved or clicked.  If your mouse is plugged into the first serial port
+(COM1), for example, you could do this:
 
       % cat < /dev/cuaa0
 
-If you can't find the right mouse device then use ``dmesg|grep sio''
-to get a list of devices that were detected upon booting:
+Where /dev/cuaa0 represents the first serial port, /dev/cuaa1 the
+second, /dev/cuaa2 the third and so on.
+
+If you can't find the right mouse port then use ``dmesg | grep sio''
+to get a list of serial devices that were detected at boot time:
 
       % dmesg|grep sio
       sio0 at 0x3f8-0x3ff irq 4 on isa
 
-Then double check the /dev entries corresponding to these devices.
-Use the script /dev/MAKEDEV to create entries if they don't already
-exist:
+The presence of sio0 will indicate that COM1 was found.  If you see
+sio1, sio2 or sio3 then it means that a serial port was found at one
+of the other com addresses and you should use the appropriate
+/dev/cuaa<n> device entry to talk to it.
+
+If things still aren't working then double check that the /dev entries
+corresponding to these devices exist.  Use the script /dev/MAKEDEV to
+create entries if they don't already exist, e.g:
 
       % cd /dev
-      % sh MAKEDEV cuaa0
+      % sh MAKEDEV cuaa0 [cuaa1, cuaa2, etc..]
 
 If you plan to fine tune the screen size or position on your monitor
 you'll need the specs for sync frequencies from your monitor's manual.
@@ -358,7 +406,7 @@ your home directory as described in the xinit and startx man pages.
 6.  Rebuilding Kernels for X
 ----------------------------
 
-The GENERIC FreeBSD 2.0 kernel supports XFree86 without any
+The GENERIC FreeBSD 2.x kernel supports XFree86 without any
 modifications required.  You do not need to make any changes to the
 GENERIC kernel or any kernel configuration which is a superset.
 
@@ -368,6 +416,9 @@ smm.02.config.ps.Z
 a ready-to-print postscript copy of the kernel configuration chapter
 from the system maintainers manual.
 
+Alternatively, you can read the kernel configuration section of the
+FreeBSD handbook (http://www.freebsd.org/handbook).
+
 If you do decide to reduce your kernel configuration file, do not
 remove the two lines below (in /sys/arch/i386/conf).  They are both
 required for X support:
@@ -375,8 +426,8 @@ required for X support:
       options                XSERVER                 #Xserver
       options                UCONSOLE                #X Console support
 
-The generic FreeBSD 2.0 kernel is configured by default with the
-syscons driver.  To configure your kernel similarly it should have a
+The generic FreeBSD 2.x kernel is configured by default with the
+syscons driver.  To configure your kernel similarly, it should have a
 line like this in /usr/src/sys/i386/conf/GENERIC:
 
       device         sc0     at isa? port "IO_KBD" tty irq 1 vector scintr

@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: change.c,v 1.8.2.1 1995/06/05 02:24:20 jkh Exp $
+ * $Id: change.c,v 1.9.2.1 1995/09/20 10:43:01 jkh Exp $
  *
  */
 
@@ -46,7 +46,7 @@ Set_Bios_Geom(struct disk *disk, u_long cyl, u_long hd, u_long sect)
 }
 
 void
-All_FreeBSD(struct disk *d)
+All_FreeBSD(struct disk *d, int force_all)
 {
 	struct chunk *c;
 
@@ -57,5 +57,6 @@ All_FreeBSD(struct disk *d)
 			goto again;
 		}
 	c=d->chunks;
-	Create_Chunk(d,c->offset,c->size,freebsd,0xa5,0);
+	Create_Chunk(d,c->offset,c->size,freebsd,0xa5,
+		     force_all? CHUNK_FORCE_ALL: 0);
 }

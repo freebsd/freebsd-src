@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: dmenu.c,v 1.11.2.11 1995/06/10 19:44:54 jkh Exp $
+ * $Id: dmenu.c,v 1.12.2.5 1995/10/19 15:55:00 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -44,7 +44,7 @@
 #include "sysinstall.h"
 #include <sys/types.h>
 
-#define MAX_MENU		8
+#define MAX_MENU		15
 
 /* Traverse menu but give user no control over positioning */
 Boolean
@@ -68,19 +68,24 @@ dmenuFlagCheck(DMenuItem *item)
 char *
 dmenuVarCheck(DMenuItem *item)
 {
-    char *cp, *cp2, tmp[256];
+    char *w, *cp, *cp2, tmp[256];
 
-    strncpy(tmp, (char *)item->ptr, 256);
+    w = (char *)item->parm;
+    if (!w)
+	w = (char *)item->ptr;
+    if (!w)
+	return "OFF";
+    strncpy(tmp, w, 256);
     if ((cp = index(tmp, '=')) != NULL) {
-	*(cp++) = '\0';
-	cp2 = getenv(tmp);
-	if (cp2)
-	    return !strcmp(cp, cp2) ? "ON" : "OFF";
-	else
-	    return "OFF";
+        *(cp++) = '\0';
+        cp2 = getenv(tmp);
+        if (cp2)
+            return !strcmp(cp, cp2) ? "ON" : "OFF";
+        else
+            return "OFF";
     }
     else
-	return getenv(tmp) ? "ON" : "OFF";
+        return getenv(tmp) ? "ON" : "OFF";
 }
 
 char *
@@ -98,6 +103,19 @@ checkHookVal(DMenuItem *item)
     if (!item->check)
 	return "OFF";
     return (*item->check)(item);
+}
+
+static int
+menu_height(DMenu *menu, int n)
+{
+    int max;
+    char *t;
+
+    for (t = menu->title, max = MAX_MENU; *t; t++) {
+	if (*t == '\n')
+	    --max;
+    }
+    return n > max ? max : n;
 }
 
 /* Traverse over an internal menu */
@@ -128,18 +146,17 @@ dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max)
 	use_helpfile(systemHelpFile(menu->helpfile, buf));
 
 	/* Pop up that dialog! */
-	if (menu->options & DMENU_NORMAL_TYPE) {
+	if (menu->options & DMENU_NORMAL_TYPE)
 	    rval = dialog_menu((u_char *)menu->title, (u_char *)menu->prompt, -1, -1,
-			       n > MAX_MENU ? MAX_MENU : n, n, (u_char **)nitems, (u_char *)result, choice, scroll);
-	}
-	else if (menu->options & DMENU_RADIO_TYPE) {
+			       menu_height(menu, n), n, (u_char **)nitems, (u_char *)result, choice, scroll);
+
+	else if (menu->options & DMENU_RADIO_TYPE)
 	    rval = dialog_radiolist((u_char *)menu->title, (u_char *)menu->prompt, -1, -1,
-				    n > MAX_MENU ? MAX_MENU : n, n, (u_char **)nitems, (u_char *)result);
-	}
-	else if (menu->options & DMENU_MULTIPLE_TYPE) {
+				    menu_height(menu, n), n, (u_char **)nitems, (u_char *)result);
+
+	else if (menu->options & DMENU_MULTIPLE_TYPE)
 	    rval = dialog_checklist((u_char *)menu->title, (u_char *)menu->prompt, -1, -1,
-				    n > MAX_MENU ? MAX_MENU : n, n, (u_char **)nitems, (u_char *)result);
-	}
+				    menu_height(menu, n), n, (u_char **)nitems, (u_char *)result);
 
 	/* This seems to be the only technique that works for getting the display to look right */
 	dialog_clear();
@@ -149,8 +166,7 @@ dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max)
 		if (menu->options & DMENU_CALL_FIRST)
 		    tmp = &(menu->items[0]);
 		else {
-		    if (decode_and_dispatch_multiple(menu, result) ||
-			menu->options & DMENU_SELECTION_RETURNS) {
+		    if (decode_and_dispatch_multiple(menu, result) || menu->options & DMENU_SELECTION_RETURNS) {
 			items_free(nitems, curr, max);
 			return TRUE;
 		    }
@@ -160,7 +176,7 @@ dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max)
 		if ((tmp = decode(menu, result)) == NULL)
 		    return FALSE;
 	    }
-	    if (dispatch(tmp, result) || (menu->options & DMENU_SELECTION_RETURNS)) {
+	    if (dispatch(tmp, result) == RET_DONE || (menu->options & DMENU_SELECTION_RETURNS)) {
 		items_free(nitems, curr, max);
 		return TRUE;
 	    }

@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ftp.c,v 1.13.2.9 1995/06/05 18:34:15 jkh Exp $
+ * $Id: ftp.c,v 1.14.2.1 1995/10/21 14:06:35 jkh Exp $
  *
  * Return values have been sanitized:
  *	-1	error, but you (still) have a session.
@@ -33,6 +33,9 @@
 
 /* Handy global for us to stick the port # */
 int FtpPort;
+
+/* How to see by a given code whether or not the connection has timed out */
+#define FTP_TIMEOUT(code)	(code == 421)
 
 #ifndef STANDALONE_FTP
 #include "sysinstall.h"
@@ -288,7 +291,7 @@ FtpGet(FTP_t ftp, char *file)
 	return botch(ftp,"FtpGet","open");
     if(ftp->binary) {
 	i = cmd(ftp,"TYPE I");
-	if (i < 0)
+	if (i < 0 || FTP_TIMEOUT(i))
 	    return zap(ftp);
 	if (i > 299)
 	    return -1;
@@ -331,7 +334,7 @@ FtpGet(FTP_t ftp, char *file)
 	}
 	ftp->fd_xfer = s;
 	i = cmd(ftp,"RETR %s",file);
-	if (i < 0)  {
+	if (i < 0 || FTP_TIMEOUT(i))  {
 	    close(s);
 	    return zap(ftp);
 	}
@@ -374,11 +377,14 @@ FtpGet(FTP_t ftp, char *file)
 	    close(s);
 	    return zap(ftp);
 	}
-	else if (i > 299) {
+	else if (i > 299 || FTP_TIMEOUT(i)) {
 	    if (isDebug())
 		msgDebug("FTP: No such file %s, moving on.\n", file);
 	    close(s);
-	    return -1;
+	    if (FTP_TIMEOUT(i))
+		return zap(ftp);
+	    else
+		return -1;
         }
 	ftp->fd_xfer = accept(s, 0, 0);
 	if (ftp->fd_xfer < 0) {

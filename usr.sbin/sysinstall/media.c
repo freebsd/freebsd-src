@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.25.2.1 1995/07/21 10:53:58 rgrimes Exp $
+ * $Id: media.c,v 1.26 1995/09/18 16:52:31 peter Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -72,6 +72,16 @@ cdromHook(char *str)
     return genericHook(str, DEVICE_TYPE_CDROM);
 }
 
+char *
+cpioVerbosity()
+{
+    if (!strcmp(variable_get(VAR_CPIO_VERBOSITY), "high"))
+	return "-v";
+    else if (!strcmp(variable_get(VAR_CPIO_VERBOSITY), "medium"))
+	return "-V";
+    return "";
+}
+
 /*
  * Return 1 if we successfully found and set the installation type to
  * be a CD.
@@ -82,11 +92,24 @@ mediaSetCDROM(char *str)
     Device **devs;
     int cnt;
 
+    if (!RunningAsInit) {
+	vsystem("mount /cdrom");
+	if (!file_readable("/cdrom/kernel")) {
+	    msgConfirm("Can't find a FreeBSD CD in /cdrom?");
+	    return RET_FAIL;
+	}
+	else
+	    return RET_SUCCESS;
+    }
     devs = deviceFind(NULL, DEVICE_TYPE_CDROM);
     cnt = deviceCount(devs);
     if (!cnt) {
-	msgConfirm("No CDROM devices found!  Please check that your system's\nconfiguration is correct and that the CDROM drive is of a supported\ntype.  For more information, consult the hardware guide\nin the Doc menu.");
-	return 0;
+	dialog_clear();
+	msgConfirm("No CDROM devices found!  Please check that your system's\n"
+		   "configuration is correct and that the CDROM drive is of a supported\n"
+		   "type.  For more information, consult the hardware guide\n"
+		   "in the Doc menu.");
+	return RET_FAIL;
     }
     else if (cnt > 1) {
 	DMenu *menu;
@@ -98,11 +121,11 @@ mediaSetCDROM(char *str)
 	status = dmenuOpenSimple(menu);
 	free(menu);
 	if (!status)
-	    return 0;
+	    return RET_FAIL;
     }
     else
 	mediaDevice = devs[0];
-    return mediaDevice ? 1 : 0;
+    return mediaDevice ? RET_DONE : RET_FAIL;
 }
 
 static int
@@ -124,8 +147,11 @@ mediaSetFloppy(char *str)
     devs = deviceFind(NULL, DEVICE_TYPE_FLOPPY);
     cnt = deviceCount(devs);
     if (!cnt) {
-	msgConfirm("No floppy devices found!  Please check that your system's\nconfiguration is correct.  For more information, consult the hardware guide\nin the Doc menu.");
-	return 0;
+	dialog_clear();
+	msgConfirm("No floppy devices found!  Please check that your system's configuration\n"
+		   "is correct.  For more information, consult the hardware guide in the Doc\n"
+		   "menu.");
+	return RET_FAIL;
     }
     else if (cnt > 1) {
 	DMenu *menu;
@@ -137,11 +163,11 @@ mediaSetFloppy(char *str)
 	status = dmenuOpenSimple(menu);
 	free(menu);
 	if (!status)
-	    return 0;
+	    return RET_FAIL;
     }
     else
 	mediaDevice = devs[0];
-    return mediaDevice ? 1 : 0;
+    return mediaDevice ? RET_DONE : RET_FAIL;
 }
 
 static int
@@ -163,8 +189,9 @@ mediaSetDOS(char *str)
     devs = deviceFind(NULL, DEVICE_TYPE_DOS);
     cnt = deviceCount(devs);
     if (!cnt) {
+	dialog_clear();
 	msgConfirm("No DOS primary partitions found!  This installation method is unavailable");
-	return 0;
+	return RET_FAIL;
     }
     else if (cnt > 1) {
 	DMenu *menu;
@@ -176,11 +203,11 @@ mediaSetDOS(char *str)
 	status = dmenuOpenSimple(menu);
 	free(menu);
 	if (!status)
-	    return 0;
+	    return RET_FAIL;
     }
     else
 	mediaDevice = devs[0];
-    return mediaDevice ? 1 : 0;
+    return mediaDevice ? RET_DONE : RET_FAIL;
 }
 
 static int
@@ -202,8 +229,11 @@ mediaSetTape(char *str)
     devs = deviceFind(NULL, DEVICE_TYPE_TAPE);
     cnt = deviceCount(devs);
     if (!cnt) {
-	msgConfirm("No tape drive devices found!  Please check that your system's\nconfiguration is correct.  For more information, consult the hardware guide\nin the Doc menu.");
-	return 0;
+	dialog_clear();
+	msgConfirm("No tape drive devices found!  Please check that your system's configuration\n"
+		   "is correct.  For more information, consult the hardware guide in the Doc\n"
+		   "menu.");
+	return RET_FAIL;
     }
     else if (cnt > 1) {
 	DMenu *menu;
@@ -215,20 +245,24 @@ mediaSetTape(char *str)
 	status = dmenuOpenSimple(menu);
 	free(menu);
 	if (!status)
-	    return 0;
+	    return RET_FAIL;
     }
     else
 	mediaDevice = devs[0];
     if (mediaDevice) {
 	char *val;
 
-	val = msgGetInput("/usr/tmp", "Please enter the name of a temporary directory containing\nsufficient space for holding the contents of this tape (or\ntapes).  The contents of this directory will be removed\nafter installation, so be sure to specify a directory that\ncan be erased afterward!");
+	val = msgGetInput("/usr/tmp", "Please enter the name of a temporary directory containing\n"
+			  "sufficient space for holding the contents of this tape (or\n"
+			  "tapes).  The contents of this directory will be removed\n"
+			  "after installation, so be sure to specify a directory that\n"
+			  "can be erased afterwards!\n");
 	if (!val)
 	    mediaDevice = NULL;
 	else
 	    mediaDevice->private = strdup(val);
     }
-    return mediaDevice ? 1 : 0;
+    return mediaDevice ? RET_DONE : RET_FAIL;
 }
 
 /*
@@ -241,24 +275,40 @@ mediaSetFTP(char *str)
     static Device ftpDevice;
     char *cp;
 
-    if (!dmenuOpenSimple(&MenuMediaFTP))
-	return 0;
-    cp = getenv("ftp");
-    if (!cp)
-	return 0;
-    if (!strcmp(cp, "other")) {
-	cp = msgGetInput("ftp://", "Please specify the URL of a FreeBSD distribution on a\nremote ftp site.  This site must accept either anonymous\nftp or you should have set an ftp username and password\nin the Options Menu.\nA URL looks like this:  ftp://<hostname>/<path>\nWhere <path> is relative to the anonymous ftp directory or the\nhome directory of the user being logged in as.");
-	if (!cp || strncmp("ftp://", cp, 6))
-	    return 0;
+    if (!(str && !strcmp(str, "script") && (cp = variable_get(VAR_FTP_PATH)))) {
+	if (!dmenuOpenSimple(&MenuMediaFTP))
+	    return RET_FAIL;
 	else
-	    variable_set2("ftp", cp);
+	    cp = variable_get(VAR_FTP_PATH);
+    }
+    if (!cp) {
+	dialog_clear();
+	msgConfirm("%s not set!  Not setting an FTP installation path, OK?", VAR_FTP_PATH);
+	return RET_FAIL;
+    }
+    else if (!strcmp(cp, "other")) {
+	variable_set2(VAR_FTP_PATH, "ftp://");
+	cp = variable_get_value(VAR_FTP_PATH, "Please specify the URL of a FreeBSD distribution on a\n"
+				"remote ftp site.  This site must accept either anonymous\n"
+				"ftp or you should have set an ftp username and password\n"
+				"in the Options screen.\n\n"
+				"A URL looks like this:  ftp://<hostname>/<path>\n"
+				"Where <path> is relative to the anonymous ftp directory or the\n"
+				"home directory of the user being logged in as.");
+	if (!cp || !*cp)
+	    return RET_FAIL;
+    }
+    if (strncmp("ftp://", cp, 6)) {
+	dialog_clear();
+	msgConfirm("Sorry, %s is an invalid URL!", cp);
+	return RET_FAIL;
     }
     strcpy(ftpDevice.name, cp);
-    /* XXX hack: if str == NULL, we were called by an ftp strategy routine and don't need to reinit all */
-    if (!str)
-	return 1;
-    if (!tcpDeviceSelect())
-	return 0;
+
+    /* If str == NULL || "script", we were called just to change FTP sites, not network devices */
+    if (str && strcmp(str, "script") && !tcpDeviceSelect())
+	return RET_FAIL;
+
     ftpDevice.type = DEVICE_TYPE_FTP;
     ftpDevice.init = mediaInitFTP;
     ftpDevice.get = mediaGetFTP;
@@ -266,20 +316,20 @@ mediaSetFTP(char *str)
     ftpDevice.shutdown = mediaShutdownFTP;
     ftpDevice.private = mediaDevice; /* Set to network device by tcpDeviceSelect() */
     mediaDevice = &ftpDevice;
-    return 1;
+    return RET_DONE;
 }
 
 int
 mediaSetFTPActive(char *str)
 {
-    OptFlags &= OPT_FTP_ACTIVE;
+    variable_set2(VAR_FTP_STATE, "active");
     return mediaSetFTP(str);
 }
 
 int
 mediaSetFTPPassive(char *str)
 {
-    OptFlags &= OPT_FTP_PASSIVE;
+    variable_set2(VAR_FTP_STATE, "passive");
     return mediaSetFTP(str);
 }
 
@@ -289,9 +339,12 @@ mediaSetUFS(char *str)
     static Device ufsDevice;
     char *val;
 
-    val = msgGetInput(NULL, "Enter a fully qualified pathname for the directory\ncontaining the FreeBSD distribution files:");
-    if (!val)
-	return 0;
+    if (!(str && !strcmp(str, "script") && (val = variable_get(VAR_UFS_PATH)))) {
+	val = variable_get_value(VAR_UFS_PATH, "Enter a fully qualified pathname for the directory\n"
+				 "containing the FreeBSD distribution files:");
+	if (!val)
+	    return RET_FAIL;
+    }
     strcpy(ufsDevice.name, "ufs");
     ufsDevice.type = DEVICE_TYPE_UFS;
     ufsDevice.init = dummyInit;
@@ -300,21 +353,26 @@ mediaSetUFS(char *str)
     ufsDevice.shutdown = dummyShutdown;
     ufsDevice.private = strdup(val);
     mediaDevice = &ufsDevice;
-    return 1;
+    return RET_DONE;
 }
 
 int
 mediaSetNFS(char *str)
 {
     static Device nfsDevice;
-    char *val;
+    char *cp;
 
-    val = msgGetInput(NULL, "Please enter the full NFS file specification for the remote\nhost and directory containing the FreeBSD distribution files.\nThis should be in the format:  hostname:/some/freebsd/dir");
-    if (!val)
-	return 0;
-    strncpy(nfsDevice.name, val, DEV_NAME_MAX);
-    if (!tcpDeviceSelect())
-	return 0;
+    if (!(str && !strcmp(str, "script") && (cp = variable_get(VAR_NFS_PATH)))) {
+	cp = variable_get_value(VAR_NFS_PATH, "Please enter the full NFS file specification for the remote\n"
+				"host and directory containing the FreeBSD distribution files.\n"
+				"This should be in the format:  hostname:/some/freebsd/dir");
+	if (!cp)
+	    return RET_FAIL;
+    }
+    strncpy(nfsDevice.name, cp, DEV_NAME_MAX);
+    /* str == NULL means we were just called to change NFS paths, not network interfaces */
+    if (str && strcmp(str, "script") && !tcpDeviceSelect())
+	return RET_FAIL;
     nfsDevice.type = DEVICE_TYPE_NFS;
     nfsDevice.init = mediaInitNFS;
     nfsDevice.get = mediaGetNFS;
@@ -322,7 +380,7 @@ mediaSetNFS(char *str)
     nfsDevice.shutdown = mediaShutdownNFS;
     nfsDevice.private = mediaDevice;
     mediaDevice = &nfsDevice;
-    return 1;
+    return RET_DONE;
 }
 
 Boolean
@@ -368,7 +426,7 @@ mediaExtractDistBegin(char *dir, int *fd, int *zpid, int *cpid)
 	    close(1); open("/dev/null", O_WRONLY);
 	    dup2(1, 2);
 	}
-	i = execl("/stand/cpio", "/stand/cpio", "-iduVm", "-H", "tar", 0);
+	i = execl("/stand/cpio", "/stand/cpio", "-idum", cpioVerbosity(), "--block-size", mediaTapeBlocksize(), 0);
 	if (isDebug())
 	    msgDebug("/stand/cpio command returns %d status\n", i);
 	exit(i);
@@ -441,7 +499,7 @@ mediaExtractDist(char *dir, int fd)
 	    close(1); open("/dev/null", O_WRONLY);
 	    dup2(1, 2);
 	}
-	i = execl("/stand/cpio", "/stand/cpio", "-iduVm", "-H", "tar", 0);
+	i = execl("/stand/cpio", "/stand/cpio", "-idum", cpioVerbosity(), "--block-size", mediaTapeBlocksize(), 0);
 	if (isDebug())
 	    msgDebug("/stand/cpio command returns %d status\n", i);
 	exit(i);
@@ -466,12 +524,12 @@ mediaExtractDist(char *dir, int fd)
     return TRUE;
 }
 
-Boolean
-mediaGetType(void)
+int
+mediaGetType(char *unused)
 {
     if (!dmenuOpenSimple(&MenuMedia))
-	return FALSE;
-    return TRUE;
+	return RET_FAIL;
+    return RET_SUCCESS;
 }
 
 /* Return TRUE if all the media variables are set up correctly */
@@ -479,8 +537,69 @@ Boolean
 mediaVerify(void)
 {
     if (!mediaDevice) {
-	msgConfirm("Media type not set!  Please select a media type\nfrom the Installation menu before proceeding.");
-	return FALSE;
+	dialog_clear();
+	msgConfirm("Media type not set!  Please select a media type\n"
+		   "from the Installation menu before proceeding.");
+	return mediaGetType(NULL) == RET_SUCCESS;
     }
     return TRUE;
+}
+
+/* Set FTP error behavior */
+int
+mediaSetFtpOnError(char *str)
+{
+    char *cp = variable_get(VAR_FTP_ONERROR);
+
+    if (!cp) {
+	dialog_clear();
+	msgConfirm("FTP error handling is not set to anything!");
+	return RET_FAIL;
+    }
+    else {
+	if (!strcmp(cp, "abort"))
+	    variable_set2(VAR_FTP_ONERROR, "retry");
+	else if (!strcmp(cp, "retry"))
+	    variable_set2(VAR_FTP_ONERROR, "reselect");
+	else /* must be "reselect" - wrap around */
+	    variable_set2(VAR_FTP_ONERROR, "abort");
+    }
+    return RET_SUCCESS;
+}
+
+/* Set the FTP username and password fields */
+int
+mediaSetFtpUserPass(char *str)
+{
+    char *pass;
+
+    dialog_clear();
+    if (variable_get_value(VAR_FTP_USER, "Please enter the username you wish to login as:"))
+	pass = variable_get_value(VAR_FTP_PASS, "Please enter the password for this user:");
+    else
+	pass = NULL;
+    dialog_clear();
+    return pass ? RET_SUCCESS : RET_FAIL;
+}
+
+/* Set CPIO verbosity level */
+int
+mediaSetCPIOVerbosity(char *str)
+{
+    char *cp = variable_get(VAR_CPIO_VERBOSITY);
+
+    if (!cp) {
+	dialog_clear();
+	msgConfirm("CPIO Verbosity is not set to anything!");
+	return RET_FAIL;
+    }
+    else {
+	if (!strcmp(cp, "low"))
+	    variable_set2(VAR_CPIO_VERBOSITY, "medium");
+	else if (!strcmp(cp, "medium"))
+	    variable_set2(VAR_CPIO_VERBOSITY, "high");
+	else /* must be "high" - wrap around */
+	    variable_set2(VAR_CPIO_VERBOSITY, "low");
+    }
+    return RET_SUCCESS;
 }
