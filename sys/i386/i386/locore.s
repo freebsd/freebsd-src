@@ -118,50 +118,50 @@
  * Globals
  */
 	.data
-	ALIGN_DATA		/* just to be sure */
+	ALIGN_DATA			/* just to be sure */
 
 	.globl	HIDENAME(tmpstk)
-	.space	0x2000		/* space for tmpstk - temporary stack */
+	.space	0x2000			/* space for tmpstk - temporary stack */
 HIDENAME(tmpstk):
 
 	.globl	bootinfo
-bootinfo:	.space	BOOTINFO_SIZE		/* bootinfo that we can handle */
+bootinfo:	.space	BOOTINFO_SIZE	/* bootinfo that we can handle */
 
-KERNend:	.long	0			/* phys addr end of kernel (just after bss) */
-physfree:	.long	0			/* phys addr of next free page */
+KERNend:	.long	0		/* phys addr end of kernel (just after bss) */
+physfree:	.long	0		/* phys addr of next free page */
 
 #ifdef SMP
 		.globl	cpu0prvpage
-cpu0pp:		.long	0			/* phys addr cpu0 private pg */
-cpu0prvpage:	.long	0			/* relocated version */
+cpu0pp:		.long	0		/* phys addr cpu0 private pg */
+cpu0prvpage:	.long	0		/* relocated version */
 
 		.globl	SMPpt
-SMPptpa:	.long	0			/* phys addr SMP page table */
-SMPpt:		.long	0			/* relocated version */
+SMPptpa:	.long	0		/* phys addr SMP page table */
+SMPpt:		.long	0		/* relocated version */
 #endif /* SMP */
 
 	.globl	IdlePTD
-IdlePTD:	.long	0			/* phys addr of kernel PTD */
+IdlePTD:	.long	0		/* phys addr of kernel PTD */
 
 #ifdef SMP
 	.globl	KPTphys
 #endif
-KPTphys:	.long	0			/* phys addr of kernel page tables */
+KPTphys:	.long	0		/* phys addr of kernel page tables */
 
 	.globl	proc0uarea, proc0kstack
-proc0uarea:	.long	0			/* address of proc 0 uarea space */
-proc0kstack:	.long	0			/* address of proc 0 kstack space */
-p0upa:		.long	0			/* phys addr of proc0's UAREA */
-p0kpa:		.long	0			/* phys addr of proc0's STACK */
+proc0uarea:	.long	0		/* address of proc 0 uarea space */
+proc0kstack:	.long	0		/* address of proc 0 kstack space */
+p0upa:		.long	0		/* phys addr of proc0's UAREA */
+p0kpa:		.long	0		/* phys addr of proc0's STACK */
 
-vm86phystk:	.long	0			/* PA of vm86/bios stack */
+vm86phystk:	.long	0		/* PA of vm86/bios stack */
 
 	.globl	vm86paddr, vm86pa
-vm86paddr:	.long	0			/* address of vm86 region */
-vm86pa:		.long	0			/* phys addr of vm86 region */
+vm86paddr:	.long	0		/* address of vm86 region */
+vm86pa:		.long	0		/* phys addr of vm86 region */
 
 #ifdef BDE_DEBUGGER
-	.globl	_bdb_exists			/* flag to indicate BDE debugger is present */
+	.globl	_bdb_exists		/* flag to indicate BDE debugger is present */
 _bdb_exists:	.long	0
 #endif
 
@@ -352,10 +352,10 @@ NON_GPROF_ENTRY(btext)
 
 /* Now enable paging */
 	movl	R(IdlePTD), %eax
-	movl	%eax,%cr3			/* load ptd addr into mmu */
-	movl	%cr0,%eax			/* get control word */
-	orl	$CR0_PE|CR0_PG,%eax		/* enable paging */
-	movl	%eax,%cr0			/* and let's page NOW! */
+	movl	%eax,%cr3		/* load ptd addr into mmu */
+	movl	%cr0,%eax		/* get control word */
+	orl	$CR0_PE|CR0_PG,%eax	/* enable paging */
+	movl	%eax,%cr0		/* and let's page NOW! */
 
 #ifdef BDE_DEBUGGER
 /*
@@ -366,17 +366,17 @@ NON_GPROF_ENTRY(btext)
 	call	bdb_commit_paging
 #endif
 
-	pushl	$begin				/* jump to high virtualized address */
+	pushl	$begin			/* jump to high virtualized address */
 	ret
 
 /* now running relocated at KERNBASE where the system is linked to run */
 begin:
 	/* set up bootstrap stack */
-	movl	proc0kstack,%eax		/* location of in-kernel stack */
+	movl	proc0kstack,%eax	/* location of in-kernel stack */
 			/* bootstrap stack end location */
 	leal	(KSTACK_PAGES*PAGE_SIZE-PCB_SIZE)(%eax),%esp
 
-	xorl	%ebp,%ebp			/* mark end of frames */
+	xorl	%ebp,%ebp		/* mark end of frames */
 
 	movl	IdlePTD,%esi
 	movl	%esi,(KSTACK_PAGES*PAGE_SIZE-PCB_SIZE+PCB_CR3)(%eax)
@@ -387,8 +387,8 @@ begin:
 	orl	$CR4_PGE, %eax
 	movl	%eax, %cr4
 1:
-	pushl	physfree			/* value of first for init386(first) */
-	call	init386				/* wire 386 chip for unix operation */
+	pushl	physfree		/* value of first for init386(first) */
+	call	init386			/* wire 386 chip for unix operation */
 
 	/*
 	 * Clean up the stack in a way that db_numargs() understands, so
@@ -397,39 +397,39 @@ begin:
 	 */
 	addl	$4,%esp
 
-	call	mi_startup			/* autoconfiguration, mountroot etc */
+	call	mi_startup		/* autoconfiguration, mountroot etc */
 	/* NOTREACHED */
-	addl	$0,%esp				/* for db_numargs() again */
+	addl	$0,%esp			/* for db_numargs() again */
 
 /*
  * Signal trampoline, copied to top of user stack
  */
 NON_GPROF_ENTRY(sigcode)
-	call	*SIGF_HANDLER(%esp)		/* call signal handler */
-	lea	SIGF_UC(%esp),%eax		/* get ucontext_t */
+	call	*SIGF_HANDLER(%esp)	/* call signal handler */
+	lea	SIGF_UC(%esp),%eax	/* get ucontext_t */
 	pushl	%eax
 	testl	$PSL_VM,UC_EFLAGS(%eax)
 	jne	9f
-	movl	UC_GS(%eax),%gs			/* restore %gs */
+	movl	UC_GS(%eax),%gs		/* restore %gs */
 9:
 	movl	$SYS_sigreturn,%eax
-	pushl	%eax				/* junk to fake return addr. */
-	int	$0x80				/* enter kernel with args */
+	pushl	%eax			/* junk to fake return addr. */
+	int	$0x80			/* enter kernel with args */
 0:	jmp	0b
 
 #ifdef COMPAT_43
 	ALIGN_TEXT
 osigcode:
-	call	*SIGF_HANDLER(%esp)		/* call signal handler */
-	lea	SIGF_SC(%esp),%eax		/* get sigcontext */
+	call	*SIGF_HANDLER(%esp)	/* call signal handler */
+	lea	SIGF_SC(%esp),%eax	/* get sigcontext */
 	pushl	%eax
 	testl	$PSL_VM,SC_PS(%eax)
 	jne	9f
-	movl	SC_GS(%eax),%gs			/* restore %gs */
+	movl	SC_GS(%eax),%gs		/* restore %gs */
 9:
 	movl	$SYS_osigreturn,%eax
-	pushl	%eax				/* junk to fake return addr. */
-	int	$0x80				/* enter kernel with args */
+	pushl	%eax			/* junk to fake return addr. */
+	int	$0x80			/* enter kernel with args */
 0:	jmp	0b
 #endif /* COMPAT_43 */
 
