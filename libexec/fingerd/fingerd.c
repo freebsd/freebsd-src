@@ -107,10 +107,11 @@ main(argc, argv)
 		exit(1);
 
 	comp = &av[1];
-	for (lp = line, ap = &av[2];;) {
+	av[2] = "--";
+	for (lp = line, ap = &av[3];;) {
 		*ap = strtok(lp, " \t\r\n");
 		if (!*ap) {
-			if (secure && ap == &av[2]) {
+			if (secure && ap == &av[3]) {
 				puts("must provide username\r\n");
 				exit(1);
 			}
