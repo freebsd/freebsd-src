@@ -32,8 +32,9 @@
 .Nm sec-doc
 .Nd guide to adding security considerations sections to manual pages
 .Sh DESCRIPTION
-This document presents guidelines for adding security considerations
-sections to manual pages.  It provides two typical examples.
+This document presents guidelines for
+adding security considerations sections to manual pages.
+It provides two typical examples.
 .Pp
 The guidelines for writing 
 .Fx
@@ -41,23 +42,26 @@ manual pages in
 .Xr groff_mdoc 7
 mandate that each manual page describing a feature of the 
 .Fx
-system should contain a security considerations section describing
-what security requirements can be broken through the misuse of that
-feature.  When writing these sections, authors should attempt to
-achieve a happy medium between two conflicting goals: brevity and
-completeness.  On one hand, security consideration sections must not
-be too verbose, or busy readers might be dissuaded from reading them.
-On the other hand, security consideration sections must not be
-incomplete, or they will fail in their purpose of instructing the
-reader on how to avoid all insecure uses.  This document provides
-guidelines for balancing brevity and completeness in the security
-consideration section for a given feature of the
+system should contain a security considerations section
+describing what security requirements can be broken
+through the misuse of that feature.
+When writing these sections, authors should attempt to
+achieve a happy medium between two conflicting goals:
+brevity and completeness.
+On one hand, security consideration sections must not be too verbose,
+or busy readers might be dissuaded from reading them.
+On the other hand, security consideration sections must not be incomplete,
+or they will fail in their purpose of
+instructing the reader on how to avoid all insecure uses.
+This document provides guidelines for balancing brevity and completeness
+in the security consideration section for a given feature of the
 .Fx
 system.
 .Sh WHERE TO START
 Begin by listing
-those general security requirements that can be violated through the
-misuse of the feature.  As described in
+those general security requirements that can be violated
+through the misuse of the feature.
+As described in
 the FreeBSD Security Architecture (FSA),
 there are four classes of security requirements:
 .Bl -hang -offset indent
@@ -75,63 +79,78 @@ no less.)
 .El
 .Pp
 The FSA
-contains a list of integrity, confidentiality, availability, and
-correctness requirements for the base
+contains a list of integrity, confidentiality, availability,
+and correctness requirements for the base
 .Fx
-system.  Many commands, tools, and utilities documented in sections 1,
-6, and 8 of the manual are partly responsible for meeting these base
-system requirements.  Consequently, borrowing entries from the list in
+system.
+Many commands, tools, and utilities
+documented in sections 1, 6, and 8 of the manual
+are partly responsible for meeting these base system requirements.
+Consequently, borrowing entries from the list in
 the FSA
 is a good way to begin the list of requirements for these commands,
 tools, and utilities.
 .Pp
 Complex servers and subsystems may have their own integrity,
-confidentiality, availability and correctness requirements in addition
-to the system-wide ones listed in
+confidentiality, availability and correctness requirements
+in addition to the system-wide ones listed in
 the FSA.
-Listing these additional requirements will require some thought and
-analysis.  Correctness requirements will most often deal with
-configuration issues, especially in cases of programs that can load
-modules containing arbitrary functionality during run-time.
+Listing these additional requirements will require
+some thought and analysis.
+Correctness requirements will most often
+deal with configuration issues,
+especially in cases of programs that can load modules
+containing arbitrary functionality during run-time.
 .Pp
-For low-level features, such as the individual functions documented in
-sections 2, 3, and 9 of the manual, it is generally sufficient to
-proceed with only a single correctness requirement: simply that the
-function behaves as advertised.
+For low-level features, such as the individual functions
+documented in sections 2, 3, and 9 of the manual,
+it is generally sufficient to proceed with
+only a single correctness requirement:
+simply that the function behaves as advertised.
 .Pp
-A good security considerations section should explain how the feature
-can be misused to violate each general security requirement in the
-list.  Each explanation should be accompanied by instructions the
-reader should follow in order to avoid a violation.  For the sake
-of brevity, assume the reader is familiar with all of the concepts in
+A good security considerations section
+should explain how the feature can be misused
+to violate each general security requirement in the list.
+Each explanation should be accompanied by instructions
+the reader should follow in order to avoid a violation.
+For the sake of brevity, assume the reader is familiar with
+all of the concepts in
 the FSA.
-When referencing potential vulnerabilities described in the
-Secure Programming Practices man page,
+When referencing potential vulnerabilities
+described in the Secure Programming Practices man page,
 .Xr sprog 7 ,
-likewise cross-reference that document rather than replicating
-information.
-Whenever possible, refer to this document rather than reproducing the
-material it contains.
+likewise cross-reference that document
+rather than replicating information.
+Whenever possible, refer to this document
+rather than reproducing the material it contains.
 .Sh WHERE TO STOP
-Security problems are often interrelated; individual problems often
-have far-reaching implications.  For example, the correctness of
-virtually any dynamically-linked program is dependent on the correct
-implementation and configuration of the run-time linker.  The
-correctness of this program, in turn, depends on the correctness of
-its libraries, the compiler used to build it, the correctness of the
-preceding compiler that was used to build that compiler, and so on,
-as described by Thompson (see SEE ALSO, below).
+Security problems are often interrelated;
+individual problems often have far-reaching implications.
+For example, the correctness of virtually any dynamically-linked program
+is dependent on the correct implementation and configuration
+of the run-time linker.
+The correctness of this program, in turn,
+depends on the correctness of its libraries,
+the compiler used to build it,
+the correctness of the preceding compiler that was used to build that compiler,
+and so on,
+as described by Thompson (see
+.Sx SEE ALSO ,
+below).
 .Pp
-Due to the need for brevity, security consideration sections should
-describe only those issues directly related to the feature that is the
-subject of the manual page.  Refer to other manual pages rather than
-duplicating the material found there.  Refer to generalized
-descriptions of problems in
+Due to the need for brevity, security consideration sections
+should describe only those issues directly related to the feature
+that is the subject of the manual page.
+Refer to other manual pages
+rather than duplicating the material found there.
+Refer to generalized descriptions of problems in
 the FSA
-rather than referring to specific instances of those problems in other
-manual pages.  Ideally, each specific security-relevant issue should be
-described in exactly one manual page, preferably as a specific instance of
-a general problem described in
+rather than referring to specific instances of those problems
+in other manual pages.
+Ideally, each specific security-relevant issue
+should be described in exactly one manual page,
+preferably as a specific instance of a general problem
+described in
 the FSA.
 .Sh EXAMPLES
 Security considerations sections for most individual functions can follow
@@ -157,8 +176,9 @@ manual page:
 The
 .Fn strcpy
 function is easily misused in a manner which enables malicious users
-to arbitrarily change a running program's functionality through a
-buffer overflow attack.  (See
+to arbitrarily change a running program's functionality
+through a buffer overflow attack.
+(See
 the FSA.)
 .Pp
 Avoid using
@@ -174,11 +194,12 @@ will not terminate the destination string if it is truncated.
 .Pp
 Note that
 .Fn strncpy
-can also be problematic.  It may be a security concern for a string to be
-truncated at all.
-Since the truncated string will not be as long as the original, it may
-refer to a completely different resource and usage of the truncated
-resource could result in very incorrect behavior.
+can also be problematic.
+It may be a security concern for a string to be truncated at all.
+Since the truncated string will not be as long as the original,
+it may refer to a completely different resource
+and usage of the truncated resource
+could result in very incorrect behavior.
 Example:
 .Pp
 .Bd -literal
@@ -211,30 +232,34 @@ foo(const char *arbitrary_string)
 }
 .Ed
 .Pp
-Security considerations sections for tools and commands are apt to be
-less formulaic.  Let your list of potentially-violated security
-requirements be your guide; explain each one and list a solution in as
-concise a manner as possible.
+Security considerations sections for tools and commands
+are apt to be less formulaic.
+Let your list of potentially-violated security requirements
+be your guide;
+explain each one and list a solution in as concise a manner as possible.
 .Pp
 This is an example security considerations section for the
 .Xr rtld 1
 manual page:
 .Pp
 Using the LD_LIBRARY_PATH and LD_PRELOAD environment variables,
-malicious users can cause the dynamic linker to link shared libraries
-of their own devising into the address space of processes running
-non-set-user-ID/group-ID programs.  These shared libraries can
-arbitrarily change the functionality of the program by replacing calls
-to standard library functions with calls to their own.  Although this
-feature is disabled for set-user-ID and set-group-ID programs, it can
-still be used to create Trojan horses in other programs.  (See
+malicious users can cause the dynamic linker
+to link shared libraries of their own devising
+into the address space of processes running non-set-user-ID/group-ID programs.
+These shared libraries can arbitrarily change the functionality
+of the program by replacing calls to standard library functions
+with calls to their own.
+Although this feature is disabled for set-user-ID and set-group-ID programs,
+it can still be used to create Trojan horses in other programs.
+(See
 the FSA.)
 .Pp
 All users should be aware that the correct operation of non
 set-user-ID/group-ID dynamically-linked programs depends on the proper
-configuration of these environment variables, and take care to avoid
-actions that might set them to values which would cause the run-time
-linker to link in shared libraries of unknown pedigree.
+configuration of these environment variables,
+and take care to avoid actions that might set them to values
+which would cause the run-time linker
+to link in shared libraries of unknown pedigree.
 .Sh SEE ALSO
 .Xr groff_mdoc 7 ,
 .Xr security 7 ,
