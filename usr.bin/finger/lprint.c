@@ -127,6 +127,8 @@ lprint(pn)
 	    pn->name, pn->realname, pn->dir);
 	(void)printf("\tShell: %-s\n", *pn->shell ? pn->shell : _PATH_BSHELL);
 
+	if (gflag)
+		goto no_gecos;
 	/*
 	 * try and print office, office phone, and home phone on one line;
 	 * if that fails, do line filling so it looks nice.
@@ -160,6 +162,7 @@ lprint(pn)
 	if (oddfield)
 		putchar('\n');
 
+no_gecos:
 	/*
 	 * long format con't:
 	 * if logged in
