@@ -1,0 +1,23 @@
+.TH GPERF 1 "December 16, 1988
+.UC 4
+.SH NAME
+gperf \- generate a perfect hash function from a key set
+.SH SYNOPSIS
+.B gperf 
+[ 
+.B \-adghijklnoprsStv
+] [ 
+.I keyfile
+]
+.SH DESCRIPTION
+
+\fIgperf\fP reads a set of ``keys'' from \fIkeyfile\fP (or, by
+default, from the standard input) and attempts to find a non-minimal
+perfect hashing function that recognizes a member of the key set in
+constant, i.e., O(1), time.  If such a function is found the program
+generates a pair of \fIC\fP source code routines that perform the
+hashing and table lookup.  All generated code is directed to the
+standard output.
+
+Please refer to the \fIgperf.texinfo\fP file for more information.
+This file is distributed with \fIgperf\fP release.
