@@ -822,10 +822,10 @@ expunge_ufs1(snapvp, cancelip, fs, acctfunc, expungetype)
 	if (lbn < NDADDR) {
 		blkno = VTOI(snapvp)->i_din1->di_db[lbn];
 	} else {
-		td->td_proc->p_flag |= P_COWINPROGRESS;
+		td->td_pflags |= TDP_COWINPROGRESS;
 		error = UFS_BALLOC(snapvp, lblktosize(fs, (off_t)lbn),
 		   fs->fs_bsize, KERNCRED, BA_METAONLY, &bp);
-		td->td_proc->p_flag &= ~P_COWINPROGRESS;
+		td->td_pflags &= ~TDP_COWINPROGRESS;
 		if (error)
 			return (error);
 		indiroff = (lbn - NDADDR) % NINDIR(fs);
@@ -1102,10 +1102,10 @@ expunge_ufs2(snapvp, cancelip, fs, acctfunc, expungetype)
 	if (lbn < NDADDR) {
 		blkno = VTOI(snapvp)->i_din2->di_db[lbn];
 	} else {
-		td->td_proc->p_flag |= P_COWINPROGRESS;
+		td->td_pflags |= TDP_COWINPROGRESS;
 		error = UFS_BALLOC(snapvp, lblktosize(fs, (off_t)lbn),
 		   fs->fs_bsize, KERNCRED, BA_METAONLY, &bp);
-		td->td_proc->p_flag &= ~P_COWINPROGRESS;
+		td->td_pflags &= ~TDP_COWINPROGRESS;
 		if (error)
 			return (error);
 		indiroff = (lbn - NDADDR) % NINDIR(fs);
@@ -1552,10 +1552,10 @@ retry:
 			      VI_MTX(devvp), td) != 0)
 				goto retry;
 			snapshot_locked = 1;
-			td->td_proc->p_flag |= P_COWINPROGRESS;
+			td->td_pflags |= TDP_COWINPROGRESS;
 			error = UFS_BALLOC(vp, lblktosize(fs, (off_t)lbn),
 			    fs->fs_bsize, KERNCRED, BA_METAONLY, &ibp);
-			td->td_proc->p_flag &= ~P_COWINPROGRESS;
+			td->td_pflags &= ~TDP_COWINPROGRESS;
 			if (error)
 				break;
 			indiroff = (lbn - NDADDR) % NINDIR(fs);
@@ -1659,10 +1659,10 @@ retry:
 		 * allocation will never require any additional allocations for
 		 * the snapshot inode.
 		 */
-		td->td_proc->p_flag |= P_COWINPROGRESS;
+		td->td_pflags |= TDP_COWINPROGRESS;
 		error = UFS_BALLOC(vp, lblktosize(fs, (off_t)lbn),
 		    fs->fs_bsize, KERNCRED, 0, &cbp);
-		td->td_proc->p_flag &= ~P_COWINPROGRESS;
+		td->td_pflags &= ~TDP_COWINPROGRESS;
 		if (error)
 			break;
 #ifdef DEBUG
@@ -1930,7 +1930,7 @@ ffs_copyonwrite(devvp, bp)
 	ufs2_daddr_t lbn, blkno, *snapblklist;
 	int lower, upper, mid, indiroff, snapshot_locked = 0, error = 0;
 
-	if (td->td_proc->p_flag & P_COWINPROGRESS)
+	if (td->td_pflags & TDP_COWINPROGRESS)
 		panic("ffs_copyonwrite: recursive call");
 	/*
 	 * First check to see if it is in the preallocated list.
@@ -1988,10 +1988,10 @@ retry:
 				goto retry;
 			}
 			snapshot_locked = 1;
-			td->td_proc->p_flag |= P_COWINPROGRESS;
+			td->td_pflags |= TDP_COWINPROGRESS;
 			error = UFS_BALLOC(vp, lblktosize(fs, (off_t)lbn),
 			   fs->fs_bsize, KERNCRED, BA_METAONLY, &ibp);
-			td->td_proc->p_flag &= ~P_COWINPROGRESS;
+			td->td_pflags &= ~TDP_COWINPROGRESS;
 			if (error)
 				break;
 			indiroff = (lbn - NDADDR) % NINDIR(fs);
@@ -2025,10 +2025,10 @@ retry:
 			goto retry;
 		}
 		snapshot_locked = 1;
-		td->td_proc->p_flag |= P_COWINPROGRESS;
+		td->td_pflags |= TDP_COWINPROGRESS;
 		error = UFS_BALLOC(vp, lblktosize(fs, (off_t)lbn),
 		    fs->fs_bsize, KERNCRED, 0, &cbp);
-		td->td_proc->p_flag &= ~P_COWINPROGRESS;
+		td->td_pflags &= ~TDP_COWINPROGRESS;
 		if (error)
 			break;
 #ifdef DEBUG
