@@ -92,6 +92,7 @@ vendor IODATA2			0x028a	I-O DATA
 vendor NWN			0x0602	No Wires Needed
 vendor BREEZECOM		0x0a02	BreezeCOM
 vendor NEWMEDIA2		0x10cd	NewMedia
+vendor PLANEX2			0x14ea	PLANEX
 vendor ACTIONTEC		0x1668	ACTIONTEC
 vendor LASAT			0x3401	Lasat Communications A/S
 vendor BONDWELL			0x3b01	Bondwell
@@ -282,6 +283,7 @@ product NEWMEDIA BASICS		0x0019 New Media BASICS Ethernet
 product NEWMEDIA LANSURFER	0x0021 NewMedia LANSurfer
 product NEWMEDIA LIVEWIRE	0x1004 NewMedia LiveWire Ethernet LAN Adapter
 product NEWMEDIA MULTIMEDIA	0x100b NewMedia Multimedia
+product NEWMEDIA BUSTOASTER2	0xa002 New Media SCSI Bus Toaster
 product NEWMEDIA BUSTOASTER	0xc102 New Media BusToaster SCSI Host Adapter
 product NEWMEDIA WAVJAMMER	0xe005 NewMedia .WAVjammer
 product NEWMEDIA2 BUSTOASTER	0x0001 NewMedia BusToaster
@@ -310,6 +312,9 @@ product PANASONIC KXLC002	0x0304 Panasonic 4X CD-ROM Interface Card
 product PANASONIC KXLC003	0x0504 Panasonic 8X CD-ROM Interface Card
 product PANASONIC KXLC005	0x2704 Panasonic 16X CD-ROM Interface Card
 product PANASONIC KME		0x2604 Panasonic CD-R/RW Interface
+
+/* Planex */
+product PLANEX2 GWNS11H		0xb001 Planex GW-NS11H
 
 /* Proxim */
 product PROXIM ROAMABOUT_2400FH	0x1058 Digital RoamAbout 2400FH
