@@ -1,0 +1,122 @@
+.\"	$Id: kafs.3,v 1.1 1997/05/07 21:49:02 joda Exp $
+.\"
+.Dd May 7, 1997
+.Os KTH-KRB
+.Dt KAFS 3
+.Sh NAME
+.Nm k_hasafs ,
+.Nm k_afsklog ,
+.Nm k_afsklog_uid ,
+.Nm k_pioctl ,
+.Nm k_unlog ,
+.Nm k_setpag ,
+.Nm k_afs_cell_of_file
+.Nd AFS library
+.Sh SYNOPSIS
+.Fd #include <kafs.h>
+.Ft int
+.Fn k_afsklog "char *cell" "char *realm"
+.Ft int
+.Fn k_afsklog_uid "char *cell" "char *realm" "uid_t uid"
+.Ft int
+.Fn k_afs_cell_of_file "const char *path" "char *cell" "int len"
+.Ft int
+.Fn k_hasafs
+.Ft int
+.Fn k_pioctl "char *a_path" "int o_opcode" "struct ViceIoctl *a_paramsP" "int a_followSymlinks"
+.Ft int
+.Fn k_setpag
+.Ft int
+.Fn k_unlog
+.Sh DESCRIPTION
+.Fn k_hasafs
+initializes some library internal structures, and tests for the
+presense of AFS in the kernel, none of the other functions should be
+called before 
+.Fn k_hasafs
+is called, or if it fails.
+
+.Fn k_afsklog ,
+and
+.Fn k_afsklog_uid
+obtains new tokens (and possibly tickets) for the specified
+.Fa cell
+and
+.Fa realm .
+If 
+.Fa cell
+is 
+.Dv NULL ,
+the local cell is used. If 
+.Fa realm 
+is
+.Dv NULL ,
+the function tries to guess what realm to use. Unless you  have some good knowledge of what cell or realm to use, you should pass
+.Dv NULL . 
+.Fn k_afsklog 
+will use the real user-id for the
+.Dv ViceId
+field in the token, 
+.Fn k_afsklog_uid
+will use
+.Fa uid .
+
+.Fn k_afs_cell_of_file
+will in 
+.Fa cell
+return the cell of a specified file, no more than
+.Fa len
+characters is put in 
+.Fa cell .
+
+.Fn k_pioctl
+does a 
+.Fn pioctl
+syscall with the specified arguments. This function is equivalent to
+.Fn lpioctl .
+
+.Fn k_setpag
+initializes a new PAG.
+
+.Fn k_unlog
+removes destroys all tokens in the current PAG.
+
+.Sh RETURN VALUES
+.Fn k_hasafs
+returns 1 if AFS is present in the kernel, 0 otherwise.
+.Fn k_afsklog
+and
+.Fn k_afsklog_uid
+returns 0 on success, or a kerberos error number on failure.
+.Fn k_afs_cell_of_file ,
+.Fn k_pioctl , 
+.Fn k_setpag ,
+and
+.Fn k_unlog
+all return the value of the underlaying system call, 0 on success.
+.Sh EXAMPLES
+The following code from
+.Nm login 
+will obtain a new PAG and tokens for the local cell and the cell of
+the users home directory.
+.Bd -literal
+if (k_hasafs()) {
+	char cell[64];
+	k_setpag();
+	if(k_afs_cell_of_file(pwd->pw_dir, cell, sizeof(cell)) == 0)
+		k_afsklog(cell, 0);
+	k_afsklog(0, 0);
+}
+.Ed
+.Sh ERRORS
+If any of these functions (appart from 
+.Fn k_hasafs )
+is called without AFS beeing present in the kernel, the process will
+usually (depending on the operating system) receive a SIGSYS signal.
+.Sh SEE ALSO
+.Rs
+.%A Transarc Corporation
+.%J AFS-3 Programmer's Reference
+.%T File Server/Cache Manager Interface
+.%D 1991
+.Re

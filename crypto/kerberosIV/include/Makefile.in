@@ -1,0 +1,147 @@
+# $Id: Makefile.in,v 1.36 1997/05/20 18:58:39 bg Exp $
+
+srcdir		= @srcdir@
+VPATH		= @srcdir@
+
+SHELL		= /bin/sh
+
+CC		= @CC@
+DEFS		= @DEFS@
+CFLAGS		= @CFLAGS@
+LD_FLAGS	= @LD_FLAGS@
+
+INSTALL		= @INSTALL@
+INSTALL_DATA	= @INSTALL_DATA@
+MKINSTALLDIRS	= @top_srcdir@/mkinstalldirs
+LN_S		= @LN_S@
+EXECSUFFIX	= @EXECSUFFIX@
+
+prefix		= @prefix@
+exec_prefix	= @exec_prefix@
+includedir	= @includedir@
+libdir		= @libdir@
+
+HAVE_ERR_H	= @ac_cv_header_err_h@
+
+@SET_MAKE@
+
+.c.o:
+	$(CC) -c $(CPPFLAGS) $(DEFS) -I. -I$(srcdir) $(CFLAGS) $(PICFLAGS) $<
+
+HEADERS = krb_err.h kadm_err.h acl.h com_err.h des.h kadm.h kafs.h \
+	  kdc.h klog.h krb.h krb_db.h prot.h otp.h sl.h ktypes.h
+
+KTYPES_OBJECTS = ktypes.o
+
+SOURCES = ktypes.c
+
+LOCL_HEADERS = roken.h protos.h resolve.h xdbm.h
+
+MAYBE_HEADERS = err.h
+
+SUBDIRS		= sys
+
+all: stamp-headers
+	for i in $(SUBDIRS); \
+	do (cd $$i && $(MAKE) $(MFLAGS) all); done
+
+Wall:
+	$(MAKE) CFLAGS="-g -Wall -Wno-comment -Wmissing-prototypes -Wmissing-declarations -D__USE_FIXED_PROTOTYPES__"
+
+ALL_INC =  com_err.h des.h kadm.h kafs.h kdc.h klog.h krb.h krb_db.h otp.h
+
+install:
+	$(MKINSTALLDIRS) $(includedir)
+	for x in $(HEADERS); \
+		do $(INSTALL_DATA) $$x $(includedir)/$$x; done
+	-if test "$(HAVE_ERR_H)" != yes; then \
+	  $(INSTALL_DATA) err.h $(includedir)/err.h; \
+	fi
+	for i in $(SUBDIRS); \
+	do (cd $$i && $(MAKE) $(MFLAGS) install); done
+
+uninstall:
+	for x in $(HEADERS); do \
+	  rm -f $(includedir)/$$x; \
+	done
+	-if test "$(HAVE_ERR_H)" != yes; then \
+	  rm -f $(includedir)/err.h; \
+	fi
+	for i in $(SUBDIRS); \
+	do (cd $$i && $(MAKE) $(MFLAGS) uninstall); done
+
+clean:
+	rm -f $(HEADERS) $(LOCL_HEADERS) $(MAYBE_HEADERS) *.o ktypes stamp-headers
+	for i in $(SUBDIRS); \
+	do (cd $$i && $(MAKE) $(MFLAGS) clean); done
+
+mostlyclean:	clean
+
+distclean:
+	$(MAKE) clean		
+	for i in $(SUBDIRS); \
+	do (cd $$i && $(MAKE) $(MFLAGS) distclean); done
+	rm -f Makefile config.status *~
+
+realclean:
+	for i in $(SUBDIRS); \
+	do (cd $$i && $(MAKE) $(MFLAGS) realclean); done
+
+err.h:
+	if test "$(HAVE_ERR_H)" != yes; then \
+	  $(LN_S) $(srcdir)/../lib/roken/err.h err.h; \
+	fi || true
+
+krb_err.h:
+	cd ../lib/krb && $(MAKE) krb_err.h
+	$(LN_S) ../lib/krb/krb_err.h .
+kadm_err.h:
+	cd ../lib/kadm && $(MAKE) kadm_err.h
+	$(LN_S) ../lib/kadm/kadm_err.h .
+acl.h:
+	$(LN_S) $(srcdir)/../lib/acl/acl.h .
+com_err.h:
+	$(LN_S) $(srcdir)/../util/et/com_err.h .
+des.h:
+	$(LN_S) $(srcdir)/../lib/des/des.h .
+kadm.h:
+	$(LN_S) $(srcdir)/../lib/kadm/kadm.h .
+kafs.h:
+	$(LN_S) $(srcdir)/../lib/kafs/kafs.h .
+kdc.h:
+	$(LN_S) $(srcdir)/../lib/kdb/kdc.h .
+klog.h:
+	$(LN_S) $(srcdir)/../lib/krb/klog.h .
+krb.h:
+	$(LN_S) $(srcdir)/../lib/krb/krb.h .
+resolve.h:
+	$(LN_S) $(srcdir)/../lib/krb/resolve.h .
+krb_db.h:
+	$(LN_S) $(srcdir)/../lib/kdb/krb_db.h .
+prot.h:
+	$(LN_S) $(srcdir)/../lib/krb/prot.h .
+
+protos.h:
+	$(LN_S) $(srcdir)/protos.H protos.h
+roken.h:
+	$(LN_S) $(srcdir)/../lib/roken/roken.h .
+xdbm.h:
+	$(LN_S) $(srcdir)/../lib/roken/xdbm.h .
+
+otp.h:
+	$(LN_S) $(srcdir)/../lib/otp/otp.h .
+
+sl.h:
+	$(LN_S) $(srcdir)/../lib/sl/sl.h .
+
+ktypes$(EXECSUFFIX):	$(KTYPES_OBJECTS)
+	$(CC) $(LD_FLAGS) $(LDFLAGS) -o $@ $(KTYPES_OBJECTS)
+
+ktypes.o: ktypes.c
+
+ktypes.h:	ktypes$(EXECSUFFIX)
+	./ktypes$(EXECSUFFIX) > $@
+
+stamp-headers: Makefile
+	$(MAKE) $(HEADERS) $(LOCL_HEADERS) $(MAYBE_HEADERS)
+	touch stamp-headers

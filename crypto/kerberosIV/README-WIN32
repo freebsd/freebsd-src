@@ -1,0 +1,30 @@
+It should be possible to build several of the libraries and the GUI
+telnet ``voodoo'' on Win95/NT.  In case you don't want to try there
+are binaries available at
+ftp://ftp.pdc.kth.se/pub/krb/binaries/i386-unknown-winnt4.0.
+
+In case you want to build from source and possibly hack some on them
+yourself here's a short guide:
+
+You need to build the libraries (DLLs) first and in this order:
+
+lib/roken
+lib/des
+lib/krb
+lib/kclient
+
+And then the two applications:
+
+appl/krbmanager
+appl/voodoo
+
+In each case there is a Visual-C++ generated makefile with the name
+*.mak in the corresponding directory.  You might be able to load that
+into Microsoft whatever Studio and you might be able to just run nmake
+on them.
+
+Once you have ended up with 4 DLLs and 2 EXEs you only have to place
+them in a directory in your PATH and start voodoo.
+
+In case it doesn't work, you have discovered bugs or added some more
+features the mail address to use is <kth-krb-bugs@nada.kth.se>
