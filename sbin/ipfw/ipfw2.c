@@ -1529,6 +1529,7 @@ sets_handler(int ac, char *av[])
 		errx(EX_USAGE, "invalid set command %s\n", *av);
 }
 
+static void
 sysctl_handler(int ac, char *av[], int which)
 {
 	ac--;
@@ -1547,6 +1548,9 @@ sysctl_handler(int ac, char *av[], int which)
 		    &which, sizeof(which));
 	} else if (strncmp(*av, "verbose", strlen(*av)) == 0) {
 		sysctlbyname("net.inet.ip.fw.verbose", NULL, 0,
+		    &which, sizeof(which));
+	} else if (strncmp(*av, "dyn_keepalive", strlen(*av)) == 0) {
+		sysctlbyname("net.inet.ip.fw.dyn_keepalive", NULL, 0,
 		    &which, sizeof(which));
 	} else {
 		warnx("unrecognize enable/disable keyword: %s\n", *av);
