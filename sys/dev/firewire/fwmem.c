@@ -61,7 +61,7 @@ SYSCTL_NODE(_hw_firewire, OID_AUTO, fwmem, CTLFLAG_RD, 0,
 	"FireWire Memory Access");
 SYSCTL_UINT(_hw_firewire_fwmem, OID_AUTO, eui64_hi, CTLFLAG_RW,
 	&fwmem_eui64.hi, 0, "Fwmem target EUI64 high");
-SYSCTL_UINT(_hw_firewire_fwmem, OID_AUTO, eui64_low, CTLFLAG_RW,
+SYSCTL_UINT(_hw_firewire_fwmem, OID_AUTO, eui64_lo, CTLFLAG_RW,
 	&fwmem_eui64.lo, 0, "Fwmem target EUI64 low");
 SYSCTL_INT(_hw_firewire_fwmem, OID_AUTO, speed, CTLFLAG_RW, &fwmem_speed, 0,
 	"Fwmem link speed");
@@ -250,15 +250,22 @@ fwmem_write_block(
 int
 fwmem_open (dev_t dev, int flags, int fmt, fw_proc *td)
 {
-	int err = 0;
-	return err;
+	struct fw_eui64 *eui;
+
+	eui = (struct fw_eui64 *)malloc(sizeof(struct fw_eui64), M_FW, 0);
+	if (eui == NULL)
+		return ENOMEM;
+	bcopy(&fwmem_eui64, eui, sizeof(struct fw_eui64));
+	dev->si_drv1 = (void *)eui;
+
+	return (0);
 }
 
 int
 fwmem_close (dev_t dev, int flags, int fmt, fw_proc *td)
 {
-	int err = 0;
-	return err;
+	free(dev->si_drv1, M_FW);
+	return (0);
 }
 
 #define MAXLEN 2048
@@ -277,7 +284,7 @@ fwmem_read (dev_t dev, struct uio *uio, int ioflag)
 	int len;
 
 	sc = devclass_get_softc(firewire_devclass, unit);
-	fwdev = fw_noderesolve_eui64(sc->fc, fwmem_eui64);
+	fwdev = fw_noderesolve_eui64(sc->fc, (struct fw_eui64 *)dev->si_drv1);
 	if (fwdev == NULL) {
 		if (fwmem_debug)
 			printf("fwmem: no such device ID:%08x%08x\n",
@@ -340,7 +347,7 @@ fwmem_write (dev_t dev, struct uio *uio, int ioflag)
 	int len;
 
 	sc = devclass_get_softc(firewire_devclass, unit);
-	fwdev = fw_noderesolve_eui64(sc->fc, fwmem_eui64);
+	fwdev = fw_noderesolve_eui64(sc->fc, (struct fw_eui64 *)dev->si_drv1);
 	if (fwdev == NULL) {
 		if (fwmem_debug)
 			printf("fwmem: no such device ID:%08x%08x\n",
@@ -393,7 +400,18 @@ fwmem_write (dev_t dev, struct uio *uio, int ioflag)
 int
 fwmem_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 {
-	return EINVAL;
+	int err = 0;
+	switch (cmd) {
+	case FW_SDEUI64:
+		bcopy(data, dev->si_drv1, sizeof(struct fw_eui64));
+		break;
+	case FW_GDEUI64:
+		bcopy(dev->si_drv1, data, sizeof(struct fw_eui64));
+		break;
+	default:
+		err = EINVAL;
+	}
+	return(err);
 }
 int
 fwmem_poll (dev_t dev, int events, fw_proc *td)
