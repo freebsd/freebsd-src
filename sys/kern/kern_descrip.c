@@ -1875,8 +1875,6 @@ closef(fp, td)
 	struct filedesc_to_leader *fdtol;
 	struct filedesc *fdp;
 
-	if (fp == NULL)
-		return (0);
 	/*
 	 * POSIX record locking dictates that any close releases ALL
 	 * locks owned by this process.  This is handled by setting
@@ -1885,8 +1883,7 @@ closef(fp, td)
 	 * If the descriptor was in a message, POSIX-style locks
 	 * aren't passed with the descriptor.
 	 */
-	if (td != NULL &&
-	    fp->f_type == DTYPE_VNODE) {
+	if (fp->f_type == DTYPE_VNODE) {
 		if ((td->td_proc->p_leader->p_flag & P_ADVLOCK) != 0) {
 			lf.l_whence = SEEK_SET;
 			lf.l_start = 0;
