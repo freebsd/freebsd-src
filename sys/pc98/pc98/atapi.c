@@ -253,11 +253,14 @@ int atapi_attach (int ctlr, int unit, int port)
 	case AT_TYPE_DIRECT:            /* direct-access */
 #if NWFD > 0
 		/* ATAPI Floppy(LS-120) */
-		if (wfdattach (ata, unit, ap, ata->debug) < 0)
-			break;
+		if (wfdattach (ata, unit, ap, ata->debug) >= 0) {
 			/* Device attached successfully. */
-		ata->attached[unit] = 1;
-		return (1);
+			ata->attached[unit] = 1;
+			return (1);
+		}
+#endif
+#if NWCD > 0
+		/* FALLTHROUGH */
 #else
 		printf ("wdc%d: ATAPI Floppies not configured\n", ctlr);
 		break;
