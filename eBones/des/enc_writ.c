@@ -2,9 +2,14 @@
 /* Copyright (C) 1993 Eric Young - see README for more details */
 
 /*-
- *	$Id: enc_writ.c,v 1.1.1.1 1994/09/30 14:49:50 csgr Exp $
+ *	$Id: enc_writ.c,v 1.2 1995/05/30 06:40:12 rgrimes Exp $
  */
 
+#include <sys/types.h>
+#include <sys/uio.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <time.h>
 #include <errno.h>
 #include "des_locl.h"
 

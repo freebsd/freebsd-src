@@ -2,9 +2,12 @@
 /* Copyright (C) 1993 Eric Young - see README for more details */
 
 /*-
- *	$Id: rand_key.c,v 1.1.1.1 1994/09/30 14:49:51 csgr Exp $
+ *	$Id: rand_key.c,v 1.2 1995/05/09 18:05:15 wollman Exp $
  */
 
+#include <sys/types.h>
+#include <sys/time.h>
+#include <unistd.h>
 #include "des_locl.h"
 
 int des_random_key(ret)
