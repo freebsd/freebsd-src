@@ -243,6 +243,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/limits.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 
@@ -262,8 +263,6 @@
 #include <net/if_dl.h>
 #include <net/if_ieee80211.h>
 #include <net/if_llc.h>
-
-#include <machine/limits.h>
 
 #include <dev/pccard/pccardvar.h>
 #include "card_if.h"

@@ -38,13 +38,13 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/bio.h>
+#include <sys/limits.h>
 #include <sys/malloc.h>
 #include <sys/mtio.h>
 #ifdef _KERNEL
 #include <sys/conf.h>
 #endif
 #include <sys/devicestat.h>
-#include <machine/limits.h>
 
 #ifndef _KERNEL
 #include <stdio.h>

@@ -51,6 +51,7 @@
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/file.h>
+#include <sys/limits.h>
 #if __FreeBSD_version >= 500014
 #include <sys/selinfo.h>
 #else
@@ -235,7 +236,6 @@ ukbd_intr(usbd_xfer_handle xfer, usbd_private_handle addr, usbd_status status)
 
 DRIVER_MODULE(ukbd, uhub, ukbd_driver, ukbd_devclass, ukbd_driver_load, 0);
 
-#include <machine/limits.h>
 
 #define UKBD_DEFAULT	0
 

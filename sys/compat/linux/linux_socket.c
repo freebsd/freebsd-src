@@ -42,6 +42,7 @@
 #include <sys/sysproto.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
+#include <sys/limits.h>
 #include <sys/malloc.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -61,8 +62,6 @@
 #include <machine/../linux/linux_proto.h>
 #include <compat/linux/linux_socket.h>
 #include <compat/linux/linux_util.h>
-
-#include <machine/limits.h>
 
 static int do_sa_get(struct sockaddr **, const struct osockaddr *, int *,
     struct malloc_type *);

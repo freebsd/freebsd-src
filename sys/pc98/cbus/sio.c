@@ -119,6 +119,7 @@
 #include <sys/fcntl.h>
 #include <sys/interrupt.h>
 #include <sys/kernel.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
@@ -135,7 +136,6 @@
 
 #include <isa/isavar.h>
 
-#include <machine/limits.h>
 #include <machine/resource.h>
 
 #include <dev/sio/sioreg.h>
