@@ -1539,7 +1539,7 @@ tryhost:
 					pwd = sm_getpwnam(contextaddr->q_user);
 				if (pwd != NULL)
 					(void) setusercontext(NULL,
-						pwd, pwd->m_uid,
+						pwd, pwd->pw_uid,
 						LOGIN_SETRESOURCES|LOGIN_SETPRIORITY);
 			}
 #endif
