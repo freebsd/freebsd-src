@@ -35,7 +35,7 @@
 .Os
 .Sh NAME
 .Nm wicontrol
-.Nd configure Lucent, Intersil, & Atheros wireless devices
+.Nd "configure Lucent, Intersil, and Atheros wireless devices"
 .Sh SYNOPSIS
 .Nm
 .Op Fl i
@@ -47,7 +47,7 @@
 .Nm
 .Op Fl i
 .Ar iface Fl L
-(list avail access points)
+(list available access points)
 .Nm
 .Op Fl i
 .Ar iface Fl t Ar tx_rate
@@ -108,7 +108,7 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility controls the operation of Lucent, Intersil, & Atheros-based wireless
+utility controls the operation of Lucent, Intersil, and Atheros-based wireless
 networking devices via
 .Xr wi 4
 or
@@ -118,7 +118,7 @@ driver.
 You should not use this program to configure IEEE 802.11 parameters.
 Use
 .Xr ifconfig 8
-instead to do those tasks (ie: set SSID, WEP key, etc).
+instead to do those tasks (i.e., set SSID, WEP key, etc.).
 .Pp
 The
 .Nm
@@ -131,7 +131,7 @@ The
 argument given to
 .Nm
 should be the logical interface name associated with the Lucent, Intersil,
-& Atheros device
+and Atheros device
 .Li ( wi0 , wi1 , ath0 ,
 etc.).
 If none is specified then
@@ -199,8 +199,8 @@ The driver retains information about signal strength and
 noise level for packets received from different hosts.
 The signal
 strength and noise level values are displayed in units of dBms.
-The signal quality values is produced by subtracting the noise level
-from the signal strength (i.e. less noise and better signal yields
+The signal quality value is produced by subtracting the noise level
+from the signal strength (i.e., less noise and better signal yields
 better signal quality).
 .El
 .Sh DEPRECATED AND OBSOLETE OPTIONS
@@ -397,9 +397,9 @@ If the
 .Fl v
 flag is not specified, the first key will be set.
 Encryption keys
-can either be normal text (i.e.\&
+can either be normal text (i.e.,
 .Dq Li hello )
-or a series of hexadecimal digits (i.e.\&
+or a series of hexadecimal digits (i.e.,
 .Dq Li 0x1234512345 ) .
 For
 WaveLAN Turbo Silver cards, the key is restricted to 40 bits, hence
