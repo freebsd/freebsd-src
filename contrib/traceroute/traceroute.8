@@ -1,4 +1,4 @@
-.\" Copyright (c) 1989, 1995, 1996
+.\" Copyright (c) 1989, 1995, 1996, 1997, 1999, 2000
 .\"	The Regents of the University of California.  All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms are permitted
@@ -13,25 +13,33 @@
 .\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 .\" WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 .\"
-.\"	$Header: traceroute.8,v 1.7 96/09/27 20:02:41 leres Exp $
+.\"	$Id: traceroute.8,v 1.19 2000/09/21 08:44:19 leres Exp $
 .\"	$FreeBSD$
 .\"
-.TH TRACEROUTE 8 "27 September 1996"
+.TH TRACEROUTE 8 "21 September 2000"
 .UC 6
 .SH NAME
 traceroute \- print the route packets take to network host
 .SH SYNOPSIS
-.. while ((op = getopt(argc, argv, "dnrvg:M:m:P:p:q:s:t:w:")) != EOF)
 .na
 .B traceroute
 [
-.B \-Sdnrv
+.B \-dFISdnrvx
+] [
+.B \-f
+.I first_ttl
 ] [
 .B \-g
-.I gw_host
+.I gateway
+]
+.br
+.ti +8
+[
+.B \-i
+.I iface
 ] [
 .B \-M
-.I min_ttl
+.I first_ttl
 ] 
 .br
 .ti +8
@@ -62,7 +70,12 @@ traceroute \- print the route packets take to network host
 [
 .B \-w
 .I waittime
+] [
+.B \-z
+.I pausemsecs
 ]
+.br
+.ti +8
 .I host
 [
 .I packetlen
@@ -85,11 +98,27 @@ name.
 .PP
 Other options are:
 .TP
-.B \-S
-Print a summary of how many probes were not answered for each hop.
+.B \-f
+Set the initial time-to-live used in the first outgoing probe packet.
+.TP
+.B \-F
+Set the "don't fragment" bit.
+.TP
+.B \-d
+Enable socket level debugging.
 .TP
 .B \-g
 Specify a loose source route gateway (8 maximum).
+.TP
+.B \-i
+Specify a network interface to obtain the source IP address for
+outgoing probe packets. This is normally only useful on a multi-homed
+host. (See the
+.B \-s
+flag for another way to do this.)
+.TP
+.B \-I
+Use ICMP ECHO instead of UDP datagrams.  (A synonym for "-P icmp").
 .TP
 .B \-M
 Set the initial time-to-live value used in outgoing probe packets.
@@ -141,13 +170,19 @@ that has no route through it (e.g., after the interface was dropped by
 .IR routed (8C)).
 .TP
 .B \-s
-Use the following IP address (which must be given as an IP number, not
+Use the following IP address (which usually is given as an IP number, not
 a hostname) as the source address in outgoing probe packets.  On
-hosts with more than one IP address, this option can be used to
+multi-homed hosts (those with more than one IP
+address), this option can be used to
 force the source address to be something other than the IP address
 of the interface the probe packet is sent on.  If the IP address
 is not one of this machine's interface addresses, an error is
-returned and nothing is sent.
+returned and nothing is sent. (See the
+.B \-i
+flag for another way to do this.)
+.TP
+.B \-S
+Print a summary of how many probes were not answered for each hop.
 .TP
 .B \-t
 Set the
@@ -159,7 +194,13 @@ are not running 4.4bsd, this may be academic since the normal network
 services like telnet and ftp don't let you control the TOS).
 Not all values of TOS are legal or
 meaningful \- see the IP spec for definitions.  Useful values are
-probably `-t 16' (low delay) and `-t 8' (high throughput).
+probably
+.RB ` -t
+.IR 16 '
+(low delay) and
+.RB ` -t
+.IR 8 '
+(high throughput).
 .TP
 .B \-v
 Verbose output.  Received ICMP packets other than TIME_EXCEEDED and
@@ -168,6 +209,22 @@ UNREACHABLEs are listed.
 .B \-w
 Set the time (in seconds) to wait for a response to a probe (default 5
 sec.).
+.TP
+.B \-x
+Toggle ip checksums. Normally, this prevents traceroute from calculating
+ip checksums. In some cases, the operating system can overwrite parts of
+the outgoing packet but not recalculate the checksum (so in some cases
+the default is to not calculate checksums and using
+.B \-x
+causes them to be calcualted). Note that checksums are usually required
+for the last hop when using ICMP ECHO probes
+.RB ( \-I ).
+So they are always calculated when using ICMP.
+.TP
+.B \-z
+Set the time (in milliseconds) to pause between probes (default 0).
+Some systems such as Solaris and routers such as Ciscos rate limit
+icmp messages. A good value to use with this this is 500 (e.g. 1/2 second).
 .PP
 This program attempts to trace the route an IP packet would follow to some
 internet host by launching UDP probe
@@ -177,19 +234,27 @@ with a ttl of one and increase by one until we get an ICMP "port
 unreachable" (which means we got to "host") or hit a max (which
 defaults to
 .I net.inet.ip.ttl
-hops & can be changed with the \-m flag).  Three
-probes (change with \-q flag) are sent at each ttl setting and a
+hops & can be changed with the
+.B \-m
+flag).  Three
+probes (change with
+.B \-q
+flag) are sent at each ttl setting and a
 line is printed showing the ttl, address of the gateway and
 round trip time of each probe.  If the probe answers come from
 different gateways, the address of each responding system will
 be printed.  If there is no response within a 5 sec. timeout
-interval (changed with the \-w flag), a "*" is printed for that
+interval (changed with the
+.B \-w
+flag), a "*" is printed for that
 probe.
 .PP
 We don't want the destination
 host to process the UDP probe packets so the destination port is set to an
 unlikely value (if some clod on the destination is using that
-value, it can be changed with the \-p flag).
+value, it can be changed with the
+.B \-p
+flag).
 .PP
 A sample use and output might be:
 
@@ -297,16 +362,20 @@ Other possible annotations after the time are
 .BR !N ,
 or
 .B !P
-(got a host, network or protocol unreachable, respectively),
+(host, network or protocol unreachable),
 .B !S
-or
-.B !F
-(source route failed or fragmentation needed \- neither of these should
-ever occur and the associated gateway is busted if you see one),
+(source route failed),
+.B !F\-<pmtu>
+(fragmentation needed \- the RFC1191 Path MTU Discovery value is displayed),
 .B !X
-(communication administratively prohibited), or
-.B !<N>
-(ICMP unreachable code N).
+(communication administratively prohibited),
+.B !V
+(host precedence violation),
+.B !C
+(precedence cutoff in effect), or
+.B !<num>
+(ICMP unreachable code <num>).
+These are defined by RFC1812 (which supersedes RFC1716).
 If almost all the probes result in some kind of unreachable, traceroute
 will give up and exit.
 .PP
@@ -317,7 +386,7 @@ Because of the load it could impose on the network, it is unwise to use
 .I traceroute
 during normal operations or from automated scripts.
 .SH SEE ALSO
-netstat(1), ping(8)
+pathchar(8), netstat(1), ping(8)
 .SH AUTHOR
 Implemented by Van Jacobson from a suggestion by Steve Deering.  Debugged
 by a cast of thousands with particularly cogent suggestions or fixes from
@@ -326,7 +395,7 @@ C. Philip Wood, Tim Seaver and Ken Adelman.
 The current version is available via anonymous ftp:
 .LP
 .RS
-.I ftp://ftp.ee.lbl.gov/traceroute.tar.Z
+.I ftp://ftp.ee.lbl.gov/traceroute.tar.gz
 .RE
 .SH BUGS
 When using protocols other than UDP, functionality is reduced.
