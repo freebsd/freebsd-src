@@ -1,4 +1,4 @@
 # $FreeBSD$
 
 # Options used when building standalone components
-CFLAGS+=	-ffreestanding
+CFLAGS+=	-ffreestanding -fshort-wchar -Wformat

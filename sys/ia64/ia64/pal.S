@@ -30,21 +30,8 @@
 
 	.data
 	.global ia64_pal_entry
-ia64_pal_entry:	.quad ia64_call_pal_stub
+ia64_pal_entry:	.quad 0
 	.text
-
-/*
- * Stub for running in simulation.
- */
-ENTRY(ia64_call_pal_stub, 0)
-
-	mov	r8=-3
-	tbit.nz	p6,p7=r28,8		// static or stacked?
-	;;
-(p6)	br.ret.sptk.few rp
-(p7)	br.cond.sptk.few rp
-
-END(ia64_call_pal_stub)
 
 /*
  * struct ia64_pal_result ia64_call_pal_static(u_int64_t proc,

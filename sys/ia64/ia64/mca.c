@@ -198,14 +198,15 @@ ia64_mca_init(void)
 	}
 	max_size = round_page(max_size);
 
-	p = contigmalloc(max_size, M_TEMP, 0, 0ul, 256*1024*1024 - 1,
-	    PAGE_SIZE, 256*1024*1024);
+	if (max_size) {
+		p = contigmalloc(max_size, M_TEMP, 0, 0ul, 256*1024*1024 - 1,
+		    PAGE_SIZE, 256*1024*1024);
+		mca_info_block = IA64_PHYS_TO_RR7(ia64_tpa((u_int64_t)p));
 
-	mca_info_block = IA64_PHYS_TO_RR7(ia64_tpa((u_int64_t)p));
-
-	if (bootverbose)
-		printf("MCA: allocated %ld bytes for state information\n",
-		    max_size);
+		if (bootverbose)
+			printf("MCA: allocated %ld bytes for state info.\n",
+			    max_size);
+	}
 
 	/*
 	 * Initialize the spin lock used to protect the info block. When APs
