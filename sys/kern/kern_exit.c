@@ -637,8 +637,7 @@ loop:
 			/*
 			 * Remove unused arguments
 			 */
-			if (p->p_args && --p->p_args->ar_ref == 0)
-				FREE(p->p_args, M_PARGS);
+			pargs_drop(p->p_args);
 
 			if (--p->p_procsig->ps_refcnt == 0) {
 				if (p->p_sigacts != &p->p_uarea->u_sigacts)

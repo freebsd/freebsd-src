@@ -482,8 +482,7 @@ again:
 	p2->p_ucred = crhold(p1->p_ucred);
 	td2->td_ucred = crhold(p2->p_ucred);	/* XXXKSE */
 
-	if (p2->p_args)
-		p2->p_args->ar_ref++;
+	pargs_hold(p2->p_args);
 
 	if (flags & RFSIGSHARE) {
 		p2->p_procsig = p1->p_procsig;
