@@ -43,7 +43,8 @@
 .Nd compare two files
 .Sh SYNOPSIS
 .Nm cmp
-.Op Fl l | Fl s
+.Op Fl l | Fl s | Fl x
+.Op Fl z
 .Ar file1 file2
 .Op Ar skip1 Op Ar skip2
 .Sh DESCRIPTION
@@ -71,6 +72,9 @@ Like
 .Fl l
 but prints in hexadecimal and using zero as index
 for the first byte in the files.
+.It Fl z
+For regular files compare file sizes first, and fail the comparison if they
+are not equal.
 .El
 .Pp
 The optional arguments
