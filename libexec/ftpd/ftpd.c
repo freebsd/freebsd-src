@@ -1111,8 +1111,11 @@ auth_conv(int num_msg, const struct pam_message **msg,
 {
 	int i;
 	cred_t *cred = (cred_t *) appdata;
-	struct pam_response *reply =
-			malloc(sizeof(struct pam_response) * num_msg);
+	struct pam_response *reply;
+
+	reply = calloc(num_msg, sizeof *reply);
+	if (reply == NULL)
+		return PAM_BUF_ERR;
 
 	for (i = 0; i < num_msg; i++) {
 		switch (msg[i]->msg_style) {
