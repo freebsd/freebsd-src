@@ -455,7 +455,7 @@ nbssn_recv(struct nbpcb *nbp, struct mbuf **mpp, int *lenp,
 				rcvflg = MSG_WAITALL;
 				error = so->so_proto->pr_usrreqs->pru_soreceive
 				    (so, (struct sockaddr **)NULL,
-				    &auio, &m, (struct mbuf **)NULL, &rcvflg);
+				    &auio, &tm, (struct mbuf **)NULL, &rcvflg);
 			} while (error == EWOULDBLOCK || error == EINTR ||
 				 error == ERESTART);
 			if (error)
