@@ -794,7 +794,7 @@ add_unique(struct node *node, char *id)
 static  int
 is_old_scsi_device(char *name)
 {
-	static char *tab[] = {"cd", "ch", "sd", "st", "uk"};
+	static char *tab[] = {"cd", "ch", "sd", "st", "od", "uk"};
 	int i;
 	for (i = 0; i < sizeof(tab) / sizeof(tab[0]); i++)
 		if (eq(tab[i], name))
