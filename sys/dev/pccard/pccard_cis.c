@@ -92,7 +92,7 @@ pccard_read_cis(struct pccard_softc *sc)
 
 	state.pf = NULL;
 
-	if (pccard_scan_cis((struct device *)sc, pccard_parse_cis_tuple,
+	if (pccard_scan_cis(sc->dev, pccard_parse_cis_tuple,
 	    &state) == -1)
 		state.card->error++;
 }
