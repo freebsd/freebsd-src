@@ -104,32 +104,32 @@ MD2_CTX *context;                                        /* context */
 const unsigned char *input;                                /* input block */
 unsigned int inputLen;                     /* length of input block */
 {
-  unsigned int i, index, partLen;
+  unsigned int i, idx, partLen;
 
   /* Update number of bytes mod 16 */
-  index = context->count;
-  context->count = (index + inputLen) & 0xf;
+  idx = context->count;
+  context->count = (idx + inputLen) & 0xf;
 
-  partLen = 16 - index;
+  partLen = 16 - idx;
 
   /* Transform as many times as possible.
     */
   if (inputLen >= partLen) {
     memcpy
-      ((POINTER)&context->buffer[index], (POINTER)input, partLen);
+      ((POINTER)&context->buffer[idx], (POINTER)input, partLen);
     MD2Transform (context->state, context->checksum, context->buffer);
 
     for (i = partLen; i + 15 < inputLen; i += 16)
       MD2Transform (context->state, context->checksum, &input[i]);
 
-    index = 0;
+    idx = 0;
   }
   else
     i = 0;
 
   /* Buffer remaining input */
   memcpy
-    ((POINTER)&context->buffer[index], (POINTER)&input[i],
+    ((POINTER)&context->buffer[idx], (POINTER)&input[i],
      inputLen-i);
 }
 
@@ -138,12 +138,12 @@ unsigned int inputLen;                     /* length of input block */
 void MD2Pad (context)
 MD2_CTX *context;                                        /* context */
 {
-  unsigned int index, padLen;
+  unsigned int idx, padLen;
 
   /* Pad out to multiple of 16.
    */
-  index = context->count;
-  padLen = 16 - index;
+  idx = context->count;
+  padLen = 16 - idx;
   MD2Update (context, PADDING[padLen], padLen);
 
   /* Extend with checksum */
