@@ -81,6 +81,9 @@ struct open_disk {
 #define BD_FLOPPY		0x0004
 #define BD_LABELOK		0x0008
 #define BD_PARTTABOK		0x0010
+#ifdef PC98
+#define BD_OPTICAL		0x0020
+#endif
     struct disklabel		od_disklabel;
     int				od_nslices;	/* slice count */
     struct pc98_partition	od_slicetab[MAX_SLICES];
@@ -198,7 +201,7 @@ bd_init(void)
 		}
 	    }
 	    else {
-		if ((unit & 0xa0) == 0xa0)
+		if ((unit & 0xF0) == 0xA0)	/* SCSI HD or MO */
 		    bdinfo[nbdinfo].bd_da_unit = da_drive++;
 	    }
 	    /* XXX we need "disk aliases" to make this simpler */
@@ -256,6 +259,14 @@ bd_int13probe(struct bdinfo *bd)
     if ( *(u_char *)PTOV(addr) & (1<<(bd->bd_unit & 0x0f))) {
 	bd->bd_flags |= BD_MODEINT13;
 	return(1);
+    }
+    if ((bd->bd_unit & 0xF0) == 0xA0) {
+	int media = ((unsigned *)PTOV(0xA1460))[bd->bd_unit & 0x0F] & 0x1F;
+
+	if (media == 7) { /* MO */
+	    bd->bd_flags |= BD_MODEINT13 | BD_OPTICAL;
+	    return(1);
+	}
     }
     return(0);
 #else
@@ -1081,7 +1092,13 @@ bd_read(struct open_disk *od, daddr_t dblk, int blks, caddr_t dest)
 	        v86.eax = 0x0600 | od->od_unit;
 		v86.ecx = cyl;
 	    }
-	    v86.edx = (hd << 8) | sec;
+	    if (od->od_flags & BD_OPTICAL) {
+		v86.eax &= 0xFF7F;
+		v86.ecx = dblk & 0xFFFF;
+		v86.edx = dblk >> 16;
+	    } else {
+	    	v86.edx = (hd << 8) | sec;
+	    }
 	    v86.ebx = x * BIOSDISK_SECSIZE;
 	    v86.es = VTOPSEG(xp);
 	    v86.ebp = VTOPOFF(xp);
@@ -1362,6 +1379,10 @@ bd_getgeom(struct open_disk *od)
 	od->od_cyl = 79;
 	od->od_hds = 2;
 	od->od_sec = (od->od_unit & 0xf0) == 0x30 ? 18 : 15;
+    } else if (od->od_flags & BD_OPTICAL) {
+	od->od_cyl = 0xFFFE;
+	od->od_hds = 8;
+	od->od_sec = 32;
     } else {
 	v86.ctl = V86_FLAGS;
 	v86.addr = 0x1b;
@@ -1423,19 +1444,26 @@ bd_getbigeom(int bunit)
 	if (*(u_char *)PTOV(addr) & (1 << (unit & 0x0f)))
 	    if (hds++ == bunit)
 		break;
+
+	if (unit >= 0xA0) {
+	    int  media = ((unsigned *)PTOV(0xA1460))[unit & 0x0F] & 0x1F;
+
+	    if (media == 7 && hds++ == bunit)	/* SCSI MO */
+		return(0xFFFE0820); /* C:65535 H:8 S:32 */
+	}
 	if (++unit == 0x84) {
-	    unit = 0xa0;	/* SCSI HDD */
+	    unit = 0xA0;	/* SCSI HDD */
 	    addr = 0xA1482;
 	}
     }
     if (unit == 0xa7)
-	return 0x4f010f;
+	return 0x4F020F;	/* 1200KB FD C:80 H:2 S:15 */
     v86.ctl = V86_FLAGS;
     v86.addr = 0x1b;
     v86.eax = 0x8400 | unit;
     v86int();
     if (v86.efl & 0x1)
-	return 0x4f010f;
+	return 0x4F020F;	/* 1200KB FD C:80 H:2 S:15 */
     return ((v86.ecx & 0xffff) << 16) | (v86.edx & 0xffff);
 #else
     v86.ctl = V86_FLAGS;
