@@ -401,7 +401,7 @@ iface_inDelete(struct iface *iface, struct in_addr ip)
 #define IFACE_DELFLAGS 2
 
 static int
-iface_ChangeFlags(struct iface *iface, int flags, int how)
+iface_ChangeFlags(const char *ifname, int flags, int how)
 {
   struct ifreq ifrq;
   int s;
@@ -413,7 +413,7 @@ iface_ChangeFlags(struct iface *iface, int flags, int how)
   }
 
   memset(&ifrq, '\0', sizeof ifrq);
-  strncpy(ifrq.ifr_name, iface->name, sizeof ifrq.ifr_name - 1);
+  strncpy(ifrq.ifr_name, ifname, sizeof ifrq.ifr_name - 1);
   ifrq.ifr_name[sizeof ifrq.ifr_name - 1] = '\0';
   if (ID0ioctl(s, SIOCGIFFLAGS, &ifrq) < 0) {
     log_Printf(LogERROR, "iface_ChangeFlags: ioctl(SIOCGIFFLAGS): %s\n",
@@ -439,15 +439,15 @@ iface_ChangeFlags(struct iface *iface, int flags, int how)
 }
 
 int
-iface_SetFlags(struct iface *iface, int flags)
+iface_SetFlags(const char *ifname, int flags)
 {
-  return iface_ChangeFlags(iface, flags, IFACE_ADDFLAGS);
+  return iface_ChangeFlags(ifname, flags, IFACE_ADDFLAGS);
 }
 
 int
-iface_ClearFlags(struct iface *iface, int flags)
+iface_ClearFlags(const char *ifname, int flags)
 {
-  return iface_ChangeFlags(iface, flags, IFACE_DELFLAGS);
+  return iface_ChangeFlags(ifname, flags, IFACE_DELFLAGS);
 }
 
 void
