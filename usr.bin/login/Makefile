@@ -5,16 +5,10 @@ PROG=	login
 SRCS=	login.c login_access.c login_fbtab.c
 MAN=	login.1 login.access.5
 
-CFLAGS+=-Wall -DLOGIN_ACCESS -DLOGALL
+CFLAGS+=-DLOGIN_ACCESS -DLOGALL
 
-DPADD=	${LIBUTIL} ${LIBCRYPT}
-LDADD=	-lutil -lcrypt
-
-.if !defined(NOPAM)
-CFLAGS+= -DUSE_PAM
-DPADD+=	${LIBPAM}
-LDADD+=	${MINUSLPAM}
-.endif
+DPADD=	${LIBUTIL} ${LIBCRYPT} ${LIBPAM}
+LDADD=	-lutil -lcrypt ${MINUSLPAM}
 
 BINMODE=4555
 INSTALLFLAGS=-fschg
