@@ -90,6 +90,7 @@ struct pccard_dev
 	void *arg;			/* Device argument */
 	struct slot *sp;		/* Back pointer to slot */
 	int running;			/* Current state of driver */
+	u_char	misc[128];		/* For any random info */
 	};
 
 /*
