@@ -2084,10 +2084,12 @@ vm_map_copy_entry(src_map, dst_map, src_entry, dst_entry)
 		 * Make a copy of the object.
 		 */
 		if (src_entry->object.vm_object) {
+#if defined(OLD_COLLAPSE_CODE)
 			if ((src_entry->object.vm_object->handle == NULL) &&
 				(src_entry->object.vm_object->type == OBJT_DEFAULT ||
 				 src_entry->object.vm_object->type == OBJT_SWAP))
 				vm_object_collapse(src_entry->object.vm_object);
+#endif
 			++src_entry->object.vm_object->ref_count;
 			src_entry->copy_on_write = TRUE;
 			src_entry->needs_copy = TRUE;

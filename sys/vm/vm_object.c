@@ -793,6 +793,7 @@ vm_object_shadow(object, offset, length)
 }
 
 
+#if defined(OLD_COLLAPSE_CODE)
 /*
  * this version of collapse allows the operation to occur earlier and
  * when paging_in_progress is true for an object...  This is not a complete
@@ -860,6 +861,7 @@ vm_object_qcollapse(object)
 	}
 	backing_object->ref_count -= 2;
 }
+#endif
 
 /*
  *	vm_object_collapse:
@@ -912,7 +914,9 @@ vm_object_collapse(object)
 
 		if (object->paging_in_progress != 0 ||
 		    backing_object->paging_in_progress != 0) {
+#if defined(OLD_COLLAPSE_CODE)
 			vm_object_qcollapse(object);
+#endif
 			return;
 		}
 
@@ -1288,10 +1292,12 @@ vm_object_coalesce(prev_object, prev_pindex, prev_size, next_size)
 		return (FALSE);
 	}
 
+#if defined(OLD_COLLAPSE_CODE)
 	/*
 	 * Try to collapse the object first
 	 */
 	vm_object_collapse(prev_object);
+#endif
 
 	/*
 	 * Can't coalesce if: . more than one reference . paged out . shadows
