@@ -5,12 +5,14 @@ use and modify. Please send modifications and/or suggestions + bug fixes to
 
         Klas Heggemann <klas@nada.kth.se>
 
-	$Id: bootparamd.c,v 1.1.1.1 1995/02/26 23:40:52 wpaul Exp $
+	$Id: bootparamd.c,v 1.2 1995/05/30 03:46:27 rgrimes Exp $
 
 */
 
 
 #include <rpc/rpc.h>
+#include <rpcsvc/yp_prot.h>
+#include <rpcsvc/ypclnt.h>
 #include "bootparam_prot.h"
 #include <stdio.h>
 #include <sys/types.h>
@@ -174,8 +176,6 @@ char *fileid, *buffer;
   char  *where;
   static char *result;
   int resultlen;
-  extern int yp_get_default_domain();
-  extern int yp_match();
   static char *yp_domain;
 
   int ch, pch, fid_len, res = 0;
@@ -271,8 +271,6 @@ char *hostname;
   int res = 0;
   static char *result;
   int resultlen;
-  extern int yp_get_default_domain();
-  extern int yp_match();
   static char *yp_domain;
 
 /*  struct hostent *cmp_he;*/
