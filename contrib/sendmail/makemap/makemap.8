@@ -1,4 +1,4 @@
-.\" Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.
+.\" Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
 .\"	 All rights reserved.
 .\" Copyright (c) 1988, 1991, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -8,9 +8,9 @@
 .\" the sendmail distribution.
 .\"
 .\"
-.\"     $Id: makemap.8,v 8.21.16.5 2000/12/29 18:12:20 gshapiro Exp $
+.\"     $Id: makemap.8,v 8.29 2001/10/10 03:23:02 ca Exp $
 .\"
-.TH MAKEMAP 8 "$Date: 2000/12/29 18:12:20 $"
+.TH MAKEMAP 8 "$Date: 2001/10/10 03:23:02 $"
 .SH NAME
 makemap
 \- create database maps for sendmail
@@ -28,6 +28,8 @@ makemap
 .RB [ \-o ]
 .RB [ \-r ]
 .RB [ \-s ]
+.RB [ \-t
+.IR delim ]
 .RB [ \-u ]
 .RB [ \-v ]
 .I 
@@ -76,6 +78,15 @@ strings to indicate parameter substitution.
 Literal percents should be doubled 
 (``%%'').
 Blank lines and lines beginning with ``#'' are ignored.
+.PP
+Notice: do
+.B not
+use
+.B makemap
+to create the aliases data base, but
+.B newaliases
+which puts a special token into the data base that is required by
+.B sendmail.
 .PP
 If the
 .I TrustedUser
@@ -138,13 +149,16 @@ Ignore safety checks on maps being created.
 This includes checking for hard or symbolic 
 links in world writable directories.
 .TP
+.B \-t
+Use the specified delimiter instead of white space.
+.TP
 .B \-u
 dump (unmap) the content of the database to standard output.
 .TP
 .B \-v
 Verbosely print what it is doing.
 .SH SEE ALSO
-sendmail(8)
+sendmail(8), newaliases(1)
 .SH HISTORY
 The
 .B makemap

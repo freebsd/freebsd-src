@@ -8,11 +8,9 @@
  *
  */
 
-#ifndef lint
-static char id[] = "@(#)$Id: handler.c,v 8.19.4.3 2000/12/29 19:45:39 gshapiro Exp $";
-#endif /* ! lint */
+#include <sm/gen.h>
+SM_RCSID("@(#)$Id: handler.c,v 8.29 2001/11/15 00:17:15 msk Exp $")
 
-#if _FFR_MILTER
 #include "libmilter.h"
 
 
@@ -45,7 +43,7 @@ mi_handle_session(ctx)
 	ret = mi_engine(ctx);
 	if (ValidSocket(ctx->ctx_sd))
 	{
-		(void) close(ctx->ctx_sd);
+		(void) closesocket(ctx->ctx_sd);
 		ctx->ctx_sd = INVALID_SOCKET;
 	}
 	if (ctx->ctx_reply != NULL)
@@ -64,4 +62,3 @@ mi_handle_session(ctx)
 	ctx = NULL;
 	return ret;
 }
-#endif /* _FFR_MILTER */

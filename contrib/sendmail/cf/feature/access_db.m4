@@ -1,6 +1,6 @@
 divert(-1)
 #
-# Copyright (c) 1998, 1999 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
 #	All rights reserved.
 #
 # By using this file, you agree to the terms and conditions set
@@ -10,14 +10,28 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: access_db.m4,v 8.15 1999/07/22 17:55:34 gshapiro Exp $')
+VERSIONID(`$Id: access_db.m4,v 8.23 2001/03/16 00:51:25 gshapiro Exp $')
 divert(-1)
 
 define(`_ACCESS_TABLE_', `')
 define(`_TAG_DELIM_', `:')dnl should be in OperatorChars
+ifelse(lower(_ARG2_),`skip',`define(`_ACCESS_SKIP_', `1')')
+ifelse(lower(_ARG2_),`lookupdotdomain',`define(`_LOOKUPDOTDOMAIN_', `1')')
+ifelse(lower(_ARG3_),`skip',`define(`_ACCESS_SKIP_', `1')')
+ifelse(lower(_ARG3_),`lookupdotdomain',`define(`_LOOKUPDOTDOMAIN_', `1')')
+define(`_ATMPF_', `<TMPF>')dnl
+dnl check whether arg contains -T`'_ATMPF_
+ifelse(defn(`_ARG_'), `', `',
+	defn(`_ARG_'), `LDAP', `',
+	`ifelse(index(_ARG_, _ATMPF_), `-1',
+	`errprint(`*** WARNING: missing -T'_ATMPF_` in argument of FEATURE(`access_db',' defn(`_ARG_')`)
+')
+	define(`_ABP_', index(_ARG_, ` '))
+	define(`_NARG_', `substr(_ARG_, 0, _ABP_) -T'_ATMPF_` substr(_ARG_, _ABP_)')
+')')
 
 LOCAL_CONFIG
 # Access list database (for spam stomping)
-Kaccess ifelse(defn(`_ARG_'), `',
-	       DATABASE_MAP_TYPE MAIL_SETTINGS_DIR`access',
-	       `_ARG_')
+Kaccess ifelse(defn(`_ARG_'), `', DATABASE_MAP_TYPE -T`'_ATMPF_ MAIL_SETTINGS_DIR`access',
+	       defn(`_ARG_'), `LDAP', `ldap -T`'_ATMPF_ -1 -v sendmailMTAMapValue -k (&(objectClass=sendmailMTAMapObject)(|(sendmailMTACluster=${sendmailMTACluster})(sendmailMTAHost=$j))(sendmailMTAMapName=access)(sendmailMTAKey=%0))',
+	       defn(`_NARG_'), `', `_ARG_', `_NARG_')

@@ -1,0 +1,92 @@
+<html>
+<head><title>smfi_setreply</title></head>
+<body>
+<h1>smfi_setreply</h1>
+
+<table border="0" cellspacing=4 cellpadding=4>
+<!---------- Synopsis ----------->
+<tr><th valign="top" align=left width=150>SYNOPSIS</th><td>
+<pre>
+#include &lt;libmilter/mfapi.h&gt;
+int smfi_setreply(
+	SMFICTX *ctx,
+	char *rcode,
+	char *xcode,
+	char *message
+);
+</pre>
+Set the default SMTP error reply code.
+</td></tr>
+
+<!----------- Description ---------->
+<tr><th valign="top" align=left>DESCRIPTION</th><td>
+<table border="1" cellspacing=1 cellpadding=4>
+<tr align="left" valign=top>
+<th width="80">Called When</th>
+<td>smfi_setreply may be called from any of the xxfi_ callbacks.</td>
+</tr>
+<tr align="left" valign=top>
+<th width="80">Effects</th>
+<td>Directly set the SMTP error reply code for this connection.  This code 
+will be used on subsequent error replies resulting from actions taken by 
+this filter.</td>
+</tr>
+</table>
+
+<!----------- Arguments ---------->
+<tr><th valign="top" align=left>ARGUMENTS</th><td>
+    <table border="1" cellspacing=0>
+    <tr bgcolor="#dddddd"><th>Argument</th><th>Description</th></tr>
+    <tr valign="top"><td>ctx</td>
+	<td>Opaque context structure.
+	</td></tr>
+    <tr valign="top"><td>rcode</td>
+	<td>The three-digit (RFC 821) SMTP reply code, as a null-terminated string.  rcode cannot be NULL, and must be a valid reply code.
+	</td></tr>
+    <tr valign="top"><td>xcode</td>
+	<td>The extended (RFC 2034) reply code.  If xcode is NULL, no extended code is used.  Otherwise, xcode must conform to RFC 2034.
+	</td></tr>
+    <tr valign="top"><td>message</td>
+	<td>The text part of the SMTP reply.  If message is NULL, an empty message is used.
+	</td></tr>
+    </table>
+</td></tr>
+
+<!----------- Return values ---------->
+<tr>
+<th valign="top" align=left>RETURN VALUES</th> 
+
+<td>smfi_setreply will fail and return MI_FAILURE if:
+<ul>
+    <li>The rcode or xcode argument is invalid.
+    <li>A memory-allocation failure occurs.
+</ul>
+Otherwise, it return MI_SUCCESS.
+</td>
+</tr>
+
+<!----------- Notes ---------->
+<tr align="left" valign=top>
+<th>NOTES</th> 
+<td>
+<ul>
+<li>Values passed to smfi_setreply are not checked for standards compliance.
+<li>For details about reply codes and their meanings, please see RFC's 
+<a href="http://www.cis.ohio-state.edu/htbin/rfc/rfc821.html">821</a>
+and <a href="http://www.cis.ohio-state.edu/htbin/rfc/rfc2034.html">2034</a>.
+</ul>
+</td>
+</tr>
+
+</table>
+
+<hr size="1">
+<font size="-1">
+Copyright (c) 2000 Sendmail, Inc. and its suppliers.
+All rights reserved.
+<br>
+By using this file, you agree to the terms and conditions set
+forth in the <a href="LICENSE.txt">LICENSE</a>.
+</font>
+</body>
+</html>

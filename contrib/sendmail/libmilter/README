@@ -9,17 +9,27 @@ through reference to a sample filter which is attached at the end of this
 file.  It is necessary to first build libmilter.a, which can be done by
 issuing the './Build' command in SRCDIR/libmilter .
 
-NOTE: Both libmilter and the callouts in sendmail are marked as an FFR (For
-Future Release).  If you intend to use them in 8.11.X, you must compiled
-both libmilter and sendmail with -D_FFR_MILTER defined.  You can do this by
-adding the following to your devtools/Site/site.config.m4 file:
+NOTE: If you intend to use filters in sendmail, you must compile sendmail
+with -DMILTER defined.  You can do this by adding the following to
+your devtools/Site/site.config.m4 file:
 
-	dnl Milter
-	APPENDDEF(`conf_sendmail_ENVDEF', `-D_FFR_MILTER=1')
-	APPENDDEF(`conf_libmilter_ENVDEF', `-D_FFR_MILTER=1') 
+	APPENDDEF(`conf_sendmail_ENVDEF', `-DMILTER')
 
-You will also need to define _FFR_MILTER when building your .cf file using
-m4.
++----------------+
+| SECURITY HINTS |
++----------------+
+
+Note: we strongly recommend not to run any milter as root.  Libmilter
+does not need root access to communicate with sendmail.  It is a
+good security practice to run a program only with root privileges
+if really necessary.  A milter should probably check first whether
+it runs as root and refuse to start in that case.  There is a
+compile time option _FFR_MILTER_ROOT_UNSAFE which keeps libmilter
+from unlinking a socket when running as root.  It is recommended
+to turn on this option:
+
+	APPENDDEF(`conf_libmilter_ENVDEF', `-D_FFR_MILTER_ROOT_UNSAFE ')
+
 
 +-------------------+
 | BUILDING A FILTER |
@@ -29,14 +39,14 @@ The following command presumes that the sample code from the end of this
 README is saved to a file named 'sample.c' and built in the local platform-
 specific build subdirectory (SRCDIR/obj.*/libmilter).
 
-	cc -I../../sendmail -I../../include -o sample sample.c libmilter.a ../libsmutil/libsmutil.a -pthread
+	cc -I../../sendmail -I../../include -o sample sample.c libmilter.a ../libsm/libsm.a -pthread
 
 It is recommended that you build your filters in a location outside of
 the sendmail source tree.  Modify the compiler include references (-I)
 and the library locations accordingly.  Also, some operating systems may
 require additional libraries.  For example, SunOS 5.X requires '-lresolv
--lsocket -lnsl'.  Depending on your OS you may need a library instead
-of the option -pthread, e.g., -lpthread.
+-lsocket -lnsl'.  Depending on your operating system you may need a library
+instead of the option -pthread, e.g., -lpthread.
 
 Filters must be thread-safe!  Many operating systems now provide support for
 POSIX threads in the standard C libraries.  The compiler flag to link with
@@ -77,13 +87,13 @@ IPv4 socket on port 3333 of localhost.  The current flags (F=) are:
 	T		Temporary fail connection if filter unavailable
 
 If neither F=R nor F=T is specified, the message is passed through sendmail
-as if the filter were not present.
+in case of filter errors as if the failing filters were not present.
 
 Finally, you can override the default timeouts used by sendmail when
 talking to the filters using the T= equate.  There are four fields inside
 of the T= equate:
 
-Letter          Meaning
+Letter		Meaning
   C		Timeout for connecting to a filter (if 0, use system timeout)
   S		Timeout for sending information from the MTA to a filter
   R		Timeout for reading reply from the filter
@@ -94,7 +104,7 @@ Note the separator between each is a ';' as a ',' already separates equates
 and therefore can't separate timeouts.  The default values (if not set in
 the config) are:
 
-T=C:0m;S:10s;R:10s;E:5m
+T=C:5m;S:10s;R:10s;E:5m
 
 where 's' is seconds and 'm' is minutes.
 
@@ -182,6 +192,30 @@ the logging level of sendmail can be raised with the LogLevel option.
 See the sendmail(8) manual page for more information.
 
 
++--------------+
+| REQUIREMENTS |
++--------------+
+
+libmilter requires pthread support in the operating system.  Moreover, it
+requires that the library functions it uses are thread safe; which is true
+for the operating systems libmilter has been developed and tested on.  On
+some operating systems this requires special compile time options (e.g.,
+not just -pthread).  libmilter is currently known to work on (modulo problems
+in the pthread support of some specific versions):
+
+FreeBSD 3.x, 4.x
+SunOS 5.x (x >= 5)
+AIX 4.3.x
+HP UX 11.x
+Linux (recent versions/distributions)
+
+libmilter is currently not supported on:
+
+IRIX 6.x
+Ultrix
+
+Feedback about problems (and possible fixes) is welcome.
+
 +--------------------------+
 | SOURCE FOR SAMPLE FILTER |
 +--------------------------+
@@ -201,14 +235,11 @@ below to verify the functions are thread safe.
 
 #include "libmilter/mfapi.h"
 
+#ifndef true
 typedef int bool;
-
-#ifndef FALSE
-# define FALSE	0
-#endif /* ! FALSE*/
-#ifndef TRUE
-# define TRUE	1
-#endif /* ! TRUE*/
+# define false	0
+# define true	1
+#endif /* ! true */
 
 struct mlfiPriv
 {
@@ -295,7 +326,7 @@ mlfi_body(ctx, bodyp, bodylen)
 	if (fwrite(bodyp, bodylen, 1, MLFIPRIV->mlfi_fp) <= 0)
 	{
 		/* write failed */
-		(void) mlfi_cleanup(ctx, FALSE);
+		(void) mlfi_cleanup(ctx, false);
 		return SMFIS_TEMPFAIL;
 	}
 
@@ -307,7 +338,7 @@ sfsistat
 mlfi_eom(ctx)
 	SMFICTX *ctx;
 {
-	return mlfi_cleanup(ctx, TRUE);
+	return mlfi_cleanup(ctx, true);
 }
 
 sfsistat
@@ -321,7 +352,7 @@ sfsistat
 mlfi_abort(ctx)
 	SMFICTX *ctx;
 {
-	return mlfi_cleanup(ctx, FALSE);
+	return mlfi_cleanup(ctx, false);
 }
 
 sfsistat
@@ -349,7 +380,7 @@ mlfi_cleanup(ctx, ok)
 	{
 		/* add a header to the message announcing our presence */
 		if (gethostname(host, sizeof host) < 0)
-			strlcpy(host, "localhost", sizeof host);
+			snprintf(host, sizeof host, "localhost");
 		p = strrchr(priv->mlfi_fname, '/');
 		if (p == NULL)
 			p = priv->mlfi_fname;
@@ -426,4 +457,4 @@ main(argc, argv)
 
 /* eof */
 
-$Revision: 8.9.2.1.2.19 $, Last updated $Date: 2001/06/28 22:25:14 $
+$Revision: 8.35 $, Last updated $Date: 2002/01/07 21:29:20 $

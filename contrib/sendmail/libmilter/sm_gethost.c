@@ -8,17 +8,15 @@
  *
  */
 
-#ifndef lint
-static char id[] = "@(#)$Id: sm_gethost.c,v 8.7.8.11 2001/07/21 00:10:23 gshapiro Exp $";
-#endif /* ! lint */
+#include <sm/gen.h>
+SM_RCSID("@(#)$Id: sm_gethost.c,v 8.26 2001/09/11 04:04:45 gshapiro Exp $")
 
-#if _FFR_MILTER
 #include <sendmail.h>
 #if NETINET || NETINET6
 # include <arpa/inet.h>
 #endif /* NETINET || NETINET6 */
 
-/*
+/*
 **  MI_GETHOSTBY{NAME,ADDR} -- compatibility routines for gethostbyXXX
 **
 **	Some operating systems have wierd problems with the gethostbyXXX
@@ -48,7 +46,7 @@ getipnodebyname(name, family, flags, err)
 	int flags;
 	int *err;
 {
-	bool resv6 = TRUE;
+	bool resv6 = true;
 	struct hostent *h;
 
 	if (family == AF_INET6)
@@ -59,13 +57,12 @@ getipnodebyname(name, family, flags, err)
 	}
 	SM_SET_H_ERRNO(0);
 	h = gethostbyname(name);
-	*err = h_errno;
 	if (family == AF_INET6 && !resv6)
 		_res.options &= ~RES_USE_INET6;
+	*err = h_errno;
 	return h;
 }
 
-# if _FFR_FREEHOSTENT
 void
 freehostent(h)
 	struct hostent *h;
@@ -77,7 +74,6 @@ freehostent(h)
 
 	return;
 }
-# endif /* _FFR_FREEHOSTENT */
 #endif /* NEEDSGETIPNODE && NETINET6 */
 
 struct hostent *
@@ -117,4 +113,33 @@ mi_gethostbyname(name, family)
 #endif /* (SOLARIS > 10000 && SOLARIS < 20400) || (defined(SOLARIS) && SOLARIS < 204) || (defined(sony_news) && defined(__svr4)) */
 	return h;
 }
-#endif /* _FFR_MILTER */
+
+#if NETINET6
+/*
+**  MI_INET_PTON -- convert printed form to network address.
+**
+**	Wrapper for inet_pton() which handles IPv6: labels.
+**
+**	Parameters:
+**		family -- address family
+**		src -- string
+**		dst -- destination address structure
+**
+**	Returns:
+**		1 if the address was valid
+**		0 if the address wasn't parseable
+**		-1 if error
+*/
+
+int
+mi_inet_pton(family, src, dst)
+	int family;
+	const char *src;
+	void *dst;
+{
+	if (family == AF_INET6 &&
+	    strncasecmp(src, "IPv6:", 5) == 0)
+		src += 5;
+	return inet_pton(family, src, dst);
+}
+#endif /* NETINET6 */
