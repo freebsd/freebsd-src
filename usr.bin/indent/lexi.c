@@ -53,6 +53,7 @@ static const char rcsid[] =
 #include <string.h>
 #include "indent_globs.h"
 #include "indent_codes.h"
+#include "indent.h"
 
 #define alphanum 1
 #define opchar 3
@@ -60,7 +61,7 @@ static const char rcsid[] =
 void fill_buffer(void);
 
 struct templ {
-    char       *rwd;
+    const char *rwd;
     int         rwcode;
 };
 
@@ -149,7 +150,7 @@ lexi(void)
 	/*
 	 * we have a character or number
 	 */
-	register char *j;	/* used for searching thru list of
+	const char *j;		/* used for searching thru list of
 				 *
 				 * reserved words */
 	register struct templ *p;
@@ -249,15 +250,15 @@ lexi(void)
 	 * This loop will check if the token is a keyword.
 	 */
 	for (p = specials; (j = p->rwd) != 0; p++) {
-	    register char *p = s_token;	/* point at scanned token */
-	    if (*j++ != *p++ || *j++ != *p++)
+	    const char *q = s_token;	/* point at scanned token */
+	    if (*j++ != *q++ || *j++ != *q++)
 		continue;	/* This test depends on the fact that
 				 * identifiers are always at least 1 character
 				 * long (ie. the first two bytes of the
 				 * identifier are always meaningful) */
-	    if (p[-1] == 0)
+	    if (q[-1] == 0)
 		break;		/* If its a one-character identifier */
-	    while (*p++ == *j)
+	    while (*q++ == *j)
 		if (*j++ == 0)
 		    goto found_keyword;	/* I wish that C had a multi-level
 					 * break... */
