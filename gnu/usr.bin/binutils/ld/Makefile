@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.3 1998/05/04 21:38:46 jb Exp $
+# $Id: Makefile,v 1.4 1998/05/11 09:33:55 jb Exp $
 #
 
 .include "../Makefile.inc0"
@@ -15,6 +15,8 @@ CFLAGS+=	-DSCRIPTDIR=\"${DESTDIR}/usr/libdata\"
 CFLAGS+=	-I${SRCDIR}/ld
 LDADD+=		-L${RELTOP}/libbfd -lbfd
 LDADD+=		-L${RELTOP}/libiberty -liberty
+DPADD+=		${RELTOP}/libbfd/libbfd.a
+DPADD+=		${RELTOP}/libiberty/libiberty.a
 CLEANDIRS+=	ldscripts
 
 beforedepend: ldemul-list.h ldgram.h
