@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-SUBDIR= csu libdialog libgcc libgmp libmp libregex libreadline
+SUBDIR= csu libdialog libgcc libregex libreadline
 
 .if ${OBJFORMAT} == aout
 .if !defined(NOLIBC_R)

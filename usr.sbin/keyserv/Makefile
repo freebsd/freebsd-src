@@ -10,7 +10,7 @@ CFLAGS+= -DOBJFORMAT_ELF
 .endif
 
 DPADD=	${LIBMP} ${LIBRPCSVC}
-LDADD=	-lmp -lrpcsvc
+LDADD=	-lmp -lcrypto -lrpcsvc
 
 RPCDIR=	${DESTDIR}/usr/include/rpcsvc
 
