@@ -82,7 +82,7 @@
 #include <sys/vmmeter.h>
 #include <sys/kernel.h>
 #include <sys/mbuf.h>
-#include <sys/socketvar.h>
+#include <sys/sf_buf.h>
 #include <sys/sysctl.h>
 #include <sys/unistd.h>
 

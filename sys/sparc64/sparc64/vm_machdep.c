@@ -56,7 +56,7 @@
 #include <sys/linker_set.h>
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
-#include <sys/socketvar.h>
+#include <sys/sf_buf.h>
 #include <sys/sysctl.h>
 #include <sys/unistd.h>
 #include <sys/user.h>
