@@ -18,7 +18,7 @@
  *		Columbus, OH  43221
  *		(614)451-1883
  *
- * $Id: chat.c,v 1.40 1997/12/18 01:10:12 brian Exp $
+ * $Id: chat.c,v 1.41 1997/12/23 22:38:51 brian Exp $
  *
  *  TODO:
  *	o Support more UUCP compatible control sequences.
@@ -186,8 +186,8 @@ ExpandString(const char *str, char *result, int reslen, int sendmode)
       case 'T':
 	if (VarAltPhone == NULL) {
 	  if (VarNextPhone == NULL) {
-	    strncpy(VarPhoneCopy, VarPhoneList, sizeof(VarPhoneCopy) - 1);
-	    VarPhoneCopy[sizeof(VarPhoneCopy) - 1] = '\0';
+	    strncpy(VarPhoneCopy, VarPhoneList, sizeof VarPhoneCopy - 1);
+	    VarPhoneCopy[sizeof VarPhoneCopy - 1] = '\0';
 	    VarNextPhone = VarPhoneCopy;
 	  }
 	  VarAltPhone = strsep(&VarNextPhone, ":");
@@ -292,7 +292,7 @@ WaitforString(const char *estr)
   omask = sigblock(sigmask(SIGALRM));
 #endif
   clear_log();
-  ExpandString(estr, buff, sizeof(buff), 0);
+  ExpandString(estr, buff, sizeof buff, 0);
   LogPrintf(LogCHAT, "Wait for (%d): %s --> %s\n", TimeoutSec, estr, buff);
   str = buff;
   inp = inbuff;
@@ -489,7 +489,7 @@ SendString(const char *str)
 
   if (abort_next) {
     abort_next = 0;
-    ExpandString(str, buff, sizeof(buff), 0);
+    ExpandString(str, buff, sizeof buff, 0);
     AbortStrings[numaborts++] = strdup(buff);
   } else if (timeout_next) {
     timeout_next = 0;
@@ -498,10 +498,10 @@ SendString(const char *str)
       TimeoutSec = 30;
   } else {
     if (*str == '!') {
-      ExpandString(str + 1, buff + 2, sizeof(buff) - 2, 0);
+      ExpandString(str + 1, buff + 2, sizeof buff - 2, 0);
       ExecStr(buff + 2, buff + 2);
     } else {
-      ExpandString(str, buff + 2, sizeof(buff) - 2, 1);
+      ExpandString(str, buff + 2, sizeof buff - 2, 1);
     }
     if (strstr(str, "\\P"))	/* Do not log the password itself. */
       LogPrintf(LogCHAT, "sending: %s\n", str);
@@ -615,7 +615,7 @@ DoChat(char *script)
   }
   numaborts = 0;
 
-  memset(vector, '\0', sizeof(vector));
+  memset(vector, '\0', sizeof vector);
   argc = MakeArgs(script, vector, VECSIZE(vector));
   argv = vector;
   TimeoutSec = 30;

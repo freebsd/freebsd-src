@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: filter.c,v 1.19 1997/11/22 03:37:30 brian Exp $
+ * $Id: filter.c,v 1.20 1997/12/13 02:37:22 brian Exp $
  *
  *	TODO: Shoud send ICMP error message when we discard packets.
  */
@@ -301,7 +301,7 @@ Parse(int argc, char const *const *argv, struct filterent * ofp)
   argv++;
 
   proto = P_NONE;
-  memset(&filterdata, '\0', sizeof(filterdata));
+  memset(&filterdata, '\0', sizeof filterdata);
 
   if (!strcmp(*argv, "permit")) {
     action = A_PERMIT;

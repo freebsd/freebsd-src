@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.43 1997/12/19 04:49:53 brian Exp $
+ * $Id: ipcp.c,v 1.44 1997/12/24 09:28:11 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -110,7 +110,7 @@ static const char *cftypes[] = {
   "IPADDR",	/* 3: IP-Address */
 };
 
-#define NCFTYPES (sizeof(cftypes)/sizeof(char *))
+#define NCFTYPES (sizeof cftypes/sizeof cftypes[0])
 
 static const char *cftypes128[] = {
   /* Check out the latest ``Assigned numbers'' rfc (rfc1700.txt) */
@@ -121,7 +121,7 @@ static const char *cftypes128[] = {
   "SECNBNS",	/* 132: Secondary NBNS Server Address */
 };
 
-#define NCFTYPES128 (sizeof(cftypes128)/sizeof(char *))
+#define NCFTYPES128 (sizeof cftypes128/sizeof cftypes128[0])
 
 struct pppThroughput throughput;
 
@@ -172,11 +172,11 @@ IpcpDefAddress()
   struct hostent *hp;
   char name[200];
 
-  memset(&DefMyAddress, '\0', sizeof(DefMyAddress));
-  memset(&DefHisAddress, '\0', sizeof(DefHisAddress));
+  memset(&DefMyAddress, '\0', sizeof DefMyAddress);
+  memset(&DefHisAddress, '\0', sizeof DefHisAddress);
   TriggerAddress.s_addr = 0;
   HaveTriggerAddress = 0;
-  if (gethostname(name, sizeof(name)) == 0) {
+  if (gethostname(name, sizeof name) == 0) {
     hp = gethostbyname(name);
     if (hp && hp->h_addrtype == AF_INET) {
       memcpy(&DefMyAddress.ipaddr.s_addr, hp->h_addr, hp->h_length);
@@ -190,7 +190,7 @@ IpcpInit()
   if (iplist_isvalid(&DefHisChoice))
     iplist_setrandpos(&DefHisChoice);
   FsmInit(&IpcpFsm);
-  memset(&IpcpInfo, '\0', sizeof(struct ipcpstate));
+  memset(&IpcpInfo, '\0', sizeof IpcpInfo);
   if ((mode & MODE_DEDICATED) && !GetLabel()) {
     IpcpInfo.want_ipaddr.s_addr = IpcpInfo.his_ipaddr.s_addr = 0;
   } else {
@@ -302,7 +302,7 @@ IpcpLayerUp(struct fsm * fp)
 
   Prompt();
   LogPrintf(LogIPCP, "IpcpLayerUp(%d).\n", fp->state);
-  snprintf(tbuff, sizeof(tbuff), "myaddr = %s ",
+  snprintf(tbuff, sizeof tbuff, "myaddr = %s ",
 	   inet_ntoa(IpcpInfo.want_ipaddr));
 
   if (IpcpInfo.his_compproto >> 16 == PROTO_VJCOMP)
@@ -367,11 +367,11 @@ IpcpDecodeConfig(u_char * cp, int plen, int mode_type)
     type = *cp;
     length = cp[1];
     if (type < NCFTYPES)
-      snprintf(tbuff, sizeof(tbuff), " %s[%d] ", cftypes[type], length);
+      snprintf(tbuff, sizeof tbuff, " %s[%d] ", cftypes[type], length);
     else if (type > 128 && type < 128 + NCFTYPES128)
-      snprintf(tbuff, sizeof(tbuff), " %s[%d] ", cftypes128[type-128], length);
+      snprintf(tbuff, sizeof tbuff, " %s[%d] ", cftypes128[type-128], length);
     else
-      snprintf(tbuff, sizeof(tbuff), " <%d>[%d] ", type, length);
+      snprintf(tbuff, sizeof tbuff, " <%d>[%d] ", type, length);
 
     switch (type) {
     case TY_IPADDR:		/* RFC1332 */
@@ -415,7 +415,7 @@ IpcpDecodeConfig(u_char * cp, int plen, int mode_type)
       case MODE_NAK:
 	if (AcceptableAddr(&DefMyAddress, ipaddr)) {
 	  /* Use address suggested by peer */
-	  snprintf(tbuff2, sizeof(tbuff2), "%s changing address: %s ", tbuff,
+	  snprintf(tbuff2, sizeof tbuff2, "%s changing address: %s ", tbuff,
 		   inet_ntoa(IpcpInfo.want_ipaddr));
 	  LogPrintf(LogIPCP, "%s --> %s\n", tbuff2, inet_ntoa(ipaddr));
 	  IpcpInfo.want_ipaddr = ipaddr;
@@ -468,7 +468,7 @@ IpcpDecodeConfig(u_char * cp, int plen, int mode_type)
 	      pcomp->proto = htons(PROTO_VJCOMP);
 	      pcomp->slots = MAX_STATES - 1;
 	      pcomp->compcid = 0;
-	      memcpy(nakp+2, &pcomp, sizeof(pcomp));
+	      memcpy(nakp+2, &pcomp, sizeof pcomp);
 	      nakp += length;
 	    }
 	    break;
@@ -494,7 +494,7 @@ IpcpDecodeConfig(u_char * cp, int plen, int mode_type)
       ipaddr.s_addr = *lp;
       lp = (u_long *) (cp + 6);
       dstipaddr.s_addr = *lp;
-      snprintf(tbuff2, sizeof(tbuff2), "%s %s,", tbuff, inet_ntoa(ipaddr));
+      snprintf(tbuff2, sizeof tbuff2, "%s %s,", tbuff, inet_ntoa(ipaddr));
       LogPrintf(LogIPCP, "%s %s\n", tbuff2, inet_ntoa(dstipaddr));
 
       switch (mode_type) {
@@ -505,7 +505,7 @@ IpcpDecodeConfig(u_char * cp, int plen, int mode_type)
 	ackp += length;
 	break;
       case MODE_NAK:
-        snprintf(tbuff2, sizeof(tbuff2), "%s changing address: %s", tbuff,
+        snprintf(tbuff2, sizeof tbuff2, "%s changing address: %s", tbuff,
 		 inet_ntoa(IpcpInfo.want_ipaddr));
 	LogPrintf(LogIPCP, "%s --> %s\n", tbuff2, inet_ntoa(ipaddr));
 	IpcpInfo.want_ipaddr = ipaddr;
