@@ -2,6 +2,7 @@
 
 .if ${MACHINE_ARCH} != "ia64" && ${MACHINE_ARCH} != "sparc64"
 SUBDIR+= csu libgcc
+.else
 NO_CXX=	yes
 NO_OBJC=yes
 NO_FORTRAN=yes
