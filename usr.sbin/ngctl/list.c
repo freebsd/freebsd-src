@@ -39,15 +39,19 @@
 
 #include "ngctl.h"
 
+#define UNNAMED		"<unnamed>"
+
 static int ListCmd(int ac, char **av);
 
 const struct ngcmd list_cmd = {
 	ListCmd,
-	"list [-n]",
+	"list [-ln]",
 	"Show information about all nodes",
-	"The list command shows information every node that currently"
+	"The list command shows information about every node that currently"
 	" exists in the netgraph system. The optional -n argument limits"
-	" this list to only those nodes with a global name assignment.",
+	" this list to only those nodes with a global name assignment."
+	" The optional -l argument provides verbose output that includes"
+	" hook information as well.",
 	{ "ls" }
 };
 
@@ -56,14 +60,18 @@ ListCmd(int ac, char **av)
 {
 	struct ng_mesg *resp;
 	struct namelist *nlist;
+	struct nodeinfo *ninfo;
+	int list_hooks = 0;
 	int named_only = 0;
 	int ch, rtn = CMDRTN_OK;
-	u_int k;
 
 	/* Get options */
 	optind = 1;
-	while ((ch = getopt(ac, av, "n")) != EOF) {
+	while ((ch = getopt(ac, av, "ln")) != EOF) {
 		switch (ch) {
+		case 'l':
+			list_hooks = 1;
+			break;
 		case 'n':
 			named_only = 1;
 			break;
@@ -99,14 +107,30 @@ ListCmd(int ac, char **av)
 	nlist = (struct namelist *) resp->data;
 	printf("There are %d total %snodes:\n",
 	    nlist->numnames, named_only ? "named " : "");
-	for (k = 0; k < nlist->numnames; k++) {
+	ninfo = nlist->nodeinfo;
+	if (list_hooks) {
 		char	path[NG_PATHSIZ];
-		char	*argv[3] = { "list", "-n", path };
+		char	*argv[2] = { "show", path };
 
-		snprintf(path, sizeof(path),
-		    "[%lx]:", (u_long) nlist->nodeinfo[k].id);
-		if ((rtn = (*show_cmd.func)(3, argv)) != CMDRTN_OK)
-			break;
+		while (nlist->numnames > 0) {
+			snprintf(path, sizeof(path),
+			    "[%lx]:", (u_long)ninfo->id);
+			if ((rtn = (*show_cmd.func)(2, argv)) != CMDRTN_OK)
+				break;
+			ninfo++;
+			nlist->numnames--;
+		}
+	} else {
+		while (nlist->numnames > 0) {
+			if (!*ninfo->name)
+				snprintf(ninfo->name, sizeof(ninfo->name),
+				    "%s", UNNAMED);
+			printf("  Name: %-15s Type: %-15s ID: %08x   "
+			    "Num hooks: %d\n",
+			    ninfo->name, ninfo->type, ninfo->id, ninfo->hooks);
+			ninfo++;
+			nlist->numnames--;
+		}
 	}
 
 	/* Done */
