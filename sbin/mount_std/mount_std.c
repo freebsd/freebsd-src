@@ -53,6 +53,7 @@ static const char rcsid[] =
 #include <err.h>
 #include <errno.h>
 #include <stdio.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sysexits.h>
@@ -65,8 +66,16 @@ static struct mntopt mopts[] = {
 	{ NULL }
 };
 
-static void	usage(void) __dead2;
 static const char *fsname;
+static volatile sig_atomic_t caughtsig;
+
+static void usage(void) __dead2;
+
+static void
+catchsig(int s)
+{
+	caughtsig = 1;
+}
 
 int
 main(argc, argv)
@@ -132,14 +141,26 @@ main(argc, argv)
 	iov[2].iov_len = sizeof("fstype");
 	iov[3].iov_base = mntpath;
 	iov[3].iov_len = strlen(mntpath) + 1;
+
+	/*
+	 * nmount(2) would kill us with SIGSYS if the kernel doesn't have it.
+	 * This design bug is inconvenient.  We must catch the signal and not
+	 * just ignore it because of a plain bug: nmount(2) would return
+	 * EINVAL instead of the correct ENOSYS if the kernel doesn't have it
+	 * and we don't let the signal kill us.  EINVAL is too ambiguous.
+	 * This bug in 4.4BSD-Lite1 was fixed in 4.4BSD-Lite2 but is still in
+	 * FreeBSD-5.0.
+	 */
+	signal(SIGSYS, catchsig);
 	error = nmount(iov, 4, mntflags);
+	signal(SIGSYS, SIG_DFL);
 
 	/*
 	 * Try with the old mount syscall in the case
 	 * this filesystem has not been converted yet,
 	 * or the user didn't recompile his kernel.
 	 */
-	if (error && errno == EOPNOTSUPP)
+	if (error && (errno == EOPNOTSUPP || errno == ENOSYS || caughtsig))
 		error = mount(vfc.vfc_name, mntpath, mntflags, NULL);
 
 	if (error)
