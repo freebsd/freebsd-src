@@ -40,7 +40,7 @@
 static char sccsid[] = "@(#)pat_rep.c	8.2 (Berkeley) 4/18/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: pat_rep.c,v 1.12 1998/05/15 06:27:44 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -1002,7 +1002,7 @@ rep_name(name, nlen, prnt)
 #			ifdef NET2_REGEX
 			inpt = pt->rcmp->endp[0];
 #			else
-			inpt += pm[0].rm_eo;
+			inpt += pm[0].rm_eo - pm[0].rm_so;
 #			endif
 
 			if ((outpt == endpt) || (*inpt == '\0'))
