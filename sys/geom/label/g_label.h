@@ -50,15 +50,6 @@ extern u_int g_label_debug;
 		printf("\n");						\
 	}								\
 } while (0)
-#define	G_LABEL_LOGREQ(bp, ...)	do {					\
-	if (g_label_debug >= 2) {					\
-		printf("GEOM_LABEL[2]: ");				\
-		printf(__VA_ARGS__);					\
-		printf(" ");						\
-		g_print_bio(bp);					\
-		printf("\n");						\
-	}								\
-} while (0)
 
 typedef void g_label_taste_t (struct g_consumer *cp, char *label, size_t size);
 
