@@ -739,21 +739,6 @@ probeCard( bktr_ptr_t bktr, int verbose, int unit )
 		    goto checkTuner;
 		}
 
-		if (subsystem_vendor_id == PCI_VENDOR_PINNACLE_NEW) {
-                    bktr->card = cards[ (card = CARD_PINNACLE_PCTV_RAVE) ];
-		    bktr->card.eepromAddr = eeprom_i2c_address;
-		    bktr->card.eepromSize = (u_char)(256 / EEPROMBLOCKSIZE);
-
-		    TDA9887_init(bktr, 0);
-
-		    /* look for a tuner */
-		    tuner_i2c_address = locate_tuner_address( bktr );
-		    printf( "%s: tuner @ %#x\n", bktr_name(bktr), tuner_i2c_address );
-		    select_tuner( bktr, TUNER_MT2032 );
-
-		    goto checkDBX;
-                }
-
                 /* Vendor is unknown. We will use the standard probe code */
 		/* which may not give best results */
                 printf("%s: Warning - card vendor 0x%04x (model 0x%04x) unknown.\n",
@@ -883,6 +868,12 @@ checkEEPROM:
 
 
 checkTuner:
+
+	if (card == CARD_MIRO && mt2032_init(bktr) == 0) {
+		bktr->card = cards[ (card = CARD_PINNACLE_PCTV_RAVE) ];
+		select_tuner( bktr, TUNER_MT2032 );
+		goto checkDBX;
+	}
 
 	/* look for a tuner */
 	tuner_i2c_address = locate_tuner_address( bktr );
