@@ -110,7 +110,7 @@ static MALLOC_DEFINE(M_LO, "lo", "Loopback Interface");
 
 struct lo_softc {
 	struct	ifnet sc_if;		/* network-visible interface */
-        LIST_ENTRY(lo_softc) sc_next;
+	LIST_ENTRY(lo_softc) sc_next;
 };
 static LIST_HEAD(lo_list, lo_softc) lo_list;
 
