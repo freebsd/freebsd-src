@@ -442,19 +442,16 @@ am7990_put(sc, boff, m)
 	int boff;
 	register struct mbuf *m;
 {
-	register struct mbuf *n;
 	register int len, tlen = 0;
 
-	for (; m; m = n) {
+	while (m) {
 		len = m->m_len;
-		if (len == 0) {
-			MFREE(m, n);
-			continue;
+		if (len != 0) {
+		    (*sc->sc_copytobuf)(sc, mtod(m, caddr_t), boff, len);
+		    boff += len;
+		    tlen += len;
 		}
-		(*sc->sc_copytobuf)(sc, mtod(m, caddr_t), boff, len);
-		boff += len;
-		tlen += len;
-		MFREE(m, n);
+		m = m_free(m);
 	}
 	if (tlen < LEMINSIZE) {
 		(*sc->sc_zerobuf)(sc, boff, LEMINSIZE - tlen);

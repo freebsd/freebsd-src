@@ -538,7 +538,7 @@ tunread(dev, uio, flag)
 {
 	struct tun_softc *tp = dev->si_drv1;
 	struct ifnet	*ifp = &tp->tun_if;
-	struct mbuf	*m, *m0;
+	struct mbuf	*m0;
 	int		error=0, len, s;
 
 	TUNDEBUG ("%s%d: read\n", ifp->if_name, ifp->if_unit);
@@ -572,8 +572,7 @@ tunread(dev, uio, flag)
 		len = min(uio->uio_resid, m0->m_len);
 		if (len != 0)
 			error = uiomove(mtod(m0, caddr_t), len, uio);
-		MFREE(m0, m);
-		m0 = m;
+		m0 = m_free(m0);
 	}
 
 	if (m0) {

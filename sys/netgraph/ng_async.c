@@ -452,15 +452,12 @@ nga_rcv_sync(const sc_p sc, struct mbuf *m, meta_p meta)
 
 	/* Add packet payload */
 	while (m != NULL) {
-		struct mbuf *n;
-
 		while (m->m_len > 0) {
 			ADD_BYTE(*mtod(m, u_char *));
 			m->m_data++;
 			m->m_len--;
 		}
-		MFREE(m, n);
-		m = n;
+		m = m_free(m);
 	}
 
 	/* Add checksum and final sync flag */
@@ -567,8 +564,7 @@ reset:
 				sc->fcs = PPP_FCS(sc->fcs, ch);
 			}
 		}
-		MFREE(m, n);
-		m = n;
+		m = m_free(m);
 	}
 	return (0);
 }
