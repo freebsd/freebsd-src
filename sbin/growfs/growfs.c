@@ -46,10 +46,8 @@ Copyright (c) 1980, 1989, 1993 The Regents of the University of California.\n\
 All rights reserved.\n";
 #endif /* not lint */
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /* ********************************************************** INCLUDES ***** */
 #include <sys/param.h>
@@ -1558,7 +1556,7 @@ rdfs(ufs2_daddr_t bno, size_t size, void *bf, int fsi)
 	DBG_ENTER;
 
 	if (bno < 0) {
-		err(32, "rdfs: attempting to read negative block number\n");
+		err(32, "rdfs: attempting to read negative block number");
 	}
 	if (lseek(fsi, (off_t)bno * DEV_BSIZE, 0) < 0) {
 		err(33, "rdfs: seek error: %jd", (intmax_t)bno);
@@ -2131,7 +2129,7 @@ main(int argc, char **argv)
 	sblock.fs_size = dbtofsb(&osblock, p_size);
 	if (size != 0) {
 		if (size > p_size){
-			errx(1, "There is not enough space (%d < %d)",
+			errx(1, "there is not enough space (%d < %d)",
 			    p_size, size);
 		}
 		sblock.fs_size = dbtofsb(&osblock, size);
@@ -2155,7 +2153,7 @@ main(int argc, char **argv)
 			if(sblock.fs_snapinum[j]) {
 				errx(1, "active snapshot found in file system\n"
 				    "	please remove all snapshots before "
-				    "using growfs\n");
+				    "using growfs");
 			}
 			if(!sblock.fs_snapinum[j]) { /* list is dense */
 				break;
