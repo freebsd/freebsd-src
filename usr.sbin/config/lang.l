@@ -35,6 +35,7 @@
  */
 
 #include <ctype.h>
+#include <string.h>
 #include "y.tab.h"
 #include "config.h"
 
@@ -117,7 +118,7 @@ WORD	[A-Za-z_][-A-Za-z_]*
 
 			if ((i = kw_lookup(yytext)) == -1)
 			{
-				yylval.str = yytext;
+				yylval.str = strdup(yytext);
 				tprintf("id(%s) ", yytext);
 				return ID;
 			}
@@ -126,7 +127,7 @@ WORD	[A-Za-z_][-A-Za-z_]*
 		}
 \"[^"]+\"	{
 			yytext[strlen(yytext)-1] = '\0';
-			yylval.str = yytext + 1;
+			yylval.str = strdup(yytext + 1);
 			return ID;
 		}
 0[0-7]*		{
