@@ -4,7 +4,7 @@
 
      $Id: dev.sgml,v 1.3 2002/09/29 21:03:53 eagle Exp $
      $FreeBSD$
-     Original revision: 1.103
+     Original revision: 1.106
 -->
 <!--
 
@@ -89,7 +89,7 @@
 		<para>Intel PIIX, PIIX3, PIIX4</para>
 	   </listitem>
 	   <listitem>
-		<para>Intel ICH ATA66, ICH2 ATA100, ICH3 ATA100</para>
+		<para>Intel ICH ATA66, ICH2 ATA100, ICH3 ATA100, ICH4 ATA100</para>
 	   </listitem>
 	   <listitem>
 		<para>nVidia nForce ATA100</para>
@@ -101,10 +101,10 @@
 		<para>puce OEM Promise ATA133 (pdc20269)</para>
 	   </listitem>
 	   <listitem>
-		<para>Promise Fasttrak-33, -66, -100, -100 TX2/TX4</para>
+		<para>Promise Fasttrak-33, -66, -100, -100 TX2/TX4, -133 TX2/TX2000</para>
 	   </listitem>
 	   <listitem>
-		<para>Promise Ultra-33, -66, -100</para>
+		<para>Promise Ultra-33, -66, -100, -133 TX2/TX2000<</para>
 	   </listitem>
 	   <listitem>
 		<para>ServerWorks ROSB4 ATA33</para>
@@ -112,7 +112,10 @@
 	   <listitem>
 		<para>ServerWorks CSB5 ATA66/ATA100</para>
 	   </listitem>
-	   <listitem>
+           <listitem>
+               <para>Sil 0680 UDMA6</para>
+               </listitem>
+          <listitem>
 	        <para>SiS 530, 540, 620</para>
 	   </listitem>
 	   <listitem>
@@ -120,12 +123,15 @@
                 750</para>
 	   </listitem>
 	   <listitem>
-		<para>SiS 5591</para>
+		<para>SiS 5591 ATA100</para>
 	   </listitem>
 	   <listitem>
 		<para>VIA 82C586 ATA33, 82C596 ATA66, 82C686a ATA66,
                 82C686b ATA100</para>
 	   </listitem>
+           <listitem>
+           <para>VIA 8233, 8235 ATA133</para>
+           </listitem>
       </itemizedlist>
     </para>
     <para arch="pc98">Contr&ocirc;leurs IDE/ATA (gestionnaire wdc)
@@ -857,11 +863,6 @@
         <listitem>
           <para>interface SCSI (incluant ProAudio Spectrum et
           SoundBlaster SCSI) (&man.cd.4;)</para>
-	</listitem>
-	<listitem arch="i386,pc98">
-	  <para>les interfaces propri&eacute;taires Matsushita/Panasonic
-          (Creative SoundBlaster) (mod&egrave;les 562/563)
-          (&man.matcd.4;)</para>
 	</listitem>
 	<listitem arch="i386">
 	  <para>interface propri&eacute;taire Sony (tous les
@@ -3162,6 +3163,41 @@
       </itemizedlist>
     </para>
  </sect2>
+
+ <sect2>
+ <title>Acc&eacute;l&eacute;rateurs de chiffrement</title>
+
+    <para arch="i386,pc98">Les acc&eacute;l&eacute;rateurs
+    bas&eacute;s sur les puces Hifn 7751, 7811, or 7951 chipsets
+    (gestionnaire &man.hifn.4;)
+      <itemizedlist>
+        <listitem>
+         <para>Invertex AEON</para>
+       </listitem>
+        <listitem>
+         <para>carte de r&eacute;f&eacute;rence Hifn 7751</para>
+       </listitem>
+        <listitem>
+         <para>Global Technologies Group PowerCrypt et XL-Crypt</para>
+       </listitem>
+        <listitem>
+         <para>NetSec 7751</para>
+       </listitem>
+        <listitem>
+         <para>Soekris Engineering vpn1201 et vpn1211</para>
+       </listitem>
+      </itemizedlist>
+     </para>
+
+    <para arch="i386,pc98">Les acc&eacute;l&eacute;rateurs
+    bas&eacute;s sur les puces Bluesteel 5501 ou 5601 chipsets
+    (gestionnaire &man.ubsec.4;)</para>
+
+    <para arch="i386,pc98">Les acc&eacute;l&eacute;rateurs
+    bas&eacute;s sur les puces Broadcom BCM5801, BCM5802, BCM5805,
+    BCM5820, BCM 5821, BCM5822 (gestionnaire &man.ubsec.4;)</para>
+
+  </sect2>
 
   <sect2>
     <title>Divers</title>

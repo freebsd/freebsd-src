@@ -4,7 +4,7 @@
 
      $Id$
      $FreeBSD$
-     Original revision: 1.2
+     Original revision: 1.3
 -->
 <!-- Text constants which probably don't need to be changed.-->
 
@@ -14,8 +14,6 @@
 <!ENTITY % include.historic "IGNORE">
 <!ENTITY % no.include.historic "IGNORE">
  
-
-
 <!-- Files to be included -->
 
 <!ENTITY art SYSTEM "../common/new.sgml">

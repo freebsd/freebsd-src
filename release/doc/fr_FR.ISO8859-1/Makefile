@@ -4,7 +4,7 @@
 #
 #      $Id$
 #      $FreeBSD$
-#      Original revision: 1.2.2.1
+#      Original revision: 1.2
 
 
 
