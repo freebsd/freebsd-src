@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.41 1997/09/29 11:27:42 davidg Exp $
+ *	$Id: if_fxp.c,v 1.42 1997/09/30 10:50:45 davidg Exp $
  */
 
 /*
@@ -1631,9 +1631,6 @@ fxp_ioctl(ifp, command, data)
 	case SIOCDELMULTI:
 		sc->all_mcasts = (ifp->if_flags & IFF_ALLMULTI) ? 1 : 0;
 #if defined(__NetBSD__)
-	    {
-		struct ifreq *ifr = (struct ifreq *) data;
-
 		error = (command == SIOCADDMULTI) ?
 		    ether_addmulti(ifr, &sc->sc_ethercom) :
 		    ether_delmulti(ifr, &sc->sc_ethercom);
@@ -1653,7 +1650,6 @@ fxp_ioctl(ifp, command, data)
 				fxp_init(sc);
 			error = 0;
 		}
-	    }
 #else /* __FreeBSD__ */
 		/*
 		 * Multicast list has changed; set the hardware filter
