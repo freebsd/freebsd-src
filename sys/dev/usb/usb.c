@@ -95,13 +95,13 @@ MALLOC_DEFINE(M_USBHC, "USBHC", "USB host controller");
 /* Define this unconditionally in case a kernel module is loaded that
  * has been compiled with debugging options.
  */
-SYSCTL_NODE(_debug, OID_AUTO, usb, CTLFLAG_RW, 0, "USB debugging");
+SYSCTL_NODE(_hw, OID_AUTO, usb, CTLFLAG_RW, 0, "USB debugging");
 
 #ifdef USB_DEBUG
 #define DPRINTF(x)	if (usbdebug) logprintf x
 #define DPRINTFN(n,x)	if (usbdebug>(n)) logprintf x
 int	usbdebug = 0;
-SYSCTL_INT(_debug_usb, OID_AUTO, usb, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb, OID_AUTO, debug, CTLFLAG_RW,
 	   &usbdebug, 0, "usb debug level");
 #ifdef USB_DEBUG
 extern int uhcidebug;

@@ -103,8 +103,11 @@ uhci_softc_t *thesc;
 #define DPRINTFN(n,x)	if (uhcidebug>(n)) printf x
 int uhcidebug = 0;
 int uhcinoloop = 0;
-SYSCTL_INT(_debug_usb, OID_AUTO, uhci, CTLFLAG_RW,
+SYSCTL_NODE(_hw_usb, OID_AUTO, uhci, CTLFLAG_RW, 0, "USB uhci");
+SYSCTL_INT(_hw_usb_uhci, OID_AUTO, debug, CTLFLAG_RW,
 	   &uhcidebug, 0, "uhci debug level");
+SYSCTL_INT(_hw_usb_uhci, OID_AUTO, loop, CTLFLAG_RW,
+	   &uhcinoloop, 0, "uhci noloop");
 #ifndef __NetBSD__
 #define bitmask_snprintf(q,f,b,l) snprintf((b), (l), "%b", (q), (f))
 #endif

@@ -79,7 +79,8 @@
 #define DPRINTF(x)	if (uvisordebug) printf x
 #define DPRINTFN(n,x)	if (uvisordebug>(n)) printf x
 int uvisordebug = 0;
-SYSCTL_INT(_debug_usb, OID_AUTO, uvisor, CTLFLAG_RW,
+SYSCTL_NODE(_hw_usb, OID_AUTO, uvisor, CTLFLAG_RW, 0, "USB uvisor");
+SYSCTL_INT(_hw_usb_uvisor, OID_AUTO, debug, CTLFLAG_RW,
 	   &uvisordebug, 0, "uvisor debug level");
 #else
 #define DPRINTF(x)
