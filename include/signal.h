@@ -43,6 +43,10 @@
 #include <sys/signal.h>
 
 #if __BSD_VISIBLE
+/*
+ * XXX should enlarge these, if only to give empty names instead of bounds
+ * errors for large signal numbers.
+ */
 extern __const char *__const sys_signame[NSIG];
 extern __const char *__const sys_siglist[NSIG];
 extern __const int sys_nsig;
@@ -56,8 +60,6 @@ typedef	__pid_t		pid_t;
 #endif
 
 __BEGIN_DECLS
-struct timespec;
-
 int	raise(int);
 
 #if __POSIX_VISIBLE || __XSI_VISIBLE
@@ -76,10 +78,19 @@ int	sigwait(const sigset_t * __restrict, int * __restrict);
 #endif
 
 #if __POSIX_VISIBLE >= 199506 || __XSI_VISIBLE >= 600
+#if 0
+/*
+ * PR: 35924
+ * XXX we don't actually have these.  We set _POSIX_REALTIME_SIGNALS to
+ * -1 to show that we don't have them, but this symbol is not necessarily
+ * in scope (in the current implementation), so we can't use it here.
+ */
 int	sigqueue(__pid_t, int, const union sigval);
+struct timespec;
 int	sigtimedwait(const sigset_t * __restrict, siginfo_t * __restrict,
 	    const struct timespec * __restrict);
 int	sigwaitinfo(const sigset_t * __restrict, siginfo_t * __restrict);
+#endif
 #endif
 
 #if __XSI_VISIBLE
@@ -94,6 +105,7 @@ int	siginterrupt(int, int);
 
 #if __BSD_VISIBLE
 int	sigblock(int);
+struct __ucontext;		/* XXX spec requires a complete declaration. */
 int	sigreturn(const struct __ucontext *);
 int	sigsetmask(int);
 int	sigstack(const struct sigstack *, struct sigstack *);
