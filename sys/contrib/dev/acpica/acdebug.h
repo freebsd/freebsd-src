@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acdebug.h - ACPI/AML debugger
- *       $Revision: 56 $
+ *       $Revision: 57 $
  *
  *****************************************************************************/
 
@@ -389,7 +389,7 @@ AcpiDbCommandDispatch (
     ACPI_WALK_STATE         *WalkState,
     ACPI_PARSE_OBJECT       *Op);
 
-void
+void ACPI_SYSTEM_XFACE
 AcpiDbExecuteThread (
     void                    *Context);
 
