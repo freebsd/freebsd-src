@@ -97,7 +97,7 @@ IP management subcommands:
 [<netif>] <host> <ATM address>
 .ti -5
 .B atm add PVC
-<interface> <vpi> <vci> <aal> <encaps> IP <netif> <host> | dynamic
+<interface> <vpi> <vci> <aal> <encaps> IP <netif> [<host> | dynamic] <traffic> <params> ...
 .ti -5
 .B atm delete ARP
 [<netif>] <host>
@@ -717,7 +717,7 @@ be subject to aging.
 .PP
 .in +5
 .ti -5
-\fIatm add PVC <interface> <vpi> <vci> <aal> <encaps> IP <netif> <host> | dynamic\fP
+\fIatm add PVC <interface> <vpi> <vci> <aal> <encaps> IP <netif> [<host> | dynamic] <traffic> <params...>\fP
 .in -5
 .PP
 where:
@@ -751,6 +751,12 @@ the far end of the PVC, or the word "dynamic" if its address
 is to be determined with Inverse ARP.
 If "dynamic" is specified, LLC/SNAP encapsulation must also
 be specified.
+.ti -5
+\fI<traffic>\fP is the traffic type of the PVC and may be one of
+UBR, CBR or VBR.
+Following the traffic type the traffic parameters must be given.
+For UBR and CBR this is the peak cell rate and for VBR these
+are the peak and sustainable cell rate and the maximum burst size.
 .PP
 This command creates a PVC with the specified attributes and attaches
 it to IP.
