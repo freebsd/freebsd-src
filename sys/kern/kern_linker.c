@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_linker.c,v 1.26 1999/02/16 10:49:48 dfr Exp $
+ *	$Id: kern_linker.c,v 1.27 1999/02/20 21:22:00 dfr Exp $
  */
 
 #include "opt_ddb.h"
@@ -306,8 +306,8 @@ linker_load_file(const char* filename, linker_file_t* result)
 	if (error != ENOENT)
 	    foundfile = 1;
 	if (lf) {
-	    linker_file_sysinit(lf);
 	    linker_file_register_sysctls(lf);
+	    linker_file_sysinit(lf);
 
 	    *result = lf;
 	    error = 0;
