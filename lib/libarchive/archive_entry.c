@@ -732,15 +732,15 @@ acl_special(struct archive_entry *entry, int type, int permset, int tag)
 	if (type == ARCHIVE_ENTRY_ACL_TYPE_ACCESS) {
 		switch (tag) {
 		case ARCHIVE_ENTRY_ACL_USER_OBJ:
-			entry->ae_stat.st_mode &= 0077;
+			entry->ae_stat.st_mode &= ~0700;
 			entry->ae_stat.st_mode |= (permset & 7) << 6;
 			return (0);
 		case ARCHIVE_ENTRY_ACL_GROUP_OBJ:
-			entry->ae_stat.st_mode &= 0707;
+			entry->ae_stat.st_mode &= ~0070;
 			entry->ae_stat.st_mode |= (permset & 7) << 3;
 			return (0);
 		case ARCHIVE_ENTRY_ACL_OTHER:
-			entry->ae_stat.st_mode &= 0770;
+			entry->ae_stat.st_mode &= ~0007;
 			entry->ae_stat.st_mode |= permset & 7;
 			return (0);
 		}
