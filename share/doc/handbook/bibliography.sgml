@@ -1,4 +1,4 @@
-<!-- $Id: bibliography.sgml,v 1.24 1997/03/19 04:32:30 obrien Exp $ -->
+<!-- $Id: bibliography.sgml,v 1.25 1997/03/19 07:59:19 obrien Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
     <chapt>
@@ -306,6 +306,14 @@
 	    <item>Don Libes, Sandy Ressler <em>Life with UNIX</em> - special
 	      edition.  Prentice-Hall, Inc., 1989.
 	      <newline>ISBN 0-13-536657-7</item>
+
+	    <item><em>The BSD family tree</em>. 1997.
+              <newline>
+	      <htmlurl url="http://www.de.freebsd.org/de/ftp/unix-stammbaum"
+	      name="http://www.de.freebsd.org/de/ftp/unix-stammbaum">
+	      or <url url="file:/usr/share/misc/bsd-family-tree"
+	      name="local"> on a FreeBSD-current machine.
+	      </item>
 
 	  </itemize>
 
