@@ -117,6 +117,7 @@
 #define VAR_LABEL			"label"
 #define VAR_LABEL_COUNT			"labelCount"
 #define VAR_MEDIA_TYPE			"mediaType"
+#define VAR_MEDIA_TIMEOUT		"MEDIA_TIMEOUT"
 #define VAR_NAMESERVER			"nameserver"
 #define VAR_NETMASK			"netmask"
 #define VAR_NFS_PATH			"nfs"
@@ -548,6 +549,7 @@ extern u_char		default_scrnmap[];
 
 /* media.c */
 extern char	*cpioVerbosity(void);
+extern int	mediaTimeout(void);
 extern int	mediaSetCDROM(dialogMenuItem *self);
 extern int	mediaSetFloppy(dialogMenuItem *self);
 extern int	mediaSetDOS(dialogMenuItem *self);

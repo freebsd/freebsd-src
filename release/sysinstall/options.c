@@ -100,6 +100,7 @@ mediaCheck(Option opt)
 #define EDITOR_PROMPT	"Please specify the name of the text editor you wish to use:"
 #define PKG_PROMPT	"Please specify a temporary directory with lots of free space:"
 #define INSTROOT_PROMPT	"Please specify a root directory if installing somewhere other than /"
+#define TIMEOUT_PROMPT	"Please specify the number of seconds to wait for slow media:"
 
 static Option Options[] = {
 { "NFS Secure",		"NFS server talks only on a secure port",
@@ -128,6 +129,8 @@ static Option Options[] = {
       OPT_IS_VAR,	BBIN_PROMPT,		VAR_BROWSER_BINARY,	varCheck	},
 { "Media Type",		"The current installation media type.",
       OPT_IS_FUNC,	mediaGetType,		VAR_MEDIA_TYPE,		mediaCheck	},
+{ "Media Timeout",	"Timeout value in seconds for slow media.",
+      OPT_IS_VAR,	TIMEOUT_PROMPT,		VAR_MEDIA_TIMEOUT,	varCheck	},
 { "Package Temp",	"The directory where package temporary files should go",
       OPT_IS_VAR,	PKG_PROMPT,		VAR_PKG_TMPDIR,		varCheck	},
 { "Use Defaults",	"Reset all values to startup defaults",

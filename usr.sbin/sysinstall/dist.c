@@ -345,6 +345,10 @@ static void
 media_timeout(int sig)
 {
     AlarmWentOff = TRUE;
+    if (sig != SIGINT)
+	msgDebug("A media timeout occurred.\n");
+    else
+	msgDebug("User generated interrupt.\n");
 }
 
 static Boolean
@@ -409,7 +413,7 @@ distExtract(char *parent, Distribution *me)
 	    new.sa_mask = 0;
 	    sigaction(SIGINT, &new, &old);
 
-	    alarm_set(MEDIA_TIMEOUT, media_timeout);
+	    alarm_set(mediaTimeout(), media_timeout);
 	    status = attr_parse(dist_attr, fp);
 	    alarm_clear();
 	    sigaction(SIGINT, &old, NULL);	/* Restore signal handler */
@@ -494,7 +498,7 @@ distExtract(char *parent, Distribution *me)
 	    while (1) {
 		int seconds;
 
-		alarm_set(MEDIA_TIMEOUT, media_timeout);
+		alarm_set(mediaTimeout(), media_timeout);
 		n = fread(buf, 1, BUFSIZ, fp);
 		alarm_clear();
 		if (n <= 0 || AlarmWentOff) {

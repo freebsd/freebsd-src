@@ -51,7 +51,7 @@ mediaInitNFS(Device *dev)
     if (NFSMounted)
 	return TRUE;
 
-    if (!netDevice->init(netDevice))
+    if (netDevice && !netDevice->init(netDevice))
 	return FALSE;
 
     if (Mkdir("/dist"))
@@ -101,7 +101,7 @@ mediaShutdownNFS(Device *dev)
     if (unmount("/dist", MNT_FORCE) != 0)
 	msgConfirm("Could not unmount the NFS partition: %s", strerror(errno));
     msgDebug("Unmount of NFS partition successful\n");
-    /* netdev->shutdown(netdev); */
+    /* if (netdev) netdev->shutdown(netdev); */
     NFSMounted = FALSE;
     return;
 }
