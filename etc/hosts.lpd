@@ -1,1 +1,2 @@
-machine.domain
+# See lpd(8)
+#machine.domain
