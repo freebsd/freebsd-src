@@ -34,7 +34,7 @@
 This file specifies the preferred style for kernel source files in the
 .Fx
 source tree.  It is also a guide for preferred userland code style.
-.Bd -literal -offset 0i
+.Bd -literal
 /*
  * Style guide for the FreeBSD.  Based on KNF (Kernel Normal Form).
  */
@@ -55,12 +55,12 @@ Kernel include files (i.e. sys/*.h) come first; normally, you'll need
 <sys/types.h>
 OR <sys/param.h>, but not both!  <sys/types.h> includes <sys/cdefs.h>,
 and it's okay to depend on that.
-.Bd -literal -offset 0i
+.Bd -literal
 #include <sys/types.h>	/* Non-local includes in angle brackets. */
 .Ed
 .Pp
 If it's a network program, put the network include files next.
-.Bd -literal -offset 0i
+.Bd -literal
 #include <net/if.h>
 #include <net/if_dl.h>
 #include <net/route.h>
@@ -70,18 +70,18 @@ If it's a network program, put the network include files next.
 .Pp
 Then there's a blank line, followed by the /usr include files.
 The /usr include files should be sorted!
-.Bd -literal -offset 0i
+.Bd -literal
 #include <stdio.h>
 .Ed
 .Pp
 Global pathnames are defined in /usr/include/paths.h.  Pathnames local
 to the program go in pathnames.h in the local directory.
-.Bd -literal -offset 0i
+.Bd -literal
 #include <paths.h>
 .Ed
 .Pp
 Then, there's a blank line, and the user include files.
-.Bd -literal -offset 0i
+.Bd -literal
 #include "pathnames.h"		/* Local includes in double quotes. */
 .Ed
 .Pp
@@ -121,7 +121,7 @@ statements.
 Any final statement-terminating semicolon should be
 supplied by the macro invocation rather than the macro, to make parsing easier
 for pretty-printers and editors.
-.Bd -literal -offset 0i
+.Bd -literal
 #define	MACRO(x, y) do {						\e
 	variable = (x) + (y);						\e
 	(y) += 2;							\e
@@ -129,7 +129,7 @@ for pretty-printers and editors.
 .Ed
 .Pp
 Enumeration values are all uppercase.
-.Bd -literal -offset 0i
+.Bd -literal
 enum enumtype { ONE, TWO } et;
 .Ed
 .Pp
@@ -145,7 +145,7 @@ Major structures should be declared at the top of the file in which they
 are used, or in separate header files if they are used in multiple
 source files.  Use of the structures should be by separate declarations
 and should be "extern" if they are declared in a header file.
-.Bd -literal -offset 0i
+.Bd -literal
 struct foo {
 	struct	foo *next;	/* List of active foo */
 	struct	mumble amumble;	/* Comment for mumble */
@@ -158,7 +158,7 @@ Use
 .Xr queue 3
 macros rather than rolling your own lists, whenever possible.  Thus,
 the previous example would be better written:
-.Bd -literal -offset 0i
+.Bd -literal
 #include <sys/queue.h>
 struct	foo {
 	LIST_ENTRY(foo)	link;	/* Queue macro glue for foo lists */
@@ -176,7 +176,7 @@ tag.  Avoid typedefs ending in
 .Dq Li \&_t ,
 except as specified in Standard C or by
 .Tn POSIX .
-.Bd -literal -offset 0i
+.Bd -literal
 /* Make the structure name match the typedef. */
 typedef struct _bar {
 	int	level;
@@ -209,7 +209,7 @@ to break precedents in the existing code and use the current style guidelines.
 .Pp
 The kernel has a name associated with parameter types, e.g., in the kernel
 use:
-.Bd -literal -offset 0i
+.Bd -literal
 void	function(int fd);
 .Ed
 .Pp
@@ -217,18 +217,18 @@ In header files visible to userland applications, prototypes that are
 visible must use either protected names or no names with the types.  It
 is preferable to use protected names.
 e.g., use:
-.Bd -literal -offset 0i
+.Bd -literal
 void	function(int);
 .Ed
 .Pp
 or:
-.Bd -literal -offset 0i
+.Bd -literal
 void	function(int _fd);
 .Ed
 .Pp
 Prototypes may have an extra space after a tab to enable function names
 to line up:
-.Bd -literal -offset 0i
+.Bd -literal
 static char	*function(int _arg, const char *_arg2, struct foo *_arg3,
 			  struct bar *_arg4);
 static void	 usage(void);
@@ -253,7 +253,7 @@ parts of the switch cascade.  Elements in a switch statement that
 cascade should have a FALLTHROUGH comment.  Numerical arguments
 should be checked for accuracy.  Code that cannot be reached should
 have a NOTREACHED comment.
-.Bd -literal -offset 0i
+.Bd -literal
 	while ((ch = getopt(argc, argv, "abn")) != -1)
 		switch (ch) {		/* Indent the switch. */
 		case 'a':		/* Don't indent the case. */
@@ -284,7 +284,7 @@ Space after keywords (if, while, for, return, switch).  No braces are
 used for control statements with zero or only a single statement unless that
 statement is more than a single line in which case they are permitted.
 Forever loops are done with for's, not while's.
-.Bd -literal -offset 0i
+.Bd -literal
 	for (p = buf; *p != '\e0'; ++p)
 		;	/* nothing */
 	for (;;)
@@ -304,7 +304,7 @@ Forever loops are done with for's, not while's.
 .Pp
 Parts of a for loop may be left empty.  Don't put declarations
 inside blocks unless the routine is unusually complicated.
-.Bd -literal -offset 0i
+.Bd -literal
 	for (; cnt < 15; cnt++) {
 		stmt1;
 		stmt2;
@@ -313,7 +313,7 @@ inside blocks unless the routine is unusually complicated.
 .Pp
 Indentation is an 8 character tab.
 Second level indents are four spaces.
-.Bd -literal -offset 0i
+.Bd -literal
 	while (cnt < 20)
 		z = a + really + long + statement + that + needs +
 		    two lines + gets + indented + four + spaces +
@@ -327,7 +327,7 @@ and do not use spaces in front of tabs.
 .Pp
 Closing and opening braces go on the same line as the else.
 Braces that aren't necessary may be left out.
-.Bd -literal -offset 0i
+.Bd -literal
 	if (test)
 		stmt;
 	else if (bar) {
@@ -347,7 +347,7 @@ or preceding
 or
 .Sq \&)
 characters.
-.Bd -literal -offset 0i
+.Bd -literal
 	if (error = function(a1, a2))
 		exit(error);
 .Ed
@@ -356,7 +356,7 @@ Unary operators don't require spaces, binary operators do.  Don't
 use parentheses unless they're required for precedence or unless the
 statement is confusing without them.  Remember that other people may
 confuse easier than you.  Do YOU understand the following?
-.Bd -literal -offset 0i
+.Bd -literal
 	a = b->c[0] + ~d == (e || f) || g && h ? i : j >> 1;
 	k = !(l & FLAGS);
 .Ed
@@ -364,7 +364,7 @@ confuse easier than you.  Do YOU understand the following?
 Exits should be 0 on success, or according to the predefined
 values in
 .Xr sysexits 3 .
-.Bd -literal -offset 0i
+.Bd -literal
 	exit(EX_OK);	/*
 			 * Avoid obvious comments such as
 			 * "Exit 0 on success."
@@ -374,7 +374,7 @@ values in
 .Pp
 The function type should be on a line by itself
 preceding the function.
-.Bd -literal -offset 0i
+.Bd -literal
 static char *
 function(int a1, int a2, float fl, int a4)
 {
@@ -389,7 +389,7 @@ keyword.
 Be careful to not obfuscate the code by initializing variables in
 the declarations.  Use this feature only thoughtfully.
 DO NOT use function calls in initializers!
-.Bd -literal -offset 0i
+.Bd -literal
 	struct foo one, *two;
 	double three;
 	int *four, five;
@@ -415,22 +415,22 @@ variadic args and is necessary for other args if the function prototype
 might not be in scope.)
 Test pointers
 against NULL, e.g., use:
-.Bd -literal -offset 0i
+.Bd -literal
 (p = f()) == NULL
 .Ed
 .Pp
 not:
-.Bd -literal -offset 0i
+.Bd -literal
 !(p = f())
 .Ed
 .Pp
 Don't use '!' for tests unless it's a boolean, e.g. use
-.Bd -literal -offset 0i
+.Bd -literal
 if (*p == '\e0')
 .Ed
 .Pp
 not
-.Bd -literal -offset 0i
+.Bd -literal
 if (!*p)
 .Ed
 .Pp
@@ -442,7 +442,7 @@ Use
 or
 .Xr warn 3 ,
 don't roll your own!
-.Bd -literal -offset 0i
+.Bd -literal
 	if ((four = malloc(sizeof(struct foo))) == NULL)
 		err(1, (char *)NULL);
 	if ((six = (int *)overflow()) == NULL)
@@ -452,7 +452,7 @@ don't roll your own!
 .Ed
 .Pp
 Old-style function declarations look like this:
-.Bd -literal -offset 0i
+.Bd -literal
 static char *
 function(a1, a2, fl, a4)
 	int a1, a2;	/* Declare ints, too, don't default them. */
@@ -464,7 +464,7 @@ function(a1, a2, fl, a4)
 Use ANSI function declarations unless you explicitly need K&R compatibility.
 .Pp
 Variable numbers of arguments should look like this.
-.Bd -literal -offset 0i
+.Bd -literal
 #include <stdarg.h>
 
 void
@@ -524,11 +524,11 @@ separates either-or options/arguments,
 and multiple options/arguments which are specified together are
 placed in a single set of brackets.
 .Pp
-.Bd -ragged -offset 0.3i
+.Bd -ragged -offset 4n
 "usage: f [-aDde] [-b b_arg] [-m m_arg] req1 req2 [opt1 [opt2]]\en"
 "usage: f [-a | -b] [-c [-dEe] [-n number]]\en"
 .Ed
-.Bd -literal -offset 0i
+.Bd -literal
 	(void)fprintf(stderr, "usage: f [-ab]\en");
 	exit(EX_USAGE);
 }

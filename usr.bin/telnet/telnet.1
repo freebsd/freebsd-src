@@ -108,7 +108,7 @@ as an IP address.
 .It Fl S Ar tos
 Sets the IP type-of-service (TOS) option for the telnet
 connection to the value
-.Ar tos,
+.Ar tos ,
 which can be a numeric TOS value
 or, on systems that support it, a symbolic
 TOS name found in the
@@ -334,12 +334,12 @@ command are:
 .It Ic disable Ar type
 Disables the specified type of authentication.  To
 obtain a list of available types, use the
-.Ic auth disable \&?
+.Ic auth disable ?\&
 command.
 .It Ic enable Ar type
 Enables the specified type of authentication.  To
 obtain a list of available types, use the
-.Ic auth enable \&?
+.Ic auth enable ?\&
 command.
 .It Ic status
 Lists the current status of the various types of
@@ -368,18 +368,22 @@ Valid arguments for the
 .Ic encrypt
 command are:
 .Bl -tag -width Ar
-.It Ic disable Ar type Ic [input|output]
+.It Ic disable Ar type Xo
+.Op Cm input | output
+.Xc
 Disables the specified type of encryption.  If you
 omit the input and output, both input and output
 are disabled.  To obtain a list of available
 types, use the
-.Ic encrypt disable \&?
+.Ic encrypt disable ?\&
 command.
-.It Ic enable Ar type Ic [input|output]
+.It Ic enable Ar type Xo
+.Op Cm input | output
+.Xc
 Enables the specified type of encryption.  If you
 omit input and output, both input and output are
 enabled.  To obtain a list of available types, use the
-.Ic encrypt enable \&?
+.Ic encrypt enable ?\&
 command.
 .It Ic input
 This is the same as the
@@ -397,18 +401,18 @@ command.
 This is the same as the
 .Ic encrypt stop output
 command.
-.It Ic start Ic [input|output]
+.It Ic start Op Cm input | output
 Attempts to start encryption.  If you omit
 .Ic input
 and
-.Ic output,
+.Ic output ,
 both input and output are enabled.  To
 obtain a list of available types, use the
-.Ic encrypt enable \&?
+.Ic encrypt enable ?\&
 command.
 .It Ic status
 Lists the current status of encryption.
-.It Ic stop Ic [input|output]
+.It Ic stop Op Cm input | output
 Stops encryption.  If you omit input and output,
 encryption is on both input and output.
 .It Ic type Ar type
@@ -419,7 +423,7 @@ or
 .Ic encrypt stop
 commands.
 .El
-.It Ic environ Ar arguments... 
+.It Ic environ Ar arguments ...
 The
 .Ic environ
 command is used to manipulate the
@@ -448,7 +452,7 @@ command are:
 Define the variable
 .Ar variable
 to have a value of
-.Ar value.
+.Ar value .
 Any variables defined by this command are automatically exported.
 The
 .Ar value
@@ -473,7 +477,7 @@ Those marked with a
 .Cm *
 will be sent automatically,
 other variables will only be sent if explicitly requested.
-.It Ic \&?
+.It Ic ?\&
 Prints out help information for the
 .Ic environ
 command.
@@ -553,7 +557,7 @@ option.
 This requires that the 
 .Dv LINEMODE
 option be enabled.
-.It Ic \&?
+.It Ic ?\&
 Prints out help information for the
 .Ic mode
 command.
@@ -561,8 +565,7 @@ command.
 .It Xo
 .Ic open Ar host
 .Op Fl l Ar user
-.Oo Op Fl
-.Ar port Oc
+.Op Oo Fl Oc Ns Ar port
 .Xc
 Open a connection to the named host.
 If no port number
@@ -722,10 +725,10 @@ command.
 can also be either
 .Ic help
 or
-.Ic \&?
+.Ic ?\&
 to print out help information, including
 a list of known symbolic names.
-.It Ic \&?
+.It Ic ?\&
 Prints out help information for the
 .Ic send
 command.
@@ -1029,7 +1032,7 @@ The initial value for the worderase character is taken to be
 the terminal's
 .Ic worderase
 character.
-.It Ic \&?
+.It Ic ?\&
 Displays the legal
 .Ic set
 .Pq Ic unset
@@ -1077,7 +1080,7 @@ The remote default characters are those of the remote system
 at the time when the 
 .Tn TELNET
 connection was established.
-.It Ic \&?
+.It Ic ?\&
 Prints out help information for the
 .Ic slc
 command.
@@ -1330,7 +1333,7 @@ skips the reading of the
 file in the users home
 directory when connections are opened.  The initial
 value for this toggle is
-.Dv FALSE.
+.Dv FALSE .
 .It Ic termdata
 Toggles the display of all terminal data (in hexadecimal format).
 The initial value for this toggle is
@@ -1343,10 +1346,10 @@ toggle is
 .Nm
 prints out a message each time encryption is enabled or
 disabled.  The initial value for this toggle is
-.Dv FALSE.
+.Dv FALSE .
 Note:  Because of export controls, data encryption
 is not supported outside of the United States and Canada.
-.It Ic \&?
+.It Ic ?\&
 Displays the legal
 .Ic toggle
 commands.
@@ -1362,7 +1365,7 @@ system.  If
 .Ar command
 is omitted, then an interactive
 subshell is invoked.
-.It Ic \&? Op Ar command 
+.It Ic ?\& Op Ar command 
 Get help.  With no arguments,
 .Nm
 prints a help summary.

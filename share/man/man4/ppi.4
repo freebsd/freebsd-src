@@ -57,27 +57,27 @@ calls.  Each command takes a single
 .Ft u_int8_t
 argument, transferring one byte of data.  The following commands are 
 available:
-.Bl -tag -width 10
-.It PPIGDATA, PPISDATA
+.Bl -tag -width indent
+.It Dv PPIGDATA , PPISDATA
 Get and set the contents of the data register.
-.It PPIGSTATUS, PPISSTATUS
+.It Dv PPIGSTATUS , PPISSTATUS
 Get and set the contents of the status register.
-.It PPIGCTRL, PPISCTRL
+.It Dv PPIGCTRL , PPISCTRL
 Get and set the contents of the control register.
 The following defines correspond to bits in this register.  Setting
 a bit in the control register drives the corresponding output low.
-.Bl -tag -width 10 -compact
-.It STROBE
-.It AUTOFEED
-.It nINIT
-.It SELECTIN
-.It PCD
+.Bl -tag -width indent -compact
+.It Dv STROBE
+.It Dv AUTOFEED
+.It Dv nINIT
+.It Dv SELECTIN
+.It Dv PCD
 .El
-.It PPIGEPP, PPISEPP
+.It Dv PPIGEPP , PPISEPP
 Get and set the contents of the EPP control register.
-.It PPIGECR, PPISECR
+.It Dv PPIGECR , PPISECR
 Get and set the contents of the ECP control register.
-.It PPIGFIFO, PPISFIFO
+.It Dv PPIGFIFO , PPISFIFO
 Read and write the ECP FIFO (8-bit operations only).
 .El
 .Sh EXAMPLES

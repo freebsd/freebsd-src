@@ -39,28 +39,30 @@
 .Cd options INVARIANT_SUPPORT
 .Fn SPLASSERT level "const char *msg"
 .Sh DESCRIPTION
-.Sy This API is deprecated.
-.Sy Use mutexes to protect data structures instead.
-.Sy See
+.Bf -symbolic
+This API is deprecated.
+Use mutexes to protect data structures instead.
+See
 .Xr mutex 9
-.Sy for more information.
+for more information.
+.Ef
 .Pp
 In a kernel compiled with both "options INVARIANTS"
 and "options INVARIANT_SUPPORT",
 the
 .Fn SPLASSERT
 macro compares the current spl level of the kernel with the spl
-.Ar level
+.Fa level
 specified in the macro
 .Fn SPLASSERT .
 If the specified
-.Ar level
+.Fa level
 is not active
 .Fn SPLASSERT
 calls the
 .Fn KASSERT
 macro with the
-.Ar msg,
+.Fa msg ,
 terminating the running system.
 .Pp
 In a kernel that does not have both "options INVARIANTS"

@@ -269,7 +269,7 @@ is
 .Pf non- Dv NULL ,
 .Fn glob
 calls
-.Fa (*errfunc)(path, errno) .
+.Fa \*(lp*errfunc\*(rp Ns ( Fa path , errno ) .
 This may be unintuitive: a pattern like
 .Ql */Makefile
 will try to
@@ -374,7 +374,7 @@ An attempt to allocate memory failed.
 The scan was stopped because an error was encountered and either
 .Dv GLOB_ERR
 was set or
-.Fa (*errfunc)()
+.Fa \*(lp*errfunc\*(rp\*(lp\*(rp
 returned non-zero.
 .El
 .Pp
@@ -409,13 +409,13 @@ function is expected to be
 .St -p1003.2
 compatible with the exception
 that the flags
-.Dv GLOB_ALTDIRFUNC,
-.Dv GLOB_BRACE
-.Dv GLOB_MAGCHAR,
-.Dv GLOB_NOMAGIC,
-.Dv GLOB_QUOTE,
+.Dv GLOB_ALTDIRFUNC ,
+.Dv GLOB_BRACE ,
+.Dv GLOB_MAGCHAR ,
+.Dv GLOB_NOMAGIC ,
+.Dv GLOB_QUOTE ,
 and
-.Dv GLOB_TILDE,
+.Dv GLOB_TILDE ,
 and the fields
 .Fa gl_matchc
 and

@@ -71,7 +71,7 @@ For native IP you will need also
 option.
 .It Fl U Ar user
 Name of user used in login sequence.
-.It Fl "[connection options]"
+.It Fl connection\ options
 See
 .Xr ncplogin 1
 for details.
@@ -100,7 +100,7 @@ Same as 'l' but file system tries to be case insensitive.
 May not work well.
 .It n
 No case conversion is performed. 
-.Em Warning!
+.Em Warning !
 Use this option with DOS name space only as a last resort,
 because creating a lower case name in the DOS name space
 can lead to unpredictable results.
@@ -159,7 +159,8 @@ See
 for details.
 If this option is omitted, connection permissions
 assumed the same as directory mode
-.Pf ( Fl d Ns ) option.
+.Pq Fl d
+option.
 .El
 .Sh FILES
 .Bl -tag -width /var/log/wtmp -compact

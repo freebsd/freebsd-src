@@ -21,14 +21,25 @@
 .Sh DESCRIPTION
 The
 .Fn kvm_getswapinfo
-function fills an array of kvm_swap structures with swap summary
-information for each swap device, for up to maxswap - 1 devices.
-The number of devices, up to maxswap - 1, is returned.  A grand
-total of all swap devices ( including any devices that go beyond
-maxswap - 1 ) is returned in one additional array entry.  This
-entry is not counted in the return value.  Thus, if you specify
-a maxswap value of 1, the function will typically return the
-value 0 and the single kvm_swap structure will be filled with
+function fills an array of
+.Vt kvm_swap
+structures with swap summary
+information for each swap device, for up to
+.Fa maxswap
+\- 1 devices.
+The number of devices, up to
+.Fa maxswap
+\- 1, is returned.  A grand
+total of all swap devices (including any devices that go beyond
+.Fa maxswap
+\- 1) is returned in one additional array entry.  This
+entry is not counted in the return value.
+Thus, if you specify a
+.Fa maxswap
+value of 1, the function will typically return the
+value 0 and the single
+.Vt kvm_swap
+structure will be filled with
 the grand total over all swap devices.  The grand total is calculated
 from all available swap devices whether or not you made room 
 for them all in the array.
@@ -38,21 +49,36 @@ The flags argument is currently unused and must be passed as 0.
 .Pp
 If an error occurs, -1 is returned.
 .Pp
-Each swap partition and the grand total is summarized in the kvm_swap
+Each swap partition and the grand total is summarized in the
+.Vt kvm_swap
 structure.  This structure contains the following fields:
-.Bl -inset -width indent
-.It char ksw_devname[];
-.It int ksw_total;
-.It int ksw_used;
-.It int ksw_flags;
+.Pp
+.Bl -item -offset indent -compact
+.It
+.Va char ksw_devname[] ;
+.It
+.Va int ksw_total ;
+.It
+.Va int ksw_used ;
+.It
+.Va int ksw_flags ;
 .El
 .Pp
-Values are in PAGE_SIZE'd chunks ( see getpagesize() ).  ksw_flags contains
+Values are in
+.Dv PAGE_SIZE Ns 'd
+chunks (see
+.Xr getpagesize 3 ) .
+.Va ksw_flags
+contains
 a copy of the swap device flags.
 .Pp
 .Sh CACHING
 This function caches the nlist values for various kernel variables which
-it reuses in successive calls.  You may call the function with kd == NULL 
+it reuses in successive calls.
+You may call the function with
+.Fa kd
+==
+.Dv NULL 
 to clear the cache.
 .Sh DIAGNOSTICS
 If the load average was unobtainable, \-1 is returned; otherwise,

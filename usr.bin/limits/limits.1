@@ -36,7 +36,7 @@
 .Op Fl SHB
 .Op Fl cdflmnstu Op val
 .Op Fl E
-.Op Ar name=value ...
+.Op Ar name Ns = Ns Ar value ...
 .Op Ar command
 .Nm
 .Op Fl U Ar user
@@ -48,7 +48,7 @@
 .Op Fl SHB
 .Op Fl cdflmnstu Op val
 .Op Fl E
-.Op Ar name=value ...
+.Op Ar name Ns = Ns Ar value ...
 .Op Ar command
 .Sh DESCRIPTION
 .Nm Limits
@@ -63,13 +63,13 @@ command are possible:
 .Bl -hang -width indent
 .It Nm
 .Op Ar limitflags
-.Op Ar name=value
+.Op Ar name Ns = Ns Ar value
 .Ar command
 .Pp
 This usage sets limits according to
 .Ar limitflags ,
 optionally sets environment variables given as
-.Ar name=value
+.Ar name Ns = Ns Ar value
 pairs, and then runs the specified command.
 .It Nm
 .Op Ar limitflags
@@ -109,7 +109,7 @@ emits 'limit' or 'ulimit' commands in the format understood by
 that shell.
 If the name of the shell cannot be determined, then the 'ulimit'
 format used by
-.Pa /bin/sh
+.Xr sh 1
 is used.
 .Pp
 This is very useful for setting limits used by scripts, or prior
@@ -328,7 +328,7 @@ filesystem must be installed
 and mounted for the shell to be correctly determined, and therefore
 output syntax correct for the running shell.
 The default output is valid for
-.Pa /bin/sh ,
+.Xr sh 1 ,
 so this means that any
 usage of
 .Nm
