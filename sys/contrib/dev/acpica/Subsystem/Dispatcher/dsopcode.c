@@ -2,7 +2,7 @@
  *
  * Module Name: dsopcode - Dispatcher Op Region support and handling of
  *                         "control" opcodes
- *              $Revision: 29 $
+ *              $Revision: 30 $
  *
  *****************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -485,7 +485,7 @@ AcpiDsEvalFieldUnitOperands (
     }
 
 
-    Offset = (UINT32) OffDesc->Number.Value;
+    Offset = (UINT32) OffDesc->Integer.Value;
 
 
     /*
@@ -562,7 +562,7 @@ AcpiDsEvalFieldUnitOperands (
         /* Offset is in bits, count is in bits */
 
         BitOffset = Offset;
-        BitCount = (UINT16) CntDesc->Number.Value;
+        BitCount = (UINT16) CntDesc->Integer.Value;
         break;
 
 
@@ -753,7 +753,7 @@ AcpiDsEvalRegionOperands (
      */
     OperandDesc = WalkState->Operands[WalkState->NumOperands - 1];
 
-    ObjDesc->Region.Length = (UINT32) OperandDesc->Number.Value;
+    ObjDesc->Region.Length = (UINT32) OperandDesc->Integer.Value;
     AcpiCmRemoveReference (OperandDesc);
 
     /*
@@ -762,7 +762,7 @@ AcpiDsEvalRegionOperands (
      */
     OperandDesc = WalkState->Operands[WalkState->NumOperands - 2];
 
-    ObjDesc->Region.Address = (ACPI_PHYSICAL_ADDRESS) OperandDesc->Number.Value;
+    ObjDesc->Region.Address = (ACPI_PHYSICAL_ADDRESS) OperandDesc->Integer.Value;
     AcpiCmRemoveReference (OperandDesc);
 
 

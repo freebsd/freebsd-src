@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: amresnte - AML Interpreter object resolution
- *              $Revision: 26 $
+ *              $Revision: 27 $
  *
  *****************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -147,7 +147,7 @@
  * can be either a pointer to an actual internal object or a pointer into the
  * AML stream itself.  These types are currently:
  *
- *      ACPI_TYPE_NUMBER
+ *      ACPI_TYPE_INTEGER
  *      ACPI_TYPE_STRING
  *      ACPI_TYPE_BUFFER
  *      ACPI_TYPE_MUTEX
@@ -335,7 +335,7 @@ AcpiAmlResolveNodeToValue (
         break;
 
 
-    case ACPI_TYPE_NUMBER:
+    case ACPI_TYPE_INTEGER:
 
         DEBUG_PRINT (TRACE_EXEC, ("AmlResolveEntryToValue: case Number \n"));
 
@@ -344,7 +344,7 @@ AcpiAmlResolveNodeToValue (
          * number
          */
 
-        if (ACPI_TYPE_NUMBER != ValDesc->Common.Type)
+        if (ACPI_TYPE_INTEGER != ValDesc->Common.Type)
         {
             DEBUG_PRINT (ACPI_ERROR,
                 ("AmlResolveToValue: Object not a Number, type %X\n",
@@ -379,7 +379,7 @@ AcpiAmlResolveNodeToValue (
         }
         else
         {
-            ObjectType = ACPI_TYPE_NUMBER;
+            ObjectType = ACPI_TYPE_INTEGER;
         }
 
         /*
@@ -423,7 +423,7 @@ AcpiAmlResolveNodeToValue (
                 return_ACPI_STATUS (Status);
             }
 
-            ObjDesc->Number.Value = TempVal;
+            ObjDesc->Integer.Value = TempVal;
         }
 
 
@@ -484,13 +484,13 @@ AcpiAmlResolveNodeToValue (
 
         /* Create an object for the result */
 
-        ObjDesc = AcpiCmCreateInternalObject (ACPI_TYPE_NUMBER);
+        ObjDesc = AcpiCmCreateInternalObject (ACPI_TYPE_INTEGER);
         if (!ObjDesc)
         {
             return_ACPI_STATUS (AE_NO_MEMORY);
         }
 
-        ObjDesc->Number.Value = TempVal;
+        ObjDesc->Integer.Value = TempVal;
         break;
 
 
@@ -542,13 +542,13 @@ AcpiAmlResolveNodeToValue (
 
         /* Create an object for the result */
 
-        ObjDesc = AcpiCmCreateInternalObject (ACPI_TYPE_NUMBER);
+        ObjDesc = AcpiCmCreateInternalObject (ACPI_TYPE_INTEGER);
         if (!ObjDesc)
         {
             return_ACPI_STATUS (AE_NO_MEMORY);
         }
 
-        ObjDesc->Number.Value = TempVal;
+        ObjDesc->Integer.Value = TempVal;
         break;
 
 
@@ -660,13 +660,13 @@ AcpiAmlResolveNodeToValue (
 
         /* Create object for result */
 
-        ObjDesc = AcpiCmCreateInternalObject (ACPI_TYPE_NUMBER);
+        ObjDesc = AcpiCmCreateInternalObject (ACPI_TYPE_INTEGER);
         if (!ObjDesc)
         {
             return_ACPI_STATUS (AE_NO_MEMORY);
         }
 
-        ObjDesc->Number.Value = TempVal;
+        ObjDesc->Integer.Value = TempVal;
 
         /* Truncate value if we are executing from a 32-bit ACPI table */
 

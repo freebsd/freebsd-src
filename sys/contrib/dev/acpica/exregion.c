@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: amregion - ACPI default OpRegion (address space) handlers
- *              $Revision: 42 $
+ *              $Revision: 44 $
  *
  *****************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -198,8 +198,8 @@ AcpiAmlSystemMemorySpaceHandler (
      */
 
     if ((Address < MemInfo->MappedPhysicalAddress) ||
-        ((Address + Length) >
-            (MemInfo->MappedPhysicalAddress + MemInfo->MappedLength)))
+        (((ACPI_INTEGER) Address + Length) >
+            ((ACPI_INTEGER) MemInfo->MappedPhysicalAddress + MemInfo->MappedLength)))
     {
         /*
          * The request cannot be resolved by the current memory mapping;
@@ -240,7 +240,7 @@ AcpiAmlSystemMemorySpaceHandler (
     /* TBD: should these pointers go to 64-bit in all cases ? */
 
     LogicalAddrPtr = MemInfo->MappedLogicalAddress +
-                    (Address - MemInfo->MappedPhysicalAddress);
+                    ((ACPI_INTEGER) Address - (ACPI_INTEGER) MemInfo->MappedPhysicalAddress);
 
     /* Perform the memory read or write */
 

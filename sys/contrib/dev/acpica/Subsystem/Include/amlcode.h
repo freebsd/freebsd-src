@@ -3,7 +3,7 @@
  * Name: amlcode.h - Definitions for AML, as included in "definition blocks"
  *                   Declarations and definitions contained herein are derived
  *                   directly from the ACPI specification.
- *       $Revision: 43 $
+ *       $Revision: 46 $
  *
  *****************************************************************************/
 
@@ -11,7 +11,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -302,27 +302,42 @@
 #define ARGP_TERMARG                0x0E
 #define ARGP_TERMLIST               0x0F
 #define ARGP_WORDDATA               0x10
+#define ARGP_QWORDDATA              0x11
+#define ARGP_SIMPLENAME             0x12
 
 /*
  * Resolved argument types for the AML Interpreter
  * Each field in the ArgTypes UINT32 is 5 bits, allowing for a maximum of 6 arguments.
- * There can be up to 31 unique argument types
+ * There can be up to 31 unique argument types (0 is end-of-arg-list indicator)
  */
 
-#define ARGI_ANYTYPE                0x01
-#define ARGI_TARGETREF              0x02
-#define ARGI_REFERENCE              0x03
-#define ARGI_IF                     0x04
-#define ARGI_NUMBER                 0x05
-#define ARGI_STRING                 0x06
-#define ARGI_BUFFER                 0x07
-#define ARGI_PACKAGE                0x08
-#define ARGI_DATAOBJECT             0x09     /* Buffer, string, package or reference to a Node - Used only by SizeOf operator*/
-#define ARGI_COMPLEXOBJ             0x0A     /* Buffer or package */
-#define ARGI_MUTEX                  0x0B
-#define ARGI_EVENT                  0x0C
-#define ARGI_REGION                 0x0D
-#define ARGI_DDBHANDLE              0x0E
+/* "Standard" ACPI types are 1-15 (0x0F) */
+
+#define ARGI_INTEGER                 ACPI_TYPE_INTEGER        /* 1 */
+#define ARGI_STRING                 ACPI_TYPE_STRING        /* 2 */
+#define ARGI_BUFFER                 ACPI_TYPE_BUFFER        /* 3 */
+#define ARGI_PACKAGE                ACPI_TYPE_PACKAGE       /* 4 */
+#define ARGI_EVENT                  ACPI_TYPE_EVENT
+#define ARGI_MUTEX                  ACPI_TYPE_MUTEX
+#define ARGI_REGION                 ACPI_TYPE_REGION
+#define ARGI_DDBHANDLE              ACPI_TYPE_DDB_HANDLE
+
+/* Custom types are 0x10 through 0x1F */
+
+#define ARGI_IF                     0x10
+#define ARGI_ANYOBJECT              0x11
+#define ARGI_ANYTYPE                0x12
+#define ARGI_COMPUTEDATA            0x13     /* Buffer, String, or Integer */
+#define ARGI_DATAOBJECT             0x14     /* Buffer, string, package or reference to a Node - Used only by SizeOf operator*/
+#define ARGI_COMPLEXOBJ             0x15     /* Buffer or package */
+#define ARGI_INTEGER_REF            0x16
+#define ARGI_OBJECT_REF             0x17
+#define ARGI_DEVICE_REF             0x18
+#define ARGI_REFERENCE              0x19
+#define ARGI_TARGETREF              0x1A     /* Target, subject to implicit conversion */
+#define ARGI_FIXED_TARGET           0x1B     /* Target, no implicit conversion */
+#define ARGI_SIMPLE_TARGET          0x1C     /* Name, Local, Arg -- no implicit conversion */
+#define ARGI_BUFFERSTRING           0x1D
 
 #define ARGI_INVALID_OPCODE         0xFFFFFFFF
 

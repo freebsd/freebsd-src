@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dsobject - Dispatcher object management routines
- *              $Revision: 54 $
+ *              $Revision: 56 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -364,7 +364,7 @@ AcpiDsInitObjectFromOp (
 
         /* We are expecting a number */
 
-        if (ArgDesc->Common.Type != ACPI_TYPE_NUMBER)
+        if (ArgDesc->Common.Type != ACPI_TYPE_INTEGER)
         {
             DEBUG_PRINT (ACPI_ERROR,
                 ("InitObject: Expecting number, got obj: %p type %X\n",
@@ -375,7 +375,7 @@ AcpiDsInitObjectFromOp (
 
         /* Get the value, delete the internal object */
 
-        (*ObjDesc)->Buffer.Length = (UINT32) ArgDesc->Number.Value;
+        (*ObjDesc)->Buffer.Length = (UINT32) ArgDesc->Integer.Value;
         AcpiCmRemoveReference (ArgDesc);
 
         /* Allocate the buffer */
@@ -439,8 +439,8 @@ AcpiDsInitObjectFromOp (
         Status = AcpiDsBuildInternalObject (WalkState, Op, ObjDesc);
         break;
 
-    case ACPI_TYPE_NUMBER:
-        (*ObjDesc)->Number.Value = Op->Value.Integer;
+    case ACPI_TYPE_INTEGER:
+        (*ObjDesc)->Integer.Value = Op->Value.Integer;
         break;
 
 
@@ -559,19 +559,22 @@ AcpiDsBuildInternalSimpleObj (
 
                     if (Name)
                     {
-                        REPORT_WARNING (("Reference %s AML %X not found\n",
+                        REPORT_WARNING (("Reference %s at AML %X not found\n",
                                     Name, Op->AmlOffset));
                         AcpiCmFree (Name);
                     }
                     else
                     {
-                        REPORT_WARNING (("Reference %s AML %X not found\n",
+                        REPORT_WARNING (("Reference %s at AML %X not found\n",
                                    Op->Value.String, Op->AmlOffset));
                     }
                     *ObjDescPtr = NULL;
                 }
 
-                return_ACPI_STATUS (Status);
+                else
+                {
+                    return_ACPI_STATUS (Status);
+                }
             }
         }
 

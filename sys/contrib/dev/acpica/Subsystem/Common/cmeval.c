@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: cmeval - Object evaluation
- *              $Revision: 20 $
+ *              $Revision: 21 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -189,7 +189,7 @@ AcpiCmEvaluateNumericObject (
 
     /* Is the return object of the correct type? */
 
-    if (ObjDesc->Common.Type != ACPI_TYPE_NUMBER)
+    if (ObjDesc->Common.Type != ACPI_TYPE_INTEGER)
     {
         Status = AE_TYPE;
         DEBUG_PRINT (ACPI_ERROR,
@@ -202,7 +202,7 @@ AcpiCmEvaluateNumericObject (
          * Since the structure is a union, setting any field will set all
          * of the variables in the union
          */
-        *Address = ObjDesc->Number.Value;
+        *Address = ObjDesc->Integer.Value;
     }
 
     /* On exit, we must delete the return object */
@@ -278,7 +278,7 @@ AcpiCmExecute_HID (
      *  a string
      */
 
-    if ((ObjDesc->Common.Type != ACPI_TYPE_NUMBER) &&
+    if ((ObjDesc->Common.Type != ACPI_TYPE_INTEGER) &&
         (ObjDesc->Common.Type != ACPI_TYPE_STRING))
     {
         Status = AE_TYPE;
@@ -289,11 +289,11 @@ AcpiCmExecute_HID (
 
     else
     {
-        if (ObjDesc->Common.Type == ACPI_TYPE_NUMBER)
+        if (ObjDesc->Common.Type == ACPI_TYPE_INTEGER)
         {
             /* Convert the Numeric HID to string */
 
-            AcpiAmlEisaIdToString ((UINT32) ObjDesc->Number.Value, Hid->Buffer);
+            AcpiAmlEisaIdToString ((UINT32) ObjDesc->Integer.Value, Hid->Buffer);
         }
 
         else
@@ -375,7 +375,7 @@ AcpiCmExecute_UID (
      *  a string
      */
 
-    if ((ObjDesc->Common.Type != ACPI_TYPE_NUMBER) &&
+    if ((ObjDesc->Common.Type != ACPI_TYPE_INTEGER) &&
         (ObjDesc->Common.Type != ACPI_TYPE_STRING))
     {
         Status = AE_TYPE;
@@ -386,11 +386,11 @@ AcpiCmExecute_UID (
 
     else
     {
-        if (ObjDesc->Common.Type == ACPI_TYPE_NUMBER)
+        if (ObjDesc->Common.Type == ACPI_TYPE_INTEGER)
         {
             /* Convert the Numeric UID to string */
 
-            AcpiAmlUnsignedIntegerToString (ObjDesc->Number.Value, Uid->Buffer);
+            AcpiAmlUnsignedIntegerToString (ObjDesc->Integer.Value, Uid->Buffer);
         }
 
         else
@@ -470,7 +470,7 @@ AcpiCmExecute_STA (
 
         /* Is the return object of the correct type? */
 
-        if (ObjDesc->Common.Type != ACPI_TYPE_NUMBER)
+        if (ObjDesc->Common.Type != ACPI_TYPE_INTEGER)
         {
             Status = AE_TYPE;
             DEBUG_PRINT (ACPI_ERROR,
@@ -482,7 +482,7 @@ AcpiCmExecute_STA (
         {
             /* Extract the status flags */
 
-            *Flags = (UINT32) ObjDesc->Number.Value;
+            *Flags = (UINT32) ObjDesc->Integer.Value;
         }
 
         /* On exit, we must delete the return object */

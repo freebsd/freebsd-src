@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: cmalloc - local memory allocation routines
- *              $Revision: 80 $
+ *              $Revision: 84 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -126,7 +126,8 @@
         MODULE_NAME         ("cmalloc")
 
 
-#ifdef ACPI_DEBUG
+#ifdef ACPI_DEBUG_TRACK_ALLOCATIONS
+
 /*
  * Most of this code is for tracking memory leaks in the subsystem, and it
  * gets compiled out when the ACPI_DEBUG flag is not set.
@@ -269,7 +270,8 @@ AcpiCmAddElementToAllocList (
     Element = AcpiCmSearchAllocList (Address);
     if (Element)
     {
-        REPORT_ERROR (("CmAddElementToAllocList: Address already present in list!\n"));
+        REPORT_ERROR (("CmAddElementToAllocList: Address already present in list! (%p)\n", 
+            Address));
 
         DEBUG_PRINT (ACPI_ERROR, ("Element %p Address %p\n", Element, Address));
 
@@ -613,11 +615,11 @@ AcpiCmDumpCurrentAllocations (
     DEBUG_PRINT (TRACE_ALLOCATIONS | TRACE_TABLES,
         ("Total number of unfreed allocations = %d(%X)\n", i,i));
 
+
     return_VOID;
+
 }
-
-#endif  /* Debug routines for memory leak detection */
-
+#endif  /* #ifdef ACPI_DEBUG_TRACK_ALLOCATIONS */
 
 /*****************************************************************************
  *
@@ -642,8 +644,6 @@ _CmAllocate (
     UINT32                  Line)
 {
     void                    *Address = NULL;
-    DEBUG_ONLY_MEMBERS (\
-    ACPI_STATUS             Status)
 
 
     FUNCTION_TRACE_U32 ("_CmAllocate", Size);
@@ -669,10 +669,10 @@ _CmAllocate (
         return_VALUE (NULL);
     }
 
-#ifdef ACPI_DEBUG
-    Status = AcpiCmAddElementToAllocList (Address, Size, MEM_MALLOC, Component,
-                                          Module, Line);
-    if (ACPI_FAILURE (Status))
+#ifdef ACPI_DEBUG_TRACK_ALLOCATIONS
+
+    if (ACPI_FAILURE (AcpiCmAddElementToAllocList (Address, Size, MEM_MALLOC,
+                                Component, Module, Line)))
     {
         AcpiOsFree (Address);
         return_PTR (NULL);
@@ -709,8 +709,6 @@ _CmCallocate (
     UINT32                  Line)
 {
     void                    *Address = NULL;
-    DEBUG_ONLY_MEMBERS (\
-    ACPI_STATUS             Status)
 
 
     FUNCTION_TRACE_U32 ("_CmCallocate", Size);
@@ -737,10 +735,10 @@ _CmCallocate (
         return_VALUE (NULL);
     }
 
-#ifdef ACPI_DEBUG
-    Status = AcpiCmAddElementToAllocList (Address, Size, MEM_CALLOC, Component,
-                                          Module, Line);
-    if (ACPI_FAILURE (Status))
+#ifdef ACPI_DEBUG_TRACK_ALLOCATIONS
+
+    if (ACPI_FAILURE (AcpiCmAddElementToAllocList (Address, Size, MEM_CALLOC,
+                            Component,Module, Line)))
     {
         AcpiOsFree (Address);
         return_PTR (NULL);
@@ -787,7 +785,7 @@ _CmFree (
         return_VOID;
     }
 
-#ifdef ACPI_DEBUG
+#ifdef ACPI_DEBUG_TRACK_ALLOCATIONS
     AcpiCmDeleteElementFromAllocList (Address, Component, Module, Line);
 #endif
 

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: nsdump - table dumping routines for debug
- *              $Revision: 83 $
+ *              $Revision: 85 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -127,7 +127,7 @@
         MODULE_NAME         ("nsdump")
 
 
-#ifdef ACPI_DEBUG
+#if defined(ACPI_DEBUG) || defined(ENABLE_DEBUGGER)
 
 /****************************************************************************
  *
@@ -338,10 +338,10 @@ AcpiNsDumpOneObject (
         break;
 
 
-    case ACPI_TYPE_NUMBER:
+    case ACPI_TYPE_INTEGER:
 
         DEBUG_PRINT_RAW (TRACE_TABLES, (" N:%X\n",
-                    ((ACPI_OPERAND_OBJECT  *) ThisNode->Object)->Number.Value));
+                    ((ACPI_OPERAND_OBJECT  *) ThisNode->Object)->Integer.Value));
         break;
 
 
