@@ -40,7 +40,7 @@
 .Nd filesystem backup
 .Sh SYNOPSIS
 .Nm dump
-.Op Cm 0123456789BbhfusTdWn Op Ar argument ...
+.Op Cm 0123456789BTWabcdfhnsu Op Ar argument ...
 .Op Ar filesystem
 .Sh DESCRIPTION
 .Nm Dump
@@ -55,7 +55,11 @@ option below for doing remote backups).
 A dump that is larger than the output medium is broken into
 multiple volumes.
 On most media the size is determined by writing until an
-end-of-media indication is returned.
+end-of-media indication is returned.  This can be enforced
+by using the
+.Cm a
+option.
+.Pp
 On media that cannot reliably return an end-of-media indication
 (such as some cartridge tape drives)
 each volume is of a fixed size;
@@ -84,8 +88,19 @@ level is 9.
 The number of dump records per volume.
 This option overrides the calculation of tape size
 based on length and density.
+.It Cm a
+.Dq auto-size .
+Bypass all tape length considerations, and enforce writing
+until an end-of-media indication is returned.  This fits best
+for most modern tape drives.  Use of this option is particularly
+recommended when appending to an existing tape, or using a tape
+drive with hardware compression (where you can never be sure about
+the compression ratio).
 .It Cm b Ar blocksize
 The number of kilobytes per dump record.
+.It Cm c
+Change the defaults for use with a cartridge tape drive, with a density
+of 8000 bpi, and a length of 1700 feet.
 .It Cm h Ar level
 Honor the user
 .Dq nodump
@@ -323,10 +338,12 @@ Each reel requires a new process, so parent processes for
 reels already written just hang around until the entire tape
 is written.
 .Pp
-restore(8) is currently unable to restore dumps that were created
-with a blocksize larger than 32 on some tape drives.  This is likely
-a bug in the tape driver.  Workaround for safety reasons: 
-dump aborts with an error message when choosing a blocksize > 32.
+Currently,
+.Xr physio 9
+slices all requests into chunks of 64 KB.  Therefore, it is
+impossible to use a larger tape blocksize, so
+.Nm dump
+will prevent this from happening.
 .Pp
 .Nm Dump
 with the
