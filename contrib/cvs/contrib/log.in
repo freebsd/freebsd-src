@@ -1,0 +1,208 @@
+#! @PERL@
+# -*-Perl-*-
+#
+# XXX: FIXME: handle multiple '-f logfile' arguments
+#
+# XXX -- I HATE Perl!  This *will* be re-written in shell/awk/sed soon!
+#
+
+# Usage:  log.pl [-u user] [[-m mailto] ...] [-s] [-V] -f logfile 'dirname file ...'
+#
+#	-u user		- $USER passed from loginfo
+#	-m mailto	- for each user to receive cvs log reports
+#			(multiple -m's permitted)
+#	-s		- to prevent "cvs status -v" messages
+#	-V		- without '-s', don't pass '-v' to cvs status
+#	-f logfile	- for the logfile to append to (mandatory,
+#			but only one logfile can be specified).
+
+# here is what the output looks like:
+#
+#    From: woods@kuma.domain.top
+#    Subject: CVS update: testmodule
+#
+#    Date: Wednesday November 23, 1994 @ 14:15
+#    Author: woods
+#
+#    Update of /local/src-CVS/testmodule
+#    In directory kuma:/home/kuma/woods/work.d/testmodule
+#    
+#    Modified Files:
+#    	test3 
+#    Added Files:
+#    	test6 
+#    Removed Files:
+#    	test4 
+#    Log Message:
+#    - wow, what a test
+#
+# (and for each file the "cvs status -v" output is appended unless -s is used)
+#
+#    ==================================================================
+#    File: test3           	Status: Up-to-date
+#    
+#       Working revision:	1.41	Wed Nov 23 14:15:59 1994
+#       Repository revision:	1.41	/local/src-CVS/cvs/testmodule/test3,v
+#       Sticky Options:	-ko
+#    
+#       Existing Tags:
+#    	local-v2                 	(revision: 1.7)
+#    	local-v1                 	(revision: 1.1.1.2)
+#    	CVS-1_4A2                	(revision: 1.1.1.2)
+#    	local-v0                 	(revision: 1.2)
+#    	CVS-1_4A1                	(revision: 1.1.1.1)
+#    	CVS                      	(branch: 1.1.1)
+
+use strict;
+use IO::File;
+
+my $cvsroot = $ENV{'CVSROOT'};
+
+# turn off setgid
+#
+$) = $(;
+
+my $dostatus = 1;
+my $verbosestatus = 1;
+my $users;
+my $login;
+my $donefiles;
+my $logfile;
+my @files;
+
+# parse command line arguments
+#
+while (@ARGV) {
+	my $arg = shift @ARGV;
+
+	if ($arg eq '-m') {
+		$users = "$users " . shift @ARGV;
+	} elsif ($arg eq '-u') {
+		$login = shift @ARGV;
+	} elsif ($arg eq '-f') {
+		($logfile) && die "Too many '-f' args";
+		$logfile = shift @ARGV;
+	} elsif ($arg eq '-s') {
+		$dostatus = 0;
+	} elsif ($arg eq '-V') {
+		$verbosestatus = 0;
+	} else {
+		($donefiles) && die "Too many arguments!\n";
+		$donefiles = 1;
+		@files = split(/ /, $arg);
+	}
+}
+
+# the first argument is the module location relative to $CVSROOT
+#
+my $modulepath = shift @files;
+
+my $mailcmd = "| Mail -s 'CVS update: $modulepath'";
+
+# Initialise some date and time arrays
+#
+my @mos = ('January','February','March','April','May','June','July',
+	'August','September','October','November','December');
+my @days = ('Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday');
+
+my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime;
+$year += 1900;
+
+# get a login name for the guy doing the commit....
+#
+if ($login eq '') {
+	$login = getlogin || (getpwuid($<))[0] || "nobody";
+}
+
+# open log file for appending
+#
+my $logfh = new IO::File ">>" . $logfile
+	or die "Could not open(" . $logfile . "): $!\n";
+
+# send mail, if there's anyone to send to!
+#
+my $mailfh;
+if ($users) {
+	$mailcmd = "$mailcmd $users";
+	$mailfh = new IO::File $mailcmd
+		or die "Could not Exec($mailcmd): $!\n";
+}
+
+# print out the log Header
+#
+$logfh->print ("\n");
+$logfh->print ("****************************************\n");
+$logfh->print ("Date:\t$days[$wday] $mos[$mon] $mday, $year @ $hour:" . sprintf("%02d", $min) . "\n");
+$logfh->print ("Author:\t$login\n\n");
+
+if ($mailfh) {
+	$mailfh->print ("\n");
+	$mailfh->print ("Date:\t$days[$wday] $mos[$mon] $mday, $year @ $hour:" . sprintf("%02d", $min) . "\n");
+	$mailfh->print ("Author:\t$login\n\n");
+}
+
+# print the stuff from logmsg that comes in on stdin to the logfile
+#
+my $infh = new IO::File "< -";
+foreach ($infh->getlines) {
+	$logfh->print;
+	if ($mailfh) {
+		$mailfh->print ($_);
+	}
+}
+undef $infh;
+
+$logfh->print ("\n");
+
+# after log information, do an 'cvs -Qq status -v' on each file in the arguments.
+#
+if ($dostatus != 0) {
+	while (@files) {
+		my $file = shift @files;
+		if ($file eq "-") {
+			$logfh->print ("[input file was '-']\n");
+			if ($mailfh) {
+				$mailfh->print ("[input file was '-']\n");
+			}
+			last;
+		}
+		my $rcsfh = new IO::File;
+		my $pid = $rcsfh->open ("-|");
+		if ( !defined $pid )
+		{
+			die "fork failed: $!";
+		}
+		if ($pid == 0)
+		{
+			my @command = ('cvs', '-nQq', 'status');
+			if ($verbosestatus)
+			{
+				push @command, '-v';
+			}
+			push @command, $file;
+			exec @command;
+			die "cvs exec failed: $!";
+		}
+		my $line;
+		while ($line = $rcsfh->getline) {
+			$logfh->print ($line);
+			if ($mailfh) {
+				$mailfh->print ($line);
+			}
+		}
+		undef $rcsfh;
+	}
+}
+
+$logfh->close()
+	or die "Write to $logfile failed: $!";
+
+if ($mailfh)
+{
+	$mailfh->close;
+	die "Pipe to $mailcmd failed" if $?;
+}
+
+## must exit cleanly
+##
+exit 0;

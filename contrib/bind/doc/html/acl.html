@@ -1,0 +1,63 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+<HEAD>
+  <TITLE>BIND acl Statement</TITLE>
+</HEAD>
+
+<BODY>
+<H2>BIND Configuration File Guide--<CODE>acl</CODE> Statement</H2>
+
+<HR>
+
+<A NAME="Syntax"><H3>Syntax</H3></A>
+
+<PRE>
+acl <VAR>name</VAR> {
+  <VAR><A HREF="address_list.html">address_match_list</A></VAR>
+};
+</PRE>
+
+<HR>
+
+<A NAME="Usage"><H3>Definition and Usage</H3></A>
+
+<P>The <CODE>acl</CODE> statement creates a named address match list.
+It gets its name from a primary use of address match lists:  Access
+Control Lists (ACLs).</P>
+
+<P>Note that an address match list's name must be defined with
+<CODE>acl</CODE> before it can be used elsewhere; no forward
+references are allowed.</P>
+
+The following ACLs are built-in:
+
+<DL>
+<DT><CODE>any</CODE>
+<DD>
+Allows all hosts.
+
+<DT><CODE>none</CODE>
+<DD>
+Denies all hosts.
+
+<DT><CODE>localhost</CODE>
+<DD>
+Allows the IP addresses of all interfaces on the system.
+
+<DT><CODE>localnets</CODE>
+<DD>
+Allows any host on a network for which the system has an interface.
+</DL>
+
+<HR>
+
+<CENTER><P>[ <A HREF="config.html">BIND Config. File</A>
+| <A HREF="http://www.isc.org/products/BIND/">BIND Home</A>
+|&nbsp;<A HREF="http://www.isc.org/">ISC</A> ]</P></CENTER>
+
+<HR>
+<ADDRESS>
+Last Updated: $Id: acl.html,v 1.5 1999/09/15 20:28:00 cyarnell Exp $
+</ADDRESS>
+</BODY>
+</HTML>

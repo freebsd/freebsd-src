@@ -1,0 +1,141 @@
+<html><head<title>
+Network Time Protocol Year 2000 Conformance Statement
+</title></head><body><h3>
+Network Time Protocol Year 2000 Conformance Statement
+</h3>
+
+<img align=left src=pic/alice15.gif>
+from <i>Alice's Adventures in Wonderland</i>, by Lewis Carroll,
+illustrations by Sir John Tenniel
+
+<p>The Mad Hatter and the March Hare are discussing whether the Teapot
+serial number should have two or four digits.
+
+<br clear=left><hr>
+
+<h4>Introduction</h4>
+
+By the year 2000, the Network Time Protocol (NTP) will have been in
+use for over two decades and remain the longest running, continuously
+operating application protocol in the Internet. There is some concern,
+especially in government and financial institutions, that NTP might
+cause Internet applications to misbehave in terrible ways on the epoch
+of the next century. This document presents an analysis of the various
+hazards that might result in incorrect time values upon this epoch. It
+concludes that incorrect time values due to the NTP timescale, protocol
+design and reference implementation are highly unlikely. However, it is
+possible that external reference time sources used by NTP could
+misbehave and cause NTP servers to distribute incorrect time values to
+significant portions of the Internet. Note that, while this document
+addresses the issues specifically with respect to Unix systems, the
+issues are equally applicable to Windows and VMS systems.
+
+<h4>The NTP Timescale</h4>
+
+It will be helpful in understanding the issues raised in this document
+to consider the concept of a universal timescale. The conventional civil
+timescale used in most parts of the world is based on Universal
+Coordinated Time (UTC sic), formerly known as Greenwich Mean Time (GMT).
+UTC is based on International Atomic Time (TAI sic), which is derived
+from hundreds of cesium clocks in the national standards laboratories of
+many countries. Deviations of UTC from TAI are implemented in the form
+of leap seconds, which occur on average every eighteen months. For
+almost every computer application today, UTC represents the universal
+timescale extending into the indefinite past and indefinite future. We
+know of course that the UTC timescale did not exist prior to 1972, the
+Gregorian calendar did not exist prior to 1582, the Julian calendar did
+not exist prior to 54 BC and we cannot predict exactly when the next
+leap second will occur. Nevertheless, most folks would prefer that, even
+if we can't get future seconds numbering right beyond the next leap
+second, at least we can get the days numbering right until the end of
+reason.
+
+<p>The universal timescale can be implemented using a binary counter of
+indefinite width and with the unit seconds bit placed somewhere in the
+middle. The counter is synchronized to UTC such that it runs at the same
+rate and the units increment coincides with the UTC seconds tick. The
+NTP timescale is constructed from 64 bits of this counter, of which 32
+bits number the seconds and 32 bits represent the fraction. With this
+design, the counter runs in 136-year cycles, called eras, the latest of
+which began with a counter value of zero at 0h 1 January 1900. The
+design assumption is that further low order bits, if required, are
+provided by local interpolation, while further high order bits, when
+required, are provided by external means. The important point to be made
+here is that the high order bits must ultimately be provided by
+astronomers and disseminated to the population by international means.
+Ultimately, should a need exist to align a particular NTP era to the
+current calendar, the operating system in which NTP is embedded must
+provide the necessary high order bits, most conveniently from the file
+system or flash memory.
+
+<h4>The Year 2000 Era</h4>
+
+With respect to the year 2000 issue, the most important thing to observe
+about the NTP timescale is that it knows nothing about days, years or
+centuries, only the seconds since the beginning of the latest era, the
+current one of which began on 1 January 1900. On 1 January 1970 when
+Unix life began, the NTP timescale showed 2,208,988,800 and on 1 January
+1972 when UTC life began, it showed 2,272,060,800. On the last second of
+year 1999, the NTP timescale will show 3,155,672,599 and one second
+later on the first second of the next century will show 3,155,672,600.
+Other than this observation, the NTP timescale has no knowledge of or
+provision for any of these eclectic seconds.
+
+<p>The NTP timescale is almost never used directly by system or
+application programs. The generic Unix kernel keeps time in seconds and
+microseconds (or nanoseconds) to provide both time of day and interval
+timer functions. In order to synchronize the Unix clock, NTP must
+convert to and from its representation and Unix representation. Unix
+kernels implement the time of day function using two 32-bit counters,
+one representing the seconds since Unix life began and the other the
+microseconds or nanoseconds of the second. In principle, the seconds
+counter will wrap around in 136-year eras, the next of which will begin
+in 2106. How the particular Unix semantics interprets the counter values
+is of concern, but is beyond the scope of discussion here.
+
+<p>While incorrect time values due to the NTP timescale and protocol
+design or reference implementation upon the epoch of the next century
+are highly unlikely, hazards remain due to incorrect software external
+to NTP. These hazards include the Unix kernel and library routines which
+convert Unix time to and from conventional civil time in seconds,
+minutes, hours, days and years. Although NTP uses these routines to
+format monitoring data displays, they are not used to read or set the
+NTP clock. They may in fact cause problems with certain application
+programs, but this is not an issue which concerns NTP correctness.
+
+<p>While it is extremely unlikely that NTP will produce incorrect time
+values upon the epoch, it is possible that some external source to which
+NTP synchronizes may produce a discontinuity which could then induce a
+NTP discontinuity. The NTP primary (stratum 1) time servers, which are
+the ultimate time references for the entire NTP population, obtain time
+from various sources, including radio and satellite receivers and
+telephone modems. Not all sources provide year information and not all
+of these provide time in four-digit form. In point of fact, the NTP
+reference implementation does not use the year information, even if
+available. Instead, the year information is provided from the file
+system, which itself depends on the Unix clock.
+
+<p>The NTP protocol specification requires the apparent NTP time derived
+from external servers to be compared to the file system time before the
+clock is set. If the discrepancy is over 1000 seconds, an error alarm is
+raised requiring manual intervention. This makes it very unlikely that
+even a clique of seriously corrupted NTP servers will result in
+incorrect time values. In the case of embedded computers with no file
+system, the design assumption is that the current era be established
+from flash memory or a clock chip previously set by manual means.
+
+<p>It is essential that any clock synchronization protocol, including
+NTP, include provisions for multiple-server redundancy and multiple-
+route diversity. Past experience has demonstrated the wisdom of this
+approach, which protects clients against hardware and software faults,
+as well as incorrectly operating reference sources and sometimes even
+buggy software. For the most reliable service, we recommend multiple
+reference sources for primary servers, including a backup radio or
+satellite receiver or telephone modem. We also recommend that primary
+servers run NTP with other primary servers to provide additional
+redundancy and mutual backup should the reference sources themselves
+fail or operate incorrectly.
+
+<hr><a href=index.htm><img align=left src=pic/home.gif></a><address><a
+href=mailto:mills@udel.edu> David L. Mills &lt;mills@udel.edu&gt;</a>
+</address></a></body></html>

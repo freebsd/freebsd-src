@@ -1,0 +1,126 @@
+.\" Copyright (c) 2000, Jeroen Ruigrok van der Werven <asmodai@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Bill Paul.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY NICK HIBMA AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL NICK HIBMA OR THE VOICES IN HIS HEAD
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 26, 2000
+.Dt USCANNER 4
+.Os
+.Sh NAME
+.Nm uscanner
+.Nd USB Scanners
+.Sh SYNOPSIS
+.Cd "device uscanner"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for scanners that attach to the USB port.
+For each scanner attached it will provide an entry like
+.Pa /dev/uscanner0
+in
+.Pa /dev .
+See the SANE home page for the exact configuration of SANE for the
+different scanners.
+Supported are:
+.Pp
+.Bl -tag -compact -width "Epson Perfection 1200U / 1200Photo"
+.It Acer Acerscan 320U
+.It Acer Acerscan 620U
+.It Acer Acerscan 640U
+.It Acer Acerscan C310U
+.It AGFA SnapScan 1212U
+.It AGFA SnapScan Touch
+.It Avision 1200U
+.It Epson Perfection 610
+.It Epson Perfection 636U / 636Photo
+.It Epson Perfection 1200U / 1200Photo
+.It Epson Expression 1600
+.It Hewlett Packard Photosmart S20
+.It Hewlett Packard Scanjet 3300C
+.It Hewlett Packard Scanjet 4100C
+.It Hewlett Packard Scanjet 4200C
+.It Hewlett Packard Scanjet 5200C
+.It Hewlett Packard Scanjet 5300C
+.It Hewlett Packard Scanjet 6200C
+.It Hewlett Packard Scanjet 6300C
+.It KYE ColorPage Vivid-Pro
+.It Microtek Phantom 336CX
+.It Microtek Phantom C6
+.It Microtek ScanMaker V6UL
+.It Microtek ScanMaker V6USL
+.It Microtek ScanMaker X6U
+.It Mustek 600 CU
+.It Mustek 1200 CU
+.It Mustek 1200 UB
+.It Mustek 1200 USB
+.It NatSemi BearPaw 1200
+.It Primax Colorado 600u
+.It Primax Colorado 1200u
+.It Primax Colorado USB 9600
+.It Primax Colorado USB 19200
+.It Primax G2-200
+.It Primax G2-300
+.It Primax G2-600
+.It Primax G2E-300
+.It Primax G2E-600
+.It Primax ReadyScan 636i
+.It UMAX Astra 1220U
+.It UMAX Astra 1236U
+.It UMAX Astra 2000U
+.It UMAX Astra 2100U
+.It UMAX Astra 2200U
+.It Visioneer OneTouch 5300
+.It Visioneer OneTouch 7600
+.It Visioneer OneTouch 6100
+.It Visioneer OneTouch 6200
+.It Visioneer OneTouch 8100
+.It Visioneer OneTouch 8600
+.El
+.Pp
+.Nm usb
+and one of
+.Nm uhci
+or
+.Nm ohci
+must be configured in the kernel as well.
+.Sh SEE ALSO
+.Xr ohci 4 ,
+.Xr uhci 4 ,
+.Xr usb 4
+.\".Sh HISTORY
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Nick Hibma Aq n_hibma@FreeBSD.org .
+.Pp
+This manual page was written by
+.An Jeroen Ruigrok van der Werven Aq asmodai@FreeBSD.org .

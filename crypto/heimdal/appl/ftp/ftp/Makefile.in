@@ -1,0 +1,655 @@
+# Makefile.in generated automatically by automake 1.4a from Makefile.am
+
+# Copyright (C) 1994, 1995-9, 2000 Free Software Foundation, Inc.
+# This Makefile.in is free software; the Free Software Foundation
+# gives unlimited permission to copy and/or distribute it,
+# with or without modifications, as long as this notice is preserved.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY, to the extent permitted by law; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+# PARTICULAR PURPOSE.
+
+SHELL = @SHELL@
+
+srcdir = @srcdir@
+top_srcdir = @top_srcdir@
+VPATH = @srcdir@
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+
+bindir = @bindir@
+sbindir = @sbindir@
+libexecdir = @libexecdir@
+datadir = @datadir@
+sysconfdir = @sysconfdir@
+sharedstatedir = @sharedstatedir@
+localstatedir = @localstatedir@
+libdir = @libdir@
+infodir = @infodir@
+mandir = @mandir@
+includedir = @includedir@
+oldincludedir = /usr/include
+
+pkgdatadir = $(datadir)/@PACKAGE@
+pkglibdir = $(libdir)/@PACKAGE@
+pkgincludedir = $(includedir)/@PACKAGE@
+
+top_builddir = ../../..
+
+ACLOCAL = @ACLOCAL@
+AUTOCONF = @AUTOCONF@
+AUTOMAKE = @AUTOMAKE@
+AUTOHEADER = @AUTOHEADER@
+
+INSTALL = @INSTALL@
+INSTALL_PROGRAM = @INSTALL_PROGRAM@
+INSTALL_DATA = @INSTALL_DATA@
+INSTALL_SCRIPT = @INSTALL_SCRIPT@
+INSTALL_STRIP_FLAG =
+transform = @program_transform_name@
+
+NORMAL_INSTALL = :
+PRE_INSTALL = :
+POST_INSTALL = :
+NORMAL_UNINSTALL = :
+PRE_UNINSTALL = :
+POST_UNINSTALL = :
+
+@SET_MAKE@
+host_alias = @host_alias@
+host_triplet = @host@
+AIX_EXTRA_KAFS = @AIX_EXTRA_KAFS@
+AMDEP = @AMDEP@
+AMTAR = @AMTAR@
+AS = @AS@
+AWK = @AWK@
+CANONICAL_HOST = @CANONICAL_HOST@
+CATMAN = @CATMAN@
+CATMANEXT = @CATMANEXT@
+CC = @CC@
+CPP = @CPP@
+CXX = @CXX@
+CXXCPP = @CXXCPP@
+DBLIB = @DBLIB@
+DEPDIR = @DEPDIR@
+DIR_des = @DIR_des@
+DIR_roken = @DIR_roken@
+DLLTOOL = @DLLTOOL@
+EXEEXT = @EXEEXT@
+EXTRA_LIB45 = @EXTRA_LIB45@
+GROFF = @GROFF@
+INCLUDES_roken = @INCLUDES_roken@
+INCLUDE_ = @INCLUDE_@
+LEX = @LEX@
+LIBOBJS = @LIBOBJS@
+LIBTOOL = @LIBTOOL@
+LIB_ = @LIB_@
+LIB_AUTH_SUBDIRS = @LIB_AUTH_SUBDIRS@
+LIB_des = @LIB_des@
+LIB_des_appl = @LIB_des_appl@
+LIB_kdb = @LIB_kdb@
+LIB_otp = @LIB_otp@
+LIB_roken = @LIB_roken@
+LIB_security = @LIB_security@
+LN_S = @LN_S@
+LTLIBOBJS = @LTLIBOBJS@
+MAKEINFO = @MAKEINFO@
+NEED_WRITEAUTH_FALSE = @NEED_WRITEAUTH_FALSE@
+NEED_WRITEAUTH_TRUE = @NEED_WRITEAUTH_TRUE@
+NROFF = @NROFF@
+OBJDUMP = @OBJDUMP@
+OBJEXT = @OBJEXT@
+PACKAGE = @PACKAGE@
+RANLIB = @RANLIB@
+STRIP = @STRIP@
+VERSION = @VERSION@
+VOID_RETSIGTYPE = @VOID_RETSIGTYPE@
+WFLAGS = @WFLAGS@
+WFLAGS_NOIMPLICITINT = @WFLAGS_NOIMPLICITINT@
+WFLAGS_NOUNUSED = @WFLAGS_NOUNUSED@
+YACC = @YACC@
+dpagaix_CFLAGS = @dpagaix_CFLAGS@
+dpagaix_LDADD = @dpagaix_LDADD@
+install_sh = @install_sh@
+
+# $Id: Makefile.am,v 1.14 2000/11/15 22:51:07 assar Exp $
+
+
+# $Id: Makefile.am.common,v 1.3 1999/04/01 14:58:43 joda Exp $
+
+
+# $Id: Makefile.am.common,v 1.23 2000/12/05 09:11:09 joda Exp $
+
+
+AUTOMAKE_OPTIONS = foreign no-dependencies
+
+SUFFIXES = .et .h .1 .3 .5 .8 .cat1 .cat3 .cat5 .cat8 .x
+
+INCLUDES = -I$(top_builddir)/include $(INCLUDES_roken) -I$(srcdir)/../common $(INCLUDE_readline) $(INCLUDE_krb4)
+
+AM_CFLAGS =  $(WFLAGS)
+
+CP = cp
+
+COMPILE_ET = $(top_builddir)/lib/com_err/compile_et
+
+buildinclude = $(top_builddir)/include
+
+LIB_XauReadAuth = @LIB_XauReadAuth@
+LIB_crypt = @LIB_crypt@
+LIB_dbm_firstkey = @LIB_dbm_firstkey@
+LIB_dbopen = @LIB_dbopen@
+LIB_dlopen = @LIB_dlopen@
+LIB_dn_expand = @LIB_dn_expand@
+LIB_el_init = @LIB_el_init@
+LIB_getattr = @LIB_getattr@
+LIB_gethostbyname = @LIB_gethostbyname@
+LIB_getpwent_r = @LIB_getpwent_r@
+LIB_getpwnam_r = @LIB_getpwnam_r@
+LIB_getsockopt = @LIB_getsockopt@
+LIB_logout = @LIB_logout@
+LIB_logwtmp = @LIB_logwtmp@
+LIB_odm_initialize = @LIB_odm_initialize@
+LIB_pidfile = @LIB_pidfile@
+LIB_readline = @LIB_readline@
+LIB_res_search = @LIB_res_search@
+LIB_setpcred = @LIB_setpcred@
+LIB_setsockopt = @LIB_setsockopt@
+LIB_socket = @LIB_socket@
+LIB_syslog = @LIB_syslog@
+LIB_tgetent = @LIB_tgetent@
+
+LIBS = @LIBS@
+
+HESIODLIB = @HESIODLIB@
+HESIODINCLUDE = @HESIODINCLUDE@
+INCLUDE_hesiod = @INCLUDE_hesiod@
+LIB_hesiod = @LIB_hesiod@
+
+INCLUDE_krb4 = @INCLUDE_krb4@
+LIB_krb4 = @LIB_krb4@
+
+INCLUDE_openldap = @INCLUDE_openldap@
+LIB_openldap = @LIB_openldap@
+
+INCLUDE_readline = @INCLUDE_readline@
+
+LEXLIB = @LEXLIB@
+
+NROFF_MAN = groff -mandoc -Tascii
+
+@KRB4_TRUE@LIB_kafs = @KRB4_TRUE@$(top_builddir)/lib/kafs/libkafs.la $(AIX_EXTRA_KAFS)
+
+@KRB5_TRUE@LIB_krb5 = @KRB5_TRUE@$(top_builddir)/lib/krb5/libkrb5.la \
+@KRB5_TRUE@	$(top_builddir)/lib/asn1/libasn1.la
+@KRB5_TRUE@LIB_gssapi = @KRB5_TRUE@$(top_builddir)/lib/gssapi/libgssapi.la
+
+CHECK_LOCAL = 
+
+bin_PROGRAMS = ftp
+
+@KRB4_TRUE@krb4_sources = @KRB4_TRUE@krb4.c kauth.c
+@KRB5_TRUE@krb5_sources = @KRB5_TRUE@gssapi.c
+
+ftp_SOURCES = \
+	cmds.c \
+	cmdtab.c \
+	extern.h \
+	ftp.c \
+	ftp_locl.h \
+	ftp_var.h \
+	main.c \
+	pathnames.h \
+	ruserpass.c \
+	domacro.c \
+	globals.c \
+	security.c \
+	security.h \
+	$(krb4_sources) \
+	$(krb5_sources)
+
+
+EXTRA_ftp_SOURCES = krb4.c kauth.c gssapi.c
+
+man_MANS = ftp.1
+
+LDADD = \
+	../common/libcommon.a \
+	$(LIB_gssapi) \
+	$(LIB_krb5) \
+	$(LIB_krb4) \
+	$(LIB_des) \
+	$(LIB_roken) \
+	$(LIB_readline)
+
+subdir = appl/ftp/ftp
+mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
+CONFIG_HEADER = ../../../include/config.h
+CONFIG_CLEAN_FILES = 
+bin_PROGRAMS =  ftp$(EXEEXT)
+PROGRAMS =  $(bin_PROGRAMS)
+
+
+DEFS = @DEFS@ -I. -I$(srcdir) -I../../../include
+CPPFLAGS = @CPPFLAGS@
+LDFLAGS = @LDFLAGS@
+X_CFLAGS = @X_CFLAGS@
+X_LIBS = @X_LIBS@
+X_EXTRA_LIBS = @X_EXTRA_LIBS@
+X_PRE_LIBS = @X_PRE_LIBS@
+@KRB4_FALSE@@KRB5_FALSE@am_ftp_OBJECTS =  cmds.$(OBJEXT) \
+@KRB4_FALSE@@KRB5_FALSE@cmdtab.$(OBJEXT) ftp.$(OBJEXT) main.$(OBJEXT) \
+@KRB4_FALSE@@KRB5_FALSE@ruserpass.$(OBJEXT) domacro.$(OBJEXT) \
+@KRB4_FALSE@@KRB5_FALSE@globals.$(OBJEXT) security.$(OBJEXT)
+@KRB4_FALSE@@KRB5_TRUE@am_ftp_OBJECTS =  cmds.$(OBJEXT) cmdtab.$(OBJEXT) \
+@KRB4_FALSE@@KRB5_TRUE@ftp.$(OBJEXT) main.$(OBJEXT) ruserpass.$(OBJEXT) \
+@KRB4_FALSE@@KRB5_TRUE@domacro.$(OBJEXT) globals.$(OBJEXT) \
+@KRB4_FALSE@@KRB5_TRUE@security.$(OBJEXT) gssapi.$(OBJEXT)
+@KRB4_TRUE@@KRB5_FALSE@am_ftp_OBJECTS =  cmds.$(OBJEXT) cmdtab.$(OBJEXT) \
+@KRB4_TRUE@@KRB5_FALSE@ftp.$(OBJEXT) main.$(OBJEXT) ruserpass.$(OBJEXT) \
+@KRB4_TRUE@@KRB5_FALSE@domacro.$(OBJEXT) globals.$(OBJEXT) \
+@KRB4_TRUE@@KRB5_FALSE@security.$(OBJEXT) krb4.$(OBJEXT) \
+@KRB4_TRUE@@KRB5_FALSE@kauth.$(OBJEXT)
+@KRB4_TRUE@@KRB5_TRUE@am_ftp_OBJECTS =  cmds.$(OBJEXT) cmdtab.$(OBJEXT) \
+@KRB4_TRUE@@KRB5_TRUE@ftp.$(OBJEXT) main.$(OBJEXT) ruserpass.$(OBJEXT) \
+@KRB4_TRUE@@KRB5_TRUE@domacro.$(OBJEXT) globals.$(OBJEXT) \
+@KRB4_TRUE@@KRB5_TRUE@security.$(OBJEXT) krb4.$(OBJEXT) kauth.$(OBJEXT) \
+@KRB4_TRUE@@KRB5_TRUE@gssapi.$(OBJEXT)
+ftp_OBJECTS =  $(am_ftp_OBJECTS)
+ftp_LDADD = $(LDADD)
+@KRB5_FALSE@ftp_DEPENDENCIES =  ../common/libcommon.a
+@KRB5_TRUE@ftp_DEPENDENCIES =  ../common/libcommon.a \
+@KRB5_TRUE@$(top_builddir)/lib/gssapi/libgssapi.la \
+@KRB5_TRUE@$(top_builddir)/lib/krb5/libkrb5.la \
+@KRB5_TRUE@$(top_builddir)/lib/asn1/libasn1.la
+ftp_LDFLAGS = 
+COMPILE = $(CC) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
+LTCOMPILE = $(LIBTOOL) --mode=compile $(CC) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
+CFLAGS = @CFLAGS@
+CCLD = $(CC)
+LINK = $(LIBTOOL) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
+DIST_SOURCES =  $(ftp_SOURCES) $(EXTRA_ftp_SOURCES)
+man1dir = $(mandir)/man1
+MANS = $(man_MANS)
+depcomp = 
+DIST_COMMON =  Makefile.am Makefile.in
+
+
+DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
+
+GZIP_ENV = --best
+SOURCES = $(ftp_SOURCES) $(EXTRA_ftp_SOURCES)
+OBJECTS = $(am_ftp_OBJECTS)
+
+all: all-redirect
+.SUFFIXES:
+.SUFFIXES: .1 .3 .5 .8 .c .cat1 .cat3 .cat5 .cat8 .et .h .lo .o .obj .x
+$(srcdir)/Makefile.in: Makefile.am $(top_srcdir)/configure.in $(ACLOCAL_M4) $(top_srcdir)/Makefile.am.common $(top_srcdir)/cf/Makefile.am.common
+	cd $(top_srcdir) && $(AUTOMAKE) --foreign appl/ftp/ftp/Makefile
+
+Makefile: $(srcdir)/Makefile.in  $(top_builddir)/config.status
+	cd $(top_builddir) \
+	  && CONFIG_FILES=$(subdir)/$@ CONFIG_HEADERS= $(SHELL) ./config.status
+
+
+mostlyclean-binPROGRAMS:
+
+clean-binPROGRAMS:
+	-test -z "$(bin_PROGRAMS)" || rm -f $(bin_PROGRAMS)
+
+distclean-binPROGRAMS:
+
+maintainer-clean-binPROGRAMS:
+
+install-binPROGRAMS: $(bin_PROGRAMS)
+	@$(NORMAL_INSTALL)
+	$(mkinstalldirs) $(DESTDIR)$(bindir)
+	@list='$(bin_PROGRAMS)'; for p in $$list; do \
+	  if test -f $$p; then \
+	    f="`echo $$p|sed -e 's/$(EXEEXT)$$//' -e '$(transform)' -e 's/$$/$(EXEEXT)/'`"; \
+	    echo " $(LIBTOOL)  --mode=install $(INSTALL_PROGRAM) $(INSTALL_STRIP_FLAG) $$p $(DESTDIR)$(bindir)/$$f"; \
+	    $(LIBTOOL)  --mode=install $(INSTALL_PROGRAM) $(INSTALL_STRIP_FLAG) $$p $(DESTDIR)$(bindir)/$$f; \
+	  else :; fi; \
+	done
+
+uninstall-binPROGRAMS:
+	@$(NORMAL_UNINSTALL)
+	@list='$(bin_PROGRAMS)'; for p in $$list; do \
+	  f="`echo $$p|sed -e 's/$(EXEEXT)$$//' -e '$(transform)' -e 's/$$/$(EXEEXT)/'`"; \
+	  echo " rm -f $(DESTDIR)$(bindir)/$$f"; \
+	  rm -f $(DESTDIR)$(bindir)/$$f; \
+	done
+
+mostlyclean-compile:
+	-rm -f *.o core *.core
+	-rm -f *.$(OBJEXT)
+
+clean-compile:
+
+distclean-compile:
+	-rm -f *.tab.c
+
+maintainer-clean-compile:
+
+mostlyclean-libtool:
+	-rm -f *.lo
+
+clean-libtool:
+	-rm -rf .libs _libs
+
+distclean-libtool:
+
+maintainer-clean-libtool:
+
+ftp$(EXEEXT): $(ftp_OBJECTS) $(ftp_DEPENDENCIES)
+	@rm -f ftp$(EXEEXT)
+	$(LINK) $(ftp_LDFLAGS) $(ftp_OBJECTS) $(ftp_LDADD) $(LIBS)
+.c.o:
+	$(COMPILE) -c $<
+.c.obj:
+	$(COMPILE) -c `cygpath -w $<`
+.c.lo:
+	$(LTCOMPILE) -c -o $@ $<
+
+install-man1:
+	$(mkinstalldirs) $(DESTDIR)$(man1dir)
+	@list='$(man1_MANS)'; \
+	l2='$(man_MANS)'; for i in $$l2; do \
+	  case "$$i" in \
+	    *.1*) list="$$list $$i" ;; \
+	  esac; \
+	done; \
+	for i in $$list; do \
+	  if test -f $(srcdir)/$$i; then file=$(srcdir)/$$i; \
+	  else file=$$i; fi; \
+	  ext=`echo $$i | sed -e 's/^.*\\.//'`; \
+	  inst=`echo $$i | sed -e 's/\\.[0-9a-z]*$$//'`; \
+	  inst=`echo $$inst | sed -e 's/^.*\///'`; \
+	  inst=`echo $$inst | sed '$(transform)'`.$$ext; \
+	  echo " $(INSTALL_DATA) $$file $(DESTDIR)$(man1dir)/$$inst"; \
+	  $(INSTALL_DATA) $$file $(DESTDIR)$(man1dir)/$$inst; \
+	done
+
+uninstall-man1:
+	@list='$(man1_MANS)'; \
+	l2='$(man_MANS)'; for i in $$l2; do \
+	  case "$$i" in \
+	    *.1*) list="$$list $$i" ;; \
+	  esac; \
+	done; \
+	for i in $$list; do \
+	  ext=`echo $$i | sed -e 's/^.*\\.//'`; \
+	  inst=`echo $$i | sed -e 's/\\.[0-9a-z]*$$//'`; \
+	  inst=`echo $$inst | sed -e 's/^.*\///'`; \
+	  inst=`echo $$inst | sed '$(transform)'`.$$ext; \
+	  echo " rm -f $(DESTDIR)$(man1dir)/$$inst"; \
+	  rm -f $(DESTDIR)$(man1dir)/$$inst; \
+	done
+install-man: $(MANS)
+	@$(NORMAL_INSTALL)
+	$(MAKE) $(AM_MAKEFLAGS) install-man1
+uninstall-man:
+	@$(NORMAL_UNINSTALL)
+	$(MAKE) $(AM_MAKEFLAGS) uninstall-man1
+
+tags: TAGS
+
+ID: $(HEADERS) $(SOURCES) $(LISP) $(TAGS_FILES)
+	list='$(SOURCES) $(HEADERS) $(TAGS_FILES)'; \
+	unique=`for i in $$list; do \
+	    if test -f "$$i"; then echo $$i; else echo $(srcdir)/$$i; fi; \
+	  done | \
+	  $(AWK) '    { files[$$0] = 1; } \
+	       END { for (i in files) print i; }'`; \
+	mkid -fID $$unique $(LISP)
+
+TAGS:  $(HEADERS) $(SOURCES)  $(TAGS_DEPENDENCIES) \
+		$(TAGS_FILES) $(LISP)
+	tags=; \
+	here=`pwd`; \
+	list='$(SOURCES) $(HEADERS) $(TAGS_FILES)'; \
+	unique=`for i in $$list; do \
+	    if test -f "$$i"; then echo $$i; else echo $(srcdir)/$$i; fi; \
+	  done | \
+	  $(AWK) '    { files[$$0] = 1; } \
+	       END { for (i in files) print i; }'`; \
+	test -z "$(ETAGS_ARGS)$$unique$(LISP)$$tags" \
+	  || etags $(ETAGS_ARGS) $$tags  $$unique $(LISP)
+
+mostlyclean-tags:
+
+clean-tags:
+
+distclean-tags:
+	-rm -f TAGS ID
+
+maintainer-clean-tags:
+
+distdir = $(top_builddir)/$(PACKAGE)-$(VERSION)/$(subdir)
+
+distdir: $(DISTFILES)
+	@for file in $(DISTFILES); do \
+	  d=$(srcdir); \
+	  if test -d $$d/$$file; then \
+	    cp -pR $$d/$$file $(distdir) \
+	    || exit 1; \
+	  else \
+	    test -f $(distdir)/$$file \
+	    || cp -p $$d/$$file $(distdir)/$$file \
+	    || exit 1; \
+	  fi; \
+	done
+	$(MAKE) $(AM_MAKEFLAGS) top_distdir="$(top_distdir)" distdir="$(distdir)" dist-hook
+info-am:
+info: info-am
+dvi-am:
+dvi: dvi-am
+check-am: all-am
+	$(MAKE) $(AM_MAKEFLAGS) check-local
+check: check-am
+installcheck-am:
+installcheck: installcheck-am
+install-exec-am: install-binPROGRAMS
+	@$(NORMAL_INSTALL)
+	$(MAKE) $(AM_MAKEFLAGS) install-exec-hook
+install-exec: install-exec-am
+
+install-data-am: install-man install-data-local
+install-data: install-data-am
+
+install-am: all-am
+	@$(MAKE) $(AM_MAKEFLAGS) install-exec-am install-data-am
+install: install-am
+uninstall-am: uninstall-binPROGRAMS uninstall-man
+uninstall: uninstall-am
+all-am: Makefile $(PROGRAMS) $(MANS) all-local
+all-redirect: all-am
+install-strip:
+	$(MAKE) $(AM_MAKEFLAGS) INSTALL_STRIP_FLAG=-s install
+installdirs:
+	$(mkinstalldirs)  $(DESTDIR)$(bindir) $(DESTDIR)$(mandir)/man1
+
+
+mostlyclean-generic:
+
+clean-generic:
+
+distclean-generic:
+	-rm -f Makefile $(CONFIG_CLEAN_FILES)
+	-rm -f config.cache config.log stamp-h stamp-h[0-9]*
+
+maintainer-clean-generic:
+	-rm -f Makefile.in
+mostlyclean-am:  mostlyclean-binPROGRAMS mostlyclean-compile \
+		mostlyclean-libtool mostlyclean-tags \
+		mostlyclean-generic
+
+mostlyclean: mostlyclean-am
+
+clean-am:  clean-binPROGRAMS clean-compile clean-libtool clean-tags \
+		clean-generic mostlyclean-am
+
+clean: clean-am
+
+distclean-am:  distclean-binPROGRAMS distclean-compile distclean-libtool \
+		distclean-tags distclean-generic clean-am
+	-rm -f libtool
+
+distclean: distclean-am
+
+maintainer-clean-am:  maintainer-clean-binPROGRAMS \
+		maintainer-clean-compile maintainer-clean-libtool \
+		maintainer-clean-tags maintainer-clean-generic \
+		distclean-am
+	@echo "This command is intended for maintainers to use;"
+	@echo "it deletes files that may require special tools to rebuild."
+
+maintainer-clean: maintainer-clean-am
+
+.PHONY: mostlyclean-binPROGRAMS distclean-binPROGRAMS clean-binPROGRAMS \
+maintainer-clean-binPROGRAMS uninstall-binPROGRAMS install-binPROGRAMS \
+mostlyclean-compile distclean-compile clean-compile \
+maintainer-clean-compile mostlyclean-libtool distclean-libtool \
+clean-libtool maintainer-clean-libtool install-man1 uninstall-man1 \
+install-man uninstall-man tags mostlyclean-tags distclean-tags \
+clean-tags maintainer-clean-tags distdir info-am info dvi-am dvi \
+check-local check check-am installcheck-am installcheck install-exec-am \
+install-exec install-data-local install-data-am install-data install-am \
+install uninstall-am uninstall all-local all-redirect all-am all \
+install-strip installdirs mostlyclean-generic distclean-generic \
+clean-generic maintainer-clean-generic clean mostlyclean distclean \
+maintainer-clean
+
+
+install-suid-programs:
+	@foo='$(bin_SUIDS)'; \
+	for file in $$foo; do \
+	x=$(DESTDIR)$(bindir)/$$file; \
+	if chown 0:0 $$x && chmod u+s $$x; then :; else \
+	echo "*"; \
+	echo "* Failed to install $$x setuid root"; \
+	echo "*"; \
+	fi; done
+
+install-exec-hook: install-suid-programs
+
+install-build-headers:: $(include_HEADERS) $(build_HEADERZ)
+	@foo='$(include_HEADERS) $(build_HEADERZ)'; \
+	for f in $$foo; do \
+		f=`basename $$f`; \
+		if test -f "$(srcdir)/$$f"; then file="$(srcdir)/$$f"; \
+		else file="$$f"; fi; \
+		if cmp -s  $$file $(buildinclude)/$$f 2> /dev/null ; then \
+		: ; else \
+			echo " $(CP) $$file $(buildinclude)/$$f"; \
+			$(CP) $$file $(buildinclude)/$$f; \
+		fi ; \
+	done
+
+all-local: install-build-headers
+#NROFF_MAN = nroff -man
+.1.cat1:
+	$(NROFF_MAN) $< > $@
+.3.cat3:
+	$(NROFF_MAN) $< > $@
+.5.cat5:
+	$(NROFF_MAN) $< > $@
+.8.cat8:
+	$(NROFF_MAN) $< > $@
+
+dist-cat1-mans:
+	@foo='$(man1_MANS)'; \
+	bar='$(man_MANS)'; \
+	for i in $$bar; do \
+	case $$i in \
+	*.1) foo="$$foo $$i";; \
+	esac; done ;\
+	for i in $$foo; do \
+		x=`echo $$i | sed 's/\.[^.]*$$/.cat1/'`; \
+		echo "$(NROFF_MAN) $(srcdir)/$$i > $(distdir)/$$x"; \
+		$(NROFF_MAN) $(srcdir)/$$i > $(distdir)/$$x; \
+	done
+
+dist-cat3-mans:
+	@foo='$(man3_MANS)'; \
+	bar='$(man_MANS)'; \
+	for i in $$bar; do \
+	case $$i in \
+	*.3) foo="$$foo $$i";; \
+	esac; done ;\
+	for i in $$foo; do \
+		x=`echo $$i | sed 's/\.[^.]*$$/.cat3/'`; \
+		echo "$(NROFF_MAN) $(srcdir)/$$i > $(distdir)/$$x"; \
+		$(NROFF_MAN) $(srcdir)/$$i > $(distdir)/$$x; \
+	done
+
+dist-cat5-mans:
+	@foo='$(man5_MANS)'; \
+	bar='$(man_MANS)'; \
+	for i in $$bar; do \
+	case $$i in \
+	*.5) foo="$$foo $$i";; \
+	esac; done ;\
+	for i in $$foo; do \
+		x=`echo $$i | sed 's/\.[^.]*$$/.cat5/'`; \
+		echo "$(NROFF_MAN) $(srcdir)/$$i > $(distdir)/$$x"; \
+		$(NROFF_MAN) $(srcdir)/$$i > $(distdir)/$$x; \
+	done
+
+dist-cat8-mans:
+	@foo='$(man8_MANS)'; \
+	bar='$(man_MANS)'; \
+	for i in $$bar; do \
+	case $$i in \
+	*.8) foo="$$foo $$i";; \
+	esac; done ;\
+	for i in $$foo; do \
+		x=`echo $$i | sed 's/\.[^.]*$$/.cat8/'`; \
+		echo "$(NROFF_MAN) $(srcdir)/$$i > $(distdir)/$$x"; \
+		$(NROFF_MAN) $(srcdir)/$$i > $(distdir)/$$x; \
+	done
+
+dist-hook: dist-cat1-mans dist-cat3-mans dist-cat5-mans dist-cat8-mans
+
+install-cat-mans:
+	$(SHELL) $(top_srcdir)/cf/install-catman.sh "$(INSTALL_DATA)" "$(mkinstalldirs)" "$(srcdir)" "$(DESTDIR)$(mandir)" '$(CATMANEXT)' $(man_MANS) $(man1_MANS) $(man3_MANS) $(man5_MANS) $(man8_MANS)
+
+install-data-local: install-cat-mans
+
+.et.h:
+	$(COMPILE_ET) $<
+.et.c:
+	$(COMPILE_ET) $<
+
+.x.c:
+	@cmp -s $< $@ 2> /dev/null || cp $< $@
+
+check-local::
+	@foo='$(CHECK_LOCAL)'; \
+	  if test "$$foo"; then \
+	  failed=0; all=0; \
+	  for i in $$foo; do \
+	    all=`expr $$all + 1`; \
+	    if ./$$i --version > /dev/null 2>&1; then \
+	      echo "PASS: $$i"; \
+	    else \
+	      echo "FAIL: $$i"; \
+	      failed=`expr $$failed + 1`; \
+	    fi; \
+	  done; \
+	  if test "$$failed" -eq 0; then \
+	    banner="All $$all tests passed"; \
+	  else \
+	    banner="$$failed of $$all tests failed"; \
+	  fi; \
+	  dashes=`echo "$$banner" | sed s/./=/g`; \
+	  echo "$$dashes"; \
+	  echo "$$banner"; \
+	  echo "$$dashes"; \
+	  test "$$failed" -eq 0; \
+	fi
+
+# Tell versions [3.59,3.63) of GNU make to not export all variables.
+# Otherwise a system limit (for SysV at least) may be exceeded.
+.NOEXPORT:

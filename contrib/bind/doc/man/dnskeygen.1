@@ -1,0 +1,132 @@
+.\" Copyright (c) 1996,1999 by Internet Software Consortium
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
+.\" ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
+.\" CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+.\" DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+.\" PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
+.\" ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
+.\" SOFTWARE.
+.\"
+.\" $Id: dnskeygen.1,v 8.5 1999/02/23 05:20:18 vixie Exp $
+.\"
+.Dd December 2, 1998
+.Dt DNSKEYGEN @CMD_EXT_U@
+.Os BSD 4
+.Sh NAME
+.Nm dnskeygen 
+.Nd generate public, private, and shared secret keys for DNS Security
+.Sh SYNOPSIS
+.Nm dnskeygen
+.Oo Fl
+.Op Cm DHR
+.Ar size
+.Oc
+.Op Fl F
+.Fl Op Cm zhu
+.Op Cm Fl a
+.Op Cm Fl c
+.Op Cm Fl p Ar num
+.Op Cm Fl s Ar num
+.Fl n Ar name
+.Sh DESCRIPTION
+.Ic Dnskeygen
+(DNS Key Generator) is a tool to generate and maintain keys for DNS Security
+within the DNS (Domain Name System).
+.Nm Dnskeygen
+can generate public and private keys to authenticate zone data, and shared
+secret keys to be used for Request/Transaction signatures.
+.Bl -tag -width Fl
+.It Fl D
+Dnskeygen will generate a
+.Ic DSA/DSS
+key.
+.Dq size
+must be one of [512, 576, 640, 704, 768, 832, 896, 960, 1024].
+.It Fl H
+Dnskeygen will generate an
+.Ic HMAC-MD5
+key.
+.Dq size
+must be between 128 and 504.
+.It Fl R
+Dnskeygen will generate an
+.Ic RSA
+key.
+.Dq size
+must be between 512 and 4096.
+.It Fl F
+.Ic (RSA only)
+Use a large exponent for key generation.
+.It Fl z Fl h Fl u
+These flags define the type of key being generated: Zone (DNS validation) key,
+Host (host or service) key or User (e.g. email) key, respectively.
+Each key is only allowed to be one of these.
+.It Fl a 
+Indicates that the key
+.Ic CANNOT
+be used for authentication.
+.It Fl c 
+Indicates that the key
+.Ic CANNOT
+be used for encryption.
+.It Fl p Ar num
+Sets the key's protocol field to
+.Ar num
+; the default is
+.Ic 3
+(DNSSEC) if
+.Dq Fl z
+or
+.Dq Fl h
+is specified and
+.Ic 2
+(EMAIL) otherwise.  Other accepted values are
+.Ic 1
+(TLS),
+.Ic 4
+(IPSEC), and
+.Ic 255
+(ANY).
+.It Fl s Ar num
+Sets the key's strength field to
+.Ar num;
+the default is
+.Sy 0.
+.It Fl n Ar name
+Sets the key's name to
+.Ar name.
+.El
+.Ss DETAILS
+.Ic Dnskeygen
+stores each key in two files:
+.Pa K<name>+<alg>+<footprint>.private
+and 
+.Pa K<name>+<alg>+<footprint>.key
+The file 
+.Pa K<name>+<alg>+<footprint>.private
+contains the private key in a portable format.  The file 
+.Pa K<name>+<alg>+<footprint>.key
+contains the public key in the DNS zone file format:
+.Pp
+.D1 Ar <name> IN KEY <flags> <algorithm> <protocol> <exponent|modulus>
+.Pp
+.Sh ENVIRONMENT
+No environmental variables are used.
+.Sh SEE ALSO
+.Em RFC 2065
+on secure DNS and the
+.Em TSIG
+Internet Draft.
+.Sh AUTHOR
+Olafur Gudmundsson (ogud@tis.com).
+.Sh ACKNOWLEDGMENTS
+The underlying cryptographic math is done by the DNSSAFE and/or Foundation
+Toolkit libraries.
+.Sh BUGS
+None are known at this time

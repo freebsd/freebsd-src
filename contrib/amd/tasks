@@ -1,0 +1,104 @@
+# -*- text -*-
+
+			  AM-UTILS-6.0 TASKS TODO
+
+Please volunteer to do any of the following:
+
+- complete testing of untested platforms in INSTALL file
+	ncr2
+	sunos 3.5
+
+- autofs support: see README.autofs for details.
+	needs to be re-ported to solaris 2.6 (headers changed)
+
+- deal with everything that has XXX on it in the sources
+- documentation update ("XXX: FILL IN" sections).
+
+- hlfsd should be able to not use /var/alt_mail, but send code 75 back to
+  sendmail (telling it to re-queue the mail and retry later).
+
+- compatibility with Sun's automount maps?
+	should be easier via the amd.conf file to specify type of map
+	perhaps done at the same time autofs support is done.
+
+- a selector ala if_exists() for networkmask(1.2.3.4/5.6.7.8), will match
+  against all known IP addresses of this host.
+
+- convert to using my own rpcgen .x files for amq/amq/nfs (v2 and v3)
+
+- support multiple "fail-over" NFS mounts in Solaris 2.6.
+
+- use packaging info for various OSs (such as RPM, Redhat Package Format)
+
+- $mindelay and $maxdelay in milliseconds
+
+- multiple nfsl should be matched if one matched and nfs mount failed.  fall
+  through.
+- fall through syntax?  opts:=nofail,fallthrough?
+
+- random nfs rhost:={srv1, srv2, srv3}
+
+- nfslx, same as nfsl, but using linkx
+
+- find out why this sometimes works and sometimes not:
+	mcl	-rhost:=minetta host!=${rhost};type:=nfs host==${rhost}
+
+- loadable info_*, amfs_*, and ops_* modules (lazy evaluation).
+
+- hlfsd for ~root/.mailspool (getpwnam("root"))
+- hlfsd should daemonize even if -DDEBUG, then use -D nofork
+
+- fixmount should use generic code from transp/transp_{tli,sockets}.c
+
+- report netbsd/openbsd bugs in BUGS file
+
+- reverse notion of -F and other cmd-line options, so they override the
+amd.conf file (right now amd.conf overrides cmd-line options).
+
+- y2k compliance.
+
+- an un/install script for binaries
+
+- update README
+
+- add am-utils URL and COPYRIGHT to all distributed scripts and sources and
+  programs etc. also to amq -v output.
+
+- ion: browsable_dirs only works for nis if in [global] broken if it is file
+  maps.
+
+- all if statements should have an else clause because of Ultrix's /bin/sh.
+
+- look for obsolete AM_* macros and use newer AC_* ones
+- use 3rd arg to AC_CHECK_TYPE (headers)
+
+- FreeBSD 3.1 doesn't have SYMTTL flag, so the mtime of the hlfsd symlink is
+  always new.  This breaks hlfsd on FreeBSD 3.1, b/c the acregmin/max code
+  depends on the time that the symlink was created.  Solution: best is to
+  support NOAC in the FreeBSD kernel, otherwise hlfsd will have to know not
+  to turn on this code in hlfsd/stubs.c:
+
+    if (++slinkfattr.na_mtime.nt_useconds == 0)
+      ++slinkfattr.na_mtime.nt_seconds;
+
+- support nqnfs as per Jeffrey C Honig <jch@BSDI.COM>: "Besides having
+  NFSMNT_NQNFS set when you try to do the mount, NQNFS requires that you do
+  the nfssvc() call to create an nqnfs client daemon.  I can't see any
+  obvious way to check if the server supports NQNFS."
+
+- browsable 'auto' style maps.
+
+- amq man page: amq -f also reloads maps that are not updated
+
+- mention signals in amd man page
+
+- ALLOWED_MOUNT_TIME of 40 seconds is way too long!
+- need option to turn off pings of portmapper before trying a mount
+
+- type:=program should not require umount command. can use defult
+  umount(). it works for smbmount/umount.
+
+- document var[0-7] variables/selectors
+
+- need a way to export a nfs-mount point after it is being mounted (jukebox
+  mounts).  can do this with type:=program.

@@ -1,0 +1,118 @@
+.\" ++Copyright++ 1986, 1988
+.\" -
+.\" Copyright (c) 1986, 1988
+.\"    The Regents of the University of California.  All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\" 	This product includes software developed by the University of
+.\" 	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\" 
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\" -
+.\" Portions Copyright (c) 1993 by Digital Equipment Corporation.
+.\" 
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies, and that
+.\" the name of Digital Equipment Corporation not be used in advertising or
+.\" publicity pertaining to distribution of the document or software without
+.\" specific, written prior permission.
+.\" 
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND DIGITAL EQUIPMENT CORP. DISCLAIMS ALL
+.\" WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS.   IN NO EVENT SHALL DIGITAL EQUIPMENT
+.\" CORPORATION BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+.\" DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+.\" PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
+.\" ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
+.\" SOFTWARE.
+.\" -
+.\" --Copyright--
+.\"
+.\"	@(#)ucbhosts	6.3 (Berkeley) 2/8/89
+.\"
+.\" .ne 48v
+.\" .bp
+.sh 3 "Hosts"
+.(b L
+;
+;    @(#)ucb-hosts    1.2    (berkeley)    88/02/05
+;
+.TS
+l l l l l s. 
+@	IN	SOA	ucbvax\fB.\fPBerkeley\fB.\fPEdu\fB.\fP	kjd\fB.\fPmonet\fB.\fPBerkeley\fB.\fPEdu\fB.\fP (
+.T&
+l l l l l.
+			1988020501	; Serial
+			10800	; Refresh
+			1800	; Retry
+			3600000	; Expire
+			259200 )	; Minimum
+.T&
+l l l l s.
+	IN	NS	ucbarpa\fB.\fPBerkeley\fB.\fPEdu\fB.\fP
+	IN	NS	ucbvax\fB.\fPBerkeley\fB.\fPEdu\fB.\fP
+localhost	IN	A	127\fB.\fP1
+			; note that 127.1 is the same as 127.0.0.1; see inet(3n)
+ucbarpa	IN	A	128\fB.\fP32\fB.\fP4
+	IN	A	10\fB.\fP0\fB.\fP0\fB.\fP78
+	IN	HINFO	VAX-11/780 UNIX
+arpa	IN	CNAME	ucbarpa
+ernie	IN	A	128\fB.\fP32\fB.\fP6
+	IN	HINFO	VAX-11/780 UNIX
+ucbernie	IN	CNAME	ernie
+monet	IN	A	128\fB.\fP32\fB.\fP7
+	IN	A	128\fB.\fP32\fB.\fP130\fB.\fP6
+	IN	HINFO	VAX-11/750 UNIX
+ucbmonet	IN	CNAME	monet
+ucbvax	IN	A	10\fB.\fP2\fB.\fP0\fB.\fP78
+			; 128.32.10 means 128.32.0.10; see inet(3n)
+	IN	A	128\fB.\fP32\fB.\fP10
+			; HINFO and WKS are widely unused,
+			; but we'll show them as examples.
+	IN	HINFO	VAX-11/750 UNIX
+	IN	WKS	128.32.0.10 TCP ( echo telnet
+			discard sunrpc sftp
+			uucp-path systat daytime
+			netstat qotd nntp
+			link chargen ftp
+			auth time whhois mtp
+			pop rje finger smtp
+			supdup hostnames
+			domain
+			nameserver )
+vax	IN	CNAME	ucbvax
+toybox	IN	A	128\fB.\fP32\fB.\fP131\fB.\fP119
+	IN	HINFO	Pro350 RT11
+toybox	IN	MX	0  monet.Berkeley.Edu.
+csrg	IN	MX	0 Ralph.CS
+	IN	MX	0 Zhou.CS
+	IN	MX	0 Painter.CS
+	IN	MX	0 Riggle.CS
+	IN	MX	0 Terry.CS
+	IN	MX	0 Kevin.CS
+.TE
+.)b
+.\" .bp

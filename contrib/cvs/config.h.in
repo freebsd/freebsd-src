@@ -1,0 +1,333 @@
+/* config.h.in.  Generated automatically from configure.in by autoheader.  */
+
+/* Define if on AIX 3.
+   System headers sometimes define this.
+   We just want to avoid a redefinition error message.  */
+#ifndef _ALL_SOURCE
+#undef _ALL_SOURCE
+#endif
+
+/* Define if the closedir function returns void instead of int.  */
+#undef CLOSEDIR_VOID
+
+/* Define to empty if the keyword does not work.  */
+#undef const
+
+/* Define to `int' if <sys/types.h> doesn't define.  */
+#undef gid_t
+
+/* Define if your system has a working fnmatch function.  */
+#undef HAVE_FNMATCH
+
+/* Define if you support file names longer than 14 characters.  */
+#undef HAVE_LONG_FILE_NAMES
+
+/* Define if your struct stat has st_blksize.  */
+#undef HAVE_ST_BLKSIZE
+
+/* Define if your struct stat has st_rdev.  */
+#undef HAVE_ST_RDEV
+
+/* Define if you have <sys/wait.h> that is POSIX.1 compatible.  */
+#undef HAVE_SYS_WAIT_H
+
+/* Define if utime(file, NULL) sets file's timestamp to the present.  */
+#undef HAVE_UTIME_NULL
+
+/* Define if you have <vfork.h>.  */
+#undef HAVE_VFORK_H
+
+/* Define if on MINIX.  */
+#undef _MINIX
+
+/* Define to `int' if <sys/types.h> doesn't define.  */
+#undef mode_t
+
+/* Define to `int' if <sys/types.h> doesn't define.  */
+#undef pid_t
+
+/* Define if the system does not provide POSIX.1 features except
+   with this defined.  */
+#undef _POSIX_1_SOURCE
+
+/* Define if you need to in order for stat and other things to work.  */
+#undef _POSIX_SOURCE
+
+/* Define as the return type of signal handlers (int or void).  */
+#undef RETSIGTYPE
+
+/* Define to `unsigned' if <sys/types.h> doesn't define.  */
+#undef size_t
+
+/* Define if the `S_IS*' macros in <sys/stat.h> do not work properly.  */
+#undef STAT_MACROS_BROKEN
+
+/* Define if you have the ANSI C header files.  */
+#undef STDC_HEADERS
+
+/* Define if you can safely include both <sys/time.h> and <time.h>.  */
+#undef TIME_WITH_SYS_TIME
+
+/* Define to `int' if <sys/types.h> doesn't define.  */
+#undef uid_t
+
+/* Define vfork as fork if vfork does not work.  */
+#undef vfork
+
+/* Define if you have MIT Kerberos version 4 available.  */
+#undef HAVE_KERBEROS
+
+/* Define if you want CVS to be able to be a remote repository client.  */
+#undef CLIENT_SUPPORT
+
+/* Define if you want CVS to be able to serve repositories to remote
+   clients.  */
+#undef SERVER_SUPPORT
+
+/* Define if you want to use the password authenticated server.  */
+#undef AUTH_SERVER_SUPPORT
+
+/* Define if you want encryption support.  */
+#undef ENCRYPTION
+
+/* Define if you have the connect function.  */
+#undef HAVE_CONNECT
+
+/* Define if you have memchr (always for CVS).  */
+#undef HAVE_MEMCHR
+
+/* Define if you have strchr (always for CVS).  */
+#undef HAVE_STRCHR
+
+/* Define if utime requires write access to the file (true on Windows,
+   but not Unix).  */
+#undef UTIME_EXPECTS_WRITABLE
+
+/* Define if setmode is required when writing binary data to stdout.  */
+#undef USE_SETMODE_STDOUT
+
+/* Define if the diff library should use setmode for binary files.
+   FIXME: Why two different macros for setmode?  */
+#undef HAVE_SETMODE
+
+/* Define if you have the crypt function.  */
+#undef HAVE_CRYPT
+
+/* Define if you have the getspnam function.  */
+#undef HAVE_GETSPNAM
+
+/* Define to force lib/regex.c to use malloc instead of alloca.  */
+#undef REGEX_MALLOC
+
+/* Define to force lib/regex.c to define re_comp et al.  */
+#undef _REGEX_RE_COMP
+
+/* Define if you have the dup2 function.  */
+#undef HAVE_DUP2
+
+/* Define if you have the fchdir function.  */
+#undef HAVE_FCHDIR
+
+/* Define if you have the fchmod function.  */
+#undef HAVE_FCHMOD
+
+/* Define if you have the fsync function.  */
+#undef HAVE_FSYNC
+
+/* Define if you have the ftime function.  */
+#undef HAVE_FTIME
+
+/* Define if you have the ftruncate function.  */
+#undef HAVE_FTRUNCATE
+
+/* Define if you have the getgroups function.  */
+#undef HAVE_GETGROUPS
+
+/* Define if you have the getpagesize function.  */
+#undef HAVE_GETPAGESIZE
+
+/* Define if you have the getpassphrase function.  */
+#undef HAVE_GETPASSPHRASE
+
+/* Define if you have the gettimeofday function.  */
+#undef HAVE_GETTIMEOFDAY
+
+/* Define if you have the initgroups function.  */
+#undef HAVE_INITGROUPS
+
+/* Define if you have the krb_get_err_text function.  */
+#undef HAVE_KRB_GET_ERR_TEXT
+
+/* Define if you have the memmove function.  */
+#undef HAVE_MEMMOVE
+
+/* Define if you have the mkdir function.  */
+#undef HAVE_MKDIR
+
+/* Define if you have the mknod function.  */
+#undef HAVE_MKNOD
+
+/* Define if you have the mkstemp function.  */
+#undef HAVE_MKSTEMP
+
+/* Define if you have the mktemp function.  */
+#undef HAVE_MKTEMP
+
+/* Define if you have the nanosleep function.  */
+#undef HAVE_NANOSLEEP
+
+/* Define if you have the putenv function.  */
+#undef HAVE_PUTENV
+
+/* Define if you have the readlink function.  */
+#undef HAVE_READLINK
+
+/* Define if you have the rename function.  */
+#undef HAVE_RENAME
+
+/* Define if you have the select function.  */
+#undef HAVE_SELECT
+
+/* Define if you have the sigaction function.  */
+#undef HAVE_SIGACTION
+
+/* Define if you have the sigblock function.  */
+#undef HAVE_SIGBLOCK
+
+/* Define if you have the sigprocmask function.  */
+#undef HAVE_SIGPROCMASK
+
+/* Define if you have the sigsetmask function.  */
+#undef HAVE_SIGSETMASK
+
+/* Define if you have the sigvec function.  */
+#undef HAVE_SIGVEC
+
+/* Define if you have the strerror function.  */
+#undef HAVE_STRERROR
+
+/* Define if you have the strstr function.  */
+#undef HAVE_STRSTR
+
+/* Define if you have the strtoul function.  */
+#undef HAVE_STRTOUL
+
+/* Define if you have the tempnam function.  */
+#undef HAVE_TEMPNAM
+
+/* Define if you have the timezone function.  */
+#undef HAVE_TIMEZONE
+
+/* Define if you have the tzset function.  */
+#undef HAVE_TZSET
+
+/* Define if you have the usleep function.  */
+#undef HAVE_USLEEP
+
+/* Define if you have the valloc function.  */
+#undef HAVE_VALLOC
+
+/* Define if you have the vprintf function.  */
+#undef HAVE_VPRINTF
+
+/* Define if you have the wait3 function.  */
+#undef HAVE_WAIT3
+
+/* Define if you have the waitpid function.  */
+#undef HAVE_WAITPID
+
+/* Define if you have the <direct.h> header file.  */
+#undef HAVE_DIRECT_H
+
+/* Define if you have the <dirent.h> header file.  */
+#undef HAVE_DIRENT_H
+
+/* Define if you have the <errno.h> header file.  */
+#undef HAVE_ERRNO_H
+
+/* Define if you have the <fcntl.h> header file.  */
+#undef HAVE_FCNTL_H
+
+/* Define if you have the <gssapi.h> header file.  */
+#undef HAVE_GSSAPI_H
+
+/* Define if you have the <gssapi/gssapi.h> header file.  */
+#undef HAVE_GSSAPI_GSSAPI_H
+
+/* Define if you have the <gssapi/gssapi_generic.h> header file.  */
+#undef HAVE_GSSAPI_GSSAPI_GENERIC_H
+
+/* Define if you have the <io.h> header file.  */
+#undef HAVE_IO_H
+
+/* Define if you have the <krb5.h> header file.  */
+#undef HAVE_KRB5_H
+
+/* Define if you have the <limits.h> header file.  */
+#undef HAVE_LIMITS_H
+
+/* Define if you have the <memory.h> header file.  */
+#undef HAVE_MEMORY_H
+
+/* Define if you have the <ndbm.h> header file.  */
+#undef HAVE_NDBM_H
+
+/* Define if you have the <ndir.h> header file.  */
+#undef HAVE_NDIR_H
+
+/* Define if you have the <string.h> header file.  */
+#undef HAVE_STRING_H
+
+/* Define if you have the <sys/bsdtypes.h> header file.  */
+#undef HAVE_SYS_BSDTYPES_H
+
+/* Define if you have the <sys/dir.h> header file.  */
+#undef HAVE_SYS_DIR_H
+
+/* Define if you have the <sys/file.h> header file.  */
+#undef HAVE_SYS_FILE_H
+
+/* Define if you have the <sys/ndir.h> header file.  */
+#undef HAVE_SYS_NDIR_H
+
+/* Define if you have the <sys/param.h> header file.  */
+#undef HAVE_SYS_PARAM_H
+
+/* Define if you have the <sys/resource.h> header file.  */
+#undef HAVE_SYS_RESOURCE_H
+
+/* Define if you have the <sys/select.h> header file.  */
+#undef HAVE_SYS_SELECT_H
+
+/* Define if you have the <sys/time.h> header file.  */
+#undef HAVE_SYS_TIME_H
+
+/* Define if you have the <sys/timeb.h> header file.  */
+#undef HAVE_SYS_TIMEB_H
+
+/* Define if you have the <syslog.h> header file.  */
+#undef HAVE_SYSLOG_H
+
+/* Define if you have the <unistd.h> header file.  */
+#undef HAVE_UNISTD_H
+
+/* Define if you have the <utime.h> header file.  */
+#undef HAVE_UTIME_H
+
+/* Name of package */
+#undef PACKAGE
+
+/* Version number of package */
+#undef VERSION
+
+/* Path to the pr utility */
+#undef PR_PROGRAM
+
+/* Define if you have GSSAPI with Kerberos version 5 available. */
+#undef HAVE_GSSAPI
+
+/* Define to an alternative value if GSS_C_NT_HOSTBASED_SERVICE isn't defined
+in the gssapi.h header file.  MIT Kerberos 1.2.1 requires this.  Only relevant
+when using GSSAPI. */
+#undef GSS_C_NT_HOSTBASED_SERVICE
+

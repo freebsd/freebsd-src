@@ -1,0 +1,149 @@
+.\"/* Copyright 1988,1990,1993 by Paul Vixie
+.\" * All rights reserved
+.\" *
+.\" * Distribute freely, except: don't remove my name from the source or
+.\" * documentation (don't take credit for my work), mark your changes (don't
+.\" * get me blamed for your possible bugs), don't alter or remove this
+.\" * notice.  May be sold if buildable source is provided to buyer.  No
+.\" * warrantee of any kind, express or implied, is included with this
+.\" * software; use at your own risk, responsibility for damages (if any) to
+.\" * anyone resulting from the use of this software rests entirely with the
+.\" * user.
+.\" *
+.\" * Send bug reports, bug fixes, enhancements, requests, flames, etc., and
+.\" * I'll try to keep a version up to date.  I can be reached as follows:
+.\" * Paul Vixie          <paul@vix.com>          uunet!decwrl!vixie!paul
+.\" */
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 20, 1993
+.Dt CRON 8
+.Os
+.Sh NAME
+.Nm cron
+.Nd daemon to execute scheduled commands (Vixie Cron)
+.Sh SYNOPSIS
+.Nm
+.Op Fl s
+.Op Fl o
+.Op Fl x Ar debugflag Ns Op , Ns Ar ...
+.Sh DESCRIPTION
+.Nm Cron
+should be started from
+.Pa /etc/rc
+or
+.Pa /etc/rc.local .
+It will return immediately,
+so you don't need to start it with '&'.
+.Pp
+.Nm Cron
+searches
+.Pa /var/cron/tabs
+for crontab files which are named after accounts in
+.Pa /etc/passwd ;
+crontabs found are loaded into memory.
+.Nm Cron
+also searches for
+.Pa /etc/crontab
+which is in a different format (see
+.Xr crontab 5 ) .
+.Nm Cron
+then wakes up every minute, examining all stored crontabs, checking each
+command to see if it should be run in the current minute.  When executing
+commands, any output is mailed to the owner of the crontab (or to the user
+named in the
+.Ev MAILTO
+environment variable in the crontab, if such exists).
+.Pp
+Additionally,
+.Nm
+checks each minute to see if its spool directory's modtime (or the modtime
+on
+.Pa /etc/crontab )
+has changed, and if it has,
+.Nm
+will then examine the modtime on all crontabs and reload those which have
+changed.  Thus
+.Nm
+need not be restarted whenever a crontab file is modified.  Note that the
+.Xr crontab 1
+command updates the modtime of the spool directory whenever it changes a
+crontab.
+.Pp
+Available options:
+.Bl -tag -width indent
+.It Fl s
+Enable special handling of situations when the GMT offset of the local
+timezone changes, such as the switches between the standard time and
+daylight saving time.
+.Pp
+The jobs run during the GMT offset changes time as
+intuitively expected.
+If a job falls into a time interval that disappears
+(for example, during the switch from
+standard time) to daylight saving time or is
+duplicated (for example, during the reverse switch), then it's handled
+in one of two ways:
+.Pp
+The first case is for the jobs that run every at hour of a time interval
+overlapping with the disappearing or duplicated interval.
+In other words, if the job had run within one hour before the GMT offset change
+(and cron was not restarted nor the
+.Xr crontab 5
+changed after that)
+or would run after the change at the next hour.
+They work as always, skip the skipped time or run in the added
+time as usual.
+.Pp
+The second case is for the jobs that run less frequently.
+They are executed exactly once, they are not skipped nor
+executed twice (unless cron is restarted or the user's
+.Xr crontab 5
+is changed during such a time interval).
+If an interval disappears
+due to the GMT offset change, such jobs are
+executed at the same absolute point of time as they would be in the
+old time zone.
+For example, if exactly one hour disappears, this
+point would be during the next hour at the first minute that is
+specified for them in
+.Xr crontab 5 .
+.It Fl o
+Disable the special handling of situations when the GMT offset of the local
+timezone changes, to be compatible with the old (default) behavior.
+If both options
+.Fl o
+and
+.Fl s
+are specified, the option specified last wins.
+.It Fl x Ar debugflag Ns Op , Ns Ar ...
+Enable writing of debugging information to standard output.
+One or more of the following comma separated
+.Ar debugflag
+identifiers must be specified:
+.Pp
+.Bl -tag -width ".Cm proc" -compact
+.It Cm bit
+currently not used
+.It Cm ext
+make the other debug flags more verbose
+.It Cm load
+be verbose when loading crontab files
+.It Cm misc
+be verbose about miscellaneous one-off events
+.It Cm pars
+be verbose about parsing individual crontab lines
+.It Cm proc
+be verbose about the state of the process, including all of its offspring
+.It Cm sch
+be verbose when iterating through the scheduling algorithms
+.It Cm test
+trace through the execution, but do not perform any actions
+.El
+.El
+.Sh SEE ALSO
+.Xr crontab 1 ,
+.Xr crontab 5
+.Sh AUTHORS
+.An Paul Vixie Aq paul@vix.com

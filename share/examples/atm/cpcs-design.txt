@@ -1,0 +1,84 @@
+
+	CPCS Design
+	===========
+
+SAP_CPCS Interface
+------------------
+This is the stack SAP interface between an AAL CPCS provider and an AAL CPCS
+user.  The stack commands defined for this interface are modeled after the 
+AAL3/4 and AAL5 protocol specification primitives CPCS-xxx.  See the protocol 
+specification documents referenced below for full descriptions of the CPCS 
+interface.
+
+
+o The following stack commands are sent from a CPCS user to the CPCS provider:
+
+Stack Command:	CPCS_INIT
+Description:	Initialize a SAP instance.  This should be the first stack
+		command issued across the SAP instance after the service stack 
+		has been successfully instantiated.
+Argument 1:	Not used.
+Argument 2:	Not used.
+
+
+Stack Command:	CPCS_TERM
+Description:	Terminate a SAP instance.  This must be the last stack command
+		issued across the SAP instance.  The stack instance will be
+		deleted upon completion of this command.
+Argument 1:	Not used.
+Argument 2:	Not used.
+
+
+Stack Command:	CPCS_UNITDATA_INV
+Description:	Request that an SDU be sent to the remote AAL user.
+Argument 1:	Pointer to an mbuf chain containing the user SDU.
+		(struct mbuf *)
+Argument 2:	Not used.
+
+
+Stack Command:	CPCS_UABORT_INV
+Description:	Not supported.
+Argument 1:	N/A
+Argument 2:	N/A
+
+
+o The following stack commands are sent from the CPCS provider to a CPCS user:
+
+Stack Command:	CPCS_UNITDATA_SIG
+Description:	Indication that an SDU has been received from the remote AAL 
+		user.
+Argument 1:	Pointer to an mbuf chain containing the peer's SDU.
+		(struct mbuf *)
+Argument 2:	Not used.
+
+
+Stack Command:	CPCS_UABORT_SIG
+Description:	Not supported.
+Argument 1:	N/A
+Argument 2:	N/A
+
+
+Stack Command:	CPCS_PABORT_SIG
+Description:	Not supported.
+Argument 1:	N/A
+Argument 2:	N/A
+
+
+
+Protocol Specifications
+-----------------------
+See I.363.
+
+
+
+Implementation Limitations
+--------------------------
+o The CPCS-LP, CPCS-CI and CPCS-UU parameters are not supported.
+
+o The Streaming Mode service is not supported.
+
+o The Abort service is not supported.
+
+
+	@(#) $FreeBSD$
+

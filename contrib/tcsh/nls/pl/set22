@@ -1,0 +1,17 @@
+$ $Id: set22,v 1.2 1995/03/19 18:07:15 christos Exp $
+$ tc.func.c
+$set 22 
+1 %S: \t jest aliasem do 
+2 \nNieprawid³owe has³o dla %s\n
+3 Faulty alias 'precmd' removed.\n
+4 Faulty alias 'cwdcmd' removed.\n
+5 Faulty alias 'beepcmd' removed.\n
+6 Faulty alias 'periodic' removed.\n
+7 przetwarzam liniê poleceñ\n
+8 Czy na pewno chcesz usun±æ wszystkie pliki? [n/t] 
+9 pomijam kasowanie plików!\n
+10 lini± poleceñ jest teraz:\n
+11 przetwarzam liniê poleceñ\n
+12 w jednej z list\n
+13 lini± poleceñ jest teraz:\n
+14 tT

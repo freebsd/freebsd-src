@@ -1,0 +1,2091 @@
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 13, 2000
+.Dt NTP.CONF 5
+.Os
+.Sh NAME
+.Nm ntp.conf
+.Nd Network Time Protocol (NTP) daemon configuration file
+.Sh SYNOPSIS
+.Nm /etc/ntp.conf
+.Sh DESCRIPTION
+The
+.Nm
+configuration file is read at initial startup by the
+.Xr ntpd 8
+daemon in order to specify the synchronization sources,
+modes and other related information.
+Usually, it is installed in the
+.Pa /etc
+directory,
+but could be installed elsewhere
+(see the daemon's
+.Fl c
+command line option).
+.Pp
+The file format is similar to other
+.Ux
+configuration files.
+Comments begin with a
+.Ql #
+character and extend to the end of the line;
+blank lines are ignored.
+Configuration commands consist of an initial keyword
+followed by a list of arguments,
+some of which may be optional, separated by whitespace.
+Commands may not be continued over multiple lines.
+Arguments may be host names,
+host addresses written in numeric, dotted-quad form,
+integers, floating point numbers (when specifying times in seconds)
+and text strings.
+.Pp
+The rest of this page describes the configuration and control options.
+The
+.Qq "Notes on Configuring NTP and Setting up a NTP Subnet"
+page
+(available as part of the HTML documentation
+provided in
+.Pa /usr/share/doc/ntp )
+contains an extended discussion of these options.
+In addition to the discussion of general
+.Sx Configuration Options ,
+there are sections describing the following supported functionality
+and the options used to control it:
+.Bl -bullet -offset indent
+.It
+.Sx Authentication Support
+.It
+.Sx Monitoring Support
+.It
+.Sx Access Control Support
+.It
+.Sx Reference Clock Support
+.El
+.Pp
+Following these is a section describing
+.Sx Miscellaneous Options .
+While there is a rich set of options available,
+the only required option is one or more
+.Ic server ,
+.Ic peer ,
+.Ic broadcast
+or
+.Ic manycastclient
+commands.
+.Sh Configuration Support
+Following is a description of the configuration commands in
+NTPv4.
+These commands have the same basic functions as in NTPv3 and
+in some cases new functions and new arguments.
+There are two
+classes of commands, configuration commands that configure a
+persistent association with a remote server or peer or reference
+clock, and auxilliary commands that specify environmental variables
+that control various related operations.
+.Ss Configuration Commands
+The various modes are determined by the command keyword and the
+type of the required IP address.
+Addresses are classed by type as
+(s) a remote server or peer (IP class A, B and C), (b) the
+broadcast address of a local interface, (m) a multicast address (IP
+class D), or (r) a reference clock address (127.127.x.x).
+Note that
+only those options applicable to each command are listed below.
+Use
+of options not listed may not be caught as an error, but may result
+in some weird and even destructive behavior.
+.Bl -tag -width indent
+.It Xo Ic server Ar address
+.Op Cm key Ar key \&| Cm autokey
+.Op Cm burst
+.Op Cm iburst
+.Op Cm version Ar version
+.Op Cm prefer
+.Op Cm minpoll Ar minpoll
+.Op Cm maxpoll Ar maxpoll
+.Xc
+.It Xo Ic peer Ar address
+.Op Cm key Ar key \&| Cm autokey
+.Op Cm version Ar version
+.Op Cm prefer
+.Op Cm minpoll Ar minpoll
+.Op Cm maxpoll Ar maxpoll
+.Xc
+.It Xo Ic broadcast Ar address
+.Op Cm key Ar key \&| Cm autokey
+.Op Cm version Ar version
+.Op Cm prefer
+.Op Cm minpoll Ar minpoll
+.Op Cm ttl Ar ttl
+.Xc
+.It Xo Ic manycastclient Ar address
+.Op Cm key Ar key \&| Cm autokey
+.Op Cm version Ar version
+.Op Cm prefer
+.Op Cm minpoll Ar minpoll
+.Op Cm maxpoll Ar maxpoll
+.Op Cm ttl Ar ttl
+.Xc
+.El
+.Pp
+These four commands specify the time server name or address to
+be used and the mode in which to operate.
+The
+.Ar address
+can be
+either a DNS name or a IP address in dotted-quad notation.
+Additional information on association behavior can be found in the
+.Qq "Association Management"
+page.
+.Bl -tag -width indent
+.It Ic server
+For type s and r addresses, this command mobilizes a persistent
+client mode association with the specified remote server or local
+radio clock.
+In this mode the local clock can synchronized to the
+remote server, but the remote server can never be synchronized to
+the local clock.
+This command should
+.Em not
+be used for type
+b or m addresses.
+.It Ic peer
+For type s addresses (only), this command mobilizes a
+persistent symmetric-active mode association with the specified
+remote peer.
+In this mode the local clock can be synchronized to
+the remote peer or the remote peer can be synchronized to the local
+clock.
+This is useful in a network of servers where, depending on
+various failure scenarios, either the local or remote peer may be
+the better source of time.
+This command should NOT be used for type
+b, m or r addresses.
+.It Ic broadcast
+For type b and m addresses (only), this
+command mobilizes a persistent broadcast mode association.
+Multiple
+commands can be used to specify multiple local broadcast interfaces
+(subnets) and/or multiple multicast groups.
+Note that local
+broadcast messages go only to the interface associated with the
+subnet specified, but multicast messages go to all interfaces.
+In broadcast mode the local server sends periodic broadcast
+messages to a client population at the <i><tt>address</tt></i>
+specified, which is usually the broadcast address on (one of) the
+local network(s) or a multicast address assigned to NTP.
+The IANA
+has assigned the multicast group address 224.0.1.1 exclusively to
+NTP, but other nonconflicting addresses can be used to contain the
+messages within administrative boundaries.
+Ordinarily, this
+specification applies only to the local server operating as a
+sender; for operation as a broadcast client, see the
+.Ic broadcastclient
+or
+.Ic multicastclient
+commands
+below.
+.It Ic manycastclient
+For type m addresses (only), this command mobilizes a
+manycast client mode association for the multicast address
+specified.
+In this case a specific address must be supplied which
+matches the address used on the
+.Ic manycastserver
+command for
+the designated manycast servers.
+The NTP multicast address
+224.0.1.1 assigned by the IANA should NOT be used, unless specific
+means are taken to avoid spraying large areas of the Internet with
+these messages and causing a possibly massive implosion of replies
+at the sender.
+The
+.Ic manycastserver
+command specifies that the local server
+is to operate in client mode with the remote servers that are
+discovered as the result of broadcast/multicast messages.
+The
+client broadcasts a request message to the group address associated
+with the specified
+.Ar address
+and specifically enabled
+servers respond to these messages.
+The client selects the servers
+providing the best time and continues as with the
+.Ic server
+command.
+The remaining servers are discarded as if never
+heard.
+.El
+.Pp
+Options:
+.Bl -tag -width indent
+.It Cm autokey
+All packets sent to and received from the server or peer are to
+include authentication fields encrypted using the autokey scheme
+described in
+.Sx Authentication Options .
+.It Cm burst
+when the server is reachable and at each poll interval, send a
+burst of eight packets instead of the usual one packet.
+The spacing
+between the first and the second packets is about 16s to allow a
+modem call to complete, while the spacing between the remaining
+packets is about 2s.
+This is designed to improve timekeeping
+quality with the
+.Ic server
+command and s
+addresses.
+.It Cm iburst
+When the server is unreachable and at each poll interval, send
+a burst of eight packets instead of the usual one.
+As long as the
+server is unreachable, the spacing between packets is about 16s to
+allow a modem call to complete.
+Once the server is reachable, the
+spacing between packets is about 2s.
+This is designed to speed the
+initial synchronization acquisition with the
+.Ic server
+command and s addresses and when
+.Nm
+is started
+with the
+.Fl q
+option.
+.It Cm key Ar key
+All packets sent to and received from the server or peer are to
+include authentication fields encrypted using the specified
+.Ar key
+identifier with values from 1 to 65534, inclusive.
+The
+default is to include no encryption field.
+.It Cm minpoll Ar minpoll
+.It Cm maxpoll Ar maxpoll
+These options specify the minimum and maximum poll intervals
+for NTP messages, in seconds to the power of two.
+The maximum poll
+interval defaults to 10 (1,024 s), but can be increased by the
+.Cm maxpoll
+option to an upper limit of 17 (36.4 h).
+The
+minimum poll interval defaults to 6 (64 s), but can be decreased by
+the
+.Cm minpoll
+option to a lower limit of 4 (16 s).
+.It Cm prefer
+Marks the server as preferred.
+All other things being equal,
+this host will be chosen for synchronization among a set of
+correctly operating hosts.
+See the
+.Qq "Mitigation Rules and the prefer Keyword"
+page for further
+information.
+.It Cm ttl Ar ttl
+This option is used only with broadcast server and manycast
+client modes.
+It specifies the time-to-live
+.Cm ttl
+to
+use on broadcast server and multicast server and the maximum
+.Cm ttl
+for the expanding ring search with manycast
+client packets.
+Selection of the proper value, which defaults to
+127, is something of a black art and should be coordinated with the
+network administrator.
+.It Cm version Ar version
+Specifies the version number to be used for outgoing NTP
+packets.
+Versions 1-4 are the choices, with version 4 the
+default.
+.El
+.Ss Auxilliary Commands
+.Bl -tag -width indent
+.It Ic broadcastclient
+This command enables reception of broadcast server messages to
+any local interface (type b) address.
+Upon receiving a message for
+the first time, the broadcast client measures the nominal server
+propagation delay using a brief client/server exchange with the
+server, then enters the broadcast client mode, in which it
+synchronizes to succeeding broadcast messages.
+Note that, in order
+to avoid accidental or malicious disruption in this mode, both the
+server and client should operate using symmetric-key or public-key
+authentication as described in
+.Sx Authentication Options .
+.It Ic manycastserver Ar address ...
+This command enables reception of manycast client messages to
+the multicast group address(es) (type m) specified.
+At least one
+address is required, but The NTP multicast address 224.0.1.1
+assigned by the IANA should NOT be used, unless specific means are
+taken to limit the span of the reply and avoid a possibly massive
+implosion at the original sender.
+Note that, in order to avoid
+accidental or malicious disruption in this mode, both the server
+and client should operate using symmetric-key or public-key
+authentication as described in
+.Sx Authentication Options .
+.It Ic multicastclient Ar address ...
+This command enables reception of multicast server messages to
+the multicast group address(es) (type m) specified.
+Upon receiving
+a message for the first time, the multicast client measures the
+nominal server propagation delay using a brief client/server
+exchange with the server, then enters the broadcast client mode, in
+which it synchronizes to succeeding multicast messages.
+Note that,
+in order to avoid accidental or malicious disruption in this mode,
+both the server and client should operate using symmetric-key or
+public-key authentication as described in
+.Sx Authentication Options .
+.El
+.Sh Authentication Support
+Authentication support allows the NTP client to verify that the
+server is in fact known and trusted and not an intruder intending
+accidentally or on purpose to masquerade as that server.
+The NTPv3
+specification RFC-1305 defines an scheme which provides
+cryptographic authentication of received NTP packets.
+Originally,
+this was done using the Data Encryption Standard (DES) algorithm
+operating in Cipher Block Chaining (CBC) mode, commonly called
+DES-CBC.
+Subsequently, this was augmented by the RSA Message Digest
+5 (MD5) algorithm using a private key, commonly called keyed-MD5.
+Either algorithm computes a message digest, or one-way hash, which
+can be used to verify the server has the correct private key and
+key identifier.
+.Pp
+NTPv4 retains the NTPv3 schemes, properly described as
+symmetric-key cryptography and, in addition, provides a new Autokey
+scheme based on public-key cryptography.
+Public-key cryptography is
+generally considered more secure than symmetric-key cryptography,
+since the security is based on a private value which is generated
+by each server and never revealed.
+With Autokey all key
+distribution and management functions involve only public values,
+which considerably simplifies key distribution and storage.
+.Pp
+Authentication is configured separately for each association
+using the
+.Cm key
+or
+.Cm autokey
+subcommands on the
+.Ic peer  ,
+.Ic server  ,
+.Ic broadcast
+and
+.Ic manycastclient
+commands as described in
+.Sx Configuration Options .
+The authentication
+options described below specify the suite of keys, select the key
+for each configured association and manage the configuration
+operations.
+.Pp
+The
+.Cm auth
+flag controls whether new associations or
+remote configuration commands require cryptographic authentication.
+This flag can be set or reset by the
+.Ic enable
+and
+.Ic disable
+configuration commands and also by remote
+configuration commands sent by a
+.Xr ntpdc 8
+program running in
+another machine.
+If this flag is enabled, which is the default
+case, new broadcast client and symmetric passive associations and
+remote configuration commands must be cryptographically
+authenticated using either symmetric-key or public-key schemes.
+If
+this flag is disabled, these operations are effective even if not
+cryptographic authenticated.
+It should be understood that operating
+in the latter mode invites a significant vulnerability where a
+rogue hacker can seriously disrupt client timekeeping.
+.Pp
+In networks with firewalls and large numbers of broadcast
+clients it may be acceptable to disable authentication, since that
+avoids key distribution and simplifies network maintenance.
+However, when the configuration file contains host names, or when a
+server or client is configured remotely, host names are resolved
+using the DNS and a separate name resolution process.
+In order to
+protect against bogus name server messages, name resolution
+messages are authenticated using an internally generated key which
+is normally invisible to the user.
+However, if cryptographic
+support is disabled, the name resolution process will fail.
+This
+can be avoided either by specifying IP addresses instead of host
+names, which is generally inadvisable, or by enabling the flag for
+name resolution and disabled it once the name resolution process is
+complete.
+.Pp
+An attractive alternative where multicast support is available
+is manycast mode, in which clients periodically troll for servers.
+Cryptographic authentication in this mode uses public-key schemes
+as described below.
+The principle advantage of this manycast mode
+is that potential servers need not be configured in advance, since
+the client finds them during regular operation, and the
+configuration files for all clients can be identical.
+.Pp
+In addition to the default symmetric-key cryptographic support,
+support for public-key cryptography is available if the requisite
+.Sy rsaref20
+software distribution has been installed before
+building the distribution.
+Public-key cryptography provides secure
+authentication of servers without compromising accuracy and
+stability.
+The security model and protocol schemes for both
+symmetric-key and public-key cryptography are described below.
+.Ss Symmetric-Key Scheme
+The original RFC-1305 specification allows any one of possibly
+65,534 keys, each distinguished by a 32-bit key identifier, to
+authenticate an association.
+The servers and clients involved must
+agree on the key and key identifier to authenticate their messages.
+Keys and related information are specified in a key file, usually
+called
+.Pa ntp.keys  ,
+which should be exchanged and stored
+using secure procedures beyond the scope of the NTP protocol
+itself.
+Besides the keys used for ordinary NTP associations,
+additional keys can be used as passwords for the
+.Xr ntpq 8
+and
+.Xr ntpdc 8
+utility programs.
+.Pp
+When
+.Xr ntpd 8
+is first started, it reads the key file
+specified in the
+.Ic keys
+command and installs the keys in the
+key cache.
+However, the keys must be activated with the
+.Ic trusted
+command before use.
+This allows, for instance, the
+installation of possibly several batches of keys and then
+activating or deactivating each batch remotely using
+.Xr ntpdc 8  .
+This also provides a revocation capability that can
+be used if a key becomes compromised.
+The
+.Ic requestkey
+command selects the key used as the password for the
+.Xr ntpdc 8
+utility, while the
+.Ic controlkey
+command selects the key used
+as the password for the
+.Xr ntpq 8
+utility.
+.Ss Public-Key Scheme
+The original NTPv3 authentication scheme described in RFC-1305
+continues to be supported; however, in NTPv4 an additional
+authentication scheme called Autokey is available.
+It uses MD5
+message digest, RSA public-key signature and Diffie-Hellman key
+agreement algorithms available from several sources, but not
+included in the NTPv4 software distribution.
+In order to be
+effective, the
+.Sy rsaref20
+package must be installed as
+described in the
+.Pa README.rsa
+file.
+Once installed, the
+configure and build process automatically detects it and compiles
+the routines required.
+The Autokey scheme has several modes of
+operation corresponding to the various NTP modes supported.
+RSA
+signatures with timestamps are used in all modes to verify the
+source of cryptographic values.
+All modes use a special cookie
+which can be computed independently by the client and server.
+In
+symmetric modes the cookie is constructed using the Diffie-Hellman
+key agreement algorithm.
+In other modes the cookie is constructed
+from the IP addresses and a private value known only to the server.
+All modes use in addition a variant of the S-KEY scheme, in which a
+pseudo-random key list is generated and used in reverse order.
+These schemes are described along with an executive summary,
+current status, briefing slides and reading list, in the
+.Qq "Autonomous Authentication"
+page.
+.Pp
+The cryptographic values used by the Autokey scheme are
+incorporated as a set of files generated by the
+.Xr ntp-genkeys 8
+program, including the
+symmetric private keys, public/private key pair, and the agreement
+parameters.
+See the
+.Xr ntp.keys 5
+page for a description of
+the formats of these files.
+They contain cryptographic values
+generated by the algorithms of the
+.Sy rsaref20
+package and
+are in printable ASCII format.
+All file names include the
+timestamp, in NTP seconds, following the default names given below.
+Since the file data are derived from random values seeded by the
+system clock and the file name includes the timestamp, every
+generation produces a different file and different file name.
+.Pp
+The
+.Pa ntp.keys
+file contains the DES/MD5 private keys.
+It
+must be distributed by secure means to other servers and clients
+sharing the same security compartment and made visible only to
+root.
+While this file is not used with the Autokey scheme, it is
+needed to authenticate some remote configuration commands used by
+the
+.Xr ntpdc 8 ,
+.Xr ntpq 8 ,
+.Xr ntpdc 8
+utilities.
+The
+.Pa ntpkey
+file
+contains the RSA private key.
+It is useful only to the machine that
+generated it and never shared with any other daemon or application
+program, so must be made visible only to root.
+.Pp
+The
+.Pa ntp_dh
+file contains the agreement parameters,
+which are used only in symmetric (active and passive) modes.
+It is
+necessary that both peers beginning a symmetric-mode association
+share the same parameters, but it does not matter which
+.Pa ntp_dh
+file generates them.
+If one of the peers contains
+the parameters, the other peer obtains them using the Autokey
+protocol.
+If both peers contain the parameters, the most recent
+copy is used by both peers.
+If a peer does not have the parameters,
+they will be requested by all associations, either configured or
+not; but, none of the associations can proceed until one of them
+has received the parameters.
+Once loaded, the parameters can be
+provided on request to other clients and servers.
+The
+.Pa ntp_dh
+file can be also be distributed using insecure
+means, since the data are public values.
+.Pp
+The
+.Pa ntpkey_ Ns Ar host
+file contains the RSA public
+key, where
+.Ar host
+is the name of the host.
+Each host
+must have its own
+.Pa ntpkey_ Ns Ar host
+file, which is
+normally provided to other hosts using the Autokey protocol.
+Each
+.Ic server
+or
+.Ic peer
+association requires the public
+key associated with the particular server or peer to be loaded
+either directly from a local file or indirectly from the server
+using the Autokey protocol.
+These files can be widely distributed
+and stored using insecure means, since the data are public
+values.
+.Pp
+The optional
+.Pa ntpkey_certif_ Ns Ar host
+file contains
+the PKI certificate for the host.
+This provides a binding between
+the host hame and RSA public key.
+In the current implementation the
+certificate is obtained by a client, if present, but the contents
+are ignored.
+.Pp
+Due to the widespread use of interface-specific naming, the host
+names used in configured and mobilized associations are determined
+by the
+.Ux
+.Xr gethostname 3
+library routine.
+Both the
+.Xr ntp-genkeys 8
+program and the Autokey protocol derive the
+name of the public key file using the name returned by this
+routine.
+While every server and client is required to load their
+own public and private keys, the public keys for each client or
+peer association can be obtained from the server or peer using the
+Autokey protocol.
+Note however, that at the current stage of
+development the authenticity of the server or peer and the
+cryptographic binding of the server name, address and public key is
+not yet established by a certificate authority or web of trust.
+.Ss Leapseconds Table
+The NIST provides a table showing the epoch for all historic
+occasions of leap second insertion since 1972.
+The leapsecond table
+shows each epoch of insertion along with the offset of
+International Atomic Time (TAI) with respect to Coordinated
+Universtal Time (UTC), as disseminated by NTP.
+The table can be
+obtained directly from NIST national time servers using
+FTP as the ASCII file
+.Pa pub/leap-seconds .
+.Pp
+While not strictly a security function, the Autokey scheme
+provides means to securely retrieve the leapsecond table from a
+server or peer.
+Servers load the leapsecond table directly from the
+file specified in the
+.Ic crypto
+command, while clients can
+load the table indirectly from the servers using the Autokey
+protocol.
+Once loaded, the table can be provided on request to
+other clients and servers.
+.Ss Key Management
+All key files are installed by default in
+.Pa /usr/local/etc ,
+which is normally in a shared filesystem
+in NFS-mounted networks and avoids installing them in each machine
+separately.
+The default can be overridden by the
+.Ic keysdir   
+configuration command.
+However, this is not a good place to install
+the private key file, since each machine needs its own file.
+A
+suitable place to install it is in
+.Pa /etc ,
+which is normally
+not in a shared filesystem.
+.Pp
+The recommended practice is to keep the timestamp extensions
+when installing a file and to install a link from the default name
+(without the timestamp extension) to the actual file.
+This allows
+new file generations to be activated simply by changing the link.
+However,
+.Xr ntpd 8
+parses the link name when present to extract
+the extension value and sends it along with the public key and host
+name when requested.
+This allows clients to verify that the file
+and generation time are always current.
+However, the actual
+location of each file can be overridden by the
+.Ic crypto
+configuration command.
+.Pp
+All cryptographic keys and related parameters should be
+regenerated on a periodic and automatic basis, like once per month.
+The
+.Xr ntp-genkeys 8
+program uses the same timestamp extension
+for all files generated at one time, so each generation is distinct
+and can be readily recognized in monitoring data.
+While a
+public/private key pair must be generated by every server and
+client, the public keys and agreement parameters do not need to be
+explicitly copied to all machines in the same security compartment,
+since they can be obtained automatically using the Autokey
+protocol.
+However, it is necessary that all primary servers have
+the same agreement parameter file.
+The recommended way to do this
+is for one of the primary servers to generate that file and then
+copy it to the other primary servers in the same compartment using
+the
+.Ux
+.Xr rdist 1
+command.
+Future versions of the Autokey
+protocol are to contain provisions for an agreement protocol to do
+this automatically.
+.Pp
+Servers and clients can make a new generation in the following
+way.
+All machines have loaded the old generation at startup and are
+operating normally.
+At designated intervals, each machine generates
+a new public/private key pair and makes links from the default file
+names to the new file names.
+The
+.Xr ntpd 8
+is then restarted
+and loads the new generation, with result clients no longer can
+authenticate correctly.
+The Autokey protocol is designed so that
+after a few minutes the clients time out and restart the protocol
+from the beginning, with result the new generation is loaded and
+operation continues as before.
+A similar procedure can be used for
+the agreement parameter file, but in this case precautions must be
+take to be sure that all machines with this file have the same
+copy.
+.Ss Authentication Commands
+.Bl -tag -width indent
+.It Ic autokey Op Ar logsec
+Specifies the interval between regenerations of the session key
+list used with the Autokey protocol.
+Note that the size of the key
+list for each association depends on this interval and the current
+poll interval.
+The default value is 12 (4096 s or about 1.1 hours).
+For poll intervals above the specified interval, a session key list
+with a single entry will be regenerated for every message
+sent.
+.It Ic controlkey Ar key
+Specifies the key identifier to use with the
+.Xr ntpq 8
+utility, which uses the standard
+protocol defined in RFC-1305.
+The
+.Ar key
+argument is
+the key identifier for a trusted key, where the value can be in the
+range 1 to 65534, inclusive.
+.It Xo Ic crypto
+.Op Cm flags Ar flags
+.Op Cm privatekey Ar file
+.Op Cm publickey Ar file
+.Op Cm dhparms Ar file
+.Op Cm leap Ar file
+.Xc
+This command requires the NTP daemon build process be
+configured with the RSA library.
+This command activates public-key
+cryptography and loads the required RSA private and public key
+files and the optional Diffie-Hellman agreement parameter file, if
+present.
+If one or more files are left unspecified, the default
+names are used as described below.
+Following are the
+subcommands:
+.Bl -tag -width indent
+.It Cm privatekey Ar file
+Specifies the location of the RSA private key file, which
+otherwise defaults to
+.Pa /usr/local/etc/ntpkey .
+.It Cm publickey Ar file
+Specifies the location of the RSA public key file, which
+otherwise defaults to
+.Pa /usr/local/etc/ntpkey_ Ns Ar host ,
+where
+.Ar host
+is the name of the generating machine.
+.It Cm dhparms Ar file
+Specifies the location of the Diffie-Hellman parameters file,
+which otherwise defaults to
+.Pa /usr/local/etc/ntpkey_dh .
+.It Cm leap Ar file
+Specifies the location of the leapsecond table file, which
+otherwise defaults to
+.Pa /usr/local/etc/ntpkey_leap .
+.El
+.It Ic keys Ar keyfile
+Specifies the location of the DES/MD5 private key file
+containing the keys and key identifiers used by
+.Xr ntpd 8 ,
+.Xr ntpq 8
+and
+.Xr ntpdc 8
+when operating in symmetric-key
+mode.
+.It Ic keysdir Ar path
+This command requires the NTP daemon build process be
+configured with the RSA library.
+It specifies the default directory
+path for the private key file, agreement parameters file and one or
+more public key files.
+The default when this command does not
+appear in the configuration file is
+.Pa /usr/local/etc .
+.It Ic requestkey Ar key
+Specifies the key identifier to use with the
+.Xr ntpdc 8
+utility program, which uses a
+proprietary protocol specific to this implementation of
+.Xr ntpd 8  .
+The
+.Ar key
+argument is a key identifier
+for the trusted key, where the value can be in the range 1 to
+65534, inclusive.
+.It Ic revoke Ar logsec
+Specifies the interval between re-randomization of certain
+cryptographic values used by the Autokey scheme, as a power of 2 in
+seconds.
+These values need to be updated frequently in order to
+deflect brute-force attacks on the algorithms of the scheme;
+however, updating some values is a relatively expensive operation.
+The default interval is 16 (65,536 s or about 18 hours).
+For poll
+intervals above the specified interval, the values will be updated
+for every message sent.
+.It Ic trustedkey Ar key ...
+Specifies the key identifiers which are trusted for the
+purposes of authenticating peers with symmetric-key cryptography,
+as well as keys used by the
+.Xr ntpq 8
+and
+.Xr ntpdc 8
+programs.
+The authentication procedures require that both the local
+and remote servers share the same key and key identifier for this
+purpose, although different keys can be used with different
+servers.
+The
+.Ar key
+arguments are 32-bit unsigned
+integers with values from 1 to 65,534.
+.El
+.Sh Monitoring Support
+.Xr ntpd 8   
+includes a comprehensive monitoring facility suitable
+for continuous, long term recording of server and client
+timekeeping performance.
+See the
+.Ic statistics   
+command below
+for a listing and example of each type of statistics currently
+supported.
+Statistic files are managed using file generation sets
+and scripts in the
+.Pa ./scripts
+directory of this distribution.
+Using
+these facilities and
+.Ux
+.Xr cron 8   
+jobs, the data can be
+automatically summarized and archived for retrospective analysis.
+.Ss Monitoring Commands
+.Bl -tag -width indent
+.It Ic statistics Ar name ...
+Enables writing of statistics records.
+Currently, four kinds of
+.Ar name
+statistics are supported.
+.Bl -tag -width indent
+.It Cm loopstats   
+Enables recording of loop filter statistics information.
+Each
+update of the local clock outputs a line of the following form to
+the file generation set named loopstats:
+.Bd -literal
+50935 75440.031 0.000006019 13.778190 0.000351733 0.013380 6
+.Ed
+.Pp
+The first two fields show the date (Modified Julian Day) and
+time (seconds and fraction past UTC midnight).
+The next five fields
+show time offset (seconds), frequency offset (parts per million -
+PPM), RMS jitter (seconds), Allan deviation (PPM) and clock
+discipline time constant.
+.It Cm peerstats   
+Enables recording of peer statistics information.
+This includes
+statistics records of all peers of a NTP server and of special
+signals, where present and configured.
+Each valid update appends a
+line of the following form to the current element of a file
+generation set named peerstats:
+.Bd -literal
+48773 10847.650 127.127.4.1 9714 -0.001605 0.00000 0.00142
+.Ed
+.Pp
+The first two fields show the date (Modified Julian Day) and
+time (seconds and fraction past UTC midnight).
+The next two fields
+show the peer address in dotted-quad notation and status,
+respectively.
+The status field is encoded in hex in the format
+described in Appendix A of the NTP specification RFC 1305.
+The
+final three fields show the offset, delay and RMS jitter, all in
+seconds.
+.It Cm clockstats
+Enables recording of clock driver statistics information.
+Each
+update received from a clock driver appends a line of the following
+form to the file generation set named clockstats:
+.Bd -literal
+49213 525.624 127.127.4.1 93 226 00:08:29.606 D
+.Ed
+.Pp
+The first two fields show the date (Modified Julian Day) and
+time (seconds and fraction past UTC midnight).
+The next field shows
+the clock address in dotted-quad notation, The final field shows
+the last timecode received from the clock in decoded ASCII format,
+where meaningful.
+In some clock drivers a good deal of additional
+information can be gathered and displayed as well.
+See information
+specific to each clock for further details.
+.It Cm rawstats
+Enables recording of raw-timestamp statistics information.
+This
+includes statistics records of all peers of a NTP server and of
+special signals, where present and configured.
+Each NTP message
+received from a peer or clock driver appends a line of the
+following form to the file generation set named rawstats:
+.Bd -literal
+50928 2132.543 128.4.1.1 128.4.1.20 3102453281.584327000 3102453281.58622800031 02453332.540806000 3102453332.541458000
+.Ed
+The first two fields show the date (Modified Julian Day) and
+time (seconds and fraction past UTC midnight).
+The next two fields
+show the remote peer or clock address followed by the local address
+in dotted-quad notation, The final four fields show the originate,
+receive, transmit and final NTP timestamps in order.
+The timestamp
+values are as received and before processing by the various data
+smoothing and mitigation algorithms.
+.El
+.It Ic statsdir Ar directory_path
+Indicates the full path of a directory where statistics files
+should be created (see below).
+This keyword allows the (otherwise
+constant)
+.Ic filegen   
+filename prefix to be modified for file
+generation sets, which is useful for handling statistics logs.
+.It Xo Ic filegen Ar name
+.Op Cm file Ar filename
+.Op Cm type Ar typename
+.Op Cm link \&| Cm nolink
+.Op Cm enable \&| Cm disable
+.Xc
+Configures setting of generation file set
+.Ar name .
+Generation file sets provide a means for handling files that are
+continuously growing during the lifetime of a server.
+Server
+statistics are a typical example for such files.
+Generation file
+sets provide access to a set of files used to store the actual
+data.
+At any time at most one element of the set is being written
+to.
+The type given specifies when and how data will be directed to
+a new element of the set.
+This way, information stored in elements
+of a file set that are currently unused are available for
+administrational operations without the risk of disturbing the
+operation of
+.Xr ntpd 8  . 
+(Most important: they can be removed to
+free space for new data produced.)
+Note that this command can be sent from the
+.Xr ntpdc 8   
+program running at a remote location.
+.Bl -tag -width indent
+.It Ar name
+This is the type of the statistics records, as shown in the
+.Ic statistics   
+command.
+.It Cm file Ar filename
+This is the file name for the statistics records.
+Filenames of
+set members are built from three concatenated elements
+prefix, filename and
+suffix:
+.Bl -tag -width indent
+.It prefix
+This is a constant filename path.
+It is not subject to
+modifications via the
+.Ic filegen   
+option.
+It is defined by the
+server, usually specified as a compile-time constant.
+It may,
+however, be configurable for individual file generation sets via
+other commands.
+For example, the prefix used with
+.Cm loopstats   
+and
+.Cm peerstats   
+generation can be
+configured using the
+.Ic statsdir   
+option explained above.
+.It filename
+This string is directly concatenated to the prefix mentioned
+above (no intervening
+.Ql /
+(slash)).
+This can be modified
+using the
+.Ar file
+argument to the
+.Ic filegen   
+statement.
+No
+.Ql \&..
+elements are allowed in this component to prevent
+filenames referring to parts outside the filesystem hierarchy
+denoted by prefix.
+.It suffix
+This part is reflects individual elements of a file set.
+It is
+generated according to the type of a file set.
+.El
+.It Cm type Ar typename
+A file generation set is characterized by its type.
+The
+following types are supported:
+.Bl -tag -width indent
+.It none
+The file set is actually a single plain file.
+.It pid
+One element of file set is used per incarnation of a
+.Xr ntpd 8   
+server.
+This type does not perform any changes to
+file set members during runtime, however it provides an easy way of
+separating files belonging to different
+.Xr ntpd 8   
+server
+incarnations.
+The set member filename is built by appending a
+.Ql \&.
+(dot) to concatenated prefix and filename
+strings, and appending the decimal representation of the process ID
+of the
+.Xr ntpd 8   
+server process.
+.It day
+One file generation set element is created per day.
+A day is
+defined as the period between 00:00 and 24:00 UTC.
+The file set
+member suffix consists of a
+.Ql \&.
+(dot) and a day
+specification in the form
+.Ar YYYYMMdd .
+.Ar YYYY
+is a 4-digit year
+number (e.g., 1992).
+.Ar MM
+is a two digit month number.
+.Ar dd
+is a two digit day number.
+Thus, all information
+written at 10 December 1992 would end up in a file named
+.Sm off
+.Pa Ar prefix / Ar filename / 19921210 .
+.Sm on
+.It week
+Any file set member contains data related to a certain week of
+a year.
+The term week is defined by computing day-of-year modulo 7.
+Elements of such a file generation set are distinguished by
+appending the following suffix to the file set filename base: A
+dot, a 4-digit year number, the letter
+Ql W ,
+and a 2-digit
+week number.
+For example, information from January, 10th 1992 would
+end up in a file with suffix
+.Pa .1992W1 .
+.It month
+One generation file set element is generated per month.
+The
+file name suffix consists of a dot, a 4-digit year number, and a
+2-digit month.
+.It year
+One generation file element is generated per year.
+The filename
+suffix consists of a dot and a 4 digit year number.
+.It age
+This type of file generation sets changes to a new element of
+the file set every 24 hours of server operation.
+The filename
+suffix consists of a dot, the letter
+.Ql a ,
+and an 8-digit
+number.
+This number is taken to be the number of seconds the server
+is running at the start of the corresponding 24-hour period.
+Information is only written to a file generation by specifying
+.Ic enable  ; 
+output is prevented by specifying
+.Ic disable  . 
+.El
+.It Cm link \&| Cm nolink
+It is convenient to be able to access the current element of a
+file generation set by a fixed name.
+This feature is enabled by
+specifying
+.Cm link
+and disabled using
+.Cm nolink .
+If
+.Cm link
+is specified, a hard link from the current file set
+element to a file without suffix is created.
+When there is already
+a file with this name and the number of links of this file is one,
+it is renamed appending a dot, the letter
+.Ql C ,
+and the pid
+of the
+.Xr ntpd 8   
+server process.
+When the number of links is
+greater than one, the file is unlinked.
+This allows the current
+file to be accessed by a constant name.
+.It Cm enable \&| Cm disable
+Enables or disables the recording function.
+.El
+.El
+.Sh Access Control Support
+.Xr ntpd 8   
+implements a general purpose address-and-mask based
+restriction list.
+The list is sorted by address and by mask, and
+the list is searched in this order for matches, with the last match
+found defining the restriction flags associated with the incoming
+packets.
+The source address of incoming packets is used for the
+match, with the 32- bit address being and'ed with the mask
+associated with the restriction entry and then compared with the
+entry's address (which has also been and'ed with the mask) to look
+for a match.
+Additional information and examples can be found in the
+.Qq "Notes on Configuring NTP and Setting up a NTP Subnet"
+page.
+.Pp
+The restriction facility was implemented in conformance with the
+access policies for the original NSFnet backbone time servers.
+While this facility may be otherwise useful for keeping unwanted or
+broken remote time servers from affecting your own, it should not
+be considered an alternative to the standard NTP authentication
+facility.
+Source address based restrictions are easily circumvented
+by a determined cracker.
+.Ss The Kiss-of-Death Packet
+Ordinarily, packets denied service are simply dropped with no
+further action except incrementing statistics counters.
+Sometimes a
+more proactive response is needed, such as a server message that
+explicitly requests the client to stop sending and leave a message
+for the system operator.
+A special packet format has been created
+for this purpose called the kiss-of-death packet.
+If the
+.Cm kod
+flag is set and either service is denied or the client
+limit is exceeded, the server it returns the packet and sets the
+leap bits unsynchronized, stratum zero and the ASCII string "DENY"
+in the reference source identifier field.
+If the
+.Cm kod
+flag
+is not set, the server simply drops the packet.
+.Pp
+A client or peer receiving a kiss-of-death packet performs a set
+of sanity checks to minimize security exposure.
+If this is the
+first packet received from the server, the client assumes an access
+denied condition at the server.
+It updates the stratum and
+reference identifier peer variables and sets the access denied
+(test 4) bit in the peer flash variable.
+If this bit is set, the
+client sends no packets to the server.
+If this is not the first
+packet, the client assumes a client limit condition at the server,
+but does not update the peer variables.
+In either case, a message
+is sent to the system log.
+.Ss Access Control Commands
+.Bl -tag -width indent
+.It Xo Ic restrict numeric_address
+.Op Cm mask Ar numeric_mask
+.Op Ar flag ...
+.Xc
+The
+.Ar numeric_address
+argument, expressed in
+dotted- quad form, is the address of an host or network.
+The
+.Cm mask ,
+also expressed in dotted-quad form,
+defaults to 255.255.255.255, meaning that the
+.Ar numeric_address
+is treated as the address of an
+individual host.
+A default entry (address 0.0.0.0, mask
+0.0.0.0) is always included and, given the sort algorithm,
+is always the first entry in the list.
+Note that, while
+.Ar numeric_address
+is normally given in dotted-quad
+format, the text string
+.Ql default ,
+with no mask option, may
+be used to indicate the default entry.
+In the current implementation,
+.Cm flag
+always
+restricts access, i.e., an entry with no flags indicates that free
+access to the server is to be given.
+The flags are not orthogonal,
+in that more restrictive flags will often make less restrictive
+ones redundant.
+The flags can generally be classed into two
+catagories, those which restrict time service and those which
+restrict informational queries and attempts to do run-time
+reconfiguration of the server.
+One or more of the following flags
+may be specified:
+.Bl -tag -width indent
+.It Cm kod
+If access is denied, send a kiss-of-death packet.
+.It Cm ignore
+Ignore all packets from hosts which match this entry.
+If this
+flag is specified neither queries nor time server polls will be
+responded to.
+.It Cm noquery
+Ignore all NTP mode 6 and 7 packets (i.e. information queries
+and configuration requests) from the source.
+Time service is not
+affected.
+.It Cm nomodify
+Ignore all NTP mode 6 and 7 packets which attempt to modify the
+state of the server (i.e. run time reconfiguration).
+Queries which
+return information are permitted.
+.It Cm notrap
+Decline to provide mode 6 control message trap service to
+matching hosts.
+The trap service is a subsystem of the mode 6
+control message protocol which is intended for use by remote event
+logging programs.
+.It Cm lowpriotrap
+Declare traps set by matching hosts to be low priority.
+The
+number of traps a server can maintain is limited (the current limit
+is 3).
+Traps are usually assigned on a first come, first served
+basis, with later trap requestors being denied service.
+This flag
+modifies the assignment algorithm by allowing low priority traps to
+be overridden by later requests for normal priority traps.
+.It Cm noserve
+Ignore NTP packets whose mode is other than 6 or 7.
+In effect,
+time service is denied, though queries may still be permitted.
+.It Cm nopeer
+Provide stateless time service to polling hosts, but do not
+allocate peer memory resources to these hosts even if they
+otherwise might be considered useful as future synchronization
+partners.
+.It Cm notrust
+Treat these hosts normally in other respects, but never use
+them as synchronization sources.
+.It Cm limited
+These hosts are subject to limitation of number of clients from
+the same net.
+Net in this context refers to the IP notion of net
+(class A, class B, class C, etc.).
+Only the first
+.Va client_limit
+hosts that have shown up at the server and
+that have been active during the last
+.Va client_limit_period
+seconds are accepted.
+Requests from other clients from the same net
+are rejected.
+Only time request packets are taken into account.
+Query packets sent by the
+.Xr ntpq 8   
+and
+.Xr ntpdc 8   
+programs
+are not subject to these limits.
+A history of clients is kept using
+the monitoring capability of
+.Xr ntpd 8  . 
+Thus, monitoring is
+always active as long as there is a restriction entry with the
+.Cm limited
+flag.
+.It Cm ntpport
+This is actually a match algorithm modifier, rather than a
+restriction flag.
+Its presence causes the restriction entry to be
+matched only if the source port in the packet is the standard NTP
+UDP port (123).
+Both
+.Cm ntpport
+and
+.Cm non-ntpport
+may
+be specified.
+The
+.Cm ntpport
+is considered more specific and
+is sorted later in the list.
+.It Cm version   
+Ignore these hosts if not the current NTP version.
+.El
+.Pp
+Default restriction list entries, with the flags
+.Cm ignore ,
+.Cm interface ,
+.Cm ntpport ,
+for each of the local host's interface
+addresses are inserted into the table at startup to prevent the
+server from attempting to synchronize to its own time.
+A default
+entry is also always present, though if it is otherwise
+unconfigured; no flags are associated with the default entry (i.e.,
+everything besides your own NTP server is unrestricted).
+.It Ic clientlimit Ar limit
+Set the
+.Va client_limit
+variable, which limits the number
+of simultaneous access-controlled clients.
+The default value for
+this variable is 3.
+.It Ic clientperiod Ar period
+Set the
+.Va client_limit_period
+variable, which specifies
+the number of seconds after which a client is considered inactive
+and thus no longer is counted for client limit restriction.
+The
+default value for this variable is 3600 seconds.
+.El
+.Sh Reference Clock Support
+The NTP Version 4 daemon supports some three dozen different radio,
+satellite and modem reference clocks plus a special pseudo-clock
+used for backup or when no other clock source is available.
+Detailed descriptions of individual device drivers and options can
+be found in the
+.Qq "Reference Clock Drivers"
+page
+(available as part of the HTML documentation
+provided in
+.Pa /usr/share/doc/ntp ) .
+Additional information can be found in the pages linked
+there, including the
+.Qq "Debugging Hints for Reference Clock Drivers"
+and
+.Qq "How To Write a Reference Clock Driver"
+pages.
+In addition, support for a PPS
+signal is available as described in the
+.Qq "Pulse-per-second (PPS) Signal Interfacing"
+page.
+Many
+drivers support special line discipline/streams modules which can
+significantly improve the accuracy using the driver.
+These are
+described in the
+.Qq "Line Disciplines and Streams Drivers"
+page.
+.Pp
+A reference clock will generally (though not always) be a radio
+timecode receiver which is synchronized to a source of standard
+time such as the services offered by the NRC in Canada and NIST and
+USNO in the US.
+The interface between the computer and the timecode
+receiver is device dependent, but is usually a serial port.
+A
+device driver specific to each reference clock must be selected and
+compiled in the distribution; however, most common radio, satellite
+and modem clocks are included by default.
+Note that an attempt to
+configure a reference clock when the driver has not been compiled
+or the hardware port has not been appropriately configured results
+in a scalding remark to the system log file, but is otherwise non
+hazardous.
+.Pp
+For the purposes of configuration,
+.Xr ntpd 8
+treats
+reference clocks in a manner analogous to normal NTP peers as much
+as possible.
+Reference clocks are identified by a syntactically
+correct but invalid IP address, in order to distinguish them from
+normal NTP peers.
+Reference clock addresses are of the form
+.Sm off
+.Li 127.127. Ar t . Ar u ,
+.Sm on
+where
+.Ar t
+is an integer
+denoting the clock type and
+.Ar u
+indicates the unit
+number in the range 0-3.
+While it may seem overkill, it is in fact
+sometimes useful to configure multiple reference clocks of the same
+type, in which case the unit numbers must be unique.
+.Pp
+The
+.Ic server
+command is used to configure a reference
+clock, where the
+.Ar address
+argument in that command
+is the clock address.
+The
+.Cm key  ,
+.Cm version
+and
+.Cm ttl
+options are not used for reference clock support.
+The
+.Cm mode
+option is added for reference clock support, as
+described below.
+The
+.Cm prefer
+option can be useful to
+persuade the server to cherish a reference clock with somewhat more
+enthusiasm than other reference clocks or peers.
+Further
+information on this option can be found in the
+.Qq "Mitigation Rules and the prefer Keyword"
+page.
+The
+.Cm minpoll
+and
+.Cm maxpoll
+options have
+meaning only for selected clock drivers.
+See the individual clock
+driver document pages for additional information.
+.Pp
+The
+.Ic fudge
+command is used to provide additional
+information for individual clock drivers and normally follows
+immediately after the
+.Ic server
+command.
+The
+.Ar address
+argument specifies the clock address.
+The
+.Cm refid
+and
+.Cm stratum
+options control can be used to
+override the defaults for the device.
+There are two optional
+device-dependent time offsets and four flags that can be included
+in the
+.Ic fudge   
+command as well.
+.Pp
+The stratum number of a reference clock is by default zero.
+Since the
+.Xr ntpd 8
+daemon adds one to the stratum of each
+peer, a primary server ordinarily displays an external stratum of
+one.
+In order to provide engineered backups, it is often useful to
+specify the reference clock stratum as greater than zero.
+The
+.Cm stratum   
+option is used for this purpose.
+Also, in cases
+involving both a reference clock and a pulse-per-second (PPS)
+discipline signal, it is useful to specify the reference clock
+identifier as other than the default, depending on the driver.
+The
+.Cm refid
+option is used for this purpose.
+Except where noted,
+these options apply to all clock drivers.
+.Ss Reference Clock Commands
+.Bl -tag -width indent
+.It Xo Ic server
+.Sm off
+.Li 127.127. Ar t . Ar u
+.Sm on
+.Op Cm prefer
+.Op Cm mode Ar int
+.Op Cm minpoll Ar int
+.Op Cm maxpoll Ar int
+.Xc
+This command can be used to configure reference clocks in
+special ways.
+The options are interpreted as follows:
+.Bl -tag -width indent
+.It Cm prefer
+Marks the reference clock as preferred.
+All other things being
+equal, this host will be chosen for synchronization among a set of
+correctly operating hosts.
+See the
+.Qq "Mitigation Rules and the prefer Keyword"
+page for further
+information.
+.It Cm mode Ar int
+Specifies a mode number which is interpreted in a
+device-specific fashion.
+For instance, it selects a dialing
+protocol in the ACTS driver and a device subtype in the
+parse
+drivers.
+.It Cm minpoll Ar int
+.It Cm maxpoll Ar int
+These options specify the minimum and maximum polling interval
+for reference clock messages, in seconds to the power of two.
+For
+most directly connected reference clocks, both
+.Cm minpoll
+and
+.Cm maxpoll
+default to 6 (64 s).
+For modem reference clocks,
+.Cm minpoll
+defaults to 10 (17.1 m) and
+.Cm maxpoll
+defaults to 14 (4.5 h).
+The allowable range is 4 (16 s) to 17 (36.4 h) inclusive.
+.El
+.It Xo Ic fudge
+.Sm off
+.Li 127.127. Ar t . Ar u
+.Sm on
+.Op Cm time1 Ar sec
+.Op Cm time2 Ar sec
+.Op Cm stratum Ar int
+.Op Cm refid Ar string
+.Op Cm mode Ar int
+.Op Cm flag1 Cm 0 \&| Cm 1
+.Op Cm flag2 Cm 0 \&| Cm 1
+.Op Cm flag3 Cm 0 \&| Cm 1
+.Op Cm flag4 Cm 0 \&| Cm 1
+.Xc
+This command can be used to configure reference clocks in
+special ways.
+It must immediately follow the
+.Ic server
+command which configures the driver.
+Note that the same capability
+is possible at run time using the
+.Xr ntpdc 8
+program.
+The options are interpreted as
+follows:
+.Bl -tag -width indent
+.It Cm time1 Ar sec
+Specifies a constant to be added to the time offset produced by
+the driver, a fixed-point decimal number in seconds.
+This is used
+as a calibration constant to adjust the nominal time offset of a
+particular clock to agree with an external standard, such as a
+precision PPS signal.
+It also provides a way to correct a
+systematic error or bias due to serial port or operating system
+latencies, different cable lengths or receiver internal delay.
+The
+specified offset is in addition to the propagation delay provided
+by other means, such as internal DIPswitches.
+Where a calibration
+for an individual system and driver is available, an approximate
+correction is noted in the driver documentation pages.
+Note: in order to facilitate calibration when more than one
+radio clock or PPS signal is supported, a special calibration
+feature is available.
+It takes the form of an argument to the
+.Ic enable
+command described in
+.Sx Miscellaneous Options
+page and operates as described in the
+.Qq "Reference Clock Drivers"
+page.
+.It Cm time2 Ar secs
+Specifies a fixed-point decimal number in seconds, which is
+interpreted in a driver-dependent way.
+See the descriptions of
+specific drivers in the
+.Qq "reference clock drivers"
+page.
+.It Cm stratum Ar int
+Specifies the stratum number assigned to the driver, an integer
+between 0 and 15.
+This number overrides the default stratum number
+ordinarily assigned by the driver itself, usually zero.
+.It Cm refid Ar string
+Specifies an ASCII string of from one to four characters which
+defines the reference identifier used by the driver.
+This string
+overrides the default identifier ordinarily assigned by the driver
+itself.
+.It Cm mode Ar int
+Specifies a mode number which is interpreted in a
+device-specific fashion.
+For instance, it selects a dialing
+protocol in the ACTS driver and a device subtype in the
+parse
+drivers.
+.It Cm flag1 Cm 0 \&| Cm 1
+.It Cm flag2 Cm 0 \&| Cm 1
+.It Cm flag3 Cm 0 \&| Cm 1
+.It Cm flag4 Cm 0 \&| Cm 1
+These four flags are used for customizing the clock driver.
+The
+interpretation of these values, and whether they are used at all,
+is a function of the particular clock driver.
+However, by
+convention
+.Cm flag4
+is used to enable recording monitoring
+data to the
+.Cm clockstats
+file configured with the
+.Ic filegen
+command.
+Further information on the
+.Ic filegen
+command can be found in
+.Sx Monitoring Options .
+.El
+.El
+.Sh Miscellaneous Options
+.Bl -tag -width indent
+.It Ic broadcastdelay Ar seconds
+The broadcast and multicast modes require a special calibration
+to determine the network delay between the local and remote
+servers.
+Ordinarily, this is done automatically by the initial
+protocol exchanges between the client and server.
+In some cases,
+the calibration procedure may fail due to network or server access
+controls, for example.
+This command specifies the default delay to
+be used under these circumstances.
+Typically (for Ethernet), a
+number between 0.003 and 0.007 seconds is appropriate.
+The default
+when this command is not used is 0.004 seconds.
+.It Ic driftfile Ar driftfile
+This command specifies the name of the file used to record the
+frequency offset of the local clock oscillator.
+If the file exists,
+it is read at startup in order to set the initial frequency offset
+and then updated once per hour with the current frequency offset
+computed by the daemon.
+If the file does not exist or this command
+is not given, the initial frequency offset is assumed zero.
+In this
+case, it may take some hours for the frequency to stabilize and the
+residual timing errors to subside.
+.Pp
+The file format consists of a single line containing a single
+floating point number, which records the frequency offset measured
+in parts-per-million (PPM).
+The file is updated by first writing
+the current drift value into a temporary file and then renaming
+this file to replace the old version.
+This implies that
+.Xr ntpd 8
+must have write permission for the directory the
+drift file is located in, and that file system links, symbolic or
+otherwise, should be avoided.
+.It Xo Ic enable
+.Oo
+.Cm auth | Cm bclient |
+.Cm calibrate | Cm kernel |
+.Cm monitor | Cm ntp |
+.Cm stats
+.Oc
+.Xc
+.It Xo Ic disable
+.Oo
+.Cm auth | Cm bclient |
+.Cm calibrate | Cm kernel |
+.Cm monitor | Cm ntp |
+.Cm stats
+.Oc
+.Xc
+Provides a way to enable or disable various server options.
+Flags not mentioned are unaffected.
+Note that all of these flags
+can be controlled remotely using the
+.Xr ntpdc 8
+utility program.
+.Bl -tag -width indent
+.It Cm bclient
+When enabled, this is identical to the
+.Ic broadcastclient
+command.
+The default for this flag is
+.Ic disable  .
+.It Cm calibrate
+Enables the calibration facility, which automatically adjusts
+the
+.Ic time1
+values for each clock driver to display the same
+offset as the currently selected source or kernel discipline
+signal.
+See the
+.Qq "Reference Clock Drivers"
+page
+for further information.
+The default for this flag is
+.Ic disable  .
+.It Cm kernel
+Enables the precision-time kernel support for the
+.Xr adjtime 2
+system call, if implemented.
+Ordinarily,
+support for this routine is detected automatically when the NTP
+daemon is compiled, so it is not necessary for the user to worry
+about this flag.
+It flag is provided primarily so that this support
+can be disabled during kernel development.
+The default for this
+flag is
+.Ic enable  .
+.It Cm monitor
+Enables the monitoring facility.
+See the
+.Xr ntpdc 8
+program
+and the
+.Ic monlist
+command or further information.
+The
+default for this flag is
+.Ic enable  .
+.It Cm ntp
+Enables the server to adjust its local clock by means of NTP.
+If disabled, the local clock free-runs at its intrinsic time and
+frequency offset.
+This flag is useful in case the local clock is
+controlled by some other device or protocol and NTP is used only to
+provide synchronization to other clients.
+In this case, the local
+clock driver can be used to provide this function and also certain
+time variables for error estimates and leap-indicators.
+See the
+.Qq "Reference Clock Drivers"
+page for further
+information.
+The default for this flag is
+.Ic enable  .
+.It Cm stats
+Enables the statistics facility.
+See the
+.Qq "Monitoring Options"
+page for further information.
+The default for this flag is
+.Ic enable  .
+.El
+.It Ic logconfig Ar configkeyword
+This command controls the amount and type of output written to
+the system
+.Xr syslog 3
+facility or the alternate
+.Ic logfile
+log file.
+By default, all output is turned on.
+All
+.Ar configkeyword
+keywords can be prefixed with
+.Ql = ,
+.Ql +
+and
+.Ql - ,
+where
+.Ql =
+sets the
+.Xr syslog 3
+priority mask,
+.Ql +
+adds and
+.Ql -
+removes
+messages.
+.Xr syslog 3
+messages can be controlled in four
+classes
+.Po
+.Cm clock ,
+.Cm peer ,
+.Cm sys
+and
+.Cm sync
+.Pc .
+Within these classes four types of messages can be
+controlled.
+Informational messages
+.Pq Cm info
+control configuration
+information.
+Event messages
+.Pq Cm events
+control logging of
+events (reachability, synchronization, alarm conditions).
+Statistical output is controlled with the
+.Cm statistics
+keyword.
+The final message group is the status messages.
+This
+describes mainly the synchronizations status.
+Configuration
+keywords are formed by concatenating the message class with the
+event class.
+The
+.Cm all
+prefix can be used instead of a
+message class.
+A message class may also be followed by the
+.Cm all
+keyword to enable/disable all messages of the
+respective message class.
+Thus, a minimal log configuration could look like this:
+.Bd -literal
+logconfig=syncstatus +sysevents
+.Ed
+.Pp
+This would just list the synchronizations state of
+.Xr ntpd 8
+and the major system events.
+For a simple reference server, the
+following minimum message configuration could be useful:
+.Bd -literal
+logconfig=syncall +clockall
+.Ed
+.Pp
+This configuration will list all clock information and
+synchronization information.
+All other events and messages about
+peers, system events and so on is suppressed.
+.It Ic logfile Ar logfile
+This command specifies the location of an alternate log file to
+be used instead of the default system
+.Xr syslog 3   
+facility.
+.It Ic setvar Ar variable Op Cm default
+This command adds an additional system variable.
+These
+variables can be used to distribute additional information such as
+the access policy.
+If the variable of the form
+.Sm off
+.Va name = Ar value
+.Sm on
+is followed by the
+.Cm default
+keyword, the
+variable will be listed as part of the default system variables
+.Po
+.Xr ntpq 8
+.Ic rv
+command
+.Pc ) .
+These additional variables serve
+informational purposes only.
+They are not related to the protocol
+other that they can be listed.
+The known protocol variables will
+always override any variables defined via the
+.Ic setvar
+mechanism.
+There are three special variables that contain the names
+of all variable of the same group.
+The
+.Va sys_var_list
+holds
+the names of all system variables.
+The
+.Va peer_var_list
+holds
+the names of all peer variables and the
+.Va clock_var_list
+holds the names of the reference clock variables.
+.It Xo Ic tinker
+.Oo
+.Cm step Ar step |
+.Cm panic Ar panic |
+.Cm dispersion Ar dispersion |
+.Cm stepout Ar stepout |
+.Cm minpoll Ar minpoll |
+.Cm allan Ar allan |
+.Cm huffpuff Ar huffpuff
+.Oc
+.Xc
+This command can be used to alter several system variables in
+very exceptional circumstances.
+It should occur in the
+configuration file before any other configuration options.
+The
+default values of these variables have been carefully optimized for
+a wide range of network speeds and reliability expectations.
+In
+general, they interact in intricate ways that are hard to predict
+and some combinations can result in some very nasty behavior.
+Very
+rarely is it necessary to change the default values; but, some
+folks can't resist twisting the knobs anyway and this command is
+for them.
+Emphasis added: twisters are on their own and can expect
+no help from the support group.
+.Pp
+All arguments are in floating point seconds or seconds per
+second.
+The
+.Ar minpoll
+argument is an integer in seconds to
+the power of two.
+The variables operate as follows:
+.Bl -tag -width indent
+.It Cm step Ar step
+The argument becomes the new value for the step threshold,
+normally 0.128 s.
+If set to zero, step adjustments will never
+occur.
+In general, if the intent is only to avoid step adjustments,
+the step threshold should be left alone and the
+.Fl x
+command
+line option be used instead.
+.It Cm panic Ar panic
+The argument becomes the new value for the panic threshold,
+normally 1000 s.
+If set to zero, the panic sanity check is disabled
+and a clock offset of any value will be accepted.
+.It Cm dispersion Ar dispersion
+The argument becomes the new value for the dispersion increase
+rate, normally .000015.
+.It Cm stepout Ar stepout
+The argument becomes the new value for the watchdog timeout,
+normally 900 s.
+.It Cm minpoll Ar minpoll
+The argument becomes the new value for the minimum poll
+interval used when configuring multicast client, manycast client
+and , symmetric passive mode association.
+The value defaults to 6
+(64 s) and has a lower limit of 4 (16 s).
+.It Cm allan Ar allan
+The argument becomes the new value for the minimum Allan
+intercept, which is a parameter of the PLL/FLL clock discipline
+algorithm.
+The value defaults to 1024 s, which is also the lower
+limit.
+.It Cm huffpuff Ar huffpuff
+The argument becomes the new value for the experimental
+huff-n'-puff filter span, which determines the most recent interval
+the algorithm will search for a minimum delay.
+The lower limit is
+900 s (15 m), but a more reasonable value is 7200 (2 hours).
+There
+is no default, since the filter is not enabled unless this command
+is given.
+.El
+.It Xo Ic trap Ar host_address
+.Op Cm port Ar port_number
+.Op Cm interface Ar interface_address
+.Xc
+This command configures a trap receiver at the given host
+address and port number for sending messages with the specified
+local interface address.
+If the port number is unspecified, a value
+of 18447 is used.
+If the interface address is not specified, the
+message is sent with a source address of the local interface the
+message is sent through.
+Note that on a multihomed host the
+interface used may vary from time to time with routing changes.
+.Pp
+The trap receiver will generally log event messages and other
+information from the server in a log file.
+While such monitor
+programs may also request their own trap dynamically, configuring a
+trap receiver will ensure that no messages are lost when the server
+is started.
+.El
+.Sh FILES
+.Bl -tag -width /etc/ntp.drift -compact
+.It Pa /etc/ntp.conf
+the default name of the configuration file
+.It Pa ntp.keys
+private MD5 keys
+.It Pa ntpkey
+RSA private key
+.It Pa ntpkey_ Ns Ar host
+RSA public key
+.It Pa ntp_dh
+Diffie-Hellman agreement parameters
+.El
+.Sh SEE ALSO
+.Xr ntpd 8 ,
+.Xr ntpdc 8 ,
+.Xr ntpq 8
+.Pp
+In addition to the manual pages provided,
+comprehensive documentation is available on the world wide web
+at
+.Li http://www.ntp.org/ .
+A snapshot of this documentation is available in HTML format in
+.Pa /usr/share/doc/ntp .
+.Rs
+.%A David L. Mills
+.%T Network Time Protocol (Version 3)
+.%O RFC1305
+.Re
+.Sh BUGS
+The syntax checking is not picky; some combinations of
+ridiculous and even hilarious options and modes may not be
+detected.
+.Pp
+The
+.Pa ntpkey_ Ns Ar host
+files are really digital
+certificates.
+These should be obtained via secure directory
+services when they become universally available.

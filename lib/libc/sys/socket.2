@@ -1,0 +1,304 @@
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     From: @(#)socket.2	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd November 24, 1997
+.Dt SOCKET 2
+.Os
+.Sh NAME
+.Nm socket
+.Nd create an endpoint for communication
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/socket.h
+.Ft int
+.Fn socket "int domain" "int type" "int protocol"
+.Sh DESCRIPTION
+.Fn Socket
+creates an endpoint for communication and returns a descriptor.
+.Pp
+The
+.Fa domain
+parameter specifies a communications domain within which
+communication will take place; this selects the protocol family
+which should be used.
+These families are defined in the include file
+.Ao Pa sys/socket.h Ac .
+The currently understood formats are:
+.Pp
+.Bd -literal -offset indent -compact
+PF_LOCAL	Host-internal protocols, formerly called PF_UNIX,
+PF_UNIX		Host-internal protocols, depreciated, use PF_LOCAL,
+PF_INET		Internet version 4 protocols,
+PF_IMPLINK	ARPAnet IMP addresses,
+PF_PUP		PUP protocols, like BSP,
+PF_CHAOS	MIT CHAOS protocols,
+PF_NS		Xerox Network Systems protocols,
+PF_ISO		ISO protocols,
+PF_OSI		Open Systems Interconnection protocols,
+PF_ECMA		European Computer Manufacturers,
+PF_DATAKIT	Datakit protocols,
+PF_CCITT	ITU-T protocols, like X.25,
+PF_SNA		IBM SNA,
+PF_DECnet	DECnet,
+PF_DLI		DEC Direct Data Link Interface protocol,
+PF_LAT		LAT protocol,
+PF_HYLINK	NSC Hyperchannel,
+PF_APPLETALK	AppleTalk protocols,
+PF_ROUTE	Internal Routing protocol,
+PF_LINK		Link layer interface,
+PF_XTP		eXpress Transfer Protocol,
+PF_COIP		Connection-Oriented IP, aka ST II,
+PF_CNT		Computer Network Technology,
+PF_SIP		Simple Internet Protocol,
+PF_IPX		Novell Intenet Packet eXchange protocol,
+PF_RTIP		Help Identify RTIP packets,
+PF_PIP		Help Identify PIP packets,
+PF_ISDN		Integrated Services Digital Network,
+PF_KEY		Internal key-management function,
+PF_INET6	Internet version 6 protocols,
+PF_NATM		Native ATM access,
+PF_ATM		ATM,
+PF_NETGRAPH	Netgraph sockets
+.Ed
+.Pp
+The socket has the indicated
+.Fa type ,
+which specifies the semantics of communication.  Currently
+defined types are:
+.Pp
+.Bd -literal -offset indent -compact
+SOCK_STREAM	Stream socket,
+SOCK_DGRAM	Datagram socket,
+SOCK_RAW	Raw-protocol interface,
+SOCK_RDM	Reliably-delivered packet,
+SOCK_SEQPACKET	Sequenced packet stream
+.Ed
+.Pp
+A
+.Dv SOCK_STREAM
+type provides sequenced, reliable,
+two-way connection based byte streams.
+An out-of-band data transmission mechanism may be supported.
+A
+.Dv SOCK_DGRAM
+socket supports
+datagrams (connectionless, unreliable messages of
+a fixed (typically small) maximum length).
+A
+.Dv SOCK_SEQPACKET
+socket may provide a sequenced, reliable,
+two-way connection-based data transmission path for datagrams
+of fixed maximum length; a consumer may be required to read
+an entire packet with each read system call.
+This facility is protocol specific, and presently implemented
+only for
+.Dv PF_NS .
+.Dv SOCK_RAW
+sockets provide access to internal network protocols and interfaces.
+The types
+.Dv SOCK_RAW ,
+which is available only to the super-user, and
+.Dv SOCK_RDM ,
+which is planned,
+but not yet implemented, are not described here.
+.Pp
+The
+.Fa protocol
+specifies a particular protocol to be used with the socket.
+Normally only a single protocol exists to support a particular
+socket type within a given protocol family.  However, it is possible
+that many protocols may exist, in which case a particular protocol
+must be specified in this manner.  The protocol number to use is
+particular to the
+.Dq "communication domain"
+in which communication
+is to take place; see
+.Xr protocols 5 .
+.Pp
+Sockets of type
+.Dv SOCK_STREAM
+are full-duplex byte streams, similar
+to pipes.  A stream socket must be in a
+.Em connected
+state before any data may be sent or received
+on it.  A connection to another socket is created with a
+.Xr connect 2
+call.
+Once connected, data may be transferred using
+.Xr read 2
+and
+.Xr write 2
+calls or some variant of the
+.Xr send 2
+and
+.Xr recv 2
+calls.
+(Some protocol families, such as the Internet family,
+support the notion of an
+.Dq implied connect ,
+which permits data to be sent piggybacked onto a connect operation by
+using the
+.Xr sendto 2
+call.)
+When a session has been completed a
+.Xr close 2
+may be performed.
+Out-of-band data may also be transmitted as described in
+.Xr send 2
+and received as described in
+.Xr recv 2 .
+.Pp
+The communications protocols used to implement a
+.Dv SOCK_STREAM
+insure that data
+is not lost or duplicated.  If a piece of data for which the
+peer protocol has buffer space cannot be successfully transmitted
+within a reasonable length of time, then
+the connection is considered broken and calls
+will indicate an error with
+-1 returns and with
+.Er ETIMEDOUT
+as the specific code
+in the global variable
+.Va errno .
+The protocols optionally keep sockets
+.Dq warm
+by forcing transmissions
+roughly every minute in the absence of other activity.
+An error is then indicated if no response can be
+elicited on an otherwise
+idle connection for a extended period (e.g. 5 minutes).
+A
+.Dv SIGPIPE
+signal is raised if a process sends
+on a broken stream; this causes naive processes,
+which do not handle the signal, to exit.
+.Pp
+.Dv SOCK_SEQPACKET
+sockets employ the same system calls
+as
+.Dv SOCK_STREAM
+sockets.  The only difference
+is that
+.Xr read 2
+calls will return only the amount of data requested,
+and any remaining in the arriving packet will be discarded.
+.Pp
+.Dv SOCK_DGRAM
+and
+.Dv SOCK_RAW
+sockets allow sending of datagrams to correspondents
+named in
+.Xr send 2
+calls.  Datagrams are generally received with
+.Xr recvfrom 2 ,
+which returns the next datagram with its return address.
+.Pp
+An
+.Xr fcntl 2
+call can be used to specify a process group to receive
+a
+.Dv SIGURG
+signal when the out-of-band data arrives.
+It may also enable non-blocking I/O
+and asynchronous notification of I/O events
+via
+.Dv SIGIO .
+.Pp
+The operation of sockets is controlled by socket level
+.Em options .
+These options are defined in the file
+.Ao Pa sys/socket.h Ac .
+.Xr Setsockopt 2
+and
+.Xr getsockopt 2
+are used to set and get options, respectively.
+.Sh RETURN VALUES
+A -1 is returned if an error occurs, otherwise the return
+value is a descriptor referencing the socket.
+.Sh ERRORS
+The
+.Fn socket
+call fails if:
+.Bl -tag -width Er
+.It Bq Er EPROTONOSUPPORT
+The protocol type or the specified protocol is not supported
+within this domain.
+.It Bq Er EMFILE
+The per-process descriptor table is full.
+.It Bq Er ENFILE
+The system file table is full.
+.It Bq Er EACCES
+Permission to create a socket of the specified type and/or protocol
+is denied.
+.It Bq Er ENOBUFS
+Insufficient buffer space is available.
+The socket cannot be created until sufficient resources are freed.
+.El
+.Sh SEE ALSO
+.Xr accept 2 ,
+.Xr bind 2 ,
+.Xr connect 2 ,
+.Xr getpeername 2 ,
+.Xr getsockname 2 ,
+.Xr getsockopt 2 ,
+.Xr ioctl 2 ,
+.Xr listen 2 ,
+.Xr read 2 ,
+.Xr recv 2 ,
+.Xr select 2 ,
+.Xr send 2 ,
+.Xr shutdown 2 ,
+.Xr socketpair 2 ,
+.Xr write 2 ,
+.Xr getprotoent 3 ,
+.Xr netgraph 4 ,
+.Xr protocols 5
+.Rs
+.%T "An Introductory 4.3 BSD Interprocess Communication Tutorial"
+.%B PS1
+.%N 7
+.Re
+.Rs
+.%T "BSD Interprocess Communication Tutorial"
+.%B PS1
+.%N 8
+.Re
+.Sh HISTORY
+The
+.Fn socket
+function call appeared in
+.Bx 4.2 .

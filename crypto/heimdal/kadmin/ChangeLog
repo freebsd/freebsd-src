@@ -1,0 +1,455 @@
+2001-01-29  Assar Westerlund  <assar@sics.se>
+
+	* kadm_conn.c (spawn_child): close the newly created socket in the
+	packet, it's not used.  from <shadow@dementia.org>
+	* version4.c (decode_packet): check success of
+	krb5_425_conv_principal.  from <shadow@dementia.org>
+
+2001-01-12  Assar Westerlund  <assar@sics.se>
+
+	* util.c (parse_attributes): make empty string mean no attributes,
+	specifying the empty string at the command line should give you no
+	attributes, but just pressing return at the prompt gives you
+	default attributes
+	(edit_entry): only pick up values from the default principal if they
+	aren't set in the principal being edited
+
+2001-01-04  Assar Westerlund  <assar@sics.se>
+
+	* load.c (doit): print an error and bail out if storing an entry
+	in the database fails.  The most likely reason for it failing is
+	out-of-space.
+
+2000-12-31  Assar Westerlund  <assar@sics.se>
+
+	* kadmind.c (main): handle krb5_init_context failure consistently
+	* kadmin.c (main): handle krb5_init_context failure consistently
+	* add-random-users.c (add_user): handle krb5_init_context failure
+	consistently
+
+	* kadm_conn.c (spawn_child): use a struct sockaddr_storage
+
+2000-12-15  Johan Danielsson  <joda@pdc.kth.se>
+
+	* get.c: avoid asprintf'ing NULL strings
+
+2000-12-14  Johan Danielsson  <joda@pdc.kth.se>
+
+	* load.c: fix option parsing
+
+2000-11-16  Assar Westerlund  <assar@sics.se>
+
+	* kadm_conn.c (wait_for_connection): check for fd's being too
+	large to select on
+
+2000-11-09  Johan Danielsson  <joda@pdc.kth.se>
+
+	* get.c: don't try to print modifier name if it isn't set (from
+	Jacques A. Vidrine" <n@nectar.com>)
+
+2000-09-19  Assar Westerlund  <assar@sics.se>
+
+	* server.c (kadmind_loop): send in keytab to v4 handling function
+	* version4.c: allow the specification of what keytab to use
+
+	* get.c (print_entry_long): actually print the actual saltvalue
+	used if it's not the default
+
+2000-09-10  Johan Danielsson  <joda@pdc.kth.se>
+
+	* kadmin.c: add option parsing, and add `privs' as an alias for
+	`privileges'
+
+	* init.c: complain if there's no realm name specified
+
+	* rename.c: add option parsing
+
+	* load.c: add option parsing
+
+	* get.c: make `get' and `list' aliases to each other, but with
+	different defaults
+
+	* del_enctype.c: add option parsing
+
+	* del.c: add option parsing
+
+	* ank.c: calling the command `add' make more sense from an english
+	pov
+
+	* Makefile.am: add kadmin manpage
+
+	* kadmin.8: short manpage
+
+	* kadmin.c: `quit' should be a alias for `exit', not `help'
+
+2000-08-27  Assar Westerlund  <assar@sics.se>
+
+	* server.c (handle_v5): do not try to perform stupid stunts when
+	printing errors
+
+2000-08-19  Assar Westerlund  <assar@sics.se>
+
+	* util.c (str2time_t): add alias for `now'.
+
+2000-08-18  Assar Westerlund  <assar@sics.se>
+
+	* server.c (handle_v5): accept any kadmin/admin@* principal as the
+	server
+	* kadmind.c: remove extra prototype of kadmind_loop
+	* kadmin_locl.h (kadmind_loop): add prototype
+	
+	* init.c (usage): print init-usage and not add-dito
+	
+2000-08-07  Johan Danielsson  <joda@pdc.kth.se>
+
+	* kadmind.c: use roken_getsockname
+
+2000-08-07  Assar Westerlund  <assar@sics.se>
+
+	* kadmind.c, kadm_conn.c: use socklen_t instead of int where
+	appropriate.  From <thorpej@netbsd.org>
+
+2000-08-04  Johan Danielsson  <joda@pdc.kth.se>
+
+	* Makefile.am: link with pidfile library
+
+	* kadmind.c: write a pid file, and setup password quality
+	functions
+
+	* kadmin_locl.h: util.h
+
+2000-07-27  Assar Westerlund  <assar@sics.se>
+
+	* version4.c (decode_packet): be totally consistent with the
+	prototype of des_cbc_cksum
+	* kadmind.c: use sa_size instead of sa_len, some systems define
+	this to emulate anonymous unions
+	* kadm_conn.c: use sa_size instead of sa_len, some systems define
+	this to emulate anonymous unions
+
+2000-07-24  Assar Westerlund  <assar@sics.se>
+
+	* kadmin.c (commands): add quit
+	* load.c (doit): truncate the log since there's no way of knowing
+	what changes are going to be added
+
+2000-07-23  Assar Westerlund  <assar@sics.se>
+
+	* util.c (str2time_t): be more careful with strptime that might
+	zero out the `struct tm'
+
+2000-07-22  Johan Danielsson  <joda@pdc.kth.se>
+
+	* kadm_conn.c: make the parent process wait for children and
+	terminate after receiving a signal, also terminate on SIGINT
+
+2000-07-22  Assar Westerlund  <assar@sics.se>
+
+	* version4.c: map both princ_expire_time and pw_expiration to v4
+	principal expiration
+
+2000-07-22  Johan Danielsson  <joda@pdc.kth.se>
+
+	* version4.c (handle_v4): check for termination
+
+	* server.c (v5_loop): check for termination
+
+	* kadm_conn.c (wait_term): if we're doing something, set just set
+	a flag otherwise exit rightaway
+
+	* server.c: use krb5_read_priv_message; (v5_loop): check for EOF
+
+2000-07-21  Assar Westerlund  <assar@sics.se>
+
+	* kadm_conn.c: remove sys/select.h.  make signal handlers
+	type-correct and static
+
+	* kadmin_locl.h: add limits.h and sys/select.h
+
+2000-07-20  Assar Westerlund  <assar@sics.se>
+
+	* init.c (init): also create `kadmin/hprop'
+	* kadmind.c: ports is a string argument
+	* kadm_conn.c (start_server): fix printf format
+
+	* kadmin_locl.h: add <sys/select.h>
+	* kadm_conn.c: remove sys/select.h.  make signal handlers
+	type-correct and static
+
+	* kadmin_locl.h: add limits.h and sys/select.h
+
+2000-07-17  Johan Danielsson  <joda@pdc.kth.se>
+
+	* kadm_conn.c: put all processes in a new process group
+
+	* server.c (v5_loop): use krb5_{read,write}_priv_message
+
+2000-07-11  Johan Danielsson  <joda@pdc.kth.se>
+
+	* version4.c: change log strings to match the v5 counterparts
+
+	* mod.c: allow setting kvno
+
+	* kadmind.c: if stdin is not a socket create and listen to sockets
+
+	* kadm_conn.c: socket creation functions
+
+	* util.c (deltat2str): treat 0 and INT_MAX as never
+
+2000-07-08  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (INCLUDES): add ../lib/krb5
+	* kadmin_locl.h: add krb5_locl.h (since we just use some stuff
+	from there)
+
+2000-06-07  Assar Westerlund  <assar@sics.se>
+
+	* add-random-users.c: new testing program that adds a number of
+	randomly generated users
+
+2000-04-12  Assar Westerlund  <assar@sics.se>
+
+	* cpw.c (do_cpw_entry): call set_password if no argument is given,
+	it will prompt for the password.
+	* kadmin.c: make help only print the commands that are actually
+	available.
+
+2000-04-03  Assar Westerlund  <assar@sics.se>
+
+	* del_enctype.c (del_enctype): set ignore correctly
+
+2000-04-02  Assar Westerlund  <assar@sics.se>
+
+	* kadmin.c (main): make parse errors a fatal error
+	* init.c (init): create changepw/kerberos with disallow-tgt and
+	pwchange attributes
+
+2000-03-23  Assar Westerlund  <assar@sics.se>
+
+	* util.c (hex2n, parse_des_key): add
+	* server.c (kadmind_dispatch): add kadm_chpass_with_key
+	* cpw.c: add --key
+	* ank.c: add --key
+
+2000-02-16  Assar Westerlund  <assar@sics.se>
+
+	* load.c (doit): check return value from parse_hdbflags2int
+	correctly
+
+2000-01-25  Assar Westerlund  <assar@sics.se>
+
+	* load.c: checking all parsing for errors and all memory
+	allocations also
+
+2000-01-02  Assar Westerlund  <assar@sics.se>
+
+	* server.c: check initial flag in ticket and allow users to change
+	their own password if it's set
+	* ext.c (do_ext_keytab): set timestamp
+
+1999-12-14  Assar Westerlund  <assar@sics.se>
+
+	* del_enctype.c (usage): don't use arg_printusage
+
+1999-11-25  Assar Westerlund  <assar@sics.se>
+
+	* del_enctype.c (del_enctype): try not to leak memory
+
+	* version4.c (kadm_ser_mod): use kadm5_s_modify_principal (no
+ 	_with_key)
+
+	* kadmin.c: add `del_enctype'
+
+	* del_enctype.c (del_enctype): new function for deleting enctypes
+	from a principal
+
+	* Makefile.am (kadmin_SOURCES): add del_enctype.c
+
+1999-11-09  Johan Danielsson  <joda@pdc.kth.se>
+
+	* server.c: cope with old clients
+
+	* kadmin_locl.h: remove version string
+
+1999-10-17  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (kadmin_LDADD): add LIB_dlopen
+
+1999-10-01  Assar Westerlund  <assar@sics.se>
+
+	* ank.c (add_one_principal): `password' can cactually be NULL in
+ 	the overwrite code, check for it.
+
+1999-09-20  Assar Westerlund  <assar@sics.se>
+
+	* mod.c (mod_entry): print the correct principal name in error
+ 	messages.  From Love <lha@e.kth.se>
+
+1999-09-10  Assar Westerlund  <assar@sics.se>
+
+	* init.c (init): also create `changepw/kerberos'
+
+	* version4.c: only create you loose packets when we fail decoding
+ 	and not when an operation is not performed for some reason
+	(decode_packet): read the service key from the hdb
+	(dispatch, decode_packet): return proper error messages
+
+	* version4.c (kadm_ser_cpw): add password quality functions
+
+1999-08-27  Johan Danielsson  <joda@pdc.kth.se>
+
+	* server.c (handle_v5): give more informative message if
+	KRB5_KT_NOTFOUND
+
+1999-08-26  Johan Danielsson  <joda@pdc.kth.se>
+
+	* kadmind.c: use HDB keytabs
+
+1999-08-25  Assar Westerlund  <assar@sics.se>
+
+	* cpw.c (set_password): use correct variable.  From Love
+ 	<lha@e.kth.se>
+
+	* server.c (v5_loop): use correct error code
+
+	* ank.c (add_one_principal): initialize `default_ent'
+
+1999-08-21  Assar Westerlund  <assar@sics.se>
+
+	* random_password.c: new file, stolen from krb4
+
+	* kadmin_locl.h: add prototype for random_password
+
+	* cpw.c: add support for --random-password
+
+	* ank.c: add support for --random-password
+
+	* Makefile.am (kadmin_SOURCES): add random_password.c
+
+1999-08-19  Assar Westerlund  <assar@sics.se>
+
+	* util.c (edit_timet): break when we manage to parse the time not
+ 	the inverse.
+
+	* mod.c: add parsing of lots of options.  From Love
+ 	<lha@stacken.kth.se>
+
+	* ank.c: add setting of expiration and password expiration
+
+	* kadmin_locl.h: update util.c prototypes
+
+	* util.c: move-around.  clean-up, rename, make consistent (and
+ 	some other weird stuff).  based on patches from Love
+ 	<lha@stacken.kth.se>
+
+	* version4.c (kadm_ser_cpw): initialize password
+	(handle_v4): remove unused variable `ret'
+
+1999-08-16  Assar Westerlund  <assar@sics.se>
+
+	* version4.c (handle_v4): more error checking and more correct
+ 	error messages
+
+	* server.c (v5_loop, kadmind_loop): more error checking and more
+ 	correct error messages
+
+1999-07-24  Assar Westerlund  <assar@sics.se>
+
+	* util.c (str2timeval, edit_time): functions for parsing and
+ 	editing times.  Based on patches from Love <lha@stacken.kth.se>.
+	(edit_entry): call new functions
+
+	* mod.c (mod_entry): allow modifying expiration times
+
+	* kadmin_locl.h (str2timeval): add prototype
+
+	* ank.c (add_one_principal): allow setting expiration times
+
+1999-07-03  Assar Westerlund  <assar@sics.se>
+
+	* server.c (v5_loop): handle data allocation with krb5_data_alloc
+ 	and check return value
+
+1999-06-23  Assar Westerlund  <assar@sics.se>
+
+	* version4.c (kadm_ser_cpw): read the key in the strange order
+ 	it's sent
+
+	* util.c (edit_entry): look at default
+	(edit_time): always set mask even if value == 0
+
+	* kadmin_locl.h (edit_entry): update
+
+	* ank.c: make ank use the values of the default principal for
+ 	prompting
+
+	* version4.c (values_to_ent): convert key data correctly
+
+1999-05-23  Assar Westerlund  <assar@sics.se>
+
+	* init.c (create_random_entry): more correct setting of mask
+
+1999-05-21  Assar Westerlund  <assar@sics.se>
+
+	* server.c (handle_v5): read sendauth version correctly.
+
+1999-05-14  Assar Westerlund  <assar@sics.se>
+
+	* version4.c (error_code): try to handle really old krb4
+ 	distributions
+
+1999-05-11  Assar Westerlund  <assar@sics.se>
+
+	* init.c (init): initialize realm_max_life and realm_max_rlife
+
+1999-05-07  Assar Westerlund  <assar@sics.se>
+
+	* ank.c (add_new_key): initialize more variables
+
+1999-05-04  Assar Westerlund  <assar@sics.se>
+
+	* version4.c (kadm_ser_cpw): always allow a user to change her
+ 	password
+	(kadm_ser_*): make logging work
+	clean-up and restructure
+	
+	* kadmin_locl.h (set_entry): add prototype
+
+	* kadmin.c (usage): update usage string
+
+	* init.c (init): new arguments realm-max-ticket-life and
+ 	realm-max-renewable-life
+
+	* util.c (edit_time, edit_attributes): don't do anything if it's
+ 	already set
+	(set_entry): new function
+
+	* ank.c (add_new_key): new options for setting max-ticket-life,
+ 	max-renewable-life, and attributes
+
+	* server.c (v5_loop): remove unused variable
+
+	* kadmin_locl.h: add prototypes
+
+	* version4.c: re-insert krb_err.h and other miss
+
+	* server.c (kadmind_loop): break-up and restructure
+
+	* version4.c: add ACL checks more error code checks restructure
+	
+1999-05-03  Johan Danielsson  <joda@pdc.kth.se>
+
+	* load.c: check for (un-)encrypted keys
+
+	* dump.c: use hdb_print_entry
+	
+	* version4.c: version 4 support
+
+	* Makefile.am: link with krb4
+
+	* kadmin_locl.h: include <sys/un.h>
+
+	* server.c: move from lib/kadm5, and add basic support for krb4
+	kadmin protocol
+
+	* kadmind.c: move recvauth to kadmind_loop()

@@ -1,0 +1,40 @@
+.\" $Id: kgetcred.1,v 1.2 1999/05/13 22:26:35 assar Exp $
+.\"
+.Dd May 14, 1999
+.Dt KGETCRED 1
+.Os HEIMDAL
+.Sh NAME
+.Nm kgetcred
+.Nd "get a ticket for a particular service"
+.Sh SYNOPSIS
+.Nm
+.Oo Fl e Ar enctype \*(Ba Xo
+.Fl -enctype= Ns Ar enctype Oc
+.Xc
+.Op Fl -version
+.Op Fl -help
+.Ar service
+.Sh DESCRIPTION
+.Nm
+obtains a ticket for a service.
+Usually tickets for services are obtained automatically when needed
+but sometimes for some odd reason you want to obtain a particular
+ticket or of a special type.
+.Pp
+Supported options:
+.Bl -tag -width Ds
+.It Xo
+.Fl e Ar enctype Ns ,
+.Fl -enctype= Ns Ar enctype
+.Xc
+encryption type to use
+.It Xo
+.Fl -version
+.Xc
+.It Xo
+.Fl -help
+.Xc
+.El
+.Sh SEE ALSO
+.Xr kinit 1 ,
+.Xr klist 1

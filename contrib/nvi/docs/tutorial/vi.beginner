@@ -1,0 +1,741 @@
+Section 1: {^F} {ZZ}
+
+To get out of this tutorial, type: ZZ (two capital Z's).
+
+Learning a new computer system implies learning a new text editor.  These
+tutorial lessons were created by Dain Samples to help you come to grips with
+UC Berkeley's screen oriented editor called vi (for VIsual). This tutorial
+uses the vi editor itself as the means of presentation. 
+
+For best use of this tutorial, read all of a screen before performing any of
+the indicated actions.  This tutorial (or, at least, the first half of it) has
+been designed to systematically present the vi commands IF THE INSTRUCTIONS
+ARE FOLLOWED!  If you are too adventuresome, you may find yourself lost.  If
+you ever find yourself stuck, remember the first line of this section.
+
+OK, now find the control key on your keyboard; it usually has CTL or CTRL
+written on its upper surface.  Your first assignment is to hold the control
+key down while you press the 'F' key on your keyboard.  Please do so now.
+
+
+
+Section 2: {^F} {^B}
+Many of vi's commands use the control key and some other key in combination,
+as with the control and the 'F' key above.  This is abbreviated CTL-F, or ^F.
+
+As you have probably guessed by now, ^F (CTL-F) moves you forward a fixed
+number of lines in the file.  Throughout the remainder of the tutorial when
+you are ready to advance to the next section of text, hit ^F.
+
+The opposite command is ^B.  Just for fun, you might want to try a ^B to see
+the previous section again.  Be sure to do a ^F to return you here.
+
+Determine what the cursor looks like on your screen.  Whatever it is (a box,
+an underscore, blinking, flashing, inverse, etc.) it should now be positioned
+in the upper left-hand corner of your screen under or on the S of Section.
+Become familiar with your cursor: to use vi correctly it is important to
+always know where the cursor is.
+
+Did you notice that when you do a ^F the cursor is left at the top of the
+screen, and a ^B leaves the cursor near the bottom of the screen?  Try the two
+commands ^B^F again.  And now do another ^F to see the next section.
+
+Section 3: {^F} {^B}
+You now have two basic commands for examining a file, both forwards (^F) and
+backwards (^B).
+
+Note that these are vi text editing commands: they are not commands for the
+tutorial.  Indeed, this tutorial is nothing but a text file which you are now
+editing.  Everything you do and learn in this tutorial will be applicable to
+editing text files.
+
+Therefore, when you are editing a file and are ready to see more of the text,
+entering ^F will get you to the next section of the file.  Entering ^B will
+show you the previous section.
+
+Time for you to do another ^F.
+
+
+
+
+
+
+
+Section 4: {^F} {^B} {^M} (return key)
+We will adopt the notation of putting commands in curly braces so we can write
+them unambiguously.  For example, if you are to type the command sequence
+"control B control F" (as we asked you to do above) it would appear as {^B^F}.
+This allows clear delineation of the command strings from the text. Remember
+that the curly braces are NOT part of the command string you are to type. Do
+NOT type the curly braces.  
+
+Sometimes, the command string in the curly braces will be rather long, and may
+be such that the first couple of characters of the command will erase from
+the screen the string you are trying to read and type.  It is suggested that
+you write down the longer commands BEFORE you type them so you won't forget
+them once they disappear.
+
+Now locate the return key on your keyboard: it is usually marked 'RETURN',
+indicate hitting the return key.  In fact, the control-M key sequence is
+exactly the same as if you hit the return key, and vice versa.
+
+Now type {^F}.
+
+
+Section 5: {:q!} {ZZ} {^M} (return key)
+Recognize that this tutorial is nothing more than a text file that you
+are editing.  This means that if you do something wrong, it is possible
+for you to destroy the information in this file.  Don't worry.  If this
+happens, type {ZZ} (two capital Z's) or {:q!^M} to leave the tutorial.
+Restart the tutorial.  Once in the tutorial, you can then page forward
+with {^F} until you are back to where you want to be.  (There are
+easier ways to do this, some of which will be discussed later, but this
+is the most straightforward.)
+
+You may want to write these commands down in a convenient place for quick
+reference: {:q!^M} and {ZZ}
+
+We will assume that you now know to do a {^F} to advance the file
+
+
+
+
+
+
+
+Section 6: {m} {G} {'} {z}
+Now that you know how to get around in the file via ^F and ^B let's look at
+other ways of examining a text file.  Sometimes it is necessary, in the midst
+of editing a file, to examine another part of the file.  You are then faced
+with the problem of remembering your place in the file, looking at the other
+text, and then getting back to your original location.  Vi has a 'mark'
+command, m. Type {mp}.  You have just 'marked' your current location in the
+file and given it the name 'p'.  The command string below will do three
+things: position you at the beginning of the file (line 1), then return you to
+the location 'p' that you just marked with the 'm' command, and, since the
+screen will not look exactly the same as it does right now, the 'z' command
+will reposition the screen. (You may want to write the string down before
+typing it: once you type {1G} it will no longer be on the screen.)
+
+So now type {1G'pz^M} - a one followed by a capital G, followed by the quote
+mark, followed by a lower case 'p', then a lower case 'z', then a return
+(which is the same as a ^M).  The {1G} moves you to line 1, i.e. the beginning
+of the file.  The {'p} moves you to the location you marked with {mp}.  The
+{z^M} command will repaint the screen putting the cursor at the top of the
+screen. (Now {^F}.)
+
+Section 7: {m} {G} {'} {z}
+Let's look at some variations on those commands.  If you wanted to look at
+line 22 in the file and return to this location you could type {mp22G'p}.  Do
+so now, observing that {22G} puts your cursor at the beginning of section 2 in
+the middle of the screen.
+
+Also note that, without the {z^M} command, the line with 'Section 7' on it is
+now in the MIDDLE of the screen, and not at the top.  Our cursor is on the
+correct line (where we did the {mp} command) but the line is not where we
+might like it to be on the screen.  That is the function of the {z^M} command.
+(Remember, ^M is the same as the 'return' key on your keyboard.)  Type {z^M}
+now and observe the effect.
+
+As you can see, the 'Section 7' line is now at the top of the screen with the
+cursor happily under the capital S.  If you would like the cursor line (i.e.
+the line which the cursor is on) in the middle of the screen again, you would
+type {z.}.  If you wanted the cursor line to be at the BOTTOM of the screen,
+type {z-}.  Try typing {z-z.z^M} and watch what happens.
+
+{^F}
+
+Section 8: {z} {m} {'}
+
+Note that the z command does not change the position of our cursor in the file
+itself, it simply moves the cursor around on the screen by moving the contents
+of the file around on the screen.  The cursor stays on the same line of the
+file when using the z command.
+
+This brings up an important point.  There are two questions that the users of
+vi continually need to know the answer to: "Where am I in the file?" and
+"Where am I on the screen?"  The cursor on your terminal shows the answer to
+both questions.  Some commands will move you around in the file, usually
+changing the location of the cursor on the screen as well.  Other commands
+move the cursor around on the screen without changing your location in the
+file.
+
+Now type {ma}.  Your location in the file has been given the name 'a'. If you
+type {'p'a} you will see the previous location we marked in section 7, and
+then will be returned to the current location.  (You will want to do a {z^M}
+to repaint the screen afterwards.)  Try it.  
+{^F}
+
+Section 9: {m} {''}
+Now we can move about in our file pretty freely.  By using the {m} command we
+can give the current cursor position a lower-case-character name, like 'p',
+'a', 'e', 'm', or 'b'.  Using the {G} command preceded by a line number we can
+look at any line in the file we like.  Using the single quote command {'}
+followed by a character used in an {m} command, we can return to any location
+in the file we have marked.
+
+However, try {m3}, or {mM}.  You should hear a beep, or bell.  Only lower-case
+letters are acceptable to the {m} and {'} commands: numbers, upper-case
+letters, and special characters are not acceptable.
+
+If you type the {'} command with a character that is lower-case alphabetic but
+that has not been used in an {m} command, or for which the 'marked' text has
+been deleted, you will also get a beep.  Try {'i}.  You should get a beep
+because the command {mi} has never been issued.  (Unless you've been
+experimenting.)
+
+The command {''} attempts to return you to the location at which you last
+modified some part of your file.  However, my experience has been that it is
+difficult to predict exactly where you will end up.  
+Section 10: {^M} {-}
+Now do {ma}, marking your position at the top of the screen.  Now hit {^M} (or
+return) until the cursor is right ... 
+* <- here, over/under the asterisk.  Now
+type {mb'a'b} and watch the cursor move from the asterisk to the top of the
+screen and back again.
+
+The {^M} command moves the cursor to the beginning of the next line.  Now type
+{^M} until the cursor is right ...
+* <- here.  The command to move the cursor to the beginning of the
+previous line is {-}.  Practice moving the cursor around on the screen by using
+{^M} and {-}.  BE CAREFUL to not move the cursor OFF the screen just yet.  If
+you do, type {'az^M}.
+
+Now we can move to any line within the screen.  Practice moving around in the
+file using the {^F}, {^B}, {-}, {^M}, {z}, and {'} commands.  When you are
+fairly confident that you can get to where you need to be in the file, and
+position the cursor on the screen where you want it type {'az^M^F} (which, of
+course, moves you back to the beginning of this section, repositions the
+cursor at the top of the screen, and advances you to the next section).
+
+Section 11: scrolling: {^M}
+The cursor should now be on the S of 'Section 11', and this should be on the
+first line of the screen.  If it is not, do {^M} or {-} as appropriate to put
+the cursor on the section line, and type {z^M}.
+
+Type {mc} to mark your place.
+
+Now type {^M} until the cursor is on the last line of this screen.  Now do one
+more {^M} and observe the result.  This is called scrolling.  When you
+attempted to move to a line not displayed on the screen, the line at the top of
+the screen was 'scrolled off', and a line at the bottom of the screen was
+'scrolled on'.  The top line with 'Section 11' should no longer be visible.
+
+Now type {'cz^M} to reset the screen and type {^F} for the next section.
+
+
+
+
+
+
+
+Section 12: {-} {z}
+
+The {-} command moves the cursor to the previous line in the file.  Now type
+{-}, which attempts to move the cursor to the previous line in this file.
+However, that line is not on the screen.  The resulting action will depend on
+your terminal.  (Do a {^Mz^M} to reposition the file).  On intelligent
+terminals (e.g. VT100s, Z19s, Concept 100s), a top line is 'scrolled on' and
+the bottom line is 'scrolled off'.  Other terminals, however, may not have
+this 'reverse scrolling' feature.  They will simply repaint the screen with
+the cursor line in the middle of the screen.  On such terminals it is
+necessary to type {z^M} to get the cursor line back to the top of the screen.
+
+
+
+
+
+
+
+
+
+
+Section 13:
+Up until this point, the tutorial has always tried to make sure that the first
+line of each screen has on it the section number and a list of the commands
+covered in that section.  This will no longer be strictly maintained.  If you
+want the section line at the top of the screen, you now know enough commands to
+do it easily: do {^M} or {-} until the cursor is on the section line and
+then {z^M}.  Also, from this point on, it may not be the case that a {^F} will
+put you at the beginning of the next section.  Therefore, be aware of where you
+are in the file as we look at other commands.  You may have to find your way
+back to a particular section without any help from the tutorial.  If you do not
+feel comfortable with this, then it is suggested that you practice moving from
+section 1 to section 13, back and forth, using {^M}, {-}, {^F}, and {^B}
+commands for a while.
+
+Also make liberal use of the mark command {m}: if, for example, you make a
+habit of using {mz} to mark your current location in the file, then you will
+always be able to return to that location with {'z} if the editor does
+something strange and you have no idea where you are or what happened.
+
+And finally, the proscription against experimentation is hereby lifted: play
+with the editor.  Feel free to try out variations on the commands and move
+around in the file.  By this time you should be able to recover from any gross
+errors.
+
+Section 14: {^E} {^Y} {^D} {^U}
+Let us now look at a few other commands for moving around in the file, and
+moving the file around on the screen.  Note that the commands we have already
+looked at are sufficient: you really don't need any more commands for looking
+in a file.  The following commands are not absolutely necessary.  However,
+they can make editing more convenient, and you should take note of their
+existence.  But it would be perfectly valid to decide to ignore them on this
+first pass: you can learn them later when you see a need for them, if you ever
+do.
+
+First, let's clear up some potentially confusing language.  In at least one
+place in the official document ('An Introduction to Display Editing with Vi'
+by William Joy, and Mark Horton, September 1980), the expression "to scroll
+down text" means that the cursor is moved down in your file.  However, note
+that this may result in the text on the screen moving UP.  This use of the
+word 'scroll' refers to the action of the cursor within the file.  However,
+another legitimate use of the word refers to the action of the text on the
+screen.  That is, if the lines on your screen move up toward the top of the
+screen, this would be 'scrolling the screen up'.  If the lines move down
+toward the bottom of the screen, this would be refered to as scrolling down.
+
+I have tried to maintain the following jargon: 'scrolling' refers to what the
+text does on the screen, not to what the cursor does within the file.  For the
+latter I will refer to the cursor 'moving', or to 'moving the cursor'.  I
+realize that this is not necessarily consistent with Joy and Horton, but they
+were wrong.
+
+{^E} scrolls the whole screen up one line, keeping the cursor on the same line,
+if possible.  However, if the cursor line is the first line on the screen, then
+the cursor is moved to the next line in the file.  Try typing {^E}.
+
+{^Y} scrolls the screen down one line, keeping the cursor on the same line, if
+possible.  However, if the cursor line is the last line on the screen, then the
+cursor is moved to the previous line in the file.  Try it.
+
+{^D} moves the cursor down into the file, scrolling the screen up.
+
+{^U} moves the cursor up into the file, also scrolling the screen if the
+terminal you are on has the reverse scroll capability.  Otherwise the
+screen is repainted.
+
+Note that {^E} and {^Y} move the cursor on the screen while trying to keep the
+cursor at the same place in the file (if possible: however, the cursor can
+never move off screen), while {^D} and {^U} keep the cursor at the same place
+on the screen while moving the cursor within the file.
+
+Section 15: {/ .. /^M}
+
+Another way to position yourself in the file is by giving the editor a string
+to search for.  Type the following: {/Here 1/^M} and the cursor should end up
+right ...........................here ^.  Now type {/Section 15:/^M} and the
+cursor will end up over/on .....................here ^.  Now type {//^M} and
+observe that the cursor is now over the capital S five lines above this line.
+Typing {//^M} several more times will bounce the cursor back and forth between
+the two occurrences of the string.  In other words, when you type a string
+between the two slashes, it is searched for.  Typing the slashes with nothing
+between them acts as if you had typed the previous string again.
+
+Observe that the string you type between the two slashes is entered on the
+bottom line of the screen.  Now type {/Search for x /^M} except replace the 'x'
+in the string with some other character, say 'b'.  The message "Pattern not
+found" should appear on the bottom of the screen.  If you hadn't replaced the
+'x', then you would have found the string.  Try it.
+
+Section 16: {? .. ?^M} {n} (search strings: ^ $)
+
+When you surround the sought-for string with slashes as in {/Search/}, the
+file is searched beginning from your current position in the file.  If the
+string is not found by the end of the file, searching is restarted at the
+beginning of the file.  However, if you do want the search to find the
+PREVIOUS rather than the NEXT occurrence of the string, surround the string
+with question marks instead of slash marks.
+
+Below are several occurrences of the same string.  
+Here 2            Here 2 Here 2
+ Here 2             Here 2.
+Observe the effect of the following search commands (try them in the
+sequence shown):
+{/Here 2/^M}  {//^M}  {??^M}
+{/^Here 2/^M}  {//^M}  {??^M}
+{/Here 2$/^M}  {//^M}  {??^M}
+
+The first command looks for the next occurrence of the string 'Here 2'.
+However the second line of commands looks for an occurrence of 'Here 2' that
+is at the beginning of the line.  When the up-arrow is the first character of
+a search string it stands for the beginning of the line.  When the dollar-sign
+is the last character of the search string it stands for the end of the line.
+Therefore, the third line of commands searches for the string only when it is
+at the end of the line.  Since there is only one place the string begins a
+line, and only one place the string ends the line, subsequent {//^M} and
+{??^M} will find those same strings over and over.
+
+The {n} command will find the next occurrence of the / or ? search
+string.  Try {/Here 2/^M} followed by several {n} and observe the
+effect.  Then try {??^M} followed by several {n}.  The {n} command
+remembers the direction of the last search.  It is just a way to save a
+few keystrokes.
+
+Section 17: \ and magic-characters in search strings
+
+Now type {/Here 3$/^M}.  You might expect the cursor to end up
+right......^ here.  However, you will get "Pattern not found" at the bottom of
+the screen.  Remember that the dollar-sign stands for the end of the line.
+Somehow, you must tell vi that you do not want the end of the line, but a
+dollar-sign.  In other words, you must take away the special meaning that the
+dollar-sign has for the search mechanism.  You do this (for any special
+character, including the up-arrow ^) by putting a back-slash ('\', not '/') in
+front of the character.
+
+Now try {/Here 3\$/^M} and you should end up nine lines above this one.  Try
+{//^M} and note that it returns you to the same place, and not to the first
+line of this paragraph: the back-slash character is not part of the search
+string and will not be found.  To find the string in the first line of this
+paragraph, type {/Here 3\\\$/^M}.  There are three back-slashes: the first takes
+away the special meaning from the second, and the third takes away the special
+meaning from the dollar-sign.
+
+Following is a list of the characters that have special meanings in search
+strings.  If you wish to find a string containing one of these characters, you
+will have to be precede the character with a backslash.  These characters are
+called magic characters because of the fun and games you can have with them
+and they can have with you, if you aren't aware of what they do.  
+
+  ^ - (up-arrow)       beginning of a line
+  $ - (dollar-sign)    end of a line
+  . - (period)         matches any character
+  \ - (backslant)      the escape character itself
+  [ - (square bracket) for finding patterns (see section #SEARCH)
+  ] - (square bracket) ditto
+  * - (asterisk)       ditto
+
+Without trying to explain it here, note that {:set nomagic^M} turns off the
+special meanings of all but the ^ up-arrow, $ dollar-sign, and backslash
+characters.
+
+Section 18: {: (colon commands)} {ZZ}
+
+In this section we will discuss getting into and out of the editor in more
+detail.  If you are editing a file and wish to save the results the command
+sequence {:w^M} writes the current contents of the file out to disk, using the
+file name you used when you invoked the editor.  That is, if you are at the
+command level in Unix, and you invoke vi with {vi foo} where foo is the name
+of the file you wish to edit, then foo is the name of the file used by the
+{:w^M} command.
+
+If you are done, the write and quit commands can be combined into a single
+command {:wq^M}.  An even simpler way is the command {ZZ} (two capital Z's).
+
+If, for some reason, you wish to exit without saving any changes you have made,
+{:q!^M} does the trick.  If you have not made any changes, the exclamation
+point is not necessary: {:q^M}.  Vi is pretty good about not letting you
+get out without warning you that you haven't saved your file.
+
+We have mentioned before that you are currently in the vi editor, editing a
+file.  If you wish to start the tutorial over from the very beginning, you
+could {ZZ}, and then type {vi.tut beginner} in response to the Unix prompt.
+This will create a fresh copy of this file for you, which might be necessary 
+if you accidentally destroyed the copy you were working with.  Just do a 
+search for the last section you were in: e.g.  {/Section 18:/^Mz^M}.
+
+Section 19: {H} {M} {L}
+
+Here are a few more commands that will move you around on the screen.  Again,
+they are not absolutely necessary, but they can make screen positioning easier:
+
+{H} - puts the cursor at the top of the screen (the 'home' position)
+
+{M} - puts the cursor in the middle of the screen
+
+{L} - puts the cursor at the bottom of the screen.
+
+Try typing {HML} and watch the cursor.
+
+Try typing {5HM5L} and note that 5H puts you five lines from the top of the
+screen, and 5L puts you five lines from the bottom of the screen.
+
+Section 20: {w} {b} {0} {W} {B} {e} {E} {'} {`}
+
+Up to this point we have concentrated on positioning in the file, and
+positioning on the screen.  Now let's look at positioning in a line.  Put the
+cursor at the beginning of the following line and type {z^M}:
+
+This is a test line: your cursor should initially be at its beginning.
+
+The test line should now be at the top of your screen. Type {w} several times.
+Note that it moves you forward to the beginning of the next word.  Now type
+{b} (back to the beginning of the word) several times till you are at the
+beginning of the line.  (If you accidentally type too many {b}, type {w} until
+you are on the beginning of the line again.) Type {wwwww} (five w's) and note
+that the cursor is now on the colon in the sentence.  The lower-case w command
+moves you forward one word, paying attention to certain characters such as
+colon and period as delimiters and counting them as words themselves.  Now
+type {0} (zero, not o 'oh'): this moves you to the beginning of the current
+line.  Now type {5w} and notice that this has the effect of repeating {w} five
+times and that you are now back on the colon.  Type {0} (zero) again.  To
+ignore the delimiters and to move to the beginning of the next word using only
+blanks, tabs and carriage-returns (these are called white-space characters) to
+delimit the words, use the {W} command: upper-case W.  {B} takes you back a
+word using white-space characters as word delimiters.
+
+Note that the commands {wbWB} do not stop at the beginning or end of a line:
+they will continue to the next word on the next line in the direction specified
+(a blank line counts as a word).
+
+If you are interested in the END of the word, and not the BEGINNING, then use
+the {e} and {E} commands.  These commands only move forward and there are no
+corresponding 'reverse search' commands for the end of a word.
+
+Also, we have been using the {'} command to move the cursor to a position that
+we have previously marked with the {m} command.  However, position the cursor
+in the middle of a line (any line, just pick one) and type {mk}, marking that
+position with the letter k.  Now type a few returns {^M} and type {'k}.
+Observe that the cursor is now at the beginning of the line that you marked.
+Now try {`k}: note that this is the reverse apostrophe, or back-quote, or grave
+accent, or whatever you want to call it.  Also note that it moves you to the
+character that was marked, not just to the line that was marked.
+
+In addition, the {``} command works just like the {''} command except that you
+are taken to the exact character, not just to the line.  (I'm still not
+sure which exact character, just as I'm still not sure which line.)
+
+Section 21: {l} {k} {j} {h}
+
+There are several commands to move around on the screen on a character by
+character basis:
+
+l - moves the cursor one character to the RIGHT
+k - moves the cursor UP one line
+j - moves the cursor DOWN one line
+h - moves the cursor one character to the LEFT
+
+Section 22: {i} {a} {I} {A} {o} {O} ^[ (escape key)
+
+For this and following sections you will need to use the ESCAPE key on your
+terminal.  It is usually marked ESC.  Since the escape key is the same as
+typing {^[} we will use ^[ for the escape key.
+
+Probably the most often used command in an editor is the insert command.  Below
+are two lines of text, the first correct, the second incorrect.  Position your
+cursor at the beginning of Line 1 and type {z^M}.
+
+Line 1: This is an example of the insert command.
+Line 2: This is an of the insert command.
+
+To make line 2 look like line 1, we are going to insert the characters
+'example ' before the word 'of'.  So, now move the cursor so that it is
+positioned on the 'o' of 'of'.  (You can do this by typing {^M} to move
+to the beginning of line 2, followed by {6w} or {wwwwww} to position the cursor
+on the word 'of'.)
+
+Now carefully type the following string and observe the effects:
+  {iexample ^[}  (remember: ^[ is the escape key)}
+The {i} begins the insert mode, and 'example ' is inserted into the line: 
+be sure to notice the blank in 'example '.  The ^[ ends insertion mode, 
+and the line is updated to include the new string.  Line 1 should look exactly 
+like Line 2.
+
+Move the cursor to the beginning of Line 3 below and type {z^M}:
+
+Line 3: These lines are examples for the 'a' command.
+Line 4: These line are examples for the '
+
+We will change line four to look like line three by using the append command.
+We need to append an 's' to the word 'line'.  Position the cursor on the 'e'
+of 'line'.  You can do this in several ways, one way is the following:
+First, type {/line /^M}.  This puts us on the word 'line' in Line 4
+(the blank in the search string is important!).  Next, type {e}.  The 'e' puts
+us at the end of the word.  Now, type {as^[  (^[ is the escape character)}.  
+The 'a' puts us in insert mode, AFTER the current character.  We appended the 
+'s', and the escape ^[ ended the insert mode.
+
+The difference between {i} (insert) and {a} (append) is that {i} begins
+inserting text BEFORE the cursor, and {a} begins inserting AFTER the cursor.
+
+Now type {Aa' command.^[}.  The cursor is moved to the end of the line and the
+string following {A} is inserted into the text.  Line 4 should now look like
+line 3.
+
+Just as {A} moves you to the end of the line to begin inserting, {I} would
+begin inserting at the FRONT of the line.
+
+To begin the insertion of a line after the cursor line, type {o}.  To insert a
+line before the cursor line, type {O}.  In other words {o123^[} is equivalent
+to {A^M123^[}, and {O123^[} is equivalent to {I123^M^[}.  The text after the
+{o} or {O} is ended with an escape ^[.
+
+This paragraph contains information that is terminal dependent: you will just
+have to experiment to discover what your terminal does.  Once in the insert
+mode, if you make a mistake in the typing, ^H will delete the previous
+character up to the beginning of the current insertion.  ^W will delete the
+previous word, and one of ^U, @, or ^X will delete the current line (up to the
+beginning of the current insertion).  You will need to experiment with ^U, @,
+and ^X to determine which works for your terminal.
+
+Section 23: {f} {x} {X} {w} {l} {r} {R} {s} {S} {J}
+
+Position the cursor at the beginning of line 5 and {z^M}:
+
+Line 5: The line as it should be.
+Line 6: The line as it shouldn't be.
+
+To make Line 6 like Line 5, we have to delete the 'n', the apostrophe, and the
+'t'.  There are several ways to position ourselves at the 'n'.  Choose
+whichever one suits your fancy:
+
+{/n't/^M}
+{^M7w6l}  or  {^M7w6 } (note the space)
+{^M3fn}  (finds the 3rd 'n' on the line)
+
+Now {xxx} will delete the three characters, as will {3x}.
+
+Note that {X} deletes the character just BEFORE the cursor, as opposed
+to the character AT the cursor.
+
+Position the cursor at line 7 and {z^M}:
+
+Line 7: The line as it would be.
+Line 8: The line as it could be.
+
+To change line 8 into line 7 we need to change the 'c' in 'could' into a 'w'.
+The 'r' (replace) command was designed for this.  Typing {rc} is the same as
+typing {xic^[} (i.e.  delete the 'bad' character and insert the correct
+new character).  Therefore, assuming that you have positioned the cursor on the
+'c' of 'could', the easiest way to change 'could' into 'would' is {rw}.
+
+If you would like to now change the 'would' into 'should', use the substitute
+command, 's': {ssh^[}.  The difference between 'r' and 's' is that 'r'
+(replace) replaces the current character with another character, while 's'
+(substitute) substitutes the current character with a string, ended with an
+escape.
+
+The capital letter version of replace {R} replaces each character by a
+character one at a time until you type an escape, ^[.  The 'S' command
+substitutes the whole line.
+
+Position your cursor at the beginning of line 9 and {z^M}.
+
+Line  9: Love is a many splendored thing.
+Line 10: Love is a most splendored thing.
+
+To change line 10 into line 9, position the cursor at the beginning of 'most',
+and type {Rmany^[}.
+
+You may have noticed that, when inserting text, a new line is formed by typing
+{^M}.  When changing, replacing, or substituting text you can make a new line
+by typing {^M}.  However, neither {x} nor {X} will remove ^M to make two lines 
+into one line.  To do this, position the cursor on the first of the two lines 
+you wish to make into a single line and type {J} (uppercase J for 'Join').
+
+Section 24: {u} {U}
+
+Finally, before we review, let's look at the undo command.  Position
+your cursor on line 11 below and {z^M}.
+
+Line 11: The quick brown fox jumped over the lazy hound dog.
+Line 12: the qwick black dog dumped over the laxy poune fox.
+
+Type the following set of commands, and observe carefully the effect of each 
+of the commands:
+
+{/^Line 12:/^M} {ft} {rT} {fw} {ru} {w} {Rbrown fox^[} {w} {rj} 
+{fx} {rz} {w} {Rhound dog^[}
+
+Line 12 now matches line 11.  Now type {U} - capital 'U'.  And line 12 now
+looks like it did before you typed in the command strings.  Now type:
+
+{ft} {rT} {fw} {ru} {^M} {^M}
+
+and then type {u}:  the cursor jumps back to the line containing the second
+change you made and 'undoes' it.  That is, {U} 'undoes' all the changes on the
+line, and {u} 'undoes' only the last change.  Type {u} several times and
+observe what happens: {u} can undo a previous {u}!
+
+Caveat: {U} only works as long as the cursor is still on the line.  Move the
+cursor off the line and {U} will have no effect, except to possibly beep at
+you.  However, {u} will undo the last change, no matter where it occurred.
+
+Section 25: review
+
+At this point, you have all the commands you need in order to make use of vi.
+The remainder of this tutorial will discuss variations on these commands as
+well as introduce new commands that make the job of editing more efficient.
+Here is a brief review of the basic commands we have covered.  They are listed
+in the order of increasing complexity and/or decreasing necessity (to say that
+a command is less necessary is not to say that it is less useful!).  These
+commands allow you to comfortably edit any text file.  There are other
+commands that will make life easier but will require extra time to learn,
+obviously.  You may want to consider setting this tutorial aside for several
+weeks and returning to it later after gaining experience with vi and getting
+comfortable with it.  The convenience of some of the more exotic commands may
+then be apparent and worth the extra investment of time and effort
+required to master them.
+
+to get into the editor from Unix:           {vi filename}
+to exit the editor
+      saving all changes                    {ZZ} or {:wq^M}
+      throwing away all changes             {:q!^M}
+      when no changes have been made        {:q^M}
+save a file without exiting the editor      {:w^M}
+write the file into another file            {:w filename^M}
+insert text 
+      before the cursor                     {i ...text... ^[}
+      at the beginning of the line          {I ...text... ^[}
+      after the cursor (append)             {a ...text... ^[}
+      at the end of the line                {A ...text... ^[}
+      after the current line                {o ...text... ^[}
+      before the current line               {O ...text... ^[}
+delete the character  ...
+      under the cursor                      {x}
+      to the left of the cursor             {X}
+delete n characters                         {nx} or {nX}  (for n a number)
+make two lines into one line (Join)         {J}
+find a string in the file ...
+      searching forward                     {/ ...string... /^M}
+      searching backwards                   {? ...string... ?^M}
+repeat the last search command              {n}
+repeat the last search command in the
+  opposite direction                        {N}
+find the character c on this line ...
+      searching forward                     {fc}
+      searching backward                    {Fc}
+repeat the last 'find character' command    {;}
+replace a character with character x        {rx}
+substitute a single character with text     {s ...text... ^[}
+substitute n characters with text           {ns ...text... ^[}
+replace characters one-by-one with text     {R ...text... ^[}
+undo all changes to the current line        {U}
+undo the last single change                 {u}
+move forward in the file a "screenful"      {^F}
+move back in the file a "screenful"         {^B}
+move forward in the file one line           {^M} or {+}
+move backward in the file one line          {-}
+move to the beginning of the line           {0}
+move to the end of the line                 {$}
+move forward one word                       {w}
+move forward one word, ignoring punctuation {W}
+move forward to the end of the next word    {e}
+to the end of the word, ignoring punctuation{E}
+move backward one word                      {b}
+move back one word, ignoring punctuation    {B}
+return to the last line modified            {''}
+scroll a line onto the top of the screen    {^Y}
+scroll a line onto the bottom of the screen {^E}
+move "up" in the file a half-screen         {^U}
+move "down" in the file a half-screen       {^D}
+move the cursor to the top screen line      {H}
+move the cursor to the bottom screen line   {L}
+move the cursor to the middle line          {M}
+move LEFT one character position            {h} or {^H}
+move RIGHT one character position           {l} or { }
+move UP in the same column                  {k} or {^P}
+move DOWN in the same column                {j} or {^N}
+mark the current position, name it x        {mx}
+move to the line marked/named x             {'x}
+move to the character position named x      {`x}
+move to the beginning of the file           {1G}
+move to the end of the file                 {G}
+move to line 23 in the file                 {23G}
+repaint the screen with the cursor line
+       at the top of the screen             {z^M}
+       in the middle of the screen          {z.}
+       at the bottom of the screen          {z-}
+
+More information on vi can be found in the file vi.advanced, which you can
+peruse at your leisure.  From UNIX, type {vi.tut advanced^M}.  

@@ -1,0 +1,4 @@
+# System-wide .profile file for sh(1).
+BLOCKSIZE=K; export BLOCKSIZE
+PATH=/stand:.; export PATH
+set -E

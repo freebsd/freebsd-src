@@ -1,0 +1,38 @@
+.\" Copyright (c) 2001 Kungliga Tekniska Högskolan
+.\" $Id: krb5_init_context.3,v 1.1 2001/01/28 21:39:29 assar Exp $
+.Dd Jan 21, 2001
+.Dt KRB5_CONTEXT 3
+.Os HEIMDAL
+.Sh NAME
+.Nm krb5_init_context ,
+.Nm krb5_free_context
+.Sh SYNOPSIS
+.Fd #include <krb5.h>
+.Ft krb5_error_code
+.Fn krb5_init_context "krb5_context *context"
+.Ft void
+.Fn krb5_free_context "krb5_context *context"
+.Sh DESCRIPTION
+The
+.Fn krb5_init_context
+function initializes the
+.Fa context
+structure and reads the configration file
+.Pa /etc/krb5.conf .
+.Pp
+The structure should be freed by calling
+.Fn krb5_free_context
+when it is no longer being used.
+.Sh RETURN VALUES
+.Fn krb5_init_context
+returns 0 to indicate success.
+Otherwise an errno code is returned.
+Failure means either that something bad happened during initialization
+(typically
+.Bq ENOMEM )
+or that Kerberos should not be used
+.Bq ENXIO .
+.Sh SEE ALSO
+.Xr krb5_context 3 ,
+.Xr errno 2 ,
+.Xr kerberos 8

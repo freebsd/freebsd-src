@@ -1,0 +1,75 @@
+#	@(#)symbols.raw	7.6 (Berkeley) 5/8/91
+#
+# $FreeBSD$
+#
+
+
+#gdb
+	_IdlePTD
+	_PTD
+	_panicstr
+	_atdevbase
+#	_version
+#dmesg
+	_msgbufp
+#	_msgbuf
+#iostat
+	_tk_nin
+	_tk_nout
+	_cp_time
+#	_io_info
+#ps
+	_nswap
+	_maxslp
+	_ccpu
+	_fscale
+	_avail_start
+	_avail_end
+#pstat
+#	_cons
+	_nswap
+	_swapblist
+#	_swaplist
+#vmstat
+	_cp_time
+#	_rate
+#	_total
+#	_sum
+#	_rectime
+#	_pgintime
+	_boottime
+#w
+	_swapdev
+	_nswap
+	_averunnable
+	_boottime
+#netstat
+	_mbstat
+	_ipstat
+	_tcb
+	_tcpstat
+	_udb
+	_udpstat
+#	_rawcb
+	_ifnet
+#	_rthost
+#	_rtnet
+	_icmpstat
+	_filehead
+	_nfiles
+#	_rthashsize
+#	_radix_node_head
+#routed
+	_ifnet
+#rwho
+	_boottime
+#savecore
+	_dumpdev
+	_dumplo
+	_time_second
+	_version
+	_dumpsize
+	_panicstr
+	_dumpmag
+#deprecated
+#	_avenrun

@@ -1,0 +1,65 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+<HEAD>
+  <TITLE>BIND Configuration File Guide -- Example Config File</TITLE>
+</HEAD>
+
+<BODY>
+<H2>BIND Configuration File Guide -- Example Config File</H2>
+
+<HR>
+
+<PRE>
+
+/*
+ * A simple BIND 8 configuration
+ */
+
+logging {
+	category lame-servers { null; };
+	category cname { null; };
+};
+
+options {
+	directory "/var/named";
+};
+
+controls {
+	inet * port 52 allow { localnets; };		// a BAD idea
+	unix "/var/run/ndc" perm 0600 owner 0 group 0;	// the default
+};
+
+zone "isc.org" in {
+	type master;
+	file "master/isc.org";
+};
+
+zone "vix.com" in {
+	type slave;
+	file "slave/vix.com";
+	masters { 10.0.0.53; };
+};
+
+zone "." in {
+	type hint;
+	file "named.cache";
+};
+
+zone "0.0.127.in-addr.arpa" in {
+	type master;
+	notify no;
+	file "master/127.0.0";
+};
+</PRE>
+
+<HR>
+
+<CENTER><P>[ <A HREF="http://www.isc.org/products/BIND/">BIND Home</A>
+|&nbsp;<A HREF="http://www.isc.org/">ISC</A> ]</P></CENTER>
+
+<HR>
+<ADDRESS>
+Last Updated: $Id: example.html,v 1.5 1999/09/15 20:28:01 cyarnell Exp $
+</ADDRESS>
+</BODY>
+</HTML>

@@ -1,0 +1,106 @@
+
+#------------------------------------------------------------------------------
+# filesystems:  file(1) magic for different filesystems
+#
+0	string	\366\366\366\366	PC formatted floppy with no filesystem
+# Sun disk labels
+# From /usr/include/sun/dklabel.h:
+0774	beshort		0xdabe		Sun disk label
+>0	string		x		'%s
+>>31  	string		>\0		\b%s
+>>>63  	string		>\0		\b%s
+>>>>95 	string		>\0		\b%s
+>0	string		x		\b'
+>0734	short		>0		%d rpm,
+>0736	short		>0		%d phys cys,
+>0740	short		>0		%d alts/cyl,
+>0746	short		>0		%d interleave,
+>0750	short		>0		%d data cyls,
+>0752	short		>0		%d alt cyls,
+>0754	short		>0		%d heads/partition,
+>0756	short		>0		%d sectors/track,
+>0764	long		>0		start cyl %ld,
+>0770	long		x		%ld blocks
+# Is there a boot block written 1 sector in?
+>512    belong&077777777	0600407	\b, boot block present
+0x1FE	leshort	0xAA55			x86 boot sector
+>2	string	OSBS			\b, OS/BS MBR
+>0x8C	string	Invalid\ partition\ table	\b, MS-DOS MBR
+>0	string	\0\0\0\0		\b, extended partition table
+>0	leshort 0x3CEB			\b, system
+>>3	string	>\0			%s
+>>0x36	string	FAT			\b, %s
+>>>0x39	string	12			(%s bit)
+>>>0x39	string	16			(%s bit)
+>0x52	string	FAT32			\b, FAT (32 bit)
+>>>43	string		>NO\ NAME	label: %.11s,
+>>>43	string		<NO\ NAME	label: %.11s,
+>>>43	string		NO\ NAME	unlabeled,
+>>>19	leshort		>0		%d sectors
+>>>19	leshort		0		
+>>>>32	lelong		x		%d sectors
+>0x200	lelong	0x82564557		\b, BSD disklabel
+
+# Minix filesystems - Juan Cespedes <cespedes@debian.org>
+0x410	leshort		0x137f		Minix filesystem
+0x410	leshort		0x138f		Minix filesystem, 30 char names
+0x410	leshort		0x2468		Minix filesystem, version 2
+0x410	leshort		0x2478		Minix filesystem, version 2, 30 char names
+
+# romfs filesystems - Juan Cespedes <cespedes@debian.org>
+0	string		-rom1fs-\0	romfs filesystem, version 1
+>8	belong	x			%d bytes,
+>16	string	x			named %s.
+
+# netboot image - Juan Cespedes <cespedes@debian.org>
+0	lelong		0x1b031336L	Netboot image,
+>4	lelong&0xFFFFFF00	0
+>>4	lelong&0x100	0x000		mode 2
+>>4	lelong&0x100	0x100		mode 3
+>4	lelong&0xFFFFFF00	!0	unknown mode
+
+0x18b	string	OS/2	OS/2 Boot Manager
+
+9564	lelong		0x00011954	Unix Fast File system (little-endian),
+>8404	string		x		last mounted on %s,
+>9504	ledate		x		last checkd at %s,
+>8224	ledate		x		last writen at %s,
+>8228	lelong		x		number of blocks %d,
+>8232	lelong		x		number of data blocks %d,
+>8236	lelong		x		number of cylinder groups %d,
+>8240	lelong		x		number of basic blocks %d,
+>8244	lelong		x		number of fragment blocks %d,
+>8248	lelong		x		minimum percentage of free blocks %d,
+>8252	lelong		x		rotational delay %dms,
+>8256	lelong		x		disk rotational speed %drps,
+>8320	lelong		0		TIME optimization
+>8320	lelong		1		SPACE optimization
+
+9564	belong		0x00011954	Unix Fast File system (little-endian),
+>8404	string		x		last mounted on %s,
+>9504	bedate		x		last checkd at %s,
+>8224	bedate		x		last writen at %s,
+>8228	belong		x		number of blocks %d,
+>8232	belong		x		number of data blocks %d,
+>8236	belong		x		number of cylinder groups %d,
+>8240	belong		x		number of basic blocks %d,
+>8244	belong		x		number of fragment blocks %d,
+>8248	belong		x		minimum percentage of free blocks %d,
+>8252	belong		x		rotational delay %dms,
+>8256	belong		x		disk rotational speed %drps,
+>8320	belong		0		TIME optimization
+>8320	belong		1		SPACE optimization
+
+# ext2/ext3 filesystems - Andreas Dilger <adilger@turbolabs.com>
+0x438	leshort		0xEF53		Linux
+>0x44c	lelong		x		rev %d
+>0x43e	leshort		x		\b.%d
+>0x45c	lelong		^0x0000004	ext2 filesystem data
+>>0x43a	leshort		^0x0000001	(mounted or unclean)
+>0x45c	lelong		&0x0000004	ext3 filesystem data
+>>0x460	lelong		&0x0000004	(needs journal recovery)
+>0x43a	leshort		&0x0000002	(errors)
+>0x460	lelong		&0x0000001	(compressed)
+#>0x460	lelong		&0x0000002	(filetype)
+#>0x464	lelong		&0x0000001	(sparse_super)
+>0x464	lelong		&0x0000002	(large files)

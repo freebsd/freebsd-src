@@ -1,0 +1,49 @@
+=pod
+
+=head1 NAME
+
+SSL_clear - reset SSL object to allow another connection
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ int SSL_clear(SSL *ssl);
+
+=head1 DESCRIPTION
+
+Reset B<ssl> to allow another connection. All settings (method, ciphers,
+BIOs) are kept.
+
+=head1 NOTES
+
+SSL_clear is used to prepare an SSL object for a new connection. While all
+settings are kept, a side effect is the handling of the current SSL session.
+If a session is still B<open>, it is considered bad and will be removed
+from the session cache, as required by RFC2246. A session is considered open,
+if L<SSL_shutdown(3)|SSL_shutdown(3)> was not called for the connection
+or at least L<SSL_set_shutdown(3)|SSL_set_shutdown(3)> was used to
+set the SSL_SENT_SHUTDOWN state.
+
+=head1 RETURN VALUES
+
+The following return values can occur:
+
+=over 4
+
+=item 0
+
+The SSL_clear() operation could not be performed. Check the error stack to
+find out the reason.
+
+=item 1
+
+The SSL_clear() operation was successful.
+
+=back
+
+L<SSL_new(3)|SSL_new(3)>, L<SSL_free(3)|SSL_free(3)>,
+L<SSL_shutdown(3)|SSL_shutdown(3)>, L<SSL_set_shutdown(3)|SSL_set_shutdown(3)>,
+L<SSL_CTX_set_options(3)|SSL_CTX_set_options(3)>, L<ssl(3)|ssl(3)>
+
+=cut

@@ -1,0 +1,39 @@
+#!/bin/sh
+# $FreeBSD$
+# script to edit and save some config file(s)
+thefiles=$*
+pwd=`pwd`
+dev="/dev/fd0c"
+echo "Updating content on ${dev}: "
+mount ${dev} /mnt
+if [ "X$?" != "X0" ] ; then
+	echo ""
+	echo "Cannot mount ${dev} read-write!"
+	exit 1
+fi
+if [ "$thefiles" = "" ] ; then
+    srcs=`ls /etc`
+    for i in $srcs ; do
+	if [ -f /mnt/etc/$i.gz ] ; then
+	    echo -n "$i ..."
+	    gzip < /etc/$i > /mnt/etc/$i.gz
+	fi
+    done
+elif [ "$thefiles" = "passwd" ] ; then
+    ee /etc/master.passwd
+    pwd_mkdb master.passwd
+    gzip < /etc/master.passwd /mnt/etc/master.passwd.gz
+else
+    for i in $thefiles; do
+	if [ -f $i ] ; then
+	    ee $i
+	    gzip < $i > /mnt/$i.gz
+	fi
+    done
+fi
+echo " Done."
+echo -n "Updating kernel parameters...  "
+kget /mnt/boot/kernel.conf
+umount /mnt
+cd ${pwd}
+echo " Done."

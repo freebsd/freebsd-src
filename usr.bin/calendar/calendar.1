@@ -1,0 +1,231 @@
+.\" Copyright (c) 1989, 1990, 1993
+.\"     The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"     This product includes software developed by the University of
+.\"     California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)calendar.1  8.1 (Berkeley) 6/29/93
+.\" $FreeBSD$
+.\"
+.Dd June 29, 1993
+.Dt CALENDAR 1
+.Os
+.Sh NAME
+.Nm calendar
+.Nd reminder service
+.Sh SYNOPSIS
+.Nm
+.Op Fl a
+.Op Fl A Ar num
+.Op Fl B Ar num
+.Op Fl f Ar calendarfile
+.Oo Fl t Ar dd Ns
+.Sm off
+.Op . Ar mm Op . Ar year
+.Sm on
+.Oc
+.Sh DESCRIPTION
+.Nm Calendar
+checks the current directory for a file named
+.Pa calendar
+and displays lines that begin with either today's date
+or tomorrow's.
+On Fridays, events on Friday through Monday are displayed.
+.Pp
+The following options are available:
+.Bl -tag -width Ds
+.It Fl a
+Process the ``calendar'' files of all users and mail the results
+to them.
+This requires super-user privileges.
+.It Fl A Ar num
+Print lines from today and the next
+.Ar num
+days (forward, future).
+.It Fl B Ar num
+Print lines from today and the previous
+.Ar num
+days (backward, past).
+.It Fl f Pa calendarfile
+Use
+.Pa calendarfile
+as the default calendar file.
+.It Xo Fl t
+.Sm off
+.Ar dd
+.Op . Ar mm Op . Ar year
+.Sm on
+.Xc
+For test purposes only: set date directly to argument values.
+.El
+.Pp
+To handle calendars in your national code table you can specify
+.Dq LANG=<locale_name>
+in the calendar file as early as possible.
+To handle national Easter
+names in the calendars
+.Dq Easter=<national_name>
+(for Catholic Easter) or
+.Dq Paskha=<national_name>
+(for Orthodox Easter) can be used.
+.Pp
+Other lines should begin with a month and day.
+They may be entered in almost any format, either numeric or as character
+strings.
+If the proper locale is set, national month and weekday
+names can be used.
+A single asterisk (``*'') matches every month.
+A day without a month matches that day of every week.
+A month without a day matches the first of that month.
+Two numbers default to the month followed by the day.
+Lines with leading tabs default to the last entered date, allowing
+multiple line specifications for a single date.
+.Pp
+``Easter'', is Easter for this year, and may be followed by a positive
+or negative integer.
+.Pp
+``Paskha'', is Orthodox Easter for this year, and may be followed by a
+positive or negative integer.
+.Pp
+Weekdays may be followed by ``-4'' ... ``+5'' (aliases for
+last, first, second, third, fourth) for moving events like
+``the last Monday in April''
+.Pp
+By convention, dates followed by an asterisk are not fixed, i.e., change
+from year to year.
+.Pp
+Day descriptions start after the first <tab> character in the line;
+if the line does not contain a <tab> character, it is not displayed.
+If the first character in the line is a <tab> character, it is treated as
+a continuation of the previous line.
+.Pp
+The ``calendar'' file is preprocessed by
+.Xr cpp 1 ,
+allowing the inclusion of shared files such as lists of company holidays or
+meetings.
+If the shared file is not referenced by a full pathname,
+.Xr cpp 1
+searches in the current (or home) directory first, and then in the
+directory
+.Pa /usr/share/calendar .
+Empty lines and lines protected by the C commenting syntax
+.Pq Li /* ... */
+are ignored.
+.Pp
+Some possible calendar entries (<tab> characters highlighted by
+\fB\et\fR sequence)
+.Bd -unfilled -offset indent
+LANG=C
+Easter=Ostern
+
+#include <calendar.usholiday>
+#include <calendar.birthday>
+
+6/15\fB\et\fRJune 15 (if ambiguous, will default to month/day).
+Jun. 15\fB\et\fRJune 15.
+15 June\fB\et\fRJune 15.
+Thursday\fB\et\fREvery Thursday.
+June\fB\et\fREvery June 1st.
+15 *\fB\et\fR15th of every month.
+
+May Sun+2\fB\et\fRsecond Sunday in May (Muttertag)
+04/SunLast\fB\et\fRlast Sunday in April,
+\fB\et\fRsummer time in Europe
+Easter\fB\et\fREaster
+Ostern-2\fB\et\fRGood Friday (2 days before Easter)
+Paskha\fB\et\fROrthodox Easter
+
+.Ed
+.Sh FILES
+.Bl -tag -width calendar.christian -compact
+.It Pa calendar
+file in current directory
+.It Pa ~/.calendar
+.Pa calendar
+HOME directory.
+.Nm
+does a chdir into this directory if it exists.
+.It Pa ~/.calendar/calendar
+calendar file to use if no calendar file exists in the current directory.
+.It Pa ~/.calendar/nomail
+do not send mail if this file exists.
+.El
+.Pp
+The following default calendar files are provided:
+.Pp
+.Bl -tag -width calendar.christian -compact
+.It Pa calendar.birthday
+Births and deaths of famous (and not-so-famous) people.
+.It Pa calendar.christian
+Christian holidays.
+This calendar should be updated yearly by the local system administrator
+so that roving holidays are set correctly for the current year.
+.It Pa calendar.computer
+Days of special significance to computer people.
+.It Pa calendar.history
+Everything  else, mostly U.S. historical events.
+.It Pa calendar.holiday
+Other  holidays, including the not-well-known, obscure, and
+.Em really
+obscure.
+.It Pa calendar.judaic
+Jewish holidays.
+This calendar should be updated yearly by the local system administrator
+so that roving holidays are set correctly for the current year.
+.It Pa calendar.music
+Musical  events,  births, and deaths.
+Strongly  oriented  toward  rock 'n' roll.
+.It Pa calendar.usholiday
+U.S. holidays.
+This calendar should be updated yearly by the local system administrator
+so that roving holidays are set correctly for the current year.
+.It Pa calendar.german
+German calendar.
+.It Pa calendar.russian
+Russian calendar.
+.El
+.Sh SEE ALSO
+.Xr at 1 ,
+.Xr cpp 1 ,
+.Xr mail 1 ,
+.Xr cron 8
+.Sh COMPATIBILITY
+The
+.Nm
+program previously selected lines which had the correct date anywhere
+in the line.
+This is no longer true, the date is only recognized when it occurs
+at the beginning of a line.
+.Sh HISTORY
+A
+.Nm
+command appeared in
+.At v7 .
+.Sh BUGS
+.Nm Calendar
+doesn't handle Jewish holidays and moon phases.

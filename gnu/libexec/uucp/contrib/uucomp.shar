@@ -1,0 +1,552 @@
+#! /bin/sh
+#
+# Created by shar, version 0.5 - 04/10/91
+#
+# This is a shell archive, meaning:
+# 1. Remove everything about the #! /bin/sh line.
+# 2. Save the resulting text in a file.
+# 3. Execute the file with /bin/sh to create:
+#
+#        length  name
+#        ------  -------------------------------------
+#           128  uucomp-1.1/Compress
+#           264  uucomp-1.1/Copyright
+#           410  uucomp-1.1/INTERNALS
+#          1069  uucomp-1.1/Makefile
+#          3528  uucomp-1.1/README
+#           632  uucomp-1.1/crmail.c
+#           632  uucomp-1.1/crnews.c
+#           108  uucomp-1.1/tags
+#          3506  uucomp-1.1/uucomp.c
+#           383  uucomp-1.1/uucomp.h
+#
+
+if test ! -d uucomp-1.1 ; then
+   mkdir uucomp-1.1
+fi
+#
+# Archive number 1
+# This archive created Tue Sep 28 20:21:14 1993
+#
+
+echo "shar: extracting uucomp-1.1/Compress - (128 characters)"
+if test -f 'uucomp-1.1/Compress' ; then
+   echo shar: will not over-write existing file uucomp-1.1/Compress
+else
+sed 's/^X//' << \SHAR_EOF > 'uucomp-1.1/Compress'
+Xfor i in $*
+Xdo
+X	if [ -d /usr/spool/uucp/$i ]
+X	then
+X#		echo Looking at $i
+X		cd /usr/spool/uucp/$i
+X		/usr/bin/uucomp C.*
+X	fi
+Xdone
+SHAR_EOF
+if test 128 -ne "`wc -c < 'uucomp-1.1/Compress'`" ; then
+   echo "shar: ***** error transmitting file uucomp-1.1/Compress (should have been 128 characters, but was "`wc -c < 'uucomp-1.1/Compress'`" characters) *****"
+fi
+fi
+
+touch 0715110393 uucomp-1.1/Compress
+chmod 0700 uucomp-1.1/Compress
+
+echo "shar: extracting uucomp-1.1/Copyright - (264 characters)"
+if test -f 'uucomp-1.1/Copyright' ; then
+   echo shar: will not over-write existing file uucomp-1.1/Copyright
+else
+sed 's/^X//' << \SHAR_EOF > 'uucomp-1.1/Copyright'
+X
+X/*
+X * 
+X * Copyright 1993 by Ed Carp (erc@apple.com)  All rights reserved.
+X * 
+X * Permission is hereby granted for any non-commercial use of this
+X * program, as long as this copyright notice remains intact.  Commercial
+X * users may contact me - I'm easy.
+X * 
+X */
+X
+SHAR_EOF
+if test 264 -ne "`wc -c < 'uucomp-1.1/Copyright'`" ; then
+   echo "shar: ***** error transmitting file uucomp-1.1/Copyright (should have been 264 characters, but was "`wc -c < 'uucomp-1.1/Copyright'`" characters) *****"
+fi
+fi
+
+touch 0715174993 uucomp-1.1/Copyright
+chmod 0600 uucomp-1.1/Copyright
+
+echo "shar: extracting uucomp-1.1/INTERNALS - (410 characters)"
+if test -f 'uucomp-1.1/INTERNALS' ; then
+   echo shar: will not over-write existing file uucomp-1.1/INTERNALS
+else
+sed 's/^X//' << \SHAR_EOF > 'uucomp-1.1/INTERNALS'
+XThis is the basic workflow for uucomp:
+X
+Xfor (every argv)
+Xdo
+X	if not "C." file skip
+X	if open fail, skip
+X	read 1 line from C. file
+X	grab second and 10th field (second is data file name,
+X		10th is command name)
+X	if open fail on second field, skip
+X	if 10th field isn't "rmail" or "rnews", skip
+X	execute "gzip -9" on second field
+X	change "rmail" and "rnews" to "crmail" and "crnews", respectively
+X		in C. file
+Xdone
+SHAR_EOF
+if test 410 -ne "`wc -c < 'uucomp-1.1/INTERNALS'`" ; then
+   echo "shar: ***** error transmitting file uucomp-1.1/INTERNALS (should have been 410 characters, but was "`wc -c < 'uucomp-1.1/INTERNALS'`" characters) *****"
+fi
+fi
+
+touch 0715174693 uucomp-1.1/INTERNALS
+chmod 0600 uucomp-1.1/INTERNALS
+
+echo "shar: extracting uucomp-1.1/Makefile - (1069 characters)"
+if test -f 'uucomp-1.1/Makefile' ; then
+   echo shar: will not over-write existing file uucomp-1.1/Makefile
+else
+sed 's/^X//' << \SHAR_EOF > 'uucomp-1.1/Makefile'
+X#
+X# Makefile generated with genmake - version 1.1  08/22/92
+X#
+X# genmake is Copyright 1991 by Edwin R. Carp
+X#
+X# GENMAKE -B/usr/bin -tsp [files]
+X#
+X
+XCC = gcc -O6
+XCFLAGS =  $(INCLUDE)
+XSOURCES = crmail.c crnews.c uucomp.c 
+XOBJECTS = crmail.o crnews.o uucomp.o 
+XPROGRAMS = /usr/bin/crmail /usr/bin/crnews /usr/bin/uucomp 
+X
+Xall: $(PROGRAMS) tags
+X
+X/usr/bin/crmail: crmail.o 
+X	$(CC) $(CFLAGS) -o crmail crmail.o $(LDFLAGS)  -O
+X	strip crmail
+X	chmod 755 crmail
+X	mv crmail /usr/bin
+X
+X/usr/bin/crnews: crnews.o 
+X	$(CC) $(CFLAGS) -o crnews crnews.o $(LDFLAGS)  -O
+X	strip crnews
+X	chmod 755 crnews
+X	mv crnews /usr/bin
+X
+X/usr/bin/uucomp: uucomp.o 
+X	$(CC) $(CFLAGS) -o uucomp uucomp.o $(LDFLAGS)  -O
+X	strip uucomp
+X	chmod 755 uucomp
+X	mv uucomp /usr/bin
+X
+Xclean:
+X	/bin/rm -f $(OBJECTS) MAKELOG eddep makedep
+X
+Xclobber:
+X	/bin/rm -f $(OBJECTS) $(PROGRAMS) MAKELOG eddep makedep *~ *.bak *.BAK
+X	/bin/rm -f tags
+X
+Xhidden:
+X	echo "make all > MAKELOG 2>&1 &"|/bin/sh
+X
+Xmakefile:
+X	genmake -B/usr/bin -tsp $(SOURCES) &
+X
+Xmakeall:
+X	genmake -B/usr/bin -tsp *.c &
+X
+Xtags:	$(SOURCES)
+X	ctags $(SOURCES) > tags
+X
+SHAR_EOF
+if test 1069 -ne "`wc -c < 'uucomp-1.1/Makefile'`" ; then
+   echo "shar: ***** error transmitting file uucomp-1.1/Makefile (should have been 1069 characters, but was "`wc -c < 'uucomp-1.1/Makefile'`" characters) *****"
+fi
+fi
+
+touch 0714235093 uucomp-1.1/Makefile
+chmod 0600 uucomp-1.1/Makefile
+
+echo "shar: extracting uucomp-1.1/README - (3528 characters)"
+if test -f 'uucomp-1.1/README' ; then
+   echo shar: will not over-write existing file uucomp-1.1/README
+else
+sed 's/^X//' << \SHAR_EOF > 'uucomp-1.1/README'
+XLike most people these days, I'm looking for ways to make my computing
+Xenvironment more efficient.  This environment consists of a 486, a 386,
+Xand a 386SL laptop, all of which run Taylor uucp under Linux.  The 386
+Xlaptop gets used a lot, since it goes wherever I go and I answer a lot
+Xof news and email every day.  Often, I must use other people's facilities
+X(phone lines and such) to send out replies and post news if I'm not at home.
+XSince it's not fair to the client for them to pay for my zone calls back
+Xto my home in Fremont, I place the calls on my phone card.  Unfortunately,
+XPacBell is very proud of the services they offer, especially in regards
+Xto this convenience of automatically charging calls to my house wherever I
+Xmay be.  Considering that this can be very expensive to do, I searched for
+Xa way to cut my phone bill down to something I could afford to pay each
+Xmonth without fainting every time I saw the bill.
+X
+XThe first thing I did was to go out and plunk $195 for a 14.4KB modem.
+XThat helped, but C-News is very slow on my laptop, and batching articles
+Xis even slower, and email (of course) isn't batched at all.  Even with
+XMNP5 compression turned on, this doesn't make for a very efficient setup,
+Xeven at high speeds.
+X
+XPlaying around with uucp told me that the line turnaround wasn't that much
+Xoverhead, nor was sending the C./X. files (the execute files) - the real
+Xoverhead was sending out uncompressed news and especially email, since
+XI subscribe to several mailing lists and digests can run quite large.
+X
+XI looked at uubatch, but the most current version I could find (1.05) was
+Xnot compatible with Taylor uucp (and I had no other alternative), so I
+Xdecided to write my own.  Experiments with "gzip -9" convinced me that
+Xthat was the way to go, since gzip gives email and news 60 to 75 percent
+Xcompression, which would tend to cut one's phone bill significantly.
+X
+XYou hold in your mailbox (or news reader) the end result of that effort.
+XBear in mind that (1) this is a "first cut" and while it is unlikely that
+Xthere are very many bugs, there are certainly places where the programs could
+Xbe improved and tuned.  Suggestions and comments are welcome!
+X
+XTo install:
+X
+X	1.	Feed this to shar.
+X	2.	Look at the Makefile.  Make sure that the paths for
+X		things are set up correctly.
+X	3.	Look at uucomp.h and make sure that the path and
+X		options for COMPRESS/UNCOMPRESS are set up properly.
+X	3.	Type "make".  This will make uucomp, crmail, and crnews
+X		and will place them in /usr/bin.  Move Compress into
+X		/usr/lib/uucp.
+X	4.	Make an entry in crontab to do
+X			/usr/lib/uucp/Compress site1 site2 site3...
+X		occasionally.  It is suggested that this be done fairly
+X		frequently.  Alternately, you could set up a login shell
+X		for selected sites to run uucomp every time that site
+X		logged in.
+X	5.	Don't forget to add /usr/bin/crmail and /usr/bin/crnews
+X		to the list of programs allowed to be executed in your
+X		Permissions file (if running HDB UUCP), or whatever is
+X		appropriate for your version of uucp.
+X
+XEnjoy!  Any questions or comments can be sent to erc@apple.com.
+X
+XNote:  This is tuned for Taylor uucp, but would not be particularly
+Xdifficult to adapt to other version of uucp.  See the file INTERNALS for
+Xdetails of how this works.
+X
+XJuly 15, 1993
+XEd Carp
+Xerc@apple.com
+X------------------------------------------------------------------------------
+XChanges since 1.0:
+X
+X      Version	Date		Description
+X
+X	1.1	08/04/93	Added sanity check in C. file (check that
+X				'E' is first char in file, otherwise skip)
+SHAR_EOF
+if test 3528 -ne "`wc -c < 'uucomp-1.1/README'`" ; then
+   echo "shar: ***** error transmitting file uucomp-1.1/README (should have been 3528 characters, but was "`wc -c < 'uucomp-1.1/README'`" characters) *****"
+fi
+fi
+
+touch 0804224993 uucomp-1.1/README
+chmod 0600 uucomp-1.1/README
+
+echo "shar: extracting uucomp-1.1/crmail.c - (632 characters)"
+if test -f 'uucomp-1.1/crmail.c' ; then
+   echo shar: will not over-write existing file uucomp-1.1/crmail.c
+else
+sed 's/^X//' << \SHAR_EOF > 'uucomp-1.1/crmail.c'
+X/*
+X * crmail - get compressed mail from host, uncompress
+X * WARNING: This may be insecure!
+X */
+X
+X/*
+X * 
+X * Copyright 1993 by Ed Carp (erc@apple.com)  All rights reserved.
+X * 
+X * Permission is hereby granted for any non-commercial use of this
+X * program, as long as this copyright notice remains intact.  Commercial
+X * users may contact me - I'm easy.
+X * 
+X */
+X
+X#include <stdio.h>
+X#include "uucomp.h"
+Xmain (argc, argv)
+Xint argc;
+Xchar **argv;
+X{
+X  char cmd[1024];
+X  int i;
+X
+X  sprintf (cmd, "%s|%s ", UNCOMPRESS, RMAIL);
+X  for (i = 1; i < argc; i++)
+X  {
+X    strcat (cmd, argv[i]);
+X    strcat (cmd, " ");
+X  }
+X  system (cmd);
+X  exit (0);
+X}
+SHAR_EOF
+if test 632 -ne "`wc -c < 'uucomp-1.1/crmail.c'`" ; then
+   echo "shar: ***** error transmitting file uucomp-1.1/crmail.c (should have been 632 characters, but was "`wc -c < 'uucomp-1.1/crmail.c'`" characters) *****"
+fi
+fi
+
+touch 0715195493 uucomp-1.1/crmail.c
+chmod 0600 uucomp-1.1/crmail.c
+
+echo "shar: extracting uucomp-1.1/crnews.c - (632 characters)"
+if test -f 'uucomp-1.1/crnews.c' ; then
+   echo shar: will not over-write existing file uucomp-1.1/crnews.c
+else
+sed 's/^X//' << \SHAR_EOF > 'uucomp-1.1/crnews.c'
+X/*
+X * crnews - get compressed news from host, uncompress
+X * WARNING: This may be insecure!
+X */
+X
+X/*
+X * 
+X * Copyright 1993 by Ed Carp (erc@apple.com)  All rights reserved.
+X * 
+X * Permission is hereby granted for any non-commercial use of this
+X * program, as long as this copyright notice remains intact.  Commercial
+X * users may contact me - I'm easy.
+X * 
+X */
+X
+X#include <stdio.h>
+X#include "uucomp.h"
+Xmain (argc, argv)
+Xint argc;
+Xchar **argv;
+X{
+X  char cmd[1024];
+X  int i;
+X
+X  sprintf (cmd, "%s|%s ", UNCOMPRESS, RNEWS);
+X  for (i = 1; i < argc; i++)
+X  {
+X    strcat (cmd, argv[i]);
+X    strcat (cmd, " ");
+X  }
+X  system (cmd);
+X  exit (0);
+X}
+SHAR_EOF
+if test 632 -ne "`wc -c < 'uucomp-1.1/crnews.c'`" ; then
+   echo "shar: ***** error transmitting file uucomp-1.1/crnews.c (should have been 632 characters, but was "`wc -c < 'uucomp-1.1/crnews.c'`" characters) *****"
+fi
+fi
+
+touch 0715195593 uucomp-1.1/crnews.c
+chmod 0600 uucomp-1.1/crnews.c
+
+echo "shar: extracting uucomp-1.1/tags - (108 characters)"
+if test -f 'uucomp-1.1/tags' ; then
+   echo shar: will not over-write existing file uucomp-1.1/tags
+else
+sed 's/^X//' << \SHAR_EOF > 'uucomp-1.1/tags'
+Xmain	crmail.c	/^main (argc, argv)$/
+Xmain	crnews.c	/^main (argc, argv)$/
+Xmain	uucomp.c	/^main (argc, argv)$/
+SHAR_EOF
+if test 108 -ne "`wc -c < 'uucomp-1.1/tags'`" ; then
+   echo "shar: ***** error transmitting file uucomp-1.1/tags (should have been 108 characters, but was "`wc -c < 'uucomp-1.1/tags'`" characters) *****"
+fi
+fi
+
+touch 0804224993 uucomp-1.1/tags
+chmod 0600 uucomp-1.1/tags
+
+echo "shar: extracting uucomp-1.1/uucomp.c - (3506 characters)"
+if test -f 'uucomp-1.1/uucomp.c' ; then
+   echo shar: will not over-write existing file uucomp-1.1/uucomp.c
+else
+sed 's/^X//' << \SHAR_EOF > 'uucomp-1.1/uucomp.c'
+X/*
+X * uucomp - compress outgoing news/mail
+X * 
+X * usage: uucomp C.*
+X * 
+X * This works for Taylor uucp (available from prep.ai.mit.edu:/pub/gnu/uucp*),
+X * but I don't promise it works for anyone else's uucp package.  Basically, this
+X * is a quick-n-dirty hack to get compressed mail and news to a uucp site.  This
+X * becomes important when you're on the other end of a 1200 baud packet radio
+X * link, where the throughput can be 60 CPS (or lower).  It also tends to hide
+X * any nasties that people might want to say to you, since the packets *are*
+X * public readable.  Yes, I looked at uubatch, but it was too complicated for
+X * me to figure out <grin>, and it didn't work with Taylor-uucp.  This is almost
+X * too simple to work...
+X * 
+X * To use this little guy, do something like this in the .bashrc or .profile
+X * or .cshrc of the uucp's login shell:
+X * 
+X * cd /usr/spool/uucp/<wherever the C. and D. files are kept>
+X * /usr/bin/uucomp C.*
+X * exec /usr/lib/uucp/uucico
+X * 
+X * This program was written by Ed Carp (erc@apple.com).  It can be used for any
+X * non-commercial purpose.  This software is freely redistributable.
+X */
+X
+X/*
+X * 
+X * Copyright 1993 by Ed Carp (erc@apple.com)  All rights reserved.
+X * 
+X * Permission is hereby granted for any non-commercial use of this
+X * program, as long as this copyright notice remains intact.  Commercial
+X * users may contact me - I'm easy.
+X * 
+X */
+X
+X#include <stdio.h>
+X#include "uucomp.h"
+X#undef NULL
+X#define NULL (0)
+Xmain (argc, argv)
+Xint argc;
+Xchar **argv;
+X{
+X  int i, j, sw, ctr = 0, errflag = 0, mctr = 0, nctr = 0, skipctr = 0;
+X  char scr[64], rcmd[10], line[1024], lineout[1024];
+X  char *strtok (), *ptr, *lineptr, compfile[32];
+X  FILE *in;
+X
+X  printf ("uucomp 1.1 08/04/93 ... by erc@apple.com\nscanning %d files.", argc - 1);
+X  for (i = 1; i < argc; i++)
+X  {
+X    if (strncmp (argv[i], "C.", 2) != 0)
+X    {
+X      skipctr++;
+X      continue;
+X    }
+X    if ((in = fopen (argv[i], "r+")) == (FILE *) NULL)
+X    {
+X      skipctr++;
+X      continue;
+X    }
+X    fgets (line, 1022, in);
+X    if(*line != 'E')
+X    {
+X      skipctr++;
+X      continue;
+X    }
+X    line[strlen (line) - 1] = NULL;
+X    rewind (in);
+X    *lineout = NULL;
+X    lineptr = line;
+X    sw = errflag = 0;
+X    printf (".");
+X    fflush (stdout);
+X    for (j = 0;; j++)
+X    {
+X      ptr = strtok (lineptr, " ");
+X      if (ptr == NULL)
+X	break;
+X      lineptr = NULL;
+X      if (j == 1)
+X      {
+X	if (access (ptr, 4) == EOF)
+X	{
+X#ifdef DEBUG
+X	  printf ("skip: file '%s' doesn't exist\n", ptr);
+X#endif
+X	  errflag = 1;
+X	  break;		       /*
+X				        * skip it if the data file isn't
+X				        * there yet 
+X				        */
+X	}
+X	strcpy (compfile, ptr);
+X      }
+X      if (j == 9)
+X      {
+X	if (strcmp (ptr, "rmail") != 0 && strcmp (ptr, "rnews") != 0)
+X	{
+X#ifdef DEBUG
+X	  printf ("skip: '%s' wrong command\n", ptr);
+X#endif
+X	  errflag = 1;
+X	  break;
+X	}
+X	if (strcmp (ptr, "rmail") == 0)
+X	  mctr++;
+X	if (strcmp (ptr, "rnews") == 0)
+X	  nctr++;
+X	sw = 1;
+X	strcat (lineout, "c");
+X      }
+X      strcat (lineout, ptr);
+X      strcat (lineout, " ");
+X    }
+X    if (errflag == 1)
+X    {
+X      skipctr++;
+X      fclose (in);
+X      continue;
+X    }
+X    fprintf (in, "%s\n", lineout);
+X    fclose (in);
+X    sprintf (line,
+X	     "%s -fc > /tmp/uucomp.%d < %s;cp /tmp/uucomp.%d %s",
+X	     COMPRESS, getpid (), compfile, getpid (), compfile);
+X    system (line);
+X    ctr++;
+X  }
+X  sprintf (line, "/tmp/uucomp.%d", getpid ());
+X  unlink (line);
+X  printf ("\n%d skipped, %d compressed (%d mail, %d news).\n",
+X	  skipctr, ctr, mctr, nctr);
+X  exit (0);
+X}
+SHAR_EOF
+if test 3506 -ne "`wc -c < 'uucomp-1.1/uucomp.c'`" ; then
+   echo "shar: ***** error transmitting file uucomp-1.1/uucomp.c (should have been 3506 characters, but was "`wc -c < 'uucomp-1.1/uucomp.c'`" characters) *****"
+fi
+fi
+
+touch 0804224693 uucomp-1.1/uucomp.c
+chmod 0600 uucomp-1.1/uucomp.c
+
+echo "shar: extracting uucomp-1.1/uucomp.h - (383 characters)"
+if test -f 'uucomp-1.1/uucomp.h' ; then
+   echo shar: will not over-write existing file uucomp-1.1/uucomp.h
+else
+sed 's/^X//' << \SHAR_EOF > 'uucomp-1.1/uucomp.h'
+X/*
+X * 
+X * Copyright 1993 by Ed Carp (erc@apple.com)  All rights reserved.
+X * 
+X * Permission is hereby granted for any non-commercial use of this
+X * program, as long as this copyright notice remains intact.  Commercial
+X * users may contact me - I'm easy.
+X * 
+X */
+X
+X#define COMPRESS "/usr/bin/gzip -9c"
+X#define UNCOMPRESS "/usr/bin/gzip -dc"
+X#define RMAIL "rmail"
+X#define RNEWS "rnews"
+SHAR_EOF
+if test 383 -ne "`wc -c < 'uucomp-1.1/uucomp.h'`" ; then
+   echo "shar: ***** error transmitting file uucomp-1.1/uucomp.h (should have been 383 characters, but was "`wc -c < 'uucomp-1.1/uucomp.h'`" characters) *****"
+fi
+fi
+
+touch 0715190293 uucomp-1.1/uucomp.h
+chmod 0600 uucomp-1.1/uucomp.h
+echo End of all shell archives
+exit 0

@@ -1,0 +1,137 @@
+.\"  -*- nroff -*-
+.\"
+.\" scp.1
+.\"
+.\" Author: Tatu Ylonen <ylo@cs.hut.fi>
+.\"
+.\" Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
+.\"                    All rights reserved
+.\"
+.\" Created: Sun May  7 00:14:37 1995 ylo
+.\"
+.\" $OpenBSD: scp.1,v 1.14 2001/02/04 11:11:53 djm Exp $
+.\"
+.Dd September 25, 1999
+.Dt SCP 1
+.Os
+.Sh NAME
+.Nm scp
+.Nd secure copy (remote file copy program)
+.Sh SYNOPSIS
+.Nm scp
+.Op Fl pqrvC46
+.Op Fl S Ar program
+.Op Fl P Ar port
+.Op Fl c Ar cipher
+.Op Fl i Ar identity_file
+.Op Fl o Ar option
+.Sm off
+.Oo
+.Op Ar user@
+.Ar host1 No :
+.Oc Ns Ar file1
+.Sm on
+.Op Ar ...
+.Sm off
+.Oo
+.Op Ar user@
+.Ar host2 No :
+.Oc Ar file2
+.Sm on
+.Sh DESCRIPTION
+.Nm
+copies files between hosts on a network.
+It uses
+.Xr ssh 1
+for data transfer, and uses the same authentication and provides the
+same security as
+.Xr ssh 1 .
+Unlike
+.Xr rcp 1 ,
+.Nm
+will ask for passwords or passphrases if they are needed for
+authentication.
+.Pp
+Any file name may contain a host and user specification to indicate
+that the file is to be copied to/from that host.
+Copies between two remote hosts are permitted.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl c Ar cipher
+Selects the cipher to use for encrypting the data transfer.
+This option is directly passed to
+.Xr ssh 1 .
+.It Fl i Ar identity_file
+Selects the file from which the identity (private key) for RSA
+authentication is read.
+This option is directly passed to
+.Xr ssh 1 .
+.It Fl p
+Preserves modification times, access times, and modes from the
+original file.
+.It Fl r
+Recursively copy entire directories.
+.It Fl v
+Verbose mode.
+Causes
+.Nm
+and
+.Xr ssh 1
+to print debugging messages about their progress.
+This is helpful in
+debugging connection, authentication, and configuration problems.
+.It Fl B
+Selects batch mode (prevents asking for passwords or passphrases).
+.It Fl q
+Disables the progress meter.
+.It Fl C
+Compression enable.
+Passes the
+.Fl C
+flag to
+.Xr ssh 1
+to enable compression.
+.It Fl P Ar port
+Specifies the port to connect to on the remote host.
+Note that this option is written with a capital
+.Sq P ,
+because
+.Fl p
+is already reserved for preserving the times and modes of the file in
+.Xr rcp 1 .
+.It Fl S Ar program
+Name of
+.Ar program
+to use for the encrypted connection.
+The program must understand
+.Xr ssh 1
+options.
+.It Fl o Ar option
+The given option is directly passed to
+.Xr ssh 1 .
+.It Fl 4
+Forces
+.Nm
+to use IPv4 addresses only.
+.It Fl 6
+Forces
+.Nm
+to use IPv6 addresses only.
+.El
+.Sh AUTHORS
+Timo Rinne <tri@iki.fi> and Tatu Ylonen <ylo@cs.hut.fi>
+.Sh HISTORY
+.Nm
+is based on the
+.Xr rcp 1
+program in BSD source code from the Regents of the University of
+California.
+.Sh SEE ALSO
+.Xr rcp 1 ,
+.Xr sftp 1 ,
+.Xr ssh 1 ,
+.Xr ssh-add 1 ,
+.Xr ssh-agent 1 ,
+.Xr ssh-keygen 1 ,
+.Xr sshd 8

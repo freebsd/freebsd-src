@@ -1,0 +1,70 @@
+#	$OpenBSD: sshd_config,v 1.38 2001/04/15 21:41:29 deraadt Exp $
+# $FreeBSD$
+
+# This is the sshd server system-wide configuration file.  See sshd(8)
+# for more information.
+
+Port 22
+#Protocol 2,1
+#ListenAddress 0.0.0.0
+#ListenAddress ::
+HostKey /etc/ssh/ssh_host_key
+HostKey /etc/ssh/ssh_host_dsa_key
+ServerKeyBits 768
+LoginGraceTime 120
+KeyRegenerationInterval 3600
+PermitRootLogin no
+# ConnectionsPerPeriod has been deprecated completely
+
+# After 10 unauthenticated connections, refuse 30% of the new ones, and
+# refuse any more than 60 total.
+MaxStartups 10:30:60
+# Don't read ~/.rhosts and ~/.shosts files
+IgnoreRhosts yes
+# Uncomment if you don't trust ~/.ssh/known_hosts for RhostsRSAAuthentication
+#IgnoreUserKnownHosts yes
+StrictModes yes
+X11Forwarding yes
+X11DisplayOffset 10
+PrintMotd yes
+#PrintLastLog no
+KeepAlive yes
+
+# Logging
+SyslogFacility AUTH
+LogLevel INFO
+#obsoletes QuietMode and FascistLogging
+
+RhostsAuthentication no
+#
+# For this to work you will also need host keys in /etc/ssh_known_hosts
+RhostsRSAAuthentication no
+# similar for protocol version 2
+HostbasedAuthentication no
+#
+RSAAuthentication yes
+
+# To disable tunneled clear text passwords, change to no here!
+PasswordAuthentication yes
+PermitEmptyPasswords no
+
+# Uncomment to disable s/key passwords 
+#ChallengeResponseAuthentication no
+
+# To change Kerberos options
+#KerberosAuthentication no
+#KerberosOrLocalPasswd yes
+#AFSTokenPassing no
+#KerberosTicketCleanup no
+
+# Kerberos TGT Passing does only work with the AFS kaserver
+#KerberosTgtPassing yes
+
+CheckMail yes
+#UseLogin no
+
+#MaxStartups 10:30:60
+#Banner /etc/issue.net
+#ReverseMappingCheck yes
+
+Subsystem	sftp	/usr/libexec/sftp-server

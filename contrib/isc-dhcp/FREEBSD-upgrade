@@ -1,0 +1,44 @@
+# ex:ts=8
+$FreeBSD$
+
+ISC DHCP client 2.0
+	originals can be found at: ftp://ftp.isc.org/isc/dhcp/
+
+
+For the import of ISC-dhclient the following files were removed:
+	doc*/*			relay/*			server/*
+
+	client/
+	dhclient-script.cat8	dhclient.cat8
+	dhclient.conf.cat5	dhclient.leases.cat5
+
+	client/scripts/
+	bsdos			linux			netbsd
+	nextstep		solaris
+
+	common/
+	dhcp-options.cat5	dlpi.c
+
+	include/cf/
+	aix.h			alphaosf.h		bsdos.h
+	cygwin32.h		hpux.h			irix.h
+	linux.h			netbsd.h		nextstep.h
+	qnx.h			rhapsody.h		sample.h
+	sco.h			sunos4.h		sunos5-5.h
+	ultrix.h
+
+
+Imported by:
+
+	cvs import -m 'Import Patchlevel 3 of the ISC 2.0 dhcp client.' \
+		src/contrib/isc-dhcp ISC isc_dhcp_2_0_pl3
+
+
+To make local changes to isc-dhcp, simply patch and commit to the main
+branch (aka HEAD).  Never make local changes on the vendor (ISC) branch.
+
+All local changes should be submitted to the ISC for inclusion in the 
+next vendor release.
+
+obrien@NUXI.com
+20-July-2000

@@ -1,0 +1,44 @@
+[1mmoused[m	mouse daemon
+
+	Usage:
+
+     moused [-3DPRcdfs] [-F rate] [-r resolution] [-S baudrate] [-C threshold]
+     [-m N=M] [-z target] [-t mousetype] -p port
+
+	Most common options are:
+
+     -3      Emulate the third (middle) button for 2-button mice. It is emu-
+	     lated by pressing the left and right physical buttons simultane-
+	     ously.
+     -p port Use port to communicate with the mouse.
+     -t type
+	     microsoft	      Microsoft (2-button) serial mouse protocol.
+	     intellimouse     Microsoft IntelliMouse protocol.	Genius Net-
+			      Mouse, ASCII Mie Mouse, Logitech MouseMan+ and
+			      FirstMouse+ use this protocol too.
+	     mousesystems     MouseSystems 5-byte protocol.  3-button mice may
+			      use this protocol.
+	     mmseries	      MM Series mouse protocol.
+	     logitech	      Logitech mouse protocol.	Note that this is for
+			      old Logitech models.  mouseman or intellimouse
+			      should be specified for newer models.
+	     mouseman	      Logitech MouseMan and TrackMan protocol.	Some
+			      3-button mice may be compatible with this proto-
+			      col.  Note that MouseMan+ and FirstMouse+ use
+			      intellimouse protocol rather than this one.
+	     glidepoint       ALPS GlidePoint protocol.
+	     thinkingmouse    Kensington ThinkingMouse protocol.
+	     mmhittab	      Hitachi tablet protocol.
+
+3-button serial mice may have a small switch to choose between
+``MS'' and ``PC'', or ``2'' and ``3''.  ``MS'' or ``2'' usually mean
+the microsoft protocol.  ``PC'' or ``3'' will choose the
+mousesystems protocol.
+To test if the selected protocol type is correct for the given mouse, en-
+able the mouse pointer in the current virtual console:
+	   vidcontrol -m on
+start the mouse daemon in the foreground mode:
+	   moused -f -p _selected_port_ -t _selected_protocol_
+and see if the mouse pointer travels correctly according to the mouse
+movement. Then try cut & paste features by clicking the left, right and
+middle buttons. Type ^C to stop the command.

@@ -1,0 +1,134 @@
+.\" $Id: assertions.mdoc,v 8.2 1999/01/08 19:25:15 vixie Exp $
+.\"
+.\"Copyright (c) 1997,1999 by Internet Software Consortium.
+.\"
+.\"Permission to use, copy, modify, and distribute this software for any
+.\"purpose with or without fee is hereby granted, provided that the above
+.\"copyright notice and this permission notice appear in all copies.
+.\"
+.\"THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
+.\"ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
+.\"OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
+.\"CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+.\"DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+.\"PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
+.\"ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
+.\"SOFTWARE.
+.\"
+.Dd November 17, 1997
+.Dt ASSERTIONS 3
+.Os ISC
+.Sh NAME
+.Nm REQUIRE ,
+.Nm REQUIRE_ERR ,
+.Nm ENSURE ,
+.Nm ENSURE_ERR ,
+.Nm INSIST ,
+.Nm INSIST_ERR ,
+.Nm INVARIANT ,
+.Nm INVARIANT_ERR ,
+.Nm set_assertion_failure_callback
+.Nd assertion system
+.Sh SYNOPSIS
+.Fd #include <isc/assertions.h>
+.Fo "typedef void (*assertion_failure_callback)"
+.Fa "char *filename"
+.Fa "int line"
+.Fa "assertion_type type"
+.Fa "char *condition"
+.Fa "int print_errno"
+.Fc
+.Fn REQUIRE "int boolean_expression"
+.Fn REQUIRE_ERR "int boolean_expression"
+.Fn ENSURE "int boolean_expression"
+.Fn ENSURE_ERR "int boolean_expression"
+.Fn INSIST "int boolean_expression"
+.Fn INSIST_ERR "int boolean_expression"
+.Fn INVARIANT "int boolean_expression"
+.Fn INVARIANT_ERR "int boolean_expression"
+.Ft void
+.Fn set_assertion_failure_callback "assertion_failure_callback callback"
+.Ft char *
+.Fn assertion_type_to_text "assertion_type type"
+.Sh DESCRIPTION
+The
+.Fn REQUIRE ,
+.Fn ENSURE ,
+.Fn INSIST ,
+and
+.Fn INVARIANT
+macros evaluate a boolean expression, and if it is false, they invoke the
+current assertion failure callback.  The default callback will print a message
+to 
+.Li stderr
+describing the failure, and then cause the program to dump core.
+If the
+.Dq Fn _ERR
+variant of the assertion is used, the callback will include
+.Fn strerror "errno"
+in its message.
+.Pp
+Each assertion type has an associated
+.Li CHECK
+macro.  If this macro's value is
+.Dq 0
+when
+.Dq "<isc/assertions.h>"
+is included, then assertions of that type will not be checked.  E.g.
+
+.Dl #define CHECK_ENSURE 0
+
+will disable checking of
+.Fn ENSURE
+and
+.Fn ENSURE_ERR .
+The macros
+.Li CHECK_ALL
+and
+.Li CHECK_NONE
+may also be used, respectively specifying that either all or none of the
+assertion types should be checked.
+.Pp
+.Fn set_assertion_failure_callback
+specifies the function to call when an assertion fails.
+.Pp
+When an
+.li
+assertion_failure_callback
+is called, the 
+.Fa filename
+and
+.Fa line
+arguments specify the filename and line number of the failing assertion.
+The
+.Fa type
+is one of:
+.Bd -literal -offset indent
+assert_require
+assert_ensure
+assert_insist
+assert_invariant
+.Ed
+
+and may be used by the callback to determine the type of the failing
+assertion.
+.Fa condition
+is the literal text of the assertion that failed. 
+.Fa print_errno
+will be non-zero if the callback should print
+.Fa strerror "errno"
+as part of its output.
+.Pp
+.Fn assertion_type_to_text
+returns a textual representation of
+.Fa type .
+For example,
+.Fn assertion_type_to_text "assert_require"
+returns the string
+.Dq REQUIRE .
+.Sh SEE ALSO
+Bertrand Meyer,
+.Sy Object-Oriented Software Construction,
+2nd edition, Prentice\-Hall, 1997, ISBN 0\-13\-629155\-4, chapter 11.
+.Sh AUTHOR
+Bob Halley (ISC).

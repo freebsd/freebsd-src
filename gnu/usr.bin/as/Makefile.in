@@ -1,0 +1,411 @@
+# $FreeBSD$
+
+# Makefile for GNU Assembler
+#   Copyright (C) 1987-1992 Free Software Foundation, Inc.
+
+#This file is part of GNU GAS.
+
+#GNU GAS is free software; you can redistribute it and/or modify
+#it under the terms of the GNU General Public License as published by
+#the Free Software Foundation; either version 2, or (at your option)
+#any later version.
+
+#GNU GAS is distributed in the hope that it will be useful,
+#but WITHOUT ANY WARRANTY; without even the implied warranty of
+#MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#GNU General Public License for more details.
+
+#You should have received a copy of the GNU General Public License
+#along with GNU GAS; see the file COPYING.  If not, write to
+#the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+
+# The targets for external use include:
+# all, doc, proto, install, uninstall, includes, TAGS,
+# clean, cleanconfig, realclean, stage1, stage2, stage3, stage4.
+
+# Variables that exist for you to override.
+# See below for how to change them for certain systems.
+
+srcdir = .
+
+prefix = /usr/local
+
+bindir = $(prefix)/bin
+datadir = $(prefix)/lib
+libdir = $(prefix)/lib
+mandir = $(datadir)/man
+man1dir = $(mandir)/man1
+man2dir = $(mandir)/man2
+man3dir = $(mandir)/man3
+man4dir = $(mandir)/man4
+man5dir = $(mandir)/man5
+man6dir = $(mandir)/man6
+man7dir = $(mandir)/man7
+man8dir = $(mandir)/man8
+man9dir = $(mandir)/man9
+infodir = $(datadir)/info
+includedir = $(prefix)/include
+docdir = $(datadir)/doc
+
+SHELL = /bin/sh
+
+INSTALL = install -c
+INSTALL_PROGRAM = $(INSTALL)
+INSTALL_DATA = $(INSTALL)
+
+AR = ar
+AR_FLAGS = qv
+BISON = bison
+MAKEINFO = makeinfo
+RANLIB = ranlib
+MINUS_G = -g
+
+# Lists of files for various purposes.
+
+REAL_SOURCES = \
+	$(srcdir)/app.c \
+	$(srcdir)/as.c \
+	$(srcdir)/atof-generic.c \
+	$(srcdir)/bignum-copy.c \
+	$(srcdir)/cond.c \
+	$(srcdir)/expr.c \
+	$(srcdir)/flo-const.c \
+	$(srcdir)/flo-copy.c \
+	$(srcdir)/flonum-mult.c \
+	$(srcdir)/frags.c \
+	$(srcdir)/hash.c \
+	$(srcdir)/hex-value.c \
+	$(srcdir)/input-file.c \
+	$(srcdir)/input-scrub.c \
+	$(srcdir)/messages.c \
+	$(srcdir)/obstack.c \
+	$(srcdir)/output-file.c \
+	$(srcdir)/read.c \
+	$(srcdir)/strerror.c \
+	$(srcdir)/strstr.c \
+	$(srcdir)/subsegs.c \
+	$(srcdir)/symbols.c \
+	$(srcdir)/version.c \
+	$(srcdir)/write.c \
+	$(srcdir)/listing.c \
+	$(srcdir)/xmalloc.c \
+	$(srcdir)/xrealloc.c
+
+# in an expedient order
+LINKED_SOURCES = \
+	targ-cpu.c \
+	obj-format.c \
+	atof-targ.c
+
+SOURCES = $(LINKED_SOURCES) $(REAL_SOURCES)
+
+REAL_HEADERS = \
+	$(srcdir)/as.h \
+	$(srcdir)/bignum.h \
+	$(srcdir)/expr.h \
+	$(srcdir)/flonum.h \
+	$(srcdir)/frags.h \
+	$(srcdir)/hash.h \
+	$(srcdir)/input-file.h \
+	$(srcdir)/listing.h \
+	$(srcdir)/tc.h \
+	$(srcdir)/obj.h \
+	$(srcdir)/obstack.h \
+	$(srcdir)/read.h \
+	$(srcdir)/struc-symbol.h \
+	$(srcdir)/subsegs.h \
+	$(srcdir)/symbols.h \
+	$(srcdir)/write.h
+
+LINKED_HEADERS = \
+	a.out.gnu.h \
+	a.out.h \
+	host.h \
+	targ-env.h \
+	targ-cpu.h \
+	obj-format.h \
+	atof-targ.h
+
+HEADERS = $(LINKED_HEADERS) $(REAL_HEADERS)
+
+OBJS = \
+	targ-cpu.o \
+	obj-format.o \
+	atof-targ.o \
+	app.o \
+	as.o \
+	atof-generic.o \
+	bignum-copy.o \
+	cond.o \
+	expr.o \
+	flo-const.o \
+	flo-copy.o \
+	flonum-mult.o \
+	frags.o \
+	hash.o \
+	hex-value.o \
+	input-file.o \
+	input-scrub.o \
+	messages.o \
+	obstack.o \
+	output-file.o \
+	read.o \
+	strerror.o \
+	strstr.o \
+	subsegs.o \
+	symbols.o \
+	version.o \
+	write.o \
+	listing.o \
+	xmalloc.o \
+	xrealloc.o
+
+#### host, target, and site specific Makefile frags come in here.
+
+all: as.new
+	(cd doc ; $(MAKE) all)
+
+info:
+	(cd doc ; $(MAKE) info)
+
+install-info:
+	(cd doc ; $(MAKE) install-info)
+
+clean-info:
+	(cd doc ; $(MAKE) clean-info)
+
+# Now figure out from those variables how to compile and link.
+
+# This is the variable actually used when we compile.
+ALL_CFLAGS = $(MINUS_G) $(INTERNAL_CFLAGS) $(CFLAGS) $(HDEFINES) $(TDEFINES) -DPIC -DOLD_GAS
+
+# How to link with both our special library facilities
+# and the system's installed libraries.
+
+LIBS = $(HLIBS)
+
+# Specify the directories to be searched for header files.
+# Both . and srcdir are used, in that order,
+# so that tm.h and config.h will be found in the compilation
+# subdirectory rather than in the source directory.
+INCLUDES = -I. -I$(srcdir) -I$(srcdir)/config # -I$(srcdir)/../include
+SUBDIR_INCLUDES = -I.. -I$(srcdir) -I$(srcdir)/config
+
+# Always use -I$(srcdir)/config when compiling.
+.c.o:
+	$(CC) -c $(ALL_CFLAGS) $(CPPFLAGS) $(INCLUDES) $<
+
+# This tells GNU make version 3 not to export all the variables
+# defined in this file into the environment.
+.NOEXPORT:
+
+# Files to be copied away after each stage in building.
+STAGESTUFF = *.o as.new
+
+as.new: $(OBJS) $(LIBDEPS)
+	-mv -f as.new as.old
+	$(CC) $(ALL_CFLAGS) $(LDFLAGS) -o as.new $(OBJS) $(LIBS)
+
+config.status:
+	@echo You must configure gas.  Look at the INSTALL file for details.
+	@false
+
+# Compiling object files from source files.
+
+app.o : app.c as.h host.h targ-env.h obj-format.h \
+  targ-cpu.h struc-symbol.h \
+  write.h flonum.h bignum.h expr.h frags.h hash.h read.h symbols.h tc.h obj.h
+as.o : as.c as.h host.h targ-env.h obj-format.h \
+  targ-cpu.h struc-symbol.h \
+  write.h flonum.h bignum.h expr.h frags.h hash.h read.h symbols.h tc.h obj.h
+atof-generic.o : atof-generic.c as.h host.h targ-env.h obj-format.h \
+  targ-cpu.h struc-symbol.h \
+  write.h flonum.h bignum.h expr.h frags.h hash.h read.h symbols.h tc.h obj.h
+bignum-copy.o : bignum-copy.c as.h host.h \
+  targ-env.h obj-format.h \
+  targ-cpu.h struc-symbol.h \
+  write.h flonum.h bignum.h expr.h frags.h hash.h read.h symbols.h tc.h obj.h
+cond.o : cond.c as.h host.h targ-env.h obj-format.h \
+  targ-cpu.h struc-symbol.h \
+  write.h flonum.h bignum.h expr.h frags.h hash.h read.h symbols.h tc.h obj.h
+
+debug.o : debug.c as.h host.h targ-env.h obj-format.h \
+  targ-cpu.h struc-symbol.h \
+  write.h flonum.h bignum.h expr.h frags.h hash.h read.h symbols.h tc.h obj.h \
+  subsegs.h
+expr.o : expr.c as.h host.h targ-env.h obj-format.h \
+  targ-cpu.h  struc-symbol.h \
+  write.h flonum.h bignum.h expr.h frags.h hash.h read.h symbols.h tc.h obj.h
+
+flo-const.o : flo-const.c flonum.h bignum.h
+flo-copy.o : flo-copy.c as.h host.h targ-env.h obj-format.h \
+  targ-cpu.h  struc-symbol.h \
+  write.h flonum.h bignum.h expr.h frags.h hash.h read.h symbols.h tc.h obj.h
+flonum-mult.o : flonum-mult.c flonum.h bignum.h
+frags.o : frags.c as.h host.h targ-env.h obj-format.h \
+  targ-cpu.h  struc-symbol.h \
+  write.h flonum.h bignum.h expr.h frags.h hash.h read.h symbols.h tc.h obj.h \
+  subsegs.h
+hash.o : hash.c as.h host.h targ-env.h obj-format.h \
+  targ-cpu.h  struc-symbol.h \
+  write.h flonum.h bignum.h expr.h frags.h hash.h read.h symbols.h tc.h obj.h
+hex-value.o : hex-value.c
+input-file.o : input-file.c as.h host.h \
+   targ-env.h obj-format.h targ-cpu.h \
+   struc-symbol.h write.h flonum.h bignum.h expr.h \
+  frags.h hash.h read.h symbols.h tc.h obj.h input-file.h
+input-scrub.o : input-scrub.c /usr/include/errno.h /usr/include/sys/errno.h \
+  as.h host.h targ-env.h obj-format.h \
+  targ-cpu.h  struc-symbol.h \
+  write.h flonum.h bignum.h expr.h frags.h hash.h read.h symbols.h tc.h obj.h \
+  input-file.h
+listing.o : listing.c as.h host.h targ-env.h flonum.h bignum.h \
+  listing.h obj-format.h targ-cpu.h struc-symbol.h write.h expr.h \
+  frags.h hash.h read.h symbols.h tc.h obj.h input-file.h
+messages.o : messages.c as.h host.h targ-env.h obj-format.h \
+  targ-cpu.h  struc-symbol.h \
+  write.h flonum.h bignum.h expr.h frags.h hash.h read.h symbols.h tc.h obj.h
+obstack.o : obstack.c
+output-file.o : output-file.c as.h host.h targ-env.h obj-format.h \
+  targ-cpu.h  struc-symbol.h \
+  write.h flonum.h bignum.h expr.h frags.h hash.h read.h symbols.h tc.h obj.h \
+  output-file.h
+read.o : read.c as.h host.h targ-env.h obj-format.h \
+  targ-cpu.h  struc-symbol.h \
+  write.h flonum.h bignum.h expr.h frags.h hash.h read.h symbols.h tc.h obj.h
+
+strstr.o : strstr.c
+subsegs.o : subsegs.c as.h host.h targ-env.h obj-format.h \
+  targ-cpu.h  struc-symbol.h \
+  write.h flonum.h bignum.h expr.h frags.h hash.h read.h symbols.h tc.h obj.h \
+  subsegs.h
+symbols.o : symbols.c as.h host.h targ-env.h obj-format.h \
+  targ-cpu.h  struc-symbol.h \
+  write.h flonum.h bignum.h expr.h frags.h hash.h read.h symbols.h tc.h obj.h \
+   subsegs.h
+version.o : version.c
+write.o : write.c as.h host.h targ-env.h obj-format.h \
+  targ-cpu.h  struc-symbol.h \
+  write.h flonum.h bignum.h expr.h frags.h hash.h read.h symbols.h tc.h obj.h \
+  subsegs.h  output-file.h
+xmalloc.o : xmalloc.c
+xrealloc.o : xrealloc.c
+atof-targ.o : atof-targ.c as.h host.h targ-env.h obj-format.h \
+  targ-cpu.h struc-symbol.h \
+  write.h flonum.h bignum.h expr.h frags.h hash.h read.h \
+  symbols.h tc.h obj.h
+obj-format.o : obj-format.c as.h host.h targ-env.h obj-format.h \
+  targ-cpu.h struc-symbol.h \
+  write.h flonum.h bignum.h expr.h frags.h hash.h read.h \
+  symbols.h tc.h obj.h
+targ-cpu.o : targ-cpu.c targ-env.h obj-format.h \
+  targ-cpu.h struc-symbol.h \
+  write.h flonum.h bignum.h expr.h frags.h hash.h read.h \
+  symbols.h tc.h obj.h $(TARG_CPU_DEPENDENTS)
+
+# Remake the info files.
+
+doc: $(srcdir)/as.info
+
+$(srcdir)/as.info: $(srcdir)/doc/as.texinfo
+	(cd doc; make as.info; mv -f as.info $srcdir)
+
+clean:
+	(cd doc ; $(MAKE) clean)
+	-rm -f $(STAGESTUFF) core
+
+# Like clean but also delete the links made to configure gas.
+distclean: clean
+	-rm -f config.status Makefile host.h targ-env.h targ-cpu.h \
+		targ-cpu.c obj-format.h obj-format.c atof-targ.c \
+		gas.aux gas.cps gas.fns gas.info gas.kys gas.pgs \
+		gas.tps gas.vrs TAGS gas.info* gas.?? gas.??s gas.log \
+		gas.toc gas.*aux *.dvi
+
+# Entry points `install', `includes' and `uninstall'.
+
+# Copy the files into directories where they will be run.
+install:
+	if [ "$(host_alias)" = "$(target_alias)" ] ; then \
+		$(INSTALL_PROGRAM) as.new $(bindir)/as ; \
+	else \
+		$(INSTALL_PROGRAM) as.new $(bindir)/as-$(target_alias) ; \
+	fi
+
+# Create the installation directory.
+install-dir:
+	-mkdir $(libdir)
+	-mkdir $(libdir)/gcc
+	-mkdir $(libdir)/gcc/$(target)
+	-mkdir $(libdir)/gcc/$(target)/$(version)
+
+# Cancel installation by deleting the installed files.
+uninstall:
+	-rm -rf $(libsubdir)
+	-rm -rf $(bindir)/as
+	-rm -rf $(mandir)/gas.$(manext)
+
+
+# These exist for maintenance purposes.
+
+tags TAGS: force
+	etags $(REAL_HEADERS) $(REAL_SOURCES) $(srcdir)/config/*.[hc] $(srcdir)/README $(srcdir)/Makefile.in
+
+bootstrap: as.new force
+	$(MAKE) stage1
+	$(MAKE) CC="$(CC)" CFLAGS="-O -Bstage1/ $(CFLAGS)" libdir=$(libdir) ALLOCA= as.new
+	$(MAKE) stage2
+	$(MAKE) CC="$(CC)" CFLAGS="-O -Bstage2/ $(CFLAGS)" libdir=$(libdir) ALLOCA= as.new
+	$(MAKE) comparison against=stage2
+
+bootstrap2: force
+	$(MAKE) CC="$(CC)" CFLAGS="-O -Bstage1/ $(CFLAGS)" libdir=$(libdir) ALLOCA= as.new
+	$(MAKE) stage2
+	$(MAKE) CC="$(CC)" CFLAGS="-O -Bstage2/ $(CFLAGS)" libdir=$(libdir) ALLOCA= as.new
+	$(MAKE) comparison against=stage2
+
+bootstrap3: force
+	$(MAKE) CC="$(CC)" CFLAGS="-O -Bstage2/ $(CFLAGS)" libdir=$(libdir) ALLOCA= as.new
+	$(MAKE) comparison against=stage2
+
+# Copy the object files from a particular stage into a subdirectory.
+stage1: force
+	-mkdir stage1
+	-mv -f $(STAGESTUFF) stage1
+	if [ -f stage1/as.new -a ! -f stage1/as ] ; then (cd stage1 ; ln -s as.new as) ; fi
+
+stage2: force
+	-mkdir stage2
+	-mv -f $(STAGESTUFF) stage2
+	if [ -f stage2/as.new -a ! -f stage2/as ] ; then (cd stage2 ; ln -s as.new as) ; fi
+
+stage3: force
+	-mkdir stage3
+	-mv -f $(STAGESTUFF) stage3
+	if [ -f stage3/as.new -a ! -f stage3/as ] ; then (cd stage3 ; ln -s as.new as) ; fi
+
+against=stage2
+
+comparison: force
+	for i in $(STAGESTUFF) ; do cmp $$i $(against)/$$i ; done
+
+de-stage1: force
+	- (cd stage1 ; rm -f as ; mv -f * ..)
+	- rmdir stage1
+
+de-stage2: force
+	- (cd stage2 ; rm -f as ; mv -f * ..)
+	- rmdir stage2
+
+de-stage3: force
+	- (cd stage3 ; rm -f as ; mv -f * ..)
+	- rmdir stage3
+
+#In GNU Make, ignore whether `stage*' exists.
+.PHONY: stage1 stage2 stage3 stage4 clean realclean TAGS bootstrap
+
+force:
+
+Makefile: $(srcdir)/Makefile.in $(host_makefile_frag) $(target_makefile_frag)
+	$(SHELL) ./config.status
+

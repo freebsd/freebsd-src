@@ -1,0 +1,63 @@
+@c $Id: ack.texi,v 1.13 2001/01/30 01:57:31 assar Exp $
+
+@node  Acknowledgments, , Windows 2000 compatability, Top
+@comment  node-name,  next,  previous,  up
+@appendix Acknowledgments
+
+Eric Young wrote ``libdes''.
+
+The University of California at Berkeley initially wrote @code{telnet},
+and @code{telnetd}.  The authentication and encryption code of
+@code{telnet} and @code{telnetd} was added by David Borman (then of Cray
+Research, Inc).  The encryption code was removed when this was exported
+and then added back by Juha Eskelinen, @email{esc@@magic.fi}.
+
+The @code{popper} was also a Berkeley program initially.
+
+Some of the functions in @file{libroken} also come from Berkeley by way
+of NetBSD/FreeBSD.
+
+@code{editline} was written by Simmule Turner and Rich Salz.
+
+Bugfixes, documentation, encouragement, and code has been contributed by:
+@table @asis
+@item Derrick J Brashear
+@email{shadow@@dementia.org}
+@item Ken Hornstein
+@email{kenh@@cmf.nrl.navy.mil}
+@item Johan Ihrén
+@email{johani@@pdc.kth.se}
+@item Love Hörnquist-Åstrand
+@email{lha@@stacken.kth.se}
+@item Magnus Ahltorp
+@email{map@@stacken.kth.se}
+@item Mark Eichin
+@email{eichin@@cygnus.com}
+@item Marc Horowitz
+@email{marc@@cygnus.com}
+@item Luke Howard
+@email{lukeh@@xedoc.com.au}
+@item Brandon S. Allbery KF8NH
+@email{allbery@@kf8nh.apk.net}
+@item Jun-ichiro itojun Hagino
+@email{itojun@@kame.net}
+@item Daniel Kouril
+@email{kouril@@informatics.muni.cz}
+@item Åke Sandgren 
+@email{ake@@cs.umu.se}
+@item Michal Vocu
+@email{michal@@karlin.mff.cuni.cz}
+@item Miroslav Ruda
+@email{ruda@@ics.muni.cz}
+@item Brian A May
+@email{bmay@@snoopy.apana.org.au}
+@item Chaskiel M Grundman
+@email{cg2v@@andrew.cmu.edu}
+@item Richard Nyberg
+@email{rnyberg@@it.su.se}
+@item Frank van der Linden
+@email{fvdl@@netbsd.org}
+@item and we hope that those not mentioned here will forgive us.
+@end table
+
+All bugs were introduced by ourselves.

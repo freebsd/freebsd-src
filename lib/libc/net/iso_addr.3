@@ -1,0 +1,113 @@
+.\" Copyright (c) 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)iso_addr.3	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd June 4, 1993
+.Dt ISO_ADDR 3
+.Os
+.Sh NAME
+.Nm iso_addr ,
+.Nm iso_ntoa
+.Nd "elementary network address conversion routines for Open System Interconnection
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/types.h
+.In netiso/iso.h
+.Ft struct iso_addr *
+.Fn iso_addr "char *cp"
+.Ft char *
+.Fn iso_ntoa "struct iso_addr *isoa"
+.Sh DESCRIPTION
+The routine
+.Fn iso_addr
+interprets character strings representing
+.Tn OSI
+addresses, returning binary information suitable
+for use in system calls.
+The routine
+.Fn iso_ntoa
+takes
+.Tn OSI
+addresses and returns
+.Tn ASCII
+strings representing NSAPs (network service
+access points) in a
+notation inverse to that accepted by
+.Fn iso_addr .
+.Pp
+Unfortunately, no universal standard exists for representing
+.Tn OSI
+network addresses.
+.Pp
+The format employed by
+.Fn iso_addr
+is a sequence of hexadecimal
+.Dq digits
+(optionally separated by periods),
+of the form:
+.Bd -ragged -offset indent
+<hex digits>.<hex digits>.<hex digits>
+.Ed
+.Pp
+Each pair of hexadecimal digits represents a byte
+with the leading digit indicating the higher-ordered bits.
+A period following an even number of bytes has no
+effect (but may be used to increase legibility).
+A period following an odd number of bytes has the
+effect of causing the byte of address being translated
+to have its higher order bits filled with zeros.
+.Sh RETURN VALUES
+.Fn iso_ntoa
+always returns a null terminated string.
+.Fn iso_addr
+always returns a pointer to a struct iso_addr.
+(See
+.Sx BUGS . )
+.Sh SEE ALSO
+.Xr iso 4
+.Sh HISTORY
+The
+.Fn iso_addr
+and
+.Fn iso_ntoa
+functions appeared in
+.Bx 4.3 Reno .
+.Sh BUGS
+The returned values
+reside in a static memory area.
+.Pp
+The function
+.Fn iso_addr
+should diagnose improperly formed input, and there should be an unambiguous
+way to recognize this.

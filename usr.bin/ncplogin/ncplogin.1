@@ -1,0 +1,239 @@
+.\" $FreeBSD$
+.Dd September 15, 1999
+.Dt NCPLOGIN 1
+.Os
+.Sh NAME
+.Nm ncplogin
+.Nd create permanent connection to a NetWare server
+.Sh SYNOPSIS
+.Nm
+.Op Fl BCDN
+.Op Fl S Ar server
+.Op Fl U Ar user
+.Op Fl A Ar host
+.Op Fl I Ar level
+.Op Fl M Ar mode
+.Oo
+.Fl O Xo
+.Op Ar owner Ns
+.Op : Ns Ar group
+.Xc
+.Oc
+.Op Fl R Ar retrycount
+.Op Fl T Ar tree
+.Op Fl W Ar timeout
+.Nm
+.Op Fl BCDN
+.Op Fl A Ar host
+.Op Fl I Ar level
+.Op Fl M Ar mode
+.Oo
+.Fl O Xo
+.Op Ar owner Ns
+.Op : Ns Ar group
+.Xc
+.Oc
+.Op Fl R Ar retrycount
+.Op Fl T Ar tree
+.Op Fl W Ar timeout
+.No / Ns Ar server Ns : Ns Ar user
+.Sh DESCRIPTION
+Connections to a
+.Tn NetWare
+server can be created and used independently of the
+.Xr mount_nwfs 8
+command.
+Connections can be created by any user.
+Each user can have multiple
+connections, but each NetWareServer:NetWareUser pair should be unique.
+.Pp
+The
+.Nm
+command is used to create a permanent connection to a
+.Tn NetWare
+server.
+Permanent connections will stay connected even if no applications use them.
+This allows users to run different ncp* programs
+without specifying a file server and user to use.
+Established connections can be destroyed with the
+.Xr ncplogout 1
+command.
+.Pp
+Upper case options described in this manual
+are common for other ncp* programs and are referred to as
+.Qq connection options .
+Options
+.Fl U
+and
+.Fl S
+are mutually exclusive with the
+.No / Ns Ar server Ns : Ns Ar user
+syntax.
+.Pp
+The options are:
+.Bl -tag -width indent
+.It Fl S Ar server
+Specify the name of the
+.Tn NetWare
+server to connect to.
+This affect only
+.Tn IPX
+servers.
+For native
+.Tn IP
+servers, see the
+.Fl A
+option.
+.It Fl U Ar user
+Specify the name of the user used in the login sequence.
+.It Fl A Ar host
+Use the
+.Tn UDP
+protocol to connect to a
+.Tn NetWare
+5.x server specified by the
+.Ar host
+argument.
+.It Fl C
+Do not convert the password to uppercase.
+.It Fl D
+Mark the connection as primary.
+The option can be used to modify existing connections.
+Only the
+.Nm
+program accepts this option.
+.It Fl I Ar signature_level
+Try to use
+.Ar signature_level .
+Available values are:
+.Bd -literal -offset indent
+Value   Meaning
+0	disable signatures
+1	enable (use if required by server)
+2	request but do not require signing
+3	require signatures
+.Ed
+.Pp
+Note that only packet header signing is implemented.
+.It Fl M Ar mode
+Share this connection.
+The bits in the
+.Ar mode
+argument are similar to standard file permissions:
+.Bd -literal -offset indent
+Mask    Meaning
+4	READ    - connection will be visible.
+2	WRITE   - connection can be closed/modified
+1	EXECUTE - user allowed to execute requests.
+.Ed
+.Pp
+By default, the connection is created with
+.Ar mode
+0700
+and only the owner can use it.
+Specifying 0750 as the argument to the
+.Fl M
+option would allow read-only group access as well.
+This would allow the group to perform
+.Tn NCP
+requests,
+but not to destroy the connection.
+When a server is not explicitly specified,
+ncp* programs try to find a suitable connection in the following order:
+.Bl -enum -offset indent
+.It
+Try to find a connection owned by the user.
+If there is more than one such
+connection, try to determine which one is primary.
+The primary flag is set with the
+.Fl D
+option.
+.It
+If the primary connection could not be determined,
+the first shared connection will be used.
+.El
+.It Fl N
+Do not prompt for a password.
+At run time,
+.Nm
+reads the
+.Pa ~/.nwfsrc
+file for additional configuration parameters and a password.
+If no password is found for the specified
+.Ar server Ns : Ns Ar user
+pair,
+.Nm
+prompts for it.
+.It Fl O
+Specify the
+.Ar owner
+and
+.Ar group
+attributes for the connection.
+Newly created connections take the
+.Ar owner
+attribute from the creating user's username and the
+.Ar group
+attribute from the creating user's primary group.
+This option overrides that behaviour.
+Only the superuser can override the
+.Ar owner
+attribute for a connection.
+.It Fl P
+Mark the connection as permanent.
+.Nm
+always creates permanent connections.
+This option can be used in other ncp*
+programs.
+.It Fl R Ar retry_count
+Specify the number of retries to be performed
+before dropping the connection.
+The default value is 10.
+.Pp
+Note: after a connection is marked
+.Sq BAD ,
+each request will try to restore it.
+This process restores only the
+.Tn NCP
+connection;
+it does not reopen any files that were open
+at the time that the connection was marked
+.Sq BAD .
+.It Fl W Ar timeout
+Specify the server request timeout in seconds.
+The default is 5 seconds.
+.It / Ns Ar server Ns : Ns Ar user
+This syntax is provided for the sake of simplicity
+and is mutually exclusive with the
+.Fl S
+and
+.Fl U
+options.
+.El
+.Sh IMPLEMENTATION NOTES
+Low level connection management is implemented in the
+.Pa ncp.ko
+module.
+The
+.Xr IPXrouted 8
+program is also required for
+.Tn IPX
+support.
+.Sh FILES
+.Bl -tag -width /var/log/wtmp -compact
+.It Pa ~/.nwfsrc
+keeps static parameters for connections and other information
+See
+.Pa /usr/share/examples/nwclient/dot.nwfsrc
+for details.
+.El
+.Sh HISTORY
+The
+.Nm
+command first appeared in
+.Fx 4.0 .
+.Sh AUTHORS
+.An Boris Popov Aq bp@butya.kz ,
+.Aq rbp@chat.ru
+.Sh BUGS
+Please report any bugs to the author.

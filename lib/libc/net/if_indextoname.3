@@ -1,0 +1,142 @@
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     From: @(#)rcmd.3	8.1 (Berkeley) 6/4/93
+.\"	$FreeBSD$
+.\"
+.Dd May 21, 1998
+.Dt IF_NAMETOINDEX 3
+.Os
+.Sh NAME
+.Nm if_nametoindex ,
+.Nm if_indextoname ,
+.Nm if_nameindex ,
+.Nm if_freenameindex
+.Nd convert interface index to name, and vice versa
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/socket.h
+.In net/if.h
+.Ft "unsigned int"
+.Fn if_nametoindex "const char *ifname"
+.Ft "char *"
+.Fn if_indextoname "unsigned int ifindex" "char *ifname"
+.Ft "struct if_nameindex *"
+.Fn if_nameindex "void"
+.Ft "void"
+.Fn if_freenameindex "struct if_nameindex *ptr"
+.Sh DESCRIPTION
+The functions map interface index to readable interface name
+(such as
+.Dq Li lo0 ) ,
+and vice versa.
+.Pp
+.Fn if_nametoindex
+converts readable interface name to interface index
+.Pp positive integer value .
+If the specified interface does not exist, 0 will be returned.
+.Pp
+.Fn if_indextoname
+converts interface index to readable interface name.
+The
+.Fa ifname
+argument must point to a buffer of at least
+.Dv IF_NAMESIZE
+bytes into which the interface name corresponding to the specified index is
+returned.
+.Dv ( IF_NAMESIZE
+is also defined in
+.Aq Pa net/if.h
+and its value includes a terminating null byte at the end of the
+interface name.)
+This pointer is also the return value of the function.
+If there is no interface corresponding to the specified index,
+.Dv NULL
+is returned.
+.Pp
+.Fn if_nameindex
+returns an array of
+.Fa if_nameindex
+structures.
+.Fa if_nametoindex
+is also defined in
+.Aq Pa net/if.h ,
+and is as follows:
+.Bd -literal -offset
+struct if_nameindex {
+    unsigned int   if_index;  /* 1, 2, ... */
+    char          *if_name;   /* null terminated name: "le0", ... */
+};
+.Ed
+.Pp
+The end of the array of structures is indicated by a structure with
+an
+.Fa if_index
+of 0 and an
+.Fa if_name
+of
+.Dv NULL .
+The function returns a
+.Dv NULL
+pointer upon an error.
+The memory used for this array of structures along with the interface
+names pointed to by the
+.Fa if_name
+members is obtained dynamically.
+This memory is freed by the
+.Fn if_freenameindex
+function.
+.Pp
+.Fn if_freenameindex
+takes a pointer that was returned by
+.Fn if_nameindex
+as argument
+.Pq Fa ptr ,
+and it reclaims the region allocated.
+.Sh DIAGNOSTICS
+.Fn if_nametoindex
+returns 0 on error, positive integer on success.
+.Fn if_indextoname
+and
+.Fn if_nameindex
+return
+.Dv NULL
+on errors.
+.Sh SEE ALSO
+R. Gilligan, S.  Thomson, J. Bound, and W. Stevens,
+``Basic Socket Interface Extensions for IPv6,'' RFC2553, March 1999.
+.Sh HISTORY
+The implementation first appeared in WIDE Hydrangea IPv6 protocol stack kit.
+.Sh STANDARDS
+These functions are defined in ``Basic Socket Interface Extensions for IPv6''
+(RFC2533).

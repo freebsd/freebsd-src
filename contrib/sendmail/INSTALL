@@ -1,0 +1,38 @@
+
+			Installing sendmail
+
+Note: as of sendmail 8.9, a new build architecture is in place that allows
+you to use the "Build" shell script in any of the program directories.
+On many environments this will do everything for you, no fuss, no muss.
+
+1. Read all the README files noted in the INTRODUCTION section of the README
+   file in this top-level directory.
+
+2. Create any necessary site configuration build files, as noted in
+   devtools/Site/README.
+
+3. In the sendmail/ directory, run "sh Build" (see sendmail/README for
+   details).
+
+4. Change to the cf/cf/ directory (that's not a typo): Copy whichever .mc
+   file best matches your environment to config.mc, where config can be any
+   name.  Next, tailor it as explained in cf/README.  Then run
+   "sh Build config.cf".
+
+5. Back up your current /etc/mail/sendmail.cf and the sendmail binary (whose
+   location varies from operating system to operating system, but is usually
+   in /usr/sbin or /usr/lib).
+
+6. Install config.cf as /etc/mail/sendmail.cf and install the sendmail binary
+   built in step 3 by cd-ing back to sendmail/ and running "sh Build install".
+
+7. For each of the associated sendmail utilities (makemap, mailstats, etc.),
+   read the README in the utility's directory.  When you are ready to install
+   it, back up your installed version and type "sh Build install".
+
+8. If you are upgrading from an older version of sendmail and are using any
+   database maps, be sure to rebuild them with the new version of makemap,
+   in case you are now using a different (and thereby incompatible) version
+   of Berkeley DB.
+
+$Revision: 8.3.16.2 $, Last updated $Date: 2000/12/30 06:24:03 $

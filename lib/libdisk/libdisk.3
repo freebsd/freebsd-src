@@ -1,0 +1,339 @@
+.\"
+.\" Copyright (c) 1996 Joerg Wunsch
+.\"
+.\" All rights reserved.
+.\"
+.\" This program is free software.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\" "
+.Dd March 15, 1996
+.Dt LIBDISK 3
+.Os
+.Sh NAME
+.Nm Open_Disk ,
+.Nm Clone_Disk ,
+.Nm Free_Disk ,
+.Nm Debug_Disk ,
+.Nm Set_Bios_Geom ,
+.Nm Delete_Chunk ,
+.Nm Collapse_Disk ,
+.Nm Collapse_Chunk ,
+.Nm Create_Chunk ,
+.Nm All_FreeBSD ,
+.Nm CheckRules ,
+.Nm Disk_Names ,
+.Nm Set_Boot_Mgr ,
+.Nm Set_Boot_Blocks ,
+.Nm Write_Disk ,
+.Nm Cyl_Aligned ,
+.Nm Next_Cyl_Aligned ,
+.Nm Prev_Cyl_Aligned ,
+.Nm Track_Aligned ,
+.Nm Next_Track_Aligned ,
+.Nm Prev_Track_Aligned ,
+.Nm Create_Chunk_DWIM ,
+.Nm MakeDev ,
+.Nm MakeDevDisk ,
+.Nm ShowChunkFlags ,
+.Nm ChunkCanBeRoot ,
+.Nm chunk_n ,
+.Nm slice_type_name
+.Nd library interface to slice and partition labels
+.Sh LIBRARY
+.Lb libdisk
+.Sh SYNOPSIS
+.In sys/types.h
+.In libdisk.h
+.Pp
+.Vt extern const char *chunk_n[] ;
+.Ft const char *
+.Fn slice_type_name "int type" "int subtype"
+.Ft struct disk *
+.Fn Open_Disk "const char *devname"
+.Ft struct disk *
+.Fn Clone_Disk "struct disk *disk"
+.Ft void
+.Fn Free_Disk "struct disk *disk"
+.Ft void
+.Fn Debug_Disk "struct disk *disk"
+.Ft void
+.Fn Set_Bios_Geom "struct disk *disk" "u_long cyl" "u_long heads" "u_long sects"
+.Ft int
+.Fn Delete_Chunk "struct disk *disk" "struct chunk *"
+.Ft void
+.Fn Collapse_Disk "struct disk *disk"
+.Ft int
+.Fn Collapse_Chunk "struct disk *disk" "struct chunk *chunk"
+.Ft int
+.Fn Create_Chunk "struct disk *disk" "u_long offset" "u_long size" "chunk_e type" "int subtype" "u_long flags"
+.Ft void
+.Fn All_FreeBSD "struct disk *d" "int force_all"
+.Ft char *
+.Fn CheckRules "struct disk *"
+.Ft char **
+.Fn Disk_Names "void"
+.Ft void
+.Fn Set_Boot_Mgr "struct disk *d" "const u_char *bootmgr" "const size_t bootmgr_size"
+.Ft int
+.Fn Set_Boot_Blocks "struct disk *d" "const u_char *boot1" "const u_char *boot2"
+.Ft int
+.Fn Write_Disk "struct disk *d"
+.Ft int
+.Fn Cyl_Aligned "struct disk *d" "u_long offset"
+.Ft u_long
+.Fn Next_Cyl_Aligned "struct disk *d" "u_long offset"
+.Ft u_long
+.Fn Prev_Cyl_Aligned "struct disk *d" "u_long offset"
+.Ft int
+.Fn Track_Aligned "struct disk *d" "u_long offset"
+.Ft u_long
+.Fn Next_Track_Aligned "struct disk *d" "u_long offset"
+.Ft u_long
+.Fn Prev_Track_Aligned "struct disk *d" "u_long offset"
+.Ft struct chunk *
+.Fn Create_Chunk_DWIM "struct disk *d" "struct chunk *parent" "u_long size" "chunk_e type" "int subtype" "u_long flags"
+.Ft int
+.Fn MakeDev "struct chunk *c" "const char *path"
+.Ft int
+.Fn MakeDevDisk "struct disk *d" "const char *path"
+.Ft char *
+.Fn ShowChunkFlags "struct chunk *c"
+.Ft char *
+.Fn ChunkCanBeRoot "struct chunk *c"
+.Sh DESCRIPTION
+.Nm Libdisk
+provides an interface to the low-level disk slice and partition labels.
+Most functions operate with arguments of the types
+.Ql struct disk ,
+or
+.Ql struct chunk .
+.Pp
+While both types are mostly opaque to the programmer, the internal
+structure is mentioned below for the sake of completeness.
+.Bd -literal -offset indent
+struct disk {
+	char		*name;
+	u_long		flags;
+	u_long		bios_cyl;
+	u_long		bios_hd;
+	u_long		bios_sect;
+	u_char		*bootmgr;
+	u_char		*boot1;
+	u_char		*boot2;
+	struct chunk	*chunks;
+	u_long		sector_size;
+};
+.Ed
+The only flag value by now is
+.Ql DISK_ON_TRACK ,
+meaning that this disk is handled by the On-Track Disk Manager.
+.Pp
+.Bd -literal -offset indent
+struct chunk {
+	struct chunk	*next;
+	struct chunk	*part;
+	struct disk	*disk;
+	long		offset;
+	u_long		size;
+	u_long		end;
+	char		*name;
+	char		*oname;
+	chunk_e		type;
+	int		subtype;
+	u_long		flags;
+	void		(*private_free)(void*);
+	void		*(*private_clone)(void*);
+	void		*private_data;
+};
+.Ed
+The
+.Ql type
+field can be one of the following values:
+.Ql whole, unknown, fat, freebsd, extended, part, unused .
+.Pp
+These are the valid
+.Ql flag
+values for a
+.Ql struct chunk .
+.Bl -tag -offset indent -width CHUNK_BSD_COMPATXX
+.It CHUNK_PAST_1024
+This chunk cannot be booted from because it extends past cylinder 1024.
+.It CHUNK_BSD_COMPAT
+This chunk is in the
+.Bx Ns -compatibility ,
+and has a short name too, i.e.\&
+.Ql wd0s4f -> wd0f .
+.It CHUNK_ALIGN
+This chunk should be aligned.
+.It CHUNK_IS_ROOT
+This
+.Ql part
+is a rootfs, allocate partition
+.Sq a .
+.It CHUNK_ACTIVE
+This is the active slice in the MBR.
+.It CHUNK_FORCE_ALL
+Force a dedicated disk for
+.Fx ,
+bypassing all BIOS geometry considerations.
+.El
+.Pp
+The
+.Ql private_data ,
+.Ql private_free ,
+and
+.Ql private_clone
+fields are for data private to the application, and the management
+thereof.  If the functions are not provided, no storage management is
+done, cloning will just copy the pointer and freeing will just forget
+it.
+.Pp
+.Fn Open_Disk
+will open the named disk, and return populated tree.
+.Pp
+.Fn Clone_Disk
+clones a copy of a tree.  Useful for
+.Dq Undo
+functionality.
+.Pp
+.Fn Free_Disk
+frees a tree made with
+.Fn Open_Disk
+or
+.Fn Clone_Disk .
+.Pp
+.Fn Debug_Disk
+prints the content of the tree to stdout.
+.Pp
+.Fn Set_Bios_Geom
+sets the geometry the bios uses.
+.Pp
+.Fn Delete_Chunk
+frees a chunk of disk_space.
+.Pp
+.Fn Collapse_Disk
+and
+.Fn Collapse_Chunk
+are experimental, do not use.
+.Pp
+.Fn Create_Chunk
+creates a chunk with the specified parameters.
+.Pp
+.Fn All_FreeBSD
+makes one
+.Fx
+chunk covering the entire disk; if
+.Ql force_all
+is set, bypass all BIOS geometry considerations.
+.Pp
+.Fn CheckRules
+returns
+.Ql char*
+to warnings about broken design rules in this disklayout.
+.Pp
+.Fn Disk_Names
+returns
+.Ql char**
+with all disk's names (wd0, wd1 ...).  You must free each pointer, as
+well as the array by hand.
+.Pp
+.Fn Set_Boot_Mgr
+sets this boot-manager for use on this disk.  Gets written when
+.Fn Write_Disk
+is called.
+.Pp
+.Fn Set_Boot_Blocks
+sets the boot-blocks for use on this disk.  Gets written when
+.Fn Write_Disk
+is called.
+.Pp
+.Fn Write_Disk
+writes all the MBRs, disklabels, bootblocks and boot managers.
+.Pp
+.Fn Cyl_Aligned
+checks if
+.Ql offset
+is aligned on a cylinder according to the BIOS geometry.
+.Pp
+.Fn Next_Cyl_Aligned
+rounds
+.Ql offset
+up to next cylinder according to the BIOS geometry.
+.Pp
+.Fn Prev_Cyl_Aligned
+rounds
+.Ql offset
+down to previous cylinder according to the BIOS geometry.
+.Pp
+.Fn Track_Aligned
+checks if
+.Ql offset
+is aligned on a track according to the BIOS geometry.
+.Pp
+.Fn Next_Track_Aligned
+rounds
+.Ql offset
+up to next track according to the BIOS geometry.
+.Pp
+.Fn Prev_Track_Aligned
+checks if
+.Ql offset
+is aligned on a track according to the BIOS geometry.
+.Pp
+.Fn Create_Chunk_DWIM
+creates a partition inside the given parent of the given size, and
+returns a pointer to it.  The first unused chunk big enough is used.
+.Pp
+.Fn MakeDev
+makes the device nodes for this chunk.
+.Pp
+.Fn MakeDevDisk
+makes the device nodes for all chunks on this disk.
+.Pp
+.Fn ShowChunkFlags
+returns a string to show flags.
+.Pp
+.Fn ChunkCanBeRoot
+returns NULL if chunk can be
+.Ql / .
+.Pp
+Chunk name strings can be accessed directly using the external array
+.Va chunk_n .
+.Pp
+.Fn slice_type_name
+returns the name strings associated with the specified
+.Ql type .
+.Ql subtype .
+If
+.Fn slice_type_name
+returns "unknown" for slices it isn't familiar with.
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm libdisk
+library was written by
+.An Poul-Henning Kamp .
+.Pp
+This manual page was written by
+.An J\(:org Wunsch .

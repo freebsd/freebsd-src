@@ -1,0 +1,12 @@
+[1mumount[m	unmount filesystems
+
+	Usage:
+
+	umount [-fv] special | node
+	umount -a | -A [-fv] [-h host] [-t type]
+
+	Most commonly this will be:
+
+		umount <mount_point>
+
+	e.g. 'umount /mnt'

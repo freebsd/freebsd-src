@@ -1,0 +1,16 @@
+Here are some things that would be useful additions to groff:
+
+  ideal preprocessor
+
+  -mv macros (for typesetting viewgraphs and slides)
+
+  a deroff that understands long names
+
+  a page-makeup postprocessor and associated macro package
+  (like pm and -mpm)
+
+  a complete, self-contained manual -- first results can be found in
+  doc/groff.texinfo.
+
+If you want to work on one of these, you should probably post to
+gnu.groff.bug to see if anyone else has gotten there first.

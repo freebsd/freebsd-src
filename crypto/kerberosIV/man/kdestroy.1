@@ -1,0 +1,96 @@
+.\" $Id: kdestroy.1,v 1.4 1999/06/15 13:29:32 bg Exp $
+.\" Copyright 1989 by the Massachusetts Institute of Technology.
+.\"
+.\" For copying and distribution information,
+.\" please see the file <mit-copyright.h>.
+.\"
+.TH KDESTROY 1 "Kerberos Version 4.0" "MIT Project Athena"
+.SH NAME
+kdestroy \- destroy Kerberos tickets
+.SH SYNOPSIS
+.B kdestroy
+[
+.B \-f
+]
+[
+.B \-q
+]
+[
+.B \-t
+]
+.SH DESCRIPTION
+The
+.I kdestroy
+utility destroys the user's active
+Kerberos
+authorization tickets by writing zeros to the file that contains them.
+If the ticket file does not exist,
+.I kdestroy
+displays a message to that effect.
+.PP
+After overwriting the file,
+.I kdestroy
+removes the file from the system.
+The utility
+displays a message indicating the success or failure of the
+operation.
+If
+.I kdestroy
+is unable to destroy the ticket file,
+the utility will warn you by making your terminal beep.
+.PP
+In the Athena workstation environment,
+the
+.I toehold
+service automatically destroys your tickets when you
+end a workstation session.
+If your site does not provide a similar ticket-destroying mechanism,
+you can place the
+.I kdestroy
+command in your
+.I .logout
+file so that your tickets are destroyed automatically
+when you logout.
+.PP
+The options to
+.I kdestroy
+are as follows:
+.TP 7
+.B \-f
+.I kdestroy
+runs without displaying the status message.
+.TP
+.B \-q
+.I kdestroy
+will not make your terminal beep if it fails to destroy the tickets.
+.TP
+.B \-t
+destroy tickets only and keep all AFS tokens.
+.TP
+.B \-u
+unlog, i.e remove any AFS tokens associated with the current PAG
+but leave the ticket file alone.
+.PP
+If neither
+.B \-t
+nor 
+.B \-u
+is given, both tickets and AFS tokens are destroyed.
+.SH FILES
+KRBTKFILE environment variable if set, otherwise
+.br
+/tmp/tkt[uid]
+.SH SEE ALSO
+kerberos(1), kinit(1), klist(1)
+.SH BUGS
+.PP
+Only the tickets in the user's current ticket file are destroyed.
+Separate ticket files are used to hold root instance and password
+changing tickets.  These files should probably be destroyed too, or
+all of a user's tickets kept in a single ticket file.
+.SH AUTHORS
+Steve Miller, MIT Project Athena/Digital Equipment Corporation
+.br
+Clifford Neuman, MIT Project Athena
+.br
+Bill Sommerfeld, MIT Project Athena

@@ -1,0 +1,215 @@
+.\" Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the project nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE PROJECT OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     $Id: prefix.8,v 1.4 2000/05/31 17:00:08 itojun Exp $
+.\"	$FreeBSD$
+.\"
+.Dd October 10, 1998
+.Dt PREFIX 8
+.Os
+.Sh NAME
+.Nm prefix
+.Nd configure network interface prefixes
+.Sh SYNOPSIS
+.Nm
+.Bk -words
+.Ar interface prefix
+.Op Ar parameters
+.Op Cm set | delete
+.Nm
+.Ar interface
+.Cm matchpr Ar match_prefix
+.Cm mp_len Ar match_prefix_len
+.Cm usepr Ar use_prefix
+.Cm up_uselen Ar use_prefix_len
+.Op Ar parameters
+.Op Cm add | change | setglobal
+.Nm
+.Fl a
+.Op Fl d
+.Op Fl u
+.Cm matchpr Ar match_prefix
+.Cm mp_len Ar match_prefix_len
+.Cm usepr Ar use_prefix
+.Cm up_uselen Ar use_prefix_uselen
+.Op Ar parameters
+.Op Cm add | change | setglobal
+.Ek
+.Sh DESCRIPTION
+.Nm
+is used to assign an prefix
+to a network interface and/or renumbering
+network interface prefixes.
+.Nm
+must be used at boot time to define the network prefix
+of each interface present on a machine; it may also be used at
+a later time to renumbering multiple interface's prefixes
+and other prefix related parameters.
+.Nm
+is router-only command, so you must do following to use it.
+.Dl "sysctl net.inet6.ip6.forwarding=1"
+If net.inet6.ip6.forwarding is set to 0,
+.Nm
+command fails by
+.Er EPERM
+error.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Ar interface
+Specify an
+.Ar interface
+for which
+.Ar prefix
+is/are assigned or renumbered to.
+This parameter is a string of the form
+.Dq name unit ,
+for example,
+.Dq en0 .
+.It Ar prefix
+Assign/Delete an
+.Ar prefix
+to a network interface.
+.It Cm prefixlen Ar len
+Specify that
+.Ar len
+bits are reserved as identifier for IPv6 sub-networks in
+.Ar prefix .
+The
+.Ar len
+must be integer, and for syntactical reason it must be between 0 to 128.
+It is almost always 64 under the current IPv6 assignment rule.
+If the parameter is ommitted, 64 is used.
+.It Cm matchpr Ar match_prefix
+Specify
+.Ar match_prefix
+that is used for matching with preassigned prefixes to which
+.Cm add | change | setglobal
+command should be applied.
+.It Cm mp_len Ar match_prefix_len
+Specify the starting part of
+.Ar match_prefix
+to be used for matching with preassigned prefixes, as decimal bit number.
+.It Cm mp_minlen Ar match_prefix_minlen
+Specify the minimum length of prefixes which is allowed to be matched to
+.Ar match_prefix ,
+as decimal bit number.
+.Cm add | change | setglobal
+is not applied to preassigned prefixes with smaller prefix len than
+.Ar match_prefix_minlen .
+.It Cm mp_maxlen Ar match_prefix_maxlen
+Specify the maximum length of prefixes which is allowed to be matched to
+.Ar match_prefix ,
+as decimal bit number.
+.Cm add | change | setglobal
+is not applied to preassigned prefixes with bigger prefix len than
+.Ar match_prefix_maxlen .
+.It Cm usepr Ar use_prefix
+Specify
+.Ar use_prefix
+that is used for prefixes to be added on
+.Cm add | change | setglobal
+command.
+.It Cm up_uselen Ar use_prefix_uselen
+Specify the starting part of
+.Ar use_prefix
+copied to the starting part of prefixes to be added on
+.Cm add | change | setglobal
+command, as decimal bit number.
+.It Cm up_keeplen Ar use_prefix_keeplen
+Specify the midium part of
+.Ar use_prefix
+just next to the starting part specified by
+.Ar use_prefix_uselen ,
+as decimal bit number.
+Contiguous bits part in the same bit position of an existent prefix
+matched with
+.Ar match_prefix
+is copied to the same bit position of prefixes to be added.
+.It Cm pltime Ar time
+Assign an
+.Ar time
+as prefix preferred life time for a prefix to be added.
+Valid value for
+.Ar time
+is decimal seconds number or special format as "d00h00m00s00",
+where 00 can take any decimal number, and "d" means days, "h" means hours,
+"m" means minutes, "s" means seconds. And alternatively, special keyword
+"infinity" can be also be specified.
+.It Cm vltime Ar time
+Assign an
+.Ar time
+as prefix valid life time for a prefix to be added.
+Valid value for
+.Ar time
+is same as for
+.Cm pltime .
+.It Cm raf_auto
+Enable the autonomous address auto configuration for the prefix to be
+added.
+.It Fl raf_auto
+Disable the autonomous address auto configuration for the prefix to be
+added.
+.It Cm raf_onlink
+Let the prefix to be added to have onlink nature for the assigned
+interface.
+.It Fl raf_onlink
+Let the prefix to be added not to have onlink nature for the assigned
+interface.
+.It Cm rrf_decrprefd
+Enable the decrementation of the pltime.
+.It Fl rrf_decrprefd
+Disable the decrementation of the pltime.
+.It Cm rrf_decrvalid
+Enable the decrementation of the vltime.
+.It Fl rrf_decrvalid
+Disable the decrementation of the vltime.
+.El
+.Sh DIAGNOSTICS
+Messages indicating the specified interface does not exist, the
+requested prefix is unknown, or the user is not privileged and
+tried to alter an interface's configuration.
+.Sh SEE ALSO
+.Xr netstat 1 ,
+.Xr netintro 4 ,
+.Xr ifconfig 8 ,
+.Xr rc 8 ,
+.Xr routed 8
+.Rs
+.%A M. Crawford
+.%T Router Renumbering for IPv6
+.%R internet-draft
+.%N draft-ietf-ipngwg-router-renum-05.txt
+.Re
+.Sh HISTORY
+The
+.Nm
+command first appeared in WIDE/KAME IPv6 protocol stack kit.
+.Pp
+IPv6 and IPsec support based on the KAME Project (http://www.kame.net/) stack
+was initially integrated into
+.Fx 4.0

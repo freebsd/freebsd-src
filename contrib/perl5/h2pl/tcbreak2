@@ -1,0 +1,17 @@
+#!/usr/bin/perl
+
+require 'cbreak2.pl';
+
+&cbreak;
+
+$| = 1;
+
+print "gimme a char: ";
+
+$c = getc;
+
+print "$c\n";
+
+printf "you gave me `%s', which is 0x%02x\n", $c, ord($c);
+
+&cooked;

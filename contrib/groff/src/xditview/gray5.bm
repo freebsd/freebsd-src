@@ -1,0 +1,4 @@
+#define gray5_width 3
+#define gray5_height 3
+static char gray5_bits[] = {
+   0x04, 0x07, 0x02};

@@ -1,0 +1,2 @@
+#!/bin/sh
+exec /sbin/echo "Press Ctrl-Alt-Del instead of $0"

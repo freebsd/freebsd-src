@@ -1,0 +1,896 @@
+<!--
+
+$FreeBSD$
+
+install.sgml
+
+This file has architecture-dependent installation instructions, culled
+from {alpha,i386}/INSTALL.TXT.
+
+-->
+
+<sect1>
+  <title>Installing &os;</title>
+
+  <para>This section documents the process of installing a new
+  distribution of &os;.  These instructions pay particular emphasis to
+  the process of obtaining the &os; &release.current; distribution and
+  to beginning the installation procedure.  The <ulink
+  url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/install.html"><quote>Installing
+  FreeBSD</quote></ulink>
+  chapter of the <ulink
+  url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">FreeBSD
+  Handbook</ulink> provides more in-depth information about the
+  installation program itself, including a guided walkthrough with
+  screenshots.</para>
+
+  <para>If you are upgrading from a previous release
+  of &os;, please see <xref linkend="upgrading"> for instructions on
+  upgrading.</para>
+
+  <sect2 id="getting-started">
+    <title>Getting Started</title>
+
+    <para>Probably the most important pre-installation step that can
+    be taken is that of reading the various instruction documents
+    provided with &os;.  A roadmap of documents pertaining to this
+    release of &os; can be found in <filename>README.TXT</filename>,
+    which can usually be found in the same location as this file; most
+    of these documents, such as the release notes and the hardware
+    compatability list, are also accessible in the Documentation menu
+    of the installer.</para>
+
+    <para>Note that on-line versions of the &os; <ulink
+    url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/faq/">FAQ</ulink> and <ulink
+    url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">Handbook</ulink> are also
+    available from the <ulink url="http://www.FreeBSD.org/">FreeBSD
+    Project Web site</ulink>, if you have an Internet
+    connection.</para>
+
+    <para>This collection of documents may seem daunting, but the time
+    spent reading them will likely be saved many times over.  Being
+    familiar with what resources are available can also be helpful in
+    the event of problems during installation.</para>
+
+    <para>The best laid plans sometimes go awry, so if you run into
+    trouble take a look at <xref linkend="trouble">, which contains
+    valuable troubleshooting information.  You should also read
+    an updated copy of
+    <filename>ERRATA.TXT</filename> before installing,
+    since this will alert you to
+    any problems which have reported in the interim for your
+    particular release.</para>
+
+    <important>
+      <para>While &os; does its best to safeguard against
+      accidental loss of data, it's still more than possible to
+      <emphasis>wipe out your entire disk</emphasis>
+      with this installation if you make a
+      mistake.  Please do not proceed to the final &os;
+      installation menu unless you've adequately backed up any
+      important data first.</para>
+    </important>
+
+  <sect2>
+    <title>Hardware Requirements</title>
+
+    <para arch="i386">&os; for the &arch.print; requires an 80386 or better
+    processor.  The &man.sysinstall.8 installation program requires
+    16MB of RAM; after installation, &os; itself can be run in 
+    4&ndash;8MB of RAM with a pared-down kernel.
+    You will need at least 100MB of free hard drive space for the
+    most minimal installation; a more realistic minimum is on the
+    order of 250&ndash;350MB.  See below for ways of shrinking
+    existing DOS partitions in order to install &os;.</para>
+
+    <para arch="alpha">&os; for the &arch.print; supports the platforms
+    described in <filename>HARDWARE.TXT</filename>.</para>
+
+    <para arch="alpha">You will need a dedicated disk for
+    FreeBSD/alpha. It is not possible to share a disk with another
+    operating system at this time. This disk will need to be attached
+    to a SCSI controller which is supported by the SRM firmware or an
+    IDE disk assuming the SRM in your machine supports booting from
+    IDE disks.</para>
+
+    <para arch="alpha">Your root filesystem MUST be the first
+    partition (partition <literal>a</literal>) on the disk to be
+    bootable.</para>
+
+    <para arch="alpha">You will need the SRM console firmware for your
+    platform. In some cases, it is possible to switch between
+    AlphaBIOS (or ARC) firmware and SRM. In others it will be
+    necessary to download new firmware from the vendor's Web
+    site.</para>
+
+    <para>If you are
+    not familiar with configuring hardware for &os;, you should
+    be sure to read the <filename>HARDWARE.TXT</filename> file; 
+    it contains important
+    information on what hardware is supported by &os;.</para>
+  </sect2>
+
+  <sect2 id="floppies">
+  <title>Floppy Disk Image Instructions</title>
+
+  <para>Depending on how you choose to install &os;, you may need to
+  create a set of floppy disks (usually two) to begin the installation
+  process.  This section briefly describes how to create these disks,
+  either from a CDROM installation or from the Internet.  Note that in
+  the common case of installing &os; from CDROM, on a machine that
+  supports bootable CDROMs, the steps outlined in this section will
+  not be needed and can be skipped.</para>
+
+  <para>For a normal CDROM or network installation, all you need to
+  copy onto actual floppies from the <filename>floppies/</filename> directory are the
+  <filename>kern.flp</filename> and <filename>mfsroot.flp</filename>
+  images (for 1.44MB floppies).</para>
+
+  <para>Getting these images over the network is easy.  Simply fetch
+  the
+  <replaceable>release</replaceable><filename>/floppies/kern.flp</filename>
+  and
+  <replaceable>release</replaceable><filename>/floppies/mfsroot.flp</filename>
+  files from <ulink
+  url="&release.url;"></ulink>
+  or one of the many mirrors listed at <ulink
+    url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/mirrors-ftp.html">FTP
+    Sites</ulink> section of the Handbook, or on the
+    <ulink url="http://www.freebsdmirrors.org/"></ulink> Web pages.
+  </para>
+
+  <para>Get two blank, freshly formatted floppies and image copy
+  <filename>kern.flp</filename> onto one and <filename>mfsroot.flp</filename> onto the other.  These images are
+  <emphasis>not</emphasis> DOS files.  You cannot simply copy them to a DOS or UFS floppy
+  as regular files, you need to <quote>image</quote> copy them to the floppy with
+  <filename>fdimage.exe</filename> under DOS (see the
+  <filename>tools</filename> directory on your CDROM or &os; FTP
+  mirror) or the &man.dd.1; command in UNIX.</para>
+
+  <para>For example, to create the kernel floppy image from DOS, you'd
+  do something like this:</para>
+
+  <screen><prompt>C></prompt> <userinput>fdimage kern.flp a:</userinput></screen>
+
+  <para>Assuming that you'd copied <filename>fdimage.exe</filename> and <filename>kern.flp</filename> into a directory
+  somewhere.  You would do the same for <filename>mfsroot.flp</filename>, of course.</para>
+
+  <para>If you're creating the boot floppy from a UNIX machine, you
+  may find that:</para>
+
+  <screen>&prompt.root; <userinput>dd if=floppies/kern.flp of=/dev/rfd0</userinput></screen>
+
+  <para>or</para>
+
+  <screen>&prompt.root; <userinput>dd if=floppies/kern.flp of=/dev/floppy</userinput></screen>
+
+  <para>work well, depending on your hardware and operating system
+  environment (different versions of UNIX have different names
+  for the floppy drive).</para>
+
+  <para arch="alpha">If you're on an alpha machine that can network-boot its
+  floppy images or you have a 2.88MB or LS-120 floppy capable of
+  taking a 2.88MB image on an x86 machine, you may wish to use
+  the single (but twice as large) <filename>boot.flp</filename> image.
+  It contains the contents of <filename>kern.flp</filename> and <filename>mfsroot.flp</filename> on
+  a single floppy.  This file should also be used as the
+  boot file for those mastering <quote>El Torito</quote> bootable CD images.  See
+  the &man.mkisofs.8; command for more information.</para>
+  </sect2>
+
+  <sect2 id="start-installation">
+      <title>Installing &os; from CDROM or the Internet</title>
+
+      <para arch="i386">The easiest type of installation is from
+      CDROM.  If you have a supported CDROM drive and a &os;
+      installation CDROM, there are 2 ways of starting the
+      installation from it:
+        <itemizedlist>
+          <listitem>
+            <para>If your system supports bootable CDROM media
+            (usually an option which can be selectively enabled in the
+            controller's setup menu or in the PC BIOS for some
+            systems) and you have it enabled, &os; supports the
+            <quote>El Torrito</quote> bootable CD standard.  Simply
+            put the installation CD in your CDROM drive and boot the
+            system to begin installation.</para>
+	  </listitem>
+	  <listitem>
+	    <para>Build a set of &os; boot floppies from the
+            <filename>floppies/</filename> directory in every &os;
+            distribution.  Either simply use the
+            <filename>makeflp.bat</filename> script from DOS or read
+            <xref linkend="floppies"> for more information on creating
+            the bootable floppies under different operating systems.
+            Then you simply boot from the first floppy and you should
+            soon be in the &os; installation.</para>
+          </listitem>
+        </itemizedlist>
+      </para>
+
+      <para arch="i386">If you don't have a CDROM (or your computer does not
+      support booting from CDROM) and would like to simply install
+      over the net using PPP, SLIP or a dedicated connection.
+      You should start the installation by building
+      a set of FreeBSD boot floppy from the files
+      <filename>floppies/kern.flp</filename> and
+      <filename>floppies/mfsroot.flp</filename> using the instructions
+      found in <xref linkend="floppies">.  Restart your computer using
+      the <filename>kern.flp</filename> disk; when prompted, insert
+      the <filename>mfsroot.flp</filename> disk.  Then, please go to
+      <xref linkend="ftpnfs"> for additional tips on installing
+      via FTP or NFS.</para>
+
+      <para arch="alpha">The easiest type of installation is from
+      CDROM.  If you have a supported CDROM drive and a FreeBSD
+      installation CDROM, you can boot FreeBSD directly from the
+      CDROM. Insert the CDROM into the drive and type the following
+      command to start the installation (substituting the name of the
+      appropriate CDROM drive if necessary):</para>
+
+      <screen arch="alpha">&gt;&gt;&gt;<userinput>boot dka0</userinput></screen>
+
+      <para arch="alpha">Alternatively you can boot the installation
+      from floppy disk. You should start the installation by building
+      a set of FreeBSD boot floppy from the files
+      <filename>floppies/kern.flp</filename> and
+      <filename>floppies/mfsroot.flp</filename> using the instructions
+      found in <xref linkend="floppies">. From the SRM console prompt
+      (<literal>&gt;&gt;&gt;</literal>), just insert the
+      <filename>kern.flp</filename> floppy and type the following
+      command to start the installation:</para>
+
+      <screen arch="alpha">&gt;&gt;&gt;<userinput>boot dva0</userinput></screen>
+
+      <para arch="alpha">Insert the <filename>mfsroot.flp</filename>
+      floppy when prompted and you will end up at the first screen of
+      the install program.</para>
+  </sect2>
+  <sect2>
+    <title>Detail on various installation types</title>
+
+    <para>Once you've gotten yourself to the initial installation
+    screen somehow, you should be able to follow the various menu
+    prompts and go from there.  If you've never used the &os;
+    installation before, you are also encouraged to read some of the
+    documentation in the Documentation submenu as well as the
+    general <quote>Usage</quote> instructions on the first menu.</para>
+
+    <note>
+      <para>If you get stuck at a screen, press the <keycap>F1</keycap> key for online
+      documentation relevant to that specific section.</para>
+    </note>
+
+    <para>If you've never installed &os; before, or even if you
+    have, the <quote>Standard</quote> installation mode is the most recommended
+    since it makes sure that you'll visit all the various important
+    checklist items along the way.  If you're much more comfortable
+    with the &os; installation process and know <emphasis>exactly</emphasis> what you
+    want to do, use the <quote>Express</quote> or <quote>Custom</quote> installation options.  If
+    you're upgrading an existing system, use the <quote>Upgrade</quote> option.</para>
+
+    <para>The &os; installer supports the direct use of floppy,
+    DOS, tape, CDROM, FTP, NFS and UFS partitions as installation
+    media; further tips on installing from each type of media are listed
+    below.</para>
+
+    <para arch="alpha">Once the install procedure has finished, you will be able
+    to start &os;/&arch; by typing something like this to the SRM
+    prompt:</para>
+
+    <screen arch="alpha">&gt;&gt;&gt;<userinput>boot dkc0</userinput></screen>
+
+    <para arch="alpha">This instructs the firmware to boot the specified disk. To
+    find the SRM names of disks in your machine, use the <literal>show
+    device</literal> command:</para>
+
+    <screen arch="alpha">&gt;&gt;&gt;<userinput>show device</userinput>
+dka0.0.0.4.0               DKA0           TOSHIBA CD-ROM XM-57  3476
+dkc0.0.0.1009.0            DKC0                       RZ1BB-BS  0658
+dkc100.1.0.1009.0          DKC100             SEAGATE ST34501W  0015
+dva0.0.0.0.1               DVA0
+ewa0.0.0.3.0               EWA0              00-00-F8-75-6D-01
+pkc0.7.0.1009.0            PKC0                  SCSI Bus ID 7  5.27
+pqa0.0.0.4.0               PQA0                       PCI EIDE
+pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
+
+    <para arch="alpha">This example is from a Digital Personal Workstation 433au
+    and shows three disks attached to the machine. The first is a
+    CDROM called <devicename>dka0</devicename> and the other two are
+    disks and are called <devicename>dkc0</devicename> and
+    <devicename>dkc100</devicename> repectively.</para>
+
+    <para arch="alpha">You can specify which kernel file to load and what boot
+    options to use with the <option>-file</option> and
+    <option>-flags</option> options, for example:</para>
+
+    <screen arch="alpha"><prompt>&gt;&gt;&gt;</prompt> <userinput>boot -file kernel.old -flags s</userinput></screen>
+
+    <para arch="alpha">To make &os;/&arch; boot automatically, use these commands:</para>
+
+    <screen arch="alpha"><prompt>&gt;&gt;&gt;</prompt> <userinput>set boot_osflags a</userinput>
+<prompt>&gt;&gt;&gt;</prompt> <userinput>set bootdef_dev dkc0</userinput>
+<prompt>&gt;&gt;&gt;</prompt> <userinput>set auto_action BOOT</userinput></screen>
+
+    <sect3>
+      <title>Installing from a Network CDROM</title>
+
+      <para>If you simply wish to install from a local CDROM drive
+      then see <xref linkend="start-installation">.  If you don't have a CDROM
+      drive on your system and wish to use a &os; distribution CD
+      in the CDROM drive of another system to which you have network
+      connectivity, there are also several ways of going about it:</para>
+
+      <itemizedlist>
+        <listitem>
+          <para>If you would be able to FTP install &os; directly
+          from the CDROM drive in some &os; machine, it's quite
+          easy: You simply add the following line to the password file
+          (using the &man.vipw.8; command):</para>
+
+          <screen>ftp:*:99:99::0:0:FTP:/cdrom:/sbin/nologin</screen>
+
+          <para>On the machine on which you are running the install,
+          go to the Options menu and set Release Name to
+          <literal>any</literal>.  You may then choose a Media type of
+          <literal>FTP</literal> and type in
+          <filename>ftp://<replaceable>machine</replaceable></filename>
+          after picking <quote>URL</quote> in the ftp sites
+          menu.</para>
+
+          <warning>
+	    <para>This may allow anyone on the local network (or Internet) to
+            make <quote>anonymous FTP</quote> connections to this
+            machine, which may not be desirable.</para>
+	  </warning>
+	</listitem>
+
+	<listitem>
+	  <para>If you would rather use NFS to export the CDROM
+          directly to the machine(s) you'll be installing from, you
+          need to first add an entry to the
+          <filename>/etc/exports</filename> file (on the machine with
+          the CDROM drive).  The example below allows the machine
+          <hostid role="hostname">ziggy.foo.com</hostid> to mount the
+          CDROM directly via NFS during installation:</para>
+
+	  <screen>/cdrom          -ro             ziggy.foo.com</screen>
+
+	  <para>The machine
+          with the CDROM must also be configured as an NFS server, of
+          course, and if you're not sure how to do that then an NFS
+          installation is probably not the best choice for you unless
+          you're willing to read up on &man.rc.conf.5; and configure things
+          appropriately.  Assuming that this part goes smoothly, you
+          should be able to enter: <filename><replaceable>cdrom-host</replaceable>:/cdrom</filename> as the path for
+          an NFS installation when the target machine is installed,
+          e.g. <filename>wiggy:/cdrom</filename>.</para>
+	</listitem>
+      </itemizedlist>
+    </sect3>
+
+    <sect3>
+      <title>Installing from Floppies</title>
+
+      <para>If you must install from floppy disks, either due to
+      unsupported hardware or just because you enjoy doing things the
+      hard way, you must first prepare some floppies for the
+      install.</para>
+
+      <para>First, make your boot floppies as described in
+      <xref linkend="floppies">.</para>
+
+      <para>Second, peruse <xref linkend="layout"> and pay special attention
+      to the <quote>Distribution Format</quote> section since it describes which
+      files you're going to need to put onto floppy and which you can
+      safely skip.</para>
+
+      <para>Next you will need, at minimum, as many 1.44MB floppies as
+      it takes to hold all files in the <filename>bin</filename>
+      (binary distribution) directory.  If you're preparing these
+      floppies under DOS, then these floppies
+      <emphasis>must</emphasis> be formatted using the MS-DOS
+      <filename>FORMAT</filename> command.  If you're using Windows,
+      use the Windows File Manager format command.</para>
+
+      <important>
+        <para>Frequently, floppy disks come <quote>factory
+        preformatted</quote>.  While convenient,
+        many problems reported by users in the past have resulted
+        from the use of improperly formatted media.
+        Re-format them yourself, just to make sure.</para>
+      </important>
+
+      <para>If you're creating the floppies from another &os;
+      machine, a format is still not a bad idea though you don't need
+      to put a DOS filesystem on each floppy.  You can use the
+      &man.disklabel.8; and &man.newfs.8; commands to put a UFS filesystem on a
+      floppy, as the following sequence of commands
+      illustrates:</para>
+
+      <screen>&prompt.root; <userinput>fdformat -f 1440 fd0.1440</userinput>
+&prompt.root; <userinput>disklabel -w -r fd0.1440 floppy3</userinput>
+&prompt.root; <userinput>newfs -t 2 -u 18 -l 1 -i 65536 /dev/fd0</userinput></screen>
+
+      <para>After you've formatted the floppies for DOS or UFS, you'll
+      need to copy the files onto them.  The distribution files are
+      split into chunks conveniently sized so that 5 of them will fit
+      on a conventional 1.44MB floppy.  Go through all your floppies,
+      packing as many files as will fit on each one, until you've got
+      all the distributions you want packed up in this fashion.  Each
+      distribution should go into its own subdirectory on the floppy,
+      e.g.: <filename>a:\bin\bin.inf</filename>, <filename>a:\bin\bin.aa</filename>, <filename>a:\bin\bin.ab</filename>, ...</para>
+
+      <important>
+        <para>The <filename>bin.inf</filename> file also needs to go on the first floppy of
+        the <filename>bin</filename> set since it is read by the installation program in
+        order to figure out how many additional pieces to look for
+        when fetching and concatenating the distribution.  When
+        putting distributions onto floppies, the
+        <filename>distname.inf</filename> file <emphasis>must</emphasis> occupy the first
+        floppy of each distribution set.  This is also covered in
+        <filename>README.TXT</filename>.</para>
+      </important>
+
+      <para>Once you come to the Media screen of the install, select
+      <quote>Floppy</quote> and you'll be prompted for the rest.</para>
+    </sect3>
+
+    <sect3 arch="i386">
+      <title>Installing from a DOS partition</title>
+
+      <para>To prepare for installation from an MS-DOS partition you
+      should simply copy the files from the distribution into a
+      directory called <filename>FREEBSD</filename> on the Primary DOS partition (<devicename>C:</devicename>).  For example, to do a minimal installation of &os; from
+      DOS using files copied from the CDROM, you might do something
+      like this:</para>
+
+      <screen><prompt>C:\></prompt> <userinput>MD C:\FREEBSD</userinput>
+<prompt>C:\></prompt> <userinput>XCOPY /S E:\BIN C:\FREEBSD\BIN</userinput></screen>
+
+      <para>Assuming that <devicename>E:</devicename> was where your CD was mounted.</para>
+
+      <para>For as many distributions as you wish to install from DOS (and
+      you have free space for), install each one in a directory under
+      <filename>C:\FREEBSD</filename> - the <filename>BIN</filename> dist is only the minimal requirement.</para>
+
+      <para>Once you've copied the directories, you can simply launch
+      the installation from floppies as normal and select <quote>DOS</quote> as
+      your media type when the time comes.</para>
+    </sect3>
+
+    <sect3>
+      <title>Installing from QIC/SCSI Tape</title>
+
+      <para>When installing from tape, the installation program
+      expects the files to be simply tar'ed onto it, so after fetching
+      all of the files for the distributions you're interested in,
+      simply use &man.tar.1; to get them onto the tape with a command something like
+      this:</para>
+
+      <screen>&prompt.root; <userinput>cd <replaceable>/where/you/have/your/dists</replaceable></userinput>
+&prompt.root; <userinput>tar cvf /dev/rsa0 <replaceable>dist1</replaceable> .. <replaceable>dist2</replaceable></userinput></screen>
+
+      <para>When you go to do the installation, you should also make
+      sure that you leave enough room in some temporary directory
+      (which you'll be allowed to choose) to accommodate the <emphasis>full</emphasis>
+      contents of the tape you've created.  Due to the non-random
+      access nature of tapes, this method of installation requires
+      quite a bit of temporary storage.  You should expect to require
+      as much temporary storage as you have stuff written on tape.</para>
+
+      <note>
+        <para>When going to do the installation, the tape must be in
+        the drive <emphasis>before</emphasis> booting from the boot floppies.  The
+        installation <quote>probe</quote> may otherwise fail to find it.</para>
+      </note>
+
+      <para>Now create a boot floppy as described in <xref linkend="floppies"> and
+      proceed with the installation.</para>
+    </sect3>
+
+    <sect3 id="ftpnfs">
+      <title>Installing over a Network using FTP or NFS</title>
+
+      <para>After making the boot floppies as described in the first
+      section, you can load the rest of the installation over a
+      network using one of 3 types of connections:  serial port,
+      parallel port, or Ethernet.</para>
+
+      <sect4>
+        <title>Serial Port</title>
+
+	<para>SLIP support is rather primitive, and is limited
+        primarily to hard-wired links, such as a serial cable running
+        between two computers.  The link must be hard-wired because
+        the SLIP installation doesn't currently offer a dialing
+        capability.  If you need to dial out with a modem or otherwise
+        dialog with the link before connecting to it, then I recommend
+        that the PPP utility be used instead.</para>
+
+        <para>If you're using PPP, make sure that you have your
+        Internet Service Provider's IP address and DNS information
+        handy as you'll need to know it fairly early in the
+        installation process.  You may also need to know your own IP
+        address, though PPP supports dynamic address negotiation and
+        may be able to pick up this information directly from your ISP
+        if they support it.</para>
+
+        <para>You will also need to know how to use the various <quote>AT
+        commands</quote> for dialing out with your particular brand of modem
+        as the PPP dialer provides only a very simple terminal
+        emulator.</para>
+      </sect4>
+
+      <sect4>
+        <title>Parallel Port</title>
+
+	<para>If a hard-wired connection to another &os; or Linux
+        machine is available, you might also consider installing over
+        a <quote>laplink</quote> style parallel port cable.  The data rate over the
+        parallel port is much higher than what is typically possible
+        over a serial line (up to 50k/sec), thus resulting in a
+        quicker installation.  It's not typically necessary to use
+        <quote>real</quote> IP addresses when using a point-to-point parallel cable
+        in this way and you can generally just use RFC 1918 style
+        addresses for the ends of the link (e.g. <hostid
+        role="ipaddr">10.0.0.1</hostid>, <hostid role="ipaddr">10.0.0.2</hostid>,
+        etc).</para>
+
+        <important>
+	  <para>If you use a Linux machine rather than a &os;
+          machine as your PLIP peer, you will also have to specify
+          <option>link0</option> in the TCP/IP setup screen's <quote>extra options for
+          ifconfig</quote> field in order to be compatible with Linux's
+          slightly different PLIP protocol.</para>
+	</important>
+
+      </sect4>
+
+      <sect4>
+        <title>Ethernet</title>
+
+	<para>&os; supports many common Ethernet cards; a table
+        of supported cards is
+        provided as part of the &os; Hardware Notes (see
+        <filename>HARDWARE.TXT</filename> in
+	the Documentation menu on the boot floppy or the top level
+        directory of the CDROM).  If you are using one of the
+        supported PCMCIA Ethernet cards, also be sure that it's
+        plugged in <emphasis>before</emphasis> the laptop is powered on.  &os; does
+        not, unfortunately, currently support <quote>hot insertion</quote> of
+        PCMCIA cards during installation.</para>
+
+        <para>You will also need to know your IP address on the
+        network, the <option>netmask</option> value for your subnet and the
+        name of your machine.  Your system administrator can tell you
+        which values are appropriate to your particular network setup.
+        If you will be referring to other hosts by name rather than IP
+        address, you'll also need a name server and possibly the
+        address of a gateway (if you're using PPP, it's your
+        provider's IP address) to use in talking to it.  If you want
+        to install by FTP via an HTTP proxy (see below), you will also
+        need the proxy's address.</para>
+
+        <para>If you do not know the answers to these questions then
+        you should really probably talk to your system administrator
+        <emphasis>first</emphasis> before trying this type of
+        installation.  Using a randomly chosen IP address or netmask
+        on a live network is almost guaranteed not to work, and will
+        probably result in a lecture from said system administrator.</para>
+
+        <para>Once you have a network connection of some sort working, the
+	installation can continue over NFS or FTP.</para>
+      </sect4>
+
+      <sect4>
+        <title>NFS installation tips</title>
+
+        <para>NFS installation is fairly straight-forward: Simply copy
+        the &os; distribution files you want onto a server
+        somewhere and then point the NFS media selection at it.</para>
+
+        <para>If this server supports only <quote>privileged port</quote> access (this is
+        generally the default for Sun and Linux workstations), you
+        will need to set this option in the Options menu before
+        installation can proceed.</para>
+
+        <para>If you have a poor quality Ethernet card which suffers from very
+        slow transfer rates, you may also wish to toggle the appropriate
+        Options flag.</para>
+
+        <para>In order for NFS installation to work, the server must
+        also support <quote>subdir mounts</quote>, e.g. if your &os;
+        distribution directory lives on
+        <filename>wiggy:/usr/archive/stuff/FreeBSD</filename>, then
+        <hostid role="hostname">wiggy</hostid> will have to allow
+        the direct mounting of <filename>/usr/archive/stuff/FreeBSD</filename>, not just
+        <filename>/usr</filename> or <filename>/usr/archive/stuff</filename>.</para>
+
+        <para>In FreeBSD's <filename>/etc/exports</filename> file this is controlled by the
+        <option>-alldirs</option> option.  Other NFS servers may have different
+        conventions.  If you are getting <literal>Permission Denied</literal> messages
+        from the server then it's likely that you don't have this
+        properly enabled.</para>
+      </sect4>
+
+      <sect4>
+        <title>FTP Installation tips</title>
+
+        <para>FTP installation may be done from any mirror site containing a
+        reasonably up-to-date version of &os;.  A full menu of
+        reasonable choices for almost any location in the world is
+        provided in the FTP site menu during installation.</para>
+
+        <para>If you are installing from some other FTP site not listed in
+        this menu, or you are having troubles getting your name server
+        configured properly, you can also specify your own URL by
+        selecting the <quote>URL</quote> choice in that menu.  A URL can
+        contain a hostname or an IP address, so something like the following would
+        work in the absence of a name server:</para>
+
+        <screen>ftp://216.66.64.162/pub/FreeBSD/releases/&arch;/4.2-RELEASE</screen>
+
+        <para>There are three FTP installation modes you can use:
+	  <itemizedlist>
+	    <listitem>
+	      <para>FTP:  This method uses the standard
+              <quote>Active</quote> mode for transfers, in which the
+              server initiates a connection to the client.  This will
+              not work through most firewalls but will often work best
+              with older FTP servers that do not support passive mode.
+              If your connection hangs with passive mode, try this
+              one.</para>
+	    </listitem>
+	    <listitem>
+	      <para>FTP Passive:  This sets the FTP "Passive" mode
+              which prevents the server from opening connections to
+              the client.  This option is best for users to pass
+              through firewalls that do not allow incoming connections
+              on random port addresses.</para>
+	    </listitem>
+            <listitem>
+	      <para>FTP via an HTTP proxy: This option instructs &os;
+              to use HTTP to connect to a proxy for all FTP
+              operations.  The proxy will translate the requests and
+              send them to the FTP server.  This allows the user to
+              pass through firewalls that do not allow FTP at all, but
+              offer an HTTP proxy.  You must specify the hostname of
+              the proxy in addition to the FTP server.</para>
+
+	      <para>In the rare case that you have an FTP proxy that
+              does not go through HTTP, you can specify the URL as
+              something like:</para>
+
+              <screen><userinput>ftp://foo.bar.com:<replaceable>port</replaceable>/pub/FreeBSD</userinput></screen>
+
+              <para>In the URL above, <replaceable>port</replaceable>
+              is the port number of the proxy FTP server.</para>
+	    </listitem>
+	  </itemizedlist>
+
+      </sect4>
+    </sect3>
+    <sect3>
+      <title>Tips for Serial Console Users</title>
+
+      <para>If you'd like to install &os; on a machine using just a
+      serial port (e.g. you don't have or wish to use a VGA card),
+      please follow these steps:</para>
+
+      <procedure>
+	<step>
+	  <para>Connect some sort of ANSI (vt100) compatible terminal
+	  or terminal emulation program to the <devicename>COM1</devicename> port of the PC you
+	  are installing &os; onto.</para>
+	</step>
+	<step>
+	  <para>Unplug the keyboard (yes, that's correct!) and then
+	  try to boot from floppy or the installation CDROM, depending
+	  on the type of installation media you have, with the
+	  keyboard unplugged.</para>
+	</step>
+	<step>
+	  <para>If you don't get any output on your serial console,
+	  plug the keyboard in again and wait for some beeps.  If you
+	  are booting from the CDROM, proceed to <xref
+	  linkend="hitspace"> as soon as you
+	  hear the beep.</para>
+	</step>
+	<step>
+	  <para>For a floppy boot, the first beep means to remove the
+	  <filename>kern.flp</filename> floppy and insert the
+	  <filename>mfsroot.flp</filename> floppy, after
+	  which you should press <keycap>Enter</keycap> and wait for another beep.</para>
+	</step>
+	<step id="hitspace">
+	  <para>Hit the space bar, then enter</para>
+
+	  <screen><userinput>boot -h</userinput></screen>
+
+	  <para>and you should now definitely be seeing everything on
+	  the serial port.  If that still doesn't work, check your
+	  serial cabling as well as the settings on your terminal
+	  emulation program or actual terminal device.  It should be
+	  set for 9600 baud, 8 bits, no parity.</para>
+	</step>
+      </procedure>
+    </sect3>
+  </sect2>
+
+  <sect2>
+    <title>Question and Answer Section for &arch.print; Architecture Users</title>
+
+    <qandaset arch="i386">
+      <qandaentry>
+        <question>
+	  <para>Help!  I have no space!  Do I need to delete
+	  everything first?</para>
+	</question>
+	<answer>
+	  <para>If your machine is already running DOS and has little
+	  or no free space available for &os;'s installation, all is
+	  not lost!  You may find the <application>FIPS</application>
+	  utility, provided in the <filename>tools/</filename>
+	  subdirectory on the &os; CDROM or on the various &os; ftp
+	  sites, to be quite useful.</para>
+
+	  <para><application>FIPS</application> allows you to split an
+	  existing DOS partition into two pieces, preserving the
+	  original partition and allowing you to install onto the
+	  second free piece.  You first <quote>defrag</quote> your DOS
+	  partition, using the DOS 6.xx <filename>DEFRAG</filename>
+	  utility or the <application>Norton Disk Tools</application>,
+	  then run FIPS.  It will
+	  prompt you for the rest of the information it needs.
+	  Afterwards, you can reboot and install &os; on the new
+	  partition.  Also note that FIPS will create the second
+	  partition as a <quote>clone</quote> of the first, so you'll
+	  actually see that you now have two DOS Primary partitions
+	  where you formerly had one.  Don't be alarmed!  You can
+	  simply delete the extra DOS Primary partition (making sure
+	  it's the right one by examining its size).</para>
+
+	  <para><application>FIPS</application> does NOT currently
+	  work with FAT32 or VFAT style partitions as used by newer
+	  versions of Windows 95.  To split up such a partition, you
+	  will need a commercial product such as
+	  <application>Partition Magic</application>.  Sorry, but this
+	  is just the breaks if you've got a Windows partition hogging
+	  your whole disk and you don't want to reinstall from
+	  scratch.</para>
+	  
+	</answer>
+      </qandaentry>
+
+      <qandaentry>
+        <question>
+	  <para>Can I use compressed DOS filesystems from
+	  &os;?</para>
+	</question>
+
+	<answer>
+	  <para>No.  If you are using a utility such as
+	  <application>Stacker</application>(tm) or
+	  <application>DoubleSpace</application>(tm), &os; will only
+	  be able to use whatever portion of the filesystem you leave
+	  uncompressed.  The rest of the filesystem will show up as
+	  one large file (the stacked/dblspaced file!).  <emphasis>Do
+	  not remove that file</emphasis> as you will probably regret
+	  it greatly!</para>
+
+	  <para>It is probably better to create another uncompressed DOS
+	  extended partition and use this for communications between
+	  DOS and &os; if such is your desire.</para>
+	</answer>
+      </qandaentry>
+
+      <qandaentry>
+        <question>
+	  <para>Can I mount my DOS extended partitions?</para>
+	</question>
+
+	<answer>
+	  <para>Yes.  DOS extended partitions are mapped in at the end
+	  of the other <quote>slices</quote> in &os;, e.g. your <devicename>D:</devicename> drive might
+	  be <filename>/dev/da0s5</filename>, your <devicename>E:</devicename> drive <filename>/dev/da0s6</filename>, and so on. This
+	  example assumes, of course, that your extended partition is
+	  on SCSI drive 0. For IDE drives, substitute <literal>ad</literal> for
+	  <literal>da</literal> appropriately. You otherwise mount extended
+	  partitions exactly like you would mount any other DOS drive,
+	  e.g.:</para>
+
+	  <screen>&prompt.root; <userinput>mount -t msdos /dev/da0s5 /dos_d</userinput></screen>
+	</answer>
+      </qandaentry>
+
+      <qandaentry>
+        <question>
+	  <para>Can I run DOS binaries under &os;?</para>
+	</question>
+
+	<answer>
+	  <para>Ongoing work with BSDI's &man.doscmd.1; utility will
+	  suffice in many cases, though
+	  it still has some rough edges.  If you're interested in
+	  working on this, please send mail to the &a.emulation
+	  and indicate that you're interested in joining this ongoing
+	  effort!</para>
+
+	  <para>The <port>emulators/pcemu</port> port/package in the
+	  &os; Ports Collection which emulates an 8088 and enough BIOS
+	  services to run DOS text mode applications.  It requires the
+	  X Window System (XFree86) to operate.</para>
+	</answer>
+      </qandaentry>
+    </qandaset>
+
+    <qandaset arch="alpha">
+      <qandaentry>
+        <question>
+	  <para>Can I boot from the ARC or Alpha BIOS Console?</para>
+	</question>
+
+	<answer>
+	  <para>No.  &os;, like Compaq Tru64 and VMS, will only boot
+	  from the SRM console.</para>
+	</answer>
+      </qandaentry>
+
+      <qandaentry>
+        <question>
+	  <para>Help!  I have no space!  Do I need to delete
+	  everything first?</para>
+	</question>
+
+	<answer>
+	  <para>Unfortunately, yes.</para>
+	</answer>
+      </qandaentry>
+
+      <qandaentry>
+        <question>
+	  <para>Can I mount my Compaq Tru64 or VMS extended partitions?</para>
+	</question>
+
+	<answer>
+	  <para>No, not at this time.</para>
+	</answer>
+      </qandaentry>
+
+      <qandaentry>
+        <question>
+	  <para>What about support for Compaq Tru64 (OSF/1) binaries?</para>
+	</question>
+
+	<answer>
+	  <para>&os; can run Tru64 applications very well using the
+	  <port>emulators/osf1_base</port> port/package.</para>
+	</answer>
+      </qandaentry>
+
+      <qandaentry>
+        <question>
+	  <para>What about support for Linux binaries?</para>
+	</question>
+
+	<answer>
+	  <para>&os; can run AlphaLinux binaries with the assistance
+	  of the <port>emulators/linux_base</port>
+	  port/package.</para>
+	</answer>
+      </qandaentry>
+
+      <qandaentry>
+        <question>
+	  <para>What about support for NT Alpha binaries?</para>
+	</question>
+
+	<answer>
+	  <para>&os; is not able to run NT applications natively,
+	  although it has the ability to mount NT partitions.</para>
+	</answer>
+      </qandaentry>
+    </qandaset>
+  </sect2>
+</sect1>

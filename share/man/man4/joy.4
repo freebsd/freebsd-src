@@ -1,0 +1,103 @@
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 23, 1995
+.Dt JOY 4
+.Os
+.Sh NAME
+.Nm joy
+.Nd joystick device driver
+.Sh SYNOPSIS
+To link into the kernel:
+.Cd device joy
+.Pp
+To load as a kernel loadable module:
+.Dl kldload joy
+.Pp
+.In machine/joystick.h
+.Sh DESCRIPTION
+The joystick device driver allows applications to read the status of
+the PC joystick.
+.Pp
+This device may be opened by only one process at a time.
+.Pp
+The joystick status is read from a structure via a read()
+call.
+The structure is defined in the header file as follows:
+.Pp
+.Bd -literal -offset indent
+	struct joystick {
+		int x;         /* x position */
+		int y;         /* y position */
+		int b1;	       /* button 1 status */
+		int b2;	       /* button 2 status */
+	};
+.Ed
+.Pp
+Positions are typically in the range 0-2000.
+.Ss One line perl example:
+.Bd -literal -compact
+perl -e 'open(JOY,"/dev/joy0")||die;while(1)
+{sysread(JOY,$x,16);@j=unpack("iiii",$x);print "@j\\n";sleep(1);}'
+.Ed
+.Ss ioctl calls
+Several ioctl() calls are also available.
+They take an argument of
+type int *
+.Bl -tag -width JOY_SET_X_OFFSET
+.It Dv JOY_SETTIMEOUT Fa int *limit
+Set the time limit (in microseconds) for reading the joystick
+status.
+Setting a value
+too small may prevent to get correct values for the positions (which
+are then set to -2147483648), however this can be useful if one is
+only interested by the buttons status.
+.It Dv JOY_GETTIMEOUT Fa int *limit
+Get the time limit (in microseconds) used for reading the joystick
+status.
+.It Dv JOY_SET_X_OFFSET Fa int *offset
+Set the value to be added to the X position  when reading the joystick
+status.
+.It Dv JOY_SET_Y_OFFSET Fa int *offset
+Set the value to be added to the Y position  when reading the joystick
+status.
+.It Dv JOY_GET_X_OFFSET Fa int *offset
+Get the value which is added to the X position  when reading the joystick
+status.
+.It Dv JOY_GET_Y_OFFSET Fa int *offset
+Get the value which is added to the Y position  when reading the joystick
+status.
+.El
+.Sh TECHNICAL SPECIFICATIONS
+The pinout of the DB-15 connector is as follow:
+.Bd -literal
+  1  XY1 (+5v)
+  2  Switch 1
+  3  X1 (potentiometer #1)
+  4  Switch 1 (GND)
+  5  Switch 2 (GND)
+  6  Y1 (potentiometer #2)
+  7  Switch 2
+  8  N.C.
+  9  XY2 (+5v)
+ 10  Switch 4
+ 11  X2 (potentiometer #3)
+ 12  Switch 3&4 (GND)
+ 13  Y2 (potentiometer #4)
+ 14  Switch 3
+ 15  N.C.
+.Ed
+.Pp
+Pots are normally 0-150k variable resistors (0-100k sometimes), and
+according to the IBM techref, the time is given by
+Time = 24.2e-6s + 0.011e-6s * R/Ohms
+.Sh FILES
+.Bl -tag -width /dev/joy?
+.It Pa /dev/joy?
+joystick device files
+.El
+.Sh AUTHORS
+.An Jean-Marc Zucconi Aq jmz@cabri.obs-besancon.fr
+.Sh HISTORY
+The joystick driver appeared in
+.Fx 2.0.5 .
