@@ -124,10 +124,10 @@ setlocale(category, locale)
 	 * Now go fill up new_categories from the locale argument
 	 */
 	if (!*locale) {
-		env = getenv(categories[category]);
+		env = getenv("LC_ALL");
 
 		if (category != LC_ALL && (!env || !*env))
-			env = getenv(categories[LC_ALL]);
+			env = getenv(categories[category]);
 
 		if (!env || !*env)
 			env = getenv("LANG");
