@@ -268,6 +268,11 @@ tunifioctl(ifp, cmd, data)
 		TUNDEBUG("%s%d: destination address set\n",
 			 ifp->if_name, ifp->if_unit);
 		break;
+	case SIOCSIFMTU:
+		ifp->if_mtu = ifr->ifr_mtu;
+		TUNDEBUG("%s%d: mtu set\n",
+			 ifp->if_name, ifp->if_unit);
+		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		if (ifr == 0) {
@@ -519,7 +524,7 @@ tunwrite(dev_t dev, struct uio *uio, int flag)
 
 	TUNDEBUG("%s%d: tunwrite\n", ifp->if_name, ifp->if_unit);
 
-	if (uio->uio_resid < 0 || uio->uio_resid > TUNMTU) {
+	if (uio->uio_resid < 0 || uio->uio_resid > ifp->if_mtu) {
 		TUNDEBUG("%s%d: len=%d!\n", ifp->if_name, ifp->if_unit,
 		    uio->uio_resid);
 		return EIO;
