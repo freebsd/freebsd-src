@@ -37,7 +37,6 @@
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/disk.h>
-#include <sys/devicestat.h>
 #include <sys/cdio.h>
 #include <machine/bus.h>
 #include <dev/ata/ata-all.h>
@@ -83,10 +82,6 @@ afdattach(struct ata_device *atadev)
 	return 0;
     }
 
-    devstat_add_entry(&fdp->stats, "afd", fdp->lun, DEV_BSIZE,
-		      DEVSTAT_NO_ORDERED_TAGS,
-		      DEVSTAT_TYPE_DIRECT | DEVSTAT_TYPE_IF_IDE,
-		      DEVSTAT_PRIORITY_WFD);
     fdp->disk.d_open = afdopen;
     fdp->disk.d_close = afdclose;
 #ifdef notyet
@@ -115,7 +110,6 @@ afddetach(struct ata_device *atadev)
 	biofinish(bp, NULL, ENXIO);
     }
     disk_destroy(&fdp->disk);
-    devstat_remove_entry(&fdp->stats);
     ata_free_name(atadev);
     ata_free_lun(&afd_lun_map, fdp->lun);
     free(fdp, M_AFD);
@@ -334,8 +328,6 @@ afd_start(struct ata_device *atadev)
     ccb[7] = count>>8;
     ccb[8] = count;
 
-    devstat_start_transaction(&fdp->stats);
-
     atapi_queue_cmd(fdp->device, ccb, data_ptr, count * fdp->cap.sector_size,
 		    (bp->bio_cmd == BIO_READ) ? ATPR_F_READ : 0, 30,
 		    afd_done, bp);
@@ -345,7 +337,6 @@ static int
 afd_done(struct atapi_request *request)
 {
     struct bio *bp = request->driver;
-    struct afd_softc *fdp = request->device->driver;
 
     if (request->error || (bp->bio_flags & BIO_ERROR)) {
 	bp->bio_error = request->error;
@@ -353,7 +344,7 @@ afd_done(struct atapi_request *request)
     }
     else
 	bp->bio_resid = bp->bio_bcount - request->donecount;
-    biofinish(bp, &fdp->stats, 0);
+    biodone(bp);
     return 0;
 }
 

@@ -32,7 +32,6 @@
 
 #include <sys/bus.h>
 #include <sys/conf.h>
-#include <sys/devicestat.h>
 #include <sys/disk.h>
 
 #include <machine/bus_memio.h>

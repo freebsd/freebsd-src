@@ -19,7 +19,6 @@
 #include <sys/malloc.h>
 #include <sys/conf.h>
 #include <sys/disk.h>
-#include <sys/devicestat.h>
 #include <sys/module.h>
 #include <machine/resource.h>
 
@@ -80,7 +79,6 @@ static struct fla_s {
 	unsigned nsect;
 	struct doc2k_stat ds;
 	struct bio_queue_head bio_queue;
-	struct devstat stats;
 	struct disk disk;
 	dev_t dev;
 } softc[8];
@@ -151,7 +149,6 @@ flastrategy(struct bio *bp)
 		if (!bp)
 			break;
 
-		devstat_start_transaction(&sc->stats);
 		bp->bio_resid = bp->bio_bcount;
 		unit = sc->unit;
 
@@ -181,7 +178,7 @@ flastrategy(struct bio *bp)
 		} else {
 			bp->bio_resid = 0;
 		}
-		biofinish(bp, &sc->stats, 0);
+		biodone(bp);
 
 	}
 	sc->busy = 0;
@@ -258,11 +255,6 @@ flaattach (device_t dev)
 		    sc->ds.chipSize, sc->ds.interleaving, sc->ds.window);
 
 	bioq_init(&sc->bio_queue);
-
-	devstat_add_entry(&softc[unit].stats, "fla", unit, DEV_BSIZE,
-		DEVSTAT_NO_ORDERED_TAGS, 
-		DEVSTAT_TYPE_DIRECT | DEVSTAT_TYPE_IF_OTHER,
-		DEVSTAT_PRIORITY_DISK);
 
 	sc->disk.d_open = flaopen;
 	sc->disk.d_close = flaclose;

@@ -116,7 +116,6 @@ struct disk_params {
 
 struct da_softc {
 	struct	 bio_queue_head bio_queue;
-	struct	 devstat device_stats;
 	SLIST_ENTRY(da_softc) links;
 	LIST_HEAD(, ccb_hdr) pending_ccbs;
 	da_state state;
@@ -569,7 +568,7 @@ daopen(struct disk *dp)
 	error = cam_periph_runccb(ccb, daerror,
 				  /*cam_flags*/CAM_RETRY_SELTO,
 				  /*sense_flags*/SF_RETRY_UA,
-				  &softc->device_stats);
+				  softc->disk.d_devstat);
 
 	if ((ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
 		cam_release_devq(ccb->ccb_h.path,
@@ -591,16 +590,8 @@ daopen(struct disk *dp)
 		/* XXX: these are not actually "firmware" values, so they may be wrong */
 		softc->disk.d_fwsectors = softc->params.secs_per_track;
 		softc->disk.d_fwheads = softc->params.heads;
-
-		/*
-		 * Check to see whether or not the blocksize is set yet.
-		 * If it isn't, set it and then clear the blocksize
-		 * unavailable flag for the device statistics.
-		 */
-		if ((softc->device_stats.flags & DEVSTAT_BS_UNAVAILABLE) != 0){
-			softc->device_stats.block_size = softc->params.secsize;
-			softc->device_stats.flags &= ~DEVSTAT_BS_UNAVAILABLE;
-		}
+		softc->disk.d_devstat->block_size = softc->params.secsize;
+		softc->disk.d_devstat->flags &= ~DEVSTAT_BS_UNAVAILABLE;
 	}
 	
 	if (error == 0) {
@@ -647,7 +638,7 @@ daclose(struct disk *dp)
 
 		cam_periph_runccb(ccb, /*error_routine*/NULL, /*cam_flags*/0,
 				  /*sense_flags*/SF_RETRY_UA,
-				  &softc->device_stats);
+				  softc->disk.d_devstat);
 
 		if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
 			if ((ccb->ccb_h.status & CAM_STATUS_MASK) ==
@@ -688,7 +679,7 @@ daclose(struct disk *dp)
 		 * unavailable, since it could change when new media is
 		 * inserted.
 		 */
-		softc->device_stats.flags |= DEVSTAT_BS_UNAVAILABLE;
+		softc->disk.d_devstat->flags |= DEVSTAT_BS_UNAVAILABLE;
 	}
 
 	softc->flags &= ~DA_FLAG_OPEN;
@@ -976,7 +967,6 @@ dacleanup(struct cam_periph *periph)
 
 	softc = (struct da_softc *)periph->softc;
 
-	devstat_remove_entry(&softc->device_stats);
 	xpt_print_path(periph->path);
 	printf("removing device entry\n");
 	disk_destroy(&softc->disk);
@@ -1187,20 +1177,6 @@ daregister(struct cam_periph *periph, void *arg)
 	splx(s);
 
 	/*
-	 * The DA driver supports a blocksize, but
-	 * we don't know the blocksize until we do 
-	 * a read capacity.  So, set a flag to
-	 * indicate that the blocksize is 
-	 * unavailable right now.  We'll clear the
-	 * flag as soon as we've done a read capacity.
-	 */
-	devstat_add_entry(&softc->device_stats, "da", 
-			  periph->unit_number, 0,
-	  		  DEVSTAT_BS_UNAVAILABLE,
-			  SID_TYPE(&cgd->inq_data) | DEVSTAT_TYPE_IF_SCSI,
-			  DEVSTAT_PRIORITY_DISK);
-
-	/*
 	 * Register this media as a disk
 	 */
 
@@ -1275,8 +1251,6 @@ dastart(struct cam_periph *periph, union ccb *start_ccb)
 			u_int8_t tag_code;
 
 			bioq_remove(&softc->bio_queue, bp);
-
-			devstat_start_transaction(&softc->device_stats);
 
 			if ((softc->flags & DA_FLAG_NEED_OTAG) != 0) {
 				softc->flags &= ~DA_FLAG_NEED_OTAG;
@@ -1510,10 +1484,10 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 		LIST_REMOVE(&done_ccb->ccb_h, periph_links.le);
 		splx(oldspl);
 
-		if (softc->device_stats.busy_count == 0)
+		if (softc->disk.d_devstat->busy_count == 0)
 			softc->flags |= DA_FLAG_WENT_IDLE;
 
-		biofinish(bp, &softc->device_stats, 0);
+		biodone(bp);
 		break;
 	}
 	case DA_CCB_PROBE:
@@ -1731,7 +1705,7 @@ daprevent(struct cam_periph *periph, int action)
 		     5000);
 
 	error = cam_periph_runccb(ccb, /*error_routine*/NULL, CAM_RETRY_SELTO,
-				  SF_RETRY_UA, &softc->device_stats);
+				  SF_RETRY_UA, softc->disk.d_devstat);
 
 	if (error == 0) {
 		if (action == PR_ALLOW)
@@ -1790,7 +1764,7 @@ dasendorderedtag(void *arg)
 		 && ((softc->flags & DA_FLAG_WENT_IDLE) == 0)) {
 			softc->flags |= DA_FLAG_NEED_OTAG;
 		}
-		if (softc->device_stats.busy_count > 0)
+		if (softc->disk.d_devstat->busy_count > 0)
 			softc->flags &= ~DA_FLAG_WENT_IDLE;
 
 		softc->ordered_tag_count = 0;

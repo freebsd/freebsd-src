@@ -37,7 +37,6 @@
 
 #include <sys/bus.h>
 #include <sys/conf.h>
-#include <sys/devicestat.h>
 #include <sys/disk.h>
 
 #include <machine/bus.h>
@@ -217,11 +216,6 @@ mlxd_attach(device_t dev)
 		  sc->mlxd_drive->ms_size / ((1024 * 1024) / MLX_BLKSIZE),
 		  sc->mlxd_drive->ms_size, sc->mlxd_drive->ms_raidlevel, state);
 
-    devstat_add_entry(&sc->mlxd_stats, "mlxd", sc->mlxd_unit, MLX_BLKSIZE,
-		      DEVSTAT_NO_ORDERED_TAGS,
-		      DEVSTAT_TYPE_STORARRAY | DEVSTAT_TYPE_IF_OTHER, 
-		      DEVSTAT_PRIORITY_ARRAY);
-
     sc->mlxd_disk.d_open = mlxd_open;
     sc->mlxd_disk.d_close = mlxd_close;
     sc->mlxd_disk.d_ioctl = mlxd_ioctl;
@@ -257,7 +251,6 @@ mlxd_detach(device_t dev)
 
     debug_called(1);
 
-    devstat_remove_entry(&sc->mlxd_stats);
     disk_destroy(&sc->mlxd_disk);
 
     return(0);

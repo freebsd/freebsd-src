@@ -130,7 +130,7 @@ ofwd_strategy(struct bio *bp)
 		biofinish(bp, NULL, EIO);	/* XXX: probably not an error */
 		return;
 	} 
-	biofinish(bp, NULL, 0);
+	biodone(bp);
 	return;
 }
 

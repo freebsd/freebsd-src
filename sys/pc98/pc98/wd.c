@@ -68,7 +68,6 @@
 #include <sys/disk.h>
 #include <sys/disklabel.h>
 #include <sys/bio.h>
-#include <sys/devicestat.h>
 #include <sys/malloc.h>
 #include <machine/bootinfo.h>
 #include <sys/cons.h>
@@ -185,9 +184,6 @@ struct softc {
 	struct diskgeom dk_dd;	/* device configuration data */
 	struct diskslices *dk_slices;	/* virtual drives */
 	void	*dk_dmacookie;	/* handle for DMA services */
-
-	struct devstat dk_stats;	/* devstat entry */
-
 	struct disk disk;
 };
 
@@ -564,16 +560,6 @@ wdattach(struct isa_device *dvp)
 			wdtimeout(du);
 
 			/*
-			 * Export the drive to the devstat interface.
-			 */
-			devstat_add_entry(&du->dk_stats, "wd", 
-					  lunit, du->dk_dd.d_secsize,
-					  DEVSTAT_NO_ORDERED_TAGS,
-					  DEVSTAT_TYPE_DIRECT |
-					  DEVSTAT_TYPE_IF_IDE,
-					  DEVSTAT_PRIORITY_DISK);
-
-			/*
 			 * Register this media as a disk
 			 */
 			du->disk.d_open = wdopen;
@@ -661,9 +647,6 @@ wdstrategy(struct bio *bp)
 
 	if (wdtab[du->dk_ctrlr_cmd640].b_active == 0)
 		wdstart(du->dk_ctrlr);	/* start controller */
-
-	/* Tell devstat that we have started a transaction on this drive */
-	devstat_start_transaction(&du->dk_stats);
 
 	splx(s);
 	return;
@@ -1193,7 +1176,7 @@ done: ;
 		bp->bio_resid = bp->bio_bcount - du->dk_skip * DEV_BSIZE;
 		wdutab[du->dk_lunit].b_active = 0;
 		du->dk_skip = 0;
-		biofinish(bp, &du->dk_stats, 0);
+		biodone(bp);
 	}
 
 	/* controller idle */

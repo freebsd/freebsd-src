@@ -17,7 +17,6 @@
 #include <sys/systm.h>
 #include <sys/bio.h>
 #include <sys/conf.h>
-#include <sys/devicestat.h>
 #include <sys/disk.h>
 #include <sys/kernel.h>
 #include <sys/linker.h>
@@ -89,7 +88,6 @@ static LIST_HEAD(, ssc_s) ssc_softc_list = LIST_HEAD_INITIALIZER(&ssc_softc_list
 struct ssc_s {
 	int unit;
 	LIST_ENTRY(ssc_s) list;
-	struct devstat stats;
 	struct bio_queue_head bio_queue;
 	struct disk disk;
 	dev_t dev;
@@ -137,8 +135,6 @@ sscstrategy(struct bio *bp)
 		if (!bp)
 			break;
 
-		devstat_start_transaction(&sc->stats);
-
 		if (bp->bio_cmd == BIO_READ) {
 			dop = DEVSTAT_READ;
 			sscop = SSC_READ;
@@ -169,7 +165,7 @@ sscstrategy(struct bio *bp)
 			off += t;
 		}
 		bp->bio_resid = 0;
-		biofinish(bp, &sc->stats, 0);
+		biodone(bp);
 		s = splbio();
 	}
 
@@ -199,10 +195,6 @@ ssccreate(int unit)
 	LIST_INSERT_HEAD(&ssc_softc_list, sc, list);
 	sc->unit = unit;
 	bioq_init(&sc->bio_queue);
-	devstat_add_entry(&sc->stats, "sscdisk", sc->unit, DEV_BSIZE,
-		DEVSTAT_NO_ORDERED_TAGS, 
-		DEVSTAT_TYPE_DIRECT | DEVSTAT_TYPE_IF_OTHER,
-		DEVSTAT_PRIORITY_OTHER);
 
 	sc->disk.d_strategy = sscstrategy;
 	sc->disk.d_name = "sscdisk";

@@ -38,7 +38,6 @@
 
 #include <sys/bus.h>
 #include <sys/conf.h>
-#include <sys/devicestat.h>
 #include <sys/disk.h>
 
 #include <vm/vm.h>
@@ -175,7 +174,6 @@ aac_disk_strategy(struct bio *bp)
 
 	/* pass the bio to the controller - it can work out who we are */
 	AAC_LOCK_ACQUIRE(&sc->ad_controller->aac_io_lock);
-	devstat_start_transaction(&sc->ad_stats);
 	aac_submit_bio(bp);
 	AAC_LOCK_RELEASE(&sc->ad_controller->aac_io_lock);
 
@@ -282,7 +280,6 @@ aac_biodone(struct bio *bp)
 
 	sc = (struct aac_disk *)bp->bio_disk->d_drv1;
 
-	devstat_end_transaction_bio(&sc->ad_stats, bp);
 	if (bp->bio_flags & BIO_ERROR)
 		disk_err(bp, "hard error", -1, 1);
 
@@ -340,11 +337,6 @@ aac_disk_attach(device_t dev)
 		      sc->ad_size / ((1024 * 1024) / AAC_BLOCK_SIZE),
 		      sc->ad_size);
 
-	devstat_add_entry(&sc->ad_stats, "aacd", device_get_unit(dev),
-			  AAC_BLOCK_SIZE, DEVSTAT_NO_ORDERED_TAGS,
-			  DEVSTAT_TYPE_STORARRAY | DEVSTAT_TYPE_IF_OTHER, 
-			  DEVSTAT_PRIORITY_ARRAY);
-
 	/* attach a generic disk device to ourselves */
 	sc->unit = device_get_unit(dev);
 	sc->ad_disk.d_drv1 = sc;
@@ -378,7 +370,6 @@ aac_disk_detach(device_t dev)
 	if (sc->ad_flags & AAC_DISK_OPEN)
 		return(EBUSY);
 
-	devstat_remove_entry(&sc->ad_stats);
 	disk_destroy(&sc->ad_disk);
 
 	return(0);
