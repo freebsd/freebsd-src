@@ -129,7 +129,7 @@ stripe_label(struct gctl_req *req)
 	intmax_t *stripesizep;
 	off_t compsize, msize;
 	u_char sector[512];
-	unsigned i, ssize;
+	unsigned i, ssize, secsize;
 	const char *name;
 	char param[16];
 	int *hardcode, *nargs, error;
@@ -153,6 +153,7 @@ stripe_label(struct gctl_req *req)
 	 * Clear last sector first to spoil all components if device exists.
 	 */
 	compsize = 0;
+	secsize = 0;
 	for (i = 1; i < (unsigned)*nargs; i++) {
 		snprintf(param, sizeof(param), "arg%u", i);
 		name = gctl_get_asciiparam(req, param);
@@ -167,6 +168,10 @@ stripe_label(struct gctl_req *req)
 		msize -= ssize;
 		if (compsize == 0 || (compsize > 0 && msize < compsize))
 			compsize = msize;
+		if (secsize == 0)
+			secsize = ssize;
+		else
+			secsize = g_lcm(secsize, ssize);
 
 		error = g_metadata_clear(name, NULL);
 		if (error != 0) {
@@ -189,6 +194,11 @@ stripe_label(struct gctl_req *req)
 	stripesizep = gctl_get_paraml(req, "stripesize", sizeof(*stripesizep));
 	if (stripesizep == NULL) {
 		gctl_error(req, "No '%s' argument.", "stripesize");
+		return;
+	}
+	if ((*stripesizep % secsize) != 0) {
+		gctl_error(req, "Stripesize should be multiple of %u.",
+		    secsize);
 		return;
 	}
 	md.md_stripesize = *stripesizep;
