@@ -7,7 +7,7 @@
 <author>Maintainer: Peter da Silva <tt><htmlurl url='mailto:pds@FreeBSD.ORG'
   name='&lt;pds@FreeBSD.ORG&gt;'></tt>
 
-<date>$Date: 1997/01/14 14:43:17 $
+<date>$Date: 1997/01/15 12:04:11 $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -215,9 +215,7 @@ Any entries with a &lt;XXX&gt; are under construction.
          suggest you look at
          
          <url url="http://www.netbsd.org/" name="NetBSD">
-
          or 
-
          <url url="http://www.openbsd.org/" name="OpenBSD">.
 
        <sect1>
@@ -225,8 +223,8 @@ Any entries with a &lt;XXX&gt; are under construction.
          <p>
            The key decisions concerning the FreeBSD project, such as the 
            overall direction of the project and who is allowed to add code to 
-           the source tree, are made by a ``core team'' consisting of 14 
-           people. There is a much larger group, of about 50 people, who can 
+           the source tree, are made by a ``core team'' consisting of 16
+           people. There is a much larger group of around 60 people who can 
            make changes to the source tree.
           <p>
             However, most non-trivial changes are discussed in advance in the 
@@ -290,7 +288,7 @@ Any entries with a &lt;XXX&gt; are under construction.
 	<heading>Where do I find info on the mailing lists?</heading>
 	<p>
  	You can find full information in the
-		<url url="../handbook/eresources#mail.html"
+		<url url="../handbook/eresources:mail.html"
 			name="Handbook entry on mailing-lists.">
         <p>
 
@@ -298,7 +296,7 @@ Any entries with a &lt;XXX&gt; are under construction.
 	<heading>What FreeBSD news groups are available?</heading>
         <p>
  	You can find full information in the
-		<url url="../handbook/eresources#news.html"
+		<url url="../handbook/eresources:news.html"
 			name="Handbook entry on newsgroups.">
  
       <sect1>
