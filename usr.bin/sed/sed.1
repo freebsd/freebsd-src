@@ -35,7 +35,7 @@
 .\"	@(#)sed.1	8.2 (Berkeley) 12/30/93
 .\" $FreeBSD$
 .\"
-.Dd December 30, 1993
+.Dd May 7, 2002
 .Dt SED 1
 .Os
 .Sh NAME
@@ -50,6 +50,7 @@
 .Op Fl Ean
 .Op Fl e Ar command
 .Op Fl f Ar command_file
+.Op Fl i Ar extension
 .Op Ar
 .Sh DESCRIPTION
 The
@@ -98,6 +99,16 @@ Append the editing commands found in the file
 .Ar command_file
 to the list of commands.
 The editing commands should each be listed on a separate line.
+.It Fl i Ar extension
+Edit files in-place, saving backups with the specified
+.Ar extension .
+If a zero-length
+.Ar extension
+is given, no backup will be saved.
+It is not recommended to give a zero-length
+.Ar extension
+when in-place editing files, as you risk corruption or partial content
+in situations where disk space is exhausted, etc.
 .It Fl n
 By default, each line of input is echoed to the standard output after
 all of the commands have been applied to it.
@@ -335,8 +346,6 @@ This form is as follows:
 \ea
 .It form-feed
 \ef
-.It newline
-\en
 .It carriage-return
 \er
 .It tab
@@ -414,9 +423,10 @@ The value of
 .Em flags
 in the substitute function is zero or more of the following:
 .Bl -tag -width "XXXXXX" -offset indent
-.It "0 ... 9"
-Make the substitution only for the N'th occurrence of the regular
-expression in the pattern space.
+.It Em N
+Make the substitution only for the
+.Em N Ns 'th
+occurrence of the regular expression in the pattern space.
 .It g
 Make the substitution for all non-overlapping matches of the
 regular expression, not just the first one.
@@ -494,6 +504,18 @@ This is the same as specifying the
 .Fl n
 option on the command line.
 .El
+.Sh ENVIRONMENT
+The
+.Ev COLUMNS ,
+.Ev LANG ,
+.Ev LC_ALL ,
+.Ev LC_CTYPE
+and
+.Ev LC_COLLATE
+environment variables affect the execution of
+.Nm
+as described in
+.Xr environ 7 .
 .Sh DIAGNOSTICS
 .Ex -std
 .Sh SEE ALSO
@@ -513,3 +535,9 @@ The
 function is expected to be a superset of the
 .St -p1003.2
 specification.
+.Pp
+The
+.Fl i
+option is a non-standard
+.Fx
+extension and may not be available on other operating systems.
