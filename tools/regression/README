@@ -22,6 +22,7 @@ geom		Some tests and an out-of-kernel simulator for the GEOM code
 ia64_unaligned	Tests unaligned reads on the IA64
 nfsmmap		Some tests to exercise some tricky cases in NFS and mmap
 p1003_1b	Exercise 1003.1B scheduler
+pipe		Pipe code regression test
 fsx		General filesystem exerciser
 sysvmsg 	SysV IPC Message Queue Regression Utility
 sysvsem 	SysV IPC Semaphore Regression Utility
