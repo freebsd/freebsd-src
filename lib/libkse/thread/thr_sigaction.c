@@ -76,8 +76,7 @@ _sigaction(int sig, const struct sigaction * act, struct sigaction * oact)
 		 * Check if the kernel needs to be advised of a change
 		 * in signal action:
 		 */
-		if (act != NULL && sig != _SCHED_SIGNAL && sig != SIGCHLD &&
-		    sig != SIGINFO) {
+		if (act != NULL && sig != SIGCHLD) {
 			/*
 			 * Ensure the signal handler cannot be interrupted
 			 * by other signals.  Always request the POSIX signal
