@@ -1,7 +1,7 @@
 /*
  * Compact Disc Control Utility by Serge V. Vakulenko, <vak@cronyx.ru>.
  * Based on the non-X based CD player by Jean-Marc Zucconi and
- * Andrew A. Chernov.
+ * Andrey A. Chernov.
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,7 +12,7 @@
 #include <sys/cdio.h>
 #include <sys/ioctl.h>
 
-#define VERSION "1.0"
+#define VERSION "1.1"
 
 /*
  * Audio Status Codes
@@ -41,10 +41,9 @@ struct cmdtab {
 #define CMD_PAUSE       5
 	{ CMD_PAUSE,    "PAuse",        "", },
 #define CMD_PLAY        6
-	{ CMD_PLAY,     "P",            0, },
-	{ CMD_PLAY,     "Play",         "min1:sec1.fr1 [ min2:sec2.fr2 ]", },
-	{ CMD_PLAY,     "Play",         "track1.index1 [ track2.index2 ]", },
-	{ CMD_PLAY,     "Play",         "#block [ len ]", },
+	{ CMD_PLAY,     "Play",        "min1:sec1[.fr1] [min2:sec2[.fr2]]", },
+	{ CMD_PLAY,     "Play",        "track1[.index1] [track2.[index2]]", },
+	{ CMD_PLAY,     "Play",        "[#block [len]]", },
 #define CMD_QUIT        7
 	{ CMD_QUIT,     "Quit",         "", },
 #define CMD_RESUME      8
@@ -579,7 +578,7 @@ char *parse (char *buf, int *cmd)
 			continue;
 
 		/* Check inambiguity. */
-		if (*cmd != -1) {
+		if (*cmd != -1 && *cmd != c->command) {
 			fprintf (stderr, "Ambiguous command\n");
 			return (0);
 		}
