@@ -192,6 +192,10 @@ atpic_eoi_master(struct intsrc *isrc)
 #endif
 }
 
+/*
+ * The data sheet says no auto-EOI on slave, but it sometimes works.
+ * So, if AUTO_EOI_2 is enabled, we use it.
+ */
 static void
 atpic_eoi_slave(struct intsrc *isrc)
 {
@@ -327,7 +331,7 @@ atpic_init(void *dummy __unused)
 SYSINIT(atpic_init, SI_SUB_INTR, SI_ORDER_SECOND + 1, atpic_init, NULL)
 
 void
-atpic_sched_ithd(struct intrframe iframe)
+atpic_handle_intr(struct intrframe iframe)
 {
 	struct intsrc *isrc;
 

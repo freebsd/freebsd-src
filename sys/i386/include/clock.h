@@ -15,6 +15,7 @@
  * XXX large parts of the driver and its interface are misplaced.
  */
 extern int	adjkerntz;
+extern int	clkintr_pending;
 extern int	disable_rtc_set;
 extern int	pscnt;
 extern int	psdiv;

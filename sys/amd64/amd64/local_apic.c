@@ -467,6 +467,13 @@ lapic_set_lvt_triggermode(u_int apic_id, u_int pin, u_char edgetrigger)
 }
 
 void
+lapic_eoi(void)
+{
+
+	lapic->eoi = 0;
+}
+
+void
 lapic_handle_intr(struct intrframe frame)
 {
 	struct intsrc *isrc;
@@ -474,8 +481,6 @@ lapic_handle_intr(struct intrframe frame)
 	if (frame.if_vec == -1)
 		panic("Couldn't get vector from ISR!");
 	isrc = intr_lookup_source(apic_idt_to_irq(frame.if_vec));
-	isrc->is_pic->pic_disable_source(isrc);
-	lapic->eoi = 0;
 	intr_execute_handlers(isrc, &frame);
 }
 
