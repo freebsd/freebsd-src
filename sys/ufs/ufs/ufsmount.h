@@ -60,6 +60,8 @@ struct ufs_extattr_per_mount;
 struct ufsmount {
 	struct	mount *um_mountp;		/* filesystem vfs structure */
 	struct cdev *um_dev;			/* device mounted */
+	struct g_consumer *um_cp;
+	struct bufobj *um_bo;			/* Buffer cache object */
 	struct	vnode *um_devvp;		/* block device mounted vnode */
 	u_long	um_fstype;			/* type of filesystem */
 	struct	fs *um_fs;			/* pointer to superblock */
