@@ -93,5 +93,7 @@ MLINKS+=rcmd.3 iruserok.3 rcmd.3 iruserok_sa.3 \
 	rcmd.3 ruserok.3
 MLINKS+=resolver.3 dn_comp.3 resolver.3 dn_expand.3 resolver.3 res_init.3 \
 	resolver.3 res_mkquery.3 resolver.3 res_query.3 \
-	resolver.3 res_search.3 resolver.3 res_send.3
+	resolver.3 res_search.3 resolver.3 res_send.3 resolver.3 dn_skipname.3 \
+	resolver.3 ns_get16.3 resolver.3 ns_get32.3 \
+	resolver.3 ns_put16.3 resolver.3 ns_put32.3
 .endif
