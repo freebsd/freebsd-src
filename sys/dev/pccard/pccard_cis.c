@@ -716,10 +716,13 @@ pccard_parse_cis_tuple(struct pccard_tuple *tuple, void *arg)
 		state->card->manufacturer = pccard_tuple_read_2(tuple, 0);
 		state->card->product = pccard_tuple_read_2(tuple, 2);
 		/*
-		 * This is for xe driver. But not better.
+		 * This is for xe driver. But not limited to that driver.
 		 * In PC Card Standard,
 		 * Manufacturer ID: 2byte.
-		 * Product ID: 2byte usually, but no limited.
+		 * Product ID: typically 2bytes, but there's no limit on its
+		 * size.  prodext is a two byte field, so maybe we should
+		 * also handle the '6' case.  So far no cards have surfaced
+		 * with a length of '6'.
 		 */
 		if (tuple->length == 5 ) {
 			state->card->prodext = pccard_tuple_read_1(tuple, 4);
