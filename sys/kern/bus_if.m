@@ -84,7 +84,7 @@ METHOD void probe_nomatch {
 METHOD int read_ivar {
 	device_t dev;
 	device_t child;
-	int index;
+	int indx;
 	uintptr_t *result;
 };
 
@@ -94,7 +94,7 @@ METHOD int read_ivar {
 METHOD int write_ivar {
 	device_t dev;
 	device_t child;
-	int index;
+	int indx;
 	uintptr_t value;
 };
 
