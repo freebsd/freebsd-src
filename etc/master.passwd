@@ -9,4 +9,4 @@ man:*:9:9::0:0:Mister Man Pages:/usr/share/man:/nonexistent
 uucp:*:66:66::0:0:UUCP pseudo-user:/var/spool/uucppublic:/usr/libexec/uucp/uucico
 xten:*:67:67::0:0:X-10 daemon:/usr/local/xten:/nonexistent
 pop:*:68:6::0:0:Post Office Owner:/nonexistent:/nonexistent
-nobody:*:65534:65534::0:0:Unprivileged user:/nonexistent:/nonexistent
+nobody:*:65534:65534:daemon:0:0:Unprivileged user:/nonexistent:/nonexistent
