@@ -195,6 +195,12 @@ static const char rcsid[] =
 					   < 0 = no limit */
 #endif
 
+#ifndef	MAXPERIP
+#define	MAXPERIP	-1		/* maximum number of this service
+					   from a single remote address,
+					   < 0 = no limit */
+#endif
+
 #ifndef TOOMANY
 #define	TOOMANY		256		/* don't start more than TOOMANY */
 #endif
@@ -228,6 +234,16 @@ void		setup __P((struct servtab *));
 void		ipsecsetup __P((struct servtab *));
 #endif
 void		unregisterrpc __P((register struct servtab *sep));
+static struct conninfo *search_conn __P((struct servtab *sep, int ctrl));
+static int	room_conn __P((struct servtab *sep, struct conninfo *conn));
+static void	addchild_conn __P((struct conninfo *conn, pid_t pid));
+static void	reapchild_conn __P((pid_t pid));
+static void	free_conn __P((struct conninfo *conn));
+static void	resize_conn __P((struct servtab *sep, int maxperip));
+static void	free_connlist __P((struct servtab *sep));
+static void	free_proc __P((struct procinfo *));
+static struct procinfo *search_proc __P((pid_t pid, int add));
+static int	hashval __P((char *p, int len));
 
 int	allow_severity;
 int	deny_severity;
@@ -242,6 +258,7 @@ int	timingout;
 int	toomany = TOOMANY;
 int	maxchild = MAXCHILD;
 int	maxcpm = MAXCPM;
+int	maxperip = MAXPERIP;
 struct	servent *sp;
 struct	rpcent *rpc;
 char	*hostname = NULL;
@@ -266,6 +283,8 @@ extern struct biltin biltins[];
 #define NUMINT	(sizeof(intab) / sizeof(struct inent))
 const char	*CONFIG = _PATH_INETDCONF;
 const char	*pid_file = _PATH_INETDPID;
+
+static LIST_HEAD(, procinfo) proctable[PERIPSIZE];
 
 int
 getvalue(arg, value, whine)
@@ -316,10 +335,11 @@ main(argc, argv)
 	struct addrinfo hints, *res;
 	const char *servname;
 	int error;
+	struct conninfo *conn;
 
 	openlog("inetd", LOG_PID | LOG_NOWAIT | LOG_PERROR, LOG_DAEMON);
 
-	while ((ch = getopt(argc, argv, "dlwWR:a:c:C:p:")) != -1)
+	while ((ch = getopt(argc, argv, "dlwWR:a:c:C:p:s:")) != -1)
 		switch(ch) {
 		case 'd':
 			debug = 1;
@@ -345,6 +365,10 @@ main(argc, argv)
 			break;
 		case 'p':
 			pid_file = optarg;
+			break;
+		case 's':
+			getvalue(optarg, &maxperip,
+				"-s %s: bad value for maximum children per source address");
 			break;
 		case 'w':
 			wrap_ex++;
@@ -455,6 +479,8 @@ main(argc, argv)
 			syslog(LOG_WARNING, "%s: %m", pid_file);
 		}
 	}
+	for (i = 0; i < PERIPSIZE; ++i)
+		LIST_INIT(&proctable[i]);
 	sa.sa_flags = 0;
 	sigemptyset(&sa.sa_mask);
 	sigaddset(&sa.sa_mask, SIGALRM);
@@ -545,6 +571,8 @@ main(argc, argv)
 		    n--;
 		    if (debug)
 			    warnx("someone wants %s", sep->se_service);
+		    dofork = !sep->se_bi || sep->se_bi->bi_fork || ISWRAP(sep);
+		    conn = NULL;
 		    if (sep->se_accept && sep->se_socktype == SOCK_STREAM) {
 			    i = 1;
 			    if (ioctl(sep->se_fd, FIONBIO, &i) < 0)
@@ -569,6 +597,12 @@ main(argc, argv)
 			    if (ioctl(ctrl, FIONBIO, &i) < 0)
 				    syslog(LOG_ERR, "ioctl2(FIONBIO, 0): %m");
 			    if (cpmip(sep, ctrl) < 0) {
+				close(ctrl);
+				continue;
+			    }
+			    if (dofork &&
+				(conn = search_conn(sep, ctrl)) != NULL &&
+				!room_conn(sep, conn)) {
 				close(ctrl);
 				continue;
 			    }
@@ -609,7 +643,6 @@ main(argc, argv)
 		     * fork and anything we're wrapping (as wrapping might
 		     * block or use hosts_options(5) twist).
 		     */
-		    dofork = !sep->se_bi || sep->se_bi->bi_fork || ISWRAP(sep);
 		    if (dofork) {
 			    if (sep->se_count++ == 0)
 				(void)gettimeofday(&sep->se_time, (struct timezone *)NULL);
@@ -629,6 +662,7 @@ main(argc, argv)
 					    sep->se_socktype == SOCK_STREAM)
 						close(ctrl);
 					close_sep(sep);
+					free_conn(conn);
 					sigsetmask(0L);
 					if (!timingout) {
 						timingout = 1;
@@ -644,12 +678,15 @@ main(argc, argv)
 			    if (sep->se_accept &&
 				sep->se_socktype == SOCK_STREAM)
 				    close(ctrl);
+			    free_conn(conn);
 			    sigsetmask(0L);
 			    sleep(1);
 			    continue;
 		    }
-		    if (pid)
+		    if (pid) {
+			addchild_conn(conn, pid);
 			addchild(sep, pid);
+		    }
 		    sigsetmask(0L);
 		    if (pid == 0) {
 			    if (dofork) {
@@ -879,6 +916,7 @@ reapchild()
 				    sep->se_server, pid, status);
 			break;
 		}
+		reapchild_conn(pid);
 	}
 }
 
@@ -893,6 +931,7 @@ void
 config()
 {
 	struct servtab *sep, *new, **sepp;
+	struct conninfo *conn;
 	long omask;
 
 	if (!setconfig()) {
@@ -950,6 +989,8 @@ config()
 			sep->se_maxchild = new->se_maxchild;
 			sep->se_numchild = new->se_numchild;
 			sep->se_maxcpm = new->se_maxcpm;
+			resize_conn(sep, new->se_maxperip);
+			sep->se_maxperip = new->se_maxperip;
 			sep->se_bi = new->se_bi;
 			/* might need to turn on or off service now */
 			if (sep->se_fd >= 0) {
@@ -1492,6 +1533,7 @@ getconfigent()
 #ifdef INET6
 	int v6bind = 0;
 #endif
+	int i;
 
 more:
 	while ((cp = nextline(fconfig)) != NULL) {
@@ -1734,6 +1776,7 @@ more:
 	}
 	sep->se_maxchild = -1;
 	sep->se_maxcpm = -1;
+	sep->se_maxperip = -1;
 	if ((s = strchr(arg, '/')) != NULL) {
 		char *eptr;
 		u_long val;
@@ -1752,6 +1795,8 @@ more:
 		sep->se_maxchild = val;
 		if (*eptr == '/')
 			sep->se_maxcpm = strtol(eptr + 1, &eptr, 10);
+		if (*eptr == '/')
+			sep->se_maxperip = strtol(eptr + 1, &eptr, 10);
 		/*
 		 * explicitly do not check for \0 for future expansion /
 		 * backwards compatibility
@@ -1809,6 +1854,8 @@ more:
 		sep->se_bi = bi;
 	} else
 		sep->se_bi = NULL;
+	if (sep->se_maxperip < 0)
+		sep->se_maxperip = maxperip;
 	if (sep->se_maxcpm < 0)
 		sep->se_maxcpm = maxcpm;
 	if (sep->se_maxchild < 0) {	/* apply default max-children */
@@ -1838,6 +1885,8 @@ more:
 		}
 	while (argc <= MAXARGV)
 		sep->se_argv[argc++] = NULL;
+	for (i = 0; i < PERIPSIZE; ++i)
+		LIST_INIT(&sep->se_conn[i]);
 #ifdef IPSEC
 	sep->se_policy = policy ? newstr(policy) : NULL;
 #endif
@@ -1869,6 +1918,7 @@ freeconfig(cp)
 	for (i = 0; i < MAXARGV; i++)
 		if (cp->se_argv[i])
 			free(cp->se_argv[i]);
+	free_connlist(cp);
 #ifdef IPSEC
 	if (cp->se_policy)
 		free(cp->se_policy);
@@ -2213,4 +2263,233 @@ cpmip(sep, ctrl)
 		}
 	}
 	return(r);
+}
+
+static struct conninfo *
+search_conn(struct servtab *sep, int ctrl)
+{
+	struct sockaddr_storage ss;
+	socklen_t sslen = sizeof(ss);
+	struct conninfo *conn;
+	int hv;
+	char pname[NI_MAXHOST],  pname2[NI_MAXHOST];
+
+	if (sep->se_maxperip <= 0)
+		return NULL;
+
+	/*
+	 * If getpeername() fails, just let it through (if logging is
+	 * enabled the condition is caught elsewhere)
+	 */
+	if (getpeername(ctrl, (struct sockaddr *)&ss, &sslen) != 0)
+		return NULL;
+
+	switch (ss.ss_family) {
+	case AF_INET:
+		hv = hashval((char *)&((struct sockaddr_in *)&ss)->sin_addr,
+		    sizeof(struct in_addr));
+		break;
+#ifdef INET6
+	case AF_INET6:
+		hv = hashval((char *)&((struct sockaddr_in6 *)&ss)->sin6_addr,
+		    sizeof(struct in6_addr));
+		break;
+#endif
+	default:
+		/*
+		 * Since we only support AF_INET and AF_INET6, just
+		 * let other than AF_INET and AF_INET6 through.
+		 */
+		return NULL;
+	}
+
+	if (getnameinfo((struct sockaddr *)&ss, sslen, pname, sizeof(pname),
+	    NULL, 0, NI_NUMERICHOST | NI_WITHSCOPEID) != 0)
+		return NULL;
+
+	LIST_FOREACH(conn, &sep->se_conn[hv], co_link) {
+		if (getnameinfo((struct sockaddr *)&conn->co_addr,
+		    conn->co_addr.ss_len, pname2, sizeof(pname2), NULL, 0,
+		    NI_NUMERICHOST | NI_WITHSCOPEID) == 0 &&
+		    strcmp(pname, pname2) == 0)
+			break;
+	}
+
+	if (conn == NULL) {
+		if ((conn = malloc(sizeof(struct conninfo))) == NULL) {
+			syslog(LOG_ERR, "malloc: %m");
+			exit(EX_OSERR);
+		}
+		conn->co_proc = malloc(sep->se_maxperip * sizeof(*conn->co_proc));
+		if (conn->co_proc == NULL) {
+			syslog(LOG_ERR, "malloc: %m");
+			exit(EX_OSERR);
+		}
+		memcpy(&conn->co_addr, (struct sockaddr *)&ss, sslen);
+		conn->co_numchild = 0;
+		LIST_INSERT_HEAD(&sep->se_conn[hv], conn, co_link);
+	}
+
+	/*
+	 * Since a child process is not invoked yet, we cannot
+	 * determine a pid of a child.  So, co_proc and co_numchild
+	 * should be filled leter.
+	 */
+
+	return conn;
+}
+
+static int
+room_conn(struct servtab *sep, struct conninfo *conn)
+{
+	char pname[NI_MAXHOST];
+
+	if (conn->co_numchild >= sep->se_maxperip) {
+		getnameinfo((struct sockaddr *)&conn->co_addr,
+		    conn->co_addr.ss_len, pname, sizeof(pname), NULL, 0,
+		    NI_NUMERICHOST | NI_WITHSCOPEID);
+		syslog(LOG_ERR, "%s from %s exceeded counts (limit %d)",
+		    sep->se_service, pname, sep->se_maxperip);
+		return 0;
+	}
+	return 1;
+}
+
+static void
+addchild_conn(struct conninfo *conn, pid_t pid)
+{
+	struct procinfo *proc;
+
+	if (conn == NULL)
+		return;
+
+	if ((proc = search_proc(pid, 1)) != NULL) {
+		if (proc->pr_conn != NULL) {
+			syslog(LOG_ERR,
+			    "addchild_conn: child already on process list");
+			exit(EX_OSERR);
+		}
+		proc->pr_conn = conn;
+	}
+
+	conn->co_proc[conn->co_numchild++] = proc;
+}
+
+static void
+reapchild_conn(pid_t pid)
+{
+	struct procinfo *proc;
+	struct conninfo *conn;
+	int i;
+
+	if ((proc = search_proc(pid, 0)) == NULL)
+		return;
+	if ((conn = proc->pr_conn) == NULL)
+		return;
+	for (i = 0; i < conn->co_numchild; ++i)
+		if (conn->co_proc[i] == proc) {
+			conn->co_proc[i] = conn->co_proc[--conn->co_numchild];
+			break;
+		}
+	free_proc(proc);
+	free_conn(conn);
+}
+
+static void
+resize_conn(struct servtab *sep, int maxperip)
+{
+	struct conninfo *conn;
+	int i, j;
+
+	if (sep->se_maxperip <= 0)
+		return;
+	if (maxperip <= 0) {
+		free_connlist(sep);
+		return;
+	}
+	for (i = 0; i < PERIPSIZE; ++i) {
+		LIST_FOREACH(conn, &sep->se_conn[i], co_link) {
+			for (j = maxperip; j < conn->co_numchild; ++j)
+				free_proc(conn->co_proc[j]);
+			conn->co_proc = realloc(conn->co_proc,
+			    maxperip * sizeof(*conn->co_proc));
+			if (conn->co_proc == NULL) {
+				syslog(LOG_ERR, "realloc: %m");
+				exit(EX_OSERR);
+			}
+			if (conn->co_numchild > maxperip)
+				conn->co_numchild = maxperip;
+		}
+	}
+}
+
+static void
+free_connlist(struct servtab *sep)
+{
+	struct conninfo *conn;
+	int i, j;
+
+	for (i = 0; i < PERIPSIZE; ++i) {
+		while ((conn = LIST_FIRST(&sep->se_conn[i])) != NULL) {
+			for (j = 0; j < conn->co_numchild; ++j)
+				free_proc(conn->co_proc[j]);
+			conn->co_numchild = 0;
+			free_conn(conn);
+		}
+	}
+}
+
+static void
+free_conn(struct conninfo *conn)
+{
+	if (conn == NULL)
+		return;
+	if (conn->co_numchild <= 0) {
+		LIST_REMOVE(conn, co_link);
+		free(conn->co_proc);
+		free(conn);
+	}
+}
+
+static struct procinfo *
+search_proc(pid_t pid, int add)
+{
+	struct procinfo *proc;
+	int hv;
+
+	hv = hashval((char *)&pid, sizeof(pid));
+	LIST_FOREACH(proc, &proctable[hv], pr_link) {
+		if (proc->pr_pid == pid)
+			break;
+	}
+	if (proc == NULL && add) {
+		if ((proc = malloc(sizeof(struct procinfo))) == NULL) {
+			syslog(LOG_ERR, "malloc: %m");
+			exit(EX_OSERR);
+		}
+		proc->pr_pid = pid;
+		proc->pr_conn = NULL;
+		LIST_INSERT_HEAD(&proctable[hv], proc, pr_link);
+	}
+	return proc;
+}
+
+static void
+free_proc(struct procinfo *proc)
+{
+	if (proc == NULL)
+		return;
+	LIST_REMOVE(proc, pr_link);
+	free(proc);
+}
+
+static int
+hashval(char *p, int len)
+{
+	int i, hv = 0xABC3D20F;
+
+	for (i = 0; i < len; ++i, ++p)
+		hv = (hv << 5) ^ (hv >> 23) ^ *p;
+	hv = (hv ^ (hv >> 16)) & (PERIPSIZE - 1);
+	return hv;
 }
