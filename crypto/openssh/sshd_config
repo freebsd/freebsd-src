@@ -72,10 +72,9 @@
 #GSSAPIAuthentication no
 #GSSAPICleanupCredentials yes
 
-# Set this to 'yes' to enable PAM authentication (via challenge-response)
-# and session processing. Depending on your PAM configuration, this may
-# bypass the setting of 'PasswordAuthentication' and 'PermitEmptyPasswords'
-#UsePAM no
+# Set this to 'no' to disable PAM authentication (via challenge-response)
+# and session processing.
+#UsePAM yes
 
 #AllowTcpForwarding yes
 #GatewayPorts no
