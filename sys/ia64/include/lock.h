@@ -42,15 +42,12 @@ struct simplelock {
 void	s_lock_init		__P((struct simplelock *));
 void	s_lock			__P((struct simplelock *));
 int	s_lock_try		__P((struct simplelock *));
+void	s_unlock		__P((struct simplelock *));
 
-/* inline simplelock functions */
-static __inline void
-s_unlock(struct simplelock *lkp)
-{
-#if 0				/* XXX */
-	ia64_st_rel_32(&lkp->lock_data, 0);
-#endif
-}
+#define	simple_lock_init(alp)	s_lock_init(alp)
+#define	simple_lock(alp)	s_lock(alp)
+#define	simple_lock_try(alp)	s_lock_try(alp)
+#define	simple_unlock(alp)	s_unlock(alp)
 
 #define COM_LOCK()
 #define COM_UNLOCK()
