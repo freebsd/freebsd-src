@@ -189,6 +189,10 @@ receiver is not listening on the remote port.
 The remote host was down.
 .It Bq Er ENETDOWN
 The remote network was down.
+.It Bq Er EPERM
+The process using a SOCK_RAW socket was jailed and the source
+address specified in the IP header did not match the IP 
+address bound to the prison.
 .It Bq Er EPIPE
 The socket is unable to send anymore data (SS_CANTSENDMORE has
 been set on the socket). This typically means that the socket
