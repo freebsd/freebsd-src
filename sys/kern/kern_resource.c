@@ -88,6 +88,8 @@ getpriority(curp, uap)
 			p = pfind(uap->who);
 		if (p == 0)
 			break;
+		if (!PRISON_CHECK(curp, p))
+			break;
 		low = p->p_nice;
 		break;
 
@@ -99,7 +101,7 @@ getpriority(curp, uap)
 		else if ((pg = pgfind(uap->who)) == NULL)
 			break;
 		LIST_FOREACH(p, &pg->pg_members, p_pglist) {
-			if (p->p_nice < low)
+			if ((PRISON_CHECK(curp, p) && p->p_nice < low))
 				low = p->p_nice;
 		}
 		break;
@@ -109,7 +111,8 @@ getpriority(curp, uap)
 		if (uap->who == 0)
 			uap->who = curp->p_ucred->cr_uid;
 		LIST_FOREACH(p, &allproc, p_list)
-			if (p->p_ucred->cr_uid == uap->who &&
+			if (PRISON_CHECK(curp, p) &&
+			    p->p_ucred->cr_uid == uap->who &&
 			    p->p_nice < low)
 				low = p->p_nice;
 		break;
@@ -148,6 +151,8 @@ setpriority(curp, uap)
 			p = pfind(uap->who);
 		if (p == 0)
 			break;
+		if (!PRISON_CHECK(curp, p))
+			break;
 		error = donice(curp, p, uap->prio);
 		found++;
 		break;
@@ -160,8 +165,10 @@ setpriority(curp, uap)
 		else if ((pg = pgfind(uap->who)) == NULL)
 			break;
 		LIST_FOREACH(p, &pg->pg_members, p_pglist) {
-			error = donice(curp, p, uap->prio);
-			found++;
+			if (PRISON_CHECK(curp, p)) {
+				error = donice(curp, p, uap->prio);
+				found++;
+			}
 		}
 		break;
 	}
@@ -170,7 +177,8 @@ setpriority(curp, uap)
 		if (uap->who == 0)
 			uap->who = curp->p_ucred->cr_uid;
 		LIST_FOREACH(p, &allproc, p_list)
-			if (p->p_ucred->cr_uid == uap->who) {
+			if (p->p_ucred->cr_uid == uap->who &&
+			    PRISON_CHECK(curp, p)) {
 				error = donice(curp, p, uap->prio);
 				found++;
 			}
