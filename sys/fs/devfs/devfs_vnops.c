@@ -43,7 +43,6 @@
 
 #include <opt_devfs.h>
 #include <opt_mac.h>
-#ifndef NODEVFS
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -917,4 +916,3 @@ static struct vnodeopv_desc devfs_specop_opv_desc =
 	{ &devfs_specop_p, devfs_specop_entries };
 
 VNODEOP_SET(devfs_specop_opv_desc);
-#endif
