@@ -6,6 +6,17 @@ chronology since 4.0 was released is included, followed by the common
 items quick how-tos, followed by entries for versions of -current
 prior to 4.0 Release.
 
+20000711:
+	If you use CVSUP or CTM to get CVS trees, AND you used to get 
+	the old crypto files from internat.freebsd.org AND you check
+	out files from the CVS tree with the cvs command, please read
+		http://people.freebsd.org/~imp/internat.txt
+	for details on potential problems that you might have and how
+	to get around them.
+
+	If you are merely a mirror, or don't answer yes to each of the
+	clauses above, you needn't worry.
+
 20000706:
 	Binutils were updated.  In order to build a kernel after this
 	date, you must follow the updating proceedure for building
