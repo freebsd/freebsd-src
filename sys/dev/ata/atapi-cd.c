@@ -1094,7 +1094,7 @@ acd_start(struct atapi_softc *atp)
 {
     struct acd_softc *cdp = atp->driver;
     struct bio *bp = bioq_first(&cdp->bio_queue);
-    u_int32_t lba, count;
+    u_int32_t lba, lastlba, count;
     int8_t ccb[16];
     int track, blocksize;
 
@@ -1134,19 +1134,22 @@ acd_start(struct atapi_softc *atp)
     track = (bp->bio_dev->si_udev & 0x00ff0000) >> 16;
 
     if (track) {
-	lba += ntohl(cdp->toc.tab[track - 1].addr.lba);
 	blocksize = (cdp->toc.tab[track - 1].control & 4) ? 2048 : 2352;
+	lastlba = ntohl(cdp->toc.tab[track].addr.lba);
+	lba += ntohl(cdp->toc.tab[track - 1].addr.lba);
     }
-    else
+    else {
 	blocksize = cdp->block_size;
+	lastlba = cdp->info.volsize;
+    }
 
     count = (bp->bio_bcount + (blocksize - 1)) / blocksize;
 
     if (bp->bio_cmd == BIO_READ) {
-	/* if transfer goes beyond EOM adjust it to be within limits */
-	if (lba + count > cdp->info.volsize) {
+	/* if transfer goes beyond range adjust it to be within limits */
+	if (lba + count > lastlba) {
 	    /* if we are entirely beyond EOM return EOF */
-	    if ((count = cdp->info.volsize - lba) <= 0) {
+	    if ((count = lastlba - lba) <= 0) {
 		bp->bio_resid = bp->bio_bcount;
 		biodone(bp);
 		return;
