@@ -50,9 +50,6 @@ static const char rcsid[] =
 /*
  * pr_attime --
  *	Print the time since the user logged in.
- *
- *	Note: SCCS forces the bizarre string manipulation, things like
- *	8.2 get replaced in the source code.
  */
 void
 pr_attime(started, now)
@@ -77,17 +74,16 @@ pr_attime(started, now)
 		 tm.tm_year != tp.tm_year) {
 	/* The line below does not take DST into consideration */
 	/* else if (*now / 86400 != *started / 86400) { */
-		(void)strcpy(fmt, __CONCAT("%a%", "I%p"));
+		(void)strcpy(fmt, use_ampm ? "%a%I%p" : "%a%H");
 	}
 
 	/* Default is hh:mm{am,pm}. */
 	else {
-		(void)strcpy(fmt, __CONCAT("%l:%", "M%p"));
+		(void)strcpy(fmt, use_ampm ? "%l:%M%p" : "%k:%M");
 	}
 
-	(void)strftime(buf, sizeof(buf) - 1, fmt, &tp);
-	buf[sizeof(buf) - 1] = '\0';
-	(void)printf("%s", buf);
+	(void)strftime(buf, sizeof(buf), fmt, &tp);
+	(void)printf("%-7.7s", buf);
 }
 
 /*
