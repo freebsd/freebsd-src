@@ -75,23 +75,67 @@ To control driver probing against HVD buses
 To control chip attachment balancing between the ncr driver and this driver
 .Cd options SYM_SETUP_LP_PROBE_MAP=<bit combination>
 .Sh DESCRIPTION
-This driver provides support for the Symbios/LSI Logic
-.Tn 53C810 ,
-.Tn 53C815 ,
-.Tn 53C825 ,
-.Tn 53C810A ,
-.Tn 53C825A ,
-.Tn 53C860 ,
-.Tn 53C875 ,
-.Tn 53C876 ,
-.Tn 53C895 ,
-.Tn 53C895A ,
-.Tn 53C896 ,
-.Tn 53C897 ,
-.Tn 53C1510D ,
-and
-.Tn 53C1010
-PCI SCSI controllers.
+This driver provides support for the following Symbios/LSI Logic
+PCI SCSI controllers:
+.Pp
+.Bl -bullet -compact
+.It
+.Tn 53C810
+.It
+.Tn 53C810A
+.It
+.Tn 53C815
+.It
+.Tn 53C825
+.It
+.Tn 53C825A
+.It
+.Tn 53C860
+.It
+.Tn 53C875
+.It
+.Tn 53C876
+.It
+.Tn 53C895
+.It
+.Tn 53C895A
+.It
+.Tn 53C896
+.It
+.Tn 53C897
+.It
+.Tn 53C1000
+.It
+.Tn 53C1000R
+.It
+.Tn 53C1010-33
+.It
+.Tn 53C1010-66
+.It
+.Tn 53C1510D
+.El
+.Pp
+The SCSI controllers can be either embedded on a motherboard, or on
+one of the following add-on boards:
+.Pp
+.Bl -bullet -compact
+.It
+ASUS SC-200, SC-896
+.It
+Data Technology DTC3130 (all variants)
+.It
+DawiControl DC2976UW
+.It
+Diamond FirePort (all)
+.It
+NCR cards (all)
+.It
+Symbios cards (all)
+.It
+Tekram DC390W, 390U, 390F, 390U2B, 390U2W, 390U3D, and 390U3W
+.It
+Tyan S1365
+.El
 .Pp
 Driver features include support for wide SCSI busses and fast10, fast20,
 fast40 and fast80-dt synchronous data transfers depending on controller
