@@ -1,4 +1,4 @@
-/*	$NetBSD: usb_subr.c,v 1.27 1999/01/08 11:58:25 augustss Exp $	*/
+/*	$NetBSD: usb_subr.c,v 1.29 1999/03/18 12:08:43 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -65,8 +65,8 @@
 #endif
 
 #ifdef USB_DEBUG
-#define DPRINTF(x)	if (usbdebug) printf x
-#define DPRINTFN(n,x)	if (usbdebug>(n)) printf x
+#define DPRINTF(x)	if (usbdebug) logprintf x
+#define DPRINTFN(n,x)	if (usbdebug>(n)) logprintf x
 extern int usbdebug;
 #else
 #define DPRINTF(x)
@@ -85,50 +85,6 @@ void usbd_kill_pipe __P((usbd_pipe_handle));
 usbd_status usbd_probe_and_attach 
 	__P((bdevice *parent, usbd_device_handle dev, int port, int addr));
 
-
-#ifdef USBVERBOSE
-typedef u_int16_t usb_vendor_id_t;
-typedef u_int16_t usb_product_id_t;
-
-/*
- * Descriptions of of known vendors and devices ("products").
- */
-struct usb_knowndev {
-	usb_vendor_id_t		vendor;
-	usb_product_id_t	product;
-	int			flags;
-	char			*vendorname, *productname;
-};
-#define	USB_KNOWNDEV_NOPROD	0x01		/* match on vendor only */
-
-#include <dev/usb/usbdevs_data.h>
-#endif /* USBVERBOSE */
-
-#ifdef USB_DEBUG
-char *usbd_error_strs[] = {
-	"NORMAL_COMPLETION",
-	"IN_PROGRESS",
-	"PENDING_REQUESTS",
-	"NOT_STARTED",
-	"INVAL",
-	"IS_IDLE",
-	"NOMEM",
-	"CANCELLED",
-	"BAD_ADDRESS",
-	"IN_USE",
-	"INTERFACE_NOT_ACTIVE",
-	"NO_ADDR",
-	"SET_ADDR_FAILED",
-	"NO_POWER",
-	"TOO_DEEP",
-	"IOERROR",
-	"NOT_CONFIGURED",
-	"TIMEOUT",
-	"SHORT_XFER",
-	"STALLED",
-	"XXX",
-};
-#endif
 
 usbd_status
 usbd_get_string_desc(dev, sindex, langid, sdesc)
@@ -205,31 +161,10 @@ usbd_devinfo_vp(dev, v, p)
 {
 	usb_device_descriptor_t *udd = &dev->ddesc;
 	char *vendor = 0, *product = 0;
-#ifdef USBVERBOSE
-	struct usb_knowndev *kdp;
-#endif
 
 	vendor = usbd_get_string(dev, udd->iManufacturer, v);
 	product = usbd_get_string(dev, udd->iProduct, p);
-#ifdef USBVERBOSE
-	if (!vendor) {
-		for(kdp = usb_knowndevs;
-		    kdp->vendorname != NULL;
-		    kdp++) {
-			if (kdp->vendor == UGETW(udd->idVendor) && 
-			    (kdp->product == UGETW(udd->idProduct) ||
-			     (kdp->flags & USB_KNOWNDEV_NOPROD) != 0))
-				break;
-		}
-		if (kdp->vendorname == NULL)
-			vendor = product = NULL;
-		else {
-			vendor = kdp->vendorname;
-			product = (kdp->flags & USB_KNOWNDEV_NOPROD) == 0 ?
-				kdp->productname : NULL;
-		}
-	}
-#endif
+
 	if (vendor)
 		strcpy(v, vendor);
 	else
@@ -312,20 +247,23 @@ usbd_reset_port(dev, port, ps)
 	USETW(req.wIndex, port);
 	USETW(req.wLength, 0);
 	r = usbd_do_request(dev, &req, 0);
-	DPRINTFN(1,("usbd_reset_port: port %d reset done, error=%d(%s)\n",
-		    port, r, usbd_error_strs[r]));
+	DPRINTFN(1,("usbd_reset_port: port %d reset done, %s\n",
+		port, usbd_errstr(r)));
 	if (r != USBD_NORMAL_COMPLETION)
-		return (r);
+		return(r);
+
 	n = 10;
 	do {
 		/* Wait for device to recover from reset. */
 		usbd_delay_ms(dev, USB_PORT_RESET_DELAY);
 		r = usbd_get_port_status(dev, port, ps);
 		if (r != USBD_NORMAL_COMPLETION) {
-			DPRINTF(("usbd_reset_port: get status failed %d\n",r));
+			DPRINTF(("usbd_reset_port: get port %d status failed %s\n",
+				port, usbd_errstr(r)));
 			return (r);
 		}
 	} while ((UGETW(ps->wPortChange) & UPS_C_PORT_RESET) == 0 && --n > 0);
+
 	if (n == 0) {
 		printf("usbd_reset_port: timeout\n");
 		return (USBD_IOERROR);
@@ -333,7 +271,8 @@ usbd_reset_port(dev, port, ps)
 	r = usbd_clear_port_feature(dev, port, UHF_C_PORT_RESET);
 #ifdef USB_DEBUG
 	if (r != USBD_NORMAL_COMPLETION)
-		DPRINTF(("usbd_reset_port: clear port feature failed %d\n",r));
+		DPRINTF(("usbd_reset_port: clear port %d feature failed %d\n",
+			port, r));
 #endif
 
 	/* Wait for the device to recover from reset. */
@@ -585,9 +524,8 @@ usbd_set_config_index(dev, index, msg)
 				    (UGETW(ds.wStatus) & UDS_SELF_POWERED))
 					selfpowered = 1;
 			}
-			DPRINTF(("usbd_set_config_index: status=0x%04x, "
-				 "error=%d(%s)\n",
-				 UGETW(ds.wStatus), r, usbd_error_strs[r]));
+			DPRINTF(("usbd_set_config_index: status=0x%04x, %s\n",
+				 UGETW(ds.wStatus), usbd_errstr(r)));
 		} else
 			selfpowered = 1;
 	}
@@ -621,9 +559,8 @@ usbd_set_config_index(dev, index, msg)
 		 cdp->bConfigurationValue));
 	r = usbd_set_config(dev, cdp->bConfigurationValue);
 	if (r != USBD_NORMAL_COMPLETION) {
-		DPRINTF(("usbd_set_config_index: setting config=%d failed, "
-			 "error=%d(%s)\n",
-			 cdp->bConfigurationValue, r, usbd_error_strs[r]));
+		DPRINTF(("usbd_set_config_index: setting config=%d failed, %s\n",
+			 cdp->bConfigurationValue, usbd_errstr(r)));
 		goto bad;
 	}
 	DPRINTF(("usbd_set_config_index: setting new config %d\n",
@@ -680,12 +617,13 @@ usbd_setup_pipe(dev, iface, ep, pipe)
 	p->refcnt = 1;
 	p->intrreqh = 0;
 	p->running = 0;
+	p->disco = 0;
+	p->discoarg = 0;
 	SIMPLEQ_INIT(&p->queue);
 	r = dev->bus->open_pipe(p);
 	if (r != USBD_NORMAL_COMPLETION) {
-		DPRINTFN(-1,("usbd_setup_pipe: endpoint=0x%x failed, error=%d"
-			 "(%s)\n",
-			 ep->edesc->bEndpointAddress, r, usbd_error_strs[r]));
+		DPRINTFN(-1,("usbd_setup_pipe: endpoint=0x%x failed, %s\n",
+			 ep->edesc->bEndpointAddress, usbd_errstr(r)));
 		free(p, M_USB);
 		return (r);
 	}
@@ -714,7 +652,6 @@ usbd_getnewaddr(bus)
 			return (addr);
 	return (-1);
 }
-
 
 usbd_status
 usbd_probe_and_attach(parent, dev, port, addr)
@@ -764,17 +701,8 @@ usbd_probe_and_attach(parent, dev, port, addr)
 			    confi));
 		r = usbd_set_config_index(dev, confi, 1);
 		if (r != USBD_NORMAL_COMPLETION) {
-#ifdef USB_DEBUG
-			DPRINTF(("%s: port %d, set config at addr %d failed, "
-				 "error=%d(%s)\n", USBDEVNAME(*parent), port,
-				 addr, r, usbd_error_strs[r]));
-#else
-			printf("%s: port %d, set config at addr %d failed\n",
-			       USBDEVNAME(*parent), port, addr);
-#endif
-#if defined(__FreeBSD__)
-			device_delete_child(*parent, bdev);
-#endif
+			printf("%s: port %d, set config at addr %d failed, %s\n",
+			       USBDEVNAME(*parent), port, addr, usbd_errstr(r));
 			return (r);
 		}
 		nifaces = dev->cdesc->bNumInterface;
@@ -1136,3 +1064,4 @@ usbd_fill_deviceinfo(dev, di)
 	} else
 		di->nports = 0;
 }
+

@@ -104,11 +104,3 @@ int		ohci_intr __P((void *));
 
 #define MS_TO_TICKS(ms) ((ms) * hz / 1000)
 
-#ifdef USB_DEBUG
-#define DPRINTF(x)	if (ohcidebug) printf x
-#define DPRINTFN(n,x)	if (ohcidebug>(n)) printf x
-extern int ohcidebug;
-#else
-#define DPRINTF(x)
-#define DPRINTFN(n,x)
-#endif
