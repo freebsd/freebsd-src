@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: console.h,v 1.29 1997/02/22 09:34:02 peter Exp $
  */
 
 #ifndef	_MACHINE_CONSOLE_H_
@@ -312,6 +312,8 @@ typedef struct ssaver ssaver_t;
 #define M_VGA_M80x30	33	/* vga 8x16 font on color */
 #define M_VGA_C80x60	34	/* vga 8x8 font on color */
 #define M_VGA_M80x60	35	/* vga 8x8 font on color */
+#define M_VGA_CG640	36	/* vga 640x400 256 color */
+#define M_VGA_MODEX	37	/* vga 320x240 256 color */
 
 #define M_ENH_B80x43	0x70	/* ega black & white 80x43 */
 #define M_ENH_C80x43	0x71	/* ega color 80x43 */
@@ -360,6 +362,8 @@ typedef struct ssaver ssaver_t;
 #define SW_CG640x480	_IO('S', M_VGA12)
 #define SW_VGA13	_IO('S', M_VGA13)
 #define SW_VGA_CG320	_IO('S', M_VGA13)
+#define SW_VGA_CG640	_IO('S', M_VGA_CG640)
+#define SW_VGA_MODEX	_IO('S', M_VGA_MODEX)
 #endif /* PC98 */
 
 #endif /* !_MACHINE_CONSOLE_H_ */
