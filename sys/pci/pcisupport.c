@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.56 1997/10/17 16:15:43 wollman Exp $
+**  $Id: pcisupport.c,v 1.57 1997/10/17 16:26:14 wollman Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -811,11 +811,227 @@ static char* vga_probe (pcici_t tag, pcidi_t type)
 {
 	int data = pci_conf_read(tag, PCI_CLASS_REG);
 	u_int id = pci_conf_read(tag, PCI_ID_REG);
+	const char *vendor, *chip, *type;
 
-	switch (id) {
-	/* NeoMagic -- vendor 0x10c8 */
-	case 0x000410c8:
-		return ("NeoMagic NM2160 Laptop SVGA controller");
+	vendor = chip = type = 0;
+
+	switch (id & 0xffff) {
+	case 0x10c8:
+		vendor = "NeoMagic";
+		switch (id >> 16) {
+		case 0x0004:
+			chip = "NM3160 laptop";	break;
+		}
+		break;
+	case 0x102b:
+		vendor = "Matrox";
+		type = "graphics accelerator";
+		switch (id >> 16) {
+		case 0x0518:
+			chip = "MGA 2085PX"; break;
+		case 0x0519:
+			chip = "MGA 2064W"; break;
+		case 0x051a:
+			chip = "MGA 1024SG"; break;
+		case 0x051b:
+			chip = "MGA 2164W"; break;
+		}
+		break;
+
+	case 0x1002:
+		vendor = "ATI";
+		type = "graphics accelerator";
+		switch (id >> 16) {
+		case 0x4158:
+			chip = "Mach32"; break;
+		case 0x4758:
+			chip = "Mach64-GX"; break;
+		case 0x4358:
+			chip = "Mach64-CX"; break;
+		case 0x4354:
+			chip = "Mach64-CT"; break;
+		case 0x4554:
+			chip = "Mach64-ET"; break;
+		case 0x5654:
+			chip = "Mach64-VT"; break;
+		case 0x4754:
+			chip = "Mach64-GT"; break;
+		}
+		break;
+	case 0x1005:
+		vendor = "Avance Logic";
+		switch (id >> 16) {
+		case 0x2301:
+			chip = "ALG2301"; break;
+		}
+		break;
+	case 0x100c:
+		vendor = "Tseng Labs";
+		type = "graphics accelerator";
+		switch (id >> 16) {
+		case 0x3202:
+		case 0x3205:
+		case 0x3206:
+		case 0x3207:
+			chip = "ET4000 W32P"; break;
+		case 0x3208:
+			chip = "ET6000"; break;
+		case 0x4702:
+			chip = "ET6300"; break;
+		}
+		break;
+	case 0x100e:
+		vendor = "Weitek";
+		type = "graphics accelerator";
+		switch (id >> 16) {
+		case 0x9001:
+			chip = "P9000"; break;
+		case 0x9100:
+			chip = "P9100"; break;
+		}
+		break;
+	case 0x1013:
+		vendor = "Cirrus Logic";
+		switch (id >> 16) {
+		case 0x0038:
+			chip = "GD7548"; break;
+		case 0x00a0:
+			chip = "GD5430"; break;
+		case 0x00a4:
+		case 0x00a8:
+			chip = "GD5434"; break;
+		case 0x00ac:
+			chip = "GD5436"; break;
+		case 0x00b8:
+			chip = "GD5446"; break;
+		case 0x00d0:
+			chip = "GD5462"; break;
+		case 0x00d4:
+			chip = "GD5464"; break;
+		case 0x1200:
+			chip = "GD7542"; break;
+		case 0x1202:
+			chip = "GD7543"; break;
+		case 0x1204:
+			chip = "GD7541"; break;
+		}
+		break;
+	case 0x1023:
+		vendor = "Trident";
+		break;		/* let default deal with it */
+	case 0x102c:
+		vendor = "Chips & Technologies";
+		if ((id >> 16) == 0x00d8)
+			chip = "65545";
+		break;
+	case 0x1039:
+		vendor = "SiS";
+		switch (id >> 16) {
+		case 0x0001:
+			chip = "86c201"; break;
+		case 0x0002:
+			chip = "86c202"; break;
+		case 0x0205:
+			chip = "86c205"; break;
+		}
+		break;
+	case 0x105d:
+		vendor = "Number Nine";
+		type = "graphics accelerator";
+		switch (id >> 16) {
+		case 0x2309:
+		case 0x2339:
+			chip = "Imagine 128"; break;
+		}
+		break;
+	case 0x1142:
+		vendor = "Alliance";
+		switch (id >> 16) {
+		case 0x3210:
+			chip = "PM6410"; break;
+		case 0x6422:
+			chip = "PM6422"; break;
+		case 0x6424:
+			chip = "PMAT24"; break;
+		}
+		break;
+	case 0x1236:
+		vendor = "Sigma Designs";
+		if ((id >> 16) == 0x6401)
+			chip = "64GX";
+		break;
+	case 0x5333:
+		vendor = "S3";
+		type = "graphics accelerator";
+		switch (id >> 16) {
+		case 0x8811:
+			chip = "Trio"; break;
+		case 0x8812:
+			chip = "Aurora 64"; break;
+		case 0x8814:
+		case 0x8901:
+			chip = "Trio 64"; break;
+		case 0x8902:
+			chip = "Plato"; break;
+		case 0x8880:
+			chip = "868"; break;
+		case 0x88b0:
+			chip = "928"; break;
+		case 0x88c0:
+		case 0x88c1:
+			chip = "864"; break;
+		case 0x88d0:
+		case 0x88d1:
+			chip = "964"; break;
+		case 0x88f0:
+			chip = "968"; break;
+		case 0x5631:
+			chip = "ViRGE"; break;
+		case 0x883d:
+			chip = "ViRGE VX"; break;
+		case 0x8a01:
+			chip = "ViRGE DX/GX"; break;
+		}
+		break;
+	case 0xedd8:
+		vendor = "ARK Logic";
+		switch (id >> 16) {
+		case 0xa091:
+			chip = "1000PV"; break;
+		case 0xa099:
+			chip = "2000PV"; break;
+		case 0xa0a1:
+			chip = "2000MT"; break;
+		case 0xa0a9:
+			chip = "2000MI"; break;
+		}
+		break;
+	case 0x3d3d:
+		vendor = "3D Labs";
+		type = "graphics accelerator";
+		switch (id >> 16) {
+		case 0x0001:
+			chip = "300SX"; break;
+		case 0x0002:
+			chip = "500TX"; break;
+		case 0x0003:
+			chip = "Delta"; break;
+		case 0x0004:
+			chip = "PerMedia"; break;
+		}
+		break;
+	}
+
+	if (vendor && chip) {
+		char *buf;
+		int len;
+
+		if (type == 0)
+			type = "SVGA controller";
+		len = strlen(vendor) + strlen(chip) + strlen(type) + 4;
+		MALLOC(buf, char *, len, M_TEMP, M_NOWAIT);
+		sprintf(buf, "%s %s %s", vendor, chip, type);
+		return buf;
 	}
 
 	switch (data & PCI_CLASS_MASK) {
@@ -823,16 +1039,43 @@ static char* vga_probe (pcici_t tag, pcidi_t type)
 	case PCI_CLASS_PREHISTORIC:
 		if ((data & PCI_SUBCLASS_MASK)
 			!= PCI_SUBCLASS_PREHISTORIC_VGA)
-			break;
+			return 0;
+		if (type == 0)
+			type = "VGA-compatible display device";
+		break;
 
 	case PCI_CLASS_DISPLAY:
-		if ((data & PCI_SUBCLASS_MASK)
-		    == PCI_SUBCLASS_DISPLAY_VGA)
-			return ("VGA-compatible display device");
-		else
-			return ("Display device");
+		if (type == 0) {
+			if ((data & PCI_SUBCLASS_MASK)
+			    == PCI_SUBCLASS_DISPLAY_VGA)
+				type = "VGA-compatible display device";
+			else
+				type = "Display device";
+		}
+		break;
+
+	default:
+		return 0;
 	};
-	return ((char*)0);
+	/*
+	 * If we got here, we know for sure it's some sort of display
+	 * device, but we weren't able to identify it specifically.
+	 * At a minimum we can return the type, but we'd like to
+	 * identify the vendor and chip ID if at all possible.
+	 * (Some of the checks above intentionally don't bother for
+	 * vendors where we know the chip ID is the same as the
+	 * model number.)
+	 */
+	if (vendor) {
+		char *buf;
+		int len;
+
+		len = strlen(vendor) + strlen(type) + 2 + 6 + 4 + 1;
+		MALLOC(buf, char *, len, M_TEMP, M_NOWAIT);
+		sprintf(buf, "%s model %04x %s", vendor, id >> 16, type);
+		return buf;
+	}
+	return type;
 }
 
 static void vga_attach (pcici_t tag, int unit)
