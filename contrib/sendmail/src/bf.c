@@ -18,7 +18,7 @@
 */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: bf.c,v 8.54 2002/04/20 18:03:42 gshapiro Exp $")
+SM_RCSID("@(#)$Id: bf.c,v 8.54.2.2 2002/06/21 19:58:40 gshapiro Exp $")
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -681,6 +681,7 @@ sm_bfcommit(fp)
 	/* Do we need to open a file? */
 	if (!bfp->bf_ondisk)
 	{
+		int save_errno;
 		MODE_T omask;
 		struct stat st;
 
@@ -700,14 +701,16 @@ sm_bfcommit(fp)
 
 		/* Clear umask as bf_filemode are the true perms */
 		omask = umask(0);
-		retval = OPEN(bfp->bf_filename, O_RDWR | O_CREAT | O_TRUNC,
+		retval = OPEN(bfp->bf_filename, O_RDWR | O_CREAT | O_EXCL,
 			      bfp->bf_filemode, bfp->bf_flags);
+		save_errno = errno;
 		(void) umask(omask);
 
 		/* Couldn't create file: failure */
 		if (retval < 0)
 		{
 			/* errno is set implicitly by open() */
+			errno = save_errno;
 			return -1;
 		}
 

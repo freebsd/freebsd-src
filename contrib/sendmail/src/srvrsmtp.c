@@ -16,7 +16,7 @@
 # include <libmilter/mfdef.h>
 #endif /* MILTER */
 
-SM_RCSID("@(#)$Id: srvrsmtp.c,v 8.827 2002/05/28 14:29:57 ca Exp $")
+SM_RCSID("@(#)$Id: srvrsmtp.c,v 8.829 2002/06/17 21:54:57 gshapiro Exp $")
 
 #if SASL || STARTTLS
 # include <sys/time.h>
@@ -1896,7 +1896,8 @@ smtp(nullserver, d_flags, e)
 				message("250-AUTH %s", mechlist);
 #endif /* SASL */
 #if STARTTLS
-			if (tls_ok_srv && bitset(SRV_OFFER_TLS, features))
+			if (tls_ok_srv &&
+			    bitset(SRV_OFFER_TLS, features))
 				message("250-STARTTLS");
 #endif /* STARTTLS */
 			if (DeliverByMin > 0)
