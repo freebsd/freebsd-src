@@ -143,6 +143,24 @@
 .	if "\\$1"V.4"  \&\\*(tNAT&T\\*(aa System V.4 \\*(tNUNIX\\*(aa
 .\}
 ..
+.\" Ns Fx macro - FreeBSD
+.de Fx
+.nr cF \\n(.f
+.nr cZ \\n(.s
+.ds aa \&\f\\n(cF\s\\n(cZ
+.if \\n(.$==2 \{\
+.	if "\\$1"2.0"  \&\\*(tNFreeBSD\\*(aa 2.0\\*(aa\\$2
+.	if "\\$1"2.0.5"  \&\\*(tNFreeBSD\\*(aa 2.0.5\\*(aa\\$2
+.	if "\\$1"2.1"  \&\\*(tNFreeBSD\\*(aa 2.1\\*(aa\\$2
+.	if "\\$1"2.2"  \&\\*(tNFreeBSD\\*(aa 2.2\\*(aa\\$2
+.\}
+.if \\n(.$==1 \{\
+.	if "\\$1"2.0"  \&\\*(tNFreeBSD\\*(aa 2.0\\*(aa
+.	if "\\$1"2.0.5"  \&\\*(tNFreeBSD\\*(aa 2.0.5\\*(aa
+.	if "\\$1"2.1"  \&\\*(tNFreeBSD\\*(aa 2.1\\*(aa
+.	if "\\$1"2.2"  \&\\*(tNFreeBSD\\*(aa 2.2\\*(aa
+.\}
+..
 .\" The Bt macro should go away now
 .\" Ns Bt macro - prints "is currently in beta test." (HISTORY section)
 .de Bt
