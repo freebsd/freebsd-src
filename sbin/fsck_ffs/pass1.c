@@ -191,7 +191,7 @@ checkinode(ino_t inumber, struct inodesc *idesc)
 	off_t kernmaxfilesize;
 	ufs2_daddr_t ndb;
 	mode_t mode;
-	int j;
+	int j, ret, offset;
 
 	dp = getnextinode(inumber);
 	mode = DIP(dp, di_mode) & IFMT;
@@ -331,6 +331,24 @@ checkinode(ino_t inumber, struct inodesc *idesc)
 	else
 		idesc->id_type = ADDR;
 	(void)ckinode(dp, idesc);
+	if (sblock.fs_magic == FS_UFS2_MAGIC && dp->dp2.di_extsize > 0) {
+		idesc->id_type = ADDR;
+		ndb = howmany(dp->dp2.di_extsize, sblock.fs_bsize);
+		for (j = 0; j < NXADDR; j++) {
+			if (--ndb == 0 &&
+			    (offset = blkoff(&sblock, dp->dp2.di_extsize)) != 0)
+				idesc->id_numfrags = numfrags(&sblock,
+				    fragroundup(&sblock, offset));
+			else
+				idesc->id_numfrags = sblock.fs_frag;
+			if (dp->dp2.di_extb[j] == 0)
+				continue;
+			idesc->id_blkno = dp->dp2.di_extb[j];
+			ret = (*idesc->id_func)(idesc);
+			if (ret & STOP)
+				break;
+		}
+	}
 	if (sblock.fs_magic == FS_UFS2_MAGIC)
 		eascan(idesc, &dp->dp2);
 	idesc->id_entryno *= btodb(sblock.fs_fsize);
