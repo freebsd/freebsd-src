@@ -143,8 +143,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 	 * success or lack thereof.
 	 */
 	if (opieverify(&opie, resp) != 0)
-		/* Chained pam_unix expected */
-		retval = pwok ? PAM_SUCCESS : PAM_AUTH_ERR;
+		retval = pwok ? PAM_AUTH_ERR : PAM_CRED_ERR;
 	else
 		retval = PAM_SUCCESS;
 	PAM_RETURN(retval);
