@@ -1,0 +1,291 @@
+Wed Jun  2 17:45:38 1993  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* malloc/Makefile (%.gz): Renamed target from %.z; use -v flag.
+	(malloc/ChangeLog): Use mv -f.
+
+Mon May 31 21:49:04 1993  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* malloc/mtrace.c: #include <stdio.h>; malloc.h no longer does.
+
+Sun May 30 20:04:50 1993  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* malloc/malloc.c (malloc): #if 0 out ``if (SIZE == 0) return NULL''.
+
+	* malloc/malloc.h [_MALLOC_INTERNAL]: Don't include <stdio.h>.
+	[_MALLOC_INTERNAL]: Move config.h, limits.h, and mem* to front of file.
+	(NULL): Move after stddef.h.
+
+	* malloc/valloc.c: Don't include config.h; malloc.h already did.
+
+	* malloc/malloc.c: Undo rms's change.
+
+	* malloc/mcheck.c, malloc/malloc.h: Undo rms's change.
+
+Sat May 29 13:04:38 1993  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* malloc/malloc.c (malloc) [emacs]: If size is 0, make it 1.
+
+	* malloc/malloc.h (CONST): Define this always,
+	rather than `const' sometimes.
+	(memory_warnings): Use CONST, not __const, in decl.
+	* malloc/mcheck.c (checkhdr): Use CONST, not const.
+
+Fri May 14 19:34:54 1993  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* malloc/Makefile: Remove depend-malloc dependency on malloc/gmalloc.c.
+
+Wed May 12 19:43:37 1993  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* malloc/cfree.c: Put malloc.h include in _MALLOC_INTERNAL conditional.
+
+Wed May 12 16:24:23 1993  Roland McGrath  (roland@geech.gnu.ai.mit.edu)
+
+	* malloc/cfree.c: Include <malloc.h> instead of <stdlib.h>.
+	[_LIBC]: Use function_alias only under this conditional.
+	[! _LIBC] (cfree): Define a function that just calls free.
+
+Mon May 10 16:56:09 1993  Jim Blandy  (jimb@geech.gnu.ai.mit.edu)
+
+	* malloc/cfree.c: Put the meat of the file inside a "#if
+	defined(__GNU_LIBRARY__)" clause, so that gmalloc.c, which
+	incorporates this file, can be used outside of the C library.
+
+Sun May  9 16:57:43 1993  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* malloc/Makefile (malloc-dist): Add ChangeLog and mem-limits.h.
+	(malloc/ChangeLog): New rule using Noah's changelog-extract.
+	(malloc.tar): Use o flag to tar to make compatible archives.
+	(gmalloc-routines): Add calloc, valloc, and cfree.
+	(dist-routines): Remove [cv]alloc from here.
+	(routines): Remove cfree from here.
+
+Fri Mar 26 14:53:30 1993  Michael John Haertel  (mike@skinner.cs.uoregon.edu)
+
+	* malloc/malloc.c (malloc): Start searching at _heapindex, not
+	MALLOC_SEARCH_START.
+	* malloc/malloc.h (MALLOC_SEARCH_START): Macro removed.
+	* malloc/realloc.c (realloc): When malloc returns NULL, handle the
+	case of the block we need to unfree (which was just freed) having
+	been coalesced with its neighbors.
+
+Thu Mar 25 13:40:17 1993  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* Rules (mostlyclean): Remove the .o files for $(tests) and $(others).
+	Remove $(objpfx)depend-$(subdir).
+	(clean): Remove $(extra-objs).
+	* Makefile (clean): Remove $(install-lib) from $(objdir).
+	Don't try to remove ansi/ and trad/ or dist.tar or lint.out.
+	Remove $(objpfx)depend-.
+	* time/Makefile (extra-objs): Define new var.
+	* malloc/Makefile (extra-objs): Likewise.
+
+Wed Mar 24 16:09:26 1993  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* malloc/Makefile (malloc/%.c, malloc/%.h): Rules removed.
+
+Mon Mar 22 15:35:54 1993  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* malloc/malloc.h [_MALLOC_INTERNAL]
+	[__GNU_LIBRARY__ || STDC_HEADERS || USG] (memmove): Define in
+	terms of bcopy.
+	* malloc/malloc/gmalloc-head.c: Redo previously undone change.
+
+Thu Mar 18 04:59:21 1993  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* malloc/malloc/gmalloc-head.c: Undo previous change.
+
+Tue Mar  9 11:32:35 1993  Jim Blandy  (jimb@wookumz.gnu.ai.mit.edu)
+
+	* malloc/malloc/gmalloc-head.c: Remove #definitions of memset,
+	memcpy, and memmove; this is taken care of by malloc.h anyway.
+
+Thu Feb 25 14:49:52 1993  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* malloc/malloc.h [_MALLOC_INTERNAL]: Move #include <stdio.h> to
+	front of file; it needs to come before size_t/ptrdiff_t frobnication.
+
+Mon Feb 22 12:19:19 1993  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* malloc/dist-Makefile (gmalloc.c): Depend on Makefile.
+
+	* malloc/Makefile (gmalloc-routines): New variable.
+	(dist-routines): Use it.
+	(malloc/Makefile): Also replace <GMALLOC-SOURCES> with
+	$(gmalloc-routines).
+	(malloc/Makefile): Make it unwritable to avoid accidental lossage.
+	Depend on Makefile.
+
+	* malloc/dist-Makefile (gmalloc): New variable: <GMALLOC-SOURCES>.
+	(gmalloc.c): Use $(gmalloc), not $(sources).
+	Make the file unwritable to avoid accidental lossage.
+
+	* malloc/mtrace.c: Don't #include <stdio.h> because <malloc.h> did
+	it for us.
+
+	* malloc/valloc.c [! __GNU_LIBRARY__]: Replace hairy conditionals
+	with #include "getpagesize.h".
+	* malloc/Makefile (distribute, malloc-dist): Add getpagesize.h.
+
+Thu Feb 18 14:34:00 1993  Roland McGrath  (roland@geech.gnu.ai.mit.edu)
+
+	* malloc/mcheck.c (checkhdr): Use `const', not `__const'.
+
+Tue Dec 29 18:18:58 1992  Roland McGrath  (roland@geech.gnu.ai.mit.edu)
+
+	* malloc/Makefile (dist-headers): Define to malloc.h.
+	(headers): Replace malloc.h with $(dist-headers).
+	(malloc/Makefile): Use $(dist-headers) in place of $(headers).
+	(malloc-dist, distribute): Replace ChangeLog with OChangeLog.
+
+	* malloc/dist-Makefile (malloc.tar{,.Z}): Depend on FORCE.
+	(FORCE): Define empty target.
+
+Tue Oct 27 18:11:19 1992  Roland McGrath  (roland@geech.gnu.ai.mit.edu)
+
+	* malloc/mcheck.c (mcheck): Set abortfunc to either FUNC or abort;
+	never leave it unchanged.
+	Return 0 if mcheck_used; -1 if not.
+	* malloc/malloc.h (mcheck): Change return type in decl.
+
+Thu Oct 15 19:25:46 1992  Roland McGrath  (roland@geech.gnu.ai.mit.edu)
+
+	* malloc/malloc.h (__after_morecore_hook): Declare new var.
+	* malloc/malloc.c (__after_morecore_hook): Define it.
+	(align): Call it.
+
+Mon Oct 12 15:56:07 1992  Roland McGrath  (roland@geech.gnu.ai.mit.edu)
+
+	* malloc/malloc.h (r_alloc, r_alloc_free, r_re_alloc): Declare.
+
+	* malloc/Makefile (dist-routines): Add ralloc.
+	(gpl2lgpl): Add ralloc.c.
+
+Mon Oct 12 13:37:16 1992  Roland McGrath  (roland@geech.gnu.ai.mit.edu)
+
+	* malloc/malloc.h: Declare memory_warnings.
+	* malloc/Makefile (dist-routines): Add vm-limit.
+	(distribute): Add mem-limits.h.
+	(gpl2lgpl): Add vm-limit.c, mem-limits.h.
+
+Thu Aug 27 15:58:13 1992  Roland McGrath  (roland@wookumz.gnu.ai.mit.edu)
+
+	* malloc/malloc.h [! __STDC__] (ptrdiff_t): #define.
+
+Wed Aug 26 18:15:47 1992  Roland McGrath  (roland@geech.gnu.ai.mit.edu)
+
+	* malloc/free.c (__free): Rename to _free_internal.
+	(free), malloc/malloc.c (morecore): Change callers.
+	* malloc/malloc.h: Change decl.
+
+Tue Aug 18 17:38:13 1992  Roland McGrath  (roland@geech.gnu.ai.mit.edu)
+
+	* malloc/Makefile (obstack.%): Remove rule.
+	(gpl2lgpl): Define this instead.
+	* posix/Makefile (gpl2lgpl): Define to include getopt source files.
+	* Makerules ($(gpl2lgpl)): New rule to snarf code and frob its
+	copying notices.
+
+Tue Jul  7 03:11:23 1992  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* malloc/Makefile (dist-routines): Define with routines for malloc.tar.
+	(routines): Define with that plus the rest.
+	(nodist): Remove.
+	(routines): Add obstack.
+	(headers): Add obstack.h.
+	(obstack.%): New rule.
+
+Thu Jun 25 21:01:40 1992  Roland McGrath  (roland@geech.gnu.ai.mit.edu)
+
+	* sysdeps/unix/morecore.c (__default_morecore): Deansideclized.
+	* malloc/*.c: Only #include <malloc.h> #ifndef _MALLOC_INTERNAL.
+
+Thu Jun  4 16:41:56 1992  Roland McGrath  (roland@geech.gnu.ai.mit.edu)
+
+	* malloc/malloc.h (mtrace): Declare.
+
+	* malloc/malloc.h, malloc/calloc.c, malloc/free.c, malloc/malloc.c,
+	malloc/mcheck.c, malloc/memalign.c, malloc/mstats.c,
+	malloc/mtrace.c, malloc/realloc.c, malloc/valloc.c: Deansideclized;
+	changed copyright notices to be independent of libc.
+	* malloc/Makefile (glob/%.c, glob/%.h): Don't need to ansideclificate.
+
+Fri May 22 01:52:04 1992  Roland McGrath  (roland@geech.gnu.ai.mit.edu)
+
+	* assert/assert.h, ctype/ctype.h, dirent/dirent.h, grp/grp.h,
+	  locale/locale.h, locale/localeinfo.h, math/math.h,
+	  misc/sys/file.h, misc/sys/ioctl.h, misc/sys/ptrace.h,
+	  misc/sys/uio.h, misc/sgtty.h, misc/nlist.h, posix/gnu/types.h,
+	  posix/sys/wait.h, posix/sys/types.h, posix/sys/times.h,
+	  posix/sys/utsname.h, posix/unistd.h, posix/tar.h, posix/utime.h,
+	  posix/wordexp.h, posix/glob.h, posix/fnmatch.h, pwd/pwd.h,
+	  resource/sys/resource.h, resource/sys/vlimit.h,
+	  resource/sys/vtimes.h, setjmp/setjmp.h, signal/signal.h,
+	  signal/gnu/signal.h, socket/sys/socket.h, stdio/stdio.h,
+	  stdio/printf.h, stdlib/alloca.h, stdlib/stdlib.h, string/string.h,
+	  termios/termios.h, time/sys/time.h, time/time.h, io/sys/stat.h,
+	  io/fcntl.h, errno.h, stddef.h, malloc/malloc.h:
+	Deansideclized.  Use <sys/cdefs.h> macros instead of ansidecl and
+	C++ cruft.
+	* features.h: #include <sys/cdefs.h>.
+
+Sun May 17 15:50:00 1992  Roland McGrath  (roland@albert.gnu.ai.mit.edu)
+
+	* malloc/mtrace.c (old_{free,malloc,realloc}_hook): Renamed to tr_&
+	to not conflict with mcheck.c when combined into gmalloc.c.
+
+Tue Apr 28 19:25:21 1992  Roland McGrath  (roland@albert.gnu.ai.mit.edu)
+
+	* malloc/valloc.c [emacs]: #include "config.h"
+
+Thu Apr 23 13:55:34 1992  Roland McGrath  (roland@albert.gnu.ai.mit.edu)
+
+	* malloc/realloc.c, malloc/malloc.c: Don't #define memcpy or memset
+	if already #define'd.
+
+Tue Apr 21 04:16:56 1992  Roland McGrath  (roland@geech.gnu.ai.mit.edu)
+
+	* malloc/Makefile: Moved include ../Rules after malloc.tar rules.
+	They need $(routines), which Rules clears.
+
+	* malloc/realloc.c (MIN): Renamed to min.  Conflicted with HPUX
+	system header files.
+
+Tue Mar 17 17:31:06 1992  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* malloc/dist-README: Changed mailing list addr to bug-glibc.
+
+Sun Mar 15 00:01:05 1992  Roland McGrath  (roland@albert.gnu.ai.mit.edu)
+
+	* malloc/Makefile (malloc/gmalloc.c): Depend on headers and sources.
+
+Fri Mar 13 17:20:19 1992  Roland McGrath  (roland@wookumz.gnu.ai.mit.edu)
+
+	* malloc/Makefile (libmcheck.a), Makefile (crt0.o): Remove target
+	first; don't use -f to ln.
+
+Tue Feb 25 01:42:16 1992  Roland McGrath  (roland@wookumz.gnu.ai.mit.edu)
+
+	* malloc/dist-README: Fixed mailing list addr.
+
+Mon Feb 17 05:04:00 1992  Roland McGrath  (roland@wookumz.gnu.ai.mit.edu)
+
+	* malloc/Makefile (distribute): Add mcheck-init.c.
+
+Fri Feb 14 01:52:12 1992  Roland McGrath  (roland@wookumz.gnu.ai.mit.edu)
+
+	* Makeconfig: Added comments describing objdir/Makeconfig and
+	editting Makeconfig.
+	(prefix, libdir, INSTALL, INSTALL_DATA): New variables for installing.
+	* Makerules (install): New target.
+	* Makefile (+subdir_targets): Add subdir_install.
+	(install): Depend on subdir_install.
+	(install-lib): Define variable to install libc.a and crt0.o.
+	* misc/Makefile (install-lib): Install bsd-compat.
+	* malloc/Makefile (install-lib): Install mcheck-init.
+
+Wed Feb 12 12:12:12 1992  Roland McGrath  (roland@wookumz.gnu.ai.mit.edu)
+
+	* malloc/mtrace.c: Use %p fmt for pointers.
+
+
+Find older changes in OChangeLog.

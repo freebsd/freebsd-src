@@ -1,0 +1,12 @@
+This is the standalone distribution of GNU malloc.
+GNU malloc is part of the GNU C Library, but is also distributed separately.
+
+If you find bugs in GNU malloc, send reports to bug-glibc@prep.ai.mit.edu.
+
+GNU malloc is free software.  See the file COPYING.LIB for copying conditions.
+
+The makefile builds libmalloc.a and gmalloc.o.  If you are using GNU malloc
+to replace your system's existing malloc package, it is important to make
+sure you get all GNU functions, not some of the GNU functions and some from
+the system library.  gmalloc.o has all the functions in one file, so using
+that will make sure you don't accidentally mix the two malloc packages.
