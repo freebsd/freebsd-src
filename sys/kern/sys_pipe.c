@@ -1246,7 +1246,7 @@ pipe_close(fp, td)
 
 	fp->f_ops = &badfileops;
 	fp->f_data = NULL;
-	funsetown(cpipe->pipe_sigio);
+	funsetown(&cpipe->pipe_sigio);
 	pipeclose(cpipe);
 	return (0);
 }

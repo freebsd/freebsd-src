@@ -491,7 +491,7 @@ tapclose(dev, foo, bar, td)
 		splx(s);
 	}
 
-	funsetown(tp->tap_sigio);
+	funsetown(&tp->tap_sigio);
 	selwakeup(&tp->tap_rsel);
 
 	tp->tap_flags &= ~TAP_OPEN;

@@ -534,17 +534,18 @@ do_dup(fdp, old, new, retval, td)
  * free sigio.
  */
 void
-funsetown(sigio)
-	struct sigio *sigio;
+funsetown(sigiop)
+	struct sigio **sigiop;
 {
+	struct sigio *sigio;
 
 	SIGIO_LOCK();
+	sigio = *sigiop;
 	if (sigio == NULL) {
 		SIGIO_UNLOCK();
 		return;
 	}
 	*(sigio->sio_myref) = NULL;
-	SIGIO_UNLOCK();
 	if ((sigio)->sio_pgid < 0) {
 		struct pgrp *pg = (sigio)->sio_pgrp;
 		PGRP_LOCK(pg);
@@ -558,11 +559,17 @@ funsetown(sigio)
 			     sigio, sio_pgsigio);
 		PROC_UNLOCK(p);
 	}
+	SIGIO_UNLOCK();
 	crfree(sigio->sio_ucred);
 	FREE(sigio, M_SIGIO);
 }
 
-/* Free a list of sigio structures. */
+/*
+ * Free a list of sigio structures.
+ * We only need to lock the SIGIO_LOCK because we have made ourselves
+ * inaccessable to callers of fsetown and therefore do not need to lock
+ * the proc or pgrp struct for the list manipulation.
+ */
 void
 funsetownlst(sigiolst)
 	struct sigiolst *sigiolst;
@@ -570,8 +577,6 @@ funsetownlst(sigiolst)
 	struct sigio *sigio;
 	struct proc *p;
 	struct pgrp *pg;
-
-	SIGIO_ASSERT(MA_OWNED);
 
 	sigio = SLIST_FIRST(sigiolst);
 	if (sigio == NULL)
@@ -586,36 +591,40 @@ funsetownlst(sigiolst)
 	 */
 	if (sigio->sio_pgid < 0) {
 		pg = sigio->sio_pgrp;
-		PGRP_LOCK_ASSERT(pg, MA_OWNED);
+		PGRP_LOCK_ASSERT(pg, MA_NOTOWNED);
 	} else /* if (sigio->sio_pgid > 0) */ {
 		p = sigio->sio_proc;
-		PROC_LOCK_ASSERT(p, MA_OWNED);
+		PROC_LOCK_ASSERT(p, MA_NOTOWNED);
 	}
 
+	SIGIO_LOCK();
 	while ((sigio = SLIST_FIRST(sigiolst)) != NULL) {
 		*(sigio->sio_myref) = NULL;
 		if (pg != NULL) {
-			KASSERT(sigio->sio_pgid < 0, ("Proc sigio in pgrp sigio list"));
-			KASSERT(sigio->sio_pgrp == pg, ("Bogus pgrp in sigio list"));
-			SLIST_REMOVE(&pg->pg_sigiolst, sigio, sigio, sio_pgsigio);
-			PGRP_UNLOCK(pg);
-			SIGIO_UNLOCK();
-			crfree(sigio->sio_ucred);
-			FREE(sigio, M_SIGIO);
-			SIGIO_LOCK();
+			KASSERT(sigio->sio_pgid < 0,
+			    ("Proc sigio in pgrp sigio list"));
+			KASSERT(sigio->sio_pgrp == pg,
+			    ("Bogus pgrp in sigio list"));
 			PGRP_LOCK(pg);
+			SLIST_REMOVE(&pg->pg_sigiolst, sigio, sigio,
+			    sio_pgsigio);
+			PGRP_UNLOCK(pg);
 		} else /* if (p != NULL) */ {
-			KASSERT(sigio->sio_pgid > 0, ("Pgrp sigio in proc sigio list"));
-			KASSERT(sigio->sio_proc == p, ("Bogus proc in sigio list"));
-			SLIST_REMOVE(&p->p_sigiolst, sigio, sigio, sio_pgsigio);
-			PROC_UNLOCK(p);
-			SIGIO_UNLOCK();
-			crfree(sigio->sio_ucred);
-			FREE(sigio, M_SIGIO);
-			SIGIO_LOCK();
+			KASSERT(sigio->sio_pgid > 0,
+			    ("Pgrp sigio in proc sigio list"));
+			KASSERT(sigio->sio_proc == p,
+			    ("Bogus proc in sigio list"));
 			PROC_LOCK(p);
+			SLIST_REMOVE(&p->p_sigiolst, sigio, sigio,
+			    sio_pgsigio);
+			PROC_UNLOCK(p);
 		}
+		SIGIO_UNLOCK();
+		crfree(sigio->sio_ucred);
+		FREE(sigio, M_SIGIO);
+		SIGIO_LOCK();
 	}
+	SIGIO_UNLOCK();
 }
 
 /*
@@ -635,7 +644,7 @@ fsetown(pgid, sigiop)
 	int ret;
 
 	if (pgid == 0) {
-		funsetown(*sigiop);
+		funsetown(sigiop);
 		return (0);
 	}
 
@@ -693,9 +702,19 @@ fsetown(pgid, sigiop)
 
 		proc = NULL;
 	}
-	funsetown(*sigiop);
+	funsetown(sigiop);
 	if (pgid > 0) {
 		PROC_LOCK(proc);
+		/* 
+		 * since funsetownlst() is called without the proctree
+		 * locked we need to check for P_WEXIT.
+		 * XXX: is ESRCH correct?
+		 */
+		if ((proc->p_flag & P_WEXIT) != 0) {
+			PROC_UNLOCK(proc);
+			ret = ESRCH;
+			goto fail;
+		}
 		SLIST_INSERT_HEAD(&proc->p_sigiolst, sigio, sio_pgsigio);
 		sigio->sio_proc = proc;
 		PROC_UNLOCK(proc);

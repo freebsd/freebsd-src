@@ -335,7 +335,7 @@ tunclose(dev_t dev, int foo, int bar, struct thread *td)
 		splx(s);
 	}
 
-	funsetown(tp->tun_sigio);
+	funsetown(&tp->tun_sigio);
 	selwakeup(&tp->tun_rsel);
 
 	TUNDEBUG ("%s%d: closed\n", ifp->if_name, ifp->if_unit);

@@ -118,7 +118,7 @@ logclose(dev_t dev, int flag, int mode, struct thread *td)
 	log_open = 0;
 	callout_stop(&logsoftc.sc_callout);
 	logsoftc.sc_state = 0;
-	funsetown(logsoftc.sc_sigio);
+	funsetown(&logsoftc.sc_sigio);
 	return (0);
 }
 
