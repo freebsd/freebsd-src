@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: exec.c,v 1.1 1994/10/21 02:14:49 phk Exp $
+ * $Id: exec.c,v 1.2 1994/10/21 05:36:42 phk Exp $
  *
  */
 
@@ -35,7 +35,6 @@ exec(int magic, char *cmd, char *args, ...)
 	int arg = 0;
 	va_list ap;
 	struct stat dummy;
-	int i;
 
 	if (stat(cmd, &dummy) == -1) {
 		sprintf(errmsg, "Executable %s does not exist\n", cmd);
@@ -58,14 +57,8 @@ exec(int magic, char *cmd, char *args, ...)
 			close(2); open("/dev/null",O_WRONLY);
 			break;
 		case 1:
-			close(0);
-			i = open("/file.list",O_RDONLY);
-			if (i != 0) {
-				perror("Couldn't open /etc/file.list");
-			}
-			close(1); open("/dev/null",O_WRONLY);
-			close(2); open("/dev/null",O_WRONLY);
 			break;
+			close(2); open("/dev/null",O_WRONLY);
 		default:
 			break;
 		}

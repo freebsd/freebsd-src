@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: main.c,v 1.6 1994/10/21 02:14:50 phk Exp $
+ * $Id: main.c,v 1.7 1994/10/24 03:30:55 paul Exp $
  *
  */
 
@@ -98,10 +98,10 @@ main(int argc, char **argv)
 		stage1();
 		stage2();
 		reboot(RB_AUTOBOOT);
-	} else if (getenv("STAGE3") || !access("/this_is_hd",R_OK)) {
-		stage3();
 	} else {
-		Fatal("Must setenv STAGE0 or STAGE3");
+		stage3();
+		stage4();
+		stage5();
 	}
 	return 0;
 }
