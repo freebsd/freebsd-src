@@ -37,18 +37,11 @@
 static char sccsid[] = "@(#)atol.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 
-#include <errno.h>
 #include <stdlib.h>
 
 long
 atol(str)
 	const char *str;
 {
-	long r;
-	int saverr;
-
-	saverr = errno;
-	r = strtol(str, (char **)NULL, 10);
-	errno = saverr;
-	return r;
+	return strtol(str, (char **)NULL, 10);
 }

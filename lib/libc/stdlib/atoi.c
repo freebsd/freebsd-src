@@ -37,17 +37,11 @@
 static char sccsid[] = "@(#)atoi.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 
-#include <errno.h>
 #include <stdlib.h>
 
 int
 atoi(str)
 	const char *str;
 {
-	int r, saverr;
-
-	saverr = errno;
-	r = (int)strtol(str, (char **)NULL, 10);
-	errno = saverr;
-	return r;
+	return (int)strtol(str, (char **)NULL, 10);
 }
