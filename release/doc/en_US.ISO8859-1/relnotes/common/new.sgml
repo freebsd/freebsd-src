@@ -63,7 +63,7 @@
 
     <para>The &man.stl.4; driver now supports the PCI and ISA EasyIO
     multi-port serial cards from Stallion Technologies based on the
-    Signetics SC26C194/8 Intelligent Quad/Octal UART</para>
+    Signetics SC26C194/8 Intelligent Quad/Octal UART.</para>
 
     <para>The <varname>maxusers</varname> kernel configuration
     parameter is now a boot-time tunable variable.  The kernel
@@ -77,11 +77,11 @@
     that they can modify.</para>
 
     <para arch="alpha">A long standing bug in the &os; boot from CDROM has 
-    been fixed. This means that machines like AlphaServer 1200 can now
+    been fixed.  This means that machines like the AlphaServer 1200 can now
     be booted from the installation and fixit CDROMs.</para>
     
     <para arch="alpha">Whitebox (NT-only) AlphaServer 530x machines are
-    now supported by &os;. &os; is as always booted from SRM, not from
+    now supported by &os;.  &os; is as always booted from SRM, not from
     AlphaBIOS.</para>
 
     <sect3>
@@ -91,12 +91,12 @@
       Transmeta Crusoe, and Transmeta Crusoe with LongRun, has been
       added.</para>
 
-      <para arch="alpha">Because of space constraints on the boot floppy
+      <para arch="alpha">Because of space constraints on the boot floppy,
       support for DEC3000 TurboChannel-based machines has been removed from
-      the installation kernel. For the same reason the following device 
+      the installation kernel.  For the same reason, the following device 
       drivers are no longer present in the installation kernel: 
-      ncr, sa, amr, plip, le, pcn, wx and sl. Note that most if not
-      all Symbios adapters are covered by the new sym driver.</para>
+      &man.ncr.4;, &man.sa.4;, &man.amr.4;, &man.plip.4;, &man.le.4;, &man.pcn.4;, &man.wx.4;, and &man.sl.4;.  Note that most if not
+      all Symbios adapters are covered by the new &man.sym.4; driver.</para>
 
       <para arch="i386">Support for Streaming <acronym>SIMD</acronym>
       Extensions (<acronym>SSE</acronym>) has been introduced.  The
@@ -114,7 +114,8 @@
       <para>The &man.wx.4; driver now supports the Intel PRO1000-F and
       PRO1000-T (10/100/1000) adapters.</para>
       
-      <para>The &man.an.4; driver has received a few bug fixes;
+      <para>The &man.an.4; driver now supports the Cisco Aironet 350
+      series of adaptors and has received a few bug fixes;
       promiscuous mode now works, and it can be configured before being
       brought <literal>up</literal>.</para>
 
@@ -149,9 +150,6 @@
 
       <para>The &man.txp.4; driver has been added to support NICs
       based on the 3Com 3XP Typhoon/Sidewinder (3CR990) chipset.</para>
-
-      <para>The &man.an.4; driver now supports the Cisco Aironet 350
-      series of adaptors.</para>
     </sect3>
 
     <sect3>
@@ -187,7 +185,6 @@
       to determine the rate at which the machine is generating
       packets, since the default behavior is to increment a counter
       for each packet sent.</para>
-
     </sect3>
 
     <sect3>
@@ -212,7 +209,7 @@
       <para arch="i386">smbfs (CIFS) support in kernel has been
       added.  The corresponding userland filesystem mount utility can be found 
       in the <port>net/smbfs</port> port in the &os; Ports 
-      Collection. </para>
+      Collection.</para>
 
       <para>A simple hash-based lookup optimization for large directories
       called <literal>dirhash</literal> has been added.  Conditional on the
@@ -405,8 +402,8 @@
 
     <para>&man.vidcontrol.1; now supports a <option>-p</option> to
     take a snapshot of a &man.syscons.4; video buffer.  These
-    snapshots can be manipulated by some of the
-    <filename>scr2*</filename> utilities in the Ports
+    snapshots can be manipulated by the
+    <port>graphics/scr2png</port> utility in the Ports
     Collection.</para>
 
     <para>&man.vidcontrol.1; now allows the user to omit the font size
@@ -450,7 +447,7 @@
     appropriate server will also be queried, provided that the
     <option>-Q</option> option is not specified.</para>
 
-    <para>The <option>-T</option> to &man.dump.8; no longer swallows
+    <para>The <option>-T</option> option to &man.dump.8; no longer swallows
     an extra argument.</para>
 
     <para>&man.dump.8; has a new <option>-D</option> option, allowing
@@ -468,7 +465,7 @@
     <para>&man.xargs.1; now supports a <option>-J</option>
     <replaceable>replstr</replaceable> option that allows the user to
     tell &man.xargs.1; to insert the data read from standard input at
-    a specific point in the command line arguments rather than at the
+    a specific point in the command line arguments, rather than at the
     end.</para>
 
     <para>&man.ifconfig.8; now has support for setting parameters for
@@ -477,7 +474,7 @@
 
     <para>&man.ifconfig.8; no longer displays the list of supported
     media by default.  Instead it displays it when the
-    <option>-m</option> is given.</para>
+    <option>-m</option> option is given.</para>
 
     <para>&man.lpd.8; now takes two new options:  <option>-c</option>
     will log all connection errors to &man.syslogd.8;, while
@@ -557,7 +554,7 @@
     <literal>prev</literal> commands to skip forwards or backwards a
     specified number of tracks while playing an audio CD.</para>
 
-    <para>&man.col.1; now takes a <option>-p</option> to force unknown
+    <para>&man.col.1; now takes a <option>-p</option> flag to force unknown
     control sequences to be passed through unchanged.</para>
 
     <para>&man.tmpnam.3; will now use the <envar>TMPDIR</envar>
@@ -574,7 +571,7 @@
     <para>&man.apmd.8; now has the ability to monitor battery levels and
     execute commands based on percentage or minutes of battery life
     remaining via the <literal>apm_battery</literal> configuration
-    directive.  See the commented out examples in
+    directive.  See the commented-out examples in
     <filename>/etc/apmd.conf</filename> for the syntax.</para>
 
     <para>&man.pppd.8; (the control program for kernel-level PPP) is
@@ -681,6 +678,5 @@
       to limit its operation to ports/packages matching a given
       string.</para>
     </sect3>
-
   </sect2>
 </sect1>
