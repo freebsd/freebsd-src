@@ -343,6 +343,7 @@ again:
 		 * Child process.  Set start time and get to work.
 		 */
 		microtime(&runtime);
+		(void) spl0();
 		p2->p_stats->p_start = runtime;
 		p2->p_acflag = AFORK;
 		return (0);
