@@ -70,14 +70,15 @@ The first argument to
 indicates an action to be performed:
 .Bl -tag -width ".Cm configure"
 .It Cm create
-Setup a transparent provider on the given devices.
+Set up a transparent provider on the given devices.
 If operation succeded, new provider should appear with name
-.Pa /dev/<dev>.nop .
+.Pa /dev/ Ns Ao Ar dev Ac Ns Pa .nop .
 The kernel module
 .Pa geom_nop.ko
 will be loaded if it is not loaded already.
 .It Cm configure
-Configure existing transparent provider. At the moment it is only used
+Configure existing transparent provider.
+At the moment it is only used
 for changing failure probability.
 The kernel module
 .Pa geom_nop.ko
