@@ -2,7 +2,7 @@
  *
  * Module Name: nsxfobj - Public interfaces to the ACPI subsystem
  *                         ACPI Object oriented interfaces
- *              $Revision: 95 $
+ *              $Revision: 98 $
  *
  ******************************************************************************/
 
@@ -134,7 +134,7 @@
  *
  * PARAMETERS:  Handle              - Object handle (optional)
  *              *Pathname           - Object pathname (optional)
- *              **ExternalParams    - List of parameters to pass to method, 
+ *              **ExternalParams    - List of parameters to pass to method,
  *                                    terminated by NULL.  May be NULL
  *                                    if no parameters are being passed.
  *              *ReturnBuffer       - Where to put method's return value (if
@@ -641,8 +641,8 @@ AcpiWalkNamespace (
      * must be allowed to make Acpi calls itself.
      */
     AcpiUtAcquireMutex (ACPI_MTX_NAMESPACE);
-    Status = AcpiNsWalkNamespace ((ACPI_OBJECT_TYPE8) Type, StartObject, 
-                    MaxDepth, NS_WALK_UNLOCK, UserFunction, Context, 
+    Status = AcpiNsWalkNamespace ((ACPI_OBJECT_TYPE8) Type, StartObject,
+                    MaxDepth, NS_WALK_UNLOCK, UserFunction, Context,
                     ReturnValue);
 
     AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
@@ -675,7 +675,8 @@ AcpiNsGetDeviceCallback (
     ACPI_STATUS             Status;
     ACPI_NAMESPACE_NODE     *Node;
     UINT32                  Flags;
-    ACPI_DEVICE_ID          DeviceId;
+    ACPI_DEVICE_ID          Hid;
+    ACPI_DEVICE_ID          Cid;
     ACPI_GET_DEVICES_INFO   *Info;
 
 
@@ -701,16 +702,16 @@ AcpiNsGetDeviceCallback (
 
     if (!(Flags & 0x01))
     {
-        /* don't return at the device or children of the device if not there */
+        /* Don't return at the device or children of the device if not there */
         return (AE_CTRL_DEPTH);
     }
 
     /*
-     * Filter based on device HID
+     * Filter based on device HID & CID
      */
     if (Info->Hid != NULL)
     {
-        Status = AcpiUtExecute_HID (Node, &DeviceId);
+        Status = AcpiUtExecute_HID (Node, &Hid);
         if (Status == AE_NOT_FOUND)
         {
             return (AE_OK);
@@ -721,9 +722,25 @@ AcpiNsGetDeviceCallback (
             return (AE_CTRL_DEPTH);
         }
 
-        if (STRNCMP (DeviceId.Buffer, Info->Hid, sizeof (DeviceId.Buffer)) != 0)
+        if (STRNCMP (Hid.Buffer, Info->Hid, sizeof (Hid.Buffer)) != 0)
         {
-            return (AE_OK);
+            Status = AcpiUtExecute_CID (Node, &Cid);
+            if (Status == AE_NOT_FOUND)
+            {
+                return (AE_OK);
+            }
+
+            else if (ACPI_FAILURE (Status))
+            {
+                return (AE_CTRL_DEPTH);
+            }
+
+            /* TBD: Handle CID packages */
+
+            if (STRNCMP (Cid.Buffer, Info->Hid, sizeof (Cid.Buffer)) != 0)
+            {
+                return (AE_OK);
+            }
         }
     }
 
@@ -803,3 +820,158 @@ AcpiGetDevices (
 
     return_ACPI_STATUS (Status);
 }
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiAttachData
+ *
+ * PARAMETERS:  
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: 
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiAttachData (
+    ACPI_HANDLE             ObjHandle,
+    ACPI_OBJECT_HANDLER     Handler,
+    void                    *Data)
+{
+    ACPI_NAMESPACE_NODE     *Node;
+    ACPI_STATUS             Status;
+
+
+    /* Parameter validation */
+
+    if (!ObjHandle  ||
+        !Handler    ||
+        !Data)
+    {
+        return (AE_BAD_PARAMETER);
+    }
+
+
+    AcpiUtAcquireMutex (ACPI_MTX_NAMESPACE);
+
+    /* Convert and validate the handle */
+
+    Node = AcpiNsMapHandleToNode (ObjHandle);
+    if (!Node)
+    {
+        Status = AE_BAD_PARAMETER;
+        goto UnlockAndExit;
+    }
+
+    Status = AcpiNsAttachData (Node, Handler, Data);
+
+UnlockAndExit:
+
+    AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
+    return (Status);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDetachData
+ *
+ * PARAMETERS:  
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: 
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiDetachData (
+    ACPI_HANDLE             ObjHandle,
+    ACPI_OBJECT_HANDLER     Handler)
+{
+    ACPI_NAMESPACE_NODE     *Node;
+    ACPI_STATUS             Status;
+
+
+    /* Parameter validation */
+
+    if (!ObjHandle  ||
+        !Handler)
+    {
+        return (AE_BAD_PARAMETER);
+    }
+
+    AcpiUtAcquireMutex (ACPI_MTX_NAMESPACE);
+
+    /* Convert and validate the handle */
+
+    Node = AcpiNsMapHandleToNode (ObjHandle);
+    if (!Node)
+    {
+        Status = AE_BAD_PARAMETER;
+        goto UnlockAndExit;
+    }
+
+    Status = AcpiNsDetachData (Node, Handler);
+
+UnlockAndExit:
+
+    AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
+    return (Status);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiGetData
+ *
+ * PARAMETERS:  
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: 
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiGetData (
+    ACPI_HANDLE             ObjHandle,
+    ACPI_OBJECT_HANDLER     Handler,
+    void                    **Data)
+{
+    ACPI_NAMESPACE_NODE     *Node;
+    ACPI_STATUS             Status;
+
+
+    /* Parameter validation */
+
+    if (!ObjHandle  ||
+        !Handler    ||
+        !Data)
+    {
+        return (AE_BAD_PARAMETER);
+    }
+
+    AcpiUtAcquireMutex (ACPI_MTX_NAMESPACE);
+
+    /* Convert and validate the handle */
+
+    Node = AcpiNsMapHandleToNode (ObjHandle);
+    if (!Node)
+    {
+        Status = AE_BAD_PARAMETER;
+        goto UnlockAndExit;
+    }
+
+    Status = AcpiNsGetAttachedData (Node, Handler, Data);
+
+UnlockAndExit:
+
+    AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
+    return (Status);
+}
+
+
+

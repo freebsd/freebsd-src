@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: utxface - External interfaces for "global" ACPI functions
- *              $Revision: 82 $
+ *              $Revision: 85 $
  *
  *****************************************************************************/
 
@@ -125,6 +125,8 @@
 #include "amlcode.h"
 #include "acdebug.h"
 #include "acexcep.h"
+#include "acparser.h"
+#include "acdispat.h"
 
 
 #define _COMPONENT          ACPI_UTILITIES
@@ -295,7 +297,6 @@ AcpiEnableSubsystem (
         }
     }
 
-
     /*
      * Initialize all device objects in the namespace
      * This runs the _STA and _INI methods.
@@ -310,7 +311,6 @@ AcpiEnableSubsystem (
             return_ACPI_STATUS (Status);
         }
     }
-
 
     /*
      * Initialize the objects that remain uninitialized.  This
@@ -328,8 +328,14 @@ AcpiEnableSubsystem (
         }
     }
 
-    AcpiGbl_StartupFlags |= ACPI_INITIALIZED_OK;
+    /*
+     * Empty the caches (delete the cached objects) on the assumption that
+     * the table load filled them up more than they will be at runtime --
+     * thus wasting non-paged memory.
+     */
+    Status = AcpiPurgeCachedObjects ();
 
+    AcpiGbl_StartupFlags |= ACPI_INITIALIZED_OK;
     return_ACPI_STATUS (Status);
 }
 
@@ -355,10 +361,6 @@ AcpiTerminate (void)
     /* Terminate the AML Debugger if present */
 
     DEBUGGER_EXEC(AcpiGbl_DbTerminateThreads = TRUE);
-
-    /* TBD: [Investigate] This is no longer needed?*/
-/*    AcpiUtReleaseMutex (ACPI_MTX_DEBUG_CMD_READY); */
-
 
     /* Shutdown and free all resources */
 
@@ -474,7 +476,7 @@ AcpiGetSystemInfo (
 
     /* System flags (ACPI capabilities) */
 
-    InfoPtr->Flags              = AcpiGbl_SystemFlags;
+    InfoPtr->Flags              = SYS_MODE_ACPI;
 
     /* Timer resolution - 24 or 32 bits  */
     if (!AcpiGbl_FADT)
@@ -512,3 +514,28 @@ AcpiGetSystemInfo (
 }
 
 
+/*****************************************************************************
+ *
+ * FUNCTION:    AcpiPurgeCachedObjects
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Empty all caches (delete the cached objects)
+ *
+ ****************************************************************************/
+
+ACPI_STATUS
+AcpiPurgeCachedObjects (void)
+{
+    FUNCTION_TRACE ("AcpiPurgeCachedObjects");
+
+
+    AcpiUtDeleteGenericStateCache ();
+    AcpiUtDeleteObjectCache ();
+    AcpiDsDeleteWalkStateCache ();
+    AcpiPsDeleteParseCache ();
+
+    return_ACPI_STATUS (AE_OK);
+}

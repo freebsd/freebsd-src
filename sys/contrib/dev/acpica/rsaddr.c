@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: rsaddr - Address resource descriptors (16/32/64)
- *              $Revision: 19 $
+ *              $Revision: 20 $
  *
  ******************************************************************************/
 
@@ -179,6 +179,7 @@ AcpiRsAddress16Resource (
     Temp8 = *Buffer;
 
     /* Values 0-2 are valid */
+
     if (Temp8 > 2)
     {
         return_ACPI_STATUS (AE_AML_INVALID_RESOURCE_TYPE);
@@ -192,24 +193,20 @@ AcpiRsAddress16Resource (
     Buffer += 1;
     Temp8 = *Buffer;
 
-    /*
-     * Producer / Consumer
-     */
+    /* Producer / Consumer */
+
     OutputStruct->Data.Address16.ProducerConsumer = Temp8 & 0x01;
 
-    /*
-     * Decode
-     */
+    /* Decode */
+
     OutputStruct->Data.Address16.Decode = (Temp8 >> 1) & 0x01;
 
-    /*
-     * Min Address Fixed
-     */
+    /* Min Address Fixed */
+
     OutputStruct->Data.Address16.MinAddressFixed = (Temp8 >> 2) & 0x01;
 
-    /*
-     * Max Address Fixed
-     */
+    /* Max Address Fixed */
+
     OutputStruct->Data.Address16.MaxAddressFixed = (Temp8 >> 3) & 0x01;
 
     /*
@@ -225,7 +222,6 @@ AcpiRsAddress16Resource (
         OutputStruct->Data.Address16.Attribute.Memory.CacheAttribute =
                 (UINT16) ((Temp8 >> 1) & 0x0F);
     }
-
     else
     {
         if (IO_RANGE == OutputStruct->Data.Address16.ResourceType)
@@ -233,7 +229,6 @@ AcpiRsAddress16Resource (
             OutputStruct->Data.Address16.Attribute.Io.RangeAttribute =
                 (UINT16) (Temp8 & 0x03);
         }
-
         else
         {
             /* BUS_NUMBER_RANGE == Address16.Data->ResourceType */
@@ -334,7 +329,6 @@ AcpiRsAddress16Resource (
         Temp8 = (UINT8) (Index + 1);
         StructSize += ROUND_UP_TO_32BITS (Temp8);
     }
-
     else
     {
         OutputStruct->Data.Address16.ResourceSource.Index = 0x00;
@@ -434,7 +428,6 @@ AcpiRsAddress16Stream (
             (LinkedList->Data.Address16.Attribute.Memory.CacheAttribute &
              0x0F) << 1;
     }
-
     else if (IO_RANGE == LinkedList->Data.Address16.ResourceType)
     {
         Temp8 = (UINT8)
@@ -632,7 +625,6 @@ AcpiRsAddress32Resource (
         OutputStruct->Data.Address32.Attribute.Memory.CacheAttribute =
                 (UINT16) ((Temp8 >> 1) & 0x0F);
     }
-
     else
     {
         if (IO_RANGE == OutputStruct->Data.Address32.ResourceType)
@@ -640,7 +632,6 @@ AcpiRsAddress32Resource (
             OutputStruct->Data.Address32.Attribute.Io.RangeAttribute =
                 (UINT16) (Temp8 & 0x03);
         }
-
         else
         {
             /* BUS_NUMBER_RANGE == OutputStruct->Data.Address32.ResourceType */
@@ -715,7 +706,6 @@ AcpiRsAddress32Resource (
         /* Copy the string into the buffer */
 
         Index = 0;
-
         while (0x00 != *Buffer)
         {
             *TempPtr = *Buffer;
@@ -739,7 +729,6 @@ AcpiRsAddress32Resource (
         Temp8 = (UINT8) (Index + 1);
         StructSize += ROUND_UP_TO_32BITS (Temp8);
     }
-
     else
     {
         OutputStruct->Data.Address32.ResourceSource.Index = 0x00;
@@ -803,7 +792,6 @@ AcpiRsAddress32Stream (
     /*
      * Set a pointer to the Length field - to be filled in later
      */
-
     LengthField = (UINT16 *) Buffer;
     Buffer += 2;
 
@@ -841,7 +829,6 @@ AcpiRsAddress32Stream (
             (LinkedList->Data.Address32.Attribute.Memory.CacheAttribute &
              0x0F) << 1;
     }
-
     else if (IO_RANGE == LinkedList->Data.Address32.ResourceType)
     {
         Temp8 = (UINT8)
@@ -988,6 +975,7 @@ AcpiRsAddress64Resource (
     Temp8 = *Buffer;
 
     /* Values 0-2 are valid */
+
     if(Temp8 > 2)
     {
         return_ACPI_STATUS (AE_AML_INVALID_RESOURCE_TYPE);
@@ -1035,7 +1023,6 @@ AcpiRsAddress64Resource (
         OutputStruct->Data.Address64.Attribute.Memory.CacheAttribute =
                 (UINT16) ((Temp8 >> 1) & 0x0F);
     }
-
     else
     {
         if (IO_RANGE == OutputStruct->Data.Address64.ResourceType)
@@ -1043,7 +1030,6 @@ AcpiRsAddress64Resource (
             OutputStruct->Data.Address64.Attribute.Io.RangeAttribute =
                 (UINT16) (Temp8 & 0x03);
         }
-
         else
         {
             /* BUS_NUMBER_RANGE == OutputStruct->Data.Address64.ResourceType */
@@ -1120,7 +1106,6 @@ AcpiRsAddress64Resource (
         /* Copy the string into the buffer */
 
         Index = 0;
-
         while (0x00 != *Buffer)
         {
             *TempPtr = *Buffer;
@@ -1145,7 +1130,6 @@ AcpiRsAddress64Resource (
         Temp8 = (UINT8) (Index + 1);
         StructSize += ROUND_UP_TO_32BITS (Temp8);
     }
-
     else
     {
         OutputStruct->Data.Address64.ResourceSource.Index = 0x00;
@@ -1247,7 +1231,6 @@ AcpiRsAddress64Stream (
             (LinkedList->Data.Address64.Attribute.Memory.CacheAttribute &
              0x0F) << 1;
     }
-
     else if (IO_RANGE == LinkedList->Data.Address64.ResourceType)
     {
         Temp8 = (UINT8)

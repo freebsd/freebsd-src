@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: rsirq - IRQ resource descriptors
- *              $Revision: 18 $
+ *              $Revision: 19 $
  *
  ******************************************************************************/
 
@@ -213,7 +213,6 @@ AcpiRsIrqResource (
             OutputStruct->Data.Irq.EdgeLevel = EDGE_SENSITIVE;
             OutputStruct->Data.Irq.ActiveHighLow = ACTIVE_HIGH;
         }
-
         else
         {
             if (Temp8 & 0x8)
@@ -221,7 +220,6 @@ AcpiRsIrqResource (
                 OutputStruct->Data.Irq.EdgeLevel = LEVEL_SENSITIVE;
                 OutputStruct->Data.Irq.ActiveHighLow = ACTIVE_LOW;
             }
-
             else
             {
                 /*
@@ -238,7 +236,6 @@ AcpiRsIrqResource (
          */
         OutputStruct->Data.Irq.SharedExclusive = (Temp8 >> 3) & 0x01;
     }
-
     else
     {
         /*
@@ -307,7 +304,6 @@ AcpiRsIrqStream (
         *Buffer = 0x22;
         IRQInfoByteNeeded = FALSE;
     }
-
     else
     {
         *Buffer = 0x23;
@@ -345,7 +341,6 @@ AcpiRsIrqStream (
         {
             Temp8 |= 0x08;
         }
-
         else
         {
             Temp8 |= 0x01;
@@ -429,7 +424,6 @@ AcpiRsExtendedIrqResource (
         OutputStruct->Data.ExtendedIrq.EdgeLevel = EDGE_SENSITIVE;
         OutputStruct->Data.ExtendedIrq.ActiveHighLow = ACTIVE_HIGH;
     }
-
     else
     {
         if(Temp8 & 0x4)
@@ -437,7 +431,6 @@ AcpiRsExtendedIrqResource (
             OutputStruct->Data.ExtendedIrq.EdgeLevel = LEVEL_SENSITIVE;
             OutputStruct->Data.ExtendedIrq.ActiveHighLow = ACTIVE_LOW;
         }
-
         else
         {
             /*
@@ -516,7 +509,6 @@ AcpiRsExtendedIrqResource (
         /* Copy the string into the buffer */
 
         Index = 0;
-
         while (0x00 != *Buffer)
         {
             *TempPtr = *Buffer;
@@ -540,7 +532,6 @@ AcpiRsExtendedIrqResource (
         Temp8 = (UINT8) (Index + 1);
         StructSize += ROUND_UP_TO_32BITS (Temp8);
     }
-
     else
     {
         OutputStruct->Data.ExtendedIrq.ResourceSource.Index = 0x00;

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: utglobal - Global variables for the ACPI subsystem
- *              $Revision: 133 $
+ *              $Revision: 136 $
  *
  *****************************************************************************/
 
@@ -234,10 +234,9 @@ BOOLEAN                     AcpiGbl_MethodExecuting = FALSE;
 
 /* System flags */
 
-UINT32                      AcpiGbl_SystemFlags = 0;
 UINT32                      AcpiGbl_StartupFlags = 0;
 
-/* System starts unitialized! */
+/* System starts uninitialized */
 
 BOOLEAN                     AcpiGbl_Shutdown = TRUE;
 
@@ -324,7 +323,8 @@ const UINT8                 AcpiGbl_NsProperties[] =
     NSP_NEWSCOPE,               /* 32 Scope            */
     NSP_LOCAL,                  /* 33 DefAny           */
     NSP_NORMAL,                 /* 34 Extra            */
-    NSP_NORMAL                  /* 35 Invalid          */
+    NSP_NORMAL,                 /* 35 Data             */
+    NSP_NORMAL                  /* 36 Invalid          */
 };
 
 
@@ -469,7 +469,8 @@ static const NATIVE_CHAR    *AcpiGbl_NsTypeNames[] =    /* printable names of AC
     /* 32 */ "Scope",
     /* 33 */ "DefAny",
     /* 34 */ "Extra",
-    /* 35 */ "Invalid"
+    /* 35 */ "Data",
+    /* 36 */ "Invalid"
 };
 
 
@@ -501,7 +502,7 @@ AcpiUtGetTypeName (
 
 /* Region type decoding */
 
-const NATIVE_CHAR *AcpiGbl_RegionTypes[NUM_REGION_TYPES] =
+const NATIVE_CHAR *AcpiGbl_RegionTypes[ACPI_NUM_PREDEFINED_REGIONS] =
 {
     "SystemMemory",
     "SystemIO",
@@ -530,12 +531,12 @@ AcpiUtGetRegionName (
     UINT8                   SpaceId)
 {
 
-    if (SpaceId >= USER_REGION_BEGIN)
+    if (SpaceId >= ACPI_USER_REGION_BEGIN)
     {
         return ("UserDefinedRegion");
     }
 
-    else if (SpaceId >= NUM_REGION_TYPES)
+    else if (SpaceId >= ACPI_NUM_PREDEFINED_REGIONS)
     {
         return ("InvalidSpaceID");
     }
@@ -573,9 +574,8 @@ const NATIVE_CHAR *AcpiGbl_AccessTypes[NUM_ACCESS_TYPES] =
     "ByteAcc",
     "WordAcc",
     "DWordAcc",
-    "BlockAcc",
-    "SMBSendRecvAcc",
-    "SMBQuickAcc"
+    "QWordAcc",
+    "BufferAcc",
 };
 
 
@@ -739,15 +739,6 @@ AcpiUtInitGlobals (
         AcpiGbl_AcpiTables[i].Count         = 0;
     }
 
-
-    /* Address Space handler array */
-
-    for (i = 0; i < ACPI_NUM_ADDRESS_SPACES; i++)
-    {
-        AcpiGbl_AddressSpaces[i].Handler    = NULL;
-        AcpiGbl_AddressSpaces[i].Context    = NULL;
-    }
-
     /* Mutex locked flags */
 
     for (i = 0; i < NUM_MTX; i++)
@@ -777,8 +768,6 @@ AcpiUtInitGlobals (
 
     /* Miscellaneous variables */
 
-    AcpiGbl_SystemFlags                 = 0;
-    AcpiGbl_StartupFlags                = 0;
     AcpiGbl_RsdpOriginalLocation        = 0;
     AcpiGbl_CmSingleStep                = FALSE;
     AcpiGbl_DbTerminateThreads          = FALSE;

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: utmisc - common utility procedures
- *              $Revision: 52 $
+ *              $Revision: 56 $
  *
  ******************************************************************************/
 
@@ -128,7 +128,6 @@
 
 #define _COMPONENT          ACPI_UTILITIES
         MODULE_NAME         ("utmisc")
-
 
 
 /*******************************************************************************
@@ -749,6 +748,46 @@ AcpiUtCreateGenericState (void)
 
 /*******************************************************************************
  *
+ * FUNCTION:    AcpiUtCreateThreadState
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      Thread State
+ *
+ * DESCRIPTION: Create a "Thread State" - a flavor of the generic state used
+ *              to track per-thread info during method execution
+ *
+ ******************************************************************************/
+
+ACPI_THREAD_STATE *
+AcpiUtCreateThreadState (
+    void)
+{
+    ACPI_GENERIC_STATE      *State;
+
+
+    FUNCTION_TRACE ("UtCreateThreadState");
+
+
+    /* Create the generic state object */
+
+    State = AcpiUtCreateGenericState ();
+    if (!State)
+    {
+        return_PTR (NULL);
+    }
+
+    /* Init fields specific to the update struct */
+
+    State->Common.DataType = ACPI_DESC_TYPE_STATE_THREAD;
+    State->Thread.ThreadId = AcpiOsGetThreadId ();
+
+    return_PTR ((ACPI_THREAD_STATE *) State);
+}
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    AcpiUtCreateUpdateState
  *
  * PARAMETERS:  Object              - Initial Object to be installed in the
@@ -779,7 +818,7 @@ AcpiUtCreateUpdateState (
     State = AcpiUtCreateGenericState ();
     if (!State)
     {
-        return (NULL);
+        return_PTR (NULL);
     }
 
     /* Init fields specific to the update struct */
@@ -823,7 +862,7 @@ AcpiUtCreatePkgState (
     State = AcpiUtCreateGenericState ();
     if (!State)
     {
-        return (NULL);
+        return_PTR (NULL);
     }
 
     /* Init fields specific to the update struct */
@@ -866,7 +905,7 @@ AcpiUtCreateControlState (
     State = AcpiUtCreateGenericState ();
     if (!State)
     {
-        return (NULL);
+        return_PTR (NULL);
     }
 
 
@@ -1077,7 +1116,7 @@ AcpiUtWalkPackageTree (
                         State->Pkg.SourceObject->Package.Elements[ThisIndex];
 
         /*
-         * Check for
+         * Check for:
          * 1) An uninitialized package element.  It is completely
          *      legal to declare a package and leave it uninitialized
          * 2) Not an internal object - can be a namespace node instead
@@ -1095,8 +1134,6 @@ AcpiUtWalkPackageTree (
                                     State, Context);
             if (ACPI_FAILURE (Status))
             {
-                /* TBD: must delete package created up to this point */
-
                 return_ACPI_STATUS (Status);
             }
 
@@ -1112,7 +1149,6 @@ AcpiUtWalkPackageTree (
                  */
                 AcpiUtDeleteGenericState (State);
                 State = AcpiUtPopGenericState (&StateList);
-
 
                 /* Finished when there are no more states */
 
@@ -1133,35 +1169,26 @@ AcpiUtWalkPackageTree (
                 State->Pkg.Index++;
             }
         }
-
         else
         {
-            /* This is a sub-object of type package */
+            /* This is a subobject of type package */
 
             Status = WalkCallback (ACPI_COPY_TYPE_PACKAGE, ThisSourceObj,
                                         State, Context);
             if (ACPI_FAILURE (Status))
             {
-                /* TBD: must delete package created up to this point */
-
                 return_ACPI_STATUS (Status);
             }
 
-
-            /*
-             * The callback above returned a new target package object.
-             */
-
             /*
              * Push the current state and create a new one
+             * The callback above returned a new target package object.
              */
             AcpiUtPushGenericState (&StateList, State);
             State = AcpiUtCreatePkgState (ThisSourceObj,
                                             State->Pkg.ThisTargetObj, 0);
             if (!State)
             {
-                /* TBD: must delete package created up to this point */
-
                 return_ACPI_STATUS (AE_NO_MEMORY);
             }
         }
@@ -1169,7 +1196,7 @@ AcpiUtWalkPackageTree (
 
     /* We should never get here */
 
-    return (AE_AML_INTERNAL);
+    return_ACPI_STATUS (AE_AML_INTERNAL);
 }
 
 

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: actypes.h - Common data types for the entire ACPI subsystem
- *       $Revision: 193 $
+ *       $Revision: 199 $
  *
  *****************************************************************************/
 
@@ -384,6 +384,12 @@ typedef UINT64                          ACPI_INTEGER;
 #define ACPI_D_STATE_COUNT              4
 
 /*
+ * Sleep type invalid value
+ */
+#define ACPI_SLEEP_TYPE_MAX             0x7
+#define ACPI_SLEEP_TYPE_INVALID         0xFF
+
+/*
  * Standard notify values
  */
 #define ACPI_NOTIFY_BUS_CHECK           (UINT8) 0
@@ -427,25 +433,25 @@ typedef UINT32                          ACPI_OBJECT_TYPE;
 typedef UINT8                           ACPI_OBJECT_TYPE8;
 
 
-#define ACPI_TYPE_ANY                   0  /* 0x00  */
-#define ACPI_TYPE_INTEGER               1  /* 0x01  Byte/Word/Dword/Zero/One/Ones */
-#define ACPI_TYPE_STRING                2  /* 0x02  */
-#define ACPI_TYPE_BUFFER                3  /* 0x03  */
-#define ACPI_TYPE_PACKAGE               4  /* 0x04  ByteConst, multiple DataTerm/Constant/SuperName */
-#define ACPI_TYPE_FIELD_UNIT            5  /* 0x05  */
-#define ACPI_TYPE_DEVICE                6  /* 0x06  Name, multiple Node */
-#define ACPI_TYPE_EVENT                 7  /* 0x07  */
-#define ACPI_TYPE_METHOD                8  /* 0x08  Name, ByteConst, multiple Code */
-#define ACPI_TYPE_MUTEX                 9  /* 0x09  */
-#define ACPI_TYPE_REGION                10 /* 0x0A  */
-#define ACPI_TYPE_POWER                 11 /* 0x0B  Name,ByteConst,WordConst,multi Node */
-#define ACPI_TYPE_PROCESSOR             12 /* 0x0C  Name,ByteConst,DWordConst,ByteConst,multi NmO */
-#define ACPI_TYPE_THERMAL               13 /* 0x0D  Name, multiple Node */
-#define ACPI_TYPE_BUFFER_FIELD          14 /* 0x0E  */
-#define ACPI_TYPE_DDB_HANDLE            15 /* 0x0F  */
-#define ACPI_TYPE_DEBUG_OBJECT          16 /* 0x10  */
+#define ACPI_TYPE_ANY                   0x00
+#define ACPI_TYPE_INTEGER               0x01  /* Byte/Word/Dword/Zero/One/Ones */
+#define ACPI_TYPE_STRING                0x02
+#define ACPI_TYPE_BUFFER                0x03
+#define ACPI_TYPE_PACKAGE               0x04  /* ByteConst, multiple DataTerm/Constant/SuperName */
+#define ACPI_TYPE_FIELD_UNIT            0x05
+#define ACPI_TYPE_DEVICE                0x06  /* Name, multiple Node */
+#define ACPI_TYPE_EVENT                 0x07
+#define ACPI_TYPE_METHOD                0x08  /* Name, ByteConst, multiple Code */
+#define ACPI_TYPE_MUTEX                 0x09
+#define ACPI_TYPE_REGION                0x0A
+#define ACPI_TYPE_POWER                 0x0B  /* Name,ByteConst,WordConst,multi Node */
+#define ACPI_TYPE_PROCESSOR             0x0C  /* Name,ByteConst,DWordConst,ByteConst,multi NmO */
+#define ACPI_TYPE_THERMAL               0x0D  /* Name, multiple Node */
+#define ACPI_TYPE_BUFFER_FIELD          0x0E
+#define ACPI_TYPE_DDB_HANDLE            0x0F
+#define ACPI_TYPE_DEBUG_OBJECT          0x10
 
-#define ACPI_TYPE_MAX                   16
+#define ACPI_TYPE_MAX                   0x10
 
 /*
  * This section contains object types that do not relate to the ACPI ObjectType operator.
@@ -454,36 +460,37 @@ typedef UINT8                           ACPI_OBJECT_TYPE8;
  * Also, values exceeding the largest official ACPI ObjectType must not overlap with
  * defined AML opcodes.
  */
-#define INTERNAL_TYPE_BEGIN             17
+#define INTERNAL_TYPE_BEGIN             0x11
 
-#define INTERNAL_TYPE_REGION_FIELD      17 /* 0x11  */
-#define INTERNAL_TYPE_BANK_FIELD        18 /* 0x12  */
-#define INTERNAL_TYPE_INDEX_FIELD       19 /* 0x13  */
-#define INTERNAL_TYPE_REFERENCE         20 /* 0x14  Arg#, Local#, Name, Debug; used only in descriptors */
-#define INTERNAL_TYPE_ALIAS             21 /* 0x15  */
-#define INTERNAL_TYPE_NOTIFY            22 /* 0x16  */
-#define INTERNAL_TYPE_ADDRESS_HANDLER   23 /* 0x17  */
-#define INTERNAL_TYPE_RESOURCE          24 /* 0x18  */
-#define INTERNAL_TYPE_RESOURCE_FIELD    25 /* 0x19  */
+#define INTERNAL_TYPE_REGION_FIELD      0x11
+#define INTERNAL_TYPE_BANK_FIELD        0x12
+#define INTERNAL_TYPE_INDEX_FIELD       0x13
+#define INTERNAL_TYPE_REFERENCE         0x14  /* Arg#, Local#, Name, Debug; used only in descriptors */
+#define INTERNAL_TYPE_ALIAS             0x15
+#define INTERNAL_TYPE_NOTIFY            0x16
+#define INTERNAL_TYPE_ADDRESS_HANDLER   0x17
+#define INTERNAL_TYPE_RESOURCE          0x18
+#define INTERNAL_TYPE_RESOURCE_FIELD    0x19
 
 
-#define INTERNAL_TYPE_NODE_MAX          25
+#define INTERNAL_TYPE_NODE_MAX          0x19
 
 /* These are pseudo-types because there are never any namespace nodes with these types */
 
-#define INTERNAL_TYPE_FIELD_DEFN        26 /* 0x1A  Name, ByteConst, multiple FieldElement */
-#define INTERNAL_TYPE_BANK_FIELD_DEFN   27 /* 0x1B  2 Name,DWordConst,ByteConst,multi FieldElement */
-#define INTERNAL_TYPE_INDEX_FIELD_DEFN  28 /* 0x1C  2 Name, ByteConst, multiple FieldElement */
-#define INTERNAL_TYPE_IF                29 /* 0x1D  */
-#define INTERNAL_TYPE_ELSE              30 /* 0x1E  */
-#define INTERNAL_TYPE_WHILE             31 /* 0x1F  */
-#define INTERNAL_TYPE_SCOPE             32 /* 0x20  Name, multiple Node */
-#define INTERNAL_TYPE_DEF_ANY           33 /* 0x21  type is Any, suppress search of enclosing scopes */
-#define INTERNAL_TYPE_EXTRA             34 /* 0x22  */
+#define INTERNAL_TYPE_FIELD_DEFN        0x1A  /* Name, ByteConst, multiple FieldElement */
+#define INTERNAL_TYPE_BANK_FIELD_DEFN   0x1B  /* 2 Name,DWordConst,ByteConst,multi FieldElement */
+#define INTERNAL_TYPE_INDEX_FIELD_DEFN  0x1C  /* 2 Name, ByteConst, multiple FieldElement */
+#define INTERNAL_TYPE_IF                0x1D
+#define INTERNAL_TYPE_ELSE              0x1E
+#define INTERNAL_TYPE_WHILE             0x1F
+#define INTERNAL_TYPE_SCOPE             0x20  /* Name, multiple Node */
+#define INTERNAL_TYPE_DEF_ANY           0x21  /* type is Any, suppress search of enclosing scopes */
+#define INTERNAL_TYPE_EXTRA             0x22
+#define INTERNAL_TYPE_DATA              0x23
 
-#define INTERNAL_TYPE_MAX               34
+#define INTERNAL_TYPE_MAX               0x23
 
-#define INTERNAL_TYPE_INVALID           35
+#define INTERNAL_TYPE_INVALID           0x24
 #define ACPI_TYPE_NOT_FOUND             0xFF
 
 
@@ -518,6 +525,12 @@ typedef UINT8                           ACPI_OBJECT_TYPE8;
 #define ACPI_BTYPE_DEVICE_OBJECTS       (ACPI_BTYPE_DEVICE | ACPI_BTYPE_THERMAL | ACPI_BTYPE_PROCESSOR)
 #define ACPI_BTYPE_OBJECTS_AND_REFS     0x0001FFFF  /* ARG or LOCAL */
 #define ACPI_BTYPE_ALL_OBJECTS          0x0000FFFF
+
+/*
+ * All I/O
+ */
+#define ACPI_READ                       0
+#define ACPI_WRITE                      1
 
 
 /*
@@ -560,7 +573,7 @@ typedef UINT32                          ACPI_EVENT_TYPE;
  * GPEs
  */
 #define ACPI_EVENT_ENABLE               0x1
-#define ACPI_EVENT_WAKE_ENABLE	        0x2
+#define ACPI_EVENT_WAKE_ENABLE          0x2
 
 #define ACPI_EVENT_DISABLE              0x1
 #define ACPI_EVENT_WAKE_DISABLE         0x2
@@ -760,18 +773,21 @@ void (*ACPI_NOTIFY_HANDLER) (
     UINT32                      Value,
     void                        *Context);
 
+typedef
+void (*ACPI_OBJECT_HANDLER) (
+    ACPI_HANDLE                 Object,
+    UINT32                      Function,
+    void                        *Data);
+
 
 /* Address Spaces (Operation Regions */
-
-#define ACPI_READ_ADR_SPACE     1
-#define ACPI_WRITE_ADR_SPACE    2
 
 typedef
 ACPI_STATUS (*ACPI_ADR_SPACE_HANDLER) (
     UINT32                      Function,
     ACPI_PHYSICAL_ADDRESS       Address,
     UINT32                      BitWidth,
-    UINT32                      *Value,
+    ACPI_INTEGER                *Value,
     void                        *HandlerContext,
     void                        *RegionContext);
 

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acutils.h -- prototypes for the common (subsystem-wide) procedures
- *       $Revision: 117 $
+ *       $Revision: 119 $
  *
  *****************************************************************************/
 
@@ -474,6 +474,7 @@ AcpiUtDeleteInternalObjectList (
 /* Method name strings */
 
 #define METHOD_NAME__HID        "_HID"
+#define METHOD_NAME__CID        "_CID"
 #define METHOD_NAME__UID        "_UID"
 #define METHOD_NAME__ADR        "_ADR"
 #define METHOD_NAME__STA        "_STA"
@@ -493,6 +494,11 @@ ACPI_STATUS
 AcpiUtExecute_HID (
     ACPI_NAMESPACE_NODE     *DeviceNode,
     ACPI_DEVICE_ID          *Hid);
+
+ACPI_STATUS
+AcpiUtExecute_CID (
+    ACPI_NAMESPACE_NODE     *DeviceNode,
+    ACPI_DEVICE_ID          *Cid);
 
 ACPI_STATUS
 AcpiUtExecute_STA (
@@ -611,6 +617,10 @@ AcpiUtPopGenericState (
 
 ACPI_GENERIC_STATE *
 AcpiUtCreateGenericState (
+    void);
+
+ACPI_THREAD_STATE *
+AcpiUtCreateThreadState (
     void);
 
 ACPI_GENERIC_STATE *

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: utinit - Common ACPI subsystem initialization
- *              $Revision: 102 $
+ *              $Revision: 103 $
  *
  *****************************************************************************/
 
@@ -121,8 +121,6 @@
 #include "achware.h"
 #include "acnamesp.h"
 #include "acevents.h"
-#include "acparser.h"
-#include "acdispat.h"
 
 #define _COMPONENT          ACPI_UTILITIES
         MODULE_NAME         ("utinit")
@@ -322,7 +320,6 @@ AcpiUtSubsystemShutdown (void)
     AcpiGbl_Shutdown = TRUE;
     ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Shutting down ACPI Subsystem...\n"));
 
-
     /* Close the Namespace */
 
     AcpiNsTerminate ();
@@ -335,17 +332,9 @@ AcpiUtSubsystemShutdown (void)
 
     AcpiUtTerminate ();
 
-    /* Flush the local cache(s) */
+    /* Purge the local caches */
 
-    AcpiUtDeleteGenericStateCache ();
-    AcpiUtDeleteObjectCache ();
-    AcpiDsDeleteWalkStateCache ();
-
-    /* Close the Parser */
-
-    /* TBD: [Restructure] AcpiPsTerminate () */
-
-    AcpiPsDeleteParseCache ();
+    AcpiPurgeCachedObjects ();
 
     /* Debug only - display leftover memory allocation, if any */
 
