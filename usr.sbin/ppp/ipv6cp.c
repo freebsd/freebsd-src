@@ -224,7 +224,7 @@ ipcp_SetIPv6address(struct ipv6cp *ipv6cp, u_char *myifid, u_char *hisifid)
 
   ncpaddr_setip6(&ipv6cp->myaddr, &myaddr);
   ncpaddr_setip6(&ipv6cp->hisaddr, &hisaddr);
-  ncprange_sethost(&myrange, &ipv6cp->myaddr);
+  ncprange_set(&myrange, &ipv6cp->myaddr, 64);
 
   if (!iface_Add(bundle->iface, &bundle->ncp, &myrange, &ipv6cp->hisaddr,
                  IFACE_ADD_FIRST|IFACE_FORCE_ADD|IFACE_SYSTEM))
