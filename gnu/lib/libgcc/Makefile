@@ -94,7 +94,6 @@ tm.h:
 	echo '#include "${MACHINE_ARCH}/${MACHINE_ARCH}.h"'	> ${.TARGET}
 .if ${MACHINE_ARCH} == "i386"
 	echo '#include "${MACHINE_ARCH}/att.h"'			>> ${.TARGET}
-	echo '#include "svr4.h"'				>> ${.TARGET}
 .endif
 	echo '#include <freebsd.h>'				>> ${.TARGET}
 	echo '#include "${MACHINE_ARCH}/freebsd.h"'		>> ${.TARGET}
