@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: iso646.h,v 1.1 1998/08/01 13:42:12 alex Exp $
  */
 
 #ifndef _ISO646_H_
@@ -41,4 +41,4 @@
 #define xor	^
 #define xor_eq	^=
 
-#endif /* _ISO646_H_ */_
+#endif /* !_ISO646_H_ */
