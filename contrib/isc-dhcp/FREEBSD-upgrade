@@ -1,7 +1,7 @@
 # ex:ts=8
 $FreeBSD$
 
-ISC DHCP client 3.0.1rc12
+ISC DHCP client 3.0.1rc14
 	originals can be found at: ftp://ftp.isc.org/isc/dhcp/
 
 
@@ -27,8 +27,8 @@ For the import of ISC-dhclient the following files were removed:
 
 Imported by:
 
-	cvs import -m 'Import ISC DHCP 3.0.1 RC11 client.' \
-		src/contrib/isc-dhcp ISC isc_dhcp_3_0_1_rc12
+	cvs import -m 'Import ISC DHCP 3.0.1 RC14 client.' \
+		src/contrib/isc-dhcp ISC isc_dhcp_3_0_1_rc14
 
 
 To make local changes to isc-dhcp, simply patch and commit to the main

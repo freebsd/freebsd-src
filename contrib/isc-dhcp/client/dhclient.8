@@ -1,22 +1,27 @@
 .\"	dhclient.8
 .\"
-.\" Copyright (c) 1996-2002 Internet Software Consortium.
-.\" Use is subject to license terms which appear in the file named
-.\" ISC-LICENSE that should have accompanied this file when you
-.\" received it.   If a file named ISC-LICENSE did not accompany this
-.\" file, or you are not sure the one you have is correct, you may
-.\" obtain an applicable copy of the license at:
+.\" Copyright (c) 2004 by Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (c) 1996-2003 by Internet Software Consortium
 .\"
-.\"             http://www.isc.org/isc-license-1.0.html. 
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
 .\"
-.\" This file is part of the ISC DHCP distribution.   The documentation
-.\" associated with this file is listed in the file DOCUMENTATION,
-.\" included in the top-level directory of this release.
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT
+.\" OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" Support and other services are available for ISC products - see
-.\" http://www.isc.org for more information.
+.\"   Internet Systems Consortium, Inc.
+.\"   950 Charter Street
+.\"   Redwood City, CA 94063
+.\"   <info@isc.org>
+.\"   http://www.isc.org/
 .\"
-.\" $Id: dhclient.8,v 1.12.2.7 2002/11/17 02:25:43 dhankins Exp $
+.\" $Id: dhclient.8,v 1.12.2.8 2004/06/10 17:59:12 dhankins Exp $
 .\"
 .\" Portions copyright (c) 2000 David E. O'Brien.
 .\" All rights reserved.
@@ -93,7 +98,7 @@ interval
 ]
 ]
 .SH DESCRIPTION
-The Internet Software Consortium DHCP Client, dhclient, provides a
+The Internet Systems Consortium DHCP Client, dhclient, provides a
 means for configuring one or more network interfaces using the Dynamic
 Host Configuration Protocol, BOOTP protocol, or if these protocols
 fail, by statically assigning an address.
@@ -321,9 +326,9 @@ resume it, set its state attribute to 4.
 dhclient.conf(5), dhclient.leases(5), dhclient-script(8).
 .SH AUTHOR
 .B dhclient(8)
-has been written for the Internet Software Consortium
+has been written for Internet Systems Consortium
 by Ted Lemon in cooperation with Vixie
-Enterprises.  To learn more about the Internet Software Consortium,
+Enterprises.  To learn more about Internet Systems Consortium,
 see
 .B http://www.isc.org
 To learn more about Vixie
@@ -336,7 +341,7 @@ Stanford.
 .PP
 The current version owes much to Elliot's Linux enhancements, but
 was substantially reorganized and partially rewritten by Ted Lemon
-so as to use the same networking framework that the Internet Software
+so as to use the same networking framework that the Internet Systems
 Consortium DHCP server uses.   Much system-specific configuration code
 was moved into a shell script so that as support for more operating
 systems is added, it will not be necessary to port and maintain
