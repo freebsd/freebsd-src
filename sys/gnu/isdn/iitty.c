@@ -1,4 +1,4 @@
-static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.1 1995/01/25 14:06:18 jkr Exp jkr $";
+static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.1 1995/02/14 15:00:32 jkh Exp $";
 /*******************************************************************************
  *  II - Version 0.1 $Revision: 1.1 $   $State: Exp $
  *
@@ -10,6 +10,15 @@ static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.1 1995/01/25 14:06:18 jkr Exp 
  *
  *******************************************************************************
  * $Log: iitty.c,v $
+ * Revision 1.1  1995/02/14  15:00:32  jkh
+ * An ISDN driver that supports the EDSS1 and the 1TR6 ISDN interfaces.
+ * EDSS1 is the "Euro-ISDN", 1TR6 is the soon obsolete german ISDN Interface.
+ * Obtained from: Dietmar Friede <dfriede@drnhh.neuhaus.de> and
+ * 	Juergen Krause <jkr@saarlink.de>
+ *
+ * This is only one part - the rest to follow in a couple of hours.
+ * This part is a benign import, since it doesn't affect anything else.
+ *
  *
  ******************************************************************************/
 
@@ -30,9 +39,10 @@ static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.1 1995/01/25 14:06:18 jkr Exp 
 #include "syslog.h"
 #include "types.h"
 
-#include "isdn/isdn_ioctl.h"
+#include "gnu/isdn/isdn_ioctl.h"
 
-int             ityattach(), itystart(), ityparam();
+int             ityattach(), ityparam();
+void		itystart();
 
 int             nity = NITY;
 int             itydefaultrate = 64000;
@@ -55,6 +65,7 @@ ityattach(int ap)
 }
 
 /* ARGSUSED */
+int
 ityopen(dev_t dev, int flag, int mode, struct proc * p)
 {
 	register struct tty *tp;
@@ -104,6 +115,7 @@ ityopen(dev_t dev, int flag, int mode, struct proc * p)
 }
 
 /* ARGSUSED */
+int
 ityclose(dev, flag, mode, p)
 	dev_t           dev;
 	int             flag, mode;
@@ -122,18 +134,22 @@ ityclose(dev, flag, mode, p)
 	return (0);
 }
 
+int
 ityread(dev, uio, flag)
 	dev_t           dev;
 	struct uio     *uio;
+	int flag;
 {
 	register struct tty *tp = &ity_tty[UNIT(dev)];
 
 	return ((*linesw[tp->t_line].l_read) (tp, uio, flag));
 }
 
+int
 itywrite(dev, uio, flag)
 	dev_t           dev;
 	struct uio     *uio;
+	int flag;
 {
 	int             unit = UNIT(dev);
 	register struct tty *tp = &ity_tty[unit];
@@ -141,6 +157,7 @@ itywrite(dev, uio, flag)
 	return ((*linesw[tp->t_line].l_write) (tp, uio, flag));
 }
 
+int
 ity_input(int no, int len, char *buf)
 {
 	register struct tty *tp = &ity_tty[no];
@@ -153,6 +170,7 @@ ity_input(int no, int len, char *buf)
 	return(len);
 }
 
+void
 itystart(struct tty *tp)
 {
 	int             s, unit;
@@ -185,6 +203,7 @@ itystart(struct tty *tp)
 	splx(s);
 }
 
+int
 ity_out(int no, char *buf, int len)
 {
 	struct tty *tp = &ity_tty[no];
@@ -206,6 +225,7 @@ ity_out(int no, char *buf, int len)
 	return(0);
 }
 
+void
 ity_connect(int no)
 {
 	struct tty *tp = &ity_tty[no];
@@ -222,12 +242,14 @@ ity_connect(int no)
 		itystart(tp);
 }
 
+void
 ity_disconnect(int no)
 {
 	struct tty *tp = &ity_tty[no];
 	if(tp) (*linesw[tp->t_line].l_modem) (tp, 0);
 }
 
+int
 ityioctl(dev, cmd, data, flag,p)
 	dev_t           dev;
         int             cmd;
@@ -255,6 +277,7 @@ ityioctl(dev, cmd, data, flag,p)
 	return (0);
 }
 
+int
 ityparam(tp, t)
 	register struct tty *tp;
 	register struct termios *t;
@@ -284,6 +307,7 @@ ityparam(tp, t)
  * Stop output on a line.
  */
 /* ARGSUSED */
+void
 itystop(struct tty *tp, int flag)
 {
 	register int    s;

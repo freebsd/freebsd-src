@@ -1,4 +1,4 @@
-static char     _isdnid[] = "@(#)$Id: isdn.c,v 1.1 1995/01/25 14:06:18 jkr Exp jkr $";
+static char     _isdnid[] = "@(#)$Id: isdn.c,v 1.1 1995/02/14 15:00:33 jkh Exp $";
 /*******************************************************************************
  *  II - Version 0.1 $Revision: 1.1 $   $State: Exp $
  *
@@ -10,6 +10,15 @@ static char     _isdnid[] = "@(#)$Id: isdn.c,v 1.1 1995/01/25 14:06:18 jkr Exp j
  *
  *******************************************************************************
  * $Log: isdn.c,v $
+ * Revision 1.1  1995/02/14  15:00:33  jkh
+ * An ISDN driver that supports the EDSS1 and the 1TR6 ISDN interfaces.
+ * EDSS1 is the "Euro-ISDN", 1TR6 is the soon obsolete german ISDN Interface.
+ * Obtained from: Dietmar Friede <dfriede@drnhh.neuhaus.de> and
+ * 	Juergen Krause <jkr@saarlink.de>
+ *
+ * This is only one part - the rest to follow in a couple of hours.
+ * This part is a benign import, since it doesn't affect anything else.
+ *
  *
  ******************************************************************************/
 
@@ -36,7 +45,7 @@ static char     _isdnid[] = "@(#)$Id: isdn.c,v 1.1 1995/01/25 14:06:18 jkr Exp j
 #include "kernel.h"
 #include "systm.h"
 
-#include "isdn/isdn_ioctl.h"
+#include "gnu/isdn/isdn_ioctl.h"
 
 isdn_appl_t     isdn_appl[N_ISDN_APPL];
 isdn_ctrl_t     isdn_ctrl[N_ISDN_CTRL];
@@ -62,7 +71,6 @@ static void passout();
 
 u_short isdn_state= 0;
 static isdn_timeout= 0;
-extern     int hz;
 
 int
 isdn_get_prot_size(int ap)
