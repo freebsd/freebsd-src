@@ -730,7 +730,7 @@ restart(i)
     int             i;
 {
 
-    log(LOG_NOTICE, 0, "% restart", versionstring);
+    log(LOG_NOTICE, 0, "%s restart", versionstring);
 
     /*
      * reset all the entries
