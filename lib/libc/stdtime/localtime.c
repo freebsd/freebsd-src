@@ -1078,7 +1078,7 @@ struct tm * const	tmp;
 }
 
 #ifdef	_THREAD_SAFE
-int
+struct tm *
 localtime_r(timep, p_tm)
 const time_t * const	timep;
 struct tm *p_tm;
@@ -1087,7 +1087,7 @@ struct tm *p_tm;
 	tzset();
 	localsub(timep, 0L, p_tm);
 	pthread_mutex_unlock(&lcl_mutex);
-	return(0);
+	return(p_tm);
 }
 #endif
 
@@ -1109,12 +1109,10 @@ const time_t * const	timep;
 		}
 	}
 	pthread_mutex_unlock(&localtime_mutex);
-	if (pthread_getspecific(localtime_key,(void **) &p_tm) != 0) {
-		return(NULL);
-	} else if (p_tm == NULL) {
-		if ((p_tm = (struct tm *)malloc(sizeof(struct tm))) == NULL) {
+	p_tm = pthread_getspecific(localtime_key);
+	if (p_tm == NULL) {
+		if ((p_tm = (struct tm *)malloc(sizeof(struct tm))) == NULL)
 			return(NULL);
-		}
 		pthread_setspecific(localtime_key, p_tm);
 	}
 	pthread_mutex_lock(&lcl_mutex);
@@ -1193,7 +1191,7 @@ const time_t * const	timep;
 		}
 	}
 	pthread_mutex_unlock(&gmtime_mutex);
-	if (pthread_getspecific(gmtime_key,(void **) &p_tm) != 0) {
+	if ((p_tm = pthread_getspecific(gmtime_key)) != 0) {
 		return(NULL);
 	} else if (p_tm == NULL) {
 		if ((p_tm = (struct tm *)malloc(sizeof(struct tm))) == NULL) {
@@ -1210,11 +1208,11 @@ const time_t * const	timep;
 }
 
 #ifdef	_THREAD_SAFE
-int
+struct tm *
 gmtime_r(const time_t * timep, struct tm * tm)
 {
 	gmtsub(timep, 0L, tm);
-	return(0);
+	return(tm);
 }
 #endif
 
