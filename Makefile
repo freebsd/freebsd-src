@@ -126,7 +126,7 @@ cleanworld:
 	rm -rf ${BW_CANONICALOBJDIR}/*
 .endif
 	#   To be safe in this case, fall back to a 'make cleandir'
-	@cd ${.CURDIR}; ${_MAKE} cleandir
+	${_+_}@cd ${.CURDIR}; ${_MAKE} cleandir
 .else
 	-rm -rf ${.OBJDIR}/*
 	chflags -R 0 ${.OBJDIR}
@@ -138,7 +138,7 @@ cleanworld:
 #
 
 ${TGTS}:
-	@cd ${.CURDIR}; \
+	${_+_}@cd ${.CURDIR}; \
 		${_MAKE} ${.TARGET}
 
 # Set a reasonable default
@@ -165,16 +165,16 @@ world: upgrade_checks
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Making 'pre-world' target"
 	@echo "--------------------------------------------------------------"
-	@cd ${.CURDIR}; ${_MAKE} pre-world
+	${_+_}@cd ${.CURDIR}; ${_MAKE} pre-world
 .endif
-	@cd ${.CURDIR}; ${_MAKE} buildworld
-	@cd ${.CURDIR}; ${_MAKE} -B installworld
+	${_+_}@cd ${.CURDIR}; ${_MAKE} buildworld
+	${_+_}@cd ${.CURDIR}; ${_MAKE} -B installworld
 .if target(post-world)
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Making 'post-world' target"
 	@echo "--------------------------------------------------------------"
-	@cd ${.CURDIR}; ${_MAKE} post-world
+	${_+_}@cd ${.CURDIR}; ${_MAKE} post-world
 .endif
 	@echo
 	@echo "--------------------------------------------------------------"
@@ -232,7 +232,7 @@ make: .PHONY
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Building an up-to-date make(1)"
 	@echo "--------------------------------------------------------------"
-	@cd ${.CURDIR}/usr.bin/make; \
+	${_+_}@cd ${.CURDIR}/usr.bin/make; \
 		${MMAKE} obj && \
 		${MMAKE} depend && \
 		${MMAKE} all && \

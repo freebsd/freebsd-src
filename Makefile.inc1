@@ -204,8 +204,13 @@ WMAKEENV=	${CROSSENV} \
 WMAKE=		${WMAKEENV} ${MAKE} -f Makefile.inc1
 
 # install stage
+.if empty(.MAKEFLAGS:M-n)
 IMAKEENV=	${CROSSENV} \
 		PATH=${STRICTTMPPATH}:${INSTALLTMP}
+.else
+IMAKEENV=	${CROSSENV} \
+		PATH=${TMPPATH}:${INSTALLTMP}
+.endif
 IMAKE=		${IMAKEENV} ${MAKE} -f Makefile.inc1
 
 # kernel stage
@@ -272,51 +277,51 @@ _legacy:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 1.1: legacy release compatibility shims"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; ${BMAKE} legacy
+	${_+_}cd ${.CURDIR}; ${BMAKE} legacy
 _bootstrap-tools:
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 1.2: bootstrap tools"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; ${BMAKE} bootstrap-tools
+	${_+_}cd ${.CURDIR}; ${BMAKE} bootstrap-tools
 _cleanobj:
 .if !defined(NOCLEAN)
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 2.1: cleaning up the object tree"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; ${WMAKE} ${CLEANDIR:S/^/par-/}
+	${_+_}cd ${.CURDIR}; ${WMAKE} ${CLEANDIR:S/^/par-/}
 .endif
 _obj:
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 2.2: rebuilding the object tree"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; ${WMAKE} par-obj
+	${_+_}cd ${.CURDIR}; ${WMAKE} par-obj
 _build-tools:
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 2.3: build tools"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; ${TMAKE} build-tools
+	${_+_}cd ${.CURDIR}; ${TMAKE} build-tools
 _cross-tools:
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 3: cross tools"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; ${XMAKE} cross-tools
+	${_+_}cd ${.CURDIR}; ${XMAKE} cross-tools
 _includes:
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 4.1: building includes"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; ${WMAKE} SHARED=symlinks par-includes
+	${_+_}cd ${.CURDIR}; ${WMAKE} SHARED=symlinks par-includes
 _libraries:
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 4.2: building libraries"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; \
+	${_+_}cd ${.CURDIR}; \
 	    ${WMAKE} -DNOFSCHG -DNOHTML -DNOINFO -DNOLINT -DNOMAN -DNOPROFILE \
 	    libraries
 _depend:
@@ -324,13 +329,13 @@ _depend:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 4.3: make dependencies"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; ${WMAKE} par-depend
+	${_+_}cd ${.CURDIR}; ${WMAKE} par-depend
 everything:
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 4.4: building everything"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; ${WMAKE} par-all
+	${_+_}cd ${.CURDIR}; ${WMAKE} par-all
 
 
 WMAKE_TGTS=
@@ -452,7 +457,7 @@ distributeworld installworld: installcheck
 	    test true uname wc zic; do \
 		cp `which $$prog` ${INSTALLTMP}; \
 	done
-	cd ${.CURDIR}; ${IMAKE} re${.TARGET:S/world$//}
+	${_+_}cd ${.CURDIR}; ${IMAKE} re${.TARGET:S/world$//}
 	rm -rf ${INSTALLTMP}
 
 #
@@ -466,18 +471,18 @@ reinstall: ${SPECIAL_INSTALLCHECKS}
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Making hierarchy"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 hierarchy
+	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 hierarchy
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Installing everything"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 install
+	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 install
 
 redistribute:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Distributing everything"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 distribute
+	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 distribute
 
 #
 # buildkernel and installkernel
@@ -672,7 +677,7 @@ update:
 #
 legacy:
 .for _tool in tools/build
-	@${ECHODIR} "===> ${_tool}"; \
+	${_+_}@${ECHODIR} "===> ${_tool}"; \
 	    cd ${.CURDIR}/${_tool}; \
 	    ${MAKE} DIRPRFX=${_tool}/ obj; \
 	    ${MAKE} DIRPRFX=${_tool}/ DESTDIR=${MAKEOBJDIRPREFIX}/legacy includes; \
@@ -747,7 +752,7 @@ bootstrap-tools:
     ${_crunchgen} \
     ${_gensnmptree} \
     ${_kbdcontrol}
-	@${ECHODIR} "===> ${_tool}"; \
+	${_+_}@${ECHODIR} "===> ${_tool}"; \
 		cd ${.CURDIR}/${_tool}; \
 		${MAKE} DIRPRFX=${_tool}/ obj; \
 		${MAKE} DIRPRFX=${_tool}/ depend; \
@@ -786,14 +791,14 @@ build-tools:
     usr.bin/awk \
     lib/libmagic \
     usr.sbin/sysinstall
-	@${ECHODIR} "===> ${_tool}"; \
+	${_+_}@${ECHODIR} "===> ${_tool}"; \
 		cd ${.CURDIR}/${_tool}; \
 		${MAKE} DIRPRFX=${_tool}/ obj; \
 		${MAKE} DIRPRFX=${_tool}/ build-tools
 .endfor
 .for _tool in \
     ${_kerberos5_tools}
-	@${ECHODIR} "===> ${_tool}"; \
+	${_+_}@${ECHODIR} "===> ${_tool}"; \
 		cd ${.CURDIR}/${_tool}; \
 		${MAKE} DIRPRFX=${_tool}/ obj; \
 		${MAKE} DIRPRFX=${_tool}/ depend; \
@@ -837,7 +842,7 @@ cross-tools:
     ${_crunchide} \
     ${_elf2exe} \
     ${_kgzip}
-	@${ECHODIR} "===> ${_tool}"; \
+	${_+_}@${ECHODIR} "===> ${_tool}"; \
 		cd ${.CURDIR}/${_tool}; \
 		${MAKE} DIRPRFX=${_tool}/ obj; \
 		${MAKE} DIRPRFX=${_tool}/ depend; \
@@ -930,7 +935,7 @@ _generic_libs+=	usr.sbin/pcvt/keycap
 .for _lib in ${_startup_libs} ${_prebuild_libs:Nlib/libpam} ${_generic_libs}
 ${_lib}__L: .PHONY
 .if exists(${.CURDIR}/${_lib})
-	@${ECHODIR} "===> ${_lib}"; \
+	${_+_}@${ECHODIR} "===> ${_lib}"; \
 		cd ${.CURDIR}/${_lib}; \
 		${MAKE} DIRPRFX=${_lib}/ depend; \
 		${MAKE} DIRPRFX=${_lib}/ all; \
@@ -942,7 +947,7 @@ ${_lib}__L: .PHONY
 # static PAM library, and dynamic PAM library before dynamic PAM
 # modules.
 lib/libpam__L: .PHONY
-	@${ECHODIR} "===> lib/libpam"; \
+	${_+_}@${ECHODIR} "===> lib/libpam"; \
 		cd ${.CURDIR}/lib/libpam; \
 		${MAKE} DIRPRFX=lib/libpam/ depend; \
 		${MAKE} DIRPRFX=lib/libpam/ -D_NO_LIBPAM_SO_YET all; \
@@ -955,7 +960,7 @@ _generic_libs: ${_generic_libs:S/$/__L/}
 .for __target in all clean cleandepend cleandir depend includes obj
 .for entry in ${SUBDIR}
 ${entry}.${__target}__D: .PHONY
-	@if test -d ${.CURDIR}/${entry}.${MACHINE_ARCH}; then \
+	${_+_}@if test -d ${.CURDIR}/${entry}.${MACHINE_ARCH}; then \
 		${ECHODIR} "===> ${DIRPRFX}${entry}.${MACHINE_ARCH}"; \
 		edir=${entry}.${MACHINE_ARCH}; \
 		cd ${.CURDIR}/$${edir}; \
