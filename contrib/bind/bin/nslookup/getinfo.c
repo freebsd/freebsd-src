@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /*
  * Copyright (c) 1985, 1989
  *    The Regents of the University of California.  All rights reserved.
@@ -52,8 +53,8 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)getinfo.c	5.26 (Berkeley) 3/21/91";
-static char rcsid[] = "$Id: getinfo.c,v 8.11 1998/03/19 19:30:55 halley Exp $";
+static const char sccsid[] = "@(#)getinfo.c	5.26 (Berkeley) 3/21/91";
+static const char rcsid[] = "$Id: getinfo.c,v 8.15 1999/10/13 16:39:16 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -88,7 +89,6 @@ static char rcsid[] = "$Id: getinfo.c,v 8.11 1998/03/19 19:30:55 halley Exp $";
 
 #include "res.h"
 
-extern char *_res_resultcodes[];
 extern char *res_skip();
 
 static char *addr_list[MAXADDRS + 1];
@@ -109,7 +109,7 @@ ServerTable server[MAXSERVERS];
 
 typedef union {
     HEADER qb1;
-    u_char qb2[PACKETSZ*2];
+    u_char qb2[64*1024];
 } querybuf;
 
 typedef union {
@@ -162,10 +162,10 @@ GetAnswer(nsAddrPtr, queryType, msg, msglen, iquery, hostPtr, isServer)
     int			numAliases = 0;
     int			numAddresses = 0;
     int			n, i, j;
-    int			len;
     int			dlen;
     int			status;
     int			numServers;
+    size_t		s;
     Boolean		haveAnswer;
     Boolean		printedAnswers = FALSE;
 
@@ -179,7 +179,7 @@ GetAnswer(nsAddrPtr, queryType, msg, msglen, iquery, hostPtr, isServer)
 			 sizeof(answer), &n);
 
     if (status != SUCCESS) {
-	    if (_res.options & RES_DEBUG2)
+	    if (res.options & RES_DEBUG2)
 		    printf("SendRequest failed\n");
 	    return (status);
     }
@@ -268,11 +268,11 @@ GetAnswer(nsAddrPtr, queryType, msg, msglen, iquery, hostPtr, isServer)
 			continue;
 		    }
 		    *aliasPtr++ = (char *)bp;
-		    n = strlen((char *)bp) + 1;
-		    host_aliases_len[numAliases] = n;
+		    s = strlen((char *)bp) + 1;
+		    host_aliases_len[numAliases] = s;
 		    numAliases++;
-		    bp += n;
-		    buflen -= n;
+		    bp += s;
+		    buflen -= s;
 		    continue;
 		} else if (type == T_PTR) {
 		    /*
@@ -284,9 +284,9 @@ GetAnswer(nsAddrPtr, queryType, msg, msglen, iquery, hostPtr, isServer)
 			continue;
 		    }
 		    cp += n;
-		    len = strlen((char *)bp) + 1;
-		    hostPtr->name = Calloc(1, len);
-		    memcpy(hostPtr->name, bp, len);
+		    s = strlen((char *)bp) + 1;
+		    hostPtr->name = Calloc(1, s);
+		    memcpy(hostPtr->name, bp, s);
 		    haveAnswer = TRUE;
 		    break;
 		} else if (type != T_A) {
@@ -316,14 +316,14 @@ GetAnswer(nsAddrPtr, queryType, msg, msglen, iquery, hostPtr, isServer)
 		    hostPtr->addrLen = dlen;
 		    origClass = class;
 		    hostPtr->addrType = (class == C_IN) ? AF_INET : AF_UNSPEC;
-		    len = strlen((char *)bp) + 1;
-		    hostPtr->name = Calloc(1, len);
-		    memcpy(hostPtr->name, bp, len);
+		    s = strlen((char *)bp) + 1;
+		    hostPtr->name = Calloc(1, s);
+		    memcpy(hostPtr->name, bp, s);
 		}
 		bp += (((u_long)bp) % sizeof(align));
 
 		if (bp + dlen >= &hostbuf[sizeof(hostbuf)]) {
-		    if (_res.options & RES_DEBUG) {
+		    if (res.options & RES_DEBUG) {
 			printf("Size (%d) too big\n", dlen);
 		    }
 		    break;
@@ -417,9 +417,9 @@ GetAnswer(nsAddrPtr, queryType, msg, msglen, iquery, hostPtr, isServer)
 		return(ERROR);
 	    }
 	    cp += n;
-	    len = strlen((char *)bp) + 1;
-	    dnamePtr = Calloc(1, len);   /* domain name */
-	    memcpy(dnamePtr, bp, len);
+	    s = strlen((char *)bp) + 1;
+	    dnamePtr = Calloc(1, s);   /* domain name */
+	    memcpy(dnamePtr, bp, s);
 
 	    if (cp + 3 * INT16SZ + INT32SZ > eom)
 		    return (ERROR);
@@ -440,9 +440,9 @@ GetAnswer(nsAddrPtr, queryType, msg, msglen, iquery, hostPtr, isServer)
 		    return(ERROR);
 		}
 		cp += n;
-		len = strlen((char *)bp) + 1;
-		namePtr = Calloc(1, len); /* server host name */
-		memcpy(namePtr, bp, len);
+		s = strlen((char *)bp) + 1;
+		namePtr = Calloc(1, s); /* server host name */
+		memcpy(namePtr, bp, s);
 
 		/*
 		 * Store the information keyed by the server host name.
@@ -579,10 +579,10 @@ GetAnswer(nsAddrPtr, queryType, msg, msglen, iquery, hostPtr, isServer)
 *	Retrieves host name, address and alias information
 *	for a domain.
 *
-*	Algorithm from res_search().
+*	Algorithm from res_nsearch().
 *
 *  Results:
-*	ERROR		- res_mkquery failed.
+*	ERROR		- res_nmkquery failed.
 *	+ return values from GetAnswer()
 *
 *******************************************************************************
@@ -604,6 +604,7 @@ GetHostInfoByName(nsAddrPtr, queryClass, queryType, name, hostPtr, isServer)
     Boolean		got_nodata = FALSE;
     struct in_addr	ina;
     Boolean		tried_as_is = FALSE;
+    char		tmp[NS_MAXDNAME];
 
     /* Catch explicit addresses */
     if ((queryType == T_A) && IsAddr(name, &ina)) {
@@ -624,7 +625,7 @@ GetHostInfoByName(nsAddrPtr, queryClass, queryType, name, hostPtr, isServer)
     for (cp = name, n = 0; *cp; cp++)
 	    if (*cp == '.')
 		    n++;
-    if (n == 0 && (cp = hostalias(name))) {
+    if (n == 0 && (cp = res_hostalias(&res, name, tmp, sizeof tmp))) {
 	    printf("Aliased to \"%s\"\n\n", cp);
 	    return (GetHostDomain(nsAddrPtr, queryClass, queryType,
 		    cp, (char *)NULL, hostPtr, isServer));
@@ -634,7 +635,7 @@ GetHostInfoByName(nsAddrPtr, queryClass, queryType, name, hostPtr, isServer)
      * If there are dots in the name already, let's just give it a try
      * 'as is'.  The threshold can be set with the "ndots" option.
      */
-    if (n >= (int)_res.ndots) {
+    if (n >= (int)res.ndots) {
 	    result = GetHostDomain(nsAddrPtr, queryClass, queryType,
 				   name, (char *)NULL, hostPtr, isServer);
             if (result == SUCCESS)
@@ -650,9 +651,9 @@ GetHostInfoByName(nsAddrPtr, queryClass, queryType, name, hostPtr, isServer)
      *	- there is at least one dot, there is no trailing dot,
      *	  and RES_DNSRCH is set.
      */
-    if ((n == 0 && _res.options & RES_DEFNAMES) ||
-       (n != 0 && *--cp != '.' && _res.options & RES_DNSRCH))
-	 for (domain = _res.dnsrch; *domain; domain++) {
+    if ((n == 0 && res.options & RES_DEFNAMES) ||
+       (n != 0 && *--cp != '.' && res.options & RES_DNSRCH))
+	 for (domain = res.dnsrch; *domain; domain++) {
 	    result = GetHostDomain(nsAddrPtr, queryClass, queryType,
 		    name, *domain, hostPtr, isServer);
 	    /*
@@ -672,7 +673,7 @@ GetHostInfoByName(nsAddrPtr, queryClass, queryType, name, hostPtr, isServer)
 	    if (result == NO_INFO)
 		    got_nodata++;
 	    if ((result != NXDOMAIN && result != NO_INFO) ||
-		(_res.options & RES_DNSRCH) == 0)
+		(res.options & RES_DNSRCH) == 0)
 		    break;
 	}
     /* if we have not already tried the name "as is", do that now.
@@ -722,11 +723,11 @@ GetHostDomain(nsAddrPtr, queryClass, queryType, name, domain, hostPtr, isServer)
 		    MAXDNAME, name, MAXDNAME, domain);
 	    longname = nbuf;
     }
-    n = res_mkquery(QUERY, longname, queryClass, queryType,
-		    NULL, 0, 0, buf.qb2, sizeof(buf));
+    n = res_nmkquery(&res, QUERY, longname, queryClass, queryType,
+		     NULL, 0, 0, buf.qb2, sizeof(buf));
     if (n < 0) {
-	if (_res.options & RES_DEBUG) {
-	    printf("Res_mkquery failed\n");
+	if (res.options & RES_DEBUG) {
+	    printf("Res_nmkquery failed\n");
 	}
 	return (ERROR);
     }
@@ -738,7 +739,8 @@ GetHostDomain(nsAddrPtr, queryClass, queryType, name, domain, hostPtr, isServer)
      */
     if (n == NONAUTH) {
 	if (hostPtr->name == NULL) {
-	    int len = strlen(longname) + 1;
+	    size_t len = strlen(longname) + 1;
+
 	    hostPtr->name = Calloc(len, sizeof(char));
 	    memcpy(hostPtr->name, longname, len);
 	}
@@ -756,7 +758,7 @@ GetHostDomain(nsAddrPtr, queryClass, queryType, name, domain, hostPtr, isServer)
 *	that corresponds to the given address.
 *
 *  Results:
-*	ERROR		- res_mkquery failed.
+*	ERROR		- res_nmkquery failed.
 *	+ return values from GetAnswer()
 *
 *******************************************************************************
@@ -778,11 +780,11 @@ GetHostInfoByAddr(nsAddrPtr, address, hostPtr)
 	    ((unsigned)p[2] & 0xff),
 	    ((unsigned)p[1] & 0xff),
 	    ((unsigned)p[0] & 0xff));
-    n = res_mkquery(QUERY, qbuf, C_IN, T_PTR, NULL, 0, NULL,
-		    buf.qb2, sizeof buf);
+    n = res_nmkquery(&res, QUERY, qbuf, C_IN, T_PTR, NULL, 0, NULL,
+		     buf.qb2, sizeof buf);
     if (n < 0) {
-	if (_res.options & RES_DEBUG) {
-	    printf("res_mkquery() failed\n");
+	if (res.options & RES_DEBUG) {
+	    printf("res_nmkquery() failed\n");
 	}
 	return (ERROR);
     }
