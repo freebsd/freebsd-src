@@ -25,12 +25,21 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 24, 2004
+.Dd February 07, 2005
 .Dt ALTQ 4
 .Os
 .Sh NAME
 .Nm ALTQ
 .Nd "alternate queuing of network packets"
+.Sh SYNOPSIS
+.Cd options ALTQ
+.Pp
+.Cd options ALTQ_CBQ
+.Cd options ALTQ_RED
+.Cd options ALTQ_RIO
+.Cd options ALTQ_HFSC
+.Cd options ALTQ_CDNR
+.Cd options ALTQ_PRIQ
 .Sh DESCRIPTION
 The
 .Nm
