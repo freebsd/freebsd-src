@@ -1,4 +1,4 @@
-#	$Id: bsd.libnames.mk,v 1.17 1998/09/15 10:27:20 gibbs Exp $
+#	$Id: bsd.libnames.mk,v 1.18 1998/09/17 09:34:57 phk Exp $
 #
 # The include file <bsd.libnames.mk> define library names. 
 # Other include files (e.g. bsd.prog.mk, bsd.lib.mk) include this 
@@ -48,10 +48,12 @@ LIBMYTINFO?=	${DESTDIR}${LIBDIR}/libmytinfo.a
 LIBNCURSES?=	${DESTDIR}${LIBDIR}/libncurses.a
 LIBOBJC?=	${DESTDIR}${LIBDIR}/libobjc.a
 LIBOPIE?=	${DESTDIR}${LIBDIR}/libopie.a
+LIBPAM?=	${DESTDIR}${LIBDIR}/libpam.a	# XXX doesn't exist
 LIBPC?=		${DESTDIR}${LIBDIR}/libpc.a	# XXX doesn't exist
 LIBPCAP?=	${DESTDIR}${LIBDIR}/libpcap.a
 LIBPERL?=	${DESTDIR}${LIBDIR}/libperl.a
 LIBPLOT?=	${DESTDIR}${LIBDIR}/libplot.a	# XXX doesn't exist
+LIBRADIUS?=	${DESTDIR}${LIBDIR}/libradius.a
 LIBREADLINE?=	${DESTDIR}${LIBDIR}/libreadline.a
 LIBRESOLV?=	${DESTDIR}${LIBDIR}/libresolv.a	# XXX doesn't exist
 LIBRPCSVC?=	${DESTDIR}${LIBDIR}/librpcsvc.a
@@ -60,6 +62,7 @@ LIBSCSI?=	${DESTDIR}${LIBDIR}/libscsi.a
 LIBSKEY?=	${DESTDIR}${LIBDIR}/libskey.a
 LIBSS?=		${DESTDIR}${LIBDIR}/libss.a
 LIBSTDCPLUSPLUS?= ${DESTDIR}${LIBDIR}/libstdc++.a
+LIBTACPLUS?=	${DESTDIR}${LIBDIR}/libtacplus.a
 LIBTCL?=	${DESTDIR}${LIBDIR}/libtcl.a
 LIBTELNET?=	${DESTDIR}${LIBDIR}/libtelnet.a
 LIBTERMCAP?=	${DESTDIR}${LIBDIR}/libtermcap.a
