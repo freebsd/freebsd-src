@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_page.h,v 1.67 1999/08/15 01:16:53 mjacob Exp $
+ * $Id: vm_page.h,v 1.68 1999/08/15 05:36:43 alc Exp $
  */
 
 /*
@@ -570,6 +570,18 @@ vm_page_dirty(vm_page_t m)
 {
 	KASSERT(m->queue - m->pc != PQ_CACHE, ("vm_page_dirty: page in cache!"));
 	m->dirty = VM_PAGE_BITS_ALL;
+}
+
+/*
+ *	vm_page_undirty:
+ *
+ *	Set page to not be dirty.  Note: does not clear pmap modify bits 
+ */
+
+static __inline void
+vm_page_undirty(vm_page_t m)
+{
+	m->dirty = 0;
 }
 
 static __inline vm_page_t
