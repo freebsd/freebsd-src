@@ -10,6 +10,7 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
+.Fd "#include <rpc/types.h>"
 .Fd "#include <rpc/xdr.h>"
 .Pp
 See
@@ -495,12 +496,15 @@ A filter primitive that translates between C
 integers and their external representations.
 This routine returns one if it succeeds, zero otherwise.
 .Pp
+.Fd #ifdef _STDIO_H_
+.Fd /* XDR using stdio library */
 .It Xo
 .Ft void
 .Xc
 .It Xo
 .Fn xdrstdio_create "XDR *xdrs" "FILE *file" "enum xdr_op op"
 .Xc
+.Fd #endif
 .Pp
 This routine initializes the
 .Tn XDR
