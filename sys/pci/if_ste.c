@@ -864,13 +864,11 @@ static void ste_stats_update(xsc)
 	    stats.ste_multi_colls + stats.ste_late_colls;
 
 	mii_tick(mii);
-	if (!sc->ste_link) {
-		mii_pollstat(mii);
-		if (mii->mii_media_status & IFM_ACTIVE &&
-		    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE)
-			sc->ste_link++;
-			if (ifp->if_snd.ifq_head != NULL)
-				ste_start(ifp);
+	if (!sc->ste_link && mii->mii_media_status & IFM_ACTIVE &&
+	    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
+		sc->ste_link++;
+		if (ifp->if_snd.ifq_head != NULL)
+			ste_start(ifp);
 	}
 
 	sc->ste_stat_ch = timeout(ste_stats_update, sc, hz);

@@ -2708,14 +2708,11 @@ static void dc_tick(xsc)
 	 * that time, packets will stay in the send queue, and once the
 	 * link comes up, they will be flushed out to the wire.
 	 */
-	if (!sc->dc_link) {
-		mii_pollstat(mii);
-		if (mii->mii_media_status & IFM_ACTIVE &&
-		    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
-			sc->dc_link++;
-			if (ifp->if_snd.ifq_head != NULL)
-				dc_start(ifp);
-		}
+	if (!sc->dc_link && mii->mii_media_status & IFM_ACTIVE &&
+	    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
+		sc->dc_link++;
+		if (ifp->if_snd.ifq_head != NULL)
+			dc_start(ifp);
 	}
 
 	if (sc->dc_flags & DC_21143_NWAY && !sc->dc_link)

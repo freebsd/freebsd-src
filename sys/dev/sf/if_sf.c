@@ -1489,13 +1489,12 @@ static void sf_stats_update(xsc)
 	    stats.sf_tx_multi_colls + stats.sf_tx_excess_colls;
 
 	mii_tick(mii);
-	if (!sc->sf_link) {
-		mii_pollstat(mii);
-		if (mii->mii_media_status & IFM_ACTIVE &&
-		    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE)
-			sc->sf_link++;
-			if (ifp->if_snd.ifq_head != NULL)
-				sf_start(ifp);
+
+	if (!sc->sf_link && mii->mii_media_status & IFM_ACTIVE &&
+	    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
+		sc->sf_link++;
+		if (ifp->if_snd.ifq_head != NULL)
+			sf_start(ifp);
 	}
 
 	sc->sf_stat_ch = timeout(sf_stats_update, sc, hz);
