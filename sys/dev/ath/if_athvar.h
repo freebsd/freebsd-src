@@ -90,7 +90,6 @@ struct ath_softc {
 	struct mtx		sc_mtx;		/* master lock (recursive) */
 	struct ath_hal		*sc_ah;		/* Atheros HAL */
 	unsigned int		sc_invalid  : 1,/* disable hardware accesses */
-				sc_have11g  : 1,/* have 11g support */
 				sc_doani    : 1,/* dynamic noise immunity */
 				sc_probing  : 1;/* probing AP on beacon miss */
 						/* rate tables */
