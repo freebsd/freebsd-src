@@ -29,12 +29,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id$
  */
 
 #ifndef lint
-static char const sccsid[] = "@(#)modes.c	8.3 (Berkeley) 4/2/94";
+#if 0
+static char sccsid[] = "@(#)modes.c	8.3 (Berkeley) 4/2/94";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/types.h>
