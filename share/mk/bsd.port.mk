@@ -1,7 +1,7 @@
 #-*- mode: Fundamental; tab-width: 4; -*-
 # ex:ts=4
 #
-#	$Id: bsd.port.mk,v 1.286 1998/08/28 18:41:04 dima Exp $
+#	$Id: bsd.port.mk,v 1.287 1998/09/10 06:38:02 asami Exp $
 #	$NetBSD: $
 #
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
@@ -109,6 +109,8 @@ OpenBSD_MAINTAINER=	imp@OpenBSD.ORG
 # AUTOCONF		- Set to path of GNU autoconf if not in $PATH (default:
 #				  autoconf).
 # USE_PERL5		- Says that the port uses perl5 for building and running.
+# PERL5			- Set to full path of perl5, either in the system or
+#				  installed from a port.
 # PERL_VERSION	- Full version of perl5 (see below for current value).
 # PERL_VER		- Short version of perl5 (see below for current value).
 # USE_IMAKE		- Says that the port uses imake.  Implies USE_X_PREFIX.
@@ -148,12 +150,7 @@ OpenBSD_MAINTAINER=	imp@OpenBSD.ORG
 # LIB_DEPENDS	- A list of "lib:dir[:target]" tuples of other ports this
 #				  package depends on.  "lib" is the name of a shared library.
 #				  make will use "ldconfig -r" to search for the
-#				  library.  Note that lib can be any regular expression,
-#				  and you need two backslashes in front of dots (.) to
-#				  supress its special meaning (e.g., use
-#				  "foo\\.2\\.:${PORTSDIR}/utils/foo" to match "libfoo.2.*").
-#				  If the third field ("target") exists, it will be used
-#				  instead of ${DEPENDS_TARGET}.
+#				  library.  Note that lib can not contain regular expressions.
 # DEPENDS		- A list of "dir[:target]" tuples of other ports this
 #				  package depends on being made first.  Use this only for
 #				  things that don't fall into the above four categories.
@@ -389,6 +386,7 @@ PLIST_SUB+=	OSREL=${OSREL}
 # Get the object format.
 PORTOBJFORMAT!=	test -x /usr/bin/objformat && /usr/bin/objformat || echo aout
 CONFIGURE_ENV+=	PORTOBJFORMAT=${PORTOBJFORMAT}
+SCRIPTS_ENV+=	PORTOBJFORMAT=${PORTOBJFORMAT}
 MAKE_ENV+=		PORTOBJFORMAT=${PORTOBJFORMAT}
 PLIST_SUB+=		PORTOBJFORMAT=${PORTOBJFORMAT}
 
@@ -517,7 +515,12 @@ PLIST_SUB+=		PERL_VERSION=${PERL_VERSION} \
 				PERL_VER=${PERL_VER}
 .if exists(/usr/bin/perl5)
 # 3.0-current after perl5 import
-PERL5=			/usr/bin/perl5
+.if !exists(/usr/bin/perl${PERL_VERSION}) && defined(USE_PERL5)
+.BEGIN:
+	@${ECHO_MSG} "Error: you don't have the right version of perl in /usr/bin."
+	@${FALSE}
+.endif
+PERL5=			/usr/bin/perl${PERL_VERSION}
 .else
 PERL5=			${LOCALBASE}/bin/perl${PERL_VERSION}
 .if defined(USE_PERL5)
@@ -527,11 +530,11 @@ RUN_DEPENDS+=	perl${PERL_VERSION}:${PORTSDIR}/lang/perl5
 .endif
 
 .if defined(USE_XLIB)
-LIB_DEPENDS+=	X11\\.6:${PORTSDIR}/x11/XFree86
+LIB_DEPENDS+=	X11.6:${PORTSDIR}/x11/XFree86
 .endif
 
 .if defined(USE_QT)
-LIB_DEPENDS+=	qt\\.1\\.\\\(33\\\|40\\\):${PORTSDIR}/x11-toolkits/qt140
+LIB_DEPENDS+=	qt.1:${PORTSDIR}/x11-toolkits/qt140
 .endif
 
 .if exists(${PORTSDIR}/../Makefile.inc)
