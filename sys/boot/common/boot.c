@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: boot.c,v 1.11 1999/05/28 08:01:52 brian Exp $
+ *	$Id: boot.c,v 1.12 1999/05/30 10:45:03 dfr Exp $
  */
 
 /*
@@ -202,7 +202,9 @@ autoboot(int delay, char *prompt)
 	    break;
 	}
 	if (ntime != otime) {
-	    printf("\rBooting [%s] in %d seconds... ", getbootfile(0), (int)(when - ntime));
+	    printf("\rBooting [%s] in %d second%s... ",
+	    		getbootfile(0), (int)(when - ntime),
+			(when-ntime)==1?"":"s");
 	    otime = ntime;
 	}
     }
