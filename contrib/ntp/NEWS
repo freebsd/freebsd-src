@@ -1,4 +1,11 @@
---
+(4.2.0)
+* More stuff than I have time to document
+* Bugfixes
+* call-gap filtering
+* wwv and chu refclock improvements
+* OpenSSL integration
+
+(4.1.2)
 * clock state machine bugfix
 * Lose the source port check on incoming packets
 * (x)ntpdc compatibility patch
@@ -7,12 +14,17 @@
 * ntpdc improvements
 * GOES refclock fix
 * JJY driver
+* Jupiter refclock fixes
+* Neoclock4X refclock fixes
+* AIX 5 port
 * bsdi port fixes
+* Cray unicos port upgrade
 * HP MPE/iX port
 * Win/NT port upgrade
 * Dynix PTX port fixes
 * Document conversion from CVS to BK
 * readline support for ntpq
+
 (4.1.0)
 * CERT problem fixed (99k23)
 * Huff-n-Puff filter
@@ -34,6 +46,7 @@
 * New/updated drivers: Forum Graphic GPS, WWV/H, Heath GC-100 II, HOPF
   serial and PCI, ONCORE, ulink331 
 * Rewrite of the audio drivers
+
 (4.0.99)
 * Driver updates: CHU, DCF, GPS/VME, Oncore, PCF, Ulink, WWVB, burst
   If you use the ONCORE driver with a HARDPPS kernel module,
@@ -45,6 +58,7 @@
 * ntpd, ntpq, ntpdate cleanup and fixes
 * NT port improvements
 * AIX, BSDI, DEC OSF, FreeBSD, NetBSD, Reliant, SCO, Solaris port improvements
+
 (4.0.98)
 * Solaris kernel FLL bug is fixed in 106541-07
 * Bug/lint cleanup
@@ -55,26 +69,31 @@
 * Trimble OEM Ace-II support
 * DCF77 power choices
 * Oncore improvements
+
 (4.0.97)
 * NT patches
 * AIX,SunOS,IRIX portability
 * NeXT portability
 * ntptimeset utility added
 * cygwin portability patches
+
 (4.0.96)
 * -lnsl, -lsocket, -lgen configuration patches
 * Y2K patches from AT&T
 * Linux portability cruft
+
 (4.0.95)
 * NT port cleanup/replacement
 * a few portability fixes
 * VARITEXT Parse clock added
+
 (4.0.94)
 * PPS updates (including ntp.config options)
 * Lose the old DES stuff in favor of the (optional) RSAREF stuff
 * html cleanup/updates
 * numerous drivers cleaned up
 * numerous portability patches and code cleanup
+
 (4.0.93)
 * Oncore refclock needs PPS or one of two ioctls.
 * Don't make ntptime under Linux.  It doesn't compile for too many folks.
@@ -92,6 +111,7 @@
 * New clock state machine
 * SCO cleanup
 * Skip alias interfaces
+
 (4.0.92)
 * chronolog and dumbclock refclocks
 * SCO updates
@@ -104,6 +124,7 @@
 * NMEA clock improvements
 * PPS improvements
 * AIX portability patches
+
 (4.0.91)
 * New ONCORE driver
 * New MX4200 driver
@@ -113,15 +134,18 @@
 * HP-UX, IRIX lint cleanup
 * AIX portability patches
 * NT cleanup
+
 (4.0.90)
 * Nanoseconds
 * New palisade driver
 * New Oncore driver
+
 (4.0.73)
 * README.hackers added
 * PARSE driver is working again
 * Solaris 2.6 has nasty kernel bugs.  DO NOT enable pll!
 * DES is out of the distribution.
+
 (4.0.72)
 * K&R C compiling should work again.
 * IRIG patches.

@@ -7,6 +7,7 @@
 # else /* SYS_WINNT */
 #  define	CONFIG_FILE	"%windir%\\system32\\drivers\\etc\\ntp.conf"
 #  define	ALT_CONFIG_FILE "%windir%\\ntp.conf"
+#  define	NTP_KEYSDIR	"%windir%\\system32\\drivers\\etc"
 # endif /* SYS_WINNT */
 #endif /* not CONFIG_FILE */
 
@@ -41,8 +42,8 @@
 #define CONFIG_STATISTICS	21
 #define CONFIG_PIDFILE		22
 #define CONFIG_SETVAR		23
-#define CONFIG_CLIENTLIMIT	24
-#define CONFIG_CLIENTPERIOD	25
+#define CONFIG_DISCARD		24
+#define CONFIG_ADJ		25
 #define CONFIG_MULTICASTCLIENT	26
 #define CONFIG_ENABLE		27
 #define CONFIG_DISABLE		28
@@ -51,11 +52,14 @@
 #define CONFIG_LOGCONFIG	31
 #define CONFIG_MANYCASTCLIENT	32
 #define CONFIG_MANYCASTSERVER	33
-#ifdef PUBKEY
-#define CONFIG_CRYPTO		34
-#define CONFIG_KEYSDIR		35
-#endif /* PUBKEY */
-#define CONFIG_INCLUDEFILE	36
+#define CONFIG_TOS		34
+#define CONFIG_TTL		35
+#define CONFIG_INCLUDEFILE      36
+#define CONFIG_KEYSDIR		37
+#define CONFIG_CDELAY		38
+#ifdef OPENSSL
+#define CONFIG_CRYPTO		39
+#endif /* OPENSSL */
 
 /*
  * "peer", "server", "broadcast" modifier keywords
@@ -71,9 +75,6 @@
 #define CONF_MOD_TTL		9
 #define CONF_MOD_MODE		10
 #define CONF_MOD_NOSELECT 	11
-#ifdef PUBKEY
-#define CONF_MOD_PUBLICKEY	12
-#endif /* PUBKEY */
 
 /*
  * "restrict" modifier keywords
@@ -128,24 +129,50 @@
 #define CONF_PPS_HARDPPS	3
 
 /*
+ * "discard" modifier keywords
+ */
+#define CONF_DISCARD_AVERAGE	1
+#define CONF_DISCARD_MINIMUM	2
+#define	CONF_DISCARD_MONITOR	3
+
+/*
  * "tinker" modifier keywords
  */
 #define CONF_CLOCK_MAX		1
 #define CONF_CLOCK_PANIC	2
 #define CONF_CLOCK_PHI		3
 #define CONF_CLOCK_MINSTEP	4
-#define CONF_CLOCK_MINPOLL	5
-#define CONF_CLOCK_ALLAN	6
-#define CONF_CLOCK_HUFFPUFF	7
+#define CONF_CLOCK_ALLAN	5
+#define CONF_CLOCK_HUFFPUFF	6
+#define CONF_CLOCK_FREQ		7
 
-#ifdef PUBKEY
+/*
+ * "tos" modifier keywords
+ */
+#define CONF_TOS_MINCLOCK	1
+#define CONF_TOS_MINSANE	2
+#define CONF_TOS_FLOOR		3
+#define CONF_TOS_CEILING	4
+#define CONF_TOS_COHORT		5
+
+#ifdef OPENSSL
 /*
  * "crypto" modifier keywords
  */
-#define CONF_CRYPTO_DH		1
-#define	CONF_CRYPTO_PRIVATEKEY	2
-#define	CONF_CRYPTO_PUBLICKEY	3
-#define CONF_CRYPTO_LEAP	4
-#define CONF_CRYPTO_FLAGS	5
-#define CONF_CRYPTO_CERT	6
-#endif /* PUBKEY */
+#define	CONF_CRYPTO_RSA		1	
+#define	CONF_CRYPTO_SIGN	2
+#define CONF_CRYPTO_LEAP	3
+#define CONF_CRYPTO_CERT	4
+#define CONF_CRYPTO_RAND	5
+#define CONF_CRYPTO_KEYS	6
+#define	CONF_CRYPTO_IFFPAR	7
+#define CONF_CRYPTO_GQPAR	8
+#define CONF_CRYPTO_MVPAR	9
+#define CONF_CRYPTO_PW		10
+#endif /* OPENSSL */
+
+/*
+ * Address selection, IPv4 or IPv6
+ */
+#define	CONF_ADDR_IPV4		1
+#define	CONF_ADDR_IPV6		2

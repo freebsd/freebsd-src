@@ -8,22 +8,22 @@
  * www.rsa.com.
  */
 
-#include "ntp_machine.h"
-
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
 
-#include <stdio.h>
-
-#include "ntp_types.h"
+#include "ntp_fp.h"
 #include "ntp_string.h"
-#include "global.h"
-#include "md5.h"
 #include "ntp_stdlib.h"
 
-#define BLOCK_OCTETS	16	/* message digest size */
+/* Disable the openssl md5 includes, because they'd clash with ours. */
+/* #define NO_MD5 */
+/* #define OPENSSL_NO_MD5 */
+#undef OPENSSL
 
+#include "ntp.h"
+#include "global.h"
+#include "ntp_md5.h"
 
 /*
  * MD5authencrypt - generate MD5 message authenticator
@@ -37,20 +37,18 @@ MD5authencrypt(
 	int length		/* packet length */
 	)
 {
-	MD5_CTX ctx;
-	u_char digest[BLOCK_OCTETS];
-	int i;
+	MD5_CTX md5;
+	u_char digest[16];
 
 	/*
 	 * MD5 with key identifier concatenated with packet.
 	 */
-	MD5Init(&ctx);
-	MD5Update(&ctx, key, (u_int)cache_keylen);
-	MD5Update(&ctx, (u_char *)pkt, (u_int)length);
-	MD5Final(digest, &ctx);
-	i = length / 4;
-	memmove((char *)&pkt[i + 1], (char *)digest, BLOCK_OCTETS);
-	return (BLOCK_OCTETS + 4);
+	MD5Init(&md5);
+	MD5Update(&md5, key, (u_int)cache_keylen);
+	MD5Update(&md5, (u_char *)pkt, (u_int)length);
+	MD5Final(digest, &md5);
+	memmove((u_char *)pkt + length + 4, digest, 16);
+	return (16 + 4);
 }
 
 
@@ -63,22 +61,44 @@ int
 MD5authdecrypt(
 	u_char *key,		/* key pointer */
 	u_int32 *pkt,		/* packet pointer */
-	int length, 	/* packet length */
+	int length,	 	/* packet length */
 	int size		/* MAC size */
 	)
 {
-	MD5_CTX ctx;
-	u_char digest[BLOCK_OCTETS];
+	MD5_CTX md5;
+	u_char digest[16];
 
 	/*
 	 * MD5 with key identifier concatenated with packet.
 	 */
-	if (size != BLOCK_OCTETS + 4)
+	MD5Init(&md5);
+	MD5Update(&md5, key, (u_int)cache_keylen);
+	MD5Update(&md5, (u_char *)pkt, (u_int)length);
+	MD5Final(digest, &md5);
+	if (size != 16 + 4)
 		return (0);
-	MD5Init(&ctx);
-	MD5Update(&ctx, key, (u_int)cache_keylen);
-	MD5Update(&ctx, (u_char *)pkt, (u_int)length);
-	MD5Final(digest, &ctx);
-	return (!memcmp((char *)digest, (char *)pkt + length + 4,
-		BLOCK_OCTETS));
+	return (!memcmp(digest, (char *)pkt + length + 4, 16));
+}
+
+/*
+ * Calculate the reference id from the address. If it is an IPv4
+ * address, use it as is. If it is an IPv6 address, do a md5 on
+ * it and use the bottom 4 bytes.
+ */
+u_int32
+addr2refid(struct sockaddr_storage *addr)
+{
+	MD5_CTX md5;
+	u_char digest[16];
+	u_int32 addr_refid;
+
+	if (addr->ss_family == AF_INET)
+		return (GET_INADDR(*addr));
+
+	MD5Init(&md5);
+	MD5Update(&md5, (u_char *)&GET_INADDR6(*addr),
+	    sizeof(struct in6_addr));
+	MD5Final(digest, &md5);
+	memcpy(&addr_refid, digest, 4);
+	return (htonl(addr_refid));
 }

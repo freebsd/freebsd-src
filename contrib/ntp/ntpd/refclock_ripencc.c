@@ -461,8 +461,6 @@ struct refclock refclock_ripencc = {
 static int day1tab[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
 static int day2tab[] = {31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
 
-extern int pps_hardpps;
-extern int pps_assert;
 
 /*
  * ripencc_start - open the GPS devices and initialize data for processing
@@ -612,7 +610,7 @@ ripencc_start(int unit, struct peer *peer)
 		return (1);
 	}
 
-	return(ripencc_ppsapi(peer, pps_assert, pps_hardpps));
+	return(ripencc_ppsapi(peer, 0, 0));
 }
 
 /*
@@ -988,7 +986,7 @@ ripencc_receive(struct recvbuf *rbufp)
 				 */
 				if (ripencc_get_pps_ts(up, &rd_tmp) == 1) {
 					pp->lastrec = up->tstamp = rd_tmp;
-					pp->msec = 0;
+					pp->nsec = 0;
 				}
 				else
 					msyslog(LOG_INFO, "%s(): ripencc_get_pps_ts returns failure\n",__FUNCTION__);
@@ -1479,7 +1477,7 @@ parse0x8FAD(rpt, peer)
 	pp->hour = hour;
 	pp->minute = minute;
 	pp-> second = second;
-	pp->msec = 0;
+	pp->nsec = 0;
 
 	if ((utcflags&UTCF_LEAP_PNDG) && up->leapdelta != 0) 
 		pp-> leap = (up->leapdelta > 0 ? LEAP_ADDSECOND : LEAP_DELSECOND); 
@@ -4706,7 +4704,7 @@ int print_msg_table_header (int rptcode, char *HdrStr, int force)
 {
 	/* force header is to help auto-output function */
 	/* last_rptcode is to determine whether to print a header */
-	/* for the first occurence of a series of reports */
+	/* for the first occurrence of a series of reports */
 	static int
 		last_rptcode = 0;
    int

@@ -7,11 +7,7 @@ anything good if run on machines other than their native spot, so don't
 just blindly copy something and put it up. Additional information can
 be found in the ./doc directory of the base directory.
 
-See the Config.local.dist file in the base directory for an explanation
-of the defines used.
-
-The files Config.* are used to generate fullblown binaries suitable for
-distribution with the systems shown as suffix. While this can result
-in some degree of useless code, the degree is small compared to the
-size of the baseline code. The files *.conf are representative NTP
-run-time configuration files, which normally live in /etc/ntp.conf.
+Included also are example public key and symmetric key files produced
+by the ntp-genkeys program with names prefixed by ntpkey. These are
+ordinarily kept in /usr/local/etc and used by the Autokey scheme. See
+the authopt.htm pnd genkeys.htm ages for further information.

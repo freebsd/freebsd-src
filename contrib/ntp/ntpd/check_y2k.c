@@ -45,6 +45,9 @@
 # if !defined(VMS)	/*wjm*/
 #  include <sys/param.h>
 # endif /* VMS */
+# if HAVE_SYS_SIGNAL_H
+#  include <sys/signal.h>
+# endif /* HAVE_SYS_SIGNAL_H */
 # include <sys/signal.h>
 # ifdef HAVE_SYS_IOCTL_H
 #  include <sys/ioctl.h>

@@ -24,7 +24,8 @@
  */
 
 #include "global.h"
-#include "md5.h"
+#ifndef HAVE_MD5INIT
+#include "ntp_md5.h"
 
 /* Constants for MD5Transform routine.
  */
@@ -122,10 +123,10 @@ MD5Update (
 	unsigned int inputLen             /* length of input block */
 	)
 {
-  unsigned int i, index, partLen;
+  unsigned int i, idx, partLen;
 
   /* Compute number of bytes mod 64 */
-  index = (unsigned int)((context->count[0] >> 3) & 0x3F);
+  idx = (unsigned int)((context->count[0] >> 3) & 0x3F);
 
   /* Update number of bits */
   if ((context->count[0] += ((UINT4)inputLen << 3))
@@ -133,26 +134,26 @@ MD5Update (
     context->count[1]++;
   context->count[1] += ((UINT4)inputLen >> 29);
   
-  partLen = 64 - index;
+  partLen = 64 - idx;
   
   /* Transform as many times as possible.
    */
   if (inputLen >= partLen) {
     MD5_memcpy
-      ((POINTER)&context->buffer[index], (POINTER)input, partLen);
+      ((POINTER)&context->buffer[idx], (POINTER)input, partLen);
     MD5Transform (context->state, context->buffer);
   
     for (i = partLen; i + 63 < inputLen; i += 64)
       MD5Transform (context->state, &input[i]);
     
-    index = 0;
+    idx = 0;
   }
   else
     i = 0;
   
   /* Buffer remaining input */
   MD5_memcpy 
-    ((POINTER)&context->buffer[index], (POINTER)&input[i],
+    ((POINTER)&context->buffer[idx], (POINTER)&input[i],
      inputLen-i);
 }
 
@@ -166,15 +167,15 @@ MD5Final (
 	)
 {
   unsigned char bits[8];
-  unsigned int index, padLen;
+  unsigned int idx, padLen;
 
   /* Save number of bits */
   Encode (bits, context->count, 8);
 
   /* Pad out to 56 mod 64.
    */
-  index = (unsigned int)((context->count[0] >> 3) & 0x3f);
-  padLen = (index < 56) ? (56 - index) : (120 - index);
+  idx = (unsigned int)((context->count[0] >> 3) & 0x3f);
+  padLen = (idx < 56) ? (56 - idx) : (120 - idx);
   MD5Update (context, PADDING, padLen);
   
   /* Append length (before padding) */
@@ -348,3 +349,6 @@ MD5_memset (
   for (i = 0; i < len; i++)
     ((char *)output)[i] = (char)value;
 }
+#else
+int md5_bs;
+#endif

@@ -1,5 +1,7 @@
 Notes to hackers.
 
+See README.patches for information about submitting patches.
+
 ---
 
 Dave likes this code indented formatted in a consistent way.
@@ -23,3 +25,4 @@ While the whitespace is optional, the function name MUST start at column 0.
 We'd like to see *all* system function declarations live in include/l_stdlib.h
 and NEVER appear in the .c files.
 
+---

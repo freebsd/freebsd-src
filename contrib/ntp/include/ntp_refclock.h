@@ -44,9 +44,10 @@
 #define BSD_TTYS
 #endif /* SYSV_TTYS STREAM BSD_TTYS */
 
-#define SAMPLE(x)	pp->filter[pp->coderecv++ % MAXSTAGE] = (x); \
-			if (pp->coderecv % MAXSTAGE == pp->codeproc % MAXSTAGE) \
-				pp->codeproc++;
+#define SAMPLE(x)	pp->coderecv = (pp->coderecv + 1) % MAXSTAGE; \
+			pp->filter[pp->coderecv] = (x); \
+			if (pp->coderecv == pp->codeproc) \
+				pp->codeproc = (pp->codeproc + 1) % MAXSTAGE;
 
 /*
  * Macros to determine the clock type and unit numbers from a
@@ -128,7 +129,7 @@ struct refclockio {
 				of refclock input data */
 	caddr_t	srcclock;	/* pointer to clock structure */
 	int	datalen;	/* lenth of data */
-	int	fd;		/* file descriptor */
+	SOCKET	fd;		/* file descriptor */
 	u_long	recvcount;	/* count of receive completions */
 };
 
@@ -187,13 +188,12 @@ struct refclockproc {
 	int	hour;		/* hour of day */
 	int	minute;		/* minute of hour */
 	int	second;		/* second of minute */
-	int	msec;		/* millisecond of second */
-	long	usec;		/* microsecond of second (alt) */
+	long	nsec;		/* nanosecond of second */
 	u_long	yearstart;	/* beginning of year */
 	int	coderecv;	/* put pointer */
 	int	codeproc;	/* get pointer */
-	l_fp	lastref;	/* timecode timestamp */
-	l_fp	lastrec;	/* local timestamp */
+	l_fp	lastref;	/* reference timestamp */
+	l_fp	lastrec;	/* receive timestamp */
 	double	offset;		/* mean offset */
 	double	disp;		/* sample dispersion */
 	double	jitter;		/* jitter (mean squares) */
@@ -204,6 +204,7 @@ struct refclockproc {
 	 */
 	double	fudgetime1;	/* fudge time1 */
 	double	fudgetime2;	/* fudge time2 */
+	u_char	stratum;	/* server stratum */
 	u_int32	refid;		/* reference identifier */
 	u_char	sloppyclockflag; /* fudge flags */
 
@@ -248,9 +249,9 @@ extern	int	io_addclock	P((struct refclockio *));
 extern	void	io_closeclock	P((struct refclockio *));
 
 #ifdef REFCLOCK
-extern	void	refclock_buginfo P((struct sockaddr_in *,
+extern	void	refclock_buginfo P((struct sockaddr_storage *,
 				    struct refclockbug *));
-extern	void	refclock_control P((struct sockaddr_in *,
+extern	void	refclock_control P((struct sockaddr_storage *,
 				    struct refclockstat *,
 				    struct refclockstat *));
 extern	int	refclock_open	P((char *, int, int));

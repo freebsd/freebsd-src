@@ -214,7 +214,7 @@ filegen_open(
 		 *
 		 * If the file was open before keep the previous generation.
 		 * This will cause output to end up in the 'wrong' file,
-		 * but I think this is still better than loosing output
+		 * but I think this is still better than losing output
 		 *
 		 * ignore errors due to missing directories
 		 */
@@ -316,7 +316,7 @@ filegen_setup(
       
 	    case FILEGEN_MONTH:
 		caljulian(now, &cal);
-		cal.yearday -= cal.monthday - 1;
+		cal.yearday = (u_short) (cal.yearday - cal.monthday + 1);
 		cal.monthday = 1;
 		cal.hour = cal.minute = cal.second = 0;
 		new_gen = caltontp(&cal);
@@ -378,8 +378,8 @@ filegen_config(
 		gen->basename = (char*)emalloc(strlen(basename) + 1);
 		strcpy(gen->basename, basename);
 	}
-	gen->type = type;
-	gen->flag = flag;
+	gen->type = (u_char) type;
+	gen->flag = (u_char) flag;
 
 	/*
 	 * make filegen use the new settings

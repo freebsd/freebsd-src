@@ -164,6 +164,11 @@ tpro_poll(
 	 * can't use the sec/usec conversion produced by the driver,
 	 * since the year may be suspect. All format error checking is
 	 * done by the sprintf() and sscanf() routines.
+	 *
+	 * Note that the refclockproc usec member has now become nsec.
+	 * We could either multiply the read-in usec value by 1000 or
+	 * we could pad the written string appropriately and read the
+	 * resulting value in already scaled.
 	 */
 	sprintf(pp->a_lastcode,
 	    "%1x%1x%1x %1x%1x:%1x%1x:%1x%1x.%1x%1x%1x%1x%1x%1x %1x",
@@ -179,11 +184,12 @@ tpro_poll(
 		   pp->a_lastcode);
 #endif
 	if (sscanf(pp->a_lastcode, "%3d %2d:%2d:%2d.%6ld", &pp->day,
-	    &pp->hour, &pp->minute, &pp->second, &pp->usec)
+	    &pp->hour, &pp->minute, &pp->second, &pp->nsec)
 	    != 5) {
 		refclock_report(peer, CEVNT_BADTIME);
 		return;
 	}
+	pp->nsec *= 1000;	/* Convert usec to nsec */
 	if (!tp->status & 0x3)
 		pp->leap = LEAP_NOTINSYNC;
 	else
@@ -198,6 +204,8 @@ tpro_poll(
 		refclock_report(peer, CEVNT_TIMEOUT);
 		return;
 	}
+	refclock_receive(peer);
+	pp->lastref = pp->lastrec;
 	record_clock_stats(&peer->srcadr, pp->a_lastcode);
 	refclock_receive(peer);
 	peer->burst = NSTAGE;

@@ -16,10 +16,6 @@
 970210: Find a way to dump the current configuration to either syslog or
 	a file.
 
-CPP macros we need to handle:
-
- SUN_3_3_STINKS  (this will be easy to handle if anybody still needs it)
-
 Problems that need to be fixed:
 
 - Get rid of the old SYS_* macros:

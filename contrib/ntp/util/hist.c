@@ -7,20 +7,24 @@
  * runs backwards.
  */
 
+#if 0
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif
 
 #include "ntp_types.h"
+#endif
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 
 #define NBUF 100001		/* size of basic histogram */
 #define NSRT 20000		/* size of overflow histogram */
 #define NCNT (600 * 1000000)	/* sample interval (us) */
 
-int col P((long *, long *));
+extern int col(hrtime_t *, hrtime_t *);
+extern hrtime_t gethrtime(void);
 
 int
 main(
@@ -28,10 +32,8 @@ main(
 	char *argv[]
 	)
 {
-	struct timeval ts, tr, tp;
-	struct timezone tzp;
 	int i, j, n;
-	long t, u, v, w, gtod[NBUF], ovfl[NSRT];
+	hrtime_t t, u, v, w, gtod[NBUF], ovfl[NSRT];
 
 	/*
 	 * Force pages into memory
@@ -45,12 +47,10 @@ main(
 	 * Construct histogram
 	 */
 	n = 0;
-	gettimeofday(&ts, &tzp);
-	t = ts.tv_sec * 1000000 + ts.tv_usec;
+	t = gethrtime();
 	v = t;
 	while (1) {
-		gettimeofday(&tr, &tzp);
-		u = tr.tv_sec * 1000000 + tr.tv_usec; 
+		u = gethirestime();
 		if (u - v > NCNT)
 		    break;
 		w = u - t;
@@ -66,7 +66,6 @@ main(
 		} else {
 			gtod[w]++;
 		}
-		ts = tr;
 		t = u;
 	}
 
@@ -79,7 +78,7 @@ main(
 	}
 	if (n == 0)
 	    return;
-	qsort((char *)ovfl, (size_t)n, sizeof(long), col);
+	qsort((char *)ovfl, (size_t)n, sizeof(hrtime_t), col);
 	w = 0;
 	j = 0;
 	for (i = 0; i < n; i++) {
@@ -99,8 +98,8 @@ main(
 
 int
 col(
-	long *x,
-	long *y
+	hrtime_t *x,
+	hrtime_t *y
 	)
 {
 	return (*x - *y);

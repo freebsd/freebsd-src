@@ -503,6 +503,7 @@ true_receive(
 				refclock_report(peer, CEVNT_BADTIME);
 				return;
 			}
+			off.l_uf = 0;
 #endif
 
 			pp->usec = true_sample720();
@@ -545,8 +546,9 @@ true_receive(
 		 * If clock is good we send a NOMINAL message so that
 		 * any previous BAD messages are nullified
 		 */
-                refclock_report(peer, CEVNT_NOMINAL);
+                pp->lastref = pp->lastrec;
 		refclock_receive(peer);
+		refclock_report(peer, CEVNT_NOMINAL);
 
 		/*
 		 * We have succedded in answering the poll.

@@ -7,7 +7,7 @@
 char *
 fptoa(
 	s_fp fpv,
-	int ndec
+	short ndec
 	)
 {
 	u_fp plusfp;
