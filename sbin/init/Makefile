@@ -1,11 +1,14 @@
 #	@(#)Makefile	8.1 (Berkeley) 7/19/93
-#	$Id: Makefile,v 1.14 1997/08/18 03:32:09 davidn Exp $
+#	$Id: Makefile,v 1.16 1999/06/18 09:08:06 ru Exp $
 
 PROG=	init
 MAN8=	init.8
 BINMODE=500
 INSTALLFLAGS=-fschg
 CFLAGS+=-DDEBUGSHELL -DSECURE -DLOGIN_CAP
+
+# Uncomment the following line to activate System V compatibility mode
+#CFLAGS+=-DCOMPAT_SYSV_INIT
 
 .if exists(${.CURDIR}/../../secure) && !defined(NOCRYPT) && !defined(NOSECURE)
 DISTRIBUTION=des

@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)shutdown.c	8.4 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id: shutdown.c,v 1.15 1998/12/11 11:04:19 bde Exp $";
+	"$Id: shutdown.c,v 1.19 1999/06/21 16:06:21 ru Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -93,7 +93,7 @@ struct interval {
 #undef S
 
 static time_t offset, shuttime;
-static int dohalt, dopower, doreboot, killflg, mbuflen;
+static int dohalt, dopower, doreboot, killflg, mbuflen, oflag;
 static char *nosync, *whom, mbuf[BUFSIZ];
 
 void badtime __P((void));
@@ -104,7 +104,7 @@ void loop __P((void));
 void nolog __P((void));
 void timeout __P((int));
 void timewarn __P((int));
-void usage __P((void));
+void usage __P((const char *));
 
 int
 main(argc, argv)
@@ -121,7 +121,7 @@ main(argc, argv)
 #endif
 	nosync = NULL;
 	readstdin = 0;
-	while ((ch = getopt(argc, argv, "-hknpr")) != -1)
+	while ((ch = getopt(argc, argv, "-hknopr")) != -1)
 		switch (ch) {
 		case '-':
 			readstdin = 1;
@@ -135,6 +135,9 @@ main(argc, argv)
 		case 'n':
 			nosync = "-n";
 			break;
+		case 'o':
+			oflag = 1;
+			break;
 		case 'p':
 			dopower = 1;
 			break;
@@ -143,18 +146,23 @@ main(argc, argv)
 			break;
 		case '?':
 		default:
-			usage();
+			usage((char *)NULL);
 		}
 	argc -= optind;
 	argv += optind;
 
 	if (argc < 1)
-		usage();
+		usage((char *)NULL);
 
-	if (doreboot + dohalt + dopower > 1) {
-		warnx("incompatible switches -h, -p and -r");
-		usage();
-	}
+	if (killflg + doreboot + dohalt + dopower > 1)
+		usage("incompatible switches -h, -k, -p and -r");
+
+	if (oflag && !(dohalt || dopower || doreboot))
+		usage("-o requires -h, -p or -r");
+
+	if (nosync != NULL && !oflag)
+		usage("-n requires -o");
+
 	getoffset(*argv++);
 
 	if (*argv) {
@@ -232,7 +240,7 @@ loop()
 	if (tp->timeleft < offset)
 		(void)sleep((u_int)(offset - tp->timeleft));
 	else {
-		while (offset < tp->timeleft)
+		while (tp->timeleft && offset < tp->timeleft)
 			++tp;
 		/*
 		 * Warn now, if going to sleep more than a fifth of
@@ -345,29 +353,39 @@ die_you_gravy_sucking_pig_dog()
 		(void)printf("halt");
 	else if (dopower)
 		(void)printf("power-down");
-	if (nosync)
+	if (nosync != NULL)
 		(void)printf(" no sync");
 	(void)printf("\nkill -HUP 1\n");
 #else
-	if (doreboot) {
-		execle(_PATH_REBOOT, "reboot", "-l", nosync, 
-			   (char *)NULL, empty_environ);
-		syslog(LOG_ERR, "shutdown: can't exec %s: %m.", _PATH_REBOOT);
-		warn(_PATH_REBOOT);
+	if (!oflag) {
+		(void)kill(1, doreboot ? SIGINT :	/* reboot */
+			      dohalt ? SIGUSR1 :	/* halt */
+			      dopower ? SIGUSR2 :	/* power-down */
+			      SIGTERM);			/* single-user */
+	} else {
+		if (doreboot) {
+			execle(_PATH_REBOOT, "reboot", "-l", nosync, 
+				(char *)NULL, empty_environ);
+			syslog(LOG_ERR, "shutdown: can't exec %s: %m.",
+				_PATH_REBOOT);
+			warn(_PATH_REBOOT);
+		}
+		else if (dohalt) {
+			execle(_PATH_HALT, "halt", "-l", nosync,
+				(char *)NULL, empty_environ);
+			syslog(LOG_ERR, "shutdown: can't exec %s: %m.",
+				_PATH_HALT);
+			warn(_PATH_HALT);
+		}
+		else if (dopower) {
+			execle(_PATH_HALT, "halt", "-l", "-p", nosync,
+				(char *)NULL, empty_environ);
+			syslog(LOG_ERR, "shutdown: can't exec %s: %m.",
+				_PATH_HALT);
+			warn(_PATH_HALT);
+		}
+		(void)kill(1, SIGTERM);		/* to single-user */
 	}
-	else if (dohalt) {
-		execle(_PATH_HALT, "halt", "-l", nosync,
-			   (char *)NULL, empty_environ);
-		syslog(LOG_ERR, "shutdown: can't exec %s: %m.", _PATH_HALT);
-		warn(_PATH_HALT);
-	}
-	else if (dopower) {
-		execle(_PATH_HALT, "halt", "-l", "-p", nosync,
-			   (char *)NULL, empty_environ);
-		syslog(LOG_ERR, "shutdown: can't exec %s: %m.", _PATH_HALT);
-		warn(_PATH_HALT);
-	}
-	(void)kill(1, SIGTERM);		/* to single user */
 #endif
 	finish(0);
 }
@@ -383,16 +401,19 @@ getoffset(timearg)
 	time_t now;
 	int this_year;
 
+	(void)time(&now);
+
 	if (!strcasecmp(timearg, "now")) {		/* now */
 		offset = 0;
+		shuttime = now;
 		return;
 	}
 
-	(void)time(&now);
 	if (*timearg == '+') {				/* +minutes */
 		if (!isdigit(*++timearg))
 			badtime();
-		offset = atoi(timearg) * 60;
+		if ((offset = atoi(timearg) * 60) < 0)
+			badtime();
 		shuttime = now + offset;
 		return;
 	}
@@ -492,9 +513,13 @@ badtime()
 }
 
 void
-usage()
+usage(cp)
+	const char *cp;
 {
-	fprintf(stderr,
-	    "usage: shutdown [-] [-hknpr] time [warning-message ...]\n");
+	if (cp != NULL)
+		warnx("%s", cp);
+	(void)fprintf(stderr,
+	    "usage: shutdown [-] [-h | -p | -r | -k] [-o [-n]]"
+	    " time [warning-message ...]\n");
 	exit(1);
 }
