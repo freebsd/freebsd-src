@@ -229,13 +229,13 @@ get_geom_values(int disk)
 	int next = 0;
 
 	struct field field[] = {
-		{2, 27, 06, 10, 01, 02, 01, -1, -1, "000000"},
-		{4, 27, 06, 10, 02, 00, 02, -1, -1, "000000"},
-		{6, 27, 06, 10, 00, 01, 00, -1, -1, "000000"},
-		{0, 07, 06, 10, -1, -1, -1, -1, -1, "Disk geomtetry parameters"},
-		{2, 02, 06, 10, -1, -1, -1, -1, -1, "Number of cylinders:"},
-		{4, 02, 06, 10, -1, -1, -1, -1, -1, "Number of tracks (heads):"},
-		{6, 02, 06, 10, -1, -1, -1, -1, -1, "Number of sectors:"}
+		{2, 28, 06, 10, 01, 02, 01, -1, 01, "Unset"},
+		{4, 28, 06, 10, 02, 00, 02, -1, 02, "Unset"},
+		{6, 28, 06, 10, 00, 01, 00, -1, 00, "Unset"},
+		{0, 07, 24, 24, -1, -1, -1, -1, -1, "BIOS geometry parameters"},
+		{2, 02, 20, 20, -1, -1, -1, -1, -1, "Number of cylinders:"},
+		{4, 02, 25, 25, -1, -1, -1, -1, -1, "Number of tracks (heads):"},
+		{6, 02, 18, 18, -1, -1, -1, -1, -1, "Number of sectors:"}
 	};
 
 	if (!(window = newwin(10, 40, 5, 20))) {
@@ -285,7 +285,9 @@ edit_mbr(int disk)
 	struct mbr *mbr = &disk_list[disk].mbr;
 
 	/* Confirm disk parameters */
-
+#ifdef 0
+	dialog_msgbox("BIOS disk geometry values", "In order to setup the boot area of the disk it is necessary to know the BIOS values for the disk geometry i.e. the number of cylinders, heads and sectors. These values may be different form the real geometry of the disk, depending on whether or not your system uses geometry translation. At this stage it is the entries from the BIOS that are needed. If you do not know these they can be found by rebooting the machine and entering th BIOS setup routine. See you BIOS manual for details", -1, -1, 1)
+#endif
 	if (get_geom_values(disk) == -1)
 		return(-1);
 
@@ -384,6 +386,8 @@ edit_mbr(int disk)
 			return(-1);
 		}
 	}
+
+	delwin(window);
 	dialog_clear();
 	return (0);
 }
