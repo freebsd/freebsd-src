@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file providing the above
  *    conditions are met.
  *
- * $Id: libutil.h,v 1.7 1997/05/10 18:55:37 davidn Exp $
+ * $Id: libutil.h,v 1.8 1997/05/12 10:36:13 brian Exp $
  */
 
 #ifndef _LIBUTIL_H_
@@ -32,19 +32,19 @@ struct winsize;
 struct utmp;
 
 __BEGIN_DECLS
-void	setproctitle __P((const char *fmt, ...));
-void	login __P((struct utmp *ut));
-int	login_tty __P((int fd));
-int	logout __P((char *line));
-void	logwtmp __P((char *line, char *name, char *host));
-int	openpty __P((int *amaster, int *aslave, char *name,
-		     struct termios *termp, struct winsize *winp));
-int	forkpty __P((int *amaster, char *name,
-		     struct termios *termp, struct winsize *winp));
-const char *uu_lockerr __P((int uu_lockresult));
-int	uu_lock __P((const char *ttyname));
-int	uu_unlock __P((const char *ttyname));
-int	_secure_path __P((const char *path, uid_t uid, gid_t gid));
+void	setproctitle __P((const char *_fmt, ...));
+void	login __P((struct utmp *_ut));
+int	login_tty __P((int _fd));
+int	logout __P((char *_line));
+void	logwtmp __P((char *_line, char *_name, char *_host));
+int	openpty __P((int *_amaster, int *_aslave, char *_name,
+		     struct termios *_termp, struct winsize *_winp));
+int	forkpty __P((int *_amaster, char *_name,
+		     struct termios *_termp, struct winsize *_winp));
+const char *uu_lockerr __P((int _uu_lockresult));
+int	uu_lock __P((const char *_ttyname));
+int	uu_unlock __P((const char *_ttyname));
+int	_secure_path __P((const char *_path, uid_t _uid, gid_t _gid));
 __END_DECLS
 
 #define UU_LOCK_INUSE (1)
