@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: login.pl,v 1.2 1998/07/15 20:11:44 abial Exp $
+# $Id: login.pl,v 1.1.1.1 1998/08/27 17:38:42 abial Exp $
 
 if [ "$2" != "root" ]
 then
@@ -7,4 +7,4 @@ then
 fi
 cat /etc/motd
 LANG=pl; export LANG
-exec -sh
+HOME=/root exec -sh
