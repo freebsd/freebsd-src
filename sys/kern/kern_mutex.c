@@ -50,6 +50,7 @@
  *	6 capitalized : a member of the Jehovah's Witnesses 
  */
 
+#include "opt_ddb.h"
 #include "opt_witness.h"
 
 #include <sys/param.h>
@@ -66,6 +67,8 @@
 #include <machine/bus.h>
 #include <machine/clock.h>
 #include <machine/cpu.h>
+
+#include <ddb/ddb.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
