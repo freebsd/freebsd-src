@@ -197,10 +197,7 @@ idad_dump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t l
 	if (length > 0) {
 		error = ida_command(drv->controller, CMD_WRITE, virtual,
 		    length, drv->drive, offset / DEV_BSIZE, DMA_DATA_OUT);
-		if (error)
-			goto out;
 	}
-out:
 	drv->controller->flags |= IDA_INTERRUPTS;
 	return (error);
 }
