@@ -44,6 +44,9 @@ __FBSDID("$FreeBSD$");
 #include <geom/vinum/geom_vinum_raid5.h>
 #include <geom/vinum/geom_vinum.h>
 
+int	gv_raid5_offset(struct gv_plex *, off_t, off_t, off_t *, off_t *,
+	    int *, int *);
+
 /*
  * Check if the stripe that the work packet wants is already being used by
  * some other work packet.
@@ -84,27 +87,12 @@ gv_rebuild_raid5(struct gv_plex *p, struct gv_raid5_packet *wp, struct bio *bp,
 	struct gv_sd *broken, *s;
 	struct gv_bioq *bq;
 	struct bio *cbp, *pbp;
-	off_t len_left, real_len, real_off, stripeend, stripeoff, stripestart;
+	off_t real_len, real_off;
 
 	if (p == NULL || LIST_EMPTY(&p->subdisks))
 		return (ENXIO);
 
-	/* Offset of the start address from the start of the stripe. */
-	stripeoff = boff % (p->stripesize * (p->sdcount - 1));
-	KASSERT(stripeoff >= 0, ("gv_build_raid5_request: stripeoff < 0"));
-
-	/* The offset of the stripe on this subdisk. */
-	stripestart = (boff - stripeoff) / (p->sdcount - 1);
-	KASSERT(stripestart >= 0, ("gv_build_raid5_request: stripestart < 0"));
-
-	stripeoff %= p->stripesize;
-
-	/* The offset of the request on this subdisk. */
-	real_off = stripestart + stripeoff;
-
-	stripeend = stripestart + p->stripesize;
-	len_left = stripeend - real_off;
-	KASSERT(len_left >= 0, ("gv_build_raid5_request: len_left < 0"));
+	gv_raid5_offset(p, boff, bcount, &real_off, &real_len, NULL, NULL);
 
 	/* Find the right subdisk. */
 	broken = NULL;
@@ -137,12 +125,11 @@ gv_rebuild_raid5(struct gv_plex *p, struct gv_raid5_packet *wp, struct bio *bp,
 		return (ENXIO);
 	}
 
-	real_len = (bcount <= len_left) ? bcount : len_left;
 	wp->length = real_len;
 	wp->data = addr;
 	wp->lockbase = real_off;
 
-	KASSERT(wp->length >= 0, ("gv_build_raid5_request: wp->length < 0"));
+	KASSERT(wp->length >= 0, ("gv_rebuild_raid5: wp->length < 0"));
 
 	/* Read all subdisks. */
 	LIST_FOREACH(s, &p->subdisks, in_plex) {
@@ -198,7 +185,7 @@ gv_build_raid5_req(struct gv_plex *p, struct gv_raid5_packet *wp,
 	struct gv_bioq *bq;
 	struct bio *cbp, *pbp;
 	int i, psdno, sdno, type;
-	off_t len_left, real_len, real_off, stripeend, stripeoff, stripestart;
+	off_t real_len, real_off;
 
 	gp = bp->bio_to->geom;
 
@@ -213,35 +200,7 @@ gv_build_raid5_req(struct gv_plex *p, struct gv_raid5_packet *wp,
 	type = REQ_TYPE_NORMAL;
 	original = parity = broken = NULL;
 
-	/* The number of the subdisk containing the parity stripe. */
-	psdno = p->sdcount - 1 - ( boff / (p->stripesize * (p->sdcount - 1))) %
-	    p->sdcount;
-	KASSERT(psdno >= 0, ("gv_build_raid5_request: psdno < 0"));
-
-	/* Offset of the start address from the start of the stripe. */
-	stripeoff = boff % (p->stripesize * (p->sdcount - 1));
-	KASSERT(stripeoff >= 0, ("gv_build_raid5_request: stripeoff < 0"));
-
-	/* The number of the subdisk where the stripe resides. */
-	sdno = stripeoff / p->stripesize;
-	KASSERT(sdno >= 0, ("gv_build_raid5_request: sdno < 0"));
-
-	/* At or past parity subdisk. */
-	if (sdno >= psdno)
-		sdno++;
-
-	/* The offset of the stripe on this subdisk. */
-	stripestart = (boff - stripeoff) / (p->sdcount - 1);
-	KASSERT(stripestart >= 0, ("gv_build_raid5_request: stripestart < 0"));
-
-	stripeoff %= p->stripesize;
-
-	/* The offset of the request on this subdisk. */
-	real_off = stripestart + stripeoff;
-
-	stripeend = stripestart + p->stripesize;
-	len_left = stripeend - real_off;
-	KASSERT(len_left >= 0, ("gv_build_raid5_request: len_left < 0"));
+	gv_raid5_offset(p, boff, bcount, &real_off, &real_len, &sdno, &psdno);
 
 	/* Find the right subdisks. */
 	i = 0;
@@ -270,7 +229,6 @@ gv_build_raid5_req(struct gv_plex *p, struct gv_raid5_packet *wp,
 			type = REQ_TYPE_NOPARITY;
 	}
 
-	real_len = (bcount <= len_left) ? bcount : len_left;
 	wp->length = real_len;
 	wp->data = addr;
 	wp->lockbase = real_off;
@@ -478,6 +436,54 @@ gv_build_raid5_req(struct gv_plex *p, struct gv_raid5_packet *wp,
 	default:
 		return (EINVAL);
 	}
+
+	return (0);
+}
+
+/* Calculate the offsets in the various subdisks for a RAID5 request. */
+int
+gv_raid5_offset(struct gv_plex *p, off_t boff, off_t bcount, off_t *real_off,
+    off_t *real_len, int *sdno, int *psdno)
+{
+	int sd, psd;
+	off_t len_left, stripeend, stripeoff, stripestart;
+
+	/* The number of the subdisk containing the parity stripe. */
+	psd = p->sdcount - 1 - ( boff / (p->stripesize * (p->sdcount - 1))) %
+	    p->sdcount;
+	KASSERT(psdno >= 0, ("gv_raid5_offset: psdno < 0"));
+
+	/* Offset of the start address from the start of the stripe. */
+	stripeoff = boff % (p->stripesize * (p->sdcount - 1));
+	KASSERT(stripeoff >= 0, ("gv_raid5_offset: stripeoff < 0"));
+
+	/* The number of the subdisk where the stripe resides. */
+	sd = stripeoff / p->stripesize;
+	KASSERT(sdno >= 0, ("gv_raid5_offset: sdno < 0"));
+
+	/* At or past parity subdisk. */
+	if (sd >= psd)
+		sd++;
+
+	/* The offset of the stripe on this subdisk. */
+	stripestart = (boff - stripeoff) / (p->sdcount - 1);
+	KASSERT(stripestart >= 0, ("gv_raid5_offset: stripestart < 0"));
+
+	stripeoff %= p->stripesize;
+
+	/* The offset of the request on this subdisk. */
+	*real_off = stripestart + stripeoff;
+
+	stripeend = stripestart + p->stripesize;
+	len_left = stripeend - *real_off;
+	KASSERT(len_left >= 0, ("gv_raid5_offset: len_left < 0"));
+
+	*real_len = (bcount <= len_left) ? bcount : len_left;
+
+	if (sdno != NULL)
+		*sdno = sd;
+	if (psdno != NULL)
+		*psdno = psd;
 
 	return (0);
 }
