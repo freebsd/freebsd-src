@@ -31,6 +31,8 @@
 
 #include <dev/sound/pcm/sound.h>
 
+#define OLDPCM_IOCTL
+
 static int getchns(snddev_info *d, int chan, pcm_channel **rdch, pcm_channel **wrch);
 
 static pcm_channel *
@@ -220,8 +222,10 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
     	case AIOSSIZE:     /* set the current blocksize */
 		{
 	    		struct snd_size *p = (struct snd_size *)arg;
-	    		if (wrch) chn_setblocksize(wrch, p->play_size);
-	    		if (rdch) chn_setblocksize(rdch, p->rec_size);
+	    		if (wrch)
+				chn_setblocksize(wrch, 2, p->play_size);
+	    		if (rdch)
+				chn_setblocksize(rdch, 2, p->rec_size);
 		}
 		/* FALLTHROUGH */
     	case AIOGSIZE:	/* get the current blocksize */
@@ -380,7 +384,7 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
 			if (rdch && ret == 0)
 				ret = chn_setformat(rdch, (rdch->format & ~AFMT_STEREO) |
 				        ((*arg_i == 2)? AFMT_STEREO : 0));
-			*arg_i = ((wrch? wrch->format : rdch->format) & AFMT_STEREO)? 1 : 0;
+			*arg_i = ((wrch? wrch->format : rdch->format) & AFMT_STEREO)? 2 : 1;
 		} else
 			*arg_i = 0;
 		break;
