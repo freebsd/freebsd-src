@@ -35,7 +35,7 @@
  *
  *	@(#)fdesc_vnops.c	8.9 (Berkeley) 1/21/94
  *
- * $Id: fdesc_vnops.c,v 1.11 1995/11/07 13:39:20 phk Exp $
+ * $Id: fdesc_vnops.c,v 1.12 1995/11/09 08:15:14 bde Exp $
  */
 
 /*
@@ -44,8 +44,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/types.h>
-#include <sys/time.h>
+#include <sys/conf.h>
 #include <sys/proc.h>
 #include <sys/kernel.h>	/* boottime */
 #include <sys/resourcevar.h>
@@ -59,7 +58,6 @@
 #include <sys/buf.h>
 #include <sys/dirent.h>
 #include <sys/socketvar.h>
-#include <sys/tty.h>
 #include <miscfs/fdesc/fdesc.h>
 
 #define cttyvp(p) ((p)->p_flag & P_CONTROLT ? (p)->p_session->s_ttyvp : NULL)
@@ -86,6 +84,29 @@ struct fdcache {
 };
 
 static struct fdcache fdcache[NFDCACHE];
+
+static int	fdesc_attr __P((int fd, struct vattr *vap, struct ucred *cred,
+				struct proc *p));
+static int	fdesc_badop __P((void));
+static int	fdesc_enotsupp __P((void));
+static int	fdesc_getattr __P((struct vop_getattr_args *ap));
+static struct fdcache *
+		fdesc_hash __P((int ix));
+static int	fdesc_inactive __P((struct vop_inactive_args *ap));
+static int	fdesc_ioctl __P((struct vop_ioctl_args *ap));
+static int	fdesc_lookup __P((struct vop_lookup_args *ap));
+static int	fdesc_nullop __P((void));
+static int	fdesc_open __P((struct vop_open_args *ap));
+static int	fdesc_pathconf __P((struct vop_pathconf_args *ap));
+static int	fdesc_print __P((struct vop_print_args *ap));
+static int	fdesc_read __P((struct vop_read_args *ap));
+static int	fdesc_readdir __P((struct vop_readdir_args *ap));
+static int	fdesc_readlink __P((struct vop_readlink_args *ap));
+static int	fdesc_reclaim __P((struct vop_reclaim_args *ap));
+static int	fdesc_select __P((struct vop_select_args *ap));
+static int	fdesc_setattr __P((struct vop_setattr_args *ap));
+static int	fdesc_vfree __P((struct vop_vfree_args *ap));
+static int	fdesc_write __P((struct vop_write_args *ap));
 
 /*
  * Initialise cache headers

@@ -35,7 +35,7 @@
  *
  *	@(#)umap_subr.c	8.6 (Berkeley) 1/26/94
  *
- * $Id: umap_subr.c,v 1.4 1995/05/30 08:07:17 rgrimes Exp $
+ * $Id: umap_subr.c,v 1.5 1995/12/03 14:38:57 bde Exp $
  */
 
 #include <sys/param.h>
@@ -47,6 +47,8 @@
 #include <sys/namei.h>
 #include <sys/malloc.h>
 #include <miscfs/umapfs/umap.h>
+
+extern int	umapfs_init __P((void));
 
 #define LOG2_SIZEVNODE 7		/* log2(sizeof struct vnode) */
 #define	NUMAPNODECACHE 16
@@ -69,6 +71,14 @@ struct umap_node_cache {
 };
 
 static struct umap_node_cache umap_node_cache[NUMAPNODECACHE];
+
+static u_long	umap_findid __P((u_long id, u_long map[][2], int nentries));
+static int	umap_node_alloc __P((struct mount *mp, struct vnode *lowervp,
+				     struct vnode **vpp));
+static struct vnode *
+		umap_node_find __P((struct mount *mp, struct vnode *targetvp));
+static struct umap_node_cache *
+		umap_node_hash __P((struct vnode *targetvp));
 
 /*
  * Initialise cache headers
