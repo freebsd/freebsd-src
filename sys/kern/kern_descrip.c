@@ -311,7 +311,7 @@ fcntl(p, uap)
 				error = EBADF;
 				break;
 			}
-			p->p_flag |= P_ADVLOCK;
+			p->p_leader->p_flag |= P_ADVLOCK;
 			error = VOP_ADVLOCK(vp, (caddr_t)p->p_leader, F_SETLK,
 			    &fl, flg);
 			break;
@@ -320,7 +320,7 @@ fcntl(p, uap)
 				error = EBADF;
 				break;
 			}
-			p->p_flag |= P_ADVLOCK;
+			p->p_leader->p_flag |= P_ADVLOCK;
 			error = VOP_ADVLOCK(vp, (caddr_t)p->p_leader, F_SETLK,
 			    &fl, flg);
 			break;
@@ -331,6 +331,16 @@ fcntl(p, uap)
 		default:
 			error = EINVAL;
 			break;
+		}
+		/* Check for race with close */
+		if ((unsigned) uap->fd >= fdp->fd_nfiles ||
+		    fp != fdp->fd_ofiles[uap->fd]) {
+			fl.l_whence = SEEK_SET;
+			fl.l_start = 0;
+			fl.l_len = 0;
+			fl.l_type = F_UNLCK;
+			(void) VOP_ADVLOCK(vp, (caddr_t)p->p_leader,
+					   F_UNLCK, &fl, F_POSIX);
 		}
 		fdrop(fp, p);
 		return(error);
@@ -1268,7 +1278,8 @@ closef(fp, p)
 	 * If the descriptor was in a message, POSIX-style locks
 	 * aren't passed with the descriptor.
 	 */
-	if (p && (p->p_flag & P_ADVLOCK) && fp->f_type == DTYPE_VNODE) {
+	if (p != NULL && (p->p_leader->p_flag & P_ADVLOCK) != 0 &&
+	    fp->f_type == DTYPE_VNODE) {
 		lf.l_whence = SEEK_SET;
 		lf.l_start = 0;
 		lf.l_len = 0;
