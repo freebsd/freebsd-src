@@ -163,7 +163,6 @@ spx_input(m, ipxp)
 
 	so = ipxp->ipxp_socket;
 
-	SOCK_LOCK(so);
 	if (so->so_options & SO_DEBUG || traceallspxs) {
 		ostate = cb->s_state;
 		spx_savesi = *si;
@@ -171,7 +170,6 @@ spx_input(m, ipxp)
 	if (so->so_options & SO_ACCEPTCONN) {
 		struct spxpcb *ocb = cb;
 
-		SOCK_UNLOCK(so);
 		so = sonewconn(so, 0);
 		if (so == NULL) {
 			goto drop;
@@ -195,8 +193,7 @@ spx_input(m, ipxp)
 		cb->s_flags = ocb->s_flags;	/* preserve sockopts */
 		cb->s_flags2 = ocb->s_flags2;	/* preserve sockopts */
 		cb->s_state = TCPS_LISTEN;
-	} else
-		SOCK_UNLOCK(so);
+	}
 
 	/*
 	 * Packet received on connection.
@@ -261,9 +258,7 @@ spx_input(m, ipxp)
 		ipxp->ipxp_fport =  si->si_sport;
 		cb->s_timer[SPXT_REXMT] = 0;
 		cb->s_timer[SPXT_KEEP] = SPXTV_KEEP;
-		SOCK_LOCK(so);
 		soisconnected(so);
-		SOCK_UNLOCK(so);
 		cb->s_state = TCPS_ESTABLISHED;
 		spxstat.spxs_accepts++;
 		}
@@ -290,9 +285,7 @@ spx_input(m, ipxp)
 		cb->s_dport = ipxp->ipxp_fport =  si->si_sport;
 		cb->s_timer[SPXT_REXMT] = 0;
 		cb->s_flags |= SF_ACKNOW;
-		SOCK_LOCK(so);
 		soisconnected(so);
-		SOCK_UNLOCK(so);
 		cb->s_state = TCPS_ESTABLISHED;
 		/* Use roundtrip time of connection request for initial rtt */
 		if (cb->s_rtt) {
@@ -304,12 +297,8 @@ spx_input(m, ipxp)
 			    cb->s_rtt = 0;
 		}
 	}
-	SOCK_LOCK(so);
-	if (so->so_options & SO_DEBUG || traceallspxs) {
-		SOCK_UNLOCK(so);
+	if (so->so_options & SO_DEBUG || traceallspxs)
 		spx_trace(SA_INPUT, (u_char)ostate, cb, &spx_savesi, 0);
-	} else
-		SOCK_UNLOCK(so);
 
 	m->m_len -= sizeof(struct ipx);
 	m->m_pkthdr.len -= sizeof(struct ipx);
@@ -330,23 +319,15 @@ dropwithreset:
 	si->si_ack = ntohs(si->si_ack);
 	si->si_alo = ntohs(si->si_alo);
 	m_freem(dtom(si));
-	SOCK_LOCK(cb->s_ipxpcb->ipxp_socket);
-	if (cb->s_ipxpcb->ipxp_socket->so_options & SO_DEBUG || traceallspxs) {
-		SOCK_UNLOCK(cb->s_ipxpcb->ipxp_socket);
+	if (cb->s_ipxpcb->ipxp_socket->so_options & SO_DEBUG || traceallspxs)
 		spx_trace(SA_DROP, (u_char)ostate, cb, &spx_savesi, 0);
-	} else
-		SOCK_UNLOCK(cb->s_ipxpcb->ipxp_socket);
 	return;
 
 drop:
 bad:
-	SOCK_LOCK(cb->s_ipxpcb->ipxp_socket);
 	if (cb == 0 || cb->s_ipxpcb->ipxp_socket->so_options & SO_DEBUG ||
-            traceallspxs) {
-		SOCK_UNLOCK(cb->s_ipxpcb->ipxp_socket);
+            traceallspxs)
 		spx_trace(SA_DROP, (u_char)ostate, cb, &spx_savesi, 0);
-	} else
-		SOCK_UNLOCK(cb->s_ipxpcb->ipxp_socket);
 	m_freem(m);
 }
 
@@ -481,9 +462,7 @@ register struct spx *si;
 		else
 			break;
 	}
-	SOCK_LOCK(so);
 	sowwakeup(so);
-	SOCK_UNLOCK(so);
 	cb->s_rack = si->si_ack;
 update_window:
 	if (SSEQ_LT(cb->s_snxt, cb->s_rack))
@@ -522,13 +501,10 @@ update_window:
 			} /* else queue this packet; */
 		} else {
 			/*register struct socket *so = cb->s_ipxpcb->ipxp_socket;
-			SOCK_LOCK(so);
 			if (so->so_state && SS_NOFDREF) {
-				SOCK_UNLOCK(so);
 				spx_close(cb);
-			} else {
-				SOCK_UNLOCK(so);
-				       would crash system } */
+			} else
+				       would crash system*/
 			spx_istat.notyet++;
 			m_freem(dtom(si));
 			return (0);
@@ -589,11 +565,8 @@ present:
 				cb->s_oobflags &= ~SF_IOOB;
 				if (so->so_rcv.sb_cc)
 					so->so_oobmark = so->so_rcv.sb_cc;
-				else {
-					SOCK_LOCK(so);
+				else
 					so->so_state |= SS_RCVATMARK;
-					SOCK_UNLOCK(so);
-				}
 			}
 			q = q->si_prev;
 			remque(q->si_next);
@@ -623,9 +596,7 @@ present:
 					MCHTYPE(m, MT_OOBDATA);
 					spx_newchecks[1]++;
 					so->so_oobmark = 0;
-					SOCK_LOCK(so);
 					so->so_state &= ~SS_RCVATMARK;
-					SOCK_UNLOCK(so);
 				}
 				if (packetp == 0) {
 					m->m_data += SPINC;
@@ -651,11 +622,8 @@ present:
 		  } else
 			break;
 	}
-	if (wakeup) {
-		SOCK_LOCK(so);
+	if (wakeup)
 		sorwakeup(so);
-		SOCK_UNLOCK(so);
-	}
 	return (0);
 }
 
@@ -1059,12 +1027,8 @@ send:
 		si->si_cc |= SPX_SP;
 	} else {
 		cb->s_outx = 3;
-		SOCK_LOCK(so);
-		if (so->so_options & SO_DEBUG || traceallspxs) {
-			SOCK_UNLOCK(so);
+		if (so->so_options & SO_DEBUG || traceallspxs)
 			spx_trace(SA_OUTPUT, cb->s_state, cb, si, 0);
-		} else
-			SOCK_UNLOCK(so);
 		return (0);
 	}
 	/*
@@ -1126,20 +1090,13 @@ send:
 			si->si_sum = 0xffff;
 
 		cb->s_outx = 4;
-		SOCK_LOCK(so);
-		if (so->so_options & SO_DEBUG || traceallspxs) {
-			SOCK_UNLOCK(so);
+		if (so->so_options & SO_DEBUG || traceallspxs)
 			spx_trace(SA_OUTPUT, cb->s_state, cb, si, 0);
-			SOCK_LOCK(so);
-		}
 
-		if (so->so_options & SO_DONTROUTE) {
-			SOCK_UNLOCK(so);
+		if (so->so_options & SO_DONTROUTE)
 			error = ipx_outputfl(m, (struct route *)NULL, IPX_ROUTETOIF);
-		} else {
-			SOCK_UNLOCK(so);
+		else
 			error = ipx_outputfl(m, &cb->s_ipxpcb->ipxp_route, 0);
-		}
 	}
 	if (error) {
 		return (error);
@@ -1456,9 +1413,7 @@ spx_connect(so, nam, td)
 	error = ipx_pcbconnect(ipxp, nam, td);
 	if (error)
 		goto spx_connect_end;
-	SOCK_LOCK(so);
 	soisconnecting(so);
-	SOCK_UNLOCK(so);
 	spxstat.spxs_connattempt++;
 	cb->s_state = TCPS_SYN_SENT;
 	cb->s_did = 0;
@@ -1580,15 +1535,12 @@ spx_rcvoob(so, m, flags)
 	ipxp = sotoipxpcb(so);
 	cb = ipxtospxpcb(ipxp);
 
-	SOCK_LOCK(so);
 	if ((cb->s_oobflags & SF_IOOB) || so->so_oobmark ||
 	    (so->so_state & SS_RCVATMARK)) {
-		SOCK_UNLOCK(so);
 		m->m_len = 1;
 		*mtod(m, caddr_t) = cb->s_iobc;
 		return (0);
 	}
-	SOCK_UNLOCK(so);
 	return (EINVAL);
 }
 
@@ -1732,9 +1684,7 @@ spx_close(cb)
 	m_free(dtom(cb->s_ipx));
 	FREE(cb, M_PCB);
 	ipxp->ipxp_pcb = 0;
-	SOCK_LOCK(so);
 	soisdisconnected(so);
-	SOCK_UNLOCK(so);
 	ipx_pcbdetach(ipxp);
 	spxstat.spxs_closed++;
 	return ((struct spxpcb *)NULL);
@@ -1937,17 +1887,13 @@ spx_timers(cb, timer)
 		spxstat.spxs_keeptimeo++;
 		if (cb->s_state < TCPS_ESTABLISHED)
 			goto dropit;
-		SOCK_LOCK(cb->s_ipxpcb->ipxp_socket);
 		if (cb->s_ipxpcb->ipxp_socket->so_options & SO_KEEPALIVE) {
-			SOCK_UNLOCK(cb->s_ipxpcb->ipxp_socket);
 		    	if (cb->s_idle >= SPXTV_MAXIDLE)
 				goto dropit;
 			spxstat.spxs_keepprobe++;
 			spx_output(cb, (struct mbuf *)NULL);
-		} else {
-			SOCK_UNLOCK(cb->s_ipxpcb->ipxp_socket);
+		} else
 			cb->s_idle = 0;
-		}
 		cb->s_timer[SPXT_KEEP] = SPXTV_KEEP;
 		break;
 	dropit:

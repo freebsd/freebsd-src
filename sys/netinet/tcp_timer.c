@@ -39,15 +39,13 @@
 #include "opt_tcpdebug.h"
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/lock.h>
 #include <sys/mbuf.h>
-#include <sys/mutex.h>
-#include <sys/protosw.h>
+#include <sys/sysctl.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
-#include <sys/sysctl.h>
-#include <sys/systm.h>
+#include <sys/protosw.h>
 
 #include <machine/cpu.h>	/* before tcp_seq.h, for tcp_random18() */
 
@@ -213,15 +211,9 @@ tcp_timer_2msl(xtp)
 		tp = tcp_close(tp);
 
 #ifdef TCPDEBUG
-	if (tp != 0) {
-		SOCK_LOCK(tp->t_inpcb->inp_socket);
-		if ((tp->t_inpcb->inp_socket->so_options & SO_DEBUG)) {
-			SOCK_UNLOCK(tp->t_inpcb->inp_socket);
-			tcp_trace(TA_USER, ostate, tp, (void *)0, (struct tcphdr *)0,
-				  PRU_SLOWTIMO);
-		} else
-			SOCK_UNLOCK(tp->t_inpcb->inp_socket);
-	}
+	if (tp && (tp->t_inpcb->inp_socket->so_options & SO_DEBUG))
+		tcp_trace(TA_USER, ostate, tp, (void *)0, (struct tcphdr *)0,
+			  PRU_SLOWTIMO);
 #endif
 	splx(s);
 }
@@ -251,11 +243,9 @@ tcp_timer_keep(xtp)
 	tcpstat.tcps_keeptimeo++;
 	if (tp->t_state < TCPS_ESTABLISHED)
 		goto dropit;
-	SOCK_LOCK(tp->t_inpcb->inp_socket);
 	if ((always_keepalive ||
 	     tp->t_inpcb->inp_socket->so_options & SO_KEEPALIVE) &&
 	    tp->t_state <= TCPS_CLOSING) {
-		SOCK_UNLOCK(tp->t_inpcb->inp_socket);
 		if ((ticks - tp->t_rcvtime) >= tcp_keepidle + tcp_maxidle)
 			goto dropit;
 		/*
@@ -279,19 +269,13 @@ tcp_timer_keep(xtp)
 			(void) m_free(dtom(t_template));
 		}
 		callout_reset(tp->tt_keep, tcp_keepintvl, tcp_timer_keep, tp);
-	} else {
-		SOCK_UNLOCK(tp->t_inpcb->inp_socket);
+	} else
 		callout_reset(tp->tt_keep, tcp_keepidle, tcp_timer_keep, tp);
-	}
 
 #ifdef TCPDEBUG
-	SOCK_LOCK(tp->t_inpcb->inp_socket);
-	if (tp->t_inpcb->inp_socket->so_options & SO_DEBUG) {
-		SOCK_UNLOCK(tp->t_inpcb->inp_socket);
+	if (tp->t_inpcb->inp_socket->so_options & SO_DEBUG)
 		tcp_trace(TA_USER, ostate, tp, (void *)0, (struct tcphdr *)0,
 			  PRU_SLOWTIMO);
-	} else
-		SOCK_UNLOCK(tp->t_inpcb->inp_socket);
 #endif
 	splx(s);
 	return;
@@ -301,15 +285,9 @@ dropit:
 	tp = tcp_drop(tp, ETIMEDOUT);
 
 #ifdef TCPDEBUG
-	if (tp != 0) {
-		SOCK_LOCK(tp->t_inpcb->inp_socket);
-		if ((tp->t_inpcb->inp_socket->so_options & SO_DEBUG)) {
-			SOCK_UNLOCK(tp->t_inpcb->inp_socket);
-			tcp_trace(TA_USER, ostate, tp, (void *)0, (struct tcphdr *)0,
-				  PRU_SLOWTIMO);
-		} else
-			SOCK_UNLOCK(tp->t_inpcb->inp_socket);
-	}
+	if (tp && (tp->t_inpcb->inp_socket->so_options & SO_DEBUG))
+		tcp_trace(TA_USER, ostate, tp, (void *)0, (struct tcphdr *)0,
+			  PRU_SLOWTIMO);
 #endif
 	splx(s);
 }
@@ -357,15 +335,9 @@ tcp_timer_persist(xtp)
 
 out:
 #ifdef TCPDEBUG
-	if (tp != 0) {
-		SOCK_LOCK(tp->t_inpcb->inp_socket);
-		if (tp->t_inpcb->inp_socket->so_options & SO_DEBUG) {
-			SOCK_UNLOCK(tp->t_inpcb->inp_socket);
-			tcp_trace(TA_USER, ostate, tp, (void *)0, (struct tcphdr *)0,
-				  PRU_SLOWTIMO);
-		} else
-			SOCK_UNLOCK(tp->t_inpcb->inp_socket);
-	}
+	if (tp && tp->t_inpcb->inp_socket->so_options & SO_DEBUG)
+		tcp_trace(TA_USER, ostate, tp, (void *)0, (struct tcphdr *)0,
+			  PRU_SLOWTIMO);
 #endif
 	splx(s);
 }
@@ -498,15 +470,9 @@ tcp_timer_rexmt(xtp)
 
 out:
 #ifdef TCPDEBUG
-	if (tp != 0) {
-		SOCK_LOCK(tp->t_inpcb->inp_socket);
-		if ((tp->t_inpcb->inp_socket->so_options & SO_DEBUG)) {
-			SOCK_UNLOCK(tp->t_inpcb->inp_socket);
-			tcp_trace(TA_USER, ostate, tp, (void *)0, (struct tcphdr *)0,
-				  PRU_SLOWTIMO);
-		} else
-			SOCK_UNLOCK(tp->t_inpcb->inp_socket);
-	}
+	if (tp && (tp->t_inpcb->inp_socket->so_options & SO_DEBUG))
+		tcp_trace(TA_USER, ostate, tp, (void *)0, (struct tcphdr *)0,
+			  PRU_SLOWTIMO);
 #endif
 	splx(s);
 }

@@ -94,13 +94,9 @@ ns_pcbbind(nsp, nam)
 	if (lport) {
 		u_short aport = ntohs(lport);
 
-		SOCK_LOCK(so);
 		if (aport < NSPORT_RESERVED &&
-		    (nsp->nsp_socket->so_state & SS_PRIV) == 0) {
-			SOCK_UNLOCK(so);
+		    (nsp->nsp_socket->so_state & SS_PRIV) == 0)
 			return (EACCES);
-		}
-		SOCK_UNLOCK(so);
 		if (ns_pcblookup(&zerons_addr, lport, 0))
 			return (EADDRINUSE);
 	}
@@ -152,12 +148,8 @@ ns_pcbconnect(nsp, nam)
 	 */
 	ro = &nsp->nsp_route;
 	dst = &satons_addr(ro->ro_dst);
-	SOCK_LOCK(nsp->nsp_socket);
-	if (nsp->nsp_socket->so_options & SO_DONTROUTE) {
-		SOCK_UNLOCK(nsp->nsp_socket);
+	if (nsp->nsp_socket->so_options & SO_DONTROUTE)
 		goto flush;
-	}
-	SOCK_UNLOCK(nsp->nsp_socket);
 	if (!ns_neteq(nsp->nsp_lastdst, sns->sns_addr))
 		goto flush;
 	if (!ns_hosteq(nsp->nsp_lastdst, sns->sns_addr)) {
@@ -173,19 +165,16 @@ ns_pcbconnect(nsp, nam)
 		}
 	}/* else cached route is ok; do nothing */
 	nsp->nsp_lastdst = sns->sns_addr;
-	SOCK_LOCK(nsp->nsp_socket);
 	if ((nsp->nsp_socket->so_options & SO_DONTROUTE) == 0 && /*XXX*/
 	    (ro->ro_rt == (struct rtentry *)0 ||
 	     ro->ro_rt->rt_ifp == (struct ifnet *)0)) {
-		    SOCK_UNLOCK(nsp->nsp_socket);
 		    /* No route yet, so try to acquire one */
 		    ro->ro_dst.sa_family = AF_NS;
 		    ro->ro_dst.sa_len = sizeof(ro->ro_dst);
 		    *dst = sns->sns_addr;
 		    dst->x_port = 0;
 		    rtalloc(ro);
-	} else
-		SOCK_UNLOCK(nsp->nsp_socket);
+	}
 	if (ns_neteqnn(nsp->nsp_laddr.x_net, ns_zeronet)) {
 		/*
 		 * If route is known or can be allocated now,
@@ -233,12 +222,8 @@ ns_pcbdisconnect(nsp)
 {
 
 	nsp->nsp_faddr = zerons_addr;
-	SOCK_LOCK(so);
-	if (nsp->nsp_socket->so_state & SS_NOFDREF) {
-		SOCK_UNLOCK(so);
+	if (nsp->nsp_socket->so_state & SS_NOFDREF)
 		ns_pcbdetach(nsp);
-	} else
-		SOCK_UNLOCK(so);
 }
 
 ns_pcbdetach(nsp)
@@ -247,7 +232,6 @@ ns_pcbdetach(nsp)
 	struct socket *so = nsp->nsp_socket;
 
 	so->so_pcb = 0;
-	SOCK_LOCK(so);
 	sotryfree(so);
 	if (nsp->nsp_route.ro_rt)
 		rtfree(nsp->nsp_route.ro_rt);

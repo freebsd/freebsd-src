@@ -181,7 +181,6 @@ atm_sock_detach(so)
 	 * Break links and free control blocks
 	 */
 	so->so_pcb = NULL;
-	SOCK_LOCK(so);
 	sotryfree(so);
 
 	uma_zfree(atm_pcb_zone, atp);
@@ -494,9 +493,7 @@ atm_sock_connect(so, addr, epp)
 	/*
 	 * We're finally ready to initiate the ATM connection
 	 */
-	SOCK_LOCK(so);
 	soisconnecting(so);
-	SOCK_UNLOCK(so);
 	atm_sock_stat.as_connreq[atp->atp_type]++;
 	err = atm_cm_connect(epp, atp, &atp->atp_attr, &atp->atp_conn);
 	if (err == 0) {
@@ -504,9 +501,7 @@ atm_sock_connect(so, addr, epp)
 		 * Connection is setup
 		 */
 		atm_sock_stat.as_conncomp[atp->atp_type]++;
-		SOCK_LOCK(so);
 		soisconnected(so);
-		SOCK_UNLOCK(so);
 
 	} else if (err == EINPROGRESS) {
 		/*
@@ -519,9 +514,7 @@ atm_sock_connect(so, addr, epp)
 		 * Call failed...
 		 */
 		atm_sock_stat.as_connfail[atp->atp_type]++;
-		SOCK_LOCK(so);
 		soisdisconnected(so);
-		SOCK_UNLOCK(so);
 	}
 
 	return (err);
@@ -571,9 +564,7 @@ atm_sock_disconnect(so)
 		atp->atp_conn = NULL;
 	}
 
-	SOCK_LOCK(so);
 	soisdisconnected(so);
-	SOCK_UNLOCK(so);
 
 	return (0);
 }
@@ -670,9 +661,7 @@ atm_sock_peeraddr(so, addr)
 	satm->satm_family = AF_ATM;
 	satm->satm_len = sizeof(*satm);
 	saddr = &satm->satm_addr.t_atm_sap_addr;
-	SOCK_LOCK(so);
 	if (so->so_state & SS_ISCONNECTED) {
-		SOCK_UNLOCK(so);
 		cvp = atp->atp_conn->co_connvc;
 		saddr->SVE_tag_addr = T_ATM_PRESENT;
 		if (cvp->cvc_flags & CVCF_CALLER) {
@@ -691,7 +680,6 @@ atm_sock_peeraddr(so, addr)
 		else
 			saddr->SVE_tag_selector = T_ATM_ABSENT;
 	} else {
-		SOCK_UNLOCK(so);
 		saddr->SVE_tag_addr = T_ATM_ABSENT;
 		saddr->SVE_tag_selector = T_ATM_ABSENT;
 		saddr->address_format = T_ATM_ABSENT;
@@ -1099,12 +1087,10 @@ atm_sock_getopt(so, sopt, atp)
 	 * If socket is connected, return attributes for the VCC in use,
 	 * otherwise just return what the user has setup so far.
 	 */
-	SOCK_LOCK(so);
 	if (so->so_state & SS_ISCONNECTED)
 		ap = &atp->atp_conn->co_connvc->cvc_attr;
 	else
 		ap = &atp->atp_attr;
-	SOCK_UNLOCK(so);
 
 	switch (sopt->sopt_name) {
 
@@ -1282,9 +1268,7 @@ atm_sock_connected(toku)
 	 * Connection is setup
 	 */
 	atm_sock_stat.as_conncomp[atp->atp_type]++;
-	SOCK_LOCK(atp->atp_socket);
 	soisconnected(atp->atp_socket);
-	SOCK_UNLOCK(atp->atp_socket);
 }
 
 
@@ -1318,7 +1302,6 @@ atm_sock_cleared(toku, cause)
 	/*
 	 * Set user error code
 	 */
-	SOCK_LOCK(so);
 	if (so->so_state & SS_ISCONNECTED) {
 		so->so_error = ECONNRESET;
 		atm_sock_stat.as_connclr[atp->atp_type]++;
@@ -1337,9 +1320,7 @@ atm_sock_cleared(toku, cause)
 	 * Cleanup failed incoming connection setup
 	 */
 	if (so->so_state & SS_NOFDREF) {
-		SOCK_UNLOCK(so);
 		(void) atm_sock_detach(so);
-	} else
-		SOCK_UNLOCK(so);
+	}
 }
 
