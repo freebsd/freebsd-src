@@ -226,6 +226,8 @@ atapi_queue_cmd(struct atapi_softc *atp, int8_t *ccb, caddr_t data,
     await(PRIBIO, 0);
     splx(s);
     error = request->error;
+    if (error)
+	 atp->sense = request->sense;
 #ifdef ATAPI_DEBUG
     ata_printf(atp->controller, atp->unit, "finished %s\n", 
 	       atapi_cmd2str(request->ccb[0]));
