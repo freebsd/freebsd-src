@@ -198,11 +198,18 @@ int	ed_alloc_irq(device_t, int, int);
 int	ed_probe_generic8390(struct ed_softc *);
 int	ed_probe_WD80x3(device_t, int, int);
 int	ed_probe_WD80x3_generic(device_t, int, uint16_t *[]);
+#ifdef ED_3C503
 int	ed_probe_3Com(device_t, int, int);
+#endif
+#ifdef ED_SIC
 int	ed_probe_SIC(device_t, int, int);
+#endif
 int	ed_probe_Novell(device_t, int, int);
+int	ed_probe_Novell_generic(device_t, int);
 void	ed_Novell_read_mac(struct ed_softc *);
+#ifdef ED_HPP
 int	ed_probe_HP_pclanp(device_t, int, int);
+#endif
 
 int	ed_attach(device_t);
 int	ed_detach(device_t);
@@ -220,9 +227,11 @@ void	ed_child_detached(device_t, device_t);
 #endif
 
 /* The following is unsatisfying XXX */
+#ifdef ED_HPP
 void	ed_hpp_set_physical_link(struct ed_softc *);
 void	ed_hpp_readmem(struct ed_softc *, long, uint8_t *, uint16_t);
 u_short	ed_hpp_write_mbufs(struct ed_softc *, struct mbuf *, int);
+#endif
 
 void	ed_disable_16bit_access(struct ed_softc *);
 void	ed_enable_16bit_access(struct ed_softc *);
