@@ -1199,6 +1199,7 @@ rsync		873/tcp
 rsync		873/udp
 accessbuilder	888/tcp
 accessbuilder	888/udp
+swat		901/tcp			# samba web configuration tool
 ftps-data	989/tcp			# ftp protocol, data, over TLS/SSL
 ftps-data	989/udp
 ftps		990/tcp			# ftp protocol, control, over TLS/SSL
