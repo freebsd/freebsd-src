@@ -34,150 +34,6 @@
         ..
         msdosfs
         ..
-        perl
-            5.6.1
-                B
-                ..
-                CGI
-                ..
-                CPAN
-                ..
-                Carp
-                ..
-                Class
-                ..
-                Data
-                ..
-                Devel
-                ..
-                Exporter
-                ..
-                ExtUtils
-                ..
-                File
-                    Spec
-                    ..
-                ..
-                Getopt
-                ..
-                I18N
-                ..
-                IO
-                ..
-                IPC
-                ..
-                Math
-                ..
-                Net
-                ..
-                Pod
-                    Text
-                    ..
-                ..
-                Search
-                ..
-                Sys
-                ..
-                Term
-                ..
-                Test
-                ..
-                Text
-                ..
-                Tie
-                ..
-                Time
-                ..
-                User
-                ..
-                auto
-                    DB_File
-                    ..
-                    File
-                        Glob
-                        ..
-                    ..
-                    GDBM_File
-                    ..
-                    Getopt
-                        Long
-                        ..
-                    ..
-                    POSIX
-                    ..
-                ..
-                mach
-                    B
-                    ..
-                    CORE
-                    ..
-                    Data
-                    ..
-                    IO
-                        Socket
-                        ..
-                    ..
-                    IPC
-                    ..
-                    arpa
-                    ..
-                    auto
-                        B
-                        ..
-                        DB_File
-                        ..
-                        Data
-                            Dumper
-                            ..
-                        ..
-                        DynaLoader
-                        ..
-                        Fcntl
-                        ..
-                        IO
-                        ..
-                        IPC
-                            SysV
-                            ..
-                        ..
-                        NDBM_File
-                        ..
-                        Opcode
-                        ..
-                        POSIX
-                        ..
-                        SDBM_File
-                        ..
-                        Socket
-                        ..
-                        attrs
-                        ..
-                        re
-                        ..
-                        sdbm
-                        ..
-                    ..
-                ..
-                pod
-                ..
-                unicode
-                    In
-                    ..
-                    Is
-                    ..
-                    To
-                    ..
-                ..
-                warnings
-                ..
-            ..
-            BSDPAN
-                BSDPAN
-                ..
-                ExtUtils
-                ..
-            ..
-        ..
         stallion
         ..
     ..
@@ -978,14 +834,6 @@
             Etc
             ..
         ..
-        perl
-            man
-                cat3            uname=man
-                ..
-                man3
-                ..
-            ..
-        ..
         sendmail
         ..
         skel
@@ -1008,8 +856,6 @@
         ..
         vi
             catalog
-            ..
-            perl
             ..
             tcl
             ..
