@@ -164,6 +164,7 @@ main(int argc, char **argv)
 	i = getdtablesize();
 
 	for(;i >= 0; i--)
+           if (i != 2)
 		close(i);
 
 	/* fiddle a terminating zero after the rbch unit number */
