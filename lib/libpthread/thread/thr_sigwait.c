@@ -113,7 +113,7 @@ lib_sigtimedwait(const sigset_t *set, siginfo_t *info,
 			if (SIGISMEMBER(waitset, i) &&
 			    SIGISMEMBER(curthread->sigpend, i)) {
 				SIGDELSET(curthread->sigpend, i);
-				*info = curthread->siginfo[i];
+				*info = curthread->siginfo[i - 1];
 				KSE_SCHED_UNLOCK(curthread->kse,
 					curthread->kseg);
 				_kse_critical_leave(crit);

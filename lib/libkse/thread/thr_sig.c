@@ -542,7 +542,7 @@ _thr_sig_rundown(struct pthread *curthread, ucontext_t *ucp,
 				continue;
 			if (SIGISMEMBER(curthread->sigpend, i)) {
 				SIGDELSET(curthread->sigpend, i);
-				siginfo = curthread->siginfo[i];
+				siginfo = curthread->siginfo[i-1];
 				break;
 			}
 			if (SIGISMEMBER(_thr_proc_sigpending, i)) {
@@ -665,12 +665,12 @@ _thr_sig_add(struct pthread *pthread, int sig, siginfo_t *info)
 		if (!fromproc) {
 			SIGADDSET(pthread->sigpend, sig);
 			if (info == NULL)
-				build_siginfo(&pthread->siginfo[sig], sig);
-			else if (info != &pthread->siginfo[sig])
-				memcpy(&pthread->siginfo[sig], info,
+				build_siginfo(&pthread->siginfo[sig-1], sig);
+			else if (info != &pthread->siginfo[sig-1])
+				memcpy(&pthread->siginfo[sig-1], info,
 					 sizeof(*info));
 		} else {
-			if (!_thr_getprocsig(sig, &pthread->siginfo[sig]))
+			if (!_thr_getprocsig(sig, &pthread->siginfo[sig-1]))
 				return;
 			SIGADDSET(pthread->sigpend, sig);
 		}
@@ -740,9 +740,9 @@ _thr_sig_add(struct pthread *pthread, int sig, siginfo_t *info)
 
 		case PS_SIGWAIT:
 			if (info == NULL)
-				build_siginfo(&pthread->siginfo[sig], sig);
-			else if (info != &pthread->siginfo[sig])
-				memcpy(&pthread->siginfo[sig], info,
+				build_siginfo(&pthread->siginfo[sig-1], sig);
+			else if (info != &pthread->siginfo[sig-1])
+				memcpy(&pthread->siginfo[sig-1], info,
 					sizeof(*info));
 			/*
 			 * The signal handler is not called for threads in
@@ -752,7 +752,7 @@ _thr_sig_add(struct pthread *pthread, int sig, siginfo_t *info)
 			/* Wake up the thread if the signal is not blocked. */
 			if (!SIGISMEMBER(pthread->sigmask, sig)) {
 				/* Return the signal number: */
-				*(pthread->data.sigwaitinfo) = pthread->siginfo[sig];
+				*(pthread->data.sigwaitinfo) = pthread->siginfo[sig-1];
 				pthread->sigmask = pthread->oldsigmask;
 				/* Make the thread runnable: */
 				_thr_setrunnable_unlocked(pthread);
@@ -767,9 +767,9 @@ _thr_sig_add(struct pthread *pthread, int sig, siginfo_t *info)
 
 		SIGADDSET(pthread->sigpend, sig);
 		if (info == NULL)
-			build_siginfo(&pthread->siginfo[sig], sig);
-		else if (info != &pthread->siginfo[sig])
-			memcpy(&pthread->siginfo[sig], info, sizeof(*info));
+			build_siginfo(&pthread->siginfo[sig-1], sig);
+		else if (info != &pthread->siginfo[sig-1])
+			memcpy(&pthread->siginfo[sig-1], info, sizeof(*info));
 
 		if (suppress_handler == 0) {
 			/*
@@ -811,11 +811,11 @@ thr_sig_check_state(struct pthread *pthread, int sig)
 		break;
 
 	case PS_SIGWAIT:
-		build_siginfo(&pthread->siginfo[sig], sig);
+		build_siginfo(&pthread->siginfo[sig-1], sig);
 		/* Wake up the thread if the signal is blocked. */
 		if (!SIGISMEMBER(pthread->sigmask, sig)) {
 			/* Return the signal number: */
-			*(pthread->data.sigwaitinfo) = pthread->siginfo[sig];
+			*(pthread->data.sigwaitinfo) = pthread->siginfo[sig-1];
 			pthread->sigmask = pthread->oldsigmask;
 			/* Change the state of the thread to run: */
 			_thr_setrunnable_unlocked(pthread);
