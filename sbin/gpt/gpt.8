@@ -29,7 +29,7 @@
 .Dt GPT 8
 .Sh NAME
 .Nm gpt
-.Nd GUID partition table maintenance utility
+.Nd "GUID partition table maintenance utility"
 .Sh SYNOPSIS
 .Nm
 .Op Ar general_options
@@ -40,7 +40,9 @@
 The
 .Nm
 utility provides the necessary functionality to manipulate GUID partition
-tables (GPTs), but see BUGS below for how and where functionality is missing.
+tables (GPTs), but see
+.Sx BUGS
+below for how and where functionality is missing.
 The general usage model of the
 .Nm
 tool follows that of the
@@ -48,22 +50,25 @@ tool follows that of the
 tool.
 The general options are described in the following paragraph.
 The remaining paragraphs describe the individual commands with their options.
-Here we conclude by mentioning that a device is either a special file
+Here we conclude by mentioning that a
+.Ar device
+is either a special file
 corresponding to a disk-like device or a regular file.
-The command is applied to each device listed on the command line.
-.Ss General options
-.Pp
+The command is applied to each
+.Ar device
+listed on the command line.
+.Ss General Options
 The general options allow the user to change default settings or otherwise
-change behaviour that's applicable to all commands.
+change the behaviour that is applicable to all commands.
 Not all commands use all default settings, so some general options may not
 have an effect on all commands.
 .Pp
 The
 .Fl p Ar count
-option allows the user to change the the number of partitions the GPT can
+option allows the user to change the number of partitions the GPT can
 accomodate.
 This is used whenever a new GPT is created.
-By default the
+By default, the
 .Nm
 utility will create space for 128 partitions (or 32 sectors of 512 bytes).
 .Pp
@@ -72,7 +77,9 @@ The
 option causes the
 .Nm
 utility to open the device for reading only.
-Currently this option is primarily useful for the show command, but the intend
+Currently this option is primarily useful for the
+.Ic show
+command, but the intent
 is to use it to implement dry-run behaviour.
 .Pp
 The
@@ -80,28 +87,29 @@ The
 option controls the verbosity level.
 The level increases with every occurrence of this option.
 There is no formalized definition of the different levels yet.
+.Ss Commands
+.Bl -tag -width indent
 .\" ==== add ====
-.Ss The add command
-.Pp
+.It Xo
 .Nm
 .Ic add
 .Op Fl b Ar number
 .Op Fl s Ar count
 .Op Fl t Ar type
 .Ar device ...
-.Pp
+.Xc
 The
 .Ic add
 command allows the user to add a new partition to an existing table.
-By default it will create an UFS partition covering the first available block
-of unused disk space.
+By default, it will create a UFS partition covering the first available block
+of an unused disk space.
 The command-specific options can be used to control this behaviour.
 .Pp
 The
 .Fl b Ar number
 option allows the user to specify the starting (beginning) sector number of
 the partition.
-The minium sector number is 1, but has to fall inside an unused region of
+The minimum sector number is 1, but has to fall inside an unused region of
 disk space that is covered by the GPT.
 .Pp
 The
@@ -115,19 +123,17 @@ option allows the user to specify the partition type.
 The type is given as an UUID, but
 .Nm
 has created
-.Em efi ,
-.Em swap
+.Cm efi , swap
 and
-.Em ufs 
+.Cm ufs
 as aliases for the three most commonly used partition types.
 .\" ==== create ====
-.Ss The create command
-.Pp
+.It Xo
 .Nm
 .Ic create
 .Op Fl p
 .Ar device ...
-.Pp
+.Xc
 The
 .Ic create
 command allows the user to create a new (empty) GPT.
@@ -139,13 +145,12 @@ option tells
 to create only the primary table and not the backup table.
 This option is only useful for debugging and should not be used otherwise.
 .\" ==== destroy ====
-.Ss The destroy command
-.Pp
+.It Xo
 .Nm
 .Ic destroy
 .Op Fl r
 .Ar device ...
-.Pp
+.Xc
 The
 .Ic destroy
 command allows the user to destroy an existing, possibly not empty GPT.
@@ -156,17 +161,16 @@ option instructs
 .Nm
 to destroy the table in a way that it can be recovered.
 .\" ==== migrate ====
-.Ss The migrate command
-.Pp
+.It Xo
 .Nm
 .Ic migrate
 .Op Fl k
 .Op Fl s
 .Ar device ...
-.Pp
+.Xc
 The
 .Ic migrate
-command allows the user to migrate a MBR-based disk partitioning into a
+command allows the user to migrate an MBR-based disk partitioning into a
 GPT-based partitioning.
 .Pp
 The
@@ -179,20 +183,21 @@ users.
 .Pp
 The
 .Fl s
-option prevents migrating BSD disklabels into GPT partitions by creating
+option prevents migrating
+.Bx
+disk labels into GPT partitions by creating
 the GPT equivalent of a slice.
 .\" ==== show ====
-.Ss The show command
-.Pp
+.It Xo
 .Nm
 .Ic show
 .Ar device ...
-.Pp
+.Xc
 The
 .Ic show
 command displays the current partitioning on the listed devices and gives
 an overall view of the disk contents.
-.Pp
+.El
 .Sh SEE ALSO
 .Xr fdisk 8 ,
 .Xr mount 8 ,
@@ -202,7 +207,7 @@ an overall view of the disk contents.
 The
 .Nm
 utility appeared in
-.Fx 5.0 
+.Fx 5.0
 for ia64.
 .Sh BUGS
 The development of the
@@ -222,9 +227,9 @@ of the word.
 For example, the
 .Fl p Ar count
 option may be changed to a command option rather than a generic option.
-There are only two commands that use it so there's a chance that the natural
+There are only two commands that use it so there is a chance that the natural
 tendency for people is to use it as a command option.
-Also, options primarily intended for diagnostic of debug purposes may be
+Also, options primarily intended for diagnostic or debug purposes may be
 removed in future versions.
 .Pp
 Another possibility is that the current usage model is accompanied by
