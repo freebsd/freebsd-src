@@ -12,13 +12,22 @@
 # aliases - Build the sendmail aliases
 # install - Install the .cf file as /etc/mail/sendmail.cf
 #
-# For the MTA daemon:
-# start   - Start the sendmail daemon with the flags defined in
-#           /etc/defaults/rc.conf or /etc/rc.conf
-# stop    - Stop the sendmail daemon
-# restart - Restart the sendmail daemon
+# For acting on both the MTA daemon and MSP queue running daemon:
+# start        - Start both the sendmail MTA daemon and MSP queue running
+#                daemon with the flags defined in /etc/defaults/rc.conf or
+#                /etc/rc.conf
+# stop         - Stop both the sendmail MTA daemon and MSP queue running
+#                daemon
+# restart      - Restart both the sendmail MTA daemon and MSP queue running
+#                daemon
 #
-# For the MSP queue running daemon:
+# For acting on just the MTA daemon:
+# start-mta    - Start the sendmail MTA daemon with the flags defined in
+#                /etc/defaults/rc.conf or /etc/rc.conf
+# stop-mta     - Stop the sendmail MTA daemon
+# restart-mta  - Restart the sendmail MTA daemon
+#
+# For acting on just the MSP queue running daemon:
 # start-mspq   - Start the sendmail MSP queue running daemon with the
 #                flags defined in /etc/defaults/rc.conf or /etc/rc.conf
 # stop-mspq    - Stop the sendmail MSP queue running daemon
@@ -70,10 +79,9 @@ SENDMAIL_CF_DIR?=	/usr/src/contrib/sendmail/cf
 .endif
 
 #
-# The pid is used to stop and restart the running daemon.
+# The sendmail startup script
 #
-SENDMAIL_PIDFILE?=	/var/run/sendmail.pid
-SENDMAIL_MSPQ_PIDFILE?=	/var/spool/clientmqueue/sm-client.pid
+SENDMAIL_START_SCRIPT?=	/etc/rc.sendmail
 
 #
 # Some useful programs we need.
@@ -81,7 +89,6 @@ SENDMAIL_MSPQ_PIDFILE?=	/var/spool/clientmqueue/sm-client.pid
 SENDMAIL?=		/usr/sbin/sendmail
 MAKEMAP?=		/usr/sbin/makemap
 M4?=			/usr/bin/m4
-KILL?=			/bin/kill
 
 # Set a reasonable default
 .MAIN:	all
@@ -172,65 +179,26 @@ install:	${INSTALL_CF}
 	${INSTALL} -c -m ${SHAREMODE} ${INSTALL_CF} /etc/mail/sendmail.cf
 .endif
 
-start:
-	@(. /etc/defaults/rc.conf; source_rc_confs; \
-	case "$${sendmail_enable}" in \
-	[Nn][Oo][Nn][Ee]) \
-		echo "ERROR: sendmail_enable is set to $${sendmail_enable}" \
-		;; \
-	[Yy][Ee][Ss]) \
-		${SENDMAIL} $${sendmail_flags}; \
-		echo "${SENDMAIL} $${sendmail_flags}" \
-		;; \
-	*) \
-		case "$${sendmail_submit_enable}" in \
-		[Yy][Ee][Ss]) \
-			${SENDMAIL} $${sendmail_submit_flags}; \
-			echo "${SENDMAIL} $${sendmail_submit_flags}" \
-			;; \
-		*) \
-			case "$${sendmail_outbound_enable}" in \
-			[Yy][Ee][Ss]) \
-				${SENDMAIL} $${sendmail_outbound_flags}; \
-				echo "${SENDMAIL} $${sendmail_outbound_flags}" \
-				;; \
-			esac \
-			;; \
-		esac \
-		;; \
-	esac \
-	)
+start start-mta start-mspq:
+	@if [ -r ${SENDMAIL_START_SCRIPT} ]; then \
+		echo -n 'Starting:'; \
+		sh ${SENDMAIL_START_SCRIPT} $@; \
+		echo '.'; \
+	fi
 
-stop:
-	${KILL} -TERM `head -1 ${SENDMAIL_PIDFILE}`
+stop stop-mta stop-mspq:
+	@if [ -r ${SENDMAIL_START_SCRIPT} ]; then \
+		echo -n 'Stopping:'; \
+		sh ${SENDMAIL_START_SCRIPT} $@; \
+		echo '.'; \
+	fi
 
-restart:
-	${KILL} -HUP `head -1 ${SENDMAIL_PIDFILE}`
-
-start-mspq:
-	@(. /etc/defaults/rc.conf; source_rc_confs; \
-	case "$${sendmail_enable}" in \
-	[Nn][Oo][Nn][Ee]) \
-		echo "ERROR: sendmail_enable is set to $${sendmail_enable}" \
-		;; \
-	*) \
-		if [ -r /etc/mail/submit.cf ]; then \
-			case "$${sendmail_msp_queue_enable}" in \
-			[Yy][Ee][Ss]) \
-				${SENDMAIL} $${sendmail_msp_queue_flags}; \
-				echo "${SENDMAIL} $${sendmail_msp_queue_flags}" \
-				;; \
-			esac \
-		fi \
-		;; \
-	esac \
-	)
-
-stop-mspq:
-	${KILL} -TERM `head -1 ${SENDMAIL_MSPQ_PIDFILE}`
-
-restart-mspq:
-	${KILL} -HUP `head -1 ${SENDMAIL_MSPQ_PIDFILE}`
+restart restart-mta restart-mspq:
+	@if [ -r ${SENDMAIL_START_SCRIPT} ]; then \
+		echo -n 'Restarting:'; \
+		sh ${SENDMAIL_START_SCRIPT} $@; \
+		echo '.'; \
+	fi
 
 # User defined targets
 .if exists(Makefile.local)
