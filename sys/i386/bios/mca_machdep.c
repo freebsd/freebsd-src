@@ -52,7 +52,7 @@ struct sys_config {
 	u_int8_t	submodel;
 	u_int8_t	bios_rev;
 	u_int8_t	feature;
-#define FEATURE_RESV	0x01	/* Reserved				*/
+#define FEATURE_MCAISA	0x01	/* Machine contains both MCA and ISA bus*/
 #define FEATURE_MCABUS	0x02	/* MicroChannel Architecture		*/
 #define FEATURE_EBDA	0x04	/* Extended BIOS data area allocated	*/
 #define FEATURE_WAITEV	0x08	/* Wait for external event is supported	*/
@@ -103,14 +103,15 @@ bios_mcabus_present(void * dummy)
 			scp->model, scp->submodel, scp->bios_rev);
 		printf("BIOS SDT: features 0x%b\n", scp->feature,
 			"\20"
-			"\01RESV"
-			"\02MCABUS"
+			"\01MCA+ISA"
+			"\02MCA"
 			"\03EBDA"
 			"\04WAITEV"
 			"\05KBDINT"
 			"\06RTC"
 			"\07IC2"
-			"\08DMA3\n");
+			"\08DMA3"
+			"\n");
 	}
 
 	MCA_system = ((scp->feature & FEATURE_MCABUS) ? 1 : 0);
