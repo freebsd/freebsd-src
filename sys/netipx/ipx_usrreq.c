@@ -424,6 +424,7 @@ ipx_usr_abort(so)
 	ipx_pcbdetach(ipxp);
 	splx(s);
 	soisdisconnected(so);
+	ACCEPT_LOCK();
 	SOCK_LOCK(so);
 	sotryfree(so);
 	return (0);
