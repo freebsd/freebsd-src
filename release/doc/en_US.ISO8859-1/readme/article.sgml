@@ -5,6 +5,8 @@
 %authors;
 <!ENTITY % mlists PUBLIC "-//FreeBSD//ENTITIES DocBook Mailing List Entities//EN">
 %mlists;
+<!ENTITY % trademarks PUBLIC "-//FreeBSD//ENTITIES DocBook Trademark Entities//EN">
+%trademarks;
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
 <!ENTITY % misc PUBLIC  "-//FreeBSD//ENTITIES DocBook Miscellaneous FreeBSD Entities//EN">
@@ -26,6 +28,14 @@
       <year>2003</year>
       <holder role="mailto:doc@FreeBSD.org">The FreeBSD Documentation Project</holder>
     </copyright>
+
+    <legalnotice id="trademarks" role="trademarks">
+      &tm-attrib.freebsd;
+      &tm-attrib.intel;
+      &tm-attrib.opengroup;
+      &tm-attrib.sparc;
+      &tm-attrib.general;
+    </legalnotice>
   </articleinfo>
 
   <abstract>
@@ -47,10 +57,10 @@
 
       <para>&os; is an operating system based on 4.4 BSD Lite for
 	Intel, AMD, Cyrix or NexGen <quote>x86</quote> based PC
-	hardware (i386), NEC PC-9801/9821 series PCs and compatibles
+	hardware (&i386;), NEC PC-9801/9821 series PCs and compatibles
 	(pc98), DEC/Compaq/HP Alpha computers (alpha), 
-	and UltraSPARC machines (sparc64).  Versions
-	for the IA64 (ia64), PowerPC (powerpc), and AMD
+	and &ultrasparc; machines (&sparc64;).  Versions
+	for the IA64 (ia64), &powerpc; (&powerpc;), and AMD
 	<quote>Hammer</quote> (amd64) architectures are currently under
 	development as well.  &os; works with a wide variety of
 	peripherals and configurations and can be used for everything
@@ -323,7 +333,7 @@
 	    <filename>INSTALL.TXT</filename>) contain information that
 	    is specific to a particular hardware architecture.  For
 	    example, the alpha release notes contain information not
-	    applicable to the i386, and vice versa.  The architecture
+	    applicable to the &i386;, and vice versa.  The architecture
 	    for which each document applies will be listed in that
 	    document's title.</para>
 	</note>
@@ -331,7 +341,7 @@
       </para>
 
       <para>On platforms that support &man.sysinstall.8; (currently
-	alpha, i386, ia64, pc98, and sparc64), these documents are generally available via the
+	alpha, &i386;, ia64, pc98, and &sparc64;), these documents are generally available via the
 	Documentation menu during installation.  Once the system is
 	installed, you can revisit this menu by re-running the
 	&man.sysinstall.8; utility.</para>
@@ -354,7 +364,7 @@
     <sect2>
       <title>Manual Pages</title>
 
-      <para>As with almost all &unix;-like operating systems, &os; comes
+      <para>As with almost all &unix; like operating systems, &os; comes
 	with a set of on-line manual pages, accessed through the
 	&man.man.1; command or through the <ulink
 	url="http://www.FreeBSD.org/cgi/man.cgi">hypertext manual
