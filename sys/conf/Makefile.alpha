@@ -30,7 +30,7 @@ S=	./@
 S=	../..
 .endif
 .endif
-M=	${MACHINE}
+M=	${MACHINE_ARCH}
 
 SIZE?=	size
 
