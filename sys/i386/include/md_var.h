@@ -36,7 +36,7 @@
  * Miscellaneous machine-dependent declarations.
  */
 
-extern	int	Maxmem;
+extern	long	Maxmem;
 extern	u_int	atdevbase;	/* offset in virtual memory of ISA io mem */
 extern	void	(*bcopy_vector)(const void *from, void *to, size_t len);
 extern	int	busdma_swi_pending;

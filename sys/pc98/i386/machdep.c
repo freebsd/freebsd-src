@@ -165,7 +165,7 @@ static int	ispc98 = 0;
 #endif
 SYSCTL_INT(_machdep, OID_AUTO, ispc98, CTLFLAG_RD, &ispc98, 0, "");
 
-int physmem = 0;
+long physmem = 0;
 int cold = 1;
 
 #ifdef COMPAT_43
@@ -175,36 +175,46 @@ static void osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code);
 static int
 sysctl_hw_physmem(SYSCTL_HANDLER_ARGS)
 {
-	int error = sysctl_handle_int(oidp, 0, ctob(physmem), req);
+	int error;
+	unsigned long val;
+
+	val = ctob(physmem);
+	int error = sysctl_handle_int(oidp, &val, req);
 	return (error);
 }
 
-SYSCTL_PROC(_hw, HW_PHYSMEM, physmem, CTLTYPE_INT|CTLFLAG_RD,
-	0, 0, sysctl_hw_physmem, "IU", "");
+SYSCTL_PROC(_hw, HW_PHYSMEM, physmem, CTLTYPE_ULONG|CTLFLAG_RD,
+	0, 0, sysctl_hw_physmem, "LU", "");
 
 static int
 sysctl_hw_usermem(SYSCTL_HANDLER_ARGS)
 {
-	int error = sysctl_handle_int(oidp, 0,
-		ctob(physmem - cnt.v_wire_count), req);
+	int error;
+	unsigned long val;
+
+	val = ctob(physmem - cnt.v_wire_count);
+	int error = sysctl_handle_int(oidp, &val, 0, req);
 	return (error);
 }
 
-SYSCTL_PROC(_hw, HW_USERMEM, usermem, CTLTYPE_INT|CTLFLAG_RD,
-	0, 0, sysctl_hw_usermem, "IU", "");
+SYSCTL_PROC(_hw, HW_USERMEM, usermem, CTLTYPE_ULONG|CTLFLAG_RD,
+	0, 0, sysctl_hw_usermem, "LU", "");
 
 static int
 sysctl_hw_availpages(SYSCTL_HANDLER_ARGS)
 {
-	int error = sysctl_handle_int(oidp, 0,
-		i386_btop(avail_end - avail_start), req);
+	int error;
+	long val;
+ 
+	val = i386_btop(avail_end - avail_start);
+	error = sysctl_handle_int(oidp, &val, 0, req);
 	return (error);
 }
 
-SYSCTL_PROC(_hw, OID_AUTO, availpages, CTLTYPE_INT|CTLFLAG_RD,
-	0, 0, sysctl_hw_availpages, "I", "");
+SYSCTL_PROC(_hw, OID_AUTO, availpages, CTLTYPE_LONG|CTLFLAG_RD,
+	0, 0, sysctl_hw_availpages, "L", "");
 
-int Maxmem = 0;
+long Maxmem = 0;
 #ifdef PC98
 int Maxmem_under16M = 0;
 #endif

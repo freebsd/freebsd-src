@@ -36,7 +36,7 @@
 extern	char	tl0_base[];
 extern	char	_end[];
 
-extern	int	Maxmem;
+extern	long	Maxmem;
 
 extern	vm_offset_t kstack0;
 extern	vm_offset_t kstack0_phys;

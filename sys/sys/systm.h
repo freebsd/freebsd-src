@@ -61,7 +61,7 @@ extern u_int nselcoll;		/* select collisions since boot */
 extern struct mtx sellock;	/* select lock variable */
 extern struct cv selwait;	/* select conditional variable */
 
-extern int physmem;		/* physical memory */
+extern long physmem;		/* physical memory */
 
 extern dev_t rootdev;		/* root device */
 extern dev_t rootdevs[2];	/* possible root devices */
@@ -140,7 +140,7 @@ uint32_t crc32(const void *buf, size_t size);
 void	critical_enter(void);
 void	critical_exit(void);
 void	init_param1(void);
-void	init_param2(int physpages);
+void	init_param2(long physpages);
 void	tablefull(const char *);
 int	kvprintf(char const *, void (*)(int, void*), void *, int,
 	    __va_list) __printflike(1, 0);

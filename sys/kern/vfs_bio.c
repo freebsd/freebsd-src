@@ -410,7 +410,7 @@ bd_speedup(void)
  * being reserved at this time.
  */
 caddr_t
-kern_vfs_bio_buffer_alloc(caddr_t v, int physmem_est)
+kern_vfs_bio_buffer_alloc(caddr_t v, long physmem_est)
 {
 	/*
 	 * physmem_est is in pages.  Convert it to kilobytes (assumes
