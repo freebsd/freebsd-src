@@ -44,6 +44,12 @@ ROKENOBJDIR=	${.OBJDIR}/../../lib/libroken
 ROKENOBJDIR=	${.CURDIR}/../../lib/libroken
 .endif
 
+.if exists(${.OBJDIR}/../../lib/libvers)
+VERSOBJDIR=	${.OBJDIR}/../../lib/libvers
+.else
+VERSOBJDIR=	${.CURDIR}/../../lib/libvers
+.endif
+
 .if exists(${.OBJDIR}/../../lib/libkrb4)
 KRB4OBJDIR=	${.OBJDIR}/../../lib/libkrb4
 .else

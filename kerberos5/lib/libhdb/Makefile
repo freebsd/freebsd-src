@@ -9,9 +9,30 @@ CFLAGS+=-I${KRB5DIR}/include \
 	-I${KRB5DIR}/lib/roken \
 	-I${.OBJDIR} \
 	-I${ASN1OBJDIR}
-SRCS=	keytab.c hdb.c common.c db.c ndbm.c print.c hdb_err.c \
-	hdb_asn1.h hdb_err.h krb5_err.h heim_err.h ${GEN:S/.x/.c/g}
-GEN=	asn1_Key.x asn1_Event.x asn1_HDBFlags.x asn1_hdb_entry.x asn1_Salt.x
+
+SRCS=	\
+	common.c				\
+	db.c					\
+	db3.c					\
+	hdb-ldap.c				\
+	hdb.c					\
+	keytab.c				\
+	mkey.c					\
+	ndbm.c					\
+	print.c					\
+	hdb_err.c				\
+	hdb_err.h				\
+	hdb_asn1.h				\
+	krb5_err.h				\
+	heim_err.h				\
+	${GEN:S/.x/.c/g}
+
+GEN=						\
+	asn1_Key.x				\
+	asn1_Event.x				\
+	asn1_HDBFlags.x				\
+	asn1_hdb_entry.x			\
+	asn1_Salt.x
 
 .include <bsd.lib.mk>
 

@@ -2,6 +2,8 @@
 #ifndef __krb5_private_h__
 #define __krb5_private_h__
 
+/* $FreeBSD$ */
+
 #ifdef __STDC__
 #include <stdarg.h>
 #ifndef __P
@@ -18,7 +20,7 @@ _krb5_crc_init_table __P((void));
 
 u_int32_t
 _krb5_crc_update __P((
-	char *p,
+	const char *p,
 	size_t len,
 	u_int32_t res));
 
@@ -33,6 +35,7 @@ _krb5_extract_ticket __P((
 	krb5_addresses *addrs,
 	unsigned nonce,
 	krb5_boolean allow_server_mismatch,
+	krb5_boolean ignore_cname,
 	krb5_decrypt_proc decrypt_proc,
 	krb5_const_pointer decryptarg));
 

@@ -1,21 +1,26 @@
 # $FreeBSD$
 
 PROG=		k5passwdd
-SRCS=		kpasswdd.c krb5_err.h heim_err.h hdb_err.h kadm5/admin.h 
+SRCS=		kpasswdd.c krb5_err.h heim_err.h hdb_err.h \
+		kadm5/admin.h
 CFLAGS+=	-I${KRB5DIR}/include \
 		-I${KRB5DIR}/lib/asn1 \
 		-I${KRB5DIR}/lib/hdb \
 		-I${KRB5DIR}/lib/krb5 \
 		-I${KRB5DIR}/lib/roken \
+		-I${KRB5DIR}/lib/kadm5 \
 		-I${KRB5DIR}/kpasswd \
 		-I${ASN1OBJDIR} \
 		-I${HDBOBJDIR} \
 		-I${.OBJDIR}
-.if defined(MAKE_KERBEROS4)
+.if defined(MAKE_KERBEROS4) && \
+	(${MAKE_KERBEROS4} == "YES" || ${MAKE_KERBEROS4} == "yes")
 _krb4libs=	-lkrb -lkafs
 _krb4deps=	${LIBKRB} ${LIBKAFS}
 .endif
-LDADD=		-L${KRB5OBJDIR} -lkrb5 -L${ROKENOBJDIR} -lroken ${_krb4libs} \
+LDADD=		-L${KRB5OBJDIR} -lkrb5 -L${ROKENOBJDIR} -lroken \
+		-L${VERSOBJDIR} -lvers \
+		${_krb4libs} \
 		-L${KADM5SOBJDIR} -lkadm5srv -L${HDBOBJDIR} -lhdb \
 		-L${ASN1OBJDIR} -lasn1 -lcrypto -lmd -lcrypt -lcom_err
 DPADD=		${LIBKRB5} ${LIBROKEN} ${_krb4deps} \
