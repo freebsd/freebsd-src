@@ -40,49 +40,59 @@
 .Dt STRCHR 3
 .Os
 .Sh NAME
-.Nm strchr
+.Nm strchr , strrchr
 .Nd locate character in string
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
 .In string.h
-.Ft char *
+.Ft "char *"
 .Fn strchr "const char *s" "int c"
+.Ft "char *"
+.Fn strrchr "const char *s" "int c"
 .Sh DESCRIPTION
 The
 .Fn strchr
 function locates the first occurrence of
-.Ar c
+.Fa c
+(converted to a
+.Vt char )
 in the string pointed to by
-.Ar s .
-The terminating
-.Dv NUL
-character is considered part of the string.
+.Fa s .
+The terminating null character is considered part of the string.
+.Pp
+The
+.Fn strrchr
+function is identical to
+.Fn strchr
+except it locates the last occurrence of
+.Fa c .
+.Sh RETURN VALUES
+The functions
+.Fn strchr
+and
+.Fn strrchr
+return a pointer to the located character, or
+.Dv NULL
+if the character does not appear in the string.
 If
 .Fa c
 is
 .Ql \e0 ,
-.Fn strchr
-locates the terminating
+the functions locate the terminating
 .Ql \e0 .
-.Sh RETURN VALUES
-The function
-.Fn strchr
-returns a pointer to the located character, or
-.Dv NULL
-if the character does not appear in the string.
 .Sh SEE ALSO
 .Xr memchr 3 ,
 .Xr strcspn 3 ,
 .Xr strpbrk 3 ,
-.Xr strrchr 3 ,
 .Xr strsep 3 ,
 .Xr strspn 3 ,
 .Xr strstr 3 ,
 .Xr strtok 3
 .Sh STANDARDS
-The
+The functions
 .Fn strchr
-function
-conforms to
+and
+.Fn strrchr
+conform to
 .St -isoC .

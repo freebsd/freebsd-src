@@ -38,36 +38,50 @@
 .Dt INDEX 3
 .Os
 .Sh NAME
-.Nm index
+.Nm index , rindex
 .Nd locate character in string
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
 .In string.h
-.Ft char *
+.Ft "char *"
 .Fn index "const char *s" "int c"
+.Ft "char *"
+.Fn rindex "const char *s" "int c"
 .Sh DESCRIPTION
 The
 .Fn index
 function
-locates the first character matching
+locates the first occurrence of
 .Fa c
 (converted to a
-.Em char )
-in the null-terminated string
+.Vt char )
+in the string pointed to by
 .Fa s .
+The terminating null character is considered part of the string.
+.Pp
+The
+.Fn rindex
+function is identical to
+.Fn index ,
+except it locates the last occurrence of
+.Fa c .
 .Sh RETURN VALUES
-A pointer to the character is returned if it is found; otherwise
+The functions
+.Fn index
+and
+.Fn rindex
+return a pointer to the located character, or
 .Dv NULL
-is returned.
+if the character does not appear in the string.
 If
 .Fa c
-is '\e0',
-.Fn index
-locates the terminating '\e0'.
+is
+.Ql \e0 ,
+the functions locate the terminating
+.Ql \e0 .
 .Sh SEE ALSO
 .Xr memchr 3 ,
-.Xr rindex 3 ,
 .Xr strchr 3 ,
 .Xr strcspn 3 ,
 .Xr strpbrk 3 ,
@@ -77,7 +91,9 @@ locates the terminating '\e0'.
 .Xr strstr 3 ,
 .Xr strtok 3
 .Sh HISTORY
-A
+The
 .Fn index
-function appeared in
+and
+.Fn rindex
+functions appeared in
 .At v6 .
