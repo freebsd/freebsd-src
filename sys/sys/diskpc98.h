@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)disklabel.h	8.1 (Berkeley) 6/2/93
- * $Id: disklabel.h,v 1.17 1995/09/16 17:03:57 bde Exp $
+ * $Id: disklabel.h,v 1.18 1995/11/24 14:50:39 bde Exp $
  */
 
 #ifndef _SYS_DISKLABEL_H_
@@ -388,6 +388,8 @@ struct dos_partition {
  * We're not ready to use <sys/disk.h>.
  */
 #include <sys/conf.h>
+
+struct	buf_queue_head;
 
 int	bounds_check_with_label __P((struct buf *bp, struct disklabel *lp,
 				     int wlabel));
