@@ -40,7 +40,7 @@
 .Nm vn
 .Nd vnode disk driver
 .Sh SYNOPSIS
-.Cd "pseudo-device vn" Op Ar count
+.Cd "pseudo-device vn"
 .Sh DESCRIPTION
 The
 .Nm
@@ -63,16 +63,9 @@ In order to compile in support for the
 you must add a line similar
 to the following to your kernel configuration file:
 .Bd -unfilled -offset indent
-pseudo-device	vn	4	#Vnode driver
+pseudo-device	vn		#Vnode driver
 .Ed
 .Pp
-The
-.Ar count
-argument is how many
-.Nm vn Ns 's
-memory is allocated for a boot time.  In this example, no more than 4
-.Nm vn Ns 's
-may be configured.
 .Nm
 may also exist as a kernel module to be automatically loaded into the 
 system when you run the vnconfig command for the first time.
