@@ -95,7 +95,7 @@ struct ipxpcbhead	ipxrawpcb_list;
 static int ipxqmaxlen = IFQ_MAXLEN;
 static	struct ifqueue ipxintrq;
 
-long	ipx_pexseq;
+long	ipx_pexseq;		/* Locked with ipxpcb_list_mtx. */
 
 static	int ipx_do_route(struct ipx_addr *src, struct route *ro);
 static	void ipx_undo_route(struct route *ro);
