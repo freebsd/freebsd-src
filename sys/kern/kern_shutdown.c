@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_shutdown.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_shutdown.c,v 1.14 1997/04/26 11:46:14 peter Exp $
+ * $Id: kern_shutdown.c,v 1.15 1997/05/24 18:35:44 fsmp Exp $
  */
 
 #include "opt_ddb.h"
@@ -248,6 +248,7 @@ boot(howto)
 	}
 	splhigh();
 	if (howto & RB_HALT) {
+		cpu_power_down();
 		printf("\n");
 		printf("The operating system has halted.\n");
 		printf("Please press any key to reboot.\n\n");
