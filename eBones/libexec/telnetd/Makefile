@@ -18,6 +18,7 @@ MAN8=	telnetd.8
 #ifdef	ENCRYPTION
 
 CFLAGS+=-DAUTHENTICATION -DENCRYPTION
+LDADD+= -ldescrypt
 
 .ifdef MAKE_KERBEROS
 .if exists(/usr/lib/libkrb.a)
