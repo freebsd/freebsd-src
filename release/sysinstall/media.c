@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.89 1998/10/12 23:45:07 jkh Exp $
+ * $Id: media.c,v 1.90 1998/10/29 10:18:49 obrien Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -391,18 +391,23 @@ mediaSetFTP(dialogMenuItem *self)
 	    msgDebug("Starting DNS.\n");
 	kickstart_dns();
     	if (isDebug())
-	    msgDebug("Looking up hostname: %s.\n", hostname);
-	if ((inet_addr(hostname) == INADDR_NONE) && (gethostbyname(hostname) == NULL)) {
-	    msgConfirm("Cannot resolve hostname `%s'!  Are you sure that your\n"
-		       "name server, gateway and network interface are correctly configured?", hostname);
-	    if (networkDev)
-		networkDev->shutdown(networkDev);
-	    networkDev = NULL;
-	    variable_unset(VAR_FTP_PATH);
-	    return DITEM_FAILURE | what;
+	    msgDebug("Looking up hostname, %s, using inet_addr().\n", hostname);
+	if (inet_addr(hostname) == INADDR_NONE) {
+    	    if (isDebug())
+		msgDebug("Looking up hostname, %s, using gethostbyname().\n",
+			hostname);
+	    if (gethostbyname(hostname) == NULL) {
+		msgConfirm("Cannot resolve hostname `%s'!  Are you sure that"
+			" your\nname server, gateway and network interface are"
+			" correctly configured?", hostname);
+		if (networkDev)
+		    networkDev->shutdown(networkDev);
+		networkDev = NULL;
+		variable_unset(VAR_FTP_PATH);
+		return DITEM_FAILURE | what;
+	    }
 	}
-	else
-	    msgDebug("Found DNS entry for %s successfully..\n", hostname);
+	msgDebug("Found DNS entry for %s successfully..\n", hostname);
     }
     variable_set2(VAR_FTP_HOST, hostname);
     variable_set2(VAR_FTP_DIR, dir ? dir : "/");
