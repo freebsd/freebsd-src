@@ -124,14 +124,19 @@ in6_pcbbind(inp, nam, td)
 	struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)NULL;
 	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
 	u_short	lport = 0;
-	int wild = 0, reuseport = (so->so_options & SO_REUSEPORT);
+	int wild = 0, reuseport;
 
+	SOCK_LOCK(so);
+	reuseport = (so->so_options & SO_REUSEPORT);
+	SOCK_UNLOCK(so);
 	if (!in6_ifaddr) /* XXX broken! */
 		return (EADDRNOTAVAIL);
 	if (inp->inp_lport || !IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr))
 		return(EINVAL);
+	SOCK_LOCK(so);
 	if ((so->so_options & (SO_REUSEADDR|SO_REUSEPORT)) == 0)
 		wild = 1;
+	SOCK_UNLOCK(so);
 	if (nam) {
 		sin6 = (struct sockaddr_in6 *)nam;
 		if (nam->sa_len != sizeof(*sin6))
@@ -157,8 +162,10 @@ in6_pcbbind(inp, nam, td)
 			 * and a multicast address is bound on both
 			 * new and duplicated sockets.
 			 */
+			SOCK_LOCK(so);
 			if (so->so_options & SO_REUSEADDR)
 				reuseport = SO_REUSEADDR|SO_REUSEPORT;
+			SOCK_UNLOCK(so);
 		} else if (!IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr)) {
 			struct ifaddr *ia = NULL;
 
@@ -190,14 +197,19 @@ in6_pcbbind(inp, nam, td)
 				t = in6_pcblookup_local(pcbinfo,
 				    &sin6->sin6_addr, lport,
 				    INPLOOKUP_WILDCARD);
-				if (t &&
-				    (!IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr) ||
-				     !IN6_IS_ADDR_UNSPECIFIED(&t->in6p_laddr) ||
-				     (t->inp_socket->so_options &
-				      SO_REUSEPORT) == 0) &&
-				    (so->so_cred->cr_uid !=
-				     t->inp_socket->so_cred->cr_uid))
-					return (EADDRINUSE);
+				if (t != NULL) {
+					SOCK_LOCK(t->inp_socket);
+					if ((!IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr) ||
+					     !IN6_IS_ADDR_UNSPECIFIED(&t->in6p_laddr) ||
+					     (t->inp_socket->so_options &
+					      SO_REUSEPORT) == 0) &&
+					    (so->so_cred->cr_uid !=
+					     t->inp_socket->so_cred->cr_uid)) {
+						SOCK_UNLOCK(t->inp_socket);
+						return (EADDRINUSE);
+					}
+					SOCK_UNLOCK(t->inp_socket);
+				}
 				if ((inp->inp_flags & IN6P_IPV6_V6ONLY) == 0 &&
 				    IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr)) {
 					struct sockaddr_in sin;
@@ -218,8 +230,14 @@ in6_pcbbind(inp, nam, td)
 			}
 			t = in6_pcblookup_local(pcbinfo, &sin6->sin6_addr,
 						lport, wild);
-			if (t && (reuseport & t->inp_socket->so_options) == 0)
-				return(EADDRINUSE);
+			if (t != NULL) {
+				SOCK_LOCK(t->inp_socket);
+				if ((reuseport & t->inp_socket->so_options) == 0) {
+					SOCK_UNLOCK(t->inp_socket);
+					return(EADDRINUSE);
+				}
+				SOCK_UNLOCK(t->inp_socket);
+			}
 			if ((inp->inp_flags & IN6P_IPV6_V6ONLY) == 0 &&
 			    IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr)) {
 				struct sockaddr_in sin;
@@ -227,14 +245,19 @@ in6_pcbbind(inp, nam, td)
 				in6_sin6_2_sin(&sin, sin6);
 				t = in_pcblookup_local(pcbinfo, sin.sin_addr,
 						       lport, wild);
-				if (t &&
-				    (reuseport & t->inp_socket->so_options)
-				    == 0 &&
-				    (ntohl(t->inp_laddr.s_addr)
-				     != INADDR_ANY ||
-				     INP_SOCKAF(so) ==
-				     INP_SOCKAF(t->inp_socket)))
-					return (EADDRINUSE);
+				if (t != NULL) {
+					SOCK_LOCK(t->inp_socket);
+					if ((reuseport & t->inp_socket->so_options)
+					    == 0 &&
+					    (ntohl(t->inp_laddr.s_addr)
+					     != INADDR_ANY ||
+					     INP_SOCKAF(so) ==
+					     INP_SOCKAF(t->inp_socket))) {
+						SOCK_UNLOCK(t->inp_socket);
+						return (EADDRINUSE);
+					}
+					SOCK_UNLOCK(t->inp_socket);
+				}
 			}
 		}
 		inp->in6p_laddr = sin6->sin6_addr;
@@ -589,8 +612,12 @@ in6_pcbdisconnect(inp)
 	/* clear flowinfo - draft-itojun-ipv6-flowlabel-api-00 */
 	inp->in6p_flowinfo &= ~IPV6_FLOWLABEL_MASK;
 	in_pcbrehash(inp);
-	if (inp->inp_socket->so_state & SS_NOFDREF)
+	SOCK_LOCK(inp->inp_socket);
+	if (inp->inp_socket->so_state & SS_NOFDREF) {
+		SOCK_UNLOCK(inp->inp_socket);
 		in6_pcbdetach(inp);
+	} else
+		SOCK_UNLOCK(inp->inp_socket);
 }
 
 void
@@ -607,6 +634,7 @@ in6_pcbdetach(inp)
 	inp->inp_gencnt = ++ipi->ipi_gencnt;
 	in_pcbremlists(inp);
 	sotoinpcb(so) = 0;
+	SOCK_LOCK(so);
 	sotryfree(so);
 
 	if (inp->in6p_options)

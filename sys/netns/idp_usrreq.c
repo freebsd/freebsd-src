@@ -97,7 +97,9 @@ idp_input(m, nsp)
 	if (sbappendaddr(&nsp->nsp_socket->so_rcv, (struct sockaddr *)&idp_ns,
 	    m, (struct mbuf *)0) == 0)
 		goto bad;
+	SOCK_LOCK(nsp->nsp_socket);
 	sorwakeup(nsp->nsp_socket);
+	SOCK_UNLOCK(nsp->nsp_socket);
 	return;
 bad:
 	m_freem(m);
@@ -109,7 +111,9 @@ idp_abort(nsp)
 	struct socket *so = nsp->nsp_socket;
 
 	ns_pcbdisconnect(nsp);
+	SOCK_LOCK(so);
 	soisdisconnected(so);
+	SOCK_UNLOCK(so);
 }
 /*
  * Drop connection, reporting
@@ -133,7 +137,9 @@ idp_drop(nsp, errno)
 	}*/
 	so->so_error = errno;
 	ns_pcbdisconnect(nsp);
+	SOCK_LOCK(so);
 	soisdisconnected(so);
+	SOCK_UNLOCK(so);
 }
 
 int noIdpRoute;
@@ -148,6 +154,7 @@ idp_output(nsp, m0)
 	register struct route *ro;
 	struct mbuf *mprev;
 	extern int idpcksum;
+	int soopts;
 
 	/*
 	 * Calculate data length.
@@ -211,9 +218,14 @@ idp_output(nsp, m0)
 	 * Output datagram.
 	 */
 	so = nsp->nsp_socket;
-	if (so->so_options & SO_DONTROUTE)
+	SOCK_LOCK(so);
+	if (so->so_options & SO_DONTROUTE) {
+		soopts = so->so_options & SO_BROADCAST;
+		SO_UNLOCK(so);
 		return (ns_output(m, (struct route *)0,
-		    (so->so_options & SO_BROADCAST) | NS_ROUTETOIF));
+		    soopts | NS_ROUTETOIF));
+	}
+	SO_UNLOCK(so);
 	/*
 	 * Use cached route for previous datagram if
 	 * possible.  If the previous net was the same
@@ -257,7 +269,10 @@ idp_output(nsp, m0)
 	nsp->nsp_lastdst = idp->idp_dna;
 #endif /* ancient_history */
 	if (noIdpRoute) ro = 0;
-	return (ns_output(m, ro, so->so_options & SO_BROADCAST));
+	SOCK_LOCK(so);
+	soopts = so->so_options & SO_BROADCAST;
+	SOCK_UNLOCK(so);
+	return (ns_output(m, ro, soopts));
 }
 /* ARGSUSED */
 idp_ctloutput(req, so, level, name, value)
@@ -427,8 +442,11 @@ idp_usrreq(so, req, m, nam, control)
 			break;
 		}
 		error = ns_pcbconnect(nsp, nam);
-		if (error == 0)
+		if (error == 0) {
+			SOCK_LOCK(so);
 			soisconnected(so);
+			SOCK_UNLOCK(so);
+		}
 		break;
 
 	case PRU_CONNECT2:
@@ -445,7 +463,9 @@ idp_usrreq(so, req, m, nam, control)
 			break;
 		}
 		ns_pcbdisconnect(nsp);
+		SOCK_LOCK(so);
 		soisdisconnected(so);
+		SOCK_UNLOCK(so);
 		break;
 
 	case PRU_SHUTDOWN:
@@ -491,8 +511,11 @@ idp_usrreq(so, req, m, nam, control)
 
 	case PRU_ABORT:
 		ns_pcbdetach(nsp);
+		SOCK_LOCK(so);
 		sotryfree(so);
+		SOCK_LOCK(so);
 		soisdisconnected(so);	/* XXX huh, called after sofree()? */
+		SOCK_UNLOCK(so);
 		break;
 
 	case PRU_SOCKADDR:
@@ -546,10 +569,13 @@ idp_raw_usrreq(so, req, m, nam, control)
 
 	case PRU_ATTACH:
 
+		SOCK_LOCK(so);
 		if (!(so->so_state & SS_PRIV) || (nsp != NULL)) {
+			SOCK_UNLOCK(so);
 			error = EINVAL;
 			break;
 		}
+		SOCK_UNLOCK(so);
 		error = ns_pcballoc(so, &nsrawpcb);
 		if (error)
 			break;

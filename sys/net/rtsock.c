@@ -147,8 +147,10 @@ rts_attach(struct socket *so, int proto, struct thread *td)
 	}
 	rp->rcb_faddr = &route_src;
 	route_cb.any_count++;
-	soisconnected_locked(so);
+	SOCK_LOCK(so);
+	soisconnected(so);
 	so->so_options |= SO_USELOOPBACK;
+	SOCK_UNLOCK(so);
 	splx(s);
 	return 0;
 }
@@ -472,7 +474,9 @@ flush:
 	/*
 	 * Check to see if we don't want our own messages.
 	 */
+	SOCK_LOCK(so);
 	if ((so->so_options & SO_USELOOPBACK) == 0) {
+		SOCK_UNLOCK(so);
 		if (route_cb.any_count <= 1) {
 			if (rtm)
 				Free(rtm);
@@ -481,7 +485,8 @@ flush:
 		}
 		/* There is another listener, so construct message */
 		rp = sotorawcb(so);
-	}
+	} else
+		SOCK_UNLOCK(so);
 	if (rtm) {
 		m_copyback(m, 0, rtm->rtm_msglen, (caddr_t)rtm);
 		if (m->m_pkthdr.len < rtm->rtm_msglen) {

@@ -107,8 +107,12 @@ ns_control(so, cmd, data, ifp)
 		return (0);
 	}
 
-	if ((so->so_state & SS_PRIV) == 0)
+	SOCK_LOCK(so);
+	if ((so->so_state & SS_PRIV) == 0) {
+		SOCK_UNLOCK(so);
 		return (EPERM);
+	}
+	SOCK_UNLOCK(so);
 
 	switch (cmd) {
 	case SIOCAIFADDR:

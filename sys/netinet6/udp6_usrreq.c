@@ -269,10 +269,18 @@ udp6_input(mp, offp, proto)
 					 * and m_copy() will copy M_PKTHDR
 					 * only if offset is 0.
 					 */
-					if (last->in6p_flags & IN6P_CONTROLOPTS
-					    || last->in6p_socket->so_options & SO_TIMESTAMP)
+					if (last->in6p_flags & IN6P_CONTROLOPTS)
 						ip6_savecontrol(last, &opts,
 								ip6, n);
+					else {
+						SOCK_LOCK(last->in6p_socket);
+						if (last->in6p_socket->so_options & SO_TIMESTAMP) {
+							SOCK_UNLOCK(last->in6p_socket);
+							ip6_savecontrol(last, &opts,
+									ip6, n);
+						} else
+							SOCK_UNLOCK(last->in6p_socket);
+					}
 								
 					m_adj(n, off + sizeof(struct udphdr));
 					if (sbappendaddr(&last->in6p_socket->so_rcv,
@@ -282,8 +290,11 @@ udp6_input(mp, offp, proto)
 						if (opts)
 							m_freem(opts);
 						udpstat.udps_fullsock++;
-					} else
+					} else {
+						SOCK_LOCK(last->in6p_socket);
 						sorwakeup(last->in6p_socket);
+						SOCK_UNLOCK(last->in6p_socket);
+					}
 					opts = NULL;
 				}
 			}
@@ -296,9 +307,13 @@ udp6_input(mp, offp, proto)
 			 * port.  It assumes that an application will never
 			 * clear these options after setting them.
 			 */
+			SOCK_LOCK(last->in6p_socket);
 			if ((last->in6p_socket->so_options &
-			     (SO_REUSEPORT|SO_REUSEADDR)) == 0)
+			     (SO_REUSEPORT|SO_REUSEADDR)) == 0) {
+				SOCK_UNLOCK(last->in6p_socket);
 				break;
+			} else
+				SOCK_UNLOCK(last->in6p_socket);
 		}
 
 		if (last == NULL) {
@@ -320,9 +335,16 @@ udp6_input(mp, offp, proto)
 			goto bad;
 		}
 #endif /* IPSEC */
-		if (last->in6p_flags & IN6P_CONTROLOPTS
-		    || last->in6p_socket->so_options & SO_TIMESTAMP)
+		if (last->in6p_flags & IN6P_CONTROLOPTS)
 			ip6_savecontrol(last, &opts, ip6, m);
+		else {
+			SOCK_LOCK(last->in6p_socket);
+			if (last->in6p_socket->so_options & SO_TIMESTAMP) {
+				SOCK_UNLOCK(last->in6p_socket);
+				ip6_savecontrol(last, &opts, ip6, m);
+			} else
+				SOCK_UNLOCK(last->in6p_socket);
+		}
 
 		m_adj(m, off + sizeof(struct udphdr));
 		if (sbappendaddr(&last->in6p_socket->so_rcv,
@@ -331,7 +353,9 @@ udp6_input(mp, offp, proto)
 			udpstat.udps_fullsock++;
 			goto bad;
 		}
+		SOCK_LOCK(last->in6p_socket);
 		sorwakeup(last->in6p_socket);
+		SOCK_UNLOCK(last->in6p_socket);
 		return IPPROTO_DONE;
 	}
 	/*
@@ -375,9 +399,16 @@ udp6_input(mp, offp, proto)
 	 */
 	init_sin6(&udp_in6, m); /* general init */
 	udp_in6.sin6_port = uh->uh_sport;
-	if (in6p->in6p_flags & IN6P_CONTROLOPTS
-	    || in6p->in6p_socket->so_options & SO_TIMESTAMP)
+	if (in6p->in6p_flags & IN6P_CONTROLOPTS)
 		ip6_savecontrol(in6p, &opts, ip6, m);
+	else {
+		SOCK_LOCK(in6p->in6p_socket);
+		if (in6p->in6p_socket->so_options & SO_TIMESTAMP) {
+			SOCK_UNLOCK(in6p->in6p_socket);
+			ip6_savecontrol(in6p, &opts, ip6, m);
+		} else
+			SOCK_UNLOCK(in6p->in6p_socket);
+	}
 	m_adj(m, off + sizeof(struct udphdr));
 	if (sbappendaddr(&in6p->in6p_socket->so_rcv,
 			(struct sockaddr *)&udp_in6,
@@ -385,7 +416,9 @@ udp6_input(mp, offp, proto)
 		udpstat.udps_fullsock++;
 		goto bad;
 	}
+	SOCK_LOCK(in6p->in6p_socket);
 	sorwakeup(in6p->in6p_socket);
+	SOCK_UNLOCK(in6p->in6p_socket);
 	return IPPROTO_DONE;
 bad:
 	if (m)
@@ -509,7 +542,9 @@ udp6_abort(struct socket *so)
 	inp = sotoinpcb(so);
 	if (inp == 0)
 		return EINVAL;	/* ??? possible? panic instead? */
+	SOCK_LOCK(so);
 	soisdisconnected(so);
+	SOCK_UNLOCK(so);
 	s = splnet();
 	in6_pcbdetach(inp);
 	splx(s);
@@ -614,7 +649,9 @@ udp6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 			if (error == 0) {
 				inp->inp_vflag |= INP_IPV4;
 				inp->inp_vflag &= ~INP_IPV6;
+				SOCK_LOCK(so);
 				soisconnected(so);
+				SOCK_UNLOCK(so);
 			}
 			return error;
 		}
@@ -629,7 +666,9 @@ udp6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 			inp->inp_vflag &= ~INP_IPV4;
 			inp->inp_vflag |= INP_IPV6;
 		}
+		SOCK_LOCK(so);
 		soisconnected(so);
+		SOCK_UNLOCK(so);
 	}
 	return error;
 }
@@ -673,7 +712,9 @@ udp6_disconnect(struct socket *so)
 	in6_pcbdisconnect(inp);
 	inp->in6p_laddr = in6addr_any;
 	splx(s);
+	SOCK_LOCK(so);
 	so->so_state &= ~SS_ISCONNECTED;		/* XXX */
+	SOCK_UNLOCK(so);
 	return 0;
 }
 

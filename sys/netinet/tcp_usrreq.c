@@ -103,8 +103,17 @@ static struct tcpcb *
 #ifdef TCPDEBUG
 #define	TCPDEBUG0	int ostate = 0
 #define	TCPDEBUG1()	ostate = tp ? tp->t_state : 0
-#define	TCPDEBUG2(req)	if (tp && (so->so_options & SO_DEBUG)) \
-				tcp_trace(TA_USER, ostate, tp, 0, 0, req)
+#define	TCPDEBUG2(req)								\
+	do {									\
+		if (tp != 0) {							\
+			SOCK_LOCK(so);						\
+			if (so->so_options & SO_DEBUG) {			\
+				SOCK_UNLOCK(so);				\
+				tcp_trace(TA_USER, ostate, tp, 0, 0, req);	\
+			} else							\
+				SOCK_UNLOCK(so);				\
+		}								\
+	} while(0)
 #else
 #define	TCPDEBUG0
 #define	TCPDEBUG1()
@@ -134,8 +143,10 @@ tcp_usr_attach(struct socket *so, int proto, struct thread *td)
 	if (error)
 		goto out;
 
+	SOCK_LOCK(so);
 	if ((so->so_options & SO_LINGER) && so->so_linger == 0)
 		so->so_linger = TCP_LINGERTIME;
+	SOCK_UNLOCK(so);
 	tp = sototcpcb(so);
 out:
 	TCPDEBUG2(PRU_ATTACH);
@@ -424,10 +435,13 @@ tcp_usr_accept(struct socket *so, struct sockaddr **nam)
 	struct tcpcb *tp = NULL;
 	TCPDEBUG0;
 
+	SOCK_LOCK(so);
 	if (so->so_state & SS_ISDISCONNECTED) {
+		SOCK_UNLOCK(so);
 		error = ECONNABORTED;
 		goto out;
 	}
+	SOCK_UNLOCK(so);
 	if (inp == 0) {
 		splx(s);
 		return (EINVAL);
@@ -448,10 +462,13 @@ tcp6_usr_accept(struct socket *so, struct sockaddr **nam)
 	struct tcpcb *tp = NULL;
 	TCPDEBUG0;
 
+	SOCK_LOCK(so);
 	if (so->so_state & SS_ISDISCONNECTED) {
+		SOCK_UNLOCK(so);
 		error = ECONNABORTED;
 		goto out;
 	}
+	SOCK_UNLOCK(so);
 	if (inp == 0) {
 		splx(s);
 		return (EINVAL);
@@ -654,10 +671,16 @@ tcp_usr_rcvoob(struct socket *so, struct mbuf *m, int flags)
 	struct tcpcb *tp;
 
 	COMMON_START();
+	SOCK_LOCK(so);
 	if ((so->so_oobmark == 0 &&
 	     (so->so_state & SS_RCVATMARK) == 0) ||
-	    so->so_options & SO_OOBINLINE ||
-	    tp->t_oobflags & TCPOOB_HADDATA) {
+	    so->so_options & SO_OOBINLINE) {
+		SOCK_UNLOCK(so);
+		error = EINVAL;
+		goto out;
+	}
+	SOCK_UNLOCK(so);
+	if (tp->t_oobflags & TCPOOB_HADDATA) {
 		error = EINVAL;
 		goto out;
 	}
@@ -755,7 +778,9 @@ tcp_connect(tp, nam, td)
 	    (TCP_MAXWIN << tp->request_r_scale) < so->so_rcv.sb_hiwat)
 		tp->request_r_scale++;
 
+	SOCK_LOCK(so);
 	soisconnecting(so);
+	SOCK_UNLOCK(so);
 	tcpstat.tcps_connattempt++;
 	tp->t_state = TCPS_SYN_SENT;
 	callout_reset(tp->tt_keep, tcp_keepinit, tcp_timer_keep, tp);
@@ -841,7 +866,9 @@ tcp6_connect(tp, nam, td)
 	    (TCP_MAXWIN << tp->request_r_scale) < so->so_rcv.sb_hiwat)
 		tp->request_r_scale++;
 
+	SOCK_LOCK(so);
 	soisconnecting(so);
+	SOCK_UNLOCK(so);
 	tcpstat.tcps_connattempt++;
 	tp->t_state = TCPS_SYN_SENT;
 	callout_reset(tp->tt_keep, tcp_keepinit, tcp_timer_keep, tp);
@@ -1039,16 +1066,21 @@ tcp_attach(so, td)
 	inp->inp_vflag |= INP_IPV4;
 	tp = tcp_newtcpcb(inp);
 	if (tp == 0) {
-		int nofd = so->so_state & SS_NOFDREF;	/* XXX */
+		int nofd;
 
+		SOCK_LOCK(so);
+		nofd = so->so_state & SS_NOFDREF;	/* XXX */
 		so->so_state &= ~SS_NOFDREF;	/* don't free the socket yet */
+		SOCK_UNLOCK(so);
 #ifdef INET6
 		if (isipv6)
 			in6_pcbdetach(inp);
 		else
 #endif
 		in_pcbdetach(inp);
+		SOCK_LOCK(so);
 		so->so_state |= nofd;
+		SOCK_UNLOCK(so);
 		return (ENOBUFS);
 	}
 	tp->t_state = TCPS_CLOSED;
@@ -1071,14 +1103,19 @@ tcp_disconnect(tp)
 
 	if (tp->t_state < TCPS_ESTABLISHED)
 		tp = tcp_close(tp);
-	else if ((so->so_options & SO_LINGER) && so->so_linger == 0)
-		tp = tcp_drop(tp, 0);
 	else {
-		soisdisconnecting(so);
-		sbflush(&so->so_rcv);
-		tp = tcp_usrclosed(tp);
-		if (tp)
-			(void) tcp_output(tp);
+		SOCK_LOCK(so);
+		if ((so->so_options & SO_LINGER) && so->so_linger == 0) {
+			SOCK_UNLOCK(so);
+			tp = tcp_drop(tp, 0);
+		} else {
+			soisdisconnecting(so);
+			SOCK_UNLOCK(so);
+			sbflush(&so->so_rcv);
+			tp = tcp_usrclosed(tp);
+			if (tp)
+				(void) tcp_output(tp);
+		}
 	}
 	return (tp);
 }
@@ -1120,7 +1157,9 @@ tcp_usrclosed(tp)
 		break;
 	}
 	if (tp && tp->t_state >= TCPS_FIN_WAIT_2) {
+		SOCK_LOCK(tp->t_inpcb->inp_socket);
 		soisdisconnected(tp->t_inpcb->inp_socket);
+		SOCK_UNLOCK(tp->t_inpcb->inp_socket);
 		/* To prevent the connection hanging in FIN_WAIT_2 forever. */
 		if (tp->t_state == TCPS_FIN_WAIT_2)
 			callout_reset(tp->tt_2msl, tcp_maxidle,

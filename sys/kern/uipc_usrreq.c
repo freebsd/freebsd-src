@@ -104,6 +104,7 @@ uipc_abort(struct socket *so)
 		return EINVAL;
 	unp_drop(unp, ECONNABORTED);
 	unp_detach(unp);
+	SOCK_LOCK(so);
 	sotryfree(so);
 	return 0;
 }
@@ -249,7 +250,9 @@ uipc_rcvd(struct socket *so, int flags)
 		(void)chgsbsize(so2->so_cred->cr_uidinfo, &so2->so_snd.sb_hiwat,
 		    newhiwat, RLIM_INFINITY);
 		unp->unp_cc = so->so_rcv.sb_cc;
+		SOCK_LOCK(so2);
 		sowwakeup(so2);
+		SOCK_UNLOCK(so2);
 		break;
 
 	default:
@@ -306,7 +309,9 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 		else
 			from = &sun_noname;
 		if (sbappendaddr(&so2->so_rcv, from, m, control)) {
+			SOCK_LOCK(so2);
 			sorwakeup(so2);
+			SOCK_UNLOCK(so2);
 			m = 0;
 			control = 0;
 		} else
@@ -322,7 +327,9 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 		 * Note: A better implementation would complain
 		 * if not equal to the peer's address.
 		 */
+		SOCK_LOCK(so);
 		if ((so->so_state & SS_ISCONNECTED) == 0) {
+			SOCK_UNLOCK(so);
 			if (nam) {
 				error = unp_connect(so, nam, td);
 				if (error)
@@ -334,9 +341,11 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 		}
 
 		if (so->so_state & SS_CANTSENDMORE) {
+			SOCK_UNLOCK(so);
 			error = EPIPE;
 			break;
 		}
+		SOCK_UNLOCK(so);
 		if (unp->unp_conn == 0)
 			panic("uipc_send connected but no connection?");
 		so2 = unp->unp_conn->unp_socket;
@@ -358,7 +367,9 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 		(void)chgsbsize(so->so_cred->cr_uidinfo, &so->so_snd.sb_hiwat,
 		    newhiwat, RLIM_INFINITY);
 		unp->unp_conn->unp_cc = so2->so_rcv.sb_cc;
+		SOCK_LOCK(so2);
 		sorwakeup(so2);
+		SOCK_UNLOCK(so2);
 		m = 0;
 		break;
 
@@ -563,7 +574,9 @@ unp_detach(unp)
 		unp_disconnect(unp);
 	while (!LIST_EMPTY(&unp->unp_refs))
 		unp_drop(LIST_FIRST(&unp->unp_refs), ECONNRESET);
+	SOCK_LOCK(unp->unp_socket);
 	soisdisconnected(unp->unp_socket);
+	SOCK_UNLOCK(unp->unp_socket);
 	unp->unp_socket->so_pcb = 0;
 	if (unp_rights) {
 		/*
@@ -697,8 +710,14 @@ unp_connect(so, nam, td)
 		goto bad;
 	}
 	if (so->so_proto->pr_flags & PR_CONNREQUIRED) {
-		if ((so2->so_options & SO_ACCEPTCONN) == 0 ||
-		    (so3 = sonewconn(so2, 0)) == 0) {
+		SOCK_LOCK(so2);
+		if ((so2->so_options & SO_ACCEPTCONN) == 0) {
+			SOCK_UNLOCK(so2);
+			error = ECONNREFUSED;
+			goto bad;
+		}
+		SOCK_UNLOCK(so2);
+		if ((so3 = sonewconn(so2, 0)) == 0) {
 			error = ECONNREFUSED;
 			goto bad;
 		}
@@ -756,13 +775,19 @@ unp_connect2(so, so2)
 
 	case SOCK_DGRAM:
 		LIST_INSERT_HEAD(&unp2->unp_refs, unp, unp_reflink);
+		SOCK_LOCK(so);
 		soisconnected(so);
+		SOCK_UNLOCK(so);
 		break;
 
 	case SOCK_STREAM:
 		unp2->unp_conn = unp;
+		SOCK_LOCK(so);
 		soisconnected(so);
+		SOCK_UNLOCK(so);
+		SOCK_LOCK(so2);
 		soisconnected(so2);
+		SOCK_UNLOCK(so2);
 		break;
 
 	default:
@@ -784,13 +809,19 @@ unp_disconnect(unp)
 
 	case SOCK_DGRAM:
 		LIST_REMOVE(unp, unp_reflink);
+		SOCK_LOCK(unp->unp_socket);
 		unp->unp_socket->so_state &= ~SS_ISCONNECTED;
+		SOCK_UNLOCK(unp->unp_socket);
 		break;
 
 	case SOCK_STREAM:
+		SOCK_LOCK(unp->unp_socket);
 		soisdisconnected(unp->unp_socket);
+		SOCK_UNLOCK(unp->unp_socket);
+		SOCK_LOCK(unp2->unp_socket);
 		unp2->unp_conn = 0;
 		soisdisconnected(unp2->unp_socket);
+		SOCK_UNLOCK(unp2->unp_socket);
 		break;
 	}
 }

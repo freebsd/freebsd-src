@@ -771,19 +771,24 @@ atm_aal5_cpcs_data(tok, m)
 	 * Ensure that the socket is able to receive data and
 	 * that there's room in the socket buffer
 	 */
+	SOCK_LOCK(so);
 	if (((so->so_state & SS_ISCONNECTED) == 0) ||
 	    (so->so_state & SS_CANTRCVMORE) ||
 	    (len > sbspace(&so->so_rcv))) {
+		SOCK_UNLOCK(so);
 		atm_sock_stat.as_indrop[atp->atp_type]++;
 		KB_FREEALL(m);
 		return;
 	}
+	SOCK_UNLOCK(so);
 
 	/*
 	 * Queue the data and notify the user
 	 */
 	sbappendrecord(&so->so_rcv, m);
+	SOCK_LOCK(so);
 	sorwakeup(so);
+	SOCK_UNLOCK(so);
 
 	return;
 }
@@ -835,9 +840,12 @@ atm_aal5_ctloutput(so, sopt)
 
 		case T_ATM_ADD_LEAF:
 		case T_ATM_DROP_LEAF:
+			SOCK_LOCK(so);
 			if ((so->so_state & SS_ISCONNECTED) == 0) {
+				SOCK_UNLOCK(so);
 				ATM_RETERR(ENOTCONN);
-			}
+			} else
+				SOCK_UNLOCK(so);
 			break;
 
 		case T_ATM_CAUSE:
@@ -845,9 +853,12 @@ atm_aal5_ctloutput(so, sopt)
 			break;
 
 		default:
+			SOCK_LOCK(so);
 			if (so->so_state & SS_ISCONNECTED) {
+				SOCK_UNLOCK(so);
 				ATM_RETERR(EISCONN);
-			}
+			} else
+				SOCK_UNLOCK(so);
 			break;
 		}
 

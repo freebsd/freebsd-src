@@ -281,15 +281,21 @@ present:
 		flags = q->tqe_th->th_flags & TH_FIN;
 		nq = LIST_NEXT(q, tqe_q);
 		LIST_REMOVE(q, tqe_q);
-		if (so->so_state & SS_CANTRCVMORE)
+		SOCK_LOCK(so);
+		if (so->so_state & SS_CANTRCVMORE) {
+			SOCK_UNLOCK(so);
 			m_freem(q->tqe_m);
-		else
+		} else {
+			SOCK_UNLOCK(so);
 			sbappend(&so->so_rcv, q->tqe_m);
+		}
 		FREE(q, M_TSEGQ);
 		q = nq;
 	} while (q && q->tqe_th->th_seq == tp->rcv_nxt);
 	ND6_HINT(tp);
+	SOCK_LOCK(so);
 	sorwakeup(so);
+	SOCK_UNLOCK(so);
 	return (flags);
 }
 
@@ -638,6 +644,7 @@ findpcb:
 		tiwin = th->th_win;
 
 	so = inp->inp_socket;
+	SOCK_LOCK(so);
 	if (so->so_options & (SO_DEBUG|SO_ACCEPTCONN)) {
 		struct in_conninfo inc;
 #ifdef TCPDEBUG
@@ -654,8 +661,11 @@ findpcb:
 		}
 #endif
 		/* skip if this isn't a listen socket */
-		if ((so->so_options & SO_ACCEPTCONN) == 0)
+		if ((so->so_options & SO_ACCEPTCONN) == 0) {
+			SOCK_UNLOCK(so);
 			goto after_listen;
+		}
+		SOCK_UNLOCK(so);
 #ifdef INET6
 		inc.inc_isipv6 = isipv6;
 		if (isipv6) {
@@ -868,11 +878,14 @@ findpcb:
 				tp->t_flags |= (TF_ACKNOW | TF_NEEDSYN);
 
 			tcpstat.tcps_connects++;
+			SOCK_LOCK(so);
 			soisconnected(so);
+			SOCK_UNLOCK(so);
 			goto trimthenstep6;
 		}
 		goto drop;
-	}
+	} else
+		SOCK_UNLOCK(so);
 after_listen:
 
 /* XXX temp debugging */
@@ -1004,7 +1017,9 @@ after_listen:
 						      tp->t_rxtcur,
 						      tcp_timer_rexmt, tp);
 
+				SOCK_LOCK(so);
 				sowwakeup(so);
+				SOCK_UNLOCK(so);
 				if (so->so_snd.sb_cc)
 					(void) tcp_output(tp);
 				return;
@@ -1027,7 +1042,9 @@ after_listen:
 			 */
 			m_adj(m, drop_hdrlen);	/* delayed header drop */
 			sbappend(&so->so_rcv, m);
+			SOCK_LOCK(so);
 			sorwakeup(so);
+			SOCK_UNLOCK(so);
 			if (DELAY_ACK(tp)) {
 	                        callout_reset(tp->tt_delack, tcp_delacktime,
 	                            tcp_timer_delack, tp);
@@ -1137,7 +1154,9 @@ after_listen:
 			} else
 				tp->t_flags &= ~TF_RCVD_CC;
 			tcpstat.tcps_connects++;
+			SOCK_LOCK(so);
 			soisconnected(so);
+			SOCK_UNLOCK(so);
 			/* Do window scaling on this connection? */
 			if ((tp->t_flags & (TF_RCVD_SCALE|TF_REQ_SCALE)) ==
 				(TF_RCVD_SCALE|TF_REQ_SCALE)) {
@@ -1467,13 +1486,16 @@ trimthenstep6:
 	 * If new data are received on a connection after the
 	 * user processes are gone, then RST the other end.
 	 */
+	SOCK_LOCK(so);
 	if ((so->so_state & SS_NOFDREF) &&
 	    tp->t_state > TCPS_CLOSE_WAIT && tlen) {
+		SOCK_UNLOCK(so);
 		tp = tcp_close(tp);
 		tcpstat.tcps_rcvafterclose++;
 		rstreason = BANDLIM_UNLIMITED;
 		goto dropwithreset;
 	}
+	SOCK_UNLOCK(so);
 
 	/*
 	 * If segment ends after window, drop trailing data
@@ -1563,7 +1585,9 @@ trimthenstep6:
 	case TCPS_SYN_RECEIVED:
 
 		tcpstat.tcps_connects++;
+		SOCK_LOCK(so);
 		soisconnected(so);
+		SOCK_UNLOCK(so);
 		/* Do window scaling? */
 		if ((tp->t_flags & (TF_RCVD_SCALE|TF_REQ_SCALE)) ==
 			(TF_RCVD_SCALE|TF_REQ_SCALE)) {
@@ -1822,7 +1846,9 @@ process_ACK:
 			tp->snd_wnd -= acked;
 			ourfinisacked = 0;
 		}
+		SOCK_LOCK(so);
 		sowwakeup(so);
+		SOCK_UNLOCK(so);
 		tp->snd_una = th->th_ack;
 		if (SEQ_LT(tp->snd_nxt, tp->snd_una))
 			tp->snd_nxt = tp->snd_una;
@@ -1843,11 +1869,14 @@ process_ACK:
 				 * specification, but if we don't get a FIN
 				 * we'll hang forever.
 				 */
+				SOCK_LOCK(so);
 				if (so->so_state & SS_CANTRCVMORE) {
-					soisdisconnected_locked(so);
+					soisdisconnected(so);
+					SOCK_UNLOCK(so);
 					callout_reset(tp->tt_2msl, tcp_maxidle,
 						      tcp_timer_2msl, tp);
-				}
+				} else
+					SOCK_UNLOCK(so);
 				tp->t_state = TCPS_FIN_WAIT_2;
 			}
 			break;
@@ -1872,7 +1901,9 @@ process_ACK:
 				else
 					callout_reset(tp->tt_2msl, 2 * tcp_msl,
 						      tcp_timer_2msl, tp);
+				SOCK_LOCK(so);
 				soisdisconnected(so);
+				SOCK_UNLOCK(so);
 			}
 			break;
 
@@ -1956,8 +1987,11 @@ step6:
 			tp->rcv_up = th->th_seq + th->th_urp;
 			so->so_oobmark = so->so_rcv.sb_cc +
 			    (tp->rcv_up - tp->rcv_nxt) - 1;
-			if (so->so_oobmark == 0)
+			if (so->so_oobmark == 0) {
+				SOCK_LOCK(so);
 				so->so_state |= SS_RCVATMARK;
+				SOCK_UNLOCK(so);
+			}
 			sohasoutofband(so);
 			tp->t_oobflags &= ~(TCPOOB_HAVEDATA | TCPOOB_HADDATA);
 		}
@@ -1967,13 +2001,19 @@ step6:
 		 * but if two URG's are pending at once, some out-of-band
 		 * data may creep in... ick.
 		 */
-		if (th->th_urp <= (u_long)tlen
+		if (th->th_urp <= (u_long)tlen) {
 #ifdef SO_OOBINLINE
-		     && (so->so_options & SO_OOBINLINE) == 0
+			SOCK_LOCK(so);
+			if ((so->so_options & SO_OOBINLINE) == 0) {
+				SOCK_UNLOCK(so);
 #endif
-		     )
-			tcp_pulloutofband(so, th, m,
-				drop_hdrlen);	/* hdr drop is delayed */
+				tcp_pulloutofband(so, th, m,
+					drop_hdrlen);	/* hdr drop is delayed */
+#ifdef SO_OOBINLINE
+			} else
+				SOCK_UNLOCK(so);
+#endif
+		}
 	} else
 		/*
 		 * If no out of band data is expected,
@@ -2019,7 +2059,9 @@ dodata:							/* XXX */
 			tcpstat.tcps_rcvbyte += tlen;
 			ND6_HINT(tp);
 			sbappend(&so->so_rcv, m);
+			SOCK_LOCK(so);
 			sorwakeup(so);
+			SOCK_UNLOCK(so);
 		} else {
 			thflags = tcp_reass(tp, th, &tlen, m);
 			tp->t_flags |= TF_ACKNOW;
@@ -2098,7 +2140,9 @@ dodata:							/* XXX */
 			else
 				callout_reset(tp->tt_2msl, 2 * tcp_msl,
 					      tcp_timer_2msl, tp);
+			SOCK_LOCK(so);
 			soisdisconnected(so);
+			SOCK_UNLOCK(so);
 			break;
 
 		/*
@@ -2111,9 +2155,13 @@ dodata:							/* XXX */
 		}
 	}
 #ifdef TCPDEBUG
-	if (so->so_options & SO_DEBUG)
+	SOCK_LOCK(so);
+	if (so->so_options & SO_DEBUG) {
+		SOCK_UNLOCK(so);
 		tcp_trace(TA_INPUT, ostate, tp, (void *)tcp_saveipgen,
 			  &tcp_savetcp, 0);
+	} else
+		SOCK_UNLOCK(so);
 #endif
 
 	/*
@@ -2146,9 +2194,13 @@ dropafterack:
 		goto dropwithreset;
 	}
 #ifdef TCPDEBUG
-	if (so->so_options & SO_DEBUG)
+	SOCK_LOCK(so);
+	if (so->so_options & SO_DEBUG) {
+		SOCK_UNLOCK(so);
 		tcp_trace(TA_DROP, ostate, tp, (void *)tcp_saveipgen,
 			  &tcp_savetcp, 0);
+	} else
+		SOCK_UNLOCK(so);
 #endif
 	m_freem(m);
 	tp->t_flags |= TF_ACKNOW;
@@ -2184,9 +2236,18 @@ dropwithreset:
 		goto drop;
  
 #ifdef TCPDEBUG
-	if (tp == 0 || (tp->t_inpcb->inp_socket->so_options & SO_DEBUG))
+	if (tp == 0)
 		tcp_trace(TA_DROP, ostate, tp, (void *)tcp_saveipgen,
 			  &tcp_savetcp, 0);
+	else {
+		SOCK_LOCK(tp->t_inpcb->inp_socket);
+		if ((tp->t_inpcb->inp_socket->so_options & SO_DEBUG)) {
+			SOCK_UNLOCK(tp->t_inpcb->inp_socket);
+			tcp_trace(TA_DROP, ostate, tp, (void *)tcp_saveipgen,
+				  &tcp_savetcp, 0);
+		} else
+			SOCK_UNLOCK(tp->t_inpcb->inp_socket);
+	}
 #endif
 	if (thflags & TH_ACK)
 		/* mtod() below is safe as long as hdr dropping is delayed */
@@ -2206,9 +2267,18 @@ drop:
 	 * Drop space held by incoming segment and return.
 	 */
 #ifdef TCPDEBUG
-	if (tp == 0 || (tp->t_inpcb->inp_socket->so_options & SO_DEBUG))
+	if (tp == 0)
 		tcp_trace(TA_DROP, ostate, tp, (void *)tcp_saveipgen,
 			  &tcp_savetcp, 0);
+	else {
+		SOCK_LOCK(tp->t_inpcb->inp_socket);
+		if ((tp->t_inpcb->inp_socket->so_options & SO_DEBUG)) {
+			SOCK_UNLOCK(tp->t_inpcb->inp_socket);
+			tcp_trace(TA_DROP, ostate, tp, (void *)tcp_saveipgen,
+				  &tcp_savetcp, 0);
+		} else
+			SOCK_UNLOCK(tp->t_inpcb->inp_socket);
+	}
 #endif
 	m_freem(m);
 	return;

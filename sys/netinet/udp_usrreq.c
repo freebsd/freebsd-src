@@ -319,8 +319,12 @@ udp_input(m, off)
 			 * port.  It * assumes that an application will never
 			 * clear these options after setting them.
 			 */
-			if ((last->inp_socket->so_options&(SO_REUSEPORT|SO_REUSEADDR)) == 0)
+			SOCK_LOCK(last->inp_socket);
+			if ((last->inp_socket->so_options&(SO_REUSEPORT|SO_REUSEADDR)) == 0) {
+				SOCK_UNLOCK(last->inp_socket);
 				break;
+			} else
+				SOCK_UNLOCK(last->inp_socket);
 		}
 
 		if (last == NULL) {
@@ -384,8 +388,10 @@ udp_input(m, off)
 	 */
 	udp_in.sin_port = uh->uh_sport;
 	udp_in.sin_addr = ip->ip_src;
+	SOCK_LOCK(inp->inp_socket);
 	if (inp->inp_flags & INP_CONTROLOPTS
 	    || inp->inp_socket->so_options & SO_TIMESTAMP) {
+		SOCK_UNLOCK(inp->inp_socket);
 #ifdef INET6
 		if (inp->inp_vflag & INP_IPV6) {
 			int savedflags;
@@ -398,7 +404,8 @@ udp_input(m, off)
 		} else
 #endif
 		ip_savecontrol(inp, &opts, ip, m);
-	}
+	} else
+		SOCK_UNLOCK(inp->inp_socket);
  	m_adj(m, iphlen + sizeof(struct udphdr));
 #ifdef INET6
 	if (inp->inp_vflag & INP_IPV6) {
@@ -411,7 +418,9 @@ udp_input(m, off)
 		udpstat.udps_fullsock++;
 		goto bad;
 	}
+	SOCK_LOCK(inp->inp_socket);
 	sorwakeup(inp->inp_socket);
+	SOCK_UNLOCK(inp->inp_socket);
 	return;
 bad:
 	m_freem(m);
@@ -453,8 +462,10 @@ udp_append(last, ip, n, off)
 	struct sockaddr *append_sa;
 	struct mbuf *opts = 0;
 
+	SOCK_LOCK(last->inp_socket);
 	if (last->inp_flags & INP_CONTROLOPTS ||
 	    last->inp_socket->so_options & SO_TIMESTAMP) {
+		SOCK_UNLOCK(last->inp_socket);
 #ifdef INET6
 		if (last->inp_vflag & INP_IPV6) {
 			int savedflags;
@@ -470,7 +481,8 @@ udp_append(last, ip, n, off)
 		} else
 #endif
 		ip_savecontrol(last, &opts, ip, n);
-	}
+	} else
+		SOCK_UNLOCK(last->inp_socket);
 #ifdef INET6
 	if (last->inp_vflag & INP_IPV6) {
 		if (udp_in6.uin6_init_done == 0) {
@@ -487,8 +499,11 @@ udp_append(last, ip, n, off)
 		if (opts)
 			m_freem(opts);
 		udpstat.udps_fullsock++;
-	} else
+	} else {
+		SOCK_LOCK(last->inp_socket);
 		sorwakeup(last->inp_socket);
+		SOCK_UNLOCK(last->inp_socket);
+	}
 }
 
 /*
@@ -501,8 +516,10 @@ udp_notify(inp, errno)
 	int errno;
 {
 	inp->inp_socket->so_error = errno;
+	SOCK_LOCK(inp->inp_socket);
 	sorwakeup(inp->inp_socket);
 	sowwakeup(inp->inp_socket);
+	SOCK_UNLOCK(inp->inp_socket);
 }
 
 void
@@ -678,7 +695,7 @@ udp_output(inp, m, addr, control, td)
 	register int len = m->m_pkthdr.len;
 	struct in_addr laddr;
 	struct sockaddr_in *sin;
-	int s = 0, error = 0;
+	int s = 0, error = 0, soopts;
 
 	if (control)
 		m_freem(control);		/* XXX */
@@ -759,8 +776,11 @@ udp_output(inp, m, addr, control, td)
 		goto release;
 	}
 #endif /*IPSEC*/
+	SOCK_LOCK(inp->inp_socket);
+	soopts = inp->inp_socket->so_options & (SO_DONTROUTE | SO_BROADCAST);
+	SOCK_UNLOCK(inp->inp_socket);
 	error = ip_output(m, inp->inp_options, &inp->inp_route,
-	    (inp->inp_socket->so_options & (SO_DONTROUTE | SO_BROADCAST)),
+	    soopts,
 	    inp->inp_moptions);
 
 	if (addr) {
@@ -799,7 +819,9 @@ udp_abort(struct socket *so)
 	inp = sotoinpcb(so);
 	if (inp == 0)
 		return EINVAL;	/* ??? possible? panic instead? */
+	SOCK_LOCK(so);
 	soisdisconnected(so);
+	SOCK_UNLOCK(so);
 	s = splnet();
 	in_pcbdetach(inp);
 	splx(s);
@@ -864,8 +886,11 @@ udp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		prison_remote_ip(td->td_ucred, 0, &sin->sin_addr.s_addr);
 	error = in_pcbconnect(inp, nam, td);
 	splx(s);
-	if (error == 0)
+	if (error == 0) {
+		SOCK_LOCK(so);
 		soisconnected(so);
+		SOCK_UNLOCK(so);
+	}
 	return error;
 }
 
@@ -900,7 +925,9 @@ udp_disconnect(struct socket *so)
 	in_pcbdisconnect(inp);
 	inp->inp_laddr.s_addr = INADDR_ANY;
 	splx(s);
+	SOCK_LOCK(so);
 	so->so_state &= ~SS_ISCONNECTED;		/* XXX */
+	SOCK_UNLOCK(so);
 	return 0;
 }
 

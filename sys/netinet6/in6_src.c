@@ -338,9 +338,11 @@ in6_pcbsetport(laddr, inp, td)
 	int count, error = 0, wild = 0;
 	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
 
+	SOCK_LOCK(so);
 	/* XXX: this is redundant when called from in6_pcbbind */
 	if ((so->so_options & (SO_REUSEADDR|SO_REUSEPORT)) == 0)
 		wild = INPLOOKUP_WILDCARD;
+	SOCK_UNLOCK(so);
 
 	inp->inp_flags |= INP_ANONPORT;
 
