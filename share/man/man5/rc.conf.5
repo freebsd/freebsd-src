@@ -1069,6 +1069,31 @@ will attempt to automatically initialize your .bde devices in
 List the devices that the script should try to attach,
 or
 .Dq Li AUTO .
+.It Va gbde_lockdir
+.Pq Vt str
+The directory where the
+.Xr gbde 4
+lockfiles are located.
+The default lockfile directory is
+.Pa /etc .
+.Pp
+The lockfile for each individual
+.Xr gbde 4
+device can be overridden by setting the variable
+.Va gbde_lock_ Ns Aq Ar device ,
+where
+.Ar device
+is the encrypted device without the
+.Dq Pa /dev/
+and
+.Dq Pa .bde
+parts.
+.It Va gbde_attach_attempts
+.Pq Vt int
+Number of times to attempt attaching to a
+.Xr gbde 4
+device, i.e. how many times the user is asked for the pass-phrase.
+Default is 3.
 .It Va gbde_swap_enable
 .Pq Vt bool
 If set to
