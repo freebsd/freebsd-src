@@ -63,13 +63,9 @@ __FBSDID("$FreeBSD$");
  *
  *-----------------------------------------------------------------------
  */
-/*VARARGS2*/
 void
-Lst_ForEach (l, proc, d)
-    Lst	    	  	l;
-    register int	(*proc)(void *, void *);
-    register void *	d;
+Lst_ForEach(Lst l, int (*proc)(void *, void *), void *d)
 {
+
     Lst_ForEachFrom(l, Lst_First(l), proc, d);
 }
-

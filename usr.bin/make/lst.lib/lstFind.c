@@ -63,11 +63,8 @@ __FBSDID("$FreeBSD$");
  *-----------------------------------------------------------------------
  */
 LstNode
-Lst_Find (l, d, cProc)
-    Lst		l;
-    void *	d;
-    int		(*cProc)(void *, void *);
+Lst_Find(Lst l, void *d, int (*cProc)(void *, void *))
 {
+
     return (Lst_FindFrom (l, Lst_First(l), d, cProc));
 }
-

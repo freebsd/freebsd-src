@@ -63,14 +63,12 @@ __FBSDID("$FreeBSD$");
  *-----------------------------------------------------------------------
  */
 ReturnStatus
-Lst_EnQueue (l, d)
-    Lst	    	  l;
-    void *	  d;
+Lst_EnQueue(Lst l, void *d)
 {
+
     if (LstValid (l) == FALSE) {
 	return (FAILURE);
     }
 
     return (Lst_Append (l, Lst_Last(l), d));
 }
-

@@ -63,11 +63,10 @@ __FBSDID("$FreeBSD$");
  *-----------------------------------------------------------------------
  */
 void *
-Lst_DeQueue (l)
-    Lst	    	  l;
+Lst_DeQueue(Lst l)
 {
-    void *	  rd;
-    register ListNode	tln;
+    void *	rd;
+    ListNode	tln;
 
     tln = (ListNode) Lst_First (l);
     if (tln == NULL) {
@@ -81,4 +80,3 @@ Lst_DeQueue (l)
 	return (rd);
     }
 }
-

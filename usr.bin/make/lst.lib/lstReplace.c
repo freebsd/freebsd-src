@@ -62,10 +62,9 @@ __FBSDID("$FreeBSD$");
  *-----------------------------------------------------------------------
  */
 ReturnStatus
-Lst_Replace (ln, d)
-    register LstNode	ln;
-    void *	  	d;
+Lst_Replace(LstNode ln, void *d)
 {
+
     if (ln == NULL) {
 	return (FAILURE);
     } else {

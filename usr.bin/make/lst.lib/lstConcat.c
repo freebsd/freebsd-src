@@ -61,23 +61,25 @@ __FBSDID("$FreeBSD$");
  * Results:
  *	SUCCESS if all went well. FAILURE otherwise.
  *
+ * Arguments:
+ *	l1	The list to which l2 is to be appended
+ *	l2	The list to append to l1
+ *	flags	LST_CONCNEW if LstNode's should be duplicated
+ *		LST_CONCLINK if should just be relinked
+ *
  * Side Effects:
  *	New elements are created and appended the the first list.
  *-----------------------------------------------------------------------
  */
 ReturnStatus
-Lst_Concat (l1, l2, flags)
-    Lst    	  	l1; 	/* The list to which l2 is to be appended */
-    Lst    	  	l2; 	/* The list to append to l1 */
-    int	   	  	flags;  /* LST_CONCNEW if LstNode's should be duplicated
-				 * LST_CONCLINK if should just be relinked */
+Lst_Concat(Lst l1, Lst l2, int flags)
 {
-    register ListNode  	ln;     /* original LstNode */
-    register ListNode  	nln;    /* new LstNode */
-    register ListNode  	last;   /* the last element in the list. Keeps
+    ListNode  	ln;     /* original LstNode */
+    ListNode  	nln;    /* new LstNode */
+    ListNode  	last;   /* the last element in the list. Keeps
 				 * bookkeeping until the end */
-    register List 	list1 = (List)l1;
-    register List 	list2 = (List)l2;
+    List 	list1 = (List)l1;
+    List 	list2 = (List)l2;
 
     if (!LstValid (l1) || !LstValid (l2)) {
 	return (FAILURE);
@@ -176,4 +178,3 @@ Lst_Concat (l1, l2, flags)
 
     return (SUCCESS);
 }
-

@@ -62,13 +62,12 @@ __FBSDID("$FreeBSD$");
  *-----------------------------------------------------------------------
  */
 void *
-Lst_Datum (ln)
-    LstNode	ln;
+Lst_Datum(LstNode ln)
 {
+
     if (ln != NULL) {
 	return (((ListNode)ln)->datum);
     } else {
 	return ((void *) NULL);
     }
 }
-
