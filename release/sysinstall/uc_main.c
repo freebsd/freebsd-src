@@ -24,7 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * library functions for userconfig library
  *
- * $Id: uc_main.c,v 1.10 1996/10/05 16:33:05 jkh Exp $
+ * $Id: uc_main.c,v 1.11 1996/10/06 02:56:22 jkh Exp $
  */
 
 #include <sys/types.h>
@@ -99,7 +99,12 @@ uc_open(char *name){
 	    free(kern);
 	    return NULL;
 	}
+	else if (isDebug())
+	    msgDebug("uc_open: opened /stand/symbols file, reading %d entries.\n", size);
+
+
 	kern->nl = nl = (struct nlist *)malloc((size + 1) * sizeof(struct nlist));
+	bzero(nl, (size + 1) * sizeof(struct nlist));
 	for (i = 0; i < size; i++) {
 	    char *cp, name[255];
 	    int c1;
@@ -115,21 +120,16 @@ uc_open(char *name){
 	    if ((cp = index(name, '\n')) != NULL)
 		*cp = '\0';
 	    nl[i].n_name = strdup(name);
-	    if (fscanf(fp, "%u %d %hd %ld\n", &uc1, &c1, &d1, &v1) == 5) {
+	    if (fscanf(fp, "%u %d %hd %ld\n", &uc1, &c1, &d1, &v1) == 4) {
 		nl[i].n_type = (unsigned char)uc1;
 		nl[i].n_other = (char)c1;
 		nl[i].n_desc = d1;
 		nl[i].n_value = v1;
 		if (isDebug())
-		    msgDebug("uc_open: for entry %d, decoded: \"%s\", %d %d %hd %ld\n", i, nl[i].n_name, nl[i].n_type, nl[i].n_other, nl[i].n_desc, nl[i].n_value);
-	    }
-	    else {
-		nl[i].n_type = 0;
-		nl[i].n_other = 0;
-		nl[i].n_desc = 0;
-		nl[i].n_value = 0;
+		    msgDebug("uc_open: for entry %d, decoded: \"%s\", %u %d %hd %ld\n", i, nl[i].n_name, nl[i].n_type, nl[i].n_other, nl[i].n_desc, nl[i].n_value);
 	    }
 	}
+	nl[i].n_name = "";
 	fclose(fp);
 	i = 0;
     }
@@ -149,13 +149,14 @@ uc_open(char *name){
 	kern->nl=(struct nlist *)malloc(sizeof(_nl));
 	bcopy(_nl, kern->nl, sizeof(_nl));
     }
-	
+
     if (incore) {
-	if ((kd=open("/dev/kmem", O_RDONLY)) < 0) {
+	if (isDebug())
+	    msgDebug("uc_open: attempting to open /dev/kmem for incore.\n");
+	if ((kd = open("/dev/kmem", O_RDONLY)) < 0) {
 	    free(kern);
-	    kern = (struct kernel *)-3;
 	    msgDebug("uc_open: Unable to open /dev/kmem.\n");
-	    return kern;
+	    return NULL;
 	}
 	kern->core = (caddr_t)NULL;
 	kern->incore = 1;
@@ -164,65 +165,59 @@ uc_open(char *name){
     else {
 	if (stat(kname, &sb) < 0) {
 	    free(kern);
-	    kern = (struct kernel *)-1;
 	    msgDebug("uc_open: Unable to stat %s.\n", kname);
-	    return kern;
+	    return NULL;
 	}
 	kern->size = sb.st_size;
 	flags = sb.st_flags;
-	
+
 	if (chflags(kname, 0) < 0) {
 	    free(kern);
-	    kern = (struct kernel *)-2;
 	    msgDebug("uc_open: Unable to chflags %s.\n", kname);
-	    return kern;
+	    return NULL;
 	}
 	
 	if (isDebug())
 	    msgDebug("uc_open: attempting to open %s\n", kname);
-	if((kd = open(kname, O_RDWR, 0644)) < 0) {
+	if ((kd = open(kname, O_RDWR, 0644)) < 0) {
 	    free(kern);
-	    kern = (struct kernel *)-3;
 	    msgDebug("uc_open: Unable to open %s.\n", kname);
-	    return kern;
+	    return NULL;
 	}
 	
 	fchflags(kd, flags);
-	
+
 	if (isDebug())
 	    msgDebug("uc_open: attempting to mmap %d bytes\n", sb.st_size);
 	kern->core = mmap((caddr_t)0, sb.st_size, PROT_READ | PROT_WRITE,
 			  MAP_SHARED, kd, 0);
 	kern->incore = 0;
-	
 	if (kern->core == (caddr_t)0) {
 	    free(kern);
-	    kern = (struct kernel *)-4;
 	    msgDebug("uc_open: Unable to mmap from %s.\n", kname);
-	    return kern;
+	    return NULL;
 	}
     }
 
     kern->fd = kd;
-    if (isDebug())
-	msgDebug("uc_open: getting isa information\n");
     get_isa_info(kern);
-    
     if (isDebug())
-	msgDebug("uc_open: getting pci information\n");
+	msgDebug("uc_open: got isa information\n");
+
     get_pci_info(kern);
-    
     if (isDebug())
-	msgDebug("uc_open: getting eisa information\n");
+	msgDebug("uc_open: got pci information\n");
+
     get_eisa_info(kern);
-    
     if (isDebug())
-	msgDebug("uc_open: getting scsi information\n");
+	msgDebug("uc_open: got eisa information\n");
+
     get_scsi_info(kern);
-    
+    if (isDebug())
+	msgDebug("uc_open: got scsi information\n");
     return kern;
 }
-    
+ 
 int
 uc_close(struct kernel *kern, int writeback)
 {
