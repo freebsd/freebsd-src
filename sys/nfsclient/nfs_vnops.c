@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.98 1998/05/31 18:30:42 peter Exp $
+ * $Id: nfs_vnops.c,v 1.99 1998/05/31 19:00:18 peter Exp $
  */
 
 
@@ -583,6 +583,13 @@ nfs_setattr(ap)
 #ifndef nolint
 	tsize = (u_quad_t)0;
 #endif
+
+	/*
+	 * Setting of flags is not supported.
+	 */
+	if (vap->va_flags != VNOVAL)
+		return (EOPNOTSUPP);
+
 	/*
 	 * Disallow write attempts if the filesystem is mounted read-only.
 	 */
