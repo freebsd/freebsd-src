@@ -108,7 +108,7 @@ struct pthread_mutex {
 /*
  * Static mutex initialization values. 
  */
-#define PTHREAD_MUTEX_INITIALIZER   \
+#define PTHREAD_MUTEX_STATIC_INITIALIZER   \
 	{ MUTEX_TYPE_FAST, PTHREAD_QUEUE_INITIALIZER, \
 	NULL, { NULL }, MUTEX_FLAGS_INITED }
 
@@ -147,7 +147,7 @@ struct pthread_cond_attr {
 /*
  * Static cond initialization values. 
  */
-#define PTHREAD_COND_INITIALIZER    \
+#define PTHREAD_COND_STATIC_INITIALIZER    \
 	{ COND_TYPE_FAST, PTHREAD_QUEUE_INITIALIZER, NULL, COND_FLAGS_INITED }
 
 /*
