@@ -145,6 +145,13 @@ german.iso.kbd:pt:Alem„o ISO-8859-1
 german.iso.kbd:es:Alem·n ISO-8859-1
 german.iso.kbd:uk:Ó¶Õ≈√ÿÀ¡ ISO-8859-1
 
+german.iso.acc.kbd:en:German ISO-8859-1 (accent keys)
+german.iso.acc.kbd:de:Deutsch ISO-8859-1 (mit Akzenten)
+german.iso.acc.kbd:fr:Allemand ISO-8859-1 (avec accents)
+german.iso.acc.kbd:pt:Alem„o ISO-8859-1 (com acentos)
+german.iso.acc.kbd:es:Alem·n ISO-8859-1 (con acentos)
+german.iso.acc.kbd:uk:Ó¶Õ≈√ÿÀ¡ ISO-8859-1 (accent keys)
+
 german.cp850.kbd:en:German Codepage 850
 german.cp850.kbd:de:Deutsch Codeseite 850
 german.cp850.kbd:fr:Allemand Code page 850
