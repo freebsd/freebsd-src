@@ -45,8 +45,8 @@ static const char rcsid[] =
 #define SPRAYOVERHEAD	86
 #endif
 
-static void usage ();
-void print_xferstats ();
+static void usage(void);
+static void print_xferstats(unsigned int, int, double);
 
 /* spray buffer */
 char spray_buffer[SPRAYMAX];
@@ -57,16 +57,14 @@ struct timeval ONE_WAY = { 0, 0 };
 struct timeval TIMEOUT = { 25, 0 };
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char *argv[])
 {
 	spraycumul	host_stats;
 	sprayarr	host_array;
 	CLIENT *cl;
 	int c;
-	int i;
-	int count = 0;
+	u_int i;
+	u_int count = 0;
 	int delay = 0;
 	int length = 0;
 	double xmit_time;			/* time to receive data */
@@ -144,7 +142,8 @@ main(argc, argv)
 
 
 	/* Spray server with packets */
-	printf ("sending %d packets of lnth %d to %s ...", count, length, *argv);
+	printf ("sending %u packets of lnth %d to %s ...", count, length,
+	    *argv);
 	fflush (stdout);
 
 	for (i = 0; i < count; i++) {
@@ -187,11 +186,8 @@ main(argc, argv)
 }
 
 
-void
-print_xferstats(packets, packetlen, xfertime)
-	int packets;
-	int packetlen;
-	double xfertime;
+static void
+print_xferstats(u_int packets, int packetlen, double xfertime)
 {
 	int datalen;
 	double pps;		/* packets per second */
@@ -213,7 +209,7 @@ print_xferstats(packets, packetlen, xfertime)
 
 
 static void
-usage ()
+usage(void)
 {
 	fprintf(stderr,
 		"usage: spray [-c count] [-l length] [-d delay] host\n");
