@@ -1,4 +1,4 @@
-<!-- $Id$ -->
+<!-- $Id: jmembers.sgml,v 1.6 1997/02/22 13:01:18 peter Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
 
 <!-- 
@@ -122,3 +122,7 @@
 <!ENTITY a.maruyama "´Ý»³ ¹ä»Ê
   <tt><htmlurl url='mailto:tmaruya@nnc.or.jp' 
   name='&lt;tmaruya@nnc.or.jp&gt;'></tt>">
+
+<!ENTITY a.candy "¿ÀÅÄÉÒ¹­
+  <tt><htmlurl url='mailto:candy@fct.kgc.co.jp' 
+  name='&lt;candy@fct.kgc.co.jp&gt;'></tt>">
