@@ -133,8 +133,16 @@ start_tracing(int pid, int flags) {
   sprintf(buf, "/proc/%d/mem", pid);
 
   fd = open(buf, O_RDWR);
-  if (fd == -1)
+  if (fd == -1) {
+    /*
+     * The process may have run away before we could start -- this
+     * happens with SUGID programs.  So we need to see if it still
+     * exists before we complain bitterly.
+     */
+    if (kill(pid, 0) == -1)
+      return -1;
     err(8, "cannot open %s", buf);
+  }
 
   if (ioctl(fd, PIOCSTATUS, &tmp) == -1) {
     err(10, "cannot get procfs status struct");
