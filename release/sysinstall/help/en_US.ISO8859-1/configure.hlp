@@ -1,5 +1,5 @@
-This menu lets you configure your system a little after it's
-installed.  In particular, you should probably set the system
+This menu lets you configure your system a little after it is
+installed.  At the minimum, you should probably set the system
 manager's password and the system time zone.
 
 For extra goodies like bash, emacs, pascal, etc. you should almost
@@ -9,3 +9,7 @@ packages collection somewhere in the file system hierarchy where the
 package management tool can get to it.  Automatic transfer of packages
 over FTP is not yet supported!
 
+If you wish to re-invoke the package installation tool after leaving
+the system installation, the command is ``pkg_manage''.  For setting
+the timezone, type ``tzsetup''.  For more information on the general
+system configuration, see the ``/etc/sysconfig'' file.

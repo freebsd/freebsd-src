@@ -13,13 +13,15 @@
 
   See the Copyright Notice (COPYRIGHT.html).
 
-  The sources for XFree86 are available by anonymous ftp from:
+  The sources for XFree86 are available as part of the FreeBSD 2.0.5
+  distribution, or by anonymous ftp from:
 
   ftp.XFree86.org:/pub/XFree86/current
   (ftp://ftp.XFree86.org/pub/XFree86/current)
 
 
-  Binaries for XFree86 on FreeBSD are available from:
+  Binaries for XFree86 on FreeBSD are also available as part of
+  2.0.5 or from:
 
   ftp.XFree86.org:/pub/XFree86/current/binaries/FreeBSD-2.0
   (ftp://ftp.XFree86.org/pub/XFree86/current/binaries/FreeBSD-2.0)
@@ -34,24 +36,29 @@
 
   2.  Installing the Binaries
 
-  If you want to save space, first select which archives you want to
-  unpack.  If you can't decide what to pick and you have 52Mb of disk
+  In the FreeBSD 2.0.5 distribution, XFree86 comes in 3 major sections:
+  "basic" distributions, fonts and servers.  At the minimum, you will
+  need the binaries and libraries from the basic distribution, the
+  "misc" fonts collection and at least one server.  The smallest usable
+  distribution is around 9MB.
+
+  If you can't decide what to pick and you have 52Mb of disk
   space, it's safe to unpack everything.
 
-  At a minimum you need to unpack the 'required' X311*.tgz archives plus
-  at least one server that matches your vga card.  You'll need 9Mb for
-  the minimum required run-time binaries only.
-
-
+  What follows is a description of the various distribution files
+  comprising XFree86.  If you are installing this as part of FreeBSD
+  2.0.5 then there's no need to use these files directly:  You may
+  simply check the desired components off the installation menus
+  provided for that purpose.  If you're installing this manually,
+  then the following information should prove useful:
+  
      Required (6.7Mb):
 
         X311bin.tgz
            all the executable X client applications and shared libs
 
-
         X311fnts.tgz
            the misc and 75 dpi fonts
-
 
         X311lib.tgz
            data files needed at runtime
@@ -63,110 +70,92 @@
         X311xicf.tgz
            customizable xinit runtime configuration file
 
-
         X311xdcf.tgz
            customizable xdm runtime configuration file
-
 
      Choose at least one server ( 2.3Mb):
 
         X3118514.tgz
            8-bit color for IBM 8514 and true compatibles.
 
-
         X311AGX.tgz
            8-bit color for AGX boards.
-
 
         X311Mch3.tgz
            8 and 16-bit color for ATI Mach32 boards.
 
-
         X311Mch8.tgz
            8-bit color for ATI Mach8 boards.
 
-
         X311Mono.tgz
            1-bit monochrome for VGA, Super-VGA, Hercules, and others.
-
 
         X311P9K.tgz
            8, 16, and 24-bit color for Weitek P9000 boards (Diamond
            Viper).
 
-
         X311S3.tgz
            8, 16 and 24-bit color for S3 boards (#9 GXE, Actix GE32,
            SPEA Mercury, STB Pegasus)
 
-
         X311SVGA.tgz
            8-bit color for Super-VGA cards.
-
 
         X311VG16.tgz
            4-bit color for VGA and Super-VGA cards
 
-
         X311W32.tgz
            8-bit Color for ET4000/W32, /W32i and /W32p cards.
-
 
         X311nest.tgz
            A nested server running as a client window on another
            display.
 
-
      Optional:
-
 
         X311doc.tgz
            (.5Mb) READMEs and XFree86 specific man pages
 
-
         X311man.tgz
            (1.7Mb) man pages except XFree86 specific ones in etc archive
 
-
         X311f100.tgz
            (1.8Mb) 100dpi fonts
+
         X311fscl.tgz
            (1.6Mb) Speedo and Type1 fonts
-
 
         X311fnon.tgz
            (3.3Mb) Japanese, Chinese and other non-english fonts
 
-
         X311fsrv.tgz
            (.3Mb) the font server and it's man page
-
 
         X311prog.tgz
            (3.9Mb) config, lib*.a and *.h files needed only for
            compiling
 
-
         X311link.tgz
            (7.8Mb) X server reconfiguration kit
 
-
         X311pex.tgz
            (.5Mb) PEX fonts and shared libs needed by PEX applications.
-
 
         X311lbx.tgz
            (.2Mb) low bandwidth X proxy server and libraries.
 
   Note that there is no longer a separate xdm archive.  FreeBSD 2.0
-  handles this in shared libraries now, so that the xdm binary does not
-  itself contain des and there is no more need for us to provide
-  separate tar balls.
+  and later handles this in shared libraries now, so that the xdm
+  binary does not itself contain des and there is no more need for
+  us to provide separate tar balls.
 
 
 
   2.1.  Full Install:
 
+  [ Note:  Unless you're installing XFree86 3.1.1u1 manually, that is
+    to say not as part of the FreeBSD 2.0.5 installation, you may skip
+    to section 2.3 ]
 
      1. You must be logged in as root to unpack the archives because
         several executables are set-user-id.  Otherwise the server may
@@ -176,8 +165,6 @@
 
            % su
            # umask 022
-
-
 
 
      2. If you have 52Mb free in the /usr partition ``cd /usr'' and skip
@@ -190,8 +177,6 @@
            # ln -s /usr/local/X11R6 /usr/X11R6
 
 
-
-
      3. Unpack everything:
 
         If you are using sh (as root usually does):
@@ -201,15 +186,11 @@
            # done
 
 
-
-
      Else, if you are using csh:
 
            % foreach i (X311*.tgz)
            %   tar -xzf $i
            % end
-
-
 
 
      4. Create a symbolic link ``X'' that points to the server that
@@ -219,7 +200,6 @@
 
 
            # cd /usr/X11R6/bin; rm X; ln -s XF86_SVGA X
-
 
 
 
@@ -242,7 +222,6 @@
 
         # tar -xzf X311SVGA.tgz
         # cd /usr/X11R6/bin; rm X; ln -s XF86_SVGA X
-
 
 
 
@@ -532,8 +511,6 @@
   For code that really is specific to a particular i386 BSD port, use
   __FreeBSD__ for FreeBSD, __NetBSD__ for NetBSD, __386BSD__ for 386BSD,
   and __bsdi__ for BSD/386.
-
-
 
 
 
