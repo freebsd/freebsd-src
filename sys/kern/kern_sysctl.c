@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.75 1998/08/24 08:39:38 dfr Exp $
+ * $Id: kern_sysctl.c,v 1.76 1998/09/05 14:30:10 bde Exp $
  */
 
 #include "opt_compat.h"
@@ -100,11 +100,13 @@ sysctl_order(void *arg)
 	j = l->ls_length;
 	oidpp = (struct sysctl_oid **) l->ls_items;
 	for (k = 0; j--; oidpp++) {
+		if (!*oidpp)
+			continue;
 		if ((*oidpp)->oid_arg1 == arg) {
 			*oidpp = 0;
 			continue;
 		}
-		if (*oidpp && (*oidpp)->oid_number > k)
+		if ((*oidpp)->oid_number > k)
 			k = (*oidpp)->oid_number;
 	}
 
@@ -131,6 +133,12 @@ sysctl_order(void *arg)
 }
 
 SYSINIT(sysctl, SI_SUB_KMEM, SI_ORDER_ANY, sysctl_order, &sysctl_);
+
+void
+sysctl_order_all(void)
+{
+	sysctl_order(&sysctl_);
+}
 
 /*
  * "Staff-functions"

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.12 (Berkeley) 5/20/95
- * $Id: nfs_vfsops.c,v 1.72 1998/06/07 17:12:30 dfr Exp $
+ * $Id: nfs_vfsops.c,v 1.73 1998/08/12 20:17:42 bde Exp $
  */
 
 #include <sys/param.h>
@@ -131,7 +131,9 @@ static struct vfsops nfs_vfsops = {
 	nfs_vget,
 	nfs_fhtovp,
 	nfs_vptofh,
-	nfs_init
+	nfs_init,
+	0,
+	&sysctl___vfs_nfs
 };
 VFS_SET(nfs_vfsops, nfs, MOUNT_NFS, VFCF_NETWORK);
 
