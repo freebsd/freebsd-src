@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.227 1999/02/09 22:18:10 jkh Exp $
+ * $Id: install.c,v 1.228 1999/02/14 21:26:28 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -272,13 +272,10 @@ installFixitCDROM(dialogMenuItem *self)
     (void)rmdir("/mnt2");
 
     while (1) {
-	msgConfirm("Please insert the second FreeBSD CDROM and press return");
+	msgConfirm("Please insert a FreeBSD live filesystem CDROM and press return");
 	if (DITEM_STATUS(mediaSetCDROM(NULL)) != DITEM_SUCCESS || !mediaDevice || !mediaDevice->init(mediaDevice)) {
 	    /* If we can't initialize it, it's probably not a FreeBSD CDROM so punt on it */
-	    if (mediaDevice) {
-		mediaDevice->shutdown(mediaDevice);
-		mediaDevice = NULL;
-	    }
+	    mediaClose();
 	    if (msgYesNo("Unable to mount the CDROM - do you want to try again?") != 0)
 		return DITEM_FAILURE;
 	}
@@ -325,11 +322,9 @@ installFixitCDROM(dialogMenuItem *self)
 		       "Dynamic executables from the CDROM likely won't work.");
 	}
     }
-
     fixit_common();
-
-    mediaDevice->shutdown(mediaDevice);
-    msgConfirm("Please remove the FreeBSD CDROM now.");
+    mediaClose();
+    msgConfirm("Please remove the FreeBSD fixit CDROM now.");
     return DITEM_SUCCESS;
 }
 
@@ -337,15 +332,13 @@ int
 installFixitFloppy(dialogMenuItem *self)
 {
     struct ufs_args args;
+    extern char *distWanted;
 
     if (!RunningAsInit)
 	return DITEM_SUCCESS;
 
-    variable_set2(SYSTEM_STATE, "fixit", 0);
-    Mkdir("/mnt2");
-
     /* Try to open the floppy drive */
-    if (DITEM_STATUS(mediaSetFloppy(NULL)) == DITEM_FAILURE) {
+    if (DITEM_STATUS(mediaSetFloppy(NULL)) == DITEM_FAILURE || !mediaDevice) {
 	msgConfirm("Unable to set media device to floppy.");
 	mediaClose();
 	return DITEM_FAILURE;
@@ -353,10 +346,13 @@ installFixitFloppy(dialogMenuItem *self)
 
     memset(&args, 0, sizeof(args));
     args.fspec = mediaDevice->devname;
+    mediaDevice->private = "/mnt2";
+    distWanted = NULL;
+    Mkdir("/mnt2");
+
+    variable_set2(SYSTEM_STATE, "fixit", 0);
 
     while (1) {
-	msgConfirm("Please insert a writable fixit floppy and press return");
-	mediaDevice->private = "/mnt2";
 	if (!mediaDevice->init(mediaDevice)) {
 	    if (msgYesNo("The attempt to mount the fixit floppy failed, bad floppy\n"
 			 "or unclean filesystem.  Do you want to try again?"))
@@ -368,8 +364,7 @@ installFixitFloppy(dialogMenuItem *self)
     if (!directory_exists("/tmp"))
 	(void)symlink("/mnt2/tmp", "/tmp");
     fixit_common();
-    mediaDevice->shutdown(mediaDevice);
-    mediaDevice = NULL;
+    mediaClose();
     msgConfirm("Please remove the fixit floppy now.");
     return DITEM_SUCCESS;
 }

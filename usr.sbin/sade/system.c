@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.89 1999/02/09 22:18:10 jkh Exp $
+ * $Id: system.c,v 1.90 1999/02/14 21:26:29 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -146,8 +146,8 @@ void
 systemShutdown(int status)
 {
     /* If some media is open, close it down */
-    if (status >=0 && mediaDevice)
-	mediaDevice->shutdown(mediaDevice);
+    if (status >=0)
+	mediaClose();
 
     /* write out any changes to rc.conf .. */
     configRC_conf();

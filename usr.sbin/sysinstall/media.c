@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.94 1998/12/22 12:31:25 jkh Exp $
+ * $Id: media.c,v 1.95 1999/02/05 22:15:50 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -204,6 +204,8 @@ mediaSetFloppy(dialogMenuItem *self)
     }
     else
 	mediaDevice = devs[0];
+    if (mediaDevice)
+	mediaDevice->private = NULL;
     return (mediaDevice ? DITEM_LEAVE_MENU : DITEM_FAILURE) | DITEM_RESTORE;
 }
 
