@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: inetd.c	8.4 (Berkeley) 4/13/94";
 #endif
 static const char rcsid[] =
-	"$Id: inetd.c,v 1.41 1998/11/04 19:39:46 phk Exp $";
+	"$Id: inetd.c,v 1.44 1998/12/28 15:09:43 des Exp $";
 #endif /* not lint */
 
 /*
@@ -436,10 +436,9 @@ main(argc, argv, envp)
 		(void)setenv("inetd_dummy", dummy, 1);
 	}
 
-	if (pipe(signalpipe) != 0)
-	{
-	    syslog(LOG_ERR, "pipe: %%m");
-	    exit(EX_OSERR);
+	if (pipe(signalpipe) != 0) {
+		syslog(LOG_ERR, "pipe: %%m");
+		exit(EX_OSERR);
 	}
 	FD_SET(signalpipe[0], &allsock);
 	if (signalpipe[0]>maxsock) maxsock = signalpipe[0];
@@ -464,38 +463,31 @@ main(argc, argv, envp)
 		    continue;
 	    }
 	    /* handle any queued signal flags */
-	    if (FD_ISSET(signalpipe[0], &readable))
-	    {
+	    if (FD_ISSET(signalpipe[0], &readable)) {
 		int n;
-		if (ioctl(signalpipe[0], FIONREAD, &n) == 0)
-		{
-		    while (--n >= 0)
-		    {
-			char c;
-			if (read(signalpipe[0], &c, 1) == 1)
-			{
-			    if (debug) warnx("Handling signal flag %c", c);
-		    	    switch(c)
-		    	    {
-		    	    case 'A': /* sigalrm */
-				retry(); break;
-		    	    case 'C': /* sigchld */
-				reapchild(); break;
-		    	    case 'H': /* sighup */
-				config(); break;
-		    	    }
-			}
-			else
-			{
-		    	    syslog(LOG_ERR, "read: %m");
-		    	    exit(EX_OSERR);
-			}
-		    }
-		}
-		else
-		{
+		if (ioctl(signalpipe[0], FIONREAD, &n) != 0) {
 		    syslog(LOG_ERR, "ioctl: %m");
 		    exit(EX_OSERR);
+		}
+		while (--n >= 0) {
+		    char c;
+		    if (read(signalpipe[0], &c, 1) != 1) {
+			syslog(LOG_ERR, "read: %m");
+			exit(EX_OSERR);
+		    }
+		    if (debug)
+			warnx("Handling signal flag %c", c);
+		    switch(c) {
+		    case 'A': /* sigalrm */
+			retry();
+			break;
+		    case 'C': /* sigchld */
+			reapchild();
+			break;
+		    case 'H': /* sighup */
+			config();
+			break;
+		    }
 		}
 	    }
 	    for (sep = servtab; n && sep; sep = sep->se_next)
@@ -705,11 +697,10 @@ main(argc, argv, envp)
 void flag_signal(c)
     char c;
 {
-    if (write(signalpipe[1], &c, 1) != 1)
-    {
-	syslog(LOG_ERR, "write: %m");
-	exit(EX_OSERR);
-    }
+	if (write(signalpipe[1], &c, 1) != 1) {
+		syslog(LOG_ERR, "write: %m");
+		exit(EX_OSERR);
+	}
 }
 
 /*
@@ -742,7 +733,7 @@ void
 flag_reapchild(signo)
 	int signo;
 {
-    flag_signal('C');
+	flag_signal('C');
 }
 
 void
@@ -780,7 +771,7 @@ void
 flag_config(signo)
 	int signo;
 {
-    flag_signal('H');
+	flag_signal('H');
 }
 
 void config()
@@ -964,7 +955,7 @@ void
 flag_retry(signo)
 	int signo;
 {
-    flag_signal('A');
+	flag_signal('A');
 }
 
 void
