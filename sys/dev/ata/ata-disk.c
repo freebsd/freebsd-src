@@ -341,21 +341,12 @@ addump(dev_t dev)
 	    DELAY(20);
 	}
 
-	if (addr % (1024 * 1024) == 0) {
-#ifdef HW_WDOG
-	    if (wdog_tickler)
-		(*wdog_tickler)();
-#endif
-	    printf("%ld ", (long)(count * DEV_BSIZE) / (1024 * 1024));
-	}
+	if (dumpstatus(addr, (long)(count * DEV_BSIZE)) < 0)
+	    return EINTR;
 
 	blkno += blkcnt * dumppages;
 	count -= blkcnt * dumppages;
 	addr += PAGE_SIZE * dumppages;
-	if (cncheckc() == 0x03)
-	    return EINTR;
-	else
-	    printf("[CTRL-C to abort] ");
     }
 
     if (ata_wait(adp->controller, adp->unit, ATA_S_READY | ATA_S_DSC) < 0)

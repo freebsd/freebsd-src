@@ -91,6 +91,7 @@ struct ucred;
 struct uio;
 
 void	Debugger __P((const char *msg));
+int	dumpstatus __P((vm_offset_t addr, long count));
 int	nullop __P((void));
 int	eopnotsupp __P((void));
 int	einval __P((void));
