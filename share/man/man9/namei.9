@@ -111,8 +111,10 @@ all in one).
 .It Dv LOCKPARENT
 Make 
 .Fn namei
-also return the parent (directory) vnode (in ndp->dvp),
-in locked state.  Remember to release it (using
+also return the parent (directory) vnode (in nd.ni_dvp),
+in locked state, unless the dvp is identical to the vp, in which case the dvp
+is not locked per se (but may be locked due to LOCKLEAF).
+If you get a lock, remember to release the lock (using
 .Xr vput 9
 or
 .Xr VOP_UNLOCK 9
@@ -191,6 +193,12 @@ This is available to the caller (who must free it using
 if SAVESTART or SAVENAME is set.
 To free only the ni_cnd.cn_pnbuf, there is a special flags NDF_ONLY_PNBUF.
 To not free the cnd, use the flag ND_NO_FREE_PNBUF.
+.Sh BUGS
+LOCKPARENT do not always result in parent vp being locked (see details in
+description).
+This result in complications everywhere LOCKPARENT is used.
+In order to solve this for the cases that include both LOCKPARENT and LOCKLEAF,
+it will be necessary to go to recursive locking.
 .Sh SEE ALSO
 .Xr VFS 9 ,
 .Xr vnode 9 ,
