@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.297 1997/06/11 10:03:40 jkh Exp $
+#	$Id: Makefile,v 1.298 1997/06/12 09:18:29 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -450,8 +450,6 @@ release.8: write_mfs_in_kernel dumpnlist
 	@echo "Making the regular boot floppy."
 	tar --exclude CVS -cf - -C ${.CURDIR}/sysinstall help | \
 		tar xvf - -C ${RD}/mfsfd/stand
-	@cp ${.CURDIR}/../sys/i386/boot/biosboot/boot.help ${RD}/mfsfd
-	@touch ${RD}/mfsfd/boot.config
 	@echo "Compressing doc files..."
 	@gzip -9 ${RD}/mfsfd/stand/help/*.hlp
 	sh -e ${.CURDIR}/doFS.sh ${RD} ${MNT} ${BOOTMFSSIZE} ${RD}/mfsfd \
@@ -686,6 +684,8 @@ doMFSKERN:
 	kzip -v ${RD}/boot.${FSIMAGE}/kernel
 	@mv ${RD}/boot.${FSIMAGE}/kernel ${RD}/kernels/MFSKERNEL.${FSIMAGE}
 	@mv ${RD}/boot.${FSIMAGE}/kernel.kz ${RD}/boot.${FSIMAGE}/kernel
+	@cp ${.CURDIR}/../sys/i386/boot/biosboot/boot.help ${RD}/boot.${FSIMAGE}
+	@touch ${RD}/boot.${FSIMAGE}/boot.config
 	@rm -f ${RD}/floppies/boot${FSIMAGE}.flp
 	sh -e ${.CURDIR}/doFS.sh ${RD} ${MNT} ${FDSIZE} ${RD}/boot.${FSIMAGE} \
 		${BOOTINODE} ${FDLABEL}
