@@ -105,7 +105,7 @@ src-all
 #
 # Only people in the USA and Canada may fetch these collections.  If
 # you are not in the USA or Canada, please use the collections in the
-# "secure-supfile" instead.
+# "secure-stable-supfile" instead.
 #
 # The easiest way to get the export-restricted code is to use the
 # "cvs-crypto" mega-collection.
