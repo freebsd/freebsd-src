@@ -1,4 +1,4 @@
-.\" $Id: fetch.1,v 1.9.2.5 1997/08/03 18:53:16 peter Exp $
+.\" $Id: fetch.1,v 1.9.2.6 1997/09/15 08:07:03 jkh Exp $
 .Dd July 2, 1996
 .Dt FETCH 1
 .Os FreeBSD 2.2
@@ -29,12 +29,12 @@ protocol. In the first form of the command, the
 may be of the form 
 .Li http://site.domain/path/to/the/file
 or
-.Li ftp://site.domain/path/to/the/file. 
+.Li ftp://site.domain/path/to/the/file .
 To denote a local filename to be copied or linked to (see the
 .Fl l
 flag below), the
 .Em file:/path/to/the/file
-URL form is used.
+URL form is used.  See URL SYNTAX, below.
 .Pp
 The second form of the command can be used to get a file using the
 .Tn FTP
@@ -119,6 +119,19 @@ result in more information.
 .Pp
 Many options are also controlled solely by the environment (this is a
 bug).
+.Sh URL SYNTAX
+.Nm
+accepts
+.Tn http
+and
+.Tn ftp
+URL's, as described in RFC1738.  For
+.Tn ftp
+URL's, a username and password may be specified, using the syntax
+.Li ftp://user:password@host/.
+If the path is to be absolute, as opposed to relative to the user's
+home directory, it must start with %2F, as in
+.Li ftp://root:mypass@localhost/%2Fetc/passwd .
 .Sh PROXY SERVERS
 Many sites use application gateways (``proxy servers'') in their
 firewalls in order to allow communication across the firewall using a
