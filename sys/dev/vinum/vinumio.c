@@ -87,6 +87,9 @@ open_drive(struct drive *drive, struct proc *p, int verbose)
     else if (bcmp(dname, "amrd", 4) == 0) {
 	devmajor = 133;
 	dname += 2;
+    } else if (bcmp(dname, "mlxd", 4) == 0) {
+	devmajor = 131;
+	dname += 2;
     } else if (bcmp(dname, "idad", 4) == 0) {
 	devmajor = 109;
 	dname += 2;
