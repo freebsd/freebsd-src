@@ -870,9 +870,9 @@ sigreturn(p, uap)
 	 * being valid for the size of an osigcontext, now check for
 	 * it being valid for a whole, new-style ucontext_t.
 	 */
+#endif
 	if (!useracc((caddr_t)ucp, sizeof(*ucp), VM_PROT_READ))
 		return (EFAULT);
-#endif
 
 	regs = p->p_frame;
 	eflags = ucp->uc_mcontext.mc_eflags;
