@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.93 1996/08/03 13:00:35 jkh Exp $
+#	$Id: Makefile,v 1.94 1996/08/07 13:21:43 peter Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -342,10 +342,8 @@ bootstrap:
 		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/usr.bin/xinstall && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
-	cd ${.CURDIR}/usr.bin/tsort && ${MAKE} depend && \
-		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/usr.bin/lex && ${MAKE} bootstrap && ${MAKE} depend && \
-		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
+		${MAKE} ${MK_FLAGS} -DNOLIB all install ${CLEANDIR} ${OBJDIR}
 
 #
 # include-tools - generally the same as 'bootstrap', except that it's for
@@ -401,6 +399,8 @@ includes:
 # lib-tools - build tools to compile and install the libraries.
 #
 lib-tools:
+	cd ${.CURDIR}/usr.bin/tsort && ${MAKE} depend && \
+		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/gnu/usr.bin/ld && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/usr.bin/ar && ${MAKE} depend && \
