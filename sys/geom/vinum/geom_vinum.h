@@ -75,5 +75,6 @@ int	gv_sd_to_drive(struct gv_softc *, struct gv_drive *, struct gv_sd *,
 	    char *, int);
 int	gv_sd_to_plex(struct gv_plex *, struct gv_sd *, int);
 void	gv_update_plex_config(struct gv_plex *);
+void	gv_update_vol_size(struct gv_volume *, off_t);
 
 #endif /* !_GEOM_VINUM_H_ */
