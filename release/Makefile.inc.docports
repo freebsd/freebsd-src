@@ -1,0 +1,38 @@
+# $FreeBSD$
+#
+# List of (dependent) ports that are minimally required to be
+# checked out from CVS in order to get ${DOCPORTS} built and
+# installed.
+#
+# Note that these names are /not/ CVS module names but path
+# names, so the required part of the ports infrastructure will
+# be cvs co'ed accordingly.
+#
+MINIMALDOCPORTS= \
+	ports/Mk \
+	ports/archivers/unzip \
+	ports/devel/gettext \
+	ports/devel/gmake \
+	ports/devel/libtool \
+	ports/graphics/eps2png \
+	ports/graphics/jpeg \
+	ports/graphics/netpbm \
+	ports/graphics/png \
+	ports/graphics/tiff \
+	ports/print/ghostscript6 \
+	ports/textproc/docbook \
+	ports/textproc/docbook-241 \
+	ports/textproc/docbook-300 \
+	ports/textproc/docbook-310 \
+	ports/textproc/docbook-400 \
+	ports/textproc/docbook-410 \
+	ports/textproc/docproj \
+	ports/textproc/dsssl-docbook-modular \
+	ports/textproc/html \
+	ports/textproc/iso8879 \
+	ports/textproc/jade \
+	ports/textproc/linuxdoc \
+	ports/textproc/mkcatalog \
+	ports/textproc/sgmlformat \
+	ports/www/links \
+	ports/www/tidy
