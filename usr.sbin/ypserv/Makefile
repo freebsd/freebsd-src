@@ -1,10 +1,10 @@
-# $Id$
+# $Id: Makefile,v 1.3 1997/11/10 21:22:17 wpaul Exp $
 
 PROG=	ypserv
 SRCS=	yp_svc.c yp_server.c yp_dblookup.c yp_dnslookup.c \
 	ypxfr_clnt.c yp_main.c yp_error.c yp_access.c yp_svc_udp.c
 
-MAN8=	ypserv.8
+MAN8=	ypserv.8 ypinit.8
 
 CFLAGS+= -I. -DDB_CACHE
 
@@ -32,6 +32,8 @@ afterinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${.CURDIR}/Makefile.yp \
 		${DESTDIR}/var/yp/Makefile.dist
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 555 \
+		${.CURDIR}/ypinit.sh ${BINDIR}/ypinit
 	@if [ ! -f ${DESTDIR}/var/yp/Makefile.dist ]; then \
 		ln -s	${DESTDIR}/var/yp/Makefile.dist \
 			${DESTDIR}/var/yp/Makefile; fi
