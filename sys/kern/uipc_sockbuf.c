@@ -127,6 +127,7 @@ soisconnected_locked(so)
 		head->so_incqlen--;
 		so->so_state &= ~SS_INCOMP;
 		TAILQ_INSERT_TAIL(&head->so_comp, so, so_list);
+		head->so_qlen++;
 		so->so_state |= SS_COMP;
 		sorwakeup_locked(head);
 		wakeup_one(&head->so_timeo);
