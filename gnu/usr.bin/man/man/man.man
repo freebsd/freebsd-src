@@ -4,7 +4,7 @@
 .\"
 .\" You may distribute under the terms of the GNU General Public
 .\" License as specified in the README file that comes with the man 1.0
-.\" distribution.  
+.\" distribution.
 .\"
 .\" John W. Eaton
 .\" jwe@che.utexas.edu
@@ -171,7 +171,7 @@ directory.
 .It Fl p Ar string
 Specify the sequence of preprocessors to run before nroff or troff.
 Not all installations will have a full set of preprocessors.
-Some of the preprocessors and the letters used to designate them are: 
+Some of the preprocessors and the letters used to designate them are:
 eqn (e), grap (g), pic (p), tbl (t), vgrind (v), refer (r).
 This option overrides the
 .Ev MANROFFSEQ

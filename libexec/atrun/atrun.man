@@ -27,12 +27,12 @@ so that
 .Nm
 gets invoked every five minutes.
 .Pp
-At every invocation, 
+At every invocation,
 .Nm
 will start all the jobs in the lowercase queues whose start
 time has elapsed.
-In addition, if the load average over the last minute was less than 
-the specified limit then a maximum of one batch job (denoted by the 
+In addition, if the load average over the last minute was less than
+the specified limit then a maximum of one batch job (denoted by the
 uppercase queues) is started.
 .Sh OPTIONS
 .Bl -tag -width indent
@@ -63,7 +63,7 @@ Directory containing job files
 .Xr crontab 5 ,
 .Xr cron 8
 .Sh BUGS
-The functionality of 
+The functionality of
 .Nm
 should be merged into
 .Xr cron 8 .

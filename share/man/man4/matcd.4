@@ -69,13 +69,13 @@ driver controls the CR-562 and CR-563 Compact Disc drives made by
 Matsushita-Kotobuki Electronics Industries, or Matsushita for short.
 These drives were sold under the Panasonic (which is a trade
 name for Matsushita), Creative Labs (omniCD) and Reveal names, and were
-also included in computers that were made by Tandy, GRiD, Victor, AST, 
+also included in computers that were made by Tandy, GRiD, Victor, AST,
 Packard Bell and many other brands.
 .Pp
 The drives are compatible with the major the Compact Disc standards,
 including CD-DA (Red Book - Digital Audio on pressed media), CD-WO (Orange
 Book Part II - Write-Once media), CD-ROM (Yellow Book - Data Storage), and
-the Kodak Photo-CD system.  The drives have some support related to 
+the Kodak Photo-CD system.  The drives have some support related to
 CD-ROM XA and CD-I (Green Book) audio and data requirements.
 .Pp
 These drives connect to the PC ISA bus through a simple (but proprietary) host
@@ -99,8 +99,8 @@ The
 .Nm
 driver can be directly linked into the
 .Fx
-kernel, or exist 
-as a loadable 
+kernel, or exist
+as a loadable
 .Fx
 kernel module.  The kernel module can be loaded or unloaded at any time
 using the \fBkldload\fR(8)/\fBkldunload\fR(8) commands.
@@ -116,7 +116,7 @@ the driver already in the kernel can simplify the installation process.
 if you determine that you need to have the
 .Nm
 driver linked into the kernel, it is necessary to add an entry to the kernel
-configuration file and generate a new kernel.  The 
+configuration file and generate a new kernel.  The
 .Fx
 kernel source tree comes
 with the file \fI/usr/src/sys/i386/conf/GENERIC\fR.
@@ -140,9 +140,9 @@ all of the instructions that are displayed.  If the kernel completely
 builds, use the "make install" command and then reboot the system for that
 new kernel to become operational.
 .Sh DRIVER CONFIGURATION
-Regardless of whether the 
+Regardless of whether the
 .Nm
-driver is linked into the kernel or is used as a loadable kernel module, 
+driver is linked into the kernel or is used as a loadable kernel module,
 the number of host interfaces that the driver will expect (or search for)
 is dictated by the number of entries present in the file
 \fI/boot/device\.hints\fR.  For example, in order to support two host
@@ -156,7 +156,7 @@ hint.matcd.1.port="0x260"
 
 .Ed
 Each set of entries designates a different
-.Nm 
+.Nm
 host interface, and where the I/O ports on that host interface adapter
 are located.
 .Pp
@@ -170,13 +170,13 @@ interface.
 .Pp
 If the \fIaddress\fR parameter of a
 \fBhint.matcd.\fIn\fR.port="\fIaddress\fP"\fR entry
-in \fI/boot/device\.hints\fR file is set to "\fB-1\fR", the 
+in \fI/boot/device\.hints\fR file is set to "\fB-1\fR", the
 .Nm
 driver searches for the host interface adapters by using a table
 of known I/O ports on Creative host adapters contained in the driver itself
-(see \fI/usr/src/sys/dev/matcd/options.h\fR).  
+(see \fI/usr/src/sys/dev/matcd/options.h\fR).
 .Pp
-Although the multiple port scan allows the 
+Although the multiple port scan allows the
 .Nm
 driver to work with many different types of host adapters without adjustments,
 using this mechanism has the potential to cause problems when your system has
@@ -202,7 +202,7 @@ above where the first I/O port for the audio section of the card (0x220).
 If you have determined exactly where the Matsushita I/O ports start on your
 system, specify the port by setting the
 \fBhint.matcd.\fIn\fR.port="\fIaddress\fP"\fR entry at the kernel boot
-prompt, or by editing the entry in the \fI/boot/device\.hints\fR file.  
+prompt, or by editing the entry in the \fI/boot/device\.hints\fR file.
 .Pp
 If you make a change to the \fI/boot/device\.hints\fR configuration file
 while the system is running, it is currently necessary to reboot the system
@@ -236,7 +236,7 @@ Later versions of Matsushita and "Creative" Compact Disc drives use a
 basic IDE interface, so these other drives must use an IDE driver, such
 as \fBata\fR(4).
 .Pp
-The TEAC CD-55 4X Compact Disc drive also uses the same Creative/Panasonic 
+The TEAC CD-55 4X Compact Disc drive also uses the same Creative/Panasonic
 electrical interface, but the TEAC drive is not command set compatible with
 the Matsushita CR-56x drives.  The TEAC drive cannot be used with
 .Nm .
@@ -394,8 +394,8 @@ Used to access 2352-byte frames on a Compact Disc
 recorded in any format and disables the disc eject controls.
 .It Pa /boot/devices.hints
 Specify the number of host interfaces and host adapter I/O port locations
-that 
-.Nm 
+that
+.Nm
 should examine.
 .It Pa /usr/src/sys/dev/matcd/*
 Source code for
@@ -429,7 +429,7 @@ Drives on a second host interface are considered logical
 drive numbers 4 through 7, drives 8 through 11 are on the third interface
 and 12 through 15 are on the fourth.  The first drive on the second host
 interface is always logical drive 4 regardless of how many drives are
-present on the first host interface.  
+present on the first host interface.
 .Pp
 Host interfaces are numbered as specified in the \fI/boot/devices.hints\fR
 file.
@@ -447,7 +447,7 @@ All rights reserved.
 The
 .Nm
 driver originally appeared in
-.Fx 2.0.5 .  The 
+.Fx 2.0.5 .  The
 .Fx
 5.1.x compatible implementation described here appeared in
 .Fx
