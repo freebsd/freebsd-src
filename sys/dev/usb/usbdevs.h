@@ -53,6 +53,7 @@
 /* Computer Access Technology Corporation */
 #define	USB_VENDOR_CATC	0x0423		/* CATC */
 #define	USB_VENDOR_NANAO	0x0440		/* Nanao */
+#define	USB_VENDOR_THRUST	0x044f		/* Thrustmaster */
 #define	USB_VENDOR_UNIXTAR	0x0451		/* Unixtar */
 #define	USB_VENDOR_GENIUS	0x0458		/* Genius */
 #define	USB_VENDOR_MICROSOFT	0x045e		/* Microsoft */
@@ -93,6 +94,9 @@
 /*
  * List of known products.  Grouped by vendor.
  */
+
+/* Thrustmaster products */
+#define	USB_PRODUCT_THRUST_FUSION_PAD	0xa0a3		/* Fusion Digital Gamepad */
 
 /* NEC products */
 #define	USB_PRODUCT_NEC_HUB	0x55aa		/* hub */
