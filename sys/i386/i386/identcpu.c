@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: Id: machdep.c,v 1.193 1996/06/18 01:22:04 bde Exp
- *	$Id: identcpu.c,v 1.6 1996/10/09 18:30:08 bde Exp $
+ *	$Id: identcpu.c,v 1.7 1996/10/09 19:47:15 bde Exp $
  */
 
 #include "opt_cpu.h"
@@ -56,12 +56,7 @@
 #include <machine/md_var.h>
 
 /* XXX - should be in header file */
-extern void (*bcopy_vector) __P((const void *from, void *to, size_t len));
-extern void (*ovbcopy_vector) __P((const void *from, void *to, size_t len));
-
 void	i486_bzero __P((void *buf, size_t len));
-void	i586_bcopy __P((const void *from, void *to, size_t len));
-void	i586_bzero __P((void *buf, size_t len));
 
 void identifycpu(void);		/* XXX should be in different header file */
 void earlysetcpuclass(void);
@@ -179,13 +174,6 @@ identifycpu(void)
 		       (i586_ctr_freq + 4999) / 1000000,
 		       ((i586_ctr_freq + 4999) / 10000) % 100);
 		printf("586");
-#ifdef I586_OPTIMIZED_BCOPY
-		bcopy_vector = i586_bcopy;
-		ovbcopy_vector = i586_bcopy;
-#endif
-#ifdef I586_OPTIMIZED_BZERO
-		bzero = i586_bzero;
-#endif
 		break;
 #endif
 #if defined(I686_CPU)
