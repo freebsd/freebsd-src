@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_cd.c,v 1.14 1999/01/12 16:26:19 eivind Exp $
+ *      $Id: scsi_cd.c,v 1.15 1999/02/10 00:03:14 ken Exp $
  */
 /*
  * Portions of this driver taken from the original FreeBSD cd driver.
@@ -1091,10 +1091,7 @@ cdschedule(struct cam_periph *periph, int priority)
 		 * This is strictly a fifo queue.
 		 */
 		softc->pinfo.priority = 1;
-		if (softc->changer->devq.generation++ == 0)
-			camq_regen(&softc->changer->devq);
-		softc->pinfo.generation =
-			softc->changer->devq.generation;
+		softc->pinfo.generation = ++softc->changer->devq.generation;
 		camq_insert(&softc->changer->devq, (cam_pinfo *)softc);
 
 		/*
@@ -1185,11 +1182,8 @@ cdrunchangerqueue(void *arg)
 		 */
 		if (bufq_first(&changer->cur_device->buf_queue) != NULL) {
 
-			if (changer->devq.generation++ == 0)
-				camq_regen(&changer->devq);
-
 			changer->cur_device->pinfo.generation =
-				changer->devq.generation;
+				++changer->devq.generation;
 			camq_insert(&changer->devq,
 				(cam_pinfo *)changer->cur_device);
 		} 
@@ -1353,10 +1347,8 @@ cdgetccb(struct cam_periph *periph, u_int32_t priority)
 			 */
 			if (softc->pinfo.index == CAM_UNQUEUED_INDEX) {
 				softc->pinfo.priority = 1;
-				if (softc->changer->devq.generation++ == 0)
-					camq_regen(&softc->changer->devq);
 				softc->pinfo.generation =
-					softc->changer->devq.generation;
+					++softc->changer->devq.generation;
 				camq_insert(&softc->changer->devq,
 					    (cam_pinfo *)softc);
 			}
