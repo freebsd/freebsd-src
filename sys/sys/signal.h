@@ -122,7 +122,6 @@ typedef void __sighandler_t __P((int));
 
 #define	SIG_DFL		((__sighandler_t *)0)
 #define	SIG_IGN		((__sighandler_t *)1)
-#define	SIG_HOLD	((__sighandler_t *)2)
 #define	SIG_ERR		((__sighandler_t *)-1)
 
 #if defined(_P1003_1B_VISIBLE) || defined(KERNEL)
@@ -135,7 +134,7 @@ union sigval {
 typedef struct __siginfo {
 	int	si_signo;		/* signal number */
 	int	si_errno;		/* errno association */
-	/* 
+	/*
 	 * Cause of signal, one of the SI_ macros or signal-specific
 	 * values, i.e. one of the FPE_... values for SIGFPE. This
 	 * value is equivalent to the second argument to an old-style
@@ -157,9 +156,8 @@ typedef struct __sigset {
 } sigset_t;
 
 /*
- * XXX - there are some nasty dependencies.
- * Now that sigset_t has been defined we can
- * include the MD structures.
+ * XXX - there are some nasty dependencies on include file order. Now that
+ * sigset_t has been defined we can include the MD header.
  */     
 #include <machine/signal.h>     /* sig_atomic_t; trap codes; sigcontext */
 
