@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ether.h	8.3 (Berkeley) 5/2/95
- *	$Id: if_ether.h,v 1.10 1995/09/21 17:39:51 wollman Exp $
+ *	$Id: if_ether.h,v 1.11 1995/10/05 20:08:43 wollman Exp $
  */
 
 #ifndef _NETINET_IF_ETHER_H_
@@ -115,6 +115,9 @@ struct	ether_arp {
  * begins with this structure.
  */
 struct	arpcom {
+	/*
+	 * The ifnet struct _must_ be at the head of this structure.
+	 */
 	struct 	ifnet ac_if;		/* network-visible interface */
 	u_char	ac_enaddr[6];		/* ethernet hardware address */
 	struct	in_addr ac_ipaddr;	/* copy of ip address- XXX */

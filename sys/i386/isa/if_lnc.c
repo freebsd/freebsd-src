@@ -136,7 +136,7 @@ static int pcnet_probe(int);
 static void lnc_init(int);
 static void lnc_start(struct ifnet *);
 static int  lnc_ioctl(struct ifnet *, int, caddr_t);
-static void lnc_watchdog(int);
+static void lnc_watchdog(struct ifnet *);
 static int  lnc_probe(struct isa_device *);
 static int  lnc_attach(struct isa_device *);
 #ifdef DEBUG
@@ -1088,11 +1088,9 @@ lnc_attach(struct isa_device * isa_dev)
 	sc->arpcom.ac_if.if_mtu = ETHERMTU;
 	sc->arpcom.ac_if.if_flags = IFF_BROADCAST | IFF_SIMPLEX;
 	sc->arpcom.ac_if.if_timer = 0;
-	sc->arpcom.ac_if.if_init = lnc_init;
 	sc->arpcom.ac_if.if_output = ether_output;
 	sc->arpcom.ac_if.if_start = lnc_start;
 	sc->arpcom.ac_if.if_ioctl = lnc_ioctl;
-	sc->arpcom.ac_if.if_reset = lnc_reset;
 	sc->arpcom.ac_if.if_watchdog = lnc_watchdog;
 	sc->arpcom.ac_if.if_type = IFT_ETHER;
 	sc->arpcom.ac_if.if_addrlen = ETHER_ADDR_LEN;
@@ -1668,11 +1666,11 @@ lnc_ioctl(struct ifnet * ifp, int command, caddr_t data)
 }
 
 static void
-lnc_watchdog(int unit)
+lnc_watchdog(struct ifnet *ifp)
 {
-	log(LOG_ERR, "lnc%d: Device timeout -- Resetting\n", unit);
-	++lnc_softc[unit].arpcom.ac_if.if_oerrors;
-	lnc_reset(unit);
+	log(LOG_ERR, "lnc%d: Device timeout -- Resetting\n", ifp->if_unit);
+	ifp->if_oerrors++;
+	lnc_reset(ifp->if_unit);
 }
 
 #ifdef DEBUG

@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_le.c,v 1.22 1995/10/28 15:39:08 phk Exp $
+ * $Id: if_le.c,v 1.23 1995/11/04 17:07:33 bde Exp $
  */
 
 /*
@@ -97,10 +97,10 @@ typedef u_short le_mcbits_t;
 #define LE_MC_NBPW		(1 << LE_MC_NBPW_LOG2)
 #if __FreeBSD__ > 1
 #define	IF_RESET_ARGS	int unit
-#define	LE_RESET(ifp)	(((sc)->le_if.if_reset)((sc)->le_if.if_unit))
+#define	LE_RESET(ifp)	(((sc)->if_reset)((sc)->le_if.if_unit))
 #else
 #define	IF_RESET_ARGS	int unit, int dummy
-#define	LE_RESET(ifp)	(((sc)->le_if.if_reset)((sc)->le_if.if_unit, 0))
+#define	LE_RESET(ifp)	(((sc)->if_reset)((sc)->le_if.if_unit, 0))
 #endif
 
 #if !defined(LE_NOLEMAC)
@@ -220,6 +220,8 @@ static void (*le_intrvec[NLE])(le_softc_t *sc);
  */
 struct le_softc {
     struct arpcom le_ac;		/* Common Ethernet/ARP Structure */
+    void (*if_init) __P((int));		/* Interface init routine */
+    void (*if_reset) __P((int));	/* Interface reset routine */
     caddr_t le_membase;			/* Starting memory address (virtual) */
     unsigned le_iobase;			/* Starting I/O base address */
     unsigned le_irq;			/* Interrupt Request Value */
@@ -568,7 +570,7 @@ le_ioctl(
 	    switch(ifa->ifa_addr->sa_family) {
 #ifdef INET
 		case AF_INET: {
-		    (*ifp->if_init)(ifp->if_unit);
+		    (*sc->if_init)(ifp->if_unit);
 		    arp_ifinit((struct arpcom *)ifp, ifa);
 		    break;
 		}
@@ -589,7 +591,7 @@ le_ioctl(
 			      sizeof sc->le_ac.ac_enaddr);
 		    }
 
-		    (*ifp->if_init)(ifp->if_unit);
+		    (*sc->if_init)(ifp->if_unit);
 		    break;
 		}
 #endif /* IPX */
@@ -609,12 +611,12 @@ le_ioctl(
 			      sizeof sc->le_ac.ac_enaddr);
 		    }
 
-		    (*ifp->if_init)(ifp->if_unit);
+		    (*sc->if_init)(ifp->if_unit);
 		    break;
 		}
 #endif /* NS */
 		default: {
-		    (*ifp->if_init)(ifp->if_unit);
+		    (*sc->if_init)(ifp->if_unit);
 		    break;
 		}
 	    }
@@ -622,7 +624,7 @@ le_ioctl(
 	}
 
 	case SIOCSIFFLAGS: {
-	    (*ifp->if_init)(ifp->if_unit);
+	    (*sc->if_init)(ifp->if_unit);
 	    break;
 	}
 
@@ -638,7 +640,7 @@ le_ioctl(
 
 	    if (error == ENETRESET) {
 		/* reset multicast filtering */
-		(*ifp->if_init)(ifp->if_unit);
+		(*sc->if_init)(ifp->if_unit);
 		error = 0;
 	    }
 	    break;
@@ -885,9 +887,9 @@ lemac_probe(
     /*
      * Try to reset the unit
      */
-    sc->le_if.if_init = lemac_init;
+    sc->if_init = lemac_init;
     sc->le_if.if_start = lemac_start;
-    sc->le_if.if_reset = lemac_reset;
+    sc->if_reset = lemac_reset;
     sc->lemac_memmode = 2;
     LE_RESET(sc);
     if ((sc->le_flags & IFF_UP) == 0)
@@ -1561,8 +1563,8 @@ depca_probe(
     if (!lance_init_adapmem(sc))
 	return 0;
 
-    sc->le_if.if_reset = lance_reset;
-    sc->le_if.if_init = lance_init;
+    sc->if_reset = lance_reset;
+    sc->if_init = lance_init;
     sc->le_if.if_start = lance_start;
     DEPCA_WRNICSR(sc, DEPCA_NICSR_SHE | DEPCA_NICSR_ENABINTR);
     LE_RESET(sc);

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.1 1995/11/28 23:55:20 davidg Exp $
+ *	$Id: if_fxp.c,v 1.2 1995/12/01 22:41:56 davidg Exp $
  */
 
 /*
@@ -140,9 +140,9 @@ static int fxp_shutdown		__P((struct kern_devconf *, int));
 static int fxp_intr		__P((void *));
 static void fxp_start		__P((struct ifnet *));
 static int fxp_ioctl		__P((struct ifnet *, int, caddr_t));
-static void fxp_init		__P((int));
-static void fxp_stop		__P((int));
-static void fxp_watchdog	__P((int));
+static void fxp_init		__P((struct ifnet *));
+static void fxp_stop		__P((struct fxp_softc *));
+static void fxp_watchdog	__P((struct ifnet *));
 static void fxp_get_macaddr	__P((struct fxp_softc *));
 static int fxp_add_rfabuf	__P((struct fxp_softc *, struct mbuf *));
 
@@ -413,7 +413,7 @@ static void
 fxp_start(ifp)
 	struct ifnet *ifp;
 {
-	struct fxp_softc *sc = fxp_sc[ifp->if_unit];
+	struct fxp_softc *sc = (struct fxp_softc *)ifp;
 	struct fxp_csr *csr = sc->csr;
 	struct fxp_cb_tx *txp;
 	struct mbuf *m, *mb_head;
@@ -687,10 +687,9 @@ fxp_stats_update(arg)
  * the interface.
  */
 static void
-fxp_stop(unit)
-	int unit;
+fxp_stop(sc)
+	struct fxp_softc *sc;
 {
-	struct fxp_softc *sc = fxp_sc[unit];
 	struct ifnet *ifp = &sc->arpcom.ac_if;
 
 	/*
@@ -710,25 +709,20 @@ fxp_stop(unit)
  * card has wedged for some reason.
  */
 static void
-fxp_watchdog(unit)
-	int unit;
+fxp_watchdog(ifp)
+	struct ifnet *ifp;
 {
-	struct fxp_softc *sc = fxp_sc[unit];
-	struct ifnet *ifp = &sc->arpcom.ac_if;
+	log(LOG_ERR, "fxp%d: device timeout\n", ifp->if_unit);
+	ifp->if_oerrors++;
 
-	log(LOG_ERR, "fxp%d: device timeout\n", unit);
-	++sc->arpcom.ac_if.if_oerrors;
-
-	fxp_stop(unit);
-	fxp_init(unit);
+	fxp_init(ifp);
 }
 
 static void
-fxp_init(unit)
-	int unit;
+fxp_init(ifp)
+	struct ifnet *ifp;
 {
-	struct fxp_softc *sc = fxp_sc[unit];
-	struct ifnet *ifp = &sc->arpcom.ac_if;
+	struct fxp_softc *sc = (struct fxp_softc *)ifp;
 	struct fxp_cb_config *cbp;
 	struct fxp_cb_ias *cb_ias;
 	struct fxp_cb_tx *txp;
@@ -950,7 +944,7 @@ fxp_ioctl(ifp, command, data)
 	caddr_t data;
 {
 	struct ifaddr *ifa = (struct ifaddr *) data;
-	struct fxp_softc *sc = fxp_sc[ifp->if_unit];
+	struct fxp_softc *sc = (struct fxp_softc *)ifp;
 	struct ifreq *ifr = (struct ifreq *) data;
 	int s, error = 0;
 
@@ -964,7 +958,7 @@ fxp_ioctl(ifp, command, data)
 		switch (ifa->ifa_addr->sa_family) {
 #ifdef INET
 		case AF_INET:
-			fxp_init(ifp->if_unit);	/* before arpwhohas */
+			fxp_init(ifp);	/* before arpwhohas */
 			arp_ifinit((struct arpcom *)ifp, ifa);
 			break;
 #endif
@@ -988,7 +982,7 @@ fxp_ioctl(ifp, command, data)
 				/*
 				 * Set new address
 				 */
-				fxp_init(ifp->if_unit);
+				fxp_init(ifp);
 				break;
 			}
 #endif
@@ -1012,12 +1006,12 @@ fxp_ioctl(ifp, command, data)
 				/*
 				 * Set new address
 				 */
-				fxp_init(ifp->if_unit);
+				fxp_init(ifp);
 				break;
 			}
 #endif
 		default:
-			fxp_init(ifp->if_unit);
+			fxp_init(ifp);
 			break;
 		}
 		break;
@@ -1041,10 +1035,10 @@ fxp_ioctl(ifp, command, data)
 		 * such as IFF_PROMISC are handled.
 		 */
 		if (ifp->if_flags & IFF_UP) {
-			fxp_init(ifp->if_unit);
+			fxp_init(ifp);
 		} else {
 			if (ifp->if_flags & IFF_RUNNING)
-				fxp_stop(ifp->if_unit);
+				fxp_stop(sc);
 		}
 		break;
 
@@ -1062,7 +1056,7 @@ fxp_ioctl(ifp, command, data)
 			 * Multicast list has changed; set the hardware filter
 			 * accordingly.
 			 */
-			fxp_init(ifp->if_unit);
+			fxp_init(ifp);
 
 			error = 0;
 		}

@@ -47,7 +47,7 @@
  */
 
 /*
- * $Id: if_ze.c,v 1.23 1995/10/28 15:39:12 phk Exp $
+ * $Id: if_ze.c,v 1.24 1995/11/18 08:39:28 bde Exp $
  */
 
 #include "ze.h"
@@ -113,10 +113,10 @@
  */
 struct	ze_softc {
 
+	struct	arpcom arpcom;	/* ethernet common */
+
 	caddr_t  maddr;
 	u_long  iobase, irq;
-
-	struct	arpcom arpcom;	/* ethernet common */
 
 	char	*type_str;	/* pointer to type string */
 	char    *mau;		/* type of media access unit */
@@ -158,7 +158,7 @@ static int ze_resume __P((void *visa_dev));
 extern int ze_attach __P((struct isa_device *isa_dev));
 extern void ze_reset __P((int unit));
 extern void ze_stop __P((int unit));
-extern void ze_watchdog __P((int unit));
+extern void ze_watchdog __P((struct ifnet *ifp));
 extern void ze_init __P((int unit));
 static inline void ze_xmit __P((struct ifnet *ifp));
 extern void ze_start __P((struct ifnet *ifp));
@@ -622,11 +622,9 @@ ze_attach(isa_dev)
 	ifp->if_unit = isa_dev->id_unit;
 	ifp->if_name = "ze" ;
 	ifp->if_mtu = ETHERMTU;
-	ifp->if_init = ze_init;
 	ifp->if_output = ether_output;
 	ifp->if_start = ze_start;
 	ifp->if_ioctl = ze_ioctl;
-	ifp->if_reset = ze_reset;
 	ifp->if_watchdog = ze_watchdog;
 
 	ifp->if_flags = (IFF_BROADCAST | IFF_SIMPLEX);
@@ -741,15 +739,15 @@ ze_stop(unit)
  *	generate an interrupt after a transmit has been started on it.
  */
 void
-ze_watchdog(unit)
-	int unit;
+ze_watchdog(ifp)
+	struct ifnet *ifp;
 {
 #if 1
-    struct ze_softc *sc = &ze_softc[unit];
+    struct ze_softc *sc = (struct ze_softc *)ifp;
     u_char isr, imr;
     u_short imask;
 
-    if(!(sc->arpcom.ac_if.if_flags & IFF_UP))
+    if(!(ifp->if_flags & IFF_UP))
 	return;
     /* select page zero */
     outb (sc->nic_addr + ED_P0_CR,
@@ -768,12 +766,12 @@ ze_watchdog(unit)
     imask = inb(IO_ICU2) << 8 | inb(IO_ICU1);
 
     log (LOG_ERR, "ze%d: device timeout, isr=%02x, imr=%02x, imask=%04x\n",
-	 unit, isr, imr, imask);
+	 ifp->if_unit, isr, imr, imask);
 #else
-    log(LOG_ERR, "ze%d: device timeout\n", unit);
+    log(LOG_ERR, "ze%d: device timeout\n", ifp->if_unit);
 #endif
 
-    ze_reset(unit);
+    ze_reset(ifp->if_unit);
 }
 
 /*
