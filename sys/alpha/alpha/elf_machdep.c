@@ -172,3 +172,17 @@ elf_reloc(linker_file_t lf, const void *data, int type)
 	}
 	return(0);
 }
+
+int
+elf_cpu_load_file(linker_file_t lf __unused)
+{
+
+	return (0);
+}
+
+int
+elf_cpu_unload_file(linker_file_t lf __unused)
+{
+
+	return (0);
+}

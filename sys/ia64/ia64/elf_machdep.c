@@ -46,6 +46,7 @@
 
 #include <machine/elf.h>
 #include <machine/md_var.h>
+#include <machine/unwind.h>
 
 struct sysentvec elf64_freebsd_sysvec = {
 	SYS_MAXSYSCALL,
@@ -212,6 +213,20 @@ elf_reloc(linker_file_t lf, const void *data, int type)
 		    (int)rtype);
 		return -1;
 	}
+
+	return (0);
+}
+
+int
+elf_cpu_load_file(linker_file_t lf __unused)
+{
+
+	return (0);
+}
+
+int
+elf_cpu_unload_file(linker_file_t lf __unused)
+{
 
 	return (0);
 }
