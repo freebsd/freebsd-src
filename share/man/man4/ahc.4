@@ -203,7 +203,8 @@ If external SRAM is not available, SCBs are a limited resource and
 using them in a straight forward manner would only allow us to
 keep as many transactions as there are SCBs outstanding at a time.
 This would not allow enough concurrency to fully utilize the SCSI
-bus and it's devices. The solution to this problem is
+bus and it's devices.
+The solution to this problem is
 .Em SCB Paging ,
 a concept similar to memory paging.  SCB paging takes advantage of
 the fact that devices usually disconnect from the SCSI bus for long

@@ -22,12 +22,15 @@ Only one process may have this device open at any given time;
 .Xr open 2
 and
 .Xr close 2
-are used to lock and relinquish it. An attempt to open when
+are used to lock and relinquish it.
+An attempt to open when
 another process has the device locked will return -1 with an
 .Er EBUSY
 error
-indication. Writes to the device are interpreted as `play strings' in a
-simple ASCII melody notation. An 
+indication.
+Writes to the device are interpreted as `play strings' in a
+simple ASCII melody notation.
+An 
 .Xr ioctl 2
 request
 for tone generation at arbitrary
@@ -35,7 +38,8 @@ frequencies is also supported.
 .Pp
 Sound-generation does not monopolize the processor; in fact, the driver
 spends most of its time sleeping while the PC hardware is emitting
-tones. Other processes may emit beeps while the driver is running.
+tones.
+Other processes may emit beeps while the driver is running.
 .Pp
 Applications may call 
 .Xr ioctl 2
@@ -70,7 +74,8 @@ Advanced BASIC 2.0.  The
 and
 .Li X
 primitives of PLAY are not
-useful in a timesharing environment and are omitted. The `octave-tracking'
+useful in a timesharing environment and are omitted.
+The `octave-tracking'
 feature and the slur mark are new.
 .Pp
 There are 84 accessible notes numbered 1-84 in 7 octaves, each running from
@@ -79,7 +84,8 @@ with middle C.  By default, the play function emits half-second notes with the
 last 1/16th second being `rest time'.
 .Pp
 Play strings are interpreted left to right as a series of play command groups;
-letter case is ignored. Play command groups are as follows:
+letter case is ignored.
+Play command groups are as follows:
 .Bl -tag -width CDEFGABxx
 .It Li CDEFGAB
 Letters A through G cause the corresponding note to be played in the
@@ -101,7 +107,8 @@ or
 to enable or disable octave-tracking (it is disabled by default).
 When octave-tracking is on, interpretation of a pair of letter notes
 will change octaves if necessary in order to make the smallest
-possible jump between notes. Thus ``olbc'' will be played as
+possible jump between notes.
+Thus ``olbc'' will be played as
 ``olb>c'', and ``olcb'' as ``olc<b''.  Octave locking is disabled for
 one letter note following >, < and O[0123456].  (The octave-locking
 feature is not supported in 
@@ -120,7 +127,8 @@ May be followed by sustain dots.
 .It Ns Li L Sy n
 Sets the current time value for notes.  The default is 
 .Li L4 ,
-quarter or crotchet notes. The lowest possible value is 1; values up
+quarter or crotchet notes.
+The lowest possible value is 1; values up
 to 64 are accepted.
 .Li L1
 sets whole notes,
@@ -164,7 +172,8 @@ Set articulation.
 .Li MN
 .Ns No ( Li N
 for normal) is the default; the last 1/8th of
-the note's value is rest time. You can set
+the note's value is rest time.
+You can set
 .Li ML
 for legato (no rest space) or
 .Li MS
@@ -176,8 +185,10 @@ Notes (that is,
 or
 .Li N
 command character groups) may be followed by
-sustain dots. Each dot causes the note's value to be lengthened by one-half
-for each one. Thus, a note dotted once is held for 3/2 of its undotted value;
+sustain dots.
+Each dot causes the note's value to be lengthened by one-half
+for each one.
+Thus, a note dotted once is held for 3/2 of its undotted value;
 dotted twice, it is held 9/4, and three times would give 27/8. 
 .Pp
 A note and its sustain dots may also be followed by a slur mark (underscore).
@@ -191,7 +202,8 @@ melody sections.
 .Sh BUGS
 Due to roundoff in the pitch tables and slop in the tone-generation and timer
 hardware (neither of which was designed for precision), neither pitch accuracy
-nor timings will be mathematically exact. There is no volume control.
+nor timings will be mathematically exact.
+There is no volume control.
 .Pp
 The action of two or more sustain dots does not reflect standard musical
 notation, in which each dot adds half the value of the previous dot
