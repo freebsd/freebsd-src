@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.32 1995/05/29 04:08:13 davidg Exp $
+ *	$Id: autoconf.c,v 1.33 1995/05/30 07:59:14 rgrimes Exp $
  */
 
 /*
@@ -56,6 +56,7 @@
 
 #include <machine/md_var.h>
 #include <machine/pte.h>
+#include <i386/isa/icu.h> /* For interrupts */
 
 static void setroot(void);
 
@@ -86,14 +87,18 @@ u_char end_mfs_root[] = "MFS Filesystem had better STOP here";
 #endif
 
 #include "eisa.h"
-#include "isa.h"
-#if NISA > 0
-      #include <i386/isa/isa_device.h>
+#if NEISA > 0
+      #include <i386/eisa/eisaconf.h>
 #endif
 
 #include "pci.h"
 #if NPCI > 0
       #include <pci/pcivar.h>
+#endif
+
+#include "isa.h"
+#if NISA > 0
+      #include <i386/isa/isa_device.h>
 #endif
 
 #ifdef CD9660
@@ -156,17 +161,20 @@ configure()
 
 	configure_start();
 
+	/* Allow all routines to decide for themselves if they want intrs */
+	enable_intr();
+	INTREN(IRQ_SLAVE);
+
 #if NEISA > 0
 	eisa_configure();
 #endif
 
+#if NPCI > 0
+	pci_configure();
+#endif
 
 #if NISA > 0
 	isa_configure();
-#endif
-
-#if NPCI > 0
-	pci_configure();
 #endif
 
 	configure_finish();
