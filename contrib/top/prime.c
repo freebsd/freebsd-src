@@ -3,6 +3,7 @@
  * higher than the number specified as argv[1].
  */
 
+#include <stdio.h>
 #include <math.h>
 
 main(argc, argv)
