@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.11.2.4 1996/12/17 04:37:25 davidg Exp $
+ *	$Id: machdep.c,v 1.11.2.5 1996/12/21 18:16:22 bde Exp $
  */
 
 #include "npx.h"
@@ -370,18 +370,16 @@ again:
 	for (i = 1; i < ncallout; i++)
 		callout[i-1].c_next = &callout[i];
 
-#if defined(USERCONFIG_BOOT) && defined(USERCONFIG)
-	boothowto |= RB_CONFIG;
-#endif
-
+#if defined(USERCONFIG)
+#if defined(USERCONFIG_BOOT)
+	if (1) {
+#else
         if (boothowto & RB_CONFIG) {
-#ifdef USERCONFIG
+#endif
 		userconfig();
 		cninit();	/* the preferred console may have changed */
-#else
-		printf("Sorry! no userconfig in this kernel\n");
-#endif 
 	}
+#endif
 
 #ifdef BOUNCE_BUFFERS
 	/*
