@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id$
+ *      $Id: btreg.h,v 1.1 1998/09/15 07:32:49 gibbs Exp $
  */
 
 #ifndef _BTREG_H_
@@ -664,6 +664,7 @@ int			bt_attach(struct bt_softc *bt);
 void			bt_intr(void *arg);
 char *			bt_name(struct bt_softc *bt);
 int			bt_check_probed_iop(u_int ioport);
+u_int			bt_fetch_isa_iop(isa_compat_io_t port);
 void			bt_mark_probed_bio(isa_compat_io_t port);
 void			bt_mark_probed_iop(u_int ioport);
 
