@@ -9,4 +9,6 @@ MAN8=	ipf.8
 SRCS=	ipf.c parse.c opt.c facpri.c
 CFLAGS+=-DIPL_NAME=\"/dev/ipl\" -I- -I${.CURDIR}/../../sys/netinet -I${.CURDIR}/../../contrib/ipfilter
 
+MAINTAINER=	guido@freebsd.org
+
 .include <bsd.prog.mk>
