@@ -153,7 +153,9 @@ soisdisconnecting(so)
 {
 
 	so->so_state &= ~SS_ISCONNECTING;
-	so->so_state |= (SS_ISDISCONNECTING|SS_CANTRCVMORE|SS_CANTSENDMORE);
+	so->so_state |= SS_ISDISCONNECTING;
+	so->so_rcv.sb_state |= SBS_CANTRCVMORE;
+	so->so_snd.sb_state |= SBS_CANTSENDMORE;
 	wakeup(&so->so_timeo);
 	sowwakeup(so);
 	sorwakeup(so);
@@ -165,7 +167,9 @@ soisdisconnected(so)
 {
 
 	so->so_state &= ~(SS_ISCONNECTING|SS_ISCONNECTED|SS_ISDISCONNECTING);
-	so->so_state |= (SS_CANTRCVMORE|SS_CANTSENDMORE|SS_ISDISCONNECTED);
+	so->so_state |= SS_ISDISCONNECTED;
+	so->so_rcv.sb_state |= SBS_CANTRCVMORE;
+	so->so_snd.sb_state |= SBS_CANTSENDMORE;
 	wakeup(&so->so_timeo);
 	sbdrop(&so->so_snd, so->so_snd.sb_cc);
 	sowwakeup(so);
@@ -270,7 +274,7 @@ socantsendmore(so)
 	struct socket *so;
 {
 
-	so->so_state |= SS_CANTSENDMORE;
+	so->so_snd.sb_state |= SBS_CANTSENDMORE;
 	sowwakeup(so);
 }
 
@@ -279,7 +283,7 @@ socantrcvmore(so)
 	struct socket *so;
 {
 
-	so->so_state |= SS_CANTRCVMORE;
+	so->so_rcv.sb_state |= SBS_CANTRCVMORE;
 	sorwakeup(so);
 }
 

@@ -355,7 +355,7 @@ present:
 		flags = q->tqe_th->th_flags & TH_FIN;
 		nq = LIST_NEXT(q, tqe_q);
 		LIST_REMOVE(q, tqe_q);
-		if (so->so_state & SS_CANTRCVMORE)
+		if (so->so_rcv.sb_state & SBS_CANTRCVMORE)
 			m_freem(q->tqe_m);
 		else
 			sbappendstream(&so->so_rcv, q->tqe_m);
@@ -1237,7 +1237,7 @@ after_listen:
 #endif
 			 * Add data to socket buffer.
 			 */
-			if (so->so_state & SS_CANTRCVMORE) {
+			if (so->so_rcv.sb_state & SBS_CANTRCVMORE) {
 				m_freem(m);
 			} else {
 				m_adj(m, drop_hdrlen);	/* delayed header drop */
@@ -2143,7 +2143,7 @@ process_ACK:
 		 * we should release the tp also, and use a
 		 * compressed state.
 		 */
-				if (so->so_state & SS_CANTRCVMORE) {
+				if (so->so_rcv.sb_state & SBS_CANTRCVMORE) {
 					soisdisconnected(so);
 					callout_reset(tp->tt_2msl, tcp_maxidle,
 						      tcp_timer_2msl, tp);
@@ -2250,7 +2250,7 @@ step6:
 			so->so_oobmark = so->so_rcv.sb_cc +
 			    (tp->rcv_up - tp->rcv_nxt) - 1;
 			if (so->so_oobmark == 0)
-				so->so_state |= SS_RCVATMARK;
+				so->so_rcv.sb_state |= SBS_RCVATMARK;
 			sohasoutofband(so);
 			tp->t_oobflags &= ~(TCPOOB_HAVEDATA | TCPOOB_HADDATA);
 		}
@@ -2311,7 +2311,7 @@ dodata:							/* XXX */
 			tcpstat.tcps_rcvpack++;
 			tcpstat.tcps_rcvbyte += tlen;
 			ND6_HINT(tp);
-			if (so->so_state & SS_CANTRCVMORE)
+			if (so->so_rcv.sb_state & SBS_CANTRCVMORE)
 				m_freem(m);
 			else
 				sbappendstream(&so->so_rcv, m);
