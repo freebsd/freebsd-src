@@ -69,8 +69,7 @@ struct pcb {
 	caddr_t	pcb_onfault;	/* copyin/out fault recovery */
 	int	pcb_gs;
 	struct	pcb_ext	*pcb_ext;	/* optional pcb extension */
-	int	pcb_psl;	/* process status long */
-	u_long	__pcb_spare[2];	/* adjust to avoid core dump size changes */
+	u_long	__pcb_spare[3];	/* adjust to avoid core dump size changes */
 };
 
 /*

@@ -57,10 +57,6 @@ struct pcpu {
 	u_int		pc_cpuid;		/* This cpu number */
 	u_int		pc_cpumask;		/* This cpu mask */
 	u_int		pc_other_cpus;		/* Mask of all other cpus */
-	u_int32_t	pc_int_pending;		/* master int pending flag */
-	u_int32_t	pc_ipending;		/* pending slow interrupts */
-	u_int32_t	pc_fpending;		/* pending fast interrupts */
-	u_int32_t	pc_spending;		/* pending soft interrupts */
 	SLIST_ENTRY(pcpu) pc_allcpu;
 	struct lock_list_entry *pc_spinlocks;
 #ifdef KTR_PERCPU

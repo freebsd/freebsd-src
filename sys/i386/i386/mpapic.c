@@ -187,7 +187,6 @@ io_apic_setup_intpin(int apic, int pin)
 	u_int32_t	target;		/* the window register is 32 bits */
 	u_int32_t	vector;		/* the window register is 32 bits */
 	int		level;
-	critical_t	crit;
 
 	target = IOART_DEST;
 
@@ -208,13 +207,11 @@ io_apic_setup_intpin(int apic, int pin)
 	 * shouldn't and stop the carnage.
 	 */
 	vector = NRSVIDT + pin;			/* IDT vec */
-	crit = cpu_critical_enter();
 	mtx_lock_spin(&icu_lock);
 	io_apic_write(apic, select,
 		      (io_apic_read(apic, select) & ~IOART_INTMASK 
 		       & ~0xff)|IOART_INTMSET|vector);
 	mtx_unlock_spin(&icu_lock);
-	cpu_critical_exit(crit);
 	
 	/* we only deal with vectored INTs here */
 	if (apic_int_type(apic, pin) != 0)
@@ -258,12 +255,10 @@ io_apic_setup_intpin(int apic, int pin)
 		printf("IOAPIC #%d intpin %d -> irq %d\n",
 		       apic, pin, irq);
 	vector = NRSVIDT + irq;			/* IDT vec */
-	crit = cpu_critical_enter();
 	mtx_lock_spin(&icu_lock);
 	io_apic_write(apic, select, flags | vector);
 	io_apic_write(apic, select + 1, target);
 	mtx_unlock_spin(&icu_lock);
-	cpu_critical_exit(crit);
 }
 
 int
