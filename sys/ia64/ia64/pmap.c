@@ -488,14 +488,22 @@ uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 		pflags = VM_ALLOC_SYSTEM;
 	if (wait & M_ZERO)
 		pflags |= VM_ALLOC_ZERO;
-	m = vm_page_alloc(NULL, color++, pflags | VM_ALLOC_NOOBJ);
-	if (m) {
-		va = (void *)IA64_PHYS_TO_RR7(VM_PAGE_TO_PHYS(m));
-		if ((m->flags & PG_ZERO) == 0)
-			bzero(va, PAGE_SIZE);
-		return (va);
+
+	for (;;) {
+		m = vm_page_alloc(NULL, color++, pflags | VM_ALLOC_NOOBJ);
+		if (m == NULL) {
+			if (wait & M_NOWAIT)
+				return (NULL);
+			else
+				VM_WAIT;
+		} else
+			break;
 	}
-	return (NULL);
+
+	va = (void *)IA64_PHYS_TO_RR7(VM_PAGE_TO_PHYS(m));
+	if ((m->flags & PG_ZERO) == 0)
+		bzero(va, PAGE_SIZE);
+	return (va);
 }
 
 void
