@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 1.48 1996/04/14 20:14:36 se Exp $
+**  $Id: pci.c,v 1.49 1996/04/25 06:04:27 asami Exp $
 **
 **  General subroutines for the PCI bus.
 **  pci_configure ()
@@ -1708,7 +1708,7 @@ void not_supported (pcici_t tag, u_long type)
 		printf(", class=0x%02x", class);
 	}
 
-	if (subclass < sizeof(subclasses) / sizeof(subclasses[0])) {
+	if (class < sizeof(subclasses) / sizeof(subclasses[0])) {
 		const subclass_name *p = subclasses[class];
 		while (p->name && (p->subclass != subclass)) 
 			p++;
