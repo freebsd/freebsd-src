@@ -197,8 +197,7 @@ struct pfs_node {
 /*
  * VFS interface
  */
-int	 	 pfs_mount	(struct pfs_info *pi,
-				 struct mount *mp, char *path, caddr_t data,
+int	 	 pfs_mount	(struct pfs_info *pi, struct mount *mp,
 				 struct nameidata *ndp, struct thread *td);
 int	 	 pfs_unmount	(struct mount *mp, int mntflags,
 				 struct thread *td);
@@ -235,9 +234,9 @@ static struct pfs_info name##_info = {					\
 };									\
 									\
 static int								\
-_##name##_mount(struct mount *mp, char *path, caddr_t data,		\
-	     struct nameidata *ndp, struct thread *td) {		\
-        return pfs_mount(&name##_info, mp, path, data, ndp, td);	\
+_##name##_mount(struct mount *mp, struct nameidata *ndp,		\
+	     struct thread *td) {					\
+        return pfs_mount(&name##_info, mp, ndp, td);			\
 }									\
 									\
 static int								\
@@ -251,7 +250,7 @@ _##name##_uninit(struct vfsconf *vfc) {					\
 }									\
 									\
 static struct vfsops name##_vfsops = {					\
-	_##name##_mount,						\
+	NULL,								\
 	vfs_stdstart,							\
 	pfs_unmount,							\
 	pfs_root,							\
@@ -265,6 +264,7 @@ static struct vfsops name##_vfsops = {					\
 	_##name##_init,							\
 	_##name##_uninit,						\
 	vfs_stdextattrctl,						\
+	_##name##_mount,						\
 };									\
 VFS_SET(name##_vfsops, name, VFCF_SYNTHETIC);				\
 MODULE_VERSION(name, version);						\
