@@ -40,6 +40,8 @@
 #include <sys/param.h>
 #include <sys/sysctl.h>
 
+#define AUTO_HOME	0	/* do not create /home automatically */
+
 /*
  * Everything to do with editing the contents of disk labels.
  */
@@ -662,7 +664,7 @@ print_command_summary(void)
     if (!RunningAsInit)
 	mvprintw(18, 47, "W = Write");
     mvprintw(19, 0, "N = Newfs Opts    Q = Finish   S = Toggle SoftUpdates");
-    mvprintw(20, 0, "T = Toggle Newfs  U = Undo     A = Auto Defaults");
+    mvprintw(20, 0, "T = Toggle Newfs  U = Undo     A = Auto Defaults    R = Delete+Merge");
     mvprintw(22, 0, "Use F1 or ? to get more help, arrow keys to select.");
     move(0, 0);
 }
@@ -735,6 +737,7 @@ diskLabel(Device *dev)
     clear();
     while (labeling) {
 	char *cp;
+	int rflags = DELCHUNK_NORMAL;
 
 	print_label_chunks();
 	print_command_summary();
@@ -952,6 +955,12 @@ diskLabel(Device *dev)
 	    break;
 
 	case KEY_DC:
+	case 'R':	/* recover space (delete w/ recover) */
+	    /*
+	     * Delete the partition w/ space recovery.
+	     */
+	    rflags = DELCHUNK_RECOVER;
+	    /* fall through */
 	case 'D':	/* delete */
 	    if (label_chunk_info[here].type == PART_SLICE) {
 		msg = MSG_NOT_APPLICABLE;
@@ -961,7 +970,7 @@ diskLabel(Device *dev)
 		msg = "Use the Disk Partition Editor to delete DOS partitions";
 		break;
 	    }
-	    Delete_Chunk(label_chunk_info[here].c->disk, label_chunk_info[here].c);
+	    Delete_Chunk2(label_chunk_info[here].c->disk, label_chunk_info[here].c, rflags);
 	    if (variable_cmp(DISK_LABELLED, "written"))
 		variable_set2(DISK_LABELLED, "yes", 0);
 	    record_label_chunks(devs, dev);
@@ -1267,7 +1276,7 @@ try_auto_label(Device **devs, Device *dev, int perc, int *req)
     }
     if (!usrdev && !variable_get(VAR_NO_USR)) {
 	sz = requested_part_size(VAR_USR_SIZE, USR_NOMINAL_SIZE, USR_DEFAULT_SIZE, perc);
-#if 0
+#if AUTO_HOME == 0
 	    sz = space_free(label_chunk_info[here].c);
 #endif
 	if (sz) {
@@ -1291,6 +1300,7 @@ try_auto_label(Device **devs, Device *dev, int perc, int *req)
 	    record_label_chunks(devs, dev);
 	}
     }
+#if AUTO_HOME == 1
     if (!homedev && !variable_get(VAR_NO_HOME)) {
 	sz = requested_part_size(VAR_HOME_SIZE, HOME_NOMINAL_SIZE, HOME_DEFAULT_SIZE, perc);
 	if (sz < space_free(label_chunk_info[here].c))
@@ -1317,6 +1327,7 @@ try_auto_label(Device **devs, Device *dev, int perc, int *req)
 	    record_label_chunks(devs, dev);
 	}
     }
+#endif
 
     /* At this point, we're reasonably "labelled" */
     if (variable_cmp(DISK_LABELLED, "written"))
