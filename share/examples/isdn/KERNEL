@@ -20,6 +20,9 @@ device		iwic	4
 # AVM Fritz PCI
 device		ifpi	4
 
+# AVM Fritz PCI version 2
+device		"ifpi2"	4
+
 # Teles 16.3c
 device		ihfc	4
 
