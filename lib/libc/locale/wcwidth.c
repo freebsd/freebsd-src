@@ -49,8 +49,7 @@ __FBSDID("$FreeBSD$");
 #define _CTYPE_SWS 30 		/* Bits to shift to get width */
 
 int
-wcwidth(wc)
-        wchar_t wc;
+wcwidth(wchar_t wc)
 {
 	int width;
 
