@@ -82,14 +82,6 @@ g_dec_le2(const u_char *p)
 	return((p[1] << 8) | p[0]);
 }
 
-void
-g_enc_le2(u_char *p, uint16_t u)
-{
-
-	p[0] = u & 0xff;
-	p[1] = (u >> 8) & 0xff;
-}
-
 uint32_t
 g_dec_le4(const u_char *p)
 {
@@ -97,6 +89,20 @@ g_dec_le4(const u_char *p)
 	return((p[3] << 24) | (p[2] << 16) | (p[1] << 8) | p[0]);
 }
 
+uint64_t
+g_dec_le8(const u_char *p)
+{
+
+	return(g_dec_le4(p) | ((uint64_t)(g_dec_le4(p + 4)) << 32));
+}
+
+void
+g_enc_le2(u_char *p, uint16_t u)
+{
+
+	p[0] = u & 0xff;
+	p[1] = (u >> 8) & 0xff;
+}
 
 void
 g_enc_le4(u_char *p, uint32_t u)
@@ -108,14 +114,6 @@ g_enc_le4(u_char *p, uint32_t u)
 	p[3] = (u >> 24) & 0xff;
 }
 
-uint64_t
-g_dec_le8(const u_char *p)
-{
-
-	return(g_dec_le4(p) | ((uint64_t)(g_dec_le4(p + 4)) << 32));
-}
-
-
 void
 g_enc_le8(u_char *p, uint64_t u)
 {
@@ -123,4 +121,3 @@ g_enc_le8(u_char *p, uint64_t u)
 	g_enc_le4(p, u);
 	g_enc_le4(p + 4, u >> 32);
 }
-
