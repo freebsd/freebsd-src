@@ -1049,62 +1049,6 @@ options 	MSGBUF_SIZE=40960
 # Mandatory devices:
 #
 
-# The keyboard controller; it controls the keyboard and the PS/2 mouse.
-device		atkbdc
-hint.atkbdc.0.at="isa"
-hint.atkbdc.0.port="0x060"
-
-# The AT keyboard
-device		atkbd
-hint.atkbd.0.at="atkbdc"
-hint.atkbd.0.irq="1"
-
-# Options for atkbd:
-options 	ATKBD_DFLT_KEYMAP	# specify the built-in keymap
-makeoptions	ATKBD_DFLT_KEYMAP=jp.106
-
-# These options are valid for other keyboard drivers as well.
-options 	KBD_DISABLE_KEYMAP_LOAD	# refuse to load a keymap
-options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
-
-# `flags' for atkbd:
-#       0x01    Force detection of keyboard, else we always assume a keyboard
-#       0x02    Don't reset keyboard, useful for some newer ThinkPads
-#	0x03	Force detection and avoid reset, might help with certain
-#		dockingstations
-#       0x04    Old-style (XT) keyboard support, useful for older ThinkPads
-
-# PS/2 mouse
-device		psm
-hint.psm.0.at="atkbdc"
-hint.psm.0.irq="12"
-
-# Options for psm:
-options 	PSM_HOOKRESUME		#hook the system resume event, useful
-					#for some laptops
-options 	PSM_RESETAFTERSUSPEND	#reset the device at the resume event
-
-# Video card driver for VGA adapters.
-device		vga
-hint.vga.0.at="isa"
-
-# Options for vga:
-# Try the following option if the mouse pointer is not drawn correctly
-# or font does not seem to be loaded properly.  May cause flicker on
-# some systems.
-options 	VGA_ALT_SEQACCESS
-
-# If you can dispense with some vga driver features, you may want to
-# use the following options to save some memory.
-#options 	VGA_NO_FONT_LOADING	# don't save/load font
-#options 	VGA_NO_MODE_CHANGE	# don't change video modes
-
-# Older video cards may require this option for proper operation.
-options 	VGA_SLOW_IOACCESS	# do byte-wide i/o's to TS and GDC regs
-
-# The following option probably won't work with the LCD displays.
-options 	VGA_WIDTH90		# support 90 column modes
-
 options 	FB_DEBUG		# Frame buffer debugging
 
 device		splash			# Splash screen and screen saver support
@@ -1169,7 +1113,6 @@ options 	SC_NO_SUSPEND_VTYSWITCH
 #
 # adv: All Narrow SCSI bus AdvanSys controllers.
 # adw: Second Generation AdvanSys controllers including the ADV940UW.
-# aha: Adaptec 154x/1535/1640
 # ahb: Adaptec 174x EISA controllers
 # ahc: Adaptec 274x/284x/2910/293x/294x/394x/3950x/3960x/398X/4944/
 #      19160x/29160x, aic7770/aic78xx
@@ -1177,8 +1120,6 @@ options 	SC_NO_SUSPEND_VTYSWITCH
 # aic: Adaptec 6260/6360, APA-1460 (PC Card), NEC PC9801-100 (C-BUS)
 # amd: Support for the AMD 53C974 SCSI host adapter chip as found on devices
 #      such as the Tekram DC-390(T).
-# bt:  Most Buslogic controllers: including BT-445, BT-54x, BT-64x, BT-74x,
-#      BT-75x, BT-946, BT-948, BT-956, BT-958, SDC3211B, SDC3211F, SDC3222F
 # isp: Qlogic ISP 1020, 1040 and 1040B PCI SCSI host adapters,
 #      ISP 1240 Dual Ultra SCSI, ISP 1080 and 1280 (Dual) Ultra2,
 #      ISP 12160 Ultra3 SCSI,
@@ -1193,20 +1134,10 @@ options 	SC_NO_SUSPEND_VTYSWITCH
 #      53C876, 53C885,  53C895, 53C895A, 53C896,  53C897, 53C1510D, 
 #      53C1010-33, 53C1010-66.
 # trm: Tekram DC395U/UW/F DC315U adapters.
-# wds: WD7000
 
-#
-# Note that the order is important in order for Buslogic ISA/EISA cards to be
-# probed correctly.
-#
-device		bt
-hint.bt.0.at="isa"
-hint.bt.0.port="0x330"
 device		adv
 hint.adv.0.at="isa"
 device		adw
-device		aha
-hint.aha.0.at="isa"
 device		aic
 hint.aic.0.at="isa"
 device		ahb
@@ -1234,11 +1165,6 @@ device		mpt
 device		ncr
 device		sym
 device		trm
-device		wds
-hint.wds.0.at="isa"
-hint.wds.0.port="0x350"
-hint.wds.0.irq="11"
-hint.wds.0.drq="6"
 
 # The aic7xxx driver will attempt to use memory mapped I/O for all PCI
 # controllers that have it configured only if this option is set. Unfortunately,
@@ -1284,84 +1210,6 @@ options 	ISP_TARGET_MODE=1
 					# disabled:0, enabled:1 (default)
 #options 	SYM_SETUP_MAX_LUN	#-Number of LUNs supported
 					# default:8, range:[1..64]
-
-# The 'asr' driver provides support for current DPT/Adaptec SCSI RAID
-# controllers (SmartRAID V and VI and later).
-# These controllers require the CAM infrastructure.
-#
-device		asr
-
-# The 'dpt' driver provides support for old DPT controllers (http://www.dpt.com/).
-# These have hardware RAID-{0,1,5} support, and do multi-initiator I/O.
-# The DPT controllers are commonly re-licensed under other brand-names -
-# some controllers by Olivetti, Dec, HP, AT&T, SNI, AST, Alphatronic, NEC and
-# Compaq are actually DPT controllers.
-#
-# See src/sys/dev/dpt for debugging and other subtle options.
-#   DPT_MEASURE_PERFORMANCE Enables a set of (semi)invasive metrics. Various
-#                           instruments are enabled.  The tools in
-#                           /usr/sbin/dpt_* assume these to be enabled.
-#   DPT_HANDLE_TIMEOUTS     Normally device timeouts are handled by the DPT.
-#                           If you ant the driver to handle timeouts, enable
-#                           this option.  If your system is very busy, this
-#                           option will create more trouble than solve.
-#   DPT_TIMEOUT_FACTOR      Used to compute the excessive amount of time to
-#                           wait when timing out with the above option.
-#  DPT_DEBUG_xxxx           These are controllable from sys/dev/dpt/dpt.h
-#  DPT_LOST_IRQ             When enabled, will try, once per second, to catch
-#                           any interrupt that got lost.  Seems to help in some
-#                           DPT-firmware/Motherboard combinations.  Minimal
-#                           cost, great benefit.
-#  DPT_RESET_HBA            Make "reset" actually reset the controller
-#                           instead of fudging it.  Only enable this if you
-#			    are 100% certain you need it.
-
-device		dpt
-
-# DPT options
-#!CAM# options 	DPT_MEASURE_PERFORMANCE
-#!CAM# options 	DPT_HANDLE_TIMEOUTS
-options 	DPT_TIMEOUT_FACTOR=4
-options 	DPT_LOST_IRQ
-options 	DPT_RESET_HBA
-options 	DPT_ALLOW_MEMIO
-
-#
-# Compaq "CISS" RAID controllers (SmartRAID 5* series)
-# These controllers have a SCSI-like interface, and require the
-# CAM infrastructure.
-#
-device		ciss
-
-#
-# Intel Integrated RAID controllers.
-# This driver was developed and is maintained by Intel.  Contacts
-# at Intel for this driver are
-# "Kannanthanam, Boji T" <boji.t.kannanthanam@intel.com> and
-# "Leubner, Achim" <achim.leubner@intel.com>.
-#
-device		iir
-
-#
-# Mylex AcceleRAID and eXtremeRAID controllers with v6 and later
-# firmware.  These controllers have a SCSI-like interface, and require
-# the CAM infrastructure.
-#
-device		mly
-
-#
-# Compaq Smart RAID, Mylex DAC960 and AMI MegaRAID controllers.  Only
-# one entry is needed; the code will find and configure all supported
-# controllers.
-#
-device		ida		# Compaq Smart RAID
-device		mlx		# Mylex DAC960
-device		amr		# AMI MegaRAID
-
-#
-# 3ware ATA RAID
-#
-device		twe		# 3ware ATA RAID
 
 #
 # The 'ATA' driver supports all ATA and ATAPI devices, including PC Card
@@ -1908,34 +1756,6 @@ device		meteor	1
 device		bktr
 
 #
-# PC Card/PCMCIA
-# (OLDCARD)
-#
-# card: pccard slots
-# pcic: isa/pccard bridge
-#device		pcic
-#hint.pcic.0.at="isa"
-#hint.pcic.1.at="isa"
-#device		card	1
-
-#
-# PC Card/PCMCIA and Cardbus
-# (NEWCARD)
-#
-# Note that NEWCARD and OLDCARD are incompatible.  Do not use both at the same
-# time.
-#
-# pccbb: pci/cardbus bridge implementing YENTA interface
-# pccard: pccard slots
-# cardbus: cardbus slots
-device		cbb
-device		pccard
-device		cardbus
-#device		pcic		ISA attachment currently busted
-#hint.pcic.0.at="isa"
-#hint.pcic.1.at="isa"
-
-#
 # SMB bus
 #
 # System Management Bus support is provided by the 'smbus' device.
@@ -2298,6 +2118,3 @@ options 	MAXFILES=999
 options 	METEOR_TEST_VIDEO
 options 	NDEVFSINO=1025
 options 	NDEVFSOVERFLOW=32769
-
-# Yet more undocumented options for linting.
-options 	VGA_DEBUG
