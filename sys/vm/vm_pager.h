@@ -165,7 +165,7 @@ vm_pager_has_page(
 ) {
 	boolean_t ret;
 
-	GIANT_REQUIRED;
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	ret = (*pagertab[object->type]->pgo_haspage)
 	    (object, offset, before, after);
 	return (ret);

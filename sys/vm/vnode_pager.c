@@ -214,7 +214,7 @@ vnode_pager_haspage(object, pindex, before, after)
 	int bsize;
 	int pagesperblock, blocksperpage;
 
-	GIANT_REQUIRED;
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	/*
 	 * If no vp or vp is doomed or marked transparent to VM, we do not
 	 * have the page.
@@ -245,8 +245,10 @@ vnode_pager_haspage(object, pindex, before, after)
 		blocksperpage = (PAGE_SIZE / bsize);
 		reqblock = pindex * blocksperpage;
 	}
+	VM_OBJECT_UNLOCK(object);
 	err = VOP_BMAP(vp, reqblock, (struct vnode **) 0, &bn,
 		after, before);
+	VM_OBJECT_LOCK(object);
 	if (err)
 		return TRUE;
 	if (bn == -1)

@@ -1736,7 +1736,9 @@ vm_page_cowfault(vm_page_t m)
 	if (mnew == NULL) {
 		vm_page_insert(m, object, pindex);
 		vm_page_unlock_queues();
+		VM_OBJECT_UNLOCK(object);
 		VM_WAIT;
+		VM_OBJECT_LOCK(object);
 		vm_page_lock_queues();
 		goto retry_alloc;
 	}
