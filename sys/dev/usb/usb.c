@@ -549,7 +549,7 @@ usbioctl(dev_t devt, u_long cmd, caddr_t data, int flag, usb_proc_ptr p)
 
 		case FIOASYNC:
 			if (*(int *)data)
-#if _FreeBSD_version >= 500000
+#if __FreeBSD_version >= 500000
 				usb_async_proc = p->td_proc;
 #else
 				usb_async_proc = p;
