@@ -505,7 +505,7 @@ i4bisppp_disconnect(int unit, void *cdp)
 		UNTIMEOUT(i4bisppp_timeout, (void *)sp, sc->sc_ch);
 #endif
 		sc->sc_cdp = (call_desc_t *)0;	
-		/* do thhis here because pp_down calls i4bisppp_tlf */
+		/* do this here because pp_down calls i4bisppp_tlf */
 		sc->sc_state = ST_IDLE;
 		sp->pp_down(sp);	/* tell PPP we have hung up */
 	}
@@ -538,11 +538,12 @@ i4bisppp_dialresponse(int unit, int status, cause_t cause)
 		}
 
 		sc->sc_cdp = (call_desc_t *)0;	
-		/* do thhis here because pp_down calls i4bisppp_tlf */
+		/* do this here because pp_down calls i4bisppp_tlf */
 		sc->sc_state = ST_IDLE;
 
-		/* Ahh. ppp does't like to get a down event when
-		 * dialing fails. So first tell that we are up
+		/*
+		 * Ahh, sppp does't like to get a down event when
+		 * dialing fails. So first tell it that we are up
 		 * (doesn't hurt us since sc_state != ST_CONNECTED)
 		 * and then go down.
 		 */
