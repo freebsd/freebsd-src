@@ -96,7 +96,6 @@ extern	u_long in_ifaddrhmask;			/* mask for hash table */
 
 #define INADDR_NHASH_LOG2       9
 #define INADDR_NHASH		(1 << INADDR_NHASH_LOG2)
-#define INADDR_HMASK		(INREASS_NHASH - 1)
 #define INADDR_HASHVAL(x)	fnv_32_buf((&(x)), sizeof(x), FNV1_32_INIT)
 #define INADDR_HASH(x) \
 	(&in_ifaddrhashtbl[INADDR_HASHVAL(x) & in_ifaddrhmask])
