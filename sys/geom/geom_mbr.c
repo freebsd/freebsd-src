@@ -237,8 +237,6 @@ g_mbr_start(struct bio *bp)
 	default:
 		return (0);
 	}
-
-	return (0);
 }
 
 static void
@@ -266,7 +264,6 @@ g_mbr_taste(struct g_class *mp, struct g_provider *pp, int insist)
 	struct g_consumer *cp;
 	int error;
 	struct g_mbr_softc *ms;
-	struct g_slicer *gsp;
 	u_int fwsectors, sectorsize;
 	u_char *buf;
 
@@ -275,7 +272,6 @@ g_mbr_taste(struct g_class *mp, struct g_provider *pp, int insist)
 	gp = g_slice_new(mp, NDOSPART, pp, &cp, &ms, sizeof *ms, g_mbr_start);
 	if (gp == NULL)
 		return (NULL);
-	gsp = gp->softc;
 	g_topology_unlock();
 	gp->dumpconf = g_mbr_dumpconf;
 	do {
@@ -368,7 +364,6 @@ g_mbrext_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 	u_char *buf;
 	struct dos_partition dp[4];
 	u_int fwsectors, sectorsize;
-	struct g_slicer *gsp;
 
 	g_trace(G_T_TOPOLOGY, "g_mbrext_taste(%s,%s)", mp->name, pp->name);
 	g_topology_assert();
@@ -378,7 +373,6 @@ g_mbrext_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 	    g_mbrext_start);
 	if (gp == NULL)
 		return (NULL);
-	gsp = gp->softc;
 	g_topology_unlock();
 	gp->dumpconf = g_mbrext_dumpconf;
 	off = 0;
