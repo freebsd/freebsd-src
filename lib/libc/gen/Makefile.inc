@@ -8,7 +8,7 @@ SRCS+=  __xuname.c _pthread_stubs.c _rand48.c _spinlock_stub.c _thread_init.c \
 	alarm.c arc4random.c assert.c basename.c \
 	clock.c closedir.c confstr.c \
 	crypt.c ctermid.c daemon.c devname.c dirname.c disklabel.c \
-	dlfcn.c dlfunc.c drand48.c erand48.c err.c errlst.c \
+	dlfcn.c dlfunc.c drand48.c erand48.c err.c errlst.c errno.c \
 	exec.c fmtcheck.c fmtmsg.c fnmatch.c fstab.c ftok.c fts.c \
 	getbootfile.c getbsize.c \
 	getcap.c getcwd.c getdomainname.c getgrent.c getgrouplist.c \
