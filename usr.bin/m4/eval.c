@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)eval.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: eval.c,v 1.7 1997/07/23 06:50:04 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -307,7 +307,7 @@ register int td;
 	 * characters in the "to" string.
 	 */
 		if (argc > 3) {
-			char temp[MAXTOK];
+			char temp[STRSPMAX+1];
 			if (argc > 4)
 				map(temp, argv[2], argv[3], argv[4]);
 			else
@@ -617,9 +617,13 @@ register int argc;
 	if (argc > 2) {
 		if (*argv[2])
 			lquote = *argv[2];
+		else
+			lquote = LQUOTE;
 		if (argc > 3) {
 			if (*argv[3])
 				rquote = *argv[3];
+			else
+				rquote = RQUOTE;
 		}
 		else
 			rquote = lquote;
@@ -661,6 +665,7 @@ void
 dodiv(n)
 register int n;
 {
+	oindex = n;
 	if (n < 0 || n >= MAXOUT)
 		n = 0;		       /* bitbucket */
 	if (outfile[n] == NULL) {
@@ -668,7 +673,6 @@ register int n;
 		if ((outfile[n] = fopen(m4temp, "w")) == NULL)
 			errx(1, "%s: cannot divert", m4temp);
 	}
-	oindex = n;
 	active = outfile[n];
 }
 
