@@ -798,7 +798,7 @@ pci_add_resources(device_t pcib, device_t dev)
 	}
 
 	if (cfg->intpin > 0 && PCI_INTERRUPT_VALID(cfg->intline)) {
-#if defined(__ia64__) || (defined(__i386__) && !defined(SMP))
+#if defined(__ia64__) || (defined(__i386__) && !defined(SMP) && !defined(PC98))
 		/*
 		 * Try to re-route interrupts. Sometimes the BIOS or
 		 * firmware may leave bogus values in these registers.
