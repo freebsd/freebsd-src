@@ -49,16 +49,8 @@
 #include <vm/vm.h>
 
 #include <machine/bus.h>
-#include <i386/isa/isa_device.h>
-
 #include <machine/dvcfg.h>
 
-#if defined(__FreeBSD__) && __FreeBSD_version < 400001
-static struct nsp_softc *nsp_get_softc(int);
-extern struct nsp_softc *nspdata[];
-#define DEVPORT_ALLOCSOFTCFUNC	nsp_get_softc
-#define DEVPORT_SOFTCARRAY	nspdata
-#endif
 #include <sys/device_port.h>
 
 #include <cam/scsi/scsi_low.h>
@@ -66,15 +58,9 @@ extern struct nsp_softc *nspdata[];
 
 #include <dev/nsp/nspreg.h>
 #include <dev/nsp/nspvar.h>
-#if defined(__NetBSD__) || (defined(__FreeBSD__) && __FreeBSD_version < 400001)
-#include "nsp.h"
-#endif
 
 #define	NSP_HOSTID	7
 
-/* pccard support */
-#include	"card.h"
-#if NCARD > 0
 #include	<sys/kernel.h>
 #include	<sys/module.h>
 #if !defined(__FreeBSD__) || __FreeBSD_version < 500014
@@ -89,12 +75,7 @@ static int nspprobe(DEVPORT_PDEVICE devi);
 static int nspattach(DEVPORT_PDEVICE devi);
 
 static	void	nsp_card_unload	__P((DEVPORT_PDEVICE));
-#if defined(__FreeBSD__) && __FreeBSD_version < 400001
-static	int	nsp_card_init	__P((DEVPORT_PDEVICE));
-static	int	nsp_card_intr	__P((DEVPORT_PDEVICE));
-#endif
 
-#if defined(__FreeBSD__) && __FreeBSD_version >= 400001
 /*
  * Additional code for FreeBSD new-bus PCCard frontend
  */
@@ -257,62 +238,8 @@ static driver_t nsp_pccard_driver = {
 
 static devclass_t nsp_devclass;
 
+MODULE_DEPEND(nsp, scsi_low, 1, 1, 1);
 DRIVER_MODULE(nsp, pccard, nsp_pccard_driver, nsp_devclass, 0, 0);
-
-#else
-
-PCCARD_MODULE(nsp, nsp_card_init,nsp_card_unload, nsp_card_intr,0, cam_imask);
-
-#endif
-
-#if defined(__FreeBSD__) && __FreeBSD_version < 400001
-static struct nsp_softc *
-nsp_get_softc(int unit)
-{
-	struct nsp_softc *sc;
-
-	if (unit >= NNSP) {
-		return(NULL);
-	}
-
-	if (nspdata[unit] == NULL) {
-		sc = malloc(sizeof(struct nsp_softc), M_TEMP,M_NOWAIT);
-		if (sc == NULL) {
-			printf("nsp_get_softc: cannot malloc!\n");
-			return(NULL);
-		}
-		nspdata[unit] = sc;
-	} else {
-		sc = nspdata[unit];
-	}
-
-	return(sc);
-}
-
-static	int
-nsp_card_init(DEVPORT_PDEVICE devi)
-{
-	int unit = DEVPORT_PDEVUNIT(devi);
-
-	if (NNSP <= unit)
-		return (ENODEV);
-
-	if (nspprobe(devi) == 0)
-		return (ENXIO);
-
-	if (nspattach(devi) == 0)
-		return (ENXIO);
-	
-	return (0);
-}
-
-static	int
-nsp_card_intr(DEVPORT_PDEVICE devi)
-{
-	nspintr(DEVPORT_PDEVGET_SOFTC(devi));
-	return 1;
-}
-#endif
 
 static	void
 nsp_card_unload(DEVPORT_PDEVICE devi)
@@ -331,16 +258,11 @@ static	int
 nspprobe(DEVPORT_PDEVICE devi)
 {
 	int rv;
-#if defined(__FreeBSD__) && __FreeBSD_version >= 400001
 	struct nsp_softc *sc = device_get_softc(devi);
 
 	rv = nspprobesubr(rman_get_bustag(sc->port_res),
 			  rman_get_bushandle(sc->port_res),
 			  DEVPORT_PDEVFLAGS(devi));
-#else
-	rv = nspprobesubr(I386_BUS_SPACE_IO,
-			  DEVPORT_PDEVIOBASE(devi), DEVPORT_PDEVFLAGS(devi));
-#endif
 
 	return rv;
 }
@@ -348,9 +270,6 @@ nspprobe(DEVPORT_PDEVICE devi)
 static	int
 nspattach(DEVPORT_PDEVICE devi)
 {
-#if defined(__FreeBSD__) && __FreeBSD_version < 400001
-	int unit = DEVPORT_PDEVUNIT(devi);
-#endif
 	struct nsp_softc *sc;
 	struct scsi_low_softc *slp;
 	u_int32_t flags = DEVPORT_PDEVFLAGS(devi);
@@ -359,14 +278,6 @@ nspattach(DEVPORT_PDEVICE devi)
 	char	dvname[16];
 
 	strcpy(dvname,"nsp");
-
-#if defined(__FreeBSD__) && __FreeBSD_version < 400001
-	if (unit >= NNSP)
-	{
-		printf("%s: unit number too high\n",dvname);
-		return(0);
-	}
-#endif
 
 	if (iobase == 0)
 	{
@@ -380,26 +291,13 @@ nspattach(DEVPORT_PDEVICE devi)
 	}
 
 	slp = &sc->sc_sclow;
-#if defined(__FreeBSD__) && __FreeBSD_version >= 400001
 	slp->sl_dev = devi;
 	sc->sc_iot = rman_get_bustag(sc->port_res);
 	sc->sc_ioh = rman_get_bushandle(sc->port_res);
-#else
-	bzero(sc, sizeof(struct nsp_softc));
-	strcpy(slp->sl_dev.dv_xname, dvname);
-	slp->sl_dev.dv_unit = unit;
-	sc->sc_iot = I386_BUS_SPACE_IO;
-	sc->sc_ioh = iobase;
-#endif
 
 	if((flags & PIO_MODE) == 0) {
-#if defined(__FreeBSD__) && __FreeBSD_version >= 400001
 		sc->sc_memt = rman_get_bustag(sc->mem_res);
 		sc->sc_memh = rman_get_bushandle(sc->mem_res);
-#else
-		sc->sc_memt = I386_BUS_SPACE_MEM;
-		sc->sc_memh = (bus_space_handle_t)DEVPORT_PDEVMADDR(devi);
-#endif
 	} else {
 		sc->sc_memh = 0;
 	}
@@ -416,4 +314,3 @@ nspattach(DEVPORT_PDEVICE devi)
 
 	return(NSP_IOSIZE);
 }
-#endif /* NCARD>0 */

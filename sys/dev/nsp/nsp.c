@@ -83,11 +83,6 @@
 #include <cam/scsi/scsi_low.h>
 #include <dev/nsp/nspreg.h>
 #include <dev/nsp/nspvar.h>
-
-#if __FreeBSD_version < 400001
-#include "nsp.h"
-struct nsp_softc *nspdata[NNSP];
-#endif
 #endif /* __FreeBSD__ */
 
 /***************************************************
