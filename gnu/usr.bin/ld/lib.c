@@ -558,9 +558,12 @@ subfile_wanted_p(entry)
 			}
 
 			/*
- 			 * If the shared object referenced is undefined 
-			 * then note is as a common.
- 			 */
+			 * At this point, either the new symbol is a common
+			 * and the shared object reference is undefined --
+			 * in which case we note the common -- or the shared
+			 * object reference has a definition -- in which case
+			 * the library member takes precedence.
+			 */
 			if (iscommon) {
 				/*
 				 * New symbol is common, just takes its
@@ -582,17 +585,11 @@ subfile_wanted_p(entry)
 			if (write_map) {
 				print_file_name(entry, stdout);
 				fprintf(stdout,
-					" uneeded due to shared lib ref %s (%d)\n",
+					" needed due to shared lib ref %s (%d)\n",
 					sp->name,
 					lsp ? lsp->nzlist.nlist.n_type : -1);
 			}
-			/*
-			 * The shared object reference has a definition.  
-			 * Since it was previously defined in a shlib, it
-			 * takes precedence over the new definition in the
-			 * library member.
-			 */
-			return 0;
+			return 1;
 		}
 	}
 
