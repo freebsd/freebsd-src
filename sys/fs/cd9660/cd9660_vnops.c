@@ -55,8 +55,8 @@
 #include <sys/filio.h>
 
 #include <vm/vm.h>
-#include <vm/vm_zone.h>
 #include <vm/vnode_pager.h>
+#include <vm/uma.h>
 
 #include <isofs/cd9660/iso.h>
 #include <isofs/cd9660/cd9660_node.h>
@@ -664,14 +664,14 @@ cd9660_readlink(ap)
 	if (uio->uio_segflg == UIO_SYSSPACE)
 		symname = uio->uio_iov->iov_base;
 	else
-		symname = zalloc(namei_zone);
+		symname = uma_zalloc(namei_zone, M_WAITOK);
 	
 	/*
 	 * Ok, we just gathering a symbolic name in SL record.
 	 */
 	if (cd9660_rrip_getsymname(dirp, symname, &symlen, imp) == 0) {
 		if (uio->uio_segflg != UIO_SYSSPACE)
-			zfree(namei_zone, symname);
+			uma_zfree(namei_zone, symname);
 		brelse(bp);
 		return (EINVAL);
 	}
@@ -685,7 +685,7 @@ cd9660_readlink(ap)
 	 */
 	if (uio->uio_segflg != UIO_SYSSPACE) {
 		error = uiomove(symname, symlen, uio);
-		zfree(namei_zone, symname);
+		uma_zfree(namei_zone, symname);
 		return (error);
 	}
 	uio->uio_resid -= symlen;
