@@ -194,11 +194,13 @@ sunkbd_configure(int flags)
 	if (uart_probe(&uart_keyboard))
 		return (0);
 	uart_init(&uart_keyboard);
-	if (sunkbd_probe_keyboard(&uart_keyboard) == -1)
-		return (0);
+
 	uart_keyboard.type = UART_DEV_KEYBOARD;
 	uart_keyboard.attach = sunkbd_attach;
 	uart_add_sysdev(&uart_keyboard);
+
+	if (sunkbd_probe_keyboard(&uart_keyboard) == -1)
+		return (0);
 
 	sc = &sunkbd_softc;
 	callout_init(&sc->sc_repeat_callout, 0);
@@ -220,6 +222,15 @@ sunkbd_configure(int flags)
 static int
 sunkbd_attach(struct uart_softc *sc)
 {
+
+	/*
+	 * Don't attach if we didn't probe the keyboard. Note that
+	 * the UART is still marked as a system device in that case.
+	 */
+	if (sunkbd_softc.sc_sysdev == NULL) {
+		device_printf(sc->sc_dev, "keyboard not present\n");
+		return (0);
+	}
 
 	if (sc->sc_sysdev != NULL) {
 		sunkbd_softc.sc_uart = sc;
