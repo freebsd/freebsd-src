@@ -135,8 +135,7 @@ static int reserve_bounce_pages(bus_dma_tag_t dmat, bus_dmamap_t map,
 static bus_addr_t add_bounce_page(bus_dma_tag_t dmat, bus_dmamap_t map,
 				   vm_offset_t vaddr, bus_size_t size);
 static void free_bounce_page(bus_dma_tag_t dmat, struct bounce_page *bpage);
-static __inline int run_filter(bus_dma_tag_t dmat, bus_addr_t paddr,
-			       bus_size_t len);
+static __inline int run_filter(bus_dma_tag_t dmat, bus_addr_t paddr);
 
 /*
  * Return true if a match is made.
@@ -147,18 +146,15 @@ static __inline int run_filter(bus_dma_tag_t dmat, bus_addr_t paddr,
  * to check for a match, if there is no filter callback then assume a match.
  */
 static __inline int
-run_filter(bus_dma_tag_t dmat, bus_addr_t paddr, bus_size_t len)
+run_filter(bus_dma_tag_t dmat, bus_addr_t paddr)
 {
-	bus_size_t bndy;
 	int retval;
 
 	retval = 0;
-	bndy = dmat->boundary;
 
 	do {
 		if (((paddr > dmat->lowaddr && paddr <= dmat->highaddr)
-		 || ((paddr & (dmat->alignment - 1)) != 0)
-		 || ((paddr & bndy) != ((paddr + len) & bndy)))
+		 || ((paddr & (dmat->alignment - 1)) != 0))
 		 && (dmat->filter == NULL
 		  || (*dmat->filter)(dmat->filterarg, paddr) != 0))
 			retval = 1;
@@ -586,7 +582,7 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 
 		while (vaddr < vendaddr) {
 			paddr = pmap_kextract(vaddr);
-			if (run_filter(dmat, paddr, 0) != 0) {
+			if (run_filter(dmat, paddr) != 0) {
 				needbounce = 1;
 				map->pagesneeded++;
 			}
@@ -647,7 +643,7 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 				sgsize = (baddr - curaddr);
 		}
 
-		if (map->pagesneeded != 0 && run_filter(dmat, curaddr, sgsize))
+		if (map->pagesneeded != 0 && run_filter(dmat, curaddr))
 			curaddr = add_bounce_page(dmat, map, vaddr, sgsize);
 
 		/*
