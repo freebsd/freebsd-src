@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: miscbltin.c,v 1.12 1997/04/28 03:06:36 steve Exp $
+ *	$Id: miscbltin.c,v 1.13 1997/05/19 00:18:43 steve Exp $
  */
 
 #ifndef lint
@@ -52,6 +52,7 @@ static char const sccsid[] = "@(#)miscbltin.c	8.4 (Berkeley) 5/4/95";
 #include <ctype.h>
 #include <errno.h>
 #include <stdio.h>
+#include <termios.h>
 
 #include "shell.h"
 #include "options.h"
@@ -88,14 +89,43 @@ readcmd(argc, argv)
 	int startword;
 	int status;
 	int i;
+	struct timeval tv;
+	char *tvptr;
+	fd_set ifds;
+	struct termios told, tnew;
+	int tsaved;
 
 	eflag = 0;
 	prompt = NULL;
-	while ((i = nextopt("ep:")) != '\0') {
-		if (i == 'p')
+	tv.tv_sec = -1;
+	tv.tv_usec = 0;
+	while ((i = nextopt("ep:t:")) != '\0') {
+		switch(i) {
+		case 'p':
 			prompt = optarg;
-		else
+			break;
+		case 'e':
 			eflag = 1;
+			break;
+		case 't':
+			tv.tv_sec = strtol(optarg, &tvptr, 0);
+			if (tvptr == optarg)
+				error("timeout value");
+			switch(*tvptr) {
+			case 0:
+			case 's':
+				break;
+			case 'h':
+				tv.tv_sec *= 60;
+				/* FALLTHROUGH */
+			case 'm':
+				tv.tv_sec *= 60;
+				break;
+			default:
+				error("timeout unit");
+			}
+			break;
+		}
 	}
 	if (prompt && isatty(0)) {
 		out2str(prompt);
@@ -105,6 +135,35 @@ readcmd(argc, argv)
 		error("arg count");
 	if ((ifs = bltinlookup("IFS", 1)) == NULL)
 		ifs = nullstr;
+
+	if (tv.tv_sec >= 0) {
+		/*
+		 * See if we can disable input processing; this will
+		 * not give the desired result if we are in a pipeline
+		 * and someone upstream is still in line-by-line mode.
+		 */
+		tsaved = 0;
+		if (tcgetattr(0, &told) == 0) {
+			memcpy(&tnew, &told, sizeof(told));
+			cfmakeraw(&tnew);
+			tcsetattr(0, TCSANOW, &tnew);
+			tsaved = 1;
+		}
+		/*
+		 * Wait for something to become available.
+		 */
+		FD_ZERO(&ifds);
+		FD_SET(0, &ifds);
+		status = select(1, &ifds, NULL, NULL, &tv);
+		if (tsaved)
+			tcsetattr(0, TCSANOW, &told);
+		/*
+		 * If there's nothing ready, return an error.
+		 */
+		if (status <= 0)
+			return(1);
+	}
+
 	status = 0;
 	startword = 1;
 	backslash = 0;
