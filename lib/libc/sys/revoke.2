@@ -65,8 +65,10 @@ is called as if all open references to the file had been closed.
 Access to a file may be revoked only by its owner or the super user.
 The
 .Fn revoke
-function is normally used to prepare a terminal device for a new 
-login session, preventing any access by a previous user of the terminal.
+function is currently supported only for block and character special
+device files.
+It is normally used to prepare a terminal device for a new login session,
+preventing any access by a previous user of the terminal.
 .Sh RETURN VALUES
 A 0 value indicated that the call succeeded.  A \-1 return value
 indicates an error occurred and
@@ -90,9 +92,9 @@ Too many symbolic links were encountered in translating the pathname.
 .Fa Path
 points outside the process's allocated address space.
 .It Bq Er EINVAL
-The named file does not support the
+The implementation does not support the
 .Fn revoke
-operation.
+operation on the named file.
 .It Bq Er EPERM
 The caller is neither the owner of the file nor the super user.
 .El
