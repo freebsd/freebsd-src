@@ -40,7 +40,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: net.c,v 1.1 1997/12/02 20:45:22 wollman Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -159,6 +159,11 @@ checkremote(struct printer *pp)
 	char *err;
 	struct in_addr *localaddrs;
 	int i, j, nlocaladdrs, ncommonaddrs;
+
+	if (!pp->rp_matches_local) { /* Remote printer doesn't match local */
+		pp->remote = 1;
+		return NULL;
+	}
 
 	pp->remote = 0;	/* assume printer is local */
 	if (pp->remote_host != NULL) {
