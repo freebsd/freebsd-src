@@ -1,4 +1,4 @@
-/*	$NetBSD: pkill.c,v 1.7 2004/02/15 17:03:30 soren Exp $	*/
+/*	$NetBSD: pkill.c,v 1.6 2004/01/06 07:35:58 itojun Exp $	*/
 
 /*-
  * Copyright (c) 2002 The NetBSD Foundation, Inc.
@@ -37,7 +37,9 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+#ifndef lint
+__RCSID("$NetBSD: pkill.c,v 1.6 2004/01/06 07:35:58 itojun Exp $");
+#endif /* !lint */
 
 #include <sys/types.h>
 #include <sys/param.h>
