@@ -807,6 +807,13 @@
     variable limits the amount of memory that can be consumed by IPv4
     packet fragments, which defends against some denial of service
     attacks.</para>
+
+    <para>A vulnerability in the &man.fts.3; routines (used by
+    applications for recursively traversing a filesystem) could
+    allow a program to operate on files outside the intended directory
+    hierarchy.  This bug has been fixed (see security advisory
+    FreeBSD-SA-01:40). &merged;</para>
+
   </sect2>
   <sect2>
     <title>Userland Changes</title>
