@@ -1255,7 +1255,7 @@ thread_exit(void)
 	KASSERT(kg != NULL, ("thread exiting without a kse group"));
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	CTR1(KTR_PROC, "thread_exit: thread %p", td);
-	KASSERT(!mtx_owned(&Giant), ("dying thread owns giant"));
+	mtx_assert(&Giant, MA_NOTOWNED);
 
 	if (td->td_standin != NULL) {
 		thread_stash(td->td_standin);
