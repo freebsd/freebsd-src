@@ -61,7 +61,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "$Id$";
+    "$Id: mrinfo.c,v 1.13 1997/09/30 06:15:08 charnier Exp $";
 /*  original rcsid:
     "@(#) Header: mrinfo.c,v 1.6 93/04/08 15:14:16 van Exp (LBL)";
 */
@@ -170,7 +170,7 @@ log(severity, syserr, format, va_alist)
 	}
 
 	if (severity <= LOG_ERR)
-		exit(-1);
+		exit(1);
 }
 
 /*

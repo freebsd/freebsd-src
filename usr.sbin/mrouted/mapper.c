@@ -1,7 +1,5 @@
 /* Mapper for connections between MRouteD multicast routers.
  * Written by Pavel Curtis <Pavel@PARC.Xerox.Com>
- *
- * $Id: mapper.c,v 1.10 1997/02/22 16:06:57 peter Exp $
  */
 
 /*
@@ -20,6 +18,11 @@
  *  
  * These notices must be retained in any copies of any part of this software.
  */
+
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 #include <err.h>
 #include <string.h>
@@ -201,7 +204,7 @@ log(severity, syserr, format, va_alist)
     }
 
     if (severity <= LOG_ERR)
-	exit(-1);
+	exit(1);
 }
 
 

@@ -20,7 +20,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: main.c,v 1.12 1997/09/30 06:15:01 charnier Exp $";
 #endif
 
 #include <err.h>
@@ -728,7 +728,7 @@ log(severity, syserr, format, va_alist)
 		syslog(severity, "%s", msg);
 	}
 
-	if (severity <= LOG_ERR) exit(-1);
+	if (severity <= LOG_ERR) exit(1);
     }
 }
 

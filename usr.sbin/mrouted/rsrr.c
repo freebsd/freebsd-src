@@ -30,6 +30,11 @@
 
 /* May 1995 -- Added support for Route Change Notification */
 
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
 #ifdef RSRR
 
 #include "defs.h"
