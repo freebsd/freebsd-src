@@ -137,9 +137,8 @@ acpi_acad_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
 static int
 acpi_acad_probe(device_t dev)
 {
-    if (acpi_get_type(dev) == ACPI_TYPE_DEVICE &&
+    if (acpi_get_type(dev) == ACPI_TYPE_DEVICE && !acpi_disabled("acad") &&
 	acpi_MatchHid(dev, "ACPI0003")) {
-
 	device_set_desc(dev, "AC Adapter");
 	return (0);
     }
