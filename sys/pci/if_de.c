@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_de.c,v 1.53 1996/10/10 19:44:10 wollman Exp $
+ * $Id: if_de.c,v 1.54 1996/10/15 19:22:39 bde Exp $
  *
  */
 
@@ -2312,6 +2312,7 @@ tulip_rx_intr(
 			error = "bad crc";
 		    }
 		}
+#ifdef DIAGNOSTIC
 		if (error != NULL && (sc->tulip_flags & TULIP_NOMESSAGES) == 0) {
 		    printf(TULIP_PRINTF_FMT ": receive: " TULIP_EADDR_FMT ": %s\n",
 			   TULIP_PRINTF_ARGS,
@@ -2319,6 +2320,7 @@ tulip_rx_intr(
 			   error);
 		    sc->tulip_flags |= TULIP_NOMESSAGES;
 		}
+#endif
 	    }
 	}
       next:

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.5 (Berkeley) 1/4/94
- * $Id: nfs_bio.c,v 1.28 1996/10/21 10:07:48 dfr Exp $
+ * $Id: nfs_bio.c,v 1.28.2.1 1996/11/09 21:10:49 phk Exp $
  */
 
 #include <sys/param.h>
@@ -743,7 +743,7 @@ again:
 	 * Find a free iod to process this request.
 	 */
 	for (i = 0; i < NFS_MAXASYNCDAEMON; i++)
-	    if (nfs_iodwant[i]) {
+		if (nfs_iodwant[i]) {
 			/*
 			 * Found one, so wake it up and tell it which
 			 * mount to process.
@@ -820,14 +820,14 @@ again:
 		TAILQ_INSERT_TAIL(&nmp->nm_bufq, bp, b_freelist);
 		nmp->nm_bufqlen++;
 		return (0);
-	    }
+	}
 
 	/*
 	 * All the iods are busy on other mounts, so return EIO to
 	 * force the caller to process the i/o synchronously.
 	 */
 	NFS_DPF(ASYNCIO, ("nfs_asyncio: no iods available, i/o is synchronous\n"));
-		return (EIO);
+	return (EIO);
 }
 
 /*

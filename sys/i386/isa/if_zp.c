@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	From: if_ep.c,v 1.9 1994/01/25 10:46:29 deraadt Exp $
- *	$Id: if_zp.c,v 1.25 1996/09/07 17:52:56 nate Exp $
+ *	$Id: if_zp.c,v 1.26 1996/09/11 16:11:21 nate Exp $
  */
 /*-
  * TODO:
@@ -168,7 +168,7 @@ static struct zp_softc {
 	struct mbuf *mb[MAX_MBS];	/* spare mbuf storage.		 */
 	int     next_mb;	/* Which mbuf to use next. 	 */
 	int     last_mb;	/* Last mbuf.			 */
-	short   ep_io_addr;	/* i/o bus address		 */
+	int     ep_io_addr;	/* i/o bus address		 */
 	char    ep_connectors;	/* Connectors on this card.	 */
 	int     tx_start_thresh;/* Current TX_start_thresh.	 */
 	char    bus32bit;	/* 32bit access possible	 */

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.246.2.3 1996/11/06 22:47:59 joerg Exp $
+#	$Id: Makefile,v 1.246.2.4 1996/11/09 16:33:50 joerg Exp $
 #
 # How to roll a release:
 #
@@ -481,8 +481,8 @@ doTARBALL:
 		echo rolling ${TD}/$$tn tarball &&\
 		tar --exclude CVS --exclude obj -cf - ${ARG} | \
 		${ZIPNSPLIT} ${RD}/dists/${TD}/$$tn. && \
-		mkdir -p ${TD} && sh ${.CURDIR}/info.sh \
-		${RD}/dists/${TD}/$$tn > ${RD}/dists/${TD}/$$tn.inf && \
+		sh ${.CURDIR}/info.sh ${RD}/dists/${TD}/$$tn > \
+		   ${RD}/dists/${TD}/$$tn.inf && \
 		if [ -f ${.CURDIR}/scripts/$${TD}-install.sh ]; then \
 		  cp -p ${.CURDIR}/scripts/$${TD}-install.sh ${RD}/dists/${TD}/install.sh; \
 		fi && \

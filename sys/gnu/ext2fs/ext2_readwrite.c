@@ -160,7 +160,7 @@ READ(ap)
 	if (bp != NULL)
 		bqrelse(bp);
 	if (!(vp->v_mount->mnt_flag & MNT_NOATIME))
-	ip->i_flag |= IN_ACCESS;
+		ip->i_flag |= IN_ACCESS;
 	return (error);
 }
 
@@ -297,7 +297,7 @@ WRITE(ap)
 			}
 		} else {
 #if defined(__FreeBSD__)
-				bp->b_flags |= B_CLUSTEROK;
+			bp->b_flags |= B_CLUSTEROK;
 #endif
 			bdwrite(bp);
 		}

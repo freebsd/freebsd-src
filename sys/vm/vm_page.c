@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.69 1996/10/15 03:16:45 dyson Exp $
+ *	$Id: vm_page.c,v 1.69.2.1 1996/11/09 21:16:08 phk Exp $
  */
 
 /*
@@ -1275,28 +1275,28 @@ contigmalloc(size, type, flags, low, high, alignment, boundary)
 
 	start = 0;
 	for (pass = 0; pass <= 1; pass++) {
-	s = splvm();
+		s = splvm();
 again:
-	/*
-	 * Find first page in array that is free, within range, aligned, and
-	 * such that the boundary won't be crossed.
-	 */
-	for (i = start; i < cnt.v_page_count; i++) {
+		/*
+		 * Find first page in array that is free, within range, aligned, and
+		 * such that the boundary won't be crossed.
+		 */
+		for (i = start; i < cnt.v_page_count; i++) {
 			int pqtype;
-		phys = VM_PAGE_TO_PHYS(&pga[i]);
+			phys = VM_PAGE_TO_PHYS(&pga[i]);
 			pqtype = pga[i].queue - pga[i].pc;
 			if (((pqtype == PQ_ZERO) || (pqtype == PQ_FREE) || (pqtype == PQ_CACHE)) &&
-		    (phys >= low) && (phys < high) &&
-		    ((phys & (alignment - 1)) == 0) &&
-		    (((phys ^ (phys + size - 1)) & ~(boundary - 1)) == 0))
-			break;
-	}
+			    (phys >= low) && (phys < high) &&
+			    ((phys & (alignment - 1)) == 0) &&
+			    (((phys ^ (phys + size - 1)) & ~(boundary - 1)) == 0))
+				break;
+		}
 
-	/*
-	 * If the above failed or we will exceed the upper bound, fail.
-	 */
-	if ((i == cnt.v_page_count) ||
-		((VM_PAGE_TO_PHYS(&pga[i]) + size) > high)) {
+		/*
+		 * If the above failed or we will exceed the upper bound, fail.
+		 */
+		if ((i == cnt.v_page_count) ||
+			((VM_PAGE_TO_PHYS(&pga[i]) + size) > high)) {
 			vm_page_t m, next;
 
 again1:
@@ -1364,24 +1364,24 @@ again1:
 					vm_page_cache(m);
 			}
 
-		splx(s);
+			splx(s);
 			continue;
-	}
-	start = i;
+		}
+		start = i;
 
-	/*
-	 * Check successive pages for contiguous and free.
-	 */
-	for (i = start + 1; i < (start + size / PAGE_SIZE); i++) {
+		/*
+		 * Check successive pages for contiguous and free.
+		 */
+		for (i = start + 1; i < (start + size / PAGE_SIZE); i++) {
 			int pqtype;
 			pqtype = pga[i].queue - pga[i].pc;
-		if ((VM_PAGE_TO_PHYS(&pga[i]) !=
-		    (VM_PAGE_TO_PHYS(&pga[i - 1]) + PAGE_SIZE)) ||
+			if ((VM_PAGE_TO_PHYS(&pga[i]) !=
+			    (VM_PAGE_TO_PHYS(&pga[i - 1]) + PAGE_SIZE)) ||
 			    ((pqtype != PQ_ZERO) && (pqtype != PQ_FREE) && (pqtype != PQ_CACHE))) {
-			start++;
-			goto again;
+				start++;
+				goto again;
+			}
 		}
-	}
 
 		for (i = start; i < (start + size / PAGE_SIZE); i++) {
 			int pqtype;
@@ -1404,32 +1404,32 @@ again1:
 			vm_page_wire(m);
 		}
 
-	/*
-	 * We've found a contiguous chunk that meets are requirements.
-	 * Allocate kernel VM, unfree and assign the physical pages to it and
-	 * return kernel VM pointer.
-	 */
-	tmp_addr = addr = kmem_alloc_pageable(kernel_map, size);
-	if (addr == 0) {
+		/*
+		 * We've found a contiguous chunk that meets are requirements.
+		 * Allocate kernel VM, unfree and assign the physical pages to it and
+		 * return kernel VM pointer.
+		 */
+		tmp_addr = addr = kmem_alloc_pageable(kernel_map, size);
+		if (addr == 0) {
 			/*
 			 * XXX We almost never run out of kernel virtual
 			 * space, so we don't make the allocated memory
 			 * above available.
 			 */
+			splx(s);
+			return (NULL);
+		}
+
+		for (i = start; i < (start + size / PAGE_SIZE); i++) {
+			vm_page_t m = &pga[i];
+			vm_page_insert(m, kernel_object,
+				OFF_TO_IDX(tmp_addr - VM_MIN_KERNEL_ADDRESS));
+			pmap_kenter(tmp_addr, VM_PAGE_TO_PHYS(m));
+			tmp_addr += PAGE_SIZE;
+		}
+
 		splx(s);
-		return (NULL);
-	}
-
-	for (i = start; i < (start + size / PAGE_SIZE); i++) {
-		vm_page_t m = &pga[i];
-		vm_page_insert(m, kernel_object,
-			OFF_TO_IDX(tmp_addr - VM_MIN_KERNEL_ADDRESS));
-		pmap_kenter(tmp_addr, VM_PAGE_TO_PHYS(m));
-		tmp_addr += PAGE_SIZE;
-	}
-
-	splx(s);
-	return ((void *)addr);
+		return ((void *)addr);
 	}
 	return NULL;
 }

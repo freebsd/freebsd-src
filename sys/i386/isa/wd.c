@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.118 1996/09/14 04:27:46 bde Exp $
+ *	$Id: wd.c,v 1.119 1996/10/17 21:18:42 phk Exp $
  */
 
 /* TODO:
@@ -155,7 +155,7 @@ struct disk {
 	u_char	dk_status;	/* copy of status reg. */
 	u_char	dk_error;	/* copy of error reg. */
 	u_char	dk_timeout;	/* countdown to next timeout */
-	short	dk_port;	/* i/o port base */
+	int	dk_port;	/* i/o port base */
 #ifdef	DEVFS
 	void	*dk_bdev;	/* devfs token for whole disk */
 	void	*dk_cdev;	/* devfs token for raw whole disk */

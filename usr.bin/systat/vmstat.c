@@ -625,7 +625,7 @@ allocinfo(s)
 	struct Info *s;
 {
 
-	s->intrcnt = (long *) malloc(nintr * sizeof(long));
+	s->intrcnt = (long *) calloc(nintr, sizeof(long));
 	if (s->intrcnt == NULL) {
 		fprintf(stderr, "systat: out of memory\n");
 		exit(2);

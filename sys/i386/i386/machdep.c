@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.209 1996/10/31 00:57:25 julian Exp $
+ *	$Id: machdep.c,v 1.209.2.1 1996/11/07 14:45:35 joerg Exp $
  */
 
 #include "npx.h"
@@ -972,6 +972,7 @@ init386(first)
 	unsigned biosbasemem, biosextmem;
 	struct gate_descriptor *gdp;
 	int gsel_tss;
+	struct isa_device *idp;
 	/* table descriptors - used to load tables by microp */
 	struct region_descriptor r_gdt, r_idt;
 	int	pagesinbase, pagesinext;
@@ -1174,6 +1175,10 @@ init386(first)
 #ifdef MAXMEM
 	Maxmem = MAXMEM/4;
 #endif
+
+	idp = find_isadev(isa_devtab_null, &npxdriver, 0);
+	if (idp != NULL && idp->id_msize != 0)
+		Maxmem = idp->id_msize / 4;
 
 	/* call pmap initialization to make new kernel address space */
 	pmap_bootstrap (first, 0);

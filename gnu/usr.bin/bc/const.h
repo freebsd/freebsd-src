@@ -73,9 +73,9 @@
 #define TRUE  1
 
 /* for use with lookup (). */
-#define SIMPLE 0
-#define ARRAY  1
-#define FUNCT  2
+#define SIMPLE   0
+#define ARRAY    1
+#define FUNCT    2
 #define FUNCTDEF 3
 
 #define EXTERN extern

@@ -3,7 +3,7 @@
 #
 # modified for PC-9801
 #
-#	$Id: files.pc98,v 1.9 1996/10/30 22:39:31 asami Exp $
+#	$Id: files.pc98,v 1.9.2.1 1996/11/09 21:12:45 phk Exp $
 #
 aic7xxx_asm			optional	ahc	device-driver	   \
 	dependency 	"$S/dev/aic7xxx/aic7xxx_asm.c"			   \
@@ -24,7 +24,7 @@ linux_genassym			optional	compat_linux		   \
 	clean		"linux_genassym"
 #
 linux_assym.h			optional	compat_linux		   \
-	dependency 	"linux_genassym"		   \
+	dependency 	"linux_genassym"				   \
 	compile-with	"./linux_genassym > $@"				   \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"linux_assym.h"

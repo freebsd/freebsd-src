@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.8 1996/10/09 21:46:46 asami Exp $
+ *	$Id: sio.c,v 1.8.2.1 1996/11/09 21:14:10 phk Exp $
  */
 
 #include "opt_comconsole.h"
@@ -1133,7 +1133,7 @@ sioattach(isdp)
 		com->lt_out.c_cflag = com->lt_in.c_cflag = CLOCAL;
 		com->it_in.c_ispeed = com->it_in.c_ospeed = condefaultrate;
 	} else
-	com->it_in.c_ispeed = com->it_in.c_ospeed = comdefaultrate;
+		com->it_in.c_ispeed = com->it_in.c_ospeed = comdefaultrate;
 
 	termioschars(&com->it_in);
 	com->it_out = com->it_in;
