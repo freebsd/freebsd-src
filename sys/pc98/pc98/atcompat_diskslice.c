@@ -35,7 +35,7 @@
  *
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: atcompat_diskslice.c,v 1.12 1998/08/10 16:55:54 kato Exp $
+ *	$Id: atcompat_diskslice.c,v 1.13 1998/12/04 22:54:54 archie Exp $
  */
 
 /*
@@ -114,11 +114,11 @@ check_part(sname, dp, offset, nsectors, ntracks, mbr_offset )
 	 * apart from the cylinder being reduced modulo 1024.  Always allow
 	 * 1023/255/63.
 	 */
-	if (ssector < ssector1
+	if ((ssector < ssector1
 	    && ((chs_ssect == nsectors && dp->dp_shd == ntracks - 1
 		 && chs_scyl == 1023)
 		|| (secpercyl != 0
-		    && (ssector1 - ssector) % (1024 * secpercyl) == 0))
+		    && (ssector1 - ssector) % (1024 * secpercyl) == 0)))
 	    || (dp->dp_scyl == 255 && dp->dp_shd == 255
 		&& dp->dp_ssect == 255)) {
 		TRACE(("%s: C/H/S start %d/%d/%d, start %lu: allow\n",
@@ -133,11 +133,11 @@ check_part(sname, dp, offset, nsectors, ntracks, mbr_offset )
 	esector1 = ssector1 + dp->dp_size - 1;
 
 	/* Allow certain bogus C/H/S values for esector, as above. */
-	if (esector < esector1
+	if ((esector < esector1
 	    && ((chs_esect == nsectors && dp->dp_ehd == ntracks - 1
 		 && chs_ecyl == 1023)
 		|| (secpercyl != 0
-		    && (esector1 - esector) % (1024 * secpercyl) == 0))
+		    && (esector1 - esector) % (1024 * secpercyl) == 0)))
 	    || (dp->dp_ecyl == 255 && dp->dp_ehd == 255
 		&& dp->dp_esect == 255)) {
 		TRACE(("%s: C/H/S end %d/%d/%d, end %lu: allow\n",
