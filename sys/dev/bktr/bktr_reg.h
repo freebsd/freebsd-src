@@ -36,13 +36,13 @@
 
 #ifdef __FreeBSD__
 #  if (__FreeBSD_version >= 310000)
-#    include <sys/bus.h>
 #    include "smbus.h"
 #  else
 #    define NSMBUS 0		/* FreeBSD before 3.1 does not have SMBUS */
 #  endif
-#else
-#  define NSMBUS 0		/* Non FreeBSD systems do not have SMBUS */
+#  if (NSMBUS > 0)
+#    define BKTR_USE_FREEBSD_SMBUS
+#  endif
 #endif
 
 #ifdef __NetBSD__
@@ -436,7 +436,7 @@ struct format_params {
   int vbi_num_lines, vbi_num_samples;
 };
 
-#if ((defined(__FreeBSD__)) && (NSMBUS > 0))
+#if defined(BKTR_USE_FREEBSD_SMBUS)
 struct bktr_i2c_softc {
 	device_t iicbus;
 	device_t smbus;
