@@ -2,7 +2,7 @@
  * Product specific probe and attach routines for:
  * 	27/284X and aic7770 motherboard SCSI controllers
  *
- * Copyright (c) 1995, 1996 Justin T. Gibbs.
+ * Copyright (c) 1994, 1995, 1996 Justin T. Gibbs.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7770.c,v 1.26 1996/03/31 03:04:38 gibbs Exp $
+ *	$Id: aic7770.c,v 1.27 1996/04/20 21:21:47 gibbs Exp $
  */
 
 #include "eisa.h"
@@ -205,8 +205,8 @@ aic7770_attach(e_dev)
 	}
 
 	/*
-	 * The IRQMS bit enables level sensitive interrupts only allow
-	 * IRQ sharing if its set.
+	 * The IRQMS bit enables level sensitive interrupts. Only allow
+	 * IRQ sharing if it's set.
 	 */
 	if(eisa_reg_intr(e_dev, irq, ahc_intr, (void *)ahc, &bio_imask,
 			 /*shared ==*/ahc->pause & IRQMS)) {
@@ -236,18 +236,14 @@ aic7770_attach(e_dev)
 	 */
 	switch( ahc->type ) {
 	    case AHC_AIC7770:
-	    {
-		/* XXX
-		 * It would be really nice to know if the BIOS
-		 * was installed for the motherboard controllers,
-		 * but I don't know how to yet.  Assume its enabled
-		 * for now.
-		 */
-		break;
-	    }
 	    case AHC_274:
 	    {
-		if((inb(HA_274_BIOSCTRL + iobase) & BIOSMODE) == BIOSDISABLED)
+		u_char biosctrl = inb(HA_274_BIOSCTRL + iobase);
+
+		/* Get the primary channel information */
+		ahc->flags |= (biosctrl & CHANNEL_B_PRIMARY);
+
+		if((biosctrl & BIOSMODE) == BIOSDISABLED)
 			ahc->flags |= AHC_USEDEFAULTS;
 		break;
 	    }
@@ -271,7 +267,7 @@ aic7770_attach(e_dev)
 	/*      
 	 * See if we have a Rev E or higher aic7770. Anything below a
 	 * Rev E will have a R/O autoflush disable configuration bit.
-	 * Its still not clear exactly what is differenent about the Rev E.
+	 * It's still not clear exactly what is differenent about the Rev E.
 	 * We think it allows 8 bit entries in the QOUTFIFO to support
 	 * "paging" SCBs so you can have more than 4 commands active at
 	 * once.
@@ -304,11 +300,7 @@ aic7770_attach(e_dev)
 	}
 
 	/* Setup the FIFO threshold and the bus off time */
-	if(ahc->flags & AHC_USEDEFAULTS) {
-		outb(BUSSPD + iobase, DFTHRSH_100);
-		outb(BUSTIME + iobase, BOFF_60BCLKS);
-	}
-	else {
+	{
 		u_char hostconf = inb(HOSTCONF + iobase);
 		outb(BUSSPD + iobase, hostconf & DFTHRSH);
 		outb(BUSTIME + iobase, (hostconf << 2) & BOFF);
@@ -320,7 +312,7 @@ aic7770_attach(e_dev)
 	if(ahc_init(ahc)){
 		ahc_free(ahc);
 		/*
-		 * The board's IRQ line is not yet enabled so its safe
+		 * The board's IRQ line is not yet enabled so it's safe
 		 * to release the irq.
 		 */
 		eisa_release_intr(e_dev, irq, ahc_intr);
