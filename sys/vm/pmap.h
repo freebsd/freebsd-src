@@ -89,6 +89,11 @@ typedef struct pmap_statistics *pmap_statistics_t;
 struct proc;
 struct thread;
 
+/*
+ * Updates to kernel_vm_end are synchronized by the kernel_map's system mutex.
+ */
+extern vm_offset_t kernel_vm_end;
+
 extern	int	 pmap_pagedaemon_waken;
 
 #ifdef __alpha__
