@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_user.c,v 1.6 1995/01/10 07:32:52 davidg Exp $
+ * $Id: vm_user.c,v 1.7 1995/02/09 14:14:13 davidg Exp $
  */
 
 /*
@@ -75,23 +75,6 @@
 #include <vm/vm.h>
 
 simple_lock_data_t vm_alloc_lock;	/* XXX */
-
-/*
- *	vm_inherit sets the inheritence of the specified range in the
- *	specified map.
- */
-int
-vm_inherit(map, start, size, new_inheritance)
-	register vm_map_t map;
-	vm_offset_t start;
-	vm_size_t size;
-	vm_inherit_t new_inheritance;
-{
-	if (map == NULL)
-		return (KERN_INVALID_ARGUMENT);
-
-	return (vm_map_inherit(map, trunc_page(start), round_page(start + size), new_inheritance));
-}
 
 /*
  *	vm_protect sets the protection of the specified range in the
