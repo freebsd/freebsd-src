@@ -230,7 +230,6 @@ buildworld:
 	for dir in bin games include lib sbin; do \
 		rm -rf ${WORLDTMP}/usr/$$dir; \
 	done
-	rm -f ${WORLDTMP}/sys
 	# XXX - Work-around for broken cc/cc_tools/Makefile.
 	# This is beyond dirty...
 	rm -f ${OBJTREE}${.CURDIR}/gnu/usr.bin/cc/cc_tools/.depend
@@ -241,7 +240,7 @@ buildworld:
 .for _dir in ${INCDIRS}
 	mkdir -p ${WORLDTMP}/usr/include/${_dir}
 .endfor
-	ln -sf ${.CURDIR}/sys ${WORLDTMP}/sys
+	ln -sf ${.CURDIR}/sys ${WORLDTMP}
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 1: bootstrap tools"
