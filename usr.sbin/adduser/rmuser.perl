@@ -496,7 +496,7 @@ sub invoke_atq {
     
     while(defined($_ = <ATQ>)) {
 	chomp;
-	if (/^\d\d:\d\d:\d\d\s+\d\d\/\d\d\/\d\d\s+(\S+)\s+\S+\s+(\d+)$/) {
+	if (/^\d\d.\d\d.\d\d\s+\d\d.\d\d.\d\d\s+(\S+)\s+\S+\s+(\d+)$/) {
 	    push(@at, $2) if ($1 eq $user);
 	}
     }
