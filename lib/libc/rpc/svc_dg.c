@@ -74,8 +74,8 @@ static void svc_dg_ops(SVCXPRT *);
 static enum xprt_stat svc_dg_stat(SVCXPRT *);
 static bool_t svc_dg_recv(SVCXPRT *, struct rpc_msg *);
 static bool_t svc_dg_reply(SVCXPRT *, struct rpc_msg *);
-static bool_t svc_dg_getargs(SVCXPRT *, xdrproc_t, caddr_t);
-static bool_t svc_dg_freeargs(SVCXPRT *, xdrproc_t, caddr_t);
+static bool_t svc_dg_getargs(SVCXPRT *, xdrproc_t, void *);
+static bool_t svc_dg_freeargs(SVCXPRT *, xdrproc_t, void *);
 static void svc_dg_destroy(SVCXPRT *);
 static bool_t svc_dg_control(SVCXPRT *, const u_int, void *);
 static int cache_get(SVCXPRT *, struct rpc_msg *, char **, size_t *);
@@ -137,7 +137,7 @@ svc_dg_create(fd, sendsize, recvsize)
 		XDR_DECODE);
 	su->su_cache = NULL;
 	xprt->xp_fd = fd;
-	xprt->xp_p2 = (caddr_t)(void *)su;
+	xprt->xp_p2 = su;
 	xprt->xp_verf.oa_base = su->su_verfbody;
 	svc_dg_ops(xprt);
 	xprt->xp_rtaddr.maxlen = sizeof (struct sockaddr_storage);
@@ -250,7 +250,7 @@ static bool_t
 svc_dg_getargs(xprt, xdr_args, args_ptr)
 	SVCXPRT *xprt;
 	xdrproc_t xdr_args;
-	caddr_t args_ptr;
+	void *args_ptr;
 {
 	return (*xdr_args)(&(su_data(xprt)->su_xdrs), args_ptr);
 }
@@ -259,7 +259,7 @@ static bool_t
 svc_dg_freeargs(xprt, xdr_args, args_ptr)
 	SVCXPRT *xprt;
 	xdrproc_t xdr_args;
-	caddr_t args_ptr;
+	void *args_ptr;
 {
 	XDR *xdrs = &(su_data(xprt)->su_xdrs);
 

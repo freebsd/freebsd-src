@@ -103,7 +103,7 @@ ypxfrd_getmap_1_svc(ypxfr_mapname *argp, struct svc_req *rqstp)
 
 	snprintf (buf, sizeof(buf), "%s/%s/%s", yp_dir, argp->xfrdomain,
 							argp->xfrmap);
-	if (access((char *)&buf, R_OK) == -1) {
+	if (access(buf, R_OK) == -1) {
 		result.xfr_u.xfrstat = XFR_ACCESS;
 		return(&result);
 	}
@@ -132,14 +132,14 @@ ypxfrd_getmap_1_svc(ypxfr_mapname *argp, struct svc_req *rqstp)
 		forked++;
 	}
 #endif
-	if ((fp = open((char *)&buf, O_RDONLY)) == -1) {
+	if ((fp = open(buf, O_RDONLY)) == -1) {
 		result.xfr_u.xfrstat = XFR_READ_ERR;
 		return(&result);
 	}
 
 	/* Start sending the file. */
 
-	svc_sendreply(rqstp->rq_xprt, xdr_my_xfr, (char *)&result);
+	svc_sendreply(rqstp->rq_xprt, (xdrproc_t)xdr_my_xfr, &result);
 
 	close(fp);
 

@@ -93,7 +93,7 @@ _des_crypt_call(buf, len, dparms)
 		bcopy(result_1->des_ivec, dparms->des_ivec, 8);
 	}
 
-	clnt_freeres(clnt, xdr_desresp, (char *)result_1);
+	clnt_freeres(clnt, (xdrproc_t)xdr_desresp, result_1);
 	clnt_destroy(clnt);
 
 	return(stat);

@@ -114,7 +114,7 @@ rquota_service(struct svc_req *request, SVCXPRT *transp)
 {
 	switch (request->rq_proc) {
 	case NULLPROC:
-		(void)svc_sendreply(transp, xdr_void, (char *)NULL);
+		(void)svc_sendreply(transp, (xdrproc_t)xdr_void, (char *)NULL);
 		break;
 
 	case RQUOTAPROC_GETQUOTA:
@@ -140,7 +140,7 @@ sendquota(struct svc_req *request, SVCXPRT *transp)
 	struct timeval timev;
 
 	bzero((char *)&getq_args, sizeof(getq_args));
-	if (!svc_getargs(transp, xdr_getquota_args, (caddr_t)&getq_args)) {
+	if (!svc_getargs(transp, (xdrproc_t)xdr_getquota_args, &getq_args)) {
 		svcerr_decode(transp);
 		return;
 	}
@@ -172,10 +172,10 @@ sendquota(struct svc_req *request, SVCXPRT *transp)
 		getq_rslt.getquota_rslt_u.gqr_rquota.rq_ftimeleft =
 		    dqblk.dqb_itime - timev.tv_sec;
 	}
-	if (!svc_sendreply(transp, xdr_getquota_rslt, (char *)&getq_rslt)) {
+	if (!svc_sendreply(transp, (xdrproc_t)xdr_getquota_rslt, &getq_rslt)) {
 		svcerr_systemerr(transp);
 	}
-	if (!svc_freeargs(transp, xdr_getquota_args, (caddr_t)&getq_args)) {
+	if (!svc_freeargs(transp, (xdrproc_t)xdr_getquota_args, &getq_args)) {
 		syslog(LOG_ERR, "unable to free arguments");
 		exit(1);
 	}
@@ -273,7 +273,7 @@ getfsquota(long id, char   *path, struct dqblk *dqblk)
                          * Convert implicit 0 quota (EOF)
                          * into an explicit one (zero'ed dqblk)
                          */
-			bzero((caddr_t) dqblk, sizeof(struct dqblk));
+			bzero(dqblk, sizeof(struct dqblk));
 			ret = 1;
 			break;
 		case sizeof(struct dqblk):	/* OK */

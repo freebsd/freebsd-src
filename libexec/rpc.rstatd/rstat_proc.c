@@ -438,7 +438,7 @@ rstat_service(struct svc_req *rqstp, SVCXPRT *transp)
 
 	switch (rqstp->rq_proc) {
 	case NULLPROC:
-		(void)svc_sendreply(transp, xdr_void, (char *)NULL);
+		(void)svc_sendreply(transp, (xdrproc_t)xdr_void, NULL);
 		goto leave;
 
 	case RSTATPROC_STATS:
@@ -486,15 +486,16 @@ rstat_service(struct svc_req *rqstp, SVCXPRT *transp)
 		goto leave;
 	}
 	bzero((char *)&argument, sizeof(argument));
-	if (!svc_getargs(transp, xdr_argument, (caddr_t)&argument)) {
+	if (!svc_getargs(transp, (xdrproc_t)xdr_argument, &argument)) {
 		svcerr_decode(transp);
 		goto leave;
 	}
 	result = (*local)(&argument, rqstp);
-	if (result != NULL && !svc_sendreply(transp, xdr_result, result)) {
+	if (result != NULL &&
+	    !svc_sendreply(transp, (xdrproc_t)xdr_result, result)) {
 		svcerr_systemerr(transp);
 	}
-	if (!svc_freeargs(transp, xdr_argument, (caddr_t)&argument))
+	if (!svc_freeargs(transp, (xdrproc_t)xdr_argument, &argument))
 		errx(1, "unable to free arguments");
 leave:
         if (from_inetd)

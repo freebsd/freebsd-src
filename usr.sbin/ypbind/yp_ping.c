@@ -147,8 +147,10 @@ __pmap_getport(struct sockaddr_in *address, u_long program, u_long version,
 		parms.pm_vers = version;
 		parms.pm_prot = protocol;
 		parms.pm_port = 0;  /* not needed or used */
-		if (CLNT_CALL(client, PMAPPROC_GETPORT, xdr_pmap, &parms,
-		    xdr_u_short, &port, tottimeout) != RPC_SUCCESS){
+		if (CLNT_CALL(client, PMAPPROC_GETPORT,
+			(xdrproc_t)xdr_pmap, &parms,
+			(xdrproc_t)xdr_u_short, &port,
+			tottimeout) != RPC_SUCCESS){
 			rpc_createerr.cf_stat = RPC_PMAPFAILURE;
 			clnt_geterr(client, &rpc_createerr.cf_error);
 		} else if (port == 0) {

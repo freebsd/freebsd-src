@@ -360,7 +360,7 @@ bool_t
 svc_sendreply(xprt, xdr_results, xdr_location)
 	SVCXPRT *xprt;
 	xdrproc_t xdr_results;
-	caddr_t xdr_location;
+	void * xdr_location;
 {
 	struct rpc_msg rply; 
 
@@ -443,7 +443,7 @@ __svc_versquiet_on(xprt)
 	u_long	tmp;
 
 	tmp = ((u_long) xprt->xp_p3) | SVC_VERSQUIET;
-	xprt->xp_p3 = (caddr_t) tmp;
+	xprt->xp_p3 = tmp;
 }
 
 void
@@ -453,7 +453,7 @@ __svc_versquiet_off(xprt)
 	u_long	tmp;
 
 	tmp = ((u_long) xprt->xp_p3) & ~SVC_VERSQUIET;
-	xprt->xp_p3 = (caddr_t) tmp;
+	xprt->xp_p3 = tmp;
 }
 
 void

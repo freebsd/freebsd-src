@@ -78,7 +78,7 @@ static const char xdr_zero[BYTES_PER_XDR_UNIT] = { 0, 0, 0, 0 };
 void
 xdr_free(proc, objp)
 	xdrproc_t proc;
-	char *objp;
+	void *objp;
 {
 	XDR x;
 	
@@ -90,9 +90,7 @@ xdr_free(proc, objp)
  * XDR nothing
  */
 bool_t
-xdr_void(/* xdrs, addr */)
-	/* XDR *xdrs; */
-	/* caddr_t addr; */
+xdr_void(void)
 {
 
 	return (TRUE);
