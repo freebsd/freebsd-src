@@ -68,6 +68,7 @@ struct nwfs_args {
 	mode_t 		file_mode;
 	mode_t 		dir_mode;
 	struct ncp_nlstables nls;
+	int		tz;
 };
 
 #ifdef _KERNEL
