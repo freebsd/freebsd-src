@@ -1,7 +1,3 @@
-#include "opt_geom.h"
-#ifndef NO_GEOM
-#warning "The mcd driver is currently not compatible with GEOM"
-#else
 /*
  * Copyright 1993 by Holger Veit (data part)
  * Copyright 1993 by Brian Moore (audio part)
@@ -55,7 +51,7 @@ static const char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 #include <sys/fcntl.h>
 #include <sys/bio.h>
 #include <sys/cdio.h>
-#include <sys/disklabel.h>
+#include <sys/disk.h>
 #include <sys/bus.h>
 
 #include <machine/bus_pio.h>
@@ -77,9 +73,6 @@ static const char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 	}								\
 }
 
-#define mcd_part(dev)	((minor(dev)) & 7)
-#define mcd_unit(dev)	(((minor(dev)) & 0x38) >> 3)
-#define mcd_phys(dev)	(((minor(dev)) & 0x40) >> 6)
 #define RAW_PART        2
 
 /* flags */
@@ -123,7 +116,6 @@ static const char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
 /* prototypes */
 static void	mcd_start(struct mcd_softc *);
-static int	mcd_getdisklabel(struct mcd_softc *);
 #ifdef NOTYET
 static void	mcd_configure(struct mcd_softc *sc);
 #endif
@@ -217,13 +209,10 @@ mcd_attach(struct mcd_softc *sc)
 	mcd_configure(sc);
 #endif
 	/* name filled in probe */
-	sc->mcd_dev_t[0] = make_dev(&mcd_cdevsw, 0,
+	sc->mcd_dev_t = make_dev(&mcd_cdevsw, 8 * unit,
 				 UID_ROOT, GID_OPERATOR, 0640, "mcd%d", unit);
-	sc->mcd_dev_t[1] = make_dev_alias(sc->mcd_dev_t[0], "mcd%da", unit);
-	sc->mcd_dev_t[2] = make_dev_alias(sc->mcd_dev_t[0], "mcd%dc", unit);
 
-	sc->mcd_dev_t[0]->si_drv1 = sc->mcd_dev_t[1]->si_drv1 = 
-		sc->mcd_dev_t[2]->si_drv1 = (void *)sc;
+	sc->mcd_dev_t->si_drv1 = (void *)sc;
 
 	return 0;
 }
@@ -233,12 +222,10 @@ mcdopen(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	struct mcd_softc *sc;
 	struct mcd_data *cd;
-	int part,phys,r,retry;
+	int r,retry;
 
 	sc = (struct mcd_softc *)dev->si_drv1;
 	cd = &sc->data;
-	part = mcd_part(dev);
-	phys = mcd_phys(dev);
 
 	/* not initialized*/
 	if (!(cd->flags & MCDINIT))
@@ -261,16 +248,6 @@ mcdopen(dev_t dev, int flags, int fmt, struct thread *td)
 				break;
 		}
 
-	if ((   (cd->status & (MCDDOOROPEN|MCDDSKCHNG))
-	     || !(cd->status & MCDDSKIN)
-	    )
-	    && major(dev) == CDEV_MAJOR && part == RAW_PART
-	   ) {
-		cd->openflags |= (1<<part);
-		if (phys)
-			cd->partflags[part] |= MCDREADRAW;
-		return 0;
-	}
 	if (cd->status & MCDDOOROPEN) {
 		device_printf(sc->dev, "door is open\n");
 		return ENXIO;
@@ -285,38 +262,21 @@ mcdopen(dev_t dev, int flags, int fmt, struct thread *td)
 	}
 
 	if (mcdsize(dev) < 0) {
-		if (major(dev) == CDEV_MAJOR && part == RAW_PART) {
-			cd->openflags |= (1<<part);
-			if (phys)
-				cd->partflags[part] |= MCDREADRAW;
-			return 0;
-		}
 		device_printf(sc->dev, "failed to get disk size\n");
 		return ENXIO;
-	} else
-		cd->flags |= MCDVALID;
-
-	/* XXX get a default disklabel */
-	mcd_getdisklabel(sc);
-
-MCD_TRACE("open: partition=%d, disksize = %ld, blksize=%d\n",
-	part, cd->disksize, cd->blksize);
+	}
 
 	dev->si_bsize_phys = cd->blksize;
 
-	if (part == RAW_PART ||
-		(part < cd->dlabel.d_npartitions &&
-		cd->dlabel.d_partitions[part].p_fstype != FS_UNUSED)) {
-		cd->openflags |= (1<<part);
-		if (part == RAW_PART && phys)
-			cd->partflags[part] |= MCDREADRAW;
-		(void) mcd_lock_door(sc, MCD_LK_LOCK);
-		if (!(cd->flags & MCDVALID))
-			return ENXIO;
-		return 0;
-	}
+	cd->openflags = 1;
+	cd->partflags |= MCDREADRAW;
+	cd->flags |= MCDVALID;
 
-	return ENXIO;
+	(void) mcd_lock_door(sc, MCD_LK_LOCK);
+	if (!(cd->flags & MCDVALID))
+		return ENXIO;
+
+	return (mcd_read_toc(sc));
 }
 
 static int
@@ -324,20 +284,16 @@ mcdclose(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	struct mcd_softc *sc;
 	struct mcd_data *cd;
-	int part;
 
 	sc = (struct mcd_softc *)dev->si_drv1;
 	cd = &sc->data;
-	part = mcd_part(dev);
 
-	if (!(cd->flags & MCDINIT) || !(cd->openflags & (1<<part)))
+	if (!(cd->flags & MCDINIT) || !cd->openflags)
 		return ENXIO;
 
-	MCD_TRACE("close: partition=%d\n", part);
-
 	(void) mcd_lock_door(sc, MCD_LK_UNLOCK);
-	cd->openflags &= ~(1<<part);
-	cd->partflags[part] &= ~MCDREADRAW;
+	cd->openflags = 0;
+	cd->partflags &= ~MCDREADRAW;
 
 	return 0;
 }
@@ -349,18 +305,16 @@ mcdstrategy(struct bio *bp)
 	struct mcd_data *cd;
 	int s;
 
-	int unit = mcd_unit(bp->bio_dev);
-
 	sc = (struct mcd_softc *)bp->bio_dev->si_drv1;
 	cd = &sc->data;
 
 	/* test validity */
 /*MCD_TRACE("strategy: buf=0x%lx, unit=%ld, block#=%ld bcount=%ld\n",
 	bp,unit,bp->bio_blkno,bp->bio_bcount);*/
+
 	if (bp->bio_blkno < 0) {
-		printf("mcdstrategy: unit = %d, blkno = %ld, bcount = %ld\n",
-			unit, (long)bp->bio_blkno, bp->bio_bcount);
-		printf("mcd: mcdstratregy failure");
+		device_printf(sc->dev, "strategy failure: blkno = %ld, bcount = %ld\n",
+			(long)bp->bio_blkno, bp->bio_bcount);
 		bp->bio_error = EINVAL;
 		bp->bio_flags |= BIO_ERROR;
 		goto bad;
@@ -368,7 +322,7 @@ mcdstrategy(struct bio *bp)
 
 	/* if device invalidated (e.g. media change, door open), error */
 	if (!(cd->flags & MCDVALID)) {
-MCD_TRACE("strategy: drive not valid\n");
+		device_printf(sc->dev, "media changed\n");
 		bp->bio_error = EIO;
 		goto bad;
 	}
@@ -383,20 +337,13 @@ MCD_TRACE("strategy: drive not valid\n");
 	if (bp->bio_bcount == 0)
 		goto done;
 
-	/* for non raw access, check partition limits */
-	if (mcd_part(bp->bio_dev) != RAW_PART) {
-		if (!(cd->flags & MCDLABEL)) {
-			bp->bio_error = EIO;
-			goto bad;
-		}
-		/* adjust transfer if necessary */
-		if (bounds_check_with_label(bp,&cd->dlabel,1) <= 0) {
-			goto done;
-		}
-	} else {
-		bp->bio_pblkno = bp->bio_blkno;
-		bp->bio_resid = 0;
+	if (!(cd->flags & MCDTOC)) {
+		bp->bio_error = EIO;
+		goto bad;
 	}
+
+	bp->bio_pblkno = bp->bio_blkno;
+	bp->bio_resid = 0;
 
 	/* queue it */
 	s = splbio();
@@ -419,7 +366,6 @@ static void
 mcd_start(struct mcd_softc *sc)
 {
 	struct mcd_data *cd = &sc->data;
-	struct partition *p;
 	struct bio *bp;
 	int s = splbio();
 
@@ -433,6 +379,7 @@ mcd_start(struct mcd_softc *sc)
 		/* block found to process, dequeue */
 		/*MCD_TRACE("mcd_start: found block bp=0x%x\n",bp,0,0,0);*/
 		bioq_remove(&cd->head, bp);
+		cd->flags |= MCDMBXBSY;
 		splx(s);
 	} else {
 		/* nothing to do */
@@ -440,25 +387,10 @@ mcd_start(struct mcd_softc *sc)
 		return;
 	}
 
-	/* changed media? */
-	if (!(cd->flags	& MCDVALID)) {
-		MCD_TRACE("mcd_start: drive not valid\n");
-		return;
-	}
-
-	p = cd->dlabel.d_partitions + mcd_part(bp->bio_dev);
-
-	cd->flags |= MCDMBXBSY;
-	if (cd->partflags[mcd_part(bp->bio_dev)] & MCDREADRAW)
-		cd->flags |= MCDREADRAW;
-	cd->mbx.unit = device_get_unit(sc->dev);
 	cd->mbx.retry = MCD_RETRYS;
 	cd->mbx.bp = bp;
-	cd->mbx.p_offset = p->p_offset;
 
-	/* calling the read routine */
 	mcd_doread(sc, MCD_S_BEGIN,&(cd->mbx));
-	/* triggers mcd_start, when successful finished */
 	return;
 }
 
@@ -467,10 +399,8 @@ mcdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 {
 	struct mcd_softc *sc;
 	struct mcd_data *cd;
-	int unit,part,retry,r;
+	int retry,r;
 
-	unit = mcd_unit(dev);
-	part = mcd_part(dev);
 	sc = (struct mcd_softc *)dev->si_drv1;
 	cd = &sc->data;
 
@@ -507,11 +437,6 @@ MCD_TRACE("ioctl called 0x%lx\n", cmd);
 	}
 
 	if (!(cd->flags & MCDVALID)) {
-		if (   major(dev) != CDEV_MAJOR
-		    || part != RAW_PART
-		    || !(cd->openflags & (1<<RAW_PART))
-		   )
-			return ENXIO;
 		if (    (cd->status & (MCDDSKCHNG|MCDDOOROPEN))
 		    || !(cd->status & MCDDSKIN))
 			for (retry = 0; retry < DISK_SENSE_SECS * WAIT_FRAC; retry++) {
@@ -527,33 +452,22 @@ MCD_TRACE("ioctl called 0x%lx\n", cmd);
 		   )
 			return ENXIO;
 		cd->flags |= MCDVALID;
-		mcd_getdisklabel(sc);
-		if (mcd_phys(dev))
-			cd->partflags[part] |= MCDREADRAW;
+		cd->partflags |= MCDREADRAW;
 		(void) mcd_lock_door(sc, MCD_LK_LOCK);
 		if (!(cd->flags & MCDVALID))
 			return ENXIO;
 	}
 
 	switch (cmd) {
-	case DIOCGDINFO:
-		*(struct disklabel *) addr = cd->dlabel;
-		return 0;
-		/*
-		 * a bit silly, but someone might want to test something on a
-		 * section of cdrom.
-		 */
-	case DIOCWDINFO:
-	case DIOCSDINFO:
-		if ((flags & FWRITE) == 0)
-			return EBADF;
-		else {
-			return setdisklabel(&cd->dlabel,
-			    (struct disklabel *) addr,
-			    0);
-		}
-	case DIOCWLABEL:
-		return EBADF;
+	case DIOCGMEDIASIZE:
+		*(off_t *)addr = (off_t)cd->disksize * cd->blksize;
+		return (0);
+		break;
+	case DIOCGSECTORSIZE:
+		*(u_int *)addr = cd->blksize;
+		return (0);
+		break;
+
 	case CDIOCPLAYTRACKS:
 		return mcd_playtracks(sc, (struct ioc_play_track *) addr);
 	case CDIOCPLAYBLOCKS:
@@ -582,55 +496,13 @@ MCD_TRACE("ioctl called 0x%lx\n", cmd);
 	/*NOTREACHED*/
 }
 
-/* this could have been taken from scsi/cd.c, but it is not clear
- * whether the scsi cd driver is linked in
- */
-static int
-mcd_getdisklabel(struct mcd_softc *sc)
-{
-	struct mcd_data *cd = &sc->data;
-
-	if (cd->flags & MCDLABEL)
-		return -1;
-
-	bzero(&cd->dlabel,sizeof(struct disklabel));
-	/* filled with spaces first */
-	strncpy(cd->dlabel.d_typename,"               ",
-		sizeof(cd->dlabel.d_typename));
-	strncpy(cd->dlabel.d_typename, cd->name,
-		min(strlen(cd->name), sizeof(cd->dlabel.d_typename) - 1));
-	strncpy(cd->dlabel.d_packname,"unknown        ",
-		sizeof(cd->dlabel.d_packname));
-	cd->dlabel.d_secsize 	= cd->blksize;
-	cd->dlabel.d_nsectors	= 100;
-	cd->dlabel.d_ntracks	= 1;
-	cd->dlabel.d_ncylinders	= (cd->disksize/100)+1;
-	cd->dlabel.d_secpercyl	= 100;
-	cd->dlabel.d_secperunit	= cd->disksize;
-	cd->dlabel.d_rpm	= 300;
-	cd->dlabel.d_interleave	= 1;
-	cd->dlabel.d_flags	= D_REMOVABLE;
-	cd->dlabel.d_npartitions= 1;
-	cd->dlabel.d_partitions[0].p_offset = 0;
-	cd->dlabel.d_partitions[0].p_size = cd->disksize;
-	cd->dlabel.d_partitions[0].p_fstype = 9;
-	cd->dlabel.d_magic	= DISKMAGIC;
-	cd->dlabel.d_magic2	= DISKMAGIC;
-	cd->dlabel.d_checksum	= dkcksum(&cd->dlabel);
-
-	cd->flags |= MCDLABEL;
-	return 0;
-}
-
 static int
 mcdsize(dev_t dev)
 {
 	struct mcd_softc *sc;
 	struct mcd_data *cd;
 	int size;
-	int unit;
 
-	unit = mcd_unit(dev);
 	sc = (struct mcd_softc *)dev->si_drv1;
 	cd = &sc->data;
 
@@ -1046,7 +918,7 @@ modedone:
 
 nextblock:
 		blknum 	= (bp->bio_blkno / (mbx->sz/DEV_BSIZE))
-			+ mbx->p_offset + mbx->skip/mbx->sz;
+			+ mbx->skip/mbx->sz;
 
 		MCD_TRACE("mcd_doread: read blknum=%d for bp=%p\n",
 			blknum, bp);
@@ -1245,11 +1117,10 @@ static void
 mcd_soft_reset(struct mcd_softc *sc)
 {
 	struct mcd_data *cd = &sc->data;
-	int i;
 
 	cd->flags &= (MCDINIT|MCDPROBING|MCDNEWMODEL);
 	cd->curr_mode = MCD_MD_UNKNOWN;
-	for (i=0; i<MAXPARTITIONS; i++) cd->partflags[i] = 0;
+	cd->partflags = 0;
 	cd->audio_status = CD_AS_AUDIO_INVALID;
 }
 
@@ -1786,4 +1657,3 @@ mcd_resume(struct mcd_softc *sc)
 		return EINVAL;
 	return mcd_play(sc, &cd->lastpb);
 }
-#endif /* GEOM */
