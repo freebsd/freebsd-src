@@ -24,7 +24,7 @@ ldconfig_start()
 		ldconfig=${ldconfig_command}
 		checkyesno ldconfig_insecure && _ins="-i"
 		if [ -x "${ldconfig_command}" ]; then
-			_LDC=/usr/lib
+			_LDC="/lib /usr/lib"
 			for i in ${ldconfig_paths} /etc/ld-elf.so.conf; do
 				if [ -r "${i}" ]; then
 					_LDC="${_LDC} ${i}"
