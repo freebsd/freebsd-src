@@ -87,7 +87,6 @@ int		 fetchStatFile(struct url *, struct url_stat *, char *);
 struct url_ent	*fetchListFile(struct url *, char *);
 
 /* HTTP-specific functions */
-char		*fetchContentType(FILE *);
 FILE		*fetchGetHTTP(struct url *, char *);
 FILE		*fetchPutHTTP(struct url *, char *);
 int		 fetchStatHTTP(struct url *, struct url_stat *, char *);
