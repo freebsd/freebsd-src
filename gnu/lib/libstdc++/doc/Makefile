@@ -1,19 +1,13 @@
 # $Id: Makefile,v 1.7 1997/12/17 19:57:35 bde Exp $
 
-.include "../Makefile.inc"
+EGCSDIR= ${.CURDIR}/../../../../contrib/egcs
 
-.PATH: ${GCCDIR}/cp ${GCCDIR}
+.PATH: ${EGCSDIR}/libio
 
-INFO = gcc cpp gxxint
+INFO = iostream
 
-INFOSECTION=    "Gcc Documentation"
-INFOENTRY_gcc=  "* gcc: (gcc).			The EGCS GNU C compiler."
-INFOENTRY_cpp=  "* cpp: (cpp).			The EGCS GNU C pre-processor."
-INFOENTRY_gxxint= "* gxxint: (gxxint).		The EGCS GNU compiler family internal documentation."
+INFOENTRY_iostream= "* iostream: (iostream).	The EGCS GNU C++ I/O library."
 
-gcc.info: gcc.texi invoke.texi install.texi extend.texi gcov.texi rtl.texi \
-	  md.texi tm.texi
-
-MAKEINFOFLAGS+= -I ${GCCDIR} -I ${GCCDIR}/cp
+MAKEINFOFLAGS+= -I ${EGCSDIR}/libio 
 
 .include <bsd.info.mk>
