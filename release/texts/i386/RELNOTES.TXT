@@ -68,6 +68,12 @@ groff(1) and its related utilities have been updated to FSF version
 1.17.  This import brings in a new mdoc(7) macro package, which
 removes many of the limitations of its predecessor.
 
+ln(1) now takes a -h option to avoid following a target that is a
+link, with a -n option for compatability with other implementations.
+
+find(1) now has the -anewer, -cnewer, -mnewer, -okdir, and
+-newer[acm][acmt] primaries for comparisons of file timestamps.
+
 
 2. Supported Configurations
 ---------------------------
