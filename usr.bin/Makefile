@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.3 (Berkeley) 1/7/94
-#	$Id: Makefile,v 1.108 1998/08/30 02:48:12 jb Exp $
+#	$Id: Makefile,v 1.109 1998/08/30 20:28:50 gpalmer Exp $
 
 # XXX MISSING:		deroff diction graph learn plot
 #			spell spline struct xsend
@@ -219,11 +219,6 @@ SUBDIR+=ar \
 .if ${OBJFORMAT} == aout
 SUBDIR+=doscmd
 .endif
-.endif
-
-.if !defined(NOTCL) && exists (${.CURDIR}/../contrib/tcl) && \
-	exists(${.CURDIR}/tclsh) && exists (${.CURDIR}/../lib/libtcl)
-SUBDIR+=tclsh
 .endif
 
 .include <bsd.subdir.mk>

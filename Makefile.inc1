@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc1,v 1.5 1998/09/03 21:34:31 jb Exp $
+#	$Id: Makefile.inc1,v 1.6 1998/09/05 11:37:14 jb Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -577,10 +577,6 @@ includes:
 	cd ${.CURDIR}/lib/libpcap;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/librpcsvc;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libskey;		${MAKE} beforeinstall
-.if !defined(NOTCL) && exists (${.CURDIR}/contrib/tcl) && \
-	exists(${.CURDIR}/usr.bin/tclsh) && exists (${.CURDIR}/lib/libtcl)
-	cd ${.CURDIR}/lib/libtcl;		${MAKE} installhdrs
-.endif
 	cd ${.CURDIR}/lib/libtermcap;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libcom_err;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libss;		${MAKE} -B hdrs beforeinstall
@@ -643,7 +639,6 @@ lib-tools:
 #
 # libcom_err must be built before libss.
 # libcrypt and libmd must be built before libskey.
-# libm must be built before libtcl.
 # libmytinfo must be built before libdialog and libncurses.
 # libncurses must be built before libdialog.
 # libtermcap must be built before libcurses, libedit and libreadline.
