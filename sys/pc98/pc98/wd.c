@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.40 1998/01/18 15:10:03 kato Exp $
+ *	$Id: wd.c,v 1.41 1998/01/24 02:54:43 eivind Exp $
  */
 
 /* TODO:
@@ -2694,6 +2694,8 @@ static void 	wd_drvinit(void *unused)
 {
 
 	if( ! wd_devsw_installed ) {
+		if (wd_bdevsw.d_maxio == 0)
+			wd_bdevsw.d_maxio = 248 * 512;
 		bdevsw_add_generic(BDEV_MAJOR,CDEV_MAJOR, &wd_bdevsw);
 		wd_devsw_installed = 1;
     	}
