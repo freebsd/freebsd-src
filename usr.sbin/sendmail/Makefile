@@ -44,6 +44,12 @@ LIBSMUTIL:=	${LIBSMUTILDIR}/libsmutil.a
 DPADD+=	${LIBSMUTIL}
 LDADD+=	${LIBSMUTIL}
 
+# User customizations to the sendmail build environment
+CFLAGS+=${SENDMAIL_CFLAGS}
+LDFLAGS+=${SENDMAIL_LDFLAGS}
+LDADD+=${SENDMAIL_LDADD}
+DPADD+=${SENDMAIL_DPADD}
+
 beforeinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 /dev/null \
 	    ${DESTDIR}/var/log/sendmail.st
