@@ -793,8 +793,8 @@ const struct puc_device_description puc_devices[] = {
 	 */
 	{   "Titan VScom PCI-800L",
 	    NULL,
-	    {   0x14d2, 0x8080, 0x14d2, 0x8080  },
-	    {   0xffff, 0xffff, 0xffff, 0xffff  },
+	    {	0x14d2,	0x8080,	0,	0	},
+	    {	0xffff,	0xffff,	0,	0	},
 	    {
 		{ PUC_PORT_TYPE_COM, 0x14, 0x00, COM_FREQ * 8 },
 		{ PUC_PORT_TYPE_COM, 0x18, 0x00, COM_FREQ * 8 },
