@@ -69,8 +69,6 @@
 
 #include <machine/stdarg.h>
 
-#include <netinet/in.h>
-#include <netinet/in_systm.h>
 #include <netinet/in_var.h>
 
 #ifdef INET
