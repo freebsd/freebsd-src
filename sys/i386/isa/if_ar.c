@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_ar.c,v 1.15 1997/05/19 22:02:47 joerg Exp $
+ * $Id: if_ar.c,v 1.16 1997/09/02 01:18:04 bde Exp $
  */
 
 /*
@@ -72,6 +72,12 @@
 #include <i386/isa/ic/hd64570.h>
 
 #include "ioconf.h"
+
+#include "sppp.h"
+#if NSPPP <= 0
+#error device 'ar' require sppp.
+#endif
+
 
 #ifdef TRACE
 #define TRC(x)               x

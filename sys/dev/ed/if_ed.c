@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.128 1997/11/07 08:52:33 phk Exp $
+ *	$Id: if_ed.c,v 1.129 1997/11/20 15:48:27 nate Exp $
  */
 
 /*
@@ -39,6 +39,7 @@
 
 #include "ed.h"
 #include "bpfilter.h"
+#include "opt_inet.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -49,13 +50,14 @@
 #include <sys/socket.h>
 #include <sys/syslog.h>
 
+#include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_arp.h>
 #include <net/if_dl.h>
 #include <net/if_mib.h>
 
 #ifdef INET
 #include <netinet/in.h>
-#include <netinet/if_ether.h>
 #endif
 
 #ifdef NS

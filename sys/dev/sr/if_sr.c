@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_sr.c,v 1.8 1997/07/20 14:10:01 bde Exp $
+ * $Id: if_sr.c,v 1.9 1997/09/02 01:18:16 bde Exp $
  */
 
 /*
@@ -54,6 +54,11 @@
 #define NFR	0
 #endif
 #include "bpfilter.h"
+
+#include "sppp.h"
+#if NSPPP <= 0
+#error Device 'sr' requires sppp.
+#endif
 
 #include <sys/param.h>
 #include <sys/systm.h>

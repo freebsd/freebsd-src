@@ -36,6 +36,8 @@
  * IP <=> ATM address resolution.
  */
 
+#include "opt_inet.h"
+
 #ifdef INET
 
 #include <sys/param.h>

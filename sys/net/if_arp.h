@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_arp.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: if_arp.h,v 1.8 1997/02/22 09:40:59 peter Exp $
  */
 
 #ifndef _NET_IF_ARP_H_
@@ -87,5 +87,23 @@ struct arpreq {
 #define	ATF_PERM	0x04	/* permanent entry */
 #define	ATF_PUBL	0x08	/* publish entry (respond for other host) */
 #define	ATF_USETRAILERS	0x10	/* has requested trailers */
+
+/*
+ * Structure shared between the ethernet driver modules and
+ * the address resolution code.  For example, each ec_softc or il_softc
+ * begins with this structure.
+ */
+struct	arpcom {
+	/*
+	 * The ifnet struct _must_ be at the head of this structure.
+	 */
+	struct 	ifnet ac_if;		/* network-visible interface */
+	u_char	ac_enaddr[ETHER_ADDR_LEN];		/* ethernet hardware address */
+	int	ac_multicnt;		/* length of ac_multiaddrs list */
+};
+
+#ifdef KERNEL
+extern u_char	etherbroadcastaddr[ETHER_ADDR_LEN];
+#endif
 
 #endif /* !_NET_IF_ARP_H_ */

@@ -6,7 +6,7 @@
  *
  * Questions, comments, bug reports and fixes to kimmel@cs.umass.edu.
  *
- * $Id: if_el.c,v 1.31 1997/07/20 14:09:57 bde Exp $
+ * $Id: if_el.c,v 1.32 1997/12/15 20:30:40 eivind Exp $
  */
 /* Except of course for the portions of code lifted from other FreeBSD
  * drivers (mainly elread, elget and el_ioctl)
@@ -21,6 +21,7 @@
  */
 #include "el.h"
 #include "bpfilter.h"
+#include "opt_inet.h"
 #include "opt_ipx.h"
 
 #include <sys/param.h>
@@ -31,7 +32,9 @@
 #include <sys/socket.h>
 #include <sys/syslog.h>
 
+#include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_arp.h>
 
 #ifdef INET
 #include <netinet/in.h>
