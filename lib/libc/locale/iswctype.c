@@ -49,7 +49,7 @@ int
 iswalnum(wc)
 	wint_t wc;
 {
-	return (__istype((wc), _CTYPE_A|_CTYPE_D));
+	return (__istype(wc, _CTYPE_A|_CTYPE_D));
 }
 
 #undef iswalpha
@@ -57,7 +57,7 @@ int
 iswalpha(wc)
 	wint_t wc;
 {
-	return (__istype((wc), _CTYPE_A));
+	return (__istype(wc, _CTYPE_A));
 }
 
 #undef iswascii
@@ -65,7 +65,7 @@ int
 iswascii(wc)
 	wint_t wc;
 {
-	return (((wc) & ~0x7F) == 0);
+	return ((wc & ~0x7F) == 0);
 }
 
 #undef iswblank
@@ -73,7 +73,7 @@ int
 iswblank(wc)
 	wint_t wc;
 {
-	return (__istype((wc), _CTYPE_B));
+	return (__istype(wc, _CTYPE_B));
 }
 
 #undef iswcntrl
@@ -81,7 +81,7 @@ int
 iswcntrl(wc)
 	wint_t wc;
 {
-	return (__istype((wc), _CTYPE_C));
+	return (__istype(wc, _CTYPE_C));
 }
 
 #undef iswdigit
@@ -89,7 +89,7 @@ int
 iswdigit(wc)
 	wint_t wc;
 {
-	return (__isctype((wc), _CTYPE_D));
+	return (__isctype(wc, _CTYPE_D));
 }
 
 #undef iswgraph
@@ -97,7 +97,7 @@ int
 iswgraph(wc)
 	wint_t wc;
 {
-	return (__istype((wc), _CTYPE_G));
+	return (__istype(wc, _CTYPE_G));
 }
 
 #undef iswhexnumber 
@@ -105,7 +105,7 @@ int
 iswhexnumber(wc)
 	wint_t wc;
 {
-	return (__istype((wc), _CTYPE_X));
+	return (__istype(wc, _CTYPE_X));
 }
 
 #undef iswideogram
@@ -113,7 +113,7 @@ int
 iswideogram(wc)
 	wint_t wc;
 {
-	return (__istype((wc), _CTYPE_I));
+	return (__istype(wc, _CTYPE_I));
 }
 
 #undef iswlower
@@ -121,7 +121,7 @@ int
 iswlower(wc)
 	wint_t wc;
 {
-	return (__istype((wc), _CTYPE_L));
+	return (__istype(wc, _CTYPE_L));
 }
 
 #undef iswnumber
@@ -129,7 +129,7 @@ int
 iswnumber(wc)
 	wint_t wc;
 {
-	return (__istype((wc), _CTYPE_D));
+	return (__istype(wc, _CTYPE_D));
 }
 
 #undef iswphonogram	
@@ -137,7 +137,7 @@ int
 iswphonogram(wc)
 	wint_t wc;
 {
-	return (__istype((wc), _CTYPE_Q));
+	return (__istype(wc, _CTYPE_Q));
 }
 
 #undef iswprint
@@ -145,7 +145,7 @@ int
 iswprint(wc)
 	wint_t wc;
 {
-	return (__istype((wc), _CTYPE_R));
+	return (__istype(wc, _CTYPE_R));
 }
 
 #undef iswpunct
@@ -153,7 +153,7 @@ int
 iswpunct(wc)
 	wint_t wc;
 {
-	return (__istype((wc), _CTYPE_P));
+	return (__istype(wc, _CTYPE_P));
 }
 
 #undef iswrune
@@ -161,7 +161,7 @@ int
 iswrune(wc)
 	wint_t wc;
 {
-	return (__istype((wc), 0xFFFFFF00L));
+	return (__istype(wc, 0xFFFFFF00L));
 }
 
 #undef iswspace
@@ -169,7 +169,7 @@ int
 iswspace(wc)
 	wint_t wc;
 {
-	return (__istype((wc), _CTYPE_S));
+	return (__istype(wc, _CTYPE_S));
 }
 
 #undef iswspecial
@@ -177,7 +177,7 @@ int
 iswspecial(wc)
 	wint_t wc;
 {
-	return (__istype((wc), _CTYPE_T));
+	return (__istype(wc, _CTYPE_T));
 }
 
 #undef iswupper
@@ -185,7 +185,7 @@ int
 iswupper(wc)
 	wint_t wc;
 {
-	return (__istype((wc), _CTYPE_U));
+	return (__istype(wc, _CTYPE_U));
 }
 
 #undef iswxdigit
@@ -193,7 +193,7 @@ int
 iswxdigit(wc)
 	wint_t wc;
 {
-	return (__isctype((wc), _CTYPE_X));
+	return (__isctype(wc, _CTYPE_X));
 }
 
 #undef towlower
@@ -212,7 +212,6 @@ towupper(wc)
         return (__toupper(wc));
 }
 
-#undef wcwidth
 int
 wcwidth(wc)
         wchar_t wc;
