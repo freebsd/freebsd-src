@@ -1058,9 +1058,6 @@ static void tl_softreset(sc, internal)
 	if (sc->tl_bitrate)
 		tl_dio_setbit16(sc, TL_NETCONFIG, TL_CFG_BITRATE);
 
-        /* Set PCI burst size */
-	tl_dio_write8(sc, TL_BSIZEREG, 0x33);
-
 	/*
 	 * Load adapter irq pacing timer and tx threshold.
 	 * We make the transmit threshold 1 initially but we may
@@ -1116,8 +1113,6 @@ static int tl_attach(dev)
 	struct tl_type		*t;
 	struct ifnet		*ifp;
 	struct tl_softc		*sc;
-	unsigned int		round;
-	caddr_t			roundptr;
 	int			unit, error = 0, rid;
 
 	s = splimp();
@@ -1229,21 +1224,12 @@ static int tl_attach(dev)
 	}
 
 	/*
-	 * Now allocate memory for the TX and RX lists. Note that
-	 * we actually allocate 8 bytes more than we really need:
-	 * this is because we need to adjust the final address to
-	 * be aligned on a quadword (64-bit) boundary in order to
-	 * make the chip happy. If the list structures aren't properly
-	 * aligned, DMA fails and the chip generates an adapter check
-	 * interrupt and has to be reset. If you set up the softc struct
-	 * just right you can sort of obtain proper alignment 'by chance.'
-	 * But I don't want to depend on this, so instead the alignment
-	 * is forced here.
+	 * Now allocate memory for the TX and RX lists.
 	 */
-	sc->tl_ldata_ptr = malloc(sizeof(struct tl_list_data) + 8,
-				M_DEVBUF, M_NOWAIT);
+	sc->tl_ldata = contigmalloc(sizeof(struct tl_list_data), M_DEVBUF,
+	    M_NOWAIT, 0x100000, 0xffffffff, PAGE_SIZE, 0);
 
-	if (sc->tl_ldata_ptr == NULL) {
+	if (sc->tl_ldata == NULL) {
 		bus_teardown_intr(dev, sc->tl_irq, sc->tl_intrhand);
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->tl_irq);
 		bus_release_resource(dev, TL_RES, TL_RID, sc->tl_res);
@@ -1251,23 +1237,6 @@ static int tl_attach(dev)
 		error = ENXIO;
 		goto fail;
 	}
-
-	/*
-	 * Convoluted but satisfies my ANSI sensibilities. GCC lets
-	 * you do casts on the LHS of an assignment, but ANSI doesn't
-	 * allow that.
-	 */
-	sc->tl_ldata = (struct tl_list_data *)sc->tl_ldata_ptr;
-	round = (uintptr_t)sc->tl_ldata_ptr & 0xF;
-	roundptr = sc->tl_ldata_ptr;
-	for (i = 0; i < 8; i++) {
-		if (round % 8) {
-			round++;
-			roundptr++;
-		} else
-			break;
-	}
-	sc->tl_ldata = (struct tl_list_data *)roundptr;
 
 	bzero(sc->tl_ldata, sizeof(struct tl_list_data));
 
@@ -1291,7 +1260,8 @@ static int tl_attach(dev)
 		bus_teardown_intr(dev, sc->tl_irq, sc->tl_intrhand);
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->tl_irq);
 		bus_release_resource(dev, TL_RES, TL_RID, sc->tl_res);
-		free(sc->tl_ldata_ptr, M_DEVBUF);
+		contigfree(sc->tl_ldata,
+		    sizeof(struct tl_list_data), M_DEVBUF);
 		printf("tl%d: failed to read station address\n", unit);
 		error = ENXIO;
 		goto fail;
@@ -1336,7 +1306,7 @@ static int tl_attach(dev)
 	ifp->if_watchdog = tl_watchdog;
 	ifp->if_init = tl_init;
 	ifp->if_mtu = ETHERMTU;
-	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
+	ifp->if_snd.ifq_maxlen = TL_TX_LIST_CNT - 1;
 	callout_handle_init(&sc->tl_stat_ch);
 
 	/* Reset the adapter again. */
@@ -1399,7 +1369,7 @@ static int tl_detach(dev)
 	bus_generic_detach(dev);
 	device_delete_child(dev, sc->tl_miibus);
 
-	free(sc->tl_ldata_ptr, M_DEVBUF);
+	contigfree(sc->tl_ldata, sizeof(struct tl_list_data), M_DEVBUF);
 	if (sc->tl_bitrate)
 		ifmedia_removeall(&sc->ifmedia);
 
@@ -1713,7 +1683,7 @@ static int tl_intvec_txeoc(xsc, type)
 		CMD_PUT(sc, TL_CMD_ACK | 0x00000001 | type);
 		/* Then load the address of the next TX list. */
 		CSR_WRITE_4(sc, TL_CH_PARM,
-				vtophys(sc->tl_cdata.tl_tx_head->tl_ptr));
+		    vtophys(sc->tl_cdata.tl_tx_head->tl_ptr));
 		/* Restart TX channel. */
 		cmd = CSR_READ_4(sc, TL_HOSTCMD);
 		cmd &= ~TL_CMD_RT;
@@ -1867,6 +1837,20 @@ static void tl_stats_update(xsc)
 	ifp->if_ierrors += tl_stats.tl_crc_errors + tl_stats.tl_code_errors +
 			    tl_rx_overrun(tl_stats);
 	ifp->if_oerrors += tl_tx_underrun(tl_stats);
+
+	if (tl_tx_underrun(tl_stats)) {
+		u_int8_t		tx_thresh;
+		tx_thresh = tl_dio_read8(sc, TL_ACOMMIT) & TL_AC_TXTHRESH;
+		if (tx_thresh != TL_AC_TXTHRESH_WHOLEPKT) {
+			tx_thresh >>= 4;
+			tx_thresh++;
+			printf("tl%d: tx underrun -- increasing "
+			    "tx threshold to %d bytes\n", sc->tl_unit,
+			    (64 * (tx_thresh * 4)));
+			tl_dio_clrbit(sc, TL_ACOMMIT, TL_AC_TXTHRESH);
+			tl_dio_setbit(sc, TL_ACOMMIT, tx_thresh << 4);
+		}
+	}
 
 	sc->tl_stat_ch = timeout(tl_stats_update, sc, hz);
 
@@ -2087,6 +2071,13 @@ static void tl_init(xsc)
 	 * Cancel pending I/O.
 	 */
 	tl_stop(sc);
+
+	/* Initialize TX FIFO threshold */
+	tl_dio_clrbit(sc, TL_ACOMMIT, TL_AC_TXTHRESH);
+	tl_dio_setbit(sc, TL_ACOMMIT, TL_AC_TXTHRESH_16LONG);
+
+        /* Set PCI burst size */
+	tl_dio_write8(sc, TL_BSIZEREG, TL_RXBURST_16LONG|TL_TXBURST_16LONG);
 
 	/*
 	 * Set 'capture all frames' bit for promiscuous mode.
