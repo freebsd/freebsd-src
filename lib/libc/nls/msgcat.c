@@ -75,6 +75,7 @@ catopen( name, type)
   int		spcleft;
   char		path[PATH_MAX];
   char		*nlspath, *lang, *base, *cptr, *pathP, *tmpptr;
+  char          *cptr1, *plang, *pter, *pcode;
   struct stat	sbuf;
 
   if (name == NULL || *name == '\0') {
@@ -91,35 +92,66 @@ catopen( name, type)
 	lang = getenv("LANG");
   if (lang == NULL || *lang == '\0' || strchr(lang, '/') != NULL)
 	lang = "C";
-  if ((nlspath = (char *) getenv("NLSPATH")) == NULL
+
+  if ((plang = cptr1 = strdup(lang)) == NULL)
+	return (NLERR);
+  if ((cptr = strchr(cptr1, '@')) != NULL)
+	*cptr = '\0';
+  pter = pcode = "";
+  if ((cptr = strchr(cptr1, '_')) != NULL) {
+	*cptr++ = '\0';
+	pter = cptr1 = cptr;
+  }
+  if ((cptr = strchr(cptr1, '.')) != NULL) {
+	*cptr++ = '\0';
+	pcode = cptr;
+  }
+
+  if ((nlspath = getenv("NLSPATH")) == NULL
 #ifndef __NETBSD_SYSCALLS
     || issetugid()
 #endif
     )
     nlspath = _DEFAULT_NLS_PATH;
 
-  base = cptr = malloc(strlen(nlspath)+1);
-  if (base == NULL) return(NLERR);
-  strcpy(cptr, nlspath);
+  if ((base = cptr = strdup(nlspath)) == NULL) {
+	free(plang);
+	return (NLERR);
+  }
 
-  while ((nlspath = strsep((char**)&cptr, ":")) != NULL) {
-	if (*nlspath != NULL) {
-		for (pathP = path; *nlspath; ++nlspath) {
+  while ((nlspath = strsep(&cptr, ":")) != NULL) {
+	pathP = path;
+	if (*nlspath) {
+		for ( ; *nlspath; ++nlspath) {
 	    	  if (*nlspath == '%') {
 			switch (*(nlspath + 1)) {
+			    case 'l':
+				tmpptr = plang;
+				break;
+			    case 't':
+				tmpptr = pter;
+				break;
+			    case 'c':
+				tmpptr = pcode;
+				break;
 			    case 'L':
 				tmpptr = lang;
 				break;
 			    case 'N':
 				tmpptr = (char*)name;
 				break;
+			    case '%':
+				++nlspath;
+				/* fallthrough */
 			    default:
 				*(pathP++) = *nlspath;
 				continue;
 			}
 			++nlspath;
+		put_tmpptr:
 	        	spcleft = sizeof(path) - (pathP - path) - 1;
 		    	if (strlcpy(pathP, tmpptr, spcleft) >= spcleft) {
+				free(plang);
 				free(base);
 				NLRETERR(ENAMETOOLONG);
 			}
@@ -129,12 +161,17 @@ catopen( name, type)
 		}
 		*pathP = '\0';
 		if (stat(path, &sbuf) == 0) {
+			free(plang);
 			free(base);
 			return loadCat(path);
 		}
-		nlspath = cptr+1;
+	} else {
+		tmpptr = (char*)name;
+		--nlspath;
+		goto put_tmpptr;
 	}
   }
+  free(plang);
   free(base);
   NLRETERR(ENOENT);
 }
