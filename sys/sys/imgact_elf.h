@@ -56,9 +56,9 @@ typedef struct {
 } Elf32_Auxargs;
 
 typedef struct {
-	char *brand;
-	char *emul_path;
-	char *interp_path;
+	int brand;
+	const char *emul_path;
+	const char *interp_path;
         struct sysentvec *sysvec;
 } Elf32_Brandinfo;
 

@@ -40,13 +40,6 @@ SECTION
 #define ARCH_SIZE 0
 #include "elf-bfd.h"
 
-#define EI_BRAND_OFFSET 8	/* should be in binutils/include/elf/common.h */
-#if defined(__FreeBSD__)
-#define BRANDING	"FreeBSD"
-#else
-#define BRANDING	""
-#endif
-
 static INLINE struct elf_segment_map *make_mapping
   PARAMS ((bfd *, asection **, unsigned int, unsigned int, boolean));
 static boolean map_sections_to_segments PARAMS ((bfd *));
@@ -2932,8 +2925,23 @@ prep_headers (abfd)
     bfd_big_endian (abfd) ? ELFDATA2MSB : ELFDATA2LSB;
   i_ehdrp->e_ident[EI_VERSION] = bed->s->ev_current;
 
+#ifdef __FreeBSD__
+  /* Quick and dirty hack to brand the file as a FreeBSD ELF file. */
+  i_ehdrp->e_ident[EI_OSABI] = ELFOSABI_FREEBSD;
+  i_ehdrp->e_ident[EI_ABIVERSION] = 0;
+#endif
+
   for (count = EI_PAD; count < EI_NIDENT; count++)
     i_ehdrp->e_ident[count] = 0;
+
+#ifdef __FreeBSD__
+/* #ifdef BRANDELF_CHANGE_BOOTSTRAP */
+#define _OLD_EI_BRAND_OFFSET 8
+#define _OLD_BRANDING	"FreeBSD"
+  strncpy((char *) &i_ehdrp->e_ident[_OLD_EI_BRAND_OFFSET], _OLD_BRANDING,
+	  EI_NIDENT-_OLD_EI_BRAND_OFFSET);
+/* #endif */
+#endif
 
   if ((abfd->flags & DYNAMIC) != 0)
     i_ehdrp->e_type = ET_DYN;
@@ -2949,7 +2957,7 @@ prep_headers (abfd)
       break;
     case bfd_arch_sparc:
       if (bed->s->arch_size == 64)
-	i_ehdrp->e_machine = EM_SPARC64;
+	i_ehdrp->e_machine = EM_SPARCV9;
       else
 	i_ehdrp->e_machine = EM_SPARC;
       break;
@@ -3008,11 +3016,6 @@ prep_headers (abfd)
     }
   i_ehdrp->e_version = bed->s->ev_current;
   i_ehdrp->e_ehsize = bed->s->sizeof_ehdr;
-
-  /* Some OS's brands all ELF binaries so the image loader knows what system
-	 call set, etc. to use.  */
-  strncpy((char *) &i_ehdrp->e_ident[EI_BRAND_OFFSET], BRANDING,
-	  EI_NIDENT-EI_BRAND_OFFSET);
 
   /* no program header, for now. */
   i_ehdrp->e_phoff = 0;

@@ -439,14 +439,14 @@ struct sysentvec elf_linux_sysvec = {
 };
 
 static Elf32_Brandinfo linux_brand = {
-					"Linux",
+					ELFOSABI_LINUX,
 					"/compat/linux",
 					"/lib/ld-linux.so.1",
 					&elf_linux_sysvec
 				 };
 
 static Elf32_Brandinfo linux_glibc2brand = {
-					"Linux",
+					ELFOSABI_LINUX,
 					"/compat/linux",
 					"/lib/ld-linux.so.2",
 					&elf_linux_sysvec

@@ -48,7 +48,8 @@ typedef struct {
 	u_int32_t	n_type;		/* Type of this note. */
 } Elf_Note;
 
-/* Indexes into the e_ident array. */
+/* Indexes into the e_ident array.  Keep synced with 
+   http://www.sco.com/developer/gabi/ch4.eheader.html */
 #define EI_MAG0		0	/* Magic number, byte 0. */
 #define EI_MAG1		1	/* Magic number, byte 1. */
 #define EI_MAG2		2	/* Magic number, byte 2. */
@@ -56,8 +57,10 @@ typedef struct {
 #define EI_CLASS	4	/* Class of machine. */
 #define EI_DATA		5	/* Data format. */
 #define EI_VERSION	6	/* ELF format version. */
-#define EI_PAD		7	/* Start of padding (per SVR4 ABI). */
-#define EI_BRAND	8	/* Start of architecture identification. */
+#define EI_OSABI	7	/* Operating system / ABI identification */
+#define EI_ABIVERSION	8	/* ABI version */
+#define OLD_EI_BRAND	8	/* Start of architecture identification. */
+#define EI_PAD		9	/* Start of padding (per SVR4 ABI). */
 #define EI_NIDENT	16	/* Size of e_ident array. */
 
 /* Values for the magic number bytes. */
@@ -79,6 +82,21 @@ typedef struct {
 #define ELFDATANONE	0	/* Unknown data format. */
 #define ELFDATA2LSB	1	/* 2's complement little-endian. */
 #define ELFDATA2MSB	2	/* 2's complement big-endian. */
+
+/* Values for e_ident[EI_OSABI]. */
+#define ELFOSABI_SYSV		0	/* UNIX System V ABI */
+#define ELFOSABI_HPUX		1	/* HP-UX operating system */
+#define ELFOSABI_NETBSD		2	/* NetBSD */
+#define ELFOSABI_LINUX		3	/* GNU/Linux */
+#define ELFOSABI_HURD		4	/* GNU/Hurd */
+#define ELFOSABI_86OPEN		5	/* 86Open common IA32 ABI */
+#define ELFOSABI_SOLARIS	6	/* Solaris */
+#define ELFOSABI_MONTEREY	7	/* Monterey */
+#define ELFOSABI_IRIX		8	/* IRIX */
+#define ELFOSABI_FREEBSD	9	/* FreeBSD */
+#define ELFOSABI_TRU64		10	/* TRU64 UNIX */
+#define ELFOSABI_ARM		97	/* ARM */
+#define ELFOSABI_STANDALONE	255	/* Standalone (embedded) application */
 
 /* e_ident */
 #define IS_ELF(ehdr)	((ehdr).e_ident[EI_MAG0] == ELFMAG0 && \
