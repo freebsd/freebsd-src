@@ -23,8 +23,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: zsreg.h,v 1.1 1998/06/10 10:56:01 dfr Exp $
  */
 
-#define ZSC_STATUS	0x80
-#define ZSC_DATA	0xc0
+#define ZSC_CHANNELA	0x80
+#define ZSC_CHANNELB	0x00
+
+#define ZSC_STATUS	0x00
+#define ZSC_DATA	0x40
