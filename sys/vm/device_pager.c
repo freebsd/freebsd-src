@@ -213,6 +213,7 @@ dev_pager_getpages(object, m, count, reqpage)
 	dev = object->handle;
 	offset = m[reqpage]->pindex;
 	VM_OBJECT_UNLOCK(object);
+	mtx_lock(&Giant);
 	prot = PROT_READ;	/* XXX should pass in? */
 	mapfunc = devsw(dev)->d_mmap;
 
@@ -221,6 +222,8 @@ dev_pager_getpages(object, m, count, reqpage)
 
 	ret = (*mapfunc)(dev, (vm_offset_t)offset << PAGE_SHIFT, &paddr, prot);
 	KASSERT(ret == 0, ("dev_pager_getpage: map function returns error"));
+	mtx_unlock(&Giant);
+
 	/*
 	 * Replace the passed in reqpage page with our own fake page and
 	 * free up the all of the original pages.
