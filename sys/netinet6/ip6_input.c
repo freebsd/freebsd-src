@@ -182,7 +182,7 @@ ip6_init()
 		if (pr->pr_domain->dom_family == PF_INET6 &&
 		    pr->pr_protocol && pr->pr_protocol != IPPROTO_RAW) {
 			/* Be careful to only index valid IP protocols. */
-			if (pr->pr_protocol <= IPPROTO_MAX)
+			if (pr->pr_protocol < IPPROTO_MAX)
 				ip6_protox[pr->pr_protocol] = pr - inet6sw;
 		}
 
