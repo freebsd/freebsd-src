@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fdc.h,v 1.8 1997/02/22 09:36:10 peter Exp $
+ *	$Id: fdc.h,v 1.9 1997/09/17 20:16:16 tegge Exp $
  *
  */
 
@@ -60,7 +60,7 @@ struct fdc_data
 	int	state;
 	int	retry;
 	int	fdout;		/* mirror of the w/o digital output reg */
-	u_long	status[7];	/* copy of the registers */
+	u_int	status[7];	/* copy of the registers */
 	enum	fdc_type fdct;	/* chip version of FDC */
 	int	fdc_errs;	/* number of logged errors */
 	struct buf_queue_head head;	/* Head of buf chain	  */
