@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.h	8.6 (Berkeley) 1/21/94
- * $Id: tty.h,v 1.17 1995/04/11 17:53:14 ache Exp $
+ * $Id: tty.h,v 1.18 1995/04/15 20:59:28 bde Exp $
  */
 
 #ifndef _SYS_TTY_H_
@@ -118,7 +118,9 @@ struct tty {
 #define	IBUFSIZ	384			/* Should be >= max value of MIN. */
 #define	OBUFSIZ	100
 
+#ifndef TTYHOG
 #define	TTYHOG	1024
+#endif
 
 #ifdef KERNEL
 #define	TTMAXHIWAT	roundup(2048, CBSIZE)
