@@ -455,10 +455,16 @@ msdosfs_setattr(ap)
 			return (error);
 		if (vp->v_type != VDIR) {
 			if ((pmp->pm_flags & MSDOSFSMNT_NOWIN95) == 0 &&
-			    vap->va_atime.tv_sec != VNOVAL)
-				unix2dostime(&vap->va_atime, &dep->de_ADate, NULL, NULL);
-			if (vap->va_mtime.tv_sec != VNOVAL)
-				unix2dostime(&vap->va_mtime, &dep->de_MDate, &dep->de_MTime, NULL);
+			    vap->va_atime.tv_sec != VNOVAL) {
+				dep->de_flag &= ~DE_ACCESS;
+				unix2dostime(&vap->va_atime, &dep->de_ADate,
+				    NULL, NULL);
+			}
+			if (vap->va_mtime.tv_sec != VNOVAL) {
+				dep->de_flag &= ~DE_UPDATE;
+				unix2dostime(&vap->va_mtime, &dep->de_MDate,
+				    &dep->de_MTime, NULL);
+			}
 			dep->de_Attributes |= ATTR_ARCHIVE;
 			dep->de_flag |= DE_MODIFIED;
 		}
@@ -480,6 +486,7 @@ msdosfs_setattr(ap)
 				dep->de_Attributes &= ~ATTR_READONLY;
 			else
 				dep->de_Attributes |= ATTR_READONLY;
+			dep->de_Attributes |= ATTR_ARCHIVE;
 			dep->de_flag |= DE_MODIFIED;
 		}
 	}
