@@ -35,6 +35,8 @@
  *	lib_trace.c - Tracing/Debugging routines
  */
 
+/* $FreeBSD$ */
+
 #include <curses.priv.h>
 #include <tic.h>
 
@@ -54,7 +56,7 @@ long _nc_outchars;
 static FILE *	tracefp;	/* default to writing to stderr */
 #endif
 
-void trace(const unsigned int tracelevel GCC_UNUSED)
+void _nc_trace(const unsigned int tracelevel GCC_UNUSED)
 {
 #ifdef TRACE
 static bool	been_here = FALSE;
