@@ -54,6 +54,8 @@
         ..
         ssl
         ..
+        rc.d
+        ..
         uucp            uname=uucp gname=uucp mode=0770
         ..
     ..
