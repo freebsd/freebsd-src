@@ -69,7 +69,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: if_ppp.c,v 1.34 1996/06/10 23:07:33 gpalmer Exp $ */
+/* $Id: if_ppp.c,v 1.35 1996/06/12 19:24:00 gpalmer Exp $ */
 /* from if_ppp.c,v 1.5 1995/08/16 01:36:38 paulus Exp */
 /* from if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp */
 
@@ -533,7 +533,8 @@ pppsioctl(ifp, cmd, data)
 	    error = EINVAL;
 	else {
 	    sc->sc_if.if_mtu = ifr->ifr_mtu;
-	    (*sc->sc_setmtu)(sc);
+	    if (sc->sc_setmtu)
+		    (*sc->sc_setmtu)(sc);
 	}
 	break;
 
