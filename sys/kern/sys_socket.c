@@ -45,6 +45,7 @@
 #include <sys/stat.h>
 #include <sys/uio.h>
 #include <sys/filedesc.h>
+#include <sys/ucred.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -164,6 +165,8 @@ soo_stat(fp, ub, p)
 
 	bzero((caddr_t)ub, sizeof (*ub));
 	ub->st_mode = S_IFSOCK;
+	ub->st_uid = so->so_cred->cr_uid;
+	ub->st_gid = so->so_cred->cr_gid;
 	return ((*so->so_proto->pr_usrreqs->pru_sense)(so, ub));
 }
 
