@@ -98,6 +98,10 @@ _close(int fd)
 		_thread_fd_table[fd] = NULL;
 		free(entry);
 
+		/* Drop stale pthread stdio descriptor flags. */
+		if (fd < 3)
+			_pthread_stdio_flags[fd] = -1;
+
 		/* Close the file descriptor: */
 		ret = __sys_close(fd);
 	}
