@@ -48,8 +48,14 @@ LIBPC98=	${.OBJDIR}/../libpc98/libpc98.a
 CFLAGS+=	-I${.CURDIR}/..
 
 # where to get libstand from
+#XXX need a better way to do this
+LIBSTAND=	${.CURDIR}/../../../../lib/libstand/libstand.a
+.if !exists(${LIBSTAND})
+LIBSTAND=	${.OBJDIR}/../../../../lib/libstand/libstand.a
+.if !exists(${LIBSTAND})
 LIBSTAND=	-lstand
-#LIBSTAND=	${.CURDIR}/../../../../lib/libstand/libstand.a
+.endif
+.endif
 CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand/
 
 # BTX components
