@@ -90,11 +90,6 @@ typedef struct Hash_Search {
  */
 #define	Hash_SetValue(h, val) ((h)->clientData = (val))
 
-/*
- * Hash_Size(n) returns the number of words in an object of n bytes
- */
-#define	Hash_Size(n)	(((n) + sizeof(int) - 1) / sizeof(int))
-
 void Hash_InitTable(Hash_Table *, int);
 void Hash_DeleteTable(Hash_Table *);
 Hash_Entry *Hash_FindEntry(const Hash_Table *, const char *);
