@@ -54,8 +54,14 @@ the default database
 .It Pa /etc/locate.rc
 the configuration file
 .El
+.Sh ENVIRONMENT
+.Bl -tag -width /var/db/locate.database -compact
+.It Pa LOCATE_CONFIG
+path to the the configuration file
+.El
 .Sh SEE ALSO
-.Xr locate 1
+.Xr locate 1 ,
+.Xr periodic 8
 .Rs
 .%A Woods, James A.
 .%D 1983
