@@ -28,7 +28,7 @@
  */
 
 static const char rcsid[] =
-	"$Id: tzmenu.c,v 1.2 1995/05/30 03:52:50 rgrimes Exp $";
+	"$Id: tzmenu.c,v 1.2.4.1 1996/03/22 22:24:16 joerg Exp $";
 
 #include <stdio.h>
 #include <ncurses.h>
@@ -62,8 +62,6 @@ static struct region *regions[] = {
 	&Pacific
 };
 
-static unsigned short nrows;
-
 #define NREGIONS 8
 #define DEFAULT_NROWS 24	/* default height of tty */
 
@@ -79,14 +77,6 @@ tzmenu(void)
 	const char *res;
 	struct winsize win;
 	char *cp;
-
-	if (isatty(fileno(stdin)) &&
-	    ioctl(fileno(stdin), TIOCGWINSZ, &win) != -1)
-		nrows = win.ws_row;
-	else if ((cp = getenv("LINES")))
-		nrows = atoi(cp);
-	if (nrows == 0)
-		nrows = DEFAULT_NROWS;
 
 	while(1) {
 		dialog_clear();
@@ -131,11 +121,11 @@ country_menu(const struct region *reg, const char *name)
 	while(1) {
 		dialog_clear();
 		rv = dialog_menu(title, "Select a country",
-				 reg->r_count > nrows - 6 ?
-				 nrows : reg->r_count + 6,
+				 reg->r_count > LINES - 6 ?
+				 LINES : reg->r_count + 6,
 				 78,
-				 reg->r_count > nrows - 6 ?
-				 nrows - 6 : reg->r_count,
+				 reg->r_count > LINES - 6 ?
+				 LINES - 6 : reg->r_count,
 				 reg->r_count,
 				 (unsigned char **)reg->r_menu,
 				 rbuf,
@@ -172,11 +162,11 @@ location_menu(const struct country *ctry, const char *name)
 	while(1) {
 		dialog_clear();
 		rv = dialog_menu(title, "Select a location",
-				 ctry->c_count > nrows - 6?
-				 nrows : ctry->c_count + 6,
+				 ctry->c_count > LINES - 6?
+				 LINES : ctry->c_count + 6,
 				 78,
-				 ctry->c_count > nrows - 6?
-				 nrows - 6 : ctry->c_count,
+				 ctry->c_count > LINES - 6?
+				 LINES - 6 : ctry->c_count,
 				 ctry->c_count,
 				 (unsigned char **)ctry->c_menu,
 				 rbuf,
@@ -188,11 +178,12 @@ location_menu(const struct country *ctry, const char *name)
 			return 0;
 		}
 
+		sscanf(rbuf, "%d", &rv);
 
-		rv = setzone(ctry->c_filelist[item]);
+		rv = setzone(ctry->c_filelist[rv - 1]);
 
 		if (rv == 0)
-			return ctry->c_filelist[item];
+			return ctry->c_filelist[rv - 1];
 	}
 }
 
