@@ -94,14 +94,13 @@ static const char rcsid[] =
 static dev_t	 fdev;		/* device of file pointed to by symlink */
 static ino_t	 fino;		/* inode of file pointed to by symlink */
 static FILE	*cfp;		/* control file */
+static pid_t	 of_pid;	/* process id of output filter, if any */
 static int	 child;		/* id of any filters */
 static int	 job_dfcnt;	/* count of datafiles in current user job */
 static int	 lfd;		/* lock file descriptor */
 static int	 ofd;		/* output filter file descriptor */
-static int	 ofilter;	/* id of output filter, if any */
 static int	 tfd = -1;	/* output filter temp file output */
 static int	 pfd;		/* prstatic inter file descriptor */
-static int	 pid;		/* pid of lpd process */
 static int	 prchild;	/* id of pr process */
 static char	 title[80];	/* ``pr'' title */
 static char      locale[80];    /* ``pr'' locale */
@@ -159,6 +158,7 @@ printjob(struct printer *pp)
 	struct jobqueue **queue;
 	register int i, nitems;
 	off_t pidoff;
+	pid_t printpid;
 	int errcnt, jobcount, tempfd;
 
 	jobcount = 0;
@@ -171,8 +171,8 @@ printjob(struct printer *pp)
 		(void) open(_PATH_DEVNULL, O_WRONLY);
 	}
 	setgid(getegid());
-	pid = getpid();				/* for use with lprm */
-	setpgrp(0, pid);
+	printpid = getpid();			/* for use with lprm */
+	setpgrp(0, printpid);
 
 	/*
 	 * At initial lpd startup, printjob may be called with various
@@ -215,7 +215,7 @@ printjob(struct printer *pp)
 	/*
 	 * write process id for others to know
 	 */
-	sprintf(line, "%u\n", pid);
+	sprintf(line, "%u\n", printpid);
 	pidoff = i = strlen(line);
 	if (write(lfd, line, i) != i) {
 		syslog(LOG_ERR, "%s: write(%s): %m", pp->printer,
@@ -300,15 +300,15 @@ again:
 		else if (i == REPRINT && ++errcnt < 5) {
 			/* try reprinting the job */
 			syslog(LOG_INFO, "restarting %s", pp->printer);
-			if (ofilter > 0) {
-				kill(ofilter, SIGCONT);	/* to be sure */
+			if (of_pid > 0) {
+				kill(of_pid, SIGCONT); /* to be sure */
 				(void) close(ofd);
-				while ((i = wait(NULL)) > 0 && i != ofilter)
+				while ((i = wait(NULL)) > 0 && i != of_pid)
 					;
 				if (i < 0)
 					syslog(LOG_WARNING, "%s: after kill(of=%d), wait() returned: %m",
-					    pp->printer, ofilter);
-				ofilter = 0;
+					    pp->printer, of_pid);
+				of_pid = 0;
 			}
 			(void) close(pfd);	/* close printer */
 			if (ftruncate(lfd, pidoff) < 0)
@@ -608,7 +608,8 @@ print(struct printer *pp, int format, char *file)
 	int fi, fo;
 	FILE *fp;
 	char *av[15], buf[BUFSIZ];
-	int pid, p[2], retcode, stopped, wstatus, wstatus_set;
+	pid_t wpid;
+	int p[2], retcode, stopped, wstatus, wstatus_set;
 	struct stat stb;
 
 	if (lstat(file, &stb) < 0 || (fi = open(file, O_RDONLY)) < 0) {
@@ -781,12 +782,12 @@ print(struct printer *pp, int format, char *file)
 	av[n++] = pp->acct_file;
 	av[n] = 0;
 	fo = pfd;
-	if (ofilter > 0) {		/* stop output filter */
+	if (of_pid > 0) {		/* stop output filter */
 		write(ofd, "\031\1", 2);
-		while ((pid =
-		    wait3(&wstatus, WUNTRACED, 0)) > 0 && pid != ofilter)
+		while ((wpid =
+		    wait3(&wstatus, WUNTRACED, 0)) > 0 && wpid != of_pid)
 			;
-		if (pid < 0)
+		if (wpid < 0)
 			syslog(LOG_WARNING,
 			    "%s: after stopping 'of', wait3() returned: %m",
 			    pp->printer);
@@ -794,7 +795,7 @@ print(struct printer *pp, int format, char *file)
 			(void) close(fi);
 			syslog(LOG_WARNING, "%s: output filter died "
 			    "(pid=%d retcode=%d termsig=%d)",
-			    pp->printer, ofilter, WEXITSTATUS(wstatus),
+			    pp->printer, of_pid, WEXITSTATUS(wstatus),
 			    WTERMSIG(wstatus));
 			return (REPRINT);
 		}
@@ -821,9 +822,9 @@ start:
 	if (child < 0)
 		retcode = 100;
 	else {
-		while ((pid = wait(&wstatus)) > 0 && pid != child)
+		while ((wpid = wait(&wstatus)) > 0 && wpid != child)
 			;
-		if (pid < 0) {
+		if (wpid < 0) {
 			retcode = 100;
 			syslog(LOG_WARNING,
 			    "%s: after execv(%s), wait() returned: %m",
@@ -836,7 +837,7 @@ start:
 	child = 0;
 	prchild = 0;
 	if (stopped) {		/* restart output filter */
-		if (kill(ofilter, SIGCONT) < 0) {
+		if (kill(of_pid, SIGCONT) < 0) {
 			syslog(LOG_ERR, "cannot restart output filter");
 			exit(1);
 		}
@@ -1221,7 +1222,8 @@ return_sfres:
 static int
 execfilter(struct printer *pp, char *f_cmd, char *f_av[], int infd, int outfd)
 {
-	int errfd, fpid, retcode, wpid, wstatus;
+	pid_t fpid, wpid;
+	int errfd, retcode, wstatus;
 	FILE *errfp;
 	char buf[BUFSIZ], *slash;
 
@@ -1505,7 +1507,8 @@ sendmail(struct printer *pp, char *userid, int bombed)
 static int
 dofork(const struct printer *pp, int action)
 {
-	int i, fail, forkpid;
+	pid_t forkpid;
+	int i, fail;
 	struct passwd *pwd;
 
 	forkpid = -1;
@@ -1588,11 +1591,11 @@ abortpr(int signo __unused)
 
 	(void) unlink(tempstderr);
 	kill(0, SIGINT);
-	if (ofilter > 0)
-		kill(ofilter, SIGCONT);
+	if (of_pid > 0)
+		kill(of_pid, SIGCONT);
 	while (wait(NULL) > 0)
 		;
-	if (ofilter > 0 && tfd != -1)
+	if (of_pid > 0 && tfd != -1)
 		unlink(tfile);
 	exit(0);
 }
@@ -1655,7 +1658,7 @@ openpr(const struct printer *pp)
 		 * does not use these global "output filter" variables.
 		 */ 
 		ofd = -1;
-		ofilter = 0;
+		of_pid = 0;
 		return;
 	} else if (*pp->lp) {
 		if ((cp = strchr(pp->lp, '@')) != NULL)
@@ -1671,13 +1674,13 @@ openpr(const struct printer *pp)
 	/*
 	 * Start up an output filter, if needed.
 	 */
-	if (pp->filters[LPF_OUTPUT] && !pp->filters[LPF_INPUT] && !ofilter) {
+	if (pp->filters[LPF_OUTPUT] && !pp->filters[LPF_INPUT] && !of_pid) {
 		pipe(p);
 		if (pp->remote) {
 			strcpy(tfile, TFILENAME);
 			tfd = mkstemp(tfile);
 		}
-		if ((ofilter = dofork(pp, DOABORT)) == 0) {	/* child */
+		if ((of_pid = dofork(pp, DOABORT)) == 0) {	/* child */
 			dup2(p[0], 0);		/* pipe is std in */
 			/* tfile/printer is stdout */
 			dup2(pp->remote ? tfd : pfd, 1);
@@ -1697,7 +1700,7 @@ openpr(const struct printer *pp)
 		ofd = p[1];			/* use pipe for output */
 	} else {
 		ofd = pfd;
-		ofilter = 0;
+		of_pid = 0;
 	}
 }
 
