@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: proc.c,v 1.2 1994/09/24 02:54:13 davidg Exp $
+ *	$Id: proc.c,v 1.2.8.1 1997/08/24 21:41:37 jkh Exp $
  */
 
 #ifndef lint
@@ -86,6 +86,7 @@ pchild(notused)
     struct process *fp;
     int pid;
     extern int insource;
+    int save_errno = errno;
     union wait w;
     int     jobflags;
     struct rusage ru;
@@ -101,6 +102,7 @@ loop:
 	    goto loop;
 	}
 	pnoprocesses = pid == -1;
+	errno = save_errno;
 	return;
     }
     for (pp = proclist.p_next; pp != NULL; pp = pp->p_next)
