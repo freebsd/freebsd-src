@@ -121,12 +121,6 @@ static int rlphy_attach(dev)
 	ma = device_get_ivars(dev);
 	sc->mii_dev = device_get_parent(dev);
 	mii = device_get_softc(sc->mii_dev);
-	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
-
-	sc->mii_inst = mii->mii_instance;
-	sc->mii_phy = ma->mii_phyno;
-	sc->mii_service = rlphy_service;
-	sc->mii_pdata = mii;
 
 	/*
 	 * The RealTek PHY can never be isolated, so never allow non-zero
@@ -137,6 +131,12 @@ static int rlphy_attach(dev)
 		return(ENXIO);
 	}
 
+	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
+
+	sc->mii_inst = mii->mii_instance;
+	sc->mii_phy = ma->mii_phyno;
+	sc->mii_service = rlphy_service;
+	sc->mii_pdata = mii;
 	mii->mii_instance++;
 
 	sc->mii_flags |= MIIF_NOISOLATE;

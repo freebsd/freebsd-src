@@ -89,7 +89,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id: exphy.c,v 1.1 1999/08/21 17:40:41 wpaul Exp $";
+  "$FreeBSD$";
 #endif
 
 static int exphy_probe		__P((device_t));
@@ -161,12 +161,6 @@ static int exphy_attach(dev)
 	ma = device_get_ivars(dev);
 	sc->mii_dev = device_get_parent(dev);
 	mii = device_get_softc(sc->mii_dev);
-	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
-
-	sc->mii_inst = mii->mii_instance;
-	sc->mii_phy = ma->mii_phyno;
-	sc->mii_service = exphy_service;
-	sc->mii_pdata = mii;
 
 	/*
 	 * The 3Com PHY can never be isolated, so never allow non-zero
@@ -177,6 +171,12 @@ static int exphy_attach(dev)
 		return(ENXIO);
 	}
 
+	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
+
+	sc->mii_inst = mii->mii_instance;
+	sc->mii_phy = ma->mii_phyno;
+	sc->mii_service = exphy_service;
+	sc->mii_pdata = mii;
 	mii->mii_instance++;
 
 	sc->mii_flags |= MIIF_NOISOLATE;
