@@ -82,7 +82,7 @@ typedef u_int32_t		bus_space_handle_t;
 
 #define BUS_SPACE_MAXSIZE_24BIT	0xFFFFFF
 #define BUS_SPACE_MAXSIZE_32BIT 0xFFFFFFFF
-#define BUS_SPACE_MAXSIZE	(64 * 1024) /* Maximum supported size */
+#define BUS_SPACE_MAXSIZE	0xFFFFFFFFFFFFFFFF
 #define BUS_SPACE_MAXADDR_24BIT	0xFFFFFF
 #define BUS_SPACE_MAXADDR_32BIT 0xFFFFFFFF
 /* The largest address space known so far is 40 bits */
