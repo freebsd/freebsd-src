@@ -395,8 +395,8 @@ extern	char *mountrootfsname;
  * exported vnode operations
  */
 int	dounmount __P((struct mount *, int, struct proc *));
-int	vfs_mount __P((struct proc *p, char *type, char *path, int flags,
-	    void *data));
+int	vfs_mount __P((struct proc *p, const char *type, char *path,
+	    int flags, void *data));
 int	vfs_setpublicfs			    /* set publicly exported fs */
 	  __P((struct mount *, struct netexport *, struct export_args *));
 int	vfs_lock __P((struct mount *));         /* lock a vfs */
