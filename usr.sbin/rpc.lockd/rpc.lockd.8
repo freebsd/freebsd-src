@@ -109,17 +109,6 @@ RPC protocol specification for the network lock manager protocol.
 .Xr rc.conf 5 ,
 .Xr rpc.statd 8
 .Sh BUGS
-The current implementation provides only the server side of the protocol
-(i.e., clients running other OS types can establish locks on a
-.Fx
-/
-.Nx
-fileserver,
-but there is currently no means for a
-.Fx
-/
-.Nx
-client to establish locks).
 .Pp
 The current implementation serialises locks requests that could be shared.
 .Sh STANDARDS
