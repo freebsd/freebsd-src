@@ -36,10 +36,9 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: es1370.c,v 1.4 1999/05/09 17:06:45 peter Exp $
+ *	$Id: es1370.c,v 1.5 1999/06/15 00:00:10 newton Exp $
  */
 
-#include "pci.h"
 #include "pcm.h"
 
 #include <sys/param.h>
@@ -55,8 +54,6 @@
 #include <i386/isa/snd/sound.h>
 #define DSP_ULAW_NOT_WANTED
 #include <i386/isa/snd/ulaw.h>
-
-#if NPCI != 0
 
 
 /* -------------------------------------------------------------------- */
@@ -1124,5 +1121,3 @@ es_pci_attach(pcici_t config_id, int unit)
 
 	return;
 }
-
-#endif /* NPCI != 0 */
