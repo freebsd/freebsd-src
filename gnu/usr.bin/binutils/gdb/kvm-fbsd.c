@@ -67,7 +67,8 @@ static void
 get_kcore_registers (int);
 
 static int
-xfer_mem (CORE_ADDR, char *, int, int, struct target_ops *);
+xfer_mem (CORE_ADDR, char *, int, int, struct mem_attrib *,
+          struct target_ops *);
 
 static int
 xfer_umem (CORE_ADDR, char *, int, int);
@@ -554,7 +555,7 @@ ignore (CORE_ADDR addr, char *contents)
 
 static int
 xfer_kmem (CORE_ADDR memaddr, char *myaddr, int len, int write,
-	   struct target_ops *target)
+	   struct mem_attrib *attrib, struct target_ops *target)
 {
   int n;
 
@@ -602,7 +603,7 @@ xfer_umem (CORE_ADDR memaddr, char *myaddr, int len, int write /* ignored */)
 }
 
 static void
-set_proc_cmd (char *arg)
+set_proc_cmd (char *arg, int from_tty)
 {
   CORE_ADDR addr, pid_addr, first_td;
   void *val;
