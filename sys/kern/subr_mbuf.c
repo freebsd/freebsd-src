@@ -279,7 +279,7 @@ SYSCTL_OPAQUE(_kern_ipc, OID_AUTO, mb_statpcpu, CTLFLAG_RD, mb_statpcpu,
 static __inline	void	*mb_alloc(struct mb_lstmngr *, int);
 void			*mb_alloc_wait(struct mb_lstmngr *);
 static __inline	void	 mb_free(struct mb_lstmngr *, void *);
-static	void		 mb_init(void *);
+static	void		 mbuf_init(void *);
 struct	mb_bucket	*mb_pop_cont(struct mb_lstmngr *, int,
 			    struct mb_pcpu_list *);
 void			 mb_reclaim(void);
@@ -304,9 +304,9 @@ void			 mb_reclaim(void);
  * the PCPU containers with initial numbers.
  */
 MALLOC_DEFINE(M_MBUF, "mbufmgr", "mbuf subsystem management structures");
-SYSINIT(mbuf, SI_SUB_MBUF, SI_ORDER_FIRST, mb_init, NULL)
+SYSINIT(mbuf, SI_SUB_MBUF, SI_ORDER_FIRST, mbuf_init, NULL)
 void
-mb_init(void *dummy)
+mbuf_init(void *dummy)
 {
 	struct	mb_pcpu_list	*pcpu_cnt;
 	vm_size_t		mb_map_size;
@@ -451,7 +451,7 @@ mb_init(void *dummy)
 
 	return;
 bad:
-	panic("mb_init(): failed to initialize mbuf subsystem!");
+	panic("mbuf_init(): failed to initialize mbuf subsystem!");
 }
 
 /*
