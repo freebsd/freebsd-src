@@ -996,9 +996,12 @@ iommu_dvmamap_sync(bus_dma_tag_t pt, bus_dma_tag_t dt, struct iommu_state *is,
 	vm_offset_t va;
 	vm_size_t len;
 
-	if ((op & BUS_DMASYNC_PREREAD) != 0)
+	switch (op) {
+	case BUS_DMASYNC_PREREAD:
 		membar(Sync);
-	if ((op & (BUS_DMASYNC_POSTREAD | BUS_DMASYNC_PREWRITE)) != 0) {
+		break;
+	case BUS_DMASYNC_POSTREAD:
+	case BUS_DMASYNC_PREWRITE:
 		SLIST_FOREACH(r, &map->dm_reslist, dr_link) {
 			va = (vm_offset_t)BDR_START(r);
 			len = r->dr_used;
@@ -1010,10 +1013,15 @@ iommu_dvmamap_sync(bus_dma_tag_t pt, bus_dma_tag_t dt, struct iommu_state *is,
 				va += IO_PAGE_SIZE;
 			}
 		}
+		if (op == BUS_DMASYNC_PREWRITE)
+			membar(Sync);
+		break;
+	case BUS_DMASYNC_POSTWRITE:
+		/* Nothing to do. */
+		break;
+	default:
+		panic("iommu_dvmamap_sync: bogus op %d", op);
 	}
-	if ((op & BUS_DMASYNC_PREWRITE) != 0)
-		membar(Sync);
-	/* BUS_DMASYNC_POSTWRITE does not require any handling. */
 }
 
 #ifdef IOMMU_DIAG
