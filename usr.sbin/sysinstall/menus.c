@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.81 1996/07/10 09:41:09 jkh Exp $
+ * $Id: menus.c,v 1.82 1996/07/11 18:37:48 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -1007,7 +1007,7 @@ software not provided in the base distributions.",
     NULL, optionsEditor },
   { "8 Packages",	"Install pre-packaged software for FreeBSD",
     NULL, configPackages },
-  { "9 Ports",		"Link to FreeBSD Ports Collection on CD/NFS",
+  { "9 Ports",		"Link to FreeBSD Ports Collection on CD",
     NULL, configPorts },
   { "A Root Password",	"Set the system manager's password",
     NULL, dmenuSystemCommand, NULL, "passwd root" },
