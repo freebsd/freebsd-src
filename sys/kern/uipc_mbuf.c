@@ -81,12 +81,14 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, mbuf_wait, CTLFLAG_RW,
 	   &mbuf_wait, 0, "");
 SYSCTL_STRUCT(_kern_ipc, KIPC_MBSTAT, mbstat, CTLFLAG_RW, &mbstat, mbstat, "");
 SYSCTL_INT(_kern_ipc, KIPC_NMBCLUSTERS, nmbclusters, CTLFLAG_RD, 
-	   &nmbclusters, 0, "Maximum number of mbuf clusters avaliable");
+	   &nmbclusters, 0, "Maximum number of mbuf clusters available");
+SYSCTL_INT(_kern_ipc, OID_AUTO, nmbufs, CTLFLAG_RD, &nmbufs, 0,
+	   "Maximum number of mbufs available"); 
 #ifndef NMBCLUSTERS
 #define NMBCLUSTERS	(512 + MAXUSERS * 16)
 #endif
 TUNABLE_INT_DECL("kern.ipc.nmbclusters", NMBCLUSTERS, nmbclusters);
-TUNABLE_INT_DECL("kern.ipc.nmbufs", NMBCLUSTERS * 4, nmbufs);	/* XXX fixup? */
+TUNABLE_INT_DECL("kern.ipc.nmbufs", NMBCLUSTERS * 4, nmbufs);
 
 static void	m_reclaim __P((void));
 
@@ -139,6 +141,14 @@ m_mballoc(nmb, how)
 	register caddr_t p;
 	register int i;
 	int nbytes;
+
+	/*
+	 * If we've hit the mbuf limit, stop allocating from mb_map,
+	 * (or trying to) in order to avoid dipping into the section of
+	 * mb_map which we've "reserved" for clusters.
+	 */
+	if ((nmb + mbstat.m_mbufs) > nmbufs)
+		return (0);
 
 	/*
 	 * Once we run out of map space, it will be impossible to get
@@ -265,6 +275,16 @@ m_clalloc(ncl, how)
 	register caddr_t p;
 	register int i;
 	int npg;
+
+	/*
+	 * If we've hit the mcluster number limit, stop allocating from
+	 * mb_map, (or trying to) in order to avoid dipping into the section
+	 * of mb_map which we've "reserved" for mbufs.
+	 */
+	if ((ncl + mbstat.m_clusters) > nmbclusters) {
+		mbstat.m_drops++;
+		return (0);
+	}
 
 	/*
 	 * Once we run out of map space, it will be impossible
