@@ -170,9 +170,11 @@ struct	cmd {
 	{ "-arp",	IFF_NOARP,	setifflags },
 	{ "debug",	IFF_DEBUG,	setifflags },
 	{ "-debug",	-IFF_DEBUG,	setifflags },
+	{ "add",	IFF_UP,		notealias },
 	{ "alias",	IFF_UP,		notealias },
 	{ "-alias",	-IFF_UP,	notealias },
 	{ "delete",	-IFF_UP,	notealias },
+	{ "remove",	-IFF_UP,	notealias },
 #ifdef notdef
 #define	EN_SWABIPS	0x1000
 	{ "swabips",	EN_SWABIPS,	setifflags },
