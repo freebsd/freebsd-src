@@ -14,6 +14,7 @@ FILES=	DAEMON LOGIN NETWORKING SERVERS \
 	fsck \
 	gbde gbde_swap \
 	hostname \
+	ike \
 	inetd initdiskless initrandom \
 	ip6addrctl ip6fw ipfilter ipfs ipfw ipmon \
 	ipnat ipsec ipxrouted isdnd \
