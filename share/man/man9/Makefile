@@ -212,12 +212,14 @@ MLINKS+=microuptime.9 getmicrouptime.9 microuptime.9 nanouptime.9
 MLINKS+=microuptime.9 getnanouptime.9
 
 MLINKS+=mutex.9 mtx_init.9
-MLINKS+=mutex.9 mtx_enter.9
-MLINKS+=mutex.9 mtx_try_enter.9
-MLINKS+=mutex.9 mtx_exit.9
+MLINKS+=mutex.9 mtx_lock.9 mutex.9 mtx_lock_flags.9
+MLINKS+=mutex.9 mtx_lock_spin.9 mutex.9 mtx_lock_spin_flags.9
+MLINKS+=mutex.9 mtx_trylock.9 mutex.9 mtx_trylock_flags.9
+MLINKS+=mutex.9 mtx_unlock.9 mutex.9 mtx_unlock_flags.9
+MLINKS+=mutex.9 mtx_unlock_spin.9 mutex.9 mtx_unlock_spin_flags.9
 MLINKS+=mutex.9 mtx_destroy.9
-MLINKS+=mutex.9 mtx_owned.9
-MLINKS+=mutex.9 mtx_assert.9
+MLINKS+=mutex.9 mtx_initialized.9 mutex.9 mtx_owned.9
+MLINKS+=mutex.9 mtx_recursed.9 mutex.9 mtx_assert.9
 
 MLINKS+=kobj.9 kobj_class_compile.9
 MLINKS+=kobj.9 kobj_class_compile_static.9
