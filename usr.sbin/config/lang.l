@@ -58,6 +58,7 @@ struct kt {
 	{ "machine",	ARCH }, /* MACHINE is defined in /sys/param.h */
 	{ "makeoptions", MAKEOPTIONS },
 	{ "maxusers",	MAXUSERS },
+	{ "profile",	PROFILE },
 	{ "option",	OPTIONS },
 	{ "options",	OPTIONS },
 	{ 0, 0 },
