@@ -1,7 +1,32 @@
-<!-- $Id:$ -->
+<!-- $Id: hw.sgml,v 1.1 1995/06/14 18:38:53 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
-<chapt><heading>* PC Hardware compatibility<label id="hw:"></heading>
+<chapt><heading>PC Hardware compatibility<label id="hw"></heading>
+
+  <p>Issues of hardware compatibility are among the most
+    troublesome in the computer industry today and FreeBSD is by
+    no means immune to trouble.  In this respect, FreeBSD's
+    advantage of being able to run on inexpensive commidity PC
+    hardware is also its liability when it comes to support for
+    the amazing variety of components on the market.  While it
+    would be impossible to provide a exhaustive listing of
+    hardware that FreeBSD supports, this section serves as a
+    catalog of the device drivers included with FreeBSD and the
+    hardware each drivers supports.  Where possible and
+    appropriate, notes about specific products are included.
+
+    As FreeBSD is a volunteer project without a funded testing
+    department, we depend on you, the user, for much of the
+    information contained in this catalog.  If you have direct
+    experience of hardware that does or does not work with
+    FreeBSD, please let us know by sending email to
+    <tt>doc@freebsd.org</tt>.  Questions about supported hardware
+    should be directed to <tt>questions@freebsd.org</tt> (see
+    <ref id="eresources:mail" name="Mailing Lists"> for more
+    information).  When submitting information or asking a
+    question, please remember to specify exactly what version of
+    FreeBSD you are using and include as many details of your
+    hardware as possible.
 
 <sect><heading>* Core/Processing<label id="hw:core"></heading>
 

@@ -1,4 +1,4 @@
-<!-- $Id: submitters.sgml,v 1.1.1.1 1995/04/28 16:19:59 jfieber Exp $ -->
+<!-- $Id: submitters.sgml,v 1.2 1995/05/18 03:05:22 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Contributing to FreeBSD</heading>
@@ -41,8 +41,7 @@ are each, in their own way, quite significant to the project.
 	  volume of mail!) may
 	  subscribe to the hackers mailing list by sendimg mail to 
           <tt>&lt;majordomo@freebsd.org&gt;</tt>.  
-          See <ref id="eresources:mailing-lists"
-          name="mailing lists">
+          See <ref id="eresources:mail" name="mailing lists">
 	  for more information about this and other mailing lists.
 
 	<item>An actual bug report should be filed by using the 
@@ -204,7 +203,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-	$Id$
+	$Id: submitters.sgml,v 1.2 1995/05/18 03:05:22 jfieber Exp $
 </verb></tscreen>
 For your convenience, a copy of this text can be found in
 <tt>/usr/share/examples/etc/bsd-style-copyright</tt>.
