@@ -26,18 +26,18 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ibcs2.h,v 1.10 1994/10/13 12:13:00 sos Exp $
+ *	$Id: ibcs2.h,v 1.11 1994/10/13 23:10:58 sos Exp $
  */
 
-/* trace all ibcs2 system calls */
+/* trace all iBCS2 system calls */
 extern int ibcs2_trace;
 
-/* convert signals between bsd & ibcs2 */
+/* convert signals between bsd & iBCS2 */
 extern int bsd_to_ibcs2_signal[];
 extern int ibcs2_to_bsd_signal[];
 char *ibcs2_sig_to_str(int);
 
-/* ibcs2 type definitions */
+/* iBCS2 type definitions */
 typedef char *		ibcs2_caddr_t;
 typedef long		ibcs2_daddr_t;
 typedef long		ibcs2_off_t;
@@ -74,7 +74,7 @@ typedef	void 		(*ibcs2_sig_t) (int);
 				*(((int *)arg) - 1) = retval[1]; \
 				return(0);
 
-/* ibcs signal numbers */
+/* iBCS2 signal numbers */
 #define IBCS2_SIGHUP	1
 #define IBCS2_SIGINT	2
 #define IBCS2_SIGQUIT	3
@@ -117,7 +117,7 @@ typedef	void 		(*ibcs2_sig_t) (int);
 #define	IBCS2_SIG_IGN	(void (*)())1
 #define	IBCS2_SIG_HOLD	(void (*)())2
 
-/* ibcs open & fcntl file modes */
+/* iBCS2 open & fcntl file modes */
 #define	IBCS2_RDONLY	0x000
 #define IBCS2_WRONLY	0x001
 #define IBCS2_RDWR	0x002
@@ -131,7 +131,7 @@ typedef	void 		(*ibcs2_sig_t) (int);
 #define IBCS2_NOCTTY	0x800
 #define IBCS2_PRIV	0x1000
 
-/* ibcs fcntl commands */
+/* iBCS2 fcntl commands */
 #define IBCS2_F_DUPFD	0
 #define IBCS2_F_GETFD	1
 #define IBCS2_F_SETFD	2
@@ -145,7 +145,21 @@ typedef	void 		(*ibcs2_sig_t) (int);
 #define IBCS2_F_WRLCK	2
 #define IBCS2_F_UNLCK	3
 
-/* ibcs termio input modes */
+/* iBCS2 poll commands */
+#define IBCS2_POLLIN  		0x0001
+#define IBCS2_POLLPRI 		0x0002
+#define IBCS2_POLLOUT 		0x0004
+#define IBCS2_POLLERR 		0x0008
+#define IBCS2_POLLHUP 		0x0010
+#define IBCS2_POLLNVAL		0x0020
+#define IBCS2_POLLRDNORM	0x0040
+#define IBCS2_POLLWRNORM	0x0004	
+#define IBCS2_POLLRDBAND	0x0080
+#define IBCS2_POLLWRBAND	0x0100
+#define IBCS2_READPOLL	(IBCS2_POLLIN|IBCS2_POLLRDNORM|IBCS2_POLLRDBAND)
+#define IBCS2_WRITEPOLL (IBCS2_POLLOUT|IBCS2_POLLWRNORM|IBCS2_POLLWRBAND)
+
+/* iBCS2 termio input modes */
 #define	IBCS2_IGNBRK	0x0001
 #define	IBCS2_BRKINT	0x0002
 #define	IBCS2_IGNPAR	0x0004
@@ -161,7 +175,7 @@ typedef	void 		(*ibcs2_sig_t) (int);
 #define	IBCS2_IXOFF	0x1000
 #define IBCS2_DOSMODE	0x8000
 
-/* ibcs termio output modes */
+/* iBCS2 termio output modes */
 #define	IBCS2_OPOST	0x0001
 #define	IBCS2_OLCUC	0x0002
 #define	IBCS2_ONLCR	0x0004
@@ -179,7 +193,7 @@ typedef	void 		(*ibcs2_sig_t) (int);
 #define	IBCS2_VT1	0x4000
 #define	IBCS2_FF1	0x8000
 
-/* ibcs termio control modes */
+/* iBCS2 termio control modes */
 #define	IBCS2_CBAUD	0x000F
 #define	IBCS2_B0	0x0
 #define	IBCS2_B50	0x0001
@@ -213,7 +227,7 @@ typedef	void 		(*ibcs2_sig_t) (int);
 #define	IBCS2_LOBLK	0x4000
 #define	IBCS2_XCLUDE	0x8000
 
-/* ibcs termio line discipline 0 modes */
+/* iBCS2 termio line discipline 0 modes */
 #define	IBCS2_ISIG	0x0001
 #define	IBCS2_ICANON	0x0002
 #define	IBCS2_XCASE	0x0004
@@ -223,7 +237,7 @@ typedef	void 		(*ibcs2_sig_t) (int);
 #define	IBCS2_ECHONL	0x0040
 #define	IBCS2_NOFLSH	0x0080
 
-/* ibcs control characters */
+/* iBCS2 control characters */
 #define IBCS2_VINTR	0
 #define IBCS2_VQUIT	1
 #define IBCS2_VERASE	2
@@ -240,13 +254,13 @@ typedef	void 		(*ibcs2_sig_t) (int);
 #define IBCS2_NCC	8	/* termio */
 #define IBCS2_NCCS	13	/* termios */
 
-/* ibcs ulimit commands */
+/* iBCS2 ulimit commands */
 #define IBCS2_GETFSIZE	1
 #define IBCS2_SETFSIZE	2
 #define IBCS2_GETPSIZE	3
 #define IBCS2_GETMOPEN	4
 
-/* ibcs emulator trace control */
+/* iBCS2 emulator trace control */
 #define IBCS2_TRACE_FILE	0x00000001
 #define IBCS2_TRACE_IOCTL	0x00000002
 #define IBCS2_TRACE_ISC		0x00000004
