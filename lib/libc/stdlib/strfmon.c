@@ -329,7 +329,7 @@ strfmon(char * __restrict s, size_t maxsize, const char * __restrict format,
 			if (!(flags & SUPRESS_CURR_SYMBOL)) {
 				if ((sign_posn == 3 && sep_by_space == 2)
 				    || (sep_by_space == 1
-				    && (sign_posn = 0
+				    && (sign_posn == 0
 				    || sign_posn == 1
 				    || sign_posn == 2
 				    || sign_posn == 4)))
@@ -354,7 +354,7 @@ strfmon(char * __restrict s, size_t maxsize, const char * __restrict format,
 
 		if (dst - tmpptr < width) {
 			if (flags & LEFT_JUSTIFY) {
-				while (dst - tmpptr <= width)
+				while (dst - tmpptr < width)
 					PRINT(' ');
 			} else {
 				pad_size = dst-tmpptr;
@@ -368,6 +368,8 @@ strfmon(char * __restrict s, size_t maxsize, const char * __restrict format,
 
 	PRINT('\0');
 	va_end(ap);
+	free(asciivalue);
+	free(currency_symbol);
 	return (dst - s - 1);	/* return size of put data except trailing '\0' */
 
 e2big_error:
@@ -598,7 +600,7 @@ __format_grouped_double(double value, int *flags,
 		memset(bufend, pad_char, padded);
 	}
 
-	bufsize = bufsize - (rslt - bufend);
+	bufsize = bufsize - (bufend - rslt) + 1;
 	memmove(rslt, bufend, bufsize);
 	free(avalue);
 	return (rslt);
