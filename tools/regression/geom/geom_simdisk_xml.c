@@ -46,7 +46,7 @@
 #include <geom/geom.h>
 #include <string.h>
 #include <ctype.h>
-#include "expat.h"
+#include <bsdxml.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <sys/queue.h>
