@@ -65,6 +65,7 @@ typedef struct prstatus {
     gregset_t	pr_reg;		/* General purpose registers (1) */
 } prstatus_t;
 
+typedef gregset_t prgregset_t;
 typedef fpregset_t prfpregset_t;
 
 #define PRFNAMESZ	16	/* Maximum command length saved */
@@ -78,5 +79,7 @@ typedef struct prpsinfo {
     char	pr_fname[PRFNAMESZ+1];	/* Command name, null terminated (1) */
     char	pr_psargs[PRARGSZ+1];	/* Arguments, null terminated (1) */
 } prpsinfo_t;
+
+typedef void *psaddr_t;		/* An address in the target process. */
 
 #endif /* _SYS_PROCFS_H_ */
