@@ -358,6 +358,7 @@ udp_input(m, off, proto)
 			goto bad;
 		if (blackhole)
 			goto bad;
+		HTONS(ip->ip_id);
 		icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_PORT, 0, 0);
 		return;
 	}
