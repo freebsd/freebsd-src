@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.246.2.49 1997/06/22 17:59:24 jkh Exp $
+#	$Id: Makefile,v 1.246.2.50 1997/06/23 01:50:13 jkh Exp $
 #
 # How to roll a release:
 #
@@ -79,11 +79,10 @@ BOOTSTRAPUTILS+= /usr/bin/cpio
 CRUNCH_TARGETS=	boot fixit
 .endif
 
-EXTRAS=
 .if !defined(NOPORTS)
 EXTRAS+= ports.1
 .endif
-EXTRAS+= cdrom.1
+EXTRAS+= ftp.1 cdrom.1
 
 .if !defined(NODOC)
 DOCREL= doc.1
@@ -176,8 +175,14 @@ rerelease release:
 .if defined(NOPORTS)
 	echo "export NOPORTS=${NOPORTS}"	>> ${CHROOTDIR}/mk
 .endif
+.if defined(BOOT_CONFIG)
+	echo "export BOOT_CONFIG=\"${BOOT_CONFIG}\"">> ${CHROOTDIR}/mk
+.endif
 .if defined(NODOC)
 	echo "export NODOC=${NODOC}"		>> ${CHROOTDIR}/mk
+.endif
+.if defined(NOSRC)
+	echo "export NOSRC=${NOSRC}"		>> ${CHROOTDIR}/mk
 .endif
 	# Don't remove this, or the build will fall over!
 	echo "export RELEASEDIR=/R"		>> ${CHROOTDIR}/mk
@@ -344,6 +349,7 @@ release.6:
 # --==## Make source dists ##==--
 #
 release.7:
+.if !defined(NOSRC)
 	@cd ${.CURDIR} && $(MAKE) doTARBALL SD=/usr/src \
 		TD=src TN=sbase ARG="[A-Z]*"
 	@for i in `cd /usr/src && echo [a-z]*` ; do \
@@ -368,6 +374,7 @@ release.7:
 		if [ -f ssecure.inf ] ; then mv ssecure.inf ../des ; fi && \
 		if [ -f sebones.inf ] ; then mv sebones.inf ../des ; fi ; )
 	@echo "src distribution is finished."
+.endif
 	touch release.7
 
 # Complete the bootfd
@@ -642,6 +649,9 @@ doMFSKERN:
 	kzip -v ${RD}/boot.${FSIMAGE}/kernel
 	@mv ${RD}/boot.${FSIMAGE}/kernel ${RD}/kernels/MFSKERNEL.${FSIMAGE}
 	@mv ${RD}/boot.${FSIMAGE}/kernel.kz ${RD}/boot.${FSIMAGE}/kernel
+.if defined(BOOT_CONFIG)
+	@echo "${BOOT_CONFIG}" >${RD}/boot.${FSIMAGE}/boot.config
+.endif
 	@rm -f ${RD}/floppies/boot${FSIMAGE}.flp
 	sh -e ${.CURDIR}/doFS.sh ${RD} ${MNT} ${FDSIZE} ${RD}/boot.${FSIMAGE} \
 		${BOOTINODE} ${FDLABEL}
