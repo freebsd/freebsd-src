@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * $Id: asc.c,v 1.20 1996/06/18 01:22:12 bde Exp $
+ * $Id: asc.c,v 1.21 1996/09/06 23:07:09 phk Exp $
  */
 
 #include "asc.h"
@@ -652,7 +652,6 @@ ascclose(dev_t dev, int flags, int fmt, struct proc *p)
   isa_dma_release(scu->dma_num);
     /* --- disable interrupts on the controller (sub_24) --- */
 
-  scu->sbuf.base = NULL;
   scu->sbuf.size = INVALID;
   scu->sbuf.rptr  = INVALID;
 
