@@ -89,7 +89,6 @@ static int extattr_list_vp(struct vnode *vp, int attrnamespace, void *data,
     size_t nbytes, struct thread *td);
 
 int (*union_dircheckp)(struct thread *td, struct vnode **, struct file *);
-int (*softdep_fsync_hook)(struct vnode *);
 
 /*
  * The module initialization routine for POSIX asynchronous I/O will
@@ -3149,9 +3148,6 @@ fsync(td, uap)
 		VM_OBJECT_UNLOCK(vp->v_object);
 	}
 	error = VOP_FSYNC(vp, MNT_WAIT, td);
-	if (error == 0 && vp->v_mount && (vp->v_mount->mnt_flag & MNT_SOFTDEP)
-	    && softdep_fsync_hook != NULL)
-		error = (*softdep_fsync_hook)(vp);
 
 	VOP_UNLOCK(vp, 0, td);
 	vn_finished_write(mp);
