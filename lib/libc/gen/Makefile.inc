@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.6 (Berkeley) 5/4/95
-#	$Id: Makefile.inc,v 1.50 1998/09/09 01:21:24 jdp Exp $
+#	$Id: Makefile.inc,v 1.51 1999/04/07 02:59:47 jdp Exp $
 
 # machine-independent gen sources
 .PATH: ${.CURDIR}/../libc/${MACHINE_ARCH}/gen ${.CURDIR}/../libc/gen
@@ -92,6 +92,7 @@ MLINKS+=glob.3 globfree.3
 MLINKS+=isinf.3 isnan.3
 MLINKS+=popen.3 pclose.3
 MLINKS+=psignal.3 sys_siglist.3 psignal.3 sys_signame.3
+MLINKS+=psignal.3 strsignal.3 psignal.3 sys_siglist.3 psignal.3 sys_signame.3
 MLINKS+=pwcache.3 group_from_gid.3 pwcache.3 user_from_uid.3
 MLINKS+=rand48.3 _rand48.3 rand48.3 drand48.3 rand48.3 erand48.3 \
 	rand48.3 jrand48.3 rand48.3 lcong48.3 rand48.3 lrand48.3 \
