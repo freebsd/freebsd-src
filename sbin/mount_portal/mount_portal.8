@@ -35,7 +35,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)mount_portal.8	8.3 (Berkeley) 3/27/94
-.\"	$Id: mount_portal.8,v 1.4 1998/12/15 18:59:06 dillon Exp $
+.\"	$Id: mount_portal.8,v 1.6 1999/08/14 22:25:59 chris Exp $
 .\"
 .Dd March 27, 1994
 .Dt MOUNT_PORTAL 8
@@ -101,7 +101,7 @@ socket bound to the given hostname-port pair. The hostname may be
 specified as "ANY" to allow any other host to connect to the socket. A
 port number of 0 will dynamically allocate a port, this can be
 discovered by calling
-.Xr getsockname 8
+.Xr getsockname 2
 with the returned file descriptor. Privileged ports can only be bound to
 by the super-user.
 The
