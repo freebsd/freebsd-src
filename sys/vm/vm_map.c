@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.96 1997/11/07 08:53:44 phk Exp $
+ * $Id: vm_map.c,v 1.97 1997/11/14 23:42:10 tegge Exp $
  */
 
 /*
@@ -1062,7 +1062,6 @@ vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
 		if (current->protection != old_prot) {
 #define MASK(entry)	(((entry)->eflags & MAP_ENTRY_COW) ? ~VM_PROT_WRITE : \
 							VM_PROT_ALL)
-#define	max(a,b)	((a) > (b) ? (a) : (b))
 
 			if (current->eflags & MAP_ENTRY_IS_A_MAP) {
 				vm_map_entry_t share_entry;
@@ -1080,7 +1079,7 @@ vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
 				    (share_entry->start < share_end)) {
 
 					pmap_protect(map->pmap,
-					    (max(share_entry->start,
+					    (qmax(share_entry->start,
 						    current->offset) -
 						current->offset +
 						current->start),
@@ -1098,7 +1097,6 @@ vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
 				pmap_protect(map->pmap, current->start,
 				    current->end,
 				    current->protection & MASK(entry));
-#undef	max
 #undef	MASK
 		}
 
