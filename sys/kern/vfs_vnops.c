@@ -288,23 +288,18 @@ vn_close(vp, flags, file_cred, td)
 	struct ucred *file_cred;
 	struct thread *td;
 {
+	struct mount *mp;
 	int error;
 
 	VFS_ASSERT_GIANT(vp->v_mount);
 
+	vn_start_write(vp, &mp, V_WAIT);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	if (flags & FWRITE)
 		vp->v_writecount--;
 	error = VOP_CLOSE(vp, flags, file_cred, td);
-	/*
-	 * XXX - In certain instances VOP_CLOSE has to do the vrele
-	 * itself. If the vrele has been done, it will return EAGAIN
-	 * to indicate that the vrele should not be done again. When
-	 * this happens, we just return success. The correct thing to
-	 * do would be to have all VOP_CLOSE instances do the vrele.
-	 */
-	if (error == EAGAIN)
-		return (0);
-	vrele(vp);
+	vput(vp);
+	vn_finished_write(mp);
 	return (error);
 }
 
@@ -817,17 +812,11 @@ debug_vn_lock(vp, flags, td, filename, line)
 	do {
 		if ((flags & LK_INTERLOCK) == 0)
 			VI_LOCK(vp);
-		if ((vp->v_iflag & VI_XLOCK) && vp->v_vxthread != curthread) {
-			if ((flags & LK_NOWAIT) != 0) {
-				VI_UNLOCK(vp);
-				return (ENOENT);
-			}
-			vx_waitl(vp);
-			if ((flags & LK_RETRY) == 0) {
-				VI_UNLOCK(vp);
-				return (ENOENT);
-			}
-		} 
+		if ((vp->v_iflag & VI_DOOMED) && vp->v_vxthread != td &&
+		    (flags & LK_NOWAIT)) {
+			VI_UNLOCK(vp);
+			return (ENOENT);
+		}
 #ifdef	DEBUG_LOCKS
 		vp->filename = filename;
 		vp->line = line;
@@ -838,6 +827,16 @@ debug_vn_lock(vp, flags, td, filename, line)
 		 */
 		error = VOP_LOCK(vp, flags | LK_NOPAUSE | LK_INTERLOCK, td);
 		flags &= ~LK_INTERLOCK;
+		/*
+		 * Callers specify LK_RETRY if they wish to get dead vnodes.
+		 * If RETRY is not set, we return ENOENT instead.
+		 */
+		if (error != 0 && (vp->v_iflag & VI_DOOMED) &&
+		    vp->v_vxthread != td && (flags & LK_RETRY) == 0) {
+			VOP_UNLOCK(vp, 0, td);
+			error = ENOENT;
+			break;
+		}
 	} while (flags & LK_RETRY && error != 0);
 	return (error);
 }
