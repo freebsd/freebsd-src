@@ -9,6 +9,7 @@
 .Sh SYNOPSIS
 .Cd "device en"
 .Cd "device atm"
+.Cd "device utopia"
 .Sh DESCRIPTION
 The
 .Nm
@@ -29,7 +30,12 @@ byte encoding of the following flags.
 Thus, parameter 3 means AAL5 and LLC/SNAP encapsulation.
 Note that BPF works only with LLC/SNAP encapsulation.
 .Pp
-The following sysctls are recognized by the driver:
+The device driver uses the
+.Xr utopia 4
+module for communication with the physical and ATM layer chip (SUNI/Lite).
+.Pp
+The following sysctls are recognized by the driver besides those implemented by
+.Xr utopia 4 :
 .Bl -tag -width XXX
 .It Cm hw.atm.enX.istats
 Contains an array of
@@ -63,6 +69,7 @@ The driver extensively uses DMA on PCI.
 The first
 generation PCI chipsets do not work or exhibit poor performance.
 .Sh SEE ALSO
+.Xr utopia 4 ,
 .Xr ifconfig 8 ,
 .Xr route 8
 .Sh AUTHORS

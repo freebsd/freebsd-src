@@ -797,6 +797,7 @@ dev/usb/usb_quirks.c	optional usb
 dev/usb/usb_subr.c	optional usb
 dev/usb/usbdi.c		optional usb
 dev/usb/usbdi_util.c	optional usb
+dev/utopia/utopia.c		optional utopia
 dev/vinum/vinum.c		optional vinum
 dev/vinum/vinumconfig.c		optional vinum
 dev/vinum/vinumdaemon.c		optional vinum
