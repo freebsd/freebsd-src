@@ -27,6 +27,11 @@
  **********************************************************************
  * HISTORY
  * $Log: log.c,v $
+ * Revision 1.1.1.1  1995/12/26 04:54:47  peter
+ * Import the unmodified version of the sup that we are using.
+ * The heritage of this version is not clear.  It appears to be NetBSD
+ * derived from some time ago.
+ *
  * Revision 1.1.1.1  1993/08/21  00:46:33  jkh
  * Current sup with compression support.
  *
@@ -52,8 +57,13 @@
  */
 
 #include <stdio.h>
+#ifdef __hpux
+#include <syslog.h>
+#include <stdlib.h>
+#else
 #include <sys/syslog.h>
 #include <c.h>
+#endif
 #if __STDC__
 #include <stdarg.h>
 #else
@@ -72,7 +82,7 @@ logopen(program)
 char *program;
 {
 	if (opened)  return;
-	openlog(program,LOG_PID,LOG_DAEMON);
+	openlog(program,LOG_PID,LOG_LOCAL1);
 	opened++;
 }
 

@@ -42,13 +42,14 @@
 #
 SITE			= NETBSD
 #SITE			= CMUCS
+RENAMELOG		= \"/usr/local/etc/sup.moved\"
 NETBSD_DEFINES		= -UMACH -DVAR_TMP -DHAS_DAEMON
 AFS_DEFINES		= -DAFS -I/usr/afsws/include
 OSF_DEFINES		= -UMACH -DOSF -D_BSD -noshrlib -g -DNEED_VSNPRINTF -DVAR_TMP
 CMUCS_DEFINES		= -DMACH -DDOPRINT_VA -DNEED_VPRINTF
 NON_MACH_DEFINES	= -UMACH
 #DEFS			= -UCMUCS -UCMU  ${${SITE}_DEFINES}
-DEFS			= -UCMUCS -UCMU  ${NETBSD_DEFINES}
+DEFS			= -UCMUCS -UCMU  ${NETBSD_DEFINES} -DRENAMELOG=${RENAMELOG}
 
 #INSTALLATION PARAMETERS
 NETBSD_BINDIR		= /usr/local/bin
@@ -60,8 +61,9 @@ CFLAGS			= ${DEFS} -O -I.
 SUPCL			= supcmain.o supcvers.o supcparse.o supcname.o \
 			  supcmisc.o supcmeat.o
 SUPS			= scm.o scmio.o stree.o log.o supmsg.o netcrypt.o
-EXTRA			= atoo.o errmsg.o expand.o ffilecopy.o filecopy.o nxtarg.o  \
-			  path.o quit.o run.o salloc.o skipto.o  vprintf.o
+EXTRA			= atoo.o errmsg.o expand.o ffilecopy.o filecopy.o \
+			  nxtarg.o path.o quit.o run.o salloc.o skipto.o  \
+			  vprintf.o
 
 
 PROGRAMS		= sup supscan supfilesrv
@@ -76,9 +78,9 @@ USE_CRYPT		= yes
 .endif
 
 .if defined(USE_CRYPT)
-NETBSD_LIBS		= -lcrypt -lutil
+NETBSD_LIBS		= -lcipher -lcrypt -lutil
 .else
-NETBSD_LIBS		= -lutil
+NETBSD_LIBS		= -lcrypt -lutil
 .endif
 CMUCS_LIBS		= -lsys
 OSF_LIBS		= -lbsd

@@ -109,6 +109,11 @@
  **********************************************************************
  * HISTORY
  * $Log: scmio.c,v $
+ * Revision 1.1.1.1  1995/12/26 04:54:47  peter
+ * Import the unmodified version of the sup that we are using.
+ * The heritage of this version is not clear.  It appears to be NetBSD
+ * derived from some time ago.
+ *
  * Revision 1.1.1.1  1993/08/21  00:46:33  jkh
  * Current sup with compression support.
  *
@@ -249,13 +254,13 @@ char *data;
 	}
 	if (x <= 0) {
 		if (errno == EPIPE)
-			return (scmerr (-1,"Network write timed out"));
+			return (scmerr (-1,stderr,"Network write timed out"));
 		if (errno)
-			return (scmerr (errno,"Write error on network"));
-		return (scmerr (-1,"Write retries failed"));
+			return (scmerr (errno,stderr,"Write error on network"));
+		return (scmerr (-1,stderr,"Write retries failed"));
 	}
 	if (x != count)
-		return (scmerr (-1,"Write error on network returned %d on write of %d",x,count));
+		return (scmerr (-1,stderr,"Write error on network returned %d on write of %d",x,count));
 	return (SCMOK);
 }
 
@@ -280,7 +285,7 @@ int msg;
 	if (scmdebug > 1)
 		loginfo ("SCM Writing message %d",msg);
 	if (bufptr)
-		return (scmerr (-1,"Buffering already enabled"));
+		return (scmerr (-1,stderr,"Buffering already enabled"));
 	bufptr = buffers;
 	bufptr->b_ptr = bufptr->b_data;
 	bufptr->b_cnt = 0;
@@ -298,7 +303,7 @@ writemend ()		/* write end of message */
 	x = writedata (sizeof(int),(char *)&x);
 	if (x != SCMOK)  return (x);
 	if (bufptr == NULL)
-		return (scmerr (-1,"Buffering already disabled"));
+		return (scmerr (-1,stderr,"Buffering already disabled"));
 	if (bufptr->b_cnt == 0) {
 		bufptr = NULL;
 		return (SCMOK);
@@ -351,7 +356,7 @@ int f;
 	struct stat statbuf;
 
 	if (fstat(f,&statbuf) < 0)
-		return (scmerr (errno,"Can't access open file for message"));
+		return (scmerr (errno,stderr,"Can't access open file for message"));
 	filesize = statbuf.st_size;
 	y = byteswap(filesize);
 	x = writedata (sizeof(int),(char *)&y);
@@ -375,9 +380,9 @@ int f;
 		} while (x == SCMOK && number > 0);
 	}
 	if (sum != filesize)
-		return (scmerr (-1,"File size error on output message"));
+		return (scmerr (-1,stderr,"File size error on output message"));
 	if (number < 0)
-		return (scmerr (errno,"Read error on file output message"));
+		return (scmerr (errno,stderr,"Read error on file output message"));
 	return (x);
 }
 
@@ -431,7 +436,7 @@ char *data;
 
 	if (count < 0) {
 		if (bufptr + count < buffer)
-			return (scmerr (-1,"No space in buffer %d",count));
+			return (scmerr (-1,stderr,"No space in buffer %d",count));
 		bufptr += count;
 		bufcnt -= count;
 		bcopy (data,bufptr,-count);
@@ -463,16 +468,21 @@ char *data;
 		tries = 0;
 		for (;;) {
 			imask = 1 << netfile;
+#if defined(__hpux)
+			if (select(32,&imask,(int *)0,(int *)0,&timout) < 0)
+#else
 			if (select(32,(fd_set *)&imask,(fd_set *)0,(fd_set *)0,&timout) < 0)
+#endif
 				imask = 1;
 			errno = 0;
 			if (imask)
 				x = read (netfile,p,n);
 			else
-				return (scmerr (-1,"Timeout on network input"));
+				return (scmerr (-1,stderr,"Timeout on network input"));
 			if (x > 0)  break;
 			if (x == 0)
-				return (scmerr (-1,"Premature EOF on network input"));
+				return (scmerr (-1,stderr,"Premature EOF on network "
+						"input"));
 			if (errno)  break;
 			if (++tries > RETRIES)  break;
 			if (scmdebug > 0)
@@ -480,8 +490,8 @@ char *data;
 		}
 		if (x < 0) {
 			if (errno)
-				return (scmerr (errno,"Read error on network"));
-			return (scmerr (-1,"Read retries failed"));
+				return (scmerr (errno,stderr,"Read error on network"));
+			return (scmerr (-1,stderr,"Read retries failed"));
 		}
 		p += x;
 		n -= x;
@@ -538,7 +548,7 @@ int msg;		/* if message is unexpected, send back SCMHUH */
 
 	/* check for MSGGOAWAY in case he noticed problems first */
 	if (m != MSGGOAWAY)
-		return (scmerr (-1,"Received unexpected message %d",m));
+		return (scmerr (-1,stderr,"Received unexpected message %d",m));
 	(void) netcrypt ((char *)NULL);
 	(void) readstring (&goawayreason);
 	(void) readmend ();
@@ -555,7 +565,7 @@ readmend ()
 	x = readdata (sizeof(int),(char *)&y);
 	y = byteswap(y);
 	if (x == SCMOK && y != ENDCOUNT)
-		return (scmerr (-1,"Error reading end of message"));
+		return (scmerr (-1,stderr,"Error reading end of message"));
 	return (x);
 }
 
@@ -567,7 +577,7 @@ readskip ()			/* skip over one input block */
 	x = readcount (&n);
 	if (x != SCMOK)  return (x);
 	if (n < 0)
-		return (scmerr (-1,"Invalid message count %d",n));
+		return (scmerr (-1,stderr,"Invalid message count %d",n));
 	while (x == SCMOK && n > 0) {
 		x = readdata (XFERSIZE(n),buf);
 		n -= XFERSIZE(n);
@@ -583,9 +593,9 @@ int *buf;
 	x = readcount (&y);
 	if (x != SCMOK)  return (x);
 	if (y < 0)
-		return (scmerr (-1,"Invalid message count %d",y));
+		return (scmerr (-1,stderr,"Invalid message count %d",y));
 	if (y != sizeof(int))
-		return (scmerr (-1,"Size error for int message is %d",y));
+		return (scmerr (-1,stderr,"Size error for int message is %d",y));
 	x = readdata (sizeof(int),(char *)&y);
 	(*buf) = byteswap(y);
 	if (scmdebug > 2)
@@ -609,11 +619,11 @@ register char **buf;
 		return (SCMOK);
 	}
 	if (count < 0)
-		return (scmerr (-1,"Invalid message count %d",count));
+		return (scmerr (-1,stderr,"Invalid message count %d",count));
 	if (scmdebug > 3)
 		loginfo ("SCM Reading string count %d",count);
 	if ((p = (char *)malloc ((unsigned)count+1)) == NULL)
-		return (scmerr (-1,"Can't malloc %d bytes for string",count));
+		return (scmerr (-1,stderr,"Can't malloc %d bytes for string",count));
 	if (cryptflag) {
 		x = getcryptbuf (count+1);
 		if (x == SCMOK)  x = readdata (count,cryptbuf);
@@ -647,7 +657,7 @@ int f;
 	x = readcount (&count);
 	if (x != SCMOK)  return (x);
 	if (count < 0)
-		return (scmerr (-1,"Invalid message count %d",count));
+		return (scmerr (-1,stderr,"Invalid message count %d",count));
 	while (x == SCMOK && count > 0) {
 		if (cryptflag) {
 			x = readdata (XFERSIZE(count),cryptbuf);
@@ -709,7 +719,11 @@ crosspatch ()
 		FD_ZERO (&xbits);
 		FD_SET (0,&ibits);
 		FD_SET (netfile,&ibits);
+#if defined(__hpux)
+		if ((c = select(16, (int *)&ibits, (int *)&obits, (int *)&xbits,
+#else
 		if ((c = select(16, &ibits, &obits, &xbits,
+#endif
 				(struct timeval *)NULL)) < 1) {
 			if (c == -1) {
 				if (errno == EINTR) {

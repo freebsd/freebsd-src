@@ -58,7 +58,7 @@ FILE *here, *there;
 	if (fflush (there) == EOF)		/* flush pending output */
 		return (EOF);
 
-#ifdef __386BSD__
+#ifdef __FreeBSD__
 	if ((here->_r) > 0) {			/* flush buffered input */
 		i = write (therefile, here->_p, here->_r);
 		if (i != here->_r)  return (EOF);
@@ -76,7 +76,7 @@ FILE *here, *there;
 	i = filecopy (herefile, therefile);	/* fast file copy */
 	if (i < 0)  return (EOF);
 
-#ifdef __386BSD__
+#ifdef __FreeBSD__
 	(here->_flags) |= __SEOF;		/* indicate EOF */
 #else
 	(here->_flag) |= _IOEOF;		/* indicate EOF */

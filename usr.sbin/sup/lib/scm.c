@@ -69,6 +69,11 @@
  *	since Tahoe version of <netinet/in.h> does not define them.
  *
  * $Log: scm.c,v $
+ * Revision 1.1.1.1  1995/12/26 04:54:47  peter
+ * Import the unmodified version of the sup that we are using.
+ * The heritage of this version is not clear.  It appears to be NetBSD
+ * derived from some time ago.
+ *
  * Revision 1.2  1994/06/20  06:04:04  rgrimes
  * Humm.. they did a lot of #if __STDC__ but failed to properly prototype
  * the code.  Also fixed one bad argument to a wait3 call.
@@ -208,7 +213,7 @@ char scmversion[] = "4.3 BSD";
  * PROTOTYPES
  */
 #if __STDC__
-int	scmerr	__P((int, char *,...));
+int   scmerr  __P((int, FILE *, char *,...));
 #endif
 /*************************
  ***    M A C R O S    ***
@@ -245,31 +250,31 @@ char *server;
 	int one = 1;
 
 	if (myhost () == NULL)
-		return (scmerr (-1,"Local hostname not known"));
+		return (scmerr (-1, stderr, "Local hostname not known"));
 	if ((sp = getservbyname(server,"tcp")) == 0) {
 		if (strcmp(server, FILEPORT) == 0)
 			port = htons((u_short)FILEPORTNUM);
 		else if (strcmp(server, DEBUGFPORT) == 0)
 			port = htons((u_short)DEBUGFPORTNUM);
 		else
-			return (scmerr (-1,"Can't find %s server description",server));
-		(void) scmerr (-1,"%s/tcp: unknown service: using port %d",
+			return (scmerr (-1, stderr, "Can't find %s server description",server));
+		(void) scmerr (-1, stderr, "%s/tcp: unknown service: using port %d",
 					server,port);
 	} else
 		port = sp->s_port;
 	endservent ();
 	sock = socket (AF_INET,SOCK_STREAM,0);
 	if (sock < 0)
-		return (scmerr (errno,"Can't create socket for connections"));
+		return (scmerr (errno, stderr, "Can't create socket for connections"));
 	if (setsockopt (sock,SOL_SOCKET,SO_REUSEADDR,(char *)&one,sizeof(int)) < 0)
-		(void) scmerr (errno,"Can't set SO_REUSEADDR socket option");
+		(void) scmerr (errno, stderr, "Can't set SO_REUSEADDR socket option");
 	(void) bzero ((char *)&sin,sizeof(sin));
 	sin.sin_family = AF_INET;
 	sin.sin_port = port;
 	if (bind (sock,(struct sockaddr *)&sin,sizeof(sin)) < 0)
-		return (scmerr (errno,"Can't bind socket for connections"));
+		return (scmerr (errno, stderr, "Can't bind socket for connections"));
 	if (listen (sock,NCONNECTS) < 0)
-		return (scmerr (errno,"Can't listen on socket"));
+		return (scmerr (errno, stderr, "Can't listen on socket"));
 	return (SCMOK);
 }
 
@@ -284,16 +289,16 @@ service ()
 		netfile = accept (sock,(struct sockaddr *)&from,&len);
 	} while (netfile < 0 && errno == EINTR);
 	if (netfile < 0)
-		return (scmerr (errno,"Can't accept connections"));
+		return (scmerr (errno, stderr, "Can't accept connections"));
 	remoteaddr = from.sin_addr;
 	if (read(netfile,(char *)&x,sizeof(int)) != sizeof(int))
-		return (scmerr (errno,"Can't transmit data on connection"));
+		return (scmerr (errno, stderr, "Can't transmit data on connection"));
 	if (x == 0x01020304)
 		swapmode = 0;
 	else if (x == 0x04030201)
 		swapmode = 1;
 	else
-		return (scmerr (-1,"Unexpected byteswap mode %x",x));
+		return (scmerr (-1, stderr, "Unexpected byteswap mode %x",x));
 	return (SCMOK);
 }
 
@@ -354,7 +359,7 @@ int *t,*b;
 			s = *t;
 		*t -= s;
 	}
-	(void) scmerr (-1,"Will retry in %d seconds",s);
+	(void) scmerr (-1, stdout, "Will retry in %d seconds",s);
 	sleep (s);
 	return (1);
 }
@@ -376,9 +381,9 @@ int *retry;
 		else if (strcmp(server, DEBUGFPORT) == 0)
 			port = htons((u_short)DEBUGFPORTNUM);
 		else
-			return (scmerr (-1,"Can't find %s server description",
+			return (scmerr (-1, stderr, "Can't find %s server description",
 					server));
-		(void) scmerr (-1,"%s/tcp: unknown service: using port %d",
+		(void) scmerr (-1, stderr, "%s/tcp: unknown service: using port %d",
 					server,port);
 	} else
 		port = sp->s_port;
@@ -387,7 +392,7 @@ int *retry;
 	sin.sin_addr.s_addr = inet_addr (hostname);
 	if (sin.sin_addr.s_addr == (u_long) INADDR_NONE) {
 		if ((h = gethostbyname (hostname)) == NULL)
-			return (scmerr (-1,"Can't find host entry for %s",
+			return (scmerr (-1, stderr, "Can't find host entry for %s",
 					hostname));
 		hostname = h->h_name;
 		(void) bcopy (h->h_addr,(char *)&sin.sin_addr,h->h_length);
@@ -397,11 +402,11 @@ int *retry;
 	for (;;) {
 		netfile = socket (AF_INET,SOCK_STREAM,0);
 		if (netfile < 0)
-			return (scmerr (errno,"Can't create socket"));
+			return (scmerr (errno, stderr, "Can't create socket"));
 		tin = sin;
 		if (connect(netfile,(struct sockaddr *)&tin,sizeof(tin)) >= 0)
 			break;
-		(void) scmerr (errno,"Can't connect to server for %s",server);
+		(void) scmerr (errno, stderr, "Can't connect to server for %s",server);
 		(void) close(netfile);
 		if (!dobackoff (retry,&backoff))
 			return (SCMERR);
@@ -522,6 +527,8 @@ char *name;
 	struct hostent *h;
 	struct in_addr addr;
 	char **ap;
+	if(!strcmp(name,"*"))
+		return (1);
 	if ((addr.s_addr = inet_addr(name)) != (u_long) INADDR_NONE)
 		return (addr.s_addr == remoteaddr.s_addr);
 	if ((h = gethostbyname (name)) == 0)
@@ -535,7 +542,7 @@ char *name;
 }
 
 #if __STDC__
-int scmerr (int errno,char *fmt,...)
+int scmerr (int errno,FILE *filedes,char *fmt,...)
 #else
 /*VARARGS*//*ARGSUSED*/
 int scmerr (va_alist)
@@ -544,15 +551,16 @@ va_dcl
 {
 #if !__STDC__
 	int errno;
+	FILE *filedes;
 	char *fmt;
 #endif
 	va_list ap;
 
-	(void) fflush (stdout);
+	(void) fflush (filedes);
 	if (progpid > 0)
-		fprintf (stderr,"%s %d: ",program,progpid);
+		fprintf (filedes,"%s %d: ",program,progpid);
 	else
-		fprintf (stderr,"%s: ",program);
+		fprintf (filedes,"%s: ",program);
 #if __STDC__
 	va_start(ap,fmt);
 #else
@@ -560,13 +568,13 @@ va_dcl
 	errno = va_arg(ap,int);
 	fmt = va_arg(ap,char *);
 #endif
-	vfprintf(stderr, fmt, ap);
+	vfprintf(filedes, fmt, ap);
 	va_end(ap);
 	if (errno >= 0)
-		fprintf (stderr,": %s\n",errmsg(errno));
+		fprintf (filedes,": %s\n",errmsg(errno));
 	else
-		fprintf (stderr,"\n");
-	(void) fflush (stderr);
+		fprintf (filedes,"\n");
+	(void) fflush (filedes);
 	return (SCMERR);
 }
 

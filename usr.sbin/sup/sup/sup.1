@@ -23,6 +23,11 @@
 .\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 .\" HISTORY
 .\" $Log: sup.1,v $
+.\" Revision 1.1.1.1  1995/12/26 04:54:46  peter
+.\" Import the unmodified version of the sup that we are using.
+.\" The heritage of this version is not clear.  It appears to be NetBSD
+.\" derived from some time ago.
+.\"
 .\" Revision 1.2  1994/08/11  02:46:19  rich
 .\" Added extensions written by David Dawes.  From the man page:
 .\"
@@ -59,7 +64,7 @@
 .\" 04-Apr-85  Steven Shafer (sas) at Carnegie-Mellon University
 .\" 	Created.
 .\" 
-.TH SUP 1 02/08/92
+.TH SUP 1 03/15/95
 .CM 4
 .SH "NAME"
 sup \- software upgrade protocol
@@ -246,6 +251,41 @@ A
 upgrade will be performed.  Messages
 will be printed that indicate what would happen if
 an actual upgrade were done.
+.TP
+.B -i
+Normally, 
+.I sup 
+will fail to upgrade any files that are \fBETXTBSY\fR.
+The
+.B -i
+flag, or the
+.B unlinkbusy
+supfile option, will cause
+.I sup
+to try to upgrade a busy file by unlinking it before the 
+replacement file is installed.  The option is intended for
+environments where upgrades to possibly running binaries or 
+libraries will take place.  Some operating systems \fB(HPUX)\fR 
+do not allow the unlink system call to succeed on ETXTBSY files.
+If the unlink does not succeed, an attempt is made to rename the 
+file to filename.sup#sup-pid.moved.  The new name is logged in either 
+the system default rename log file, \fB/usr/local/etc/sup.moved\fR, 
+or in a logfile as set by the \fBrenamelog\fR supfile option.  The 
+logfile allows for easy deletion of ETXTBSY files once they are no 
+longer in use.  A typical time to perform the deletions is at system 
+boot time with something similar to:
+.TP
+.ce 1
+cat /usr/local/etc/sup.moved | xargs rm -rf
+.TP
+.B -I
+The
+.B -I
+flag overrides and disables the
+.B -i
+flag and the
+.B unlinkbusy
+supfile option.
 .TP
 .B -k
 .I Sup
@@ -537,6 +577,19 @@ project's file collection from all users running
 .I sup
 to upgrade that collection.
 .TP
+.BI renamelog= filename
+When the 
+.B
+unlinkbusy
+or
+.B
+-i
+option is enabled, but the system cannot unlink a busy file, it
+will rename it instead and log the new filename.  Logging will 
+occur to the system default rename log file or to the specified
+.IR filename
+in the renamelog entry of a supfile.
+.TP
 .B backup
 As described above under the
 .B -b
@@ -560,6 +613,11 @@ flag.
 .B old
 As described above under the
 .B -o
+flag.
+.TP
+.B unlinkbusy
+As described above under the
+.B -i
 flag.
 .TP
 .B noupdate
@@ -729,6 +787,12 @@ The always command is identical to upgrade, except that omit and
 omitany commands do not affect filenames specified with the always
 command.
 .TP
+\fBrename\fR \fIfilename\fR \fIdest-filename\fR...
+The rename command allows for a file on the server to be placed on the
+client under a different name.  To prevent confusion and ease its use,
+the rename option implicitly omits any files on the server that have 
+the same name as \fIdest-filename\fR.
+.TP
 \fBomit\fR \fIfilename\fR ...
 The specified file(s) (or directories) will be excluded from the
 list of files to be upgraded.
@@ -796,7 +860,9 @@ As described above, the client must invoke
 .I sup
 with the
 .B -e
-flag to allow the automatic execution of command files.
+flag to allow the automatic execution of command files.  The timestamp
+of the upgraded file is maintained even if the executed command might
+change it so as to prevent an upgrade with every \fIsup\fR.
 .TP
 \fBinclude\fR \fIlistfile\fR ...
 The specified
@@ -861,6 +927,9 @@ lock file for a collection
 .TP
 <\fIbase-directory\fR>\fB/sup/\fR<\fIcollection\fR>\fB/logfile
 log file for a collection
+.TP
+\fB/usr/local/etc/sup.moved\fR 
+log file for files renamed by the \fBunlinkbusy\fR option
 .TP
 <\fIbase-directory\fR>\fB/sup/\fR<\fIcollection\fR>\fB/prefix
 file containing the name of the prefix directory

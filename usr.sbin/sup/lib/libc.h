@@ -26,6 +26,11 @@
  **********************************************************************
  * HISTORY
  * $Log: libc.h,v $
+ * Revision 1.1.1.1  1995/12/26 04:54:47  peter
+ * Import the unmodified version of the sup that we are using.
+ * The heritage of this version is not clear.  It appears to be NetBSD
+ * derived from some time ago.
+ *
  * Revision 1.1.1.1  1993/08/21  00:46:33  jkh
  * Current sup with compression support.
  *
@@ -80,6 +85,10 @@
 
 #ifndef	_LIBC_H_
 #define	_LIBC_H_ 1
+
+#if defined(__hpux)
+#define __P(x) x
+#endif
 
 #ifndef _TYPES_
 #include <sys/types.h>
@@ -195,6 +204,26 @@ typedef int (*PFI)();
 #if defined(c_plusplus)
 typedef int (*PFI2)(...);
 #endif /* c_plusplus */
+
+#if defined(__hpux)
+extern int utimes(char *, struct timeval *);
+
+#ifndef LOCK_SH
+#define LOCK_SH 1
+#endif
+#ifndef LOCK_EX
+#define LOCK_EX 2
+#endif
+#ifndef LOCK_NB
+#define LOCK_NB 4
+#endif
+#ifndef LOCK_UN
+#define LOCK_UN 8
+#endif
+
+extern int flock(int, int);
+#endif /* __hpux */
+
 #if 0
 extern void abort(void);
 extern int abs(int);

@@ -39,6 +39,11 @@
  *	across the network to save BandWidth
  *
  * $Log: sup.h,v $
+ * Revision 1.1.1.1  1995/12/26 04:54:47  peter
+ * Import the unmodified version of the sup that we are using.
+ * The heritage of this version is not clear.  It appears to be NetBSD
+ * derived from some time ago.
+ *
  * Revision 1.1.1.1  1993/08/21  00:46:34  jkh
  * Current sup with compression support.
  *
@@ -101,8 +106,8 @@
 
 /* PGMVERSION is defined separately in each program */
 extern char scmversion[];		/* string version of scm */
-#define PROTOVERSION 8			/* version of network protocol */
-#define SCANVERSION  2			/* version of scan file format */
+#define PROTOVERSION 9			/* version of network protocol */
+#define SCANVERSION  3			/* version of scan file format */
 
 /* TCP servers for name server and file server */
 #define FILEPORT	"supfilesrv"
@@ -182,6 +187,7 @@ extern char scmversion[];		/* string version of scm */
 struct treestruct {
 /* fields for file information */
 	char *Tname;			/* path component name */
+	char *Tnewname;			/* Used for renameing files */
 	int Tflags;			/* flags of file */
 	int Tmode;			/* st_mode of file */
 	char *Tuser;			/* owner of file */
@@ -220,6 +226,7 @@ typedef struct tliststruct TREELIST;
 #define FBACKUP		     02		/* backup of file is allowed */
 #define FNOACCT		     04		/* don't set file information */
 #define FUPDATE		    010		/* only set file information */
+#define FRENAME		    020		/* Rename this file while updating */
 #define FNEEDED		0100000		/* file needed for upgrade */
 
 /* version 3 compatability */
