@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_de.c,v 1.9 1994/11/30 12:08:23 davidg Exp $
+ * $Id: if_de.c,v 1.10 1994/12/11 01:45:41 davidg Exp $
  *
  */
 
@@ -1108,7 +1108,7 @@ tulip_pci_attach(
 	return;
     }
 
-    bzero(sc, sizeof(sc));				/* Zero out the softc*/
+    bzero(sc, sizeof(*sc));				/* Zero out the softc*/
     sc->tulip_rxspace = vm_page_alloc_contig(TULIP_RXSPACE + NBPG, 0, 0xffffffff, PAGE_SIZE);
     /*
      * We've allocated an extra page of receive space so we can double map
