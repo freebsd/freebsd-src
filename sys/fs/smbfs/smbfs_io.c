@@ -688,7 +688,7 @@ smbfs_vinvalbuf(vp, flags, cred, td, intrflg)
 	while (np->n_flag & NFLUSHINPROG) {
 		np->n_flag |= NFLUSHWANT;
 		error = tsleep(&np->n_flag, PRIBIO + 2, "smfsvinv", slptimeo);
-		error = smb_proc_intr(td->td_proc);
+		error = smb_td_intr(td->td_proc);
 		if (error == EINTR && intrflg)
 			return EINTR;
 	}
