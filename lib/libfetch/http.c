@@ -91,6 +91,7 @@ __FBSDID("$FreeBSD$");
 #define HTTP_SEE_OTHER		303
 #define HTTP_NEED_AUTH		401
 #define HTTP_NEED_PROXY_AUTH	407
+#define HTTP_BAD_RANGE		416
 #define HTTP_PROTOCOL_ERROR	999
 
 #define HTTP_REDIRECT(xyz) ((xyz) == HTTP_MOVED_PERM \
@@ -513,22 +514,34 @@ _http_parse_range(const char *p, off_t *offset, off_t *length, off_t *size)
 
 	if (strncasecmp(p, "bytes ", 6) != 0)
 		return (-1);
-	for (first = 0, p += 6; *p && isdigit(*p); ++p)
-		first = first * 10 + *p - '0';
-	if (*p != '-')
-		return (-1);
-	for (last = 0, ++p; *p && isdigit(*p); ++p)
-		last = last * 10 + *p - '0';
+	p += 6;
+	if (*p == '*') {
+		first = last = -1;
+		++p;
+	} else {
+		for (first = 0; *p && isdigit(*p); ++p)
+			first = first * 10 + *p - '0';
+		if (*p != '-')
+			return (-1);
+		for (last = 0, ++p; *p && isdigit(*p); ++p)
+			last = last * 10 + *p - '0';
+	}
 	if (first > last || *p != '/')
 		return (-1);
 	for (len = 0, ++p; *p && isdigit(*p); ++p)
 		len = len * 10 + *p - '0';
 	if (*p || len < last - first + 1)
 		return (-1);
-	DEBUG(fprintf(stderr, "content range: [%lld-%lld/%lld]\n",
-	    (long long)first, (long long)last, (long long)len));
+	if (first == -1) {
+		DEBUG(fprintf(stderr, "content range: [*/%lld]\n",
+		    (long long)len));
+		*length = 0;
+	} else {
+		DEBUG(fprintf(stderr, "content range: [%lld-%lld/%lld]\n",
+		    (long long)first, (long long)last, (long long)len));
+		*length = last - first + 1;
+	}
 	*offset = first;
-	*length = last - first + 1;
 	*size = len;
 	return (0);
 }
@@ -929,6 +942,13 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 			 */
 			_http_seterr(conn->err);
 			goto ouch;
+		case HTTP_BAD_RANGE:
+			/*
+			 * This can happen if we ask for 0 bytes because
+			 * we already have the whole file.  Consider this
+			 * a success for now, and check sizes later.
+			 */
+			break;
 		case HTTP_PROTOCOL_ERROR:
 			/* fall through */
 		case -1:
@@ -1008,6 +1028,18 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 			_fetch_close(conn);
 			conn = NULL;
 			continue;
+		}
+
+		/* requested range not satisfiable */
+		if (conn->err == HTTP_BAD_RANGE) {
+			if (url->offset == size && url->length == 0) {
+				/* asked for 0 bytes; fake it */
+				offset = url->offset;
+				conn->err = HTTP_OK;
+				break;
+			} else {
+				goto ouch;
+			}
 		}
 
 		/* we have a hit or an error */
