@@ -69,8 +69,9 @@
 #	snd*	various sound cards
 #	pcaudio PCM audio driver 
 #	socksys iBCS2 socket system driver
+*	vat	VAT compatibility audio driver (requires snd*)
 #
-#	$Id: MAKEDEV,v 1.44 1994/10/26 01:30:47 phk Exp $
+#	$Id: MAKEDEV,v 1.45 1994/10/29 10:03:37 phk Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -584,6 +585,13 @@ snd*)
 	rm -f audio1	# Sparc Audio 1 [ SB emulation of PAS16 or 2nd audio ]
 	mknod audio1	c $chr 20
 	chmod 666 audio1
+	;;
+
+vat)
+	rm -f vatio
+	mknod vatio c 25 128
+	chown root.wheel vatio
+	chmod 660 vatio
 	;;
 
 apm)

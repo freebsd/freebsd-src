@@ -41,7 +41,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.38 1994/10/13 20:17:06 sos Exp $
+ *	$Id: conf.c,v 1.39 1994/10/31 17:20:12 joerg Exp $
  */
 
 #include <sys/param.h>
@@ -426,6 +426,22 @@ d_select_t sndselect;
 #define sndselect       seltrue
 #endif
 
+#include "vat_audio.h"		/* BSD audio driver emulator for voxware */
+#if     NVAT_AUDIO > 0		/* not general purpose, just vat */
+d_open_t vaopen;
+d_close_t vaclose;
+d_ioctl_t vaioctl;
+d_rdwr_t varead, vawrite;
+d_select_t vaselect;
+#else
+#define vaopen          (d_open_t *)enxio
+#define vaclose         (d_close_t *)enxio
+#define vaioctl         (d_ioctl_t *)enxio
+#define varead          (d_rdwr_t *)enxio
+#define vawrite         (d_rdwr_t *)enxio
+#define vaselect        seltrue
+#endif
+
 /* /dev/fd/NNN */
 d_open_t fdopen;
 
@@ -665,10 +681,9 @@ struct cdevsw	cdevsw[] =
  	{ pcaopen,      pcaclose,       noread,         pcawrite,       /*24*/
  	  pcaioctl,     nostop,         nullreset,      NULL,	/* pcaudio */
  	  pcaselect,	nommap,		NULL },
-	{ (d_open_t *)enxio,	(d_close_t *)enxio,	(d_rdwr_t *)enxio, /*25*/
-	  (d_rdwr_t *)enxio,	(d_ioctl_t *)enxio,	(d_stop_t *)enxio, /* unused */
-	  (d_reset_t *)enxio,	NULL,			(d_select_t *)enxio,
-	  (d_mmap_t *)enxio,	NULL },
+	{ vaopen,	vaclose,	varead,		vawrite,	/*25*/
+  	  vaioctl,	nostop,		nullreset,	NULL,	/* vat driver */
+  	  vaselect,	nommap,		NULL },
 	{ spkropen,     spkrclose,      noread,         spkrwrite,      /*26*/
 	  spkrioctl,    nostop,         nullreset,      NULL,	/* spkr */
 	  seltrue,	nommap,		NULL },
