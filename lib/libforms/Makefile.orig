@@ -1,9 +1,8 @@
 LIB = forms
 
-SRCS = forms.c parser.y lex.l menu.c fields.c
+SRCS = forms.c
 
 CFLAGS += -I. -I${.CURDIR} -Wall -g
-LDFLAGS += -ll
 
 beforeinstall:
 	@(cd ${.CURDIR}; cmp -s forms.h ${DESTDIR}/usr/include/forms.h || \

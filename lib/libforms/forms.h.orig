@@ -34,89 +34,63 @@
 
 #include <ncurses.h>
 
-#define FF_UNKNOWN 0
-#define FF_TEXT 1
-#define FF_ACTION 2
-#define FF_INPUT 3
-#define FF_MENU 4
+#define F_END 0
+#define F_TEXT 1
+#define F_ACTION 2
+#define F_INPUT 3
+#define F_MENU 4
 
 #define F_DEFATTR 0
 #define F_SELATTR A_REVERSE
 
-/* Status values */
-
-#define FS_ERROR	-1
-#define FS_OK		0
-#define FS_EXIT		1
-#define FS_CANCEL	2
-#define FS_NOBIND	3
-#define FS_RUNNING  4
-
-
-typedef enum {
-	FT_ANY,
-	FT_FORM, 
-	FT_COLTAB,
-	FT_FIELD_INST,
-	FT_FIELD_DEF,
-	FT_FUNC
-} TupleType;
-
-struct Tuple {
-	char *name;
-	int type;
-	void *addr;
-	struct Tuple *next;
-};
+#define F_DONE 1
+#define F_CANCEL -1
 
 struct col_pair {
 	int f;
 	int b;
 };
 
-struct Form {
-	int status;
+struct form {
 	int no_fields;
-	char *startfield;
-	struct Field *current_field;
-	struct Field *prev_field;
-	struct Field *fieldlist;
+	int start_field;
+	int current_field;
+	struct field *field;
 	int height;
 	int width;
 	int y;
 	int x;
 	int attr;
-	char *colortable;
+	struct col_pair *color_table;
 	WINDOW *window;
 };
 
-struct TextField {
+struct text_field {
 	char *text;
 };
 
-struct ActionField {
+struct action_field {
 	char *text;
-	char *fn;
+	void (* fn)();
 };
 
-struct InputField {
+struct input_field {
 	int lbl_flag;
 	char *label;
 	char *input;
 	int limit;
 };
 
-struct MenuField {
-	int selected;
+struct menu_field {
 	int no_options;
+	int selected;
 	char **options;
 };
 
 struct help_link {
 };
 
-struct Field {
-	char *defname;
+struct field {
 	int type;
 	int y;
 	int x;
@@ -124,19 +98,17 @@ struct Field {
 	int width;
 	int attr;
 	int selattr;
-	char *fnext;
-	char *fup;
-	char *fdown;
-	char *fleft;
-	char *fright;
-	char *f_keymap;
+	int next;
+	int up;
+	int down;
+	int left;
+	int right;
 	union {
-		struct TextField *text;
-		struct ActionField *action;
-		struct InputField *input;
-		struct MenuField *menu;
+		struct text_field *text;
+		struct action_field *action;
+		struct input_field *input;
+		struct menu_field *menu;
 	}field;
-	struct Field *next;
 	/*
 	struct help_link help;
 	*/
@@ -146,18 +118,9 @@ struct Field {
 extern unsigned int keymap[];
 
 /* Externally visible function declarations */
-struct Form *form_start(const char *);
-struct Tuple *form_get_tuple(const char *, TupleType);
-struct Tuple *form_next_tuple(const char *, TupleType, struct Tuple *);
-int form_bind_tuple(char *, TupleType, void *);
-void print_status(char *);
-void exit_form(struct Form *form);
-void cancel_form(struct Form *form);
-
-
-#ifdef not
 int update_form(struct form *);
 int initfrm(struct form *);
 void endfrm(struct form *);
+void exit_form(void);
+void cancel_form(void);
 void print_status(char *);
-#endif
