@@ -730,6 +730,11 @@ sigonstack(size_t sp)
 	(--(p)->p_lock);						\
 } while (0)
 
+/* Check whether a thread is safe to be swapped out. */
+#define	thread_safetoswapout(td)		\
+		((td)->td_state == TDS_RUNQ ||	\
+		 (td)->td_state == TDS_SLP)
+
 /* Lock and unlock process arguments. */
 #define	PARGS_LOCK(p)		mtx_lock(&pargs_ref_lock)
 #define	PARGS_UNLOCK(p)		mtx_unlock(&pargs_ref_lock)

@@ -719,8 +719,10 @@ restart:
 					maybe_resched(td);
 				} else {
 					td->td_state = TDS_SWAPPED;
-					p->p_sflag |= PS_SWAPINREQ;
-					wakeup(&proc0);
+					if ((p->p_sflag & PS_SWAPPINGIN) == 0) {
+						p->p_sflag |= PS_SWAPINREQ;
+						wakeup(&proc0);
+					}
 				}
 				/* END INLINE EXPANSION */
 			}
@@ -766,8 +768,10 @@ restart:
 					break;
 				} else {
 					td->td_state = TDS_SWAPPED;
-					p->p_sflag |= PS_SWAPINREQ;
-					wakeup(&proc0);
+					if ((p->p_sflag & PS_SWAPPINGIN) == 0) {
+						p->p_sflag |= PS_SWAPINREQ;
+						wakeup(&proc0);
+					}
 				}
 				/* END INLINE EXPANSION */
 				goto restart;
@@ -941,8 +945,10 @@ setrunnable(struct thread *td)
 	td->td_ksegrp->kg_slptime = 0;
 	if ((p->p_sflag & PS_INMEM) == 0) {
 		td->td_state = TDS_SWAPPED;
-		p->p_sflag |= PS_SWAPINREQ;
-		wakeup(&proc0);
+		if ((p->p_sflag & PS_SWAPPINGIN) == 0) {
+			p->p_sflag |= PS_SWAPINREQ;
+			wakeup(&proc0);
+		}
 	} else {
 		if (td->td_state != TDS_RUNQ)
 			setrunqueue(td); /* XXXKSE */
