@@ -31,7 +31,7 @@ SOURCE=	atoint.c atolfp.c atouint.c auth12crypt.c authdecrypt.c authdes.c \
 	uglydate.c uinttoa.c utvtoa.c machines.c clocktypes.c \
 	md5.c a_md5encrypt.c a_md5decrypt.c \
 	a_md512crypt.c decodenetnum.c systime.c msyslog.c syssignal.c \
-	findconfig.c
+	findconfig.c netof.c
 
 OBJS=	atoint.o atolfp.o atouint.o auth12crypt.o authdecrypt.o authdes.o \
 	authencrypt.o authkeys.o authparity.o authreadkeys.o authusekey.o \
@@ -44,12 +44,12 @@ OBJS=	atoint.o atolfp.o atouint.o auth12crypt.o authdecrypt.o authdes.o \
 	uglydate.o uinttoa.o utvtoa.o machines.o clocktypes.o \
 	md5.o a_md5encrypt.o a_md5decrypt.o \
 	a_md512crypt.o decodenetnum.o systime.o msyslog.o syssignal.o \
-	findconfig.o
+	findconfig.o netof.o
 
 $(LIBNAME).a:	$(OBJS)
 	ar rv $@ $?
 	-rm -f $?
-	@if ( hp-pa || hp-mc680x0 ) > /dev/null 2>&1; then \
+	@if ( ../scripts/hpadjtime.sh ) > /dev/null 2>&1; then \
 		( cd ../adjtime && $(MAKE) $(MFLAGS) MFLAGS="$(MFLAGS)" MAKE="$(MAKE)" ) && ar rv $@ ../adjtime/adjtime.o; \
 	 else \
 		:; \

@@ -40,7 +40,11 @@ if [ -f /bin/uname -o -f /usr/bin/uname ]; then
 			guess="ultrix"
 			;;
 		hp-ux)  case "$3" in
-			*.10.*) guess="hpux10+" ;;
+			*.10.*) guess="hpux-adj" ;;
+			*.09.03) case "$5" in
+				9000/3*) guess="hpux-adj" ;;
+				*) guess="hpux" ;;
+				esac ;;
 			*) guess="hpux" ;;
 			esac
 			;;

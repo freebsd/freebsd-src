@@ -58,7 +58,7 @@
 static	struct mon_data *mon_hash;	/* Pointer to array of hash buckets */
 static	int *mon_hash_count;		/* Point to hash count stats keeper */
 	struct mon_data mon_mru_list;
-
+        struct mon_data mon_fifo_list;
 /*
  * List of free structures structures, and counters of free and total
  * structures.  The free structures are linked with the hash_next field.
@@ -93,7 +93,7 @@ init_mon()
 	 * Don't do much of anything here.  We don't allocate memory
 	 * until someone explicitly starts us.
 	 */
-	mon_enabled = 0;
+	mon_enabled = MON_OFF;
 	mon_have_memory = 0;
 
 	mon_free_mem = 0;
@@ -103,6 +103,7 @@ init_mon()
 	mon_hash = 0;
 	mon_hash_count = 0;
 	memset((char *)&mon_mru_list, 0, sizeof mon_mru_list);
+	memset((char *)&mon_fifo_list, 0, sizeof mon_fifo_list);
 }
 
 
@@ -110,13 +111,18 @@ init_mon()
  * mon_start - start up the monitoring software
  */
 void
-mon_start()
+mon_start(mode)
+	int mode;
 {
 	register struct mon_data *md;
 	register int i;
 
-	if (mon_enabled)
+	if (mon_enabled != MON_OFF) {
+		mon_enabled |= mode;
 		return;
+	}
+	if (mode == MON_OFF)
+		return;		/* Ooops.. */
 	
 	if (!mon_have_memory) {
 		mon_hash = (struct mon_data *)
@@ -142,7 +148,10 @@ mon_start()
 	mon_mru_list.mru_next = &mon_mru_list;
 	mon_mru_list.mru_prev = &mon_mru_list;
 
-	mon_enabled = 1;
+	mon_fifo_list.fifo_next = &mon_fifo_list;
+	mon_fifo_list.fifo_prev = &mon_fifo_list;
+
+	mon_enabled = mode;
 }
 
 
@@ -150,12 +159,19 @@ mon_start()
  * mon_stop - stop the monitoring software
  */
 void
-mon_stop()
+mon_stop(mode)
+	int mode;
 {
 	register struct mon_data *md;
 	register int i;
 
-	if (!mon_enabled)
+	if (mon_enabled == MON_OFF)
+		return;
+	if ((mon_enabled & mode) == 0 || mode == MON_OFF)
+		return;
+
+	mon_enabled &= ~mode;
+	if (mon_enabled != MON_OFF)
 		return;
 	
 	/*
@@ -176,7 +192,8 @@ mon_stop()
 	mon_mru_list.mru_next = &mon_mru_list;
 	mon_mru_list.mru_prev = &mon_mru_list;
 
-	mon_enabled = 0;
+	mon_fifo_list.fifo_next = &mon_fifo_list;
+	mon_fifo_list.fifo_prev = &mon_fifo_list;
 }
 
 
@@ -194,7 +211,7 @@ monitor(rbufp)
 	register int mode;
 	register struct mon_data *mdhash;
 
-	if (!mon_enabled)
+	if (mon_enabled == MON_OFF)
 		return;
 
 	pkt = &rbufp->recv_pkt;
@@ -220,6 +237,7 @@ monitor(rbufp)
 			md->mru_prev = &mon_mru_list;
 			mon_mru_list.mru_next->mru_prev = md;
 			mon_mru_list.mru_next = md;
+
 			return;
 		}
 		md = md->hash_next;
@@ -240,6 +258,12 @@ monitor(rbufp)
 		md->hash_next->hash_prev = md->hash_prev;
 		md->hash_prev->hash_next = md->hash_next;
 		*(mon_hash_count + MON_HASH(md->rmtadr)) -= 1;
+		/*
+		 * Get it from FIFO list
+		 */
+		md->fifo_prev->fifo_next = md->fifo_next;
+		md->fifo_next->fifo_prev = md->fifo_prev;
+		
 	} else {
 		if (mon_free_mem == 0)
 			mon_getmoremem();
@@ -252,6 +276,7 @@ monitor(rbufp)
 	 * Got one, initialize it
 	 */
 	md->lasttime = md->firsttime = current_time;
+	md->lastdrop = 0;
 	md->count = 1;
 	md->rmtadr = netnum;
 	md->rmtport = NSRCPORT(&rbufp->recv_srcadr);
@@ -260,7 +285,8 @@ monitor(rbufp)
 
 	/*
 	 * Shuffle him into the hash table, inserting him at the
-	 * end.  Also put him on top of the MRU list.
+	 * end.  Also put him on top of the MRU list
+	 * and at bottom of FIFO list
 	 */
 	mdhash = mon_hash + MON_HASH(netnum);
 	md->hash_next = mdhash;
@@ -273,6 +299,11 @@ monitor(rbufp)
 	md->mru_prev = &mon_mru_list;
 	mon_mru_list.mru_next->mru_prev = md;
 	mon_mru_list.mru_next = md;
+
+	md->fifo_prev = mon_fifo_list.fifo_prev;
+	md->fifo_next = &mon_fifo_list;
+	mon_fifo_list.fifo_prev->fifo_next = md;
+	mon_fifo_list.fifo_prev = md;
 }
 
 

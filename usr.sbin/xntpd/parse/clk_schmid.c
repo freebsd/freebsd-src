@@ -1,8 +1,8 @@
 #if defined(REFCLOCK) && (defined(PARSE) || defined(PARSEPPS)) && defined(CLOCK_SCHMID)
 /*
- * /src/NTP/REPOSITORY/v3/parse/clk_schmid.c,v 3.10 1994/01/25 19:05:15 kardel Exp
+ * /src/NTP/REPOSITORY/v3/parse/clk_schmid.c,v 3.13 1994/02/20 13:04:41 kardel Exp
  *  
- * clk_schmid.c,v 3.10 1994/01/25 19:05:15 kardel Exp
+ * clk_schmid.c,v 3.13 1994/02/20 13:04:41 kardel Exp
  *
  * Schmid clock support
  *
@@ -152,7 +152,7 @@ cvt_schmid(buffer, size, format, clock)
 
 		if (buffer[8] & WS_LEAP)
 		  {
-		    clock->flags |= PARSEB_LEAP;
+		    clock->flags |= PARSEB_LEAPADD; /* default: DCF77 data format deficiency */
 		  }
 	      }
 
@@ -168,6 +168,12 @@ cvt_schmid(buffer, size, format, clock)
  * History:
  *
  * clk_schmid.c,v
+ * Revision 3.13  1994/02/20  13:04:41  kardel
+ * parse add/delete second support
+ *
+ * Revision 3.12  1994/02/02  17:45:25  kardel
+ * rcs ids fixed
+ *
  * Revision 3.10  1994/01/25  19:05:15  kardel
  * 94/01/23 reconcilation
  *

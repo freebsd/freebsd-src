@@ -20,13 +20,13 @@
 '''
 '''     Set up \*(-- to give an unbreakable dash;
 '''     string Tr holds user defined translation string.
-'''     Bell System Logo is used as a dummy character.
+'''     Greek uppercase omega is used as a dummy character.
 '''
-.tr \(bs-|\(bv\*(Tr
+.tr \(*W-|\(bv\*(Tr
 .ie n \{\
-.ds -- \(bs-
-.if (\n(.H=4u)&(1m=24u) .ds -- \(bs\h'-12u'\(bs\h'-12u'-\" diablo 10 pitch
-.if (\n(.H=4u)&(1m=20u) .ds -- \(bs\h'-12u'\(bs\h'-8u'-\" diablo 12 pitch
+.ds -- \(*W-
+.if (\n(.H=4u)&(1m=24u) .ds -- \(*W\h'-12u'\(*W\h'-12u'-\" diablo 10 pitch
+.if (\n(.H=4u)&(1m=20u) .ds -- \(*W\h'-12u'\(*W\h'-8u'-\" diablo 12 pitch
 .ds L" ""
 .ds R" ""
 .ds L' '
@@ -539,6 +539,17 @@ requests) from the source.  Time service is not affected.
 Ignore all NTP mode 7 packets which attempt to modify the state of the
 server (i.e. run time reconfiguration).  Queries which return information
 are permitted.
+.Ip notrap 10
+Decline to provide mode 6 control message trap service to matching
+hosts.  The trap service is a subsystem of the mode 6 control message
+protocol which is intended for use by remote event logging programs.
+.Ip lowpriotrap 10
+Declare traps set by matching hosts to be low priority.  The number
+of traps a server can maintain is limited (the current limit is 3).
+Traps are usually assigned on a first come, first served basis, with
+later trap requestors being denied service.  This flag modifies the
+assignment algorithm by allowing low priority traps to be overridden
+by later requests for normal priority traps.
 .Ip noserve 10
 Ignore NTP packets whose mode is other than 7.  In effect, time service is
 denied, though queries may still be permitted.
@@ -549,6 +560,23 @@ useful as future synchronization partners.
 .Ip notrust 10
 Treat these hosts normally in other respects, but never use them as
 synchronization sources.
+.Ip limited 10
+These hosts are subject to limitation of number of clients from the
+same net. Net in this context refers to the IP notion of net (class A,
+class B, class C, etc.). Only the first \*(L"client_limit\*(R" hosts
+that have shown up at the server and that have been active during the
+last \*(L"client_limit_period\*(R" seconds are accepted. Requests from
+other clients from the same net are rejected. Only time request
+packets are taken into account. \*(L"Private\*(R", \*(L"control\*(R",
+and \*(L"broadcast\*(R" packets are not subject to client limitation
+and therefore are not contributing to client count. History of clients
+is kept using the monitoring capability of
+.IR xntpd.
+Thus, monitoring is active as long as there is a restriction entry
+with the \*(L"limited\*(R" flag. The default value for
+\*(L"client_limit\*(R" is 3. The default value for
+\*(L"client_limit_period\*(R" is 3600 seconds. Currently both
+variables are not runtime configurable. 
 .Ip ntpport 10
 This is actually a match algorithm modifier, rather than a restriction
 flag.  Its presence causes the restriction entry to be matched only if
