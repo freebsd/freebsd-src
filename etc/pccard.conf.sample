@@ -127,6 +127,14 @@ card "3Com Corporation" "3C589D"
 	remove	echo 3Com Etherlink III removed
 	remove	/sbin/ifconfig $device delete
 
+# 3Com Etherlink III 3CXE589ET
+card "3Com" "Megahertz 589E"
+        config  0x1 "ep0" ?
+        insert  echo 3Com 3C589E inserted
+        insert  /etc/pccard_ether $device
+        remove  echo 3Com 3C589E removed
+        remove  /sbin/ifconfig $device delete
+
 # 3Com Fast Etherlink 3C574TX
 card "3Com" "3C574-TX Fast EtherLink PC Card"
 	config	0x1 "ep0" ? 0x1
@@ -569,6 +577,18 @@ card "Midori Elec." "FAST FLASH"
 	insert  echo Midori Elec Fast FLASH inserted
 	remove  echo Midori Elec Fast FLASH removed
 
+# Simple Technology ata flash
+card "Simple Technology        " "STI-ATA"
+	config 0x2 "ata0" ?
+	insert echo Simple Technology ata FLASH inserted
+	remove echo Simple Technology ata FLASH removed
+	
+# Viking ATA Flash card
+card "VIKING ATA/CF FLASH CARD " "TOR/AM "
+	config 0x2 "ata0" ?
+	insert echo Simple Technology ata FLASH inserted
+	remove echo Simple Technology ata FLASH removed
+	
 # Maxtor 131MB Type III HDD
 card "Maxtor" "MXL131"
 	config  0x03 "ata1" ?
