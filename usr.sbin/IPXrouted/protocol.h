@@ -37,7 +37,7 @@
  *
  *	@(#)protocol.h	8.1 (Berkeley) 6/5/93
  *
- *	$Id: protocol.h,v 1.4 1995/10/11 18:57:24 jhay Exp $
+ *	$Id: protocol.h,v 1.1 1995/10/26 21:28:21 julian Exp $
  */
 
 /*
@@ -70,7 +70,8 @@ char *ripcmds[RIPCMD_MAX] =
 
 #define	HOPCNT_INFINITY		16		/* per IPX */
 #define	DSTNETS_ALL		0xffffffff	/* per IPX */
-#define	MAXPACKETSIZE		512		/* max broadcast size */
+#define	MAXRXPACKETSIZE		1500		/* max rx broadcast size */
+#define MAXRIPNETS		50		/* max nets in tx packet */
 
 extern union ipx_net ipx_anynet;
 extern union ipx_net ipx_zeronet;

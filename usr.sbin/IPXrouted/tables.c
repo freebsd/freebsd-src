@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: tables.c,v 1.6 1995/10/11 18:57:31 jhay Exp $
+ *	$Id: tables.c,v 1.1 1995/10/26 21:28:27 julian Exp $
  */
 
 #ifndef lint
@@ -58,6 +58,10 @@ static char sccsid[] = "@(#)tables.c	8.1 (Berkeley) 6/5/93";
 
 int	install = !DEBUG;		/* if 1 call kernel */
 int	delete = 1;
+
+struct  rthash nethash[ROUTEHASHSIZ];
+struct  rthash hosthash[ROUTEHASHSIZ];
+
 /*
  * Lookup dst in the tables for an exact match.
  */

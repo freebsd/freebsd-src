@@ -36,7 +36,7 @@
  *
  *	@(#)table.h	8.1 (Berkeley) 6/5/93
  *
- *	$Id: table.h,v 1.4 1995/10/11 18:57:30 jhay Exp $
+ *	$Id: table.h,v 1.1 1995/10/26 21:28:26 julian Exp $
  */
 
 /*
@@ -102,8 +102,8 @@ struct rt_entry {
 #define	RTS_INTERFACE	IFF_INTERFACE	/* route is for network interface */
 #define	RTS_REMOTE	IFF_REMOTE	/* route is for ``remote'' entity */
 
-struct	rthash nethash[ROUTEHASHSIZ];
-struct	rthash hosthash[ROUTEHASHSIZ];
+extern struct	rthash nethash[ROUTEHASHSIZ];
+extern struct	rthash hosthash[ROUTEHASHSIZ];
 struct	rt_entry *rtlookup(struct sockaddr *);
 struct	rt_entry *rtfind(struct sockaddr *);
 void	rtadd(struct sockaddr *, struct sockaddr *, short, short, int);
