@@ -556,12 +556,15 @@ release.8: write_mfs_in_kernel
 	sh -e ${.CURDIR}/scripts/doFS.sh -s mfsroot ${RD} ${MNT} \
 		${MFSSIZE} ${RD}/mfsfd ${MFSINODE} ${MFSLABEL}
 	@gzip -9vc mfsroot > mfsroot.gz
-	@sh -e ${.CURDIR}/scripts/doFS.sh ${RD}/floppies/mfsroot.flp \
-		${RD} ${MNT} ${BOOTSIZE} mfsroot.gz ${BOOTINODE} ${BOOTLABEL}
 .if ${MACHINE} == "pc98"
+	@sh -e ${.CURDIR}/scripts/doFS.sh ${RD}/floppies/mfsroot.flp \
+		${RD} ${MNT} ${SMALLBOOTSIZE} mfsroot.gz \
+		${BOOTINODE} ${SMALLBOOTLABEL}
 	@cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=kern-small FDSIZE=SMALL
 	@cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=kern
 .else
+	@sh -e ${.CURDIR}/scripts/doFS.sh ${RD}/floppies/mfsroot.flp \
+		${RD} ${MNT} ${BOOTSIZE} mfsroot.gz ${BOOTINODE} ${BOOTLABEL}
 	@cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=kern
 	@cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=boot FDSIZE=BIG
 .endif
