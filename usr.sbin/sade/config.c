@@ -386,7 +386,7 @@ configMake_conf(char *config)
 	    if (!strncmp(lines[i], "USA_RESIDENT", 12)) {
 		free(lines[i]);
 		lines[i] = malloc(21);	/* big enough */
-		sprintf(lines[i], "USA_RESIDENT=\"%s\"\n", USAResident ? "YES" : "NO");
+		sprintf(lines[i], "USA_RESIDENT=%s\n", USAResident ? "YES" : "NO");
 	    }
 	}
     }
