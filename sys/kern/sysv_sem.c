@@ -1,4 +1,4 @@
-/*	$Id: sysv_sem.c,v 1.2 1994/09/17 13:24:17 davidg Exp $ */
+/*	$Id: sysv_sem.c,v 1.3 1994/10/02 17:35:27 phk Exp $ */
 
 /*
  * Implementation of SVID semaphores
@@ -58,7 +58,7 @@ semsys(p, uap, retval)
 {
 
 	while (semlock_holder != NULL && semlock_holder != p)
-		sleep((caddr_t)&semlock_holder, (PZERO - 4));
+		(void) tsleep((caddr_t)&semlock_holder, (PZERO - 4), "semsys", 0);
 
 	if (uap->which >= sizeof(semcalls)/sizeof(semcalls[0]))
 		return (EINVAL);
@@ -849,7 +849,7 @@ semexit(p)
 #ifdef SEM_DEBUG
 		printf("semaphore facility locked - sleeping ...\n");
 #endif
-		sleep((caddr_t)&semlock_holder, (PZERO - 4));
+		(void) tsleep((caddr_t)&semlock_holder, (PZERO - 4), "semext", 0);
 	}
 
 	did_something = 0;

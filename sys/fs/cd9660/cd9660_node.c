@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_node.c	8.2 (Berkeley) 1/23/94
- * $Id: cd9660_node.c,v 1.5 1994/09/22 19:37:43 wollman Exp $
+ * $Id: cd9660_node.c,v 1.6 1994/09/26 00:32:56 gpalmer Exp $
  */
 
 #include <sys/param.h>
@@ -196,7 +196,7 @@ loop:
 			continue;
 		if ((ip->i_flag&ILOCKED) != 0) {
 			ip->i_flag |= IWANT;
-			sleep((caddr_t)ip, PINOD);
+			(void) tsleep((caddr_t)ip, PINOD, "isoigt", 0);
 			goto loop;
 		}
 		if (vget(ITOV(ip), 1))
@@ -422,7 +422,7 @@ iso_ilock(ip)
 		if (ip->i_spare0 == curproc->p_pid)
 			panic("locking against myself");
 		ip->i_spare1 = curproc->p_pid;
-		(void) sleep((caddr_t)ip, PINOD);
+		(void) tsleep((caddr_t)ip, PINOD, "isoilk", 0);
 	}
 	ip->i_spare1 = 0;
 	ip->i_spare0 = curproc->p_pid;
