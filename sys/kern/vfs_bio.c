@@ -2756,9 +2756,9 @@ allocbuf(struct buf *bp, int size)
 					m = vm_page_alloc(obj, pi,
 					    VM_ALLOC_SYSTEM | VM_ALLOC_WIRED);
 					if (m == NULL) {
-						VM_WAIT;
 						atomic_add_int(&vm_pageout_deficit,
 						    desiredpages - bp->b_npages);
+						VM_WAIT;
 					} else {
 						vm_page_lock_queues();
 						vm_page_wakeup(m);
@@ -3490,7 +3490,7 @@ tryagain:
 		vm_object_unlock(kernel_object);
 		if (!p) {
 			atomic_add_int(&vm_pageout_deficit,
-			    (to - from) >> PAGE_SHIFT);
+			    (to - pg) >> PAGE_SHIFT);
 			VM_WAIT;
 			goto tryagain;
 		}
