@@ -77,6 +77,7 @@ struct wihap_sta_info {
 	LIST_ENTRY(wihap_sta_info) list;
 	LIST_ENTRY(wihap_sta_info) hash;
 
+	struct wi_softc	*sc;
 	u_int8_t	addr[6];
 	u_short		flags;
 	int		inactivity_timer;
@@ -87,6 +88,7 @@ struct wihap_sta_info {
 	u_int8_t	rates;
 	u_int8_t	tx_curr_rate;
 	u_int8_t	tx_max_rate;
+	struct callout_handle	tmo;
 };
 
 #define WI_SIFLAGS_ASSOC	HOSTAP_FLAGS_ASSOC
@@ -112,7 +114,6 @@ struct wihap_info {
 	u_int16_t		asid_inuse_mask[WI_STA_HASH_SIZE];
 
 	int			inactivity_time;
-	struct callout_handle	hostap_ch;
 };
 
 #define WIHAP_INTERVAL			5
@@ -121,16 +122,13 @@ struct wihap_info {
 struct wi_softc;
 struct wi_frame;
 
-void wihap_timer		__P((void *));
-void wihap_mgmt_input		__P((struct wi_softc *, struct wi_frame *,
-				     struct mbuf *));
-int  wihap_data_input		__P((struct wi_softc *, struct wi_frame *,
-				     struct mbuf *));
-int  wihap_check_tx		__P((struct wihap_info *, u_int8_t [],
-				     u_int8_t *));
-void wihap_init			__P((struct wi_softc *));
-void wihap_shutdown		__P((struct wi_softc *));
-int  wihap_ioctl		__P((struct wi_softc *, u_long, caddr_t));
+void wihap_timer(void *);
+void wihap_mgmt_input(struct wi_softc *, struct wi_frame *, struct mbuf *);
+int  wihap_data_input(struct wi_softc *, struct wi_frame *, struct mbuf *);
+int  wihap_check_tx(struct wihap_info *, u_int8_t [], u_int8_t *);
+void wihap_init(struct wi_softc *);
+void wihap_shutdown(struct wi_softc *);
+int  wihap_ioctl(struct wi_softc *, u_long, caddr_t);
 
 #endif /* _KERNEL */
 #endif /* __WI_HOSTAP_H__ */
