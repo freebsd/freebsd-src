@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.120 1998/07/12 20:26:45 se Exp $
+**  $Id: ncr.c,v 1.121 1998/07/12 20:32:52 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -1344,7 +1344,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.120 1998/07/12 20:26:45 se Exp $\n";
+	"\n$Id: ncr.c,v 1.121 1998/07/12 20:32:52 se Exp $\n";
 
 static const u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -3053,7 +3053,7 @@ void ncr_script_fill (struct script * scr, struct scripth * scrh)
 	*p++ =SCR_JUMP;
 	*p++ =PADDRH(tryloop);
 
-	assert ((u_long)p == (u_long)&scrh->tryloop + sizeof (scrh->tryloop));
+	assert ((char *)p == (char *)&scrh->tryloop + sizeof (scrh->tryloop));
 
 	p = scr->data_in;
 
@@ -3077,7 +3077,7 @@ void ncr_script_fill (struct script * scr, struct scripth * scrh)
 	*p++ =SCR_JUMP;
 	*p++ =PADDR (no_data);
 
-	assert ((u_long)p == (u_long)&scr->data_in + sizeof (scr->data_in));
+	assert ((char *)p == (char *)&scr->data_in + sizeof (scr->data_in));
 
 	p = scr->data_out;
 
@@ -3101,7 +3101,7 @@ void ncr_script_fill (struct script * scr, struct scripth * scrh)
 	*p++ =SCR_JUMP;
 	*p++ =PADDR (no_data);
 
-	assert ((u_long)p == (u_long)&scr->data_out + sizeof (scr->data_out));
+	assert ((char *)p == (char *)&scr->data_out + sizeof (scr->data_out));
 }
 
 /*==========================================================
@@ -6049,8 +6049,8 @@ static void ncr_int_ma (ncb_p np, u_char dstat)
 		cp = cp->link_ccb;
 
 	if (!cp) {
-	    printf ("%s: SCSI phase error fixup: CCB already dequeued (0x%08lx)\n", 
-		    ncr_name (np), (u_long) np->header.cp);
+	    printf ("%s: SCSI phase error fixup: CCB already dequeued (%p)\n", 
+		    ncr_name (np), (void *) np->header.cp);
 	    return;
 	}
 	if (cp != np->header.cp) {
