@@ -600,7 +600,8 @@ iov2physical(struct datalink *dl, struct iovec *iov, int *niov, int maxiov,
   p->hdlc.lqm.timer.state = TIMER_STOPPED;
 
   p->fd = fd;
-  p->link.stats.total.SampleOctets = (long long *)iov[(*niov)++].iov_base;
+  p->link.stats.total.in.SampleOctets = (long long *)iov[(*niov)++].iov_base;
+  p->link.stats.total.out.SampleOctets = (long long *)iov[(*niov)++].iov_base;
   p->link.stats.parent = dl->bundle->ncp.mp.active ?
     &dl->bundle->ncp.mp.link.stats.total : NULL;
   p->link.stats.gather = 1;
@@ -686,7 +687,10 @@ physical2iov(struct physical *p, struct iovec *iov, int *niov, int maxiov,
   iov[*niov].iov_len = sizeof *p;
   (*niov)++;
 
-  iov[*niov].iov_base = p ? (void *)p->link.stats.total.SampleOctets : NULL;
+  iov[*niov].iov_base = p ? (void *)p->link.stats.total.in.SampleOctets : NULL;
+  iov[*niov].iov_len = SAMPLE_PERIOD * sizeof(long long);
+  (*niov)++;
+  iov[*niov].iov_base = p ? (void *)p->link.stats.total.out.SampleOctets : NULL;
   iov[*niov].iov_len = SAMPLE_PERIOD * sizeof(long long);
   (*niov)++;
 

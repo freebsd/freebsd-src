@@ -3860,9 +3860,10 @@ percent or less of the total bundle bandwidth for
 .Ar period
 seconds, a
 .Ar demand-dial
-link will be brought down as long as it's not the last active
-.Ar demand-dial
-link.
+link will be brought down as long as it's not the last active link.
+.Pp
+Bundle throughput is measured as the maximum of inbound and outbound
+traffic.
 .Pp
 The default values cause
 .Ar demand-dial
