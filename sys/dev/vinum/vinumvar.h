@@ -361,6 +361,13 @@ enum parityop {
     rebuildandcheckparity,				    /* rebuildparity with the -v option */
 };
 
+/*
+ * When doing round-robin reads from a multi-plex volume, switch to the
+ * next plex if the difference of the last read sector and the next sector
+ * to be read is this many sectors.
+ */
+#define ROUNDROBIN_SWITCH	128			    /* 64k */
+
 #ifdef VINUMDEBUG
 /* Debugging stuff */
 enum debugflags {
