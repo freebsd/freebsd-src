@@ -1,4 +1,4 @@
-<!-- $Id: mirrors.sgml,v 1.54 1997/03/19 00:06:57 jdp Exp $ -->
+<!-- $Id: mirrors.sgml,v 1.55 1997/04/25 20:03:48 max Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -587,8 +587,8 @@ In case of problems, please contact &a.phk;.
 <tag>Germany, Trier</tag>
 <itemize>
 <item>
-<url url="ftp://ftp.uni-trier.de/pub/unix/systems/BSD/FreeBSD/FreeBSD-current/CTM" 
-	name="ftp://ftp.uni-trier.de/pub/unix/systems/BSD/FreeBSD/FreeBSD-current/CTM"><newline>
+<url url="ftp://ftp.uni-trier.de/pub/unix/systems/BSD/FreeBSD/CTM" 
+	name="ftp://ftp.uni-trier.de/pub/unix/systems/BSD/FreeBSD/CTM"><newline>
 </itemize>
 
 
