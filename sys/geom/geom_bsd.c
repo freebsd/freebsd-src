@@ -701,8 +701,13 @@ g_bsd_taste(struct g_class *mp, struct g_provider *pp, int flags)
 		if (!error && i != 165 && flags == G_TF_NORMAL)
 			break;
 
+		error = g_getattr("PC98::type", cp, &i);
+		if (!error && i != 0xc494 && flags == G_TF_NORMAL)
+			break;
+
 		ms->mbroffset = 0;
 		g_getattr("MBR::offset", cp, &ms->mbroffset);
+		g_getattr("PC98::offset", cp, &ms->mbroffset);
 
 		/* Get sector size, we need it to read data. */
 		secsize = cp->provider->sectorsize;
