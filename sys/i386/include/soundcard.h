@@ -577,6 +577,7 @@ typedef struct {
  */
 typedef struct audio_buf_info {
 			int fragments;	/* # of available fragments (partially usend ones not counted) */
+			int fragstotal; /* Total # of fragments allocated */
 			int fragsize;	/* Size of a fragment in bytes */
 
 			int bytes;	/* Available space in bytes (includes partially used fragments) */
