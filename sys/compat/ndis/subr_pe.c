@@ -61,6 +61,15 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <compat/ndis/pe_var.h>
+#ifdef _KERNEL
+#include <machine/bus.h>
+#include <machine/resource.h>
+#include <sys/bus.h>
+#include <sys/rman.h>
+#include <compat/ndis/resource_var.h>
+#include <compat/ndis/ntoskrnl_var.h>
+#include <compat/ndis/ndis_var.h>
+#endif
 
 static u_int32_t pe_functbl_match(image_patch_table *, char *);
 
@@ -455,6 +464,98 @@ pe_get_import_descriptor(imgbase, desc, module)
 
 	return (ENOENT);
 }
+
+#ifdef _KERNEL
+int
+pe_get_messagetable(imgbase, md)
+	vm_offset_t		imgbase;
+	message_resource_data	**md;
+{
+	image_resource_directory	*rdir, *rtype;
+	image_resource_directory_entry	*dent, *dent2;
+	image_resource_data_entry	*rent;
+	vm_offset_t		offset;
+	int			i;
+
+	if (imgbase == 0)
+		return(EINVAL);
+
+	offset = pe_directory_offset(imgbase, IMAGE_DIRECTORY_ENTRY_RESOURCE);
+	if (offset == 0)
+		return (ENOENT);
+
+	rdir = (image_resource_directory *)offset;
+
+	dent = (image_resource_directory_entry *)(offset +
+	    sizeof(image_resource_directory));
+
+	for (i = 0; i < rdir->ird_id_entries; i++){
+		if (dent->irde_name != RT_MESSAGETABLE)	{
+			dent++;
+			continue;
+		}
+		dent2 = dent;
+		while (dent2->irde_dataoff & RESOURCE_DIR_FLAG) {
+			rtype = (image_resource_directory *)(offset +
+			    (dent2->irde_dataoff & ~RESOURCE_DIR_FLAG));
+			dent2 = (image_resource_directory_entry *)
+			    ((uintptr_t)rtype +
+			     sizeof(image_resource_directory));
+		}
+		rent = (image_resource_data_entry *)(offset +
+		    dent2->irde_dataoff);
+		*md = (message_resource_data *)pe_translate_addr(imgbase,
+		    rent->irde_offset);
+		return(0);
+	}
+
+	return(ENOENT);
+}
+
+int
+pe_get_message(imgbase, id, str, len)
+	vm_offset_t		imgbase;
+	uint32_t		id;
+	char			**str;
+	int			*len;
+{
+	message_resource_data	*md = NULL;
+	message_resource_block	*mb;
+	message_resource_entry	*me;
+	int			i;
+	char			m[1024], *msg;
+
+	pe_get_messagetable(imgbase, &md);
+
+	if (md == NULL)
+		return(ENOENT);
+
+	mb = (message_resource_block *)((uintptr_t)md +
+	    sizeof(message_resource_data));
+
+	for (i = 0; i < md->mrd_numblocks; i++) {
+		if (id >= mb->mrb_lowid && id <= mb->mrb_highid) {
+			me = (message_resource_entry *)((uintptr_t)md +
+			    mb->mrb_entryoff);
+			for (i = id - mb->mrb_lowid; i > 0; i--)
+				me = (message_resource_entry *)((uintptr_t)me +
+				    me->mre_len);
+			if (me->mre_flags == MESSAGE_RESOURCE_UNICODE) {
+				msg = m;
+				ndis_unicode_to_ascii((uint16_t *)me->mre_text,
+				    me->mre_len, &msg);
+				*str = m;
+			} else
+				*str = me->mre_text;
+			*len = me->mre_len;
+			return(0);
+		}
+		mb++;
+	}
+
+	return(ENOENT);
+}
+#endif
 
 /*
  * Find the function that matches a particular name. This doesn't
