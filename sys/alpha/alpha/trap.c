@@ -611,9 +611,7 @@ trap(a0, a1, a2, entry, framep)
 	framep->tf_regs[FRAME_TRAPARG_A0] = a0;
 	framep->tf_regs[FRAME_TRAPARG_A1] = a1;
 	framep->tf_regs[FRAME_TRAPARG_A2] = a2;
-	mtx_lock(&Giant);
 	trapsignal(p, i, ucode);
-	mtx_unlock(&Giant);
 out:
 	if (user) {
 		framep->tf_regs[FRAME_SP] = alpha_pal_rdusp();
@@ -748,8 +746,6 @@ syscall(code, framep)
 	}
 #ifdef KTRACE
 	if (KTRPOINT(p, KTR_SYSCALL)) {
-		if (!mtx_owned(&Giant))
-			mtx_lock(&Giant);
 		ktrsyscall(p->p_tracep, code, (callp->sy_narg & SYF_ARGMASK), args + hidden);
 	}
 #endif
@@ -789,17 +785,17 @@ syscall(code, framep)
 	userret(p, framep, sticks);
 #ifdef KTRACE
 	if (KTRPOINT(p, KTR_SYSRET)) {
-		if (!mtx_owned(&Giant))
-			mtx_lock(&Giant);
 		ktrsysret(p->p_tracep, code, error, p->p_retval[0]);
 	}
 #endif
 	
 	/*
-	 * Release Giant if we had to get it
+	 * Release Giant if we had to get it.  Don't use mtx_owned(),
+	 * we want to catch broken syscalls.
 	 */
-	if (mtx_owned(&Giant))
+	if ((callp->sy_narg & SYF_MPSAFE) == 0) {
 		mtx_unlock(&Giant);
+	}
 
 	/*
 	 * This works because errno is findable through the
