@@ -20,7 +20,7 @@ throughout this document to differentiate it from the machine output.
 --      -------------------------------
 
 The following table contains a list of all of the devices that are
-present in the GENERIC kernel. This is the essential part of the 
+present in the GENERIC kernel.  This is the essential part of the 
 operating system that is placed in your root partition during the 
 installation process.  A compressed version of the GENERIC kernel is
 also used on the installation floppy diskette and DOS boot image.
@@ -86,6 +86,7 @@ sio1    2f8     3       n/a     n/a     Serial Port 1 (COM2)
 lpt0    dyn     7       n/a     n/a     Printer Port 0
 lpt1    dyn     dyn     n/a     n/a     Printer Port 1
 
+al0     dyn     dyn     n/a     dyn     ADMtek AL981 PCI based cards
 ax0     dyn     dyn     n/a     dyn     ASIX AX88140A PCI based cards
 de0     n/a     n/a     n/a     n/a     DEC DC21x40 PCI based cards
                                         (including 21140 100bT cards)
@@ -94,13 +95,12 @@ ed0     280     10      dyn     d8000   WD & SMC 80xx; Novell NE1000 &
 eg0     310     5       dyn     dyn     3Com 3C505
 ep0     300     10      dyn     dyn     3Com 3C509
 ex0     dyn     dyn     dyn     n/a     Intel EtherExpress Pro/10 cards
-fe0     300     dyn     n/a     n/a     Allied-Telesis AT1700, RE2000 and
+fe0     300     dyn     n/a     n/a     Allied-Telesyn AT1700, RE2000 and
                                         Fujitsu FMV-180 series cards.
 fxp0    dyn     dyn     n/a     dyn     Intel EtherExpress Pro/100B
 ie0     300     10      dyn     d0000   AT&T StarLAN 10 and EN100;
-                                        3Com 3C507; NI5210
-ix0     300     10      dyn     d0000   Intel EtherExpress cards
-ex0     dyn     dyn     dyn     dyn     Intel EtherExpress Pro/10 cards
+                                        3Com 3C507; NI5210; 
+                                        Intel EtherExpress (8/16,16[TP]) cards
 le0     300     5       dyn     d0000   Digital Equipment EtherWorks
                                         2 and EtherWorks 3
 lnc0    280     10      n/a     dyn     Lance/PCnet cards
@@ -109,13 +109,14 @@ lnc0    280     10      n/a     dyn     Lance/PCnet cards
 mx0     dyn     dyn     n/a     dyn     Macronix 98713/15/25 PCI based cards
 pn0     dyn     dyn     n/a     dyn     Lite-On PNIC PCI based cards
 rl0     dyn     dyn     n/a     dyn     RealTek 8129/8139 fast ethernet
-ti0     dyn     dyn     n/a     dyn     Alteon Networks gigabit ethernet
+sf0     dyn     dyn     n/a     dyn     Adaptec AIC-6915 fast ethernet
+ste0    dyn     dyn     n/a     dyn     Sundance ST201 fast ethernet
 tl0     dyn     dyn     n/a     dyn     TI TNET100 'ThunderLAN' cards.
 wb0     dyn     dyn     n/a     dyn     Winbond W89C840F PCI based cards.
 vr0     dyn     dyn     n/a     dyn     VIA VT3043/VT86C100A PCI based cards.
 vx0     dyn     dyn     n/a     dyn     3Com 3c59x ((Fast) Etherlink III)
-xl0     dyn     dyn     n/a     dyn     3Com 3c900, 3c905 and 3c905B
-                                        ((Fast) Etherlink XL)
+xl0     dyn     dyn     n/a     dyn     3Com 3c900, 3c905, 3c905B, 3c905C,
+                                        3c980, 3cSOHO100 ((Fast) Etherlink XL)
 cs0     0x300   dyn     n/a     n/a     Crystal Semiconductor CS89x0-based
                                         cards.
 ze0     300     5       n/a     d8000   IBM/National Semiconductor
@@ -259,7 +260,7 @@ section 6 of FreeBSD.FAQ).  The LINT configuration file
 (/sys/i386/conf/LINT) also contains prototype entries for just about
 every device supported by FreeBSD and is a good general reference.
 
-The device names and a short description of each are listed below. The port
+The device names and a short description of each are listed below.  The port
 numbers, etc, are not meaningful here since you will need to compile a
 custom kernel to gain access to these devices anyway and can thus
 adjust the addresses to match the hardware in your computer in the process.
@@ -421,7 +422,15 @@ Unmaintained drivers, they might or might not work for your hardware:
 4.2.    Network cards
 ----    -------------
 
-Allied-Telesis AT1700 and RE2000 cards
+Adaptec Duralink PCI fast ethernet adapters based on the Adaptec
+AIC-6915 fast ethernet controller chip, including the following:
+  ANA-62011 64-bit single port 10/100baseTX adapter
+  ANA-62022 64-bit dual port 10/100baseTX adapter
+  ANA-62044 64-bit quad port 10/100baseTX adapter
+  ANA-69011 32-bit single port 10/100baseTX adapter
+  ANA-62020 64-bit single port 100baseFX adapter
+
+Allied-Telesyn AT1700 and RE2000 cards
 
 Alteon Networks PCI gigabit ethernet NICs based on the Tigon 1 and Tigon 2
 chipsets, including the following:
@@ -454,6 +463,7 @@ Lite-On 82c168/82c169 PNIC fast ethernet NICs including the following:
   LinkSys EtherFast LNE100TX
   NetGear FA310-TX Rev. D1
   Matrox FastNIC 10/100
+  Kingston KNE110TX
 
 Macronix 98713, 98713A, 98715, 98715A and 98725 fast ethernet NICs
   NDC Communications SFA100A (98713A)
@@ -461,13 +471,26 @@ Macronix 98713, 98713A, 98715, 98715A and 98725 fast ethernet NICs
   CNet Pro120B (98715)
   SVEC PN102TX (98713)
 
+Macronix/Lite-On PNIC II LC82C115 fast ethernet NICs including the following:
+  LinkSys EtherFast LNE100TX Version 2
+
 Winbond W89C840F fast ethernet NICs including the following:
   Trendware TE100-PCIE
 
 VIA Technologies VT3043 "Rhine I" and VT86C100A "Rhine II" fast ethernet
 NICs including the following:
   Hawking Technologies PN102TX
-  D-Link DFE530TX
+  D-Link DFE-530TX
+
+Sundance Technologies ST201 PCI fast ethernet NICs including
+the following:
+  D-Link DFE-550TX
+
+SysKonnect SK-984x PCI gigabit ethernet cards including the following:
+  SK-9841 1000baseLX single mode fiber, single port
+  SK-9842 1000baseSX multimode fiber, single port
+  SK-9843 1000baseLX single mode fiber, dual port
+  SK-9844 1000baseSX multimode fiber, dual port
 
 Texas Instruments ThunderLAN PCI NICs, including the following:
   Compaq Netelligent 10, 10/100, 10/100 Proliant, 10/100 Dual-Port
@@ -476,6 +499,8 @@ Texas Instruments ThunderLAN PCI NICs, including the following:
   Olicom OC-2135/2138, OC-2325, OC-2326 10/100 TX UTP
   Racore 8165 10/100baseTX
   Racore 8148 10baseT/100baseTX/100baseFX multi-personality
+
+ADMtek AL981-based PCI fast ethernet NICs
 
 ASIX Electronics AX88140A PCI NICs, including the following:
   Alfa Inc. GFC2204
@@ -513,10 +538,12 @@ Winbond W89C940, Surecom NE-34, VIA VT86C926.
 
 3Com 3C507 Etherlink 16/TP
 
-3Com 3C509, 3C579, 3C589 (PCMCIA), 3C590/592/595/900/905/905B PCI and EISA
-(Fast) Etherlink III / (Fast) Etherlink XL
+3Com 3C509, 3C579, 3C589 (PCMCIA), 3C590/592/595/900/905/905B/905C PCI
+and EISA (Fast) Etherlink III / (Fast) Etherlink XL
 
-3Com 3c980 Fast Etherlink XL server adapter
+3Com 3c980/3c980B Fast Etherlink XL server adapter
+
+3Com 3cSOHO100-TX OfficeConnect adapter
 
 Toshiba ethernet cards
 
@@ -572,9 +599,13 @@ Agiler Mouse 29UO.
 
 Andromeda hub.
 
+Apple iMac mouse.
+Apple iMac keyboard.
+
 ATen parallel printer adapter.
 
 Belkin F5U002 parallel printer adapter.
+Belkin Mouse.
 
 BTC BTC7935 keyboard with mouse port.
 
@@ -596,6 +627,7 @@ Logitech M2452 keyboard.
 Logitech wheel mouse (3 buttons).
 Logitech PS/2 / USB mouse (3 buttons).
 
+MacAlly mouse (3 buttons).
 MacAlly self powered hub (4 ports).
 
 Microsoft IntelliMouse (3 buttons).
@@ -603,14 +635,18 @@ Microsoft keyboard.
 
 NEC hub.
 
+Trust Ami Mouse (3 buttons).
+
 
 4.4.    ISDN (European DSS1 [Q.921/Q.931] protocol)
 ----    -------------------------------------------
 
 Asuscom I-IN100-ST-DV (experimental, may work)
+Asuscom ISDNlink 128K PnP
 
 AVM A1
-AVM Fritz!Card classic ISA non-PnP
+AVM Fritz!Card classic
+AVM Fritz!Card PnP
 AVM Fritz!Card PCI
 AVM Fritz!Card PCMCIA
 
@@ -622,19 +658,22 @@ Dr.Neuhaus Niccy 1008
 Dr.Neuhaus Niccy 1016
 Dr.Neuhaus Niccy GO@ (ISA PnP)
 
-Dynalink IS64PH
+Dynalink IS64PH (no longer maintained)
 
 ELSA 1000pro ISA
 ELSA 1000pro PCI
 ELSA PCC-16
 
 ITK ix1 micro
+ITK ix1 micro PnP
 
 Sagem Cybermod (ISA PnP, may work)
 
 Sedlbauer Win Speed
 
-Stollmann Tina-pp
+Siemens I-Surf 2.0
+
+Stollmann Tina-pp (under development)
 
 Teles S0/8
 Teles S0/16
@@ -696,7 +735,11 @@ Genius and Mustek hand scanners.
 
 Floppy tape drives (some rather old models only, driver rather stale)
 
-Lucent Technologies WaveLAN/IEEE 802.11 PCMCIA network adapters and
-workalikes (NCR WaveLAN/IEEE 802.11, Cabletron RoamAbout)
+Lucent Technologies WaveLAN/IEEE 802.11 PCMCIA and ISA standard speed
+(2Mbps) and turbo speed (6Mbps) wireless network adapters and workalikes
+(NCR WaveLAN/IEEE 802.11, Cabletron RoamAbout 802.11 DS).  Note: the
+ISA versions of these adapters are actually PCMCIA cards combined with
+an ISA to PCMCIA bridge card, so both kinds of devices work with
+the same driver.
 
 FreeBSD currently does NOT support IBM's microchannel (MCA) bus.
