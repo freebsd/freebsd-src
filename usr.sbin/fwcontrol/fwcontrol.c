@@ -215,7 +215,7 @@ static int
 get_crom(int fd, int node, void *crom_buf, int len)
 {
 	struct fw_crom_buf buf;
-	int i, n, error;
+	int i, error;
 	struct fw_devlstreq *data;
 
 	data = get_dev(fd);
@@ -362,11 +362,16 @@ show_topology_map(int fd)
 int
 main(int argc, char **argv)
 {
-	char devname[] = "/dev/fw1";
+	char devname[256];
 	u_int32_t crom_buf[1024/4];
-	int fd, tmp, ch, len=1024;
+	int fd, i, tmp, ch, len=1024;
 
-	if ((fd = open(devname, O_RDWR)) < 0)
+	for (i = 0; i < 4; i++) {
+		snprintf(devname, sizeof(devname), "/dev/fw%d", i);
+		if ((fd = open(devname, O_RDWR)) >= 0)
+			break;
+	}
+	if (fd < 0)
 		err(1, "open");
 
 	if (argc < 2) {
