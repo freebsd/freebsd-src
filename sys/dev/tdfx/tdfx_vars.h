@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000 by Coleman Kane <cokane@FreeBSD.org>
+ * Copyright (c) 2000-2001 by Coleman Kane <cokane@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
  */
 
 /* tdfx_vars.h -- constants and structs used in the tdfx driver
-	Copyright (C) 2000 by Coleman Kane <cokane@FreeBSD.org>
+	Copyright (C) 2000-2001 by Coleman Kane <cokane@FreeBSD.org>
 */
 #ifndef	TDFX_VARS_H
 #define	TDFX_VARS_H
@@ -45,7 +45,7 @@
 
 #define	CDEV_MAJOR	107
 #define  PCI_DEVICE_ALLIANCE_AT3D	0x643d1142
-#define	PCI_DEVICE_3DFX_VOODOO1		0x0000121a
+#define	PCI_DEVICE_3DFX_VOODOO1		0x0001121a
 #define	PCI_DEVICE_3DFX_VOODOO2		0x0002121a
 #define	PCI_DEVICE_3DFX_BANSHEE		0x0003121a
 #define	PCI_DEVICE_3DFX_VOODOO3		0x0005121a
