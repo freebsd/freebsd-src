@@ -393,7 +393,7 @@ tcp_respond(tp, ipgen, th, m, ack, seq, flags)
 		ip6->ip6_plen = htons((u_short)(sizeof (struct tcphdr) +
 						tlen));
 		tlen += sizeof (struct ip6_hdr) + sizeof (struct tcphdr);
-	}
+	} else
 #endif
       {
 	ipov->ih_len = htons((u_short)(sizeof (struct tcphdr) + tlen));
