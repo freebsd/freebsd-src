@@ -752,13 +752,15 @@ timestamp()
     struct timeval now;
     struct tm *date;
     char datetext[MAXDATETEXT];
+    time_t sec;
 
     if (history != NULL) {
 	if (gettimeofday(&now, NULL) != 0) {
 	    fprintf(stderr, "Can't get time: %s\n", strerror(errno));
 	    return;
 	}
-	date = localtime(&(time_t) now.tv_sec);
+	sec = now.tv_sec;
+	date = localtime(&sec);
 	strftime(datetext, MAXDATETEXT, dateformat, date),
 	    fprintf(history,
 	    "%s.%06ld ",
