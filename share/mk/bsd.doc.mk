@@ -1,5 +1,5 @@
 #	from: @(#)bsd.doc.mk	5.3 (Berkeley) 1/2/91
-#	$Id: bsd.doc.mk,v 1.9 1995/01/11 02:06:58 wollman Exp $
+#	$Id: bsd.doc.mk,v 1.10 1995/01/11 02:27:01 wollman Exp $
 
 PRINTER?=	ps
 
@@ -41,6 +41,7 @@ COMPAT?=	-C
 
 .PATH: ${.CURDIR} ${SRCDIR}
 
+.MAIN:	all
 all:	${DOC}.${PRINTER}
 
 .if !target(print)
