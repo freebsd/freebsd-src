@@ -38,7 +38,11 @@ static char copyright[] =
 #endif
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)login.c	8.4 (Berkeley) 4/2/94";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -112,6 +116,7 @@ int	 klogin __P((struct passwd *, char *, char *, char *));
 #endif
 
 extern void login __P((struct utmp *));
+static void usage __P((void));
 
 #define	TTYGRPNAME	"tty"		/* name of group to own ttys */
 #define	DEFAULT_BACKOFF	3
@@ -225,9 +230,7 @@ main(argc, argv)
 		default:
 			if (!uid)
 				syslog(LOG_ERR, "invalid flag %c", ch);
-			(void)fprintf(stderr,
-			    "usage: login [-fp] [-h hostname] [username]\n");
-			exit(1);
+			usage();
 		}
 	argc -= optind;
 	argv += optind;
@@ -317,7 +320,8 @@ main(argc, argv)
 				badlogin(tbuf);
 			failures = 0;
 		}
-		(void)strcpy(tbuf, username);
+		(void)strncpy(tbuf, username, sizeof tbuf-1);
+		tbuf[sizeof tbuf-1] = '\0';
 
 		if ((pwd = getpwnam(username)) != NULL)
 			salt = pwd->pw_passwd;
@@ -800,6 +804,12 @@ main(argc, argv)
 	err(1, "%s", shell);
 }
 
+static void
+usage()
+{
+	(void)fprintf(stderr, "usage: login [-fp] [-h hostname] [username]\n");
+	exit(1);
+}
 
 /*
  * Allow for authentication style and/or kerberos instance
