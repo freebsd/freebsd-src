@@ -20,13 +20,18 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *      $Id: 93cx6.h,v 1.1.2.3 1996/06/08 07:10:44 gibbs Exp $
+ *      $Id: 93cx6.h,v 1.4 1996/10/25 06:42:50 gibbs Exp $
  */
 
 #include <sys/param.h>
 #if !defined(__NetBSD__)
 #include <sys/systm.h>
 #endif
+
+typedef enum {
+	C46 = 6,
+	C56_66 = 8
+} seeprom_chip_t;
 
 struct seeprom_descriptor {
 #if defined(__FreeBSD__)
@@ -37,6 +42,7 @@ struct seeprom_descriptor {
 	bus_io_handle_t sd_ioh;
 	bus_io_size_t sd_offset;
 #endif
+	seeprom_chip_t sd_chip;
 	u_int16_t sd_MS;
 	u_int16_t sd_RDY;
 	u_int16_t sd_CS;
