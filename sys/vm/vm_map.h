@@ -71,6 +71,8 @@
 #ifndef	_VM_MAP_
 #define	_VM_MAP_
 
+#include <sys/lockmgr.h>
+
 /*
  *	Types defined:
  *
