@@ -287,7 +287,7 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin,
     }
 
     /* type-check the resource we've got */
-    if (prsres->Id != ACPI_RSTYPE_IRQ || prsres->Id != ACPI_RSTYPE_EXT_IRQ) {
+    if (prsres->Id != ACPI_RSTYPE_IRQ && prsres->Id != ACPI_RSTYPE_EXT_IRQ) {
 	device_printf(pcib, "_PRS resource entry has unsupported type %d\n",
 	    prsres->Id);
 	goto out;
