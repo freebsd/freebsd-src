@@ -2,8 +2,8 @@
 
 PROG=	install-info
 
-DPADD+=	${LIBTXI}
-LDADD+=	${LIBTXI}
+DPADD=	${LIBTXI}
+LDADD=	${LIBTXI}
 
 .include <bsd.prog.mk>
 
