@@ -83,7 +83,7 @@ find . -name Makefile.in -exec touch {} \;
 
 # prevent Autoheader from running
 if $autoconf; then :; else
-	find . -name 'stamp-h?.in' -exec touch {} \;
+	find . -name 'config.h.in' -exec touch {} \;
 fi
 
 # prevent Autoconf from running

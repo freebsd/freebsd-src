@@ -167,6 +167,7 @@ add (argc, argv)
 	    free (options);
 	}
 	option_with_arg ("-m", message);
+	send_arg ("--");
 
 	/* If !found_slash, refrain from sending "Directory", for
 	   CVS 1.9 compatibility.  If we only tried to deal with servers

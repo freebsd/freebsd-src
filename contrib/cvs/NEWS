@@ -1,4 +1,28 @@
-Changes since 1.11.1p1:
+Changes since 1.11.2:
+
+* When waiting for another user's lock, the message timestamps are now
+in UTC rather than the server's local time.
+
+* We've standardized on Automake version 1.6.3 and Autoconf version 2.53.
+They are cleaner, less bug prone, and will hopfully allow me to start updating
+sanity.sh to use Autotest and Autoshell.  Again, this should only really affect
+developers.  See the section of the INSTALL file about using the autotools if
+you are compiling CVS yourself.
+
+Changes from 1.11.1p1 to 1.11.2:
+
+* There is a new feature, enabled by RereadLogAfterVerify in CVSROOT/config,
+which tells CVS to reread the log message after running the verifymsg
+script.  This allows the verifymsg script to reformat or otherwise
+modify the log message.
+
+* The interpretation of revision ranges using :: in "log" and "rlog"
+has changed: a::b now excludes the log message from revision a but
+includes the log message from revision b.  Also, revision ranges that
+cross branch points should now work.
+
+* zlib has been updated to version 1.4.  There is a security advisory
+out in regards to 1.3.  This should fix that problem.
 
 * The "log" and "rlog" commands now have a -S option to suppress the
 header information when no revisions are selected.

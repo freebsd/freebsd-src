@@ -28,7 +28,7 @@ SUBMITTER=net
 ## GNATS_ROOT=/usr/local/lib/gnats/gnats-db
 
 # The default mail address for PR submissions. 
-GNATS_ADDR=bug-cvs@gnu.org
+GNATS_ADDR=@PACKAGE_BUGREPORT@
 
 ## # Where the gnats category tree lives.
 ## DATADIR=/usr/local/lib

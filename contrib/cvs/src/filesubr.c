@@ -56,7 +56,7 @@ copy_file (from, to)
 
     if (isdevice (from))
     {
-#if defined(HAVE_MKNOD) && defined(HAVE_ST_RDEV)
+#if defined(HAVE_MKNOD) && defined(HAVE_STRUCT_STAT_ST_RDEV)
 	if (stat (from, &sb) < 0)
 	    error (1, errno, "cannot stat %s", from);
 	mknod (to, sb.st_mode, sb.st_rdev);
@@ -220,7 +220,7 @@ isaccessible (file, mode)
     int umask = 0;
     int gmask = 0;
     int omask = 0;
-    int uid;
+    int uid, mask;
     
     if (stat(file, &sb) == -1)
 	return 0;
@@ -230,10 +230,11 @@ isaccessible (file, mode)
     uid = geteuid();
     if (uid == 0)		/* superuser */
     {
-	if (mode & X_OK)
-	    return sb.st_mode & (S_IXUSR|S_IXGRP|S_IXOTH);
-	else
+	if (!(mode & X_OK) || (sb.st_mode & (S_IXUSR|S_IXGRP|S_IXOTH)))
 	    return 1;
+
+	errno = EACCES;
+	return 0;
     }
 	
     if (mode & R_OK)
@@ -255,12 +256,11 @@ isaccessible (file, mode)
 	omask |= S_IXOTH;
     }
 
-    if (sb.st_uid == uid)
-	return (sb.st_mode & umask) == umask;
-    else if (sb.st_gid == getegid())
-	return (sb.st_mode & gmask) == gmask;
-    else
-	return (sb.st_mode & omask) == omask;
+    mask = sb.st_uid == uid ? umask : sb.st_gid == getegid() ? gmask : omask;
+    if ((sb.st_mode & mask) == mask)
+	return 1;
+    errno = EACCES;
+    return 0;
 #else
     return access(file, mode) == 0;
 #endif
@@ -628,7 +628,7 @@ xcmp (file1, file2)
        numbers match. */
     if (S_ISBLK (sb1.st_mode) || S_ISCHR (sb1.st_mode))
     {
-#ifdef HAVE_ST_RDEV
+#ifdef HAVE_STRUCT_STAT_ST_RDEV
 	if (sb1.st_rdev == sb2.st_rdev)
 	    return 0;
 	else
@@ -958,6 +958,26 @@ get_homedir ()
     return home;
 }
 
+/* Compose a path to a file in the home directory.  This is necessary because
+ * of different behavior on UNIX and VMS.  See the notes in vms/filesubr.c.
+ *
+ * A more clean solution would be something more along the lines of a
+ * "join a directory to a filename" kind of thing which was not specific to
+ * the homedir.  This should aid portability between UNIX, Mac, Windows, VMS,
+ * and possibly others.  This is already handled by Perl - it might be
+ * interesting to see how much of the code was written in C since Perl is under
+ * the GPL and the Artistic license - we might be able to use it.
+ */
+char *
+strcat_filename_onto_homedir (dir, file)
+    const char *dir;
+    const char *file;
+{
+    char *path = xmalloc (strlen (dir) + 1 + strlen(file) + 1);
+    sprintf (path, "%s/%s", dir, file);
+    return path;
+}
+
 /* See cvs.h for description.  On unix this does nothing, because the
    shell expands the wildcards.  */
 void
@@ -1102,3 +1122,5 @@ fopen_case (name, mode, fp, pathp)
     return retval;
 }
 #endif /* SERVER_SUPPORT */
+/* vim:tabstop=8:shiftwidth=4
+ */

@@ -627,6 +627,12 @@ Convert(Month, Day, Year, Hours, Minutes, Seconds, Meridian, DSTmode)
      || Month < 1 || Month > 12
      /* Lint fluff:  "conversion from long may lose accuracy" */
      || Day < 1 || Day > DaysInMonth[(int)--Month])
+	/* FIXME:
+	 * It would be nice to set a global error string here.
+	 * "February 30 is not a valid date" is much more informative than
+	 * "Can't parse date/time: 100 months" when the user input was
+	 * "100 months" and addition resolved that to February 30, for
+	 * example.  See rcs2-7 in src/sanity.sh for more. */
 	return -1;
 
     for (Julian = Day - 1, i = 0; i < Month; i++)

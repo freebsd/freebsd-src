@@ -508,6 +508,7 @@ extern void fnfold (char *FILENAME);
 
 #define FOPEN_BINARY_READ ("rb")
 #define FOPEN_BINARY_WRITE ("wb")
+#define FOPEN_BINARY_READWRITE ("r+b")
 
 #ifdef O_BINARY
 #define OPEN_BINARY (O_BINARY)

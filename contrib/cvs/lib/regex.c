@@ -1534,7 +1534,6 @@ static void store_op1 (), store_op2 ();
 static void insert_op1 (), insert_op2 ();
 static boolean at_begline_loc_p (), at_endline_loc_p ();
 static boolean group_in_compile_stack ();
-static reg_errcode_t compile_range ();
 
 /* Fetch the next character in the uncompiled pattern---translating it
    if necessary.  Also cast from a signed character in the constant
@@ -5472,7 +5471,7 @@ re_match_2_internal (bufp, string1, size1, string2, size2, pos, regs, stop)
 	      UPDATE_SYNTAX_TABLE (charpos);
 #endif
 	      s2 = SYNTAX (c2);
-	
+
 	      /* Case 2: S2 is not Sword. */
 	      if (s2 != Sword)
 		goto fail;

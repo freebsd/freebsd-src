@@ -13,21 +13,10 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 
-# DISTFILES = \
-# 	ChangeLog README .cvsignore intro.doc \
-# 	Makefile.in clmerge.pl cln_hist.pl commit_prep.pl cvs2vendor.sh \
-# 	cvs_acls.pl cvscheck.sh cvscheck.man cvshelp.man debug_check_log.sh \
-# 	descend.sh \
-# 	descend.man dirfns.shar log.pl log_accum.pl mfpipe.pl rcs-to-cvs.sh \
-# 	rcs2log.sh rcslock.pl sccs2rcs.csh rcs2sccs.sh
-
-# files installed in $(pkgdatadir)
-#
-# CONTRIB_FILES = README intro.doc cvscheck.man
-
 contribdir = $(pkgdatadir)/contrib
 
 contrib_SCRIPTS = \
+	check_cvs \
 	clmerge \
 	cln_hist \
 	commit_prep \
