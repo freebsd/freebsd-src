@@ -17,16 +17,18 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- *
- * $FreeBSD$
  */
 
 #ifndef lint
 static const char copyright[] =
     "@(#) Copyright (c) 1988, 1989, 1991, 1994, 1995, 1996\n\
 The Regents of the University of California.  All rights reserved.\n";
+#if 0
 static const char rcsid[] =
-    "@(#)$Header: /usr/local/FreeBSD/cvs/src/contrib/traceroute/traceroute.c,v 1.11 1999/06/25 21:48:40 archie Exp $ (LBL)";
+    "@(#)$Header: traceroute.c,v 1.43 96/09/27 20:08:10 leres Exp $ (LBL)";
+#endif
+static const char rcsid[] =
+    "$FreeBSD$";
 #endif
 
 /*
