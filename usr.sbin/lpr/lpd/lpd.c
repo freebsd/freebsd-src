@@ -131,11 +131,11 @@ uid_t	uid, euid;
 int
 main(int argc, char **argv)
 {
-	int ch_options, errs, f, funix, *finet, fromlen, i, socket_debug;
+	int ch_options, errs, f, funix, *finet, i, lfd, socket_debug;
 	fd_set defreadfds;
 	struct sockaddr_un un, fromunix;
 	struct sockaddr_storage frominet;
-	int lfd;
+	socklen_t fromlen;
 	sigset_t omask, nmask;
 	struct servent *sp, serv;
 	int inet_flag = 0, inet6_flag = 0;
