@@ -40,7 +40,7 @@
  */
 
 
-#ident "$Id: dpt.h,v 1.2 1998/09/15 08:33:31 gibbs Exp $"
+#ident "$Id: dpt.h,v 1.3 1998/09/20 07:19:52 gibbs Exp $"
 
 #ifndef _DPT_H
 #define _DPT_H
@@ -190,9 +190,6 @@ typedef void *physaddr;
 #define MAX_PCI_DEVICES			32 /* Maximum # Of Devices Per Bus */
 #define MAX_METHOD_2			16 /* Max Devices For Method 2 */
 #define MAX_PCI_BUS			16 /* Maximum # Of Busses Allowed */
-
-#define SG_SIZE			      	64
-#define SG_SIZE_BIG			252   /* max. 8096 elements, 64k */
 
 #define DPT_MAX_RETRIES			2
 
@@ -618,8 +615,7 @@ typedef struct eata_ccb {
 	u_int8_t cp_id		:5, /* SCSI Device ID of target */
 		 cp_channel	:3; /* SCSI Channel # of HBA */
 
-	u_int8_t cp_LUN		:3,
-				:2,
+	u_int8_t cp_LUN		:5,
 		 cp_luntar	:1, /* CP is for target ROUTINE */
 		 cp_dispri	:1, /* Grant disconnect privilege */
 		 cp_identify	:1; /* Always TRUE */
