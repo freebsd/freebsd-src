@@ -172,7 +172,8 @@ CROSSENV=	MAKEOBJDIRPREFIX=${OBJTREE} \
 
 # bootstrap-tool stage
 BMAKEENV=	${BOOTSTRAPENV}
-BMAKE=		${BMAKEENV} ${MAKE} -f Makefile.inc1 -DNOMAN -DNOINFO -DNOHTML
+BMAKE=		${BMAKEENV} ${MAKE} -f Makefile.inc1 -DNOHTML -DNOINFO \
+			-DNOMAN -DNOPIC -DNOPROFILE -DNOSHARED
 
 # build-tool stage
 TMAKEENV=	MAKEOBJDIRPREFIX=${OBJTREE} \
@@ -183,8 +184,9 @@ TMAKE=		${TMAKEENV} ${MAKE} -f Makefile.inc1
 # cross-tool stage
 XMAKEENV=	${BOOTSTRAPENV} \
 		TARGET_ARCH=${MACHINE_ARCH}
-XMAKE=		${XMAKEENV} ${MAKE} -f Makefile.inc1 -DNOMAN -DNOINFO -DNOHTML \
-		-DNO_FORTRAN -DNO_GDB
+XMAKE=		${XMAKEENV} ${MAKE} -f Makefile.inc1 -DNO_FORTRAN -DNO_GDB \
+			-DNOHTML -DNOINFO -DNOMAN -DNOPIC -DNOPROFILE \
+			-DNOSHARED
 
 # world stage
 WMAKEENV=	${CROSSENV} \
@@ -298,7 +300,7 @@ everything:
 #
 installworld:
 	mkdir -p ${INSTALLTMP}
-	for prog in [ awk cat chflags chown date echo egrep find grep \
+	for prog in [ awk cat chflags chmod chown date echo egrep find grep \
 	    install ln make makewhatis mtree mv perl rm sed sh sysctl \
 	    test true uname wc zic; do \
 		cp `which $$prog` ${INSTALLTMP}; \
@@ -551,13 +553,9 @@ _libkrb5= kerberos5/lib/libroken kerberos5/lib/libasn1 kerberos5/lib/libhdb \
 	kerberos5/lib/libsl
 .endif
 
-.if !defined(NOPERL)
-_perl=	gnu/usr.bin/perl
-.endif
-
 build-tools:
 .for _tool in bin/sh ${_games} gnu/usr.bin/cc/cc_tools ${_fortran} \
-    ${_libroken4} ${_libkrb5} lib/libncurses ${_share} ${_perl}
+    ${_libroken4} ${_libkrb5} lib/libncurses ${_share}
 	cd ${.CURDIR}/${_tool}; ${MAKE} build-tools
 .endfor
 
@@ -588,8 +586,12 @@ _btxld=	usr.sbin/btxld
 _aout_tools=	usr.bin/size usr.bin/strip gnu/usr.bin/as gnu/usr.bin/ld
 .endif
 
+.if !defined(NOPERL)
+_perl=	gnu/usr.bin/perl/libperl gnu/usr.bin/perl/miniperl
+.endif
+
 cross-tools:
-.for _tool in ${_aout_tools} ${_btxld} ${_elf2exe} usr.bin/genassym \
+.for _tool in ${_aout_tools} ${_btxld} ${_elf2exe} ${_perl} usr.bin/genassym \
     usr.bin/gensetdefs gnu/usr.bin/binutils usr.bin/objformat gnu/usr.bin/cc
 	cd ${.CURDIR}/${_tool}; \
 		${MAKE} obj; \
@@ -745,13 +747,16 @@ _libm=	lib/msun
 _libkeycap=	usr.sbin/pcvt/keycap
 .endif
 
+.if !defined(NOPERL)
+_libperl=	gnu/usr.bin/perl/libperl
+.endif
+
 libraries:
 .for _lib in ${_csu} gnu/lib/csu gnu/lib/libgcc lib/libmd lib/libcrypt \
     ${_secure_lib} ${_kerberosIV_lib} \
     ${_kerberos5_lib} lib/libcom_err ${_libm} lib/libncurses \
     lib/libopie lib/libradius lib/libskey lib/libtacplus lib/libutil \
-    lib/libz lib gnu/lib \
-    ${_libperl} usr.bin/lex/lib ${_libkeycap}
+    lib/libz lib gnu/lib ${_libperl} usr.bin/lex/lib ${_libkeycap}
 .if exists(${.CURDIR}/${_lib})
 	cd ${.CURDIR}/${_lib}; \
 		${MAKE} depend; \

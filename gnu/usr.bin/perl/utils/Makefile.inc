@@ -4,7 +4,7 @@
 
 PERL5SRC=	${.CURDIR}/../../../../../contrib/perl5
 PERL5LIBSRC=	${.CURDIR}/../../libperl
-MINIPERL=	${.OBJDIR}/../../miniperl/miniperl
+MINIPERL=	miniperl
 
 .include "../Makefile.inc"
 
