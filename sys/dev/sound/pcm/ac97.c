@@ -152,7 +152,7 @@ static struct ac97_codecid ac97codecid[] = {
 	{ 0x49434501, 0x00, 0, "ICE1230",	0 },
 	{ 0x49434511, 0x00, 0, "ICE1232",	0 },
 	{ 0x49434514, 0x00, 0, "ICE1232A",	0 },
-	{ 0x49434551, 0x00, 0, "VT1616",	0 }, /* Via badged ICE */
+	{ 0x49434551, 0x03, 0, "VT1616",	0 }, /* Via badged ICE */
 	{ 0x4e534340, 0x00, 0, "LM4540",	0 }, /* Spec blank on revid */
 	{ 0x4e534343, 0x00, 0, "LM4543",	0 }, /* Ditto */
 	{ 0x4e534346, 0x00, 0, "LM4546A",	0 },
