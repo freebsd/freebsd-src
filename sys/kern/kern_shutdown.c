@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_shutdown.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_shutdown.c,v 1.6 1996/09/07 19:13:09 sos Exp $
+ * $Id: kern_shutdown.c,v 1.7 1996/09/13 09:17:06 bde Exp $
  */
 
 #include "opt_ddb.h"
@@ -245,7 +245,8 @@ boot(howto)
 						PANIC_REBOOT_WAIT_TIME);
 					for (loop = PANIC_REBOOT_WAIT_TIME * 10; loop > 0; --loop) {
 						DELAY(1000 * 100); /* 1/10th second */
-						if (cncheckc()) /* Did user type a key? */
+						/* Did user type a key? */
+						if (cncheckc() != -1)
 							break;
 					}
 					if (!loop)

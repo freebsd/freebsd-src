@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.93 1996/09/03 10:24:29 asami Exp $
+ *      $Id: sd.c,v 1.94 1996/09/06 23:09:18 phk Exp $
  */
 
 #include "opt_bounce.h"
@@ -921,7 +921,7 @@ sddump(dev_t dev)
 	addr = (char *) 0;	/* starting address */
 
 	/* toss any characters present prior to dump */
-	while (cncheckc())
+	while (cncheckc() != -1)
 		;
 
 	/* size of memory to dump */
@@ -1020,7 +1020,7 @@ sddump(dev_t dev)
 		(int) addr += SECSIZE * blkcnt;
 
 		/* operator aborting dump? */
-		if (cncheckc())
+		if (cncheckc() != -1)
 			return (EINTR);
 	}
 	return (0);
