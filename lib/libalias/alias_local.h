@@ -144,7 +144,7 @@ void HouseKeeping(void);
 void AliasHandleFtpOut(struct ip *, struct alias_link *, int);
 
 /* IRC routines */
-void AliasHandleIrcOut(struct ip *pip, struct alias_link *link, int maxsize );
+void AliasHandleIrcOut(struct ip *, struct alias_link *, int);
 
 /* NetBIOS routines */
 int AliasHandleUdpNbt(struct ip *, struct alias_link *, struct in_addr *, u_short);
