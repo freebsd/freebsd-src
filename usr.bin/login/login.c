@@ -506,8 +506,9 @@ main(int argc, char *argv[])
 		 * Parent: wait for child to finish, then clean up
 		 * session.
 		 */
+		int status;
 		setproctitle("-%s [pam]", getprogname());
-		wait(NULL);
+		waitpid(pid, &status, 0);
 		bail(NO_SLEEP_EXIT, 0);
 	}
 
