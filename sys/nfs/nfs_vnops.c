@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.88 1998/05/16 16:20:50 bde Exp $
+ * $Id: nfs_vnops.c,v 1.89 1998/05/19 07:11:26 peter Exp $
  */
 
 
@@ -1029,7 +1029,7 @@ nfs_readrpc(vp, uiop, cred)
 #endif
 	nmp = VFSTONFS(vp->v_mount);
 	tsiz = uiop->uio_resid;
-	if (uiop->uio_offset + tsiz > 0xffffffff && !v3)
+	if (uiop->uio_offset + tsiz > nmp->nm_maxfilesize)
 		return (EFBIG);
 	while (tsiz > 0) {
 		nfsstats.rpccnt[NFSPROC_READ]++;
@@ -1095,7 +1095,7 @@ nfs_writerpc(vp, uiop, cred, iomode, must_commit)
 #endif
 	*must_commit = 0;
 	tsiz = uiop->uio_resid;
-	if (uiop->uio_offset + tsiz > 0xffffffff && !v3)
+	if (uiop->uio_offset + tsiz > nmp->nm_maxfilesize)
 		return (EFBIG);
 	while (tsiz > 0) {
 		nfsstats.rpccnt[NFSPROC_WRITE]++;

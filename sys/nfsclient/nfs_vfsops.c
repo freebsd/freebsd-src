@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.12 (Berkeley) 5/20/95
- * $Id: nfs_vfsops.c,v 1.62 1998/05/20 08:05:45 peter Exp $
+ * $Id: nfs_vfsops.c,v 1.63 1998/05/24 14:41:56 peter Exp $
  */
 
 #include <sys/param.h>
@@ -333,6 +333,7 @@ nfs_fsinfo(nmp, vp, cred, p)
 	caddr_t bpos, dpos, cp2;
 	int error = 0, retattr;
 	struct mbuf *mreq, *mrep, *md, *mb, *mb2;
+	u_int64_t maxfsize;
 
 	nfsstats.rpccnt[NFSPROC_FSINFO]++;
 	nfsm_reqhead(vp, NFSPROC_FSINFO, NFSX_FH(1));
@@ -367,6 +368,11 @@ nfs_fsinfo(nmp, vp, cred, p)
 		if (max < nmp->nm_readdirsize) {
 			nmp->nm_readdirsize = max;
 		}
+		/* XXX */
+		nmp->nm_maxfilesize = (u_int64_t)0x80000000 * DEV_BSIZE - 1;
+		fxdr_hyper(&fsp->fs_maxfilesize, &maxfsize);
+		if (maxfsize > 0 && maxfsize < nmp->nm_maxfilesize)
+			nmp->nm_maxfilesize = maxfsize;
 		nmp->nm_state |= NFSSTA_GOTFSINFO;
 	}
 	nfsm_reqdone;
@@ -690,6 +696,13 @@ mountnfs(argp, mp, nam, pth, hst, vpp)
 		 * unsuspecting binaries).
 		 */
 		mp->mnt_maxsymlinklen = 1;
+	if ((argp->flags & NFSMNT_NFSV3) == 0)
+		/*
+		 * V2 can only handle 32 bit filesizes. For v3, nfs_fsinfo
+		 * will fill this in.
+		 */
+		nmp->nm_maxfilesize = 0xffffffffLL;
+
 	nmp->nm_timeo = NFS_TIMEO;
 	nmp->nm_retry = NFS_RETRANS;
 	nmp->nm_wsize = NFS_WSIZE;

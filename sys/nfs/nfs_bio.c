@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.9 (Berkeley) 3/30/95
- * $Id: nfs_bio.c,v 1.55 1998/05/19 07:11:22 peter Exp $
+ * $Id: nfs_bio.c,v 1.56 1998/05/20 08:02:23 peter Exp $
  */
 
 
@@ -254,12 +254,15 @@ nfs_bioread(vp, uio, ioflag, cred, getpages)
 #endif
 	if (uio->uio_resid == 0)
 		return (0);
-	if (uio->uio_offset < 0)
+	if (uio->uio_offset < 0)	/* XXX VDIR cookies can be negative */
 		return (EINVAL);
 	p = uio->uio_procp;
 	if ((nmp->nm_flag & NFSMNT_NFSV3) != 0 &&
 	    (nmp->nm_state & NFSSTA_GOTFSINFO) == 0)
 		(void)nfs_fsinfo(nmp, vp, cred, p);
+	if (vp->v_type != VDIR &&
+	    (uio->uio_offset + uio->uio_resid) > nmp->nm_maxfilesize)
+		return (EFBIG);
 	biosize = vp->v_mount->mnt_stat.f_iosize;
 	/*
 	 * For nfs, cache consistency can only be maintained approximately.
@@ -657,6 +660,8 @@ nfs_write(ap)
 	}
 	if (uio->uio_offset < 0)
 		return (EINVAL);
+	if ((uio->uio_offset + uio->uio_resid) > nmp->nm_maxfilesize)
+		return (EFBIG);
 	if (uio->uio_resid == 0)
 		return (0);
 	/*
