@@ -23,7 +23,7 @@
 .\" SUCH DAMAGE.
 .\" $FreeBSD$
 .\"
-.Dd November 23, 2004
+.Dd January 7, 2005
 .Dt EVENTHANDLER 9
 .Os
 .Sh NAME
@@ -61,17 +61,16 @@ kernel events and have their callback functions invoked when these
 events occur.
 .Pp
 The normal way to use this subsystem is via the macro interface.
-.Pp
-The macro
-.Fn EVENTHANDLER_DECLARE
-declares an event handler named by argument
+The macros that can be used for working with event handlers and callback
+function lists are:
+.Bl -tag -width indent
+.It Fn EVENTHANDLER_DECLARE
+This macro declares an event handler named by argument
 .Fa name
 with callback functions of type
 .Fa type .
-.Pp
-The macro
-.Fn EVENTHANDLER_REGISTER
-registers a callback function
+.It Fn EVENTHANDLER_REGISTER
+This macro registers a callback function
 .Fa func
 with event handler
 .Fa name .
@@ -84,8 +83,8 @@ via macro
 .Fn EVENTHANDLER_INVOKE
 (see below).
 Callback functions are invoked in order of priority.
-The relative priority of this callback among other callbacks
-associated with this event is given by argument
+The relative priority of each callback among other callbacks
+associated with an event is given by argument
 .Fa priority ,
 which is an integer ranging from
 .Dv EVENTHANDLER_PRI_FIRST
@@ -100,77 +99,86 @@ If registration is successful,
 .Fn EVENTHANDLER_REGISTER
 returns a cookie of type
 .Vt eventhandler_tag .
-.Pp
-The macro
-.Fn EVENTHANDLER_DEREGISTER
-removes a previously registered callback associated with
-tag
+.It Fn EVENTHANDLER_DEREGISTER
+This macro removes a previously registered callback associated with tag
 .Fa tag
 from the event handler named by argument
 .Fa name .
-.Pp
-The macro
-.Fn EVENTHANDLER_INVOKE
-is used to invoke all the callbacks associated with event handler
+.It Fn EVENTHANDLER_INVOKE
+This macro is used to invoke all the callbacks associated with event
+handler
 .Fa name .
 This macro is a variadic one.
 Additional arguments to the macro after the
 .Fa name
 parameter are passed as the second and subsequent arguments to each
 registered callback function.
+.El
 .Pp
 The macros are implemented using the following functions:
-.Pp
-The function
+.Bl -tag -width indent
+.It Fn eventhandler_register
+The
 .Fn eventhandler_register
-is used to register a callback with a given event.
-The argument
-.Fa list
-is pointer to an existing event handler list, or
+function is used to register a callback with a given event.
+The arguments expected by this function are:
+.Bl -tag -width ".Fa priority"
+.It Fa list
+A pointer to an existing event handler list, or
 .Dv NULL .
-If argument
+If
 .Fa list
 is
 .Dv NULL ,
 the event handler list corresponding to argument
 .Fa name
 is used.
-Argument
-.Fa func
-is a pointer to a callback function.
+.It Fa name
+The name of the event handler list.
+.It Fa func
+A pointer to a callback function.
 Argument
 .Fa arg
-is a passed in to callback function
+is a passed to the callback function
 .Fa func
 as its first argument when it is invoked.
-Argument
-.Fa priority
-ranges from
+.It Fa priority
+The relative priority of this callback among all the callbacks
+registered for this event.
+Valid values are those in the range
 .Dv EVENTHANDLER_PRI_FIRST
 to
-.Dv EVENTHANDLER_PRI_LAST ,
-and determines the relative priority of this callback among all the
-callbacks registered for this event.
+.Dv EVENTHANDLER_PRI_LAST .
+.El
 .Pp
-Function
+The
+.Fn eventhandler_register
+function returns a
+.Fa tag
+that can later be used with
 .Fn eventhandler_deregister
-removes the callback associated with tag
+to remove the particular callback function.
+.It Fn eventhandler_deregister
+The
+.Fn eventhandler_deregister
+function removes the callback associated with tag
 .Fa tag
 from the event handler list pointed to by
 .Fa list .
 This function is safe to call from inside an event handler
 callback.
-.Pp
-Function
+.It Fn eventhandler_find_list
+The
 .Fn eventhandler_find_list
-returns a pointer to event handler list structure corresponding to
-event
+function returns a pointer to event handler list structure corresponding
+to event
 .Fa name .
-.Pp
-Function
+.It Fn eventhandler_prune_list
+The
 .Fn eventhandler_prune_list
-removes all deregistered callbacks from the event list
+function removes all deregistered callbacks from the event list
 .Fa list .
+.El
 .Ss Kernel Event Handlers
 The following event handlers are present in the kernel:
 .Bl -tag -width indent
@@ -222,8 +230,9 @@ which may be used in a subsequent call to
 or
 .Fn eventhandler_deregister .
 .Pp
-Function
+The
 .Fn eventhandler_find_list
+function
 returns a pointer to an event handler list corresponding to parameter
 .Fa name ,
 or
