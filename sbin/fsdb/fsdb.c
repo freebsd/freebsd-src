@@ -95,8 +95,15 @@ main(argc, argv)
 			usage();
 		}
 	}
-	if (fsys == NULL)
-		usage();
+	argc -= optind;
+	argv += optind;
+	if (fsys == NULL) { 
+		if (argc != 1)
+			usage();
+		else
+			fsys = argv[0];
+	}
+
 	if (!setup(fsys))
 		errx(1, "cannot set up file system `%s'", fsys);
 	printf("Editing file system `%s'\nLast Mounted on %s\n", fsys,
