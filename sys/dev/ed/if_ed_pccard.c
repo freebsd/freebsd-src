@@ -39,6 +39,8 @@
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <machine/bus.h>
+#include <sys/rman.h>
+#include <machine/resource.h>
 
 #include <net/ethernet.h>
 #include <net/if.h>
@@ -48,10 +50,7 @@
 #include <dev/ed/if_edreg.h>
 #include <dev/ed/if_edvar.h>
 #include <dev/pccard/pccardvar.h>
-#include <pccard/cardinfo.h>
-#include <pccard/slot.h>
-
-#define CARD_MAJOR	50
+#include "card_if.h"
 
 /*
  *      PC-Card (PCMCIA) specific code.
@@ -62,7 +61,6 @@ static int	ed_pccard_detach(device_t);
 
 static void	ax88190_geteprom(struct ed_softc *);
 static int	ed_pccard_memwrite(device_t dev, off_t offset, u_char byte);
-static int	ed_pccard_memread(device_t dev, off_t offset, u_char *buf, int size);
 static int	linksys;
 
 static device_method_t ed_pccard_methods[] = {
@@ -126,11 +124,9 @@ ed_pccard_probe(device_t dev)
 
 	if (ED_FLAGS_GETTYPE(flags) == ED_FLAGS_AX88190) {
 		/* Special setup for AX88190 */
-		u_char rdbuf[4];
 		int iobase;
-		int attr_ioport;
 
-		/* XXX Allocate the port resource during setup. */
+		/* Allocate the port resource during setup. */
 		error = ed_alloc_port(dev, 0, ED_NOVELL_IO_PORTS);
 		if (error)
 			return (error);
@@ -141,20 +137,13 @@ ed_pccard_probe(device_t dev)
 		sc->chip_type = ED_CHIP_TYPE_AX88190;
 
 		/*
-		 * Check & Set Attribute Memory IOBASE Register
+		 * Set Attribute Memory IOBASE Register
 		 */
-		ed_pccard_memread(dev, ED_AX88190_IOBASE0, rdbuf, 4);
-		attr_ioport = rdbuf[2] << 8 | rdbuf[0];
 		iobase = rman_get_start(sc->port_res);
-		if (attr_ioport != iobase) {
-#if notdef
-			printf("AX88190 IOBASE MISMATCH %04x -> %04x Setting\n", attr_ioport, iobase);
-#endif /* notdef */
-			ed_pccard_memwrite(dev, ED_AX88190_IOBASE0,
-					   iobase & 0xff);
-			ed_pccard_memwrite(dev, ED_AX88190_IOBASE1,
-					   (iobase >> 8) & 0xff);
-		}
+		ed_pccard_memwrite(dev, ED_AX88190_IOBASE0,
+				   iobase & 0xff);
+		ed_pccard_memwrite(dev, ED_AX88190_IOBASE1,
+				   (iobase >> 8) & 0xff);
 		ax88190_geteprom(sc);
 
 		ed_release_resources(dev);
@@ -169,9 +158,11 @@ ed_pccard_probe(device_t dev)
 	if (error == 0)
 		goto end;
 	ed_release_resources(dev);
+	goto end2;
 
 end:
 	linksys = ed_get_Linksys(dev);
+end2:
 	if (error == 0)
 		error = ed_alloc_irq(dev, 0, 0);
 
@@ -265,53 +256,21 @@ ax88190_geteprom(struct ed_softc *sc)
 	sc->arpcom.ac_enaddr[5] = prom[2] >> 8;
 }
 
-/* XXX: Warner-san, any plan to provide access to the attribute memory? */
 static int
 ed_pccard_memwrite(device_t dev, off_t offset, u_char byte)
 {
-	struct pccard_devinfo *devi;
-	dev_t d;
-	struct iovec iov;
-	struct uio uios;
+	int cis_rid;
+	struct resource *cis;
 
-	devi = device_get_ivars(dev);
+	cis_rid = 0;
+	cis = bus_alloc_resource(dev, SYS_RES_MEMORY, &cis_rid, 0, ~0, 4 << 10, RF_ACTIVE | RF_SHAREABLE);
+	if (cis == NULL)
+		return (ENXIO);
+	CARD_SET_RES_FLAGS(device_get_parent(dev), dev, SYS_RES_MEMORY, cis_rid, PCCARD_A_MEM_ATTR);
 
-	iov.iov_base = &byte;
-	iov.iov_len = sizeof(byte);
+	bus_space_write_1(rman_get_bustag(cis), rman_get_bushandle(cis), offset, byte);
 
-	uios.uio_iov = &iov;
-	uios.uio_iovcnt = 1;
-	uios.uio_offset = offset;
-	uios.uio_resid = sizeof(byte);
-	uios.uio_segflg = UIO_SYSSPACE;
-	uios.uio_rw = UIO_WRITE;
-	uios.uio_procp = 0;
+	bus_release_resource(dev, SYS_RES_MEMORY, cis_rid, cis);
 
-	d = makedev(CARD_MAJOR, devi->slt->slotnum);
-	return devsw(d)->d_write(d, &uios, 0);
-}
-
-static int
-ed_pccard_memread(device_t dev, off_t offset, u_char *buf, int size)
-{
-	struct pccard_devinfo *devi;
-	dev_t d;
-	struct iovec iov;
-	struct uio uios;
-
-	devi = device_get_ivars(dev);
-
-	iov.iov_base = buf;
-	iov.iov_len = size;
-
-	uios.uio_iov = &iov;
-	uios.uio_iovcnt = 1;
-	uios.uio_offset = offset;
-	uios.uio_resid = size;
-	uios.uio_segflg = UIO_SYSSPACE;
-	uios.uio_rw = UIO_READ;
-	uios.uio_procp = 0;
-
-	d = makedev(CARD_MAJOR, devi->slt->slotnum);
-	return devsw(d)->d_read(d, &uios, 0);
+	return (0);
 }
