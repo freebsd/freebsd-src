@@ -1,10 +1,13 @@
 #!/bin/sh
 #
-# $NetBSD: securelevel,v 1.1 2000/08/21 23:31:24 lukem Exp $
+# $NetBSD: securelevel,v 1.4 2002/03/22 04:34:00 thorpej Exp $
+# $FreeBSD$
 #
 
 # PROVIDE: securelevel
 # REQUIRE: aftermountlkm ipnat mountd
+# BEFORE:  DAEMON
+# KEYWORD: FreeBSD NetBSD
 
 . /etc/rc.subr
 
@@ -14,19 +17,39 @@ stop_cmd=":"
 
 securelevel_start()
 {
-	#	if $securelevel is set, change it here, else if it is 0,
-	#	change it to 1 here, before we start daemons or login services.
-	#
-	if [ -n "$securelevel" ]; then
-		echo -n "Setting securelevel: "
-		sysctl kern.securelevel=$securelevel
-	else
-		securelevel=`sysctl -n kern.securelevel`
-		if [ x"$securelevel" = x0 ]; then
-			echo -n "Setting securelevel: "
-			sysctl kern.securelevel=1
+	case `${CMD_OSTYPE}` in
+	FreeBSD)
+		case ${kern_securelevel_enable} in
+		[Yy][Ee][Ss])
+			if [ ${kern_securelevel} -ge 0 ]; then
+				echo 'Raising kernel security level: '
+				${SYSCTL_W} kern.securelevel=${kern_securelevel}
+			fi
+			;;
+		esac
+		;;
+	NetBSD)
+		#	if $securelevel is set higher, change it here, else if
+		#	it is 0, change it to 1 here, before we start daemons
+		#	or login services.
+		#
+		osecurelevel=`sysctl -n kern.securelevel`
+		if [ -n "$securelevel" -a "$securelevel" != "$osecurelevel" ]; then
+			if [ "$securelevel" -lt "$osecurelevel" ]; then
+				echo "Can't lower securelevel."
+				exit 1
+			else
+				echo -n "Setting securelevel: "
+				${SYSCTL_W} kern.securelevel=$securelevel
+			fi
+		else
+			if [ "$osecurelevel" = 0 ]; then
+				echo -n "Setting securelevel: "
+				${SYSCTL_W} kern.securelevel=1
+			fi
 		fi
- 	fi
+		;;
+	esac
 }
 
 load_rc_config $name

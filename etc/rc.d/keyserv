@@ -1,0 +1,22 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# Start keyserv if we are running Secure RPC
+#
+
+# PROVIDE: keyserv
+# REQUIRE: ypbind
+# BEFORE: DAEMON
+# KEYWORD: FreeBSD
+
+. /etc/rc.subr
+
+name="keyserv"
+rcvar=`set_rcvar`
+command="/usr/sbin/${name}"
+required_vars="portmap_enable"
+
+load_rc_config $name
+run_rc_command "$1"

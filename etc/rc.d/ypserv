@@ -1,18 +1,30 @@
 #!/bin/sh
 #
-# $NetBSD: ypserv,v 1.4 2000/06/02 22:54:13 fvdl Exp $
+# $NetBSD: ypserv,v 1.5 2000/09/19 13:04:39 lukem Exp $
+# $FreeBSD$
 #
 
 # PROVIDE: ypserv
 # REQUIRE: rpcbind
+# KEYWORD: FreeBSD NetBSD
 
 . /etc/rc.subr
 
 name="ypserv"
-rcvar=$name
 command="/usr/sbin/${name}"
-required_vars="rpcbind"
 start_precmd="ypserv_precmd"
+
+case `${CMD_OSTYPE}` in
+FreeBSD)
+	rcvar="nis_server_enable"
+	required_vars="portmap_enable"
+	command_args="${nis_server_flags}"
+	;;
+NetBSD)
+	rcvar=${name}
+	required_vars="rpcbind"
+	;;
+esac
 
 ypserv_precmd()
 {

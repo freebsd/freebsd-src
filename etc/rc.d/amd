@@ -1,21 +1,68 @@
 #!/bin/sh
 #
-# $NetBSD: amd,v 1.6 2000/09/19 13:04:38 lukem Exp $
+# $NetBSD: amd,v 1.10 2002/04/29 12:08:17 lukem Exp $
+# $FreeBSD$
 #
 
 # PROVIDE: amd
-# REQUIRE: rpcbind mountall ypbind
+# REQUIRE: rpcbind mountall ypbind nfsclient
+# BEFORE: DAEMON
+# KEYWORD: FreeBSD NetBSD
 
 . /etc/rc.subr
 
 name="amd"
-rcvar=$name
-command="/usr/sbin/${name}"
+rcvar=`set_rcvar`
+
+case `${CMD_OSTYPE}` in
+FreeBSD)
+	start_cmd="echo 'Starting amd.'; /usr/sbin/${name} &"
+	start_precmd="amd_precmd"
+	;;
+NetBSD)
+	command_args='-p -a '$amd_dir' -F /etc/amd.conf >/var/run/amd.pid'
+	required_dirs="$amd_dir"
+	required_files="/etc/amd.conf"
+	required_vars="rpcbind"
+	command="/usr/sbin/${name}"
+	;;
+esac
+
+amd_precmd() 
+{
+	case `${CMD_OSTYPE}` in
+	FreeBSD)
+		if ! checkyesno nfs_client_enable ; then
+			force_depend nfsclient || return 1
+		fi
+		if [ -z "`check_process rpcbind`" \
+	    	    -a ! `checkyesno portmap_enable` ]; then
+			force_depend rpcbind || return 1
+		fi
+
+		case ${amd_map_program} in
+		[Nn][Oo] | '')
+			;;
+		*)
+			amd_flags="${amd_flags} `eval ${amd_map_program}`"
+			;;
+		esac
+
+		case "${amd_flags}" in
+		'')
+			if [ ! -r /etc/amd.conf ]; then
+				warn 'amd will not load without arguments'
+				return 1
+			fi
+			;;
+		*)
+			amd_flags="-p ${amd_flags} > /var/run/amd.pid 2> /dev/null" \
+			;;
+		esac
+		;;
+	esac
+	return 0
+}
+
 load_rc_config $name
-
-command_args='-p -a '$amd_dir' -F /etc/amd.conf >/var/run/amd.pid'
-required_files="/etc/amd.conf"
-required_dirs="$amd_dir"
-required_vars="rpcbind"
-
 run_rc_command "$1"
