@@ -795,7 +795,7 @@ exec_map_first_page(imgp)
 		}
 	}
 	vm_page_lock_queues();
-	vm_page_wire(ma[0]);
+	vm_page_hold(ma[0]);
 	vm_page_wakeup(ma[0]);
 	vm_page_unlock_queues();
 	VM_OBJECT_UNLOCK(object);
@@ -814,7 +814,7 @@ exec_unmap_first_page(imgp)
 	if (imgp->firstpage != NULL) {
 		pmap_qremove((vm_offset_t)imgp->image_header, 1);
 		vm_page_lock_queues();
-		vm_page_unwire(imgp->firstpage, 1);
+		vm_page_unhold(imgp->firstpage);
 		vm_page_unlock_queues();
 		imgp->firstpage = NULL;
 	}
