@@ -467,8 +467,8 @@ tcp_usr_accept(struct socket *so, struct sockaddr **nam)
 	int error = 0;
 	struct inpcb *inp = NULL;
 	struct tcpcb *tp = NULL;
-	struct sockaddr_in *sin;
-	const int inirw = INI_READ;
+	struct in_addr addr;
+	in_port_t port = 0;
 	TCPDEBUG0;
 
 	if (so->so_state & SS_ISDISCONNECTED) {
@@ -476,21 +476,12 @@ tcp_usr_accept(struct socket *so, struct sockaddr **nam)
 		goto out;
 	}
 
-	/*
-	 * Do the malloc first in case it blocks.
-	 */
-	MALLOC(sin, struct sockaddr_in *, sizeof *sin, M_SONAME,
-		M_WAITOK | M_ZERO);
-	sin->sin_family = AF_INET;
-	sin->sin_len = sizeof(*sin);
-
 	s = splnet();
 	INP_INFO_RLOCK(&tcbinfo);
 	inp = sotoinpcb(so);
 	if (!inp) {
 		INP_INFO_RUNLOCK(&tcbinfo);
 		splx(s);
-		free(sin, M_SONAME);
 		return (EINVAL);
 	}
 	INP_LOCK(inp);
@@ -499,14 +490,20 @@ tcp_usr_accept(struct socket *so, struct sockaddr **nam)
 	TCPDEBUG1();
 
 	/* 
-	 * We inline in_setpeeraddr here, because we have already done
-	 * the locking and the malloc.
+	 * We inline in_setpeeraddr and COMMON_END here, so that we can
+	 * copy the data of interest and defer the malloc until after we
+	 * release the lock.
 	 */
-	sin->sin_port = inp->inp_fport;
-	sin->sin_addr = inp->inp_faddr;
-	*nam = (struct sockaddr *)sin;
+	port = inp->inp_fport;
+	addr = inp->inp_faddr;
 
-	COMMON_END(PRU_ACCEPT);
+out:	TCPDEBUG2(PRU_ACCEPT);
+	if (tp)
+		INP_UNLOCK(inp);
+	splx(s);
+	if (error == 0)
+		*nam = in_sockaddr(port, &addr);
+	return error;
 }
 
 #ifdef INET6
@@ -517,7 +514,10 @@ tcp6_usr_accept(struct socket *so, struct sockaddr **nam)
 	struct inpcb *inp = NULL;
 	int error = 0;
 	struct tcpcb *tp = NULL;
-	const int inirw = INI_READ;
+	struct in_addr addr;
+	struct in6_addr addr6;
+	in_port_t port = 0;
+	int v4 = 0;
 	TCPDEBUG0;
 
 	if (so->so_state & SS_ISDISCONNECTED) {
@@ -537,8 +537,31 @@ tcp6_usr_accept(struct socket *so, struct sockaddr **nam)
 	INP_INFO_RUNLOCK(&tcbinfo);
 	tp = intotcpcb(inp);
 	TCPDEBUG1();
-	in6_mapped_peeraddr(so, nam);
-	COMMON_END(PRU_ACCEPT);
+	/* 
+	 * We inline in6_mapped_peeraddr and COMMON_END here, so that we can
+	 * copy the data of interest and defer the malloc until after we
+	 * release the lock.
+	 */
+	if (inp->inp_vflag & INP_IPV4) {
+		v4 = 1;
+		port = inp->inp_fport;
+		addr = inp->inp_faddr;
+	} else {
+		port = inp->inp_fport;
+		addr6 = inp->in6p_faddr;
+	}
+
+out:	TCPDEBUG2(PRU_ACCEPT);
+	if (tp)
+		INP_UNLOCK(inp);
+	splx(s);
+	if (error == 0) {
+		if (v4)
+			*nam = in6_v4mapsin6_sockaddr(port, &addr);
+		else
+			*nam = in6_sockaddr(port, &addr6);
+	}
+	return error;
 }
 #endif /* INET6 */
 
