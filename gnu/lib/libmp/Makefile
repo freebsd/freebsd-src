@@ -1,42 +1,60 @@
-# Makefile for libmp
-# $Id: Makefile,v 1.4 1995/11/25 00:13:57 peter Exp $
+#
+# $Id$
+#
 
-LIB=    mp
-SRCS=	$(MP_SRCS)
-.PATH:	${.CURDIR}/../libgmp
-CLEANFILES+=	cre-mparam cre-conv-tab gmp-mparam.h mp_bases.c
+LIB=	mp
 
-MP_SRCS=	mp_bases.c $(BSDMP_SRCS) $(MPN_SRCS) $(IMPL_SRCS) 
+GMPDIR=	${.CURDIR}/../../../contrib/libgmp
+.PATH:	${GMPDIR} ${GMPDIR}/mpn ${GMPDIR}/mpn/x86 ${GMPDIR}/mpn/generic \
+	${GMPDIR}/mpbsd
 
-CFLAGS+=	-I${.CURDIR}/../libgmp -I${.OBJDIR} -Wall -Wstrict-prototypes \
-		-DLOCALE -DBERKELEY_MP
+CFLAGS+=	-I${GMPDIR} -I${GMPDIR}/mpn/generic -I${GMPDIR}/mpn/x86 \
+		-I${GMPDIR}/mpz -DBROKEN_ALIGN
 
-BSDMP_SRCS=	mpz_gcd.c mpz_add.c mpz_cmp.c mpz_sub.c mpz_mul.c \
-		mpz_powm.c mpz_pow_ui.c mpz_sqrtrem.c mpz_sizeinb.c \
-		itom.c mdiv.c move.c mtox.c xtom.c sdiv.c mout.c min.c mfree.c
+MPN_SRC_C=	inlines.c cmp.c divmod_1.c divrem.c divrem_1.c dump.c \
+		mod_1.c mul.c mul_n.c random2.c sqrtrem.c get_str.c set_str.c \
+		scan0.c scan1.c popcount.c hamdist.c gcd_1.c pre_mod_1.c \
+		perfsqr.c bdivmod.c gcd.c gcdext.c mp_bases.c
 
-MPN_SRCS=	mpn_add.c mpn_sub.c mpn_cmp.c mpn_mul.c mpn_div.c mpn_dm_1.c \
-		mpn_mod_1.c mpn_lshift.c mpn_rshift.c mpn_rshiftci.c mpn_sqrt.c
+MPN_SRC_ASM=	add_n.S addmul_1.S lshift.S mul_1.S rshift.S sub_n.S submul_1.S
 
-IMPL_SRCS=	memory.c mp_set_fns.c _mpz_set_str.c _mpz_get_str.c \
-		mpz_realloc.c mp_clz_tab.c
+MPN_SRCS=	${MPN_SRC_C} ${MPN_SRC_ASM}
 
-beforedepend:	gmp-mparam.h mp_bases.c
+MPBSD_LINKS=	mpz/add.c mpz/cmp.c mpz/gcd.c mpz/mul.c mpz/pow_ui.c \
+		mpz/powm.c mpz/sqrtrem.c mpz/sub.c
+MPBSD_SRCS=	itom.c mdiv.c mfree.c min.c mout.c move.c mtox.c sdiv.c xtom.c \
+		realloc.c $(MPBSD_LINKS)
+
+SRCS=		memory.c mp_set_fns.c mp_clz_tab.c version.c stack-alloc.c \
+		mp_bpl.c extract-double.c insert-double.c \
+		${MPN_SRCS} ${MPBSD_SRCS}
+
+.ifmake all || depend
+.BEGIN:
+	cp ${GMPDIR}/mpn/bsd.h sysdep.h
+	(echo "#define BSD_SYNTAX" ; \
+		echo "#include \"syntax.h\"") > asm-syntax.h
+.endif
+
+CLEANFILES+=	sysdep.h asm-syntax.h
+
+# Grrr. This package contains modules in separate subdirs that have the
+# same name. Nasty hack to keep them from being found by being in
+# .PATH:s
+#
+.if exists(${.OBJDIR})
+beforedepend:
+	test -d ${.OBJDIR}/mpz || mkdir ${.OBJDIR}/mpz
+.else
+beforedepend:
+	test -d ${.CURDIR}/mpz || mkdir ${.CURDIR}/mpz
+.endif
+
+CLEANDIRS+=	 ${.OBJDIR}/mpz ${.CURDIR}/mpz
 
 beforeinstall:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${.CURDIR}/../libgmp/mp.h ${DESTDIR}/usr/include/mp.h
+		${GMPDIR}/mp.h ${DESTDIR}/usr/include
 
-cre-mparam: cre-mparam.c
-	$(CC) $(CFLAGS) ${.CURDIR}/../libgmp/cre-mparam.c -o ${.TARGET}
-
-cre-conv-tab: cre-conv-tab.c gmp-mparam.h
-	$(CC) $(CFLAGS) -lm ${.CURDIR}/../libgmp/cre-conv-tab.c -o ${.TARGET}
-
-gmp-mparam.h: cre-mparam
-	./cre-mparam > ${.TARGET}
-
-mp_bases.c: cre-conv-tab
-	./cre-conv-tab > ${.TARGET}
-
+.include "../libgmp/Makefile.inc"
 .include <bsd.lib.mk>
