@@ -293,25 +293,21 @@ labelkre()
 	mvprintw(INTSROW + 1, INTSCOL + 9, "total");
 
 	mvprintw(VMSTATROW + 0, VMSTATCOL + 10, "cow");
-	mvprintw(VMSTATROW + 1, VMSTATCOL + 10, "objlk");
-	mvprintw(VMSTATROW + 2, VMSTATCOL + 10, "objht");
-	mvprintw(VMSTATROW + 3, VMSTATCOL + 10, "zfod");
-	mvprintw(VMSTATROW + 4, VMSTATCOL + 10, "nzfod");
-	mvprintw(VMSTATROW + 5, VMSTATCOL + 10, "%%zfod");
-	mvprintw(VMSTATROW + 6, VMSTATCOL + 10, "cache");
-	mvprintw(VMSTATROW + 7, VMSTATCOL + 10, "wire");
-	mvprintw(VMSTATROW + 8, VMSTATCOL + 10, "act");
-	mvprintw(VMSTATROW + 9, VMSTATCOL + 10, "inact");
-	mvprintw(VMSTATROW + 10, VMSTATCOL + 10, "free");
-	mvprintw(VMSTATROW + 11, VMSTATCOL + 10, "daefr");
-	mvprintw(VMSTATROW + 12, VMSTATCOL + 10, "prcfr");
-	mvprintw(VMSTATROW + 13, VMSTATCOL + 10, "react");
-	mvprintw(VMSTATROW + 14, VMSTATCOL + 10, "pdwake");
-	mvprintw(VMSTATROW + 15, VMSTATCOL + 10, "pdpgs");
-	if (LINES - 1 > VMSTATROW + 16)
-		mvprintw(VMSTATROW + 16, VMSTATCOL + 10, "intrn");
-	if (LINES - 1 > VMSTATROW + 17)
-		mvprintw(VMSTATROW + 17, VMSTATCOL + 10, "buf");
+	mvprintw(VMSTATROW + 1, VMSTATCOL + 10, "zfod");
+	mvprintw(VMSTATROW + 2, VMSTATCOL + 10, "objlk");
+	mvprintw(VMSTATROW + 3, VMSTATCOL + 10, "objht");
+	mvprintw(VMSTATROW + 4, VMSTATCOL + 10, "cache");
+	mvprintw(VMSTATROW + 5, VMSTATCOL + 10, "wire");
+	mvprintw(VMSTATROW + 6, VMSTATCOL + 10, "act");
+	mvprintw(VMSTATROW + 7, VMSTATCOL + 10, "inact");
+	mvprintw(VMSTATROW + 8, VMSTATCOL + 10, "free");
+	mvprintw(VMSTATROW + 9, VMSTATCOL + 10, "daefr");
+	mvprintw(VMSTATROW + 10, VMSTATCOL + 10, "prcfr");
+	mvprintw(VMSTATROW + 11, VMSTATCOL + 10, "react");
+	mvprintw(VMSTATROW + 12, VMSTATCOL + 10, "pdwake");
+	mvprintw(VMSTATROW + 13, VMSTATCOL + 10, "pdpgs");
+	mvprintw(VMSTATROW + 14, VMSTATCOL + 10, "intrn");
+	mvprintw(VMSTATROW + 15, VMSTATCOL + 10, "buf");
 
 	mvprintw(GENSTATROW, GENSTATCOL, "  Csw  Trp  Sys  Int  Sof  Flt");
 
@@ -448,29 +444,21 @@ showkre()
 	putint(total.t_sl, PROCSROW + 1, PROCSCOL + 12, 3);
 	putint(total.t_sw, PROCSROW + 1, PROCSCOL + 15, 3);
 	PUTRATE(Cnt.v_cow_faults, VMSTATROW + 0, VMSTATCOL + 3, 6);
-	PUTRATE(Cnt.v_lookups, VMSTATROW + 1, VMSTATCOL + 3, 6);
-	PUTRATE(Cnt.v_hits, VMSTATROW + 2, VMSTATCOL + 3, 6);
-	PUTRATE(Cnt.v_zfod, VMSTATROW + 3, VMSTATCOL + 4, 5);
-	PUTRATE(Cnt.v_nzfod, VMSTATROW + 4, VMSTATCOL + 3, 6);
-	{
-		unsigned long tot = cnt.v_zfod + cnt.v_nzfod;
-		putfloat(tot == 0 ? 0.0 : (100.0 * cnt.v_zfod / tot),
-			 VMSTATROW + 5, VMSTATCOL + 2, 7, 2, 1);
-	}
-	putint(pgtokb(cnt.v_cache_count), VMSTATROW + 6, VMSTATCOL, 9);
-	putint(pgtokb(cnt.v_wire_count), VMSTATROW + 7, VMSTATCOL, 9);
-	putint(pgtokb(cnt.v_active_count), VMSTATROW + 8, VMSTATCOL, 9);
-	putint(pgtokb(cnt.v_inactive_count), VMSTATROW + 9, VMSTATCOL, 9);
-	putint(pgtokb(cnt.v_free_count), VMSTATROW + 10, VMSTATCOL, 9);
-	PUTRATE(Cnt.v_dfree, VMSTATROW + 11, VMSTATCOL, 9);
-	PUTRATE(Cnt.v_pfree, VMSTATROW + 12, VMSTATCOL, 9);
-	PUTRATE(Cnt.v_reactivated, VMSTATROW + 13, VMSTATCOL, 9);
-	PUTRATE(Cnt.v_pdwakeups, VMSTATROW + 14, VMSTATCOL, 9);
-	PUTRATE(Cnt.v_pdpages, VMSTATROW + 15, VMSTATCOL, 9);
-	if (LINES - 1 > VMSTATROW + 16)
-		PUTRATE(Cnt.v_intrans, VMSTATROW + 16, VMSTATCOL, 9);
-	if (LINES - 1 > VMSTATROW + 17)
-		putint(s.bufspace/1024, VMSTATROW + 17, VMSTATCOL, 9);
+	PUTRATE(Cnt.v_zfod, VMSTATROW + 1, VMSTATCOL + 4, 5);
+	PUTRATE(Cnt.v_lookups, VMSTATROW + 2, VMSTATCOL + 3, 6);
+	PUTRATE(Cnt.v_hits, VMSTATROW + 3, VMSTATCOL + 3, 6);
+	putint(pgtokb(cnt.v_cache_count), VMSTATROW + 4, VMSTATCOL, 9);
+	putint(pgtokb(cnt.v_wire_count), VMSTATROW + 5, VMSTATCOL, 9);
+	putint(pgtokb(cnt.v_active_count), VMSTATROW + 6, VMSTATCOL, 9);
+	putint(pgtokb(cnt.v_inactive_count), VMSTATROW + 7, VMSTATCOL, 9);
+	putint(pgtokb(cnt.v_free_count), VMSTATROW + 8, VMSTATCOL, 9);
+	PUTRATE(Cnt.v_dfree, VMSTATROW + 9, VMSTATCOL, 9);
+	PUTRATE(Cnt.v_pfree, VMSTATROW + 10, VMSTATCOL, 9);
+	PUTRATE(Cnt.v_reactivated, VMSTATROW + 11, VMSTATCOL, 9);
+	PUTRATE(Cnt.v_pdwakeups, VMSTATROW + 12, VMSTATCOL, 9);
+	PUTRATE(Cnt.v_pdpages, VMSTATROW + 13, VMSTATCOL, 9);
+	PUTRATE(Cnt.v_intrans, VMSTATROW + 14, VMSTATCOL, 9);
+	putint(s.bufspace/1024, VMSTATROW + 15, VMSTATCOL, 9);
 	PUTRATE(Cnt.v_vnodein, PAGEROW + 2, PAGECOL + 5, 5);
 	PUTRATE(Cnt.v_vnodeout, PAGEROW + 2, PAGECOL + 10, 5);
 	PUTRATE(Cnt.v_swapin, PAGEROW + 2, PAGECOL + 17, 5);
