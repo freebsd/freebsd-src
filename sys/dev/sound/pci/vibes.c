@@ -42,8 +42,8 @@ SND_DECLARE_FILE("$FreeBSD$");
 /* Constants */
 
 #define SV_PCI_ID		0xca005333
-#define SV_MAX_BUFFER		8192
-#define SV_MIN_BUFFER		128
+#define SV_DEFAULT_BUFSZ	16384
+#define SV_MIN_BLKSZ		128
 #define SV_INTR_PER_BUFFER	2
 
 #ifndef DEB
@@ -88,6 +88,9 @@ struct sc_info {
 	struct resource 	*irq;
 	int			irqid;
 	void			*ih;
+
+	/* User configurable buffer size */
+	unsigned int		bufsz;
 
 	struct sc_chinfo	rch, pch;
 	u_int8_t		rev;
@@ -189,7 +192,7 @@ svchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *c
 	ch->channel = c;
 	ch->dir = dir;
 
-	if (sndbuf_alloc(b, sc->parent_dmat, SV_MAX_BUFFER) != 0) {
+	if (sndbuf_alloc(b, sc->parent_dmat, sc->bufsz) != 0) {
 		DEB(printf("svchan_init failed\n"));
 		return NULL;
 	}
@@ -211,9 +214,10 @@ static int
 svchan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
 	struct sc_chinfo *ch = data;
+	struct sc_info *sc = ch->parent;
 
         /* user has requested interrupts every blocksize bytes */
-	RANGE(blocksize, SV_MIN_BUFFER, SV_MAX_BUFFER / SV_INTR_PER_BUFFER);
+	RANGE(blocksize, SV_MIN_BLKSZ, sc->bufsz / SV_INTR_PER_BUFFER);
 	sndbuf_resize(ch->buffer, SV_INTR_PER_BUFFER, blocksize);
 	DEB(printf("svchan_setblocksize: %d\n", blocksize));
 	return blocksize;
@@ -765,11 +769,12 @@ sv_attach(device_t dev) {
                 goto fail;
         }
 
+	sc->bufsz = pcm_getbuffersize(dev, 4096, SV_DEFAULT_BUFSZ, 65536);
         if (bus_dma_tag_create(/*parent*/NULL, /*alignment*/2, /*boundary*/0,
                                /*lowaddr*/BUS_SPACE_MAXADDR_24BIT,
                                /*highaddr*/BUS_SPACE_MAXADDR,
                                /*filter*/NULL, /*filterarg*/NULL,
-                               /*maxsize*/SV_MAX_BUFFER, /*nsegments*/1,
+                               /*maxsize*/sc->bufsz, /*nsegments*/1,
                                /*maxsegz*/0x3ffff, /*flags*/0,
                                &sc->parent_dmat) != 0) {
                 device_printf(dev, "sv_attach: Unable to create dma tag\n");
