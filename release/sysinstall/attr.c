@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: attr.c,v 1.2.2.2 1995/06/06 00:11:50 jkh Exp $
+ * $Id: attr.c,v 1.2.2.3 1995/06/06 00:14:03 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -160,7 +160,7 @@ attr_match(Attribs *attr, char *name)
     if (isDebug())
 	msgDebug("Trying to match attribute `%s'\n", name);
 
-    while ((strcasecmp(attr[n].name, name) != 0) && (n < num_attribs)) {
+    while ((n < num_attribs) && (strcasecmp(attr[n].name, name) != 0)) {
 	if (isDebug())
 	    msgDebug("Skipping attribute %u\n", n);
 	n++;
@@ -171,7 +171,7 @@ attr_match(Attribs *attr, char *name)
 
     if (n < num_attribs) {
 	if (isDebug())
-	    msgDebug("Returning `%s'\m", attr[n].value);
+	    msgDebug("Returning `%s'\n", attr[n].value);
 	return((const char *) attr[n].value);
     }
 
