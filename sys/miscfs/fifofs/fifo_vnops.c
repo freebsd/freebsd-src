@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)fifo_vnops.c	8.10 (Berkeley) 5/27/95
- * $Id: fifo_vnops.c,v 1.27 1997/09/14 02:57:53 peter Exp $
+ * $Id: fifo_vnops.c,v 1.28 1997/10/12 20:24:42 phk Exp $
  */
 
 #include <sys/param.h>
@@ -65,50 +65,49 @@ static int	fifo_print __P((struct vop_print_args *));
 
 vop_t **fifo_vnodeop_p;
 static struct vnodeopv_entry_desc fifo_vnodeop_entries[] = {
-	{ &vop_default_desc, (vop_t *)vn_default_error },
-	{ &vop_lookup_desc, (vop_t *)fifo_lookup },	/* lookup */
-/* XXX: vop_cachedlookup */
-	{ &vop_create_desc, (vop_t *)fifo_create },	/* create */
-	{ &vop_mknod_desc, (vop_t *)fifo_mknod },	/* mknod */
-	{ &vop_open_desc, (vop_t *)fifo_open },		/* open */
-	{ &vop_close_desc, (vop_t *)fifo_close },	/* close */
-	{ &vop_access_desc, (vop_t *)fifo_access },	/* access */
-	{ &vop_getattr_desc, (vop_t *)fifo_getattr },	/* getattr */
-	{ &vop_setattr_desc, (vop_t *)fifo_setattr },	/* setattr */
-	{ &vop_read_desc, (vop_t *)fifo_read },		/* read */
-	{ &vop_write_desc, (vop_t *)fifo_write },	/* write */
-	{ &vop_lease_desc, (vop_t *)fifo_lease_check },	/* lease */
-	{ &vop_ioctl_desc, (vop_t *)fifo_ioctl },	/* ioctl */
-	{ &vop_poll_desc, (vop_t *)fifo_poll },		/* poll */
-	{ &vop_revoke_desc, (vop_t *)fifo_revoke },	/* revoke */
-	{ &vop_mmap_desc, (vop_t *)fifo_mmap },		/* mmap */
-	{ &vop_fsync_desc, (vop_t *)fifo_fsync },	/* fsync */
-	{ &vop_seek_desc, (vop_t *)fifo_seek },		/* seek */
-	{ &vop_remove_desc, (vop_t *)fifo_remove },	/* remove */
-	{ &vop_link_desc, (vop_t *)fifo_link },		/* link */
-	{ &vop_rename_desc, (vop_t *)fifo_rename },	/* rename */
-	{ &vop_mkdir_desc, (vop_t *)fifo_mkdir },	/* mkdir */
-	{ &vop_rmdir_desc, (vop_t *)fifo_rmdir },	/* rmdir */
-	{ &vop_symlink_desc, (vop_t *)fifo_symlink },	/* symlink */
-	{ &vop_readdir_desc, (vop_t *)fifo_readdir },	/* readdir */
-	{ &vop_readlink_desc, (vop_t *)fifo_readlink },	/* readlink */
-	{ &vop_abortop_desc, (vop_t *)fifo_abortop },	/* abortop */
-	{ &vop_inactive_desc, (vop_t *)fifo_inactive },	/* inactive */
-	{ &vop_reclaim_desc, (vop_t *)fifo_reclaim },	/* reclaim */
-	{ &vop_lock_desc, (vop_t *)fifo_lock },		/* lock */
-	{ &vop_unlock_desc, (vop_t *)fifo_unlock },	/* unlock */
-	{ &vop_bmap_desc, (vop_t *)fifo_bmap },		/* bmap */
-	{ &vop_strategy_desc, (vop_t *)fifo_strategy },	/* strategy */
-	{ &vop_print_desc, (vop_t *)fifo_print },	/* print */
-	{ &vop_islocked_desc, (vop_t *)fifo_islocked },	/* islocked */
-	{ &vop_pathconf_desc, (vop_t *)fifo_pathconf },	/* pathconf */
-	{ &vop_advlock_desc, (vop_t *)fifo_advlock },	/* advlock */
-	{ &vop_blkatoff_desc, (vop_t *)fifo_blkatoff },	/* blkatoff */
-	{ &vop_valloc_desc, (vop_t *)fifo_valloc },	/* valloc */
-	{ &vop_vfree_desc, (vop_t *)fifo_vfree },	/* vfree */
-	{ &vop_truncate_desc, (vop_t *)fifo_truncate },	/* truncate */
-	{ &vop_update_desc, (vop_t *)fifo_update },	/* update */
-	{ &vop_bwrite_desc, (vop_t *)fifo_bwrite },	/* bwrite */
+	{ &vop_default_desc,		(vop_t *) vn_default_error },
+	{ &vop_abortop_desc,		(vop_t *) fifo_abortop },
+	{ &vop_access_desc,		(vop_t *) fifo_access },
+	{ &vop_advlock_desc,		(vop_t *) fifo_advlock },
+	{ &vop_blkatoff_desc,	(vop_t *) fifo_blkatoff },
+	{ &vop_bmap_desc,		(vop_t *) fifo_bmap },
+	{ &vop_bwrite_desc,		(vop_t *) fifo_bwrite },
+	{ &vop_close_desc,		(vop_t *) fifo_close },
+	{ &vop_create_desc,		(vop_t *) fifo_create },
+	{ &vop_fsync_desc,		(vop_t *) fifo_fsync },
+	{ &vop_getattr_desc,		(vop_t *) fifo_getattr },
+	{ &vop_inactive_desc,	(vop_t *) fifo_inactive },
+	{ &vop_ioctl_desc,		(vop_t *) fifo_ioctl },
+	{ &vop_islocked_desc,	(vop_t *) fifo_islocked },
+	{ &vop_lease_desc,		(vop_t *) fifo_lease_check },
+	{ &vop_link_desc,		(vop_t *) fifo_link },
+	{ &vop_lock_desc,		(vop_t *) fifo_lock },
+	{ &vop_lookup_desc,		(vop_t *) fifo_lookup },
+	{ &vop_mkdir_desc,		(vop_t *) fifo_mkdir },
+	{ &vop_mknod_desc,		(vop_t *) fifo_mknod },
+	{ &vop_mmap_desc,		(vop_t *) fifo_mmap },
+	{ &vop_open_desc,		(vop_t *) fifo_open },
+	{ &vop_pathconf_desc,	(vop_t *) fifo_pathconf },
+	{ &vop_poll_desc,		(vop_t *) fifo_poll },
+	{ &vop_print_desc,		(vop_t *) fifo_print },
+	{ &vop_read_desc,		(vop_t *) fifo_read },
+	{ &vop_readdir_desc,		(vop_t *) fifo_readdir },
+	{ &vop_readlink_desc,	(vop_t *) fifo_readlink },
+	{ &vop_reclaim_desc,		(vop_t *) fifo_reclaim },
+	{ &vop_remove_desc,		(vop_t *) fifo_remove },
+	{ &vop_rename_desc,		(vop_t *) fifo_rename },
+	{ &vop_revoke_desc,		(vop_t *) fifo_revoke },
+	{ &vop_rmdir_desc,		(vop_t *) fifo_rmdir },
+	{ &vop_seek_desc,		(vop_t *) fifo_seek },
+	{ &vop_setattr_desc,		(vop_t *) fifo_setattr },
+	{ &vop_strategy_desc,	(vop_t *) fifo_strategy },
+	{ &vop_symlink_desc,		(vop_t *) fifo_symlink },
+	{ &vop_truncate_desc,	(vop_t *) fifo_truncate },
+	{ &vop_unlock_desc,		(vop_t *) fifo_unlock },
+	{ &vop_update_desc,		(vop_t *) fifo_update },
+	{ &vop_valloc_desc,		(vop_t *) fifo_valloc },
+	{ &vop_vfree_desc,		(vop_t *) fifo_vfree },
+	{ &vop_write_desc,		(vop_t *) fifo_write },
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc fifo_vnodeop_opv_desc =
