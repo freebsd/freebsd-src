@@ -2664,6 +2664,7 @@ again:
 			}
 			if ((bp->b_flags & (B_DELWRI | B_NEEDCOMMIT)) !=
 			    (B_DELWRI | B_NEEDCOMMIT)) {
+				BUF_UNLOCK(bp);
 				nbp = TAILQ_NEXT(bp, b_vnbufs);
 				continue;
 			}
