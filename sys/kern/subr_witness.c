@@ -191,7 +191,6 @@ static void	witness_display_list(void(*prnt)(const char *fmt, ...),
 static void	witness_display(void(*)(const char *fmt, ...));
 #endif
 
-MALLOC_DEFINE(M_WITNESS, "witness", "witness structure");
 SYSCTL_NODE(_debug, OID_AUTO, witness, CTLFLAG_RW, 0, "Witness Locking");
 
 /*
