@@ -1,4 +1,3 @@
-
 /*
  * sock.c
  *
@@ -36,9 +35,11 @@
  *
  * Author: Archie Cobbs <archie@whistle.com>
  *
- * $FreeBSD$
  * $Whistle: sock.c,v 1.12 1999/01/20 00:57:23 archie Exp $
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <stdarg.h>
