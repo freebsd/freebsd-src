@@ -75,7 +75,7 @@ No matter what option you choose, to have mail delivered directly to your host, 
 <verb>
 smtp             25/tcp    mail         #Simple Mail Transfer
 </verb>
-If you want to receive mail at your host itself, you must make sure that the DNS MX entry points to your hosts address, or there is no MX entry for your DNS name.
+If you want to receive mail at your host itself, you must make sure that the DNS MX entry points to your host address, or there is no MX entry for your DNS name.
 
 Try this 
 <verb>
@@ -110,7 +110,7 @@ The MX entry for freefall.freebsd.org at one time.
  freefall                       CNAME www.FreeBSD.org
 </verb>
 
-freefall has many MX entries.  The lowest MX number gets the mail in the end.  The others will queue mail temporarily, if freefall is busy or down.
+Freefall has many MX entries.  The lowest MX number gets the mail in the end.  The others will queue mail temporarily, if freefall is busy or down.
 
 Alternate MX sites should have separate connections to the Internet, to be most useful.  An Internet Provider or other friendly site can provide this service.
 
@@ -127,10 +127,10 @@ A user account with the SAME USERNAME should exist on both machines.  Please use
 The mailhost that you will be using must be designated the Mail eXchange for each workstation.  This must be arranged in DNS (ie BIND, named).  Please refer to a Networking book for in-depth information.
 
 You basically need to add these lines in your DNS server.
-<code> 
+<verb>
 pc24.smallminingco.com	A	xxx.xxx.xxx.xxx		; Workstation ip 
 			MX  10	smtp.smallminingco.com	; Your mailhost
-</code>
+</verb>
 
 You cannot do this yourself unless you are running a DNS server.  If you do not want to run a DNS server, get somebody else like your Internet Provider to do it.
 
