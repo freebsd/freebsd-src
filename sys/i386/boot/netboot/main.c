@@ -54,6 +54,11 @@ main()
 		printf(" - bad response\n\r");
 	}
 #endif
+
+	/* get the bios's idea about the disks geometry */
+	for(c = 0; c < N_BIOS_GEOM; c ++)
+		bootinfo.bi_bios_geom[c] = get_diskinfo(c + 0x80);
+
 	gateA20();
 	printf("\r\nBOOTP/TFTP/NFS bootstrap loader    ESC for menu\n\r");
 	printf("\r\nSearching for adapter...");
