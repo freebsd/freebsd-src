@@ -879,7 +879,7 @@ error:
 		BPF_MTAP(&sc->sc_if, &mm);
 	}
 
-	if(! IF_HANDOFF(&ipintrq, m, NULL))
+	if(! netisr_queue(NETISR_IP, m))
 	{
 		NDBGL4(L4_IPRDBG, "ipr%d: ipintrq full!", unit);
 		sc->sc_if.if_ierrors++;

@@ -39,12 +39,13 @@
 #include <sys/vnode.h>
 #include <sys/malloc.h>
 #include <machine/bus.h>	/* XXX Shouldn't really be required ! */
+#include <sys/random.h>
 #include <sys/rman.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
+#include <net/netisr.h>
 #include <net/route.h>
-#include <net/intrq.h>
 #ifdef INET
 #include <netinet/in.h>
 #endif
@@ -693,6 +694,7 @@ tunwrite(dev_t dev, struct uio *uio, int flag)
 	struct mbuf	*top, **mp, *m;
 	int		error=0, tlen, mlen;
 	uint32_t	family;
+	int 		isr;
 
 	TUNDEBUG("%s%d: tunwrite\n", ifp->if_name, ifp->if_unit);
 
@@ -787,10 +789,53 @@ tunwrite(dev_t dev, struct uio *uio, int flag)
 	} else
 		family = AF_INET;
 
+	switch (family) {
+#ifdef INET
+	case AF_INET:
+		isr = NETISR_IP;
+		break;
+#endif
+#ifdef INET6
+	case AF_INET6:
+		isr = NETISR_IPV6;
+		break;
+#endif
+#ifdef IPX
+	case AF_IPX:
+		isr = NETISR_IPX;
+		break;
+#endif
+#ifdef NS
+	case AF_NS:
+		isr = NETISR_NS;
+		break;
+#endif
+#ifdef NETATALK
+	case AF_APPLETALK:
+		isr = NETISR_ATALK2;
+		break;
+#endif
+#ifdef NATM
+	case AF_NATM:
+		isr = NETISR_NATM;
+		break;
+#endif
+#ifdef ATM_CORE
+	case AF_ATM:
+		isr = NETISR_ATM;
+		break;
+#endif
+	default:
+		m_freem(m);
+		return (EAFNOSUPPORT);
+	}
+	/* First chunk of an mbuf contains good junk */
+	if (harvest.point_to_point)
+		random_harvest(m, 16, 3, 0, RANDOM_NET);
 	ifp->if_ibytes += top->m_pkthdr.len;
 	ifp->if_ipackets++;
-
-	return (family_enqueue(family, top));
+	netisr_dispatch(isr, top);
+	return (0);
 }
 
 /*

@@ -165,7 +165,6 @@ _ipip_input(struct mbuf *m, int iphlen, struct ifnet *gifp)
 	register struct sockaddr_in *sin;
 	register struct ifnet *ifp;
 	register struct ifaddr *ifa;
-	struct ifqueue *ifq = NULL;
 	struct ip *ipo;
 #ifdef INET6
 	register struct sockaddr_in6 *sin6;
@@ -368,13 +367,11 @@ _ipip_input(struct mbuf *m, int iphlen, struct ifnet *gifp)
 	switch (v >> 4) {
 #ifdef INET
 	case 4:
-		ifq = &ipintrq;
 		isr = NETISR_IP;
 		break;
 #endif
 #ifdef INET6
 	case 6:
-		ifq = &ip6intrq;
 		isr = NETISR_IPV6;
 		break;
 #endif
@@ -382,12 +379,9 @@ _ipip_input(struct mbuf *m, int iphlen, struct ifnet *gifp)
 		panic("ipip_input: should never reach here");
 	}
 
-	if (!IF_HANDOFF(ifq, m, NULL)) {
+	if (!netisr_queue(isr, m)) {
 		ipipstat.ipips_qfull++;
-
 		DPRINTF(("ipip_input: packet dropped because of full queue\n"));
-	} else {
-		schednetisr(isr);
 	}
 }
 

@@ -212,7 +212,7 @@ atm_input(ifp, ah, m, rxhand)
 	struct mbuf *m;
 	void *rxhand;
 {
-	struct ifqueue *inq;
+	int isr;
 	u_int16_t etype = ETHERTYPE_IP; /* default */
 	int s;
 
@@ -231,8 +231,7 @@ atm_input(ifp, ah, m, rxhand)
 		s = splimp();		/* in case 2 atm cards @ diff lvls */
 		npcb->npcb_inq++;	/* count # in queue */
 		splx(s);
-		schednetisr(NETISR_NATM);
-		inq = &natmintrq;
+		isr = NETISR_NATM;
 		m->m_pkthdr.rcvif = rxhand; /* XXX: overload */
 #else
 		printf("atm_input: NATM detected but not configured in kernel\n");
@@ -267,14 +266,12 @@ atm_input(ifp, ah, m, rxhand)
 		switch (etype) {
 #ifdef INET
 		case ETHERTYPE_IP:
-			schednetisr(NETISR_IP);
-			inq = &ipintrq;
+			isr = NETISR_IP;
 			break;
 #endif
 #ifdef INET6
 		case ETHERTYPE_IPV6:
-			schednetisr(NETISR_IPV6);
-			inq = &ip6intrq;
+			isr = NETISR_IPV6;
 			break;
 #endif
 		default:
@@ -282,8 +279,7 @@ atm_input(ifp, ah, m, rxhand)
 			return;
 		}
 	}
-
-	(void) IF_HANDOFF(inq, m, NULL);
+	netisr_dispatch(isr, m);
 }
 
 /*

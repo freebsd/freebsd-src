@@ -405,7 +405,6 @@ gif_input(m, af, ifp)
 	struct ifnet *ifp;
 {
 	int isr;
-	struct ifqueue *ifq = NULL;
 
 	if (ifp == NULL) {
 		/* just in case */
@@ -457,13 +456,11 @@ gif_input(m, af, ifp)
 	switch (af) {
 #ifdef INET
 	case AF_INET:
-		ifq = &ipintrq;
 		isr = NETISR_IP;
 		break;
 #endif
 #ifdef INET6
 	case AF_INET6:
-		ifq = &ip6intrq;
 		isr = NETISR_IPV6;
 		break;
 #endif
@@ -477,11 +474,7 @@ gif_input(m, af, ifp)
 
 	ifp->if_ipackets++;
 	ifp->if_ibytes += m->m_pkthdr.len;
-	(void) IF_HANDOFF(ifq, m, NULL);
-	/* we need schednetisr since the address family may change */
-	schednetisr(isr);
-
-	return;
+	netisr_dispatch(isr, m);
 }
 
 /* XXX how should we handle IPv6 scope on SIOC[GS]IFPHYADDR? */

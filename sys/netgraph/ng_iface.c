@@ -1,4 +1,3 @@
-
 /*
  * ng_iface.c
  *
@@ -58,6 +57,7 @@
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/errno.h>
+#include <sys/random.h>
 #include <sys/sockio.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
@@ -65,8 +65,8 @@
 
 #include <net/if.h>
 #include <net/if_types.h>
-#include <net/intrq.h>
 #include <net/bpf.h>
+#include <net/netisr.h>
 
 #include <netinet/in.h>
 
@@ -729,6 +729,7 @@ ng_iface_rcvdata(hook_p hook, item_p item)
 	const iffam_p iffam = get_iffam_from_hook(priv, hook);
 	struct ifnet *const ifp = priv->ifp;
 	struct mbuf *m;
+	int isr;
 
 	NGI_GET_M(item, m);
 	NG_FREE_ITEM(item);
@@ -753,7 +754,51 @@ ng_iface_rcvdata(hook_p hook, item_p item)
 	ng_iface_bpftap(ifp, m, iffam->family);
 
 	/* Send packet */
-	return family_enqueue(iffam->family, m);
+	switch (iffam->family) {
+#ifdef INET
+	case AF_INET:
+		isr = NETISR_IP;
+		break;
+#endif
+#ifdef INET6
+	case AF_INET6:
+		isr = NETISR_IPV6;
+		break;
+#endif
+#ifdef IPX
+	case AF_IPX:
+		isr = NETISR_IPX;
+		break;
+#endif
+#ifdef NS
+	case AF_NS:
+		isr = NETISR_NS;
+		break;
+#endif
+#ifdef NETATALK
+	case AF_APPLETALK:
+		isr = NETISR_ATALK2;
+		break;
+#endif
+#ifdef NATM
+	case AF_NATM:
+		isr = NETISR_NATM;
+		break;
+#endif
+#ifdef ATM_CORE
+	case AF_ATM:
+		isr = NETISR_ATM;
+		break;
+#endif
+	default:
+		m_freem(m);
+		return (EAFNOSUPPORT);
+	}
+	/* First chunk of an mbuf contains good junk */
+	if (harvest.point_to_point)
+		random_harvest(m, 16, 3, 0, RANDOM_NET);
+	netisr_dispatch(isr, m);
+	return (0);
 }
 
 /*

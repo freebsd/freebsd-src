@@ -61,7 +61,6 @@ struct at_aliasreq {
 
 #ifdef _KERNEL
 extern struct at_ifaddr	*at_ifaddr;
-extern struct ifqueue	atintrq1, atintrq2;
 #endif
 
 #endif /* _NETATALK_AT_VAR_H_ */

@@ -48,7 +48,6 @@
 #include <net/if.h>
 #include <net/route.h>
 #include <net/netisr.h>
-#include <net/intrq.h>
 
 #include <netipx/ipx.h>
 #include <netipx/spx.h>
@@ -87,12 +86,14 @@ struct	ipxpcb ipxpcb;
 struct	ipxpcb ipxrawpcb;
 
 static int ipxqmaxlen = IFQ_MAXLEN;
+static	struct ifqueue ipxintrq;
 
 long	ipx_pexseq;
 
 static	int ipx_do_route(struct ipx_addr *src, struct route *ro);
 static	void ipx_undo_route(struct route *ro);
 static	void ipx_forward(struct mbuf *m);
+static	void ipxintr(struct mbuf *m);
 
 /*
  * IPX initialization.
@@ -105,9 +106,6 @@ ipx_init()
 	ipx_broadhost = *(union ipx_host *)allones;
 
 	read_random(&ipx_pexseq, sizeof ipx_pexseq);
-	ipxintrq.ifq_maxlen = ipxqmaxlen;
-	mtx_init(&ipxintrq.ifq_mtx, "ipx_inq", NULL, MTX_DEF);
-	ipxintrq_present = 1;
 	ipxpcb.ipxp_next = ipxpcb.ipxp_prev = &ipxpcb;
 	ipxrawpcb.ipxp_next = ipxrawpcb.ipxp_prev = &ipxrawpcb;
 
@@ -118,31 +116,22 @@ ipx_init()
 	ipx_hostmask.sipx_addr.x_net = ipx_broadnet;
 	ipx_hostmask.sipx_addr.x_host = ipx_broadhost;
 
-	register_netisr(NETISR_IPX, ipxintr);
+	ipxintrq.ifq_maxlen = ipxqmaxlen;
+	mtx_init(&ipxintrq.ifq_mtx, "ipx_inq", NULL, MTX_DEF);
+	netisr_register(NETISR_IPX, ipxintr, &ipxintrq);
 }
 
 /*
  * IPX input routine.  Pass to next level.
  */
-void
-ipxintr()
+static void
+ipxintr(struct mbuf *m)
 {
 	register struct ipx *ipx;
-	register struct mbuf *m;
 	register struct ipxpcb *ipxp;
 	struct ipx_ifaddr *ia;
-	int len, s;
+	int len;
 
-next:
-	/*
-	 * Get next datagram off input queue and get IPX header
-	 * in first mbuf.
-	 */
-	s = splimp();
-	IF_DEQUEUE(&ipxintrq, m);
-	splx(s);
-	if (m == NULL)
-		return;
 	/*
 	 * If no IPX addresses have been set yet but the interfaces
 	 * are receiving, can't do anything with incoming packets yet.
@@ -155,7 +144,7 @@ next:
 	if ((m->m_flags & M_EXT || m->m_len < sizeof(struct ipx)) &&
 	    (m = m_pullup(m, sizeof(struct ipx))) == 0) {
 		ipxstat.ipxs_toosmall++;
-		goto next;
+		return;
 	}
 
 	/*
@@ -201,7 +190,7 @@ next:
 	if (ipx->ipx_pt == IPXPROTO_NETBIOS) {
 		if (ipxnetbios) {
 			ipx_output_type20(m);
-			goto next;
+			return;
 		} else
 			goto bad;
 	}
@@ -236,7 +225,7 @@ next:
 			 */
 			if (ipx->ipx_tc < IPX_MAXHOPS) {
 				ipx_forward(m);
-				goto next;
+				return;
 			}
 		}
 	/*
@@ -251,7 +240,7 @@ next:
 
 		if (ia == NULL) {
 			ipx_forward(m);
-			goto next;
+			return;
 		}
 	}
 ours:
@@ -266,20 +255,18 @@ ours:
 		ipxstat.ipxs_delivered++;
 		if ((ipxp->ipxp_flags & IPXP_ALL_PACKETS) == 0)
 			switch (ipx->ipx_pt) {
-
-			    case IPXPROTO_SPX:
-				    spx_input(m, ipxp);
-				    goto next;
+			case IPXPROTO_SPX:
+				spx_input(m, ipxp);
+				return;
 			}
 		ipx_input(m, ipxp);
 	} else
 		goto bad;
 
-	goto next;
+	return;
 
 bad:
 	m_freem(m);
-	goto next;
 }
 
 void
