@@ -29,7 +29,7 @@ COPTFLAGS?=-O2 -frename-registers -pipe
 . else
 COPTFLAGS?=${_MINUS_O} -pipe
 . endif
-. if ${COPTFLAGS:M-O[23s]} != ""
+. if !empty(COPTFLAGS:M-O[23s]) && empty(COPTFLAGS:M-fno-strict-aliasing)
 COPTFLAGS+= -fno-strict-aliasing
 . endif
 .endif
