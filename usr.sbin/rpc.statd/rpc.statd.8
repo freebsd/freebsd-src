@@ -42,7 +42,7 @@
 .Nm rpc.statd
 .Op Fl d
 .Sh DESCRIPTION
-.Nm rpc.statd
+.Nm Rpc.statd
 is a daemon which co-operates with rpc.statd daemons on other hosts to provide
 a status monitoring service.  The daemon accepts requests from
 programs running on the local host (typically,
@@ -52,24 +52,21 @@ hosts.  If a monitored host crashes and restarts, the remote daemon will
 notify the local daemon, which in turn will notify the local program(s)
 which requested the monitoring service.  Conversely, if this host crashes
 and re-starts, when the
-.Nm rpc.statd
+.Nm
 re-starts, it will notify all of the hosts which were being monitored
 at the time of the crash.
 .Pp
-Options and operands available for
-.Nm rpc.statd :
-.Bl -tag -width Ds
+The following option is available:
+.Bl -tag -width indent
 .It Fl d
-The
-.Fl d
-option causes debugging information to be written to syslog, recording
+Cause debugging information to be written to syslog, recording
 all RPC transactions to the daemon.  These messages are logged with level
 LOG_DEBUG and facility LOG_DAEMON.  Error conditions are logged irrespective
 of this option, using level LOG_ERR.
 .El
 .Pp
 The
-.Nm rpc.statd
+.Nm
 daemon must NOT be invoked by
 .Xr inetd 8
 because the protocol assumes that the daemon will run from system start time.

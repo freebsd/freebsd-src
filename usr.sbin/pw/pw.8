@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: pw.8,v 1.1.1.1.2.2 1996/12/11 00:14:13 joerg Exp $
+.\"	$Id: pw.8,v 1.1.1.1.2.3 1997/03/06 05:34:43 mpp Exp $
 .\"
 .Dd December 9, 1996
 .Dt PW 8
@@ -149,18 +149,18 @@
 .Op Fl C Ar config
 .Op Fl q
 .Sh DESCRIPTION
-.Nm pw
+.Nm Pw
 is a command-line based editor for the system
-.Em user
+.Ar user
 and
-.Em group
+.Ar group
 files, allowing the superuser an easy to use and standardized way of adding,
 modifying and removing users and groups.
 Note that
-.Nm pw
+.Nm
 only operates on the local user and group files; NIS users and groups must be
 maintained on the NIS server.
-.Nm pw
+.Nm Pw
 handles updating the 
 .Pa passwd , 
 .Pa master.passwd , 
@@ -185,7 +185,7 @@ or
 and may be specified in either order (ie. showuser, usershow, show user and user show
 are all considered to be the same thing).
 This flexibility is useful for interactive scripts which call
-.Nm pw 
+.Nm
 for the actual user and group database manipulation.
 Following these keywords, you may optionally specify the user or group name or numeric
 id as an alternative to using the
@@ -199,7 +199,7 @@ The following flags are common to all modes of operation:
 .Bl -tag -width "-G grouplist"
 .It Fl C Ar config
 By default,
-.Nm pw
+.Nm
 reads the file
 .Pa /etc/pw.conf
 to obtain policy information on how new user accounts and groups are to be created,
@@ -211,14 +211,14 @@ options, but it may be more useful to set up standard information for addition o
 new accounts in the configuration file.
 .It Fl q
 Use of this option causes
-.Nm pw
+.Nm
 to suppress error messages, which may be useful in interactive environments where it
 is preferable to interpret status codes returned by
-.Nm pw
+.Nm
 rather than messing up a carefully formatted display.
 .It Fl N
 This option is available in add and modify operations, and causes
-.Nm pw
+.Nm
 to skip updating the user/group databases and instead print the result
 of the operation without actually performing it.
 You may use the
@@ -235,9 +235,9 @@ commands:
 .Pp
 .Bl -tag -width "-G grouplist"
 .It Fl n Ar name
-Specifies the user/account name.
+Specify the user/account name.
 .It Fl u Ar uid
-Specifies the user/account numeric id.
+Specify the user/account numeric id.
 .Pp
 Usually, you need only to provide one or the other of these options, as the account
 name will imply the uid, and vice versa.
@@ -256,7 +256,7 @@ For example, when changing the uid of an existing user with
 .Ar usermod ,
 or overriding the default uid when creating a new account.
 If you wish
-.Nm pw
+.Nm
 to automatically allocate the uid to a new user on
 .Ar useradd ,
 then you should
@@ -288,13 +288,15 @@ character also cannot be used as this is the field separator in the passwd file.
 This option sets the account's home directory.
 Normally, you will only use this if the home directory is to be different from the
 default (which is determined from pw.conf, which specifies the base home directory
-- normally /home - with the account name as a subdirectory).
+- normally
+.Pa /home
+- with the account name as a subdirectory).
 .It Fl e Ar date
-Sets the account's expiration date. 
+Set the account's expiration date. 
 Format of the date is either a UNIX time in decimal, or a date in
 .Ql \& dd-mmm-yy[yy]
 format, where dd is the day, mmm is the month, either in numeric or alphabetic format
-('Jan', 'Feb' etc) and year is either a two or four digit year.
+('Jan', 'Feb', etc) and year is either a two or four digit year.
 This option also accepts a relative date in the form
 .Ql \&+n[mhdwoy]
 where
@@ -303,12 +305,12 @@ is a decimal, octal (leading 0) or hexadecimal (leading 0x) digit followed by th
 number of Minutes, Hours, Days, Weeks, Months or Years from the current date at
 which the expiry date is to be set.
 .It Fl p Ar date
-Sets the account's password expiration date.
+Set the account's password expiration date.
 This field is identical to the account expiration date option, except that it
 applies to forced password changes.
 The same formats are accepted as with the account expiration option.
 .It Fl g Ar group
-Sets the account's primary group to the given group.
+Set the account's primary group to the given group.
 .Ar group
 may be either the group name or its corresponding group id number.
 .It Fl G Ar grouplist
@@ -331,7 +333,7 @@ See
 for more information on user classes.
 .It Fl m
 This option instructs
-.Nm pw
+.Nm
 to attempt to create the user's home directory.
 While primarily useful when adding a new account with
 .Ar useradd ,
@@ -358,7 +360,7 @@ This may be overridden with the
 .Ql Fl d Ar dir
 option on the command line, if desired.
 .It Fl k Ar dir
-Sets the
+Set the
 .Ar skeleton
 subdirectory, from which the basic startup and configuration files are copied when
 the user's home directory is created.
@@ -367,10 +369,10 @@ This option only has meaning when used with
 (see below) or
 .Ql Fl m .
 .It Fl s Ar shell
-Sets or changes the user's login shell to
+Set or changes the user's login shell to
 .Ar shell .
 If the path to the shell program is omitted,
-.Nm pw
+.Nm
 searches the
 .Ar shellpath
 specified in
@@ -378,14 +380,14 @@ specified in
 and fills it in as appropriate.
 Note that unless you have a specific reason to do so, you should avoid
 specifying the path - this will allow
-.Nm pw
+.Nm
 to validate that the program exists and is executable.
 Specifying a full path (or supplying a blank "" shell) avoids this check
 and allows for such entries as
-.Ql \& /nonexistent
+.Pa /nonexistent
 that should be set for accounts not intended for interactive login.
 .It Fl L Ar class
-Sets the
+Set the
 .Em class
 field in the user's passwd record.
 This field is not currently used, but will be in the future used to specify a
@@ -399,7 +401,7 @@ set an account password using
 .Nm pw .
 Because the command line and environment are fundamental insecure mechanisms
 by which programs can accept information,
-.Nm pw
+.Nm
 will only allow setting of account and group passwords via a file descriptor
 (usually a pipe between an interactive script and the program).
 .Ar sh ,
@@ -409,7 +411,7 @@ and
 .Ar perl
 all posses mechanisms by which this can be done.
 Alternatively,
-.Nm pw
+.Nm
 will prompt for the user's password if
 .Ql Fl h Ar 0
 is given, nominating
@@ -449,7 +451,7 @@ command also has the ability to set new user and group defaults by using the
 .Ql Fl D
 option.
 Instead of adding a new user,
-.Nm pw
+.Nm
 writes a new set of defaults to its configuration file,
 .Pa /etc/pw.conf .
 When using the
@@ -473,28 +475,28 @@ configuration file, or a different named configuration file if the
 .Ql Fl C Ar config
 option is used.
 .It Fl b Ar dir
-Sets the root directory in which user home directories are created.
+Set the root directory in which user home directories are created.
 The default value for this is
-.Ql \&/home ,
+.Pa /home ,
 but it may be set elsewhere as desired.
 .It Fl e Ar days
-Sets the default account expiration period in days.
+Set the default account expiration period in days.
 Unlike use without
 .Ql Fl D ,
 the argument must be numeric, which specifies the number of days after creation when
 the account is to expire.
 A value of 0 suppresses automatic calculation of the expiry date.
 .It Fl p Ar days
-Sets the default password expiration period in days.
+Set the default password expiration period in days.
 .It Fl g Ar group
-Sets the default group for new users.
+Set the default group for new users.
 If a blank group is specified using
 .Ql Fl g Ar \&"" ,
 then new users will be allocated their own private primary group (a new group created
 with the same name as their login name).
 If a group is supplied, either its name or uid may be given as an argument.
 .It Fl G Ar grouplist
-Sets the default groups in which new users are made members.
+Set the default groups in which new users are made members.
 This is a separate set of groups from the primary group, and you should avoid
 nominating the same group as both the primary and in extra groups.
 In other words, these extra groups determine membership in groups
@@ -508,10 +510,10 @@ by their symbolic names.
 .It Fl L Ar class
 This option sets the default login class for new users.
 .It Fl k Ar dir
-Sets the default
+Set the default
 .Em skeleton
 directory, from which prototype shell and other initialization files are copied when
-.Nm pw
+.Nm
 creates a user's home directory.
 .It Fl u Ar min,max , Fl i Ar min,max
 These options set the minimum and maximum user and group ids allocated for new accounts
@@ -535,13 +537,13 @@ is one of:
 .Pp
 .Bl -tag -width random -offset indent -compact
 .It no
-disables login on newly created accounts
+disable login on newly created accounts
 .It yes
-forces the password to be the account name
+force the password to be the account name
 .It none
-forces a blank password
+force a blank password
 .It random
-Generates a random password
+generate a random password
 .El
 .Pp
 The
@@ -549,7 +551,7 @@ The
 or
 .Ql \&no
 methods are the most secure; in the former case,
-.Nm pw
+.Nm
 generates a password and prints it to stdout, which is suitable where you issue
 users with passwords to access their accounts rather than having the user nominate
 their own (possibly poorly chosen) password.
@@ -571,9 +573,9 @@ The additional option is:
 .Bl -tag -width "-G grouplist"
 .It Fl r
 This tells
-.Nm pw
+.Nm
 to remove the user's home directory and all of its contents.
-.Nm pw
+.Nm Pw
 errs on the side of caution when removing files from the system.
 Firstly, it will not do so if the uid of the account being removed is also used by
 another account on the system, and the 'home' directory in the password file is
@@ -603,7 +605,7 @@ with the password field replaced with a
 If the
 .Ql Fl P
 option is used, then
-.Nm pw
+.Nm
 outputs the account details in a more human readable form.
 The
 .Ql Fl a
@@ -626,9 +628,9 @@ with the group manipulation commands.
 Other common options to all group-related commands are:
 .Bl -tag -width "-m newmembers"
 .It Fl n Ar name
-Specifies the group name.
+Specify the group name.
 .It Fl g Ar gid
-Specifies the group numeric id.
+Specify the group numeric id.
 .Pp
 As with the account name and id fields, you will usually only need
 to supply one of these, as the group name implies the uid and vice
@@ -686,7 +688,7 @@ The command
 .Ar groupnext
 returns the next available group id on standard output.
 .Sh DIAGNOSTICS
-.Nm pw
+.Nm Pw
 returns EXIT_SUCCESS on successful operation, otherwise one of the
 following exit codes defined by
 .Xr sysexits 3
@@ -695,7 +697,7 @@ as follows:
 .It EX_USAGE
 .Bl -bullet -compact
 .It
-Command line syntax errors (invalid keyword, unknown option)
+Command line syntax errors (invalid keyword, unknown option).
 .El
 .It EX_NOPERM
 .Bl -bullet -compact
@@ -789,7 +791,7 @@ Pw default options file
 .Xr login.conf 5 ,
 .Xr vipw 8
 .Sh HISTORY
-.Nm pw
+.Nm Pw
 was written to mimic many of the options used in the SYSV
 .Em shadow
 support suite, but is modified for passwd and group fields specific to

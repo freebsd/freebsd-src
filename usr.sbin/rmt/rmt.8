@@ -52,7 +52,7 @@ or
 call.
 .Pp
 The 
-.Nm rmt
+.Nm
 program accepts requests specific to the manipulation of
 magnetic tapes, performs the commands, then responds with
 a status indication.  All responses are in
@@ -152,7 +152,7 @@ If
 .Ar count
 exceeds the size of the data buffer (10 kilobytes), it is
 truncated to the data buffer size.
-.Nm rmt
+.Nm Rmt
 then performs the requested 
 .Xr read 2
 and responds with 
@@ -197,7 +197,7 @@ sent (in binary).
 .Sm on
 .Pp
 Any other command causes 
-.Nm rmt
+.Nm
 to exit.
 .Sh DIAGNOSTICS
 All responses are of the form described above.
