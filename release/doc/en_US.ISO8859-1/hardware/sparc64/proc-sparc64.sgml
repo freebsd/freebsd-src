@@ -76,6 +76,12 @@
           <para>SPARCEngine Ultra AXmp</para>
         </listitem>
         <listitem>
+          <para>Ultra 1E</para>
+        </listitem>
+        <listitem>
+          <para>Ultra 2</para>
+        </listitem>
+        <listitem>
           <para>Ultra 5</para>
         </listitem>
         <listitem>
@@ -105,12 +111,6 @@
         </listitem>
         <listitem>
           <para>Enterprise 4500</para>
-        </listitem>
-        <listitem>
-          <para>Ultra 1 Enterprise (1E for short)</para>
-        </listitem>
-        <listitem>
-          <para>Ultra 2</para>
         </listitem>
       </itemizedlist>
   </sect2>
