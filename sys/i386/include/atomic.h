@@ -69,6 +69,10 @@ void atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v);
 
 int atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src);
 
+#define	ATOMIC_STORE_LOAD(TYPE, LOP, SOP)			\
+u_##TYPE	atomic_load_acq_##TYPE(volatile u_##TYPE *p);	\
+void		atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v);
+
 #else /* !KLD_MODULE */
 #if defined(SMP)
 #if defined(LOCORE)
@@ -84,8 +88,6 @@ int atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src);
  * The assembly is volatilized to demark potential before-and-after side
  * effects if an interrupt or SMP collision were to occur.
  */
-#if __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ > 9)
-/* egcs 1.1.2+ version */
 #define ATOMIC_ASM(NAME, TYPE, OP, V)			\
 static __inline void					\
 atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
@@ -151,115 +153,6 @@ atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src)
 }
 #endif /* defined(I386_CPU) */
 
-#define	atomic_cmpset_long	atomic_cmpset_int
-#define atomic_cmpset_acq_int	atomic_cmpset_int
-#define atomic_cmpset_rel_int	atomic_cmpset_int
-#define	atomic_cmpset_acq_long	atomic_cmpset_acq_int
-#define	atomic_cmpset_rel_long	atomic_cmpset_rel_int
-    
-#else
-/* gcc <= 2.8 version */
-#define ATOMIC_ASM(NAME, TYPE, OP, V)			\
-static __inline void					\
-atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
-{							\
-	__asm __volatile(MPLOCKED OP			\
-			 : "=m" (*p)			\
-			 : "ir" (V));		 	\
-}							\
-							\
-
-#endif
-#endif /* KLD_MODULE */
-
-#if __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ > 9)
-
-/* egcs 1.1.2+ version */
-ATOMIC_ASM(set,	     char,  "orb %b2,%0",   v)
-ATOMIC_ASM(clear,    char,  "andb %b2,%0", ~v)
-ATOMIC_ASM(add,	     char,  "addb %b2,%0",  v)
-ATOMIC_ASM(subtract, char,  "subb %b2,%0",  v)
-
-ATOMIC_ASM(set,	     short, "orw %w2,%0",   v)
-ATOMIC_ASM(clear,    short, "andw %w2,%0", ~v)
-ATOMIC_ASM(add,	     short, "addw %w2,%0",  v)
-ATOMIC_ASM(subtract, short, "subw %w2,%0",  v)
-
-ATOMIC_ASM(set,	     int,   "orl %2,%0",   v)
-ATOMIC_ASM(clear,    int,   "andl %2,%0", ~v)
-ATOMIC_ASM(add,	     int,   "addl %2,%0",  v)
-ATOMIC_ASM(subtract, int,   "subl %2,%0",  v)
-
-ATOMIC_ASM(set,	     long,  "orl %2,%0",   v)
-ATOMIC_ASM(clear,    long,  "andl %2,%0", ~v)
-ATOMIC_ASM(add,	     long,  "addl %2,%0",  v)
-ATOMIC_ASM(subtract, long,  "subl %2,%0",  v)
-
-#else
-
-/* gcc <= 2.8 version */
-ATOMIC_ASM(set,	     char,  "orb %1,%0",   v)
-ATOMIC_ASM(clear,    char,  "andb %1,%0", ~v)
-ATOMIC_ASM(add,	     char,  "addb %1,%0",  v)
-ATOMIC_ASM(subtract, char,  "subb %1,%0",  v)
-
-ATOMIC_ASM(set,	     short, "orw %1,%0",   v)
-ATOMIC_ASM(clear,    short, "andw %1,%0", ~v)
-ATOMIC_ASM(add,	     short, "addw %1,%0",  v)
-ATOMIC_ASM(subtract, short, "subw %1,%0",  v)
-
-ATOMIC_ASM(set,	     int,   "orl %1,%0",   v)
-ATOMIC_ASM(clear,    int,   "andl %1,%0", ~v)
-ATOMIC_ASM(add,	     int,   "addl %1,%0",  v)
-ATOMIC_ASM(subtract, int,   "subl %1,%0",  v)
-
-ATOMIC_ASM(set,	     long,  "orl %1,%0",   v)
-ATOMIC_ASM(clear,    long,  "andl %1,%0", ~v)
-ATOMIC_ASM(add,	     long,  "addl %1,%0",  v)
-ATOMIC_ASM(subtract, long,  "subl %1,%0",  v)
-
-#endif
-
-#undef ATOMIC_ASM
-
-#ifndef WANT_FUNCTIONS
-#define ATOMIC_ACQ_REL(NAME, TYPE)			\
-static __inline void					\
-atomic_##NAME##_acq_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
-{							\
-	atomic_##NAME##_##TYPE(p, v);			\
-}							\
-							\
-static __inline void					\
-atomic_##NAME##_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
-{							\
-	atomic_##NAME##_##TYPE(p, v);			\
-}
-
-ATOMIC_ACQ_REL(set,		char)
-ATOMIC_ACQ_REL(clear,		char)
-ATOMIC_ACQ_REL(add,		char)
-ATOMIC_ACQ_REL(subtract,	char)
-ATOMIC_ACQ_REL(set,		short)
-ATOMIC_ACQ_REL(clear,		short)
-ATOMIC_ACQ_REL(add,		short)
-ATOMIC_ACQ_REL(subtract,	short)
-ATOMIC_ACQ_REL(set,		int)
-ATOMIC_ACQ_REL(clear,		int)
-ATOMIC_ACQ_REL(add,		int)
-ATOMIC_ACQ_REL(subtract,	int)
-ATOMIC_ACQ_REL(set,		long)
-ATOMIC_ACQ_REL(clear,		long)
-ATOMIC_ACQ_REL(add,		long)
-ATOMIC_ACQ_REL(subtract,	long)
-
-#undef ATOMIC_ACQ_REL
-
-#if defined(KLD_MODULE)
-#define	ATOMIC_STORE_LOAD(TYPE, LOP, SOP)			\
-u_##TYPE	atomic_load_acq_##TYPE(volatile u_##TYPE *p);	\
-void		atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v);
-#else
 #if defined(I386_CPU)
 /*
  * We assume that a = b will do atomic loads and stores.
@@ -308,25 +201,137 @@ atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
 	: : "memory");				 	\
 }
 #endif	/* defined(I386_CPU) */
-#endif	/* defined(KLD_MODULE) */
+#endif /* KLD_MODULE */
+
+ATOMIC_ASM(set,	     char,  "orb %b2,%0",   v)
+ATOMIC_ASM(clear,    char,  "andb %b2,%0", ~v)
+ATOMIC_ASM(add,	     char,  "addb %b2,%0",  v)
+ATOMIC_ASM(subtract, char,  "subb %b2,%0",  v)
+
+ATOMIC_ASM(set,	     short, "orw %w2,%0",   v)
+ATOMIC_ASM(clear,    short, "andw %w2,%0", ~v)
+ATOMIC_ASM(add,	     short, "addw %w2,%0",  v)
+ATOMIC_ASM(subtract, short, "subw %w2,%0",  v)
+
+ATOMIC_ASM(set,	     int,   "orl %2,%0",   v)
+ATOMIC_ASM(clear,    int,   "andl %2,%0", ~v)
+ATOMIC_ASM(add,	     int,   "addl %2,%0",  v)
+ATOMIC_ASM(subtract, int,   "subl %2,%0",  v)
+
+ATOMIC_ASM(set,	     long,  "orl %2,%0",   v)
+ATOMIC_ASM(clear,    long,  "andl %2,%0", ~v)
+ATOMIC_ASM(add,	     long,  "addl %2,%0",  v)
+ATOMIC_ASM(subtract, long,  "subl %2,%0",  v)
 
 ATOMIC_STORE_LOAD(char,	"cmpxchgb %b0,%1", "xchgb %b1,%0")
 ATOMIC_STORE_LOAD(short,"cmpxchgw %w0,%1", "xchgw %w1,%0")
 ATOMIC_STORE_LOAD(int,	"cmpxchgl %0,%1",  "xchgl %1,%0")
 ATOMIC_STORE_LOAD(long,	"cmpxchgl %0,%1",  "xchgl %1,%0")
 
+#undef ATOMIC_ASM
 #undef ATOMIC_STORE_LOAD
 
+#define	atomic_set_acq_char		atomic_set_char
+#define	atomic_set_rel_char		atomic_set_char
+#define	atomic_clear_acq_char		atomic_clear_char
+#define	atomic_clear_rel_char		atomic_clear_char
+#define	atomic_add_acq_char		atomic_add_char
+#define	atomic_add_rel_char		atomic_add_char
+#define	atomic_subtract_acq_char	atomic_subtract_char
+#define	atomic_subtract_rel_char	atomic_subtract_char
+
+#define	atomic_set_acq_short		atomic_set_short
+#define	atomic_set_rel_short		atomic_set_short
+#define	atomic_clear_acq_short		atomic_clear_short
+#define	atomic_clear_rel_short		atomic_clear_short
+#define	atomic_add_acq_short		atomic_add_short
+#define	atomic_add_rel_short		atomic_add_short
+#define	atomic_subtract_acq_short	atomic_subtract_short
+#define	atomic_subtract_rel_short	atomic_subtract_short
+
+#define	atomic_set_acq_int		atomic_set_int
+#define	atomic_set_rel_int		atomic_set_int
+#define	atomic_clear_acq_int		atomic_clear_int
+#define	atomic_clear_rel_int		atomic_clear_int
+#define	atomic_add_acq_int		atomic_add_int
+#define	atomic_add_rel_int		atomic_add_int
+#define	atomic_subtract_acq_int		atomic_subtract_int
+#define	atomic_subtract_rel_int		atomic_subtract_int
+#define atomic_cmpset_acq_int		atomic_cmpset_int
+#define atomic_cmpset_rel_int		atomic_cmpset_int
+
+#define	atomic_set_acq_long		atomic_set_long
+#define	atomic_set_rel_long		atomic_set_long
+#define	atomic_clear_acq_long		atomic_clear_long
+#define	atomic_clear_rel_long		atomic_clear_long
+#define	atomic_add_acq_long		atomic_add_long
+#define	atomic_add_rel_long		atomic_add_long
+#define	atomic_subtract_acq_long	atomic_subtract_long
+#define	atomic_subtract_rel_long	atomic_subtract_long
+#define	atomic_cmpset_long		atomic_cmpset_int
+#define	atomic_cmpset_acq_long		atomic_cmpset_acq_int
+#define	atomic_cmpset_rel_long		atomic_cmpset_rel_int
+
+#define atomic_cmpset_acq_ptr		atomic_cmpset_ptr
+#define atomic_cmpset_rel_ptr		atomic_cmpset_ptr
+
+#define	atomic_set_8		atomic_set_char
+#define	atomic_set_acq_8	atomic_set_acq_char
+#define	atomic_set_rel_8	atomic_set_rel_char
+#define	atomic_clear_8		atomic_clear_char
+#define	atomic_clear_acq_8	atomic_clear_acq_char
+#define	atomic_clear_rel_8	atomic_clear_rel_char
+#define	atomic_add_8		atomic_add_char
+#define	atomic_add_acq_8	atomic_add_acq_char
+#define	atomic_add_rel_8	atomic_add_rel_char
+#define	atomic_subtract_8	atomic_subtract_char
+#define	atomic_subtract_acq_8	atomic_subtract_acq_char
+#define	atomic_subtract_rel_8	atomic_subtract_rel_char
+#define	atomic_load_acq_8	atomic_load_acq_char
+#define	atomic_store_rel_8	atomic_store_rel_char
+
+#define	atomic_set_16		atomic_set_short
+#define	atomic_set_acq_16	atomic_set_acq_short
+#define	atomic_set_rel_16	atomic_set_rel_short
+#define	atomic_clear_16		atomic_clear_short
+#define	atomic_clear_acq_16	atomic_clear_acq_short
+#define	atomic_clear_rel_16	atomic_clear_rel_short
+#define	atomic_add_16		atomic_add_short
+#define	atomic_add_acq_16	atomic_add_acq_short
+#define	atomic_add_rel_16	atomic_add_rel_short
+#define	atomic_subtract_16	atomic_subtract_short
+#define	atomic_subtract_acq_16	atomic_subtract_acq_short
+#define	atomic_subtract_rel_16	atomic_subtract_rel_short
+#define	atomic_load_acq_16	atomic_load_acq_short
+#define	atomic_store_rel_16	atomic_store_rel_short
+
+#define	atomic_set_32		atomic_set_int
+#define	atomic_set_acq_32	atomic_set_acq_int
+#define	atomic_set_rel_32	atomic_set_rel_int
+#define	atomic_clear_32		atomic_clear_int
+#define	atomic_clear_acq_32	atomic_clear_acq_int
+#define	atomic_clear_rel_32	atomic_clear_rel_int
+#define	atomic_add_32		atomic_add_int
+#define	atomic_add_acq_32	atomic_add_acq_int
+#define	atomic_add_rel_32	atomic_add_rel_int
+#define	atomic_subtract_32	atomic_subtract_int
+#define	atomic_subtract_acq_32	atomic_subtract_acq_int
+#define	atomic_subtract_rel_32	atomic_subtract_rel_int
+#define	atomic_load_acq_32	atomic_load_acq_int
+#define	atomic_store_rel_32	atomic_store_rel_int
+#define	atomic_cmpset_32	atomic_cmpset_int
+#define	atomic_cmpset_acq_32	atomic_cmpset_acq_int
+#define	atomic_cmpset_rel_32	atomic_cmpset_rel_int
+#define	atomic_readandclear_32	atomic_readandclear_int
+
+#if !defined(WANT_FUNCTIONS)
 static __inline int
 atomic_cmpset_ptr(volatile void *dst, void *exp, void *src)
 {
 
-	return (
-	    atomic_cmpset_int((volatile u_int *)dst, (u_int)exp, (u_int)src));
+	return (atomic_cmpset_int((volatile u_int *)dst, (u_int)exp,
+	    (u_int)src));
 }
-
-#define atomic_cmpset_acq_ptr	atomic_cmpset_ptr
-#define atomic_cmpset_rel_ptr	atomic_cmpset_ptr
 
 static __inline void *
 atomic_load_acq_ptr(volatile void *p)
@@ -395,55 +400,5 @@ atomic_readandclear_long(volatile u_long *addr)
 
 	return (result);
 }
-#endif
-
-#define	atomic_set_8		atomic_set_char
-#define	atomic_set_acq_8	atomic_set_acq_char
-#define	atomic_set_rel_8	atomic_set_rel_char
-#define	atomic_clear_8		atomic_clear_char
-#define	atomic_clear_acq_8	atomic_clear_acq_char
-#define	atomic_clear_rel_8	atomic_clear_rel_char
-#define	atomic_add_8		atomic_add_char
-#define	atomic_add_acq_8	atomic_add_acq_char
-#define	atomic_add_rel_8	atomic_add_rel_char
-#define	atomic_subtract_8	atomic_subtract_char
-#define	atomic_subtract_acq_8	atomic_subtract_acq_char
-#define	atomic_subtract_rel_8	atomic_subtract_rel_char
-#define	atomic_load_acq_8	atomic_load_acq_char
-#define	atomic_store_rel_8	atomic_store_rel_char
-
-#define	atomic_set_16		atomic_set_short
-#define	atomic_set_acq_16	atomic_set_acq_short
-#define	atomic_set_rel_16	atomic_set_rel_short
-#define	atomic_clear_16		atomic_clear_short
-#define	atomic_clear_acq_16	atomic_clear_acq_short
-#define	atomic_clear_rel_16	atomic_clear_rel_short
-#define	atomic_add_16		atomic_add_short
-#define	atomic_add_acq_16	atomic_add_acq_short
-#define	atomic_add_rel_16	atomic_add_rel_short
-#define	atomic_subtract_16	atomic_subtract_short
-#define	atomic_subtract_acq_16	atomic_subtract_acq_short
-#define	atomic_subtract_rel_16	atomic_subtract_rel_short
-#define	atomic_load_acq_16	atomic_load_acq_short
-#define	atomic_store_rel_16	atomic_store_rel_short
-
-#define	atomic_set_32		atomic_set_int
-#define	atomic_set_acq_32	atomic_set_acq_int
-#define	atomic_set_rel_32	atomic_set_rel_int
-#define	atomic_clear_32		atomic_clear_int
-#define	atomic_clear_acq_32	atomic_clear_acq_int
-#define	atomic_clear_rel_32	atomic_clear_rel_int
-#define	atomic_add_32		atomic_add_int
-#define	atomic_add_acq_32	atomic_add_acq_int
-#define	atomic_add_rel_32	atomic_add_rel_int
-#define	atomic_subtract_32	atomic_subtract_int
-#define	atomic_subtract_acq_32	atomic_subtract_acq_int
-#define	atomic_subtract_rel_32	atomic_subtract_rel_int
-#define	atomic_load_acq_32	atomic_load_acq_int
-#define	atomic_store_rel_32	atomic_store_rel_int
-#define	atomic_cmpset_32	atomic_cmpset_int
-#define	atomic_cmpset_acq_32	atomic_cmpset_acq_int
-#define	atomic_cmpset_rel_32	atomic_cmpset_rel_int
-#define	atomic_readandclear_32	atomic_readandclear_int
-
+#endif	/* !defined(WANT_FUNCTIONS) */
 #endif /* ! _MACHINE_ATOMIC_H_ */
