@@ -17,5 +17,6 @@ You can refresh a disk:
 
 or salvage a floppy:
 
+	touch myfloppy.flp
 	recoverdisk /dev/fd0 myfloppy.flp
 
