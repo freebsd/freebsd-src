@@ -16,7 +16,7 @@
 
 # $FreeBSD$
 
-# A 512-byte boot manager which uses a 9600 baud serial console on COM1.
+# A 512-byte boot manager which uses a serial console on COM1.
 
 		.set NHRDRV,0x475		# Number of hard drives
 		.set ORIGIN,0x600		# Execution address
@@ -26,13 +26,14 @@
 		.set PRT_OFF,0x1be		# Partition table
 
 		.set TBL0SZ,0x3 		# Table 0 size
-		.set TBL1SZ,0xc 		# Table 1 size
+		.set TBL1SZ,0xb 		# Table 1 size
 
 		.set MAGIC,0xaa55		# Magic: bootable
 		.set B0MAGIC,0xbb66		# Identification
 
 		.set KEY_ENTER,0x1c		# Enter key scan code
 		.set KEY_F1,0x3b		# F1 key scan code
+		.set KEY_1,0x02			# #1 key scan code
 
 		.set ASCII_BEL,0x07		# ASCII code for <BEL>
 		.set ASCII_CR,0x0D		# ASCII code for <CR>
@@ -64,7 +65,7 @@ start:		cld				# String ops inc
 		movw %ax,%ds			#  data
 		movw %ax,%ss			# Set up
 		movw $LOAD,%sp			#  stack
-	
+
 #
 # Copy this code to the address it was linked for
 #
@@ -95,6 +96,7 @@ start:		cld				# String ops inc
 main:		pushw %dx			# Save
 		xorw %dx,%dx			# Port: COM1
 		movb $0xE3,%al			# 9600 8-N-1
+
 		movb $0x00,%ah			# BIOS: Set COM Port
 		int $0x14			#  Parameters
 		popw %dx			# Restore
@@ -157,13 +159,13 @@ main.3: 	movb %ch,-0x4(%bx)		# Zero active flag (ch == 0)
 main.4: 	movb (%di),%cl			# Partition
 		addw %cx,%di			#  description
 		callw putx			# Display it
-main.5: 	incw %dx			# Next item 
+main.5: 	incw %dx			# Next item
 		addb $0x10,%bl			# Next entry
 		jnc main.3			# Till done
 #
 # Passed a 256 byte boundary..
 # table is finished.
-# Add one to the drive number and check it is valid, 
+# Add one to the drive number and check it is valid,
 #
 		popw %ax			# Drive number
 		subb $0x80-0x1,%al		# Does next
@@ -191,13 +193,13 @@ main.6: 	addb $'0'|0x80,%al		# Save next
 		callw putx			#  item
 #
 # Now that we've printed the drive (if we needed to), display a prompt.
+# Get ready for the input byte noting the time.
 #
 main.7: 	movw $prompt,%si		# Display
 		callw putstr			#  prompt
 		movb _OPT(%bp),%dl		# Display
 		decw %si			#  default
 		callw putkey			#  key
-
 main.7_1:
 		xorb %ah,%ah			# BIOS: Get
 		int $0x1a			#  system time
@@ -205,7 +207,8 @@ main.7_1:
 		addw _TICKS(%bp),%si		#  timeout
 
 #
-# Check for a character on the serial port.
+# Busy loop, checking for a character on the serial port, but
+# keeping one eye on the time.
 #
 
 main.8:		xorw %dx,%dx			# Use COM1
@@ -227,7 +230,7 @@ main.9: 	movb _OPT(%bp),%al		# Load default
 #
 # User's last try was bad, beep in displeasure.
 # Since nothing was printed, just continue on as if the user
-# hadn't done anything. This gives the effect of the user getting a beep 
+# hadn't done anything. This gives the effect of the user getting a beep
 # for all bad keystrokes but no action until either the timeout
 # occurs or the user hits a good key.
 #
@@ -236,11 +239,12 @@ main.10:	movb $ASCII_BEL,%al		# Signal
 		jmp main.7_1			# Go back
 #
 # Check the character we just got on the serial port.
-# If it's CR act as if timed out.
 #
 main.11: 	movb $0x02,%ah			# BIOS: Receive
 		int $0x14			#  COM Byte
-
+#
+# If it's CR act as if timed out.
+#
 		cmpb $ASCII_CR,%al		# Enter pressed?
 		je main.9			# Yes
 #
@@ -248,7 +252,7 @@ main.11: 	movb $0x02,%ah			# BIOS: Receive
 # If not ask again.
 #
 		subb $ASCII_1,%al		# Less '1' ascii character
-		cmpb $0x4,%al			# 1..5?
+		cmpb $0x4,%al			# #1..#5?
 		ja main.10			# No
 #
 # We have a selection.
@@ -267,7 +271,7 @@ main.12:	cbtw				# Option
 		movw $FAKE,%si			# Partition for write
 		movb (%si),%dl			# Drive number
 		movw %si,%bx			# Partition for read
-		cmpb $0x4,%al			# 5 pressed?
+		cmpb $0x4,%al			# F5/#5 pressed?
 		pushf				# Save
 		je main.13			# Yes
 		shlb $0x4,%al			# Point to
@@ -289,10 +293,10 @@ main.14:	popw %si			# Restore
 # If going to next drive, replace drive with selected one.
 # Remember to un-ascii it. Hey 0x80 is already set, cool!
 #
-		jne main.15			# If not 5
+		jne main.15			# If not F5/#5
 		movb _NXTDRV(%bp),%dl		# Next drive
-		subb $'0',%dl			#  number     XXX char val?
-# 
+		subb $'0',%dl			#  number
+#
 # load  selected bootsector to the LOAD location in RAM.
 # If it fails to read or isn't marked bootable, treat it
 # as a bad selection.
@@ -371,7 +375,7 @@ intx13.1:	int $0x13			# BIOS: Disk I/O
 # Menu strings
 
 item:		.ascii " ";	     .byte ' '|0x80
-prompt: 	.ascii "\nDef:"; .byte ' '|0x80
+prompt: 	.ascii "\nDef:";     .byte ' '|0x80
 crlf:		.ascii "\r";	     .byte '\n'|0x80
 
 # Partition type tables
@@ -384,7 +388,7 @@ tables:
 #
 # These values indicate bootable types we know the names of
 #
-		.byte 0x1, 0x4, 0x6, 0xb, 0xc, 0xe, 0x63, 0x83
+		.byte 0x1, 0x4, 0x6, 0xb, 0xc, 0xe, 0x83
 		.byte 0x9f, 0xa5, 0xa6, 0xa9
 #
 # These are offsets that match the known names above and point to the strings
@@ -397,21 +401,19 @@ tables:
 		.byte os_dos-.			# Windows
 		.byte os_dos-.			# Windows
 		.byte os_dos-.			# Windows
-		.byte os_unix-. 		# UNIX
 		.byte os_linux-.		# Linux
 		.byte os_bsd-.			# BSD/OS
 		.byte os_freebsd-.		# FreeBSD
 		.byte os_bsd-.			# OpenBSD
 		.byte os_bsd-.			# NetBSD
 #
-# And here are the strings themselves. 0x80 or'd into a byte indicates 
+# And here are the strings themselves. 0x80 or'd into a byte indicates
 # the end of the string. (not so great for Russians but...)
 #
 os_misc:	.ascii "?";    .byte '?'|0x80
 os_dos: 	.ascii "DO";   .byte 'S'|0x80
-os_unix:	.ascii "UNI";  .byte 'X'|0x80
-os_linux:	.ascii "Lnu"; .byte 'x'|0x80
-os_freebsd:	.ascii "F"
+os_linux:	.ascii "Linu"; .byte 'x'|0x80
+os_freebsd:	.ascii "Free"
 os_bsd: 	.ascii "BS";   .byte 'D'|0x80
 
 		.org PRT_OFF-0xe,0x90
@@ -420,7 +422,7 @@ os_bsd: 	.ascii "BS";   .byte 'D'|0x80
 
 #
 # These values are sometimes changed before writing back to the drive
-# Be especially careful that nxtdrv: must come after drive:, as it 
+# Be especially careful that nxtdrv: must come after drive:, as it
 # is part of the same string.
 #
 drive:		.ascii "Drive "
