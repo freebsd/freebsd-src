@@ -52,7 +52,7 @@
 #include <sys/mutex.h>
 #endif
 
-#include <sys/disklabel.h>
+#include <sys/diskmbr.h>
 #include <sys/sbuf.h>
 #include <geom/geom.h>
 #include <geom/geom_slice.h>
