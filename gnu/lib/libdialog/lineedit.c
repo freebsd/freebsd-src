@@ -32,13 +32,20 @@ int line_edit(WINDOW* dialog, int box_y, int box_x, int box_width, chtype attr, 
   static int input_x, scroll;
   static unsigned char instr[MAX_LEN+1];
 
-  if (first) {
+  wattrset(dialog, attr);
     keypad(dialog, TRUE);
+
+  if (first) {
     memset(instr, 0, sizeof(instr));
-    input_x = scroll = 0;
+    strcpy(instr, result);
+    i = strlen(instr);
+    input_x = i % box_width;
+    scroll = i - input_x;
+    wmove(dialog, box_y, box_x);
+    for (i = 0; i < box_width; i++)
+      waddch(dialog, instr[scroll+i] ? instr[scroll+i] : ' ');
   }
 
-  wattrset(dialog, attr);
   wmove(dialog, box_y, box_x + input_x);
   wrefresh(dialog);
   for (;;) {
