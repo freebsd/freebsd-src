@@ -1788,7 +1788,7 @@ add(int ac, char *av[])
 		rule.fw_flg |= IP_FW_F_SKIPTO; av++; ac--;
 		if (!ac)
 			errx(EX_USAGE, "missing skipto rule number");
-		rule.fw_skipto_rule = strtoul(*av, NULL, 0); av++; ac--;
+		rule.fw_skipto_rule = strtoul(*av, NULL, 10); av++; ac--;
 	} else if ((!strncmp(*av, "deny", strlen(*av))
 		    || !strncmp(*av, "drop", strlen(*av)))) {
 		rule.fw_flg |= IP_FW_F_DENY; av++; ac--;
