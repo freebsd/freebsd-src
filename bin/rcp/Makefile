@@ -4,8 +4,6 @@
 PROG=	rcp
 SRCS=	rcp.c util.c
 CFLAGS+=-DBINDIR=${BINDIR}
-WARNS=	0
-WFORMAT=0
 
 .if defined(MAKE_KERBEROS4) && !defined(NO_OPENSSL) && !defined(NOCRYPT)
 SRCS+=	krcmd.c kcmd.c rcmd_util.c

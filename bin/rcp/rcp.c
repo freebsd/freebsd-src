@@ -71,6 +71,7 @@ __FBSDID("$FreeBSD$");
 #include <paths.h>
 #include <pwd.h>
 #include <signal.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -489,8 +490,8 @@ syserr:			run_err("%s: %s", name, strerror(errno));
 				goto next;
 		}
 #define	MODEMASK	(S_ISUID|S_ISGID|S_ISTXT|S_IRWXU|S_IRWXG|S_IRWXO)
-		(void)snprintf(buf, sizeof(buf), "C%04o %qd %s\n",
-		    stb.st_mode & MODEMASK, stb.st_size, last);
+		(void)snprintf(buf, sizeof(buf), "C%04o %jd %s\n",
+		    stb.st_mode & MODEMASK, (intmax_t)stb.st_size, last);
 		(void)write(rem, buf, strlen(buf));
 		if (response() < 0)
 			goto next;
