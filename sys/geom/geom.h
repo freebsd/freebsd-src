@@ -281,6 +281,12 @@ extern struct sx topology_lock;
 		sx_assert(&topology_lock, SX_XLOCKED);		\
 	} while (0)
 
+#define g_topology_assert_not()					\
+	do {							\
+		g_sanity(NULL);					\
+		sx_assert(&topology_lock, SX_UNLOCKED);		\
+	} while (0)
+
 #define DECLARE_GEOM_CLASS(class, name) 			\
 	static moduledata_t name##_mod = {			\
 		#name, g_modevent, &class			\
