@@ -110,8 +110,15 @@ returns an error message string containing
 .Dq Li "Unknown error:\ "
 followed by the error number in decimal, while 
 .Fn strerror_r
-returns 
+leaves
+.Fa strerrbuf
+unchanged and returns 
 .Er EINVAL .
+Error numbers recognized by this implementation fall in
+the range 0 <= 
+.Fa errnum
+<
+.Fa sys_nerr .
 .Pp
 If insufficient storage is provided in
 .Fa strerrbuf 
@@ -121,9 +128,11 @@ to contain the error string,
 .Fn strerror_r
 returns
 .Er ERANGE 
-and the contents of
+and 
 .Fa strerrbuf
-are indeterminate.
+will contain an error message that has been truncated and nul 
+terminated to fit the length specified by 
+.Fa buflen .
 .Pp
 The message strings can be accessed directly using the external
 array

@@ -46,9 +46,9 @@ strerror_r(int errnum, char *strerrbuf, size_t buflen)
 {
 	int             len;
 
-	if ((errnum > 0) && (errnum < sys_nerr)) {
+	if ((errnum >= 0) && (errnum < sys_nerr)) {
 		len = strlcpy(strerrbuf, (char *)sys_errlist[errnum], buflen);
-		return ((len <= buflen) ? 0 : ERANGE);
+		return ((len < buflen) ? 0 : ERANGE);
 	}
 	return (EINVAL);
 }
@@ -71,8 +71,13 @@ strerror(num)
 	char            tmp[NUMLEN];	/* temporary number */
 	static char     ebuf[EBUFLEN];	/* error message */
 
-	if ((num > 0) && (num < sys_nerr))
+	if ((num >= 0) && (num < sys_nerr))
 		return ((char *)sys_errlist[num]);
+
+	/*
+	 * Set errno to EINVAL per P1003.1-200x Draft June 14, 2001.
+	 */
+	errno = EINVAL;
 
 	/*
 	 * Print unknown errno by hand so we don't link to stdio(3).
@@ -106,8 +111,20 @@ main()
 	char            mybuf[64];
 	int             ret;
 
+	errno = 0;
+
+	printf("strerror(0) yeilds: %s\n", strerror(0));
+	printf("strerror(1) yeilds: %s\n", strerror(1));
 	printf("strerror(47) yeilds: %s\n", strerror(47));
+	printf("strerror(sys_nerr - 1) yeilds: %s\n", strerror(sys_nerr - 1));
+	printf("errno = %d\n", errno); errno = 0;
+
+	printf("strerror(sys_nerr) yeilds: %s\n", strerror(sys_nerr));
+	printf("errno = %d\n", errno);  errno = 0;
+
 	printf("strerror(437) yeilds: %s\n", strerror(437));
+	printf("errno = %d\n", errno);  errno = 0;
+
 	printf("strerror(LONG_MAX) yeilds: %s\n", strerror(LONG_MAX));
 	printf("strerror(LONG_MIN) yeilds: %s\n", strerror(LONG_MIN));
 	printf("strerror(ULONG_MAX) yeilds: %s\n", strerror(ULONG_MAX));
