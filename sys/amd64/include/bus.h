@@ -31,14 +31,14 @@
  * $FreeBSD$
  */
 
-#ifndef _I386_BUS_H_
-#define _I386_BUS_H_
+#ifndef _AMD64_BUS_H_
+#define _AMD64_BUS_H_
 
-#include <machine/bus_at386.h>
+#include <machine/bus_amd64.h>
 #include <machine/bus_dma.h>
 
 /*
- * Stream accesses are the same as normal accesses on i386; there are no
+ * Stream accesses are the same as normal accesses on amd64; there are no
  * supported bus systems with an endianess different from the host one.
  */
 #define	bus_space_read_stream_1(t, h, o)	bus_space_read_1((t), (h), (o))
@@ -101,4 +101,4 @@
 #define	bus_space_copy_region_stream_4(t, h1, o1, h2, o2, c) \
 	bus_space_copy_region_4((t), (h1), (o1), (h2), (o2), (c))
 
-#endif /* _I386_BUS_H_ */
+#endif /* _AMD64_BUS_H_ */

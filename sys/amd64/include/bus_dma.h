@@ -69,8 +69,8 @@
  */
 /* $FreeBSD$ */
 
-#ifndef _I386_BUS_DMA_H_
-#define _I386_BUS_DMA_H_
+#ifndef _AMD64_BUS_DMA_H_
+#define _AMD64_BUS_DMA_H_
 
 /*
  * Flags used in various bus DMA methods.
@@ -243,4 +243,4 @@ void _bus_dmamap_unload(bus_dma_tag_t dmat, bus_dmamap_t map);
 	if ((dmamap) != NULL)				\
 		_bus_dmamap_unload(dmat, dmamap)
 
-#endif /* _I386_BUS_DMA_H_ */
+#endif /* _AMD64_BUS_DMA_H_ */
