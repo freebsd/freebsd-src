@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.31 1997/07/26 13:52:47 kato Exp $
+ *	$Id: clock.c,v 1.32 1997/08/21 08:23:52 kato Exp $
  */
 
 /*
@@ -68,6 +68,7 @@
 #include <machine/cpu.h>
 #include <machine/frame.h>
 #include <machine/ipl.h>
+#include <machine/limits.h>
 #ifdef APIC_IO
 #include <machine/smp.h>
 #endif /* APIC_IO */

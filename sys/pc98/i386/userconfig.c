@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.31 1997/08/11 14:41:18 kato Exp $
+ **      $Id: userconfig.c,v 1.32 1997/08/17 03:38:52 kato Exp $
  **/
 
 /**
@@ -119,6 +119,7 @@
 
 #include <machine/cons.h>
 #include <machine/md_var.h>
+#include <machine/limits.h>
 
 #include <i386/isa/isa_device.h>
 
@@ -2373,7 +2374,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.31 1997/08/11 14:41:18 kato Exp $
+ *      $Id: userconfig.c,v 1.32 1997/08/17 03:38:52 kato Exp $
  */
 
 #include "scbus.h"
