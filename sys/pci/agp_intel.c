@@ -109,15 +109,15 @@ agp_intel_match(device_t dev)
 	case 0x25708086:
 		return ("Intel 82865 host to AGP bridge");
 
+	case 0x255d8086:
+		return ("Intel E7205 host to AGP bridge");
+
 	case 0x25788086:
 		return ("Intel 82875P host to AGP bridge");
 
 	case 0x25608086: /* i845G */
 		return ("Intel 82845G host to AGP bridge");
 	};
-
-	if (pci_get_vendor(dev) == 0x8086)
-		return ("Intel Generic host to PCI bridge");
 
 	return NULL;
 }
@@ -215,6 +215,7 @@ agp_intel_attach(device_t dev)
 
 	case 0x1a308086: /* i845 */
 	case 0x33408086: /* i855 */
+	case 0x255d8086: /* E7205 */
 	case 0x25708086: /* i865 */
 	case 0x25788086: /* i875P */
 	case 0x25608086: /* i845G */
@@ -239,6 +240,7 @@ agp_intel_attach(device_t dev)
 	case 0x1a308086: /* i845 */
 	case 0x25308086: /* i850 */
 	case 0x33408086: /* i855 */
+	case 0x255d8086: /* E7205 */
 	case 0x25318086: /* i860 */
 	case 0x25708086: /* i865 */
 	case 0x25788086: /* i875P */
@@ -287,6 +289,7 @@ agp_intel_detach(device_t dev)
 	case 0x1a308086: /* i845 */
 	case 0x25608086: /* i845G */
 	case 0x33408086: /* i855 */
+	case 0x255d8086: /* E7205 */
 	case 0x25708086: /* i865 */
 	case 0x25788086: /* i875P */
 		printf("%s: set MCHCFG to %x\n", __func__, (unsigned)
