@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.325 1997/10/01 09:01:16 jkh Exp $
+#	$Id: Makefile,v 1.326 1997/10/03 14:05:29 markm Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -405,6 +405,7 @@ release.8: write_mfs_in_kernel dumpnlist
 	mkdir ${RD}/mfsfd
 	cd ${RD}/mfsfd && \
 		mkdir -p etc dev mnt stand/help
+	@cp ${.CURDIR}/../sys/i386/boot/biosboot/boot.help ${RD}/mfsfd/stand
 	@cd ${.CURDIR} && $(MAKE) installCRUNCH CRUNCH=boot \
 		DIR=${RD}/mfsfd/stand ZIP=false
 	( cd ${RD}/trees/bin/dev && \
@@ -646,7 +647,6 @@ doMFSKERN:
 	@mkdir -p /tmp/mnt_xx
 	@mount /dev/vn0 /tmp/mnt_xx
 	./dumpnlist ${RD}/boot.${FSIMAGE}/kernel > /tmp/mnt_xx/stand/symbols
-	@cp ${.CURDIR}/../sys/i386/boot/biosboot/boot.help /tmp/mnt_xx
 	@umount /tmp/mnt_xx
 	@vnconfig -u /dev/vn0
 	@rmdir /tmp/mnt_xx
