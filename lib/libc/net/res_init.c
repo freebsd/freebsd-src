@@ -433,8 +433,6 @@ res_init()
 			}
 			*cp = n;
 		    }
-		    if (res)
-			    freeaddrinfo(res);
 		    continue;
 		}
 #endif
