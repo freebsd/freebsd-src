@@ -224,10 +224,26 @@
       <filename>.netrc</filename> files (see &man.ftp.1; for more
       details).</para>
 
+    <para>&man.ftpd.8; now supports a <option>-h</option> option to
+      disable printing any host-specific information, such as the
+      &man.ftpd.8; version or hostname, in server messages.</para>
+
     <para>&man.ftpd.8; now supports a <option>-P</option> option to
       specify a port on which to listen in daemon mode.  The default
       data port number is now set to be one less than the control port
       number, rather than being hard-coded.</para>
+
+    <para>&man.ftpd.8; now supports an extended format of the
+      <filename>/etc/ftpchroot</filename> file.  Please refer
+      to the &man.ftpchroot.5; manpage, which is now available,
+      for details.</para>
+
+    <para>&man.ftpd.8; now supports login directory pathnames
+      that specify simultaneously a directory for &man.chroot.2;
+      and that to change to in the chrooted environment.  The
+      <quote><literal>/./</literal></quote> separator is used for
+      this purpose, like in other FTP daemons having this feature.
+      It may be used in both &man.ftpchroot.5; and &man.passwd.5;.</para>
 
     <para>&man.fwcontrol.8; now supports <option>-R</option> and
       <option>-S</option> options for receiving and sending DV
