@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.195 1999/05/12 11:06:07 phk Exp $
+ * $Id: vfs_subr.c,v 1.196 1999/05/12 19:06:40 peter Exp $
  */
 
 /*
@@ -1116,11 +1116,11 @@ reassignbuf(bp, newvp)
 		if ((newvp->v_flag & VONWORKLST) == 0) {
 			switch (newvp->v_type) {
 			case VDIR:
-				delay = syncdelay / 3;
+				delay = syncdelay / 2;
 				break;
 			case VBLK:
 				if (newvp->v_specmountpoint != NULL) {
-					delay = syncdelay / 2;
+					delay = syncdelay / 3;
 					break;
 				}
 				/* fall through */
