@@ -231,7 +231,7 @@ donextcommand:
 
 static char *readvar();
 
-#define NCTXTS 30
+#define NCTXTS 128
 void *getstr_ctxts[NCTXTS];  /* could easily be made dynamic... */
 void **getstr_curctxt = getstr_ctxts;
 
@@ -620,7 +620,7 @@ readvar(line)
 	}
 	(*line)++;
 	for (vlength = 0, vstart = *line; **line && 
-	    (isalpha(**line) || **line == '_'); (*line)++)
+	    (isprint(**line) && **line != '{' && **line != '}'); (*line)++)
 		vlength++;
 	if (**line != '}' || vlength == 0) {
 		SETERRSTR (E_BADVAR,
@@ -647,7 +647,9 @@ static struct vble {
 
 /*
  * Return a pointer to the string that variable var represents.  Returns
- * NULL if a match could not be found and sets erreur.
+ * NULL if a match could not be found and sets erreur.  The returned
+ * pointer is valid until any calls to setvar() or until a call to
+ * getstr_free() frees the current context.
  */
 static const char *
 getvar(var, len)
@@ -655,6 +657,30 @@ getvar(var, len)
 	int len;  /* strncmp(var, varmatch, len); is used to match variables */
 {
 	struct vble *i;
+	char tcap[3];
+	char *s, *retr;
+	char *gettermcap();
+
+	if (sscanf (var, "_termcap_%2s", tcap) == 1 &&
+	    len == sizeof "_termcap_XX" - 1) {
+		/* Magic termcap variable */
+		if ((s = gettermcap(tcap))) {
+			if (getstr_curctxt - getstr_ctxts == NCTXTS) {
+				SETERRSTR(E_COMPLIM,
+		    		    "compile-time limit exceeded: "
+				    "command contexts");
+				return NULL;
+			}
+			if (!FMALLOC(strlen(s) + 1, retr))
+				return NULL;
+			strcpy (retr, s);
+			*getstr_curctxt = retr;
+			getstr_curctxt++;
+			return retr;
+		} else {
+			return "";
+		}
+	}
 
 	for (i = vble_l; i; i = i->next) {
 		if (!strncasecmp (i->name, var, len))
@@ -680,7 +706,7 @@ setvar(var, val)
 	char *var_n, *val_n;
 	char *c;
 
-	for (c = var; *c && (isalpha(*c) || *c == '_'); c++) ;
+	for (c = var; *c && (isprint(*c) && *c != '{' && *c != '}'); c++) ;
 	if (*c) {
 		SETERRSTR (E_BADVAR,
 		    "bad character ``%c'' in variable ``%s''", *c, var);
