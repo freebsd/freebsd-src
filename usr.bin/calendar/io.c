@@ -274,7 +274,9 @@ opencal()
 			warnx("setuid failed");
 			_exit(1);
 		}
-		execl(_PATH_CPP, "cpp", "-P", "-I.", _PATH_INCLUDE, NULL);
+		execl(_PATH_CPP, "cpp", "-P",
+		    "-traditional", "-nostdinc",	/* GCC specific opts */
+		    "-I.", "-I", _PATH_INCLUDE, NULL);
 		warn(_PATH_CPP);
 		_exit(1);
 	}
