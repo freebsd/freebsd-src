@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_bmap.c	8.6 (Berkeley) 1/21/94
- * $Id: ufs_bmap.c,v 1.7 1995/03/28 07:58:16 bde Exp $
+ * $Id: ufs_bmap.c,v 1.8 1995/05/30 08:15:31 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -110,7 +110,7 @@ ufs_bmaparray(vp, bn, bnp, ap, nump, runp)
 	struct ufsmount *ump;
 	struct mount *mp;
 	struct vnode *devvp;
-	struct indir a[NIADDR], *xap;
+	struct indir a[NIADDR+1], *xap;
 	daddr_t daddr;
 	long metalbn;
 	int error, maxrun = 0, num;
