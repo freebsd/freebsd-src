@@ -1079,9 +1079,9 @@ get_mcontext(struct thread *td, mcontext_t *mc, int clear_ret)
 		ustk = (uint64_t*)s.bspstore;
 		kstk = (uint64_t*)td->td_kstack;
 		while (s.ndirty > 0) {
-			*ustk++ = *kstk++;
+			suword64(ustk++, *kstk++);
 			if (((uintptr_t)ustk & 0x1ff) == 0x1f8)
-				*ustk++ = 0;
+				suword64(ustk++, 0);
 			if (((uintptr_t)kstk & 0x1ff) == 0x1f8) {
 				kstk++;
 				s.ndirty -= 8;
@@ -1124,6 +1124,7 @@ set_mcontext(struct thread *td, const mcontext_t *mc)
 {
 	struct _special s;
 	struct trapframe *tf;
+	uint64_t psrmask;
 
 	tf = td->td_frame;
 
@@ -1131,15 +1132,22 @@ set_mcontext(struct thread *td, const mcontext_t *mc)
 	    ("Whoa there! We have more than 8KB of dirty registers!"));
 
 	s = mc->mc_special;
-	/* Only copy the user mask from the new context. */
-	s.psr = (s.psr & 0x1f) | (tf->tf_special.psr & ~0x1f);
+	/*
+	 * Only copy the user mask and the restart instruction bit from
+	 * the new context.
+	 */
+	psrmask = IA64_PSR_BE | IA64_PSR_UP | IA64_PSR_AC | IA64_PSR_MFL |
+	    IA64_PSR_MFH | IA64_PSR_RI;
+	s.psr = (tf->tf_special.psr & ~psrmask) | (s.psr & psrmask);
 	/* We don't have any dirty registers of the new context. */
 	s.ndirty = 0;
 	if (mc->mc_flags & _MC_FLAGS_ASYNC_CONTEXT) {
+		KASSERT((tf->tf_flags & FRAME_SYSCALL) == 0, ("foo"));
 		tf->tf_scratch = mc->mc_scratch;
 		tf->tf_scratch_fp = mc->mc_scratch_fp;
 		/* XXX High FP */
 	} else {
+		KASSERT((tf->tf_flags & FRAME_SYSCALL) != 0, ("foo"));
 		s.cfm = s.pfs;
 		s.pfs = tf->tf_special.pfs;
 		s.iip = s.rp;
