@@ -26,9 +26,9 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#define OSF
+#define	OSF
 #ifndef COMPRESS_POSTFIX
-#define COMPRESS_POSTFIX ".gz"
+#define	COMPRESS_POSTFIX ".gz"
 #endif
 #ifndef	BZCOMPRESS_POSTFIX
 #define	BZCOMPRESS_POSTFIX ".bz2"
@@ -60,25 +60,25 @@ __FBSDID("$FreeBSD$");
 /*
  * Bit-values for the 'flags' parsed from a config-file entry.
  */
-#define CE_COMPACT	0x0001	/* Compact the achived log files with gzip. */
-#define CE_BZCOMPACT	0x0002	/* Compact the achived log files with bzip2. */
-#define CE_COMPACTWAIT	0x0004	/* wait until compressing one file finishes */
+#define	CE_COMPACT	0x0001	/* Compact the achived log files with gzip. */
+#define	CE_BZCOMPACT	0x0002	/* Compact the achived log files with bzip2. */
+#define	CE_COMPACTWAIT	0x0004	/* wait until compressing one file finishes */
 				/*    before starting the next step. */
-#define CE_BINARY	0x0008	/* Logfile is in binary, do not add status */
+#define	CE_BINARY	0x0008	/* Logfile is in binary, do not add status */
 				/*    messages to logfile(s) when rotating. */
-#define CE_NOSIGNAL	0x0010	/* There is no process to signal when */
+#define	CE_NOSIGNAL	0x0010	/* There is no process to signal when */
 				/*    trimming this file. */
-#define CE_TRIMAT	0x0020	/* trim file at a specific time. */
-#define CE_GLOB		0x0040	/* name of the log is file name pattern. */
-#define CE_SIGNALGROUP	0x0080	/* Signal a process-group instead of a single */
+#define	CE_TRIMAT	0x0020	/* trim file at a specific time. */
+#define	CE_GLOB		0x0040	/* name of the log is file name pattern. */
+#define	CE_SIGNALGROUP	0x0080	/* Signal a process-group instead of a single */
 				/*    process when trimming this file. */
-#define CE_CREATE	0x0100	/* Create the log file if it does not exist. */
+#define	CE_CREATE	0x0100	/* Create the log file if it does not exist. */
 #define	CE_NODUMP	0x0200	/* Set 'nodump' on newly created log file. */
 
-#define MIN_PID         5	/* Don't touch pids lower than this */
-#define MAX_PID		99999	/* was lower, see /usr/include/sys/proc.h */
+#define	MIN_PID         5	/* Don't touch pids lower than this */
+#define	MAX_PID		99999	/* was lower, see /usr/include/sys/proc.h */
 
-#define kbytes(size)  (((size) + 1023) >> 10)
+#define	kbytes(size)  (((size) + 1023) >> 10)
 
 struct conf_entry {
 	char *log;		/* Name of the log */
@@ -99,7 +99,7 @@ struct conf_entry {
 	struct conf_entry *next;/* Linked list pointer */
 };
 
-#define DEFAULT_MARKER "<default>"
+#define	DEFAULT_MARKER "<default>"
 
 int dbg_at_times;		/* -D Show details of 'trim_at' code */
 
@@ -299,7 +299,7 @@ free_clist(struct conf_entry **firstent)
 static void
 do_entry(struct conf_entry * ent)
 {
-#define REASON_MAX	80
+#define	REASON_MAX	80
 	int size, modtime;
 	double diffsecs;
 	char temp_reason[REASON_MAX];
