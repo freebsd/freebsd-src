@@ -351,7 +351,7 @@ rtredirect(struct sockaddr *dst,
 			rt = NULL;
 			error = rtrequest1(RTM_ADD, &info, &rt);
 			if (rt != NULL) {
-				RT_UNLOCK(rt);
+				RT_LOCK(rt);
 				flags = rt->rt_flags;
 			}
 			stat = &rtstat.rts_dynamic;
