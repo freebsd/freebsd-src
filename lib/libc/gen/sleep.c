@@ -69,6 +69,8 @@ sleep(seconds)
 		time_to_sleep.tv_nsec = 0;
 		nanosleep(&time_to_sleep, &time_remaining);
 		seconds = time_remaining.tv_sec;
+		if (time_remaining.tv_nsec > 0)
+			seconds++;	/* round up */
 	}
 	return (seconds);
 #else
