@@ -641,6 +641,218 @@ static const struct utopia_chip chip_idt77105 = {
 	idt77105_intr,
 };
 
+/*
+ * Update the carrier status
+ */
+static int
+idt77155_update_carrier(struct utopia *utp)
+{
+	int err;
+	uint8_t reg;
+	u_int n = 1;
+
+	if ((err = READREGS(utp, IDTPHY_REGO_RSOS, &reg, &n)) != 0) {
+		utp->carrier = UTP_CARR_UNKNOWN;
+		return (err);
+	}
+	utopia_check_carrier(utp, !(reg & IDTPHY_REGM_RSOS_LOS));
+	return (0);
+}
+
+/*
+ * Handle interrupt on IDT77155 chip
+ */
+static void
+idt77155_intr(struct utopia *utp)
+{
+	uint8_t reg;
+	u_int n = 1;
+	int err;
+
+	if ((err = READREGS(utp, IDTPHY_REGO_RSOS, &reg, &n)) != 0) {
+		printf("IDT77105 read error %d\n", err);
+		return;
+	}
+	utopia_check_carrier(utp, !(reg & IDTPHY_REGM_RSOS_LOS));
+}
+
+/*
+ * set SONET/SDH mode
+ */
+static int
+idt77155_set_sdh(struct utopia *utp, int sdh)
+{
+	int err;
+
+	if (sdh)
+		err = WRITEREG(utp, IDTPHY_REGO_PTRM,
+		    IDTPHY_REGM_PTRM_SS, IDTPHY_REGM_PTRM_SDH);
+	else
+		err = WRITEREG(utp, IDTPHY_REGO_PTRM,
+		    IDTPHY_REGM_PTRM_SS, IDTPHY_REGM_PTRM_SONET);
+	if (err != 0)
+		return (err);
+
+	utp->state &= ~UTP_ST_SDH;
+	if (sdh)
+		utp->state |= UTP_ST_SDH;
+
+	return (0);
+}
+
+/*
+ * set idle/unassigned cells
+ */
+static int
+idt77155_set_unass(struct utopia *utp, int unass)
+{
+	int err;
+
+	if (unass)
+		err = WRITEREG(utp, IDTPHY_REGO_TCHP, 0xff, 0);
+	else
+		err = WRITEREG(utp, IDTPHY_REGO_TCHP, 0xff, 1);
+	if (err != 0)
+		return (err);
+
+	utp->state &= ~UTP_ST_UNASS;
+	if (unass)
+		utp->state |= UTP_ST_UNASS;
+
+	return (0);
+}
+
+/*
+ * enable/disable scrambling
+ */
+static int
+idt77155_set_noscramb(struct utopia *utp, int noscramb)
+{
+	int err;
+
+	if (noscramb) {
+		err = WRITEREG(utp, IDTPHY_REGO_TCC,
+		    IDTPHY_REGM_TCC_DSCR, IDTPHY_REGM_TCC_DSCR);
+		if (err)
+			return (err);
+		err = WRITEREG(utp, IDTPHY_REGO_RCC,
+		    IDTPHY_REGM_RCC_DSCR, IDTPHY_REGM_RCC_DSCR);
+		if (err)
+			return (err);
+		utp->state |= UTP_ST_NOSCRAMB;
+	} else {
+		err = WRITEREG(utp, IDTPHY_REGO_TCC,
+		    IDTPHY_REGM_TCC_DSCR, 0);
+		if (err)
+			return (err);
+		err = WRITEREG(utp, IDTPHY_REGO_RCC,
+		    IDTPHY_REGM_RCC_DSCR, 0);
+		if (err)
+			return (err);
+		utp->state &= ~UTP_ST_NOSCRAMB;
+	}
+	return (0);
+}
+
+/*
+ * Set loopback mode for the 77155
+ */
+static int
+idt77155_set_loopback(struct utopia *utp, u_int mode)
+{
+	int err;
+	uint32_t val;
+	u_int nmode;
+
+	val = 0;
+	nmode = mode;
+	if (mode & UTP_LOOP_TIME) {
+		nmode &= ~UTP_LOOP_TIME;
+		val |= IDTPHY_REGM_MCTL_TLOOP;
+	}
+	if (mode & UTP_LOOP_DIAG) {
+		nmode &= ~UTP_LOOP_DIAG;
+		val |= IDTPHY_REGM_MCTL_DLOOP;
+	}
+	if (mode & UTP_LOOP_LINE) {
+		nmode &= ~UTP_LOOP_LINE;
+		val |= IDTPHY_REGM_MCTL_LLOOP;
+	}
+	if (nmode != 0)
+		return (EINVAL);
+
+	err = WRITEREG(utp, IDTPHY_REGO_MCTL, IDTPHY_REGM_MCTL_TLOOP |
+	    IDTPHY_REGM_MCTL_DLOOP | IDTPHY_REGM_MCTL_LLOOP, val);
+	if (err)
+		return (err);
+	utp->loopback = mode;
+
+	return (0);
+}
+
+/*
+ * Set the chip to reflect the current state in utopia.
+ * Assume, that the chip has been reset.
+ */
+static int
+idt77155_set_chip(struct utopia *utp)
+{
+	int err = 0;
+
+	/* set sonet/sdh */
+	err |= idt77155_set_sdh(utp, utp->state & UTP_ST_SDH);
+
+	/* unassigned or idle cells */
+	err |= idt77155_set_unass(utp, utp->state & UTP_ST_UNASS);
+
+	/* loopback */
+	err |= idt77155_set_loopback(utp, utp->loopback);
+
+	/* update carrier state */
+	err |= idt77155_update_carrier(utp);
+
+	/* enable interrupts on LOS */
+	err |= WRITEREG(utp, IDTPHY_REGO_INT,
+	    IDTPHY_REGM_INT_RXSOHI, IDTPHY_REGM_INT_RXSOHI);
+	err |= WRITEREG(utp, IDTPHY_REGO_RSOC,
+	    IDTPHY_REGM_RSOC_LOSI, IDTPHY_REGM_RSOC_LOSI);
+
+	return (err ? EIO : 0);
+}
+
+/*
+ * Reset the chip to reflect the current state of utopia.
+ */
+static int
+idt77155_reset(struct utopia *utp)
+{
+	int err = 0;
+
+	if (!(utp->flags & UTP_FL_NORESET)) {
+		err |= WRITEREG(utp, IDTPHY_REGO_MRID, IDTPHY_REGM_MRID_RESET,
+		    IDTPHY_REGM_MRID_RESET);
+		err |= WRITEREG(utp, IDTPHY_REGO_MRID, IDTPHY_REGM_MRID_RESET,
+		    0);
+	}
+
+	err |= idt77155_set_chip(utp);
+
+	return (err ? EIO : 0);
+}
+
+static const struct utopia_chip chip_idt77155 = {
+	UTP_TYPE_IDT77155,
+	"IDT77155",
+	0x80,
+	idt77155_reset,
+	idt77155_set_sdh,
+	idt77155_set_unass,
+	idt77155_set_noscramb,
+	idt77155_update_carrier,
+	idt77155_set_loopback,
+	idt77155_intr,
+};
+
 static int
 unknown_reset(struct utopia *utp __unused)
 {
@@ -805,7 +1017,16 @@ utopia_start(struct utopia *utp)
 		break;
 
 	  case SUNI_REGM_MRESET_TYPE_LITE:
-		utp->chip = &chip_lite;
+		/* this may be either a SUNI LITE or a IDT77155 *
+		 * Read register 0x70. The SUNI doesn't have it */
+		n = 1;
+		if ((err = READREGS(utp, IDTPHY_REGO_RBER, &reg, &n)) != 0)
+			return (err);
+		if ((reg & ~IDTPHY_REGM_RBER_RESV) ==
+		    (IDTPHY_REGM_RBER_FAIL | IDTPHY_REGM_RBER_WARN))
+			utp->chip = &chip_idt77155;
+		else
+			utp->chip = &chip_lite;
 		break;
 
 	  case SUNI_REGM_MRESET_TYPE_ULTRA:
