@@ -14,7 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
+ *    must display the following acknowledgment:
  *	This product includes software developed by the University of
  *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
@@ -100,7 +100,7 @@
  *	Maps consist of an ordered doubly-linked list of simple
  *	entries; a single hint is used to speed up lookups.
  *
- *	Since portions of maps are specified by start/end addreses,
+ *	Since portions of maps are specified by start/end addresses,
  *	which may not align with existing map entries, all
  *	routines merely "clip" entries to these start/end values.
  *	[That is, an entry is split into two, bordering at a

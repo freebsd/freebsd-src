@@ -14,7 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
+ *    must display the following acknowledgment:
  *	This product includes software developed by the University of
  *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
@@ -475,7 +475,7 @@ vm_page_remove(m)
  *	NOTE: the code below does not lock.  It will operate properly if
  *	an interrupt makes a change, but the generation algorithm will not 
  *	operate properly in an SMP environment where both cpu's are able to run
- *	kernel code simultaniously.
+ *	kernel code simultaneously.
  *
  *	The object must be locked.  No side effects.
  *	This routine may not block.
@@ -612,7 +612,7 @@ vm_page_unqueue(m)
  *
  *	The page coloring optimization attempts to locate a page
  *	that does not overload other nearby pages in the object in
- *	the cpu's L1 or L2 caches.  We need this optmization because 
+ *	the cpu's L1 or L2 caches.  We need this optimization because 
  *	cpu caches tend to be physical caches, while object spaces tend 
  *	to be virtual.
  *
@@ -770,7 +770,7 @@ loop:
 		m = vm_page_select_free(object, pindex, FALSE);
 	} else if (page_req != VM_ALLOC_INTERRUPT) {
 		/*
-		 * Allocateable from cache (non-interrupt only).  On success,
+		 * Allocatable from cache (non-interrupt only).  On success,
 		 * we must free the page and try again, thus ensuring that
 		 * cnt.v_*_free_min counters are replenished.
 		 */
@@ -792,7 +792,7 @@ loop:
 		goto loop;
 	} else {
 		/*
-		 * Not allocateable from cache from interrupt, give up.
+		 * Not allocatable from cache from interrupt, give up.
 		 */
 		splx(s);
 		vm_pageout_deficit++;
@@ -1182,7 +1182,7 @@ vm_page_wire(m)
  *	processes.  This optimization causes one-time-use metadata to be
  *	reused more quickly.
  *
- *	A number of routines use vm_page_unwire() to guarentee that the page
+ *	A number of routines use vm_page_unwire() to guarantee that the page
  *	will go into either the inactive or active queues, and will NEVER
  *	be placed in the cache - for example, just after dirtying a page.
  *	dirty pages in the cache are not allowed.

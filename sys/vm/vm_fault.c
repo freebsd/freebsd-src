@@ -19,7 +19,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
+ *    must display the following acknowledgment:
  *	This product includes software developed by the University of
  *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
@@ -165,7 +165,7 @@ _unlock_things(struct faultstate *fs, int dealloc)
 /*
  *	vm_fault:
  *
- *	Handle a page fault occuring at the given address,
+ *	Handle a page fault occurring at the given address,
  *	requiring the given permissions, in the map specified.
  *	If successful, the page is inserted into the
  *	associated physical map.
@@ -294,7 +294,7 @@ RetryFault:;
 			 * vm_page_t->busy because the vm_pager may be using
 			 * vm_page_t->busy for pageouts ( and even pageins if
 			 * it is the vnode pager ), and we could end up trying
-			 * to pagein and pageout the same page simultaniously.
+			 * to pagein and pageout the same page simultaneously.
 			 *
 			 * We can theoretically allow the busy case on a read
 			 * fault if the page is marked valid, but since such
@@ -626,7 +626,7 @@ readrest:
 				 */
 				(fs.object->ref_count == 1) &&
 				/*
-				 * Noone else can look this object up
+				 * None else can look this object up
 				 */
 				(fs.object->handle == NULL) &&
 				/*

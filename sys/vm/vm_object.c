@@ -14,7 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
+ *    must display the following acknowledgment:
  *	This product includes software developed by the University of
  *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
@@ -927,7 +927,7 @@ vm_object_shadow(object, offset, length)
 	 * of reference count.
 	 *
 	 * Try to optimize the result object's page color when shadowing
-	 * in order to maintain page coloring consistancy in the combined 
+	 * in order to maintain page coloring consistency in the combined 
 	 * shadowed object.
 	 */
 	result->backing_object = source;
@@ -977,7 +977,7 @@ vm_object_backing_scan(vm_object_t object, int op)
 
 	if (op & OBSC_TEST_ALL_SHADOWED) {
 		/*
-		 * We do not want to have to test for the existance of
+		 * We do not want to have to test for the existence of
 		 * swap pages in the backing object.  XXX but with the
 		 * new swapper this would be pretty easy to do.
 		 *
