@@ -55,8 +55,8 @@ struct protosw		atalksw[] = {
 	 * they be included in the kernel.
 	 */
 	0,		ddp_output,	0,		0,
-	/* socket-protocol interface. */
-	ddp_usrreq,
+	/* socket-protocol interface. deprecated */
+	NULL,
 	/* utility routines. */
 	ddp_init,	0,		0,		0,
     },

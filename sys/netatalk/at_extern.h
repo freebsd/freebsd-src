@@ -14,15 +14,12 @@ extern void	aarptfree	__P((struct aarptab *));
 #endif
 
 extern void	aarp_clean	__P((void));
-extern int	at_control	__P(( int cmd,
+extern int	at_control	__P(( struct socket *so,
+					int cmd,
 					caddr_t data,
 					struct ifnet *ifp,
 					struct proc *p ));
 extern u_short	at_cksum	__P(( struct mbuf *m, int skip));
-extern int	ddp_usrreq	__P(( struct socket *so, int req,
-					struct mbuf *m,
-					struct mbuf  *addr,
-					struct mbuf *rights));
 extern void	ddp_init	__P((void ));
 extern struct ifaddr *at_ifawithnet	__P((struct sockaddr_at *,
 						struct ifaddrhead *));
