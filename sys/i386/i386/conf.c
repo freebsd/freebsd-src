@@ -41,7 +41,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.33 1994/09/21 01:33:00 jkh Exp $
+ *	$Id: conf.c,v 1.34 1994/09/28 22:44:35 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -463,11 +463,13 @@ d_open_t pcaopen;
 d_close_t pcaclose;
 d_rdwr_t pcawrite;
 d_ioctl_t pcaioctl;
+d_select_t pcaselect;
 #else
 #define pcaopen		(d_open_t *)enxio
 #define pcaclose	(d_close_t *)enxio
 #define pcawrite	(d_rdwr_t *)enxio
 #define pcaioctl	(d_ioctl_t *)enxio
+#define pcaselect	(d_select_t *)enxio
 #endif
 
 #include "mse.h"
@@ -625,7 +627,7 @@ struct cdevsw	cdevsw[] =
  	  bpfselect,	nommap,		NULL },
  	{ pcaopen,      pcaclose,       noread,         pcawrite,       /*24*/
  	  pcaioctl,     nostop,         nullreset,      NULL,	/* pcaudio */
- 	  seltrue,	nommap,		NULL },
+ 	  pcaselect,	nommap,		NULL },
 	{ (d_open_t *)enxio,	(d_close_t *)enxio,	(d_rdwr_t *)enxio, /*25*/
 	  (d_rdwr_t *)enxio,	(d_ioctl_t *)enxio,	(d_stop_t *)enxio, /* unused */
 	  (d_reset_t *)enxio,	NULL,			(d_select_t *)enxio,
