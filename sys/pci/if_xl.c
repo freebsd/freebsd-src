@@ -1308,6 +1308,7 @@ xl_attach(dev)
 
 	mtx_init(&sc->xl_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF | MTX_RECURSE);
+	ifmedia_init(&sc->ifmedia, 0, xl_ifmedia_upd, xl_ifmedia_sts);
 
 	sc->xl_flags = 0;
 	if (pci_get_device(dev) == TC_DEVICEID_HURRICANE_555)
@@ -1625,9 +1626,6 @@ xl_attach(dev)
 	/*
 	 * Do ifmedia setup.
 	 */
-
-	ifmedia_init(&sc->ifmedia, 0, xl_ifmedia_upd, xl_ifmedia_sts);
-
 	if (sc->xl_media & XL_MEDIAOPT_BT) {
 		if (bootverbose)
 			printf("xl%d: found 10baseT\n", sc->xl_unit);
@@ -1726,10 +1724,12 @@ done:
 	 */
 	ether_ifattach(ifp, eaddr);
 
+	/* Hook interrupt last to avoid having to lock softc */
 	error = bus_setup_intr(dev, sc->xl_irq, INTR_TYPE_NET,
 	    xl_intr, sc, &sc->xl_intrhand);
 	if (error) {
 		printf("xl%d: couldn't set up irq\n", unit);
+		ether_ifdetach(ifp);
 		goto fail;
 	}
 
@@ -1740,6 +1740,13 @@ fail:
 	return(error);
 }
 
+/*
+ * Shutdown hardware and free up resources. This can be called any
+ * time after the mutex has been initialized. It is called in both
+ * the error case in attach and the normal detach case so it needs
+ * to be careful about only freeing resources that have actually been
+ * allocated.
+ */
 static int
 xl_detach(dev)
 	device_t		dev;
@@ -1761,16 +1768,16 @@ xl_detach(dev)
 		res = SYS_RES_IOPORT;
 	}
 
+	/* These should only be active if attach succeeded */
 	if (device_is_alive(dev)) {
-		if (bus_child_present(dev)) {
-			xl_reset(sc);
-			xl_stop(sc);
-		}
+		xl_reset(sc);
+		xl_stop(sc);
 		ether_ifdetach(ifp);
-		device_delete_child(dev, sc->xl_miibus);
-		bus_generic_detach(dev);
-		ifmedia_removeall(&sc->ifmedia);
 	}
+	if (sc->xl_miibus)
+		device_delete_child(dev, sc->xl_miibus);
+	bus_generic_detach(dev);
+	ifmedia_removeall(&sc->ifmedia);
 
 	if (sc->xl_intrhand)
 		bus_teardown_intr(dev, sc->xl_irq, sc->xl_intrhand);

@@ -2115,6 +2115,7 @@ ti_attach(dev)
 
 	mtx_init(&sc->ti_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF | MTX_RECURSE);
+	ifmedia_init(&sc->ifmedia, IFM_IMASK, ti_ifmedia_upd, ti_ifmedia_sts);
 	sc->arpcom.ac_if.if_capabilities = IFCAP_HWCSUM | IFCAP_VLAN_HWTAGGING;
 	sc->arpcom.ac_if.if_capenable = sc->arpcom.ac_if.if_capabilities;
 
@@ -2259,7 +2260,6 @@ ti_attach(dev)
 	ifp->if_snd.ifq_maxlen = TI_TX_RING_CNT - 1;
 
 	/* Set up ifmedia support. */
-	ifmedia_init(&sc->ifmedia, IFM_IMASK, ti_ifmedia_upd, ti_ifmedia_sts);
 	if (sc->ti_copper) {
 		/*
 		 * Copper cards allow manual 10/100 mode selection,
@@ -2310,11 +2310,13 @@ ti_attach(dev)
 	 */
 	ether_ifattach(ifp, sc->arpcom.ac_enaddr);
 
+	/* Hook interrupt last to avoid having to lock softc */
 	error = bus_setup_intr(dev, sc->ti_irq, INTR_TYPE_NET,
 	   ti_intr, sc, &sc->ti_intrhand);
 
 	if (error) {
 		printf("ti%d: couldn't set up irq\n", unit);
+		ether_ifdetach(ifp);
 		goto fail;
 	}
 
@@ -2352,7 +2354,13 @@ ti_unref_special(device_t dev)
 	return(0);
 }
 
-
+/*
+ * Shutdown hardware and free up resources. This can be called any
+ * time after the mutex has been initialized. It is called in both
+ * the error case in attach and the normal detach case so it needs
+ * to be careful about only freeing resources that have actually been
+ * allocated.
+ */
 static int
 ti_detach(dev)
 	device_t		dev;
@@ -2368,13 +2376,13 @@ ti_detach(dev)
 	TI_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 
+	/* These should only be active if attach succeeded */
 	if (device_is_alive(dev)) {
-		if (bus_child_present(dev))
-			ti_stop(sc);
+		ti_stop(sc);
 		ether_ifdetach(ifp);
 		bus_generic_detach(dev);
-		ifmedia_removeall(&sc->ifmedia);
 	}
+	ifmedia_removeall(&sc->ifmedia);
 
 	if (sc->ti_intrhand)
 		bus_teardown_intr(dev, sc->ti_irq, sc->ti_intrhand);
