@@ -462,6 +462,7 @@ ktrops(curp, p, ops, facs, vp)
 			p->p_tracep = vp;
 		}
 		p->p_traceflag |= facs;
+		/* XXX: Not safe */
 		if (curp->p_ucred->cr_uid == 0)
 			p->p_traceflag |= KTRFAC_ROOT;
 	} else {
