@@ -11,17 +11,12 @@
  * incurred with its use.
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
+#include "sysinstall.h"
 #include <stdarg.h>
 #include <fcntl.h>
 #include <sys/errno.h>
 #include <sys/ioctl.h>
 #include <machine/console.h>
-
-#include "sysinstall.h"
 
 #define VTY_STATUS_LINE    24
 #define TTY_STATUS_LINE    23

@@ -4,12 +4,10 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp.c,v 1.20 1996/12/11 19:35:26 jkh Exp $
+ * $Id: ftp.c,v 1.21 1997/01/01 12:36:06 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
- * Copyright (c) 1995
- * 	Gary J Palmer. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
