@@ -992,20 +992,17 @@ chn_abort(pcm_channel *c)
     	snd_dbuf *b = &c->buffer;
     	snd_dbuf *bs = &c->buffer2nd;
 
-	if (!b->dl) return 0;
+	if (!b->dl)
+		return 0;
 	c->flags |= CHN_F_ABORTING;
 	c->flags &= ~CHN_F_TRIGGERED;
-	while (!b->underflow && (b->dl > 0) && (cnt < 20)) {
-		tsleep((caddr_t)b, PRIBIO, "pcmabr", hz / 20);
-		cnt++;
-	}
+	cnt = 10;
+	while (!b->underflow && (cnt-- > 0))
+		tsleep((caddr_t)b, PRIBIO | PCATCH, "pcmabr", hz / 50);
 	chn_trigger(c, PCMTRIG_ABORT);
 	b->dl = 0;
-	if (c->direction == PCMDIR_PLAY)
-		chn_checkunderflow(c);
-	else
-		chn_dmaupdate(c);
-    	missing = bs->rl;
+	chn_dmaupdate(c);
+    	missing = bs->rl + b->rl;
     	return missing;
 }
 
@@ -1018,33 +1015,39 @@ chn_abort(pcm_channel *c)
 int
 chn_flush(pcm_channel *c)
 {
-    	int ret, count = 50, s;
+    	int ret, count, s, resid, resid_p;
     	snd_dbuf *b = &c->buffer;
+    	snd_dbuf *bs = &c->buffer2nd;
 
     	DEB(printf("chn_flush c->flags 0x%08x\n", c->flags));
     	c->flags |= CHN_F_CLOSING;
-	c->flags &= ~CHN_F_TRIGGERED;
     	if (c->direction == PCMDIR_REC)
 		chn_abort(c);
     	else if (b->dl) {
-		while ((b->rl > 0) && !b->underflow && (count-- > 0)) {
+		resid_p = resid = b->rl + bs->rl;
+		count = 10;
+		while ((count > 0) && (resid > 0) && !b->underflow) {
 			/* still pending output data. */
 			ret = tsleep((caddr_t)b, PRIBIO | PCATCH, "pcmflu", hz / 10);
-			s = spltty();
-			chn_dmaupdate(c);
-			splx(s);
-			DEB(printf("chn_flush: now rl = %d, fl = %d\n", b->rl, b->fl));
 			if (ret == EINTR || ret == ERESTART) {
 	    			DEB(printf("chn_flush: tsleep returns %d\n", ret));
 	    			return ret;
 			}
-    		}
+ 			s = spltty();
+			chn_dmaupdate(c);
+			splx(s);
+			DEB(printf("chn_flush: now rl = %d, fl = %d\n", b->rl, b->fl));
+			resid = b->rl + bs->rl;
+			if (resid >= resid_p)
+				count--;
+			resid_p = resid;
+   		}
+		if (count == 0)
+			DEB(printf("chn_flush: timeout flushing dbuf_out, cnt 0x%x flags 0x%x\n", b->rl, c->flags));
+    		if (c->direction == PCMDIR_PLAY && b->dl)
+			chn_abort(c);
 	}
-	if (count == 0)
-		DEB(printf("chn_flush: timeout flushing dbuf_out, cnt 0x%x flags 0x%x\n", b->rl, c->flags));
     	c->flags &= ~CHN_F_CLOSING;
-    	if (c->direction == PCMDIR_PLAY && b->dl)
-		chn_abort(c);
     	return 0;
 }
 
