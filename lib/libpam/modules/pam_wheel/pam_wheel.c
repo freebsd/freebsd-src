@@ -42,13 +42,13 @@
 #include <pam_mod_misc.h>
 
 enum { PAM_OPT_DENY=PAM_OPT_STD_MAX, PAM_OPT_GROUP, PAM_OPT_TRUST,
-	PAM_OPT_USE_UID };
+	PAM_OPT_AUTH_AS_SELF };
 
 static struct opttab other_options[] = {
 	{ "deny",		PAM_OPT_DENY },
 	{ "group",		PAM_OPT_GROUP },
 	{ "trust",		PAM_OPT_TRUST },
-	{ "use_uid",		PAM_OPT_USE_UID },
+	{ "auth_as_self",	PAM_OPT_AUTH_AS_SELF },
 	{ NULL, 0 }
 };
 
@@ -92,8 +92,8 @@ pam_sm_authenticate(pam_handle_t * pamh, int flags, int argc, const char **argv)
 
 	PAM_LOG("Not superuser");
 
-	if (pam_test_option(&options, PAM_OPT_USE_UID, NULL)) {
-		temppwd = getpwuid(getuid());
+	if (pam_test_option(&options, PAM_OPT_AUTH_AS_SELF, NULL)) {
+		temppwd = getpwnam(getlogin());
 		if (temppwd == NULL)
 			PAM_RETURN(PAM_SERVICE_ERR);
 		fromsu = temppwd->pw_name;
