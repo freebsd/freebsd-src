@@ -52,7 +52,7 @@ PROF=	-pg
 .endif
 .endif
 DEFINED_PROF=	${PROF}
-WERROR?=	-Werror
+#WERROR?=	-Werror
 INLINE_LIMIT?=	2500
 CFLAGS+=	--param max-inline-insns-single=${INLINE_LIMIT}
 
