@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: actypes.h - Common data types for the entire ACPI subsystem
- *       $Revision: 187 $
+ *       $Revision: 192 $
  *
  *****************************************************************************/
 
@@ -159,9 +159,8 @@ typedef NATIVE_UINT                     ACPI_TBLPTR;
 typedef UINT64                          ACPI_IO_ADDRESS;
 typedef UINT64                          ACPI_PHYSICAL_ADDRESS;
 
-#define ALIGNED_ADDRESS_BOUNDARY        0x00000008
-
-/* (No hardware alignment support in IA64) */
+#define ALIGNED_ADDRESS_BOUNDARY        0x00000008      /* No hardware alignment support in IA64 */
+#define ACPI_USE_NATIVE_DIVIDE                          /* Native 64-bit integer support */
 
 
 #elif _IA16
@@ -192,6 +191,7 @@ typedef char                            *ACPI_PHYSICAL_ADDRESS;
 
 #define ALIGNED_ADDRESS_BOUNDARY        0x00000002
 #define _HW_ALIGNMENT_SUPPORT
+#define ACPI_USE_NATIVE_DIVIDE                          /* No 64-bit integers, ok to use native divide */
 
 /*
  * (16-bit only) internal integers must be 32-bits, so
@@ -287,10 +287,17 @@ typedef void*                           ACPI_HANDLE;    /* Actually a ptr to an 
 
 typedef struct
 {
-    UINT32                                  Lo;
-    UINT32                                  Hi;
+    UINT32                      Lo;
+    UINT32                      Hi;
 
 } UINT64_STRUCT;
+
+typedef union
+{
+    UINT64                      Full;
+    UINT64_STRUCT               Part;
+
+} UINT64_OVERLAY;
 
 
 /*
@@ -311,6 +318,9 @@ typedef UINT32                          ACPI_INTEGER;
 #define ACPI_MAX_BCD_DIGITS             8
 #define ACPI_MAX_DECIMAL_DIGITS         10
 
+#define ACPI_USE_NATIVE_DIVIDE          /* Use compiler native 32-bit divide */
+
+
 #else
 
 /* 64-bit integers */
@@ -322,6 +332,9 @@ typedef UINT64                          ACPI_INTEGER;
 #define ACPI_MAX_BCD_DIGITS             16
 #define ACPI_MAX_DECIMAL_DIGITS         19
 
+#ifdef _IA64
+#define ACPI_USE_NATIVE_DIVIDE          /* Use compiler native 64-bit divide */
+#endif
 #endif
 
 
@@ -380,7 +393,7 @@ typedef UINT64                          ACPI_INTEGER;
 #define ACPI_NOTIFY_DEVICE_CHECK_LIGHT  (UINT8) 4
 #define ACPI_NOTIFY_FREQUENCY_MISMATCH  (UINT8) 5
 #define ACPI_NOTIFY_BUS_MODE_MISMATCH   (UINT8) 6
-#define ACPI_NOTIFY_POWER_FAULT	        (UINT8) 7
+#define ACPI_NOTIFY_POWER_FAULT         (UINT8) 7
 
 
 /*
@@ -544,24 +557,36 @@ typedef UINT32                          ACPI_EVENT_TYPE;
 #define ACPI_EVENT_EDGE_TRIGGERED       (ACPI_EVENT_TYPE) 2
 
 /*
+ * GPEs
+ */
+#define ACPI_EVENT_ENABLE               0x1
+#define ACPI_EVENT_WAKE_ENABLE	        0x2
+
+#define ACPI_EVENT_DISABLE              0x1
+#define ACPI_EVENT_WAKE_DISABLE         0x2
+
+
+/*
  * AcpiEvent Status:
  * -------------
  * The encoding of ACPI_EVENT_STATUS is illustrated below.
  * Note that a set bit (1) indicates the property is TRUE
  * (e.g. if bit 0 is set then the event is enabled).
- * +---------------+-+-+
- * |   Bits 31:2   |1|0|
- * +---------------+-+-+
- *          |       | |
- *          |       | +- Enabled?
- *          |       +--- Set?
+ * +-------------+-+-+-+
+ * |   Bits 31:3 |2|1|0|
+ * +-------------+-+-+-+
+ *          |     | | |
+ *          |     | | +- Enabled?
+ *          |     | +--- Enabled for wake?
+ *          |     +----- Set?
  *          +----------- <Reserved>
  */
 typedef UINT32                          ACPI_EVENT_STATUS;
 
 #define ACPI_EVENT_FLAG_DISABLED        (ACPI_EVENT_STATUS) 0x00
 #define ACPI_EVENT_FLAG_ENABLED         (ACPI_EVENT_STATUS) 0x01
-#define ACPI_EVENT_FLAG_SET             (ACPI_EVENT_STATUS) 0x02
+#define ACPI_EVENT_FLAG_WAKE_ENABLED    (ACPI_EVENT_STATUS) 0x02
+#define ACPI_EVENT_FLAG_SET             (ACPI_EVENT_STATUS) 0x04
 
 
 /* Notify types */

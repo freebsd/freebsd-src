@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exresop - AML Interpreter operand/object resolution
- *              $Revision: 37 $
+ *              $Revision: 38 $
  *
  *****************************************************************************/
 
@@ -301,6 +301,7 @@ AcpiExResolveOperands (
                 case AML_INDEX_OP:
                 case AML_ARG_OP:
                 case AML_LOCAL_OP:
+                case AML_REVISION_OP:
 
                     DEBUG_ONLY_MEMBERS (ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
                         "Reference Opcode: %s\n", OpInfo->Name)));

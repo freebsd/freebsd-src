@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exresnte - AML Interpreter object resolution
- *              $Revision: 39 $
+ *              $Revision: 41 $
  *
  *****************************************************************************/
 
@@ -214,8 +214,8 @@ AcpiExResolveNodeToValue (
 
         if (ACPI_TYPE_PACKAGE != ValDesc->Common.Type)
         {
-            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Object not a package, type %X\n",
-                ValDesc->Common.Type));
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Object not a Package, type %s\n",
+                AcpiUtGetTypeName (ValDesc->Common.Type)));
             return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
         }
 
@@ -230,8 +230,8 @@ AcpiExResolveNodeToValue (
 
         if (ACPI_TYPE_BUFFER != ValDesc->Common.Type)
         {
-            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Object not a buffer, type %X\n",
-                ValDesc->Common.Type));
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Object not a Buffer, type %s\n",
+                AcpiUtGetTypeName (ValDesc->Common.Type)));
             return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
         }
 
@@ -246,8 +246,8 @@ AcpiExResolveNodeToValue (
 
         if (ACPI_TYPE_STRING != ValDesc->Common.Type)
         {
-            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Object not a string, type %X\n",
-                ValDesc->Common.Type));
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Object not a String, type %s\n",
+                AcpiUtGetTypeName (ValDesc->Common.Type)));
             return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
         }
 
@@ -262,8 +262,8 @@ AcpiExResolveNodeToValue (
 
         if (ACPI_TYPE_INTEGER != ValDesc->Common.Type)
         {
-            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Object not a Number, type %X\n",
-                ValDesc->Common.Type));
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Object not a Integer, type %s\n",
+                AcpiUtGetTypeName (ValDesc->Common.Type)));
             return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
         }
 
@@ -337,6 +337,11 @@ AcpiExResolveNodeToValue (
         case AML_ONES_OP:
 
             TempVal = ACPI_INTEGER_MAX;
+            break;
+
+        case AML_REVISION_OP:
+
+            TempVal = ACPI_CA_VERSION;
             break;
 
         default:

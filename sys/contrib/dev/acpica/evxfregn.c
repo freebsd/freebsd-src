@@ -2,7 +2,7 @@
  *
  * Module Name: evxfregn - External Interfaces, ACPI Operation Regions and
  *                         Address Spaces.
- *              $Revision: 36 $
+ *              $Revision: 38 $
  *
  *****************************************************************************/
 
@@ -163,14 +163,6 @@ AcpiInstallAddressSpaceHandler (
     FUNCTION_TRACE ("AcpiInstallAddressSpaceHandler");
 
 
-    /* Ensure that ACPI has been initialized */
-
-    ACPI_IS_INITIALIZATION_COMPLETE (Status);
-    if (ACPI_FAILURE (Status))
-    {
-        return_ACPI_STATUS (Status);
-    }
-
     /* Parameter validation */
 
     if ((!Device)   ||
@@ -213,17 +205,27 @@ AcpiInstallAddressSpaceHandler (
         {
         case ACPI_ADR_SPACE_SYSTEM_MEMORY:
             Handler = AcpiExSystemMemorySpaceHandler;
-            Setup = AcpiEvSystemMemoryRegionSetup;
+            Setup   = AcpiEvSystemMemoryRegionSetup;
             break;
 
         case ACPI_ADR_SPACE_SYSTEM_IO:
             Handler = AcpiExSystemIoSpaceHandler;
-            Setup = AcpiEvIoSpaceRegionSetup;
+            Setup   = AcpiEvIoSpaceRegionSetup;
             break;
 
         case ACPI_ADR_SPACE_PCI_CONFIG:
             Handler = AcpiExPciConfigSpaceHandler;
-            Setup = AcpiEvPciConfigRegionSetup;
+            Setup   = AcpiEvPciConfigRegionSetup;
+            break;
+
+        case ACPI_ADR_SPACE_CMOS:
+            Handler = AcpiExCmosSpaceHandler;
+            Setup   = AcpiEvCmosRegionSetup;
+            break;
+
+        case ACPI_ADR_SPACE_PCI_BAR_TARGET:
+            Handler = AcpiExPciBarSpaceHandler;
+            Setup   = AcpiEvPciBarRegionSetup;
             break;
 
         default:
@@ -400,14 +402,6 @@ AcpiRemoveAddressSpaceHandler (
 
     FUNCTION_TRACE ("AcpiRemoveAddressSpaceHandler");
 
-
-    /* Ensure that ACPI has been initialized */
-
-    ACPI_IS_INITIALIZATION_COMPLETE (Status);
-    if (ACPI_FAILURE (Status))
-    {
-        return_ACPI_STATUS (Status);
-    }
 
     /* Parameter validation */
 

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: evrgnini- ACPI AddressSpace (OpRegion) init
- *              $Revision: 46 $
+ *              $Revision: 47 $
  *
  *****************************************************************************/
 
@@ -367,6 +367,71 @@ AcpiEvPciConfigRegionSetup (
     }
 
     *RegionContext = PciId;
+    return_ACPI_STATUS (AE_OK);
+}
+
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiEvPciBarRegionSetup
+ *
+ * PARAMETERS:  RegionObj           - region we are interested in
+ *              Function            - start or stop
+ *              HandlerContext      - Address space handler context
+ *              RegionContext       - Region specific context
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Do any prep work for region handling
+ *
+ * MUTEX:       Assumes namespace is not locked
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiEvPciBarRegionSetup (
+    ACPI_HANDLE             Handle,
+    UINT32                  Function,
+    void                    *HandlerContext,
+    void                    **RegionContext)
+{
+
+    FUNCTION_TRACE ("EvPciBarRegionSetup");
+
+
+    return_ACPI_STATUS (AE_OK);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiEvCmosRegionSetup
+ *
+ * PARAMETERS:  RegionObj           - region we are interested in
+ *              Function            - start or stop
+ *              HandlerContext      - Address space handler context
+ *              RegionContext       - Region specific context
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Do any prep work for region handling
+ *
+ * MUTEX:       Assumes namespace is not locked
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiEvCmosRegionSetup (
+    ACPI_HANDLE             Handle,
+    UINT32                  Function,
+    void                    *HandlerContext,
+    void                    **RegionContext)
+{
+
+    FUNCTION_TRACE ("EvCmosRegionSetup");
+
+
     return_ACPI_STATUS (AE_OK);
 }
 

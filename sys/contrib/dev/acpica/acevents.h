@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acevents.h - Event subcomponent prototypes and defines
- *       $Revision: 65 $
+ *       $Revision: 66 $
  *
  *****************************************************************************/
 
@@ -248,6 +248,20 @@ AcpiEvIoSpaceRegionSetup (
 
 ACPI_STATUS
 AcpiEvPciConfigRegionSetup (
+    ACPI_HANDLE             Handle,
+    UINT32                  Function,
+    void                    *HandlerContext,
+    void                    **RegionContext);
+
+ACPI_STATUS
+AcpiEvCmosRegionSetup (
+    ACPI_HANDLE             Handle,
+    UINT32                  Function,
+    void                    *HandlerContext,
+    void                    **RegionContext);
+
+ACPI_STATUS
+AcpiEvPciBarRegionSetup (
     ACPI_HANDLE             Handle,
     UINT32                  Function,
     void                    *HandlerContext,

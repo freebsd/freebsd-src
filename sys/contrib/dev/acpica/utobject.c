@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: utobject - ACPI object create/delete/size/cache routines
- *              $Revision: 54 $
+ *              $Revision: 56 $
  *
  *****************************************************************************/
 
@@ -217,7 +217,9 @@ AcpiUtValidInternalObject (
 
     if (AcpiTbSystemTablePointer (Object))
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "**** Object %p is a Pcode Ptr\n", Object));
+        ACPI_DEBUG_PRINT (
+            (ACPI_DB_INFO, "**** Object %p points into an ACPI table\n", 
+            Object));
         return (FALSE);
     }
 
@@ -362,56 +364,6 @@ AcpiUtDeleteObjectCache (
     return_VOID;
 }
 
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiUtInitStaticObject
- *
- * PARAMETERS:  ObjDesc             - Pointer to a "static" object - on stack
- *                                    or in the data segment.
- *
- * RETURN:      None.
- *
- * DESCRIPTION: Initialize a static object.  Sets flags to disallow dynamic
- *              deletion of the object.
- *
- ******************************************************************************/
-
-void
-AcpiUtInitStaticObject (
-    ACPI_OPERAND_OBJECT     *ObjDesc)
-{
-
-    FUNCTION_TRACE_PTR ("UtInitStaticObject", ObjDesc);
-
-
-    if (!ObjDesc)
-    {
-        return_VOID;
-    }
-
-
-    /*
-     * Clear the entire descriptor
-     */
-    MEMSET ((void *) ObjDesc, 0, sizeof (ACPI_OPERAND_OBJECT));
-
-
-    /*
-     * Initialize the header fields
-     * 1) This is an ACPI_OPERAND_OBJECT  descriptor
-     * 2) The size is the full object (worst case)
-     * 3) The flags field indicates static allocation
-     * 4) Reference count starts at one (not really necessary since the
-     *    object can't be deleted, but keeps everything sane)
-     */
-
-    ObjDesc->Common.DataType        = ACPI_DESC_TYPE_INTERNAL;
-    ObjDesc->Common.Flags           = AOPOBJ_STATIC_ALLOCATION;
-    ObjDesc->Common.ReferenceCount  = 1;
-
-    return_VOID;
-}
 
 
 /*******************************************************************************

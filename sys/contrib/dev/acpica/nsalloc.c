@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: nsalloc - Namespace allocation and deletion utilities
- *              $Revision: 55 $
+ *              $Revision: 57 $
  *
  ******************************************************************************/
 
@@ -140,7 +140,7 @@
 
 ACPI_NAMESPACE_NODE *
 AcpiNsCreateNode (
-    UINT32                  AcpiName)
+    UINT32                  Name)
 {
     ACPI_NAMESPACE_NODE     *Node;
 
@@ -157,7 +157,7 @@ AcpiNsCreateNode (
     ACPI_MEM_TRACKING (AcpiGbl_MemoryLists[ACPI_MEM_LIST_NSNODE].TotalAllocated++);
 
     Node->DataType       = ACPI_DESC_TYPE_NAMED;
-    Node->Name           = AcpiName;
+    Node->Name           = Name;
     Node->ReferenceCount = 1;
 
     return_PTR (Node);
@@ -461,9 +461,9 @@ ACPI_STATUS
 AcpiNsDeleteNamespaceSubtree (
     ACPI_NAMESPACE_NODE     *ParentNode)
 {
-    ACPI_NAMESPACE_NODE     *ChildNode;
     ACPI_OPERAND_OBJECT     *ObjDesc;
-    UINT32                  Level;
+    ACPI_NAMESPACE_NODE     *ChildNode = NULL;
+    UINT32                  Level = 1;
 
 
     FUNCTION_TRACE ("NsDeleteNamespaceSubtree");
@@ -473,10 +473,6 @@ AcpiNsDeleteNamespaceSubtree (
     {
         return_ACPI_STATUS (AE_OK);
     }
-
-
-    ChildNode   = 0;
-    Level       = 1;
 
     /*
      * Traverse the tree of objects until we bubble back up
@@ -493,8 +489,8 @@ AcpiNsDeleteNamespaceSubtree (
         if (ChildNode)
         {
             /*
-             * Found an object - delete the object within
-             * the Value field
+             * Found an object - detach and delete any attached
+             * object.
              */
             ObjDesc = AcpiNsGetAttachedObject (ChildNode);
             if (ObjDesc)

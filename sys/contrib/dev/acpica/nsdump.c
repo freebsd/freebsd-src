@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: nsdump - table dumping routines for debug
- *              $Revision: 99 $
+ *              $Revision: 100 $
  *
  *****************************************************************************/
 
@@ -335,8 +335,8 @@ AcpiNsDumpOneObject (
         /* Name is a Method and its AML offset/length are set */
 
         ACPI_DEBUG_PRINT_RAW ((ACPI_DB_TABLES, " M:%p-%X\n",
-                    ((ACPI_OPERAND_OBJECT  *) ThisNode->Object)->Method.Pcode,
-                    ((ACPI_OPERAND_OBJECT  *) ThisNode->Object)->Method.PcodeLength));
+                    ((ACPI_OPERAND_OBJECT  *) ThisNode->Object)->Method.AmlStart,
+                    ((ACPI_OPERAND_OBJECT  *) ThisNode->Object)->Method.AmlLength));
 
         break;
 
@@ -462,7 +462,7 @@ AcpiNsDumpOneObject (
             break;
 
         case ACPI_TYPE_METHOD:
-            Value = (UINT8 *) ObjDesc->Method.Pcode;
+            Value = (UINT8 *) ObjDesc->Method.AmlStart;
             break;
 
         case INTERNAL_TYPE_REGION_FIELD:
