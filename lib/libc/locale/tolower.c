@@ -38,7 +38,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <stdio.h>
-#include <rune.h>
+#include <runetype.h>
 
 __ct_rune_t
 ___tolower(c)
