@@ -458,7 +458,8 @@ Returns
 .Er EBUSY
 if a mapping is still active for
 .Fa map .
-.It Fn bus_dmamap_load "dmat" "map" "buf" "buflen" "*callback" "..."
+.It Fn bus_dmamap_load "dmat" "map" "buf" "buflen" "*callback" \
+"callback_arg" "flags"
 Creates a mapping in device visible address space of
 .Fa buflen
 bytes of
