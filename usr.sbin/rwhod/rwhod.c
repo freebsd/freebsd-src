@@ -65,6 +65,7 @@ static char sccsid[] = "@(#)rwhod.c	8.1 (Berkeley) 6/6/93";
 #include <syslog.h>
 #include <unistd.h>
 #include <utmp.h>
+#include <pwd.h>
 
 /*
  * This version of Berkeley's rwhod has been modified to use IP multicast
@@ -95,6 +96,9 @@ static char sccsid[] = "@(#)rwhod.c	8.1 (Berkeley) 6/6/93";
  *
  *                  -- Steve Deering, Stanford University, February 1989
  */
+
+#define	UNPRIV_USER		"nobody"
+#define	UNPRIV_GROUP		"daemon"
 
 #define NO_MULTICAST		0	  /* multicast modes */
 #define PER_INTERFACE_MULTICAST	1
@@ -137,15 +141,17 @@ int	s, utmpf;
 
 #define	WHDRSIZE	(sizeof(mywd) - sizeof(mywd.wd_we))
 
+void	 run_as __P((uid_t *, gid_t *));
 int	 configure __P((int));
 void	 getboottime __P((int));
 void	 onalrm __P((int));
 void	 quit __P((char *));
 void	 rt_xaddrs __P((caddr_t, caddr_t, struct rt_addrinfo *));
-int	 verify __P((char *));
+int	 verify __P((char *, int));
 #ifdef DEBUG
 char	*interval __P((int, char *));
-void	 Sendto __P((int, char *, int, int, char *, int));
+void	 Sendto __P((int, const void *, size_t, int,
+		     const struct sockaddr *, int));
 #define	 sendto Sendto
 #endif
 
@@ -160,11 +166,16 @@ main(argc, argv)
 	int on = 1;
 	char *cp;
 	struct sockaddr_in sin;
+	uid_t unpriv_uid;
+	gid_t unpriv_gid;
 
 	if (getuid()) {
 		fprintf(stderr, "rwhod: not super user\n");
 		exit(1);
 	}
+
+	run_as(&unpriv_uid, &unpriv_gid);
+
 	argv++; argc--;
 	while (argc > 0 && *argv[0] == '-') {
 		if (strcmp(*argv, "-m") == 0) {
@@ -234,6 +245,8 @@ usage:		fprintf(stderr, "usage: rwhod [ -m [ ttl ] ]\n");
 		syslog(LOG_ERR, "bind: %m");
 		exit(1);
 	}
+	setgid(unpriv_gid);
+	setuid(unpriv_uid);
 	if (!configure(s))
 		exit(1);
 	signal(SIGALRM, onalrm);
@@ -258,7 +271,7 @@ usage:		fprintf(stderr, "usage: rwhod [ -m [ ttl ] ]\n");
 			continue;
 		if (wd.wd_type != WHODTYPE_STATUS)
 			continue;
-		if (!verify(wd.wd_hostname)) {
+		if (!verify(wd.wd_hostname, sizeof wd.wd_hostname)) {
 			syslog(LOG_WARNING, "malformed host name from %x",
 				from.sin_addr);
 			continue;
@@ -300,22 +313,47 @@ usage:		fprintf(stderr, "usage: rwhod [ -m [ ttl ] ]\n");
 	}
 }
 
+
+void
+run_as(uid, gid)
+	uid_t *uid;
+	gid_t *gid;
+{
+	struct passwd *pw;
+
+	pw = getpwnam(UNPRIV_USER);
+	if (!pw) {
+		syslog(LOG_ERR, "getpwnam(%s): %m", UNPRIV_USER);
+		exit(1);
+	}
+	*uid = pw->pw_uid;
+
+	pw = getpwnam(UNPRIV_GROUP);
+	if (!pw) {
+		syslog(LOG_ERR, "getpwnam(%s): %m", UNPRIV_GROUP);
+		exit(1);
+	}
+	*gid = pw->pw_gid;
+}
+
 /*
  * Check out host name for unprintables
  * and other funnies before allowing a file
  * to be created.  Sorry, but blanks aren't allowed.
  */
 int
-verify(name)
+verify(name, maxlen)
 	register char *name;
+	register int   maxlen;
 {
 	register int size = 0;
 
-	while (*name) {
+	while (*name && size < maxlen) {
 		if (!isascii(*name) || !(isalnum(*name) || ispunct(*name)))
 			return (0);
 		name++, size++;
 	}
+	*name = '\0';
 	return (size > 0);
 }
 
@@ -617,16 +655,18 @@ configure(s)
 void
 Sendto(s, buf, cc, flags, to, tolen)
 	int s;
-	char *buf;
-	int cc, flags;
-	char *to;
+	const void *buf;
+	size_t cc;
+	int flags;
+	const struct sockaddr *to;
 	int tolen;
 {
 	register struct whod *w = (struct whod *)buf;
 	register struct whoent *we;
 	struct sockaddr_in *sin = (struct sockaddr_in *)to;
 
-	printf("sendto %x.%d\n", ntohl(sin->sin_addr), ntohs(sin->sin_port));
+	printf("sendto %x.%d\n", ntohl(sin->sin_addr.s_addr),
+				 ntohs(sin->sin_port));
 	printf("hostname %s %s\n", w->wd_hostname,
 	   interval(ntohl(w->wd_sendtime) - ntohl(w->wd_boottime), "  up"));
 	printf("load %4.2f, %4.2f, %4.2f\n",
