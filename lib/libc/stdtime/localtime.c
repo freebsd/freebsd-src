@@ -70,7 +70,12 @@ __FBSDID("$FreeBSD$");
 
 static char		wildabbr[] = "WILDABBR";
 
-static const char	gmt[] = "GMT";
+/*
+ * In June 2004 it was decided UTC was a more appropriate default time
+ * zone than GMT.
+ */
+
+static const char	gmt[] = "UTC";
 
 struct ttinfo {				/* time type information */
 	long		tt_gmtoff;	/* GMT offset in seconds */
