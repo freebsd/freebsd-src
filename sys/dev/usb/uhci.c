@@ -1,5 +1,5 @@
 /*	$NetBSD: uhci.c,v 1.22 1999/01/08 11:58:25 augustss Exp $	*/
-/*	FreeBSD $Id: uhci.c,v 1.6 1999/01/07 23:31:33 n_hibma Exp $ */
+/*	FreeBSD $Id: uhci.c,v 1.7 1999/01/10 18:42:51 n_hibma Exp $ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -313,6 +313,8 @@ uhci_init(sc)
 	uhci_run(sc, 0);			/* stop the controller */
 	UWRITE2(sc, UHCI_INTR, 0);		/* disable interrupts */
 
+	uhci_busreset(sc);
+
 	/* Allocate and initialize real frame array. */
 	r = usb_allocmem(sc->sc_dmatag, 
 			 UHCI_FRAMELIST_COUNT * sizeof(uhci_physaddr_t),
@@ -322,8 +324,6 @@ uhci_init(sc)
 	sc->sc_pframes = KERNADDR(&dma);
 	UWRITE2(sc, UHCI_FRNUM, 0);		/* set frame number to 0 */
 	UWRITE4(sc, UHCI_FLBASEADDR, DMAADDR(&dma)); /* set frame list */
-
-	uhci_busreset(sc);
 
 	/* Allocate the dummy QH where bulk traffic will be queued. */
 	bsqh = uhci_alloc_sqh(sc);
