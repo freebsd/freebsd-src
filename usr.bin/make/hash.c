@@ -58,7 +58,6 @@ __FBSDID("$FreeBSD$");
  * Forward references to local procedures that are used before they're
  * defined:
  */
-
 static void RebuildTable(Hash_Table *);
 
 /*
@@ -86,7 +85,6 @@ static void RebuildTable(Hash_Table *);
  *
  *---------------------------------------------------------
  */
-
 void
 Hash_InitTable(Hash_Table *t, int numBuckets)
 {
