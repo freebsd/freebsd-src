@@ -1,4 +1,4 @@
-/*
+/*-
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -11,10 +11,11 @@
  * Jordan K. Hubbard
  * 29 August 1998
  *
- * $FreeBSD$
- * 
  * The meat of the simple parser.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <stand.h>
 #include <string.h>

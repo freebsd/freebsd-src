@@ -1,6 +1,5 @@
 /*	
- * $FreeBSD$
- * From: $NetBSD: dev_net.c,v 1.12 1997/12/10 20:38:37 gwr Exp $
+ * $NetBSD: dev_net.c,v 1.12 1997/12/10 20:38:37 gwr Exp $
  */
 
 /*-
@@ -39,7 +38,10 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-/*
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
+/*-
  * This module implements a "raw device" interface suitable for
  * use by the stand-alone I/O library NFS code.  This interface
  * does not support any "block" access, and exists only for the
