@@ -50,6 +50,7 @@ ifdef ps|X ! set draw_lines 1 !
 
 ifdef ascii ! define n %1% !
 ifdef latin1 ! define n %1% !
+ifdef koi8-r ! define n %1% !
 ifdef n !
 set nroff 1
 !
