@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_ti.c,v 1.10 1999/07/23 02:10:11 wpaul Exp $
+ *	$Id: if_ti.c,v 1.11 1999/07/23 16:21:43 wpaul Exp $
  */
 
 /*
@@ -131,7 +131,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id: if_ti.c,v 1.10 1999/07/23 02:10:11 wpaul Exp $";
+	"$Id: if_ti.c,v 1.11 1999/07/23 16:21:43 wpaul Exp $";
 #endif
 
 /*
@@ -692,7 +692,7 @@ static void ti_jref(buf, size)
 	if (sc == NULL)
 		panic("ti_jref: can't find softc pointer!");
 
-	if (size != TI_JUMBO_FRAMELEN - ETHER_ALIGN)
+	if (size != TI_JUMBO_FRAMELEN)
 		panic("ti_jref: adjusting refcount of buf of wrong size!");
 
 	/* calculate the slot this buffer belongs to */
@@ -730,7 +730,7 @@ static void ti_jfree(buf, size)
 	if (sc == NULL)
 		panic("ti_jfree: can't find softc pointer!");
 
-	if (size != TI_JUMBO_FRAMELEN - ETHER_ALIGN)
+	if (size != TI_JUMBO_FRAMELEN)
 		panic("ti_jfree: freeing buffer of wrong size!");
 
 	/* calculate the slot this buffer belongs to */
@@ -771,9 +771,7 @@ static int ti_newbuf_std(sc, i, m)
 	struct mbuf		*m_new = NULL;
 	struct ti_rx_desc	*r;
 
-	if (m != NULL) {
-		m_new = m;
-	} else {
+	if (m == NULL) {
 		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
 		if (m_new == NULL) {
 			printf("ti%d: mbuf allocation failed "
@@ -788,6 +786,11 @@ static int ti_newbuf_std(sc, i, m)
 			m_freem(m_new);
 			return(ENOBUFS);
 		}
+		m_new->m_len = m_new->m_pkthdr.len = MCLBYTES;
+	} else {
+		m_new = m;
+		m_new->m_len = m_new->m_pkthdr.len = MCLBYTES;
+		m_new->m_data = m_new->m_ext.ext_buf;
 	}
 
 	m_adj(m_new, ETHER_ALIGN);
@@ -800,7 +803,7 @@ static int ti_newbuf_std(sc, i, m)
 #else
 	r->ti_flags = 0;
 #endif
-	r->ti_len = MCLBYTES - ETHER_ALIGN;
+	r->ti_len = m_new->m_len;
 	r->ti_idx = i;
 
 	return(0);
@@ -818,16 +821,20 @@ static int ti_newbuf_mini(sc, i, m)
 	struct mbuf		*m_new = NULL;
 	struct ti_rx_desc	*r;
 
-	if (m != NULL) {
-		m_new = m;
-	} else {
+	if (m == NULL) {
 		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
 		if (m_new == NULL) {
 			printf("ti%d: mbuf allocation failed "
 			    "-- packet dropped!\n", sc->ti_unit);
 			return(ENOBUFS);
 		}
+		m_new->m_len = m_new->m_pkthdr.len = MHLEN;
+	} else {
+		m_new = m;
+		m_new->m_data = m_new->m_pktdat;
+		m_new->m_len = m_new->m_pkthdr.len = MHLEN;
 	}
+
 	m_adj(m_new, ETHER_ALIGN);
 	r = &sc->ti_rdata->ti_rx_mini_ring[i];
 	sc->ti_cdata.ti_rx_mini_chain[i] = m_new;
@@ -837,7 +844,7 @@ static int ti_newbuf_mini(sc, i, m)
 #ifdef TI_CSUM_OFFLOAD
 	r->ti_flags |= TI_BDFLAG_TCP_UDP_CKSUM|TI_BDFLAG_IP_CKSUM;
 #endif
-	r->ti_len = MHLEN - ETHER_ALIGN;
+	r->ti_len = m_new->m_len;
 	r->ti_idx = i;
 
 	return(0);
@@ -855,9 +862,7 @@ static int ti_newbuf_jumbo(sc, i, m)
 	struct mbuf		*m_new = NULL;
 	struct ti_rx_desc	*r;
 
-	if (m != NULL) {
-		m_new = m;
-	} else {
+	if (m == NULL) {
 		caddr_t			*buf = NULL;
 
 		/* Allocate the mbuf. */
@@ -879,13 +884,18 @@ static int ti_newbuf_jumbo(sc, i, m)
 
 		/* Attach the buffer to the mbuf. */
 		m_new->m_data = m_new->m_ext.ext_buf = (void *)buf;
-		m_new->m_data += ETHER_ALIGN;
 		m_new->m_flags |= M_EXT;
-		m_new->m_ext.ext_size = TI_JUMBO_FRAMELEN - ETHER_ALIGN;
+		m_new->m_len = m_new->m_pkthdr.len =
+		    m_new->m_ext.ext_size = TI_JUMBO_FRAMELEN;
 		m_new->m_ext.ext_free = ti_jfree;
 		m_new->m_ext.ext_ref = ti_jref;
+	} else {
+		m_new = m;
+		m_new->m_data = m_new->m_ext.ext_buf;
+		m_new->m_ext.ext_size = TI_JUMBO_FRAMELEN;
 	}
 
+	m_adj(m, ETHER_ALIGN);
 	/* Set up the descriptor. */
 	r = &sc->ti_rdata->ti_rx_jumbo_ring[i];
 	sc->ti_cdata.ti_rx_jumbo_chain[i] = m_new;
@@ -895,7 +905,7 @@ static int ti_newbuf_jumbo(sc, i, m)
 #ifdef TI_CSUM_OFFLOAD
 	r->ti_flags |= TI_BDFLAG_TCP_UDP_CKSUM|TI_BDFLAG_IP_CKSUM;
 #endif
-	r->ti_len = TI_JUMBO_FRAMELEN - ETHER_ALIGN;
+	r->ti_len = m_new->m_len;
 	r->ti_idx = i;
 
 	return(0);
@@ -1412,7 +1422,7 @@ static int ti_gibinit(sc)
 	rcb = &sc->ti_rdata->ti_info.ti_jumbo_rx_rcb;
 	TI_HOSTADDR(rcb->ti_hostaddr) =
 	    vtophys(&sc->ti_rdata->ti_rx_jumbo_ring);
-	rcb->ti_max_len = TI_JUMBO_FRAMELEN - ETHER_ALIGN;
+	rcb->ti_max_len = TI_JUMBO_FRAMELEN;
 	rcb->ti_flags = 0;
 #ifdef TI_CSUM_OFFLOAD
 	rcb->ti_flags |= TI_RCB_FLAG_TCP_UDP_CKSUM|TI_RCB_FLAG_IP_CKSUM;
