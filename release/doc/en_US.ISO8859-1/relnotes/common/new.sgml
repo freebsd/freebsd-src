@@ -154,10 +154,7 @@
     added.</para>
 
     <para>A number of cleanups and enhancements have been applied to
-    the PCI subsystem.
-    <filename>/usr/share/misc/pci_vendors</filename> now contains a
-    vendor/device database, which can be used by
-    &man.pciconf.8;.</para>
+    the PCI subsystem.</para>
 
     <para arch="i386">The &man.spic.4; driver, which provides access to the jog
     dial device on some Sony laptops, has been added.</para>
@@ -1851,6 +1848,12 @@
     enhancements, <option>-z</option> and <option>-Z</option> flags
     for &man.gzip.1; and &man.compress.1; functionality, and a number
     of bug fixes.</para>
+
+    <para>&man.pciconf.8; now supports a <option>-v</option> option to
+    display the vendor/device information of configured devices,
+    in conjunction with the <option>-l</option> option.  The default
+    vendor/device database can be found at
+    <filename>/usr/share/misc/pci_vendors</filename>. &merged;</para>
 
     <para>The behavior of &man.periodic.8; is now controlled by
     <filename>/etc/defaults/periodic.conf</filename> and
