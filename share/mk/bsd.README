@@ -27,6 +27,9 @@ bsd.subdir.mk		- targets for building subdirectories
 Note, this file is not intended to replace reading through the .mk
 files for anything tricky.
 
+See also make(1), mkdep(1) and `PMake - A Tutorial', 
+located in /usr/share/doc/psd/12.make.
+
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 RANDOM THINGS WORTH KNOWING:
