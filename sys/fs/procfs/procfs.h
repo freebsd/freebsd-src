@@ -37,7 +37,7 @@
  *	@(#)procfs.h	8.9 (Berkeley) 5/14/95
  *
  * From:
- *	$Id: procfs.h,v 1.17 1997/09/07 05:26:16 bde Exp $
+ *	$Id: procfs.h,v 1.18 1997/12/30 08:46:41 bde Exp $
  */
 
 /*
@@ -154,6 +154,9 @@ int procfs_doctl __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct
 int procfs_dostatus __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
 int procfs_domap __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
 int procfs_dotype __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
+
+/* Return 1 if process has special kernel digging privileges */
+int procfs_kmemaccess __P((struct proc *));
 
 /* functions to check whether or not files should be displayed */
 int procfs_validfile __P((struct proc *));
