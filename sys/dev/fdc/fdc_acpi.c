@@ -130,7 +130,7 @@ fdc_acpi_attach(device_t dev)
 	bus = device_get_parent(dev);
 	if (ACPI_FAILURE(ACPI_EVALUATE_OBJECT(bus, dev, "_FDE", NULL, &buf))) {
 		error = ENXIO;
-		goto out;
+		goto out_hintsprobe;
 	}
 
 	/* Parse the output of _FDE in various ways. */
@@ -154,7 +154,7 @@ fdc_acpi_attach(device_t dev)
 			device_printf(dev, "_FDE wrong length: %d\n",
 			    obj->Buffer.Length);
 			error = ENXIO;
-			goto out;
+			goto out_hintsprobe;
 		}
 		break;
 	case ACPI_TYPE_PACKAGE:
@@ -173,17 +173,21 @@ fdc_acpi_attach(device_t dev)
 	default:
 		device_printf(dev, "invalid _FDE type %d\n", obj->Type);
 		error = ENXIO;
-		goto out;
+		goto out_hintsprobe;
 	}
 
 	/* Add fd child devices as specified. */
 	error = fdc_acpi_probe_children(bus, dev, fde);
 
-out:
-	/* If there was a problem, fall back to the hints-based probe. */
+out_hintsprobe:
+	/*
+	 * If there was a problem with the _FDE drive enumeration, fall
+	 * back to the hints-based probe.
+	 */
 	if (error)
 		error = fdc_hints_probe(dev);
 
+out:
 	if (buf.Pointer)
 		free(buf.Pointer, M_TEMP);
 	if (error != 0)
