@@ -318,9 +318,9 @@ devfs_populate(struct devfs_mount *dm)
 				bcopy(pdev->si_name, de->de_symlink, j);
 			} else {
 				de->de_inode = i;
-				de->de_uid = dev->si_uid;
-				de->de_gid = dev->si_gid;
-				de->de_mode = dev->si_mode;
+				de->de_uid = dev->si_devsw->d_uid;
+				de->de_gid = dev->si_devsw->d_gid;
+				de->de_mode = dev->si_devsw->d_mode;
 				de->de_dirent->d_type = DT_CHR;
 			}
 #ifdef MAC
