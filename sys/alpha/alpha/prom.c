@@ -33,7 +33,6 @@
 
 /* __KERNEL_RCSID(0, "$NetBSD: prom.c,v 1.22 1998/02/27 04:03:00 thorpej Exp $"); */
 
-#include <stddef.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
