@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.539.2.3 1999/02/16 00:20:03 brian Exp $
+#	$Id: LINT,v 1.539.2.4 1999/02/20 21:17:50 obrien Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1795,7 +1795,7 @@ device		ppi0	at ppbus?
 device		pps0	at ppbus?
 device		lpbb0	at ppbus?
 
-controller	ppc0	at isa? disable port ? tty irq 7
+device		ppc0	at isa? disable port? tty irq 7
 
 # Kernel BOOTP support 
 
