@@ -2673,15 +2673,14 @@ scsi_read_write(struct ccb_scsiio *csio, u_int32_t retries,
 	u_int8_t cdb_len;
 	/*
 	 * Use the smallest possible command to perform the operation
-	 * as some legacy hardware does not support the 10 byte
-	 * commands.  If any of the lower 5 bits in byte2 is set, we have
-	 * to go with a larger command.
-	 *
+	 * as some legacy hardware does not support the 10 byte commands.
+	 * If any of the bits in byte2 is set, we have to go with a larger
+	 * command.
 	 */
 	if ((minimum_cmd_size < 10)
 	 && ((lba & 0x1fffff) == lba)
 	 && ((block_count & 0xff) == block_count)
-	 && ((byte2 & 0xe0) == 0)) {
+	 && (byte2 == 0)) {
 		/*
 		 * We can fit in a 6 byte cdb.
 		 */
