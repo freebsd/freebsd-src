@@ -1,25 +1,18 @@
                                  FreeBSD
                                  Sup FAQ
 
-$Id$
+$Id: sup.FAQ,v 1.3 1995/01/03 15:54:07 gclarkii Exp $
 
 	SUP is a network based software update tool developed at CMU.  The
 purpose of this document is get the beginner up and running with sup.
 
 	First off you will need to pick up the sup binaries.  The easiest
-way of doing this is to grab the sup_bin.tgz package from:
+way of doing this is to grab the sup.tgz package from:
 
-	ftp.FreeBSD.ORG:~ftp/pub/FreeBSD/packages-1.1
-		(FreeBSD 1.1 or later)
-	ftp.FreeBSD.ORG:~ftp/pub/FreeBSD/packages-1.0
-		(FreeBSD 1.0.2 or earlier)
+	ftp://ftp.FreeBSD.ORG:/pub/FreeBSD/packages/sup.tgz
 
-If you only wish to set up a sup client, you may also simply grab the sup
-binary you see in this directory.  This is generally enough for 99.9% of
-those using sup.
-
-Install the sup package using pkg_add (or the binary) and add the following
-line to your /etc/services file:
+Install the sup package using pkg_add and add the following line to
+your /etc/services file:
 
         sup                 871/tcp        #sup
 
@@ -51,7 +44,7 @@ Thats all there is to it!  Remember that if you're running current,
 which is what you will have if you sup, please join the freebsd-current
 mailing list.  You should also be sure to read:
 
-ftp.FreeBSD.ORG:~ftp/pub/FreeBSD/FAQ/OTHER-FAQS/FreeBSD.current.policy
+	ftp://ftp.FreeBSD.ORG:/pub/FreeBSD/FAQ/current-policy.FAQ
 
 For important information on just what we can and cannot do for you as
 a -current user.  
@@ -92,3 +85,6 @@ ports-print:	/usr/ports/print	printing software
 ports-shells:	/usr/ports/shells	various UN*X shells
 ports-utils:	/usr/ports/utils	miscellaneous utilities
 ports-x11:	/usr/ports/x11		X11 software
+
+
+
