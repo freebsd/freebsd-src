@@ -149,7 +149,7 @@
 #define PACKAGE "binutils"
 
 /* Version number of package */
-/* #define VERSION "2.11.93" */
+/* #define VERSION "2.12" */
 
 /* Define if you have the stpcpy function */
 /* #undef HAVE_STPCPY */

@@ -149,19 +149,22 @@
 #define PACKAGE "gas"
 
 /* Version number of package */
-/* #define VERSION "000427" */
+/* #define VERSION "2.12" */
 
 /* Define if defaulting to ELF on SCO 5. */
 /* #undef SCO_ELF */
 
-/* Use ELF stabs for MIPS, not ECOFF stabs */
-/* #undef MIPS_STABS_ELF */
+/* Using strict COFF? */
+/* #undef STRICTCOFF */
 
 /* Define if default target is PowerPC Solaris. */
 /* #undef TARGET_SOLARIS_COMMENT */
 
 /* Define as 1 if big endian. */
 /* #undef TARGET_BYTES_BIG_ENDIAN */
+
+/* Use ELF stabs for MIPS, not ECOFF stabs */
+/* #undef MIPS_STABS_ELF */
 
 /* Default architecture. */
 /* #undef DEFAULT_ARCH */
@@ -212,7 +215,7 @@
 /* #undef USE_EMULATIONS */
 
 /* Supported emulations. */
-#define EMULATIONS 
+#define EMULATIONS
 
 /* Default emulation. */
 #define DEFAULT_EMULATION ""
@@ -224,16 +227,16 @@
 #define BFD_ASSEMBLER 1
 
 /* Target alias. */
-#define TARGET_ALIAS "powerpc-unknown-freebsd5.0"
+#define TARGET_ALIAS "powerpc-obrien-freebsd5.0"
 
 /* Canonical target. */
-#define TARGET_CANONICAL "powerpc-unknown-freebsd5.0"
+#define TARGET_CANONICAL "powerpc-obrien-freebsd5.0"
 
 /* Target CPU. */
 #define TARGET_CPU "powerpc"
 
 /* Target vendor. */
-#define TARGET_VENDOR "unknown"
+#define TARGET_VENDOR "obrien"
 
 /* Target OS. */
 #define TARGET_OS "freebsd5.0"
