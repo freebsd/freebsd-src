@@ -159,7 +159,7 @@ g_slice_start(struct bio *bp)
 		/* Give the real method a chance to override */
 		if (gsp->start(bp))
 			return;
-		if (g_haveattr_off_t(bp, "GEOM::mediasize",
+		if (g_handleattr_off_t(bp, "GEOM::mediasize",
 		    gsp->slices[index].length))
 			return;
 		if (!strcmp("GEOM::frontstuff", bp->bio_attribute)) {
@@ -171,7 +171,7 @@ g_slice_start(struct bio *bp)
 				t = 0;
 			if (t > gsl->length)
 				t = gsl->length;
-			g_haveattr_off_t(bp, "GEOM::frontstuff", t);
+			g_handleattr_off_t(bp, "GEOM::frontstuff", t);
 			return;
 		}
 #ifdef _KERNEL
@@ -271,7 +271,7 @@ g_slice_new(struct g_class *mp, int slices, struct g_provider *pp, struct g_cons
 	g_attach(cp, pp);
 	error = g_access_rel(cp, 1, 0, 0);
 	if (error) {
-		g_dettach(cp);
+		g_detach(cp);
 		g_destroy_consumer(cp);
 		g_free(gsp->slices);
 		g_free(gp->softc);

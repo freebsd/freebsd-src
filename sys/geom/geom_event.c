@@ -74,14 +74,14 @@ g_silence(void)
 }
 
 void
-g_rattle(void)
+g_waitidle(void)
 {
 
 	g_silence_events = 0;
 	mtx_lock(&Giant);
 	wakeup(&g_silence_events);
 	while (g_pending_events)
-		tsleep(&g_pending_events, PPAUSE, "g_rattle", hz/5);
+		tsleep(&g_pending_events, PPAUSE, "g_waitidle", hz/5);
 	mtx_unlock(&Giant);
 }
 

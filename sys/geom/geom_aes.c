@@ -144,9 +144,9 @@ g_aes_start(struct bio *bp)
 		break;
 	case BIO_GETATTR:
 	case BIO_SETATTR:
-		if (g_haveattr_off_t(bp, "GEOM::mediasize", sc->mediasize))
+		if (g_handleattr_off_t(bp, "GEOM::mediasize", sc->mediasize))
 			return;
-		if (g_haveattr_int(bp, "GEOM::sectorsize", sc->sectorsize))
+		if (g_handleattr_int(bp, "GEOM::sectorsize", sc->sectorsize))
 			return;
 		bp2 = g_clone_bio(bp);
 		bp2->bio_done = g_std_done;
@@ -219,7 +219,7 @@ g_aes_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	g_attach(cp, pp);
 	error = g_access_rel(cp, 1, 0, 0);
 	if (error) {
-		g_dettach(cp);
+		g_detach(cp);
 		g_destroy_consumer(cp);
 		g_destroy_geom(gp);
 		return (NULL);
@@ -258,7 +258,7 @@ g_aes_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	g_access_rel(cp, -1, 0, 0);
 	if (gp->softc != NULL) 
 		return (gp);
-	g_dettach(cp);
+	g_detach(cp);
 	g_destroy_consumer(cp);
 	g_destroy_geom(gp);
 	return (NULL);
@@ -268,7 +268,7 @@ static struct g_class g_aes_class	= {
 	AES_CLASS_NAME,
 	g_aes_taste,
 	NULL,
-	G_CLASS_INITSTUFF
+	G_CLASS_INITIALIZER
 };
 
 DECLARE_GEOM_CLASS(g_aes_class, g_aes);

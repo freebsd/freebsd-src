@@ -180,7 +180,7 @@ static struct g_class g_pc98_class = {
 	PC98_CLASS_NAME,
 	g_pc98_taste,
 	NULL,
-	G_CLASS_INITSTUFF
+	G_CLASS_INITIALIZER
 };
 
 DECLARE_GEOM_CLASS(g_pc98_class, g_pc98);
