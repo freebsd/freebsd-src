@@ -1,4 +1,4 @@
-ardware Documentation Guide:  $Id: hardware.hlp,v 1.9.2.9 1997/01/15 07:44:48 jkh Exp $
+ardware Documentation Guide:  $Id: hardware.hlp,v 1.9.2.10 1997/03/02 14:23:36 joerg Exp $
 
 Contents last changed:  July 4th, 1996
 
@@ -108,7 +108,8 @@ vx0     dyn     dyn     n/a     dyn     3Com 3c59x / 3c9xx
 ze0     300     5       dyn     d8000   IBM/National Semiconductor
                                         PCMCIA Ethernet Controller
 zp0     300     10      dyn     d8000   3Com PCMCIA Etherlink III
-                                        Ethernet Controller
+                                        Ethernet Controller (but not
+                                        3C589D!)
 --- End of table ---
 
 
