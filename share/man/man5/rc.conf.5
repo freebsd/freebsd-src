@@ -243,6 +243,7 @@ and
 .Xr divert 4
 sockets must be enabled in your kernel.
 .It Va natd_interface
+.Pq Vt str
 This is the name of the public interface on which natd should run.  It
 is mandatory if
 .Va natd_enable
@@ -250,6 +251,7 @@ is set to
 .Dq YES .
 The interface may be given as an interface name or as an IP address.
 .It Va natd_flags
+.Pq Vt str
 Additional natd flags should be placed here.  The
 .Fl n
 or
@@ -725,7 +727,7 @@ the Kerberos Administration Daemon); set to
 .Dq NO
 on a slave server.
 .It Va kerberos_stash
-(str)
+.Pq Vt str
 If
 .Dq YES ,
 instruct the Kerberos servers to use the stashed master key instead of
@@ -794,7 +796,8 @@ these are the flags to pass to the
 .Xr nfsiod 8
 daemon.
 .It Va nfs_access_cache
-if
+.Pq Vt integer
+If
 .Va nfs_client_enable
 is set to
 .Dq YES ,
@@ -908,6 +911,7 @@ then run the
 .Xr pppoed 8
 daemon at boot time to provide PPP over Ethernet services.
 .It Va pppoed_ Ns Ar provider
+.Pq Vt str
 .Xr pppoed 8
 listens to requests to this
 .Ar provider
@@ -917,9 +921,11 @@ with a
 .Ar system
 argument of the same name.
 .It Va pppoed_flags
+.Pq Vt str
 Additional flags to pass to
 .Xr pppoed 8 .
 .It Va pppoed_interface
+.Pq Vt str
 The network interface to run pppoed on.  This is mandatory when
 .Va pppoed_enable
 is set to
@@ -1157,10 +1163,12 @@ these are the flags to pass to the
 .Xr IPXrouted 8
 daemon.
 .It Va arpproxy_all
+.Pq Vt bool
 If set to
 .Dq YES
 then enable global proxy ARP.
 .It Va forward_sourceroute
+.Pq Vt bool
 If set to
 .Dq YES
 then when
@@ -1169,6 +1177,7 @@ is also set to
 .Dq YES ,
 source routed packets are forwarded.
 .It Va accept_sourceroute
+.Pq Vt bool
 If set to
 .Dq YES
 then the system will accept source routed packets directed at it.
