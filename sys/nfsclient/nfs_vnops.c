@@ -251,6 +251,9 @@ static int	nfsaccess_cache_timeout = NFS_MAXATTRTIMO;
 SYSCTL_INT(_vfs_nfs, OID_AUTO, access_cache_timeout, CTLFLAG_RW, 
 	   &nfsaccess_cache_timeout, 0, "NFS ACCESS cache timeout");
 
+static int	nfsv3_commit_on_close = 0;
+SYSCTL_INT(_vfs_nfs, OID_AUTO, nfsv3_commit_on_close, CTLFLAG_RW, 
+	   &nfsv3_commit_on_close, 0, "write+commit on close, else only write");
 #if 0
 SYSCTL_INT(_vfs_nfs, OID_AUTO, access_cache_hits, CTLFLAG_RD, 
 	   &nfsstats.accesscache_hits, 0, "NFS ACCESS cache hit count");
@@ -561,10 +564,25 @@ nfs_close(ap)
 	    if ((VFSTONFS(vp->v_mount)->nm_flag & NFSMNT_NQNFS) == 0 &&
 		(np->n_flag & NMODIFIED)) {
 		if (NFS_ISV3(vp)) {
-		    error = nfs_flush(vp, ap->a_cred, MNT_WAIT, ap->a_p, 0);
-		    np->n_flag &= ~NMODIFIED;
-		} else
+		    /*
+		     * Under NFSv3 we have dirty buffers to dispose of.  We
+		     * must flush them to the NFS server.  We have the option
+		     * of waiting all the way through the commit rpc or just
+		     * waiting for the initial write.  The default is to only
+		     * wait through the initial write so the data is in the
+		     * server's cache, which is roughly similar to the state
+		     * a standard disk subsystem leaves the file in on close().
+		     *
+		     * We cannot clear the NMODIFIED bit in np->n_flag due to
+		     * potential races with other processes, and certainly
+		     * cannot clear it if we don't commit.
+		     */
+		    int cm = nfsv3_commit_on_close ? 1 : 0;
+		    error = nfs_flush(vp, ap->a_cred, MNT_WAIT, ap->a_p, cm);
+		    /* np->n_flag &= ~NMODIFIED; */
+		} else {
 		    error = nfs_vinvalbuf(vp, V_SAVE, ap->a_cred, ap->a_p, 1);
+		}
 		np->n_attrstamp = 0;
 	    }
 	    if (np->n_flag & NWRITEERR) {
