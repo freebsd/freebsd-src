@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.56 1996/07/30 03:08:07 dyson Exp $
+ * $Id: vm_fault.c,v 1.57 1996/09/08 20:44:37 dyson Exp $
  */
 
 /*
@@ -81,6 +81,7 @@
 #include <sys/signalvar.h>
 #include <sys/resourcevar.h>
 #include <sys/vmmeter.h>
+#include <sys/buf.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -102,10 +103,6 @@ int vm_fault_additional_pages __P((vm_page_t, int, int, vm_page_t *, int *));
 #define VM_FAULT_READ_AHEAD 4
 #define VM_FAULT_READ_BEHIND 3
 #define VM_FAULT_READ (VM_FAULT_READ_AHEAD+VM_FAULT_READ_BEHIND+1)
-
-int vm_fault_free_1;
-int vm_fault_copy_save_1;
-int vm_fault_copy_save_2;
 
 /*
  *	vm_fault:
@@ -198,6 +195,11 @@ RetryFault:;
 		fault_type, &entry, &first_object,
 		&first_pindex, &prot, &wired, &su)) != KERN_SUCCESS) {
 		return (result);
+	}
+
+	if (entry->nofault) {
+		panic("vm_fault: fault on nofault entry, addr: %lx",
+			vaddr);
 	}
 
 	vp = vnode_pager_lock(first_object);
@@ -565,7 +567,6 @@ readrest:
 				first_m = m;
 				m->dirty = VM_PAGE_BITS_ALL;
 				m = NULL;
-				++vm_fault_copy_save_1;
 			} else {
 				/*
 				 * Oh, well, lets copy it.
@@ -639,7 +640,6 @@ readrest:
 								PAGE_WAKEUP(m);
 								vm_page_free(m);
 								m = NULL;
-								++vm_fault_free_1;
 								tm->dirty = VM_PAGE_BITS_ALL;
 								first_m->dirty = VM_PAGE_BITS_ALL;
 							}
@@ -651,7 +651,6 @@ readrest:
 							vm_page_rename(m, other_object, other_pindex);
 							m->dirty = VM_PAGE_BITS_ALL;
 							m->valid = VM_PAGE_BITS_ALL;
-							++vm_fault_copy_save_2;
 						}
 					}
 				}

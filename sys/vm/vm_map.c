@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.56 1996/09/08 23:49:47 dyson Exp $
+ * $Id: vm_map.c,v 1.57 1996/09/14 11:54:55 bde Exp $
  */
 
 /*
@@ -688,6 +688,11 @@ vm_map_insert(map, object, offset, start, end, prot, max, cow)
 		new_entry->copy_on_write = TRUE;
 	else
 		new_entry->copy_on_write = FALSE;
+
+	if (cow & MAP_NOFAULT)
+		new_entry->nofault = TRUE;
+	else
+		new_entry->nofault = FALSE;
 
 	if (map->is_main_map) {
 		new_entry->inheritance = VM_INHERIT_DEFAULT;
