@@ -26,15 +26,22 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: kbdio.c,v 1.1 1996/11/14 22:19:06 sos Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/syslog.h>
 #include <machine/clock.h>
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/kbdio.h>
+
+#ifndef KBDIO_DEBUG
+#define KBDIO_DEBUG	0
+#endif
+
+static int verbose = KBDIO_DEBUG;
 
 /* 
  * device I/O routines
@@ -45,22 +52,7 @@ wait_while_controller_busy(int port)
     /* CPU will stay inside the loop for 100msec at most */
     int retry = 5000;
 
-    while (inb(port + KBD_STATUS_PORT) & KBDS_CONTROLLER_BUSY) {
-        DELAY(20);
-        if (--retry < 0)
-    	return FALSE;
-    }
-    return TRUE;
-}
-
-int
-wait_until_controller_is_really_idle(int port)
-{
-    /* CPU will stay inside the loop for 100msec at most */
-    int retry = 5000;
-
-    while (inb(port + KBD_STATUS_PORT) 
-           & (KBDS_CONTROLLER_BUSY | KBDS_ANY_BUFFER_FULL)) {
+    while (inb(port + KBD_STATUS_PORT) & KBDS_INPUT_BUFFER_FULL) {
         DELAY(20);
         if (--retry < 0)
     	return FALSE;
@@ -83,6 +75,7 @@ wait_for_data(int port)
         if (--retry < 0)
     	return FALSE;
     }
+    DELAY(7);
     return TRUE;
 }
 
@@ -99,6 +92,7 @@ wait_for_kbd_data(int port)
         if (--retry < 0)
     	return FALSE;
     }
+    DELAY(7);
     return TRUE;
 }
 
@@ -115,46 +109,54 @@ wait_for_aux_data(int port)
         if (--retry < 0)
     	return FALSE;
     }
+    DELAY(7);
     return TRUE;
 }
 
-void
+int
 write_controller_command(int port, int c)
 {
-    wait_until_controller_is_really_idle(port);
+    if (!wait_while_controller_busy(port))
+	return FALSE;
     outb(port + KBD_COMMAND_PORT, c);
+    return TRUE;
 }
 
-void
+int
 write_controller_data(int port, int c)
 {
-    wait_until_controller_is_really_idle(port);
+    if (!wait_while_controller_busy(port))
+	return FALSE;
     outb(port + KBD_DATA_PORT, c);
+    return TRUE;
 }
 
-void
+int
 write_kbd_command(int port, int c)
 {
-    wait_until_controller_is_really_idle(port);
+    if (!wait_while_controller_busy(port))
+	return FALSE;
     outb(port + KBD_DATA_PORT, c);
+    return TRUE;
 }
 
-void
+int
 write_aux_command(int port, int c)
 {
-    write_controller_command(port,KBDC_WRITE_TO_AUX);
-    write_controller_data(port, c);
+    if (!write_controller_command(port,KBDC_WRITE_TO_AUX))
+	return FALSE;
+    return write_controller_data(port, c);
 }
 
 int
 send_kbd_command(int port, int c)
 {
     int retry = KBD_MAXRETRY;
-    int res;
+    int res = -1;
 
     while (retry-- > 0) {
-        wait_until_controller_is_really_idle(port);
-        outb(port + KBD_DATA_PORT, c);
+	if (!write_kbd_command(port, c))
+	    continue;
         res = read_controller_data(port);
         if (res == KBD_ACK)
     	break;
@@ -166,13 +168,11 @@ int
 send_aux_command(int port, int c)
 {
     int retry = KBD_MAXRETRY;
-    int res;
+    int res = -1;
 
     while (retry-- > 0) {
-        wait_until_controller_is_really_idle(port);
-        outb(port + KBD_COMMAND_PORT, KBDC_WRITE_TO_AUX);
-        wait_until_controller_is_really_idle(port);
-        outb(port + KBD_DATA_PORT, c);
+	if (!write_aux_command(port, c))
+	    continue;
         res = read_aux_data(port);
         if (res == PSM_ACK)
     	break;
@@ -184,19 +184,23 @@ int
 send_kbd_command_and_data(int port, int c, int d)
 {
     int retry;
-    int res;
+    int res = -1;
 
     for (retry = KBD_MAXRETRY; retry > 0; --retry) {
-        wait_until_controller_is_really_idle(port);
-        outb(port + KBD_DATA_PORT, c);
+	if (!write_kbd_command(port, c))
+	    continue;
         res = read_controller_data(port);
         if (res == KBD_ACK)
     	break;
+        else if (res != PSM_RESEND)
+    	    return res;
     }
+    if (retry <= 0)
+	return res;
 
-    for (retry = KBD_MAXRETRY; retry > 0; --retry) {
-        wait_until_controller_is_really_idle(port);
-        outb(port + KBD_DATA_PORT, d);
+    for (retry = KBD_MAXRETRY, res = -1; retry > 0; --retry) {
+	if (!write_kbd_command(port, d))
+	    continue;
         res = read_controller_data(port);
         if (res != KBD_RESEND)
     	break;
@@ -208,25 +212,23 @@ int
 send_aux_command_and_data(int port, int c, int d)
 {
     int retry;
-    int res;
+    int res = -1;
 
     for (retry = KBD_MAXRETRY; retry > 0; --retry) {
-        wait_until_controller_is_really_idle(port);
-        outb(port + KBD_COMMAND_PORT, KBDC_WRITE_TO_AUX);
-        wait_until_controller_is_really_idle(port);
-        outb(port + KBD_DATA_PORT, c);
+	if (!write_aux_command(port, c))
+	    continue;
         res = read_aux_data(port);
         if (res == PSM_ACK)
     	break;
         else if (res != PSM_RESEND)
     	return res;
     }
+    if (retry <= 0)
+	return res;
 
-    for (retry = KBD_MAXRETRY; retry > 0; --retry) {
-        wait_until_controller_is_really_idle(port);
-        outb(port + KBD_COMMAND_PORT, KBDC_WRITE_TO_AUX);
-        wait_until_controller_is_really_idle(port);
-        outb(port + KBD_DATA_PORT, d);
+    for (retry = KBD_MAXRETRY, res = -1; retry > 0; --retry) {
+	if (!write_aux_command(port, d))
+	    continue;
         res = read_aux_data(port);
         if (res != PSM_RESEND)
     	break;
@@ -241,7 +243,6 @@ send_aux_command_and_data(int port, int c, int d)
 int
 read_controller_data(int port)
 {
-    wait_while_controller_busy(port);
     if (!wait_for_data(port))
         return -1;		/* timeout */
     return inb(port + KBD_DATA_PORT);
@@ -251,7 +252,6 @@ read_controller_data(int port)
 int
 read_kbd_data(int port)
 {
-    wait_while_controller_busy(port);
     if (!wait_for_kbd_data(port))
         return -1;		/* timeout */
     return inb(port + KBD_DATA_PORT);
@@ -263,10 +263,10 @@ read_kbd_data(int port)
 int
 read_kbd_data_no_wait(int port)
 {
-    wait_while_controller_busy(port);
     if ((inb(port + KBD_STATUS_PORT) & KBDS_BUFFER_FULL)
     	!= KBDS_KBD_BUFFER_FULL) 
         return -1;		/* no data */
+    DELAY(7);
     return inb(port + KBD_DATA_PORT);
 }
 
@@ -274,7 +274,6 @@ read_kbd_data_no_wait(int port)
 int
 read_aux_data(int port)
 {
-    wait_while_controller_busy(port);
     if (!wait_for_aux_data(port))
         return -1;		/* timeout */
     return inb(port + KBD_DATA_PORT);
@@ -282,55 +281,64 @@ read_aux_data(int port)
 
 /* discard data from the keyboard */
 void
-empty_kbd_buffer(int port)
+empty_kbd_buffer(int port, int t)
 {
     int b;
     int c = 0;
+    int delta = 2;
 
-    while ((inb(port + KBD_STATUS_PORT) & KBDS_BUFFER_FULL)
+    for (; t > 0; t -= delta) { 
+        if ((inb(port + KBD_STATUS_PORT) & KBDS_BUFFER_FULL)
     	   == KBDS_KBD_BUFFER_FULL) {
+	    DELAY(7);
         b = inb(port + KBD_DATA_PORT);
         ++c;
-        DELAY(20);
     }
-#ifdef KBDIO_DEBUG
+        DELAY(delta*1000);
+    }
+    if ((verbose >= 2) && (c > 0))
     log(LOG_DEBUG,"kbdio: %d char read (empty_kbd_buffer)\n",c);
-#endif
 }
 
 /* discard data from the aux device */
 void
-empty_aux_buffer(int port)
+empty_aux_buffer(int port, int t)
 {
     int b;
     int c = 0;
+    int delta = 2;
 
-    while ((inb(port + KBD_STATUS_PORT) & KBDS_BUFFER_FULL)
+    for (; t > 0; t -= delta) { 
+        if ((inb(port + KBD_STATUS_PORT) & KBDS_BUFFER_FULL)
     	    == KBDS_AUX_BUFFER_FULL) {
+	    DELAY(7);
         b = inb(port + KBD_DATA_PORT);
         ++c;
-        DELAY(20);
     }
-#ifdef KBDIO_DEBUG
+	DELAY(delta*1000);
+    }
+    if ((verbose >= 2) && (c > 0))
     log(LOG_DEBUG,"kbdio: %d char read (empty_aux_buffer)\n",c);
-#endif
 }
 
 /* discard any data from the keyboard or the aux device */
 void
-empty_both_buffers(int port)
+empty_both_buffers(int port, int t)
 {
     int b;
     int c = 0;
+    int delta = 2;
 
-    while (inb(port + KBD_STATUS_PORT) & KBDS_ANY_BUFFER_FULL) {
+    for (; t > 0; t -= delta) { 
+        if (inb(port + KBD_STATUS_PORT) & KBDS_ANY_BUFFER_FULL) {
+	    DELAY(7);
         b = inb(port + KBD_DATA_PORT);
         ++c;
-        DELAY(20);
     }
-#ifdef KBDIO_DEBUG
+	DELAY(delta*1000);
+    }
+    if ((verbose >= 2) && (c > 0))
     log(LOG_DEBUG,"kbdio: %d char read (empty_both_buffers)\n",c);
-#endif
 }
 
 /* keyboard and mouse device control */
@@ -343,15 +351,15 @@ reset_kbd(int port)
 {
     int retry = KBD_MAXRETRY;
     int again = KBD_MAXWAIT;
-    int c;
+    int c = KBD_RESEND;		/* keep the compiler happy */
 
     while (retry-- > 0) {
-        empty_both_buffers(port);
-        write_kbd_command(port, KBDC_RESET_KBD);
+        empty_both_buffers(port, 10);
+        if (!write_kbd_command(port, KBDC_RESET_KBD))
+	    continue;
         c = read_controller_data(port);
-#ifdef KBDIO_DEBUG
+	if (verbose)
         log(LOG_DEBUG,"kbdio: RESET_KBD return code:%04x\n",c);
-#endif
         if (c == KBD_ACK)	/* keyboard has agreed to reset itself... */
     	break;
     }
@@ -365,9 +373,8 @@ reset_kbd(int port)
         if (c != -1) 	/* wait again if the controller is not ready */
     	break;
     }
-#ifdef KBDIO_DEBUG
+    if (verbose)
     log(LOG_DEBUG,"kbdio: RESET_KBD status:%04x\n",c);
-#endif
     if (c != KBD_RESET_DONE)
         return FALSE;
     return TRUE;
@@ -381,15 +388,15 @@ reset_aux_dev(int port)
 {
     int retry = KBD_MAXRETRY;
     int again = KBD_MAXWAIT;
-    int c;
+    int c = PSM_RESEND;		/* keep the compiler happy */
 
     while (retry-- > 0) {
-        empty_both_buffers(port);
-        write_aux_command(port, PSMC_RESET_DEV);
-        c = read_controller_data(port); 	/* read_aux_data()? */
-#ifdef KBDIO_DEBUG
+        empty_both_buffers(port, 10);
+        if (!write_aux_command(port, PSMC_RESET_DEV))
+	    continue;
+        c = read_controller_data(port);
+        if (verbose)
         log(LOG_DEBUG,"kbdio: RESET_AUX return code:%04x\n",c);
-#endif
         if (c == PSM_ACK)	/* aux dev is about to reset... */
     	break;
     }
@@ -403,16 +410,14 @@ reset_aux_dev(int port)
         if (c != -1) 	/* wait again if the controller is not ready */
     	break;
     }
-#ifdef KBDIO_DEBUG
+    if (verbose)
     log(LOG_DEBUG,"kbdio: RESET_AUX status:%04x\n",c);
-#endif
     if (c != PSM_RESET_DONE)	/* reset status */
         return FALSE;
 
     c = read_aux_data(port);	/* device ID */
-#ifdef KBDIO_DEBUG
+    if (verbose)
     log(LOG_DEBUG,"kbdio: RESET_AUX ID:%04x\n",c);
-#endif
 	/* NOTE: we could check the device ID now, but leave it later... */
     return TRUE;
 }
@@ -422,49 +427,91 @@ reset_aux_dev(int port)
 int
 test_controller(int port)
 {
-    int c;
+    int retry = KBD_MAXRETRY;
+    int again = KBD_MAXWAIT;
+    int c = KBD_DIAG_FAIL;
 
-    empty_both_buffers(port);
-    write_controller_command(port, KBDC_DIAGNOSE);
+    while (retry-- > 0) {
+        empty_both_buffers(port, 10);
+        if (write_controller_command(port, KBDC_DIAGNOSE))
+    	    break;
+    }
+    if (retry < 0)
+        return FALSE;
+
+    while (again-- > 0) {
+        /* wait awhile */
+        DELAY(KBD_RESETDELAY*1000);
     c = read_controller_data(port);	/* DIAG_DONE/DIAG_FAIL */
-#ifdef KBDIO_DEBUG
+        if (c != -1) 	/* wait again if the controller is not ready */
+    	    break;
+    }
+    if (verbose)
     log(LOG_DEBUG,"kbdio: DIAGNOSE status:%04x\n",c);
-#endif
     return (c == KBD_DIAG_DONE);
 }
 
 int
 test_kbd_port(int port)
 {
-    int c;
+    int retry = KBD_MAXRETRY;
+    int again = KBD_MAXWAIT;
+    int c = -1;
 
-    empty_both_buffers(port);
-    write_controller_command(port, KBDC_TEST_KBD_PORT);
+    while (retry-- > 0) {
+        empty_both_buffers(port, 10);
+        if (write_controller_command(port, KBDC_TEST_KBD_PORT))
+    	    break;
+    }
+    if (retry < 0)
+        return FALSE;
+
+    while (again-- > 0) {
     c = read_controller_data(port);
-#ifdef KBDIO_DEBUG
+        if (c != -1) 	/* try again if the controller is not ready */
+    	    break;
+    }
+    if (verbose)
     log(LOG_DEBUG,"kbdio: TEST_KBD_PORT status:%04x\n",c);
-#endif
     return c;
 }
 
 int
 test_aux_port(int port)
 {
-    int c;
+    int retry = KBD_MAXRETRY;
+    int again = KBD_MAXWAIT;
+    int c = -1;
 
-    empty_both_buffers(port);
-    write_controller_command(port, KBDC_TEST_AUX_PORT);
+    while (retry-- > 0) {
+        empty_both_buffers(port, 10);
+        if (write_controller_command(port, KBDC_TEST_AUX_PORT))
+    	    break;
+    }
+    if (retry < 0)
+        return FALSE;
+
+    while (again-- > 0) {
     c = read_controller_data(port);
-#ifdef KBDIO_DEBUG
+        if (c != -1) 	/* try again if the controller is not ready */
+    	    break;
+    }
+    if (verbose)
     log(LOG_DEBUG,"kbdio: TEST_AUX_PORT status:%04x\n",c);
-#endif
     return c;
 }
 
-void
+int
 set_controller_command_byte(int port, int command, int flag)
 {
-    write_controller_command(port, KBDC_SET_COMMAND_BYTE);
-    write_controller_data(port, command | flag);
+    if ((command | flag) & KBD_DISABLE_KBD_PORT) {
+	if (!write_controller_command(port, KBDC_DISABLE_KBD_PORT))
+	    return FALSE;
+    }
+    if (!write_controller_command(port, KBDC_SET_COMMAND_BYTE))
+	return FALSE;
+    if (!write_controller_data(port, command | flag))
+	return FALSE;
     wait_while_controller_busy(port);
+    return TRUE;
 }

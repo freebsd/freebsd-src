@@ -1,4 +1,4 @@
-# @(#)antarctica	7.4
+# @(#)antarctica	7.5
 
 # From Paul Eggert (1996-09-03):
 # To keep things manageable, we list only locations occupied year-round;
@@ -7,6 +7,20 @@
 #
 # I made up all time zone abbreviations mentioned here; corrections welcome!
 # FORMAT is `___' and GMTOFF is 0 for locations while uninhabited.
+
+# These rules are stolen from the `southamerica' file.
+# Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
+Rule	ArgAQ	1964	1966	-	Mar	 1	0:00	0	-
+Rule	ArgAQ	1964	1966	-	Oct	15	0:00	1:00	S
+Rule	ArgAQ	1967	only	-	Apr	 1	0:00	0	-
+Rule	ArgAQ	1967	1968	-	Oct	Sun<=7	0:00	1:00	S
+Rule	ArgAQ	1968	1969	-	Apr	Sun<=7	0:00	0	-
+Rule	ArgAQ	1974	only	-	Jan	23	0:00	1:00	S
+Rule	ArgAQ	1974	only	-	May	 1	0:00	0	-
+Rule	ArgAQ	1974	1976	-	Oct	Sun<=7	0:00	1:00	S
+Rule	ArgAQ	1975	1977	-	Apr	Sun<=7	0:00	0	-
+Rule	ChileAQ	1969	max	-	Oct	Sun>=9	0:00	1:00	S
+Rule	ChileAQ	1970	max	-	Mar	Sun>=9	0:00	0	-
 
 
 # Argentina - 6 year-round bases
@@ -118,7 +132,21 @@ Rule	NZAQ	1990	max	-	Mar	Sun>=15	2:00s	0	S
 
 # USA - year-round bases
 #
-# Palmer, Anvers Island
+# Palmer, Anvers Island, since 1965 (moved 2 miles in 1968)
+#
+# From Ethan Dicks <erd@mcmsun5.mcmurdo.gov> (1996-10-06):
+# It keeps the same time as Punta Arenas, Chile, because, just like us
+# and the South Pole, that's the other end of their supply line....
+# I verified with someone who was there that since 1980,
+# Palmer has followed Chile.  Prior to that, before the Falklands War,
+# Palmer used to be supplied from Argentina.
+#
+# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+Zone Antarctica/Palmer	0	-	___	1965
+			-4:00	ArgAQ	AR%sT	1969 Oct 5
+			-3:00	ArgAQ	AR%sT	1982 May
+			-4:00	ChileAQ	CL%sT
+#
 #
 # McMurdo, Ross Island, since 1956
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]

@@ -42,7 +42,7 @@
  *
  * This grody hack brought to you by Bill Paul (wpaul@ctr.columbia.edu)
  *
- *	$Id: probe_keyboard.c,v 1.7 1996/09/26 20:52:13 pst Exp $
+ *	$Id: probe_keyboard.c,v 1.7.2.1 1996/11/25 07:16:48 phk Exp $
  */
 
 #ifdef PROBE_KEYBOARD
@@ -71,8 +71,8 @@ probe_keyboard(void)
 #ifdef DEBUG
 		printf("%d ", retries);
 #endif
-		while ((inb(IO_KBD + KBD_STATUS_PORT) & KBDS_CONTROLLER_BUSY) ==
-				KBDS_CONTROLLER_BUSY)
+		while ((inb(IO_KBD + KBD_STATUS_PORT) & KBDS_INPUT_BUFFER_FULL)
+			== KBDS_INPUT_BUFFER_FULL)
 			delay1ms();
 		outb(IO_KBD + KBD_DATA_PORT, KBDC_RESET_KBD);
 		for (i=0; i<1000; i++) {

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: kbdio.h,v 1.1 1996/11/14 22:19:09 sos Exp $
  */
 
 #ifndef _I386_ISA_KBDIO_H_
@@ -58,6 +58,7 @@
 /* controller command byte (set by KBDC_SET_COMMAND_BYTE) */
 #define KBD_TRANSLATION		0x0040
 #define KBD_RESERVED_BITS	0x0004
+#define KBD_OVERRIDE_KBD_LOCK	0x0008
 #define KBD_ENABLE_KBD_PORT    	0x0000
 #define KBD_DISABLE_KBD_PORT   	0x0010
 #define KBD_ENABLE_AUX_PORT	0x0000
@@ -86,10 +87,12 @@
 #define PSMC_DISABLE_DEV     	0x00f5
 #define PSMC_SEND_DEV_ID     	0x00f2
 #define PSMC_SEND_DEV_STATUS 	0x00e9
+#define PSMC_SEND_DEV_DATA	0x00eb
 #define PSMC_SET_SCALING11	0x00e6
 #define PSMC_SET_SCALING21	0x00e7
 #define PSMC_SET_RESOLUTION	0x00e8
 #define PSMC_SET_STREAM_MODE	0x00ea
+#define PSMC_SET_REMOTE_MODE	0x00f0
 #define PSMC_SET_SAMPLING_RATE	0x00f3
 
 /* PSMC_SET_RESOLUTION argument */
@@ -111,7 +114,7 @@
 #define KBDS_ANY_BUFFER_FULL	0x0001
 #define KBDS_KBD_BUFFER_FULL	0x0001
 #define KBDS_AUX_BUFFER_FULL	0x0021
-#define KBDS_CONTROLLER_BUSY 	0x0002
+#define KBDS_INPUT_BUFFER_FULL	0x0002
 
 /* return code */
 #define KBD_ACK 		0x00fa
@@ -165,17 +168,16 @@
 /* function prototypes */
 
 int wait_while_controller_busy __P((int port));
-int wait_until_controller_is_really_idle __P((int port));
 
 int wait_for_data __P((int port));
 int wait_for_kbd_data __P((int port));
 int wait_for_aux_data __P((int port));
 
-void write_controller_command __P((int port,int c));
-void write_controller_data __P((int port,int c));
+int write_controller_command __P((int port,int c));
+int write_controller_data __P((int port,int c));
 
-void write_kbd_command __P((int port,int c));
-void write_aux_command __P((int port,int c));
+int write_kbd_command __P((int port,int c));
+int write_aux_command __P((int port,int c));
 int send_kbd_command __P((int port,int c));
 int send_aux_command __P((int port,int c));
 int send_kbd_command_and_data __P((int port,int c,int d));
@@ -186,9 +188,9 @@ int read_kbd_data __P((int port));
 int read_kbd_data_no_wait __P((int port));
 int read_aux_data __P((int port));
 
-void empty_kbd_buffer __P((int port));
-void empty_aux_buffer __P((int port));
-void empty_both_buffers __P((int port));
+void empty_kbd_buffer __P((int port, int t));
+void empty_aux_buffer __P((int port, int t));
+void empty_both_buffers __P((int port, int t));
 
 int reset_kbd __P((int port));
 int reset_aux_dev __P((int port));
@@ -197,7 +199,7 @@ int test_controller __P((int port));
 int test_kbd_port __P((int port));
 int test_aux_port __P((int port));
 
-void set_controller_command_byte __P((int port,int command,int flag));
+int set_controller_command_byte __P((int port,int command,int flag));
 
 #endif /* KERNEL */
 
