@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.436 1998/06/05 22:39:45 julian Exp $
+#	$Id: LINT,v 1.437 1998/06/08 06:18:53 bde Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -535,6 +535,19 @@ options		SUIDDIR
 
 
 #####################################################################
+# POSIX P1003.1B
+
+# Real time extensions added int the 1993 Posix
+# P1003_1B: Infrastructure
+# _KPOSIX_PRIORITY_SCHEDULING: Build in _POSIX_PRIORITY_SCHEDULING
+# _KPOSIX_VERSION:             Version kernel is built for
+
+options		"P1003_1B"
+options		"_KPOSIX_PRIORITY_SCHEDULING"
+options		"_KPOSIX_VERSION=199309L"
+
+
+#####################################################################
 # SCSI DEVICES
 
 # SCSI DEVICE CONFIGURATION
@@ -621,19 +634,6 @@ options		OD_BOGUS_NOT_READY
 #
 options		OD_AUTO_TURNOFF
 
-
-
-#####################################################################
-# POSIX P1003.1B
-
-# Real time extensions added int the 1993 Posix
-# P1003_1B: Infrastructure
-# _KPOSIX_PRIORITY_SCHEDULING: Build in _POSIX_PRIORITY_SCHEDULING
-# _KPOSIX_VERSION:             Version kernel is built for
-
-options		"P1003_1B"
-options		"_KPOSIX_PRIORITY_SCHEDULING"
-options		"_KPOSIX_VERSION=199309L"
 
 
 #####################################################################
@@ -1374,6 +1374,7 @@ device		fpa0
 device		meteor0
 device		bktr0
 
+options         OVERRIDE_TUNER=NO_TUNER
 
 #
 # PCCARD/PCMCIA
@@ -1471,8 +1472,6 @@ options		"DEBUG_1284"
 options		"EXT2FS"
 options		"I586_PMC_GUPROF=0x70000"
 options		"IBCS2"
-# broken:
-#options		IPFILTER
 options		KEY
 options		KEY_DEBUG
 options		LOCKF_DEBUG
