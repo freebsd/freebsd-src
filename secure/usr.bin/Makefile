@@ -6,7 +6,7 @@ SUBDIR+=openssl
 .if !defined(NO_OPENSSH)
 SUBDIR+=scp sftp ssh ssh-add ssh-agent ssh-keygen ssh-keyscan
 .endif
-.if !defined(MAKE_KERBEROS5)
+.if defined(NO_KERBEROS)
 SUBDIR+=telnet
 .endif
 .endif
