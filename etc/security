@@ -1,9 +1,10 @@
 #!/bin/sh -
 #
 #	@(#)security	5.3 (Berkeley) 5/28/91
-#	$Id: security,v 1.8 1995/05/27 01:37:44 ache Exp $
+#	$Id: security,v 1.9 1995/09/15 00:22:31 ache Exp $
 #
 PATH=/sbin:/bin:/usr/bin
+LC_ALL=C; export LC_ALL
 
 host=`hostname -s`
 echo "Subject: $host security check output"
@@ -24,8 +25,15 @@ set $MP
 while test $# -ge 1; do
 	mount=$1
 	shift
-	find $mount -xdev \( -perm -u+s -or -perm -g+s \) | sort
-done | xargs -n 20 ls -lgTd > $TMP
+	find -X $mount -xdev -type f \
+		\( -perm -u+x -or -perm -g+x -or -perm -o+x \) \
+		\( -perm -u+s -or -perm -g+s \) -or \
+		\( -type c -or -type b \) \
+	| sort
+# exclude date/time info for devices
+done |  xargs -n 20 ls -lgTd | expand | \
+	sed 's/\(^[cb].*, *[0-9x]*\).*\( \/.*\)$/\1\2/' \
+> $TMP
 
 if [ ! -f $LOG/setuid.today ] ; then
 	echo "no $LOG/setuid.today"
