@@ -149,5 +149,10 @@ const char *const sys_errlist[] = {
 
 /* General */
 	"Programming error",			/* 88 - EDOOFUS */
+
+	"Bad message",				/* 89 - EBADMSG */
+	"Multihop attempted",			/* 90 - EMULTIHOP */
+	"Link has been severed",		/* 91 - ENOLINK */
+	"Protocol error",			/* 92 - EPROTO */
 };
 const int sys_nerr = sizeof(sys_errlist) / sizeof(sys_errlist[0]);
