@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: bt.c,v 1.3 1995/12/14 14:19:16 peter Exp $
+ *      $Id: bt.c,v 1.3.2.1 1996/01/04 08:54:55 gibbs Exp $
  */
 
 /*
@@ -459,10 +459,6 @@ bt_alloc(unit, iobase)
 				break;
 			}
 		}
-	}
-	if (i >= sizeof(found)/sizeof(struct bt_found)) {
-		printf("bt%d: Invalid base address\n", unit);
-		return NULL;    
 	}
 	
 	bt = malloc(sizeof(struct bt_data), M_DEVBUF, M_NOWAIT);
