@@ -9,13 +9,8 @@ SRCS=	compare.c crc.c create.c excludes.c misc.c mtree.c spec.c verify.c
 
 WARNS?=	4
 
-.if defined(BOOTSTRAPPING)
-.PATH: ${.CURDIR}/../../lib/libc/gen
-SRCS+=	strtofflags.c
-.else
 CFLAGS+= -DMD5 -DSHA1 -DRMD160
 DPADD=	${LIBMD}
 LDADD=	-lmd
-.endif
 
 .include <bsd.prog.mk>
