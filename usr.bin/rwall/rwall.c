@@ -33,14 +33,17 @@
  */
 
 #ifndef lint
-char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1988 Regents of the University of California.\n\
  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-/*static char sccsid[] = "from: @(#)wall.c	5.14 (Berkeley) 3/2/91";*/
-static char rcsid[] = "$Id$";
+#if 0
+static char sccsid[] = "from: @(#)wall.c	5.14 (Berkeley) 3/2/91";
+#endif
+static const char rcsid[] =
+	"$Id: rwall.c,v 1.5 1997/02/22 19:56:55 peter Exp $";
 #endif /* not lint */
 
 /*
@@ -52,11 +55,14 @@ static char rcsid[] = "$Id$";
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/uio.h>
-#include <utmp.h>
+#include <err.h>
+#include <paths.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <paths.h>
+#include <string.h>
+#include <unistd.h>
+#include <utmp.h>
 
 #include <rpc/rpc.h>
 #include <rpcsvc/rwall.h>
@@ -64,7 +70,11 @@ static char rcsid[] = "$Id$";
 int mbufsize;
 char *mbuf;
 
+void makemsg __P((char *));
+static void usage __P((void));
+
 /* ARGSUSED */
+int
 main(argc, argv)
 	int argc;
 	char **argv;
@@ -73,10 +83,8 @@ main(argc, argv)
 	CLIENT *cl;
 	struct timeval tv;
 
-	if ((argc < 2) || (argc > 3)) {
-		fprintf(stderr, "usage: %s hostname [file]\n", argv[0]);
-		exit(1);
-	}
+	if ((argc < 2) || (argc > 3))
+		usage();
 
 	wallhost = argv[1];
 
@@ -93,8 +101,7 @@ main(argc, argv)
 		 * Couldn't establish connection with server.
 		 * Print error message and die.
 		 */
-		clnt_pcreateerror(wallhost);
-		exit(1);
+		errx(1, "%s", clnt_spcreateerror(wallhost));
 	}
 
 	tv.tv_sec = 15;		/* XXX ?? */
@@ -104,32 +111,35 @@ main(argc, argv)
 		 * An error occurred while calling the server.
 		 * Print error message and die.
 		 */
-		clnt_perror(cl, wallhost);
-		exit(1);
+		errx(1, "%s", clnt_sperror(cl, wallhost));
 	}
 
 	exit(0);
 }
 
+static void
+usage()
+{
+	fprintf(stderr, "usage: rwall hostname [file]\n");
+	exit(1);
+}
+
+void
 makemsg(fname)
 	char *fname;
 {
-	register int ch, cnt;
 	struct tm *lt;
 	struct passwd *pw;
 	struct stat sbuf;
 	time_t now, time();
 	FILE *fp;
 	int fd;
-	char *p, *whom, hostname[MAXHOSTNAMELEN], lbuf[100], tmpname[15];
-	char *getlogin(), *strcpy(), *ttyname();
+	char *whom, hostname[MAXHOSTNAMELEN], lbuf[100], tmpname[15];
 
 	(void)strcpy(tmpname, _PATH_TMP);
-	(void)strcat(tmpname, "/wall.XXXXXX");
-	if (!(fd = mkstemp(tmpname)) || !(fp = fdopen(fd, "r+"))) {
-		(void)fprintf(stderr, "wall: can't open temporary file.\n");
-		exit(1);
-	}
+	(void)strcat(tmpname, "wall.XXXXXX");
+	if (!(fd = mkstemp(tmpname)) || !(fp = fdopen(fd, "r+")))
+		errx(1, "can't open temporary file");
 	(void)unlink(tmpname);
 
 	if (!(whom = getlogin()))
@@ -152,26 +162,18 @@ makemsg(fname)
 
 	putc('\n', fp);
 
-	if (fname && !(freopen(fname, "r", stdin))) {
-		(void)fprintf(stderr, "wall: can't read %s.\n", fname);
-		exit(1);
-	}
+	if (fname && !(freopen(fname, "r", stdin)))
+		errx(1, "can't read %s", fname);
 	while (fgets(lbuf, sizeof(lbuf), stdin))
 		fputs(lbuf, fp);
 	rewind(fp);
 
-	if (fstat(fd, &sbuf)) {
-		(void)fprintf(stderr, "wall: can't stat temporary file.\n");
-		exit(1);
-	}
+	if (fstat(fd, &sbuf))
+		errx(1, "can't stat temporary file");
 	mbufsize = sbuf.st_size;
-	if (!(mbuf = malloc((u_int)mbufsize))) {
-		(void)fprintf(stderr, "wall: out of memory.\n");
-		exit(1);
-	}
-	if (fread(mbuf, sizeof(*mbuf), mbufsize, fp) != mbufsize) {
-		(void)fprintf(stderr, "wall: can't read temporary file.\n");
-		exit(1);
-	}
+	if (!(mbuf = malloc((u_int)mbufsize)))
+		errx(1, "out of memory");
+	if (fread(mbuf, sizeof(*mbuf), mbufsize, fp) != mbufsize)
+		errx(1, "can't read temporary file");
 	(void)close(fd);
 }
