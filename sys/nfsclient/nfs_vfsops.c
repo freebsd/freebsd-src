@@ -78,6 +78,7 @@ MALLOC_DEFINE(M_NFSREQ, "NFS req", "NFS request header");
 MALLOC_DEFINE(M_NFSBIGFH, "NFSV3 bigfh", "NFS version 3 file handle");
 MALLOC_DEFINE(M_NFSDIROFF, "NFSV3 diroff", "NFS directory offset data");
 MALLOC_DEFINE(M_NFSHASH, "NFS hash", "NFS hash tables");
+MALLOC_DEFINE(M_NFSDIRECTIO, "NFS DirectIO", "NFS Direct IO async write state");
 
 uma_zone_t nfsmount_zone;
 
