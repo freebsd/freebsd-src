@@ -1,21 +1,25 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
-#	$Id: Makefile,v 1.80 1998/09/17 03:55:29 gibbs Exp $
+#	$Id: Makefile,v 1.81 1998/10/01 14:49:57 jkh Exp $
 
 # To satisfy shared library or ELF linkage when only the libraries being
 # built are visible:
 #
 # csu must be built before all shared libaries for ELF.
 # libcom_err must be built before libss.
-# libcrypt and libmd must be built before libskey.
-# libmytinfo must be built before libncurses.
-# libtermcap must be built before libcurses and libedit.
+# libcrypt must be built before libskey.
+# libm must be built before libf2c, libg++ and libstdc++.
+# libmd must be built before libatm, libopie and libskey.
+# libmytinfo must be built before libdialog and libncurses.
+# libncurses must be built before libdialog.
+# libtermcap must be built before libcurses, libedit and libreadline.
 #
 # Otherwise, the SUBDIR list should be in alphabetical order.
 
-SUBDIR=	${_csu} libcom_err ${_libcrypt} libmytinfo libtermcap \
+SUBDIR=	${_csu} libcom_err ${_libcrypt} ${_libm} libmd libmytinfo \
+	libncurses libtermcap \
 	${_compat} libalias libatm libbind libc ${_libc_r} libcalendar libcam \
 	libcompat libcurses libdevstat libdisk libedit libf2c libfetch \
-	libftpio libgnumalloc libipx libkvm ${_libm} libmd libncurses libopie \
+	libftpio libgnumalloc libipx libkvm libopie \
 	libpcap libresolv librpcsvc libskey libss libstand \
 	${_libtelnet} libutil ${_libvgl} libxpg4 liby libz
 
