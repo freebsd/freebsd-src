@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: create_chunk.c,v 1.13 1995/05/10 05:57:02 phk Exp $
+ * $Id: create_chunk.c,v 1.14 1995/05/11 05:22:52 phk Exp $
  *
  */
 
@@ -14,10 +14,12 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <ctype.h>
 #include <sys/types.h>
 #include <sys/disklabel.h>
 #include <sys/diskslice.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <err.h>
 #include "libdisk.h"
 
@@ -99,7 +101,7 @@ Fixup_Extended_Names(struct disk *d, struct chunk *c)
 		free(c1->name);
 		c1->name = malloc(12);
 		if(!c1->name) err(1,"malloc failed");
-		sprintf(c1->name,"%ss%d",c->name,j++);
+		sprintf(c1->name,"%ss%d",d->chunks->name,j++);
 		if (c1->type == freebsd)
 			Fixup_FreeBSD_Names(d,c1);
 	}
@@ -187,4 +189,83 @@ Create_Chunk_DWIM(struct disk *d, struct chunk *parent , u_long size, chunk_e ty
 		if (c1->offset == offset) 
 			return c1;
 	err(1,"Serious internal trouble");
+}
+
+int
+MakeDev(struct chunk *c1, char *path)
+{
+	char *p = c1->name;
+	u_long cmaj,bmaj,min,unit,part,slice;
+	char buf[BUFSIZ];
+	
+	if(!strcmp(p,"X"))
+	    return 0;
+
+	if (p[0] == 'w' && p[1] == 'd') {
+		bmaj = 0; cmaj = 3;
+	} else if (p[0] == 's' && p[1] == 'd') {
+		bmaj = 4; cmaj = 13;
+	} else {
+		return 0;
+	}
+	p += 2;
+	if (!isdigit(*p))
+		return 0;
+	unit = *p - '0';
+	p++;
+	if (isdigit(*p)) {
+		unit *= 10;
+		unit = *p - '0';
+		p++;
+	}
+	if (!*p) {
+		slice = 1;
+		part = 2;
+		goto done;
+	}
+	if (*p != 's')
+		return 0;
+	p++;
+	if (!isdigit(*p))
+		return 0;
+	slice = *p - '0';
+	p++;
+	if (isdigit(*p)) {
+		slice *= 10;
+		slice = *p - '0';
+		p++;
+	}
+	slice = slice+1;
+	if (!*p) {
+		part = 2;
+		goto done;
+	}
+	if (*p < 'a' || *p > 'h')
+		return 0;
+	part = *p - 'a';
+    done:
+	if (unit > 32)
+		return 0;
+	if (slice > 32)
+		return 0;
+	min = unit * 8 + 65536 * slice + part;
+	sprintf(buf,"%s/r%s",path,c1->name);
+	unlink(buf); mknod(buf,S_IFCHR|0640,makedev(cmaj,min));
+	sprintf(buf,"%s/%s",path,c1->name);
+	unlink(buf); mknod(buf,S_IFBLK|0640,makedev(bmaj,min));
+	return 1;
+}
+
+void
+MakeDevChunk(struct chunk *c1,char *path)
+{
+	MakeDev(c1,path);
+	if (c1->next) MakeDevChunk(c1->next,path);
+	if (c1->part) MakeDevChunk(c1->part,path);
+}
+
+void
+MakeDevDisk(struct disk *d,char *path)
+{
+	MakeDevChunk(d->chunks,path);
 }

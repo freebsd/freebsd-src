@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: tst01.c,v 1.11 1995/05/10 05:57:04 phk Exp $
+ * $Id: tst01.c,v 1.12 1995/05/11 05:22:54 phk Exp $
  *
  */
 
@@ -176,6 +176,10 @@ main(int argc, char **argv)
 					strtol(cmds[3],0,0),
 					strtol(cmds[4],0,0),
 					strtol(cmds[5],0,0)));
+			continue;
+		}
+		if (!strcasecmp(*cmds,"mknod")) {
+			MakeDevDisk(d,"/tmp");
 			continue;
 		}
 		if (!strcasecmp(*cmds,"delete") && ncmd == 2) {
