@@ -3,6 +3,7 @@
 set CTMignoreCVS 0
 set CTMapply 1
 set CTMdont {^///}
+set CTMmail {}
 
 source $argv
 
@@ -16,17 +17,6 @@ set foo $CTMdate
 set foo $CTMprefix
 set foo $CTMname
 
-exec sh -x -c "rm -f ${tmp}.*" >&@ stdout
-
-set f1 [open "| ./ctm_scan $d1"]
-set f2 [open "| ./ctm_scan $d2"]
-
-set fo_del   [open $tmp.del w]
-set fo_rmdir [open $tmp.rmdir w]
-set fo_mkdir [open $tmp.mkdir w]
-set fo_files [open $tmp.files w]
-set changes 0
-
 ####
 # Find CTM#
 for {set i 0} {1} {incr i} {
@@ -36,7 +26,23 @@ for {set i 0} {1} {incr i} {
 }
 set CTMnbr $i
 
+set fo [open $d2/.ctm_status w]
+puts $fo "$CTMname $CTMnbr"
+close $fo
+
 puts "Doing CTMname $CTMname CTMnbr $CTMnbr CTMdate $CTMdate"
+
+exec sh -x -c "rm -f ${tmp}.*" >&@ stdout
+
+set f1 [open "| ./ctm_scan $d1"]
+set f2 [open "| ./ctm_scan $d2"]
+
+set fo_del   [open $tmp.del w]
+set fo_rmdir [open $tmp.rmdir w]
+set fo_mkdir [open $tmp.mkdir w]
+set fo_files [open $tmp.files w]
+# set this to minus one, to compensate for .ctm_status
+set changes -1
 
 #####
 # Type Name Mode User Group Barf Size Hash
@@ -124,6 +130,7 @@ while 1 {
     #if {[regexp $CTMdont /$n1]} { set l1 "" ; continue }
     if {[regexp $CTMdont /$n2]} { set l2 "" ; continue }
 
+    # they're all the same...
     if {$l1 == $l2}  { set l1 "" ; set l2 "" ; continue }
 
     if {$CTMignoreCVS } {
@@ -135,11 +142,37 @@ while 1 {
 
     if {$l2 == "" }   { eval CTMdel $l1 ; set l1 "" ; continue }
 
-    if {$n1 < $n2 }   { eval CTMdel $l1 ; set l1 "" ; continue }
-    
-    if {$n1 > $n2 }   { eval CTMadd $l2 ; set l2 "" ; continue }
-
+    # if the name is the same we're safe...
     if {$n1 == $n2}  { eval CTMchg $l1 $l2 ; set l1 "" ; set l2 "" ; continue }
+
+    # To avoid this anomaly:
+    # A -  d  src/gnu/lib/libreadline/readline/Attic
+    # A 0  f  src/gnu/lib/libreadline/readline/Attic/readline.h,v
+    # A 0  f  src/gnu/lib/libreadline/readline.c,v
+    # D 0  f  src/gnu/lib/libreadline/readline/readline.h,v
+    # D 0  f  src/gnu/lib/libreadline/readline.c,v
+    # we have to make things somewhat complicated...
+
+    # if they have the same number of components...
+    set ll1 [llength [split $n1 /]]
+    set ll2 [llength [split $n2 /]]
+    if {$ll1 == $ll2} {
+	if {$n1 < $n2 } { 
+	    eval CTMdel $l1 ; set l1 "" ; continue 
+	} else {
+	    eval CTMadd $l2 ; set l2 "" ; continue 
+	}
+    } 
+    if {$ll1 < $ll2} {
+	    puts "<$ll1> < <$ll2>\n  <$l1>\n  <$l2>"
+	    eval CTMadd $l2 ; set l2 "" ; continue 
+    } else {
+	    puts "<$ll1> > <$ll2>\n  <$l1>\n  <$l2>"
+	    eval CTMdel $l1 ; set l1 "" ; continue 
+    }
+
+    
+
 }
 
 close $fo_del
@@ -170,3 +203,7 @@ if {$CTMapply} {
 }
 exec mv ${tmp}:${nm}.gz $dd/.tmp_${nm}.gz >&@ stdout
 exec mv $dd/.tmp_${nm}.gz $dd/${nm}.gz >&@ stdout
+
+if {$CTMmail != ""} {
+    exec /u1/phk/ctm_smail/ctm_smail -m 50000 -c 300000 $dd/${nm}.gz $CTMmail >&@ stdout
+}
