@@ -70,8 +70,8 @@
 struct private {
 	struct ifnet	*ifp;		/* associated interface */
 	hook_p		upper;		/* upper hook connection */
-	hook_p		lower;		/* lower OR orphan hook connection */
-	u_char		lowerOrphan;	/* whether lower is lower or orphan */
+	hook_p		lower;		/* lower hook connection */
+	hook_p		orphan;		/* orphan hook connection */
 	u_char		autoSrcAddr;	/* always overwrite source address */
 	u_char		promisc;	/* promiscuous mode enabled */
 	u_long		hwassist;	/* hardware checksum capabilities */
@@ -94,7 +94,6 @@ static void	ng_ether_attach(struct ifnet *ifp);
 static void	ng_ether_detach(struct ifnet *ifp); 
 
 /* Other functions */
-static void	ng_ether_input2(node_p node, struct mbuf **mp);
 static int	ng_ether_rcv_lower(node_p node, struct mbuf *m, meta_p meta);
 static int	ng_ether_rcv_upper(node_p node, struct mbuf *m, meta_p meta);
 
@@ -201,11 +200,12 @@ ng_ether_input(struct ifnet *ifp, struct mbuf **mp)
 {
 	const node_p node = IFP2NG(ifp);
 	const priv_p priv = NG_NODE_PRIVATE(node);
+	int error;
 
 	/* If "lower" hook not connected, let packet continue */
-	if (priv->lower == NULL || priv->lowerOrphan)
+	if (priv->lower == NULL)
 		return;
-	ng_ether_input2(node, mp);
+	NG_SEND_DATA_ONLY(error, priv->lower, *mp);	/* sets *mp = NULL */
 }
 
 /*
@@ -219,33 +219,14 @@ ng_ether_input_orphan(struct ifnet *ifp, struct mbuf *m)
 {
 	const node_p node = IFP2NG(ifp);
 	const priv_p priv = NG_NODE_PRIVATE(node);
+	int error;
 
-	/* If "orphan" hook not connected, let packet continue */
-	if (priv->lower == NULL || !priv->lowerOrphan) {
+	/* If "orphan" hook not connected, discard packet */
+	if (priv->orphan == NULL) {
 		m_freem(m);
 		return;
 	}
-	ng_ether_input2(node, &m);
-	if (m != NULL)
-		m_freem(m);
-}
-
-/*
- * Handle a packet that has come in on an ethernet interface.
- * The Ethernet header has already been detached from the mbuf,
- * so we have to put it back.
- *
- * NOTE: this function will get called at splimp()
- */
-static void
-ng_ether_input2(node_p node, struct mbuf **mp)
-{
-	const priv_p priv = NG_NODE_PRIVATE(node);
-	int error;
-
-	/* Send out lower/orphan hook */
-	NG_SEND_DATA_ONLY(error, priv->lower, *mp);
-	*mp = NULL;
+	NG_SEND_DATA_ONLY(error, priv->orphan, m);
 }
 
 /*
@@ -352,7 +333,6 @@ static	int
 ng_ether_newhook(node_p node, hook_p hook, const char *name)
 {
 	const priv_p priv = NG_NODE_PRIVATE(node);
-	u_char orphan = priv->lowerOrphan;
 	hook_p *hookptr;
 
 	/* Divert hook is an alias for lower */
@@ -362,13 +342,11 @@ ng_ether_newhook(node_p node, hook_p hook, const char *name)
 	/* Which hook? */
 	if (strcmp(name, NG_ETHER_HOOK_UPPER) == 0)
 		hookptr = &priv->upper;
-	else if (strcmp(name, NG_ETHER_HOOK_LOWER) == 0) {
+	else if (strcmp(name, NG_ETHER_HOOK_LOWER) == 0)
 		hookptr = &priv->lower;
-		orphan = 0;
-	} else if (strcmp(name, NG_ETHER_HOOK_ORPHAN) == 0) {
-		hookptr = &priv->lower;
-		orphan = 1;
-	} else
+	else if (strcmp(name, NG_ETHER_HOOK_ORPHAN) == 0)
+		hookptr = &priv->orphan;
+	else
 		return (EINVAL);
 
 	/* Check if already connected (shouldn't be, but doesn't hurt) */
@@ -381,7 +359,6 @@ ng_ether_newhook(node_p node, hook_p hook, const char *name)
 
 	/* OK */
 	*hookptr = hook;
-	priv->lowerOrphan = orphan;
 	return (0);
 }
 
@@ -514,18 +491,18 @@ ng_ether_rcvdata(hook_p hook, item_p item)
 	NGI_GET_M(item, m);
 	NGI_GET_META(item, meta);
 	NG_FREE_ITEM(item);
-	if (hook == priv->lower)
+	if (hook == priv->lower || hook == priv->orphan)
 		return ng_ether_rcv_lower(node, m, meta);
 	if (hook == priv->upper)
 		return ng_ether_rcv_upper(node, m, meta);
 	panic("%s: weird hook", __func__);
-#ifdef RESTARTABLE_PANICS /* so we don;t get an error msg in LINT */
+#ifdef RESTARTABLE_PANICS /* so we don't get an error msg in LINT */
 	return NULL;
 #endif
 }
 
 /*
- * Handle an mbuf received on the "lower" hook.
+ * Handle an mbuf received on the "lower" or "orphan" hook.
  */
 static int
 ng_ether_rcv_lower(node_p node, struct mbuf *m, meta_p meta)
@@ -629,10 +606,11 @@ ng_ether_disconnect(hook_p hook)
 		priv->upper = NULL;
 		if (priv->ifp != NULL)		/* restore h/w csum */
 			priv->ifp->if_hwassist = priv->hwassist;
-	} else if (hook == priv->lower) {
+	} else if (hook == priv->lower)
 		priv->lower = NULL;
-		priv->lowerOrphan = 0;
-	} else
+	else if (hook == priv->orphan)
+		priv->orphan = NULL;
+	else
 		panic("%s: weird hook", __func__);
 	if ((NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0)
 	&& (NG_NODE_IS_VALID(NG_HOOK_NODE(hook))))
