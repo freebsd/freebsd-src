@@ -46,9 +46,6 @@ wcscat(s1, s2)
 	wchar_t *q;
 	const wchar_t *r;
 
-	_DIAGASSERT(s1 != NULL);
-	_DIAGASSERT(s2 != NULL);
-
 	p = s1;
 	while (*p)
 		p++;

@@ -44,8 +44,6 @@ wcslen(s)
 {
 	const wchar_t *p;
 
-	_DIAGASSERT(s != NULL);
-
 	p = s;
 	while (*p)
 		p++;

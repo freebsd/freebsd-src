@@ -47,9 +47,6 @@ wcsncpy(s1, s2, n)
 	wchar_t *p;
 	const wchar_t *q;
 
-	_DIAGASSERT(s1 != NULL);
-	_DIAGASSERT(s2 != NULL);
-
 	*s1 = '\0';
 	p = s1;
 	q = s2;

@@ -53,9 +53,6 @@ wcsncmp(s1, s2, n)
 	size_t n;
 {
 
-	_DIAGASSERT(s1 != NULL);
-	_DIAGASSERT(s2 != NULL);
-
 	if (n == 0)
 		return (0);
 	do {
