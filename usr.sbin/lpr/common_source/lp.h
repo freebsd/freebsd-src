@@ -168,9 +168,9 @@ extern char	*person;	/* name of person doing lprm */
 /*
  * Structure used for building a sorted list of control files.
  */
-struct queue {
-	time_t	q_time;			/* modification time */
-	char	q_name[MAXNAMLEN+1];	/* control file name */
+struct jobqueue {
+	time_t	job_time;		/* last-mod time of cf-file */
+	char	job_cfname[MAXNAMLEN+1];	/* control file name */
 };
 
 /* lpr/lpd generates readable timestamps for logfiles, etc.  Have all those
@@ -234,7 +234,7 @@ void	 free_request __P((struct request *rp));
 int	 getline __P((FILE *));
 int	 getport __P((const struct printer *pp, const char *, int));
 int	 getprintcap __P((const char *printer, struct printer *pp));
-int	 getq __P((const struct printer *, struct queue *(*[])));
+int	 getq __P((const struct printer *, struct jobqueue *(*[])));
 void     header __P((void));
 void     inform __P((const struct printer *pp, char *cf));
 void	 init_printer __P((struct printer *pp));
