@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.7 1999/06/14 15:41:33 roger Exp $
+# $Id: Makefile.mfs,v 1.1 1999/08/22 21:42:35 dwhite Exp $
 #
 
 DESTDIR?=/mnt
@@ -8,6 +8,9 @@ STAND_LINKS= bin sbin
 USR_LINKS= bin sbin libexec
 PL_LOCALE_LINKS= pl polish
 US_LOCALE_LINKS= en english
+MY_DEVS= std sysmouse tun2 cuaa0 cuaa1 cuaa2 vty10 fd0 pty0 \
+	psm0 \
+	wd0s1h wd0s2 wd0s3 wd0s4 wd1s1h wd1s2 wd1s3 wd1s4
 
 .if ${LANGUAGE} == pl
 LOCALE= pl_PL.ISO_8859-2
@@ -63,9 +66,7 @@ links: tree
 devnodes: tree
 	(cd ${DESTDIR}/dev; \
 	ln -s /dev/MAKEDEV; \
-	./MAKEDEV std sysmouse tun2 cuaa0 cuaa1 cuaa2 vty10 fd0 pty0; \
-	./MAKEDEV psm0; \
-	./MAKEDEV wd0s1h wd0s2 wd0s3 wd0s4 wd1s1h wd1s2 wd1s3 wd1s4 ;\
+	./MAKEDEV ${MY_DEVS} ; \
 	rm MAKEDEV)
 
 clean:

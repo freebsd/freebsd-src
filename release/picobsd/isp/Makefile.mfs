@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.4 1999/06/14 15:42:47 roger Exp $
+# $Id: Makefile.mfs,v 1.1 1999/08/22 21:43:32 dwhite Exp $
 #
 
 DESTDIR?=/mnt
@@ -7,6 +7,9 @@ DESTDIR?=/mnt
 STAND_LINKS= bin sbin
 USR_LINKS= bin sbin libexec
 PL_LOCALE_LINKS= pl polish
+MY_DEVS= std tun2 vty10 fd0 wd0s1h pty0 \
+	cuaa0 cuaa1 cuaa2 cuaa3 cuaa4 \
+	cuaa5 cuaa6 cuaa7 cuaa8 cuaa9
 
 all: tree links
 
@@ -34,9 +37,7 @@ links: tree
 devnodes: tree
 	(cd ${DESTDIR}/dev; \
 	ln -s /dev/MAKEDEV; \
-	./MAKEDEV std tun2 vty10 fd0 wd0s1h pty0; \
-	./MAKEDEV cuaa0 cuaa1 cuaa2 cuaa3 cuaa4; \
-	./MAKEDEV cuaa5 cuaa6 cuaa7 cuaa8 cuaa9; \
+	./MAKEDEV ${MY_DEVS} ; \
 	rm MAKEDEV)
 
 clean:
