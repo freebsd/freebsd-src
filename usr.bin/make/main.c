@@ -40,8 +40,7 @@
 
 #ifndef lint
 #include <sys/cdefs.h>
-__COPYRIGHT("@(#) Copyright (c) 1988, 1989, 1990, 1993\n\
-	The Regents of the University of California.  All rights reserved.\n");
+__COPYRIGHT("@(#) Copyright (c) 1988, 1989, 1990, 1993  The Regents of the University of California.  All rights reserved.");
 __RCSID("$FreeBSD$");
 #endif /* not lint */
 
