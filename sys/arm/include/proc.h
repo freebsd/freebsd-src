@@ -47,6 +47,8 @@ struct md_utrap {
 
 struct mdthread {
 	register_t md_savecrit;
+	int md_ptrace_instr;
+	int md_ptrace_addr;
 };
 
 struct mdproc {

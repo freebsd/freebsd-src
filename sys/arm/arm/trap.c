@@ -100,6 +100,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 #include <sys/ktrace.h>
 #endif
+#include <sys/ptrace.h>
+#include <sys/pioctl.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -919,6 +921,8 @@ syscall(struct thread *td, trapframe_t *frame, u_int32_t insn)
 	if (error == 0) {
 		td->td_retval[0] = 0;
 		td->td_retval[1] = 0;
+		STOPEVENT(p, S_SCE, (callp->sy_narg & SYF_ARGMASK));
+		PTRACESTOP_SC(p, td, S_PT_SCE);
 		error = (*callp->sy_call)(td, args);
 	}
 	switch (error) {
@@ -952,6 +956,8 @@ bad:
 	CTR4(KTR_SYSC, "syscall exit thread %p pid %d proc %s code %d", td,
 	    td->td_proc->p_pid, td->td_proc->p_comm, code);
 	
+	STOPEVENT(p, S_SCX, code);
+	PTRACESTOP_SC(p, td, S_PT_SCX);
 #ifdef KTRACE
       	if (KTRPOINT(td, KTR_SYSRET))
 		ktrsysret(code, error, td->td_retval[0]);
