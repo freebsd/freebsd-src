@@ -53,6 +53,7 @@
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
 #include <sys/sbuf.h>
+#include <sys/sysent.h>
 #include <sys/tty.h>
 
 #include <vm/vm.h>
@@ -191,7 +192,8 @@ procfs_doproccmdline(PFS_FILL_ARGS)
 	if (p != td->td_proc) {
 		sbuf_printf(sb, "%.*s", MAXCOMLEN, p->p_comm);
 	} else {
-		error = copyin((void*)PS_STRINGS, &pstr, sizeof(pstr));
+		error = copyin((void *)p->p_sysent->sv_psstrings, &pstr,
+		    sizeof(pstr));
 		if (error)
 			return (error);
 		for (i = 0; i < pstr.ps_nargvstr; i++) {

@@ -699,8 +699,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	if ((error = exec_extract_strings(imgp)) != 0)
 		goto fail;
 
-	exec_new_vmspace(imgp, sv->sv_minuser, sv->sv_maxuser,
-	    sv->sv_usrstack);
+	exec_new_vmspace(imgp, sv);
 
 	vmspace = imgp->proc->p_vmspace;
 

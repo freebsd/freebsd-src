@@ -336,7 +336,7 @@ exec_coff_imgact(imgp)
 		goto fail;
 	}
 
-	exec_new_vmspace(imgp, VM_MIN_ADDRESS, VM_MAXUSER_ADDRESS, USRSTACK);
+	exec_new_vmspace(imgp, &ibcs2_svr3_sysvec);
 	vmspace = imgp->proc->p_vmspace;
 
 	for (i = 0; i < nscns; i++) {
