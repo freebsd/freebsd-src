@@ -407,17 +407,109 @@ pt_ta_event_getmsg(const td_thragent_t *ta, td_event_msg_t *msg)
 }
 
 static td_err_e
+pt_dbsuspend(const td_thrhandle_t *th, int suspend)
+{
+	td_thragent_t *ta = (td_thragent_t *)th->th_ta;
+	psaddr_t tcb_addr, tmbx_addr, ptr;
+	lwpid_t lwp;
+	uint32_t dflags;
+	int attrflags;
+	int ret;
+
+	TDBG_FUNC();
+
+	ret = pt_validate(th);
+	if (ret)
+		return (ret);
+
+	if (ta->map[th->th_tid].type == PT_LWP) {
+		if (suspend)
+			ret = ps_lstop(ta->ph, ta->map[th->th_tid].lwp);
+		else
+			ret = ps_lcontinue(ta->ph, ta->map[th->th_tid].lwp);
+		return (P2T(ret));
+	}
+
+	ret = ps_pread(ta->ph, ta->map[th->th_tid].thr +
+		offsetof(struct pthread, attr.flags),
+		&attrflags, sizeof(attrflags));
+	if (ret != 0)
+		return (P2T(ret));
+	ret = ps_pread(ta->ph, ta->map[th->th_tid].thr +
+	                offsetof(struct pthread, tcb),
+	                &tcb_addr, sizeof(tcb_addr));
+	if (ret != 0)
+		return (P2T(ret));
+	tmbx_addr = tcb_addr + offsetof(struct tcb, tcb_tmbx);
+	ptr = tmbx_addr + offsetof(struct kse_thr_mailbox, tm_lwp);
+	ret = ps_pread(ta->ph, ptr, &lwp, sizeof(lwpid_t));
+	if (ret != 0)
+		return (P2T(ret));
+	/*
+	 * Don't stop lwp assigned to a M:N thread, it belongs
+	 * to UTS, UTS shouldn't be stopped.
+	 */
+	if (lwp != 0 && (attrflags & PTHREAD_SCOPE_SYSTEM)) {
+		/* dont' suspend signal thread */
+		if (attrflags & THR_SIGNAL_THREAD)
+			return 0;
+		ptr = ta->map[th->th_tid].thr +
+	                offsetof(struct pthread, kse);
+		/* Too many indirect level :-( */
+		/* read struct kse * */
+		ret = ps_pread(ta->ph, ptr, &ptr, sizeof(ptr));
+		if (ret != 0)
+			return (P2T(ret));
+		ptr = ptr + offsetof(struct kse, k_kcb);
+		/* read k_kcb * */
+		ret = ps_pread(ta->ph, ptr, &ptr, sizeof(ptr));
+		if (ret != 0)
+			return (P2T(ret));
+		/* read kcb.kcb_kmbx.km_curthread */
+		ptr = ptr + offsetof(struct kcb, kcb_kmbx.km_curthread);
+		ret = ps_pread(ta->ph, ptr, &ptr, sizeof(ptr));
+		if (ret != 0)
+			return (P2T(ret));
+		if (ptr != 0) { /* not in critical */
+			if (suspend)
+				ret = ps_lstop(ta->ph, lwp);
+			else
+				ret = ps_lcontinue(ta->ph, lwp);
+			if (ret != 0)
+				return (P2T(ret));
+		}
+		/* FALLTHROUGH */
+	}
+	/* read tm_dflags */
+	ret = ps_pread(ta->ph,
+		tmbx_addr + offsetof(struct kse_thr_mailbox, tm_dflags),
+		&dflags, sizeof(dflags));
+	if (ret != 0)
+		return (P2T(ret));
+	if (suspend)
+		dflags |= TMDF_DONOTRUNUSER;
+	else
+		dflags &= ~TMDF_DONOTRUNUSER;
+	ret = ps_pwrite(ta->ph,
+	       tmbx_addr + offsetof(struct kse_thr_mailbox, tm_dflags),
+	       &dflags, sizeof(dflags));
+	return (P2T(ret));
+}
+
+static td_err_e
 pt_thr_dbresume(const td_thrhandle_t *th)
 {
 	TDBG_FUNC();
-	return (TD_ERR);
+
+	return pt_dbsuspend(th, 0);
 }
 
 static td_err_e
 pt_thr_dbsuspend(const td_thrhandle_t *th)
 {
 	TDBG_FUNC();
-	return (TD_ERR);
+
+	return pt_dbsuspend(th, 1);
 }
 
 static td_err_e
@@ -430,7 +522,7 @@ pt_thr_validate(const td_thrhandle_t *th)
 
 	ret = pt_ta_map_id2thr(th->th_ta, th->th_tid,
 	                       &temp);
-	return (P2T(ret));
+	return (ret);
 }
 
 static td_err_e
@@ -439,6 +531,7 @@ pt_thr_get_info(const td_thrhandle_t *th, td_thrinfo_t *info)
 	const td_thragent_t *ta = th->th_ta;
 	struct pthread pt;
 	int ret;
+	uint32_t dflags;
 
 	TDBG_FUNC();
 
@@ -467,7 +560,11 @@ pt_thr_get_info(const td_thrhandle_t *th, td_thrinfo_t *info)
 	        &info->ti_lid, sizeof(lwpid_t));
 	if (ret != 0)
 		return (P2T(ret));
-
+	ret = ps_pread(ta->ph,
+		((psaddr_t)pt.tcb) + offsetof(struct tcb, tcb_tmbx.tm_dflags),
+		&dflags, sizeof(dflags));
+	if (ret != 0)
+		return (P2T(ret));
 	info->ti_ta_p = th->th_ta;
 	info->ti_tid = th->th_tid;
 	info->ti_tls = (char *)pt.specific; 
@@ -497,7 +594,7 @@ pt_thr_get_info(const td_thrhandle_t *th, td_thrinfo_t *info)
 		break;
 	}
 
-	info->ti_db_suspended = 0;
+	info->ti_db_suspended = ((dflags & TMDF_DONOTRUNUSER) != 0);
 	info->ti_type = TD_THR_USER;
 	info->ti_pri = pt.active_priority;
 	info->ti_sigmask = pt.sigmask;
@@ -528,8 +625,8 @@ pt_thr_getfpregs(const td_thrhandle_t *th, prfpregset_t *fpregs)
 	}
 
 	ret = ps_pread(ta->ph, ta->map[th->th_tid].thr +
- 	                offsetof(struct pthread, tcb),
-                        &tcb_addr, sizeof(tcb_addr));
+	               offsetof(struct pthread, tcb),
+	               &tcb_addr, sizeof(tcb_addr));
 	if (ret != 0)
 		return (P2T(ret));
 	tmbx_addr = tcb_addr + offsetof(struct tcb, tcb_tmbx);
@@ -720,7 +817,7 @@ pt_thr_sstep(const td_thrhandle_t *th, int step)
 	struct kse_thr_mailbox tmbx;
 	struct reg regs;
 	psaddr_t tcb_addr, tmbx_addr;
-	uint32_t tmp;
+	uint32_t dflags;
 	lwpid_t lwp;
 	int ret;
 
@@ -740,9 +837,16 @@ pt_thr_sstep(const td_thrhandle_t *th, int step)
 		return (P2T(ret));
 
 	/* Clear or set single step flag in thread mailbox */
-	tmp = step ? TMDF_SSTEP : 0;
+	ret = ps_pread(ta->ph, tcb_addr + offsetof(struct tcb,
+			 tcb_tmbx.tm_dflags), &dflags, sizeof(uint32_t));
+	if (ret != 0)
+		return (P2T(ret));
+	if (step != 0)
+		dflags |= TMDF_SSTEP;
+	else
+		dflags &= ~TMDF_SSTEP;
 	ret = ps_pwrite(ta->ph, tcb_addr + offsetof(struct tcb,
-	                 tcb_tmbx.tm_dflags), &tmp, sizeof(tmp));
+	                 tcb_tmbx.tm_dflags), &dflags, sizeof(uint32_t));
 	if (ret != 0)
 		return (P2T(ret));
 	/* Get lwp */
@@ -751,7 +855,7 @@ pt_thr_sstep(const td_thrhandle_t *th, int step)
 	if (ret != 0)
 		return (P2T(ret));
 	if (lwp != 0)
-		return (TD_BADTH);
+		return (0);
 
 	tmbx_addr = tcb_addr + offsetof(struct tcb, tcb_tmbx);
 	/*
