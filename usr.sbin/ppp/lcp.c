@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.24 1997/06/14 00:21:23 ache Exp $
+ * $Id: lcp.c,v 1.25 1997/08/01 02:02:28 brian Exp $
  *
  * TODO:
  *      o Validate magic number received from peer.
@@ -76,9 +76,10 @@ struct fsm LcpFsm = {
   OPEN_ACTIVE,
   ST_INITIAL,			/* State of machine */
   0, 0, 0,
-
   0,
   { 0, 0, 0, NULL, NULL, NULL },
+  { 0, 0, 0, NULL, NULL, NULL },
+  LogLCP,
 
   LcpLayerUp,
   LcpLayerDown,

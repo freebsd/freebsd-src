@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.13 1997/06/09 03:27:21 brian Exp $
+ * $Id: fsm.c,v 1.14 1997/08/17 20:45:46 brian Exp $
  *
  *  TODO:
  *		o Refer loglevel for log output
@@ -43,23 +43,11 @@ char const *StateNames[] = {
   "Req-Sent", "Ack-Rcvd", "Ack-Sent", "Opened",
 };
 
-/*
- * This timer times the ST_STOPPED state out after the given value
- * (specified via "set stopped ...").  Although this isn't
- * specified in the rfc, the rfc *does* say that "the application
- * may use higher level timers to avoid deadlock".
- * The StoppedTimer takes effect when the other side ABENDs rather
- * than going into ST_ACKSENT (and sending the ACK), causing ppp to
- * time out and drop into ST_STOPPED.  At this point, nothing will
- * change this state :-(
- */
-struct pppTimer StoppedTimer;
-
 static void
 StoppedTimeout(fp)
 struct fsm *fp;
 {
-  LogPrintf(LogLCP, "Stopped timer expired\n");
+  LogPrintf(fp->LogLevel, "Stopped timer expired\n");
   if (modem != -1)
     DownConnection();
   else
@@ -82,19 +70,18 @@ NewState(fp, new)
 struct fsm *fp;
 int new;
 {
-  LogPrintf(LogLCP, "State change %s --> %s\n",
+  LogPrintf(fp->LogLevel, "State change %s --> %s\n",
 	  StateNames[fp->state], StateNames[new]);
-  if (fp->state == ST_STOPPED && StoppedTimer.state == TIMER_RUNNING)
-      StopTimer(&StoppedTimer);
+  if (fp->state == ST_STOPPED && fp->StoppedTimer.state == TIMER_RUNNING)
+      StopTimer(&fp->StoppedTimer);
   fp->state = new;
   if ((new >= ST_INITIAL && new <= ST_STOPPED) || (new == ST_OPENED)) {
     StopTimer(&fp->FsmTimer);
-    if (new == ST_STOPPED && VarStoppedTimeout) {
-      StoppedTimer.state = TIMER_STOPPED;
-      StoppedTimer.func = StoppedTimeout;
-      StoppedTimer.arg = (void *)fp;
-      StoppedTimer.load = VarStoppedTimeout * SECTICKS;
-      StartTimer(&StoppedTimer);
+    if (new == ST_STOPPED && fp->StoppedTimer.load) {
+      fp->StoppedTimer.state = TIMER_STOPPED;
+      fp->StoppedTimer.func = StoppedTimeout;
+      fp->StoppedTimer.arg = (void *)fp;
+      StartTimer(&fp->StoppedTimer);
     }
   }
 }
@@ -169,7 +156,7 @@ struct fsm *fp;
     NewState(fp, ST_REQSENT);
     break;
   default:
-    LogPrintf(LogLCP, "Oops, Up at %s\n", StateNames[fp->state]);
+    LogPrintf(fp->LogLevel, "Oops, Up at %s\n", StateNames[fp->state]);
     break;
   }
 }
@@ -246,7 +233,7 @@ void
 FsmSendTerminateReq(fp)
 struct fsm *fp;
 {
-  LogPrintf(LogLCP, "SendTerminateReq.\n");
+  LogPrintf(fp->LogLevel, "SendTerminateReq.\n");
   FsmOutput(fp, CODE_TERMREQ, fp->reqid++, NULL, 0);
   (fp->SendTerminateReq)(fp);
   StartTimer(&fp->FsmTimer);	/* Start restart timer */
@@ -260,7 +247,7 @@ struct fsmheader *lhp;
 u_char *option;
 int count;
 {
-  LogPrintf(LogLCP, "SendConfigAck(%s)\n", StateNames[fp->state]);
+  LogPrintf(fp->LogLevel, "SendConfigAck(%s)\n", StateNames[fp->state]);
   (fp->DecodeConfig)(option, count, MODE_NOP);
   FsmOutput(fp, CODE_CONFIGACK, lhp->id, option, count);
 }
@@ -272,7 +259,7 @@ struct fsmheader *lhp;
 u_char *option;
 int count;
 {
-  LogPrintf(LogLCP, "SendConfigRej(%s)\n", StateNames[fp->state]);
+  LogPrintf(fp->LogLevel, "SendConfigRej(%s)\n", StateNames[fp->state]);
   (fp->DecodeConfig)(option, count, MODE_NOP);
   FsmOutput(fp, CODE_CONFIGREJ, lhp->id, option, count);
 }
@@ -284,7 +271,7 @@ struct fsmheader *lhp;
 u_char *option;
 int count;
 {
-  LogPrintf(LogLCP, "SendConfigNak(%s)\n", StateNames[fp->state]);
+  LogPrintf(fp->LogLevel, "SendConfigNak(%s)\n", StateNames[fp->state]);
   (fp->DecodeConfig)(option, count, MODE_NOP);
   FsmOutput(fp, CODE_CONFIGNAK, lhp->id, option, count);
 }
@@ -370,7 +357,7 @@ struct mbuf *bp;
   switch (fp->state) {
   case ST_INITIAL:
   case ST_STARTING:
-    LogPrintf(LogLCP, "Oops, RCR in %s.\n", StateNames[fp->state]);
+    LogPrintf(fp->LogLevel, "Oops, RCR in %s.\n", StateNames[fp->state]);
     pfree(bp);
     return;
   case ST_CLOSED:
@@ -490,7 +477,7 @@ struct mbuf *bp;
   switch (fp->state) {
   case ST_INITIAL:
   case ST_STARTING:
-    LogPrintf(LogLCP, "Oops, RCN in %s.\n", StateNames[fp->state]);
+    LogPrintf(fp->LogLevel, "Oops, RCN in %s.\n", StateNames[fp->state]);
     pfree(bp);
     return;
   case ST_CLOSED:
@@ -533,7 +520,7 @@ struct mbuf *bp;
   switch (fp->state) {
   case ST_INITIAL:
   case ST_STARTING:
-    LogPrintf(LogLCP, "Oops, RTR in %s\n", StateNames[fp->state]);
+    LogPrintf(fp->LogLevel, "Oops, RTR in %s\n", StateNames[fp->state]);
     break;
   case ST_CLOSED:
   case ST_STOPPED:
@@ -599,7 +586,7 @@ struct mbuf *bp;
     pfree(bp);
     return;
   }
-  LogPrintf(LogLCP, "RecvConfigRej.\n");
+  LogPrintf(fp->LogLevel, "RecvConfigRej.\n");
 
   /*
    *  Check and process easy case
@@ -607,7 +594,7 @@ struct mbuf *bp;
   switch (fp->state) {
   case ST_INITIAL:
   case ST_STARTING:
-    LogPrintf(LogLCP, "Oops, RCJ in %s.\n", StateNames[fp->state]);
+    LogPrintf(fp->LogLevel, "Oops, RCJ in %s.\n", StateNames[fp->state]);
     pfree(bp);
     return;
   case ST_CLOSED:
@@ -646,7 +633,7 @@ struct fsm *fp;
 struct fsmheader *lhp;
 struct mbuf *bp;
 {
-  LogPrintf(LogLCP, "RecvCodeRej\n");
+  LogPrintf(fp->LogLevel, "RecvCodeRej\n");
   pfree(bp);
 }
 
@@ -660,7 +647,7 @@ struct mbuf *bp;
 
   sp = (u_short *)MBUF_CTOP(bp);
   proto = ntohs(*sp);
-  LogPrintf(LogLCP, "-- Protocol (%04x) was rejected.\n", proto);
+  LogPrintf(fp->LogLevel, "-- Protocol (%04x) was rejected.\n", proto);
 
   switch (proto) {
   case PROTO_LQR:
@@ -701,7 +688,7 @@ struct mbuf *bp;
 
   if (fp->state == ST_OPENED) {
     *lp = htonl(LcpInfo.want_magic);	/* Insert local magic number */
-    LogPrintf(LogLCP, "SendEchoRep(%s)\n", StateNames[fp->state]);
+    LogPrintf(fp->LogLevel, "SendEchoRep(%s)\n", StateNames[fp->state]);
     FsmOutput(fp, CODE_ECHOREP, lhp->id, cp, plength(bp));
   }
   pfree(bp);
@@ -738,7 +725,7 @@ struct fsm *fp;
 struct fsmheader *lhp;
 struct mbuf *bp;
 {
-  LogPrintf(LogLCP, "RecvDiscReq\n");
+  LogPrintf(fp->LogLevel, "RecvDiscReq\n");
   pfree(bp);
 }
 
@@ -748,7 +735,7 @@ struct fsm *fp;
 struct fsmheader *lhp;
 struct mbuf *bp;
 {
-  LogPrintf(LogLCP, "RecvIdent\n");
+  LogPrintf(fp->LogLevel, "RecvIdent\n");
   pfree(bp);
 }
 
@@ -758,7 +745,7 @@ struct fsm *fp;
 struct fsmheader *lhp;
 struct mbuf *bp;
 {
-  LogPrintf(LogLCP, "RecvTimeRemain\n");
+  LogPrintf(fp->LogLevel, "RecvTimeRemain\n");
   pfree(bp);
 }
 
@@ -768,9 +755,9 @@ struct fsm *fp;
 struct fsmheader *lhp;
 struct mbuf *bp;
 {
-  LogPrintf(LogLCP, "RecvResetReq\n");
+  LogPrintf(fp->LogLevel, "RecvResetReq\n");
   CcpRecvResetReq(fp);
-  LogPrintf(LogLCP, "SendResetAck\n");
+  LogPrintf(fp->LogLevel, "SendResetAck\n");
   FsmOutput(fp, CODE_RESETACK, fp->reqid, NULL, 0);
   pfree(bp);
 }
@@ -781,7 +768,7 @@ struct fsm *fp;
 struct fsmheader *lhp;
 struct mbuf *bp;
 {
-  LogPrintf(LogLCP, "RecvResetAck\n");
+  LogPrintf(fp->LogLevel, "RecvResetAck\n");
   fp->reqid++;
   pfree(bp);
 }
@@ -828,7 +815,7 @@ struct mbuf *bp;
   bp->cnt -= sizeof(struct fsmheader);
 
   codep = FsmCodes + lhp->code - 1;
-  LogPrintf(LogLCP, "Received %s (%d) state = %s (%d)\n",
+  LogPrintf(fp->LogLevel, "Received %s (%d) state = %s (%d)\n",
     codep->name, lhp->id, StateNames[fp->state], fp->state);
   if (LogIsKept(LogDEBUG))
     LogMemory();
