@@ -76,7 +76,6 @@
 
 void	in6_pcbpurgeif0 __P((struct in6pcb *, struct ifnet *));
 void	in6_losing __P((struct inpcb *));
-int	in6_pcballoc __P((struct socket *, struct inpcbinfo *, struct thread *));
 int	in6_pcbbind __P((struct inpcb *, struct sockaddr *, struct thread *));
 int	in6_pcbconnect __P((struct inpcb *, struct sockaddr *, struct thread *));
 void	in6_pcbdetach __P((struct inpcb *));
