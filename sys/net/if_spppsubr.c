@@ -4938,7 +4938,13 @@ sppp_params(struct sppp *sp, u_long cmd, void *data)
 		 * called by any user.  No need to ever get PAP or
 		 * CHAP secrets back to userland anyway.
 		 */
-		bcopy(sp, &spr.defs, sizeof(struct sppp));
+		spr.defs.pp_phase = sp->pp_phase;
+		spr.defs.enable_vj = sp->enable_vj;
+		spr.defs.lcp = sp->lcp;
+		spr.defs.ipcp = sp->ipcp;
+		spr.defs.ipv6cp = sp->ipv6cp;
+		spr.defs.myauth = sp->myauth;
+		spr.defs.hisauth = sp->hisauth;
 		bzero(spr.defs.myauth.secret, AUTHKEYLEN);
 		bzero(spr.defs.myauth.challenge, AUTHKEYLEN);
 		bzero(spr.defs.hisauth.secret, AUTHKEYLEN);
