@@ -1,5 +1,5 @@
 #	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
-#	$Id: bsd.lib.mk,v 1.36 1996/06/24 04:24:03 jkh Exp $
+#	$Id: bsd.lib.mk,v 1.37 1996/06/29 03:12:48 phk Exp $
 #
 
 .if exists(${.CURDIR}/../Makefile.inc)
@@ -131,7 +131,7 @@ OBJS+=	${SRCS:N*.h:R:S/$/.o/g}
 lib${LIB}.a:: ${OBJS}
 	@${ECHO} building standard ${LIB} library
 	@rm -f lib${LIB}.a
-	@${AR} cq lib${LIB}.a `lorder ${OBJS} | tsort` ${ARADD}
+	@${AR} cq lib${LIB}.a `lorder ${OBJS} | tsort -q` ${ARADD}
 	${RANLIB} lib${LIB}.a
 
 .if !defined(NOPROFILE)
@@ -139,7 +139,7 @@ POBJS+=	${OBJS:.o=.po}
 lib${LIB}_p.a:: ${POBJS}
 	@${ECHO} building profiled ${LIB} library
 	@rm -f lib${LIB}_p.a
-	@${AR} cq lib${LIB}_p.a `lorder ${POBJS} | tsort` ${ARADD}
+	@${AR} cq lib${LIB}_p.a `lorder ${POBJS} | tsort -q` ${ARADD}
 	${RANLIB} lib${LIB}_p.a
 .endif
 
@@ -158,7 +158,7 @@ lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}: ${SOBJS}
 	@rm -f lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
 	@${LD} -Bshareable -x \
 	    -o lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR} \
-	    `lorder ${SOBJS} | tsort` ${LDDESTDIR} ${LDADD}
+	    `lorder ${SOBJS} | tsort -q` ${LDDESTDIR} ${LDADD}
 
 lib${LIB}_pic.a:: ${SOBJS}
 	@${ECHO} building special pic ${LIB} library
