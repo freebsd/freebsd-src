@@ -240,19 +240,19 @@ extern unsigned long get_time(void);
 
 #if 0
 /*  
- * The outb(0, 0x80) is just for slowdown. It's bit unsafe since
- * this address could be used for something usefull.
+ * outb(0x5f, 0) and outb(0x80, 0) are just for delay.  They are a bit
+ * unsafe since there might be a device at the magic address.
  */
 #ifdef PC98
-#define OUTB(addr, data)	{outb(data, addr);outb(0x5f, 0);}
-#define OUTW(addr, data)	{outw(data, addr);outb(0x5f, 0);}
+#define OUTB(data, addr)	{ outb(addr, data); outb(0x5f, 0); }
+#define OUTW(data, addr)	{ outw(addr, data); outb(0x5f, 0); }
 #else /* IBM-PC */
-#define OUTB(addr, data)	{outb(data, addr);outb(0x80, 0);}
-#define OUTW(addr, data)	{outw(data, addr);outb(0x80, 0);}
+#define OUTB(data, addr)	{ outb(addr, data); outb(0x80, 0); }
+#define OUTW(data, addr)	{ outw(addr, data); outb(0x80, 0); }
 #endif /* PC98 */
 #else
-#define OUTB(addr, data)	outb(data, addr)
-#define OUTW(addr, data)	outw(data, addr)
+#define OUTB(data, addr)	outb(addr, data)
+#define OUTW(data, addr)	outw(addr, data)
 #endif
 
 /* memcpy() was not defined on FreeBSD. Lets define it here */
