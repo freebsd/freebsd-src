@@ -33,6 +33,11 @@ INSTALL_CF=	${SENDMAIL_CF}
 ALL+=	${INSTALL_CF}
 .endif
 
+# Additional .cf files to build
+.if defined(SENDMAIL_ADDITIONAL_MC)
+ALL+=	${SENDMAIL_ADDITIONAL_MC:S/.mc$/.cf/g}
+.endif
+
 CLEANFILES+=$(ALL)
 
 all: $(ALL)
