@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.57.4.16 1996/06/21 19:41:35 markm Exp $
+#	$Id: Makefile,v 1.57.4.17 1996/06/26 22:48:47 nate Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include and MOST of /usr/lib
@@ -216,17 +216,21 @@ includes:
 .endif
 	cd ${.CURDIR}/include &&		${MAKE} install
 	cd ${.CURDIR}/gnu/include &&		${MAKE}	install
+	cd ${.CURDIR}/gnu/lib/libdialog &&	${MAKE} beforeinstall
+	cd ${.CURDIR}/gnu/lib/libg++ &&		${MAKE} beforeinstall
+	cd ${.CURDIR}/gnu/lib/libgmp &&		${MAKE} beforeinstall
+	cd ${.CURDIR}/gnu/lib/libmp &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libreadline &&	${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libregex &&	${MAKE} beforeinstall
-	cd ${.CURDIR}/gnu/lib/libg++ &&         ${MAKE} beforeinstall
-	cd ${.CURDIR}/gnu/lib/libdialog &&      ${MAKE} beforeinstall
 .if exists(eBones) && !defined(NOCRYPT) && defined(MAKE_EBONES)
 	cd ${.CURDIR}/eBones/include &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/eBones/lib/libkrb &&	${MAKE} beforeinstall
 	cd ${.CURDIR}/eBones/lib/libkadm &&	${MAKE} beforeinstall
 .endif
+	cd ${.CURDIR}/lib/csu/${MACHINE} &&	${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libc &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libcurses &&		${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/libdisk &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libedit &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libftpio &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libmd &&		${MAKE} beforeinstall
@@ -243,6 +247,9 @@ includes:
 	cd ${.CURDIR}/lib/libss &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libscsi &&		${MAKE}	beforeinstall
 	cd ${.CURDIR}/lib/libutil &&		${MAKE}	beforeinstall
+.if exists(secure) && !defined(NOCRYPT) && !defined(NOSECURE)
+	cd ${.CURDIR}/secure/lib/libdes &&	${MAKE}	beforeinstall
+.endif
 
 lib-tools:
 	@echo "--------------------------------------------------------------"
