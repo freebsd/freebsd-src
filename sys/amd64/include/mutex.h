@@ -40,7 +40,7 @@
 /* Global locks */
 extern struct mtx	clock_lock;
 
-#define	mtx_intr_enable(mutex)	(mutex)->mtx_savecrit |= PSL_I
+#define	mtx_intr_enable(mutex)	do (mutex)->mtx_savecrit |= PSL_I; while (0)
 
 /*
  * Assembly macros (for internal use only)
