@@ -1,5 +1,5 @@
 /*	$NetBSD: ums.c,v 1.8 1998/08/01 20:11:39 augustss Exp $	*/
-/*	FreeBSD $Id$ */
+/*	FreeBSD $Id: ums.c,v 1.3 1998/12/14 09:32:24 n_hibma Exp $ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -158,7 +158,7 @@ static d_read_t ums_read;
 static d_ioctl_t ums_ioctl;
 static d_poll_t ums_poll;
 
-#define UMS_CDEV_MAJOR	138	/* XXX NWH should be requested */
+#define UMS_CDEV_MAJOR	111
 
 static struct  cdevsw ums_cdevsw = {
 	ums_open,	ums_close,	ums_read,	nowrite,
