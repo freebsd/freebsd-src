@@ -311,6 +311,8 @@ cpu_switch(struct thread *old, struct thread *new)
 #if IA32
 	ia32_savectx(oldpcb);
 #endif
+	if (PCPU_GET(fpcurthread) == old)
+		old->td_frame->tf_special.psr |= IA64_PSR_DFH;
 	if (!savectx(oldpcb)) {
 		newpcb = new->td_pcb;
 		oldpcb->pcb_current_pmap =
@@ -319,6 +321,8 @@ cpu_switch(struct thread *old, struct thread *new)
 #if IA32
 		ia32_restorectx(newpcb);
 #endif
+		if (PCPU_GET(fpcurthread) == new)
+			new->td_frame->tf_special.psr &= ~IA64_PSR_DFH;
 		restorectx(newpcb);
 		/* We should not get here. */
 		panic("cpu_switch: restorectx() returned");
