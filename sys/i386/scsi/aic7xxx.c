@@ -24,7 +24,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aic7xxx.c,v 1.55 1996/01/29 03:17:37 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.56 1996/03/10 07:11:43 gibbs Exp $
  */
 /*
  * TODO:
@@ -1179,6 +1179,11 @@ clear:
 			u_char waiting;
 			u_char flags;
                         xs->error = XS_TIMEOUT;
+			/*
+			 * Stop the Selection
+			 */
+			outb(SCSISEQ + iobase, 0);
+
 			/*
 			 * Clear any pending messages for the timed out
 			 * target, and mark the target as free
