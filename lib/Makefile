@@ -79,13 +79,11 @@ _libdisk=	libdisk
 
 .if defined(RELEASEDIR) || \
     (!exists(${.CURDIR}/../secure) && !exists(${.CURDIR}/../kerberos5)) || \
-    defined(NOCRYPT) || defined(NO_OPENSSL) || \
-    (defined(NOSECURE) && defined(NO_KERBEROS))
+    defined(NOCRYPT) || defined(NO_OPENSSL) || defined(NO_KERBEROS)
 _libtelnet=	libtelnet
 .endif
 
-.if exists(${.CURDIR}/../crypto) && !defined(NOCRYPT) && !defined(NO_OPENSSL) \
-    && !defined(NOSECURE)
+.if exists(${.CURDIR}/../crypto) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
 _libmp=		libmp
 .endif
 

@@ -218,8 +218,7 @@ SUBDIR=	alias \
 
 .if defined(RELEASEDIR) || \
     (!exists(${.CURDIR}/../secure) && !exists(${.CURDIR}/../kerberos5)) || \
-    defined(NOCRYPT) || defined(NO_OPENSSL) || \
-    (defined(NOSECURE) && defined(NO_KERBEROS))
+    defined(NOCRYPT) || defined(NO_OPENSSL) || defined(NO_KERBEROS)
 # make release needs both
 SUBDIR+=telnet
 .endif
@@ -248,8 +247,7 @@ SUBDIR+=doscmd \
 SUBDIR+=uac
 .endif
 
-.if exists(${.CURDIR}/../crypto) && !defined(NOCRYPT) && !defined(NO_OPENSSL) \
-    && !defined(NOSECURE)
+.if exists(${.CURDIR}/../crypto) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
 SUBDIR+=chkey newkey
 .endif
 
