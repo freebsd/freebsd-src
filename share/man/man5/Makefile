@@ -2,7 +2,7 @@
 #	$FreeBSD$
 
 #MISSING: dump.5 plot.5
-MAN5=	a.out.5 acct.5 core.5 devfs.5 dir.5 disktab.5 ethers.5 \
+MAN=	a.out.5 acct.5 core.5 devfs.5 dir.5 disktab.5 ethers.5 \
 	elf.5 fbtab.5 fdesc.5 forward.5 fs.5 fstab.5 group.5 \
 	hesiod.conf.5 \
 	hosts.5 hosts.equiv.5 hosts.lpd.5 intro.5 link.5 \
