@@ -329,10 +329,13 @@ main(int argc, char *argv[])
 	default:
 		while ((ret_pid = waitpid(child_pid, &statusp, WUNTRACED)) != -1) {
 			if (WIFSTOPPED(statusp)) {
-				child_pgrp = tcgetpgrp(1);
 				kill(getpid(), SIGSTOP);
-				tcsetpgrp(1, child_pgrp);
-				kill(child_pid, SIGCONT);
+				child_pgrp = getpgid(child_pid);
+				if (tcgetpgrp(1) == getpgrp())
+				{
+					tcsetpgrp(1, child_pgrp);
+					kill(child_pid, SIGCONT);
+				}
 				statusp = 1;
 				continue;
 			}
