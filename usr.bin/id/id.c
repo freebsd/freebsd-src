@@ -55,7 +55,6 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-int	main(int, char *[]);
 void	current(void);
 void	pline(struct passwd *);
 void	pretty(struct passwd *);

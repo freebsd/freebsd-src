@@ -93,7 +93,6 @@ static struct numbering_property numbering_properties[NP_LAST + 1] = {
 	((sizeof (int) * CHAR_BIT - 1) * 302 / 1000 + 2)
 
 static void	filter(void);
-int		main(int, char *[]);
 static void	parse_numbering(const char *, int);
 static void	usage(void);
 

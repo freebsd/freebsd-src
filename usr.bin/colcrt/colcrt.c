@@ -75,7 +75,6 @@ char	printall;
 
 FILE	*f;
 
-int		main(int, char *[]);
 static void	move(int, int);
 static void	pflush(int);
 static int	plus(char, char);
