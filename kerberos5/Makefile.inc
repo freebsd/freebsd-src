@@ -16,7 +16,7 @@ CFLAGS+=-DINET6
 OPENLDAPBASE?=	/usr/local
 LDAPLIBS=-lldap -llber
 LDAPCFLAGS=-I${OPENLDAPBASE}/include -DOPENLDAP=1
-LDAPLDADD=-L${OPENLDAPBASE}/lib ${LDAPLIBS}
+LDAPLDADD=-L${OPENLDAPBASE}/lib -Wl,-rpath,${OPENLDAPBASE}/lib ${LDAPLIBS}
 .endif
 
 .if exists(${.OBJDIR}/../../include)
