@@ -39,7 +39,7 @@ static volatile int print_tci = 1;
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.57 1998/02/20 16:35:49 phk Exp $
+ * $Id: kern_clock.c,v 1.58 1998/03/16 10:19:12 phk Exp $
  */
 
 #include <sys/param.h>
@@ -220,17 +220,6 @@ hardclock(frame)
 			setsoftclock();
 	} else if (softticks + 1 == ticks)
 		++softticks;
-}
-
-void
-gettime(struct timeval *tvp)
-{
-	int s;
-
-	s = splclock();
-	/* XXX should use microtime() iff tv_usec is used. */
-	*tvp = time;
-	splx(s);
 }
 
 /*
@@ -494,6 +483,35 @@ sysctl_kern_clockrate SYSCTL_HANDLER_ARGS
 
 SYSCTL_PROC(_kern, KERN_CLOCKRATE, clockrate, CTLTYPE_STRUCT|CTLFLAG_RD,
 	0, 0, sysctl_kern_clockrate, "S,clockinfo","");
+
+
+/*
+ * We have four functions for looking at the clock, two for microseconds
+ * and two for nanoseconds.  For each there is fast but less precise
+ * version "get{nano|micro}time" which will return a time which is up
+ * to 1/HZ previous to the call, whereas the raw version "{nano|micro}time"
+ * will return a timestamp which is as precise as possible.
+ */
+
+void
+getmicrotime(struct timeval *tvp)
+{
+	struct timecounter *tc;
+
+	tc = timecounter;
+	tvp->tv_sec = tc->offset_sec;
+	tvp->tv_usec = tc->offset_micro;
+}
+
+void
+getnanotime(struct timespec *tsp)
+{
+	struct timecounter *tc;
+
+	tc = timecounter;
+	tsp->tv_sec = tc->offset_sec;
+	tsp->tv_nsec = tc->offset_nano;
+}
 
 void
 microtime(struct timeval *tv)

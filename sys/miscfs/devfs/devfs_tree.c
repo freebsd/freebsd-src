@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: devfs_tree.c,v 1.48 1997/11/08 19:02:26 julian Exp $
+ *	$Id: devfs_tree.c,v 1.49 1998/01/02 07:31:06 julian Exp $
  */
 
 #include "opt_devfs.h"
@@ -435,7 +435,7 @@ dev_add_node(int entrytype, union typeinfo *by, dn_p proto,
 		 */
 		bzero(dnp,sizeof(devnode_t));
 		dnp->type = entrytype;
-		TIMEVAL_TO_TIMESPEC(&time,&(dnp->ctime))
+		getnanotime(&(dnp->ctime));
 		dnp->mtime = dnp->ctime;
 		dnp->atime = dnp->ctime;
 		dnp->nextsibling = dnp;
@@ -527,7 +527,7 @@ int
 dev_touch(devnm_p key)		/* update the node for this dev */
 {
 	DBPRINT(("dev_touch\n"));
-	TIMEVAL_TO_TIMESPEC(&time,&(key->dnp->mtime))
+	getnanotime(&(key->dnp->mtime));
 	return 0; /*XXX*/
 }
 
