@@ -52,6 +52,10 @@ ip6fw_start()
 		echo 'IPv6 Firewall logging=YES'
 		sysctl net.inet6.ip6.fw.verbose=1 >/dev/null
 	fi
+
+	# Enable the firewall
+	#
+	${SYSCTL_W} net.inet6.ip6.fw.enable=1
 }
 
 load_rc_config $name
