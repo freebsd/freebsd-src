@@ -419,7 +419,7 @@ distMaybeSetPorts(dialogMenuItem *self)
 		  "much more than that when a lot of the distribution tarballs are loaded\n"
 		  "(unless you have the extra CDs available from a FreeBSD CDROM distribution\n"
 		  "and can mount them on /cdrom, in which case this is far less of a problem).\n\n"
-		  "The ports collection is a very valuable resource and well worth having"
+		  "The ports collection is a very valuable resource and well worth having\n"
 		  "on your /usr partition, so it is advisable to say Yes to this option.\n\n"
 		  "For more information on the ports collection & the latest ports, visit:\n"
 		  "    http://www.freebsd.org/ports\n"))
