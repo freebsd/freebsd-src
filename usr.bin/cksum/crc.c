@@ -41,7 +41,7 @@ static char sccsid[] = "@(#)crc.c	8.1 (Berkeley) 6/17/93";
 #include <sys/types.h>
 #include <unistd.h>
 
-static u_long crctab[] = {
+static const u_int32_t crctab[] = {
 	0x0,
 	0x04c11db7, 0x09823b6e, 0x0d4326d9, 0x130476dc, 0x17c56b6b,
 	0x1a864db2, 0x1e475005, 0x2608edb8, 0x22c9f00f, 0x2f8ad6d6,
@@ -102,16 +102,16 @@ static u_long crctab[] = {
  * locations to store the crc and the number of bytes read.  It returns 0 on
  * success and 1 on failure.  Errno is set on failure.
  */
-u_long crc_total = ~0;			/* The crc over a number of files. */
+u_int32_t crc_total = ~0;			/* The crc over a number of files. */
 
 int
 crc(fd, cval, clen)
 	register int fd;
-	u_long *cval, *clen;
+	u_int32_t *cval, *clen;
 {
 	register u_char *p;
 	register int nr;
-	register u_long crc, len;
+	register u_int32_t crc, len;
 	u_char buf[16 * 1024];
 
 #define	COMPUTE(var, ch)	(var) = (var) << 8 ^ crctab[(var) >> 24 ^ (ch)]
