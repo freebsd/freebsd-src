@@ -43,11 +43,9 @@
 
 typedef int sig_atomic_t;
 
-#ifdef _KERNEL
-#include <machine/frame.h>
-#endif /* _KERNEL */
-
 #if __BSD_VISIBLE
+#include <machine/frame.h>
+
 struct sigcontext {
 	int sc_onstack;			/* saved onstack flag */
 	int __sc_mask13;		/* saved signal mask (old style) */
