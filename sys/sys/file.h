@@ -82,7 +82,7 @@ struct file {
 		int	(*fo_write)(struct file *fp, struct uio *uio,
 			    struct ucred *cred, int flags, struct thread *td);
 #define	FOF_OFFSET	1
-		int	(*fo_ioctl)(struct file *fp, u_long com, caddr_t data,
+		int	(*fo_ioctl)(struct file *fp, u_long com, void *data,
 			    struct thread *td);
 		int	(*fo_poll)(struct file *fp, int events,
 			    struct ucred *cred, struct thread *td);
@@ -153,7 +153,7 @@ static __inline int fo_read(struct file *fp, struct uio *uio,
     struct ucred *cred, int flags, struct thread *td);
 static __inline int fo_write(struct file *fp, struct uio *uio,
     struct ucred *cred, int flags, struct thread *td);
-static __inline int fo_ioctl(struct file *fp, u_long com, caddr_t data,
+static __inline int fo_ioctl(struct file *fp, u_long com, void *data,
     struct thread *td);
 static __inline int fo_poll(struct file *fp, int events,
     struct ucred *cred, struct thread *td);
@@ -191,7 +191,7 @@ static __inline int
 fo_ioctl(fp, com, data, td)
 	struct file *fp;
 	u_long com;
-	caddr_t data;
+	void *data;
 	struct thread *td;
 {
 
