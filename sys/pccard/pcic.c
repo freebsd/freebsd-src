@@ -473,6 +473,69 @@ pcic_ioctl(struct slot *slt, int cmd, caddr_t data)
 }
 
 /*
+ *	pcic_cardbus_power
+ *
+ *	Power the card up, as specified, using the cardbus power
+ *	registers to control power.  Microsoft recommends that cardbus
+ *	vendors support powering the card via cardbus registers because
+ *	there is no standard for 3.3V cards.  Since at least a few of the
+ *	cardbus bridges have minor issues with power via the ExCA registers,
+ *	go ahead and do it all via cardbus registers.
+ *
+ *	An expamination of the code will show the relative
+ *	ease that we do Vpp as well.
+ *
+ *	Too bad it appears to not work.
+ */
+static int
+pcic_cardbus_power(struct pcic_slot *sp, struct slot *slt)
+{
+	uint32_t reg;
+
+	/*
+	 * Preserve the clock stop bit of the socket power register.
+	 */
+	reg = bus_space_read_4(sp->bst, sp->bsh, CB_SOCKET_POWER);
+	printf("old value 0x%x\n", reg);
+	reg &= CB_SP_CLKSTOP;
+
+	switch(slt->pwr.vpp) {
+	default:
+		return (EINVAL);
+	case 0:
+		reg |= CB_SP_VPP_0V;
+		break;
+	case 33:
+		reg |= CB_SP_VPP_3V;
+		break;
+	case 50:
+		reg |= CB_SP_VPP_5V;
+		break;
+	case 120:
+		reg |= CB_SP_VPP_12V;
+		break;
+	}
+
+	switch(slt->pwr.vcc) {
+	default:
+		return (EINVAL);
+	case 0:
+		reg |= CB_SP_VCC_0V;
+		break;
+	case 33:
+		reg |= CB_SP_VCC_3V;
+		break;
+	case 50:
+		reg |= CB_SP_VCC_5V;
+		break;
+	}
+	printf("Setting power reg to 0x%x", reg);
+	bus_space_write_4(sp->bst, sp->bsh, CB_SOCKET_POWER, reg);
+
+	return (EIO);
+}
+
+/*
  *	pcic_power - Enable the power of the slot according to
  *	the parameters in the power structure(s).
  */
@@ -484,7 +547,13 @@ pcic_power(struct slot *slt)
 	struct pcic_slot *sp = slt->cdata;
 	struct pcic_softc *sc = sp->sc;
 
-	if (sc->flags & (PCIC_DF_POWER | PCIC_AB_POWER)) {
+	/*
+	 * Cardbus power registers are completely different.
+	 */
+	if (sc->flags & PCIC_CARDBUS_POWER)
+		return (pcic_cardbus_power(sp, slt));
+
+	if (sc->flags & PCIC_DF_POWER) {
 		/* 
 		 * Look at the VS[12]# bits on the card.  If VS1 is clear
 		 * then we should apply 3.3 volts.
@@ -550,16 +619,7 @@ pcic_power(struct slot *slt)
 			pcic_setb(sp, PCIC_RICOH_MCR2, PCIC_MCR2_VCC_33);
 			break;
 		}
-
-		/*
-		 * Technically, The A, B, C stepping didn't support
-		 * the 3.3V cards.  However, many cardbus bridges are
-		 * identified as B step cards by our probe routine, so
-		 * we do both.  It won't hurt the A, B, C bridges that
-		 * don't support this bit since it is one of the
-		 * reserved bits.
-		 */
-		if (sc->flags & (PCIC_AB_POWER | PCIC_DF_POWER))
+		if (sc->flags & PCIC_DF_POWER)
 			reg |= PCIC_VCC_3V;
 		break;
 	case 50:
@@ -613,14 +673,8 @@ static void
 pcic_mapirq(struct slot *slt, int irq)
 {
 	struct pcic_slot *sp = slt->cdata;
-	if (sp->sc->csc_route == pcic_iw_pci)
-		return;
-	irq = host_irq_to_pcic(irq);
-	if (irq == 0)
-		pcic_clrb(sp, PCIC_INT_GEN, 0xF);
-	else
-		sp->putb(sp, PCIC_INT_GEN,
-		    (sp->getb(sp, PCIC_INT_GEN) & 0xF0) | irq);
+
+	sp->sc->chip->map_irq(sp, irq);
 }
 
 /*
@@ -632,20 +686,36 @@ pcic_reset(void *chan)
 	struct slot *slt = chan;
 	struct pcic_slot *sp = slt->cdata;
 
+	if (bootverbose)
+		device_printf(sp->sc->dev, "reset %d ", slt->insert_seq);
 	switch (slt->insert_seq) {
 	case 0: /* Something funny happended on the way to the pub... */
+		if (bootverbose)
+			printf("\n");
 		return;
 	case 1: /* Assert reset */
 		pcic_clrb(sp, PCIC_INT_GEN, PCIC_CARDRESET);
+		if (bootverbose)
+			printf("int is %x stat is %x\n",
+			    sp->getb(sp, PCIC_INT_GEN),
+			    sp->getb(sp, PCIC_STATUS));
 		slt->insert_seq = 2;
 		timeout(pcic_reset, (void *)slt, hz/4);
 		return;
 	case 2: /* Deassert it again */
 		pcic_setb(sp, PCIC_INT_GEN, PCIC_CARDRESET | PCIC_IOCARD);
+		if (bootverbose)
+			printf("int is %x stat is %x\n",
+			    sp->getb(sp, PCIC_INT_GEN),
+			    sp->getb(sp, PCIC_STATUS));
 		slt->insert_seq = 3;
 		timeout(pcic_reset, (void *)slt, hz/4);
 		return;
 	case 3: /* Wait if card needs more time */
+		if (bootverbose)
+			printf("int is %x stat is %x\n",
+			    sp->getb(sp, PCIC_INT_GEN),
+			    sp->getb(sp, PCIC_STATUS));
 		if (!sp->getb(sp, PCIC_STATUS) & PCIC_READY) {
 			timeout(pcic_reset, (void *)slt, hz/10);
 			return;
@@ -671,7 +741,8 @@ pcic_disable(struct slot *slt)
 {
 	struct pcic_slot *sp = slt->cdata;
 
-	pcic_clrb(sp, PCIC_INT_GEN, 0xf | PCIC_CARDTYPE | PCIC_CARDRESET);
+	pcic_clrb(sp, PCIC_INT_GEN, PCIC_CARDTYPE | PCIC_CARDRESET);
+	pcic_mapirq(slt, 0);
 	sp->putb(sp, PCIC_POWER, 0);
 }
 
@@ -1012,5 +1083,18 @@ pcic_isa_intr1(void *arg)
 		}
 	}
 	splx(s);
+	return (0);
+}
+
+int
+pcic_isa_mapirq(struct pcic_slot *sp, int irq)
+{
+	irq = host_irq_to_pcic(irq);
+	sp->sc->chip->func_intr_way(sp, pcic_iw_isa);
+	if (irq == 0)
+		pcic_clrb(sp, PCIC_INT_GEN, 0xF);
+	else
+		sp->putb(sp, PCIC_INT_GEN,
+		    (sp->getb(sp, PCIC_INT_GEN) & 0xF0) | irq);
 	return (0);
 }

@@ -91,6 +91,19 @@
 #define	TI113X_ExCA_IO_OFFSET1		0x38	/* Offset of I/O window */
 #define	TI113X_ExCA_MEM_WINDOW_PAGE	0x3C	/* Memory Window Page */
 
+/*
+ * Ricoh R5C47[5678] parts have these registers.  Maybe the 46x also use
+ * them, but I can't find out for sure without datasheets...
+ */
+#define	R5C47X_MISC_CONTROL_REGISTER_2	0xa0
+#define R5C47X_MCR2_CSC_TO_INTX_DISABLE 0x0010	/* Bit 7 */
+
+/*
+ * ToPIC specific stuff.
+ */
+#define TOPIC_INTERRUPT_CONTROL		0xa1
+#define TOPIC_ICR_INTA			0x1
+
 /* sanpei */
 
 /* For Bridge Control register (CB_PCI_BRIDGE_CTRL) */
@@ -140,12 +153,14 @@
 #define CB_SOCKET_MASK		0x04
 #define CB_SOCKET_STATE		0x08
 #define CB_SOCKET_FORCE		0x0c
-#define CB_SOCKET_CONTROL	0x10
-#define CB_SOCKET_POWER		0x14
+#define CB_SOCKET_POWER		0x10
 #define CB_EXCA_OFFSET		0x800	/* Offset for ExCA registers */
 
 #define CB_SE_CD		0x6	/* Socket Event Card detect */
+#define CB_SE_POWER		0x8
+
 #define CB_SM_CD		0x6	/* Socket MASK Card detect */
+#define CB_SM_POWER		0x8
 
 #define CB_SS_CARDSTS		0x00000001 /* Card Status Change */
 #define CB_SS_CD1		0x00000002 /* Card Detect 1 */
@@ -166,3 +181,16 @@
 #define CB_SS_3VSOCK		0x20000000 /* 3.3 V Socket */
 #define CB_SS_XVSOCK		0x40000000 /* X.X V Socket */
 #define CB_SS_YVSOCK		0x80000000 /* Y.Y V Socket */
+
+#define CB_SP_CLKSTOP		0x80	/* Cardbus clock stop protocol */
+#define CB_SP_VCC_0V		0x00
+#define CB_SP_VCC_5V		0x20
+#define CB_SP_VCC_3V		0x30
+#define CB_SP_VCC_XV		0x40
+#define CB_SP_VCC_YV		0x50
+#define CB_SP_VPP_0V		0x00
+#define CB_SP_VPP_12V		0x01
+#define CB_SP_VPP_5V		0x02
+#define CB_SP_VPP_3V		0x03
+#define CB_SP_VPP_XV		0x04
+#define CB_SP_VPP_YV		0x05

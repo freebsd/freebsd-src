@@ -75,6 +75,16 @@ static struct {
 	{ "Intel i82365SL-DF",	PCIC_DF_POWER}
 };
 
+static pcic_intr_way_t pcic_isa_intr_way;
+static pcic_init_t pcic_isa_init;
+
+struct pcic_chip pcic_isa_chip = {
+	pcic_isa_intr_way,
+	pcic_isa_intr_way,
+	pcic_isa_mapirq,
+	pcic_isa_init
+};
+
 /*
  *	Look for an Intel PCIC (or compatible).
  *	For each available slot, allocate a PC-CARD slot.
@@ -291,6 +301,7 @@ pcic_isa_attach(device_t dev)
 	sc->iores = r;
 	sc->csc_route = pcic_iw_isa;
 	sc->func_route = pcic_iw_isa;
+	sc->chip = &pcic_isa_chip;
 
 	rid = 0;
 	r = NULL;
@@ -329,6 +340,26 @@ pcic_isa_attach(device_t dev)
 	}
 
 	return (pcic_attach(dev));
+}
+
+/*
+ * ISA cards can only do ISA interrupts.  There's no need to do
+ * anything but check args for sanity.
+ */
+static int
+pcic_isa_intr_way(struct pcic_slot *sp, enum pcic_intr_way iw)
+{
+	if (iw != pcic_iw_isa)
+		return (EINVAL);
+	return (0);
+}
+
+/*
+ * No speicial initialization is necesary for ISA cards.
+ */
+static void
+pcic_isa_init(device_t dev)
+{
 }
 
 static device_method_t pcic_methods[] = {
