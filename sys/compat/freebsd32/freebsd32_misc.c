@@ -568,9 +568,9 @@ freebsd32_kevent(struct thread *td, struct freebsd32_kevent_args *uap)
 	sg = stackgap_init();
 
 	a.fd = uap->fd;
-	a.changelist = uap->changelist;
+	a.changelist = (struct kevent *)uap->changelist;
 	a.nchanges = uap->nchanges;
-	a.eventlist = uap->eventlist;
+	a.eventlist = (struct kevent *)uap->eventlist;
 	a.nevents = uap->nevents;
 	a.timeout = NULL;
 
