@@ -222,6 +222,13 @@ add_lnum(line, pos)
 		 * we get to p->next == &anchor.  This also avoids
 		 * looking at the gap of the last one, which is
 		 * not computed by calcgap.
+		 *
+		 * XXX Should also ensure that we can determine the line
+		 *     number in the case where we are reading from a pipe
+		 *     and we no longer have the first block(s) of data from
+		 *     the pipe buffered in ch.c.  Further, keeping linenum
+		 *     entries for lines in this case that have been thrown-
+		 *     out of the buffer is fairly pointless.
 		 */
 		mingap = anchor.next->gap;
 		for (p = anchor.next;  p->next != &anchor;  p = p->next)
