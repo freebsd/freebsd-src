@@ -34,9 +34,7 @@
  * $FreeBSD$
  */
 
-#include <sys/types.h>
-#include <kvm.h>
-
-void	err(int, const char *, ...);
-void	elf_coredump(int, pid_t);
-void	md_core(kvm_t *, int, struct kinfo_proc *);
+struct dumpers {
+	int (*ident)(int efd, pid_t pid, char *binfile);
+	void (*dump)(int efd, int fd, pid_t pid);
+};

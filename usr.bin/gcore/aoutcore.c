@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/user.h>
 #include <sys/sysctl.h>
+#include <sys/linker_set.h>
 
 #include <arpa/inet.h>
 #include <machine/elf.h>
@@ -81,75 +82,26 @@ __FBSDID("$FreeBSD$");
 
 #include "extern.h"
 
-static void	core(int, int, struct kinfo_proc *);
 static void	datadump(int, int, struct kinfo_proc *, u_long, int);
-static void	killed(int);
-static void	restart_target(void);
-static void	usage(void) __dead2;
 static void	userdump(int, struct kinfo_proc *, u_long, int);
 
-kvm_t *kd;
+static kvm_t *kd;
 
 static int data_offset;
-static pid_t pid;
+static struct kinfo_proc *ki;
 
-int
-main(argc, argv)
-	int argc;
-	char *argv[];
+static int
+aoutident(int efd, pid_t pid, char *binfile)
 {
-	struct kinfo_proc *ki = NULL;
 	struct exec exec;
-	int ch, cnt, efd, fd, sflag;
+	int cnt;
 	uid_t uid;
-	char *binfile, *corefile;
-	char errbuf[_POSIX2_LINE_MAX], fname[MAXPATHLEN];
-	int is_aout;
-
-	sflag = 0;
-	corefile = NULL;
-        while ((ch = getopt(argc, argv, "c:s")) != -1) {
-                switch (ch) {
-                case 'c':
-			corefile = optarg;
-                        break;
-		case 's':
-			sflag = 1;
-			break;
-		default:
-			usage();
-			break;
-		}
-	}
-	argv += optind;
-	argc -= optind;
-
-	/* XXX we should check that the pid argument is really a number */
-	switch (argc) {
-	case 1:
-		pid = atoi(argv[0]);
-		asprintf(&binfile, "/proc/%d/file", pid);
-		if (binfile == NULL)
-			errx(1, "allocation failure");
-		break;
-	case 2:
-		pid = atoi(argv[1]);
-		binfile = argv[0];
-		break;
-	default:
-		usage();
-	}
-
-	efd = open(binfile, O_RDONLY, 0);
-	if (efd < 0)
-		err(1, "%s", binfile);
+	char errbuf[_POSIX2_LINE_MAX];
 
 	cnt = read(efd, &exec, sizeof(exec));
 	if (cnt != sizeof(exec))
-		errx(1, "%s exec header: %s",
-		    binfile, cnt > 0 ? strerror(EIO) : strerror(errno));
+		return (0);
 	if (!N_BADMAG(exec)) {
-		is_aout = 1;
 		/*
 		 * This legacy a.out support uses the kvm interface instead
 		 * of procfs.
@@ -181,36 +133,9 @@ main(argc, argv)
 			    " process %d", binfile, pid, exec.a_text, 
 			     ptoa(ki->ki_tsize));
 		data_offset = N_DATOFF(exec);
-	} else if (IS_ELF(*(Elf_Ehdr *)&exec)) {
-		is_aout = 0;
-		close(efd);
-	} else
-		errx(1, "Invalid executable file");
-
-	if (corefile == NULL) {
-		(void)snprintf(fname, sizeof(fname), "core.%d", pid);
-		corefile = fname;
+		return (1);
 	}
-	fd = open(corefile, O_RDWR|O_CREAT|O_TRUNC, DEFFILEMODE);
-	if (fd < 0)
-		err(1, "%s", corefile);
-
-	if (sflag) {
-		signal(SIGHUP, killed);
-		signal(SIGINT, killed);
-		signal(SIGTERM, killed);
-		if (kill(pid, SIGSTOP) == -1)
-			err(1, "%d: stop signal", pid);
-		atexit(restart_target);
-	}
-
-	if (is_aout)
-		core(efd, fd, ki);
-	else
-		elf_coredump(fd, pid);
-
-	(void)close(fd);
-	exit(0);
+	return (0);
 }
 
 /*
@@ -218,10 +143,7 @@ main(argc, argv)
  *	Build the core file.
  */
 void
-core(efd, fd, ki)
-	int efd;
-	int fd;
-	struct kinfo_proc *ki;
+aoutcore(int efd, int fd, pid_t pid)
 {
 	union {
 		struct user user;
@@ -265,20 +187,12 @@ core(efd, fd, ki)
 
 	/* Dump stack segment */
 	userdump(fd, ki, USRSTACK - ctob(ssize), ssize);
-
-	/* Dump machine dependent portions of the core. */
-	md_core(kd, fd, ki);
 }
 
 void
-datadump(efd, fd, kp, addr, npage)
-	register int efd;
-	register int fd;
-	struct kinfo_proc *kp;
-	register u_long addr;
-	register int npage;
+datadump(int efd, int fd, struct kinfo_proc *kp, u_long addr, int npage)
 {
-	register int cc, delta;
+	int cc, delta;
 	char buffer[PAGE_SIZE];
 
 	delta = data_offset - addr;
@@ -304,29 +218,10 @@ datadump(efd, fd, kp, addr, npage)
 	}
 }
 
-static void
-killed(sig)
-	int sig;
-{
-	restart_target();
-	signal(sig, SIG_DFL);
-	kill(getpid(), sig);
-}
-
-static void
-restart_target()
-{
-	kill(pid, SIGCONT);
-}
-
 void
-userdump(fd, kp, addr, npage)
-	register int fd;
-	struct kinfo_proc *kp;
-	register u_long addr;
-	register int npage;
+userdump(int fd, struct kinfo_proc *kp, u_long addr, int npage)
 {
-	register int cc;
+	int cc;
 	char buffer[PAGE_SIZE];
 
 	while (--npage >= 0) {
@@ -342,9 +237,5 @@ userdump(fd, kp, addr, npage)
 	}
 }
 
-void
-usage()
-{
-	(void)fprintf(stderr, "usage: gcore [-s] [-c core] [executable] pid\n");
-	exit(1);
-}
+struct dumpers aoutdump = { aoutident, aoutcore };
+TEXT_SET(dumpset, aoutdump);
