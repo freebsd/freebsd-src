@@ -78,10 +78,9 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 	r = pam_get_item(pamh, PAM_RHOST, (const void **)&rhost);
 	if (r != PAM_SUCCESS)
 		PAM_RETURN(r);
-	if (rhost == NULL)
-		PAM_RETURN(PAM_SERVICE_ERR);
 	
-	if (opieaccessfile(rhost) && opiealways(pwent->pw_dir) != 0)
+	if ((rhost == NULL || opieaccessfile(rhost)) &&
+	    opiealways(pwent->pw_dir) != 0)
 		PAM_RETURN(PAM_IGNORE);
 	
 	PAM_VERBOSE_ERROR("Refused; remote host is not in opieaccess");
