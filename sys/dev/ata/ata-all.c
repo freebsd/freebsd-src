@@ -560,6 +560,7 @@ ata_getparam(struct ata_device *atadev, u_int8_t command)
 		request->flags = (ATA_R_READ | ATA_R_IMMEDIATE);
 		request->data = (caddr_t)atadev->param;
 		request->bytecount = sizeof(struct ata_params);
+		request->donecount = 0;
 		request->transfersize = DEV_BSIZE;
 		ata_queue_request(request);
 		if (!(error = request->result))
