@@ -82,13 +82,9 @@ revive_block(int sdno)
 	vol = NULL;
 
     if ((sd->revive_blocksize == 0)			    /* no block size */
-    ||(sd->revive_blocksize & ((1 << DEV_BSHIFT) - 1))) {   /* or invalid block size */
-	if (plex->stripesize != 0)			    /* we're striped, don't revive more than */
-	    sd->revive_blocksize = min(DEFAULT_REVIVE_BLOCKSIZE, /* one block at a time */
-		plex->stripesize << DEV_BSHIFT);
-	else
-	    sd->revive_blocksize = DEFAULT_REVIVE_BLOCKSIZE;
-    } else if (sd->revive_blocksize > MAX_REVIVE_BLOCKSIZE)
+        ||(sd->revive_blocksize & ((1 << DEV_BSHIFT) - 1))) /* or invalid block size */
+	sd->revive_blocksize = DEFAULT_REVIVE_BLOCKSIZE;
+    else if (sd->revive_blocksize > MAX_REVIVE_BLOCKSIZE)
 	sd->revive_blocksize = MAX_REVIVE_BLOCKSIZE;
     size = min(sd->revive_blocksize >> DEV_BSHIFT, sd->sectors - sd->revived) << DEV_BSHIFT;
     sd->reviver = curproc->p_pid;			    /* note who last had a bash at it */
@@ -101,11 +97,9 @@ revive_block(int sdno)
 
     case plex_striped:
 	stripeoffset = sd->revived % plex->stripesize;	    /* offset from beginning of stripe */
-	if (stripeoffset + (size >> DEV_BSHIFT) > plex->stripesize)
-	    size = (plex->stripesize - stripeoffset) << DEV_BSHIFT;
 	plexblkno = sd->plexoffset			    /* base */
 	    + (sd->revived - stripeoffset) * plex->subdisks /* offset to beginning of stripe */
-	    + stripeoffset;				    /* offset from beginning of stripe */
+	    + sd->revived % plex->stripesize;		    /* offset from beginning of stripe */
 	break;
 
     case plex_raid4:
@@ -113,7 +107,7 @@ revive_block(int sdno)
 	stripeoffset = sd->revived % plex->stripesize;	    /* offset from beginning of stripe */
 	plexblkno = sd->plexoffset			    /* base */
 	    + (sd->revived - stripeoffset) * (plex->subdisks - 1) /* offset to beginning of stripe */
-	    + stripeoffset;				    /* offset from beginning of stripe */
+	    +stripeoffset;				    /* offset from beginning of stripe */
 	stripe = (sd->revived / plex->stripesize);	    /* stripe number */
 
 	/* Make sure we don't go beyond the end of the band. */
@@ -159,8 +153,8 @@ revive_block(int sdno)
 	    lock = lockrange(plexblkno << DEV_BSHIFT, bp, plex); /* lock it */
 	if (vol != NULL)				    /* it's part of a volume, */
 	    /*
-	     * First, read the data from the volume.  We
-	     * don't care which plex, that's bre's job.
+	       * First, read the data from the volume.  We
+	       * don't care which plex, that's bre's job.
 	     */
 	    bp->b_dev = VINUMDEV(plex->volno, 0, 0, VINUM_VOLUME_TYPE);	/* create the device number */
 	else						    /* it's an unattached plex */
@@ -181,8 +175,6 @@ revive_block(int sdno)
 	bp->b_flags &= ~B_DONE;				    /* no longer done */
 	bp->b_ioflags = BIO_ORDERED;			    /* and make this an ordered write */
 	bp->b_iocmd = BIO_WRITE;
-	BUF_LOCKINIT(bp);				    /* get a lock for the buffer */
-	BUF_LOCK(bp, LK_EXCLUSIVE);			    /* and lock it */
 	bp->b_resid = bp->b_bcount;
 	bp->b_blkno = sd->revived;			    /* write it to here */
 	sdio(bp);					    /* perform the I/O */
@@ -300,8 +292,6 @@ parityops(struct vinum_ioctl_msg *data)
 	    || (op == rebuildandcheckparity)) {
 	    pbp->b_iocmd = BIO_WRITE;
 	    pbp->b_resid = pbp->b_bcount;
-	    BUF_LOCKINIT(pbp);				    /* get a lock for the buffer */
-	    BUF_LOCK(pbp, LK_EXCLUSIVE);		    /* and lock it */
 	    sdio(pbp);					    /* write the parity block */
 	    bufwait(pbp);
 	}
@@ -448,8 +438,6 @@ parityrebuild(struct plex *plex,
      */
     for (sdno = 0; sdno < plex->subdisks; sdno++) {	    /* for each real subdisk */
 	if ((sdno != psd) || (op != rebuildparity)) {
-	    BUF_LOCKINIT(bpp[sdno]);			    /* get a lock for the buffer */
-	    BUF_LOCK(bpp[sdno], LK_EXCLUSIVE);		    /* and lock it */
 	    sdio(bpp[sdno]);
 	}
     }
@@ -490,7 +478,7 @@ parityrebuild(struct plex *plex,
 	*errorloc = -1;					    /* no error yet */
 	for (i = 0; i < isize; i++) {
 	    if (parity_buf[i] != newparity_buf[i]) {
-		*errorloc = (u_long) (pstripe << DEV_BSHIFT) * (plex->subdisks - 1)
+		*errorloc = (off_t) (pstripe << DEV_BSHIFT) * (plex->subdisks - 1)
 		    + i * sizeof(int);
 		break;
 	    }
@@ -563,8 +551,6 @@ initsd(int sdno, int verify)
 	bp->b_blkno = sd->initialized;			    /* write it to here */
 	bzero(bp->b_data, bp->b_bcount);
 	bp->b_dev = VINUM_SD(sdno);			    /* create the device number */
-	BUF_LOCKINIT(bp);				    /* get a lock for the buffer */
-	BUF_LOCK(bp, LK_EXCLUSIVE);			    /* and lock it */
 	bp->b_iocmd = BIO_WRITE;
 	sdio(bp);					    /* perform the I/O */
 	bufwait(bp);
@@ -588,8 +574,6 @@ initsd(int sdno, int verify)
 		bp->b_dev = VINUM_SD(sdno);		    /* create the device number */
 		bp->b_iocmd = BIO_READ;			    /* read it back */
 		splx(s);
-		BUF_LOCKINIT(bp);			    /* get a lock for the buffer */
-		BUF_LOCK(bp, LK_EXCLUSIVE);		    /* and lock it */
 		sdio(bp);
 		bufwait(bp);
 		/*
