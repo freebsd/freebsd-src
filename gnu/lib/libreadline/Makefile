@@ -1,4 +1,4 @@
-#       $Id$
+#       $Id: Makefile,v 1.28 1997/02/22 15:43:04 peter Exp $
 
 SRCDIR= ${.CURDIR}/../../../contrib/libreadline
 .PATH: ${SRCDIR}
@@ -10,9 +10,11 @@ SHLIB_MAJOR= 3
 SHLIB_MINOR= 0
 MAN3=   readline.3
 
-CFLAGS+= -I${.CURDIR} -I${SRCDIR} -DHAVE_CONFIG_H
+RL_LIBRARY_VERSION = 2.1
+LOCAL_CFLAGS= -DRL_LIBRARY_VERSION='"$(RL_LIBRARY_VERSION)"'
+CFLAGS+= -I${.CURDIR} -I${SRCDIR} -DHAVE_CONFIG_H ${LOCAL_CFLAGS}
 
-HISTSRC=  history.c histexpand.c histfile.c histsearch.c
+HISTSRC=  history.c histexpand.c histfile.c histsearch.c shell.c
 TILDESRC= tilde.c
 SRCS=     readline.c vi_mode.c funmap.c keymaps.c parens.c search.c \
 	  rltty.c complete.c bind.c isearch.c display.c signals.c \
