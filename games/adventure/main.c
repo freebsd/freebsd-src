@@ -53,6 +53,7 @@ static const char rcsid[] =
 /*      Re-coding of advent in C: main program                          */
 
 #include <sys/file.h>
+#include <errno.h>
 #include <sys/types.h>
 #include <signal.h>
 #include <stdio.h>
@@ -62,9 +63,7 @@ static const char rcsid[] =
 
 
 int
-main(argc,argv)
-int argc;
-char **argv;
+main(int argc, char **argv)
 {
 	int i;
 	int rval,ll;
@@ -546,7 +545,7 @@ char **argv;
 			rspeak(197);
 			done(3);
 
-		      case 29:                    /* wake                 */
+		    case 29:                    /* wake                 */
 			if (obj!=dwarf||!closed) goto l2011;
 			rspeak(199);
 			done(3);
