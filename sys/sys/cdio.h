@@ -1,7 +1,7 @@
 /*
  * 16 Feb 93	Julian Elischer	(julian@dialix.oz.au)
  *
- *	$Id: cdio.h,v 1.14.2.2 1998/10/30 16:52:13 luigi Exp $
+ *	$Id: cdio.h,v 1.14.2.3 1998/11/08 14:08:41 luigi Exp $
  */
 
 /*
@@ -282,15 +282,5 @@ struct ioc_read_audio
 };
 
 #define CDIOCREADAUDIO _IOWR('c',31,struct ioc_read_audio)
-struct ioc_read_audio
-{
-	u_char address_format;
-	union msf_lba address;
-	int nframes;
-	u_char* buffer;
-};
-
-#define CDIOCREADAUDIO _IOWR('c',31,struct ioc_read_audio)
-
 
 #endif /* !_SYS_CDIO_H_ */
