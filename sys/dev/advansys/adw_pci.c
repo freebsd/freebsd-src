@@ -189,7 +189,7 @@ adw_pci_probe(device_t dev)
 	entry = adw_find_pci_device(dev);
 	if (entry != NULL) {
 		device_set_desc(dev, entry->name);
-		return (0);
+		return (BUS_PROBE_DEFAULT);
 	}
 	return (ENXIO);
 }
