@@ -8,17 +8,19 @@ SRCS=	AsyncIO.c ParseBuffer.c bios.c callback.c cpu.c dos.c cmos.c config.c \
 	int.c int10.c int13.c int14.c int16.c int17.c int1a.c int2f.c intff.c \
 	mem.c mouse.c net.c port.c setver.c signal.c timer.c trace.c trap.c \
 	tty.c video.c xms.c ${FONTHDRS}
-
 CFLAGS+=	-I. -DDISASSEMBLER
+FONTFILES=	cp437-8x8.pcf.gz cp437-8x14.pcf.gz cp437-8x16.pcf.gz
+FONTHDRS=	font8x8.h font8x14.h font8x16.h
 CLEANFILES=	${FONTFILES} ${FONTHDRS} emsdriv.sys redir.com
 
+XINCDIR=	${DESTDIR}${X11BASE}/include
 .if ${OBJFORMAT} == "aout"
 CLEANFILES+=	doscmd.kernel crt0.o doscmd_loader.o
-XLIBDIR=	${X11BASE}/lib/aout
+XLIBDIR=	${DESTDIR}${X11BASE}/lib/aout
 LDADD=		-L${DESTDIR}${LIBDIR} -lgcc -lc
 DPADD=		${LIBGCC} ${LIBC}
 .else
-XLIBDIR=	${X11BASE}/lib
+XLIBDIR=	${DESTDIR}${X11BASE}/lib
 .endif
 
 BINGRP=		kmem
@@ -26,17 +28,13 @@ EXEGRP=		bin
 #BINMODE=	2555
 EXEMODE=	444
 
-.if !defined(NO_X) && !defined(DESTDIR) && exists(${X11BASE}/include/X11/X.h) \
-    && exists(${XLIBDIR}/libX11.a)
-CFLAGS+=	-I${X11BASE}/include
+.if !defined(NO_X) && exists(${XINCDIR}/X11/X.h) && exists(${XLIBDIR}/libX11.a)
+CFLAGS+=	-I${XINCDIR}
 LDADD+=		-L${XLIBDIR} -lX11
 DPADD+=		${XLIBDIR}/libX11.a
 .else
 CFLAGS+=	-DNO_X
 .endif
-
-FONTFILES=	cp437-8x8.pcf.gz cp437-8x14.pcf.gz cp437-8x16.pcf.gz
-FONTHDRS=	font8x8.h font8x14.h font8x16.h
 
 beforeinstall:
 .if ${OBJFORMAT} == "aout"
@@ -74,20 +72,20 @@ cp437-8x14.pcf.gz: cp437-8x14.pcf.gz.uu
 cp437-8x16.pcf.gz: cp437-8x16.pcf.gz.uu
 	uudecode ${.CURDIR}/cp437-8x16.pcf.gz.uu
 
+emsdriv.sys: emsdriv.sys.uu
+	uudecode ${.CURDIR}/emsdriv.sys.uu
+
 font8x8.h: ${.CURDIR}/../../share/syscons/fonts/cp437-8x8.fnt
 	uudecode -p ${.ALLSRC} | \
 		file2c 'u_int8_t font8x8[] = {' '};' > ${.TARGET}
 
-font8x14.h: ${.CURDIR}/../../share/syscons/fonts/cp437-8x8.fnt
+font8x14.h: ${.CURDIR}/../../share/syscons/fonts/cp437-8x14.fnt
 	uudecode -p ${.ALLSRC} | \
 		file2c 'u_int8_t font8x14[] = {' '};' > ${.TARGET}
 
-font8x16.h: ${.CURDIR}/../../share/syscons/fonts/cp437-8x8.fnt
+font8x16.h: ${.CURDIR}/../../share/syscons/fonts/cp437-8x16.fnt
 	uudecode -p ${.ALLSRC} | \
 		file2c 'u_int8_t font8x16[] = {' '};' > ${.TARGET}
-
-emsdriv.sys: emsdriv.sys.uu
-	uudecode ${.CURDIR}/emsdriv.sys.uu
 
 redir.com: redir.com.uu
 	uudecode ${.CURDIR}/redir.com.uu
