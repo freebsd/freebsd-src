@@ -434,8 +434,10 @@ main(int argc, char **argv)
             while ((ret = read(bgpipe[0], &c, 1)) == 1) {
               switch (c) {
                 case EX_NORMAL:
-	          prompt_Printf(prompt, "PPP enabled\n");
-	          log_Printf(LogPHASE, "Parent: PPP enabled\n");
+                  if (!sw.quiet) {
+	            prompt_Printf(prompt, "PPP enabled\n");
+	            log_Printf(LogPHASE, "Parent: PPP enabled\n");
+                  }
 	          break;
                 case EX_REDIAL:
                   if (!sw.quiet)
