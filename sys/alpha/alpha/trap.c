@@ -278,6 +278,8 @@ trap(a0, a1, a2, entry, framep)
 	critical_exit(s);
 #endif
 
+	GIANT_REQUIRED;
+
 	cnt.v_trap++;
 	ucode = 0;
 	user = (framep->tf_regs[FRAME_PS] & ALPHA_PSL_USERMODE) != 0;
@@ -432,15 +434,8 @@ trap(a0, a1, a2, entry, framep)
 		case ALPHA_MMCSR_FOE:
 		case ALPHA_MMCSR_FOW:
 		{
-			int hadvmlock;
-
-			hadvmlock = mtx_owned(&vm_mtx);
-			if (hadvmlock == 0)
-				mtx_lock(&vm_mtx);
 			pmap_emulate_reference(p, a0, user,
 			    a1 == ALPHA_MMCSR_FOW);
-			if (hadvmlock == 0)
-				mtx_unlock(&vm_mtx);
 			goto out;
 		}
 		case ALPHA_MMCSR_INVALTRANS:

@@ -136,9 +136,7 @@ unlock_map(struct faultstate *fs)
 static void
 _unlock_things(struct faultstate *fs, int dealloc)
 {
-
-    	mtx_assert(&vm_mtx, MA_OWNED);
-    	mtx_assert(&Giant, MA_OWNED);
+	GIANT_REQUIRED;
 	vm_object_pip_wakeup(fs->object);
 	if (fs->object != fs->first_object) {
 		vm_page_free(fs->first_m);
@@ -150,13 +148,8 @@ _unlock_things(struct faultstate *fs, int dealloc)
 	}
 	unlock_map(fs);	
 	if (fs->vp != NULL) { 
-		struct vnode	*vp;
-
-		vp = fs->vp;
+		vput(fs->vp);
 		fs->vp = NULL;
-		mtx_unlock(&vm_mtx);
-		vput(vp);
-		mtx_lock(&vm_mtx);
 	}
 }
 
@@ -189,37 +182,20 @@ _unlock_things(struct faultstate *fs, int dealloc)
  *
  *
  *	The map in question must be referenced, and remains so.
- *	Caller may hold no locks except the vm_mtx which will be
- *	locked if needed.
+ *	Caller may hold no locks.
  */
 static int vm_fault1 __P((vm_map_t, vm_offset_t, vm_prot_t, int));
-
-static int vm_faults_no_vm_mtx;
-SYSCTL_INT(_vm, OID_AUTO, vm_faults_no_vm_mtx, CTLFLAG_RW,
-	   &vm_faults_no_vm_mtx, 0, "");
-
-static int vm_faults_no_giant;
-SYSCTL_INT(_vm, OID_AUTO, vm_faults_no_giant, CTLFLAG_RW,
-	   &vm_faults_no_giant, 0, "");
 
 int
 vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 	 int fault_flags)
 {
-	int hadvmlock, hadgiant, ret;
+	int ret;
 
-	hadvmlock = mtx_owned(&vm_mtx);
-	hadgiant = mtx_owned(&Giant);
 	mtx_lock(&Giant);
-	if (!hadvmlock) {
-		mtx_lock(&vm_mtx);
-		vm_faults_no_vm_mtx++;
-		if (hadgiant == 0)
-			vm_faults_no_giant++;
-	}
+	/* GIANT_REQUIRED */
+
 	ret = vm_fault1(map, vaddr, fault_type, fault_flags);
-	if (!hadvmlock)
-		mtx_unlock(&vm_mtx);
 	mtx_unlock(&Giant);
 	return (ret);
 }
@@ -238,7 +214,8 @@ vm_fault1(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 	int faultcount;
 	struct faultstate fs;
 
-	mtx_assert(&vm_mtx, MA_OWNED);
+	GIANT_REQUIRED;
+
 	cnt.v_vm_faults++;
 	hardfault = 0;
 
@@ -296,9 +273,7 @@ RetryFault:;
 	vm_object_reference(fs.first_object);
 	vm_object_pip_add(fs.first_object, 1);
 
-	mtx_unlock(&vm_mtx);
 	fs.vp = vnode_pager_lock(fs.first_object);
-	mtx_lock(&vm_mtx);
 	if ((fault_type & VM_PROT_WRITE) &&
 		(fs.first_object->type == OBJT_VNODE)) {
 		vm_freeze_copyopts(fs.first_object,
@@ -770,9 +745,7 @@ readrest:
 		 */
 
 		if (fs.vp != NULL) {
-			mtx_unlock(&vm_mtx);
 			vput(fs.vp);
-			mtx_lock(&vm_mtx);
 			fs.vp = NULL;
 		}
 		
@@ -989,7 +962,8 @@ vm_fault_user_wire(map, start, end)
 	register pmap_t pmap;
 	int rv;
 
-	mtx_assert(&vm_mtx, MA_OWNED);
+	GIANT_REQUIRED;
+
 	pmap = vm_map_pmap(map);
 
 	/*
@@ -1164,7 +1138,6 @@ vm_fault_copy_entry(dst_map, src_map, dst_entry, src_entry)
  *  number of pages in marray
  *
  * This routine can't block.
- * vm_mtx must be held.
  */
 static int
 vm_fault_additional_pages(m, rbehind, rahead, marray, reqpage)
@@ -1180,7 +1153,7 @@ vm_fault_additional_pages(m, rbehind, rahead, marray, reqpage)
 	vm_page_t rtm;
 	int cbehind, cahead;
 
-	mtx_assert(&vm_mtx, MA_OWNED);
+	GIANT_REQUIRED;
 
 	object = m->object;
 	pindex = m->pindex;

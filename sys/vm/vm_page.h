@@ -305,28 +305,23 @@ extern long first_page;			/* first physical page number */
 		(&vm_page_array[atop(pa) - first_page ])
 
 /*
- * For now, a global vm lock
- */
-#define	VM_PAGE_MTX(m)	(&vm_mtx)
-
-/*
  *	Functions implemented as macros
  */
 
 static __inline void
 vm_page_flag_set(vm_page_t m, unsigned short bits)
 {
-
-	mtx_assert(VM_PAGE_MTX(m), MA_OWNED);
-	m->flags |= bits;
+	GIANT_REQUIRED;
+	atomic_set_short(&(m)->flags, bits);
+	/* m->flags |= bits; */
 }
 
 static __inline void
 vm_page_flag_clear(vm_page_t m, unsigned short bits)
 {
-
-	mtx_assert(VM_PAGE_MTX(m), MA_OWNED);
-	m->flags &= ~bits;
+	GIANT_REQUIRED;
+	atomic_clear_short(&(m)->flags, bits);
+	/* m->flags &= ~bits; */
 }
 
 #if 0
@@ -386,17 +381,15 @@ vm_page_wakeup(vm_page_t m)
 static __inline void
 vm_page_io_start(vm_page_t m)
 {
-
-	mtx_assert(VM_PAGE_MTX(m), MA_OWNED);
-	m->busy++;
+	GIANT_REQUIRED;
+	atomic_add_char(&(m)->busy, 1);
 }
 
 static __inline void
 vm_page_io_finish(vm_page_t m)
 {
-
-	mtx_assert(VM_PAGE_MTX(m), MA_OWNED);
-	m->busy--;
+	GIANT_REQUIRED;
+	atomic_subtract_char(&(m)->busy, 1);
 	if (m->busy == 0)
 		vm_page_flash(m);
 }
@@ -463,16 +456,14 @@ void vm_page_free_toq(vm_page_t m);
 static __inline void
 vm_page_hold(vm_page_t mem)
 {
-
-	mtx_assert(VM_PAGE_MTX(m), MA_OWNED);
+	GIANT_REQUIRED;
 	mem->hold_count++;
 }
 
 static __inline void
 vm_page_unhold(vm_page_t mem)
 {
-
-	mtx_assert(VM_PAGE_MTX(m), MA_OWNED);
+	GIANT_REQUIRED;
 	--mem->hold_count;
 	KASSERT(mem->hold_count >= 0, ("vm_page_unhold: hold count < 0!!!"));
 }
@@ -578,6 +569,7 @@ vm_page_free_zero(m)
 static __inline int
 vm_page_sleep_busy(vm_page_t m, int also_m_busy, const char *msg)
 {
+	GIANT_REQUIRED;
 	if ((m->flags & PG_BUSY) || (also_m_busy && m->busy))  {
 		int s = splvm();
 		if ((m->flags & PG_BUSY) || (also_m_busy && m->busy)) {
@@ -585,7 +577,7 @@ vm_page_sleep_busy(vm_page_t m, int also_m_busy, const char *msg)
 			 * Page is busy. Wait and retry.
 			 */
 			vm_page_flag_set(m, PG_WANTED | PG_REFERENCED);
-			msleep(m, VM_PAGE_MTX(m), PVM, msg, 0);
+			tsleep(m, PVM, msg, 0);
 		}
 		splx(s);
 		return(TRUE);

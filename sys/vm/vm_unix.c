@@ -74,6 +74,9 @@ obreak(p, uap)
 	register struct vmspace *vm = p->p_vmspace;
 	vm_offset_t new, old, base;
 	int rv;
+	int error = 0;
+
+	mtx_lock(&Giant);	/* syscall marked mp-safe but isn't */
 
 	base = round_page((vm_offset_t) vm->vm_daddr);
 	new = round_page((vm_offset_t)uap->nsize);
@@ -84,52 +87,46 @@ obreak(p, uap)
 		 * reduce their usage, even if they remain over the limit.
 		 */
 		if (new > old &&
-		    (new - base) > (unsigned) p->p_rlimit[RLIMIT_DATA].rlim_cur)
-			return ENOMEM;
-		if (new >= VM_MAXUSER_ADDRESS)
-			return (ENOMEM);
+		    (new - base) > (unsigned) p->p_rlimit[RLIMIT_DATA].rlim_cur) {
+			error = ENOMEM;
+			goto done;
+		}
+		if (new >= VM_MAXUSER_ADDRESS) {
+			error = ENOMEM;
+			goto done;
+		}
 	} else if (new < base) {
 		/*
 		 * This is simply an invalid value.  If someone wants to
 		 * do fancy address space manipulations, mmap and munmap
 		 * can do most of what the user would want.
 		 */
-		return EINVAL;
+		error = EINVAL;
+		goto done;
 	}
 
 	if (new > old) {
 		vm_size_t diff;
 
 		diff = new - old;
-#ifndef BLEED
-		mtx_lock(&Giant);
-#endif
-		mtx_lock(&vm_mtx);
 		rv = vm_map_find(&vm->vm_map, NULL, 0, &old, diff, FALSE,
 			VM_PROT_ALL, VM_PROT_ALL, 0);
 		if (rv != KERN_SUCCESS) {
-			mtx_unlock(&vm_mtx);
-			return (ENOMEM);
+			error = ENOMEM;
+			goto done;
 		}
 		vm->vm_dsize += btoc(diff);
-		mtx_unlock(&vm_mtx);
-#ifndef BLEED
-		mtx_unlock(&Giant);
-#endif
 	} else if (new < old) {
-		mtx_lock(&Giant);
-		mtx_lock(&vm_mtx);
 		rv = vm_map_remove(&vm->vm_map, new, old);
 		if (rv != KERN_SUCCESS) {
-			mtx_unlock(&vm_mtx);
-			mtx_unlock(&Giant);
-			return (ENOMEM);
+			error = ENOMEM;
+			goto done;
 		}
 		vm->vm_dsize -= btoc(old - new);
-		mtx_unlock(&vm_mtx);
-		mtx_unlock(&Giant);
 	}
-	return (0);
+done:
+	mtx_unlock(&Giant);
+	return (error);
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -144,6 +141,7 @@ ovadvise(p, uap)
 	struct proc *p;
 	struct ovadvise_args *uap;
 {
-
+	/* START_GIANT_OPTIONAL */
+	/* END_GIANT_OPTIONAL */
 	return (EINVAL);
 }

@@ -212,7 +212,6 @@ struct vmspace {
 	do { \
 		lockmgr(&(map)->lock, LK_DRAIN|LK_INTERLOCK, \
 			&(map)->ref_lock, curproc); \
-		mtx_lock(&vm_mtx); \
 		(map)->timestamp++; \
 	} while(0)
 
@@ -227,11 +226,9 @@ struct vmspace {
 #define	vm_map_lock(map) \
 	do { \
 		vm_map_printf("locking map LK_EXCLUSIVE: %p\n", map); \
-		mtx_assert(&vm_mtx, MA_OWNED); \
-		if (lockmgr(&(map)->lock, LK_EXCLUSIVE | LK_INTERLOCK, \
-		   	&vm_mtx, curproc) != 0) \
+		if (lockmgr(&(map)->lock, LK_EXCLUSIVE, \
+		   	NULL, curproc) != 0) \
 			panic("vm_map_lock: failed to get lock"); \
-		mtx_lock(&vm_mtx); \
 		(map)->timestamp++; \
 	} while(0)
 
@@ -244,10 +241,8 @@ struct vmspace {
 #define	vm_map_lock_read(map) \
 	do { \
 		vm_map_printf("locking map LK_SHARED: %p\n", map); \
-		mtx_assert(&vm_mtx, MA_OWNED); \
-		lockmgr(&(map)->lock, LK_SHARED | LK_INTERLOCK, \
-		    &vm_mtx, curproc); \
-		mtx_lock(&vm_mtx); \
+		lockmgr(&(map)->lock, LK_SHARED, \
+		    NULL, curproc); \
 	} while (0)
 
 #define	vm_map_unlock_read(map) \
@@ -261,8 +256,7 @@ _vm_map_lock_upgrade(vm_map_t map, struct proc *p) {
 	int error;
 
 	vm_map_printf("locking map LK_EXCLUPGRADE: %p\n", map); 
-	error = lockmgr(&map->lock, LK_EXCLUPGRADE | LK_INTERLOCK, &vm_mtx, p);
-	mtx_lock(&vm_mtx);
+	error = lockmgr(&map->lock, LK_EXCLUPGRADE, NULL, p);
 	if (error == 0)
 		map->timestamp++;
 	return error;

@@ -80,6 +80,7 @@
 #include <sys/sysctl.h>
 #include <sys/blist.h>
 #include <sys/lock.h>
+#include <sys/sx.h>
 #include <sys/vmmeter.h>
 
 #ifndef MAX_PAGEOUT_CLUSTER
@@ -118,12 +119,12 @@ static int nsw_wcount_sync;	/* limit write buffers / synchronous	*/
 static int nsw_wcount_async;	/* limit write buffers / asynchronous	*/
 static int nsw_wcount_async_max;/* assigned maximum			*/
 static int nsw_cluster_max;	/* maximum VOP I/O allowed		*/
-static int sw_alloc_interlock;	/* swap pager allocation interlock	*/
 
 struct blist *swapblist;
 static struct swblock **swhash;
 static int swhash_mask;
 static int swap_async_max = 4;	/* maximum in-progress async I/O's	*/
+static struct sx sw_alloc_sx;
 
 /* from vm_swap.c */
 extern struct vnode *swapdev_vp;
@@ -232,8 +233,8 @@ static daddr_t swp_pager_meta_ctl __P((vm_object_t, vm_pindex_t, int));
 static __inline void
 swp_sizecheck()
 {
+	GIANT_REQUIRED;
 
-	mtx_assert(&vm_mtx, MA_OWNED);
 	if (vm_swap_size < nswap_lowat) {
 		if (swap_pager_almost_full == 0) {
 			printf("swap_pager: out of swap space\n");
@@ -383,7 +384,8 @@ swap_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 {
 	vm_object_t object;
 
-	mtx_assert(&vm_mtx, MA_OWNED);
+	GIANT_REQUIRED;
+
 	if (handle) {
 		/*
 		 * Reference existing named region or allocate new one.  There
@@ -391,13 +393,7 @@ swap_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 		 * as called from vm_page_remove() in regards to the lookup
 		 * of the handle.
 		 */
-
-		while (sw_alloc_interlock) {
-			sw_alloc_interlock = -1;
-			msleep(&sw_alloc_interlock, &vm_mtx, PVM, "swpalc", 0);
-		}
-		sw_alloc_interlock = 1;
-
+		sx_xlock(&sw_alloc_sx);
 		object = vm_pager_object_lookup(NOBJLIST(handle), handle);
 
 		if (object != NULL) {
@@ -409,10 +405,7 @@ swap_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 
 			swp_pager_meta_build(object, 0, SWAPBLK_NONE);
 		}
-
-		if (sw_alloc_interlock == -1)
-			wakeup(&sw_alloc_interlock);
-		sw_alloc_interlock = 0;
+		sx_xunlock(&sw_alloc_sx);
 	} else {
 		object = vm_object_allocate(OBJT_DEFAULT,
 			OFF_TO_IDX(offset + PAGE_MASK + size));
@@ -442,12 +435,12 @@ swap_pager_dealloc(object)
 {
 	int s;
 
-	mtx_assert(&vm_mtx, MA_OWNED);
+	GIANT_REQUIRED;
+
 	/*
 	 * Remove from list right away so lookups will fail if we block for
 	 * pageout completion.
 	 */
-
 	mtx_lock(&sw_alloc_mtx);
 	if (object->handle == NULL) {
 		TAILQ_REMOVE(&swap_pager_un_object_list, object, pager_object_list);
@@ -488,7 +481,6 @@ swap_pager_dealloc(object)
  *
  *	This routine may not block
  *	This routine must be called at splvm().
- *	vm_mtx should be held
  */
 
 static __inline daddr_t
@@ -497,7 +489,8 @@ swp_pager_getswapspace(npages)
 {
 	daddr_t blk;
 
-	mtx_assert(&vm_mtx, MA_OWNED);
+	GIANT_REQUIRED;
+
 	if ((blk = blist_alloc(swapblist, npages)) == SWAPBLK_NONE) {
 		if (swap_pager_full != 2) {
 			printf("swap_pager_getswapspace: failed\n");
@@ -526,7 +519,6 @@ swp_pager_getswapspace(npages)
  *
  *	This routine may not block
  *	This routine must be called at splvm().
- *	vm_mtx should be held
  */
 
 static __inline void
@@ -534,8 +526,8 @@ swp_pager_freeswapspace(blk, npages)
 	daddr_t blk;
 	int npages;
 {
+	GIANT_REQUIRED;
 
-	mtx_assert(&vm_mtx, MA_OWNED);
 	blist_free(swapblist, blk, npages);
 	vm_swap_size += npages;
 	/* per-swap area stats */
@@ -566,9 +558,8 @@ swap_pager_freespace(object, start, size)
 	vm_size_t size;
 {
 	int s = splvm();
-	
-	mtx_assert(&vm_mtx, MA_OWNED);
 
+	GIANT_REQUIRED;
 	swp_pager_meta_free(object, start, size);
 	splx(s);
 }
@@ -651,10 +642,9 @@ swap_pager_copy(srcobject, dstobject, offset, destroysource)
 	vm_pindex_t i;
 	int s;
 
+	GIANT_REQUIRED;
+
 	s = splvm();
-
-	mtx_assert(&vm_mtx, MA_OWNED);
-
 	/*
 	 * If destroysource is set, we remove the source object from the 
 	 * swap_pager internal queue now. 
@@ -871,8 +861,8 @@ swap_pager_strategy(vm_object_t object, struct bio *bp)
 	char *data;
 	struct buf *nbp = NULL;
 
-	mtx_assert(&Giant, MA_OWNED);
-	mtx_assert(&vm_mtx, MA_NOTOWNED);
+	GIANT_REQUIRED;
+
 	/* XXX: KASSERT instead ? */
 	if (bp->bio_bcount & PAGE_MASK) {
 		biofinish(bp, NULL, EINVAL);
@@ -903,9 +893,7 @@ swap_pager_strategy(vm_object_t object, struct bio *bp)
 		 * FREE PAGE(s) - destroy underlying swap that is no longer
 		 *		  needed.
 		 */
-		mtx_lock(&vm_mtx);
 		swp_pager_meta_free(object, start, count);
-		mtx_unlock(&vm_mtx);
 		splx(s);
 		bp->bio_resid = 0;
 		biodone(bp);
@@ -915,8 +903,6 @@ swap_pager_strategy(vm_object_t object, struct bio *bp)
 	/*
 	 * Execute read or write
 	 */
-
-	mtx_lock(&vm_mtx);
 	while (count > 0) {
 		daddr_t blk;
 
@@ -959,9 +945,7 @@ swap_pager_strategy(vm_object_t object, struct bio *bp)
 				cnt.v_swappgsout += btoc(nbp->b_bcount);
 				nbp->b_dirtyend = nbp->b_bcount;
 			}
-			mtx_unlock(&vm_mtx);
 			flushchainbuf(nbp);
-			mtx_lock(&vm_mtx);
 			s = splvm();
 			nbp = NULL;
 		}
@@ -981,9 +965,7 @@ swap_pager_strategy(vm_object_t object, struct bio *bp)
 			bp->bio_resid -= PAGE_SIZE;
 		} else {
 			if (nbp == NULL) {
-				mtx_unlock(&vm_mtx);
 				nbp = getchainbuf(bp, swapdev_vp, B_ASYNC);
-				mtx_lock(&vm_mtx);
 				nbp->b_blkno = blk;
 				nbp->b_bcount = 0;
 				nbp->b_data = data;
@@ -1010,11 +992,9 @@ swap_pager_strategy(vm_object_t object, struct bio *bp)
 			cnt.v_swappgsout += btoc(nbp->b_bcount);
 			nbp->b_dirtyend = nbp->b_bcount;
 		}
-		mtx_unlock(&vm_mtx);
 		flushchainbuf(nbp);
 		/* nbp = NULL; */
-	} else
-		mtx_unlock(&vm_mtx);
+	}
 	/*
 	 * Wait for completion.
 	 */
@@ -1057,7 +1037,8 @@ swap_pager_getpages(object, m, count, reqpage)
 	vm_offset_t kva;
 	vm_pindex_t lastpindex;
 
-	mtx_assert(&Giant, MA_OWNED);
+	GIANT_REQUIRED;
+
 	mreq = m[reqpage];
 
 	if (mreq->object != object) {
@@ -1185,10 +1166,8 @@ swap_pager_getpages(object, m, count, reqpage)
 	 *
 	 * NOTE: b_blkno is destroyed by the call to VOP_STRATEGY
 	 */
-	mtx_unlock(&vm_mtx);
 	BUF_KERNPROC(bp);
 	BUF_STRATEGY(bp);
-	mtx_lock(&vm_mtx);
 
 	/*
 	 * wait for the page we want to complete.  PG_SWAPINPROG is always
@@ -1201,7 +1180,7 @@ swap_pager_getpages(object, m, count, reqpage)
 	while ((mreq->flags & PG_SWAPINPROG) != 0) {
 		vm_page_flag_set(mreq, PG_WANTED | PG_REFERENCED);
 		cnt.v_intrans++;
-		if (msleep(mreq, &vm_mtx, PSWP, "swread", hz*20)) {
+		if (tsleep(mreq, PSWP, "swread", hz*20)) {
 			printf(
 			    "swap_pager: indefinite wait buffer: device:"
 				" %s, blkno: %ld, size: %ld\n",
@@ -1267,7 +1246,7 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 	int i;
 	int n = 0;
 
-	mtx_assert(&Giant, MA_OWNED);
+	GIANT_REQUIRED;
 	if (count && m[0]->object != object) {
 		panic("swap_pager_getpages: object mismatch %p/%p", 
 		    object, 
@@ -1432,7 +1411,6 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 		swapdev_vp->v_numoutput++;
 
 		splx(s);
-		mtx_unlock(&vm_mtx);
 
 		/*
 		 * asynchronous
@@ -1444,7 +1422,6 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 			bp->b_iodone = swp_pager_async_iodone;
 			BUF_KERNPROC(bp);
 			BUF_STRATEGY(bp);
-			mtx_lock(&vm_mtx);
 
 			for (j = 0; j < n; ++j)
 				rtvals[i+j] = VM_PAGER_PEND;
@@ -1482,8 +1459,6 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 		 */
 
 		swp_pager_async_iodone(bp);
-		mtx_lock(&vm_mtx);
-
 		splx(s);
 	}
 }
@@ -1533,7 +1508,8 @@ swp_pager_async_iodone(bp)
 	int i;
 	vm_object_t object = NULL;
 
-	mtx_assert(&vm_mtx, MA_NOTOWNED);
+	GIANT_REQUIRED;
+
 	bp->b_flags |= B_DONE;
 
 	/*
@@ -1562,7 +1538,6 @@ swp_pager_async_iodone(bp)
 	/*
 	 * remove the mapping for kernel virtual
 	 */
-	mtx_lock(&vm_mtx);
 	pmap_qremove((vm_offset_t)bp->b_data, bp->b_npages);
 
 	/*
@@ -1697,7 +1672,6 @@ swp_pager_async_iodone(bp)
 	if (object)
 		vm_object_pip_wakeupn(object, bp->b_npages);
 
-	mtx_unlock(&vm_mtx);
 	/*
 	 * release the physical I/O buffer
 	 */
@@ -1771,8 +1745,6 @@ swp_pager_hash(vm_object_t object, vm_pindex_t index)
  *
  *	This routine must be called at splvm(), except when used to convert
  *	an OBJT_DEFAULT object into an OBJT_SWAP object.
- *
- *	Requires vm_mtx.
  */
 
 static void
@@ -1784,7 +1756,7 @@ swp_pager_meta_build(
 	struct swblock *swap;
 	struct swblock **pswap;
 
-	mtx_assert(&vm_mtx, MA_OWNED);
+	GIANT_REQUIRED;
 	/*
 	 * Convert default object to swap object if necessary
 	 */
@@ -1871,15 +1843,13 @@ retry:
  *	out.  This routine does *NOT* operate on swap metadata associated
  *	with resident pages.
  *
- * 	vm_mtx must be held
  *	This routine must be called at splvm()
  */
 
 static void
 swp_pager_meta_free(vm_object_t object, vm_pindex_t index, daddr_t count)
 {
-
-	mtx_assert(&vm_mtx, MA_OWNED);
+	GIANT_REQUIRED;
 
 	if (object->type != OBJT_SWAP)
 		return;
@@ -1920,7 +1890,6 @@ swp_pager_meta_free(vm_object_t object, vm_pindex_t index, daddr_t count)
  *	an object.
  *
  *	This routine must be called at splvm()
- *	Requires vm_mtx.
  */
 
 static void
@@ -1928,7 +1897,7 @@ swp_pager_meta_free_all(vm_object_t object)
 {
 	daddr_t index = 0;
 
-	mtx_assert(&vm_mtx, MA_OWNED);
+	GIANT_REQUIRED;
 	
 	if (object->type != OBJT_SWAP)
 		return;
@@ -1978,7 +1947,6 @@ swp_pager_meta_free_all(vm_object_t object)
  *	busy page.
  *
  *	This routine must be called at splvm().
- *	Requires vm_mtx.
  *
  *	SWM_FREE	remove and free swap block from metadata
  *	SWM_POP		remove from meta data but do not free.. pop it out
@@ -1994,7 +1962,7 @@ swp_pager_meta_ctl(
 	struct swblock *swap;
 	daddr_t r1;
 
-	mtx_assert(&vm_mtx, MA_OWNED);
+	GIANT_REQUIRED;
 	/*
 	 * The meta data only exists of the object is OBJT_SWAP 
 	 * and even then might not be allocated yet.
@@ -2082,8 +2050,6 @@ vm_pager_chain_iodone(struct buf *nbp)
  *	Obtain a physical buffer and chain it to its parent buffer.  When
  *	I/O completes, the parent buffer will be B_SIGNAL'd.  Errors are
  *	automatically propagated to the parent
- *
- *	vm_mtx can't be held
  */
 
 struct buf *
@@ -2092,8 +2058,7 @@ getchainbuf(struct bio *bp, struct vnode *vp, int flags)
 	struct buf *nbp;
 	u_int *count;
 
-	mtx_assert(&vm_mtx, MA_NOTOWNED);
-	mtx_assert(&Giant, MA_OWNED);
+	GIANT_REQUIRED;
 	nbp = getpbuf(NULL);
 	count = (u_int *)&(bp->bio_caller1);
 
@@ -2120,9 +2085,7 @@ getchainbuf(struct bio *bp, struct vnode *vp, int flags)
 void
 flushchainbuf(struct buf *nbp)
 {
-	
-	mtx_assert(&vm_mtx, MA_NOTOWNED);
-	mtx_assert(&Giant, MA_OWNED);
+	GIANT_REQUIRED;
 	if (nbp->b_bcount) {
 		nbp->b_bufsize = nbp->b_bcount;
 		if (nbp->b_iocmd == BIO_WRITE)
@@ -2140,8 +2103,7 @@ waitchainbuf(struct bio *bp, int limit, int done)
  	int s;
 	u_int *count;
 
-	mtx_assert(&vm_mtx, MA_NOTOWNED);
-	mtx_assert(&Giant, MA_OWNED);
+	GIANT_REQUIRED;
 	count = (u_int *)&(bp->bio_caller1);
 	s = splbio();
 	while (*count > limit) {

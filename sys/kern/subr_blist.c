@@ -71,6 +71,7 @@
 #include <sys/kernel.h>
 #include <sys/blist.h>
 #include <sys/malloc.h>
+#include <sys/proc.h>
 #include <sys/mutex.h> 
 #include <vm/vm.h>
 #include <vm/vm_object.h>

@@ -80,6 +80,8 @@ READ(ap)
 	int ioflag;
 	vm_object_t object;
 
+	GIANT_REQUIRED;
+
 	vp = ap->a_vp;
 	seqcount = ap->a_ioflag >> 16;
 	ip = VTOI(vp);
@@ -115,9 +117,7 @@ READ(ap)
 	}
 
 	if (object) {
-		mtx_lock(&vm_mtx);
 		vm_object_reference(object);
-		mtx_unlock(&vm_mtx);
 	}
 
 #ifdef ENABLE_VFS_IOOPT
@@ -151,9 +151,7 @@ READ(ap)
 					ip->i_flag |= IN_ACCESS;
 
 				if (object) {
-					mtx_lock(&vm_mtx);
 					vm_object_vndeallocate(object);
-					mtx_unlock(&vm_mtx);
 				}
 				return error;
 			}
@@ -199,9 +197,7 @@ READ(ap)
 					    MNT_NOATIME) == 0)
 						ip->i_flag |= IN_ACCESS;
 					if (object) {
-						mtx_lock(&vm_mtx);
 						vm_object_vndeallocate(object);
-						mtx_unlock(&vm_mtx);
 					}
 					return error;
 				}
@@ -374,9 +370,7 @@ READ(ap)
 	}
 
 	if (object) {
-		mtx_lock(&vm_mtx);
 		vm_object_vndeallocate(object);
-		mtx_unlock(&vm_mtx);
 	}
 	if ((error == 0 || uio->uio_resid != orig_resid) &&
 	    (vp->v_mount->mnt_flag & MNT_NOATIME) == 0)
@@ -408,6 +402,8 @@ WRITE(ap)
 	int blkoffset, error, extended, flags, ioflag, resid, size, xfersize;
 	vm_object_t object;
 
+	GIANT_REQUIRED;
+
 	extended = 0;
 	seqcount = ap->a_ioflag >> 16;
 	ioflag = ap->a_ioflag;
@@ -417,9 +413,7 @@ WRITE(ap)
 
 	object = vp->v_object;
 	if (object) {
-		mtx_lock(&vm_mtx);
 		vm_object_reference(object);
-		mtx_unlock(&vm_mtx);
 	}
 
 #ifdef DIAGNOSTIC
@@ -433,9 +427,7 @@ WRITE(ap)
 			uio->uio_offset = ip->i_size;
 		if ((ip->i_flags & APPEND) && uio->uio_offset != ip->i_size) {
 			if (object) {
-				mtx_lock(&vm_mtx);
 				vm_object_vndeallocate(object);
-				mtx_unlock(&vm_mtx);
 			}
 			return (EPERM);
 		}
@@ -456,9 +448,7 @@ WRITE(ap)
 	if (uio->uio_offset < 0 ||
 	    (u_int64_t)uio->uio_offset + uio->uio_resid > fs->fs_maxfilesize) {
 		if (object) {
-			mtx_lock(&vm_mtx);
 			vm_object_vndeallocate(object);
-			mtx_unlock(&vm_mtx);
 		}
 		return (EFBIG);
 	}
@@ -474,9 +464,7 @@ WRITE(ap)
 		psignal(p, SIGXFSZ);
 		PROC_UNLOCK(p);
 		if (object) {
-			mtx_lock(&vm_mtx);
 			vm_object_vndeallocate(object);
-			mtx_unlock(&vm_mtx);
 		}
 		return (EFBIG);
 	}
@@ -488,11 +476,9 @@ WRITE(ap)
 		flags = B_SYNC;
 
 	if (object && (object->flags & OBJ_OPT)) {
-		mtx_lock(&vm_mtx);
 		vm_freeze_copyopts(object,
 			OFF_TO_IDX(uio->uio_offset),
 			OFF_TO_IDX(uio->uio_offset + uio->uio_resid + PAGE_MASK));
-		mtx_unlock(&vm_mtx);
 	}
 
 	for (error = 0; uio->uio_resid > 0;) {
@@ -595,9 +581,7 @@ WRITE(ap)
 		error = UFS_UPDATE(vp, 1);
 
 	if (object) {
-		mtx_lock(&vm_mtx);
 		vm_object_vndeallocate(object);
-		mtx_unlock(&vm_mtx);
 	}
 
 	return (error);
@@ -627,6 +611,7 @@ ffs_getpages(ap)
 	int rtval;
 	int pagesperblock;
 
+	GIANT_REQUIRED;
 
 	pcount = round_page(ap->a_count) / PAGE_SIZE;
 	mreq = ap->a_m[ap->a_reqpage];
@@ -668,16 +653,9 @@ ffs_getpages(ap)
 	reqlblkno = foff / bsize;
 	poff = (foff % bsize) / PAGE_SIZE;
 
-	mtx_unlock(&vm_mtx);
-	mtx_lock(&Giant);
-
 	dp = VTOI(vp)->i_devvp;
 	if (ufs_bmaparray(vp, reqlblkno, &reqblkno, &bforwards, &bbackwards)
 	    || (reqblkno == -1)) {
-
-		mtx_unlock(&Giant);
-		mtx_lock(&vm_mtx);
-
 		for(i = 0; i < pcount; i++) {
 			if (i != ap->a_reqpage)
 				vm_page_free(ap->a_m[i]);
@@ -692,9 +670,6 @@ ffs_getpages(ap)
 			return VM_PAGER_ERROR;
 		}
 	}
-
-	mtx_unlock(&Giant);
-	mtx_lock(&vm_mtx);
 
 	physoffset = (off_t)reqblkno * DEV_BSIZE + poff * PAGE_SIZE;
 	pagesperblock = bsize / PAGE_SIZE;

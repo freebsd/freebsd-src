@@ -95,10 +95,6 @@ typedef struct vm_map *vm_map_t;
 struct vm_object;
 typedef struct vm_object *vm_object_t;
 
-#ifdef _KERNEL
-extern struct mtx vm_mtx;
-#endif
-
 #ifndef _KERNEL
 /*
  * This is defined in <sys/types.h> for the kernel so that non-vm kernel

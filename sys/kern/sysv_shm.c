@@ -187,7 +187,8 @@ shm_deallocate_segment(shmseg)
 	struct shm_handle *shm_handle;
 	size_t size;
 
-	mtx_assert(&vm_mtx, MA_OWNED);		/* For vm_object_deallocate. */
+	GIANT_REQUIRED;
+
 	shm_handle = shmseg->shm_internal;
 	vm_object_deallocate(shm_handle->shm_object);
 	free((caddr_t)shm_handle, M_SHM);
@@ -207,8 +208,7 @@ shm_delete_mapping(p, shmmap_s)
 	int segnum, result;
 	size_t size;
 
-	/* For vm_map_remove and shm_deallocate_segment. */
-	mtx_assert(&vm_mtx, MA_OWNED);
+	GIANT_REQUIRED;
 
 	segnum = IPCID_TO_IX(shmmap_s->shmid);
 	shmseg = &shmsegs[segnum];
@@ -254,9 +254,7 @@ shmdt(p, uap)
 			break;
 	if (i == shminfo.shmseg)
 		return EINVAL;
-	mtx_lock(&vm_mtx);
 	error = shm_delete_mapping(p, shmmap_s);
-	mtx_unlock(&vm_mtx);
 	return error;
 }
 
@@ -281,6 +279,8 @@ shmat(p, uap)
 	vm_prot_t prot;
 	vm_size_t size;
 	int rv;
+
+	GIANT_REQUIRED;
 
 	if (!jail_sysvipc_allowed && jailed(p->p_ucred))
 		return (ENOSYS);
@@ -334,17 +334,14 @@ shmat(p, uap)
 	}
 
 	shm_handle = shmseg->shm_internal;
-	mtx_lock(&vm_mtx);
 	vm_object_reference(shm_handle->shm_object);
 	rv = vm_map_find(&p->p_vmspace->vm_map, shm_handle->shm_object,
 		0, &attach_va, size, (flags & MAP_FIXED)?0:1, prot, prot, 0);
 	if (rv != KERN_SUCCESS) {
-		mtx_unlock(&vm_mtx);
 		return ENOMEM;
 	}
 	vm_map_inherit(&p->p_vmspace->vm_map,
 		attach_va, attach_va + size, VM_INHERIT_SHARE);
-	mtx_unlock(&vm_mtx);
 
 	shmmap_s->va = attach_va;
 	shmmap_s->shmid = uap->shmid;
@@ -434,6 +431,8 @@ shmctl(p, uap)
 	struct shmid_ds inbuf;
 	struct shmid_ds *shmseg;
 
+	GIANT_REQUIRED;
+
 	if (!jail_sysvipc_allowed && jailed(p->p_ucred))
 		return (ENOSYS);
 
@@ -470,9 +469,7 @@ shmctl(p, uap)
 		shmseg->shm_perm.key = IPC_PRIVATE;
 		shmseg->shm_perm.mode |= SHMSEG_REMOVED;
 		if (shmseg->shm_nattch <= 0) {
-			mtx_lock(&vm_mtx);
 			shm_deallocate_segment(shmseg);
-			mtx_unlock(&vm_mtx);
 			shm_last_free = IPCID_TO_IX(uap->shmid);
 		}
 		break;
@@ -539,6 +536,8 @@ shmget_allocate_segment(p, uap, mode)
 	struct shmid_ds *shmseg;
 	struct shm_handle *shm_handle;
 
+	GIANT_REQUIRED;
+
 	if (uap->size < shminfo.shmmin || uap->size > shminfo.shmmax)
 		return EINVAL;
 	if (shm_nused >= shminfo.shmmni) /* Any shmids left? */
@@ -574,7 +573,6 @@ shmget_allocate_segment(p, uap, mode)
 	 * We make sure that we have allocated a pager before we need
 	 * to.
 	 */
-	mtx_lock(&vm_mtx);
 	if (shm_use_phys) {
 		shm_handle->shm_object =
 		    vm_pager_allocate(OBJT_PHYS, 0, size, VM_PROT_DEFAULT, 0);
@@ -584,7 +582,6 @@ shmget_allocate_segment(p, uap, mode)
 	}
 	vm_object_clear_flag(shm_handle->shm_object, OBJ_ONEMAPPING);
 	vm_object_set_flag(shm_handle->shm_object, OBJ_NOSPLIT);
-	mtx_unlock(&vm_mtx);
 
 	shmseg->shm_internal = shm_handle;
 	shmseg->shm_perm.cuid = shmseg->shm_perm.uid = cred->cr_uid;
@@ -680,7 +677,8 @@ shmexit_myhook(p)
 	struct shmmap_state *shmmap_s;
 	int i;
 
-	mtx_assert(&vm_mtx, MA_OWNED);	/* For shm_delete_mapping. */
+	GIANT_REQUIRED;
+
 	shmmap_s = (struct shmmap_state *)p->p_vmspace->vm_shm;
 	for (i = 0; i < shminfo.shmseg; i++, shmmap_s++)
 		if (shmmap_s->shmid != -1)

@@ -91,6 +91,8 @@ exec_aout_imgact(imgp)
 	unsigned long bss_size;
 	int error;
 
+	GIANT_REQUIRED;
+
 	/*
 	 * Linux and *BSD binaries look very much alike,
 	 * only the machine id is different:
@@ -171,7 +173,6 @@ exec_aout_imgact(imgp)
 	if (error)
 		return (error);
 
-	mtx_lock(&vm_mtx);
 	/*
 	 * Destroy old process VM and create a new one (with a new stack)
 	 */
@@ -185,9 +186,7 @@ exec_aout_imgact(imgp)
 	vp = imgp->vp;
 	map = &vmspace->vm_map;
 	vm_map_lock(map);
-	mtx_unlock(&vm_mtx);
 	VOP_GETVOBJECT(vp, &object);
-	mtx_lock(&vm_mtx);
 	vm_object_reference(object);
 
 	text_end = virtual_offset + a_out->a_text;
@@ -198,7 +197,6 @@ exec_aout_imgact(imgp)
 		MAP_COPY_ON_WRITE | MAP_PREFAULT);
 	if (error) {
 		vm_map_unlock(map);
-		mtx_unlock(&vm_mtx);
 		return (error);
 	}
 	data_end = text_end + a_out->a_data;
@@ -211,7 +209,6 @@ exec_aout_imgact(imgp)
 			MAP_COPY_ON_WRITE | MAP_PREFAULT);
 		if (error) {
 			vm_map_unlock(map);
-			mtx_unlock(&vm_mtx);
 			return (error);
 		}
 	}
@@ -222,7 +219,6 @@ exec_aout_imgact(imgp)
 			VM_PROT_ALL, VM_PROT_ALL, 0);
 		if (error) {
 			vm_map_unlock(map);
-			mtx_unlock(&vm_mtx);
 			return (error);
 		}
 	}
@@ -234,8 +230,6 @@ exec_aout_imgact(imgp)
 	vmspace->vm_taddr = (caddr_t) (uintptr_t) virtual_offset;
 	vmspace->vm_daddr = (caddr_t) (uintptr_t)
 			    (virtual_offset + a_out->a_text);
-
-	mtx_unlock(&vm_mtx);
 
 	/* Fill in image_params */
 	imgp->interpreted = 0;

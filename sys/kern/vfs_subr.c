@@ -711,7 +711,7 @@ vinvalbuf(vp, flags, cred, p, slpflag, slptimeo)
 	int s, error;
 	vm_object_t object;
 
-	mtx_assert(&vm_mtx, MA_NOTOWNED);
+	GIANT_REQUIRED;
 
 	if (flags & V_SAVE) {
 		s = splbio();
@@ -799,10 +799,8 @@ vinvalbuf(vp, flags, cred, p, slpflag, slptimeo)
 	 */
 	mtx_lock(&vp->v_interlock);
 	if (VOP_GETVOBJECT(vp, &object) == 0) {
-		mtx_lock(&vm_mtx);
 		vm_object_page_remove(object, 0, 0,
 			(flags & V_SAVE) ? TRUE : FALSE);
-		mtx_unlock(&vm_mtx);
 	}
 	mtx_unlock(&vp->v_interlock);
 
@@ -1136,8 +1134,6 @@ speedup_syncer()
  * Also sets B_PAGING flag to indicate that vnode is not fully associated
  * with the buffer.  i.e. the bp has not been linked into the vnode or
  * ref-counted.
- *
- * Doesn't block, only vnode seems to need a lock.
  */
 void
 pbgetvp(vp, bp)
@@ -1560,7 +1556,8 @@ vput(vp)
 {
 	struct proc *p = curproc;	/* XXX */
 
-	mtx_assert(&Giant, MA_OWNED);
+	GIANT_REQUIRED;
+
 	KASSERT(vp != NULL, ("vput: null vp"));
 	mtx_lock(&vp->v_interlock);
 	/* Skip this v_writecount check if we're going to panic below. */
@@ -2363,6 +2360,8 @@ vfs_msync(struct mount *mp, int flags) {
 	struct vm_object *obj;
 	int anyio, tries;
 
+	GIANT_REQUIRED;
+
 	tries = 5;
 loop:
 	anyio = 0;
@@ -2394,11 +2393,9 @@ loop:
 			if (!vget(vp,
 				LK_INTERLOCK | LK_EXCLUSIVE | LK_RETRY | LK_NOOBJ, curproc)) {
 				if (VOP_GETVOBJECT(vp, &obj) == 0) {
-					mtx_lock(&vm_mtx);
 					vm_object_page_clean(obj, 0, 0,
 					    flags == MNT_WAIT ?
 					    OBJPC_SYNC : OBJPC_NOSYNC);
-					mtx_unlock(&vm_mtx);
 					anyio = 1;
 				}
 				vput(vp);
@@ -2427,8 +2424,7 @@ vfs_object_create(vp, p, cred)
 	struct proc *p;
 	struct ucred *cred;
 {
-
-	mtx_assert(&vm_mtx, MA_NOTOWNED);
+	GIANT_REQUIRED;
 	return (VOP_CREATEVOBJECT(vp, cred, p));
 }
 

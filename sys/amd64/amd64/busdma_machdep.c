@@ -32,6 +32,7 @@
 #include <sys/bus.h>
 #include <sys/interrupt.h>
 #include <sys/lock.h>
+#include <sys/proc.h>
 #include <sys/mutex.h>
 
 #include <vm/vm.h>

@@ -274,6 +274,8 @@ proc0_init(void *dummy __unused)
 	register struct filedesc0	*fdp;
 	register unsigned i;
 
+	GIANT_REQUIRED;
+
 	p = &proc0;
 
 	/*
@@ -373,14 +375,12 @@ proc0_init(void *dummy __unused)
 	limit0.p_refcnt = 1;
 
 	/* Allocate a prototype map so we have something to fork. */
-	mtx_lock(&vm_mtx);
 	pmap_pinit0(vmspace_pmap(&vmspace0));
 	p->p_vmspace = &vmspace0;
 	vmspace0.vm_refcnt = 1;
 	vm_map_init(&vmspace0.vm_map, round_page(VM_MIN_ADDRESS),
 	    trunc_page(VM_MAXUSER_ADDRESS));
 	vmspace0.vm_map.pmap = vmspace_pmap(&vmspace0);
-	mtx_unlock(&vm_mtx);
 	p->p_addr = proc0paddr;				/* XXX */
 
 	/*
@@ -471,6 +471,8 @@ start_init(void *dummy)
 
 	mtx_lock(&Giant);
 
+	GIANT_REQUIRED;
+
 	p = curproc;
 
 	/* Get the vnode for '/'.  Set p->p_fd->fd_cdir to reference it. */
@@ -486,13 +488,11 @@ start_init(void *dummy)
 	 * Need just enough stack to hold the faked-up "execve()" arguments.
 	 */
 	addr = trunc_page(USRSTACK - PAGE_SIZE);
-	mtx_lock(&vm_mtx);
 	if (vm_map_find(&p->p_vmspace->vm_map, NULL, 0, &addr, PAGE_SIZE,
 			FALSE, VM_PROT_ALL, VM_PROT_ALL, 0) != 0)
 		panic("init: couldn't allocate argument space");
 	p->p_vmspace->vm_maxsaddr = (caddr_t)addr;
 	p->p_vmspace->vm_ssize = 1;
-	mtx_unlock(&vm_mtx);
 
 	if ((var = getenv("init_path")) != NULL) {
 		strncpy(init_path, var, sizeof init_path);
