@@ -1223,6 +1223,8 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 		if (vp->v_type == VCHR) {
 			type = OBJT_DEVICE;
 			handle = vp->v_rdev;
+			vput(vp);
+			mtx_unlock(&Giant);
 		} else {
 			struct vattr vat;
 
@@ -1242,8 +1244,6 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 				flags |= MAP_NOSYNC;
 			}
 		}
-		vput(vp);
-		mtx_unlock(&Giant);
 	}
 
 	if (handle == NULL) {
@@ -1252,6 +1252,10 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 	} else {
 		object = vm_pager_allocate(type,
 			handle, objsize, prot, foff);
+		if (type == OBJT_VNODE) {
+			vput(vp);
+			mtx_unlock(&Giant);
+		}
 		if (object == NULL) {
 			return (type == OBJT_DEVICE ? EINVAL : ENOMEM);
 		}
