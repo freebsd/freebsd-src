@@ -77,6 +77,10 @@ static char sccsid[] = "@(#)ftpd.c	8.4 (Berkeley) 4/16/94";
 #include <time.h>
 #include <unistd.h>
 
+#ifdef	SKEY
+#include <skey.h>
+#endif
+
 #include "pathnames.h"
 #include "extern.h"
 
@@ -143,8 +147,7 @@ char	proctitle[LINE_MAX];	/* initial part of title */
 
 #ifdef SKEY
 int	pwok = 0;
-char	*skey_challenge();
-char	*skey_crypt();
+char	addr_string[20];	/* XXX */
 #endif
 
 #define LOGCMD(cmd, file) \
@@ -205,6 +208,8 @@ main(argc, argv, envp)
 	char *cp, line[LINE_MAX];
 	FILE *fd;
 
+	tzset();		/* in case no timezone database in ~ftp */
+
 	/*
 	 * LOG_NDELAY sets up the logging connection immediately,
 	 * necessary for anonymous ftp's that chroot and can't do it later.
@@ -215,6 +220,9 @@ main(argc, argv, envp)
 		syslog(LOG_ERR, "getpeername (%s): %m",argv[0]);
 		exit(1);
 	}
+#ifdef SKEY
+	strcpy(addr_string, inet_ntoa(his_addr.sin_addr));
+#endif
 	addrlen = sizeof(ctrl_addr);
 	if (getsockname(0, (struct sockaddr *)&ctrl_addr, &addrlen) < 0) {
 		syslog(LOG_ERR, "getsockname (%s): %m",argv[0]);
@@ -434,7 +442,7 @@ user(name)
 			guest = 1;
 			askpasswd = 1;
 			reply(331,
-			    "Guest login ok, type your name as password.");
+			"Guest login ok, send your email address as password.");
 		} else
 			reply(530, "User %s unknown.", name);
 		if (!askpasswd && logging)
@@ -463,7 +471,7 @@ user(name)
 	if (logging)
 		strncpy(curname, name, sizeof(curname)-1);
 #ifdef SKEY
-	pwok = skeyaccess(name, NULL, remotehost);
+	pwok = skeyaccess(name, NULL, remotehost, addr_string);
 	reply(331, "%s", skey_challenge(name, pw, pwok));
 #else
 	reply(331, "Password required for %s.", name);
