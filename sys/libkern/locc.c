@@ -31,10 +31,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)locc.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: locc.c,v 1.2 1994/08/02 07:44:04 davidg Exp $
  */
 
-#include <libkern/libkern.h>
+#include <sys/libkern.h>
 
 int
 locc(mask0, cp0, size)
