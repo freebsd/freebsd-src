@@ -94,7 +94,7 @@ typedef enum Colors {
 	C_NUMCOLORS	/* just a place-holder */
 } Colors;
 
-char *defcolors = "exfxcxdxbxegedabagacad";
+const char *defcolors = "exfxcxdxbxegedabagacad";
 
 /* colors for file types */
 static struct {
@@ -468,7 +468,7 @@ colortype(mode)
 
 void
 parsecolors(cs)
-	char	*cs;
+	const char *cs;
 {
 	int	i;
 	int	j;
