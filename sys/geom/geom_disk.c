@@ -262,9 +262,6 @@ g_disk_start(struct bio *bp)
 		} else 
 			error = ENOIOCTL;
 		break;
-	case BIO_SETATTR:
-		error = ENOIOCTL;
-		break;
 	default:
 		error = EOPNOTSUPP;
 		break;

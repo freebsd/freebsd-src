@@ -65,7 +65,6 @@ g_bde_start(struct bio *bp)
 		g_bde_start1(bp);
 		break;
 	case BIO_GETATTR:
-	case BIO_SETATTR:
 		g_io_deliver(bp, EOPNOTSUPP);
 		break;
 	default:
