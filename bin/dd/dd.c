@@ -225,10 +225,13 @@ getfdtype(io)
 			if (S_ISCHR(sb.st_mode) && (type & D_TAPE) == 0)
 				io->flags |= ISCHR;
 		}
-	} else if (lseek(io->fd, (off_t)0, SEEK_CUR) == 0)
-		io->flags |= ISSEEK;
-	else if (errno == ESPIPE)
+		return;
+	}
+	errno = 0;
+	if (lseek(io->fd, (off_t)0, SEEK_CUR) == -1 && errno == ESPIPE)
 		io->flags |= ISPIPE;
+	else
+		io->flags |= ISSEEK;
 }
 
 static void
@@ -237,8 +240,16 @@ dd_in()
 	ssize_t n;
 
 	for (;;) {
-		if (cpy_cnt && (st.in_full + st.in_part) >= cpy_cnt)
+		switch (cpy_cnt) {
+		case -1:			/* count=0 was specified */
 			return;
+		case 0:
+			break;
+		default:
+			if (st.in_full + st.in_part >= cpy_cnt)
+				return;
+			break;
+		}
 
 		/*
 		 * Zero the buffer first if sync; if doing block operations,
