@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.9 (Berkeley) 3/30/95
- * $Id: nfs_bio.c,v 1.49 1998/02/04 22:33:13 eivind Exp $
+ * $Id: nfs_bio.c,v 1.50 1998/02/06 12:13:55 eivind Exp $
  */
 
 
@@ -113,6 +113,21 @@ nfs_getpages(ap)
 	if (error && (uio.uio_resid == PAGE_SIZE))
 		return VM_PAGER_ERROR;
 	return 0;
+}
+
+
+/*
+ * put page routine
+ *
+ * XXX By default, wimp out... note that a_offset is ignored (and always
+ * XXX has been).
+ */
+int
+nfs_putpages(ap)
+	struct vop_putpages_args *ap;
+{
+	return vnode_pager_generic_putpages(ap->a_vp, ap->a_m, ap->a_count,
+		ap->a_sync, ap->a_rtvals);
 }
 
 /*
