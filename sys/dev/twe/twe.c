@@ -831,8 +831,10 @@ twe_startio(struct twe_softc *sc)
 	    if ((bp = twe_dequeue_bio(sc)) == NULL)
 		break;
 	    /* get a command */
-	    if (twe_get_request(sc, &tr))
+	    if (twe_get_request(sc, &tr)) {
+		twe_enqueue_bio(sc, bp);
 		break;
+	    }
 
 	    /* connect the bio to the command */
 	    tr->tr_complete = twe_completeio;
