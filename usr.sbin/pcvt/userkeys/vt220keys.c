@@ -31,6 +31,7 @@ $FreeBSD$
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <unistd.h>
 
 /*
  *      The default toupper() macro is stupid, will toupper anything
@@ -76,10 +77,6 @@ main(argc,argv)
         int argc;
         char *argv[];
 {
-        /* these are defined in the getopt routine                       */
-        extern char *optarg;    /* argument give to an option            */
-        extern int  optind;     /* argv index after option processing    */
-
         int option;             /* option character returned by getopt   */
         int initf = 0;          /* read initialization file              */
         int lockf = 0;          /* lock keys after loading strings       */
