@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     from: @(#)j0.3	6.7 (Berkeley) 4/19/91
-.\"	$Id: j0.3,v 1.1.1.1 1994/08/19 09:39:42 jkh Exp $
+.\"	$Id: j0.3,v 1.2 1995/03/01 05:06:20 jkh Exp $
 .\"
 .Dd April 19, 1991
 .Dt J0 3
@@ -48,7 +48,7 @@
 .Nm y1f ,
 .Nm yn ,
 .Nm ynf
-.Nd bessel functions of first and second kind
+.Nd Bessel functions of first and second kind
 .Sh SYNOPSIS
 .Fd #include <math.h>
 .Ft double
@@ -95,7 +95,8 @@ the functions
 and
 .Fn jnf
 compute the
-.Em Bessel function of the first kind of the integer order
+.Em Bessel function of the first kind of the integer
+.Em order
 .Fa n
 for the real value
 .Fa x .
@@ -113,22 +114,21 @@ compute the linearly independent
 1, respectively,
 for the
 positive
-.Em integer
+.Em real
 value
-.Fa x
-(expressed as a double or float);
+.Fa x ;
 the functions
 .Fn yn
 and
 .Fn ynf
 compute the
-.Em Bessel function of the second kind for the integer order
+.Em Bessel function of the second kind for the integer
+.Em order
 .Fa n
 for the positive 
-.Em integer
+.Em real
 value
-.Fa x
-(expressed as a double or float).
+.Fa x .
 .Sh RETURN VALUES
 If these functions are successful,
 the computed value is returned. On the
@@ -136,7 +136,9 @@ the computed value is returned. On the
 and
 .Tn Tahoe
 architectures,
+for the Bessel functions of the second kind,
 a negative
+or zero
 .Fa x
 value
 results in an error; the global
