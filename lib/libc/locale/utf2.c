@@ -48,7 +48,7 @@ static char sccsid[] = "@(#)utf2.c	8.1 (Berkeley) 6/4/93";
 rune_t	_UTF2_sgetrune __P((const char *, size_t, char const **));
 int	_UTF2_sputrune __P((rune_t, char *, size_t, char **));
 
-static _utf_count[16] = {
+static int _utf_count[16] = {
 	1, 1, 1, 1, 1, 1, 1, 1,
 	0, 0, 0, 0, 2, 2, 3, 0,
 };
