@@ -247,6 +247,10 @@ char quote;
 		*tptr++ = '"';
 		++cptr;
 		break;
+	      case '\'':
+		*tptr++ = '\'';
+		++cptr;
+		break;
 	      case '\\':
 		*tptr++ = '\\';
 		++cptr;
