@@ -108,6 +108,7 @@ union ipx_host {
 union ipx_net {
 	u_char	c_net[4];
 	u_short	s_net[2];
+	u_int	u_net;
 };
 
 union ipx_net_u {
@@ -131,6 +132,8 @@ struct sockaddr_ipx {
 	char		sipx_zero[2];
 };
 #define sipx_port sipx_addr.x_port
+#define sipx_network sipx_addr.x_net.u_net
+#define sipx_node sipx_addr.x_host.c_host
 
 /*
  * Definitions for IPX Internetwork Packet Exchange Protocol
