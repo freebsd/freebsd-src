@@ -225,6 +225,9 @@ clkintr(struct clockframe frame)
 		    >= hardclock_max_count) {
 			timer0_prescaler_count -= hardclock_max_count;
 			hardclock(&frame);
+#ifdef SMP
+			forward_hardclock();
+#endif
 		}
 		break;
 
