@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)kvm_mkdb.c	8.3 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: kvm_mkdb.c,v 1.7 1997/09/24 06:44:09 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -92,12 +92,13 @@ main(argc, argv)
 	if (argc > 1)
 		usage();
 
+	nlistpath = argc > 0 ? argv[0] : (char *)getbootfile();
+
 	/* If the existing db file matches the currently running kernel, exit */
-	if (testdb())
+	if (testdb(nlistpath))
 		exit(0);
 
 #define	basename(cp)	((p = rindex((cp), '/')) != NULL ? p + 1 : (cp))
-	nlistpath = argc > 0 ? argv[0] : (char *)getbootfile();
 	nlistname = basename(nlistpath);
 
 	(void)snprintf(dbtemp, sizeof(dbtemp), "%skvm_%s.tmp",
