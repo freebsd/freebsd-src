@@ -40,15 +40,15 @@
 #define MACHINE_CRITICAL_H
 void cpu_critical_fork_exit(void);
 static __inline void
-cpu_critical_enter(void)
+cpu_critical_enter(struct thread *td)
 {
-	curthread->td_md.md_savecrit = disable_interrupts(I32_bit | F32_bit);
+	cd->td_md.md_savecrit = disable_interrupts(I32_bit | F32_bit);
 }
 
 static __inline void
-cpu_critical_exit(void)
+cpu_critical_exit(struct thread *td)
 {
-	restore_interrupts(curthread->td_md.md_savecrit);
+	restore_interrupts(td->td_md.md_savecrit);
 }
 
 #endif

@@ -56,10 +56,9 @@ void cpu_critical_fork_exit(void);
  */
 
 static __inline void
-cpu_critical_enter(void)
+cpu_critical_enter(struct thread *td)
 {
 	u_int           msr;
-	struct thread	*td = curthread;
 
 	msr = mfmsr();
 	td->td_md.md_savecrit = msr;
@@ -75,9 +74,8 @@ cpu_critical_enter(void)
  *	exiting the last critical section.
  */
 static __inline void
-cpu_critical_exit(void)
+cpu_critical_exit(struct thread *td)
 {
-	struct thread *td = curthread;
 
 	mtmsr(td->td_md.md_savecrit);
 }
@@ -85,8 +83,8 @@ cpu_critical_exit(void)
 
 #else /* !__GNUC__ */
 
-void cpu_critical_enter(void);
-void cpu_critical_exit(void);
+void cpu_critical_enter(struct thread *td);
+void cpu_critical_exit(struct thread *td);
 
 #endif	/* __GNUC__ */
 

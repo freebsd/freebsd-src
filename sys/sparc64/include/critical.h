@@ -55,12 +55,10 @@ void cpu_critical_fork_exit(void);
  *	of td_critnest, prior to it being incremented to 1.
  */
 static __inline void
-cpu_critical_enter(void)
+cpu_critical_enter(struct thread *td)
 {
-	struct thread *td;
 	critical_t pil;
 
-	td = curthread;
 	pil = rdpr(pil);
 	wrpr(pil, 0, 14);
 	td->td_md.md_savecrit = pil;
@@ -75,18 +73,16 @@ cpu_critical_enter(void)
  *	exiting the last critical section.
  */
 static __inline void
-cpu_critical_exit(void)
+cpu_critical_exit(struct thread *td)
 {
-	struct thread *td;
 
-	td = curthread;
 	wrpr(pil, td->td_md.md_savecrit, 0);
 }
 
 #else /* !__GNUC__ */
 
-void cpu_critical_enter(void);
-void cpu_critical_exit(void);
+void cpu_critical_enter(struct thread *td);
+void cpu_critical_exit(struct thread *td);
 
 #endif	/* __GNUC__ */
 
