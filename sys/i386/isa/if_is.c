@@ -637,7 +637,7 @@ is_start(ifp)
 
 		
 		m_freem(m0);
-		len = MAX(len,ETHER_MIN_LEN);
+		len = max(len,ETHER_MIN_LEN);
 
 		/*
 	 	* Init transmit registers, and set transmit start flag.
