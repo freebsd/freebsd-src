@@ -1,8 +1,8 @@
 To enable PAM in dtlogin and /bin/login under SunOS 5.6 apply this patch:
 
 --- /etc/pam.conf.DIST	Mon Jul 20 15:37:46 1998
-+++ /etc/pam.conf	Tue Nov 30 18:47:22 1999
-@@ -4,12 +4,14 @@
++++ /etc/pam.conf	Tue Feb 15 19:39:12 2000
+@@ -4,15 +4,19 @@
  #
  # Authentication management
  #
@@ -17,12 +17,17 @@ To enable PAM in dtlogin and /bin/login under SunOS 5.6 apply this patch:
  dtlogin	auth required 	/usr/lib/security/pam_unix.so.1 
  #
  rsh	auth required	/usr/lib/security/pam_rhosts_auth.so.1
-@@ -24,6 +26,8 @@
++# Reafslog is for dtlogin lock display
++other	auth sufficient	/usr/athena/lib/pam_krb4.so reafslog
+ other	auth required	/usr/lib/security/pam_unix.so.1
+ #
+ # Account management
+@@ -24,6 +28,8 @@
  #
  # Session management
  #
-+dtlogin	session	required	/usr/athena/lib/pam_krb4.so
-+login	session	required	/usr/athena/lib/pam_krb4.so
++dtlogin	session required	/usr/athena/lib/pam_krb4.so
++login	session required	/usr/athena/lib/pam_krb4.so
  other	session required	/usr/lib/security/pam_unix.so.1 
  #
  # Password management

@@ -1,3 +1,23 @@
+2000-02-20  Assar Westerlund  <assar@sics.se>
+
+	* Release 0.2p
+
+2000-02-19  Assar Westerlund  <assar@sics.se>
+
+	* lib/krb5/Makefile.am: set version to 9:1:0
+	
+	* lib/krb5/expand_hostname.c (krb5_expand_hostname): make sure
+	that realms is filled in even when getaddrinfo fails or does not
+	return any canonical name
+
+	* kdc/connect.c (descr): add sockaddr and string representation
+	(*): re-write to use the above mentioned
+
+2000-02-16  Assar Westerlund  <assar@sics.se>
+
+	* lib/krb5/addr_families.c (krb5_parse_address): use
+	krb5_sockaddr2address to copy the result from getaddrinfo.
+
 2000-02-14  Assar Westerlund  <assar@sics.se>
 
 	* Release 0.2o
