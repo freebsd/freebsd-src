@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id$
+ *	$Id: db_print.c,v 1.13 1997/02/22 09:28:27 peter Exp $
  */
 
 /*
@@ -35,10 +35,8 @@
  * Miscellaneous printing.
  */
 #include <sys/param.h>
-#include <sys/systm.h>
 
 #include <ddb/ddb.h>
-#include <ddb/db_lex.h>
 #include <ddb/db_variables.h>
 #include <ddb/db_sym.h>
 
