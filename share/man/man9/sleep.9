@@ -30,6 +30,7 @@
 .Dt SLEEP 9
 .Sh NAME
 .Nm sleep ,
+.Nm msleep ,
 .Nm tsleep ,
 .Nm asleep ,
 .Nm await ,
@@ -41,6 +42,8 @@
 .Fd #include <sys/proc.h>
 .Ft int
 .Fn tsleep "void *ident" "int priority" "const char *wmesg" "int timo"
+.Ft int
+.Fn msleep "void *ident" "mtx_t *mtx" "int priority" "const char *wmesg" "int timo"
 .Ft int
 .Fn asleep "void *ident" "int priority" "const char *wmesg" "int timo"
 .Ft int
@@ -107,6 +110,22 @@ possible, and
 .Dv EINTR
 is returned if the system call should be interrupted by the signal
 .Pq return Dv EINTR .
+.Pp
+.Nm Msleep
+is a variation on tsleep.  The parameter
+.Ar mtx
+is a mutex, which will be exited before sleeping, and entered before
+.Nm msleep
+returns.  If
+.Ar pri
+includes the
+.Dv PDROP
+flag, the
+.Ar mtx
+parameter will not be entered before returning.  The mutex is
+used to ensure that a condition can be checked atomicly, and
+that the current process can be suspended without missing a
+change to the condition, or an associated wakeup.
 .Pp
 .Nm Asleep
 implements the new asynchronous sleep function.  It takes the same arguments
