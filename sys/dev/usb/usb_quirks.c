@@ -97,7 +97,7 @@ usbd_find_quirk(usb_device_descriptor_t *d)
 	for (t = usb_quirks; t->idVendor != 0; t++) {
 		if (t->idVendor  == UGETW(d->idVendor) &&
 		    t->idProduct == UGETW(d->idProduct) &&
-		    t->bcdDevice == UGETW(d->bcdDevice))
+		    (t->bcdDevice == ANY || t->bcdDevice == UGETW(d->bcdDevice)))
 			break;
 	}
 #ifdef USB_DEBUG
