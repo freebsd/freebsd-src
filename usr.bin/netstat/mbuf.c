@@ -101,8 +101,7 @@ mbpr(u_long mbaddr, u_long mbtaddr, u_long nmbcaddr, u_long nmbufaddr)
 	struct mbstat mbstat;
 	struct mbtypenames *mp;
 	int name[3], nmbclusters, nmbufs, nmbtypes;
-	int nsfbufs, nsfbufspeak, nsfbufsused;
-	size_t nmbclen, nmbuflen, mbstatlen, mbtypeslen, mlen;
+	size_t nmbclen, nmbuflen, mbstatlen, mbtypeslen;
 	u_long *mbtypes;
 	bool *seen;	/* "have we seen this type yet?" */
 
@@ -193,25 +192,12 @@ mbpr(u_long mbaddr, u_long mbtaddr, u_long nmbcaddr, u_long nmbufaddr)
 	printf("%lu/%lu/%u mbuf clusters in use (current/peak/max)\n",
 		mbstat.m_clusters - mbstat.m_clfree, mbstat.m_clusters,
 		nmbclusters);
-	mlen = sizeof(nsfbufs);
-	if (!sysctlbyname("kern.ipc.nsfbufs", &nsfbufs, &mlen, NULL, 0) &&
-	    !sysctlbyname("kern.ipc.nsfbufsused", &nsfbufsused, &mlen, NULL,
-	    0) &&
-	    !sysctlbyname("kern.ipc.nsfbufspeak", &nsfbufspeak, &mlen, NULL,
-	    0)) {
-		printf("%d/%d/%d sfbufs in use (current/peak/max)\n",
-		    nsfbufsused, nsfbufspeak, nsfbufs);
-	}
 	totmem = mbstat.m_mbufs * MSIZE + mbstat.m_clusters * MCLBYTES;
 	totpossible = nmbclusters * MCLBYTES + MSIZE * nmbufs; 
 	printf("%lu Kbytes allocated to network (%lu%% of mb_map in use)\n",
 		totmem / 1024, (totmem * 100) / totpossible);
 	printf("%lu requests for memory denied\n", mbstat.m_drops);
 	printf("%lu requests for memory delayed\n", mbstat.m_wait);
-	printf("%lu requests for sfbufs denied\n", mbstat.sf_allocfail);
-	printf("%lu requests for sfbufs delayed\n", mbstat.sf_allocwait);
-	printf("%lu requests for I/O initiated by sendfile\n",
-	    mbstat.sf_iocnt);
 	printf("%lu calls to protocol drain routines\n", mbstat.m_drain);
 
 err:
