@@ -572,6 +572,7 @@ mloop:
  load loop
  set mode interactive
  set mrru 1500
+ set mru 1504			# Room for the MP header
  clone 1 2 3
  link deflink remove
  # dial
@@ -583,6 +584,7 @@ mloop-in:
  set log tun phase
  allow mode direct
  set mrru 1500
+ set mru 1504			# Room for the MP header
 
 # User supplied authentication:
 #  It's possible to run ppp in the background while specifying a
