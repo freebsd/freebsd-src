@@ -38,7 +38,7 @@
 
 #include <sys/cdefs.h>
 #ifndef lint
-__RCSID("$Id$");
+__RCSID("$Id: fetch.c,v 1.3 1997/12/13 20:38:16 pst Exp $");
 __RCSID_SOURCE("$NetBSD: fetch.c,v 1.16.2.1 1997/11/18 01:00:22 mellon Exp $");
 #endif /* not lint */
 
@@ -183,7 +183,7 @@ url_get(origline, proxyenv)
 	memset(&sin, 0, sizeof(sin));
 	sin.sin_family = AF_INET;
 
-	if (isdigit(host[0])) {
+	if (isdigit((unsigned char)host[0])) {
 		if (inet_aton(host, &sin.sin_addr) == 0) {
 			warnx("Invalid IP address: %s", host);
 			goto cleanup_url_get;
