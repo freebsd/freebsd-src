@@ -1295,7 +1295,8 @@ static int pn_detach(dev)
 
 	free(sc->pn_ldata_ptr, M_DEVBUF);
 #ifdef PN_RX_BUG_WAR
-	free(sc->pn_rx_buf, M_DEVBUF);
+	if (sc->pn_rx_war)
+		free(sc->pn_rx_buf, M_DEVBUF);
 #endif
 	ifmedia_removeall(&sc->ifmedia);
 
@@ -1411,11 +1412,14 @@ static int pn_newbuf(sc, c, m)
 	 */
 	m_adj(m_new, sizeof(u_int64_t));
 
+#ifdef PN_RX_BUG_WAR
 	/*
 	 * Zero the buffer. This is part of the workaround for the
 	 * promiscuous mode bug in the revision 33 PNIC chips.
 	 */
-	bzero((char *)mtod(m_new, char *), m_new->m_len);
+	if (sc->pn_rx_war)
+		bzero((char *)mtod(m_new, char *), m_new->m_len);
+#endif
 
 	c->pn_mbuf = m_new;
 	c->pn_ptr->pn_data = vtophys(mtod(m_new, caddr_t));
