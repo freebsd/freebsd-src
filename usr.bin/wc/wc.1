@@ -1,0 +1,109 @@
+.\" Copyright (c) 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the Institute of Electrical and Electronics Engineers, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)wc.1	8.2 (Berkeley) 4/19/94
+.\"
+.Dd April 19, 1994
+.Dt WC 1
+.Os
+.Sh NAME
+.Nm wc
+.Nd word, line, and byte count
+.Sh SYNOPSIS
+.Nm wc
+.Op Fl clw
+.Op Ar file ...
+.Sh DESCRIPTION
+The
+.Nm wc
+utility displays the number of lines, words, and bytes contained in each
+input
+.Ar file
+(or standard input, by default) to the standard output.
+A line is defined as a string of characters delimited by a <newline>
+character,
+and a word is defined as a string of characters delimited by white space
+characters.
+White space characters are the set of characters for which the
+.Xr isspace 3
+function returns true.
+If more than one input file is specified, a line of cumulative counts
+for all the files is displayed on a separate line after the output for
+the last file.
+.Pp
+The following options are available:
+.Bl -tag -width Ds
+.It Fl c
+The number of bytes in each input file
+is written to the standard output.
+.It Fl l
+The number of lines in each input file
+is written to the standard output.
+.It Fl w
+The number of words in each input file
+is written to the standard output.
+.El
+.Pp
+When an option is specified,
+.Nm wc
+only reports the information requested by that option.
+The default action is equivalent to specifying all of the flags.
+.Pp
+If no files are specified, the standard input is used and no
+file name is displayed.
+.Pp
+The
+.Nm wc
+utility exits 0 on success, and >0 if an error occurs.
+.Sh SEE ALSO
+.Xr isspace 3
+.Sh COMPATIBILITY
+Historically, the
+.Nm wc
+utility was documented to define a word as a ``maximal string of
+characters delimited by <space>, <tab> or <newline> characters''.
+The implementation, however, didn't handle non-printing characters
+correctly so that ``  ^D^E  '' counted as 6 spaces, while ``foo^D^Ebar''
+counted as 8 characters.
+4BSD systems after 4.3BSD modified the implementation to be consistent
+with the documentation.
+This implementation defines a ``word'' in terms of the
+.Xr isspace 3
+function, as required by
+.St -p1003.2 .
+.Sh STANDARDS
+The
+.Nm wc
+function conforms to
+.St -p1003.2 .
