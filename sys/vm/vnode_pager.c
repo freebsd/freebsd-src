@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.103 1999/01/24 02:32:15 dillon Exp $
+ *	$Id: vnode_pager.c,v 1.104 1999/02/27 23:39:28 alc Exp $
  */
 
 /*
@@ -863,7 +863,7 @@ vnode_pager_putpages(object, m, count, sync, rtvals)
 
 /*
  * This is now called from local media FS's to operate against their
- * own vnodes if they fail to implement VOP_GETPAGES.
+ * own vnodes if they fail to implement VOP_PUTPAGES.
  */
 int
 vnode_pager_generic_putpages(vp, m, bytecount, flags, rtvals)
