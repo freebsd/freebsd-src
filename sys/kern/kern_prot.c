@@ -59,6 +59,8 @@
 #include <sys/jail.h>
 #include <sys/pioctl.h>
 #include <sys/resourcevar.h>
+#include <sys/socket.h>
+#include <sys/socketvar.h>
 #include <sys/sysctl.h>
 
 static MALLOC_DEFINE(M_CRED, "cred", "credentials");
@@ -1672,6 +1674,27 @@ p_candebug(struct proc *p1, struct proc *p2)
 	 */
 	if ((p2->p_flag & P_INEXEC) != 0)
 		return (EAGAIN);
+
+	return (0);
+}
+
+/*-
+ * Determine whether the subject represented by cred can "see" a socket.
+ * Returns: 0 for permitted, ENOENT otherwise.
+ */
+int
+cr_canseesocket(struct ucred *cred, struct socket *so)
+{
+	int error;
+
+	error = prison_check(cred, so->so_cred);
+	if (error)
+		return (ENOENT);
+	if (cr_seeotheruids(cred, so->so_cred))
+		return (ENOENT);
+#ifdef MAC
+	/* XXX: error = mac_cred_check_seesocket() here. */
+#endif
 
 	return (0);
 }
