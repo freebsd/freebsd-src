@@ -1,7 +1,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.21 1996/06/12 05:08:34 gpalmer Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.22 1996/08/13 07:21:45 julian Exp $
  *
  * symlinks can wait 'til later.
  */
@@ -267,7 +267,6 @@ DBPRINT(("MKACCESS "));
 		 * implements append-only directories.
 		 */
 		devfs_dntovn(new_node,result_vnode);
-		VOP_LOCK((*result_vnode));
 #ifdef NOTYET
 		if ((dir_node->mode & ISVTX) &&
 		    cnp->cn_cred->cr_uid != 0 &&
@@ -302,7 +301,6 @@ DBPRINT(("MKACCESS "));
 		if (dir_node == new_node)
 			return (EISDIR);
 		devfs_dntovn(new_node,result_vnode);
-		VOP_LOCK(*result_vnode);
 		/* hmm save the 'from' name (we need to delete it) */
 		cnp->cn_flags |= SAVENAME;
 		if (!lockparent)
@@ -333,7 +331,6 @@ DBPRINT(("MKACCESS "));
 	if (flags & ISDOTDOT) {
 		VOP_UNLOCK(dir_vnode);	/* race to get the node */
 		devfs_dntovn(new_node,result_vnode);
-		VOP_LOCK(*result_vnode);
 		if (lockparent && (flags & ISLASTCN))
 			VOP_LOCK(dir_vnode);
 	} else if (dir_node == new_node) {
@@ -341,7 +338,6 @@ DBPRINT(("MKACCESS "));
 		*result_vnode = dir_vnode;
 	} else {
 		devfs_dntovn(new_node,result_vnode);
-		VOP_LOCK(*result_vnode);
 		if (!lockparent || (flags & ISLASTCN))
 			VOP_UNLOCK(dir_vnode);
 	}
@@ -376,6 +372,7 @@ devfs_create(struct vop_mknod_args  *ap)
         } */
 {
 DBPRINT(("create\n"));
+	vput(ap->a_dvp);
         return EINVAL;
 }
 
@@ -921,6 +918,7 @@ abortit:
 	cache_purge(vp); /*XXX*/
 	dev_free_name(tnp);
 	tp = NULL;
+	vput(vp);
 	vput(dvp);
 	return (error);
 }
@@ -989,7 +987,6 @@ abortit:
 			fp,
 			&tnp);
 out:
-	vrele(vp);
 	vput(tdvp);
 	return (error);
 
@@ -1248,6 +1245,7 @@ devfs_mkdir(struct vop_mkdir_args *ap)
         } */ 
 {
 DBPRINT(("mkdir\n"));
+	vput(ap->a_dvp);
 	return EINVAL;
 }
 
@@ -1260,6 +1258,8 @@ devfs_rmdir(struct vop_rmdir_args *ap)
         } */ 
 {
 DBPRINT(("rmdir\n"));
+	vput(ap->a_dvp);
+	vput(ap->a_vp);
 	return 0;
 }
 #endif
@@ -1289,10 +1289,13 @@ DBPRINT(("symlink\n"));
 	by.Slnk.namelen = strlen(ap->a_target);
 	dev_add_entry(	ap->a_cnp->cn_nameptr, dnp, DEV_SLNK, &by, &nm_p);
 	if(err = devfs_dntovn(nm_p->dnp,&vp) ) {
+		vput(ap->a_dvp);
 		return err;
 	}
-	*ap->a_vpp = vp;
 	VOP_SETATTR(vp, ap->a_vap, ap->a_cnp->cn_cred, ap->a_cnp->cn_proc);
+	*ap->a_vpp = NULL;
+	vput(vp);
+	vput(ap->a_dvp);
 	return 0;
 }
 

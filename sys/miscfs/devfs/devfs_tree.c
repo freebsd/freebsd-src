@@ -2,7 +2,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.27 1996/07/30 18:00:32 bde Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.28 1996/08/13 07:21:44 julian Exp $
  */
 
 #include "param.h"
@@ -889,7 +889,7 @@ DBPRINT(("dntovn "));
 		}
 		if(vn_p->v_type != VNON)
 		{
-			vget(vn_p,0/*lockflag ?*/); /*XXX*/
+			vget(vn_p,1); /*XXX*/
 			*vn_pp = vn_p;
 			return(0);
 		}
@@ -954,6 +954,7 @@ DBPRINT(("(New vnode)"));
 		{
 			error = EINVAL;
 		}
+		VOP_LOCK(vn_p);
 	}
 	return error;
 }
