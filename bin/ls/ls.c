@@ -33,17 +33,15 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ls.c,v 1.13 1997/02/22 14:03:59 peter Exp $
+ *	from: @(#)ls.c	8.5 (Berkeley) 4/2/94
  */
 
 #ifndef lint
-static char const copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1989, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
-
-#ifndef lint
-static char const sccsid[] = "@(#)ls.c	8.5 (Berkeley) 4/2/94";
+static const char rcsid[] =
+	"$Id: ls.c,v 1.14 1997/03/28 15:24:23 imp Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -94,9 +92,7 @@ int f_statustime;		/* use time of last mode change */
 int f_dirname;			/* if precede with directory name */
 int f_timesort;			/* sort by time vice name */
 int f_type;			/* add type character for non-regular files */
-#ifndef BSD4_4_LITE
 int f_whiteout;			/* show whiteout entries */
-#endif
 
 int rval;
 
@@ -134,11 +130,7 @@ main(argc, argv)
 		f_listdot = 1;
 
 	fts_options = FTS_PHYSICAL;
-#ifdef BSD4_4_LITE
-	while ((ch = getopt(argc, argv, "1ACFLRTacdfgikloqrstu")) != -1) {
-#else
 	while ((ch = getopt(argc, argv, "1ACFLRTWacdfgikloqrstu")) != -1) {
-#endif
 		switch (ch) {
 		/*
 		 * The -1, -C and -l options all override each other so shell
@@ -215,11 +207,9 @@ main(argc, argv)
 		case 't':
 			f_timesort = 1;
 			break;
-#ifndef BSD4_4_LITE
 		case 'W':
 			f_whiteout = 1;
 			break;
-#endif
 		default:
 		case '?':
 			usage();
@@ -242,14 +232,12 @@ main(argc, argv)
 	if (!f_longform && !f_listdir && !f_type)
 		fts_options |= FTS_COMFOLLOW;
 
-#ifndef BSD4_4_LITE
 	/*
 	 * If -W, show whiteout entries
 	 */
 #ifdef FTS_WHITEOUT
 	if (f_whiteout)
 		fts_options |= FTS_WHITEOUT;
-#endif
 #endif
 
 	/* If -l or -s, figure out block size. */

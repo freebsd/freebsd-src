@@ -33,11 +33,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	from: @(#)cmp.c	8.1 (Berkeley) 5/31/93
  */
 
 #ifndef lint
-static char const sccsid[] = "@(#)cmp.c	8.1 (Berkeley) 5/31/93";
+static const char rcsid[] =
+	"$Id: cmp.c,v 1.6 1997/02/22 14:03:53 peter Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
