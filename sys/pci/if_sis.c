@@ -161,7 +161,7 @@ static void sis_reset		(struct sis_softc *);
 static int sis_list_rx_init	(struct sis_softc *);
 static int sis_list_tx_init	(struct sis_softc *);
 
-static void sis_dma_map_desc_ptr	(void *, bus_dma_segment_t *, int, int);
+static bus_dmamap_callback_t	sis_dma_map_desc_ptr;
 static void sis_dma_map_desc_next	(void *, bus_dma_segment_t *, int, int);
 static void sis_dma_map_ring		(void *, bus_dma_segment_t *, int, int);
 #ifdef SIS_USEIOSPACE
