@@ -17,6 +17,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20040224:
+	The tcpcb structure has changed and makes a recompile of libkvm
+	and related userland network utilities neccessary.
+
 20040222:
 	The cdevsw structure has changed in two externally visible ways.
 	First, the sense of the D_GIANT flag has changed to D_NEEDSGIANT.
