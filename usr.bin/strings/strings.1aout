@@ -38,10 +38,10 @@
 .Nm strings
 .Nd find printable strings in a file
 .Sh SYNOPSIS
-.Nm strings
+.Nm
 .Op Fl afo
 .Op Fl n Ar number
-.Op Ar file ...
+.Op Ar
 .Sh DESCRIPTION
 .Nm Strings
 displays the sequences of printable characters in each of the specified
@@ -53,12 +53,12 @@ The options are as follows:
 .Bl -tag -width Ds
 .It Fl a
 By default,
-.Nm strings
+.Nm
 only searches the text and data segments of object files.
 The
 .Fl a
 option causes
-.Nm strings
+.Nm
 to search the entire object file.
 .It Fl f
 Each string is preceded by the name of the file
