@@ -472,6 +472,8 @@ release rerelease:
 	echo "make \$${_RELTARGET}"		>> ${CHROOTDIR}/mk
 	echo "echo \">>> make ${.TARGET} for ${TARGET} finished on \`LC_ALL=C TZ=GMT date\`\"" >> ${CHROOTDIR}/mk
 	chmod 755 ${CHROOTDIR}/mk
+	# Ensure md.ko is loaded if md(4) is not statically compiled into the kernel
+	-mdconfig 2>/dev/null
 	env -i /usr/sbin/chroot ${CHROOTDIR} /mk
 
 clean:
