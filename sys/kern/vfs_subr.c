@@ -702,11 +702,11 @@ vinvalbuf(vp, flags, cred, p, slpflag, slptimeo)
 					} else {
 						bremfree(bp);
 						bp->b_flags |= B_ASYNC;
-						VOP_BWRITE(bp->b_vp, bp);
+						BUF_WRITE(bp);
 					}
 				} else {
 					bremfree(bp);
-					(void) VOP_BWRITE(bp->b_vp, bp);
+					(void) BUF_WRITE(bp);
 				}
 				break;
 			}
@@ -828,7 +828,7 @@ restartsync:
 					} else {
 						bp->b_flags &= ~B_ASYNC;
 					}
-					VOP_BWRITE(bp->b_vp, bp);
+					BUF_WRITE(bp);
 				}
 				goto restartsync;
 			}

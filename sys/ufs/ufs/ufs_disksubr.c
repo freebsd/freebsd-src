@@ -301,7 +301,7 @@ writedisklabel(dev, lp)
 #ifdef __alpha__
 			alpha_fix_srm_checksum(bp);
 #endif
-			BUF_STRATEGY(bp, 1);
+			DEV_STRATEGY(bp, 1);
 			error = biowait(bp);
 			goto done;
 		}

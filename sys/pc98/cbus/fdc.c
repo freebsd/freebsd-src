@@ -2664,7 +2664,7 @@ fdformat(dev, finfo, p)
 
 	/* now do the format */
 	bp->b_dev = dev;
-	BUF_STRATEGY(bp, 0);
+	DEV_STRATEGY(bp, 0);
 
 	/* ...and wait for it to complete */
 	s = splbio();
