@@ -754,15 +754,9 @@ finished:
 
 		if ((keg->uk_flags & UMA_ZONE_MALLOC) ||
 		    (keg->uk_flags & UMA_ZONE_REFCNT)) {
-			vm_object_t obj;
-
-			if (flags & UMA_SLAB_KMEM)
-				obj = kmem_object;
-			else
-				obj = NULL;
 			for (i = 0; i < keg->uk_ppera; i++)
 				vsetobj((vm_offset_t)mem + (i * PAGE_SIZE),
-				    obj);
+				    kmem_object);
 		}
 		if (keg->uk_flags & UMA_ZONE_OFFPAGE)
 			uma_zfree_internal(keg->uk_slabzone, slab, NULL,
@@ -875,7 +869,7 @@ slab_zalloc(uma_zone_t zone, int wait)
 			    (keg->uk_flags & UMA_ZONE_REFCNT))
 				for (i = 0; i < keg->uk_ppera; i++)
 					vsetobj((vm_offset_t)mem +
-					    (i * PAGE_SIZE), NULL);
+					    (i * PAGE_SIZE), kmem_object);
 			if (keg->uk_flags & UMA_ZONE_OFFPAGE)
 				uma_zfree_internal(keg->uk_slabzone, slab,
 				    NULL, SKIP_NONE);
