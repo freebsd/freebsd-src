@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.26 1997/12/24 09:28:52 brian Exp $
+ * $Id: ccp.c,v 1.27 1998/01/04 20:25:39 brian Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -43,7 +43,7 @@
 #include "pred.h"
 #include "deflate.h"
 
-struct ccpstate CcpInfo = { -1, -1 };
+struct ccpstate CcpInfo = { -1, -1, -1, -1 };
 
 static void CcpSendConfigReq(struct fsm *);
 static void CcpSendTerminateReq(struct fsm *);
@@ -146,6 +146,7 @@ ccpstateInit(void)
   out_algorithm = -1;
   memset(&CcpInfo, '\0', sizeof CcpInfo);
   CcpInfo.his_proto = CcpInfo.my_proto = -1;
+  CcpInfo.reset_sent = CcpInfo.last_reset = -1;
 }
 
 void
@@ -189,7 +190,9 @@ CcpSendConfigReq(struct fsm *fp)
 void
 CcpSendResetReq(struct fsm *fp)
 {
-  LogPrintf(LogCCP, "CcpSendResetReq\n");
+  LogPrintf(LogCCP, "SendResetReq(%d)\n", fp->reqid);
+  CcpInfo.reset_sent = fp->reqid;
+  CcpInfo.last_reset = -1;
   FsmOutput(fp, CODE_RESETREQ, fp->reqid, NULL, 0);
 }
 
@@ -378,8 +381,24 @@ CcpInput(struct mbuf *bp)
 }
 
 void
-CcpResetInput()
+CcpResetInput(u_char id)
 {
+  if (CcpInfo.reset_sent != -1) {
+    if (id != CcpInfo.reset_sent) {
+      LogPrintf(LogWARN, "CCP: Incorrect ResetAck (id %d, not %d) ignored\n",
+                id, CcpInfo.reset_sent);
+      return;
+    }
+    /* Whaddaya know - a correct reset ack */
+  } else if (id == CcpInfo.last_reset)
+    LogPrintf(LogCCP, "Duplicate ResetAck (resetting again)\n");
+  else {
+    LogPrintf(LogWARN, "CCP: Unexpected ResetAck (id %d) ignored\n", id);
+    return;
+  }
+
+  CcpInfo.last_reset = CcpInfo.reset_sent;
+  CcpInfo.reset_sent = -1;
   if (in_algorithm >= 0 && in_algorithm < NALGORITHMS)
     (*algorithm[in_algorithm]->i.Reset)();
 }
@@ -395,7 +414,12 @@ CcpOutput(int pri, u_short proto, struct mbuf *m)
 struct mbuf *
 CompdInput(u_short *proto, struct mbuf *m)
 {
-  if (in_algorithm >= 0 && in_algorithm < NALGORITHMS)
+  if (CcpInfo.reset_sent != -1) {
+    /* Send another REQ and put the packet in the bit bucket */
+    LogPrintf(LogCCP, "ReSendResetReq(%d)\n", CcpInfo.reset_sent);
+    FsmOutput(&CcpFsm, CODE_RESETREQ, CcpInfo.reset_sent, NULL, 0);
+    pfree(m);
+  } else if (in_algorithm >= 0 && in_algorithm < NALGORITHMS)
     return (*algorithm[in_algorithm]->i.Read)(proto, m);
   return NULL;
 }
