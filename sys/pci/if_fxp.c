@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.32 1997/03/24 11:33:46 bde Exp $
+ *	$Id: if_fxp.c,v 1.33 1997/03/25 14:54:38 davidg Exp $
  */
 
 /*
@@ -634,6 +634,10 @@ rcvloop:
 					u_short total_len;
 
 					total_len = rfa->actual_size & (MCLBYTES - 1);
+					if (total_len < sizeof(struct ether_header)) {
+						m_freem(m);
+						goto rcvloop;
+					}
 					m->m_pkthdr.rcvif = ifp;
 					m->m_pkthdr.len = m->m_len = total_len -
 					    sizeof(struct ether_header);
