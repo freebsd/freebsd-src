@@ -88,7 +88,6 @@ ng_split_constructor(node_p node)
 	MALLOC(priv, priv_p, sizeof(*priv), M_NETGRAPH, M_ZERO | M_NOWAIT);
 	if (priv == NULL)
 		return (ENOMEM);
-	bzero(priv, sizeof(*priv));
 
 	/* Link together node and private info */
 	NG_NODE_SET_PRIVATE(node, priv);
