@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_sysvec.c,v 1.27 1998/04/13 17:49:51 sos Exp $
+ *  $Id: linux_sysvec.c,v 1.28 1998/04/28 18:15:06 eivind Exp $
  */
 
 /* XXX we use functions that might not exist. */
@@ -105,17 +105,14 @@ int linux_to_bsd_signal[LINUX_NSIG] = {
 static int
 translate_traps(int signal, int trap_code)
 {
-	switch(signal) {
-	case SIGBUS:
-		switch(trap_code) {
-		case T_PROTFLT:
-        case T_TSSFLT:
-        case T_DOUBLEFLT:
-        case T_PAGEFLT:
-			return SIGSEGV;
-		default:
-			return signal;
-		}
+	if (signal != SIGBUS)
+		return signal;
+	switch (trap_code) {
+	case T_PROTFLT:
+	case T_TSSFLT:
+	case T_DOUBLEFLT:
+	case T_PAGEFLT:
+		return SIGSEGV;
 	default:
 		return signal;
 	}
