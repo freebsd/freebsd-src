@@ -65,7 +65,8 @@ TARGET?=	${MACHINE}
 .else
 TARGET?=	${TARGET_ARCH}
 .endif
-CROSSMAKE=	${MAKE} TARGET_ARCH=${TARGET_ARCH} TARGET=${TARGET}
+CROSSENV=	TARGET_ARCH=${TARGET_ARCH} TARGET=${TARGET}
+CROSSMAKE=	${MAKE} ${CROSSENV}
 NATIVEMAKE=	${MAKE} TARGET_ARCH=${MACHINE_ARCH} TARGET=${MACHINE}
 
 # If you are using a local CVS repository with components stored in 
@@ -297,8 +298,10 @@ BOOTABLE="-b"
 DOCREL= doc.1 doc.2
 .endif
 
-WMAKEENV!=	cd ${.CURDIR}/..; ${CROSSMAKE} -f Makefile.inc1 -V WMAKEENV
-WMAKE=		${WMAKEENV} ${MAKE} -m ${.CURDIR}/../share/mk
+BINMAKE!=	cd ${.CURDIR}/..; ${MAKE} -V BINMAKE
+WMAKEENV!=	cd ${.CURDIR}/..; \
+		${BINMAKE} ${CROSSENV} -f Makefile.inc1 -V WMAKEENV
+WMAKE=		${WMAKEENV} ${BINMAKE}
 
 CVS_SRCARGS=	-P
 .if defined(RELEASETAG)
@@ -564,8 +567,7 @@ release.5:
 	cd ${j}_crunch; ${WMAKEENV} crunchgen -o ${.CURDIR}/${j}_crunch.conf
 .endif
 	cd ${j}_crunch; ${WMAKE} -f ${j}_crunch.mk subclean
-	cd ${.CURDIR}/..; ${MAKE} -m ${.CURDIR}/../share/mk -f Makefile.inc1 \
-	    _build-tools
+	cd ${.CURDIR}/..; ${BINMAKE} _build-tools
 	cd ${j}_crunch; ${WMAKE} -f ${j}_crunch.mk \
 	    CFLAGS="-Os -pipe" -DNO_CPU_CFLAGS all
 	${WMAKEENV} strip -R .comment ${j}_crunch/${j}_crunch

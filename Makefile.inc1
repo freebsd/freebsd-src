@@ -652,18 +652,18 @@ _groff=		gnu/usr.bin/groff/tmac
 .endif
 .endif
 
-.if ( ${BOOTSTRAPPING} < 450005 || \
-    ( ${BOOTSTRAPPING} >= 500000 && ${BOOTSTRAPPING} < 500034 ))
+.if ${BOOTSTRAPPING} < 450005 || \
+    ${BOOTSTRAPPING} >= 500000 && ${BOOTSTRAPPING} < 500034
 _uudecode=	usr.bin/uudecode
 .endif
 
-.if ( ${BOOTSTRAPPING} < 430002 || \
-    ( ${BOOTSTRAPPING} >= 500000 && ${BOOTSTRAPPING} < 500019 ))
+.if ${BOOTSTRAPPING} < 430002 || \
+    ${BOOTSTRAPPING} >= 500000 && ${BOOTSTRAPPING} < 500019
 _xargs=		usr.bin/xargs
 .endif
 
-.if ( ${BOOTSTRAPPING} < 430002 || \
-    ( ${BOOTSTRAPPING} >= 500000 && ${BOOTSTRAPPING} < 500018 ))
+.if ${BOOTSTRAPPING} < 430002 || \
+    ${BOOTSTRAPPING} >= 500000 && ${BOOTSTRAPPING} < 500018
 _yacc=		usr.bin/yacc
 .endif
 
@@ -754,7 +754,7 @@ _btxld=		usr.sbin/btxld
 
 .if (exists(${.CURDIR}/rescue) && defined(RESCUE) || \
     defined(RELEASEDIR)) && \
-    ( ${TARGET_ARCH} != ${MACHINE_ARCH} || ${BOOTSTRAPPING} < 501101 )
+    (${TARGET_ARCH} != ${MACHINE_ARCH} || ${BOOTSTRAPPING} < 501101)
 _crunchide=	usr.sbin/crunch/crunchide
 .endif
 
