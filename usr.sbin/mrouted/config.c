@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: config.c,v 1.6 1994/08/24 23:52:54 thyagara Exp $
+ * $Id: config.c,v 1.2 1994/09/08 02:51:12 wollman Exp $
  */
 
 
@@ -298,7 +298,7 @@ void config_vifs_from_file()
 	    }
 	    
 	    if ((baddr = inet_parse(s1)) == 0xffffffff ||
-		(baddr & 0xff000000) != 0xef000000) {
+		(ntohl(baddr) & 0xff000000) != 0xef000000) {
 		log(LOG_ERR, 0,
 		    "incorrect boundary address %s in %s",
 		    s1, configfilename);
@@ -462,7 +462,7 @@ void config_vifs_from_file()
 		    }
 
 		    if ((baddr = inet_parse(s1)) == 0xffffffff ||
-			(baddr & 0xef000000) != 0xef000000) {
+			(ntohl(baddr) & 0xef000000) != 0xef000000) {
 			log(LOG_ERR, 0,
 			    "incorrect boundary address %s in %s",
 			    s1, configfilename);
@@ -703,7 +703,7 @@ void config_vifs_from_file()
 		    }
 
 		    if ((baddr = inet_parse(s1)) == 0xffffffff ||
-			(baddr & 0xef000000) != 0xef000000) {
+			(ntohl(baddr) & 0xef000000) != 0xef000000) {
 			log(LOG_ERR, 0,
 			    "incorrect address %s for tunnel to %s in %s",
 			    s1, inet_fmt(rmt_addr, s1), configfilename);
