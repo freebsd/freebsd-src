@@ -879,7 +879,8 @@ break_syscall(struct trapframe *tf)
 	 */
 	tfp = &tf->tf_scratch.gr16;
 	nargs = tf->tf_special.cfm & 0x7f;
-	bsp = (uint64_t*)(curthread->td_kstack + tf->tf_special.ndirty);
+	bsp = (uint64_t*)(curthread->td_kstack + tf->tf_special.ndirty +
+	    (tf->tf_special.bspstore & 0x1ffUL));
 	bsp -= (((uintptr_t)bsp & 0x1ff) < (nargs << 3)) ? (nargs + 1): nargs;
 	while (nargs--) {
 		*tfp++ = *bsp++;

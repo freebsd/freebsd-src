@@ -158,9 +158,10 @@ exception_save_restart:
 	;;
 }
 {	.mmi
+(p13)	mov		r21=ar.k6		// kernel register stack
+	;;
 	st8		[r30]=r18,16		// fpsr
-(p13)	mov		r20=ar.k6		// kernel register stack
-	nop		0
+(p13)	dep		r20=r20,r21,0,9		// align dirty registers
 	;;
 }
 	// r20=bspstore, r22=iip, r23=ipsr

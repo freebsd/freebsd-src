@@ -761,8 +761,6 @@ ia64_init(void)
 	 * Set the kernel sp, reserving space for an (empty) trapframe,
 	 * and make proc0's trapframe pointer point to it for sanity.
 	 * Initialise proc0's backing store to start after u area.
-	 *
-	 * XXX what is all this +/- 16 stuff?
 	 */
 	thread0.td_frame = (struct trapframe *)thread0.td_pcb - 1;
 	thread0.td_frame->tf_length = sizeof(struct trapframe);
@@ -1079,35 +1077,28 @@ get_mcontext(struct thread *td, mcontext_t *mc, int clear_ret)
 {
 	struct _special s;
 	struct trapframe *tf;
-	uint64_t bspst, *kstk, *ustk;
+	uint64_t bspst, kstk, rnat;
 
 	tf = td->td_frame;
 	bzero(mc, sizeof(*mc));
 	s = tf->tf_special;
 	if (s.ndirty != 0) {
+		kstk = td->td_kstack + (s.bspstore & 0x1ffUL);
 		__asm __volatile("mov	ar.rsc=0;;");
 		__asm __volatile("mov	%0=ar.bspstore" : "=r"(bspst));
 		/* Make sure we have all the user registers written out. */
-		if (bspst - td->td_kstack < s.ndirty)
+		if (bspst - kstk < s.ndirty) {
 			__asm __volatile("flushrs;;");
+			__asm __volatile("mov	%0=ar.bspstore" : "=r"(bspst));
+		}
+		__asm __volatile("mov	%0=ar.rnat;;" : "=r"(rnat));
 		__asm __volatile("mov	ar.rsc=3");
-		kstk = (uint64_t*)td->td_kstack;
-		ustk = (uint64_t*)s.bspstore;
-		if ((s.bspstore & 0x1ff) == 0x1f8) {
-			suword64(ustk++, s.rnat);
-			s.rnat = 0;
-		}
-		while (s.ndirty > 0) {
-			suword64(ustk++, *kstk++);
-			if (((uintptr_t)ustk & 0x1ff) == 0x1f8)
-				suword64(ustk++, 0);
-			if (((uintptr_t)kstk & 0x1ff) == 0x1f8) {
-				kstk++;
-				s.ndirty -= 8;
-			}
-			s.ndirty -= 8;
-		}
-		s.bspstore = (uintptr_t)ustk;
+		copyout((void*)kstk, (void*)s.bspstore, s.ndirty);
+		kstk += s.ndirty;
+		s.bspstore += s.ndirty;
+		s.ndirty = 0;
+		s.rnat = (bspst > kstk && (bspst & 0x1ffUL) < (kstk & 0x1ffUL))
+		    ? *(uint64_t*)(kstk | 0x1f8UL) : rnat;
 	}
 	if (tf->tf_flags & FRAME_SYSCALL) {
 		/*
@@ -1196,7 +1187,8 @@ exec_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 	uint64_t *ksttop, *kst;
 
 	tf = td->td_frame;
-	ksttop = (uint64_t*)(td->td_kstack + tf->tf_special.ndirty);
+	ksttop = (uint64_t*)(td->td_kstack + tf->tf_special.ndirty +
+	    (tf->tf_special.bspstore & 0x1ffUL));
 
 	/*
 	 * We can ignore up to 8KB of dirty registers by masking off the
