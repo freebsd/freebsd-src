@@ -52,6 +52,10 @@
 #include <sys/vnode.h>
 #include <sys/imgact_elf.h>
 
+#include <machine/frame.h>
+#include <machine/md_var.h>
+#include <machine/pcb.h>
+
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_param.h>
@@ -64,8 +68,6 @@
 #include <i386/include/psl.h>
 #include <i386/include/segments.h>
 #include <i386/include/specialreg.h>
-#include <machine/frame.h>
-#include <machine/md_var.h>
 
 static register_t *ia32_copyout_strings(struct image_params *imgp);
 static void ia32_setregs(struct thread *td, u_long entry, u_long stack,
@@ -84,9 +86,9 @@ static char ia32_sigcode[] = {
 	0x50,				/* pushl %eax */
 	0xcd, 0x80,			/* int $0x80 */
 	0xeb, 0xfe,			/* 0: jmp 0b */
-	0, 0, 0, 0
+	0
 };
-static int ia32_szsigcode = sizeof(ia32_sigcode) & ~3;
+static int ia32_szsigcode = sizeof(ia32_sigcode);
 
 struct sysentvec ia32_freebsd_sysvec = {
 	SYS_MAXSYSCALL,
@@ -105,8 +107,8 @@ struct sysentvec ia32_freebsd_sysvec = {
 	"FreeBSD ELF",
 	elf32_coredump,
 	NULL,
-	MINSIGSTKSZ,
-	4096,
+	IA32_MINSIGSTKSZ,
+	IA32_PAGE_SIZE,
 	0,
 	IA32_USRSTACK,
 	IA32_USRSTACK,
@@ -145,8 +147,8 @@ ia32_copyout_strings(struct image_params *imgp)
 	 */
 	arginfo = (struct ia32_ps_strings *)IA32_PS_STRINGS;
 	szsigcode = *(imgp->proc->p_sysent->sv_szsigcode);
-	destp =	(caddr_t)arginfo - szsigcode - SPARE_USRSPACE -
-		roundup((ARG_MAX - imgp->stringspace), sizeof(char *));
+	destp =	(caddr_t)arginfo - szsigcode - IA32_USRSPACE -
+	    roundup((ARG_MAX - imgp->stringspace), sizeof(char *));
 
 	/*
 	 * install sigcode
@@ -185,6 +187,7 @@ ia32_copyout_strings(struct image_params *imgp)
 	/*
 	 * vectp also becomes our initial stack base
 	 */
+	vectp = (void*)((uintptr_t)vectp & ~15);
 	stack_base = vectp;
 
 	stringp = imgp->stringbase;
@@ -237,60 +240,45 @@ ia32_copyout_strings(struct image_params *imgp)
 static void
 ia32_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 {
-	struct trapframe *frame = td->td_frame;
+	struct trapframe *tf = td->td_frame;
 	vm_offset_t gdt, ldt;
 	u_int64_t codesel, datasel, ldtsel;
 	u_int64_t codeseg, dataseg, gdtseg, ldtseg;
 	struct segment_descriptor desc;
 	struct vmspace *vmspace = td->td_proc->p_vmspace;
 
-	/*
-	 * Make sure that we restore the entire trapframe after an
-	 * execve.
-	 */
-	frame->tf_flags &= ~FRAME_SYSCALL;
+	exec_setregs(td, entry, stack, ps_strings);
 
-	bzero(frame->tf_r, sizeof(frame->tf_r));
-	bzero(frame->tf_f, sizeof(frame->tf_f));
+	/* Non-syscall frames are cleared by exec_setregs() */
+	if (tf->tf_flags & FRAME_SYSCALL) {
+		bzero(&tf->tf_scratch, sizeof(tf->tf_scratch));
+		bzero(&tf->tf_scratch_fp, sizeof(tf->tf_scratch_fp));
+	} else
+		tf->tf_special.ndirty = 0;
 
-	frame->tf_cr_iip = entry;
-	frame->tf_cr_ipsr = (IA64_PSR_IC
-			     | IA64_PSR_I
-			     | IA64_PSR_IT
-			     | IA64_PSR_DT
-			     | IA64_PSR_RT
-			     | IA64_PSR_DFH
-			     | IA64_PSR_IS
-			     | IA64_PSR_BN
-			     | IA64_PSR_CPL_USER);
-	frame->tf_r[FRAME_R12] = stack;
+	tf->tf_special.psr |= IA64_PSR_IS;
+	tf->tf_special.sp = stack;
+
+	/* Point the RSE backstore to something harmless. */
+	tf->tf_special.bspstore = (IA32_PS_STRINGS - ia32_szsigcode -
+	    IA32_USRSPACE + 15) & ~15;
 
 	codesel = LSEL(LUCODE_SEL, SEL_UPL);
 	datasel = LSEL(LUDATA_SEL, SEL_UPL);
 	ldtsel = GSEL(GLDT_SEL, SEL_UPL);
 
-#if 1
-	frame->tf_r[FRAME_R16] = (datasel << 48) | (datasel << 32)
-		| (datasel << 16) | datasel;
-	frame->tf_r[FRAME_R17] = (ldtsel << 32) | (datasel << 16) | codesel;
-#else
-	frame->tf_r[FRAME_R16] = datasel;
-	frame->tf_r[FRAME_R17] = codesel;
-	frame->tf_r[FRAME_R18] = datasel;
-	frame->tf_r[FRAME_R19] = datasel;
-	frame->tf_r[FRAME_R20] = datasel;
-	frame->tf_r[FRAME_R21] = datasel;
-	frame->tf_r[FRAME_R22] = ldtsel;
-#endif
+	/* Setup ia32 segment registers. */
+	tf->tf_scratch.gr16 = (datasel << 48) | (datasel << 32) |
+	    (datasel << 16) | datasel;
+	tf->tf_scratch.gr17 = (ldtsel << 32) | (datasel << 16) | codesel;
 
 	/*
 	 * Build the GDT and LDT.
 	 */
 	gdt = IA32_USRSTACK;
-	vm_map_find(&vmspace->vm_map, 0, 0,
-		    &gdt, PAGE_SIZE, 0,
-		    VM_PROT_ALL, VM_PROT_ALL, 0);
-	ldt = gdt + 4096;
+	vm_map_find(&vmspace->vm_map, 0, 0, &gdt, IA32_PAGE_SIZE << 1, 0,
+	    VM_PROT_ALL, VM_PROT_ALL, 0);
+	ldt = gdt + IA32_PAGE_SIZE;
 
 	desc.sd_lolimit = 8*NLDT-1;
 	desc.sd_lobase = ldt & 0xffffff;
@@ -330,12 +318,13 @@ ia32_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 		+ (1L << 59) /* present */
 		+ (1L << 62) /* 32 bits */
 		+ (1L << 63); /* page granularity */
-	ia64_set_csd(codeseg);
-	ia64_set_ssd(dataseg);
-	frame->tf_r[FRAME_R24] = dataseg; /* ESD */
-	frame->tf_r[FRAME_R27] = dataseg; /* DSD */
-	frame->tf_r[FRAME_R28] = dataseg; /* FSD */
-	frame->tf_r[FRAME_R29] = dataseg; /* GSD */
+
+	tf->tf_scratch.csd = codeseg;
+	tf->tf_scratch.ssd = dataseg;
+	tf->tf_scratch.gr24 = dataseg; /* ESD */
+	tf->tf_scratch.gr27 = dataseg; /* DSD */
+	tf->tf_scratch.gr28 = dataseg; /* FSD */
+	tf->tf_scratch.gr29 = dataseg; /* GSD */
 
 	gdtseg = gdt		/* base */
 		+ ((8L*NGDT - 1) << 32) /* limit */
@@ -351,13 +340,16 @@ ia32_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 		+ (1L << 59) /* present */
 		+ (0L << 62) /* 16 bits */
 		+ (0L << 63); /* byte granularity */
-	frame->tf_r[FRAME_R30] = ldtseg; /* LDTD */
-	frame->tf_r[FRAME_R31] = gdtseg; /* GDTD */
 
+	tf->tf_scratch.gr30 = ldtseg; /* LDTD */
+	tf->tf_scratch.gr31 = gdtseg; /* GDTD */
+
+	/* Set ia32 control registers on this processor. */
+	ia64_set_cflg(CR0_PE | CR0_PG | ((long)(CR4_XMM | CR4_FXSR) << 32));
 	ia64_set_eflag(PSL_USER);
 
 	/* PS_STRINGS value for BSD/OS binaries.  It is 0 for non-BSD/OS. */
-	frame->tf_r[FRAME_R11] = IA32_PS_STRINGS;
+	tf->tf_scratch.gr11 = IA32_PS_STRINGS;
 
 	/*
 	 * XXX - Linux emulator
@@ -365,4 +357,28 @@ ia32_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 	 * on it.
 	 */
 	td->td_retval[1] = 0;
+}
+
+void
+ia32_restorectx(struct pcb *pcb)
+{
+
+	ia64_set_cflg(pcb->pcb_ia32_cflg);
+	ia64_set_eflag(pcb->pcb_ia32_eflag);
+	ia64_set_fcr(pcb->pcb_ia32_fcr);
+	ia64_set_fdr(pcb->pcb_ia32_fdr);
+	ia64_set_fir(pcb->pcb_ia32_fir);
+	ia64_set_fsr(pcb->pcb_ia32_fsr);
+}
+
+void
+ia32_savectx(struct pcb *pcb)
+{
+
+	pcb->pcb_ia32_cflg = ia64_get_cflg();
+	pcb->pcb_ia32_eflag = ia64_get_eflag();
+	pcb->pcb_ia32_fcr = ia64_get_fcr();
+	pcb->pcb_ia32_fdr = ia64_get_fdr();
+	pcb->pcb_ia32_fir = ia64_get_fir();
+	pcb->pcb_ia32_fsr = ia64_get_fsr();
 }

@@ -136,14 +136,14 @@ ia64_syscall_entry(struct trussinfo *trussinfo, int nargs) {
     fprintf(trussinfo->outfile, "-- CANNOT READ REGISTERS --\n");
     return;
   }
-  parm_offset = regs.r_gr[12] + 16;
+  parm_offset = regs.r_special.sp + 16;
 
   /*
    * FreeBSD has two special kinds of system call redirctions --
    * SYS_syscall, and SYS___syscall.  The former is the old syscall()
    * routine, basicly; the latter is for quad-aligned arguments.
    */
-  syscall_num = regs.r_gr[15];
+  syscall_num = regs.r_scratch.gr15;		/* XXX double-check. */
   switch (syscall_num) {
   case SYS_syscall:
     lseek(Procfd, parm_offset, SEEK_SET);
@@ -293,8 +293,8 @@ ia64_syscall_exit(struct trussinfo *trussinfo, int syscall_num __unused) {
     fprintf(trussinfo->outfile, "-- CANNOT READ REGISTERS --\n");
     return (-1);
   }
-  retval = regs.r_gr[8];
-  errorp = (regs.r_gr[10] != 0) ? 1 : 0;
+  retval = regs.r_scratch.gr8;
+  errorp = (regs.r_scratch.gr10 != 0) ? 1 : 0;
 
   /*
    * This code, while simpler than the initial versions I used, could

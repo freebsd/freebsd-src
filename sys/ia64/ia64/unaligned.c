@@ -34,7 +34,6 @@
 #include <vm/vm_extern.h>
 #include <machine/frame.h>
 #include <machine/inst.h>
-#include <machine/rse.h>
 
 #define sign_extend(imm, w) (((int64_t)(imm) << (64 - (w))) >> (64 - (w)))
 
@@ -153,16 +152,45 @@ static int
 read_register(struct trapframe *framep, struct thread *td,
 	      int reg, u_int64_t *valuep)
 {
-	if (reg == 0) {
-		*valuep = 0; 
-		return 0;
-	} else if (reg < 32) {
-		*valuep = framep->tf_r[reg - 1];
-		return 0;
+
+	if (reg < 32) {
+		switch (reg) {
+		case 0:  *valuep = 0; break;
+		case 1:  *valuep = framep->tf_special.gp; break;
+		case 2:	 *valuep = framep->tf_scratch.gr2; break;
+		case 3:  *valuep = framep->tf_scratch.gr3; break;
+		case 8:  *valuep = framep->tf_scratch.gr8; break;
+		case 9:  *valuep = framep->tf_scratch.gr9; break;
+		case 10: *valuep = framep->tf_scratch.gr10; break;
+		case 11: *valuep = framep->tf_scratch.gr11; break;
+		case 12: *valuep = framep->tf_special.sp; break;
+		case 13: *valuep = framep->tf_special.tp; break;
+		case 14: *valuep = framep->tf_scratch.gr14; break;
+		case 15: *valuep = framep->tf_scratch.gr15; break;
+		case 16: *valuep = framep->tf_scratch.gr16; break;
+		case 17: *valuep = framep->tf_scratch.gr17; break;
+		case 18: *valuep = framep->tf_scratch.gr18; break;
+		case 19: *valuep = framep->tf_scratch.gr19; break;
+		case 20: *valuep = framep->tf_scratch.gr20; break;
+		case 21: *valuep = framep->tf_scratch.gr21; break;
+		case 22: *valuep = framep->tf_scratch.gr22; break;
+		case 23: *valuep = framep->tf_scratch.gr23; break;
+		case 24: *valuep = framep->tf_scratch.gr24; break;
+		case 25: *valuep = framep->tf_scratch.gr25; break;
+		case 26: *valuep = framep->tf_scratch.gr26; break;
+		case 27: *valuep = framep->tf_scratch.gr27; break;
+		case 28: *valuep = framep->tf_scratch.gr28; break;
+		case 29: *valuep = framep->tf_scratch.gr29; break;
+		case 30: *valuep = framep->tf_scratch.gr30; break;
+		case 31: *valuep = framep->tf_scratch.gr31; break;
+		default:
+			return (EINVAL);
+		}
 	} else {
-		u_int64_t cfm = framep->tf_cr_ifs;
-		u_int64_t *bsp = (u_int64_t *) (td->td_kstack
-						+ framep->tf_ndirty);
+#if 0
+		u_int64_t cfm = framep->tf_special.cfm;
+		u_int64_t *bsp = (u_int64_t *)(td->td_kstack +
+		    framep->tf_ndirty);
 		int sof = cfm & 0x7f;
 		int sor = 8*((cfm >> 14) & 15);
 		int rrb_gr = (cfm >> 18) & 0x7f;
@@ -182,23 +210,54 @@ read_register(struct trapframe *framep, struct thread *td,
 		}
 
 		*valuep = *ia64_rse_register_address(bsp, reg);
-		return 0;
+		return (0);
+#else
+		return (EINVAL);
+#endif
 	}
-
-	return EINVAL;
+	return (0);
 }
 
 static int
 write_register(struct trapframe *framep, struct thread *td,
 	      int reg, u_int64_t value)
 {
-	if (reg == 0) {
-		return EINVAL;	/* can't happen */
-	} else if (reg < 32) {
-		framep->tf_r[reg - 1] = value;
-		return 0;
+
+	if (reg < 32) {
+		switch (reg) {
+		case 1:  framep->tf_special.gp = value; break;
+		case 2:	 framep->tf_scratch.gr2 = value; break;
+		case 3:  framep->tf_scratch.gr3 = value; break;
+		case 8:  framep->tf_scratch.gr8 = value; break;
+		case 9:  framep->tf_scratch.gr9 = value; break;
+		case 10: framep->tf_scratch.gr10 = value; break;
+		case 11: framep->tf_scratch.gr11 = value; break;
+		case 12: framep->tf_special.sp = value; break;
+		case 13: framep->tf_special.tp = value; break;
+		case 14: framep->tf_scratch.gr14 = value; break;
+		case 15: framep->tf_scratch.gr15 = value; break;
+		case 16: framep->tf_scratch.gr16 = value; break;
+		case 17: framep->tf_scratch.gr17 = value; break;
+		case 18: framep->tf_scratch.gr18 = value; break;
+		case 19: framep->tf_scratch.gr19 = value; break;
+		case 20: framep->tf_scratch.gr20 = value; break;
+		case 21: framep->tf_scratch.gr21 = value; break;
+		case 22: framep->tf_scratch.gr22 = value; break;
+		case 23: framep->tf_scratch.gr23 = value; break;
+		case 24: framep->tf_scratch.gr24 = value; break;
+		case 25: framep->tf_scratch.gr25 = value; break;
+		case 26: framep->tf_scratch.gr26 = value; break;
+		case 27: framep->tf_scratch.gr27 = value; break;
+		case 28: framep->tf_scratch.gr28 = value; break;
+		case 29: framep->tf_scratch.gr29 = value; break;
+		case 30: framep->tf_scratch.gr30 = value; break;
+		case 31: framep->tf_scratch.gr31 = value; break;
+		default:
+			return (EINVAL);
+		}
 	} else {
-		u_int64_t cfm = framep->tf_cr_ifs;
+#if 0
+		u_int64_t cfm = framep->tf_special.cfm;
 		u_int64_t *bsp = (u_int64_t *) (td->td_kstack
 						+ framep->tf_ndirty);
 		int sof = cfm & 0x7f;
@@ -221,9 +280,11 @@ write_register(struct trapframe *framep, struct thread *td,
 
 		*ia64_rse_register_address(bsp, reg) = value;
 		return 0;
+#else
+		return (EINVAL);
+#endif
 	}
-
-	return EINVAL;
+	return (0);
 }
 
 /*
@@ -367,7 +428,7 @@ invala_e(int reg)
 int
 unaligned_fixup(struct trapframe *framep, struct thread *td)
 {
-	vm_offset_t va = framep->tf_cr_ifa;
+	vm_offset_t va = framep->tf_special.ifa;
 	int doprint, dofix, dosigbus;
 	int signal, size = 0;
 	unsigned long uac;
@@ -399,7 +460,7 @@ unaligned_fixup(struct trapframe *framep, struct thread *td)
 	 * If psr.ac is set, then clearly the user program *wants* to
 	 * fault.
 	 */
-	if (framep->tf_cr_ipsr & IA64_PSR_AC) {
+	if (framep->tf_special.psr & IA64_PSR_AC) {
 		dofix = 0;
 		dosigbus = 1;
 	}
@@ -419,10 +480,10 @@ unaligned_fixup(struct trapframe *framep, struct thread *td)
 	 * offending instruction.
 	 * XXX assume that the instruction is in an 'M' slot.
 	 */
-	copyin((const void *) framep->tf_cr_iip, &low, 8);
-	copyin((const void *) (framep->tf_cr_iip + 8), &high, 8);
+	copyin((const void *) framep->tf_special.iip, &low, 8);
+	copyin((const void *) (framep->tf_special.iip + 8), &high, 8);
 	ia64_unpack_bundle(low, high, &b);
-	slot = (framep->tf_cr_ipsr >> 41) & 3;
+	slot = (framep->tf_special.psr >> 41) & 3;
 	ins.ins = b.slot[slot];
 
 	decoded = 0;
@@ -451,7 +512,7 @@ unaligned_fixup(struct trapframe *framep, struct thread *td)
 	 */
 	if (doprint) {
 		uprintf("pid %d (%s): unaligned access: va=0x%lx pc=0x%lx",
-			p->p_pid, p->p_comm, va, framep->tf_cr_iip);
+			p->p_pid, p->p_comm, va, framep->tf_special.iip);
 		if (decoded) {
 			uprintf(" op=");
 			if (dec.isload) {
@@ -500,7 +561,7 @@ unaligned_fixup(struct trapframe *framep, struct thread *td)
 		 */
 		__asm __volatile("flushrs");
 
-		isr = framep->tf_cr_isr;
+		isr = framep->tf_special.isr;
 		error = read_register(framep, td, dec.basereg, &addr);
 		if (error) {
 			signal = SIGBUS;
@@ -565,12 +626,12 @@ unaligned_fixup(struct trapframe *framep, struct thread *td)
 			 * Advance to the instruction following the
 			 * one which faulted.
 			 */
-			if ((framep->tf_cr_ipsr & IA64_PSR_RI)
+			if ((framep->tf_special.psr & IA64_PSR_RI)
 			    == IA64_PSR_RI_2) {
-				framep->tf_cr_ipsr &= ~IA64_PSR_RI;
-				framep->tf_cr_iip += 16;
+				framep->tf_special.psr &= ~IA64_PSR_RI;
+				framep->tf_special.iip += 16;
 			} else {
-				framep->tf_cr_ipsr += IA64_PSR_RI_1;
+				framep->tf_special.psr += IA64_PSR_RI_1;
 			}
 		}
 	} else {
