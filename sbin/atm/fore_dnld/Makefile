@@ -20,8 +20,8 @@
 # Copies of this Software may be made, however, the above copyright
 # notice must be reproduced on all copies.
 #
-#	@(#) $FreeBSD$
-#
+#	@(#) $Id: Makefile,v 1.5 1998/07/10 16:01:58 jpt Exp $
+# $FreeBSD$
 
 PROG=	fore_dnld
 MAN=	fore_dnld.8
