@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.100 1995/02/02 04:07:51 jkh Exp $
+#	$Id: Makefile,v 1.101 1995/02/02 08:03:24 ache Exp $
 #
 
 FLOPPY=		fd0
@@ -37,8 +37,9 @@ CPIO4=	/usr/sbin/tzsetup
 CPIO4B=	tzsetup
 
 # Somewhat on the rough side...
-CLEANFILES+=	*.o *.c *.cache *.mk *.lo ${CPIO1} *.flp *.gz 
-CLEANFILES+=	boot_flp cpio_flp_1 kernel.*
+CLEANFILES+=	*.o *.c *.cache *.mk *.lo ${CPIO1} ${CPIO2} ${CPIO3} ${CPIO4B}
+CLEANFILES+=	*.flp *.gz 
+CLEANFILES+=	boot_flp cpio_flp_1 kernel.* kernel *.core
 
 MTREE_DIR=	${.CURDIR}/../etc/mtree
 
