@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: machdep.c,v 1.45 1999/06/10 20:40:53 dt Exp $
+ *	$Id: machdep.c,v 1.46 1999/07/05 08:52:40 msmith Exp $
  */
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -1267,14 +1267,14 @@ void
 sendsig(sig_t catcher, int sig, int mask, u_long code)
 {
 	struct proc *p = curproc;
-	struct sigcontext *scp, ksc;
+	siginfo_t *sip, ksi;
 	struct trapframe *frame;
 	struct sigacts *psp = p->p_sigacts;
 	int oonstack, fsize, rndfsize;
 
 	frame = p->p_md.md_tf;
 	oonstack = psp->ps_sigstk.ss_flags & SS_ONSTACK;
-	fsize = sizeof ksc;
+	fsize = sizeof ksi;
 	rndfsize = ((fsize + 15) / 16) * 16;
 	/*
 	 * Allocate and validate space for the signal handler
@@ -1285,28 +1285,18 @@ sendsig(sig_t catcher, int sig, int mask, u_long code)
 	 */
 	if ((psp->ps_flags & SAS_ALTSTACK) && !oonstack &&
 	    (psp->ps_sigonstack & sigmask(sig))) {
-		scp = (struct sigcontext *)((caddr_t)psp->ps_sigstk.ss_sp +
+		sip = (siginfo_t *)((caddr_t)psp->ps_sigstk.ss_sp +
 		    psp->ps_sigstk.ss_size - rndfsize);
 		psp->ps_sigstk.ss_flags |= SS_ONSTACK;
 	} else
-		scp = (struct sigcontext *)(alpha_pal_rdusp() - rndfsize);
-	/* Note: uvm_grow doesn't seem to be defined anywhere, so we don't
-	 * know how to implement it for the VM_STACK case.  Also, we would
-	 * think that it would be wise to test for success of grow_stack,
-	 * but we don't since there is no test for success for grow in the
-	 * non VM_STACK case.
-	 */
-	(void)grow_stack(p, (u_long)scp);
+		sip = (siginfo_t *)(alpha_pal_rdusp() - rndfsize);
+	(void)grow_stack(p, (u_long)sip);
 #ifdef DEBUG
 	if ((sigdebug & SDB_KSTACK) && p->p_pid == sigpid)
 		printf("sendsig(%d): sig %d ssp %p usp %p\n", p->p_pid,
-		    sig, &oonstack, scp);
+		    sig, &oonstack, sip);
 #endif
-#if defined(UVM)
-	if (uvm_useracc((caddr_t)scp, fsize, B_WRITE) == 0) {
-#else
-	if (useracc((caddr_t)scp, fsize, B_WRITE) == 0) {
-#endif
+	if (useracc((caddr_t)sip, fsize, B_WRITE) == 0) {
 #ifdef DEBUG
 		if ((sigdebug & SDB_KSTACK) && p->p_pid == sigpid)
 			printf("sendsig(%d): useracc failed on sig %d\n",
@@ -1323,24 +1313,20 @@ sendsig(sig_t catcher, int sig, int mask, u_long code)
 		p->p_sigmask &= ~sig;
 		psignal(p, SIGILL);
 		return;
-#if !defined(UVM)	/* this construct will balance braces for ctags(1) */
 	}
-#else
-	}
-#endif
 
 	/*
 	 * Build the signal context to be used by sigreturn.
 	 */
-	ksc.sc_onstack = oonstack;
-	ksc.sc_mask = mask;
-	ksc.sc_pc = frame->tf_regs[FRAME_PC];
-	ksc.sc_ps = frame->tf_regs[FRAME_PS];
+	ksi.si_sc.sc_onstack = oonstack;
+	ksi.si_sc.sc_mask = mask;
+	ksi.si_sc.sc_pc = frame->tf_regs[FRAME_PC];
+	ksi.si_sc.sc_ps = frame->tf_regs[FRAME_PS];
 
 	/* copy the registers. */
-	fill_regs(p, (struct reg *)ksc.sc_regs);
-	ksc.sc_regs[R_ZERO] = 0xACEDBADE;		/* magic number */
-	ksc.sc_regs[R_SP] = alpha_pal_rdusp();
+	fill_regs(p, (struct reg *)ksi.si_sc.sc_regs);
+	ksi.si_sc.sc_regs[R_ZERO] = 0xACEDBADE;		/* magic number */
+	ksi.si_sc.sc_regs[R_SP] = alpha_pal_rdusp();
 
 	/* save the floating-point state, if necessary, then copy it. */
 	if (p == fpcurproc) {
@@ -1349,19 +1335,23 @@ sendsig(sig_t catcher, int sig, int mask, u_long code)
 		alpha_pal_wrfen(0);
 		fpcurproc = NULL;
 	}
-	ksc.sc_ownedfp = p->p_md.md_flags & MDP_FPUSED;
-	bcopy(&p->p_addr->u_pcb.pcb_fp, (struct fpreg *)ksc.sc_fpregs,
+	ksi.si_sc.sc_ownedfp = p->p_md.md_flags & MDP_FPUSED;
+	bcopy(&p->p_addr->u_pcb.pcb_fp, (struct fpreg *)ksi.si_sc.sc_fpregs,
 	    sizeof(struct fpreg));
-	ksc.sc_fp_control = p->p_addr->u_pcb.pcb_fp_control;
-	bzero(ksc.sc_reserved, sizeof ksc.sc_reserved);		/* XXX */
-	ksc.sc_xxx1[0] = 0;					/* XXX */
-	ksc.sc_xxx1[1] = 0;					/* XXX */
-	ksc.sc_traparg_a0 = frame->tf_regs[FRAME_TRAPARG_A0];
-	ksc.sc_traparg_a1 = frame->tf_regs[FRAME_TRAPARG_A1];
-	ksc.sc_traparg_a2 = frame->tf_regs[FRAME_TRAPARG_A2];
-	ksc.sc_xxx2[0] = 0;					/* XXX */
-	ksc.sc_xxx2[1] = 0;					/* XXX */
-	ksc.sc_xxx2[2] = 0;					/* XXX */
+	ksi.si_sc.sc_fp_control = p->p_addr->u_pcb.pcb_fp_control;
+	bzero(ksi.si_sc.sc_reserved, sizeof ksi.si_sc.sc_reserved); /* XXX */
+	ksi.si_sc.sc_xxx1[0] = 0;				/* XXX */
+	ksi.si_sc.sc_xxx1[1] = 0;				/* XXX */
+	ksi.si_sc.sc_traparg_a0 = frame->tf_regs[FRAME_TRAPARG_A0];
+	ksi.si_sc.sc_traparg_a1 = frame->tf_regs[FRAME_TRAPARG_A1];
+	ksi.si_sc.sc_traparg_a2 = frame->tf_regs[FRAME_TRAPARG_A2];
+	ksi.si_sc.sc_xxx2[0] = 0;				/* XXX */
+	ksi.si_sc.sc_xxx2[1] = 0;				/* XXX */
+	ksi.si_sc.sc_xxx2[2] = 0;				/* XXX */
+	/* Fill in POSIX parts */
+	ksi.si_signo = sig;
+	ksi.si_code = code;
+	ksi.si_value.sigval_ptr = NULL;				/* XXX */
 
 
 #ifdef COMPAT_OSF1
@@ -1373,11 +1363,11 @@ sendsig(sig_t catcher, int sig, int mask, u_long code)
 	/*
 	 * copy the frame out to userland.
 	 */
-	(void) copyout((caddr_t)&ksc, (caddr_t)scp, fsize);
+	(void) copyout((caddr_t)&ksi, (caddr_t)sip, fsize);
 #ifdef DEBUG
 	if (sigdebug & SDB_FOLLOW)
-		printf("sendsig(%d): sig %d scp %p code %lx\n", p->p_pid, sig,
-		    scp, code);
+		printf("sendsig(%d): sig %d sip %p code %lx\n", p->p_pid, sig,
+		    sip, code);
 #endif
 
 	/*
@@ -1385,10 +1375,13 @@ sendsig(sig_t catcher, int sig, int mask, u_long code)
 	 */
 	frame->tf_regs[FRAME_PC] = PS_STRINGS - (esigcode - sigcode);
 	frame->tf_regs[FRAME_A0] = sig;
-	frame->tf_regs[FRAME_A1] = code;
-	frame->tf_regs[FRAME_A2] = (u_int64_t)scp;
-	frame->tf_regs[FRAME_T12] = (u_int64_t)catcher;		/* t12 is pv */
-	alpha_pal_wrusp((unsigned long)scp);
+	if (p->p_sigacts->ps_siginfo & sigmask(sig))
+		frame->tf_regs[FRAME_A1] = (u_int64_t)sip;
+	else
+		frame->tf_regs[FRAME_A1] = code;
+	frame->tf_regs[FRAME_A2] = (u_int64_t)&sip->si_sc;
+	frame->tf_regs[FRAME_T12] = (u_int64_t)catcher;	/* t12 is pv */
+	alpha_pal_wrusp((unsigned long)sip);
 
 #ifdef DEBUG
 	if (sigdebug & SDB_FOLLOW)
@@ -1430,15 +1423,9 @@ sigreturn(struct proc *p,
 	 * Test and fetch the context structure.
 	 * We grab it all at once for speed.
 	 */
-#if defined(UVM)
-	if (uvm_useracc((caddr_t)scp, sizeof (*scp), B_WRITE) == 0 ||
-	    copyin((caddr_t)scp, (caddr_t)&ksc, sizeof ksc))
-		return (EINVAL);
-#else
 	if (useracc((caddr_t)scp, sizeof (*scp), B_WRITE) == 0 ||
 	    copyin((caddr_t)scp, (caddr_t)&ksc, sizeof ksc))
 		return (EINVAL);
-#endif
 
 	if (ksc.sc_regs[R_ZERO] != 0xACEDBADE)		/* magic number */
 		return (EINVAL);
