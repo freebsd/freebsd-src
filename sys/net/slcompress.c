@@ -147,6 +147,10 @@ sl_compress_init(comp, max_state)
 	} \
 }
 
+/*
+ * Attempt to compress a TCP packet.  This function assumes that the
+ * complete IP+TCP headers have been pulled up into the first mbuf.
+ */
 u_int
 sl_compress_tcp(m, ip, comp, compress_cid)
 	struct mbuf *m;
