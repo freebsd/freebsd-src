@@ -86,8 +86,10 @@ static struct	callout acctwatch_callout;
  * Accounting vnode pointer, saved vnode pointer, and flags for each.
  */
 static struct	vnode *acctp;
+static struct	ucred *acctcred;
 static int	acctflags;
 static struct	vnode *savacctp;
+static struct	ucred *savacctcred;
 static int	savacctflags;
 
 /*
@@ -155,8 +157,10 @@ acct(td, uap)
 		callout_stop(&acctwatch_callout);
 		error = vn_close((acctp != NULLVP ? acctp : savacctp),
 		    (acctp != NULLVP ? acctflags : savacctflags),
-		    td->td_ucred, td);
+		    (acctcred != NOCRED ? acctcred : savacctcred), td);
 		acctp = savacctp = NULLVP;
+		crfree(acctcred != NOCRED ? acctcred : savacctcred);
+		acctcred = savacctcred = NOCRED;
 	}
 	if (SCARG(uap, path) == NULL)
 		goto done2;
@@ -166,6 +170,7 @@ acct(td, uap)
 	 * free space watcher.
 	 */
 	acctp = nd.ni_vp;
+	acctcred = crhold(td->td_ucred);
 	acctflags = flags;
 	callout_init(&acctwatch_callout, 0);
 	acctwatch(NULL);
@@ -260,9 +265,9 @@ acct_process(td)
 	/*
 	 * Write the accounting information to the file.
 	 */
-	VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
+	VOP_LEASE(vp, td, acctcred, LEASE_WRITE);
 	return (vn_rdwr(UIO_WRITE, vp, (caddr_t)&acct, sizeof (acct),
-	    (off_t)0, UIO_SYSSPACE, IO_APPEND|IO_UNIT, td->td_ucred,
+	    (off_t)0, UIO_SYSSPACE, IO_APPEND|IO_UNIT, acctcred,
 	    (int *)0, td));
 }
 
@@ -320,23 +325,29 @@ acctwatch(a)
 
 	if (savacctp != NULLVP) {
 		if (savacctp->v_type == VBAD) {
-			(void) vn_close(savacctp, savacctflags, NOCRED, NULL);
+			(void) vn_close(savacctp, savacctflags, savacctcred,
+			    NULL);
 			savacctp = NULLVP;
+			savacctcred = NOCRED;
 			return;
 		}
 		(void)VFS_STATFS(savacctp->v_mount, &sb, (struct thread *)0);
 		if (sb.f_bavail > acctresume * sb.f_blocks / 100) {
 			acctp = savacctp;
+			acctcred = savacctcred;
 			acctflags = savacctflags;
 			savacctp = NULLVP;
+			savacctcred = NOCRED;
 			log(LOG_NOTICE, "Accounting resumed\n");
 		}
 	} else {
 		if (acctp == NULLVP)
 			return;
 		if (acctp->v_type == VBAD) {
-			(void) vn_close(acctp, acctflags, NOCRED, NULL);
+			(void) vn_close(acctp, acctflags, acctcred, NULL);
 			acctp = NULLVP;
+			crfree(acctcred);
+			acctcred = NOCRED;
 			return;
 		}
 		(void)VFS_STATFS(acctp->v_mount, &sb, (struct thread *)0);
@@ -344,6 +355,7 @@ acctwatch(a)
 			savacctp = acctp;
 			savacctflags = acctflags;
 			acctp = NULLVP;
+			acctcred = NOCRED;
 			log(LOG_NOTICE, "Accounting suspended\n");
 		}
 	}
