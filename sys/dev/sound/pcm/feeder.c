@@ -49,28 +49,46 @@ static SLIST_HEAD(, feedertab_entry) feedertab;
 void
 feeder_register(void *p)
 {
+	static int feedercnt = 0;
+
 	struct feeder_class *fc = p;
 	struct feedertab_entry *fte;
-	static int feedercnt = 0;
 	int i;
 
 	if (feedercnt == 0) {
-		if (fc->desc)
-			panic("FIRST FEEDER NOT ROOT: %s\n", fc->name);
+		KASSERT(fc->desc == NULL, ("first feeder not root: %s", fc->name));
+
 		SLIST_INIT(&feedertab);
 		fte = malloc(sizeof(*fte), M_FEEDER, M_WAITOK | M_ZERO);
+		if (fte == NULL) {
+			printf("can't allocate memory for root feeder\n", fc->name);
+
+			return;
+		}
 		fte->feederclass = fc;
 		fte->desc = NULL;
 		fte->idx = feedercnt;
 		SLIST_INSERT_HEAD(&feedertab, fte, link);
 		feedercnt++;
+
+		/* we've got our root feeder so don't veto pcm loading anymore */
+		pcm_veto_load = 0;
+
 		return;
 	}
 
+	KASSERT(fc->desc != NULL, ("feeder '%s' has no descriptor", fc->name));
+
+	/* beyond this point failure is non-fatal but may result in some translations being unavailable */
 	i = 0;
 	while ((feedercnt < MAXFEEDERS) && (fc->desc[i].type > 0)) {
 		/* printf("adding feeder %s, %x -> %x\n", fc->name, fc->desc[i].in, fc->desc[i].out); */
 		fte = malloc(sizeof(*fte), M_FEEDER, M_WAITOK | M_ZERO);
+		if (fte == NULL) {
+			printf("can't allocate memory for feeder '%s', %x -> %x\n", fc->name, fc->desc[i].in, fc->desc[i].out);
+
+			return;
+		}
 		fte->feederclass = fc;
 		fte->desc = &fc->desc[i];
 		fte->idx = feedercnt;
@@ -80,7 +98,7 @@ feeder_register(void *p)
 	}
 	feedercnt++;
 	if (feedercnt >= MAXFEEDERS)
-		printf("MAXFEEDERS exceeded\n");
+		printf("MAXFEEDERS (%d >= %d) exceeded\n", feedercnt, MAXFEEDERS);
 }
 
 static void
@@ -109,7 +127,6 @@ static void
 feeder_destroy(struct pcm_feeder *f)
 {
 	FEEDER_FREE(f);
-	free(f->desc, M_FEEDER);
 	kobj_delete((kobj_t)f, M_FEEDER);
 }
 
@@ -120,27 +137,35 @@ feeder_create(struct feeder_class *fc, struct pcm_feederdesc *desc)
 	int err;
 
 	f = (struct pcm_feeder *)kobj_create((kobj_class_t)fc, M_FEEDER, M_WAITOK | M_ZERO);
+	if (f == NULL)
+		return NULL;
+
 	f->align = fc->align;
-	f->desc = malloc(sizeof(*(f->desc)), M_FEEDER, M_WAITOK | M_ZERO);
-	if (desc)
+	f->data = fc->data;
+	f->source = NULL;
+	f->parent = NULL;
+	f->class = fc;
+	f->desc = &(f->desc_static);
+
+	if (desc) {
 		*(f->desc) = *desc;
-	else {
+	} else {
 		f->desc->type = FEEDER_ROOT;
 		f->desc->in = 0;
 		f->desc->out = 0;
 		f->desc->flags = 0;
 		f->desc->idx = 0;
 	}
-	f->data = fc->data;
-	f->source = NULL;
-	f->class = fc;
+
 	err = FEEDER_INIT(f);
 	if (err) {
 		printf("feeder_init(%p) on %s returned %d\n", f, fc->name, err);
 		feeder_destroy(f);
+
 		return NULL;
-	} else
-		return f;
+	}
+
+	return f;
 }
 
 struct feeder_class *
@@ -164,7 +189,7 @@ chn_addfeeder(struct pcm_channel *c, struct feeder_class *fc, struct pcm_feederd
 
 	nf = feeder_create(fc, desc);
 	if (nf == NULL)
-		return -1;
+		return ENOSPC;
 
 	nf->source = c->feeder;
 
@@ -188,6 +213,7 @@ chn_removefeeder(struct pcm_channel *c)
 	f = c->feeder;
 	c->feeder = c->feeder->source;
 	feeder_destroy(f);
+
 	return 0;
 }
 
@@ -202,6 +228,7 @@ chn_findfeeder(struct pcm_channel *c, u_int32_t type)
 			return f;
 		f = f->source;
 	}
+
 	return NULL;
 }
 
@@ -225,6 +252,7 @@ chainok(struct pcm_feeder *test, struct pcm_feeder *stop)
 		visited[idx] |= mask;
 		test = test->source;
 	}
+
 	return 1;
 }
 
@@ -261,6 +289,7 @@ feeder_fmtchain(u_int32_t *to, struct pcm_feeder *source, struct pcm_feeder *sto
 no:
 	}
 	/* printf("giving up %s...\n", source->class->name); */
+
 	return NULL;
 }
 
@@ -339,6 +368,7 @@ chn_fmtchain(struct pcm_channel *c, u_int32_t *to)
 #ifdef FEEDER_DEBUG
 	printf("%s [%d]\n", try->class->name, try->desc->idx);
 #endif
+
 	return (c->direction == PCMDIR_REC)? best : c->feeder->desc->out;
 }
 
