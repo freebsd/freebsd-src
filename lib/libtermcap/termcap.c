@@ -158,7 +158,7 @@ tgetent(bp, name)
 		tcs = pd - 1;
 		for (;;) {
 			while ((tok = strsep(&ps, ":")) != NULL &&
-			       (*tok == '\0' || !isgraph(*tok)))
+			       (*tok == '\0' || *tok == '\\' || !isgraph(*tok)))
 				;
 			if (tok == NULL)
 				break;
