@@ -264,7 +264,11 @@ typedef struct simplelock aac_lock_t;
 #define AAC_LOCK_RELEASE(l)	simple_unlock(l)
 #endif
 
+#if __FreeBSD_version >= 500005
 #include <sys/selinfo.h>
+#else
+#include <sys/select.h>
+#endif
 
 /*
  * Per-controller structure.
