@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.10.2.14 1997/09/03 00:42:14 brian Exp $
+ * $Id: lcp.c,v 1.10.2.15 1997/09/05 23:22:28 brian Exp $
  *
  * TODO:
  *      o Validate magic number received from peer.
@@ -392,6 +392,8 @@ void
 LcpOpen(int mode)
 {
   LcpFsm.open_mode = mode;
+  if (mode == OPEN_ACTIVE)
+    sleep(1);			/* Give the peer time to start up */
   FsmOpen(&LcpFsm);
 }
 
