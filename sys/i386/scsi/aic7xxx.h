@@ -20,7 +20,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7xxx.h,v 1.4 1995/02/22 01:43:25 gibbs Exp $
+ *	$Id: aic7xxx.h,v 1.5 1995/03/31 13:54:41 gibbs Exp $
  */
 
 #ifndef _AIC7XXX_H_
@@ -88,9 +88,16 @@ struct scb {
 /*18*/	u_char residual_data_count[3];
 /*19*/	u_char residual_SG_segment_count;
 #define	SCB_DOWN_SIZE 19		/* amount to actually download */
+#define SCB_BZERO_SIZE 19		/* 
+					 * amount we need to clear between
+					 * commands
+					 */
 /*23*/	physaddr data			 __attribute__ ((packed));
 /*26*/  u_char datalen[3];
-#define SCB_UP_SIZE 26			/* amount to actually upload */
+#define SCB_UP_SIZE 26			/* 
+					 * amount we need to upload to perform
+					 * a request sense.
+					 */
 /*30*/	physaddr host_scb			 __attribute__ ((packed));
 #if 0
 	/*
@@ -136,6 +143,7 @@ struct ahc_data {
 	u_short wdtrpending;		/* Pending WDTR to these targets */
 	u_short	tagenable;		/* Targets that can handle tagqueing */
 	int	numscbs;
+	int	activescbs;
 	u_char	maxscbs;
 	u_char	unpause;
 	u_char	pause;
