@@ -35,6 +35,8 @@
 	
 #include <machine/smptests.h>			/** FAST_HI */
 
+#include "assym.s"
+
 /*
  * The following impliments the primitives described in i386/i386/param.h
  * necessary for the Lite2 lock manager system.
@@ -105,7 +107,7 @@ gotit:
 ENTRY(s_lock)
 	movl	4(%esp), %edx		/* get the address of the lock */
 setlock:
-	movl	_cpu_lockid, %ecx	/* add cpu id portion */
+	movl	PCPU(CPU_LOCKID), %ecx	/* add cpu id portion */
 	incl	%ecx			/* add lock portion */
 	movl	$0, %eax
 	lock
@@ -113,7 +115,7 @@ setlock:
 	jz	gotit			/* it was clear, return */
 	pushl	%eax			/* save what we xchanged */
 	decl	%eax			/* remove lock portion */
-	cmpl	_cpu_lockid, %eax	/* do we hold it? */
+	cmpl	PCPU(CPU_LOCKID), %eax	/* do we hold it? */
 	je	bad_slock		/* yes, thats not good... */
 	addl	$4, %esp		/* clear the stack */
 wait:
@@ -127,7 +129,7 @@ gotit:
 bad_slock:
 	/* %eax (current lock) is already on the stack */
 	pushl	%edx
-	pushl	_cpuid
+	pushl	PCPU(CPUID)
 	pushl	$bsl1
 	call	_panic
 
@@ -160,7 +162,7 @@ ENTRY(s_lock_try)
 
 ENTRY(s_lock_try)
 	movl	4(%esp), %edx		/* get the address of the lock */
-	movl	_cpu_lockid, %ecx	/* add cpu id portion */
+	movl	PCPU(CPU_LOCKID), %ecx	/* add cpu id portion */
 	incl	%ecx			/* add lock portion */
 
 	xorl	%eax, %eax
@@ -227,7 +229,7 @@ swait:
 	jne	swait			/* still set... */
 	jmp	ssetlock		/* empty again, try once more */
 sgotit:
-	popl	_ss_eflags		/* save the old eflags */
+	popl	PCPU(SS_EFLAGS)		/* save the old eflags */
 	ret
 
 #else /* SL_DEBUG */
@@ -235,7 +237,7 @@ sgotit:
 ENTRY(ss_lock)
 	movl	4(%esp), %edx		/* get the address of the lock */
 ssetlock:
-	movl	_cpu_lockid, %ecx	/* add cpu id portion */
+	movl	PCPU(CPU_LOCKID), %ecx	/* add cpu id portion */
 	incl	%ecx			/* add lock portion */
 	pushfl
 	cli
@@ -245,7 +247,7 @@ ssetlock:
 	jz	sgotit			/* it was clear, return */
 	pushl	%eax			/* save what we xchanged */
 	decl	%eax			/* remove lock portion */
-	cmpl	_cpu_lockid, %eax	/* do we hold it? */
+	cmpl	PCPU(CPU_LOCKID), %eax	/* do we hold it? */
 	je	sbad_slock		/* yes, thats not good... */
 	addl	$4, %esp		/* clear the stack */
 	popfl
@@ -254,7 +256,7 @@ swait:
 	jne	swait			/* still set... */
 	jmp	ssetlock		/* empty again, try once more */
 sgotit:
-	popl	_ss_eflags		/* save the old task priority */
+	popl	PCPU(SS_EFLAGS)		/* save the old task priority */
 sgotit2:
 	ret
 
@@ -262,7 +264,7 @@ sgotit2:
 sbad_slock:
 	/* %eax (current lock) is already on the stack */
 	pushl	%edx
-	pushl	_cpuid
+	pushl	PCPU(CPUID)
 	pushl	$sbsl1
 	call	_panic
 
@@ -276,7 +278,7 @@ sbsl1:	.asciz	"rsslock: cpu: %d, addr: 0x%08x, lock: 0x%08x"
 ENTRY(ss_unlock)
 	movl	4(%esp), %eax		/* get the address of the lock */
 	movl	$0, (%eax)		/* clear the simple lock */
-	testl	$PSL_I, _ss_eflags
+	testl	$PSL_I, PCPU(SS_EFLAGS)
 	jz	ss_unlock2
 	sti
 ss_unlock2:	

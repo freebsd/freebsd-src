@@ -48,7 +48,7 @@ IDTVEC(vec_name) ;							\
 	movl	$KPSEL,%eax ;						\
 	mov	%ax,%fs ;						\
 	FAKE_MCOUNT(13*4(%esp)) ;					\
-	incb	_intr_nesting_level ;					\
+	incb	PCPU(INTR_NESTING_LEVEL) ;				\
 	pushl	_intr_unit + (irq_num) * 4 ;				\
 	call	*_intr_handler + (irq_num) * 4 ; /* do the work ASAP */ \
 	addl	$4, %esp ;						\
@@ -136,7 +136,7 @@ log_intr_event:
 	addl	$4, %esp
 	movl	CNAME(apic_itrace_debugbuffer_idx), %ecx
 	andl	$32767, %ecx
-	movl	_cpuid, %eax
+	movl	PCPU(CPUID), %eax
 	shll	$8,	%eax
 	orl	8(%esp), %eax
 	movw	%ax,	CNAME(apic_itrace_debugbuffer)(,%ecx,2)
@@ -218,7 +218,7 @@ IDTVEC(vec_name) ;							\
 	MASK_LEVEL_IRQ(irq_num) ;					\
 	EOI_IRQ(irq_num) ;						\
 0: ;									\
-	incb	_intr_nesting_level ;					\
+	incb	PCPU(INTR_NESTING_LEVEL) ;				\
 ;	 								\
   /* entry point used by doreti_unpend for HWIs. */			\
 __CONCAT(Xresume,irq_num): ;						\
@@ -263,7 +263,7 @@ _Xinvltlb:
 	pushl	%fs
 	movl	$KPSEL, %eax
 	mov	%ax, %fs
-	movl	_cpuid, %eax
+	movl	PCPU(CPUID), %eax
 	popl	%fs
 	ss
 	incl	_xhits(,%eax,4)
@@ -321,10 +321,11 @@ _Xcpucheckstate:
 	jne	1f
 	incl	%ebx			/* system or interrupt */
 1:	
-	movl	_cpuid, %eax
+	movl	PCPU(CPUID), %eax
 	movl	%ebx, _checkstate_cpustate(,%eax,4)
-	movl	_curproc, %ebx
+	movl	PCPU(CURPROC), %ebx
 	movl	%ebx, _checkstate_curproc(,%eax,4)
+
 	movl	16(%esp), %ebx
 	movl	%ebx, _checkstate_pc(,%eax,4)
 
@@ -358,7 +359,7 @@ _Xcpuast:
 	movl	$KPSEL, %eax
 	mov	%ax, %fs
 
-	movl	_cpuid, %eax
+	movl	PCPU(CPUID), %eax
 	lock				/* checkstate_need_ast &= ~(1<<id) */
 	btrl	%eax, _checkstate_need_ast
 	movl	$0, lapic_eoi		/* End Of Interrupt to APIC */
@@ -369,17 +370,17 @@ _Xcpuast:
 
 	FAKE_MCOUNT(13*4(%esp))
 
-	orl	$AST_PENDING, _astpending	/* XXX */
-	incb	_intr_nesting_level
+	orl	$AST_PENDING, PCPU(ASTPENDING)	/* XXX */
+	incb	PCPU(INTR_NESTING_LEVEL)
 	sti
 	
-	movl	_cpuid, %eax
+	movl	PCPU(CPUID), %eax
 	lock	
 	btrl	%eax, _checkstate_pending_ast
 	lock	
 	btrl	%eax, CNAME(resched_cpus)
 	jnc	2f
-	orl	$AST_PENDING+AST_RESCHED, _astpending
+	orl	$AST_PENDING+AST_RESCHED, PCPU(ASTPENDING)
 	lock
 	incl	CNAME(want_resched_cnt)
 2:		
@@ -414,10 +415,10 @@ _Xforward_irq:
 
 	lock
 	incl	CNAME(forward_irq_hitcnt)
-	cmpb	$4, _intr_nesting_level
+	cmpb	$4, PCPU(INTR_NESTING_LEVEL)
 	jae	1f
 	
-	incb	_intr_nesting_level
+	incb	PCPU(INTR_NESTING_LEVEL)
 	sti
 	
 	MEXITCOUNT
@@ -499,7 +500,7 @@ _Xcpustop:
 
 	movl	$0, lapic_eoi		/* End Of Interrupt to APIC */
 
-	movl	_cpuid, %eax
+	movl	PCPU(CPUID), %eax
 	imull	$PCB_SIZE, %eax
 	leal	CNAME(stoppcbs)(%eax), %eax
 	pushl	%eax
@@ -507,7 +508,7 @@ _Xcpustop:
 	addl	$4, %esp
 	
 		
-	movl	_cpuid, %eax
+	movl	PCPU(CPUID), %eax
 
 	lock
 	btsl	%eax, _stopped_cpus	/* stopped_cpus |= (1<<id) */

@@ -184,7 +184,7 @@ IDTVEC(fpu)
 	call	__mtx_exit_giant_def
 
 	addl	$4,%esp
-	incb	_intr_nesting_level
+	incb	PCPU(INTR_NESTING_LEVEL)
 	MEXITCOUNT
 	jmp	_doreti
 #else	/* NNPX > 0 */
@@ -223,7 +223,7 @@ calltrap:
 	/*
 	 * Return via _doreti to handle ASTs.
 	 */
-	incb	_intr_nesting_level
+	incb	PCPU(INTR_NESTING_LEVEL)
 	MEXITCOUNT
 	jmp	_doreti
 
@@ -262,9 +262,9 @@ IDTVEC(syscall)
 	call	_syscall2
 	MEXITCOUNT
 	cli				/* atomic astpending access */
-	cmpl    $0,_astpending		/* AST pending? */
+	cmpl    $0,PCPU(ASTPENDING)	/* AST pending? */
 	je	doreti_syscall_ret	/* no, get out of here */
-	movb	$1,_intr_nesting_level
+	movb	$1,PCPU(INTR_NESTING_LEVEL)
 	jmp	_doreti
 
 /*
@@ -294,9 +294,9 @@ IDTVEC(int0x80_syscall)
 	call	_syscall2
 	MEXITCOUNT
 	cli				/* atomic astpending access */
-	cmpl    $0,_astpending		/* AST pending? */
+	cmpl    $0,PCPU(ASTPENDING)	/* AST pending? */
 	je	doreti_syscall_ret	/* no, get out of here */
-	movb	$1,_intr_nesting_level
+	movb	$1,PCPU(INTR_NESTING_LEVEL)
 	jmp	_doreti
 
 ENTRY(fork_trampoline)
@@ -306,15 +306,15 @@ ENTRY(fork_trampoline)
 					   are enabled */
 
 #ifdef SMP
-	cmpl	$0,_switchtime
+	cmpl	$0,PCPU(SWITCHTIME)
 	jne	1f
-	movl	$gd_switchtime,%eax
+	movl	$GD_SWITCHTIME,%eax
 	addl	%fs:0,%eax
 	pushl	%eax
 	call	_microuptime
 	popl	%edx
 	movl	_ticks,%eax
-	movl	%eax,_switchticks
+	movl	%eax,PCPU(SWITCHTICKS)
 1:
 #endif
 
@@ -331,7 +331,7 @@ ENTRY(fork_trampoline)
 	/*
 	 * Return via _doreti to handle ASTs.
 	 */
-	movb	$1,_intr_nesting_level
+	movb	$1,PCPU(INTR_NESTING_LEVEL)
 	MEXITCOUNT
 	jmp	_doreti
 
