@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_ip.c	8.2 (Berkeley) 1/4/94
- * $Id: raw_ip.c,v 1.6 1994/10/28 15:09:49 jkh Exp $
+ * $Id: raw_ip.c,v 1.8 1994/11/16 10:17:11 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -214,8 +214,6 @@ rip_ctloutput(op, so, level, optname, m)
 #ifdef IPFIREWALL
 	case IP_FW_ADD_BLK:
 	case IP_FW_ADD_FWD:
-	case IP_FW_CHK_BLK:
-	case IP_FW_CHK_FWD:
 	case IP_FW_DEL_BLK:
 	case IP_FW_DEL_FWD:
 	case IP_FW_FLUSH:
