@@ -53,6 +53,7 @@
 #include <syslog.h>
 #include <errno.h>
 #include <string.h>
+#include <search.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <ifaddrs.h>

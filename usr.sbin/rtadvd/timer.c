@@ -36,6 +36,7 @@
 #include <syslog.h>
 #include <stdlib.h>
 #include <string.h>
+#include <search.h>
 #include "timer.h"
 
 static struct rtadvd_timer timer_head;
