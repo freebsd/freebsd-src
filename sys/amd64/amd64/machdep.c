@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.3 1997/05/26 09:12:19 smp Exp smp $
+ *	$Id: machdep.c,v 1.244 1997/05/26 09:23:29 fsmp Exp $
  */
 
 #include "npx.h"
@@ -218,7 +218,7 @@ cpu_startup(dummy)
 	mp_start();			/* fire up the APs and APICs */
 #endif  /* LATE_START */
 	mp_announce();
-#endif
+#endif  /* SMP */
 	earlysetcpuclass();
 	startrtclock();
 	printcpuinfo();
@@ -1454,9 +1454,11 @@ init386(first)
 	proc0.p_addr->u_pcb.pcb_cr3 = IdlePTD;
 	proc0.p_addr->u_pcb.pcb_mpnest = 1;
 
+#ifdef SMP
 #if !defined(LATE_START)
 	mp_start();			/* fire up the APs and APICs */
 #endif  /* LATE_START */
+#endif  /* SMP */
 }
 
 int
