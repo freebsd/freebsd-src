@@ -61,7 +61,7 @@ main(argc, argv)
 	}
 	/*
 	 * Construct name, with no wildcards, of the socket to send to.
-	 * Getnostbyname() returns a structure including the network address
+	 * Gethostbyname() returns a structure including the network address
 	 * of the specified host.  The port number is taken from the command
 	 * line.
 	 */
