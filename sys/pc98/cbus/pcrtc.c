@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.60 1998/09/20 10:51:57 kato Exp $
+ *	$Id: clock.c,v 1.61 1998/09/22 16:12:00 kato Exp $
  */
 
 /*
@@ -704,7 +704,80 @@ static void findcpuspeed(void)
 }
 #endif
 
-#ifndef PC98
+#ifdef PC98
+static u_int
+calibrate_clocks(void)
+{
+	int	timeout;
+	u_int	count, prev_count, tot_count;
+	u_short	sec, start_sec;
+
+	if (bootverbose)
+	        printf("Calibrating clock(s) ... ");
+	/* Check ARTIC. */
+	if (!(PC98_SYSTEM_PARAMETER(0x458) & 0x80) &&
+	    !(PC98_SYSTEM_PARAMETER(0x45b) & 0x04))
+		goto fail;
+	timeout = 100000000;
+
+	/* Read the ARTIC. */
+	sec = inw(0x5e);
+
+	/* Wait for the ARTIC to changes. */
+	start_sec = sec;
+	for (;;) {
+		sec = inw(0x5e);
+		if (sec != start_sec)
+			break;
+		if (--timeout == 0)
+			goto fail;
+	}
+	prev_count = getit();
+	if (prev_count == 0 || prev_count > timer0_max_count)
+		goto fail;
+	tot_count = 0;
+
+	if (tsc_present) 
+		wrmsr(0x10, 0LL);	/* XXX 0x10 is the MSR for the TSC */
+	start_sec = sec;
+	for (;;) {
+		sec = inw(0x5e);
+		count = getit();
+		if (count == 0 || count > timer0_max_count)
+			goto fail;
+		if (count > prev_count)
+			tot_count += prev_count - (count - timer0_max_count);
+		else
+			tot_count += prev_count - count;
+		prev_count = count;
+		if ((sec == start_sec + 1200) ||
+		    (sec < start_sec &&
+		        (u_int)sec + 0xffff == (u_int)start_sec + 1200))
+			break;
+		if (--timeout == 0)
+			goto fail;
+	}
+	/*
+	 * Read the cpu cycle counter.  The timing considerations are
+	 * similar to those for the i8254 clock.
+	 */
+	if (tsc_present) 
+		tsc_freq = rdtsc();
+
+	if (bootverbose) {
+		if (tsc_present)
+		        printf("TSC clock: %u Hz, ", tsc_freq);
+	        printf("i8254 clock: %u Hz\n", tot_count);
+	}
+	return (tot_count);
+
+fail:
+	if (bootverbose)
+	        printf("failed, using default i8254 clock of %u Hz\n",
+		       timer_freq);
+	return (timer_freq);
+}
+#else
 static u_int
 calibrate_clocks(void)
 {
@@ -845,7 +918,6 @@ startrtclock()
 	writertc(RTC_STATUSB, RTCSB_24HR);
 #endif
 
-#ifndef PC98
 	set_timer_freq(timer_freq, hz);
 	freq = calibrate_clocks();
 #ifdef CLK_CALIBRATION_LOOP
@@ -878,7 +950,6 @@ startrtclock()
 			       freq, timer_freq);
 		tsc_freq = 0;
 	}
-#endif
 
 	set_timer_freq(timer_freq, hz);
 	i8254_timecounter[0].tc_frequency = timer_freq;
