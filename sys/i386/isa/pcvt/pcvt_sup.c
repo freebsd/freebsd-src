@@ -44,7 +44,7 @@
  *	pcvt_sup.c	VT220 Driver Support Routines
  *	---------------------------------------------
  *
- *	Last Edit-Date: [Sun Mar 26 10:38:45 2000]
+ *	Last Edit-Date: [Mon Mar 27 16:11:33 2000]
  *
  * $FreeBSD$
  *
@@ -255,9 +255,6 @@ vgapcvtid(struct pcvtid *data)
 static void
 vgapcvtinfo(struct pcvtinfo *data)
 {
-	data->opsys	= CONF_FREEBSD;
-	data->opsysrel	= __FreeBSD__;
-
 	data->nscreens	= PCVT_NSCREENS;
 	data->scanset	= PCVT_SCANSET;
 	data->updatefast= PCVT_UPDATEFAST;
