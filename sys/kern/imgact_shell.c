@@ -76,7 +76,7 @@ exec_shell_imgact(imgp)
 	/*
 	 * Find end of line; return if the line > MAXSHELLCMDLEN long.
 	 */
-	for (ihp = &image_header[2]; *ihp != '\n'; ++ihp) {
+	for (ihp = &image_header[2]; *ihp != '\n' && *ihp != '#'; ++ihp) {
 		if (ihp >= &image_header[MAXSHELLCMDLEN])
 			return(ENOEXEC);
 	}
