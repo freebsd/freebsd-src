@@ -631,5 +631,6 @@
 441	MNOSTD	{ int ksem_timedwait(semid_t id, struct timespec *abstime); }
 442	MSTD	{ int thr_suspend(const struct timespec *timeout); }
 443	MSTD	{ int thr_wake(long id); }
+444	MSTD	{ int kldunloadf(int fileid, int flags); }
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master
