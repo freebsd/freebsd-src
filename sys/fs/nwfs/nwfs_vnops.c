@@ -788,11 +788,11 @@ static int nwfs_pathconf (ap)
 	struct vop_pathconf_args  /* {
 	struct vnode *vp;
 	int name;
-	int *retval;
+	register_t *retval;
 	} */ *ap;
 {
 	int name=ap->a_name, error=0;
-	int *retval=ap->a_retval;
+	register_t *retval=ap->a_retval;
 	
 	switch(name){
 		case _PC_LINK_MAX:
