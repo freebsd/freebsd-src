@@ -217,67 +217,70 @@ ether_MessageIn(struct etherdevice *dev)
     log_Printf(LogERROR, "DoLoop: Cannot create fd_set\n");
     return;
   }
-  zerofdset(r);
-  FD_SET(dev->cs, r);
-  t.tv_sec = t.tv_usec = 0;
-  ret = select(dev->cs + 1, r, NULL, NULL, &t);
+
+  while (1) {
+    zerofdset(r);
+    FD_SET(dev->cs, r);
+    t.tv_sec = t.tv_usec = 0;
+    ret = select(dev->cs + 1, r, NULL, NULL, &t);
+
+    if (ret <= 0)
+      break;
+
+    if (NgRecvMsg(dev->cs, rep, sizeof msgbuf, NULL) <= 0)
+      break;
+
+    if (rep->header.version != NG_VERSION) {
+      log_Printf(LogWARN, "%ld: Unexpected netgraph version, expected %ld\n",
+                 (long)rep->header.version, (long)NG_VERSION);
+      break;
+    }
+
+    if (rep->header.typecookie != NGM_PPPOE_COOKIE) {
+      log_Printf(LogWARN, "%ld: Unexpected netgraph cookie, expected %ld\n",
+                 (long)rep->header.typecookie, (long)NGM_PPPOE_COOKIE);
+      break;
+    }
+
+    asciilen = 0;
+    switch (rep->header.cmd) {
+      case NGM_PPPOE_SET_FLAG:	msg = "SET_FLAG";	break;
+      case NGM_PPPOE_CONNECT:	msg = "CONNECT";	break;
+      case NGM_PPPOE_LISTEN:	msg = "LISTEN";		break;
+      case NGM_PPPOE_OFFER:	msg = "OFFER";		break;
+      case NGM_PPPOE_SUCCESS:	msg = "SUCCESS";	break;
+      case NGM_PPPOE_FAIL:	msg = "FAIL";		break;
+      case NGM_PPPOE_CLOSE:	msg = "CLOSE";		break;
+      case NGM_PPPOE_GET_STATUS:	msg = "GET_STATUS";	break;
+      case NGM_PPPOE_ACNAME:
+        msg = "ACNAME";
+        if (setenv("ACNAME", sts->hook, 1) != 0)
+          log_Printf(LogWARN, "setenv: cannot set ACNAME=%s: %m", sts->hook);
+        asciilen = rep->header.arglen;
+        break;
+      default:
+        snprintf(unknown, sizeof unknown, "<%d>", (int)rep->header.cmd);
+        msg = unknown;
+        break;
+    }
+
+    if (asciilen)
+      log_Printf(LogPHASE, "Received NGM_PPPOE_%s (hook \"%.*s\")\n",
+                 msg, asciilen, sts->hook);
+    else
+      log_Printf(LogPHASE, "Received NGM_PPPOE_%s\n", msg);
+
+    switch (rep->header.cmd) {
+      case NGM_PPPOE_SUCCESS:
+        dev->connected = CARRIER_OK;
+        break;
+      case NGM_PPPOE_FAIL:
+      case NGM_PPPOE_CLOSE:
+        dev->connected = CARRIER_LOST;
+        break;
+    }
+  }
   free(r);
-
-  if (ret <= 0)
-    return;
-
-  if (NgRecvMsg(dev->cs, rep, sizeof msgbuf, NULL) <= 0)
-    return;
-
-  if (rep->header.version != NG_VERSION) {
-    log_Printf(LogWARN, "%ld: Unexpected netgraph version, expected %ld\n",
-               (long)rep->header.version, (long)NG_VERSION);
-    return;
-  }
-
-  if (rep->header.typecookie != NGM_PPPOE_COOKIE) {
-    log_Printf(LogWARN, "%ld: Unexpected netgraph cookie, expected %ld\n",
-               (long)rep->header.typecookie, (long)NGM_PPPOE_COOKIE);
-    return;
-  }
-
-  asciilen = 0;
-  switch (rep->header.cmd) {
-    case NGM_PPPOE_SET_FLAG:	msg = "SET_FLAG";	break;
-    case NGM_PPPOE_CONNECT:	msg = "CONNECT";	break;
-    case NGM_PPPOE_LISTEN:	msg = "LISTEN";		break;
-    case NGM_PPPOE_OFFER:	msg = "OFFER";		break;
-    case NGM_PPPOE_SUCCESS:	msg = "SUCCESS";	break;
-    case NGM_PPPOE_FAIL:	msg = "FAIL";		break;
-    case NGM_PPPOE_CLOSE:	msg = "CLOSE";		break;
-    case NGM_PPPOE_GET_STATUS:	msg = "GET_STATUS";	break;
-    case NGM_PPPOE_ACNAME:
-      msg = "ACNAME";
-      if (setenv("ACNAME", sts->hook, 1) != 0)
-        log_Printf(LogWARN, "setenv: cannot set ACNAME=%s: %m", sts->hook);
-      asciilen = rep->header.arglen;
-      break;
-    default:
-      snprintf(unknown, sizeof unknown, "<%d>", (int)rep->header.cmd);
-      msg = unknown;
-      break;
-  }
-
-  if (asciilen)
-    log_Printf(LogPHASE, "Received NGM_PPPOE_%s (hook \"%.*s\")\n",
-               msg, asciilen, sts->hook);
-  else
-    log_Printf(LogPHASE, "Received NGM_PPPOE_%s\n", msg);
-
-  switch (rep->header.cmd) {
-    case NGM_PPPOE_SUCCESS:
-      dev->connected = CARRIER_OK;
-      break;
-    case NGM_PPPOE_FAIL:
-    case NGM_PPPOE_CLOSE:
-      dev->connected = CARRIER_LOST;
-      break;
-  }
 }
 
 static int
