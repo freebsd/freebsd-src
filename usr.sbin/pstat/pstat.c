@@ -125,10 +125,10 @@ struct nlist nl[] = {
 #endif
 
 #ifdef __FreeBSD__
-#define PCCONS	(SNPTY+1)
-	{ "_pccons" },
-#define NPCCONS	(SNPTY+2)
-	{ "_npccons" },
+#define SCCONS	(SNPTY+1)
+	{ "_sccons" },
+#define NSCCONS	(SNPTY+2)
+	{ "_nsccons" },
 #endif
 	{ "" }
 };
@@ -762,8 +762,8 @@ ttymode()
 		ttytype(tty, "dc", SDC, SNDC);
 #endif
 #ifdef __FreeBSD__
-	if (nl[NPCCONS].n_type != 0)
-		ttytype(tty, "vty", PCCONS, NPCCONS);
+	if (nl[NSCCONS].n_type != 0)
+		ttytype(tty, "vty", SCCONS, NSCCONS);
 #endif
 	if (nl[SNPTY].n_type != 0)
 		ttytype(tty, "pty", SPTY, SNPTY);
