@@ -17,6 +17,11 @@ CFLAGS+=	-I${GCCDIR}/config -I${GCCDIR} -I. \
 CRTS_CFLAGS=	-DCRTSTUFFS_O ${PICFLAG}
 MKDEPCMD=	CC="${CC}" MKDEP_CPP_OPTS="-M -DCRT_BEGIN" mkdep
 
+.if ${TARGET_ARCH} == "powerpc"
+.PATH: ${GCCDIR}/config/${GCC_CPU}
+TGTOBJS=	crtsavres.o
+SRCS+=		crtsavres.asm
+.endif
 .if ${TARGET_ARCH} == "sparc64"
 .PATH: ${GCCDIR}/config/${GCC_CPU}
 TGTOBJS=	crtfastmath.o
