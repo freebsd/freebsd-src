@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)stat.h	8.6 (Berkeley) 3/8/94
- * $Id$
+ * $Id: stat.h,v 1.2 1994/08/02 07:53:40 davidg Exp $
  */
 
 #ifndef _SYS_STAT_H_
@@ -130,11 +130,11 @@ struct stat {
 #define	S_ISCHR(m)	((m & 0170000) == 0020000)	/* char special */
 #define	S_ISBLK(m)	((m & 0170000) == 0060000)	/* block special */
 #define	S_ISREG(m)	((m & 0170000) == 0100000)	/* regular file */
-#define	S_ISFIFO(m)	((m & 0170000) == 0100000 || \
+#define	S_ISFIFO(m)	((m & 0170000) == 0010000 || \
 			 (m & 0170000) == 0140000)	/* fifo or socket */
 #ifndef _POSIX_SOURCE
 #define	S_ISLNK(m)	((m & 0170000) == 0120000)	/* symbolic link */
-#define	S_ISSOCK(m)	((m & 0170000) == 0100000 || \
+#define	S_ISSOCK(m)	((m & 0170000) == 0010000 || \
 			 (m & 0170000) == 0140000)	/* fifo or socket */
 #endif
 
