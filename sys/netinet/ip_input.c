@@ -30,6 +30,7 @@
  * $FreeBSD$
  */
 
+#include "opt_bootp.h"
 #include "opt_ipfw.h"
 #include "opt_ipdn.h"
 #include "opt_ipdivert.h"
@@ -298,7 +299,6 @@ ip_input(struct mbuf *m)
 	struct ipq *fp;
 	struct in_ifaddr *ia = NULL;
 	struct ifaddr *ifa;
-	char   *cp;
 	int    i, checkif, hlen = 0;
 	u_short sum;
 	struct in_addr pkt_dst;
@@ -598,11 +598,10 @@ pass:
 				goto ours;
 			if (ia->ia_netbroadcast.s_addr == pkt_dst.s_addr)
 				goto ours;
-			if ((cp = getenv("bootp.compat")) != NULL) {
-				freeenv(cp);
-				if (IA_SIN(ia)->sin_addr.s_addr == INADDR_ANY)
-					goto ours;
-			}
+#ifdef BOOTP_COMPAT
+			if (IA_SIN(ia)->sin_addr.s_addr == INADDR_ANY)
+				goto ours;
+#endif
 		}
 	}
 	if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr))) {
