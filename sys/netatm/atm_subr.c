@@ -127,13 +127,13 @@ atm_initialize()
 	    sizeof(Atm_attributes), (uma_ctor)&atm_uma_ctor, NULL, NULL, NULL,
 	    UMA_ALIGN_PTR, 0);
 	if (atm_attributes_zone == NULL)
-		panic("atm_initialize: unable to allocate attributes pool");
+		panic("atm_initialize: unable to create attributes zone");
 	uma_zone_set_max(atm_attributes_zone, 100);
 
 	atm_stackq_zone = uma_zcreate("atm stackq", sizeof(struct stackq_entry),
 	    (uma_ctor)&atm_uma_ctor, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	if (atm_stackq_zone == NULL)
-		panic("atm_initialize: unable to allocate stackq pool");
+		panic("atm_initialize: unable to create stackq zone");
 	uma_zone_set_max(atm_stackq_zone, 10);
 
 	register_netisr(NETISR_ATM, atm_intr);
