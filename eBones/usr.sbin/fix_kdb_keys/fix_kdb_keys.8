@@ -1,0 +1,59 @@
+.\" $Id$
+.\" Copyright 1989 by the Massachusetts Institute of Technology.
+.\"
+.\" For copying and distribution information,
+.\" please see the file <Copyright.MIT>.
+.\"
+.TH FIX_KDB_KEYS 8 "Kerberos Version 4.0" "MIT Project Athena"
+.SH NAME
+fix_kdb_keys \- Secure Kerberos database by properly randomising keys
+.SH SYNOPSIS
+fix_kdb_keys
+.SH DESCRIPTION
+If you built your Kerberos database before receiving this distribution,
+the keys were randomly generated using the vulnerable version of
+the Kerberos random number generator. Therefore it is possible for
+an attacker to mount an attack to guess these values. If an attacker
+can determine the key for the 
+.I krbtgt
+ticket, they can construct tickets claiming to be any Kerberos
+principal. Similarly if an attacker can obtain the
+.I changepw.kerberos
+key, they can change anyone's password.
+.PP
+This distribution has been patched to use the improved
+.IR des_new_random_key()
+routines instead of the old and cryptographically suspect
+.IR des_random_key().
+.PP
+The primary difference is that
+.IR des_random_key()
+uses a seeding
+technique which is predictable and therefore vulnerable. While
+.IR des_new_random_key()
+uses a feedback mechanism based on the Data Encryption Standard
+(DES) and is seeded with a secret (and therefore unknown to an
+attacker) value. This value is the secret database master key.
+.PP
+Running
+.I fix_kdb_keys
+on the KDC server will change these critical keys to new
+values using the newer random number generator. IMPORTANT: When this
+is done, all outstanding ticket granting tickets will
+immediately become invalid. This will be disruptive to your user
+community. It is recommended that this is done late at night or early
+in the morning before most users have logged in. Alternatively
+pre-announce a definitive time when you will run the program and
+inform the users that they will have to get new tickets at that time
+(using either
+.I kinit
+or simply by logging out and then in again).
+.SH DIAGNOSTICS
+Many, and descriptive.
+.SH FILES
+.TP 20n
+/etc/kerberosIV/principal.db
+DBM file containing database
+.TP
+/etc/kerberosIV/master_key
+Master key cache file.
