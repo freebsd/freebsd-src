@@ -660,11 +660,7 @@ i386_ioconf()
 			fprintf(fp, "\n");
 			old = dp;
 		}
-#ifdef STATCLOCK
 		dev_id = 2;
-#else
-		dev_id = 1;
-#endif
 		isa_devtab(fp, "bio", &dev_id);
 		if(seen_wdc)
 			isa_biotab(fp, "wdc");
@@ -1119,4 +1115,3 @@ comp_config(fp)
 	}
 	fprintf(fp, "\t-1,\t0,\t0,\t0,\t{ 0 },\n};\n");
 }
-

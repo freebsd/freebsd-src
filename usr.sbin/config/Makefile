@@ -1,7 +1,7 @@
 # 	@(#)Makefile	8.1 (Berkeley) 6/6/93
 
 PROG=	config
-CFLAGS+=-I. -I${.CURDIR} -DSTATCLOCK
+CFLAGS+=-I. -I${.CURDIR}
 .if defined(CONFIG_DONT_CLOBBER)
 CFLAGS+= -DCONFIG_DONT_CLOBBER
 .endif
