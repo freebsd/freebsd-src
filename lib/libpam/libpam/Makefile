@@ -32,14 +32,14 @@ MODOBJDIR=	../modules
 LIB=		pam
 CFLAGS+=	-I${PAMDIR}/libpam/include -I.
 CFLAGS+=	-DDEFAULT_MODULE_PATH=\"${SHLIBDIR}/\"
-NOPROFILE=	true
+NOPROFILE=	yes
 CLEANFILES+=	security
 
 # Files from ${PAMDIR}/libpam:
 SRCS=		pam_account.c pam_auth.c pam_data.c pam_delay.c \
 		pam_dispatch.c pam_end.c pam_env.c pam_handlers.c \
 		pam_item.c pam_log.c pam_misc.c pam_password.c \
-		pam_second.c pam_session.c pam_start.c pam_static.c \
+		pam_second.c pam_session.c pam_start.c \
 		pam_strerror.c
 HDRS1=		_pam_compat.h _pam_macros.h _pam_types.h \
 		pam_appl.h pam_malloc.h pam_modules.h
@@ -70,12 +70,18 @@ STATIC_MODULES+= ${MODOBJDIR}/pam_tacplus/libpam_tacplus.a
 STATIC_MODULES+= ${MODOBJDIR}/pam_unix/libpam_unix.a
 
 STATICOBJS+=	pam_static_modules.o
+CLEANFILES+=	pam_static.o
+
+_EXTRADEPEND:	pam_static.c
+	${MKDEPCMD} -f ${DEPENDFILE} -a ${MKDEP} \
+	    ${CFLAGS:M-nostdinc*} ${CFLAGS:M-[BID]*} \
+	    ${.ALLSRC}
 
 .if ${OBJFORMAT} == elf
 CLEANFILES+=	setdef0.o _pam_static_modules.o setdef1.o \
 		setdef0.c setdef1.c setdefs.h
 
-pam_static_modules.o:	setdef0.o _pam_static_modules.o setdef1.o
+pam_static_modules.o:	setdef0.o pam_static.o _pam_static_modules.o setdef1.o
 	${LD} -o ${.TARGET} -r ${.ALLSRC}
 
 setdef0.o:	setdef0.c setdefs.h
@@ -87,7 +93,7 @@ setdef0.c setdef1.c setdefs.h:	_pam_static_modules.o
 _pam_static_modules.o:	${STATIC_MODULES}
 	${LD} -o ${.TARGET} -r --whole-archive ${.ALLSRC}
 .else
-pam_static_modules.o:	${STATIC_MODULES}
+pam_static_modules.o:	pam_static.o ${STATIC_MODULES}
 	${LD} -o ${.TARGET} -r -Bforcearchive ${.ALLSRC}
 .endif
 
