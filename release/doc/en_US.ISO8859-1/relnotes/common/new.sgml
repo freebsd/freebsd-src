@@ -111,7 +111,8 @@
     <sect3>
       <title>Network Interface Support</title>
 
-      <para></para>
+      <para arch="i386">The &man.rp.4; driver has been updated to
+        version 3.02 and can now be built as a module.</para>
 
 <!-- Above this line, order network driver changes by manpage/variable name-->
 
@@ -171,6 +172,10 @@
     <para>&man.fold.1; now supports a <option>-b</option> flag to
       break at byte positions and a <option>-s</option> flag to break at
       word boundaries.</para>
+
+    <para>&man.nice.1; now uses the <option>-n</option> option to
+      specify the <quote>niceness</quote> of the utility being
+      run.</para>
 
     <para>&man.pwd.1; now supports the <option>-L</option> flag to
       print the logical current working directory.</para>
