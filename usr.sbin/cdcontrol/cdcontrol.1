@@ -20,14 +20,7 @@ as
 or
 .Pa mcd0 . 
 .Pp
-If the device not specified, the environment variables 
-.Ev MUSIC_CD ,
-.Ev CD_DRIVE ,
-.Ev DISC
-and
-.Ev CDPLAY
-will be used (in this order) to find the cd device.
-.Pp
+
 If no command is given, then
 .Nm
 enters an interactive mode, reading commands from the standard input.
@@ -157,6 +150,9 @@ The following environment variables affect the execution of
 The cd device to use if one isn't specified with the
 .Fl f
 flag.
+.It Ev CD_DRIVE Ev CDPLAY Ev DISC Ev MUSIC_CD
+These variables have been deprecated in favour of
+.Ev CDROM .
 .El
 .Sh FILES
 .Bl -tag -width /dev/mcd0c -compact
