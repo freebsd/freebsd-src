@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: green_saver.c,v 1.4 1995/11/13 07:18:58 bde Exp $
+ *	$Id: green_saver.c,v 1.5 1995/11/14 07:34:50 bde Exp $
  */
 
 #include <sys/param.h>
@@ -68,7 +68,6 @@ green_saver_load(struct lkm_table *lkmtp, int cmd)
 	(*current_saver)(0);
 	old_saver = current_saver;
 	current_saver = green_saver;
-	uprintf("green screen saver installed\n");
 	return 0;
 }
 
@@ -77,7 +76,6 @@ green_saver_unload(struct lkm_table *lkmtp, int cmd)
 {
 	(*current_saver)(0);
 	current_saver = old_saver;
-	uprintf("green screen saver removed\n");
 	return 0;
 }
 

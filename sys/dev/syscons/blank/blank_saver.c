@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: blank_saver.c,v 1.4 1995/11/13 07:18:43 bde Exp $
+ *	$Id: blank_saver.c,v 1.5 1995/11/14 07:34:34 bde Exp $
  */
 
 #include <sys/param.h>
@@ -64,7 +64,6 @@ blank_saver_load(struct lkm_table *lkmtp, int cmd)
 	(*current_saver)(0);
 	old_saver = current_saver;
 	current_saver = blank_saver;
-	uprintf("blank screen saver installed\n");
 	return 0;
 }
 
@@ -73,7 +72,6 @@ blank_saver_unload(struct lkm_table *lkmtp, int cmd)
 {
 	(*current_saver)(0);
 	current_saver = old_saver;
-	uprintf("blank screen saver removed\n");
 	return 0;
 }
 

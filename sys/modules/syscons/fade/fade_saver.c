@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: fade_saver.c,v 1.4 1995/11/13 07:18:48 bde Exp $
+ *	$Id: fade_saver.c,v 1.5 1995/11/14 07:34:42 bde Exp $
  */
 
 #include <sys/param.h>
@@ -79,7 +79,6 @@ fade_saver_load(struct lkm_table *lkmtp, int cmd)
 	(*current_saver)(0);
 	old_saver = current_saver;
 	current_saver = fade_saver;
-	uprintf("fade screen saver installed\n");
 	return 0;
 }
 
@@ -88,7 +87,6 @@ fade_saver_unload(struct lkm_table *lkmtp, int cmd)
 {
 	(*current_saver)(0);
 	current_saver = old_saver;
-	uprintf("fade screen saver removed\n");
 	return 0;
 }
 
