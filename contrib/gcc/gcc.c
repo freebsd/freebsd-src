@@ -2327,6 +2327,14 @@ struct infile
   char *language;
 };
 
+#if defined(FREEBSD_NATIVE) 
+#if defined(FREEBSD_AOUT)		/* XXX: revisit this */
+static int objformat_aout = 1;		/* set default format in absense of */
+#else					/* any other hints. */
+static int objformat_aout = 0;
+#endif
+#endif
+
 /* Also a vector of input files specified.  */
 
 static struct infile *infiles;
@@ -2472,6 +2480,39 @@ process_command (argc, argv)
 	}
     }
 
+#if defined(FREEBSD_NATIVE)
+  {
+    /* first hint is /etc/objectformat */
+    FILE *fp = fopen("/etc/objectformat", "r");
+    if (fp) {
+      char buf[1024];
+      buf[1023] = '\0';
+      while (fgets(buf, sizeof(buf) - 1, fp) != NULL) {
+	i = strlen(buf);
+	if (buf[i - 1] == '\n')
+	  buf[i - 1] = '\0';
+	if (strcmp(buf, "OBJFORMAT=aout") == 0)
+	  objformat_aout = 1;
+	else if (strcmp(buf, "OBJFORMAT=elf") == 0)
+	  objformat_aout = 0;
+	else
+	  fprintf(stderr, "Unrecognized line in /etc/objectformat: %s\n", buf);
+      }
+      fclose(fp);
+    }
+    /* but the user $OBJFORMAT overrides system default */
+    temp = getenv("OBJFORMAT");
+    if (temp) {
+      if (strcmp(temp, "aout") == 0)
+	objformat_aout = 1;
+      else if (strcmp(temp, "elf") == 0)
+	objformat_aout = 0;
+      else
+	fprintf(stderr, "Unrecognized value of $OBJFORMAT: %s\n", temp);
+    }
+  }
+#endif
+  
   /* Convert new-style -- options to old-style.  */
   translate_options (&argc, &argv);
 
@@ -2481,6 +2522,19 @@ process_command (argc, argv)
 
   for (i = 1; i < argc; i++)
     {
+#if defined(FREEBSD_NATIVE)
+      /* .. and command line args override all */
+      if (strcmp (argv[i], "-aout") == 0)
+	{
+	  objformat_aout = 1;
+	  continue;
+	}
+      else if (strcmp (argv[i], "-elf") == 0)
+	{
+	  objformat_aout = 0;
+	  continue;
+	}
+#endif
       if (! strcmp (argv[i], "-dumpspecs"))
 	{
 	  printf ("*asm:\n%s\n\n", asm_spec);
@@ -2707,6 +2761,11 @@ process_command (argc, argv)
   /* Use 2 as fourth arg meaning try just the machine as a suffix,
      as well as trying the machine and the version.  */
 #ifdef FREEBSD_NATIVE
+  if (objformat_aout) {
+    n_switches++;		/* add implied -maout */
+    add_prefix (&exec_prefixes, "/usr/libexec/aout/", 0, 0, NULL_PTR);
+  } else
+    add_prefix (&exec_prefixes, "/usr/libexec/elf/", 0, 0, NULL_PTR);
   add_prefix (&exec_prefixes, "/usr/libexec/", 0, 0, NULL_PTR);
   add_prefix (&exec_prefixes, "/usr/bin/", 0, 0, NULL_PTR);
   add_prefix (&startfile_prefixes, "/usr/libdata/gcc/", 0, 0, NULL_PTR);
@@ -2779,6 +2838,19 @@ process_command (argc, argv)
      to the copy in the vector of switches.
      Store all the infiles in their vector.  */
 
+#ifdef FREEBSD_NATIVE
+  if (objformat_aout == 1) {
+    switches[n_switches].part1 = "maout";
+    switches[n_switches].args = 0;
+    switches[n_switches].live_cond = 0;
+    switches[n_switches].valid = 0;
+    n_switches++;
+    putenv("OBJFORMAT=aout");
+  } else {
+    putenv("OBJFORMAT=elf");
+  }
+#endif
+
   for (i = 1; i < argc; i++)
     {
       /* Just skip the switches that were handled by the preceding loop.  */
@@ -2798,6 +2870,12 @@ process_command (argc, argv)
 	;
       else if (! strcmp (argv[i], "-print-multi-directory"))
 	;
+#ifdef FREEBSD_NATIVE
+      else if (! strcmp (argv[i], "-aout"))
+	;
+      else if (! strcmp (argv[i], "-elf"))
+	;
+#endif
       else if (argv[i][0] == '+' && argv[i][1] == 'e')
 	{
 	  /* Compensate for the +e options to the C++ front-end;
