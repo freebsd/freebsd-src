@@ -31,6 +31,7 @@
 .Nd "kernel debugger"
 .Sh SYNOPSIS
 .Nm
+.Op Fl a
 .Op Fl v
 .Op Fl d Ar crashdir
 .Op Fl c Ar core | Fl n Ar dumpnr | Fl r Ar device
@@ -44,6 +45,15 @@ that allows debugging of kernel core files.
 .Pp
 The options are as follows:
 .Bl -tag -width ".Fl d Ar crashdir"
+.It Fl a
+Increase the annotation level.
+An annotation level of 1 features the historical
+.Fl fullname
+option of
+.Xr gdb 1 .
+This is useful when running
+.Nm
+in Emacs.
 .It Fl v
 Increase verbosity.
 .It Fl d Ar crashdir

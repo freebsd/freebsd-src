@@ -82,7 +82,7 @@ usage(void)
 {
 
 	fprintf(stderr,
-	    "usage: %s [-v] [-d crashdir] [-c core | -n dumpnr | -r device]\n"
+	    "usage: %s [-a] [-v] [-d crashdir] [-c core | -n dumpnr | -r device]\n"
 	    "\t[kernel [core]]\n", getprogname());
 	exit(1);
 }
@@ -252,8 +252,11 @@ main(int argc, char *argv[])
 	if (s != NULL)
 		strlcpy(crashdir, s, sizeof(crashdir));
 
-	while ((ch = getopt(argc, argv, "c:d:n:r:v")) != -1) {
+	while ((ch = getopt(argc, argv, "ac:d:n:r:v")) != -1) {
 		switch (ch) {
+		case 'a':
+			annotation_level++;
+			break;
 		case 'c':	/* use given core file. */
 			if (vmcore != NULL) {
 				warnx("option %c: can only be specified once",
