@@ -19,7 +19,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 15, 1996
+.Dd September 18, 2002
 .Dt LIMITS 1
 .Os
 .Sh NAME
@@ -27,29 +27,19 @@
 .Nd set or display process resource limits
 .Sh SYNOPSIS
 .Nm
-.Op Fl C Ar class
+.Op Fl C Ar class | Fl U Ar user
 .Op Fl SHB
 .Op Fl ea
-.Op Fl bcdflmnstuv Op val
+.Op Fl bcdflmnstuv Op Ar val
 .Nm
-.Op Fl C Ar class
+.Op Fl C Ar class | Fl U Ar user
 .Op Fl SHB
-.Op Fl bcdflmnstuv Op val
+.Op Fl bcdflmnstuv Op Ar val
 .Op Fl E
+.Oo
 .Op Ar name Ns = Ns Ar value ...
-.Op Ar command
-.Nm
-.Op Fl U Ar user
-.Op Fl SHB
-.Op Fl ea
-.Op Fl bcdflmnstuv Op val
-.Nm
-.Op Fl U Ar user
-.Op Fl SHB
-.Op Fl bcdflmnstuv Op val
-.Op Fl E
-.Op Ar name Ns = Ns Ar value ...
-.Op Ar command
+.Ar command
+.Oc
 .Sh DESCRIPTION
 The
 .Nm
@@ -59,24 +49,21 @@ environment variables like
 and run a program with the selected resources.
 Three uses of the
 .Nm
-command are possible:
-.Pp
+utility are possible:
 .Bl -tag -width indent
 .It Xo
 .Nm
 .Op Ar limitflags
-.Op Ar name Ns = Ns Ar value
+.Op Ar name Ns = Ns Ar value ...
 .Ar command
 .Xc
 This usage sets limits according to
 .Ar limitflags ,
 optionally sets environment variables given as
 .Ar name Ns = Ns Ar value
-pairs, and then runs the specified command.
-.It Xo
-.Nm
-.Op Ar limitflags
-.Xc
+pairs, and then runs the specified
+.Ar command .
+.It Nm Op Ar limitflags
 This usage determines values of resource settings according to
 .Ar limitflags ,
 does not attempt to set them and outputs these values to
@@ -87,31 +74,35 @@ Using the
 .Fl C Ar class
 or
 .Fl U Ar user
-flags, you may also display the current resource settings modified
+options, you may also display the current resource settings modified
 by the appropriate login class resource limit entries from
 the
 .Xr login.conf 5
 login capabilities database.
-.It Xo
-.Nm
-.Fl e Op Ar limitflags
-.Xc
+.It Nm Fl e Op Ar limitflags
 This usage determines values of resource settings according to
 .Ar limitflags ,
 but does not set them itself.
-Like the previous usage it outputs these values to standard
+Like the previous usage, it outputs these values to standard
 output, except that it will emit them in
-.Em eval
+.Ic eval
 format, suitable for the calling shell.
 The calling shell is determined by examining the entries in the
 .Pa /proc
 filesystem for the parent process.
-If the shell is known (i.e. it is one of sh, csh, bash, tcsh, ksh,
-pdksh or rc),
+If the shell is known (i.e. it is one of
+.Nm sh , csh , bash , tcsh , ksh , pdksh
+or
+.Nm rc ) ,
 .Nm
-emits 'limit' or 'ulimit' commands in the format understood by
+emits
+.Ic limit
+or
+.Ic ulimit
+commands in the format understood by
 that shell.
-If the name of the shell cannot be determined, then the 'ulimit'
+If the name of the shell cannot be determined, then the
+.Ic ulimit
 format used by
 .Xr sh 1
 is used.
@@ -126,7 +117,7 @@ Within a shell script,
 .Nm
 will normally be used with eval within backticks as follows:
 .Pp
-.Dl eval `limits -e -C daemon`
+.Dl "eval `limits -e -C daemon`"
 .Pp
 which causes the output of
 .Nm
@@ -136,102 +127,133 @@ to be evaluated and set by the current shell.
 The value of
 .Ar limitflags
 specified in the above contains one or more of the following options:
-.Pp
-.Bl -tag -width "-d [limit]"
+.Bl -tag -width ".Fl C Ar class"
 .It Fl C Ar class
 Use current resource values, modified by the resource entries applicable
-for the login class "class".
+for the login class
+.Ar class .
 .It Fl U Ar user
 Use current resource values, modified by the resource entries applicable
-to the login class which "user" belongs to.
-If the user does not belong to a class, then the resource capabilities
-for the "default" class are used, if it exists, or the "root" class if
-the user is a superuser account.
+to the login class the
+.Ar user
+belongs to.
+If user does not belong to any class, then the resource capabilities
+for the
+.Dq Li default
+class are used, if it exists, or the
+.Dq Li root
+class if the user is a superuser account.
 .It Fl S
-Select display or setting of "soft" (or current) resource limits.
+Select display or setting of
+.Dq soft
+(or current) resource limits.
 If specific limits settings follow this switch, only soft limits are
 affected unless overridden later with either the
 .Fl H
 or
 .Fl B
-flags.
+options.
 .It Fl H
-Select display or setting of "hard" (or maximum) resource limits.
+Select display or setting of
+.Dq hard
+(or maximum) resource limits.
 If specific limits settings follow this switch, only hard limits are
 affected until overridden later with either the
 .Fl S
 or
 .Fl B
-flags.
+options.
 .It Fl B
-Select display or setting of both "soft" (current) or "hard" (maximum)
+Select display or setting of both
+.Dq soft
+(current) or
+.Dq hard
+(maximum)
 resource limits.
 If specific limits settings follow this switch, both soft and hard
 limits are affected until overridden later with either the
 .Fl S
 or
 .Fl H
-flags.
+options.
 .Fl e
-Select "eval mode" formatting for output.
+Select
+.Dq "eval mode"
+formatting for output.
 This is valid only on display mode and cannot be used when running a
 command.
 The exact syntax used for output depends upon the type of shell from
 which
 .Nm
 is invoked.
-.It Fl b Op Ar limit
-Selects or sets the
-.Em sbsize
+.It Fl b Op Ar val
+Select or set the
+.Va sbsize
 resource limit.
-.It Fl c Op Ar limit
-Select or set (if 'limit' is specified) the
-.Em coredumpsize
+.It Fl c Op Ar val
+Select or set (if
+.Ar val
+is specified) the
+.Va coredumpsize
 resource limit.
 A value of 0 disables core dumps.
-.It Fl d Op Ar limit
-Select or set (if 'limit' is specified) the
-.Em datasize
+.It Fl d Op Ar val
+Select or set (if
+.Ar val
+is specified) the
+.Va datasize
 resource limit.
-.It Fl f Op Ar limit
+.It Fl f Op Ar val
 Select or set the
-.Em filesize
+.Va filesize
 resource limit.
-.It Fl l Op Ar limit
+.It Fl l Op Ar val
 Select or set the
-.Em memorylocked
+.Va memorylocked
 resource limit.
-.It Fl m Op Ar limit
+.It Fl m Op Ar val
 Select or set the
-.Em memoryuse
+.Va memoryuse
 size limit.
-.It Fl n Op Ar limit
+.It Fl n Op Ar val
 Select or set the
-.Em openfiles
-resource limit.  The system-wide limit on the maximum number of
-open files per process can be viewed using the 'sysctl kern.maxfilesperproc'
-command.  The total number of simultaneously open files in the entire
-system is limited to the value displayed by the 'sysctl kern.maxfiles'
-command.
-.It Fl s Op Ar limit
-Select or set the
-.Em stacksize
+.Va openfiles
 resource limit.
-.It Fl t Op Ar limit
+The system-wide limit on the maximum number of
+open files per process can be viewed by examining the
+.Va kern.maxfilesperproc
+.Xr sysctl 8
+variable.
+The total number of simultaneously open files in the entire
+system is limited to the value displayed by the
+.Va kern.maxfiles
+.Xr sysctl 8
+variable.
+.It Fl s Op Ar val
 Select or set the
-.Em cputime
+.Va stacksize
 resource limit.
-.It Fl u Op Ar limit
+.It Fl t Op Ar val
 Select or set the
-.Em maxproc
-resource limit.  The system-wide limit on the maximum number of processes
-allowed per UID can be viewed using the 'sysctl kern.maxprocperuid' command.
+.Va cputime
+resource limit.
+.It Fl u Op Ar val
+Select or set the
+.Va maxproc
+resource limit.
+The system-wide limit on the maximum number of processes
+allowed per UID can be viewed by examining the
+.Va kern.maxprocperuid
+.Xr sysctl 8
+variable.
 The maximum number of processes that can be running simultaneously
-in the entire system is limited to the value given by
-the 'sysctl kern.maxproc' command.
-.It Fl v Op Ar limit
+in the entire system is limited to the value of the
+.Va kern.maxproc
+.Xr sysctl 8
+variable.
+.It Fl v Op Ar val
 Select or set the
-.Em virtualmem
+.Va virtualmem
 resource limit.
 This limit encompasses the entire VM space for the user process
 and is inclusive of text, data, bss, stack,
@@ -243,71 +265,76 @@ space.
 .El
 .Pp
 Valid values for
-.Ar limit
-in the above set of flags consist of either the
+.Ar val
+in the above set of options consist of either the
 string
-.Em infinity ,
-.Em inf ,
-.Em unlimited
+.Dq Li infinity ,
+.Dq Li inf ,
+.Dq Li unlimited
 or
-.Em unlimit
+.Dq Li unlimit
 for an infinite (or kernel-defined maximum)
-limit, or a numeric value maybe followed by a suffix.
+limit, or a numeric value optionally followed by a suffix.
 Values which relate to size default to a value in bytes, or one of the
 following suffixes may be used as a multiplier:
 .Pp
-.Bl -tag -offset indent -width "xxxx" -compact
-.It b
+.Bl -tag -offset indent -width 4n -compact
+.It Li b
 512 byte blocks.
-.It k
+.It Li k
 kilobytes (1024 bytes).
-.It m
+.It Li m
 megabytes (1024*1024 bytes).
-.It g
+.It Li g
 gigabytes.
-.It t
+.It Li t
 terabytes.
 .El
 .Pp
 The
-.Em cputime
+.Va cputime
 resource defaults to a number of seconds, but a multiplier may be
 used, and as with size values, multiple values separated by a valid
 suffix are added together:
-.Bl -tag -offset indent -width "xxxx" -compact
-.It s
+.Pp
+.Bl -tag -offset indent -width 4n -compact
+.It Li s
 seconds.
-.It m
+.It Li m
 minutes.
-.It h
+.It Li h
 hours.
-.It d
+.It Li d
 days.
-.It w
+.It Li w
 weeks.
-.It y
+.It Li y
 365 day years.
 .El
-.Bl -tag -width indent
+.Bl -tag -width ".Fl C Ar class"
 .It Fl E
-The option
-.Sq Fl E
-causes
+Cause
 .Nm
 to completely ignore the environment it inherits.
 .It Fl a
-This option forces all resource settings to be displayed even if
+Force all resource settings to be displayed even if
 other specific resource settings have been specified.
 For example, if you wish to disable core dumps when starting up
-the usenet news system, but wish to set all other resource settings
-as well that apply to the 'news' account, you might use:
+the Usenet News system, but wish to set all other resource settings
+as well that apply to the
+.Dq Li news
+account, you might use:
 .Pp
-.Dl eval `limits -U news -aBec 0`
+.Dl "eval `limits -U news -aBec 0`"
 .Pp
 As with the
 .Xr setrlimit 2
-call, only the superuser may raise process "hard" resource limits.
-Non-root users may, however, lower them or change "soft" resource limits
+call, only the superuser may raise process
+.Dq hard
+resource limits.
+Non-root users may, however, lower them or change
+.Dq soft
+resource limits
 within to any value below the hard limit.
 When invoked to execute a program, the failure of
 .Nm
@@ -317,13 +344,16 @@ to raise a hard limit is considered a fatal error.
 The
 .Nm
 utility
-exits with EXIT_FAILURE if usage is incorrect in any way; i.e. an invalid
+exits with
+.Dv EXIT_FAILURE
+if usage is incorrect in any way; i.e. an invalid
 option, or set/display options are selected in the same invocation,
 .Fl e
 is used when running a program, etc.
 When run in display or eval mode,
 .Nm
-exits with a status of EXIT_SUCCESS.
+exits with a status of
+.Dv EXIT_SUCCESS .
 When run in command mode and execution of the command succeeds, the exit status
 will be whatever the executed program returns.
 .Sh SEE ALSO
@@ -339,7 +369,9 @@ will be whatever the executed program returns.
 .Sh BUGS
 The
 .Nm
-utility does not handle commands with equal (``='') signs in their
+utility does not handle commands with equal
+.Pq Ql =
+signs in their
 names, for obvious reasons.
 .Pp
 When eval output is selected, the
