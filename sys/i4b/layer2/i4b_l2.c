@@ -311,7 +311,8 @@ i4b_mph_status_ind(int unit, int status, int parm)
 /*---------------------------------------------------------------------------*
  *	MDL_COMMAND_REQ from layer 3
  *---------------------------------------------------------------------------*/
-int i4b_mdl_command_req(int unit, int command, void * parm)
+static int
+i4b_mdl_command_req(int unit, int command, void * parm)
 {
 	NDBGL2(L2_PRIM, "unit %d, command=%d, parm=%d", unit, command, (unsigned int)parm);
 

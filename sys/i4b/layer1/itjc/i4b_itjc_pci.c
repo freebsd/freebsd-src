@@ -601,7 +601,7 @@ itjc_dma_start(struct l1_softc *sc)
 /*---------------------------------------------------------------------------*
  *	itjc_dma_stop - Stop the Tiger DMA engine.
  *---------------------------------------------------------------------------*/
-void
+static void
 itjc_dma_stop(struct l1_softc *sc)
 {
 	dma_context_t		*ctx	= &dma_context[sc->sc_unit];
@@ -1499,7 +1499,7 @@ static int itjc_probe(device_t dev)
 /*---------------------------------------------------------------------------*
  *	itjc_attach - attach a (previously probed) card.
  *---------------------------------------------------------------------------*/
-int
+static int
 itjc_attach(device_t dev)
 {
 	bus_space_handle_t	h;
