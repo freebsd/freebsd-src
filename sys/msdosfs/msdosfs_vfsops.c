@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vfsops.c,v 1.30 1998/03/08 09:57:48 julian Exp $ */
+/*	$Id: msdosfs_vfsops.c,v 1.31 1998/03/20 02:33:40 kato Exp $ */
 /*	$NetBSD: msdosfs_vfsops.c,v 1.51 1997/11/17 15:36:58 ws Exp $	*/
 
 /*-
@@ -459,6 +459,7 @@ mountmsdosfs(devvp, mp, p, argp)
 		    || bsp->bs50.bsBootSectSig1 != BOOTSIG1) {
 #endif
 			error = EINVAL;
+			printf("mountmsdosfs(): bad signature\n");
 			goto error_exit;
 		}
 #ifndef __FreeBSD__
@@ -497,6 +498,7 @@ mountmsdosfs(devvp, mp, p, argp)
 			|| !pmp->pm_SecPerTrack || pmp->pm_SecPerTrack > 63) {
 #endif
 			error = EINVAL;
+			printf("mountmsdosfs(): bad bpb\n");
 			goto error_exit;
 		}
 #ifndef __FreeBSD__
@@ -517,6 +519,7 @@ mountmsdosfs(devvp, mp, p, argp)
 		 * msdosfs_readdir)
 		 */
 		error = EINVAL;
+		printf("mountmsdosfs(): disk too big, sorry\n");
 		goto error_exit;
 	}
 
@@ -527,6 +530,7 @@ mountmsdosfs(devvp, mp, p, argp)
 		    || pmp->pm_FATsecs
 		    || getushort(b710->bpbFSVers)) {
 			error = EINVAL;
+			printf("mountmsdosfs(): bad FAT32 filesystem\n");
 			goto error_exit;
 		}
 		pmp->pm_fatmask = FAT32_MASK;
