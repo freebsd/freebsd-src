@@ -53,10 +53,8 @@
 .Sh DESCRIPTION
 The
 .Fn strcpy
-and
-.Fn strncpy
-functions
-copy the string
+function
+copies the string
 .Fa src
 to
 .Fa dst
@@ -66,9 +64,11 @@ character).
 .Pp
 The
 .Fn strncpy
-copies not more than
+function copies not more than
 .Fa len
-characters into
+characters from
+.Fa src
+into
 .Fa dst ,
 appending
 .Ql \e0
