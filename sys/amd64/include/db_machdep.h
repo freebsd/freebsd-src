@@ -41,9 +41,17 @@ typedef	long		db_expr_t;	/* expression - signed */
 #define	BKPT_SIZE	(1)		/* size of breakpoint inst */
 #define	BKPT_SET(inst)	(BKPT_INST)
 
-#define BKPT_SKIP		kdb_frame->tf_rip += 1
+#define BKPT_SKIP				\
+do {						\
+	kdb_frame->tf_rip += 1;			\
+	kdb_thrctx->pcb_rip += 1;		\
+} while(0)
 
-#define	FIXUP_PC_AFTER_BREAK	kdb_frame->tf_rip -= 1;
+#define	FIXUP_PC_AFTER_BREAK			\
+do {						\
+	kdb_frame->tf_rip -= 1;			\
+	kdb_thrctx->pcb_rip -= 1;		\
+} while(0);
 
 #define	db_clear_single_step	kdb_cpu_clear_singlestep
 #define	db_set_single_step	kdb_cpu_set_singlestep
