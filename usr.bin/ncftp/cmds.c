@@ -1798,7 +1798,8 @@ to be the full name of your hostname.\n");
 				 * the domain to the machine to get a full hostname.
 				 */
 				if (domain[0]) {
-					(void) _Strncat(host, ".", size);
+					if (domain[0] != '.')
+						(void) _Strncat(host, ".", size);
 					(void) _Strncat(host, domain, size);
 				} else {
 					fprintf(stderr,
