@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)map.c	8.146 (Berkeley) 11/24/96";
+static char sccsid[] = "@(#)map.c	8.147 (Berkeley) 1/17/97";
 #endif /* not lint */
 
 #include "sendmail.h"
@@ -1610,7 +1610,8 @@ nis_getcanonname(name, hbsize, statp)
 
 #ifdef NISPLUS
 
-#undef NIS /* symbol conflict in nis.h */
+#undef NIS		/* symbol conflict in nis.h */
+#undef T_UNSPEC		/* symbol conflict in nis.h -> ... -> sys/tiuser.h */
 #include <rpcsvc/nis.h>
 #include <rpcsvc/nislib.h>
 

@@ -4,7 +4,7 @@
 
 		Eric Allman <eric@CS.Berkeley.EDU>
 
-		@(#)README	8.108 (Berkeley) 11/16/96
+		@(#)README	8.111 (Berkeley) 1/16/97
 
 
 This document describes the sendmail configuration files being used
@@ -31,8 +31,10 @@ This package requires a post-V7 version of m4; if you are running the
 4.2bsd, SysV.2, or 7th Edition version, I suggest finding a friend with
 a newer version.  You can m4-expand on their system, then run locally.
 SunOS's /usr/5bin/m4 or BSD-Net/2's m4 both work.  GNU m4 version 1.1
-also works.  Unfortunately, I'm told that the M4 on BSDI 1.0 doesn't
-work -- you'll have to use a Net/2 or GNU version.
+or later also works.  Unfortunately, I'm told that the M4 on BSDI 1.0
+doesn't work -- you'll have to use a Net/2 or GNU version.  GNU m4 is
+available from ftp://prep.ai.mit.edu/pub/gnu/m4-1.4.tar.gz (check for
+the latest version).
 
 IF YOU DON'T HAVE A BERKELEY MAKE, don't despair!  Just run
 "m4 ../m4/cf.m4 foo.mc > foo.cf" -- that should be all you need.
@@ -305,9 +307,13 @@ POP_MAILER_ARGS		[pop $u] The arguments passed to the POP mailer.
 PROCMAIL_MAILER_PATH	[/usr/local/bin/procmail] The path to the procmail
 			program.  This is also used by FEATURE(local_procmail).
 PROCMAIL_MAILER_FLAGS	[Shu] Flags added to Procmail mailer.  Flags
-			``DFMmn'' are always set.
+			``DFMmn'' are always set.  This is NOT used by
+			FEATURE(local_procmail); tweak LOCAL_MAILER_FLAGS
+			instead.
 PROCMAIL_MAILER_ARGS	[procmail -m $h $f $u] The arguments passed to
-			the Procmail mailer.
+			the Procmail mailer.  This is NOT used by
+			FEATURE(local_procmail); tweak LOCAL_MAILER_ARGS
+			instead.
 PROCMAIL_MAILER_MAX	[undefined] If set, the maximum size message that
 			will be accepted by the procmail mailer.
 MAIL11_MAILER_PATH	[/usr/etc/mail11] The path to the mail11 mailer.
@@ -694,7 +700,10 @@ local_procmail	Use procmail as the local mailer.  This mailer can
 		normally the +indicator is just tossed, but by default
 		it is passed as the -a argument to procmail.  The
 		argument to this feature is the pathname of procmail,
-		which defaults to PROCMAIL_MAILER_PATH.
+		which defaults to PROCMAIL_MAILER_PATH.  Note that this
+		does NOT use PROCMAIL_MAILER_FLAGS or PROCMAIL_MAILER_ARGS
+		for the local mailer; tweak LOCAL_MAILER_FLAGS and
+		LOCAL_MAILER_ARGS instead.
 
 bestmx_is_local	Accept mail as though locally addressed for any host that
 		lists us as the best possible MX record.  This generates
@@ -1426,7 +1435,10 @@ confCF_VERSION		$Z macro	If defined, this is appended to the
 confFROM_HEADER		From:		[$?x$x <$g>$|$g$.] The format of an 
 					internally generated From: address.
 confRECEIVED_HEADER	Received:
-      [.$?_($?s$|from $.$_) $.by $j ($v/$Z)$?r with $r$. id $i$?u for $u$.; $b]
+		[$?sfrom $s .$?_($?s$|from $.$_)
+			$.by $j ($v/$Z)$?r with $r$. id $i$?u
+			for $u$.;
+			$b]
 					The format of the Received: header
 					in messages passed through this host.
 					It is unwise to try to change this.

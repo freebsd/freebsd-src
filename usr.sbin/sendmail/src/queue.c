@@ -36,9 +36,9 @@
 
 #ifndef lint
 #if QUEUE
-static char sccsid[] = "@(#)queue.c	8.145 (Berkeley) 12/2/96 (with queueing)";
+static char sccsid[] = "@(#)queue.c	8.153 (Berkeley) 1/14/97 (with queueing)";
 #else
-static char sccsid[] = "@(#)queue.c	8.145 (Berkeley) 12/2/96 (without queueing)";
+static char sccsid[] = "@(#)queue.c	8.153 (Berkeley) 1/14/97 (without queueing)";
 #endif
 #endif /* not lint */
 
@@ -67,10 +67,6 @@ typedef struct work	WORK;
 WORK	*WorkQ;			/* queue of things to be done */
 
 #define QF_VERSION	2	/* version number of this queue format */
-
-#if !defined(NGROUPS_MAX) && defined(NGROUPS)
-# define NGROUPS_MAX	NGROUPS	/* POSIX naming convention */
-#endif
 
 extern int orderq __P((bool));
 /*
@@ -553,6 +549,7 @@ runqueue(forkflag, verbose)
 	extern ENVELOPE BlankEnvelope;
 	extern void clrdaemon __P((void));
 	extern void runqueueevent __P((bool));
+	extern void drop_privileges __P((void));
 
 	/*
 	**  If no work will ever be selected, don't even bother reading
@@ -561,7 +558,7 @@ runqueue(forkflag, verbose)
 
 	CurrentLA = getla();	/* get load average */
 
-	if (shouldqueue(0L, curtime()))
+	if (CurrentLA >= QueueLA)
 	{
 		char *msg = "Skipping queue run -- load average too high";
 
@@ -583,9 +580,9 @@ runqueue(forkflag, verbose)
 	if (forkflag)
 	{
 		pid_t pid;
-		extern void intsig();
+		extern SIGFUNC_DECL intsig __P((int));
 #ifdef SIGCHLD
-		extern void reapchild();
+		extern SIGFUNC_DECL reapchild __P((int));
 
 		blocksignal(SIGCHLD);
 		(void) setsignal(SIGCHLD, reapchild);
@@ -633,7 +630,6 @@ runqueue(forkflag, verbose)
 		(void) setsignal(SIGCHLD, SIG_DFL);
 #endif /* SIGCHLD */
 		(void) setsignal(SIGHUP, intsig);
-		Verbose = FALSE;
 	}
 
 	setproctitle("running queue: %s", QueueDir);
@@ -657,12 +653,7 @@ runqueue(forkflag, verbose)
 
 	/* drop privileges */
 	if (geteuid() == (uid_t) 0)
-	{
-		if (RunAsGid != (gid_t) 0)
-			(void) setgid(RunAsGid);
-		if (RunAsUid != (uid_t) 0)
-			(void) setuid(RunAsUid);
-	}
+		drop_privileges();
 
 	/*
 	**  Create ourselves an envelope
@@ -671,6 +662,10 @@ runqueue(forkflag, verbose)
 	CurEnv = &QueueEnvelope;
 	e = newenvelope(&QueueEnvelope, CurEnv);
 	e->e_flags = BlankEnvelope.e_flags;
+
+	/* make sure we have disconnected from parent */
+	if (forkflag)
+		disconnect(1, e);
 
 	/*
 	**  Make sure the alias database is open.
@@ -1569,12 +1564,13 @@ readqf(e)
 		{
 		  case 'V':		/* queue file version number */
 			qfver = atoi(&bp[1]);
-			if (qfver > QF_VERSION)
-			{
-				syserr("Version number in qf (%d) greater than max (%d)",
-					qfver, QF_VERSION);
-			}
-			break;
+			if (qfver <= QF_VERSION)
+				break;
+			syserr("Version number in qf (%d) greater than max (%d)",
+				qfver, QF_VERSION);
+			fclose(qfp);
+			loseqfile(e, "unsupported qf file version");
+			return FALSE;
 
 		  case 'C':		/* specify controlling user */
 			ctladdr = setctluser(&bp[1], qfver);
@@ -1645,7 +1641,7 @@ readqf(e)
 			break;
 
 		  case 'S':		/* sender */
-			setsender(newstr(&bp[1]), e, NULL, TRUE);
+			setsender(newstr(&bp[1]), e, NULL, '\0', TRUE);
 			break;
 
 		  case 'B':		/* body type */

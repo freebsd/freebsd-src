@@ -30,7 +30,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)op.me	8.100 (Berkeley) 12/1/96
+.\"	@(#)op.me	8.103 (Berkeley) 12/13/96
 .\"
 .\" eqn op.me | pic | troff -me
 .eh 'SMM:08-%''Sendmail Installation and Operation Guide'
@@ -65,10 +65,9 @@
 .sp
 .r
 Eric Allman
-InReference, Inc.
 eric@Sendmail.ORG
 .sp
-Version 8.100
+Version 8.103
 .sp
 For Sendmail Version 8.8
 .)l
@@ -161,6 +160,12 @@ Several major changes were introduced in version 8.7.
 You should not attempt to use this document
 for prior versions of
 .i sendmail .
+.bp
+.rs
+.sp |4i
+.ce 2
+This page intentionally left blank;
+replace it with a blank sheet for double-sided output.
 .bp 7
 .sh 1 "BASIC INSTALLATION"
 .pp
@@ -2476,7 +2481,7 @@ When trying to open a connection
 the cache is first searched.
 If an open connection is found, it is probed to see if it is still active
 by sending a
-.sm NOOP
+.sm RSET
 command.
 It is not an error if this fails;
 instead, the connection is closed and reopened.
@@ -8134,6 +8139,15 @@ Temporary versions of the qf files,
 used during queue file rebuild.
 .ip /var/spool/mqueue/xf*
 A transcript of the current session.
+.if e \
+\{\
+.	bp
+.	rs
+.	sp |4i
+.	ce 2
+This page intentionally left blank;
+replace it with a blank sheet for double-sided output.
+.\}
 .\".ro
 .\".ls 1
 .\".tp
@@ -8148,16 +8162,9 @@ A transcript of the current session.
 .\".sp
 .\".sz 10
 .\"Eric Allman
-.\"InReference, Inc.
 .\".sp
-.\"Version 8.100
+.\"Version 8.103
 .\".ce 0
-.bp 2
-.rs
-.sp |4i
-.ce 2
-This page intentionally left blank;
-replace it with a blank sheet for double-sided output.
 .bp 3
 .ce
 .sz 12
