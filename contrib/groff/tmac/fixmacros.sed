@@ -1,3 +1,4 @@
+# try to fix macros for AT&T troff so that they work without groff's -C switch
 s/^\([.'][	]*[^\\ 	][^ \\]\)\([^ ]\)/\1 \2/
 s/^\(\\![.'][	]*[^\\ 	][^ \\]\)\([^ ]\)/\1 \2/
 s/\([.'][ 	]*i[ef] *[^ ]* [.'][ 	]*[^\\0-9 	][^ \\]\)\([^ ]\)/\1 \2/

@@ -1,0 +1,124 @@
+inline references
+
+Some sort of macro/subroutine that can cover several references.
+
+move-punctuation should ignore multiple punctuation characters.
+
+Make the index files machine independent.
+
+Allow search keys to be negated (with !) to indicate that the
+reference should not contain the key.  Ignore negated keys during
+indexed searching.
+
+Provide an option with lkbib and lookbib that prints the location
+(filename, position) of each reference.  Need to map filename_id's
+back to filenames.
+
+Rename join-authors to join-fields.  Have a separate label-join-fields
+command used by @ and #.
+
+Have some sort of quantifier: eg $.n#A means execute `$.n' for each
+instance of an A field, setting $ to that field, and then join the
+results using the join-authors command.
+
+no-text-in-bracket command which says not to allow post_text and
+pre_text when the [] flags has been given. Useful for superscripted
+footnotes.
+
+Make it possible to translate - to \(en in page ranges.
+
+Trim eign a bit.
+
+In indexed searching discard all numeric keys except dates.
+
+Allow `\ ' to separate article from first word.
+
+%also
+
+Option automatically to supply [] flags in every reference.
+
+See if we can avoid requiring a comma before jr. and so on
+in find_last_name().
+
+Cache sortified authors in authors string during tentative evaluation of
+label specification.
+
+Possibly don't allow * and % expressions in the first part of ?:, | or
+& expressions.
+
+Handle better the case where <> occurs inside functions and in the
+first operand of ~. Or perhaps implement <> using some magic character
+in the string.
+
+Should special treatment be given to lines beginning with . in
+references?  (Unix refer seems to treat them like `%').
+
+Add global flag to control whether all files should be stat-ed after
+loading, and whether they should be stat-ed before each search.
+Perhaps make this dependent on the number of files there are.
+
+Option to truncate keys to truncate_len in linear searching.
+
+Allow multiple -f options in indxbib.
+
+In indxbib, possibly store common words rather than common words
+filename.  In this case store only words that are actually present in
+the file.
+
+Perhaps we should put out an obnoxious copyright message when lookbib
+starts up.
+
+Provide an option that writes a file containing just the references
+actually used.  Useful if you want to distribute a document.
+
+Have a magic token such that
+%A <sort stuff><magic token><print stuff>
+will print as though it were
+%A <print stuff>
+but sort as though it were
+%A <sort stuff>
+Do we need this if we can specify author alternatives for sorting?
+No, provided we have separate alternatives for @.
+
+In consider_authors when last names are ambiguous we might be able to
+use just the first name and not Jr. bit. Or we might be able to
+abbreviate the author.
+
+It ought to be possible to specify an alternative field to sort on
+instead of date. (ie if there's a field giving the type of document --
+these references should sort after any years)
+
+Provide a way to execute a command using a command-line option.
+
+Option to set the label-spec as a command-line option (-L).
+
+Command to to specify which fields can occur multiple times:
+multiple AE
+
+Command to specify how various fields sort:
+aort-as-name A
+sort-as-date D
+sort-as-title T
+sort-as-other O
+
+Command to specify which fields are author fields:
+# if we don't have A use field Q
+author-fields AQ
+
+Commands to set properties of tokens.
+sortify-token \(ae ae
+uppercase-token \[ae] \[AE]
+
+Command to set the names of months:
+months january february march april may ...
+
+Perhaps provide some sort of macro capability:
+# perhaps a macro capability
+defmacro foo
+annotation-field $1
+endef
+
+Command to control strings used in capitalization
+capitalize-start \s+2
+capitalize-end \s-2
+(perhaps make these arguments to the capitalize command.)

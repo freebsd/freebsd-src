@@ -1,5 +1,5 @@
 .ig \"-*- nroff -*-
-Copyright (C) 1989-1995 Free Software Foundation, Inc.
+Copyright (C) 1989-1995, 2001 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -87,6 +87,16 @@ for fonts whose point size is
 .I n 
 scaled points.
 .TP
+.BI prepro\  program
+Call
+.I program
+as a preprocessor.
+.TP
+.BI postpro\  program
+Use
+.I program
+as the postprocessor.
+.TP
 .B tcommand
 This means that the postprocessor can handle the
 .B t
@@ -143,6 +153,18 @@ This is achieved by another tcommand:
 .B charset
 This line and everything following in the file are ignored.
 It is allowed for the sake of backwards compatibility.
+.TP
+.BI print\  program
+Use
+.I program
+as the spooler program for printing.
+If omitted, the
+.B \-l
+and
+.B \-L
+options of
+.B groff
+are ignored.
 .LP
 The res, unitwidth, fonts and sizes lines are compulsory.
 Other commands are ignored by
@@ -250,7 +272,7 @@ otherwise it corresponds to the groff input character
 (if it is exactly two characters
 .I xx
 it can be entered as
-.BI \e( xx\fR.)
+.BI \e( xx\fR).
 Groff supports eight bit characters; however some utilities
 has difficulties with eight bit characters.
 For this reason, there is a convention that the name

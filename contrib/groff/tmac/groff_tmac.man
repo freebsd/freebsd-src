@@ -1,4 +1,4 @@
-.\"                        -*- nroff -*- 
+.\"                        -*- nroff -*-
 .ig /
 groff_tmac.5
 
@@ -24,7 +24,7 @@ FDL in the main directory of the groff source package.
 .\" --------------------------------------------------------------------
 .
 .if n \{\
-.  mso tmac.tty-char
+.  mso tty-char.tmac
 .  ftr CR R
 .  ftr CI I
 .  ftr CB B
@@ -37,7 +37,7 @@ FDL in the main directory of the groff source package.
 .
 .de BIR
 .  ie (\\n[.$] < 3) \
-.    BI $@
+.    BI \\$@
 .  el \{\
 .    ds @tmp@ \fB\\$1\fP\fI\\$2\fP
 .    shift 2
@@ -111,13 +111,16 @@ this letter was omitted, e.g., the macro package for the man pages
 was called
 .I an
 and its macro file
-.IR tmac.an .
+.I tmac.an
+(note that in recent versions of groff this file is called
+.I an.tmac
+instead).
 .LP
 By a similar reasoning, macro packages that did not start with an
 .'char m
 were often referred to by adding an
 .'char m ,
- e.g., the package corresponding to
+e.g., the package corresponding to
 .I tmac.doc
 was called
 .I mdoc
@@ -149,11 +152,13 @@ macro package may be specified as
 .RE
 .LP
 The easiest way to find out which macro packages are available on a
-system is to check the content of the
+system is to check the contents of the
 .I tmac
 directories.
 For example, a file called
 .BI tmac. anything
+or
+.IB anything .tmac
 determines a macro package named
 .IR anything .
 .LP
@@ -172,11 +177,14 @@ run-time, the groff option
 .option \-m \ \c
 .argument name
 makes the definitions in the macro file
-.BI tmac. name
+.IB name .tmac
 available as described in the section
 .BR NAMING .
+If this file isn't found,
+.BI tmac. name
+will be searched.
 .LP
-It is also possible to include the macro file into the document by using 
+It is also possible to include the macro file into the document by using
 the groff requests
 .request .so
 or
@@ -188,7 +196,14 @@ directory where it is kept.
 If the macro file is stored in one of the tmac directories it is more
 convenient to use
 .request .mso
-instead because it additionally searches the tmac path for the filename.
+instead because it searches the tmac path for the filename.
+Additionally, if the file name to be included has the form
+.IB name .tmac
+and it isn't found,
+.request .mso
+will try to open
+.BI tmac. name
+instead and vice versa.
 .LP
 Note that in order to resolve the
 .request .so
@@ -196,8 +211,9 @@ and
 .request .mso
 requests the roff preprocessor
 .shellcommand soelim
-must be called.  This can be done either directly by a pipeline on the
-command line or by using the
+must be called if the files to be included needs preprocessing.
+This can be done either directly by a pipeline on the command line or by
+using the
 .option \-s
 option of
 .shellcommand groff .
@@ -208,7 +224,7 @@ in the preprocessor word as described in section
 .BR CONVENTION .
 .LP
 For example, suppose a macro file is stored as
-.I /usr/share/groff/tmac/tmac.macros
+.I @MACRODIR@/macros.tmac
 and is used in some document called
 .IR docu.roff .
 .LP
@@ -225,13 +241,13 @@ At run-time, the formatter call for this is
 To include the macro file directly in the document either
 .RS
 .ft CR
-\&\.mso tmac.macros
+\&\.mso macros.tmac
 .ft P
 .RE
 is used or
 .RS
 .ft CR
-\&\.so /usr/share/groff/tmac/tmac.macros
+\&\.so @MACRODIR@/macros.tmac
 .ft P
 .RE
 .LP
@@ -257,8 +273,8 @@ comment characters and a blank) constitutes the
 .BR word .
 That means that the letters of this word are interpreted as
 abbreviations for those preprocessor commands that should be run
-when formatting the document.  Mostly, only the letters corresponding to 
-the options for the preprocessors are recognized, 
+when formatting the document.  Mostly, only the letters corresponding to
+the options for the preprocessors are recognized,
 .'char e ,
 .'char G ,
 .'char g ,
@@ -285,8 +301,10 @@ request as described in the
 section.
 .LP
 To use the tmac functionality, call the macro file
-.BI tmac. whatever
-and put it in some directory of the tmac path, cf. section
+.IB whatever .tmac
+(or
+.BI tmac. whatever\c
+) and put it in some directory of the tmac path, cf. section
 .BR FILES .
 Then documents can include it with the
 .request .mso
@@ -333,38 +351,51 @@ and
 .\" --------------------------------------------------------------------
 .SH FILES
 .\" --------------------------------------------------------------------
-All macro names that want to use the tmac mechanism must be named
-according to the form
-.BIR tmac. name .
+All macro names must be named
+.IB name .tmac
+or
+.BI tmac. name
+to use the tmac mechanism.
 .LP
 The macro files are kept in the
 .B tmac
 .BR directories ,
-all of which constitue the
+all of which constitute the
 .B tmac
 .BR path.
-In accordance with the Filesystem Hierarchy Standard (FHS), the standard
-tmac directory location for groff is
-.IR /usr/share/groff/tmac ,
-a local installation will use
-.IR /usr/local/share/groff/tmac .
-Older systems used a subdirectory of
-.IR /usr/lib .
-Independently of the default tmac path, the tmac path actually used by a
-document can always be set by a shell environment variable, cf. section
-.BR ENVIRONMENT .
+.LP
+The elements of the search path for macro files are (in that order):
+.IP \(bu 4
+the directories specified with troff's resp. groff's
+.B \-M
+command line option
+.IP \(bu 4
+the directories given in the
+.B GROFF_TMAC_PATH
+environment variable
+.IP \(bu 4
+the current directory (only if in unsafe mode using the
+.B \-U
+command line switch)
+.IP \(bu 4
+the home directory
+.IP \(bu 4
+a site-specific (platform-independent) directory, a platform-specific
+directory, and the main tmac directory:
+.IP "" 6
+@LOCALMACRODIR@
+.br
+@SYSTEMMACRODIR@
+.br
+@MACRODIR@
 .\" --------------------------------------------------------------------
 .SH ENVIRONMENT
 .\" --------------------------------------------------------------------
 .TP
 .B GROFF_TMAC_PATH
-A colon separated list of tmac directories in which to search for macro
-files, the
-.B tmac
-.BR path .
-If unset a default path is used as is outlined in the
-.B FILES
-section.
+A colon separated list of additional tmac directories in which to search
+for macro files.
+See the previous section for a detailed description.
 .\" --------------------------------------------------------------------
 .SH BUGS
 .\" --------------------------------------------------------------------
@@ -400,14 +431,14 @@ in the groff source package.
 .LP
 The groff tmac macro packages are
 .BR groff_man (@MAN7EXT@),
-.BR groff_markup (@MAN7EXT@),
+.BR groff_mwww (@MAN7EXT@),
 .BR groff_mdoc (@MAN7EXT@),
 .BR groff_mdoc.samples (@MAN7EXT@),
 .BR groff_me (@MAN7EXT@),
 .BR groff_mm (@MAN7EXT@),
 .BR groff_mmroff (@MAN7EXT@),
-.BR groff_ms (@MAN7EXT@),
-.BR groff_msafer (@MAN7EXT@).
+and
+.BR groff_ms (@MAN7EXT@).
 .LP
 The groff language is described in
 .BR groff (@MAN7EXT@)
@@ -417,4 +448,3 @@ and the formatters in
 .LP
 The Filesystem Hierarchy Standard (FHS) is available at
 .BR http://www.pathname.com/fhs/ .
-

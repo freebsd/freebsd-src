@@ -10,7 +10,7 @@
 .\" This document was written for free use and redistribution by
 .\" Eric S. Raymond <esr@thyrsus.com> in August 1995.
 .\"
-.\"	$Id: pic.ms,v 1.1.1.1 2000/02/06 09:39:20 wlemb Exp $	
+.\"	$Id: pic.ms,v 1.3 2001/04/13 17:11:32 wlemb Exp $	
 .\"
 .\" Set a proper TeX
 .ie t .ds tx T\h'-.1667m'\v'.224m'E\v'-.224m'\h'-.125m'X
@@ -806,7 +806,7 @@ Objects are also numbered backwards by type from the last one of
 You can say \fB2nd last box\fP to get the second-to-last box, or
 \fB3rd last ellipse\fP to get the third-to-last box.
 .PP
-In places where \fIn\fBth\fP is allowed, \fB`\fIexpr\fB'th\fP is also allowed.
+In places where \fIn\fBth\fR is allowed, \fB`\fIexpr\fB'th\fR is also allowed.
 Note that
 .B 'th
 is a single token: no space is allowed between the
@@ -947,7 +947,7 @@ abbreviated to \fB.t\fP, \fB.b\fP, \fB.l\fP and \fB.r\fP).
 .PP
 The names \fBcenter\fP, \fBtop\fP, \fBbottom\fP, \fBleft\fP and
 \fBright\fP can also be used (without the leading dot) in a prefix
-form marked by \fBof\fP; thus, \fPcenter of last circle\fB and
+form marked by \fBof\fP; thus, \fBcenter of last circle\fP and
 \fBtop of 2nd last ellipse\fP are both valid object references.
 .PP
 Arc objects also have compass point; they are the compass points of
@@ -1004,7 +1004,7 @@ numerator/denominator form or may be an ordinary number (values are
 \&\fInot\fP restricted to [0,1]).  As an alternative to this verbose
 syntax, you can say `\fIfraction\fP  \fB<\fP\fIposition1\fP \fB,\fP
 \fIposition2\fP\fB>\fP.'; thus, the example could also be written
-\fB1/3\fP <here, last ellipse>\fP.
+\fB1/3 <here, last ellipse>\fP.
 .KS
 .PS
 arrow up right;
@@ -1048,9 +1048,9 @@ objects.
 .KS
 .PS
 box invis wid 2 height 1;
-dot(last box .ne); "\fB(B,A)\fB is here" ljust at last circle + (0.1, 0.1);
+dot(last box .ne); "\fB(B,A)\fP is here" ljust at last circle + (0.1, 0.1);
 dot(last box .se); "B" ljust at last circle + (0.1, -0.1)
-dot(last box .sw); "\fB(A,B)\fB is here" rjust at last circle + (-0.1, -0.1);
+dot(last box .sw); "\fB(A,B)\fP is here" rjust at last circle + (-0.1, -0.1);
 dot(last box .nw); "A" ljust at last circle + (-0.1, 0.1)
 .PE
 .CE "5: Using (\fIx\fP, \fIy\fP) composition"
@@ -1368,16 +1368,17 @@ the usual way using parentheses.  GNU \fBgpic\fP allows logical
 operators to appear in expressions; ! (logical negation, not
 factorial), &&, ||, ==, !=, >=, <=, <, >.
 .PP
-Various built-in functions are supported: \fBsin(\fIx\fP)\fP,
-\fBcos(\fIx\fP)\fP, \fBlog(\fIx\fP)\fP, \fBexp(\fIx\fP)\fP,
-\fBsqrt(\fIx\fP)\fP, \fBmax(\fIx\fP,\fIy\fP)\fP,
-\fBatan2(\fIx\fP,\fIy\fP)\fP, \fBmin(\fIx\fP,\fIy\fP)\fP,
-\fBint(\fIx\fP\fB)\fP, and \fBrand()\fP, Both \fBexp\fP and \fBlog\fP are
+Various built-in functions are supported: \fBsin(\fIx\fB)\fR,
+\fBcos(\fIx\fB)\fR, \fBlog(\fIx\fB)\fR, \fBexp(\fIx\fB)\fR,
+\fBsqrt(\fIx\fB)\fR, \fBmax(\fIx\fB,\fIy\fB)\fR,
+\fBatan2(\fIx\fB,\fIy\fB)\fR, \fBmin(\fIx\fB,\fIy\fB)\fR,
+\fBint(\fIx\fB)\fR, and \fBrand()\fP.
+Both \fBexp\fP and \fBlog\fP are
 base 10; \fBint\fP does integer truncation; and \fBrand()\fP returns a
 random number in [0-1).
 .PP
 GNU \fBgpic\fP also documents a one-argument form or rand,
-\fBrand(\fIx\fP\fB)\fP, which returns a random number between 1 and
+\fBrand(\fIx\fB)\fR, which returns a random number between 1 and
 \fIx\fP, but this is deprecated and may be removed in a future
 version.
 .PP
@@ -1966,7 +1967,7 @@ multiple-part pattern:
 \&
 \&    line down from 1st box .s lineht;
 \&    A: line down;
-\&    line down from 2nd box .s; filter "\\fBhtml2ms";
+\&    line down from 2nd box .s; filter "\\fBhtml2ms\\fP";
 \&    B: line down;
 \&    line down from 3rd box .s; filter "\\fBformat\\fP";
 \&    C: line down;
@@ -2032,7 +2033,7 @@ Top: [
 
     line down from 1st box .s lineht;
     A: line down;
-    line down from 2nd box .s; filter "\fBhtml2ms";
+    line down from 2nd box .s; filter "\fBhtml2ms\fP";
     B: line down;
     line down from 3rd box .s; filter "\fBformat\fP";
     C: line down;
@@ -2238,8 +2239,6 @@ The \f(CWat\fP primitive sets the center of the current object.  The
 \f(CWwith\fP attribute fixes the specified feature of the given object
 to a specified location.
 .PP
-The \f(CWsolid\fR primitive is not yet supported in GNU \fBgpic\fR.
-.PP
 The \f(CWby\fR primitive is not documented in the tutorial portion of
 the Kernighan paper, and should probably be considered unreliable.
 .PP
@@ -2295,7 +2294,7 @@ Objects of a given type are numbered from 1 upwards in order of
 declaration; the \fBlast\fP modifier counts backwards.
 .PP
 The "'th" form (which allows you to select a previous object with an
-expression, as opposed to a numeric literal) is bnot documented in DWB
+expression, as opposed to a numeric literal) is not documented in DWB
 \fBpic\fR(1).
 .PP
 The following style variables control output:
