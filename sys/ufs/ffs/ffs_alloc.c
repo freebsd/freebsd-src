@@ -107,7 +107,7 @@ ffs_alloc(ip, lbn, bpref, size, cred, bnp)
 {
 	register struct fs *fs;
 	ufs_daddr_t bno;
-	int cg;
+	int cg, reclaimed;
 #ifdef QUOTA
 	int error;
 #endif
@@ -124,6 +124,8 @@ ffs_alloc(ip, lbn, bpref, size, cred, bnp)
 	if (cred == NOCRED)
 		panic("ffs_alloc: missing credential");
 #endif /* DIAGNOSTIC */
+	reclaimed = 0;
+retry:
 	if (size == fs->fs_bsize && fs->fs_cstotal.cs_nbfree == 0)
 		goto nospace;
 	if (suser_xxx(cred, NULL, PRISON_ROOT) &&
@@ -155,6 +157,11 @@ ffs_alloc(ip, lbn, bpref, size, cred, bnp)
 	(void) chkdq(ip, (long)-btodb(size), cred, FORCE);
 #endif
 nospace:
+	if (fs->fs_pendingblocks > 0 && reclaimed == 0) {
+		reclaimed = 1;
+		softdep_request_cleanup(fs, ITOV(ip));
+		goto retry;
+	}
 	ffs_fserr(fs, cred->cr_uid, "file system full");
 	uprintf("\n%s: write failed, file system is full\n", fs->fs_fsmnt);
 	return (ENOSPC);
@@ -177,15 +184,17 @@ ffs_realloccg(ip, lbprev, bpref, osize, nsize, cred, bpp)
 	struct ucred *cred;
 	struct buf **bpp;
 {
-	register struct fs *fs;
+	struct vnode *vp;
+	struct fs *fs;
 	struct buf *bp;
-	int cg, request, error;
+	int cg, request, error, reclaimed;
 	ufs_daddr_t bprev, bno;
 
 	*bpp = 0;
+	vp = ITOV(ip);
 	fs = ip->i_fs;
 #ifdef DIAGNOSTIC
-	if (ITOV(ip)->v_mount->mnt_kern_flag & MNTK_SUSPENDED)
+	if (vp->v_mount->mnt_kern_flag & MNTK_SUSPENDED)
 		panic("ffs_realloccg: allocation on suspended filesystem");
 	if ((u_int)osize > fs->fs_bsize || fragoff(fs, osize) != 0 ||
 	    (u_int)nsize > fs->fs_bsize || fragoff(fs, nsize) != 0) {
@@ -198,6 +207,8 @@ ffs_realloccg(ip, lbprev, bpref, osize, nsize, cred, bpp)
 	if (cred == NOCRED)
 		panic("ffs_realloccg: missing credential");
 #endif /* DIAGNOSTIC */
+	reclaimed = 0;
+retry:
 	if (suser_xxx(cred, NULL, PRISON_ROOT) &&
 	    freespace(fs, fs->fs_minfree) -  numfrags(fs, nsize - osize) < 0)
 		goto nospace;
@@ -210,7 +221,7 @@ ffs_realloccg(ip, lbprev, bpref, osize, nsize, cred, bpp)
 	/*
 	 * Allocate the extra space in the buffer.
 	 */
-	error = bread(ITOV(ip), lbprev, osize, NOCRED, &bp);
+	error = bread(vp, lbprev, osize, NOCRED, &bp);
 	if (error) {
 		brelse(bp);
 		return (error);
@@ -297,7 +308,7 @@ ffs_realloccg(ip, lbprev, bpref, osize, nsize, cred, bpp)
 					 ffs_alloccg);
 	if (bno > 0) {
 		bp->b_blkno = fsbtodb(fs, bno);
-		if (!DOINGSOFTDEP(ITOV(ip)))
+		if (!DOINGSOFTDEP(vp))
 			ffs_blkfree(ip, bprev, (long)osize);
 		if (nsize < request)
 			ffs_blkfree(ip, bno + numfrags(fs, nsize),
@@ -321,6 +332,11 @@ nospace:
 	/*
 	 * no space available
 	 */
+	if (fs->fs_pendingblocks > 0 && reclaimed == 0) {
+		reclaimed = 1;
+		softdep_request_cleanup(fs, vp);
+		goto retry;
+	}
 	ffs_fserr(fs, cred->cr_uid, "file system full");
 	uprintf("\n%s: write failed, file system is full\n", fs->fs_fsmnt);
 	return (ENOSPC);
