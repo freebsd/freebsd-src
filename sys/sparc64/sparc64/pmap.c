@@ -948,18 +948,12 @@ pmap_new_thread(struct thread *td)
 		/*
 		 * Get a kernel stack page.
 		 */
-		m = vm_page_grab(ksobj, i, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
+		m = vm_page_grab(ksobj, i,
+		    VM_ALLOC_NORMAL | VM_ALLOC_RETRY | VM_ALLOC_WIRED);
 		ma[i] = m;
-
-		/*
-		 * Wire the page.
-		 */
-		m->wire_count++;
-		cnt.v_wire_count++;
 
 		vm_page_wakeup(m);
 		vm_page_flag_clear(m, PG_ZERO);
-		vm_page_flag_set(m, PG_MAPPED | PG_WRITEABLE);
 		m->valid = VM_PAGE_BITS_ALL;
 	}
 
@@ -1052,7 +1046,6 @@ pmap_swapin_thread(struct thread *td)
 		vm_page_lock_queues();
 		vm_page_wire(m);
 		vm_page_wakeup(m);
-		vm_page_flag_set(m, PG_MAPPED | PG_WRITEABLE);
 		vm_page_unlock_queues();
 	}
 	pmap_qenter(ks, ma, KSTACK_PAGES);
