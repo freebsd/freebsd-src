@@ -423,8 +423,8 @@ msleep(ident, mtx, priority, wmesg, timo)
 	WITNESS_SAVE_DECL(mtx);
 
 #ifdef KTRACE
-	if (p && KTRPOINT(p, KTR_CSW))
-		ktrcsw(p->p_tracep, 1, 0);
+	if (KTRPOINT(td, KTR_CSW))
+		ktrcsw(1, 0);
 #endif
 	WITNESS_SLEEP(0, &mtx->mtx_object);
 	KASSERT(timo != 0 || mtx_owned(&Giant) || mtx != NULL,
@@ -533,13 +533,11 @@ msleep(ident, mtx, priority, wmesg, timo)
 		}
 		PROC_UNLOCK(p);
 	}
-	PICKUP_GIANT();
 #ifdef KTRACE
-	mtx_lock(&Giant);
-	if (KTRPOINT(p, KTR_CSW))
-		ktrcsw(p->p_tracep, 0, 0);
-	mtx_unlock(&Giant);
+	if (KTRPOINT(td, KTR_CSW))
+		ktrcsw(0, 0);
 #endif
+	PICKUP_GIANT();
 	if (mtx != NULL) {
 		mtx_lock(mtx);
 		WITNESS_RESTORE(&mtx->mtx_object, mtx);
