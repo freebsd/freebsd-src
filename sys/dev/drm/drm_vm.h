@@ -68,7 +68,7 @@ paddr_t DRM(mmap)(dev_t kdev, off_t offset, int prot)
 	drm_map_list_entry_t *listentry = NULL;
 	drm_file_t *priv;
 
-	DRM_GET_PRIV_WITH_RETURN(priv, (DRMFILE)(intptr_t)DRM_CURRENTPID);
+	DRM_GET_PRIV_WITH_RETURN(priv, (DRMFILE)(uintptr_t)DRM_CURRENTPID);
 
 	if (!priv->authenticated)
 		return DRM_ERR(EACCES);
