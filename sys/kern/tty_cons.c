@@ -92,7 +92,6 @@ static struct cdevsw cn_cdevsw = {
 
 struct cn_device {
 	STAILQ_ENTRY(cn_device) cnd_next;
-	char		cnd_name[16];
 	struct		vnode *cnd_vp;
 	struct		consdev *cnd_cn;
 };
@@ -209,6 +208,15 @@ cnadd(struct consdev *cn)
 	if (cnd->cnd_cn != NULL)
 		return (ENOMEM);
 	cnd->cnd_cn = cn;
+	if (cn->cn_name[0] == '\0' && cn->cn_dev != NULL) {
+		strcpy(cn->cn_name, devtoname(cn->cn_dev));
+		/* XXX: it is unclear if/where this print might output */
+		printf("NOTE: console \"%s\" didn't set name\n", cn->cn_name);
+	}
+	if (cn->cn_name[0] == '\0') {
+		/* XXX: it is unclear if/where this print might output */
+		printf("WARNING: console at %p has no name\n", cn);
+	}
 	STAILQ_INSERT_TAIL(&cn_devlist, cnd, cnd_next);
 	return (0);
 }
@@ -226,7 +234,6 @@ cnremove(struct consdev *cn)
 			vn_close(cnd->cnd_vp, openflag, NOCRED, NULL);
 		cnd->cnd_vp = NULL;
 		cnd->cnd_cn = NULL;
-		cnd->cnd_name[0] = '\0';
 #if 0
 		/*
 		 * XXX
@@ -268,6 +275,10 @@ cndebug(char *str)
 	cnputc('\n');
 }
 
+/*
+ * XXX: rewrite to use sbufs instead
+ */
+
 static int
 sysctl_kern_console(SYSCTL_HANDLER_ARGS)
 {
@@ -279,21 +290,21 @@ sysctl_kern_console(SYSCTL_HANDLER_ARGS)
 	len = 2;
 	SET_FOREACH(list, cons_set) {
 		cp = *list;
-		if (cp->cn_dev != NULL)
-			len += strlen(devtoname(cp->cn_dev)) + 1;
+		if (cp->cn_name[0] != '\0')
+			len += strlen(cp->cn_name) + 1;
 	}
 	STAILQ_FOREACH(cnd, &cn_devlist, cnd_next)
-		len += strlen(devtoname(cnd->cnd_cn->cn_dev)) + 1;
+		len += strlen(cnd->cnd_cn->cn_name) + 1;
 	len = len > CNDEVPATHMAX ? len : CNDEVPATHMAX;
 	MALLOC(name, char *, len, M_TEMP, M_WAITOK | M_ZERO);
 	p = name;
 	STAILQ_FOREACH(cnd, &cn_devlist, cnd_next)
-		p += sprintf(p, "%s,", devtoname(cnd->cnd_cn->cn_dev));
+		p += sprintf(p, "%s,", cnd->cnd_cn->cn_name);
 	*p++ = '/';
 	SET_FOREACH(list, cons_set) {
 		cp = *list;
-		if (cp->cn_dev != NULL)
-			p += sprintf(p, "%s,", devtoname(cp->cn_dev));
+		if (cp->cn_name[0] != '\0')
+			p += sprintf(p, "%s,", cp->cn_name);
 	}
 	error = sysctl_handle_string(oidp, name, len, req);
 	if (error == 0 && req->newptr != NULL) {
@@ -306,8 +317,7 @@ sysctl_kern_console(SYSCTL_HANDLER_ARGS)
 		}
 		SET_FOREACH(list, cons_set) {
 			cp = *list;
-			if (cp->cn_dev == NULL ||
-			    strcmp(p, devtoname(cp->cn_dev)) != 0)
+			if (strcmp(p, cp->cn_name) != 0)
 				continue;
 			if (delete) {
 				cnremove(cp);
@@ -370,11 +380,7 @@ cn_devopen(struct cn_device *cnd, struct thread *td, int forceopen)
 		cnd->cnd_vp = NULL;
 		vn_close(vp, openflag, td->td_ucred, td);
 	}
-	if (cnd->cnd_name[0] == '\0') {
-		strlcpy(cnd->cnd_name, devtoname(cnd->cnd_cn->cn_dev),
-		    sizeof(cnd->cnd_name));
-	}
-	snprintf(path, sizeof(path), "/dev/%s", cnd->cnd_name);
+	snprintf(path, sizeof(path), "/dev/%s", cnd->cnd_cn->cn_name);
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, path, td);
 	error = vn_open(&nd, &openflag, 0, -1);
 	if (error == 0) {
