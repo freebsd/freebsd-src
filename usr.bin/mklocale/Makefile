@@ -20,6 +20,7 @@ afterinstall:
 		chmod ${BINMODE} ${LOCALEDIR}/$$locale; \
 	done
 	cd ${LOCALEDIR}; for locale in ${ISO88591NAMES}; do \
+		rm -f $$locale.ISO8859-1; \
 		ln -s ${ISO88591} $$locale.ISO8859-1; \
 	done
 	chown -R ${BINOWN}.${BINGRP} ${LOCALEDIR}
