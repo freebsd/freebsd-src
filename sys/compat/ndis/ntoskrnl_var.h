@@ -508,8 +508,8 @@ __stdcall extern void ntoskrnl_clear_event(nt_kevent *);
 __stdcall extern uint32_t ntoskrnl_read_event(nt_kevent *);
 __stdcall extern uint32_t ntoskrnl_set_event(nt_kevent *, uint32_t, uint8_t);
 __stdcall extern uint32_t ntoskrnl_reset_event(nt_kevent *);
-__stdcall extern void ntoskrnl_lock_dpc(/*kspin_lock * */ void);
-__stdcall extern void ntoskrnl_unlock_dpc(/*kspin_lock * */ void);
+__fastcall extern void ntoskrnl_lock_dpc(REGARGS1(kspin_lock *));
+__fastcall extern void ntoskrnl_unlock_dpc(REGARGS1(kspin_lock *));
 
 /*
  * On the Windows x86 arch, KeAcquireSpinLock() and KeReleaseSpinLock()

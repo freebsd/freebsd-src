@@ -54,8 +54,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 
 #include <compat/ndis/pe_var.h>
-#include <compat/ndis/hal_var.h>
 #include <compat/ndis/ntoskrnl_var.h>
+#include <compat/ndis/hal_var.h>
 
 #define FUNC void(*)(void)
 
@@ -252,13 +252,10 @@ hal_readport_buf_uchar(port, val, cnt)
  * or HIGH_LEVEL, we panic.
  */
 
-__stdcall uint8_t
-hal_lock(/*lock*/void)
+__fastcall uint8_t
+hal_lock(REGARGS1(kspin_lock *lock))
 {
-	kspin_lock		*lock;
 	uint8_t			oldirql;
-
-	__asm__ __volatile__ ("" : "=c" (lock));
 
 	/* I am so going to hell for this. */
 	if (hal_irql() > DISPATCH_LEVEL)
@@ -270,14 +267,9 @@ hal_lock(/*lock*/void)
 	return(oldirql);
 }
 
-__stdcall void
-hal_unlock(/*lock, newirql*/void)
+__fastcall void
+hal_unlock(REGARGS2(kspin_lock *lock, uint8_t newirql))
 {
-	kspin_lock		*lock;
-	uint8_t			newirql;
-
-	__asm__ __volatile__ ("" : "=c" (lock), "=d" (newirql));
-
 	FASTCALL1(ntoskrnl_unlock_dpc, lock);
 	FASTCALL1(hal_lower_irql, newirql);
 
@@ -302,13 +294,10 @@ hal_perfcount(freq)
 	return((uint64_t)ticks);
 }
 
-__stdcall uint8_t
-hal_raise_irql(/*irql*/ void)
+__fastcall uint8_t
+hal_raise_irql(REGARGS1(uint8_t irql))
 {
-	uint8_t			irql;
 	uint8_t			oldirql;
-
-	__asm__ __volatile__ ("" : "=c" (irql));
 
 	if (irql < hal_irql())
 		panic("IRQL_NOT_LESS_THAN");
@@ -325,13 +314,9 @@ hal_raise_irql(/*irql*/ void)
 	return(oldirql);
 }
 
-__stdcall void 
-hal_lower_irql(/*oldirql*/ void)
+__fastcall void 
+hal_lower_irql(REGARGS1(uint8_t oldirql))
 {
-	uint8_t			oldirql;
-
-	__asm__ __volatile__ ("" : "=c" (oldirql));
-
 	if (oldirql == DISPATCH_LEVEL)
 		return;
 

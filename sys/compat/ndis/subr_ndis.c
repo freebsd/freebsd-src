@@ -71,6 +71,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/fcntl.h>
 #include <sys/vnode.h>
 #include <sys/kthread.h>
+#include <sys/linker.h>
+#include <sys/mount.h>
+#include <sys/sysproto.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -260,6 +263,7 @@ __stdcall static void ndis_firstbuf(ndis_packet *, ndis_buffer **,
 	void **, uint32_t *, uint32_t *);
 __stdcall static void ndis_firstbuf_safe(ndis_packet *, ndis_buffer **,
 	void **, uint32_t *, uint32_t *, uint32_t);
+static int ndis_find_sym(linker_file_t, char *, char *, caddr_t *);
 __stdcall static void ndis_open_file(ndis_status *, ndis_handle *, uint32_t *,
 	ndis_unicode_string *, ndis_physaddr);
 __stdcall static void ndis_map_file(ndis_status *, void **, ndis_handle);
@@ -572,11 +576,34 @@ ndis_strcasecmp(s1, s2)
 		b = *s2++;
 		if (toupper(a) != toupper(b))
 			break;
-		if (*s1++ == 0)
+		if (*s1++ == '\0')
 			return(0);
 	}
 
 	return (*(const unsigned char *)s1 - *(const unsigned char *)(s2 - 1));
+}
+
+int
+ndis_strncasecmp(s1, s2, n)
+        const char              *s1;
+        const char              *s2;
+	size_t			n;
+{
+	char			a, b;
+
+	if (n != 0) {
+		do {
+			a = *s1;
+			b = *s2++;
+			if (toupper(a) != toupper(b))
+				return (*(const unsigned char *)s1 -
+				    *(const unsigned char *)(s2 - 1));
+			if (*s1++ == '\0')
+				break;
+		} while (--n != 0);
+	}
+
+	return(0);
 }
 
 __stdcall static void
@@ -2533,6 +2560,32 @@ ndis_firstbuf_safe(packet, buf, firstva, firstlen, totlen, prio)
 	ndis_firstbuf(packet, buf, firstva, firstlen, totlen);
 }
 
+static int
+ndis_find_sym(lf, filename, suffix, sym)
+	linker_file_t		lf;
+	char			*filename;
+	char			*suffix;
+	caddr_t			*sym;
+{
+	char			fullsym[MAXPATHLEN];
+	int			i;
+
+	bzero(fullsym, sizeof(fullsym));
+	strcpy(fullsym, filename);
+	for (i = 0; i < strlen(fullsym); i++) {
+		if (fullsym[i] == '.')
+			fullsym[i] = '_';
+		else
+			fullsym[i] = tolower(fullsym[i]);
+	}
+	strcat(fullsym, suffix);
+	*sym = linker_file_lookup_symbol(lf, fullsym, 0);
+	if (*sym == 0)
+		return(ENOENT);
+
+	return(0);
+}
+
 /* can also return NDIS_STATUS_RESOURCES/NDIS_STATUS_ERROR_READING_FILE */
 __stdcall static void
 ndis_open_file(status, filehandle, filelength, filename, highestaddr)
@@ -2550,18 +2603,73 @@ ndis_open_file(status, filehandle, filelength, filename, highestaddr)
 	struct vattr		*vap = &vat;
 	ndis_fh			*fh;
 	char			path[MAXPATHLEN];
+	linker_file_t		head, lf;
+	caddr_t			kldstart, kldend;
 
 	ndis_unicode_to_ascii(filename->nus_buf,
 	    filename->nus_len, &afilename);
-
-	sprintf(path, "%s/%s", ndis_filepath, afilename);
-	free(afilename, M_DEVBUF);
 
 	fh = malloc(sizeof(ndis_fh), M_TEMP, M_NOWAIT);
 	if (fh == NULL) {
 		*status = NDIS_STATUS_RESOURCES;
 		return;
 	}
+
+	/*
+	 * During system bootstrap, it's impossible to load files
+	 * from the rootfs since it's not mounted yet. We therefore
+	 * offer the possibility of opening files that have been
+	 * preloaded as modules instead. Both choices will work
+	 * when kldloading a module from multiuser, but only the
+	 * module option will work during bootstrap. The module
+	 * loading option works by using the ndiscvt(8) utility
+	 * to convert the arbitrary file into a .ko using objcopy(1).
+	 * This file will contain two special symbols: filename_start
+	 * and filename_end. All we have to do is traverse the KLD
+	 * list in search of those symbols and we've found the file
+	 * data. As an added bonus, ndiscvt(8) will also generate
+	 * a normal .o file which can be linked statically with
+	 * the kernel. This means that the symbols will actual reside
+	 * in the kernel's symbol table, but that doesn't matter to
+	 * us since the kernel appears to us as just another module.
+	 */
+
+	/*
+	 * This is an evil trick for getting the head of the linked
+	 * file list, which is not exported from kern_linker.o. It
+	 * happens that linker file #1 is always the kernel, and is
+	 * always the first element in the list.
+	 */
+
+	head = linker_find_file_by_id(1);
+	for (lf = head; lf != NULL; lf = TAILQ_NEXT(lf, link)) {
+		if (ndis_find_sym(lf, afilename, "_start", &kldstart))
+			continue;
+		if (ndis_find_sym(lf, afilename, "_end", &kldend))
+			continue;
+		fh->nf_vp = lf;
+		fh->nf_type = NDIS_FH_TYPE_MODULE;
+		fh->nf_map = kldstart;
+		*filelength = fh->nf_maplen = (kldend - kldstart) & 0xFFFFFFFF;
+		*filehandle = fh;
+		free(afilename, M_DEVBUF);
+		*status = NDIS_STATUS_SUCCESS;
+		return;
+	}
+
+	if (TAILQ_EMPTY(&mountlist)) {
+		free(fh, M_TEMP);
+		*status = NDIS_STATUS_FILE_NOT_FOUND;
+		printf("NDIS: could not find file %s in linker list\n",
+		    afilename);
+		printf("NDIS: and no filesystems mounted yet, "
+		    "aborting NdisOpenFile()\n");
+		free(afilename, M_DEVBUF);
+		return;
+	}
+
+	sprintf(path, "%s/%s", ndis_filepath, afilename);
+	free(afilename, M_DEVBUF);
 
 	mtx_lock(&Giant);
 
@@ -2593,6 +2701,7 @@ ndis_open_file(status, filehandle, filelength, filename, highestaddr)
 
 	fh->nf_vp = nd.ni_vp;
 	fh->nf_map = NULL;
+	fh->nf_type = NDIS_FH_TYPE_VFS;
 	*filehandle = fh;
 	*filelength = fh->nf_maplen = vap->va_size & 0xFFFFFFFF;
 	*status = NDIS_STATUS_SUCCESS;
@@ -2627,6 +2736,13 @@ ndis_map_file(status, mappedbuffer, filehandle)
 		return;
 	}
 
+	if (fh->nf_type == NDIS_FH_TYPE_MODULE) {
+		/* Already found the mapping address during the open. */
+		*status = NDIS_STATUS_SUCCESS;
+		*mappedbuffer = fh->nf_map;
+		return;
+	}
+
 	fh->nf_map = malloc(fh->nf_maplen, M_DEVBUF, M_NOWAIT);
 
 	if (fh->nf_map == NULL) {
@@ -2658,7 +2774,9 @@ ndis_unmap_file(filehandle)
 
 	if (fh->nf_map == NULL)
 		return;
-	free(fh->nf_map, M_DEVBUF);
+
+	if (fh->nf_type == NDIS_FH_TYPE_VFS)
+		free(fh->nf_map, M_DEVBUF);
 	fh->nf_map = NULL;
 
 	return;
@@ -2676,16 +2794,19 @@ ndis_close_file(filehandle)
 
 	fh = (ndis_fh *)filehandle;
 	if (fh->nf_map != NULL) {
-		free(fh->nf_map, M_DEVBUF);
+		if (fh->nf_type == NDIS_FH_TYPE_VFS)
+			free(fh->nf_map, M_DEVBUF);
 		fh->nf_map = NULL;
 	}
 
 	if (fh->nf_vp == NULL)
 		return;
 
-	mtx_lock(&Giant);
-	vn_close(fh->nf_vp, FREAD, td->td_ucred, td);
-	mtx_unlock(&Giant);
+	if (fh->nf_type == NDIS_FH_TYPE_VFS) {
+		mtx_lock(&Giant);
+		vn_close(fh->nf_vp, FREAD, td->td_ucred, td);
+		mtx_unlock(&Giant);
+	}
 
 	fh->nf_vp = NULL;
 	free(fh, M_DEVBUF);

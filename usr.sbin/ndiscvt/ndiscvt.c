@@ -42,7 +42,9 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
+#include <libgen.h>
 #include <err.h>
+#include <ctype.h>
 
 #include <compat/ndis/pe_var.h>
 
@@ -157,25 +159,130 @@ int insert_padding(imgbase, imglen)
 static void
 usage(void)
 {
-	fprintf(stderr, "Usage: %s [-i <inffile>] -s <sysfile> "
+	fprintf(stderr, "Usage: %s [-O] [-i <inffile>] -s <sysfile> "
 	    "[-n devname] [-o outfile]\n", __progname);
+	fprintf(stderr, "       %s -f <firmfile>\n", __progname);
+
 	exit(1);
+}
+
+static void
+bincvt(char *sysfile, char *outfile, void *img, int fsize)
+{
+	char			*ptr;
+	char			tname[] = "/tmp/ndiscvt.XXXXXX";
+	char			sysbuf[1024];
+	FILE			*binfp;
+
+	mkstemp(tname);
+
+	binfp = fopen(tname, "a+");
+	if (binfp == NULL)
+		err(1, "opening %s failed", tname);
+
+	if (fwrite(img, fsize, 1, binfp) != 1)
+		err(1, "failed to output binary image");
+
+	fclose(binfp);
+
+	outfile = strdup(basename(outfile));
+	if (strchr(outfile, '.'))
+		*strchr(outfile, '.') = '\0';
+
+	snprintf(sysbuf, sizeof(sysbuf),
+	    "objcopy -I binary -O elf32-i386-freebsd -B i386 %s %s.o\n",
+	    tname, outfile);
+	printf("%s", sysbuf);
+	system(sysbuf);
+	unlink(tname);
+
+	ptr = tname;
+	while (*ptr) {
+		if (*ptr == '/' || *ptr == '.')
+			*ptr = '_';
+		ptr++;
+	}
+
+	snprintf(sysbuf, sizeof(sysbuf),
+	    "objcopy --redefine-sym _binary_%s_start=%s_drv_data_start "
+	    "--strip-symbol _binary_%s_size "
+	    "--redefine-sym _binary_%s_end=%s_drv_data_end %s.o %s.o\n",
+	    tname, sysfile, tname, tname, sysfile, outfile, outfile);
+	printf("%s", sysbuf);
+	system(sysbuf);
+
+	return;
+}
+   
+static void
+firmcvt(char *firmfile)
+{
+	char			*basefile, *outfile, *ptr;
+	char			sysbuf[1024];
+
+	outfile = basename(firmfile);
+	basefile = strdup(outfile);
+
+	snprintf(sysbuf, sizeof(sysbuf),
+	    "objcopy -I binary -O elf32-i386-freebsd -B i386 %s %s.o\n",
+	    firmfile, outfile);
+	printf("%s", sysbuf);
+	system(sysbuf);
+
+	ptr = firmfile;
+	while (*ptr) {
+		if (*ptr == '/' || *ptr == '.')
+			*ptr = '_';
+		ptr++;
+	}
+	ptr = basefile;
+	while (*ptr) {
+		if (*ptr == '/' || *ptr == '.')
+			*ptr = '_';
+		else
+			*ptr = tolower(*ptr);
+		ptr++;
+	}
+
+	snprintf(sysbuf, sizeof(sysbuf),
+	    "objcopy --redefine-sym _binary_%s_start=%s_start "
+	    "--strip-symbol _binary_%s_size "
+	    "--redefine-sym _binary_%s_end=%s_end %s.o %s.o\n",
+	    firmfile, basefile, firmfile, firmfile,
+	    basefile, outfile, outfile);
+	ptr = sysbuf;
+	printf("%s", sysbuf);
+	system(sysbuf);
+
+	snprintf(sysbuf, sizeof(sysbuf),
+	    "ld -Bshareable -d -warn-common -o %s.ko %s.o\n",
+	    outfile, outfile);
+	printf("%s", sysbuf);
+	system(sysbuf);
+
+	free(basefile);
+
+	exit(0);
 }
 
 int
 main(int argc, char *argv[])
 {
-	FILE		*fp, *outfp;
-	void		*img;
-	int		n, fsize, cnt;
-	unsigned char	*ptr;
-	int		i;
-	char		*inffile = NULL, *sysfile = NULL, *outfile = NULL;
-	char		*dname = NULL;
-	int		ch;
+	FILE			*fp, *outfp;
+	int			i, bin = 0;
+	void			*img;
+	int			n, fsize, cnt;
+	unsigned char		*ptr;
+	char			*inffile = NULL, *sysfile = NULL;
+	char			*outfile = NULL, *firmfile = NULL;
+	char			*dname = NULL;
+	int			ch;
 
-	while((ch = getopt(argc, argv, "i:s:o:n:")) != -1) {
+	while((ch = getopt(argc, argv, "i:s:o:n:f:O")) != -1) {
 		switch(ch) {
+		case 'f':
+			firmfile = optarg;
+			break;
 		case 'i':
 			inffile = optarg;
 			break;
@@ -188,11 +295,17 @@ main(int argc, char *argv[])
 		case 'n':
 			dname = optarg;
 			break;
+		case 'O':
+			bin = 1;
+			break;
 		default:
 			usage();
 			break;
 		}
 	}
+
+	if (firmfile != NULL)
+		firmcvt(firmfile);
 
 	if (sysfile == NULL)
 		usage();
@@ -253,6 +366,25 @@ main(int argc, char *argv[])
 	}
 
 	fprintf(outfp, "\n#ifdef NDIS_IMAGE\n");
+
+	if (bin) {
+		sysfile = strdup(basename(sysfile));
+		ptr = sysfile;
+		while (*ptr) {
+			if (*ptr == '.')
+				*ptr = '_';
+			ptr++;
+		}
+		fprintf(outfp,
+		    "\nextern unsigned char %s_drv_data_start[];\n",
+		    sysfile);
+		fprintf(outfp, "static unsigned char *drv_data = "
+		    "%s_drv_data_start;\n\n", sysfile);
+		bincvt(sysfile, outfile, img, fsize);
+		goto done;
+	}
+
+
 	fprintf(outfp, "\nextern unsigned char drv_data[];\n\n");
 
 	fprintf(outfp, "__asm__(\".data\");\n");
@@ -282,6 +414,7 @@ main(int argc, char *argv[])
 done:
 
 	fprintf(outfp, "#endif /* NDIS_IMAGE */\n");
+
 	if (fp != NULL)
 		fclose(fp);
 	fclose(outfp);
