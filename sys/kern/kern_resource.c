@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_resource.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_resource.c,v 1.40 1999/01/31 03:15:13 newton Exp $
+ * $Id: kern_resource.c,v 1.41 1999/02/25 11:03:08 bde Exp $
  */
 
 #include "opt_compat.h"
@@ -523,8 +523,8 @@ calcru(p, up, sp, ip)
 		 * quantum, which is much greater than the sampling error.
 		 */
 		microuptime(&tv);
-		totusec += (tv.tv_usec - p->p_switchtime.tv_usec) +
-		    (tv.tv_sec - p->p_switchtime.tv_sec) * (int64_t)1000000;
+		totusec += (tv.tv_usec - switchtime.tv_usec) +
+		    (tv.tv_sec - switchtime.tv_sec) * (int64_t)1000000;
 
 		/*
 		 * Copy the time that was just read to `switchtime' in case

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exception.s,v 1.55 1998/08/10 19:41:07 bde Exp $
+ *	$Id: exception.s,v 1.56 1999/02/25 11:03:08 bde Exp $
  */
 
 #include "npx.h"
@@ -312,23 +312,17 @@ IDTVEC(int0x80_syscall)
 
 ENTRY(fork_trampoline)
 	call	_spl0
-	movl	_curproc,%eax
-	addl	$P_SWITCHTIME,%eax
-	movl	_switchtime,%ecx
-	testl	%ecx,%ecx
+
+#ifdef SMP
+	cmpl	$0,_switchtime
 	jne	1f
-	/* XXX unreachable except in the SMP case? */
-	pushl	%eax
+	pushl	$_switchtime
 	call	_microuptime
-	popl	%eax
+	popl	%edx
 	movl	_ticks,%eax
 	movl	%eax,_switchticks
-	jmp	2f
 1:
-	movl	%ecx,(%eax)
-	movl	_switchtime+4,%edx
-	movl	%edx,4(%eax)
-2:
+#endif
 
 	/*
 	 * cpu_set_fork_handler intercepts this function call to

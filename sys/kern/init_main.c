@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.109 1999/02/19 14:25:34 luoqi Exp $
+ * $Id: init_main.c,v 1.110 1999/02/25 11:03:08 bde Exp $
  */
 
 #include "opt_devfs.h"
@@ -495,7 +495,7 @@ proc0_post(dummy)
 	 */
 	microtime(&proc0.p_stats->p_start);
 	proc0.p_runtime = 0;
-	microuptime(&proc0.p_switchtime);
+	microuptime(&switchtime);
 	switchticks = ticks;
 
 	/*

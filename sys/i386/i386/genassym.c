@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.62 1998/10/08 21:03:41 msmith Exp $
+ *	$Id: genassym.c,v 1.63 1999/02/22 15:13:34 bde Exp $
  */
 
 #include "opt_vm86.h"
@@ -92,7 +92,6 @@ main()
 	printf("#define\tP_WCHAN %#x\n", OS(proc, p_wchan));
 	printf("#define\tP_FLAG %#x\n", OS(proc, p_flag));
 	printf("#define\tP_PID %#x\n", OS(proc, p_pid));
-	printf("#define\tP_SWITCHTIME %#x\n", OS(proc, p_switchtime));
 #ifdef SMP
 	printf("#define\tP_ONCPU %#x\n", OS(proc, p_oncpu));
 	printf("#define\tP_LASTCPU %#x\n", OS(proc, p_lastcpu));

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.15 (Berkeley) 5/19/95
- * $Id: proc.h,v 1.70 1999/02/22 16:57:48 bde Exp $
+ * $Id: proc.h,v 1.71 1999/02/25 14:28:46 newton Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -159,7 +159,6 @@ struct	proc {
 
 	struct	itimerval p_realtimer;	/* Alarm timer. */
 	u_int64_t	p_runtime;	/* Real time in microsec. */
-	struct	timeval p_switchtime;	/* When last scheduled */
 	u_quad_t p_uticks;		/* Statclock hits in user mode. */
 	u_quad_t p_sticks;		/* Statclock hits in system mode. */
 	u_quad_t p_iticks;		/* Statclock hits processing intr. */
