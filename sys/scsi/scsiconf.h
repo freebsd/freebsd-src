@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsiconf.h,v 1.26.4.2 1995/08/31 06:36:26 davidg Exp $
+ *	$Id: scsiconf.h,v 1.26.4.3 1996/01/08 02:54:46 gibbs Exp $
  */
 #ifndef	SCSI_SCSICONF_H
 #define SCSI_SCSICONF_H 1
@@ -310,6 +310,8 @@ struct scsi_link
  * open and to make unit attentions errors be logged on the console.
  * These should be split up; I'm adding SDEV_IS_OPEN to enforce one
  * open only.
+ *
+ * XXX SDEV_UK is used to mark the "uk" device.
  */
 
 #define	SDEV_MEDIA_LOADED 	0x0001	/* device figures are still valid */
@@ -322,6 +324,7 @@ struct scsi_link
 #define SDEV_RESIDS_WORK	0x0400	/* XXX-HA: Residuals work */
 #define SDEV_TARGET_OPS 	0x0800	/* XXX-HA: Supports target ops  */
 #define	SDEV_IS_OPEN 		0x1000	/* at least 1 open session */
+#define SDEV_UK			0x2000	/* this is the "uk" device */
 
 /*
  * One of these is allocated and filled in for each scsi bus.
