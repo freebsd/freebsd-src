@@ -52,10 +52,10 @@ case "$daily_status_security_kernelmsg_enable" in
 		cp ${TMP} ${LOG}/dmesg.today || rc=3
 	    fi
 
+	    echo ""
+	    echo "${host} kernel log messages:"
 	    if ! cmp ${LOG}/dmesg.today ${TMP} >/dev/null 2>&1; then
 		[ $rc -lt 1 ] && rc=1
-		echo ""
-		echo "${host} kernel log messages:"
 		diff -b ${LOG}/dmesg.today ${TMP} | egrep "^>"
 		mv ${LOG}/dmesg.today ${LOG}/dmesg.yesterday || rc=3
 		mv ${TMP} ${LOG}/dmesg.today || rc=3
