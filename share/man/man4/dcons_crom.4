@@ -36,7 +36,6 @@
 .Cd device dcons_crom
 .Cd device dcons
 .Cd device firewire
-.Pp
 .Sh DESCRIPTION
 The
 .Nm
@@ -46,18 +45,19 @@ through the Configuration ROM of
 .Xr firewire 4 .
 This address is supposed to be used by
 .Xr dconschat 8 .
-.El
 .Sh SEE ALSO
 .Xr dcons 4 ,
 .Xr firewire 4 ,
 .Xr fwohci 4 ,
 .Xr dconschat 8 ,
-.Xr fwcontrol 8 .
+.Xr fwcontrol 8
 .Sh AUTHORS
 .An Hidetoshi Shimokawa Aq simokawa@FreeBSD.org
 .Sh BUGS
-If you load dcons_crom.ko manually after the system is booted, you may
+If you load
+.Pa dcons_crom.ko
+manually after the system is booted, you may
 have to initiate a bus reset using
-.Dq Nm fwcontrol -r
+.Dq Nm fwcontrol Fl r
 to update the Configuration ROM.
 .Pp
