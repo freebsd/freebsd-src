@@ -193,11 +193,18 @@ fwe_attach(device_t dev)
 	ifp->if_snd.ifq_maxlen = FWMAXQUEUE - 1;
 
 	s = splimp();
+#if __FreeBSD_version >= 500000
+	ether_ifattach(ifp, eaddr);
+#else
 	ether_ifattach(ifp, 1);
+#endif
 	splx(s);
 
         /* Tell the upper layer(s) we support long frames. */
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+#if __FreeBSD_version >= 500000
+	ifp->if_capabilities |= IFCAP_VLAN_MTU;
+#endif
 
 	ifp->if_snd.ifq_maxlen = MAX_QUEUED - 1;
 
@@ -240,7 +247,11 @@ fwe_detach(device_t dev)
 	s = splimp();
 
 	fwe_stop(fwe);
+#if __FreeBSD_version >= 500000
+	ether_ifdetach(&fwe->fwe_if);
+#else
 	ether_ifdetach(&fwe->fwe_if, 1);
+#endif
 
 	splx(s);
 	return 0;
@@ -312,13 +323,6 @@ fwe_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	int s, error, len;
 
 	switch (cmd) {
-		case SIOCSIFADDR:
-		case SIOCGIFADDR:
-		case SIOCSIFMTU:
-			s = splimp();
-			error = ether_ioctl(ifp, cmd, data);
-			splx(s);
-			return (error);
 		case SIOCSIFFLAGS:
 			s = splimp();
 			if (ifp->if_flags & IFF_UP) {
@@ -334,7 +338,7 @@ fwe_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			break;
 		case SIOCADDMULTI:
 		case SIOCDELMULTI:
-		break;
+			break;
 
 		case SIOCGIFSTATUS:
 			s = splimp();
@@ -346,10 +350,22 @@ fwe_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 					"\tch %d dma %d\n",
 						fwe->stream_ch, fwe->dma_ch);
 			splx(s);
-		break;
-
+			break;
+#if __FreeBSD_version >= 500000
+		default:
+#else
+		case SIOCSIFADDR:
+		case SIOCGIFADDR:
+		case SIOCSIFMTU:
+#endif
+			s = splimp();
+			error = ether_ioctl(ifp, cmd, data);
+			splx(s);
+			return (error);
+#if __FreeBSD_version < 500000
 		default:
 			return (EINVAL);
+#endif
 	}
 
 	return (0);
@@ -435,8 +451,12 @@ fwe_as_output(struct fwe_softc *fwe, struct ifnet *ifp)
 		if (xfer == NULL) {
 			return;
 		}
+#if __FreeBSD_version >= 500000
+		BPF_MTAP(ifp, m);
+#else
 		if (ifp->if_bpf != NULL)
 			bpf_mtap(ifp, m);
+#endif
 
 		xfer->send.off = 0;
 		xfer->spd = 2;
@@ -544,9 +564,13 @@ fwe_as_input(struct fw_xferq *xferq)
 #endif
 		p = xfer->recv.buf + xfer->recv.off + HDR_LEN + ALIGN_PAD;
 		eh = (struct ether_header *)p;
+#if __FreeBSD_version >= 500000
+		len -= xfer->recv.off + HDR_LEN + ALIGN_PAD;
+#else
 		p += sizeof(struct ether_header);
 		len -= xfer->recv.off + HDR_LEN + ALIGN_PAD
 						+ sizeof(struct ether_header);
+#endif
 		m->m_data = p;
 		m->m_len = m->m_pkthdr.len = len;
 		m->m_pkthdr.rcvif = ifp;
@@ -566,7 +590,11 @@ fwe_as_input(struct fw_xferq *xferq)
 			 c[20], c[21], c[22], c[23]
 		 );
 #endif
+#if __FreeBSD_version >= 500000
+		(*ifp->if_input)(ifp, m);
+#else
 		ether_input(ifp, eh, m);
+#endif
 		ifp->if_ipackets ++;
 
 		xfer->recv.buf = NULL;

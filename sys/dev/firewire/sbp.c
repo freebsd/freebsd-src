@@ -1353,7 +1353,11 @@ SBP_DEBUG(0)
 
 		sbp_show_sdev_info(sdev, 2);
 		printf("ORB status src:%x resp:%x dead:%x"
+#if __FreeBSD_version >= 500000
+				" len:%x stat:%x orb:%x%08x\n",
+#else
 				" len:%x stat:%x orb:%x%08lx\n",
+#endif
 			sbp_status->src, sbp_status->resp, sbp_status->dead,
 			sbp_status->len, sbp_status->status,
 			ntohs(sbp_status->orb_hi), ntohl(sbp_status->orb_lo));
@@ -2024,7 +2028,11 @@ sbp_execute_ocb(void *arg,  bus_dma_segment_t *segments, int seg, int error)
 SBP_DEBUG(1)
 		printf("sbp_execute_ocb: seg %d", seg);
 		for (i = 0; i < seg; i++)
+#if __FreeBSD_version >= 500000
+			printf(", %tx:%zd", segments[i].ds_addr,
+#else
 			printf(", %x:%zd", segments[i].ds_addr,
+#endif
 						segments[i].ds_len);
 		printf("\n");
 END_DEBUG
@@ -2068,7 +2076,11 @@ sbp_dequeue_ocb(struct sbp_dev *sdev, u_int32_t orb_lo)
 		next = STAILQ_NEXT(ocb, ocb);
 		flags = ocb->flags;
 SBP_DEBUG(1)
+#if __FreeBSD_version >= 500000
+		printf("orb: 0x%tx next: 0x%x, flags %x\n",
+#else
 		printf("orb: 0x%x next: 0x%lx, flags %x\n",
+#endif
 			vtophys(&ocb->orb[0]), ntohl(ocb->orb[1]), flags);
 END_DEBUG
 		if (vtophys(&ocb->orb[0]) == orb_lo) {
@@ -2114,7 +2126,11 @@ sbp_enqueue_ocb(struct sbp_dev *sdev, struct sbp_ocb *ocb)
 
 SBP_DEBUG(2)
 	sbp_show_sdev_info(sdev, 2);
+#if __FreeBSD_version >= 500000
+	printf("sbp_enqueue_ocb orb=0x%tx in physical memory\n", vtophys(&ocb->orb[0]));
+#else
 	printf("sbp_enqueue_ocb orb=0x%x in physical memory\n", vtophys(&ocb->orb[0]));
+#endif
 END_DEBUG
 	prev = STAILQ_LAST(&sdev->ocbs, sbp_ocb, ocb);
 	STAILQ_INSERT_TAIL(&sdev->ocbs, ocb, ocb);
@@ -2127,7 +2143,11 @@ END_DEBUG
 		&& ((prev->flags & OCB_ACT_MASK) == OCB_ACT_CMD)
 		&& ((ocb->flags & OCB_ACT_MASK) == OCB_ACT_CMD)) {
 SBP_DEBUG(1)
+#if __FreeBSD_version >= 500000
+	printf("linking chain 0x%tx -> 0x%tx\n", vtophys(&prev->orb[0]),
+#else
 	printf("linking chain 0x%x -> 0x%x\n", vtophys(&prev->orb[0]),
+#endif
 			vtophys(&ocb->orb[0]));
 END_DEBUG
 		prev->flags |= OCB_RESERVED;
