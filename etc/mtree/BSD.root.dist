@@ -1,4 +1,4 @@
-#	$Id: BSD.root.dist,v 1.37 1999/01/11 16:13:16 hm Exp $
+#	$Id: BSD.root.dist,v 1.37.2.1 1999/02/09 22:35:34 jkh Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755
@@ -6,6 +6,8 @@
     bin
     ..
     boot
+        defaults
+        ..
     ..
 /set type=dir uname=root gname=wheel mode=0555
     dev             mode=0755
