@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.62 1997/03/22 18:52:57 kato Exp $
+ *	$Id: cpufunc.h,v 1.63 1997/04/26 11:45:36 peter Exp $
  */
 
 /*
@@ -44,8 +44,10 @@
 #include <sys/types.h>
 #include <machine/smp.h>
 
+#ifdef KERNEL
 #include "opt_smp.h"
 #include "opt_smp_invltlb.h"
+#endif
 
 #ifdef	__GNUC__
 
@@ -205,7 +207,7 @@ invd(void)
 	__asm __volatile("invd");
 }
 
-#if defined(SMP) && defined(SMP_INVLTLB)
+#if defined(SMP) && defined(SMP_INVLTLB) && defined(KERNEL)
 
 /*
  * When using APIC IPI's, the inlining cost is prohibitive..
@@ -232,7 +234,7 @@ invltlb(void)
 	__asm __volatile("movl %%cr3, %0; movl %0, %%cr3" : "=r" (temp)
 			 : : "memory");
 }
-#endif	/* SMP && SMP_INVLTLB */
+#endif	/* SMP && SMP_INVLTLB && KERNEL */
 
 static __inline u_short
 inw(u_int port)
