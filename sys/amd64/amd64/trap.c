@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.58 1995/07/30 17:49:24 davidg Exp $
+ *	$Id: trap.c,v 1.59 1995/08/21 18:06:48 davidg Exp $
  */
 
 /*
@@ -77,6 +77,11 @@
 
 int	trap_pfault	__P((struct trapframe *, int));
 void	trap_fatal	__P((struct trapframe *));
+
+extern inthand_t IDTVEC(syscall);
+#ifdef COMPAT_LINUX
+extern inthand_t IDTVEC(linux_syscall);
+#endif
 
 #define MAX_TRAP_MSG		27
 char *trap_msg[] = {
@@ -351,14 +356,23 @@ trap(frame)
 
 #ifdef DDB
 		case T_BPTFLT:
+#ifndef DDB_NO_LCALLS
 		case T_TRCTRAP:
+#endif
 			if (kdb_trap (type, 0, &frame))
 				return;
 			break;
-#else
+#endif
+#if !defined (DDB) || defined (DDB_NO_LCALLS)
 		case T_TRCTRAP:	 /* trace trap -- someone single stepping lcall's */
 			/* Q: how do we turn it on again? */
-			frame.tf_eflags &= ~PSL_T;
+#ifdef COMPAT_LINUX
+			if (frame.tf_eip != (int) IDTVEC(syscall) &&
+			    frame.tf_eip != (int) IDTVEC(linux_syscall))
+#else
+			if (frame.tf_eip != IDTVEC(syscall))
+#endif
+				frame.tf_eflags &= ~PSL_T;
 			return;
 #endif
 
@@ -887,6 +901,15 @@ bad:
 		break;
 	}
 
+#if 1
+	if (frame.tf_eflags & PSL_T) {
+		/* traced syscall, raise sig */
+		frame.tf_eflags &= ~PSL_T;
+		if (ISPL(frame.tf_cs) == SEL_UPL) {
+			trapsignal(p, SIGTRAP, 0);
+		}
+	}
+#endif
 	userret(p, &frame, sticks);
 
 #ifdef KTRACE
@@ -980,6 +1003,15 @@ linux_syscall(frame)
 		break;
 	}
 
+#if 1
+	if (frame.tf_eflags & PSL_T) {
+		/* traced syscall, raise sig */
+		frame.tf_eflags &= ~PSL_T;
+		if (ISPL(frame.tf_cs) == SEL_UPL) {
+			trapsignal(p, SIGTRAP, 0);
+		}
+	}
+#endif
 	userret(p, &frame, sticks);
 
 #ifdef KTRACE
