@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_dummy.c,v 1.9 1998/12/19 02:55:33 julian Exp $
+ *  $Id: linux_dummy.c,v 1.10 1999/08/15 18:59:44 marcel Exp $
  */
 
 #include <sys/param.h>
@@ -46,7 +46,8 @@ struct __hack
 static int
 unsupported_msg(struct proc *p, const char *fname)
 {
-	printf("Linux-emul(%ld): %s() not supported\n", (long)p->p_pid, fname);
+	printf("linux: syscall %s is not implemented or obsoleted (pid=%ld)\n",
+	       fname, (long)p->p_pid);
 	return (ENOSYS);
 }
 
@@ -62,7 +63,7 @@ DUMMY(stty);
 DUMMY(gtty);
 DUMMY(ftime);
 DUMMY(prof);
-DUMMY(phys);
+DUMMY(umount2);
 DUMMY(lock);
 DUMMY(mpx);
 DUMMY(ulimit);
@@ -73,7 +74,7 @@ DUMMY(ksyslog);
 DUMMY(uname);
 DUMMY(vhangup);
 DUMMY(idle);
-DUMMY(vm86);
+DUMMY(vm86old);
 DUMMY(swapoff);
 DUMMY(sysinfo);
 DUMMY(modify_ldt);
@@ -84,3 +85,31 @@ DUMMY(delete_module);
 DUMMY(get_kernel_syms);
 DUMMY(quotactl);
 DUMMY(bdflush);
+DUMMY(sysfs);
+DUMMY(afs_syscall);
+DUMMY(setfsuid);
+DUMMY(setfsgid);
+DUMMY(getsid);
+DUMMY(fdatasync);
+DUMMY(sysctl);
+DUMMY(setresuid);
+DUMMY(getresuid);
+DUMMY(vm86);
+DUMMY(query_module);
+DUMMY(nfsservctl);
+DUMMY(setresgid);
+DUMMY(getresgid);
+DUMMY(prctl);
+DUMMY(rt_sigreturn);
+DUMMY(rt_sigpending);
+DUMMY(rt_sigtimedwait);
+DUMMY(rt_sigqueueinfo);
+DUMMY(rt_sigsuspend);
+DUMMY(pread);
+DUMMY(pwrite);
+DUMMY(capget);
+DUMMY(capset);
+DUMMY(sigaltstack);
+DUMMY(sendfile);
+DUMMY(getpmsg);
+DUMMY(putpmsg);

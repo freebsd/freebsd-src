@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_misc.c,v 1.64 1999/08/16 11:49:30 marcel Exp $
+ *  $Id: linux_misc.c,v 1.65 1999/08/17 10:09:06 marcel Exp $
  */
 
 #include "opt_compat.h"
@@ -876,39 +876,25 @@ linux_times(struct proc *p, struct linux_times_args *args)
     return 0;
 }
 
-/* XXX move */
-struct linux_newuname_t {
-    char sysname[65];
-    char nodename[65];
-    char release[65];
-    char version[65];
-    char machine[65];
-    char domainname[65];
-};
-
 int
 linux_newuname(struct proc *p, struct linux_newuname_args *args)
 {
-    struct linux_newuname_t linux_newuname;
+	struct linux_new_utsname utsname;
 
 #ifdef DEBUG
-    printf("Linux-emul(%ld): newuname(*)\n", (long)p->p_pid);
+	printf("Linux-emul(%ld): newuname(*)\n", (long)p->p_pid);
 #endif
-    bzero(&linux_newuname, sizeof(struct linux_newuname_t));
-    strncpy(linux_newuname.sysname, "Linux",
-	sizeof(linux_newuname.sysname) - 1);
-    strncpy(linux_newuname.nodename, hostname,
-	sizeof(linux_newuname.nodename) - 1);
-    strncpy(linux_newuname.release, "2.0.36",
-	sizeof(linux_newuname.release) - 1);
-    strncpy(linux_newuname.version, version,
-	sizeof(linux_newuname.version) - 1);
-    strncpy(linux_newuname.machine, machine,
-	sizeof(linux_newuname.machine) - 1);
-    strncpy(linux_newuname.domainname, domainname,
-	sizeof(linux_newuname.domainname) - 1);
-    return (copyout((caddr_t)&linux_newuname, (caddr_t)args->buf,
-	    	    sizeof(struct linux_newuname_t)));
+
+	bzero(&utsname, sizeof(struct linux_new_utsname));
+	strncpy(utsname.sysname, "Linux", LINUX_MAX_UTSNAME-1);
+	strncpy(utsname.nodename, hostname, LINUX_MAX_UTSNAME-1);
+	strncpy(utsname.release, "2.0.36", LINUX_MAX_UTSNAME-1);
+	strncpy(utsname.version, version, LINUX_MAX_UTSNAME-1);
+	strncpy(utsname.machine, machine, LINUX_MAX_UTSNAME-1);
+	strncpy(utsname.domainname, domainname, LINUX_MAX_UTSNAME-1);
+
+	return (copyout((caddr_t)&utsname, (caddr_t)args->buf,
+			sizeof(struct linux_new_utsname)));
 }
 
 struct linux_utimbuf {
