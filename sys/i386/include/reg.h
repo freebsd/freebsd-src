@@ -118,6 +118,9 @@ struct fpreg {
 	unsigned char	fpr_pad[64];
 };
 
+/*
+ * Register set accessible via /proc/$pid/dbregs.
+ */
 struct dbreg {
 	unsigned int  dr0;	/* debug address register 0 */
 	unsigned int  dr1;	/* debug address register 1 */
