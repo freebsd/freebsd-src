@@ -21,7 +21,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: sys-bsd.c,v 1.11 1997/08/19 17:52:47 peter Exp $";
 #endif
 
 /*
@@ -51,7 +51,6 @@ static char rcsid[] = "$Id$";
 #endif
 
 #include <net/if.h>
-#include <net/if_var.h>
 #include <net/ppp_defs.h>
 #include <net/if_ppp.h>
 #include <net/route.h>
