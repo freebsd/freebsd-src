@@ -212,7 +212,7 @@ kmem_alloc(map, size)
 	/*
 	 * And finally, mark the data as non-pageable.
 	 */
-	(void) vm_map_pageable(map, (vm_offset_t) addr, addr + size, FALSE);
+	(void) vm_map_wire(map, addr, addr + size, FALSE);
 
 	return (addr);
 }

@@ -1012,8 +1012,8 @@ mlock(td, uap)
 #endif
 
 	mtx_lock(&Giant);
-	error = vm_map_user_pageable(&td->td_proc->p_vmspace->vm_map, addr,
-		     addr + size, FALSE);
+	error = vm_map_wire(&td->td_proc->p_vmspace->vm_map, addr,
+		     addr + size, TRUE);
 	mtx_unlock(&Giant);
 	return (error == KERN_SUCCESS ? 0 : ENOMEM);
 }
@@ -1093,7 +1093,7 @@ munlock(td, uap)
 #endif
 
 	mtx_lock(&Giant);
-	error = vm_map_user_pageable(&td->td_proc->p_vmspace->vm_map, addr,
+	error = vm_map_unwire(&td->td_proc->p_vmspace->vm_map, addr,
 		     addr + size, TRUE);
 	mtx_unlock(&Giant);
 	return (error == KERN_SUCCESS ? 0 : ENOMEM);
