@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: rup.c,v 1.4 1995/11/21 05:43:27 wpaul Exp $";
 #endif /* not lint */
 
 #include <stdio.h>
@@ -156,6 +156,7 @@ onehost(char *host)
 	statstime host_stat;
 	struct sockaddr_in addr;
 	struct hostent *hp;
+	struct timeval tv;
 
 	hp = gethostbyname(host);
 	if (hp == NULL) {
@@ -171,7 +172,9 @@ onehost(char *host)
 	}
 
 	bzero((char *)&host_stat, sizeof(host_stat));
-	if (clnt_call(rstat_clnt, RSTATPROC_STATS, xdr_void, NULL, xdr_statstime, &host_stat, NULL) != RPC_SUCCESS) {
+	tv.tv_sec = 15;	/* XXX ??? */
+	tv.tv_usec = 0;
+	if (clnt_call(rstat_clnt, RSTATPROC_STATS, xdr_void, NULL, xdr_statstime, &host_stat, tv) != RPC_SUCCESS) {
 		fprintf(stderr, "%s: %s: %s\n", argv0, host, clnt_sperror(rstat_clnt, host));
 		return(-1);
 	}
