@@ -1,4 +1,4 @@
-<!-- $Id: porting.sgml,v 1.4 1996/12/16 22:42:04 max Exp $ -->
+<!-- $Id: porting.sgml,v 1.5 1996/12/17 04:29:56 max Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
 <!-- Original revision: 1.48 -->
 
@@ -857,8 +857,8 @@ FETCH_DEPENDS=  ncftp2:${PORTSDIR}/net/ncftp2
 	  れる必要があったり, ライセンスによって生成されるバイナリが
 	  配布できない場合には, <tt>NO_PACKAGE</tt> 変数を設定してくだ
 	  さい. そのような package が FTP サイトに置かれたり, リリース
-	  時の CDROM へ入らないようにします. ただし, いずれの場合も 
-	  distfile は(FTP や CDROM に)含まれるようになります.
+	  時の CD-ROM へ入らないようにします. ただし, いずれの場合も 
+	  distfile は(FTP や CD-ROM に)含まれるようになります.
 	
 	<item>Portが, 使用者によっては法律上の問題が生じる時 (暗号化ソフ
 	  トウェアなど), または「商用利用を禁ずる」とライセンスに書い
