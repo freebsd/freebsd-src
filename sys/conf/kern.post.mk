@@ -187,9 +187,7 @@ tags:  modules-tags
 .endif
 
 modules:
-	@mkdir -p ${.OBJDIR}/modules
-	cd $S/modules ; ${MKMODULESENV} ${MAKE} obj ; \
-	    ${MKMODULESENV} ${MAKE} all
+	cd $S/modules ; ${MKMODULESENV} ${MAKE} all
 
 modules-clean:
 	cd $S/modules ; ${MKMODULESENV} ${MAKE} clean
@@ -204,9 +202,15 @@ modules-clobber:	modules-clean
 	rm -rf ${MKMODULESENV}
 
 modules-depend:
+	cd $S/modules ; ${MKMODULESENV} ${MAKE} depend
+
+modules-obj:
 	@mkdir -p ${.OBJDIR}/modules
-	cd $S/modules ; ${MKMODULESENV} ${MAKE} obj ; \
-	    ${MKMODULESENV} ${MAKE} depend
+	cd $S/modules ; ${MKMODULESENV} ${MAKE} obj
+
+.if !defined(NO_MODULES_OBJ)
+modules modules-depend: modules-obj
+.endif
 
 modules-tags:
 	cd $S/modules ; ${MKMODULESENV} ${MAKE} tags

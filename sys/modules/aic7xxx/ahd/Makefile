@@ -12,7 +12,7 @@ BEFORE_DEPEND= aic79xx_{seq,reg}.h
 aic79xx_{seq.h,reg.h,reg_print.c}:					\
 		${.CURDIR}/../../../dev/aic7xxx/aic79xx.{reg,seq}	\
 		${.CURDIR}/../../../cam/scsi/scsi_message.h ../aicasm/aicasm
-	${.OBJDIR}/../aicasm/aicasm ${INCLUDES} -I${.CURDIR}/../../../cam/scsi \
+	../aicasm/aicasm ${INCLUDES} -I${.CURDIR}/../../../cam/scsi	 \
 			-I${.CURDIR}/../../../dev/aic7xxx		 \
 			-o aic79xx_seq.h -r aic79xx_reg.h		 \
 			-p aic79xx_reg_print.c				 \
