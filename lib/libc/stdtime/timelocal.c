@@ -80,7 +80,7 @@ static const struct lc_time_T	_C_time_locale = {
 	"%a %b %e %X %Z %Y",
 	
 	/* alt_month
-	** Standalone motnhs forms for %OB
+	** Standalone months forms for %OB
 	*/
 	{
 		"January", "February", "March", "April", "May", "June",
