@@ -157,7 +157,7 @@ server# cat /etc/gg.exports
 client RO /dev/acd0
 server# ggated
 
-client# ggatec -o ro server /dev/acd0
+client# ggatec create -o ro server /dev/acd0
 ggate0
 client# mount_cd9660 /dev/ggate0 /cdrom
 .Ed
