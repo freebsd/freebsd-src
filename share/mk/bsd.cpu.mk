@@ -22,7 +22,7 @@ CPUTYPE = i686
 . elif ${CPUTYPE} == "pentium"
 CPUTYPE = i586
 . elif ${CPUTYPE} == "athlon"
-CPUTYPE = k7
+CPUTYPE = athlon
 . endif
 .endif
 
@@ -32,8 +32,8 @@ CPUTYPE = k7
 
 .if !defined(NO_CPU_CFLAGS) || !defined(NO_CPU_COPTFLAGS)
 . if ${MACHINE_ARCH} == "i386"
-.  if ${CPUTYPE} == "k7"
-_CPUCFLAGS = -march=k6	# gcc doesn't support athlon yet, but it will
+.  if ${CPUTYPE} == "athlon"
+_CPUCFLAGS = -march=athlon
 .  elif ${CPUTYPE} == "k6-2"
 _CPUCFLAGS = -march=k6
 .  elif ${CPUTYPE} == "k6"
@@ -83,8 +83,8 @@ CFLAGS += ${_CPUCFLAGS}
 # presence of a CPU feature.
 
 .if ${MACHINE_ARCH} == "i386"
-. if ${CPUTYPE} == "k7"
-MACHINE_CPU = k7 3dnow mmx k6 k5 i586 i486 i386
+. if ${CPUTYPE} == "athlon"
+MACHINE_CPU = athlon 3dnow mmx k6 k5 i586 i486 i386
 . elif ${CPUTYPE} == "k6-2"
 MACHINE_CPU = 3dnow mmx k6 k5 i586 i486 i386
 . elif ${CPUTYPE} == "k6"
