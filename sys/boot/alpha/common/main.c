@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: main.c,v 1.5 1998/09/26 10:51:36 dfr Exp $
+ *	$Id: main.c,v 1.6 1998/10/19 09:12:41 dfr Exp $
  */
 
 
@@ -81,8 +81,9 @@ main(void)
      * If this is the two stage disk loader, add the memory used by
      * the first stage to the heap.
      */
+#define STACK_SIZE 16384
     free_region((void *)PRIMARY_LOAD_ADDRESS,
-		(void *)SECONDARY_LOAD_ADDRESS);
+		(void *)SECONDARY_LOAD_ADDRESS - STACK_SIZE);
 #endif
 
     /* 
