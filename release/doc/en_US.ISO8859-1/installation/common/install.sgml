@@ -70,6 +70,7 @@ from {alpha,i386}/INSTALL.TXT.
       installation menu unless you've adequately backed up any
       important data first.</para>
     </important>
+  </sect2>
 
   <sect2>
     <title>Hardware Requirements</title>
@@ -116,7 +117,7 @@ from {alpha,i386}/INSTALL.TXT.
 
 <!-- amd64 text starts here -->
     <para arch="amd64">&os; for the &arch.print; requires an
-    Athlon64, Athlon64-FX, Opteron or better processor to run.
+    Athlon64, Athlon64-FX, Opteron or better processor to run.</para>
 
     <para arch="amd64">If you have an machine based on an
     nVidia nForce3 Pro-150, you MUST use the BIOS setup to
@@ -816,6 +817,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
               is the port number of the proxy FTP server.</para>
 	    </listitem>
 	  </itemizedlist>
+	</para>
 
       </sect4>
     </sect3>
