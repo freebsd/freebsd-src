@@ -20,13 +20,14 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: ipfw.c,v 1.70 1999/06/11 09:43:53 ru Exp $";
+	"$Id: ipfw.c,v 1.71 1999/06/19 18:43:15 green Exp $";
 #endif /* not lint */
 
 
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
+#include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/wait.h>
 
@@ -247,8 +248,11 @@ show_ipfw(struct ip_fw *chain, int pcwidth, int bcwidth)
 			errx(EX_OSERR, "impossible");
 	}
    
-	if (chain->fw_flg & IP_FW_F_PRN)
+	if (chain->fw_flg & IP_FW_F_PRN) {
 		printf(" log");
+		if (chain->fw_logamount)
+			printf(" logamount %d", chain->fw_logamount);
+	}
 
 	pe = getprotobynumber(chain->fw_prot);
 	if (pe)
@@ -599,12 +603,13 @@ show_usage(const char *fmt, ...)
 "    [pipe] list [number ...]\n"
 "    [pipe] show [number ...]\n"
 "    zero [number ...]\n"
+"    resetlog [number ...]\n"
 "    pipe number config [pipeconfig]\n"
 "  rule:  action proto src dst extras...\n"
 "    action:\n"
 "      {allow|permit|accept|pass|deny|drop|reject|unreach code|\n"
 "       reset|count|skipto num|divert port|tee port|fwd ip|\n"
-"       pipe num} [log]\n"
+"       pipe num} [log [logamount count]]\n"
 "    proto: {ip|tcp|udp|icmp|<number>}\n"
 "    src: from [not] {any|ip[{/bits|:mask}]} [{port|port-port},[port],...]\n"
 "    dst: to [not] {any|ip[{/bits|:mask}]} [{port|port-port},[port],...]\n"
@@ -1164,6 +1169,18 @@ add(ac,av)
 	if (ac && !strncmp(*av,"log",strlen(*av))) {
 		rule.fw_flg |= IP_FW_F_PRN; av++; ac--;
 	}
+	if (ac && !strncmp(*av,"logamount",strlen(*av))) {
+		if (!(rule.fw_flg & IP_FW_F_PRN))
+			show_usage("``logamount'' not valid without ``log''");
+		ac--; av++;
+		if (!ac)
+			show_usage("``logamount'' requires argument");
+		rule.fw_logamount = atoi(*av);
+		if (rule.fw_logamount <= 0)
+			show_usage("``logamount'' argument must be greater "
+			    "than 0");
+		ac--; av++;
+	}
 
 	/* protocol */
 	if (ac == 0)
@@ -1385,6 +1402,17 @@ badviacombo:
 		if (rule.fw_nports)
 			show_usage("can't mix 'frag' and port specifications");
 	}
+	if (rule.fw_flg & IP_FW_F_PRN) {
+		if (!rule.fw_logamount) {
+			size_t len = sizeof(int);
+
+			if (sysctlbyname("net.inet.ip.fw.verbose_limit",
+			    &rule.fw_logamount, &len, NULL, 0) == -1)
+				errx(1, "sysctlbyname(\"%s\")",
+				    "net.inet.ip.fw.verbose_limit");
+		}
+		rule.fw_loghighest = rule.fw_logamount;
+	}
 
 	if (!do_quiet)
 		show_ipfw(&rule, 10, 10);
@@ -1423,6 +1451,45 @@ zero (ac, av)
 				}
 				else if (!do_quiet)
 					printf("Entry %d cleared\n",
+					    rule.fw_number);
+			} else
+				show_usage("invalid rule number ``%s''", *av);
+		}
+		if (failed != EX_OK)
+			exit(failed);
+	}
+}
+
+static void
+resetlog (ac, av)
+	int ac;
+	char **av;
+{
+	av++; ac--;
+
+	if (!ac) {
+		/* clear all entries */
+		if (setsockopt(s,IPPROTO_IP,IP_FW_RESETLOG,NULL,0)<0)
+			err(EX_UNAVAILABLE, "setsockopt(%s)", "IP_FW_RESETLOG");
+		if (!do_quiet)
+			printf("Logging counts reset.\n");
+	} else {
+		struct ip_fw rule;
+		int failed = EX_OK;
+
+		memset(&rule, 0, sizeof rule);
+		while (ac) {
+			/* Rule number */
+			if (isdigit(**av)) {
+				rule.fw_number = atoi(*av); av++; ac--;
+				if (setsockopt(s, IPPROTO_IP,
+				    IP_FW_RESETLOG, &rule, sizeof rule)) {
+					warn("rule %u: setsockopt(%s)", rule.fw_number,
+						 "IP_FW_RESETLOG");
+					failed = EX_UNAVAILABLE;
+				}
+				else if (!do_quiet)
+					printf("Entry %d logging count reset\n",
 					    rule.fw_number);
 			} else
 				show_usage("invalid rule number ``%s''", *av);
@@ -1527,6 +1594,8 @@ ipfw_main(ac,av)
 		}
 	} else if (!strncmp(*av, "zero", strlen(*av))) {
 		zero(ac,av);
+	} else if (!strncmp(*av, "resetlog", strlen(*av))) {
+		resetlog(ac,av);
 	} else if (!strncmp(*av, "print", strlen(*av))) {
 		list(--ac,++av);
 	} else if (!strncmp(*av, "list", strlen(*av))) {

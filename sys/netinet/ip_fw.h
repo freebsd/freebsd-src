@@ -11,7 +11,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.h,v 1.38 1999/06/19 18:43:30 green Exp $
+ *	$Id: ip_fw.h,v 1.39 1999/07/28 22:22:57 green Exp $
  */
 
 #ifndef _IP_FW_H
@@ -85,6 +85,8 @@ struct ip_fw {
     void *next_rule_ptr ;              /* next rule in case of match */
     uid_t fw_uid;			/* uid to match */
     gid_t fw_gid;			/* gid to match */
+    int fw_logamount;			/* amount to log */
+    u_int64_t fw_loghighest;		/* highest number packet to log */
 };
 
 #define IP_FW_GETNSRCP(rule)		((rule)->fw_nports & 0x0f)
