@@ -1,11 +1,15 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
-#	$Id: Makefile,v 1.31 1998/06/12 16:09:33 peter Exp $
+#	$Id: Makefile,v 1.32 1998/06/12 19:45:14 peter Exp $
 
 SUBDIR=	atrun bootpd comsat fingerd ftpd getNAME getty \
-	mail.local makekey mknetid revnetgroup rexecd rlogind \
+	makekey mknetid revnetgroup rexecd rlogind \
 	rpc.rquotad \
 	rpc.rusersd rpc.rwalld rpc.sprayd rshd talkd tftpd uucpd \
 	xtend ypxfr
+
+.if !defined(NO_SENDMAIL)
+SUBDIR+=mail.local smrsh
+.endif
 
 .if ${MACHINE} == i386
 SUBDIR+=named-xfer rpc.rstatd
