@@ -19,7 +19,7 @@ standard build targets and compile-time flags.
 
 Building a kernel is a somewhat more involved process, documentation
 for which can be found at:
-   http://www.FreeBSD.org/handbook/kernelconfig.html
+   http://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig.html
 And in the config(8) man page.
 Note: If you want to build and install the kernel with the
 ``buildkernel'' and ``installkernel'' targets, you might need to build
@@ -79,4 +79,4 @@ usr.sbin	System administration commands.
 For information on synchronizing your source tree with one or more of
 the FreeBSD Project's development branches, please see:
 
-  http://www.FreeBSD.org/handbook/synching.html
+  http://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/synching.html
