@@ -355,7 +355,6 @@ isp_pci_attach(device_t dev)
 
 	/*
 	 * Figure out if we're supposed to skip this one.
-	 * If we are, we actually go to ISP_ROLE_NONE.
 	 */
 
 	tval = 0;
@@ -366,14 +365,14 @@ isp_pci_attach(device_t dev)
 		return (0);
 	}
 	
-	role = 0;
+	role = -1;
 	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
-	    "role", &role) == 0 &&
-	    ((role & ~(ISP_ROLE_INITIATOR|ISP_ROLE_TARGET)) == 0)) {
+	    "role", &role) == 0 && role != -1) {
+		role &= (ISP_ROLE_INITIATOR|ISP_ROLE_TARGET);
 		device_printf(dev, "setting role to 0x%x\n", role);
 	} else {
 #ifdef	ISP_TARGET_MODE
-		role = ISP_ROLE_INITIATOR|ISP_ROLE_TARGET;
+		role = ISP_ROLE_TARGET;
 #else
 		role = ISP_DEFAULT_ROLES;
 #endif
