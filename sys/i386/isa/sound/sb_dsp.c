@@ -105,6 +105,7 @@ static void     sb_dsp_reset(int dev);
 sound_os_info  *sb_osp = NULL;
 
 #if defined(CONFIG_MIDI) || defined(CONFIG_AUDIO)
+void dsp_speaker(char state);
 
 /*
  * Common code for the midi and pcm functions
