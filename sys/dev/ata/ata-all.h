@@ -74,13 +74,17 @@
 #define		ATA_C_READ_DMA		0xc8	/* read w/DMA command */
 #define		ATA_C_WRITE_DMA		0xca	/* write w/DMA command */
 #define		ATA_C_WRITE_DMA_QUEUED	0xcc	/* write w/DMA QUEUED command */
+#define		ATA_C_FLUSHCACHE	0xe7	/* flush cache to disk */
 #define		ATA_C_ATA_IDENTIFY	0xec	/* get ATA params */
 #define		ATA_C_SETFEATURES	0xef	/* features command */
 #define		    ATA_C_F_SETXFER	0x03	/* set transfer mode */
 #define		    ATA_C_F_ENAB_WCACHE	0x02	/* enable write cache */
-#define		    ATA_C_F_ENAB_SRVIRQ	0x5e	/* enable service interrupt */
+#define		    ATA_C_F_DIS_WCACHE	0x82	/* disable write cache */
 #define		    ATA_C_F_ENAB_RCACHE	0xaa	/* enable readahead cache */
+#define		    ATA_C_F_DIS_RCACHE	0x55	/* disable readahead cache */
+#define		    ATA_C_F_ENAB_RELIRQ	0x5d	/* enable release interrupt */
 #define		    ATA_C_F_DIS_RELIRQ	0xdd	/* disable release interrupt */
+#define		    ATA_C_F_ENAB_SRVIRQ	0x5e	/* enable service interrupt */
 #define		    ATA_C_F_DIS_SRVIRQ	0xde	/* disable service interrupt */
 
 #define ATA_STATUS			0x07	/* status register */
@@ -95,14 +99,11 @@
 #define		ATA_S_READY		0x40	/* drive ready */
 #define		ATA_S_BUSY		0x80	/* busy */
 
-#define ATA_ALTSTAT			0x02	/* alternate status register */
-#define ATA_ALTCTRL			0X02	/* alternate device control */
+#define ATA_ALTOFFSET			0x206	/* alternate registers offset */
+#define ATA_ALTIOSIZE			0x01	/* alternate registers size */
 #define		ATA_A_IDS		0x02	/* disable interrupts */
 #define		ATA_A_RESET		0x04	/* RESET controller */
 #define		ATA_A_4BIT		0x08	/* 4 head bits */
-
-#define ATA_ALTPORT			0x204	/* alternate registers offset */
-#define ATA_ALTIOSIZE			0x01	/* alternate registers size */
 
 /* misc defines */
 #define ATA_MASTER			0x00
