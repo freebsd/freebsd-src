@@ -264,6 +264,13 @@ slcreate()
 	struct mbuf *m;
 
 	MALLOC(sc, struct sl_softc *, sizeof(*sc), M_SL, M_WAITOK | M_ZERO);
+	if (!sc)
+		return (NULL);
+	MALLOC(sc->bpfbuf, u_char *, SLTMAX + SLIP_HDRLEN, M_SL, M_NOWAIT);
+	if (!sc->bpfbuf) {
+		FREE(sc, M_SL);
+		return (NULL);
+	}
 
 	m = m_gethdr(M_TRYWAIT, MT_DATA);
 	if (m != NULL) {
@@ -276,6 +283,7 @@ slcreate()
 
 	if (m == NULL) {
 		printf("sl: can't allocate buffer\n");
+		FREE(sc->bpfbuf, M_SL);
 		FREE(sc, M_SL);
 		return (NULL);
 	}
@@ -386,6 +394,7 @@ sldestroy(struct sl_softc *sc)
 	LIST_REMOVE(sc, sl_next);
 	m_free(sc->sc_mbuf);
 	mtx_destroy(&sc->sc_fastq.ifq_mtx);
+	FREE(sc->bpfbuf, M_SL);
 	FREE(sc, M_SL);
 }
 
@@ -600,7 +609,6 @@ slstart(tp)
 	register struct ip *ip;
 	int s;
 	struct mbuf *m2;
-	u_char bpfbuf[SLTMAX + SLIP_HDRLEN];
 	register int len = 0;
 
 	for (;;) {
@@ -653,7 +661,7 @@ slstart(tp)
 			 * to the packet transmission time).
 			 */
 			register struct mbuf *m1 = m;
-			register u_char *cp = bpfbuf + SLIP_HDRLEN;
+			register u_char *cp = sc->bpfbuf + SLIP_HDRLEN;
 
 			len = 0;
 			do {
@@ -676,9 +684,9 @@ slstart(tp)
 			 * compressed header is now at the beginning of the
 			 * mbuf.
 			 */
-			bpfbuf[SLX_DIR] = SLIPDIR_OUT;
-			bcopy(mtod(m, caddr_t), &bpfbuf[SLX_CHDR], CHDR_LEN);
-			bpf_tap(&sc->sc_if, bpfbuf, len + SLIP_HDRLEN);
+			sc->bpfbuf[SLX_DIR] = SLIPDIR_OUT;
+			bcopy(mtod(m, caddr_t), &sc->bpfbuf[SLX_CHDR], CHDR_LEN);
+			bpf_tap(&sc->sc_if, sc->bpfbuf, len + SLIP_HDRLEN);
 		}
 
 		/*
