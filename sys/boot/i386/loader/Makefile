@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 BASE=		loader
-PROG=		${BASE}
+PROG=		${BASE} cdboot
 MAN5=		../../forth/loader.conf.5
 MAN8=		loader.8 ../../forth/loader.4th.8
 #NOMAN=
@@ -52,6 +52,7 @@ BTXDIR=		${.OBJDIR}/../btx
 BTXDIR=		${.CURDIR}/../btx
 .endif
 BTXLDR=		${BTXDIR}/btxldr/btxldr
+CDLDR=		${.CURDIR}/../cdldr/cdldr
 BTXKERN=	${BTXDIR}/btx/btx
 BTXCRT=		${BTXDIR}/lib/crt0.o
 CFLAGS+=	-I${.CURDIR}/../btx/lib
@@ -69,6 +70,11 @@ CFLAGS+=	-DNEW_LINKER_SET
 vers.o:	${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
 	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
 	${CC} -c vers.c
+
+cdboot: ${BASE} ${CDLDR}
+	cat ${CDLDR} ${BASE} > ${.TARGET}.tmp
+	dd if=${.TARGET}.tmp of=${.TARGET} obs=2k conv=osync
+	rm ${.TARGET}.tmp
 
 ${BASE}: ${BASE}.bin ${BTXLDR} ${BTXKERN} ${BTXCRT} ${BASE}.help
 	btxld -v -f aout -e 0x100000 -o ${.TARGET} -l ${BTXLDR} -b ${BTXKERN} \
