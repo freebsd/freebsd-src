@@ -355,7 +355,7 @@ in_pcbbind(inp, nam, td)
 	if (prison_ip(p->p_ucred, 0, &inp->inp_laddr.s_addr)) {
 		inp->inp_laddr.s_addr = INADDR_ANY;
 		inp->inp_lport = 0;
-		return(EINVAL);
+		return (EINVAL);
 	}
 	if (in_pcbinshash(inp) != 0) {
 		inp->inp_laddr.s_addr = INADDR_ANY;
@@ -510,7 +510,7 @@ in_pcbconnect(inp, nam, td)
 		sa.sin_family = AF_INET;
 		error = in_pcbbind(inp, (struct sockaddr *)&sa, td);
 		if (error)
-		    return (error);
+			return (error);
 	}
 	/*
 	 *   Call inner routine, to assign local interface address.
