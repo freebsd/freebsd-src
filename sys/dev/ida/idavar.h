@@ -126,6 +126,7 @@ struct ida_access {
 struct ida_softc {
 	device_t	dev;
 	int		unit;
+	dev_t		ida_dev_t;
 
 	int		regs_res_type;
 	int		regs_res_id;
