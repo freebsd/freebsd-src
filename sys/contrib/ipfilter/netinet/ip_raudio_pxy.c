@@ -66,9 +66,6 @@ nat_t *nat;
 	tcphdr_t *tcp;
 	int len = 0;
 	mb_t *m;
-#if	SOLARIS
-	mb_t *m1;
-#endif
 
 	/*
 	 * If we've already processed the start messages, then nothing left
@@ -181,9 +178,6 @@ nat_t *nat;
 	nat_t *ipn;
 	u_char swp;
 	mb_t *m;
-#if	SOLARIS
-	mb_t *m1;
-#endif
 
 	/*
 	 * Wait until we've seen the end of the start messages and even then
