@@ -78,6 +78,9 @@ acpi_acad_get_status(void *context)
 	if (bootverbose) {
 		device_printf(dev,"%s\n",(sc->status) ? "On Line" : "Off Line");
 	}
+
+	/* set system power profile based on AC adapter status */
+	powerprofile_set_state(sc->status ? POWERPROFILE_PERFORMANCE : POWERPROFILE_ECONOMY);
 }
 
 static void
