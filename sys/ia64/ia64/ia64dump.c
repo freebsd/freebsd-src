@@ -119,20 +119,25 @@ cb_dumpdata(EFI_MEMORY_DESCRIPTOR *mdp, int seqnr, void *arg)
 	struct dumperinfo *di = (struct dumperinfo*)arg;
 	vm_offset_t pa;
 	uint64_t pgs;
-	size_t sz;
+	size_t counter, sz;
 	int error, twiddle;
 
 	error = 0;	/* catch case in which mdp->NumberOfPages is 0 */
+	counter = 0;	/* Update twiddle every 16MB */
 	twiddle = 0;
 	pgs = mdp->NumberOfPages;
 	pa = IA64_PHYS_TO_RR7(mdp->PhysicalStart);
 
-	printf("  region %d: %ld pages ", seqnr, (long)pgs);
+	printf("  chunk %d: %ld pages ", seqnr, (long)pgs);
 
 	while (pgs) {
 		sz = (pgs > (DFLTPHYS >> EFI_PAGE_SHIFT))
 		    ? DFLTPHYS : pgs << EFI_PAGE_SHIFT;
-		printf("%c\b", "|/-\\"[twiddle++ & 3]);
+		counter += sz;
+		if (counter >> 24) {
+			printf("%c\b", "|/-\\"[twiddle++ & 3]);
+			counter &= (1<<24) - 1;
+		}
 		error = di->dumper(di->priv, (void*)pa, NULL, dumplo, sz);
 		if (error)
 			break;
@@ -176,7 +181,7 @@ cb_size(EFI_MEMORY_DESCRIPTOR *mdp, int seqnr, void *arg)
 }
 
 static int
-foreach_region(callback_t cb, void *arg)
+foreach_chunk(callback_t cb, void *arg)
 {
 	EFI_MEMORY_DESCRIPTOR *mdp;
 	int error, i, mdcount, seqnr;
@@ -231,7 +236,7 @@ dumpsys(struct dumperinfo *di)
 
 	/* Calculate dump size. */
 	dumpsize = 0L;
-	ehdr.e_phnum = foreach_region(cb_size, &dumpsize);
+	ehdr.e_phnum = foreach_chunk(cb_size, &dumpsize);
 	hdrsz = ehdr.e_phoff + ehdr.e_phnum * ehdr.e_phentsize;
 	fileofs = MD_ALIGN(hdrsz);
 	dumpsize += fileofs;
@@ -243,7 +248,7 @@ dumpsys(struct dumperinfo *di)
 
 	mkdumpheader(&kdh, KERNELDUMP_IA64_VERSION, dumpsize, di->blocksize);
 
-	printf("Dumping %llu MB (%d regions)\n", dumpsize >> 20, ehdr.e_phnum);
+	printf("Dumping %llu MB (%d chunks)\n", dumpsize >> 20, ehdr.e_phnum);
 
 	/* Dump leader */
 	error = di->dumper(di->priv, &kdh, NULL, dumplo, sizeof(kdh));
@@ -257,7 +262,7 @@ dumpsys(struct dumperinfo *di)
 		goto fail;
 
 	/* Dump program headers */
-	error = foreach_region(cb_dumphdr, di);
+	error = foreach_chunk(cb_dumphdr, di);
 	if (error < 0)
 		goto fail;
 	buf_flush(di);
@@ -271,8 +276,8 @@ dumpsys(struct dumperinfo *di)
 	 */
 	dumplo += hdrgap;
 
-	/* Dump region data (updates dumplo) */
-	error = foreach_region(cb_dumpdata, di);
+	/* Dump memory chunks (updates dumplo) */
+	error = foreach_chunk(cb_dumpdata, di);
 	if (error < 0)
 		goto fail;
 
