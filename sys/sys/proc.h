@@ -286,7 +286,7 @@ struct	proc {
 #define	P_WEXIT		0x02000	/* Working on exiting. */
 #define	P_EXEC		0x04000	/* Process called exec. */
 #define	P_ALRMPEND	0x08000 /* Pending SIGVTALRM needs to be posted. */
-#define	P_PROFPEND	0x08000 /* Pending SIGPROF needs to be posted. */
+#define	P_PROFPEND	0x10000 /* Pending SIGPROF needs to be posted. */
 
 /* Should probably be changed into a hold count. */
 /* was	P_NOSWAP	0x08000	was: Do not swap upages; p->p_hold */
