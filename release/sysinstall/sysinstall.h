@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.42.2.44 1995/11/04 15:45:28 jkh Exp $
+ * $Id: sysinstall.h,v 1.42.2.45 1995/11/06 08:28:12 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -360,6 +360,9 @@ extern DMenu		MenuHTMLDoc;		/* HTML Documentation menu			*/
 /* apache.c */
 extern int	configApache(char *str);
 
+/* anonFTP.c */
+extern int	configAnonFTP(char *unused);
+
 /* attrs.c */
 extern char	*attr_match(Attribs *attr, char *name);
 extern int	attr_parse_file(Attribs *attr, char *file);
@@ -485,7 +488,6 @@ extern Boolean	rootExtract(void);
 
 /* installFinal.c */
 extern int	configGated(char *unused);
-extern int	configAnonFTP(char *unused);
 extern int	configSamba(char *unused);
 extern int	configNFSServer(char *unused);
 
