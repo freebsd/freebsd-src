@@ -469,6 +469,16 @@ If the file
 .Pa .fakeid
 exists in the home directory of the identified user, report the username
 found in that file instead of the real username.
+If the the username found in 
+.Pa .fakeid
+is that of an existing user,
+then the real username is reported.
+.It Fl F
+same as 
+.Fl f
+but without the restriction that the username in
+.Pa .fakeid
+must not match an existing user.
 .It Fl g
 Instead of returning the user's name to the ident requester, report a
 username made up of random alphanumeric characters, e.g.
