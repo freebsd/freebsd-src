@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: simplelock.s,v 1.6 1997/08/23 04:10:11 smp Exp smp $
+ *	$Id: simplelock.s,v 1.3 1997/08/24 00:05:37 fsmp Exp $
  */
 
 /*
@@ -168,20 +168,21 @@ ENTRY(test_and_set)
  * void ss_lock(struct simplelock *lkp)
  */
 ENTRY(ss_lock)
-	movl	lapic_tpr, %eax
-	movl	$TPR_BLOCK_HWI, lapic_tpr
-	movl	%eax, _ss_tpr
 	movl	4(%esp), %eax		/* get the address of the lock */
-	movl	$1, %ecx
+	movl	$1, %ecx		/* value for a held lock */
 ssetlock:
-	xchgl	%ecx, (%eax)
+	pushl	lapic_tpr		/* save current task priority */
+	movl	$TPR_BLOCK_HWI, lapic_tpr	/* block hw INTs */
+	xchgl	%ecx, (%eax)		/* compete */
 	testl	%ecx, %ecx
 	jz	sgotit			/* it was clear, return */
+	popl	lapic_tpr		/* previous value while waiting */
 swait:
 	cmpl	$0, (%eax)		/* wait to empty */
 	jne	swait			/* still set... */
 	jmp	ssetlock		/* empty again, try once more */
 sgotit:
+	popl	_ss_tpr			/* save the old task priority */
 	ret
 
 /*
@@ -189,7 +190,7 @@ sgotit:
  */
 ENTRY(ss_unlock)
 	movl	4(%esp), %eax		/* get the address of the lock */
-	movl	$0, (%eax)
+	movl	$0, (%eax)		/* clear the simple lock */
 	movl	_ss_tpr, %eax
-	movl	%eax, lapic_tpr
+	movl	%eax, lapic_tpr		/* restore the old task priority */
 	ret
