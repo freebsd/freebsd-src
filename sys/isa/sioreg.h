@@ -31,12 +31,15 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)comreg.h	7.2 (Berkeley) 5/9/91
- *	$Id: sioreg.h,v 1.1 1998/09/24 02:07:28 jkh Exp $
+ *	$Id: sioreg.h,v 1.11 1998/09/26 14:00:29 peter Exp $
  */
 
 
 /* 16 bit baud rate divisor (lower byte in dca_data, upper in dca_ier) */
 #define	COMBRD(x)	(1843200 / (16*(x)))
+#ifdef PC98
+#define	COMBRD_RSA(x)	(14745600 / (16*(x)))
+#endif
 
 /* interrupt enable register */
 #define	IER_ERXRDY	0x1
@@ -105,6 +108,16 @@
 #define	MSR_TERI	0x04
 #define	MSR_DDSR	0x02
 #define	MSR_DCTS	0x01
+
+#ifdef PC98
+/* Hardware extension mode register for RSB-2000/3000. */
+#define	EMR_EXBUFF	0x04
+#define	EMR_CTSFLW	0x08
+#define	EMR_DSRFLW	0x10
+#define	EMR_RTSFLW	0x20
+#define	EMR_DTRFLW	0x40
+#define	EMR_EFMODE	0x80
+#endif
 
 /* speed to initialize to during chip tests */
 #define SIO_TEST_SPEED	9600
