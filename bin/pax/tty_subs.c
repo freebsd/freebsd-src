@@ -99,9 +99,9 @@ void
 tty_prnt(const char *fmt, ...)
 {
 	va_list ap;
-	va_start(ap, fmt);
 	if (ttyoutf == NULL)
 		return;
+	va_start(ap, fmt);
 	(void)vfprintf(ttyoutf, fmt, ap);
 	va_end(ap);
 	(void)fflush(ttyoutf);
