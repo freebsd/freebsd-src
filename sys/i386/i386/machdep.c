@@ -780,7 +780,11 @@ cpu_halt(void)
  * the !SMP case, as there is no clean way to ensure that a CPU will be
  * woken when there is work available for it.
  */
+#ifdef SMP
+static int	cpu_idle_hlt = 0;
+#else
 static int	cpu_idle_hlt = 1;
+#endif
 SYSCTL_INT(_machdep, OID_AUTO, cpu_idle_hlt, CTLFLAG_RW,
     &cpu_idle_hlt, 0, "Idle loop HLT enable");
 
@@ -793,7 +797,6 @@ SYSCTL_INT(_machdep, OID_AUTO, cpu_idle_hlt, CTLFLAG_RW,
 void
 cpu_idle(void)
 {
-#ifndef SMP
 	if (cpu_idle_hlt) {
 		disable_intr();
 		if (procrunnable()) {
@@ -807,7 +810,6 @@ cpu_idle(void)
 			__asm __volatile("sti; hlt");
 		}
 	}
-#endif
 }
 
 /*
