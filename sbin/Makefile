@@ -61,6 +61,7 @@ SUBDIR=	adjkerntz \
 	ping \
 	ping6 \
 	quotacheck \
+	raidctl \
 	rcorder \
 	reboot \
 	restore \
