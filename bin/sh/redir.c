@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: redir.c,v 1.8 1997/02/22 13:58:43 peter Exp $
  */
 
 #ifndef lint
@@ -103,6 +103,7 @@ redirect(redir, flags)
 	struct redirtab *sv = NULL;
 	int i;
 	int fd;
+	int try;
 	char memory[10];	/* file descriptors to write to memory */
 
 	for (i = 10 ; --i >= 0 ; )
@@ -117,24 +118,41 @@ redirect(redir, flags)
 	}
 	for (n = redir ; n ; n = n->nfile.next) {
 		fd = n->nfile.fd;
+		try = 0;
 		if ((n->nfile.type == NTOFD || n->nfile.type == NFROMFD) &&
 		    n->ndup.dupfd == fd)
 			continue; /* redirect from/to same file descriptor */
+
 		if ((flags & REDIR_PUSH) && sv->renamed[fd] == EMPTY) {
 			INTOFF;
-			if ((i = copyfd(fd, 10)) != EMPTY) {
+again:
+			if ((i = fcntl(fd, F_DUPFD, 10)) == -1) {
+				switch (errno) {
+				case EBADF:
+					if (!try) {
+						openredirect(n, memory);
+						try++;
+						goto again;
+					}
+					/* FALLTHROUGH*/
+				default:
+					INTON;
+					error("%d: %s", fd, strerror(errno));
+					break;
+				}
+			}
+			if (!try) {
 				sv->renamed[fd] = i;
 				close(fd);
 			}
 			INTON;
-			if (i == EMPTY)
-				error("Out of file descriptors");
 		} else {
 			close(fd);
 		}
-                if (fd == 0)
-                        fd0_redirected++;
-		openredirect(n, memory);
+		if (fd == 0)
+			fd0_redirected++;
+		if (!try)
+			openredirect(n, memory);
 	}
 	if (memory[1])
 		out1 = &memout;
@@ -262,7 +280,7 @@ out:
 
 void
 popredir() {
-	register struct redirtab *rp = redirlist;
+	struct redirtab *rp = redirlist;
 	int i;
 
 	for (i = 0 ; i < 10 ; i++) {
@@ -313,7 +331,7 @@ fd0_redirected_p () {
 
 void
 clearredir() {
-	register struct redirtab *rp;
+	struct redirtab *rp;
 	int i;
 
 	for (rp = redirlist ; rp ; rp = rp->next) {
