@@ -591,3 +591,6 @@
 418	UNIMPL	BSD	__xstat
 419	UNIMPL	BSD	__xfstat
 420	UNIMPL	BSD	__xlstat
+421	UNIMPL	BSD	getcontext
+422	UNIMPL	BSD	setcontext
+423	UNIMPL	BSD	swapcontext
