@@ -36,24 +36,30 @@ function usage()
 
 function err(eval, fmt, what)
 {
-	printf "driver-remove.awk: " fmt ": %s\n", what, ERRNO > "/dev/stderr";
+	printf "driver-remove.awk: " fmt "\n", what > "/dev/stderr";
 	exit eval;
 }
 
-function readconfig(config)
+function readconfig()
 {
-	while ((getline < config) > 0) {
+	while ((r = (getline < config)) > 0) {
 		sub("#.*$", "");
-		if (split(gensub(/^(\w+)[ \t]+(\w+)[ \t]+([0-9]+)[ \t]+(\w+)[ \t]+\"(.*)\"[ \t]*$/,
-		    "\\1#\\2#\\3#\\4#\\5", "g"), arg, "#") == 5) {
+		if (sub(/^[[:alnum:]_]+[ \t]+[[:alnum:]_]+[ \t]+[0-9]+[ \t]+[[:alnum:]_]+[ \t]+\".*\"[ \t]*$/, "&")) {
+			sub(/[ \t]+/, "#");
+			sub(/[ \t]+/, "#");
+			sub(/[ \t]+/, "#");
+			sub(/[ \t]+/, "#");
+			sub(/\"/, "");
+			sub(/\"/, "");
+			split($0, arg, "#");
 			if (arg[4] == "options")
 				options[arg[1]] = 1;
 			else
 				drivers[arg[1]] = 1;
 		}
 	}
-	if (ERRNO)
-		err(1, "reading %s", config);
+	if (r == -1)
+		err(1, "error reading %s", config);
 	close(config);
 }
 
@@ -64,20 +70,27 @@ BEGIN {
 	config = ARGV[1];
 	bootmfs = ARGV[2];
 
-	readconfig(config);
+	readconfig();
 
 	lines = 0;
-	while ((getline < bootmfs) > 0) {
-		if (/^device[ \t]+\w+/ &&
-		    gensub(/^device[ \t]+(\w+).*$/, "\\1", "g") in drivers)
-			continue;
-		if (/^options[ \t]+\w+/ &&
-		    gensub(/^options[ \t]+(\w+).*$/, "\\1", "g") in options)
-			continue;
+	while ((r = (getline < bootmfs)) > 0) {
+		if (/^device[ \t]+[[:alnum:]_]+/) {
+			dev = $0;
+			sub(/^device[ \t]+/, "", dev);
+			sub(/[ \t]+.*$/, "", dev);
+			if (dev in drivers)
+				continue;
+		} else if (/^options[ \t]+[[:alnum:]_]+/) {
+			opt = $0;
+			sub(/^options[ \t]+/, "", opt);
+			sub(/[ \t]+.*$/, "", opt);
+			if (opt in options)
+				continue;
+		}
 		line[lines++] = $0;
 	}
-	if (ERRNO)
-		err(1, "reading %s", bootmfs);
+	if (r == -1)
+		err(1, "error reading %s", bootmfs);
 	close(bootmfs);
 	printf "" > bootmfs;
 	for (i = 0; i < lines; i++)
