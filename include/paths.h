@@ -68,6 +68,7 @@
 #define	_PATH_VARDB	"/var/db/"
 #define	_PATH_VARRUN	"/var/run/"
 #define	_PATH_VARTMP	"/var/tmp/"
+#define	_PATH_YP	"/var/yp/"
 
 /* How to get the correct name of the kernel. */
 __BEGIN_DECLS
