@@ -108,3 +108,7 @@ PC98			opt_global.h
 DEV_APIC		opt_apic.h
 DEV_MECIA		opt_mecia.h
 DEV_NPX			opt_npx.h
+DEV_WCD			opt_wcd.h
+
+# Static unit counts
+NWDC			opt_wdc.h

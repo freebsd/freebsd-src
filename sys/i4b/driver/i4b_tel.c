@@ -33,7 +33,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "i4btel.h"
+#include "opt_i4b.h"
 
 #undef I4BTELDEBUG
 

@@ -471,7 +471,7 @@ device		acpi_video
 # for AGP r128 and radeon cards.
 
 device		mgadrm
-device		"r128drm"
+device		r128drm
 device		radeondrm
 device		sisdrm
 device		tdfxdrm
@@ -870,7 +870,7 @@ device		ifpi
 #	ifpi2 driver for AVM Fritz!Card PCI version 2
 #
 # AVM Fritz!Card PCI version 2
-device		"ifpi2"
+device		ifpi2
 #
 #---------------------------------------------------------------------------
 #	iwic driver for Winbond W6692 chipset
@@ -900,34 +900,38 @@ hint.iavc.0.irq="5"
 #	ISDN Protocol Stack - mandatory for all hardware drivers
 #
 # Q.921 / layer 2 - i4b passive cards D channel handling
-device		"i4bq921"
+device		i4bq921
 #
 # Q.931 / layer 3 - i4b passive cards D channel handling
-device		"i4bq931"
+device		i4bq931
 #
 # layer 4 - i4b common passive and active card handling
-device		"i4b"
+device		i4b
 #
 #---------------------------------------------------------------------------
 #	ISDN devices - mandatory for all hardware drivers
 #
 # userland driver to do ISDN tracing (for passive cards only)
-device		"i4btrc"	4
+device		i4btrc
+options		NI4BTRC=4
 #
 # userland driver to control the whole thing
-device		"i4bctl"
+device		i4bctl
 #
 #---------------------------------------------------------------------------
 #	ISDN devices - optional
 #
 # userland driver for access to raw B channel
-device		"i4brbch"	4
+device		i4brbch
+options		NI4BRBCH=4
 #
 # userland driver for telephony
-device		"i4btel"	2
+device		i4btel
+options 	NI4BTEL=2
 #
 # network driver for IP over raw HDLC ISDN
-device		"i4bipr"	4
+device		i4bipr
+options 	NI4BIPR=4
 # enable VJ header compression detection for ipr i/f
 options 	IPR_VJ
 # enable logging of the first n IP packets to isdnd (n=32 here)
@@ -935,13 +939,15 @@ options 	IPR_LOG=32
 #
 # network driver for sync PPP over ISDN; requires an equivalent
 # number of sppp device to be configured
-device		"i4bisppp"	4
+device		i4bisppp
+options 	NI4BISPPP=4
 #
 # B-channel interface to the netgraph subsystem
-device		"i4bing"	2
+device		i4bing
+options		NI4BING=2
 #
 # CAPI driver needed for active ISDN cards (see iavc driver above)
-device		"i4bcapi"
+device		i4bcapi
 #
 #---------------------------------------------------------------------------
 

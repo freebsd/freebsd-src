@@ -82,7 +82,7 @@ cam/scsi/scsi_sa.c	optional sa
 cam/scsi/scsi_ses.c	optional ses
 cam/scsi/scsi_targ_bh.c	optional targbh
 cam/scsi/scsi_target.c	optional targ
-coda/coda_fbsd.c	count vcoda
+coda/coda_fbsd.c	optional vcoda
 coda/coda_namecache.c	optional vcoda
 coda/coda_psdev.c	optional vcoda
 coda/coda_subr.c	optional vcoda
@@ -992,14 +992,14 @@ gnu/ext2fs/ext2_vnops.c		optional ext2fs
 #
 # isdn4bsd device drivers
 #
-i4b/driver/i4b_trace.c		count i4btrc
-i4b/driver/i4b_rbch.c		count i4brbch
-i4b/driver/i4b_tel.c		count i4btel
-i4b/driver/i4b_ipr.c		count i4bipr
+i4b/driver/i4b_trace.c		optional i4btrc
+i4b/driver/i4b_rbch.c		optional i4brbch
+i4b/driver/i4b_tel.c		optional i4btel
+i4b/driver/i4b_ipr.c		optional i4bipr
 net/slcompress.c		optional i4bipr
 i4b/driver/i4b_ctl.c		optional i4bctl
-i4b/driver/i4b_ing.c		count i4bing
-i4b/driver/i4b_isppp.c		count i4bisppp
+i4b/driver/i4b_ing.c		optional i4bing
+i4b/driver/i4b_isppp.c		optional i4bisppp
 net/slcompress.c		optional i4bisppp
 #
 # isdn4bsd CAPI driver
