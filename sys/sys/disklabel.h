@@ -329,6 +329,7 @@ static const char *fstypenames[] = {
 #define	dkmakeminor(unit, slice, part) \
 				(((slice) << 16) | (((unit) & 0x1e0) << 16) | \
 				(((unit) & 0x1f) << 3) | (part))
+#ifdef NO_GEOM
 #define	dkpart(dev)		(minor(dev) & 7)
 #define	dkslice(dev)		((minor(dev) >> 16) & 0x1f)
 #define	dksparebits(dev)       	((minor(dev) >> 25) & 0x7f)
@@ -348,6 +349,7 @@ int	writedisklabel(dev_t dev, struct disklabel *lp);
 #ifdef __alpha__
 struct	buf;			
 void	alpha_fix_srm_checksum(struct buf *bp);
+#endif /* NO_GEOM */
 #endif
 
 #endif /* _KERNEL */
