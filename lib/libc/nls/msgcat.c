@@ -1,4 +1,4 @@
-/*	$Id$ */
+/*	$Id: msgcat.c,v 1.7 1997/02/22 15:00:50 peter Exp $ */
 
 /***********************************************************
 Copyright 1990, by Alfalfa Software Incorporated, Cambridge, Massachusetts.
@@ -99,8 +99,13 @@ int type;
 	catpath = name;
 	if (stat(catpath, &sbuf)) return(0);
     } else {
-	if ((lang = (char *) getenv("LANG")) == NULL) lang = "C";
-	if ((nlspath = (char *) getenv("NLSPATH")) == NULL) {
+	/* XXX Should really be issetguid(), but we don't have that */
+	if ((lang = (char *) getenv("LANG")) == NULL || 
+		getuid() != geteuid() || getgid() != getegid()) 
+		lang = "C";
+	/* XXX Should really be issetguid(), but we don't have that */
+	if ((nlspath = (char *) getenv("NLSPATH")) == NULL ||
+		getuid() != geteuid() || getgid() != getegid()) {
 	    nlspath = "/usr/share/nls/%L/%N.cat:/usr/share/nls/%N/%L:/usr/local/share/nls/%L/%N.cat:/usr/local/share/nls/%N/%L";
 	}
 
