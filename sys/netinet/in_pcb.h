@@ -250,6 +250,7 @@ struct inpcbinfo {		/* XXX documentation, prefixes */
 
 #define INP_INFO_LOCK_INIT(ipi, d) \
 	mtx_init(&(ipi)->ipi_mtx, (d), NULL, MTX_DEF | MTX_RECURSE)
+#define INP_INFO_LOCK_DESTROY(ipi)  mtx_destroy(&(ipi)->ipi_mtx)
 #define INP_INFO_RLOCK(ipi)	mtx_lock(&(ipi)->ipi_mtx)
 #define INP_INFO_WLOCK(ipi)	mtx_lock(&(ipi)->ipi_mtx)
 #define INP_INFO_RUNLOCK(ipi)	mtx_unlock(&(ipi)->ipi_mtx)
