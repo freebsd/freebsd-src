@@ -41,7 +41,6 @@
 #include <sys/types.h>
 #include <time.h>
 #include <sys/uio.h>
-#include <string.h>
 #include <stdlib.h>
 #include <err.h>
 
@@ -140,6 +139,8 @@ void
 settime(now)
     	time_t now;
 {
+	char *oldl, *lbufp;
+
 	tp = localtime(&now);
 	if ( isleap(tp->tm_year + 1900) ) {
 		yrdays = 366;
@@ -152,9 +153,15 @@ settime(now)
 	offset = tp->tm_wday == 5 ? 3 : 1;
 	header[5].iov_base = dayname;
 
+	oldl = NULL;
+	lbufp = setlocale(LC_TIME, NULL);
+	if (lbufp != NULL && (oldl = strdup(lbufp)) == NULL)
+		errx(1, "cannot allocate memory");
 	(void) setlocale(LC_TIME, "C");
 	header[5].iov_len = strftime(dayname, sizeof(dayname), "%A", tp);
-	(void) setlocale(LC_TIME, "");
+	(void) setlocale(LC_TIME, (oldl != NULL ? oldl : ""));
+	if (oldl != NULL)
+		free(oldl);
 
 	setnnames();
 }
