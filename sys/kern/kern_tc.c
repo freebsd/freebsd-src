@@ -278,11 +278,19 @@ getmicrotime(struct timeval *tvp)
 void
 tc_init(struct timecounter *tc)
 {
+	unsigned u;
 
+	printf("Timecounter \"%s\"  frequency %lu Hz",
+	    tc->tc_name, (u_long)tc->tc_frequency);
+
+	u = tc->tc_frequency / tc->tc_counter_mask;
+	if (u > hz) {
+		printf(" -- Insufficient hz, needs at least %u\n", u);
+		return;
+	}
 	tc->tc_next = timecounters;
 	timecounters = tc;
-	printf("Timecounter \"%s\"  frequency %lu Hz\n",
-	    tc->tc_name, (u_long)tc->tc_frequency);
+	printf("\n");
 	(void)tc->tc_get_timecount(tc);
 	(void)tc->tc_get_timecount(tc);
 	timecounter = tc;
