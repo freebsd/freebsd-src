@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: local_passwd.c,v 1.15 1997/03/11 14:05:35 ache Exp $
+ * $Id: local_passwd.c,v 1.16 1997/03/24 16:10:26 ache Exp $
  */
 
 #ifndef lint
@@ -117,7 +117,7 @@ getnewpasswd(pw, nis)
 	 * Determine minimum password length and next password change date.
 	 * Note that even for NIS passwords, login_cap is still used.
 	 */
-	if ((lc = login_getclass(pw)) != NULL) {
+	if ((lc = login_getpwclass(pw)) != NULL) {
 		time_t	period;
 
 		/* minpasswordlen capablity */
