@@ -693,6 +693,7 @@ udp_output(inp, m, addr, control, td)
 	struct cmsghdr *cm;
 	struct sockaddr_in *sin, src;
 	int error = 0;
+	int ipflags;
 	u_short fport, lport;
 
 #ifdef MAC
@@ -821,6 +822,10 @@ udp_output(inp, m, addr, control, td)
 	ui->ui_dport = fport;
 	ui->ui_ulen = htons((u_short)len + sizeof(struct udphdr));
 
+	ipflags = inp->inp_socket->so_options & (SO_DONTROUTE | SO_BROADCAST);
+	if (inp->inp_flags & INP_ONESBCAST)
+		ipflags |= IP_SENDONES;
+
 	/*
 	 * Set up checksum and output datagram.
 	 */
@@ -837,8 +842,7 @@ udp_output(inp, m, addr, control, td)
 	((struct ip *)ui)->ip_tos = inp->inp_ip_tos;	/* XXX */
 	udpstat.udps_opackets++;
 
-	error = ip_output(m, inp->inp_options, &inp->inp_route,
-	    (inp->inp_socket->so_options & (SO_DONTROUTE | SO_BROADCAST)),
+	error = ip_output(m, inp->inp_options, &inp->inp_route, ipflags,
 	    inp->inp_moptions, inp);
 	return (error);
 

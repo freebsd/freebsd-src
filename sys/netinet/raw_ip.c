@@ -322,6 +322,9 @@ rip_output(m, so, dst)
 		ipstat.ips_rawout++;
 	}
 
+	if (inp->inp_flags & INP_ONESBCAST)
+		flags |= IP_SENDONES;
+
 	return (ip_output(m, inp->inp_options, &inp->inp_route, flags,
 			  inp->inp_moptions, inp));
 }

@@ -142,6 +142,7 @@ struct inpcb {
 #define	INP_IPV6	0x2
 #define INP_IPV6PROTO	0x4		/* opened under IPv6 protocol */
 #define INP_TIMEWAIT	0x8		/* .. probably doesn't go here */
+#define	INP_ONESBCAST	0x10		/* send all-ones broadcast */
 	u_char	inp_ip_ttl;		/* time to live proto */
 	u_char	inp_ip_p;		/* protocol proto */
 
