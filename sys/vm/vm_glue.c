@@ -262,21 +262,18 @@ vm_proc_dispose(struct proc *p)
 	vm_object_t upobj;
 	vm_offset_t up;
 	vm_page_t m;
-	int i;
 
 	upobj = p->p_upages_obj;
-	up = (vm_offset_t)p->p_uarea;
-	for (i = 0; i < UAREA_PAGES; i++) {
-		m = vm_page_lookup(upobj, i);
-		if (m == NULL)
-			panic("vm_proc_dispose: upage already missing?");
+	if (upobj->resident_page_count != UAREA_PAGES)
+		panic("vm_proc_dispose: incorrect number of pages in upobj");
+	while ((m = TAILQ_FIRST(&upobj->memq)) != NULL) {
 		vm_page_busy(m);
 		vm_page_unwire(m, 0);
 		vm_page_free(m);
 	}
+	up = (vm_offset_t)p->p_uarea;
 	pmap_qremove(up, UAREA_PAGES);
 	kmem_free(kernel_map, up, UAREA_PAGES * PAGE_SIZE);
-	p->p_upages_obj = NULL;
 	vm_object_deallocate(upobj);
 }
 
@@ -290,17 +287,15 @@ vm_proc_swapout(struct proc *p)
 	vm_object_t upobj;
 	vm_offset_t up;
 	vm_page_t m;
-	int i;
 
 	upobj = p->p_upages_obj;
-	up = (vm_offset_t)p->p_uarea;
-	for (i = 0; i < UAREA_PAGES; i++) {
-		m = vm_page_lookup(upobj, i);
-		if (m == NULL)
-			panic("vm_proc_swapout: upage already missing?");
+	if (upobj->resident_page_count != UAREA_PAGES)
+		panic("vm_proc_dispose: incorrect number of pages in upobj");
+	TAILQ_FOREACH(m, &upobj->memq, listq) {
 		vm_page_dirty(m);
 		vm_page_unwire(m, 0);
 	}
+	up = (vm_offset_t)p->p_uarea;
 	pmap_qremove(up, UAREA_PAGES);
 }
 
@@ -318,7 +313,6 @@ vm_proc_swapin(struct proc *p)
 	int i;
 
 	upobj = p->p_upages_obj;
-	up = (vm_offset_t)p->p_uarea;
 	for (i = 0; i < UAREA_PAGES; i++) {
 		m = vm_page_grab(upobj, i, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
 		if (m->valid != VM_PAGE_BITS_ALL) {
@@ -333,6 +327,7 @@ vm_proc_swapin(struct proc *p)
 		vm_page_wakeup(m);
 		vm_page_flag_set(m, PG_MAPPED | PG_WRITEABLE);
 	}
+	up = (vm_offset_t)p->p_uarea;
 	pmap_qenter(up, ma, UAREA_PAGES);
 }
 #endif
