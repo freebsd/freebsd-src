@@ -57,7 +57,6 @@ error "Can only have 1 spigot configured."
 
 #include	<sys/param.h>
 #include	<sys/systm.h>
-#include	<sys/kernel.h>
 #include	<sys/conf.h>
 #include	<sys/proc.h>
 #include	<sys/signalvar.h>

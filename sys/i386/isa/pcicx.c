@@ -35,13 +35,14 @@
  *   circumstances is the author responsible for the proper functioning
  *   of this software, nor does the author assume any responsibility
  *   for damages incurred with its use.
+ *
+ * $FreeBSD$
  */
 #include <sys/param.h>
 #if defined(__FreeBSD__)
 #include <sys/systm.h>
 #include <machine/clock.h>
 #endif
-#include <i386/isa/isa_device.h>
 #include <i386/isa/pcic.h>
 
 /*
