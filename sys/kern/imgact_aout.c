@@ -239,44 +239,19 @@ exec_aout_imgact(imgp)
  * expand_name(), unless the process was setuid/setgid.
  */
 int
-aout_coredump(p)
+aout_coredump(p, vp, limit)
 	register struct proc *p;
-{
 	register struct vnode *vp;
+	off_t limit;
+{
 	register struct ucred *cred = p->p_cred->pc_ucred;
 	register struct vmspace *vm = p->p_vmspace;
-	struct nameidata nd;
-	struct vattr vattr;
-	int error, error1;
-	char *name;			/* name of corefile */
+	int error = 0;
 
-	STOPEVENT(p, S_CORE, 0);
-	if (sugid_coredump == 0 && p->p_flag & P_SUGID)
-		return (EFAULT);
 	if (ctob(UPAGES + vm->vm_dsize + vm->vm_ssize) >=
-	    p->p_rlimit[RLIMIT_CORE].rlim_cur)
+	    limit)
 		return (EFAULT);
-	name = expand_name(p->p_comm, p->p_ucred->cr_uid, p->p_pid);
-	if (name == NULL)
-		return (EFAULT);	/* XXX -- not the best error */
-	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_SYSSPACE, name, p);
-	error = vn_open(&nd, O_CREAT | FWRITE | O_NOFOLLOW, S_IRUSR | S_IWUSR);
-	free(name, M_TEMP);
-	if (error)
-		return (error);
-	vp = nd.ni_vp;
 
-	/* Don't dump to non-regular files or files with links. */
-	if (vp->v_type != VREG ||
-	    VOP_GETATTR(vp, &vattr, cred, p) || vattr.va_nlink != 1) {
-		error = EFAULT;
-		goto out;
-	}
-	VATTR_NULL(&vattr);
-	vattr.va_size = 0;
-	VOP_LEASE(vp, p, cred, LEASE_WRITE);
-	VOP_SETATTR(vp, &vattr, cred, p);
-	p->p_acflag |= ACORE;
 	bcopy(p, &p->p_addr->u_kproc.kp_proc, sizeof(struct proc));
 	fill_eproc(p, &p->p_addr->u_kproc.kp_eproc);
 	error = cpu_coredump(p, vp, cred);
@@ -290,12 +265,7 @@ aout_coredump(p)
 		    round_page(ctob(vm->vm_ssize)),
 		    (off_t)ctob(UPAGES) + ctob(vm->vm_dsize), UIO_USERSPACE,
 		    IO_NODELOCKED|IO_UNIT, cred, (int *) NULL, p);
-out:
-	VOP_UNLOCK(vp, 0, p);
-	error1 = vn_close(vp, FWRITE, cred, p);
-	if (error == 0)
-		error = error1;
-	return (error);
+	return error;
 }
 
 /*
