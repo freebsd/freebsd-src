@@ -43,14 +43,14 @@ The
 command is used to dump the contents of the kernel ktr trace buffer.
 .Pp
 The following options are available:
-.Bl -tag -width ".Fl c Ar execfile"
+.Bl -tag -width ".Fl e Ar execfile"
 .It Fl c
-Print the cpu number that each entry was logged from.
+Print the CPU number that each entry was logged from.
 .It Fl f
 Print the file and line number that each entry was logged from.
 .It Fl t
 Print the timestamp for each entry.
-.It Fl c Ar execfile
+.It Fl e Ar execfile
 The kernel image to resolve symbols from.
 The default is the value returned via
 .Xr getbootfile 3 .
@@ -60,8 +60,7 @@ The default is
 .Pa /dev/mem .
 .It Fl o Ar outfile
 The file to write the output to.
-The default is
-.Va stdout .
+The default is standard output.
 .El
 .Sh SEE ALSO
 .Xr ktr 4 ,
