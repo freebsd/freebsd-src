@@ -180,7 +180,7 @@ s_stab(fn, fd, ep)
 	}
 
 	/* Check size. */
-	if (sb.st_size > SIZE_T_MAX) {
+	if (sb.st_size > (unsigned)SIZE_T_MAX) {
 		warnx("%s: %s", fn, strerror(EFBIG));
 		err_val = 1;
 		return;
