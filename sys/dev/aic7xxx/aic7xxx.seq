@@ -1,6 +1,6 @@
-# @(#)aic7xxx.seq 1.31 94/11/25 jda
+# @(#)aic7xxx.seq 1.32 94/11/29 jda
 #
-# Adaptec 274x device driver for Linux.
+# Adaptec 274x/284x/294x device driver for Linux.
 # Copyright (c) 1994 The University of Calgary Department of Computer Science.
 # 
 # This program is free software; you can redistribute it and/or modify
@@ -17,7 +17,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-VERSION AIC7XXX_SEQ_VERSION 1.31
+VERSION AIC7XXX_SEQ_VERSION 1.32
 
 SCBMASK		= 0x1f
 
@@ -97,6 +97,7 @@ SIGNAL_2	= 0x21				# no IDENTIFY after reconnect
 SIGNAL_3	= 0x31				# no cmd match for reconnect
 SIGNAL_4	= 0x41				# SDTR -> SCSIRATE conversion
 STATUS_ERROR    = 0x51
+SIGNAL_WDTR	= 0x61
 
 #  The host adapter card (at least the BIOS) uses 20-2f for SCSI
 #  device information, 32-33 and 5a-5f as well. As it turns out, the
@@ -116,7 +117,7 @@ STATUS_ERROR    = 0x51
 #  message, so the driver can report an intelligible error if a message is
 #  rejected.
 #
-#  RESELECT's high bit is true if we are currently handling a reselect;
+#  FLAGS's high bit is true if we are currently handling a reselect;
 #  its next-highest bit is true ONLY IF we've seen an IDENTIFY message
 #  from the reselecting target.  If we haven't had IDENTIFY, then we have
 #  no idea what the lun is, and we can't select the right SCB register
@@ -131,9 +132,10 @@ DROPATN		= 0x30
 REJBYTE		= 0x31
 DISC_DSB_A	= 0x32
 DISC_DSB_B	= 0x33
-RESELECT	= 0x34
 
-MSG_FLAGS	= 0x35
+NEEDWDTR_A	= 0x34
+NEEDWDTR_B	= 0x35
+
 MSG_LEN		= 0x36
 MSG_START+0	= 0x37
 MSG_START+1	= 0x38
@@ -163,6 +165,11 @@ SCBCOUNT	= 0x56				# the actual number of SCBs
 FLAGS		= 0x57				# Device configuration flags
 TWIN_BUS	= 0x01
 WIDE_BUS	= 0x02
+CHECK_DTR	= 0x08
+SENSE		= 0x10
+ACTIVE_MSG	= 0x20
+IDENTIFY_SEEN	= 0x40
+RESELECTED	= 0x80
 
 ACTIVE_A	= 0x58
 ACTIVE_B	= 0x59
@@ -171,6 +178,7 @@ ACTIVE_B	= 0x59
 #  the number of entries in the Queue In FIFO.
 #
 start:
+	test	FLAGS,SENSE	jnz start_sense
 	test	FLAGS,TWIN_BUS	jz start2	# Are we a twin channel device?
 # For fairness, we check the other bus first, since we just finished a 
 # transaction on the current channel.
@@ -205,6 +213,11 @@ start2:
 	or	ACTIVE_B,A	# Mark the current target as busy
 	jmp	start_scb
 
+start_sense:
+# Clear the SENSE flag first, then do a normal start_scb
+	and	FLAGS,0xef
+	jmp	start_scb
+
 # Place the currently active back on the queue for later processing
 requeue:
 	mov	QINFIFO, SCBPTR
@@ -215,11 +228,13 @@ test_a:
 	or	ACTIVE_A,A	# Mark the current target as busy
 
 start_scb:
-	and	A,0x08,SCBARRAY+1
-	mov	SBLKCTL,A	# select channel, !wide
+	and	SINDEX,0x08,SCBARRAY+1
+	and	A,WIDE_BUS,FLAGS	# Wide bus?	
+	or	SINDEX,A
+	mov	SBLKCTL,SINDEX	# select channel, bus width
 	mov	SCBARRAY+1	call initialize
 	clr	SG_NOLOAD
-	clr	RESELECT
+	and	FLAGS,0x3f	# !RESELECTING
 
 #  As soon as we get a successful selection, the target should go
 #  into the message out phase since we have ATN asserted.  Prepare
@@ -238,7 +253,8 @@ start_scb:
 
 	mov	A,SINDEX
 	cmp	MSG_START+0,A	jne !message	# did driver beat us?
-	mvi	MSG_START+1	call mk_sdtr	# build SDTR message if needed
+	test	FLAGS,CHECK_DTR jz !message	# Don't even bother with DTR?
+	mvi	MSG_START+1	call mk_dtr	# build DTR message if needed
 
 !message:
 
@@ -286,7 +302,8 @@ reselect1:
 	test	SSTAT0,0x20	jz reselect1	# SELDI
 	mov	SELID		call initialize
 
-	mvi	RESELECT,0x80			# reselected, no IDENTIFY
+	and	FLAGS,0x3f			# reselected, no IDENTIFY	
+	or	FLAGS,RESELECTED		
 
 #  After the [re]selection, make sure that the [re]selection enable
 #  bit is off.  This chip is flaky enough without extra things
@@ -495,7 +512,7 @@ p_mesgout5:
 
 p_mesgout6:
 	mvi	CLRSINT1,0x40			# CLRATNO - in case of PHASEMIS
-	clr	MSG_FLAGS			# no active msg
+	and	FLAGS,0xdf			# no active msg
 	jmp	ITloop
 
 #  Message in phase.  Bytes are read using Automatic PIO mode, but not
@@ -528,9 +545,9 @@ p_mesgin:
 #  before the command complete code tried processing it.
 
 	test	SCBARRAY+14,0xff	jz status_ok  # 0 Status?
-	call	inb_last			# ack & turn auto PIO back on
 	mvi	INTSTAT,STATUS_ERROR		# let driver know
-	jmp	start_scb
+	test	FLAGS,SENSE	jz status_ok
+	jmp	p_mesgin_done
 
 status_ok:
 
@@ -549,50 +566,48 @@ complete:
 	mvi	INTSTAT,0x02			# CMDCMPLT
 	jmp	p_mesgin_done
 
-#  Is it an extended message?  We only support the synchronous data
-#  transfer request message, which will probably be in response to
-#  an SDTR message out from us.  If it's not an SDTR, reject it -
+#  Is it an extended message?  We only support the synchronous and wide data
+#  transfer request messages, which will probably be in response to
+#  WDTR or SDTR message outs from us.  If it's not SDTR or WDTR, reject it -
 #  apparently this can be done after any message in byte, according
 #  to the SCSI-2 spec.
-#
-#  XXX - we should really reject this if we didn't initiate the SDTR
-#	 negotiation; this may cause problems with unusual devices.
 #
 p_mesgin1:
 	cmp	A,1		jne p_mesgin2	# extended message code?
 	
-	mvi	A		call inb_next
-	cmp	A,3		jne p_mesginN	# extended mesg length = 3
-	mvi	A		call inb_next
-	cmp	A,1		jne p_mesginN	# SDTR code
+	mvi	ARG_1		call inb_next	# extended message length
+	mvi	A		call inb_next	# extended message code
 
+	cmp	A,1		je p_mesginSDTR	# Syncronous negotiation message
+	cmp	A,3		je p_mesginWDTR # Wide negotiation message
+	jmp	p_mesginN
+
+p_mesginWDTR:
+	cmp	ARG_1,2		jne p_mesginN	# extended mesg length = 2
+	mvi	A		call inb_next	# Width of bus
+	mvi	INTSTAT,SIGNAL_WDTR		# let driver know
+	test	RETURN_1,0x80	jz p_mesgin_done# Do we need to send WDTR?
+
+# We didn't initiate the wide negotiation, so we must respond to the request
+	and	RETURN_1,0x7f			# Clear the SEND_WDTR Flag
+	or	FLAGS,ACTIVE_MSG
+	mvi	MSG_START+0	call mk_wdtr	# build WDTR message	
+	or	SINDEX,0x10,SIGSTATE		# turn on ATNO
+	call	scsisig
+	jmp	p_mesgin_done
+
+p_mesginSDTR:
+	cmp	ARG_1,3		jne p_mesginN	# extended mesg length = 3
 	mvi	ARG_1		call inb_next	# xfer period
 	mvi	A		call inb_next	# REQ/ACK offset
 	mvi	INTSTAT,SIGNAL_4		# call driver to convert
 
-	call	ndx_sdtr			# index sync config for target
-	mov	DINDEX,SINDEX
-	not	A				# turn off "need sdtr" flag
-	test	SBLKCTL,0x08	jnz p_mesgin1_b
-	test	SCSIID,0x80	jnz p_mesgin1_b
-	and	NEEDSDTR_A,A
-	jmp	p_mesgin1_save
+	test	RETURN_1,0x80	jz p_mesgin_done# Do we need to mk_sdtr?
 
-p_mesgin1_b:
-	and	NEEDSDTR_B,A
-
-p_mesgin1_save:
-	and	A,0x80,SINDIR			# get the WIDEXFER flag
-	or	RETURN_1,A			# Set WIDEXFER if necessary
-	mov	DINDIR,RETURN_1			# save returned value
-
-#  Even though the SCSI-2 specification says that a device responding
-#  to our SDTR message should honor our parameters for transmitting
-#  to us, it doesn't seem to work too well in real life.  In particular,
-#  a lot of CD-ROM and tape units don't function: try using the SDTR
-#  parameters the device sent us for both transmitting and receiving.
-#
-	mov	SCSIRATE,RETURN_1
+	or	FLAGS,ACTIVE_MSG
+	mvi     MSG_START+0     call mk_sdtr
+	or	SINDEX,0x10,SIGSTATE		# turn on ATNO
+	call	scsisig
 	jmp	p_mesgin_done
 
 #  Is it a disconnect message?  Set a flag in the SCB to remind us
@@ -638,17 +653,17 @@ p_mesgin5:
 #  or the driver is trying to abort the command.  Either way, something
 #  untoward has happened and we should just leave it alone.
 #
-	test	MSG_FLAGS,0x80	jnz p_mesgin_done
+	test	FLAGS,ACTIVE_MSG	jnz p_mesgin_done
 
 	and	SCBARRAY+0,0xfb			# clear disconnect bit in SCB
-	mvi	RESELECT,0xc0			# make note of IDENTIFY
+	or	FLAGS,0xc0			# make note of IDENTIFY
 
 	call	sg_scb2ram			# implied restore pointers
 						#   required on reselect
 	jmp	p_mesgin_done
 
-#  Message reject?  If we have an outstanding SDTR negotiation, assume
-#  that it's a response from the target selecting asynchronous transfer,
+#  Message reject?  If we have an outstanding WDTR or SDTR negotiation, assume
+#  that it's a response from the target selecting 8bit or asynchronous transfer,
 #  otherwise just ignore it since we have no clue what it pertains to.
 #
 #  XXX - I don't have a device that responds this way.  Does this code
@@ -662,27 +677,55 @@ p_mesgin6:
 	
 	test	SBLKCTL,0x08	jnz p_mesgin6_b	
 	test	SCSIID,0x80	jnz p_mesgin6_b	
-	test	NEEDSDTR_A,A	jz p_mesgin_done  # no - ignore rejection
-	call	ndx_sdtr			# note use of asynch xfer
+	test	NEEDWDTR_A,A	jnz clear_wdtr_a
+	test	NEEDSDTR_A,A	jnz clear_sdtr_a
+	jmp	p_mesgin_done  # no - ignore rejection
+
+clear_sdtr_a:
+	call	ndx_dtr				# note use of asynch xfer
 	mov	DINDEX,SINDEX
-	clr	DINDIR
+	and	DINDIR,0x80,SINDIR
 
 	not	A
 	and	NEEDSDTR_A,A
-	jmp	p_mesgin6_done
+	jmp	clear_sdtr_done
+
+clear_wdtr_a:
+	call	ndx_dtr				# note use of 8bit xfer
+	mov	DINDEX,SINDEX
+	and	DINDIR,0x7f,SINDIR
+
+	not	A
+	and	NEEDWDTR_A,A
+	jmp	clear_wdtr_done
 
 p_mesgin6_b:
-	test	NEEDSDTR_B,A	jz p_mesgin_done  # no - ignore rejection
-	call	ndx_sdtr			# note use of asynch xfer
+	test	NEEDWDTR_B,A	jnz clear_wdtr_b
+	test	NEEDSDTR_B,A	jnz clear_sdtr_b
+	jmp	p_mesgin_done	# no - ignore rejection	
+
+clear_wdtr_b:
+	call	ndx_dtr				# note use of 8bit xfer
 	mov	DINDEX,SINDEX
-	clr	DINDIR
+	and	DINDIR,0x7f,SINDIR
+
+	not	A
+	and	NEEDWDTR_B,A
+
+clear_wdtr_done:
+	and	SCSIRATE,0x7f			# select 8bit xfer
+	jmp	p_mesgin_done
+
+clear_sdtr_b:
+	call	ndx_dtr				# note use of asynch xfer
+	mov	DINDEX,SINDEX
+	and	DINDIR,0x80,SINDIR
 
 	not	A
 	and	NEEDSDTR_B,A
 	
-p_mesgin6_done:
-
-	clr	SCSIRATE			# select asynch xfer
+clear_sdtr_done:
+	and	SCSIRATE,0xf0			# select asynch xfer
 	jmp	p_mesgin_done
 
 #  [ ADD MORE MESSAGE HANDLING HERE ]
@@ -731,9 +774,9 @@ bcopy:
 #
 mk_mesg:
 	mvi	SEQCTL,0x50			# PAUSEDIS|FASTMODE
-	test	MSG_FLAGS,0x80	jnz mk_mesg1	# active message?
+	test	FLAGS,ACTIVE_MSG jnz mk_mesg1	# active message?
 
-	mvi	MSG_FLAGS,0x80			# if not, there is now
+	or	FLAGS,ACTIVE_MSG		# if not, there is now
 	mvi	MSG_LEN,1			# length = 1
 	mov	MSG_START+0,SINDEX		# 1-byte message
 
@@ -839,7 +882,7 @@ dma2:
 dma3:
 	test	SINDEX,0x4	jnz dma5	# DIRECTION
 dma4:
-	test	DFSTATUS,0x1	jz dma4		# FIFOEMP
+	test	DFSTATUS,0x1	jz dma4		# !FIFOEMP
 
 #  Now shut the DMA enables off, and copy STCNT (ie. the underrun
 #  amount, if any) to the SCB registers; SG_COUNT will get copied to
@@ -873,7 +916,7 @@ initialize_b:
 	mvi	SCSICONF_B	 jmp	initialize_2
 
 initialize_wide:
-	and	A, 0xf,SCSICONF_B
+	and	A,0x0f,SCSICONF_B		# SCSI_ID_B[210]
 
 initialize_2:
 	or	SCSIID,A
@@ -900,7 +943,7 @@ initialize_2:
 #  STPWEN is 7870-specific, enabling an external termination power source.
 #
 	and	A,0x38,SINDIR			# PARITY_ENB|SEL_TIM[10]
-	or	SXFRCTL1,0x7,A			# ENSTIMER|ACTNEGEN|STPWEN
+	or	SXFRCTL1,0x7,A			# ENSTIMER|ACTBEGEB|STPWEN
 	mvi	SIMODE1,0x84			# ENSELTIMO|ENSCSIPERR
 	
 #  Initialize scatter-gather pointers by setting up the working copy
@@ -910,7 +953,7 @@ initialize_2:
 
 #  Initialize SCSIRATE with the appropriate value for this target.
 #
-	call	ndx_sdtr
+	call	ndx_dtr
 	mov	SCSIRATE,SINDIR
 	ret
 
@@ -918,8 +961,8 @@ initialize_2:
 #  message.
 #
 assert:
-	test	RESELECT,0x80	jz assert1	# reselected?
-	test	RESELECT,0x40	jnz assert1	# seen IDENTIFY?
+	test	FLAGS,RESELECTED	jz assert1	# reselected?
+	test	FLAGS,IDENTIFY_SEEN	jnz assert1	# seen IDENTIFY?
 
 	mvi	INTSTAT,SIGNAL_2		# no - cause a kernel panic
 
@@ -1111,39 +1154,73 @@ sg_advance2:
 #  is in SCSIID), and return the result in SINDEX.  The accumulator
 #  contains the 3->8 decoding of the target ID on return.
 #
-ndx_sdtr:
+ndx_dtr:
 	shr	A,SCSIID,4
-	test	SBLKCTL,0x08	jz ndx_sdtr_2
+	test	SBLKCTL,0x08	jz ndx_dtr_2
 	or	A,0x08		# Channel B entries add 8
-ndx_sdtr_2:
+ndx_dtr_2:
 	add	SINDEX,SYNCNEG,A
 
 	and	FUNCTION1,0x70,SCSIID		# 3-bit target address decode
 	mov	A,FUNCTION1	ret
 
-#  If we need to negotiate transfer parameters, build the SDTR message
+#  If we need to negotiate transfer parameters, build the WDTR or SDTR message
 #  starting at the address passed in SINDEX.  DINDEX is modified on return.
+#  The SCSI-II spec requires that Wide negotiation occur first and you can
+#  only negotiat one or the other at a time otherwise in the event of a message
+#  reject, you wouldn't be able to tell which message was the culpret.
 #
-mk_sdtr:
+mk_dtr:
 	mov	DINDEX,SINDEX			# save SINDEX
 
-	call	ndx_sdtr
-	test	SCBARRAY+1,0x88	jz  mk_sdtr1_a
-	test	NEEDSDTR_B,A	jnz mk_sdtr1	# do we need negotiation?
+	call	ndx_dtr
+	test	SCBARRAY+1,0x88	jz  mk_dtr_a
+	test	NEEDWDTR_B,A	jnz mk_wdtr_16	# do we need negotiation?
+	test	NEEDSDTR_B,A	jnz mk_sdtr
 	ret
-mk_sdtr1_a:
-	test	NEEDSDTR_A,A	jnz mk_sdtr1	# do we need negotiation?
+mk_dtr_a:
+	test	NEEDWDTR_A,A	jnz mk_wdtr_16	# do we need negotiation?
+	test	NEEDSDTR_A,A	jnz mk_sdtr
 	ret
 
-mk_sdtr1:
+mk_wdtr_16:
+	mvi	ARG_1,1			# 16bit wide bus
+
+mk_wdtr:
 	mvi	DINDIR,1			# extended message
-	mvi	DINDIR,3			# extended message length = 3
-	mvi	DINDIR,1			# SDTR code
-	mvi	DINDIR,25			# REQ/ACK transfer period
-	mvi	DINDIR,15			# REQ/ACK offset
+	mvi	DINDIR,2			# extended message length = 2
+	mvi	DINDIR,3			# WDTR code
+	mov	DINDIR,ARG_1			# bus width
 
 	add	MSG_LEN,-MSG_START+0,DINDEX	# update message length
 	ret
+	
+mk_sdtr:
+	mvi	DINDIR,1			# extended message
+	mvi	DINDIR,3			# extended message length = 3
+	mvi	DINDIR,1			# SDTR code
+	call	sdtr_to_rate
+	mov	DINDIR,RETURN_1			# REQ/ACK transfer period
+	and	DINDIR,0xf,SINDIR		# Sync Offset
+
+	add	MSG_LEN,-MSG_START+0,DINDEX	# update message length
+	ret
+
+# Tag Message if Tag enabled in SCB control block.  Use SCBPTR as the tag
+# value
+
+#mk_tag:
+#	test	SCBARRAY+0,0x10	jz mk_tag_done	# Tag Enabled?
+#	and	A,0x03,SCBARRYA+0
+#	or	A,0x20
+#	mov	DINDIR,A
+#	mov	DINDIR,SCBPTR
+#
+#	add	MSG_LEN,-MSG_START+0,DINDEX	# update message length
+
+#mk_tag_done:
+#	ret
+
 
 #  Set SCSI bus control signal state.  This also saves the last-written
 #  value into a location where the higher-level driver can read it - if
@@ -1155,3 +1232,18 @@ mk_sdtr1:
 scsisig:
 	mov	SIGSTATE,SINDEX
 	mov	SCSISIGO,SINDEX	ret
+
+sdtr_to_rate:
+	call	ndx_dtr				# index scratch space for target
+	shr	A,SINDIR,0x4
+	dec	SINDEX				#Preserve SINDEX
+	and	A,0x7
+	clr	RETURN_1
+sdtr_to_rate_loop:
+	test	A,0x0f	jz sdtr_to_rate_done
+	add	RETURN_1,0x18
+	dec	A	
+	jmp	sdtr_to_rate_loop
+sdtr_to_rate_done:
+	shr	RETURN_1,0x2
+	add	RETURN_1,0x18	ret
