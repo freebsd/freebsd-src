@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.110 1998/06/30 03:01:35 jmg Exp $
+ *	$Id: locore.s,v 1.111 1998/07/27 16:45:01 jlemon Exp $
  *
  *		originally from: locore.s, by William F. Jolitz
  *
@@ -569,7 +569,7 @@ got_common_bi_size:
 	rep
 	movsb
 
-#ifdef NFS
+#ifdef NFS_ROOT
 #ifndef BOOTP_NFSV3
 	/*
 	 * If we have a nfs_diskless structure copy it in
