@@ -158,6 +158,7 @@ acpi_acad_attach(device_t dev)
 	}
 
 	/* Get initial status after whole system is up. */
+	sc->status = -1;
 	AcpiOsQueueForExecution(OSD_PRIORITY_LO, acpi_acad_get_status, dev);
 
 	return(0);
