@@ -427,7 +427,7 @@ the type of lock
 is a shared lock
 .Pq Dv F_RDLCK ,
 and
-.Fa fildes
+.Fa fd
 is not a valid file descriptor open for reading.
 .Pp
 The argument
@@ -441,7 +441,7 @@ the type of lock
 is an exclusive lock
 .Pq Dv F_WRLCK ,
 and
-.Fa fildes
+.Fa fd
 is not a valid file descriptor open for writing.
 .It Bq Er EDEADLK
 The argument
@@ -503,8 +503,8 @@ is
 or
 .Dv F_SETLKW
 and
-.Fa fildes
-refers to a file that does not support locking.
+.Fa fd
+refers to a file for which locking is not supported.
 .It Bq Er EOVERFLOW
 The argument
 .Fa cmd
@@ -513,9 +513,9 @@ is
 .Dv F_SETLK
 or
 .Dv F_SETLKW
-and
+and an
 .Fa off_t
-type calculations overflow happens.
+calculation overflowed.
 .It Bq Er EPERM
 .Fa Cmd
 is
