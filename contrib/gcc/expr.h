@@ -1,6 +1,6 @@
 /* Definitions for code generation pass of GNU compiler.
    Copyright (C) 1987, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000 Free Software Foundation, Inc.
+   1999, 2000, 2001, 2002, 2003 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -44,13 +44,19 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #define QUEUED_NEXT(P) XEXP (P, 4)
 
 /* This is the 4th arg to `expand_expr'.
+   EXPAND_STACK_PARM means we are possibly expanding a call param onto
+   the stack.  Choosing a value of 2 isn't special;  It just allows
+   some code optimization in store_expr.
    EXPAND_SUM means it is ok to return a PLUS rtx or MULT rtx.
    EXPAND_INITIALIZER is similar but also record any labels on forced_labels.
    EXPAND_CONST_ADDRESS means it is ok to return a MEM whose address
     is a constant that is not a legitimate address.
-   EXPAND_WRITE means we are only going to write to the resulting rtx.  */
-enum expand_modifier {EXPAND_NORMAL, EXPAND_SUM, EXPAND_CONST_ADDRESS,
-			EXPAND_INITIALIZER, EXPAND_WRITE};
+   EXPAND_WRITE means we are only going to write to the resulting rtx.
+   EXPAND_MEMORY means we are interested in a memory result, even if
+    the memory is constant and we could have propagated a constant value.  */
+enum expand_modifier {EXPAND_NORMAL = 0, EXPAND_STACK_PARM = 2, EXPAND_SUM,
+		      EXPAND_CONST_ADDRESS, EXPAND_INITIALIZER, EXPAND_WRITE,
+		      EXPAND_MEMORY};
 
 /* Prevent the compiler from deferring stack pops.  See
    inhibit_defer_pop for more information.  */
@@ -132,7 +138,7 @@ enum direction {none, upward, downward};  /* Value has this type.  */
 /* Supply a default definition for FUNCTION_ARG_BOUNDARY.  Normally, we let
    FUNCTION_ARG_PADDING, which also pads the length, handle any needed
    alignment.  */
-  
+
 #ifndef FUNCTION_ARG_BOUNDARY
 #define FUNCTION_ARG_BOUNDARY(MODE, TYPE)	PARM_BOUNDARY
 #endif
@@ -289,7 +295,7 @@ extern rtx gen_move_insn PARAMS ((rtx, rtx));
 extern int have_add2_insn PARAMS ((rtx, rtx));
 extern int have_sub2_insn PARAMS ((rtx, rtx));
 
-/* Emit a pair of rtl insns to compare two rtx's and to jump 
+/* Emit a pair of rtl insns to compare two rtx's and to jump
    to a label if the comparison is true.  */
 extern void emit_cmp_and_jump_insns PARAMS ((rtx, rtx, enum rtx_code, rtx,
 					     enum machine_mode, int, rtx));
@@ -303,7 +309,7 @@ rtx emit_conditional_move PARAMS ((rtx, enum rtx_code, rtx, rtx,
 				   enum machine_mode, rtx, rtx,
 				   enum machine_mode, int));
 
-/* Return non-zero if the conditional move is supported.  */
+/* Return nonzero if the conditional move is supported.  */
 int can_conditionally_move_p PARAMS ((enum machine_mode mode));
 
 #endif
@@ -341,7 +347,7 @@ extern rtx gen_cond_trap PARAMS ((enum rtx_code, rtx, rtx, rtx));
 
 /* Functions from builtins.c:  */
 extern rtx expand_builtin PARAMS ((tree, rtx, rtx, enum machine_mode, int));
-extern void std_expand_builtin_va_start PARAMS ((int, tree, rtx));
+extern void std_expand_builtin_va_start PARAMS ((tree, rtx));
 extern rtx std_expand_builtin_va_arg PARAMS ((tree, tree));
 extern rtx expand_builtin_va_arg PARAMS ((tree, tree));
 extern void default_init_builtins PARAMS ((void));
@@ -369,10 +375,6 @@ extern void init_expr_once PARAMS ((void));
 /* This is run at the start of compiling a function.  */
 extern void init_expr PARAMS ((void));
 
-/* This function is run once to initialize stor-layout.c.  */
-
-extern void init_stor_layout_once PARAMS ((void));
-
 /* This is run at the end of compiling a function.  */
 extern void finish_expr_for_function PARAMS ((void));
 
@@ -398,7 +400,15 @@ extern rtx convert_modes PARAMS ((enum machine_mode, enum machine_mode,
 				  rtx, int));
 
 /* Emit code to move a block Y to a block X.  */
-extern rtx emit_block_move PARAMS ((rtx, rtx, rtx));
+
+enum block_op_methods
+{
+  BLOCK_OP_NORMAL,
+  BLOCK_OP_NO_LIBCALL,
+  BLOCK_OP_CALL_PARM
+};
+
+extern rtx emit_block_move PARAMS ((rtx, rtx, rtx, enum block_op_methods));
 
 /* Copy all or part of a value X into registers starting at REGNO.
    The number of registers to be filled is NREGS.  */
@@ -408,9 +418,16 @@ extern void move_block_to_reg PARAMS ((int, rtx, int, enum machine_mode));
    The number of registers to be filled is NREGS.  */
 extern void move_block_from_reg PARAMS ((int, rtx, int, int));
 
+/* Generate a non-consecutive group of registers represented by a PARALLEL.  */
+extern rtx gen_group_rtx PARAMS ((rtx));
+
 /* Load a BLKmode value into non-consecutive registers represented by a
    PARALLEL.  */
 extern void emit_group_load PARAMS ((rtx, rtx, int));
+
+/* Move a non-consecutive group of registers represented by a PARALLEL into
+   a non-consecutive group of registers represented by a PARALLEL.  */
+extern void emit_group_move PARAMS ((rtx, rtx));
 
 /* Store a BLKmode value from non-consecutive registers represented by a
    PARALLEL.  */
@@ -435,7 +452,7 @@ extern void use_group_regs PARAMS ((rtx *, rtx));
    If OBJECT has BLKmode, SIZE is its length in bytes.  */
 extern rtx clear_storage PARAMS ((rtx, rtx));
 
-/* Return non-zero if it is desirable to store LEN bytes generated by
+/* Return nonzero if it is desirable to store LEN bytes generated by
    CONSTFUN with several move instructions by store_by_pieces
    function.  CONSTFUNDATA is a pointer which will be passed as argument
    in every CONSTFUN call.
@@ -740,7 +757,7 @@ extern void emit_stack_restore PARAMS ((enum save_level, rtx, rtx));
    says how many bytes.  */
 extern rtx allocate_dynamic_stack_space PARAMS ((rtx, rtx, int));
 
-/* Probe a range of stack addresses from FIRST to FIRST+SIZE, inclusive. 
+/* Probe a range of stack addresses from FIRST to FIRST+SIZE, inclusive.
    FIRST is a constant and size is a Pmode RTX.  These are offsets from the
    current stack pointer.  STACK_GROWS_DOWNWARD says whether to add or
    subtract from the stack.  If SIZE is constant, this is done
@@ -771,6 +788,7 @@ extern rtx extract_bit_field PARAMS ((rtx, unsigned HOST_WIDE_INT,
 				      enum machine_mode, enum machine_mode,
 				      HOST_WIDE_INT));
 extern rtx expand_mult PARAMS ((enum machine_mode, rtx, rtx, rtx, int));
+extern bool const_mult_add_overflow_p PARAMS ((rtx, rtx, rtx, enum machine_mode, int));
 extern rtx expand_mult_add PARAMS ((rtx, rtx, rtx, rtx,enum machine_mode, int));
 extern rtx expand_mult_highpart_adjust PARAMS ((enum machine_mode, rtx, rtx, rtx, rtx, int));
 
@@ -802,3 +820,5 @@ extern void do_jump_by_parts_greater_rtx	PARAMS ((enum machine_mode,
 extern void mark_seen_cases			PARAMS ((tree, unsigned char *,
 							 HOST_WIDE_INT, int));
 #endif
+
+extern int vector_mode_valid_p		PARAMS ((enum machine_mode));

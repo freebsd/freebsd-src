@@ -38,6 +38,11 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #undef	LINK_OS_DEFAULT_SPEC
 #define	LINK_OS_DEFAULT_SPEC "%(link_os_freebsd)"
 
+/* XXX: This is wrong for many platforms in sysv4.h.
+   We should work on getting that defination fixed.  */
+#undef  LINK_SHLIB_SPEC
+#define LINK_SHLIB_SPEC "%{shared:-shared} %{!shared: %{static:-static}}"
+
 
 /************************[  Target stuff  ]***********************************/
 
@@ -45,11 +50,11 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
    Needs to agree with <machine/ansi.h>.  GCC defaults come from c-decl.c,
    c-common.c, and config/<arch>/<arch>.h.  */
 
+#undef  SIZE_TYPE
+#define SIZE_TYPE "unsigned int"
+
 /* rs6000.h gets this wrong for FreeBSD.  We use the GCC defaults instead.  */
 #undef WCHAR_TYPE
-
-#undef  WCHAR_UNSIGNED
-#define WCHAR_UNSIGNED 0
 
 #undef  WCHAR_TYPE_SIZE
 #define WCHAR_TYPE_SIZE 32

@@ -23,7 +23,7 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
    toplev.c according to command line options.  */
 struct gcc_debug_hooks
 {
-  /* Initialise debug output.  MAIN_FILENAME is the name of the main
+  /* Initialize debug output.  MAIN_FILENAME is the name of the main
      input file.  */
   void (* init) PARAMS ((const char *main_filename));
 
@@ -68,10 +68,10 @@ struct gcc_debug_hooks
 
   /* Called at end of prologue code.  LINE is the first line in the
      function.  */
-  void (* end_prologue) PARAMS ((unsigned int line));
+  void (* end_prologue) PARAMS ((unsigned int line, const char *file));
 
   /* Record end of epilogue code.  */
-  void (* end_epilogue) PARAMS ((void));
+  void (* end_epilogue) PARAMS ((unsigned int line, const char *file));
 
   /* Called at start of function DECL, before it is declared.  */
   void (* begin_function) PARAMS ((tree decl));
@@ -103,7 +103,7 @@ struct gcc_debug_hooks
   void (* label) PARAMS ((rtx));
 };
 
-extern struct gcc_debug_hooks *debug_hooks;
+extern const struct gcc_debug_hooks *debug_hooks;
 
 /* The do-nothing hooks.  */
 extern void debug_nothing_void
@@ -124,28 +124,22 @@ extern void debug_nothing_rtx
   PARAMS ((rtx));
 
 /* Hooks for various debug formats.  */
-extern struct gcc_debug_hooks do_nothing_debug_hooks;
-extern struct gcc_debug_hooks dbx_debug_hooks;
-extern struct gcc_debug_hooks sdb_debug_hooks;
-extern struct gcc_debug_hooks xcoff_debug_hooks;
-extern struct gcc_debug_hooks dwarf_debug_hooks;
-extern struct gcc_debug_hooks dwarf2_debug_hooks;
-extern struct gcc_debug_hooks vmsdbg_debug_hooks;
+extern const struct gcc_debug_hooks do_nothing_debug_hooks;
+extern const struct gcc_debug_hooks dbx_debug_hooks;
+extern const struct gcc_debug_hooks sdb_debug_hooks;
+extern const struct gcc_debug_hooks xcoff_debug_hooks;
+extern const struct gcc_debug_hooks dwarf_debug_hooks;
+extern const struct gcc_debug_hooks dwarf2_debug_hooks;
+extern const struct gcc_debug_hooks vmsdbg_debug_hooks;
 
 /* Dwarf2 frame information.  */
 
 extern void dwarf2out_begin_prologue	PARAMS ((unsigned int, const char *));
-extern void dwarf2out_end_epilogue	PARAMS ((void));
+extern void dwarf2out_end_epilogue	PARAMS ((unsigned int, const char *));
 extern void dwarf2out_frame_init	PARAMS ((void));
 extern void dwarf2out_frame_finish	PARAMS ((void));
 /* Decide whether we want to emit frame unwind information for the current
    translation unit.  */
 extern int dwarf2out_do_frame		PARAMS ((void));
-
-/* When writing VMS debug info, output label after the prologue of the
-   function.  */
-extern void vmsdbgout_after_prologue	PARAMS ((void));
-
-
 
 #endif /* !GCC_DEBUG_H  */

@@ -1,5 +1,5 @@
 /* Definitions of target machine for GNU compiler,
-   for 64 bit powerpc linux.
+   for 64 bit PowerPC linux.
    Copyright (C) 2000, 2001, 2002 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
@@ -31,8 +31,10 @@ Boston, MA 02111-1307, USA.  */
 #define TARGET_DEFAULT \
   (MASK_POWERPC | MASK_POWERPC64 | MASK_64BIT | MASK_NEW_MNEMONICS)
 
-#undef  CPP_DEFAULT_SPEC
-#define CPP_DEFAULT_SPEC "-D_ARCH_PPC64"
+#undef PROCESSOR_DEFAULT
+#define PROCESSOR_DEFAULT PROCESSOR_PPC630
+#undef PROCESSOR_DEFAULT64
+#define PROCESSOR_DEFAULT64 PROCESSOR_PPC630
 
 #undef  ASM_DEFAULT_SPEC
 #define ASM_DEFAULT_SPEC "-mppc64"
@@ -104,18 +106,24 @@ Boston, MA 02111-1307, USA.  */
    So we have to squirrel it away with this.  */
 #define SETUP_FRAME_ADDRESSES() rs6000_aix_emit_builtin_unwind_init ()
 
-/* Don't assume anything about the header files.  */
-#define NO_IMPLICIT_EXTERN_C
-
+/* Override svr4.h  */
 #undef MD_EXEC_PREFIX
 #undef MD_STARTFILE_PREFIX
 
-#undef  CPP_PREDEFINES
-#define CPP_PREDEFINES \
- "-D_PPC_ -D__PPC__ -D_PPC64_ -D__PPC64__ -D__powerpc__ -D__powerpc64__ \
-  -D_PIC_ -D__PIC__ -D_BIG_ENDIAN -D__BIG_ENDIAN__ -D__ELF__ \
-  -D__LONG_MAX__=9223372036854775807L \
-  -Acpu=powerpc64 -Amachine=powerpc64"
+#undef TARGET_OS_CPP_BUILTINS
+#define TARGET_OS_CPP_BUILTINS()            \
+  do                                        \
+    {                                       \
+      builtin_define ("__PPC__");           \
+      builtin_define ("__PPC64__");         \
+      builtin_define ("__powerpc__");       \
+      builtin_define ("__powerpc64__");     \
+      builtin_define ("__PIC__");           \
+      builtin_define ("__ELF__");           \
+      builtin_assert ("cpu=powerpc64");     \
+      builtin_assert ("machine=powerpc64"); \
+    }                                       \
+  while (0)
 
 #undef  CPP_OS_DEFAULT_SPEC
 #define CPP_OS_DEFAULT_SPEC "%(cpp_os_linux)"
@@ -145,29 +153,23 @@ Boston, MA 02111-1307, USA.  */
 #define LINK_OS_DEFAULT_SPEC "%(link_os_linux)"
 
 #undef  LINK_OS_LINUX_SPEC
-#ifndef CROSS_COMPILE
 #define LINK_OS_LINUX_SPEC "-m elf64ppc %{!shared: %{!static: \
   %{rdynamic:-export-dynamic} \
-  %{!dynamic-linker:-dynamic-linker /lib64/ld.so.1}}}"
-#else
-#define LINK_OS_LINUX_SPEC "-m elf64ppc %{!shared: %{!static: \
-  %{rdynamic:-export-dynamic} \
-  %{!dynamic-linker:-dynamic-linker ld.so.1}}}"
+  %{!dynamic-linker:-dynamic-linker /lib64/ld64.so.1}}}"
+
+#ifdef NATIVE_CROSS
+#define STARTFILE_PREFIX_SPEC "/usr/local/lib64/ /lib64/ /usr/lib64/"
 #endif
 
-#ifndef CROSS_COMPILE
 #undef  STARTFILE_LINUX_SPEC
 #define STARTFILE_LINUX_SPEC "\
-%{!shared: %{pg:/usr/lib64/gcrt1.o%s} %{!pg:%{p:/usr/lib64/gcrt1.o%s} \
-  %{!p:/usr/lib64/crt1.o%s}}} /usr/lib64/crti.o%s \
-%{!shared:crtbegin.o%s} %{shared:crtbeginS.o%s}"
-#endif
+%{!shared: %{pg:gcrt1.o%s} %{!pg:%{p:gcrt1.o%s} %{!p:crt1.o%s}}} crti.o%s \
+%{static:crtbeginT.o%s} \
+%{!static:%{!shared:crtbegin.o%s} %{shared:crtbeginS.o%s}}"
 
-#ifndef CROSS_COMPILE
 #undef  ENDFILE_LINUX_SPEC
 #define ENDFILE_LINUX_SPEC "\
-%{!shared:crtend.o%s} %{shared:crtendS.o%s} /usr/lib64/crtn.o%s"
-#endif
+%{!shared:crtend.o%s} %{shared:crtendS.o%s} crtn.o%s"
 
 #undef  TOC_SECTION_ASM_OP
 #define TOC_SECTION_ASM_OP "\t.section\t\".toc\",\"aw\""
@@ -205,6 +207,18 @@ Boston, MA 02111-1307, USA.  */
 #undef  RS6000_MCOUNT
 #define RS6000_MCOUNT "_mcount"
 
+#ifdef __powerpc64__
+/* _init and _fini functions are built from bits spread across many
+   object files, each potentially with a different TOC pointer.  For
+   that reason, place a nop after the call so that the linker can
+   restore the TOC pointer if a TOC adjusting call stub is needed.  */
+#define CRT_CALL_STATIC_FUNCTION(SECTION_OP, FUNC)	\
+  asm (SECTION_OP "\n"					\
+"	bl ." #FUNC "\n"				\
+"	nop\n"						\
+"	.previous");
+#endif
+
 /* FP save and restore routines.  */
 #undef  SAVE_FP_PREFIX
 #define SAVE_FP_PREFIX "._savef"
@@ -219,17 +233,8 @@ Boston, MA 02111-1307, USA.  */
 #undef  PREFERRED_DEBUGGING_TYPE
 #define PREFERRED_DEBUGGING_TYPE DWARF2_DEBUG
 
-/* If we are referencing a function that is static or is known to be
-   in this file, make the SYMBOL_REF special.  We can use this to indicate
-   that we can branch to this function without emitting a no-op after the
-   call.  Do not set this flag if the function is weakly defined.  */
-
-#undef  ENCODE_SECTION_INFO
-#define ENCODE_SECTION_INFO(DECL)				\
-  if (TREE_CODE (DECL) == FUNCTION_DECL				\
-      && (TREE_ASM_WRITTEN (DECL) || ! TREE_PUBLIC (DECL))	\
-      && ! DECL_WEAK (DECL))					\
-    SYMBOL_REF_FLAG (XEXP (DECL_RTL (DECL), 0)) = 1;
+#undef  TARGET_ENCODE_SECTION_INFO
+#define TARGET_ENCODE_SECTION_INFO  rs6000_xcoff_encode_section_info
 
 /* This is how to output a reference to a user-level label named NAME.
    `assemble_name' uses this.  */
@@ -290,7 +295,7 @@ do {						\
     }									\
   while (0)
 
-/* Return non-zero if this entry is to be written into the constant
+/* Return nonzero if this entry is to be written into the constant
    pool in a special way.  We do so if this is a SYMBOL_REF, LABEL_REF
    or a CONST containing one of them.  If -mfp-in-toc (the default),
    we also do this for floating-point constants.  We actually can only

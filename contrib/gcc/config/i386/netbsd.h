@@ -1,20 +1,24 @@
-/* This is tested by i386gas.h.  */
-#define YES_UNDERSCORES
+#define TARGET_OS_CPP_BUILTINS()		\
+  do						\
+    {						\
+      NETBSD_OS_CPP_BUILTINS_AOUT();		\
+    }						\
+  while (0)
 
-#include <i386/gstabs.h>
-
-/* Get generic NetBSD definitions.  */
-#include <netbsd.h>
-#include <netbsd-aout.h>
+#define TARGET_VERSION fprintf (stderr, " (NetBSD/i386 a.out)");
 
 /* This goes away when the math-emulator is fixed */
 #undef TARGET_SUBTARGET_DEFAULT
 #define TARGET_SUBTARGET_DEFAULT \
   (MASK_80387 | MASK_IEEE_FP | MASK_FLOAT_RETURNS | MASK_NO_FANCY_MATH_387)
 
-#undef CPP_PREDEFINES
-#define CPP_PREDEFINES "-Dunix -D__NetBSD__ \
- -Asystem=unix -Asystem=bsd -Asystem=NetBSD"
+#undef SUBTARGET_EXTRA_SPECS
+#define SUBTARGET_EXTRA_SPECS			\
+  { "netbsd_cpp_spec", NETBSD_CPP_SPEC },
+
+#undef CPP_SPEC
+#define CPP_SPEC "%(netbsd_cpp_spec)"
+
 
 #undef SIZE_TYPE
 #define SIZE_TYPE "unsigned int"
@@ -58,3 +62,11 @@
 /* Until they use ELF or something that handles dwarf2 unwinds
    and initialization stuff better.  */
 #define DWARF2_UNWIND_INFO 0
+
+/* Redefine this so that it becomes "_GLOBAL_OFFSET_TABLE_" when the label
+   prefix is added.  */
+#undef GOT_SYMBOL_NAME
+#define GOT_SYMBOL_NAME "GLOBAL_OFFSET_TABLE_"
+
+/* Attempt to enable execute permissions on the stack.  */
+#define TRANSFER_FROM_TRAMPOLINE NETBSD_ENABLE_EXECUTE_STACK

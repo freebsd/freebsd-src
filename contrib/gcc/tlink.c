@@ -24,27 +24,24 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #include "config.h"
 #include "system.h"
 #include "intl.h"
-#include "hash.h"
+#include "obstack.h"
+#include "hashtab.h"
 #include "demangle.h"
 #include "collect2.h"
 
 #define MAX_ITERATIONS 17
-
-/* Obstack allocation and deallocation routines.  */
-#define obstack_chunk_alloc xmalloc
-#define obstack_chunk_free free
 
 /* Defined in the automatically-generated underscore.c.  */
 extern int prepends_underscore;
 
 static int tlink_verbose;
 
-/* Hash table boilerplate for working with hash.[ch].  We have hash tables
+/* Hash table boilerplate for working with htab_t.  We have hash tables
    for symbol names, file names, and demangled symbols.  */
 
 typedef struct symbol_hash_entry
 {
-  struct hash_entry root;
+  const char *key;
   struct file_hash_entry *file;
   int chosen;
   int tweaking;
@@ -53,7 +50,7 @@ typedef struct symbol_hash_entry
 
 typedef struct file_hash_entry
 {
-  struct hash_entry root;
+  const char *key;
   const char *args;
   const char *dir;
   const char *main;
@@ -62,24 +59,38 @@ typedef struct file_hash_entry
 
 typedef struct demangled_hash_entry
 {
-  struct hash_entry root;
+  const char *key;
   const char *mangled;
 } demangled;
 
-static struct hash_table symbol_table;
+/* Hash and comparison functions for these hash tables.  */
 
-static struct hash_entry * symbol_hash_newfunc PARAMS ((struct hash_entry *,
-							struct hash_table *,
-							hash_table_key));
+static int hash_string_eq PARAMS ((const void *, const void *));
+static hashval_t hash_string_hash PARAMS ((const void *));
+
+static int
+hash_string_eq (s1_p, s2_p)
+     const void *s1_p;
+     const void *s2_p;
+{
+  const char *const *s1 = (const char *const *) s1_p;
+  const char *s2 = (const char *) s2_p;
+  return strcmp (*s1, s2) == 0;
+}
+
+static hashval_t
+hash_string_hash (s_p)
+     const void *s_p;
+{
+  const char *const *s = (const char *const *) s_p;
+  return (*htab_hash_string) (*s);
+}
+
+static htab_t symbol_table;
+
 static struct symbol_hash_entry * symbol_hash_lookup PARAMS ((const char *,
 							      int));
-static struct hash_entry * file_hash_newfunc PARAMS ((struct hash_entry *,
-						      struct hash_table *,
-						      hash_table_key));
 static struct file_hash_entry * file_hash_lookup PARAMS ((const char *));
-static struct hash_entry * demangled_hash_newfunc PARAMS ((struct hash_entry *,
-							   struct hash_table *,
-							   hash_table_key));
 static struct demangled_hash_entry *
   demangled_hash_lookup PARAMS ((const char *, int));
 static void symbol_push PARAMS ((symbol *));
@@ -100,30 +111,6 @@ static int read_repo_files PARAMS ((char **));
 static void demangle_new_symbols PARAMS ((void));
 static int scan_linker_output PARAMS ((const char *));
 
-/* Create a new entry for the symbol hash table.
-   Passed to hash_table_init.  */
-
-static struct hash_entry *
-symbol_hash_newfunc (entry, table, string)
-     struct hash_entry *entry;
-     struct hash_table *table;
-     hash_table_key string ATTRIBUTE_UNUSED;
-{
-  struct symbol_hash_entry *ret = (struct symbol_hash_entry *) entry;
-  if (ret == NULL)
-    {
-      ret = ((struct symbol_hash_entry *)
-	     hash_allocate (table, sizeof (struct symbol_hash_entry)));
-      if (ret == NULL)
-	return NULL;
-    }
-  ret->file = NULL;
-  ret->chosen = 0;
-  ret->tweaking = 0;
-  ret->tweaked = 0;
-  return (struct hash_entry *) ret;
-}
-
 /* Look up an entry in the symbol hash table.  */
 
 static struct symbol_hash_entry *
@@ -131,36 +118,22 @@ symbol_hash_lookup (string, create)
      const char *string;
      int create;
 {
-  return ((struct symbol_hash_entry *)
-	  hash_lookup (&symbol_table, (const hash_table_key) string, 
-		       create, string_copy));
-}
-
-static struct hash_table file_table;
-
-/* Create a new entry for the file hash table.
-   Passed to hash_table_init.  */
-
-static struct hash_entry *
-file_hash_newfunc (entry, table, string)
-     struct hash_entry *entry;
-     struct hash_table *table;
-     hash_table_key string ATTRIBUTE_UNUSED;
-{
-   struct file_hash_entry *ret = (struct file_hash_entry *) entry;
-  if (ret == NULL)
+  PTR *e;
+  e = htab_find_slot_with_hash (symbol_table, string,
+				(*htab_hash_string) (string),
+				create ? INSERT : NO_INSERT);
+  if (e == NULL)
+    return NULL;
+  if (*e == NULL)
     {
-      ret = ((struct file_hash_entry *)
-	     hash_allocate (table, sizeof (struct file_hash_entry)));
-      if (ret == NULL)
-	return NULL;
+      struct symbol_hash_entry *v;
+      *e = v = xcalloc (1, sizeof (*v));
+      v->key = xstrdup (string);
     }
-  ret->args = NULL;
-  ret->dir = NULL;
-  ret->main = NULL;
-  ret->tweaking = 0;
-  return (struct hash_entry *) ret;
+  return *e;
 }
+
+static htab_t file_table;
 
 /* Look up an entry in the file hash table.  */
 
@@ -168,33 +141,20 @@ static struct file_hash_entry *
 file_hash_lookup (string)
      const char *string;
 {
-  return ((struct file_hash_entry *)
-	  hash_lookup (&file_table, (const hash_table_key) string, true, 
-		       string_copy));
-}
-
-static struct hash_table demangled_table;
-
-/* Create a new entry for the demangled name hash table.
-   Passed to hash_table_init.  */
-
-static struct hash_entry *
-demangled_hash_newfunc (entry, table, string)
-     struct hash_entry *entry;
-     struct hash_table *table;
-     hash_table_key string ATTRIBUTE_UNUSED;
-{
-  struct demangled_hash_entry *ret = (struct demangled_hash_entry *) entry;
-  if (ret == NULL)
+  PTR *e;
+  e = htab_find_slot_with_hash (file_table, string,
+				(*htab_hash_string) (string),
+				INSERT);
+  if (*e == NULL)
     {
-      ret = ((struct demangled_hash_entry *)
-	     hash_allocate (table, sizeof (struct demangled_hash_entry)));
-      if (ret == NULL)
-	return NULL;
+      struct file_hash_entry *v;
+      *e = v = xcalloc (1, sizeof (*v));
+      v->key = xstrdup (string);
     }
-  ret->mangled = NULL;
-  return (struct hash_entry *) ret;
+  return *e;
 }
+
+static htab_t demangled_table;
 
 /* Look up an entry in the demangled name hash table.  */
 
@@ -203,9 +163,19 @@ demangled_hash_lookup (string, create)
      const char *string;
      int create;
 {
-  return ((struct demangled_hash_entry *)
-	  hash_lookup (&demangled_table, (const hash_table_key) string, 
-		       create, string_copy));
+  PTR *e;
+  e = htab_find_slot_with_hash (demangled_table, string,
+				(*htab_hash_string) (string),
+				create ? INSERT : NO_INSERT);
+  if (e == NULL)
+    return NULL;
+  if (*e == NULL)
+    {
+      struct demangled_hash_entry *v;
+      *e = v = xcalloc (1, sizeof (*v));
+      v->key = xstrdup (string);
+    }
+  return *e;
 }
 
 /* Stack code.  */
@@ -290,12 +260,13 @@ tlink_init ()
 {
   const char *p;
 
-  hash_table_init (&symbol_table, symbol_hash_newfunc, string_hash,
-		   string_compare);
-  hash_table_init (&file_table, file_hash_newfunc, string_hash, 
-		   string_compare);
-  hash_table_init (&demangled_table, demangled_hash_newfunc,
-		   string_hash, string_compare);
+  symbol_table = htab_create (500, hash_string_hash, hash_string_eq,
+			      NULL);
+  file_table = htab_create (500, hash_string_hash, hash_string_eq,
+			    NULL);
+  demangled_table = htab_create (500, hash_string_hash, hash_string_eq,
+				 NULL);
+  
   obstack_begin (&symbol_stack_obstack, 0);
   obstack_begin (&file_stack_obstack, 0);
 
@@ -320,7 +291,7 @@ tlink_execute (prog, argv, redir)
 {
   collect_execute (prog, argv, redir);
   return collect_wait (prog);
-} 
+}
 
 static char *
 frob_extension (s, ext)
@@ -363,7 +334,7 @@ static char *
 pfgets (stream)
      FILE *stream;
 {
-  return obstack_fgets (stream, &permanent_obstack);
+  return xstrdup (tfgets (stream));
 }
 
 /* Real tlink code.  */
@@ -422,11 +393,10 @@ read_repo_file (f)
      file *f;
 {
   char c;
-  FILE *stream = fopen ((char*) f->root.key, "r");
+  FILE *stream = fopen (f->key, "r");
 
   if (tlink_verbose >= 2)
-    fprintf (stderr, _("collect: reading %s\n"), 
-	     (char*) f->root.key);
+    fprintf (stderr, _("collect: reading %s\n"), f->key);
 
   while (fscanf (stream, "%c ", &c) == 1)
     {
@@ -497,12 +467,12 @@ recompile_files ()
 
   putenv (xstrdup ("COMPILER_PATH"));
   putenv (xstrdup ("LIBRARY_PATH"));
-  
+
   while ((f = file_pop ()) != NULL)
     {
       char *line, *command;
-      FILE *stream = fopen ((char*) f->root.key, "r");
-      const char *const outname = frob_extension ((char*) f->root.key, ".rnw");
+      FILE *stream = fopen (f->key, "r");
+      const char *const outname = frob_extension (f->key, ".rnw");
       FILE *output = fopen (outname, "w");
 
       while ((line = tfgets (stream)) != NULL)
@@ -517,7 +487,7 @@ recompile_files ()
 	}
       fclose (stream);
       fclose (output);
-      rename (outname, (char*) f->root.key);
+      rename (outname, f->key);
 
       obstack_grow (&temporary_obstack, "cd ", 3);
       obstack_grow (&temporary_obstack, f->dir, strlen (f->dir));
@@ -587,14 +557,13 @@ demangle_new_symbols ()
   while ((sym = symbol_pop ()) != NULL)
     {
       demangled *dem;
-      const char *p = cplus_demangle ((char*) sym->root.key, 
-				DMGL_PARAMS | DMGL_ANSI);
+      const char *p = cplus_demangle (sym->key, DMGL_PARAMS | DMGL_ANSI);
 
       if (! p)
 	continue;
 
       dem = demangled_hash_lookup (p, true);
-      dem->mangled = (char*) sym->root.key;
+      dem->mangled = sym->key;
     }
 }
 
@@ -613,21 +582,21 @@ scan_linker_output (fname)
       char *p = line, *q;
       symbol *sym;
       int end;
-      
-      while (*p && ISSPACE ((unsigned char)*p))
+
+      while (*p && ISSPACE ((unsigned char) *p))
 	++p;
 
       if (! *p)
 	continue;
 
-      for (q = p; *q && ! ISSPACE ((unsigned char)*q); ++q)
+      for (q = p; *q && ! ISSPACE ((unsigned char) *q); ++q)
 	;
 
       /* Try the first word on the line.  */
       if (*p == '.')
 	++p;
-      if (*p == '_' && prepends_underscore)
-	++p;
+      if (!strncmp (p, USER_LABEL_PREFIX, strlen (USER_LABEL_PREFIX)))
+	p += strlen (USER_LABEL_PREFIX);
 
       end = ! *q;
       *q = 0;
@@ -636,21 +605,21 @@ scan_linker_output (fname)
       /* Some SVR4 linkers produce messages like
 	 ld: 0711-317 ERROR: Undefined symbol: .g__t3foo1Zi
 	 */
-      if (! sym && ! end && strstr (q+1, "Undefined symbol: "))
+      if (! sym && ! end && strstr (q + 1, "Undefined symbol: "))
 	{
-	  char *p = strrchr (q+1, ' ');
+	  char *p = strrchr (q + 1, ' ');
 	  p++;
 	  if (*p == '.')
 	    p++;
-	  if (*p == '_' && prepends_underscore)
-	    p++;
+	  if (!strncmp (p, USER_LABEL_PREFIX, strlen (USER_LABEL_PREFIX)))
+	    p += strlen (USER_LABEL_PREFIX);
 	  sym = symbol_hash_lookup (p, false);
 	}
 
       if (! sym && ! end)
 	/* Try a mangled name in quotes.  */
 	{
-	  const char *oldq = q+1;
+	  const char *oldq = q + 1;
 	  demangled *dem = 0;
 	  q = 0;
 
@@ -662,10 +631,16 @@ scan_linker_output (fname)
 	  else if (p = strchr (oldq, '"'), p)
 	    p++, q = strchr (p, '"');
 
-	  /* Don't let the strstr's below see the demangled name; we
-	     might get spurious matches.  */
 	  if (p)
-	    p[-1] = '\0';
+	    {
+	      /* Don't let the strstr's below see the demangled name; we
+		 might get spurious matches.  */
+	      p[-1] = '\0';
+
+	      /* powerpc64-linux references .foo when calling function foo.  */
+	      if (*p == '.')
+		p++;
+	    }
 
 	  /* We need to check for certain error keywords here, or we would
 	     mistakenly use GNU ld's "In function `foo':" message.  */
@@ -679,9 +654,10 @@ scan_linker_output (fname)
 	      if (dem)
 		sym = symbol_hash_lookup (dem->mangled, false);
 	      else
-	        {
-	          if (*p == '_' && prepends_underscore)
-		    ++p;
+		{
+		  if (!strncmp (p, USER_LABEL_PREFIX,
+				strlen (USER_LABEL_PREFIX)))
+		    p += strlen (USER_LABEL_PREFIX);
 		  sym = symbol_hash_lookup (p, false);
 		}
 	    }
@@ -696,11 +672,11 @@ scan_linker_output (fname)
 	{
 	  if (tlink_verbose >= 2)
 	    fprintf (stderr, _("collect: tweaking %s in %s\n"),
-		     (char*) sym->root.key, (char*) sym->file->root.key);
+		     sym->key, sym->file->key);
 	  sym->tweaking = 1;
 	  file_push (sym->file);
 	}
-	
+
       obstack_free (&temporary_obstack, temporary_firstobj);
     }
 

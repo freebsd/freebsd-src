@@ -207,7 +207,7 @@ DEF_RTL_EXPR(DEFINE_PEEPHOLE, "define_peephole", "EsTV", 'x')
 	insns.  This might, for example, create some RTX's and store them in
 	elements of `recog_data.operand' for use by the vector of
 	insn-patterns.
-	(`operands' is an alias here for `recog_data.operand').   */
+	(`operands' is an alias here for `recog_data.operand').  */
 DEF_RTL_EXPR(DEFINE_SPLIT, "define_split", "EsES", 'x')
 
 /* Definition of an insn and associated split.
@@ -342,6 +342,154 @@ DEF_RTL_EXPR(SEQUENCE, "sequence", "E", 'x')
 DEF_RTL_EXPR(ADDRESS, "address", "e", 'm')
 
 /* ----------------------------------------------------------------------
+   Constructions for CPU pipeline description described by NDFAs.
+   These do not appear in actual rtl code in the compiler.
+   ---------------------------------------------------------------------- */
+
+/* (define_cpu_unit string [string]) describes cpu functional
+   units (separated by comma).
+
+   1st operand: Names of cpu functional units.
+   2nd operand: Name of automaton (see comments for DEFINE_AUTOMATON).
+
+   All define_reservations, define_cpu_units, and
+   define_query_cpu_units should have unique names which may not be
+   "nothing".  */
+DEF_RTL_EXPR(DEFINE_CPU_UNIT, "define_cpu_unit", "sS", 'x')
+
+/* (define_query_cpu_unit string [string]) describes cpu functional
+   units analogously to define_cpu_unit.  If we use automaton without
+   minimization, the reservation of such units can be queried for
+   automaton state.  */
+DEF_RTL_EXPR(DEFINE_QUERY_CPU_UNIT, "define_query_cpu_unit", "sS", 'x')
+
+/* (exclusion_set string string) means that each CPU functional unit
+   in the first string can not be reserved simultaneously with any
+   unit whose name is in the second string and vise versa.  CPU units
+   in the string are separated by commas.  For example, it is useful
+   for description CPU with fully pipelined floating point functional
+   unit which can execute simultaneously only single floating point
+   insns or only double floating point insns.  All CPU functional
+   units in a set should belong the same automaton.  */
+DEF_RTL_EXPR(EXCLUSION_SET, "exclusion_set", "ss", 'x')
+
+/* (presence_set string string) means that each CPU functional unit in
+   the first string can not be reserved unless at least one of units
+   whose names are in the second string is reserved.  This is an
+   asymmetric relation.  CPU units in the string are separated by
+   commas.  For example, it is useful for description that slot1 is
+   reserved after slot0 reservation for VLIW processor.  All CPU
+   functional units in a set should belong the same automaton.  */
+DEF_RTL_EXPR(PRESENCE_SET, "presence_set", "ss", 'x')
+
+/* (absence_set string string) means that each CPU functional unit in
+   the first string can not be reserved only if each unit whose name
+   is in the second string is not reserved.  This is an asymmetric
+   relation (actually exclusion set is analogous to this one but it is
+   symmetric).  CPU units in the string are separated by commas.  For
+   example, it is useful for description that slot0 can not be
+   reserved after slot1 or slot2 reservation for VLIW processor.  All
+   CPU functional units in a set should belong the same automaton.  */
+DEF_RTL_EXPR(ABSENCE_SET, "absence_set", "ss", 'x')
+
+/* (define_bypass number out_insn_names in_insn_names) names bypass
+   with given latency (the first number) from insns given by the first
+   string (see define_insn_reservation) into insns given by the second
+   string.  Insn names in the strings are separated by commas.  The
+   third operand is optional name of function which is additional
+   guard for the bypass.  The function will get the two insns as
+   parameters.  If the function returns zero the bypass will be
+   ignored for this case.  Additional guard is necessary to recognize
+   complicated bypasses, e.g. when consumer is load address.  */
+DEF_RTL_EXPR(DEFINE_BYPASS, "define_bypass", "issS", 'x')
+
+/* (define_automaton string) describes names of automata generated and
+   used for pipeline hazards recognition.  The names are separated by
+   comma.  Actually it is possibly to generate the single automaton
+   but unfortunately it can be very large.  If we use more one
+   automata, the summary size of the automata usually is less than the
+   single one.  The automaton name is used in define_cpu_unit and
+   define_query_cpu_unit.  All automata should have unique names.  */
+DEF_RTL_EXPR(DEFINE_AUTOMATON, "define_automaton", "s", 'x')
+
+/* (automata_option string) describes option for generation of
+   automata.  Currently there are the following options:
+
+   o "no-minimization" which makes no minimization of automata.  This
+     is only worth to do when we are going to query CPU functional
+     unit reservations in an automaton state.
+
+   o "time" which means printing additional time statistics about
+      generation of automata.
+  
+   o "v" which means generation of file describing the result
+     automata.  The file has suffix `.dfa' and can be used for the
+     description verification and debugging.
+
+   o "w" which means generation of warning instead of error for
+     non-critical errors.
+
+   o "ndfa" which makes nondeterministic finite state automata.  */
+DEF_RTL_EXPR(AUTOMATA_OPTION, "automata_option", "s", 'x')
+
+/* (define_reservation string string) names reservation (the first
+   string) of cpu functional units (the 2nd string).  Sometimes unit
+   reservations for different insns contain common parts.  In such
+   case, you can describe common part and use its name (the 1st
+   parameter) in regular expression in define_insn_reservation.  All
+   define_reservations, define_cpu_units, and define_query_cpu_units
+   should have unique names which may not be "nothing".  */
+DEF_RTL_EXPR(DEFINE_RESERVATION, "define_reservation", "ss", 'x')
+
+/* (define_insn_reservation name default_latency condition regexpr)
+   describes reservation of cpu functional units (the 3nd operand) for
+   instruction which is selected by the condition (the 2nd parameter).
+   The first parameter is used for output of debugging information.
+   The reservations are described by a regular expression according
+   the following syntax:
+
+       regexp = regexp "," oneof
+              | oneof
+
+       oneof = oneof "|" allof
+             | allof
+
+       allof = allof "+" repeat
+             | repeat
+ 
+       repeat = element "*" number
+              | element
+
+       element = cpu_function_unit_name
+               | reservation_name
+               | result_name
+               | "nothing"
+               | "(" regexp ")"
+
+       1. "," is used for describing start of the next cycle in
+       reservation.
+
+       2. "|" is used for describing the reservation described by the
+       first regular expression *or* the reservation described by the
+       second regular expression *or* etc.
+
+       3. "+" is used for describing the reservation described by the
+       first regular expression *and* the reservation described by the
+       second regular expression *and* etc.
+
+       4. "*" is used for convinience and simply means sequence in
+       which the regular expression are repeated NUMBER times with
+       cycle advancing (see ",").
+
+       5. cpu functional unit name which means its reservation.
+
+       6. reservation name -- see define_reservation.
+
+       7. string "nothing" means no units reservation.  */
+
+DEF_RTL_EXPR(DEFINE_INSN_RESERVATION, "define_insn_reservation", "sies", 'x')
+
+/* ----------------------------------------------------------------------
    Expressions used for insn attributes.  These also do not appear in
    actual rtl code in the compiler.
    ---------------------------------------------------------------------- */
@@ -349,10 +497,10 @@ DEF_RTL_EXPR(ADDRESS, "address", "e", 'm')
 /* Definition of an insn attribute.
    1st operand: name of the attribute
    2nd operand: comma-separated list of possible attribute values
-   3rd operand: expression for the default value of the attribute. */
+   3rd operand: expression for the default value of the attribute.  */
 DEF_RTL_EXPR(DEFINE_ATTR, "define_attr", "sse", 'x')
 
-/* Marker for the name of an attribute. */
+/* Marker for the name of an attribute.  */
 DEF_RTL_EXPR(ATTR, "attr", "s", 'x')
 
 /* For use in the last (optional) operand of DEFINE_INSN or DEFINE_PEEPHOLE and
@@ -404,37 +552,38 @@ DEF_RTL_EXPR (ATTR_FLAG, "attr_flag", "s", 'x')
    ---------------------------------------------------------------------- */
 
 /* An instruction that cannot jump.  */
-DEF_RTL_EXPR(INSN, "insn", "iuueiee", 'i')
+DEF_RTL_EXPR(INSN, "insn", "iuuBteiee", 'i')
 
 /* An instruction that can possibly jump.
    Fields ( rtx->fld[] ) have exact same meaning as INSN's.  */
-DEF_RTL_EXPR(JUMP_INSN, "jump_insn", "iuueiee0", 'i')
+DEF_RTL_EXPR(JUMP_INSN, "jump_insn", "iuuBteiee0", 'i')
 
 /* An instruction that can possibly call a subroutine
    but which will not change which instruction comes next
    in the current function.
-   Field ( rtx->fld[7] ) is CALL_INSN_FUNCTION_USAGE.
+   Field ( rtx->fld[9] ) is CALL_INSN_FUNCTION_USAGE.
    All other fields ( rtx->fld[] ) have exact same meaning as INSN's.  */
-DEF_RTL_EXPR(CALL_INSN, "call_insn", "iuueieee", 'i')
+DEF_RTL_EXPR(CALL_INSN, "call_insn", "iuuBteieee", 'i')
 
 /* A marker that indicates that control will not flow through.  */
-DEF_RTL_EXPR(BARRIER, "barrier", "iuu", 'x')
+DEF_RTL_EXPR(BARRIER, "barrier", "iuu000000", 'x')
 
 /* Holds a label that is followed by instructions.
    Operand:
-   3: is used in jump.c for the use-count of the label.
-   4: is used in flow.c to point to the chain of label_ref's to this label.
-   5: is a number that is unique in the entire compilation.
-   6: is the user-given name of the label, if any.
-   7: is the alternate label name.  */
-DEF_RTL_EXPR(CODE_LABEL, "code_label", "iuu00iss", 'x')
-     
+   5: is used in jump.c for the use-count of the label.
+   6: is used in flow.c to point to the chain of label_ref's to this label.
+   7: is a number that is unique in the entire compilation.
+   8: is the user-given name of the label, if any.  */
+DEF_RTL_EXPR(CODE_LABEL, "code_label", "iuuB00is", 'x')
+
 /* Say where in the code a source line starts, for symbol table's sake.
    Operand:
-   3: filename, if line number > 0, note-specific data otherwise.
-   4: line number if > 0, enum note_insn otherwise.
-   5: unique number if line number == note_insn_deleted_label.  */
-DEF_RTL_EXPR(NOTE, "note", "iuu0ni", 'x')
+   5: filename, if line number > 0, note-specific data otherwise.
+   6: line number if > 0, enum note_insn otherwise.
+   7: unique number if line number == note_insn_deleted_label.
+   8-9: padding so that notes and insns are the same size, and thus
+         allocated from the same page ordering.  */
+DEF_RTL_EXPR(NOTE, "note", "iuuB0ni00", 'x')
 
 /* ----------------------------------------------------------------------
    Top level constituents of INSN, JUMP_INSN and CALL_INSN.
@@ -579,10 +728,8 @@ DEF_RTL_EXPR(RESX, "resx", "i", 'x')
 DEF_RTL_EXPR(CONST_INT, "const_int", "w", 'o')
 
 /* numeric floating point constant.
-   Operand 0 ('0') is a chain of all CONST_DOUBLEs in use in the
-   current function.
-   Remaining operands hold the actual value.  They are all 'w' and
-   there may be from 1 to 4; see rtl.c.  */
+   Operands hold the value.  They are all 'w' and there may be from 2 to 6;
+   see real.h.  */
 DEF_RTL_EXPR(CONST_DOUBLE, "const_double", CONST_DOUBLE_FORMAT, 'o')
 
 /* Describes a vector constant.  */
@@ -715,7 +862,7 @@ DEF_RTL_EXPR(IF_THEN_ELSE, "if_then_else", "eee", '3')
 /* General conditional. The first operand is a vector composed of pairs of
    expressions.  The first element of each pair is evaluated, in turn.
    The value of the conditional is the second expression of the first pair
-   whose first expression evaluates non-zero.  If none of the expressions is
+   whose first expression evaluates nonzero.  If none of the expressions is
    true, the second operand will be used as the value of the conditional.
 
    This should be replaced with use of IF_THEN_ELSE.  */
@@ -815,7 +962,7 @@ DEF_RTL_EXPR(LTU, "ltu", "ee", '<')
 DEF_RTL_EXPR(UNORDERED, "unordered", "ee", '<')
 DEF_RTL_EXPR(ORDERED, "ordered", "ee", '<')
 
-/* These are equivalent to unordered or ... */
+/* These are equivalent to unordered or ...  */
 DEF_RTL_EXPR(UNEQ, "uneq", "ee", '<')
 DEF_RTL_EXPR(UNGE, "unge", "ee", '<')
 DEF_RTL_EXPR(UNGT, "ungt", "ee", '<')
@@ -918,7 +1065,7 @@ DEF_RTL_EXPR(RANGE_INFO, "range_info", "uuEiiiiiibbii", 'x')
    live length.  Operand 7 is the number of calls that this register is live
    across.  Operand 8 is the symbol node of the variable if the register is a
    user variable.  Operand 9 is the block node that the variable is declared
-   in if the register is a user variable. */
+   in if the register is a user variable.  */
 DEF_RTL_EXPR(RANGE_REG, "range_reg", "iiiiiiiitt", 'x')
 
 /* Information about a local variable's ranges.  Operand 0 is an EXPR_LIST of
@@ -933,7 +1080,7 @@ DEF_RTL_EXPR(RANGE_LIVE, "range_live", "bi", 'x')
 
 /* A unary `__builtin_constant_p' expression.  These are only emitted
    during RTL generation, and then only if optimize > 0.  They are
-   eliminated by the first CSE pass. */
+   eliminated by the first CSE pass.  */
 DEF_RTL_EXPR(CONSTANT_P_RTX, "constant_p_rtx", "e", 'x')
 
 /* A placeholder for a CALL_INSN which may be turned into a normal call,
@@ -962,24 +1109,24 @@ DEF_RTL_EXPR(CALL_PLACEHOLDER, "call_placeholder", "uuuu", 'x')
    that specifies where the parts of the result are taken from.  Set bits
    indicate operand 0, clear bits indicate operand 1.  The parts are defined
    by the mode of the vectors.  */
-DEF_RTL_EXPR(VEC_MERGE, "vec_merge", "eee", 'x')
+DEF_RTL_EXPR(VEC_MERGE, "vec_merge", "eee", '3')
 
 /* Describes an operation that selects parts of a vector.
    Operands 0 is the source vector, operand 1 is a PARALLEL that contains
    a CONST_INT for each of the subparts of the result vector, giving the
    number of the source subpart that should be stored into it.  */
-DEF_RTL_EXPR(VEC_SELECT, "vec_select", "ee", 'x')
+DEF_RTL_EXPR(VEC_SELECT, "vec_select", "ee", '2')
 
 /* Describes a vector concat operation.  Operands 0 and 1 are the source
    vectors, the result is a vector that is as long as operands 0 and 1
    combined and is the concatenation of the two source vectors.  */
-DEF_RTL_EXPR(VEC_CONCAT, "vec_concat", "ee", 'x')
+DEF_RTL_EXPR(VEC_CONCAT, "vec_concat", "ee", '2')
 
 /* Describes an operation that converts a small vector into a larger one by
    duplicating the input values.  The output vector mode must have the same
    submodes as the input vector mode, and the number of output parts must be
    an integer multiple of the number of input parts.  */
-DEF_RTL_EXPR(VEC_DUPLICATE, "vec_duplicate", "e", 'x')
+DEF_RTL_EXPR(VEC_DUPLICATE, "vec_duplicate", "e", '1')
      
 /* Addition with signed saturation */
 DEF_RTL_EXPR(SS_PLUS, "ss_plus", "ee", 'c')

@@ -1,5 +1,5 @@
 /* where.c -- Implementation File (module.c template V1.0)
-   Copyright (C) 1995 Free Software Foundation, Inc.
+   Copyright (C) 1995, 2002 Free Software Foundation, Inc.
    Contributed by James Craig Burley.
 
 This file is part of GNU Fortran.
@@ -53,7 +53,7 @@ typedef struct _ffewhere_ll_ *ffewhereLL_;
 
 /* Internal structure definitions. */
 
-struct _ffewhere_ll_
+struct _ffewhere_ll_ GTY (())
   {
     ffewhereLL_ next;
     ffewhereLL_ previous;
@@ -62,7 +62,7 @@ struct _ffewhere_ll_
     ffewhereLineNumber offset;	/* User-desired offset (usually 1). */
   };
 
-struct _ffewhere_root_ll_
+struct _ffewhere_root_ll_ GTY (())
   {
     ffewhereLL_ first;
     ffewhereLL_ last;
@@ -77,7 +77,7 @@ struct _ffewhere_root_line_
 
 /* Static objects accessed by functions in this module. */
 
-static struct _ffewhere_root_ll_ ffewhere_root_ll_;
+static GTY (()) struct _ffewhere_root_ll_ *ffewhere_root_ll_;
 static struct _ffewhere_root_line_ ffewhere_root_line_;
 
 /* Static functions (internal). */
@@ -95,10 +95,10 @@ ffewhere_ll_lookup_ (ffewhereLineNumber ln)
   ffewhereLL_ ll;
 
   if (ln == 0)
-    return ffewhere_root_ll_.first;
+    return ffewhere_root_ll_->first;
 
-  for (ll = ffewhere_root_ll_.last;
-       ll != (ffewhereLL_) &ffewhere_root_ll_.first;
+  for (ll = ffewhere_root_ll_->last;
+       ll != (ffewhereLL_) &ffewhere_root_ll_->first;
        ll = ll->previous)
     {
       if (ll->line_no <= ln)
@@ -109,96 +109,16 @@ ffewhere_ll_lookup_ (ffewhereLineNumber ln)
   return NULL;
 }
 
-/* A somewhat evil way to prevent the garbage collector
-   from collecting 'file' structures.  */
-#define NUM_FFEWHERE_HEAD_FILES 31
-static struct ffewhere_ggc_tracker 
-{
-  struct ffewhere_ggc_tracker *next;
-  ffewhereFile files[NUM_FFEWHERE_HEAD_FILES];
-} *ffewhere_head = NULL;
-
-static void 
-mark_ffewhere_head (void *arg)
-{
-  struct ffewhere_ggc_tracker *head;
-  int i;
-  
-  for (head = * (struct ffewhere_ggc_tracker **) arg;
-       head != NULL;
-       head = head->next)
-  {
-    ggc_mark (head);
-    for (i = 0; i < NUM_FFEWHERE_HEAD_FILES; i++)
-      ggc_mark (head->files[i]);
-  }
-}
-
-
-/* Kill file object.
-
-   Note that this object must not have been passed in a call
-   to any other ffewhere function except ffewhere_file_name and
-   ffewhere_file_namelen.  */
-
-void
-ffewhere_file_kill (ffewhereFile wf)
-{
-  struct ffewhere_ggc_tracker *head;
-  int i;
-  
-  for (head = ffewhere_head; head != NULL; head = head->next)
-    for (i = 0; i < NUM_FFEWHERE_HEAD_FILES; i++)
-      if (head->files[i] == wf)
-	{
-	  head->files[i] = NULL;
-	  return;
-	}
-  /* Called on a file that has already been deallocated... */
-  abort();
-}
-
 /* Create file object.  */
 
 ffewhereFile
 ffewhere_file_new (const char *name, size_t length)
 {
   ffewhereFile wf;
-  int filepos;
- 
-  wf = ggc_alloc (offsetof (struct _ffewhere_file_, text)
-		  + length + 1);
+  wf = ggc_alloc (offsetof (struct _ffewhere_file_, text) + length + 1);
   wf->length = length;
   memcpy (&wf->text[0], name, length);
   wf->text[length] = '\0';
-
-  if (ffewhere_head == NULL)
-    {
-      ggc_add_root (&ffewhere_head, 1, sizeof ffewhere_head,
-		    mark_ffewhere_head);
-      filepos = NUM_FFEWHERE_HEAD_FILES;
-    }
-  else
-    {
-      for (filepos = 0; filepos < NUM_FFEWHERE_HEAD_FILES; filepos++)
-	if (ffewhere_head->files[filepos] == NULL)
-	  {
-	    ffewhere_head->files[filepos] = wf;
-	    break;
-	  }
-    }
-  if (filepos == NUM_FFEWHERE_HEAD_FILES)
-    {
-      /* Need to allocate a new block.  */
-      struct ffewhere_ggc_tracker *old_head = ffewhere_head;
-      int i;
-      
-      ffewhere_head = ggc_alloc (sizeof (*ffewhere_head));
-      ffewhere_head->next = old_head;
-      ffewhere_head->files[0] = wf;
-      for (i = 1; i < NUM_FFEWHERE_HEAD_FILES; i++)
-	ffewhere_head->files[i] = NULL;
-    }
 
   return wf;
 }
@@ -211,10 +131,9 @@ void
 ffewhere_file_set (ffewhereFile wf, bool have_num, ffewhereLineNumber ln)
 {
   ffewhereLL_ ll;
-
-  ll = malloc_new_kp (ffe_pool_file (), "ffewhereLL_", sizeof (*ll));
-  ll->next = (ffewhereLL_) &ffewhere_root_ll_.first;
-  ll->previous = ffewhere_root_ll_.last;
+  ll = ggc_alloc (sizeof (*ll));
+  ll->next = (ffewhereLL_) &ffewhere_root_ll_->first;
+  ll->previous = ffewhere_root_ll_->last;
   ll->next->previous = ll;
   ll->previous->next = ll;
   if (wf == NULL)
@@ -248,8 +167,12 @@ ffewhere_init_1 ()
   = (ffewhereLine) &ffewhere_root_line_.first;
   ffewhere_root_line_.none = 0;
 
-  ffewhere_root_ll_.first = ffewhere_root_ll_.last
-    = (ffewhereLL_) &ffewhere_root_ll_.first;
+  /* The sentinel is (must be) GGC-allocated.  It is accessed as a
+     struct _ffewhere_ll_/ffewhereLL_ though its type contains just the
+     first two fields (layout-wise).  */
+  ffewhere_root_ll_ = ggc_alloc_cleared (sizeof (struct _ffewhere_ll_));
+  ffewhere_root_ll_->first = ffewhere_root_ll_->last
+    = (ffewhereLL_) &ffewhere_root_ll_->first;
 }
 
 /* Return the textual content of the line.  */
@@ -500,22 +423,11 @@ ffewhere_track (ffewhereLine *wl, ffewhereColumn *wc, ffewhereTrack wt,
   else
     {
       wt[i * 2 - 2] = lo;
-      if (cn > FFEWHERE_indexUNKNOWN)
-	{
-	  wt[i * 2 - 1] = FFEWHERE_indexUNKNOWN;
-	  ffewhere_line_kill (*wl);
-	  ffewhere_column_kill (*wc);
-	  *wl = ffewhere_line_unknown ();
-	  *wc = ffewhere_column_unknown ();
-	}
-      else
-	{
-	  wt[i * 2 - 1] = cn - 1;
-	  ffewhere_line_kill (*wl);
-	  ffewhere_column_kill (*wc);
-	  *wl = ffewhere_line_use (ffewhere_line_new (ln));
-	  *wc = ffewhere_column_use (ffewhere_column_new (cn));
-	}
+      wt[i * 2 - 1] = cn - 1;
+      ffewhere_line_kill (*wl);
+      ffewhere_column_kill (*wc);
+      *wl = ffewhere_line_use (ffewhere_line_new (ln));
+      *wc = ffewhere_column_use (ffewhere_column_new (cn));
     }
 }
 
@@ -604,3 +516,5 @@ ffewhere_track_kill (ffewhereLine wrl, ffewhereColumn wrc UNUSED,
 	}
     }
 }
+
+#include "gt-f-where.h"

@@ -33,8 +33,8 @@
    the Intel simulator.  So we must explicitly put variables in .bss
    instead.  This matters only if we care about the Intel assembler.  */
 
-/* This is asm_output_aligned_bss from varasm.c without the ASM_GLOBALIZE_LABEL
-   call at the beginning.  */
+/* This is asm_output_aligned_bss from varasm.c without the
+   (*targetm.asm_out.globalize_label) call at the beginning.  */
 
 /* This is for final.c, because it is used by ASM_DECLARE_OBJECT_NAME.  */
 extern int size_directive_output;
@@ -42,8 +42,7 @@ extern int size_directive_output;
 #undef ASM_OUTPUT_ALIGNED_LOCAL
 #define ASM_OUTPUT_ALIGNED_DECL_LOCAL(FILE, DECL, NAME, SIZE, ALIGN) \
 do {									\
-  if ((DECL)								\
-      && XSTR (XEXP (DECL_RTL (DECL), 0), 0)[0] == SDATA_NAME_FLAG_CHAR) \
+  if ((DECL) && sdata_symbolic_operand (XEXP (DECL_RTL (DECL), 0), Pmode)) \
     sbss_section ();							\
   else									\
     bss_section ();							\
@@ -62,8 +61,8 @@ do {									\
 #define ASM_OUTPUT_LABELREF(STREAM, NAME)	\
 do {						\
   const char *name_ = NAME;			\
-  if (*name_ == SDATA_NAME_FLAG_CHAR)		\
-    name_++;					\
+  if (*name_ == ENCODE_SECTION_INFO_CHAR)	\
+    name_ += 2;					\
   if (*name_ == '*')				\
     name_++;					\
   else						\
@@ -140,158 +139,15 @@ do {									\
   emit_safe_across_calls (STREAM);					\
 } while (0)
 
-/* A C statement or statements to switch to the appropriate
-   section for output of DECL.  DECL is either a `VAR_DECL' node
-   or a constant of some sort.  RELOC indicates whether forming
-   the initial value of DECL requires link-time relocations.
-
-   Set SECNUM to:
-	0	.text
-	1	.rodata
-	2	.data
-	3	.sdata
-	4	.bss
-	5	.sbss
-*/
-#define DO_SELECT_SECTION(SECNUM, DECL, RELOC)				\
-  do									\
-    {									\
-      if (TREE_CODE (DECL) == FUNCTION_DECL)				\
-	SECNUM = 0;							\
-      else if (TREE_CODE (DECL) == STRING_CST)				\
-	{								\
-	  if (! flag_writable_strings)					\
-	    SECNUM = 0x101;						\
-	  else								\
-	    SECNUM = 2;							\
-	}								\
-      else if (TREE_CODE (DECL) == VAR_DECL)				\
-	{								\
-	  if (XSTR (XEXP (DECL_RTL (DECL), 0), 0)[0]			\
-	      == SDATA_NAME_FLAG_CHAR)					\
-	    SECNUM = 3;							\
-	  /* ??? We need the extra RELOC check, because the default	\
-	     is to only check RELOC if flag_pic is set, and we don't	\
-	     set flag_pic (yet?).  */					\
-	  else if (!DECL_READONLY_SECTION (DECL, RELOC) || (RELOC))	\
-	    SECNUM = 2;							\
-	  else if (flag_merge_constants < 2)				\
-	    /* C and C++ don't allow different variables to share	\
-	       the same location.  -fmerge-all-constants allows		\
-	       even that (at the expense of not conforming).  */	\
-	    SECNUM = 1;							\
-	  else if (TREE_CODE (DECL_INITIAL (DECL)) == STRING_CST)	\
-	    SECNUM = 0x201;						\
-	  else								\
-	    SECNUM = 0x301;						\
-	}								\
-      /* This could be a CONSTRUCTOR containing ADDR_EXPR of a VAR_DECL, \
-	 in which case we can't put it in a shared library rodata.  */	\
-      else if (flag_pic && (RELOC))					\
-	SECNUM = 3;							\
-      else								\
-	SECNUM = 2;							\
-    }									\
-  while (0)
-
-/* We override svr4.h so that we can support the sdata section.  */
-
-#undef SELECT_SECTION
-#define SELECT_SECTION(DECL,RELOC,ALIGN)				\
-  do									\
-    {									\
-      typedef void (*sec_fn) PARAMS ((void));				\
-      static sec_fn const sec_functions[6] =				\
-      {									\
-	text_section,							\
-	const_section,							\
-	data_section,							\
-	sdata_section,							\
-	bss_section,							\
-	sbss_section							\
-      };								\
-									\
-      int sec;								\
-									\
-      DO_SELECT_SECTION (sec, DECL, RELOC);				\
-									\
-      switch (sec)							\
-	{								\
-	case 0x101:							\
-	  mergeable_string_section (DECL, ALIGN, 0);			\
-	  break;							\
-	case 0x201:							\
-	  mergeable_string_section (DECL_INITIAL (DECL),		\
-				    ALIGN, 0);				\
-	  break;							\
-	case 0x301:							\
-	  mergeable_constant_section (DECL_MODE (DECL),			\
-				      ALIGN, 0);			\
-	  break;							\
-	default:							\
-	  (*sec_functions[sec]) ();					\
-	  break;							\
-	}								\
-    }									\
-  while (0)
-
-#undef  UNIQUE_SECTION
-#define UNIQUE_SECTION(DECL, RELOC)					\
-  do									\
-    {									\
-      static const char * const prefixes[6][2] =			\
-      {									\
-	{ ".text.",   ".gnu.linkonce.t." },				\
-	{ ".rodata.", ".gnu.linkonce.r." },				\
-	{ ".data.",   ".gnu.linkonce.d." },				\
-	{ ".sdata.",  ".gnu.linkonce.s." },				\
-	{ ".bss.",    ".gnu.linkonce.b." },				\
-	{ ".sbss.",   ".gnu.linkonce.sb." }				\
-      };								\
-									\
-      int nlen, plen, sec;						\
-      const char *name, *prefix;					\
-      char *string;							\
-									\
-      DO_SELECT_SECTION (sec, DECL, RELOC);				\
-									\
-      name = IDENTIFIER_POINTER (DECL_ASSEMBLER_NAME (DECL));		\
-      STRIP_NAME_ENCODING (name, name);					\
-      nlen = strlen (name);						\
-									\
-      prefix = prefixes[sec & 0xff][DECL_ONE_ONLY(DECL)];		\
-      plen = strlen (prefix);						\
-									\
-      string = alloca (nlen + plen + 1);				\
-									\
-      memcpy (string, prefix, plen);					\
-      memcpy (string + plen, name, nlen + 1);				\
-									\
-      DECL_SECTION_NAME (DECL) = build_string (nlen + plen, string);	\
-    }									\
-  while (0)
-
-/* Similarly for constant pool data.  */
-
-extern unsigned int ia64_section_threshold;
-#undef SELECT_RTX_SECTION
-#define SELECT_RTX_SECTION(MODE, RTX, ALIGN)				\
-{									\
-  if (GET_MODE_SIZE (MODE) > 0						\
-      && GET_MODE_SIZE (MODE) <= ia64_section_threshold)		\
-    sdata_section ();							\
-  else if (flag_pic && symbolic_operand ((RTX), (MODE)))		\
-    data_section ();							\
-  else									\
-    mergeable_constant_section ((MODE), (ALIGN), 0);			\
-}
+/* Override default elf definition.  */
+#undef	TARGET_ASM_SELECT_RTX_SECTION
+#define TARGET_ASM_SELECT_RTX_SECTION  ia64_select_rtx_section
 
 #undef EXTRA_SECTIONS
-#define EXTRA_SECTIONS in_const, in_sdata, in_sbss
+#define EXTRA_SECTIONS in_sdata, in_sbss
 
 #undef EXTRA_SECTION_FUNCTIONS
 #define EXTRA_SECTION_FUNCTIONS						\
-  CONST_SECTION_FUNCTION						\
   SDATA_SECTION_FUNCTION						\
   SBSS_SECTION_FUNCTION
 

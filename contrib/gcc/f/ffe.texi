@@ -17,7 +17,7 @@ search for the string TBD.
 If you want to help by working on one or more of these items,
 email @email{gcc@@gcc.gnu.org}.
 If you're planning to do more than just research issues and offer comments,
-see @uref{http://www.gnu.org/software/contribute.html} for steps you might
+see @uref{http://gcc.gnu.org/contribute.html} for steps you might
 need to take first.
 
 @menu
@@ -2028,7 +2028,7 @@ Initializes, usually a module.  No type.
 A generic integer of type @code{int}.
 
 @item is
-A generic integer that contains a true (non-zero) or false (zero) value.
+A generic integer that contains a true (nonzero) or false (zero) value.
 
 @item len
 A generic integer that contains the length of something.

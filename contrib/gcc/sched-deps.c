@@ -222,8 +222,7 @@ add_dependence (insn, elem, dep_type)
      setters of the condition codes, so we must skip past notes here.
      Otherwise, NOTEs are impossible here.  */
   next = next_nonnote_insn (elem);
-  if (next && SCHED_GROUP_P (next)
-      && GET_CODE (next) != CODE_LABEL)
+  if (next && INSN_P (next) && SCHED_GROUP_P (next))
     {
       /* Notes will never intervene here though, so don't bother checking
          for them.  */
@@ -235,8 +234,8 @@ add_dependence (insn, elem, dep_type)
 
       rtx nnext;
       while ((nnext = next_nonnote_insn (next)) != NULL
-	     && SCHED_GROUP_P (nnext)
-	     && GET_CODE (nnext) != CODE_LABEL)
+	     && INSN_P (nnext)
+	     && SCHED_GROUP_P (nnext))
 	next = nnext;
 
       /* Again, don't depend an insn on itself.  */
@@ -280,7 +279,7 @@ add_dependence (insn, elem, dep_type)
       else if (TEST_BIT (output_dependency_cache[INSN_LUID (insn)],
 			 INSN_LUID (elem)))
 	present_dep_type = REG_DEP_OUTPUT;
-      else 
+      else
 	present_p = 0;
       if (present_p && (int) dep_type >= (int) present_dep_type)
 	return;
@@ -313,7 +312,7 @@ add_dependence (insn, elem, dep_type)
 	     one, then change the existing dependence to this type.  */
 	  if ((int) dep_type < (int) REG_NOTE_KIND (link))
 	    PUT_REG_NOTE_KIND (link, dep_type);
-	  
+
 #ifdef INSN_SCHEDULING
 	  /* If we are adding a dependency to INSN's LOG_LINKs, then
 	     note that in the bitmap caches of dependency information.  */
@@ -448,7 +447,7 @@ group_leader (insn)
       prev = insn;
       insn = next_nonnote_insn (insn);
     }
-  while (insn && SCHED_GROUP_P (insn) && (GET_CODE (insn) != CODE_LABEL));
+  while (insn && INSN_P (insn) && SCHED_GROUP_P (insn));
 
   return prev;
 }
@@ -1040,7 +1039,7 @@ sched_analyze_insn (deps, x, insn, loop_notes)
     }
 
   /* If this instruction can throw an exception, then moving it changes
-     where block boundaries fall.  This is mighty confusing elsewhere. 
+     where block boundaries fall.  This is mighty confusing elsewhere.
      Therefore, prevent such an instruction from being moved.  */
   if (can_throw_internal (insn))
     reg_pending_barrier = true;
@@ -1243,15 +1242,12 @@ sched_analyze (deps, head, tail)
 
   for (insn = head;; insn = NEXT_INSN (insn))
     {
-      rtx link, end_seq, r0, set, note;
+      rtx link, end_seq, r0, set;
 
       if (GET_CODE (insn) == INSN || GET_CODE (insn) == JUMP_INSN)
 	{
 	  /* Clear out the stale LOG_LINKS from flow.  */
 	  free_INSN_LIST_list (&LOG_LINKS (insn));
-
-	  /* Clear out stale SCHED_GROUP_P.  */
-	  SCHED_GROUP_P (insn) = 0;
 
 	  /* Make each JUMP_INSN a scheduling barrier for memory
              references.  */
@@ -1291,8 +1287,12 @@ sched_analyze (deps, head, tail)
 		    SET_REGNO_REG_SET (reg_pending_sets, i);
 		    SET_REGNO_REG_SET (reg_pending_uses, i);
 		  }
-		/* Other call-clobbered hard regs may be clobbered.  */
-		else if (TEST_HARD_REG_BIT (regs_invalidated_by_call, i))
+		/* Other call-clobbered hard regs may be clobbered.
+		   Since we only have a choice between 'might be clobbered'
+		   and 'definitely not clobbered', we must include all
+		   partly call-clobbered registers here.  */
+		else if (HARD_REGNO_CALL_PART_CLOBBERED (i, reg_raw_mode[i])
+			 || TEST_HARD_REG_BIT (regs_invalidated_by_call, i))
 		  SET_REGNO_REG_SET (reg_pending_clobbers, i);
 		/* We don't know what set of fixed registers might be used
 		   by the function, but it is certain that the stack pointer
@@ -1337,17 +1337,7 @@ sched_analyze (deps, head, tail)
       /* See comments on reemit_notes as to why we do this.
 	 ??? Actually, the reemit_notes just say what is done, not why.  */
 
-      else if (GET_CODE (insn) == NOTE
-	       && (NOTE_LINE_NUMBER (insn) == NOTE_INSN_RANGE_BEG
-		   || NOTE_LINE_NUMBER (insn) == NOTE_INSN_RANGE_END))
-	{
-	  loop_notes = alloc_EXPR_LIST (REG_SAVE_NOTE, NOTE_RANGE_INFO (insn),
-					loop_notes);
-	  loop_notes = alloc_EXPR_LIST (REG_SAVE_NOTE,
-					GEN_INT (NOTE_LINE_NUMBER (insn)),
-					loop_notes);
-	}
-      else if (GET_CODE (insn) == NOTE
+      if (GET_CODE (insn) == NOTE
 	       && (NOTE_LINE_NUMBER (insn) == NOTE_INSN_LOOP_BEG
 		   || NOTE_LINE_NUMBER (insn) == NOTE_INSN_LOOP_END
 		   || NOTE_LINE_NUMBER (insn) == NOTE_INSN_EH_REGION_BEG
@@ -1528,9 +1518,12 @@ free_deps (deps)
   EXECUTE_IF_SET_IN_REG_SET (&deps->reg_last_in_use, 0, i,
     {
       struct deps_reg *reg_last = &deps->reg_last[i];
-      free_INSN_LIST_list (&reg_last->uses);
-      free_INSN_LIST_list (&reg_last->sets);
-      free_INSN_LIST_list (&reg_last->clobbers);
+      if (reg_last->uses)
+	free_INSN_LIST_list (&reg_last->uses);
+      if (reg_last->sets)
+	free_INSN_LIST_list (&reg_last->sets);
+      if (reg_last->clobbers)
+	free_INSN_LIST_list (&reg_last->clobbers);
     });
   CLEAR_REG_SET (&deps->reg_last_in_use);
 

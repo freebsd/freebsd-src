@@ -46,7 +46,6 @@ extern int dbr_sequence_length	PARAMS ((void));
 /* Indicate that branch shortening hasn't yet been done.  */
 extern void init_insn_lengths	PARAMS ((void));
 
-#ifdef RTX_CODE
 /* Obtain the current length of an insn.  If branch shortening has been done,
    get its actual length.  Otherwise, get its maximum length.  */
 extern int get_attr_length	PARAMS ((rtx));
@@ -119,7 +118,7 @@ extern void split_double	PARAMS ((rtx, rtx *, rtx *));
 /* Return nonzero if this function has no function calls.  */
 extern int leaf_function_p	PARAMS ((void));
 
-/* Return 1 if branch is an forward branch.
+/* Return 1 if branch is a forward branch.
    Uses insn_shuid array, so it works only in the final pass.  May be used by
    output templates to add branch prediction hints, for example.  */
 extern int final_forward_branch_p PARAMS ((rtx));
@@ -137,7 +136,7 @@ extern const char *get_insn_template PARAMS ((int, rtx));
 
 /* Add function NAME to the weak symbols list.  VALUE is a weak alias
    associated with NAME.  */
-extern int add_weak PARAMS ((const char *, const char *));
+extern int add_weak PARAMS ((tree, const char *, const char *));
 
 /* Functions in flow.c */
 extern void allocate_for_life_analysis	PARAMS ((void));
@@ -145,8 +144,8 @@ extern int regno_uninitialized		PARAMS ((unsigned int));
 extern int regno_clobbered_at_setjmp	PARAMS ((int));
 extern void find_basic_blocks		PARAMS ((rtx, int, FILE *));
 extern bool cleanup_cfg			PARAMS ((int));
+extern bool delete_unreachable_blocks	PARAMS ((void));
 extern void check_function_return_warnings PARAMS ((void));
-#endif
 
 /* Functions in varasm.c.  */
 
@@ -210,7 +209,6 @@ extern void sdata_section PARAMS ((void));
 extern void rdata_section PARAMS ((void));
 #endif
 
-#ifdef TREE_CODE
 /* Tell assembler to change to section NAME for DECL.
    If DECL is NULL, just switch to section NAME.
    If NAME is NULL, get the name from DECL.
@@ -233,7 +231,6 @@ extern void mergeable_constant_section	PARAMS ((enum machine_mode,
 extern void declare_weak		PARAMS ((tree));
 /* Merge weak status.  */
 extern void merge_weak			PARAMS ((tree, tree));
-#endif /* TREE_CODE */
 
 /* Emit any pending weak declarations.  */
 extern void weak_finish			PARAMS ((void));
@@ -247,7 +244,6 @@ extern void weak_finish			PARAMS ((void));
    Prefixes such as % are optional.  */
 extern int decode_reg_name		PARAMS ((const char *));
 
-#ifdef TREE_CODE
 /* Make the rtl for variable VAR be volatile.
    Use this only for static variables.  */
 extern void make_var_volatile		PARAMS ((tree));
@@ -256,6 +252,8 @@ extern void make_var_volatile		PARAMS ((tree));
 extern void assemble_constant_align	PARAMS ((tree));
 
 extern void assemble_alias		PARAMS ((tree, tree));
+
+extern void default_assemble_visibility	PARAMS ((tree, int));
 
 /* Output a string of literal assembler code
    for an `asm' keyword used between functions.  */
@@ -286,7 +284,6 @@ extern void assemble_variable		PARAMS ((tree, int, int, int));
    (Most assemblers don't need this, so we normally output nothing.)
    Do nothing if DECL is not external.  */
 extern void assemble_external		PARAMS ((tree));
-#endif /* TREE_CODE */
 
 /* Assemble code to leave SIZE bytes of zeros.  */
 extern void assemble_zeros		PARAMS ((int));
@@ -298,13 +295,8 @@ extern void assemble_eh_align		PARAMS ((int));
 /* Assemble a string constant with the specified C string as contents.  */
 extern void assemble_string		PARAMS ((const char *, int));
 
-#ifdef RTX_CODE
 /* Similar, for calling a library function FUN.  */
 extern void assemble_external_libcall	PARAMS ((rtx));
-#endif
-
-/* Declare the label NAME global.  */
-extern void assemble_global		PARAMS ((const char *));
 
 /* Assemble a label named NAME.  */
 extern void assemble_label		PARAMS ((const char *));
@@ -326,7 +318,6 @@ extern void assemble_name		PARAMS ((FILE *, const char *));
    be followed immediately by the object's initial value.  */
 extern const char *integer_asm_op	PARAMS ((int, int));
 
-#ifdef RTX_CODE
 /* Use directive OP to assemble an integer object X.  Print OP at the
    start of the line, followed immediately by the value of X.  */
 extern void assemble_integer_with_op	PARAMS ((const char *, rtx));
@@ -336,7 +327,7 @@ extern bool default_assemble_integer	PARAMS ((rtx, unsigned int, int));
 
 /* Assemble the integer constant X into an object of SIZE bytes.  ALIGN is
    the alignment of the integer in bits.  Return 1 if we were able to output
-   the constant, otherwise 0.  If FORCE is non-zero, abort if we can't output
+   the constant, otherwise 0.  If FORCE is nonzero, abort if we can't output
    the constant.  */
 extern bool assemble_integer		PARAMS ((rtx, unsigned, unsigned, int));
 
@@ -346,18 +337,12 @@ extern bool assemble_integer		PARAMS ((rtx, unsigned, unsigned, int));
 #define assemble_aligned_integer(SIZE, VALUE) \
   assemble_integer (VALUE, SIZE, (SIZE) * BITS_PER_UNIT, 1)
 
-#ifdef REAL_VALUE_TYPE
+#ifdef REAL_VALUE_TYPE_SIZE
 /* Assemble the floating-point constant D into an object of size MODE.  */
 extern void assemble_real		PARAMS ((REAL_VALUE_TYPE,
 					         enum machine_mode,
 						 unsigned));
 #endif
-#endif
-
-/* At the end of a function, forget the memory-constants
-   previously made for CONST_DOUBLEs.  Mark them as not on real_constant_chain.
-   Also clear out real_constant_chain and clear out all the chain-pointers.  */
-extern void clear_const_double_mem	PARAMS ((void));
 
 /* Start deferring output of subconstants.  */
 extern void defer_addressed_constants	PARAMS ((void));
@@ -373,7 +358,6 @@ extern int get_pool_size		PARAMS ((void));
 extern rtx peephole			PARAMS ((rtx));
 #endif
 
-#ifdef TREE_CODE
 /* Write all the constants in the constant pool.  */
 extern void output_constant_pool	PARAMS ((const char *, tree));
 
@@ -398,9 +382,7 @@ extern tree initializer_constant_valid_p	PARAMS ((tree, tree));
    ALIGN is the alignment in bits that may be assumed for the data.  */
 extern void output_constant		PARAMS ((tree, HOST_WIDE_INT,
 						 unsigned int));
-#endif
 
-#ifdef RTX_CODE
 /* When outputting delayed branch sequences, this rtx holds the
    sequence being output.  It is null when no delayed branch
    sequence is being output, so it can be used as a test in the
@@ -408,7 +390,6 @@ extern void output_constant		PARAMS ((tree, HOST_WIDE_INT,
 
    This variable is defined  in final.c.  */
 extern rtx final_sequence;
-#endif
 
 /* The line number of the beginning of the current function.  Various
    md code needs this so that it can output relative linenumbers.  */
@@ -465,27 +446,18 @@ extern struct rtx_def *current_insn_predicate;
 /* Last insn processed by final_scan_insn.  */
 extern struct rtx_def *current_output_insn;
 
-/* Decide whether DECL needs to be in a writable section.  RELOC is the same
-   as for SELECT_SECTION.  */
+/* Nonzero while outputting an `asm' with operands.
+   This means that inconsistencies are the user's fault, so don't abort.
+   The precise value is the insn being output, to pass to error_for_asm.  */
+extern rtx this_is_asm_operands;
 
-#define DECL_READONLY_SECTION(DECL,RELOC)		\
-  (TREE_READONLY (DECL)					\
-   && ! TREE_THIS_VOLATILE (DECL)			\
-   && DECL_INITIAL (DECL)				\
-   && (DECL_INITIAL (DECL) == error_mark_node		\
-       || TREE_CONSTANT (DECL_INITIAL (DECL)))		\
-   && ! (RELOC && (flag_pic || DECL_ONE_ONLY (DECL))))
+/* Decide whether DECL needs to be in a writable section.
+   RELOC is the same as for SELECT_SECTION.  */
+extern bool decl_readonly_section PARAMS ((tree, int));
+extern bool decl_readonly_section_1 PARAMS ((tree, int, int));
 
 /* User label prefix in effect for this compilation.  */
 extern const char *user_label_prefix;
-
-/* This macro gets just the user-specified name
-   out of the string in a SYMBOL_REF.  On most machines,
-   we discard the * if any and that's all.  */
-#ifndef STRIP_NAME_ENCODING
-#define STRIP_NAME_ENCODING(VAR,SYMBOL_NAME) \
-  (VAR) = ((SYMBOL_NAME) + ((SYMBOL_NAME)[0] == '*'))
-#endif
 
 /* Default target function prologue and epilogue assembler output.  */
 extern void default_function_pro_epilogue PARAMS ((FILE *, HOST_WIDE_INT));
@@ -512,7 +484,9 @@ extern void no_asm_to_stream PARAMS ((FILE *));
 #define SECTION_STRINGS  0x10000	/* contains zero terminated strings without
 					   embedded zeros */
 #define SECTION_OVERRIDE 0x20000	/* allow override of default flags */
-#define SECTION_MACH_DEP 0x40000	/* subsequent bits reserved for target */
+#define SECTION_TLS	 0x40000	/* contains thread-local storage */
+#define SECTION_NOTYPE	 0x80000	/* don't output @progbits */
+#define SECTION_MACH_DEP 0x100000	/* subsequent bits reserved for target */
 
 extern unsigned int get_named_section_flags PARAMS ((const char *));
 extern bool set_named_section_flags	PARAMS ((const char *, unsigned int));
@@ -522,6 +496,9 @@ extern bool named_section_first_declaration PARAMS((const char *));
 union tree_node;
 extern unsigned int default_section_type_flags PARAMS ((union tree_node *,
 							const char *, int));
+extern unsigned int default_section_type_flags_1 PARAMS ((union tree_node *,
+							  const char *,
+							  int, int));
 
 extern void default_no_named_section PARAMS ((const char *, unsigned int));
 extern void default_elf_asm_named_section PARAMS ((const char *, unsigned int));
@@ -539,6 +516,23 @@ extern void default_named_section_asm_out_constructor PARAMS ((struct rtx_def *,
 							       int));
 extern void default_ctor_section_asm_out_constructor PARAMS ((struct rtx_def *,
 							      int));
+
+extern void default_select_section PARAMS ((tree, int,
+					    unsigned HOST_WIDE_INT));
+extern void default_elf_select_section PARAMS ((tree, int,
+						unsigned HOST_WIDE_INT));
+extern void default_elf_select_section_1 PARAMS ((tree, int,
+						  unsigned HOST_WIDE_INT, int));
+extern void default_unique_section PARAMS ((tree, int));
+extern void default_unique_section_1 PARAMS ((tree, int, int));
+extern void default_select_rtx_section PARAMS ((enum machine_mode, rtx,
+						unsigned HOST_WIDE_INT));
+extern void default_elf_select_rtx_section PARAMS ((enum machine_mode, rtx,
+						    unsigned HOST_WIDE_INT));
+extern const char *default_strip_name_encoding PARAMS ((const char *));
+extern bool default_binds_local_p PARAMS ((tree));
+extern bool default_binds_local_p_1 PARAMS ((tree, int));
+extern void default_globalize_label PARAMS ((FILE *, const char *));
 
 /* Emit data for vtable gc for GNU binutils.  */
 extern void assemble_vtable_entry PARAMS ((struct rtx_def *, HOST_WIDE_INT));

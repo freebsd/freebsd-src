@@ -372,8 +372,6 @@ int seen_errno = 0;
 /* The following are only used when handling stdlib.h */
 int seen_EXIT_FAILURE = 0, seen_EXIT_SUCCESS = 0;
 
-#define obstack_chunk_alloc xmalloc
-#define obstack_chunk_free free
 struct obstack scan_file_obstack;
 
 /* NOTE:  If you edit this, also edit gen-protos.c !! */
@@ -411,10 +409,10 @@ int lbrac_line, rbrac_line;
 int required_unseen_count = 0;
 int required_other = 0;
 
-static void 
+static void
 write_lbrac ()
 {
-  
+
 #if ADD_MISSING_EXTERN_C
   if (missing_extern_C_count + required_unseen_count > 0)
     fprintf (outf, "#ifdef __cplusplus\nextern \"C\" {\n#endif\n");
@@ -546,7 +544,7 @@ recognized_function (fname, line, kind, have_arg_list)
   /* If we have a full prototype, we're done.  */
   if (have_arg_list)
     return;
-      
+
   if (kind == 'I')  /* don't edit inline function */
     return;
 
@@ -619,7 +617,7 @@ read_scan_file (in_fname, argc, argv)
   int i;
   struct symbol_list *cur_symbols;
 
-  obstack_init (&scan_file_obstack); 
+  obstack_init (&scan_file_obstack);
 
   scan_in = cpp_create_reader (CLK_GNUC89);
   cb = cpp_get_callbacks (scan_in);
@@ -632,10 +630,9 @@ read_scan_file (in_fname, argc, argv)
   options->inhibit_errors = 1;
 
   i = cpp_handle_options (scan_in, argc, argv);
-  if (i < argc && ! CPP_FATAL_ERRORS (scan_in))
-    cpp_fatal (scan_in, "Invalid option `%s'", argv[i]);
-  cpp_post_options (scan_in);
-  if (CPP_FATAL_ERRORS (scan_in))
+  if (i < argc)
+    cpp_error (scan_in, DL_ERROR, "invalid option `%s'", argv[i]);
+  if (cpp_errors (scan_in))
     exit (FATAL_EXIT_CODE);
 
   if (! cpp_read_main_file (scan_in, in_fname, NULL))
@@ -701,7 +698,7 @@ read_scan_file (in_fname, argc, argv)
   if (required_unseen_count + partial_count + required_other
 #if ADD_MISSING_EXTERN_C
       + missing_extern_C_count
-#endif      
+#endif
       == 0)
     {
       if (verbose)
@@ -1084,8 +1081,8 @@ main (argc, argv)
 
       progname = 0;
       for (p = argv[0]; *p; p++)
-        if (*p == '/')
-          progname = p;
+	if (*p == '/')
+	  progname = p;
       progname = progname ? progname+1 : argv[0];
     }
 
@@ -1114,7 +1111,7 @@ main (argc, argv)
 	      exit (SUCCESS_EXIT_CODE);
 	    }
 	}
-	  
+
     }
 #endif
 
@@ -1148,7 +1145,7 @@ main (argc, argv)
   else
     symbol_table[0].names = NULL;
 
-  /* Count and mark the prototypes required for this include file.  */ 
+  /* Count and mark the prototypes required for this include file.  */
   for (cur_symbols = &symbol_table[0]; cur_symbols->names; cur_symbols++)
     {
       int name_len;
@@ -1313,7 +1310,7 @@ v_fatal (str, ap)
   fprintf (stderr, "%s: %s: ", progname, inc_filename);
   vfprintf (stderr, str, ap);
   fprintf (stderr, "\n");
-  
+
   exit (FATAL_EXIT_CODE);
 }
 

@@ -1,5 +1,5 @@
 /* params.def - Run-time parameters.
-   Copyright (C) 2001 Free Software Foundation, Inc.
+   Copyright (C) 2001, 2002 Free Software Foundation, Inc.
    Written by Mark Mitchell <mark@codesourcery.com>.
 
 This file is part of GCC.
@@ -35,15 +35,89 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 
    Be sure to add an entry to invoke.texi summarizing the parameter.  */
 
-/* The maximum number of instructions accepted for inlining a
-   function.  Increasing values mean more agressive inlining.
-   This affects currently only functions explicitly marked as
-   inline (or methods defined within the class definition for C++).
-   The original default value of 10000 was arbitrary and caused
-   significant compile-time performance regressions.  */
+/* The single function inlining limit. This is the maximum size
+   of a function counted in internal gcc instructions (not in
+   real machine instructions) that is eligible for inlining
+   by the tree inliner.
+   The default value is 300.
+   Only functions marked inline (or methods defined in the class
+   definition for C++) are affected by this, unless you set the
+   -finline-functions (included in -O3) compiler option.
+   There are more restrictions to inlining: If inlined functions
+   call other functions, the already inlined instructions are
+   counted and once the recursive inline limit (see 
+   "max-inline-insns" parameter) is exceeded, the acceptable size
+   gets decreased.  */
+DEFPARAM (PARAM_MAX_INLINE_INSNS_SINGLE,
+	  "max-inline-insns-single",
+	  "The maximum number of instructions in a single function eligible for inlining",
+	  300)
+
+/* The single function inlining limit for functions that are
+   inlined by virtue of -finline-functions (-O3).
+   This limit should be chosen to be below or equal to the limit
+   that is applied to functions marked inlined (or defined in the
+   class declaration in C++) given by the "max-inline-insns-single"
+   parameter.
+   The default value is 300.  */
+DEFPARAM (PARAM_MAX_INLINE_INSNS_AUTO,
+	  "max-inline-insns-auto",
+	  "The maximum number of instructions when automatically inlining",
+	  300)
+
+/* The repeated inlining limit.  After this number of instructions 
+   (in the internal gcc representation, not real machine instructions)
+   got inlined by repeated inlining, gcc starts to decrease the maximum
+   number of inlinable instructions in the tree inliner.
+   This is done by a linear function, see "max-inline-slope" parameter.
+   It is necessary in order to limit the compile-time resources, that 
+   could otherwise become very high.
+   It is recommended to set this value to twice the value of the single
+   function limit (set by the "max-inline-insns-single" parameter) or
+   higher.  The default value is 600.
+   Higher values mean that more inlining is done, resulting in
+   better performance of the code, at the expense of higher 
+   compile-time resource (time, memory) requirements and larger
+   binaries.  */
 DEFPARAM (PARAM_MAX_INLINE_INSNS,
 	  "max-inline-insns",
-	  "The maximum number of instructions in a function that is eligible for inlining",
+	  "The maximum number of instructions by repeated inlining before gcc starts to throttle inlining",
+	  600)
+
+/* After the repeated inline limit has been exceeded (see
+   "max-inline-insns" parameter), a linear function is used to
+   decrease the size of single functions eligible for inlining.
+   The slope of this linear function is given the negative
+   reciprocal value (-1/x) of this parameter. 
+   The default value is 32.
+   This linear function is used until it falls below a minimum
+   value specified by the "min-inline-insns" parameter.  */
+DEFPARAM (PARAM_MAX_INLINE_SLOPE,
+	  "max-inline-slope",
+	  "The slope of the linear function throttling inlining after the recursive inlining limit has been reached is given by the negative reciprocal value of this parameter",
+	  32)
+
+/* When gcc has inlined so many instructions (by repeated
+   inlining) that the throttling limits the inlining very much,
+   inlining for very small functions is still desirable to
+   achieve good runtime performance.  The size of single functions 
+   (measured in gcc instructions) which will still be eligible for 
+   inlining then is given by this parameter.  It defaults to 130.
+   Only much later (after exceeding 128 times the recursive limit)
+   inlining is cut down completely.  */
+DEFPARAM (PARAM_MIN_INLINE_INSNS,
+	  "min-inline-insns",
+	  "The number of instructions in a single functions still eligible to inlining after a lot recursive inlining",
+	  130)
+
+/* For languages that (still) use the RTL inliner, we can specify
+   limits for the RTL inliner separately.
+   The parameter here defines the maximum number of RTL instructions
+   a function may have to be eligible for inlining in the RTL inliner.
+   The default value is 600.  */
+DEFPARAM (PARAM_MAX_INLINE_INSNS_RTL,
+	  "max-inline-insns-rtl",
+	  "The maximum number of instructions for the RTL inliner",
 	  600)
 
 /* The maximum number of instructions to consider when looking for an
@@ -84,11 +158,87 @@ DEFPARAM(PARAM_MAX_GCSE_MEMORY,
 	 "max-gcse-memory",
 	 "The maximum amount of memory to be allocated by GCSE",
 	 50 * 1024 * 1024)
-/* The number of repetitions of copy/const prop and PRE to run. */
+/* The number of repetitions of copy/const prop and PRE to run.  */
 DEFPARAM(PARAM_MAX_GCSE_PASSES,
 	"max-gcse-passes",
 	"The maximum number of passes to make when doing GCSE",
 	1)
+
+/* This parameter limits the number of insns in a loop that will be unrolled,
+   and by how much the loop is unrolled.  */
+DEFPARAM(PARAM_MAX_UNROLLED_INSNS,
+	 "max-unrolled-insns",
+	 "The maximum number of instructions to consider to unroll in a loop",
+	 100)
+
+DEFPARAM(HOT_BB_COUNT_FRACTION,
+	 "hot-bb-count-fraction",
+	 "Select fraction of the maximal count of repetitions of basic block in \
+program given basic block needs to have to be considered hot",
+	 10000)
+DEFPARAM(HOT_BB_FREQUENCY_FRACTION,
+	 "hot-bb-frequency-fraction",
+	 "Select fraction of the maximal frequency of executions of basic \
+block in function given basic block needs to have to be considered hot",
+	 1000)
+DEFPARAM(TRACER_DYNAMIC_COVERAGE_FEEDBACK,
+	 "tracer-dynamic-coverage-feedback",
+	 "The percentage of function, weighted by execution frequency, that \
+must be covered by trace formation. Used when profile feedback is available",
+	 95)
+DEFPARAM(TRACER_DYNAMIC_COVERAGE,
+	 "tracer-dynamic-coverage",
+	 "The percentage of function, weighted by execution frequency, that \
+must be covered by trace formation. Used when profile feedback is not available",
+	 75)
+DEFPARAM(TRACER_MAX_CODE_GROWTH,
+	 "tracer-max-code-growth",
+	 "Maximal code growth caused by tail duplication (in percents)",
+	 100)
+DEFPARAM(TRACER_MIN_BRANCH_RATIO,
+	 "tracer-min-branch-ratio",
+	 "Stop reverse growth if the reverse probability of best edge is less \
+than this threshold (in percents)",
+	 10)
+DEFPARAM(TRACER_MIN_BRANCH_PROBABILITY_FEEDBACK,
+	 "tracer-min-branch-probability-feedback",
+	 "Stop forward growth if the probability of best edge is less than \
+this threshold (in percents). Used when profile feedback is available",
+	 30)
+DEFPARAM(TRACER_MIN_BRANCH_PROBABILITY,
+	 "tracer-min-branch-probability",
+	 "Stop forward growth if the probability of best edge is less than \
+this threshold (in percents). Used when profile feedback is not available",
+	 50)
+
+/* The maximum number of incoming edges to consider for crossjumping.  */
+DEFPARAM(PARAM_MAX_CROSSJUMP_EDGES,
+	 "max-crossjump-edges",
+	 "The maximum number of incoming edges to consider for crossjumping",
+	 100)
+
+#ifdef ENABLE_GC_ALWAYS_COLLECT
+# define GGC_MIN_EXPAND_DEFAULT 0
+# define GGC_MIN_HEAPSIZE_DEFAULT 0
+#else
+# define GGC_MIN_EXPAND_DEFAULT 30
+# define GGC_MIN_HEAPSIZE_DEFAULT 4096
+#endif
+
+DEFPARAM(GGC_MIN_EXPAND,
+	 "ggc-min-expand",
+	 "Minimum heap expansion to trigger garbage collection, as \
+a percentage of the total size of the heap.",
+	 GGC_MIN_EXPAND_DEFAULT)
+
+DEFPARAM(GGC_MIN_HEAPSIZE,
+	 "ggc-min-heapsize",
+	 "Minimum heap size before we start collecting garbage, in kilobytes.",
+	 GGC_MIN_HEAPSIZE_DEFAULT)
+
+#undef GGC_MIN_EXPAND_DEFAULT
+#undef GGC_MIN_HEAPSIZE_DEFAULT
+
 /*
 Local variables:
 mode:c

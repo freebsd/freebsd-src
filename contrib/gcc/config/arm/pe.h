@@ -1,5 +1,5 @@
 /* Definitions of target machine for GNU compiler, for ARM with PE obj format.
-   Copyright (C) 1995, 1996, 1999, 2000 Free Software Foundation, Inc.
+   Copyright (C) 1995, 1996, 1999, 2000, 2002 Free Software Foundation, Inc.
    Contributed by Doug Evans (dje@cygnus.com).
    
 This file is part of GNU CC.
@@ -94,30 +94,13 @@ Boston, MA 02111-1307, USA.  */
   1,1,1			\
 }
 
-/* In addition to the stuff done in arm.h, we must mark dll symbols specially.
-   Definitions of dllexport'd objects install some info in the .drectve
-   section.  References to dllimport'd objects are fetched indirectly via
-   __imp_.  If both are declared, dllexport overrides.
-   This is also needed to implement one-only vtables: they go into their own
-   section and we need to set DECL_SECTION_NAME so we do that here.
-   Note that we can be called twice on the same decl.  */
-#undef  ENCODE_SECTION_INFO
-#define ENCODE_SECTION_INFO(DECL) \
-  arm_pe_encode_section_info (DECL)
-
-/* Used to implement dllexport overriding dllimport semantics.  It's also used
-   to handle vtables - the first pass won't do anything because
-   DECL_CONTEXT (DECL) will be 0 so arm_dll{ex,im}port_p will return 0.
-   It's also used to handle dllimport override semantics.  */
-#define REDO_SECTION_INFO_P(DECL) 1
-
 /* Define this macro if in some cases global symbols from one translation
    unit may not be bound to undefined symbols in another translation unit
    without user intervention.  For instance, under Microsoft Windows
    symbols must be explicitly imported from shared libraries (DLLs).  */
 #define MULTIPLE_SYMBOL_SPACES
 
-#define UNIQUE_SECTION(DECL, RELOC) arm_pe_unique_section (DECL, RELOC)
+#define TARGET_ASM_UNIQUE_SECTION arm_pe_unique_section
 
 #define SUPPORTS_ONE_ONLY 1
 
@@ -206,13 +189,13 @@ Boston, MA 02111-1307, USA.  */
 /* A list of other sections which the compiler might be "in" at any
    given time.  */
 
-#undef  SUBTARGET_EXTRA_SECTIONS
-#define SUBTARGET_EXTRA_SECTIONS in_drectve,
+#undef  EXTRA_SECTIONS
+#define EXTRA_SECTIONS in_drectve
 
 /* A list of extra section function definitions.  */
 
-#undef  SUBTARGET_EXTRA_SECTION_FUNCTIONS
-#define SUBTARGET_EXTRA_SECTION_FUNCTIONS \
+#undef  EXTRA_SECTION_FUNCTIONS
+#define EXTRA_SECTION_FUNCTIONS \
   DRECTVE_SECTION_FUNCTION	\
   SWITCH_TO_SECTION_FUNCTION
 
@@ -245,7 +228,7 @@ switch_to_section (section, decl)				\
       case in_text: text_section (); break;			\
       case in_data: data_section (); break;			\
       case in_named: named_section (decl, NULL, 0); break;	\
-      case in_rdata: rdata_section (); break;			\
+      case in_readonly_data: readonly_data_section (); break;	\
       case in_ctors: ctors_section (); break;			\
       case in_dtors: dtors_section (); break;			\
       case in_drectve: drectve_section (); break;		\

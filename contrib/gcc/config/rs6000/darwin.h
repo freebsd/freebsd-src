@@ -36,7 +36,7 @@ Boston, MA 02111-1307, USA.  */
 #define TARGET_NO_TOC 1
 
 /* Handle #pragma weak and #pragma pack.  */
-#define HANDLE_SYSV_PRAGMA
+#define HANDLE_SYSV_PRAGMA 1
 
 /* The Darwin ABI always includes AltiVec, can't be (validly) turned
    off.  */
@@ -44,12 +44,23 @@ Boston, MA 02111-1307, USA.  */
 #define SUBTARGET_OVERRIDE_OPTIONS  \
   rs6000_altivec_abi = 1;
 
-#define CPP_PREDEFINES "-D__ppc__ -D__POWERPC__ -D__NATURAL_ALIGNMENT__ -D__MACH__ -D__BIG_ENDIAN__ -D__APPLE__"
+#define TARGET_OS_CPP_BUILTINS()                \
+  do                                            \
+    {                                           \
+      builtin_define ("__ppc__");               \
+      builtin_define ("__POWERPC__");           \
+      builtin_define ("__NATURAL_ALIGNMENT__"); \
+      builtin_define ("__MACH__");              \
+      builtin_define ("__APPLE__");             \
+    }                                           \
+  while (0)
 
 /* We want -fPIC by default, unless we're using -static to compile for
    the kernel or some such.  */
 
-#define CC1_SPEC "%{!static:-fPIC}"
+#define CC1_SPEC "\
+%{static: %{Zdynamic: %e conflicting code gen style switches are used}}\
+%{!static:-fPIC}"
 
 /* Make both r2 and r3 available for allocation.  */
 #define FIXED_R2 0
@@ -94,20 +105,10 @@ Boston, MA 02111-1307, USA.  */
 #define RS6000_OUTPUT_BASENAME(FILE, NAME)	\
     assemble_name (FILE, NAME);
 
-/* Output before instructions.  */
-/* This is how to output the definition of a user-level label named NAME,
-   such as the label on a static function or variable NAME.  */
-
-#define ASM_OUTPUT_LABEL(FILE,NAME)	\
-  do { assemble_name (FILE, NAME); fputs (":\n", FILE); } while (0)
-
-/* This is how to output a command to make the user-level label named NAME
-   defined for reference from other files.  */
-
-#undef ASM_GLOBALIZE_LABEL
-#define ASM_GLOBALIZE_LABEL(FILE,NAME)	\
-  do { fputs ("\t.globl ", FILE);	\
-       RS6000_OUTPUT_BASENAME (FILE, NAME); putc ('\n', FILE);} while (0)
+/* Globalizing directive for a label.  */
+#undef GLOBAL_ASM_OP
+#define GLOBAL_ASM_OP "\t.globl "
+#undef TARGET_ASM_GLOBALIZE_LABEL
 
 /* This is how to output an internal label prefix.  rs6000.c uses this
    when generating traceback tables.  */
@@ -117,14 +118,6 @@ Boston, MA 02111-1307, USA.  */
 #define ASM_OUTPUT_INTERNAL_LABEL_PREFIX(FILE,PREFIX)	\
   fprintf (FILE, "%s", PREFIX)
 
-#undef TEXT_SECTION_ASM_OP
-#define TEXT_SECTION_ASM_OP ".text"
-
-/* Output before writable data.  */
-
-#undef DATA_SECTION_ASM_OP
-#define DATA_SECTION_ASM_OP ".data"
-
 /* This says how to output an assembler line to define a global common
    symbol.  */
 /* ? */
@@ -133,9 +126,6 @@ Boston, MA 02111-1307, USA.  */
   do { fputs (".comm ", (FILE));			\
        RS6000_OUTPUT_BASENAME ((FILE), (NAME));		\
        fprintf ((FILE), ",%d\n", (SIZE)); } while (0)
-
-#define ASM_OUTPUT_SKIP(FILE,SIZE)  \
-  fprintf (FILE, "\t.space %d\n", SIZE)
 
 /* Override the standard rs6000 definition.  */
 
@@ -147,6 +137,21 @@ Boston, MA 02111-1307, USA.  */
 #define SAVE_FP_SUFFIX ""
 #define	RESTORE_FP_PREFIX "._restf"
 #define RESTORE_FP_SUFFIX ""
+
+/* This is how to output an assembler line that says to advance
+   the location counter to a multiple of 2**LOG bytes using the
+   "nop" instruction as padding.  */
+
+#define ASM_OUTPUT_ALIGN_WITH_NOP(FILE,LOG)                   \
+  do                                                          \
+    {                                                         \
+      if ((LOG) < 3)                                          \
+        {                                                     \
+          ASM_OUTPUT_ALIGN (FILE,LOG);                        \
+        }                                                     \
+      else /* nop == ori r0,r0,0 */                           \
+        fprintf (FILE, "\t.align32 %d,0x60000000\n", (LOG));  \
+    } while (0)
 
 /* Generate insns to call the profiler.  */
 
@@ -226,7 +231,7 @@ Boston, MA 02111-1307, USA.  */
    : MAX ((COMPUTED), (SPECIFIED)))
 
 /* XXX: Darwin supports neither .quad, or .llong, but it also doesn't
-   support 64 bit powerpc either, so this just keeps things happy.  */
+   support 64 bit PowerPC either, so this just keeps things happy.  */
 #define DOUBLE_INT_ASM_OP "\t.quad\t"
 
 /* Get HOST_WIDE_INT and CONST_INT to be 32 bits, for compile time
@@ -237,3 +242,6 @@ Boston, MA 02111-1307, USA.  */
 /* For binary compatibility with 2.95; Darwin C APIs use bool from
    stdbool.h, which was an int-sized enum in 2.95.  */
 #define BOOL_TYPE_SIZE INT_TYPE_SIZE
+
+#undef REGISTER_TARGET_PRAGMAS
+#define REGISTER_TARGET_PRAGMAS DARWIN_REGISTER_TARGET_PRAGMAS

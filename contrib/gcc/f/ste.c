@@ -1,5 +1,5 @@
 /* ste.c -- Implementation File (module.c template V1.0)
-   Copyright (C) 1995, 1996, 2000, 2002 Free Software Foundation, Inc.
+   Copyright (C) 1995, 1996, 2000, 2002, 2003 Free Software Foundation, Inc.
    Contributed by James Craig Burley.
 
 This file is part of GNU Fortran.
@@ -1162,13 +1162,13 @@ ffeste_io_douio_ (ffebld expr)
    declaration of variables (temporaries) to the expanding of expressions,
    statements, etc.  */
 
+static GTY(()) tree f2c_alist_struct;
 static tree
 ffeste_io_ialist_ (bool have_err,
 		   ffestvUnit unit,
 		   ffebld unit_expr,
 		   int unit_dflt)
 {
-  static tree f2c_alist_struct = NULL_TREE;
   tree t;
   tree ttype;
   tree field;
@@ -1192,8 +1192,6 @@ ffeste_io_ialist_ (bool have_err,
 
       TYPE_FIELDS (ref) = errfield;
       layout_type (ref);
-
-      ggc_add_tree_root (&f2c_alist_struct, 1);
 
       f2c_alist_struct = ref;
     }
@@ -1283,6 +1281,7 @@ ffeste_io_ialist_ (bool have_err,
    declaration of variables (temporaries) to the expanding of expressions,
    statements, etc.  */
 
+static GTY(()) tree f2c_cilist_struct;
 static tree
 ffeste_io_cilist_ (bool have_err,
 		   ffestvUnit unit,
@@ -1294,7 +1293,6 @@ ffeste_io_cilist_ (bool have_err,
 		   bool rec,
 		   ffebld rec_expr)
 {
-  static tree f2c_cilist_struct = NULL_TREE;
   tree t;
   tree ttype;
   tree field;
@@ -1324,8 +1322,6 @@ ffeste_io_cilist_ (bool have_err,
 
       TYPE_FIELDS (ref) = errfield;
       layout_type (ref);
-
-      ggc_add_tree_root (&f2c_cilist_struct, 1);
 
       f2c_cilist_struct = ref;
     }
@@ -1508,12 +1504,12 @@ ffeste_io_cilist_ (bool have_err,
    declaration of variables (temporaries) to the expanding of expressions,
    statements, etc.  */
 
+static GTY(()) tree f2c_close_struct;
 static tree
 ffeste_io_cllist_ (bool have_err,
 		   ffebld unit_expr,
 		   ffestpFile *stat_spec)
 {
-  static tree f2c_close_struct = NULL_TREE;
   tree t;
   tree ttype;
   tree field;
@@ -1540,8 +1536,6 @@ ffeste_io_cllist_ (bool have_err,
 
       TYPE_FIELDS (ref) = errfield;
       layout_type (ref);
-
-      ggc_add_tree_root (&f2c_close_struct, 1);
 
       f2c_close_struct = ref;
     }
@@ -1622,6 +1616,7 @@ ffeste_io_cllist_ (bool have_err,
    declaration of variables (temporaries) to the expanding of expressions,
    statements, etc.  */
 
+static GTY(()) tree f2c_icilist_struct;
 static tree
 ffeste_io_icilist_ (bool have_err,
 		    ffebld unit_expr,
@@ -1629,7 +1624,6 @@ ffeste_io_icilist_ (bool have_err,
 		    ffestvFormat format,
 		    ffestpFile *format_spec)
 {
-  static tree f2c_icilist_struct = NULL_TREE;
   tree t;
   tree ttype;
   tree field;
@@ -1662,8 +1656,6 @@ ffeste_io_icilist_ (bool have_err,
 
       TYPE_FIELDS (ref) = errfield;
       layout_type (ref);
-
-      ggc_add_tree_root (&f2c_icilist_struct, 1);
 
       f2c_icilist_struct = ref;
     }
@@ -1851,6 +1843,7 @@ ffeste_io_icilist_ (bool have_err,
    declaration of variables (temporaries) to the expanding of expressions,
    statements, etc.  */
 
+static GTY(()) tree f2c_inquire_struct;
 static tree
 ffeste_io_inlist_ (bool have_err,
 		   ffestpFile *unit_spec,
@@ -1870,7 +1863,6 @@ ffeste_io_inlist_ (bool have_err,
 		   ffestpFile *nextrec_spec,
 		   ffestpFile *blank_spec)
 {
-  static tree f2c_inquire_struct = NULL_TREE;
   tree t;
   tree ttype;
   tree field;
@@ -1958,8 +1950,6 @@ ffeste_io_inlist_ (bool have_err,
 
       TYPE_FIELDS (ref) = errfield;
       layout_type (ref);
-
-      ggc_add_tree_root (&f2c_inquire_struct, 1);
 
       f2c_inquire_struct = ref;
     }
@@ -2109,6 +2099,7 @@ ffeste_io_inlist_ (bool have_err,
    declaration of variables (temporaries) to the expanding of expressions,
    statements, etc.  */
 
+static GTY(()) tree f2c_open_struct;
 static tree
 ffeste_io_olist_ (bool have_err,
 		  ffebld unit_expr,
@@ -2119,7 +2110,6 @@ ffeste_io_olist_ (bool have_err,
 		  ffestpFile *recl_spec,
 		  ffestpFile *blank_spec)
 {
-  static tree f2c_open_struct = NULL_TREE;
   tree t;
   tree ttype;
   tree field;
@@ -2162,8 +2152,6 @@ ffeste_io_olist_ (bool have_err,
 
       TYPE_FIELDS (ref) = errfield;
       layout_type (ref);
-
-      ggc_add_tree_root (&f2c_open_struct, 1);
 
       f2c_open_struct = ref;
     }
@@ -2723,21 +2711,27 @@ ffeste_R810 (ffestw block, unsigned long casenum)
     do
       {
 	texprlow = (c->low == NULL) ? NULL_TREE
-	  : ffecom_constantunion (&ffebld_constant_union (c->low), s->type,
-				  s->kindtype,
-				  ffecom_tree_type[s->type][s->kindtype]);
+	  : ffecom_constantunion_with_type (&ffebld_constant_union (c->low),
+				  ffecom_tree_type[s->type][s->kindtype], c->low->consttype);
 	if (c->low != c->high)
 	  {
 	    texprhigh = (c->high == NULL) ? NULL_TREE
-	      : ffecom_constantunion (&ffebld_constant_union (c->high),
-				      s->type, s->kindtype,
-				      ffecom_tree_type[s->type][s->kindtype]);
+	      : ffecom_constantunion_with_type (&ffebld_constant_union (c->high),
+				      ffecom_tree_type[s->type][s->kindtype], c->high->consttype);
 	    pushok = pushcase_range (texprlow, texprhigh, convert,
 				     tlabel, &duplicate);
 	  }
 	else
 	  pushok = pushcase (texprlow, convert, tlabel, &duplicate);
-	assert (pushok == 0);
+	assert((pushok !=2) || (pushok !=0));
+	if (pushok==2)
+	  {
+	    ffebad_start_msg ("SELECT (at %0) has duplicate cases -- check integer overflow of CASE(s)",
+	      FFEBAD_severityFATAL);
+	    ffebad_here (0, ffestw_line (block), ffestw_col (block));
+	    ffebad_finish ();
+	    ffestw_set_select_texpr (block, error_mark_node);
+	  }
 	c = c->next_stmt;
 	/* Unlink prev.  */
 	c->previous_stmt->previous_stmt->next_stmt = c;
@@ -4618,3 +4612,5 @@ ffeste_terminate_2 (void)
   assert (! ffeste_top_block_);
 }
 #endif
+
+#include "gt-f-ste.h"

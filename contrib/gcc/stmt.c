@@ -46,17 +46,14 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #include "expr.h"
 #include "libfuncs.h"
 #include "hard-reg-set.h"
-#include "obstack.h"
 #include "loop.h"
 #include "recog.h"
 #include "machmode.h"
 #include "toplev.h"
 #include "output.h"
 #include "ggc.h"
-
-#define obstack_chunk_alloc xmalloc
-#define obstack_chunk_free free
-struct obstack stmt_obstack;
+#include "langhooks.h"
+#include "predict.h"
 
 /* Assume that case vectors are not pc-relative.  */
 #ifndef CASE_VECTOR_PC_RELATIVE
@@ -87,7 +84,7 @@ struct obstack stmt_obstack;
    and nodes on the right having higher values.  We then output the tree
    in order.  */
 
-struct case_node
+struct case_node GTY(())
 {
   struct case_node	*left;	/* Left son in binary tree */
   struct case_node	*right;	/* Right son in binary tree; also node chain */
@@ -137,16 +134,22 @@ static int cost_table_initialized;
    The construct is visible if the `exit_label' field is non-null.
    In that case, the value should be a CODE_LABEL rtx.  */
 
-struct nesting
+struct nesting GTY(())
 {
   struct nesting *all;
   struct nesting *next;
   int depth;
   rtx exit_label;
-  union
+  enum nesting_desc {
+    COND_NESTING,
+    LOOP_NESTING,
+    BLOCK_NESTING,
+    CASE_NESTING
+  } desc;
+  union nesting_u
     {
       /* For conds (if-then and if-then-else statements).  */
-      struct
+      struct nesting_cond
 	{
 	  /* Label for the end of the if construct.
 	     There is none if EXITFLAG was not set
@@ -155,9 +158,9 @@ struct nesting
 	  /* Label for the end of this alternative.
 	     This may be the end of the if or the next else/elseif.  */
 	  rtx next_label;
-	} cond;
+	} GTY ((tag ("COND_NESTING"))) cond;
       /* For loops.  */
-      struct
+      struct nesting_loop
 	{
 	  /* Label at the top of the loop; place to loop back to.  */
 	  rtx start_label;
@@ -169,9 +172,9 @@ struct nesting
 	  /* Label for `continue' statement to jump to;
 	     this is in front of the stepper of the loop.  */
 	  rtx continue_label;
-	} loop;
+	} GTY ((tag ("LOOP_NESTING"))) loop;
       /* For variable binding contours.  */
-      struct
+      struct nesting_block
 	{
 	  /* Sequence number of this binding contour within the function,
 	     in order of entry.  */
@@ -203,7 +206,7 @@ struct nesting
 	  struct label_chain *label_chain;
 	  /* Number of function calls seen, as of start of this block.  */
 	  int n_function_calls;
-	  /* Nonzero if this is associated with a EH region.  */
+	  /* Nonzero if this is associated with an EH region.  */
 	  int exception_region;
 	  /* The saved target_temp_slot_level from our outer block.
 	     We may reset target_temp_slot_level to be the level of
@@ -221,14 +224,10 @@ struct nesting
 	     the start of the last unconditional cleanup, and before any
 	     conditional branch points.  */
 	  rtx last_unconditional_cleanup;
-	  /* When in a conditional context, this is the specific
-	     cleanup list associated with last_unconditional_cleanup,
-	     where we place the conditionalized cleanups.  */
-	  tree *cleanup_ptr;
-	} block;
+	} GTY ((tag ("BLOCK_NESTING"))) block;
       /* For switch (C) or case (Pascal) statements,
 	 and also for dummies (see `expand_start_case_dummy').  */
-      struct
+      struct nesting_case
 	{
 	  /* The insn after which the case dispatch should finally
 	     be emitted.  Zero for a dummy.  */
@@ -249,14 +248,14 @@ struct nesting
 	     We set this to -1 when we see the first case label in this
 	     case statement.  */
 	  int line_number_status;
-	} case_stmt;
-    } data;
+	} GTY ((tag ("CASE_NESTING"))) case_stmt;
+    } GTY ((desc ("%1.desc"))) data;
 };
 
 /* Allocate and return a new `struct nesting'.  */
 
 #define ALLOC_NESTING() \
- (struct nesting *) obstack_alloc (&stmt_obstack, sizeof (struct nesting))
+ (struct nesting *) ggc_alloc (sizeof (struct nesting))
 
 /* Pop the nesting stack element by element until we pop off
    the element which is at the top of STACK.
@@ -278,8 +277,7 @@ do { struct nesting *target = STACK;			\
 	  if (case_stack == this)			\
 	    case_stack = case_stack->next;		\
 	  nesting_depth = nesting_stack->depth - 1;	\
-	  nesting_stack = this->all;			\
-	  obstack_free (&stmt_obstack, this); }		\
+	  nesting_stack = this->all; }			\
      while (this != target); } while (0)
 
 /* In some cases it is impossible to generate code for a forward goto
@@ -290,7 +288,7 @@ do { struct nesting *target = STACK;			\
    we check each fixup.
    If the target label has now been defined, we can insert the proper code.  */
 
-struct goto_fixup
+struct goto_fixup GTY(())
 {
   /* Points to following fixup.  */
   struct goto_fixup *next;
@@ -324,36 +322,36 @@ struct goto_fixup
 /* Within any binding contour that must restore a stack level,
    all labels are recorded with a chain of these structures.  */
 
-struct label_chain
+struct label_chain GTY(())
 {
   /* Points to following fixup.  */
   struct label_chain *next;
   tree label;
 };
 
-struct stmt_status
+struct stmt_status GTY(())
 {
   /* Chain of all pending binding contours.  */
-  struct nesting *x_block_stack;
+  struct nesting * x_block_stack;
 
   /* If any new stacks are added here, add them to POPSTACKS too.  */
 
   /* Chain of all pending binding contours that restore stack levels
      or have cleanups.  */
-  struct nesting *x_stack_block_stack;
+  struct nesting * x_stack_block_stack;
 
   /* Chain of all pending conditional statements.  */
-  struct nesting *x_cond_stack;
+  struct nesting * x_cond_stack;
 
   /* Chain of all pending loops.  */
-  struct nesting *x_loop_stack;
+  struct nesting * x_loop_stack;
 
   /* Chain of all pending case or switch statements.  */
-  struct nesting *x_case_stack;
+  struct nesting * x_case_stack;
 
   /* Separate chain including all of the above,
      chained through the `all' field.  */
-  struct nesting *x_nesting_stack;
+  struct nesting * x_nesting_stack;
 
   /* Number of entries on nesting_stack now.  */
   int x_nesting_depth;
@@ -393,13 +391,14 @@ struct stmt_status
 #define emit_lineno (cfun->stmt->x_emit_lineno)
 #define goto_fixup_chain (cfun->stmt->x_goto_fixup_chain)
 
-/* Non-zero if we are using EH to handle cleanus.  */
+/* Non-zero if we are using EH to handle cleanups.  */
 static int using_eh_for_cleanups_p = 0;
 
 static int n_occurrences		PARAMS ((int, const char *));
 static bool parse_input_constraint	PARAMS ((const char **, int, int, int,
 						 int, const char * const *,
 						 bool *, bool *));
+static bool decl_conflicts_with_clobbers_p PARAMS ((tree, const HARD_REG_SET));
 static void expand_goto_internal	PARAMS ((tree, rtx, rtx));
 static int expand_fixup			PARAMS ((tree, rtx, rtx));
 static rtx expand_nl_handler_label	PARAMS ((rtx, rtx));
@@ -413,6 +412,7 @@ static tree resolve_operand_names	PARAMS ((tree, tree, tree,
 						 const char **));
 static char *resolve_operand_name_1	PARAMS ((char *, tree, tree));
 static void expand_null_return_1	PARAMS ((rtx));
+static enum br_predictor return_prediction PARAMS ((rtx));
 static void expand_value_return		PARAMS ((rtx));
 static int tail_recursion_args		PARAMS ((tree, tree));
 static void expand_cleanups		PARAMS ((tree, tree, int, int));
@@ -428,13 +428,6 @@ static int node_is_bounded		PARAMS ((case_node_ptr, tree));
 static void emit_jump_if_reachable	PARAMS ((rtx));
 static void emit_case_nodes		PARAMS ((rtx, case_node_ptr, rtx, tree));
 static struct case_node *case_tree2list	PARAMS ((case_node *, case_node *));
-static void mark_cond_nesting           PARAMS ((struct nesting *));
-static void mark_loop_nesting           PARAMS ((struct nesting *));
-static void mark_block_nesting          PARAMS ((struct nesting *));
-static void mark_case_nesting           PARAMS ((struct nesting *));
-static void mark_case_node		PARAMS ((struct case_node *));
-static void mark_goto_fixup             PARAMS ((struct goto_fixup *));
-static void free_case_nodes             PARAMS ((case_node_ptr));
 
 void
 using_eh_for_cleanups ()
@@ -442,176 +435,10 @@ using_eh_for_cleanups ()
   using_eh_for_cleanups_p = 1;
 }
 
-/* Mark N (known to be a cond-nesting) for GC.  */
-
-static void
-mark_cond_nesting (n)
-     struct nesting *n;
-{
-  while (n)
-    {
-      ggc_mark_rtx (n->exit_label);
-      ggc_mark_rtx (n->data.cond.endif_label);
-      ggc_mark_rtx (n->data.cond.next_label);
-
-      n = n->next;
-    }
-}
-
-/* Mark N (known to be a loop-nesting) for GC.  */
-
-static void
-mark_loop_nesting (n)
-     struct nesting *n;
-{
-
-  while (n)
-    {
-      ggc_mark_rtx (n->exit_label);
-      ggc_mark_rtx (n->data.loop.start_label);
-      ggc_mark_rtx (n->data.loop.end_label);
-      ggc_mark_rtx (n->data.loop.alt_end_label);
-      ggc_mark_rtx (n->data.loop.continue_label);
-
-      n = n->next;
-    }
-}
-
-/* Mark N (known to be a block-nesting) for GC.  */
-
-static void
-mark_block_nesting (n)
-     struct nesting *n;
-{
-  while (n)
-    {
-      struct label_chain *l;
-
-      ggc_mark_rtx (n->exit_label);
-      ggc_mark_rtx (n->data.block.stack_level);
-      ggc_mark_rtx (n->data.block.first_insn);
-      ggc_mark_tree (n->data.block.cleanups);
-      ggc_mark_tree (n->data.block.outer_cleanups);
-
-      for (l = n->data.block.label_chain; l != NULL; l = l->next) 
-	{
-	  ggc_mark (l);
-	  ggc_mark_tree (l->label);
-	}
-
-      ggc_mark_rtx (n->data.block.last_unconditional_cleanup);
-
-      /* ??? cleanup_ptr never points outside the stack, does it?  */
-
-      n = n->next;
-    }
-}
-
-/* Mark N (known to be a case-nesting) for GC.  */
-
-static void
-mark_case_nesting (n)
-     struct nesting *n;
-{
-  while (n)
-    {
-      ggc_mark_rtx (n->exit_label);
-      ggc_mark_rtx (n->data.case_stmt.start);
-
-      ggc_mark_tree (n->data.case_stmt.default_label);
-      ggc_mark_tree (n->data.case_stmt.index_expr);
-      ggc_mark_tree (n->data.case_stmt.nominal_type);
-
-      mark_case_node (n->data.case_stmt.case_list);
-      n = n->next;
-    }
-}
-
-/* Mark C for GC.  */
-
-static void
-mark_case_node (c)
-     struct case_node *c;
-{
-  if (c != 0)
-    {
-      ggc_mark_tree (c->low);
-      ggc_mark_tree (c->high);
-      ggc_mark_tree (c->code_label);
-
-      mark_case_node (c->right);
-      mark_case_node (c->left);
-    }
-}
-
-/* Mark G for GC.  */
-
-static void
-mark_goto_fixup (g)
-     struct goto_fixup *g;
-{
-  while (g)
-    {
-      ggc_mark (g);
-      ggc_mark_rtx (g->before_jump);
-      ggc_mark_tree (g->target);
-      ggc_mark_tree (g->context);
-      ggc_mark_rtx (g->target_rtl);
-      ggc_mark_rtx (g->stack_level);
-      ggc_mark_tree (g->cleanup_list_list);
-
-      g = g->next;
-    }
-}
-
-/* Clear out all parts of the state in F that can safely be discarded
-   after the function has been compiled, to let garbage collection
-   reclaim the memory.  */
-
-void
-free_stmt_status (f)
-     struct function *f;
-{
-  /* We're about to free the function obstack.  If we hold pointers to
-     things allocated there, then we'll try to mark them when we do
-     GC.  So, we clear them out here explicitly.  */
-  if (f->stmt)
-    free (f->stmt);
-  f->stmt = NULL;
-}
-
-/* Mark P for GC.  */
-
-void
-mark_stmt_status (p)
-     struct stmt_status *p;
-{
-  if (p == 0)
-    return;
-
-  mark_block_nesting (p->x_block_stack);
-  mark_cond_nesting (p->x_cond_stack);
-  mark_loop_nesting (p->x_loop_stack);
-  mark_case_nesting (p->x_case_stack);
-
-  ggc_mark_tree (p->x_last_expr_type);
-  /* last_epxr_value is only valid if last_expr_type is nonzero.  */
-  if (p->x_last_expr_type)
-    ggc_mark_rtx (p->x_last_expr_value);
-
-  mark_goto_fixup (p->x_goto_fixup_chain);
-}
-
-void
-init_stmt ()
-{
-  gcc_obstack_init (&stmt_obstack);
-}
-
 void
 init_stmt_for_function ()
 {
-  cfun->stmt = (struct stmt_status *) xmalloc (sizeof (struct stmt_status));
+  cfun->stmt = ((struct stmt_status *)ggc_alloc (sizeof (struct stmt_status)));
 
   /* We are not currently within any block, conditional, loop or case.  */
   block_stack = 0;
@@ -629,8 +456,7 @@ init_stmt_for_function ()
 
   /* We are not processing a ({...}) grouping.  */
   expr_stmts_for_value = 0;
-  last_expr_type = 0;
-  last_expr_value = NULL_RTX;
+  clear_last_expr ();
 }
 
 /* Return nonzero if anything is pushed on the loop, condition, or case
@@ -715,10 +541,23 @@ expand_computed_goto (exp)
 #endif
 
   emit_queue ();
-  do_pending_stack_adjust ();
-  emit_indirect_jump (x);
 
-  current_function_has_computed_jump = 1;
+  if (! cfun->computed_goto_common_label)
+    {
+      cfun->computed_goto_common_reg = copy_to_mode_reg (Pmode, x);
+      cfun->computed_goto_common_label = gen_label_rtx ();
+      emit_label (cfun->computed_goto_common_label);
+  
+      do_pending_stack_adjust ();
+      emit_indirect_jump (cfun->computed_goto_common_reg);
+
+      current_function_has_computed_jump = 1;
+    }
+  else
+    {
+      emit_move_insn (cfun->computed_goto_common_reg, x);
+      emit_jump (cfun->computed_goto_common_label);
+    }
 }
 
 /* Handle goto statements and the labels that they can go to.  */
@@ -845,7 +684,7 @@ expand_goto (label)
 	  emit_indirect_jump (handler_slot);
 	}
 
-      /* Search backwards to the jump insn and mark it as a 
+      /* Search backwards to the jump insn and mark it as a
 	 non-local goto.  */
       for (insn = get_last_insn (); insn; insn = PREV_INSN (insn))
 	{
@@ -1044,8 +883,8 @@ expand_fixup (tree_label, rtl_label, last_insn)
 	 as a placeholder.  */
 
       {
-        rtx original_before_jump
-          = last_insn ? last_insn : get_last_insn ();
+	rtx original_before_jump
+	  = last_insn ? last_insn : get_last_insn ();
 	rtx start;
 	rtx end;
 	tree block;
@@ -1054,7 +893,7 @@ expand_fixup (tree_label, rtl_label, last_insn)
 	TREE_USED (block) = 1;
 
 	if (!cfun->x_whole_function_mode_p)
-	  insert_block (block);
+	  (*lang_hooks.decls.insert_block) (block);
 	else
 	  {
 	    BLOCK_CHAIN (block)
@@ -1063,17 +902,17 @@ expand_fixup (tree_label, rtl_label, last_insn)
 	      = block;
 	  }
 
-        start_sequence ();
-        start = emit_note (NULL, NOTE_INSN_BLOCK_BEG);
+	start_sequence ();
+	start = emit_note (NULL, NOTE_INSN_BLOCK_BEG);
 	if (cfun->x_whole_function_mode_p)
 	  NOTE_BLOCK (start) = block;
 	fixup->before_jump = emit_note (NULL, NOTE_INSN_DELETED);
 	end = emit_note (NULL, NOTE_INSN_BLOCK_END);
 	if (cfun->x_whole_function_mode_p)
 	  NOTE_BLOCK (end) = block;
-        fixup->context = block;
-        end_sequence ();
-        emit_insns_after (start, original_before_jump);
+	fixup->context = block;
+	end_sequence ();
+	emit_insn_after (start, original_before_jump);
       }
 
       fixup->block_start_count = current_block_start_count;
@@ -1175,8 +1014,8 @@ fixup_gotos (thisblock, stack_level, cleanup_list, first_insn, dont_jump_in)
 	     logically be inserting the fixup code.  We do this for the
 	     sake of getting the debugging information right.  */
 
-	  pushlevel (0);
-	  set_block (f->context);
+	  (*lang_hooks.decls.pushlevel) (0);
+	  (*lang_hooks.decls.set_block) (f->context);
 
 	  /* Expand the cleanups for blocks this jump exits.  */
 	  if (f->cleanup_list_list)
@@ -1215,10 +1054,10 @@ fixup_gotos (thisblock, stack_level, cleanup_list, first_insn, dont_jump_in)
 	     destructed are still "in scope".  */
 
 	  cleanup_insns = get_insns ();
-	  poplevel (1, 0, 0);
+	  (*lang_hooks.decls.poplevel) (1, 0, 0);
 
 	  end_sequence ();
-	  emit_insns_after (cleanup_insns, f->before_jump);
+	  emit_insn_after (cleanup_insns, f->before_jump);
 
 	  f->before_jump = 0;
 	}
@@ -1249,16 +1088,16 @@ fixup_gotos (thisblock, stack_level, cleanup_list, first_insn, dont_jump_in)
 	  if (TREE_CHAIN (lists) == thisblock->data.block.outer_cleanups)
 	    {
 	      start_sequence ();
-	      pushlevel (0);
-	      set_block (f->context);
+	      (*lang_hooks.decls.pushlevel) (0);
+	      (*lang_hooks.decls.set_block) (f->context);
 	      expand_cleanups (TREE_VALUE (lists), NULL_TREE, 1, 1);
 	      do_pending_stack_adjust ();
 	      cleanup_insns = get_insns ();
-	      poplevel (1, 0, 0);
+	      (*lang_hooks.decls.poplevel) (1, 0, 0);
 	      end_sequence ();
 	      if (cleanup_insns != 0)
 		f->before_jump
-		  = emit_insns_after (cleanup_insns, f->before_jump);
+		  = emit_insn_after (cleanup_insns, f->before_jump);
 
 	      f->cleanup_list_list = TREE_CHAIN (lists);
 	    }
@@ -1284,6 +1123,7 @@ n_occurrences (c, s)
    STRING is a STRING_CST node containing the assembler code text,
    or an ADDR_EXPR containing a STRING_CST.  VOL nonzero means the
    insn is volatile; don't optimize it.  */
+
 void
 expand_asm (string, vol)
      tree string;
@@ -1299,8 +1139,8 @@ expand_asm (string, vol)
   MEM_VOLATILE_P (body) = vol;
 
   emit_insn (body);
-
-  last_expr_type = 0;
+  
+  clear_last_expr ();
 }
 
 /* Parse the output constraint pointed to by *CONSTRAINT_P.  It is the
@@ -1386,7 +1226,7 @@ parse_output_constraint (constraint_p, operand_num, ninputs, noutputs,
       case '=':
 	error ("operand constraint contains incorrectly positioned '+' or '='");
 	return false;
-	
+
       case '%':
 	if (operand_num + 1 == ninputs + noutputs)
 	  {
@@ -1423,7 +1263,7 @@ parse_output_constraint (constraint_p, operand_num, ninputs, noutputs,
 	*allows_reg = true;
 	*allows_mem = true;
 	break;
-	
+
       case 'p': case 'r':
 	*allows_reg = true;
 	break;
@@ -1434,6 +1274,10 @@ parse_output_constraint (constraint_p, operand_num, ninputs, noutputs,
 	if (REG_CLASS_FROM_LETTER (*p) != NO_REGS)
 	  *allows_reg = true;
 #ifdef EXTRA_CONSTRAINT
+	else if (EXTRA_ADDRESS_CONSTRAINT (*p))
+	  *allows_reg = true;
+	else if (EXTRA_MEMORY_CONSTRAINT (*p))
+	  *allows_mem = true;
 	else
 	  {
 	    /* Otherwise we can't assume anything about the nature of
@@ -1559,6 +1403,10 @@ parse_input_constraint (constraint_p, input_num, ninputs, noutputs, ninout,
 	if (REG_CLASS_FROM_LETTER (constraint[j]) != NO_REGS)
 	  *allows_reg = true;
 #ifdef EXTRA_CONSTRAINT
+	else if (EXTRA_ADDRESS_CONSTRAINT (constraint[j]))
+	  *allows_reg = true;
+	else if (EXTRA_MEMORY_CONSTRAINT (constraint[j]))
+	  *allows_mem = true;
 	else
 	  {
 	    /* Otherwise we can't assume anything about the nature of
@@ -1574,12 +1422,49 @@ parse_input_constraint (constraint_p, input_num, ninputs, noutputs, ninout,
   return true;
 }
 
+/* Check for overlap between registers marked in CLOBBERED_REGS and
+   anything inappropriate in DECL.  Emit error and return TRUE for error,
+   FALSE for ok.  */
+
+static bool
+decl_conflicts_with_clobbers_p (decl, clobbered_regs)
+     tree decl;
+     const HARD_REG_SET clobbered_regs;
+{
+  /* Conflicts between asm-declared register variables and the clobber
+     list are not allowed.  */
+  if ((TREE_CODE (decl) == VAR_DECL || TREE_CODE (decl) == PARM_DECL)
+      && DECL_REGISTER (decl)
+      && REG_P (DECL_RTL (decl))
+      && REGNO (DECL_RTL (decl)) < FIRST_PSEUDO_REGISTER)
+    {
+      rtx reg = DECL_RTL (decl);
+      unsigned int regno;
+
+      for (regno = REGNO (reg);
+	   regno < (REGNO (reg)
+		    + HARD_REGNO_NREGS (REGNO (reg), GET_MODE (reg)));
+	   regno++)
+	if (TEST_HARD_REG_BIT (clobbered_regs, regno))
+	  {
+	    error ("asm-specifier for variable `%s' conflicts with asm clobber list",
+		   IDENTIFIER_POINTER (DECL_NAME (decl)));
+
+	    /* Reset registerness to stop multiple errors emitted for a
+	       single variable.  */
+	    DECL_REGISTER (decl) = 0;
+	    return true;
+	  }
+    }
+  return false;
+}
+
 /* Generate RTL for an asm statement with arguments.
    STRING is the instruction template.
    OUTPUTS is a list of output arguments (lvalues); INPUTS a list of inputs.
    Each output or input has an expression in the TREE_VALUE and
    and a tree list in TREE_PURPOSE which in turn contains a constraint
-   name in TREE_VALUE (or NULL_TREE) and a constraint string 
+   name in TREE_VALUE (or NULL_TREE) and a constraint string
    in TREE_PURPOSE.
    CLOBBERS is a list of STRING_CST nodes each naming a hard register
    that is clobbered by this insn.
@@ -1604,6 +1489,8 @@ expand_asm_operands (string, outputs, inputs, clobbers, vol, filename, line)
   int noutputs = list_length (outputs);
   int ninout;
   int nclobbers;
+  HARD_REG_SET clobbered_regs;
+  int clobber_conflict_found = 0;
   tree tail;
   int i;
   /* Vector of RTX's of evaluated output operands.  */
@@ -1641,6 +1528,7 @@ expand_asm_operands (string, outputs, inputs, clobbers, vol, filename, line)
   /* Count the number of meaningful clobbered registers, ignoring what
      we would ignore later.  */
   nclobbers = 0;
+  CLEAR_HARD_REG_SET (clobbered_regs);
   for (tail = clobbers; tail; tail = TREE_CHAIN (tail))
     {
       const char *regname = TREE_STRING_POINTER (TREE_VALUE (tail));
@@ -1650,9 +1538,13 @@ expand_asm_operands (string, outputs, inputs, clobbers, vol, filename, line)
 	++nclobbers;
       else if (i == -2)
 	error ("unknown register name `%s' in `asm'", regname);
+
+      /* Mark clobbered registers.  */
+      if (i >= 0)
+	SET_HARD_REG_BIT (clobbered_regs, i);
     }
 
-  last_expr_type = 0;
+  clear_last_expr ();
 
   /* First pass over inputs and outputs checks validity and sets
      mark_addressable if needed.  */
@@ -1684,7 +1576,7 @@ expand_asm_operands (string, outputs, inputs, clobbers, vol, filename, line)
 	      || (DECL_P (val)
 		  && GET_CODE (DECL_RTL (val)) == REG
 		  && GET_MODE (DECL_RTL (val)) != TYPE_MODE (type))))
-	mark_addressable (val);
+	(*lang_hooks.mark_addressable) (val);
 
       if (is_inout)
 	ninout++;
@@ -1713,7 +1605,7 @@ expand_asm_operands (string, outputs, inputs, clobbers, vol, filename, line)
 	return;
 
       if (! allows_reg && allows_mem)
-	mark_addressable (TREE_VALUE (tail));
+	(*lang_hooks.mark_addressable) (TREE_VALUE (tail));
     }
 
   /* Second pass evaluates arguments.  */
@@ -1726,6 +1618,7 @@ expand_asm_operands (string, outputs, inputs, clobbers, vol, filename, line)
       bool is_inout;
       bool allows_reg;
       bool allows_mem;
+      rtx op;
 
       if (!parse_output_constraint (&constraints[i], i, ninputs,
 				    noutputs, &allows_mem, &allows_reg,
@@ -1749,24 +1642,28 @@ expand_asm_operands (string, outputs, inputs, clobbers, vol, filename, line)
 	  || ! allows_reg
 	  || is_inout)
 	{
-	  output_rtx[i] = expand_expr (val, NULL_RTX, VOIDmode, EXPAND_WRITE);
+	  op = expand_expr (val, NULL_RTX, VOIDmode, EXPAND_WRITE);
+	  if (GET_CODE (op) == MEM)
+	    op = validize_mem (op);
 
-	  if (! allows_reg && GET_CODE (output_rtx[i]) != MEM)
+	  if (! allows_reg && GET_CODE (op) != MEM)
 	    error ("output number %d not directly addressable", i);
-	  if ((! allows_mem && GET_CODE (output_rtx[i]) == MEM)
-	      || GET_CODE (output_rtx[i]) == CONCAT)
+	  if ((! allows_mem && GET_CODE (op) == MEM)
+	      || GET_CODE (op) == CONCAT)
 	    {
-    	      real_output_rtx[i] = protect_from_queue (output_rtx[i], 1);
-	      output_rtx[i] = gen_reg_rtx (GET_MODE (output_rtx[i]));
+	      real_output_rtx[i] = protect_from_queue (op, 1);
+	      op = gen_reg_rtx (GET_MODE (op));
 	      if (is_inout)
-		emit_move_insn (output_rtx[i], real_output_rtx[i]);
+		emit_move_insn (op, real_output_rtx[i]);
 	    }
 	}
       else
 	{
-	  output_rtx[i] = assign_temp (type, 0, 0, 1);
-	  TREE_VALUE (tail) = make_tree (type, output_rtx[i]);
+	  op = assign_temp (type, 0, 0, 1);
+	  op = validize_mem (op);
+	  TREE_VALUE (tail) = make_tree (type, op);
 	}
+      output_rtx[i] = op;
 
       generating_concat_p = old_generating_concat_p;
 
@@ -1775,6 +1672,9 @@ expand_asm_operands (string, outputs, inputs, clobbers, vol, filename, line)
 	  inout_mode[ninout] = TYPE_MODE (type);
 	  inout_opnum[ninout++] = i;
 	}
+
+      if (decl_conflicts_with_clobbers_p (val, clobbered_regs))
+	clobber_conflict_found = 1;
     }
 
   /* Make vectors for the expression-rtx, constraint strings,
@@ -1785,7 +1685,7 @@ expand_asm_operands (string, outputs, inputs, clobbers, vol, filename, line)
 
   body = gen_rtx_ASM_OPERANDS ((noutputs == 0 ? VOIDmode
 				: GET_MODE (output_rtx[0])),
-			       TREE_STRING_POINTER (string), 
+			       TREE_STRING_POINTER (string),
 			       empty_string, 0, argvec, constraintvec,
 			       filename, line);
 
@@ -1810,11 +1710,15 @@ expand_asm_operands (string, outputs, inputs, clobbers, vol, filename, line)
 
       val = TREE_VALUE (tail);
       type = TREE_TYPE (val);
-      op = expand_expr (val, NULL_RTX, VOIDmode, 0);
+      op = expand_expr (val, NULL_RTX, VOIDmode,
+			(allows_mem && !allows_reg
+			 ? EXPAND_MEMORY : EXPAND_NORMAL));
 
       /* Never pass a CONCAT to an ASM.  */
       if (GET_CODE (op) == CONCAT)
 	op = force_reg (GET_MODE (op), op);
+      else if (GET_CODE (op) == MEM)
+	op = validize_mem (op);
 
       if (asm_operand_ok (op, constraint) <= 0)
 	{
@@ -1823,35 +1727,36 @@ expand_asm_operands (string, outputs, inputs, clobbers, vol, filename, line)
 	  else if (!allows_mem)
 	    warning ("asm operand %d probably doesn't match constraints",
 		     i + noutputs);
-	  else if (CONSTANT_P (op))
-	    op = force_const_mem (TYPE_MODE (type), op);
-	  else if (GET_CODE (op) == REG
-		   || GET_CODE (op) == SUBREG
-		   || GET_CODE (op) == ADDRESSOF
-		   || GET_CODE (op) == CONCAT)
+	  else if (GET_CODE (op) == MEM)
 	    {
-	      tree qual_type = build_qualified_type (type,
-						     (TYPE_QUALS (type)
-						      | TYPE_QUAL_CONST));
-	      rtx memloc = assign_temp (qual_type, 1, 1, 1);
-
-	      emit_move_insn (memloc, op);
-	      op = memloc;
+	      /* We won't recognize either volatile memory or memory
+		 with a queued address as available a memory_operand
+		 at this point.  Ignore it: clearly this *is* a memory.  */
 	    }
-
-	  else if (GET_CODE (op) == MEM && MEM_VOLATILE_P (op))
-	    {
-	      /* We won't recognize volatile memory as available a
-		 memory_operand at this point.  Ignore it.  */
-	    }
-	  else if (queued_subexp_p (op))
-	    ;
 	  else
-	    /* ??? Leave this only until we have experience with what
-	       happens in combine and elsewhere when constraints are
-	       not satisfied.  */
-	    warning ("asm operand %d probably doesn't match constraints",
-		     i + noutputs);
+	    {
+	      warning ("use of memory input without lvalue in "
+		       "asm operand %d is deprecated", i + noutputs);
+
+	      if (CONSTANT_P (op))
+		{
+		  op = force_const_mem (TYPE_MODE (type), op);
+		  op = validize_mem (op);
+		}
+	      else if (GET_CODE (op) == REG
+		       || GET_CODE (op) == SUBREG
+		       || GET_CODE (op) == ADDRESSOF
+		       || GET_CODE (op) == CONCAT)
+		{
+		  tree qual_type = build_qualified_type (type,
+							 (TYPE_QUALS (type)
+							  | TYPE_QUAL_CONST));
+		  rtx memloc = assign_temp (qual_type, 1, 1, 1);
+		  memloc = validize_mem (memloc);
+		  emit_move_insn (memloc, op);
+		  op = memloc;
+		}
+	    }
 	}
 
       generating_concat_p = old_generating_concat_p;
@@ -1859,6 +1764,9 @@ expand_asm_operands (string, outputs, inputs, clobbers, vol, filename, line)
 
       ASM_OPERANDS_INPUT_CONSTRAINT_EXP (body, i)
 	= gen_rtx_ASM_INPUT (TYPE_MODE (type), constraints[i + noutputs]);
+
+      if (decl_conflicts_with_clobbers_p (val, clobbered_regs))
+	clobber_conflict_found = 1;
     }
 
   /* Protect all the operands from the queue now that they have all been
@@ -1943,6 +1851,7 @@ expand_asm_operands (string, outputs, inputs, clobbers, vol, filename, line)
 	{
 	  const char *regname = TREE_STRING_POINTER (TREE_VALUE (tail));
 	  int j = decode_reg_name (regname);
+	  rtx clobbered_reg;
 
 	  if (j < 0)
 	    {
@@ -1964,8 +1873,29 @@ expand_asm_operands (string, outputs, inputs, clobbers, vol, filename, line)
 	    }
 
 	  /* Use QImode since that's guaranteed to clobber just one reg.  */
+	  clobbered_reg = gen_rtx_REG (QImode, j);
+
+	  /* Do sanity check for overlap between clobbers and respectively
+	     input and outputs that hasn't been handled.  Such overlap
+	     should have been detected and reported above.  */
+	  if (!clobber_conflict_found)
+	    {
+	      int opno;
+
+	      /* We test the old body (obody) contents to avoid tripping
+		 over the under-construction body.  */
+	      for (opno = 0; opno < noutputs; opno++)
+		if (reg_overlap_mentioned_p (clobbered_reg, output_rtx[opno]))
+		  internal_error ("asm clobber conflict with output operand");
+
+	      for (opno = 0; opno < ninputs - ninout; opno++)
+		if (reg_overlap_mentioned_p (clobbered_reg,
+					     ASM_OPERANDS_INPUT (obody, opno)))
+		  internal_error ("asm clobber conflict with input operand");
+	    }
+
 	  XVECEXP (body, 0, i++)
-	    = gen_rtx_CLOBBER (VOIDmode, gen_rtx_REG (QImode, j));
+	    = gen_rtx_CLOBBER (VOIDmode, clobbered_reg);
 	}
 
       insn = emit_insn (body);
@@ -2040,7 +1970,7 @@ check_unique_operand_names (outputs, inputs)
 	continue;
 
       for (j = TREE_CHAIN (i); j ; j = TREE_CHAIN (j))
-	if (i_name == TREE_PURPOSE (TREE_PURPOSE (j)))
+	if (simple_cst_equal (i_name, TREE_PURPOSE (TREE_PURPOSE (j))))
 	  goto failure;
     }
 
@@ -2051,10 +1981,10 @@ check_unique_operand_names (outputs, inputs)
 	continue;
 
       for (j = TREE_CHAIN (i); j ; j = TREE_CHAIN (j))
-	if (i_name == TREE_PURPOSE (TREE_PURPOSE (j)))
+	if (simple_cst_equal (i_name, TREE_PURPOSE (TREE_PURPOSE (j))))
 	  goto failure;
       for (j = outputs; j ; j = TREE_CHAIN (j))
-	if (i_name == TREE_PURPOSE (TREE_PURPOSE (j)))
+	if (simple_cst_equal (i_name, TREE_PURPOSE (TREE_PURPOSE (j))))
 	  goto failure;
     }
 
@@ -2062,7 +1992,7 @@ check_unique_operand_names (outputs, inputs)
 
  failure:
   error ("duplicate asm operand name '%s'",
-	 IDENTIFIER_POINTER (TREE_PURPOSE (TREE_PURPOSE (i))));
+	 TREE_STRING_POINTER (TREE_PURPOSE (TREE_PURPOSE (i))));
   return false;
 }
 
@@ -2131,7 +2061,7 @@ resolve_operand_names (string, outputs, inputs, pconstraints)
 
 /* A subroutine of resolve_operand_names.  P points to the '[' for a
    potential named operand of the form [<name>].  In place, replace
-   the name and brackets with a number.  Return a pointer to the 
+   the name and brackets with a number.  Return a pointer to the
    balance of the string after substitution.  */
 
 static char *
@@ -2156,20 +2086,20 @@ resolve_operand_name_1 (p, outputs, inputs)
   /* Resolve the name to a number.  */
   for (op = 0, t = outputs; t ; t = TREE_CHAIN (t), op++)
     {
-      tree id = TREE_PURPOSE (TREE_PURPOSE (t));
-      if (id)
+      tree name = TREE_PURPOSE (TREE_PURPOSE (t));
+      if (name)
 	{
-	  const char *c = IDENTIFIER_POINTER (id);
+	  const char *c = TREE_STRING_POINTER (name);
 	  if (strncmp (c, p + 1, len) == 0 && c[len] == '\0')
 	    goto found;
 	}
     }
   for (t = inputs; t ; t = TREE_CHAIN (t), op++)
     {
-      tree id = TREE_PURPOSE (TREE_PURPOSE (t));
-      if (id)
+      tree name = TREE_PURPOSE (TREE_PURPOSE (t));
+      if (name)
 	{
-	  const char *c = IDENTIFIER_POINTER (id);
+	  const char *c = TREE_STRING_POINTER (name);
 	  if (strncmp (c, p + 1, len) == 0 && c[len] == '\0')
 	    goto found;
 	}
@@ -2408,7 +2338,8 @@ warn_if_unused_value (exp)
 void
 clear_last_expr ()
 {
-  last_expr_type = 0;
+  last_expr_type = NULL_TREE;
+  last_expr_value = NULL_RTX;
 }
 
 /* Begin a statement-expression, i.e., a series of statements which
@@ -2434,7 +2365,6 @@ expand_start_stmt_expr (has_scope)
     start_sequence ();
   NO_DEFER_POP;
   expr_stmts_for_value++;
-  last_expr_value = NULL_RTX;
   return t;
 }
 
@@ -2480,7 +2410,7 @@ expand_end_stmt_expr (t)
   /* Propagate volatility of the actual RTL expr.  */
   TREE_THIS_VOLATILE (t) = volatile_refs_p (last_expr_value);
 
-  last_expr_type = 0;
+  clear_last_expr ();
   expr_stmts_for_value--;
 
   return t;
@@ -2501,6 +2431,7 @@ expand_start_cond (cond, exitflag)
 
   /* Make an entry on cond_stack for the cond we are entering.  */
 
+  thiscond->desc = COND_NESTING;
   thiscond->next = cond_stack;
   thiscond->all = nesting_stack;
   thiscond->depth = ++nesting_depth;
@@ -2571,7 +2502,7 @@ expand_end_cond ()
     emit_label (thiscond->data.cond.endif_label);
 
   POPSTACK (cond_stack);
-  last_expr_type = 0;
+  clear_last_expr ();
 }
 
 /* Generate RTL for the start of a loop.  EXIT_FLAG is nonzero if this
@@ -2589,6 +2520,7 @@ expand_start_loop (exit_flag)
 
   /* Make an entry on loop_stack for the loop we are entering.  */
 
+  thisloop->desc = LOOP_NESTING;
   thisloop->next = loop_stack;
   thisloop->all = nesting_stack;
   thisloop->depth = ++nesting_depth;
@@ -2630,6 +2562,7 @@ expand_start_null_loop ()
 
   /* Make an entry on loop_stack for the loop we are entering.  */
 
+  thisloop->desc = LOOP_NESTING;
   thisloop->next = loop_stack;
   thisloop->all = nesting_stack;
   thisloop->depth = ++nesting_depth;
@@ -2701,7 +2634,7 @@ expand_end_loop ()
      the end of the entry condtional.  Without this, our lexical scan
      can't tell the difference between an entry conditional and a
      body conditional that exits the loop.  Mistaking the two means
-     that we can misplace the NOTE_INSN_LOOP_CONT note, which can 
+     that we can misplace the NOTE_INSN_LOOP_CONT note, which can
      screw up loop unrolling.
 
      Things will be oh so much better when loop optimization is done
@@ -2742,7 +2675,7 @@ expand_end_loop ()
 
 	/* Likewise for debug scopes.  In this case we'll either (1) move
 	   all of the notes if they are properly nested or (2) leave the
-	   notes alone and only rotate the loop at high optimization 
+	   notes alone and only rotate the loop at high optimization
 	   levels when we expect to scrog debug info.  */
 	else if (NOTE_LINE_NUMBER (etc_note) == NOTE_INSN_BLOCK_BEG)
 	  debug_blocks++;
@@ -2805,7 +2738,7 @@ expand_end_loop ()
 
   POPSTACK (loop_stack);
 
-  last_expr_type = 0;
+  clear_last_expr ();
 }
 
 /* Finish a null loop, aka do { } while (0).  */
@@ -2818,7 +2751,7 @@ expand_end_null_loop ()
 
   POPSTACK (loop_stack);
 
-  last_expr_type = 0;
+  clear_last_expr ();
 }
 
 /* Generate a jump to the current loop's continue-point.
@@ -2830,7 +2763,15 @@ int
 expand_continue_loop (whichloop)
      struct nesting *whichloop;
 {
-  last_expr_type = 0;
+  /* Emit information for branch prediction.  */
+  rtx note;
+
+  if (flag_guess_branch_prob)
+    {
+      note = emit_note (NULL, NOTE_INSN_PREDICTION);
+      NOTE_PREDICTION (note) = NOTE_PREDICT (PRED_CONTINUE, IS_TAKEN);
+    }
+  clear_last_expr ();
   if (whichloop == 0)
     whichloop = loop_stack;
   if (whichloop == 0)
@@ -2847,7 +2788,7 @@ int
 expand_exit_loop (whichloop)
      struct nesting *whichloop;
 {
-  last_expr_type = 0;
+  clear_last_expr ();
   if (whichloop == 0)
     whichloop = loop_stack;
   if (whichloop == 0)
@@ -2867,7 +2808,7 @@ expand_exit_loop_if_false (whichloop, cond)
 {
   rtx label = gen_label_rtx ();
   rtx last_insn;
-  last_expr_type = 0;
+  clear_last_expr ();
 
   if (whichloop == 0)
     whichloop = loop_stack;
@@ -2889,7 +2830,7 @@ expand_exit_loop_if_false (whichloop, cond)
 }
 
 /* Like expand_exit_loop_if_false except also emit a note marking
-   the end of the conditional.  Should only be used immediately 
+   the end of the conditional.  Should only be used immediately
    after expand_loop_start.  */
 
 int
@@ -2915,7 +2856,7 @@ stmt_loop_nest_empty ()
   return (cfun->stmt == NULL || loop_stack == NULL);
 }
 
-/* Return non-zero if we should preserve sub-expressions as separate
+/* Return nonzero if we should preserve sub-expressions as separate
    pseudos.  We never do so if we aren't optimizing.  We always do so
    if -fexpensive-optimizations.
 
@@ -2954,7 +2895,7 @@ int
 expand_exit_something ()
 {
   struct nesting *n;
-  last_expr_type = 0;
+  clear_last_expr ();
   for (n = nesting_stack; n; n = n->all)
     if (n->exit_label != 0)
       {
@@ -2971,7 +2912,9 @@ expand_exit_something ()
 void
 expand_null_return ()
 {
-  rtx last_insn = get_last_insn ();
+  rtx last_insn;
+
+  last_insn = get_last_insn ();
 
   /* If this function was declared to return a value, but we
      didn't, clobber the return registers so that they are not
@@ -2981,14 +2924,59 @@ expand_null_return ()
   expand_null_return_1 (last_insn);
 }
 
+/* Try to guess whether the value of return means error code.  */
+static enum br_predictor
+return_prediction (val)
+     rtx val;
+{
+  /* Different heuristics for pointers and scalars.  */
+  if (POINTER_TYPE_P (TREE_TYPE (DECL_RESULT (current_function_decl))))
+    {
+      /* NULL is usually not returned.  */
+      if (val == const0_rtx)
+	return PRED_NULL_RETURN;
+    }
+  else
+    {
+      /* Negative return values are often used to indicate
+         errors.  */
+      if (GET_CODE (val) == CONST_INT
+	  && INTVAL (val) < 0)
+	return PRED_NEGATIVE_RETURN;
+      /* Constant return values are also usually erors,
+         zero/one often mean booleans so exclude them from the
+	 heuristics.  */
+      if (CONSTANT_P (val)
+	  && (val != const0_rtx && val != const1_rtx))
+	return PRED_CONST_RETURN;
+    }
+  return PRED_NO_PREDICTION;
+}
+
 /* Generate RTL to return from the current function, with value VAL.  */
 
 static void
 expand_value_return (val)
      rtx val;
 {
-  rtx last_insn = get_last_insn ();
-  rtx return_reg = DECL_RTL (DECL_RESULT (current_function_decl));
+  rtx last_insn;
+  rtx return_reg;
+  enum br_predictor pred;
+
+  if (flag_guess_branch_prob
+      && (pred = return_prediction (val)) != PRED_NO_PREDICTION)
+    {
+      /* Emit information for branch prediction.  */
+      rtx note;
+
+      note = emit_note (NULL, NOTE_INSN_PREDICTION);
+
+      NOTE_PREDICTION (note) = NOTE_PREDICT (pred, NOT_TAKEN);
+
+    }
+
+  last_insn = get_last_insn ();
+  return_reg = DECL_RTL (DECL_RESULT (current_function_decl));
 
   /* Copy the value to the return location
      unless it's already there.  */
@@ -3026,7 +3014,7 @@ expand_null_return_1 (last_insn)
 
   clear_pending_stack_adjust ();
   do_pending_stack_adjust ();
-  last_expr_type = 0;
+  clear_last_expr ();
 
   if (end_label == 0)
      end_label = return_label = gen_label_rtx ();
@@ -3067,7 +3055,7 @@ expand_return (retval)
       /* Treat this like a return of no value from a function that
 	 returns a value.  */
       expand_null_return ();
-      return; 
+      return;
     }
   else if (TREE_CODE (retval) == RESULT_DECL)
     retval_rhs = retval;
@@ -3153,7 +3141,6 @@ expand_return (retval)
 	 machine, this means we must skip the empty high order bytes when
 	 calculating the bit offset.  */
       if (BYTES_BIG_ENDIAN
-	  && !FUNCTION_ARG_REG_LITTLE_ENDIAN
 	  && bytes % UNITS_PER_WORD)
 	big_endian_correction = (BITS_PER_WORD - ((bytes % UNITS_PER_WORD)
 						  * BITS_PER_UNIT));
@@ -3360,15 +3347,15 @@ tail_recursion_args (actuals, formals)
       else
 	{
 	  rtx tmp = argvec[i];
-
+	  int unsignedp = TREE_UNSIGNED (TREE_TYPE (TREE_VALUE (a)));
+	  promote_mode(TREE_TYPE (TREE_VALUE (a)), GET_MODE (tmp),
+		       &unsignedp, 0);
 	  if (DECL_MODE (f) != GET_MODE (DECL_RTL (f)))
 	    {
 	      tmp = gen_reg_rtx (DECL_MODE (f));
-	      convert_move (tmp, argvec[i],
-			    TREE_UNSIGNED (TREE_TYPE (TREE_VALUE (a))));
+	      convert_move (tmp, argvec[i], unsignedp);
 	    }
-	  convert_move (DECL_RTL (f), tmp,
-			TREE_UNSIGNED (TREE_TYPE (TREE_VALUE (a))));
+	  convert_move (DECL_RTL (f), tmp, unsignedp);
 	}
     }
 
@@ -3422,6 +3409,7 @@ expand_start_bindings_and_block (flags, block)
 
   /* Make an entry on block_stack for the block we are entering.  */
 
+  thisblock->desc = BLOCK_NESTING;
   thisblock->next = block_stack;
   thisblock->all = nesting_stack;
   thisblock->depth = ++nesting_depth;
@@ -3440,7 +3428,6 @@ expand_start_bindings_and_block (flags, block)
      instructions inserted after the last unconditional cleanup are
      never the last instruction.  */
   emit_note (NULL, NOTE_INSN_DELETED);
-  thisblock->data.block.cleanup_ptr = &thisblock->data.block.cleanups;
 
   if (block_stack
       && !(block_stack->data.block.cleanups == NULL_TREE
@@ -3492,7 +3479,7 @@ expand_end_target_temps ()
   pop_temp_slots ();
 }
 
-/* Given a pointer to a BLOCK node return non-zero if (and only if) the node
+/* Given a pointer to a BLOCK node return nonzero if (and only if) the node
    in question represents the outermost pair of curly braces (i.e. the "body
    block") of a function or method.
 
@@ -3558,7 +3545,7 @@ expand_nl_handler_label (slot, before_insn)
   emit_move_insn (slot, gen_rtx_LABEL_REF (Pmode, handler_label));
   insns = get_insns ();
   end_sequence ();
-  emit_insns_before (insns, before_insn);
+  emit_insn_before (insns, before_insn);
 
   emit_label (handler_label);
 
@@ -3645,7 +3632,7 @@ expand_nl_goto_receivers (thisblock)
 	emit_move_insn (save_receiver, XEXP (slot, 0));
 	insns = get_insns ();
 	end_sequence ();
-	emit_insns_before (insns, thisblock->data.block.first_insn);
+	emit_insn_before (insns, thisblock->data.block.first_insn);
       }
 
   /* Jump around the handlers; they run only when specially invoked.  */
@@ -3935,6 +3922,7 @@ expand_decl (decl)
 	   && !(flag_float_store
 		&& TREE_CODE (type) == REAL_TYPE)
 	   && ! TREE_THIS_VOLATILE (decl)
+	   && ! DECL_NONLOCAL (decl)
 	   && (DECL_REGISTER (decl) || optimize))
     {
       /* Automatic variable that can go in a register.  */
@@ -3962,7 +3950,7 @@ expand_decl (decl)
 
       /* If something wants our address, try to use ADDRESSOF.  */
       if (TREE_ADDRESSABLE (decl))
-	put_var_into_stack (decl);
+	put_var_into_stack (decl, /*rescan=*/false);
     }
 
   else if (TREE_CODE (DECL_SIZE_UNIT (decl)) == INTEGER_CST
@@ -4062,6 +4050,8 @@ expand_decl_init (decl)
 
   /* Compute and store the initial value now.  */
 
+  push_temp_slots ();
+
   if (DECL_INITIAL (decl) == error_mark_node)
     {
       enum tree_code code = TREE_CODE (TREE_TYPE (decl));
@@ -4085,6 +4075,7 @@ expand_decl_init (decl)
   /* Free any temporaries we made while initializing the decl.  */
   preserve_temp_slots (NULL_RTX);
   free_temp_slots ();
+  pop_temp_slots ();
 }
 
 /* CLEANUP is an expression to be executed at exit from this binding contour;
@@ -4131,21 +4122,22 @@ expand_decl_cleanup (decl, cleanup)
 	  end_sequence ();
 
 	  thisblock->data.block.last_unconditional_cleanup
-	    = emit_insns_after (set_flag_0,
+	    = emit_insn_after (set_flag_0,
 				thisblock->data.block.last_unconditional_cleanup);
 
 	  emit_move_insn (flag, const1_rtx);
 
-	  cond = build_decl (VAR_DECL, NULL_TREE, type_for_mode (word_mode, 1));
+	  cond = build_decl (VAR_DECL, NULL_TREE,
+			     (*lang_hooks.types.type_for_mode) (word_mode, 1));
 	  SET_DECL_RTL (cond, flag);
 
 	  /* Conditionalize the cleanup.  */
 	  cleanup = build (COND_EXPR, void_type_node,
-			   truthvalue_conversion (cond),
+			   (*lang_hooks.truthvalue_conversion) (cond),
 			   cleanup, integer_zero_node);
 	  cleanup = fold (cleanup);
 
-	  cleanups = thisblock->data.block.cleanup_ptr;
+	  cleanups = &thisblock->data.block.cleanups;
 	}
 
       cleanup = unsave_expr (cleanup);
@@ -4172,8 +4164,8 @@ expand_decl_cleanup (decl, cleanup)
 	  end_sequence ();
 	  if (seq)
 	    thisblock->data.block.last_unconditional_cleanup
-	      = emit_insns_after (seq,
-				  thisblock->data.block.last_unconditional_cleanup);
+	      = emit_insn_after (seq,
+				 thisblock->data.block.last_unconditional_cleanup);
 	}
       else
 	{
@@ -4186,7 +4178,6 @@ expand_decl_cleanup (decl, cleanup)
 	     instructions inserted after the last unconditional cleanup are
 	     never the last instruction.  */
 	  emit_note (NULL, NOTE_INSN_DELETED);
-	  thisblock->data.block.cleanup_ptr = &thisblock->data.block.cleanups;
 	}
     }
   return 1;
@@ -4292,7 +4283,7 @@ expand_anon_union_decl (decl, cleanup, decl_elts)
    This is sometimes used to avoid a cleanup associated with
    a value that is being returned out of the scope.
 
-   If IN_FIXUP is non-zero, we are generating this cleanup for a fixup
+   If IN_FIXUP is nonzero, we are generating this cleanup for a fixup
    goto and handle protection regions specially in that case.
 
    If REACHABLE, we emit code, otherwise just inform the exception handling
@@ -4450,6 +4441,7 @@ expand_start_case (exit_flag, expr, type, printname)
 
   /* Make an entry on case_stack for the case we are entering.  */
 
+  thiscase->desc = CASE_NESTING;
   thiscase->next = case_stack;
   thiscase->all = nesting_stack;
   thiscase->depth = ++nesting_depth;
@@ -4464,6 +4456,7 @@ expand_start_case (exit_flag, expr, type, printname)
   nesting_stack = thiscase;
 
   do_pending_stack_adjust ();
+  emit_queue ();
 
   /* Make sure case_stmt.start points to something that won't
      need any transformation before expand_end_case.  */
@@ -4487,6 +4480,7 @@ expand_start_case_dummy ()
 
   /* Make an entry on case_stack for the dummy.  */
 
+  thiscase->desc = CASE_NESTING;
   thiscase->next = case_stack;
   thiscase->all = nesting_stack;
   thiscase->depth = ++nesting_depth;
@@ -4738,7 +4732,7 @@ add_case_node (low, high, label, duplicate)
 
   /* Add this label to the chain, and succeed.  */
 
-  r = (struct case_node *) xmalloc (sizeof (struct case_node));
+  r = (struct case_node *) ggc_alloc (sizeof (struct case_node));
   r->low = low;
 
   /* If the bounds are equal, turn this into the one-value case.  */
@@ -5132,16 +5126,23 @@ mark_seen_cases (type, cases_seen, count, sparseness)
     }
 }
 
-/* Called when the index of a switch statement is an enumerated type
-   and there is no default label.
+/* Given a switch statement with an expression that is an enumeration
+   type, warn if any of the enumeration type's literals are not
+   covered by the case expressions of the switch.  Also, warn if there
+   are any extra switch cases that are *not* elements of the
+   enumerated type.
 
-   Checks that all enumeration literals are covered by the case
-   expressions of a switch.  Also, warn if there are any extra
-   switch cases that are *not* elements of the enumerated type.
+   Historical note:
 
-   If all enumeration literals were covered by the case expressions,
-   turn one of the expressions into the default expression since it should
-   not be possible to fall through such a switch.  */
+   At one stage this function would: ``If all enumeration literals
+   were covered by the case expressions, turn one of the expressions
+   into the default expression since it should not be possible to fall
+   through such a switch.''
+
+   That code has since been removed as: ``This optimization is
+   disabled because it causes valid programs to fail.  ANSI C does not
+   guarantee that an expression with enum type will have a value that
+   is the same as one of the enumeration literals.''  */
 
 void
 check_for_full_enumeration_handling (type)
@@ -5163,9 +5164,6 @@ check_for_full_enumeration_handling (type)
   /* The allocated size of cases_seen, in chars.  */
   HOST_WIDE_INT bytes_needed;
 
-  if (! warn_switch)
-    return;
-
   size = all_cases_count (type, &sparseness);
   bytes_needed = (size + HOST_BITS_PER_CHAR) / HOST_BITS_PER_CHAR;
 
@@ -5181,7 +5179,7 @@ check_for_full_enumeration_handling (type)
 
       /* The time complexity of this code is normally O(N), where
 	 N being the number of members in the enumerated type.
-	 However, if type is a ENUMERAL_TYPE whose values do not
+	 However, if type is an ENUMERAL_TYPE whose values do not
 	 increase monotonically, O(N*log(N)) time may be needed.  */
 
       mark_seen_cases (type, cases_seen, size, sparseness);
@@ -5203,62 +5201,47 @@ check_for_full_enumeration_handling (type)
       && case_stack->data.case_stmt.case_list->left)
     case_stack->data.case_stmt.case_list
       = case_tree2list (case_stack->data.case_stmt.case_list, 0);
-  if (warn_switch)
-    for (n = case_stack->data.case_stmt.case_list; n; n = n->right)
-      {
-	for (chain = TYPE_VALUES (type);
-	     chain && !tree_int_cst_equal (n->low, TREE_VALUE (chain));
-	     chain = TREE_CHAIN (chain))
-	  ;
-
-	if (!chain)
-	  {
-	    if (TYPE_NAME (type) == 0)
-	      warning ("case value `%ld' not in enumerated type",
-		       (long) TREE_INT_CST_LOW (n->low));
-	    else
-	      warning ("case value `%ld' not in enumerated type `%s'",
-		       (long) TREE_INT_CST_LOW (n->low),
-		       IDENTIFIER_POINTER ((TREE_CODE (TYPE_NAME (type))
-					    == IDENTIFIER_NODE)
-					   ? TYPE_NAME (type)
-					   : DECL_NAME (TYPE_NAME (type))));
-	  }
-	if (!tree_int_cst_equal (n->low, n->high))
-	  {
-	    for (chain = TYPE_VALUES (type);
-		 chain && !tree_int_cst_equal (n->high, TREE_VALUE (chain));
-		 chain = TREE_CHAIN (chain))
-	      ;
-
-	    if (!chain)
-	      {
-		if (TYPE_NAME (type) == 0)
-		  warning ("case value `%ld' not in enumerated type",
-			   (long) TREE_INT_CST_LOW (n->high));
-		else
-		  warning ("case value `%ld' not in enumerated type `%s'",
-			   (long) TREE_INT_CST_LOW (n->high),
-			   IDENTIFIER_POINTER ((TREE_CODE (TYPE_NAME (type))
-						== IDENTIFIER_NODE)
-					       ? TYPE_NAME (type)
-					       : DECL_NAME (TYPE_NAME (type))));
-	      }
-	  }
-      }
-}
-
-/* Free CN, and its children.  */
-
-static void 
-free_case_nodes (cn)
-     case_node_ptr cn;
-{
-  if (cn) 
+  for (n = case_stack->data.case_stmt.case_list; n; n = n->right)
     {
-      free_case_nodes (cn->left);
-      free_case_nodes (cn->right);
-      free (cn);
+      for (chain = TYPE_VALUES (type);
+	   chain && !tree_int_cst_equal (n->low, TREE_VALUE (chain));
+	   chain = TREE_CHAIN (chain))
+	;
+
+      if (!chain)
+	{
+	  if (TYPE_NAME (type) == 0)
+	    warning ("case value `%ld' not in enumerated type",
+		     (long) TREE_INT_CST_LOW (n->low));
+	  else
+	    warning ("case value `%ld' not in enumerated type `%s'",
+		     (long) TREE_INT_CST_LOW (n->low),
+		     IDENTIFIER_POINTER ((TREE_CODE (TYPE_NAME (type))
+					  == IDENTIFIER_NODE)
+					 ? TYPE_NAME (type)
+					 : DECL_NAME (TYPE_NAME (type))));
+	}
+      if (!tree_int_cst_equal (n->low, n->high))
+	{
+	  for (chain = TYPE_VALUES (type);
+	       chain && !tree_int_cst_equal (n->high, TREE_VALUE (chain));
+	       chain = TREE_CHAIN (chain))
+	    ;
+
+	  if (!chain)
+	    {
+	      if (TYPE_NAME (type) == 0)
+		warning ("case value `%ld' not in enumerated type",
+			 (long) TREE_INT_CST_LOW (n->high));
+	      else
+		warning ("case value `%ld' not in enumerated type `%s'",
+			 (long) TREE_INT_CST_LOW (n->high),
+			 IDENTIFIER_POINTER ((TREE_CODE (TYPE_NAME (type))
+					      == IDENTIFIER_NODE)
+					     ? TYPE_NAME (type)
+					     : DECL_NAME (TYPE_NAME (type))));
+	    }
+	}
     }
 }
 
@@ -5301,7 +5284,7 @@ expand_end_case_type (orig_index, orig_type)
 
   do_pending_stack_adjust ();
 
-  /* This might get an spurious warning in the presence of a syntax error;
+  /* This might get a spurious warning in the presence of a syntax error;
      it could be fixed by moving the call to check_seenlabel after the
      check for error_mark_node, and copying the code of check_seenlabel that
      deals with case_stack->data.case_stmt.line_number_status /
@@ -5313,14 +5296,18 @@ expand_end_case_type (orig_index, orig_type)
   /* An ERROR_MARK occurs for various reasons including invalid data type.  */
   if (index_type != error_mark_node)
     {
-      /* If switch expression was an enumerated type, check that all
-	 enumeration literals are covered by the cases.
-	 No sense trying this if there's a default case, however.  */
-
-      if (!thiscase->data.case_stmt.default_label
+      /* If the switch expression was an enumerated type, check that
+	 exactly all enumeration literals are covered by the cases.
+	 The check is made when -Wswitch was specified and there is no
+	 default case, or when -Wswitch-enum was specified.  */
+      if (((warn_switch && !thiscase->data.case_stmt.default_label)
+	   || warn_switch_enum)
 	  && TREE_CODE (orig_type) == ENUMERAL_TYPE
 	  && TREE_CODE (index_expr) != INTEGER_CST)
 	check_for_full_enumeration_handling (orig_type);
+
+      if (warn_switch_default && !thiscase->data.case_stmt.default_label)
+	warning ("switch missing default case");
 
       /* If we don't have a default-label, create one here,
 	 after the body of the switch.  */
@@ -5492,21 +5479,21 @@ expand_end_case_type (orig_index, orig_type)
 	    {
 	      index_type = thiscase->data.case_stmt.nominal_type;
 
-              /* Index jumptables from zero for suitable values of
+	      /* Index jumptables from zero for suitable values of
                  minval to avoid a subtraction.  */
-              if (! optimize_size
-                  && compare_tree_int (minval, 0) > 0
-                  && compare_tree_int (minval, 3) < 0)
-                {
-                  minval = integer_zero_node;
-                  range = maxval;
-                }
+	      if (! optimize_size
+		  && compare_tree_int (minval, 0) > 0
+		  && compare_tree_int (minval, 3) < 0)
+		{
+		  minval = integer_zero_node;
+		  range = maxval;
+		}
 
 	      if (! try_tablejump (index_type, index_expr, minval, range,
 				   table_label, default_label))
 		abort ();
 	    }
-	  
+
 	  /* Get table of labels to jump to, in order of case index.  */
 
 	  ncases = tree_low_cst (range, 0) + 1;
@@ -5519,11 +5506,11 @@ expand_end_case_type (orig_index, orig_type)
 		 value since that should fit in a HOST_WIDE_INT while the
 		 actual values may not.  */
 	      HOST_WIDE_INT i_low
-		= tree_low_cst (fold (build (MINUS_EXPR, index_type, 
-                                             n->low, minval)), 1);
+		= tree_low_cst (fold (build (MINUS_EXPR, index_type,
+					     n->low, minval)), 1);
 	      HOST_WIDE_INT i_high
-		= tree_low_cst (fold (build (MINUS_EXPR, index_type, 
-                                             n->high, minval)), 1);
+		= tree_low_cst (fold (build (MINUS_EXPR, index_type,
+					     n->high, minval)), 1);
 	      HOST_WIDE_INT i;
 
 	      for (i = i_low; i <= i_high; i ++)
@@ -5571,7 +5558,6 @@ expand_end_case_type (orig_index, orig_type)
   if (thiscase->exit_label)
     emit_label (thiscase->exit_label);
 
-  free_case_nodes (case_stack->data.case_stmt.case_list);
   POPSTACK (case_stack);
 
   free_temp_slots ();
@@ -6341,7 +6327,7 @@ emit_case_nodes (index, node, default_label, index_type)
 	  else if (!low_bound && !high_bound)
 	    {
 	      /* Widen LOW and HIGH to the same width as INDEX.  */
-	      tree type = type_for_mode (mode, unsignedp);
+	      tree type = (*lang_hooks.types.type_for_mode) (mode, unsignedp);
 	      tree low = build1 (CONVERT_EXPR, type, node->low);
 	      tree high = build1 (CONVERT_EXPR, type, node->high);
 	      rtx low_rtx, new_index, new_bound;
@@ -6355,7 +6341,7 @@ emit_case_nodes (index, node, default_label, index_type)
 	      new_bound = expand_expr (fold (build (MINUS_EXPR, type,
 						    high, low)),
 				       NULL_RTX, mode, 0);
-				
+
 	      emit_cmp_and_jump_insns (new_index, new_bound, GT, NULL_RTX,
 				       mode, 1, default_label);
 	    }
@@ -6364,3 +6350,5 @@ emit_case_nodes (index, node, default_label, index_type)
 	}
     }
 }
+
+#include "gt-stmt.h"

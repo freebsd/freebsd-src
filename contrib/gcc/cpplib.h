@@ -46,9 +46,9 @@ typedef struct cpp_callbacks cpp_callbacks;
 struct answer;
 struct file_name_map_list;
 
-/* The first two groups, apart from '=', can appear in preprocessor
-   expressions.  This allows a lookup table to be implemented in
-   _cpp_parse_expr.
+/* The first three groups, apart from '=', can appear in preprocessor
+   expressions (+= and -= are used to indicate unary + and - resp.).
+   This allows a lookup table to be implemented in _cpp_parse_expr.
 
    The first group, to CPP_LAST_EQ, can be immediately followed by an
    '='.  The lexer needs operators ending in '=', like ">>=", to be in
@@ -58,6 +58,7 @@ struct file_name_map_list;
 #define CPP_LAST_EQ CPP_MAX
 #define CPP_FIRST_DIGRAPH CPP_HASH
 #define CPP_LAST_PUNCTUATOR CPP_DOT_STAR
+#define CPP_LAST_CPP_OP CPP_LESS_EQ
 
 #define TTYPE_TABLE				\
   OP(CPP_EQ = 0,	"=")			\
@@ -85,13 +86,16 @@ struct file_name_map_list;
   OP(CPP_COMMA,		",")	/* grouping */	\
   OP(CPP_OPEN_PAREN,	"(")			\
   OP(CPP_CLOSE_PAREN,	")")			\
+  TK(CPP_EOF,		SPELL_NONE)		\
   OP(CPP_EQ_EQ,		"==")	/* compare */	\
   OP(CPP_NOT_EQ,	"!=")			\
   OP(CPP_GREATER_EQ,	">=")			\
   OP(CPP_LESS_EQ,	"<=")			\
 \
+  /* These two are unary + / - in preprocessor expressions.  */ \
   OP(CPP_PLUS_EQ,	"+=")	/* math */	\
   OP(CPP_MINUS_EQ,	"-=")			\
+\
   OP(CPP_MULT_EQ,	"*=")			\
   OP(CPP_DIV_EQ,	"/=")			\
   OP(CPP_MOD_EQ,	"%=")			\
@@ -119,7 +123,7 @@ struct file_name_map_list;
   OP(CPP_SCOPE,		"::")			\
   OP(CPP_DEREF_STAR,	"->*")			\
   OP(CPP_DOT_STAR,	".*")			\
-  OP(CPP_ATSIGN,	"@")  /* used in Objective C */ \
+  OP(CPP_ATSIGN,	"@")  /* used in Objective-C */ \
 \
   TK(CPP_NAME,		SPELL_IDENT)	/* word */			\
   TK(CPP_NUMBER,	SPELL_NUMBER)	/* 34_be+ta  */			\
@@ -135,8 +139,7 @@ struct file_name_map_list;
   TK(CPP_COMMENT,	SPELL_NUMBER)	/* Only if output comments.  */ \
                                         /* SPELL_NUMBER happens to DTRT.  */ \
   TK(CPP_MACRO_ARG,	SPELL_NONE)	/* Macro argument.  */		\
-  TK(CPP_PADDING,	SPELL_NONE)	/* Whitespace for cpp0.  */	\
-  TK(CPP_EOF,		SPELL_NONE)	/* End of line or file.  */
+  TK(CPP_PADDING,	SPELL_NONE)	/* Whitespace for cpp0.  */
 
 #define OP(e, s) e,
 #define TK(e, s) e,
@@ -150,7 +153,7 @@ enum cpp_ttype
 
 /* C language kind, used when calling cpp_reader_init.  */
 enum c_lang {CLK_GNUC89 = 0, CLK_GNUC99, CLK_STDC89, CLK_STDC94, CLK_STDC99,
-	     CLK_GNUCXX, CLK_CXX98, CLK_OBJC, CLK_OBJCXX, CLK_ASM};
+	     CLK_GNUCXX, CLK_CXX98, CLK_ASM};
 
 /* Payload of a NUMBER, STRING, CHAR or COMMENT token.  */
 struct cpp_string
@@ -187,9 +190,23 @@ struct cpp_token
   } val;
 };
 
-/* A standalone character.  We may want to make it unsigned for the
-   same reason we use unsigned char - to avoid signedness issues.  */
-typedef int cppchar_t;
+/* A type wide enough to hold any multibyte source character.
+   cpplib's character constant interpreter requires an unsigned type.
+   Also, a typedef for the signed equivalent.  */
+#ifndef MAX_WCHAR_TYPE_SIZE
+# define MAX_WCHAR_TYPE_SIZE WCHAR_TYPE_SIZE
+#endif
+#if CHAR_BIT * SIZEOF_INT >= MAX_WCHAR_TYPE_SIZE
+# define CPPCHAR_SIGNED_T int
+#else
+# if CHAR_BIT * SIZEOF_LONG >= MAX_WCHAR_TYPE_SIZE || !HAVE_LONG_LONG
+#  define CPPCHAR_SIGNED_T long
+# else
+#  define CPPCHAR_SIGNED_T long long
+# endif
+#endif
+typedef unsigned CPPCHAR_SIGNED_T cppchar_t;
+typedef CPPCHAR_SIGNED_T cppchar_signed_t;
 
 /* Values for opts.dump_macros.
   dump_only means inhibit output of the preprocessed text
@@ -204,19 +221,11 @@ enum { dump_none = 0, dump_only, dump_names, dump_definitions };
    carries all the options visible to the command line.  */
 struct cpp_options
 {
-  /* Name of input and output files.  */
-  const char *in_fname;
-  const char *out_fname;
-
   /* Characters between tab stops.  */
   unsigned int tabstop;
 
   /* Pending options - -D, -U, -A, -I, -ixxx.  */
   struct cpp_pending *pending;
-
-  /* File name which deps are being written to.  This is 0 if deps are
-     being written to stdout.  */
-  const char *deps_file;
 
   /* Search paths for include files.  */
   struct search_path *quote_include;	/* "" */
@@ -231,17 +240,11 @@ struct cpp_options
   const char *include_prefix;
   unsigned int include_prefix_len;
 
-  /* -fleading_underscore sets this to "_".  */
-  const char *user_label_prefix;
-
   /* The language we're preprocessing.  */
   enum c_lang lang;
 
   /* Non-0 means -v, so print the full set of include dirs.  */
   unsigned char verbose;
-
-  /* Nonzero means chars are signed.  */
-  unsigned char signed_char;
 
   /* Nonzero means use extra default include directories for C++.  */
   unsigned char cplusplus;
@@ -249,11 +252,16 @@ struct cpp_options
   /* Nonzero means handle cplusplus style comments */
   unsigned char cplusplus_comments;
 
-  /* Nonzero means handle #import, for objective C.  */
+  /* Nonzero means define __OBJC__, treat @ as a special token, and
+     use the OBJC[PLUS]_INCLUDE_PATH environment variable.  */
   unsigned char objc;
 
   /* Nonzero means don't copy comments into the output file.  */
   unsigned char discard_comments;
+
+  /* Nonzero means don't copy comments into the output file during
+     macro expansion.  */
+  unsigned char discard_comments_in_macro_exp;
 
   /* Nonzero means process the ISO trigraph sequences.  */
   unsigned char trigraphs;
@@ -263,24 +271,6 @@ struct cpp_options
 
   /* Nonzero means to allow hexadecimal floats and LL suffixes.  */
   unsigned char extended_numbers;
-
-  /* Nonzero means print the names of included files rather than the
-     preprocessed output.  1 means just the #include "...", 2 means
-     #include <...> as well.  */
-  unsigned char print_deps;
-
-  /* Nonzero if phony targets are created for each header.  */
-  unsigned char deps_phony_targets;
-
-  /* Nonzero if missing .h files in -M output are assumed to be
-     generated files and not errors.  */
-  unsigned char print_deps_missing_files;
-
-  /* If true, fopen (deps_file, "a") else fopen (deps_file, "w").  */
-  unsigned char print_deps_append;
-
-  /* If true, no dependency is generated on the main file.  */
-  unsigned char deps_ignore_main_file;
 
   /* Nonzero means print names of header files (-H).  */
   unsigned char print_include_names;
@@ -307,9 +297,22 @@ struct cpp_options
   /* Nonzero means warn if #import is used.  */
   unsigned char warn_import;
 
+  /* Nonzero means warn about multicharacter charconsts.  */
+  unsigned char warn_multichar;
+
   /* Nonzero means warn about various incompatibilities with
      traditional C.  */
   unsigned char warn_traditional;
+
+  /* Nonzero means warn about long long numeric constants.  */
+  unsigned char warn_long_long;
+
+  /* Nonzero means warn about text after an #endif (or #else).  */
+  unsigned char warn_endif_labels;
+
+  /* Nonzero means warn about implicit sign changes owing to integer
+     promotions.  */
+  unsigned char warn_num_sign_change;
 
   /* Nonzero means turn warnings into errors.  */
   unsigned char warnings_are_errors;
@@ -335,10 +338,13 @@ struct cpp_options
   /* Nonzero means warn if undefined identifiers are evaluated in an #if.  */
   unsigned char warn_undef;
 
+  /* Nonzero means warn of unused macros from the main file.  */
+  unsigned char warn_unused_macros;
+
   /* Nonzero for the 1999 C Standard, including corrigenda and amendments.  */
   unsigned char c99;
 
-  /* Nonzero if conforming to some particular standard.  */
+  /* Nonzero if we are conforming to a specific C or C++ standard.  */
   unsigned char std;
 
   /* Nonzero means give all the error messages the ANSI standard requires.  */
@@ -366,10 +372,37 @@ struct cpp_options
   /* Nonzero means handle C++ alternate operator names.  */
   unsigned char operator_names;
 
-  /* True if --help, --version or --target-help appeared in the
-     options.  Stand-alone CPP should then bail out after option
-     parsing; drivers might want to continue printing help.  */
-  unsigned char help_only;
+  /* True for traditional preprocessing.  */
+  unsigned char traditional;
+
+  /* Dependency generation.  */
+  struct
+  {
+    /* Style of header dependencies to generate.  */
+    enum {DEPS_NONE = 0, DEPS_USER, DEPS_SYSTEM } style;
+
+    /* Assume missing files are generated files.  */
+    bool missing_files;
+
+    /* Generate phony targets for each dependency apart from the first
+       one.  */
+    bool phony_targets;
+
+    /* If true, no dependency is generated on the main file.  */
+    bool ignore_main_file;
+  } deps;
+
+  /* Target-specific features set by the front end or client.  */
+
+  /* Precision for target CPP arithmetic, target characters, target
+     ints and target wide characters, respectively.  */
+  size_t precision, char_precision, int_precision, wchar_precision;
+
+  /* True means chars (wide chars) are unsigned.  */
+  bool unsigned_char, unsigned_wchar;
+
+  /* Nonzero means __STDC__ should have the value 0 in system headers.  */
+  unsigned char stdc_0_in_system_headers;
 };
 
 /* Call backs.  */
@@ -384,11 +417,10 @@ struct cpp_callbacks
   void (*undef) PARAMS ((cpp_reader *, unsigned int, cpp_hashnode *));
   void (*ident) PARAMS ((cpp_reader *, unsigned int, const cpp_string *));
   void (*def_pragma) PARAMS ((cpp_reader *, unsigned int));
+  /* Called when the client has a chance to properly register
+     built-ins with cpp_define() and cpp_assert().  */
+  void (*register_builtins) PARAMS ((cpp_reader *));
 };
-
-#define CPP_FATAL_LIMIT 1000
-/* True if we have seen a "fatal" error.  */
-#define CPP_FATAL_ERRORS(PFILE) (cpp_errors (PFILE) >= CPP_FATAL_LIMIT)
 
 /* Name under which this program was invoked.  */
 extern const char *progname;
@@ -463,6 +495,18 @@ struct cpp_hashnode
 /* Call this first to get a handle to pass to other functions.  */
 extern cpp_reader *cpp_create_reader PARAMS ((enum c_lang));
 
+/* Call this to change the selected language standard (e.g. because of
+   command line options).  */
+extern void cpp_set_lang PARAMS ((cpp_reader *, enum c_lang));
+
+/* Add a dependency TARGET.  Quote it for "make" if QUOTE.  Can be
+   called any number of times before cpp_read_main_file().  If no
+   targets have been added before cpp_read_main_file(), then the
+   default target is used.  */
+extern void cpp_add_dependency_target PARAMS ((cpp_reader *,
+					       const char * target,
+					       int quote));
+
 /* Call these to get pointers to the options and callback structures
    for a given reader.  These pointers are good until you call
    cpp_finish on that reader.  You can either edit the callbacks
@@ -476,14 +520,10 @@ extern void cpp_set_callbacks PARAMS ((cpp_reader *, cpp_callbacks *));
 /* Now call cpp_handle_option[s] to handle 1[or more] switches.  The
    return value is the number of arguments used.  If
    cpp_handle_options returns without using all arguments, it couldn't
-   understand the next switch.  When there are no switches left, you
-   must call cpp_post_options before calling cpp_read_main_file.  Only
-   after cpp_post_options are the contents of the cpp_options
-   structure reliable.  Options processing is not completed until you
-   call cpp_finish_options.  */
+   understand the next switch.  Options processing is not completed
+   until you call cpp_finish_options.  */
 extern int cpp_handle_options PARAMS ((cpp_reader *, int, char **));
-extern int cpp_handle_option PARAMS ((cpp_reader *, int, char **, int));
-extern void cpp_post_options PARAMS ((cpp_reader *));
+extern int cpp_handle_option PARAMS ((cpp_reader *, int, char **));
 
 /* This function reads the file, but does not start preprocessing.  It
    returns the name of the original file; this is the same as the
@@ -492,7 +532,7 @@ extern void cpp_post_options PARAMS ((cpp_reader *));
    too.  If there was an error opening the file, it returns NULL.
 
    If you want cpplib to manage its own hashtable, pass in a NULL
-   pointer.  Otherise you should pass in an initialised hash table
+   pointer.  Otherise you should pass in an initialized hash table
    that cpplib will share; this technique is used by the C front
    ends.  */
 extern const char *cpp_read_main_file PARAMS ((cpp_reader *, const char *,
@@ -505,10 +545,17 @@ extern const char *cpp_read_main_file PARAMS ((cpp_reader *, const char *,
    from cpp_read_main_file, before they get debug callbacks.  */
 extern void cpp_finish_options PARAMS ((cpp_reader *));
 
+/* Call this to finish preprocessing.  If you requested dependency
+   generation, pass an open stream to write the information to,
+   otherwise NULL.  It is your responsibility to close the stream.
+
+   Returns cpp_errors (pfile).  */
+extern int cpp_finish PARAMS ((cpp_reader *, FILE *deps_stream));
+
 /* Call this to release the handle at the end of preprocessing.  Any
    use of the handle after this function returns is invalid.  Returns
    cpp_errors (pfile).  */
-extern int cpp_destroy PARAMS ((cpp_reader *));
+extern void cpp_destroy PARAMS ((cpp_reader *));
 
 /* Error count.  */
 extern unsigned int cpp_errors PARAMS ((cpp_reader *));
@@ -522,7 +569,6 @@ extern void cpp_register_pragma PARAMS ((cpp_reader *,
 					 const char *, const char *,
 					 void (*) PARAMS ((cpp_reader *))));
 
-extern void cpp_finish PARAMS ((cpp_reader *));
 extern int cpp_avoid_paste PARAMS ((cpp_reader *, const cpp_token *,
 				    const cpp_token *));
 extern const cpp_token *cpp_get_token PARAMS ((cpp_reader *));
@@ -531,10 +577,12 @@ extern const unsigned char *cpp_macro_definition PARAMS ((cpp_reader *,
 extern void _cpp_backup_tokens PARAMS ((cpp_reader *, unsigned int));
 
 /* Evaluate a CPP_CHAR or CPP_WCHAR token.  */
-extern HOST_WIDE_INT
+extern cppchar_t
 cpp_interpret_charconst PARAMS ((cpp_reader *, const cpp_token *,
-				 int, int, unsigned int *));
+				 unsigned int *, int *));
 
+/* Used to register builtins during the register_builtins callback.
+   The text is the same as the command line argument.  */
 extern void cpp_define PARAMS ((cpp_reader *, const char *));
 extern void cpp_assert PARAMS ((cpp_reader *, const char *));
 extern void cpp_undef  PARAMS ((cpp_reader *, const char *));
@@ -545,32 +593,95 @@ extern cpp_buffer *cpp_push_buffer PARAMS ((cpp_reader *,
 					    int, int));
 extern int cpp_defined PARAMS ((cpp_reader *, const unsigned char *, int));
 
+/* A preprocessing number.  Code assumes that any unused high bits of
+   the double integer are set to zero.  */
+typedef unsigned HOST_WIDE_INT cpp_num_part;
+typedef struct cpp_num cpp_num;
+struct cpp_num
+{
+  cpp_num_part high;
+  cpp_num_part low;
+  bool unsignedp;  /* True if value should be treated as unsigned.  */
+  bool overflow;   /* True if the most recent calculation overflowed.  */
+};
+
+/* cpplib provides two interfaces for interpretation of preprocessing
+   numbers.
+
+   cpp_classify_number categorizes numeric constants according to
+   their field (integer, floating point, or invalid), radix (decimal,
+   octal, hexadecimal), and type suffixes.  */
+
+#define CPP_N_CATEGORY  0x000F
+#define CPP_N_INVALID	0x0000
+#define CPP_N_INTEGER	0x0001
+#define CPP_N_FLOATING	0x0002
+
+#define CPP_N_WIDTH	0x00F0
+#define CPP_N_SMALL	0x0010	/* int, float.  */
+#define CPP_N_MEDIUM	0x0020	/* long, double.  */
+#define CPP_N_LARGE	0x0040	/* long long, long double.  */
+
+#define CPP_N_RADIX	0x0F00
+#define CPP_N_DECIMAL	0x0100
+#define CPP_N_HEX	0x0200
+#define CPP_N_OCTAL	0x0400
+
+#define CPP_N_UNSIGNED	0x1000	/* Properties.  */
+#define CPP_N_IMAGINARY	0x2000
+
+/* Classify a CPP_NUMBER token.  The return value is a combination of
+   the flags from the above sets.  */
+extern unsigned cpp_classify_number PARAMS ((cpp_reader *, const cpp_token *));
+
+/* Evaluate a token classified as category CPP_N_INTEGER.  */
+extern cpp_num cpp_interpret_integer PARAMS ((cpp_reader *, const cpp_token *,
+					      unsigned int type));
+
+/* Sign extend a number, with PRECISION significant bits and all
+   others assumed clear, to fill out a cpp_num structure.  */
+cpp_num cpp_num_sign_extend PARAMS ((cpp_num, size_t));
+
+/* Diagnostic levels.  To get a dianostic without associating a
+   position in the translation unit with it, use cpp_error_with_line
+   with a line number of zero.  */
+
+/* Warning, an error with -Werror.  */
+#define DL_WARNING		0x00
+/* Same as DL_WARNING, except it is not suppressed in system headers.  */
+#define DL_WARNING_SYSHDR	0x01
+/* Warning, an error with -pedantic-errors or -Werror.  */
+#define DL_PEDWARN		0x02
+/* An error.  */
+#define DL_ERROR		0x03
+/* An internal consistency check failed.  Prints "internal error: ",
+   otherwise the same as DL_ERROR.  */
+#define DL_ICE			0x04
+/* Extracts a diagnostic level from an int.  */
+#define DL_EXTRACT(l)		(l & 0xf)
+/* Nonzero if a diagnostic level is one of the warnings.  */
+#define DL_WARNING_P(l)		(DL_EXTRACT (l) >= DL_WARNING \
+				 && DL_EXTRACT (l) <= DL_PEDWARN)
+
 /* N.B. The error-message-printer prototypes have not been nicely
    formatted because exgettext needs to see 'msgid' on the same line
    as the name of the function in order to work properly.  Only the
    string argument gets a name in an effort to keep the lines from
    getting ridiculously oversized.  */
 
-extern void cpp_ice PARAMS ((cpp_reader *, const char *msgid, ...))
-  ATTRIBUTE_PRINTF_2;
-extern void cpp_fatal PARAMS ((cpp_reader *, const char *msgid, ...))
-  ATTRIBUTE_PRINTF_2;
-extern void cpp_error PARAMS ((cpp_reader *, const char *msgid, ...))
-  ATTRIBUTE_PRINTF_2;
-extern void cpp_warning PARAMS ((cpp_reader *, const char *msgid, ...))
-  ATTRIBUTE_PRINTF_2;
-extern void cpp_pedwarn PARAMS ((cpp_reader *, const char *msgid, ...))
-  ATTRIBUTE_PRINTF_2;
-extern void cpp_notice PARAMS ((cpp_reader *, const char *msgid, ...))
-  ATTRIBUTE_PRINTF_2;
-extern void cpp_error_with_line PARAMS ((cpp_reader *, int, int, const char *msgid, ...))
-  ATTRIBUTE_PRINTF_4;
-extern void cpp_warning_with_line PARAMS ((cpp_reader *, int, int, const char *msgid, ...))
-  ATTRIBUTE_PRINTF_4;
-extern void cpp_pedwarn_with_line PARAMS ((cpp_reader *, int, int, const char *msgid, ...))
-  ATTRIBUTE_PRINTF_4;
-extern void cpp_error_from_errno PARAMS ((cpp_reader *, const char *));
-extern void cpp_notice_from_errno PARAMS ((cpp_reader *, const char *));
+/* Output a diagnostic of some kind.  */
+extern void cpp_error PARAMS ((cpp_reader *, int, const char *msgid, ...))
+  ATTRIBUTE_PRINTF_3;
+
+/* Output a diagnostic of severity LEVEL, with "MSG: " preceding the
+   error string of errno.  No location is printed.  */
+extern void cpp_errno PARAMS ((cpp_reader *, int level, const char *msg));
+
+/* Same as cpp_error, except additionally specifies a position as a
+   (translation unit) physical line and physical column.  If the line is
+   zero, then no location is printed.  */
+extern void cpp_error_with_line PARAMS ((cpp_reader *, int, unsigned, unsigned, const char *msgid, ...))
+  ATTRIBUTE_PRINTF_5;
 
 /* In cpplex.c */
 extern int cpp_ideq			PARAMS ((const cpp_token *,
@@ -578,10 +689,15 @@ extern int cpp_ideq			PARAMS ((const cpp_token *,
 extern void cpp_output_line		PARAMS ((cpp_reader *, FILE *));
 extern void cpp_output_token		PARAMS ((const cpp_token *, FILE *));
 extern const char *cpp_type2name	PARAMS ((enum cpp_ttype));
-extern unsigned int cpp_parse_escape	PARAMS ((cpp_reader *,
-						 const unsigned char **,
-						 const unsigned char *,
-						 unsigned HOST_WIDE_INT, int));
+/* Returns the value of an escape sequence, truncated to the correct
+   target precision.  PSTR points to the input pointer, which is just
+   after the backslash.  LIMIT is how much text we have.  WIDE is true
+   if the escape sequence is part of a wide character constant or
+   string literal.  Handles all relevant diagnostics.  */
+extern cppchar_t cpp_parse_escape	PARAMS ((cpp_reader *,
+						 const unsigned char ** pstr,
+						 const unsigned char *limit,
+						 int wide));
 
 /* In cpphash.c */
 
@@ -605,6 +721,9 @@ extern unsigned char *cpp_quote_string	PARAMS ((unsigned char *,
 /* In cppfiles.c */
 extern int cpp_included	PARAMS ((cpp_reader *, const char *));
 extern void cpp_make_system_header PARAMS ((cpp_reader *, int, int));
+
+/* In cppmain.c */
+extern void cpp_preprocess_file PARAMS ((cpp_reader *, const char *, FILE *));
 
 #ifdef __cplusplus
 }

@@ -20,38 +20,32 @@ along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
+#define TARGET_OS_CPP_BUILTINS()			\
+  do							\
+    {							\
+      NETBSD_OS_CPP_BUILTINS_ELF();			\
+      if (TARGET_ARCH64)				\
+	{						\
+	  NETBSD_OS_CPP_BUILTINS_LP64();		\
+	  builtin_define ("__sparc64__");		\
+	  builtin_define ("__sparc_v9__");		\
+	}						\
+      else						\
+	builtin_define ("__sparc");			\
+      builtin_define ("__sparc__");			\
+    }							\
+  while (0)
+
 /* Make sure these are undefined.  */
 #undef MD_EXEC_PREFIX
 #undef MD_STARTFILE_PREFIX
 
+/* Make sure this is undefined.  */
 #undef CPP_PREDEFINES
-#define CPP_PREDEFINES "-D__sparc__ -D__NetBSD__ -D__ELF__ \
--Asystem=unix -Asystem=NetBSD"
 
-/* CPP defines used for 64 bit code.  */
-#undef CPP_SUBTARGET_SPEC64
-#define CPP_SUBTARGET_SPEC64 \
-  "-D__sparc64__ -D__sparc_v9__ -D_LP64 %{posix:-D_POSIX_SOURCE}"
-
-/* CPP defines used for 32 bit code.  */
-#undef CPP_SUBTARGET_SPEC32
-#define CPP_SUBTARGET_SPEC32 "-D__sparc %{posix:-D_POSIX_SOURCE}"
-
-/* CPP_ARCH32_SPEC and CPP_ARCH64_SPEC are wrong from sparc/sparc.h; we
-   always want the non-SPARC_BI_ARCH versions, since the SPARC_BI_ARCH
-   versions define __SIZE_TYPE__ and __PTRDIFF_TYPE__ incorrectly for
-   NetBSD.  */
-#undef CPP_ARCH32_SPEC
-#define CPP_ARCH32_SPEC "-D__GCC_NEW_VARARGS__ -Acpu=sparc -Amachine=sparc"
-
-#undef CPP_ARCH64_SPEC
-#define CPP_ARCH64_SPEC "-D__arch64__ -Acpu=sparc64 -Amachine=sparc64"
-
-/* sparc/sparc.h defines NO_BUILTIN_SIZE_TYPE and NO_BUILTIN_PTRDIFF_TYPE
-   if SPARC_BI_ARCH is defined.  This is wrong for NetBSD; size_t and
-   ptrdiff_t do not change for 32-bit vs. 64-bit.  */
-#undef NO_BUILTIN_PTRDIFF_TYPE
-#undef NO_BUILTIN_SIZE_TYPE
+/* CPP defines used by all NetBSD targets.  */
+#undef CPP_SUBTARGET_SPEC
+#define CPP_SUBTARGET_SPEC "%(netbsd_cpp_spec)"
 
 /* SIZE_TYPE and PTRDIFF_TYPE are wrong from sparc/sparc.h.  */
 #undef SIZE_TYPE
@@ -107,6 +101,9 @@ Boston, MA 02111-1307, USA.  */
 %(asm_cpu) %(asm_arch) %(asm_relax)"
 
 #undef STDC_0_IN_SYSTEM_HEADERS
+
+/* Attempt to enable execute permissions on the stack.  */
+#define TRANSFER_FROM_TRAMPOLINE NETBSD_ENABLE_EXECUTE_STACK
 
 #undef TARGET_VERSION
 #define TARGET_VERSION fprintf (stderr, " (%s)", TARGET_NAME);
@@ -200,35 +197,22 @@ Boston, MA 02111-1307, USA.  */
 /* Make sure we use the right output format.  Pick a default and then
    make sure -m32/-m64 switch to the right one.  */
 
-#define LINK_ARCH32_SPEC \
- "%-m elf32_sparc \
-  %{assert*} %{R*} %{V} %{v:%{!V:-V}} \
-  %{shared:-shared} \
-  %{!shared: \
-    -dp \
-    %{!nostdlib:%{!r*:%{!e*:-e __start}}} \
-    %{!static: \
-      -dy %{rdynamic:-export-dynamic} \
-      %{!dynamic-linker:-dynamic-linker /usr/libexec/ld.elf_so}} \
-    %{static:-static}}"
+#define LINK_ARCH32_SPEC "-m elf32_sparc"
 
-#define LINK_ARCH64_SPEC \
- "%-m elf64_sparc \
-  %{assert*} %{R*} %{V} %{v:%{!V:-V}} \
-  %{shared:-shared} \
-  %{!shared: \
-    -dp \
-    %{!nostdlib:%{!r*:%{!e*:-e __start}}} \
-    %{!static: \
-      -dy %{rdynamic:-export-dynamic} \
-      %{!dynamic-linker:-dynamic-linker /usr/libexec/ld.elf_so}} \
-    %{static:-static}}"
+#define LINK_ARCH64_SPEC "-m elf64_sparc"
 
-#define LINK_ARCH_SPEC "\
-%{m32:%(link_arch32)} \
-%{m64:%(link_arch64)} \
-%{!m32:%{!m64:%(link_arch_default)}} \
-"
+#define LINK_ARCH_SPEC \
+ "%{m32:%(link_arch32)} \
+  %{m64:%(link_arch64)} \
+  %{!m32:%{!m64:%(link_arch_default)}}"
+
+#undef LINK_SPEC
+#define LINK_SPEC \
+ "%(link_arch) \
+  %{!mno-relax:%{!r:-relax}} \
+  %(netbsd_link_spec)"
+
+#define NETBSD_ENTRY_POINT "__start"
 
 #if DEFAULT_ARCH32_P
 #define LINK_ARCH_DEFAULT_SPEC LINK_ARCH32_SPEC
@@ -243,8 +227,9 @@ Boston, MA 02111-1307, USA.  */
   { "link_arch64",		LINK_ARCH64_SPEC }, \
   { "link_arch_default",	LINK_ARCH_DEFAULT_SPEC }, \
   { "link_arch",		LINK_ARCH_SPEC }, \
-  { "cpp_subtarget_spec32",	CPP_SUBTARGET_SPEC32 }, \
-  { "cpp_subtarget_spec64",	CPP_SUBTARGET_SPEC64 },
+  { "netbsd_cpp_spec",		NETBSD_CPP_SPEC }, \
+  { "netbsd_link_spec",		NETBSD_LINK_SPEC_ELF }, \
+  { "netbsd_entry_point",	NETBSD_ENTRY_POINT },
 
 
 /* What extra switches do we need?  */
@@ -283,19 +268,6 @@ Boston, MA 02111-1307, USA.  */
 #define MULTILIB_DEFAULTS { "m64" }
 #endif
 
-#undef CPP_SUBTARGET_SPEC
-#if DEFAULT_ARCH32_P
-#define CPP_SUBTARGET_SPEC \
-  "%{m64:%(cpp_subtarget_spec64)}%{!m64:%(cpp_subtarget_spec32)}"
-#else
-#define CPP_SUBTARGET_SPEC \
-  "%{!m32:%(cpp_subtarget_spec64)}%{m32:%(cpp_subtarget_spec32)}"
-#endif
-
-/* Restore this from sparc/sparc.h, netbsd.h changes it.  */
-#undef CPP_SPEC
-#define CPP_SPEC "%(cpp_cpu) %(cpp_arch) %(cpp_endian) %(cpp_subtarget)"
-
 /* Name the port. */
 #undef TARGET_NAME
 #define TARGET_NAME     (DEFAULT_ARCH32_P ? TARGET_NAME32 : TARGET_NAME64)
@@ -317,9 +289,6 @@ Boston, MA 02111-1307, USA.  */
 #undef  CC1_SPEC
 #define CC1_SPEC CC1_SPEC64
 
-#undef CPP_SUBTARGET_SPEC
-#define CPP_SUBTARGET_SPEC CPP_SUBTARGET_SPEC64
-
 #undef TARGET_NAME
 #define TARGET_NAME     TARGET_NAME64
 
@@ -337,9 +306,6 @@ Boston, MA 02111-1307, USA.  */
 
 #undef LIBGCC2_LONG_DOUBLE_TYPE_SIZE
 #define LIBGCC2_LONG_DOUBLE_TYPE_SIZE 64
-
-#undef CPP_SUBTARGET_SPEC
-#define CPP_SUBTARGET_SPEC CPP_SUBTARGET_SPEC32
 
 #undef  CC1_SPEC
 #define CC1_SPEC CC1_SPEC32

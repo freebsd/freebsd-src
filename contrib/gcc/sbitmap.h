@@ -1,5 +1,5 @@
 /* Simple bitmaps.
-   Copyright (C) 1999, 2000, 2002 Free Software Foundation, Inc.
+   Copyright (C) 1999, 2000, 2002, 2003 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -85,17 +85,47 @@ do {									\
     }									\
 } while (0)
 
+#define EXECUTE_IF_SET_IN_SBITMAP_REV(SBITMAP, N, CODE)			\
+do {									\
+  unsigned int word_num_;						\
+  unsigned int bit_num_;						\
+  unsigned int size_ = (SBITMAP)->size;					\
+  SBITMAP_ELT_TYPE *ptr_ = (SBITMAP)->elms;				\
+									\
+  for (word_num_ = size_; word_num_ > 0; word_num_--)			\
+    {									\
+      SBITMAP_ELT_TYPE word_ = ptr_[word_num_ - 1];			\
+									\
+      if (word_ != 0)							\
+	for (bit_num_ = SBITMAP_ELT_BITS; bit_num_ > 0; bit_num_--)	\
+	  {								\
+	    SBITMAP_ELT_TYPE _mask = (SBITMAP_ELT_TYPE)1 << (bit_num_ - 1);\
+									\
+	    if ((word_ & _mask) != 0)					\
+	      {								\
+		word_ &= ~ _mask;					\
+		(N) = (word_num_ - 1) * SBITMAP_ELT_BITS + bit_num_ - 1;\
+		CODE;							\
+		if (word_ == 0)						\
+		  break;						\
+	      }								\
+	  }								\
+    }									\
+} while (0)
+
 #define sbitmap_free(MAP)		free(MAP)
 #define sbitmap_vector_free(VEC)	free(VEC)
 
 struct int_list;
 
 extern void dump_sbitmap		PARAMS ((FILE *, sbitmap));
+extern void dump_sbitmap_file		PARAMS ((FILE *, sbitmap));
 extern void dump_sbitmap_vector 	PARAMS ((FILE *, const char *,
 						 const char *, sbitmap *,
 						 int));
 extern sbitmap sbitmap_alloc		PARAMS ((unsigned int));
 extern sbitmap *sbitmap_vector_alloc	PARAMS ((unsigned int, unsigned int));
+extern sbitmap sbitmap_resize		PARAMS ((sbitmap, unsigned int, int));
 extern void sbitmap_copy 		PARAMS ((sbitmap, sbitmap));
 extern int sbitmap_equal                PARAMS ((sbitmap, sbitmap));
 extern void sbitmap_zero		PARAMS ((sbitmap));
@@ -103,18 +133,27 @@ extern void sbitmap_ones		PARAMS ((sbitmap));
 extern void sbitmap_vector_zero		PARAMS ((sbitmap *, unsigned int));
 extern void sbitmap_vector_ones		PARAMS ((sbitmap *, unsigned int));
 
-extern int sbitmap_union_of_diff	PARAMS ((sbitmap, sbitmap, sbitmap,
+extern void sbitmap_union_of_diff	PARAMS ((sbitmap, sbitmap, sbitmap,
+						 sbitmap));
+extern bool sbitmap_union_of_diff_cg	PARAMS ((sbitmap, sbitmap, sbitmap,
 						 sbitmap));
 extern void sbitmap_difference		PARAMS ((sbitmap, sbitmap, sbitmap));
 extern void sbitmap_not			PARAMS ((sbitmap, sbitmap));
-extern int sbitmap_a_or_b_and_c		PARAMS ((sbitmap, sbitmap, sbitmap,
+extern void sbitmap_a_or_b_and_c	PARAMS ((sbitmap, sbitmap, sbitmap,
 						 sbitmap));
-extern int sbitmap_a_and_b_or_c		PARAMS ((sbitmap, sbitmap, sbitmap,
+extern bool sbitmap_a_or_b_and_c_cg	PARAMS ((sbitmap, sbitmap, sbitmap,
 						 sbitmap));
-extern int sbitmap_a_and_b		PARAMS ((sbitmap, sbitmap, sbitmap));
-extern int sbitmap_a_or_b		PARAMS ((sbitmap, sbitmap, sbitmap));
-extern int sbitmap_a_xor_b              PARAMS ((sbitmap, sbitmap, sbitmap));
-extern int sbitmap_a_subset_b_p		PARAMS ((sbitmap, sbitmap));
+extern void sbitmap_a_and_b_or_c	PARAMS ((sbitmap, sbitmap, sbitmap,
+						 sbitmap));
+extern bool sbitmap_a_and_b_or_c_cg	PARAMS ((sbitmap, sbitmap, sbitmap,
+						 sbitmap));
+extern void sbitmap_a_and_b		PARAMS ((sbitmap, sbitmap, sbitmap));
+extern bool sbitmap_a_and_b_cg		PARAMS ((sbitmap, sbitmap, sbitmap));
+extern void sbitmap_a_or_b		PARAMS ((sbitmap, sbitmap, sbitmap));
+extern bool sbitmap_a_or_b_cg		PARAMS ((sbitmap, sbitmap, sbitmap));
+extern void sbitmap_a_xor_b		PARAMS ((sbitmap, sbitmap, sbitmap));
+extern bool sbitmap_a_xor_b_cg		PARAMS ((sbitmap, sbitmap, sbitmap));
+extern bool sbitmap_a_subset_b_p	PARAMS ((sbitmap, sbitmap));
 
 extern int sbitmap_first_set_bit	PARAMS ((sbitmap));
 extern int sbitmap_last_set_bit		PARAMS ((sbitmap));

@@ -1,6 +1,6 @@
 /* Instruction scheduling pass.
    Copyright (C) 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2001 Free Software Foundation, Inc.
+   1999, 2000, 2001, 2002 Free Software Foundation, Inc.
    Contributed by Michael Tiemann (tiemann@cygnus.com) Enhanced by,
    and currently maintained by, Jim Wilson (wilson@cygnus.com)
 
@@ -49,7 +49,7 @@ static void init_ready_list PARAMS ((struct ready_list *));
 static int can_schedule_ready_p PARAMS ((rtx));
 static int new_ready PARAMS ((rtx));
 static int schedule_more_p PARAMS ((void));
-static const char *print_insn PARAMS ((rtx, int));
+static const char *ebb_print_insn PARAMS ((rtx, int));
 static int rank PARAMS ((rtx, rtx));
 static int contributes_to_priority PARAMS ((rtx, rtx));
 static void compute_jump_reg_dependencies PARAMS ((rtx, regset));
@@ -94,7 +94,7 @@ init_ready_list (ready)
       next = NEXT_INSN (insn);
 
       if (INSN_DEP_COUNT (insn) == 0
-	  && (SCHED_GROUP_P (next) == 0 || ! INSN_P (next)))
+	  && (! INSN_P (next) || SCHED_GROUP_P (next) == 0))
 	ready_add (ready, insn);
       if (!(SCHED_GROUP_P (insn)))
 	target_n_insns++;
@@ -128,7 +128,7 @@ new_ready (next)
    to be formatted so that multiple output lines will line up nicely.  */
 
 static const char *
-print_insn (insn, aligned)
+ebb_print_insn (insn, aligned)
      rtx insn;
      int aligned ATTRIBUTE_UNUSED;
 {
@@ -188,7 +188,7 @@ static struct sched_info ebb_sched_info =
   schedule_more_p,
   new_ready,
   rank,
-  print_insn,
+  ebb_print_insn,
   contributes_to_priority,
   compute_jump_reg_dependencies,
 
@@ -279,37 +279,34 @@ void
 schedule_ebbs (dump_file)
      FILE *dump_file;
 {
-  int i;
+  basic_block bb;
 
   /* Taking care of this degenerate case makes the rest of
      this code simpler.  */
   if (n_basic_blocks == 0)
     return;
 
-  scope_to_insns_initialize ();
-
   sched_init (dump_file);
 
   current_sched_info = &ebb_sched_info;
 
   allocate_reg_life_data ();
-  compute_bb_for_insn (get_max_uid ());
+  compute_bb_for_insn ();
 
   /* Schedule every region in the subroutine.  */
-  for (i = 0; i < n_basic_blocks; i++)
-    { 
-      rtx head = BASIC_BLOCK (i)->head;
+  FOR_EACH_BB (bb)
+    {
+      rtx head = bb->head;
       rtx tail;
 
       for (;;)
 	{
-	  basic_block b = BASIC_BLOCK (i);
 	  edge e;
-	  tail = b->end;
-	  if (i + 1 == n_basic_blocks
-	      || GET_CODE (BLOCK_HEAD (i + 1)) == CODE_LABEL)
+	  tail = bb->end;
+	  if (bb->next_bb == EXIT_BLOCK_PTR
+	      || GET_CODE (bb->next_bb->head) == CODE_LABEL)
 	    break;
-	  for (e = b->succ; e; e = e->succ_next)
+	  for (e = bb->succ; e; e = e->succ_next)
 	    if ((e->flags & EDGE_FALLTHRU) != 0)
 	      break;
 	  if (! e)
@@ -325,7 +322,7 @@ schedule_ebbs (dump_file)
 		}
 	    }
 
-	  i++;
+	  bb = bb->next_bb;
 	}
 
       /* Blah.  We should fix the rest of the code not to get confused by
@@ -355,8 +352,6 @@ schedule_ebbs (dump_file)
 
   if (write_symbols != NO_DEBUG)
     rm_redundant_line_notes ();
-
-  scope_to_insns_finalize ();
 
   sched_finish ();
 }

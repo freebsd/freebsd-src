@@ -142,7 +142,7 @@
 
 	* c-parse.in (select_or_iter_stmt): Use truthvalue_conversion
 	on the condition of a FOR statement, so that it gets typechecked
-	and optimised.
+	and optimized.
 
 2000-12-29  Alexandre Oliva  <aoliva@redhat.com>
 
@@ -300,7 +300,7 @@
 	scavenging it.
 
 	* dwarf2out_frame_debug_expr: Allow the (scratch) frame
-	pointer to be initialised from the stack pointer plus a
+	pointer to be initialized from the stack pointer plus a
 	constant.
 
 2000-12-22  Bernd Schmidt  <bernds@redhat.com>
@@ -355,7 +355,7 @@
 
 	* reload.c (update_auto_inc_notes): New, broken out from ...
 	(find_reloads_address_1): ... use here, also correct possible
-	use of uninitialised reloadnum.
+	use of uninitialized reloadnum.
 
 2000-12-21  David O'Brien  <obrien@FreeBSD.org>
 
@@ -1235,7 +1235,7 @@ Mon Dec 11 13:51:09 2000  Jeffrey A Law  (law@cygnus.com)
 	arm_compute_save_reg_mask.
 	(arm_expand_prologue): Use arm_current_func_type and
 	arm_compute_save_reg_mask.
-	(arm_init_machine_status): Initialise func_type field, if
+	(arm_init_machine_status): Initialize func_type field, if
 	necessary.
 	(thumb_expand_prologue): Use arm_current_func_type.
 	(output_thumb_prologue): Use arm_current_func_type.
@@ -2120,7 +2120,7 @@ Tue Dec  5 20:09:14 2000  Jeffrey A Law  (law@cygnus.com)
 	(expand_builtin_strrchr): Use it.
 	(builtin_memset_read_str): New function.
 	(expand_builtin_memset): Use target_char_cast.
-	Try to optimize memset with second argument non-zero using
+	Try to optimize memset with second argument nonzero using
 	store_by_pieces.
 
 2000-11-30  Marek Michalkiewicz  <marekm@linux.org.pl>
@@ -2923,9 +2923,9 @@ Sun Nov 26 10:02:37 2000  Richard Kenner  <kenner@vlsi1.ultra.nyu.edu>
 	(cxx_target_objs): Substitute in the makefile.
 	* configure: Regenerate.
 
-	* Makefile.in (C_TARGET_OBJS): Define and initialise from
+	* Makefile.in (C_TARGET_OBJS): Define and initialize from
 	c_target_objs.
-	(CXX_TARGET_OBJS): Define and initialise from
+	(CXX_TARGET_OBJS): Define and initialize from
 	cxx_target_objs.
 	(C_AND_OBJC_OBJS): Include C_TARGET_OBJS.
 
@@ -3046,7 +3046,7 @@ Fri Nov 24 19:48:09 2000  J"orn Rennecke <amylaar@redhat.com>
 
 2000-11-23  Graham Stott  <grahams@redhat.com>
 
-	* cse.c (cse_insn): Initialise all regcost variables.
+	* cse.c (cse_insn): Initialize all regcost variables.
 	Fix a typo add missing '='.
 	Only compare costs if there is a replacement insn.
 
@@ -3247,7 +3247,7 @@ Wed Nov 22 00:52:55 2000  J"orn Rennecke <amylaar@redhat.com>
 
 2000-11-21  Jakub Jelinek  <jakub@redhat.com>
 
-	* configure.in (HAVE_AS_DWARF2_DEBUG_LINE): Sparc has .file/.loc
+	* configure.in (HAVE_AS_DWARF2_DEBUG_LINE): SPARC has .file/.loc
 	support in as as well.
 	* configure: Regenerate.
 
@@ -3811,7 +3811,7 @@ Tue Nov 14 12:34:56 2000  Richard Kenner  <kenner@vlsi1.ultra.nyu.edu>
 
 2000-11-14  Jakub Jelinek  <jakub@redhat.com>
 
-	* reload1.c (emit_input_reload_insns): Honour forcing of constants
+	* reload1.c (emit_input_reload_insns): Honor forcing of constants
 	into memory by PREFERRED_RELOAD_CLASS NO_REGS.
 
 2000-11-14  Michael Matz  <matzmich@cs.tu-berlin.de>
@@ -5216,13 +5216,13 @@ Tue Oct 31 15:33:27 2000  J"orn Rennecke <amylaar@redhat.com>
 	hash table.
 
 	* cppinit.c (cpp_reader_init): Move cpp_init_completed test to top.
-	Initialise various members of cpp_reader, memory pools, and the
+	Initialize various members of cpp_reader, memory pools, and the
 	special nodes.
 	(cpp_printer_init): Delete.
 	(cpp_cleanup): Update.
 	(struct builtin, builtin_array, initialize_builtins): Update for new
 	hashnode definition and builtin handling.
-	(cpp_start_read, cpp_finish): Don't take or initialise a
+	(cpp_start_read, cpp_finish): Don't take or initialize a
 	printer.  Update.
 
 	* cpplib.h (cpp_printer, cpp_toklist, CPP_DEFINED, BOL,
@@ -7147,7 +7147,7 @@ Fri Sep 29 13:20:42 MET DST 2000  Jan Hubicka  <jh@suse.cz>
 	error" tests.
 	* cppinit.c (cpp_handle_option): Remove surplus \n.
 	* cpplex.c (ON_REST_ARG): Delete.
-	(skip_block_comment): Initialise prevc.
+	(skip_block_comment): Initialize prevc.
 	(parse_args): Improve error messages.
 	(maybe_paste_with_next): Use CONTEXT_VARARGS rather
 	than ON_REST_ARG.
@@ -8018,14 +8018,14 @@ Mon 18-Sep-2000 19:21:35 BST  Neil Booth  <NeilB@earthling.net>
 	* cpplib.c (_cpp_check_directive, _cpp_check_linemarker):
 	 New implementations.
 	(do_assert): Don't bother setting the answer's list's line.
-	(cpp_push_buffer): Initialise new pfile and read_ahead members
+	(cpp_push_buffer): Initialize new pfile and read_ahead members
 	of struct cpp_buffer.
 
 	* cpplib.h (cppchar_t): New typedef.
 	(struct cpp_buffer): read_ahead, pfile and col_adjust are
 	new members.
 	(struct lexer_state): New structure that determines the state
-	and behaviour of the lexer.
+	and behavior of the lexer.
 	(IN_DIRECTIVE, KNOWN_DIRECTIVE): New macros.
 	(struct cpp_reader): New member "state". Rename
 	multiline_string_line and multiline_string_column. Delete
@@ -8101,7 +8101,7 @@ Mon 18-Sep-2000 19:21:35 BST  Neil Booth  <NeilB@earthling.net>
 
 2000-09-18  Joseph S. Myers  <jsm28@cam.ac.uk>
 
-	* c-common.c (check_format_types): Reorganise and clean up,
+	* c-common.c (check_format_types): Reorganize and clean up,
 	checking earlier for ERROR_MARKs and making cur_type into its
 	TYPE_MAIN_VARIANT where convenient.
 
@@ -8547,9 +8547,9 @@ Fri 15-Sep-2000 06:49:07 BST  Neil Booth  <NeilB@earthling.net>
 	* config/h8300.h (TARGET_MAC): New.
 	(TARGET_SWITCHES): Add -ms2600 and -mno-s2600.
 	(CONDITIONA_REGISTER_USAGE): Disable the mac register on any
-	machine other than H8/S2600.
-	* config/h8300.md: Accept mac instructions on the H8/S2600 instead
-	of the H8/S2000.
+	machine other than H8S/2600.
+	* config/h8300.md: Accept mac instructions on the H8S/2600 instead
+	of the H8S/2000.
 
 2000-09-14  Alexandre Oliva  <aoliva@redhat.com>, Bernd Schmidt  <bernds@redhat.co.uk>
 
@@ -9445,7 +9445,7 @@ Thu 07-Sep-2000 21:29:00 BST  Neil Booth  <NeilB@earthling.net>
 	yy_lim, or yy_get_token.  Don't define get_directive_line if
 	USE_CPPLIB.
 	* c-common.h: Add multiple include guard.  Define RID values
-	for every keyword in C, C++, and Objective C.  Put all the
+	for every keyword in C, C++, and Objective-C.  Put all the
 	modifiers first.
 	(struct c_fileinfo, get_fileinfo, dump_time_statistics): New.
 	* c-decl.c (c_decode_option): Handle -lang-objc here.
@@ -11108,7 +11108,7 @@ Sun 20-Aug-2000 09:25:45 BST  Neil Booth  <NeilB@earthling.net>
 	instructions in it before checking for indirect jumps.
 
 	* ifcvt.c (find_if_block): Do not consider a THEN block that ends
-	in a indirect jump as a potential for conditional execution.
+	in an indirect jump as a potential for conditional execution.
 
 	* d30v.h (d30v_init_expanders): Don't declare here.
 	* d30v-protos.h (d30v_init_expanders): Declare here with a valid
@@ -11556,7 +11556,7 @@ Mon Aug 14 18:51:44 2000  J"orn Rennecke <amylaar@cygnus.co.uk>
 	rather than DECL_OFFSET_ALIGN.
 	(place_field): Likewise.
 	* expmed.c (store_bit_field): Abort on align==0 to avoid
-	antisocial machine behaviour.
+	antisocial machine behavior.
 
 2000-08-12  Richard Henderson  <rth@cygnus.com>
 
@@ -12487,7 +12487,7 @@ Thu Aug  3 15:53:03 2000  J"orn Rennecke <amylaar@cygnus.co.uk>
 2000-08-03  Kazu Hirata  <kazu@hxi.com>
 
 	* h8300.c: Fix a comment typo.
-	* h8300.h (OK_FOR_U): Accept a 32-bit constant address on H8/S.
+	* h8300.h (OK_FOR_U): Accept a 32-bit constant address on H8S.
 
 	* jump.c: Fix formatting.
 
@@ -12911,7 +12911,7 @@ Mon Jul 31 20:35:50 2000  Denis Chertykov  <denisc@overta.ru>
 
 	* h8300.h (MODES_TIEABLE_P): Accept a combination of QImode and
 	HImode on all architectures and a combination of HImode and SImode
-	on H8/300H and H8/S.
+	on H8/300H and H8S.
 
 	* h8300.c (split_adds_subs): Rearrange code for conciseness.
 
@@ -13799,7 +13799,7 @@ Wed Jul 19 01:22:15 CEST 2000  Marc Espie  <espie@cvs.openbsd.org>
 
 2000-07-18  Jakub Jelinek  <jakub@redhat.com>
 
-	* calls.c (store_arg): Return non-zero if sibcall_failure is desired.
+	* calls.c (store_arg): Return nonzero if sibcall_failure is desired.
 	(expand_call): Adjust caller.
 
 2000-07-17  Gabriel Dos Reis  <gdr@codesourcery.com>
@@ -14169,7 +14169,7 @@ Fri Jul 14 10:25:53 2000  Clinton Popetz  <cpopetz@cygnus.com>
 	* c-common.h (flag_digraphs): New.
 	* c-decl.c (c_decode_option): Set flag_digraphs as appropriate.
 	* c-lex.c (yylex): Use flag_digraphs to decide whether to
-	honour digraphs.
+	honor digraphs.
 
 2000-07-13  Zack Weinberg  <zack@wolery.cumb.org>
 
@@ -14482,7 +14482,7 @@ Tue Jul 11 16:26:17 2000  Clinton Popetz  <cpopetz@cygnus.com>
 	(handle_option): Set digraphs according to standard.
 	Merge OPT_lang_c89 handler with OPT_std_c89.
 
-	* cpplex.c: (lex_line, can_paste): Honour digraphs in
+	* cpplex.c: (lex_line, can_paste): Honor digraphs in
 	accordance with	the digraphs flag.
 
 	* cpplib.h: (struct cpp_options): New option digraphs.

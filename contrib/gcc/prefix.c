@@ -1,5 +1,6 @@
 /* Utility to update paths from internal to external forms.
-   Copyright (C) 1997, 1998, 1999, 2000, 2001 Free Software Foundation, Inc.
+   Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002
+   Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -42,7 +43,7 @@ Boston, MA 02111-1307, USA.  */
    be considered a "key" and looked up as follows:
 
    -- If this is a Win32 OS, then the Registry will be examined for
-      an entry of "key" in 
+      an entry of "key" in
 
       HKEY_LOCAL_MACHINE\SOFTWARE\Free Software Foundation\<KEY>
 
@@ -58,7 +59,7 @@ Boston, MA 02111-1307, USA.  */
    as an environment variable, whose value will be returned.
 
    Once all this is done, any '/' will be converted to DIR_SEPARATOR,
-   if they are different. 
+   if they are different.
 
    NOTE:  using resolve_keyed_path under Win32 requires linking with
    advapi32.dll.  */
@@ -149,10 +150,10 @@ lookup_key (key)
 			     KEY_READ, &reg_key);
 
       if (res != ERROR_SUCCESS)
-        {
-          reg_key = (HKEY) INVALID_HANDLE_VALUE;
-          return 0;
-        }
+	{
+	  reg_key = (HKEY) INVALID_HANDLE_VALUE;
+	  return 0;
+	}
     }
 
   size = 32;
@@ -251,7 +252,7 @@ update_path (path, key)
   const char *path;
   const char *key;
 {
-  char *result;
+  char *result, *p;
 
   if (! strncmp (path, std_prefix, strlen (std_prefix)) && key != 0)
     {
@@ -271,9 +272,66 @@ update_path (path, key)
   else
     result = xstrdup (path);
 
+#ifndef ALWAYS_STRIP_DOTDOT
+#define ALWAYS_STRIP_DOTDOT 0
+#endif
+
+  p = result;
+  while (1)
+    {
+      char *src, *dest;
+
+      p = strchr (p, '.');
+      if (p == NULL)
+	break;
+      /* Look for `/../'  */
+      if (p[1] == '.'
+	  && IS_DIR_SEPARATOR (p[2])
+	  && (p != result && IS_DIR_SEPARATOR (p[-1])))
+	{
+	  *p = 0;
+	  if (!ALWAYS_STRIP_DOTDOT && access (result, X_OK) == 0)
+	    {
+	      *p = '.';
+	      break;
+	    }
+	  else
+	    {
+	      /* We can't access the dir, so we won't be able to
+		 access dir/.. either.  Strip out `dir/../'.  If `dir'
+		 turns out to be `.', strip one more path component.  */
+	      dest = p;
+	      do
+		{
+		  --dest;
+		  while (dest != result && IS_DIR_SEPARATOR (*dest))
+		    --dest;
+		  while (dest != result && !IS_DIR_SEPARATOR (dest[-1]))
+		    --dest;
+		}
+	      while (dest != result && *dest == '.');
+	      /* If we have something like `./..' or `/..', don't
+		 strip anything more.  */
+	      if (*dest == '.' || IS_DIR_SEPARATOR (*dest))
+		{
+		  *p = '.';
+		  break;
+		}
+	      src = p + 3;
+	      while (IS_DIR_SEPARATOR (*src))
+		++src;
+	      p = dest;
+	      while ((*dest++ = *src++) != 0)
+		;
+	    }
+	}
+      else
+	++p;
+    }
+
 #ifdef UPDATE_PATH_HOST_CANONICALIZE
   /* Perform host dependent canonicalization when needed.  */
-  UPDATE_PATH_HOST_CANONICALIZE (path);
+  UPDATE_PATH_HOST_CANONICALIZE (result);
 #endif
 
 #ifdef DIR_SEPARATOR_2
