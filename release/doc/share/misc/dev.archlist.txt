@@ -92,6 +92,7 @@ ohci	i386,pc98,alpha,ia64,amd64
 oltr	i386
 pcn	i386,pc98,alpha,ia64,amd64
 pst	i386
+rc	i386
 rue	i386,pc98,amd64
 safe	i386,pc98,amd64
 sbp	i386,sparc64,ia64,amd64
@@ -118,6 +119,7 @@ snd_sbc	i386,alpha,amd64
 snd_solo	i386,amd64
 snd_via82c686	i386,amd64
 snd_vibes	i386,amd64
+sr	i386
 ste	i386,pc98,alpha,amd64
 stg	i386,pc98
 ti	i386,pc98,amd64
