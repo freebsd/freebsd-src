@@ -465,6 +465,8 @@
         libg++
         ..
         locale
+            af_ZA.ISO_8859-1
+            ..
             cs_CZ.ISO_8859-2
             ..
             da_DK.DIS_8859-15
@@ -718,6 +720,8 @@
         ..
         nls
             C
+            ..
+            af_ZA.ISO_8859-1
             ..
             cs_CZ.ISO_8859-2
             ..
