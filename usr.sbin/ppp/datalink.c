@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.25 1999/01/20 18:06:52 brian Exp $
+ *	$Id: datalink.c,v 1.26 1999/01/28 01:56:31 brian Exp $
  */
 
 #include <sys/param.h>
@@ -479,9 +479,11 @@ datalink_LayerUp(void *v, struct fsm *fp)
                 Auth2Nam(dl->physical->link.lcp.his_auth),
                 Auth2Nam(dl->physical->link.lcp.want_auth));
       if (dl->physical->link.lcp.his_auth == PROTO_PAP)
-        auth_StartChallenge(&dl->pap, dl->physical, pap_SendChallenge);
+        auth_StartChallenge(&dl->pap, dl->physical, pap_SendChallenge,
+                            pap_Failed);
       if (dl->physical->link.lcp.want_auth == PROTO_CHAP)
-        auth_StartChallenge(&dl->chap.auth, dl->physical, chap_SendChallenge);
+        auth_StartChallenge(&dl->chap.auth, dl->physical, chap_SendChallenge,
+                            NULL);
     } else
       datalink_AuthOk(dl);
   }
