@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: pc98.c,v 1.38 1997/08/21 08:24:19 kato Exp $
+ *	$Id: pc98.c,v 1.39 1997/08/26 15:08:52 kato Exp $
  */
 
 /*
@@ -601,6 +601,7 @@ static u_int	dma_bouncebufsize[8];
 static u_int8_t	dma_bounced = 0;
 static u_int8_t	dma_busy = 0;		/* Used in isa_dmastart() */
 static u_int8_t	dma_inuse = 0;		/* User for acquire/release */
+static u_int8_t dma_auto_mode = 0;
 
 #ifdef PC98
 #define VALID_DMA_MASK (3)
@@ -670,6 +671,7 @@ isa_dma_acquire(chan)
 		return (EBUSY);
 	}
 	dma_inuse |= (1 << chan);
+	dma_auto_mode &= ~(1 << chan);
 
 	return (0);
 }
@@ -701,6 +703,7 @@ isa_dma_release(chan)
 	}
 
 	dma_inuse &= ~(1 << chan);
+	dma_auto_mode &= ~(1 << chan);
 }
 
 #ifndef PC98
@@ -776,6 +779,12 @@ void isa_dmastart(int flags, caddr_t addr, u_int nbytes, int chan)
 
 	/* translate to physical */
 	phys = pmap_extract(pmap_kernel(), (vm_offset_t)addr);
+
+	if (flags & B_RAW) {
+	    dma_auto_mode |= (1 << chan);
+	} else { 
+	    dma_auto_mode &= ~(1 << chan);
+	}
 
 	if (need_pre_dma_flush)
 		wbinvd();		/* wbinvd (WB cache flush) */
@@ -871,15 +880,10 @@ void isa_dmadone(int flags, caddr_t addr, int nbytes, int chan)
 		printf("isa_dmadone: channel %d not acquired\n", chan);
 #endif
 
-#if 0
-	/*
-	 * XXX This should be checked, but drivers like ad1848 only call
-	 * isa_dmastart() once because they use Auto DMA mode.  If we
-	 * leave this in, drivers that do this will print this continuously.
-	 */
-	if ((dma_busy & (1 << chan)) == 0)
+	if (((dma_busy & (1 << chan)) == 0) && 
+	    (dma_auto_mode & (1 << chan)) == 0 )
 		printf("isa_dmadone: channel %d not busy\n", chan);
-#endif
+
 
 	if (dma_bounced & (1 << chan)) {
 		/* copy bounce buffer on read */
@@ -972,12 +976,14 @@ isa_dmastatus(int chan)
 		printf("isa_dmastatus: channel %d not active\n", chan);
 		return(-1);
 	}
+	/* channel busy? */
 
-	/* still busy? */
-	if ((dma_busy & (1 << chan)) == 0) {
-		return(0);
-	}
-	
+	if (((dma_busy & (1 << chan)) == 0) &&
+	    (dma_auto_mode & (1 << chan)) == 0 ) {
+	    printf("chan %d not busy\n", chan);
+	    return -2 ;
+	}	
+
 #ifdef PC98
 	ffport = DMA1_FFC;
 	waport = DMA1_CHN(chan) + 2;
@@ -1013,6 +1019,31 @@ isa_dmastatus(int chan)
 	if (chan >= 4)			/* high channels move words */
 		cnt *= 2;
 	return(cnt);
+}
+
+/*
+ * Stop a DMA transfer currently in progress.
+ */
+int
+isa_dmastop(int chan) 
+{
+	if ((dma_inuse & (1 << chan)) == 0)
+		printf("isa_dmastop: channel %d not acquired\n", chan);  
+
+	if (((dma_busy & (1 << chan)) == 0) &&
+	    ((dma_auto_mode & (1 << chan)) == 0)) {
+		printf("chan %d not busy\n", chan);
+		return -2 ;
+	}
+    
+	if ((chan & 4) == 0) {
+		outb(DMA1_SMSK, (chan & 3) | 4 /* disable mask */);
+	} else {
+#ifndef PC98
+		outb(DMA2_SMSK, (chan & 3) | 4 /* disable mask */);
+#endif
+	}
+	return(isa_dmastatus(chan));
 }
 
 /*
