@@ -571,7 +571,7 @@ static int
 acpi_sysresource_probe(device_t dev)
 {
     if (!acpi_disabled("sysresource") && acpi_MatchHid(dev, "PNP0C02"))
-	device_set_desc(dev, "system resource");
+	device_set_desc(dev, "System Resource");
     else
 	return (ENXIO);
 
