@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: aic7xxx_osm.h,v 1.22 2003/06/10 03:25:24 gibbs Exp $
+ * $Id: aic7xxx_osm.h,v 1.23 2003/07/01 15:51:52 scottl Exp $
  *
  * $FreeBSD$
  */
@@ -69,8 +69,13 @@
 #include <sys/rman.h>
 
 #if NPCI > 0
+#if __FreeBSD_version < 500000
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
+#else
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
+#endif
 #endif
 
 #include <cam/cam.h>

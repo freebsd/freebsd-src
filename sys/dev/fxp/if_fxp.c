@@ -69,8 +69,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/in_cksum.h>
 #endif
 
-#include <pci/pcivar.h>
-#include <pci/pcireg.h>		/* for PCIM_CMD_xxx */
+#include <dev/pci/pcivar.h>
+#include <dev/pci/pcireg.h>		/* for PCIM_CMD_xxx */
 
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>

@@ -39,8 +39,8 @@
 #include <machine/resource.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
-#include <pci/pcivar.h>
-#include <pci/pcireg.h>
+#include <dev/pci/pcivar.h>
+#include <dev/pci/pcireg.h>
 #include <dev/ata/ata-all.h>
 #include <dev/ata/ata-pci.h>
 

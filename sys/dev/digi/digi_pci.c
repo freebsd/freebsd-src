@@ -40,7 +40,7 @@
 #include <machine/resource.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
-#include <pci/pcivar.h>
+#include <dev/pci/pcivar.h>
 
 #include <sys/digiio.h>
 #include <dev/digi/digireg.h>

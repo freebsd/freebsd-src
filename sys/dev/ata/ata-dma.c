@@ -37,7 +37,7 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/bus.h>
-#include <pci/pcivar.h>
+#include <dev/pci/pcivar.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <dev/ata/ata-all.h>

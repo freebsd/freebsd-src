@@ -103,8 +103,8 @@ __FBSDID("$FreeBSD$");
 #include "miidevs.h"
 #include <dev/mii/brgphyreg.h>
 
-#include <pci/pcireg.h>
-#include <pci/pcivar.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
 
 #include <dev/bge/if_bgereg.h>
 

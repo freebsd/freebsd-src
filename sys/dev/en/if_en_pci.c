@@ -63,8 +63,8 @@ __FBSDID("$FreeBSD$");
 #include <net/if_atm.h>
 #include <net/if_media.h>
 
-#include <pci/pcivar.h>
-#include <pci/pcireg.h>
+#include <dev/pci/pcivar.h>
+#include <dev/pci/pcireg.h>
 
 #include <dev/utopia/utopia.h>
 #include <dev/en/midwayreg.h>

@@ -243,8 +243,8 @@ static dpt_sig_S ASR_sig = {
 #endif
 #include <machine/vmparam.h>
 
-#include <pci/pcivar.h>
-#include <pci/pcireg.h>
+#include <dev/pci/pcivar.h>
+#include <dev/pci/pcireg.h>
 
 #define	STATIC static
 #define	INLINE
