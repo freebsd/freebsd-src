@@ -122,6 +122,7 @@ long	strtol __P((const char *, char **, int));
 u_long	strtoul __P((const char *, char **, int));
 quad_t	strtoq __P((const char *, char **, int));
 u_quad_t strtouq __P((const char *, char **, int));
+void	tprintf __P((struct proc *p, int pri, const char *, ...)) __printflike(3, 4);
 
 void	bcopy __P((const void *from, void *to, size_t len));
 void	ovbcopy __P((const void *from, void *to, size_t len));
