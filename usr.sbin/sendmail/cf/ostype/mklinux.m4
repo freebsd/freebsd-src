@@ -32,11 +32,11 @@ divert(-1)
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	MkLinux support contributed by Paul DeBois <dubois@primate.wisc.edu>
+#	MkLinux support contributed by Paul DuBois <dubois@primate.wisc.edu>
 #
 
 divert(0)
-VERSIONID(`@(#)mklinux.m4	8.1 (Berkeley) 10/30/96')
+VERSIONID(`@(#)mklinux.m4	8.2 (Berkeley) 11/17/96')
 ifdef(`STATUS_FILE',,
 	`define(`STATUS_FILE', /var/log/sendmail.st)')
 ifdef(`PROCMAIL_MAILER_PATH',,

@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)collect.c	8.60 (Berkeley) 11/15/96";
+static char sccsid[] = "@(#)collect.c	8.61 (Berkeley) 11/24/96";
 #endif /* not lint */
 
 # include <errno.h>
@@ -90,18 +90,18 @@ collect(fp, smtpmode, requeueflag, hdrp, e)
 	HDR **hdrp;
 	register ENVELOPE *e;
 {
-	register FILE *tf;
-	bool ignrdot = smtpmode ? FALSE : IgnrDot;
-	time_t dbto = smtpmode ? TimeOuts.to_datablock : 0;
-	register char *bp;
-	int c = '\0';
-	bool inputerr = FALSE;
+	register FILE *volatile tf;
+	volatile bool ignrdot = smtpmode ? FALSE : IgnrDot;
+	volatile time_t dbto = smtpmode ? TimeOuts.to_datablock : 0;
+	register char *volatile bp;
+	volatile int c = '\0';
+	volatile bool inputerr = FALSE;
 	bool headeronly;
-	char *buf;
-	int buflen;
-	int istate;
-	int mstate;
-	u_char *pbp;
+	char *volatile buf;
+	volatile int buflen;
+	volatile int istate;
+	volatile int mstate;
+	u_char *volatile pbp;
 	u_char peekbuf[8];
 	char dfname[20];
 	char bufbuf[MAXLINE];
@@ -205,7 +205,7 @@ collect(fp, smtpmode, requeueflag, hdrp, e)
 				{
 					if (istate == IS_BOL)
 						fprintf(TrafficLogFile, "%05d <<< ",
-							getpid());
+							(int) getpid());
 					if (c == EOF)
 						fprintf(TrafficLogFile, "[EOF]\n");
 					else
@@ -647,7 +647,7 @@ tferror(tf, e)
 				st.st_size);
 		else
 			fprintf(tf, "\n*** Mail of at least %ld bytes could not be accepted\n",
-				st.st_size);
+				(long) st.st_size);
 		fprintf(tf, "*** at %s due to lack of disk space for temp file.\n",
 			MyHostName);
 		avail = freediskspace(QueueDir, &bsize);

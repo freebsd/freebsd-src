@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)clock.c	8.13 (Berkeley) 2/21/96";
+static char sccsid[] = "@(#)clock.c	8.16 (Berkeley) 11/27/96";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -98,8 +98,8 @@ setevent(intvl, func, arg)
 	*evp = ev;
 
 	if (tTd(5, 5))
-		printf("setevent: intvl=%ld, for=%ld, func=%x, arg=%d, ev=%x\n",
-			intvl, now + intvl, func, arg, ev);
+		printf("setevent: intvl=%ld, for=%ld, func=%lx, arg=%d, ev=%lx\n",
+			intvl, now + intvl, (u_long) func, arg, (u_long) ev);
 
 	tick(0);
 	return (ev);
@@ -124,7 +124,7 @@ clrevent(ev)
 	register EVENT **evp;
 
 	if (tTd(5, 5))
-		printf("clrevent: ev=%x\n", ev);
+		printf("clrevent: ev=%lx\n", (u_long) ev);
 	if (ev == NULL)
 		return;
 
@@ -191,8 +191,9 @@ tick(arg)
 		ev = EventQueue;
 		EventQueue = EventQueue->ev_link;
 		if (tTd(5, 6))
-			printf("tick: ev=%x, func=%x, arg=%d, pid=%d\n", ev,
-				ev->ev_func, ev->ev_arg, ev->ev_pid);
+			printf("tick: ev=%lx, func=%lx, arg=%d, pid=%d\n",
+				(u_long) ev, (u_long) ev->ev_func,
+				ev->ev_arg, ev->ev_pid);
 
 		/* we must be careful in here because ev_func may not return */
 		f = ev->ev_func;
@@ -211,17 +212,7 @@ tick(arg)
 
 		/* restore signals so that we can take ticks while in ev_func */
 		(void) setsignal(SIGALRM, tick);
-#ifdef SIG_UNBLOCK
-		/* unblock SIGALRM signal */
-		sigemptyset(&ss);
-		sigaddset(&ss, SIGALRM);
-		sigprocmask(SIG_UNBLOCK, &ss, NULL);
-#else
-#if HASSIGSETMASK
-		/* reset 4.2bsd signal mask to allow future alarms */
-		(void) sigsetmask(sigblock(0) & ~sigmask(SIGALRM));
-#endif /* HASSIGSETMASK */
-#endif /* SIG_UNBLOCK */
+		(void) releasesignal(SIGALRM);
 
 		/* call ev_func */
 		errno = olderrno;
@@ -262,12 +253,17 @@ SLEEP_T
 sleep(intvl)
 	unsigned int intvl;
 {
+	int was_held;
+
 	if (intvl == 0)
 		return (SLEEP_T) 0;
 	SleepDone = FALSE;
 	(void) setevent((time_t) intvl, endsleep, 0);
+	was_held = releasesignal(SIGALRM);
 	while (!SleepDone)
 		pause();
+	if (was_held > 0)
+		blocksignal(SIGALRM);
 	return (SLEEP_T) 0;
 }
 
