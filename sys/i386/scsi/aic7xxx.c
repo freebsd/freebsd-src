@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.29.2.16 1996/05/22 15:34:55 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.29.2.17 1996/05/23 15:14:32 gibbs Exp $
  */
 /*
  * TODO:
@@ -1560,6 +1560,8 @@ clear:
 			 	((long)xs->sc_link->fordriver & SELBUSB)
 				 	? 'B' : 'A',
 				 iobase);
+			/* Stop the selection */
+			outb(SCSISEQ + iobase, 0);
 
 			outb(SCB_CONTROL + iobase, 0);
 
