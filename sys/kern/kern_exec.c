@@ -551,7 +551,7 @@ exec_new_vmspace(imgp)
 {
 	int error;
 	struct vmspace *vmspace = imgp->proc->p_vmspace;
-	caddr_t	stack_addr = (caddr_t) (USRSTACK - MAXSSIZ);
+	caddr_t	stack_addr = (caddr_t) (USRSTACK - maxssiz);
 	vm_map_t map = &vmspace->vm_map;
 
 	GIANT_REQUIRED;
@@ -576,7 +576,7 @@ exec_new_vmspace(imgp)
 
 	/* Allocate a new stack */
 	error = vm_map_stack (&vmspace->vm_map, (vm_offset_t)stack_addr,
-			      (vm_size_t)MAXSSIZ, VM_PROT_ALL, VM_PROT_ALL, 0);
+			      (vm_size_t)maxssiz, VM_PROT_ALL, VM_PROT_ALL, 0);
 	if (error)
 		return (error);
 
@@ -588,7 +588,7 @@ exec_new_vmspace(imgp)
 		 * store to grow upwards. This will do for now.
 		 */
 		vm_offset_t bsaddr;
-		bsaddr = USRSTACK - 2*MAXSSIZ;
+		bsaddr = USRSTACK - 2*maxssiz;
 		error = vm_map_find(&vmspace->vm_map, 0, 0, &bsaddr,
 				    4*PAGE_SIZE, 0,
 				    VM_PROT_ALL, VM_PROT_ALL, 0);
@@ -600,8 +600,8 @@ exec_new_vmspace(imgp)
 	 * VM_STACK case, but they are still used to monitor the size of the
 	 * process stack so we can check the stack rlimit.
 	 */
-	vmspace->vm_ssize = SGROWSIZ >> PAGE_SHIFT;
-	vmspace->vm_maxsaddr = (char *)USRSTACK - MAXSSIZ;
+	vmspace->vm_ssize = sgrowsiz >> PAGE_SHIFT;
+	vmspace->vm_maxsaddr = (char *)USRSTACK - maxssiz;
 
 	return(0);
 }

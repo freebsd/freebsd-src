@@ -576,7 +576,7 @@ svr4_sys_mmap64(td, uap)
 	SCARG(&mm, addr) = SCARG(uap, addr);
 	SCARG(&mm, pos) = SCARG(uap, pos);
 
-	rp = (void *) round_page((vm_offset_t)(td->td_proc->p_vmspace->vm_daddr + MAXDSIZ));
+	rp = (void *) round_page((vm_offset_t)(td->td_proc->p_vmspace->vm_daddr + maxdsiz));
 	if ((SCARG(&mm, flags) & MAP_FIXED) == 0 &&
 	    SCARG(&mm, addr) != 0 && (void *)SCARG(&mm, addr) < rp)
 		SCARG(&mm, addr) = rp;
