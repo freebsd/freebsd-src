@@ -98,8 +98,8 @@ struct uidinfo {
 
 struct proc;
 
-void	 addupc_intr __P((struct proc *p, u_long pc, u_int ticks));
-void	 addupc_task __P((struct proc *p, u_long pc, u_int ticks));
+void	 addupc_intr __P((struct proc *p, uintptr_t pc, u_int ticks));
+void	 addupc_task __P((struct proc *p, uintptr_t pc, u_int ticks));
 void	 calcru __P((struct proc *p, struct timeval *up, struct timeval *sp,
 	    struct timeval *ip));
 int	 chgproccnt __P((struct uidinfo *uip, int diff, int max));
