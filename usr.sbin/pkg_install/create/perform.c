@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.24 1995/04/26 12:37:46 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.25 1995/04/26 15:06:58 jkh Exp $";
 #endif
 
 /*
@@ -175,77 +175,81 @@ pkg_perform(char **pkgs)
     return TRUE;	/* Success */
 }
 
+/*
+ * There doesn't seem to be a sysconf() datum for telling you how *many*
+ * arguments you can have, only how long the maximum list can be.
+ * Shamelessly guess at what seems to be a conservative value.
+ */
+#define MAX_NUM_ARGS	4096
+
 static void
 make_dist(char *home, char *pkg, char *suffix, Package *plist)
 {
     char tball[FILENAME_MAX];
-    char *cmd;
-    int ret, max, len;
     PackingList p;
+    int ret, max, len;
+    char *args[MAX_NUM_ARGS];
+    int nargs = 0;
 
-    max = sysconf(_SC_ARG_MAX);
-    cmd = alloca(max);
-    if (!cmd)
-	barf("Couldn't allocate temporary storage for dist name!");
-    strcpy(cmd, "tar ");
+    args[nargs++] = "tar";	/* argv[0] */
+
     if (*pkg == '/')
-	snprintf(tball, max, "%s.%s", pkg, suffix);
+	snprintf(tball, FILENAME_MAX, "%s.%s", pkg, suffix);
     else
-	snprintf(tball, max, "%s/%s.%s", home, pkg, suffix);
+	snprintf(tball, FILENAME_MAX, "%s/%s.%s", home, pkg, suffix);
+
+    args[nargs++] = "-c";
+    args[nargs++] = "-f";
+    args[nargs++] = tball;
     if (index(suffix, 'z'))	/* Compress/gzip? */
-	strncat(cmd, "-z", max - strlen(cmd));
+	args[nargs++] = "-z";
     if (Dereference)
-	strncat(cmd, "h", max - strlen(cmd));
+	args[nargs++] = "-h";
+    if (ExcludeFrom) {
+	args[nargs++] = "-X";
+	args[nargs++] = ExcludeFrom;
+    }
+
     if (Verbose)
 	printf("Creating gzip'd tar ball in '%s'\n", tball);
-    strncat(cmd, "cf ", max - strlen(cmd));
-    strncat(cmd, tball, max - strlen(cmd));
-    if (ExcludeFrom) {
-	len = strlen(cmd);
-	snprintf(&cmd[len], max -= len, " -X %s", ExcludeFrom);
-    }
-    len = strlen(cmd);
-    snprintf(&cmd[len], max -= len, " %s %s %s", CONTENTS_FNAME,
-	     COMMENT_FNAME, DESC_FNAME);
-    if (Install) {
-	len = strlen(cmd);
-	snprintf(&cmd[len], max -= len, " %s", INSTALL_FNAME);
-    }
-    if (DeInstall) {
-	len = strlen(cmd);
-	snprintf(&cmd[len], max -= len, " %s", DEINSTALL_FNAME);
-    }
-    if (Require) {
-	len = strlen(cmd);
-	snprintf(&cmd[len], max -= len, " %s", REQUIRE_FNAME);
-    }
-    if (Display) {
-	len = strlen(cmd);
-	snprintf(&cmd[len], max -= len, " %s", DISPLAY_FNAME);
-    }
-    if (Mtree) {
-	len = strlen(cmd);
-	snprintf(&cmd[len], max -= len, " %s", MTREE_FNAME);
-    }
+
+    args[nargs++] = CONTENTS_FNAME;
+    args[nargs++] = COMMENT_FNAME;
+    args[nargs++] = DESC_FNAME;
+
+    if (Install)
+	args[nargs++] = INSTALL_FNAME;
+    if (DeInstall)
+	args[nargs++] = DEINSTALL_FNAME;
+    if (Require)
+	args[nargs++] = REQUIRE_FNAME;
+    if (Display)
+	args[nargs++] = DISPLAY_FNAME;
+    if (Mtree)
+	args[nargs++] = MTREE_FNAME;
+
     for (p = plist->head; p; p = p->next) {
-	if (p->type == PLIST_FILE) {
-	    len = strlen(cmd);
-	    snprintf(&cmd[len], max -= len, " %s", p->name);
-	}
-	else if (p->type == PLIST_CWD) {
-	    len = strlen(cmd);
-	    snprintf(&cmd[len], max -= len, " -C %s", p->name);
-	}
-	else if (p->type == PLIST_SRC) {
-	    len = strlen(cmd);
-	    snprintf(&cmd[len], max -= len, " -C %s", p->name);
+	if (nargs == (MAX_NUM_ARGS - 1))
+	    barf("More than %d arguments given in plist! :-(", MAX_NUM_ARGS);
+	if (p->type == PLIST_FILE)
+	    args[nargs++] = p->name;
+	else if (p->type == PLIST_CWD || p->type == PLIST_SRC) {
+	    args[nargs++] = "-C";
+	    args[nargs++] = p->name;
 	}
 	else if (p->type == PLIST_IGNORE)
 	     p = p->next;
     }
-    ret = vsystem(cmd);
+    args[nargs] = NULL;
+    if (fork() == 0) {
+	execv("/usr/bin/tar", args);
+	barf("Failed to execute tar command!");
+    }
+    else
+	wait(&ret);
+    /* assume either signal or bad exit is enough for us */
     if (ret)
-	barf("tar command `%s' failed with code %d", cmd, ret);
+	barf("tar command failed with code %d", ret);
 }
 
 static void
