@@ -1842,7 +1842,7 @@ thread_single(int force_exit)
 		FOREACH_THREAD_IN_PROC(p, td2) {
 			if (td2 == td)
 				continue;
-			td->td_flags |= TDF_ASTPENDING;
+			td2->td_flags |= TDF_ASTPENDING;
 			if (TD_IS_INHIBITED(td2)) {
 				if (force_exit == SINGLE_EXIT) {
 					if (TD_IS_SUSPENDED(td2)) {
