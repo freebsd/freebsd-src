@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vnops.c	8.32 (Berkeley) 6/23/95
- * $Id: union_vnops.c,v 1.46 1997/10/26 20:55:26 phk Exp $
+ * $Id: union_vnops.c,v 1.47 1998/01/18 07:56:41 kato Exp $
  */
 
 #include <sys/param.h>
@@ -1611,9 +1611,19 @@ union_unlock(ap)
 
 	un->un_flags &= ~UN_LOCKED;
 
-	if ((un->un_flags & (UN_ULOCK|UN_KLOCK)) == UN_ULOCK)
-		VOP_UNLOCK(un->un_uppervp, 0, p);
-
+	if ((un->un_flags & (UN_ULOCK|UN_KLOCK)) == UN_ULOCK) {
+		/*
+		 * XXX
+		 * Workarround for lockmgr violation.  Need to implement
+		 * real lockmgr-style lock/unlock.
+		 */
+		if ((ap->a_vp->v_flag & VDOOMED) &&
+		    ((struct lock *)un->un_uppervp->v_data)->lk_lockholder
+		    == LK_KERNPROC)
+			VOP_UNLOCK(un->un_uppervp, 0, 0);
+		else
+			VOP_UNLOCK(un->un_uppervp, 0, p);
+	}
 	un->un_flags &= ~UN_ULOCK;
 
 	if (un->un_flags & UN_WANT) {
