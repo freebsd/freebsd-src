@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/openpam_ttyconv.c#22 $
+ * $P4: //depot/projects/openpam/lib/openpam_ttyconv.c#23 $
  */
 
 #include <sys/types.h>
@@ -179,13 +179,13 @@ openpam_ttyconv(int n,
 		resp[i]->resp = NULL;
 		switch (msg[i]->msg_style) {
 		case PAM_PROMPT_ECHO_OFF:
-			resp[i]->resp = prompt_echo_off(msg[i]->msg);
-			if (resp[i]->resp == NULL)
+			(*resp[i]).resp = prompt_echo_off(msg[i]->msg);
+			if ((*resp[i]).resp == NULL)
 				goto fail;
 			break;
 		case PAM_PROMPT_ECHO_ON:
-			resp[i]->resp = prompt(msg[i]->msg);
-			if (resp[i]->resp == NULL)
+			(*resp[i]).resp = prompt(msg[i]->msg);
+			if ((*resp[i]).resp == NULL)
 				goto fail;
 			break;
 		case PAM_ERROR_MSG:
@@ -206,11 +206,13 @@ openpam_ttyconv(int n,
 	}
 	RETURNC(PAM_SUCCESS);
  fail:
-	while (i)
-		if (resp[--i]->resp) {
-			memset(resp[i]->resp, 0, strlen(resp[i]->resp));
-			FREE(resp[i]->resp);
+	for (i = 0; i < n; ++i) {
+		if ((*resp[i]).resp != NULL) {
+			memset((*resp[i]).resp, 0, strlen((*resp[i]).resp));
+			FREE((*resp[i]).resp);
 		}
+	}
+	memset(*resp, 0, n * sizeof **resp);
 	FREE(*resp);
 	RETURNC(PAM_CONV_ERR);
 }
