@@ -3050,6 +3050,7 @@ vaccess(type, file_mode, file_uid, file_gid, acc_mode, cred, privused)
 
 	/* Check the owner. */
 	if (cred->cr_uid == file_uid) {
+		dac_granted |= VADMIN;
 		if (file_mode & S_IXUSR)
 			dac_granted |= VEXEC;
 		if (file_mode & S_IRUSR)
@@ -3116,6 +3117,10 @@ privcheck:
 	if ((acc_mode & VWRITE) && ((dac_granted & VWRITE) == 0) &&
 	    !cap_check_xxx(cred, NULL, CAP_DAC_WRITE, PRISON_ROOT))
 		cap_granted |= VWRITE;
+
+	if ((acc_mode & VADMIN) && ((dac_granted & VADMIN) == 0) &&
+	    !cap_check_xxx(cred, NULL, CAP_FOWNER, PRISON_ROOT))
+		cap_granted |= VADMIN;
 
 	if ((acc_mode & (cap_granted | dac_granted)) == acc_mode) {
 		/* XXX audit: privilege used */
