@@ -80,13 +80,14 @@ then zero is returned.  Otherwise, an appropriate error code is returned.
 .Sh ERRORS
 .Bl -tag -width Er
 .It Bq Er EINVAL
-The ACL type passed is invalid for this vnode, or the ACL data is invalid
+The ACL type passed is invalid for this vnode, or the ACL data is invalid.
 .It Bq Er EACCES
 Permission denied
 .It Bq Er ENOMEM
 Insufficient memory available to fulfill request
 .It Bq Er EOPNOTSUPP
-The filesystem does not support VOP_ACLCHECK
+The filesystem does not support
+.Fn VOP_ACLCHECK .
 .El
 .Sh SEE ALSO
 .Xr acl 9 ,
