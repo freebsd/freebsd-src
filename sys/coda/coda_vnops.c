@@ -141,7 +141,6 @@ struct vop_vector coda_vnodeops = {
     .vop_getpages = vop_stdgetpages,	/* pager intf.*/
     .vop_putpages = vop_stdputpages,	/* pager intf.*/
     .vop_destroyvobject = vop_stddestroyvobject,
-    .vop_getvobject = vop_stdgetvobject,
     .vop_getwritemount =	vop_stdgetwritemount,
 
 #if 0

@@ -80,7 +80,6 @@ struct vop_vector default_vnodeops = {
 	.vop_destroyvobject =	vop_stddestroyvobject,
 	.vop_fsync =		VOP_NULL,
 	.vop_getpages =		vop_stdgetpages,
-	.vop_getvobject =	vop_stdgetvobject,
 	.vop_getwritemount = 	vop_stdgetwritemount,
 	.vop_inactive =		vop_stdinactive,
 	.vop_ioctl =		VOP_ENOTTY,
@@ -394,29 +393,6 @@ vop_stddestroyvobject(ap)
 		VM_OBJECT_UNLOCK(obj);
 	}
 	return (0);
-}
-
-/*
- * Return the underlying VM object.  This routine may be called with or
- * without the vnode interlock held.  If called without, the returned
- * object is not guarenteed to be valid.  The syncer typically gets the
- * object without holding the interlock in order to quickly test whether
- * it might be dirty before going heavy-weight.  vm_object's use zalloc
- * and thus stable-storage, so this is safe.
- */
-int
-vop_stdgetvobject(ap)
-	struct vop_getvobject_args /* {
-		struct vnode *vp;
-		struct vm_object **objpp;
-	} */ *ap;
-{
-	struct vnode *vp = ap->a_vp;
-	struct vm_object **objpp = ap->a_objpp;
-
-	if (objpp)
-		*objpp = vp->v_object;
-	return (vp->v_object ? 0 : EINVAL);
 }
 
 /* XXX Needs good comment and VOP_BMAP(9) manpage */
