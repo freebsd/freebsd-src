@@ -55,6 +55,8 @@
 #include <net/ethernet.h>
 #include <net/if_arp.h>
 
+static const struct ng_parse_struct_field ng_eiface_par_fields[]
+	= NG_EIFACE_PAR_FIELDS;
 
 /* Node private data */
 struct ng_eiface_private {

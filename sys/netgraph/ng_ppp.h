@@ -93,12 +93,10 @@ struct ng_ppp_mp_state {
 
 /* Keep this in sync with the above structure definition */
 #define NG_PPP_MP_STATE_TYPE_INFO(atype)	{		\
-	{							\
 	  { "rseq",	(atype)			},		\
 	  { "mseq",	&ng_parse_hint32_type	},		\
 	  { "xseq",	&ng_parse_hint32_type	},		\
-	  { NULL },						\
-	}							\
+	  { NULL }						\
 }
 
 /* Per-link config structure */
@@ -113,15 +111,13 @@ struct ng_ppp_link_conf {
 
 /* Keep this in sync with the above structure definition */
 #define NG_PPP_LINK_TYPE_INFO	{				\
-	{							\
 	  { "enableLink",	&ng_parse_uint8_type	},	\
 	  { "enableProtoComp",	&ng_parse_uint8_type	},	\
 	  { "enableACFComp",	&ng_parse_uint8_type	},	\
 	  { "mru",		&ng_parse_uint16_type	},	\
 	  { "latency",		&ng_parse_uint32_type	},	\
 	  { "bandwidth",	&ng_parse_uint32_type	},	\
-	  { NULL },						\
-	}							\
+	  { NULL }						\
 }
 
 /* Bundle config structure */
@@ -145,7 +141,6 @@ struct ng_ppp_bund_conf {
 
 /* Keep this in sync with the above structure definition */
 #define NG_PPP_BUND_TYPE_INFO	{					\
-	{								\
 	  { "mrru",			&ng_parse_uint16_type	},	\
 	  { "enableMultilink",		&ng_parse_uint8_type	},	\
 	  { "recvShortSeq",		&ng_parse_uint8_type	},	\
@@ -162,7 +157,6 @@ struct ng_ppp_bund_conf {
 	  { "enableVJCompression",	&ng_parse_uint8_type	},	\
 	  { "enableVJDecompression",	&ng_parse_uint8_type	},	\
 	  { NULL }							\
-	}								\
 }
 
 /* Total node config structure */
@@ -173,11 +167,9 @@ struct ng_ppp_node_conf {
 
 /* Keep this in sync with the above structure definition */
 #define NG_PPP_CONFIG_TYPE_INFO(bctype, arytype)	{	\
-	{							\
 	  { "bund",		(bctype)	},		\
 	  { "links",		(arytype)	},		\
 	  { NULL }						\
-	}							\
 }
 
 /* Statistics struct for a link (or the bundle if NG_PPP_BUNDLE_LINKNUM) */
@@ -194,7 +186,6 @@ struct ng_ppp_link_stat {
 
 /* Keep this in sync with the above structure definition */
 #define NG_PPP_STATS_TYPE_INFO	{				\
-	{							\
 	  { "xmitFrames",	&ng_parse_uint32_type	},	\
 	  { "xmitOctets",	&ng_parse_uint32_type	},	\
 	  { "recvFrames",	&ng_parse_uint32_type	},	\
@@ -204,7 +195,6 @@ struct ng_ppp_link_stat {
 	  { "dupFragments",	&ng_parse_uint32_type	},	\
 	  { "dropFragments",	&ng_parse_uint32_type	},	\
 	  { NULL }						\
-	}							\
 }
 
 #endif /* _NETGRAPH_PPP_H_ */
