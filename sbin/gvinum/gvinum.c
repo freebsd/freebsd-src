@@ -55,6 +55,7 @@ void	gvinum_create(int, char **);
 void	gvinum_help(void);
 void	gvinum_init(int, char **);
 void	gvinum_list(int, char **);
+void	gvinum_parityop(int, char **, int);
 void	gvinum_printconfig(int, char **);
 void	gvinum_rm(int, char **);
 void	gvinum_saveconfig(void);
@@ -552,6 +553,89 @@ gvinum_printconfig(int argc, char **argv)
 }
 
 void
+gvinum_parityop(int argc, char **argv, int rebuild)
+{
+	struct gctl_req *req;
+	int flags, i, rv;
+	off_t offset;
+	const char *errstr;
+	char *op, *msg;
+
+	if (rebuild) {
+		op = "rebuildparity";
+		msg = "Rebuilding";
+	} else {
+		op = "checkparity";
+		msg = "Checking";
+	}
+
+	optreset = 1;
+	optind = 1;
+	flags = 0;
+	while ((i = getopt(argc, argv, "fv")) != -1) {
+		switch (i) {
+		case 'f':
+			flags |= GV_FLAG_F;
+			break;
+		case 'v':
+			flags |= GV_FLAG_V;
+			break;
+		case '?':
+		default:
+			warnx("invalid flag '%c'", i);
+			return;
+		}
+	}
+	argc -= optind;
+	argv += optind;
+
+	if (argc != 1) {
+		warn("usage: %s [-f] [-v] <plex>", op);
+		return;
+	}
+
+	do {
+		rv = 0;
+		req = gctl_get_handle();
+		gctl_ro_param(req, "class", -1, "VINUM");
+		gctl_ro_param(req, "verb", -1, "parityop");
+		gctl_ro_param(req, "flags", sizeof(int), &flags);
+		gctl_ro_param(req, "rebuild", sizeof(int), &rebuild);
+		gctl_rw_param(req, "rv", sizeof(int), &rv);
+		gctl_rw_param(req, "offset", sizeof(off_t), &offset);
+		gctl_ro_param(req, "plex", -1, argv[0]);
+		errstr = gctl_issue(req);
+		if (errstr) {
+			warnx("%s\n", errstr);
+			gctl_free(req);
+			break;
+		}
+		gctl_free(req);
+		if (flags & GV_FLAG_V) {
+			printf("\r%s at %s ... ", msg,
+			    gv_roughlength(offset, 1));
+		}
+		if (rv == 1) {
+			printf("Parity incorrect at offset 0x%jx\n",
+			    (intmax_t)offset);
+			if (!rebuild)
+				break;
+		}
+		fflush(stdout);
+
+		/* Clear the -f flag. */
+		flags &= ~GV_FLAG_F;
+	} while (rv >= 0);
+
+	if ((rv == 2) && (flags & GV_FLAG_V)) {
+		if (rebuild)
+			printf("Rebuilt parity on %s\n", argv[0]);
+		else
+			printf("%s has correct parity\n", argv[0]);
+	}
+}
+
+void
 gvinum_rm(int argc, char **argv)
 {
 	struct gctl_req *req;
@@ -721,6 +805,10 @@ parseline(int argc, char **argv)
 		gvinum_start(argc, argv);
 	else if (!strcmp(argv[0], "stop"))
 		gvinum_stop(argc, argv);
+	else if (!strcmp(argv[0], "checkparity"))
+		gvinum_parityop(argc, argv, 0);
+	else if (!strcmp(argv[0], "rebuildparity"))
+		gvinum_parityop(argc, argv, 1);
 	else
 		printf("unknown command '%s'\n", argv[0]);
 

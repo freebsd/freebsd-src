@@ -503,6 +503,9 @@ gv_config(struct gctl_req *req, struct g_class *mp, char const *verb)
 	} else if (!strcmp(verb, "create")) {
 		gv_create(gp, req);
 
+	} else if (!strcmp(verb, "parityop")) {
+		gv_parityop(gp, req);
+
 	} else if (!strcmp(verb, "remove")) {
 		gv_remove(gp, req);
 
