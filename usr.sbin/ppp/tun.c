@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: tun.c,v 1.11 1999/01/28 01:56:34 brian Exp $
+ *	$Id: tun.c,v 1.13 1999/04/26 08:54:34 brian Exp $
  */
 
 #include <sys/param.h>
@@ -36,9 +36,13 @@
 #include <netinet/ip.h>
 #include <sys/un.h>
 
+#include <errno.h>
 #include <string.h>
 #include <sys/ioctl.h>
-#include <sys/errno.h>
+#ifdef __NetBSD__
+#include <stdio.h>
+#include <unistd.h>
+#endif
 
 #include "mbuf.h"
 #include "log.h"
@@ -66,6 +70,25 @@
 void
 tun_configure(struct bundle *bundle, int mtu)
 {
+#ifdef __NetBSD__
+  struct ifreq ifr;
+  int s;
+  
+  s = socket(AF_INET, SOCK_DGRAM, 0);
+  
+  if (s < 0) {
+    log_Printf(LogERROR, "tun_configure: socket(): %s\n", strerror(errno));
+    return;
+  }
+
+  sprintf(ifr.ifr_name, "tun%d", bundle->unit);
+  ifr.ifr_mtu = mtu;
+  if (ioctl(s, SIOCSIFMTU, &ifr) < 0)
+      log_Printf(LogERROR, "tun_configure: ioctl(SIOCSIFMTU): %s\n",
+             strerror(errno));
+
+  close(s);
+#else
   struct tuninfo info;
 
   memset(&info, '\0', sizeof info);
@@ -86,4 +109,5 @@ tun_configure(struct bundle *bundle, int mtu)
   if (ioctl(bundle->dev.fd, TUNSIFINFO, &info) < 0)
     log_Printf(LogERROR, "tun_configure: ioctl(TUNSIFINFO): %s\n",
 	      strerror(errno));
+#endif
 }

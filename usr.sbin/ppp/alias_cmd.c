@@ -2,7 +2,7 @@
  * The code in this file was written by Eivind Eklund <perhaps@yes.no>,
  * who places it in the public domain without restriction.
  *
- *	$Id: alias_cmd.c,v 1.22 1999/03/25 23:36:23 brian Exp $
+ *	$Id: alias_cmd.c,v 1.23 1999/04/26 08:54:32 brian Exp $
  */
 
 #include <sys/param.h>
@@ -19,10 +19,10 @@
 #include <string.h>
 #include <termios.h>
 
-#ifdef __OpenBSD__
-#include "alias.h"
-#else
+#ifdef __FreeBSD__
 #include <alias.h>
+#else
+#include "alias.h"
 #endif
 #include "defs.h"
 #include "command.h"

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.73 1999/03/03 23:00:40 brian Exp $
+ * $Id: ipcp.c,v 1.75 1999/04/26 08:54:34 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backward compatibility
@@ -32,19 +32,19 @@
 #include <netdb.h>
 #include <sys/un.h>
 
+#include <errno.h>
 #include <fcntl.h>
 #include <resolv.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/errno.h>
 #include <termios.h>
 #include <unistd.h>
 
 #ifndef NOALIAS
-#ifdef __OpenBSD__
-#include "alias.h"
-#else
+#ifdef __FreeBSD__
 #include <alias.h>
+#else
+#include "alias.h"
 #endif
 #endif
 #include "ua.h"
