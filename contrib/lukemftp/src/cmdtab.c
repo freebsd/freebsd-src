@@ -1,4 +1,4 @@
-/*	$NetBSD: cmdtab.c,v 1.39 2000/11/15 00:10:59 lukem Exp $	*/
+/*	$NetBSD: cmdtab.c,v 1.40 2002/07/29 04:24:47 lukem Exp $	*/
 
 /*-
  * Copyright (c) 1996-2000 The NetBSD Foundation, Inc.
@@ -69,8 +69,16 @@
  * SUCH DAMAGE.
  */
 
-#include "lukemftp.h"
+#include <sys/cdefs.h>
+#ifndef lint
+#if 0
+static char sccsid[] = "@(#)cmdtab.c	8.4 (Berkeley) 10/9/94";
+#else
+__RCSID("$NetBSD: cmdtab.c,v 1.40 2002/07/29 04:24:47 lukem Exp $");
+#endif
+#endif /* not lint */
 
+#include <stdio.h>
 #include "ftp_var.h"
 
 /*
@@ -123,7 +131,7 @@ char	nmaphelp[] =	"set templates for default file name mapping";
 char	ntranshelp[] =	"set translation table for default file name mapping";
 char	optshelp[] =	"show or set options for remote commands";
 char	pagehelp[] =	"view a remote file through your pager";
-char	passivehelp[] =	"enter passive transfer mode";
+char	passivehelp[] =	"toggle use of passive transfer mode";
 char	plshelp[] =	"list contents of remote path through your pager";
 char	pmlsdhelp[] =	"list contents of remote directory in a machine "
 			"parsable form through your pager";
