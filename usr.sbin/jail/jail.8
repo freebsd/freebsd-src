@@ -402,6 +402,13 @@ MIB variables.
 Currently, these variables affect all jails on the system, although in
 the future this functionality may be finer grained.
 .Bl -tag -width XXX
+.It Va security.jail.allow_raw_sockets
+This MIB entry determines whether or not prison root is allowed to
+create raw sockets. Setting this MIB to 1 allows utilities like
+ping(8) and traceroute(8) to operate inside the prison. If this MIB
+is set, the source IP addresses are enforced to comply
+with the IP address bound to the jail, regardless of whether or not
+the IP_HDRINCL flag has been set on the socket.
 .It Va security.jail.set_hostname_allowed
 This MIB entry determines whether or not processes within a jail are
 allowed to change their hostname via
