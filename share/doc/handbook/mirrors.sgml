@@ -1,4 +1,4 @@
-<!-- $Id: mirrors.sgml,v 1.32 1996/05/09 23:04:47 mpp Exp $ -->
+<!-- $Id: mirrors.sgml,v 1.33 1996/05/22 19:13:59 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -107,6 +107,19 @@ for this domain.
 
 </itemize>
 
+<tag>Estonia</tag>
+
+In case of problems, please contact the
+<htmlurl url="mailto:hostmaster@ee.FreeBSD.ORG" name="hostmaster">
+for this domain.
+
+<itemize>
+
+<item>
+<htmlurl url="ftp://ftp.ee.freebsd.ORG/pub/FreeBSD"
+	name="ftp://ftp.ee.freebsd.ORG/pub/FreeBSD"><newline>
+
+</itemize>
 
 <tag>Finland</tag>
 
