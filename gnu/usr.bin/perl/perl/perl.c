@@ -1,4 +1,4 @@
-char rcsid[] = "$RCSfile: perl.c,v $$Revision: 1.1.1.1 $$Date: 1994/09/10 06:27:33 $\nPatch level: ###\n";
+char rcsid[] = "$RCSfile: perl.c,v $$Revision: 1.2 $$Date: 1994/10/27 23:16:54 $\nPatch level: ###\n";
 /*
  *    Copyright (c) 1991, Larry Wall
  *
@@ -6,6 +6,12 @@ char rcsid[] = "$RCSfile: perl.c,v $$Revision: 1.1.1.1 $$Date: 1994/09/10 06:27:
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: perl.c,v $
+ * Revision 1.2  1994/10/27  23:16:54  wollman
+ * Convince Perl to that is is part of the system, as /usr/bin/perl (binary)
+ * and /usr/share/perl (library).  The latter was chosen as analogous to other
+ * directories already present in /usr/share, like /usr/share/groff_font and
+ * (particularly) /usr/share/mk.
+ *
  * Revision 1.1.1.1  1994/09/10  06:27:33  gclarkii
  * Initial import of Perl 4.046 bmaked
  *
@@ -119,7 +125,7 @@ setuid perl scripts securely.\n");
     euid = (int)geteuid();
     gid = (int)getgid();
     egid = (int)getegid();
-    sprintf(patchlevel,"%3.3s%2.2d", index(rcsid,'4'), PATCHLEVEL);
+    sprintf(patchlevel,"%3.3s%2.2d", "4.0", PATCHLEVEL);
 #ifdef MSDOS
     /*
      * There is no way we can refer to them from Perl so close them to save
