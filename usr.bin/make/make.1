@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	from: @(#)make.1	8.4 (Berkeley) 3/19/94
-.\"	$Id: make.1,v 1.19 1999/08/11 17:52:55 chris Exp $
+.\"	$Id: make.1,v 1.20 1999/08/12 20:28:54 chris Exp $
 .\"
 .Dd March 19, 1994
 .Dt MAKE 1
@@ -924,17 +924,10 @@ found in the current directory.
 If no sources are specified, any previously specified directories are
 deleted.
 .Pp
-Additionally, the variable
+The variable
 .Ql Ev VPATH
-can be used to specify additional directories for the search path, separated
-by a
-.Dq \:
-character.
-.Pp
-However, it is
-.Em strongly recommended
-that you do not use this in any new Makefiles, as it exists only for backward
-compatibility.
+used to add directories to the search path is permitted only for backward
+compatibility, and is not recommended for use in new Makefiles.
 .It Ic .PHONY
 Apply the
 .Ic .PHONY
