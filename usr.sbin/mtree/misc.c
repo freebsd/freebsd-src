@@ -44,8 +44,6 @@ __FBSDID("$FreeBSD$");
 #include "mtree.h"
 #include "extern.h"
 
-extern int lineno;
-
 typedef struct _key {
 	const char *name;			/* key name */
 	u_int val;			/* value */
