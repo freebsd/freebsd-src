@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $Id: adduser.perl,v 1.37 1997/09/20 19:59:54 wosch Exp $
+# $Id: adduser.perl,v 1.38 1997/12/24 11:44:14 wosch Exp $
 
 
 # read variables
@@ -220,7 +220,7 @@ sub home_partition_valid {
 
 # check for valid passwddb
 sub passwd_check {
-    system("$pwd_mkdb -c $etc_passwd");
+    system("$pwd_mkdb -C $etc_passwd");
     die "\nInvalid $etc_passwd - cannot add any users!\n" if $?;
 }
 

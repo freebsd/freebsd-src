@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)pwd_mkdb.c	8.5 (Berkeley) 4/20/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: pwd_mkdb.c,v 1.20 1997/10/10 06:27:07 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -108,16 +108,16 @@ main(argc, argv)
 	char sbuf2[MAXPATHLEN];
 	char *username;
 	u_int method, methoduid;
-	int cflag;
+	int Cflag;
 
-	cflag = 0;
+	Cflag = 0;
 	strcpy(prefix, _PATH_PWD);
 	makeold = 0;
 	username = NULL;
-	while ((ch = getopt(argc, argv, "cd:pu:v")) != -1)
+	while ((ch = getopt(argc, argv, "Cd:pu:v")) != -1)
 		switch(ch) {
-		case 'c':                       /* verify only */
-			cflag = 1;
+		case 'C':                       /* verify only */
+			Cflag = 1;
 			break;
 		case 'd':
 			strncpy(prefix, optarg, sizeof prefix - 1);
@@ -160,7 +160,7 @@ main(argc, argv)
 		error(pname);
 
 	/* check only if password database is valid */
-	if (cflag) {
+	if (Cflag) {
 		for (cnt = 1; scan(fp, &pwd); ++cnt);
 		exit(0);
 	}
