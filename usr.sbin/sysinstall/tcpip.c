@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.8 1995/05/18 16:36:14 gpalmer Exp $
+ * $Id: tcpip.c,v 1.9 1995/05/18 16:44:41 gpalmer Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -17,22 +17,21 @@
  * 3. All advertising materials mentioning features or use of this software
  *    must display the following acknowledgement:
  *      This product includes software developed by Gary J Palmer
- *      for the FreeBSD Project.
- * 4. The name of Gary J Palmer or the FreeBSD Project may not be used to
- *    endorse or promote products derived from this software without specific
- *    prior written permission.
+ *	for the FreeBSD Project.
+ * 4. The name of Gary J Palmer or the FreeBSD Project may
+ *    not be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY GARY J PALMER ``AS IS'' AND ANY EXPRESS 
- * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL GARY J PALMER BE LIABLE FOR ANY
- * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, LIFE OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * THIS SOFTWARE IS PROVIDED BY GARY J PALMER ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL GARY J PALMER BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
+ * OF USE, DATA, LIFE OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+ * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
+ * TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
 
@@ -171,18 +170,10 @@ verifySettings(void)
 {
     if (!hostname[0])
 	feepout("Must specify a host name of some sort!");
-#if 0
-    else if (!verifyIP(ipaddr))
-	feepout("Invalid or missing value for IP address");
-#endif
     else if (gateway[0] && !verifyIP(gateway))
 	feepout("Invalid gateway IP address specified");
     else if (nameserver[0] && !verifyIP(nameserver))
 	feepout("Invalid name server IP address specified");
-#if 0
-    else if (netmask[0] < '0' || netmask[0] > '9')
-	feepout("Invalid or missing netmask");
-#endif
     else
 	return 1;
     return 0;
@@ -436,7 +427,7 @@ tcpOpenDialog(char *str)
 
 	    /* Loop back to the interface list from the extras box -
                now we handle the case of saving out the data the user
-               typed in (and also do basic verification of it's
+               typed in (and also do basic verification of its
                sanity) */
 	    if (n == LAYOUT_EXTRAS) {
 		n = LAYOUT_IFACE;
@@ -480,14 +471,13 @@ tcpOpenDialog(char *str)
 		n = 0;
 	    break;
 
-	    /* This doesn't seem to work anymore - dunno why. Foo */
-
 	case SEL_BACKTAB:
 	    if (n)
 		--n;
 	    else
 		n = max;
 	    break;
+
 	case KEY_F(1):
 	    display_helpfile();
 
@@ -537,3 +527,47 @@ tcpOpenDialog(char *str)
     }
     return 0;
 }
+
+static Device *netDevice;
+
+static int
+netHook(char *str)
+{
+    Device **devs;
+
+    /* Clip garbage off the ends */
+    string_prune(str);
+    str = string_skipwhite(str);
+    if (!*str)
+	return 0;
+    devs = deviceFind(str, DEVICE_TYPE_NETWORK);
+    if (devs)
+	netDevice = devs[0];
+    return devs ? 1 : 0;
+}
+
+/* Get a network device */
+Device *
+tcpDeviceSelect(void)
+{
+    DMenu *menu;
+
+    /* If we can't find a hostname, ask user to set up TCP/IP */
+    if (!getenv(VAR_HOSTNAME))
+	tcpOpenDialog(NULL);
+
+    /* If we still can't, user is a bonehead */
+    if (!getenv(VAR_HOSTNAME)) {
+	msgConfirm("Sorry, I can't do this if you don't set up your networking first!");
+	return 0;
+    }
+    menu = deviceCreateMenu(&MenuNetworkDevice, DEVICE_TYPE_NETWORK, netHook);
+    if (!menu)
+	msgFatal("Unable to create network device menu!  Argh!");
+    dmenuOpenSimple(menu);
+    free(menu);
+    if (netDevice->init)
+	(*netDevice->init)(netDevice);
+    return netDevice;
+}
+

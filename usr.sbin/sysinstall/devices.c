@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.24 1995/05/20 15:49:53 jkh Exp $
+ * $Id: devices.c,v 1.25 1995/05/20 16:22:41 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -236,7 +236,7 @@ deviceGetAll(void)
 		close(fd);
 		/* The only network devices that have fds associated are serial ones */
 		deviceRegister("ppp0", device_names[i].description, strdup(try),
-			       DEVICE_TYPE_NETWORK, TRUE, mediaInitNetwork, mediaGetNetwork, mediaCloseNetwork, NULL);
+			       DEVICE_TYPE_NETWORK, TRUE, mediaInitNetwork, NULL, mediaCloseNetwork, NULL);
 		msgDebug("Found a device of type network named: %s\n", device_names[i].name);
 	    }
 	    break;
@@ -270,7 +270,7 @@ deviceGetAll(void)
 	    || !strncmp(ifptr->ifr_name, "lo0", 3))
 	    continue;
 	deviceRegister(ifptr->ifr_name, ifptr->ifr_name, ifptr->ifr_name,
-		       DEVICE_TYPE_NETWORK, TRUE, mediaInitNetwork, mediaGetNetwork, mediaCloseNetwork, NULL);
+		       DEVICE_TYPE_NETWORK, TRUE, mediaInitNetwork, NULL, mediaCloseNetwork, NULL);
 	msgDebug("Found a device of type network named: %s\n", ifptr->ifr_name);
 	close(s);
 	if ((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
