@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: route6d.h,v 1.4 2001/01/15 03:50:54 inoue Exp $	*/
+/*	$KAME: route6d.h,v 1.8 2003/05/28 09:11:13 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -51,19 +51,14 @@ struct	rip6 {
 	u_char	rip6_cmd;
 	u_char	rip6_vers;
 	u_char	rip6_res1[2];
-	union {
-		struct	netinfo6	ru6_nets[1];
-		char	ru6_tracefile[1];
-	} rip6un;
-#define	rip6_nets	rip6un.ru6_nets
-#define	rip6_tracefile	rip6un.ru6_tracefile
+	struct	netinfo6 rip6_nets[1];
 };
 
 #define	HOPCNT_INFINITY6	16
 #define	NEXTHOP_METRIC		0xff
 #define	RIP6_MAXMTU		1500
 
-#define	IFMINMTU		576
+#define	IFMINMTU		1280
 
 #ifndef	DEBUG
 #define	SUPPLY_INTERVAL6	30
