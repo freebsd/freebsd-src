@@ -31,13 +31,12 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_malloc.c	8.3 (Berkeley) 1/4/94
- * $Id: kern_malloc.c,v 1.3 1994/08/02 07:42:04 davidg Exp $
+ * $Id: kern_malloc.c,v 1.4 1994/10/02 17:35:17 phk Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
-#include <sys/map.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 

@@ -36,12 +36,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_fork.c	8.6 (Berkeley) 4/8/94
- * $Id: kern_fork.c,v 1.6 1994/09/01 05:12:38 davidg Exp $
+ * $Id: kern_fork.c,v 1.7 1994/10/02 04:45:47 davidg Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/map.h>
 #include <sys/filedesc.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>

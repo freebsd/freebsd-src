@@ -31,12 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_proc.c	8.4 (Berkeley) 1/4/94
- * $Id: kern_proc.c,v 1.6 1994/09/25 19:33:41 phk Exp $
+ * $Id: kern_proc.c,v 1.7 1994/10/02 04:45:48 davidg Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/map.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/buf.h>
