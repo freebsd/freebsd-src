@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket2.c	8.1 (Berkeley) 6/10/93
- * $Id: uipc_socket2.c,v 1.7 1995/12/14 22:51:02 bde Exp $
+ * $Id: uipc_socket2.c,v 1.8 1996/01/05 21:41:54 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -107,8 +107,11 @@ soisconnected(so)
 
 	so->so_state &= ~(SS_ISCONNECTING|SS_ISDISCONNECTING|SS_ISCONFIRMING);
 	so->so_state |= SS_ISCONNECTED;
-	if (head && soqremque(so, 0)) {
-		soqinsque(head, so, 1);
+	if (head && (so->so_state & SS_INCOMP)) {
+		TAILQ_REMOVE(&head->so_incomp, so, so_list);
+		so->so_state &= ~SS_INCOMP;
+		TAILQ_INSERT_TAIL(&head->so_comp, so, so_list);
+		so->so_state |= SS_COMP;
 		sorwakeup(head);
 		wakeup((caddr_t)&head->so_timeo);
 	} else {
@@ -161,12 +164,13 @@ sonewconn1(head, connstatus)
 	register struct socket *so;
 	int soqueue = connstatus ? 1 : 0;
 
-	if (head->so_qlen + head->so_q0len > 3 * head->so_qlimit / 2)
+	if (head->so_qlen > 3 * head->so_qlimit / 2)
 		return ((struct socket *)0);
 	MALLOC(so, struct socket *, sizeof(*so), M_SOCKET, M_DONTWAIT);
 	if (so == NULL)
 		return ((struct socket *)0);
 	bzero((caddr_t)so, sizeof(*so));
+	so->so_head = head;
 	so->so_type = head->so_type;
 	so->so_options = head->so_options &~ SO_ACCEPTCONN;
 	so->so_linger = head->so_linger;
@@ -175,10 +179,22 @@ sonewconn1(head, connstatus)
 	so->so_timeo = head->so_timeo;
 	so->so_pgid = head->so_pgid;
 	(void) soreserve(so, head->so_snd.sb_hiwat, head->so_rcv.sb_hiwat);
-	soqinsque(head, so, soqueue);
+	if (connstatus) {
+		TAILQ_INSERT_TAIL(&head->so_comp, so, so_list);
+		so->so_state |= SS_COMP;
+	} else {
+		TAILQ_INSERT_TAIL(&head->so_incomp, so, so_list);
+		so->so_state |= SS_INCOMP;
+	}
+	head->so_qlen++;
 	if ((*so->so_proto->pr_usrreq)(so, PRU_ATTACH,
 	    (struct mbuf *)0, (struct mbuf *)0, (struct mbuf *)0)) {
-		(void) soqremque(so, soqueue);
+		if (so->so_state & SS_COMP) {
+			TAILQ_REMOVE(&head->so_comp, so, so_list);
+		} else {
+			TAILQ_REMOVE(&head->so_incomp, so, so_list);
+		}
+		head->so_qlen--;
 		(void) free((caddr_t)so, M_SOCKET);
 		return ((struct socket *)0);
 	}
@@ -188,57 +204,6 @@ sonewconn1(head, connstatus)
 		so->so_state |= connstatus;
 	}
 	return (so);
-}
-
-void
-soqinsque(head, so, q)
-	register struct socket *head, *so;
-	int q;
-{
-
-	register struct socket **prev;
-	so->so_head = head;
-	if (q == 0) {
-		head->so_q0len++;
-		so->so_q0 = 0;
-		for (prev = &(head->so_q0); *prev; )
-			prev = &((*prev)->so_q0);
-	} else {
-		head->so_qlen++;
-		so->so_q = 0;
-		for (prev = &(head->so_q); *prev; )
-			prev = &((*prev)->so_q);
-	}
-	*prev = so;
-}
-
-int
-soqremque(so, q)
-	register struct socket *so;
-	int q;
-{
-	register struct socket *head, *prev, *next;
-
-	head = so->so_head;
-	prev = head;
-	for (;;) {
-		next = q ? prev->so_q : prev->so_q0;
-		if (next == so)
-			break;
-		if (next == 0)
-			return (0);
-		prev = next;
-	}
-	if (q == 0) {
-		prev->so_q0 = next->so_q0;
-		head->so_q0len--;
-	} else {
-		prev->so_q = next->so_q;
-		head->so_qlen--;
-	}
-	next->so_q0 = next->so_q = 0;
-	next->so_head = 0;
-	return (1);
 }
 
 /*
