@@ -520,8 +520,8 @@ getpathname(char *namebuf, ino_t curdir, ino_t ino)
 void
 catch(int sig)
 {
-	if (!doinglevel2)
-		ckfini(0);
+
+	ckfini(0);
 	exit(12);
 }
 
