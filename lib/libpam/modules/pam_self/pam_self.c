@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2001 Mark R V Murray
  * All rights reserved.
- * Copyright (c) 2001 Networks Associates Technology, Inc.
+ * Copyright (c) 2001,2002 Networks Associates Technology, Inc.
  * All rights reserved.
  *
  * Portions of this software were developed for the FreeBSD Project by
@@ -74,7 +74,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc, const char
 
 	PAM_LOG("Options processed");
 
-	pam_err = pam_get_item(pamh, PAM_USER, (const void **)&luser);
+	pam_err = pam_get_user(pamh, &luser, NULL);
 	if (pam_err != PAM_SUCCESS)
 		PAM_RETURN(pam_err);
 	if (luser == NULL || (pwd = getpwnam(luser)) == NULL)

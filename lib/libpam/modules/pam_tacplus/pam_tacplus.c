@@ -1,7 +1,7 @@
 /*-
  * Copyright 1998 Juniper Networks, Inc.
  * All rights reserved.
- * Copyright (c) 2001 Networks Associates Technology, Inc.
+ * Copyright (c) 2001,2002 Networks Associates Technology, Inc.
  * All rights reserved.
  *
  * Portions of this software were developed for the FreeBSD Project by
@@ -226,11 +226,11 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc,
 				PAM_RETURN(PAM_SERVICE_ERR);
 			if (status == TAC_AUTHEN_STATUS_GETUSER)
 				retval = pam_get_user(pamh, &user_msg,
-				    srvr_msg[0] != '\0' ? srvr_msg : NULL);
+				    *srvr_msg ? srvr_msg : NULL);
 			else if (status == TAC_AUTHEN_STATUS_GETPASS)
-				retval = pam_get_authtok(pamh, &user_msg,
-				    srvr_msg[0] != '\0' ? srvr_msg :
-				    "Password:");
+				retval = pam_get_authtok(pamh,
+				    PAM_AUTHTOK, &user_msg,
+				    *srvr_msg ? srvr_msg : "Password:");
 			free(srvr_msg);
 			if (retval != PAM_SUCCESS) {
 				/* XXX - send a TACACS+ abort packet */
@@ -247,9 +247,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc,
 			retval = pam_prompt(pamh,
 			    pam_test_option(&options, PAM_OPT_ECHO_PASS, NULL)
 			        ? PAM_PROMPT_ECHO_ON : PAM_PROMPT_ECHO_OFF,
-			    &data_msg,
-			    "%s",
-			    srvr_msg[0] != '\0' ? srvr_msg : "Data:");
+			    &data_msg, "%s", *srvr_msg ? srvr_msg : "Data:");
 			free(srvr_msg);
 			if (retval != PAM_SUCCESS) {
 				/* XXX - send a TACACS+ abort packet */
