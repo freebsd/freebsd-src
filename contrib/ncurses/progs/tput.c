@@ -45,7 +45,7 @@
 #endif
 #include <transform.h>
 
-MODULE_ID("$Id: tput.c,v 1.24 2000/10/05 00:05:04 tom Exp $")
+MODULE_ID("$Id: tput.c,v 1.26 2001/03/24 21:59:48 tom Exp $")
 
 #define PUTS(s)		fputs(s, stdout)
 #define PUTCHAR(c)	putchar(c)
@@ -96,7 +96,7 @@ check_aliases(const char *name)
  * in tparm() to decide how to parse the varargs list.
  */
 static TParams
-tparm_type(char *name)
+tparm_type(const char *name)
 {
 #define TD(code, longname, ti, tc) {code,longname},{code,ti},{code,tc}
     TParams result = Numbers;
@@ -376,7 +376,7 @@ main(int argc, char **argv)
 
 	/* crack the argument list into a dope vector */
 	for (cp = buf; *cp; cp++) {
-	    if (isspace(*cp))
+	    if (isspace(CharOf(*cp)))
 		*cp = '\0';
 	    else if (cp == buf || cp[-1] == 0)
 		argvec[argnum++] = cp;

@@ -41,7 +41,7 @@
 #include <curses.priv.h>
 #include <ctype.h>
 
-MODULE_ID("$Id: lib_addch.c,v 1.44 2000/05/20 21:13:11 tom Exp $")
+MODULE_ID("$Id: lib_addch.c,v 1.47 2000/12/10 02:43:26 tom Exp $")
 
 /*
  * Ugly microtweaking alert.  Everything from here to end of module is
@@ -73,20 +73,22 @@ render_char(WINDOW *win, chtype ch)
     }
 
     TR(TRACE_VIRTPUT, ("bkg = %lx, attrs = %lx -> ch = %lx", win->_bkgd,
-	    win->_attrs, ch));
+		       win->_attrs, ch));
 
     return (ch);
 }
 
-chtype
-_nc_background(WINDOW *win)
+NCURSES_EXPORT(chtype)
+_nc_background
+(WINDOW *win)
 /* make render_char() visible while still allowing us to inline it below */
 {
     return (win->_bkgd);
 }
 
-chtype
-_nc_render(WINDOW *win, chtype ch)
+NCURSES_EXPORT(chtype)
+_nc_render
+(WINDOW *win, chtype ch)
 /* make render_char() visible while still allowing us to inline it below */
 {
     return render_char(win, ch);
@@ -122,7 +124,7 @@ waddch_literal(WINDOW *win, chtype ch)
      * If we're trying to add a character at the lower-right corner more
      * than once, fail.  (Moving the cursor will clear the flag).
      */
-#if 0	/* Solaris 2.6 allows updating the corner more than once */
+#if 0				/* Solaris 2.6 allows updating the corner more than once */
     if (win->_flags & _WRAPPED) {
 	if (x >= win->_maxx)
 	    return (ERR);
@@ -171,7 +173,7 @@ waddch_nosync(WINDOW *win, const chtype ch)
 /* the workhorse function -- add a character to the given window */
 {
     int x, y;
-    int t = 0;
+    chtype t = 0;
     const char *s = 0;
 
     if ((ch & A_ALTCHARSET)
@@ -246,8 +248,9 @@ waddch_nosync(WINDOW *win, const chtype ch)
     return (OK);
 }
 
-int
-_nc_waddch_nosync(WINDOW *win, const chtype c)
+NCURSES_EXPORT(int)
+_nc_waddch_nosync
+(WINDOW *win, const chtype c)
 /* export copy of waddch_nosync() so the string-put functions can use it */
 {
     return (waddch_nosync(win, c));
@@ -261,13 +264,14 @@ _nc_waddch_nosync(WINDOW *win, const chtype c)
 
 /* These are actual entry points */
 
-int
-waddch(WINDOW *win, const chtype ch)
+NCURSES_EXPORT(int)
+waddch
+(WINDOW *win, const chtype ch)
 {
     int code = ERR;
 
     TR(TRACE_VIRTPUT | TRACE_CCALLS, (T_CALLED("waddch(%p, %s)"), win,
-	    _tracechtype(ch)));
+				      _tracechtype(ch)));
 
     if (win && (waddch_nosync(win, ch) != ERR)) {
 	_nc_synchook(win);
@@ -278,13 +282,14 @@ waddch(WINDOW *win, const chtype ch)
     return (code);
 }
 
-int
-wechochar(WINDOW *win, const chtype ch)
+NCURSES_EXPORT(int)
+wechochar
+(WINDOW *win, const chtype ch)
 {
     int code = ERR;
 
     TR(TRACE_VIRTPUT | TRACE_CCALLS, (T_CALLED("wechochar(%p, %s)"), win,
-	    _tracechtype(ch)));
+				      _tracechtype(ch)));
 
     if (win && (waddch_nosync(win, ch) != ERR)) {
 	bool save_immed = win->_immed;

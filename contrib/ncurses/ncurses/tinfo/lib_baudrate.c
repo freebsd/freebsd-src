@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -40,7 +40,7 @@
 #include <term.h>		/* cur_term, pad_char */
 #include <termcap.h>		/* ospeed */
 
-MODULE_ID("$Id: lib_baudrate.c,v 1.17 2000/10/08 00:59:08 tom Exp $")
+MODULE_ID("$Id: lib_baudrate.c,v 1.19 2000/12/10 02:55:07 tom Exp $")
 
 /*
  *	int
@@ -51,8 +51,8 @@ MODULE_ID("$Id: lib_baudrate.c,v 1.17 2000/10/08 00:59:08 tom Exp $")
  */
 
 struct speed {
-    int s;	/* value for 'ospeed' is an index */
-    int sp;	/* the actual speed */
+    int s;			/* value for 'ospeed' is an index */
+    int sp;			/* the actual speed */
 };
 
 static struct speed const speeds[] =
@@ -99,7 +99,7 @@ static struct speed const speeds[] =
 #endif
 };
 
-int
+NCURSES_EXPORT(int)
 _nc_baudrate(int OSpeed)
 {
     static int last_OSpeed;
@@ -125,7 +125,7 @@ _nc_baudrate(int OSpeed)
     return (result);
 }
 
-int
+NCURSES_EXPORT(int)
 _nc_ospeed(int BaudRate)
 {
     int result = 1;
@@ -142,7 +142,7 @@ _nc_ospeed(int BaudRate)
     return (result);
 }
 
-int
+NCURSES_EXPORT(int)
 baudrate(void)
 {
     int result;

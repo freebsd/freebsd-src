@@ -1,6 +1,6 @@
 #!/bin/sh
 ##############################################################################
-# Copyright (c) 1998 Free Software Foundation, Inc.                          #
+# Copyright (c) 1998,2000 Free Software Foundation, Inc.                     #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -27,9 +27,9 @@
 # authorization.                                                             #
 ##############################################################################
 #
-# Author: Thomas E. Dickey <dickey@clark.net> 1996,1997
+# Author: Thomas E. Dickey 1996,1997,2000
 #
-# $Id: makellib,v 1.7 1998/02/11 12:13:50 tom Exp $
+# $Id: makellib,v 1.8 2000/10/28 21:37:10 tom Exp $
 # System-dependent wrapper for 'lint' that creates a lint-library via the
 # following method (XXX is the name of the library):
 #	a.  If the file llib-lXXX doesn't exist, create it using the make-rule
@@ -113,6 +113,11 @@ AIX)
 	;;
 Solaris)
 	CREATE="-C$llib"
+	TARGET=$llib.c
+	ln $llib $TARGET
+	;;
+FreeBSD)
+	CREATE="-g -z -C$LLIB"
 	TARGET=$llib.c
 	ln $llib $TARGET
 	;;

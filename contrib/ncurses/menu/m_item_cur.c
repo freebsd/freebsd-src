@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -37,7 +37,7 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_item_cur.c,v 1.11 1999/05/16 17:25:34 juergen Exp $")
+MODULE_ID("$Id: m_item_cur.c,v 1.12 2000/12/10 02:16:48 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnmenu  
@@ -47,7 +47,8 @@ MODULE_ID("$Id: m_item_cur.c,v 1.11 1999/05/16 17:25:34 juergen Exp $")
 |
 |   Return Values :  E_OK                - success
 +--------------------------------------------------------------------------*/
-int set_current_item(MENU * menu, ITEM * item)
+NCURSES_EXPORT(int)
+set_current_item (MENU * menu, ITEM * item)
 {
   if (menu && item && (item->imenu==menu))
     {
@@ -85,7 +86,8 @@ int set_current_item(MENU * menu, ITEM * item)
 |
 |   Return Values :  Item pointer or NULL if failure
 +--------------------------------------------------------------------------*/
-ITEM *current_item(const MENU * menu) 
+NCURSES_EXPORT(ITEM *)
+current_item (const MENU * menu) 
 {
   return (menu && menu->items) ? menu->curitem : (ITEM *)0;
 }
@@ -98,7 +100,8 @@ ITEM *current_item(const MENU * menu)
 |
 |   Return Values :  The index or ERR if this is an invalid item pointer
 +--------------------------------------------------------------------------*/
-int item_index(const ITEM *item)
+NCURSES_EXPORT(int)
+item_index (const ITEM *item)
 {
   return (item && item->imenu) ? item->index : ERR;
 }

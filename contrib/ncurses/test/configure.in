@@ -28,7 +28,7 @@ dnl***************************************************************************
 dnl
 dnl Author: Thomas E. Dickey 1996,1997,1998,2000
 dnl
-dnl $Id: configure.in,v 1.30 2000/08/12 22:43:08 tom Exp $
+dnl $Id: configure.in,v 1.31 2000/10/15 18:46:17 tom Exp $
 dnl This is a simple configuration-script for the ncurses test programs that
 dnl allows the test-directory to be separately configured against a reference
 dnl system (i.e., sysvr4 curses)
@@ -36,8 +36,9 @@ dnl
 dnl If you're configuring ncurses, you shouldn't need to use this script.
 dnl It's only for testing purposes.
 dnl
-dnl dickey@herndon4.his.com (Thomas Dickey)
-AC_PREREQ(2.12)
+dnl See http://dickey.his.com/autoconf/ for additional information.
+dnl ---------------------------------------------------------------------------
+AC_PREREQ(2.13.20000819)
 AC_INIT(ncurses.c)
 AC_CONFIG_HEADER(ncurses_cfg.h:ncurses_tst.hin)
 
@@ -56,6 +57,7 @@ LD="ld"					AC_SUBST(LD)
 LDFLAGS_SHARED=""			AC_SUBST(LDFLAGS_SHARED)
 LD_MODEL=""				AC_SUBST(LD_MODEL)
 LD_SHARED_OPTS=""			AC_SUBST(LD_SHARED_OPTS)
+LIBTOOL=""				AC_SUBST(LIBTOOL)
 LIB_NAME=curses				AC_SUBST(LIB_NAME)
 LIB_PREFIX="-l"				AC_SUBST(LIB_PREFIX)
 LINK_TESTS=""				AC_SUBST(LINK_TESTS)

@@ -13,7 +13,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fty_regex.c,v 1.14 1999/05/16 17:23:38 juergen Exp $")
+MODULE_ID("$Id: fty_regex.c,v 1.15 2000/12/09 23:46:12 tom Exp $")
 
 #if HAVE_REGEX_H_FUNCS	/* We prefer POSIX regex */
 #include <regex.h>
@@ -252,6 +252,6 @@ static FIELDTYPE typeREGEXP = {
   NULL
 };
 
-FIELDTYPE* TYPE_REGEXP = &typeREGEXP;
+NCURSES_EXPORT_VAR(FIELDTYPE*) TYPE_REGEXP = &typeREGEXP;
 
 /* fty_regex.c ends here */

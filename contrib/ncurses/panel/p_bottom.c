@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -36,10 +36,10 @@
  */
 #include "panel.priv.h"
 
-MODULE_ID("$Id: p_bottom.c,v 1.7 1999/11/25 13:49:26 juergen Exp $")
+MODULE_ID("$Id: p_bottom.c,v 1.9 2001/02/24 23:46:33 tom Exp $")
 
-int
-bottom_panel(PANEL *pan)
+NCURSES_EXPORT(int)
+bottom_panel (PANEL *pan)
 {
   int err = OK;
 
@@ -49,7 +49,7 @@ bottom_panel(PANEL *pan)
       
       dBug(("--> bottom_panel %s", USER_PTR(pan->user)));
      
-      HIDE_PANEL(pan,err,FALSE);
+      HIDE_PANEL(pan,err,OK);
       assert(_nc_bottom_panel == _nc_stdscr_pseudo_panel);
       
       dStack("<lb%d>",1,pan);      

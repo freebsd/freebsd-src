@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,1999 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -37,34 +37,36 @@
  */
 
 #include <curses.priv.h>
-#include <term_entry.h>	/* TTY, cur_term */
-#include <termcap.h>	/* ospeed */
+#include <term_entry.h>		/* TTY, cur_term */
+#include <termcap.h>		/* ospeed */
 
-MODULE_ID("$Id: lib_cur_term.c,v 1.9 1999/10/30 23:00:16 tom Exp $")
+MODULE_ID("$Id: lib_cur_term.c,v 1.11 2000/12/10 02:55:07 tom Exp $")
 
-TERMINAL *cur_term = 0;
+NCURSES_EXPORT_VAR(TERMINAL *) cur_term = 0;
 
-TERMINAL *set_curterm(TERMINAL *termp)
+NCURSES_EXPORT(TERMINAL *)
+set_curterm(TERMINAL * termp)
 {
-	TERMINAL *oldterm = cur_term;
+    TERMINAL *oldterm = cur_term;
 
-	if ((cur_term = termp) != 0) {
-		ospeed = _nc_ospeed(cur_term->_baudrate);
-		PC = (pad_char != NULL) ? pad_char[0] : 0; 
-	}
-	return oldterm;
+    if ((cur_term = termp) != 0) {
+	ospeed = _nc_ospeed(cur_term->_baudrate);
+	PC = (pad_char != NULL) ? pad_char[0] : 0;
+    }
+    return oldterm;
 }
 
-int del_curterm(TERMINAL *termp)
+NCURSES_EXPORT(int)
+del_curterm(TERMINAL * termp)
 {
-	T((T_CALLED("del_curterm(%p)"), termp));
+    T((T_CALLED("del_curterm(%p)"), termp));
 
-	if (termp != 0) {
-		_nc_free_termtype(&(termp->type));
-		free(termp);
-		if (termp == cur_term)
-			cur_term = 0;
-		returnCode(OK);
-	}
-	returnCode(ERR);
+    if (termp != 0) {
+	_nc_free_termtype(&(termp->type));
+	free(termp);
+	if (termp == cur_term)
+	    cur_term = 0;
+	returnCode(OK);
+    }
+    returnCode(ERR);
 }

@@ -6,7 +6,7 @@
  * modified 10-18-89 for curses (jrl)
  * 10-18-89 added signal handling
  *
- * $Id: gdc.c,v 1.15 2000/09/02 18:40:39 tom Exp $
+ * $Id: gdc.c,v 1.16 2001/02/24 23:27:22 tom Exp $
  */
 
 #include <test.priv.h>
@@ -97,7 +97,7 @@ set(int t, int n)
 
     m = 7 << n;
     for (i = 0; i < 5; i++) {
-	next[i] |= ((disp[t] >> (4 - i) * 3) & 07) << n;
+	next[i] |= ((disp[t] >> ((4 - i) * 3)) & 07) << n;
 	mask |= (next[i] ^ older[i]) & m;
     }
     if (mask & m)
@@ -306,6 +306,7 @@ main(int argc, char *argv[])
 		fprintf(stderr, "gdc terminated by signal %d\n", sigtermed);
 		return EXIT_FAILURE;
 	    }
+	    /* FALLTHRU */
 	default:
 	    continue;
 	}

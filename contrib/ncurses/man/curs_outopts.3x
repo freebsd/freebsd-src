@@ -26,10 +26,10 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_outopts.3x,v 1.14 2000/02/27 01:41:58 tom Exp $
+.\" $Id: curs_outopts.3x,v 1.16 2001/03/31 23:47:31 tom Exp $
 .TH curs_outopts 3X ""
 .SH NAME
-\fBclearok\fR, \fBidlok\fR, \fBidcok immedok\fR,
+\fBclearok\fR, \fBidlok\fR, \fBidcok\fR, \fBimmedok\fR,
 \fBleaveok\fR, \fBsetscrreg\fR, \fBwsetscrreg\fR, \fBscrollok\fR,
 \fBnl\fR, \fBnonl\fR - \fBcurses\fR output options
 .SH SYNOPSIS
@@ -92,8 +92,7 @@ It is disabled by default.
 Normally, the hardware cursor is left at the location of the window cursor
 being refreshed.  The \fBleaveok\fR option allows the cursor to be left
 wherever the update happens to leave it.  It is useful for applications where
-the cursor is not used, since it reduces the need for cursor motions.  If
-possible, the cursor is made invisible when this option is enabled.
+the cursor is not used, since it reduces the need for cursor motions.
 
 The \fBsetscrreg\fR and \fBwsetscrreg\fR routines allow the application
 programmer to set a software scrolling region in a window.  \fItop\fR and

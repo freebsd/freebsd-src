@@ -36,16 +36,22 @@
  */
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_tracechr.c,v 1.2 2000/04/01 20:17:26 tom Exp $")
+MODULE_ID("$Id: lib_tracechr.c,v 1.4 2000/12/10 03:02:45 tom Exp $")
 
 #ifdef TRACE
-char *_tracechar(const unsigned char ch)
+NCURSES_EXPORT(char *)
+_tracechar(const unsigned char ch)
 {
     static char crep[20];
-    (void) sprintf(crep, "'%s' = 0x%02x", unctrl(ch), (unsigned)ch);
-    return(crep);
+    (void) sprintf(crep, "'%s' = 0x%02x", unctrl(ch), (unsigned) ch);
+    return (crep);
 }
 #else
-extern	void _nc_lib_tracechr(void);
-	void _nc_lib_tracechr(void) { }
+extern
+NCURSES_EXPORT(void)
+_nc_lib_tracechr(void);
+NCURSES_EXPORT(void)
+_nc_lib_tracechr(void)
+{
+}
 #endif

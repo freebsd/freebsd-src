@@ -1,4 +1,4 @@
-.\" $Id: terminfo.tail,v 1.32 2000/04/15 20:04:58 tom Exp $
+.\" $Id: terminfo.tail,v 1.33 2000/10/14 14:06:50 tom Exp $
 .\" Beginning of terminfo.tail file
 .ps +1
 .PP
@@ -912,7 +912,8 @@ output
 .BR is2 ;
 set the margins using
 .BR mgc ,
-.BR smgl and
+.BR smgl
+and
 .BR smgr ;
 set tabs using
 .B tbc

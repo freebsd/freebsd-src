@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -36,9 +36,9 @@
  */
 
 #include <curses.priv.h>
-#include <term.h>	/* cur_term */
+#include <term.h>		/* cur_term */
 
-MODULE_ID("$Id: lib_ttyflags.c,v 1.3 1999/10/22 21:38:55 tom Exp $")
+MODULE_ID("$Id: lib_ttyflags.c,v 1.5 2000/12/10 02:55:08 tom Exp $")
 
 #undef tabs
 
@@ -56,89 +56,94 @@ MODULE_ID("$Id: lib_ttyflags.c,v 1.3 1999/10/22 21:38:55 tom Exp $")
 # endif
 #endif
 
-int _nc_get_tty_mode(TTY *buf)
+NCURSES_EXPORT(int)
+_nc_get_tty_mode(TTY * buf)
 {
-	if (cur_term == 0
-	 || GET_TTY(cur_term->Filedes, buf) != 0)
-		return(ERR);
-	TR(TRACE_BITS,("_nc_get_tty_mode: %s", _nc_tracebits()));
-	return (OK);
+    if (cur_term == 0
+	|| GET_TTY(cur_term->Filedes, buf) != 0)
+	return (ERR);
+    TR(TRACE_BITS, ("_nc_get_tty_mode: %s", _nc_tracebits()));
+    return (OK);
 }
 
-int _nc_set_tty_mode(TTY *buf)
+NCURSES_EXPORT(int)
+_nc_set_tty_mode(TTY * buf)
 {
-	if (cur_term == 0
-	 || SET_TTY(cur_term->Filedes, buf) != 0)
-		return(ERR);
-	TR(TRACE_BITS,("_nc_set_tty_mode: %s", _nc_tracebits()));
-	return (OK);
+    if (cur_term == 0
+	|| SET_TTY(cur_term->Filedes, buf) != 0)
+	return (ERR);
+    TR(TRACE_BITS, ("_nc_set_tty_mode: %s", _nc_tracebits()));
+    return (OK);
 }
 
-int def_shell_mode(void)
+NCURSES_EXPORT(int)
+def_shell_mode(void)
 {
-	T((T_CALLED("def_shell_mode()")));
+    T((T_CALLED("def_shell_mode()")));
 
-	/*
-	 * Turn off the XTABS bit in the tty structure if it was on.  If XTABS
-	 * was on, remove the tab and backtab capabilities.
-	 */
+    /*
+     * Turn off the XTABS bit in the tty structure if it was on.  If XTABS
+     * was on, remove the tab and backtab capabilities.
+     */
 
-	if (_nc_get_tty_mode(&cur_term->Ottyb) != OK)
-		returnCode(ERR);
-#ifdef TERMIOS
-	if (cur_term->Ottyb.c_oflag & tabs)
-		tab = back_tab = NULL;
-#else
-	if (cur_term->Ottyb.sg_flags & XTABS)
-		tab = back_tab = NULL;
-#endif
-	returnCode(OK);
-}
-
-int def_prog_mode(void)
-{
-	T((T_CALLED("def_prog_mode()")));
-
-	if (_nc_get_tty_mode(&cur_term->Nttyb) != OK)
-		returnCode(ERR);
-#ifdef TERMIOS
-	cur_term->Nttyb.c_oflag &= ~tabs;
-#else
-	cur_term->Nttyb.sg_flags &= ~XTABS;
-#endif
-	returnCode(OK);
-}
-
-int reset_prog_mode(void)
-{
-	T((T_CALLED("reset_prog_mode()")));
-
-	if (cur_term != 0) {
-		_nc_set_tty_mode(&cur_term->Nttyb);
-		if (SP) {
-			if (stdscr && stdscr->_use_keypad)
-				_nc_keypad(TRUE);
-			NC_BUFFERED(TRUE);
-		}
-		returnCode(OK);
-	}
+    if (_nc_get_tty_mode(&cur_term->Ottyb) != OK)
 	returnCode(ERR);
+#ifdef TERMIOS
+    if (cur_term->Ottyb.c_oflag & tabs)
+	tab = back_tab = NULL;
+#else
+    if (cur_term->Ottyb.sg_flags & XTABS)
+	tab = back_tab = NULL;
+#endif
+    returnCode(OK);
 }
 
-int reset_shell_mode(void)
+NCURSES_EXPORT(int)
+def_prog_mode(void)
 {
-	T((T_CALLED("reset_shell_mode()")));
+    T((T_CALLED("def_prog_mode()")));
 
-	if (cur_term != 0) {
-		if (SP)
-		{
-			_nc_keypad(FALSE);
-			_nc_flush();
-			NC_BUFFERED(FALSE);
-		}
-		returnCode(_nc_set_tty_mode(&cur_term->Ottyb));
-	}
+    if (_nc_get_tty_mode(&cur_term->Nttyb) != OK)
 	returnCode(ERR);
+#ifdef TERMIOS
+    cur_term->Nttyb.c_oflag &= ~tabs;
+#else
+    cur_term->Nttyb.sg_flags &= ~XTABS;
+#endif
+    returnCode(OK);
+}
+
+NCURSES_EXPORT(int)
+reset_prog_mode(void)
+{
+    T((T_CALLED("reset_prog_mode()")));
+
+    if (cur_term != 0) {
+	_nc_set_tty_mode(&cur_term->Nttyb);
+	if (SP) {
+	    if (stdscr && stdscr->_use_keypad)
+		_nc_keypad(TRUE);
+	    NC_BUFFERED(TRUE);
+	}
+	returnCode(OK);
+    }
+    returnCode(ERR);
+}
+
+NCURSES_EXPORT(int)
+reset_shell_mode(void)
+{
+    T((T_CALLED("reset_shell_mode()")));
+
+    if (cur_term != 0) {
+	if (SP) {
+	    _nc_keypad(FALSE);
+	    _nc_flush();
+	    NC_BUFFERED(FALSE);
+	}
+	returnCode(_nc_set_tty_mode(&cur_term->Ottyb));
+    }
+    returnCode(ERR);
 }
 
 /*
@@ -146,18 +151,20 @@ int reset_shell_mode(void)
 **
 */
 
-static TTY   buf;
+static TTY buf;
 
-int savetty(void)
+NCURSES_EXPORT(int)
+savetty(void)
 {
-	T((T_CALLED("savetty()")));
+    T((T_CALLED("savetty()")));
 
-	returnCode(_nc_get_tty_mode(&buf));
+    returnCode(_nc_get_tty_mode(&buf));
 }
 
-int resetty(void)
+NCURSES_EXPORT(int)
+resetty(void)
 {
-	T((T_CALLED("resetty()")));
+    T((T_CALLED("resetty()")));
 
-	returnCode(_nc_set_tty_mode(&buf));
+    returnCode(_nc_set_tty_mode(&buf));
 }

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,1999 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -39,10 +39,10 @@
 extern int malloc_errfd;	/* FIXME */
 #endif
 
-MODULE_ID("$Id: lib_freeall.c,v 1.16 1999/11/28 01:34:11 tom Exp $")
+MODULE_ID("$Id: lib_freeall.c,v 1.18 2000/12/10 02:43:27 tom Exp $")
 
 static void
-free_slk(SLK *p)
+free_slk(SLK * p)
 {
     if (p != 0) {
 	FreeIfNeeded(p->ent);
@@ -69,7 +69,7 @@ free_tries(struct tries *p)
  * Free all ncurses data.  This is used for testing only (there's no practical
  * use for it as an extension).
  */
-void
+NCURSES_EXPORT(void)
 _nc_freeall(void)
 {
     WINDOWLIST *p, *q;
@@ -124,7 +124,7 @@ _nc_freeall(void)
 #endif
 }
 
-void
+NCURSES_EXPORT(void)
 _nc_free_and_exit(int code)
 {
     _nc_freeall();
@@ -132,7 +132,7 @@ _nc_free_and_exit(int code)
 }
 
 #else
-void
+NCURSES_EXPORT(void)
 _nc_freeall(void)
 {
 }

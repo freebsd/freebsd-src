@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1999 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1999,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -36,9 +36,10 @@
 #include <curses.priv.h>
 #include <term_entry.h>
 
-MODULE_ID("$Id: trace_xnames.c,v 1.3 1999/03/02 01:20:38 tom Exp $")
+MODULE_ID("$Id: trace_xnames.c,v 1.5 2000/12/10 03:02:45 tom Exp $")
 
-void _nc_trace_xnames(TERMTYPE *tp GCC_UNUSED)
+NCURSES_EXPORT(void)
+_nc_trace_xnames(TERMTYPE * tp GCC_UNUSED)
 {
 #ifdef TRACE
 #if NCURSES_XNAMES
@@ -56,16 +57,16 @@ void _nc_trace_xnames(TERMTYPE *tp GCC_UNUSED)
 	for (n = 0; n < limit; n++) {
 	    if ((m = n - begin_str) >= 0) {
 		_tracef("[%d] %s = %s", n,
-		    tp->ext_Names[n],
-		    _nc_visbuf(tp->Strings[tp->num_Strings + m - tp->ext_Strings]));
+			tp->ext_Names[n],
+			_nc_visbuf(tp->Strings[tp->num_Strings + m - tp->ext_Strings]));
 	    } else if ((m = n - begin_num) >= 0) {
 		_tracef("[%d] %s = %d (num)", n,
-		    tp->ext_Names[n],
-		    tp->Numbers[tp->num_Numbers + m - tp->ext_Numbers]);
+			tp->ext_Names[n],
+			tp->Numbers[tp->num_Numbers + m - tp->ext_Numbers]);
 	    } else {
 		_tracef("[%d] %s = %d (bool)", n,
-		    tp->ext_Names[n],
-		    tp->Booleans[tp->num_Booleans + n - tp->ext_Booleans]);
+			tp->ext_Names[n],
+			tp->Booleans[tp->num_Booleans + n - tp->ext_Booleans]);
 	    }
 	}
     }

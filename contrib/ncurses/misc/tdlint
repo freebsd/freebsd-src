@@ -29,7 +29,7 @@
 #
 # Author: Thomas E. Dickey <dickey@clark.net> 1996
 #
-# $Id: tdlint,v 1.4 1998/02/11 12:13:50 tom Exp $
+# $Id: tdlint,v 1.5 2000/10/28 20:53:36 tom Exp $
 #
 # Lint-script that allows user's own lint libraries, in addition to the ones
 # installed in the system.
@@ -47,6 +47,8 @@ else
 	AIX)	set - $* -Nn4000
 		;;
 	IRIX)	set - $* -n -lc
+		;;
+	FreeBSD) set - $* -g -p -u -v -z
 		;;
 	SunOS)
 		case `uname -r` in

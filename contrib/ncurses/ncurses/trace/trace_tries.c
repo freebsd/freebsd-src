@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1999 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1999,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -35,40 +35,45 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: trace_tries.c,v 1.6 1999/03/06 22:51:07 tom Exp $")
+MODULE_ID("$Id: trace_tries.c,v 1.8 2000/12/10 03:03:51 tom Exp $")
 
 #ifdef TRACE
 static unsigned char *buffer;
 static unsigned len;
 
-static void recur_tries(struct tries *tree, unsigned level)
+static void
+recur_tries(struct tries *tree, unsigned level)
 {
-	if (level > len)
-		buffer = (unsigned char *)realloc(buffer, len = (level + 1) * 4);
+    if (level > len)
+	buffer = (unsigned char *) realloc(buffer, len = (level + 1) * 4);
 
-	while (tree != 0) {
-		if ((buffer[level] = tree->ch) == 0)
-			buffer[level] = 128;
-		buffer[level+1] = 0;
-		if (tree->value != 0) {
-			_tracef("%5d: %s (%s)", tree->value, _nc_visbuf((char *)buffer), keyname(tree->value));
-		}
-		if (tree->child)
-			recur_tries(tree->child, level+1);
-		tree = tree->sibling;
+    while (tree != 0) {
+	if ((buffer[level] = tree->ch) == 0)
+	    buffer[level] = 128;
+	buffer[level + 1] = 0;
+	if (tree->value != 0) {
+	    _tracef("%5d: %s (%s)", tree->value,
+		    _nc_visbuf((char *) buffer), keyname(tree->value));
 	}
+	if (tree->child)
+	    recur_tries(tree->child, level + 1);
+	tree = tree->sibling;
+    }
 }
 
-void _nc_trace_tries(struct tries *tree)
+NCURSES_EXPORT(void)
+_nc_trace_tries(struct tries *tree)
 {
-	buffer = typeMalloc(unsigned char, len = 80);
-	_tracef("BEGIN tries %p", tree);
-	recur_tries(tree, 0);
-	_tracef(". . . tries %p", tree);
-	free(buffer);
+    buffer = typeMalloc(unsigned char, len = 80);
+    _tracef("BEGIN tries %p", tree);
+    recur_tries(tree, 0);
+    _tracef(". . . tries %p", tree);
+    free(buffer);
 }
+
 #else
-void _nc_trace_tries(struct tries *tree GCC_UNUSED)
+NCURSES_EXPORT(void)
+_nc_trace_tries(struct tries *tree GCC_UNUSED)
 {
 }
 #endif

@@ -39,9 +39,9 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_winch.c,v 1.2 2000/07/29 16:41:44 tom Exp $")
+MODULE_ID("$Id: lib_winch.c,v 1.4 2000/12/10 02:43:28 tom Exp $")
 
-chtype
+NCURSES_EXPORT(chtype)
 winch(WINDOW *win)
 {
     T((T_CALLED("winch(%p)"), win));

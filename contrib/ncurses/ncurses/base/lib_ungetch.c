@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -40,35 +40,38 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_ungetch.c,v 1.2 1998/02/11 12:13:56 tom Exp $")
+MODULE_ID("$Id: lib_ungetch.c,v 1.4 2000/12/10 02:43:27 tom Exp $")
 
 #include <fifo_defs.h>
 
 #ifdef TRACE
-void _nc_fifo_dump(void)
+NCURSES_EXPORT(void)
+_nc_fifo_dump(void)
 {
-int i;
-	T(("head = %d, tail = %d, peek = %d", head, tail, peek));
-	for (i = 0; i < 10; i++)
-		T(("char %d = %s", i, _trace_key(SP->_fifo[i])));
+    int i;
+    T(("head = %d, tail = %d, peek = %d", head, tail, peek));
+    for (i = 0; i < 10; i++)
+	T(("char %d = %s", i, _trace_key(SP->_fifo[i])));
 }
 #endif /* TRACE */
 
-int ungetch(int ch)
+NCURSES_EXPORT(int)
+ungetch(int ch)
 {
-	if (tail == -1)
-		return ERR;
-	if (head == -1) {
-		head = 0;
-		t_inc()
-		peek = tail; /* no raw keys */
-	} else
-		h_dec();
+    if (tail == -1)
+	return ERR;
+    if (head == -1) {
+	head = 0;
+	t_inc()
+	    peek = tail;	/* no raw keys */
+    } else
+	h_dec();
 
-	SP->_fifo[head] = ch;
-	T(("ungetch %#x ok", ch));
+    SP->_fifo[head] = ch;
+    T(("ungetch %#x ok", ch));
 #ifdef TRACE
-	if (_nc_tracing & TRACE_IEVENT) _nc_fifo_dump();
+    if (_nc_tracing & TRACE_IEVENT)
+	_nc_fifo_dump();
 #endif
-	return OK;
+    return OK;
 }

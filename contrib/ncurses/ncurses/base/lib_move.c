@@ -40,9 +40,9 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_move.c,v 1.9 2000/04/29 21:11:19 tom Exp $")
+MODULE_ID("$Id: lib_move.c,v 1.11 2000/12/10 02:43:27 tom Exp $")
 
-int
+NCURSES_EXPORT(int)
 wmove(WINDOW *win, int y, int x)
 {
     T((T_CALLED("wmove(%p,%d,%d)"), win, y, x));

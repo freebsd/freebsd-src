@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -31,7 +31,6 @@
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
  ****************************************************************************/
 
-
 /*
 **	lib_longname.c
 **
@@ -41,18 +40,18 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_longname.c,v 1.7 1999/01/03 01:47:45 tom Exp $")
+MODULE_ID("$Id: lib_longname.c,v 1.9 2000/12/10 02:55:07 tom Exp $")
 
-char *
+NCURSES_EXPORT(char *)
 longname(void)
 {
-char	*ptr;
+    char *ptr;
 
-	T((T_CALLED("longname()")));
+    T((T_CALLED("longname()")));
 
-	for (ptr = ttytype + strlen(ttytype); ptr > ttytype; ptr--)
-		if (*ptr == '|')
-			returnPtr(ptr + 1);
+    for (ptr = ttytype + strlen(ttytype); ptr > ttytype; ptr--)
+	if (*ptr == '|')
+	    returnPtr(ptr + 1);
 
-	returnPtr(ttytype);
+    returnPtr(ttytype);
 }

@@ -1,6 +1,6 @@
 // * this is for making emacs happy: -*-Mode: C++;-*-
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2001 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -31,12 +31,12 @@
  *   Author: Juergen Pfeifer <juergen.pfeifer@gmx.net> 1997                 *
  ****************************************************************************/
 
+#include "internal.h"
 #include "cursesf.h"
 #include "cursesapp.h"
-#include "internal.h"
 
-MODULE_ID("$Id: cursesf.cc,v 1.11 2000/06/09 16:15:40 juergen Exp $")
-  
+MODULE_ID("$Id: cursesf.cc,v 1.13 2001/03/24 20:03:51 tom Exp $")
+
 NCursesFormField::~NCursesFormField () {
   if (field)
     OnError(::free_field (field));
@@ -54,16 +54,16 @@ NCursesForm::mapFields(NCursesFormField* nfields[]) {
 
   for (lcv=0; nfields[lcv]->field; ++lcv)
     ++fieldCount;
-  
+
   FIELD** fields = new FIELD*[fieldCount + 1];
-  
+
   for (lcv=0;nfields[lcv]->field;++lcv) {
     fields[lcv] = nfields[lcv]->field;
   }
   fields[lcv] = NULL;
-  
+
   my_fields = nfields;
-  
+
   if (form && (old_fields = ::form_fields(form))) {
     ::set_form_fields(form,(FIELD**)0);
     delete[] old_fields;
@@ -104,7 +104,7 @@ NCursesForm::InitForm(NCursesFormField* nfields[],
 		      bool with_frame,
 		      bool autoDelete_Fields) {
   int mrows, mcols;
-  
+
   keypad(TRUE);
   meta(TRUE);
 
@@ -115,24 +115,24 @@ NCursesForm::InitForm(NCursesFormField* nfields[],
   form = ::new_form(mapFields(nfields));
   if (!form)
     OnError (E_SYSTEM_ERROR);
-  
+
   UserHook* hook = new UserHook;
   hook->m_user   = NULL;
   hook->m_back   = this;
   hook->m_owner  = form;
   ::set_form_userptr(form,(void*)hook);
-  
+
   ::set_form_init  (form, NCursesForm::frm_init);
   ::set_form_term  (form, NCursesForm::frm_term);
   ::set_field_init (form, NCursesForm::fld_init);
   ::set_field_term (form, NCursesForm::fld_term);
-  
+
   scale(mrows, mcols);
   ::set_form_win(form, w);
-  
+
   if (with_frame) {
     if ((mrows > height()-2) || (mcols > width()-2))
-      OnError(E_NO_ROOM);  
+      OnError(E_NO_ROOM);
     sub = new NCursesWindow(*this,mrows,mcols,1,1,'r');
     ::set_form_sub(form, sub->w);
     b_sub_owner = TRUE;
@@ -161,14 +161,14 @@ NCursesForm::~NCursesForm() {
     if (b_autoDelete) {
       if (cnt>0) {
 	for (int i=0; i <= cnt; i++)
-	  delete my_fields[i];	 
+	  delete my_fields[i];
       }
       delete[] my_fields;
     }
 
     ::free_form(form);
     // It's essential to do this after free_form()
-    delete[] fields;  
+    delete[] fields;
   }
 }
 
@@ -186,7 +186,7 @@ NCursesForm::setSubWindow(NCursesWindow& nsub) {
 
 /* Internal hook functions. They will route the hook
  * calls to virtual methods of the NCursesForm class,
- * so in C++ providing a hook is done simply by 
+ * so in C++ providing a hook is done simply by
  * implementing a virtual method in a derived class
  */
 void
@@ -228,7 +228,7 @@ NCursesForm::On_Field_Termination(NCursesFormField& field) {
 }
 
 // call the form driver and do basic error checking.
-int 
+int
 NCursesForm::driver (int c) {
   int res = ::form_driver (form, c);
   switch (res) {
@@ -244,15 +244,15 @@ NCursesForm::driver (int c) {
 }
 
 void NCursesForm::On_Request_Denied(int c) const {
-  beep();
+  ::beep();
 }
 
 void NCursesForm::On_Invalid_Field(int c) const {
-  beep();
+  ::beep();
 }
 
 void NCursesForm::On_Unknown_Command(int c) const {
-  beep();
+  ::beep();
 }
 
 static const int CMD_QUIT = MAX_COMMAND + 1;
@@ -266,7 +266,7 @@ NCursesForm::operator()(void) {
   post();
   show();
   refresh();
-  
+
   while (((drvCmnd = virtualize((c=getch()))) != CMD_QUIT)) {
     switch((err=driver(drvCmnd))) {
     case E_REQUEST_DENIED:
@@ -295,7 +295,7 @@ NCursesForm::operator()(void) {
 // code c into a form request code.
 // The default implementation provides a hopefully straightforward
 // mapping for the most common keystrokes and form requests.
-int 
+int
 NCursesForm::virtualize(int c) {
   switch(c) {
 
@@ -318,7 +318,7 @@ NCursesForm::virtualize(int c) {
 
   case CTRL('F')     : return(REQ_NEXT_FIELD);  // Forward
   case CTRL('B')     : return(REQ_PREV_FIELD);  // Backward
-  case CTRL('L')     : return(REQ_LEFT_FIELD);  // Left 
+  case CTRL('L')     : return(REQ_LEFT_FIELD);  // Left
   case CTRL('R')     : return(REQ_RIGHT_FIELD); // Right
   case CTRL('U')     : return(REQ_UP_FIELD);    // Up
   case CTRL('D')     : return(REQ_DOWN_FIELD);  // Down
@@ -341,7 +341,7 @@ NCursesForm::virtualize(int c) {
 
   case CTRL('N')     : return(REQ_NEXT_CHOICE);
   case CTRL('P')     : return(REQ_PREV_CHOICE);
-    
+
   default:
     return(c);
   }
@@ -362,7 +362,7 @@ bool UserDefinedFieldType::fcheck(FIELD *f, const void *u) {
 bool UserDefinedFieldType::ccheck(int c, const void *u) {
   NCursesFormField* F = (NCursesFormField*)u;
   assert(F != 0);
-  UserDefinedFieldType* udf = 
+  UserDefinedFieldType* udf =
     (UserDefinedFieldType*)(F->fieldtype());
   assert(udf != 0);
   return udf->char_check(c);
@@ -383,7 +383,7 @@ FIELDTYPE* UserDefinedFieldType_With_Choice::generic_fieldtype_with_choice =
 bool UserDefinedFieldType_With_Choice::next_choice(FIELD *f, const void *u) {
   NCursesFormField* F = (NCursesFormField*)u;
   assert(F != 0);
-  UserDefinedFieldType_With_Choice* udf = 
+  UserDefinedFieldType_With_Choice* udf =
     (UserDefinedFieldType_With_Choice*)(F->fieldtype());
   assert(udf != 0);
   return udf->next(*F);
@@ -392,7 +392,7 @@ bool UserDefinedFieldType_With_Choice::next_choice(FIELD *f, const void *u) {
 bool UserDefinedFieldType_With_Choice::prev_choice(FIELD *f, const void *u) {
   NCursesFormField* F = (NCursesFormField*)u;
   assert(F != 0);
-  UserDefinedFieldType_With_Choice* udf = 
+  UserDefinedFieldType_With_Choice* udf =
     (UserDefinedFieldType_With_Choice*)(F->fieldtype());
   assert(udf != 0);
   return udf->previous(*F);
@@ -408,7 +408,7 @@ public:
 			       UserDefinedFieldType::makearg,
 			       NULL,
 			       NULL);
-    if (code==E_OK) 
+    if (code==E_OK)
       code = ::set_fieldtype_arg
 	(UserDefinedFieldType_With_Choice::generic_fieldtype_with_choice,
 	 UserDefinedFieldType::makearg,

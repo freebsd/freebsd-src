@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1999 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1999,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -34,7 +34,7 @@
 #include <term.h>
 #include <tic.h>
 
-MODULE_ID("$Id: name_match.c,v 1.8 1999/03/07 01:58:36 tom Exp $")
+MODULE_ID("$Id: name_match.c,v 1.10 2000/12/10 02:55:08 tom Exp $")
 
 /*
  *	_nc_first_name(char *names)
@@ -42,19 +42,20 @@ MODULE_ID("$Id: name_match.c,v 1.8 1999/03/07 01:58:36 tom Exp $")
  *	Extract the primary name from a compiled entry.
  */
 
-char *_nc_first_name(const char *const sp)
+NCURSES_EXPORT(char *)
+_nc_first_name(const char *const sp)
 /* get the first name from the given name list */
 {
-	static char	buf[MAX_NAME_SIZE+1];
-	register unsigned n;
+    static char buf[MAX_NAME_SIZE + 1];
+    register unsigned n;
 
-	for (n = 0; n < sizeof(buf)-1; n++) {
-		if ((buf[n] = sp[n]) == '\0'
-		 || (buf[n] == '|'))
-			break;
-	}
-	buf[n] = '\0';
-	return(buf);
+    for (n = 0; n < sizeof(buf) - 1; n++) {
+	if ((buf[n] = sp[n]) == '\0'
+	    || (buf[n] == '|'))
+	    break;
+    }
+    buf[n] = '\0';
+    return (buf);
 }
 
 /*
@@ -63,34 +64,36 @@ char *_nc_first_name(const char *const sp)
  *	Is the given name matched in namelist?
  */
 
-int _nc_name_match(const char *const namelst, const char *const name, const char *const delim)
+NCURSES_EXPORT(int)
+_nc_name_match
+(const char *const namelst, const char *const name, const char *const delim)
 {
-	const char *s, *d, *t;
-	int code, found;
+    const char *s, *d, *t;
+    int code, found;
 
-	if ((s = namelst) != 0) {
-		while (*s != '\0') {
-			for (d = name; *d != '\0'; d++) {
-				if (*s != *d)
-					break;
-				s++;
-			}
-			found = FALSE;
-			for (code = TRUE; *s != '\0'; code = FALSE, s++) {
-				for (t = delim; *t != '\0'; t++) {
-					if (*s == *t) {
-						found = TRUE;
-						break;
-					}
-				}
-				if (found)
-					break;
-			}
-			if (code && *d == '\0')
-				return code;
-			if (*s++ == 0)
-				break;
+    if ((s = namelst) != 0) {
+	while (*s != '\0') {
+	    for (d = name; *d != '\0'; d++) {
+		if (*s != *d)
+		    break;
+		s++;
+	    }
+	    found = FALSE;
+	    for (code = TRUE; *s != '\0'; code = FALSE, s++) {
+		for (t = delim; *t != '\0'; t++) {
+		    if (*s == *t) {
+			found = TRUE;
+			break;
+		    }
 		}
+		if (found)
+		    break;
+	    }
+	    if (code && *d == '\0')
+		return code;
+	    if (*s++ == 0)
+		break;
 	}
-	return FALSE;
+    }
+    return FALSE;
 }

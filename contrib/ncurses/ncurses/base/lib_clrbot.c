@@ -40,9 +40,9 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_clrbot.c,v 1.15 2000/04/29 21:15:26 tom Exp $")
+MODULE_ID("$Id: lib_clrbot.c,v 1.17 2000/12/10 02:43:26 tom Exp $")
 
-int
+NCURSES_EXPORT(int)
 wclrtobot(WINDOW *win)
 {
     int code = ERR;
@@ -55,7 +55,7 @@ wclrtobot(WINDOW *win)
 	chtype blank = _nc_background(win);
 
 	T(("clearing from y = %d to y = %d with maxx =  %d",
-		win->_cury, win->_maxy, win->_maxx));
+	   win->_cury, win->_maxy, win->_maxx));
 
 	for (y = win->_cury; y <= win->_maxy; y++) {
 	    struct ldat *line = &(win->_line[y]);

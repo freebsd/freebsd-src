@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -37,7 +37,7 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_userptr.c,v 1.10 1999/05/16 17:28:29 juergen Exp $")
+MODULE_ID("$Id: m_userptr.c,v 1.11 2000/12/10 02:16:48 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnmenu  
@@ -48,7 +48,8 @@ MODULE_ID("$Id: m_userptr.c,v 1.10 1999/05/16 17:28:29 juergen Exp $")
 |
 |   Return Values :  E_OK         - success
 +--------------------------------------------------------------------------*/
-int set_menu_userptr(MENU * menu, void * userptr)
+NCURSES_EXPORT(int)
+set_menu_userptr (MENU * menu, void * userptr)
 {
   Normalize_Menu(menu)->userptr = userptr;
   RETURN( E_OK );
@@ -64,7 +65,8 @@ int set_menu_userptr(MENU * menu, void * userptr)
 |   Return Values :  Value of the pointer. If no such pointer has been set,
 |                    NULL is returned
 +--------------------------------------------------------------------------*/
-void *menu_userptr(const MENU * menu)
+NCURSES_EXPORT(void *)
+menu_userptr (const MENU * menu)
 {
   return( Normalize_Menu(menu)->userptr);
 }

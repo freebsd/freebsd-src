@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1999 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1999,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -28,11 +28,11 @@
 
 #include <curses.priv.h>
 
-#include <term.h>	/* keypad_xmit, keypad_local, meta_on, meta_off */
+#include <term.h>		/* keypad_xmit, keypad_local, meta_on, meta_off */
 			/* cursor_visible,cursor_normal,cursor_invisible */
-#include <tic.h>	/* struct tinfo_fkeys */
+#include <tic.h>		/* struct tinfo_fkeys */
 
-MODULE_ID("$Id: init_keytry.c,v 1.3 2000/03/12 02:55:50 Todd.C.Miller Exp $")
+MODULE_ID("$Id: init_keytry.c,v 1.5 2000/12/10 02:55:07 tom Exp $")
 
 /*
 **      _nc_init_keytry()
@@ -52,27 +52,29 @@ MODULE_ID("$Id: init_keytry.c,v 1.3 2000/03/12 02:55:50 Todd.C.Miller Exp $")
 #endif*/
 
 #if	BROKEN_LINKER
-struct tinfo_fkeys *_nc_tinfo_fkeysf(void)
+struct tinfo_fkeys *
+_nc_tinfo_fkeysf(void)
 {
-	return _nc_tinfo_fkeys;
+    return _nc_tinfo_fkeys;
 }
 #endif
 
-void _nc_init_keytry(void)
+NCURSES_EXPORT(void)
+_nc_init_keytry(void)
 {
-	size_t n;
+    size_t n;
 
-	/* The SP->_keytry value is initialized in newterm(), where the SP
-	 * structure is created, because we can not tell where keypad() or
-	 * mouse_activate() (which will call keyok()) are first called.
-	 */
+    /* The SP->_keytry value is initialized in newterm(), where the SP
+     * structure is created, because we can not tell where keypad() or
+     * mouse_activate() (which will call keyok()) are first called.
+     */
 
-	for (n = 0; _nc_tinfo_fkeys[n].code; n++)
-		if (_nc_tinfo_fkeys[n].offset < STRCOUNT)
-		_nc_add_to_try(&(SP->_keytry),
-			CUR Strings[_nc_tinfo_fkeys[n].offset],
-			_nc_tinfo_fkeys[n].code);
+    for (n = 0; _nc_tinfo_fkeys[n].code; n++)
+	if (_nc_tinfo_fkeys[n].offset < STRCOUNT)
+	    _nc_add_to_try(&(SP->_keytry),
+			   CUR Strings[_nc_tinfo_fkeys[n].offset],
+			   _nc_tinfo_fkeys[n].code);
 #ifdef TRACE
-	_nc_trace_tries(SP->_keytry);
+    _nc_trace_tries(SP->_keytry);
 #endif
 }

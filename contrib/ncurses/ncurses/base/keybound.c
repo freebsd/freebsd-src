@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1999 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1999,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,14 +32,15 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: keybound.c,v 1.1 1999/02/19 11:55:56 tom Exp $")
+MODULE_ID("$Id: keybound.c,v 1.3 2000/12/10 02:43:26 tom Exp $")
 
 /*
  * Returns the count'th string definition which is associated with the
  * given keycode.  The result is malloc'd, must be freed by the caller.
  */
 
-char *keybound(int code, int count)
+NCURSES_EXPORT(char *)
+keybound(int code, int count)
 {
-	return _nc_expand_try(SP->_key_ok, code, &count, 0);
+    return _nc_expand_try(SP->_key_ok, code, &count, 0);
 }
