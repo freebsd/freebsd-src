@@ -929,6 +929,8 @@ vn_start_write(vp, mpp, flags)
 	struct mount *mp;
 	int error;
 
+	GIANT_REQUIRED;
+
 	/*
 	 * If a vnode is provided, get and return the mount point that
 	 * to which it will write.
@@ -1006,6 +1008,8 @@ void
 vn_finished_write(mp)
 	struct mount *mp;
 {
+
+	GIANT_REQUIRED;
 
 	if (mp == NULL)
 		return;
