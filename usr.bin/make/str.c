@@ -425,14 +425,14 @@ Str_SYSVSubst(Buffer buf, const char *pat, const char *src, int len)
 
     if ((m = strchr(pat, '%')) != NULL) {
 	/* Copy the prefix */
-	Buf_AddBytes(buf, m - pat, (Byte *)pat);
+	Buf_AddBytes(buf, m - pat, (const Byte *)pat);
 	/* skip the % */
 	pat = m + 1;
     }
 
     /* Copy the pattern */
-    Buf_AddBytes(buf, len, (Byte *)src);
+    Buf_AddBytes(buf, len, (const Byte *)src);
 
     /* append the rest */
-    Buf_AddBytes(buf, strlen(pat), (Byte *)pat);
+    Buf_AddBytes(buf, strlen(pat), (const Byte *)pat);
 }
