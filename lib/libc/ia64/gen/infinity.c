@@ -30,10 +30,19 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/endian.h>
 #include <math.h>
 
 /* bytes for +Infinity on an ia64 (IEEE double format) */
+#if _BYTE_ORDER == _LITTLE_ENDIAN
 const union __infinity_un __infinity = { { 0, 0, 0, 0, 0, 0, 0xf0, 0x7f } };
+#else /* _BIG_ENDIAN */
+const union __infinity_un __infinity = { { 0x7f, 0xf0, 0, 0, 0, 0, 0, 0 } };
+#endif
 
 /* bytes for NaN */
+#if _BYTE_ORDER == _LITTLE_ENDIAN
 const union __nan_un __nan = { { 0, 0, 0xc0, 0xff } };
+#else /* _BIG_ENDIAN */
+const union __nan_un __nan = { { 0xff, 0xc0, 0, 0 } };
+#endif
