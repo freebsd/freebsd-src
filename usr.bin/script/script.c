@@ -168,8 +168,7 @@ main(int argc, char *argv[])
 	FD_ZERO(&rfd);
 	for (;;) {
 		FD_SET(master, &rfd);
-		if (argv[0] == NULL)
-			FD_SET(STDIN_FILENO, &rfd);
+		FD_SET(STDIN_FILENO, &rfd);
 		if (flushtime > 0) {
 			tv.tv_sec = flushtime;
 			tv.tv_usec = 0;
