@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ypxfrd.x,v 1.2 1996/07/04 02:08:17 wpaul Exp $
+ *	$Id: ypxfrd.x,v 1.5 1997/05/28 04:38:30 wpaul Exp $
  */
 
 /*
@@ -68,7 +68,7 @@
 
 #ifndef RPC_HDR
 %#ifndef lint
-%static const char rcsid[] = "$Id: ypxfrd.x,v 1.2 1996/07/04 02:08:17 wpaul Exp $";
+%static const char rcsid[] = "$Id: ypxfrd.x,v 1.5 1997/05/28 04:38:30 wpaul Exp $";
 %#endif /* not lint */
 #endif
 
@@ -136,9 +136,6 @@ enum xfr_byte_order {
 typedef string xfrdomain<_YPMAXDOMAIN>;
 typedef string xfrmap<_YPMAXMAP>;
 typedef string xfrmap_filename<_YPMAXMAP>;	/* actual name of map file */
-typedef enum xfrstat xfrstat;
-typedef enum xfr_db_type xfr_db_type;
-typedef enum xfr_byte_order xfr_byte_order;
 
 /*
  * Ask the remote ypxfrd for a map using this structure.
