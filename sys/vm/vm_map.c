@@ -2178,95 +2178,6 @@ vm_map_check_protection(vm_map_t map, vm_offset_t start, vm_offset_t end,
 }
 
 /*
- * Split the pages in a map entry into a new object.  This affords
- * easier removal of unused pages, and keeps object inheritance from
- * being a negative impact on memory usage.
- */
-static void
-vm_map_split(vm_map_entry_t entry)
-{
-	vm_page_t m;
-	vm_object_t orig_object, new_object, source;
-	vm_offset_t s, e;
-	vm_pindex_t offidxstart, offidxend, idx;
-	vm_size_t size;
-	vm_ooffset_t offset;
-
-	GIANT_REQUIRED;
-
-	orig_object = entry->object.vm_object;
-	if (orig_object->type != OBJT_DEFAULT && orig_object->type != OBJT_SWAP)
-		return;
-	if (orig_object->ref_count <= 1)
-		return;
-
-	offset = entry->offset;
-	s = entry->start;
-	e = entry->end;
-
-	offidxstart = OFF_TO_IDX(offset);
-	offidxend = offidxstart + OFF_TO_IDX(e - s);
-	size = offidxend - offidxstart;
-
-	new_object = vm_pager_allocate(orig_object->type,
-		NULL, IDX_TO_OFF(size), VM_PROT_ALL, 0LL);
-	if (new_object == NULL)
-		return;
-
-	source = orig_object->backing_object;
-	if (source != NULL) {
-		vm_object_reference(source);	/* Referenced by new_object */
-		TAILQ_INSERT_TAIL(&source->shadow_head,
-				  new_object, shadow_list);
-		vm_object_clear_flag(source, OBJ_ONEMAPPING);
-		new_object->backing_object_offset = 
-			orig_object->backing_object_offset + IDX_TO_OFF(offidxstart);
-		new_object->backing_object = source;
-		source->shadow_count++;
-		source->generation++;
-	}
-	for (idx = 0; idx < size; idx++) {
-	retry:
-		m = vm_page_lookup(orig_object, offidxstart + idx);
-		if (m == NULL)
-			continue;
-
-		/*
-		 * We must wait for pending I/O to complete before we can
-		 * rename the page.
-		 *
-		 * We do not have to VM_PROT_NONE the page as mappings should
-		 * not be changed by this operation.
-		 */
-		if (vm_page_sleep_busy(m, TRUE, "spltwt"))
-			goto retry;
-			
-		vm_page_busy(m);
-		vm_page_rename(m, new_object, idx);
-		/* page automatically made dirty by rename and cache handled */
-		vm_page_busy(m);
-	}
-	if (orig_object->type == OBJT_SWAP) {
-		vm_object_pip_add(orig_object, 1);
-		/*
-		 * copy orig_object pages into new_object
-		 * and destroy unneeded pages in
-		 * shadow object.
-		 */
-		swap_pager_copy(orig_object, new_object, offidxstart, 0);
-		vm_object_pip_wakeup(orig_object);
-	}
-	for (idx = 0; idx < size; idx++) {
-		m = vm_page_lookup(new_object, idx);
-		if (m != NULL)
-			vm_page_wakeup(m);
-	}
-	entry->object.vm_object = new_object;
-	entry->offset = 0LL;
-	vm_object_deallocate(orig_object);
-}
-
-/*
  *	vm_map_copy_entry:
  *
  *	Copies the contents of the source entry to the destination
@@ -2307,7 +2218,7 @@ vm_map_copy_entry(
 				 src_object->type == OBJT_SWAP)) {
 				vm_object_collapse(src_object);
 				if ((src_object->flags & (OBJ_NOSPLIT|OBJ_ONEMAPPING)) == OBJ_ONEMAPPING) {
-					vm_map_split(src_entry);
+					vm_object_split(src_entry);
 					src_object = src_entry->object.vm_object;
 				}
 			}
