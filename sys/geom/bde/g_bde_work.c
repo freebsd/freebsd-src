@@ -89,12 +89,14 @@ static void g_bde_purge_sector(struct g_bde_softc *sc, int fraction);
 static u_int g_bde_nwork;
 SYSCTL_UINT(_debug, OID_AUTO, gbde_nwork, CTLFLAG_RD, &g_bde_nwork, 0, "");
 
+static MALLOC_DEFINE(M_GBDE, "GBDE", "GBDE data structures");
+
 static struct g_bde_work *
 g_bde_new_work(struct g_bde_softc *sc)
 {
 	struct g_bde_work *wp;
 
-	wp = g_malloc(sizeof *wp, M_NOWAIT | M_ZERO);
+	wp = malloc(sizeof *wp, M_GBDE, M_NOWAIT | M_ZERO);
 	if (wp == NULL)
 		return (wp);
 	wp->state = SETUP;
@@ -114,7 +116,7 @@ g_bde_delete_work(struct g_bde_work *wp)
 	g_bde_nwork--;
 	sc->nwork--;
 	TAILQ_REMOVE(&sc->worklist, wp, list);
-	g_free(wp);
+	free(wp, M_GBDE);
 }
 
 /*
@@ -133,8 +135,8 @@ g_bde_delete_sector(struct g_bde_softc *sc, struct g_bde_sector *sp)
 	g_bde_nsect--;
 	sc->nsect--;
 	if (sp->malloc)
-		g_free(sp->data);
-	g_free(sp);
+		free(sp->data, M_GBDE);
+	free(sp, M_GBDE);
 }
 
 static struct g_bde_sector *
@@ -142,13 +144,13 @@ g_bde_new_sector(struct g_bde_work *wp, u_int len)
 {
 	struct g_bde_sector *sp;
 
-	sp = g_malloc(sizeof *sp, M_NOWAIT | M_ZERO);
+	sp = malloc(sizeof *sp, M_GBDE, M_NOWAIT | M_ZERO);
 	if (sp == NULL)
 		return (sp);
 	if (len > 0) {
-		sp->data = g_malloc(len, M_NOWAIT | M_ZERO);
+		sp->data = malloc(len, M_GBDE, M_NOWAIT | M_ZERO);
 		if (sp->data == NULL) {
-			g_free(sp);
+			free(sp, M_GBDE);
 			return (NULL);
 		}
 		sp->malloc = 1;
