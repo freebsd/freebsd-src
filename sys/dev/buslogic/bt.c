@@ -492,12 +492,18 @@ bt_fetch_adapter_info(device_t dev)
 	
   	bt->bios_addr = esetup_info.bios_addr << 12;
 
+	bt->mailbox_addrlimit = BUS_SPACE_MAXADDR;
 	if (esetup_info.bus_type == 'A'
 	 && bt->firmware_ver[0] == '2') {
 		snprintf(bt->model, sizeof(bt->model), "542B");
 	} else if (esetup_info.bus_type == 'E'
-		&& (strncmp(bt->firmware_ver, "2.1", 3) == 0
-		 || strncmp(bt->firmware_ver, "2.20", 4) == 0)) {
+	 	&& bt->firmware_ver[0] == '2') {
+
+		/*
+		 * The 742A seems to object if its mailboxes are
+		 * allocated above the 16MB mark.
+		 */
+		bt->mailbox_addrlimit = BUS_SPACE_MAXADDR_24BIT;
 		snprintf(bt->model, sizeof(bt->model), "742A");
 	} else if (esetup_info.bus_type == 'E'
 		&& bt->firmware_ver[0] == '0') {
@@ -720,7 +726,7 @@ bt_init(device_t dev)
 	bt->init_level++;
 	/* DMA tag for our mailboxes */
 	if (bus_dma_tag_create(bt->parent_dmat, /*alignment*/1, /*boundary*/0,
-			       /*lowaddr*/BUS_SPACE_MAXADDR,
+			       /*lowaddr*/bt->mailbox_addrlimit,
 			       /*highaddr*/BUS_SPACE_MAXADDR,
 			       /*filter*/NULL, /*filterarg*/NULL,
 			       bt->num_boxes * (sizeof(bt_mbox_in_t)
