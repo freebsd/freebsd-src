@@ -64,6 +64,7 @@ vendor SIMPLETECH		0x014d	Simple Technology
 vendor LUCENT			0x0156	Lucent Technologies
 vendor AIRONET			0x015f	Aironet Wireless Communications
 vendor COMPAQ2			0x0183	Compaq
+vendor KINGSTON			0x0186	Kingston
 vendor DAYNA			0x0194	Dayna Corporation
 vendor RAYTHEON			0x01a6	Raytheon
 vendor IODATA			0x01bf	I-O DATA
@@ -122,6 +123,9 @@ product FUJITSU SCSI600		0x0401 Fujitsu SCSI 600 Interface
 /* Motorola Products */
 product MOTOROLA POWER144	0x0105 Motorola Power 14.4 Modem
 product MOTOROLA PM100C		0x0302 Motorola Personal Messenger 100C CDPD Modem
+
+/* Kingston Products */
+product KINGSTON KNE2		0x0100 Kingston KNE-PC2 Ethernet
 
 /* Fujitsu Products */
 product FUJITSU LA501		0x2000 Fujitsu Towa LA501 Ethernet
