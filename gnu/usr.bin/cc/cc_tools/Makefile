@@ -25,10 +25,9 @@ CFLAGS+=	-DGENERATOR_FILE
 # Build 'pocket' libiberty exclusively for build tools use.
 
 LIBIBERTY_SRCS=	choose-temp.c concat.c cp-demangle.c cp-demint.c cplus-dem.c \
-	dyn-string.c errors.c fibheap.c \
-	getpwd.c getruntime.c hashtab.c hex.c lbasename.c make-temp-file.c \
-	md5.c obstack.c partition.c pexecute.c physmem.c splay-tree.c xexit.c \
-	xmalloc.c xmemdup.c xstrdup.c xstrerror.c xexit.c
+	dyn-string.c fibheap.c getpwd.c getruntime.c hashtab.c hex.c \
+	lbasename.c make-temp-file.c md5.c obstack.c partition.c pex-unix.c \
+	physmem.c splay-tree.c xexit.c xmalloc.c xmemdup.c xstrdup.c xstrerror.c
 LIBIBERTY_OBJS=	${LIBIBERTY_SRCS:R:S/$/.o/g}
 
 SRCS+=	${LIBIBERTY_SRCS}
@@ -77,7 +76,7 @@ gen-time-stamp: genattr genattrtab genconditions genconstants genemit \
 build-tools: gen$F
 
 gen$F: gen$F.o rtl.o print-rtl.o bitmap.o gensupport.o  ggc-none.o \
-	read-rtl.o insn-conditions.o min-insn-modes.o ${LIBIBERTY}
+	read-rtl.o insn-conditions.o min-insn-modes.o errors.o ${LIBIBERTY}
 	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
 
 GENSRCS+=	gen$F.c
@@ -91,7 +90,7 @@ build-tools: genattrtab
 
 genattrtab : genattrtab.o rtl.o print-rtl.o bitmap.o gensupport.o ggc-none.o \
 	read-rtl.o insn-conditions.o genautomata.o varray.o min-insn-modes.o \
-	${LIBIBERTY}
+	errors.o ${LIBIBERTY}
 	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC} -lm
 
 GENSRCS+=	genattrtab.c
@@ -104,7 +103,7 @@ CLEANFILES+=	genattrtab
 .for F in constants conditions
 build-tools: gen$F
 
-gen$F: gen$F.o rtl.o bitmap.o gensupport.o ggc-none.o read-rtl.o dummy-conditions.o min-insn-modes.o ${LIBIBERTY}
+gen$F: gen$F.o rtl.o bitmap.o gensupport.o ggc-none.o read-rtl.o dummy-conditions.o min-insn-modes.o errors.o ${LIBIBERTY}
 	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
 
 GENSRCS+=	gen$F.c
@@ -114,7 +113,7 @@ CLEANFILES+=	gen$F
 .for F in modes check genrtl preds
 build-tools: gen$F
 
-gen$F: gen$F.o ${LIBIBERTY}
+gen$F: gen$F.o errors.o ${LIBIBERTY}
 	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
 
 GENSRCS+=	gen$F.c
@@ -128,9 +127,8 @@ genrtl.c genrtl.h: gengenrtl
 
 GENSRCS+=	genrtl.c genrtl.h
 
-SRCS+=	bitmap.c concat.c dummy-conditions.c genautomata.c \
-	gensupport.c getruntime.c ggc-none.c hashtab.c \
-	obstack.c physmem.c print-rtl.c read-rtl.c rtl.c varray.c xmemdup.c
+SRCS+=	bitmap.c dummy-conditions.c errors.c genautomata.c gensupport.c \
+	ggc-none.c print-rtl.c read-rtl.c rtl.c varray.c
 
 #-----------------------------------------------------------------------
 # insn modes stuff.
