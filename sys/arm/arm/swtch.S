@@ -468,6 +468,7 @@ ENTRY(fork_trampoline)
 	mov	r1, r5
 	mov	r2, sp
 	mov	r0, r4
+	mov	fp, #0
 	bl	_C_LABEL(fork_exit)
 	/* Kill irq"s */
 	mrs	r0, cpsr
