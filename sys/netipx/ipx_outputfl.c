@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_outputfl.c
  *
- * $Id: ipx_outputfl.c,v 1.7 1997/05/10 09:58:53 jhay Exp $
+ * $Id: ipx_outputfl.c,v 1.8 1997/06/26 19:35:51 jhay Exp $
  */
 
 #include <sys/param.h>
@@ -257,7 +257,7 @@ ipx_output_type20(m)
 					(struct sockaddr *)&dst, NULL);
 				/* XXX ipxstat.ipxs_localout++; */
 			}
-skip_this:
+skip_this: ;
 		}
 
 bad:

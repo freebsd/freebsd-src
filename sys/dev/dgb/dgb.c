@@ -1,5 +1,5 @@
 /*-
- *  dgb.c $Id: dgb.c,v 1.25 1997/03/24 11:23:26 bde Exp $
+ *  dgb.c $Id: dgb.c,v 1.26 1997/06/14 15:19:48 bde Exp $
  *
  *  Digiboard driver.
  *
@@ -1414,7 +1414,7 @@ dgbpoll(unit_c)
 					ttwakeup(tp);
 					setwin(sc,0);
 				}
-			end_of_data:
+			end_of_data: ;
 			}
 
 			if(event & MODEMCHG_IND) {
@@ -1533,7 +1533,7 @@ dgbpoll(unit_c)
 				        setwin(sc,0);
 				        }
 			        }
-			end_of_buffer:
+			end_of_buffer: ;
 			}
 			bc->idata=1;   /* require event on incoming data */ 
 
