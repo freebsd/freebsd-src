@@ -1,7 +1,7 @@
 #
 # GENERICBT -- Generic machine with WD/BTx family disks
 #
-#	$Id: GENERICBT,v 1.20 1994/01/05 14:56:48 rgrimes Exp $
+#	$Id: GENERICBT,v 1.21 1994/01/25 11:08:23 rgrimes Exp $
 #
 
 machine		"i386"
@@ -16,7 +16,6 @@ options		INET			#InterNETworking
 options		ISOFS			#ISO File System
 options		NFS			#Network File System
 options		PCFS			#MSDOS File System
-#options		PROCFS			#Proc File System
 options		"COMPAT_43"		#Compatible with BSD 4.3
 options		"TCP_COMPAT_42"		#TCP/IP compatible with 4.2
 options		XSERVER			#Xserver
