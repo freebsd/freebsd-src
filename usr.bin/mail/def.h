@@ -44,7 +44,7 @@
 #include <sys/time.h>
 
 #include <signal.h>
-#include <sgtty.h>
+#include <termios.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
