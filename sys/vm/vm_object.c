@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.91 1997/04/26 11:46:25 peter Exp $
+ * $Id: vm_object.c,v 1.92 1997/05/29 02:57:22 peter Exp $
  */
 
 /*
@@ -371,6 +371,9 @@ vm_object_terminate(object)
 {
 	register vm_page_t p;
 	int s;
+
+	if (object->flags & OBJ_VFS_REF)
+		panic("vm_object_deallocate: freeing VFS_REF'ed object");
 
 	/*
 	 * wait for the pageout daemon to be done with the object
