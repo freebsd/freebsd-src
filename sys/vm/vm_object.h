@@ -169,101 +169,32 @@ extern vm_object_t kmem_object;
 
 #ifdef _KERNEL
 
-static __inline void
-vm_object_set_flag(vm_object_t object, u_short bits)
-{
-	GIANT_REQUIRED;
-	atomic_set_short(&object->flags, bits);
-	/* object->flags |= bits; */
-}
+void vm_object_set_flag(vm_object_t object, u_short bits);
+void vm_object_clear_flag(vm_object_t object, u_short bits);
+void vm_object_pip_add(vm_object_t object, short i);
+void vm_object_pip_subtract(vm_object_t object, short i);
+void vm_object_pip_wakeup(vm_object_t object);
+void vm_object_pip_wakeupn(vm_object_t object, short i);
+void vm_object_pip_sleep(vm_object_t object, char *waitid);
+void vm_object_pip_wait(vm_object_t object, char *waitid);
 
-static __inline void
-vm_object_clear_flag(vm_object_t object, u_short bits)
-{
-	GIANT_REQUIRED;
-	atomic_clear_short(&object->flags, bits);
-	/* object->flags &= ~bits; */
-}
-
-static __inline void
-vm_object_pip_add(vm_object_t object, short i)
-{
-	GIANT_REQUIRED;
-	atomic_add_short(&object->paging_in_progress, i);
-	/* object->paging_in_progress += i; */
-}
-
-static __inline void
-vm_object_pip_subtract(vm_object_t object, short i)
-{
-	GIANT_REQUIRED;
-	atomic_subtract_short(&object->paging_in_progress, i);
-	/* object->paging_in_progress -= i; */
-}
-
-static __inline void
-vm_object_pip_wakeup(vm_object_t object)
-{
-	GIANT_REQUIRED;
-	atomic_subtract_short(&object->paging_in_progress, 1);
-	/* object->paging_in_progress--; */
-	if ((object->flags & OBJ_PIPWNT) && object->paging_in_progress == 0) {
-		vm_object_clear_flag(object, OBJ_PIPWNT);
-		wakeup(object);
-	}
-}
-
-static __inline void
-vm_object_pip_wakeupn(vm_object_t object, short i)
-{
-	GIANT_REQUIRED;
-	if (i)
-		atomic_subtract_short(&object->paging_in_progress, i);
-	if ((object->flags & OBJ_PIPWNT) && object->paging_in_progress == 0) {
-		vm_object_clear_flag(object, OBJ_PIPWNT);
-		wakeup(object);
-	}
-}
-
-static __inline void
-vm_object_pip_sleep(vm_object_t object, char *waitid)
-{
-	GIANT_REQUIRED;
-	if (object->paging_in_progress) {
-		int s = splvm();
-		if (object->paging_in_progress) {
-			vm_object_set_flag(object, OBJ_PIPWNT);
-			tsleep(object, PVM, waitid, 0);
-		}
-		splx(s);
-	}
-}
-
-static __inline void
-vm_object_pip_wait(vm_object_t object, char *waitid)
-{
-	GIANT_REQUIRED;
-	while (object->paging_in_progress)
-		vm_object_pip_sleep(object, waitid);
-}
-
-vm_object_t vm_object_allocate __P((objtype_t, vm_size_t));
-void _vm_object_allocate __P((objtype_t, vm_size_t, vm_object_t));
-boolean_t vm_object_coalesce __P((vm_object_t, vm_pindex_t, vm_size_t, vm_size_t));
-void vm_object_collapse __P((vm_object_t));
-void vm_object_deallocate __P((vm_object_t));
-void vm_object_terminate __P((vm_object_t));
-void vm_object_vndeallocate __P((vm_object_t));
-void vm_object_init __P((void));
-void vm_object_page_clean __P((vm_object_t, vm_pindex_t, vm_pindex_t, boolean_t));
-void vm_object_page_remove __P((vm_object_t, vm_pindex_t, vm_pindex_t, boolean_t));
-void vm_object_pmap_copy __P((vm_object_t, vm_pindex_t, vm_pindex_t));
-void vm_object_pmap_copy_1 __P((vm_object_t, vm_pindex_t, vm_pindex_t));
-void vm_object_pmap_remove __P((vm_object_t, vm_pindex_t, vm_pindex_t));
-void vm_object_reference __P((vm_object_t));
-void vm_object_shadow __P((vm_object_t *, vm_ooffset_t *, vm_size_t));
-void vm_object_madvise __P((vm_object_t, vm_pindex_t, int, int));
-void vm_object_init2 __P((void));
+vm_object_t vm_object_allocate (objtype_t, vm_size_t);
+void _vm_object_allocate (objtype_t, vm_size_t, vm_object_t);
+boolean_t vm_object_coalesce (vm_object_t, vm_pindex_t, vm_size_t, vm_size_t);
+void vm_object_collapse (vm_object_t);
+void vm_object_deallocate (vm_object_t);
+void vm_object_terminate (vm_object_t);
+void vm_object_vndeallocate (vm_object_t);
+void vm_object_init (void);
+void vm_object_page_clean (vm_object_t, vm_pindex_t, vm_pindex_t, boolean_t);
+void vm_object_page_remove (vm_object_t, vm_pindex_t, vm_pindex_t, boolean_t);
+void vm_object_pmap_copy (vm_object_t, vm_pindex_t, vm_pindex_t);
+void vm_object_pmap_copy_1 (vm_object_t, vm_pindex_t, vm_pindex_t);
+void vm_object_pmap_remove (vm_object_t, vm_pindex_t, vm_pindex_t);
+void vm_object_reference (vm_object_t);
+void vm_object_shadow (vm_object_t *, vm_ooffset_t *, vm_size_t);
+void vm_object_madvise (vm_object_t, vm_pindex_t, int, int);
+void vm_object_init2 (void);
 #endif				/* _KERNEL */
 
 #endif				/* _VM_OBJECT_ */
