@@ -76,7 +76,8 @@ rtermcap:	rtermcap.c
 .if ${MACHINE} == "pc98"
 KEYMAPS= jp.pc98 jp.pc98.iso
 .else
-KEYMAPS= be.iso br275.iso cs.latin2.qwertz danish.iso finnish.iso fr.iso \
+KEYMAPS= be.iso bg.bds.ctrlcaps bg.phonetic.ctrlcaps br275.iso \
+	cs.latin2.qwertz danish.iso finnish.iso fr.iso \
 	german.iso hr.iso hu.iso2.101keys it.iso icelandic.iso jp.106 \
 	norwegian.iso pl_PL.ISO8859-2 pt.iso ru.koi8-r si.iso \
 	spanish.iso swedish.iso swissfrench.iso swissgerman.iso ua.koi8-u \
