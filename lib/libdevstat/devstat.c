@@ -1512,6 +1512,8 @@ devstat_compute_statistics(struct devstat *current, struct devstat *previous,
 				*destld = 0;
 			*destld /= etime;
 			*destld *= 100;
+			if (*destld < 0)
+				*destld = 0;
 			break;
 		case DSM_QUEUE_LENGTH:
 			*destu64 = current->start_count - current->end_count;
