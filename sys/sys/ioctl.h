@@ -43,7 +43,9 @@
 #define	_SYS_IOCTL_H_
 
 #ifdef _KERNEL
+#if __GNUC__
 #warning "Don't #include ioctl.h in the kernel.  Include xxxio.h instead."
+#endif
 #endif
 
 #include <sys/ttycom.h>
