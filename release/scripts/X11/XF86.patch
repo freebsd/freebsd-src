@@ -1,27 +1,27 @@
 Index: Makefile
 ===================================================================
 RCS file: /host/ares/usr/home/ncvs/ports/x11/XFree86/Makefile,v
-retrieving revision 1.80
-diff -u -r1.80 Makefile
---- Makefile	2000/06/16 21:52:08	1.80
-+++ Makefile	2000/07/25 01:59:28
-@@ -13,7 +13,7 @@
- 		ftp://ftp.lip6.fr/pub/X11/XFree86/XFree86-3.3.6/source/ \
- 		ftp://ftp.cs.tu-berlin.de/pub/X/XFree86/3.3.6/source/ \
- 		ftp://sunsite.doc.ic.ac.uk/packages/XFree86/3.3.6/source/
+retrieving revision 1.89
+diff -u -r1.89 Makefile
+--- Makefile	2000/10/27 22:47:07	1.89
++++ Makefile	2000/11/09 01:04:42
+@@ -11,7 +11,7 @@
+ CATEGORIES=	x11
+ MASTER_SITES=	${MASTER_SITE_XFREE}
+ MASTER_SITE_SUBDIR=	${PORTVERSION}
 -DISTFILES=	X336src-1.tgz X336src-2.tgz
 +DISTFILES=	X336src-1.tgz X336src-2.tgz X336src-3.tgz
  
  PATCH_SITES=	ftp://ftp.xfree.org/pub/XFree86/3.3.6/fixes/ \
  		ftp://ftp.freesoftware.com/pub/XFree86/3.3.6/fixes/ \
-@@ -31,19 +31,18 @@
+@@ -29,19 +29,18 @@
  #NO_PACKAGE=	package available from XFree86
  .endif
  ALL_TARGET=	World
 -INSTALL_TARGET=	install install.man
 +INSTALL_TARGET=	install install.man install.linkkit
  DIST_SUBDIR=	xc
- PATCH_DIST_ARGS=-p0 -E -d ${WRKDIR} --quiet
+ PATCH_DIST_ARGS=-p2 -E -d ${WRKDIR}/xc/programs --quiet
 -SCRIPTS_ENV=	OSVERSION=${OSVERSION}
 +SCRIPTS_ENV=	OSVERSION=${OSVERSION} MACHINE=${MACHINE} \
 +		MACHINE_ARCH=${MACHINE_ARCH}
@@ -30,41 +30,42 @@ diff -u -r1.80 Makefile
  MTREE_FILE=	/etc/mtree/BSD.x11.dist
  .if (${MACHINE} == "pc98")
 -SCRIPTS_ENV+=	MACHINE=pc98
- PLIST=		${PKGDIR}/PLIST.pc98
+ PLIST=		${PKGDIR}/pkg-plist.pc98
  .endif
  .if (${MACHINE} == "alpha")
 -SCRIPTS_ENV+=	MACHINE=alpha
- PLIST=		${PKGDIR}/PLIST.alpha
+ PLIST=		${PKGDIR}/pkg-plist.alpha
  .endif
  
-@@ -71,6 +70,8 @@
+@@ -69,6 +68,8 @@
  
  post-extract:
  	@${MV} ${WRKSRC}/programs/Xserver/hw/xfree86/vga256/drivers/i810/os-support/linux/agpgart.h ${WRKSRC}/programs/Xserver/hw/xfree86/vga256/drivers/i810/
 +	@${CP} ${WRKSRC}/programs/Xserver/hw/xfree86/LinkKit/README \
 +		${WRKSRC}/programs/Xserver/hw/xfree86/doc/sgml
- 
- .include <bsd.port.pre.mk>
- 
-Index: files/md5
+ 	@if [ -r ${FILESDIR}/config ]; then \
+ 		${ECHO} Using your existing ${FILESDIR}/config ; \
+ 		${CP} ${FILESDIR}/config ${WRKDIR}/config ; \
+Index: distinfo
 ===================================================================
-RCS file: /host/ares/usr/home/ncvs/ports/x11/XFree86/files/md5,v
-retrieving revision 1.23
-diff -u -r1.23 md5
---- files/md5	2000/02/10 15:51:04	1.23
-+++ files/md5	2000/07/25 01:59:28
-@@ -1,4 +1,5 @@
+RCS file: /host/ares/usr/home/ncvs/ports/x11/XFree86/distinfo,v
+retrieving revision 1.24
+diff -u -r1.24 distinfo
+--- distinfo	2000/10/10 10:40:08	1.24
++++ distinfo	2000/11/09 00:51:06
+@@ -1,5 +1,6 @@
  MD5 (xc/X336src-1.tgz) = bbfa360d10ce91ab37f24f197a31b485
  MD5 (xc/X336src-2.tgz) = 897daa223b5b67b8314ed8835cc17539
 +MD5 (xc/X336src-3.tgz) = 4b1d9d353f8b4cba678f7c156b872330
  MD5 (xc/fix-01-r128) = a62387e13b970c5a83e9a0822c30344f
- MD5 (xc/Wraphelp.c) = IGNORE
-Index: patches/patch-h
+ MD5 (xc/fix-04-s3trio3d2x) = 75569a9d49bb45b8ecb311ab3f8c2469
+ MD5 (xc/fix-05-s3trio3d) = eb8fd33328c8b5fbd0410472339dee44
+Index: files/patch-r01
 ===================================================================
-RCS file: patch-h
-diff -N patch-h
---- /dev/null	Mon Jul 24 18:59:32 2000
-+++ patch-h	Mon Jul 24 18:59:28 2000
+RCS file: patch-r01
+diff -N patch-r01
+--- /dev/null	Wed Nov  8 02:15:56 2000
++++ patch-r01	Wed Nov  8 16:52:58 2000
 @@ -0,0 +1,10 @@
 +--- programs/Xserver/hw/xfree86/vga256/drivers/i810/Imakefile.orig	Tue Jul 18 13:30:51 2000
 ++++ programs/Xserver/hw/xfree86/vga256/drivers/i810/Imakefile	Tue Jul 18 13:31:01 2000
@@ -76,12 +77,12 @@ diff -N patch-h
 + InstallLinkKitNonExecFile(i810_reg.h,$(LINKKITDIR)/drivers/vga256/i810)
 + 
 + DependTarget()
-Index: patches/patch-i
+Index: files/patch-r02
 ===================================================================
-RCS file: patch-i
-diff -N patch-i
---- /dev/null	Mon Jul 24 18:59:32 2000
-+++ patch-i	Mon Jul 24 18:59:28 2000
+RCS file: patch-r02
+diff -N patch-r02
+--- /dev/null	Wed Nov  8 02:15:56 2000
++++ patch-r02	Wed Nov  8 16:53:05 2000
 @@ -0,0 +1,11 @@
 +--- programs/Xserver/hw/xfree86/doc/Imakefile.orig	Tue Jul 18 15:31:36 2000
 ++++ programs/Xserver/hw/xfree86/doc/Imakefile	Tue Jul 18 15:31:52 2000
@@ -94,12 +95,12 @@ diff -N patch-i
 + 
 + MAINDOCS = COPYRIGHT README README.Config BUILD RELNOTES
 + 
-Index: patches/patch-j
+Index: files/patch-r03
 ===================================================================
-RCS file: patch-j
-diff -N patch-j
---- /dev/null	Mon Jul 24 18:59:32 2000
-+++ patch-j	Mon Jul 24 18:59:28 2000
+RCS file: patch-r03
+diff -N patch-r03
+--- /dev/null	Wed Nov  8 02:15:56 2000
++++ patch-r03	Wed Nov  8 16:53:11 2000
 @@ -0,0 +1,11 @@
 +--- config/cf/lnxdoc.rules.orig	Tue Jul 18 18:16:01 2000
 ++++ config/cf/lnxdoc.rules	Tue Jul 18 18:19:05 2000
@@ -112,12 +113,12 @@ diff -N patch-j
 + 	  $(XFREE86IDENTFIX) < $$BASE.latin1 > _$@ && $(MV) _$@ $@ && \	@@\
 + 	  RemoveFile($$BASE.latin1))					@@\
 + 									@@\
-Index: patches/patch-k
+Index: files/patch-r04
 ===================================================================
-RCS file: patch-k
-diff -N patch-k
---- /dev/null	Mon Jul 24 18:59:32 2000
-+++ patch-k	Mon Jul 24 19:16:15 2000
+RCS file: patch-r04
+diff -N patch-r04
+--- /dev/null	Wed Nov  8 02:15:56 2000
++++ patch-r04	Wed Nov  8 16:53:19 2000
 @@ -0,0 +1,34 @@
 +--- programs/Xserver/hw/xfree86/doc/Japanese/Imakefile.orig	Fri Dec  3 01:42:36 1999
 ++++ programs/Xserver/hw/xfree86/doc/Japanese/Imakefile	Mon Jul 24 19:15:08 2000
@@ -156,11 +157,11 @@ diff -N patch-k
 Index: scripts/configure
 ===================================================================
 RCS file: /host/ares/usr/home/ncvs/ports/x11/XFree86/scripts/configure,v
-retrieving revision 1.59
-diff -u -r1.59 configure
---- scripts/configure	2000/06/09 06:25:17	1.59
-+++ scripts/configure	2000/07/25 01:59:28
-@@ -1,42 +1,12 @@
+retrieving revision 1.60
+diff -u -r1.60 configure
+--- scripts/configure	2000/07/31 12:30:45	1.60
++++ scripts/configure	2000/11/09 01:00:48
+@@ -1,35 +1,5 @@
  #!/bin/sh
  
 -yesno () {
@@ -193,9 +194,10 @@ diff -u -r1.59 configure
 -    esac
 -  done
 -}
- F=$WRKDIR/.config
+ F=$WRKDIR/config
+ WH=$WRKDIR/xc/lib/Xdmcp/Wraphelp.c
  configure () {
- rm -f $F
+@@ -37,7 +7,7 @@
  
  # Tk detection
  tkversion=
@@ -204,7 +206,7 @@ diff -u -r1.59 configure
    if [ -f /usr/local/lib/libtk$v.a ]; then
      tkversion=$v
      case $tkversion in
-@@ -50,16 +20,6 @@
+@@ -51,16 +21,6 @@
          tclLversion=8.0
          tkLversion=8.0
          ;;
@@ -221,7 +223,7 @@ diff -u -r1.59 configure
        81)
          tclversion=81
          tclLversion=8.1
-@@ -78,31 +38,39 @@
+@@ -79,31 +39,39 @@
      esac
    fi
  done
@@ -281,7 +283,7 @@ diff -u -r1.59 configure
      echo "Using tk-$tkLversion"
      echo "#define HasTk			YES" >>$F
      echo "#define TkLibDir		/usr/local/lib" >>$F
-@@ -112,9 +80,12 @@
+@@ -113,9 +81,12 @@
      echo "#define TclLibDir		/usr/local/lib" >>$F
      echo "#define TclIncDir		/usr/local/include/tcl$tclLversion" >>$F
      echo "#define TclLibName		tcl$tclversion" >>$F
@@ -296,7 +298,7 @@ diff -u -r1.59 configure
  else
  cat <<EOF
  *** I don't see the static library for tk version $tkversion in /usr/local/lib.
-@@ -124,90 +95,33 @@
+@@ -125,90 +96,33 @@
  EOF
  fi
  
@@ -332,10 +334,9 @@ diff -u -r1.59 configure
      echo "#define XF86SVGAServer     NO"  >>$F
      servers="VGA16 VGA16Dual Mono MonoDual S3 S3V I8514 Mach8 Mach32 Mach64 P9000 AGX  W32 I128 GLINT"
      for i in $servers; do
- 	echo "#undef XF86${i}Server"           >>$F
+-	echo "#undef XF86${i}Server"           >>$F
 -    echo "#define XF86${i}Server   NO"  >>$F
-+        echo "#define XF86${i}Server   NO"  >>$F
-     done
+-    done
 -elif [ X"${MACHINE}" = X"alpha" ]; then
 -# force the compilation of the SVGA server.
 -    echo "#undef XF86SVGAServer"           >>$F
@@ -357,9 +358,10 @@ diff -u -r1.59 configure
 -    for i in $servers; do
 -	yesno "Do you want to build the $i server?"
 -	if [ $answ = YES ]; then selected="$selected $i"; fi
--	echo "#undef XF86${i}Server"           >>$F
+ 	echo "#undef XF86${i}Server"           >>$F
 -	echo "#define XF86${i}Server   $answ"  >>$F
--    done
++        echo "#define XF86${i}Server   NO"  >>$F
+     done
 +  fi
 +elif [ X"${MACHINE}" == X"alpha" ]; then
 +  # force the VGA16 driver on the Alpha
@@ -401,7 +403,7 @@ diff -u -r1.59 configure
  END
  else
  cat >> $F <<END
-@@ -216,144 +130,37 @@
+@@ -217,144 +131,38 @@
                                  cl64xx video7 ark mx realtek apm s3_savage s3v \
                                  s3_svga neo chips cyrix rendition p9x00 \
  				spc8110 i740 i810 tdfx smi generic
@@ -531,7 +533,7 @@ diff -u -r1.59 configure
 -
 - MIT supplies an authentication mechanism that relies upon DES, this is
 - called XDM-AUTHORIZATION-1.
--
+ 
 - Source code for this authentication mechanism may not be exported from
 - the United States, however, there are compatible replacements for this
 - mechanism available elsewhere.  Also, while this scheme is not used for
@@ -547,15 +549,16 @@ diff -u -r1.59 configure
 - If you do not have a copy of this file, even if you answer YES to this
 - question, support will not be enabled.  If you wish to change this later,
 - the option controling this is contained the file xc/config/cf/xf86site.def.
- 
+-
 -END
 -yesno "Do you want to enable XDM-AUTHORIZATION-1 support?"
  cpwh=NO
 -if [ $answ = YES ]; then
-     WH=$WRKDIR/xc/lib/Xdmcp/Wraphelp.c
- 
++
      if [ -f $WH ] ; then
-@@ -368,23 +175,16 @@
+ 	echo "==> $WH found in source distribution."
+     elif [ -f $DISTDIR/xc/Wraphelp.c ] ; then
+@@ -367,23 +175,16 @@
        echo "==> Wraphelp.c not found, DES support NOT enabled."
        cpwh=NO
      fi
@@ -584,4 +587,4 @@ diff -u -r1.59 configure
 -echo
  }
  
- configure
+ if [ ! -r $F ]; then
