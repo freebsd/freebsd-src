@@ -247,7 +247,7 @@ int		getaddrinfo(const char *, const char *,
 int		getnameinfo(const struct sockaddr *, socklen_t, char *,
 			    size_t, char *, size_t, int);
 void		freeaddrinfo(struct addrinfo *);
-char		*gai_strerror(int);
+const char	*gai_strerror(int);
 void		setnetgrent(const char *);
 void		setservent(int);
 
