@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: cardd.c,v 1.33.2.1 1999/03/03 11:15:33 kuriyama Exp $";
+	"$Id$";
 #endif /* not lint */
 
 #include <stdio.h>
@@ -179,6 +179,9 @@ card_removed(struct slot *sp)
 	sp->config = 0;
 	/* release io */
 	bit_nset(io_avail, sp->io.addr, sp->io.addr + sp->io.size - 1);
+	/* release irq */
+	if (sp->irq)
+		pool_irq[sp->irq] = 1;
 }
 
 /*
@@ -550,7 +553,7 @@ setup_slot(struct slot *sp)
 	strcpy(drv.name, drvp->kernel);
 	drv.unit = drvp->unit;
 	drv.irqmask = 1 << sp->irq;
-	drv.flags = 0x80;
+	drv.flags = sp->config->flags;
 	if (sp->flags & MEM_ASSIGNED) {
 		drv.mem = sp->mem.addr;
 		drv.memsize = sp->mem.size;
