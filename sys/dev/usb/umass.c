@@ -29,12 +29,16 @@
  */
 
 /*
- * Ported to NetBSD by Lennart Augustsson <augustss@netbsd.org>.
- * Parts of the code written my Jason R. Thorpe <thorpej@shagadelic.org>.
+ * Universal Serial Bus Mass Storage Class specs:
+ * http://www.usb.org/developers/data/devclass/usbmassover_11.pdf
+ * http://www.usb.org/developers/data/devclass/usbmassbulk_10.pdf
+ * http://www.usb.org/developers/data/devclass/usbmass-cbi10.pdf
+ * http://www.usb.org/developers/data/devclass/usbmass-ufi10.pdf
  */
 
 /*
- * The PDF documentation can be found at http://www.usb.org/developers/
+ * Ported to NetBSD by Lennart Augustsson <augustss@netbsd.org>.
+ * Parts of the code written my Jason R. Thorpe <thorpej@shagadelic.org>.
  */
 
 /*
