@@ -191,7 +191,6 @@ options 	CPU_ELAN_PPS
 options 	CPU_ELAN_XTAL=32768000
 options 	CPU_ENABLE_LONGRUN
 options 	CPU_ENABLE_SSE
-options 	CPU_ENABLE_TCC
 options 	CPU_FASTER_5X86_FPU
 options 	CPU_GEODE
 options 	CPU_I486_ON_386
