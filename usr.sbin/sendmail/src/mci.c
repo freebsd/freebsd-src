@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1983 Eric P. Allman
+ * Copyright (c) 1995 Eric P. Allman
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)mci.c	8.14 (Berkeley) 5/15/94";
+static char sccsid[] = "@(#)mci.c	8.22 (Berkeley) 11/18/95";
 #endif /* not lint */
 
 #include "sendmail.h"
@@ -65,6 +65,8 @@ static char sccsid[] = "@(#)mci.c	8.14 (Berkeley) 5/15/94";
 */
 
 MCI	**MciCache;		/* the open connection cache */
+
+extern void	mci_uncache __P((MCI **, bool));
 /*
 **  MCI_CACHE -- enter a connection structure into the open connection cache
 **
@@ -77,6 +79,7 @@ MCI	**MciCache;		/* the open connection cache */
 **		none.
 */
 
+void
 mci_cache(mci)
 	register MCI *mci;
 {
@@ -108,7 +111,7 @@ mci_cache(mci)
 			mci, mci->mci_host, mcislot - MciCache);
 #ifdef LOG
 	if (tTd(91, 100))
-		syslog(LOG_DEBUG, "%s: mci_cache: caching %x (%s) in slot %d",
+		syslog(LOG_DEBUG, "%s: mci_cache: caching %x (%.100s) in slot %d",
 			CurEnv->e_id ? CurEnv->e_id : "NOQUEUE",
 			mci, mci->mci_host, mcislot - MciCache);
 #endif
@@ -188,6 +191,7 @@ mci_scan(savemci)
 **		none.
 */
 
+void
 mci_uncache(mcislot, doquit)
 	register MCI **mcislot;
 	bool doquit;
@@ -205,11 +209,12 @@ mci_uncache(mcislot, doquit)
 			mci, mci->mci_host, mcislot - MciCache, doquit);
 #ifdef LOG
 	if (tTd(91, 100))
-		syslog(LOG_DEBUG, "%s: mci_uncache: uncaching %x (%s) from slot %d (%d)",
+		syslog(LOG_DEBUG, "%s: mci_uncache: uncaching %x (%.100s) from slot %d (%d)",
 			CurEnv->e_id ? CurEnv->e_id : "NOQUEUE",
 			mci, mci->mci_host, mcislot - MciCache, doquit);
 #endif
 
+#ifdef SMTP
 	if (doquit)
 	{
 		message("Closing connection to %s", mci->mci_host);
@@ -224,6 +229,7 @@ mci_uncache(mcislot, doquit)
 #endif
 	}
 	else
+#endif
 	{
 		if (mci->mci_in != NULL)
 			xfclose(mci->mci_in, "mci_uncache", "mci_in");
@@ -248,6 +254,7 @@ mci_uncache(mcislot, doquit)
 **		none.
 */
 
+void
 mci_flush(doquit, allbut)
 	bool doquit;
 	MCI *allbut;
@@ -297,6 +304,7 @@ mci_get(host, m)
 			mci->mci_exitstat, mci->mci_errno);
 	}
 
+#ifdef SMTP
 	if (mci->mci_state == MCIS_OPEN)
 	{
 		/* poke the connection to see if it's still alive */
@@ -309,6 +317,7 @@ mci_get(host, m)
 			mci->mci_exitstat = EX_OK;
 			mci->mci_state = MCIS_CLOSED;
 		}
+# ifdef DAEMON
 		else
 		{
 			/* get peer host address for logging reasons only */
@@ -318,13 +327,23 @@ mci_get(host, m)
 			(void) getpeername(fileno(mci->mci_in),
 				(struct sockaddr *) &CurHostAddr, &socksize);
 		}
+# endif
 	}
+#endif
+#ifdef MAYBE_NEXT_RELEASE
 	if (mci->mci_state == MCIS_CLOSED)
 	{
-		/* copy out any mailer flags needed in connection state */
-		if (bitnset(M_7BITS, m->m_flags))
-			mci->mci_flags |= MCIF_7BIT;
+		time_t now = curtime();
+
+		/* if this info is stale, ignore it */
+		if (now > mci->mci_lastuse + MciInfoTimeout)
+		{
+			mci->mci_lastuse = now;
+			mci->mci_errno = 0;
+			mci->mci_exitstat = EX_OK;
+		}
 	}
+#endif
 
 	return mci;
 }
@@ -341,13 +360,14 @@ mci_get(host, m)
 **		none.
 */
 
+void
 mci_dump(mci, logit)
 	register MCI *mci;
 	bool logit;
 {
 	register char *p;
 	char *sep;
-	char buf[1000];
+	char buf[4000];
 	extern char *ctime();
 
 	sep = logit ? " " : "\n\t";
@@ -359,7 +379,7 @@ mci_dump(mci, logit)
 		sprintf(p, "NULL");
 		goto printit;
 	}
-	sprintf(p, "flags=%o, errno=%d, herrno=%d, exitstat=%d, state=%d, pid=%d,%s",
+	sprintf(p, "flags=%x, errno=%d, herrno=%d, exitstat=%d, state=%d, pid=%d,%s",
 		mci->mci_flags, mci->mci_errno, mci->mci_herrno,
 		mci->mci_exitstat, mci->mci_state, mci->mci_pid, sep);
 	p += strlen(p);
@@ -375,7 +395,7 @@ mci_dump(mci, logit)
 printit:
 #ifdef LOG
 	if (logit)
-		syslog(LOG_DEBUG, "%s", buf);
+		syslog(LOG_DEBUG, "%.1000s", buf);
 	else
 #endif
 		printf("%s\n", buf);
@@ -391,6 +411,7 @@ printit:
 **		none.
 */
 
+void
 mci_dump_all(logit)
 	bool logit;
 {

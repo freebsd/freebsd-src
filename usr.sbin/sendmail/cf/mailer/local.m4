@@ -38,29 +38,57 @@ ifdef(`LOCAL_MAILER_ARGS',, `define(`LOCAL_MAILER_ARGS', `mail -d $u')')
 ifdef(`LOCAL_SHELL_FLAGS',, `define(`LOCAL_SHELL_FLAGS', `eu')')
 ifdef(`LOCAL_SHELL_PATH',, `define(`LOCAL_SHELL_PATH', /bin/sh)')
 ifdef(`LOCAL_SHELL_ARGS',, `define(`LOCAL_SHELL_ARGS', `sh -c $u')')
+ifdef(`LOCAL_SHELL_DIR',, `define(`LOCAL_SHELL_DIR', `$z:/')')
 POPDIVERT
 
 ##################################################
 ###   Local and Program Mailer specification   ###
 ##################################################
 
-VERSIONID(`@(#)local.m4	8.6 (Berkeley) 10/24/93')
+VERSIONID(`@(#)local.m4	8.21 (Berkeley) 11/6/95')
 
-Mlocal,		P=LOCAL_MAILER_PATH, F=CONCAT(`lsDFM', LOCAL_MAILER_FLAGS), S=10, R=20/40,
+Mlocal,		P=LOCAL_MAILER_PATH, F=CONCAT(`lsDFMAw5:/|@', LOCAL_MAILER_FLAGS), S=10/30, R=20/40,
+		_OPTINS(`LOCAL_MAILER_MAX', `M=', `, ')_OPTINS(`LOCAL_MAILER_CHARSET', `C=', `, ')T=DNS/RFC822/X-Unix,
 		A=LOCAL_MAILER_ARGS
-Mprog,		P=LOCAL_SHELL_PATH, F=CONCAT(`lsDFM', LOCAL_SHELL_FLAGS), S=10, R=20/40, D=$z:/,
+Mprog,		P=LOCAL_SHELL_PATH, F=CONCAT(`lsDFMo', LOCAL_SHELL_FLAGS), S=10/30, R=20/40, D=LOCAL_SHELL_DIR,
+		_OPTINS(`LOCAL_MAILER_MAX', `M=', `, ')T=X-Unix,
 		A=LOCAL_SHELL_ARGS
 
+#
+#  Envelope sender rewriting
+#
 S10
 R<@>			$n			errors to mailer-daemon
-R$+			$: $>40 $1
+R$+			$: $>50 $1		add local domain if needed
+R$*			$: $>94 $1		do masquerading
 
+#
+#  Envelope recipient rewriting
+#
 S20
 R$+ < @ $* >		$: $1			strip host part
 
+#
+#  Header sender rewriting
+#
+S30
+R<@>			$n			errors to mailer-daemon
+R$+			$: $>50 $1		add local domain if needed
+R$*			$: $>93 $1		do masquerading
+
+#
+#  Header recipient rewriting
+#
 S40
-ifdef(`_ALWAYS_ADD_DOMAIN_',
-`R$* < @ $* > $*		$@ $1 < @ $2 > $3	already fully qualified
-R$*			$: $1 @ $M		add local qualification
-R$* @			$: $1 @ $j		if $M not defined',
-`dnl')
+R$+			$: $>50 $1		add local domain if needed
+ifdef(`_ALL_MASQUERADE_', `', `#')dnl
+R$*			$: $>93 $1		do all-masquerading
+
+#
+#  Common code to add local domain name (only if always-add-domain)
+#
+S50
+ifdef(`_ALWAYS_ADD_DOMAIN_', `', `#')dnl
+R$* < @ $* > $* 	$@ $1 < @ $2 > $3		already fully qualified
+ifdef(`_ALWAYS_ADD_DOMAIN_', `', `#')dnl
+R$+			$@ $1 < @ *LOCAL* >		add local qualification

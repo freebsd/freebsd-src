@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1983 Eric P. Allman
+ * Copyright (c) 1983, 1995 Eric P. Allman
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -33,10 +33,11 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)convtime.c	8.1 (Berkeley) 6/7/93";
+static char sccsid[] = "@(#)convtime.c	8.4 (Berkeley) 5/19/95";
 #endif /* not lint */
 
 # include <ctype.h>
+# include <string.h>
 # include "useful.h"
 
 /*
@@ -80,6 +81,11 @@ convtime(p, units)
 		{
 			c = units;
 			p--;
+		}
+		else if (strchr("wdhms", c) == NULL)
+		{
+			usrerr("Invalid time unit `%c'", c);
+			c = units;
 		}
 		switch (c)
 		{

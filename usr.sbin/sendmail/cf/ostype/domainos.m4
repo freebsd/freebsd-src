@@ -34,9 +34,9 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)domainos.m4	8.1 (Berkeley) 1/23/94')
+VERSIONID(`@(#)domainos.m4	8.2 (Berkeley) 11/13/95')
 divert(-1)
 
-define(`ALIAS_FILE', /usr/lib/aliases)
-define(`STATUS_FILE', /usr/lib/sendmail.st)
-define(`QUEUE_DIR', /usr/spool/mqueue)
+ifdef(`ALIAS_FILE',, `define(`ALIAS_FILE', /usr/lib/aliases)')
+ifdef(`STATUS_FILE',, `define(`STATUS_FILE', /usr/lib/sendmail.st)')
+ifdef(`QUEUE_DIR',, `define(`QUEUE_DIR', /usr/spool/mqueue)')

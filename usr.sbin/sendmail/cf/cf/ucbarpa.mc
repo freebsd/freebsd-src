@@ -33,9 +33,16 @@ divert(-1)
 # SUCH DAMAGE.
 #
 
-include(`../m4/cf.m4')
-VERSIONID(`@(#)ucbarpa.mc	8.1 (Berkeley) 6/7/93')
-DOMAIN(cs.exposed)dnl
+#
+#  This machine has been decommissioned at Berkeley, and hence should
+#  not be considered to be tested.  This file is provided as an example
+#  only, of how you might set up a joint SMTP/UUCP configuration.  At
+#  this point I recommend using `FEATURE(mailertable)' instead of
+#  `SITECONFIG'.  See also ucbvax.mc.
+#
+
+VERSIONID(`@(#)ucbarpa.mc	8.3 (Berkeley) 8/6/95')
+DOMAIN(CS.Berkeley.EDU)dnl
 OSTYPE(bsd4.4)dnl
 MAILER(local)dnl
 MAILER(smtp)dnl
