@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_time.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: kern_time.c,v 1.3 1994/08/02 07:42:21 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -73,8 +73,8 @@ gettimeofday(p, uap, retval)
 
 	if (uap->tp) {
 		microtime(&atv);
-		if (error = copyout((caddr_t)&atv, (caddr_t)uap->tp,
-		    sizeof (atv)))
+		if ((error = copyout((caddr_t)&atv, (caddr_t)uap->tp,
+		    sizeof (atv))))
 			return (error);
 	}
 	if (uap->tzp)
@@ -98,7 +98,7 @@ settimeofday(p, uap, retval)
 	struct timezone atz;
 	int error, s;
 
-	if (error = suser(p->p_ucred, &p->p_acflag))
+	if ((error = suser(p->p_ucred, &p->p_acflag)))
 		return (error);
 	/* Verify all parameters before changing time. */
 	if (uap->tv &&
@@ -148,10 +148,10 @@ adjtime(p, uap, retval)
 	register long ndelta, ntickdelta, odelta;
 	int s, error;
 
-	if (error = suser(p->p_ucred, &p->p_acflag))
+	if ((error = suser(p->p_ucred, &p->p_acflag)))
 		return (error);
-	if (error =
-	    copyin((caddr_t)uap->delta, (caddr_t)&atv, sizeof(struct timeval)))
+	if ((error =
+	    copyin((caddr_t)uap->delta, (caddr_t)&atv, sizeof(struct timeval))))
 		return (error);
 
 	/*

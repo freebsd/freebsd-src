@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)signalvar.h	8.3 (Berkeley) 1/4/94
- * $Id$
+ * $Id: signalvar.h,v 1.2 1994/08/02 07:53:33 davidg Exp $
  */
 
 #ifndef	_SYS_SIGNALVAR_H_		/* tmp for user.h */
@@ -80,8 +80,8 @@ struct	sigacts {
  */
 #define	CURSIG(p)							\
 	(((p)->p_siglist == 0 ||					\
-	    ((p)->p_flag & P_TRACED) == 0 &&				\
-	    ((p)->p_siglist & ~(p)->p_sigmask) == 0) ?			\
+	    (((p)->p_flag & P_TRACED) == 0 &&				\
+	    ((p)->p_siglist & ~(p)->p_sigmask) == 0)) ?			\
 	    0 : issignal(p))
 
 /*

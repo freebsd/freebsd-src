@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.7 1994/09/21 03:47:34 wollman Exp $
+ * $Id: vnode.h,v 1.8 1994/09/22 22:10:49 wollman Exp $
  */
 
 #ifndef _SYS_VNODE_H_
@@ -385,6 +385,7 @@ void	cache_enter __P((struct vnode *dvp, struct vnode *vp,
 int	cache_lookup __P((struct vnode *dvp, struct vnode **vpp,
 	    struct componentname *cnp));
 void	cache_purge __P((struct vnode *vp));
+void	cache_purgevfs __P((struct mount *mp));
 int 	getnewvnode __P((enum vtagtype tag,
 	    struct mount *mp, int (**vops)(), struct vnode **vpp));
 int	vinvalbuf __P((struct vnode *vp, int save, struct ucred *cred,

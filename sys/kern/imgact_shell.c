@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: imgact_shell.c,v 1.4 1994/08/13 03:50:23 wollman Exp $
+ *	$Id: imgact_shell.c,v 1.5 1994/08/18 22:34:56 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -57,9 +57,7 @@ exec_shell_imgact(iparams)
 {
 	const char *image_header = iparams->image_header;
 	const char *ihp, *line_endp;
-	int length;
 	char *interp;
-	char **argv;
 
 	/* a shell script? */
 	if (((short *) image_header)[0] != SHELLMAGIC)

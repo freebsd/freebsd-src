@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_lockf.c	8.3 (Berkeley) 1/6/94
- * $Id: ufs_lockf.c,v 1.2 1994/08/02 07:54:57 davidg Exp $
+ * $Id: kern_lockf.c,v 1.1 1994/08/08 17:30:48 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -182,7 +182,7 @@ lf_setlock(lock)
 	/*
 	 * Scan lock list for this file looking for locks that would block us.
 	 */
-	while (block = lf_getblock(lock)) {
+	while ((block = lf_getblock(lock))) {
 		/*
 		 * Free the structure and return if nonblocking.
 		 */
@@ -246,7 +246,7 @@ lf_setlock(lock)
 			lf_printlist("lf_setlock", block);
 		}
 #endif /* LOCKF_DEBUG */
-		if (error = tsleep((caddr_t)lock, priority, lockstr, 0)) {
+		if ((error = tsleep((caddr_t)lock, priority, lockstr, 0))) {
 			/*
 			 * Delete ourselves from the waiting to lock list.
 			 */
@@ -281,7 +281,8 @@ lf_setlock(lock)
 	block = *head;
 	needtolink = 1;
 	for (;;) {
-		if (ovcase = lf_findoverlap(block, lock, SELF, &prev, &overlap))
+		ovcase = lf_findoverlap(block, lock, SELF, &prev, &overlap);
+		if (ovcase)
 			block = overlap->lf_next;
 		/*
 		 * Six cases:
@@ -416,7 +417,7 @@ lf_clearlock(unlock)
 		lf_print("lf_clearlock", unlock);
 #endif /* LOCKF_DEBUG */
 	prev = head;
-	while (ovcase = lf_findoverlap(lf, unlock, SELF, &prev, &overlap)) {
+	while ((ovcase = lf_findoverlap(lf, unlock, SELF, &prev, &overlap))) {
 		/*
 		 * Wakeup the list of locks to be retried.
 		 */
@@ -479,7 +480,7 @@ lf_getlock(lock, fl)
 		lf_print("lf_getlock", lock);
 #endif /* LOCKF_DEBUG */
 
-	if (block = lf_getblock(lock)) {
+	if ((block = lf_getblock(lock))) {
 		fl->l_type = block->lf_type;
 		fl->l_whence = SEEK_SET;
 		fl->l_start = block->lf_start;
@@ -509,7 +510,7 @@ lf_getblock(lock)
 	int ovcase;
 
 	prev = lock->lf_head;
-	while (ovcase = lf_findoverlap(lf, lock, OTHERS, &prev, &overlap)) {
+	while ((ovcase = lf_findoverlap(lf, lock, OTHERS, &prev, &overlap))) {
 		/*
 		 * We've found an overlap, see if it blocks us
 		 */
