@@ -895,7 +895,7 @@ options 	AUTO_EOI_1
 options 	MAXMEM="(128*1024)"
 #options 	BROKEN_KEYBOARD_RESET
 #options 	PAS_JOYSTICK_ENABLE
-options		COMPAT_OLDPCI	#Use PCI shims and glue for old drivers
+options 	COMPAT_OLDISA	#Use ISA shims and glue for old drivers
 
 # Enable support for the kernel PLL to use an external PPS signal,
 # under supervision of [x]ntpd(8)
@@ -1544,7 +1544,7 @@ device		pci
 # PCI options
 #
 #options 	PCI_QUIET	#quiets PCI code on chipset settings
-options		COMPAT_OLDPCI	#Use PCI shims and glue for old drivers
+options 	COMPAT_OLDPCI	#Use PCI shims and glue for old drivers
 
 
 # The `ahc' device provides support for the Adaptec 29/3940(U)(W)
