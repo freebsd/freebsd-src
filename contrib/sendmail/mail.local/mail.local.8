@@ -18,6 +18,8 @@
 .Sh SYNOPSIS
 .Nm mail.local
 .Op Fl f Ar from
+.Op Fl b
+.Op Fl s
 .Ar user ...
 .Sh DESCRIPTION
 .Nm Mail.local
@@ -33,6 +35,16 @@ The options are as follows:
 .Bl -tag -width xxxfrom
 .It Fl f Ar from
 Specify the sender's name.
+.It Fl b
+Turn off the attempts to notify the
+.Dq biff
+service.
+.It Fl s
+Turn off the
+.Xr fsync 2
+call that forces the mailbox to be committed to disk before returning a
+.Dq success
+status.
 .El
 .Pp
 Individual mail messages in the mailbox are delimited by an empty
@@ -77,7 +89,6 @@ lock file for a user's mailbox
 .El
 .Sh SEE ALSO
 .Xr mail 1 ,
-.Xr xsend 1 ,
 .Xr flock 2 ,
 .Xr getservbyname 3 ,
 .Xr comsat 8 ,
