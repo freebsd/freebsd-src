@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: apic_vector.s,v 1.17 1997/07/28 03:51:01 smp Exp smp $
+ *	$Id: apic_vector.s,v 1.18 1997/07/30 22:46:49 smp Exp smp $
  */
 
 
@@ -20,37 +20,6 @@
 
 #ifdef PEND_INTS
 
-#ifdef FIRST_TRY
-
-#define MAYBE_MASK_IRQ(irq_num)						\
-	lock ;					/* MP-safe */		\
-	btsl	$(irq_num),iactive ;		/* lazy masking */	\
-	jnc	8f ;				/* NOT active */	\
-7: ;									\
-	IMASK_LOCK ;				/* enter critical reg */\
-	orl	$IRQ_BIT(irq_num),_apic_imen ;	/* set the mask bit */	\
-	movl	_ioapic,%ecx ;			/* ioapic[0] addr */	\
-	movl	$REDTBL_IDX(irq_num),(%ecx) ;	/* write the index */	\
-	movl	IOAPIC_WINDOW(%ecx),%eax ;	/* current value */	\
-	orl	$IOART_INTMASK,%eax ;		/* set the mask */	\
-	movl	%eax,IOAPIC_WINDOW(%ecx) ;	/* new value */		\
-	orl	$IRQ_BIT(irq_num), _ipending ;	/* set _ipending bit */	\
-	IMASK_UNLOCK ;				/* exit critical reg */	\
-	movl	$0, lapic_eoi ;			/* do the EOI */	\
-	popl	%es ;							\
-	popl	%ds ;							\
-	popal ;								\
-	addl	$4+4,%esp ;						\
-	iret ;								\
-;									\
-	ALIGN_TEXT ;							\
-8: ;									\
-	call	_try_mplock ;						\
-	testl	%eax, %eax ;						\
-	jz	7b				/* can't enter kernel */
-
-#else /** FIRST_TRY */
-
 /*
  * the 1st version fails because masked edge-triggered INTs are lost
  * by the IO APIC.  This version tests to see whether we are handling
@@ -62,7 +31,7 @@
 	lock ;					/* MP-safe */		\
 	btsl	$(irq_num),iactive ;		/* lazy masking */	\
 	jc	6f ;				/* already active */	\
-	call	_try_mplock ;			/* try to get lock */	\
+	TRY_ISRLOCK(irq_num) ;			/* try to get lock */	\
 	testl	%eax, %eax ;			/* did we get it? */	\
 	jnz	8f ;				/* yes, enter kernel */	\
 6: ;						/* active or locked */	\
@@ -87,8 +56,6 @@
 ;									\
 	ALIGN_TEXT ;							\
 8:
-
-#endif /** FIRST_TRY */
 
 #else /* PEND_INTS */
 
@@ -154,7 +121,7 @@ IDTVEC(vec_name) ;							\
 	movl	%ax,%ds ;						\
 	MAYBE_MOVW_AX_ES ;						\
 	FAKE_MCOUNT((4+ACTUALLY_PUSHED)*4(%esp)) ;			\
-	GET_MPLOCK ;							\
+	GET_ISRLOCK(irq_num) ;						\
 	pushl	_intr_unit + (irq_num) * 4 ;				\
 	call	*_intr_handler + (irq_num) * 4 ; /* do the work ASAP */ \
 	movl	$0, lapic_eoi ;						\
@@ -168,7 +135,7 @@ IDTVEC(vec_name) ;							\
 	jne	2f ; 		/* yes, maybe handle them */		\
 1: ;									\
 	MEXITCOUNT ;							\
-	REL_MPLOCK ;		/* SMP release global lock */		\
+	REL_ISRLOCK(irq_num) ;						\
 	MAYBE_POPL_ES ;							\
 	popl	%ds ;							\
 	popl	%edx ;							\
@@ -240,7 +207,7 @@ __CONCAT(Xresume,irq_num): ;						\
 3: ;									\
 	/* XXX skip mcounting here to avoid double count */		\
 	orl	$IRQ_BIT(irq_num), _ipending ;				\
-	REL_MPLOCK ;		/* SMP release global lock */		\
+	REL_ISRLOCK(irq_num) ;						\
 	popl	%es ;							\
 	popl	%ds ;							\
 	popal ;								\
