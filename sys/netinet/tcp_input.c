@@ -368,10 +368,6 @@ tcp_input(m, off0)
 	short ostate = 0;
 #endif
 
-#ifdef MAC
-	int error;
-#endif
-
 	/* Grab info from MT_TAG mbufs prepended to the chain. */
 	for (;m && m->m_type == MT_TAG; m = m->m_next) { 
 		if (m->_m_tag_id == PACKET_TAG_IPFORWARD)
@@ -660,27 +656,22 @@ findpcb:
 
 	so = inp->inp_socket;
 #ifdef MAC
-	error = mac_check_socket_deliver(so, m);
-	if (error)
+	if (mac_check_socket_deliver(so, m))
 		goto drop;
 #endif
-	if (so->so_options & (SO_DEBUG|SO_ACCEPTCONN)) {
-		struct in_conninfo inc;
 #ifdef TCPDEBUG
-		if (so->so_options & SO_DEBUG) {
-			ostate = tp->t_state;
-			if (isipv6)
-				bcopy((char *)ip6, (char *)tcp_saveipgen,
-					sizeof(*ip6));
-			else
-				bcopy((char *)ip, (char *)tcp_saveipgen,
-					sizeof(*ip));
-			tcp_savetcp = *th;
-		}
+	if (so->so_options & SO_DEBUG) {
+		ostate = tp->t_state;
+		if (isipv6)
+			bcopy((char *)ip6, (char *)tcp_saveipgen, sizeof(*ip6));
+		else
+			bcopy((char *)ip, (char *)tcp_saveipgen, sizeof(*ip));
+		tcp_savetcp = *th;
+	}
 #endif
-		/* skip if this isn't a listen socket */
-		if ((so->so_options & SO_ACCEPTCONN) == 0)
-			goto after_listen;
+	if (so->so_options & SO_ACCEPTCONN) {
+		struct in_conninfo inc;
+
 #ifdef INET6
 		inc.inc_isipv6 = isipv6;
 #endif
