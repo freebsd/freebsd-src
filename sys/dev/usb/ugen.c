@@ -69,7 +69,7 @@
 #ifdef UGEN_DEBUG
 #define DPRINTF(x)	if (ugendebug) logprintf x
 #define DPRINTFN(n,x)	if (ugendebug>(n)) logprintf x
-int	ugendebug = 0;
+int	ugendebug = 10;
 #else
 #define DPRINTF(x)
 #define DPRINTFN(n,x)
@@ -151,7 +151,7 @@ static int ugen_get_alt_index __P((struct ugen_softc *sc, int ifaceidx));
 
 #define UGENUNIT(n) ((minor(n) >> 4) & 0xf)
 #define UGENENDPOINT(n) (minor(n) & 0xf)
-#define UGENDEV(u, e) (makedev(UGEN_CDEV_MAJOR, ((u) << 4) | (e)))
+#define UGENMINOR(u, e) (((u) << 4) | (e))
 
 USB_DECLARE_DRIVER(ugen);
 
@@ -243,7 +243,11 @@ ugen_set_config(sc, configno)
 
 
 #if defined(__FreeBSD__)
-	for (endptno = 0; endptno < USB_MAX_ENDPOINTS; endptno++) {
+	/* the main device, ctrl endpoint */
+	make_dev(&ugen_cdevsw, UGENMINOR(USBDEVUNIT(sc->sc_dev), 0),
+		UID_ROOT, GID_OPERATOR, 0644, "%s", USBDEVNAME(sc->sc_dev));
+
+	for (endptno = 1; endptno < USB_MAX_ENDPOINTS; endptno++) {
 		if (sc->sc_endpoints[endptno][IN].sc != NULL ||
 		    sc->sc_endpoints[endptno][OUT].sc != NULL ) {
 			/* endpt can be 0x81 and 0x01, representing
@@ -254,10 +258,11 @@ ugen_set_config(sc, configno)
 			 * In the if clause above we check whether one
 			 * of the structs is populated.
 			 */
-			make_dev(&ugen_cdevsw, endptno,
+			make_dev(&ugen_cdevsw,
+				UGENMINOR(USBDEVUNIT(sc->sc_dev), endptno),
 				UID_ROOT, GID_OPERATOR, 0644,
-				"ugen%d.%d",
-				USBDEVUNIT(sc->sc_dev), endptno);
+				"%s.%d",
+				USBDEVNAME(sc->sc_dev), endptno);
 		}
 	}
 #endif
@@ -683,7 +688,9 @@ USB_DETACH(ugen)
 	mn = self->dv_unit * USB_MAX_ENDPOINTS;
 	vdevgone(maj, mn, mn + USB_MAX_ENDPOINTS - 1, VCHR);
 #elif defined(__FreeBSD__)
-	for (endptno = 0; endptno < USB_MAX_ENDPOINTS; endptno++) {
+	dev = makedev(UGEN_CDEV_MAJOR, UGENMINOR(USBDEVUNIT(sc->sc_dev), 0));
+	destroy_dev(dev);
+	for (endptno = 1; endptno < USB_MAX_ENDPOINTS; endptno++) {
 		if (sc->sc_endpoints[endptno][IN].sc != NULL ||
 		    sc->sc_endpoints[endptno][OUT].sc != NULL ) {
 			/* endpt can be 0x81 and 0x01, representing
@@ -694,7 +701,8 @@ USB_DETACH(ugen)
 			 * In the if clause above we check whether one
 			 * of the structs is populated.
 			 */
-			dev = UGENDEV(USBDEVUNIT(sc->sc_dev), endptno);
+			dev = makedev(UGEN_CDEV_MAJOR,
+				UGENMINOR(USBDEVUNIT(sc->sc_dev), endptno));
 			vp = SLIST_FIRST(&dev->si_hlist);
 			if (vp)
 				VOP_REVOKE(vp, REVOKEALL);
