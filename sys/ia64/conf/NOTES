@@ -23,6 +23,11 @@ cpu		ITANIUM2
 # ia64. It is based on the ia32 emulation in the processor.
 options		IA32
 
+# option: LOG2_ID_PAGE_SIZE
+# Specify the log2 size of the identity (direct) mappings in regions 6 and 7
+# of the virtual address space.
+options 	LOG2_ID_PAGE_SIZE=27		# 128M
+
 # option: LOG2_PAGE_SIZE
 # Specify the log2 size of the page to be used for virtual memory management.
 # The page size being equal to 1<<LOG2_PAGE_SIZE.
