@@ -185,6 +185,7 @@ MAN=	aac.4 \
 	rndtest.4 \
 	route.4 \
 	rp.4 \
+	rue.4 \
 	sa.4 \
 	sbc.4 \
 	sbp.4 \
