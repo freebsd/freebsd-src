@@ -53,6 +53,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/errno.h>
 #ifdef _KERNEL
 #include <sys/systm.h>
+extern int ndis_strncasecmp(const char *, const char *, size_t);
+#define strncasecmp(a, b, c) ndis_strncasecmp(a, b, c)
 #else
 #include <stdio.h>
 #include <stdlib.h>
@@ -431,6 +433,8 @@ pe_relocate(imgbase)
  * may be linked against several modules, typically HAL.dll, ntoskrnl.exe
  * and NDIS.SYS. For each module, there is a list of imported function
  * names and their addresses.
+ *
+ * Note: module names are case insensitive!
  */
 
 int
@@ -455,7 +459,7 @@ pe_get_import_descriptor(imgbase, desc, module)
 	while (imp_desc->iid_nameaddr) {
 		modname = (char *)pe_translate_addr(imgbase,
 		    imp_desc->iid_nameaddr);
-		if (!strncmp(module, modname, strlen(module))) {
+		if (!strncasecmp(module, modname, strlen(module))) {
 			bcopy((char *)imp_desc, (char *)desc,
 			    sizeof(image_import_descriptor));
 			return(0);

@@ -722,7 +722,7 @@ IoAllocateIrp(stsize, chargequota)
 
 	IoInitializeIrp(i, IoSizeOfIrp(stsize), stsize);
 
-	return (NULL);
+	return (i);
 }
 
 __stdcall static irp *
@@ -2615,6 +2615,8 @@ image_patch_table ntoskrnl_functbl[] = {
 	IMPORT_FUNC(InterlockedPushEntrySList),
 	IMPORT_FUNC(ExInterlockedPopEntrySList),
 	IMPORT_FUNC(ExInterlockedPushEntrySList),
+	IMPORT_FUNC(ExAllocatePoolWithTag),
+	IMPORT_FUNC(ExFreePool),
 	IMPORT_FUNC(KefAcquireSpinLockAtDpcLevel),
 	IMPORT_FUNC(KefReleaseSpinLockFromDpcLevel),
 	IMPORT_FUNC_MAP(KeAcquireSpinLockRaiseToDpc, KfAcquireSpinLock),
