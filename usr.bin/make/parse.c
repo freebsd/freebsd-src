@@ -271,10 +271,10 @@ static int
 ParseFindKeyword (str)
     char	    *str;		/* String to find */
 {
-    register int    start,
+    int		    start,
 		    end,
 		    cur;
-    register int    diff;
+    int		    diff;
 
     start = 0;
     end = (sizeof(parseKeywords)/sizeof(parseKeywords[0])) - 1;
@@ -402,7 +402,7 @@ ParseDoOp (gnp, opp)
 	 * and the new instance is linked to all parents of the initial
 	 * instance.
 	 */
-	register GNode	*cohort;
+	GNode		*cohort;
 	LstNode	    	ln;
 
 	cohort = Targ_NewGN(gn->name);
@@ -567,8 +567,8 @@ ParseDoSrc (tOp, src, allsrc)
 	    Lst_ForEach (targets, ParseLinkSrc, (void *)gn);
 	}
 	if ((gn->type & OP_OPMASK) == OP_DOUBLEDEP) {
-	    register GNode  	*cohort;
-	    register LstNode	ln;
+	    GNode  	*cohort;
+	    LstNode	ln;
 
 	    for (ln=Lst_First(gn->cohorts); ln != NULL; ln = Lst_Succ(ln)){
 		cohort = (GNode *)Lst_Datum(ln);
@@ -1220,10 +1220,10 @@ ParseDoDependency (line)
  */
 Boolean
 Parse_IsVar (line)
-    register char  *line;	/* the line to check */
+    char  *line;		/* the line to check */
 {
-    register Boolean wasSpace = FALSE;	/* set TRUE if found a space */
-    register Boolean haveName = FALSE;	/* Set TRUE if have a variable name */
+    Boolean wasSpace = FALSE;	/* set TRUE if found a space */
+    Boolean haveName = FALSE;	/* Set TRUE if have a variable name */
     int level = 0;
 #define ISEQOPERATOR(c) \
 	(((c) == '+') || ((c) == ':') || ((c) == '?') || ((c) == '!'))
@@ -2090,8 +2090,8 @@ static char *
 ParseReadLine ()
 {
     Buffer  	  buf;	    	/* Buffer for current line */
-    register int  c;	      	/* the current character */
-    register int  lastc;    	/* The most-recent character */
+    int		  c;	      	/* the current character */
+    int		  lastc;    	/* The most-recent character */
     Boolean	  semiNL;     	/* treat semi-colons as newlines */
     Boolean	  ignDepOp;   	/* TRUE if should ignore dependency operators
 				 * for the purposes of setting semiNL */
@@ -2377,7 +2377,7 @@ Parse_File(name, stream)
     char          *name;	/* the name of the file being read */
     FILE *	  stream;   	/* Stream open to makefile to parse */
 {
-    register char *cp,		/* pointer into the line */
+    char	  *cp,		/* pointer into the line */
                   *line;	/* the line we're working on */
 
     inLine = FALSE;

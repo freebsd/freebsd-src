@@ -92,8 +92,8 @@ str_concat(s1, s2, flags)
 	const char *s1, *s2;
 	int flags;
 {
-	register int len1, len2;
-	register char *result;
+	int len1, len2;
+	char *result;
 
 	/* get the length of both strings */
 	len1 = strlen(s1);
@@ -137,12 +137,12 @@ str_concat(s1, s2, flags)
  */
 char **
 brk_string(str, store_argc, expand)
-	register char *str;
+	char *str;
 	int *store_argc;
 	Boolean expand;
 {
-	register int argc, ch;
-	register char inquote, *p, *start, *t;
+	int argc, ch;
+	char inquote, *p, *start, *t;
 	int len;
 
 	/* skip leading space chars. */
@@ -267,10 +267,10 @@ done:	argv[argc] = (char *)NULL;
  */
 char *
 Str_FindSubstring(string, substring)
-	register char *string;		/* String to search. */
+	char *string;			/* String to search. */
 	char *substring;		/* Substring to find in string */
 {
-	register char *a, *b;
+	char *a, *b;
 
 	/*
 	 * First scan quickly through the two strings looking for a single-
@@ -306,8 +306,8 @@ Str_FindSubstring(string, substring)
  */
 int
 Str_Match(string, pattern)
-	register char *string;		/* String */
-	register char *pattern;		/* Pattern */
+	char *string;		/* String */
+	char *pattern;		/* Pattern */
 {
 	char c2;
 

@@ -181,9 +181,9 @@ CondGetArg (linePtr, argPtr, func, parens)
     char    	  *func;
     Boolean 	  parens;   	/* TRUE if arg should be bounded by parens */
 {
-    register char *cp;
+    char	  *cp;
     int	    	  argLen;
-    register Buffer buf;
+    Buffer	  buf;
 
     cp = *linePtr;
     if (parens) {
@@ -438,11 +438,11 @@ CondDoTarget (argLen, arg)
  */
 static char *
 CondCvtArg(str, value)
-    register char    	*str;
+    char		*str;
     double		*value;
 {
     if ((*str == '0') && (str[1] == 'x')) {
-	register long i;
+	long i;
 
 	for (str += 2, i = 0; ; str++) {
 	    int x;
