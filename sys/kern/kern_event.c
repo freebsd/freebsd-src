@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ * $FreeBSD$
  */
 
 #include <sys/param.h>
@@ -57,7 +57,6 @@ static int	filt_procattach(struct knote *kn);
 static void	filt_procdetach(struct knote *kn);
 static int	filt_proc(struct knote *kn, long hint);
 
-static int 	kqueue_create(struct kqueue **kqp);
 static int	kqueue_scan(struct file *fp, int maxevents,
 		    struct kevent *ulistp, struct timespec *timeout,
 		    struct proc *p);
@@ -284,6 +283,7 @@ filt_proc(struct knote *kn, long hint)
 		kev.flags = kn->kn_flags | EV_ADD | EV_ENABLE | EV_FLAG1;
 		kev.fflags = kn->kn_sfflags;
 		kev.data = kn->kn_id;			/* parent */
+		kev.udata = kn->kn_kevent.udata;	/* preserve udata */
 		error = kqueue_register(kn->kn_kq, &kev, NULL);
 		if (error)
 			kn->kn_fflags |= NOTE_TRACKERR;
@@ -292,65 +292,48 @@ filt_proc(struct knote *kn, long hint)
 	return (kn->kn_fflags != 0);
 }
 
-static int
-kqueue_create(struct kqueue **kqp)
-{
-	struct kqueue *kq;
-
-	kq = malloc(sizeof(struct kqueue), M_TEMP, M_WAITOK);
-	if (kq == NULL)
-		return (EAGAIN);
-	bzero(kq, sizeof(*kq));
-	TAILQ_INIT(&kq->kq_head);
-
-	*kqp = kq;
-	return (0);
-}
-
 int
 kqueue(struct proc *p, struct kqueue_args *uap)
 {
-        struct filedesc *fdp = p->p_fd;
-        struct kqueue *kq;
-        struct file *fp;
-        int fd, error;
+	struct filedesc *fdp = p->p_fd;
+	struct kqueue *kq;
+	struct file *fp;
+	int fd, error;
 
-        error = falloc(p, &fp, &fd);
-        if (error)
-                return (error);
-        fp->f_flag = FREAD | FWRITE;
-        fp->f_type = DTYPE_KQUEUE;
-        fp->f_ops = &kqueueops;
-        error = kqueue_create(&kq);
-        if (error) {
-                fdp->fd_ofiles[fd] = 0;
-                ffree(fp);
-        } else {
-                fp->f_data = (caddr_t)kq;
-                p->p_retval[0] = fd;
-        }
-	fdp->fd_knlistsize = 0;		/* mark this fdesc as having a kq */
+	error = falloc(p, &fp, &fd);
+	if (error)
+		return (error);
+	fp->f_flag = FREAD | FWRITE;
+	fp->f_type = DTYPE_KQUEUE;
+	fp->f_ops = &kqueueops;
+	kq = malloc(sizeof(struct kqueue), M_TEMP, M_WAITOK);
+	bzero(kq, sizeof(*kq));
+	TAILQ_INIT(&kq->kq_head);
+	fp->f_data = (caddr_t)kq;
+	p->p_retval[0] = fd;
+	if (fdp->fd_knlistsize < 0)
+		fdp->fd_knlistsize = 0;		/* this process has a kq */
 	kq->kq_fdp = fdp;
-        return (error);
+	return (error);
 }
 
 #ifndef _SYS_SYSPROTO_H_
 struct kevent_args {
 	int	fd;
+	struct	kevent *changelist;
 	int	nchanges;
-	struct	kevent **changelist;
-	int	nevents;
 	struct	kevent *eventlist;
+	int	nevents;
 	struct	timespec *timeout;
 };
 #endif
 int
 kevent(struct proc *p, struct kevent_args *uap)
 {
-        struct filedesc* fdp = p->p_fd;
-	struct kevent kev;
+	struct filedesc* fdp = p->p_fd;
+	struct kevent *kevp;
 	struct kqueue *kq;
-        struct file *fp;
+	struct file *fp;
 	struct timespec ts;
 	int i, n, nerrors, error;
 
@@ -360,8 +343,7 @@ kevent(struct proc *p, struct kevent_args *uap)
 		return (EBADF);
 
 	if (uap->timeout != NULL) {
-		error = copyin((caddr_t)uap->timeout, (caddr_t)&ts,
-		    sizeof(ts));
+		error = copyin(uap->timeout, &ts, sizeof(ts));
 		if (error)
 			return error;
 		uap->timeout = &ts;
@@ -372,24 +354,21 @@ kevent(struct proc *p, struct kevent_args *uap)
 
 	while (uap->nchanges > 0) {
 		n = uap->nchanges > KQ_NEVENTS ? KQ_NEVENTS : uap->nchanges;
-		error = copyin((caddr_t)uap->changelist, (caddr_t)kq->kq_kevp,
-		    n * sizeof(struct kevent *));
+		error = copyin(uap->changelist, kq->kq_kev,
+		    n * sizeof(struct kevent));
 		if (error)
 			return (error);
 		for (i = 0; i < n; i++) {
-			error = copyin((caddr_t)kq->kq_kevp[i],
-			    (caddr_t)&kev, sizeof(kev));
-			if (error)
-				return (error);
-			kev.flags &= ~EV_SYSFLAGS;
-			error = kqueue_register(kq, &kev, p);
+			kevp = &kq->kq_kev[i];
+			kevp->flags &= ~EV_SYSFLAGS;
+			error = kqueue_register(kq, kevp, p);
 			if (error) {
 				if (uap->nevents != 0) {
-					kev.flags = EV_ERROR;
-					kev.data = error;
-					(void) copyout((caddr_t)&kev,
+					kevp->flags = EV_ERROR;
+					kevp->data = error;
+					(void) copyout((caddr_t)kevp,
 					    (caddr_t)uap->eventlist,
-					    sizeof(kev));
+					    sizeof(*kevp));
 					uap->eventlist++;
 					uap->nevents--;
 					nerrors++;
@@ -466,7 +445,6 @@ kqueue_register(struct kqueue *kq, struct kevent *kev, struct proc *p)
 	 * kn now contains the matching knote, or NULL if no match
 	 */
 	if (kev->flags & EV_ADD) {
-		int attach = 0;
 
 		if (kn == NULL) {
 			kn = knote_alloc();
@@ -477,25 +455,34 @@ kqueue_register(struct kqueue *kq, struct kevent *kev, struct proc *p)
 			kn->kn_fp = fp;
 			kn->kn_kq = kq;
 			kn->kn_fop = fops;
-			attach = 1;
-		}
-		kn->kn_sfflags = kev->fflags;
-		kn->kn_sdata = kev->data;
-		kev->fflags = 0;
-		kev->data = 0;
-		kn->kn_kevent = *kev;
 
-		if (attach) {
+			kn->kn_sfflags = kev->fflags;
+			kn->kn_sdata = kev->data;
+			kev->fflags = 0;
+			kev->data = 0;
+			kn->kn_kevent = *kev;
+
 			knote_attach(kn, fdp);
 			if ((error = fops->f_attach(kn)) != 0) {
 				knote_drop(kn, p);
 				goto done;
 			}
+		} else {
+			/*
+			 * The user may change some filter values after the
+			 * initial EV_ADD, but doing so will not reset any 
+			 * filter which have already been triggered.
+			 */
+			kn->kn_sfflags = kev->fflags;
+			kn->kn_sdata = kev->data;
+			kn->kn_kevent.udata = kev->udata;
 		}
+
 		s = splhigh();
 		if (kn->kn_fop->f_event(kn, 0))
 			KNOTE_ACTIVATE(kn);
 		splx(s);
+
 	} else if (kev->flags & EV_DELETE) {
 		kn->kn_fop->f_detach(kn);
 		knote_drop(kn, p);
@@ -698,6 +685,7 @@ kqueue_stat(struct file *fp, struct stat *st, struct proc *p)
 	bzero((void *)st, sizeof(*st));
 	st->st_size = kq->kq_count;
 	st->st_blksize = sizeof(struct kevent);
+	st->st_mode = S_IFIFO;
 	return (0);
 }
 
