@@ -1,4 +1,7 @@
-.\" Copyright (c) 1983, 1993
+.\" Copyright (c) 1996
+.\"	Mike Pritchard <mpp@FreeBSD.org>.  All rights reserved.
+.\"
+.\" Copyright (c) 1991, 1993
 .\"	The Regents of the University of California.  All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -29,75 +32,42 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)fsync.2	8.1 (Berkeley) 6/4/93
-.\"
-.Dd June 4, 1993
-.Dt FSYNC 2
-.Os BSD 4.2
+.Dd February 11, 1996
+.Dt UPDATE 4
+.Os FreeBSD
 .Sh NAME
-.Nm fsync
-.Nd "synchronize a file's in-core state with that on disk"
+.Nm update
+.Nd flush internal filesystem caches to disk frequently
 .Sh SYNOPSIS
-.Fd #include <unistd.h>
-.Ft int
-.Fn fsync "int fd"
+.Nm update
 .Sh DESCRIPTION
-.Fn Fsync
-causes all modified data and attributes of
-.Fa fd
-to be moved to a permanent storage device.
-This normally results in all in-core modified copies
-of buffers for the associated file to be written to a disk.
-.Pp
-.Fn Fsync
-should be used by programs that require a file to be
-in a known state, for example, in building a simple transaction
-facility.
-.Sh IMPLEMENTATION NOTES
-.Pp
-In the non-threaded library
-.Fn fsync
-is implemented as the
-.Va fsync
-syscall.
-.Pp
-In the threaded library, the
-.Va fsync
-syscall is assembled to
-.Fn _thread_sys_fsync
-and
-.Fn fsync
-is implemented as a function which locks
-.Va fd
-for read and write, then calls
-.Fn _thread_sys_fsync .
-Before returning,
-.Fn fsync
-unlocks
-.Va fd .
-.Sh RETURN VALUES
-A 0 value is returned on success.  A -1 value indicates
-an error.
-.Sh ERRORS
 The
-.Fn fsync
-fails if:
-.Bl -tag -width Er
-.It Bq Er EBADF
-.Fa Fd
-is not a valid descriptor.
-.It Bq Er EINVAL
-.Fa Fd
-refers to a socket, not to a file.
-.It Bq Er EIO
-An I/O error occurred while reading from or writing to the file system.
-.El
+.Nm update
+kernel process helps protect the integrity of disk volumes
+by flushing
+volatile cached filesystem data
+to disk at thirty second intervals.
+.Nm Update
+does the equivalent of the 
+.Xr sync 2
+function call to do the task.
 .Sh SEE ALSO
 .Xr sync 2 ,
-.Xr update 4 ,
+.Xr fsck 8 ,
+.Xr init 8 ,
+.Xr rc 8 ,
 .Xr sync 8
+.Sh BUGS
+It is possible on some systems that a
+.Xr sync
+occurring simultaneously with a crash may cause
+file system damage. See
+.Xr fsck 8 .
 .Sh HISTORY
-The
-.Nm
-function call appeared in
-.Bx 4.2 .
+An
+.Nm update
+command appeared in
+.At v6 ,
+and was usually started by /etc/rc when the system went multi-user.
+.Nm Update
+was turned into a kernel initiated process in FreeBSD 2.0.
