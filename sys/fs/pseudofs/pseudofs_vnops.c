@@ -293,6 +293,15 @@ pfs_getextattr(struct vop_getextattr_args *va)
 
 /*
  * Look up a file or directory
+ *
+ * XXX NOTE!  pfs_lookup() has been hooked into vop_lookup_desc!  This
+ * will result in a lookup operation for a vnode which may already be
+ * cached, therefore we have to be careful to purge the VFS cache when
+ * reusing a vnode.
+ *
+ * This code will work, but is not really correct.  Normally we would hook
+ * vfs_cache_lookup() into vop_lookup_desc and hook pfs_lookup() into
+ * vop_cachedlookup_desc.
  */
 static int
 pfs_lookup(struct vop_lookup_args *va)
@@ -385,6 +394,9 @@ pfs_lookup(struct vop_lookup_args *va)
 	error = pfs_vncache_alloc(vn->v_mount, vpp, pn, pid);
 	if (error)
 		PFS_RETURN (error);
+	/*
+	 * XXX See comment at top of the routine.
+	 */
 	if (cnp->cn_flags & MAKEENTRY)
 		cache_enter(vn, *vpp, cnp);
 	PFS_RETURN (0);
@@ -693,7 +705,7 @@ static int
 pfs_reclaim(struct vop_reclaim_args *va)
 {
 	PFS_TRACE((((struct pfs_vdata *)va->a_vp->v_data)->pvd_pn->pn_name));
-	
+
 	return (pfs_vncache_free(va->a_vp));
 }
 
