@@ -81,7 +81,7 @@ int	umsdebug = 1;
 #define QUEUE_BUFSIZE	400	/* MUST be divisible by 5 _and_ 8 */
 
 struct ums_softc {
-	bdevice sc_dev;			/* base device */
+	device_t sc_dev;		/* base device */
 	usbd_interface_handle sc_iface;	/* interface */
 	usbd_pipe_handle sc_intrpipe;	/* interrupt pipe */
 	int sc_ep_addr;
@@ -117,7 +117,6 @@ struct ums_softc {
 #define MOUSE_FLAGS (HIO_RELATIVE)
 
 void ums_intr __P((usbd_request_handle, usbd_private_handle, usbd_status));
-void ums_disco __P((void *));
 
 static int	ums_enable __P((void *));
 static void	ums_disable __P((void *));
@@ -209,13 +208,13 @@ USB_ATTACH(ums)
 		     "bEndpointAddress=%d-%s bmAttributes=%d wMaxPacketSize=%d"
 		     " bInterval=%d\n",
 		     ed->bLength, ed->bDescriptorType, 
-		     ed->bEndpointAddress & UE_ADDR,
-		     ed->bEndpointAddress & UE_IN ? "in" : "out",
-		     ed->bmAttributes & UE_XFERTYPE,
+		     UE_GET_ADDR(ed->bEndpointAddress),
+		     UE_GET_DIR(ed->bEndpointAddress) == UE_DIR_IN ? "in":"out",
+		     UE_GET_XFERTYPE(ed->bmAttributes),
 		     UGETW(ed->wMaxPacketSize), ed->bInterval));
 
-	if ((ed->bEndpointAddress & UE_IN) != UE_IN ||
-	    (ed->bmAttributes & UE_XFERTYPE) != UE_INTERRUPT) {
+	if (UE_GET_DIR(ed->bEndpointAddress) != UE_DIR_IN ||
+	    UE_GET_XFERTYPE(ed->bmAttributes) != UE_INTERRUPT) {
 		printf("%s: unexpected endpoint\n",
 		       USBDEVNAME(sc->sc_dev));
 		USB_ATTACH_ERROR_RETURN;
@@ -335,7 +334,6 @@ USB_ATTACH(ums)
 }
 
 
-#if defined(__FreeBSD__)
 static int
 ums_detach(device_t self)
 {
@@ -343,7 +341,6 @@ ums_detach(device_t self)
 
 	if (sc->sc_enabled)
 		ums_disable(sc);
-	sc->sc_disconnected = 1;
 
 	DPRINTF(("%s: disconnected\n", USBDEVNAME(self)));
 
@@ -371,18 +368,6 @@ ums_detach(device_t self)
 #endif
 
 	return 0;
-}
-#endif
-
-void
-ums_disco(p)
-	void *p;
-{
-	struct ums_softc *sc = p;
-
-	DPRINTF(("ums_disco: sc=%p\n", sc));
-	usbd_abort_pipe(sc->sc_intrpipe);
-	sc->sc_disconnected = 1;
 }
 
 void
@@ -514,15 +499,14 @@ ums_enable(v)
 		sc->sc_enabled = 0;
 		return (EIO);
 	}
-	usbd_set_disco(sc->sc_intrpipe, ums_disco, sc);
 	return (0);
 }
 
 static void
-ums_disable(v)
-	void *v;
+ums_disable(priv)
+	void *priv;
 {
-	struct ums_softc *sc = v;
+	struct ums_softc *sc = priv;
 
 	/* Disable interrupts. */
 	usbd_abort_pipe(sc->sc_intrpipe);
@@ -530,10 +514,8 @@ ums_disable(v)
 
 	sc->sc_enabled = 0;
 
-#if defined(__FreeBSD__)
 	if (sc->qcount != 0)
 		DPRINTF(("Discarded %d bytes in queue\n", sc->qcount));
-#endif
 }
 
 static int
