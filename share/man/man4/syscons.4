@@ -38,7 +38,7 @@
 .Cd "options SC_ALT_MOUSE_IMAGE"
 .Cd "options SC_CUT_SEPCHARS=_characters_"
 .Cd "options SC_CUT_SPACES2TABS"
-.Cd "options SC_DISABLE_DDBKEY"
+.Cd "options SC_DISABLE_KDBKEY"
 .Cd "options SC_DISABLE_REBOOT"
 .Cd "options SC_HISTORY_SIZE=N"
 .Cd "options SC_MOUSE_CHAR=C"
@@ -279,14 +279,14 @@ This options instructs the driver to convert leading spaces into tabs
 when copying data into cut buffer.
 This might be useful to preserve
 indentation when copying tab-indented text.
-.It Dv SC_DISABLE_DDBKEY
+.It Dv SC_DISABLE_KDBKEY
 This option disables the ``debug'' key combination (by default, it is
 .Dv Alt-Esc ,
 or
 .Dv Ctl-PrintScreen ) .
 It will prevent users from
-entering the kernel debugger (DDB) by pressing the key combination.
-DDB will still be invoked when the kernel panics or hits a break point
+entering the kernel debugger (KDB) by pressing the key combination.
+KDB will still be invoked when the kernel panics or hits a break point
 if it is included in the kernel.
 .It Dv SC_DISABLE_REBOOT
 This option disables the ``reboot'' key (by default, it is
