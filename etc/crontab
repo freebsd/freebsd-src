@@ -1,6 +1,6 @@
 # /etc/crontab - root's crontab for FreeBSD
 #
-# $Id: crontab,v 1.11 1995/11/19 17:21:09 ache Exp $
+# $Id: crontab,v 1.12 1996/01/05 10:09:07 graichen Exp $
 # From: Id: crontab,v 1.6 1993/05/31 02:03:57 cgd Exp
 #
 SHELL=/bin/sh
@@ -13,9 +13,6 @@ HOME=/var/log
 #
 # rotate log files every hour, if necessary
 0	*	*	*	*	root	/usr/sbin/newsyslog
-#
-# remove system	messages older than 21 days
-#0	1	*	*	*	daemon	/usr/bin/msgs -c
 #
 # do daily/weekly/monthly maintenance
 0       2       *       *       *       root    /etc/daily 2>&1 | sendmail root
