@@ -2,7 +2,11 @@
 #
 # Doing a make install builds /usr/share/examples
 
-DIRS!=	for i in *; do if test -d $$i -a $$i != CVS; then echo $$i; fi; done
+DIRS!=	for i in *; do \
+	    if test -d $$i -a $$i != CVS -a $$i != ipfilter; then \
+		echo $$i; \
+	    fi; \
+	done
 
 DDIR=	${DESTDIR}/usr/share/examples
 
@@ -35,4 +39,8 @@ etc-examples:
 	(cd ${.CURDIR}/../../etc; ${MAKE} etc-examples)
 .endif
 
-.include <bsd.prog.mk>
+.if ${SHARED} != "symlinks"
+SUBDIR=	ipfilter
+.endif
+
+.include <bsd.subdir.mk>
