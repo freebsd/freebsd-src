@@ -3,4 +3,5 @@
 # This script is invoked by yppasswdd to update the password
 # maps after the master password file has been modified.
 
-cd /var/yp; make
+umask 077
+cd /var/yp; /usr/bin/make
