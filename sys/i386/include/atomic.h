@@ -151,8 +151,11 @@ atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src)
 }
 #endif /* defined(I386_CPU) */
 
+#define	atomic_cmpset_long	atomic_cmpset_int
 #define atomic_cmpset_acq_int	atomic_cmpset_int
 #define atomic_cmpset_rel_int	atomic_cmpset_int
+#define	atomic_cmpset_acq_long	atomic_cmpset_acq_int
+#define	atomic_cmpset_rel_long	atomic_cmpset_rel_int
     
 #else
 /* gcc <= 2.8 version */
@@ -357,5 +360,54 @@ atomic_readandclear_long(volatile u_long *addr)
 	return (result);
 }
 #endif
+
+#define	atomic_set_8		atomic_set_char
+#define	atomic_set_acq_8	atomic_set_acq_char
+#define	atomic_set_rel_8	atomic_set_rel_char
+#define	atomic_clear_8		atomic_clear_char
+#define	atomic_clear_acq_8	atomic_clear_acq_char
+#define	atomic_clear_rel_8	atomic_clear_rel_char
+#define	atomic_add_8		atomic_add_char
+#define	atomic_add_acq_8	atomic_add_acq_char
+#define	atomic_add_rel_8	atomic_add_rel_char
+#define	atomic_subtract_8	atomic_subtract_char
+#define	atomic_subtract_acq_8	atomic_subtract_acq_char
+#define	atomic_subtract_rel_8	atomic_subtract_rel_char
+#define	atomic_load_acq_8	atomic_load_acq_char
+#define	atomic_store_rel_8	atomic_store_rel_char
+
+#define	atomic_set_16		atomic_set_short
+#define	atomic_set_acq_16	atomic_set_acq_short
+#define	atomic_set_rel_16	atomic_set_rel_short
+#define	atomic_clear_16		atomic_clear_short
+#define	atomic_clear_acq_16	atomic_clear_acq_short
+#define	atomic_clear_rel_16	atomic_clear_rel_short
+#define	atomic_add_16		atomic_add_short
+#define	atomic_add_acq_16	atomic_add_acq_short
+#define	atomic_add_rel_16	atomic_add_rel_short
+#define	atomic_subtract_16	atomic_subtract_short
+#define	atomic_subtract_acq_16	atomic_subtract_acq_short
+#define	atomic_subtract_rel_16	atomic_subtract_rel_short
+#define	atomic_load_acq_16	atomic_load_acq_short
+#define	atomic_store_rel_16	atomic_store_rel_short
+
+#define	atomic_set_32		atomic_set_int
+#define	atomic_set_acq_32	atomic_set_acq_int
+#define	atomic_set_rel_32	atomic_set_rel_int
+#define	atomic_clear_32		atomic_clear_int
+#define	atomic_clear_acq_32	atomic_clear_acq_int
+#define	atomic_clear_rel_32	atomic_clear_rel_int
+#define	atomic_add_32		atomic_add_int
+#define	atomic_add_acq_32	atomic_add_acq_int
+#define	atomic_add_rel_32	atomic_add_rel_int
+#define	atomic_subtract_32	atomic_subtract_int
+#define	atomic_subtract_acq_32	atomic_subtract_acq_int
+#define	atomic_subtract_rel_32	atomic_subtract_rel_int
+#define	atomic_load_acq_32	atomic_load_acq_int
+#define	atomic_store_rel_32	atomic_store_rel_int
+#define	atomic_cmpset_32	atomic_cmpset_int
+#define	atomic_cmpset_acq_32	atomic_cmpset_acq_int
+#define	atomic_cmpset_rel_32	atomic_cmpset_rel_int
+#define	atomic_readandclear_32	atomic_readandclear_int
 
 #endif /* ! _MACHINE_ATOMIC_H_ */
