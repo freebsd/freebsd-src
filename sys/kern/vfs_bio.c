@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.81 1996/01/05 20:12:33 wollman Exp $
+ * $Id: vfs_bio.c,v 1.82 1996/01/06 23:23:02 davidg Exp $
  */
 
 /*
@@ -664,7 +664,8 @@ start:
 	/* can we constitute a new buffer? */
 	if ((bp = bufqueues[QUEUE_EMPTY].tqh_first)) {
 		if (bp->b_qindex != QUEUE_EMPTY)
-			panic("getnewbuf: inconsistent EMPTY queue");
+			panic("getnewbuf: inconsistent EMPTY queue, qindex=%d",
+			    bp->b_qindex);
 		bremfree(bp);
 		goto fillbuf;
 	}
@@ -676,10 +677,12 @@ trytofreespace:
 	 */
 	if ((bp = bufqueues[QUEUE_AGE].tqh_first)) {
 		if (bp->b_qindex != QUEUE_AGE)
-			panic("getnewbuf: inconsistent AGE queue");
+			panic("getnewbuf: inconsistent AGE queue, qindex=%d",
+			    bp->b_qindex);
 	} else if ((bp = bufqueues[QUEUE_LRU].tqh_first)) {
 		if (bp->b_qindex != QUEUE_LRU)
-			panic("getnewbuf: inconsistent LRU queue");
+			panic("getnewbuf: inconsistent LRU queue, qindex=%d",
+			    bp->b_qindex);
 	}
 	if (!bp) {
 		/* wait for a free buffer of any kind */
