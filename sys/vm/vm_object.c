@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.123 1998/06/21 14:53:44 bde Exp $
+ * $Id: vm_object.c,v 1.124 1998/07/11 11:30:45 bde Exp $
  */
 
 /*
@@ -1597,17 +1597,18 @@ DB_SHOW_COMMAND(object, vm_object_print_static)
 	if (object == NULL)
 		return;
 
-	db_iprintf("Object 0x%lx: type=%d, size=0x%lx, res=%d, ref=%d, flags=0x%x\n",
-	    (long) object, (int) object->type, (long) object->size,
-	    object->resident_page_count,
-		object->ref_count,
-		object->flags);
-	db_iprintf(" sref=%d, offset=0x%x, backing_object(%d)=(0x%lx)+0x%x\n",
-		object->shadow_count,
-	    (int) object->paging_offset,
-		(((long)object->backing_object)?object->backing_object->ref_count:0),
-	    (long) object->backing_object,
-		(int) object->backing_object_offset);
+	db_iprintf(
+	    "Object %p: type=%d, size=0x%lx, res=%d, ref=%d, flags=0x%x\n",
+	    object, (int)object->type, (u_long)object->size,
+	    object->resident_page_count, object->ref_count, object->flags);
+	/*
+	 * XXX no %qd in kernel.  Truncate object->paging_offset and
+	 * object->backing_object_offset.
+	 */
+	db_iprintf(" sref=%d, offset=0x%lx, backing_object(%d)=(%p)+0x%lx\n",
+	    object->shadow_count, (long)object->paging_offset,
+	    object->backing_object ? object->backing_object->ref_count : 0,
+	    object->backing_object, (long)object->backing_object_offset);
 
 	if (!full)
 		return;
