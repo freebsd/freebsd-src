@@ -55,11 +55,7 @@ struct vmspace;
 	u_int	pc_node;						\
 	u_int	pc_tlb_ctx;						\
 	u_int	pc_tlb_ctx_max;						\
-	u_int	pc_tlb_ctx_min;						\
-	u_int	pc_wp_insn;			/* watch point support */ \
-	u_long	pc_wp_pstate;						\
-	u_long	pc_wp_va;						\
-	int	pc_wp_mask
+	u_int	pc_tlb_ctx_min
 
 struct pcb;
 struct pcpu;
