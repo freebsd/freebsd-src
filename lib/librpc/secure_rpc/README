@@ -1,0 +1,92 @@
+Export restriction prohibit us from including DES encryption routines in RPCSRC
+4.0.  The main RPCSRC 4.0 hierarchy does not include DES Authentication,
+however this directory contains the documentation and code used to build secure
+rpc.  THIS DISTRIBUTION OF SECURE RPC NEEDS EXTENSIVE WORK BEFORE IT CAN BE
+USED.  PLEASE READ THE PORTING GUIDLINES BELOW.
+
+HIERARCHY
+
+bin/
+
+    This directory contains chkey and keylogin. These are user programs
+    used to establish the credentials of an RPC user.
+
+demo/
+    The 'whoami' service is found here.  It can be used to test secure RPC.
+    rpcgen is used to build the client and server.
+
+des/
+
+    des_crypt.h defines the interfaces to cbc_crypt() and ecb_crypt(),
+    the DES routines used by DES Authentication.
+    des.h defines the desparams structure that is used internally by
+    these routines.  Secure RPC expects it to be installed in
+    /usr/include/sys.
+    des_crypt.c defines the cbc_crypt() and ecb_crypt() routines.  These
+    eventually call the routine _des_crypt(), which is *not* provided.
+    des_soft.c contains the des_setparity() routine.
+
+doc/
+
+    The document "nfs.secure.ms" is found here. It describes Secure
+    RPC and Secure NFS.
+
+keyserv/
+
+    This is an RPC based program that stores the private keys for
+    users that are using secure RPC.
+
+man/
+
+    Manual pages for the programs and library routines are found here.
+
+rpc/
+
+    The routines in this directory should be integrated with the
+    default rpc directory to make a single RPC library.  The Makefile
+    found in this directory replaces the one in ../rpc.  Note: the file
+    svc_auth.c in this directory replaces the one in ../rpc.  Also, the
+    file ../rpc/rpc.h should be edited to include the file <rpc/des_auth.h>
+    (it presently is commented out).
+
+PORTING GUIDELINES
+
+You will need to provide a DES encryption routine.  man/des_crypt.3 describes
+the interface to ecb_crypt() and cbc_crypt() (secure RPC uses both modes).  The
+des/ directory has the "front-end" for these routines in the des_crypt.c file.
+
+Since public key authentication systems require a network global data lookup
+facility, this implementation uses Sun's Yellow Pages.  If your site does not
+have Yellow Pages, you will have to modify the routines in rpc/publickey.c and
+bin/chkey.c.  One possible approach is to replace the YP calls with code to
+read the file /etc/publickey; this file would presumably be shared by all
+secure RPC sites via NFS or some equivalent file sharing facility.  If you wish
+to implement YP yourself, the RPCL (.x) protocol description file can be found
+in ../rpcsvc/yp.x.
+
+The routines in rpc/ and keyserv/ assume that the file des/des_crypt.h
+is installed in /usr/include (they include <des_crypt.h>).  The file
+des/des_crypt.c assumes that des.h is installed in /usr/include/sys (it
+include <sys/des.h>).  The des/ directory does not have a Makefile that
+would install these header files, so you will either have to do this
+by hand, or modify the routines to include the header files in a way suitable
+for your site.
+
+While the programs in bin/ and keyserv/ can be built in place (assuming
+the header files they include and the RPC library are available), the files
+in rpc/ must be moved into ../rpc/, the main RPC library.  The Makefile and
+svc_auth.c found in rpc/ will replace those found in ../rpc/.  You must also
+edit ../rpc/rpc.h to include <rpc/des_auth.h>.
+
+OPERATION
+
+Please read the documentation and manual pages for information on how to
+administer secure RPC.
+
+In the demo/ directory you'll find the 'whoami' service.  This service uses DES
+Authentication, and can be used to check out secure RPC.  The client program,
+'rme' takes a host as an argument.  This host must be running the keyserv
+daemon and the 'whoami_svc' server.  The service returns the identity of the
+client-user as known to the system on which the server is running.  This
+information is only returned, however, if the client request has proper DES
+credentials.

@@ -1,0 +1,97 @@
+#	@(#)VERSION	8.9 (Berkeley) 4/2/94
+
+This is version 1.74 of the Berkeley DB code.
+
+If your version of the DB code doesn't have a copy
+of this version file, it's really old, please update it!
+
+New versions of this software are periodically made
+available by anonymous ftp from ftp.cs.berkeley.edu,
+in the file ucb/4bsd/db.tar.Z, or from ftp.uu.net.
+If you'd like to get announcements of future releases
+of this software, send email to the contact address
+below.
+
+Email questions may be addressed to Keith Bostic at
+bostic@cs.berkeley.edu.
+
+============================================
+Distribution contents:
+
+Makefile.inc	Ignore this, it's the 4.4BSD subsystem Makefile.
+PORT		The per OS/architecture directories to use to build
+		libdb.a, if you're not running 4.4BSD.  See the file
+		PORT/README for more information.
+README		This file.
+VERSION		This file.
+btree		B+tree routines.
+db		Dbopen(3) interface routine.
+doc		USENIX papers, formatted manual pages.
+hash		Extended linear hashing routines.
+man		Unformatted manual pages.
+mpool		Memory pool routines.
+recno		Fixed/variable length record routines.
+test		Test package.
+
+============================================
+1.73 -> 1.74
+	recno:	Don't put the record if rec_search fails, in rec_rdelete.
+		Create fixed-length intermediate records past "end" of DB
+		correctly.
+		Realloc bug when reading in fixed records.
+	all:	First cut at port to Alpha (64-bit architecture) using
+		4.4BSD basic integral types typedef's.
+		Cast allocation pointers to shut up old compilers.
+		Rework PORT directory into OS/machine directories.
+
+1.72 -> 1.73
+	btree:	If enough duplicate records were inserted and then deleted
+		that internal pages had references to empty pages of the
+		duplicate keys, the search function ended up on the wrong
+		page.
+
+1.7  -> 1.72	12 Oct 1993
+	hash:	Support NET/2 hash formats.
+		
+1.7  -> 1.71	16 Sep 1993
+	btree/recno:
+		Fix bug in internal search routines that caused
+		return of invalid pointers.
+
+1.6  -> 1.7	07 Sep 1993
+	hash:	Fixed big key overflow bugs.
+	test:	Portability hacks, rewrite test script, Makefile.
+	btree/recno:
+		Stop copying non-overflow key/data pairs.
+	PORT:	Break PORT directory up into per architecture/OS
+		subdirectories.
+
+1.5  -> 1.6	06 Jun 1993
+	hash:	In PAIRFITS, the first comparison should look at (P)[2].
+		The hash_realloc function was walking off the end of memory.
+		The overflow page number was wrong when bumping splitpoint.
+
+1.4  -> 1.5	23 May 1993
+	hash:	Set hash default fill factor dynamically.
+	recno:	Fixed bug in sorted page splits.
+		Add page size parameter support.
+		Allow recno to specify the name of the underlying btree;
+			used for vi recovery.
+	btree/recno:
+		Support 64K pages.
+	btree/hash/recno:
+		Provide access to an underlying file descriptor.
+		Change sync routines to take a flag argument, recno
+			uses this to sync out the underlying btree.
+
+1.3  -> 1.4	10 May 1993
+	recno:	Delete the R_CURSORLOG flag from the recno interface.
+		Zero-length record fix for non-mmap reads.
+		Try and make SIZE_T_MAX test in open portable.
+
+1.2  -> 1.3	01 May 1993
+	btree:	Ignore user byte-order setting when reading already
+		existing database.  Fixes to byte-order conversions.
+
+1.1  -> 1.2	15 Apr 1993
+		No bug fixes, only compatibility hacks.
