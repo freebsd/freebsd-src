@@ -131,6 +131,7 @@ main(argc, argv)
 			crc_total = ~strtol(optarg, &p, 0);
 			if (*p)
 				errx(1, "illegal seed value -- %s", optarg);
+			break;
 		case 'U':
 			Uflag = 1;
 			uflag = 1;
