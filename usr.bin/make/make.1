@@ -32,7 +32,7 @@
 .\"	@(#)make.1	8.8 (Berkeley) 6/13/95
 .\" $FreeBSD$
 .\"
-.Dd June 13, 1995
+.Dd April 12, 2004
 .Dt MAKE 1
 .Os
 .Sh NAME
@@ -760,9 +760,15 @@ Only global variables may be un-defined.
 Terminate processing of the makefile immediately.
 The filename of the
 makefile, the line on which the error was encountered and the specified
-message are printed to standard output and
+message are printed to the standard error output and
 .Nm
 terminates with exit code 1.
+Variables in the message are expanded.
+.It Ic \&.warning Ar message
+Emit a warning message.
+The filename of the makefile,
+the line on which the warning was encountered,
+and the specified message are printed to the standard error output.
 Variables in the message are expanded.
 .El
 .Pp
