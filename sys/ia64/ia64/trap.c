@@ -285,6 +285,12 @@ trap(int vector, int imm, struct trapframe *framep)
 	p = td->td_proc;
 	ucode = 0;
 
+	/*
+	 * Make sure we have a sane floating-point state in case the
+	 * user has trashed it.
+	 */
+	ia64_set_fpsr(IA64_FPSR_DEFAULT);
+
 	user = ((framep->tf_cr_ipsr & IA64_PSR_CPL) == IA64_PSR_CPL_USER);
 	if (user) {
 		sticks = td->td_kse->ke_sticks;
