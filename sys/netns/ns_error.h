@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)ns_error.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: ns_error.h,v 1.2 1994/08/02 07:51:47 davidg Exp $
  */
+
+#ifndef _NETNS_NS_ERROR_H_
+#define _NETNS_NS_ERROR_H_
 
 /*
  * Xerox NS error messages
@@ -88,4 +91,6 @@ struct	ns_errstat {
 
 #ifdef KERNEL
 struct	ns_errstat ns_errstat;
+#endif
+
 #endif

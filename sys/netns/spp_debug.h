@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)spp_debug.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: spp_debug.h,v 1.2 1994/08/02 07:51:58 davidg Exp $
  */
+
+#ifndef _NETNS_SPP_DEBUG_H_
+#define _NETNS_SPP_DEBUG_H_
 
 struct	spp_debug {
 	u_long	sd_time;
@@ -58,3 +61,5 @@ char	*sanames[] =
 #define	SPP_NDEBUG 100
 struct	spp_debug spp_debug[SPP_NDEBUG];
 int	spp_debx;
+
+#endif
