@@ -206,7 +206,6 @@ struct digi_softc {
 #endif
 };
 
-extern devclass_t digi_devclass;
 extern const struct digi_control_signals digi_xixe_signals;
 extern const struct digi_control_signals digi_normal_signals;
 
