@@ -1,5 +1,5 @@
 #
-#	$Id: PICOBSD,v 1.5 1998/11/14 20:10:23 abial Exp $
+#	$Id: PICOBSD,v 1.6 1999/01/14 23:21:58 abial Exp $
 #
 
 machine		"i386"
@@ -60,7 +60,7 @@ device		wcd0	#IDE CD-ROM
 controller	atkbdc0	at isa? port IO_KBD tty
 device		atkbd0	at isa? tty irq 1
 device		vga0	at isa? port ? conflicts
-device		sc0	at isa? tty irq 1
+device		sc0	at isa? tty
 
 device		npx0	at isa? port IO_NPX irq 13
 
