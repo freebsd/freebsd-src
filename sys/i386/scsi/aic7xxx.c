@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.82 1996/11/05 07:57:26 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.83 1996/11/05 08:39:33 gibbs Exp $
  */
 /*
  * TODO:
@@ -1940,6 +1940,8 @@ ahc_init(ahc)
 			       "Failing attach\n");
 			return (-1);
 		}
+		/* At least the control byte of each hscb needs to be zeroed */
+		bzero(ahc->scb_data->hscbs, array_size);
 
 		/* Tell the sequencer where it can find the hscb array. */
 		hscb_physaddr = vtophys(ahc->scb_data->hscbs);
@@ -2090,8 +2092,8 @@ ahc_scsi_cmd(xs)
 		hscb->control |= MSG_ORDERED_Q_TAG;
 		ahc->orderedtag &= ~mask;
 	} else if (hscb->control & DISCENB) {
-                if (ahc->tagenable & mask)
-                        hscb->control |= TAG_ENB;
+		if (ahc->tagenable & mask)
+			hscb->control |= TAG_ENB;
 	}
 	hscb->tcl = ((xs->sc_link->target << 4) & 0xF0)
 		  | (IS_SCSIBUS_B(ahc,xs->sc_link)? SELBUSB : 0)
