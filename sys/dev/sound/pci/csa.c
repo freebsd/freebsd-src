@@ -286,7 +286,7 @@ csa_initialize(sc_p scp)
 	 * for a reset.
 	 */
 	csa_writeio(resp, BA0_ACCTL, 0);
-	DELAY(250);
+	DELAY(100);
 	csa_writeio(resp, BA0_ACCTL, ACCTL_RSTN);
 
 	/*
@@ -362,7 +362,7 @@ csa_initialize(sc_p scp)
 		 * First, lets wait a short while to let things settle out a bit,
 		 * and to prevent retrying the read too quickly.
 		 */
-		DELAY(250);
+		DELAY(125);
 
 		/*
 		 * Read the AC97 status register to see if we've seen a CODEC READY
@@ -398,7 +398,7 @@ csa_initialize(sc_p scp)
 #if notdef
 		DELAY(10000000L); /* clw */
 #else
-		DELAY(2500);
+		DELAY(1000);
 #endif /* notdef */
 		/*
 		 * Read the input slot valid register and see if input slots 3 and
@@ -477,7 +477,7 @@ csa_clearserialfifos(csa_res *resp)
 	for (i = 0 ; i < 256 ; i++) {
 		/* Make sure the previous FIFO write operation has completed. */
 		for (j = 0 ; j < 5 ; j++) {
-			DELAY(250);
+			DELAY(100);
 			serbst = csa_readio(resp, BA0_SERBST);
 			if ((serbst & SERBST_WBSY) == 0)
 				break;
