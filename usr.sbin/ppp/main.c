@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.22.2.44 1998/01/26 20:04:58 brian Exp $
+ * $Id: main.c,v 1.22.2.45 1998/01/27 23:16:18 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -540,9 +540,12 @@ main(int argc, char **argv)
   if (lockfile != NULL) {
     fprintf(lockfile, "%d\n", (int) getpid());
     fclose(lockfile);
-  } else
+  }
+#ifndef RELEASE_CRUNCH
+  else
     LogPrintf(LogALERT, "Warning: Can't create %s: %s\n",
               pid_filename, strerror(errno));
+#endif
 
   LogPrintf(LogPHASE, "PPP Started.\n");
 
