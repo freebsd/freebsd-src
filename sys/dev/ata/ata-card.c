@@ -77,8 +77,8 @@ static int
 ata_pccard_probe(device_t dev)
 {
     struct ata_channel *ch = device_get_softc(dev);
-    struct resource *io;
-    int rid, len, start, end;
+    struct resource *io, *altio;
+    int i, rid, len, start, end;
     u_long tmp;
 
     /* allocate the io range to get start and length */
@@ -87,7 +87,7 @@ ata_pccard_probe(device_t dev)
     io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
 			    ATA_IOSIZE, RF_ACTIVE);
     if (!io)
-	return ENOMEM;
+	return ENXIO;
 
     /* reallocate the io address to only cover the io ports */
     start = rman_get_start(io);
@@ -95,7 +95,6 @@ ata_pccard_probe(device_t dev)
     bus_release_resource(dev, SYS_RES_IOPORT, rid, io);
     io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
 			    start, end, ATA_IOSIZE, RF_ACTIVE);
-    bus_release_resource(dev, SYS_RES_IOPORT, rid, io);
 
     /* 
      * if we got more than the default ATA_IOSIZE ports, this is likely
@@ -112,9 +111,29 @@ ata_pccard_probe(device_t dev)
 			     start + ATA_ALTOFFSET, ATA_ALTIOSIZE);
 	}
     }
-    else
-	return ENOMEM;
+    else {
+	bus_release_resource(dev, SYS_RES_IOPORT, rid, io);
+	return ENXIO;
+    }
 
+    /* allocate the altport range */
+    rid = ATA_ALTADDR_RID;
+    altio = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
+			       ATA_ALTIOSIZE, RF_ACTIVE);
+    if (!altio) {
+	bus_release_resource(dev, SYS_RES_IOPORT, ATA_IOADDR_RID, io);
+	return ENXIO;
+    }
+
+    /* setup the resource vectors */
+    for (i = ATA_DATA; i <= ATA_STATUS; i++) {
+	ch->r_io[i].res = io;
+	ch->r_io[i].offset = i;
+    }
+    ch->r_io[ATA_ALTSTAT].res = altio;
+    ch->r_io[ATA_ALTSTAT].offset = 0;
+
+    /* initialize softc for this channel */
     ch->unit = 0;
     ch->flags |= (ATA_USE_16BIT | ATA_NO_SLAVE);
     ch->locking = ata_pccard_locknoop;
@@ -123,11 +142,27 @@ ata_pccard_probe(device_t dev)
     return ata_probe(dev);
 }
 
+static int
+ata_pccard_detach(device_t dev)
+{
+    struct ata_channel *ch = device_get_softc(dev);
+    int i;
+
+    ata_detach(dev);
+    bus_release_resource(dev, SYS_RES_IOPORT,
+			 ATA_ALTADDR_RID, ch->r_io[ATA_ALTSTAT].res);
+    bus_release_resource(dev, SYS_RES_IOPORT,
+			 ATA_IOADDR_RID, ch->r_io[ATA_DATA].res);
+    for (i = ATA_DATA; i <= ATA_MAX_RES; i++)
+	ch->r_io[i].res = NULL;
+    return 0;
+}
+
 static device_method_t ata_pccard_methods[] = {
     /* device interface */
     DEVMETHOD(device_probe,	pccard_compat_probe),
     DEVMETHOD(device_attach,	pccard_compat_attach),
-    DEVMETHOD(device_detach,	ata_detach),
+    DEVMETHOD(device_detach,	ata_pccard_detach),
 
     /* Card interface */
     DEVMETHOD(card_compat_match,	ata_pccard_match),
