@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)proc.c	8.1 (Berkeley) 5/31/93";
 #else
 static const char rcsid[] =
-	"$Id: proc.c,v 1.5 1997/08/07 21:42:15 steve Exp $";
+	"$Id: proc.c,v 1.6 1997/08/08 00:54:05 steve Exp $";
 #endif
 #endif /* not lint */
 
@@ -89,6 +89,7 @@ pchild(notused)
     struct process *fp;
     int pid;
     extern int insource;
+    int save_errno = errno;
     union wait w;
     int     jobflags;
     struct rusage ru;
@@ -104,6 +105,7 @@ loop:
 	    goto loop;
 	}
 	pnoprocesses = pid == -1;
+	errno = save_errno;
 	return;
     }
     for (pp = proclist.p_next; pp != NULL; pp = pp->p_next)
