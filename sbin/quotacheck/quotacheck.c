@@ -512,8 +512,12 @@ addid(id, type, name)
 		highid[type] = id;
 	if (name)
 		bcopy(name, fup->fu_name, len + 1);
-	else
-		(void)sprintf(fup->fu_name, "%u", id);
+	else {
+		(void)sprintf(fup->fu_name, "%lu", id);
+		if (vflag) 
+			printf("unknown %cid: %lu\n", 
+			    type == USRQUOTA ? 'u' : 'g', id);
+	}
 	return (fup);
 }
 
