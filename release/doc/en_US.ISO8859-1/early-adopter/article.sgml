@@ -1,21 +1,6 @@
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
-<!ENTITY % man PUBLIC "-//FreeBSD//ENTITIES DocBook Manual Page Entities//EN">
-%man;
-
-<!ENTITY % freebsd PUBLIC "-//FreeBSD//ENTITIES DocBook Miscellaneous FreeBSD Entities//EN">
-%freebsd;
-
-<!ENTITY % authors PUBLIC "-//FreeBSD//ENTITIES DocBook Author Entities//EN">
-%authors;
-
-<!ENTITY % teams PUBLIC "-//FreeBSD//ENTITIES DocBook Team Entities//EN">
-%teams;
-
-<!ENTITY % mailing-lists PUBLIC "-//FreeBSD//ENTITIES DocBook Mailing List Entities//EN">
-%mailing-lists;
-
-<!ENTITY % trademarks PUBLIC "-//FreeBSD//ENTITIES DocBook Trademark Entities//EN">
-%trademarks;
+<!ENTITY % articles.ent PUBLIC "-//FreeBSD//ENTITIES DocBook FreeBSD Articles Entity Set//EN">
+%articles.ent;
 
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
@@ -24,7 +9,6 @@
 <!ENTITY release.5x "5.<replaceable>X</replaceable>">
 <!ENTITY release.4last "4.10-RELEASE">
 <!ENTITY release.5branchpoint "5.3-RELEASE">
-
 ]>
 
 <article>
