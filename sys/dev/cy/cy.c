@@ -1539,7 +1539,7 @@ sioioctl(dev, cmd, data, flag, td)
 	int		mynor;
 	int		s;
 	struct tty	*tp;
-#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
+#if defined(COMPAT_43)
 	int		oldcmd;
 	struct termios	term;
 #endif
@@ -1580,7 +1580,7 @@ sioioctl(dev, cmd, data, flag, td)
 		}
 	}
 	tp = com->tp;
-#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
+#if defined(COMPAT_43)
 	term = tp->t_termios;
 	oldcmd = cmd;
 	error = ttsetcompat(tp, &cmd, data, &term);

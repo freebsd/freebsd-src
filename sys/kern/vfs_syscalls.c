@@ -1733,7 +1733,7 @@ lseek(td, uap)
 	return (0);
 }
 
-#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
+#if defined(COMPAT_43)
 /*
  * Reposition read/write file offset.
  */
@@ -1888,7 +1888,7 @@ eaccess(td, uap)
 	return (error);
 }
 
-#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
+#if defined(COMPAT_43)
 /*
  * Get file status; this version follows links.
  */
@@ -1991,7 +1991,7 @@ cvtstat(st, ost)
 	ost->st_flags = st->st_flags;
 	ost->st_gen = st->st_gen;
 }
-#endif /* COMPAT_43 || COMPAT_SUNOS */
+#endif /* COMPAT_43 */
 
 /*
  * Get file status; this version follows links.
@@ -2965,7 +2965,7 @@ ftruncate(td, uap)
 	return (error);
 }
 
-#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
+#if defined(COMPAT_43)
 /*
  * Truncate a file given its path name.
  */
@@ -3021,7 +3021,7 @@ oftruncate(td, uap)
 	nuap.length = uap->length;
 	return (ftruncate(td, &nuap));
 }
-#endif /* COMPAT_43 || COMPAT_SUNOS */
+#endif /* COMPAT_43 */
 
 /*
  * Sync an open file.

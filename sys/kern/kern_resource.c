@@ -474,7 +474,7 @@ pri_to_rtp(struct ksegrp *kg, struct rtprio *rtp)
 	rtp->type = kg->kg_pri_class;
 }
 
-#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
+#if defined(COMPAT_43)
 #ifndef _SYS_SYSPROTO_H_
 struct osetrlimit_args {
 	u_int	which;
@@ -541,7 +541,7 @@ ogetrlimit(td, uap)
 	error = copyout(&olim, uap->rlp, sizeof(olim));
 	return (error);
 }
-#endif /* COMPAT_43 || COMPAT_SUNOS */
+#endif /* COMPAT_43 */
 
 #ifndef _SYS_SYSPROTO_H_
 struct __setrlimit_args {

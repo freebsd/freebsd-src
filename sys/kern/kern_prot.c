@@ -84,7 +84,7 @@ getpid(struct thread *td, struct getpid_args *uap)
 	struct proc *p = td->td_proc;
 
 	td->td_retval[0] = p->p_pid;
-#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
+#if defined(COMPAT_43)
 	PROC_LOCK(p);
 	td->td_retval[1] = p->p_pptr->p_pid;
 	PROC_UNLOCK(p);
@@ -216,7 +216,7 @@ getuid(struct thread *td, struct getuid_args *uap)
 {
 
 	td->td_retval[0] = td->td_ucred->cr_ruid;
-#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
+#if defined(COMPAT_43)
 	td->td_retval[1] = td->td_ucred->cr_uid;
 #endif
 	return (0);
@@ -253,7 +253,7 @@ getgid(struct thread *td, struct getgid_args *uap)
 {
 
 	td->td_retval[0] = td->td_ucred->cr_rgid;
-#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
+#if defined(COMPAT_43)
 	td->td_retval[1] = td->td_ucred->cr_groups[0];
 #endif
 	return (0);

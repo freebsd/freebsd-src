@@ -37,7 +37,7 @@ __FBSDID("$FreeBSD$");
 /*
  * mapping routines for old line discipline (yuck)
  */
-#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
+#if defined(COMPAT_43)
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -485,4 +485,4 @@ ttcompatsetlflags(tp, t)
 	t->c_lflag = lflag;
 	t->c_cflag = cflag;
 }
-#endif	/* COMPAT_43 || COMPAT_SUNOS */
+#endif	/* COMPAT_43 */

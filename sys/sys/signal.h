@@ -239,9 +239,6 @@ struct sigaction {
 #endif
 #if __BSD_VISIBLE
 /* XXX dubious. */
-#ifdef COMPAT_SUNOS
-#define	SA_USERTRAMP	0x0100	/* do not bounce off kernel's sigtramp */
-#endif
 #endif
 
 #if __BSD_VISIBLE

@@ -878,7 +878,7 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		sbs = (u_int64_t)td->td_sigstk.ss_sp;
 		sbs = (sbs + 15) & ~15;
 		sfp = (struct sigframe *)(sbs + td->td_sigstk.ss_size);
-#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
+#if defined(COMPAT_43)
 		td->td_sigstk.ss_flags |= SS_ONSTACK;
 #endif
 	} else
@@ -994,7 +994,7 @@ sigreturn(struct thread *td,
 	set_mcontext(td, &uc.uc_mcontext);
 
 	PROC_LOCK(p);
-#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
+#if defined(COMPAT_43)
 	if (sigonstack(tf->tf_special.sp))
 		td->td_sigstk.ss_flags |= SS_ONSTACK;
 	else

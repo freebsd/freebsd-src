@@ -262,7 +262,7 @@ sendsig(catcher, sig, mask, code)
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
 		sp = td->td_sigstk.ss_sp +
 		    td->td_sigstk.ss_size - sizeof(struct sigframe);
-#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
+#if defined(COMPAT_43)
 		td->td_sigstk.ss_flags |= SS_ONSTACK;
 #endif
 	} else
@@ -403,7 +403,7 @@ sigreturn(td, uap)
 	bcopy(&ucp->uc_mcontext.mc_rdi, regs, sizeof(*regs));
 
 	PROC_LOCK(p);
-#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
+#if defined(COMPAT_43)
 	if (ucp->uc_mcontext.mc_onstack & 1)
 		td->td_sigstk.ss_flags |= SS_ONSTACK;
 	else
