@@ -12,3 +12,8 @@ ahc(4)		gibbs	Prefers to pre-approve commits
 NEWCARD		imp	Pre-commit review strongly requested
 OLDCARD		imp	Pre-commit review preferred
 wi		imp	Would like to review patches
+perl5		markm	wants to be (reasonably) sure that commits do
+			not break STABLE upgrades and cross-builds
+telnet		markm	commits _must_ be made to src/crypto/telnet
+			first, only then to "base" telnet via "make
+			unifdef"
