@@ -242,6 +242,12 @@ SUBDIR+=doscmd \
 SUBDIR+=uac
 .endif
 
+.if ${MACHINE_ARCH} == "amd64"
+SUBDIR+=ncplist \
+	ncplogin \
+	smbutil
+.endif
+
 .if exists(${.CURDIR}/../crypto) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
 SUBDIR+=chkey newkey
 .endif
