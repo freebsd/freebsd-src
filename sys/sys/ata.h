@@ -233,7 +233,9 @@ struct ata_cmd {
 #define ATAATTACH		5
 #define ATADETACH		6
 #define ATAPICMD		7
-#define ATAREBUILD		8
+#define ATARAIDREBUILD		8
+#define ATARAIDCREATE		9
+#define ATARAIDDELETE		10
 
     union {
 	struct {
@@ -244,6 +246,13 @@ struct ata_cmd {
 	    char		name[2][32];
 	    struct ata_params	params[2];
 	} param;
+	struct raid_setup {
+	    int			type;
+	    int			total_disks;
+	    int			disks[16];
+	    int			interleave;
+	    int			unit;
+	} raid_setup;
 	struct {
 	    char		ccb[16];
 	    caddr_t		data;
