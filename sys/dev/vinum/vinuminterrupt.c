@@ -35,7 +35,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: interrupt.c,v 1.5 1998/12/28 04:56:23 peter Exp $
+ * $Id: vinuminterrupt.c,v 1.4 1999/01/12 04:30:12 grog Exp grog $
  */
 
 #define REALLYKERNEL
@@ -61,7 +61,6 @@ void sdio_done(struct buf *bp);
 void 
 complete_rqe(struct buf *bp)
 {
-    BROKEN_GDB;
     struct rqelement *rqe;
     struct request *rq;
     struct rqgroup *rqg;
@@ -81,12 +80,21 @@ complete_rqe(struct buf *bp)
 	    rq->error = bp->b_error;			    /* yes, put it in. */
 	else if (rq->error == 0)			    /* no: do we have one already? */
 	    rq->error = EIO;				    /* no: catchall "I/O error" */
-	if (rq->error == EIO)				    /* I/O error, */
-	    set_sd_state(rqe->sdno, sd_crashed, setstate_force | setstate_noupdate); /* take the subdisk down */
-	else if (rq->error = ENXIO)			    /* or "not configured" (drive down) */
+	SD[rqe->sdno].lasterror = rq->error;
+	if (bp->b_flags & B_READ) {
+	    printf("%s: fatal read I/O error\n", SD[rqe->sdno].name);
+	    set_sd_state(rqe->sdno, sd_crashed, setstate_force); /* subdisk is crashed */
+	} else {					    /* write operation */
+	    printf("%s: fatal write I/O error\n", SD[rqe->sdno].name);
+	    set_sd_state(rqe->sdno, sd_stale, setstate_force); /* subdisk is stale */
+	}
+	if (rq->error == ENXIO) {			    /* the drive's down too */
+	    printf("%s: fatal drive I/O error\n", DRIVE[rqe->driveno].label.name);
+	    DRIVE[rqe->driveno].lasterror = rq->error;
 	    set_drive_state(rqe->driveno,		    /* take the drive down */
 		drive_down,
-		setstate_force | setstate_noupdate);
+		setstate_force);
+	}
     }
     /* Now update the statistics */
     if (bp->b_flags & B_READ) {				    /* read operation */
@@ -129,14 +137,18 @@ complete_rqe(struct buf *bp)
 #endif
 
 	if (rq->error) {				    /* did we have an error? */
-	    ubp->b_flags |= B_ERROR;			    /* yes, propagate to user */
-	    ubp->b_error = rq->error;
-	} else
+	    if (rq->isplex) {				    /* plex operation, */
+		ubp->b_flags |= B_ERROR;		    /* yes, propagate to user */
+		ubp->b_error = rq->error;
+	    } else					    /* try to recover */
+		queue_daemon_request(daemonrq_ioerror, rq); /* let the daemon complete */
+	} else {
 	    ubp->b_resid = 0;				    /* completed our transfer */
-	if (rq->isplex == 0)				    /* volume request, */
-	    VOL[rq->volplex.volno].active--;		    /* another request finished */
-	biodone(ubp);					    /* top level buffer completed */
-	freerq(rq);					    /* return the request storage */
+	    if (rq->isplex == 0)			    /* volume request, */
+		VOL[rq->volplex.volno].active--;	    /* another request finished */
+	    biodone(ubp);				    /* top level buffer completed */
+	    freerq(rq);					    /* return the request storage */
+	}
     }
 }
 
@@ -145,7 +157,6 @@ complete_rqe(struct buf *bp)
 void 
 freerq(struct request *rq)
 {
-    BROKEN_GDB;
     struct rqgroup *rqg;
     struct rqgroup *nrqg;				    /* next in chain */
     int rqno;
