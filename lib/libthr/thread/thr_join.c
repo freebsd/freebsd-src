@@ -82,13 +82,13 @@ _pthread_join(pthread_t pthread, void **thread_return)
 				_SPINLOCK(&pthread->lock);
 				break;
 			}
-	THREAD_LIST_UNLOCK;
 
 	/* Check if the thread was not found or has been detached: */
 	if (thread == NULL ||
 	    ((pthread->attr.flags & PTHREAD_DETACHED) != 0)) {
 		if (thread != NULL)
 			_SPINUNLOCK(&pthread->lock);
+		THREAD_LIST_UNLOCK;
 		DEAD_LIST_UNLOCK;
 		ret = ESRCH;
 		goto out;
@@ -98,6 +98,7 @@ _pthread_join(pthread_t pthread, void **thread_return)
 		/* Multiple joiners are not supported. */
 		/* XXXTHR - support multiple joiners. */
 		_SPINUNLOCK(&pthread->lock);
+		THREAD_LIST_UNLOCK;
 		DEAD_LIST_UNLOCK;
 		ret = ENOTSUP;
 		goto out;
@@ -112,16 +113,16 @@ _pthread_join(pthread_t pthread, void **thread_return)
 
 		/* Keep track of which thread we're joining to: */
 		curthread->join_status.thread = pthread;
-		_SPINUNLOCK(&pthread->lock);
 
 		while (curthread->join_status.thread == pthread) {
 			PTHREAD_SET_STATE(curthread, PS_JOIN);
 			/* Wait for our signal to wake up. */
 			_thread_critical_exit(curthread);
+			_SPINUNLOCK(&pthread->lock);
+			THREAD_LIST_UNLOCK;
 			DEAD_LIST_UNLOCK;
 			_thread_suspend(curthread, NULL);
-			/* XXX - For correctness reasons. */
-			DEAD_LIST_LOCK;
+
 			_thread_critical_enter(curthread);
 		}
 
@@ -133,14 +134,6 @@ _pthread_join(pthread_t pthread, void **thread_return)
 		if ((ret == 0) && (thread_return != NULL))
 			*thread_return = curthread->join_status.ret;
 		_thread_critical_exit(curthread);
-		/*
-		 * XXX - Must unlock here, instead of doing it earlier,
-		 *	 because it could lead to a deadlock. If the thread
-		 *	 we are joining is waiting on this lock we would
-		 *	 deadlock if we released this lock before unlocking the
-		 *	 joined thread.
-		 */
-		DEAD_LIST_UNLOCK;
 	} else {
 		/*
 		 * The thread exited (is dead) without being detached, and no
@@ -158,6 +151,7 @@ _pthread_join(pthread_t pthread, void **thread_return)
 		_SPINUNLOCK(&pthread->lock);
 		if (pthread_cond_signal(&_gc_cond) != 0)
 			PANIC("Cannot signal gc cond");
+		THREAD_LIST_UNLOCK;
 		DEAD_LIST_UNLOCK;
 	}
 
