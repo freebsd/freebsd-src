@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_module.c,v 1.7 1998/07/11 07:45:40 bde Exp $
+ *	$Id: kern_module.c,v 1.8 1998/07/14 05:09:45 bde Exp $
  */
 
 #include <sys/param.h>
@@ -114,6 +114,7 @@ module_register(const char* name, modeventhand_t handler, void* arg)
 	newmod->file = 0;
 
     if (error = MOD_EVENT(newmod, MOD_LOAD)) {
+	MOD_EVENT(newmod, MOD_UNLOAD);
 	module_release(newmod);
 	return error;
     }
