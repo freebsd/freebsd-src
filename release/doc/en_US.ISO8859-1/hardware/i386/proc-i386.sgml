@@ -10,12 +10,12 @@
     list all combinations of equipment supported by &os;.
     Nevertheless, some general guidelines are presented here.</para>
 
-  <para>Almost all i386-compatible processors are supported.  All
-    Intel processors beginning with the 80386 are supported, including
-    the 80386, 80486, Pentium, Pentium Pro, Pentium II, Pentium III,
+  <para>Almost all i386-compatible processors with a floating point unit
+    are supported.  All
+    Intel processors beginning with the 80486 are supported, including
+    the 80486, Pentium, Pentium Pro, Pentium II, Pentium III,
     Pentium 4, and variants thereof, such as the Xeon and Celeron
-    processors.  (However, &os; 5.2-RELEASE and later no longer support
-    the 80386SX processor.)  All i386-compatible AMD
+    processors.  All i386-compatible AMD
     processors are also supported, including the Am486, Am5x86, K5, K6
     (and variants), Athlon (including Athlon-MP, Athlon-XP, Athlon-4,
     and Athlon Thunderbird), and Duron processors.  The AMD
