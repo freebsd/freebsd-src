@@ -35,7 +35,7 @@
  *
  *	@(#)fdesc_vnops.c	8.9 (Berkeley) 1/21/94
  *
- * $Id: fdesc_vnops.c,v 1.35 1998/06/10 06:34:55 peter Exp $
+ * $Id: fdesc_vnops.c,v 1.36 1998/06/10 19:56:06 alex Exp $
  */
 
 /*
@@ -500,6 +500,7 @@ fdesc_setattr(ap)
 	} */ *ap;
 {
 	struct filedesc *fdp = ap->a_p->p_fd;
+	struct vattr *vap = ap->a_vap;
 	struct file *fp;
 	unsigned fd;
 	int error;
