@@ -871,7 +871,6 @@ f_fstype(PLAN *plan, FTSENT *entry)
 	}
 }
 
-#if !defined(__NetBSD__)
 PLAN *
 c_fstype(OPTION *option, char ***argvp)
 {
@@ -918,7 +917,6 @@ c_fstype(OPTION *option, char ***argvp)
 	new->flags |= F_MTUNKNOWN;
 	return new;
 }
-#endif /* __NetBSD__ */
 
 /*
  * -group gname functions --
