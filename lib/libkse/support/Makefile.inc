@@ -9,6 +9,7 @@ SYSCALLS= clock_gettime \
 	kse_create \
 	kse_exit \
 	kse_release \
+	kse_switchin \
 	kse_thr_interrupt \
 	kse_wakeup \
 	sigaction \
