@@ -270,9 +270,11 @@ COMMON ITEMS:
 	couple of months, be sure they have all the components listed
 	in /usr/share/examples/cvsup.  Crypto and secure are now
 	required.
-	[4] This step is optional, but is generally a good idea.  If
-	you wish to use many of the new features in 4.x, you must do
-	this anyway.
+	[4] This step is not optional.  If you fail to do this, you
+	will not have critical system config files updated for their
+	4.x functionality.  This will lead to reduced system
+	functionality, the biggest problem being with /etc/pam.conf
+	not having the entries necessary to allow remote ssh access.
 	[5] Note: This won't upgrade your perl install.  You will
 	need to rebuild the world on 4.x to update perl.
 	[6] From the bootblocks, boot -s, and then do
@@ -290,7 +292,7 @@ COMMON ITEMS:
 	make installkernel KERNCONF=YOUR_KERNEL_HERE
 	reboot	(in single user) [1]
 	make installworld
-	mergemaster
+	mergemaster		[2]
 	reboot
 
 	[1] You can often get away without doing this step as the
@@ -301,6 +303,9 @@ COMMON ITEMS:
 	doubt, reboot into single user.  For remote installs, keep
 	a separate kernel around and use a serial console if at all
 	possible.  See also note [6] above.
+	[2] If you do not run mergemaster, you will likely hit a
+	number of show stopper problems.  The biggest one is that
+	your /etc/pam.conf won't let you log in using ssh.
 
 What follows are older entries for those people upgrading from earlier
 versions of -stable/-current.
