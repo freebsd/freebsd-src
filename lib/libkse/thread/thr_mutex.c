@@ -346,6 +346,7 @@ mutex_trylock_common(struct pthread *curthread, pthread_mutex_t *mutex)
 			(*mutex)->m_prio = curthread->active_priority;
 			(*mutex)->m_saved_prio =
 			    curthread->inherited_priority;
+			curthread->inherited_priority = (*mutex)->m_prio;
 			THR_SCHED_UNLOCK(curthread, curthread);
 
 			/* Add to the list of owned mutexes: */
@@ -540,10 +541,10 @@ mutex_lock_common(struct pthread *curthread, pthread_mutex_t *m,
 				/* Schedule the next thread: */
 				_thr_sched_switch(curthread);
 
+				curthread->data.mutex = NULL;
 				if (THR_IN_MUTEXQ(curthread)) {
 					THR_LOCK_ACQUIRE(curthread, &(*m)->m_lock);
 					mutex_queue_remove(*m, curthread);
-					curthread->data.mutex = NULL;
 					THR_LOCK_RELEASE(curthread, &(*m)->m_lock);
 				}
 			}
@@ -619,10 +620,10 @@ mutex_lock_common(struct pthread *curthread, pthread_mutex_t *m,
 				/* Schedule the next thread: */
 				_thr_sched_switch(curthread);
 
+				curthread->data.mutex = NULL;
 				if (THR_IN_MUTEXQ(curthread)) {
 					THR_LOCK_ACQUIRE(curthread, &(*m)->m_lock);
 					mutex_queue_remove(*m, curthread);
-					curthread->data.mutex = NULL;
 					THR_LOCK_RELEASE(curthread, &(*m)->m_lock);
 				}
 			}
@@ -708,10 +709,10 @@ mutex_lock_common(struct pthread *curthread, pthread_mutex_t *m,
 				/* Schedule the next thread: */
 				_thr_sched_switch(curthread);
 
+				curthread->data.mutex = NULL;
 				if (THR_IN_MUTEXQ(curthread)) {
 					THR_LOCK_ACQUIRE(curthread, &(*m)->m_lock);
 					mutex_queue_remove(*m, curthread);
-					curthread->data.mutex = NULL;
 					THR_LOCK_RELEASE(curthread, &(*m)->m_lock);
 				}
 
@@ -1589,9 +1590,6 @@ mutex_handoff(struct pthread *curthread, struct pthread_mutex *mutex)
 		/* Remove the thread from the mutex queue: */
 		TAILQ_REMOVE(&mutex->m_queue, pthread, sqe);
 		pthread->sflags &= ~THR_FLAGS_IN_SYNCQ;
-
-		/* This thread is no longer waiting for this mutex. */
-		pthread->data.mutex = NULL;
 
 		/*
 		 * Only exit the loop if the thread hasn't been
