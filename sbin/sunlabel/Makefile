@@ -5,7 +5,7 @@ SRCS=sunlabel.c geom_sunlabel_enc.c
 NOMAN=
 WARNS=5
 
-DDADD=	${LIBGEOM}
+DPADD=	${LIBGEOM} ${LIBBSDXML} ${LIBSBUF}
 LDADD=	-lgeom -lbsdxml -lsbuf
 
 .PATH:	${.CURDIR}/../../sys/geom
