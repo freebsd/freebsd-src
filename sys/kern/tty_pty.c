@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_pty.c	8.4 (Berkeley) 2/20/95
- * $Id: tty_pty.c,v 1.57 1999/05/08 06:39:43 phk Exp $
+ * $Id: tty_pty.c,v 1.58 1999/05/14 20:44:20 luoqi Exp $
  */
 
 /*
@@ -649,32 +649,7 @@ ptyioctl(dev, cmd, data, flag, p)
 	register u_char *cc = tp->t_cc;
 	int stop, error;
 
-	/*
-	 * IF CONTROLLER STTY THEN MUST FLUSH TO PREVENT A HANG.
-	 * ttywflush(tp) will hang if there are characters in the outq.
-	 */
-	if (cmd == TIOCEXT) {
-		/*
-		 * When the EXTPROC bit is being toggled, we need
-		 * to send an TIOCPKT_IOCTL if the packet driver
-		 * is turned on.
-		 */
-		if (*(int *)data) {
-			if (pti->pt_flags & PF_PKT) {
-				pti->pt_send |= TIOCPKT_IOCTL;
-				ptcwakeup(tp, FREAD);
-			}
-			tp->t_lflag |= EXTPROC;
-		} else {
-			if ((tp->t_lflag & EXTPROC) &&
-			    (pti->pt_flags & PF_PKT)) {
-				pti->pt_send |= TIOCPKT_IOCTL;
-				ptcwakeup(tp, FREAD);
-			}
-			tp->t_lflag &= ~EXTPROC;
-		}
-		return(0);
-	} else if (devsw(dev)->d_open == ptcopen) {
+	if (devsw(dev)->d_open == ptcopen) {
 		switch (cmd) {
 
 		case TIOCGPGRP:
@@ -714,10 +689,10 @@ ptyioctl(dev, cmd, data, flag, p)
 
 		/*
 		 * The rest of the ioctls shouldn't be called until 
-		 * the slave is open. (Should we return an error?)
+		 * the slave is open.
 		 */
 		if ((tp->t_state & TS_ISOPEN) == 0)
-			return (0);
+			return (EAGAIN);
 
 		switch (cmd) {
 #ifdef COMPAT_43
@@ -728,6 +703,11 @@ ptyioctl(dev, cmd, data, flag, p)
 		case TIOCSETA:
 		case TIOCSETAW:
 		case TIOCSETAF:
+			/*
+			 * IF CONTROLLER STTY THEN MUST FLUSH TO PREVENT A HANG.
+			 * ttywflush(tp) will hang if there are characters in
+			 * the outq.
+			 */
 			ndflush(&tp->t_outq, tp->t_outq.c_cc);
 			break;
 
@@ -743,6 +723,28 @@ ptyioctl(dev, cmd, data, flag, p)
 				ttyinfo(tp);
 			return(0);
 		}
+	}
+	if (cmd == TIOCEXT) {
+		/*
+		 * When the EXTPROC bit is being toggled, we need
+		 * to send an TIOCPKT_IOCTL if the packet driver
+		 * is turned on.
+		 */
+		if (*(int *)data) {
+			if (pti->pt_flags & PF_PKT) {
+				pti->pt_send |= TIOCPKT_IOCTL;
+				ptcwakeup(tp, FREAD);
+			}
+			tp->t_lflag |= EXTPROC;
+		} else {
+			if ((tp->t_lflag & EXTPROC) &&
+			    (pti->pt_flags & PF_PKT)) {
+				pti->pt_send |= TIOCPKT_IOCTL;
+				ptcwakeup(tp, FREAD);
+			}
+			tp->t_lflag &= ~EXTPROC;
+		}
+		return(0);
 	}
 	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, p);
 	if (error == ENOIOCTL)
