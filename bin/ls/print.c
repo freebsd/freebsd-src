@@ -264,6 +264,7 @@ printcol(const DISPLAY *dp)
 	static FTSENT **array;
 	static int lastentries = -1;
 	FTSENT *p;
+	FTSENT **narray;
 	int base;
 	int chcnt;
 	int cnt;
@@ -286,12 +287,14 @@ printcol(const DISPLAY *dp)
 	 * of pointers.
 	 */
 	if (dp->entries > lastentries) {
-		lastentries = dp->entries;
-		if ((array =
+		if ((narray =
 		    realloc(array, dp->entries * sizeof(FTSENT *))) == NULL) {
 			warn(NULL);
 			printscol(dp);
+			return;
 		}
+		lastentries = dp->entries;
+		array = narray;
 	}
 	for (p = dp->list, num = 0; p; p = p->fts_link)
 		if (p->fts_number != NO_PRINT)
