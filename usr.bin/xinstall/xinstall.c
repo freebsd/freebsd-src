@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "From: @(#)xinstall.c	8.1 (Berkeley) 7/21/93";
 #endif
 static const char rcsid[] =
-	"$Id: xinstall.c,v 1.24 1997/08/27 06:29:23 charnier Exp $";
+	"$Id: xinstall.c,v 1.25 1997/09/14 08:21:44 peter Exp $";
 #endif /* not lint */
 
 /*-
@@ -109,8 +109,8 @@ int	trymmap __P((int));
 #define ALLOW_NUMERIC_IDS 1
 #ifdef ALLOW_NUMERIC_IDS
 
-uid_t	uid;
-gid_t	gid;
+uid_t   uid = -1;
+gid_t   gid = -1;
 
 uid_t	resolve_uid __P((char *));
 gid_t	resolve_gid __P((char *));
@@ -185,7 +185,7 @@ main(argc, argv)
 	argv += optind;
 
 	/* some options make no sense when creating directories */
-	if ((docompare || dostrip) && dodir)
+	if (dostrip && dodir)
 		usage();
 
 	/* must have at least two arguments, except when creating directories */
@@ -670,7 +670,7 @@ install_dir(path)
 			*p = '\0';
 			if (stat(path, &sb)) {
 				if (errno != ENOENT || mkdir(path, 0777) < 0) {
-					err(EX_OSERR, "%s", path);
+					err(EX_OSERR, "mkdir %s", path);
 					/* NOTREACHED */
 				}
 			}
@@ -678,10 +678,10 @@ install_dir(path)
 				break;
  		}
 
-	if (((gid != (gid_t)-1 || uid != (uid_t)-1) && chown(path, uid, gid)) ||
-	    chmod(path, mode)) {
-		warn("%s", path);
-	}
+	if ((gid != (gid_t)-1 || uid != (uid_t)-1) && chown(path, uid, gid))
+		warn("chown %u:%u %s", uid, gid, path);
+	else if (chmod(path, mode))
+		warn("chmod %o %s", mode, path);
 }
 
 /*
