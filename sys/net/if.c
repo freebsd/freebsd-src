@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- * $Id: if.c,v 1.3 1994/08/08 10:49:18 davidg Exp $
+ * $Id: if.c,v 1.4 1994/08/08 10:58:30 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -520,7 +520,11 @@ ifioctl(so, cmd, data, p)
 			return (error);
 		if (ifp->if_ioctl == NULL)
 			return (EOPNOTSUPP);
-		if (ifr->ifr_mtu < 1 || ifr->ifr_mtu > 65535)
+		/* 
+		 * 72 was chosen below because it is the size of a TCP/IP
+		 * header (40) + the minimum mss (32).
+		 */
+		if (ifr->ifr_mtu < 72 || ifr->ifr_mtu > 65535)
 			return (EINVAL);
 		return ((*ifp->if_ioctl)(ifp, cmd, data));
 
