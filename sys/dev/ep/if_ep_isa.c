@@ -217,8 +217,8 @@ ep_isa_identify(driver_t * driver, device_t parent)
 		desc = ep_isa_match_id(isa_id, ep_isa_devs);
 		if (!desc) {
 			if (bootverbose)
-				device_printf(parent, "if_ep: unknown ID 0x%08x\n",
-				    isa_id);
+				device_printf(parent,
+				    "if_ep: unknown ID 0x%08x\n", isa_id);
 			continue;
 		}
 		/* Retreive IRQ */
@@ -234,7 +234,8 @@ ep_isa_identify(driver_t * driver, device_t parent)
 #endif
 
 		if ((data & ADDR_CFG_MASK) == ADDR_CFG_EISA) {
-			device_printf(parent, "if_ep: <%s> at port 0x%03x in EISA mode!\n",
+			device_printf(parent,
+			    "if_ep: <%s> at port 0x%03x in EISA mode!\n",
 			    desc, ioport);
 			/*
 			 * Set the adaptor tag so that the next card can be
@@ -246,10 +247,13 @@ ep_isa_identify(driver_t * driver, device_t parent)
 		/* Test for an adapter with PnP support. */
 		data = get_eeprom_data(ELINK_ID_PORT, EEPROM_CAP);
 		if (data == CAP_ISA) {
-			data = get_eeprom_data(ELINK_ID_PORT, EEPROM_INT_CONFIG_1);
+			data = get_eeprom_data(ELINK_ID_PORT,
+			    EEPROM_INT_CONFIG_1);
 			if (data & ICW1_IAS_PNP) {
 				if (bootverbose)
-					device_printf(parent, "if_ep: <%s> at 0x%03x in PnP mode!\n",
+					device_printf(parent,
+					    "if_ep: <%s> at 0x%03x "
+					    "in PnP mode!\n",
 					    desc, ioport);
 				/*
 				 * Set the adaptor tag so that the next card
@@ -269,7 +273,9 @@ ep_isa_identify(driver_t * driver, device_t parent)
 		outw(ioport + EP_COMMAND, WINDOW_SELECT | 0);
 		data = inw(ioport + EP_W0_EEPROM_COMMAND);
 		if (data & EEPROM_TST_MODE) {
-			device_printf(parent, "if_ep: <%s> at port 0x%03x in TEST mode!  Erase pencil mark.\n",
+			device_printf(parent,
+			    "if_ep: <%s> at port 0x%03x in TEST mode!"
+			    "  Erase pencil mark.\n",
 			    desc, ioport);
 			continue;
 		}
@@ -280,7 +286,9 @@ ep_isa_identify(driver_t * driver, device_t parent)
 		bus_set_resource(child, SYS_RES_IOPORT, 0, ioport, EP_IOSIZE);
 
 		if (bootverbose)
-			device_printf(parent, "if_ep: <%s> at port 0x%03x-0x%03x irq %d\n",
+			device_printf(parent,
+			    "if_ep: <%s>"
+			    " at port 0x%03x-0x%03x irq %d\n",
 			    desc, ioport, ioport + EP_IOSIZE, irq);
 		found++;
 	}
@@ -370,15 +378,15 @@ ep_eeprom_cksum(struct ep_softc *sc)
 		case 0x09:
 		case 0x0d:
 			cksum_low ^= (u_int8_t) (val & 0x00ff) ^
-			    (u_int8_t) ((val & 0xff00) >> 8);
+			    (u_int8_t)((val & 0xff00) >> 8);
 			break;
 		default:
 			cksum_high ^= (u_int8_t) (val & 0x00ff) ^
-			    (u_int8_t) ((val & 0xff00) >> 8);
+			    (u_int8_t)((val & 0xff00) >> 8);
 			break;
 		}
 	}
-	return (cksum != ((u_int16_t) cksum_low | (u_int16_t) (cksum_high << 8)));
+	return (cksum != ((u_int16_t)cksum_low | (u_int16_t)(cksum_high << 8)));
 }
 
 static device_method_t ep_isa_methods[] = {
