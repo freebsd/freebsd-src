@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: operators.c,v 1.3 1994/09/24 02:59:12 davidg Exp $
+ *	$Id: operators.c,v 1.3.8.1 1997/08/25 09:26:32 jkh Exp $
  */
 
 #ifndef lint
@@ -64,6 +64,7 @@ const char *const unary_op[] = {
       "-w",
       "-x",
       "-z",
+      "-S",
       NULL
 };
 
@@ -95,6 +96,7 @@ const char *const andor_op[] = {
 
 const char op_priority[] = {
       3,
+      12,
       12,
       12,
       12,
@@ -145,6 +147,7 @@ const char op_argflag[] = {
       OP_FILE,
       OP_FILE,
       OP_STRING,
+      OP_FILE,
       0,
       0,
       0,

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)operators.h	8.3 (Berkeley) 4/2/94
- *	$Id$
+ *	$Id: operators.h,v 1.3 1994/09/24 02:59:13 davidg Exp $
  */
 
 #define	NOT		0
@@ -52,20 +52,21 @@
 #define	ISWRITE		15
 #define	ISEXEC		16
 #define	NULSTR		17
+#define	ISSOCK		18
 
-#define	FIRST_BINARY_OP	18
-#define	OR1		18
-#define	OR2		19
-#define	AND1		20
-#define	AND2		21
-#define	STREQ		22
-#define	STRNE		23
-#define	EQ		24
-#define	NE		25
-#define	GT		26
-#define	LT		27
-#define	LE		28
-#define	GE		29
+#define	FIRST_BINARY_OP	19
+#define	OR1		FIRST_BINARY_OP
+#define	OR2		(FIRST_BINARY_OP + 1)
+#define	AND1		(FIRST_BINARY_OP + 2)
+#define	AND2		(FIRST_BINARY_OP + 3)
+#define	STREQ		(FIRST_BINARY_OP + 4)
+#define	STRNE		(FIRST_BINARY_OP + 5)
+#define	EQ		(FIRST_BINARY_OP + 6)
+#define	NE		(FIRST_BINARY_OP + 7)
+#define	GT		(FIRST_BINARY_OP + 8)
+#define	LT		(FIRST_BINARY_OP + 9)
+#define	LE		(FIRST_BINARY_OP + 10)
+#define	GE		(FIRST_BINARY_OP + 11)
 
 
 #define	OP_INT		1	/* arguments to operator are integer */
