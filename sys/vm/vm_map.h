@@ -218,6 +218,14 @@ struct vmspace {
 };
 
 #ifdef	_KERNEL
+static __inline pmap_t
+vmspace_pmap(struct vmspace *vmspace)
+{
+	return &vmspace->vm_pmap;
+}
+#endif	/* _KERNEL */
+
+#ifdef	_KERNEL
 /*
  *	Macros:		vm_map_lock, etc.
  *	Function:
@@ -252,7 +260,6 @@ void _vm_map_clear_recursive(vm_map_t map, const char *file, int line);
 #define	vm_map_clear_recursive(map)	\
 			_vm_map_clear_recursive(map, LOCK_FILE, LOCK_LINE)
 
-struct pmap *vmspace_pmap(struct vmspace *vmspace);
 long vmspace_resident_count(struct vmspace *vmspace);
 #endif	/* _KERNEL */
 
