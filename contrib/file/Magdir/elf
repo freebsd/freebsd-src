@@ -1,0 +1,165 @@
+
+#------------------------------------------------------------------------------
+# elf:  file(1) magic for ELF executables
+#
+# We have to check the byte order flag to see what byte order all the
+# other stuff in the header is in.
+#
+# MIPS R3000 may also be for MIPS R2000.
+# What're the correct byte orders for the nCUBE and the Fujitsu VPP500?
+#
+# updated by Daniel Quinlan (quinlan@yggdrasil.com)
+0	string		\177ELF		ELF
+>4	byte		0		invalid class
+>4	byte		1		32-bit
+# only for MIPS
+>>18	beshort		8
+>>18	beshort		10
+>>>36   belong          &0x20           N32
+>4	byte		2		64-bit
+>5	byte		0		invalid byte order
+>5	byte		1		LSB
+# only for MIPS R3000_BE
+>>18    leshort		8
+# only for 32-bit
+>>>4	byte		1
+>>>>36  lelong&0xf0000000       0x00000000      mips-1
+>>>>36  lelong&0xf0000000       0x10000000      mips-2
+>>>>36  lelong&0xf0000000       0x20000000      mips-3
+>>>>36  lelong&0xf0000000       0x30000000      mips-4
+>>>>36  lelong&0xf0000000       0x40000000      mips-5
+>>>>36  lelong&0xf0000000       0x50000000      mips-6
+# only for 64-bit
+>>>4	byte		2
+>>>>48  lelong&0xf0000000       0x00000000      mips-1
+>>>>48  lelong&0xf0000000       0x10000000      mips-2
+>>>>48  lelong&0xf0000000       0x20000000      mips-3
+>>>>48  lelong&0xf0000000       0x30000000      mips-4
+>>>>48  lelong&0xf0000000       0x40000000      mips-5
+>>>>48  lelong&0xf0000000       0x50000000      mips-6
+>>16	leshort		0		no file type,
+>>16	leshort		1		relocatable,
+>>16	leshort		2		executable,
+>>16	leshort		3		shared object,
+# Core handling from Peter Tobias <tobias@server.et-inf.fho-emden.de>
+# corrections by Christian 'Dr. Disk' Hechelmann <drdisk@ds9.au.s.shuttle.de>
+>>16	leshort		4		core file
+>>>(0x38+0xcc) string	>\0		of '%s'
+>>>(0x38+0x10) lelong	>0		(signal %d),
+>>16	leshort		&0xff00		processor-specific,
+>>18	leshort		0		no machine,
+>>18	leshort		1		AT&T WE32100 - invalid byte order,
+>>18	leshort		2		SPARC - invalid byte order,
+>>18	leshort		3		Intel 80386,
+>>18	leshort		4		Motorola 68000 - invalid byte order,
+>>18	leshort		5		Motorola 88000 - invalid byte order,
+>>18	leshort		6		Intel 80486,
+>>18	leshort		7		Intel 80860,
+# "officially" big endian, but binutils bfd only emits magic #8 for MIPS.
+>>18	leshort		8		MIPS R3000_LE [bfd bug],
+>>18	leshort		9		Amdahl - invalid byte order,
+>>18	leshort		10		MIPS R3000_LE,
+>>18	leshort		11		RS6000 - invalid byte order,
+>>18	leshort		15		PA-RISC - invalid byte order,
+>>18	leshort		16		nCUBE,
+>>18	leshort		17		Fujitsu VPP500,
+>>18	leshort		18		SPARC32PLUS,
+>>18	leshort		20		PowerPC,
+>>18	leshort		36		NEC V800,
+>>18	leshort		37		Fujitsu FR20,
+>>18	leshort		38		TRW RH-32,
+>>18	leshort		39		Motorola RCE,
+>>18	leshort		40		Advanced RISC Machines ARM,
+>>18	leshort		41		Alpha,
+>>18	leshort		42		Hitachi SH,
+>>18	leshort		43		SPARC V9 - invalid byte order,
+>>18	leshort		44		Siemens Tricore Embedded Processor,
+>>18	leshort		45		Argonaut RISC Core, Argonaut Technologies Inc.,
+>>18	leshort		46		Hitachi H8/300,
+>>18	leshort		47		Hitachi H8/300H,
+>>18	leshort		48		Hitachi H8S,
+>>18	leshort		49		Hitachi H8/500,
+>>18	leshort		50		IA-64 (Intel 64 bit architecture)
+>>18	leshort		51		Stanford MIPS-X,
+>>18	leshort		52		Motorola Coldfire,
+>>18	leshort		53		Motorola M68HC12,
+>>18	leshort		75		Digital VAX,
+>>18	leshort		0x9026		Alpha (unofficial),
+>>20	lelong		0		invalid version
+>>20	lelong		1		version 1
+>>36	lelong		1		MathCoPro/FPU/MAU Required
+>8	string		>\0		(%s)
+>5	byte		2		MSB
+# only for MIPS R3000_BE
+>>18    beshort		8
+# only for 32-bit
+>>>4	byte		1
+>>>>36  belong&0xf0000000       0x00000000      mips-1
+>>>>36  belong&0xf0000000       0x10000000      mips-2
+>>>>36  belong&0xf0000000       0x20000000      mips-3
+>>>>36  belong&0xf0000000       0x30000000      mips-4
+>>>>36  belong&0xf0000000       0x40000000      mips-5
+>>>>36  belong&0xf0000000       0x50000000      mips-6
+# only for 64-bit
+>>>4	byte		2
+>>>>48  belong&0xf0000000       0x00000000      mips-1
+>>>>48  belong&0xf0000000       0x10000000      mips-2
+>>>>48  belong&0xf0000000       0x20000000      mips-3
+>>>>48  belong&0xf0000000       0x30000000      mips-4
+>>>>48  belong&0xf0000000       0x40000000      mips-5
+>>>>48  belong&0xf0000000       0x50000000      mips-6
+>>16	beshort		0		no file type,
+>>16	beshort		1		relocatable,
+>>16	beshort		2		executable,
+>>16	beshort		3		shared object,
+>>16	beshort		4		core file,
+>>>(0x38+0xcc) string	>\0		of '%s'
+>>>(0x38+0x10) belong	>0		(signal %d),
+>>16	beshort		&0xff00		processor-specific,
+>>18	beshort		0		no machine,
+>>18	beshort		1		AT&T WE32100,
+>>18	beshort		2		SPARC,
+>>18	beshort		3		Intel 80386 - invalid byte order,
+>>18	beshort		4		Motorola 68000,
+>>18	beshort		5		Motorola 88000,
+>>18	beshort		6		Intel 80486 - invalid byte order,
+>>18	beshort		7		Intel 80860,
+>>18	beshort		8		MIPS R3000_BE,
+>>18	beshort		9		Amdahl,
+>>18	beshort		10		MIPS R3000_LE - invalid byte order,
+>>18	beshort		11		RS6000,
+>>18	beshort		15		PA-RISC,
+>>18	beshort		16		nCUBE,
+>>18	beshort		17		Fujitsu VPP500,
+>>18	beshort		18		SPARC32PLUS,
+>>>36	belong&0xffff00	&0x000100	V8+ Required,
+>>>36	belong&0xffff00	&0x000200	Sun UltraSPARC1 Extensions Required,
+>>>36	belong&0xffff00	&0x000400	HaL R1 Extensions Required,
+>>>36	belong&0xffff00	&0x000800	Sun UltraSPARC3 Extensions Required,
+>>18	beshort		20		PowerPC or cisco 4500,
+>>18	beshort		21		cisco 7500,
+>>18	beshort		24		cisco SVIP,
+>>18	beshort		25		cisco 7200,
+>>18	beshort		36		NEC V800 or cisco 12000,
+>>18	beshort		37		Fujitsu FR20,
+>>18	beshort		38		TRW RH-32,
+>>18	beshort		39		Motorola RCE,
+>>18	beshort		40		Advanced RISC Machines ARM,
+>>18	beshort		41		Alpha,
+>>18	beshort		42		Hitachi SH,
+>>18	beshort		43		SPARC V9,
+>>18	beshort		44		Siemens Tricore Embedded Processor,
+>>18	beshort		45		Argonaut RISC Core, Argonaut Technologies Inc.,
+>>18	beshort		46		Hitachi H8/300,
+>>18	beshort		47		Hitachi H8/300H,
+>>18	beshort		48		Hitachi H8S,
+>>18	beshort		49		Hitachi H8/500,
+>>18	beshort		50		Intel Merced Processor,
+>>18	beshort		51		Stanford MIPS-X,
+>>18	beshort		52		Motorola Coldfire,
+>>18	beshort		53		Motorola M68HC12,
+>>18	beshort		75		Digital VAX,
+>>18	beshort		0x9026		Alpha (unofficial),
+>>20	belong		0		invalid version
+>>20	belong		1		version 1
+>>36	belong		1		MathCoPro/FPU/MAU Required

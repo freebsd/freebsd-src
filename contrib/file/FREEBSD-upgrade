@@ -1,0 +1,18 @@
+# ex:ts=8
+$FreeBSD$
+
+Christos Zoulas `file'
+	originals can be found at: ftp://ftp.astron.com/pub/file/
+
+Imported by:
+
+	cvs import -m 'Virgin import of Christos Zoulas's FILE 3.33.' \
+		src/contrib/file ZOULAS file_3_33
+
+
+Never make local changes to ZOULAS `file'.  Christos is very willing to
+work with us to meet our FreeBSD needs.  Thus submit any desired changes
+to him <> and wait for the next release and vendor import to get them.
+        
+obrien@NUXI.com
+24-November-2000
