@@ -906,8 +906,10 @@ ng_ppp_input(node_p node, int bypass, int linkNum, item_p item)
 		break;
 	case PROT_MP:
 		if (priv->conf.enableMultilink
-		    && linkNum != NG_PPP_BUNDLE_LINKNUM)
+		    && linkNum != NG_PPP_BUNDLE_LINKNUM) {
+			NGI_M(item) = m;
 			return ng_ppp_mp_input(node, linkNum, item);
+		}
 		break;
 	case PROT_APPLETALK:
 		if (priv->conf.enableAtalk)
