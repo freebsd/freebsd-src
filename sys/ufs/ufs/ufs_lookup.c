@@ -48,6 +48,7 @@
 #include <sys/stat.h>
 #include <sys/mount.h>
 #include <sys/vnode.h>
+#include <sys/sysctl.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -63,6 +64,8 @@ int	dirchk = 1;
 #else
 int	dirchk = 0;
 #endif
+
+SYSCTL_INT(_debug, OID_AUTO, dircheck, CTLFLAG_RW, &dirchk, 0, "");
 
 /* true if old FS format...*/
 #define OFSFMT(vp)	((vp)->v_mount->mnt_maxsymlinklen <= 0)
@@ -452,7 +455,11 @@ found:
 			*vpp = vdp;
 			return (0);
 		}
+		if (flags & ISDOTDOT)
+			VOP_UNLOCK(vdp, 0, p);	/* race to get the inode */
 		error = VFS_VGET(vdp->v_mount, dp->i_ino, &tdp);
+		if (flags & ISDOTDOT)
+			vn_lock(vdp, LK_EXCLUSIVE | LK_RETRY, p);
 		if (error)
 			return (error);
 		/*
@@ -489,7 +496,11 @@ found:
 		 */
 		if (dp->i_number == dp->i_ino)
 			return (EISDIR);
+		if (flags & ISDOTDOT)
+			VOP_UNLOCK(vdp, 0, p);	/* race to get the inode */
 		error = VFS_VGET(vdp->v_mount, dp->i_ino, &tdp);
+		if (flags & ISDOTDOT)
+			vn_lock(vdp, LK_EXCLUSIVE | LK_RETRY, p);
 		if (error)
 			return (error);
 		*vpp = tdp;
