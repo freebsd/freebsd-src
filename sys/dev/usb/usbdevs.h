@@ -86,6 +86,7 @@
 #define	USB_VENDOR_OMNIVISION	0x05a9		/* OmniVision */
 #define	USB_VENDOR_BELKIN	0x05ab		/* In-System Design */
 #define	USB_VENDOR_APPLE	0x05ac		/* Apple Computer */
+#define	USB_VENDOR_QTRONIX	0x05c7		/* QTronix */
 #define	USB_VENDOR_EIZONANAO	0x05e7		/* EIZO Nanao */
 #define	USB_VENDOR_PIENGINEERING	0x05f3		/* P.I. Engineering */
 #define	USB_VENDOR_CHIC	0x05fe		/* Chic Technology */
@@ -197,6 +198,8 @@
 /* Wacom products */
 #define	USB_PRODUCT_WACOM_CT0405U	0x0000		/* CT-0405-U Tablet */
 
+/* QTronix products */
+#define	USB_PRODUCT_QTRONIX_KEYB_PS2	0x2011		/* USB Keyboard with PS/2 mouse */
 /* EIZO products */
 #define	USB_PRODUCT_EIZO_HUB	0x0000		/* hub */
 #define	USB_PRODUCT_EIZO_MONITOR	0x0001		/* monitor */
