@@ -59,7 +59,7 @@
 #ifdef PC98
 #include <pc98/pc98/ppcreg.h>
 #else
-#include <i386/isa/ppcreg.h>
+#include <isa/ppcreg.h>
 #endif
 
 #include "ppbus_if.h"
@@ -146,12 +146,14 @@ static char *ppc_modes[] = {
 
 static char *ppc_epp_protocol[] = { " (EPP 1.9)", " (EPP 1.7)", 0 };
 
+#ifdef __i386__
 /*
  * BIOS printer list - used by BIOS probe.
  */
 #define	BIOS_PPC_PORTS	0x408
 #define	BIOS_PORTS	(short *)(KERNBASE+BIOS_PPC_PORTS)
 #define	BIOS_MAX_PPC	4
+#endif
 
 /*
  * ppc_ecp_sync()		XXX
@@ -1704,10 +1706,13 @@ ppc_setmode(device_t dev, int mode)
 static int
 ppc_probe(device_t dev)
 {
+#ifdef __i386__
 	static short next_bios_ppc = 0;
+#endif
 	struct ppc_data *ppc;
 	device_t parent;
-	int port;
+	int error;
+	u_long port;
 #ifdef PC98
 #define PC98_IEEE_1284_DISABLE 0x100
 #define PC98_IEEE_1284_PORT    0x140
@@ -1735,19 +1740,20 @@ ppc_probe(device_t dev)
 	ppc->res_irq = ppc->res_drq = ppc->res_ioport = 0;
 
 	/* retrieve ISA parameters */
-	BUS_READ_IVAR(parent, dev, ISA_IVAR_PORT, &port);
+	error = bus_get_resource(dev, SYS_RES_IOPORT, 0, &port, NULL);
 
+#ifdef __i386__
 	/*
 	 * If port not specified, use bios list.
 	 */
-	if (port < 0) {
+	if (error) {
 #ifndef PC98
 		if((next_bios_ppc < BIOS_MAX_PPC) &&
 				(*(BIOS_PORTS+next_bios_ppc) != 0) ) {
 			port = *(BIOS_PORTS+next_bios_ppc++);
 			if (bootverbose)
 			  device_printf(dev, "parallel port found at 0x%x\n",
-					port);
+					(int) port);
 		} else {
 			device_printf(dev, "parallel port not found.\n");
 			return ENXIO;
@@ -1759,20 +1765,30 @@ ppc_probe(device_t dev)
 			next_bios_ppc += 1;
 			if (bootverbose)
 				device_printf(dev, "parallel port found at 0x%x\n",
-				    port);
+				    (int) port);
 		}
 #endif
+		bus_set_resource(dev, SYS_RES_IOPORT, 0, port, IO_LPTSIZE);
 	}
-	ppc->ppc_base = port;
+#endif
+#ifdef __alpha__
+	/*
+	 * There isn't a bios list on alpha. Put it in the usual place.
+	 */
+	if (error) {
+		bus_set_resource(dev, SYS_RES_IOPORT, 0, 0x3bc, IO_LPTSIZE);
+	}
+#endif
 
 	/* IO port is mandatory */
 	ppc->res_ioport = bus_alloc_resource(dev, SYS_RES_IOPORT,
-					     &ppc->rid_ioport, port, port,
+					     &ppc->rid_ioport, 0, ~0,
 					     IO_LPTSIZE, RF_ACTIVE);
 	if (ppc->res_ioport == 0) {
 		device_printf(dev, "cannot reserve I/O port range\n");
 		goto error;
 	}
+	ppc->ppc_base = rman_get_start(ppc->res_ioport);
 
 	ppc->ppc_flags = device_get_flags(dev);
 
@@ -1784,9 +1800,9 @@ ppc_probe(device_t dev)
 	}
 
 	if (ppc->res_irq)
-		BUS_READ_IVAR(parent, dev, ISA_IVAR_IRQ, &ppc->ppc_irq);
+		ppc->ppc_irq = rman_get_start(ppc->res_irq);
 	if (ppc->res_drq)
-		BUS_READ_IVAR(parent, dev, ISA_IVAR_DRQ, &ppc->ppc_dmachan);
+		ppc->ppc_dmachan = rman_get_start(ppc->res_drq);
 
 	ppc->ppc_unit = device_get_unit(dev);
 	ppc->ppc_model = GENERIC;
@@ -1982,7 +1998,7 @@ ppc_read_ivar(device_t bus, device_t dev, int index, uintptr_t *val)
 		*val = (u_long)ppc->ppc_epp;
 		break;
 	case PPC_IVAR_IRQ:
-		BUS_READ_IVAR(device_get_parent(bus), bus, ISA_IVAR_IRQ, val);
+		*val = (u_long)ppc->ppc_irq;
 		break;
 	default:
 		return (ENOENT);
