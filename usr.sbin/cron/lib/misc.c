@@ -415,6 +415,7 @@ allowed(username)
 
 	isallowed = FALSE;
 
+	deny = NULL;
 #if defined(ALLOW_FILE) && defined(DENY_FILE)
 	if ((allow = fopen(ALLOW_FILE, "r")) == NULL && errno != ENOENT)
 		goto out;
@@ -423,7 +424,6 @@ allowed(username)
 	Debug(DMISC, ("allow/deny enabled, %d/%d\n", !!allow, !!deny))
 #else
 	allow = NULL;
-	deny = NULL;
 #endif
 
 	if (allow)
