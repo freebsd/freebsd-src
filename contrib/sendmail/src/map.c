@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: map.c,v 1.1.1.12 2002/04/10 03:04:50 gshapiro Exp $")
+SM_RCSID("@(#)$Id: map.c,v 8.645 2002/05/24 21:07:36 gshapiro Exp $")
 
 #if LDAPMAP
 # include <sm/ldap.h>
@@ -120,8 +120,6 @@ static bool	text_getcanonname __P((char *, int, int *));
 **	It is currently implemented in a pretty ad-hoc manner; it ought
 **	to be more properly integrated into the map structure.
 */
-
-#define DBMMODE		0644
 
 #if O_EXLOCK && HASFLOCK && !BOGUS_O_EXCL
 # define LOCK_ON_OPEN	1	/* we can open/create a locked file */
@@ -1359,8 +1357,8 @@ ndbm_map_open(map, mode)
 	long sff;
 	int ret;
 	int smode = S_IREAD;
-	char dirfile[MAXNAME + 1];
-	char pagfile[MAXNAME + 1];
+	char dirfile[MAXPATHLEN];
+	char pagfile[MAXPATHLEN];
 	struct stat st;
 	struct stat std, stp;
 
@@ -1371,8 +1369,17 @@ ndbm_map_open(map, mode)
 	mode &= O_ACCMODE;
 
 	/* do initial file and directory checks */
-	(void) sm_strlcpyn(dirfile, sizeof dirfile, 2, map->map_file, ".dir");
-	(void) sm_strlcpyn(pagfile, sizeof pagfile, 2, map->map_file, ".pag");
+	if (sm_strlcpyn(dirfile, sizeof dirfile, 2,
+			map->map_file, ".dir") >= sizeof dirfile ||
+	    sm_strlcpyn(pagfile, sizeof pagfile, 2,
+			map->map_file, ".pag") >= sizeof pagfile)
+	{
+		errno = 0;
+		if (!bitset(MF_OPTIONAL, map->map_mflags))
+			syserr("dbm map \"%s\": map file %s name too long",
+				map->map_mname, map->map_file);
+		return false;
+	}
 	sff = SFF_ROOTOK|SFF_REGONLY;
 	if (mode == O_RDWR)
 	{
@@ -1944,13 +1951,29 @@ db_map_open(map, mode, mapclassname, dbtype, openinfo)
 	long sff;
 	int save_errno;
 	struct stat st;
-	char buf[MAXNAME + 1];
+	char buf[MAXPATHLEN];
 
 	/* do initial file and directory checks */
-	(void) sm_strlcpy(buf, map->map_file, sizeof buf - 3);
+	if (sm_strlcpy(buf, map->map_file, sizeof buf) >= sizeof buf)
+	{
+		errno = 0;
+		if (!bitset(MF_OPTIONAL, map->map_mflags))
+			syserr("map \"%s\": map file %s name too long",
+				map->map_mname, map->map_file);
+		return false;
+	}
 	i = strlen(buf);
 	if (i < 3 || strcmp(&buf[i - 3], ".db") != 0)
-		(void) sm_strlcat(buf, ".db", sizeof buf);
+	{
+		if (sm_strlcat(buf, ".db", sizeof buf) >= sizeof buf)
+		{
+			errno = 0;
+			if (!bitset(MF_OPTIONAL, map->map_mflags))
+				syserr("map \"%s\": map file %s name too long",
+					map->map_mname, map->map_file);
+			return false;
+		}
+	}
 
 	mode &= O_ACCMODE;
 	omode = mode;
@@ -2230,7 +2253,7 @@ db_map_lookup(map, name, av, statp)
 	int fd;
 	struct stat stbuf;
 	char keybuf[MAXNAME + 1];
-	char buf[MAXNAME + 1];
+	char buf[MAXPATHLEN];
 
 	memset(&key, '\0', sizeof key);
 	memset(&val, '\0', sizeof val);
@@ -2239,10 +2262,15 @@ db_map_lookup(map, name, av, statp)
 		sm_dprintf("db_map_lookup(%s, %s)\n",
 			map->map_mname, name);
 
-	i = strlen(map->map_file);
-	if (i > MAXNAME)
-		i = MAXNAME;
-	(void) sm_strlcpy(buf, map->map_file, i + 1);
+	if (sm_strlcpy(buf, map->map_file, sizeof buf) >= sizeof buf)
+	{
+		errno = 0;
+		if (!bitset(MF_OPTIONAL, map->map_mflags))
+			syserr("map \"%s\": map file %s name too long",
+				map->map_mname, map->map_file);
+		return NULL;
+	}
+	i = strlen(buf);
 	if (i > 3 && strcmp(&buf[i - 3], ".db") == 0)
 		buf[i - 3] = '\0';
 
@@ -4540,10 +4568,16 @@ ldapmap_parseargs(map, args)
 				       ldapmap_dequote(lmap->ldap_secret));
 				return false;
 			}
-			lmap->ldap_secret = sfgets(m_tmp, LDAPMAP_MAX_PASSWD,
+			lmap->ldap_secret = sfgets(m_tmp, sizeof m_tmp,
 						   sfd, TimeOuts.to_fileopen,
 						   "ldapmap_parseargs");
 			(void) sm_io_close(sfd, SM_TIME_DEFAULT);
+			if (strlen(m_tmp) > LDAPMAP_MAX_PASSWD)
+			{
+				syserr("LDAP map: secret in %s too long",
+				       ldapmap_dequote(lmap->ldap_secret));
+				return false;
+			}
 			if (lmap->ldap_secret != NULL &&
 			    strlen(m_tmp) > 0)
 			{
@@ -4563,8 +4597,7 @@ ldapmap_parseargs(map, args)
 			**  stashed
 			*/
 
-			(void) sm_snprintf(m_tmp,
-				MAXPATHLEN + LDAPMAP_MAX_PASSWD,
+			(void) sm_snprintf(m_tmp, sizeof m_tmp,
 				"KRBTKFILE=%s",
 				ldapmap_dequote(lmap->ldap_secret));
 			lmap->ldap_secret = m_tmp;
@@ -5833,7 +5866,8 @@ text_map_lookup(map, name, av, statp)
 	}
 	key_idx = map->map_keycolno;
 	delim = map->map_coldelim;
-	while (sm_io_fgets(f, SM_TIME_DEFAULT, linebuf, MAXLINE) != NULL)
+	while (sm_io_fgets(f, SM_TIME_DEFAULT,
+			   linebuf, sizeof linebuf) != NULL)
 	{
 		char *p;
 
@@ -5906,7 +5940,8 @@ text_getcanonname(name, hbsize, statp)
 	}
 	found = false;
 	while (!found &&
-		sm_io_fgets(f, SM_TIME_DEFAULT, linebuf, MAXLINE) != NULL)
+		sm_io_fgets(f, SM_TIME_DEFAULT,
+			    linebuf, sizeof linebuf) != NULL)
 	{
 		char *p = strpbrk(linebuf, "#\n");
 
@@ -7200,7 +7235,8 @@ nsd_map_lookup(map, name, av, statp)
 		*statp = EX_UNAVAILABLE;
 		return NULL;
 	}
-	r = ns_lookup(ns_map, NULL, map->map_file, keybuf, NULL, buf, MAXLINE);
+	r = ns_lookup(ns_map, NULL, map->map_file, keybuf, NULL,
+		      buf, sizeof buf);
 	if (r == NS_UNAVAIL || r == NS_TRYAGAIN)
 	{
 		*statp = EX_TEMPFAIL;

@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 1999-2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1999-2002 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- *	$Id: smdb.h,v 1.1.1.4 2002/02/17 21:56:43 gshapiro Exp $
+ *	$Id: smdb.h,v 8.40 2002/05/24 23:20:14 gshapiro Exp $
  *
  */
 
@@ -34,7 +34,6 @@
 */
 
 #define SMDB_MAX_USER_NAME_LEN	1024
-#define SMDB_MAX_NAME_LEN	1024
 
 /*
 **  This file defines the abstraction for database lookups. It is pretty

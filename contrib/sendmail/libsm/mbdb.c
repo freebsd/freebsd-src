@@ -8,7 +8,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: mbdb.c,v 1.1.1.2 2002/04/10 03:04:55 gshapiro Exp $")
+SM_RCSID("@(#)$Id: mbdb.c,v 1.38 2002/04/05 22:59:56 gshapiro Exp $")
 
 #include <sys/param.h>
 
@@ -113,7 +113,9 @@ sm_mbdb_initialize(mbdb)
 		if (strlen(t->mbdb_typename) == namelen &&
 		    strncmp(name, t->mbdb_typename, namelen) == 0)
 		{
-			err = t->mbdb_initialize(arg);
+			err = EX_OK;
+			if (t->mbdb_initialize != NULL)
+				err = t->mbdb_initialize(arg);
 			if (err == EX_OK)
 				SmMbdbType = t;
 			return err;
@@ -140,7 +142,8 @@ sm_mbdb_initialize(mbdb)
 void
 sm_mbdb_terminate()
 {
-	SmMbdbType->mbdb_terminate();
+	if (SmMbdbType->mbdb_terminate != NULL)
+		SmMbdbType->mbdb_terminate();
 }
 
 /*
@@ -162,7 +165,11 @@ sm_mbdb_lookup(name, user)
 	char *name;
 	SM_MBDB_T *user;
 {
-	return SmMbdbType->mbdb_lookup(name, user);
+	int ret = EX_NOUSER;
+
+	if (SmMbdbType->mbdb_lookup != NULL)
+		ret = SmMbdbType->mbdb_lookup(name, user);
+	return ret;
 }
 
 /*

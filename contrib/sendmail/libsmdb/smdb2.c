@@ -1,5 +1,5 @@
 /*
-** Copyright (c) 1999-2001 Sendmail, Inc. and its suppliers.
+** Copyright (c) 1999-2002 Sendmail, Inc. and its suppliers.
 **	All rights reserved.
 **
 ** By using this file, you agree to the terms and conditions set
@@ -8,7 +8,7 @@
 */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: smdb2.c,v 1.1.1.5 2002/02/17 21:56:45 gshapiro Exp $")
+SM_RCSID("@(#)$Id: smdb2.c,v 8.72 2002/05/24 23:09:11 gshapiro Exp $")
 
 #include <fcntl.h>
 #include <stdlib.h>
@@ -472,7 +472,7 @@ smdb_db_open_internal(db_name, db_type, db_flags, db_params, db)
 			db_info.flags |= DB_DUP;
 		params = &db_info;
 	}
-	return db_open(db_name, db_type, db_flags, 0644, NULL, params, db);
+	return db_open(db_name, db_type, db_flags, DBMMODE, NULL, params, db);
 }
 # endif /* DB_VERSION_MAJOR == 2 */
 
@@ -523,7 +523,7 @@ smdb_db_open_internal(db_name, db_type, db_flags, db_params, db)
 		}
 	}
 
-	result = (*db)->open(*db, db_name, NULL, db_type, db_flags, 0644);
+	result = (*db)->open(*db, db_name, NULL, db_type, db_flags, DBMMODE);
 	if (result != 0)
 	{
 		(void) (*db)->close(*db, 0);
@@ -581,11 +581,11 @@ smdb_db_open(database, db_name, mode, mode_mask, sff, type, user_info, db_params
 	DB *db;
 	DBTYPE db_type;
 	struct stat stat_info;
-	char db_file_name[SMDB_MAX_NAME_LEN];
+	char db_file_name[MAXPATHLEN];
 
 	*database = NULL;
 
-	result = smdb_add_extension(db_file_name, SMDB_MAX_NAME_LEN,
+	result = smdb_add_extension(db_file_name, sizeof db_file_name,
 				    db_name, SMDB2_FILE_EXTENSION);
 	if (result != SMDBE_OK)
 		return result;

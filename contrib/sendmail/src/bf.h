@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 1999-2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1999-2002 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- *	$Id: bf.h,v 1.1.1.3 2002/02/17 21:56:38 gshapiro Exp $
+ *	$Id: bf.h,v 8.16 2002/04/15 02:37:09 ca Exp $
  *
  * Contributed by Exactis.com, Inc.
  *
@@ -16,7 +16,6 @@
 # define BF_H 1
 
 extern SM_FILE_T	*bfopen __P((char *, MODE_T, size_t, long));
-extern SM_FILE_T	*bfdup __P((SM_FILE_T *));
 extern int		bfcommit __P((SM_FILE_T *));
 extern int		bfrewind __P((SM_FILE_T *));
 extern int		bftruncate __P((SM_FILE_T *));

@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: envelope.c,v 1.1.1.9 2002/04/10 03:04:49 gshapiro Exp $")
+SM_RCSID("@(#)$Id: envelope.c,v 8.282 2002/05/10 15:41:11 ca Exp $")
 
 /*
 **  NEWENVELOPE -- fill in a new envelope
@@ -518,7 +518,7 @@ simpledrop:
 			{
 				syserr("!dropenvelope(%s): cannot commit data file %s, uid=%d",
 					e->e_id, queuename(e, DATAFL_LETTER),
-					geteuid());
+					(int) geteuid());
 			}
 			for (ee = e->e_sibling; ee != NULL; ee = ee->e_sibling)
 				queueup(ee, false, true);
