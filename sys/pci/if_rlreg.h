@@ -567,6 +567,8 @@ struct rl_desc {
 #define RL_RDESC_STAT_TCPSUMBAD	0x00002000	/* TCP checksum bad */
 #define RL_RDESC_STAT_FRAGLEN	0x00001FFF	/* RX'ed frame/frag len */
 #define RL_RDESC_STAT_GFRAGLEN	0x00003FFF	/* RX'ed frame/frag len */
+#define RL_RDESC_STAT_ERRS	(RL_RDESC_STAT_GIANT|RL_RDESC_STAT_RUNT| \
+				 RL_RDESC_STAT_CRCERR)
 
 #define RL_RDESC_VLANCTL_TAG	0x00010000	/* VLAN tag available
 						   (rl_vlandata valid)*/
@@ -607,7 +609,14 @@ struct rl_stats {
  * Rx/Tx descriptor parameters (8139C+ and 8169 only)
  *
  * Tx/Rx count must be equal.  Shared code like re_dma_map_desc assumes this.
+ * Buffers must be a multiple of 8 bytes.  Currently limit to 64 descriptors
+ * due to the 8139C+.  We need to put the number of descriptors in the ring
+ * structure and use that value instead.
  */
+#if !defined(__i386__) && !defined(__amd64__)
+#define RE_FIXUP_RX	1
+#endif
+
 #define RL_TX_DESC_CNT		64
 #define RL_RX_DESC_CNT		RL_TX_DESC_CNT
 #define RL_RX_LIST_SZ		(RL_RX_DESC_CNT * sizeof(struct rl_desc))
@@ -618,11 +627,19 @@ struct rl_stats {
 #define RL_OWN(x)		(le32toh((x)->rl_cmdstat) & RL_RDESC_STAT_OWN)
 #define RL_RXBYTES(x)		(le32toh((x)->rl_cmdstat) & sc->rl_rxlenmask)
 #define RL_PKTSZ(x)		((x)/* >> 3*/)
+#ifdef RE_FIXUP_RX
+#define RE_ETHER_ALIGN	sizeof(uint64_t)
+#define RE_RX_DESC_BUFLEN	(MCLBYTES - RE_ETHER_ALIGN)
+#else
+#define RE_ETHER_ALIGN	0
+#define RE_RX_DESC_BUFLEN	MCLBYTES
+#endif
 
 #define RL_ADDR_LO(y)		((uint64_t) (y) & 0xFFFFFFFF)
 #define RL_ADDR_HI(y)		((uint64_t) (y) >> 32)
 
-#define RL_JUMBO_FRAMELEN	9018
+/* see comment in dev/re/if_re.c */
+#define RL_JUMBO_FRAMELEN	7440
 #define RL_JUMBO_MTU		(RL_JUMBO_FRAMELEN-ETHER_HDR_LEN-ETHER_CRC_LEN)
 
 struct rl_softc;
