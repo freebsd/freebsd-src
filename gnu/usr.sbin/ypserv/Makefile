@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.4 1995/02/03 22:01:17 wpaul Exp $
+# $Id: Makefile,v 1.5 1995/02/04 21:31:58 wpaul Exp $
 # From:	@(#)Makefile	8.3 (Berkeley) 4/2/94
 
 PROG=	ypserv
@@ -9,13 +9,12 @@ CFLAGS+=-DINSTDIR='"/usr/libexec"'
 
 MAN8= ypserv.8
 
-afterinstall: /var/yp/Makefile /usr/libexec/mknetid
-
-/var/yp/Makefile: ${.CURDIR}/Makefile.yp
-        @if [ ! -d /var/yp ]; then mkdir /var/yp; fi
-	install -c -o bin -g bin -m 444 ${.CURDIR}/Makefile.yp /var/yp/Makefile
-
-/usr/libexec/mknetid: ${.CURDIR}/mknetid
-	install -c -o bin -g bin -m 555 ${.CURDIR}/mknetid /usr/libexec/mknetid
+afterinstall:
+	install -c -o ${BINOWN} -g ${BINGRP} -m 444 \
+		${.CURDIR}/Makefile.yp \
+		${DESTDIR}/var/yp/Makefile
+	install -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+		${.CURDIR}/mknetid \
+		${DESTDIR}/usr/libexec/mknetid
 
 .include <bsd.prog.mk>
