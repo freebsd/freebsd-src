@@ -76,7 +76,7 @@
 #	snd*	various sound cards
 #	pcaudio PCM audio driver 
 #
-#	$Id: MAKEDEV,v 1.34 1994/05/19 11:05:09 jkh Exp $
+#	$Id: MAKEDEV,v 1.35 1994/05/21 08:55:52 rgrimes Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -470,34 +470,40 @@ speaker)
 
 cua0?|cua?|ttyd?)
 	unit=`expr $i : '...[d0]*\(.\)$'`
-	rm -f tty0$unit cua0$unit ttyd$unit
+	rm -f tty*0$unit cua*0$unit tty*d$unit
 	case $unit in
 	[0-9]) m=$unit;;
 	a) m=10;; b) m=11;; c) m=12;; d) m=13;; e) m=14;; f) m=15;; g) m=16;;
 	h) m=17;; i) m=18;; j) m=19;; k) m=20;; l) m=21;; m) m=22;; n) m=23;;
 	o) m=24;; p) m=25;; q) m=26;; r) m=27;; s) m=28;; t) m=29;; u) m=30;;
-	v) m=31;; w) m=32;; x) m=33;; y) m=34;; z) m=35;;
-	*) echo not enough minor numbers, add manually ;;
+	v) m=31;;
+	*) echo too many devices; exit 1;;
 	esac
 	mknod ttyd$unit c 28 $m
+	mknod ttyid$unit c 28 `expr $m + 32`
+	mknod ttyld$unit c 28 `expr $m + 64`
 	mknod cua0$unit c 28 `expr $m + 128`
-	chown uucp.dialer cua0$unit
-	chmod 660 cua0$unit
+	mknod cuai0$unit c 28 `expr $m + 32 + 128`
+	mknod cual0$unit c 28 `expr $m + 64 + 128`
+	chown uucp.dialer cua*0$unit
+	chmod 660 cua*0$unit
 	;;
 
 tty0?|tty?)
 	unit=`expr $i : 'tty0*\(.\)$'`
-	rm -f tty0$unit cua0$unit ttyd$unit
+	rm -f tty*0$unit cua*0$unit tty*d$unit
 	case $unit in
 	[0-9]) m=$unit;;
 	a) m=10;; b) m=11;; c) m=12;; d) m=13;; e) m=14;; f) m=15;; g) m=16;;
 	h) m=17;; i) m=18;; j) m=19;; k) m=20;; l) m=21;; m) m=22;; n) m=23;;
 	o) m=24;; p) m=25;; q) m=26;; r) m=27;; s) m=28;; t) m=29;; u) m=30;;
-	v) m=31;; w) m=32;; x) m=33;; y) m=34;; z) m=35;;
-	*) echo not enough minor numbers, add manually ;;
+	v) m=31;;
+	*) echo too many devices; exit 1;;
 	esac
 	umask 0
 	mknod tty0$unit c 28 $m
+	mknod ttyi0$unit c 28 `expr $m + 32`
+	mknod ttyl0$unit c 28 `expr $m + 64`
 	umask 77
 	;;
 
