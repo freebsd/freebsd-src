@@ -24,8 +24,6 @@
 .\"
 .\" $FreeBSD$
 .\"
-.\" Note: The date here should be updated whenever a non-trivial
-.\" change is made to the manual page.
 .Dd April 4, 2003
 .Dt VPD 4 i386
 .Os
@@ -35,36 +33,42 @@
 .Sh SYNOPSIS
 .Cd "device vpd"
 .Sh DESCRIPTION
-IBM ThinkPad notebooks (and most IBM desktop PCs) have a 48-byte
+.Tn IBM ThinkPad
+notebooks (and most
+.Tn IBM
+desktop PCs) have a 48-byte
 Vital Product Data (VPD) structure located in the BIOS Shadow RAM.
 .Pp
 The VPD provides machine type and model information, the build ID
 (this is roughly the BIOS version) and serial number information.
 .Pp
 The
-.Nm vpd
+.Nm
 driver scans the BIOS area and claims the memory used by the VPD
-structure.  It provides the
+structure.
+It provides the
 .Xr sysctl 3
-branch  hw.vpd to allow this information
-to be accessed by the userland.
+branch
+.Va hw.vpd
+to allow this information to be accessed by the userland.
 The following variables are provided, one per VPD attachment (there should
 only be one):
-.Bl -tag -width -indent
+.Pp
+.Bl -tag -width ".Dv MACHINE_MODEL" -compact
 .It Dv MACHINE_TYPE
-.Pq machine.type
+.Pq Va machine.type
 Machine type.
 .It Dv MACHINE_MODEL
-.Pq machine.model
+.Pq Va machine.model
 Machine model.
 .It Dv BUILD_ID
-.Pq build.id
+.Pq Va build.id
 BIOS Build ID.
 .It Dv SERIAL_BOX
-.Pq serial.box
+.Pq Va serial.box
 Box Serial Number.
 .It Dv SERIAL_PLANAR
-.Pq serial.planar
+.Pq Va serial.planar
 Motherboard Serial Number.
 .El
 .Sh SEE ALSO
@@ -77,13 +81,13 @@ Motherboard Serial Number.
 .Sh HISTORY
 The
 .Nm
-driver and manual page example first appeared in
+driver first appeared in
 .Fx 5.1 .
-.Pp
 .Sh AUTHORS
-This
-manual page was written by
+The
+.Nm
+driver and this manual page were written by
 .An Matthew N. Dodd Aq mdodd@FreeBSD.org .
 .Sh BUGS
-The checksum code isn't quite correct so we're not able to detect
+The checksum code is not quite correct so we are not able to detect
 a corrupt VPD structure.
