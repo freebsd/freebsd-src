@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: $
+ * $Id: vesa.c,v 1.12 1999/01/11 03:18:24 yokota Exp $
  */
 
 #include "vga.h"
@@ -62,7 +62,7 @@
 #endif
 
 #ifndef VESA_DEBUG
-#define VESA_DEBUG	1
+#define VESA_DEBUG	0
 #endif
 
 /* VESA video adapter state buffer stub */
