@@ -1,6 +1,6 @@
 # from BSDI Makefile,v 2.6 1996/04/08 20:06:40 bostic Exp
 #
-# $Id: Makefile,v 1.4 1997/08/12 16:08:02 ache Exp $
+# $Id: Makefile,v 1.5 1997/08/15 23:41:22 jlemon Exp $
 
 PROG=	doscmd
 MAN1=   doscmd.1
@@ -16,25 +16,16 @@ EXEGRP=	bin
 BINMODE=2555
 EXEMODE=444
 
-################################################################################
-# For FreeBSD
-# (Note ./machine/ include not required once new kernel headers installed)
-CFLAGS+=-I. -I/usr/X11R6/include -DDISASSEMBLER
-LDFLAGS+=-L/usr/X11R6/lib
-LDADD+=	-lX11 -lgcc -lc -lgcc
-DPADD+=/usr/X11R6/lib/libX11.a ${LIBC}
-
-# For FreeBSD, no X
-#CFLAGS+=-I/usr/X11R6/include -I./machine/ -DDISASSEMBLER -DNO_X
-#LDADD+= -lgcc -lc -lgcc
-#DPADD+=${LIBC}
-
-################################################################################
-# For NetBSD
-#CFLAGS+=-I/usr/X11/include -DDISASSEMBLER -g
-#LDFLAGS+=-L/usr/X11/lib
-#LDADD+=	-lX11 -li386 -lgcc -lc -lgcc
-#DPADD+=	/usr/X11/lib/libX11.a ${LIBC} ${LIBGCC}
+.if exists(${X11BASE})
+CFLAGS+= -I. -I${X11BASE}/include -DDISASSEMBLER
+LDFLAGS+= -L${X11BASE}/lib
+LDADD+=	-lX11 -lgcc -lc
+DPADD+= ${X11BASE}/lib/libX11.a ${LIBC}
+.else
+CFLAGS+= -I. -DDISASSEMBLER -DNO_X
+LDADD+= -lgcc -lc
+DPADD+= ${LIBC}
+.endif
 
 afterinstall:
 	install ${COPY} -o ${BINOWN} -g ${EXEGRP} -m ${EXEMODE} \
@@ -43,10 +34,7 @@ afterinstall:
 		instbsdi.exe ${DESTDIR}/usr/libdata/doscmd/
 
 doscmd: doscmd.kernel ${LIBCRT0} doscmd_loader.o instbsdi.exe
-# for FreeBSD
-	ld -e start -dc -dp -o doscmd ${LDFLAGS} /usr/lib/crt0.o doscmd_loader.o ${LDADD}
-# for NetBSD
-#	ld -N -Bstatic -o doscmd ${LDFLAGS} ${LIBCRT0} doscmd_loader.o ${LDADD}
+	ld -e start -dc -dp -o doscmd /usr/lib/crt0.o doscmd_loader.o -lgcc -lc
 
 instbsdi.exe:	instbsdi.exe.uu
 	uudecode        ${.CURDIR}/instbsdi.exe.uu
@@ -55,6 +43,6 @@ instbsdi.exe:	instbsdi.exe.uu
 
 .depend: doscmd_loader.c
 
-# NetBSD/FreeBSD
 doscmd.kernel: crt0.o ${OBJS}
-	ld -N -Bstatic -T 110000 -o doscmd.kernel ${LDFLAGS} crt0.o ${OBJS} ${LDADD}
+	ld -N -Bstatic -T 110000 -o doscmd.kernel ${LDFLAGS} \
+		crt0.o ${OBJS} ${LDADD}
