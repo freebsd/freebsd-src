@@ -283,7 +283,7 @@ invalid:
 		warning("ignoring excess arguments");
 
 	if (devfs) {
-		mount("devfs", "/dev", MNT_NOEXEC|MNT_RDONLY, 0);
+		mount("devfs", "/dev", 0, 0);
 	}
 
 	/*
