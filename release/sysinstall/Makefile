@@ -2,7 +2,7 @@ PROG=	sysinstall
 NOMAN=	yes
 CLEANFILES=	makedevs.c rtermcap
 
-.PATH: ${.CURDIR}/../disklabel
+.PATH: ${.CURDIR}/../disklabel ${.CURDIR}/../../usr.bin/cksum
 
 SRCS=	globals.c	main.c		dmenu.c			\
 	menus.c		misc.c		msg.c			\
@@ -11,7 +11,8 @@ SRCS=	globals.c	main.c		dmenu.c			\
 	dist.c		lang.c		wizard.c		\
 	disks.c		command.c	decode.c		\
 	label.c		tcpip.c		media_strategy.c	\
-	makedevs.c	ftp.c		config.c
+	makedevs.c	ftp.c		config.c		\
+	crc.c
 
 CFLAGS+=	-Wall -g -I${.CURDIR}/../libdisk \
 		-I${.CURDIR}/../../gnu/lib/libdialog
