@@ -112,9 +112,10 @@ struct wi_softc	{
 	bus_space_tag_t		wi_bmemtag;
 	void *			wi_intrhand;
 	int			sc_firmware_type;
-#define	WI_LUCENT	0
-#define	WI_INTERSIL	1
-#define	WI_SYMBOL	2
+#define WI_NOTYPE	0
+#define	WI_LUCENT	1
+#define	WI_INTERSIL	2
+#define	WI_SYMBOL	3
 	int			sc_pri_firmware_ver;	/* Primary firmware */
 	int			sc_sta_firmware_ver;	/* Station firmware */
 	int			sc_enabled;
@@ -175,6 +176,12 @@ struct wi_softc	{
 		u_int16_t               wi_confbits_param0;
 	} wi_debug;
 
+};
+
+struct wi_card_ident {
+	u_int16_t	card_id;
+	char		*card_name;
+	u_int8_t	firm_type;
 };
 
 #define	WI_LOCK(_sc)
