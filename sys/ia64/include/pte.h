@@ -138,9 +138,9 @@ struct ia64_ifa {
  * Layout of rr[x].
  */
 struct ia64_rr {
-	u_int64_t	rr_ig1   :1;	/* bits 0..0 */
+	u_int64_t	rr_ve    :1;	/* bits 0..0 */
 	u_int64_t	rr_rv1   :1;	/* bits 1..1 */
-	u_int64_t	rr_ig2   :6;	/* bits 2..7 */
+	u_int64_t	rr_ps    :6;	/* bits 2..7 */
 	u_int64_t	rr_rid   :24;	/* bits 8..31 */
 	u_int64_t	rr_rv2   :32;	/* bits 32..63 */
 };
