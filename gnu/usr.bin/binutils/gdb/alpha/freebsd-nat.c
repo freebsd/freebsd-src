@@ -144,3 +144,30 @@ supply_fpregset (fp)
     supply_register (regno + 32, (char *)&fp->fpr_regs[regno]);
 }
 #endif	/* HAVE_FPREGSET_T */
+
+/*
+ * Get registers from a kernel crash dump or live kernel.
+ * Called by kvm-fbsd.c:get_kcore_registers().
+ */
+fetch_kcore_registers (pcbp)
+  struct pcb *pcbp;
+{
+
+  /* First clear out any garbage. */
+  memset(registers, '\0', REGISTER_BYTES);
+
+  /* SP */
+  *(long *) &registers[REGISTER_BYTE (SP_REGNUM)] =
+    pcbp->pcb_hw.apcb_ksp;
+
+  /* S0 through S6 */
+  memcpy (&registers[REGISTER_BYTE (S0_REGNUM)],
+          &pcbp->pcb_context[0], 7 * sizeof(long));
+
+  /* PC */
+  *(long *) &registers[REGISTER_BYTE (PC_REGNUM)] =
+    pcbp->pcb_context[7];
+
+  registers_fetched ();
+}
+
