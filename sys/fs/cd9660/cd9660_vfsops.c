@@ -185,8 +185,6 @@ cd9660_mount(mp, path, data, ndp, p)
 	struct iso_mnt *imp = 0;
 
 	if ((mp->mnt_flag & MNT_ROOTFS) != 0) {
-		if (devsw(rootdev)->d_flags & D_NOCLUSTERR)
-			mp->mnt_flag |= MNT_NOCLUSTERR;
 		return (iso_mountroot(mp, p));
 	}
 	if ((error = copyin(data, (caddr_t)&args, sizeof (struct iso_args))))
@@ -198,13 +196,9 @@ cd9660_mount(mp, path, data, ndp, p)
 	/*
 	 * If updating, check whether changing from read-only to
 	 * read/write; if there is no device name, that's all we do.
-	 * Disallow clearing MNT_NOCLUSTERR flag, if block device requests.
 	 */
 	if (mp->mnt_flag & MNT_UPDATE) {
 		imp = VFSTOISOFS(mp);
-		if (devsw(imp->im_devvp->v_rdev)->d_flags &
-		    D_NOCLUSTERR)
-			mp->mnt_flag |= MNT_NOCLUSTERR;
 		if (args.fspec == 0)
 			return (vfs_export(mp, &imp->im_export, &args.export));
 	}
@@ -238,8 +232,6 @@ cd9660_mount(mp, path, data, ndp, p)
 	VOP_UNLOCK(devvp, 0, p);
 
 	if ((mp->mnt_flag & MNT_UPDATE) == 0) {
-		if (devsw(devvp->v_rdev)->d_flags & D_NOCLUSTERR)
-			mp->mnt_flag |= MNT_NOCLUSTERR;
 		error = iso_mountfs(devvp, mp, p, &args);
 	} else {
 		if (devvp != imp->im_devvp)
