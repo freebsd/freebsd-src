@@ -29,6 +29,9 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
+ *
  */
 
 #ifndef lint
@@ -47,7 +50,7 @@ static const char sccsid[] = "@(#)special.c	8.3 (Berkeley) 4/2/94";
 void
 c_special(fd1, file1, skip1, fd2, file2, skip2)
 	int fd1, fd2;
-	char *file1, *file2;
+	const char *file1, *file2;
 	off_t skip1, skip2;
 {
 	int ch1, ch2;

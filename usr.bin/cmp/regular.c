@@ -59,7 +59,7 @@ static u_char *remmap __P((u_char *, int, off_t));
 void
 c_regular(fd1, file1, skip1, len1, fd2, file2, skip2, len2)
 	int fd1, fd2;
-	char *file1, *file2;
+	const char *file1, *file2;
 	off_t skip1, len1, skip2, len2;
 {
 	u_char ch, *p1, *p2, *m1, *m2, *e1, *e2;
