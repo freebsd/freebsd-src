@@ -12,15 +12,15 @@ enhancements from NetBSD, 386BSD, and the Free Software Foundation.
 
 Since our first release of FreeBSD 1.0 almost 18 months ago, FreeBSD
 has changed almost entirely.  A new port from the Berkeley 4.4 code
-base was done, bringing the legal status of the system out of the
-shadows with the blessing of Novell (new owners of USL and UNIX).  The
+base was done and brought the legal status of the system out of the
+shadows with the blessings of Novell (new owners of USL and UNIX).  The
 port to 4.4 has also brought in a host of new features, filesystems
-and networking support.  With our new code base, we have every hope of
-being able to confidently release quality operating systems without
-further legal encumbrance for some time to come!
+and driver support.  With our new unencumbered code base, we have every
+reason to hope that we'll be able to release quality operating systems
+without further legal encumbrance for some time to come!
 
 FreeBSD 2.0 represents the culmination of almost 2 years of work and
-many thousands of man hours put in by our all-volunteer working group.
+many thousands of man hours put in by an international development team.
 We hope you enjoy it!
 
 Many packages have also been upgraded or added, such as XFree86 3.1,
@@ -29,7 +29,7 @@ utilities have been ported and are now available as add-ons.  See the
 next section of this document for more details.
 
 For a list of contributors, please see the files "CONTRIB.FreeBSD" and
-"CONTRIB.386BSD", which should be bundled with your distribution.
+"CONTRIB.386BSD", which should be bundled with your bindist distribution.
 
 Also see the new "REGISTER.FreeBSD" file for information on registering
 with the "Free BSD user counter".  We've also provided a list of who's
@@ -315,4 +315,4 @@ hope you enjoy this release of FreeBSD!
 
 			The FreeBSD Core Team
 
-$Id: RELNOTES.FreeBSD,v 1.1 1994/11/04 02:22:41 jkh Exp $
+$Id: RELNOTES.FreeBSD,v 1.1 1994/11/05 08:11:22 jkh Exp $
