@@ -511,6 +511,7 @@ do_verify (messagep, repository)
 
 	unlink_file (fname);
 	free (fname);
+      }
     }
 }
 
