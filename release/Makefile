@@ -765,14 +765,14 @@ cdrom.1:
 	touch cdrom.1
 
 iso.1:
-	@if [ -x ${.CURDIR}/${MACHINE_ARCH}/mkisoimages.sh ]; then \
+	@if [ -r ${.CURDIR}/${MACHINE_ARCH}/mkisoimages.sh ]; then \
 		echo "Creating ISO images..."; \
-		${.CURDIR}/${MACHINE_ARCH}/mkisoimages.sh -b fbsd_miniinst \
+		sh ${.CURDIR}/${MACHINE_ARCH}/mkisoimages.sh -b fbsd_miniinst \
 		  ${CD}/miniinst.iso ${CD_DISC1}; \
-		${.CURDIR}/${MACHINE_ARCH}/mkisoimages.sh -b fbsd_livefs \
+		sh ${.CURDIR}/${MACHINE_ARCH}/mkisoimages.sh -b fbsd_livefs \
 		  ${CD}/disc2.iso ${CD_DISC2}; \
 		if [ "x${CD_EXTRA_BITS}" != "x" ]; then \
-			${.CURDIR}/${MACHINE_ARCH}/mkisoimages.sh -b fbsd_boot \
+			sh ${.CURDIR}/${MACHINE_ARCH}/mkisoimages.sh -b fbsd_boot \
 			  ${CD}/disc1.iso ${CD_DISC1} ${CD_EXTRA_BITS}; \
 		fi \
 	else \
