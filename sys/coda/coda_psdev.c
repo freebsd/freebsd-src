@@ -67,7 +67,6 @@ extern int coda_nc_initialized;    /* Set if cache has been initialized */
 #include <sys/mutex.h>
 #include <sys/poll.h>
 #include <sys/proc.h>
-#include <sys/socket.h>
 
 #include <coda/coda.h>
 #include <coda/cnode.h>

@@ -54,7 +54,6 @@
 #include <sys/mount.h>
 #include <sys/namei.h>
 #include <sys/proc.h>
-#include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/vnode.h>
 

@@ -58,7 +58,6 @@
 #include <sys/mutex.h>
 #include <sys/namei.h>
 #include <sys/proc.h>
-#include <sys/socket.h>
 #include <sys/uio.h>
 
 #include <vm/vm.h>
