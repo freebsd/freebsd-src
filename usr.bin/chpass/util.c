@@ -91,12 +91,16 @@ atot(p, store)
 	}
 	if (!(t = strtok(p, " \t")))
 		goto bad;
-	for (mp = months;; ++mp) {
-		if (!*mp)
-			goto bad;
-		if (!strncasecmp(*mp, t, 3)) {
-			month = mp - months + 1;
-			break;
+	if (isdigit(*t)) {
+		month = atoi(t);
+	} else {
+		for (mp = months;; ++mp) {
+			if (!*mp)
+				goto bad;
+			if (!strncasecmp(*mp, t, 3)) {
+				month = mp - months + 1;
+				break;
+			}
 		}
 	}
 	if (!(t = strtok((char *)NULL, " \t,")) || !isdigit(*t))

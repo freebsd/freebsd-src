@@ -17,6 +17,9 @@ MLINKS=	chpass.1 chfn.1 chpass.1 chsh.1
 COPTS+=	-DYP -I. -I${.CURDIR}/../../libexec/ypxfr \
 	-I${.CURDIR}/../../usr.sbin/rpc.yppasswdd -Dyp_error=warnx
 
+#Some people need this, uncomment to activate
+#COPTS+= -DRESTRICT_FULLNAME_CHANGE
+
 SRCS+=	yppasswd_private_xdr.c yppasswd_comm.c yp_clnt.c \
 	yppasswd_clnt.c pw_yp.c ypxfr_misc.c
 CLEANFILES= yp_clnt.c yp.h yppasswd_clnt.c yppasswd.h \
