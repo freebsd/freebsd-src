@@ -554,7 +554,7 @@
 #define HAVE_NET_IF_TUN_H 1
 
 /* Define if you have the <net/if_var.h> header file.  */
-#define HAVE_NET_IF_VAR_H 1
+/* #undef HAVE_NET_IF_VAR_H 1 */
 
 /* Define if you have the <netdb.h> header file.  */
 #define HAVE_NETDB_H 1
