@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.42.2.11 1999/05/18 00:41:43 gibbs Exp $
+ *      $Id: cam_xpt.c,v 1.42.2.12 1999/05/22 22:57:38 gibbs Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -2868,6 +2868,7 @@ xpt_action(union ccb *start_ccb)
 			tar = cgd->ccb_h.path->target;
 			cgd->inq_data = dev->inq_data;
 			cgd->pd_type = SID_TYPE(&dev->inq_data);
+#ifndef GARBAGE_COLLECT
 			cgd->dev_openings = dev->ccbq.dev_openings;
 			cgd->dev_active = dev->ccbq.dev_active;
 			cgd->devq_openings = dev->ccbq.devq_openings;
@@ -2875,6 +2876,7 @@ xpt_action(union ccb *start_ccb)
 			cgd->held = dev->ccbq.held;
 			cgd->maxtags = dev->quirk->maxtags;
 			cgd->mintags = dev->quirk->mintags;
+#endif
 			cgd->ccb_h.status = CAM_REQ_CMP;
 			cgd->serial_num_len = dev->serial_num_len;
 			if ((dev->serial_num_len > 0)
@@ -2908,6 +2910,8 @@ xpt_action(union ccb *start_ccb)
 			cgds->devq_queued = dev->ccbq.queue.entries;
 			cgds->held = dev->ccbq.held;
 			cgds->last_reset = tar->last_reset;
+			cgds->maxtags = dev->quirk->maxtags;
+			cgds->mintags = dev->quirk->mintags;
 			if (timevalcmp(&tar->last_reset, &bus->last_reset, <))
 				cgds->last_reset = bus->last_reset;
 			cgds->ccb_h.status = CAM_REQ_CMP;
@@ -4538,6 +4542,10 @@ xpt_alloc_device(struct cam_eb *bus, struct cam_et *target, lun_id_t lun_id)
 		callout_handle_init(&device->c_handle);
 		device->refcount = 1;
 		device->flags |= CAM_DEV_UNCONFIGURED;
+		/*
+		 * Take the default quirk entry until we have inquiry
+		 * data and can determine a better quirk to use.
+		 */
 		device->quirk = &xpt_quirk_table[xpt_quirk_table_size - 1];
 
 		cam_init_pinfo(&device->alloc_ccb_entry.pinfo);
