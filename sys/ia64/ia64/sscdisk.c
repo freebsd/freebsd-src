@@ -10,7 +10,6 @@
  *
  */
 
-#include "opt_mfs.h"		/* We have adopted some tasks from MFS */
 #include "opt_md.h"
 #include "opt_ski.h"
 
