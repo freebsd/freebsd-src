@@ -8,6 +8,7 @@
  *	$NetBSD: ohci.c,v 1.130 2002/09/29 20:59:30 augustss Exp $
  *	$NetBSD: ohci.c,v 1.131 2002/09/30 16:36:19 augustss Exp $
  *	$NetBSD: ohci.c,v 1.132 2002/12/07 06:52:11 toshii Exp $
+ *	$NetBSD: ohci.c,v 1.133 2002/12/07 07:14:28 toshii Exp $
  *	$NetBSD: ohci.c,v 1.138 2003/02/08 03:32:50 ichiro Exp $
  *	$NetBSD: ohci.c,v 1.140 2003/05/13 04:42:00 gson Exp $
  */
@@ -1392,7 +1393,9 @@ ohci_softintr(void *v)
 				xfer->actlen += len;
 			if (std->flags & OHCI_CALL_DONE) {
 				xfer->status = USBD_NORMAL_COMPLETION;
+				s = splusb();
 				usb_transfer_complete(xfer);
+				splx(s);
 			}
 			ohci_free_std(sc, std);
 		} else {
@@ -1432,7 +1435,9 @@ ohci_softintr(void *v)
 				xfer->status = USBD_STALLED;
 			else
 				xfer->status = USBD_IOERROR;
+			s = splusb();
 			usb_transfer_complete(xfer);
+			splx(s);
 		}
 	}
 
