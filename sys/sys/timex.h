@@ -1,6 +1,6 @@
 /***********************************************************************
  *								       *
- * Copyright (c) David L. Mills 1993-1998			       *
+ * Copyright (c) David L. Mills 1993-2001			       *
  *								       *
  * Permission to use, copy, modify, and distribute this software and   *
  * its documentation for any purpose and without fee is hereby	       *
@@ -19,7 +19,7 @@
 /*
  * Modification history timex.h
  *
- * 16 Aug 00   David L. Mills
+ * 16 Aug 00	David L. Mills
  *	API Version 4. Added MOD_TAI and tai member of ntptimeval
  *	structure.
  *
