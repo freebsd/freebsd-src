@@ -39,13 +39,13 @@ struct alias_link;
 
 /* Packet Handling */
     extern int
-    PacketAliasIn(char *, int maxpacketsize);
+    PacketAliasIn(char *, int);
 
     extern int
-    PacketAliasOut(char *, int maxpacketsize);
+    PacketAliasOut(char *, int);
 
     extern int
-    PacketUnaliasOut(char *, int maxpacketsize);
+    PacketUnaliasOut(char *, int);
 
 /* Port and Address Redirection */
     extern struct alias_link *
@@ -55,9 +55,7 @@ struct alias_link;
                             u_char);
 
     extern int
-    PacketAliasAddServer(struct alias_link *link,
-                         struct in_addr addr,
-                         u_short port);
+    PacketAliasAddServer(struct alias_link *, struct in_addr, u_short);
 
     extern struct alias_link *
     PacketAliasRedirectProto(struct in_addr,
@@ -84,7 +82,7 @@ struct alias_link;
 
 /* Miscellaneous Functions */
     extern void
-    PacketAliasSetTarget(struct in_addr addr);
+    PacketAliasSetTarget(struct in_addr);
 
     extern int
     PacketAliasCheckNewLink(void);
