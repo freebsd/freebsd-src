@@ -67,6 +67,32 @@ struct linux_select_argv {
 };
 
 int
+linux_to_bsd_sigaltstack(int lsa)
+{
+	int bsa = 0;
+
+	if (lsa & LINUX_SS_DISABLE)
+		bsa |= SS_DISABLE;
+	if (lsa & LINUX_SS_ONSTACK)
+		bsa |= SS_ONSTACK;
+	if (lsa == LINUX_SS_ONSTACK_BC)
+		bsa = SS_ONSTACK;
+	return (bsa);
+}
+
+int
+bsd_to_linux_sigaltstack(int bsa)
+{
+	int lsa = 0;
+
+	if (bsa & SS_DISABLE)
+		lsa |= LINUX_SS_DISABLE;
+	if (bsa & SS_ONSTACK)
+		lsa |= LINUX_SS_ONSTACK;
+	return (lsa);
+}
+
+int
 linux_execve(struct proc *p, struct linux_execve_args *args)
 {
 	struct execve_args bsd;
@@ -606,16 +632,19 @@ linux_sigaltstack(p, uap)
 	    (long)p->p_pid, uap->uss, uap->uoss);
 #endif
 
-	error = copyin(uap->uss, &lss, sizeof(linux_stack_t));
-	if (error)
-		return (error);
+	if (uap->uss == NULL) {
+		ss = NULL;
+	} else {
+		error = copyin(uap->uss, &lss, sizeof(linux_stack_t));
+		if (error)
+			return (error);
 
-	ss = stackgap_alloc(&sg, sizeof(stack_t));
-	ss->ss_sp = lss.ss_sp;
-	ss->ss_size = (lss.ss_size >= LINUX_MINSIGSTKSZ &&
-	    lss.ss_size < MINSIGSTKSZ) ? MINSIGSTKSZ : lss.ss_size;
-	ss->ss_flags = lss.ss_flags;
-
+		ss = stackgap_alloc(&sg, sizeof(stack_t));
+		ss->ss_sp = lss.ss_sp;
+		ss->ss_size = (lss.ss_size >= LINUX_MINSIGSTKSZ &&
+		    lss.ss_size < MINSIGSTKSZ) ? MINSIGSTKSZ : lss.ss_size;
+		ss->ss_flags = linux_to_bsd_sigaltstack(lss.ss_flags);
+	}
 	oss = (uap->uoss != NULL)
 	    ? stackgap_alloc(&sg, sizeof(stack_t))
 	    : NULL;
@@ -627,7 +656,7 @@ linux_sigaltstack(p, uap)
 	if (!error && oss != NULL) {
 		lss.ss_sp = oss->ss_sp;
 		lss.ss_size = oss->ss_size;
-		lss.ss_flags = oss->ss_flags;
+		lss.ss_flags = bsd_to_linux_sigaltstack(oss->ss_flags);
 		error = copyout(&lss, uap->uoss, sizeof(linux_stack_t));
 	}
 
