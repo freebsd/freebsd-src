@@ -418,14 +418,17 @@ g_access_rel(struct g_consumer *cp, int dcr, int dcw, int dce)
 	    pp->acr, pp->acw, pp->ace,
 	    pp, pp->name);
 
+	/* If foot-shooting is enabled, any open on rank#1 is OK */
+	if ((g_debugflags & 16) && pp->geom->rank == 1)
+		;
 	/* If we try exclusive but already write: fail */
-	if (dce > 0 && pw > 0)
+	else if (dce > 0 && pw > 0)
 		return (EPERM);
 	/* If we try write but already exclusive: fail */
-	if (dcw > 0 && pe > 0)
+	else if (dcw > 0 && pe > 0)
 		return (EPERM);
 	/* If we try to open more but provider is error'ed: fail */
-	if ((dcr > 0 || dcw > 0 || dce > 0) && pp->error != 0)
+	else if ((dcr > 0 || dcw > 0 || dce > 0) && pp->error != 0)
 		return (pp->error);
 
 	/* Ok then... */
