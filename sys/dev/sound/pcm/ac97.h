@@ -29,6 +29,15 @@
 #define AC97_MUTE	0x8000
 
 #define AC97_REG_RESET	0x00
+#define		AC97_CAP_MICCHANNEL	(1 << 0)
+#define		AC97_CAP_TONE		(1 << 2)
+#define		AC97_CAP_SIMSTEREO	(1 << 3)
+#define		AC97_CAP_HEADPHONE	(1 << 4)
+#define		AC97_CAP_LOUDNESS	(1 << 5)
+#define		AC97_CAP_DAC_18		(1 << 6)
+#define		AC97_CAP_DAC_20		(1 << 7)
+#define		AC97_CAP_ADC_18		(1 << 8)
+#define		AC97_CAP_ADC_20		(1 << 9)
 #define AC97_MIX_MASTER	0x02
 #define AC97_MIX_PHONES	0x04
 #define AC97_MIX_MONO 	0x06
@@ -82,4 +91,5 @@ int ac97_setrate(struct ac97_info *codec, int which, int rate);
 int ac97_setextmode(struct ac97_info *codec, u_int16_t mode);
 u_int16_t ac97_getextmode(struct ac97_info *codec);
 u_int16_t ac97_getextcaps(struct ac97_info *codec);
+u_int16_t ac97_getcaps(struct ac97_info *codec);
 
