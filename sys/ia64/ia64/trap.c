@@ -102,11 +102,13 @@ userret(register struct proc *p, u_int64_t pc, u_quad_t oticks, int have_giant)
 		 * indicated by our priority.
 		 */
 		s = splstatclock();
+		DROP_GIANT_NOSWITCH();
 		mtx_enter(&sched_lock, MTX_SPIN);
 		setrunqueue(p);
 		p->p_stats->p_ru.ru_nivcsw++;
 		mi_switch();
 		mtx_exit(&sched_lock, MTX_SPIN);
+		PICKUP_GIANT();
 		splx(s);
 		while ((sig = CURSIG(p)) != 0) {
 			if (have_giant == 0) {
