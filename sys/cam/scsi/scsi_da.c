@@ -29,10 +29,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#ifdef _KERNEL
-#include "opt_hw_wdog.h"
-#endif /* _KERNEL */
-
 #include <sys/param.h>
 
 #ifdef _KERNEL
