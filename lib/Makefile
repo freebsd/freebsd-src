@@ -31,8 +31,8 @@ SUBDIR=	${_csu} libcom_err libcrypt libkvm msun libmd libncurses \
 	libipx libisc libkiconv libmenu ${_libmilter} ${_libmp} ${_libncp} \
 	${_libngatm} libopie libpam libpanel libpcap \
 	${_libpthread} ${_libsdp} ${_libsm} ${_libsmb} ${_libsmdb} \
-	${_libsmutil} libstand libtelnet ${_libthr} libufs libugidfw \
-	${_libusbhid} ${_libvgl} libwrap libxpg4 liby libz
+	${_libsmutil} libstand libtelnet ${_libthr} ${_libthread_db} libufs \
+	libugidfw ${_libusbhid} ${_libvgl} libwrap libxpg4 liby libz
 
 .if exists(${.CURDIR}/csu/${MACHINE_ARCH}-elf)
 _csu=csu/${MACHINE_ARCH}-elf
@@ -100,6 +100,10 @@ _libpthread=	libpthread
 .if ${MACHINE_ARCH} != "amd64" && ${MACHINE_ARCH} != "arm" && \
     !defined(NOLIBTHR)
 _libthr=	libthr
+.endif
+
+.if ${MACHINE_ARCH} != "arm" && ${MACHINE_ARCH} != "powerpc"
+_libthread_db=	libthread_db
 .endif
 
 .if !defined(NO_USB)
