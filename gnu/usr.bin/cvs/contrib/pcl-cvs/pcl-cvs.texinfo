@@ -20,7 +20,7 @@
 @comment along with pcl-cvs; see the file COPYING.  If not, write to
 @comment the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
-@setfilename pcl-cvs
+@setfilename pcl-cvs.info
 @settitle Pcl-cvs - The Emacs Front-End to CVS
 @setchapternewpage on
      
