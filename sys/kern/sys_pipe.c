@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: sys_pipe.c,v 1.46 1998/12/07 21:58:29 archie Exp $
+ * $Id: sys_pipe.c,v 1.47 1999/01/27 10:10:02 bde Exp $
  */
 
 /*
@@ -282,8 +282,8 @@ pipelock(cpipe, catch)
 	int error;
 	while (cpipe->pipe_state & PIPE_LOCK) {
 		cpipe->pipe_state |= PIPE_LWANT;
-		if (error = tsleep( cpipe,
-			catch?(PRIBIO|PCATCH):PRIBIO, "pipelk", 0)) {
+		if ((error = tsleep( cpipe,
+			catch?(PRIBIO|PCATCH):PRIBIO, "pipelk", 0)) != 0) {
 			return error;
 		}
 	}
@@ -424,7 +424,7 @@ pipe_read(fp, uio, cred)
 			}
 
 			rpipe->pipe_state |= PIPE_WANTR;
-			if (error = tsleep(rpipe, PRIBIO|PCATCH, "piperd", 0)) {
+			if ((error = tsleep(rpipe, PRIBIO|PCATCH, "piperd", 0)) != 0) {
 				break;
 			}
 		}
@@ -864,7 +864,7 @@ pipe_write(fp, uio, cred)
 			pipeselwakeup(wpipe);
 
 			wpipe->pipe_state |= PIPE_WANTW;
-			if (error = tsleep(wpipe, (PRIBIO+1)|PCATCH, "pipewr", 0)) {
+			if ((error = tsleep(wpipe, (PRIBIO+1)|PCATCH, "pipewr", 0)) != 0) {
 				break;
 			}
 			/*
@@ -1071,7 +1071,7 @@ pipeclose(cpipe)
 		/*
 		 * Disconnect from peer
 		 */
-		if (ppipe = cpipe->pipe_peer) {
+		if ((ppipe = cpipe->pipe_peer) != NULL) {
 			pipeselwakeup(ppipe);
 
 			ppipe->pipe_state |= PIPE_EOF;

@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.77 1999/01/10 01:58:25 eivind Exp $
+ * $Id: vfs_cluster.c,v 1.78 1999/01/21 08:29:05 dillon Exp $
  */
 
 #include "opt_debug_cluster.h"
@@ -367,7 +367,7 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 				round_page(size) > vp->v_maxio)
 				break;
 
-			if (tbp = incore(vp, lbn + i)) {
+			if ((tbp = incore(vp, lbn + i)) != NULL) {
 				if (tbp->b_flags & B_BUSY)
 					break;
 

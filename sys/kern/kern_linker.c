@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_linker.c,v 1.22 1999/01/23 03:45:22 peter Exp $
+ *	$Id: kern_linker.c,v 1.23 1999/01/25 08:42:24 dfr Exp $
  */
 
 #include "opt_ddb.h"
@@ -394,7 +394,7 @@ linker_file_unload(linker_file_t file)
 	    /*
 	     * Give the module a chance to veto the unload.
 	     */
-	    if (error = module_unload(mod)) {
+	    if ((error = module_unload(mod)) != 0) {
 		KLD_DPF(FILE, ("linker_file_unload: module %x vetoes unload\n",
 			       mod));
 		lockmgr(&lock, LK_RELEASE, 0, curproc);
@@ -639,11 +639,11 @@ kldload(struct proc* p, struct kldload_args* uap)
     if (securelevel > 0)
 	return EPERM;
 
-    if (error = suser(p->p_ucred, &p->p_acflag))
+    if ((error = suser(p->p_ucred, &p->p_acflag)) != 0)
 	return error;
 
     filename = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
-    if (error = copyinstr(SCARG(uap, file), filename, MAXPATHLEN, NULL))
+    if ((error = copyinstr(SCARG(uap, file), filename, MAXPATHLEN, NULL)) != 0)
 	goto out;
 
     /* Can't load more than one module with the same name */
@@ -655,7 +655,7 @@ kldload(struct proc* p, struct kldload_args* uap)
 	goto out;
     }
 
-    if (error = linker_load_file(filename, &lf))
+    if ((error = linker_load_file(filename, &lf)) != 0)
 	goto out;
 
     lf->userrefs++;
@@ -676,7 +676,7 @@ kldunload(struct proc* p, struct kldunload_args* uap)
     if (securelevel > 0)
 	return EPERM;
 
-    if (error = suser(p->p_ucred, &p->p_acflag))
+    if ((error = suser(p->p_ucred, &p->p_acflag)) != 0)
 	return error;
 
     lf = linker_find_file_by_id(SCARG(uap, fileid));
@@ -708,7 +708,7 @@ kldfind(struct proc* p, struct kldfind_args* uap)
     p->p_retval[0] = -1;
 
     filename = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
-    if (error = copyinstr(SCARG(uap, file), filename, MAXPATHLEN, NULL))
+    if ((error = copyinstr(SCARG(uap, file), filename, MAXPATHLEN, NULL)) != 0)
 	goto out;
 
     modulename = rindex(filename, '/');
@@ -773,7 +773,7 @@ kldstat(struct proc* p, struct kldstat_args* uap)
     /*
      * Check the version of the user's structure.
      */
-    if (error = copyin(&stat->version, &version, sizeof(version)))
+    if ((error = copyin(&stat->version, &version, sizeof(version))) != 0)
 	goto out;
     if (version != sizeof(struct kld_file_stat)) {
 	error = EINVAL;
@@ -783,15 +783,15 @@ kldstat(struct proc* p, struct kldstat_args* uap)
     namelen = strlen(lf->filename) + 1;
     if (namelen > MAXPATHLEN)
 	namelen = MAXPATHLEN;
-    if (error = copyout(lf->filename, &stat->name[0], namelen))
+    if ((error = copyout(lf->filename, &stat->name[0], namelen)) != 0)
 	goto out;
-    if (error = copyout(&lf->refs, &stat->refs, sizeof(int)))
+    if ((error = copyout(&lf->refs, &stat->refs, sizeof(int))) != 0)
 	goto out;
-    if (error = copyout(&lf->id, &stat->id, sizeof(int)))
+    if ((error = copyout(&lf->id, &stat->id, sizeof(int))) != 0)
 	goto out;
-    if (error = copyout(&lf->address, &stat->address, sizeof(caddr_t)))
+    if ((error = copyout(&lf->address, &stat->address, sizeof(caddr_t))) != 0)
 	goto out;
-    if (error = copyout(&lf->size, &stat->size, sizeof(size_t)))
+    if ((error = copyout(&lf->size, &stat->size, sizeof(size_t))) != 0)
 	goto out;
 
     p->p_retval[0] = 0;
@@ -828,7 +828,7 @@ kldsym(struct proc *p, struct kldsym_args *uap)
     struct kld_sym_lookup lookup;
     int error = 0;
 
-    if (error = copyin(SCARG(uap, data), &lookup, sizeof(lookup)))
+    if ((error = copyin(SCARG(uap, data), &lookup, sizeof(lookup))) != 0)
 	goto out;
     if (lookup.version != sizeof(lookup) || SCARG(uap, cmd) != KLDSYM_LOOKUP) {
 	error = EINVAL;
@@ -836,7 +836,7 @@ kldsym(struct proc *p, struct kldsym_args *uap)
     }
 
     symstr = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
-    if (error = copyinstr(lookup.symname, symstr, MAXPATHLEN, NULL))
+    if ((error = copyinstr(lookup.symname, symstr, MAXPATHLEN, NULL)) != 0)
 	goto out;
 
     if (SCARG(uap, fileid) != 0) {

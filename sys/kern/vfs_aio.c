@@ -13,7 +13,7 @@
  * bad that happens because of using this software isn't the responsibility
  * of the author.  This software is distributed AS-IS.
  *
- * $Id: vfs_aio.c,v 1.36 1998/12/15 17:38:33 des Exp $
+ * $Id: vfs_aio.c,v 1.37 1999/01/21 08:29:05 dillon Exp $
  */
 
 /*
@@ -720,7 +720,7 @@ aio_daemon(void *uproc)
 		/*
 		 * Check for jobs
 		 */
-		while ( aiocbe = aio_selectjob(aiop)) {
+		while ((aiocbe = aio_selectjob(aiop)) != NULL) {
 			struct proc *userp;
 			struct aiocb *cb;
 			struct kaioinfo *ki;
@@ -925,7 +925,7 @@ aio_newproc()
 	rfa.flags = RFPROC | RFCFDG;
 
 	p = curproc;
-	if (error = rfork(p, &rfa))
+	if ((error = rfork(p, &rfa)) != 0)
 		return error;
 
 	np = pfind(p->p_retval[0]);
@@ -1193,7 +1193,7 @@ _aio_aqueue(struct proc *p, struct aiocb *job, struct aio_liojob *lj, int type)
 	struct aioproclist *aiop;
 	struct kaioinfo *ki;
 
-	if (aiocbe = TAILQ_FIRST(&aio_freejobs)) {
+	if ((aiocbe = TAILQ_FIRST(&aio_freejobs)) != NULL) {
 		TAILQ_REMOVE(&aio_freejobs, aiocbe, list);
 	} else {
 		aiocbe = zalloc (aiocb_zone);
@@ -1338,7 +1338,7 @@ _aio_aqueue(struct proc *p, struct aiocb *job, struct aio_liojob *lj, int type)
 	 * correct thing to do.
 	 */
 retryproc:
-	if (aiop = TAILQ_FIRST(&aio_freeproc)) {
+	if ((aiop = TAILQ_FIRST(&aio_freeproc)) != NULL) {
 		TAILQ_REMOVE(&aio_freeproc, aiop, list);
 		TAILQ_INSERT_TAIL(&aio_activeproc, aiop, list);
 		aiop->aioprocflags &= ~AIOP_FREE;
@@ -1471,7 +1471,7 @@ aio_suspend(struct proc *p, struct aio_suspend_args *uap)
 		/*
 		 * Get timespec struct
 		 */
-		if (error = copyin((caddr_t) uap->timeout, (caddr_t) &ts, sizeof ts)) {
+		if ((error = copyin((caddr_t) uap->timeout, (caddr_t) &ts, sizeof ts)) != 0) {
 			return error;
 		}
 
@@ -1665,7 +1665,7 @@ aio_read(struct proc *p, struct aio_read_args *uap)
 	/*
 	 * Get control block
 	 */
-	if (error = copyin((caddr_t) uap->aiocbp, (caddr_t) &iocb, sizeof iocb))
+	if ((error = copyin((caddr_t) uap->aiocbp, (caddr_t) &iocb, sizeof iocb)) != 0)
 		return error;
 
 	/*
@@ -1738,7 +1738,7 @@ aio_write(struct proc *p, struct aio_write_args *uap)
 		return aio_aqueue(p, (struct aiocb *) uap->aiocbp, LIO_WRITE);
 	}
 
-	if (error = copyin((caddr_t) uap->aiocbp, (caddr_t) &iocb, sizeof iocb))
+	if ((error = copyin((caddr_t) uap->aiocbp, (caddr_t) &iocb, sizeof iocb)) != 0)
 		return error;
 
 	/*

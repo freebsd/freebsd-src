@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket.c	8.3 (Berkeley) 4/15/94
- *	$Id: uipc_socket.c,v 1.51 1999/01/20 17:45:22 fenner Exp $
+ *	$Id: uipc_socket.c,v 1.52 1999/01/25 16:58:52 fenner Exp $
  */
 
 #include <sys/param.h>
@@ -415,7 +415,7 @@ sosend(so, addr, uio, top, control, flags, p)
 	 * Also check to make sure that MSG_EOR isn't used on SOCK_STREAM
 	 * type sockets since that's an error.
 	 */
-	if (resid < 0 || so->so_type == SOCK_STREAM && (flags & MSG_EOR)) {
+	if (resid < 0 || (so->so_type == SOCK_STREAM && (flags & MSG_EOR))) {
 		error = EINVAL;
 		goto out;
 	}

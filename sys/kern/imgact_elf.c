@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_elf.c,v 1.44 1998/12/19 02:55:33 julian Exp $
+ *	$Id: imgact_elf.c,v 1.45 1999/01/26 02:38:10 julian Exp $
  */
 
 #include "opt_rlimit.h"
@@ -279,8 +279,8 @@ elf_load_section(struct proc *p, struct vmspace *vmspace, struct vnode *vp, vm_o
 static int
 elf_load_file(struct proc *p, char *file, u_long *addr, u_long *entry)
 {
-	Elf_Ehdr *hdr = NULL;
-	Elf_Phdr *phdr = NULL;
+	const Elf_Ehdr *hdr = NULL;
+	const Elf_Phdr *phdr = NULL;
 	struct nameidata nd;
 	struct vmspace *vmspace = p->p_vmspace;
 	struct vattr attr;
@@ -308,7 +308,7 @@ elf_load_file(struct proc *p, char *file, u_long *addr, u_long *entry)
 
         NDINIT(&nd, LOOKUP, LOCKLEAF|FOLLOW, UIO_SYSSPACE, file, p);   
 			 
-	if (error = namei(&nd)) {
+	if ((error = namei(&nd)) != 0) {
 		nd.ni_vp = NULL;
 		goto fail;
 	}
@@ -329,8 +329,8 @@ elf_load_file(struct proc *p, char *file, u_long *addr, u_long *entry)
 	if (error)
                 goto fail;
 
-	hdr = (Elf_Ehdr *)imgp->image_header;
-	if (error = elf_check_header(hdr, ET_DYN))
+	hdr = (const Elf_Ehdr *)imgp->image_header;
+	if ((error = elf_check_header(hdr, ET_DYN)) != 0)
 		goto fail;
 
 	/* Only support headers that fit within first page for now */
@@ -340,7 +340,7 @@ elf_load_file(struct proc *p, char *file, u_long *addr, u_long *entry)
 		goto fail;
 	}
 
-	phdr = (Elf_Phdr *)(imgp->image_header + hdr->e_phoff);
+	phdr = (const Elf_Phdr *)(imgp->image_header + hdr->e_phoff);
 
 	for (i = 0; i < hdr->e_phnum; i++) {
 		if (phdr[i].p_type == PT_LOAD) {	/* Loadable segment */
@@ -352,12 +352,12 @@ elf_load_file(struct proc *p, char *file, u_long *addr, u_long *entry)
 			if (phdr[i].p_flags & PF_R)
   				prot |= VM_PROT_READ;
 
-			if (error = elf_load_section(p, vmspace, nd.ni_vp,
+			if ((error = elf_load_section(p, vmspace, nd.ni_vp,
   						     phdr[i].p_offset,
   						     (caddr_t)phdr[i].p_vaddr +
 							(*addr),
   						     phdr[i].p_memsz,
-  						     phdr[i].p_filesz, prot)) 
+  						     phdr[i].p_filesz, prot)) != 0)
 				goto fail;
 
 			/*
@@ -407,7 +407,7 @@ exec_elf_imgact(struct image_params *imgp)
 	int error, i;
 	const char *interp = NULL;
 	Elf_Brandinfo *brand_info;
-	char *brand;
+	const char *brand;
 	char path[MAXPATHLEN];
 
 	/*
@@ -431,7 +431,7 @@ exec_elf_imgact(struct image_params *imgp)
 	/*
 	 * From this point on, we may have resources that need to be freed.
 	 */
-	if (error = exec_extract_strings(imgp))
+	if ((error = exec_extract_strings(imgp)) != 0)
 		goto fail;
 
 	exec_new_vmspace(imgp);
@@ -450,12 +450,12 @@ exec_elf_imgact(struct image_params *imgp)
 			if (phdr[i].p_flags & PF_R)
   				prot |= VM_PROT_READ;
 
-			if (error = elf_load_section(imgp->proc,
+			if ((error = elf_load_section(imgp->proc,
 						     vmspace, imgp->vp,
   						     phdr[i].p_offset,
   						     (caddr_t)phdr[i].p_vaddr,
   						     phdr[i].p_memsz,
-  						     phdr[i].p_filesz, prot)) 
+  						     phdr[i].p_filesz, prot)) != 0)
   				goto fail;
 
 			/*
@@ -504,7 +504,7 @@ exec_elf_imgact(struct image_params *imgp)
 
 	/* If the executable has a brand, search for it in the brand list. */
 	brand_info = NULL;
-	brand = (char *)&hdr->e_ident[EI_BRAND];
+	brand = (const char *)&hdr->e_ident[EI_BRAND];
 	if (brand[0] != '\0') {
 		for (i = 0;  i < MAX_BRANDS;  i++) {
 			Elf_Brandinfo *bi = elf_brand_list[i];

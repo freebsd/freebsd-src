@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_malloc.c	8.3 (Berkeley) 1/4/94
- * $Id: kern_malloc.c,v 1.52 1999/01/21 08:29:04 dillon Exp $
+ * $Id: kern_malloc.c,v 1.53 1999/01/21 21:54:32 msmith Exp $
  */
 
 #include "opt_vm.h"
@@ -127,7 +127,7 @@ malloc(size, type, flags)
 #ifdef INVARIANTS
 	long *end, *lp;
 	int copysize;
-	char *savedtype;
+	const char *savedtype;
 #endif
 	register struct malloc_type *ksp = type;
 
@@ -219,7 +219,7 @@ malloc(size, type, flags)
 	kbp->kb_next = ((struct freelist *)va)->next;
 #ifdef INVARIANTS
 	freep = (struct freelist *)va;
-	savedtype = (char *) type->ks_shortdesc;
+	savedtype = (const char *) type->ks_shortdesc;
 #if BYTE_ORDER == BIG_ENDIAN
 	freep->type = (struct malloc_type *)WEIRD_ADDR >> 16;
 #endif

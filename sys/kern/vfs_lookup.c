@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_lookup.c	8.4 (Berkeley) 2/16/94
- * $Id: vfs_lookup.c,v 1.30 1999/01/08 17:31:16 eivind Exp $
+ * $Id: vfs_lookup.c,v 1.31 1999/01/10 01:58:26 eivind Exp $
  */
 
 #include "opt_ktrace.h"
@@ -414,7 +414,7 @@ unionlookup:
 	ndp->ni_dvp = dp;
 	ndp->ni_vp = NULL;
 	ASSERT_VOP_LOCKED(dp, "lookup");
-	if (error = VOP_LOOKUP(dp, &ndp->ni_vp, cnp)) {
+	if ((error = VOP_LOOKUP(dp, &ndp->ni_vp, cnp)) != 0) {
 		KASSERT(ndp->ni_vp == NULL, ("leaf should be empty"));
 #ifdef NAMEI_DIAGNOSTIC
 		printf("not found\n");

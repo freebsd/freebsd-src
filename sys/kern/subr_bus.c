@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_bus.c,v 1.13 1999/01/10 22:04:05 n_hibma Exp $
+ *	$Id: subr_bus.c,v 1.14 1999/01/16 17:44:09 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -265,7 +265,7 @@ devclass_delete_driver(devclass_t busclass, driver_t *driver)
 	if (dc->devices[i]) {
 	    dev = dc->devices[i];
 	    if (dev->driver == driver) {
-		if (error = device_detach(dev))
+		if ((error = device_detach(dev)) != 0)
 		    return error;
 		device_set_driver(dev, NULL);
 	    }
@@ -411,7 +411,7 @@ devclass_add_device(devclass_t dc, device_t dev)
 
     PDEBUG(("%s in devclass %s", DEVICENAME(dev), DEVCLANAME(dc)));
 
-    if (error = devclass_alloc_unit(dc, &dev->unit))
+    if ((error = devclass_alloc_unit(dc, &dev->unit)) != 0)
 	return error;
     dc->devices[dev->unit] = dev;
     dev->devclass = dc;
@@ -456,7 +456,7 @@ make_device(device_t parent, const char *name,
 	    return NULL;
 	}
 
-	if (error = devclass_alloc_unit(dc, &unit))
+	if ((error = devclass_alloc_unit(dc, &unit)) != 0)
 	    return NULL;
     } else
 	dc = NULL;
@@ -555,7 +555,7 @@ device_delete_child(device_t dev, device_t child)
 	    return error;
     }
 
-    if (error = device_detach(child))
+    if ((error = device_detach(child)) != 0)
 	return error;
     if (child->devclass)
 	devclass_delete_device(child->devclass, child);
@@ -883,7 +883,7 @@ device_detach(device_t dev)
     if (dev->state != DS_ATTACHED)
 	return 0;
 
-    if (error = DEVICE_DETACH(dev))
+    if ((error = DEVICE_DETACH(dev)) != 0)
 	    return error;
 
     if (!(dev->flags & DF_FIXEDCLASS))
@@ -1052,7 +1052,7 @@ bus_generic_detach(device_t dev)
 
     for (child = TAILQ_FIRST(&dev->children);
 	 child; child = TAILQ_NEXT(child, link))
-	if (error = device_detach(child))
+	if ((error = device_detach(child)) != 0)
 	    return error;
 
     return 0;

@@ -97,9 +97,9 @@ ext2_update(vp, waitfor)
 	if (vp->v_mount->mnt_flag & MNT_RDONLY)
 		return (0);
 	fs = ip->i_e2fs;
-	if (error = bread(ip->i_devvp,
+	if ((error = bread(ip->i_devvp,
 	    fsbtodb(fs, ino_to_fsba(fs, ip->i_number)),
-		(int)fs->s_blocksize, NOCRED, &bp)) {
+		(int)fs->s_blocksize, NOCRED, &bp)) != 0) {
 		brelse(bp);
 		return (error);
 	}
@@ -170,7 +170,7 @@ printf("ext2_truncate called %d to %d\n", VTOI(ovp)->i_number, length);
 		return (UFS_UPDATE(ovp, 0));
 	}
 #if QUOTA
-	if (error = getinoquota(oip))
+	if ((error = getinoquota(oip)) != 0)
 		return (error);
 #endif
 	fs = oip->i_e2fs;
@@ -188,8 +188,8 @@ printf("ext2_truncate called %d to %d\n", VTOI(ovp)->i_number, length);
 		if (flags & IO_SYNC)
 			aflags |= B_SYNC;
 		vnode_pager_setsize(ovp, length);
-		if (error = ext2_balloc(oip, lbn, offset + 1, cred, &bp,
-		    aflags))
+		if ((error = ext2_balloc(oip, lbn, offset + 1, cred, &bp,
+		    aflags)) != 0)
 			return (error);
 		oip->i_size = length;
 		if (aflags & IO_SYNC)
@@ -215,8 +215,8 @@ printf("ext2_truncate called %d to %d\n", VTOI(ovp)->i_number, length);
 		aflags = B_CLRBUF;
 		if (flags & IO_SYNC)
 			aflags |= B_SYNC;
-		if (error = ext2_balloc(oip, lbn, offset, cred, &bp,
-		    aflags))
+		if ((error = ext2_balloc(oip, lbn, offset, cred, &bp,
+		    aflags)) != 0)
 			return (error);
 		oip->i_size = length;
 		size = blksize(fs, oip, lbn);
@@ -451,8 +451,8 @@ ext2_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 		if (nb == 0)
 			continue;
 		if (level > SINGLE) {
-			if (error = ext2_indirtrunc(ip, nlbn,
-			    fsbtodb(fs, nb), (daddr_t)-1, level - 1, &blkcount))
+			if ((error = ext2_indirtrunc(ip, nlbn,
+			    fsbtodb(fs, nb), (daddr_t)-1, level - 1, &blkcount)) != 0)
 				allerror = error;
 			blocksreleased += blkcount;
 		}
@@ -467,8 +467,8 @@ ext2_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 		last = lastbn % factor;
 		nb = bap[i];
 		if (nb != 0) {
-			if (error = ext2_indirtrunc(ip, nlbn, fsbtodb(fs, nb),
-			    last, level - 1, &blkcount))
+			if ((error = ext2_indirtrunc(ip, nlbn, fsbtodb(fs, nb),
+			    last, level - 1, &blkcount)) != 0)
 				allerror = error;
 			blocksreleased += blkcount;
 		}

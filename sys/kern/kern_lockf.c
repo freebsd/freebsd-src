@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_lockf.c	8.3 (Berkeley) 1/6/94
- * $Id: kern_lockf.c,v 1.19 1998/07/29 17:38:14 bde Exp $
+ * $Id: kern_lockf.c,v 1.20 1998/11/10 09:16:29 peter Exp $
  */
 
 #include "opt_debug_lockf.h"
@@ -360,7 +360,7 @@ lf_setlock(lock)
 			    overlap->lf_type == F_WRLCK) {
 				lf_wakelock(overlap);
 			} else {
-				while (ltmp = overlap->lf_blkhd.tqh_first) {
+				while ((ltmp = overlap->lf_blkhd.tqh_first) != NULL) {
 					TAILQ_REMOVE(&overlap->lf_blkhd, ltmp,
 					    lf_block);
 					TAILQ_INSERT_TAIL(&lock->lf_blkhd,
@@ -717,7 +717,7 @@ lf_wakelock(listhead)
 {
 	register struct lockf *wakelock;
 
-	while (wakelock = listhead->lf_blkhd.tqh_first) {
+	while ((wakelock = listhead->lf_blkhd.tqh_first) != NULL) {
 		TAILQ_REMOVE(&listhead->lf_blkhd, wakelock, lf_block);
 		wakelock->lf_next = NOLOCKF;
 #ifdef LOCKF_DEBUG

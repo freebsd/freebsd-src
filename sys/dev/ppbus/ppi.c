@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppi.c,v 1.8 1998/12/07 21:58:16 archie Exp $
+ *	$Id: ppi.c,v 1.9 1999/01/10 12:04:55 nsouch Exp $
  *
  */
 #include "ppi.h"
@@ -449,7 +449,7 @@ ppiwrite(dev_t dev, struct uio *uio, int ioflag)
 #endif
 
 	/* negociation done, write bytes to master host */
-	while (len = min(uio->uio_resid, BUFSIZE)) {
+	while ((len = min(uio->uio_resid, BUFSIZE)) != 0) {
 		uiomove(ppi->ppi_buffer, len, uio);
 		if ((error = byte_peripheral_write(&ppi->ppi_dev,
 						ppi->ppi_buffer, len, &sent)))
