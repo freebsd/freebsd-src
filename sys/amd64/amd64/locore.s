@@ -83,6 +83,17 @@
 	.set	_APTD,_APTmap + (APTDPTDI * PAGE_SIZE)
 	.set	_APTDpde,_PTD + (APTDPTDI * PDESIZE)
 
+#ifdef SMP
+/*
+ * Define layout of per-cpu address space.
+ * This is "constructed" in locore.s on the BSP and in mp_machdep.c
+ * for each AP.  DO NOT REORDER THESE WITHOUT UPDATING THE REST!
+ */
+	.globl	_SMP_prvspace, _lapic
+	.set	_SMP_prvspace,(MPPTDI << PDRSHIFT)
+	.set	_lapic,_SMP_prvspace + (NPTEPG-1) * PAGE_SIZE
+#endif /* SMP */
+
 /*
  * Globals
  */
