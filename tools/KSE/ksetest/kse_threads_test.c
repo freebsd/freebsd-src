@@ -40,8 +40,10 @@
 #include <sysexits.h>
 #include <time.h>
 #include <unistd.h>
+#include "simplelock.h"
 
 #undef TRACE_UTS
+//#define TRACE_KSE
 
 #ifdef TRACE_UTS
 #define	UPFMT(fmt...)	pfmt(#fmt)
@@ -56,20 +58,36 @@
 #define MAIN_STACK_SIZE			(1024 * 1024)
 #define THREAD_STACK_SIZE		(32 * 1024)
 
-static struct kse_mailbox	uts_mb;
-static struct thread_mailbox	*run_queue;
+struct uts_runq {
+	struct thread_mailbox	*head;
+	struct simplelock	lock;
+};
+
+struct uts_data {
+	struct kse_mailbox	mb;
+	struct uts_runq		*runq;
+	struct thread_mailbox	*cur_thread;
+};
+
+static struct uts_runq runq1;
+static struct uts_data data1, data2;
+static struct uts_runq runq2;
+static struct uts_data data3, data4;
 static struct thread_mailbox	*aa;
 
 static int progress = 0;
 
-static void	init_uts(void);
-static void	enter_uts(void);
+static void	init_uts(struct uts_data *data, struct uts_runq *q);
+static void	start_uts(struct uts_data *data, int newgrp);
+static void	enter_uts(struct uts_data *);
 static void	pchar(char c);
 static void	pfmt(const char *fmt, ...);
 static void	pstr(const char *s);
-static void	runq_insert(struct thread_mailbox *tm);
-static struct thread_mailbox *runq_remove(void);
-static void	thread_start(const void *func, int arg);
+static void	runq_init(struct uts_runq *q);
+static void	runq_insert(struct uts_runq *q, struct thread_mailbox *tm);
+static struct thread_mailbox *runq_remove(struct uts_runq *q);
+static struct thread_mailbox *runq_remove_nolock(struct uts_runq *q);
+static void	thread_start(struct uts_data *data, const void *func, int arg);
 static void	uts(struct kse_mailbox *km);
 
 extern int uts_to_thread(struct thread_mailbox *tdp, struct thread_mailbox **curthreadp);
@@ -98,15 +116,22 @@ static void
 foof(int sig)
 {
 	pfmt("\n[%d]\n", sig);
-	thread_start(aaaa, '0' + progress++);
+//	thread_start(aaaa, '0' + progress++);
 }
 
+static void
+newkse(int v)
+{
+	start_uts(&data4, 0);
+}
+
+#if 0
 void
 spin(int arg)
 {
 	for (;;) enter_uts(); sched_yield();
 }
-
+#endif
 /*
  * Test Userland Thread Scheduler (UTS) suite for KSE.
  */
@@ -115,9 +140,23 @@ main(void)
 {
 	int i;
 
-	thread_start(spin, '.');
-	// thread_start(spin);
-	init_uts();
+	runq_init(&runq1);
+	init_uts(&data1, &runq1);
+	init_uts(&data2, &runq1);
+	thread_start(&data1, aaaa, '+');
+	thread_start(&data1, aaaa, '-');
+	start_uts(&data1, 0);
+	start_uts(&data2, 0);
+
+//	start second ksegrp
+	runq_init(&runq2);
+	init_uts(&data3, &runq2);
+	init_uts(&data4, &runq2);
+	thread_start(&data3, newkse, 0);
+	thread_start(&data3, aaaa, '*');
+	thread_start(&data3, aaaa, '.');
+	start_uts(&data3, 1);
+
 	for (i = 0;1;i++) {
 //		if (i < 1000)
 //			thread_start(aaaa, 'a' + (i % 26));
@@ -133,22 +172,22 @@ main(void)
  * Enter the UTS from a thread.
  */
 static void
-enter_uts(void)
+enter_uts(struct uts_data *data)
 {
 	struct thread_mailbox	*td;
 
 	/* XXX: We should atomically exchange these two. */
-	td = uts_mb.km_curthread;
-	uts_mb.km_curthread = NULL;
+	td = data->mb.km_curthread;
+	data->mb.km_curthread = NULL;
 
-	thread_to_uts(td, &uts_mb);
+	thread_to_uts(td, &data->mb);
 }
 
 /*
  * Initialise threading.
  */
 static void
-init_uts(void)
+init_uts(struct uts_data *data, struct uts_runq *q)
 {
 	struct thread_mailbox *tm;
 	int mib[2];
@@ -166,9 +205,12 @@ init_uts(void)
 	/* Find our stack. */
 	mib[0] = CTL_KERN;
 	mib[1] = KERN_USRSTACK;
+#if 0
 	len = sizeof(p);
 	if (sysctl(mib, 2, &p, &len, NULL, 0) == -1)
 		pstr("sysctl(CTL_KER.KERN_USRSTACK) failed.\n");
+#endif
+	p = (char *)malloc(MAIN_STACK_SIZE) + MAIN_STACK_SIZE;
 	pfmt("main() : 0x%x\n", tm);
 	pfmt("eip -> 0x%x\n", tm->tm_context.uc_mcontext.mc_eip);
 	tm->tm_context.uc_stack.ss_sp = p - MAIN_STACK_SIZE;
@@ -178,18 +220,25 @@ init_uts(void)
 	 * Create KSE mailbox.
 	 */
 	p = (char *)malloc(THREAD_STACK_SIZE);
-	bzero(&uts_mb, sizeof(struct kse_mailbox));
-	uts_mb.km_stack.ss_sp = p;
-	uts_mb.km_stack.ss_size = THREAD_STACK_SIZE;
-	uts_mb.km_func = (void *)uts;
+	bzero(&data->mb, sizeof(struct kse_mailbox));
+	data->mb.km_stack.ss_sp = p;
+	data->mb.km_stack.ss_size = THREAD_STACK_SIZE;
+	data->mb.km_func = (void *)uts;
+	data->mb.km_udata = data;
+	data->cur_thread = tm;
+	data->runq = q;
 	pfmt("uts() at : 0x%x\n", uts);
 	pfmt("uts stack at : 0x%x - 0x%x\n", p, p + THREAD_STACK_SIZE);
+}
 
+static void
+start_uts(struct uts_data *data, int newgrp)
+{
 	/*
 	 * Start KSE scheduling.
 	 */
-	pfmt("kse_new() -> %d\n", kse_new(&uts_mb, 0));
-	uts_mb.km_curthread = tm;
+	pfmt("kse_new() -> %d\n", kse_new(&data->mb, newgrp));
+	data->mb.km_curthread = data->cur_thread;
 
 	/*
 	 * Arrange to deliver signals via KSE.
@@ -272,32 +321,51 @@ pstr(const char *s)
 	write(STDOUT_FILENO, s, strlen(s));
 }
 
+static void
+runq_init(struct uts_runq *q)
+{
+	q->head = NULL;
+	simplelock_init(&q->lock);
+}
+
 /*
  * Insert a thread into the run queue.
  */
 static void
-runq_insert(struct thread_mailbox *tm)
+runq_insert(struct uts_runq *q, struct thread_mailbox *tm)
 {
-
-	tm->tm_next = run_queue;
-	run_queue = tm;
+	simplelock_lock(&q->lock);
+	tm->tm_next = q->head;
+	q->head = tm;
+	simplelock_unlock(&q->lock);
 }
 
 /*
  * Select and remove a thread from the run queue.
  */
 static struct thread_mailbox *
-runq_remove(void)
+runq_remove(struct uts_runq *q)
+{
+	struct thread_mailbox *tm;
+
+	simplelock_lock(&q->lock);
+	tm = runq_remove_nolock(q);
+	simplelock_unlock(&q->lock);
+	return tm;
+}
+
+static struct thread_mailbox *
+runq_remove_nolock(struct uts_runq *q)
 {
 	struct thread_mailbox *p, *p1;
-
-	if (run_queue == NULL)
+	
+	if (q->head == NULL)
 		return (NULL);
 	p1 = NULL;
-	for (p = run_queue; p->tm_next != NULL; p = p->tm_next)
+	for (p = q->head; p->tm_next != NULL; p = p->tm_next)
 		p1 = p;
 	if (p1 == NULL)
-		run_queue = NULL;
+		q->head = NULL;
 	else
 		p1->tm_next = NULL;
 	return (p);
@@ -309,7 +377,9 @@ runq_remove(void)
 static void
 uts(struct kse_mailbox *km)
 {
+	static struct uts_data *prev_data;
 	struct thread_mailbox *tm, *p;
+	struct uts_data *data;
 	int ret, i;
 
 	UPSTR("\n--uts() start--\n");
@@ -319,24 +389,33 @@ uts(struct kse_mailbox *km)
 	 * Insert any processes back from being blocked
 	 * in the kernel into the run queue.
 	 */
+	data = km->km_udata;
 	p = km->km_completed;
-	uts_mb.km_completed = NULL;
+	km->km_completed = NULL;
 	UPFMT("km_completed -> 0x%x", p);
+#ifdef TRACE_KSE
+	if (data != prev_data) {
+		prev_data = data;
+		pfmt("uts data: 0x%x\n", data);
+	}
+#endif
 	while ((tm = p) != NULL) {
 		p = tm->tm_next;
 		UPFMT(" 0x%x", p);
-		runq_insert(tm);
+		runq_insert(data->runq, tm);
 	}
 	UPCHAR('\n');
 
+	simplelock_lock(&data->runq->lock);
 	/*
 	 * Process any signals we've recieved (but only if we have
 	 * somewhere to deliver them to).
 	 */
-	if ((run_queue != NULL) && SIGNOTEMPTY(km->km_sigscaught)) {
+	if ((data->runq->head != NULL) && SIGNOTEMPTY(km->km_sigscaught)) {
 		for (i = 0;i < _SIG_MAXSIG;i++)
 			if (SIGISMEMBER(km->km_sigscaught, i)) {
-				signalcontext(&run_queue->tm_context, i, foof);
+				signalcontext(&data->runq->head->tm_context,
+				 i, foof);
 				break;
 			}
 		bzero(&km->km_sigscaught, sizeof(sigset_t));
@@ -345,7 +424,8 @@ uts(struct kse_mailbox *km)
 	/*
 	 * Pull a thread off the run queue.
 	 */
-	p = runq_remove();
+	p = runq_remove_nolock(data->runq);
+	simplelock_unlock(&data->runq->lock);
 #if 0
 	if ((p == aa) && (progress > 0)) {
 		--progress;
@@ -372,19 +452,31 @@ uts(struct kse_mailbox *km)
 /*
  * Start a thread.
  */
-static void
-thread_start(const void *func, int arg)
+static struct thread_mailbox *
+thread_create(const void *func, int arg)
 {
 	struct thread_mailbox *tm;
 	char *p;
 
 	aa = tm = (struct thread_mailbox *)calloc(1, sizeof(struct thread_mailbox));
-	pfmt("thread_start() : 0x%x %x\n", tm, &aa->tm_context);
 	getcontext(&tm->tm_context);
 	p = (char *)malloc(THREAD_STACK_SIZE);
 	tm->tm_context.uc_stack.ss_sp = p;
 	tm->tm_context.uc_stack.ss_size = THREAD_STACK_SIZE;
 	makecontext(&tm->tm_context, func, 2, arg);
 	// setcontext(&tm->tm_context);
-	runq_insert(tm);
+	return tm;
+}
+
+static void
+thread_start(struct uts_data *data, const void *func, int arg)
+{
+	struct thread_mailbox *tm;
+	struct thread_mailbox *tm2;
+
+	tm = thread_create(func, arg);
+	tm2 = thread_create(enter_uts, (int)data);
+	tm->tm_context.uc_link = &tm2->tm_context;
+	runq_insert(data->runq, tm);
+	pfmt("thread_start() : 0x%x %x\n", tm, &tm->tm_context);
 }
