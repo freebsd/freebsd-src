@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.121 1999/06/16 12:26:40 billf Exp $
+**  $Id: pcisupport.c,v 1.122 1999/06/24 04:06:26 jlemon Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -75,19 +75,6 @@ struct condmsg {
     const char		*text;
 };
 
-/*
- * XXX Both fixbushigh_orion() and fixbushigh_i1225() are bogus in that way,
- * that they store the highest bus number to scan in this device's config 
- * data, though it is about PCI buses attached to the CPU independently!
- * The same goes for fixbushigh_450nx.
- */
-
-static void
-fixbushigh_orion(device_t dev)
-{
-	pci_set_secondarybus(dev, pci_read_config(dev, 0x4a, 1));
-	pci_set_subordinatebus(dev, pci_read_config(dev, 0x4b, 1));
-}
 
 static void
 fixbushigh_i1225(device_t dev)
@@ -98,81 +85,6 @@ fixbushigh_i1225(device_t dev)
 	if (sublementarybus != 0xff) {
 		pci_set_secondarybus(dev, sublementarybus + 1);
 		pci_set_subordinatebus(dev, sublementarybus + 1);
-	}
-}
-
-
-/*
- * This reads the PCI config space for the 82451NX MIOC in the 450NX
- * chipset to determine the PCI bus configuration.
- *
- * Assuming the BIOS has set up the MIOC properly, this will correctly
- * report the number of PCI busses in the system.
- *
- * A small problem is that the Host to PCI bridge control is in the MIOC,
- * while the host-pci bridges are separate PCI devices.  So it really
- * isn't easily possible to set up the subordinatebus mappings as the
- * 82454NX PCI expander bridges are probed, although that makes the
- * most sense.
- */
-static void
-fixbushigh_450nx(device_t dev)
-{
-	int subordinatebus;
-	unsigned long devmap;
-
-	/*
-	 * Read the DEVMAP field, so we know which fields to check.
-	 * If the Host-PCI bridge isn't marked as present by the BIOS,
-	 * we have to assume it doesn't exist.
-	 * If this doesn't find all the PCI busses, complain to the
-	 * BIOS vendor.  There is nothing more we can do.
-	 */
-	devmap = pci_read_config(dev, 0xd6, 2) & 0x3c;
-	if (!devmap)
-		panic("450NX MIOC: No host to PCI bridges marked present.\n");
-	/*
-	 * Since the buses are configured in order, we just have to
-	 * find the highest bus, and use those numbers.
-	 */
-	if (devmap & 0x20) {			/* B1 */
-		subordinatebus = pci_read_config(dev, 0xd5, 1);
-	} else if (devmap & 0x10) {		/* A1 */
-		subordinatebus = pci_read_config(dev, 0xd4, 1);
-	} else if (devmap & 0x8) {		/* B0 */
-		subordinatebus = pci_read_config(dev, 0xd2, 1);
-	} else /* if (devmap & 0x4) */ {	/* A0 */
-		subordinatebus = pci_read_config(dev, 0xd1, 1);
-	}
-	if (subordinatebus == 255) {
-		printf("fixbushigh_450nx: bogus highest PCI bus %d",
-		       subordinatebus);
-#ifdef NBUS
-		subordinatebus = NBUS - 2;
-#else
-		subordinatebus = 10;
-#endif
-		printf(", reduced to %d\n", subordinatebus);
-	}
-		
-	if (bootverbose)
-		printf("fixbushigh_450nx: subordinatebus is %d\n",
-			subordinatebus);
-
-	pci_set_secondarybus(dev, subordinatebus);
-	pci_set_subordinatebus(dev, subordinatebus);
-}
-
-static void
-fixbushigh_Ross(device_t dev)
-{
-	int secondarybus;
-
-	/* just guessing the secondary bus register number ... */
-	secondarybus = pci_read_config(dev, 0x45, 1);
-	if (secondarybus != 0 && secondarybus != 0xff) {
-		pci_set_secondarybus(dev, secondarybus);
-		pci_set_subordinatebus(dev, secondarybus);
 	}
 }
 
@@ -806,6 +718,8 @@ pcib_match(device_t dev)
 		return ("Intel 82443LX (440 LX) PCI-PCI (AGP) bridge");
 	case 0x71918086:
 		return ("Intel 82443BX (440 BX) PCI-PCI (AGP) bridge");
+	case 0x71A18086:
+		return ("Intel 82443GX (440 GX) PCI-PCI (AGP) bridge");
 	case 0x84cb8086:
 		return ("Intel 82454NX PCI Expander Bridge");
 	case 0x124b8086:
@@ -834,11 +748,6 @@ pcib_match(device_t dev)
 		return ("IBM 82351 PCI-PCI bridge");
 	case 0x00011011:
 		return ("DEC 21050 PCI-PCI bridge");
-
-	/* Ross (?) -- vendor 0x1166 */
-	case 0x00051166:
-		fixbushigh_Ross(dev);
-		return ("Ross (?) host to PCI bridge");
 	};
 
 	if (pci_get_class(dev) == PCIC_BRIDGE
@@ -1100,10 +1009,8 @@ chip_match(device_t dev)
  	case 0x71a28086:
  		return ("Intel 82443GX host to PCI bridge (AGP disabled)");
 	case 0x84c48086:
-		fixbushigh_orion(dev);
 		return ("Intel 82454KX/GX (Orion) host to PCI bridge");
 	case 0x84ca8086:
-		fixbushigh_450nx(dev);
 		return ("Intel 82451NX Memory and I/O controller");
 	case 0x04868086:
 		return ("Intel 82425EX PCI system controller");
@@ -1259,6 +1166,15 @@ static int chip_probe(device_t dev)
 	if (desc == NULL)
 		desc = ide_pci_match(dev);
 	if (desc) {
+		if (pci_get_class(dev) == PCIC_BRIDGE
+		    && pci_get_subclass(dev) == PCIS_BRIDGE_HOST) {
+			/*
+			 * Suppress printing this device since the nexus
+			 * has already described it.
+			 */
+			device_quiet(dev);
+		}
+
 		device_set_desc_copy(dev, desc);
 		return -100;	/* Low match priority */
 	}
