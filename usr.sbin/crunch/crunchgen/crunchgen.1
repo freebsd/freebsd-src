@@ -23,7 +23,7 @@
 .\"			   Computer Science Department
 .\"			   University of Maryland at College Park
 .\"
-.Dd June 14, 1994
+.Dd September 29, 1997
 .Dt CRUNCHGEN 1
 .Os BSD 4
 .Sh NAME
@@ -178,6 +178,16 @@ This is normally calculated by prepending the
 pathname to each file in the
 .Nm objs
 list.
+.It Nm special Ar progname Nm keep Ar symbol-name ...
+Add specified list of symbols to the keep list for program
+.Ar progname .
+An underscore is prepended to each symbol and it becomes the argument to a
+.Fl k
+option for the
+.Xr crunchide 1
+phase. This option is to be used as a last resort as its use can cause a
+symbol conflict, however in certain instances it may be the only way to
+have a symbol resolve.
 .El
 
 .Pp
