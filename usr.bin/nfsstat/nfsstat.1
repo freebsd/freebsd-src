@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     From: @(#)nfsstat.1	8.1 (Berkeley) 6/6/93
-.\"	$Id$
+.\"	$Id: nfsstat.1,v 1.6 1997/02/22 19:56:24 peter Exp $
 .\"
 .Dd June 6, 1993
 .Dt NFSSTAT 1
@@ -41,13 +41,14 @@
 .Tn NFS
 statistics
 .Sh SYNOPSIS
-.Nm nfsstat
+.Nm
 .Op Fl M Ar core
 .Op Fl N Ar system
 .Op Fl w Ar wait
 .Sh DESCRIPTION
-.Nm Nfsstat
-displays statistics kept about
+The
+.Nm
+command displays statistics kept about
 .Tn NFS
 client and server activity.
 .Pp
@@ -85,6 +86,6 @@ default memory file
 .Xr vmstat 8
 .Sh HISTORY
 The
-.Nm nfsstat
-command appears in
+.Nm
+command appeared in
 .Bx 4.4 .

@@ -33,6 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)logname.1	8.1 (Berkeley) 6/9/93
+.\"	$Id$
 .\"
 .Dd "June 9, 1993"
 .Dt LOGNAME 1
@@ -41,15 +42,15 @@
 .Nm logname
 .Nd display user's login name
 .Sh SYNOPSIS
-.Nm logname
+.Nm
 .Sh DESCRIPTION
 The
-.Nm logname
+.Nm
 utility writes the user's login name to standard output followed by
 a newline.
 .Pp
 The
-.Nm logname
+.Nm
 utility explicitly ignores the
 .Ev LOGNAME
 and
@@ -58,7 +59,7 @@ environment variables
 because the environment cannot be trusted.
 .Pp
 The
-.Nm logname
+.Nm
 utility exits 0 on success, and >0 if an error occurs.
 .Sh SEE ALSO
 .Xr who 1 ,
@@ -66,11 +67,11 @@ utility exits 0 on success, and >0 if an error occurs.
 .Xr getlogin 2
 .Sh STANDARDS
 The
-.Nm logname
+.Nm
 function is expected to conform to
 .St -p1003.2 .
 .Sh HISTORY
 The
 .Nm
-command appears in
+command appeared in
 .Bx 4.4 .
