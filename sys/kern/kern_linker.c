@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_linker.c,v 1.30 1999/04/27 11:15:57 phk Exp $
+ *	$Id: kern_linker.c,v 1.31 1999/04/28 01:04:28 luoqi Exp $
  */
 
 #include "opt_ddb.h"
@@ -96,7 +96,8 @@ linker_file_sysinit(linker_file_t lf)
     struct sysinit** sipp;
     struct sysinit** xipp;
     struct sysinit* save;
-    moduledata_t *moddata;
+    const moduledata_t *moddata;
+    int error;
 
     KLD_DPF(FILE, ("linker_file_sysinit: calling SYSINITs for %s\n",
 		   lf->filename));
@@ -112,7 +113,10 @@ linker_file_sysinit(linker_file_t lf)
     for (sipp = (struct sysinit **)sysinits->ls_items; *sipp; sipp++) {
 	if ((*sipp)->func == module_register_init) {
 	    moddata = (*sipp)->udata;
-	    moddata->_file = lf;
+	    error = module_register(moddata, lf);
+	    if (error)
+		printf("linker_file_sysinit \"%s\" failed to register! %d\n",
+		    lf->filename, error);
 	}
     }
 	    
@@ -925,7 +929,7 @@ linker_preload(void* arg)
     int			error;
     struct linker_set	*sysinits;
     struct sysinit	**sipp;
-    moduledata_t	*moddata;
+    const moduledata_t	*moddata;
 
     modptr = NULL;
     while ((modptr = preload_search_next_name(modptr)) != NULL) {
@@ -967,7 +971,10 @@ linker_preload(void* arg)
 		for (sipp = (struct sysinit **)sysinits->ls_items; *sipp; sipp++) {
 		    if ((*sipp)->func == module_register_init) {
 			moddata = (*sipp)->udata;
-			moddata->_file = lf;
+			error = module_register(moddata, lf);
+			if (error)
+			    printf("Preloaded %s \"%s\" failed to register: %d\n",
+				modtype, modname, error);
 		    }
 		}
 		sysinit_add((struct sysinit **)sysinits->ls_items);
