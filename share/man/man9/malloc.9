@@ -65,8 +65,9 @@ function allocates uninitialized memory in kernel address space for an
 object whose size is specified by
 .Fa size .
 .Pp
+The
 .Fn free
-releases memory at address
+function releases memory at address
 .Fa addr
 that was previously allocated by
 .Fn malloc
@@ -156,11 +157,12 @@ rather than block.
 Note that
 .Dv M_NOWAIT
 is required when running in an interrupt context.
+The
 .Fn malloc ,
 .Fn realloc ,
 and
 .Fn reallocf
-can only return
+functions can only return
 .Dv NULL
 if
 .Dv M_NOWAIT
@@ -205,12 +207,13 @@ MALLOC(buf, struct foo_buf *, sizeof *buf, M_FOOBUF, M_NOWAIT);
 
 .Ed
 .Sh RETURN VALUES
+The
 .Fn malloc ,
 .Fn realloc ,
 and
 .Fn reallocf
-return a kernel virtual address that is suitably aligned for storage of
-any type of object, or
+functions return a kernel virtual address that is suitably aligned for
+storage of any type of object, or
 .Dv NULL
 if the request could not be satisfied (implying that
 .Dv M_NOWAIT
