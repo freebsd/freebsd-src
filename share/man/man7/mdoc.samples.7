@@ -157,7 +157,7 @@ outlined as follows:
 .Bl -tag -width flag -compact -offset indent
 .It "AT&T Macro" .
 .It "BSD Macro" .
-.It "FreeBSD Macro" .
+.It "FreeBSD/NetBSD/OpenBSD Macro" .
 .It "UNIX Macro" .
 .It "Enclosure/Quoting Macros"
 .Bl -tag -width flag -compact -offset indent
@@ -1481,22 +1481,40 @@ callable. It accepts at most two arguments.
 The
 .Ql \&.Bx
 macro is parsed and is callable.
-.Ss FreeBSD Macro
+.Ss FreeBSD/NetBSD/OpenBSD Macros
 .Bd -literal -offset indent -compact
-Usage: .Fx Version.release ... \*(Pu
+Usage: .Fx [ Version.release ] ... \*(Pu
 .Ed
 .Bl -tag -width ".Fx 2.2 ) ," -compact -offset 14n
 .It Li ".Fx 2.2 ."
 .Fx 2.2 .
 .El
 .Pp
+.Bd -literal -offset indent -compact
+Usage: .Nx [ Version.release ] ... \*(Pu
+.Ed
+.Bl -tag -width ".Nx 1.4 ) ," -compact -offset 14n
+.It Li ".Nx 1.4 ."
+.Nx 1.4 .
+.El
+.Pp
+.Bd -literal -offset indent -compact
+Usage: .Ox [ Version.release ] ... \*(Pu
+.Ed
+.Bl -tag -width ".Ox 2.5 ) ," -compact -offset 14n
+.It Li ".Ox 2.5 ."
+.Ox 2.5 .
+.El
+.Pp
 The
-.Ql \&.Fx
-macro is
+.Ql \&.Fx ,
+.Ql \&.Nx ,
+.Ql \&.Ox
+macros are
 .Em not
 parsed and
 .Em not
-callable. It accepts at most two arguments.
+callable. They accept at most two arguments.
 .Ss UNIX Macro
 .Dl Usage: .Ux ... \*(Pu
 .Bl -tag -width ".Ux 4.3 ) ," -compact -offset 14n
