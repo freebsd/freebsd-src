@@ -43,3 +43,5 @@ lukemftpd.8: ftpd.8
 CLEANFILES+= lukemftpd.8
 
 .include <bsd.prog.mk>
+
+${OBJS}: ${.CURDIR}/nbsd2fbsd.h
