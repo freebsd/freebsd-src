@@ -148,6 +148,9 @@ The
 option specifies that the Kerberos authentication server should be
 used to authenticate and map client credentials.
 This option requires that the kernel be built with the NFSKERB option.
+The use of this option will prevent the kernel from compiling
+unless calls to the appropriate Kerberos encryption routines
+are provided in the NFS source.
 .Pp
 The
 .Fl ro
