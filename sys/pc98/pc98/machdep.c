@@ -1860,6 +1860,9 @@ init386(first)
 	if (bootinfo.bi_envp)
 		kern_envp = (caddr_t)bootinfo.bi_envp + KERNBASE;
 
+	/* Init basic tunables, hz etc */
+	init_param();
+
 	/*
 	 * make gdt memory segments, the code segment goes up to end of the
 	 * page with etext in it, the data segment goes to the end of

@@ -391,6 +391,9 @@ ia64_init()
 	preload_metadata = (caddr_t)bootinfo.modptr;
 	kern_envp = bootinfo.envp;
 
+	/* Init basic tunables, including hz */
+	init_param();
+
 	p = getenv("kernelname");
 	if (p)
 		strncpy(kernelname, p, sizeof(kernelname) - 1);
