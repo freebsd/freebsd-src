@@ -80,8 +80,8 @@ extern	int nkpt;
 /*
  * CPU topology map datastructures for HTT.
  */
-struct cpu_group mp_groups[MAXCPU];
-struct cpu_top mp_top;
+static struct cpu_group mp_groups[MAXCPU];
+static struct cpu_top mp_top;
 
 /* AP uses this during bootstrap.  Do not staticize.  */
 char *bootSTK;
