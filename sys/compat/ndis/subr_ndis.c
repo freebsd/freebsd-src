@@ -334,7 +334,7 @@ ndis_findwrap(func)
 {
 	image_patch_table	*patch;
 
-	patch = ntoskrnl_functbl;
+	patch = ndis_functbl;
 	while (patch->ipt_func != NULL) {
 		if ((funcptr)patch->ipt_func == func)
 			return((funcptr)patch->ipt_wrap);
