@@ -1,3 +1,4 @@
+#ifdef NO_GEOM
 /*-
  * Copyright (c) 1994 Bruce D. Evans.
  * All rights reserved.
@@ -936,3 +937,4 @@ set_ds_wlabel(ssp, slice, wlabel)
 	else if (slice == ssp->dss_first_bsd_slice)
 		ssp->dss_slices[COMPATIBILITY_SLICE].ds_wlabel = wlabel;
 }
+#endif
