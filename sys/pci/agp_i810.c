@@ -189,7 +189,7 @@ agp_i810_probe(device_t dev)
 			if ((gcc1 & AGP_I830_GCC1_DEV2) == AGP_I830_GCC1_DEV2_DISABLED) {
 				if (bootverbose)
 					printf("I830: disabled, not probing\n");
-					return ENXIO;
+				return ENXIO;
 			}
 		}
 
