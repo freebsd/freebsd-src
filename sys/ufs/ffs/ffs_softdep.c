@@ -53,8 +53,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)ffs_softdep.c	9.23 (McKusick) 2/20/98
- *	$Id: ffs_softdep.c,v 1.10 1998/06/11 17:44:32 julian Exp $
+ *	from: @(#)ffs_softdep.c	9.27 (McKusick) 6/12/98
+ *	$Id: ffs_softdep.c,v 1.11 1998/06/12 20:48:30 julian Exp $
  */
 
 /*
