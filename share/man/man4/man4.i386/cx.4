@@ -1,5 +1,5 @@
 .\"
-.\"	$Id: cx.4,v 1.4 1997/06/23 04:02:37 steve Exp $
+.\"	$Id: cx.4,v 1.5 1999/08/14 20:51:13 chris Exp $
 .\"
 .Dd December 12, 1994
 .Dt CX 4 i386
@@ -92,7 +92,7 @@ The asynchronous channel device files have the names:
 Here # is the channel number in hexadecimal form, 0-9-a-f.
 .Pp
 The driver fulfills the following standard ioctl requests (see 
-.Xr ioctl 2 ):
+.Xr ioctl 2 ) :
 .Pp
 .Bl -tag -width TIOCXXXXX -compact
 .It Dv TIOCSBRK
@@ -263,8 +263,8 @@ The software protocol options.
 .It Pa /dev/cx??
 Asynchronous channels.
 .It Pa /dev/cronyx
-.El
 The special device file for the channel options management.
+.El
 .Pp
 The sources for the driver reside in:
 .Pp
