@@ -1348,7 +1348,9 @@ zalloc_start:
 			    ("uma_zalloc: Bucket pointer mangled."));
 			cache->uc_allocs++;
 #ifdef INVARIANTS
+			ZONE_LOCK(zone);
 			uma_dbg_alloc(zone, NULL, item);
+			ZONE_UNLOCK(zone);
 #endif
 			CPU_UNLOCK(zone, cpu);
 			if (zone->uz_ctor)
@@ -1698,10 +1700,12 @@ zfree_start:
 			    ("uma_zfree: Freeing to non free bucket index."));
 			bucket->ub_bucket[bucket->ub_ptr] = item;
 #ifdef INVARIANTS
+			ZONE_LOCK(zone);
 			if (zone->uz_flags & UMA_ZFLAG_MALLOC)
 				uma_dbg_free(zone, udata, item);
 			else
 				uma_dbg_free(zone, NULL, item);
+			ZONE_UNLOCK(zone);
 #endif
 			CPU_UNLOCK(zone, cpu);
 			return;

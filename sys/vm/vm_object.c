@@ -225,7 +225,7 @@ _vm_object_allocate(objtype_t type, vm_pindex_t size, vm_object_t object)
 		object->hash_rand = exp - 129;
 	} while (!atomic_cmpset_int(&object_hash_rand, exp, object->hash_rand));
 
-	object->generation++;		/* atomicity needed? XXX */
+	atomic_add_int(&object->generation, 1);
 
 	mtx_lock(&vm_object_list_mtx);
 	TAILQ_INSERT_TAIL(&vm_object_list, object, object_list);
