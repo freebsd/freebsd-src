@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.92 1994/11/15 14:12:55 bde Exp $
+ *	$Id: machdep.c,v 1.93 1994/11/16 00:41:06 davidg Exp $
  */
 
 #include "npx.h"
@@ -94,6 +94,7 @@ extern vm_offset_t avail_start, avail_end;
 #include <machine/sysarch.h>
 #include <machine/cons.h>
 #include <machine/devconf.h>
+#include <machine/bootinfo.h>
 
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
@@ -143,7 +144,7 @@ int _udatasel, _ucodesel;
 /*
  * Machine-dependent startup code
  */
-int boothowto = 0, Maxmem = 0, badpages = 0, physmem = 0;
+int boothowto = 0, bootverbose = 0, Maxmem = 0, badpages = 0, physmem = 0;
 long dumplo;
 extern int bootdev;
 int biosmem;
@@ -172,6 +173,9 @@ cpu_startup()
 #ifdef BOUNCE_BUFFERS
 	vm_offset_t minaddr;
 #endif /* BOUNCE_BUFFERS */
+
+	if (boothowto & RB_VERBOSE)
+		bootverbose++;
 
 	/*
 	 * Initialize error message buffer (at end of core).
@@ -371,6 +375,12 @@ again:
 	 * Configure the system.
 	 */
 	configure();
+	if (bootverbose) {
+		printf("BIOS Geometries:",
+		for (i=0; i < N_BIOS_GEOM; i++)
+			printf(" %x:%x\n", i, bootinfo.bios_geom[i]);
+		printf(" %d accounted for\n",bootinfo.n_bios_used);
+	}
 }
 
 
