@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vfsops.c	8.7 (Berkeley) 3/5/94
- * $Id: union_vfsops.c,v 1.4 1994/09/21 03:47:13 wollman Exp $
+ * $Id: union_vfsops.c,v 1.5 1994/09/22 19:38:20 wollman Exp $
  */
 
 /*
@@ -127,7 +127,8 @@ union_mount(mp, path, data, ndp, p)
 	/*
 	 * Get argument
 	 */
-	if (error = copyin(data, (caddr_t)&args, sizeof(struct union_args)))
+	error = copyin(data, (caddr_t)&args, sizeof(struct union_args));
+	if (error)
 		goto bad;
 
 	lowerrootvp = mp->mnt_vnodecovered;
@@ -147,7 +148,8 @@ union_mount(mp, path, data, ndp, p)
 	       UIO_USERSPACE, args.target, p);
 	p->p_ucred = scred;
 
-	if (error = namei(ndp))
+	error = namei(ndp);
+	if (error)
 		goto bad;
 
 	upperrootvp = ndp->ni_vp;
@@ -317,13 +319,15 @@ union_unmount(mp, mntflags, p)
 		flags |= FORCECLOSE;
 	}
 
-	if (error = union_root(mp, &um_rootvp))
+	error = union_root(mp, &um_rootvp);
+	if (error)
 		return (error);
 	if (um_rootvp->v_usecount > 1) {
 		vput(um_rootvp);
 		return (EBUSY);
 	}
-	if (error = vflush(mp, um_rootvp, flags)) {
+	error = vflush(mp, um_rootvp, flags);
+	if (error) {
 		vput(um_rootvp);
 		return (error);
 	}

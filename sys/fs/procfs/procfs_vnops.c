@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vnops.c	8.6 (Berkeley) 2/7/94
  *
- *	$Id: procfs_vnops.c,v 1.5 1994/09/21 03:47:07 wollman Exp $
+ *	$Id: procfs_vnops.c,v 1.6 1994/09/24 17:01:05 davidg Exp $
  */
 
 /*
@@ -114,8 +114,8 @@ procfs_open(ap)
 		if (PFIND(pfs->pfs_pid) == 0)
 			return (ENOENT);	/* was ESRCH, jsp */
 
-		if ((pfs->pfs_flags & FWRITE) && (ap->a_mode & O_EXCL) ||
-				(pfs->pfs_flags & O_EXCL) && (ap->a_mode & FWRITE))
+		if (((pfs->pfs_flags & FWRITE) && (ap->a_mode & O_EXCL)) ||
+			((pfs->pfs_flags & O_EXCL) && (ap->a_mode & FWRITE)))
 			return (EBUSY);
 
 
@@ -148,6 +148,8 @@ procfs_close(ap)
 	case Pmem:
 		if ((ap->a_fflag & FWRITE) && (pfs->pfs_flags & O_EXCL))
 			pfs->pfs_flags &= ~(FWRITE|O_EXCL);
+		break;
+	default:
 		break;
 	}
 
@@ -281,8 +283,8 @@ procfs_print(ap)
 {
 	struct pfsnode *pfs = VTOPFS(ap->a_vp);
 
-	printf("tag VT_PROCFS, pid %d, mode %x, flags %x\n",
-		pfs->pfs_pid,
+	printf("tag VT_PROCFS, pid %lu, mode %x, flags %x\n",
+		(u_long)pfs->pfs_pid,
 		pfs->pfs_mode, pfs->pfs_flags);
 	return (0);
 }
@@ -369,6 +371,8 @@ procfs_getattr(ap)
 			vap->va_mode &= ~((VREAD|VWRITE)|
 					  ((VREAD|VWRITE)>>3)|
 					  ((VREAD|VWRITE)>>6));
+		break;
+	default:
 		break;
 	}
 
@@ -488,7 +492,8 @@ procfs_access(ap)
 	if (ap->a_cred->cr_uid == (uid_t) 0)
 		return (0);
 	vap = &vattr;
-	if (error = VOP_GETATTR(ap->a_vp, vap, ap->a_cred, ap->a_p))
+	error = VOP_GETATTR(ap->a_vp, vap, ap->a_cred, ap->a_p);
+	if (error)
 		return (error);
 
 	/*
