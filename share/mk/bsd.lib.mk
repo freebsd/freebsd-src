@@ -1,5 +1,5 @@
 #	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
-#	$Id: bsd.lib.mk,v 1.67 1998/02/20 15:58:59 bde Exp $
+#	$Id: bsd.lib.mk,v 1.68 1998/03/06 08:08:36 bde Exp $
 #
 
 .if exists(${.CURDIR}/../Makefile.inc)
@@ -212,15 +212,12 @@ clean:	_SUBDIR
 .endif
 .endif
 
-.if defined(SRCS)
-_EXTRADEPEND::
+_EXTRADEPEND:
 	@TMP=_depend$$$$; \
 	sed -e 's/^\([^\.]*\).o[ ]*:/\1.o \1.po \1.so:/' < ${DEPENDFILE} \
 	    > $$TMP; \
 	mv $$TMP ${DEPENDFILE}
-.endif
-.if !defined(NOEXTRADEPEND)
-_EXTRADEPEND::
+.if !defined(NOEXTRADEPEND) && !defined(NOPIC)
 .if ${BINFORMAT} == aout
 	echo lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}: \
 	    `${LDDESTDIRENV} ${CC} -shared -Wl,-f ${LDDESTDIR} ${LDADD}` \
