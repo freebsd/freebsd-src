@@ -35,12 +35,14 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/conf.h>
 #include <sys/bus.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <machine/resource.h>
 
 #include <sys/fbio.h>
+#include <sys/fcntl.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -73,6 +75,9 @@ typedef struct gdc_softc {
 	struct resource *res_tgdc, *res_ggdc;
 	struct resource *res_egc, *res_pegc, *res_grcg, *res_kcg;
 	struct resource *res_tmem, *res_gmem1, *res_gmem2;
+#ifdef FB_INSTALL_CDEV
+	genfb_softc_t gensc;
+#endif
 } gdc_softc_t;
 
 #define GDC_SOFTC(unit)	\
@@ -103,7 +108,7 @@ static struct cdevsw gdc_cdevsw = {
 	/* write */	gdcwrite,
 	/* ioctl */	gdcioctl,
 	/* poll */	nopoll,
-	/* mmap */	nommap,
+	/* mmap */	gdcmmap,
 	/* strategy */	nostrategy,
 	/* name */	DRIVER_NAME,
 	/* maj */	-1,
@@ -165,7 +170,8 @@ gdc_attach(device_t dev)
 
 #ifdef FB_INSTALL_CDEV
 	/* attach a virtual frame buffer device */
-	error = fb_attach(makedev(0, GDC_MKMINOR(unit)), sc->adp, &gdc_cdevsw);
+	error = fb_attach(makedev(0, GDC_MKMINOR(device_get_unit(dev))),
+				  sc->adp, &gdc_cdevsw);
 	if (error) {
 		gdc_release_resource(dev);
 		return error;
@@ -341,7 +347,7 @@ gdc_release_resource(device_t dev)
 #ifdef FB_INSTALL_CDEV
 
 static int
-gdcopen(dev_t dev, int flag, int mode, struct proc *p)
+gdcopen(dev_t dev, int flag, int mode, struct thread *td)
 {
     gdc_softc_t *sc;
 
@@ -351,16 +357,16 @@ gdcopen(dev_t dev, int flag, int mode, struct proc *p)
     if (mode & (O_CREAT | O_APPEND | O_TRUNC))
 	return ENODEV;
 
-    return genfbopen(&sc->gensc, sc->adp, flag, mode, p);
+    return genfbopen(&sc->gensc, sc->adp, flag, mode, td);
 }
 
 static int
-gdcclose(dev_t dev, int flag, int mode, struct proc *p)
+gdcclose(dev_t dev, int flag, int mode, struct thread *td)
 {
     gdc_softc_t *sc;
 
     sc = GDC_SOFTC(GDC_UNIT(dev));
-    return genfbclose(&sc->gensc, sc->adp, flag, mode, p);
+    return genfbclose(&sc->gensc, sc->adp, flag, mode, td);
 }
 
 static int
@@ -382,12 +388,12 @@ gdcwrite(dev_t dev, struct uio *uio, int flag)
 }
 
 static int
-gdcioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *p)
+gdcioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 {
     gdc_softc_t *sc;
 
     sc = GDC_SOFTC(GDC_UNIT(dev));
-    return genfbioctl(&sc->gensc, sc->adp, cmd, arg, flag, p);
+    return genfbioctl(&sc->gensc, sc->adp, cmd, arg, flag, td);
 }
 
 static int
