@@ -4,10 +4,11 @@
 SUBDIR=csu/tahoe.pcc
 .elif	${MACHINE} == "vax"
 SUBDIR=csu/vax.pcc
-.elif	exists(csu/${MACHINE})
+.elif	exists(${.CURDIR}/csu/${MACHINE})
 SUBDIR=csu/${MACHINE}
 .endif
 
+# Don't want to build libc on alpha just yet
 .if	${MACHINE} != "alpha"
 SUBDIR+=libc
 .endif
@@ -42,10 +43,13 @@ SUBDIR+= libcrypt
 SUBDIR+= libtelnet
 .endif
 
-.if defined(WANT_CSRG_LIBM) && ${MACHINE} != "alpha"
+# Don't want to build libm on alpha just yet
+.if ${MACHINE} != "alpha"
+.if defined(WANT_CSRG_LIBM)
 SUBDIR+= libm
 .else
 SUBDIR+= msun
+.endif
 .endif
 
 SUBDIR+= compat
