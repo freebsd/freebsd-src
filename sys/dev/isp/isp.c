@@ -3347,6 +3347,27 @@ isp_parse_async(struct ispsoftc *isp, int mbox)
 #ifdef	ISP_TARGET_MODE
 		isp_target_async(isp, bus, mbox);
 #endif
+		/*
+		 * We've had problems with data corruption occuring on
+		 * commands that complete (with no apparent error) after
+		 * we receive a LIP. This has been observed mostly on
+		 * Local Loop topologies. To be safe, let's just mark
+		 * all active commands as dead.
+		 */
+		if (FCPARAM(isp)->isp_topo == TOPO_NL_PORT ||
+		    FCPARAM(isp)->isp_topo == TOPO_FL_PORT) {
+			int i, j;
+			for (i = j = 0; i < isp->isp_maxcmds; i++) {
+				XS_T *xs;
+				xs = isp->isp_xflist[i];
+				if (xs != NULL) {
+					j++;
+					XS_SETERR(xs, HBA_BUSRESET);
+				}
+			}
+			isp_prt(isp, ISP_LOGERR,
+			   "LIP destroyed %d active commands", j);
+		}
 		break;
 
 	case ASYNC_LOOP_UP:
