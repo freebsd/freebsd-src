@@ -99,20 +99,20 @@ g_confdot_class(struct sbuf *sb, struct g_class *mp)
 		g_confdot_geom(sb, gp);
 }
 
-struct sbuf *
-g_confdot(void)
+void
+g_confdot(void *p)
 {
 	struct g_class *mp;
 	struct sbuf *sb;
 
-	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
-	sbuf_clear(sb);
+	sb = p;
+	g_topology_assert();
 	sbuf_printf(sb, "digraph geom {\n");
 	LIST_FOREACH(mp, &g_classes, class)
 		g_confdot_class(sb, mp);
 	sbuf_printf(sb, "};\n");
 	sbuf_finish(sb);
-	return (sb);
+	wakeup(p);
 }
 
 
@@ -196,14 +196,12 @@ g_conf_class(struct sbuf *sb, struct g_class *mp, struct g_geom *gp, struct g_pr
 	sbuf_printf(sb, "  </class>\n");
 }
 
-struct sbuf *
-g_conf_specific(struct g_class *mp, struct g_geom *gp, struct g_provider *pp, struct g_consumer *cp)
+void
+g_conf_specific(struct sbuf *sb, struct g_class *mp, struct g_geom *gp, struct g_provider *pp, struct g_consumer *cp)
 {
 	struct g_class *mp2;
-	struct sbuf *sb;
 
-	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
-	sbuf_clear(sb);
+	g_topology_assert();
 	sbuf_printf(sb, "<mesh>\n");
 #ifndef _KERNEL
 	sbuf_printf(sb, "  <FreeBSD>%cFreeBSD%c</FreeBSD>\n", '$', '$');
@@ -215,14 +213,14 @@ g_conf_specific(struct g_class *mp, struct g_geom *gp, struct g_provider *pp, st
 	}
 	sbuf_printf(sb, "</mesh>\n");
 	sbuf_finish(sb);
-	return (sb);
 }
 
-struct sbuf *
-g_conf()
+void
+g_confxml(void *p)
 {
 
-	return (g_conf_specific(NULL, NULL, NULL, NULL));
+	g_conf_specific(p, NULL, NULL, NULL, NULL);
+	wakeup(p);
 }
 
 

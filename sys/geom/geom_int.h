@@ -70,9 +70,9 @@ struct g_event {
 };
 
 /* geom_dump.c */
-struct sbuf * g_conf(void);
-struct sbuf * g_conf_specific(struct g_class *mp, struct g_geom *gp, struct g_provider *pp, struct g_consumer *cp);
-struct sbuf * g_confdot(void);
+void g_confxml(void *);
+void g_conf_specific(struct sbuf *sb, struct g_class *mp, struct g_geom *gp, struct g_provider *pp, struct g_consumer *cp);
+void g_confdot(void *);
 
 
 /* geom_event.c */
