@@ -1,4 +1,5 @@
 #!/bin/sh
+# $Id: MKparametrized.sh,v 1.5 2000/10/01 00:57:24 tom Exp $
 #
 # MKparametrized.sh -- generate indirection vectors for various sort methods
 #
@@ -10,7 +11,7 @@ cat <<EOF
 /*
  * parametrized.h --- is a termcap capability parametrized?
  *
- * Note: this file is generated using parametrized.sh, do not edit by hand.
+ * Note: this file is generated using MKparametrized.sh, do not edit by hand.
  * A value of -1 in the table means suppress both pad and % translations.
  * A value of 0 in the table means do pad but not % translations.
  * A value of 1 in the table means do both pad and % translations.

@@ -31,17 +31,16 @@
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
  ****************************************************************************/
 
-
 /*
  *	lib_baudrate.c
  *
  */
 
 #include <curses.priv.h>
-#include <term.h>	/* cur_term, pad_char */
-#include <termcap.h>	/* ospeed */
+#include <term.h>		/* cur_term, pad_char */
+#include <termcap.h>		/* ospeed */
 
-MODULE_ID("$Id: lib_baudrate.c,v 1.15 1999/01/31 03:05:25 tom Exp $")
+MODULE_ID("$Id: lib_baudrate.c,v 1.17 2000/10/08 00:59:08 tom Exp $")
 
 /*
  *	int
@@ -52,117 +51,118 @@ MODULE_ID("$Id: lib_baudrate.c,v 1.15 1999/01/31 03:05:25 tom Exp $")
  */
 
 struct speed {
-	speed_t s;
-	int sp;
+    int s;	/* value for 'ospeed' is an index */
+    int sp;	/* the actual speed */
 };
 
-static struct speed const speeds[] = {
-	{B0, 0},
-	{B50, 50},
-	{B75, 75},
-	{B110, 110},
-	{B134, 134},
-	{B150, 150},
-	{B200, 200},
-	{B300, 300},
-	{B600, 600},
-	{B1200, 1200},
-	{B1800, 1800},
-	{B2400, 2400},
-	{B4800, 4800},
-	{B9600, 9600},
+static struct speed const speeds[] =
+{
+    {B0, 0},
+    {B50, 50},
+    {B75, 75},
+    {B110, 110},
+    {B134, 134},
+    {B150, 150},
+    {B200, 200},
+    {B300, 300},
+    {B600, 600},
+    {B1200, 1200},
+    {B1800, 1800},
+    {B2400, 2400},
+    {B4800, 4800},
+    {B9600, 9600},
 #ifdef B19200
-	{B19200, 19200},
+    {B19200, 19200},
 #else
 #ifdef EXTA
-	{EXTA, 19200},
+    {EXTA, 19200},
 #endif
 #endif
 #ifdef B38400
-	{B38400, 38400},
+    {B38400, 38400},
 #else
 #ifdef EXTB
-	{EXTB, 38400},
+    {EXTB, 38400},
 #endif
 #endif
 #ifdef B57600
-	{B57600, 57600},
+    {B57600, 57600},
 #endif
 #ifdef B115200
-	{B115200, 115200},
+    {B115200, 115200},
 #endif
 #ifdef B230400
-	{B230400, 230400},
+    {B230400, 230400},
 #endif
 #ifdef B460800
-	{B460800, 460800},
+    {B460800, 460800},
 #endif
 };
 
-int _nc_baudrate(int OSpeed)
+int
+_nc_baudrate(int OSpeed)
 {
-	static int last_OSpeed;
-	static int last_baudrate;
+    static int last_OSpeed;
+    static int last_baudrate;
 
-	int result;
-	unsigned i;
+    int result;
+    unsigned i;
 
-	if (OSpeed == last_OSpeed) {
-		result = last_baudrate;
-	} else {
-		result = ERR;
-		if (OSpeed >= 0) {
-			for (i = 0; i < SIZEOF(speeds); i++) {
-				if (speeds[i].s == (speed_t)OSpeed) {
-					result = speeds[i].sp;
-					break;
-				}
-			}
+    if (OSpeed == last_OSpeed) {
+	result = last_baudrate;
+    } else {
+	result = ERR;
+	if (OSpeed >= 0) {
+	    for (i = 0; i < SIZEOF(speeds); i++) {
+		if (speeds[i].s == OSpeed) {
+		    result = speeds[i].sp;
+		    break;
 		}
-		last_baudrate = result;
+	    }
 	}
-	return (result);
+	last_baudrate = result;
+    }
+    return (result);
 }
 
-
-int _nc_ospeed(int BaudRate)
+int
+_nc_ospeed(int BaudRate)
 {
-	speed_t result = 1;
-	unsigned i;
+    int result = 1;
+    unsigned i;
 
-	if (BaudRate >= 0) {
-		for (i = 0; i < SIZEOF(speeds); i++) {
-			if (speeds[i].sp == BaudRate) {
-				result = speeds[i].s;
-				break;
-			}
-		}
+    if (BaudRate >= 0) {
+	for (i = 0; i < SIZEOF(speeds); i++) {
+	    if (speeds[i].sp == BaudRate) {
+		result = speeds[i].s;
+		break;
+	    }
 	}
-	return (result);
+    }
+    return (result);
 }
 
 int
 baudrate(void)
 {
-int result;
+    int result;
 
-	T((T_CALLED("baudrate()")));
+    T((T_CALLED("baudrate()")));
 
-	/*
-	 * In debugging, allow the environment symbol to override when we're
-	 * redirecting to a file, so we can construct repeatable test-cases
-	 * that take into account costs that depend on baudrate.
-	 */
+    /*
+     * In debugging, allow the environment symbol to override when we're
+     * redirecting to a file, so we can construct repeatable test-cases
+     * that take into account costs that depend on baudrate.
+     */
 #ifdef TRACE
-	if (SP && !isatty(fileno(SP->_ofp))
-	 && getenv("BAUDRATE") != 0) {
-		int ret;
-		if ((ret = _nc_getenv_num("BAUDRATE")) <= 0)
-			ret = 9600;
-		ospeed = _nc_ospeed(ret);
-		returnCode(ret);
-	}
-	else
+    if (SP && !isatty(fileno(SP->_ofp))
+	&& getenv("BAUDRATE") != 0) {
+	int ret;
+	if ((ret = _nc_getenv_num("BAUDRATE")) <= 0)
+	    ret = 9600;
+	ospeed = _nc_ospeed(ret);
+	returnCode(ret);
+    } else
 #endif
 
 #ifdef TERMIOS
@@ -170,9 +170,9 @@ int result;
 #else
 	ospeed = cur_term->Nttyb.sg_ospeed;
 #endif
-	result = _nc_baudrate(ospeed);
-	if (cur_term != 0)
-		cur_term->_baudrate = result;
+    result = _nc_baudrate(ospeed);
+    if (cur_term != 0)
+	cur_term->_baudrate = result;
 
-	returnCode(result);
+    returnCode(result);
 }

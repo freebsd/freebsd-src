@@ -32,9 +32,9 @@
  ****************************************************************************/
 
 /*
+ * $Id: tic.h,v 1.35 2000/09/09 19:47:16 tom Exp $
  *	tic.h - Global variables and structures for the terminfo
  *			compiler.
- *
  */
 
 #ifndef __TIC_H
@@ -236,6 +236,9 @@ extern const struct name_table_entry	* const *_nc_get_hash_table(bool);
 #ifndef TERMINFO
 #define TERMINFO "/usr/share/terminfo"
 #endif
+
+/* access.c */
+extern char *_nc_basename(char *);
 
 /* comp_hash.c: name lookup */
 struct name_table_entry	const *_nc_find_entry(const char *,

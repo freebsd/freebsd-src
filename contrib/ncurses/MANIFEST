@@ -294,6 +294,7 @@
 ./doc/html/man/curs_termcap.3x.html
 ./doc/html/man/curs_terminfo.3x.html
 ./doc/html/man/curs_touch.3x.html
+./doc/html/man/curs_trace.3x.html
 ./doc/html/man/curs_util.3x.html
 ./doc/html/man/curs_window.3x.html
 ./doc/html/man/define_key.3x.html
@@ -409,6 +410,7 @@
 ./form/modules
 ./include/Caps
 ./include/MKhashsize.sh
+./include/MKncurses_def.sh
 ./include/MKparametrized.sh
 ./include/MKterm.h.awk.in
 ./include/Makefile.in
@@ -419,6 +421,7 @@
 ./include/nc_alloc.h
 ./include/nc_panel.h
 ./include/ncurses_cfg.hin
+./include/ncurses_defs
 ./include/term_entry.h
 ./include/termcap.h.in
 ./include/tic.h
@@ -467,10 +470,11 @@
 ./man/curs_termcap.3x
 ./man/curs_terminfo.3x
 ./man/curs_touch.3x
+./man/curs_trace.3x
 ./man/curs_util.3x
 ./man/curs_window.3x
+./man/default_colors.3x
 ./man/define_key.3x
-./man/dft_fgbg.3x
 ./man/form.3x
 ./man/form_cursor.3x
 ./man/form_data.3x
@@ -502,7 +506,7 @@
 ./man/man_db.renames
 ./man/manlinks.sed
 ./man/menu.3x
-./man/menu_attribs.3x
+./man/menu_attributes.3x
 ./man/menu_cursor.3x
 ./man/menu_driver.3x
 ./man/menu_format.3x
@@ -587,7 +591,7 @@
 ./misc/ncurses.ref
 ./misc/panel.def
 ./misc/panel.ref
-./misc/run_tic.sh
+./misc/run_tic.in
 ./misc/shlib
 ./misc/tabset/std
 ./misc/tabset/stdcrt
@@ -726,6 +730,7 @@
 ./ncurses/tinfo/lib_setup.c
 ./ncurses/tinfo/lib_termcap.c
 ./ncurses/tinfo/lib_termname.c
+./ncurses/tinfo/lib_tgoto.c
 ./ncurses/tinfo/lib_ti.c
 ./ncurses/tinfo/lib_tparm.c
 ./ncurses/tinfo/lib_tputs.c
@@ -736,6 +741,7 @@
 ./ncurses/tinfo/read_entry.c
 ./ncurses/tinfo/read_termcap.c
 ./ncurses/tinfo/setbuf.c
+./ncurses/tinfo/strings.c
 ./ncurses/tinfo/write_entry.c
 ./ncurses/trace/README
 ./ncurses/trace/lib_trace.c

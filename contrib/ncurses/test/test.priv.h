@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,12 +29,35 @@
 /****************************************************************************
  *  Author: Thomas E. Dickey <dickey@clark.net> 1996                        *
  ****************************************************************************/
-/* $Id: test.priv.h,v 1.16 2000/04/15 17:52:08 tom Exp $ */
+/* $Id: test.priv.h,v 1.19 2000/09/02 19:31:58 tom Exp $ */
+
 #if HAVE_CONFIG_H
 #include <ncurses_cfg.h>
+#else
+#define HAVE_CURSES_VERSION 0
+#define HAVE_RESIZETERM 0
+#define HAVE_USE_DEFAULT_COLORS 0
+#define HAVE_WRESIZE 0
+#endif
+
+#ifndef HAVE_NC_ALLOC_H
+#define HAVE_NC_ALLOC_H 0
+#endif
+
+#ifndef HAVE_LOCALE_H
+#define HAVE_LOCALE_H 0
+#endif
+
+#ifndef NCURSES_NOMACROS
+#define NCURSES_NOMACROS 0
+#endif
+
+#ifndef NEED_PTEM_H
+#define NEED_PTEM_H 0
 #endif
 
 #include <stdlib.h>
+#include <string.h>
 #include <sys/types.h>
 
 #if HAVE_UNISTD_H
@@ -43,7 +66,7 @@
 
 #include <curses.h>
 
-#ifdef NCURSES_NOMACROS
+#if NCURSES_NOMACROS
 #include <nomacros.h>
 #endif
 

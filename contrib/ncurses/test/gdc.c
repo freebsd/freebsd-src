@@ -6,7 +6,7 @@
  * modified 10-18-89 for curses (jrl)
  * 10-18-89 added signal handling
  *
- * $Id: gdc.c,v 1.14 2000/04/23 00:03:11 tom Exp $
+ * $Id: gdc.c,v 1.15 2000/09/02 18:40:39 tom Exp $
  */
 
 #include <test.priv.h>
@@ -179,7 +179,7 @@ main(int argc, char *argv[])
     if (hascolor) {
 	int bg = COLOR_BLACK;
 	start_color();
-#ifdef HAVE_USE_DEFAULT_COLORS
+#if HAVE_USE_DEFAULT_COLORS
 	if (use_default_colors() == OK)
 	    bg = -1;
 #endif

@@ -23,7 +23,7 @@
  * scroll operation worked, and the refresh() code only had to do a
  * partial repaint.
  *
- * $Id: view.c,v 1.29 2000/05/21 01:43:03 tom Exp $
+ * $Id: view.c,v 1.31 2000/09/02 18:14:52 tom Exp $
  */
 
 #include <test.priv.h>
@@ -53,7 +53,7 @@
 static RETSIGTYPE finish(int sig) GCC_NORETURN;
 static void show_all(void);
 
-#if defined(SIGWINCH) && defined(TIOCGWINSZ) && defined(HAVE_RESIZETERM)
+#if defined(SIGWINCH) && defined(TIOCGWINSZ) && HAVE_RESIZETERM
 #define CAN_RESIZE 1
 #else
 #define CAN_RESIZE 0
@@ -433,7 +433,7 @@ show_all(void)
     scrollok(stdscr, FALSE);	/* prevent screen from moving */
     for (i = 1; i < LINES; i++) {
 	move(i, 0);
-	printw("%3d:", (lptr + i - lines));
+	printw("%3ld:", (long) (lptr + i - lines));
 	clrtoeol();
 	if ((s = lptr[i - 1]) != 0) {
 	    int len = ch_len(s);
