@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.60 1996/03/31 03:15:24 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.61 1996/04/20 21:29:25 gibbs Exp $
  */
 /*
  * TODO:
@@ -1550,7 +1550,7 @@ ahc_done(ahc, scb)
 			ahc->tagenable |= mask;
 			if(ahc->maxhscbs >= 16 || (ahc->flags & AHC_PAGESCBS)) {
 				/* Default to 8 tags */
-				xs->sc_link->opennings += 16;
+				xs->sc_link->opennings += 6;
 			}
 			else
 			{
