@@ -460,7 +460,7 @@ In addition,
 .Nm
 sets or knows about the following internal variables or environment
 variables:
-.Bl -tag -width MAKEFILE_LIST
+.Bl -tag -width ".Va MAKEFILE_LIST"
 .It Va \&$
 A single dollar sign
 .Ql \&$ ,
@@ -534,7 +534,7 @@ As
 .Nm
 reads various makefiles, including the default files and any
 obtained from the command line and
-.Ql Ic \&.include
+.Ic .include
 directives, their names will be automatically appended to the
 .Va .MAKEFILE_LIST
 variable.
@@ -1244,10 +1244,9 @@ default
 directory.
 .El
 .Sh EXAMPLES
-.Bl -tag -width indent
-.It Li "make \-V .MAKEFILE_LIST | tr \e\  \e\en"
-Lists all included makefiles in order visited.
-.El
+List all included makefiles in order visited:
+.Pp
+.Dl "make -V .MAKEFILE_LIST | tr \e\  \e\en"
 .Sh BUGS
 The determination of
 .Va .OBJDIR
