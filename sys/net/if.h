@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.h	8.1 (Berkeley) 6/10/93
- *	$Id: if.h,v 1.46 1997/05/03 21:07:12 peter Exp $
+ *	$Id: if.h,v 1.47 1997/10/12 20:25:11 phk Exp $
  */
 
 #ifndef _NET_IF_H_
@@ -166,6 +166,11 @@ struct	ifreq {
 #define ifr_media	ifr_ifru.ifru_media	/* physical media */
 #define	ifr_data	ifr_ifru.ifru_data	/* for use by interface */
 };
+
+#define	_SIZEOF_ADDR_IFREQ(ifr) \
+	((ifr).ifr_addr.sa_len > sizeof(struct sockaddr) ? \
+	 (sizeof(struct ifreq) - sizeof(struct sockaddr) + \
+	  (ifr).ifr_addr.sa_len) : sizeof(struct ifreq))
 
 struct ifaliasreq {
 	char	ifra_name[IFNAMSIZ];		/* if name, e.g. "en0" */
