@@ -2199,7 +2199,9 @@ dc_attach(device_t dev)
 	ifp->if_watchdog = dc_watchdog;
 	ifp->if_init = dc_init;
 	ifp->if_baudrate = 10000000;
-	ifp->if_snd.ifq_maxlen = DC_TX_LIST_CNT - 1;
+	IFQ_SET_MAXLEN(&ifp->if_snd, DC_TX_LIST_CNT - 1);
+	ifp->if_snd.ifq_drv_maxlen = DC_TX_LIST_CNT - 1;
+	IFQ_SET_READY(&ifp->if_snd);
 
 	/*
 	 * Do MII setup. If this is a 21143, check for a PHY on the
@@ -2964,7 +2966,7 @@ dc_tick(void *xsc)
 	if (!sc->dc_link && mii->mii_media_status & IFM_ACTIVE &&
 	    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
 		sc->dc_link++;
-		if (ifp->if_snd.ifq_head != NULL)
+		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 			dc_start(ifp);
 	}
 
@@ -3046,7 +3048,7 @@ dc_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	sc->rxcycles = count;
 	dc_rxeof(sc);
 	dc_txeof(sc);
-	if (ifp->if_snd.ifq_head != NULL && !(ifp->if_flags & IFF_OACTIVE))
+	if (!IFQ_IS_EMPTY(&ifp->if_snd) && !(ifp->if_flags & IFF_OACTIVE))
 		dc_start(ifp);
 
 	if (cmd == POLL_AND_CHECK_STATUS) { /* also check status register */
@@ -3174,7 +3176,7 @@ dc_intr(void *arg)
 	/* Re-enable interrupts. */
 	CSR_WRITE_4(sc, DC_IMR, DC_INTRS);
 
-	if (ifp->if_snd.ifq_head != NULL)
+	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		dc_start(ifp);
 
 #ifdef DEVICE_POLLING
@@ -3305,6 +3307,7 @@ dc_start(struct ifnet *ifp)
 {
 	struct dc_softc *sc;
 	struct mbuf *m_head = NULL, *m;
+	unsigned int queued = 0;
 	int idx;
 
 	sc = ifp->if_softc;
@@ -3324,7 +3327,7 @@ dc_start(struct ifnet *ifp)
 	idx = sc->dc_cdata.dc_tx_first = sc->dc_cdata.dc_tx_prod;
 
 	while (sc->dc_cdata.dc_tx_chain[idx] == NULL) {
-		IF_DEQUEUE(&ifp->if_snd, m_head);
+		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
 		if (m_head == NULL)
 			break;
 
@@ -3333,7 +3336,7 @@ dc_start(struct ifnet *ifp)
 		     sc->dc_flags & DC_TX_ALIGN)) {
 			m = m_defrag(m_head, M_DONTWAIT);
 			if (m == NULL) {
-				IF_PREPEND(&ifp->if_snd, m_head);
+				IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
 				ifp->if_flags |= IFF_OACTIVE;
 				break;
 			} else {
@@ -3342,12 +3345,13 @@ dc_start(struct ifnet *ifp)
 		}
 
 		if (dc_encap(sc, &m_head)) {
-			IF_PREPEND(&ifp->if_snd, m_head);
+			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
 			ifp->if_flags |= IFF_OACTIVE;
 			break;
 		}
 		idx = sc->dc_cdata.dc_tx_prod;
 
+		queued++;
 		/*
 		 * If there's a BPF listener, bounce a copy of this frame
 		 * to him.
@@ -3360,14 +3364,16 @@ dc_start(struct ifnet *ifp)
 		}
 	}
 
-	/* Transmit */
-	if (!(sc->dc_flags & DC_TX_POLL))
-		CSR_WRITE_4(sc, DC_TXSTART, 0xFFFFFFFF);
+	if (queued > 0) {
+		/* Transmit */
+		if (!(sc->dc_flags & DC_TX_POLL))
+			CSR_WRITE_4(sc, DC_TXSTART, 0xFFFFFFFF);
 
-	/*
-	 * Set a timeout in case the chip goes out to lunch.
-	 */
-	ifp->if_timer = 5;
+		/*
+		 * Set a timeout in case the chip goes out to lunch.
+		 */
+		ifp->if_timer = 5;
+	}
 
 	DC_UNLOCK(sc);
 }
@@ -3683,7 +3689,7 @@ dc_watchdog(struct ifnet *ifp)
 	dc_reset(sc);
 	dc_init(sc);
 
-	if (ifp->if_snd.ifq_head != NULL)
+	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		dc_start(ifp);
 
 	DC_UNLOCK(sc);
