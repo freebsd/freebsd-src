@@ -87,13 +87,11 @@ int ndis_suspend		(device_t);
 int ndis_resume			(device_t);
 void ndis_shutdown		(device_t);
 
-static void ndis_serial_input	(void *);
+static void ndis_input			(void *);
 
 static __stdcall void ndis_txeof	(ndis_handle,
 	ndis_packet *, ndis_status);
 static __stdcall void ndis_rxeof	(ndis_handle,
-	ndis_packet **, uint32_t);
-static __stdcall void ndis_rxeof_serial	(ndis_handle,
 	ndis_packet **, uint32_t);
 static __stdcall void ndis_linksts	(ndis_handle,
 	ndis_status, void *, uint32_t);
@@ -419,14 +417,6 @@ ndis_attach(dev)
 		error = ENXIO;
 		goto fail;
 	}
-
-	/*
-	 * Check to see if this driver is deserialized or
-	 * not. If not, we need to do use a special serialized
-	 * receive handler.
-	 */
-	if (!(sc->ndis_block.nmb_flags & NDIS_ATTRIBUTE_DESERIALIZE))
-		sc->ndis_block.nmb_pktind_func = ndis_rxeof_serial;
 
 	/*
 	 * Get station address from the driver.
@@ -783,6 +773,20 @@ ndis_resume(dev)
 	return(0);
 }
 
+static void
+ndis_input(arg)
+	void			*arg;
+{
+	struct mbuf		*m;
+	struct ifnet		*ifp;
+
+	m = arg;
+	ifp = m->m_pkthdr.rcvif;
+	(*ifp->if_input)(ifp, m);
+
+	return;
+}
+
 /*
  * A frame has been uploaded: pass the resulting mbuf chain up to
  * the higher level protocols.
@@ -801,7 +805,13 @@ ndis_resume(dev)
  * wants to maintain ownership of the packet. In this case, we have to
  * copy the packet data into local storage and let the driver keep the
  * packet.
+ *
+ * We have to make sure not to try and return packets to the driver
+ * until after this routine returns. The best way to do that is put the
+ * call to (*ifp->if_input)() on the ndis swi work queue. In theory,
+ * we could also copy the packet. I'm not sure which is faster.
  */
+
 __stdcall static void
 ndis_rxeof(adapter, packets, pktcnt)
 	ndis_handle		adapter;
@@ -849,7 +859,6 @@ ndis_rxeof(adapter, packets, pktcnt)
 			} else
 				p->np_oob.npo_status = NDIS_STATUS_PENDING;
 			m0->m_pkthdr.rcvif = ifp;
-			ifp->if_ipackets++;
 
 			/* Deal with checksum offload. */
 
@@ -871,104 +880,7 @@ ndis_rxeof(adapter, packets, pktcnt)
 				}
 			}
 
-			(*ifp->if_input)(ifp, m0);
-		}
-	}
-
-	return;
-}
-
-static void
-ndis_serial_input(arg)
-	void			*arg;
-{
-	struct mbuf		*m;
-	struct ifnet		*ifp;
-
-	m = arg;
-	ifp = m->m_pkthdr.rcvif;
-	(*ifp->if_input)(ifp, m);
-
-	return;
-}
-
-/*
- * Special receive handler for serialized miniports. To really serialize
- * things, we have to make sure not to try and return packets to the driver
- * until after this routine returns. The best way to do that is put the
- * call to (*ifp->if_input)() on the ndis swi work queue. In theory,
- * we could also copy the packet. I'm not sure which is faster.
- */
-
-__stdcall static void
-ndis_rxeof_serial(adapter, packets, pktcnt)
-	ndis_handle		adapter;
-	ndis_packet		**packets;
-	uint32_t		pktcnt;
-{
-	struct ndis_softc	*sc;
-	ndis_miniport_block	*block;
-	ndis_packet		*p;
-	uint32_t		s;
-	ndis_tcpip_csum		*csum;
-	struct ifnet		*ifp;
-	struct mbuf		*m0, *m;
-	int			i;
-
-	block = (ndis_miniport_block *)adapter;
-	sc = (struct ndis_softc *)(block->nmb_ifp);
-	ifp = block->nmb_ifp;
-
-	for (i = 0; i < pktcnt; i++) {
-		p = packets[i];
-		/* Stash the softc here so ptom can use it. */
-		p->np_softc = sc;
-		if (ndis_ptom(&m0, p)) {
-			device_printf (sc->ndis_dev, "ptom failed\n");
-			if (p->np_oob.npo_status == NDIS_STATUS_SUCCESS)
-				ndis_return_packet(sc, p);
-		} else {
-			if (p->np_oob.npo_status == NDIS_STATUS_RESOURCES) {
-				m = m_dup(m0, M_DONTWAIT);
-				/*
-				 * NOTE: we want to destroy the mbuf here, but
-				 * we don't actually want to return it to the
-				 * driver via the return packet handler. By
-				 * bumping np_refcnt, we can prevent the
-				 * ndis_return_packet() routine from actually
-				 * doing anything.
-				 */
-				p->np_refcnt++;
-				m_freem(m0);
-				if (m == NULL)
-					ifp->if_ierrors++;
-				else
-					m0 = m;
-			} else
-				p->np_oob.npo_status = NDIS_STATUS_PENDING;
-			m0->m_pkthdr.rcvif = ifp;
-
-			/* Deal with checksum offload. */
-
-			if (ifp->if_capenable & IFCAP_RXCSUM &&
-			    p->np_ext.npe_info[ndis_tcpipcsum_info] != NULL) {
-				s = (uintptr_t)
-			 	    p->np_ext.npe_info[ndis_tcpipcsum_info];
-				csum = (ndis_tcpip_csum *)&s;
-				if (csum->u.ntc_rxflags &
-				    NDIS_RXCSUM_IP_PASSED)
-					m0->m_pkthdr.csum_flags |=
-					    CSUM_IP_CHECKED|CSUM_IP_VALID;
-				if (csum->u.ntc_rxflags &
-				    (NDIS_RXCSUM_TCP_PASSED |
-				    NDIS_RXCSUM_UDP_PASSED)) {
-					m0->m_pkthdr.csum_flags |=
-					    CSUM_DATA_VALID|CSUM_PSEUDO_HDR;
-					m0->m_pkthdr.csum_data = 0xFFFF;
-				}
-			}
-
-			if (ndis_sched(ndis_serial_input, m0, NDIS_SWI)) {
+			if (ndis_sched(ndis_input, m0, NDIS_SWI)) {
 				p->np_refcnt++;
 				m_freem(m0);
 				ifp->if_ierrors++;
