@@ -921,7 +921,7 @@ svr4_sys_ulimit(p, uap)
 				return error;
 
 			SCARG(&srl, which) = RLIMIT_FSIZE;
-			SCARG(&srl, rlp) = (struct orlimit *)url;
+			SCARG(&srl, rlp) = url;
 
 			error = setrlimit(p, &srl);
 			if (error)
