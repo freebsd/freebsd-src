@@ -301,7 +301,7 @@ clearfunc(int memfd, int argc, char *argv[])
 		    warn("couldn't clear range owned by '%s'", owner);
 	    }
 	}
-    } else if ((mrd.mr_base != 0) && (mrd.mr_len != 0)) {
+    } else if (mrd.mr_len != 0) {
 	/* clear-by-base/len */
 	mro.mo_arg[0] = MEMRANGE_SET_REMOVE;
 	mro.mo_desc = &mrd;
