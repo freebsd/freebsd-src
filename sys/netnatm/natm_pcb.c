@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /*	$NetBSD: natm_pcb.c,v 1.4 1996/11/09 03:26:27 chuck Exp $	*/
 
 /*
