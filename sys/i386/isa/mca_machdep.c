@@ -38,7 +38,7 @@
 #include <machine/cpufunc.h>
 
 #include <dev/mca/mca_busreg.h>
-#include <i386/isa/mca_machdep.h>
+#include <i386/bios/mca_machdep.h>
 
 /* Global MCA bus flag */
 int MCA_system = 0;
