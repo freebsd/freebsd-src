@@ -231,7 +231,7 @@ NODE *tree;
 		while (l1 > 0) {
 			if (l2 > l1)
 				break;
-			if (casetable[(unsigned char)*p1] == casetable[(unsigned char)*p2]
+			if (casetable[(int)*p1] == casetable[(int)*p2]
 			    && (l2 == 1 || strncasecmp(p1, p2, l2) == 0)) {
 				ret = 1 + s1->stlen - l1;
 				break;
@@ -2038,7 +2038,7 @@ size_t len;
 		}
 	} else if (*str == '0') {
 		for (; len > 0; len--) {
-			if (! isdigit((unsigned char)*str) || *str == '8' || *str == '9')
+			if (! isdigit(*str) || *str == '8' || *str == '9')
 				goto done;
 			retval = (retval * 8) + (*str - '0');
 			str++;
