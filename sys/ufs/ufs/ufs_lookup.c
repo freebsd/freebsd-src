@@ -669,7 +669,7 @@ ufs_dirbadentry(dp, ep, entryoffsetinblock)
 			/*return (1); */
 			printf("Second bad\n");
 			goto bad;
-	}
+		}
 	if (ep->d_name[i])
 		goto bad;
 	return (0);
