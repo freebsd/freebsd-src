@@ -447,7 +447,7 @@ vtrans(vp, i, flag)
 		break;
 	}
 	default:
-		printf(" %6d", fst.size);
+		printf(" %6lu", fst.size);
 	}
 	rw[0] = '\0';
 	if (flag & FREAD)
