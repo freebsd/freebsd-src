@@ -52,6 +52,7 @@
 
 #include "debug.h"
 #include "rtld.h"
+#include "libmap.h"
 
 #define END_SYM		"_end"
 #define PATH_RTLD	"/usr/libexec/ld-elf.so.1"
@@ -131,6 +132,7 @@ void r_debug_state(struct r_debug*, struct link_map*);
  */
 static char *error_message;	/* Message for dlerror(), or NULL */
 struct r_debug r_debug;		/* for GDB; */
+static bool libmap_disable;	/* Disable libmap */
 static bool trust;		/* False for setuid and setgid programs */
 static char *ld_bind_now;	/* Environment variable for immediate binding */
 static char *ld_debug;		/* Environment variable for debugging */
@@ -293,6 +295,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     ld_bind_now = getenv("LD_BIND_NOW");
     if (trust) {
 	ld_debug = getenv("LD_DEBUG");
+	libmap_disable = getenv("LD_LIBMAP_DISABLE") != NULL;
 	ld_library_path = getenv("LD_LIBRARY_PATH");
 	ld_preload = getenv("LD_PRELOAD");
     }
@@ -365,6 +368,9 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     /* Initialize a fake symbol for resolving undefined weak references. */
     sym_zero.st_info = ELF_ST_INFO(STB_GLOBAL, STT_NOTYPE);
     sym_zero.st_shndx = SHN_ABS;
+
+    if (!libmap_disable)
+	libmap_disable = (bool)lm_init();
 
     dbg("loading LD_PRELOAD libraries");
     if (load_preload_objects() == -1)
@@ -791,18 +797,23 @@ elf_hash(const char *name)
  *   /usr/lib
  */
 static char *
-find_library(const char *name, const Obj_Entry *refobj)
+find_library(const char *xname, const Obj_Entry *refobj)
 {
     char *pathname;
+    char *name;
 
-    if (strchr(name, '/') != NULL) {	/* Hard coded pathname */
-	if (name[0] != '/' && !trust) {
+    if (strchr(xname, '/') != NULL) {	/* Hard coded pathname */
+	if (xname[0] != '/' && !trust) {
 	    _rtld_error("Absolute pathname required for shared object \"%s\"",
-	      name);
+	      xname);
 	    return NULL;
 	}
-	return xstrdup(name);
+	return xstrdup(xname);
     }
+
+    if (libmap_disable || (refobj == NULL) ||
+		(name = lm_find(refobj->path, xname)) == NULL)
+	name = (char *)xname;
 
     dbg(" Searching for \"%s\"", name);
 
@@ -1433,6 +1444,8 @@ rtld_exit(void)
 	obj->refcount = 0;
     objlist_call_fini(&list_fini);
     /* No need to remove the items from the list, since we are exiting. */
+    if (!libmap_disable)
+	lm_fini();
 }
 
 static void *

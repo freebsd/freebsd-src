@@ -88,6 +88,9 @@ to be linked in before any
 other shared libraries.
 If the directory is not specified then
 the directories specified by
+.It Ev LD_LIBMAP_DISABLE
+If set, disables the use of
+.Xr libmap.conf 5 .
 .Ev LD_LIBRARY_PATH
 will be searched first
 followed by the set of built-in standard directories.
@@ -147,9 +150,12 @@ are recognized and have their usual meaning.
 .Sh FILES
 .Bl -tag -width indent
 .It Pa /var/run/ld-elf.so.hints
+.It Pa /etc/libmap.conf
+The libmap configuration file.
 .El
 .Sh SEE ALSO
 .Xr ld 1 ,
 .Xr ldd 1 ,
 .Xr elf 5 ,
+.Xr libmap.conf 5 ,
 .Xr ldconfig 8
