@@ -3268,17 +3268,6 @@ set_mode(scr_stat *scp)
 
     /* setup video hardware for the given mode */
     (*vidsw[scp->sc->adapter]->set_mode)(scp->sc->adp, scp->mode);
-#ifdef PC98
-    if (scp->status & UNKNOWN_MODE) {
-	while (!(inb(0x60) & 0x20)) {}	/* V-SYNC wait */
-	outb(0x62, 0xc);		/* text off */
-	outb(0xA2, 0xd);		/* graphics on */
-    } else {
-	while (!(inb(0x60) & 0x20)) {}	/* V-SYNC wait */
-	outb(0x62, 0xd);		/* text off */
-	outb(0xA2, 0xc);		/* graphics on */
-    }
-#endif /* PC98 */
     sc_vtb_init(&scp->scr, VTB_FRAMEBUFFER, scp->xsize, scp->ysize,
 		(void *)scp->sc->adp->va_window, FALSE);
 
