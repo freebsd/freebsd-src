@@ -1774,17 +1774,21 @@ vm_object_coalesce(vm_object_t prev_object, vm_pindex_t prev_pindex,
 
 	if (prev_object == NULL)
 		return (TRUE);
-	vm_object_lock(prev_object);
+	mtx_lock(&Giant);
+	VM_OBJECT_LOCK(prev_object);
 	if (prev_object->type != OBJT_DEFAULT &&
 	    prev_object->type != OBJT_SWAP) {
-		vm_object_unlock(prev_object);
+		VM_OBJECT_UNLOCK(prev_object);
+		mtx_unlock(&Giant);
 		return (FALSE);
 	}
 
 	/*
 	 * Try to collapse the object first
 	 */
+	VM_OBJECT_UNLOCK(prev_object);
 	vm_object_collapse(prev_object);
+	VM_OBJECT_LOCK(prev_object);
 
 	/*
 	 * Can't coalesce if: . more than one reference . paged out . shadows
@@ -1792,7 +1796,8 @@ vm_object_coalesce(vm_object_t prev_object, vm_pindex_t prev_pindex,
 	 * pages not mapped to prev_entry may be in use anyway)
 	 */
 	if (prev_object->backing_object != NULL) {
-		vm_object_unlock(prev_object);
+		VM_OBJECT_UNLOCK(prev_object);
+		mtx_unlock(&Giant);
 		return (FALSE);
 	}
 
@@ -1802,7 +1807,8 @@ vm_object_coalesce(vm_object_t prev_object, vm_pindex_t prev_pindex,
 
 	if ((prev_object->ref_count > 1) &&
 	    (prev_object->size != next_pindex)) {
-		vm_object_unlock(prev_object);
+		VM_OBJECT_UNLOCK(prev_object);
+		mtx_unlock(&Giant);
 		return (FALSE);
 	}
 
@@ -1811,14 +1817,12 @@ vm_object_coalesce(vm_object_t prev_object, vm_pindex_t prev_pindex,
 	 * deallocation.
 	 */
 	if (next_pindex < prev_object->size) {
-		VM_OBJECT_LOCK(prev_object);
 		vm_object_page_remove(prev_object,
 				      next_pindex,
 				      next_pindex + next_size, FALSE);
 		if (prev_object->type == OBJT_SWAP)
 			swap_pager_freespace(prev_object,
 					     next_pindex, next_size);
-		VM_OBJECT_UNLOCK(prev_object);
 	}
 
 	/*
@@ -1827,7 +1831,8 @@ vm_object_coalesce(vm_object_t prev_object, vm_pindex_t prev_pindex,
 	if (next_pindex + next_size > prev_object->size)
 		prev_object->size = next_pindex + next_size;
 
-	vm_object_unlock(prev_object);
+	VM_OBJECT_UNLOCK(prev_object);
+	mtx_unlock(&Giant);
 	return (TRUE);
 }
 
