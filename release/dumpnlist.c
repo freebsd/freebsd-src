@@ -35,7 +35,7 @@ main(int ac, char **av)
 	return 1;
     }
     printf("%d\n", sizeof(nl) / sizeof(struct nlist));
-    for (i = 0; nl[i].n_name; i++) {
+    for (i = 0; nl[i].n_name && nl[i].n_name[0]; i++) {
 	printf("%s\n", nl[i].n_name);
 	printf("%d %d %d %ld\n",
 	       nl[i].n_type, nl[i].n_other, nl[i].n_desc, nl[i].n_value);
