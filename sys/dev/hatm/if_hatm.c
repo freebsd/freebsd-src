@@ -1797,7 +1797,7 @@ hatm_attach(device_t dev)
 	    hatm_sysctl_lbmem, "S", "local memory") == NULL)
 		goto failed;
 
-	kenv_getuint(sc, "debug", &sc->debug, 0, 1);
+	kenv_getuint(sc, "debug", &sc->debug, HATM_DEBUG, 1);
 #endif
 
 	/*
