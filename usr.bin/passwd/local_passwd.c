@@ -100,7 +100,7 @@ getnewpasswd(pw, nis)
 #ifdef LOGIN_CAP
 	login_cap_t * lc;
 #endif
-	char buf[_PASSWORD_LEN+1], salt[10];
+	char buf[_PASSWORD_LEN+1], salt[32];
 	struct timeval tv;
 
 	if (!nis)
@@ -182,7 +182,11 @@ getnewpasswd(pw, nis)
 	to64(&salt[0], random(), 3);
 	to64(&salt[3], tv.tv_usec, 3);
 	to64(&salt[6], tv.tv_sec, 2);
-	salt[8] = '\0';
+	to64(&salt[8], random(), 5);
+	to64(&salt[13], random(), 5);
+	to64(&salt[17], random(), 5);
+	to64(&salt[22], random(), 5);
+	salt[27] = '\0';
 #endif
 	return (crypt(buf, salt));
 }
