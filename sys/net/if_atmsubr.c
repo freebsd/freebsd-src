@@ -296,6 +296,7 @@ atm_ifattach(ifp)
 {
 	struct ifaddr *ifa;
 	struct sockaddr_dl *sdl;
+	struct ifatm *ifatm = ifp->if_softc;
 
 	ifp->if_type = IFT_ATM;
 	ifp->if_addrlen = 0;
@@ -326,6 +327,8 @@ atm_ifattach(ifp)
 			break;
 		}
 
+	ifp->if_linkmib = &ifatm->mib;
+	ifp->if_linkmiblen = sizeof(ifatm->mib);
 }
 
 /*

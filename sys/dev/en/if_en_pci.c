@@ -141,7 +141,7 @@ adp_busreset(void *v)
 	dummy = bus_space_read_4(sc->en_memt, sc->en_base, ADP_PCIREG);
 	if ((dummy & (ADP_PCIREG_SWAP_WORD | ADP_PCIREG_SWAP_DMA)) !=
 	    ADP_PCIREG_SWAP_DMA)
-		if_printf(&sc->enif, "adp_busreset: Adaptec ATM did "
+		if_printf(&sc->ifatm.ifnet, "adp_busreset: Adaptec ATM did "
 		    "NOT reset!\n");
 }
 
@@ -190,8 +190,8 @@ en_pci_attach(device_t dev)
 	scp = (struct en_pci_softc *)sc;
 
 	unit = device_get_unit(dev);
-	sc->enif.if_unit = unit;
-	sc->enif.if_name = "en";
+	sc->ifatm.ifnet.if_unit = unit;
+	sc->ifatm.ifnet.if_name = "en";
 
 	/*
 	 * Enable bus mastering.
@@ -265,7 +265,7 @@ en_pci_attach(device_t dev)
 	    en_intr, sc, &scp->ih);
 	if (error) {
 		en_reset(sc);
-		atm_ifdetach(&sc->enif);
+		atm_ifdetach(&sc->ifatm.ifnet);
 		device_printf(dev, "could not setup irq\n");
 		bus_release_resource(dev, SYS_RES_IRQ, 0, scp->irq);
 		bus_release_resource(dev, SYS_RES_MEMORY, PCI_CBMA, scp->res);
@@ -291,16 +291,16 @@ en_pci_detach(device_t dev)
 	/*
 	 * Stop DMA and drop transmit queue.
 	 */
-	if ((sc->enif.if_flags & IFF_RUNNING)) {
-		if_printf(&sc->enif, "still running\n");
-		sc->enif.if_flags &= ~IFF_RUNNING;
+	if ((sc->ifatm.ifnet.if_flags & IFF_RUNNING)) {
+		if_printf(&sc->ifatm.ifnet, "still running\n");
+		sc->ifatm.ifnet.if_flags &= ~IFF_RUNNING;
 	}
 
 	/*
 	 * Close down routes etc.
 	 */
 	en_reset(sc);
-	atm_ifdetach(&sc->enif);
+	atm_ifdetach(&sc->ifatm.ifnet);
 
 	/*
 	 * Deallocate resources.
@@ -339,9 +339,9 @@ adp_get_macaddr(struct en_pci_softc *scp)
 	struct en_softc * sc = (struct en_softc *)scp;
 	int lcv;
 
-	for (lcv = 0; lcv < sizeof(sc->macaddr); lcv++)
-		sc->macaddr[lcv] = bus_space_read_1(sc->en_memt, sc->en_base,
-		    MID_ADPMACOFF + lcv);
+	for (lcv = 0; lcv < sizeof(sc->ifatm.mib.esi); lcv++)
+		sc->ifatm.mib.esi[lcv] = bus_space_read_1(sc->en_memt,
+		    sc->en_base, MID_ADPMACOFF + lcv);
 }
 
 /*
@@ -439,13 +439,13 @@ eni_get_macaddr(device_t dev, struct en_pci_softc *scp)
 	data =  EN_PROM_MAGIC | EN_PROM_DATA | EN_PROM_CLK;
 	pci_write_config(dev, EN_TONGA, data, 4);
 
-	for (i = 0; i < sizeof(sc->macaddr); i ++)
-		sc->macaddr[i] = eni_get_byte(dev, &data, i + EN_ESI);
+	for (i = 0; i < sizeof(sc->ifatm.mib.esi); i ++)
+		sc->ifatm.mib.esi[i] = eni_get_byte(dev, &data, i + EN_ESI);
 
-	sc->serial = 0;
+	sc->ifatm.mib.serial = 0;
 	for (i = 0; i < 4; i++) {
-		sc->serial <<= 8;
-		sc->serial |= eni_get_byte(dev, &data, i + EN_SERIAL);
+		sc->ifatm.mib.serial <<= 8;
+		sc->ifatm.mib.serial |= eni_get_byte(dev, &data, i + EN_SERIAL);
 	}
 	/* stop operation */
 	data &=  ~EN_PROM_DATA;
