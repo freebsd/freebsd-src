@@ -1102,7 +1102,8 @@ tcp_ctloutput(so, sopt)
 			if (error)
 				break;
 
-			if (optval > 0 && optval <= tp->t_maxseg)
+			if (optval > 0 && optval <= tp->t_maxseg &&
+			    optval + 40 >= tcp_minmss)
 				tp->t_maxseg = optval;
 			else
 				error = EINVAL;
