@@ -39,7 +39,7 @@ static char sccsid[] = "@(#)tags.c	8.1 (Berkeley) 6/6/93";
 
 #ifndef lint
 static const char rcsid[] =
-        "$Id$";
+        "$Id: tags.c,v 1.4 1999/06/01 20:02:30 hoek Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -412,8 +412,7 @@ findgtag(tag)
 				error("malloc() failed");
 				return (NULL);
 			}
-			gtag_p1->file = file;
-			gtag_p1->file = malloc(strlen(file));
+			gtag_p1->file = malloc(strlen(file) + 1);
 			if (!gtag_p1->file) {
 				pclose(fp);
 				error("malloc() failed");
