@@ -141,8 +141,20 @@ cpu_thread_setup(struct thread *td)
 }
 
 void
-cpu_set_upcall(struct thread *td, void *pcb)
+cpu_set_upcall(struct thread *td, void *v)
 {
+	struct pcb *pcb = v;
+	struct trapframe *tf;
+	struct frame *fr;
+
+	tf = (struct trapframe *)pcb - 1;
+	td->td_frame = tf;
+	fr = (struct frame *)tf - 1;
+	fr->fr_local[0] = (u_long)fork_return;
+	fr->fr_local[1] = (u_long)td;
+	fr->fr_local[2] = (u_long)tf;
+	pcb->pcb_pc = (u_long)fork_trampoline - 8;
+	pcb->pcb_sp = (u_long)fr - SPOFF;
 }
 
 void
