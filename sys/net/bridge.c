@@ -22,6 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $FreeBSD$
  */
 
 /*
@@ -503,6 +504,7 @@ bdg_forward (struct mbuf **m0, struct ifnet *dst)
 	int off;
 
 	m = *m0 ;
+#ifdef DUMMYNET
 	if (m->m_type == MT_DUMMYNET) {
 	    /*
 	     * the packet was already tagged, so part of the
@@ -516,6 +518,7 @@ bdg_forward (struct mbuf **m0, struct ifnet *dst)
 	    canfree = 1 ; /* for sure, a copy is not needed later. */
 	    goto forward; /* HACK! */
 	} else
+#endif
 	    rule = NULL ;
 	if (bdg_ipfw == 0)
 	    goto forward ;
