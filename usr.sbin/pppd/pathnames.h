@@ -1,7 +1,7 @@
 /*
  * define path names
  *
- * $Id$
+ * $FreeBSD$
  */
 
 #ifdef HAVE_PATHS_H

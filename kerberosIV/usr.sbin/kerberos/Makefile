@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.2 1997/10/02 15:03:22 markm Exp $
+# $FreeBSD$
 
 PROG=		kerberos
 MAN1=		${KRB4DIR}/man/kerberos.1

@@ -1,6 +1,6 @@
 # Makefile for periodic(8)
 #
-# $Id$
+# $FreeBSD$
 
 MAN8=	periodic.8
 

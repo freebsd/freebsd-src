@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 PROG=	jail
 MAN8=	jail.8

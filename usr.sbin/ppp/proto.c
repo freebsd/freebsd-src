@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: proto.c,v 1.2 1999/05/12 09:49:01 brian Exp $
+ * $FreeBSD$
  */
 
 #include <sys/types.h>

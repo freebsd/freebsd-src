@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.3 1998/11/18 00:40:07 jdp Exp $
+# $FreeBSD$
 
 LIB=		krb
 CFLAGS+=	-I${KRB4DIR}/include \

@@ -15,7 +15,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: apm.c,v 1.18 1999/07/30 19:35:21 msmith Exp $";
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include <sys/file.h>

@@ -2,7 +2,7 @@
 --- Makefile	Sat Aug  1 20:40:38 1998
 ***************
 *** 2,24 ****
-  # $Id: passwd.diff,v 1.3 1999/08/24 23:28:26 dwhite Exp $
+  # $FreeBSD$
   
   PROG=	passwd
 ! SRCS=	local_passwd.c passwd.c pw_copy.c pw_util.c pw_yp.c \
@@ -26,7 +26,7 @@
   
   CLEANFILES= ${GENSRCS}
 --- 2,21 ----
-  # $Id: passwd.diff,v 1.3 1999/08/24 23:28:26 dwhite Exp $
+  # $FreeBSD$
   
   PROG=	passwd
 ! SRCS=	local_passwd.c passwd.c pw_copy.c pw_util.c 

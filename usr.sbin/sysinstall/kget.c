@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kget.c,v 1.9 1999/05/12 23:08:02 jkh Exp $
+ * $FreeBSD$
  */
 
 #ifdef __alpha__

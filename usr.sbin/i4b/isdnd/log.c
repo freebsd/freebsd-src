@@ -27,7 +27,7 @@
  *	i4b daemon - logging routines
  *	-----------------------------
  *
- *	$Id: log.c,v 1.15 1999/02/14 09:44:56 hm Exp $ 
+ * $FreeBSD$ 
  *
  *      last edit-date: [Sun Feb 14 10:11:18 1999]
  *

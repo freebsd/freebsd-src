@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 PROG=		kadmin
 MAN8=		${KRB4DIR}/man/kadmin.8

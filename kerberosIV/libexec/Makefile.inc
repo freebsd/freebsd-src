@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 BINDIR=	/usr/libexec
 

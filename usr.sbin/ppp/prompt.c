@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: prompt.c,v 1.14 1999/04/03 11:54:00 brian Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

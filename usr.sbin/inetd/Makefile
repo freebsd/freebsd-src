@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
-#	$Id: Makefile,v 1.13 1999/07/22 14:11:25 sheldonh Exp $
+# $FreeBSD$
 
 PROG=	inetd
 SRCS=	inetd.c builtins.c

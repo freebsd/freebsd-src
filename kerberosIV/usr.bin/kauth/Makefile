@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1.1.1 1997/09/24 20:37:13 markm Exp $
+# $FreeBSD$
 
 PROG=		kauth
 MAN1=		${KRB4DIR}/man/kauth.1

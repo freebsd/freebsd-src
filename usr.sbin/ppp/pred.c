@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pred.c,v 1.26 1999/05/09 20:02:25 brian Exp $
+ * $FreeBSD$
  */
 
 #include <sys/types.h>

@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Joseph Koshy
  * ----------------------------------------------------------------------------
  *
- * $Id: ctm_passb.c,v 1.3 1997/02/22 16:05:28 peter Exp $
+ * $FreeBSD$
  *
  */
 

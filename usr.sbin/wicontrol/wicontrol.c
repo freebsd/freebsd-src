@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: wicontrol.c,v 1.19 1999/05/22 15:43:02 wpaul Exp $
+ * $FreeBSD$
  */
 
 #include <sys/types.h>
@@ -56,7 +56,7 @@
 static const char copyright[] = "@(#) Copyright (c) 1997, 1998, 1999\
 	Bill Paul. All rights reserved.";
 static const char rcsid[] =
-	"@(#) $Id: wicontrol.c,v 1.19 1999/05/22 15:43:02 wpaul Exp $";
+	"@(#) $FreeBSD$";
 #endif
 
 static void wi_getval		__P((char *, struct wi_req *));

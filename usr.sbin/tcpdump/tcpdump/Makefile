@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.20 1998/10/02 21:56:30 fenner Exp $
+# $FreeBSD$
 
 PROG=	tcpdump
 CFLAGS+=-DHAVE_FCNTL_H=1 -DHAVE_NET_SLIP_H=1 -DTIME_WITH_SYS_TIME=1 \

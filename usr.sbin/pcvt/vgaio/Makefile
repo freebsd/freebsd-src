@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.9 1998/05/06 15:23:53 bde Exp $
+# $FreeBSD$
 
 .if !exists(${.CURDIR}/../Makefile.inc)
 error:

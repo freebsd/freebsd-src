@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.3 1998/05/09 13:32:37 bde Exp $
+# $FreeBSD$
 
 PROG=	keyserv
 SRCS=	keyserv.c setkey.c keyserv_uid.c crypt_svc.c crypt_server.c crypt.h

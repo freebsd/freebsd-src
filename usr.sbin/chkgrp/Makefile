@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 PROG=	chkgrp
 SRCS=	chkgrp.c

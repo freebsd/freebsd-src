@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.2 1997/10/02 15:03:20 markm Exp $
+# $FreeBSD$
 
 PROG=		ext_srvtab
 MAN8=		${KRB4DIR}/man/ext_srvtab.8

@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
-#	$Id: Makefile,v 1.5 1999/03/28 10:55:03 markm Exp $
+# $FreeBSD$
 
 PROG=	portmap
 MAN8=	portmap.8

@@ -1,4 +1,4 @@
-/*  $Id: dist.h,v 1.38 1999/07/23 03:42:23 jkh Exp $  */
+/* $FreeBSD$  */
 
 #ifndef _DIST_H_INCLUDE
 #define _DIST_H_INCLUDE

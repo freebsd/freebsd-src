@@ -27,7 +27,7 @@
  *	i4b daemon - controller state support routines
  *	----------------------------------------------
  *
- *	$Id: controller.c,v 1.16 1999/05/10 19:36:16 hm Exp $
+ * $FreeBSD$
  *
  *      last edit-date: [Mon May 10 21:35:55 1999]
  *

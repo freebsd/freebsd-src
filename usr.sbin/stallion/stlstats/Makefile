@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.4 1997/03/13 04:21:38 davidn Exp $
+# $FreeBSD$
 
 PROG=	stlstats
 MAN8=	stlstats.8

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atmarp_log.c,v 1.1 1998/09/15 08:23:14 phk Exp $
+ *	@(#) $FreeBSD$
  *
  */
 
@@ -64,7 +64,7 @@
 #include "atmarp_var.h"
 
 #ifndef lint
-__RCSID("@(#) $Id: atmarp_log.c,v 1.1 1998/09/15 08:23:14 phk Exp $");
+__RCSID("@(#) $FreeBSD$");
 #endif
 
 

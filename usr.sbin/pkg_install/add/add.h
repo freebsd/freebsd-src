@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $FreeBSD$ */
 
 /*
  * FreeBSD install - a package for the installation and maintainance

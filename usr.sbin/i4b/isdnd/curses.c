@@ -27,7 +27,7 @@
  *	i4b daemon - curses fullscreen output
  *	-------------------------------------
  *
- *	$Id: curses.c,v 1.28 1999/02/14 09:44:56 hm Exp $ 
+ * $FreeBSD$ 
  *
  *      last edit-date: [Sun Feb 14 10:10:24 1999]
  *

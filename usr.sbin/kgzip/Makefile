@@ -1,4 +1,4 @@
-#	$Id: $
+# $FreeBSD$
 
 PROG=	kgzip
 SRCS=	kgzip.c elfhdr.c kgzcmp.c kgzld.c xio.c

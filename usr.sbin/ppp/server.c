@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: server.c,v 1.24 1999/03/07 11:54:43 brian Exp $
+ * $FreeBSD$
  */
 
 #include <sys/types.h>

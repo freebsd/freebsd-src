@@ -30,7 +30,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: lptcontrol.c,v 1.7 1999/01/10 12:04:56 nsouch Exp $";
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include <ctype.h>
