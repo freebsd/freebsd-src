@@ -7,7 +7,6 @@
 
 PROG=	cc
 MAN=	gcc.1
-NOMAN=	# not while compile from GCC repo checkout
 SRCS=	gcc.c gccspec.c
 NOSHARED?=yes
 
