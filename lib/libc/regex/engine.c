@@ -236,7 +236,7 @@ int eflags;
 
 	/* Adjust start according to moffset, to speed things up */
 	if (g->moffset > -1)
-		start = dp - g->moffset;
+		start = ((dp - g->moffset) < start) ? start : dp - g->moffset;
 
 	/* this loop does only one repetition except for backrefs */
 	for (;;) {
