@@ -13,6 +13,6 @@ WARNS?= 1
 
 # Needs to be dynamically linked for optional dlopen() access to
 # userland libiconv
-NOSHARED?=	NO
+NO_SHARED?=	NO
 
 .include <bsd.prog.mk>

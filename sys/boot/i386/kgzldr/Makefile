@@ -9,7 +9,7 @@ NO_MAN=
 SRCS=	start.s boot.c inflate.c lib.c crt.s sio.s
 CFLAGS=	-Os
 CFLAGS+=-DKZIP
-NOSHARED=
+NO_SHARED=
 LDFLAGS=-Wl,-r
 .PATH:	${.CURDIR}/../../../kern
 

@@ -19,7 +19,7 @@ CFLAGS+= -DBINDIR=\"${BINDIR}\" -DTARGET_SYSTEM_ROOT=\"${TOOLS_PREFIX}\"
 CFLAGS+= -DTOOLBINDIR=\"${TOOLS_PREFIX}/${BINDIR}/libexec\"
 CFLAGS+= -D_GNU_SOURCE
 CFLAGS+= -I${SRCDIR}/ld -I${SRCDIR}/bfd
-NOSHARED?= yes
+NO_SHARED?= yes
 DPADD=	${RELTOP}/libbfd/libbfd.a
 DPADD+=	${RELTOP}/libiberty/libiberty.a
 LDADD=	${DPADD}

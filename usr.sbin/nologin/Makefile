@@ -11,6 +11,6 @@ SYMLINKS=	${BINDIR}/nologin /sbin/nologin
 # libc by setting LD_LIBRARY_PATH appropriately.  Both sshd(8) and
 # login(1) make it possible to log in with an unsanitized environment,
 # rendering a dynamic nologin binary virtually useless.
-NOSHARED=	YES
+NO_SHARED=	YES
 
 .include <bsd.prog.mk>
