@@ -3,9 +3,10 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/select.h>
-#include <sys/pipe.h>
 #include <string.h>
 #include <errno.h>
+
+#define BIG_PIPE_SIZE  64*1024 /* From sys/pipe.h */
 
 /*
  * Test for the non-blocking big pipe bug (write(2) returning
