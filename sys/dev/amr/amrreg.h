@@ -168,7 +168,7 @@ struct amr_adapter_info
     u_int8_t	aa_inserteddrive;
     u_int8_t	aa_batterystatus;
     u_int8_t   	res1;
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * Logical Drive info structure
@@ -180,7 +180,7 @@ struct amr_logdrive_info
     u_int32_t	al_size[AMR_8LD_MAXDRIVES];
     u_int8_t	al_properties[AMR_8LD_MAXDRIVES];
     u_int8_t	al_state[AMR_8LD_MAXDRIVES];
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * Physical Drive info structure
@@ -189,7 +189,7 @@ struct amr_physdrive_info
 {
     u_int8_t	ap_state[AMR_8LD_MAXPHYSDRIVES];	/* low nibble current state, high nibble previous state */
     u_int8_t	ap_predictivefailure;
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * Enquiry response structure for AMR_CMD_ENQUIRY, AMR_CMD_EXT_ENQUIRY and
@@ -216,7 +216,7 @@ struct amr_enquiry
 #define AMR_SIG_T7	0xfff80007
 #define AMR_SIG_490	0xfff70008
     u_int8_t			res2[844];			/*			X */
-} __attribute__ ((packed));
+} __packed;
 
 
 /********************************************************************************
@@ -254,7 +254,7 @@ struct amr_prodinfo
     u_int16_t	ap_subsystem;		/* subsystem identifier */
     u_int16_t	ap_subvendor;		/* subsystem vendor ID */
     u_int8_t	ap_numnotifyctr;	/* number of notify counters */
-} __attribute__((packed));
+} __packed;
 
 /*
  * Notify structure
@@ -319,7 +319,7 @@ struct amr_notify
     u_int8_t	an_fcloopstate0;
     u_int8_t	an_fcloopstate1;
     u_int8_t	res4;
-} __attribute__((packed));
+} __packed;
 
 /*
  * Enquiry3 structure
@@ -346,7 +346,7 @@ struct amr_enquiry3
     u_int8_t	ae_targxfer[80];			/* physical drive transfer rates */
 
     u_int8_t	res1[263];		/* pad to 1024 bytes */
-} __attribute__ ((packed));
+} __packed;
 
 
 /********************************************************************************
@@ -374,13 +374,13 @@ struct amr_mailbox
     u_int8_t	mb_poll;
     u_int8_t	mb_ack;
     u_int8_t	res2[16];
-} __attribute__ ((packed));
+} __packed;
 
 struct amr_mailbox64
 {
     u_int32_t		mb64_segment;	/* for 64-bit controllers */
     struct amr_mailbox	mb;
-} __attribute__ ((packed));
+} __packed;
 
 struct amr_mailbox_ioctl
 {
@@ -399,13 +399,13 @@ struct amr_mailbox_ioctl
     u_int8_t	mb_poll;
     u_int8_t	mb_ack;
     u_int8_t	res4[16];
-} __attribute__ ((packed));
+} __packed;
 
 struct amr_sgentry
 {
     u_int32_t	sg_addr;
     u_int32_t	sg_count;
-} __attribute__ ((packed));
+} __packed;
 
 struct amr_passthrough
 {
@@ -426,7 +426,7 @@ struct amr_passthrough
     u_int8_t	ap_scsi_status;
     u_int32_t	ap_data_transfer_address;
     u_int32_t	ap_data_transfer_length;
-} __attribute__ ((packed));
+} __packed;
 
 #ifdef _KERNEL
 /********************************************************************************

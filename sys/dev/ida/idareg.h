@@ -123,13 +123,13 @@ struct ida_drive_info {
 	u_int8_t	nsectors;
 	u_int8_t	checksum;
 	u_int8_t	mirror;
-} __attribute__ ((packed));
+} __packed;
 
 struct ida_controller_info {
 	u_int8_t	num_drvs;
 	u_int32_t	signature;
 	u_int8_t	firm_rev[4];
-} __attribute__ ((packed));
+} __packed;
 
 
 struct ida_drive_status {
@@ -155,4 +155,4 @@ struct ida_drive_status {
 	u_int8_t	big_spare_repl_map[128];
 	u_int16_t	big_repl_ok_map[8];
 	u_int8_t	big_rebuilding;
-} __attribute__ ((packed));
+} __packed;

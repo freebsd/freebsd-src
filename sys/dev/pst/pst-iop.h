@@ -102,7 +102,7 @@ struct i2o_sgl {
 #define I2O_SGL_END					0x80
 
     u_int32_t		phys_addr[1];
-} __attribute__((packed));
+} __packed;
 
 #define I2O_SGL_MAX_SEGS	((I2O_IOP_OUTBOUND_FRAME_SIZE - (8 + 2)) + 1)
 
@@ -133,7 +133,7 @@ struct i2o_basic_message {
     u_int32_t		function:8;
     u_int32_t		initiator_context;
     u_int32_t		transaction_context;
-} __attribute__((packed));
+} __packed;
 
 /* basic reply layout */
 struct i2o_single_reply {
@@ -197,7 +197,7 @@ struct i2o_single_reply {
 #define I2O_REPLY_STATUS_PROGRESS_REPORT		0x80
 
     u_int32_t		donecount;
-} __attribute__((packed));
+} __packed;
 
 struct i2o_fault_reply {
     u_int8_t		version_offset;
@@ -239,7 +239,7 @@ struct i2o_fault_reply {
     u_int32_t		failing_host_unit_id:16;
     u_int32_t		age_limit;
     u_int64_t		preserved_mfa;
-} __attribute__((packed));
+} __packed;
 
 struct i2o_exec_iop_reset_message {
     u_int8_t		version_offset;
@@ -251,7 +251,7 @@ struct i2o_exec_iop_reset_message {
     u_int8_t		reserved[16];
     u_int32_t		status_word_low_addr;
     u_int32_t		status_word_high_addr;
-} __attribute__((packed));
+} __packed;
 
 struct i2o_exec_status_get_message {
     u_int8_t		version_offset;
@@ -264,7 +264,7 @@ struct i2o_exec_status_get_message {
     u_int32_t		reply_buf_low_addr;
     u_int32_t		reply_buf_high_addr;
     u_int32_t		reply_buf_length;
-} __attribute__((packed));
+} __packed;
 
 struct i2o_status_get_reply {
     u_int16_t		organization_id;
@@ -301,7 +301,7 @@ struct i2o_status_get_reply {
     u_int32_t		current_private_iobase;
     u_int8_t		reserved3[3];
     u_int8_t		sync_byte;
-} __attribute__((packed));
+} __packed;
 
 struct i2o_exec_init_outqueue_message {
     u_int8_t		version_offset;
@@ -317,7 +317,7 @@ struct i2o_exec_init_outqueue_message {
     u_int8_t		reserved;
     u_int16_t		queue_framesize;
     struct i2o_sgl	sgl[2];
-} __attribute__((packed));
+} __packed;
 
 #define I2O_EXEC_OUTBOUND_INIT_IN_PROGRESS		0x01
 #define I2O_EXEC_OUTBOUND_INIT_REJECTED			0x02
@@ -350,7 +350,7 @@ struct i2o_exec_systab_set_message {
     u_int32_t		reserved2:4;
     u_int32_t		reserved3:8;
     struct i2o_sgl	sgl[3];
-} __attribute__((packed));
+} __packed;
 
 struct i2o_exec_systab {
     u_int8_t		entries;
@@ -373,7 +373,7 @@ struct i2o_exec_systab {
     u_int32_t		last_changed;
     u_int32_t		iop_capabilities;
     u_int64_t		messenger_info;
-} __attribute__((packed));
+} __packed;
 
 struct i2o_exec_get_lct_message {
     u_int8_t		version_offset;
@@ -387,7 +387,7 @@ struct i2o_exec_get_lct_message {
     u_int32_t		class;
     u_int32_t		last_change_id;
     struct i2o_sgl	sgl;
-} __attribute__((packed));
+} __packed;
 
 #define I2O_TID_IOP					0x000
 #define I2O_TID_HOST					0x001
@@ -428,7 +428,7 @@ struct i2o_lct_entry {
     u_int32_t		bios_info:8;
     u_int8_t		identity_tag[8];
     u_int32_t		event_capabilities;
-} __attribute__((packed));
+} __packed;
 
 #define I2O_LCT_ENTRYSIZE (sizeof(struct i2o_lct_entry)/sizeof(u_int32_t))
 
@@ -439,7 +439,7 @@ struct i2o_get_lct_reply {
     u_int32_t		iop_flags;
     u_int32_t		current_change_id;
     struct i2o_lct_entry entry[1];
-} __attribute__((packed));
+} __packed;
 
 struct i2o_util_get_param_message {
     u_int8_t		version_offset;
@@ -452,7 +452,7 @@ struct i2o_util_get_param_message {
     u_int32_t		transaction_context;
     u_int32_t		operation_flags;
     struct i2o_sgl	sgl[2];
-} __attribute__((packed));
+} __packed;
 
 struct i2o_get_param_template {
     u_int16_t		operation;
@@ -489,13 +489,13 @@ struct i2o_get_param_template {
 
     u_int16_t		field_count;
     u_int16_t		pad;
-} __attribute__((packed));
+} __packed;
 
 struct i2o_get_param_operation {
     u_int16_t		operation_count;
     u_int16_t		reserved;
     struct i2o_get_param_template operation[1];
-} __attribute__((packed));
+} __packed;
     
 struct i2o_get_param_reply {
     u_int16_t		result_count;;
@@ -504,7 +504,7 @@ struct i2o_get_param_reply {
     u_int8_t		block_status;
     u_int8_t		error_info_size;
     u_int32_t		result[1];
-} __attribute__((packed));
+} __packed;
 
 struct i2o_device_identity {
     u_int32_t		class;
@@ -516,7 +516,7 @@ struct i2o_device_identity {
     u_int8_t		revision[8];
     u_int8_t		sn_format;
     u_int8_t		serial[256];
-} __attribute__((packed));
+} __packed;
 
 struct i2o_bsa_device {
     u_int8_t		device_type;
@@ -526,7 +526,7 @@ struct i2o_bsa_device {
     u_int64_t		capacity;
     u_int32_t		capabilities;
     u_int32_t		state;
-} __attribute__((packed));
+} __packed;
 
 struct i2o_util_claim_message {
     u_int8_t		version_offset;
@@ -540,7 +540,7 @@ struct i2o_util_claim_message {
     u_int16_t		claim_flags;
     u_int8_t		reserved;
     u_int8_t		claim_type;
-} __attribute__((packed));
+} __packed;
 
 struct i2o_util_event_register_message {
     u_int8_t		version_offset;
@@ -552,7 +552,7 @@ struct i2o_util_event_register_message {
     u_int32_t		initiator_context;
     u_int32_t		transaction_context;
     u_int32_t		event_mask;
-} __attribute__((packed));
+} __packed;
 
 struct i2o_util_event_reply_message {
     u_int8_t		version_offset;
@@ -565,7 +565,7 @@ struct i2o_util_event_reply_message {
     u_int32_t		transaction_context;
     u_int32_t		event_mask;
     u_int32_t		event_data[1];
-} __attribute__((packed));
+} __packed;
 
 struct i2o_util_config_dialog_message {
     u_int8_t		version_offset;
@@ -578,7 +578,7 @@ struct i2o_util_config_dialog_message {
     u_int32_t		transaction_context;
     u_int32_t		page_number;
     struct i2o_sgl	sgl[2];
-} __attribute__((packed));
+} __packed;
 
 struct i2o_bsa_rw_block_message {
     u_int8_t		version_offset;
@@ -595,7 +595,7 @@ struct i2o_bsa_rw_block_message {
     u_int32_t		bytecount;
     u_int64_t		lba;
     struct i2o_sgl	sgl;
-} __attribute__((packed));
+} __packed;
 
 struct i2o_bsa_cache_flush_message {
     u_int8_t		version_offset;
@@ -609,7 +609,7 @@ struct i2o_bsa_cache_flush_message {
     u_int16_t		control_flags;
     u_int8_t		time_multiplier;
     u_int8_t		reserved;
-} __attribute__((packed));
+} __packed;
 
 /* prototypes */
 int iop_init(struct iop_softc *);

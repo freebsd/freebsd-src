@@ -48,7 +48,7 @@
 struct mly_sg_entry {
     u_int64_t	physaddr;
     u_int64_t	length;
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * 5.2 System Device Access
@@ -146,7 +146,7 @@ struct mly_lun_map {
     u_int8_t	lun;			/* LUN */
     u_int8_t	tid;			/* TID */
     u_int8_t	hid[32];		/* HID (one bit for each host) */
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * 10.1 Controller Parameters
@@ -252,7 +252,7 @@ struct mly_param_controller {
 #define MLY_STARTUP_ALWAYS		0x5
 
     u_int8_t	res15[62];
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * 10.2 Physical Device Parameters
@@ -264,7 +264,7 @@ struct mly_param_physical_device {
     u_int8_t	combing:1;
     u_int8_t	res1:7;
     u_int8_t	res2[3];
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * 10.3 Logical Device Parameters
@@ -278,7 +278,7 @@ struct mly_param_logical_device {
     u_int8_t	stripe_size;		/* see 8.3 */
     u_int8_t	read_write_control;	/* see 8.5 */
     u_int8_t	res2[8];
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * 12.3 Health Status Buffer
@@ -298,7 +298,7 @@ struct mly_health_status {
     u_int32_t	profiler_page;				/* N/A */
     u_int32_t	next_event;
     u_int8_t	res3[4 + 16 + 64];			/* N/A */
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * 14.2 Timeout Bit Format
@@ -309,7 +309,7 @@ struct mly_timeout {
 #define MLY_TIMEOUT_SECONDS	0x0
 #define MLY_TIMEOUT_MINUTES	0x1
 #define MLY_TIMEOUT_HOURS	0x2
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * 14.3 Operation Device
@@ -335,7 +335,7 @@ struct mly_status {
     u_int8_t	status;
     u_int8_t	sense_length;
     int32_t	residue;
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * 14.5 Command Control Bit (CCB) format
@@ -353,7 +353,7 @@ struct mly_command_control {
     u_int8_t	res2:1;
     u_int8_t	no_auto_sense:1;
     u_int8_t	disable_disconnect:1;
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * 15.0 Commands
@@ -436,7 +436,7 @@ struct mly_command_control {
  */
 struct mly_short_transfer {
     struct mly_sg_entry	sg[2];
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * 17.1.5 Data Transfer Memory Address With SG List
@@ -447,7 +447,7 @@ struct mly_sg_transfer {
     u_int16_t	entries[3];
     u_int16_t	res1;
     u_int64_t	table_physaddr[3];
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * 17.1.3 Data Transfer Memory Address Format
@@ -484,7 +484,7 @@ union mly_command_transfer {
 struct mly_ioctl_param_data {
     u_int8_t			param[10];
     union mly_command_transfer	transfer;
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * 21.2 MDACIOCTL_SETMEMORYMAILBOX
@@ -496,7 +496,7 @@ struct mly_ioctl_param_setmemorymailbox {
     u_int64_t	command_mailbox_physaddr;
     u_int64_t	status_mailbox_physaddr;
     u_int64_t	res2[2];
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * 21.8.2 MDACIOCTL_GETCONTROLLERINFO: Data Format
@@ -609,7 +609,7 @@ struct mly_ioctl_getcontrollerinfo {
 	u_int8_t	number;
 	u_int8_t	res1[12];				/* N/A */
 	char		name[16];				/* N/A */
-    } cpu[2] __attribute__ ((packed));
+    } cpu[2] __packed;
     /* debugging/profiling/command time tracing information */
     u_int16_t	profiling_page;					/* N/A */
     u_int16_t	profiling_programs;				/* N/A */
@@ -674,7 +674,7 @@ struct mly_ioctl_getcontrollerinfo {
     u_int8_t	res26:6;					/* N/A */
     u_int8_t	res27[3];					/* N/A */
     u_int8_t	res28[32 + 512];				/* N/A */
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * 21.9.2 MDACIOCTL_GETLOGDEVINFOVALID
@@ -724,7 +724,7 @@ struct mly_ioctl_getlogdevinfovalid {
     u_int64_t	migration_block;
     u_int64_t	patrol_block;					/* N/A */
     u_int8_t	res7[64];					/* N/A */
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * 21.10.2 MDACIOCTL_GETPHYSDEVINFOVALID: Data Format
@@ -784,7 +784,7 @@ struct mly_ioctl_getphysdevinfovalid {
     u_int64_t	migration_block;				/* N/A */
     u_int64_t	patrol_block;					/* N/A */
     u_int8_t	res11[256];
-} __attribute__ ((packed));
+} __packed;
 
 union mly_devinfo {
     struct mly_ioctl_getlogdevinfovalid		logdev;
@@ -818,7 +818,7 @@ struct mly_ioctl_getdevstatistics {
     u_int16_t	active_commands;				/* N/A */
     u_int16_t	waiting_commands;				/* N/A */
     u_int8_t	res3[8];					/* N/A */
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * 21.13.2 MDACIOCTL_GETCONTROLLERSTATISTICS: Data Format
@@ -860,14 +860,14 @@ struct mly_ioctl_getcontrollerstatistics {
     u_int16_t	host_system_commands_active;			/* N/A */
     u_int16_t	host_system_commands_waiting;			/* N/A */
     u_int8_t	res4[48 + 64];					/* N/A */
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * 21.2 MDACIOCTL_SETRAIDDEVSTATE
  */
 struct mly_ioctl_param_setraiddevstate {
     u_int8_t	state;
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * 21.27.2 MDACIOCTL_GETBDT_FOR_SYSDRIVE: Data Format
@@ -876,7 +876,7 @@ struct mly_ioctl_param_setraiddevstate {
 struct mly_ioctl_getbdt_for_sysdrive {
     u_int32_t	num_of_bdt_entries;
     u_int32_t	bad_data_block_address[MLY_MAX_BDT_ENTRIES];
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * 22.1 Physical Device Definition (PDD)
@@ -891,7 +891,7 @@ struct mly_pdd {
     u_int8_t	target;
     u_int8_t	lun;
     u_int32_t	start_address;
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * 22.2 RAID Device Use Definition (UDD)
@@ -901,7 +901,7 @@ struct mly_udd {
     u_int8_t	state;				/* see 8.1 */
     u_int16_t	raid_device;
     u_int32_t	start_address;
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * RAID Device Definition (LDD)
@@ -917,7 +917,7 @@ struct mly_ldd {
     u_int8_t	read_write_control;		/* see 8.5 */
     u_int32_t	devices_used_size;		/* XXX "block or MB" Huh? */
     u_int16_t	devices_used[32];		/* XXX actual size of this field unknown! */
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * Define a datastructure giving the smallest allocation that will hold
@@ -943,7 +943,7 @@ union mly_ioctl_devconfinfo {
  */
 struct mly_ioctl_param_renameraiddev {
     u_int8_t	new_raid_device;
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * 23.6.2 MDACIOCTL_XLATEPHYSDEVTORAIDDEV
@@ -957,7 +957,7 @@ struct mly_ioctl_param_xlatephysdevtoraiddev {
     u_int8_t	channel;
     u_int8_t	target;
     u_int8_t	lun;
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * 23.7 MDACIOCTL_GETGROUPCONFINFO
@@ -966,7 +966,7 @@ struct mly_ioctl_param_getgroupconfinfo {
     u_int16_t			group;
     u_int8_t			res1[8];
     union mly_command_transfer	transfer;
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * 23.9.2 MDACIOCTL_GETFREESPACELIST: Data Format
@@ -979,14 +979,14 @@ struct mly_ioctl_getfreespacelist_entry {
     u_int8_t	res1[6];
     u_int32_t	address;		/* XXX "blocks or MB" Huh? */
     u_int32_t	size;			/* XXX "blocks or MB" Huh? */
-} __attribute__ ((packed));
+} __packed;
 
 struct mly_ioctl_getfrespacelist {
     u_int16_t	returned_entries;
     u_int16_t	total_entries;
     u_int8_t	res1[12];
     struct mly_ioctl_getfreespacelist_entry space[0];	/* expand to suit */
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * 27.1 MDACIOCTL_GETSUBSYSTEMDATA
@@ -1003,7 +1003,7 @@ struct mly_ioctl_param_subsystemdata {
     u_int8_t	subsystem:4;
 #define MLY_SUBSYSTEM_BBU	0x01
     u_int	parameter[3];		/* only for SETSUBSYSTEMDATA */
-} __attribute__ ((packed));
+} __packed;
 
 struct mly_ioctl_getsubsystemdata_bbustatus {
     u_int16_t	current_power;
@@ -1025,7 +1025,7 @@ struct mly_ioctl_getsubsystemdata_bbustatus {
 #define MLY_BBU_STATUS_DISCHARGING	0x20
 #define MLY_BBU_STATUS_FASTCHARGING	0x40
     u_int8_t	res2;
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * 28.9  MDACIOCTL_RESETDEVICE
@@ -1035,7 +1035,7 @@ struct mly_ioctl_getsubsystemdata_bbustatus {
  */
 struct mly_ioctl_param_deviceoperation {
     u_int8_t	operation_device;		/* see 14.3 */
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * 31.1 Event Data Format
@@ -1051,7 +1051,7 @@ struct mly_event {
     u_int8_t   	res1[4];
     u_int32_t	param;
     u_int8_t	sense[40];
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * 31.2 MDACIOCTL_GETEVENT
@@ -1060,7 +1060,7 @@ struct mly_ioctl_param_getevent {
     u_int16_t			sequence_number_low;
     u_int8_t			res1[8];
     union mly_command_transfer	transfer;
-} __attribute__ ((packed));
+} __packed;
 
 union mly_ioctl_param {
     struct mly_ioctl_param_data				data;
@@ -1082,13 +1082,13 @@ struct mly_command_address_physical {
     u_int8_t			target;
     u_int8_t			channel:3;
     u_int8_t			controller:5;
-} __attribute__ ((packed));
+} __packed;
 
 struct mly_command_address_logical {
     u_int16_t			logdev;
     u_int8_t			res1:3;
     u_int8_t			controller:5;
-} __attribute__ ((packed));
+} __packed;
 
 union mly_command_address {
     struct mly_command_address_physical	phys;
@@ -1106,7 +1106,7 @@ struct mly_command_generic {
     u_int8_t			maximum_sense_size;
     u_int8_t			res1[11];
     union mly_command_transfer	transfer;
-} __attribute__ ((packed));
+} __packed;
     
 
 /*
@@ -1125,7 +1125,7 @@ struct mly_command_scsi_small {
     u_int8_t			cdb_length;
     u_int8_t			cdb[MLY_CMD_SCSI_SMALL_CDB];
     union mly_command_transfer	transfer;
-} __attribute__ ((packed));
+} __packed;
     
 /*
  * 19.2 MDACMD_SCSILC & MDACMD_SCSILCPT
@@ -1143,7 +1143,7 @@ struct mly_command_scsi_large {
     u_int16_t			res1;
     u_int64_t			cdb_physaddr;
     union mly_command_transfer	transfer;
-} __attribute__ ((packed));
+} __packed;
     
 /*
  * 20.1 IOCTL Command Format: Internal Bus
@@ -1159,7 +1159,7 @@ struct mly_command_ioctl {
     u_int8_t			maximum_sense_size;
     u_int8_t			sub_ioctl;
     union mly_ioctl_param	param;
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * PG6: 8.2.2
@@ -1167,7 +1167,7 @@ struct mly_command_ioctl {
 struct mly_command_mmbox {
     u_int32_t			flag;
     u_int8_t			data[60];
-} __attribute__ ((packed));
+} __packed;
 
 union mly_command_packet {
     struct mly_command_generic		generic;
@@ -1254,7 +1254,7 @@ union mly_status_packet {
      struct {
 	 u_int32_t		flag;
 	 u_int8_t		data[4];
-     } __attribute__ ((packed)) mmbox;
+     } __packed mmbox;
 };
 union mly_health_region {
     struct mly_health_status	status;
@@ -1267,4 +1267,4 @@ struct mly_mmbox {
     union mly_command_packet	mmm_command[MLY_MMBOX_COMMANDS];
     union mly_status_packet	mmm_status[MLY_MMBOX_STATUS];
     union mly_health_region	mmm_health;
-} __attribute__ ((packed));
+} __packed;
