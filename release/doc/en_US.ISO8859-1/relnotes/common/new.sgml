@@ -282,6 +282,11 @@
       details, see security advisory <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:04.sendmail.asc">FreeBSD-SA-03:04</ulink>.</para>
 
+    <para>A bounds-checking bug in the XDR implementation, which could
+      allow a remote attacker to cause a denial-of-service, has been
+      fixed.  For more details see security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:05.xdr.asc">FreeBSD-SA-03:05</ulink>.</para>
+
   </sect2>
 
   <sect2 id="userland">
