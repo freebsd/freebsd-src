@@ -1447,6 +1447,9 @@ fd_clone(void *arg, char *name, int namelen, dev_t *dev)
 		return;
 	if (dev_stdclone(name, &n, "fd", &u) != 2)
 		return;
+	if (u != fd->fdu)
+		/* unit # mismatch */
+		return;
 	l = strlen(n);
 	if (l == 1 && *n >= 'a' && *n <= 'h') {
 		/*
