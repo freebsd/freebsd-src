@@ -644,9 +644,10 @@ IVT_ENTRY(Instruction_TLB, 0x0400)
 (p15)	br.dpnt.few 1f
 	;;
 	ld8	r21=[r18]		// read pte
-	mov	pr=r17,0x1ffff
 	;;
 	itc.i	r21			// insert pte
+	;;
+	mov	pr=r17,0x1ffff
 	rfi				// done
 	;;
 1:	ld8	r20=[r20]		// first entry
@@ -686,10 +687,10 @@ IVT_ENTRY(Instruction_TLB, 0x0400)
 	st8	[r18]=r22,8
 	;;
 	st8.rel	[r18]=r19		// store new tag
-	;; 
-	mov	pr=r17,0x1ffff		// restore predicates
 	;;
 	itc.i	r21			// and place in TLB
+	;; 
+	mov	pr=r17,0x1ffff		// restore predicates
 	rfi
 
 3:	add	r20=24,r20		// next in chain
@@ -721,9 +722,10 @@ IVT_ENTRY(Data_TLB, 0x0800)
 (p15)	br.dpnt.few 1f
 	;;
 	ld8	r21=[r18]		// read pte
-	mov	pr=r17,0x1ffff
 	;;
 	itc.d	r21			// insert pte
+	;;
+	mov	pr=r17,0x1ffff
 	rfi				// done
 	;;
 1:	ld8	r20=[r20]		// first entry
@@ -763,12 +765,12 @@ IVT_ENTRY(Data_TLB, 0x0800)
 	st8	[r18]=r22,8
 	;;
 	st8.rel	[r18]=r19		// store new tag
-	;; 
-	mov	pr=r17,0x1ffff		// restore predicates
 	;;
 	itc.d	r21			// and place in TLB
+	;; 
+	mov	pr=r17,0x1ffff		// restore predicates
 	rfi
-	
+
 3:	add	r20=24,r20		// next in chain
 	;;
 	ld8	r20=[r20]		// read chain
@@ -920,13 +922,10 @@ IVT_END(Data_Key_Miss)
 IVT_ENTRY(Dirty_Bit, 0x2000)
 	mov	r16=cr.ifa
 	mov	r17=pr
-	mov	r20=PAGE_SHIFT<<2	// XXX get page size from VHPT
 	;;
-	ptc.l	r16,r20			// purge TLB
 	thash	r18=r16
-	ttag	r19=r16
 	;;
-	srlz.d
+	ttag	r19=r16
 	add	r20=24,r18		// collision chain
 	;; 
 	ld8	r20=[r20]		// first entry
@@ -950,7 +949,7 @@ IVT_ENTRY(Dirty_Bit, 0x2000)
 	;;
 	or	r21=r22,r21		// set dirty & access bit
 	;;
-	st8	[r20]=r21		// store back
+	st8	[r20]=r21,8		// store back
 	;; 
 	ld8	r22=[r20]		// read rest of pte
 	;;
@@ -971,12 +970,12 @@ IVT_ENTRY(Dirty_Bit, 0x2000)
 	st8	[r18]=r22,8
 	;;
 	st8.rel	[r18]=r19		// store new tag
-	;; 
-	mov	pr=r17,0x1ffff		// restore predicates
 	;;
 	itc.d	r21			// and place in TLB
+	;; 
+	mov	pr=r17,0x1ffff		// restore predicates
 	rfi
-	
+
 2:	add	r20=24,r20		// next in chain
 	;;
 	ld8	r20=[r20]		// read chain
@@ -989,17 +988,14 @@ IVT_END(Dirty_Bit)
 IVT_ENTRY(Instruction_Access_Bit, 0x2400)
 	mov	r16=cr.ifa
 	mov	r17=pr
-	mov	r20=PAGE_SHIFT<<2	// XXX get page size from VHPT
 	;;
-	ptc.l	r16,r20			// purge TLB
 	thash	r18=r16
-	ttag	r19=r16
 	;;
-	srlz.d
+	ttag	r19=r16
 	add	r20=24,r18		// collision chain
 	;; 
 	ld8	r20=[r20]		// first entry
-	;; 
+	;;
 	rsm	psr.dt			// turn off data translations
 	;;
 	srlz.d				// serialize
@@ -1019,8 +1015,8 @@ IVT_ENTRY(Instruction_Access_Bit, 0x2400)
 	;;
 	or	r21=r22,r21		// set accessed bit
 	;;
-	st8	[r20]=r21		// store back
-	;; 
+	st8	[r20]=r21,8		// store back
+	;;
 	ld8	r22=[r20]		// read rest of pte
 	;;
 	dep	r18=0,r18,61,3		// convert vhpt ptr to physical
@@ -1040,12 +1036,12 @@ IVT_ENTRY(Instruction_Access_Bit, 0x2400)
 	st8	[r18]=r22,8
 	;;
 	st8.rel	[r18]=r19		// store new tag
-	;; 
-	mov	pr=r17,0x1ffff		// restore predicates
 	;;
 	itc.i	r21			// and place in TLB
+	;; 
+	mov	pr=r17,0x1ffff		// restore predicates
 	rfi				// walker will retry the access
-	
+
 2:	add	r20=24,r20		// next in chain
 	;;
 	ld8	r20=[r20]		// read chain
@@ -1058,17 +1054,14 @@ IVT_END(Instruction_Access_Bit)
 IVT_ENTRY(Data_Access_Bit, 0x2800)
 	mov	r16=cr.ifa
 	mov	r17=pr
-	mov	r20=PAGE_SHIFT<<2	// XXX get page size from VHPT
 	;;
-	ptc.l	r16,r20			// purge TLB
 	thash	r18=r16
-	ttag	r19=r16
 	;;
-	srlz.d
+	ttag	r19=r16
 	add	r20=24,r18		// collision chain
-	;; 
+	;;
 	ld8	r20=[r20]		// first entry
-	;; 
+	;;
 	rsm	psr.dt			// turn off data translations
 	;;
 	srlz.d				// serialize
@@ -1088,7 +1081,7 @@ IVT_ENTRY(Data_Access_Bit, 0x2800)
 	;;
 	or	r21=r22,r21		// set accessed bit
 	;;
-	st8	[r20]=r21		// store back
+	st8	[r20]=r21,8		// store back
 	;; 
 	ld8	r22=[r20]		// read rest of pte
 	;;
@@ -1109,12 +1102,12 @@ IVT_ENTRY(Data_Access_Bit, 0x2800)
 	st8	[r18]=r22,8
 	;;
 	st8.rel	[r18]=r19		// store new tag
-	;; 
-	mov	pr=r17,0x1ffff		// restore predicates
 	;;
 	itc.d	r21			// and place in TLB
+	;; 
+	mov	pr=r17,0x1ffff		// restore predicates
 	rfi				// walker will retry the access
-	
+
 2:	add	r20=24,r20		// next in chain
 	;;
 	ld8	r20=[r20]		// read chain
