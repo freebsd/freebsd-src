@@ -43,18 +43,9 @@ ENTRY(__thr_setcontext)
 	cmp 	r0, #0
 	moveq 	r0, #-1
 	moveq 	pc, lr
-	add	ip, r0, #8
-	ldmia	ip, {r2-r12}
 	cmp	r2, #0
-	str	r1, [r2]
-	add	ip, r0, #4
-	str	ip, [r1] /* Restore r1. */
-	add	ip, r0, #64
-	msr	cpsr, ip
-	add	ip, r0, #52
-	mov	r0, #0 /* Return 0. */
-	ldr	sp, [ip] /* Restore stack pointer. */
-	mov	pc, lr /* Return. */
+	strne	r1, [r2]
+	ldmia	r0, {r0-r15}
 	/* XXX: FP bits ? */
 
 /*
@@ -72,10 +63,14 @@ ENTRY(__thr_getcontext)
 	moveq	r0, #-1
 	moveq	pc, lr
 	stmia	r0, {r0-r13}
+	mov	r1, #1
+	str	r1, [r0] /* Return 1 from setcontext */
+	str	lr, [r0, #(15 * 4)] /* PC */
+	mrs	r1, cpsr
+	str	r1, [r0, #(16 * 4)] /* CPSR */
 	mov	r0, #0 /* Return 0. */
 	mov	pc, lr
 
 ENTRY(_arm_enter_uts)
-	add	r4, r2, r3 /* Stack addr + size. */
-	mov	lr, pc
+	add	sp, r2, r3 /* Stack addr + size. */
 	mov	pc, r1
