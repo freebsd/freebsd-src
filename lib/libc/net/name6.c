@@ -296,7 +296,7 @@ getipnodebyname(const char *name, int af, int flags, int *errp)
 		return _hpaddr(af, name, &addrbuf, errp);
 	}
 #endif
-	if (inet_pton(AF_INET, name, &addrbuf) == 1) {
+	if (inet_aton(name, (struct in_addr *)&addrbuf) == 1) {
 		if (af != AF_INET) {
 			if (MAPADDRENABLED(flags)) {
 				MAPADDR(&addrbuf, &addrbuf.in_addr);
@@ -759,7 +759,9 @@ _files_ghbyname(const char *name, int af, int *errp)
 		}
 		if (!match)
 			continue;
-		if (inet_pton(af, addrstr, &addrbuf) != 1) {
+		if ((af == AF_INET
+		     ? inet_aton(addrstr, (struct in_addr *)&addrbuf)
+		     : inet_pton(af, addrstr, &addrbuf)) != 1) {
 			*errp = NO_DATA;	/* name found */
 			continue;
 		}
@@ -796,7 +798,9 @@ _files_ghbyaddr(const void *addr, int addrlen, int af, int *errp)
 	while (fgets(buf, sizeof(buf), fp)) {
 		line = buf;
 		if ((p = _hgetword(&line)) == NULL
-		||  inet_pton(af, p, &addrbuf) != 1
+		||  (af == AF_INET
+		     ? inet_aton(p, (struct in_addr *)&addrbuf)
+		     : inet_pton(af, p, &addrbuf)) != 1
 		||  memcmp(addr, &addrbuf, addrlen) != 0
 		||  (p = _hgetword(&line)) == NULL)
 			continue;
