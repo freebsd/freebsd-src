@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_ioctl.c,v 1.11.2.2 1997/06/02 06:31:49 msmith Exp $
+ *  $Id: linux_ioctl.c,v 1.11.2.3 1997/12/15 06:11:34 msmith Exp $
  */
 
 #include <sys/param.h>
@@ -826,37 +826,37 @@ linux_ioctl(struct proc *p, struct linux_ioctl_args *args, int *retval)
    case LINUX_VT_OPENQRY:
 
 	args->cmd = VT_OPENQRY;
-	return  ioctl(p, (struct ioctl_args *)args);
+	return  ioctl(p, (struct ioctl_args *)args, retval);
 
     case LINUX_VT_GETMODE:
 
 	args->cmd = VT_GETMODE;
-	return  ioctl(p, (struct ioctl_args *)args);
+	return  ioctl(p, (struct ioctl_args *)args, retval);
 
     case LINUX_VT_SETMODE:
 
 	args->cmd = VT_SETMODE;
-	return  ioctl(p, (struct ioctl_args *)args);
+	return  ioctl(p, (struct ioctl_args *)args, retval);
 
     case LINUX_VT_GETSTATE:
 
 	args->cmd = VT_GETACTIVE;
-	return  ioctl(p, (struct ioctl_args *)args);
+	return  ioctl(p, (struct ioctl_args *)args, retval);
 
     case LINUX_VT_ACTIVATE:
 
 	args->cmd = VT_ACTIVATE;
-	return  ioctl(p, (struct ioctl_args *)args);
+	return  ioctl(p, (struct ioctl_args *)args, retval);
 
     case LINUX_VT_WAITACTIVE:
 
 	args->cmd = VT_WAITACTIVE;
-	return  ioctl(p, (struct ioctl_args *)args);
+	return  ioctl(p, (struct ioctl_args *)args, retval);
 
     case LINUX_KDGKBMODE:
 
 	args->cmd = KDGKBMODE;
-	return ioctl(p, (struct ioctl_args *)args);
+	return ioctl(p, (struct ioctl_args *)args, retval);
 
     case LINUX_KDSKBMODE:
       {
