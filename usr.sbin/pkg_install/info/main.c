@@ -1,5 +1,5 @@
 #ifndef lint
-static char *rcsid = "$Header: /usr1/cvs/jkh/pkg_install/info/main.c,v 1.5 1993/09/04 05:06:41 jkh Exp $";
+static char *rcsid = "$Id$";
 #endif
 
 /*
