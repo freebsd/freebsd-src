@@ -47,7 +47,7 @@ is a program used to regulate game playing.
 .Nm Dm
 expects to be invoked with the name of a game that a user wishes to play.
 This is done by creating symbolic links to
-.Nm dm ,
+.Nm ,
 in the directory
 .Pa /usr/games
 for all of the regulated games.
@@ -56,7 +56,7 @@ The actual binaries for these games should be placed in a
 directory,
 .Pa /usr/games/hide ,
 that may only be accessed by the
-.Nm dm
+.Nm
 program.
 .Nm Dm
 determines if the requested game is available and, if so, runs it.
@@ -87,7 +87,7 @@ game logging file
 .Xr dm.conf 5
 .Sh BUGS
 Two problems result from
-.Nm dm
+.Nm
 running the games setuid
 .Dq games .
 First, all games that allow users to run
@@ -95,7 +95,7 @@ First, all games that allow users to run
 commands should carefully
 set both the real and effective user id's immediately before executing
 those commands.  Probably more important is that
-.Nm dm
+.Nm
 never be setuid
 anything but
 .Dq games
@@ -105,6 +105,6 @@ had no reason to run setuid and which accessed user files may have to
 be modified.
 .Sh HISTORY
 The
-.Nm dm
+.Nm
 command appeared in
 .Bx 4.3 tahoe .
