@@ -1,6 +1,6 @@
 # from BSDI Makefile,v 2.6 1996/04/08 20:06:40 bostic Exp
 #
-# $Id: Makefile,v 1.8 1997/09/30 22:03:34 jlemon Exp $
+# $Id: Makefile,v 1.9 1997/12/16 16:36:43 bde Exp $
 
 PROG=	doscmd
 SRCS=	AsyncIO.c ParseBuffer.c bios.c callback.c cpu.c dos.c cmos.c config.c \
@@ -27,15 +27,14 @@ LDADD+= -lgcc -lc
 DPADD+= ${LIBGCC} ${LIBC}
 
 beforeinstall:
-	install ${COPY} -o ${BINOWN} -g ${EXEGRP} -m ${EXEMODE} \
-		doscmd.kernel ${DESTDIR}/usr/libexec/doscmd.kernel
-	install -c -o ${BINOWN} -g ${EXEGRP} -m ${EXEMODE} \
-		redir.com ${DESTDIR}/usr/libdata/doscmd/
-	install -c -o ${BINOWN} -g ${EXEGRP} -m ${EXEMODE} \
-		emsdriv.sys ${DESTDIR}/usr/libdata/doscmd/
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${EXEGRP} -m ${EXEMODE} \
+	    doscmd.kernel ${DESTDIR}/usr/libexec/
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${EXEGRP} -m ${EXEMODE} \
+	    emsdriv.sys redir.com ${DESTDIR}/usr/libdata/doscmd/
 
 doscmd: ${LIBCRT0} doscmd_loader.o ${LIBGCC} ${LIBC}
-	ld -e start -dc -dp -o doscmd ${LIBCRT0} doscmd_loader.o -lgcc -lc
+	ld -e start -dc -dp ${LDFLAGS:M-static:S/-static/-Bstatic/} \
+	    -o doscmd ${LIBCRT0} doscmd_loader.o -lgcc -lc
 
 # Bogusly generated dependency to get doscmd_loader.c looked at by mkdep.
 .depend: doscmd_loader.c
@@ -60,4 +59,4 @@ emsdriv.sys: emsdriv.sys.uu
 # dependency gets expanded.
 doscmd.kernel: crt0.o ${OBJS} ${DPADD}
 	ld -N -Bstatic -T 110000 -o doscmd.kernel ${LDFLAGS} \
-		crt0.o ${OBJS} ${LDADD}
+	    crt0.o ${OBJS} ${LDADD}
