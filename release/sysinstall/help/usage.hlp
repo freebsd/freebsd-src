@@ -10,7 +10,7 @@ encounter during this installation:
 KEY             ACTION
 ---             ------
 SPACE           Select or toggle the current item.
-RETURN          Finish with a menu or item.
+ENTER          Finish with a menu or item.
 UP ARROW        Move to previous item (or up, in a text display box).
 DOWN ARROW      Move to next item (or down, in a text display box).
 TAB             Move to next item or group.
