@@ -193,7 +193,7 @@ _vm_object_allocate(objtype_t type, vm_pindex_t size, vm_object_t object)
 {
 	int incr;
 
-	mtx_init(&object->mtx, "vm object", NULL, MTX_DEF);
+	mtx_init(&object->mtx, "vm object", NULL, MTX_DEF | MTX_DUPOK);
 
 	TAILQ_INIT(&object->memq);
 	TAILQ_INIT(&object->shadow_head);
@@ -504,10 +504,12 @@ vm_object_deallocate(vm_object_t object)
 doterm:
 		VM_OBJECT_LOCK(object);
 		temp = object->backing_object;
-		if (temp) {
+		if (temp != NULL) {
+			VM_OBJECT_LOCK(temp);
 			TAILQ_REMOVE(&temp->shadow_head, object, shadow_list);
 			temp->shadow_count--;
 			temp->generation++;
+			VM_OBJECT_UNLOCK(temp);
 			object->backing_object = NULL;
 		}
 		/*
