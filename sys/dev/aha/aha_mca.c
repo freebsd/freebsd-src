@@ -110,15 +110,13 @@ aha_mca_probe (device_t dev)
 	mca_add_drq(dev, drq);
 	mca_add_irq(dev, irq);
 
-	aha_unit++;
-
 	return (0);
 }
 
 static int
 aha_mca_attach (device_t dev)
 {
-	struct aha_softc *	sc = NULL;
+	struct aha_softc *	sc = device_get_softc(dev);
 	struct resource *	io = NULL;
 	struct resource *	irq = NULL;
 	struct resource *	drq = NULL;
@@ -154,13 +152,7 @@ aha_mca_attach (device_t dev)
 		goto bad;
 	}
 
-	sc = aha_alloc(unit, rman_get_bustag(io), rman_get_bushandle(io));
-	if (sc == NULL) {
-		device_printf(dev, "aha_alloc() failed!\n");
-		error = ENOMEM;
-		goto bad;
-	}
-
+	aha_alloc(sc, unit, rman_get_bustag(io), rman_get_bushandle(io));
 	error = aha_probe(sc);
 	if (error) {
 		device_printf(dev, "aha_probe() failed!\n");
