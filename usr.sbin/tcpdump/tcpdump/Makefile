@@ -25,7 +25,7 @@ SRCS=	addrtoname.c gmt2local.c machdep.c parsenfsfh.c \
 	setsignal.c smbutil.c tcpdump.c util.c version.c
 CLEANFILES+=	version.c
 
-CFLAGS+= -I${.CURDIR} -I${TCPDUMP_DISTDIR} -I${TCPDUMP_DISTDIR}/lbl
+CFLAGS+= -I${.CURDIR} -I${TCPDUMP_DISTDIR}
 CFLAGS+= -DHAVE_CONFIG_H
 
 .if !defined(NOINET6)
