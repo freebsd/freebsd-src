@@ -43,6 +43,7 @@
 #include <nfsv2.h>
 #include <iodesc.h>
 
+#include <bootp.h>
 #include <bootstrap.h>
 #include "btxv86.h"
 #include "pxe.h"
@@ -281,7 +282,7 @@ pxe_open(struct open_file *f, ...)
 		 * the proper information, fall back to the server
 		 * which brought us to life and a default rootpath.
 		 */
-		bootp(pxe_sock);
+		bootp(pxe_sock, BOOTP_PXE);
 		if (rootip.s_addr == 0)
 			rootip.s_addr = bootplayer.sip;
 		if (!rootpath[1])

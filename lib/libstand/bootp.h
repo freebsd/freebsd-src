@@ -18,6 +18,8 @@
  * University.  Carnegie Mellon makes no representations about the
  * suitability of this software for any purpose.  It is provided "as is"
  * without express or implied warranty.
+ *
+ * $FreeBSD$
  */
 
 
@@ -116,6 +118,12 @@ struct bootp {
 #define DHCPNAK 6
 #define DHCPRELEASE 7
 #endif
+
+/*
+ * bootp flags
+ */
+#define	BOOTP_NONE		0x0000		/* No flags */
+#define	BOOTP_PXE		0x0001		/* Booting from PXE. */
 
 /*
  * "vendor" data permitted for CMU bootp clients.

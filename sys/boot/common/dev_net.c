@@ -68,6 +68,7 @@
 #include <string.h>
 #include <net.h>
 #include <netif.h>
+#include <bootp.h>
 #include <bootparam.h>
 
 #include "dev_net.h"
@@ -218,7 +219,7 @@ net_getparams(sock)
      * use RARP and RPC/bootparam (the Sun way) to get them.
      */
     if (try_bootp)
-	bootp(sock);
+	bootp(sock, BOOTP_NONE);
     if (myip.s_addr != 0)
 	goto exit;
     if (debug)
