@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_error.h
  *
- * $FreeBSD$
+ * $Id$
  */
 
 #ifndef _NETIPX_IPX_ERROR_H_

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_inode.c	8.13 (Berkeley) 4/21/95
- * $FreeBSD$
+ * $Id$
  */
 
 #include "opt_quota.h"

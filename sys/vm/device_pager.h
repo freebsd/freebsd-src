@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)device_pager.h	8.3 (Berkeley) 12/13/93
- * $FreeBSD$
+ * $Id$
  */
 
 #ifndef	_DEVICE_PAGER_

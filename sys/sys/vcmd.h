@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vcmd.h	8.1 (Berkeley) 6/2/93
- * $FreeBSD$
+ * $Id$
  */
 
 #ifndef	_SYS_VCMD_H_

@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$FreeBSD$
+ *	$Id$
  */
 
 #include "npx.h"

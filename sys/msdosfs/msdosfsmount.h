@@ -1,4 +1,4 @@
-/*	$FreeBSD$ */
+/*	$Id$ */
 /*	$NetBSD: msdosfsmount.h,v 1.7 1994/08/21 18:44:17 ws Exp $	*/
 
 /*-

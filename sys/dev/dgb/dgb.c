@@ -1,5 +1,5 @@
 /*-
- *  dgb.c $FreeBSD$
+ *  dgb.c $Id$
  *
  *  Digiboard driver.
  *

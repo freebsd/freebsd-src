@@ -33,7 +33,7 @@
  *
  *	@(#)spx_debug.h
  *
- * $FreeBSD$
+ * $Id$
  */
 
 #ifndef _NETIPX_SPX_DEBUG_H_

@@ -31,7 +31,7 @@
  */
 
 /*
- * $FreeBSD$
+ * $Id$
  */
 
     /***    Registers (base=3EB): ************/

@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_status.c	8.3 (Berkeley) 2/17/94
  *
- *	$FreeBSD$
+ *	$Id$
  */
 
 #include <sys/param.h>

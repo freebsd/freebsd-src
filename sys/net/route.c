@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.c	8.2 (Berkeley) 11/15/93
- *	$FreeBSD$
+ *	$Id$
  */
 
 #include "opt_mrouting.h"

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)exec.h	8.3 (Berkeley) 1/21/94
- * $FreeBSD$
+ * $Id$
  */
 
 #ifndef _SYS_EXEC_H_

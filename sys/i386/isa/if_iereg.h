@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $Id$
  * definitions for AT&T StarLAN 10 etc...
  */
 

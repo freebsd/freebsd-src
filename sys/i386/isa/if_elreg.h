@@ -4,7 +4,7 @@
  * of the software, derivative works or modified versions, and any
  * portions thereof.
  *
- * $FreeBSD$
+ * $Id$
  */
 /* 3COM Etherlink 3C501 Register Definitions */
 

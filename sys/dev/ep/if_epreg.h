@@ -31,7 +31,7 @@
 
  */
 /*
- *  $FreeBSD$
+ *  $Id$
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select

@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:03  rpd
- *	$FreeBSD$
+ *	$Id$
  */
 
 #include <sys/param.h>

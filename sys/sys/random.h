@@ -1,7 +1,7 @@
 /*
  * random.h -- A strong random number generator
  *
- * $FreeBSD$
+ * $Id$
  *
  * Version 0.95, last modified 18-Oct-95
  * 

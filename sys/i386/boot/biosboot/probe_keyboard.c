@@ -42,7 +42,7 @@
  *
  * This grody hack brought to you by Bill Paul (wpaul@ctr.columbia.edu)
  *
- *	$FreeBSD$
+ *	$Id$
  */
 
 #ifdef PROBE_KEYBOARD

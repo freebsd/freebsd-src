@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_lookup.c	8.15 (Berkeley) 6/16/95
- * $FreeBSD$
+ * $Id$
  */
 
 #include <sys/param.h>

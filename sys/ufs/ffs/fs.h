@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)fs.h	8.13 (Berkeley) 3/21/95
- * $FreeBSD$
+ * $Id$
  */
 
 #ifndef _UFS_FFS_FS_H_
