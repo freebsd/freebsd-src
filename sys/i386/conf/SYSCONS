@@ -1,7 +1,7 @@
 #
 # SYSCONS -- Generic machine with WD/AHx family disks and syscons
 #
-#	$Id: SYSCONS,v 1.11 1993/10/16 12:28:35 rgrimes Exp $
+#	$Id: SYSCONS,v 1.12 1993/10/19 01:28:09 rgrimes Exp $
 #
 
 machine		"i386"
@@ -21,6 +21,8 @@ options		"TCP_COMPAT_42"		#TCP/IP compatible with 4.2
 options		XSERVER			#Xserver
 options		UCONSOLE		#X Console support
 options		"NCONS=8"		#8 virtual consoles
+options		"FAT_CURSOR"		#block cursor in syscons
+options		"STAR_SAVER"		#syscons "stars" screen saver
 #options	GATEWAY			#Host is a Gateway (forwards packets)
 
 config		"386bsd"	root on wd0 swap on wd0 and sd0
