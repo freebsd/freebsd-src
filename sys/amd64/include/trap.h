@@ -77,8 +77,8 @@
 #define	    ILL_FPOP_FAULT	T_FPOPFLT	/* coprocessor operand fault */
 
 /* portable macros for SIGFPE/ARITHTRAP */
-#define FPE_INTDIV	1	/* integer divide by zero */
-#define FPE_INTOVF	2	/* integer overflow */
+#define FPE_INTOVF	1	/* integer overflow */
+#define FPE_INTDIV	2	/* integer divide by zero */
 #define FPE_FLTDIV	3	/* floating point divide by zero */
 #define FPE_FLTOVF	4	/* floating point overflow */
 #define FPE_FLTUND	5	/* floating point underflow */
