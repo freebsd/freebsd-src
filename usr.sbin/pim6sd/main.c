@@ -585,7 +585,7 @@ usage:
 	    IF_DEBUG(DEBUG_TIMEOUT)
 		log(LOG_DEBUG, 0, "TIMEOUT: secs %d, diff secs %d, diff usecs %d", secs, difftime.tv_sec, difftime.tv_usec);
 #endif
-	    while (difftime.tv_usec > 1000000)
+	    while (difftime.tv_usec >= 1000000)
 	    {
 		difftime.tv_sec++;
 		difftime.tv_usec -= 1000000;
