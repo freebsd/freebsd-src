@@ -100,10 +100,13 @@ Lidle1:	LDGP(pv)
 	call_pal PAL_OSF1_swpipl
 Lidle2:
 	CALL(procrunnable)
-	beq	v0, Lidle2
+	beq	v0, Lpgzero
 	ldiq	a0, ALPHA_PSL_IPL_HIGH		/* disable all interrupts */
 	call_pal PAL_OSF1_swpipl
 	jmp	zero, sw1			/* jump back into the fray */
+Lpgzero:
+	CALL(vm_page_zero_idle)	
+	br	zero, Lidle2
 	END(idle)
 
 /*
