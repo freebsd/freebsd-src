@@ -252,7 +252,7 @@ docontinue:
 		}
 		ip6stat.ip6s_delivered--;
 	}
-	INP_INFO_RLOCK(&ripcbinfo);
+	INP_INFO_RUNLOCK(&ripcbinfo);
 	return IPPROTO_DONE;
 }
 
