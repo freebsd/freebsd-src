@@ -145,7 +145,7 @@ initmbufs()
 			return(0);
 		}
 		if (namelist[X_MBSTAT].n_type == 0) {
-			error("namelist on %s failed", _PATH_UNIX);
+			error("namelist on %s failed", getbootfile());
 			return(0);
 		}
 	}
