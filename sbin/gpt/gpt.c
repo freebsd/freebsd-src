@@ -237,6 +237,7 @@ gpt_mbr(int fd, off_t lba)
 			m = map_add(start, size, MAP_TYPE_MBR_PART, p);
 			if (m == NULL)
 				return (-1);
+			m->map_index = i + 1;
 		} else {
 			if (gpt_mbr(fd, start) == -1)
 				return (-1);
@@ -321,6 +322,7 @@ gpt_gpt(int fd, off_t lba)
 		m = map_add(ent->ent_lba_start, size, MAP_TYPE_GPT_PART, ent);
 		if (m == NULL)
 			return (-1);
+		m->map_index = i + 1;
 	}
 	return (0);
 

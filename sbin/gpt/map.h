@@ -44,6 +44,7 @@ typedef struct map {
 #define	MAP_TYPE_SEC_GPT_TBL	6
 #define	MAP_TYPE_GPT_PART	7
 #define	MAP_TYPE_PMBR		8
+	int	map_index;
 	void 	*map_data;
 } map_t;
 
