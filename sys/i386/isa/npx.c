@@ -796,6 +796,8 @@ npx_intr(dummy)
 int
 npxdna()
 {
+	int s;
+
 	if (!npx_exists)
 		return (0);
 	if (PCPU_GET(npxproc) != NULL) {
@@ -803,6 +805,8 @@ npxdna()
 		       PCPU_GET(npxproc), curproc);
 		panic("npxdna");
 	}
+	s = save_intr();
+	disable_intr();
 	stop_emulating();
 	/*
 	 * Record new context early in case frstor causes an IRQ13.
@@ -822,6 +826,7 @@ npxdna()
 	 * first FPU instruction after a context switch.
 	 */
 	frstor(&PCPU_GET(curpcb)->pcb_savefpu);
+	restore_intr(s);
 
 	return (1);
 }
