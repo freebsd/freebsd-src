@@ -100,6 +100,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_ioctl.h>
+#include <net80211/ieee80211_radiotap.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -110,8 +111,8 @@ __FBSDID("$FreeBSD$");
 #include <net/bpf.h>
 
 #include <dev/wi/if_wavelan_ieee.h>
-#include <dev/wi/if_wivar.h>
 #include <dev/wi/if_wireg.h>
+#include <dev/wi/if_wivar.h>
 
 #define IF_POLL(ifq, m)		((m) = (ifq)->ifq_head)
 #define	IFQ_POLL(ifq, m)	IF_POLL((ifq), (m))
@@ -372,6 +373,10 @@ wi_attach(device_t dev)
 			ic->ic_caps |= IEEE80211_C_MONITOR;
 		}
 		sc->sc_ibss_port = htole16(1);
+
+		sc->sc_min_rssi = WI_LUCENT_MIN_RSSI;
+		sc->sc_max_rssi = WI_LUCENT_MAX_RSSI;
+		sc->sc_dbm_offset = WI_LUCENT_DBM_OFFSET;
 		break;
 
 	case WI_INTERSIL:
@@ -393,6 +398,10 @@ wi_attach(device_t dev)
 		if (sc->sc_sta_firmware_ver >= 803)
 			ic->ic_caps |= IEEE80211_C_HOSTAP;
 		sc->sc_ibss_port = htole16(0);
+
+		sc->sc_min_rssi = WI_PRISM_MIN_RSSI;
+		sc->sc_max_rssi = WI_PRISM_MAX_RSSI;
+		sc->sc_dbm_offset = WI_PRISM_DBM_OFFSET;
 		break;
 
 	case WI_SYMBOL:
@@ -401,6 +410,10 @@ wi_attach(device_t dev)
 		if (sc->sc_sta_firmware_ver >= 25000)
 			ic->ic_caps |= IEEE80211_C_IBSS;
 		sc->sc_ibss_port = htole16(4);
+
+		sc->sc_min_rssi = WI_PRISM_MIN_RSSI;
+		sc->sc_max_rssi = WI_PRISM_MAX_RSSI;
+		sc->sc_dbm_offset = WI_PRISM_DBM_OFFSET;
 		break;
 	}
 
@@ -431,9 +444,8 @@ wi_attach(device_t dev)
 	buflen = sizeof(val);
 	if ((sc->sc_flags & WI_FLAGS_HAS_DBMADJUST) &&
 	    wi_read_rid(sc, WI_RID_DBM_ADJUST, &val, &buflen) == 0) {
-		sc->sc_dbm_adjust = le16toh(val);
-	} else
-		sc->sc_dbm_adjust = 100;	/* default */
+		sc->sc_dbm_offset = le16toh(val);
+	}
 
 	sc->sc_max_datalen = 2304;
 	sc->sc_system_scale = 1;
@@ -460,6 +472,23 @@ wi_attach(device_t dev)
 	ic->ic_newstate = wi_newstate;
 	ieee80211_media_init(ifp, wi_media_change, wi_media_status);
 
+#if NBPFILTER > 0
+	bpfattach2(ifp, DLT_IEEE802_11_RADIO,
+		sizeof(struct ieee80211_frame) + sizeof(sc->sc_tx_th),
+		&sc->sc_drvbpf);
+	/*
+	 * Initialize constant fields.
+	 *
+	 * NB: the channel is setup each time we transition to the
+	 *     RUN state to avoid filling it in for each frame.
+	 */
+	sc->sc_tx_th.wt_ihdr.it_len = sizeof(sc->sc_tx_th);
+	sc->sc_tx_th.wt_ihdr.it_present = WI_TX_RADIOTAP_PRESENT;
+
+	sc->sc_rx_th.wr_ihdr.it_len = sizeof(sc->sc_rx_th);
+	sc->sc_rx_th.wr_ihdr.it_present = WI_RX_RADIOTAP_PRESENT0;
+	sc->sc_rx_th.wr_present1 = WI_RX_RADIOTAP_PRESENT1;
+#endif
 	return (0);
 }
 
@@ -477,6 +506,9 @@ wi_detach(device_t dev)
 
 	wi_stop(ifp, 0);
 
+#if NBPFILTER > 0
+	bpfdetach(ifp);
+#endif
 	ieee80211_ifdetach(ifp);
 	WI_UNLOCK(sc);
 	bus_teardown_intr(dev, sc->irq, sc->wi_intrhand);
@@ -902,10 +934,9 @@ wi_start(struct ifnet *ifp)
 
 			MGETHDR(mb, M_DONTWAIT, m0->m_type);
 			if (mb != NULL) {
-				(void) m_dup_pkthdr(mb, m0, M_DONTWAIT);
 				mb->m_next = m0;
-				mb->m_data = (caddr_t)&frmhdr;
-				mb->m_len = sizeof(frmhdr);
+				mb->m_data = (caddr_t)&sc->sc_tx_th;
+				mb->m_len = sizeof(sc->sc_tx_th);
 				mb->m_pkthdr.len += mb->m_len;
 				bpf_mtap(sc->sc_drvbpf, mb);
 				m_free(mb);
@@ -1449,12 +1480,23 @@ wi_rx_intr(struct wi_softc *sc)
 	if (sc->sc_drvbpf) {
 		struct mbuf *mb;
 
+		/* XXX pre-allocate space when setting up recv's */
 		MGETHDR(mb, M_DONTWAIT, m->m_type);
 		if (mb != NULL) {
+			/* XXX replace divide by table */
+			sc->sc_rx_th.wr_rate = frmhdr.wi_rx_rate / 5;
+			sc->sc_rx_th.wr_antsignal =
+				WI_RSSI_TO_DBM(sc, frmhdr.wi_rx_signal);
+			sc->sc_rx_th.wr_antnoise =
+				WI_RSSI_TO_DBM(sc, frmhdr.wi_rx_silence);
+			sc->sc_rx_th.wr_time =
+				htole32((frmhdr.wi_rx_tstamp1 << 16) |
+					frmhdr.wi_rx_tstamp0);
+
 			(void) m_dup_pkthdr(mb, m, M_DONTWAIT);
 			mb->m_next = m;
-			mb->m_data = (caddr_t)&frmhdr;
-			mb->m_len = sizeof(frmhdr);
+			mb->m_data = (caddr_t)&sc->sc_rx_th;
+			mb->m_len = sizeof(sc->sc_rx_th);
 			mb->m_pkthdr.len += mb->m_len;
 			bpf_mtap(sc->sc_drvbpf, mb);
 			m_free(mb);
@@ -1837,7 +1879,7 @@ wi_get_cfg(struct ifnet *ifp, u_long cmd, caddr_t data)
 			    &len);
 			break;
 		}
-		wreq.wi_val[0] = htole16(sc->sc_dbm_adjust);
+		wreq.wi_val[0] = htole16(sc->sc_dbm_offset);
 		len = sizeof(u_int16_t);
 		break;
 
@@ -2608,6 +2650,12 @@ wi_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 		wi_read_rid(sc, WI_RID_CURRENT_CHAN, &val, &buflen);
 		/* XXX validate channel */
 		ni->ni_chan = &ic->ic_channels[le16toh(val)];
+#if NBPFILTER > 0
+		sc->sc_tx_th.wt_chan_freq = sc->sc_rx_th.wr_chan_freq =
+			htole16(ni->ni_chan->ic_freq);
+		sc->sc_tx_th.wt_chan_flags = sc->sc_rx_th.wr_chan_flags =
+			htole16(ni->ni_chan->ic_flags);
+#endif
 
 		if (IEEE80211_ADDR_EQ(old_bssid, ni->ni_bssid))
 			sc->sc_false_syns++;

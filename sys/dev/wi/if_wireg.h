@@ -679,3 +679,39 @@ struct wi_frame {
  */
 #define WI_HFA386X_CR_A_D_TEST_MODES2 0x1A
 #define WI_HFA386X_CR_MANUAL_TX_POWER 0x3E
+
+#ifdef IEEE80211_RADIOTAP_F_CFP
+/*
+ * Radio capture format for Prism.
+ */
+#define WI_RX_RADIOTAP_PRESENT0 \
+	((1 << IEEE80211_RADIOTAP_FLAGS) | \
+	 (1 << IEEE80211_RADIOTAP_RATE) | \
+	 (1 << IEEE80211_RADIOTAP_CHANNEL) | \
+	 (1 << IEEE80211_RADIOTAP_DB_ANTSIGNAL) | \
+	 (1 << IEEE80211_RADIOTAP_DB_ANTNOISE) | \
+	 (1 << IEEE80211_RADIOTAP_EXT))
+
+#define WI_RX_RADIOTAP_PRESENT1	(1 << (IEEE80211_RADIOTAP_TIME - 32))
+
+struct wi_rx_radiotap_header {
+	struct ieee80211_radiotap_header wr_ihdr;
+	u_int32_t	wr_present1;
+	u_int8_t	wr_flags;
+	u_int8_t	wr_rate;
+	u_int16_t	wr_chan_freq;
+	u_int16_t	wr_chan_flags;
+	u_int8_t	wr_antsignal;
+	u_int8_t	wr_antnoise;
+	u_int32_t	wr_time;
+};
+
+#define WI_TX_RADIOTAP_PRESENT \
+	((1 << IEEE80211_RADIOTAP_CHANNEL))
+
+struct wi_tx_radiotap_header {
+	struct ieee80211_radiotap_header wt_ihdr;
+	u_int16_t	wt_chan_freq;
+	u_int16_t	wt_chan_flags;
+};
+#endif /* IEEE80211_RADIOTAP_F_CFP */
