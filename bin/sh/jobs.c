@@ -109,7 +109,7 @@ STATIC void setcurjob(struct job *);
 STATIC void deljob(struct job *);
 STATIC struct job *getcurjob(struct job *);
 #endif
-STATIC void showjob(struct job *, int, int);
+STATIC void showjob(struct job *, pid_t, int, int);
 
 
 /*
@@ -299,13 +299,13 @@ jobscmd(int argc, char *argv[])
 		showjobs(0, sformat, lformat);
 	else
 		while ((id = *argv++) != NULL)
-			showjob(getjob(id), sformat, lformat);
+			showjob(getjob(id), 0, sformat, lformat);
 
 	return (0);
 }
 
 STATIC void
-showjob(struct job *jp, int sformat, int lformat)
+showjob(struct job *jp, pid_t pid, int sformat, int lformat)
 {
 	char s[64];
 	struct procstat *ps;
@@ -328,7 +328,9 @@ showjob(struct job *jp, int sformat, int lformat)
 			out1fmt("%d\n", ps->pid);
 			goto skip;
 		}
-		if (!lformat && ps != jp->ps)
+		if (!lformat && ps != jp->ps && pid == 0)
+			goto skip;
+		if (pid != 0 && pid != ps->pid)
 			goto skip;
 		if (jobno == curr && ps == jp->ps)
 			c = '+';
@@ -411,7 +413,7 @@ showjobs(int change, int sformat, int lformat)
 		}
 		if (change && ! jp->changed)
 			continue;
-		showjob(jp, sformat, lformat);
+		showjob(jp, 0, sformat, lformat);
 		jp->changed = 0;
 		if (jp->state == JOBDONE) {
 			freejob(jp);
@@ -988,7 +990,7 @@ dowait(int block, struct job *job)
 				sig = WTERMSIG(status);
 		}
 		if (sig != 0 && sig != SIGINT && sig != SIGPIPE)
-			showjob(thisjob, 0, 0);
+			showjob(thisjob, pid, 0, 1);
 	} else {
 		TRACE(("Not printing status, rootshell=%d, job=0x%x\n", rootshell, job));
 		if (thisjob)
