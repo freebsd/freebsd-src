@@ -322,7 +322,8 @@ ng_etf_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				MALLOC(fil, struct filter *, sizeof(*fil),
 					M_NETGRAPH_ETF, M_NOWAIT | M_ZERO);
 				if (fil == NULL) {
-					return (ENOMEM);
+					error = ENOMEM;
+					break;
 				}
 
 				fil->match_hook = hook;
@@ -472,6 +473,7 @@ ng_etf_disconnect(hook_p hook)
 		LIST_FOREACH(fil, (etfp->hashtable + i), next) {
 			if (fil->match_hook == hook) {
 				LIST_REMOVE(fil, next);
+				FREE(fil, M_NETGRAPH_ETF);
 			}
 		}
 	}
