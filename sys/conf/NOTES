@@ -746,6 +746,7 @@ device		random
 options 	P1003_1B
 options 	_KPOSIX_PRIORITY_SCHEDULING
 options 	_KPOSIX_VERSION=199309L
+options		P1003_1B_SEMAPHORES
 
 
 #####################################################################
