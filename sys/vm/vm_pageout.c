@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.67 1996/03/09 06:53:27 dyson Exp $
+ * $Id: vm_pageout.c,v 1.68 1996/03/11 06:11:43 hsu Exp $
  */
 
 /*
@@ -608,8 +608,9 @@ rescan1:
 
 		if (m->dirty == 0) {
 			vm_page_test_dirty(m);
-		} else if (m->dirty != 0)
+		} else if (m->dirty != 0) {
 			m->dirty = VM_PAGE_BITS_ALL;
+		}
 		if (m->valid == 0) {
 			vm_page_protect(m, VM_PROT_NONE);
 			vm_page_free(m);
@@ -729,6 +730,7 @@ rescan1:
 						vm_page_deactivate(m);
 					}
 				} else {
+					vm_page_protect(m, VM_PROT_NONE);
 					vm_page_deactivate(m);
 					--page_shortage;
 				}

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.39 1996/03/13 01:18:14 dyson Exp $
+ * $Id: vm_map.c,v 1.40 1996/03/28 04:22:17 dyson Exp $
  */
 
 /*
@@ -242,7 +242,9 @@ vmspace_free(vm)
 	if (--vm->vm_refcnt == 0) {
 		int s, i;
 
+/*
 		pmap_remove(&vm->vm_pmap, (vm_offset_t) kstack, (vm_offset_t) kstack+UPAGES*PAGE_SIZE);
+*/
 			
 		/*
 		 * Lock the map, to wait out all other references to it.
@@ -250,9 +252,9 @@ vmspace_free(vm)
 		 * the pmap module to reclaim anything left.
 		 */
 		vm_map_lock(&vm->vm_map);
-		vm_object_deallocate(vm->vm_upages_obj);
 		(void) vm_map_delete(&vm->vm_map, vm->vm_map.min_offset,
 		    vm->vm_map.max_offset);
+		vm_object_deallocate(vm->vm_upages_obj);
 		vm_map_unlock(&vm->vm_map);
 		while( vm->vm_map.ref_count != 1)
 			tsleep(&vm->vm_map.ref_count, PVM, "vmsfre", 0);
@@ -504,134 +506,6 @@ vm_map_deallocate(map)
 }
 
 /*
- *	vm_map_insert:
- *
- *	Inserts the given whole VM object into the target
- *	map at the specified address range.  The object's
- *	size should match that of the address range.
- *
- *	Requires that the map be locked, and leaves it so.
- */
-int
-vm_map_insert(map, object, offset, start, end, prot, max, cow)
-	vm_map_t map;
-	vm_object_t object;
-	vm_ooffset_t offset;
-	vm_offset_t start;
-	vm_offset_t end;
-	vm_prot_t prot, max;
-	int cow;
-{
-	register vm_map_entry_t new_entry;
-	register vm_map_entry_t prev_entry;
-	vm_map_entry_t temp_entry;
-
-	/*
-	 * Check that the start and end points are not bogus.
-	 */
-
-	if ((start < map->min_offset) || (end > map->max_offset) ||
-	    (start >= end))
-		return (KERN_INVALID_ADDRESS);
-
-	/*
-	 * Find the entry prior to the proposed starting address; if it's part
-	 * of an existing entry, this range is bogus.
-	 */
-
-	if (vm_map_lookup_entry(map, start, &temp_entry))
-		return (KERN_NO_SPACE);
-
-	prev_entry = temp_entry;
-
-	/*
-	 * Assert that the next entry doesn't overlap the end point.
-	 */
-
-	if ((prev_entry->next != &map->header) &&
-	    (prev_entry->next->start < end))
-		return (KERN_NO_SPACE);
-
-	/*
-	 * See if we can avoid creating a new entry by extending one of our
-	 * neighbors.
-	 */
-
-	if (object == NULL) {
-		if ((prev_entry != &map->header) &&
-		    (prev_entry->end == start) &&
-		    (map->is_main_map) &&
-		    (prev_entry->is_a_map == FALSE) &&
-		    (prev_entry->is_sub_map == FALSE) &&
-		    (prev_entry->inheritance == VM_INHERIT_DEFAULT) &&
-		    (prev_entry->protection == prot) &&
-		    (prev_entry->max_protection == max) &&
-		    (prev_entry->wired_count == 0)) {
-
-			if (vm_object_coalesce(prev_entry->object.vm_object,
-				OFF_TO_IDX(prev_entry->offset),
-				(vm_size_t) (prev_entry->end
-				    - prev_entry->start),
-				(vm_size_t) (end - prev_entry->end))) {
-				/*
-				 * Coalesced the two objects - can extend the
-				 * previous map entry to include the new
-				 * range.
-				 */
-				map->size += (end - prev_entry->end);
-				prev_entry->end = end;
-				return (KERN_SUCCESS);
-			}
-		}
-	}
-	/*
-	 * Create a new entry
-	 */
-
-	new_entry = vm_map_entry_create(map);
-	new_entry->start = start;
-	new_entry->end = end;
-
-	new_entry->is_a_map = FALSE;
-	new_entry->is_sub_map = FALSE;
-	new_entry->object.vm_object = object;
-	new_entry->offset = offset;
-
-	if (cow & MAP_COPY_NEEDED)
-		new_entry->needs_copy = TRUE;
-	else
-		new_entry->needs_copy = FALSE;
-
-	if (cow & MAP_COPY_ON_WRITE)
-		new_entry->copy_on_write = TRUE;
-	else
-		new_entry->copy_on_write = FALSE;
-
-	if (map->is_main_map) {
-		new_entry->inheritance = VM_INHERIT_DEFAULT;
-		new_entry->protection = prot;
-		new_entry->max_protection = max;
-		new_entry->wired_count = 0;
-	}
-	/*
-	 * Insert the new entry into the list
-	 */
-
-	vm_map_entry_link(map, prev_entry, new_entry);
-	map->size += new_entry->end - new_entry->start;
-
-	/*
-	 * Update the free space hint
-	 */
-
-	if ((map->first_free == prev_entry) &&
-		(prev_entry->end >= new_entry->start))
-		map->first_free = new_entry;
-
-	return (KERN_SUCCESS);
-}
-
-/*
  *	SAVE_HINT:
  *
  *	Saves the specified entry as the hint for
@@ -714,6 +588,139 @@ vm_map_lookup_entry(map, address, entry)
 	*entry = cur->prev;
 	SAVE_HINT(map, *entry);
 	return (FALSE);
+}
+
+/*
+ *	vm_map_insert:
+ *
+ *	Inserts the given whole VM object into the target
+ *	map at the specified address range.  The object's
+ *	size should match that of the address range.
+ *
+ *	Requires that the map be locked, and leaves it so.
+ */
+int
+vm_map_insert(map, object, offset, start, end, prot, max, cow)
+	vm_map_t map;
+	vm_object_t object;
+	vm_ooffset_t offset;
+	vm_offset_t start;
+	vm_offset_t end;
+	vm_prot_t prot, max;
+	int cow;
+{
+	register vm_map_entry_t new_entry;
+	register vm_map_entry_t prev_entry;
+	vm_map_entry_t temp_entry;
+
+	/*
+	 * Check that the start and end points are not bogus.
+	 */
+
+	if ((start < map->min_offset) || (end > map->max_offset) ||
+	    (start >= end))
+		return (KERN_INVALID_ADDRESS);
+
+	/*
+	 * Find the entry prior to the proposed starting address; if it's part
+	 * of an existing entry, this range is bogus.
+	 */
+
+	if (vm_map_lookup_entry(map, start, &temp_entry))
+		return (KERN_NO_SPACE);
+
+	prev_entry = temp_entry;
+
+	/*
+	 * Assert that the next entry doesn't overlap the end point.
+	 */
+
+	if ((prev_entry->next != &map->header) &&
+	    (prev_entry->next->start < end))
+		return (KERN_NO_SPACE);
+
+	if ((prev_entry != &map->header) &&
+		(prev_entry->end == start) &&
+		(prev_entry->is_a_map == FALSE) &&
+		(prev_entry->is_sub_map == FALSE) &&
+		((object == NULL) || (prev_entry->object.vm_object == object)) &&
+		(prev_entry->inheritance == VM_INHERIT_DEFAULT) &&
+		(prev_entry->protection == prot) &&
+		(prev_entry->max_protection == max) &&
+		(prev_entry->wired_count == 0)) {
+	/*
+	 * See if we can avoid creating a new entry by extending one of our
+	 * neighbors.
+	 */
+
+		if (object == NULL) {
+			if (vm_object_coalesce(prev_entry->object.vm_object,
+				OFF_TO_IDX(prev_entry->offset),
+				(vm_size_t) (prev_entry->end
+				    - prev_entry->start),
+				(vm_size_t) (end - prev_entry->end))) {
+				/*
+				 * Coalesced the two objects - can extend the
+				 * previous map entry to include the new
+				 * range.
+				 */
+				map->size += (end - prev_entry->end);
+				prev_entry->end = end;
+				return (KERN_SUCCESS);
+			}
+		} /* else if ((object == prev_entry->object.vm_object) &&
+			(prev_entry->offset + (prev_entry->end - prev_entry->start) == offset)) {
+			map->size += (end - prev_entry->end);
+			prev_entry->end = end;
+			printf("map optim 1\n");
+			return (KERN_SUCCESS);
+		} */
+	}
+	/*
+	 * Create a new entry
+	 */
+
+	new_entry = vm_map_entry_create(map);
+	new_entry->start = start;
+	new_entry->end = end;
+
+	new_entry->is_a_map = FALSE;
+	new_entry->is_sub_map = FALSE;
+	new_entry->object.vm_object = object;
+	new_entry->offset = offset;
+
+	if (cow & MAP_COPY_NEEDED)
+		new_entry->needs_copy = TRUE;
+	else
+		new_entry->needs_copy = FALSE;
+
+	if (cow & MAP_COPY_ON_WRITE)
+		new_entry->copy_on_write = TRUE;
+	else
+		new_entry->copy_on_write = FALSE;
+
+	if (map->is_main_map) {
+		new_entry->inheritance = VM_INHERIT_DEFAULT;
+		new_entry->protection = prot;
+		new_entry->max_protection = max;
+		new_entry->wired_count = 0;
+	}
+	/*
+	 * Insert the new entry into the list
+	 */
+
+	vm_map_entry_link(map, prev_entry, new_entry);
+	map->size += new_entry->end - new_entry->start;
+
+	/*
+	 * Update the free space hint
+	 */
+
+	if ((map->first_free == prev_entry) &&
+		(prev_entry->end >= new_entry->start))
+		map->first_free = new_entry;
+
+	return (KERN_SUCCESS);
 }
 
 /*

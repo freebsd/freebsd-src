@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.48 1996/03/02 02:54:24 dyson Exp $
+ *	$Id: vm_page.c,v 1.49 1996/03/09 06:56:39 dyson Exp $
  */
 
 /*
@@ -1006,8 +1006,10 @@ vm_page_cache(m)
 {
 	int s;
 
-	if ((m->flags & PG_BUSY) || m->busy || m->wire_count)
+	if ((m->flags & PG_BUSY) || m->busy || m->wire_count) {
+		printf("vm_page_cache: attempting to cache busy page\n");
 		return;
+	}
 	if (m->queue == PQ_CACHE)
 		return;
 
