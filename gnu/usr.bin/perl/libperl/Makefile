@@ -10,8 +10,8 @@ SRCS=	perl.c gv.c toke.c perly.c op.c regcomp.c dump.c util.c mg.c \
 	xsutils.c globals.c perlio.c perlapi.c \
 	config.h
 
-DPADD=	${LIBM} ${LIBUTIL}
-LDADD=	-lm -lutil
+DPADD=	${LIBM}
+LDADD=	-lm
 
 NO_PERL_SCRIPT_MAKE=	true
 
