@@ -42,15 +42,6 @@ $sgmls = "sgmls";
 $instant = "instant";
 
 #
-# Locate the DTD, an SGML declaration, and the replacement files
-#
-
-$doctype = "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 3.2//EN\">";
-$dtdbase = "/usr/share/sgml/FreeBSD";
-$dtd = "$dtdbase/linuxdoc.dtd";
-$decl = "$dtdbase/linuxdoc.dcl";
-
-#
 # Things to clean up if we exit abnormally
 #
 
@@ -121,7 +112,7 @@ sub sgmlparse {
 	$defines = "-i $defines";
     }
     open($ifhandle, "$sgmls $defines $decl $file | " . 
-    	"$instant -Dfilename=$fileroot -t linuxdoc-${replacement}.ts |");
+    	"$instant -Dfilename=$fileroot -t ${dtd}-${replacement}.ts |");
 }
 
 #
@@ -208,6 +199,9 @@ $m_depth = 2;			# depth of menus
 
 $sc = 0;			# section counter
 $filecount = 0;			# file counter
+
+$doctype = "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 3.2//EN\">";
+$BODY = "<BODY text=\"#000000\" bgcolor=\"#ffffff\">";
 
 # Other variables:
 #
@@ -636,6 +630,21 @@ sub navbar {
 
 }
 
+#
+# Generate html output from docbook input
+#
+
+sub docbook_html {
+    $decl = "/usr/share/sgml/docbook/docbook.dcl";
+    @cleanfiles = (@cleanfiles, "${fileroot}.html");
+    open (outfile, ">$fileroot.html");
+    &sgmlparse(infile, "html");
+    while (<infile>) {
+	print outfile;
+    }
+    close(infile);
+    close(outfile);
+}
 
 # extlink
 #
@@ -667,7 +676,7 @@ sub extlink {
 
 sub main {
     # Check arguments
-    if (!&NGetOpt('f=s', 'links', 'ssi', 'i:s@', 'hdr=s', 'ftr=s', 'white')) {
+    if (!&NGetOpt('d=s', 'f=s', 'links', 'ssi', 'i:s@', 'hdr=s', 'ftr=s')) {
 	&usage;
 	exit 1;
     }
@@ -683,42 +692,61 @@ sub main {
     }
 
     # Generate output
-    if ($opt_f eq 'html') {
-    	if ($opt_hdr) {$html_header = &gethf($opt_hdr);}
-    	if ($opt_ftr) {$html_footer = &gethf($opt_ftr);}
-    	if ($opt_white) {$BODY = "<BODY text=\"#000000\" bgcolor=\"#ffffff\">";}
-    	else {$BODY = "<BODY>"}
-    	&gen_html(); 
-    }
-    elsif ($opt_f eq 'latex' || $opt_f eq 'latex') {
-	&gen_latex(); 
-    }
-    elsif ($opt_f eq 'roff') { 
-	&gen_roff();
-    }
-    elsif ($opt_f eq 'ascii') {
-    	&do_groff("ascii", "| col");
-    }
-    elsif ($opt_f eq 'latin1') {
-    	&do_groff("latin1", "| col");
-    }
-    elsif ($opt_f eq 'koi8-r') {
-    	&do_groff("koi8-r", "| col");
-    }
-    elsif ($opt_f eq 'ps') {
-    	&do_groff("ps", "");
+    if ($opt_d eq 'docbook') {
+    	$dtd = "docbook";
+    	$decl = "/usr/share/sgml/docbook/docbook.dcl";
+    	if ($opt_f eq 'html') {
+    	    &docbook_html();
+    	}
+	else {
+	    if ($opt_f eq "") {
+		print "An output format must be specified with the -f
+		option.\n";
+	    }
+	    else {
+		print "\"$opt_f\" is an unknown output format.\n";
+	    }
+	    &usage;
+	    exit 1;
+	}
     }
     else {
-	if ($opt_f eq "") {
-	    print "An output format must be specified with the -f option.\n";
+    	$dtd = "linuxdoc";
+    	$decl = "/usr/share/sgml/FreeBSD/linuxdoc.dcl";
+	if ($opt_f eq 'html') {
+    	    if ($opt_hdr) {$html_header = &gethf($opt_hdr);}
+    	    if ($opt_ftr) {$html_footer = &gethf($opt_ftr);}
+    	    &gen_html(); 
+	}
+	elsif ($opt_f eq 'latex' || $opt_f eq 'latex') {
+	    &gen_latex(); 
+	}
+	elsif ($opt_f eq 'roff') { 
+	    &gen_roff();
+	}
+	elsif ($opt_f eq 'ascii') {
+    	    &do_groff("ascii", "| col");
+	}
+	elsif ($opt_f eq 'latin1') {
+    	    &do_groff("latin1", "| col");
+	}
+	elsif ($opt_f eq 'koi8-r') {
+    	    &do_groff("koi8-r", "| col");
+	}
+	elsif ($opt_f eq 'ps') {
+    	    &do_groff("ps", "");
 	}
 	else {
-	    print "\"$opt_f\" is an unknown output format.\n";
+	    if ($opt_f eq "") {
+		print "An output format must be specified with the -f option.\n";
+	    }
+	    else {
+		print "\"$opt_f\" is an unknown output format.\n";
+	    }
+	    &usage;
+	    exit 1;
 	}
-	&usage;
-	exit 1;
     }
-
 }
 
 &main;
