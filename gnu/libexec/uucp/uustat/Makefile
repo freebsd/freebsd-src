@@ -1,9 +1,10 @@
 # Makefile for uustat
-# $Id: Makefile,v 1.2 1993/08/05 16:15:22 jtc Exp $
+# $Id: Makefile,v 1.1 1993/08/05 18:28:01 conklin Exp $
 
 BINDIR=		$(bindir)
 BINOWN=		$(owner)
-BINMODE=	4555
+BINGRP=         dialer
+BINMODE=        6555
 
 PROG=		uustat
 SRCS=		uustat.c util.c log.c copy.c
