@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vnops.c	8.6 (Berkeley) 2/7/94
  *
- *	$Id: procfs_vnops.c,v 1.11 1995/04/15 03:20:31 davidg Exp $
+ *	$Id: procfs_vnops.c,v 1.12 1995/05/11 19:26:33 rgrimes Exp $
  */
 
 /*
@@ -166,30 +166,6 @@ procfs_ioctl(ap)
 {
 
 	return (ENOTTY);
-}
-
-/*
- * do block mapping for pfsnode (vp).
- * since we don't use the buffer cache
- * for procfs this function should never
- * be called.  in any case, it's not clear
- * what part of the kernel ever makes use
- * of this function.  for sanity, this is the
- * usual no-op bmap, although returning
- * (EIO) would be a reasonable alternative.
- */
-int
-procfs_bmap(ap)
-	struct vop_bmap_args *ap;
-{
-
-	if (ap->a_vpp != NULL)
-		*ap->a_vpp = ap->a_vp;
-	if (ap->a_bnp != NULL)
-		*ap->a_bnp = ap->a_bn;
-	if (ap->a_runp != NULL)
-		*ap->a_runp = 0;
-	return (0);
 }
 
 /*
@@ -428,10 +404,6 @@ procfs_getattr(ap)
 
 	case Pmem:
 		vap->va_nlink = 1;
-		vap->va_bytes = vap->va_size =
-			ctob(procp->p_vmspace->vm_tsize +
-				    procp->p_vmspace->vm_dsize +
-				    procp->p_vmspace->vm_ssize);
 		/*
 		 * If we denied owner access earlier, then we have to
 		 * change the owner to root - otherwise 'ps' and friends
