@@ -40,7 +40,7 @@
 .Nd remote login
 .Sh SYNOPSIS
 .Ar rlogin
-.Op Fl 8DEKLdx
+.Op Fl 468DEKLdx
 .Op Fl e Ar char
 .Op Fl i Ar localname
 .Op Fl k Ar realm
@@ -58,13 +58,17 @@ If the remote host does not supporting Kerberos the standard Berkeley
 authorization mechanism is used.
 The options are as follows:
 .Bl -tag -width flag
+.It Fl 4
+Use IPv4 addresses only.
+.It Fl 6
+Use IPv6 addresses only.
 .It Fl 8
 The
 .Fl 8
 option allows an eight-bit input data path at all times; otherwise
 parity bits are stripped except when the remote side's stop and start
 characters are other than
-^S/^Q .
+^S/^Q.
 .It Fl D
 The
 .Fl D
