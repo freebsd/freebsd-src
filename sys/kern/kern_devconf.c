@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_devconf.c,v 1.7 1995/02/14 06:34:49 phk Exp $
+ *	$Id: kern_devconf.c,v 1.8 1995/03/17 04:17:32 davidg Exp $
  */
 
 /*
@@ -119,6 +119,7 @@ make_devconf(struct kern_devconf *kdc, struct devconf *dc)
 
 	MACHDEP_COPYDEV(dc, kdc);
 	dc->dc_state = kdc->kdc_state;
+	dc->dc_class = kdc->kdc_class;
 	dc->dc_datalen = kdc->kdc_datalen;
 
 	strncpy(dc->dc_descr, kdc->kdc_description, sizeof dc->dc_descr);
