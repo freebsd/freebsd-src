@@ -39,7 +39,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.10 1994/02/22 08:44:28 rgrimes Exp $
+ *	$Id: mcd.c,v 1.11 1994/03/05 03:54:19 jkh Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -604,7 +604,12 @@ mcd_probe(struct isa_device *dev)
 		return 0;	/* Timeout */
 	}
 	status = inb(port+MCD_DATA);
-	if (status != MCDEXISTS)
+/* 0x20 == empty drive */
+/* 0x30 == MCDEXISTS == drive closed with CDROM inserted */
+/* 0x80 == drive pulled out but door closed */
+/* 0xa0 == drive pulled out and door open */
+	if (status != 0x20 && status != MCDEXISTS && status != 0x80 &&
+		status != 0xa0)
 		return 0;	/* Not actually a Mitsumi drive here */
 	/* Get version information */
 	outb(port+MCD_DATA, MCD_CMDCONTINFO);
