@@ -65,7 +65,6 @@ typedef int (*devop_t)(void);
 struct driver {
     KOBJ_CLASS_FIELDS;
     void		*priv;		/* driver private data */
-    int			refs;		/* # devclasses containing driver */
 };
 
 typedef enum device_state {
