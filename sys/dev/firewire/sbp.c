@@ -102,8 +102,6 @@
 #define SBP_ADDR2LUN(a)	(((a) >> 8) & 0xff)
 #define SBP_INITIATOR 7
 
-#define LOGIN_DELAY 1
-
 static char *orb_fun_name[] = {
 	ORB_FUN_NAMES
 };
@@ -112,7 +110,9 @@ static int debug = 0;
 static int auto_login = 1;
 static int max_speed = 2;
 static int sbp_cold = 1;
-static int exlogin = 1;
+static int ex_login = 1;
+static int login_delay = 1000;	/* msec */
+static int scan_delay = 500;	/* msec */
 
 SYSCTL_DECL(_hw_firewire);
 SYSCTL_NODE(_hw_firewire, OID_AUTO, sbp, CTLFLAG_RD, 0, "SBP-II Subsystem");
@@ -123,7 +123,17 @@ SYSCTL_INT(_hw_firewire_sbp, OID_AUTO, auto_login, CTLFLAG_RW, &auto_login, 0,
 SYSCTL_INT(_hw_firewire_sbp, OID_AUTO, max_speed, CTLFLAG_RW, &max_speed, 0,
 	"SBP transfer max speed");
 SYSCTL_INT(_hw_firewire_sbp, OID_AUTO, exclusive_login, CTLFLAG_RW,
-	&exlogin, 0, "SBP transfer max speed");
+	&ex_login, 0, "SBP transfer max speed");
+SYSCTL_INT(_hw_firewire_sbp, OID_AUTO, login_delay, CTLFLAG_RW,
+	&login_delay, 0, "SBP login delay in msec");
+SYSCTL_INT(_hw_firewire_sbp, OID_AUTO, scan_delay, CTLFLAG_RW,
+	&scan_delay, 0, "SBP scan delay in msec");
+
+TUNABLE_INT("hw.firewire.sbp.auto_login", &auto_login);
+TUNABLE_INT("hw.firewire.sbp.max_speed", &max_speed);
+TUNABLE_INT("hw.firewire.sbp.exclusive_login", &ex_login);
+TUNABLE_INT("hw.firewire.sbp.login_delay", &login_delay);
+TUNABLE_INT("hw.firewire.sbp.scan_delay", &scan_delay);
 
 #define NEED_RESPONSE 0
 
@@ -193,7 +203,6 @@ struct sbp_target {
 	struct sbp_ocb *mgm_ocb_cur;
 	STAILQ_HEAD(, sbp_ocb) mgm_ocb_queue;
 	struct callout mgm_ocb_timeout;
-#define SCAN_DELAY 1
 	struct callout scan_callout;
 	STAILQ_HEAD(, fw_xfer) xferlist;
 	int n_xfer;
@@ -206,7 +215,9 @@ struct sbp_softc {
 	struct sbp_target targets[SBP_NUM_TARGETS];
 	struct fw_bind fwb;
 	bus_dma_tag_t	dmat;
+	struct timeval last_busreset;
 };
+
 static void sbp_post_explore __P((void *));
 static void sbp_recv __P((struct fw_xfer *));
 static void sbp_mgm_callback __P((struct fw_xfer *));
@@ -229,9 +240,6 @@ static void sbp_free_target __P((struct sbp_target *));
 static void sbp_mgm_timeout __P((void *arg));
 static void sbp_timeout __P((void *arg));
 static void sbp_mgm_orb __P((struct sbp_dev *, int, struct sbp_ocb *));
-#define sbp_login(sdev) \
-	callout_reset(&(sdev)->login_callout, LOGIN_DELAY * hz, \
-			sbp_login_callout, (void *)(sdev));
 
 MALLOC_DEFINE(M_SBP, "sbp", "SBP-II/FireWire");
 
@@ -643,6 +651,28 @@ sbp_login_callout(void *arg)
 	sbp_mgm_orb(sdev, ORB_FUN_LGI, NULL);
 }
 
+static void
+sbp_login(struct sbp_dev *sdev)
+{
+	struct timeval delta;
+	struct timeval t;
+	int ticks = 0;
+
+	microtime(&delta);
+	timevalsub(&delta, &sdev->target->sbp->last_busreset);
+	t.tv_sec = login_delay / 1000;
+	t.tv_usec = (login_delay % 1000) * 1000;
+	timevalsub(&t, &delta);
+	if (t.tv_sec >= 0 && t.tv_usec > 0)
+		ticks = (t.tv_sec * 1000 + t.tv_usec / 1000) * hz / 1000;
+SBP_DEBUG(0)
+	printf("%s: sec = %ld usec = %ld ticks = %d\n", __FUNCTION__,
+	    t.tv_sec, t.tv_usec, ticks);
+END_DEBUG
+	callout_reset(&sdev->login_callout, ticks,
+			sbp_login_callout, (void *)(sdev));
+}
+
 #define SBP_FWDEV_ALIVE(fwdev) (((fwdev)->status == FWDEVATTACHED) \
 	&& crom_has_specver((fwdev)->csrrom, CSRVAL_ANSIT10, CSRVAL_T10SBP2))
 
@@ -734,6 +764,7 @@ sbp_post_busreset(void *arg)
 SBP_DEBUG(0)
 	printf("sbp_post_busreset\n");
 END_DEBUG
+	microtime(&sbp->last_busreset);
 }
 
 static void
@@ -747,14 +778,16 @@ sbp_post_explore(void *arg)
 SBP_DEBUG(0)
 	printf("sbp_post_explore (sbp_cold=%d)\n", sbp_cold);
 END_DEBUG
-#if 0	/*
-	 * XXX don't let CAM the bus rest. CAM tries to do something with
-	 * freezed (DEV_RETRY) devices 
+	if (sbp_cold > 0)
+		sbp_cold --;
+
+#if 0
+	/*
+	 * XXX don't let CAM the bus rest.
+	 * CAM tries to do something with freezed (DEV_RETRY) devices.
 	 */
 	xpt_async(AC_BUS_RESET, sbp->path, /*arg*/ NULL);
 #endif
-	if (sbp_cold > 0)
-		sbp_cold --;
 
 	/* Gabage Collection */
 	for(i = 0 ; i < SBP_NUM_TARGETS ; i ++){
@@ -980,7 +1013,7 @@ static __inline void
 sbp_scan_dev(struct sbp_dev *sdev)
 {
 	sdev->status = SBP_DEV_PROBE;
-	callout_reset(&sdev->target->scan_callout, SCAN_DELAY * hz,
+	callout_reset(&sdev->target->scan_callout, scan_delay * hz / 1000,
 			sbp_cam_scan_target, (void *)sdev->target);
 }
 
@@ -1301,7 +1334,7 @@ END_DEBUG
 		ocb->orb[2] = htonl(nid << 16);
 		ocb->orb[3] = htonl(sdev->dma.bus_addr);
 		ocb->orb[4] = htonl(ORB_NOTIFY | sdev->lun_id);
-		if (exlogin)
+		if (ex_login)
 			ocb->orb[4] |= htonl(ORB_EXV);
 		ocb->orb[5] = htonl(SBP_LOGIN_SIZE);
 		fwdma_sync(&sdev->dma, BUS_DMASYNC_PREREAD);
@@ -1910,9 +1943,11 @@ END_DEBUG
 
 	if (sbp->fd.fc->status != -1) {
 		s = splfw();
+		sbp_post_busreset((void *)sbp);
 		sbp_post_explore((void *)sbp);
 		splx(s);
 	}
+	xpt_async(AC_BUS_RESET, sbp->path, /*arg*/ NULL);
 
 	return (0);
 fail:
