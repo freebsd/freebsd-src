@@ -17,6 +17,9 @@ OBJCOPY?=	objcopy
 SIZE?=		size
 
 COPTFLAGS?=-O -pipe
+.if ${COPTFLAGS:M-O[23s]} != ""
+COPTFLAGS+= -fno-strict-aliasing
+.endif
 .if !defined(NO_CPU_COPTFLAGS)
 COPTFLAGS+= ${_CPUCFLAGS}
 .endif
@@ -37,7 +40,7 @@ INCLUDES+= -I$S/contrib/ngatm
 
 COPTS=	${INCLUDES} -D_KERNEL -include opt_global.h
 CFLAGS=	${COPTFLAGS} ${CWARNFLAGS} ${DEBUG} ${COPTS}
-CFLAGS+= -fno-common -finline-limit=${INLINE_LIMIT} -fno-strict-aliasing
+CFLAGS+= -fno-common -finline-limit=${INLINE_LIMIT}
 WERROR?= -Werror
 
 # XXX LOCORE means "don't declare C stuff" not "for locore.s".
