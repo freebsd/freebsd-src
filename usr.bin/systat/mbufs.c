@@ -50,22 +50,19 @@ static const char rcsid[] =
 #include "extern.h"
 
 static struct mbstat *mb;
+static u_long *m_mbtypes;
+static int nmbtypes;
 
-char *mtnames[] = {
-	"free",
-	"data",
-	"headers",
-	"sockets",
-	"pcbs",
-	"routes",
-	"hosts",
-	"arps",
-	"socknames",
-	"zombies",
-	"sockopts",
-	"frags",
-	"rights",
-	"ifaddrs",
+static struct mtnames {
+	int mt_type;
+	char *mt_name;
+} mtnames[] = {
+	{ MT_DATA, 	"data"},
+	{ MT_HEADER,	"headers"},
+	{ MT_SONAME,	"socknames"},
+	{ MT_FTABLE,	"frags"},
+	{ MT_CONTROL,	"control"},
+	{ MT_OOBDATA,	"oobdata"}
 };
 
 #define	NNAMES	(sizeof (mtnames) / sizeof (mtnames[0]))
@@ -100,6 +97,7 @@ showmbufs()
 {
 	register int i, j, max, index;
 	char buf[10];
+	char *mtname;
 
 	if (mb == 0)
 		return;
@@ -108,17 +106,24 @@ showmbufs()
 		for (i = 0; i < wnd->_maxy; i++) {
 			if (i == MT_FREE)
 				continue;
-			if (mb->m_mtypes[i] > max) {
-				max = mb->m_mtypes[i];
+			if (i >= nmbtypes)
+				break;
+			if (m_mbtypes[i] > max) {
+				max = m_mbtypes[i];
 				index = i;
 			}
 		}
 		if (max == 0)
 			break;
-		if (j > NNAMES)
+
+		mtname = NULL;
+		for (i = 0; i < NNAMES; i++)
+			if (mtnames[i].mt_type == index)
+				mtname = mtnames[i].mt_name;
+		if (mtname == NULL)
 			mvwprintw(wnd, 1+j, 0, "%10d", index);
 		else
-			mvwprintw(wnd, 1+j, 0, "%-10.10s", mtnames[index]);
+			mvwprintw(wnd, 1+j, 0, "%-10.10s", mtname);
 		wmove(wnd, 1 + j, 10);
 		if (max > 60) {
 			snprintf(buf, sizeof(buf), " %d", max);
@@ -130,8 +135,8 @@ showmbufs()
 			while (max--)
 				waddch(wnd, 'X');
 		wclrtoeol(wnd);
-		mb->m_mbufs -= mb->m_mtypes[index];
-		mb->m_mtypes[index] = 0;
+		mb->m_mbufs -= m_mbtypes[index];
+		m_mbtypes[index] = 0;
 	}
 	if (mb->m_mbufs) {
 		mvwprintw(wnd, 1+j, 0, "%-10.10s", "free");
@@ -154,14 +159,20 @@ showmbufs()
 int
 initmbufs()
 {
-	size_t len;
-	int name[3];
+	size_t len, mbtypeslen;
 
-	name[0] = CTL_KERN;
-	name[1] = KERN_IPC;
-	name[2] = KIPC_MBSTAT;
+	if (sysctlbyname("kern.ipc.mbtypes", NULL, &mbtypeslen, NULL, 0) < 0) {
+		error("sysctl getting mbtypes size failed");
+		return 0;
+	}
+	if ((m_mbtypes = calloc(1, mbtypeslen)) == NULL) {
+		error("calloc mbtypes failed");
+		return 0;
+	}
+	nmbtypes = mbtypeslen / sizeof(*m_mbtypes);
+
 	len = 0;
-	if (sysctl(name, 3, 0, &len, 0, 0) < 0) {
+	if (sysctlbyname("kern.ipc.mbstat", 0, &len, 0, 0) < 0) {
 		error("sysctl getting mbstat size failed");
 		return 0;
 	}
@@ -174,14 +185,13 @@ initmbufs()
 void
 fetchmbufs()
 {
-	int name[3];
 	size_t len;
 
-	name[0] = CTL_KERN;
-	name[1] = KERN_IPC;
-	name[2] = KIPC_MBSTAT;
 	len = sizeof *mb;
+	if (sysctlbyname("kern.ipc.mbstat", mb, &len, 0, 0) < 0)
+		printw("sysctl: mbstat: %s", strerror(errno));
 
-	if (sysctl(name, 3, mb, &len, 0, 0) < 0)
-		printw("sysctl: %s", strerror(errno));
+	len = nmbtypes * sizeof *m_mbtypes;
+	if (sysctlbyname("kern.ipc.mbtypes", m_mbtypes, &len, 0, 0) < 0)
+		printw("sysctl: mbtypes: %s", strerror(errno));
 }
