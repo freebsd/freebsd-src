@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vmparam.h	5.9 (Berkeley) 5/12/91
- *	$Id: vmparam.h,v 1.20 1996/04/30 12:02:12 phk Exp $
+ *	$Id: vmparam.h,v 1.21 1996/05/02 14:20:07 phk Exp $
  */
 
 
@@ -46,6 +46,8 @@
 /*
  * Machine dependent constants for 386.
  */
+
+#define VM_PROT_READ_IS_EXEC	/* if you can read -- then you can exec */
 
 /*
  * Virtual memory related constants, all in bytes
