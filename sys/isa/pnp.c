@@ -340,14 +340,25 @@ pnp_set_config(void *arg, struct isa_config *config, int enable)
 	 * Now program the resources.
 	 */
 	for (i = 0; i < config->ic_nmem; i++) {
-		u_int32_t start = config->ic_mem[i].ir_start;
-		u_int32_t size =  config->ic_mem[i].ir_size;
-		if (start & 0xff)
-			panic("pnp_set_config: bogus memory assignment");
-		pnp_write(PNP_MEM_BASE_HIGH(i), (start >> 16) & 0xff);
-		pnp_write(PNP_MEM_BASE_LOW(i), (start >> 8) & 0xff);
-		pnp_write(PNP_MEM_RANGE_HIGH(i), (size >> 16) & 0xff);
-		pnp_write(PNP_MEM_RANGE_LOW(i), (size >> 8) & 0xff);
+		u_int32_t start;
+		u_int32_t size;
+
+		/* XXX: should handle memory control register, 32 bit memory */
+		if (config->ic_mem[i].ir_size == 0) {
+			pnp_write(PNP_MEM_BASE_HIGH(i), 0);
+			pnp_write(PNP_MEM_BASE_LOW(i), 0);
+			pnp_write(PNP_MEM_RANGE_HIGH(i), 0);
+			pnp_write(PNP_MEM_RANGE_LOW(i), 0);
+		} else {
+			start = config->ic_mem[i].ir_start;
+			size =  config->ic_mem[i].ir_size;
+			if (start & 0xff)
+				panic("pnp_set_config: bogus memory assignment");
+			pnp_write(PNP_MEM_BASE_HIGH(i), (start >> 16) & 0xff);
+			pnp_write(PNP_MEM_BASE_LOW(i), (start >> 8) & 0xff);
+			pnp_write(PNP_MEM_RANGE_HIGH(i), (size >> 16) & 0xff);
+			pnp_write(PNP_MEM_RANGE_LOW(i), (size >> 8) & 0xff);
+		}
 	}
 	for (; i < ISA_PNP_NMEM; i++) {
 		pnp_write(PNP_MEM_BASE_HIGH(i), 0);
@@ -357,9 +368,16 @@ pnp_set_config(void *arg, struct isa_config *config, int enable)
 	}
 
 	for (i = 0; i < config->ic_nport; i++) {
-		u_int32_t start = config->ic_port[i].ir_start;
-		pnp_write(PNP_IO_BASE_HIGH(i), (start >> 8) & 0xff);
-		pnp_write(PNP_IO_BASE_LOW(i), (start >> 0) & 0xff);
+		u_int32_t start;
+
+		if (config->ic_port[i].ir_size == 0) {
+			pnp_write(PNP_IO_BASE_HIGH(i), 0);
+			pnp_write(PNP_IO_BASE_LOW(i), 0);
+		} else {
+			start = config->ic_port[i].ir_start;
+			pnp_write(PNP_IO_BASE_HIGH(i), (start >> 8) & 0xff);
+			pnp_write(PNP_IO_BASE_LOW(i), (start >> 0) & 0xff);
+		}
 	}
 	for (; i < ISA_PNP_NPORT; i++) {
 		pnp_write(PNP_IO_BASE_HIGH(i), 0);
@@ -367,9 +385,17 @@ pnp_set_config(void *arg, struct isa_config *config, int enable)
 	}
 
 	for (i = 0; i < config->ic_nirq; i++) {
-		int irq = ffs(config->ic_irqmask[i]) - 1;
-		pnp_write(PNP_IRQ_LEVEL(i), irq);
-		pnp_write(PNP_IRQ_TYPE(i), 2); /* XXX */
+		int irq;
+
+		/* XXX: interrupt type */
+		if (config->ic_irqmask[i] == 0) {
+			pnp_write(PNP_IRQ_LEVEL(i), 0);
+			pnp_write(PNP_IRQ_TYPE(i), 2);
+		} else {
+			irq = ffs(config->ic_irqmask[i]) - 1;
+			pnp_write(PNP_IRQ_LEVEL(i), irq);
+			pnp_write(PNP_IRQ_TYPE(i), 2); /* XXX */
+		}
 	}
 	for (; i < ISA_PNP_NIRQ; i++) {
 		/*
@@ -377,11 +403,18 @@ pnp_set_config(void *arg, struct isa_config *config, int enable)
 		 * represents no interrupt selection.
 		 */
 		pnp_write(PNP_IRQ_LEVEL(i), 0);
+		pnp_write(PNP_IRQ_TYPE(i), 2);
 	}		
 
 	for (i = 0; i < config->ic_ndrq; i++) {
-		int drq = ffs(config->ic_drqmask[i]) - 1;
-		pnp_write(PNP_DMA_CHANNEL(i), drq);
+		int drq;
+
+		if (config->ic_drqmask[i] == 0) {
+			pnp_write(PNP_DMA_CHANNEL(i), 4);
+		} else {
+			drq = ffs(config->ic_drqmask[i]) - 1;
+			pnp_write(PNP_DMA_CHANNEL(i), drq);
+		}
 	}
 	for (; i < ISA_PNP_NDRQ; i++) {
 		/*
@@ -517,7 +550,7 @@ pnp_create_devices(device_t parent, pnp_id *p, int csn,
 			if (startres) {
 				pnp_parse_resources(dev, startres,
 						    resinfo - startres - 1,
-						    p->vendor_id, logical_id, ldn);
+						    ldn);
 				dev = 0;
 				startres = 0;
 			}
@@ -535,6 +568,9 @@ pnp_create_devices(device_t parent, pnp_id *p, int csn,
 			isa_set_vendorid(dev, p->vendor_id);
 			isa_set_serial(dev, p->serial);
 			isa_set_logicalid(dev, logical_id);
+			isa_set_configattr(dev,
+					   ISACFGATTR_CANDISABLE |
+					   ISACFGATTR_DYNAMIC);
 			csnldn = malloc(sizeof *csnldn, M_DEVBUF, M_NOWAIT);
 			if (!csnldn) {
 				device_printf(parent,
@@ -558,8 +594,7 @@ pnp_create_devices(device_t parent, pnp_id *p, int csn,
 				break;
 			}
 			pnp_parse_resources(dev, startres,
-					    resinfo - startres - 1,
-					    p->vendor_id, logical_id, ldn);
+					    resinfo - startres - 1, ldn);
 			dev = 0;
 			startres = 0;
 			scanning = 0;

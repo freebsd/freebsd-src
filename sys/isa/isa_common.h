@@ -58,8 +58,6 @@ struct isa_device {
 	isa_config_cb		*id_config_cb; /* callback function */
 	void			*id_config_arg;	/* callback argument */
 	int			id_config_attr;	/* pnp config attributes */
-#define ISACFGATTR_CANDISABLE	(1 << 0)	/* can be disabled */
-#define ISACFGATTR_DYNAMIC	(1 << 1)	/* dynamic configuration */
 };
 
 #define DEVTOISA(dev)	((struct isa_device *) device_get_ivars(dev))
