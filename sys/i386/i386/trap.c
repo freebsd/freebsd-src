@@ -257,7 +257,7 @@ trap(frame)
 		td->td_frame = &frame;
 #ifdef DIAGNOSTIC 			/* see the comment in ast() */
 		if (td->td_ucred)
-			panic("trap:thread got a cred while userspace");
+			panic("trap: thread got a cred while userspace");
 		td->td_ucred = td->td_ucred_cache;
 		td->td_ucred_cache = NULL;
 #endif /* DIAGNOSTIC */
