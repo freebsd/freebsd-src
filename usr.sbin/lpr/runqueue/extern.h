@@ -30,7 +30,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      @(#)extern.h	8.1 (Berkeley) 6/6/93
+ *      From: @(#)extern.h	8.1 (Berkeley) 6/6/93
+ *	$Id$
  */
 
 #include <sys/cdefs.h>
@@ -38,5 +39,10 @@
 extern char scnkey[][HEIGHT];	/* in lpdchar.c */
 extern char fromb[];
 
-void       printjob __P((void));
-void       recvjob __P((void));
+struct	printer;
+
+__BEGIN_DECLS
+void    printjob __P((struct printer *pp));
+void	startprinting __P((const char *printer));
+void    recvjob __P((const char *printer));
+__END_DECLS

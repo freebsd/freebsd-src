@@ -48,3 +48,4 @@
 #define	_PATH_VFONTI		"/usr/libdata/vfont/I"
 #define	_PATH_VFONTR		"/usr/libdata/vfont/R"
 #define	_PATH_VFONTS		"/usr/libdata/vfont/S"
+#define	_PATH_CHKPRINTCAP	"/usr/sbin/chkprintcap"

@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
+/*
 static char sccsid[] = "@(#)lpdchar.c	8.1 (Berkeley) 6/6/93";
+*/
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*

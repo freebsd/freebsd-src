@@ -1,4 +1,4 @@
-#       @(#)Makefile    5.6 (Berkeley) 6/23/90
+#	$Id$
 
 BINDIR = /usr/bin
 MAN1 = lp.1

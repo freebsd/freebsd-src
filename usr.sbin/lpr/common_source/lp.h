@@ -30,69 +30,123 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * 	@(#)lp.h	8.2 (Berkeley) 4/28/95
+ * 	From: @(#)lp.h	8.2 (Berkeley) 4/28/95
+ *	$Id$
  */
 
+#include <sys/queue.h>
+
+/*
+ * All this information used to be in global static variables shared
+ * mysteriously by various parts of the lpr/lpd suite.
+ * This structure attempts to centralize all these declarations in the
+ * hope that they can later be made more dynamic.
+ */
+enum	lpd_filters { LPF_CIFPLOT, LPF_DVI, LPF_GRAPH, LPF_INPUT,
+		      LPF_DITROFF, LPF_OUTPUT, LPF_FORTRAN, LPF_TROFF,
+		      LPF_RASTER, LPF_COUNT };
+/* NB: there is a table in common.c giving the mapping from capability names */
+
+struct	printer {
+	char	*printer;	/* printer name */
+	int	 remote;	/* true if RM points to a remote host */
+	int	 tof;		/* true if we are at top-of-form */
+	/* ------------------------------------------------------ */
+	char	*acct_file;	/* AF: accounting file */
+	long	 baud_rate;	/* BR: baud rate if lp is a tty */
+	char	*filters[LPF_COUNT]; /* CF, DF, GF, IF, NF, OF, RF, TF, VF */
+	long	 conn_timeout;	/* CT: TCP connection timeout */
+	long	 daemon_user;	/* DU: daemon user id -- XXX belongs ???? */
+	char	*form_feed;	/* FF: form feed */
+	long	 header_last;	/* HL: print header last */
+	char	*log_file;	/* LF: log file */
+	char	*lock_file;	/* LO: lock file */
+	char	*lp;		/* LP: device name or network address */
+	long	 max_copies;	/* MC: maximum number of copies allowed */
+	long	 max_blocks;	/* MX: maximum number of blocks to copy */
+	long	 price100;	/* PC: price per 100 units of output */
+	long	 page_length;	/* PL: page length */
+	long	 page_width;	/* PW: page width */
+	long	 page_pwidth;	/* PX: page width in pixels */
+	long	 page_plength;	/* PY: page length in pixels */
+	char	*restrict_grp;	/* RG: restricted group */
+	char	*remote_host;	/* RM: remote machine name */
+	char	*remote_queue;	/* RP: remote printer name */
+	long	 restricted;	/* RS: restricted to those with local accts */
+	long	 rw;		/* RW: open LP for reading and writing */
+	long	 short_banner;	/* SB: short banner */
+	long	 no_copies;	/* SC: suppress multiple copies */
+	char	*spool_dir;	/* SD: spool directory */
+	long	 no_formfeed;	/* SF: suppress FF on each print job */
+	long	 no_header;	/* SH: suppress header page */
+	char	*status_file;	/* ST: status file name */
+	char	*trailer;	/* TR: trailer string send when Q empties */
+	char	*mode_set;	/* MS: mode set, a la stty */
+};
+
+/*
+ * Lists of user names and job numbers, for the benefit of the structs
+ * defined below.  We use TAILQs so that requests don't get mysteriously
+ * reversed in process.
+ */
+struct	req_user {
+	TAILQ_ENTRY(req_user)	ru_link; /* macro glue */
+	char	ru_uname[1];	/* name of user */
+};
+TAILQ_HEAD(req_user_head, req_user);
+
+struct	req_file {
+	TAILQ_ENTRY(req_file)	rf_link; /* macro glue */
+	char	 rf_type;	/* type (lowercase cf file letter) of file */
+	char	*rf_prettyname;	/* user-visible name of file */
+	char	 rf_fname[1];	/* name of file */
+};
+TAILQ_HEAD(req_file_head, req_file);
+
+struct	req_jobid {
+	TAILQ_ENTRY(req_jobid)	rj_link; /* macro glue */
+	int	rj_job;		/* job number */
+};
+TAILQ_HEAD(req_jobid_head, req_jobid);
+
+/*
+ * Encapsulate all the information relevant to a request in the
+ * lpr/lpd protocol.
+ */
+enum	req_type { REQ_START, REQ_RECVJOB, REQ_LIST, REQ_DELETE };
+
+struct	request {
+	enum	 req_type type;	/* what sort of request is this? */
+	struct	 printer prtr;	/* which printer is it for? */
+	int	 remote;	/* did request arrive over network? */
+	char	*logname;	/* login name of requesting user */
+	char	*authname;	/* authenticated identity of requesting user */
+	char	*prettyname;	/* ``pretty'' name of requesting user */
+	int	 privileged;	/* was the request from a privileged user? */
+	void	*authinfo;	/* authentication information */
+	int	 authentic;	/* was the request securely authenticated? */
+
+	/* Information for queries and deletes... */
+	int	 nusers;	/* length of following list... */
+	struct	 req_user_head users; /* list of users to query/delete */
+	int	 njobids;	/* length of following list... */
+	struct	 req_jobid_head jobids;	/* list of jobids to query/delete */
+};
 
 /*
  * Global definitions for the line printer system.
  */
-
-extern char	*AF;		/* accounting file */
-extern long	 BR;		/* baud rate if lp is a tty */
-extern char	*CF;		/* name of cifplot filter (per job) */
-extern long	 CT;		/* TCP connection timeout */
-extern char	*DF;		/* name of tex filter (per job) */
-extern long	 DU;		/* daeomon user-id */
-extern char	*FF;		/* form feed string */
-extern char	*GF;		/* name of graph(1G) filter (per job) */
-extern long	 HL;		/* print header last */
-extern char	*IF;		/* name of input filter (created per job) */
-extern char	*LF;		/* log file for error messages */
-extern char	*LO;		/* lock file name */
-extern char	*LP;		/* line printer device name */
-extern long	 MC;		/* maximum number of copies allowed */
-extern long      MX;		/* maximum number of blocks to copy */
-extern char	*NF;		/* name of ditroff(1) filter (per job) */
-extern char	*OF;		/* name of output filter (created once) */
-extern long	 PL;		/* page length */
-extern long	 PW;		/* page width */
-extern long	 PX;		/* page width in pixels */
-extern long	 PY;		/* page length in pixels */
-extern char	*RF;		/* name of fortran text filter (per job) */
-extern char	*RG;		/* restricted group */
-extern char	*RM;		/* remote machine name */
-extern char	*RP;		/* remote printer name */
-extern long	 RS;		/* restricted to those with local accounts */
-extern long	 RW;		/* open LP for reading and writing */
-extern long	 SB;		/* short banner instead of normal header */
-extern long	 SC;		/* suppress multiple copies */
-extern char	*SD;		/* spool directory */
-extern long	 SF;		/* suppress FF on each print job */
-extern long	 SH;		/* suppress header page */
-extern char	*ST;		/* status file name */
-extern char	*TF;		/* name of troff(1) filter (per job) */
-extern char	*TR;		/* trailer string to be output when Q empties */
-extern char	*MS;		/* mode set, a la stty */
-extern char	*VF;		/* name of raster filter (per job) */
-
 extern char	line[BUFSIZ];
-extern char	*bp;		/* pointer into printcap buffer */
 extern char	*name;		/* program name */
-extern char	*printer;	/* printer name */
 				/* host machine name */
 extern char	host[MAXHOSTNAMELEN];
 extern char	*from;		/* client's machine name */
-extern int	remote;		/* true if sending files to a remote host */
-extern char	*printcapdb[];  /* printcap database array */
 
 extern int	requ[];		/* job number of spool entries */
 extern int	requests;	/* # of spool requests */
 extern char	*user[];        /* users to process */
 extern int	users;		/* # of users in user array */
 extern char	*person;	/* name of person doing lprm */
-extern char	*name;
-
 
 /*
  * Structure used for building a sorted list of control files.
@@ -102,32 +156,78 @@ struct queue {
 	char	q_name[MAXNAMLEN+1];	/* control file name */
 };
 
+/*
+ * Error codes for our mini printcap library.
+ */
+#define	PCAPERR_TCLOOP		(-3)
+#define	PCAPERR_OSERR		(-2)
+#define	PCAPERR_NOTFOUND	(-1)
+#define	PCAPERR_SUCCESS		0
+#define	PCAPERR_TCOPEN		1
+
+/*
+ * File modes for the various status files maintained by lpd.
+ */
+#define	LOCK_FILE_MODE	(S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH)
+#define	LFM_PRINT_DIS	(S_IXUSR)
+#define	LFM_QUEUE_DIS	(S_IXGRP)
+#define	LFM_RESET_QUE	(S_IXOTH)
+
+#define	STAT_FILE_MODE	(S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH)
+#define	LOG_FILE_MODE	(S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH)
+#define	TEMP_FILE_MODE	(S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH)
+
+/*
+ * Command codes used in the protocol.
+ */
+#define	CMD_CHECK_QUE	'\1'
+#define	CMD_TAKE_THIS	'\2'
+#define	CMD_SHOWQ_SHORT	'\3'
+#define	CMD_SHOWQ_LONG	'\4'
+#define	CMD_RMJOB	'\5'
+
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-struct dirent;
+struct	 dirent;
 
 void     blankfill __P((int));
-char	*checkremote __P((void));
+char	*checkremote __P((struct printer *pp));
 int      chk __P((char *));
-void     displayq __P((int));
+void	 closeallfds __P((int start));
+void     delay __P((int));
+void     displayq __P((struct printer *pp, int format));
 void     dump __P((char *, char *, int));
-void	 fatal __P((const char *, ...));
+void	 fatal __P((const struct printer *pp, const char *fmp, ...));
+int	 firstprinter __P((struct printer *pp, int *status));
+void	 free_printer __P((struct printer *pp));
+void	 free_request __P((struct request *rp));
 int	 getline __P((FILE *));
-int	 getport __P((char *, int));
-int	 getq __P((struct queue *(*[])));
+int	 getport __P((const struct printer *pp, const char *, int));
+int	 getprintcap __P((const char *printer, struct printer *pp));
+int	 getq __P((const struct printer *, struct queue *(*[])));
 void     header __P((void));
-void     inform __P((char *));
+void     inform __P((const struct printer *pp, char *cf));
+void	 init_printer __P((struct printer *pp));
+void	 init_request __P((struct request *rp));
 int      inlist __P((char *, char *));
 int      iscf __P((struct dirent *));
 int      isowner __P((char *, char *));
 void     ldump __P((char *, char *, int));
-int      lockchk __P((char *));
+void	 lastprinter __P((void));
+int      lockchk __P((struct printer *pp, char *));
+char	*lock_file_name __P((const struct printer *pp, char *buf, size_t len));
+int	 nextprinter __P((struct printer *pp, int *status));
+const
+char	*pcaperr __P((int error));
 void     prank __P((int));
-void     process __P((char *));
-void     rmjob __P((void));
-void     rmremote __P((void));
+void     process __P((const struct printer *pp, char *));
+void     rmjob __P((const char *printer));
+void     rmremote __P((const struct printer *pp));
+void	 setprintcap __P((char *newprintcap));
 void     show __P((char *, char *, int));
-int      startdaemon __P((char *));
-void     delay __P((int));
+int      startdaemon __P((const struct printer *pp));
+char	*status_file_name __P((const struct printer *pp, char *buf,
+			       size_t len));
+ssize_t	 writel __P((int s, ...));
 __END_DECLS
