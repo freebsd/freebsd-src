@@ -259,12 +259,13 @@ struct cryptop {
 					 */
 	int		crp_flags;
 
-#define CRYPTO_F_IMBUF	0x0001	/* Input/output are mbuf chains, otherwise contig */
-#define CRYPTO_F_IOV	0x0002	/* Input/output are uio */
-#define CRYPTO_F_REL	0x0004	/* Must return data in same place */
-#define	CRYPTO_F_BATCH	0x0008	/* Batch op if possible */
-#define	CRYPTO_F_CBIMM	0x0010	/* Do callback immediately */
-#define	CRYPTO_F_DONE	0x0020	/* Operation completed */
+#define CRYPTO_F_IMBUF		0x0001	/* Input/output are mbuf chains */
+#define CRYPTO_F_IOV		0x0002	/* Input/output are uio */
+#define CRYPTO_F_REL		0x0004	/* Must return data in same place */
+#define	CRYPTO_F_BATCH		0x0008	/* Batch op if possible */
+#define	CRYPTO_F_CBIMM		0x0010	/* Do callback immediately */
+#define	CRYPTO_F_DONE		0x0020	/* Operation completed */
+#define	CRYPTO_F_CBIFSYNC	0x0040	/* Do CBIMM if op is synchronous */
 
 	caddr_t		crp_buf;	/* Data to be processed */
 	caddr_t		crp_opaque;	/* Opaque pointer, passed along */
