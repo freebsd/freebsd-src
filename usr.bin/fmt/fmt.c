@@ -198,7 +198,7 @@ get_positive(const char *s, const char *err_mess, int fussyP) {
   char *t;
   long result = strtol(s,&t,0);
   if (*t) { if (fussyP) goto Lose; else return 0; }
-  if (result<=0) { Lose: errx(EX_USAGE, err_mess); }
+  if (result<=0) { Lose: errx(EX_USAGE, "%s", err_mess); }
   return (size_t) result;
 }
 
