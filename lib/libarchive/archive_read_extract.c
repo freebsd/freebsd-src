@@ -75,7 +75,7 @@ struct extract {
 };
 
 /* Default mode for dirs created automatically. */
-#define DEFAULT_DIR_MODE 0755
+#define DEFAULT_DIR_MODE 0777
 /*
  * Mode to use for newly-created dirs during extraction; the correct
  * mode will be set at the end of the extraction.
@@ -221,11 +221,12 @@ void archive_extract_cleanup(struct archive *a)
 {
 	struct fixup_entry *next, *p;
 	struct extract *extract;
-
+	mode_t mask;
 
 	/* Sort dir list so directories are fixed up in depth-first order. */
 	extract = a->extract;
 	p = sort_dir_list(extract->fixup_list);
+	umask(mask = umask(0)); /* Read the current umask. */
 
 	while (p != NULL) {
 		if (p->fixup & FIXUP_TIMES) {
@@ -237,7 +238,7 @@ void archive_extract_cleanup(struct archive *a)
 			utimes(p->name, times);
 		}
 		if (p->fixup & FIXUP_MODE)
-			chmod(p->name, p->mode);
+			chmod(p->name, p->mode & ~mask);
 
 		if (p->fixup & FIXUP_FFLAGS)
 			set_fflags(a, p->name, p->mode, p->fflags_set, 0);
@@ -416,7 +417,8 @@ mkdirpath(struct archive *a, const char *path)
 	*p = '\0';
 
 	/* Recursively try to build the path. */
-	if (mkdirpath_recursive(a, p, NULL, DEFAULT_DIR_MODE, 0))
+	if (mkdirpath_recursive(a, extract->mkdirpath.s,
+	    NULL, DEFAULT_DIR_MODE, 0))
 		return (ARCHIVE_WARN);
 	return (ARCHIVE_OK);
 }
