@@ -36,13 +36,14 @@
 static char sccsid[] = "From: @(#)syslog.c	8.4 (Berkeley) 3/18/94";
 */
 static const char rcsid[] =
-  "$Id: syslog.c,v 1.9 1996/07/12 18:54:07 jkh Exp $";
+  "$Id: syslog.c,v 1.9.2.1 1997/03/23 19:08:54 joerg Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
 #include <sys/uio.h>
+#include <sys/un.h>
 #include <netdb.h>
 
 #include <errno.h>
@@ -291,7 +292,7 @@ disconnectlog()
 static void
 connectlog()
 {
-	struct sockaddr SyslogAddr;	/* AF_UNIX address of local logger */
+	struct sockaddr_un SyslogAddr;	/* AF_UNIX address of local logger */
 
 	if (LogFile == -1) {
 		if ((LogFile = socket(AF_UNIX, SOCK_DGRAM, 0)) == -1)
@@ -299,11 +300,11 @@ connectlog()
 		(void)fcntl(LogFile, F_SETFD, 1);
 	}
 	if (LogFile != -1 && !connected) {
-		SyslogAddr.sa_len = sizeof(SyslogAddr);
-		SyslogAddr.sa_family = AF_UNIX;
-		(void)strncpy(SyslogAddr.sa_data, _PATH_LOG,
-		    sizeof(SyslogAddr.sa_data));
-		connected = connect(LogFile, &SyslogAddr,
+		SyslogAddr.sun_len = sizeof(SyslogAddr);
+		SyslogAddr.sun_family = AF_UNIX;
+		(void)strncpy(SyslogAddr.sun_path, _PATH_LOG,
+		    sizeof(SyslogAddr.sun_path));
+		connected = connect(LogFile, (struct sockaddr *)&SyslogAddr,
 			sizeof(SyslogAddr)) != -1;
 
 		if (!connected) {
@@ -311,9 +312,10 @@ connectlog()
 			 * Try the old "/dev/log" path, for backward
 			 * compatibility.
 			 */
-			(void)strncpy(SyslogAddr.sa_data, _PATH_OLDLOG,
-			    sizeof(SyslogAddr.sa_data));
-			connected = connect(LogFile, &SyslogAddr,
+			(void)strncpy(SyslogAddr.sun_path, _PATH_OLDLOG,
+			    sizeof(SyslogAddr.sun_path));
+			connected = connect(LogFile,
+				(struct sockaddr *)&SyslogAddr,
 				sizeof(SyslogAddr)) != -1;
 		}
 
