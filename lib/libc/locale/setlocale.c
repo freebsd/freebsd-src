@@ -232,17 +232,8 @@ loadlocale(category)
 	char *new = new_categories[category];
 	char *old = current_categories[category];
 
-	if (!_PathLocale) {
-		if (   !(ret = getenv("PATH_LOCALE"))
-		    || getuid() != geteuid()
-		    || getgid() != getegid()
-		   )
-			_PathLocale = _PATH_LOCALE;
-		else if (   strlen(ret) + 45 > PATH_MAX
-			 || !(_PathLocale = strdup(ret))
-			)
-			return (NULL);
-	}
+	if (!_PathLocale)
+		_PathLocale = _PATH_LOCALE;
 
 	if (strcmp(new, old) == 0)
 		return (old);
