@@ -72,8 +72,14 @@ This also compiles with Visual C++ on all flavors of Windows,
 *if* you provide versions of popen and pclose.  The file
 missing95.c contains versions that can be used to get started
 with, though the underlying support has mysterious properties,
-the symptom of which can be truncated pipe output.  Beware.
-The file makefile.win gives hints on how to proceed.
+the symptom of which can be truncated pipe output.  Beware.  The
+file makefile.win gives hints on how to proceed; if you run
+vcvars32.bat, it will set up necessary paths and parameters so
+you can subsequently run nmake -f makefile.win.  Beware also that
+when running on Windows under command.com, various quoting
+conventions are different from Unix systems: single quotes won't
+work around arguments, and various characters like % are
+interpreted within double quotes.
 
 This compiles without change on Macintosh OS X using gcc and
 the standard developer tools.

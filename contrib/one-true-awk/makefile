@@ -45,7 +45,7 @@ LISTING = awk.h proto.h awkgram.y lex.c b.c main.c maketab.c parse.c \
 	lib.c run.c tran.c missing95.c
 
 SHIP = README FIXES $(SOURCE) ytab[ch].bak makefile makefile.win \
-	buildwin.bat mac.code awk.1
+	vcvars32.bat buildwin.bat mac.code awk.1
 
 a.out:	ytab.o $(OFILES)
 	$(CC) $(CFLAGS) ytab.o $(OFILES) $(ALLOC)  -lm
