@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Thu May  3 17:15:00 2001]
+ *      last edit-date: [Thu Oct 18 13:14:55 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -191,6 +191,8 @@ find_by_device_for_dialoutnumber(int drivertype, int driverunit, int cmdlen, cha
 			return(NULL);
 		}
 
+		cep->keypad[0] = '\0';
+		
 		/* check number and copy to cep->remote_numbers[] */
 		
 		for(j = 0; j < cmdlen; j++)
@@ -221,6 +223,78 @@ find_by_device_for_dialoutnumber(int drivertype, int driverunit, int cmdlen, cha
 	}
 
 	DBGL(DL_MSG, (log(LL_DBG, "find_by_device_for_dialoutnumber: no entry found!")));
+	return(NULL);
+}
+
+/*---------------------------------------------------------------------------*
+ *	find entry by drivertype and driverunit and setup for send keypad
+ *---------------------------------------------------------------------------*/
+cfg_entry_t *
+find_by_device_for_keypad(int drivertype, int driverunit, int cmdlen, char *cmd)
+{
+	cfg_entry_t *cep = NULL;
+	int i, j;
+
+	for(i=0; i < nentries; i++)
+	{
+		cep = &cfg_entry_tab[i];	/* ptr to config entry */
+
+		/* compare driver type and unit */
+
+		if(!((cep->usrdevicename == drivertype) &&
+		     (cep->usrdeviceunit == driverunit)))
+		{
+			continue;
+		}
+
+		/* check time interval */
+		
+		if(isvalidtime(cep) == 0)
+		{
+			DBGL(DL_MSG, (log(LL_DBG, "find_by_device_for_keypad: entry %d, time not valid!", i)));
+			continue;
+		}
+
+		/* found, check if already reserved */
+		
+		if(cep->cdid == CDID_RESERVED)
+		{
+			DBGL(DL_MSG, (log(LL_DBG, "find_by_device_for_keypad: entry %d, cdid reserved!", i)));
+			return(NULL);
+		}
+
+		/* check if this entry is already in use ? */
+		
+		if(cep->cdid != CDID_UNUSED)	
+		{
+			DBGL(DL_MSG, (log(LL_DBG, "find_by_device_for_keypad: entry %d, cdid in use", i)));
+			return(NULL);
+		}
+
+		cep->remote_numbers[0].number[0] = '\0';
+		cep->remote_numbers_count = 0;
+		cep->remote_phone_dialout[0] = '\0';
+		
+		bzero(cep->keypad, KEYPAD_MAX);
+		strncpy(cep->keypad, cmd, cmdlen);
+
+		DBGL(DL_MSG, (log(LL_DBG, "find_by_device_for_keypad: entry %d, keypad string is %s", i, cep->keypad)));
+
+		if((setup_dialout(cep)) == GOOD)
+		{
+			/* found an entry to be used for calling out */
+		
+			DBGL(DL_MSG, (log(LL_DBG, "find_by_device_for_keypad: found entry %d!", i)));
+			return(cep);
+		}
+		else
+		{
+			DBGL(DL_MSG, (log(LL_DBG, "find_by_device_for_keypad: entry %d, setup_dialout() failed!", i)));
+			return(NULL);
+		}
+	}
+
+	DBGL(DL_MSG, (log(LL_DBG, "find_by_device_for_keypad: no entry found!")));
 	return(NULL);
 }
 

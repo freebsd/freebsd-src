@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1999, 2001 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,9 @@
  *	isdnphone - main module
  *	=======================
  *
- *	$Id: main.c,v 1.12 1999/12/13 21:25:26 hm Exp $
- *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 21:53:25 1999]
+ *      last edit-date: [Wed Oct 17 14:08:44 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -48,9 +46,10 @@ usage(void)
 {
 	fprintf(stderr, "\n");
 	fprintf(stderr, "isdnphone - i4b phone program, version %d.%d.%d, compiled %s %s\n",VERSION, REL, STEP, __DATE__, __TIME__);
-	fprintf(stderr, "usage: isdnphone -d -h -n <number> -u <unit>\n");
+	fprintf(stderr, "usage: isdnphone -d -h -k <string> -n <number> -u <unit>\n");
 	fprintf(stderr, "       -d            debug\n");
 	fprintf(stderr, "       -h            hangup\n");
+	fprintf(stderr, "       -k string     keypad string\n");
 	fprintf(stderr, "       -n number     dial number\n");
 	fprintf(stderr, "       -u unit       set unit number\n");
 	fprintf(stderr, "\n");
@@ -69,11 +68,12 @@ main(int argc, char **argv)
 	int ret;
 	int opt_n = 0;
 	int opt_h = 0;
+	int opt_k = 0;
 	char *number = "";
 	
 	numberbuffer[0] = '\0';	
 
-	while ((c = getopt(argc, argv, "dhn:u:")) != -1)
+	while ((c = getopt(argc, argv, "dhk:n:u:")) != -1)
 	{
 		switch(c)
 		{
@@ -83,6 +83,11 @@ main(int argc, char **argv)
 				
 			case 'h':
 				opt_h = 1;
+				break;
+				
+			case 'k':
+				number = optarg;
+				opt_k = 1;
 				break;
 				
 			case 'n':
@@ -108,7 +113,7 @@ main(int argc, char **argv)
 	if((dialerfd = init_dial(namebuffer)) == -1)
 		exit(1);
 
-	if(opt_n || opt_h)
+	if(opt_n || opt_h || opt_k)
 	{
 		char commandbuffer[80];
 		
@@ -117,6 +122,11 @@ main(int argc, char **argv)
 		if(opt_n)
 		{
 			sprintf(commandbuffer, "D%s", number);
+	
+		}
+		else if(opt_k)
+		{
+			sprintf(commandbuffer, "K%s", number);
 	
 		}
 		else if(opt_h)
