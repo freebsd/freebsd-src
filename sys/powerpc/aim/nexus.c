@@ -54,6 +54,7 @@
  *
  * $FreeBSD$
  */
+#include "opt_psim.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -181,7 +182,11 @@ nexus_probe(device_t dev)
 		printf("nexus_probe: can't find /chosen");
 
 	if (OF_getprop(child, "interrupt-controller", &pic, 4) != 4)
+#ifndef PSIM
 		printf("nexus_probe: can't get interrupt-controller");
+#else
+                pic = OF_finddevice("/iobus/opic");
+#endif
 
 	sc->sc_pic = create_device_from_node(dev, pic);
 
