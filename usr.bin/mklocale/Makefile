@@ -3,7 +3,7 @@
 PROG=	mklocale
 SRCS=	yacc.c lex.c
 CFLAGS+=-I.
-CLEANFILES+=y.tab.h yacc.c lex.c
+CLEANFILES+=yacc.tab.h yacc.c lex.c
 MAN1=	mklocale.1
 SUBDIR= data
 
