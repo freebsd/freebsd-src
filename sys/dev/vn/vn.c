@@ -151,7 +151,7 @@ vnclose(dev_t dev, int flags, int mode, struct proc *p)
 int
 vnopen(dev_t dev, int flags, int mode, struct proc *p)
 {
-	int unit = vnunit(dev),size;
+	int unit = vnunit(dev);
 	struct vn_softc *vn;
 
 	if (unit >= NVN) {
