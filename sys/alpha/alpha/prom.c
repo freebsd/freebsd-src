@@ -49,12 +49,7 @@
 #include <machine/prom.h>
 #include <machine/vmparam.h>
 
-/* XXX this is to fake out the console routines, while booting. */
-struct consdev promcons = { NULL, NULL, NULL, promcngetc, promcncheckc, promcnputc,
-			    NULL, 0 /* makedev(97,0) */, CN_NORMAL };
-
 struct rpb	*hwrpb;
-int		alpha_console;
 
 extern struct prom_vec prom_dispatch_v;
 
@@ -100,6 +95,8 @@ init_prom_interface(rpb)
         prom_dispatch_v.routine = c->crb_v_dispatch->entry_va;
 }
 
+static int alpha_console;
+
 void
 init_bootstrap_console()
 {
@@ -113,71 +110,12 @@ init_bootstrap_console()
 	prom_getenv(PROM_E_TTY_DEV, buf, 4);
 	alpha_console = buf[0] - '0';
 #endif
-
-	/* XXX fake out the console routines, for now */
-	promcons.cn_dev = makedev(97, 0);
-	cn_tab = &promcons;
+	promcnattach(alpha_console);
 }
 
 static int  enter_prom __P((void));
 static void leave_prom __P((int));
-#ifdef _PMAP_MAY_USE_PROM_CONSOLE
-static void prom_cache_sync __P((void));
-#endif
 
-static int
-enter_prom()
-{
-	int s = splhigh();
-
-	pt_entry_t *lev1map;
-
-	if (!prom_mapped) {
-#ifdef SIMOS
-		/*
-		 * SimOS console uses floating point.
-		 */
-		if (curproc != fpcurproc) {
-			alpha_pal_wrfen(1);
-			if (fpcurproc)
-				savefpstate(&fpcurproc->p_addr->u_pcb.pcb_fp);
-			fpcurproc = curproc;
-			restorefpstate(&fpcurproc->p_addr->u_pcb.pcb_fp);
-		}
-#endif
-		if (!pmap_uses_prom_console())
-			panic("enter_prom");
-		lev1map = rom_lev1map();	/* XXX */
-		saved_pte[0] = lev1map[0];	/* XXX */
-		lev1map[0] = rom_pte;		/* XXX */
-		prom_cache_sync();		/* XXX */
-	}
-	return s;
-}
-
-static void
-leave_prom __P((s))
-	int s;
-{
-
-	pt_entry_t *lev1map;
-
-	if (!prom_mapped) {
-		if (!pmap_uses_prom_console())
-			panic("leave_prom");
-		lev1map = rom_lev1map();	/* XXX */
-		lev1map[0] = saved_pte[0];	/* XXX */
-		prom_cache_sync();		/* XXX */
-	}
-	splx(s);
-}
-
-static void
-prom_cache_sync __P((void))
-{
-	ALPHA_TBIA();
-	alpha_pal_imb();
-}
 
 /*
  * promcnputc:
@@ -250,6 +188,60 @@ promcncheckc(dev)
 		return (-1);
 }
 
+static int
+enter_prom()
+{
+	int s = splhigh();
+
+	pt_entry_t *lev1map;
+
+	if (!prom_mapped) {
+#ifdef SIMOS
+		/*
+		 * SimOS console uses floating point.
+		 */
+		if (curproc != fpcurproc) {
+			alpha_pal_wrfen(1);
+			if (fpcurproc)
+				savefpstate(&fpcurproc->p_addr->u_pcb.pcb_fp);
+			fpcurproc = curproc;
+			restorefpstate(&fpcurproc->p_addr->u_pcb.pcb_fp);
+		}
+#endif
+		if (!pmap_uses_prom_console())
+			panic("enter_prom");
+		lev1map = rom_lev1map();	/* XXX */
+		saved_pte[0] = lev1map[0];	/* XXX */
+		lev1map[0] = rom_pte;		/* XXX */
+		prom_cache_sync();		/* XXX */
+	}
+	return s;
+}
+
+static void
+leave_prom __P((s))
+	int s;
+{
+
+	pt_entry_t *lev1map;
+
+	if (!prom_mapped) {
+		if (!pmap_uses_prom_console())
+			panic("leave_prom");
+		lev1map = rom_lev1map();	/* XXX */
+		lev1map[0] = saved_pte[0];	/* XXX */
+		prom_cache_sync();		/* XXX */
+	}
+	splx(s);
+}
+
+static void
+prom_cache_sync __P((void))
+{
+	ALPHA_TBIA();
+	alpha_pal_imb();
+}
+
 int
 prom_getenv(id, buf, len)
 	int id, len;
@@ -297,7 +289,8 @@ prom_halt(halt)
 	/*
 	 * Halt the machine.
 	 */
-	alpha_pal_halt();
+	for (;;)
+		alpha_pal_halt();
 }
 
 u_int64_t
