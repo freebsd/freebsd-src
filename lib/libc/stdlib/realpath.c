@@ -98,7 +98,7 @@ loop:
 		p = resolved;
 
 	/* Deal with the last component. */
-	if (lstat(p, &sb) == 0) {
+	if (*p != '\0' && lstat(p, &sb) == 0) {
 		if (S_ISLNK(sb.st_mode)) {
 			n = readlink(p, resolved, MAXPATHLEN);
 			if (n < 0)
