@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)malloc.h	8.5 (Berkeley) 5/3/95
- * $Id: malloc.h,v 1.39 1999/01/21 08:29:08 dillon Exp $
+ * $Id: malloc.h,v 1.40 1999/01/21 09:23:21 dillon Exp $
  */
 
 #ifndef _SYS_MALLOC_H_
@@ -162,7 +162,7 @@ struct kmembuckets {
  */
 #define kmemxtob(alloc)	(kmembase + (alloc) * PAGE_SIZE)
 #define btokmemx(addr)	(((caddr_t)(addr) - kmembase) / PAGE_SIZE)
-#define btokup(addr)	(&kmemusage[(caddr_t)(addr) - kmembase >> PAGE_SHIFT])
+#define btokup(addr)	(&kmemusage[((caddr_t)(addr) - kmembase) >> PAGE_SHIFT])
 
 /*
  * Macro versions for the usual cases of malloc/free

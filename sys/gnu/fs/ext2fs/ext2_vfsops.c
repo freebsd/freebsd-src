@@ -189,7 +189,7 @@ ext2_mount(mp, path, data, ndp, p)
 	int error, flags;
 	mode_t accessmode;
 
-	if (error = copyin(data, (caddr_t)&args, sizeof (struct ufs_args)))
+	if ((error = copyin(data, (caddr_t)&args, sizeof (struct ufs_args))) != 0)
 		return (error);
 	/*
 	 * If updating, check whether changing from read-only to
@@ -231,8 +231,8 @@ ext2_mount(mp, path, data, ndp, p)
 			if (p->p_ucred->cr_uid != 0) {
 				devvp = ump->um_devvp;
 				vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);
-				if (error = VOP_ACCESS(devvp, VREAD | VWRITE,
-				    p->p_ucred, p)) {
+				if ((error = VOP_ACCESS(devvp, VREAD | VWRITE,
+				    p->p_ucred, p)) != 0) {
 					VOP_UNLOCK(devvp, 0, p);
 					return (error);
 				}
@@ -268,7 +268,7 @@ ext2_mount(mp, path, data, ndp, p)
 	 * and verify that it refers to a sensible block device.
 	 */
 	NDINIT(ndp, LOOKUP, FOLLOW, UIO_USERSPACE, args.fspec, p);
-	if (error = namei(ndp))
+	if ((error = namei(ndp)) != 0)
 		return (error);
 	devvp = ndp->ni_vp;
 
@@ -291,7 +291,7 @@ ext2_mount(mp, path, data, ndp, p)
 		if ((mp->mnt_flag & MNT_RDONLY) == 0)
 			accessmode |= VWRITE;
 		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);
-		if (error = VOP_ACCESS(devvp, accessmode, p->p_ucred, p)) {
+		if ((error = VOP_ACCESS(devvp, accessmode, p->p_ucred, p)) != 0) {
 			vput(devvp);
 			return (error);
 		}
@@ -518,7 +518,7 @@ ext2_reload(mountp, cred, p)
 	 * Step 2: re-read superblock from disk.
 	 * constants have been adjusted for ext2
 	 */
-	if (error = bread(devvp, SBLOCK, SBSIZE, NOCRED, &bp))
+	if ((error = bread(devvp, SBLOCK, SBSIZE, NOCRED, &bp)) != 0)
 		return (error);
 	es = (struct ext2_super_block *)bp->b_data;
 	if (es->s_magic != EXT2_SUPER_MAGIC) {
@@ -535,7 +535,7 @@ ext2_reload(mountp, cred, p)
 	fs = VFSTOUFS(mountp)->um_e2fs;
 	bcopy(bp->b_data, fs->s_es, sizeof(struct ext2_super_block));
 
-	if(error = compute_sb_data(devvp, es, fs)) {
+	if((error = compute_sb_data(devvp, es, fs)) != 0) {
 		brelse(bp);
 		return error;
 	}
@@ -615,11 +615,11 @@ ext2_mountfs(devvp, mp, p)
 	 * (except for root, which might share swap device for miniroot).
 	 * Flush out any old buffers remaining from a previous use.
 	 */
-	if (error = vfs_mountedon(devvp))
+	if ((error = vfs_mountedon(devvp)) != 0)
 		return (error);
 	if (vcount(devvp) > 1 && devvp != rootvp)
 		return (EBUSY);
-	if (error = vinvalbuf(devvp, V_SAVE, p->p_ucred, p, 0, 0))
+	if ((error = vinvalbuf(devvp, V_SAVE, p->p_ucred, p, 0, 0)) != 0)
 		return (error);
 #ifdef READONLY
 /* turn on this to force it to be read-only */
@@ -627,7 +627,7 @@ ext2_mountfs(devvp, mp, p)
 #endif
 
 	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
-	if (error = VOP_OPEN(devvp, ronly ? FREAD : FREAD|FWRITE, FSCRED, p))
+	if ((error = VOP_OPEN(devvp, ronly ? FREAD : FREAD|FWRITE, FSCRED, p)) != 0)
 		return (error);
 	if (VOP_IOCTL(devvp, DIOCGPART, (caddr_t)&dpart, FREAD, NOCRED, p) != 0)
 		size = DEV_BSIZE;
@@ -638,7 +638,7 @@ ext2_mountfs(devvp, mp, p)
 
 	bp = NULL;
 	ump = NULL;
-	if (error = bread(devvp, SBLOCK, SBSIZE, NOCRED, &bp))
+	if ((error = bread(devvp, SBLOCK, SBSIZE, NOCRED, &bp)) != 0)
 		goto out;
 	es = (struct ext2_super_block *)bp->b_data;
 	if (es->s_magic != EXT2_SUPER_MAGIC) {
@@ -751,7 +751,7 @@ ext2_unmount(mp, mntflags, p)
 			return (EINVAL);
 		flags |= FORCECLOSE;
 	}
-	if (error = ext2_flushfiles(mp, flags, p))
+	if ((error = ext2_flushfiles(mp, flags, p)) != 0)
 		return (error);
 	ump = VFSTOUFS(mp);
 	fs = ump->um_e2fs;
@@ -806,7 +806,7 @@ ext2_flushfiles(mp, flags, p)
 	ump = VFSTOUFS(mp);
 #if QUOTA
 	if (mp->mnt_flag & MNT_QUOTA) {
-		if (error = vflush(mp, NULLVP, SKIPSYSTEM|flags))
+		if ((error = vflush(mp, NULLVP, SKIPSYSTEM|flags)) != 0)
 			return (error);
 		for (i = 0; i < MAXQUOTAS; i++) {
 			if (ump->um_quotas[i] == NULLVP)
@@ -930,7 +930,7 @@ loop:
 				goto loop;
 			continue;
 		}
-		if (error = VOP_FSYNC(vp, cred, waitfor, p))
+		if ((error = VOP_FSYNC(vp, cred, waitfor, p)) != 0)
 			allerror = error;
 		VOP_UNLOCK(vp, 0, p);
 		vrele(vp);
@@ -1012,7 +1012,7 @@ restart:
 	MALLOC(ip, struct inode *, sizeof(struct inode), M_EXT2NODE, M_WAITOK);
 
 	/* Allocate a new vnode/inode. */
-	if (error = getnewvnode(VT_UFS, mp, ext2_vnodeop_p, &vp)) {
+	if ((error = getnewvnode(VT_UFS, mp, ext2_vnodeop_p, &vp)) != 0) {
 		if (ext2fs_inode_hash_lock < 0)
 			wakeup(&ext2fs_inode_hash_lock);
 		ext2fs_inode_hash_lock = 0;
@@ -1047,8 +1047,8 @@ restart:
 #if 0
 printf("ext2_vget(%d) dbn= %d ", ino, fsbtodb(fs, ino_to_fsba(fs, ino)));
 #endif
-	if (error = bread(ump->um_devvp, fsbtodb(fs, ino_to_fsba(fs, ino)),
-	    (int)fs->s_blocksize, NOCRED, &bp)) {
+	if ((error = bread(ump->um_devvp, fsbtodb(fs, ino_to_fsba(fs, ino)),
+	    (int)fs->s_blocksize, NOCRED, &bp)) != 0) {
 		/*
 		 * The inode does not contain anything useful, so it would
 		 * be misleading to leave it on its hash chain. With mode
@@ -1086,7 +1086,7 @@ printf("ext2_vget(%d) dbn= %d ", ino, fsbtodb(fs, ino_to_fsba(fs, ino)));
 	 * Initialize the vnode from the inode, check for aliases.
 	 * Note that the underlying vnode may have changed.
 	 */
-	if (error = ufs_vinit(mp, ext2_specop_p, ext2_fifoop_p, &vp)) {
+	if ((error = ufs_vinit(mp, ext2_specop_p, ext2_fifoop_p, &vp)) != 0) {
 		vput(vp);
 		*vpp = NULL;
 		return (error);

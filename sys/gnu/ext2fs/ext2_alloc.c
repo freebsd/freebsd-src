@@ -126,7 +126,7 @@ ext2_alloc(ip, lbn, bpref, size, cred, bnp)
 		fs->s_es->s_free_blocks_count < fs->s_es->s_r_blocks_count)
 		goto nospace;
 #if QUOTA
-	if (error = chkdq(ip, (long)btodb(size), cred, 0))
+	if ((error = chkdq(ip, (long)btodb(size), cred, 0)) != 0)
 		return (error);
 #endif
 	if (bpref >= fs->s_es->s_blocks_count)

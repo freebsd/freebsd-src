@@ -23,14 +23,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: iiconf.h,v 1.2 1998/10/31 11:31:07 nsouch Exp $
+ *	$Id: iiconf.h,v 1.3 1999/01/09 18:08:24 nsouch Exp $
  */
 #ifndef __IICONF_H
 #define __IICONF_H
 
 #include <sys/queue.h>
 
-#define IICPRI PZERO+8			/* XXX sleep/wakeup queue priority */
+#define IICPRI (PZERO+8)		/* XXX sleep/wakeup queue priority */
 
 #define n(flags) (~(flags) & (flags))
 

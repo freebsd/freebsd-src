@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_lkm.c,v 1.59 1998/11/10 09:12:40 peter Exp $
+ * $Id: kern_lkm.c,v 1.60 1999/01/17 19:00:58 peter Exp $
  */
 
 #include "opt_devfs.h"
@@ -574,7 +574,7 @@ _lkm_vfs(lkmtp, cmd)
 			return(EEXIST);
 
 		for(i = 0; args->lkm_vnodeops->ls_items[i]; i++)
-			vfs_add_vnodeops((void*)args->lkm_vnodeops->ls_items[i]);
+			vfs_add_vnodeops((const void*)args->lkm_vnodeops->ls_items[i]);
 		error = vfs_register(vfc);
 		if (error)
 			return(error);
@@ -593,7 +593,7 @@ _lkm_vfs(lkmtp, cmd)
 			return(error);
 
 		for(i = 0; args->lkm_vnodeops->ls_items[i]; i++)
-			vfs_rm_vnodeops((void*)args->lkm_vnodeops->ls_items[i]);
+			vfs_rm_vnodeops((const void*)args->lkm_vnodeops->ls_items[i]);
 
 		break;
 
@@ -628,8 +628,8 @@ _lkm_dev(lkmtp, cmd)
 				descrip = (dev_t) -1;
 			else
 				descrip = makedev(args->lkm_offset,0);
-			if ( err = cdevsw_add(&descrip, args->lkm_dev.cdev,
-					&(args->lkm_olddev.cdev))) {
+			if ((err = cdevsw_add(&descrip, args->lkm_dev.cdev,
+					&(args->lkm_olddev.cdev))) != 0) {
 				break;
 			}
 			args->lkm_offset = major(descrip) ;

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.92 1998/12/30 10:38:59 dfr Exp $
+ *	$Id: kern_exec.c,v 1.93 1999/01/06 23:05:38 julian Exp $
  */
 
 #include <sys/param.h>
@@ -367,7 +367,7 @@ exec_map_first_page(imgp)
 		if (initial_pagein > object->size)
 			initial_pagein = object->size;
 		for (i = 1; i < initial_pagein; i++) {
-			if (ma[i] = vm_page_lookup(object, i)) {
+			if ((ma[i] = vm_page_lookup(object, i)) != NULL) {
 				if ((ma[i]->flags & PG_BUSY) || ma[i]->busy)
 					break;
 				if (ma[i]->valid)

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppb_msq.h,v 1.2 1998/09/13 18:26:26 nsouch Exp $
+ *	$Id: ppb_msq.h,v 1.3 1999/01/10 12:04:54 nsouch Exp $
  *
  */
 #ifndef __PPB_MSQ_H
@@ -119,23 +119,23 @@
 #define MS_RFETCH_P(n,reg,mask)	  { MS_OP_RFETCH_P, { n, reg, mask } }
 
 /* ptr manipulation */
-#define MS_PTR(ptr)	{ MS_OP_PTR, { ptr } }
+#define MS_PTR(ptr)	{ MS_OP_PTR, { { ptr } } }
 
 #define MS_DASS(byte) MS_RASSERT(MS_REG_DTR,byte)
 #define MS_SASS(byte) MS_RASSERT(MS_REG_STR,byte)
 #define MS_CASS(byte) MS_RASSERT(MS_REG_CTR,byte)
 
-#define MS_SET(accum)		{ MS_OP_SET, { accum } }
+#define MS_SET(accum)		{ MS_OP_SET, { { accum } } }
 #define MS_BRSET(mask,offset)	{ MS_OP_BRSET, { mask, offset } }
-#define MS_DBRA(offset)		{ MS_OP_DBRA, { offset } }
-#define MS_BRCLEAR(mask,offset)	{ MS_OP_BRCLEAR, { mask, offset } }
+#define MS_DBRA(offset)		{ MS_OP_DBRA, { { offset } } }
+#define MS_BRCLEAR(mask,offset)	{ MS_OP_BRCLEAR, { { mask }, { offset } } }
 #define MS_BRSTAT(mask_set,mask_clr,offset) \
 			{ MS_OP_BRSTAT, { mask_set, mask_clr, offset } }
 
 /* C function or submicrosequence call */
 #define MS_C_CALL(function,parameter) \
 		{ MS_OP_C_CALL, { function, parameter } }
-#define MS_CALL(microseq) { MS_OP_CALL, { microseq } }
+#define MS_CALL(microseq) { MS_OP_CALL, { { microseq } } }
 
 /* mode dependent read/write operations
  * ppb_MS_xxx_init() call required otherwise default is
@@ -144,14 +144,14 @@
 #define MS_GET(ptr,len) { MS_OP_GET, { ptr, len } }
 
 /* delay in microseconds */
-#define MS_DELAY(udelay) { MS_OP_DELAY, { udelay } }
+#define MS_DELAY(udelay) { MS_OP_DELAY, { { udelay } } }
 
 /* asynchroneous delay in ms */
-#define MS_ADELAY(mdelay) { MS_OP_ADELAY, { mdelay } }
+#define MS_ADELAY(mdelay) { MS_OP_ADELAY, { { mdelay } } }
 
 /* return from submicrosequence execution or microseqence execution */
-#define MS_SUBRET(code)	{ MS_OP_SUBRET,	{ code } }
-#define MS_RET(code)	{ MS_OP_RET, { code } }
+#define MS_SUBRET(code)	{ MS_OP_SUBRET,	{ { code } } }
+#define MS_RET(code)	{ MS_OP_RET, { { code } } }
 
 /*
  * Function abstraction level
