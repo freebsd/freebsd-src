@@ -79,6 +79,7 @@ enum {
 	NGM_PPP_GET_CONFIG,		/* returns ng_ppp_bundle_config */
 	NGM_PPP_GET_LINK_STATS,		/* takes link #, returns stats struct */
 	NGM_PPP_CLR_LINK_STATS,		/* takes link #, clears link stats */
+	NGM_PPP_GETCLR_LINK_STATS,	/* takes link #, returns & clrs stats */
 };
 
 /* Per-link config structure */
