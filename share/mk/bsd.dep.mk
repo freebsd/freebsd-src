@@ -1,4 +1,4 @@
-#	$Id: bsd.dep.mk,v 1.13 1997/06/18 03:39:34 asami Exp $
+#	$Id: bsd.dep.mk,v 1.14 1997/08/26 16:54:33 bde Exp $
 #
 # The include file <bsd.dep.mk> handles Makefile dependencies.
 #
@@ -33,8 +33,8 @@ DEPENDFILE?=	.depend
 
 # some of the rules involve .h sources, so remove them from mkdep line
 .if !target(depend)
-depend: beforedepend ${DEPENDFILE} afterdepend _SUBDIR
 .if defined(SRCS)
+depend: beforedepend ${DEPENDFILE} afterdepend _SUBDIR
 
 # .if defined ${SRCS:M*.[sS]} does not work
 __depend_s=	${SRCS:M*.[sS]}
@@ -60,11 +60,15 @@ ${DEPENDFILE}: ${SRCS}
 	cd ${.CURDIR}; ${MAKE} _EXTRADEPEND
 .endif
 
+.ORDER: ${DEPENDFILE} afterdepend
 .else
-${DEPENDFILE}: _SUBDIR
+depend: beforedepend afterdepend _SUBDIR
 .endif
 .if !target(beforedepend)
 beforedepend:
+.else
+.ORDER: beforedepend ${DEPENDFILE}
+.ORDER: beforedepend afterdepend
 .endif
 .if !target(afterdepend)
 afterdepend:

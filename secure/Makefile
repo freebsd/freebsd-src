@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.11 1997/02/22 14:40:11 peter Exp $
 
 # lib must be first, or it will not work.  This is because we reference
 # the lib's in the directory where they are built from the binaries we
@@ -12,9 +12,9 @@ CODAI=	${MAKE} ${MFLAGS} cleandir; \
 	${MAKE} ${MFLAGS} obj; \
 	${MAKE} ${MFLAGS} depend all install
 
-CODAD=	${MAKE} ${MFLAGS} MAKE_EBONES=yes cleandir; \
-	${MAKE} ${MFLAGS} MAKE_EBONES=yes obj; \
-	${MAKE} ${MFLAGS} MAKE_EBONES=yes depend all distribute
+CODAD=	${MAKE} ${MFLAGS} cleandir; \
+	${MAKE} ${MFLAGS} obj; \
+	${MAKE} ${MFLAGS} depend all distribute
 
 # These are the programs which depend on secure libs
 sprog:
