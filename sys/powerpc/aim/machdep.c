@@ -58,6 +58,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
+#include "opt_ddb.h"
 #include "opt_kstack_pages.h"
 #include "opt_msgbuf.h"
 
@@ -114,6 +115,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/sigframe.h>
 
 #include <ddb/ddb.h>
+
+#ifdef DDB
+extern vm_offset_t ksym_start, ksym_end;
+#endif
 
 int cold = 1;
 
@@ -259,6 +264,10 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 			boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
 			kern_envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *);
 			end = MD_FETCH(kmdp, MODINFOMD_KERNEND, vm_offset_t);
+#ifdef DDB
+			ksym_start = MD_FETCH(kmdp, MODINFOMD_SSYM, uintptr_t);
+			ksym_end = MD_FETCH(kmdp, MODINFOMD_ESYM, uintptr_t);
+#endif
 		}
 	}
 
