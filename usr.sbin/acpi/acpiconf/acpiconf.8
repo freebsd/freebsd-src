@@ -53,12 +53,18 @@ Displays a summary of available options.
 .It Fl s Ar type
 Enters the specified sleep mode.
 Recognized types are
-.Cm 1 ,
+.Cm 1 
+(Only the CPU clock is stopped),
 .Cm 2 ,
-.Cm 3 ,
-.Cm 4 ,
+.Cm 3 
+(The CPU context is lost and memory context is preserved),
+.Cm 4 
+(The CPU context is lost and memory context is stored to disk)
 and
-.Cm 5 .
+.Cm 5 
+(Soft off).
+The supported states depend on BIOS implementation, including ACPI
+byte code(AML).
 .El
 .Sh SEE ALSO
 .Xr acpi 4 ,
