@@ -29,7 +29,7 @@ ident		GENERIC
 #hints		"GENERIC.hints"		# Default places to look for devices.
 
 options 	PC98			# PC98
-options 	SCHED_ULE		# ULE scheduler
+options 	SCHED_4BSD		# 4BSD scheduler
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
 options 	FFS			# Berkeley Fast Filesystem
