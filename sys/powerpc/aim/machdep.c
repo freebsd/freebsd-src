@@ -392,7 +392,7 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, char *args)
 	 */
 	mtx_init(&sched_lock, "sched lock", MTX_SPIN | MTX_RECURSE);
 	mtx_init(&Giant, "Giant", MTX_DEF | MTX_RECURSE);
-	mtx_init(&proc0.p_mtx, "process lock", MTX_DEF);
+	mtx_init(&proc0.p_mtx, "process lock", MTX_DEF|MTX_DUPOK);
 	mtx_lock(&Giant);
 
 	/*
