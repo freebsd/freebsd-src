@@ -31,13 +31,14 @@
  * SUCH DAMAGE.
  *
  *	@(#)profile.h	8.1 (Berkeley) 6/11/93
- * $Id: profile.h,v 1.14 1998/02/03 20:32:38 bde Exp $
+ * $Id: profile.h,v 1.15 1998/07/10 02:27:15 bde Exp $
  */
 
 #ifndef _MACHINE_PROFILE_H_
 #define	_MACHINE_PROFILE_H_
 
 #ifdef KERNEL
+
 /*
  * Config generates something to tell the compiler to align functions on 16
  * byte boundaries.  A strict alignment is good for keeping the tables small.
@@ -101,6 +102,10 @@ mcount() \
 	frompc = ((fptrint_t *)frompc)[1]; \
 	_mcount(frompc, selfpc); \
 }
+
+/* An unsigned integral type that can hold function pointers. */
+typedef	u_int32_t	fptrint_t;
+
 #endif /* KERNEL */
 
 /*
