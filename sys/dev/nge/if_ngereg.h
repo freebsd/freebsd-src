@@ -659,6 +659,9 @@ struct nge_softc {
 	struct mtx		nge_mtx;
 	u_int8_t		nge_tbi;
 	struct ifmedia		nge_ifmedia;
+#ifdef DEVICE_POLLING
+	int			rxcycles;
+#endif
 };
 
 /*
