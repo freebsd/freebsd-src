@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- *	$Id: cons.c,v 1.52 1997/07/01 00:52:37 bde Exp $
+ *	$Id: cons.c,v 1.53 1997/08/08 20:09:50 julian Exp $
  */
 
 #include <sys/param.h>
@@ -172,8 +172,8 @@ cninit_finish()
 	cn_dev_t = cn_tp->t_dev;
 }
 
-void
-cnuninit()
+static void
+cnuninit(void)
 {
 	struct cdevsw *cdp;
 
