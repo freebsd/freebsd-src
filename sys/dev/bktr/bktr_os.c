@@ -247,6 +247,8 @@ static struct cdevsw bktr_cdevsw = {
 };
 
 DRIVER_MODULE(bktr, pci, bktr_driver, bktr_devclass, 0, 0);
+MODULE_DEPEND(bktr, bktr_mem, 1,1,1);
+MODULE_VERSION(bktr, 1);
 
 
 /*
