@@ -63,6 +63,7 @@ int length;
 #endif
 #include <sys/file.h>
 #include <ctype.h>
+#include <err.h>
 #include "msgcat.h"
 #include "gencat.h"
 
@@ -73,8 +74,7 @@ static void warning(cptr, msg)
 char *cptr;
 char *msg;
 {
-    fprintf(stderr, "gencat: %s on line %d\n", msg, lineno);
-    fprintf(stderr, "%s\n", curline);
+    warnx("%s on line %d\n%s", msg, lineno, curline);
     if (cptr) {
 	char	*tptr;
 	for (tptr = curline; tptr < cptr; ++tptr) putc(' ', stderr);
@@ -100,7 +100,7 @@ static void nomem() {
 static char *getline(fd)
 int fd;
 {
-    static long	len = 0, curlen = BUFSIZ;
+    static long	curlen = BUFSIZ;
     static char	buf[BUFSIZ], *bptr = buf, *bend = buf;
     char	*cptr, *cend;
     long	buflen;
@@ -342,7 +342,6 @@ int fd;
     int	setid, msgid = 0;
     char	hconst[MAXTOKEN+1];
     char	quote = 0;
-    int		i;
 
     if (!cat) {
 	cat = (catT *) malloc(sizeof(catT));
@@ -874,10 +873,8 @@ FILE  *fp;
     msgT	*msg;
     setT	*set;
 
-    if (!cat) {
-	fprintf(stderr, "No catalog open\n");
-	exit (1);
-    }
+    if (!cat)
+		errx(1, "no catalog open");
 
     for (set = cat->first; set; set = set->next) {
 	fprintf(fp, "$set %d", set->setId);
