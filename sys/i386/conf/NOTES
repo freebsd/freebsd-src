@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.329 1997/04/28 00:24:26 fsmp Exp $
+#	$Id: LINT,v 1.330 1997/05/04 15:24:19 joerg Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -71,8 +71,8 @@ config		kernel	root on wd0 dumps on wd0
 # NAPIC sets the number of IO APICs on the motherboard, defaults to 1.
 # NINTR sets the total number of INTs provided by the motherboard.
 #
-# SMP_PRIVPAGES		# BROKEN, DO NOT use! (architecture problem)
-# SMP_AUTOSTART		# BROKEN, DO NOT use! (bug or race somewhere)
+# SMP_AUTOSTART automates the startup of the additional CPUs.
+# SMP_PRIVPAGES	maintain 'per-CPU' private data, NOT implemented yet!
 #
 # SMP_TIMER_NC is for motherboards that claim 8254 connectivity to the IO APIC,
 #  when in fact it is NOT connected.
@@ -89,8 +89,6 @@ config		kernel	root on wd0 dumps on wd0
 
 # Mandatory:
 options		SMP			# Symmetric MultiProcessor Kernel
-
-# Recommended:
 options		APIC_IO			# Symmetric (APIC) I/O
 
 # Optional, these are the defaults:
@@ -100,8 +98,8 @@ options		APIC_IO			# Symmetric (APIC) I/O
 #options		NINTR=24		# number of INTs
 
 # Currently unusable:
-#options		SMP_PRIVPAGES		# BROKEN: architecture problem
 #options		SMP_AUTOSTART		# BROKEN: bug or race somewhere
+#options		SMP_PRIVPAGES		# BROKEN: architecture problem
 
 #
 # Rogue SMP hardware:
