@@ -78,14 +78,14 @@ struct kvmvars {
 
 int	Bflag, bflag, hflag, kflag, rflag, pflag;
 int	debug = 0;
-int	getprof __P((struct kvmvars *));
-int	getprofhz __P((struct kvmvars *));
-void	kern_readonly __P((int));
-int	openfiles __P((char *, char *, struct kvmvars *));
-void	setprof __P((struct kvmvars *kvp, int state));
-void	dumpstate __P((struct kvmvars *kvp));
-void	reset __P((struct kvmvars *kvp));
-static void usage __P((void));
+int	getprof(struct kvmvars *);
+int	getprofhz(struct kvmvars *);
+void	kern_readonly(int);
+int	openfiles(char *, char *, struct kvmvars *);
+void	setprof(struct kvmvars *kvp, int state);
+void	dumpstate(struct kvmvars *kvp);
+void	reset(struct kvmvars *kvp);
+static void usage(void);
 
 int
 main(int argc, char **argv)

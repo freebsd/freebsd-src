@@ -62,7 +62,7 @@ int cflag, dflag, eflag, iflag, nflag, qflag, rflag, sflag, uflag, Uflag;
 u_int keys;
 char fullpath[MAXPATHLEN];
 
-static void usage __P((void));
+static void usage(void);
 
 int
 main(argc, argv)
