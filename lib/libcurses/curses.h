@@ -98,7 +98,6 @@
 #define	erasechar()	(__baset.c_cc[VERASE])
 #define	killchar()	(__baset.c_cc[VKILL])
 #define	nocrmode()	nocbreak()
-#define	ospeed		(cfgetospeed(&__baset))
 
 /* WINDOW structure members name compatibility */
 #define _curx   curx
