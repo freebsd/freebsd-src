@@ -481,7 +481,6 @@ fetch(char *URL, const char *path)
 		
 		if (tmppath != NULL) {
 			mkstemps(tmppath, strlen(slash) + 1);
-			warnx("tmppath: %s", tmppath);
 			of = fopen(tmppath, "w");
 		} else {
 			of = fopen(path, "w");
