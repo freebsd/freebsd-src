@@ -23,6 +23,24 @@ NOTE TO PEOPLE WHO THINK THAT 5.0-CURRENT IS SLOW:
 	integrity.  Re-enabling write caching can substantially improve
 	performance.
 
+20020404:
+	New sendmail startup scripts have been installed to make it
+	easier to use alternative MTAs with FreeBSD.  Setting the rc.conf
+	variable sendmail_enable to "NO" no longer prevents any sendmail
+	daemons from starting.  Instead, either set sendmail_enable to
+	"NONE" or change mta_start_script to a script for starting
+	an alternative MTA.  Setting mta_start_script to "" will
+	also prevent any MTA from being started at boot.
+
+20020404:
+	Due to the import of sendmail 8.12.2 (see 20020217 entry), a new
+	user and group are required in order for sendmail to run as a
+	set-group-ID binary.  A 'make installworld' will use the new user
+	and group to set the owner and group of /var/spool/clientmqueue
+	and will fail if the new user and group do not exist.  The 'smmsp'
+	user and group must be merged from src/etc/group and
+	src/etc/master.passwd before using 'make installworld'.
+
 20020315:
 	FreeBSD 5.0 DP-1 was basically branched today.
 
