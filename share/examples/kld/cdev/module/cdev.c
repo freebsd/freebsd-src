@@ -91,7 +91,7 @@ int
 mydev_open(dev_t dev, int flag, int otyp, struct proc *procp)
 {
     printf("mydev_open: dev_t=%d, flag=%x, otyp=%x, procp=%p\n",
-	   dev, flag, otyp, procp);
+	   dev2udev(dev), flag, otyp, procp);
     return (0);
 }
 
@@ -99,7 +99,7 @@ int
 mydev_close(dev_t dev, int flag, int otyp, struct proc *procp)
 {
     printf("mydev_close: dev_t=%d, flag=%x, otyp=%x, procp=%p\n",
-	      dev, flag, otyp, procp);
+	      dev2udev(dev), flag, otyp, procp);
     return (0);
 }
 
