@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket2.c	8.1 (Berkeley) 6/10/93
- *	$Id: uipc_socket2.c,v 1.33 1998/04/24 04:15:18 dg Exp $
+ *	$Id: uipc_socket2.c,v 1.34 1998/05/15 20:11:30 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -163,7 +163,7 @@ sodropablereq(head)
 	static unsigned int cur_cnt, old_cnt;
 	struct timeval tv;
 
-	getmicroruntime(&tv);
+	getmicrouptime(&tv);
 	if ((i = (tv.tv_sec - old_runtime.tv_sec)) != 0) {
 		old_runtime = tv;
 		old_cnt = cur_cnt / i;
