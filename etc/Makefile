@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.54 1994/03/07 00:42:56 rgrimes Exp $
+#	$Id: Makefile,v 1.53.2.3 1994/04/10 20:19:37 rgrimes Exp $
 
 NOOBJ=	noobj
 
@@ -47,6 +47,8 @@ KC_FILES+=	sbin/mount sbin/mount_isofs		# XXX Crunch is broken!
 KC_LINKS=	bin/[ bin/cp bin/echo bin/test
 KC_LINKS+=	sbin/fsck sbin/halt sbin/init
 KC_LINKS+=	sbin/umount
+#
+CD_DIRS=	etc usr
 #
 FILESYSTEM_DIRS=	bin dev etc mnt proc sbin usr usr/bin usr/mdec usr/sbin
 FILESYSTEM_TREES=	dev
@@ -231,8 +233,10 @@ kcopy-floppy:
 	(cd ${MOUNT}/dev; \
 	    sh ${DESTDIR}/dev/MAKEDEV std; \
 	    rm -rf fd; \
-	    sh ${DESTDIR}/dev/MAKEDEV fd0 fd1 wd0 wd1 sd0 sd1 cd0 mcd0; \
-	    rm -rf fd0?* rfd0?* fd1?* rfd1?*;)
+	    sh ${DESTDIR}/dev/MAKEDEV fd0 fd1 wd0 wd1 sd0 sd1; \
+	    rm -rf fd0?* rfd0?* fd1?* rfd1?*; \
+	    sh ${DESTDIR}/dev/MAKEDEV cd0 mcd0 mcd1; \
+	    rm -rf rmcd*)
 	(cd ${DESTDIR}/; \
 	    ls ${KC_FILES} | cpio -pdamuv ${MOUNT})
 	install -c -o root -g wheel -m 755 etc.i386/kc.profile \
@@ -270,6 +274,11 @@ kcopy_bt.flp:
 
 cdins-floppy:
 	${MAKE} kcopy-floppy
+	(cd ${DESTDIR}/; \
+	    ls -d ${CD_DIRS} | cpio -pdamuv ${MOUNT})
+	(cd ${MOUNT}/usr; \
+	    ln -s /cdrom/filesys/usr/libexec libexec; \
+	    ln -s /cdrom/filesys/usr/lib lib)
 	mkdir ${MOUNT}/cdrom
 	chown root.wheel ${MOUNT}/cdrom
 	chmod 755 ${MOUNT}/cdrom
