@@ -35,6 +35,7 @@
  */
 
 #include "opt_ktrace.h"
+#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -44,6 +45,7 @@
 #include <sys/kthread.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/namei.h>
 #include <sys/proc.h>
@@ -766,7 +768,11 @@ ktr_writerequest(struct ktr_request *req)
 	vn_start_write(vp, &mp, V_WAIT);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	(void)VOP_LEASE(vp, td, cred, LEASE_WRITE);
-	error = VOP_WRITE(vp, &auio, IO_UNIT | IO_APPEND, cred);
+#ifdef MAC
+	error = mac_check_vnode_op(cred, vp, MAC_OP_VNODE_WRITE);
+	if (error == 0)
+#endif
+		error = VOP_WRITE(vp, &auio, IO_UNIT | IO_APPEND, cred);
 	if (error == 0 && uio != NULL) {
 		(void)VOP_LEASE(vp, td, cred, LEASE_WRITE);
 		error = VOP_WRITE(vp, uio, IO_UNIT | IO_APPEND, cred);
