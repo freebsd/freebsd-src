@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)gcore.1	8.2 (Berkeley) 4/18/94
+.\" $FreeBSD$
 .\"
 .Dd April 18, 1994
 .Dt GCORE 1
@@ -52,7 +53,8 @@ By default, the core is written to the file
 .Dq Pa core.<pid> .
 The process identifier,
 .Ar pid ,
-must be given on the command line. If no executable image is
+must be given on the command line.
+If no executable image is
 specified,
 .Nm
 will use

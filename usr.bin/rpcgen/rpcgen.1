@@ -87,7 +87,8 @@ dispatch table in
 .Pp
 .Nm Rpcgen
 can also generate sample client and server files
-that can be customized to suit a particular application. The
+that can be customized to suit a particular application.
+The
 .Fl \&Sc ,
 .Fl \&Ss
 and
@@ -95,7 +96,8 @@ and
 options generate sample client, server and makefile, respectively. 
 The
 .Fl a
-option generates all files, including sample files. If the
+option generates all files, including sample files.
+If the
 .Ar infile
 is
 .Pa proto.x ,
@@ -286,7 +288,8 @@ header which supports
 dispatch tables.
 .It Fl i Ar size
 Size at which to start generating inline code.
-This option is useful for optimization. The default size is 5.
+This option is useful for optimization.
+The default size is 5.
 .Pp
 Note: in order to provide backwards compatibility with the older
 .Nm
@@ -371,8 +374,10 @@ and for users who need to write their own
 routine to do initialization.
 .It Fl M
 Generate multithread-safe stubs for passing arguments and results between
-rpcgen generated code and user written code. This option is useful 
-for users who want to use threads in their code. However, the
+rpcgen generated code and user written code.
+This option is useful 
+for users who want to use threads in their code.
+However, the
 .Xr rpc_svc_calls 3
 functions are not yet MT-safe, which means that rpcgen generated server-side
 code will not be MT-safe.

@@ -1,4 +1,5 @@
 .\"	$OpenBSD: md5.9,v 1.1 1996/04/17 21:40:14 mickey Exp $
+.\" $FreeBSD$
 .\"
 .\" Copyright (c) 1996	Michael Shalayeff
 .\" All rights reserved.
@@ -53,7 +54,8 @@ module implements the RSA Data Security, Inc. MD5 Message-Digest Algorithm
 .It Pa MD5Init
 must be called just before
 .Fn MD5Transform
-will be used to produce a digest. The
+will be used to produce a digest.
+The
 .Fa buf
 argument is the storage for the digest being produced on subsequent
 calls to the

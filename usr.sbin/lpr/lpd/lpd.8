@@ -50,7 +50,8 @@ at boot time from the
 file.  It makes a single pass through the
 .Xr printcap 5
 file to find out about the existing printers and
-prints any files left after a crash. It then uses the system calls
+prints any files left after a crash.
+It then uses the system calls
 .Xr listen 2
 and
 .Xr accept 2
@@ -71,7 +72,8 @@ The
 .Fl l
 flag causes
 .Nm
-to log valid requests received from the network. This can be useful
+to log valid requests received from the network.
+This can be useful
 for debugging purposes.
 .It Ar "port#"
 The Internet port number used to rendezvous
@@ -82,7 +84,8 @@ but can be changed with the
 argument.
 .El
 .Pp
-Access control is provided by two means. First, all requests must come from
+Access control is provided by two means.
+First, all requests must come from
 one of the machines listed in the file
 .Pa /etc/hosts.equiv
 or
@@ -162,7 +165,8 @@ DVI format from Standford.
 Graph File.  The file contains data produced by
 .Xr plot 3 .
 .It c
-Cifplot File. The file contains data produced by
+Cifplot File.
+The file contains data produced by
 .Em cifplot .
 .It v
 The file contains a raster image.
@@ -178,7 +182,8 @@ Troff Font B. Name of the font file to use instead of the default.
 .It \&4
 Troff Font S. Name of the font file to use instead of the default.
 .It W
-Width. Changes the page width (in characters) used by
+Width.
+Changes the page width (in characters) used by
 .Xr pr 1
 and the text filters.
 .It I

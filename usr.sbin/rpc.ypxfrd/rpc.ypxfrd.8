@@ -43,7 +43,8 @@
 The
 .Nm
 daemon is used to speed up the distribtion of very large NIS maps
-from NIS master to NIS slave servers. The normal method for transfering
+from NIS master to NIS slave servers.
+The normal method for transfering
 maps involves several steps:
 .Bl -bullet -offset indent
 .It
@@ -71,12 +72,14 @@ database handles.
 .El
 .Pp
 This process can take several minutes when there are very large
-maps involved. For example: a passwd database with several tens of
+maps involved.
+For example: a passwd database with several tens of
 thousands of entries can consume several megabytes of disk space,
 and it can take the
 .Xr db 3
 library package a long time to sort and store all the records
-in a hash database. Consider also that there are two sets of map
+in a hash database.
+Consider also that there are two sets of map
 files:
 .Pa master.passwd.by{name,uid}
 and
@@ -86,9 +89,11 @@ The
 .Nm
 server speeds up the transfer process by allowing NIS slave servers to
 simply copy the master server's map files rather than building their
-own from scratch. Simply put,
+own from scratch.
+Simply put,
 .Nm
-implements an RPC-based file transfer protocol. Transfering even
+implements an RPC-based file transfer protocol.
+Transfering even
 a multi-megabyte file in this fashion takes only a few seconds compared
 to the several minutes it would take even a reasonably fast slave server
 to build a new map from scratch.
@@ -100,7 +105,8 @@ server uses the same access restriction mechanism as
 This means that slave servers will only be permitted to transfer
 files if the rules in the
 .Xr securenets 5
-database permit it. Furthermore, only slave servers using reserved
+database permit it.
+Furthermore, only slave servers using reserved
 ports will be allowed to transfer the
 .Pa master.passwd
 maps.
@@ -110,7 +116,8 @@ The following option is available:
 .It Fl p Ar path
 This option can be used to override the default path to
 the location of the NIS
-map databases. The compiled-in default path is
+map databases.
+The compiled-in default path is
 .Pa /var/yp .
 .El
 .Sh FILES
@@ -127,13 +134,16 @@ The NIS maps for a particular NIS domain.
 The
 .Bx Free
 .Nm ypxfrd
-protocol is not compatible with that used by SunOS. This is unfortunate
+protocol is not compatible with that used by SunOS.
+This is unfortunate
 but unavoidable: Sun's protocol is not freely available, and even if it
 were it would probably not be useful since the SunOS NIS v2 implementation
 uses the original ndbm package for its map databases whereas the
 .Bx Free
-implementation uses Berkeley DB. These two packages use vastly different
-file formats. Furthermore, ndbm is byte-order sensitive and not very
+implementation uses Berkeley DB.
+These two packages use vastly different
+file formats.
+Furthermore, ndbm is byte-order sensitive and not very
 smart about it, meaning that am ndbm database created on a big endian
 system can't be read on a little endian system.
 .Sh AUTHORS
