@@ -1,0 +1,945 @@
+<!--
+    FreeBSD Japanese Documentation Project
+
+    $FreeBSD$
+
+    Original revision: 1.22.2.188
+-->
+
+<articleinfo>
+  <title>&os;/&arch; &release.current; リリースノート</title>
+
+  <pubdate>$FreeBSD$</pubdate>
+  
+  <corpauthor>FreeBSD プロジェクト</corpauthor>
+
+  <copyright>
+    <year>2000</year>
+    <year>2001</year>
+    <year>2002</year>
+    <holder role="mailto:doc@FreeBSD.org">FreeBSD ドキュメンテーションプロジェクト</holder>
+  </copyright>
+
+  <abstract>
+    <para>この &os; &release.current; リリースノートには,
+      &os; &release.prev; のリリース以降に &os;
+      ベースシステムに対して加えられた変更点がまとめられています.
+      変更点はカーネル, ユーザランドにおけるものだけでなく,
+      前回のリリース以降に発行され,
+      ベースシステムに影響のあるセキュリティ勧告も含まれています.
+      また, アップグレードの際の注意点についても簡単に説明しています.</para>
+  </abstract>
+</articleinfo>
+
+<sect1>
+  <title>はじめに</title>
+
+  <para>この文書は &arch.print; アーキテクチャ版 &os; &release.current;
+    のリリースノートです.
+    これには &release.prev; 以降に追加 (変更)
+    された新機能および, 前のバージョンの &os;
+    からアップグレードする場合におけるいくつかの注意点か書かれています.</para>
+
+<![ %release.type.snapshot [
+
+  <para>リリースノートが対象としているこの &release.type; は,
+    &release.branch; 開発ブランチの
+    &release.prev; と, リリースが予定されている
+    &release.next; の中間点に対応します.
+    このブランチにおける構築済みのバイナリ &release.type;
+    は <ulink url="&release.url;"></ulink> から入手可能です.</para>
+
+]]>
+
+<![ %release.type.release [
+
+  <para>この &os; &release.current は &release.type; 版であり,
+    <ulink url="&release.url;"></ulink>
+    および各ミラーサイトで公開されています.
+    &os; の &release.type; 版 (またはそれ以外) の入手法については
+    <ulink url="http://www.FreeBSD.org/handbook/">FreeBSD
+      ハンドブック</ulink>の<ulink url="http://www.FreeBSD.org/handbook/mirrors.html">
+      <quote>&os; を入手するには</quote></ulink>をご覧ください.</para>
+
+]]>
+</sect1>
+
+<!--
+       The "What's New" section of the release notes.  
+
+       Guidelines for new entries:
+
+       1.  If there is some obvious "keyword" associated with an
+       entry (such as a manpage entry or an application name), try to
+       put it at the start of the sentence.
+
+       2.  Within each subsection (i.e. kernel, security, userland),
+       list items in alphabetical order by these keywords.
+
+       Some entries will have no obvious keywords to help with
+       ordering.  In sections containing these entries, put those
+       containing (e.g.) manpage references first, then some
+       suitable SGML comment line as a demarc, then the remaining
+       entries.
+-->
+
+<sect1>
+  <title>更新情報</title>
+
+  <para>この節では &release.prev; 以降に新たに追加・変更された
+    ユーザに影響する機能について説明します.
+    リリースノートの項目には通常, 新しいドライバや新しいハードウェアへの対応,
+    新しいコマンドや新しいオプションの導入,
+    大規模なバグ修正, 寄贈ソフトウェアのアップグレードが含まれており,
+    それに加えて
+    &release.prev; 以降に発行され,
+    ベースシステムに影響のあるセキュリティ勧告も記載されています.</para>
+
+  <para>&os; に加えられた変更点のうち,
+    スペースの都合上ここに書かれていないものも多数存在します.
+    それらはたとえば文書の修正や改良, ごく影響の小さいバグの修正,
+    監査で見つかったセキュリティ上好ましくないスタイルで書かれたコードの修正,
+    ソースコードの整理などです.</para>
+
+  <sect2 id="kernel">
+    <title>カーネルの変更点</title>
+
+    <para arch="i386">&man.amdpm.4; ドライバが追加されました.
+      これは AMD 756 チップセットのシステム監視機能へのアクセスを提供します.</para>
+
+    <para><varname>kern.maxvnodes</varname> の値が,
+      使用 vnode 数の最大値としてきちんと機能するようになりました.
+      従来はキャッシュされていないページの vnode のみが解放可能でしたが,
+      その場合は大容量のメモリを搭載したマシンで多数の小さなファイルをアクセスした場合に
+      vnode 数の増加を制限することができませんでした.
+      現在は vnode の解放と再利用に <literal>vnlru</literal>
+      というカーネルスレッドが使われています.</para>
+
+    <para arch="i386">新しいカーネルオプション
+      <varname>KVA_SPACE</varname> が追加されました.
+      これは, カーネルの仮想アドレス空間の大きさを再設定できるようにするためのものです.</para>
+
+    <para>&os; の Linux バイナリ互換機能が
+      <port>emulators/linux_base-7</port> (RedHat 7.X エミュレーション) 
+      の実現に必要なカーネル機能に対応しました.</para>
+
+    <para arch="alpha">ローダから変更できる変数 <varname>hw.physmem</varname>
+      および <varname>MAXMEM</varname>
+      カーネルオプションが追加されました.
+      これは試験目的などに利用されるもので,
+      マシンに搭載されているメモリサイズを人為的に減らすことができます.</para>
+
+    <para>カーネルの設定パラメータ
+      <varname>MAXTSIZ</varname>, <varname>DFLDSIZ</varname>,
+      <varname>MAXDSIZ</varname>, <varname>DFLSSIZ</varname>,
+      <varname>MAXSSIZ</varname>, <varname>SGROWSIZ</varname> は,
+      すべてローダからも (<varname>kern.maxtsiz</varname>,
+      <varname>kern.maxdfldsiz</varname> などの変数で)
+      設定することが可能になりました.</para>
+
+    <para>カーネル設定パラメータ
+      <varname>maxusers</varname> に <literal>0</literal>
+      を指定した場合, 起動時に自動的に適切な値が
+      (搭載メモリ量に応じて 32 から 512 の間で)
+      設定されるようになりました.
+      すべてのアーキテクチャの <filename>GENERIC</filename>
+      カーネルにおいて, この <literal>0</literal>
+      が標準値になっています.</para>
+
+    <para arch="i386">pmc ドライバが追加されました.
+      これは NEC PC-98NOTE の電源管理コントローラに対応しています.</para>
+
+    <para arch="alpha">コンソールドライバが TGA
+      ベースのディスプレイアダプタに対応しました.</para>
+
+<!-- Above this line, kernel changes ordered by manpage/variable name -->
+
+    <para arch="i386">カーネルのロードアドレスがシンボルテーブルに格納されるようになり,
+      ハードコードされたさまざまな定数が削除されました.
+      これにより, 異なるアドレスでコンパイルされたカーネルに対しても
+      &man.ps.1; が正しく動作可能になっています.</para>
+
+    <para>巨大なプロセス (あるいは非常に多数のプロセス) のコアダンプの際に,
+      長い間マシンが停止してしまう症状が起こらなくなりました.</para>
+
+    <para arch="i386">
+      カーネルの状態を保持するためにプロセスごとに割り当てられるメモリページの数が
+      2 から 3 に増加しました.  これにより, カーネルスタックのオーバフロー
+      (および, その後ろにあるプロセス固有のデータ構造体の破壊)
+      の発生が起こりにくくなっています.</para>
+
+    <para>システムの負荷計算において,
+      負荷の測定間隔にいくらか揺らぎを持たせるような変更が行なわれました.
+      これは, 定期的に実行されるプロセスとの同期を防ぐためのものです.</para>
+
+    <para>デバッグ対応カーネルをモジュールと一緒に
+      (つまり <literal>makeoptions DEBUG=-g</literal> を指定して)
+      構築した場合は,
+      完全を期すためにモジュールの構築もデバッグ対応を有効にして行なわれるようになりました.
+      この影響により,
+      モジュールをデバッグ対応カーネルと一緒に構築・インストールすると
+      以前よりも大きいディスク空間を占有するようになっています.</para>
+
+    <para arch="alpha">Compaq Tru64 および &os; は,
+      TOY クロックチップの年部分の扱いが異なっています.
+      しかし Compaq Tru64 は, &os; より 52
+      年進んだ値を年として使っているため, 1 台の Alpha マシンで TOY
+      クロック設定に触れずにデュアルブートできるよう,
+      &os; に boot 環境変数 <varname>clock_compat_osf1</varname> が追加されました.
+      この環境変数をローダの <literal>ok</literal> プロンプトで
+      <literal>1</literal> に設定するか,
+      <filename>/boot/loader.conf</filename> に
+      <literal>clock_compat_osf1=1</literal> という行を追加することで,
+      時間が狂うことなくデュアルブートすることが可能になります.</para>
+
+    <para>インストール CD のカーネルが <filename>mfsroot</filename>
+      から分離されました.  これによりカスタマイズした &os;
+      の配布の作成がより柔軟に行なえるようになっています.</para>
+
+    <sect3>
+      <title>プロセッサ・マザーボードの対応状況</title>
+
+      <para arch="alpha">マシン依存コードが修正され,
+        &os; が EV5 Alpha プロセッサベースの
+        Alphaserver 2100 および 2100A マシンで動作するようになりました.
+        EV4 Alpha プロセッサを搭載したマシンはすでに対応済みです.</para>
+    </sect3>
+
+    <sect3>
+      <title>起動ローダ関連</title>
+
+      <para arch="i386">CDROM 用のブートストラップユーティリティ
+        <filename>cdboot</filename> が新しく追加されました.
+        これは El Torito bootable CDROM 規格を完全に実装していない BIOS
+        でも, CDROM からの起動を可能にするためのものです.
+        また, この起動ローダは <quote>エミュレーションなし</quote>
+        のモードで起動に対応しているため, 起動可能 CDROM
+        にエミュレーションモード用のフロッピディスクイメージを必要としないだけでなく,
+        CD からの起動に対応しているマシンでは
+        (フロッピー用に機能を削ったカーネルではなく)
+        通常のカーネルを用いることが可能になっています.
+
+        <note>
+          <para>この機能は &os; &release.current; の
+            ISO イメージファイルでは無効になっており,
+            採用は次回以降のリリースになる見込みです.
+            それまで, この機能はカスタム版の配布を作成する際に利用することができます.</para>
+        </note>
+      </para>
+      
+      <para arch="i386">&man.loader.8; に新しく
+        <application>bzip2</application>
+        で圧縮されたカーネルやモジュールをロードする機能が追加されました
+        (ただしこれは標準では無効になっているオプション機能であり,
+        有効化はコンパイル時に行なう必要があります).</para>
+      
+<!-- Above this line, order boot loader changes by manpage/variable name-->
+      
+      <para arch="i386">&os; 起動ローダが 16K
+        のディスクブロック長を持つファイルシステムからの起動に対応しました
+        (従来はこれが 8K までに制限されていました).</para>
+      
+      <para arch="alpha">&os; 起動ローダが 8K
+        より大きいブロック長を持つファイルシステムからの起動に対応しました.</para>
+      
+      <para arch="i386">&os; 起動ローダに新しく
+        <option>-p</option> オプションが追加されました.
+        これはカーネル起動時におけるデバイス認識の際に,
+        メッセージが一行出力されるたびにカーネルを一時停止させるものです.</para>
+    </sect3>
+    
+    <sect3>
+      <title>ネットワークインターフェイスの対応状況</title>
+      
+      <para>&man.an.4; ドライバが新しく <quote>monitor</quote>
+        モードに対応しました.  &man.ancontrol.8; に
+        <option>-M</option> オプションを指定することで,
+        このモードに設定することが可能です.</para>
+
+      <para arch="i386">
+        &man.bge.4; ドライバが追加されました.
+        これは 3Com 3c996-T,
+        SysKonnect SK-9D21, SK-9D41 および
+        Dell PowerEdge 2550 サーバの内蔵ギガビット Ethernet NIC
+        などに使われている Broadcom BCM570x
+        ファミリのギガビット Ethernet コントローラ用ドライバで,
+        送信側における TCP/IP チェックサムの負荷低減機能,
+        ジャンボフレーム, VLAN タグ挿入・削除機能に加え,
+        割り込み低減機能に対応しています.</para>
+
+      <para>&man.dc.4; ドライバが新しく
+        Conexant LANfinity RS7112 チップをベースにした NIC に対応しました.</para>
+
+      <para>&man.de.4;
+        ドライバは従来の受信ユニットに優先度を与えるという方式ではなく,
+        21143 の送受信ユニット間でラウンドロビンの調停を行なうようになりました.
+        これにより, 高負荷時の転送速度において 10&ndash;15%
+        程度の性能向上が達成されています.</para>
+
+      <para>dgm ドライバが &os; -CURRENT の変更を受けて更新されました.</para>
+
+      <para arch="i386">&man.em.4; ドライバが新しく追加されました.
+        これは Intel 82542, 82543, 82544 ギガビット
+        Ethernet コントローラチップに対応します.
+        また, このドライバは送信側・受信側双方におけるチェックサムの負荷低減機能,
+        82543 および 82544 ベースのアダプタにおける巨大フレーム (jumbo frame)
+        機能にも対応しています.</para>
+      
+      <para>&man.faith.4; デバイスがロード・アンロード可能になり,
+        クローニング機能に対応しました.</para>
+
+      <para>&man.fxp.4; ドライバが新しく Intel
+        のロード可能マイクロコードに対応しました.
+        これにより受信側の割り込みコーリス機能 (訳注: interrupt coalescing;
+        割り込みの取りこぼしを防ぐ機能) やパケット結合機能など,
+        NIC が対応している機能を利用できるようになります.
+        この機能は &man.ifconfig.8; に <option>link0</option>
+        オプションを指定することで有効になります.</para>
+
+      <para>&man.gx.4; ドライバが新しく追加されました.
+        これは Intel 82542 および 82543 ギガビット Ethernet
+        コントローラチップをベースにした, 光ファイバ,
+        メタル線の両方のタイプの NIC に対応しています.
+        82542 と 82543 は両方とも VLAN タグ挿入機能に対応しており,
+        82543 はさらに TCP/IP チェックサムの負荷低減機能を備えています.</para>
+
+      <para arch="i386">sbni ドライバが新しく追加されました.
+        これは ISA および PCI バス版の 2 点間通信インターフェイス
+        (point-to-point communications interface)
+        である Granch SBNI12 シリーズに対応しています.
+        これらのデバイスの設定には,
+        &os; Ports Collection に含まれている
+        <port>sysutil/sbniconfig</port> の port
+        が利用可能です.</para>
+      
+      <para>&man.sis.4; ドライバが新しく,
+        SiS 635 および 735 マザーボードチップセットに内蔵されている
+        SiS 900 系の オンボード Ethernet コントローラに対応しました.</para>
+
+      <para>&man.sis.4; ドライバが VLAN に対応しました.</para>
+
+      <para>&man.vlan.4; デバイスがロード・アンロード可能になり,
+        クローニング機能に対応しました.</para>
+
+      <para>&man.wx.4; ドライバは公式に保守されないことが決定し,
+        廃止されました.
+        Intel Pro/1000 ギガビット Ethernet
+        インターフェイスを利用する場合は &man.em.4; もしくは
+        &man.gx.4; ドライバを使ってください (&man.em.4; ドライバは
+        Intel の支援を受けて開発されたものですが,
+        動作するのは i386 アーキテクチャのみです.
+        &man.gx.4; ドライバは &os; プロジェクトが独自に開発したもので,
+        複数のプラットフォームで動作します).</para>
+
+      <para>&man.xl.4; ドライバが新しく,
+        送信側・受信側双方における TCP/IP チェックサムの負荷低減機能に対応しました.
+        これは, この機能に対応している 3C905B, 3C905C, 3C980C などの
+        NIC に対して有効です.</para>
+
+      <para>&man.xl.4; ドライバにおいて, 
+        統計情報のオーバフロー割り込みの処理に関連するバグが修正されました.
+        これはパケットの送受信速度が中から高程度になった時に,
+        処理速度が低下する原因となっていたものです.</para>
+
+      <para>インターフェイス一つ一つに用意される
+        <varname>ifnet</varname> 構造体に,
+        ネットワークインターフェイスが対応している機能と,
+        どの機能が有効化されているかを示す部分が追加されました.
+        また &man.ifconfig.8; を使って,
+        これらの情報を表示することが可能になっています.</para>
+      
+      <para>インターフェイス一つ一つに用意される
+        <varname>if_inaddr</varname> 構造体が,
+        線形リストからハッシュテーブルに変更されました.
+        これにより,
+        多数の別名 IP アドレスを持っているホストの性能が向上しています.</para>
+
+      <para arch="i386">特定のネットワークデバイス (特に &man.dc.4;
+        および &man.sis.4;) においてパケット転送の性能が向上しました.
+        これは不必要なバッファのコピーの削除によるものです.</para>
+    </sect3>
+
+    <sect3>
+      <title>ネットワークプロトコル</title>
+
+      <para>&man.bridge.4; および &man.dummynet.4;
+        に対していくつかバグ修正が行なわれ,
+        ロード可能モジュールとして利用できるようになりました.</para>
+
+      <para>&man.select.2;/&man.poll.2; や pthreads
+        を使用した場合の &man.bpf.4;
+        の読み出しタイムアウト機能がより正確に動作するようになりました.</para>
+
+      <para>ある条件下でスループットが低下するという,
+        TCP NewReno 実装に存在していたバグが修正されました.</para>
+
+      <para>sysctl 変数 <varname>net.inet.tcp.sendspace</varname> および
+        <varname>net.inet.tcp.recvspace</varname> で制御可能な
+        TCP バッファサイズの標準値が,
+        それぞれ 32K および 64K に増やされました.
+        このバッファサイズの従来の標準値は両方とも 16K でした.
+        ネットワークの混雑を緩和するため,
+        sysctl 変数
+        <varname>net.inet.tcp.local_slowstart_flightsize</varname>
+        の標準値は無限大から 4 に変更されています.</para>
+
+      <para>TCP 実装において, 送信側で 0
+        のウィンドウサイズを受けとった場合,
+        接続が停止状態となってしまう可能性のあるバグが修正されました.</para>
+ 
+      <para>&os; の TCP 実装に, 未処理の受信 SYN
+        セグメントに対するキャッシュが実装されました.
+        受信される SYN セグメントは TCP の 3-way
+        ハンドシェイクが完了するまでキャッシュ内のエントリに格納され,
+        ハンドシェイクが完了した時点で, 通常の接続用のメモリを割り当てます.
+        また, TCP 初期シーケンス番号 (ISNs) をクッキー (cookies)
+        として用いることで, キャッシュのエントリを削除した後も
+        対応する ACK の受理を可能にしています.
+        この <quote>syncache</quote> および <quote>syncookies</quote>
+        と呼ばれる機能は, TCP ベースのサービス妨害攻撃 (Denial
+        of Service Attack) に対する耐性を向上させます.
+        この機能の開発は DARPA と NAI Labs の支援の元に行なわれました.</para>
+    </sect3>
+
+    <sect3>
+      <title>ディスク・記憶装置</title>
+
+      <para arch="i386">&man.aac.4; ドライバが更新されました.
+        この更新には, アダプタの発行するコマンドの正しい処理,
+        ディスクデバイスの脱着, クラッシュダンプ機能, CLI 管理に必要な
+        &man.ioctl.2; コマンドの追加が含まれます.
+        また, このドライバは Adaptec 社の認定と承認を受けています.</para>
+
+      <para>&man.ata.4;
+        ドライバが新しくたくさんの種類のチップセットに対応しました.
+        対応チップセットはハードウェアノートに記載されています.</para>
+
+      <para>&man.ata.4; ドライバが 48 ビットアドレスに対応しました.
+        これにより 137GB を超えるドライブが使用可能になっています.</para>
+
+      <para>The &man.ata.4; ドライバに含まれていた,
+        VIA 82C686B Southbridge
+        チップを採用しているシステムでデータが破壊されるという問題が修正されました.</para>
+
+      <para arch="i386">ciss ドライバが新しく追加されました.
+        これは SCSI-3 共通インターフェイス (Common Interface for SCSI-3 Support)
+        を使ったデバイスに対応するものです.
+        対応デバイスには, 
+        Compaq SmartRAID 5* ファミリの
+        RAID コントローラ (5300, 532, 5i) があります.</para>
+
+      <para arch="alpha">Alphaserver DS10 および
+        DS20 におけるフロッピドライブへのアクセスは正しく動作しません.
+        フロッピドライブへアクセスを行なうと,
+        フロッピディスクのデータが消えたり, マシンがクラッシュします.</para>
+
+      <para>新しく &man.isp.4; ドライバが追加されました.
+        これは Qlogic 2300, 2312 Optical Fibre Channel PCI
+        カードに対応しています.</para>
+
+      <para arch="i386">ncv, nsp, stg の各 SCSI
+        ドライバが, モジュールとしてロード可能になりました.</para>
+    </sect3>
+
+    <sect3>
+      <title>ファイルシステム</title>
+
+      <para>FFS ディレクトリレイアウト優先度アルゴリズム
+        (the directory layout preference algorithm;
+        <literal>dirprefs</literal>) が,
+        ディレクトリブロックをディスク上に分散させるのではなく,
+        関連するディレクトリブロックをなるべくグループ化しようと試みるように変更されました.
+        これにより,
+        &os; Ports ツリーのように大規模なディレクトリ階層をたどる操作の速度が劇的に向上しています.
+        この変更は新規ディレクトリに対しても自動で透過的に作用します.</para>
+
+      <para>仮想メモリサブシステムは,
+        標準で UFS ディレクトリメモリ要求を利用するようになりました
+        (この動作は sysctl 変数 <varname>vfs.vmiodirenable</varname>
+        で制御することが可能です).</para>
+
+      <para>SCSI CDROM からルートファイルシステムをマウントできない原因と
+        なっていたバグが修正されました
+        (ATAPI CDROM はすでに対応済みです).</para>
+
+      <para>ハッシュをベースに大規模ディレクトリエントリ検索の最適化を実装した
+        <literal>UFS_DIRHASH</literal> が,
+        <filename>GENERIC</filename>
+        カーネルの標準設定で有効化されるようになりました.</para>
+
+      <para>ファイルシステムのコードに存在する多数のバグが修正されました.
+        それらは <application>fsx</application>
+        というファイルシステム試験ツールによって発見されたもので
+        (主に NFS の利用と関連する) ある条件下で,
+        データの損壊やカーネルパニックを引き起こす可能性を持っていました.</para>
+    </sect3>
+
+    <sect3>
+      <title>PCCARD 対応状況</title>
+
+      <para arch="i386">&os; -CURRENT の &man.pcic.4; ドライバから,
+        たくさんの機能が統合されました.
+        それにはバグ修正, ToPIC ベースのラップトップへの対応の強化,
+        いくつかのコントローラにおける 3.3V カード対応などが含まれます.</para>
+    </sect3>
+
+    <sect3>
+      <title>マルチメディアへの対応状況</title>
+      
+      <para>MP3 プレーヤ Diamond Rio シリーズ用の
+        &man.urio.4; ドライバが新しく追加されました
+        (このドライバのマニュアルページだけはなぜか
+        &os; 4.3-RELEASEは に追加されていました).</para>
+    </sect3>
+
+    <sect3>
+      <title>寄贈ソフトウェア</title>
+
+      <para><application>IPFilter</application> が IPv6 に対応しました.</para>
+
+      <sect4 arch="i386">
+        <title>isdn4bsd</title>
+        
+        <para>&man.isdnphone.8; に新しく <option>-k</option>
+          オプションが追加されました.
+          これはキーパッドを使って構内交換機 (PBX)
+          や交換局にメッセージを送るためのものです.</para>
+        
+        <para>&man.isic.4; ドライバが, 新しく
+          Compaq Microcom 610 ISDN ISA PnP カードに対応しました.</para>
+      </sect4>
+    </sect3>
+  </sect2>
+
+  <sect2 id="security">
+    <title>セキュリティ関連の修正</title>
+
+    <para>&os; &release.prev; では,
+      バグによるセキュリティホールを避けるために
+      ユーザごとにある <filename>~/.login.conf</filename> ファイルは
+      無効になっていましたが, バグが修正されたため,
+      現在はこの機能が有効になっています.</para>
+
+    <para><literal>UseLogin yes</literal> が設定されている場合,
+      ユーザが高い権限で任意のコードを実行できてしまうという
+      <application>OpenSSH</application>
+      にあったセキュリティホールへの対応が行なわれました.
+      ちなみに, この設定項目の標準値は <literal>UseLogin no</literal>
+      です (セキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-01:63.openssh.asc">FreeBSD-SA-01:63</ulink> 参照).</para>
+
+    <para>&man.pkg.add.1;
+      が安全でない一時ディレクトリを使用していたことにより,
+      ローカルの攻撃者がインストール中のバイナリパッケージの内容を
+      改ざんできる可能性があったセキュリティホールへの対応が行なわれました
+      (セキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:01.pkg_add.asc">FreeBSD-SA-02:01</ulink> 参照).</para>
+
+    <para>&man.pw.8; において, <filename>/etc/master.passwd</filename>
+      漏洩の危険性があった競合状態を解決するための対応が行なわれました
+      (セキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:02.pw.asc">FreeBSD-SA-02:02</ulink> 参照).</para>
+
+    <para>&man.k5su.8; において,
+      あるプロセスが一度放棄したスーパユーザ権限を再び得ることができる可能性のあるバグが修正されました
+      (セキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:07.k5su.asc">FreeBSD-SA-02:07</ulink> 参照).</para>
+
+    <para>&man.exec.3; システムコールに含まれていた,
+      ローカルユーザが不正に高い権限を得ることができる可能性のある競合状態が修正されました
+      (セキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:08.exec.asc">FreeBSD-SA-02:08</ulink> 参照).</para>
+  </sect2>
+
+  <sect2 id="userland">
+    <title>ユーザランドの変更点</title>
+
+    <para>&man.arp.8; が,
+      各 ARP エントリに対応するインターフェイス名を表示するようになりました.</para>
+
+    <para arch="i386">インストールフロッピに簡易版の &man.camcontrol.8;
+      が含まれるようになりました.
+      (たとえば <quote>緊急のホログラフィックシェル</quote> から)
+      これを使い, 起動後にデバイスを再スキャンしたり,
+      SCSI バスに接続されたデバイスを表示したりすることが可能です.
+      またこれにはもう一つ, Adaptec APA-1460 のような
+      &man.aic.4; ベースの PCMCIA SCSI アダプタに接続されたデバイスを,
+      インストール中にアタッチして使うことができるようになるという利点もあります.</para>
+
+    <para>&man.cat.1; が新しく UNIX ドメインソケットの読み出しに対応しました.</para>
+
+    <para arch="i386"><filename>compat4x</filename> 互換機能の配布に
+      含まれる <filename>libcrypto.so.1</filename> と
+      <filename>libssl.so.1</filename> が,
+      <filename>librsaUSA.so</filename> および
+      <filename>librsaINTL.so</filename> ライブラリに依存しないものになりました.
+      この変更により, &os; 4.1-RELEASE 以前の &os;
+      向けに構築されたバイナリに対する互換性が向上しています.</para>
+
+    <para>&man.edquota.8; に新しいオプション
+      <option>-f</option> が追加されました.
+      これは (<option>-p</option> で指定された) quota
+      プロトタイプの適用される範囲を,
+      ある一つのファイルシステムに制限するためのものです.</para>
+
+    <para>&man.find.1; のオプション <option>-[acm]time</option> において,
+      さまざまな時間単位が使えるようになりました.</para>
+
+    <para>&man.fmt.1; が書き直されました.  この書き換えにより,
+      以前のものに含まれていた多数のバグが修正されています.</para>
+
+    <para>&man.ftpd.8; に新しいオプション <option>-o</option> および
+      <option>-O</option> が追加されました.
+      前者はすべてのユーザに対して, 後者は guest ユーザに対して
+      <literal>RETR</literal> コマンドを無効にします.
+      <option>-A</option> オプションと適切なファイル許可属性を組み合わせることで,
+      アカウントを持たないユーザからのアップロードを受け付ける,
+      比較的安全な anonymous FTP サーバを構築することが可能です.</para>
+
+    <para>&man.groups.1; および &man.whoami.1;
+      のシェルスクリプトが必要なくなりました.
+      これらの機能は完全に &man.id.1; に統合されています.</para>
+
+    <para>&man.ipfw.8; は,
+      標準で動的なファイアウォールルールを表示しないようになりました.
+      動的なルールは <option>-d</option> オプションを指定すると表示されます.
+      また, <option>-e</option> オプションは,
+      無効になった動的なルールを表示します.</para>
+
+    <para>&man.ipfw.8; に新しいファイアウォールルール <literal>limit</literal>
+      が追加されました.
+      これはアドレス・ペアの間のセション数を制限するためのものです.</para>
+
+    <para>&man.keyinfo.1; が Perl スクリプトではなく,
+      C プログラムになりました.</para>
+
+    <para><filename>libfetch</filename> が,
+      &os; -CURRENT に含まれているものと同じになりました.
+      これには, コールバック認証機能への対応が含まれています.</para>
+
+    <para><filename>libstand</filename> が新しく,
+      <application>bzip2</application>
+      で圧縮されたファイルが含まれるファイルシステムに対応しました.</para>
+
+    <para>X11R6 や他の UNIX 系 OS で使われているものと互換性を向上させるため,
+      locale 名が変更されました.
+      たとえば
+      <literal>en_US.ISO_8859-1</literal> という locale 名は
+      <literal>en_US.ISO8859-1</literal> に変わっています.
+      後方互換性は
+      <filename>/etc/locale.alias</filename>,
+      <filename>/etc/man.alias</filename>,
+      <filename>/etc/nls.alias</filename>
+      の各ファイル中のエントリによって実現されます.
+      次の表は locale 名の変更をまとめたものです.
+      
+      <informaltable>
+        <tgroup cols=2 align=left>
+          <colspec colwidth="*">
+            <colspec colwidth="*">
+              <thead>
+                <row>
+                  <entry>&os; &release.prev;</entry>
+                  <entry>&os; &release.current;</entry>
+                </row>
+              </thead>
+              <tbody>
+                <row>
+                  <entry><literal>ISO_</literal><replaceable>*</replaceable></entry>
+                  <entry><literal>ISO</literal><replaceable>*</replaceable></entry>
+                </row>
+                <row>
+                  <entry><literal>ru_SU</literal><replaceable>*</replaceable></entry>
+                  <entry><literal>ru_RU</literal><replaceable>*</replaceable></entry>
+                </row>
+                <row>
+                  <entry><literal>DIS_</literal><replaceable>*</replaceable></entry>
+                  <entry><literal>ISO</literal><replaceable>*</replaceable><literal>-15</literal></entry>
+                </row>
+                <row>
+                  <entry><replaceable>*</replaceable><literal>.ASCII</literal></entry>
+                  <entry><replaceable>*</replaceable><literal>.US-ASCII</literal></entry>
+                </row>
+              </tbody>
+        </tgroup>
+      </informaltable>
+    </para>
+
+    <para>&man.lpd.8; の制御ファイルに新しく,
+      <literal>o</literal> という型のプリントファイル動作指定が追加されました.
+      これは <application>MacOS</application> 10.1
+      で生成した PostScript ファイルを印刷に対応したものです.</para>
+    
+    <para>&man.natd.8; に新しいオプション
+      <option>-log_ipfw_denied</option> が追加されました.
+      これはアドレス変換後に &man.ipfw.8;
+      ルールでブロックされたパケットをログに記録します.</para>
+
+    <para>&man.netstat.1; に, 統計情報をリセットする新しいオプション
+      <option>-z</option> が追加されました.</para>
+    
+    <para>&man.netstat.1; に, アドレスを数字で,
+      ポート番号をシンボルで表示する新しいオプション
+      <option>-S</option> が追加されました.</para>
+
+    <para>&man.newfs.8; の設定に含まれる
+      1 グループに対するシリンダ数 (cylinders/group) の標準が,
+      現在のファイルシステムパラメータに設定可能な最大値に設定されるように
+      なりました.  以前はこの標準値が 16 に固定されていましたが,
+      現在は <option>-c</option> オプションで値を設定することが可能になっています.
+      この変更には, &man.fsck.8; の性能向上と断片化 (fragmentation)
+      の低減という効果があります.</para>
+
+    <para><anchor id="newfs-block-frag-sizes">
+      &man.newfs.8; で新規にファイルシステムを構築する際の
+      ブロックとフラグメント長の標準値が, それぞれ 16384, 2048
+      バイトに変更されました (従来の標準値は 8192, 1024 バイト).
+      この変更により多少ディスクの利用率が犠牲になるものの,
+      大抵の場合において性能の向上が期待できます.</para>
+
+    <para>&man.newsyslog.8; に
+      &man.bzip2.1; を使ってログファイルを圧縮する機能が追加されました.</para>
+
+    <para>新しく行番号フィルタプログラム &man.nl.1; が追加されました.</para>    
+
+    <para>&man.pciconf.8; に新しいオプション <option>-v</option> が追加されました.
+      これは <option>-l</option> と共に指定された場合に,
+      認識されたデバイスのベンダ/デバイス情報を表示します.
+      標準のベンダ/デバイス情報データベースは
+      <filename>/usr/share/misc/pci_vendors</filename> に置かれています.</para>
+
+    <para>&man.ping.8; に新しいオプション <option>-A</option> が追加されました.
+      これは, パケットが失われた時にビープ音が鳴るようにするものです.</para>
+
+    <para>&man.route.8; で間接経路を変更する際,
+      変更後の経路が gateway
+      経路と同じ場合により多くの情報を表示するようになりました.</para>
+
+    <para>&man.route.8; が
+      <literal><replaceable>net</replaceable>/<replaceable>bits</replaceable></literal>
+      ではない新しい記法
+      <literal><replaceable>host</replaceable>/<replaceable>bits</replaceable></literal>
+      に対応しました.  これは &man.netstat.1; と互換性を高めるためのものです.</para>
+
+    <para>&man.route.8; が <quote>プロキシ専用</quote> の
+      published ARP エントリを作成できるようになりました.</para>
+
+    <para>&man.route.8; の <option>add</option> コマンドに,
+      新しく <option>-ifp</option> 修飾子と
+      <option>-ifa</option> 修飾子 が追加されました.</para>
+
+    <para>&man.send-pr.1; に新しいオプション <option>-a</option>
+      が追加されました.  これは障害報告の <literal>Fix:</literal>
+      セクションにファイルを挿入するために使います.</para>
+
+    <para>&man.sh.1; において効率を改善するため,
+      <command>test</command>
+      が組み込みコマンドとして実装されました.</para>
+
+    <para>&man.sysctl.8; に新しいオプション <option>-e</option>
+      が追加されました.  これは変数名と値の区切りを
+      <literal>:</literal> ではなく <literal>=</literal> にするもので,
+      &man.sysctl.8; の出力を &man.sysctl.8;
+      に再度入力させるような場合に有用です.</para>
+
+    <para>&man.sysinstall.8; に対して, インストール中に KLD
+      をロードする機能が新しく追加されました.</para>
+
+    <para>&man.sysinstall.8;
+      で新規作成されるファイルシステムすべて
+      (ただしルートファイルシステムを除く) において,
+      標準で Soft Updates が有効化されるようになりました.</para>
+
+    <para>&man.sysinstall.8; が更新され,
+      パーティションの自動分割 (<quote>auto</quote>) モードにおいて,
+      各パーティションの大きさがより適切に設定されるようになりました.
+      また, 大きさが自動で設定されたパーティションは,
+      他のパーティションが削除された際にできる空き領域を自動的に使用するようになっています.</para>
+    
+    <para>&man.syslogd.8; に新しく
+      (利用可能なすべてのアドレスを使うのではなく)
+      指定アドレスのみに bind する機能が追加されました.
+      有効にするには
+      <option>-b</option> オプションを使います.</para>
+
+    <para>&man.syslogd.8; に新しいオプション <option>-c</option>
+      が追加されました.  これは連続して出力される同一内容の行の圧縮を
+      無効にするためのものです.</para>
+
+    <para>従来 &man.vnconfig.8; に <option>-f</option>
+      オプションを指定した場合は 16
+      デバイスまでしか設定することができませんでしたが,
+      この制限がなくなりました.</para>
+
+    <para>&man.wall.1; に新しいオプション <option>-g</option>
+      が追加されました.
+      これは指定されたグループのユーザすべてにメッセージを送ります.</para>
+ 
+    <para>&man.whois.1; に新しいオプション <option>-c</option> が追加されました.
+      これは国コードを指定することで,
+      問い合わせを特定の whois サーバに直接送るようにするためのものです.</para>
+
+    <sect3>
+      <title>寄贈ソフトウェア</title>
+
+      <para>&os; と一緒に配布されている <application>IPFilter</application> に,
+        &man.ipfs.8; プログラムが追加されました.
+        これは NAT
+        エントリおよびステートフルルールの処理用に作成される状態情報をディスクに保存し,
+        再起動後に復元することを可能にするものです.
+        起動時に復元するための設定は
+        &man.rc.conf.5; の機能で対応しています.</para>
+      
+      <para><application>NTP</application>
+        プログラムスイートがバージョン
+        4.1.0 に更新されました.</para>
+
+      <para><application>OpenSSH</application> が
+        バージョン 2.9 に更新されました.
+        これには新しい 2 つのプログラム &man.sftp.1;
+        &man.ssh-keyscan.1; が含まれています.
+        また, 既存の SSH セションの暗号鍵変更や
+        &man.ssh-agent.1; が新たに DSA 暗号鍵の転送に対応したこと,
+        実験的な <application>SOCKS4</application> プロキシ機能といった
+        さまざまな改良が &man.ssh.1; に追加されています.
+
+        <note>
+         <para><filename>/etc/ssh/ssh_config</filename> の標準設定は
+            <literal>Protocol 1,2</literal> のままになっています.
+            &os; -CURRENT の標準設定は
+            <literal>Protocol 2,1</literal> です.</para>
+       </note>
+      </para>
+
+      <para><filename>/etc/master.passwd</filename> に
+        <username>smmsp</username> ユーザおよび
+        <username>mailnull</username> ユーザが追加されました.
+        <application>sendmail</application> は
+        <literal>confDEF_USER_ID</literal> が設定されていない場合,
+        セキュリティを確保する目的に標準で
+        <username>mailnull</username> というユーザを使用します.
+        以前のように <username>mailnull</username> というユーザが存在しない場合には
+        <username>daemon</username> というユーザが使われていました.
+        この変更により, ファイルや (<port>mail/majordomo</port> のような)
+        プログラムにメールを送信する際に許可属性の問題が起こることがあります.
+        その場合は, 
+        システムの <filename><replaceable>*</replaceable>.mc</filename>
+        設定ファイルに
+        <programlisting>define(`confDEF_USER_ID', `daemon')</programlisting>
+        という行を追加すると, 以前と同じ動作に設定することが可能です.</para>
+
+      <para arch="i386"><application>smbfs</application>
+        ユーザランドユーティリティのバージョン 1.4.3 が統合されました.
+        &man.smbutil.1; および &man.mount.smbfs.8; はベースシステムに含まれており,
+        <port>net/smbfs</port> の port を使う必要はなくなっています.
+        &man.mount.smbfs.8; は, たとえ <literal>LIBMCHAIN</literal> および
+        <literal>LIBICONV</literal> がカーネルに組み込まれていなくとも,
+        自動的に <filename>smbfs.ko</filename>
+        モジュールをカーネルにロードすることに注意してください.</para>
+
+      <para><application>tcsh</application>
+        がバージョン 6.11 に更新されました.</para>
+
+      <para>タイムゾーンデータベースが
+        <filename>tzdata2001d</filename>
+        リリースのものに更新されました.</para>
+
+      <sect4>
+        <title>CVS</title>
+        
+        <para><application>CVS</application> がバージョン
+          1.11.1p1 に更新されました.</para>
+
+        <para>&man.cvs.1; に新しいオプション <option>-T</option> が追加されました.
+          これはリポジトリから砂場 (sandbox) にある <filename>CVS/Template</filename>
+          ファイルを更新するためのものです.</para>
+        
+        <para>&man.cvs.1; <literal>diff</literal> に新しいオプション
+          <option>-j</option> が追加されました.
+          これはブランチタグのリビジョンとの比較を実現します.</para>
+      </sect4>
+    </sect3>
+    
+    <sect3>
+      <title>Ports/Packages Collection</title>
+
+      <para>&man.pkg.create.1; に新しく <option>-b</option>
+        オプションが追加されました.
+        これはローカルにインストールされた package
+        から package ファイルを生成します.</para>
+
+      <para>&man.pkg.delete.1; に新しく <option>-r</option>
+        オプションが追加されました.
+        これは package の再帰的な削除を行ないます.</para>
+
+      <para>&os; 4.5-RELEASE のリリースの数日前に
+        <application>XFree86</application> バージョン 4.2.0
+        がリリースされましたが, &os; 4.5-RELEASE には
+        <application>XFree86</application> 4.1.0 の package
+        が含まれることになりました.
+        これは今回のリリースにそれを収録するための試験を行なう時間がなかったためです.
+        最新の (リリース後の) &os; Ports Collection を用いることで,
+        新しいバージョンの <application>XFree86</application>
+        をインストールすることが可能です.  詳しい手順は
+        <ulink url="http://www.FreeBSD.org/handbook/">FreeBSD
+          ハンドブック</ulink>の
+        <ulink url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/ports-using.html">
+          Ports Collection を使うには</ulink>
+        の章をご覧ください.</para>
+    </sect3>
+  </sect2>
+</sect1>
+
+<sect1>
+  <title>以前の &os; リリース版からのアップグレード</title>
+
+  <para>以前の &os; リリース版からのアップグレードを行なうには,
+    主に次の 3 つの方法があります.</para>
+
+  <itemizedlist>
+    <listitem>
+      <para>&man.sysinstall.8; のバイナリアップグレード機能を使う方法.
+        おそらくこの方法が最も時間のかからない方法なのですが,
+        これは &os; のインストール時に
+        特別なコンパイルオプションを指定していないことを前提としています.</para>
+    </listitem>
+    
+    <listitem>
+      <para>&os; を完全に再インストールする方法.
+        技術的にはアップグレード手段の一つとは言えませんし,
+        <filename>/etc</filename>
+        の内容を手動で退避・復元したりする必要があるなど,
+        大抵の場合はバイナリアップグレード機能を使うより手間がかかります.
+        しかし, ディスクのパーティション分割を変更したい (とか,
+        変更しなければならない) 場合などには便利な方法でしょう.</para>
+    </listitem>
+    
+    <listitem>
+      <para><filename>/usr/src</filename> のソースコードから構築する方法.
+        この手段は非常に柔軟な対応が可能ですが,
+        ディスク空間と時間, そして専門的なノウハウを必要とします.
+        また, 非常に古いバージョンの &os;
+        からのアップグレードは問題が発生することが多いため,
+        そのような場合にはバイナリアップグレード,
+        もしくは完全な再インストールを行なった方が効果的でしょう.</para>
+    </listitem>
+  </itemizedlist>
+  
+  <para>なるべくアップグレードを始める前に詳細について
+    <filename>INSTALL.TXT</filename> をご覧ください.
+    ソースからアップグレードする場合は
+    <filename>/usr/src/UPDATING</filename> にも目を通す必要があります.</para>
+
+  <para>最後になりますが, &os; の -STABLE もしくは -CURRENT
+    ブランチを追いかけるために用意された手段の一つをとりたいと考えているなら,
+    <ulink url="http://www.FreeBSD.org/handbook/">FreeBSD
+      ハンドブック</ulink>の
+    <ulink url="http://www.FreeBSD.org/handbook/current-stable.html"><quote>-CURRENT
+        vs. -STABLE</quote></ulink> の節をご覧になるようお願いします.</para>
+
+  <important>
+    <para>もちろん言うまでもないことですが,
+      &os; のアップグレードは, データと設定ファイルを
+      <emphasis>すべて</emphasis>退避させた後に行なうべきです.</para>
+  </important>
+</sect1>
