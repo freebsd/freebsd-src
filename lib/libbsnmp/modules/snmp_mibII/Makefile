@@ -2,8 +2,8 @@
 #
 # Author: Harti Brandt <harti@freebsd.org>
 
-CONTRIB=${.CURDIR}/../../../../contrib/bsnmp/snmp_mibII
-.PATH: ${CONTRIB}
+CONTRIB=${.CURDIR}/../../../../contrib/bsnmp
+.PATH: ${CONTRIB}/snmp_mibII
 
 MOD=	mibII
 SRCS=	mibII.c mibII_ifmib.c mibII_ip.c mibII_interfaces.c		\
@@ -14,6 +14,6 @@ MAN=	snmp_mibII.3
 DEFS=	${MOD}_tree.def
 INCS=	snmp_${MOD}.h
 
-CFLAGS+= -I${INCLUDEDIR}/bsnmp -I${.CURDIR}
+CFLAGS+= -I${CONTRIB}/lib -I${CONTRIB}/snmpd -I${.CURDIR}
 
 .include <bsd.lib.mk>
