@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)sys_term.c	8.4 (Berkeley) 5/30/95";
+static char sccsid[] = "@(#)sys_term.c	8.4+1 (Berkeley) 5/30/95";
 #endif /* not lint */
 
 #include "telnetd.h"
@@ -1581,9 +1581,11 @@ start_login(host, autologin, name)
 	utmpx.ut_id[3] = SC_WILDC;
 	utmpx.ut_type = LOGIN_PROCESS;
 	(void) time(&utmpx.ut_tv.tv_sec);
-	if (pututxline(&utmpx) == NULL)
-		fatal(net, "pututxline failed");
+	if (makeutx(&utmpx) == NULL)
+		fatal(net, "makeutx failed");
 #endif
+
+	scrub_env();
 
 	/*
 	 * -h : pass on name of host.
@@ -1819,6 +1821,26 @@ addarg(argv, val)
 	return(argv);
 }
 #endif	/* NEWINIT */
+
+/*
+ * scrub_env()
+ *
+ * Remove a few things from the environment that
+ * don't need to be there.
+ */
+scrub_env()
+{
+	register char **cpp, **cpp2;
+
+	for (cpp2 = cpp = environ; *cpp; cpp++) {
+		if (!strncmp(*cpp, "LD_", 3) &&
+		    !strncmp(*cpp, "_RLD_", 5) &&
+		    !strncmp(*cpp, "LIBPATH=", 8) &&
+		    !strncmp(*cpp, "IFS=", 4))
+			*cpp2++ = *cpp;
+	}
+	*cpp2 = 0;
+}
 
 /*
  * cleanup()
