@@ -1106,6 +1106,10 @@ linux_ioctl_sound(struct thread *td, struct linux_ioctl_args *args)
 		args->cmd = SOUND_MIXER_READ_DEVMASK;
 		return (ioctl(td, (struct ioctl_args *)args));
 
+	case LINUX_SOUND_MIXER_WRITE_RECSRC:
+		args->cmd = SETDIR(SOUND_MIXER_WRITE_RECSRC);
+		return (ioctl(td, (struct ioctl_args *)args));
+
 	case LINUX_SNDCTL_DSP_RESET:
 		args->cmd = SNDCTL_DSP_RESET;
 		return (ioctl(td, (struct ioctl_args *)args));
