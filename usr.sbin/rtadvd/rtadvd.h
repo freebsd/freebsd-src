@@ -164,6 +164,7 @@ void ra_timer_update __P((void *, struct timeval *));
 
 int prefix_match __P((struct in6_addr *, int, struct in6_addr *, int));
 struct rainfo *if_indextorainfo __P((int));
+struct prefix *find_prefix __P((struct rainfo *, struct in6_addr *, int));
 
 extern struct in6_addr in6a_site_allrouters;
 #ifdef MIP6
