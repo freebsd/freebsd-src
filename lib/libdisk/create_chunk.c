@@ -298,6 +298,8 @@ MakeDev(struct chunk *c1, const char *path)
 	cmaj = 133, p += 4;
     else if (!strncmp(p, "twed", 4))
 	cmaj = 147, p += 4;
+    else if (!strncmp(p, "ar", 2))	/* ATA RAID */
+	cmaj = 157, p += 2;
     else if (!strncmp(p, "da", 2))	/* CAM support */
 	cmaj = 13, p += 2;
     else {
