@@ -3288,19 +3288,24 @@ interface_active(struct interface_info *ip) {
 				return (HAVELINK);
 			}
 		}
-	}
-
-	/*
-	 * If dhclient.conf contains media settings, we cannot
-	 * abort if the interface is not set to active mode.
-	 */
-	if (ip -> havemedia && ip -> client -> state != S_BOUND)
+		/*
+		 * If dhclient.conf contains media settings, we cannot
+		 * abort if the interface is not set to active mode.
+		 */
+		if (ip -> havemedia && ip -> client -> state != S_BOUND)
+			return (HAVELINK);
+	} else {
+		/*
+		 * IFM_AVALID is not set. We cannot check
+		 * the link state. Assume HAVELINK.
+		 */
 		return (HAVELINK);
-
+	}
 	/*
 	 * We really have no link.
 	 */
 	return (NOLINK);
+
 #else /* ifdef __FreeBSD__ */
 
 	/*
