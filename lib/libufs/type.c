@@ -65,16 +65,16 @@ ufs_disk_ctor(const char *name)
 	new = malloc(sizeof(*new));
 	if (new == NULL) {
 		ERROR(new, "unable to allocate memory for disk");
-		return NULL;
+		return (NULL);
 	}
 
 	if (ufs_disk_fillout(new, name) == -1) {
 		ERROR(new, "could not fill out disk");
 		free(new);
-		return NULL;
+		return (NULL);
 	}
 
-	return new;
+	return (new);
 }
 
 void
@@ -107,20 +107,20 @@ ufs_disk_close(struct uufsd *disk)
 		free((char *)(uintptr_t)disk->d_name);
 		disk->d_name = NULL;
 	}
-	return 0;
+	return (0);
 }
 
 int
 ufs_disk_fillout(struct uufsd *disk, const char *name)
 {
 	if (ufs_disk_fillout_blank(disk, name) == -1) {
-		return -1;
+		return (-1);
 	}
 	if (sbread(disk) == -1) {
 		ERROR(disk, "could not read superblock to fill out disk");
-		return -1;
+		return (-1);
 	}
-	return 0;
+	return (0);
 }
 
 int
@@ -147,12 +147,12 @@ again:	if (stat(name, &st) < 0) {
 			goto again;
 		}
 		ERROR(disk, "could not find special device");
-		return -1;
+		return (-1);
 	}
 	fd = open(name, O_RDONLY);
 	if (fd == -1) {
 		ERROR(disk, "could not open special device");
-		return -1;
+		return (-1);
 	}
 
 	disk->d_bsize = 1;
@@ -170,13 +170,13 @@ again:	if (stat(name, &st) < 0) {
 		name = strdup(name);
 		if (name == NULL) {
 			ERROR(disk, "could not allocate memory for disk name");
-			return -1;
+			return (-1);
 		}
 		disk->d_mine |= MINE_NAME;
 	}
 	disk->d_name = name;
 
-	return 0;
+	return (0);
 }
 
 int
@@ -185,17 +185,17 @@ ufs_disk_write(struct uufsd *disk)
 	ERROR(disk, NULL);
 
 	if (disk->d_mine & MINE_WRITE)
-		return 0;
+		return (0);
 
 	close(disk->d_fd);
 
 	disk->d_fd = open(disk->d_name, O_RDWR);
 	if (disk->d_fd < 0) {
 		ERROR(disk, "failed to open disk for writing");
-		return -1;
+		return (-1);
 	}
 
 	disk->d_mine |= MINE_WRITE;
 
-	return 0;
+	return (0);
 }

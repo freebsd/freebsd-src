@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
 int
 cgread(struct uufsd *disk)
 {
-	return cgread1(disk, disk->d_ccg++);
+	return (cgread1(disk, disk->d_ccg++));
 }
 
 int
@@ -60,14 +60,14 @@ cgread1(struct uufsd *disk, int c)
 	fs = &disk->d_fs;
 
 	if (c >= fs->fs_ncg) {
-		return 0;
+		return (0);
 	}
 	ccg = fsbtodb(fs, cgtod(fs, c)) * disk->d_bsize;
 	if (bread(disk, fsbtodb(fs, cgtod(fs, c)), disk->d_cgunion.d_buf,
 	    fs->fs_bsize) == -1) {
 		ERROR(disk, "unable to read cylinder group");
-		return -1;
+		return (-1);
 	}
 	disk->d_lcg = c;
-	return 1;
+	return (1);
 }
