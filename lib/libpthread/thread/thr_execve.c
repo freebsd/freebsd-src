@@ -40,17 +40,16 @@ int
 _execve(const char *name, char *const *argv, char *const *envp)
 {
 	struct kse_execve_args args;
-	struct pthread *curthread;
+	struct pthread *curthread = _get_curthread();
 	int ret;
 
-	if (!_kse_isthreaded())
+	if (curthread->attr.flags & PTHREAD_SCOPE_SYSTEM)
 		ret = __sys_execve(name, argv, envp);
 	else {
 		/*
 		 * When exec'ing, set the kernel signal mask to the thread's
 	 	 * signal mask to satisfy POSIX requirements.
 		 */
-		curthread = _get_curthread();
 		args.sigmask = curthread->sigmask;
 		args.sigpend = curthread->sigpend;
 		args.path = (char *)name;
