@@ -22,7 +22,7 @@
  */
 void
 DESauth_subkeys(key, encryptkeys, decryptkeys)
-	U_LONG *key;
+	const U_LONG *key;
 	u_char *encryptkeys;
 	u_char *decryptkeys;
 {
