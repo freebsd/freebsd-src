@@ -267,14 +267,10 @@ inlist(p)
 	register char *nam;
 	register struct nlist *op;
 
-	if (p->n_type & N_STAB)
+	if (p->n_type & N_STAB || p->n_un.n_strx == 0)
 		return (-1);
-	if (p->n_un.n_strx == 0)
-		return (-1);
-
-	if (p->n_un.n_strx >= strtabsize)
+	if (p->n_un.n_strx < sizeof(int) || p->n_un.n_strx >= strtabsize)
 		badfmt("corrupted symbol table");
-
 	nam = &strings[p->n_un.n_strx - sizeof(int)];
 	for (op = &order[nsym]; --op >= order; ) {
 		if (strcmp(op->n_un.n_name, nam) != 0)
@@ -291,6 +287,8 @@ excluded(p)
 	register char *nam;
 	register int x;
 
+	if (p->n_type & N_STAB || p->n_un.n_strx == 0)
+		return (0);
 	if (p->n_un.n_strx < sizeof(int) || p->n_un.n_strx >= strtabsize)
 		badfmt("corrupted symbol table");
 	nam = &strings[p->n_un.n_strx - sizeof(int)];
