@@ -6,7 +6,7 @@
 Please mail all suggestions and additions to <FAQ@FreeBSD.ORG>
 
 
-Revision: $Id: FreeBSD.FAQ,v 1.2 1995/04/05 10:04:56 jkh Exp $
+Revision: $Id: FreeBSD.FAQ,v 1.3 1995/04/09 06:59:42 jkh Exp $
 
 All entries are assumed to be relevant to FreeBSD 2.0. 
 Any entries with a <XXX> are under construction.
@@ -751,9 +751,11 @@ device    sio5    at isa? port 0x2b8 tty flags 0x501 vector siointr
       when I look, I can't find it.
 
 You need to uncomment the following line in the generic config file
-(or add it to your config file) and recompile.
+(or add it to your config file), make the change to the fdc0 line shown,
+and recompile.
 
-controller      fdc0    at isa? port "IO_FD1" bio irq 6 drq 2 vector fdintr
+controller      fdc0    at isa? port "IO_FD1" bio irq 6 drq 2 vector fdintr flags 0x1
+                                                                            ^^^^^^^^^
 disk            fd0     at fdc0 drive 0
 disk		fd1     at fdc0 drive 1
 #tape           ft0     at fdc0 drive 2
