@@ -49,7 +49,7 @@
 
 struct track_info {
 	int	file;
-	char	*file_name;
+	char	file_name[MAXPATHLEN + 1];
 	off_t	file_size;
 	int	block_size;
 	int	block_type;
@@ -336,7 +336,7 @@ add_track(char *name, int block_size, int block_type, int nogap)
 	if (fstat(file, &sb) < 0)
 		err(EX_IOERR, "fstat(%s)", name);
 	tracks[notracks].file = file;
-	tracks[notracks].file_name = name;
+	strncpy(tracks[notracks].file_name, name, MAXPATHLEN);
 	if (file == STDIN_FILENO)
 		tracks[notracks].file_size = -1;
 	else
