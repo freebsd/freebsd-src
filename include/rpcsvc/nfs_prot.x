@@ -31,7 +31,7 @@
 %#ifndef lint
 %/*static char sccsid[] = "from: @(#)nfs_prot.x 1.2 87/10/12 Copyr 1987 Sun Micro";*/
 %/*static char sccsid[] = "from: @(#)nfs_prot.x	2.1 88/08/01 4.0 RPCSRC";*/
-%static char rcsid[] = "$Id: nfs_prot.x,v 1.4 1997/04/18 12:31:27 dfr Exp $";
+%static const char rcsid[] = "$Id: nfs_prot.x,v 1.5 1998/09/06 09:21:35 obrien Exp $";
 %#endif /* not lint */
 #endif
 
