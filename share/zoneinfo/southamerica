@@ -1,4 +1,4 @@
-# @(#)southamerica	7.46
+# @(#)southamerica	7.49
 
 # This data is by no means authoritative; if you think you know better,
 # go ahead and edit the file (and please send any changes to
@@ -443,12 +443,13 @@ Rule	Brazil	2001	max	-	Feb	Sun>=15	 0:00	0	-
 # Decree 4,399 (2002-10-01) repeals DST in AL, CE, MA, PB, PE, PI, RN, SE.
 # <a href="http://www.presidencia.gov.br/CCIVIL/decreto/2002/D4399.htm"></a>
 Rule	Brazil	2002	only	-	Nov	 3	 0:00	1:00	S
+# Decree 4,844 (2003-09-24; corrected 2003-09-26) repeals DST in BA, MT, TO.
+# <a href="http://www.presidencia.gov.br/CCIVIL/decreto/2003/D4844.htm"></a>
+Rule	Brazil	2003	max	-	Oct	Sun>=15	 0:00	1:00	S
+# The latest ruleset listed above says that the following states observe DST:
+# DF, ES, GO, MG, MS, PR, RJ, RS, SC, SP.
 #
-Rule	Brazil	2003	max	-	Oct	Sun>=8	 0:00	1:00	S
-# The latest decree listed above says that the following states observe DST:
-# BA, DF, ES, GO, MG, MS, MT, PR, RJ, RS, SC, SP, TO.
-#
-# For dates after mid-2003, the above rules with TO="max" are guesses
+# For dates after mid-2004, the above rules with TO="max" are guesses
 # and are quite possibly wrong, but are more likely than no DST at all.
 
 
@@ -462,6 +463,9 @@ Zone America/Noronha	-2:09:40 -	LMT	1914
 #
 # Amapa (AP), east Para (PA)
 # East Para includes Belem, Maraba, Serra Norte, and Sao Felix do Xingu.
+# The division between east and west Para is the river Xingu.
+# In the north a very small part from the river Javary (now Jari I guess,
+# the border with Amapa) to the Amazon, then to the Xingu.
 Zone America/Belem	-3:13:56 -	LMT	1914
 			-3:00	Brazil	BR%sT	1988 Sep 12
 			-3:00	-	BRT
@@ -489,7 +493,8 @@ Zone America/Recife	-2:19:36 -	LMT	1914
 Zone America/Araguaina	-3:12:48 -	LMT	1914
 			-3:00	Brazil	BR%sT	1990 Sep 17
 			-3:00	-	BRT	1995 Sep 14
-			-3:00	Brazil	BR%sT
+			-3:00	Brazil	BR%sT	2003 Sep 24
+			-3:00	-	BRT
 #
 # Alagoas (AL), Sergipe (SE)
 Zone America/Maceio	-2:22:52 -	LMT	1914
@@ -502,7 +507,14 @@ Zone America/Maceio	-2:22:52 -	LMT	1914
 			-3:00	Brazil	BR%sT	2002 Oct  1
 			-3:00	-	BRT
 #
-# Bahia (BA), Goias (GO), Distrito Federal (DF), Minas Gerais (MG),
+# Bahia (BA)
+# There are too many Salvadors elsewhere, so use America/Bahia instead
+# of America/Salvador.
+Zone America/Bahia	-2:34:04 -	LMT	1914
+			-3:00	Brazil	BR%sT	2003 Sep 24
+			-3:00	-	BRT
+#
+# Goias (GO), Distrito Federal (DF), Minas Gerais (MG),
 # Espirito Santo (ES), Rio de Janeiro (RJ), Sao Paulo (SP), Parana (PR),
 # Santa Catarina (SC), Rio Grande do Sul (RS)
 Zone America/Sao_Paulo	-3:06:28 -	LMT	1914
@@ -510,9 +522,14 @@ Zone America/Sao_Paulo	-3:06:28 -	LMT	1914
 			-3:00	1:00	BRST	1964
 			-3:00	Brazil	BR%sT
 #
-# Mato Grosso (MT), Mato Grosso do Sul (MS)
-Zone America/Cuiaba	-3:44:20 -	LMT	1914
+# Mato Grosso do Sul (MS)
+Zone America/Campo_Grande -3:38:28 -	LMT	1914
 			-4:00	Brazil	AM%sT
+#
+# Mato Grosso (MT)
+Zone America/Cuiaba	-3:44:20 -	LMT	1914
+			-4:00	Brazil	AM%sT	2003 Sep 24
+			-4:00	-	AMT
 #
 # west Para (PA), Rondonia (RO)
 # West Para includes Altamira, Oribidos, Prainha, Oriximina, and Santarem.
@@ -528,6 +545,8 @@ Zone America/Boa_Vista	-4:02:40 -	LMT	1914
 			-4:00	-	AMT
 #
 # east Amazonas (AM): Boca do Acre, Jutai, Manaus, Floriano Peixoto
+# The great circle line from Tabatinga to Porto Acre divides
+# east from west Amazonas.
 Zone America/Manaus	-4:00:04 -	LMT	1914
 			-4:00	Brazil	AM%sT	1988 Sep 12
 			-4:00	-	AMT	1993 Sep 28

@@ -1,4 +1,4 @@
-# @(#)northamerica	7.62
+# @(#)northamerica	7.63
 # also includes Central America and the Caribbean
 
 # This data is by no means authoritative; if you think you know better,
@@ -685,9 +685,15 @@ Link	Pacific/Honolulu	HST
 # Except where otherwise noted, Shanks is the source for entries through 1990,
 # and IATA SSIM is the source for entries after 1990.
 #
-# Another source occasionally used is Edward W. Whitman, World Time Differences,
-# Whitman Publishing Co, 2 Niagara Av, Ealing, London (undated), which
-# I found in the UCLA library.
+# Other sources occasionally used include:
+#
+#	Edward W. Whitman, World Time Differences,
+#	Whitman Publishing Co, 2 Niagara Av, Ealing, London (undated),
+#	which I found in the UCLA library.
+#
+#	<a href="http://www.pettswoodvillage.co.uk/Daylight_Savings_William_Willett.pdf">
+#	William Willett, The Waste of Daylight, 19th edition
+#	</a> (1914-03)
 #
 # See the `europe' file for Greenland.
 
@@ -743,7 +749,8 @@ Link	Pacific/Honolulu	HST
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Canada	1918	only	-	Apr	14	2:00	1:00	D
 Rule	Canada	1918	only	-	Oct	31	2:00	0	S
-Rule	Canada	1942	only	-	Feb	 9	2:00	1:00	W
+Rule	Canada	1942	only	-	Feb	 9	2:00	1:00	W # War
+Rule	Canada	1945	only	-	Aug	14	23:00u	1:00	P # Peace
 Rule	Canada	1945	only	-	Sep	30	2:00	0	S
 Rule	Canada	1974	1986	-	Apr	lastSun	2:00	1:00	D
 Rule	Canada	1974	max	-	Oct	lastSun	2:00	0	S
@@ -759,27 +766,20 @@ Rule	Canada	1987	max	-	Apr	Sun>=1	2:00	1:00	D
 # but excluding, say, Black Tickle.
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	StJohns	1917	1918	-	Apr	Sun>=8	2:00	1:00	D
+Rule	StJohns	1917	only	-	Apr	 8	2:00	1:00	D
 Rule	StJohns	1917	only	-	Sep	17	2:00	0	S
-Rule	StJohns	1918	only	-	Oct	31	2:00	0	S
 # Whitman gives 1919 Apr 5 and 1920 Apr 5; go with Shanks.
 Rule	StJohns	1919	only	-	May	 5	23:00	1:00	D
 Rule	StJohns	1919	only	-	Aug	12	23:00	0	S
 # For 1931-1935 Whitman gives Apr same date; go with Shanks.
 Rule	StJohns	1920	1935	-	May	Sun>=1	23:00	1:00	D
 Rule	StJohns	1920	1935	-	Oct	lastSun	23:00	0	S
-# For 1936-1941 Shanks gives May Mon>=9 and Oct Mon>=2; go with Whitman.
-Rule	StJohns	1936	1941	-	May	Sun>=8	0:00	1:00	D
-Rule	StJohns	1936	1941	-	Oct	Sun>=1	0:00	0	S
-# Shanks gives 1942 May 11 - 1945 Sep 30; go with Whitman.
-Rule	StJohns	1942	only	-	Mar	 1	0:00	1:00	W
-Rule	StJohns	1942	only	-	Dec	31	0:00	0	S
-Rule	StJohns	1943	only	-	May	30	0:00	1:00	W
-Rule	StJohns	1943	only	-	Sep	 5	0:00	0	S
-Rule	StJohns	1944	only	-	Jul	10	0:00	1:00	W
-Rule	StJohns	1944	only	-	Sep	 2	0:00	0	S
-Rule	StJohns	1945	only	-	Jan	 1	0:00	1:00	W
-Rule	StJohns	1945	only	-	Oct	 7	2:00	0	S
+# For 1936-1941 Whitman gives May Sun>=8 and Oct Sun>=1; go with Shanks.
+Rule	StJohns	1936	1941	-	May	Mon>=9	0:00	1:00	D
+Rule	StJohns	1936	1941	-	Oct	Mon>=2	0:00	0	S
+# Whitman gives the following transitions:
+# 1942 03-01/12-31, 1943 05-30/09-05, 1944 07-10/09-02, 1945 01-01/10-07
+# but go with Shanks and assume they used Canadian rules.
 # For 1946-9 Whitman gives May 5,4,9,1 - Oct 1,5,3,2, and for 1950 he gives
 # Apr 30 - Sep 24; go with Shanks.
 Rule	StJohns	1946	1950	-	May	Sun>=8	2:00	1:00	D
@@ -797,18 +797,24 @@ Rule	StJohns	1989	max	-	Apr	Sun>=1	0:01	1:00	D
 # St John's has an apostrophe, but Posix file names can't have apostrophes.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/St_Johns	-3:30:52 -	LMT	1884
+			-3:30:52 StJohns N%sT	1918
+			-3:30:52 Canada	N%sT	1919
 			-3:30:52 StJohns N%sT	1935 Mar 30
+			-3:30	StJohns	N%sT	1942 May 11
+			-3:30	Canada	N%sT	1946
 			-3:30	StJohns	N%sT
-
 
 # most of east Labrador
 
 # The name `Happy Valley-Goose Bay' is too long; use `Goose Bay'.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Goose_Bay	-4:01:40 -	LMT	1884 # Happy Valley-Goose Bay
-			-3:30:52 StJohns NST	1919
+			-3:30:52 -	NST	1918
+			-3:30:52 Canada N%sT	1919
 			-3:30:52 -	NST	1935 Mar 30
 			-3:30	-	NST	1936
+			-3:30	StJohns	N%sT	1942 May 11
+			-3:30	Canada	N%sT	1946
 			-3:30	StJohns	N%sT	1966 Mar 15 2:00
 			-4:00	StJohns	A%sT
 
@@ -830,8 +836,6 @@ Zone America/Goose_Bay	-4:01:40 -	LMT	1884 # Happy Valley-Goose Bay
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule Halifax	1916	only	-	Apr	 1	0:00	1:00	D
 Rule Halifax	1916	only	-	Oct	 1	0:00	0	S
-Rule Halifax	1918	only	-	Apr	14	2:00	1:00	D
-Rule Halifax	1918	only	-	Oct	31	2:00	0	S
 Rule Halifax	1920	only	-	May	 9	0:00	1:00	D
 Rule Halifax	1920	only	-	Aug	29	0:00	0	S
 Rule Halifax	1921	only	-	May	 6	0:00	1:00	D
@@ -850,6 +854,7 @@ Rule Halifax	1928	only	-	Sep	 9	0:00	0	S
 Rule Halifax	1929	only	-	Sep	 3	0:00	0	S
 Rule Halifax	1930	only	-	Sep	15	0:00	0	S
 Rule Halifax	1931	1932	-	Sep	Mon>=24	0:00	0	S
+Rule Halifax	1932	only	-	May	 1	0:00	1:00	D
 Rule Halifax	1933	only	-	Apr	30	0:00	1:00	D
 Rule Halifax	1933	only	-	Oct	 2	0:00	0	S
 Rule Halifax	1934	only	-	May	20	0:00	1:00	D
@@ -862,33 +867,55 @@ Rule Halifax	1937	1938	-	May	Sun>=1	0:00	1:00	D
 Rule Halifax	1937	1941	-	Sep	Mon>=24	0:00	0	S
 Rule Halifax	1939	only	-	May	28	0:00	1:00	D
 Rule Halifax	1940	1941	-	May	Sun>=1	0:00	1:00	D
-Rule Halifax	1942	only	-	Feb	9	2:00	1:00	W
-Rule Halifax	1945	1959	-	Sep	lastSun	2:00	0	S
-Rule Halifax	1946	1959	-	Apr	lastSun	2:00	1:00	D
-Rule Halifax	1962	1986	-	Apr	lastSun	2:00	1:00	D
-Rule Halifax	1962	max	-	Oct	lastSun	2:00	0	S
-Rule Halifax	1987	max	-	Apr	Sun>=1	2:00	1:00	D
+Rule Halifax	1946	1949	-	Sep	lastSun	2:00	0	S
+Rule Halifax	1946	1949	-	Apr	lastSun	2:00	1:00	D
+Rule Halifax	1951	1954	-	Sep	lastSun	2:00	0	S
+Rule Halifax	1951	1954	-	Apr	lastSun	2:00	1:00	D
+Rule Halifax	1956	1959	-	Sep	lastSun	2:00	0	S
+Rule Halifax	1956	1959	-	Apr	lastSun	2:00	1:00	D
+Rule Halifax	1962	1973	-	Apr	lastSun	2:00	1:00	D
+Rule Halifax	1962	1973	-	Oct	lastSun	2:00	0	S
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Halifax	-4:14:24 -	LMT	1902 Jun 15
-			-4:00	Halifax	A%sT
+			-4:00	Halifax	A%sT	1918
+			-4:00	Canada	A%sT	1919
+			-4:00	Halifax	A%sT	1942 Feb  9 2:00s
+			-4:00	Canada	A%sT	1946
+			-4:00	Halifax	A%sT	1974
+			-4:00	Canada	A%sT
 Zone America/Glace_Bay	-3:59:48 -	LMT	1902 Jun 15
 			-4:00	Canada	A%sT	1953
 			-4:00	Halifax	A%sT	1954
 			-4:00	-	AST	1972
-			-4:00	Halifax	A%sT
+			-4:00	Halifax	A%sT	1974
+			-4:00	Canada	A%sT
 
 
 # Ontario, Quebec
 
 # From Paul Eggert (1996-06-12):
-# Shanks writes that since 1970 most of this region has been like Montreal.
+# Shanks writes that since 1970 most of Ontario has been like Toronto,
+# and most of Quebec has been like Montreal.
 # Thunder Bay skipped DST in 1973.
 # Many smaller locales did not observe peacetime DST until 1974;
 # Nipigon (EST) and Rainy River (CST) are the largest that we know of.
 # Far west Ontario is like Winnipeg; far east Quebec is like Halifax.
 
+# From Mark Brader (2003-07-26):
+# [According to the Toronto Star] Orillia, Ontario, adopted DST
+# effective Saturday, 1912-06-22, 22:00; the article mentions that
+# Port Arthur (now part of Thunder Bay, Ontario) as well as Moose Jaw
+# have already done so.  In Orillia DST was to run until Saturday,
+# 1912-08-31 (no time mentioned), but it was met with considerable
+# hostility from certain segments of the public, and was revoked after
+# only two weeks -- I copied it as Saturday, 1912-07-07, 22:00, but
+# presumably that should be -07-06.  (1912-06-19, -07-12; also letters
+# earlier in June).
+#
+# Kenora, Ontario, was to abandon DST on 1914-06-01 (-05-21).
+
 # From Paul Eggert (1997-10-17):
-# msb@sq.com writes that an article in the 1997-10-14 Toronto Star
+# Mark Brader writes that an article in the 1997-10-14 Toronto Star
 # says that Atikokan, Ontario currently does not observe DST,
 # but will vote on 11-10 whether to use EST/EDT.
 # He also writes that the
@@ -915,43 +942,99 @@ Zone America/Glace_Bay	-3:59:48 -	LMT	1902 Jun 15
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Mont	1917	only	-	Mar	25	2:00	1:00	D
 Rule	Mont	1917	only	-	Apr	24	0:00	0	S
-Rule	Mont	1918	only	-	Apr	14	2:00	1:00	D
-Rule	Mont	1918	only	-	Oct	31	2:00	0	S
 Rule	Mont	1919	only	-	Mar	31	2:30	1:00	D
 Rule	Mont	1919	only	-	Oct	25	2:30	0	S
 Rule	Mont	1920	only	-	May	 2	2:30	1:00	D
-Rule	Mont	1920	only	-	Oct	 3	2:30	0	S
+Rule	Mont	1920	1922	-	Oct	Sun>=1	2:30	0	S
 Rule	Mont	1921	only	-	May	 1	2:00	1:00	D
-Rule	Mont	1921	only	-	Oct	 2	2:30	0	S
 Rule	Mont	1922	only	-	Apr	30	2:00	1:00	D
-Rule	Mont	1922	only	-	Oct	 1	2:30	0	S
 Rule	Mont	1924	only	-	May	17	2:00	1:00	D
 Rule	Mont	1924	1926	-	Sep	lastSun	2:30	0	S
 Rule	Mont	1925	1926	-	May	Sun>=1	2:00	1:00	D
-Rule	Mont	1927	only	-	May	 1	0:00	1:00	D
-Rule	Mont	1927	1932	-	Sep	Sun>=25	0:00	0	S
-Rule	Mont	1928	1931	-	Apr	Sun>=25	0:00	1:00	D
-Rule	Mont	1932	only	-	May	 1	0:00	1:00	D
-Rule	Mont	1933	1940	-	Apr	Sun>=24	0:00	1:00	D
-Rule	Mont	1933	only	-	Oct	 1	0:00	0	S
-Rule	Mont	1934	1939	-	Sep	Sun>=24	0:00	0	S
+Rule	Mont	1927	1937	-	Apr	lastSat	24:00	1:00	D
+Rule	Mont	1927	1937	-	Sep	lastSat	24:00	0	S
+Rule	Mont	1938	1940	-	Apr	lastSun	0:00	1:00	D
+Rule	Mont	1938	1939	-	Sep	lastSun	0:00	0	S
+Rule	Mont	1946	1973	-	Apr	lastSun	2:00	1:00	D
 Rule	Mont	1945	1948	-	Sep	lastSun	2:00	0	S
-Rule	Mont	1946	1986	-	Apr	lastSun	2:00	1:00	D
 Rule	Mont	1949	1950	-	Oct	lastSun	2:00	0	S
 Rule	Mont	1951	1956	-	Sep	lastSun	2:00	0	S
-Rule	Mont	1957	max	-	Oct	lastSun	2:00	0	S
-Rule	Mont	1987	max	-	Apr	Sun>=1	2:00	1:00	D
+Rule	Mont	1957	1973	-	Oct	lastSun	2:00	0	S
+
+Rule	Toronto	1919	only	-	Mar	30	23:30	1:00	D
+Rule	Toronto	1919	only	-	Oct	26	0:00	0	S
+Rule	Toronto	1920	only	-	May	 2	2:00	1:00	D
+Rule	Toronto	1920	only	-	Sep	26	0:00	0	S
+Rule	Toronto	1921	only	-	May	15	2:00	1:00	D
+Rule	Toronto	1921	only	-	Sep	15	2:00	0	S
+Rule	Toronto	1922	1923	-	May	Sun>=8	2:00	1:00	D
+# Shanks says 1923-09-19; assume it's a typo and that "-16" was meant.
+Rule	Toronto	1922	1926	-	Sep	Sun>=15	2:00	0	S
+Rule	Toronto	1924	1927	-	May	Sun>=1	2:00	1:00	D
+Rule	Toronto	1927	1928	-	Sep	lastSun	2:00	0	S
+Rule	Toronto	1928	only	-	Apr	lastSun	2:00	1:00	D
+Rule	Toronto	1929	only	-	Apr	lastSun	0:00	1:00	D
+Rule	Toronto	1929	only	-	Sep	lastSun	0:00	0	S
+Rule	Toronto	1930	1937	-	Apr	lastSat	24:00	1:00	D
+Rule	Toronto	1930	1937	-	Sep	lastSat	24:00	0	S
+Rule	Toronto	1938	1940	-	Apr	lastSun	0:00	1:00	D
+Rule	Toronto	1938	1939	-	Sep	lastSun	0:00	0	S
+Rule	Toronto	1945	1946	-	Sep	lastSun	2:00	0	S
+Rule	Toronto	1946	only	-	Apr	lastSun	2:00	1:00	D
+Rule	Toronto	1947	1949	-	Apr	lastSun	0:00	1:00	D
+Rule	Toronto	1947	1948	-	Sep	lastSun	0:00	0	S
+Rule	Toronto	1949	only	-	Nov	lastSun	0:00	0	S
+Rule	Toronto	1950	1973	-	Apr	lastSun	2:00	1:00	D
+Rule	Toronto	1950	only	-	Nov	lastSun	2:00	0	S
+Rule	Toronto	1951	1956	-	Sep	lastSun	2:00	0	S
+# Shanks says Toronto ended DST a week early in 1971, namely on 1971-10-24,
+# but Mark Brader wrote (2003-05-31) that he checked the 1971-10-30 issue
+# of the Toronto Star, and it said that DST ended 1971-10-31 as usual.
+Rule	Toronto	1957	1973	-	Oct	lastSun	2:00	0	S
+
+# From Paul Eggert (2003-07-27):
+# Willett (1914-03) writes (p. 17) "In the Cities of Fort William, and
+# Port Arthur, Ontario, the principle of the Bill has been in
+# operation for the past three years, and in the City of Moose Jaw,
+# Saskatchewan, for one year."  Assume that the Thunder Bay region
+# observed DST starting 1910, and Moose Jaw starting 1912, as this
+# matches the Toronto Star report about Moose Jaw.  For lack of better
+# info, assume the Thunder Bay region used Willett's proposal, namely
+# third Sunday in April at 02:00 to third Sunday in September at
+# 03:00; also assume that they continued until Canada instituted
+# uniform DST in 1918.
+Rule	Thunder	1910	1917	-	Apr	Sun>=15	2:00s	1:00	D
+Rule	Thunder	1910	1917	-	Sep	Sun>=15	2:00s	0	S
+
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Montreal	-4:54:16 -	LMT	1884
-			-5:00	Mont	E%sT
+			-5:00	Mont	E%sT	1918
+			-5:00	Canada	E%sT	1919
+			-5:00	Mont	E%sT	1942 Feb  9 2:00s
+			-5:00	Canada	E%sT	1946
+			-5:00	Mont	E%sT	1974
+			-5:00	Canada	E%sT
+Zone America/Toronto	-5:17:32 -	LMT	1895
+			-5:00	Canada	E%sT	1919
+			-5:00	Toronto	E%sT	1942 Feb  9 2:00s
+			-5:00	Canada	E%sT	1946
+			-5:00	Toronto	E%sT	1974
+			-5:00	Canada	E%sT
 Zone America/Thunder_Bay -5:57:00 -	LMT	1895
+			-5:00	Thunder	E%sT	1918
+			-5:00	Canada	E%sT	1940 Sep 29
+			-5:00	1:00	EDT	1942 Feb  9 2:00s
 			-5:00	Canada	E%sT	1970
 			-5:00	Mont	E%sT	1973
 			-5:00	-	EST	1974
 			-5:00	Canada	E%sT
 Zone America/Nipigon	-5:53:04 -	LMT	1895
+			-5:00	Canada	E%sT	1940 Sep 29
+			-5:00	1:00	EDT	1942 Feb  9 2:00s
 			-5:00	Canada	E%sT
 Zone America/Rainy_River -6:17:56 -	LMT	1895
+			-6:00	Canada	C%sT	1940 Sep 29
+			-6:00	1:00	CDT	1942 Feb  9 2:00s
 			-6:00	Canada	C%sT
 
 
@@ -964,7 +1047,8 @@ Rule	Winn	1918	only	-	Apr	14	2:00	1:00	D
 Rule	Winn	1918	only	-	Oct	31	2:00	0	S
 Rule	Winn	1937	only	-	May	16	2:00	1:00	D
 Rule	Winn	1937	only	-	Sep	26	2:00	0	S
-Rule	Winn	1942	only	-	Feb	 9	2:00	1:00	W
+Rule	Winn	1942	only	-	Feb	 9	2:00	1:00	W # War
+Rule	Winn	1945	only	-	Aug	14	23:00u	1:00	P # Peace
 Rule	Winn	1945	only	-	Sep	lastSun	2:00	0	S
 Rule	Winn	1946	only	-	May	12	2:00	1:00	D
 Rule	Winn	1946	only	-	Oct	13	2:00	0	S
@@ -991,6 +1075,20 @@ Zone America/Winnipeg	-6:28:36 -	LMT	1887 Jul 16
 
 
 # Saskatchewan
+
+# From Mark Brader (2003-07-26):
+# The first actual adoption of DST in Canada was at the municipal
+# level.  As the [Toronto] Star put it (1912-06-07), "While people
+# elsewhere have long been talking of legislation to save daylight,
+# the city of Moose Jaw [Saskatchewan] has acted on its own hook."
+# DST in Moose Jaw began on Saturday, 1912-06-01 (no time mentioned:
+# presumably late evening, as below), and would run until "the end of
+# the summer".  The discrepancy between municipal time and railroad
+# time was noted.
+
+# From Paul Eggert (2003-07-27):
+# Willett (1914-03) notes that DST "has been in operation ... in the
+# City of Moose Jaw, Saskatchewan, for one year."
 
 # From Paul Eggert (2000-10-02):
 # Shanks writes that since 1970 most of this region has been like Regina.
@@ -1034,12 +1132,14 @@ Rule	Regina	1937	1941	-	Apr	Sun>=8	0:00	1:00	D
 Rule	Regina	1937	only	-	Oct	Sun>=8	0:00	0	S
 Rule	Regina	1938	only	-	Oct	Sun>=1	0:00	0	S
 Rule	Regina	1939	1941	-	Oct	Sun>=8	0:00	0	S
-Rule	Regina	1942	only	-	Feb	 9	2:00	1:00	W
+Rule	Regina	1942	only	-	Feb	 9	2:00	1:00	W # War
+Rule	Regina	1945	only	-	Aug	14	23:00u	1:00	P # Peace
 Rule	Regina	1945	only	-	Sep	lastSun	2:00	0	S
 Rule	Regina	1946	only	-	Apr	Sun>=8	2:00	1:00	D
 Rule	Regina	1946	only	-	Oct	Sun>=8	2:00	0	S
-Rule	Regina	1947	1959	-	Apr	lastSun	2:00	1:00	D
-Rule	Regina	1947	1958	-	Sep	lastSun	2:00	0	S
+Rule	Regina	1947	1957	-	Apr	lastSun	2:00	1:00	D
+Rule	Regina	1947	1957	-	Sep	lastSun	2:00	0	S
+Rule	Regina	1959	only	-	Apr	lastSun	2:00	1:00	D
 Rule	Regina	1959	only	-	Oct	lastSun	2:00	0	S
 #
 Rule	Swift	1957	only	-	Apr	lastSun	2:00	1:00	D
@@ -1067,7 +1167,8 @@ Rule	Edm	1919	only	-	May	27	2:00	0	S
 Rule	Edm	1920	1923	-	Apr	lastSun	2:00	1:00	D
 Rule	Edm	1920	only	-	Oct	lastSun	2:00	0	S
 Rule	Edm	1921	1923	-	Sep	lastSun	2:00	0	S
-Rule	Edm	1942	only	-	Feb	 9	2:00	1:00	W
+Rule	Edm	1942	only	-	Feb	 9	2:00	1:00	W # War
+Rule	Edm	1945	only	-	Aug	14	23:00u	1:00	P # Peace
 Rule	Edm	1945	only	-	Sep	lastSun	2:00	0	S
 Rule	Edm	1947	only	-	Apr	lastSun	2:00	1:00	D
 Rule	Edm	1947	only	-	Sep	lastSun	2:00	0	S
@@ -1093,7 +1194,8 @@ Zone America/Edmonton	-7:33:52 -	LMT	1906 Sep
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Vanc	1918	only	-	Apr	14	2:00	1:00	D
 Rule	Vanc	1918	only	-	Oct	31	2:00	0	S
-Rule	Vanc	1942	only	-	Feb	 9	2:00	1:00	W
+Rule	Vanc	1942	only	-	Feb	 9	2:00	1:00	W # War
+Rule	Vanc	1945	only	-	Aug	14	23:00u	1:00	P # Peace
 Rule	Vanc	1945	only	-	Sep	30	2:00	0	S
 Rule	Vanc	1946	1986	-	Apr	lastSun	2:00	1:00	D
 Rule	Vanc	1946	only	-	Oct	13	2:00	0	S
@@ -1219,7 +1321,8 @@ Rule	NT_YK	1918	only	-	Apr	14	2:00	1:00	D
 Rule	NT_YK	1918	only	-	Oct	27	2:00	0	S
 Rule	NT_YK	1919	only	-	May	25	2:00	1:00	D
 Rule	NT_YK	1919	only	-	Nov	 1	0:00	0	S
-Rule	NT_YK	1942	only	-	Feb	 9	2:00	1:00	W
+Rule	NT_YK	1942	only	-	Feb	 9	2:00	1:00	W # War
+Rule	NT_YK	1945	only	-	Aug	14	23:00u	1:00	P # Peace
 Rule	NT_YK	1945	only	-	Sep	30	2:00	0	S
 Rule	NT_YK	1965	only	-	Apr	lastSun	0:00	2:00	DD
 Rule	NT_YK	1965	only	-	Oct	lastSun	2:00	0	S
@@ -1412,7 +1515,7 @@ Rule	Mexico	1939	only	-	Feb	5	0:00	1:00	D
 Rule	Mexico	1939	only	-	Jun	25	0:00	0	S
 Rule	Mexico	1940	only	-	Dec	9	0:00	1:00	D
 Rule	Mexico	1941	only	-	Apr	1	0:00	0	S
-Rule	Mexico	1943	only	-	Dec	16	0:00	1:00	W
+Rule	Mexico	1943	only	-	Dec	16	0:00	1:00	W # War
 Rule	Mexico	1944	only	-	May	1	0:00	0	S
 Rule	Mexico	1950	only	-	Feb	12	0:00	1:00	D
 Rule	Mexico	1950	only	-	Jul	30	0:00	0	S
@@ -1682,7 +1785,8 @@ Zone America/Santo_Domingo -4:39:36 -	LMT	1890
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Salv	1987	1988	-	May	Sun>=1	0:00	1:00	D
 Rule	Salv	1987	1988	-	Sep	lastSun	0:00	0	S
-# There are too many San Salvadors elsewhere, so we'll use `El Salvador'.
+# There are too many San Salvadors elsewhere, so use America/El_Salvador
+# instead of America/San_Salvador.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/El_Salvador -5:56:48 -	LMT	1921		# San Salvador
 			-6:00	Salv	C%sT
@@ -1812,7 +1916,8 @@ Zone America/St_Lucia	-4:04:00 -	LMT	1890		# Castries
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Miquelon	-3:44:40 -	LMT	1911 May 15	# St Pierre
 			-4:00	-	AST	1980 May
-			-3:00	Mont	PM%sT	# Pierre & Miquelon Time
+			-3:00	-	PMST	1987 # Pierre & Miquelon Time
+			-3:00	Canada	PM%sT
 
 # St Vincent and the Grenadines
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
