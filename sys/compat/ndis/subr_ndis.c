@@ -204,6 +204,7 @@ __stdcall static void ndis_register_shutdown(ndis_handle, void *,
 	ndis_shutdown_handler);
 __stdcall static void ndis_deregister_shutdown(ndis_handle);
 __stdcall static uint32_t ndis_numpages(ndis_buffer *);
+__stdcall static void ndis_buf_physpages(ndis_buffer *, uint32_t *);
 __stdcall static void ndis_query_bufoffset(ndis_buffer *,
 	uint32_t *, uint32_t *);
 __stdcall static void ndis_sleep(uint32_t);
@@ -1838,6 +1839,15 @@ ndis_numpages(buf)
 }
 
 __stdcall static void
+ndis_buf_physpages(buf, pages)
+	ndis_buffer		*buf;
+	uint32_t		*pages;
+{
+	*pages = ndis_numpages(buf);
+	return;
+}
+
+__stdcall static void
 ndis_query_bufoffset(buf, off, len)
 	ndis_buffer		*buf;
 	uint32_t		*off;
@@ -2088,6 +2098,7 @@ dummy()
 }
 
 image_patch_table ndis_functbl[] = {
+	{ "NdisGetBufferPhysicalArraySize", (FUNC)ndis_buf_physpages },
 	{ "NdisMGetDeviceProperty",	(FUNC)ndis_get_devprop },
 	{ "NdisInitAnsiString",		(FUNC)ndis_init_ansi_string },
 	{ "NdisWriteConfiguration",	(FUNC)ndis_write_cfg },
