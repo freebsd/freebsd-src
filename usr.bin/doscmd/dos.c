@@ -31,7 +31,7 @@
  *
  *	BSDI int21.c,v 2.2 1996/04/08 19:32:51 bostic Exp
  *
- * $Id: dos.c,v 1.2 1998/07/01 19:56:13 imp Exp $
+ * $Id: dos.c,v 1.3 1998/07/02 05:12:52 imp Exp $
  */
 
 #include "doscmd.h"
@@ -274,6 +274,14 @@ translate_filename(u_char *dname, u_char *uname, int *drivep)
     if (!strcasecmp(dname, "con")) {
 	*drivep = -1;
 	strcpy(uname, "/dev/tty");
+	return (0);
+    }
+
+    /* XXX KLUDGE for EMS support w/o booting DOS */
+    /* Really need a better way to handle devices */
+    if (!strcasecmp(dname, "emmxxxx0")) {
+	*drivep = -1;
+	strcpy(uname, "/dev/null");
 	return (0);
     }
 
@@ -2466,6 +2474,12 @@ int21(regcontext_t *REGS)
     return;
 }
 
+static void
+int67(regcontext_t *REGS)
+{
+    ems_entry(REGS);
+}
+
 static u_char upcase_trampoline[] = {
 	0xf4,	/* HLT */
 	0xcb,	/* RETF */
@@ -2493,6 +2507,10 @@ dos_init(void)
     ivec[0x29] = vec;
     register_callback(vec, int29, "int 29");
 
+    vec = insert_softint_trampoline();
+    ivec[0x67] = vec;
+    register_callback(vec, int67, "int 67 (EMS)");
+
     vec = insert_null_trampoline();
     ivec[0x28] = vec;	/* dos idle */
     ivec[0x2b] = vec;	/* reserved */
@@ -2505,4 +2523,6 @@ dos_init(void)
 
     /* build fastlookup index into the monster table of interrupts */
     intfunc_init(int21_table, int21_fastlookup);
+
+    ems_init();
 }	
