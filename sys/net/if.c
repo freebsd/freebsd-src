@@ -1284,6 +1284,12 @@ if_delmulti(ifp, sa)
 	sa = ifma->ifma_lladdr;
 	s = splimp();
 	TAILQ_REMOVE(&ifp->if_multiaddrs, ifma, ifma_link);
+	/*
+	 * Make sure the interface driver is notified
+	 * in the case of a link layer mcast group being left.
+	 */
+	if (ifma->ifma_addr->sa_family == AF_LINK && sa == 0)
+		ifp->if_ioctl(ifp, SIOCDELMULTI, 0);
 	splx(s);
 	free(ifma->ifma_addr, M_IFMADDR);
 	free(ifma, M_IFMADDR);
