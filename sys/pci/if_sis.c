@@ -1285,7 +1285,7 @@ static void sis_rxeof(sc)
 	while(SIS_OWNDESC(&sc->sis_ldata.sis_rx_list[i])) {
 
 #ifdef DEVICE_POLLING
-		if (ifp->if_ipending & IFF_POLLING) {
+		if (ifp->if_flags & IFF_POLLING) {
 			if (sc->rxcycles <= 0)
 				break;
 			sc->rxcycles--;
@@ -1508,7 +1508,7 @@ static void sis_intr(arg)
 
 	SIS_LOCK(sc);
 #ifdef DEVICE_POLLING
-	if (ifp->if_ipending & IFF_POLLING)
+	if (ifp->if_flags & IFF_POLLING)
 		goto done;
 	if (ether_poll_register(sis_poll, ifp)) { /* ok, disable interrupts */
 		CSR_WRITE_4(sc, SIS_IER, 0);
@@ -1810,7 +1810,7 @@ static void sis_init(xsc)
 	 * ... only enable interrupts if we are not polling, make sure
 	 * they are off otherwise.
 	 */
-	if (ifp->if_ipending & IFF_POLLING)
+	if (ifp->if_flags & IFF_POLLING)
 		CSR_WRITE_4(sc, SIS_IER, 0);
 	else
 #endif /* DEVICE_POLLING */

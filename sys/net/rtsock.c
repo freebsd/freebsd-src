@@ -757,7 +757,7 @@ rt_ifmsg(ifp)
 		return;
 	ifm = mtod(m, struct if_msghdr *);
 	ifm->ifm_index = ifp->if_index;
-	ifm->ifm_flags = (u_short)ifp->if_flags;
+	ifm->ifm_flags = ifp->if_flags;
 	ifm->ifm_data = ifp->if_data;
 	ifm->ifm_addrs = 0;
 	route_proto.sp_protocol = 0;
@@ -958,7 +958,7 @@ sysctl_iflist(af, w)
 
 			ifm = (struct if_msghdr *)w->w_tmem;
 			ifm->ifm_index = ifp->if_index;
-			ifm->ifm_flags = (u_short)ifp->if_flags;
+			ifm->ifm_flags = ifp->if_flags;
 			ifm->ifm_data = ifp->if_data;
 			ifm->ifm_addrs = info.rti_addrs;
 			error = SYSCTL_OUT(w->w_req,(caddr_t)ifm, len);

@@ -654,7 +654,7 @@ tapioctl(dev, cmd, data, flag, td)
 	struct ifnet		*ifp = &tp->tap_if;
  	struct tapinfo		*tapp = NULL;
 	int			 s;
-	short			 f;
+	int			 f;
 
 	switch (cmd) {
  		case TAPSIFINFO:
@@ -728,7 +728,7 @@ tapioctl(dev, cmd, data, flag, td)
 			break;
 
 		case VMIO_SIOCSIFFLAGS: /* VMware/VMnet SIOCSIFFLAGS */
-			f = *(short *)data;
+			f = *(int *)data;
 			f &= 0x0fff;
 			f &= ~IFF_CANTCHANGE;
 			f |= IFF_UP;

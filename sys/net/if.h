@@ -139,14 +139,6 @@ struct if_data {
 #define	IFF_LINK2	0x4000		/* per link layer defined bit */
 #define	IFF_ALTPHYS	IFF_LINK2	/* use alternate physical connection */
 #define	IFF_MULTICAST	0x8000		/* supports multicast */
-
-/*
- * The following flag(s) ought to go in if_flags, but we cannot change
- * struct ifnet because of binary compatibility, so we store them in
- * if_ipending, which is not used so far.
- * If possible, make sure the value is not conflicting with other
- * IFF flags, so we have an easier time when we want to merge them.
- */
 #define	IFF_POLLING	0x10000		/* Interface is in polling mode. */
 
 /* flags set internally only: */
@@ -244,8 +236,8 @@ struct	ifreq {
 #define	ifr_addr	ifr_ifru.ifru_addr	/* address */
 #define	ifr_dstaddr	ifr_ifru.ifru_dstaddr	/* other end of p-to-p link */
 #define	ifr_broadaddr	ifr_ifru.ifru_broadaddr	/* broadcast address */
-#define	ifr_flags	ifr_ifru.ifru_flags[0]	/* flags */
-#define	ifr_prevflags	ifr_ifru.ifru_flags[1]	/* flags */
+#define	ifr_flags	ifr_ifru.ifru_flags[0]	/* flags (low 16 bits) */
+#define	ifr_flagshigh	ifr_ifru.ifru_flags[1]	/* flags (high 16 bits) */
 #define	ifr_metric	ifr_ifru.ifru_metric	/* metric */
 #define	ifr_mtu		ifr_ifru.ifru_mtu	/* mtu */
 #define ifr_phys	ifr_ifru.ifru_phys	/* physical wire */
