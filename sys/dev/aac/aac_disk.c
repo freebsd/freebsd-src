@@ -196,7 +196,7 @@ aac_biodone(struct bio *bp)
 
     devstat_end_transaction_bio(&sc->ad_stats, bp);
     if (bp->bio_flags & BIO_ERROR)	
-	diskerr(bp, (char *)bp->bio_driver1, 0, &sc->ad_label);
+	diskerr(bp, (char *)bp->bio_driver1, 0, 0, &sc->ad_label);
     biodone(bp);
 }
 
