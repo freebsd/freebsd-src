@@ -127,19 +127,15 @@
 	</listitem>
       </itemizedlist>
     </para>
+
+    <para arch="i386">Adaptec 1510, 152X, 1535, and 154X-series ISA
+      SCSI controllers and compatibles (&man.aha.4; driver)</para>
+
+    <para arch="i386">Adaptec 164X-series MCA SCSI controllers
+      (&man.aha.4; driver)</para>
+
     <para arch="i386,pc98,alpha,sparc64">Adaptec SCSI Controllers
       <itemizedlist>
-        <listitem arch="i386">
-	  <para>Adaptec 1535 ISA SCSI controllers</para>
-	</listitem>
-	<listitem arch="i386">
-	  <para>Adaptec 154x series ISA SCSI controllers 
-	  (&man.aha.4; driver)</para>
-	</listitem>
-	<listitem arch="i386">
-	  <para>Adaptec 164x series MCA SCSI controllers (&man.aha.4; 
-	  driver)</para>
-	</listitem>
 	<listitem arch="i386">
 	  <para>Adaptec 174x series EISA SCSI controller in standard
 	  and enhanced mode (&man.aha.4; and &man.ahb.4; driver)</para>
@@ -164,14 +160,6 @@
 	  <para>Adaptec AIC7770, AIC7850, AIC7860, AIC7870, AIC7880, 
 	  and AIC789x on-board
 	  SCSI controllers (&man.ahc.4; driver)</para>
-	</listitem>
-	<listitem arch="i386">
-	  <para>Adaptec 1510 series ISA SCSI controllers (not for
-	  bootable devices)</para>
-	</listitem>
-	<listitem arch="i386">
-	  <para>Adaptec 152x series ISA SCSI controllers (&man.aha.4;
-	  driver)</para>
 	</listitem>
 	<listitem arch="i386">
 	  <para>Adaptec AIC-6260 and AIC-6360 based boards, which
@@ -478,35 +466,6 @@
 
     <para arch="i386,alpha">Mylex DAC960 and DAC1100 RAID controllers with 2.x, 3.x, 4.x
     and 5.x firmware (&man.mlx.4; driver)
-      <itemizedlist>
-	<listitem>
-	  <para>DAC960P</para>
-	</listitem>
-	<listitem>
-	  <para>DAC960PD</para>
-	</listitem>
-	<listitem>
-	  <para>DAC960PDU</para>
-	</listitem>
-	<listitem>
-	  <para>DAC960PL</para>
-	</listitem>
-	<listitem>
-	  <para>DAC960PJ</para>
-	</listitem>
-	<listitem>
-	  <para>DAC960PG</para>
-	</listitem>
-	<listitem>
-	  <para>AcceleRAID 150</para>
-	</listitem>
-	<listitem>
-	  <para>AcceleRAID 250</para>
-	</listitem>
-	<listitem>
-	  <para>eXtremeRAID 1100</para>
-	</listitem>
-      </itemizedlist>
 
       <note>
 	<para arch="i386">Booting from these controllers is supported. EISA adapters
