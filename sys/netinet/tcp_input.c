@@ -432,7 +432,7 @@ findpcb:
 	}
 	tp = intotcpcb(inp);
 	if (tp == 0)
-		goto dropwithreset;
+		goto maybedropwithreset;
 	if (tp->t_state == TCPS_CLOSED)
 		goto drop;
 
@@ -460,7 +460,7 @@ findpcb:
 				 */
 				if (tiflags & TH_ACK) {
 					tcpstat.tcps_badsyn++;
-					goto dropwithreset;
+					goto maybedropwithreset;
 				}
 				goto drop;
 			}
@@ -676,7 +676,7 @@ findpcb:
 		if (tiflags & TH_RST)
 			goto drop;
 		if (tiflags & TH_ACK)
-			goto dropwithreset;
+			goto maybedropwithreset;
 		if ((tiflags & TH_SYN) == 0)
 			goto drop;
 		if ((ti->ti_dport == ti->ti_sport) &&
@@ -688,6 +688,7 @@ findpcb:
 		 * packet with M_BCAST not set.
 		 */
 		if (m->m_flags & (M_BCAST|M_MCAST) ||
+		    IN_MULTICAST(ntohl(ti->ti_src.s_addr)) ||
 		    IN_MULTICAST(ntohl(ti->ti_dst.s_addr)))
 			goto drop;
 		MALLOC(sin, struct sockaddr_in *, sizeof *sin, M_SONAME,
@@ -809,7 +810,7 @@ findpcb:
 		if ((tiflags & TH_ACK) &&
 		    (SEQ_LEQ(ti->ti_ack, tp->snd_una) ||
 		     SEQ_GT(ti->ti_ack, tp->snd_max)))
-				goto dropwithreset;
+				goto maybedropwithreset;
 		break;
 
 	/*
@@ -1776,7 +1777,7 @@ dropafterack:
 	if (tp->t_state == TCPS_SYN_RECEIVED && (tiflags & TH_ACK) &&
 	    (SEQ_GT(tp->snd_una, ti->ti_ack) ||
 	     SEQ_GT(ti->ti_ack, tp->snd_max)) )
-		goto dropwithreset;
+		goto maybedropwithreset;
 #ifdef TCPDEBUG
 	if (so->so_options & SO_DEBUG)
 		tcp_trace(TA_DROP, ostate, tp, &tcp_saveti, 0);
@@ -1786,6 +1787,16 @@ dropafterack:
 	(void) tcp_output(tp);
 	return;
 
+	/*
+	 * Conditionally drop with reset or just drop depending on whether
+	 * we think we are under attack or not.
+	 */
+maybedropwithreset:
+#ifdef ICMP_BANDLIM
+	if (badport_bandlim(1) < 0)
+	    goto drop;
+#endif
+	/* fall through */
 dropwithreset:
 #ifdef TCP_RESTRICT_RST
 	if (restrict_rst)
@@ -1796,7 +1807,9 @@ dropwithreset:
 	 * Make ACK acceptable to originator of segment.
 	 * Don't bother to respond if destination was broadcast/multicast.
 	 */
-	if ((tiflags & TH_RST) || m->m_flags & (M_BCAST|M_MCAST) ||
+	if ((tiflags & TH_RST) ||
+	    m->m_flags & (M_BCAST|M_MCAST) ||
+	    IN_MULTICAST(ntohl(ti->ti_src.s_addr)) ||
 	    IN_MULTICAST(ntohl(ti->ti_dst.s_addr)))
 		goto drop;
 #ifdef TCPDEBUG
