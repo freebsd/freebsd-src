@@ -81,7 +81,8 @@ int dialog_checklist(unsigned char *title, unsigned char *prompt, int height, in
     waddch(dialog, ' ');
   }
   wattrset(dialog, dialog_attr);
-  print_autowrap(dialog, prompt, width, 1, 3);
+  wmove(dialog, 1, 2);
+  print_autowrap(dialog, prompt, height-1, width-2, width, 1, 2, TRUE, FALSE);
 
   list_width = width-6;
   getyx(dialog, cur_y, cur_x);
@@ -306,6 +307,7 @@ int dialog_checklist(unsigned char *title, unsigned char *prompt, int height, in
         break;
       case ' ':
       case '\n':
+      case '\r':
         delwin(dialog);
 	if (!button) {
 	  *result = '\0';

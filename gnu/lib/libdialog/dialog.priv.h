@@ -155,5 +155,7 @@ extern int parse_rc(void);
 void color_setup(void);
 #endif
 void attr_clear(WINDOW *win, int height, int width, chtype attr);
-void print_autowrap(WINDOW *win, unsigned char *prompt, int width, int y, int x);
+void print_autowrap(WINDOW *win, unsigned char *prompt, int height, int width, int maxwidth, int y, int x, int center, int rawmode);
 void print_button(WINDOW *win, unsigned char *label, int y, int x, int selected);
+FILE *raw_popen(const char *program, char * const *argv, const char *type);
+int raw_pclose(FILE *iop);
