@@ -16,7 +16,7 @@
  *
  * NEW command line interface for IP firewall facility
  *
- * $Id: ipfw.c,v 1.15.4.4 1996/06/18 02:03:29 alex Exp $
+ * $Id: ipfw.c,v 1.15.4.6 1996/06/25 03:16:36 alex Exp $
  *
  */
 
@@ -237,9 +237,9 @@ show_ipfw(chain)
 	if ((chain->fw_flg & IP_FW_F_IN) && (chain->fw_flg & IP_FW_F_OUT))
 		; 
 	else if (chain->fw_flg & IP_FW_F_IN)
-		printf(" in ");
+		printf(" in");
 	else if (chain->fw_flg & IP_FW_F_OUT)
-		printf(" out ");
+		printf(" out");
 
 	if (chain->fw_flg&IP_FW_F_IFNAME && chain->fw_via_name[0]) {
 		char ifnb[FW_IFNLEN+1];
@@ -256,7 +256,7 @@ show_ipfw(chain)
 	}
 
 	if (chain->fw_flg & IP_FW_F_FRAG)
-		printf(" frag ");
+		printf(" frag");
 
 	if (chain->fw_ipopt || chain->fw_ipnopt) {
 		int 	_opt_printed = 0;
@@ -673,27 +673,37 @@ add(ac,av)
 		av++; ac--;
 	}
 
-	if (ac && !strncmp(*av,"via",strlen(*av))) { 
-		av++; ac--; 
-		if (!isdigit(**av)) {
-			char *q;
-
-			strcpy(rule.fw_via_name, *av);
-			for (q = rule.fw_via_name; *q && !isdigit(*q) && *q != '*'; q++)
-				continue;
-			if (*q == '*')
-				rule.fw_flg = IP_FW_F_IFUWILD;
-			else
-				rule.fw_via_unit = atoi(q);
-			*q = '\0';
-			rule.fw_flg |= IP_FW_F_IFNAME;
-		} else if (inet_aton(*av,&rule.fw_via_ip) == INADDR_NONE) {
-			show_usage("bad IP# after via\n");
-		}
-		av++; ac--; 
+	if ((rule.fw_flg & IP_FW_F_KIND) != IP_FW_F_TCP &&
+		(rule.fw_flg & IP_FW_F_KIND) != IP_FW_F_UDP &&
+		(rule.fw_nsp || rule.fw_ndp)) {
+		show_usage("only TCP and UDP protocols are valid with port specifications");
 	}
 
 	while (ac) {
+		if (ac && !strncmp(*av,"via",strlen(*av))) {
+			if (rule.fw_via_ip.s_addr || (rule.fw_flg & IP_FW_F_IFNAME)) {
+				show_usage("multiple 'via' options specified");
+			}
+
+			av++; ac--; 
+			if (!isdigit(**av)) {
+				char *q;
+
+				strcpy(rule.fw_via_name, *av);
+				for (q = rule.fw_via_name; *q && !isdigit(*q) && *q != '*'; q++)
+					continue;
+				if (*q == '*')
+					rule.fw_flg = IP_FW_F_IFUWILD;
+				else
+					rule.fw_via_unit = atoi(q);
+				*q = '\0';
+				rule.fw_flg |= IP_FW_F_IFNAME;
+			} else if (inet_aton(*av,&rule.fw_via_ip) == INADDR_NONE) {
+				show_usage("bad IP# after via\n");
+			}
+			av++; ac--; 
+			continue;
+		}
 		if (!strncmp(*av,"fragment",strlen(*av))) { 
 			rule.fw_flg |= IP_FW_F_FRAG; av++; ac--; continue;
 		}
@@ -828,7 +838,7 @@ ipfw_main(ac,av)
 	} else {
 		show_usage("Bad arguments");
 	}
-        return 0;
+	return 0;
 }
 
 int 
@@ -848,7 +858,7 @@ main(ac, av)
 	s = socket( AF_INET, SOCK_RAW, IPPROTO_RAW );
 	if ( s < 0 ) {
 		fprintf(stderr,"%s: Can't open raw socket.\n"
-			"Must be root to use this program. \n",progname);
+			"Must be root to use this program.\n",progname);
 		exit(1);
 	}
 
