@@ -2173,7 +2173,7 @@ pmap_remove_pages(pmap, sva, eva)
 /*
  * this routine is used to modify bits in ptes
  */
-static void
+static __inline void
 pmap_changebit(vm_page_t m, int bit, boolean_t setem)
 {
 	pv_entry_t pv;
@@ -2410,7 +2410,7 @@ void
 pmap_emulate_reference(struct vmspace *vm, vm_offset_t v, int user, int write)
 {
 	pmap_t pmap;
-	pt_entry_t faultoff, *pte;
+	pt_entry_t *pte;
 
 	/*
 	 * Convert process and virtual address to physical address.
@@ -2427,32 +2427,15 @@ pmap_emulate_reference(struct vmspace *vm, vm_offset_t v, int user, int write)
 		PMAP_LOCK(pmap);
 		pte = pmap_lev3pte(pmap, v);
 	}
-#ifdef DEBUG				/* These checks are more expensive */
-	if (!pmap_pte_v(pte))
-		panic("pmap_emulate_reference: invalid pte");
-#if 0
+
 	/*
-	 * Can't do these, because cpu_fork and cpu_swapin call
-	 * pmap_emulate_reference(), and the bits aren't guaranteed,
-	 * for them...
+	 * Another CPU can modify the pmap between the emulation trap and this
+	 * CPU locking the pmap.  As a result, the pte may be inconsistent
+	 * with the access that caused the emulation trap.  In such cases,
+	 * invalidate this CPU's TLB entry and return.
 	 */
-	if (write) {
-		if (!(*pte & (user ? PG_UWE : PG_UWE | PG_KWE)))
-			panic("pmap_emulate_reference: write but unwritable");
-		if (!(*pte & PG_FOW))
-			panic("pmap_emulate_reference: write but not FOW");
-	} else {
-		if (!(*pte & (user ? PG_URE : PG_URE | PG_KRE)))
-			panic("pmap_emulate_reference: !write but unreadable");
-		if (!(*pte & (PG_FOR | PG_FOE)))
-			panic("pmap_emulate_reference: !write but not FOR|FOE");
-	}
-#endif
-	/* Other diagnostics? */
-#endif
-	KASSERT((*pte & PG_MANAGED) != 0,
-	    ("pmap_emulate_reference(%p, 0x%lx, %d, %d): pa 0x%lx not managed",
-	    curthread, v, user, write, pmap_pte_pa(pte)));
+	if (!pmap_pte_v(pte))
+		goto tbis;
 
 	/*
 	 * Twiddle the appropriate bits to reflect the reference
@@ -2463,12 +2446,19 @@ pmap_emulate_reference(struct vmspace *vm, vm_offset_t v, int user, int write)
 	 *	(2) if it was a write fault, mark page as modified.
 	 */
 	if (write) {
-		faultoff = PG_FOR | PG_FOE | PG_FOW;
+		if (!(*pte & (user ? PG_UWE : PG_UWE | PG_KWE)))
+			goto tbis;
+		if (!(*pte & PG_FOW))
+			goto tbis;
+		*pte &= ~(PG_FOR | PG_FOE | PG_FOW);
 	} else {
-		faultoff = PG_FOR | PG_FOE;
+		if (!(*pte & (user ? PG_URE : PG_URE | PG_KRE)))
+			goto tbis;
+		if (!(*pte & (PG_FOR | PG_FOE)))
+			goto tbis;
+		*pte &= ~(PG_FOR | PG_FOE);
 	}
-
-	*pte = (*pte & ~faultoff);
+tbis:
 	ALPHA_TBIS(v);
 	PMAP_UNLOCK(pmap);
 }
