@@ -40,15 +40,17 @@
 .Ft int
 .Fn VOP_LEASE "struct vnode *vp" "struct thread *td" "struct ucred *cred" "int type"
 .Sh DESCRIPTION
-This entry point is currently not implemented.  I believe the idea is to
+This entry point is currently not implemented.
+I believe the idea is to
 validate a vnode for a particular set of user credentials and operation type.
-The two operation types supported are LEASE_READ and LEASE_WRITE.  The
-function currently always returns 0.
+The two operation types supported are LEASE_READ and LEASE_WRITE.
+The function currently always returns 0.
 .Sh LOCKS
 The vnode must be exclusively locked on entry, and should remain exclusively
 locked on return.
 .Sh RETURN VALUES
-If successful, zero is returned.  Otherwise, well... zero is returned too.
+If successful, zero is returned.
+Otherwise, well... zero is returned too.
 .Sh ERRORS
 .Sh SEE ALSO
 .Xr VOP_READ 9 ,

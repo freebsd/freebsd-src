@@ -50,7 +50,8 @@ the vnode being reclaimed
 .El
 .Pp
 .Fn VOP_INACTIVE
-is called when the kernel is no longer using the vnode.  This may be
+is called when the kernel is no longer using the vnode.
+This may be
 because the reference count reaches zero or it may be that the
 file system is being forcibly unmounted while there are open files.
 It can be used to reclaim space for 'open but deleted' files.
@@ -59,7 +60,8 @@ is called when a vnode is being reused for a different file system.
 Any file system specific resources associated with the vnode should be
 freed.
 .Sh LOCKS
-For VOP_INACTIVE, the vp will be locked on entry.  Your VOP_INACTIVE code
+For VOP_INACTIVE, the vp will be locked on entry.
+Your VOP_INACTIVE code
 must unlock the vp prior to returning.
 .Pp
 For VOP_RECLAIM, the vp will not be locked on entry and should be left

@@ -54,10 +54,12 @@ Return parameter for the new locked vnode.
 .El
 .Pp
 The contents of the filehandle are defined by the file system and are
-not examined by any other part of the system.  It should contain
+not examined by any other part of the system.
+It should contain
 enough information to uniquely identify a file within the file system
 as well as noticing when a file has been removed and the file system
-resources have been reused for a new file.  For instance, UFS
+resources have been reused for a new file.
+For instance, UFS
 file system stores the inode number and inode generation counter in its
 filehandle.
 .Pp
