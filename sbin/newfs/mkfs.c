@@ -443,7 +443,7 @@ mkfs(pp, fsys, fi, fo)
 	sblock.fs_npsect = nphyssectors;
 	sblock.fs_postblformat = FS_DYNAMICPOSTBLFMT;
 	sblock.fs_sbsize = fragroundup(&sblock, sizeof(struct fs));
-	if (sblock.fs_ntrak == 1) {
+	if (sblock.fs_ntrak == 1 || sblock.fs_nrpos <= 1) {
 		sblock.fs_cpc = 0;
 		goto next;
 	}
