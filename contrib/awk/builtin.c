@@ -30,6 +30,7 @@
 #undef CHARBITS
 #undef INTBITS
 #include <math.h>
+#ifndef __FreeBSD__
 #include "random.h"
 
 /* can declare these, since we always use the random shipped with gawk */
@@ -37,6 +38,7 @@ extern char *initstate P((unsigned seed, char *state, int n));
 extern char *setstate P((char *state));
 extern long random P((void));
 extern void srandom P((unsigned int seed));
+#endif
 
 extern NODE **fields_arr;
 extern int output_is_tty;
