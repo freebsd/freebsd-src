@@ -2191,7 +2191,6 @@ ti_attach(dev)
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	tis[unit] = sc;
 	ifp->if_ioctl = ti_ioctl;
-	ifp->if_output = ether_output;
 	ifp->if_start = ti_start;
 	ifp->if_watchdog = ti_watchdog;
 	ifp->if_init = ti_init;
