@@ -447,9 +447,15 @@ struct ifmedia_description {
 }
 
 #define	IFM_SUBTYPE_IEEE80211_MODE_DESCRIPTIONS {			\
+	{ IFM_AUTO, "autoselect" },					\
 	{ IFM_IEEE80211_11A, "11a" },					\
 	{ IFM_IEEE80211_11B, "11b" },					\
 	{ IFM_IEEE80211_11G, "11g" },					\
+	{ 0, NULL },							\
+}
+
+#define	IFM_SUBTYPE_IEEE80211_MODE_ALIASES {				\
+	{ IFM_AUTO, "auto" },						\
 	{ 0, NULL },							\
 }
 
