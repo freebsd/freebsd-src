@@ -143,10 +143,19 @@ is not
 it must point to an array of at least
 .Fa length
 characters.
-The contents of the provided buffer are undefined; to retrieve the sbuf data
-.Fn sbuf_data
-must be called on the finished
-.Fa sbuf .
+The result of accessing that array directly while it is in use by the
+sbuf is undefined.
+.Pp
+The
+.Fn sbuf_delete
+function clears the
+.Fa sbuf
+and frees any memory allocated for it.
+There must be a call to
+.Fn sbuf_delete
+for every call to
+.Fn sbuf_new .
+Any attempt to access the sbuf after it has been deleted will fail.
 .Pp
 The
 .Fn sbuf_clear
@@ -284,13 +293,6 @@ only works on a finished
 .Fa sbuf .
 .Fn sbuf_done
 returns non-zero if the sbuf is finished.
-.Pp
-Finally, the
-.Fn sbuf_delete
-function clears the
-.Fa sbuf
-and frees its storage buffer if it was allocated by
-.Fn sbuf_new .
 .Sh NOTES
 If an operation caused an
 .Fa sbuf
