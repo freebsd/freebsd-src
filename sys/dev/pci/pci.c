@@ -603,7 +603,6 @@ pci_enable_io_method(device_t dev, device_t child, int space)
 		break;
 	default:
 		return (EINVAL);
-		break;
 	}
 	pci_set_command_bit(dev, child, bit);
 	command = PCI_READ_CONFIG(dev, child, PCIR_COMMAND, 2);
@@ -634,7 +633,6 @@ pci_disable_io_method(device_t dev, device_t child, int space)
 		break;
 	default:
 		return (EINVAL);
-		break;
 	}
 	pci_clear_command_bit(dev, child, bit);
 	command = PCI_READ_CONFIG(dev, child, PCIR_COMMAND, 2);
@@ -899,11 +897,9 @@ pci_print_child(device_t dev, device_t child)
 {
 	struct pci_devinfo *dinfo;
 	struct resource_list *rl;
-	pcicfgregs *cfg;
 	int retval = 0;
 
 	dinfo = device_get_ivars(child);
-	cfg = &dinfo->cfg;
 	rl = &dinfo->resources;
 
 	retval += bus_print_child_header(dev, child);
@@ -1220,10 +1216,8 @@ int
 pci_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 {
 	struct pci_devinfo *dinfo;
-	pcicfgregs *cfg;
 
 	dinfo = device_get_ivars(child);
-	cfg = &dinfo->cfg;
 
 	switch (which) {
 	case PCI_IVAR_ETHADDR:
@@ -1246,7 +1240,6 @@ pci_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 	default:
 		return (ENOENT);
 	}
-	return (0);
 }
 
 
@@ -1449,10 +1442,8 @@ pci_child_location_str_method(device_t cbdev, device_t child, char *buf,
     size_t buflen)
 {
 	struct pci_devinfo *dinfo;
-	pcicfgregs *cfg;
 
 	dinfo = device_get_ivars(child);
-	cfg = &dinfo->cfg;
 	snprintf(buf, buflen, "slot=%d function=%d", pci_get_slot(child),
 	    pci_get_function(child));
 	return (0);
