@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: package.c,v 1.65.2.2 1999/04/28 06:58:15 jkh Exp $
+ * $Id: package.c,v 1.65.2.3 1999/05/12 09:04:15 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -142,6 +142,8 @@ package_extract(Device *dev, char *name, Boolean depended)
 	sprintf(path, "packages/All/%s%s", name, strstr(name, ".tgz") ? "" : ".tgz");
     else
 	sprintf(path, "%s%s", name, strstr(name, ".tgz") ? "" : ".tgz");
+
+    /* We have a path, call the device strategy routine to get the file */
     fp = dev->get(dev, path, TRUE);
     if (fp) {
 	int i = 0, tot, pfd[2];
@@ -203,6 +205,7 @@ package_extract(Device *dev, char *name, Boolean depended)
 	    refresh();
 	    i = waitpid(pid, &tot, 0);
 	    if (sigpipe_caught || i < 0 || WEXITSTATUS(tot)) {
+		ret = DITEM_FAILURE | DITEM_RESTORE;
 		if (variable_get(VAR_NO_CONFIRM))
 		    msgNotify("Add of package %s aborted, error code %d -\n"
 			      "Please check the debug screen for more info.", name, WEXITSTATUS(tot));
