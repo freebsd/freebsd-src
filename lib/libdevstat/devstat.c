@@ -269,7 +269,8 @@ devstat_checkversion(kvm_t *kd)
 			errlen = snprintf(tmpstr, sizeof(tmpstr), "\n");
 			strncat(devstat_errbuf, tmpstr,
 				DEVSTAT_ERRBUF_SIZE - buflen - 1);
-			buflen += errlen;
+			if (errlen > 0)
+				buflen += errlen;
 		}
 
 		errlen = snprintf(tmpstr, sizeof(tmpstr),
@@ -281,7 +282,8 @@ devstat_checkversion(kvm_t *kd)
 		if (version == -1) {
 			strncat(devstat_errbuf, tmpstr,
 				DEVSTAT_ERRBUF_SIZE - buflen - 1);
-			buflen += errlen;
+			if (errlen > 0)
+				buflen += errlen;
 		} else {
 			strncpy(devstat_errbuf, tmpstr, DEVSTAT_ERRBUF_SIZE);
 			devstat_errbuf[DEVSTAT_ERRBUF_SIZE - 1] = '\0';
