@@ -1,7 +1,7 @@
 # Makefile.i386 -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.150 1999/05/09 16:45:59 phk Exp $
+#	$Id: Makefile.i386,v 1.151 1999/05/09 18:57:02 peter Exp $
 #
 # Makefile for FreeBSD
 #
@@ -19,8 +19,9 @@
 # Which version of config(8) is required.
 %VERSREQ=	400016
 
+# Can be overridden by makeoptions or /etc/make.conf
+KERNEL?=	kernel
 KERNFORMAT?=	elf
-
 STD8X16FONT?=	iso
 
 .if exists(./@/.)
@@ -104,13 +105,6 @@ SYSTEM_LD_TAIL= @size -elf ${.TARGET} ; chmod 755 ${.TARGET}
 SYSTEM_DEP+= $S/i386/conf/kernel.script
 .endif
 
-KERNEL?=	kernel
-.if defined(DEBUG)
-FULLKERNEL=	${KERNEL}.debug
-.else
-FULLKERNEL=	${KERNEL}
-.endif
-
 %BEFORE_DEPEND
 
 %OBJS
@@ -124,6 +118,19 @@ FULLKERNEL=	${KERNEL}
 %CLEAN
 
 all:	${KERNEL}
+
+.if !defined(DEBUG)
+FULLKERNEL=	${KERNEL}
+.else
+FULLKERNEL=	${KERNEL}.debug
+${KERNEL}:	${FULLKERNEL}
+.if ${KERNFORMAT} == "elf"
+	objcopy --strip-debug ${FULLKERNEL} ${KERNEL}
+.else
+	cp ${FULLKERNEL} ${KERNEL}
+	strip -d ${KERNEL}
+.endif
+.endif
 
 ${FULLKERNEL}:	${SYSTEM_DEP} vers.o
 	@rm -f ${.TARGET}
@@ -217,16 +224,6 @@ links:
 tags:
 	@echo "see $S/kern/Makefile for tags"
 
-.if defined(DEBUG)
-${KERNEL}:	${FULLKERNEL}
-.if ${KERNFORMAT} == "elf"
-	objcopy --strip-debug ${FULLKERNEL} ${KERNEL}
-.else
-	cp ${FULLKERNEL} ${KERNEL}
-	strip -d kernel
-.endif
-.endif
-
 install install.debug:
 	@if [ ! -f ${KERNEL}${.TARGET:S/install//} ] ; then \
 		echo "You must first build a kernel first." ; \
@@ -239,8 +236,8 @@ install install.debug:
 	PATH=$${PATH}:/sbin:/usr/sbin; \
 	if [ `sysctl -n kern.bootfile` = ${DESTDIR}/${KERNEL} ] ; then \
 		sysctl -w kern.bootfile=${DESTDIR}/${KERNEL}.old ; \
-		if [ -f /var/db/kvm_kernel.db ] ; then \
-			mv -f /var/db/kvm_kernel.db /var/db/kvm_kernel.old.db ; \
+		if [ -f /var/db/kvm_${KERNEL}.db ] ; then \
+			mv -f /var/db/kvm_${KERNEL}.db /var/db/kvm_${KERNEL}.old.db ; \
 		fi \
 	fi
 	install -c -m 555 -o root -g wheel -fschg \
