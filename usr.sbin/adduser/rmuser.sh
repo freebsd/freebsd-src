@@ -55,7 +55,7 @@ verbose() {
 rm_files() {
 	# The argument is required
 	[ -n $1 ] && login=$1 || return
-	
+
 	totalcount=0
 	for _dir in ${TEMPDIRS} ; do
 		filecount=0
@@ -64,7 +64,7 @@ rm_files() {
 			continue
 		fi
 		verbose && echo -n "Removing files owned by ($login) in $_dir:"
-		filecount=`find 2>/dev/null "$_dir" -user "$login" -delete -print | \
+		filecount=`find 2>/dev/null "$_dir" -user "$login" -delete -print |
 		    wc -l | sed 's/ *//'`
 		verbose && echo " $filecount removed."
 		totalcount=$(($totalcount + $filecount))
@@ -82,12 +82,12 @@ rm_mail() {
 
 	verbose && echo -n "Removing mail spool(s) for ($login):"
 	if [ -f ${MAILSPOOL}/$login ]; then
-		verbose && echo -n " ${MAILSPOOL}/$login" || \
+		verbose && echo -n " ${MAILSPOOL}/$login" ||
 		    echo -n " mailspool"
 		rm ${MAILSPOOL}/$login
 	fi
 	if [ -f ${MAILSPOOL}/${login}.pop ]; then
-		verbose && echo -n " ${MAILSPOOL}/${login}.pop" || \
+		verbose && echo -n " ${MAILSPOOL}/${login}.pop" ||
 		    echo -n " pop3"
 		rm ${MAILSPOOL}/${login}.pop
 	fi
@@ -142,6 +142,19 @@ rm_crontab() {
 		verbose && echo -n " ${CRONJOBDIR}/$login" || echo -n " crontab"
 		rm -f ${CRONJOBDIR}/$login
 	fi
+	verbose && echo '.'
+}
+
+# rm_ipc login
+#	Remove all IPC mechanisms which are owned by $login.
+#
+rm_ipc() {
+	verbose && echo -n "Removing IPC mechanisms"
+	for i in s m q; do
+		ipcs -$i |
+		awk -v i=$i -v login=$1 '$1 == i && $5 == login { print $2 }' |
+		xargs -n 1 ipcrm -$i
+	done
 	verbose && echo '.'
 }
 
@@ -338,6 +351,7 @@ for _user in $userlist ; do
 	! verbose && echo -n "Removing user ($_user):"
 	rm_crontab $_user
 	rm_at_jobs $_user
+	rm_ipc $_user
 	kill_procs $_user
 	rm_files $_user
 	rm_mail $_user
