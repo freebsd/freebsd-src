@@ -83,24 +83,26 @@ joining this effort!
 2.1     Before installing from CDROM:
 
 If your CDROM is of an unsupported type, such as an IDE CDROM, then
-please skip to section 2.3: DOS Preparation.
+please skip to section 2.3:  Before installing from a DOS partition.
 
 There is not a lot of preparatory work that needs to be done to
 successfully install from one of Walnut Creek's FreeBSD CDROMs (other
-CDROM distributions may work as well, but I can't say for sure as I
+CDROM distributions may work as well, I simply cannot say as I
 have no hand or say in their creation).  You can either boot into the
 CD installation directly from DOS using Walnut Creek's supplied
-"install" batch file or you can make a boot floppy by writing the
-supplied image (floppies/boot.flp) onto a floppy with the "go"
-command, which invokes the rawrite.exe command found in the tools/
-subdirectory.
+``install.bat'' batch file or you can make a boot floppy with
+the ``makeflp.bat'' command.
+
+For the easiest interface of all (from DOS), type "go".  This
+will bring up a DOS menu utility that leads you through all
+the available options.
 
 If you're creating the boot floppy from a UNIX machine, you may find
 that ``dd if=floppies/boot.flp of=/dev/rfd0'' or
 ``dd if=floppies/boot.flp of=/dev/floppy'' works well, depending on
 your hardware and operating system environment.
 
-Once you've booted from DOS or floppy, you should be able to select
+Once you've booted from DOS or floppy, you should then be able to select
 CDROM as the media type in the Media menu and load the entire
 distribution from CDROM.  No other types of installation media should
 be required.
@@ -131,15 +133,15 @@ somewhat special in that it's not a DOS filesystem floppy at all, but
 rather an "image" floppy (it's actually a gzip'd cpio file).  You can
 use the rawrite.exe program to do this under DOS, or ``dd'' to do it
 on a UNIX Workstation (see notes in section 2.1 concerning the
-``floppies/boot.flp'' image).  Once this floppy is made, put it aside.
-You'll be asked for it later.
+``floppies/boot.flp'' image).  Once this floppy is made, go on
+to make the distribution set floppies:
 
-You will also need, at minimum, as many 1.44MB or 1.2MB floppies as it
-takes to hold all files in the bin (binary distribution) directory.
+You will need, at minimum, as many 1.44MB or 1.2MB floppies as it takes
+to hold all files in the bin (binary distribution) directory.
 THESE floppies *must* be formatted using MS-DOS, using with the FORMAT
 command in MS-DOS or the File Manager format command in Microsoft
-Windows(tm).  Factory preformatted floppies will also work well,
-provided that they haven't been previously used for something else.
+Windows(tm).  Don't trust Factory Preformatted floppies!  Format
+them again yourself, just to make sure!
 
 Many problems reported by our users in the past have resulted from the
 use of improperly formatted media, so we simply take special care to
@@ -150,13 +152,16 @@ onto them.  The distribution files are split into chunks conveniently
 sized so that 5 of them will fit on a conventional 1.44MB floppy.  Go
 through all your floppies, packing as many files as will fit on each
 one, until you've got all the distributions you want packed up in this
-fashion.  Select ``Floppy'' from the Media menu at installation time
-and you will be prompted for everything after that.
+fashion.  Each distribution should go into a subdirectory on the
+floppy, e.g.:	a:\bin\bin.aa,  .:\bin\bin.ab, ...
+
+Once you come to the Media screen of the install, select
+"Floppy" and you'll be prompted for the rest.
 
 
 2.3     Before installing from a DOS partition:
 
-To prepare for installation from an MS-DOS partition, you should
+To prepare for installation from an MS-DOS partition you should
 simply copy the files from the distribution into a directory called
 "FREEBSD".  For example, to do a minimal installation of FreeBSD from
 DOS using files copied from the CDROM, you might do something like
@@ -171,7 +176,7 @@ your CD was mounted.  Note that you need the FLOPPIES directory
 because the `root.flp' image is automatically looked for there when
 you're doing a DOS installation.
 
-For as many `DISTS' you wish to install from DOS (and you have free
+For as many `DISTS' as you wish to install from DOS (and you have free
 space for), install each one under `C:\FREEBSD' - the BIN dist is only
 the minimal requirement.
 
