@@ -102,3 +102,9 @@ sparc64/sparc64/tlb.c		standard
 sparc64/sparc64/trap.c		standard
 sparc64/sparc64/tsb.c		standard
 sparc64/sparc64/vm_machdep.c	standard
+#
+ukbdmap.h			optional	ukbd_dflt_keymap	\
+	compile-with	"/usr/sbin/kbdcontrol -L ${UKBD_DFLT_KEYMAP} | sed -e 's/^static keymap_t.* = /static keymap_t key_map = /' -e 's/^static accentmap_t.* = /static accentmap_t accent_map = /' > ukbdmap.h"			\
+	no-obj no-implicit-rule before-depend				\
+	clean		"ukbdmap.h"
+#
