@@ -1421,7 +1421,6 @@ scsi_low_attach_cam(slp)
 			CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
 		xpt_bus_deregister(cam_sim_path(slp->sl_si.sim));
 		cam_sim_free(slp->sl_si.sim, /*free_simq*/TRUE);
-		free(slp->sl_si.sim, M_DEVBUF);
 		return ENODEV;
 	}
 
