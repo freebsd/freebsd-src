@@ -2056,7 +2056,7 @@ options 	ELSA_QS1ISA
 options 	SIEMENS_ISURF2
 #device		isic
 #
-# Asuscom ISDNlink 128K ISAC - broken
+# Asuscom ISDNlink 128K ISAC
 #options 	ASUSCOM_IPAC
 #device 	isic
 #
