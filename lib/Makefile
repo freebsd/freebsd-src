@@ -40,8 +40,10 @@ _csu=csu/${MACHINE_ARCH}
 _csu=csu
 .endif
 
+.if ${MACHINE_ARCH} != "amd64"
 .if !defined(NOLIBC_R)
 _libc_r=	libc_r
+.endif
 .endif
 
 .if !defined(NO_BIND)
