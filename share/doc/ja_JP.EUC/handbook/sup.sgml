@@ -1,8 +1,8 @@
-<!-- $Id: sup.sgml,v 1.11 1997/03/12 04:20:34 hanai Exp $ -->
+<!-- $Id: sup.sgml,v 1.1.1.1.2.3 1997/03/15 23:33:21 jkh Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.27 -->
+<!-- Original revision: 1.29 -->
 
-<sect><heading>SUP<label id="sup"></heading>
+<sect1><heading>SUP<label id="sup"></heading>
 
 <p><em>原作: &a.jkh; and &a.gclarkii;.</em> 
 <p><em>訳: &a.iwasaki;.<newline>28 December 1996.</em>
@@ -10,7 +10,7 @@
 SUP は CMU で開発されたネットワークベースのソフトウェア更新ツールです. 
 この文書の目的は初心者が sup を利用できるようにすることです. 
 
-<sect1><heading>SUP のコンフィグレーション</heading>
+<sect2><heading>SUP のコンフィグレーション</heading>
 
 <p>SUP は supfile と呼ばれるコンフィグレーションファイルから, 実行す
 るのに必要な情報を取得します. FreeBSD のソースリリースによって提供さ
@@ -68,7 +68,7 @@ sup するときに得られるものが何かを覚えておき, &a.current へ参加して
 &a.stable へ参加し <ref id="stable" name="FreeBSD の安定状態の持続">を
 読んでください. 
 
-<sect1><heading>SUP 配布ファイル<label id="sup:dists">
+<sect2><heading>SUP 配布ファイル<label id="sup:dists">
 </heading>
 
 <p>standard-supfile を使用したメインの FreeBSD 配布ファイルは:
@@ -116,6 +116,7 @@ ports-benchmarks: /usr/ports/benchmarks ベンチマークプログラム
 ports-cad:        /usr/ports/cad        CAD ツール
 ports-chinese:    /usr/ports/chinese    中国語サポート
 ports-comms:      /usr/ports/comms      通信ソフトウェア
+ports-converters: /usr/ports/converters	文字コードコンバータ
 ports-databases:  /usr/ports/databases  データベース
 ports-devel:      /usr/ports/devel      開発ユーティリティ
 ports-editors:    /usr/ports/editors    エディタ
@@ -137,6 +138,7 @@ ports-russian:    /usr/ports/russian    ロシア語サポート
 ports-security:   /usr/ports/security   よりよい (悪い?) 「セキュリティ」関連のユーティリティ
 ports-shells:     /usr/ports/shells     色々な UN*X シェル
 ports-sysutils:   /usr/ports/sysutils   システムユーティリティ
+ports-textproc:	  /usr/ports/textproc	文書処理ユーティリティ(デスクトップパブリッシングは含まない)
 ports-vietnamese: /usr/ports/vietnamese	ベトナム語サポート
 ports-www:        /usr/ports/www        WWW 関連のソフトウェア
 ports-x11:        /usr/ports/x11        X11 のソフトウェア

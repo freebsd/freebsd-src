@@ -1,6 +1,6 @@
-<!-- $Id: bibliography.sgml,v 1.6 1997/03/06 03:19:16 hanai Exp $ -->
+<!-- $Id: bibliography.sgml,v 1.1.1.1.2.1 1997/03/15 23:31:39 jkh Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.17 -->
+<!-- Original revision: 1.26 -->
 
     <chapt>
       <heading>参考図書<label id="bibliography"></heading>
@@ -21,7 +21,7 @@
 	<p><bf>非英語文化圏の 書籍 & 雑誌:</bf>
 
 	<p><itemize>
-	  <item><htmlurl url="http://freebsd.csie.nctu.edu.tw/~jdli/book.shtml"
+	  <item><htmlurl url="http://freebsd.csie.nctu.edu.tw/~jdli/book.html"
 	  name="FreeBSD 入門與應用"> (in Chinese).
 	  <item>FreeBSD入門キット 98版第二版. 宮嵜忠臣 著.
           秀和システム. ISBN4-87966-535-5 C3055 2900円.
@@ -58,6 +58,12 @@
 	    O'Reilly &amp; Associates, Inc., 1990.
 	    <newline>ISBN 093717520X</item>
 
+	    <item>Mui, Linda.
+		<em>What You Need To Know When You Can't Find Your UNIX
+		System Administrator</em>.
+		O'Reilly &amp; Associates, Inc., 1995. 
+		<newline>ISBN 1-56592-104-6 </item>
+
           <item><htmlurl url="http://www-wks.acs.ohio-state.edu/"
 		name="Ohio State University"> has written
 		a <htmlurl
@@ -72,9 +78,10 @@
 	<p><itemize> 
 
 	    <item>Albitz, Paul and Liu, Cricket. <em>DNS and
-		BIND</em>.  O'Reilly &amp; Associates, Inc., 1993. 
-		<newline>ISBN 1-56592-010-4 
-		<newline>(訳注: 邦訳は以下のものが出版されています.
+		BIND</em>, 2nd Ed.
+		O'Reilly &amp; Associates, Inc., 1997.
+		<newline>ISBN ISBN 1-56592-236-0
+		<newline>(訳注: 第一版の邦訳は以下のものが出版されています.
 		<newline>浅羽登志也 / 上水流由香 監訳. <em>DNS & BIND</em>.
 			アスキー, 1995.
 		<newline>ISBN 4-7561-0314-6)
@@ -86,19 +93,19 @@
 		<newline>ISBN 1-56592-080-5</item>
 
 	    <item>Costales, Brian, et al.
-		<em>Sendmail</em>. O'Reilly &amp;
-		Associates, Inc., 1993. 
-                <newline>ISBN 1-56592-056-2
-		<newline>(訳注: 邦訳は以下のものが出版されています.
+		<em>Sendmail</em>, 2nd Ed. O'Reilly &amp;
+		Associates, Inc., 1997.
+                <newline>ISBN 1-56592-222-0
+		<newline>(訳注: 第一版の邦訳は以下のものが出版されています.
                 <newline>村井純 監訳. <em>sendmail 解説</em>.
                 インターナショナル・トムソン・パブリッシング・ジャパン, 1994.
                 <newline>ISBN 4-900718-07-6)
             </item>
 
 	    <item>Frisch, &AElig;leen. <em>Essential System
-	      Administration</em>.  O'Reilly &amp;
-	      Associates, Inc., 1993. <newline>ISBN 0-937175-80-3
-              <newline>(訳注: 邦訳は以下のものが出版されています.
+	      Administration</em>, 2nd Ed.  O'Reilly &amp;
+	      Associates, Inc., 1995. <newline>ISBN 1-56592-127-5
+              <newline>(訳注: 第一版の邦訳は以下のものが出版されています.
               <newline>榊正憲 訳. <em>UNIX システム管理入門</em>.
               アスキー, 1995.
               <newline>ISBN 4-7561-0313-8)
@@ -121,11 +128,13 @@
                 ソフトバンク, 1992.
                 <newline>ISBN 4-89052-362-6
                 <newline>原本は第2版だが、訳出は第1版のみ)
-              </item>
+	    </item>
+
+	    <item>Stern, Hal <em>Managing NFS and NIS</em>
+		O'Reilly &amp; Associates, Inc., 1991. 
+		<newline>ISBN 1-937175-75-7 </item>
 
 	  </itemize>
-
-
 
       <sect>
 	<heading>プログラマ向けのガイド</heading>
@@ -179,6 +188,11 @@
                 <newline>ISBN 4-320-02692-6)
             </item>
 
+	    <item>Lehey, Greg.
+		<em>Port UNIX Software</em>.
+		O'Reilly &amp; Associates, Inc., 1995.
+		<newline>ISBN 1-56592-126-7</item>
+
 	    <item>Plauger, P. J. <em>The Standard C
 		Library</em>. Prentice Hall, 1992.  
 		<newline>ISBN 0-13-131509-9
@@ -219,6 +233,10 @@
 	<heading>オペレーティングシステム内部</heading>
 
 	<p><itemize>
+
+	    <item>Andleigh, Prabhat K. <em>UNIX System Architecture</em>.
+		Prentice-Hall, Inc., 1990.
+		<newline>ISBN 0-13-949843-5</item>
 
 	    <item>Jolitz, William.  "Porting UNIX to the
 	      386". <em>Dr. Dobb's Journal</em>.  January
@@ -265,6 +283,10 @@
 		Reading, Mass. : Addison-Wesley, 1996.
 		<newline>ISBN 0-201-63495-3</item>
 
+	    <item>Vahalia, Uresh. <em>UNIX Internals -- The New Frontiers</em>.
+		Prentice Hall, 1996.
+		<newline>ISBN 0-13-101908-2</item>
+
 	    <item>Wright, Gary R. and W. Richard Stevens.
 		<em>TCP/IP Illustrated, Volume 2:
 		The Implementation</em>.
@@ -300,6 +322,11 @@
                 <newline>ISBN 4-7561-0274-3
                 <newline>原本は第2版だが、訳出は第1版のみ)
               </item>
+
+	    <item>Garfinkel, Simson.
+		<em>PGP Pretty Good Privacy</em>
+		O'Reilly &amp; Associates, Inc., 1995. 
+		<newline>ISBN 1-56592-098-8 </item>
 
 	  </itemize>
 
@@ -344,6 +371,18 @@
 
 	<p><itemize>
 
+	    <item>Lion, John <em>Lion's Commentary on UNIX, 6th Ed.
+	      With Source Code</em>.
+	      ITP Media Group, 1996.
+	      <newline>ISBN 1573980137</item>
+
+	    <item>Raymond, Eric s. <em>The New Hacker's Dictonary,
+	      3rd edition</em>.  MIT Press, 1996.
+	      <newline>ISBN 0-262-68092-0
+	      <newline>Also known as the
+	      <htmlurl url="http://www.ccil.org/jargon/jargon.html"
+	      name="Jargon File"></item>
+
 	    <item>Saulus, Peter H. <em>A quarter century of UNIX</em>.
 	      Addison-Wesley Publishing Company, Inc., 1994.
 	      <newline>ISBN 0-201-54777-5</item>
@@ -361,6 +400,14 @@
               アスキー, 1990.
               <newline>ISBN 4-7561-0783-4
               <newline>邦訳がSpecial 版の訳出か否かは不明)
+            </item>
+
+            <item><em>BSD 系 OS の系譜図</em>. 1997年.
+              <newline>
+	      <htmlurl url="http://www.de.freebsd.org/de/ftp/unix-stammbaum"
+	      name="http://www.de.freebsd.org/de/ftp/unix-stammbaum">
+	      または, FreeBSD-current マシンの<url
+              url="file:/usr/share/misc/bsd-family-tree" name="ローカルファイル">.
             </item>
 
 	  </itemize>
