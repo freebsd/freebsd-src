@@ -1,12 +1,13 @@
 #	From: @(#)Makefile.inc	8.3 (Berkeley) 4/16/94
-#	$Id: Makefile.inc,v 1.22.2.8 1998/02/28 04:02:58 steve Exp $
+#	$Id: Makefile.inc,v 1.22.2.9 1998/03/01 17:43:14 jkh Exp $
 
 # machine-independent gen sources
 .PATH: ${.CURDIR}/../libc/${MACHINE}/gen ${.CURDIR}/../libc/gen
 
 SRCS+=	alarm.c arc4random.c assert.c clock.c closedir.c confstr.c \
 	crypt.c ctermid.c daemon.c devname.c disklabel.c err.c errlst.c \
-	exec.c fnmatch.c frexp.c fstab.c fts.c getbootfile.c getbsize.c \
+	exec.c fnmatch.c frexp.c fstab.c ftok.c fts.c \
+	getbootfile.c getbsize.c \
 	getcap.c getcwd.c getdomainname.c getgrent.c getgrouplist.c \
 	gethostname.c getloadavg.c getlogin.c getmntinfo.c getnetgrent.c \
 	getosreldate.c getpagesize.c getpass.c getpwent.c getttyent.c \
@@ -42,7 +43,8 @@ errlst.o errlst.po:
 MAN3+=	gen/alarm.3 gen/arc4random.3 gen/clock.3 gen/confstr.3 \
 	gen/crypt.3 gen/ctermid.3 \
 	gen/daemon.3 gen/devname.3 gen/directory.3 gen/err.3 gen/exec.3 \
-	gen/fnmatch.3 gen/frexp.3 gen/fts.3 gen/getbsize.3 gen/getbootfile.3 \
+	gen/fnmatch.3 gen/frexp.3 gen/ftok.3 gen/fts.3 \
+	gen/getbsize.3 gen/getbootfile.3 \
 	gen/getcap.3 gen/getcwd.3 gen/getdiskbyname.3 gen/getdomainname.3 \
 	gen/getfsent.3 gen/getgrent.3 gen/getgrouplist.3 gen/gethostname.3 \
 	gen/getloadavg.3 \
