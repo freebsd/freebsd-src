@@ -93,8 +93,10 @@
 #define	CONTROL_INIT_STATE	0x20
 #define	CONTROL_LOCK_STATE	0x40
 #define	DEV_TO_UNIT(dev)	(MINOR_TO_UNIT(minor(dev)))
-#define	MINOR_MAGIC_MASK	(CALLOUT_MASK | CONTROL_MASK)
-#define	MINOR_TO_UNIT(mynor)	((mynor) & ~MINOR_MAGIC_MASK)
+#define	MINOR_TO_UNIT(mynor)	((((mynor) & ~0xffffU) >> (8 + 3)) \
+				 | ((mynor) & 0x1f))
+#define	UNIT_TO_MINOR(unit)	((((unit) & ~0x1fU) << (8 + 3)) \
+				 | ((unit) & 0x1f))
 
 #ifdef COM_MULTIPORT
 /* checks in flags for multiport and which is multiport "master chip"
@@ -874,6 +876,7 @@ sioattach(dev, xrid, rclk)
 	Port_t		*espp;
 #endif
 	Port_t		iobase;
+	int		minorbase;
 	int		unit;
 	u_int		flags;
 	int		rid;
@@ -1090,19 +1093,20 @@ determined_type: ;
 		swi_add(&clk_ithd, "tty:sio", siopoll, NULL, SWI_TTY, 0,
 		    &sio_slow_ih);
 	}
-	com->devs[0] = make_dev(&sio_cdevsw, unit,
+	minorbase = UNIT_TO_MINOR(unit);
+	com->devs[0] = make_dev(&sio_cdevsw, minorbase,
 	    UID_ROOT, GID_WHEEL, 0600, "ttyd%r", unit);
-	com->devs[1] = make_dev(&sio_cdevsw, unit | CONTROL_INIT_STATE,
+	com->devs[1] = make_dev(&sio_cdevsw, minorbase | CONTROL_INIT_STATE,
 	    UID_ROOT, GID_WHEEL, 0600, "ttyid%r", unit);
-	com->devs[2] = make_dev(&sio_cdevsw, unit | CONTROL_LOCK_STATE,
+	com->devs[2] = make_dev(&sio_cdevsw, minorbase | CONTROL_LOCK_STATE,
 	    UID_ROOT, GID_WHEEL, 0600, "ttyld%r", unit);
-	com->devs[3] = make_dev(&sio_cdevsw, unit | CALLOUT_MASK,
+	com->devs[3] = make_dev(&sio_cdevsw, minorbase | CALLOUT_MASK,
 	    UID_UUCP, GID_DIALER, 0660, "cuaa%r", unit);
 	com->devs[4] = make_dev(&sio_cdevsw,
-	    unit | CALLOUT_MASK | CONTROL_INIT_STATE,
+	    minorbase | CALLOUT_MASK | CONTROL_INIT_STATE,
 	    UID_UUCP, GID_DIALER, 0660, "cuaia%r", unit);
 	com->devs[5] = make_dev(&sio_cdevsw,
-	    unit | CALLOUT_MASK | CONTROL_LOCK_STATE,
+	    minorbase | CALLOUT_MASK | CONTROL_LOCK_STATE,
 	    UID_UUCP, GID_DIALER, 0660, "cuala%r", unit);
 	com->flags = flags;
 	com->pps.ppscap = PPS_CAPTUREASSERT | PPS_CAPTURECLEAR;
