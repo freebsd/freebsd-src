@@ -6,7 +6,8 @@
 
 # auth
 auth		required	pam_nologin.so	no_warn
-#auth		sufficient	pam_opie.so	no_warn
+auth		sufficient	pam_opie.so	no_warn no_fake_prompts
+auth		requisite	pam_opieaccess.so	no_warn
 #auth		sufficient	pam_kerberosIV.so	no_warn try_first_pass
 #auth		sufficient	pam_krb5.so	no_warn try_first_pass
 #auth		required	pam_ssh.so	no_warn try_first_pass
@@ -24,7 +25,6 @@ account		required	pam_unix.so
 session		required	pam_unix.so
 
 # password
-#password	sufficient	pam_opie.so	no_warn
 #password	sufficient	pam_kerberosIV.so	no_warn try_first_pass
 #password	sufficient	pam_krb5.so	no_warn try_first_pass
 password	required	pam_unix.so	no_warn try_first_pass
