@@ -42,7 +42,7 @@ VGLTextSetFontFile(char *filename)
 FILE *fd;
 
   if (VGLTextFont) {
-    if (VGLTextFont->BitmapArray) 
+    if (VGLTextFont->BitmapArray != VGLFont) 
       free (VGLTextFont->BitmapArray);
     free(VGLTextFont);
   }
