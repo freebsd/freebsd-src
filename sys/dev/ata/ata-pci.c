@@ -128,17 +128,23 @@ ata_pci_match(device_t dev)
 
     case 0x71118086:
     case 0x71998086:
+    case 0x84ca8086:
 	return "Intel PIIX4 ATA33 controller";
 
     case 0x24218086:
 	return "Intel ICH0 ATA33 controller";
 
     case 0x24118086:
+    case 0x76018086:
 	return "Intel ICH ATA66 controller";
 
     case 0x244a8086:
     case 0x244b8086:
 	return "Intel ICH2 ATA100 controller";
+
+    case 0x248a8086:
+    case 0x248b8086:
+	return "Intel ICH3 ATA100 controller";
 
     case 0x522910b9:
 	if (pci_get_revid(dev) < 0x20)
