@@ -28,21 +28,21 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 /* 
  * rp.c - for RocketPort FreeBSD
  */
 
-#include "opt_compat.h"
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/fcntl.h>
 #include <sys/malloc.h>
 #include <sys/tty.h>
+#include <sys/proc.h>
 #include <sys/dkstat.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
@@ -619,11 +619,11 @@ static	struct	rp_port *p_rp_table[MAX_RP_PORTS];
  * The top-level routines begin here
  */
 
-static	int	rpparam(struct tty *, struct termios *);
-static	void	rpstart(struct tty *);
-static	void	rpstop(struct tty *, int);
-static	void	rphardclose	(struct rp_port *);
-static	void	rp_disc_optim	(struct tty *tp, struct termios *t);
+static	int	rpparam __P((struct tty *, struct termios *));
+static	void	rpstart __P((struct tty *));
+static	void	rpstop __P((struct tty *, int));
+static	void	rphardclose	__P((struct rp_port *));
+static	void	rp_disc_optim	__P((struct tty *tp, struct termios *t));
 
 static _INLINE_ void rp_do_receive(struct rp_port *rp, struct tty *tp,
 			CHANNEL_t *cp, unsigned int ChanStatus)
@@ -956,10 +956,10 @@ rp_releaseresource(CONTROLLER_t *ctlp)
 }
 
 int
-rpopen(dev, flag, mode, td)
+rpopen(dev, flag, mode, p)
 	dev_t	dev;
 	int	flag, mode;
-	struct	thread	*td;
+	struct	proc	*p;
 {
 	struct	rp_port *rp;
 	int	unit, port, mynor, umynor, flags;  /* SG */
@@ -1010,7 +1010,7 @@ open_top:
 				goto open_top;
 			}
 		}
-		if(tp->t_state & TS_XCLUDE && suser(td) != 0) {
+		if(tp->t_state & TS_XCLUDE && suser(p) != 0) {
 			splx(oldspl);
 			error = EBUSY;
 			goto out2;
@@ -1115,10 +1115,10 @@ out2:
 }
 
 int
-rpclose(dev, flag, mode, td)
+rpclose(dev, flag, mode, p)
 	dev_t	dev;
 	int	flag, mode;
-	struct	thread	*td;
+	struct	proc	*p;
 {
 	int	oldspl, unit, mynor, umynor, port; /* SG */
 	struct	rp_port *rp;
@@ -1230,12 +1230,12 @@ rpdtrwakeup(void *chan)
 }
 
 int
-rpioctl(dev, cmd, data, flag, td)
+rpioctl(dev, cmd, data, flag, p)
 	dev_t	dev;
 	u_long	cmd;
 	caddr_t data;
 	int	flag;
-	struct	thread	*td;
+	struct	proc	*p;
 {
 	struct rp_port	*rp;
 	CHANNEL_t	*cp;
@@ -1245,10 +1245,6 @@ rpioctl(dev, cmd, data, flag, td)
 	int	error = 0;
 	int	arg, flags, result, ChanStatus;
 	struct	termios *t;
-#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
-	u_long	oldcmd;
-	struct	termios term;
-#endif
 
    umynor = (((minor(dev) >> 16) -1) * 32);    /* SG */
 	port  = (minor(dev) & 0x1f);                /* SG */
@@ -1271,7 +1267,7 @@ rpioctl(dev, cmd, data, flag, td)
 		}
 		switch (cmd) {
 		case TIOCSETA:
-			error = suser(td);
+			error = suser(p);
 			if(error != 0)
 				return(error);
 			*ct = *(struct termios *)data;
@@ -1328,7 +1324,7 @@ rpioctl(dev, cmd, data, flag, td)
 
 	t = &tp->t_termios;
 
-	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, td);
+	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, p);
 	if(error != ENOIOCTL) {
 		return(error);
 	}
@@ -1416,7 +1412,7 @@ rpioctl(dev, cmd, data, flag, td)
 		*(int *)data = result;
 		break;
 	case TIOCMSDTRWAIT:
-		error = suser(td);
+		error = suser(p);
 		if(error != 0) {
 			splx(oldspl);
 			return(error);
