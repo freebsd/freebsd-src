@@ -50,17 +50,20 @@ process group leader of a new process group and has no controlling
 terminal.
 The calling process is the only process in either the session or the
 process group.
-.Pp
+.Sh RETURN VALUES
 Upon successful completion, the
 .Fn setsid
 function returns the value of the process group ID of the new process
 group, which is the same as the process ID of the calling process.
-.Sh ERRORS
 If an error occurs,
 .Fn setsid
 returns -1 and the global variable
 .Va errno
-is set to indicate the error, as follows:
+is set to indicate the error.
+.Sh ERRORS
+The
+.Fn setsid
+function will fail if:
 .Bl -tag -width Er
 .It Bq Er EPERM
 The calling process is already a process group leader, or the process
