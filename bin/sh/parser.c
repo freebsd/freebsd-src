@@ -59,6 +59,7 @@ static const char rcsid[] =
 #include "mystring.h"
 #include "alias.h"
 #include "show.h"
+#include "eval.h"
 #ifndef NO_HISTORY
 #include "myhistedit.h"
 #endif
@@ -677,8 +678,6 @@ peektoken() {
 	tokpushback++;
 	return (t);
 }
-
-STATIC int xxreadtoken();
 
 STATIC int
 readtoken() {
