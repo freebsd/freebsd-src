@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.133 1996/09/13 08:11:51 tg Exp $ -->
+<!-- $Id: contrib.sgml,v 1.134 1996/09/17 12:34:57 max Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
@@ -108,6 +108,7 @@
         <item>&a.ugen;
         <item>&a.gj;
 	<item>&a.andreas;
+	<item>&a.imp;
         <item>&a.ljo;
         <item>&a.erich;
         <item>&a.smace;
