@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: kbdtables.h,v 1.21 1995/01/26 09:58:37 ache Exp $
+ *	$Id: kbdtables.h,v 1.22 1995/01/26 10:08:39 ache Exp $
  */
 
 #define SET8 0x80       	/* eight bit for emacs SET8-key */
@@ -869,7 +869,7 @@ keymap_t key_map = { 0x6C,	/* US iso8859 keymap */
 
 #endif
 
-fkeytab_t fkey_tab[65] = {
+fkeytab_t fkey_tab[NUM_FKEYS] = {
 /* F1 - F12 */
 /* 00-03 */	{"\033[M", 3}, {"\033[N", 3}, {"\033[O", 3}, {"\033[P", 3},
 /* 04-07 */	{"\033[Q", 3}, {"\033[R", 3}, {"\033[S", 3}, {"\033[T", 3},
