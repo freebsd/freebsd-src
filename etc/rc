@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.34 1994/09/29 17:27:46 pst Exp $
+#	$Id: rc,v 1.35 1994/10/25 08:23:02 davidg Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -64,6 +64,14 @@ mount -u -o rw /
 
 umount -a >/dev/null 2>&1
 mount -a -t nonfs
+
+# This stuff needed for proper daemons tuning, comsat f.e.
+# See profile and csh.login also.
+# Uncomment next line if you want to setup your 8-bit locale at program
+# startup automatically
+# ENABLE_STARTUP_LOCALE=; export ENABLE_STARTUP_LOCALE
+# Uncomment next line to activate russian locale
+# LANG=ru_SU.KOI8-R; export LANG
 
 # If the machine runs wall CMOS clock (compatible with MSDOS),
 # activate following line by creating empty file /etc/wall_cmos_clock
