@@ -130,7 +130,6 @@ static int
 aac_disk_open(dev_t dev, int flags, int fmt, d_thread_t *td)
 {
 	struct aac_disk	*sc;
-	struct disklabel *label;
 
 	debug_called(4);
 
@@ -143,16 +142,10 @@ aac_disk_open(dev_t dev, int flags, int fmt, d_thread_t *td)
 	if (sc->ad_controller->aac_state & AAC_STATE_SUSPEND)
 		return(ENXIO);
 
-	/* build synthetic label */
-	label = &sc->ad_disk.d_label;
-	bzero(label, sizeof(*label));
-	label->d_type = DTYPE_ESDI;
-	label->d_secsize	= AAC_BLOCK_SIZE;
-	label->d_nsectors   = sc->ad_sectors;
-	label->d_ntracks	= sc->ad_heads;
-	label->d_ncylinders = sc->ad_cylinders;
-	label->d_secpercyl  = sc->ad_sectors * sc->ad_heads;
-	label->d_secperunit = sc->ad_size;
+	sc->ad_disk.d_sectorsize = AAC_BLOCK_SIZE;
+	sc->ad_disk.d_mediasize = (off_t)sc->ad_size * AAC_BLOCK_SIZE;
+	sc->ad_disk.d_fwsectors = sc->ad_sectors;
+	sc->ad_disk.d_fwheads = sc->ad_heads;
 
 	sc->ad_flags |= AAC_DISK_OPEN;
 	return (0);

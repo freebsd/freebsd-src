@@ -16,13 +16,6 @@
 #include <sys/ioccom.h>
 
 #ifdef _KERNEL
-#ifndef _SYS_DISKSLICE_H_
-#include <sys/diskslice.h>
-#endif /* _SYS_DISKSLICE_H_ */
-
-#ifndef _SYS_DISKLABEL
-#include <sys/disklabel.h>
-#endif /* _SYS_DISKLABEL */
 
 #include <sys/queue.h>
 
@@ -31,8 +24,15 @@ struct disk {
 	u_int			d_dsflags;
 	struct cdevsw		*d_devsw;
 	dev_t			d_dev;
+
+	/* These four fields must be valid while opened */
+	u_int			d_sectorsize;
+	off_t			d_mediasize;
+	u_int			d_fwsectors;
+	u_int			d_fwheads;
+
 	struct diskslices	*d_slice;
-	struct disklabel	d_label;
+	struct disklabel	*d_label;
 	LIST_ENTRY(disk)	d_list;
 	void			*d_softc;
 };

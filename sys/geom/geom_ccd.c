@@ -100,6 +100,7 @@
 #include <sys/stdint.h>
 #include <sys/sysctl.h>
 #include <sys/disk.h>
+#include <sys/disklabel.h>
 #include <sys/devicestat.h>
 #include <sys/fcntl.h>
 #include <sys/vnode.h>

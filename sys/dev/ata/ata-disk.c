@@ -208,14 +208,10 @@ ad_attach(struct ata_device *atadev)
     dev->si_iosize_max = adp->max_iosize;
     adp->dev = dev;
 
-    /* construct the disklabel */
-    bzero(&adp->disk.d_label, sizeof(struct disklabel));
-    adp->disk.d_label.d_secsize = DEV_BSIZE;
-    adp->disk.d_label.d_nsectors = adp->sectors;
-    adp->disk.d_label.d_ntracks = adp->heads;
-    adp->disk.d_label.d_ncylinders = adp->total_secs/(adp->heads*adp->sectors);
-    adp->disk.d_label.d_secpercyl = adp->sectors * adp->heads;
-    adp->disk.d_label.d_secperunit = adp->total_secs;
+    adp->disk.d_sectorsize = DEV_BSIZE;
+    adp->disk.d_mediasize = DEV_BSIZE * (off_t)adp->total_secs;
+    adp->disk.d_fwsectors = adp->sectors;
+    adp->disk.d_fwheads = adp->heads;
 
     atadev->driver = adp;
     atadev->flags = 0;

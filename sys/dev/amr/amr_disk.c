@@ -103,7 +103,6 @@ static int
 amrd_open(dev_t dev, int flags, int fmt, struct thread *td)
 {
     struct amrd_softc	*sc = (struct amrd_softc *)dev->si_drv1;
-    struct disklabel	*label;
 
     debug_called(1);
 	
@@ -114,15 +113,10 @@ amrd_open(dev_t dev, int flags, int fmt, struct thread *td)
     if (sc->amrd_controller->amr_state & AMR_STATE_SHUTDOWN)
 	return(ENXIO);
 
-    label = &sc->amrd_disk.d_label;
-    bzero(label, sizeof(*label));
-    label->d_type 	= DTYPE_SCSI;
-    label->d_secsize    = AMR_BLKSIZE;
-    label->d_nsectors   = sc->amrd_drive->al_sectors;
-    label->d_ntracks    = sc->amrd_drive->al_heads;
-    label->d_ncylinders = sc->amrd_drive->al_cylinders;
-    label->d_secpercyl  = sc->amrd_drive->al_sectors * sc->amrd_drive->al_heads;
-    label->d_secperunit = sc->amrd_drive->al_size;
+    sc->amrd_disk.d_sectorsize = AMR_BLKSIZE;
+    sc->amrd_disk.d_mediasize = (off_t)sc->amrd_drive->al_size * AMR_BLKSIZE;
+    sc->amrd_disk.d_fwsectors = sc->amrd_drive->al_sectors;
+    sc->amrd_disk.d_fwheads = sc->amrd_drive->al_heads;
 
     sc->amrd_flags |= AMRD_OPEN;
     return (0);
