@@ -37,7 +37,11 @@ install:
 .endif
 
 # Helper for src/etc/Makefile
-distribution: freebsd.cf
+distribution: freebsd.cf freebsd.mc
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 644 ${.CURDIR}/freebsd.mc \
+		${DESTDIR}/etc/mail/freebsd.mc
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 644 freebsd.cf \
+		${DESTDIR}/etc/mail/freebsd.cf
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 644 freebsd.cf \
 		${DESTDIR}/etc/mail/sendmail.cf
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 /dev/null \ 
