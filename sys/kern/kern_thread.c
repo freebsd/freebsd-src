@@ -1397,11 +1397,12 @@ thread_signal_add(struct thread *td, int sig)
 	sigset_t ss;
 	int error;
 
-	PROC_LOCK_ASSERT(td->td_proc, MA_OWNED);
+	p = td->td_proc;
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	mtx_assert(&p->p_sigacts->ps_mtx, MA_OWNED);
 	td = curthread;
 	ku = td->td_upcall;
-	p = td->td_proc;
-
+	mtx_unlock(&p->p_sigacts->ps_mtx);
 	PROC_UNLOCK(p);
 	error = copyin(&ku->ku_mailbox->km_sigscaught, &ss, sizeof(sigset_t));
 	if (error)
@@ -1414,6 +1415,7 @@ thread_signal_add(struct thread *td, int sig)
 		goto error;
 
 	PROC_LOCK(p);
+	mtx_lock(&p->p_sigacts->ps_mtx);
 	return;
 error:
 	PROC_LOCK(p);
