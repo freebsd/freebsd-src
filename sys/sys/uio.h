@@ -65,7 +65,7 @@ struct uio {
 	int	uio_resid;
 	enum	uio_seg uio_segflg;
 	enum	uio_rw uio_rw;
-	struct	thread *uio_td;;
+	struct	thread *uio_td;
 };
 
 /*
