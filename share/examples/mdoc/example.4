@@ -39,7 +39,8 @@
 .Nm example
 .Nd example device driver manual page
 .Sh SYNOPSIS
-.Cd pseudo-device example
+.Cd device example
+.Cd options EXAMPLE_DEBUG
 .Sh DESCRIPTION
 This is an example device driver manual page for
 the 
@@ -57,6 +58,10 @@ Example ioctl.
 .It Dv EIOCNULL
 Example ioctl.
 .El
+.Pp
+If the kernel is compiled with the
+.Dv EXAMPLE_DEBUG
+option, then additional debugging messages will be displayed.
 .Sh FILES
 .Bl -tag -width /dev/null -compact
 .It Pa /dev/null
