@@ -1,5 +1,6 @@
-#       $Id: Makefile.Vinum,v 1.1 1999/01/18 04:49:18 grog Exp grog $ 
+#       $Id: Makefile,v 1.7 1999/01/21 00:25:47 grog Exp $ 
 
+MAINTAINER  =  grog@FreeBSD.org
 SOURCE=	${.CURDIR}/../../dev/vinum
 
 .PATH:  ${SOURCE}
