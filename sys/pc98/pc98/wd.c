@@ -655,9 +655,6 @@ wdattach(struct isa_device *dvp)
 		}
 	}
 
-#ifdef PC98
-	outb(0x432,(du->dk_unit)%2);
-#endif
 #ifdef ATAPI
 	/*
 	 * Probe all free IDE units, searching for ATAPI drives.
