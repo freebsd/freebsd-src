@@ -2,7 +2,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.9 1995/11/29 10:48:36 julian Exp $
+ *	$Header: /u1/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.10 1995/12/08 11:17:33 julian Exp $
  */
 
 #include "param.h"
@@ -134,7 +134,19 @@ int	dev_finddir(char *orig_path, dn_p dirnode, int create, dn_p *dn_pp) /*proto*
 
 	path = pathbuf;
 	strcpy(path,orig_path);
-	while(*path == '/') path++;	/* always absolute, skip leading / */
+	/***************************************\
+	* always absolute, skip leading / 	*
+	*  get rid of / or // or /// etc.	*
+	\***************************************/
+	while(*path == '/') path++;
+	/***************************************\
+	* If nothing left, then parent was it..	*
+	\***************************************/
+	if ( *path == '\0' ) {
+		*dn_pp = dirnode;
+		return 0;
+	}
+
 	/***************************************\
 	* find the next segment of the name	*
 	\***************************************/
@@ -143,6 +155,7 @@ int	dev_finddir(char *orig_path, dn_p dirnode, int create, dn_p *dn_pp) /*proto*
 	{
 		cp++;
 	}
+
 	/***********************************************\
 	* Check to see if it's the last component	*
 	\***********************************************/
@@ -838,48 +851,7 @@ DBPRINT(("(New vnode)"));
 }
 
 /***********************************************************************\
-* UTILITY routine:							*
-* Return the major number for the cdevsw entry containing the given	*
-* address.								*
-\***********************************************************************/
-int get_cdev_major_num(caddr_t addr)	/*proto*/
-{
-	int	index = 0;
-
-	DBPRINT(("get_cdev_major_num\n"));
-	while (index < nchrdev)
-	{
-		if(((caddr_t)(cdevsw[index].d_open) == addr)
-		 ||((caddr_t)(cdevsw[index].d_read) == addr)
-		 ||((caddr_t)(cdevsw[index].d_ioctl) == addr))
-		{
-			return index;
-		}
-		index++;
-	}
-	return -1;
-}
-
-int get_bdev_major_num(caddr_t addr)	/*proto*/
-{
-	int	index = 0;
-
-	DBPRINT(("get_bdev_major_num\n"));
-	while (index < nblkdev)
-	{
-		if(((caddr_t)(bdevsw[index].d_open) == addr)
-		 ||((caddr_t)(bdevsw[index].d_strategy) == addr)
-		 ||((caddr_t)(bdevsw[index].d_ioctl) == addr))
-		{
-			return index;
-		}
-		index++;
-	}
-	return -1;
-}
-
-/***********************************************************************\
-* add a whole device, with not prototype.. make name element and node	*
+* add a whole device, with no prototype.. make name element and node	*
 \***********************************************************************/
 int dev_add_entry(char *name, dn_p parent, int type, union typeinfo *by, devnm_p *nm_pp) /*proto*/ 
 {
@@ -942,53 +914,6 @@ void *devfs_add_devsw(char *path,
 		major = bd->d_maj;
 		if ( major == -1 ) return NULL;
 		by.Bdev.bdevsw = bd;
-		by.Bdev.dev = makedev(major, minor);
-		if( dev_add_entry(name, dnp, DEV_BDEV, &by, &new_dev))
-			return NULL;
-		break;
-	default:
-		return NULL;
-	}
-	new_dev->dnp->gid = gid;
-	new_dev->dnp->uid = uid;
-	new_dev->dnp->mode |= perms;
-	return new_dev;
-}
-
-/***********************************************************************\
-* Add the named device entry into the given directory, and make it 	*
-* The appropriate type... (called (sometimes indirectly) by drivers..)	*
-\***********************************************************************/
-void *dev_add(char *path,
-		char *name,
-		void *funct,
-		int minor,
-		int chrblk,
-		uid_t uid,
-		gid_t gid,
-		int perms)
-{
-	devnm_p	new_dev;
-	dn_p	dnp;	/* devnode for parent directory */
-	int	retval;
-	int major ;
-	union	typeinfo by;
-
-	DBPRINT(("dev_add\n"));
-	retval = dev_finddir(path,NULL,1,&dnp);
-	if (retval) return 0;
-	switch(chrblk)
-	{
-	case	DV_CHR:
-		major = get_cdev_major_num(funct);
-		by.Cdev.cdevsw = cdevsw + major;
-		by.Cdev.dev = makedev(major, minor);
-		if( dev_add_entry(name, dnp, DEV_CDEV, &by,&new_dev))
-			return NULL;
-		break;
-	case	DV_BLK:
-		major = get_bdev_major_num(funct);
-		by.Bdev.bdevsw = bdevsw + major;
 		by.Bdev.dev = makedev(major, minor);
 		if( dev_add_entry(name, dnp, DEV_BDEV, &by, &new_dev))
 			return NULL;
