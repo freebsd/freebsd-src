@@ -42,6 +42,12 @@
  */
 
 /*
+ * Data types.
+ */
+typedef u_char		sa_family_t;
+typedef u_int32_t	socklen_t;
+
+/*
  * Types
  */
 #define	SOCK_STREAM	1		/* stream socket */
