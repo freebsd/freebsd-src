@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_xl.c,v 1.23 1999/02/01 21:25:52 wpaul Exp $
+ *	$Id: if_xl.c,v 1.24 1999/02/11 23:59:29 wpaul Exp $
  */
 
 /*
@@ -147,7 +147,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id: if_xl.c,v 1.23 1999/02/01 21:25:52 wpaul Exp $";
+	"$Id: if_xl.c,v 1.24 1999/02/11 23:59:29 wpaul Exp $";
 #endif
 
 /*
@@ -257,7 +257,6 @@ static void xl_wait(sc)
 	register int		i;
 
 	for (i = 0; i < XL_TIMEOUT; i++) {
-		DELAY(10);
 		if (!(CSR_READ_2(sc, XL_STATUS) & XL_STAT_CMDBUSY))
 			break;
 	}
