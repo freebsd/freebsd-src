@@ -91,8 +91,8 @@ kthread_create(void (*func)(void *), void *arg,
 	PROC_LOCK(p2);
 	p2->p_flag |= P_SYSTEM | P_KTHREAD;
 	p2->p_procsig->ps_flag |= PS_NOCLDWAIT;
+	_PHOLD(p2);
 	PROC_UNLOCK(p2);
-	PHOLD(p2);
 
 	/* set up arg0 for 'ps', et al */
 	va_start(ap, fmt);
@@ -119,7 +119,9 @@ kthread_exit(int ecode)
 {
 
 	PROCTREE_LOCK(PT_EXCLUSIVE);
+	PROC_LOCK(curproc);
 	proc_reparent(curproc, initproc);
+	PROC_UNLOCK(curproc);
 	PROCTREE_LOCK(PT_RELEASE);
 	exit1(curproc, W_EXITCODE(ecode, 0));
 }
@@ -135,10 +137,13 @@ kthread_suspend(struct proc *p, int timo)
 	 * Make sure this is indeed a system process and we can safely
 	 * use the p_siglist field.
 	 */
-	if ((p->p_flag & P_SYSTEM) == 0)
+	PROC_LOCK(p);
+	if ((p->p_flag & P_KTHREAD) == 0) {
+		PROC_UNLOCK(p);
 		return (EINVAL);
+	}
 	SIGADDSET(p->p_siglist, SIGSTOP);
-	return tsleep((caddr_t)&p->p_siglist, PPAUSE, "suspkt", timo);
+	return msleep(&p->p_siglist, &p->p_mtx, PPAUSE | PDROP, "suspkt", timo);
 }
 
 int
@@ -148,18 +153,24 @@ kthread_resume(struct proc *p)
 	 * Make sure this is indeed a system process and we can safely
 	 * use the p_siglist field.
 	 */
-	if ((p->p_flag & P_SYSTEM) == 0)
+	PROC_LOCK(p);
+	if ((p->p_flag & P_KTHREAD) == 0) {
+		PROC_UNLOCK(p);
 		return (EINVAL);
+	}
 	SIGDELSET(p->p_siglist, SIGSTOP);
-	wakeup((caddr_t)&p->p_siglist);
+	PROC_UNLOCK(p);
+	wakeup(&p->p_siglist);
 	return (0);
 }
 
 void
 kthread_suspend_check(struct proc *p)
 {
+	PROC_LOCK(p);
 	while (SIGISMEMBER(p->p_siglist, SIGSTOP)) {
-		wakeup((caddr_t)&p->p_siglist);
-		tsleep((caddr_t)&p->p_siglist, PPAUSE, "ktsusp", 0);
+		wakeup(&p->p_siglist);
+		msleep(&p->p_siglist, &p->p_mtx, PPAUSE, "ktsusp", 0);
 	}
+	PROC_UNLOCK(p);
 }
