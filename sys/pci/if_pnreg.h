@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_pnreg.h,v 1.4.2.7 1999/05/06 15:39:36 wpaul Exp $
+ *	$Id: if_pnreg.h,v 1.4.2.8 1999/05/28 18:53:35 wpaul Exp $
  */
 
 /*
@@ -393,7 +393,7 @@ struct pn_desc {
 #define PN_TX_LIST_CNT		128
 #define PN_MIN_FRAMELEN		60
 #define PN_FRAMELEN		1536
-#define PN_RXLEN		1518
+#define PN_RXLEN		1536
 
 /*
  * A tx 'super descriptor' is actually 16 regular descriptors
