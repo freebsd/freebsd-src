@@ -49,7 +49,7 @@
 /*
  * savectx: save process context, i.e. callee-saved registers
  *
- * Note that savectx() only works for processes other than curthread,
+ * Note that savectx() only works for threads other than curthread,
  * since cpu_switch will copy over the info saved here.  (It _can_
  * sanely be used for curthread iff cpu_switch won't be called again, e.g.
  * from if called from boot().)
@@ -88,57 +88,66 @@ IMPORT(Lev1map, 8)
 
 /*
  * cpu_throw()
- * Switch to a new task discarding our current state.
+ * Switch to a new thread discarding our current state.
+ *
+ * Arguments:
+ *	a0	'struct thread *' of the old thread
+ *	a1	'struct thread *' of the new thread
  */
 LEAF(cpu_throw, 0)
 	LDGP(pv)
-	mov	zero, s0			/* ensure newproc != oldproc */
 	CALL(Lcs1)
 	END(cpu_throw)
 
 /*
  * cpu_switch()
- * Find the highest priority process and resume it.
+ * Switch to a new thread saving the current state in the old thread.
+ *
+ * Arguments:
+ *	a0	'struct thread *' of the old thread
+ *	a1	'struct thread *' of the new thread
  */
 LEAF(cpu_switch, 1)
 	LDGP(pv)
 	/* do an inline savectx(), to save old context */
-	ldq	a0, PC_CURTHREAD(pcpup)
-	ldq	a1, TD_PCB(a0)
+	ldq	a2, TD_PCB(a0)
 	/* NOTE: ksp is stored by the swpctx */
-	stq	s0, PCB_CONTEXT+(0 * 8)(a1)	/* store s0 - s6 */
-	stq	s1, PCB_CONTEXT+(1 * 8)(a1)
-	stq	s2, PCB_CONTEXT+(2 * 8)(a1)
-	stq	s3, PCB_CONTEXT+(3 * 8)(a1)
-	stq	s4, PCB_CONTEXT+(4 * 8)(a1)
-	stq	s5, PCB_CONTEXT+(5 * 8)(a1)
-	stq	s6, PCB_CONTEXT+(6 * 8)(a1)
-	stq	ra, PCB_CONTEXT+(7 * 8)(a1)	/* store ra */
+	stq	s0, PCB_CONTEXT+(0 * 8)(a2)	/* store s0 - s6 */
+	stq	s1, PCB_CONTEXT+(1 * 8)(a2)
+	stq	s2, PCB_CONTEXT+(2 * 8)(a2)
+	stq	s3, PCB_CONTEXT+(3 * 8)(a2)
+	stq	s4, PCB_CONTEXT+(4 * 8)(a2)
+	stq	s5, PCB_CONTEXT+(5 * 8)(a2)
+	stq	s6, PCB_CONTEXT+(6 * 8)(a2)
+	stq	ra, PCB_CONTEXT+(7 * 8)(a2)	/* store ra */
 	call_pal PAL_OSF1_rdps			/* NOTE: doesn't kill a0 */
-	stq	v0, PCB_CONTEXT+(8 * 8)(a1)	/* store ps, for ipl */
+	stq	v0, PCB_CONTEXT+(8 * 8)(a2)	/* store ps, for ipl */
 
 	mov	a0, s0				/* s0 = old curthread */
-	mov	a1, s1				/* s1 = old pcb */
+	mov	a2, s1				/* s1 = old pcb */
+
+	/*
+	 * Deactivate the old address space before activating the
+	 * new one.  We need to do this before activating the
+	 * new thread's address space in the event that new
+	 * thread is using the same vmspace as the old.  If we
+	 * do this after we activate, then we might end up
+	 * incorrectly marking the pmap inactive!
+	 *
+	 * We don't deactivate if we came here from switch_exit
+	 * (old pmap no longer exists; vmspace has been freed).
+	 * oldproc will be NULL in this case.  We have actually
+	 * taken care of calling pmap_deactivate() in cpu_exit(),
+	 * before the vmspace went away.
+	 */
+	beq	a0, sw1
+	CALL(pmap_deactivate)			/* pmap_deactivate(oldthread) */
 
 sw1:
 	br	pv, Lcs1
 Lcs1:	LDGP(pv)
-	CALL(choosethread)			/* can't return NULL */
-	mov	v0, s2				/* s2 = new thread */
+	mov	a1, s2				/* s2 = new thread */
 	ldq	s3, TD_MD_PCBPADDR(s2)		/* s3 = new pcbpaddr */
-
-	/*
-	 * Check to see if we're switching to ourself.  If we are,
-	 * don't bother loading the new context.
-	 *
-	 * Note that even if we re-enter cpu_switch() from idle(),
-	 * s0 will still contain the old curthread value because any
-	 * users of that register between then and now must have
-	 * saved it.  Also note that switch_exit() ensures that
-	 * s0 is clear before jumping here to find a new process.
-	 */
-	cmpeq	s0, s2, t0			/* oldthread == newthread? */
-	bne	t0, Lcs7			/* Yes!  Skip! */
 
 #ifdef SMP
 	/*
@@ -150,27 +159,7 @@ Lcs1:	LDGP(pv)
 #endif
 
 	/*
-	 * Deactivate the old address space before activating the
-	 * new one.  We need to do this before activating the
-	 * new process's address space in the event that new
-	 * process is using the same vmspace as the old.  If we
-	 * do this after we activate, then we might end up
-	 * incorrectly marking the pmap inactive!
-	 *
-	 * We don't deactivate if we came here from switch_exit
-	 * (old pmap no longer exists; vmspace has been freed).
-	 * oldproc will be NULL in this case.  We have actually
-	 * taken care of calling pmap_deactivate() in cpu_exit(),
-	 * before the vmspace went away.
-	 */
-	beq	s0, Lcs6
-
-	mov	s0, a0				/* pmap_deactivate(oldthread) */
-	CALL(pmap_deactivate)			/* XXXKSE */
-
-Lcs6:
-	/*
-	 * Activate the new process's address space and perform
+	 * Activate the new thread's address space and perform
 	 * the actual context swap.
 	 */
 
@@ -180,18 +169,14 @@ Lcs6:
 	mov	s3, a0				/* swap the context */
 	SWITCH_CONTEXT
 
-Lcs7:
-	
 	/*
 	 * Now that the switch is done, update curthread and other
-	 * globals.  We must do this even if switching to ourselves
-	 * because we might have re-entered cpu_switch() from idle(),
-	 * in which case curthread would be NULL.
+	 * globals.
 	 */
 	stq	s2, PC_CURTHREAD(pcpup)		/* curthread = p */
 
 	/*
-	 * Now running on the new u struct.
+	 * Now running on the new pcb.
 	 * Restore registers and return.
 	 */
 	ldq	t0, TD_PCB(s2)

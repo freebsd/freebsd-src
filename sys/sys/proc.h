@@ -865,7 +865,7 @@ int	sigonstack(size_t sp);
 void	sleepinit(void);
 void	stopevent(struct proc *, u_int, u_int);
 void	cpu_idle(void);
-#if !defined(__alpha__) && !defined(__powerpc__) 
+#if !defined(__powerpc__) 
 void	cpu_switch(struct thread *old, struct thread *new);
 void	cpu_throw(struct thread *old, struct thread *new) __dead2;
 #else
