@@ -231,6 +231,7 @@ vendor GEOCAST		0x0a79	Geocast Network Systems
 vendor MOTOROLA		0x1063	Motorola
 vendor PLX		0x10b5	PLX
 vendor BELKIN2		0x1293  Belkin Components (second entry)
+vendor UMAX		0x1606	UMAX Data Systems, Inc.
 vendor INSIDEOUT	0x1608	Inside Out Networks
 vendor ENTREGA		0x1645	Entrega
 vendor ACTIONTEC	0x1668	Actiontec Electronics, Inc.
@@ -631,6 +632,9 @@ product TI UTUSB41		0x1446	UT-USB41 hub
 
 /* Thrustmaster products */
 product THRUST FUSION_PAD	0xa0a3	Fusion Digital Gamepad
+
+/* UMAX products */
+product UMAX ASTRA_2100U	0x0130	Astra 2100U Scanner
 
 /* Universal Access products */
 product UNIACCESS PANACHE	0x0101	Panache Surf USB ISDN Adapter
