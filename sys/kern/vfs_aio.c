@@ -27,6 +27,7 @@
 #include <sys/sysproto.h>
 #include <sys/filedesc.h>
 #include <sys/kernel.h>
+#include <sys/kthread.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/lock.h>
@@ -669,9 +670,6 @@ aio_daemon(void *uproc)
 
 	splx(s);
 
-	/* Make up a name for the daemon. */
-	strcpy(mycp->p_comm, "aiod");
-
 	/*
 	 * Get rid of our current filedescriptors.  AIOD's don't need any
 	 * filedescriptors, except as temporarily inherited from the client.
@@ -909,7 +907,7 @@ aio_daemon(void *uproc)
 						    mycp->p_vmspace->vm_refcnt);
 					}
 #endif
-					exit1(mycp, 0);
+					kthread_exit(0);
 				}
 			}
 			splx(s);
@@ -925,19 +923,19 @@ static int
 aio_newproc()
 {
 	int error;
-	struct proc *p, *np;
+	struct proc *p;
 
-	p = &proc0;
-	error = fork1(p, RFPROC|RFMEM|RFNOWAIT, &np);
+	error = kthread_create(aio_daemon, curproc, &p, RFNOWAIT, "aiod%d",
+			       num_aio_procs);
 	if (error)
 		return error;
-	cpu_set_fork_handler(np, aio_daemon, curproc);
 
 	/*
 	 * Wait until daemon is started, but continue on just in case to
 	 * handle error conditions.
 	 */
-	error = tsleep(np, PZERO, "aiosta", aiod_timeout);
+	error = tsleep(p, PZERO, "aiosta", aiod_timeout);
+
 	num_aio_procs++;
 
 	return error;
