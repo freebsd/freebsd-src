@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: apache.c,v 1.15 1996/03/18 15:27:41 jkh Exp $
+ * $Id: apache.c,v 1.16 1996/03/23 07:23:39 jkh Exp $
  *
  * Copyright (c) 1995
  *	Coranth Gryphon.  All rights reserved.
@@ -400,7 +400,7 @@ apacheOpenDialog(void)
 }
 
 int
-configApache(char *unused)
+configApache(dialogMenuItem *self)
 {
     int i;
     char company[64], file[128];

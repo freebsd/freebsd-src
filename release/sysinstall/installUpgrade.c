@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installUpgrade.c,v 1.17 1995/11/08 07:09:27 jkh Exp $
+ * $Id: installUpgrade.c,v 1.18 1995/11/17 14:17:12 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -185,7 +185,7 @@ traverseHitlist(HitList *h)
 }
 		
 int
-installUpgrade(char *str)
+installUpgrade(dialogMenuItem *self)
 {
     char *saved_etc = NULL;
     Boolean extractingBin = TRUE;
@@ -198,6 +198,7 @@ installUpgrade(char *str)
 	return RET_FAIL;
     }
 
+    variable_set2(SYSTEM_STATE, "upgrade");
     systemDisplayHelp("upgrade");
 
     if (msgYesNo("Given all that scary stuff you just read, are you sure you want to\n"
@@ -247,7 +248,7 @@ installUpgrade(char *str)
 	       "Once you're done in the label editor, press Q to return here for the next\n"
 	       "step.");
 
-    if (diskLabelEditor(NULL) == RET_FAIL) {
+    if (diskLabelEditor(self) == RET_FAIL) {
 	dialog_clear();
 	msgConfirm("The disk label editor failed to work properly!  Upgrade operation\n"
 		   "aborted.");
@@ -256,7 +257,7 @@ installUpgrade(char *str)
 
     /* Don't write out MBR info */
     variable_set2(DISK_PARTITIONED, "written");
-    if (diskLabelCommit("upgrade") == RET_FAIL) {
+    if (diskLabelCommit(self) == RET_FAIL) {
 	dialog_clear();
 	msgConfirm("Not all file systems were properly mounted.  Upgrade operation\n"
 		   "aborted.");
@@ -321,7 +322,7 @@ installUpgrade(char *str)
     }
 
     msgNotify("Beginning extraction of distributions..");
-    if (distExtractAll("upgrade") == RET_FAIL) {
+    if (distExtractAll(self) == RET_FAIL) {
 	if (extractingBin && (Dists & DIST_BIN)) {
 	    dialog_clear();
 	    msgConfirm("Hmmmm.  We couldn't even extract the bin distribution.  This upgrade\n"
@@ -340,7 +341,7 @@ installUpgrade(char *str)
 		  "/dev entries and such that a 2.1 system expects to see.  I'll also perform a\n"
 		  "few \"fixup\" operations to repair the effects of splatting a bin distribution\n"
 		  "on top of an existing system..");
-	if (installFixup("upgrade") == RET_FAIL) {
+	if (installFixup(self) == RET_FAIL) {
 	    dialog_clear();
 	    msgConfirm("Hmmmmm.  The fixups don't seem to have been very happy.\n"
 		       "You may wish to examine the system a little more closely when\n"

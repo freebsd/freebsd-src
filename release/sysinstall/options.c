@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: options.c,v 1.30 1996/03/23 07:21:30 jkh Exp $
+ * $Id: options.c,v 1.31 1996/03/24 12:06:13 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -197,7 +197,7 @@ fire(Option opt)
 }
 
 int
-optionsEditor(char *str)
+optionsEditor(dialogMenuItem *self)
 {
     int i, optcol, optrow, key;
     static int currOpt = 0;

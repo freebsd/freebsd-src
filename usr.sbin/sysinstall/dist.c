@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.38 1995/12/07 10:33:41 peter Exp $
+ * $Id: dist.c,v 1.39 1996/02/02 06:43:59 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -165,7 +165,7 @@ static Distribution XF86FontDistTable[] = {
 };
 
 int
-distReset(char *str)
+distReset(dialogMenuItem *self)
 {
     Dists = 0;
     SrcDists = 0;
@@ -176,7 +176,7 @@ distReset(char *str)
 }
 
 int
-distSetDeveloper(char *str)
+distSetDeveloper(dialogMenuItem *self)
 {
     distReset(NULL);
     Dists = _DIST_DEVELOPER;
@@ -185,7 +185,7 @@ distSetDeveloper(char *str)
 }
 
 int
-distSetXDeveloper(char *str)
+distSetXDeveloper(dialogMenuItem *self)
 {
     distReset(NULL);
     Dists = _DIST_DEVELOPER | DIST_XF86;
@@ -198,7 +198,7 @@ distSetXDeveloper(char *str)
 }
 
 int
-distSetKernDeveloper(char *str)
+distSetKernDeveloper(dialogMenuItem *self)
 {
     distReset(NULL);
     Dists = _DIST_DEVELOPER;
@@ -207,7 +207,7 @@ distSetKernDeveloper(char *str)
 }
 
 int
-distSetUser(char *str)
+distSetUser(dialogMenuItem *self)
 {
     distReset(NULL);
     Dists = _DIST_USER;
@@ -215,7 +215,7 @@ distSetUser(char *str)
 }
 
 int
-distSetXUser(char *str)
+distSetXUser(dialogMenuItem *self)
 {
     distReset(NULL);
     Dists = _DIST_USER;
@@ -227,7 +227,7 @@ distSetXUser(char *str)
 }
 
 int
-distSetMinimum(char *str)
+distSetMinimum(dialogMenuItem *self)
 {
     distReset(NULL);
     Dists = DIST_BIN;
@@ -235,7 +235,7 @@ distSetMinimum(char *str)
 }
 
 int
-distSetEverything(char *str)
+distSetEverything(dialogMenuItem *self)
 {
     Dists = DIST_ALL;
     SrcDists = DIST_SRC_ALL;
@@ -246,54 +246,47 @@ distSetEverything(char *str)
 }
 
 int
-distSetCustom(char *str)
+distSetDES(dialogMenuItem *self)
 {
-    /* These *ALL* have to be set at once.  It's for power users only! :) */
-    if (sscanf(str, "%d %d %d %d %d %d",
-	       &Dists, &DESDists, &SrcDists, &XF86Dists, &XF86ServerDists, &XF86FontDists) != 6) {
-	dialog_clear();
-	msgConfirm("Warning:  A `%s' set was configured which did not set all\n"
-		   "distributions explicitly.  Some distributions will default to\n"
-		   "unselected as a result.", str);
+    if (dmenuOpenSimple(&MenuDESDistributions)) {
+	if (DESDists) {
+	    if (DESDists & DIST_DES_KERBEROS)
+		DESDists |= DIST_DES_DES;
+	    Dists |= DIST_DES;
+	}
+	return RET_SUCCESS;
     }
-    return RET_SUCCESS;
+    else
+	return RET_FAIL;
 }
 
 int
-distSetDES(char *str)
+distSetSrc(dialogMenuItem *self)
 {
-    dmenuOpenSimple(&MenuDESDistributions);
-    if (DESDists) {
-	if (DESDists & DIST_DES_KERBEROS)
-	    DESDists |= DIST_DES_DES;
-	Dists |= DIST_DES;
+    if (dmenuOpenSimple(&MenuSrcDistributions)) {
+	if (SrcDists)
+	    Dists |= DIST_SRC;
+	return RET_SUCCESS;
     }
-    return RET_SUCCESS;
+    return RET_FAIL;
 }
 
 int
-distSetSrc(char *str)
+distSetXF86(dialogMenuItem *self)
 {
-    dmenuOpenSimple(&MenuSrcDistributions);
-    if (SrcDists)
-	Dists |= DIST_SRC;
-    return RET_SUCCESS;
-}
-
-int
-distSetXF86(char *str)
-{
-    dmenuOpenSimple(&MenuXF86Select);
-    if (XF86ServerDists)
-	XF86Dists |= DIST_XF86_SERVER;
-    if (XF86FontDists)
-	XF86Dists |= DIST_XF86_FONTS;
-    if (XF86Dists)
-	Dists |= DIST_XF86;
-    if (isDebug())
-	msgDebug("SetXF86 Masks: Server: %0x, Fonts: %0x, XDists: %0x, Dists: %0x\n",
-		 XF86ServerDists, XF86FontDists, XF86Dists, Dists);
-    return RET_SUCCESS;
+    if (dmenuOpenSimple(&MenuXF86Select)) {
+	if (XF86ServerDists)
+	    XF86Dists |= DIST_XF86_SERVER;
+	if (XF86FontDists)
+	    XF86Dists |= DIST_XF86_FONTS;
+	if (XF86Dists)
+	    Dists |= DIST_XF86;
+	if (isDebug())
+	    msgDebug("SetXF86 Masks: Server: %0x, Fonts: %0x, XDists: %0x, Dists: %0x\n",
+		     XF86ServerDists, XF86FontDists, XF86Dists, Dists);
+	return RET_SUCCESS;
+    }
+    return RET_FAIL;
 }
 
 static Boolean
@@ -477,7 +470,7 @@ printSelected(char *buf, int selected, Distribution *me)
 }
 
 int
-distExtractAll(char *ptr)
+distExtractAll(dialogMenuItem *self)
 {
     int retries = 0;
     char buf[512];
@@ -485,7 +478,7 @@ distExtractAll(char *ptr)
     /* First try to initialize the state of things */
     if (!mediaDevice->init(mediaDevice))
 	return RET_FAIL;
-    if (!Dists && ptr) {
+    if (!Dists) {
 	msgConfirm("You haven't selected any distributions to extract.");
 	return RET_FAIL;
     }

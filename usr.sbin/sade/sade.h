@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.47 1996/03/21 09:30:15 jkh Exp $
+ * $Id: sysinstall.h,v 1.48 1996/03/23 07:21:31 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -56,14 +56,6 @@
 #include "version.h"
 
 /*** Defines ***/
-
-/* Bitfields for menu options */
-#define DMENU_NORMAL_TYPE	0x1	/* Normal dialog menu		*/
-#define DMENU_RADIO_TYPE	0x2	/* Radio dialog menu		*/
-#define DMENU_MULTIPLE_TYPE	0x4	/* Multiple choice menu		*/
-
-/* XXX This goes away soon XXX */
-#define DMENU_SELECTION_RETURNS 0x8	/* Immediate return on item selection */
 
 /* variable limits */
 #define VAR_NAME_MAX		128
@@ -153,36 +145,15 @@ typedef unsigned int Boolean;
 typedef struct disk Disk;
 typedef struct chunk Chunk;
 
-typedef enum {
-    DMENU_DISPLAY_FILE,			/* Display a file's contents	*/
-    DMENU_SUBMENU,			/* Recurse into another menu	*/
-    DMENU_SYSTEM_COMMAND,		/* Run shell commmand		*/
-    DMENU_SYSTEM_COMMAND_BOX,		/* Same as above, but in prgbox	*/
-    DMENU_SET_VARIABLE,			/* Set an environment/system var */
-    DMENU_SET_FLAG,			/* Set flag in an unsigned int	*/
-    DMENU_SET_VALUE,			/* Set unsigned int to value	*/
-    DMENU_CALL,				/* Call back a C function	*/
-    DMENU_CANCEL,			/* Cancel out of this menu	*/
-    DMENU_NOP,				/* Do nothing special for item	*/
-} DMenuItemType;
-
-typedef struct _dmenuItem {
-    char *title;			/* Our title			*/
-    char *prompt;			/* Our prompt			*/
-    DMenuItemType type;			/* What type of item we are	*/
-    void *ptr;				/* Generic data ptr		*/
-    int parm;				/* Parameter for above		*/
-    Boolean disabled;			/* Are we temporarily disabled?	*/
-    char * (*check)(struct _dmenuItem *); /* Our state                  */
-} DMenuItem;
+typedef enum { DMENU_NORMAL_TYPE, DMENU_RADIO_TYPE, DMENU_CHECKLIST_TYPE } dmenuType;
 
 typedef struct _dmenu {
-    unsigned int options;		/* What sort of menu we are	*/
+    dmenuType type;			/* What sort of menu we are	*/
     char *title;			/* Our title			*/
     char *prompt;			/* Our prompt			*/
     char *helpline;			/* Line of help at bottom	*/
     char *helpfile;			/* Help file for "F1"		*/
-    DMenuItem items[0];			/* Array of menu items		*/
+    dialogMenuItem items[0];		/* Array of menu items		*/
 } DMenu;
 
 /* A sysconfig variable */
@@ -358,10 +329,10 @@ extern DMenu		MenuHTMLDoc;		/* HTML Documentation menu			*/
 /*** Prototypes ***/
 
 /* apache.c */
-extern int	configApache(char *str);
+extern int	configApache(dialogMenuItem *self);
 
 /* anonFTP.c */
-extern int	configAnonFTP(char *unused);
+extern int	configAnonFTP(dialogMenuItem *self);
 
 /* attrs.c */
 extern char	*attr_match(Attribs *attr, char *name);
@@ -384,19 +355,15 @@ extern void	command_func_add(char *key, commandFunc func, void *data);
 extern int	configFstab(void);
 extern void	configSysconfig(void);
 extern void	configResolv(void);
-extern int	configPorts(char *str);
-extern int	configPackages(char *str);
-extern int	configSaverTimeout(char *str);
-extern int	configNTP(char *str);
-extern int	configRoutedFlags(char *str);
+extern int	configPorts(dialogMenuItem *self);
+extern int	configPackages(dialogMenuItem *self);
+extern int	configSaverTimeout(dialogMenuItem *self);
+extern int	configNTP(dialogMenuItem *self);
+extern int	configXFree86(dialogMenuItem *self);
+extern int	configRoutedFlags(dialogMenuItem *self);
 
 /* crc.c */
 extern int	crc(int, unsigned long *, unsigned long *);
-
-/* decode.c */
-extern DMenuItem *decode(DMenu *menu, char *name);
-extern int	dispatch(DMenuItem *tmp, char *name);
-extern int	decode_and_dispatch_multiple(DMenu *menu, char *names);
 
 /* devices.c */
 extern DMenu	*deviceCreateMenu(DMenu *menu, DeviceType type, int (*hook)());
@@ -414,34 +381,42 @@ extern Boolean	dummyClose(Device *dev, int fd);
 extern void	dummyShutdown(Device *dev);
 
 /* disks.c */
-extern int	diskPartitionEditor(char *unused);
-extern int	diskPartitionWrite(char *unused);
+extern int	diskPartitionEditor(dialogMenuItem *self);
+extern int	diskPartitionWrite(dialogMenuItem *self);
 
 /* dist.c */
-extern int	distReset(char *str);
 extern int	distSetCustom(char *str);
-extern int	distSetDeveloper(char *str);
-extern int	distSetXDeveloper(char *str);
-extern int	distSetKernDeveloper(char *str);
-extern int	distSetUser(char *str);
-extern int	distSetXUser(char *str);
-extern int	distSetMinimum(char *str);
-extern int	distSetEverything(char *str);
-extern int	distSetDES(char *str);
-extern int	distSetSrc(char *str);
-extern int	distSetXF86(char *str);
-extern int	distExtractAll(char *str);
+extern int	distReset(dialogMenuItem *self);
+extern int	distSetDeveloper(dialogMenuItem *self);
+extern int	distSetXDeveloper(dialogMenuItem *self);
+extern int	distSetKernDeveloper(dialogMenuItem *self);
+extern int	distSetUser(dialogMenuItem *self);
+extern int	distSetXUser(dialogMenuItem *self);
+extern int	distSetMinimum(dialogMenuItem *self);
+extern int	distSetEverything(dialogMenuItem *self);
+extern int	distSetDES(dialogMenuItem *self);
+extern int	distSetSrc(dialogMenuItem *self);
+extern int	distSetXF86(dialogMenuItem *self);
+extern int	distExtractAll(dialogMenuItem *self);
 
 /* dmenu.c */
+extern int	dmenuDisplayFile(dialogMenuItem *tmp);
+extern int	dmenuSubmenu(dialogMenuItem *tmp);
+extern int	dmenuSystemCommand(dialogMenuItem *tmp);
+extern int	dmenuSystemCommandBox(dialogMenuItem *tmp);
+extern int	dmenuCancel(dialogMenuItem *tmp);
+extern int	dmenuSetVariable(dialogMenuItem *tmp);
+extern int	dmenuSetFlag(dialogMenuItem *tmp);
+extern int	dmenuSetValue(dialogMenuItem *tmp);
 extern Boolean	dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max);
 extern Boolean	dmenuOpenSimple(DMenu *menu);
-extern char     *dmenuVarCheck(DMenuItem *item);
-extern char     *dmenuFlagCheck(DMenuItem *item);
-extern char     *dmenuRadioCheck(DMenuItem *item);
+extern int	dmenuVarCheck(dialogMenuItem *item);
+extern int	dmenuFlagCheck(dialogMenuItem *item);
+extern int	dmenuRadioCheck(dialogMenuItem *item);
 
 /* doc.c */
-extern int	docBrowser(char *junk);
-extern int	docShowDocument(char *str);
+extern int	docBrowser(dialogMenuItem *self);
+extern int	docShowDocument(dialogMenuItem *self);
 
 /* dos.c */
 extern Boolean	mediaInitDOS(Device *dev);
@@ -474,27 +449,26 @@ void		index_print(PkgNodePtr top, int level);
 int		index_extract(Device *dev, PkgNodePtr top, PkgNodePtr plist);
 
 /* install.c */
-extern int	installCommit(char *str);
-extern int	installExpress(char *str);
-extern int	installNovice(char *str);
-extern int	installFixit(char *str);
-extern int	installFixup(char *str);
-extern int	installUpgrade(char *str);
-extern int	installPreconfig(char *str);
-extern int	installFilesystems(char *str);
-extern int	installVarDefaults(char *str);
+extern int	installCommit(dialogMenuItem *self);
+extern int	installExpress(dialogMenuItem *self);
+extern int	installNovice(dialogMenuItem *self);
+extern int	installFixit(dialogMenuItem *self);
+extern int	installFixup(dialogMenuItem *self);
+extern int	installUpgrade(dialogMenuItem *self);
+extern int	installFilesystems(dialogMenuItem *self);
+extern int	installVarDefaults(dialogMenuItem *self);
 extern Boolean	copySelf(void);
 extern Boolean	rootExtract(void);
 
 /* installFinal.c */
-extern int	configGated(char *unused);
-extern int	configSamba(char *unused);
-extern int	configPCNFSD(char *unused);
-extern int	configNFSServer(char *unused);
+extern int	configGated(dialogMenuItem *self);
+extern int	configSamba(dialogMenuItem *self);
+extern int	configPCNFSD(dialogMenuItem *self);
+extern int	configNFSServer(dialogMenuItem *self);
 
 /* label.c */
-extern int	diskLabelEditor(char *str);
-extern int	diskLabelCommit(char *str);
+extern int	diskLabelEditor(dialogMenuItem *self);
+extern int	diskLabelCommit(dialogMenuItem *self);
 
 /* lndir.c */
 extern int	lndir(char *from, char *to);
@@ -515,19 +489,19 @@ extern u_char		default_scrnmap[];
 
 /* media.c */
 extern char	*cpioVerbosity(void);
-extern int	mediaSetCDROM(char *str);
-extern int	mediaSetFloppy(char *str);
-extern int	mediaSetDOS(char *str);
-extern int	mediaSetTape(char *str);
-extern int	mediaSetFTP(char *str);
-extern int	mediaSetFTPActive(char *str);
-extern int	mediaSetFTPPassive(char *str);
-extern int	mediaSetUFS(char *str);
-extern int	mediaSetNFS(char *str);
-extern int	mediaSetFtpOnError(char *str);
-extern int	mediaSetFtpUserPass(char *str);
-extern int	mediaSetCPIOVerbosity(char *str);
-extern int	mediaGetType(char *str);
+extern int	mediaSetCDROM(dialogMenuItem *self);
+extern int	mediaSetFloppy(dialogMenuItem *self);
+extern int	mediaSetDOS(dialogMenuItem *self);
+extern int	mediaSetTape(dialogMenuItem *self);
+extern int	mediaSetFTP(dialogMenuItem *self);
+extern int	mediaSetFTPActive(dialogMenuItem *self);
+extern int	mediaSetFTPPassive(dialogMenuItem *self);
+extern int	mediaSetUFS(dialogMenuItem *self);
+extern int	mediaSetNFS(dialogMenuItem *self);
+extern int	mediaSetFtpOnError(dialogMenuItem *self);
+extern int	mediaSetFtpUserPass(dialogMenuItem *self);
+extern int	mediaSetCPIOVerbosity(dialogMenuItem *self);
+extern int	mediaGetType(dialogMenuItem *self);
 extern Boolean	mediaExtractDist(char *dir, int fd);
 extern Boolean	mediaExtractDistBegin(char *dir, int *fd, int *zpid, int *cpic);
 extern Boolean	mediaExtractDistEnd(int zpid, int cpid);
@@ -579,7 +553,7 @@ extern int	mediaGetNFS(Device *dev, char *file, Boolean probe);
 extern void	mediaShutdownNFS(Device *dev);
 
 /* options.c */
-extern int	optionsEditor(char *str);
+extern int	optionsEditor(dialogMenuItem *self);
 
 /* package.c */
 extern int	package_add(char *name);
@@ -598,8 +572,6 @@ extern void	systemChangeTerminal(char *color, const u_char c_termcap[], char *mo
 extern void	systemChangeScreenmap(const u_char newmap[]);
 extern void	systemCreateHoloshell(void);
 extern int	vsystem(char *fmt, ...);
-extern int	docBrowser(char *junk);
-extern int	docShowDocument(char *str);
 
 /* tape.c */
 extern char	*mediaTapeBlocksize(void);
@@ -609,7 +581,7 @@ extern void	mediaShutdownTape(Device *dev);
 
 /* tcpip.c */
 extern int	tcpOpenDialog(Device *dev);
-extern int	tcpMenuSelect(char *str);
+extern int	tcpMenuSelect(dialogMenuItem *self);
 extern int	tcpInstallDevice(char *str);
 extern Boolean	tcpDeviceSelect(void);
 
