@@ -60,10 +60,8 @@ freebsd-questions        User questions
 </verb>
 
 <bf>Technical lists:</bf> The following lists are for technical discussion.
-You should read the <url
-url="http://www.freebsd.org/handbook/eresources:charter" name="charter">
-for each list carefully before joining or sending mail to one as there are firm
-guidelines for their use and content.
+You should read the charter for each list carefully before joining or
+sending mail to one as there are firm guidelines for their use and content.
 <verb>
 List                     Purpose
 ----------------------------------------------------------------------
@@ -167,13 +165,14 @@ for infrequent traffic.
 <sect1><heading>List charters<label id="eresources:charters"></heading>
 
 <p><bf>All</bf>FreeBSD mailing lists have certain basic rules
-which must be adhered to by anyone using them.  Failure to adhere
-to these rules will result in two (2) written warnings from the
+which must be adhered to by anyone using them.  Failure to comply
+with these guidelines will result in two (2) written warnings from the
 FreeBSD <url url="mailto:postmaster@freebsd.org" name="Postmaster">,
 after which, on a third offense, the poster will removed from all
-FreeBSD mailing lists and filtered against further posting to them.
+FreeBSD mailing lists and filtered from further posting to them.
 We regret that such rules and measures are necessary at all, but
-today's Internet is a pretty harsh environment, it would seem.
+today's Internet is a pretty harsh environment, it would seem, and
+many fail to appreciate just how fragile some of its mechanisms are.
 
 <p>Rules of the road:
 <itemize>
@@ -188,9 +187,9 @@ today's Internet is a pretty harsh environment, it would seem.
 
 <item>No posting should be made to more than 2 mailing lists, and only
       to 2 when a clear and obvious need to post to both lists exists.
-      In most cases, there is already a great deal of subscriber overlap
+      For most lists, there is already a great deal of subscriber overlap
       and except for the most esoteric mixes (say "-stable & -scsi"), there
-      really is no reason to post to more than one mailing list at a time.
+      really is no reason to post to more than one list at a time.
       If a message is sent to you in such a way that multiple mailing lists
       appear on the Cc line then the cc line should also be trimmed before
       sending it out again.
@@ -201,12 +200,12 @@ today's Internet is a pretty harsh environment, it would seem.
       not allowed, and that includes users and developers alike.  Gross
       breaches of netiquette, like excerpting or reposting private mail
       when permission to do so was not and would not be forthcoming, 
-      is frowned upon but not specifically enforced.  <bf>However</bf>,
+      are frowned upon but not specifically enforced.  <bf>However</bf>,
       there are also very few cases where such content would fit within the
       charter of a list and it would therefore probably rate a warning
       (or ban) on that basis alone.</item>
 
-<item>Advertising of non-FreeBSD related products or services are
+<item>Advertising of non-FreeBSD related products or services is
       strictly prohibited and will result in an immediate ban if it
       is clear that the offender is advertising by spam.</item>
 
