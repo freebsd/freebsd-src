@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.64 1996/04/23 04:47:02 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.29.2.12 1996/04/28 19:33:58 gibbs Exp $
  */
 /*
  * TODO:
@@ -288,11 +288,11 @@ static struct {
 	{ 0x100,  50, "20.0"  },
 	{ 0x110,  62, "16.0"  },
 	{ 0x120,  75, "13.4"  },
-	{ 0x130,  87, "11.4"  },
-	{ 0x140, 100, "10.0"  },
-	{ 0x150, 112,  "8.8"  },
-	{ 0x160, 125,  "8.0"  },
-	{ 0x170, 137,  "7.2"  },
+	{ 0x130, 175,  "5.7"  },
+	{ 0x140, 200,  "5.0"  },
+	{ 0x150, 225,  "4.4"  },
+	{ 0x160, 250,  "4.0"  },
+	{ 0x170, 275,  "3.6"  },
 	{ 0x000, 100, "10.0"  },
 	{ 0x010, 125,  "8.0"  },
 	{ 0x020, 150,  "6.67" },
@@ -367,16 +367,14 @@ ahc_reset(iobase)
 
 	/* Retain the IRQ type accross the chip reset */
 	hcntrl = (inb(HCNTRL + iobase) & IRQMS) | INTEN;
+
 	outb(HCNTRL + iobase, CHIPRST | PAUSE);
 	/*
 	 * Ensure that the reset has finished
 	 */
 	wait = 1000;
-	while (wait--) {
+	while (--wait && !(inb(HCNTRL + iobase) & CHIPRSTACK))
 		DELAY(1000);
-		if(!(inb(HCNTRL + iobase) & CHIPRST))
-			break;
-	}
 	if(wait == 0) {
 		printf("ahc at 0x%lx: WARNING - Failed chip reset!  "
 		       "Trying to initialize anyway.\n", iobase);
@@ -405,14 +403,8 @@ ahc_scsirate(ahc, scsirate, period, offset, target )
 			 * enabled and vice-versa.
 			 */
 			if (ahc->type & AHC_ULTRA) {
-				if (!(ahc_syncrates[i].sxfr & ULTRA_SXFR)) {
-					printf("ahc%d: target %d requests "
-					       "%sMHz transfers, but adapter "
-					       "in Ultra mode can only sync at "
-					       "7.2MHz or above\n", ahc->unit, 
-					       target, ahc_syncrates[i].rate);
+				if (!(ahc_syncrates[i].sxfr & ULTRA_SXFR))
 					break; /* Use Async */
-				}
 			}
 			else {
 				if (ahc_syncrates[i].sxfr & ULTRA_SXFR) {
@@ -454,7 +446,7 @@ ahc_attach(ahc)
 	struct scsibus_data *scbus;
 
 	/*
-	 * fill in the prototype scsi_link.
+	 * fill in the prototype scsi_links.
 	 */
 	ahc->sc_link.adapter_unit = ahc->unit;
 	ahc->sc_link.adapter_targ = ahc->our_id;
@@ -465,6 +457,14 @@ ahc_attach(ahc)
 	ahc->sc_link.flags = DEBUGLEVEL;
 	ahc->sc_link.fordriver = 0;
 
+	if(ahc->type & AHC_TWIN) {
+		/* Configure the second scsi bus */
+		ahc->sc_link_b = ahc->sc_link;
+		ahc->sc_link_b.adapter_targ = ahc->our_id_b;
+		ahc->sc_link_b.adapter_bus = 1;
+		ahc->sc_link_b.fordriver = (void *)SELBUSB;
+	}
+
 	/*
 	 * Prepare the scsibus_data area for the upperlevel
 	 * scsi code.
@@ -472,7 +472,8 @@ ahc_attach(ahc)
 	scbus = scsi_alloc_bus();
 	if(!scbus) 
 		return 0;
-	scbus->adapter_link = &ahc->sc_link;
+	scbus->adapter_link = (ahc->flags & AHC_CHANNEL_B_PRIMARY) ?
+				&ahc->sc_link_b : &ahc->sc_link;
 	if(ahc->type & AHC_WIDE)
 		scbus->maxtarg = 15;
 	
@@ -480,23 +481,22 @@ ahc_attach(ahc)
 	 * ask the adapter what subunits are present
 	 */
 	if(bootverbose)
-		printf("ahc%d: Probing channel A\n", ahc->unit);
+		printf("ahc%d: Probing channel %c\n", ahc->unit,
+			(ahc->flags & AHC_CHANNEL_B_PRIMARY) ? 'B' : 'A');
 	scsi_attachdevs(scbus);
 	scbus = NULL;	/* Upper-level SCSI code owns this now */
+
 	if(ahc->type & AHC_TWIN) {
-		/* Configure the second scsi bus */
-		ahc->sc_link_b = ahc->sc_link;
-		ahc->sc_link_b.adapter_targ = ahc->our_id_b;
-		ahc->sc_link_b.adapter_bus = 1;
-		ahc->sc_link_b.fordriver = (void *)SELBUSB;
 		scbus =  scsi_alloc_bus();
 		if(!scbus) 
 			return 0;
-		scbus->adapter_link = &ahc->sc_link_b;
+		scbus->adapter_link = (ahc->flags & AHC_CHANNEL_B_PRIMARY) ? 
+					&ahc->sc_link : &ahc->sc_link_b;
 		if(ahc->type & AHC_WIDE)
 			scbus->maxtarg = 15;
 		if(bootverbose)
-			printf("ahc%d: Probing Channel B\n", ahc->unit);
+			printf("ahc%d: Probing Channel %c\n", ahc->unit,
+			       (ahc->flags & AHC_CHANNEL_B_PRIMARY) ? 'A': 'B');
 		scsi_attachdevs(scbus);
 		scbus = NULL;	/* Upper-level SCSI code owns this now */
 	}
@@ -798,6 +798,9 @@ ahc_intr(arg)
                     case NO_MATCH:
 			if(ahc->flags & AHC_PAGESCBS) {
 				/* SCB Page-in request */
+				u_char tag;
+				u_char next;
+				u_char disc_scb;
 				struct scb *outscb;
 				u_char arg_1 = inb(ARG_1 + iobase);
 				if(arg_1 == SCB_LIST_NULL) {
@@ -812,8 +815,9 @@ ahc_intr(arg)
 				/*
 				 * Now to pick the SCB to page out.
 				 * Either take a free SCB, an assigned SCB,
-				 * an SCB that just completed or the first
-				 * one on the disconnected SCB list.
+				 * an SCB that just completed, the first
+				 * one on the disconnected SCB list, or
+				 * as a last resort a queued SCB.
 				 */
 				if(ahc->free_scbs.stqh_first) {
 					outscb = ahc->free_scbs.stqh_first; 
@@ -826,8 +830,9 @@ ahc_intr(arg)
 					outb(SCBPTR + iobase, scb->position);
 					ahc_send_scb(ahc, scb);
 					scb->flags &= ~SCB_PAGED_OUT;
+					goto pagein_done;
 				}
-				else if(ahc->assigned_scbs.stqh_first) {
+				if(ahc->assigned_scbs.stqh_first) {
 					outscb = ahc->assigned_scbs.stqh_first; 
 					STAILQ_REMOVE_HEAD(&ahc->assigned_scbs,
 							   links);
@@ -839,8 +844,9 @@ ahc_intr(arg)
 					outb(SCBPTR + iobase, scb->position);
 					ahc_send_scb(ahc, scb);
 					scb->flags &= ~SCB_PAGED_OUT;
+					goto pagein_done;
 				}
-				else if(intstat & CMDCMPLT) {
+				if(intstat & CMDCMPLT) {
 					int   scb_index;
 
 					printf("PIC\n");
@@ -854,7 +860,7 @@ ahc_intr(arg)
 						printf("ahc%d: WARNING "
 						       "no command for scb %d (cmdcmplt)\n",
 							ahc->unit, scb_index );
-						goto use_disconnected_scb;
+						/* Fall through in hopes of finding another SCB */
 					}
 					else {
 						scb->position = outscb->position;
@@ -864,18 +870,11 @@ ahc_intr(arg)
 						scb->flags &= ~SCB_PAGED_OUT;
 						untimeout(ahc_timeout, (caddr_t)outscb);
 						ahc_done(ahc, outscb);
+						goto pagein_done;
 					}
 				}
-				else {
-					u_char tag;
-					u_char next;
-					u_char disc_scb;
-use_disconnected_scb:
-					disc_scb =
-						inb(DISCONNECTED_SCBH + iobase);
-					if(disc_scb == SCB_LIST_NULL)
-						panic("Page-in request with no "
-						      "candidates");
+				disc_scb = inb(DISCONNECTED_SCBH + iobase);
+				if(disc_scb != SCB_LIST_NULL) {
 					outb(SCBPTR + iobase, disc_scb);
 					tag = inb(SCB_TAG + iobase); 
 					outscb = ahc->scbarray[tag];
@@ -889,6 +888,52 @@ use_disconnected_scb:
 					outb(DISCONNECTED_SCBH + iobase, next);
 					ahc_page_scb(ahc, outscb, scb);
 				}
+				else if(inb(QINCNT + iobase) & ahc->qcntmask) {
+					/* Pull one of our queued commands as a last resort */
+					disc_scb = inb(QINFIFO + iobase);
+					outb(SCBPTR + iobase, disc_scb);
+					tag = inb(SCB_TAG + iobase);
+					outscb = ahc->scbarray[tag];
+					if((outscb->control & 0x23) != TAG_ENB) {
+						/*
+						 * This is not a simple tagged command
+						 * so its position in the queue
+						 * matters.  Take the command at the
+						 * end of the queue instead.
+						 */
+						int i;
+						int saved_queue[AHC_SCB_MAX];
+						int queued = inb(QINCNT + iobase) & ahc->qcntmask;
+
+						/* Count the command we removed already */
+						saved_queue[0] = disc_scb;
+						queued++;
+
+						/* Empty the input queue */
+						for (i = 1; i < queued; i++) 
+							saved_queue[i] = inb(QINFIFO + iobase);
+
+						/* Put everyone back put the last entry */
+						queued--;
+						for (i = 0; i < queued; i++)
+							outb (QINFIFO + iobase, saved_queue[i]);
+
+						outb(SCBPTR + iobase, saved_queue[queued]);
+						tag = inb(SCB_TAG + iobase);
+						outscb = ahc->scbarray[tag];
+					}	
+					untimeout(ahc_timeout, (caddr_t)outscb);
+					scb->position = outscb->position;
+					outscb->position = SCB_LIST_NULL;
+					STAILQ_INSERT_HEAD(&ahc->waiting_scbs,
+							   outscb, links);
+					outscb->flags = SCB_WAITINGQ;
+					ahc_send_scb(ahc, scb);
+					scb->flags &= ~SCB_PAGED_OUT;
+				}
+				else
+					panic("Page-in request with no candidates");
+pagein_done:
 				outb(RETURN_1 + iobase, SCB_PAGEDIN);
 			}
 			else {
@@ -1645,6 +1690,7 @@ ahc_init(ahc)
 	switch ( (sblkctl = inb(SBLKCTL + iobase) & 0x0a) ) {
 	    case 0:
 		ahc->our_id = (inb(SCSICONF + iobase) & HSCSIID);
+		ahc->flags &= ~AHC_CHANNEL_B_PRIMARY;
 		if(ahc->type == AHC_394)
 			printf("Channel %c, SCSI Id=%d, ", 
 				ahc->flags & AHC_CHNLB ? 'B' : 'A',
@@ -1655,6 +1701,7 @@ ahc_init(ahc)
 		break;
 	    case 2:
 		ahc->our_id = (inb(SCSICONF + 1 + iobase) & HWSCSIID);
+		ahc->flags &= ~AHC_CHANNEL_B_PRIMARY;
 		if(ahc->type == AHC_394)
 			printf("Wide Channel %c, SCSI Id=%d, ", 
 				ahc->flags & AHC_CHNLB ? 'B' : 'A',
@@ -1733,15 +1780,46 @@ ahc_init(ahc)
 		 * so set those values first
 		 */
 		outb(SCSIID + iobase, ahc->our_id_b);
-		scsi_conf = inb(SCSICONF + 1 + iobase) & (ENSPCHK|STIMESEL);
-		outb(SXFRCTL1 + iobase, scsi_conf|ENSTIMER|ACTNEGEN|STPWEN);
+		scsi_conf = inb(SCSICONF + 1 + iobase);
+		outb(SXFRCTL1 + iobase, (scsi_conf & (ENSPCHK|STIMESEL))
+					| ENSTIMER|ACTNEGEN|STPWEN);
 		outb(SIMODE1 + iobase, ENSELTIMO|ENSCSIRST|ENSCSIPERR);
 		if(ahc->type & AHC_ULTRA)
 			outb(SXFRCTL0 + iobase, DFON|SPIOEN|ULTRAEN);
 		else
 			outb(SXFRCTL0 + iobase, DFON|SPIOEN);
 
+		if(scsi_conf & RESET_SCSI) {
+			/* Reset the bus */
+			if(bootverbose)
+				printf("Reseting Channel B\n");
+			outb(SCSISEQ + iobase, SCSIRSTO);
+			DELAY(1000);
+			outb(SCSISEQ + iobase, 0);
+
+			/* Ensure we don't get a RSTI interrupt from this */
+			outb(CLRSINT1 + iobase, CLRSCSIRSTI);
+			outb(CLRINT + iobase, CLRSCSIINT);
+		}
+
+		/* Select Channel A */
+		outb(SBLKCTL + iobase, 0);
+	}
+	outb(SCSIID + iobase, ahc->our_id);
+	scsi_conf = inb(SCSICONF + iobase);
+	outb(SXFRCTL1 + iobase, (scsi_conf & (ENSPCHK|STIMESEL))
+				| ENSTIMER|ACTNEGEN|STPWEN);
+	outb(SIMODE1 + iobase, ENSELTIMO|ENSCSIRST|ENSCSIPERR);
+	if(ahc->type & AHC_ULTRA)
+		outb(SXFRCTL0 + iobase, DFON|SPIOEN|ULTRAEN);
+	else
+		outb(SXFRCTL0 + iobase, DFON|SPIOEN);
+
+	if(scsi_conf & RESET_SCSI) {
 		/* Reset the bus */
+		if(bootverbose)
+			printf("Reseting Channel A\n");
+
 		outb(SCSISEQ + iobase, SCSIRSTO);
 		DELAY(1000);
 		outb(SCSISEQ + iobase, 0);
@@ -1749,27 +1827,7 @@ ahc_init(ahc)
 		/* Ensure we don't get a RSTI interrupt from this */
 		outb(CLRSINT1 + iobase, CLRSCSIRSTI);
 		outb(CLRINT + iobase, CLRSCSIINT);
-
-		/* Select Channel A */
-		outb(SBLKCTL + iobase, 0);
 	}
-	outb(SCSIID + iobase, ahc->our_id);
-	scsi_conf = inb(SCSICONF + iobase) & (ENSPCHK|STIMESEL);
-	outb(SXFRCTL1 + iobase, scsi_conf|ENSTIMER|ACTNEGEN|STPWEN);
-	outb(SIMODE1 + iobase, ENSELTIMO|ENSCSIRST|ENSCSIPERR);
-	if(ahc->type & AHC_ULTRA)
-		outb(SXFRCTL0 + iobase, DFON|SPIOEN|ULTRAEN);
-	else
-		outb(SXFRCTL0 + iobase, DFON|SPIOEN);
-
-	/* Reset the bus */
-	outb(SCSISEQ + iobase, SCSIRSTO);
-	DELAY(1000);
-	outb(SCSISEQ + iobase, 0);
-
-	/* Ensure we don't get a RSTI interrupt from this */
-	outb(CLRSINT1 + iobase, CLRSCSIRSTI);
-	outb(CLRINT + iobase, CLRSCSIINT);
 
 	/*
 	 * Look at the information that board initialization or

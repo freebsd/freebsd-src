@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7xxx.h,v 1.25 1996/04/20 21:29:27 gibbs Exp $
+ *	$Id: aic7xxx.h,v 1.10.2.8 1996/04/28 19:34:00 gibbs Exp $
  */
 
 #ifndef _AIC7XXX_H_
@@ -77,27 +77,47 @@ typedef enum {
 }ahc_type;
 
 typedef enum {
-	AHC_FNONE	= 0x00,
-	AHC_INIT	= 0x01,
-	AHC_RUNNING	= 0x02,
-	AHC_PAGESCBS	= 0x04,		/* Enable SCB paging */
-	AHC_USEDEFAULTS = 0x10,		/*
+	AHC_FNONE		= 0x00,
+	AHC_INIT		= 0x01,
+	AHC_RUNNING		= 0x02,
+	AHC_PAGESCBS		= 0x04,	/* Enable SCB paging */
+	AHC_CHANNEL_B_PRIMARY	= 0x08,	/*
+					 * On twin channel adapters, probe
+					 * channel B first since it is the
+					 * primary bus.
+					 */
+	AHC_USEDEFAULTS		= 0x10,	/*
 					 * For cards without an seeprom
 					 * or a BIOS to initialize the chip's
-					 * SRAM, we use the default chip and
-					 * target settings.
+					 * SRAM, we use the default target
+					 * settings.
 					 */
-	AHC_CHNLB	= 0x20,		/* 
+	AHC_CHNLB		= 0x20,	/* 
 					 * Second controller on 3940 
 					 * Also encodes the offset in the
 					 * SEEPROM for CHNLB info (32)
 					 */
 }ahc_flag;
 
+typedef enum {
+	SCB_FREE		= 0x000,
+	SCB_ACTIVE		= 0x001,
+	SCB_ABORTED		= 0x002,
+	SCB_DEVICE_RESET	= 0x004,
+	SCB_IMMED		= 0x008,
+	SCB_SENSE		= 0x010,
+	SCB_TIMEDOUT		= 0x020,
+	SCB_QUEUED_FOR_DONE	= 0x040,
+	SCB_PAGED_OUT		= 0x080,
+	SCB_WAITINGQ		= 0x100,
+	SCB_ASSIGNEDQ		= 0x200,
+	SCB_SENTORDEREDTAG	= 0x400
+}scb_flag;
+
 /*
  * The driver keeps up to MAX_SCB scb structures per card in memory.  Only the
- * first 26 bytes of the structure need to be transfered to the card during
- * normal operation.  The fields starting at byte 32 are used for kernel level
+ * first 28 bytes of the structure need to be transfered to the card during
+ * normal operation.  The fields starting at byte 28 are used for kernel level
  * bookkeeping.  
  */
 struct scb {
@@ -131,19 +151,7 @@ struct scb {
 /*-----------------end of hardware supported fields----------------*/
 	STAILQ_ENTRY(scb)	links;	/* for chaining */
 	struct scsi_xfer *xs;	/* the scsi_xfer for this cmd */
-	int	flags;
-#define	SCB_FREE		0x000
-#define	SCB_ACTIVE		0x001
-#define	SCB_ABORTED		0x002
-#define	SCB_DEVICE_RESET	0x004
-#define	SCB_IMMED		0x008
-#define	SCB_SENSE		0x010
-#define	SCB_TIMEDOUT		0x020
-#define	SCB_QUEUED_FOR_DONE	0x040
-#define	SCB_PAGED_OUT		0x080
-#define	SCB_WAITINGQ		0x100
-#define	SCB_ASSIGNEDQ		0x200
-#define	SCB_SENTORDEREDTAG	0x400
+	scb_flag flags;
 	u_char	position;	/* Position in card's scbarray */
 	struct ahc_dma_seg ahc_dma[AHC_NSEG] __attribute__ ((packed));
 	struct scsi_sense sense_cmd;	/* SCSI command block */
