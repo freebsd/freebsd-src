@@ -67,7 +67,7 @@ static char    *pw_shellpolicy(struct userconf * cnf, struct cargs * args, char 
 static char    *pw_password(struct userconf * cnf, struct cargs * args, char const * user);
 static char    *shell_path(char const * path, char *shells[], char *sh);
 static void     rmat(uid_t uid);
-static void	rmskey(char const * name);
+static void     rmopie(char const * name);
 
 /*-
  * -C config      configuration file
@@ -376,10 +376,10 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 
 			if (!PWALTDIR()) {
 				/*
-				 * Remove skey record from /etc/skeykeys
+				 * Remove opie record from /etc/opiekeys
 		        	 */
 
-				rmskey(pwd->pw_name);
+				rmopie(pwd->pw_name);
 
 				/*
 				 * Remove crontabs
@@ -1239,10 +1239,10 @@ rmat(uid_t uid)
 }
 
 static void
-rmskey(char const * name)
+rmopie(char const * name)
 {
-	static const char etcskey[] = "/etc/skeykeys";
-	FILE   *fp = fopen(etcskey, "r+");
+	static const char etcopie[] = "/etc/opiekeys";
+	FILE   *fp = fopen(etcopie, "r+");
 
 	if (fp != NULL) {
 		char	tmp[1024];
