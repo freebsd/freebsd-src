@@ -36,6 +36,11 @@
 static char sccsid[] = "@(#)ch.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
+#ifndef lint
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif /* not lint */
+
 /*
  * Low level character input from the input file.
  * We use these special purpose routines which optimize moving
@@ -172,22 +177,17 @@ read_more:
 	if (ispipe)
 		last_piped_pos += n;
 
-	p = &bp->data[bp->datasize];
 	bp->datasize += n;
 
-	/*
-	 * Set an EOI marker in the buffered data itself.  Then ensure the
-	 * data is "clean": there are no extra EOI chars in the data and
-	 * that the "meta" bit (the 0200 bit) is reset in each char;
-	 * also translate \r\n sequences to \n if -u flag not set.
-	 */
 	if (n == 0) {
 		ch_fsize = pos;
 		bp->data[bp->datasize++] = EOI;
 	}
 
+	/*
+	 * Turn EOI (nul) characters into 0200 since EOI has special meaning.		 */
 	for (p = &bp->data[bp->datasize]; --n >= 0;) {
-		*--p;
+		--p;
 		if (*p == EOI)
 			*p = 0200;
 	}
