@@ -233,15 +233,16 @@ accept1(td, uap, compat)
 	struct thread *td;
 	register struct accept_args /* {
 		int	s;
-		caddr_t	name;
-		int	*anamelen;
+		struct sockaddr	* __restrict name;
+		socklen_t	* __restrict anamelen;
 	} */ *uap;
 	int compat;
 {
 	struct filedesc *fdp;
 	struct file *nfp = NULL;
 	struct sockaddr *sa;
-	int namelen, error, s;
+	socklen_t namelen;
+	int error, s;
 	struct socket *head, *so;
 	int fd;
 	u_int fflag;
@@ -916,7 +917,8 @@ recvit(td, s, mp, namelenp)
 	struct uio auio;
 	register struct iovec *iov;
 	register int i;
-	int len, error;
+	socklen_t len;
+	int error;
 	struct mbuf *m, *control = 0;
 	caddr_t ctlbuf;
 	struct socket *so;
@@ -969,7 +971,7 @@ recvit(td, s, mp, namelenp)
 	    (struct mbuf **)0, mp->msg_control ? &control : (struct mbuf **)0,
 	    &mp->msg_flags);
 	if (error) {
-		if (auio.uio_resid != len && (error == ERESTART ||
+		if (auio.uio_resid != (int)len && (error == ERESTART ||
 		    error == EINTR || error == EWOULDBLOCK))
 			error = 0;
 	}
@@ -977,7 +979,7 @@ recvit(td, s, mp, namelenp)
 	if (ktriov != NULL) {
 		if (error == 0) {
 			ktruio.uio_iov = ktriov;
-			ktruio.uio_resid = len - auio.uio_resid;
+			ktruio.uio_resid = (int)len - auio.uio_resid;
 			ktrgenio(s, UIO_READ, &ktruio, error);
 		}
 		FREE(ktriov, M_TEMP);
@@ -985,7 +987,7 @@ recvit(td, s, mp, namelenp)
 #endif
 	if (error)
 		goto out;
-	td->td_retval[0] = len - auio.uio_resid;
+	td->td_retval[0] = (int)len - auio.uio_resid;
 	if (mp->msg_name) {
 		len = mp->msg_namelen;
 		if (len <= 0 || fromsa == 0)
@@ -1004,7 +1006,7 @@ recvit(td, s, mp, namelenp)
 		}
 		mp->msg_namelen = len;
 		if (namelenp &&
-		    (error = copyout(&len, namelenp, sizeof (int)))) {
+		    (error = copyout(&len, namelenp, sizeof (socklen_t)))) {
 #ifdef COMPAT_OLDSOCK
 			if (mp->msg_flags & MSG_COMPAT)
 				error = 0;	/* old recvfrom didn't check */
@@ -1080,8 +1082,8 @@ recvfrom(td, uap)
 		caddr_t	buf;
 		size_t	len;
 		int	flags;
-		caddr_t	from;
-		int	*fromlenaddr;
+		struct sockaddr * __restrict	from;
+		socklen_t * __restrict fromlenaddr;
 	} */ *uap;
 {
 	struct msghdr msg;
@@ -1335,11 +1337,12 @@ getsockopt(td, uap)
 		int	s;
 		int	level;
 		int	name;
-		caddr_t	val;
-		int	*avalsize;
+		void * __restrict	val;
+		socklen_t * __restrict avalsize;
 	} */ *uap;
 {
-	int	valsize, error;
+	socklen_t valsize;
+	int	error;
 	struct  socket *so;
 	struct	sockopt sopt;
 
@@ -1388,14 +1391,15 @@ getsockname1(td, uap, compat)
 	struct thread *td;
 	register struct getsockname_args /* {
 		int	fdes;
-		caddr_t	asa;
-		int	*alen;
+		struct sockaddr * __restrict asa;
+		socklen_t * __restrict alen;
 	} */ *uap;
 	int compat;
 {
 	struct socket *so;
 	struct sockaddr *sa;
-	int len, error;
+	socklen_t len;
+	int error;
 
 	mtx_lock(&Giant);
 	if ((error = fgetsock(td, uap->fdes, &so, NULL)) != 0)
@@ -1472,14 +1476,15 @@ getpeername1(td, uap, compat)
 	struct thread *td;
 	register struct getpeername_args /* {
 		int	fdes;
-		caddr_t	asa;
-		int	*alen;
+		struct sockaddr * __restrict	asa;
+		socklen_t * __restrict	alen;
 	} */ *uap;
 	int compat;
 {
 	struct socket *so;
 	struct sockaddr *sa;
-	int len, error;
+	socklen_t len;
+	int error;
 
 	mtx_lock(&Giant);
 	if ((error = fgetsock(td, uap->fdes, &so, NULL)) != 0)
