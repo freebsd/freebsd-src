@@ -154,7 +154,7 @@ lnc_pci_attach(device_t dev)
 	err = bus_dma_tag_create(NULL,			/* parent */
 				 1,			/* alignement */
 				 0,			/* boundary */
-				 BUS_SPACE_MAXADDR,	/* lowaddr */
+				 BUS_SPACE_MAXADDR_24BIT,	/* lowaddr */
 				 BUS_SPACE_MAXADDR,	/* highaddr */
 				 NULL, NULL,		/* filter, filterarg */
 				 lnc_mem_size,		/* segsize */
