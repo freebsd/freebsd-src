@@ -215,14 +215,6 @@ _ipsend=	ipsend
 _iptest=	iptest
 .endif
 
-.if ${MACHINE_ARCH} == "sparc64" || ${MACHINE_ARCH} == "sparc64"
-.if !defined(NOLIBC_R)
-_pppctl=	pppctl
-.endif
-.elif !defined(NOLIBPTHREAD) && ${MACHINE_ARCH} != "powerpc"
-_pppctl=	pppctl
-.endif
-
 .if !defined(NO_LPR)
 _lpr=		lpr
 .endif
@@ -270,6 +262,9 @@ _ndiscvt=	ndiscvt
 _pccard=	pccard
 _pcvt=		pcvt
 _pnpinfo=	pnpinfo
+.if !defined(NOLIBPTHREAD)
+_pppctl=	pppctl
+.endif
 _sgsc=		sgsc
 _sicontrol=	sicontrol
 _spkrtest=	spkrtest
@@ -281,6 +276,9 @@ _zzz=		zzz
 .if ${MACHINE_ARCH} == "alpha"
 _elf2exe=	elf2exe
 _pnpinfo=	pnpinfo
+.if !defined(NOLIBC_R)
+_pppctl=	pppctl
+.endif
 .endif
 
 # kgmon: builds, but no kernel profiling
@@ -299,6 +297,9 @@ _mount_nwfs=	mount_nwfs
 _mount_smbfs=	mount_smbfs
 _mptable=	mptable
 _pcvt/ispcvt=	pcvt/ispcvt
+.if !defined(NOLIBPTHREAD)
+_pppctl=	pppctl
+.endif
 _sicontrol=	sicontrol
 _spkrtest=	spkrtest
 _zzz=		zzz
@@ -308,11 +309,17 @@ _zzz=		zzz
 .if !defined(NO_ACPI)
 _acpi=		acpi
 .endif
+.if !defined(NOLIBPTHREAD)
+_pppctl=	pppctl
+.endif
 _zzz=		zzz
 .endif
 
 .if ${MACHINE_ARCH} == "sparc64"
 _ofwdump=	ofwdump
+.if !defined(NOLIBC_R)
+_pppctl=	pppctl
+.endif
 .endif
 
 .include <bsd.subdir.mk>
