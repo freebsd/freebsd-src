@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)remote.5	8.1 (Berkeley) 6/5/93
-.\"	$Id$
+.\"	$Id: remote.5,v 1.3 1997/03/07 03:28:05 jmg Exp $
 .\"
 .Dd June 5, 1993
 .Dt REMOTE 5
@@ -55,8 +55,8 @@ continued on the next line.
 The first entry is the name(s) of the host system.  If there is more
 than one name for a system, the names are separated by vertical bars.
 After the name of the system comes the fields of the description.  A
-field name followed by an `=' sign indicates a string value follows.  A field
-name followed by a `#' sign indicates a following numeric value.
+field name followed by an `=' sign indicates a string value.
+A field name followed by a `#' sign indicates a numeric value.
 .Pp
 Entries named ``tip*'' and ``cu*''
 are used as default entries by 
@@ -94,7 +94,7 @@ The default baud rate is 300 baud.
 (str)
 An initial connection message to be sent
 to the remote host.  For example, if a
-host is reached through port selector, this
+host is reached through a port selector, this
 might be set to the appropriate sequence
 required to switch to the host.
 .It Cm \&cu
@@ -164,9 +164,9 @@ an @ sign,
 .Nm tip
 searches the file
 .Pa /etc/phones
-file for a list of telephone numbers;
-(See
-.Xr phones 5 . )
+file for a list of telephone numbers
+(see
+.Xr phones 5 ) .
 .It Cm \&tc
 (str)
 Indicates that the list of capabilities is continued

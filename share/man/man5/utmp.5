@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)utmp.5	8.2 (Berkeley) 3/17/94
-.\"	$Id: utmp.5,v 1.6 1998/01/02 19:22:52 alex Exp $
+.\"	$Id: utmp.5,v 1.7 1998/01/03 20:31:25 steve Exp $
 .\"
 .Dd March 17, 1994
 .Dt UTMP 5
@@ -58,11 +58,10 @@ the
 .Nm wtmp
 file.
 .Pp
-These files can grow rapidly on busy systems, daily or weekly rotation
+These files can grow rapidly on busy systems, so daily or weekly rotation
 is recommended. 
-If any of these files do not exist, it is not created.
-These
-files must be created manually and are maintained by
+If any one of these files does not exist, it is not created.
+They must be created manually and are maintained by
 .Xr newsyslog 8 .
 .Bd -literal -offset indent
 #define _PATH_UTMP      "/var/run/utmp"
@@ -95,10 +94,10 @@ in the file
 .Nm lastlog.
 If it is found, the timestamp of the last time the user logged
 in, the terminal line and the hostname
-are written to the standard output. (Providing the login is not
+are written to the standard output (unless the login is
 .Em quiet ,
 see
-.Xr login 1 . )
+.Xr login 1 ) .
 The
 .Nm login
 program then records the new login time in the file
@@ -106,7 +105,7 @@ program then records the new login time in the file
 .Pp
 After the new
 .Fa lastlog
-record is written ,
+record is written,
 .\" the
 .\" .Xr libutil 3
 .\" routine
@@ -136,8 +135,8 @@ record.
 The same
 .Fa utmp
 record, with an updated time stamp is later appended
-to the file when the user logs out. (See
-.Xr init 8 . )
+to the file when the user logs out (see
+.Xr init 8 ) .
 The
 .Nm wtmp
 file is used by the programs
@@ -163,16 +162,16 @@ and
 or
 .Li shutdown
 in the field
-.Fa ut_name .
-(See
+.Fa ut_name
+(see
 .Xr shutdown 8
 and
-.Xr reboot 8 . )
+.Xr reboot 8 ) .
 .Pp
 .It Li date
-The system time has been manually or automatically updated.
-(See
-.Xr date 1 . )
+The system time has been manually or automatically updated
+(see
+.Xr date 1 ) .
 The command name
 .Xr date
 is recorded in the field

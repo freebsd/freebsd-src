@@ -29,7 +29,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id$
+.\"	$Id: hosts.equiv.5,v 1.5 1997/02/22 13:26:02 peter Exp $
 .\"
 .Dd Feb 1996
 .Dt HOSTS.EQUIV 5
@@ -43,7 +43,7 @@ The
 .Nm hosts.equiv
 and
 .Nm .rhosts
-files contains information regarding
+files contain information regarding
 trusted hosts and users on the network.
 For each host a single line should be present
 with the following information:
@@ -59,7 +59,7 @@ or the more verbose
 .Ed
 .Pp
 A ``@'' indicates a host by netgroup or user by netgroup. A single
-``+'' match all hosts or users.  A host name with leading ``-'' will reject
+``+'' matches all hosts or users.  A host name with a leading ``-'' will reject
 all matching hosts and all their users. A user name with leading ``-''
 will reject all matching users from matching hosts.
 .Pp
@@ -78,7 +78,7 @@ Host names may contain any printable
 character other than a field delimiter, newline,
 or comment character.
 .Pp
-For security reasons, a users 
+For security reasons, a user's
 .Nm .rhosts
 file will be ignored if it is not a regular file, or if it 
 is not owned by the user, or
@@ -123,4 +123,3 @@ file resides in
 .Sh BUGS
 This man page is incomplete. For more information read
 the source in lib/libc/net/rcmd.c or the sunos man page.
-
