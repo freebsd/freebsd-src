@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include "namespace.h"
 #include <stdio.h>
 #include "un-namespace.h"
+#include "local.h"
 #include "libc_private.h"
 
 #undef getchar
@@ -55,6 +56,7 @@ getchar()
 {
 	int retval;
 	FLOCKFILE(stdin);
+	ORIENT(stdin, -1);
 	retval = getc(stdin);
 	FUNLOCKFILE(stdin);
 	return (retval);

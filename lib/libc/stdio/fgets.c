@@ -66,6 +66,7 @@ fgets(buf, n, fp)
 		return (NULL);
 
 	FLOCKFILE(fp);
+	ORIENT(fp, -1);
 	s = buf;
 	n--;			/* leave space for NUL */
 	while (n != 0) {

@@ -58,6 +58,8 @@ gets(buf)
 	static char w[] =
 	    "warning: this program uses gets(), which is unsafe.\n";
 
+	/* Orientation set by getchar(). */
+
 	if (!warned) {
 		(void) _write(STDERR_FILENO, w, sizeof(w) - 1);
 		warned = 1;

@@ -69,6 +69,9 @@
 
 #include <sys/cdefs.h>
 #include <machine/ansi.h>
+
+#include <stdio.h>
+
 #ifndef NULL
 #define NULL	0
 #endif
@@ -106,6 +109,14 @@ typedef	_BSD_WINT_T_	wint_t;
 
 __BEGIN_DECLS
 wint_t	btowc(int);
+wint_t	fgetwc(FILE *);
+wchar_t	*
+	fgetws(wchar_t *__restrict, int, FILE *__restrict);
+wint_t	fputwc(wchar_t, FILE *);
+int	fputws(const wchar_t *__restrict, FILE *__restrict);
+int	fwide(FILE *, int);
+wint_t	getwc(FILE *);
+wint_t	getwchar(void);
 #if 0
 /* XXX: not implemented */
 size_t	mbrlen(const char * __restrict, size_t, mbstate_t * __restrict);
@@ -114,6 +125,12 @@ size_t	mbrtowc(wchar_t * __restrict, const char * __restrict, size_t,
 int	mbsinit(const mbstate_t *);
 size_t	mbsrtowcs(wchar_t * __restrict, const char ** __restrict, size_t,
 	    mbstate_t * __restrict);
+#endif
+wint_t	putwc(wchar_t, FILE *);
+wint_t	putwchar(wchar_t);
+wint_t	ungetwc(wint_t, FILE *);
+#if 0
+/* XXX: not implemented */
 size_t	wcrtomb(char * __restrict, wchar_t, mbstate_t * __restrict);
 #endif
 wchar_t	*wcscat(wchar_t * __restrict, const wchar_t * __restrict);
@@ -149,5 +166,10 @@ wchar_t	*wmemcpy(wchar_t * __restrict, const wchar_t * __restrict, size_t);
 wchar_t	*wmemmove(wchar_t *, const wchar_t *, size_t);
 wchar_t	*wmemset(wchar_t *, wchar_t, size_t);
 __END_DECLS
+
+#define	getwc(fp)	fgetwc(fp)
+#define getwchar()	fgetwc(stdin)
+#define putwc(wc, fp)	fputwc(wc, fp)
+#define putwchar(wc)	fputwc(wc, stdout)
 
 #endif /* !_WCHAR_H_ */

@@ -43,6 +43,7 @@ vasprintf(str, fmt, ap)
 {
 	int ret;
 	FILE f;
+	struct __sFILEX ext;
 
 	f._file = -1;
 	f._flags = __SWR | __SSTR | __SALC;
@@ -53,6 +54,8 @@ vasprintf(str, fmt, ap)
 		return (-1);
 	}
 	f._bf._size = f._w = 127;		/* Leave room for the NULL */
+	f._extra = &ext;
+	INITEXTRA(&f);
 	ret = __vfprintf(&f, fmt, ap);
 	*f._p = '\0';
 	f._bf._base = reallocf(f._bf._base, f._bf._size + 1);

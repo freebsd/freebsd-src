@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 
 #include <stdio.h>
 #include <string.h>
+#include "local.h"
 
 static int
 eofread(void *, char *, int);
@@ -64,6 +65,7 @@ vsscanf(str, fmt, ap)
 	_BSD_VA_LIST_ ap;
 {
 	FILE f;
+	struct __sFILEX ext;
 
 	f._file = -1;
 	f._flags = __SRD;
@@ -72,5 +74,7 @@ vsscanf(str, fmt, ap)
 	f._read = eofread;
 	f._ub._base = NULL;
 	f._lb._base = NULL;
+	f._extra = &ext;
+	INITEXTRA(&f);
 	return (__svfscanf(&f, fmt, ap));
 }

@@ -39,6 +39,8 @@
 
 #include <sys/types.h>	/* for off_t */
 #include <pthread.h>
+#include <string.h>
+#include <wchar.h>
 
 /*
  * Information local to this implementation of stdio,
@@ -78,6 +80,16 @@ struct __sFILEX {
 	pthread_mutex_t	fl_mutex;	/* used for MT-safety */
 	pthread_t	fl_owner;	/* current owner */
 	int		fl_count;	/* recursive lock count */
+	int		orientation;	/* orientation for fwide() */
+#ifdef notdef
+	/*
+	 * XXX These are not used yet -- they will be used to store the
+	 * multibyte conversion state for writing and reading when
+	 * stateful encodings are supported by the locale framework.
+	 */
+	mbstate_t	wstate;		/* write conversion state */
+	mbstate_t	rstate;		/* read conversion state */
+#endif
 };
 
 /*
@@ -113,4 +125,23 @@ struct __sFILEX {
 	(fp)->_extra->fl_mutex = PTHREAD_MUTEX_INITIALIZER; \
 	(fp)->_extra->fl_owner = NULL; \
 	(fp)->_extra->fl_count = 0; \
+	(fp)->_extra->orientation = 0; \
+	/* memset(&(fp)->_extra->wstate, 0, sizeof(mbstate_t)); */ \
+	/* memset(&(fp)->_extra->rstate, 0, sizeof(mbstate_t)); */ \
 }
+
+/*
+ * Set the orientation for a stream. If o > 0, the stream has wide-
+ * orientation. If o < 0, the stream has byte-orientation.
+ */
+#define	ORIENT(fp, o)	do {				\
+	if ((fp)->_extra->orientation == 0)		\
+		(fp)->_extra->orientation = (o);	\
+} while (0)
+#ifdef FLOCKFILE
+#define	ORIENTLOCK(fp, o)	do {			\
+	FLOCKFILE(fp);					\
+	ORIENT(fp, o);					\
+	FUNLOCKFILE(fp);				\
+} while (0)
+#endif

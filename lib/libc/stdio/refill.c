@@ -76,6 +76,8 @@ __srefill(FILE *fp)
 	if (!__sdidinit)
 		__sinit();
 
+	ORIENT(fp, -1);
+
 	fp->_r = 0;		/* largely a convenience for callers */
 
 	/* SysV does not make this test; take it out for compatibility */
