@@ -231,21 +231,21 @@ nexus_attach(device_t dev)
 	 * connection points now so they show up "on motherboard".
 	 */
 	if (!devclass_get_device(devclass_find("eisa"), 0)) {
-		child = device_add_child(dev, "eisa", 0);
+		child = BUS_ADD_CHILD(dev, 0, "eisa", 0);
 		if (child == NULL)
 			panic("nexus_attach eisa");
 		device_probe_and_attach(child);
 	}
 #if NMCA > 0
 	if (!devclass_get_device(devclass_find("mca"), 0)) {
-        	child = device_add_child(dev, "mca", 0);
-        	if (child == 0)
+        	child = BUS_ADD_CHILD(dev, 0, "mca", 0);
+        	if (child == NULL)
                 	panic("nexus_probe mca");
 		device_probe_and_attach(child);
 	}
 #endif
 	if (!devclass_get_device(devclass_find("isa"), 0)) {
-		child = device_add_child(dev, "isa", 0);
+		child = BUS_ADD_CHILD(dev, 0, "isa", 0);
 		if (child == NULL)
 			panic("nexus_attach isa");
 		device_probe_and_attach(child);
