@@ -52,6 +52,22 @@ enum size_units_t { UNIT_BLOCKS, UNIT_KILO, UNIT_MEG, UNIT_SIZE };
 #endif
 #define	SUBTYPE_EFI		239
 
+#ifdef PC98
+#define	OTHER_SLICE_VALUES						\
+	"Other popular values are 37218 for a\n"			\
+	"DOS FAT partition.\n\n"
+#else
+#define	OTHER_SLICE_VALUES						\
+	"Other popular values are 6 for a\n"				\
+	"DOS FAT partition, 131 for a Linux ext2fs partition, or\n"	\
+	"130 for a Linux swap partition.\n\n"
+#endif
+#define	NON_FREEBSD_NOTE						\
+	"Note:  If you choose a non-FreeBSD partition type, it will not\n" \
+	"be formatted or otherwise prepared, it will simply reserve space\n" \
+	"for you to use another tool, such as DOS format, to later format\n" \
+	"and actually use the partition."
+
 /* Where we start displaying chunk information on the screen */
 #define CHUNK_START_ROW		5
 
@@ -423,25 +439,11 @@ diskPartition(Device *dev)
 		    else if (*cp && toupper(*cp) == 'G')
 			size *= ONE_GIG;
 		    sprintf(tmp, "%d", SUBTYPE_FREEBSD);
-#ifdef PC98
 		    val = msgGetInput(tmp, "Enter type of partition to create:\n\n"
-				      "Pressing Enter will choose the default, a native FreeBSD\n"
-				      "slice (type 50324).  You can choose other types, 37218 for a\n"
-				      "DOS partition, for example.\n\n"
-				      "Note:  If you choose a non-FreeBSD partition type, it will not\n"
-				      "be formatted or otherwise prepared, it will simply reserve space\n"
-				      "for you to use another tool, such as DOS FORMAT, to later format\n"
-				      "and use the partition.");
-#else
-		    val = msgGetInput(tmp, "Enter type of partition to create:\n\n"
-				      "Pressing Enter will choose the default, a native FreeBSD\n"
-				      "slice (type 165).  You can choose other types, 6 for a\n"
-				      "DOS partition or 131 for a Linux partition, for example.\n\n"
-				      "Note:  If you choose a non-FreeBSD partition type, it will not\n"
-				      "be formatted or otherwise prepared, it will simply reserve space\n"
-				      "for you to use another tool, such as DOS FORMAT, to later format\n"
-				      "and use the partition.");
-#endif /* PC98 */
+			"Pressing Enter will choose the default, a native FreeBSD\n"
+			"slice (type %u).  "
+			OTHER_SLICE_VALUES
+			NON_FREEBSD_NOTE, SUBTYPE_FREEBSD);
 		    if (val && (subtype = strtol(val, NULL, 0)) > 0) {
 			if (subtype == SUBTYPE_FREEBSD)
 			    partitiontype = freebsd;
@@ -484,27 +486,12 @@ diskPartition(Device *dev)
 		int subtype;
 		chunk_e partitiontype;
 
-		sprintf(tmp, "%d", SUBTYPE_FREEBSD);
-#ifdef PC98
+		sprintf(tmp, "%d", chunk_info[current_chunk]->subtype);
 		val = msgGetInput(tmp, "New partition type:\n\n"
-				  "Pressing Enter will choose the default, a native FreeBSD\n"
-				  "slice (type 50324).  Other popular values are 37218 for\n"
-				  "DOS FAT partition.\n\n"
-				  "Note:  If you choose a non-FreeBSD partition type, it will not\n"
-				  "be formatted or otherwise prepared, it will simply reserve space\n"
-				  "for you to use another tool, such as DOS format, to later format\n"
-				  "and actually use the partition.");
-#else
-		val = msgGetInput(tmp, "New partition type:\n\n"
-				  "Pressing Enter will choose the default, a native FreeBSD\n"
-				  "slice (type 165).  Other popular values are 6 for\n"
-				  "DOS FAT partition, 131 for a Linux ext2fs partition or\n"
-				  "130 for a Linux swap partition.\n\n"
-				  "Note:  If you choose a non-FreeBSD partition type, it will not\n"
-				  "be formatted or otherwise prepared, it will simply reserve space\n"
-				  "for you to use another tool, such as DOS format, to later format\n"
-				  "and actually use the partition.");
-#endif /* PC98 */
+		    "Pressing Enter will use the current type. To choose a native\n"
+		    "FreeBSD slice enter %u.  "
+		    OTHER_SLICE_VALUES
+		    NON_FREEBSD_NOTE, SUBTYPE_FREEBSD);
 		if (val && (subtype = strtol(val, NULL, 0)) > 0) {
 		    if (subtype == SUBTYPE_FREEBSD)
 			partitiontype = freebsd;
