@@ -237,7 +237,7 @@ format_atm_addr(addr)
 	/*
 	 * Clear the returned string
 	 */
-	UM_ZERO(str, sizeof(str));
+	bzero(str, sizeof(str));
 	strcpy(str, "-");
 
 	/*

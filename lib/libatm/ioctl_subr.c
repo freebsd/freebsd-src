@@ -104,7 +104,7 @@ do_info_ioctl(req, buf_len)
 	 * Get memory for returned information
 	 */
 mem_retry:
-	buf = (caddr_t)UM_ALLOC(buf_len);
+	buf = malloc(buf_len);
 	if (buf == NULL) {
 		errno = ENOMEM;
 		return(-1);
@@ -121,7 +121,7 @@ mem_retry:
 	 */
 	rc = ioctl(s, AIOCINFO, (caddr_t)req);
 	if (rc) {
-		UM_FREE(buf);
+		free(buf);
 		if (errno == ENOSPC) {
 			buf_len = buf_len * 2;
 			goto mem_retry;
@@ -162,7 +162,7 @@ get_vcc_info(intf, vccp)
 	 * Initialize IOCTL request
 	 */
 	air.air_opcode = AIOCS_INF_VCC;
-	UM_ZERO(air.air_vcc_intf, sizeof(air.air_vcc_intf));
+	bzero(air.air_vcc_intf, sizeof(air.air_vcc_intf));
 	if (intf != NULL && strlen(intf) != 0)
 		strcpy(air.air_vcc_intf, intf);
 
@@ -215,7 +215,7 @@ get_subnet_mask(intf, mask)
 	/*
 	 * Set up and issue the IOCTL
 	 */
-	UM_ZERO(&req, sizeof(req));
+	bzero(&req, sizeof(req));
 	strcpy(req.ifr_name, intf);
 	rc = ioctl(s, SIOCGIFNETMASK, (caddr_t)&req);
 	(void)close(s);
@@ -269,7 +269,7 @@ get_mtu(intf)
 	/*
 	 * Set up and issue the IOCTL
 	 */
-	UM_ZERO(&req, sizeof(req));
+	bzero(&req, sizeof(req));
 	strcpy(req.ifr_name, intf);
 	rc = ioctl(s, SIOCGIFMTU, (caddr_t)&req);
 	(void)close(s);
@@ -326,8 +326,7 @@ verify_nif_name(name)
 	/*
 	 * Get memory for returned information
 	 */
-	nif_info = (struct air_netif_rsp *)UM_ALLOC(
-			sizeof(struct air_netif_rsp));
+	nif_info = malloc(sizeof(struct air_netif_rsp));
 	if (nif_info == NULL) {
 		errno = ENOMEM;
 		return(-1);
@@ -339,14 +338,14 @@ verify_nif_name(name)
 	air.air_opcode = AIOCS_INF_NIF;
 	air.air_buf_addr = (caddr_t)nif_info;
 	air.air_buf_len = sizeof(struct air_netif_rsp);
-	UM_ZERO(air.air_netif_intf, sizeof(air.air_netif_intf));
+	bzero(air.air_netif_intf, sizeof(air.air_netif_intf));
 	strcpy(air.air_netif_intf, name);
 
 	/*
 	 * Issue the IOCTL
 	 */
 	rc = ioctl(s, AIOCINFO, (caddr_t)&air);
-	UM_FREE(nif_info);
+	free(nif_info);
 	(void)close(s);
 
 	/*
@@ -382,7 +381,7 @@ get_cfg_info ( intf, cfgp )
          * Initialize IOCTL request
          */
         air.air_opcode = AIOCS_INF_CFG;
-        UM_ZERO ( air.air_cfg_intf, sizeof(air.air_cfg_intf));
+        bzero ( air.air_cfg_intf, sizeof(air.air_cfg_intf));
         if ( intf != NULL && strlen(intf) != 0 )
                 strcpy ( air.air_cfg_intf, intf );
 
@@ -420,7 +419,7 @@ get_intf_info ( intf, intp )
          * Initialize IOCTL request
          */
         air.air_opcode = AIOCS_INF_INT;
-        UM_ZERO ( air.air_int_intf, sizeof(air.air_int_intf));
+        bzero ( air.air_int_intf, sizeof(air.air_int_intf));
         if ( intf != NULL && strlen(intf) != 0 )
                 strcpy ( air.air_int_intf, intf );
 
@@ -459,7 +458,7 @@ get_netif_info ( intf, netp )
          * Initialize IOCTL request
          */
         air.air_opcode = AIOCS_INF_NIF;
-        UM_ZERO ( air.air_int_intf, sizeof(air.air_int_intf) );
+        bzero ( air.air_int_intf, sizeof(air.air_int_intf) );
         if ( intf != NULL && strlen(intf) != 0 )
                 strcpy ( air.air_int_intf, intf );
 
