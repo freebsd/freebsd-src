@@ -34,6 +34,7 @@ USRSRC=${1:-/usr/src}		# source root
 LIBS="
 	lib
 	gnu/lib
+	gnu/usr.bin/perl/libperl
 	kerberosIV/lib
 	kerberos5/lib
 	secure/lib
@@ -48,7 +49,6 @@ sed -E
     -e's; ;! ;g'
     -e's;$;!;'
     -e's;-lm!;lib/msun;g'
-    -e's;-l(supc\+\+)!;gnu/lib/lib\1;g'
     -e's;-l(krb)!;kerberosIV/lib/lib\1;g'
     -e's;-l(asn1|gssapi|krb5|roken)!;kerberos5/lib/lib\1;g'
     -e's;-l(crypto|ssh)!;secure/lib/lib\1;g'
