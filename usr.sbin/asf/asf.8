@@ -31,7 +31,7 @@
 .Nd add symbol files
 .Sh SYNOPSIS
 .Nm
-.Op Fl aksx
+.Op Fl afksx
 .Op Ar modules-path Op Ar outfile
 .Sh DESCRIPTION
 By default,
@@ -71,12 +71,19 @@ The following options modify the function of
 When writing to an explicit
 .Ar outfile ,
 append to the file rather than overwriting it.
+.It Fl f
+Instead of trying to simplistically guess the path for each module, perform
+a traversal in the same way that
+.Xr find 1
+does to locate an exact path for each module, no matter where in
+.Ar modules-path
+it is located.
 .It Fl k
 Instead of reading from standard input, start a
 .Xr kldstat 8
 and read the information from it.
 .It Fl s
-Don't prepend subdirectory of moudle path.
+Don't prepend a (guessed) subdirectory of the module path.
 .It Fl x
 Normally
 .Nm

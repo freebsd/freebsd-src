@@ -16,11 +16,8 @@ end
 
 # Get symbols from klds.  This is a little fiddly, but very fast.
 define getsyms
-kldstat
-echo Select the list above with the mouse, paste into the screen\n
-echo and then press ^D.  Yes, this is annoying.\n
 # This should be the path of the real modules directory.
-shell asf MODPATH
+shell asf -f -k MODPATH
 source .asf
 end
 
