@@ -406,7 +406,9 @@ xl_mii_sync(sc)
 
 	for (i = 0; i < 32; i++) {
 		MII_SET(XL_MII_CLK);
+		MII_SET(XL_MII_DATA);
 		MII_CLR(XL_MII_CLK);
+		MII_SET(XL_MII_DATA);
 	}
 
 	return;
