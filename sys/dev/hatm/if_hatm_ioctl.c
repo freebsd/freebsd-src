@@ -159,21 +159,10 @@ hatm_open_vcc(struct hatm_softc *sc, struct atmio_openvcc *arg)
 
 	/* ok - go ahead */
 	sc->vccs[cid] = vcc;
-
-	if (!(vcc->param.flags & ATMIO_FLAG_NOTX))
-		hatm_tx_vcc_open(sc, cid);
-	if (!(vcc->param.flags & ATMIO_FLAG_NORX))
-		hatm_rx_vcc_open(sc, cid);
-
-	/* inform management about non-NG and NG-PVCs */
-	if (!(vcc->param.flags & ATMIO_FLAG_NG) ||
-	     (vcc->param.flags & ATMIO_FLAG_PVC))
-		ATMEV_SEND_VCC_CHANGED(&sc->ifatm, arg->param.vpi,
-		    arg->param.vci, 1);
+	hatm_load_vc(sc, cid, 0);
 
 	/* don't free below */
 	vcc = NULL;
-
 	sc->open_vccs++;
 
   done:
@@ -181,6 +170,26 @@ hatm_open_vcc(struct hatm_softc *sc, struct atmio_openvcc *arg)
 	if (vcc != NULL)
 		uma_zfree(sc->vcc_zone, vcc);
 	return (error);
+}
+
+void
+hatm_load_vc(struct hatm_softc *sc, u_int cid, int reopen)
+{
+	struct hevcc *vcc = sc->vccs[cid];
+
+	if (!(vcc->param.flags & ATMIO_FLAG_NOTX))
+		hatm_tx_vcc_open(sc, cid);
+	if (!(vcc->param.flags & ATMIO_FLAG_NORX))
+		hatm_rx_vcc_open(sc, cid);
+
+	if (reopen)
+		return;
+
+	/* inform management about non-NG and NG-PVCs */
+	if (!(vcc->param.flags & ATMIO_FLAG_NG) ||
+	     (vcc->param.flags & ATMIO_FLAG_PVC))
+		ATMEV_SEND_VCC_CHANGED(&sc->ifatm, vcc->param.vpi,
+		    vcc->param.vci, 1);
 }
 
 /*

@@ -577,9 +577,12 @@ hatm_tx_vcc_can_open(struct hatm_softc *sc, u_int cid, struct hevcc *vcc)
 			if ((idx = free_idx) == HE_REGN_CS_STPER)
 				return (EBUSY);
 			sc->rate_ctrl[idx].rate = rc;
-			WRITE_MBOX4(sc, HE_REGO_CS_STPER(idx), rc);
 		}
 		vcc->rc = idx;
+
+		/* commit */
+		sc->rate_ctrl[idx].refcnt++;
+		sc->cbr_bw += t->pcr;
 		break;
 
 	  case ATMIO_TRAFFIC_ABR:
@@ -649,7 +652,10 @@ hatm_tx_vcc_open(struct hatm_softc *sc, u_int cid)
 
 	  case ATMIO_TRAFFIC_CBR:
 		atmf = hatm_cps2atmf(t->pcr);
-		sc->rate_ctrl[vcc->rc].refcnt++;
+
+		if (sc->rate_ctrl[vcc->rc].refcnt == 1)
+			WRITE_MBOX4(sc, HE_REGO_CS_STPER(vcc->rc),
+			    sc->rate_ctrl[vcc->rc].rate);
 
 		tsr0 |= HE_REGM_TSR0_TRAFFIC_CBR << HE_REGS_TSR0_TRAFFIC;
 		tsr0 |= vcc->rc;
@@ -670,7 +676,6 @@ hatm_tx_vcc_open(struct hatm_softc *sc, u_int cid)
 		WRITE_TSR(sc, cid, 9, 0xf, HE_REGM_TSR9_INIT);
 		WRITE_TSR(sc, cid, 0, 0xf, tsr0);
 
-		sc->cbr_bw += t->pcr;
 		break;
 
 	  case ATMIO_TRAFFIC_ABR:
