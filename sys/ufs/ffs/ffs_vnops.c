@@ -350,7 +350,6 @@ ffs_read(ap)
 	int error, orig_resid;
 	int seqcount;
 	int ioflag;
-	vm_object_t object;
 
 	vp = ap->a_vp;
 	uio = ap->a_uio;
@@ -403,10 +402,6 @@ ffs_read(ap)
 		return (0);
 	}
 
-	object = vp->v_object;
-	if (object) {
-		vm_object_reference(object);
-	}
 
 	/*
 	 * Ok so we couldn't do it all in one vm trick...
@@ -557,10 +552,6 @@ ffs_read(ap)
 		}
 	}
 
-	if (object) {
-		VM_OBJECT_LOCK(object);
-		vm_object_vndeallocate(object);
-	}
 	if ((error == 0 || uio->uio_resid != orig_resid) &&
 	    (vp->v_mount->mnt_flag & MNT_NOATIME) == 0)
 		ip->i_flag |= IN_ACCESS;
@@ -589,7 +580,6 @@ ffs_write(ap)
 	off_t osize;
 	int seqcount;
 	int blkoffset, error, extended, flags, ioflag, resid, size, xfersize;
-	vm_object_t object;
 
 	vp = ap->a_vp;
 	uio = ap->a_uio;
@@ -607,10 +597,6 @@ ffs_write(ap)
 	seqcount = ap->a_ioflag >> IO_SEQSHIFT;
 	ip = VTOI(vp);
 
-	object = vp->v_object;
-	if (object) {
-		vm_object_reference(object);
-	}
 
 #ifdef DIAGNOSTIC
 	if (uio->uio_rw != UIO_WRITE)
@@ -622,10 +608,6 @@ ffs_write(ap)
 		if (ioflag & IO_APPEND)
 			uio->uio_offset = ip->i_size;
 		if ((ip->i_flags & APPEND) && uio->uio_offset != ip->i_size) {
-			if (object) {
-				VM_OBJECT_LOCK(object);
-				vm_object_vndeallocate(object);
-			}
 			return (EPERM);
 		}
 		/* FALLTHROUGH */
@@ -645,10 +627,6 @@ ffs_write(ap)
 	KASSERT(uio->uio_offset >= 0, ("ffs_write: uio->uio_offset < 0"));
 	fs = ip->i_fs;
 	if ((uoff_t)uio->uio_offset + uio->uio_resid > fs->fs_maxfilesize) {
-		if (object) {
-			VM_OBJECT_LOCK(object);
-			vm_object_vndeallocate(object);
-		}
 		return (EFBIG);
 	}
 	/*
@@ -662,10 +640,6 @@ ffs_write(ap)
 		PROC_LOCK(td->td_proc);
 		psignal(td->td_proc, SIGXFSZ);
 		PROC_UNLOCK(td->td_proc);
-		if (object) {
-			VM_OBJECT_LOCK(object);
-			vm_object_vndeallocate(object);
-		}
 		return (EFBIG);
 	}
 
@@ -785,10 +759,6 @@ ffs_write(ap)
 	} else if (resid > uio->uio_resid && (ioflag & IO_SYNC))
 		error = UFS_UPDATE(vp, 1);
 
-	if (object) {
-		VM_OBJECT_LOCK(object);
-		vm_object_vndeallocate(object);
-	}
 
 	return (error);
 }
