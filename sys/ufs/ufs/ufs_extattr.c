@@ -845,10 +845,17 @@ ufs_extattr_rm(struct vnode *vp, const char *name, struct ucred *cred,
 
 	/* flag it as not in use */
 	ueh.ueh_flags = 0;
+	ueh.ueh_len = 0;
 
+	local_aiov.iov_base = (caddr_t) &ueh;
+	local_aiov.iov_len = sizeof(struct ufs_extattr_header);
+	local_aio.uio_iov = &local_aiov;
+	local_aio.uio_iovcnt = 1;
+	local_aio.uio_rw = UIO_WRITE;
+	local_aio.uio_segflg = UIO_SYSSPACE;
+	local_aio.uio_procp = p;
 	local_aio.uio_offset = base_offset;
 	local_aio.uio_resid = sizeof(struct ufs_extattr_header);
-	local_aio.uio_rw = UIO_WRITE;
 
 	error = VOP_WRITE(attribute->uele_backing_vnode, &local_aio,
 	    IO_NODELOCKED | IO_SYNC, ump->um_extattr.uepm_ucred);
