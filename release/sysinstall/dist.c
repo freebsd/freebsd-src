@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.52 1996/05/16 13:39:06 jkh Exp $
+ * $Id: dist.c,v 1.53 1996/05/23 16:34:25 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -419,7 +419,7 @@ distExtract(char *parent, Distribution *me)
 		seconds = stop.tv_sec + (stop.tv_usec / 1000000.0);
 		if (!seconds)
 		    seconds = 1;
-		msgInfo("%d bytes read from distribution chunk %d of %d, %d KBytes/second",
+		msgInfo("%d bytes read from distribution, chunk %d of %d, %d KBytes/second",
 			total, chunk + 1, numchunks, (total / seconds) / 1024);
 		retval = write(fd2, buf, n);
 		if (retval != n) {
