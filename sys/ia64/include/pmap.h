@@ -78,11 +78,6 @@ struct pmap {
 	struct vm_page		*pm_ptphint;	/* pmap ptp hint */
 };
 
-#define	pmap_page_is_mapped(m)	(!TAILQ_EMPTY(&(m)->md.pv_list))
-
-#define PM_FLAG_LOCKED	0x1
-#define PM_FLAG_WANTED	0x2
-
 typedef struct pmap	*pmap_t;
 
 #ifdef _KERNEL
@@ -106,6 +101,8 @@ typedef struct pv_entry {
 extern vm_offset_t phys_avail[];
 extern vm_offset_t virtual_avail;
 extern vm_offset_t virtual_end;
+
+#define	pmap_page_is_mapped(m)	(!TAILQ_EMPTY(&(m)->md.pv_list))
 
 vm_offset_t pmap_steal_memory(vm_size_t);
 void	pmap_bootstrap(void);
