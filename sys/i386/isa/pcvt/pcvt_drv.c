@@ -105,7 +105,7 @@ static struct cdevsw vt_cdevsw = {
 	.d_mmap =	pcvt_mmap,
 	.d_name =	"vt",
 	.d_maj =	CDEV_MAJOR,
-	.d_flags =	D_TTY | D_KQFILTER,
+	.d_flags =	D_TTY,
 	.d_kqfilter =	ttykqfilter,
 };
 
