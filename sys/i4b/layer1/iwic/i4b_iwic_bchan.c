@@ -31,7 +31,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Fri Jan 12 16:57:01 2001]
+ *      last edit-date: [Tue Jan 16 13:21:24 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -88,33 +88,48 @@ iwic_bchan_xirq(struct iwic_softc *sc, int chan_no)
 
 	if (irq_stat & B_EXIR_RDOV)
 	{
-		NDBGL1(L1_H_XFRERR, "RDOV");
+		NDBGL1(L1_H_XFRERR, "iwic%d: EXIR B-channel Receive Data Overflow", sc->sc_unit);
 	}
 
 	if (irq_stat & B_EXIR_XDUN)
 	{
-		NDBGL1(L1_H_XFRERR, "XDUN");
+		NDBGL1(L1_H_XFRERR, "iwic%d: EXIR B-channel Transmit Data Underrun", sc->sc_unit);
+		cmd |= (B_CMDR_XRST);	/*XXX must retransmit frame ! */
 	}
 
 /* RX message end interrupt */
 	
 	if(irq_stat & B_EXIR_RME)
 	{
-/* XXXX */	int error = 0; 
-		register int fifo_data_len;
+		int error;
 
 		NDBGL1(L1_H_IRQ, "B_EXIR_RME");
-		
-		fifo_data_len = ((IWIC_READ(sc,chan->offset+B_RBCL)) &
-					((IWIC_BCHAN_FIFO_LEN)-1));
-		
-		if(fifo_data_len == 0)
-			fifo_data_len = IWIC_BCHAN_FIFO_LEN;
+
+		error = (IWIC_READ(sc,chan->offset+B_STAR) &
+			 (B_STAR_RDOV | B_STAR_CRCE | B_STAR_RMB));
+
+		if(error)
+		{
+			if(error & B_STAR_RDOV)
+				NDBGL1(L1_H_XFRERR, "iwic%d: B-channel Receive Data Overflow", sc->sc_unit);
+			if(error & B_STAR_CRCE)
+				NDBGL1(L1_H_XFRERR, "iwic%d: B-channel CRC Error", sc->sc_unit);
+			if(error & B_STAR_RMB)
+				NDBGL1(L1_H_XFRERR, "iwic%d: B-channel Receive Message Aborted", sc->sc_unit);
+		}
 
 		/* all error conditions checked, now decide and take action */
 		
 		if(error == 0)
 		{
+			register int fifo_data_len;
+			fifo_data_len = ((IWIC_READ(sc,chan->offset+B_RBCL)) &
+					((IWIC_BCHAN_FIFO_LEN)-1));
+		
+			if(fifo_data_len == 0)
+				fifo_data_len = IWIC_BCHAN_FIFO_LEN;
+
+
 			if(chan->in_mbuf == NULL)
 			{
 				if((chan->in_mbuf = i4b_Bgetmbuf(BCH_MAX_DATALEN)) == NULL)
@@ -684,7 +699,7 @@ iwic_bchannel_start(int unit, int chan_no)
 }
 
 /*---------------------------------------------------------------------------*
- *
+ *	return B-channel statistics
  *---------------------------------------------------------------------------*/
 static void
 iwic_bchannel_stat(int unit, int chan_no, bchan_statistics_t *bsp)
