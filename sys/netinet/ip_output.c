@@ -41,12 +41,14 @@
 #include "opt_ipdivert.h"
 #include "opt_ipfilter.h"
 #include "opt_ipsec.h"
+#include "opt_mac.h"
 #include "opt_pfil_hooks.h"
 #include "opt_random_ip_id.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
@@ -1002,6 +1004,9 @@ smart_frag_failure:
 		}
 		m->m_pkthdr.len = mhlen + len;
 		m->m_pkthdr.rcvif = (struct ifnet *)0;
+#ifdef MAC
+		mac_create_fragment(m0, m);
+#endif
 		m->m_pkthdr.csum_flags = m0->m_pkthdr.csum_flags;
 		mhip->ip_off = htons(mhip->ip_off);
 		mhip->ip_sum = 0;
@@ -1138,6 +1143,9 @@ ip_insertoptions(m, opt, phlen)
 		if (n == 0)
 			return (m);
 		n->m_pkthdr.rcvif = (struct ifnet *)0;
+#ifdef MAC
+		mac_create_mbuf_from_mbuf(m, n);
+#endif
 		n->m_pkthdr.len = m->m_pkthdr.len + optlen;
 		m->m_len -= sizeof(struct ip);
 		m->m_data += sizeof(struct ip);
