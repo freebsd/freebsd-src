@@ -155,6 +155,7 @@ enum {
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
 #include <machine/resource.h>
+#include <dev/utopia/utopia.h>
 #include <dev/en/midwayreg.h>
 #include <dev/en/midwayvar.h>
 
@@ -214,6 +215,7 @@ int en_dumpmem(int,int,int);
 	DBG(SC, LOCK, ("ENUNLOCK %d\n", __LINE__));	\
 	mtx_unlock(&sc->en_mtx);			\
     } while (0)
+#define EN_CHECKLOCK(sc)	mtx_assert(&sc->en_mtx, MA_OWNED)
 
 /*
  * While a transmit mbuf is waiting to get transmit DMA resources we
@@ -1446,7 +1448,7 @@ en_init(struct en_softc *sc)
 	 */
 	en_write(sc, MID_INTENA, MID_INT_TX | MID_INT_DMA_OVR | MID_INT_IDENT |
 	    MID_INT_LERR | MID_INT_DMA_ERR | MID_INT_DMA_RX | MID_INT_DMA_TX |
-	    MID_INT_SERVICE | /* MID_INT_SUNI | */ MID_INT_STATS);
+	    MID_INT_SERVICE | MID_INT_SUNI | MID_INT_STATS);
 	en_write(sc, MID_MAST_CSR, MID_SETIPL(sc->ipl) | MID_MCSR_ENDMA |
 	    MID_MCSR_ENTX | MID_MCSR_ENRX);
 }
@@ -1529,6 +1531,11 @@ en_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			break;
 		}
 		ifp->if_mtu = ifr->ifr_mtu;
+		break;
+
+	  case SIOCSIFMEDIA:
+	  case SIOCGIFMEDIA:
+		error = ifmedia_ioctl(ifp, ifr, &sc->media, cmd);
 		break;
 
 	  default: 
@@ -2348,11 +2355,8 @@ en_intr(void *arg)
 		return;
 	}
 
-#if 0
 	if (reg & MID_INT_SUNI)
-		if_printf(&sc->ifatm.ifnet, "interrupt from SUNI (probably "
-		    "carrier change)\n");
-#endif
+		utopia_intr(&sc->utopia);
 
 	kick = 0;
 	if (reg & MID_INT_TX)
@@ -2394,6 +2398,50 @@ en_intr(void *arg)
 
 	EN_UNLOCK(sc);
 }
+
+/*
+ * Read at most n SUNI regs starting at reg into val
+ */
+static int
+en_utopia_readregs(struct ifatm *ifatm, u_int reg, uint8_t *val, u_int *n)
+{
+	struct en_softc *sc = ifatm->ifnet.if_softc;
+	u_int i;
+
+	EN_CHECKLOCK(sc);
+	if (reg >= MID_NSUNI)
+		return (EINVAL);
+	if (reg + *n > MID_NSUNI)
+		*n = MID_NSUNI - reg;
+
+	for (i = 0; i < *n; i++)
+		val[i] = en_read(sc, MID_SUNIOFF + 4 * (reg + i));
+
+	return (0);
+}
+
+/*
+ * change the bits given by mask to them in val in register reg
+ */
+static int
+en_utopia_writereg(struct ifatm *ifatm, u_int reg, u_int mask, u_int val)
+{
+	struct en_softc *sc = ifatm->ifnet.if_softc;
+	uint32_t regval;
+
+	EN_CHECKLOCK(sc);
+	if (reg >= MID_NSUNI)
+		return (EINVAL);
+	regval = en_read(sc, MID_SUNIOFF + 4 * reg);
+	regval = (regval & ~mask) | (val & mask);
+	en_write(sc, MID_SUNIOFF + 4 * reg, regval);
+	return (0);
+}
+
+static const struct utopia_methods en_utopia_methods = {
+	en_utopia_readregs,
+	en_utopia_writereg
+};
 
 /*********************************************************************/
 /*
@@ -2787,6 +2835,12 @@ en_attach(struct en_softc *sc)
 		goto fail;
 #endif
 
+	sc->ifatm.phy = &sc->utopia;
+	utopia_attach(&sc->utopia, &sc->ifatm, &sc->media, &sc->en_mtx,
+	    &sc->sysctl_ctx, SYSCTL_CHILDREN(sc->sysctl_tree),
+	    &en_utopia_methods);
+	utopia_init_media(&sc->utopia);
+
 	MGET(sc->padbuf, M_TRYWAIT, MT_DATA);
 	if (sc->padbuf == NULL)
 		goto fail;
@@ -2875,6 +2929,16 @@ en_attach(struct en_softc *sc)
 	    "%6D\n", sc->ifatm.mib.esi, ":");
 
 	/*
+	 * Start SUNI stuff. This will call our readregs/writeregs
+	 * functions and these assume the lock to be held so we must get it
+	 * here.
+	 */
+	EN_LOCK(sc);
+	utopia_start(&sc->utopia);
+	utopia_reset(&sc->utopia);
+	EN_UNLOCK(sc);
+
+	/*
 	 * final commit
 	 */
 	atm_ifattach(ifp); 
@@ -2894,11 +2958,20 @@ en_attach(struct en_softc *sc)
  * Free all internal resources. No access to bus resources here.
  * No locking required here (interrupt is already disabled).
  *
- * LOCK: unlocked, not needed (but destroyed)
+ * LOCK: unlocked, needed (but destroyed)
  */
 void
 en_destroy(struct en_softc *sc)
 {
+
+	if (sc->utopia.state & UTP_ST_ATTACHED) {
+		/* these assume the lock to be held */
+		EN_LOCK(sc);
+		utopia_stop(&sc->utopia);
+		utopia_detach(&sc->utopia);
+		EN_UNLOCK(sc);
+	}
+
 	if (sc->padbuf != NULL)
 		m_free(sc->padbuf);
 
