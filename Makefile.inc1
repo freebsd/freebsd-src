@@ -187,7 +187,8 @@ USRDIRS=	usr/bin usr/lib/compat/aout usr/games usr/libdata/ldscripts \
 USRDIRS+=	usr/libexec/aout
 .endif
 
-INCDIRS=	arpa g++/std objc protocols readline rpc rpcsvc security ss
+INCDIRS=	arpa g++/std objc protocols readline rpc rpcsvc openssl \
+		security ss
 
 #
 # buildworld
@@ -472,7 +473,9 @@ includes:
 	cd ${.CURDIR}/gnu/lib/libgmp;		${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/usr.bin/cc/cc1plus;	${MAKE} beforeinstall
 .if exists(${.CURDIR}/secure) && !defined(NOCRYPT)
+	cd ${.CURDIR}/secure/lib/libcrypto;	${MAKE} beforeinstall
 	cd ${.CURDIR}/secure/lib/libdes;	${MAKE} beforeinstall
+	cd ${.CURDIR}/secure/lib/libssl;	${MAKE} beforeinstall
 .endif
 .if exists(${.CURDIR}/kerberosIV) && !defined(NOCRYPT) && \
     defined(MAKE_KERBEROS4)
