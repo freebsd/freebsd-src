@@ -28,7 +28,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: od.c,v 1.13 1996/03/02 18:24:12 peter Exp $
+ *	$Id: od.c,v 1.14 1996/03/10 07:13:06 gibbs Exp $
  */
 
 /*
@@ -94,9 +94,11 @@ struct scsi_data {
 	struct diskslices *dk_slices;	/* virtual drives */
 	struct buf_queue_head buf_queue;
 	int dkunit;		/* disk stats unit number */
-#ifdef	DEVFS
-	void	*b_devfs_token;	/*eventually move to common disk struct */
-	void	*c_devfs_token;	/*eventually move to common disk struct */
+#ifdef DEVFS
+	/* Eventually move all these to common disk struct. */
+	void	*b_devfs_token;
+	void	*c_devfs_token;
+	void	*ctl_devfs_token;
 #endif
 };
 
@@ -210,7 +212,6 @@ odattach(struct scsi_link *sc_link)
 	u_int32_t unit;
 	struct disk_parms *dp;
 #ifdef DEVFS
-	char	name[32];
 	int	mynor;
 #endif
 
@@ -259,11 +260,18 @@ odattach(struct scsi_link *sc_link)
 
 #ifdef DEVFS
 	mynor = dkmakeminor(unit, WHOLE_DISK_SLICE, RAW_PART);
-	sprintf(name, "rod%d", unit);
-	od->b_devfs_token = devfs_add_devsw("/", name + 1, &od_bdevsw, mynor,
-					    DV_BLK, 0, 0, 0640);
-	od->c_devfs_token = devfs_add_devsw("/", name, &od_cdevsw, mynor,
-					    DV_CHR, 0, 0, 0640);
+	od->b_devfs_token = devfs_add_devswf(&od_bdevsw, mynor, DV_BLK,
+					     UID_ROOT, GID_OPERATOR, 0640,
+					     "od%d", unit);
+	od->c_devfs_token = devfs_add_devswf(&od_cdevsw, mynor, DV_CHR,
+					     UID_ROOT, GID_OPERATOR, 0640,
+					     "rod%d", unit);
+	mynor = dkmakeminor(unit, 0, 0);	/* XXX */
+	od->ctl_devfs_token = devfs_add_devswf(&od_cdevsw,
+					       mynor | SCSI_CONTROL_MASK,
+					       DV_CHR,
+					       UID_ROOT, GID_WHEEL, 0600,
+					       "rod%d.ctl", unit);
 #endif
 
 	return 0;

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.103 1996/01/27 04:17:52 bde Exp $
+ *	$Id: wd.c,v 1.104 1996/01/28 22:16:18 wollman Exp $
  */
 
 /* TODO:
@@ -438,7 +438,6 @@ wdattach(struct isa_device *dvp)
 {
 #ifdef DEVFS
 	int	mynor;
-	char	name[32];
 #endif
 	int	unit, lunit;
 	struct isa_device *wdup;
@@ -519,13 +518,14 @@ wdattach(struct isa_device *dvp)
 			wd_registerdev(dvp->id_unit, lunit);
 #ifdef DEVFS
 			mynor = dkmakeminor(unit, WHOLE_DISK_SLICE, RAW_PART);
-			sprintf(name, "rwd%d", unit);
-			du->dk_bdev = devfs_add_devsw("/", name + 1, &wd_bdevsw,
-						      mynor, DV_BLK, 0, 0,
-						      0640);
-			du->dk_cdev = devfs_add_devsw("/", name, &wd_cdevsw,
-						      mynor, DV_CHR, 0, 0,
-						      0640);
+			du->dk_bdev = devfs_add_devswf(&wd_bdevsw, mynor,
+						       DV_BLK, UID_ROOT,
+						       GID_OPERATOR, 0640,
+						       "wd%d", unit);
+			du->dk_cdev = devfs_add_devswf(&wd_cdevsw, mynor,
+						       DV_CHR, UID_ROOT,
+						       GID_OPERATOR, 0640,
+						       "rwd%d", unit);
 #endif
 
 			if (dk_ndrive < DK_NDRIVE) {
