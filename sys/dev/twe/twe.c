@@ -1197,7 +1197,7 @@ twe_soft_reset(struct twe_softc *sc)
     TWE_SOFT_RESET(sc);
 
     if (twe_wait_status(sc, TWE_STATUS_ATTENTION_INTERRUPT, 15)) {
-	twe_printf(sc, "no attention interrupt");
+	twe_printf(sc, "no attention interrupt\n");
 	return(1);
     }
     if (twe_drain_aen_queue(sc)) {
