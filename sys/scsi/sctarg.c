@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: sctarg.c,v 1.26 1998/06/17 14:13:14 bde Exp $
+ *      $Id: sctarg.c,v 1.27 1998/07/04 22:30:24 julian Exp $
  */
 
 #include "opt_bounce.h"
@@ -248,7 +248,7 @@ sctargstart(unit, unused_flags)
 			bp,
 			flags | SCSI_NOSLEEP) == SUCCESSFULLY_QUEUED) {
 		} else {
-			printf("sctarg%ld: oops not queued\n", unit);
+			printf("sctarg%lu: oops not queued\n", (u_long)unit);
 			bp->b_flags |= B_ERROR;
 			bp->b_error = EIO;
 			biodone(bp);

@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: scsi_driver.c,v 1.25 1997/09/02 04:37:57 bde Exp $
+ * $Id: scsi_driver.c,v 1.26 1997/09/02 20:06:34 bde Exp $
  *
  */
 
@@ -143,8 +143,8 @@ struct scsi_device *device)
 
 	if (!errcode ) sc_link->flags |= SDEV_IS_OPEN;
 
-	SC_DEBUG(sc_link, SDEV_DB1, ("%sopen: dev=0x%lx (unit %ld) result %d\n",
-		device->name, dev, unit, errcode));
+	SC_DEBUG(sc_link, SDEV_DB1, ("%sopen: dev=0x%lx (unit %lu) result %d\n",
+		device->name, (u_long)dev, (u_long)unit, errcode));
 
 	return errcode;
 }
@@ -198,7 +198,7 @@ scsi_strategy(struct buf *bp, struct scsi_device *device)
 
 	SC_DEBUG(sc_link, SDEV_DB2, ("\n%sstrategy ", device->name));
 	SC_DEBUG(sc_link, SDEV_DB1, ("%ld bytes @ blk%ld\n",
-		bp->b_bcount, bp->b_blkno));
+		bp->b_bcount, (long)bp->b_blkno));
 
 	if (SCSI_CONTROL(bp->b_dev) || (device->dev_strategy == 0))
 	{
