@@ -2012,7 +2012,6 @@ ParseSkipLine(int skip, int keep_newline)
 {
     char *line;
     int c, lastc;
-    size_t lineLength = 0;
     Buffer *buf;
 
     buf = Buf_Init(MAKE_BSIZE);
@@ -2056,7 +2055,7 @@ ParseSkipLine(int skip, int keep_newline)
 
         curFile.lineno++;
         Buf_AddByte(buf, (Byte)'\0');
-        line = (char *)Buf_GetAll(buf, &lineLength);
+        line = (char *)Buf_GetAll(buf, NULL);
     } while (skip == 1 && line[0] != '.');
 
     Buf_Destroy(buf, FALSE);
@@ -2094,7 +2093,6 @@ ParseReadLine(void)
 				 * shell command */
     char 	  *line;    	/* Result */
     char          *ep;		/* to strip trailing blanks */
-    size_t lineLength;		/* Length of result */
     int		  lineno;	/* Saved line # */
 
     semiNL = FALSE;
@@ -2253,7 +2251,7 @@ test_char:
 	    Buf_AddByte(buf, (Byte)lastc);
 	}
 	Buf_AddByte(buf, (Byte)'\0');
-	line = (char *)Buf_GetAll(buf, &lineLength);
+	line = (char *)Buf_GetAll(buf, NULL);
 	Buf_Destroy(buf, FALSE);
 
 	/*
