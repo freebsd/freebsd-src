@@ -76,9 +76,11 @@ are unavailable until the file system is unmounted.
 .Pp
 By default only the super-user may call the
 .Fn mount
-function.
-This restriction can be removed by setting the sysctl
-.Em vfs.usermount
+system call.
+This restriction can be removed by setting the
+.Va vfs.usermount
+.Xr sysctl 8
+variable
 to a non-zero value.
 .Pp
 The following
@@ -188,7 +190,7 @@ system call will fail when one of the following occurs:
 .Bl -tag -width Er
 .It Bq Er EPERM
 The caller is neither the super-user nor the owner of
-.Ar dir .
+.Fa dir .
 .It Bq Er ENAMETOOLONG
 A component of a pathname exceeded 255 characters,
 or the entire length of a path name exceeded 1023 characters.
@@ -272,7 +274,7 @@ system call may fail with one of the following errors:
 .Bl -tag -width Er
 .It Bq Er EPERM
 The caller is neither the super-user nor the user who issued the corresponding
-.Xr mount 2
+.Fn mount
 call.
 .It Bq Er ENOTDIR
 A component of the path is not a directory.
@@ -302,7 +304,6 @@ mounted.
 .Sh SEE ALSO
 .Xr lsvfs 1 ,
 .Xr mount 8 ,
-.Xr sysctl 8 ,
 .Xr umount 8
 .Sh BUGS
 Some of the error codes need translation to more obvious messages.

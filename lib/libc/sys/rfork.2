@@ -35,26 +35,26 @@ The
 .Fa flags
 argument
 is the logical OR of some subset of:
-.Bl -tag -width "RFLINUXTHPN" -offset indent
-.It RFPROC
+.Bl -tag -width ".Dv RFLINUXTHPN"
+.It Dv RFPROC
 If set a new process is created; otherwise changes affect the
 current process.
-.It RFNOWAIT
+.It Dv RFNOWAIT
 If set, the child process will be dissociated from the parent.
 Upon
 exit the child will not leave a status for the parent to collect.
 See
 .Xr wait 2 .
-.It RFFDG
+.It Dv RFFDG
 If set, the invoker's file descriptor table (see
 .Xr intro 2 )
 is copied; otherwise the two processes share a
 single table.
-.It RFCFDG
+.It Dv RFCFDG
 If set, the new process starts with a clean file descriptor table.
 Is mutually exclusive with
 .Dv RFFDG .
-.It RFMEM
+.It Dv RFMEM
 If set, the kernel will force sharing of the entire address space,
 typically by sharing the hardware page table directly.
 The child
@@ -70,10 +70,10 @@ A helper function is provided to assist with this problem and will cause
 the new process to run on the provided stack.  See
 .Xr rfork_thread 3
 for information.
-.It RFSIGSHARE
+.It Dv RFSIGSHARE
 If set, the kernel will force sharing the sigacts structure between the
 child and the parent.
-.It RFLINUXTHPN
+.It Dv RFLINUXTHPN
 If set, the kernel will return SIGUSR1 instead of SIGCHILD upon thread
 exit for the child.  This is intended to mimic certain Linux clone behaviour.
 .El
