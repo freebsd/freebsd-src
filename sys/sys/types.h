@@ -73,7 +73,12 @@ typedef	__volatile char *v_caddr_t;	/* core address, pointer to volatile */
 typedef	int32_t		daddr_t;	/* disk address */
 typedef	u_int32_t	u_daddr_t;	/* unsigned disk address */
 typedef	u_int32_t	fixpt_t;	/* fixed point number */
+
+#ifndef _GID_T_DECLARED
+#define	_GID_T_DECLARED
 typedef	u_int32_t	gid_t;		/* group id */
+#endif
+
 typedef	u_int32_t	ino_t;		/* inode number */
 typedef	long		key_t;		/* IPC key (for Sys V IPC) */
 typedef	u_int16_t	mode_t;		/* permissions */
