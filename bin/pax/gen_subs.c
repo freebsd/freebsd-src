@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: gen_subs.c,v 1.9 1997/02/22 14:04:31 peter Exp $
  */
 
 #ifndef lint
@@ -44,7 +44,6 @@ static char const sccsid[] = "@(#)gen_subs.c	8.1 (Berkeley) 5/31/93";
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/stat.h>
-#include <sys/param.h>
 #include <stdio.h>
 #include <utmp.h>
 #include <unistd.h>

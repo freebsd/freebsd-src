@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: test.c,v 1.17 1997/02/22 14:06:25 peter Exp $
  */
 
 #ifndef lint
@@ -46,9 +46,8 @@ static char const copyright[] =
 static char const sccsid[] = "@(#)test.c	8.3 (Berkeley) 4/2/94";
 #endif /* not lint */
 
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <sys/param.h>
+#include <sys/stat.h>
 
 #include <ctype.h>
 #include <err.h>

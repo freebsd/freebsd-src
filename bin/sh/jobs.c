@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: jobs.c,v 1.15 1997/05/24 21:04:55 steve Exp $
+ *	$Id: jobs.c,v 1.16 1997/08/18 02:53:19 steve Exp $
  */
 
 #ifndef lint
@@ -45,7 +45,6 @@ static char const sccsid[] = "@(#)jobs.c	8.5 (Berkeley) 5/4/95";
 #include <errno.h>
 #include <unistd.h>
 #include <stdlib.h>
-#include <sys/types.h>
 #include <sys/param.h>
 #ifdef BSD
 #include <sys/wait.h>
