@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 16, 1998
+.Dd May 13, 2004
 .Dt DEVICE_ADD_CHILD 9
 .Os
 .Sh NAME
@@ -59,8 +59,9 @@ and the system will choose the next available unit number.
 The name of the device is used to determine which drivers might be
 appropriate for the device.
 If a name is specified then only drivers of that name are probed.
-If no name is given then all drivers for the
-owning bus are probed.
+If no name is given then all drivers for the owning bus are probed.
+In any event, only the name of the device is stored so that one may
+safely unload/load a driver bound to that name.
 .Pp
 This allows busses which can uniquely identify device instances (such
 as PCI) to allow each driver to check each device instance for a
@@ -92,6 +93,19 @@ order.
 If
 .Fn device_add_child
 is used, then the new child will be added as if its order was zero.
+.Pp
+When adding a device in the context of
+.Xr DEVICE_IDENTIFY 9
+routine, some care must be taken to ensure that the device hasn't
+already been added to the tree.
+Because the device name and
+.Ft devclass_t
+are associated at probe time (not child addition time), previous
+instances of the driver (say in a module that was later unloaded) may
+have already added the instance.
+Authors of bus drivers must likewise be careful when adding children
+when they are loaded and unloaded to avoid duplication of children
+devices.
 .Sh RETURN VALUES
 The new device if successful, NULL otherwise.
 .Sh SEE ALSO
