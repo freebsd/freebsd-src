@@ -1607,15 +1607,20 @@ sysctl_handler(int ac, char *av[], int which)
 	if (*av == NULL) {
 		warnx("missing keyword to enable/disable\n");
 	} else if (strncmp(*av, "firewall", strlen(*av)) == 0) {
-		sysctlbyname("net.inet.ip.fw.enable", NULL, 0, &which, sizeof(which));
+		sysctlbyname("net.inet.ip.fw.enable", NULL, 0,
+		    &which, sizeof(which));
 	} else if (strncmp(*av, "one_pass", strlen(*av)) == 0) {
-		sysctlbyname("net.inet.ip.fw.one_pass", NULL, 0, &which, sizeof(which));
+		sysctlbyname("net.inet.ip.fw.one_pass", NULL, 0,
+		    &which, sizeof(which));
 	} else if (strncmp(*av, "debug", strlen(*av)) == 0) {
-		sysctlbyname("net.inet.ip.fw.debug", NULL, 0, &which, sizeof(which));
+		sysctlbyname("net.inet.ip.fw.debug", NULL, 0,
+		    &which, sizeof(which));
 	} else if (strncmp(*av, "verbose", strlen(*av)) == 0) {
-		sysctlbyname("net.inet.ip.fw.verbose", NULL, 0, &which, sizeof(which));
+		sysctlbyname("net.inet.ip.fw.verbose", NULL, 0,
+		    &which, sizeof(which));
 	} else if (strncmp(*av, "dyn_keepalive", strlen(*av)) == 0) {
-		sysctlbyname("net.inet.ip.fw.dyn_keepalive", NULL, 0, &which, sizeof(which));
+		sysctlbyname("net.inet.ip.fw.dyn_keepalive", NULL, 0,
+		    &which, sizeof(which));
 	} else {
 		warnx("unrecognize enable/disable keyword: %s\n", *av);
 	}
