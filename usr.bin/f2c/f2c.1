@@ -1,191 +1,336 @@
-
-     F2C(1)							F2C(1)
-
-     NAME
-	  f2c -	Convert	Fortran	77 to C	or C++
-
-     SYNOPSIS
-	  f2c [	option ... ] file ...
-
-     DESCRIPTION
-	  F2c converts Fortran 77 source code in files with names end-
-	  ing in `.f' or `.F' to C (or C++) source files in the	cur-
-	  rent directory, with `.c' substituted	for the	final `.f' or
-	  `.F'.	 If no Fortran files are named,	f2c reads Fortran from
-	  standard input and writes C on standard output.  File	names
-	  that end with	`.p' or	`.P' are taken to be prototype files,
-	  as produced by option	`-P', and are read first.
-
-	  The following	options	have the same meaning as in f77(1).
-
-	  -C   Compile code to check that subscripts are within
-	       declared	array bounds.
-
-	  -I2  Render INTEGER and LOGICAL as short, INTEGER*4 as long
-	       int.  Assume the	default	libF77 and libI77:  allow only
-	       INTEGER*4 (and no LOGICAL) variables in INQUIREs.
-	       Option `-I4' confirms the default rendering of INTEGER
-	       as long int.
-
-	  -onetrip
-	       Compile DO loops	that are performed at least once if
-	       reached.	 (Fortran 77 DO	loops are not performed	at all
-	       if the upper limit is smaller than the lower limit.)
-
-	  -U   Honor the case of variable and external names.  Fortran
-	       keywords	must be	in lower case.
-
-	  -u   Make the	default	type of	a variable `undefined' rather
-	       than using the default Fortran rules.
-
-	  -w   Suppress	all warning messages.  If the option is
-	       `-w66', only Fortran 66 compatibility warnings are sup-
-	       pressed.
-
-	  The following	options	are peculiar to	f2c.
-
-	  -A   Produce ANSI C.	Default	is old-style C.
-
-	  -a   Make local variables automatic rather than static
-	       unless they appear in a DATA, EQUIVALENCE, NAMELIST, or
-	       SAVE statement.
-
-	  -C++ Output C++ code.
-
-	  -c   Include original	Fortran	source as comments.
-
-     Page 1			   Local	      (printed 2/2/93)
-
-     F2C(1)							F2C(1)
-
-	  -E   Declare uninitialized COMMON to be Extern (overridably
-	       defined in f2c.h	as extern).
-
-	  -ec  Place uninitialized COMMON blocks in separate files:
-	       COMMON /ABC/ appears in file abc_com.c.	Option `-e1c'
-	       bundles the separate files into the output file,	with
-	       comments	that give an unbundling	sed(1) script.
-
-	  -ext Complain	about f77(1) extensions.
-
-	  -f   Assume free-format input: accept	text after column 72
-	       and do not pad fixed-format lines shorter than 72 char-
-	       acters with blanks.
-
-	  -72  Treat text appearing after column 72 as an error.
-
-	  -g   Include original	Fortran	line numbers in	#line lines.
-
-	  -h   Emulate Fortran 66's treatment of Hollerith: try	to
-	       align character strings on word (or, if the option is
-	       `-hd', on double-word) boundaries.
-
-	  -i2  Similar to -I2, but assume a modified libF77 and	libI77
-	       (compiled with -Df2c_i2), so INTEGER and	LOGICAL	vari-
-	       ables may be assigned by	INQUIRE	and array lengths are
-	       stored in short ints.
-
-	  -kr  Use temporary values to enforce Fortran expression
-	       evaluation where	K&R (first edition) parenthesization
-	       rules allow rearrangement.  If the option is `-krd',
-	       use double precision temporaries	even for single-
-	       precision operands.
-
-	  -P   Write a file.P of ANSI (or C++) prototypes for defini-
-	       tions in	each input file.f or file.F.  When reading
-	       Fortran from standard input, write prototypes at	the
-	       beginning of standard output.  Option -Ps implies -P
-	       and gives exit status 4 if rerunning f2c	may change
-	       prototypes or declarations.
-
-	  -p   Supply preprocessor definitions to make common-block
-	       members look like local variables.
-
-	  -R   Do not promote REAL functions and operations to DOUBLE
-	       PRECISION.  Option `-!R'	confirms the default, which
-	       imitates	f77.
-
-	  -r   Cast values of REAL functions (including	intrinsics) to
-	       REAL.
-
-	  -r8  Promote REAL to DOUBLE PRECISION, COMPLEX to DOUBLE
-	       COMPLEX.
-
-     Page 2			   Local	      (printed 2/2/93)
-
-     F2C(1)							F2C(1)
-
-	  -s   Preserve	multidimensional subscripts.
-
-	  -Tdir
-	       Put temporary files in directory	dir.
-
-	  -w8  Suppress	warnings when COMMON or	EQUIVALENCE forces
-	       odd-word	alignment of doubles.
-
-	  -Wn  Assume n	characters/word	(default 4) when initializing
-	       numeric variables with character	data.
-
-	  -z   Do not implicitly recognize DOUBLE COMPLEX.
-
-	  -!bs Do not recognize	backslash escapes (\", \', \0, \\, \b,
-	       \f, \n, \r, \t, \v) in character	strings.
-
-	  -!c  Inhibit C output, but produce -P	output.
-
-	  -!I  Reject include statements.
-
-	  -!i8 Disallow	INTEGER*8.
-
-	  -!it Don't infer types of untyped EXTERNAL procedures	from
-	       use as parameters to previously defined or prototyped
-	       procedures.
-
-	  -!P  Do not attempt to infer ANSI or C++ prototypes from
-	       usage.
-
-	  The resulting	C invokes the support routines of f77; object
-	  code should be loaded	by f77 or with ld(1) or	cc(1) options
-	  -lF77	-lI77 -lm.  Calling conventions	are those of f77: see
-	  the reference	below.
-
-     FILES
-	  file.[fF]
-	       input file
-
-	  *.c  output file
-
-	  /usr/include/f2c.h
-	       header file
-
-	  /usr/lib/libF77.a
-	       intrinsic function library
-
-	  /usr/lib/libI77.a
-	       Fortran I/O library
-
-	  /lib/libc.a
-	       C library, see section 3
-
-     Page 3			   Local	      (printed 2/2/93)
-
-     F2C(1)							F2C(1)
-
-     SEE ALSO
-	  S. I.	Feldman	and P. J. Weinberger, `A Portable Fortran 77
-	  Compiler', UNIX Time Sharing System Programmer's Manual,
-	  Tenth	Edition, Volume	2, AT&T	Bell Laboratories, 1990.
-
-     DIAGNOSTICS
-	  The diagnostics produced by f2c are intended to be self-
-	  explanatory.
-
-     BUGS
-	  Floating-point constant expressions are simplified in	the
-	  floating-point arithmetic of the machine running f2c,	so
-	  they are typically accurate to at most 16 or 17 decimal
-	  places.
-	  Untypable EXTERNAL functions are declared int.
-
-     Page 4			   Local	      (printed 2/2/93)
-
+. \" Definitions of F, L and LR for the benefit of systems
+. \" whose -man lacks them...
+.de F
+.nh
+.if n \%\&\\$1
+.if t \%\&\f(CW\\$1\fR
+.hy 14
+..
+.de L
+.nh
+.if n \%`\\$1'
+.if t \%\&\f(CW\\$1\fR
+.hy 14
+..
+.de LR
+.nh
+.if n \%`\\$1'\\$2
+.if t \%\&\f(CW\\$1\fR\\$2
+.hy 14
+..
+.TH F2C 1
+.CT 1 prog_other
+.SH NAME
+f\^2c \(mi Convert Fortran 77 to C or C++
+.SH SYNOPSIS
+.B f\^2c
+[
+.I option ...
+]
+.I file ...
+.SH DESCRIPTION
+.I F2c
+converts Fortran 77 source code in
+.I files
+with names ending in
+.L .f
+or
+.L .F
+to C (or C++) source files in the
+current directory, with
+.L .c
+substituted
+for the final
+.L .f
+or
+.LR .F .
+If no Fortran files are named,
+.I f\^2c
+reads Fortran from standard input and
+writes C on standard output.
+.I File
+names that end with
+.L .p
+or
+.L .P
+are taken to be prototype
+files, as produced by option
+.LR -P ,
+and are read first.
+.PP
+The following options have the same meaning as in
+.IR f\^77 (1).
+.TP
+.B -C
+Compile code to check that subscripts are within declared array bounds.
+.TP
+.B -I2
+Render INTEGER and LOGICAL as short,
+INTEGER\(**4 as long int.  Assume the default \fIlibF77\fR
+and \fIlibI77\fR:  allow only INTEGER\(**4 (and no LOGICAL)
+variables in INQUIREs.  Option
+.L -I4
+confirms the default rendering of INTEGER as long int.
+.TP
+.B -onetrip
+Compile DO loops that are performed at least once if reached.
+(Fortran 77 DO loops are not performed at all if the upper limit is smaller than the lower limit.)
+.TP
+.B -U
+Honor the case of variable and external names.  Fortran keywords must be in
+.I
+lower
+case.
+.TP
+.B -u
+Make the default type of a variable `undefined' rather than using the default Fortran rules.
+.TP
+.B -w
+Suppress all warning messages.
+If the option is
+.LR -w66 ,
+only Fortran 66 compatibility warnings are suppressed.
+.PP
+The following options are peculiar to
+.IR f\^2c .
+.TP
+.B -A
+Produce
+.SM ANSI
+C.
+Default is old-style C.
+.TP
+.B -a
+Make local variables automatic rather than static
+unless they appear in a
+.SM "DATA, EQUIVALENCE, NAMELIST,"
+or
+.SM SAVE
+statement.
+.TP
+.B -C++
+Output C++ code.
+.TP
+.B -c
+Include original Fortran source as comments.
+.TP
+.B -E
+Declare uninitialized
+.SM COMMON
+to be
+.B Extern
+(overridably defined in
+.F f2c.h
+as
+.B extern).
+.TP
+.B -ec
+Place uninitialized
+.SM COMMON
+blocks in separate files:
+.B COMMON /ABC/
+appears in file
+.BR abc_com.c .
+Option
+.LR -e1c
+bundles the separate files
+into the output file, with comments that give an unbundling
+.IR sed (1)
+script.
+.TP
+.B -ext
+Complain about
+.IR f\^77 (1)
+extensions.
+.TP
+.B -f
+Assume free-format input: accept text after column 72 and do not
+pad fixed-format lines shorter than 72 characters with blanks.
+.TP
+.B -72
+Treat text appearing after column 72 as an error.
+.TP
+.B -g
+Include original Fortran line numbers in \f(CW#line\fR lines.
+.TP
+.B -h
+Emulate Fortran 66's treatment of Hollerith: try to align character strings on
+word (or, if the option is
+.LR -hd ,
+on double-word) boundaries.
+.TP
+.B -i2
+Similar to
+.BR -I2 ,
+but assume a modified
+.I libF77
+and
+.I libI77
+(compiled with
+.BR -Df\^2c_i2 ),
+so
+.SM INTEGER
+and
+.SM LOGICAL
+variables may be assigned by
+.SM INQUIRE
+and array lengths are stored in short ints.
+.TP
+.B -kr
+Use temporary values to enforce Fortran expression evaluation
+where K&R (first edition) parenthesization rules allow rearrangement.
+If the option is
+.LR -krd ,
+use double precision temporaries even for single-precision operands.
+.TP
+.B -P
+Write a
+.IB file .P
+of ANSI (or C++) prototypes
+for definitions in each input
+.IB file .f
+or
+.IB file .F .
+When reading Fortran from standard input, write prototypes
+at the beginning of standard output.  Option
+.B -Ps
+implies
+.B -P
+and gives exit status 4 if rerunning
+.I f\^2c
+may change prototypes or declarations.
+.TP
+.B -p
+Supply preprocessor definitions to make common-block members
+look like local variables.
+.TP
+.B -R
+Do not promote
+.SM REAL
+functions and operations to
+.SM DOUBLE PRECISION.
+Option
+.L -!R
+confirms the default, which imitates
+.IR f\^77 .
+.TP
+.B -r
+Cast values of REAL functions (including intrinsics) to REAL.
+.TP
+.B -r8
+Promote
+.SM REAL
+to
+.SM DOUBLE PRECISION, COMPLEX
+to
+.SM DOUBLE COMPLEX.
+.TP
+.B -s
+Preserve multidimensional subscripts.
+.TP
+.BI -T dir
+Put temporary files in directory
+.I dir.
+.TP
+.B -w8
+Suppress warnings when
+.SM COMMON
+or
+.SM EQUIVALENCE
+forces odd-word alignment of doubles.
+.TP
+.BI -W n
+Assume
+.I n
+characters/word (default 4)
+when initializing numeric variables with character data.
+.TP
+.B -z
+Do not implicitly recognize
+.SM DOUBLE COMPLEX.
+.TP
+.B -!bs
+Do not recognize \fIb\fRack\fIs\fRlash escapes
+(\e", \e', \e0, \e\e, \eb, \ef, \en, \er, \et, \ev) in character strings.
+.TP
+.B -!c
+Inhibit C output, but produce
+.B -P
+output.
+.TP
+.B -!I
+Reject
+.B include
+statements.
+.TP
+.B -!i8
+Disallow
+.SM INTEGER*8.
+.TP
+.B -!it
+Don't infer types of untyped
+.SM EXTERNAL
+procedures from use as parameters to previously defined or prototyped
+procedures.
+.TP
+.B -!P
+Do not attempt to infer
+.SM ANSI
+or C++
+prototypes from usage.
+.PP
+The resulting C invokes the support routines of
+.IR f\^77 ;
+object code should be loaded by
+.I f\^77
+or with
+.IR ld (1)
+or
+.IR cc (1)
+options
+.BR "-lF77 -lI77 -lm" .
+Calling conventions
+are those of
+.IR f\&77 :
+see the reference below.
+.br
+.SH FILES
+.TP
+.IB file .[fF]
+input file
+.TP
+.B *.c
+output file
+.TP
+.F /usr/include/f2c.h
+header file
+.TP
+.F /usr/lib/libF77.a
+intrinsic function library
+.TP
+.F /usr/lib/libI77.a
+Fortran I/O library
+.TP
+.F /lib/libc.a
+C library, see section 3
+.SH "SEE ALSO"
+S. I. Feldman and
+P. J. Weinberger,
+`A Portable Fortran 77 Compiler',
+\fIUNIX Time Sharing System Programmer's Manual\fR,
+Tenth Edition, Volume 2, AT&T Bell Laboratories, 1990.
+.SH DIAGNOSTICS
+The diagnostics produced by
+.I f\^2c
+are intended to be
+self-explanatory.
+.SH BUGS
+Floating-point constant expressions are simplified in
+the floating-point arithmetic of the machine running
+.IR f\^2c ,
+so they are typically accurate to at most 16 or 17 decimal places.
+.br
+Untypable
+.SM EXTERNAL
+functions are declared
+.BR int .
