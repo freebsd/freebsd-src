@@ -76,7 +76,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
 
-MALLOC_DEFINE(M_PACKET_TAGS, "tag", "packet-attached information");
+MALLOC_DEFINE(M_PACKET_TAGS, "mbuf tags", "packet-attached information");
 
 /* can't call it m_dup(), as freebsd[34] uses m_dup() with different arg */
 static struct mbuf *m_dup1(struct mbuf *, int, int, int);
@@ -301,9 +301,14 @@ m_dup1(struct mbuf *m, int off, int len, int wait)
 	return n;
 }
 
-/* Free a packet tag. */
-static void
-_m_tag_free(struct m_tag *t)
+/*
+ * Free a packet tag.
+ * This function should not be called directly, unless you know what you
+ * are doing. Use m_tag_delete() or (t->m_tag_free)(t) instead, when you
+ * work with a tag that you haven't allocated yourself.
+ */
+void
+m_tag_free(struct m_tag *t)
 {
 #ifdef MAC
 	if (t->m_tag_id == PACKET_TAG_MACLABEL)
@@ -325,7 +330,7 @@ m_tag_alloc(u_int32_t cookie, int type, int len, int wait)
 	if (t == NULL)
 		return NULL;
 	m_tag_setup(t, cookie, type, len);
-	t->m_tag_free = _m_tag_free;
+	t->m_tag_free = m_tag_free;
 	return t;
 }
 
@@ -336,7 +341,7 @@ m_tag_delete(struct mbuf *m, struct m_tag *t)
 
 	KASSERT(m && t, ("m_tag_delete: null argument, m %p t %p", m, t));
 	m_tag_unlink(m, t);
-	m_tag_free(t);
+	(t->m_tag_free)(t);
 }
 
 /* Unlink and free a packet tag chain, starting from given tag. */
