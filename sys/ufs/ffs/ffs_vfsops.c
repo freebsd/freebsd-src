@@ -121,9 +121,8 @@ ffs_mount(struct mount *mp, struct thread *td)
 	int error, flags;
 	mode_t accessmode;
 	struct nameidata ndp;
-	struct export_args *export;
+	struct export_args export;
 	char *fspec;
-	int len;
 
 	if (vfs_filteropt(mp->mnt_optnew, ffs_opts))
 		return (EINVAL);
@@ -283,13 +282,9 @@ ffs_mount(struct mount *mp, struct thread *td)
 		/*
 		 * If not updating name, process export requests.
 		 */
-		if (fspec == NULL) {
-			error = vfs_getopt(mp->mnt_optnew,
-			    "export", (void **)&export, &len);
-			if (error || len != sizeof *export)
-				return (EINVAL);
-			return (vfs_export(mp, export));
-		}
+		error = vfs_copyopt(mp->mnt_optnew, "export", &export, sizeof export);
+		if (error == 0 && export.ex_flags != 0)
+			return (vfs_export(mp, &export));
 		/*
 		 * If this is a snapshot request, take the snapshot.
 		 */
