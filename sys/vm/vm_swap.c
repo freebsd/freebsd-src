@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_swap.c	8.5 (Berkeley) 2/17/94
- * $Id: vm_swap.c,v 1.34 1995/12/21 20:09:46 julian Exp $
+ * $Id: vm_swap.c,v 1.35 1996/03/03 21:11:08 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -39,6 +39,9 @@
 #include <sys/sysproto.h>
 #include <sys/buf.h>
 #include <sys/conf.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif
 #include <sys/proc.h>
 #include <sys/namei.h>
 #include <sys/dmap.h>		/* XXX */
@@ -286,6 +289,9 @@ swaponvp(p, vp, dev, nblks)
 }
 
 static sw_devsw_installed = 0;
+#ifdef DEVFS
+static void *drum_devfs_token;
+#endif
 
 static void 	sw_drvinit(void *unused)
 {
@@ -297,6 +303,11 @@ static void 	sw_drvinit(void *unused)
 		dev = makedev(BDEV_MAJOR,0);
 		bdevsw_add(&dev,&sw_bdevsw,NULL);
 		sw_devsw_installed = 1;
+#ifdef DEVFS
+		drum_devfs_token = devfs_add_devswf(&sw_cdevsw, 0, DV_CHR,
+						    UID_ROOT, GID_KMEM, 0640,
+						    "drum");
+#endif
     	}
 }
 
