@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.57 1998/05/20 13:39:06 kato Exp $
+ *	$Id: sio.c,v 1.58 1998/06/01 12:40:24 kato Exp $
  */
 
 #include "opt_comconsole.h"
@@ -907,7 +907,8 @@ sioprobe(dev)
 		if (idev == NULL) {
 			printf("sio%d: master device %d not configured\n",
 			       dev->id_unit, COM_MPMASTER(dev));
-			return (0);
+			dev->id_irq = 0;
+			idev = dev;
 		}
 #ifndef PC98
 		if (!COM_NOTAST4(dev)) {
@@ -1040,7 +1041,7 @@ sioprobe(dev)
 		}
 		outb(iobase + com_cfcr, CFCR_8BITS);
 		enable_intr();
-		return( result );
+		return (iobase == siocniobase ? IO_COMSIZE : result);
 	}
 
 	/*
@@ -1080,14 +1081,13 @@ sioprobe(dev)
 
 	enable_intr();
 
-	/* XXX the magic mask is to discard transient (clock) irqs. */
-	irqs = irqmap[1] & ~irqmap[0] & ~0x0105;
-	if (irqs != idev->id_irq)
+	irqs = irqmap[1] & ~irqmap[0];
+	if (idev->id_irq != 0 && (idev->id_irq & irqs) == 0)
 		printf(
-		    "sio%d: probed irq %d does not match configured irq %d\n",
-		    ffs(irqs) - 1, ffs(idev->id_irq) - 1);
+		"sio%d: configured irq %d not in bitmap of probed irqs %#x\n",
+		    dev->id_unit, ffs(idev->id_irq) - 1, irqs);
 	if (bootverbose)
-		printf("sio%d: irq maps: %04x %04x %04x %04x\n",
+		printf("sio%d: irq maps: %#x %#x %#x %#x\n",
 		    dev->id_unit, irqmap[0], irqmap[1], irqmap[2], irqmap[3]);
 
 	result = IO_COMSIZE;
@@ -1105,7 +1105,7 @@ sioprobe(dev)
 			}
 			break;
 		}
-	return (result);
+	return (iobase == siocniobase ? IO_COMSIZE : result);
 }
 
 #ifdef COM_ESP
