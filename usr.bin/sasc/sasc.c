@@ -28,13 +28,16 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-/*
- * $Id: sasc.c,v 1.4 1997/02/22 19:56:57 peter Exp $
- */
 
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
+#include <err.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <stdio.h>
+#include <unistd.h>
 #include <sys/file.h>
 #include <sys/ioctl.h>
 #include <machine/asc_ioctl.h>
@@ -47,12 +50,15 @@
 #endif
 #define FAIL -1
 
-usage(char *progn)
+static void usage __P((void));
+
+static void
+usage()
 {
-  fprintf(stderr, "usage: %s [-sq] [-f file] [-r dpi] "
-	  "[-w width] [-h height] "
-	  "[-b len] [-t time]\n", progn);
-  exit(1);
+	fprintf(stderr,
+"usage: sasc [-sq] [-f file] [-r dpi] [-w width] [-h height] \
+[-b len] [-t time]\n");
+	exit(1);
 }
 
 int
@@ -77,9 +83,7 @@ main(int argc, char **argv)
   int set_btime    = 0;
   int set_switch   = 0;
 
-  char *progn = *argv;
-  
-  if (argc == 0) usage(progn);
+  if (argc == 0) usage();
 
   while( (c = getopt(argc, argv, "sqf:b:r:w:h:t:")) != FAIL)
     {
@@ -92,98 +96,62 @@ main(int argc, char **argv)
       case 't': set_btime = atoi(optarg); break;
       case 's': set_switch = 1; break;
       case 'q': show_all = 0; break;
-      default: usage(progn);
+      default: usage();
       }
     }
 
   fd = open(file, O_RDONLY);
   if ( fd == FAIL )
-  {
-    perror(file);
-    exit(1);
-  }
+    err(1, "%s", file);
 
   if (set_switch != 0)
     {
       if(ioctl(fd, ASC_SRESSW) == FAIL)
-	{
-	  perror("ASC_SRESSW");
-	  exit(1);
-	}
+		err(1, "ASC_SRESSW");
     }
 
   if (set_dpi != 0)
     {
       if(ioctl(fd, ASC_SRES, &set_dpi) == FAIL)
-	{
-	  perror("ASC_SRES");
-	  exit(1);
-	}
+		err(1, "ASC_SRES");
     }
 
   if (set_width != 0)
     {
       if(ioctl(fd, ASC_SWIDTH, &set_width) == FAIL)
-	{
-	  perror("ASC_SWIDTH");
-	  exit(1);
-	}
+		err(1, "ASC_SWIDTH");
     }
 
   if (set_height != 0)
     {
       if(ioctl(fd, ASC_SHEIGHT, &set_height) == FAIL)
-	{
-	  perror("ASC_SHEIGHT");
-	  exit(1);
-	}
+		err(1, "ASC_SHEIGHT");
     }
 
   if (set_blen != 0)
     {
       if(ioctl(fd, ASC_SBLEN, &set_blen) == FAIL)
-	{
-	  perror("ASC_SBLEN");
-	  exit(1);
-	}
+		err(1, "ASC_SBLEN");
     }
 
   if (set_btime != 0)
     {
       if(ioctl(fd, ASC_SBTIME, &set_btime) == FAIL)
-	{
-	  perror("ASC_SBTIME");
-	  exit(1);
-	}
+		err(1, "ASC_SBTIME");
     }
 
   if (show_all != 0)
     {
       if(ioctl(fd, ASC_GRES,  &show_dpi) == FAIL)
-	{
-	  perror("ASC_GRES");
-	  exit(1);
-	}
+		err(1, "ASC_GRES");
       if(ioctl(fd, ASC_GWIDTH,  &show_width) == FAIL)
-	{
-	  perror("ASC_GWIDTH");
-	  exit(1);
-	}
+		err(1, "ASC_GWIDTH");
       if(ioctl(fd, ASC_GHEIGHT,  &show_height) == FAIL)
-	{
-	  perror("ASC_GHEIGHT");
-	  exit(1);
-	}
+		err(1, "ASC_GHEIGHT");
       if(ioctl(fd, ASC_GBLEN, &show_blen) == FAIL)
-	{
-	  perror("ASC_GBLEN");
-	  exit(1);
-	}
+		err(1, "ASC_GBLEN");
       if(ioctl(fd, ASC_GBTIME, &show_btime) == FAIL)
-	{
-	  perror("ASC_GBTIME");
-	  exit(1);
-	}
+		err(1, "ASC_GBTIME");
 
       printf("%s:\n", file);
       printf("resolution\t %d dpi\n", show_dpi);
