@@ -18,6 +18,7 @@
 #include <sys/conf.h>
 #include <sys/disk.h>
 #include <sys/malloc.h>
+#include <sys/sysctl.h>
 #include <machine/md_var.h>
 
 MALLOC_DEFINE(M_DISK, "disk", "disk data");
@@ -113,6 +114,34 @@ disk_enumerate(struct disk *disk)
 	else
 		return (LIST_NEXT(disk, d_list));
 }
+
+static int
+sysctl_disks SYSCTL_HANDLER_ARGS
+{
+	struct disk *disk;
+	int error, first;
+
+	disk = NULL;
+	first = 1;
+
+	while ((disk = disk_enumerate(disk))) {
+		if (!first) {
+			error = SYSCTL_OUT(req, " ", 1);
+			if (error)
+				return error;
+		} else {
+			first = 0;
+		}
+		error = SYSCTL_OUT(req, disk->d_dev->si_name, strlen(disk->d_dev->si_name));
+		if (error)
+			return error;
+	}
+	error = SYSCTL_OUT(req, "", 1);
+	return error;
+}
+ 
+SYSCTL_PROC(_kern, OID_AUTO, disks, CTLTYPE_STRING | CTLFLAG_RD, 0, NULL, 
+    sysctl_disks, "A", "names of available disks");
 
 /*
  * The cdevsw functions
