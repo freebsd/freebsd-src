@@ -88,6 +88,26 @@ struct utopia_print {
 #define	UTP_TYPE_IDT77105	4
 #define	UTP_TYPE_IDT77155	5
 
+/*
+ * Statistics. These structures are versioned.
+ */
+struct utopia_stats1 {
+	uint32_t	version;	/* version of this statistics struct */
+	uint32_t	fill;
+
+	uint64_t	rx_sbip;	/* rx section BIP errors */
+	uint64_t	rx_lbip;	/* rx line BIP errors */
+	uint64_t	rx_lfebe;	/* rx line far end block errors */
+	uint64_t	rx_pbip;	/* rx path BIP errors */
+	uint64_t	rx_pfebe;	/* rx path far end block errors */
+	uint64_t	rx_cells;	/* received cells */
+	uint64_t	rx_corr;	/* correctable cell errors */
+	uint64_t	rx_uncorr;	/* uncorrectable cell errors */
+	uint64_t	rx_symerr;	/* symbol errors */
+
+	uint64_t	tx_cells;	/* transmitted cells */
+};
+
 #ifdef _KERNEL
 
 #include <sys/queue.h>
@@ -117,6 +137,7 @@ struct utopia {
 	u_int		carrier;	/* carrier state */
 	u_int		loopback;	/* loopback mode */
 	const struct utopia_chip *chip;	/* chip operations */
+	struct utopia_stats1 stats;	/* statistics */
 };
 
 struct utopia_chip {
@@ -147,6 +168,9 @@ struct utopia_chip {
 
 	/* handle interrupt */
 	void	(*intr)(struct utopia *);
+
+	/* update statistics */
+	void	(*update_stats)(struct utopia *);
 };
 
 /*
@@ -168,6 +192,7 @@ void utopia_reset_media(struct utopia *);
 #define	utopia_set_unass(S, U)		((S)->chip->set_unass((S), (U)))
 #define	utopia_set_noscramb(S, N)	((S)->chip->set_noscramb((S), (N)))
 #define	utopia_update_carrier(S)	((S)->chip->update_carrier((S)))
+#define	utopia_update_stats(S)		((S)->chip->update_stats((S)))
 #define	utopia_set_loopback(S, L)	((S)->chip->set_loopback((S), (L)))
 #define	utopia_intr(S)			((S)->chip->intr((S)))
 

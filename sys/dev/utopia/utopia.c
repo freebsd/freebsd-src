@@ -77,6 +77,47 @@ static struct proc *utopia_kproc;
 static void utopia_dump(struct utopia *) __unused;
 
 /*
+ * Statistics update inlines
+ */
+static uint32_t
+utp_update(struct utopia *utp, u_int reg, u_int nreg, uint32_t mask)
+{
+	int err;
+	u_int n;
+	uint8_t regs[4];
+	uint32_t val;
+
+	n = nreg;
+	if ((err = READREGS(utp, reg, regs, &n)) != 0) {
+#ifdef DIAGNOSTIC
+		printf("%s: register read error %s(%u,%u): %d\n", __func__,
+		    utp->chip->name, reg, nreg, err);
+#endif
+		return (0);
+	}
+	if (n < nreg) {
+#ifdef DIAGNOSTIC
+		printf("%s: got only %u regs %s(%u,%u): %d\n", __func__, n,
+		    utp->chip->name, reg, nreg, err);
+#endif
+		return (0);
+	}
+	val = 0;
+	for (n = nreg; n > 0; n--) {
+		val <<= 8;
+		val |= regs[n - 1];
+	}
+	return (val & mask);
+}
+
+#define	UPDATE8(UTP, REG)	utp_update(UTP, REG, 1, 0xff)
+#define	UPDATE12(UTP, REG)	utp_update(UTP, REG, 2, 0xfff)
+#define	UPDATE16(UTP, REG)	utp_update(UTP, REG, 2, 0xffff)
+#define	UPDATE19(UTP, REG)	utp_update(UTP, REG, 3, 0x7ffff)
+#define	UPDATE20(UTP, REG)	utp_update(UTP, REG, 3, 0xfffff)
+#define	UPDATE21(UTP, REG)	utp_update(UTP, REG, 3, 0x1fffff)
+
+/*
  * Debugging - dump all registers.
  */
 static void
@@ -473,6 +514,85 @@ utopia_intr_default(struct utopia *utp)
 		    & SUNI_REGM_RSOPSIS_LOSV));
 }
 
+/*
+ * Update statistics from a SUNI/LITE or SUNI/ULTRA
+ */
+static void
+suni_lite_update_stats(struct utopia *utp)
+{
+	int err;
+
+	/* write to the master if we can */
+	if (!(utp->flags & UTP_FL_NORESET)) {
+		err = WRITEREG(utp, SUNI_REGO_MRESET, 0, 0);
+	} else {
+		err = WRITEREG(utp, SUNI_REGO_RSOP_BIP8, 0, 0);
+		err |= WRITEREG(utp, SUNI_REGO_RLOPBIP8_24, 0, 0);
+		err |= WRITEREG(utp, SUNI_REGO_RPOPBIP8, 0, 0);
+		err |= WRITEREG(utp, SUNI_REGO_RACPCHCS, 0, 0);
+		err |= WRITEREG(utp, SUNI_REGO_TACPCNT, 0, 0);
+
+	}
+	if (err) {
+#ifdef DIAGNOSTIC
+		printf("%s: register write error %s: %d\n", __func__,
+		    utp->chip->name, err);
+#endif
+		return;
+	}
+
+	DELAY(8);
+
+	utp->stats.rx_sbip += UPDATE16(utp, SUNI_REGO_RSOP_BIP8);
+	utp->stats.rx_lbip += UPDATE20(utp, SUNI_REGO_RLOPBIP8_24);
+	utp->stats.rx_lfebe += UPDATE20(utp, SUNI_REGO_RLOPFEBE);
+	utp->stats.rx_pbip += UPDATE16(utp, SUNI_REGO_RPOPBIP8);
+	utp->stats.rx_pfebe += UPDATE16(utp, SUNI_REGO_RPOPFEBE);
+	utp->stats.rx_corr += UPDATE8(utp, SUNI_REGO_RACPCHCS);
+	utp->stats.rx_uncorr += UPDATE8(utp, SUNI_REGO_RACPUHCS);
+	utp->stats.rx_cells += UPDATE19(utp, SUNI_REGO_RACPCNT);
+	utp->stats.tx_cells += UPDATE19(utp, SUNI_REGO_TACPCNT);
+}
+
+/*
+ * Update statistics from a SUNI/622
+ */
+static void
+suni_622_update_stats(struct utopia *utp)
+{
+	int err;
+
+	/* write to the master if we can */
+	if (!(utp->flags & UTP_FL_NORESET)) {
+		err = WRITEREG(utp, SUNI_REGO_MRESET, 0, 0);
+	} else {
+		err = WRITEREG(utp, SUNI_REGO_RSOP_BIP8, 0, 0);
+		err |= WRITEREG(utp, SUNI_REGO_RLOPBIP8_24, 0, 0);
+		err |= WRITEREG(utp, SUNI_REGO_RPOPBIP8, 0, 0);
+		err |= WRITEREG(utp, SUNI_REGO_RACPCHCS, 0, 0);
+		err |= WRITEREG(utp, SUNI_REGO_TACPCNT, 0, 0);
+	}
+	if (err) {
+#ifdef DIAGNOSTIC
+		printf("%s: register write error %s: %d\n", __func__,
+		    utp->chip->name, err);
+#endif
+		return;
+	}
+
+	DELAY(8);
+
+	utp->stats.rx_sbip += UPDATE16(utp, SUNI_REGO_RSOP_BIP8);
+	utp->stats.rx_lbip += UPDATE20(utp, SUNI_REGO_RLOPBIP8_24);
+	utp->stats.rx_lfebe += UPDATE20(utp, SUNI_REGO_RLOPFEBE);
+	utp->stats.rx_pbip += UPDATE16(utp, SUNI_REGO_RPOPBIP8);
+	utp->stats.rx_pfebe += UPDATE16(utp, SUNI_REGO_RPOPFEBE);
+	utp->stats.rx_corr += UPDATE12(utp, SUNI_REGO_RACPCHCS_622);
+	utp->stats.rx_uncorr += UPDATE12(utp, SUNI_REGO_RACPUHCS_622);
+	utp->stats.rx_cells += UPDATE21(utp, SUNI_REGO_RACPCNT_622);
+	utp->stats.tx_cells += UPDATE21(utp, SUNI_REGO_TACPCNT);
+}
+
 static const struct utopia_chip chip_622 = {
 	UTP_TYPE_SUNI_622,
 	"Suni/622 (PMC-5355)",
@@ -484,6 +604,7 @@ static const struct utopia_chip chip_622 = {
 	utopia_update_carrier_default,
 	utopia_set_loopback_622,
 	utopia_intr_default,
+	suni_622_update_stats,
 };
 static const struct utopia_chip chip_lite = {
 	UTP_TYPE_SUNI_LITE,
@@ -496,6 +617,7 @@ static const struct utopia_chip chip_lite = {
 	utopia_update_carrier_default,
 	utopia_set_loopback_lite,
 	utopia_intr_default,
+	suni_lite_update_stats,
 };
 static const struct utopia_chip chip_ultra = {
 	UTP_TYPE_SUNI_ULTRA,
@@ -508,6 +630,7 @@ static const struct utopia_chip chip_ultra = {
 	utopia_update_carrier_default,
 	utopia_set_loopback_ultra,
 	utopia_intr_default,
+	suni_lite_update_stats,
 };
 
 /*
@@ -628,6 +751,49 @@ idt77105_intr(struct utopia *utp)
 	utopia_check_carrier(utp, reg & IDTPHY_REGM_ISTAT_GOOD);
 }
 
+static void
+idt77105_update_stats(struct utopia *utp)
+{
+	int err = 0;
+	uint8_t regs[2];
+	u_int n;
+
+#ifdef DIAGNOSTIC
+#define UDIAG(F,A,B)	printf(F, A, B)
+#else
+#define	UDIAG(F,A,B)	do { } while (0)
+#endif
+
+#define	UPD(FIELD, CODE, N, MASK)					\
+	err = WRITEREG(utp, IDTPHY_REGO_CNTS, 0xff, CODE);		\
+	if (err != 0) {							\
+		UDIAG("%s: cannot write CNTS: %d\n", __func__, err);	\
+		return;							\
+	}								\
+	n = N;								\
+	err = READREGS(utp, IDTPHY_REGO_CNT, regs, &n);			\
+	if (err != 0) {							\
+		UDIAG("%s: cannot read CNT: %d\n", __func__, err);	\
+		return;							\
+	}								\
+	if (n != N) {							\
+		UDIAG("%s: got only %u registers\n", __func__, n);	\
+		return;							\
+	}								\
+	if (N == 1)							\
+		utp->stats.FIELD += (regs[0] & MASK);			\
+	else								\
+		utp->stats.FIELD += (regs[0] | (regs[1] << 8)) & MASK;
+
+	UPD(rx_symerr, IDTPHY_REGM_CNTS_SEC, 1, 0xff);
+	UPD(tx_cells, IDTPHY_REGM_CNTS_TX, 2, 0xffff);
+	UPD(rx_cells, IDTPHY_REGM_CNTS_RX, 2, 0xffff);
+	UPD(rx_uncorr, IDTPHY_REGM_CNTS_HECE, 1, 0x1f);
+
+#undef	UDIAG
+#undef	UPD
+}
+
 static const struct utopia_chip chip_idt77105 = {
 	UTP_TYPE_IDT77105,
 	"IDT77105",
@@ -639,6 +805,7 @@ static const struct utopia_chip chip_idt77105 = {
 	idt77105_update_carrier,
 	idt77105_set_loopback,
 	idt77105_intr,
+	idt77105_update_stats,
 };
 
 /*
@@ -840,6 +1007,49 @@ idt77155_reset(struct utopia *utp)
 	return (err ? EIO : 0);
 }
 
+/*
+ * Update statistics from a IDT77155
+ * This appears to be the same as for the Suni/Lite and Ultra. IDT however
+ * makes no assessment about the transfer time. Assume 7us.
+ */
+static void
+idt77155_update_stats(struct utopia *utp)
+{
+	int err;
+
+	/* write to the master if we can */
+	if (!(utp->flags & UTP_FL_NORESET)) {
+		err = WRITEREG(utp, IDTPHY_REGO_MRID, 0, 0);
+	} else {
+		err = WRITEREG(utp, IDTPHY_REGO_BIPC, 0, 0);
+		err |= WRITEREG(utp, IDTPHY_REGO_B2EC, 0, 0);
+		err |= WRITEREG(utp, IDTPHY_REGO_B3EC, 0, 0);
+		err |= WRITEREG(utp, IDTPHY_REGO_CEC, 0, 0);
+		err |= WRITEREG(utp, IDTPHY_REGO_TXCNT, 0, 0);
+
+	}
+	if (err) {
+#ifdef DIAGNOSTIC
+		printf("%s: register write error %s: %d\n", __func__,
+		    utp->chip->name, err);
+#endif
+		return;
+	}
+
+	DELAY(8);
+
+	utp->stats.rx_sbip += UPDATE16(utp, IDTPHY_REGO_BIPC);
+	utp->stats.rx_lbip += UPDATE20(utp, IDTPHY_REGO_B2EC);
+	utp->stats.rx_lfebe += UPDATE20(utp, IDTPHY_REGO_FEBEC);
+	utp->stats.rx_pbip += UPDATE16(utp, IDTPHY_REGO_B3EC);
+	utp->stats.rx_pfebe += UPDATE16(utp, IDTPHY_REGO_PFEBEC);
+	utp->stats.rx_corr += UPDATE8(utp, IDTPHY_REGO_CEC);
+	utp->stats.rx_uncorr += UPDATE8(utp, IDTPHY_REGO_UEC);
+	utp->stats.rx_cells += UPDATE19(utp, IDTPHY_REGO_RCCNT);
+	utp->stats.tx_cells += UPDATE19(utp, IDTPHY_REGO_TXCNT);
+}
+
+
 static const struct utopia_chip chip_idt77155 = {
 	UTP_TYPE_IDT77155,
 	"IDT77155",
@@ -851,6 +1061,7 @@ static const struct utopia_chip chip_idt77155 = {
 	idt77155_update_carrier,
 	idt77155_set_loopback,
 	idt77155_intr,
+	idt77155_update_stats,
 };
 
 static int
@@ -877,6 +1088,11 @@ unknown_intr(struct utopia *utp __unused)
 {
 }
 
+static void
+unknown_update_stats(struct utopia *utp __unused)
+{
+}
+
 static const struct utopia_chip chip_unknown = {
 	UTP_TYPE_UNKNOWN,
 	"unknown",
@@ -888,6 +1104,7 @@ static const struct utopia_chip chip_unknown = {
 	unknown_update_carrier,
 	unknown_set_loopback,
 	unknown_intr,
+	unknown_update_stats,
 };
 
 /*
@@ -1097,6 +1314,33 @@ utopia_sysctl_regs(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
+static int
+utopia_sysctl_stats(SYSCTL_HANDLER_ARGS)
+{
+	struct utopia *utp = (struct utopia *)arg1;
+	void *val;
+	int error;
+
+	val = malloc(sizeof(utp->stats), M_TEMP, M_WAITOK);
+
+	UTP_LOCK(utp);
+	bcopy(&utp->stats, val, sizeof(utp->stats));
+	if (req->newptr != NULL)
+		bzero((char *)&utp->stats + sizeof(utp->stats.version),
+		    sizeof(utp->stats) - sizeof(utp->stats.version));
+	UTP_UNLOCK(utp);
+
+	error = SYSCTL_OUT(req, val, sizeof(utp->stats));
+	free(val, M_TEMP);
+
+	if (error && req->newptr != NULL)
+		bcopy(val, &utp->stats, sizeof(utp->stats));
+
+	/* ignore actual new value */
+
+	return (error);
+}
+
 /*
  * Handle the loopback sysctl
  */
@@ -1160,6 +1404,7 @@ utopia_attach(struct utopia *utp, struct ifatm *ifatm, struct ifmedia *media,
 	utp->media = media;
 	utp->lock = lock;
 	utp->chip = &chip_unknown;
+	utp->stats.version = 1;
 
 	ifmedia_init(media,
 	    IFM_ATM_SDH | IFM_ATM_UNASSIGNED | IFM_ATM_NOSCRAMB,
@@ -1183,6 +1428,11 @@ utopia_attach(struct utopia *utp, struct ifatm *ifatm, struct ifmedia *media,
 	if (SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "phy_name",
 	    CTLFLAG_RD | CTLTYPE_STRING, utp, 0, utopia_sysctl_name, "A",
 	    "phy name") == NULL)
+		return (-1);
+
+	if (SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "phy_stats",
+	    CTLFLAG_RW | CTLTYPE_OPAQUE, utp, 0, utopia_sysctl_stats, "S",
+	    "phy statistics") == NULL)
 		return (-1);
 
 	UTP_WLOCK_LIST();
@@ -1237,9 +1487,10 @@ utopia_daemon(void *arg __unused)
 				LIST_REMOVE(utp, link);
 				utp->state &= ~UTP_ST_DETACH;
 				wakeup_one(utp);
-			} else if ((utp->state & UTP_ST_ACTIVE) &&
-			    (utp->flags & UTP_FL_POLL_CARRIER)) {
-				utopia_update_carrier(utp);
+			} else if (utp->state & UTP_ST_ACTIVE) {
+				if (utp->flags & UTP_FL_POLL_CARRIER)
+					utopia_update_carrier(utp);
+				utopia_update_stats(utp);
 			}
 			UTP_UNLOCK(utp);
 			mtx_unlock(&Giant);	/* XXX depend on MPSAFE */
@@ -1247,7 +1498,7 @@ utopia_daemon(void *arg __unused)
 		}
 
 		UTP_RLOCK_LIST();
-		msleep(&utopia_list, &utopia_list_mtx, PZERO, "utopia", hz);
+		msleep(&utopia_list, &utopia_list_mtx, PZERO, "*idle*", hz);
 	}
 	wakeup_one(&utopia_list);
 	UTP_RUNLOCK_LIST();
