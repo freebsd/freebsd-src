@@ -698,19 +698,19 @@ static void kue_rxeof(xfer, priv, status)
 
 	usbd_get_xfer_status(xfer, NULL, NULL, &total_len, NULL);
 	m = c->kue_mbuf;
-	if (total_len <= 1) {
-		usbd_setup_xfer(c->kue_xfer, sc->kue_ep[KUE_ENDPT_RX],
-		    c, mtod(c->kue_mbuf, char *), KUE_BUFSZ, USBD_SHORT_XFER_OK,
-		    USBD_NO_TIMEOUT, kue_rxeof);
-		usbd_transfer(c->kue_xfer);
-		return;
-	}
+	if (total_len <= 1)
+		goto done;
 
 	len = *mtod(m, u_int16_t *);
 	m_adj(m, sizeof(u_int16_t));
 
 	/* No errors; receive the packet. */
 	total_len = len;
+
+	if (len < sizeof(struct ether_header)) {
+		ifp->if_ierrors++;
+		goto done;
+	}
 
 	ifp->if_ipackets++;
 	m->m_pkthdr.rcvif = (struct ifnet *)&kue_qdat;
@@ -719,7 +719,14 @@ static void kue_rxeof(xfer, priv, status)
 	/* Put the packet on the special USB input queue. */
 	usb_ether_input(m);
 
+	return;
 done:
+
+	/* Setup new transfer. */
+	usbd_setup_xfer(c->kue_xfer, sc->kue_ep[KUE_ENDPT_RX],
+	    c, mtod(c->kue_mbuf, char *), KUE_BUFSZ, USBD_SHORT_XFER_OK,
+	    USBD_NO_TIMEOUT, kue_rxeof);
+	usbd_transfer(c->kue_xfer);
 
 	return;
 }
