@@ -1,6 +1,6 @@
 <!--
     $FreeBSD$
-    Original revision: 1.5
+    Original revision: 1.7
 -->
 <sect1>
   <title>対応システム</title>
@@ -23,7 +23,6 @@
 
     <para>&os; が完全対応しているシステムは、以下のとおりです。</para>
 
-    <para>
       <itemizedlist>
         <listitem>
           <para>Blade 100</para>
@@ -92,7 +91,6 @@
           <para>Ultra 80</para>
         </listitem>
       </itemizedlist>
-    </para>
   </sect2>
 
   <sect2>
@@ -102,19 +100,17 @@
       一部の機能に制限があります。
       特に、sbus システムのオンボード SCSI コントローラには対応していません。 </para>
 
-    <para>
       <itemizedlist>
         <listitem>
           <para>Enterprise 4500</para>
         </listitem>
         <listitem>
-          <para>Ultra 1E</para>
+          <para>Ultra 1 Enterprise (略称 1E)</para>
         </listitem>
         <listitem>
           <para>Ultra 2</para>
         </listitem>
       </itemizedlist>
-    </para>
   </sect2>
 
   <sect2>
@@ -127,7 +123,6 @@
       &os; を使う際に必要となるオンボードデバイスへの対応が不十分であるなどの
       理由によるものです。</para>
 
-    <para>
       <itemizedlist>
         <listitem>
           <para>UltraSPARC III プロセッサを搭載したシステムすべて</para>
@@ -139,6 +134,5 @@
           <para>Ultra 1</para>
         </listitem>
       </itemizedlist>
-    </para>
   </sect2>
 </sect1>
