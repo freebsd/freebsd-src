@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_ioctl.c,v 1.5 1995/12/30 00:42:25 sos Exp $
+ *  $Id: linux_ioctl.c,v 1.6 1996/03/02 19:37:55 peter Exp $
  */
 
 #include <sys/param.h>
@@ -48,6 +48,16 @@
 
 #include <i386/linux/linux.h>
 #include <i386/linux/linux_proto.h>
+
+struct linux_termio {
+    unsigned short c_iflag;
+    unsigned short c_oflag;
+    unsigned short c_cflag;
+    unsigned short c_lflag;
+    unsigned char c_line;
+    unsigned char c_cc[LINUX_NCC];
+};
+
 
 struct linux_termios {
     unsigned long   c_iflag;
@@ -192,7 +202,7 @@ bsd_to_linux_termios(struct termios *bsd_termios,
 	linux_termios->c_lflag |= LINUX_IEXTEN;
 
     for (i=0; i<LINUX_NCCS; i++) 
-	linux_termios->c_cc[i] = _POSIX_VDISABLE;
+	linux_termios->c_cc[i] = LINUX_POSIX_VDISABLE;
     linux_termios->c_cc[LINUX_VINTR] = bsd_termios->c_cc[VINTR];
     linux_termios->c_cc[LINUX_VQUIT] = bsd_termios->c_cc[VQUIT];
     linux_termios->c_cc[LINUX_VERASE] = bsd_termios->c_cc[VERASE];
@@ -211,6 +221,11 @@ bsd_to_linux_termios(struct termios *bsd_termios,
     linux_termios->c_cc[LINUX_VWERASE] = bsd_termios->c_cc[VWERASE];
     linux_termios->c_cc[LINUX_VLNEXT] = bsd_termios->c_cc[VLNEXT];
 
+    for (i=0; i<LINUX_NCCS; i++) {
+      if (linux_termios->c_cc[i] == _POSIX_VDISABLE)
+	linux_termios->c_cc[i] = LINUX_POSIX_VDISABLE;
+    }
+
     linux_termios->c_line = 0;
 #ifdef DEBUG
     printf("LINUX: LINUX termios structure (output):\n");
@@ -224,6 +239,7 @@ bsd_to_linux_termios(struct termios *bsd_termios,
     printf("\n");
 #endif
 }
+
 
 static void
 linux_to_bsd_termios(struct linux_termios *linux_termios,
@@ -340,6 +356,11 @@ linux_to_bsd_termios(struct linux_termios *linux_termios,
     bsd_termios->c_cc[VWERASE] = linux_termios->c_cc[LINUX_VWERASE];
     bsd_termios->c_cc[VLNEXT] = linux_termios->c_cc[LINUX_VLNEXT];
 
+    for (i=0; i<NCCS; i++) {
+      if (bsd_termios->c_cc[i] == LINUX_POSIX_VDISABLE)
+	bsd_termios->c_cc[i] = _POSIX_VDISABLE;
+    }
+
     bsd_termios->c_ispeed = bsd_termios->c_ospeed =
 	linux_to_bsd_speed(linux_termios->c_cflag & LINUX_CBAUD, sptab);
 #ifdef DEBUG
@@ -355,12 +376,49 @@ linux_to_bsd_termios(struct linux_termios *linux_termios,
 #endif
 }
 
+
+static void
+bsd_to_linux_termio(struct termios *bsd_termios, 
+		struct linux_termio *linux_termio)
+{
+  struct linux_termios tmios;
+
+  bsd_to_linux_termios(bsd_termios, &tmios);
+  linux_termio->c_iflag = tmios.c_iflag;
+  linux_termio->c_oflag = tmios.c_oflag;
+  linux_termio->c_cflag = tmios.c_cflag;
+  linux_termio->c_lflag = tmios.c_lflag;
+  linux_termio->c_line  = tmios.c_line;
+  memcpy(linux_termio->c_cc, tmios.c_cc, LINUX_NCC);
+}
+
+static void
+linux_to_bsd_termio(struct linux_termio *linux_termio,
+		struct termios *bsd_termios)
+{
+  struct linux_termios tmios;
+  int i;
+
+  tmios.c_iflag = linux_termio->c_iflag;
+  tmios.c_oflag = linux_termio->c_oflag;
+  tmios.c_cflag = linux_termio->c_cflag;
+  tmios.c_lflag = linux_termio->c_lflag;
+
+  for (i=0; i<LINUX_NCCS; i++)
+    tmios.c_cc[i] = LINUX_POSIX_VDISABLE;
+  memcpy(tmios.c_cc, linux_termio->c_cc, LINUX_NCC);
+
+  linux_to_bsd_termios(&tmios, bsd_termios);
+}
+
+
 int
 linux_ioctl(struct proc *p, struct linux_ioctl_args *args, int *retval)
 {
     struct termios bsd_termios;
     struct winsize bsd_winsize;
     struct linux_termios linux_termios;
+    struct linux_termio linux_termio;
     struct linux_winsize linux_winsize;
     struct filedesc *fdp = p->p_fd;
     struct file *fp;
@@ -382,6 +440,18 @@ linux_ioctl(struct proc *p, struct linux_ioctl_args *args, int *retval)
 
     func = fp->f_ops->fo_ioctl;
     switch (args->cmd & 0xffff) {
+
+    case LINUX_TCGETA:
+	if ((error = (*func)(fp, TIOCGETA, (caddr_t)&bsd_termios, p)) != 0)
+	    return error;
+	bsd_to_linux_termio(&bsd_termios, &linux_termio);
+	return copyout((caddr_t)&linux_termio, (caddr_t)args->arg,
+		       sizeof(linux_termio));
+
+    case LINUX_TCSETA:
+	linux_to_bsd_termio((struct linux_termio *)args->arg, &bsd_termios);
+	return (*func)(fp, TIOCSETA, (caddr_t)&bsd_termios, p);
+
     case LINUX_TCGETS:
 	if ((error = (*func)(fp, TIOCGETA, (caddr_t)&bsd_termios, p)) != 0)
 	    return error;
