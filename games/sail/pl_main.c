@@ -204,7 +204,7 @@ reprint:
 		else
 			captain[sizeof(captain) - 1] = '\0';
 	}
-	Write(W_CAPTAIN, ms, 1, (int)captain, 0, 0, 0);
+	Write(W_CAPTAIN, ms, 1, (long)captain, 0, 0, 0);
 	for (n = 0; n < 2; n++) {
 		char buf[10];
 
@@ -240,6 +240,6 @@ reprint:
 	initscreen();
 	draw_board();
 	(void) sprintf(message, "Captain %s assuming command", captain);
-	Write(W_SIGNAL, ms, 1, (int)message, 0, 0, 0);
+	Write(W_SIGNAL, ms, 1, (long)message, 0, 0, 0);
 	newturn();
 }
