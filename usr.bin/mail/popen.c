@@ -48,19 +48,19 @@ static const char rcsid[] =
 #define WRITE 1
 
 struct fp {
-	FILE *fp;
-	int pipe;
-	int pid;
-	struct fp *link;
+	FILE	*fp;
+	int	pipe;
+	int	pid;
+	struct	fp *link;
 };
 static struct fp *fp_head;
 
 struct child {
-	int pid;
-	char done;
-	char free;
-	int status;
-	struct child *link;
+	int	pid;
+	char	done;
+	char	free;
+	int	status;
+	struct	child *link;
 };
 static struct child *child;
 static struct child *findchild __P((int));
@@ -68,30 +68,30 @@ static void delchild __P((struct child *));
 static int file_pid __P((FILE *));
 
 FILE *
-Fopen(file, mode)
-	char *file, *mode;
+Fopen(path, mode)
+	const char *path, *mode;
 {
 	FILE *fp;
 
-	if ((fp = fopen(file, mode)) != NULL) {
+	if ((fp = fopen(path, mode)) != NULL) {
 		register_file(fp, 0, 0);
-		(void) fcntl(fileno(fp), F_SETFD, 1);
+		(void)fcntl(fileno(fp), F_SETFD, 1);
 	}
-	return fp;
+	return (fp);
 }
 
 FILE *
 Fdopen(fd, mode)
 	int fd;
-	char *mode;
+	const char *mode;
 {
 	FILE *fp;
 
 	if ((fp = fdopen(fd, mode)) != NULL) {
 		register_file(fp, 0, 0);
-		(void) fcntl(fileno(fp), F_SETFD, 1);
+		(void)fcntl(fileno(fp), F_SETFD, 1);
 	}
-	return fp;
+	return (fp);
 }
 
 int
@@ -99,13 +99,13 @@ Fclose(fp)
 	FILE *fp;
 {
 	unregister_file(fp);
-	return fclose(fp);
+	return (fclose(fp));
 }
 
 FILE *
 Popen(cmd, mode)
 	char *cmd;
-	char *mode;
+	const char *mode;
 {
 	int p[2];
 	int myside, hisside, fd0, fd1;
@@ -113,9 +113,9 @@ Popen(cmd, mode)
 	FILE *fp;
 
 	if (pipe(p) < 0)
-		return NULL;
-	(void) fcntl(p[READ], F_SETFD, 1);
-	(void) fcntl(p[WRITE], F_SETFD, 1);
+		return (NULL);
+	(void)fcntl(p[READ], F_SETFD, 1);
+	(void)fcntl(p[WRITE], F_SETFD, 1);
 	if (*mode == 'r') {
 		myside = p[READ];
 		fd0 = -1;
@@ -125,15 +125,15 @@ Popen(cmd, mode)
 		hisside = fd0 = p[READ];
 		fd1 = -1;
 	}
-	if ((pid = start_command(cmd, 0, fd0, fd1, NOSTR, NOSTR, NOSTR)) < 0) {
-		close(p[READ]);
-		close(p[WRITE]);
-		return NULL;
+	if ((pid = start_command(cmd, 0, fd0, fd1, NULL, NULL, NULL)) < 0) {
+		(void)close(p[READ]);
+		(void)close(p[WRITE]);
+		return (NULL);
 	}
-	(void) close(hisside);
+	(void)close(hisside);
 	if ((fp = fdopen(myside, mode)) != NULL)
 		register_file(fp, 1, pid);
-	return fp;
+	return (fp);
 }
 
 int
@@ -145,22 +145,22 @@ Pclose(ptr)
 
 	i = file_pid(ptr);
 	unregister_file(ptr);
-	(void) fclose(ptr);
+	(void)fclose(ptr);
 	omask = sigblock(sigmask(SIGINT)|sigmask(SIGHUP));
 	i = wait_child(i);
-	sigsetmask(omask);
-	return i;
+	(void)sigsetmask(omask);
+	return (i);
 }
 
 void
 close_all_files()
 {
 
-	while (fp_head)
+	while (fp_head != NULL)
 		if (fp_head->pipe)
-			(void) Pclose(fp_head->fp);
+			(void)Pclose(fp_head->fp);
 		else
-			(void) Fclose(fp_head->fp);
+			(void)Fclose(fp_head->fp);
 }
 
 void
@@ -170,7 +170,7 @@ register_file(fp, pipe, pid)
 {
 	struct fp *fpp;
 
-	if ((fpp = (struct fp *) malloc(sizeof *fpp)) == NULL)
+	if ((fpp = malloc(sizeof(*fpp))) == NULL)
 		err(1, "Out of memory");
 	fpp->fp = fp;
 	fpp->pipe = pipe;
@@ -185,10 +185,10 @@ unregister_file(fp)
 {
 	struct fp **pp, *p;
 
-	for (pp = &fp_head; p = *pp; pp = &p->link)
+	for (pp = &fp_head; (p = *pp) != NULL; pp = &p->link)
 		if (p->fp == fp) {
 			*pp = p->link;
-			free((char *) p);
+			(void)free(p);
 			return;
 		}
 	errx(1, "Invalid file pointer");
@@ -201,7 +201,7 @@ file_pid(fp)
 {
 	struct fp *p;
 
-	for (p = fp_head; p; p = p->link)
+	for (p = fp_head; p != NULL; p = p->link)
 		if (p->fp == fp)
 			return (p->pid);
 	errx(1, "Invalid file pointer");
@@ -225,8 +225,8 @@ run_command(cmd, mask, infd, outfd, a0, a1, a2)
 	int pid;
 
 	if ((pid = start_command(cmd, mask, infd, outfd, a0, a1, a2)) < 0)
-		return -1;
-	return wait_command(pid);
+		return (-1);
+	return (wait_command(pid));
 }
 
 /*VARARGS4*/
@@ -240,22 +240,22 @@ start_command(cmd, mask, infd, outfd, a0, a1, a2)
 
 	if ((pid = fork()) < 0) {
 		warn("fork");
-		return -1;
+		return (-1);
 	}
 	if (pid == 0) {
 		char *argv[100];
-		int i = getrawlist(cmd, argv, sizeof argv / sizeof *argv);
+		int i = getrawlist(cmd, argv, sizeof(argv) / sizeof(*argv));
 
-		if ((argv[i++] = a0) != NOSTR &&
-		    (argv[i++] = a1) != NOSTR &&
-		    (argv[i++] = a2) != NOSTR)
-			argv[i] = NOSTR;
+		if ((argv[i++] = a0) != NULL &&
+		    (argv[i++] = a1) != NULL &&
+		    (argv[i++] = a2) != NULL)
+			argv[i] = NULL;
 		prepare_child(mask, infd, outfd);
 		execvp(argv[0], argv);
 		warn("%s", argv[0]);
 		_exit(1);
 	}
-	return pid;
+	return (pid);
 }
 
 void
@@ -274,10 +274,10 @@ prepare_child(mask, infd, outfd)
 		dup2(outfd, 1);
 	for (i = 1; i <= NSIG; i++)
 		if (mask & sigmask(i))
-			(void) signal(i, SIG_IGN);
+			(void)signal(i, SIG_IGN);
 	if ((mask & sigmask(SIGINT)) == 0)
-		(void) signal(SIGINT, SIG_DFL);
-	(void) sigsetmask(0);
+		(void)signal(SIGINT, SIG_DFL);
+	(void)sigsetmask(0);
 }
 
 int
@@ -287,50 +287,51 @@ wait_command(pid)
 
 	if (wait_child(pid) < 0) {
 		printf("Fatal error in process.\n");
-		return -1;
+		return (-1);
 	}
-	return 0;
+	return (0);
 }
 
 static struct child *
 findchild(pid)
 	int pid;
 {
-	register struct child **cpp;
+	struct child **cpp;
 
 	for (cpp = &child; *cpp != NULL && (*cpp)->pid != pid;
-	     cpp = &(*cpp)->link)
+	    cpp = &(*cpp)->link)
 			;
 	if (*cpp == NULL) {
-		*cpp = (struct child *) malloc(sizeof (struct child));
+		*cpp = malloc(sizeof(struct child));
 		if (*cpp == NULL)
 			err(1, "Out of memory");
 		(*cpp)->pid = pid;
 		(*cpp)->done = (*cpp)->free = 0;
 		(*cpp)->link = NULL;
 	}
-	return *cpp;
+	return (*cpp);
 }
 
 static void
 delchild(cp)
-	register struct child *cp;
+	struct child *cp;
 {
-	register struct child **cpp;
+	struct child **cpp;
 
 	for (cpp = &child; *cpp != cp; cpp = &(*cpp)->link)
 		;
 	*cpp = cp->link;
-	free((char *) cp);
+	(void)free(cp);
 }
 
+/*ARGSUSED*/
 void
 sigchild(signo)
 	int signo;
 {
 	int pid;
 	int status;
-	register struct child *cp;
+	struct child *cp;
 
 	while ((pid = waitpid((pid_t)-1, &status, WNOHANG)) > 0) {
 		cp = findchild(pid);
@@ -353,14 +354,14 @@ wait_child(pid)
 	int pid;
 {
 	int mask = sigblock(sigmask(SIGCHLD));
-	register struct child *cp = findchild(pid);
+	struct child *cp = findchild(pid);
 
 	while (!cp->done)
 		sigpause(mask);
 	wait_status = cp->status;
 	delchild(cp);
-	sigsetmask(mask);
-	return((WIFEXITED(wait_status) && WEXITSTATUS(wait_status)) ? -1 : 0);
+	(void)sigsetmask(mask);
+	return ((WIFEXITED(wait_status) && WEXITSTATUS(wait_status)) ? -1 : 0);
 }
 
 /*
@@ -371,11 +372,11 @@ free_child(pid)
 	int pid;
 {
 	int mask = sigblock(sigmask(SIGCHLD));
-	register struct child *cp = findchild(pid);
+	struct child *cp = findchild(pid);
 
 	if (cp->done)
 		delchild(cp);
 	else
 		cp->free = 1;
-	sigsetmask(mask);
+	(void)sigsetmask(mask);
 }

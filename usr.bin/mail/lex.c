@@ -52,7 +52,10 @@ static const char rcsid[] =
  * Lexical processing of commands.
  */
 
-char	*prompt = "& ";
+const char	*prompt = "& ";
+
+extern const struct cmd cmdtab[];
+extern const char *version;	
 
 /*
  * Set up editing on the given file name.
@@ -72,24 +75,24 @@ setfile(name)
 	char tempname[PATHSIZE];
 	static int shudclob;
 
-	if ((name = expand(name)) == NOSTR)
-		return -1;
+	if ((name = expand(name)) == NULL)
+		return (-1);
 
 	if ((ibuf = Fopen(name, "r")) == NULL) {
 		if (!isedit && errno == ENOENT)
 			goto nomail;
 		warn("%s", name);
-		return(-1);
+		return (-1);
 	}
 
 	if (fstat(fileno(ibuf), &stb) < 0) {
 		warn("fstat");
-		Fclose(ibuf);
+		(void)Fclose(ibuf);
 		return (-1);
 	}
 
 	if (S_ISDIR(stb.st_mode) || !S_ISREG(stb.st_mode)) {
-		Fclose(ibuf);
+		(void)Fclose(ibuf);
 		errno = S_ISDIR(stb.st_mode) ? EISDIR : EINVAL;
 		warn("%s", name);
 		return (-1);
@@ -115,10 +118,10 @@ setfile(name)
 	if ((i = open(name, 1)) < 0)
 		readonly++;
 	else
-		close(i);
+		(void)close(i);
 	if (shudclob) {
-		fclose(itf);
-		fclose(otf);
+		(void)fclose(itf);
+		(void)fclose(otf);
 	}
 	shudclob = 1;
 	edit = isedit;
@@ -126,25 +129,26 @@ setfile(name)
 	if (name != mailname)
 		strlcpy(mailname, name, sizeof(mailname));
 	mailsize = fsize(ibuf);
-	snprintf(tempname, sizeof(tempname), "%s/mail.RxXXXXXXXXXX", tmpdir);
+	(void)snprintf(tempname, sizeof(tempname),
+	    "%s/mail.RxXXXXXXXXXX", tmpdir);
 	if ((fd = mkstemp(tempname)) == -1 || (otf = fdopen(fd, "w")) == NULL)
 		err(1, "%s", tempname);
-	(void) fcntl(fileno(otf), F_SETFD, 1);
+	(void)fcntl(fileno(otf), F_SETFD, 1);
 	if ((itf = fopen(tempname, "r")) == NULL)
 		err(1, "%s", tempname);
-	(void) fcntl(fileno(itf), F_SETFD, 1);
-	rm(tempname);
+	(void)fcntl(fileno(itf), F_SETFD, 1);
+	(void)rm(tempname);
 	setptr(ibuf);
 	setmsize(msgCount);
-	Fclose(ibuf);
+	(void)Fclose(ibuf);
 	relsesigs();
 	sawcom = 0;
 	if (!edit && msgCount == 0) {
 nomail:
 		fprintf(stderr, "No mail for %s\n", who);
-		return -1;
+		return (-1);
 	}
-	return(0);
+	return (0);
 }
 
 int	*msgvec;
@@ -157,19 +161,17 @@ int	reset_on_stop;			/* do a reset() if stopped */
 void
 commands()
 {
-	int eofloop = 0;
-	register int n;
+	int n, eofloop = 0;
 	char linebuf[LINESIZE];
-	void intr(), stop(), hangup();
 
 	if (!sourcing) {
 		if (signal(SIGINT, SIG_IGN) != SIG_IGN)
-			signal(SIGINT, intr);
+			(void)signal(SIGINT, intr);
 		if (signal(SIGHUP, SIG_IGN) != SIG_IGN)
-			signal(SIGHUP, hangup);
-		signal(SIGTSTP, stop);
-		signal(SIGTTOU, stop);
-		signal(SIGTTIN, stop);
+			(void)signal(SIGHUP, hangup);
+		(void)signal(SIGTSTP, stop);
+		(void)signal(SIGTTOU, stop);
+		(void)signal(SIGTTIN, stop);
 	}
 	setexit();
 	for (;;) {
@@ -177,11 +179,11 @@ commands()
 		 * Print the prompt, if needed.  Clear out
 		 * string space, and flush the output.
 		 */
-		if (!sourcing && value("interactive") != NOSTR) {
+		if (!sourcing && value("interactive") != NULL) {
 			reset_on_stop = 1;
 			printf("%s", prompt);
 		}
-		fflush(stdout);
+		(void)fflush(stdout);
 		sreset();
 		/*
 		 * Read a line of commands from the current input
@@ -210,8 +212,8 @@ commands()
 				unstack();
 				continue;
 			}
-			if (value("interactive") != NOSTR &&
-			    value("ignoreeof") != NOSTR &&
+			if (value("interactive") != NULL &&
+			    value("ignoreeof") != NULL &&
 			    ++eofloop < 25) {
 				printf("Use \"quit\" to quit.\n");
 				continue;
@@ -238,10 +240,9 @@ execute(linebuf, contxt)
 {
 	char word[LINESIZE];
 	char *arglist[MAXARGC];
-	struct cmd *com;
-	register char *cp, *cp2;
-	register int c;
-	int muvec[2];
+	const struct cmd *com;
+	char *cp, *cp2;
+	int c, muvec[2];
 	int e = 1;
 
 	/*
@@ -261,10 +262,10 @@ execute(linebuf, contxt)
 			goto out;
 		}
 		shell(cp+1);
-		return(0);
+		return (0);
 	}
 	cp2 = word;
-	while (*cp && strchr(" \t0123456789$^.:/-+*'\"", *cp) == NOSTR)
+	while (*cp != '\0' && strchr(" \t0123456789$^.:/-+*'\"", *cp) == NULL)
 		*cp2++ = *cp++;
 	*cp2 = '\0';
 
@@ -277,9 +278,9 @@ execute(linebuf, contxt)
 	 */
 
 	if (sourcing && *word == '\0')
-		return(0);
+		return (0);
 	com = lex(word);
-	if (com == NONE) {
+	if (com == NULL) {
 		printf("Unknown command: \"%s\"\n", word);
 		goto out;
 	}
@@ -290,8 +291,8 @@ execute(linebuf, contxt)
 	 */
 
 	if ((com->c_argtype & F) == 0)
-		if (cond == CRCV && !rcvmode || cond == CSEND && rcvmode)
-			return(0);
+		if ((cond == CRCV && !rcvmode) || (cond == CSEND && rcvmode))
+			return (0);
 
 	/*
 	 * Process the arguments to the command, depending
@@ -332,8 +333,7 @@ execute(linebuf, contxt)
 		if ((c = getmsglist(cp, msgvec, com->c_msgflag)) < 0)
 			break;
 		if (c  == 0) {
-			*msgvec = first(com->c_msgflag,
-				com->c_msgmask);
+			*msgvec = first(com->c_msgflag, com->c_msgmask);
 			msgvec[1] = 0;
 		}
 		if (*msgvec == 0) {
@@ -372,16 +372,16 @@ execute(linebuf, contxt)
 		 * A vector of strings, in shell style.
 		 */
 		if ((c = getrawlist(cp, arglist,
-				sizeof arglist / sizeof *arglist)) < 0)
+		    sizeof(arglist) / sizeof(*arglist))) < 0)
 			break;
 		if (c < com->c_minargs) {
 			printf("%s requires at least %d arg(s)\n",
-				com->c_name, com->c_minargs);
+			    com->c_name, com->c_minargs);
 			break;
 		}
 		if (c > com->c_maxargs) {
 			printf("%s takes no more than %d arg(s)\n",
-				com->c_name, com->c_maxargs);
+			    com->c_name, com->c_maxargs);
 			break;
 		}
 		e = (*com->c_func)(arglist);
@@ -406,14 +406,14 @@ out:
 	 */
 	if (e) {
 		if (e < 0)
-			return 1;
+			return (1);
 		if (loading)
-			return 1;
+			return (1);
 		if (sourcing)
 			unstack();
-		return 0;
+		return (0);
 	}
-	if (value("autoprint") != NOSTR && com->c_argtype & P)
+	if (value("autoprint") != NULL && com->c_argtype & P)
 		if ((dot->m_flag & MDELETED) == 0) {
 			muvec[0] = dot - &message[0] + 1;
 			muvec[1] = 0;
@@ -421,7 +421,7 @@ out:
 		}
 	if (!sourcing && (com->c_argtype & T) == 0)
 		sawcom = 1;
-	return(0);
+	return (0);
 }
 
 /*
@@ -434,8 +434,8 @@ setmsize(sz)
 {
 
 	if (msgvec != 0)
-		free((char *) msgvec);
-	msgvec = (int *) calloc((unsigned) (sz + 1), sizeof *msgvec);
+		(void)free(msgvec);
+	msgvec = calloc((unsigned)(sz + 1), sizeof(*msgvec));
 }
 
 /*
@@ -443,15 +443,14 @@ setmsize(sz)
  * to the passed command "word"
  */
 
-struct cmd *
+__const struct cmd *
 lex(word)
 	char word[];
 {
-	register struct cmd *cp;
-	extern struct cmd cmdtab[];
+	const struct cmd *cp;
 
 	/*
-	 * ignore trailing chars after `#' 
+	 * ignore trailing chars after `#'
 	 *
 	 * lines with beginning `#' are comments
 	 * spaces before `#' are ignored in execute()
@@ -461,10 +460,10 @@ lex(word)
 	    *(word+1) = '\0';
 
 
-	for (cp = &cmdtab[0]; cp->c_name != NOSTR; cp++)
+	for (cp = &cmdtab[0]; cp->c_name != NULL; cp++)
 		if (isprefix(word, cp->c_name))
-			return(cp);
-	return(NONE);
+			return (cp);
+	return (NULL);
 }
 
 /*
@@ -473,16 +472,16 @@ lex(word)
  */
 int
 isprefix(as1, as2)
-	char *as1, *as2;
+	const char *as1, *as2;
 {
-	register char *s1, *s2;
+	const char *s1, *s2;
 
 	s1 = as1;
 	s2 = as2;
 	while (*s1++ == *s2)
 		if (*s2++ == '\0')
-			return(1);
-	return(*--s1 == '\0');
+			return (1);
+	return (*--s1 == '\0');
 }
 
 /*
@@ -511,7 +510,7 @@ intr(s)
 	close_all_files();
 
 	if (image >= 0) {
-		close(image);
+		(void)close(image);
 		image = -1;
 	}
 	fprintf(stderr, "Interrupt\n");
@@ -527,10 +526,10 @@ stop(s)
 {
 	sig_t old_action = signal(s, SIG_DFL);
 
-	sigsetmask(sigblock(0) & ~sigmask(s));
-	kill(0, s);
-	sigblock(sigmask(s));
-	signal(s, old_action);
+	(void)sigsetmask(sigblock(0) & ~sigmask(s));
+	(void)kill(0, s);
+	(void)sigblock(sigmask(s));
+	(void)signal(s, old_action);
 	if (reset_on_stop) {
 		reset_on_stop = 0;
 		reset(0);
@@ -563,7 +562,7 @@ announce()
 	vec[0] = mdot;
 	vec[1] = 0;
 	dot = &message[mdot - 1];
-	if (msgCount > 0 && value("noheader") == NOSTR) {
+	if (msgCount > 0 && value("noheader") == NULL) {
 		inithdr++;
 		headers(vec);
 		inithdr = 0;
@@ -577,8 +576,8 @@ announce()
 int
 newfileinfo()
 {
-	register struct message *mp;
-	register int u, n, mdot, d, s;
+	struct message *mp;
+	int u, n, mdot, d, s;
 	char fname[PATHSIZE+1], zname[PATHSIZE+1], *ename;
 
 	for (mp = &message[0]; mp < &message[msgCount]; mp++)
@@ -607,7 +606,8 @@ newfileinfo()
 	if (getfold(fname, sizeof(fname) - 1) >= 0) {
 		strcat(fname, "/");
 		if (strncmp(fname, mailname, strlen(fname)) == 0) {
-			snprintf(zname, sizeof(zname), "+%s", mailname + strlen(fname));
+			(void)snprintf(zname, sizeof(zname), "+%s",
+			    mailname + strlen(fname));
 			ename = zname;
 		}
 	}
@@ -627,7 +627,7 @@ newfileinfo()
 	if (readonly)
 		printf(" [Read only]");
 	printf("\n");
-	return(mdot);
+	return (mdot);
 }
 
 /*
@@ -639,10 +639,9 @@ int
 pversion(e)
 	int e;
 {
-	extern char *version;
 
 	printf("Version %s\n", version);
-	return(0);
+	return (0);
 }
 
 /*
@@ -652,7 +651,7 @@ void
 load(name)
 	char *name;
 {
-	register FILE *in, *oldin;
+	FILE *in, *oldin;
 
 	if ((in = Fopen(name, "r")) == NULL)
 		return;
@@ -664,5 +663,5 @@ load(name)
 	loading = 0;
 	sourcing = 0;
 	input = oldin;
-	Fclose(in);
+	(void)Fclose(in);
 }

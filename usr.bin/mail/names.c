@@ -59,14 +59,14 @@ nalloc(str, ntype)
 	char str[];
 	int ntype;
 {
-	register struct name *np;
+	struct name *np;
 
-	np = (struct name *) salloc(sizeof *np);
-	np->n_flink = NIL;
-	np->n_blink = NIL;
+	np = (struct name *)salloc(sizeof(*np));
+	np->n_flink = NULL;
+	np->n_blink = NULL;
 	np->n_type = ntype;
 	np->n_name = savestr(str);
-	return(np);
+	return (np);
 }
 
 /*
@@ -76,48 +76,47 @@ struct name *
 tailof(name)
 	struct name *name;
 {
-	register struct name *np;
+	struct name *np;
 
 	np = name;
-	if (np == NIL)
-		return(NIL);
-	while (np->n_flink != NIL)
+	if (np == NULL)
+		return (NULL);
+	while (np->n_flink != NULL)
 		np = np->n_flink;
-	return(np);
+	return (np);
 }
 
 /*
  * Extract a list of names from a line,
  * and make a list of names from it.
- * Return the list or NIL if none found.
+ * Return the list or NULL if none found.
  */
 struct name *
 extract(line, ntype)
 	char line[];
 	int ntype;
 {
-	register char *cp;
-	register struct name *top, *np, *t;
-	char *nbuf;
+	char *cp, *nbuf;
+	struct name *top, *np, *t;
 
-	if (line == NOSTR || *line == '\0')
-		return NIL;
-	if ((nbuf = (char *)malloc(strlen(line) + 1)) == NULL)
+	if (line == NULL || *line == '\0')
+		return (NULL);
+	if ((nbuf = malloc(strlen(line) + 1)) == NULL)
 		err(1, "Out of memory");
-	top = NIL;
-	np = NIL;
+	top = NULL;
+	np = NULL;
 	cp = line;
-	while ((cp = yankword(cp, nbuf)) != NOSTR) {
+	while ((cp = yankword(cp, nbuf)) != NULL) {
 		t = nalloc(nbuf, ntype);
-		if (top == NIL)
+		if (top == NULL)
 			top = t;
 		else
 			np->n_flink = t;
 		t->n_blink = np;
 		np = t;
 	}
-	free(nbuf);
-	return top;
+	(void)free(nbuf);
+	return (top);
 }
 
 /*
@@ -125,22 +124,21 @@ extract(line, ntype)
  */
 char *
 detract(np, ntype)
-	register struct name *np;
+	struct name *np;
 	int ntype;
 {
-	register int s;
-	register char *cp, *top;
-	register struct name *p;
-	register int comma;
+	int s, comma;
+	char *cp, *top;
+	struct name *p;
 
 	comma = ntype & GCOMMA;
-	if (np == NIL)
-		return(NOSTR);
+	if (np == NULL)
+		return (NULL);
 	ntype &= ~GCOMMA;
 	s = 0;
 	if (debug && comma)
 		fprintf(stderr, "detract asked to insert commas\n");
-	for (p = np; p != NIL; p = p->n_flink) {
+	for (p = np; p != NULL; p = p->n_flink) {
 		if (ntype && (p->n_type & GMASK) != ntype)
 			continue;
 		s += strlen(p->n_name) + 1;
@@ -148,22 +146,22 @@ detract(np, ntype)
 			s++;
 	}
 	if (s == 0)
-		return(NOSTR);
+		return (NULL);
 	s += 2;
 	top = salloc(s);
 	cp = top;
-	for (p = np; p != NIL; p = p->n_flink) {
+	for (p = np; p != NULL; p = p->n_flink) {
 		if (ntype && (p->n_type & GMASK) != ntype)
 			continue;
 		cp += strlcpy(cp, p->n_name, strlen(p->n_name) + 1);
-		if (comma && p->n_flink != NIL)
+		if (comma && p->n_flink != NULL)
 			*cp++ = ',';
 		*cp++ = ' ';
 	}
 	*--cp = '\0';
 	if (comma && *--cp == ',')
 		*cp = '\0';
-	return(top);
+	return (top);
 }
 
 /*
@@ -174,14 +172,14 @@ char *
 yankword(ap, wbuf)
 	char *ap, wbuf[];
 {
-	register char *cp, *cp2;
+	char *cp, *cp2;
 
 	cp = ap;
 	for (;;) {
 		if (*cp == '\0')
-			return NOSTR;
+			return (NULL);
 		if (*cp == '(') {
-			register int nesting = 0;
+			int nesting = 0;
 
 			while (*cp != '\0') {
 				switch (*cp++) {
@@ -204,10 +202,11 @@ yankword(ap, wbuf)
 		for (cp2 = wbuf; *cp && (*cp2++ = *cp++) != '>';)
 			;
 	else
-		for (cp2 = wbuf; *cp && !strchr(" \t,(", *cp); *cp2++ = *cp++)
+		for (cp2 = wbuf; *cp != '\0' && strchr(" \t,(", *cp) == NULL;
+		    *cp2++ = *cp++)
 			;
 	*cp2 = '\0';
-	return cp;
+	return (cp);
 }
 
 /*
@@ -224,18 +223,17 @@ outof(names, fo, hp)
 	FILE *fo;
 	struct header *hp;
 {
-	register int c;
-	register struct name *np, *top;
-	time_t now, time();
-	char *date, *fname, *ctime();
+	int c, ispipe;
+	struct name *np, *top;
+	time_t now;
+	char *date, *fname;
 	FILE *fout, *fin;
-	int ispipe;
 
 	top = names;
 	np = names;
-	(void) time(&now);
+	(void)time(&now);
 	date = ctime(&now);
-	while (np != NIL) {
+	while (np != NULL) {
 		if (!isfileaddr(np->n_name) && np->n_name[0] != '|') {
 			np = np->n_flink;
 			continue;
@@ -255,8 +253,8 @@ outof(names, fo, hp)
 			int fd;
 			char tempname[PATHSIZE];
 
-			snprintf(tempname, sizeof(tempname),
-				 "%s/mail.ReXXXXXXXXXX", tmpdir);
+			(void)snprintf(tempname, sizeof(tempname),
+			    "%s/mail.ReXXXXXXXXXX", tmpdir);
 			if ((fd = mkstemp(tempname)) == -1 ||
 			    (fout = Fdopen(fd, "a")) == NULL) {
 				warn("%s", tempname);
@@ -264,29 +262,29 @@ outof(names, fo, hp)
 				goto cant;
 			}
 			image = open(tempname, O_RDWR);
-			(void) rm(tempname);
+			(void)rm(tempname);
 			if (image < 0) {
 				warn("%s", tempname);
 				senderr++;
-				(void) Fclose(fout);
+				(void)Fclose(fout);
 				goto cant;
 			}
-			(void) fcntl(image, F_SETFD, 1);
+			(void)fcntl(image, F_SETFD, 1);
 			fprintf(fout, "From %s %s", myname, date);
 			puthead(hp, fout,
-				GTO|GSUBJECT|GCC|GREPLYTO|GINREPLYTO|GNL);
+			    GTO|GSUBJECT|GCC|GREPLYTO|GINREPLYTO|GNL);
 			while ((c = getc(fo)) != EOF)
-				(void) putc(c, fout);
+				(void)putc(c, fout);
 			rewind(fo);
-			(void) putc('\n', fout);
-			(void) fflush(fout);
+			fprintf(fout, "\n");
+			(void)fflush(fout);
 			if (ferror(fout)) {
 				warn("%s", tempname);
 				senderr++;
-				Fclose(fout);
+				(void)Fclose(fout);
 				goto cant;
 			}
-			(void) Fclose(fout);
+			(void)Fclose(fout);
 		}
 
 		/*
@@ -297,7 +295,7 @@ outof(names, fo, hp)
 
 		if (ispipe) {
 			int pid;
-			char *shell;
+			char *sh;
 
 			/*
 			 * XXX
@@ -306,11 +304,11 @@ outof(names, fo, hp)
 			 * share the same lseek location and trample
 			 * on one another.
 			 */
-			if ((shell = value("SHELL")) == NOSTR)
-				shell = _PATH_CSHELL;
-			pid = start_command(shell, sigmask(SIGHUP)|
-					sigmask(SIGINT)|sigmask(SIGQUIT),
-				image, -1, "-c", fname, NOSTR);
+			if ((sh = value("SHELL")) == NULL)
+				sh = _PATH_CSHELL;
+			pid = start_command(sh,
+			    sigmask(SIGHUP)|sigmask(SIGINT)|sigmask(SIGQUIT),
+			    image, -1, "-c", fname, NULL);
 			if (pid < 0) {
 				senderr++;
 				goto cant;
@@ -330,22 +328,22 @@ outof(names, fo, hp)
 				fin = Fdopen(f, "r");
 			if (fin == NULL) {
 				fprintf(stderr, "Can't reopen image\n");
-				(void) Fclose(fout);
+				(void)Fclose(fout);
 				senderr++;
 				goto cant;
 			}
 			rewind(fin);
 			while ((c = getc(fin)) != EOF)
-				(void) putc(c, fout);
+				(void)putc(c, fout);
 			if (ferror(fout)) {
 				warnx("%s", fname);
 				senderr++;
-				Fclose(fout);
-				Fclose(fin);
+				(void)Fclose(fout);
+				(void)Fclose(fin);
 				goto cant;
 			}
-			(void) Fclose(fout);
-			(void) Fclose(fin);
+			(void)Fclose(fout);
+			(void)Fclose(fin);
 		}
 cant:
 		/*
@@ -357,10 +355,10 @@ cant:
 		np = np->n_flink;
 	}
 	if (image >= 0) {
-		(void) close(image);
+		(void)close(image);
 		image = -1;
 	}
-	return(top);
+	return (top);
 }
 
 /*
@@ -372,17 +370,17 @@ int
 isfileaddr(name)
 	char *name;
 {
-	register char *cp;
+	char *cp;
 
 	if (*name == '+')
-		return 1;
-	for (cp = name; *cp; cp++) {
+		return (1);
+	for (cp = name; *cp != '\0'; cp++) {
 		if (*cp == '!' || *cp == '%' || *cp == '@')
-			return 0;
+			return (0);
 		if (*cp == '/')
-			return 1;
+			return (1);
 	}
-	return 0;
+	return (0);
 }
 
 /*
@@ -396,14 +394,14 @@ struct name *
 usermap(names)
 	struct name *names;
 {
-	register struct name *new, *np, *cp;
+	struct name *new, *np, *cp;
 	struct grouphead *gh;
-	register int metoo;
+	int metoo;
 
-	new = NIL;
+	new = NULL;
 	np = names;
-	metoo = (value("metoo") != NOSTR);
-	while (np != NIL) {
+	metoo = (value("metoo") != NULL);
+	while (np != NULL) {
 		if (np->n_name[0] == '\\') {
 			cp = np->n_flink;
 			new = put(new, np);
@@ -412,13 +410,13 @@ usermap(names)
 		}
 		gh = findgroup(np->n_name);
 		cp = np->n_flink;
-		if (gh != NOGRP)
+		if (gh != NULL)
 			new = gexpand(new, gh, metoo, np->n_type);
 		else
 			new = put(new, np);
 		np = cp;
 	}
-	return(new);
+	return (new);
 }
 
 /*
@@ -441,16 +439,16 @@ gexpand(nlist, gh, metoo, ntype)
 
 	if (depth > MAXEXP) {
 		printf("Expanding alias to depth larger than %d\n", MAXEXP);
-		return(nlist);
+		return (nlist);
 	}
 	depth++;
-	for (gp = gh->g_list; gp != NOGE; gp = gp->ge_link) {
+	for (gp = gh->g_list; gp != NULL; gp = gp->ge_link) {
 		cp = gp->ge_name;
 		if (*cp == '\\')
 			goto quote;
 		if (strcmp(cp, gh->g_name) == 0)
 			goto quote;
-		if ((ngh = findgroup(cp)) != NOGRP) {
+		if ((ngh = findgroup(cp)) != NULL) {
 			nlist = gexpand(nlist, ngh, metoo, ntype);
 			continue;
 		}
@@ -460,7 +458,7 @@ quote:
 		 * At this point should allow to expand
 		 * to self if only person in group
 		 */
-		if (gp == gh->g_list && gp->ge_link == NOGE)
+		if (gp == gh->g_list && gp->ge_link == NULL)
 			goto skip;
 		if (!metoo && strcmp(cp, myname) == 0)
 			np->n_type |= GDEL;
@@ -468,7 +466,7 @@ skip:
 		nlist = put(nlist, np);
 	}
 	depth--;
-	return(nlist);
+	return (nlist);
 }
 
 /*
@@ -478,16 +476,16 @@ struct name *
 cat(n1, n2)
 	struct name *n1, *n2;
 {
-	register struct name *tail;
+	struct name *tail;
 
-	if (n1 == NIL)
-		return(n2);
-	if (n2 == NIL)
-		return(n1);
+	if (n1 == NULL)
+		return (n2);
+	if (n2 == NULL)
+		return (n1);
 	tail = tailof(n1);
 	tail->n_flink = n2;
 	n2->n_blink = tail;
-	return(n1);
+	return (n1);
 }
 
 /*
@@ -498,8 +496,8 @@ char **
 unpack(np)
 	struct name *np;
 {
-	register char **ap, **top;
-	register struct name *n;
+	char **ap, **top;
+	struct name *n;
 	int t, extra, metoo, verbose;
 
 	n = np;
@@ -513,13 +511,13 @@ unpack(np)
 	 */
 	extra = 2;
 	extra++;
-	metoo = value("metoo") != NOSTR;
+	metoo = value("metoo") != NULL;
 	if (metoo)
 		extra++;
-	verbose = value("verbose") != NOSTR;
+	verbose = value("verbose") != NULL;
 	if (verbose)
 		extra++;
-	top = (char **) salloc((t + extra) * sizeof *top);
+	top = (char **)salloc((t + extra) * sizeof(*top));
 	ap = top;
 	*ap++ = "send-mail";
 	*ap++ = "-i";
@@ -527,11 +525,11 @@ unpack(np)
 		*ap++ = "-m";
 	if (verbose)
 		*ap++ = "-v";
-	for (; n != NIL; n = n->n_flink)
+	for (; n != NULL; n = n->n_flink)
 		if ((n->n_type & GDEL) == 0)
 			*ap++ = n->n_name;
-	*ap = NOSTR;
-	return(top);
+	*ap = NULL;
+	return (top);
 }
 
 /*
@@ -543,21 +541,21 @@ struct name *
 elide(names)
 	struct name *names;
 {
-	register struct name *np, *t, *new;
+	struct name *np, *t, *new;
 	struct name *x;
 
-	if (names == NIL)
-		return(NIL);
+	if (names == NULL)
+		return (NULL);
 	new = names;
 	np = names;
 	np = np->n_flink;
-	if (np != NIL)
-		np->n_blink = NIL;
-	new->n_flink = NIL;
-	while (np != NIL) {
+	if (np != NULL)
+		np->n_blink = NULL;
+	new->n_flink = NULL;
+	while (np != NULL) {
 		t = new;
 		while (strcasecmp(t->n_name, np->n_name) < 0) {
-			if (t->n_flink == NIL)
+			if (t->n_flink == NULL)
 				break;
 			t = t->n_flink;
 		}
@@ -572,7 +570,7 @@ elide(names)
 			np->n_blink = t;
 			t = np;
 			np = np->n_flink;
-			t->n_flink = NIL;
+			t->n_flink = NULL;
 			continue;
 		}
 
@@ -587,7 +585,7 @@ elide(names)
 			np = np->n_flink;
 			t->n_flink = new;
 			new->n_blink = t;
-			t->n_blink = NIL;
+			t->n_blink = NULL;
 			new = t;
 			continue;
 		}
@@ -611,12 +609,12 @@ elide(names)
 	 */
 
 	np = new;
-	while (np != NIL) {
+	while (np != NULL) {
 		t = np;
-		while (t->n_flink != NIL &&
-		       strcasecmp(np->n_name, t->n_flink->n_name) == 0)
+		while (t->n_flink != NULL &&
+		    strcasecmp(np->n_name, t->n_flink->n_name) == 0)
 			t = t->n_flink;
-		if (t == np || t == NIL) {
+		if (t == np || t == NULL) {
 			np = np->n_flink;
 			continue;
 		}
@@ -627,11 +625,11 @@ elide(names)
 		 */
 
 		np->n_flink = t->n_flink;
-		if (t->n_flink != NIL)
+		if (t->n_flink != NULL)
 			t->n_flink->n_blink = np;
 		np = np->n_flink;
 	}
-	return(new);
+	return (new);
 }
 
 /*
@@ -643,10 +641,10 @@ put(list, node)
 	struct name *list, *node;
 {
 	node->n_flink = list;
-	node->n_blink = NIL;
-	if (list != NIL)
+	node->n_blink = NULL;
+	if (list != NULL)
 		list->n_blink = node;
-	return(node);
+	return (node);
 }
 
 /*
@@ -655,14 +653,14 @@ put(list, node)
  */
 int
 count(np)
-	register struct name *np;
+	struct name *np;
 {
-	register int c;
+	int c;
 
-	for (c = 0; np != NIL; np = np->n_flink)
+	for (c = 0; np != NULL; np = np->n_flink)
 		if ((np->n_type & GDEL) == 0)
 			c++;
-	return c;
+	return (c);
 }
 
 /*
@@ -670,28 +668,28 @@ count(np)
  */
 struct name *
 delname(np, name)
-	register struct name *np;
+	struct name *np;
 	char name[];
 {
-	register struct name *p;
+	struct name *p;
 
-	for (p = np; p != NIL; p = p->n_flink)
+	for (p = np; p != NULL; p = p->n_flink)
 		if (strcasecmp(p->n_name, name) == 0) {
-			if (p->n_blink == NIL) {
-				if (p->n_flink != NIL)
-					p->n_flink->n_blink = NIL;
+			if (p->n_blink == NULL) {
+				if (p->n_flink != NULL)
+					p->n_flink->n_blink = NULL;
 				np = p->n_flink;
 				continue;
 			}
-			if (p->n_flink == NIL) {
-				if (p->n_blink != NIL)
-					p->n_blink->n_flink = NIL;
+			if (p->n_flink == NULL) {
+				if (p->n_blink != NULL)
+					p->n_blink->n_flink = NULL;
 				continue;
 			}
 			p->n_blink->n_flink = p->n_flink;
 			p->n_flink->n_blink = p->n_blink;
 		}
-	return np;
+	return (np);
 }
 
 /*
@@ -704,10 +702,10 @@ void
 prettyprint(name)
 	struct name *name;
 {
-	register struct name *np;
+	struct name *np;
 
 	np = name;
-	while (np != NIL) {
+	while (np != NULL) {
 		fprintf(stderr, "%s(%d) ", np->n_name, np->n_type);
 		np = np->n_flink;
 	}

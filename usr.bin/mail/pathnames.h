@@ -35,8 +35,6 @@
  * $FreeBSD$
  */
 
-#include <paths.h>
-
 #define	_PATH_EX	"/usr/bin/ex"
 #define	_PATH_HELP	"/usr/share/misc/mail.help"
 #define	_PATH_TILDE	"/usr/share/misc/mail.tildehelp"
