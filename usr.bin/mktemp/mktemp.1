@@ -150,19 +150,22 @@ fragment illustrates a simple use of
 where the script should quit if it cannot get a safe
 temporary file.
 .Bd -literal -offset indent
-TMPFILE=`mktemp /tmp/$0.XXXXXX` || exit 1
+tempfoo=`basename $0`
+TMPFILE=`mktemp /tmp/${tempfoo}.XXXXXX` || exit 1
 echo "program output" >> $TMPFILE
 .Ed
 .Pp
 To allow the use of $TMPDIR:
 .Bd -literal -offset indent
-TMPFILE=`mktemp -t $0` || exit 1
+tempfoo=`basename $0`
+TMPFILE=`mktemp -t ${tempfoo}` || exit 1
 echo "program output" >> $TMPFILE
 .Ed
 .Pp
 In this case, we want the script to catch the error itself.
 .Bd -literal -offset indent
-TMPFILE=`mktemp -q /tmp/$0.XXXXXX`
+tempfoo=`basename $0`
+TMPFILE=`mktemp -q /tmp/${tempfoo}.XXXXXX`
 if [ $? -ne 0 ]; then
 	echo "$0: Can't create temp file, exiting..."
 	exit 1
