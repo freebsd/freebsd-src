@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bt_eisa.c,v 1.6 1999/04/24 06:46:10 peter Exp $
+ *	$Id: bt_eisa.c,v 1.7 1999/05/08 21:59:18 dfr Exp $
  */
 
 #include "eisa.h"
@@ -188,6 +188,7 @@ bt_eisa_probe(device_t dev)
 	u_long iosize;
 	u_int  ioconf;
 	int    result;
+	int    shared;
 
 	desc = bt_match(eisa_get_id(dev));
 	if (!desc)
@@ -229,6 +230,8 @@ bt_eisa_probe(device_t dev)
 			       eisa_get_slot(dev));
 			return (ENXIO);
 		}
+		shared = (inb(iobase + AMI_EISA_IOCONF1) & AMI_IRQ_LEVEL) ?
+				EISA_TRIGGER_LEVEL : EISA_TRIGGER_EDGE;
 	} else {
 		iobase += BT_EISA_SLOT_OFFSET;
 		iosize = BT_EISA_IOSIZE;
@@ -262,6 +265,8 @@ bt_eisa_probe(device_t dev)
 			       eisa_get_slot(dev));
 			return (ENXIO);
 		}
+		shared = (inb(iobase + EISA_IRQ_TYPE) & LEVEL) ?
+				EISA_TRIGGER_LEVEL : EISA_TRIGGER_EDGE;
 	}
 	bt_mark_probed_iop(port);
 
@@ -277,7 +282,7 @@ bt_eisa_probe(device_t dev)
 		       "card at slot 0x%x\n", eisa_get_slot(dev));
 		result = ENXIO;
 	} else {
-		eisa_add_intr(dev, info.irq);
+		eisa_add_intr(dev, info.irq, shared);
 		result = 0;
 	}
 	bt_eisa_release_resources(dev);

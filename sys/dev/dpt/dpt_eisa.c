@@ -33,7 +33,7 @@
  */
 
 /*
- * $Id: dpt_eisa.c,v 1.5 1999/04/18 15:50:33 peter Exp $
+ * $Id: dpt_eisa.c,v 1.6 1999/05/08 21:59:19 dfr Exp $
  */
 
 #include "eisa.h"
@@ -78,6 +78,7 @@ dpt_eisa_probe(device_t dev)
 	u_int32_t	    io_base;
 	u_int		    intdef;
 	u_int		    irq;
+	int	 	    shared;
 
 	desc = dpt_eisa_match(eisa_get_id(dev));
 	if (!desc)
@@ -88,10 +89,14 @@ dpt_eisa_probe(device_t dev)
 	    + DPT_EISA_SLOT_OFFSET;
 
 	eisa_add_iospace(dev, io_base, DPT_EISA_IOSIZE, RESVADDR_NONE);
+
+	outb((DPT_EISA_CFENABLE + io_base), 0xf8);
 	
-	intdef =  inb(DPT_EISA_INTDEF + io_base);
+	intdef = inb(DPT_EISA_INTDEF + io_base);
 
 	irq = intdef & DPT_EISA_INT_NUM_MASK;
+	shared = (intdef & DPT_EISA_INT_LEVEL)
+			? EISA_TRIGGER_LEVEL : EISA_TRIGGER_EDGE;
 	switch (irq) {
 	case DPT_EISA_INT_NUM_11:
 	    irq = 11;
@@ -103,15 +108,15 @@ dpt_eisa_probe(device_t dev)
 	    irq = 14;
 	    break;
 	default:
-	    printf("dpt at slot %d: illegal irq setting %d\n",
+	    device_printf(dev, "dpt at slot %d: illegal irq setting %d\n",
 		   eisa_get_slot(dev), irq);
 	    irq = 0;
 	    break;
 	}
 	if (irq == 0)
-	    return ENXIO;
+	    return (ENXIO);
 
-	eisa_add_intr(dev, irq);
+	eisa_add_intr(dev, irq, shared);
 
 	return 0;
 }
@@ -123,7 +128,6 @@ dpt_eisa_attach(device_t dev)
 	struct resource *io = 0;
 	struct resource *irq = 0;
         int		unit = device_get_unit(dev);
-	int		shared;
 	int		s;
 	int		rid;
 	void		*ih;
@@ -135,9 +139,6 @@ dpt_eisa_attach(device_t dev)
 		device_printf(dev, "No I/O space?!\n");
 		return ENOMEM;
 	}
-
-	shared = (inb(DPT_EISA_INTDEF + rman_get_start(io))
-		  & DPT_EISA_INT_LEVEL) ? RF_SHAREABLE : 0;
 
 	dpt = dpt_alloc(unit, rman_get_bustag(io),
 			rman_get_bushandle(io) + DPT_EISA_EATA_REG_OFFSET);
@@ -160,7 +161,7 @@ dpt_eisa_attach(device_t dev)
 
 	rid = 0;
 	irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
-				 0, ~0, 1, shared | RF_ACTIVE);
+				 0, ~0, 1, RF_ACTIVE);
 	if (!irq) {
 		device_printf(dev, "No irq?!\n");
 		goto bad;

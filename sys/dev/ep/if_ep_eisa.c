@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: 3c5x9.c,v 1.11 1999/04/18 15:50:33 peter Exp $
+ *	$Id: 3c5x9.c,v 1.12 1999/05/08 21:59:15 dfr Exp $
  */
 
 #include "eisa.h"
@@ -160,7 +160,7 @@ ep_eisa_probe(device_t dev)
 		   eisa_get_slot(dev));
 	    return ENXIO;
 	}
-	eisa_add_intr(dev, irq);
+	eisa_add_intr(dev, irq, EISA_TRIGGER_EDGE);
 
 	return 0;
 }
