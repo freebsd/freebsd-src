@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.i386,v 1.18.2.3 1997/04/28 10:07:00 jkh Exp $
+#	$Id: rc.i386,v 1.18.2.4 1997/05/19 08:02:38 jkh Exp $
 #	Do i386 specific processing
 #
 
@@ -99,7 +99,7 @@ if [ "X${saver}" != X"NO" ] ; then
 fi
 
 # mouse daemon
-if [ "X${moused_type}" != XNO ] ; then
+if [ "X${moused_type}" != X"NO" ] ; then
 	echo -n ' moused'
 	moused ${moused_flags} -p ${moused_port} -t ${moused_type}
 fi
