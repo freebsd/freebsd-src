@@ -1,6 +1,6 @@
 PROG=	sysinstall
 NOMAN=	yes
-CLEANFILES+=	makedevs.c rtermcap dumpnlist kern-nlist.h
+CLEANFILES+=	makedevs.c rtermcap dumpnlist
 
 .PATH: ${.CURDIR}/../disklabel ${.CURDIR}/../../usr.bin/cksum
 
@@ -22,7 +22,7 @@ DPADD=	${LIBDIALOG} ${LIBNCURSES} ${LIBMYTINFO} ${LIBUTIL} ${LIBDISK}
 LDADD=	-ldialog -lncurses -lmytinfo -lutil -ldisk
 
 
-makedevs.c:	Makefile rtermcap dumpnlist
+makedevs.c:	Makefile rtermcap
 	rm -f makedevs.tmp
 	echo '#include <sys/types.h>' > makedevs.tmp
 	./rtermcap cons25 | \
@@ -47,11 +47,6 @@ makedevs.c:	Makefile rtermcap dumpnlist
 		file2c 'const char termcap_vt100[] = {' ',0};' \
 		>> makedevs.tmp
 	mv makedevs.tmp makedevs.c
-.if defined(KERNEL_NAME)
-	dumpnlist ${KERNEL_NAME} > kern-nlist.h
-.else
-	dumpnlist /kernel > kern-nlist.h
-.endif
 
 rtermcap:	${.CURDIR}/rtermcap.c
 	${CC} -o rtermcap ${.CURDIR}/rtermcap.c -ltermcap
