@@ -221,11 +221,7 @@ ENTRY(in4_cksum)
 
 .Lin4_cksum_whoops:
 	adr	r0, .Lin4_cksum_whoops_str
-	adr	r1, .LFile
-	mov	r2, #__LINE__
-	bl	_C_LABEL(__panic)
-.LFile:
-	.asciz	__FILE__
+	bl	_C_LABEL(panic)
 .Lin4_cksum_whoops_str:
 	.asciz	"in4_cksum: out of mbufs\n"
 	.align	5
