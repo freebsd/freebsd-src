@@ -1670,4 +1670,4 @@ NON_GPROF_ENTRY(__bb_init_func)
 	movl	bbhead,%edx
 	movl	%edx,16(%eax)
 	movl	%eax,bbhead
-	ret
+	.byte	0xc3				/* avoid macro for `ret' */
