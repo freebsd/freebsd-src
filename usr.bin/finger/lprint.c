@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)lprint.c	8.3 (Berkeley) 4/28/95";
 #else
 static const char rcsid[] =
-	"$Id$";
+	"$Id: lprint.c,v 1.8 1997/07/02 06:34:49 charnier Exp $";
 #endif
 #endif /* not lint */
 
@@ -69,7 +69,7 @@ static const char rcsid[] =
 static int	demi_print __P((char *, int));
 static void	lprint __P((PERSON *));
 static int	show_text __P((char *, char *, char *));
-static void	vputc __P((int));
+static void     vputc __P((unsigned char));
 
 void
 lflag_print()
@@ -296,8 +296,8 @@ show_text(directory, file_name, header)
 {
 	struct stat sb;
 	register FILE *fp;
-	register int ch, cnt, lastc;
-	register char *p;
+	register int ch, cnt;
+	register char *p, lastc;
 	int fd, nr;
 
 	(void)snprintf(tbuf, sizeof(tbuf), "%s/%s", directory, file_name);
@@ -342,7 +342,7 @@ show_text(directory, file_name, header)
 
 static void
 vputc(ch)
-	register int ch;
+	register unsigned char ch;
 {
 	int meta;
 
