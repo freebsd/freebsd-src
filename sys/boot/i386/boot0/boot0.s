@@ -60,7 +60,7 @@ start:		cld				# String ops inc
 		movw %ax,%ds			#  data
 		movw %ax,%ss			# Set up
 		movw $LOAD,%sp			#  stack
-	
+
 #
 # Copy this code to the address it was linked for
 #
@@ -142,13 +142,13 @@ main.3: 	movb %ch,-0x4(%bx)		# Zero active flag (ch == 0)
 main.4: 	movb (%di),%cl			# Partition
 		addw %cx,%di			#  description
 		callw putx			# Display it
-main.5: 	incw %dx			# Next item 
+main.5: 	incw %dx			# Next item
 		addb $0x10,%bl			# Next entry
 		jnc main.3			# Till done
 #
 # Passed a 256 byte boundary..
 # table is finished.
-# Add one to the drive number and check it is valid, 
+# Add one to the drive number and check it is valid,
 #
 		popw %ax			# Drive number
 		subb $0x80-0x1,%al		# Does next
@@ -176,7 +176,7 @@ main.6: 	addb $'0'|0x80,%al		# Save next
 		callw putx			#  item
 #
 # Now that we've printed the drive (if we needed to), display a prompt.
-# Get ready for the input byt noting the time.
+# Get ready for the input byte noting the time.
 #
 main.7: 	movw $prompt,%si		# Display
 		callw putstr			#  prompt
@@ -187,7 +187,7 @@ main.7: 	movw $prompt,%si		# Display
 		int $0x1a			#  system time
 		movw %dx,%di			# Ticks when
 		addw _TICKS(%bp),%di	 	#  timeout
-# 
+#
 # Busy loop, looking for keystrokes but
 # keeping one eye on the time.
 #
@@ -206,7 +206,7 @@ main.9: 	movb _OPT(%bp),%al		# Load default
 #
 # User's last try was bad, beep in displeasure.
 # Since nothing was printed, just continue on as if the user
-# hadn't done anything. This gives the effect of the user getting a beep 
+# hadn't done anything. This gives the effect of the user getting a beep
 # for all bad keystrokes but no action until either the timeout
 # occurs or the user hits a good key.
 #
@@ -250,7 +250,7 @@ main.12:	cbtw				# Option
 		movw $FAKE,%si			# Partition for write
 		movb (%si),%dl			# Drive number
 		movw %si,%bx			# Partition for read
-		cmpb $0x4,%al			# F5 pressed?
+		cmpb $0x4,%al			# F5/#5 pressed?
 		pushf				# Save
 		je main.13			# Yes
 		shlb $0x4,%al			# Point to
@@ -272,10 +272,10 @@ main.14:	popw %si			# Restore
 # If going to next drive, replace drive with selected one.
 # Remember to un-ascii it. Hey 0x80 is already set, cool!
 #
-		jne main.15			# If not F5
+		jne main.15			# If not F5/#5
 		movb _NXTDRV(%bp),%dl		# Next drive
 		subb $'0',%dl			#  number
-# 
+#
 # load  selected bootsector to the LOAD location in RAM.
 # If it fails to read or isn't marked bootable, treat it
 # as a bad selection.
@@ -387,7 +387,7 @@ tables:
 		.byte os_bsd-.			# OpenBSD
 		.byte os_bsd-.			# NetBSD
 #
-# And here are the strings themselves. 0x80 or'd into a byte indicates 
+# And here are the strings themselves. 0x80 or'd into a byte indicates
 # the end of the string. (not so great for Russians but...)
 #
 os_misc:	.ascii "?";    .byte '?'|0x80
@@ -402,7 +402,7 @@ os_bsd: 	.ascii "BS";   .byte 'D'|0x80
 
 #
 # These values are sometimes changed before writing back to the drive
-# Be especially careful that nxtdrv: must come after drive:, as it 
+# Be especially careful that nxtdrv: must come after drive:, as it
 # is part of the same string.
 #
 drive:		.ascii "Drive "
