@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.83 1999/03/25 08:26:50 kato Exp $
+ *	$Id: sio.c,v 1.84 1999/04/01 13:44:15 kato Exp $
  */
 
 #include "opt_comconsole.h"
@@ -2514,7 +2514,7 @@ more_intr:
 				count = tc->tc_get_timecount(tc);
 				pps_event(&com->pps, tc, count, 
 				    (modem_status & MSR_DCD) ? 
-				    PPS_CAPTUREASSERT : PPS_CAPTURECLEAR);
+				    PPS_CAPTURECLEAR : PPS_CAPTUREASSERT);
 			}
 		}
 		line_status = inb(com->line_status_port);
