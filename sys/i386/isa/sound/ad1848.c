@@ -1210,7 +1210,7 @@ ad1848_init (char *name, int io_base, int irq, int dma_playback, int dma_capture
 
       audio_devs[my_dev]->dmachan = dma_playback;
       audio_devs[my_dev]->buffcount = 1;
-      audio_devs[my_dev]->buffsize = DSP_BUFFSIZE * 2;
+      audio_devs[my_dev]->buffsize = DSP_BUFFSIZE;
       audio_devs[my_dev]->devc = devc;
       audio_devs[my_dev]->format_mask = ad_format_mask[devc->mode];
       nr_ad1848_devs++;
