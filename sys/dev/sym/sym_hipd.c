@@ -57,7 +57,7 @@
 
 /* $FreeBSD$ */
 
-#define SYM_DRIVER_NAME	"sym-1.5.3-20000506"
+#define SYM_DRIVER_NAME	"sym-1.5.4-20000528"
 
 /* #define SYM_DEBUG_GENERIC_SUPPORT */
 
@@ -220,7 +220,7 @@ static __inline void sym_que_splice(struct sym_quehead *list,
 }
 
 #define sym_que_entry(ptr, type, member) \
-	((type *)((char *)(ptr)-(unsigned long)(&((type *)0)->member)))
+	((type *)((char *)(ptr)-(unsigned int)(&((type *)0)->member)))
 
 
 #define sym_insque(new, pos)		__sym_que_add(new, pos, (pos)->flink)
@@ -388,8 +388,8 @@ static int sym_debug = 0;
 /*
  *  Insert a delay in micro-seconds and milli-seconds.
  */
-static void UDELAY(long us) { DELAY(us); }
-static void MDELAY(long ms) { while (ms--) UDELAY(1000); }
+static void UDELAY(int us) { DELAY(us); }
+static void MDELAY(int ms) { while (ms--) UDELAY(1000); }
 
 /*
  *  Simple power of two buddy-like allocator.
@@ -1521,7 +1521,7 @@ struct sym_ccb {
 	/*
 	 *  Other fields.
 	 */
-	u_long	ccb_ba;		/* BUS address of this CCB	*/
+	u32	ccb_ba;		/* BUS address of this CCB	*/
 	u_short	tag;		/* Tag for this transfer	*/
 				/*  NO_TAG means no tag		*/
 	u_char	target;
@@ -1718,8 +1718,8 @@ struct sym_hcb {
 	u_char	maxoffs_dt;	/* Max scsi offset        (DT)	*/
 	u_char	multiplier;	/* Clock multiplier (1,2,4)	*/
 	u_char	clock_divn;	/* Number of clock divisors	*/
-	u_long	clock_khz;	/* SCSI clock frequency in KHz	*/
-
+	u32	clock_khz;	/* SCSI clock frequency in KHz	*/
+	u32	pciclk_khz;	/* Estimated PCI clock  in KHz	*/
 	/*
 	 *  Start queue management.
 	 *  It is filled up by the host processor and accessed by the 
@@ -1967,11 +1967,14 @@ sym_fw2_patch(hcb_p np)
 	 *  Remove a couple of work-arounds specific to C1010 if 
 	 *  they are not desirable. See `sym_fw2.h' for more details.
 	 */
-	if ((np->features & (FE_C10|FE_PCI66)) != (FE_C10|FE_PCI66)) {
+	if (!(np->device_id == PCI_ID_LSI53C1010_2 &&
+	      /* np->revision_id < 0xff */ 1 &&
+	      np->pciclk_khz < 60000)) {
 		scripta0->datao_phase[0] = cpu_to_scr(SCR_NO_OP);
 		scripta0->datao_phase[1] = cpu_to_scr(0);
 	}
-	if ((np->features & (FE_C10|FE_PCI66)) != FE_C10) {
+	if (!(np->device_id == PCI_ID_LSI53C1010 &&
+	      /* np->revision_id < 0xff */ 1)) {
 		scripta0->sel_done[0] = cpu_to_scr(SCR_NO_OP);
 		scripta0->sel_done[1] = cpu_to_scr(0);
 	}
@@ -2337,7 +2340,7 @@ static void sym_int_sir (hcb_p np);
 static void sym_free_ccb (hcb_p np, ccb_p cp);
 static ccb_p sym_get_ccb (hcb_p np, u_char tn, u_char ln, u_char tag_order);
 static ccb_p sym_alloc_ccb (hcb_p np);
-static ccb_p sym_ccb_from_dsa (hcb_p np, u_long dsa);
+static ccb_p sym_ccb_from_dsa (hcb_p np, u32 dsa);
 static lcb_p sym_alloc_lcb (hcb_p np, u_char tn, u_char ln);
 static void sym_alloc_lcb_tags (hcb_p np, u_char tn, u_char ln);
 static int  sym_snooptest (hcb_p np);
@@ -2489,8 +2492,7 @@ static void sym_xpt_done2(hcb_p np, union ccb *ccb, int cam_status)
  *  calculations more simple.
  */
 #define _5M 5000000
-static u_long div_10M[] =
-	{2*_5M, 3*_5M, 4*_5M, 6*_5M, 8*_5M, 12*_5M, 16*_5M};
+static u32 div_10M[] = {2*_5M, 3*_5M, 4*_5M, 6*_5M, 8*_5M, 12*_5M, 16*_5M};
 
 /*
  *  SYMBIOS chips allow burst lengths of 2, 4, 8, 16, 32, 64,
@@ -2597,7 +2599,7 @@ static void sym_save_initial_setting (hcb_p np)
 static int sym_prepare_setting(hcb_p np, struct sym_nvram *nvram)
 {
 	u_char	burst_max;
-	u_long	period;
+	u32	period;
 	int i;
 
 	/*
@@ -2698,7 +2700,8 @@ static int sym_prepare_setting(hcb_p np, struct sym_nvram *nvram)
 	 *  In dual channel mode, contention occurs if internal cycles
 	 *  are used. Disable internal cycles.
 	 */
-	if (np->device_id == PCI_ID_LSI53C1010 && np->revision_id < 0x45)
+	if (np->device_id == PCI_ID_LSI53C1010 &&
+	    /* np->revision_id < 0xff */ 1)
 		np->rv_ccntl0	|=  DILS;
 
 	/*
@@ -3154,7 +3157,7 @@ static int sym_wakeup_done (hcb_p np)
 {
 	ccb_p cp;
 	int i, n;
-	u_long dsa;
+	u32 dsa;
 
 	n = 0;
 	i = np->dqueueget;
@@ -3172,8 +3175,8 @@ static int sym_wakeup_done (hcb_p np)
 			++n;
 		}
 		else
-			printf ("%s: bad DSA (%lx) in done queue.\n",
-				sym_name(np), dsa);
+			printf ("%s: bad DSA (%x) in done queue.\n",
+				sym_name(np), (u_int) dsa);
 	}
 	np->dqueueget = i;
 
@@ -3206,7 +3209,7 @@ static void sym_flush_busy_queue (hcb_p np, int cam_status)
 static void sym_init (hcb_p np, int reason)
 {
  	int	i;
-	u_long	phys;
+	u32	phys;
 
  	/*
 	 *  Reset chip if asked, otherwise just clear fifos.
@@ -3292,13 +3295,20 @@ static void sym_init (hcb_p np, int reason)
 	OUTB (nc_stime0, 0x0c);			/* HTH disabled  STO 0.25 sec */
 
 	/*
+	 *  For now, disable AIP generation on C1010-66.
+	 */
+	if (np->device_id == PCI_ID_LSI53C1010_2)
+		OUTB (nc_aipcntl1, DISAIP);
+
+	/*
 	 *  C10101 Errata.
 	 *  Errant SGE's when in narrow. Write bits 4 & 5 of
 	 *  STEST1 register to disable SGE. We probably should do 
 	 *  that from SCRIPTS for each selection/reselection, but 
 	 *  I just don't want. :)
 	 */
-	if (np->device_id == PCI_ID_LSI53C1010 && np->revision_id < 0x45)
+	if (np->device_id == PCI_ID_LSI53C1010 &&
+	    /* np->revision_id < 0xff */ 1)
 		OUTB (nc_stest1, INB(nc_stest1) | 0x30);
 
 	/*
@@ -3659,7 +3669,7 @@ static void sym_settrans(hcb_p np, ccb_p cp, u_char dt, u_char ofs,
 	 *  Set misc. ultra enable bits.
 	 */
 	if (np->features & FE_C10) {
-		uval = uval & ~U3EN;
+		uval = uval & ~(U3EN|AIPCKEN);
 		if (dt)	{
 			assert(np->features & FE_U3EN);
 			uval |= U3EN;
@@ -5574,7 +5584,7 @@ static int sym_compute_residual(hcb_p np, ccb_p cp)
 	dp_sgmin = SYM_CONF_MAX_SG - cp->segments;
 	resid = -cp->ext_ofs;
 	for (dp_sg = cp->ext_sg; dp_sg < SYM_CONF_MAX_SG; ++dp_sg) {
-		u_long tmp = scr_to_cpu(cp->phys.data[dp_sg].size);
+		u_int tmp = scr_to_cpu(cp->phys.data[dp_sg].size);
 		resid += (tmp & 0xffffff);
 	}
 
@@ -6028,7 +6038,7 @@ static void sym_nego_rejected(hcb_p np, tcb_p tp, ccb_p cp)
 void sym_int_sir (hcb_p np)
 {
 	u_char	num	= INB (nc_dsps);
-	u_long	dsa	= INL (nc_dsa);
+	u32	dsa	= INL (nc_dsa);
 	ccb_p	cp	= sym_ccb_from_dsa(np, dsa);
 	u_char	target	= INB (nc_sdid) & 0x0f;
 	tcb_p	tp	= &np->target[target];
@@ -6582,7 +6592,7 @@ out_free:
 /*
  *  Look up a CCB from a DSA value.
  */
-static ccb_p sym_ccb_from_dsa(hcb_p np, u_long dsa)
+static ccb_p sym_ccb_from_dsa(hcb_p np, u32 dsa)
 {
 	int hcode;
 	ccb_p cp;
@@ -7046,14 +7056,20 @@ static void sym_getclock (hcb_p np, int mult)
  */
 static int sym_getpciclock (hcb_p np)
 {
-	static int f = 0;
+	int f = 0;
 
-	/* For the C10, this will not work */
-	if (!f && !(np->features & FE_C10)) {
+	/*
+	 *  For the C1010-33, this doesn't work.
+	 *  For the C1010-66, this will be tested when I'll have 
+	 *  such a beast to play with.
+	 */
+	if (!(np->features & FE_C10)) {
 		OUTB (nc_stest1, SCLK);	/* Use the PCI clock as SCSI clock */
 		f = (int) sym_getfreq (np);
 		OUTB (nc_stest1, 0);
 	}
+	np->pciclk_khz = f;
+
 	return f;
 }
 
@@ -9456,7 +9472,7 @@ sym_Tekram_setup_target(hcb_p np, int target, Tekram_nvram *nvram)
 /*
  *  Dump Symbios format NVRAM for debugging purpose.
  */
-void sym_display_Symbios_nvram(hcb_p np, Symbios_nvram *nvram)
+static void sym_display_Symbios_nvram(hcb_p np, Symbios_nvram *nvram)
 {
 	int i;
 
@@ -9488,8 +9504,8 @@ void sym_display_Symbios_nvram(hcb_p np, Symbios_nvram *nvram)
 /*
  *  Dump TEKRAM format NVRAM for debugging purpose.
  */
-static u_char Tekram_boot_delay[7] __initdata = {3, 5, 10, 20, 30, 60, 120};
-void sym_display_Tekram_nvram(hcb_p np, Tekram_nvram *nvram)
+static u_char Tekram_boot_delay[7] = {3, 5, 10, 20, 30, 60, 120};
+static void sym_display_Tekram_nvram(hcb_p np, Tekram_nvram *nvram)
 {
 	int i, tags, boot_delay;
 	char *rem;
@@ -9555,11 +9571,19 @@ int sym_read_nvram(hcb_p np, struct sym_nvram *nvp)
 	 *  Try to read TEKRAM nvram if Symbios nvram not found.
 	 */
 	if	(SYM_SETUP_SYMBIOS_NVRAM &&
-		 !sym_read_Symbios_nvram (np, &nvp->data.Symbios))
+		 !sym_read_Symbios_nvram (np, &nvp->data.Symbios)) {
 		nvp->type = SYM_SYMBIOS_NVRAM;
+#ifdef SYM_CONF_DEBUG_NVRAM
+		sym_display_Symbios_nvram(np, &nvp->data.Symbios);
+#endif
+	}
 	else if	(SYM_SETUP_TEKRAM_NVRAM &&
-		 !sym_read_Tekram_nvram (np, &nvp->data.Tekram))
+		 !sym_read_Tekram_nvram (np, &nvp->data.Tekram)) {
 		nvp->type = SYM_TEKRAM_NVRAM;
+#ifdef SYM_CONF_DEBUG_NVRAM
+		sym_display_Tekram_nvram(np, &nvp->data.Tekram);
+#endif
+	}
 	else
 		nvp->type = 0;
 #else
