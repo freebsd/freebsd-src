@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.22 1995/04/12 20:48:01 wollman Exp $
+ *	$Id: npx.c,v 1.23 1995/05/30 08:02:51 rgrimes Exp $
  */
 
 #include "npx.h"
@@ -434,10 +434,11 @@ npxexit(p)
  * solution for signals other than SIGFPE.
  */
 void
-npxintr(frame)
-	struct intrframe frame;
+npxintr(unit)
+	int unit;
 {
 	int code;
+	struct intrframe *frame;
 
 	if (npxproc == NULL || !npx_exists) {
 		printf("npxintr: npxproc = %p, curproc = %p, npx_exists = %d\n",
@@ -458,7 +459,8 @@ npxintr(frame)
 	/*
 	 * Pass exception to process.
 	 */
-	if (ISPL(frame.if_cs) == SEL_UPL) {
+	frame = (struct intrframe *)&unit;	/* XXX */
+	if (ISPL(frame->if_cs) == SEL_UPL) {
 		/*
 		 * Interrupt is essentially a trap, so we can afford to call
 		 * the SIGFPE handler (if any) as soon as the interrupt
@@ -470,7 +472,7 @@ npxintr(frame)
 		 * in doreti, and the frame for that could easily be set up
 		 * just before it is used).
 		 */
-		curproc->p_md.md_regs = (int *)&frame.if_es;
+		curproc->p_md.md_regs = &frame->if_es;
 #ifdef notyet
 		/*
 		 * Encode the appropriate code for detailed information on

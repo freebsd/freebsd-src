@@ -41,7 +41,7 @@
  */
 
 
-/* $Id: scd.c,v 1.5 1995/05/30 08:03:02 rgrimes Exp $ */
+/* $Id: scd.c,v 1.6 1995/09/08 11:07:55 bde Exp $ */
 
 /* Please send any comments to micke@dynas.se */
 
@@ -498,12 +498,6 @@ int
 scdsize(dev_t dev)
 {
 	return -1;
-}
-
-void
-scdintr()
-{
-	return;
 }
 
 /***************************************************************

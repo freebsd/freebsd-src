@@ -194,7 +194,7 @@ check_for_lost_intr (void *arg)
 	if (inb(CONTROLLER_CTRL) & STATUS_OUTPBF)
 	{
 		int opri = spltty ();
-		(void) pcrint ();
+		pcrint ();
 		splx (opri);
 	}
 }
