@@ -1558,7 +1558,7 @@ getla()
 
 /* Non Apollo stuff removed by Don Lewis 11/15/93 */
 #ifndef lint
-static char  rcsid[] = "@(#)$Id: conf.c,v 1.9 1995/12/06 07:56:45 peter Exp $";
+static char  rcsid[] = "@(#)$Id: conf.c,v 1.10 1995/12/09 05:01:24 peter Exp $";
 #endif /* !lint */
 
 #ifdef apollo
@@ -1833,8 +1833,7 @@ setproctitle(fmt, va_alist)
 #  endif
 #  if SPT_TYPE == SPT_PSSTRINGS
 	PS_STRINGS->ps_nargvstr = 1;
-	PS_STRINGS->ps_argvstr[0] = buf;
-	PS_STRINGS->ps_argvstr[1] = 0;
+	PS_STRINGS->ps_argvstr = buf;
 #  endif
 #  if SPT_TYPE == SPT_SYSMIPS
 	sysmips(SONY_SYSNEWS, NEWS_SETPSARGS, buf);
