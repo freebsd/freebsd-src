@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.70 1999/06/01 18:19:38 jlemon Exp $
+ *	$Id: genassym.c,v 1.71 1999/06/28 09:21:41 peter Exp $
  */
 
 #include "opt_user_ldt.h"
@@ -167,11 +167,8 @@ main()
 	printf("#define\tTF_ESP %#x\n", OS(trapframe, tf_esp));
 	printf("#define\tTF_SS %#x\n", OS(trapframe, tf_ss));
 
-	printf("#define\tSIGF_SIGNUM %#x\n", OS(sigframe, sf_signum));
-	printf("#define\tSIGF_CODE %#x\n", OS(sigframe, sf_code));
-	printf("#define\tSIGF_SCP %#x\n", OS(sigframe, sf_scp));
-	printf("#define\tSIGF_HANDLER %#x\n", OS(sigframe, sf_handler));
-	printf("#define\tSIGF_SC %#x\n", OS(sigframe, sf_sc));
+	printf("#define\tSIGF_HANDLER %#x\n", OS(sigframe, sf_ahu.sf_handler));
+	printf("#define\tSIGF_SC %#x\n", OS(sigframe, sf_siginfo.si_sc));
 
 	printf("#define\tB_READ %#x\n", B_READ);
 	printf("#define\tENOENT %d\n", ENOENT);
