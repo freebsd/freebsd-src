@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_pn.c,v 1.18 1999/04/24 20:14:00 peter Exp $
+ *	$Id: if_pn.c,v 1.19 1999/05/09 17:06:57 peter Exp $
  */
 
 /*
@@ -97,14 +97,9 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_pn.c,v 1.18 1999/04/24 20:14:00 peter Exp $";
+	"$Id: if_pn.c,v 1.19 1999/05/09 17:06:57 peter Exp $";
 #endif
 
-#ifdef __alpha__
-#undef vtophys
-#define	vtophys(va)	(pmap_kextract(((vm_offset_t) (va))) \
-			 + 1*1024*1024*1024)
-#endif
 
 /*
  * Various supported device vendors/types and their names.
