@@ -533,7 +533,7 @@ case "${RERUN}" in
     echo '     might want to verify their status before rebooting your system.'
     echo ''
     press_to_continue
-    diff -qr ${DESTDIR}/etc ${TEMPROOT}/etc | grep "^Only in /etc" | ${PAGER}
+    diff -qr ${DESTDIR}/etc ${TEMPROOT}/etc | grep "^Only in ${DESTDIR}/etc" | ${PAGER}
     echo ''
     press_to_continue
     ;;
@@ -1019,7 +1019,7 @@ case "${PRE_WORLD}" in
   echo "*** From ${DESTDIR}/etc/make.conf"
   echo "*** From ${MAKE_CONF}"
 
-  for MAKE_VAR in `grep -i ^[a-z] /etc/make.conf | cut -d '=' -f 1`; do
+  for MAKE_VAR in `grep -i ^[a-z] ${DESTDIR}/etc/make.conf | cut -d '=' -f 1`; do
     echo ''
     grep -w ^${MAKE_VAR} ${DESTDIR}/etc/make.conf
     grep -w ^#${MAKE_VAR} ${MAKE_CONF} ||
