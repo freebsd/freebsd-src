@@ -1,4 +1,4 @@
-<!-- $Id: hw.sgml,v 1.37 1996/08/18 17:04:40 jkh Exp $ -->
+<!-- $Id: hw.sgml,v 1.38 1996/08/24 10:18:50 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -90,6 +90,11 @@ Slippery when wet.  Beware of dog.
     unilaterally for everything from ISA to PCI, now I tend to lean
     towards the <htmlurl url="http://www.adaptec.com" name="Adaptec">
     1542CF for ISA, Buslogic Bt747c for EISA and Adaptec 2940 for PCI.
+
+    <p>If you should find that you need more than one SCSI controller in a
+    PCI machine, you may wish to consider conserving your scarce PCI
+    bus resources by buying the Adaptec 3940 card, which puts two SCSI
+    controllers (and busses) in a single slot.
 
   <sect2><heading>Disk drives</heading>
     <p>In this particular game of Russian roulette, I'll make few specific
@@ -213,7 +218,8 @@ Slippery when wet.  Beware of dog.
   <sect2><heading>PCI</heading>
 
 	  <p><em>Contributed by &a.rgrimes;.<newline>25 April 1995.</em></p>
-
+	  <p><em>Continuing updates by &a.jkh;.</em><newline>Last update on
+	  <em>26 August 1996.</em></p>
 	  <p>Of the Intel PCI chip sets, the following list describes
 	    various types of known-brokenness and the degree of
             breakage, listed from worst to best.
@@ -254,10 +260,26 @@ Slippery when wet.  Beware of dog.
 	      <tag>Triton:</tag> No known cache coherency or bus
 		master problems, chip set does not implement
 		parity checking.  Workaround for parity issue.
-		Wait for Triton-II.
+		Use Triton-II based motherboards if you have the choice.
 
-	      <tag>Triton-II:</tag> Unknown, not yet shipping.
+	      <tag>Triton-II:</tag> All reports on motherboards using
+		this chipset have been favorable so far.  No known
+		problems.
 
+	      <tag>Orion:</tag> Early versions of this chipset suffered from
+	 	a PCI write-posting bug which can cause noticable performance
+		degradation in applications where large amounts of PCI bus
+		traffic is involved.  B0 stepping or later revisions of the
+		chipset fixed this problem.
+
+	      <tag><htmlurl
+	      url="http://www-cs.intel.com/oem_developer/motherbd/vs_index.htm" 
+	      name="VS440FX">:</tag>This <htmlurl
+	      url="http://www.intel.com/procs/ppro/intro/index.htm"
+	      name="Pentium Pro"> support chipset seems to work well,
+	      and does not suffer from any of the early Orion chipset
+	      problems.  It also supports a wider variety of memory,
+	      including ECC and parity.
 	    </descrip>
 	  </p>
 
