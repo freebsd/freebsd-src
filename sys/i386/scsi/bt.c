@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: bt.c,v 1.2 1995/12/13 14:32:59 bde Exp $
+ *      $Id: bt.c,v 1.3 1995/12/14 14:19:16 peter Exp $
  */
 
 /*
@@ -37,7 +37,6 @@
 #include <sys/buf.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
-#include <sys/sysctl.h>
  
 #include <machine/clock.h>
  
@@ -215,7 +214,6 @@ struct bt_sync_value {
 #define	BT_SHOWCMDS 0x04
 #define	BT_SHOWMISC 0x08
 static int		bt_debug = 0;
-SYSCTL_INT(_debug, OID_AUTO, bt_debug, CTLFLAG_RW, &bt_debug, 0, "");
 
 static u_int32	bt_adapter_info __P((int unit));
 static struct bt_ccb *
