@@ -721,6 +721,7 @@ getstr(buf, cnt, err)
 		if (read(STDIN_FILENO, &c, 1) != 1)
 			exit(1);
 		*buf++ = c;
+		if (--cnt == 0)
 			errx(1, "%s too long", err);
 	} while (c != 0);
 }
