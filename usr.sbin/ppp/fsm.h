@@ -159,7 +159,7 @@ struct fsmconfig {
 
 extern void fsm_Init(struct fsm *, const char *, u_short, int, int, int,
                      struct bundle *, struct link *, const  struct fsm_parent *,
-                     struct fsm_callbacks *, const char *[3]);
+                     struct fsm_callbacks *, const char * const [3]);
 extern void fsm_Output(struct fsm *, u_int, u_int, u_char *, int, int);
 extern void fsm_Open(struct fsm *);
 extern void fsm_Up(struct fsm *);

@@ -90,10 +90,10 @@ static struct fsm_callbacks ccp_Callbacks = {
   CcpRecvResetAck
 };
 
-static const char *ccp_TimerNames[] =
+static const char * const ccp_TimerNames[] =
   {"CCP restart", "CCP openmode", "CCP stopped"};
 
-static char const *cftypes[] = {
+static char const * const cftypes[] = {
   /* Check out the latest ``Compression Control Protocol'' rfc (rfc1962.txt) */
   "OUI",		/* 0: OUI */
   "PRED1",		/* 1: Predictor type 1 */
@@ -126,7 +126,7 @@ protoname(int proto)
 }
 
 /* We support these algorithms, and Req them in the given order */
-static const struct ccp_algorithm *algorithm[] = {
+static const struct ccp_algorithm * const algorithm[] = {
   &DeflateAlgorithm,
   &Pred1Algorithm,
   &PppdDeflateAlgorithm

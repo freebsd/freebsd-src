@@ -167,7 +167,7 @@ static const char *
 ex_desc(int ex)
 {
   static char num[12];		/* Used immediately if returned */
-  static const char *desc[] = {
+  static const char * const desc[] = {
     "normal", "start", "sock", "modem", "dial", "dead", "done",
     "reboot", "errdead", "hangup", "term", "nodial", "nologin"
   };

@@ -77,7 +77,7 @@
 #include "chap_ms.h"
 #endif
 
-static const char *chapcodes[] = {
+static const char * const chapcodes[] = {
   "???", "CHALLENGE", "RESPONSE", "SUCCESS", "FAILURE"
 };
 #define MAXCHAPCODE (sizeof chapcodes / sizeof chapcodes[0] - 1)
