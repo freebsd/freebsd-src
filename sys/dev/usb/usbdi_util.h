@@ -1,4 +1,4 @@
-/*	$NetBSD: usbdi_util.h,v 1.17 1999/09/05 19:32:19 augustss Exp $	*/
+/*	$NetBSD: usbdi_util.h,v 1.22 2000/06/01 14:37:52 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -65,13 +65,8 @@ usbd_status	usbd_set_report_async(usbd_interface_handle iface, int type,
 usbd_status	usbd_get_report(usbd_interface_handle iface, int type, int id,
 				void *data, int len);
 usbd_status	usbd_set_idle(usbd_interface_handle iface, int duration, int id);
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-usbd_status	usbd_alloc_report_desc
-	(usbd_interface_handle ifc, void **descp, int *sizep, int mem);
-#elif defined(__FreeBSD__)
-usbd_status	usbd_alloc_report_desc
-	(usbd_interface_handle ifc, void **descp, int *sizep, struct malloc_type * mem);
-#endif
+usbd_status	usbd_alloc_report_desc(usbd_interface_handle ifc, void **descp,
+				       int *sizep, usb_malloc_type mem);
 usbd_status	usbd_get_config(usbd_device_handle dev, u_int8_t *conf);
 usbd_status	usbd_get_string_desc(usbd_device_handle dev, int sindex,
 				     int langid, usb_string_descriptor_t *sdesc);

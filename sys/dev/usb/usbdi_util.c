@@ -1,4 +1,4 @@
-/*	$NetBSD: usbdi_util.c,v 1.31 2000/06/01 14:29:02 augustss Exp $	*/
+/*	$NetBSD: usbdi_util.c,v 1.32 2000/06/01 14:37:51 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -380,12 +380,7 @@ usbd_get_hid_descriptor(usbd_interface_handle ifc)
 
 usbd_status
 usbd_alloc_report_desc(usbd_interface_handle ifc, void **descp, int *sizep,
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-	int mem;
-#elif defined(__FreeBSD__)
-	struct malloc_type *mem;
-#endif
-	)
+		       usb_malloc_type mem)
 {
 	usb_interface_descriptor_t *id;
 	usb_hid_descriptor_t *hid;
