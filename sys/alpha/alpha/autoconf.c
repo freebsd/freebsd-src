@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: autoconf.c,v 1.19 1999/05/08 06:37:50 phk Exp $
+ *	$Id: autoconf.c,v 1.20 1999/05/10 02:56:38 peter Exp $
  */
 
 #include "opt_bootp.h"
@@ -64,6 +64,10 @@ SYSINIT(configure, SI_SUB_CONFIGURE, SI_ORDER_THIRD, configure, NULL)
 static void	configure_finish __P((void));
 static void	configure_start __P((void));
 static int      setdumpdev __P((dev_t dev));
+
+#ifdef MFS_ROOT
+extern u_char *mfs_getimage __P((void));
+#emdif
 
 device_t	isa_bus_device = 0;
 struct cam_sim *boot_sim = 0;
@@ -220,7 +224,6 @@ cpu_rootconf()
 {
 #ifdef MFS_ROOT
 	if (!mountrootfsname) {
-		extern u_char *mfs_getimage __P((void));
 
 		if (bootverbose)
 			printf("Considering MFS root f/s.\n");
