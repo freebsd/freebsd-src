@@ -202,6 +202,9 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
     		bzero(d->rec, numrec * sizeof(pcm_channel));
 	}
 
+	if (numplay == 0 || numrec == 0)
+		d->flags |= SD_F_SIMPLEX;
+
 	fkchan_setup(&d->fakechan);
 	chn_init(&d->fakechan, NULL, 0);
 	d->magic = MAGIC(unit); /* debugging... */
