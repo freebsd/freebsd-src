@@ -897,10 +897,10 @@ mdcreate_vnode(struct md_ioctl *mdio, struct thread *td)
 		flags &= ~FWRITE;
 		NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, mdio->md_file, td);
 		error = vn_open(&nd, &flags, 0, -1);
-		if (error)
-			return (error);
 	}
 	NDFREE(&nd, NDF_ONLY_PNBUF);
+	if (error)
+		return (error);
 	if (nd.ni_vp->v_type != VREG ||
 	    (error = VOP_GETATTR(nd.ni_vp, &vattr, td->td_ucred, td))) {
 		VOP_UNLOCK(nd.ni_vp, 0, td);
@@ -939,11 +939,13 @@ mdcreate_vnode(struct md_ioctl *mdio, struct thread *td)
 	else
 		sc->nsect = vattr.va_size / sc->secsize; /* XXX: round up ? */
 	if (sc->nsect == 0) {
+		(void) vn_close(nd.ni_vp, flags, td->td_ucred, td);
 		mddestroy(sc, td);
 		return (EINVAL);
 	}
 	error = mdsetcred(sc, td->td_ucred);
 	if (error) {
+		(void) vn_close(nd.ni_vp, flags, td->td_ucred, td);
 		mddestroy(sc, td);
 		return (error);
 	}
