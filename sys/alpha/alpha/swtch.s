@@ -198,8 +198,11 @@ Lcs7:
  * Arrange for a function to be invoked neatly, after a cpu_switch().
  *
  * Invokes fork_exit() passing in three arguments: a callout function,
- * a pointer to the executing process's proc structure, and a trapframe
- * pointer.
+ * an argument to the callout, and a trapframe pointer.  For child processes
+ * returning from fork(2), the argument is a pointer to the child process.
+ *
+ * The callout function is in s0, the address to return to after executing
+ * fork_exit() is in s1, and the argument is in s2.
  */
 LEAF(switch_trampoline, 0)
 	mov	s1, ra
