@@ -3,7 +3,7 @@
  * SCSI controllers.  This is used to implement product specific
  * probe and attach routines.
  *
- * Copyright (c) 1994, 1995 Justin T. Gibbs.
+ * Copyright (c) 1994, 1995, 1996 Justin T. Gibbs.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -20,7 +20,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7xxx.h,v 1.18 1996/01/07 19:24:33 gibbs Exp $
+ *	$Id: aic7xxx.h,v 1.19 1996/01/23 21:47:53 se Exp $
  */
 
 #ifndef _AIC7XXX_H_
@@ -108,19 +108,12 @@ struct scb {
 					 */
 /*20*/	physaddr cmdpointer;
 /*24*/	u_char cmdlen;
-/*25*/	u_char RESERVED[2];		/* must be zero */
-#define SCB_PIO_TRANSFER_SIZE	26	/*
-					 * amount we need to upload/download
-					 * via rep in/outsb to perform
-					 * a request sense.  The second
-					 * RESERVED byte is initialized to
-					 * 0 in get_scb().
+#define SCB_PIO_TRANSFER_SIZE	25 	/* amount we need to upload/download
+					 * via PIO to initialize a transaction.
 					 */
-/*27*/	u_char next_waiting;		/* Used to thread SCBs awaiting
+/*25*/	u_char next_waiting;		/* Used to thread SCBs awaiting
 					 * selection
 					 */
-/*28*/	physaddr host_scb;
-#define	SCB_HARDWARE_SIZE	32
 /*-----------------end of hardware supported fields----------------*/
 	struct scb *next;	/* in free list */
 	struct scsi_xfer *xs;	/* the scsi_xfer for this cmd */

@@ -1,6 +1,6 @@
 /*
  * Generic driver for the aic7xxx based adaptec SCSI controllers
- * Copyright (c) 1994, 1995 Justin T. Gibbs.
+ * Copyright (c) 1994, 1995, 1996 Justin T. Gibbs.
  * All rights reserved.
  *
  * Product specific probe and attach routines can be found in:
@@ -24,7 +24,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aic7xxx.c,v 1.53 1996/01/07 19:24:31 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.54 1996/01/23 21:47:50 se Exp $
  */
 /*
  * TODO:
@@ -135,11 +135,13 @@ static void	ahc_add_waiting_scb __P((u_long iobase, struct scb *scb,
 static void	ahc_done __P((struct ahc_data *ahc, struct scb *scbp));
 static void	ahc_free_scb __P((struct ahc_data *ahc, struct scb *scb,
 				  int flags));
-static void	ahc_getscb __P((u_long iobase, struct scb *scb));
+static inline void ahc_getscb __P((struct ahc_data *ahc, struct scb *scb,
+				   int iosize));
 static struct scb *
 		ahc_get_scb __P((struct ahc_data *ahc, int flags));
 static void	ahc_loadseq __P((u_long iobase));
 static int	ahc_match_scb __P((struct scb *scb, int target, char channel));
+static int	ahc_poll __P((struct ahc_data *ahc, int wait));
 #ifdef AHC_DEBUG
 static void	ahc_print_active_scb __P((struct ahc_data *ahc));
 static void	ahc_print_scb __P((struct scb *scb));
@@ -153,7 +155,8 @@ static void	ahc_reset_current_bus __P((u_long iobase));
 static void	ahc_scb_timeout __P((struct ahc_data *ahc, struct scb *scb));
 static void	ahc_scsirate __P((struct ahc_data* ahc, u_char *scsirate,
 				  int period, int offset, int target));
-static void	ahc_send_scb __P((struct ahc_data *ahc, struct scb *scb));
+static inline void ahc_send_scb __P((struct ahc_data *ahc, struct scb *scb,
+				     int iosize));
 static timeout_t
 		ahc_timeout;
 static void	ahc_busy_target __P((int target, char channel,
@@ -434,26 +437,40 @@ ahc_attach(ahc)
 	return 1;
 }
 
-static void
-ahc_send_scb( ahc, scb )
-        struct ahc_data *ahc;
-        struct scb *scb;
+/* Send an SCB down to the card via PIO maintaining the SCB pointer */
+static inline void
+ahc_send_scb(ahc, scb, iosize)
+        struct	ahc_data *ahc;
+        struct	scb *scb;
+	int	iosize; /* In bytes */
 {
         u_long iobase = ahc->baseport;
+	u_char cur_scb;
 
-        PAUSE_SEQUENCER(ahc);
-		outb(QINFIFO + iobase, scb->position);
-        UNPAUSE_SEQUENCER(ahc);
+	cur_scb = inb(SCBPTR + iobase);
+		outb(SCBPTR + iobase, scb->position);
+		outb(SCBCNT + iobase, SCBAUTO);
+		if( ahc->type == AHC_284 )
+			/* Can only do 8bit PIO */
+			outsb(SCBARRAY+iobase, scb, iosize);
+		else
+			outsl(SCBARRAY+iobase, scb, (iosize + 3) / 4);
+		outb(SCBCNT + iobase, 0); 
+	outb(SCBPTR + iobase, cur_scb);
 }
 
-static
-void ahc_getscb(iobase, scb)
-	u_long iobase;
-	struct scb *scb;
+static inline void
+ahc_getscb(ahc, scb, iosize)
+	struct	ahc_data *ahc;
+	struct	scb *scb;
+	int	iosize;
 {
+	u_long	iobase = ahc->baseport;
+
         outb(SCBCNT + iobase, 0x80);     /* SCBAUTO */
 
-	insb(SCBARRAY + iobase, scb, SCB_PIO_TRANSFER_SIZE);
+	/* Can only do 8bit PIO for reads */
+	insb(SCBARRAY+iobase, scb, iosize);
 
         outb(SCBCNT + iobase, 0);
 }
@@ -582,7 +599,7 @@ ahc_intr(arg)
 				printf("SAVED_TCL == 0x%x\n",
 					inb(SAVED_TCL + iobase));
 				ahc_unbusy_target(target, channel, iobase);
-				outb(SCBARRAY + iobase, NEEDDMA);
+				outb(SCBARRAY + iobase, 0);
 				outb(CLRSINT1 + iobase, CLRSELTIMEO);
 	                        RESTART_SEQUENCER(ahc);
                         	break;
@@ -820,7 +837,7 @@ ahc_intr(arg)
 
 			  xs = scb->xs;
 
-			  ahc_getscb(iobase, scb);
+			  ahc_getscb(ahc, scb, SCB_PIO_TRANSFER_SIZE);
 
 #ifdef AHC_DEBUG
 			  if((ahc_debug & AHC_SHOWSCBS)
@@ -875,10 +892,11 @@ ahc_intr(arg)
 
 			                scb->data = sg->addr; 
 					scb->datalen = sg->len;
-					outb(SCBCNT + iobase, 0x80);
-					outsb(SCBARRAY+iobase,scb,SCB_PIO_TRANSFER_SIZE);
-					outb(SCBCNT + iobase, 0);
-					outb(SCB_NEXT_WAITING+iobase,SCB_LIST_NULL);
+
+					ahc_send_scb(ahc, scb,
+						     SCB_PIO_TRANSFER_SIZE);
+					outb(SCB_NEXT_WAITING+iobase,
+					     SCB_LIST_NULL);
 					/*
 					 * Ensure that the target is "BUSY"
 					 * so we don't get overlapping 
@@ -1012,7 +1030,7 @@ ahc_intr(arg)
 				outb(MSG_LEN + iobase, 1);
 			}
 			else
-				panic("ahc_intr: AWAITING_MSG for an SCB that"
+				panic("ahc_intr: AWAITING_MSG for an SCB that "
 					"does not have a waiting message");
 			break;
 		  }
@@ -1063,6 +1081,68 @@ ahc_intr(arg)
 		  case MSGIN_PHASEMIS:
 			break;
 #endif
+		  case PARITY_ERROR:
+		  {
+			/*
+			 * Determine the bus phase and
+			 * queue an appropriate message
+			 */
+			char	*phase;
+			u_char	mesg_out = MSG_NOP;
+			u_char	lastphase = inb(LASTPHASE + iobase);
+		 	int scb_index = inb(SCBPTR + iobase);
+
+                        scb = ahc->scbarray[scb_index];
+
+			sc_print_addr(scb->xs->sc_link);
+
+			switch(lastphase) {
+				case P_DATAOUT:
+					phase = "Data-Out";
+					break;
+				case P_DATAIN:
+					phase = "Data-In";
+					mesg_out = MSG_INITIATOR_DET_ERROR;
+					break;
+				case P_COMMAND:
+					phase = "Command";
+					break;
+				case P_MESGOUT:
+					phase = "Message-Out";
+					break;
+				case P_STATUS:
+					phase = "Status";
+					mesg_out = MSG_INITIATOR_DET_ERROR;
+					break;
+				case P_MESGIN:
+					phase = "Message-In";
+					mesg_out = MSG_MSG_PARITY_ERROR;
+					break;
+				default:
+					phase = "unknown";
+					break;
+			}
+                        printf("parity error during %s phase.\n", phase);
+
+			/*
+			 * We've set the hardware to assert ATN if we
+			 * get a parity error on "in" phases, so all we
+			 * need to do is stuff the message buffer with
+			 * the appropriate message.  In phases have set
+			 * mesg_out to something other than MSG_NOP.
+			 */
+			if(mesg_out != MSG_NOP) {
+				outb(MSG0 + iobase, mesg_out);
+				outb(MSG_LEN + iobase, 1);
+			}
+			else
+				/*
+				 * Should we allow the target to make
+				 * this decision for us?
+				 */
+				scb->xs->error = XS_DRIVER_STUFFUP;
+			break;
+		  }
 		  default:
 			printf("ahc: seqint, "
                               "intstat == 0x%x, scsisigi = 0x%x\n",
@@ -1119,7 +1199,7 @@ clear:
 				 	? 'B' : 'A',
 				 iobase);
 
-			outb(SCBARRAY + iobase, NEEDDMA);
+			outb(SCBARRAY + iobase, 0);
 
                         outb(CLRSINT1 + iobase, CLRSELTIMEO);
 
@@ -1134,69 +1214,6 @@ clear:
                         RESTART_SEQUENCER(ahc);
                 }       
                         
-                else if (status & SCSIPERR) { 
-			/*
-			 * Determine the bus phase and
-			 * queue an appropriate message
-			 */
-			char	*phase;
-			u_char	mesg_out = MSG_NOP;
-			u_char	sigstate = inb(SIGSTATE + iobase);
-
-			sc_print_addr(xs->sc_link);
-
-			switch(sigstate) {
-				case P_DATAOUT:
-					phase = "Data-Out";
-					break;
-				case P_DATAIN:
-					phase = "Data-In";
-					mesg_out = MSG_INITIATOR_DET_ERROR;
-					break;
-				case P_COMMAND:
-					phase = "Command";
-					break;
-				case P_MESGOUT:
-					phase = "Message-Out";
-					break;
-				case P_STATUS:
-					phase = "Status";
-					mesg_out = MSG_INITIATOR_DET_ERROR;
-					break;
-				case P_MESGIN:
-					phase = "Message-In";
-					mesg_out = MSG_MSG_PARITY_ERROR;
-					break;
-				default:
-					phase = "unknown";
-					break;
-			}
-                        printf("parity error during %s phase.\n", phase);
-
-			/*
-			 * We've set the hardware to assert ATN if we
-			 * get a parity error on "in" phases, so all we
-			 * need to do is stuff the message buffer with
-			 * the appropriate message.  In phases have set
-			 * mesg_out to something other than MSG_NOP.
-			 */
-			if(mesg_out != MSG_NOP) {
-				outb(MSG0 + iobase, mesg_out);
-				outb(MSG_LEN + iobase, 1);
-			}
-			else
-				/*
-				 * Should we allow the target to make
-				 * this decision for us?
-				 */
-				scb->xs->error = XS_DRIVER_STUFFUP;
-
-                        outb(CLRSINT1 + iobase, CLRSCSIPERR);
-                        UNPAUSE_SEQUENCER(ahc);
-
-                        outb(CLRINT + iobase, CLRSCSIINT);
-			scb = NULL;	/* Don't ahc_done the scb */
-                }
                 else if (!(status & BUSFREE)) {
 		      sc_print_addr(xs->sc_link);
                       printf("Unknown SCSIINT. Status = 0x%x\n", status);
@@ -1360,7 +1377,7 @@ ahc_init(ahc)
 		outb(SCSIID + iobase, ahc->our_id_b);
 		scsi_conf = inb(SCSICONF + 1 + iobase) & (ENSPCHK|STIMESEL);
 		outb(SXFRCTL1 + iobase, scsi_conf|ENSTIMER|ACTNEGEN|STPWEN);
-		outb(SIMODE1 + iobase, ENSELTIMO|ENSCSIPERR);
+		outb(SIMODE1 + iobase, ENSELTIMO);
 		if(ahc->type & AHC_ULTRA)
 			outb(SXFRCTL0 + iobase, DFON|SPIOEN|ULTRAEN);
 		else
@@ -1377,7 +1394,7 @@ ahc_init(ahc)
 	outb(SCSIID + iobase, ahc->our_id);
 	scsi_conf = inb(SCSICONF + iobase) & (ENSPCHK|STIMESEL);
 	outb(SXFRCTL1 + iobase, scsi_conf|ENSTIMER|ACTNEGEN|STPWEN);
-	outb(SIMODE1 + iobase, ENSELTIMO|ENSCSIPERR);
+	outb(SIMODE1 + iobase, ENSELTIMO);
 	if(ahc->type & AHC_ULTRA)
 		outb(SXFRCTL0 + iobase, DFON|SPIOEN|ULTRAEN);
 	else
@@ -1689,12 +1706,41 @@ ahc_scsi_cmd(xs)
         if((ahc_debug & AHC_SHOWSCBS) && (xs->sc_link->target == DEBUGTARG))
 		ahc_print_scb(scb);
 #endif
-	s = splbio();
-	ahc_send_scb(ahc, scb);
-        timeout(ahc_timeout, (caddr_t)scb, (xs->timeout * hz) / 1000);
-	splx(s);
-	SC_DEBUG(xs->sc_link, SDEV_DB3, ("cmd_sent\n"));
-	return (SUCCESSFULLY_QUEUED);
+	if (!(flags & SCSI_NOMASK)) {
+		s = splbio();
+		PAUSE_SEQUENCER(ahc);
+		ahc_send_scb(ahc, scb, SCB_PIO_TRANSFER_SIZE);
+		outb(QINFIFO + ahc->baseport, scb->position);
+		UNPAUSE_SEQUENCER(ahc);
+		timeout(ahc_timeout, (caddr_t)scb, (xs->timeout * hz) / 1000);
+		splx(s);
+		SC_DEBUG(xs->sc_link, SDEV_DB3, ("cmd_sent\n"));
+		return (SUCCESSFULLY_QUEUED);
+	}
+	/*
+	 * If we can't use interrupts, poll for completion
+	 */
+	s = splbio(); 
+	PAUSE_SEQUENCER(ahc);
+	ahc_send_scb(ahc, scb, SCB_PIO_TRANSFER_SIZE);
+	outb(QINFIFO + ahc->baseport, scb->position);
+	UNPAUSE_SEQUENCER(ahc);
+	SC_DEBUG(xs->sc_link, SDEV_DB3, ("cmd_wait\n"));
+	do {
+		if (ahc_poll(ahc, xs->timeout)) {
+			if (!(xs->flags & SCSI_SILENT))
+				printf("cmd fail\n");
+			ahc_scb_timeout(ahc, scb);
+			splx(s); 
+			return (HAD_ERROR);
+		}
+	} while (!(xs->flags & ITSDONE));  /* a non command complete intr */
+	if (xs->error) {
+		splx(s);
+		return (HAD_ERROR);
+	}
+	splx(s); 
+	return (COMPLETE);
 }
 
 
@@ -1762,7 +1808,6 @@ ahc_get_scb(ahc, flags)
                         scbp = (struct scb *) malloc(sizeof(struct scb),
                                 M_TEMP, M_NOWAIT);
                         if (scbp) {
-				physaddr scbaddr = KVTOPHYS(scbp);
 				u_long iobase = ahc->baseport;
 				u_char curscb;
 				bzero(scbp, sizeof(struct scb));
@@ -1777,28 +1822,6 @@ ahc_get_scb(ahc, flags)
 				 * load it into.
 				 */
 				ahc->scbarray[scbp->position] = scbp;
-
-				/*
-				 * Initialize the host memory location
-				 * of this SCB down on the board and
-				 * flag that it should be DMA's before
-				 * reference.  Also set its psuedo
-				 * next pointer (for use in the psuedo
-				 * list of SCBs waiting for selection)
-				 * to SCB_LIST_NULL.
-				 */
-				scbp->control = NEEDDMA;
-				scbp->host_scb = scbaddr;
-				scbp->next_waiting = SCB_LIST_NULL;
-				PAUSE_SEQUENCER(ahc);
-				curscb = inb(SCBPTR + iobase);
-				outb(SCBPTR + iobase, scbp->position);
-				outb(SCBCNT + iobase, 0x80);
-				outsb(SCBARRAY+iobase,scbp,SCB_HARDWARE_SIZE);
-				outb(SCBCNT + iobase, 0);
-				outb(SCBPTR + iobase, curscb);
-				UNPAUSE_SEQUENCER(ahc);
-				scbp->control = 0;
                         } else {
                                 printf("ahc%d: Can't malloc SCB\n", ahc->unit);
                         }
@@ -1848,6 +1871,30 @@ static void ahc_loadseq(iobase)
 
         } while (inb(SEQADDR0 + iobase) != 0 &&
 		 inb(SEQADDR1 + iobase != 0));
+}
+
+/*
+ * Function to poll for command completion when
+ * interrupts are disabled (crash dumps)
+ */
+static int
+ahc_poll(ahc, wait)
+	struct	ahc_data *ahc;
+	int	wait; /* in msec */
+{
+	u_long	iobase = ahc->baseport;
+	u_long	stport = INTSTAT + iobase;
+
+	while (--wait) {
+		DELAY(1000);
+		if (inb(stport) & INT_PEND)
+			break;
+	} if (wait == 0) {
+		printf("ahc%d: board not responding\n", ahc->unit);
+		return (EIO);
+	}
+	ahc_intr((void *)ahc);
+	return (0);
 }
 
 static void
@@ -1932,8 +1979,8 @@ ahc_scb_timeout(ahc, scb)
 			UNPAUSE_SEQUENCER(ahc);
 		}
 		/* Is the active SCB really active? */
-		else if((active_scbp->flags & SCB_ACTIVE) 
-		  && (control & NEEDDMA) == NEEDDMA) {
+		else if(active_scbp->flags & SCB_ACTIVE) {
+		 /* XXX && (control & NEEDDMA) == NEEDDMA) { */
 		    u_char msg_len = inb(MSG_LEN + iobase);
 		    if(msg_len) {
 			/*
@@ -2080,7 +2127,7 @@ ahc_reset_device(ahc, target, channel, timedout_scb, xs_error)
 					untimeout(ahc_timeout, (caddr_t)scbp);
 				ahc_done (ahc, scbp);
 				outb(SCBPTR + iobase, scbp->position);
-				outb(SCBARRAY + iobase, NEEDDMA);
+				outb(SCBARRAY + iobase, 0);
 				i--;
 				found++;
 			}
@@ -2130,7 +2177,7 @@ ahc_reset_device(ahc, target, channel, timedout_scb, xs_error)
 			/* Ensure the target is "free" */
 			ahc_unbusy_target(target, channel, iobase);
 			outb(SCBPTR + iobase, scbp->position);
-			outb(SCBARRAY + iobase, NEEDDMA);
+			outb(SCBARRAY + iobase, 0);
 			scbp->flags |= SCB_ABORTED;
 			scbp->xs->error |= xs_error;
 			if(scbp->position != timedout_scb)
@@ -2168,7 +2215,7 @@ ahc_abort_wscb (ahc, scbp, prev, iobase, timedout_scb, xs_error)
 	next = inb(SCB_NEXT_WAITING + iobase);
 
 	/* Clear the necessary fields */
-	outb(SCBARRAY + iobase, NEEDDMA);
+	outb(SCBARRAY + iobase, 0);
 	outb(SCB_NEXT_WAITING + iobase, SCB_LIST_NULL);
 	ahc_unbusy_target(target, channel, iobase);
 
