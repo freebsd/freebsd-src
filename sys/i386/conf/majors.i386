@@ -1,4 +1,4 @@
-$Id: majors.i386,v 1.42 1998/05/13 12:38:26 jkh Exp $
+$Id: majors.i386,v 1.43 1998/05/29 08:51:34 phk Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.
@@ -101,7 +101,7 @@ chrdev	name		comments
 55	OLDisdn		ISDN system
 56	OLDity		ISDN system
 57	OLDitel		ISDN system
-58	dgb		Digiboard
+58	dgb		Digiboard PC/Xe
 59	OLDispy		ISDN system
 60	OLDnnic		ISDN system
 61	pt		SCSI "processor type"
@@ -144,3 +144,4 @@ chrdev	name		comments
 98	loe		Loopback pseudo-ethernet (sbabkin@dcn.att.com)
 99	ct		Cronyx/Tau serial adaptor
 100	xrpu		Xilinx Reprogrammable Processing Unit
+101	dgm		Digiboard PC/Xem
