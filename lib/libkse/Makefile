@@ -17,7 +17,12 @@ CFLAGS+=-I${.CURDIR}/sys
 
 # Uncomment this if you want libpthread to contain debug information for
 # thread locking.
-#CFLAGS+=-D_LOCK_DEBUG -g
+CFLAGS+=-D_LOCK_DEBUG
+#CFLAGS+= -g
+
+.if ${MACHINE_ARCH} == "i386"
+CFLAGS+=-DGS_HACK
+.endif
 
 # enable extra internal consistancy checks
 CFLAGS+=-D_PTHREADS_INVARIANTS -Wall
