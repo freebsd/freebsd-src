@@ -19,6 +19,7 @@ LOCALES=        af_ZA.ISO8859-1 \
 		es_ES.ISO8859-1 \
 		et_EE.ISO8859-15 \
 		fi_FI.ISO8859-1 \
+		fr_BE.ISO8859-1 \
 		fr_CA.ISO8859-1 \
 		fr_FR.ISO8859-1 \
 		hi_IN.ISCII-DEV \
@@ -49,11 +50,11 @@ LOCALEDIR=      ${DESTDIR}/usr/share/locale
 
 ASCIILINKS=	en_AU en_CA en_GB en_NZ en_US
 LATIN15LINKS=	af_ZA da_DK de_AT de_CH de_DE en_AU en_CA en_GB en_NZ en_US \
-		es_ES fi_FI fr_CA fr_CH fr_FR is_IS is_IS it_IT it_CH \
+		es_ES fi_FI fr_BE fr_CA fr_CH fr_FR is_IS is_IS it_IT it_CH \
 		nl_NL no_NO pt_PT sv_SE
 
-CHSRC=		de_CH
-CHLINKS=	fr_CH it_CH
+CH_SRC=		de_CH
+CH_LINKS=	fr_CH it_CH
 
 .SUFFIXES: .src .out
 
@@ -75,8 +76,8 @@ afterinstall:
 	ln -sf ../${link}.ISO8859-1/LC_MONETARY \
 		${LOCALEDIR}/${link}.US-ASCII/LC_MONETARY
 .endfor
-.for link in ${CHLINKS}
-	ln -sf ../${CHSRC}.ISO8859-1/LC_MONETARY \
+.for link in ${CH_LINKS}
+	ln -sf ../${CH_SRC}.ISO8859-1/LC_MONETARY \
 		${LOCALEDIR}/${link}.ISO8859-1/LC_MONETARY
 .endfor
 
