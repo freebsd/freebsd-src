@@ -2,5 +2,5 @@
 # $FreeBSD$
 
 SRCS+=	_ctx_start.S _setjmp.S alloca.S fabs.S frexp.c \
-	infinity.c isinf.c ldexp.c makecontext.c modf.S \
+	infinity.c ldexp.c makecontext.c modf.S \
 	rfork_thread.S setjmp.S signalcontext.c sigsetjmp.S

@@ -17,7 +17,7 @@ SRCS+=  __xuname.c _pthread_stubs.c _rand48.c _spinlock_stub.c _thread_init.c \
 	getobjformat.c getosreldate.c getpagesize.c \
 	getpeereid.c getprogname.c getpwent.c getttyent.c \
 	getusershell.c getvfsbyname.c glob.c \
-	initgroups.c isatty.c jrand48.c lcong48.c \
+	initgroups.c isatty.c isinf.c isnan.c jrand48.c lcong48.c \
 	lockf.c lrand48.c mrand48.c nice.c \
 	nlist.c nrand48.c ntp_gettime.c opendir.c \
 	pause.c pmadvise.c popen.c posixshm.c pselect.c \
