@@ -51,7 +51,6 @@
 #include "opt_msgbuf.h"
 #include "opt_perfmon.h"
 #include "opt_smp.h"
-#include "opt_sysvipc.h"
 #include "opt_user_ldt.h"
 #include "opt_userconfig.h"
 
@@ -72,14 +71,6 @@
 #include <sys/sysctl.h>
 #include <sys/vmmeter.h>
 #include <sys/bus.h>
-
-#ifdef SYSVMSG
-#include <sys/msg.h>
-#endif
-
-#ifdef SYSVSEM
-#include <sys/sem.h>
-#endif
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -325,18 +316,6 @@ again:
 
 	valloc(callout, struct callout, ncallout);
 	valloc(callwheel, struct callout_tailq, callwheelsize);
-#ifdef SYSVSEM
-	valloc(sema, struct semid_ds, seminfo.semmni);
-	valloc(sem, struct sem, seminfo.semmns);
-	/* This is pretty disgusting! */
-	valloc(semu, int, (seminfo.semmnu * seminfo.semusz) / sizeof(int));
-#endif
-#ifdef SYSVMSG
-	valloc(msgpool, char, msginfo.msgmax);
-	valloc(msgmaps, struct msgmap, msginfo.msgseg);
-	valloc(msghdrs, struct msg, msginfo.msgtql);
-	valloc(msqids, struct msqid_ds, msginfo.msgmni);
-#endif
 
 	/*
 	 * The nominal buffer size (and minimum KVA allocation) is BKVASIZE.

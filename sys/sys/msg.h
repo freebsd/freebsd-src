@@ -32,6 +32,8 @@
 
 #define MSG_NOERROR	010000		/* don't complain about too long msgs */
 
+struct msg;
+
 struct msqid_ds {
 	struct	ipc_perm msg_perm;	/* msg queue permission bits */
 	struct	msg *msg_first;	/* first message in the queue */
@@ -50,15 +52,6 @@ struct msqid_ds {
 	long	msg_pad4[4];
 };
 
-struct msg {
-	struct	msg *msg_next;	/* next msg in the chain */
-	long	msg_type;	/* type of this message */
-    				/* >0 -> type of this message */
-    				/* 0 -> free header */
-	u_short	msg_ts;		/* size of this message */
-	short	msg_spot;	/* location of start of msg in buffer */
-};
-
 /*
  * Structure describing a message.  The SVID doesn't suggest any
  * particular name for this structure.  There is a reference in the
@@ -73,6 +66,8 @@ struct mymsg {
 	long	mtype;		/* message type (+ve integer) */
 	char	mtext[1];	/* message body */
 };
+
+#ifdef _KERNEL
 
 /*
  * Based on the configuration parameters described in an SVR2 (yes, two)
@@ -92,58 +87,11 @@ struct msginfo {
 		msgssz,		/* size of a message segment (see notes above) */
 		msgseg;		/* number of message segments */
 };
-#ifdef _KERNEL
 extern struct msginfo	msginfo;
-
-#ifndef MSGSSZ
-#define MSGSSZ	8		/* Each segment must be 2^N long */
 #endif
-#ifndef MSGSEG
-#define MSGSEG	2048		/* must be less than 32767 */
-#endif
-#define MSGMAX	(MSGSSZ*MSGSEG)
-#ifndef MSGMNB
-#define MSGMNB	2048		/* max # of bytes in a queue */
-#endif
-#ifndef MSGMNI
-#define MSGMNI	40
-#endif
-#ifndef MSGTQL
-#define MSGTQL	40
-#endif
-
-/*
- * macros to convert between msqid_ds's and msqid's.
- * (specific to this implementation)
- */
-#define MSQID(ix,ds)	((ix) & 0xffff | (((ds).msg_perm.seq << 16) & 0xffff0000))
-#define MSQID_IX(id)	((id) & 0xffff)
-#define MSQID_SEQ(id)	(((id) >> 16) & 0xffff)
-
-/*
- * The rest of this file is specific to this particular implementation.
- */
-
-
-/*
- * Stuff allocated in machdep.h
- */
-struct msgmap {
-	short	next;		/* next segment in buffer */
-    				/* -1 -> available */
-    				/* 0..(MSGSEG-1) -> index of next segment */
-};
-
-extern char *msgpool;		/* MSGMAX byte long msg buffer pool */
-extern struct msgmap *msgmaps;	/* MSGSEG msgmap structures */
-extern struct msg *msghdrs;	/* MSGTQL msg headers */
-extern struct msqid_ds *msqids;	/* MSGMNI msqid_ds struct's */
-
-#define MSG_LOCKED	01000	/* Is this msqid_ds locked? */
-
-#endif /* _KERNEL */
 
 #ifndef _KERNEL
+
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
