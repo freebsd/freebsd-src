@@ -475,14 +475,19 @@ pw_copy(int ffd, int tfd, struct passwd *pw, struct passwd *old_pw)
 		*q = '\0';
 		fpw = pw_scan(r, PWSCAN_MASTER);
 		*q = t;
-		if ((old_pw && !pw_equal(fpw, old_pw)) ||
-		    (!old_pw && strcmp(fpw->pw_name, pw->pw_name))) {
+		if (strcmp(fpw->pw_name, pw->pw_name) != 0) {
 			/* nope */
 			free(fpw);
 			if (write(tfd, p, q - p + 1) != q - p + 1)
 				goto err;
 			++q;
 			continue;
+		}
+		if (old_pw && !pw_equal(fpw, old_pw)) {
+			warnx("entry inconsistent");
+			free(fpw);
+			errno = EINVAL; /* hack */
+			goto err;
 		}
 		free(fpw);
 
