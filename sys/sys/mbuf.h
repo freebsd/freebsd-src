@@ -233,6 +233,9 @@ struct mbstat {
 	u_long	m_minclsize;	/* min length of data to allocate a cluster */
 	u_long	m_mlen;		/* length of data in an mbuf */
 	u_long	m_mhlen;	/* length of data in a header mbuf */
+	u_long	sf_iocnt;	/* times sendfile had to do disk I/O */
+	u_long	sf_allocfail;	/* times sfbuf allocation failed */
+	u_long	sf_allocwait;	/* times sfbuf allocation had to wait */
 };
 
 /*
@@ -579,7 +582,9 @@ extern	union mcluster	*mclfree;
 extern	struct mbuf	*mmbfree;
 extern	int		 nmbclusters;
 extern	int		 nmbufs;
-extern	int		 nsfbufs;
+extern	int		 nsfbufs;	/* Number of sendfile(2) bufs alloced */
+extern	int		 nsfbufspeak;	/* Peak of nsfbufsused */
+extern	int		 nsfbufsused;	/* Number of sendfile(2) bufs in use */
 
 void		 m_adj(struct mbuf *, int);
 int		 m_apply(struct mbuf *, int, int,

@@ -104,6 +104,53 @@ The
 implementation of
 .Fn sendfile
 is "zero-copy", meaning that it has been optimized so that copying of the file data is avoided.
+.Sh TUNING
+Internally, this system call uses a special
+.Xr sendfile 2
+buffer
+.Pq Vt "struct sf_buf"
+to handle sending file data to the client.
+If the sending socket is
+blocking, and there are not enough sendfile buffers available,
+.Xr sendfile 2
+will block and report a state of
+.Dq Li sfbufa .
+If the sending socket is non-blocking and there are not enough
+sendfile buffers available, the call will block and wait for the
+necessary buffers to become available before finishing the call.
+.Pp
+The number of
+.Vt sf_buf Ns 's
+allocated should be proportional to the number of nmbclusters used to
+send data to a client via
+.Xr sendfile 2 .
+Tune accordingly to avoid blocking!
+Busy installations that make extensive use of
+.Xr sendfile 2
+may want to increase these values to be inline with their
+.Va kern.ipc.nmbclusters
+(see
+.Xr tuning 7
+for details).
+.Pp
+The number of
+.Xr sendfile 2
+buffers available is determined at boot time by either the
+.Va kern.ipc.nsfbufs
+.Xr loader.conf 5
+variable or the
+.Dv NSFBUFS
+kernel configuration tunable.
+The number of sendfile buffers scales with
+.Va kern.maxusers .
+.Va kern.ipc.nsfbufsused
+and
+.Va kern.ipc.nsfbufspeak
+read-only sysctl variables show current and peak
+.Xr sendfile 2
+buffers usage respectively.
+These values may also be viewed through
+.Nm netstat Fl m .
 .Sh RETURN VALUES
 .Rv -std sendfile
 .Sh ERRORS
@@ -146,10 +193,12 @@ If specified, the number of bytes successfully sent will be returned in
 .Fa *sbytes .
 .El
 .Sh SEE ALSO
+.Xr netstat 1 ,
 .Xr open 2 ,
 .Xr send 2 ,
 .Xr socket 2 ,
-.Xr writev 2
+.Xr writev 2 ,
+.Xr tuning 7
 .Sh HISTORY
 .Fn sendfile
 first appeared in
