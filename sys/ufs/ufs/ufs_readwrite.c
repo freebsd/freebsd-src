@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_readwrite.c	8.11 (Berkeley) 5/8/95
- * $Id: ufs_readwrite.c,v 1.52 1998/09/07 11:50:19 bde Exp $
+ * $Id: ufs_readwrite.c,v 1.53 1998/10/07 13:59:26 luoqi Exp $
  */
 
 #define	BLKSIZE(a, b, c)	blksize(a, b, c)
@@ -107,17 +107,35 @@ READ(ap)
 	if (object)
 		vm_object_reference(object);
 #if 1
+	/*
+	 * If IO optimisation is turned on,
+	 * and we are NOT a VM based IO request, 
+	 * (i.e. not headed for the buffer cache)
+	 * but there IS a vm object associated with it.
+	 */
 	if ((ioflag & IO_VMIO) == 0 && (vfs_ioopt > 1) && object) {
 		int nread, toread;
+
 		toread = uio->uio_resid;
 		if (toread > bytesinfile)
 			toread = bytesinfile;
 		if (toread >= PAGE_SIZE) {
+			/*
+			 * Then if it's at least a page in size, try 
+			 * get the data from the object using vm tricks
+			 */
 			error = uioread(toread, uio, object, &nread);
 			if ((uio->uio_resid == 0) || (error != 0)) {
+				/*
+				 * If we finished or there was an error
+				 * then finish up.
+				 */
 				if (!(vp->v_mount->mnt_flag & MNT_NOATIME))
 					ip->i_flag |= IN_ACCESS;
 				if (object)
+					/*
+					 * This I don't understand
+					 */
 					vm_object_vndeallocate(object);
 				return error;
 			}
@@ -125,15 +143,29 @@ READ(ap)
 	}
 #endif
 
+	/*
+	 * Ok so we couldn't do it all in one vm trick...
+	 * so cycle around trying smaller bites..
+	 */
 	for (error = 0, bp = NULL; uio->uio_resid > 0; bp = NULL) {
 		if ((bytesinfile = ip->i_size - uio->uio_offset) <= 0)
 			break;
 #if 1
 		if ((ioflag & IO_VMIO) == 0 && (vfs_ioopt > 1) && object) {
+			/*
+			 * Obviously we didn't finish above, but we
+			 * didn't get an error either. Try the same trick again.
+			 * but this time we are looping.
+			 */
 			int nread, toread;
 			toread = uio->uio_resid;
 			if (toread > bytesinfile)
 				toread = bytesinfile;
+
+			/*
+			 * Once again, if there isn't enough for a
+			 * whole page, don't try optimising.
+			 */
 			if (toread >= PAGE_SIZE) {
 				error = uioread(toread, uio, object, &nread);
 				if ((uio->uio_resid == 0) || (error != 0)) {
@@ -143,6 +175,11 @@ READ(ap)
 						vm_object_vndeallocate(object);
 					return error;
 				}
+				/*
+				 * To get here we didnt't finish or err.
+				 * If we did get some data,
+				 * loop to try another bite.
+				 */
 				if (nread > 0) {
 					continue;
 				}
@@ -154,29 +191,68 @@ READ(ap)
 		nextlbn = lbn + 1;
 		size = BLKSIZE(fs, ip, lbn);
 		blkoffset = blkoff(fs, uio->uio_offset);
-
+		
+		/*
+		 * The amount we want to transfer in this iteration is
+		 * one FS block less the amount of the data before
+		 * our startpoint (duh!)
+		 */
 		xfersize = fs->fs_bsize - blkoffset;
+
+		/*
+		 * But if we actually want less than the block,
+		 * or the file doesn't have a whole block more of data,
+		 * then use the lesser number.
+		 */
 		if (uio->uio_resid < xfersize)
 			xfersize = uio->uio_resid;
 		if (bytesinfile < xfersize)
 			xfersize = bytesinfile;
 
 		if (lblktosize(fs, nextlbn) >= ip->i_size)
+			/*
+			 * Don't do readahead if this is the end of the file.
+			 */
 			error = bread(vp, lbn, size, NOCRED, &bp);
 		else if ((vp->v_mount->mnt_flag & MNT_NOCLUSTERR) == 0)
+			/* 
+			 * Otherwise if we are allowed to cluster,
+			 * grab as much as we can.
+			 *
+			 * XXX  This may not be a win if we are not
+			 * doing sequential access.
+			 */
 			error = cluster_read(vp, ip->i_size, lbn,
 				size, NOCRED, uio->uio_resid, seqcount, &bp);
 		else if (lbn - 1 == vp->v_lastr) {
+			/*
+			 * If we are NOT allowed to cluster, then
+			 * if we appear to be acting sequentially,
+			 * fire off a request for a readahead
+			 * as well as a read. Note that the 4th and 5th
+			 * arguments point to arrays of the size specified in
+			 * the 6th argument.
+			 */
 			int nextsize = BLKSIZE(fs, ip, nextlbn);
 			error = breadn(vp, lbn,
 			    size, &nextlbn, &nextsize, 1, NOCRED, &bp);
 		} else
+			/*
+			 * Failing all of the above, just read what the 
+			 * user asked for. Interestingly, the same as
+			 * the first option above.
+			 */
 			error = bread(vp, lbn, size, NOCRED, &bp);
 		if (error) {
 			brelse(bp);
 			bp = NULL;
 			break;
 		}
+
+		/*
+		 * Remember where we read so we can see latter if we start
+		 * acting sequential.
+		 */
 		vp->v_lastr = lbn;
 
 		/*
@@ -194,13 +270,22 @@ READ(ap)
 		}
 
 		if (vfs_ioopt && object &&
-				(bp->b_flags & B_VMIO) &&
-				((blkoffset & PAGE_MASK) == 0) &&
-				((xfersize & PAGE_MASK) == 0)) {
+		    (bp->b_flags & B_VMIO) &&
+		    ((blkoffset & PAGE_MASK) == 0) &&
+		    ((xfersize & PAGE_MASK) == 0)) {
+			/*
+			 * If VFS IO  optimisation is turned on,
+			 * and it's an exact page multiple
+			 * And a normal VM based op,
+			 * then use uiomiveco()
+			 */
 			error =
 				uiomoveco((char *)bp->b_data + blkoffset,
 					(int)xfersize, uio, object);
 		} else {
+			/*
+			 * otherwise use the general form
+			 */
 			error =
 				uiomove((char *)bp->b_data + blkoffset,
 					(int)xfersize, uio);
@@ -211,13 +296,30 @@ READ(ap)
 
 		if ((ioflag & IO_VMIO) &&
 		   (LIST_FIRST(&bp->b_dep) == NULL)) {
+			/*
+			 * If there are no dependencies, and
+			 * it's VMIO, then we don't need the buf,
+			 * mark it available for freeing. The VM has the data.
+			 */
 			bp->b_flags |= B_RELBUF;
 			brelse(bp);
 		} else {
+			/*
+			 * Otherwise let whoever
+			 * made the request take care of
+			 * freeing it. We just queue
+			 * it onto another list.
+			 */
 			bqrelse(bp);
 		}
 	}
 
+	/* 
+	 * This can only happen in the case of an error
+	 * because the loop above resets bp to NULL on each iteration
+	 * and on normal completion has not set a new value into it.
+	 * so it must have come from a 'break' statement
+	 */
 	if (bp != NULL) {
 		if ((ioflag & IO_VMIO) &&
 		   (LIST_FIRST(&bp->b_dep) == NULL)) {
