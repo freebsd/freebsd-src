@@ -70,8 +70,8 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/cpu.h>
 
-static void sched_setup(void *dummy);
-SYSINIT(sched_setup, SI_SUB_KICK_SCHEDULER, SI_ORDER_FIRST, sched_setup, NULL)
+static void synch_setup(void *dummy);
+SYSINIT(synch_setup, SI_SUB_KICK_SCHEDULER, SI_ORDER_FIRST, synch_setup, NULL)
 
 int	hogticks;
 int	lbolt;
@@ -629,7 +629,7 @@ lboltcb(void *arg)
 
 /* ARGSUSED */
 static void
-sched_setup(dummy)
+synch_setup(dummy)
 	void *dummy;
 {
 	callout_init(&loadav_callout, 0);
