@@ -719,9 +719,11 @@ MALLOC_DECLARE(M_ZOMBIE);
 }
 
 #define	STOPEVENT(p, e, v) do {						\
-	PROC_LOCK(p);							\
-	_STOPEVENT((p), (e), (v));					\
-	PROC_UNLOCK(p);							\
+	if ((p)->p_stops & (e))	{					\
+		PROC_LOCK(p);						\
+		stopevent((p), (e), (v));				\
+		PROC_UNLOCK(p);						\
+	}								\
 } while (0)
 #define	_STOPEVENT(p, e, v) do {					\
 	PROC_LOCK_ASSERT(p, MA_OWNED);					\
