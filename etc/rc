@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.86 1996/03/12 15:39:24 nate Exp $
+#	$Id: rc,v 1.87 1996/03/14 18:24:05 nate Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -21,6 +21,12 @@ trap : 3	# shouldn't be needed
 HOME=/; export HOME
 PATH=/sbin:/bin:/usr/sbin:/usr/bin
 export PATH
+
+# Configure ccd devices.
+if [ -f /etc/ccd.conf ]
+then
+	ccdconfig -C
+fi
 
 swapon -a
 
