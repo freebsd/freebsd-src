@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_extern.h	8.6 (Berkeley) 3/30/95
- * $Id: ffs_extern.h,v 1.22 1998/02/03 21:52:00 bde Exp $
+ * $Id: ffs_extern.h,v 1.23 1998/03/08 09:58:50 julian Exp $
  */
 
 #ifndef _UFS_FFS_EXTERN_H
@@ -63,7 +63,9 @@ struct sockaddr;
 struct statfs;
 struct ucred;
 struct vnode;
+struct vop_balloc_args;
 struct vop_bmap_args;
+struct vop_fsync_args;
 struct vop_reallocblks_args;
 
 int	ffs_alloc __P((struct inode *,
@@ -130,4 +132,3 @@ void	softdep_disk_write_complete __P((struct buf *));
 int	softdep_sync_metadata __P((struct vop_fsync_args *));
 
 #endif /* !_UFS_FFS_EXTERN_H */
-
