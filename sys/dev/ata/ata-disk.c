@@ -337,11 +337,12 @@ addump(void *arg, void *virtual, vm_offset_t physical,
 	return ENXIO;
 
     bzero(&request, sizeof(struct ata_request));
+    request.device = adp->device;
     request.data = virtual;
     request.bytecount = length;
     request.transfersize = min(length, adp->max_iosize);
 
-    request.flags |= ATA_R_WRITE;
+    request.flags = ATA_R_WRITE;
     if (adp->max_iosize > DEV_BSIZE)
 	request.u.ata.command = ATA_WRITE_MUL;
     else
@@ -349,10 +350,15 @@ addump(void *arg, void *virtual, vm_offset_t physical,
     request.u.ata.lba = offset / DEV_BSIZE;
     request.u.ata.count = request.bytecount / DEV_BSIZE;
 
+    if (adp->device->channel->hw.transaction(&request) == ATA_OP_FINISHED)
+	return EIO;
     while (request.bytecount > request.donecount) {
-	if (adp->device->channel->hw.transaction(&request) == ATA_OP_FINISHED)
-	    return EIO;
 	DELAY(20);
+	adp->device->channel->running = &request;
+	adp->device->channel->hw.interrupt(adp->device->channel);
+	adp->device->channel->running = NULL;
+	if (request.status & ATA_S_ERROR)
+	    return EIO;
     }
     return 0;
 }
