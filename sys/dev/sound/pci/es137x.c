@@ -111,7 +111,7 @@ static u_int	es1371_wait_src_ready(struct es_info *);
 static void	es1371_src_write(struct es_info *, u_short, unsigned short);
 static u_int	es1371_adc_rate(struct es_info *, u_int, int);
 static u_int	es1371_dac_rate(struct es_info *, u_int, int);
-static int	es1371_init(struct es_info *es, int);
+static int	es1371_init(struct es_info *, device_t);
 static int      es1370_init(struct es_info *);
 static int      es1370_wrcodec(struct es_info *, u_char, u_char);
 
@@ -474,9 +474,11 @@ es1370_init(struct es_info *es)
 
 /* ES1371 specific */
 int
-es1371_init(struct es_info *es, int rev)
+es1371_init(struct es_info *es, device_t dev)
 {
 	int idx;
+	int devid = pci_get_devid(dev);
+	int revid = pci_get_revid(dev);
 
 	if (debug > 0) printf("es_init\n");
 
@@ -484,7 +486,7 @@ es1371_init(struct es_info *es, int rev)
 	es->ctrl = 0;
 	es->sctrl = 0;
 	/* initialize the chips */
-	if (rev == 7 || rev >= 9 || rev == 2) {
+	if (revid == 7 || revid >= 9 || (devid == ES1371_PCI_ID3 && revid == 2)) {
 #define ES1371_BINTSUMM_OFF 0x07
 		bus_space_write_4(es->st, es->sh, ES1371_BINTSUMM_OFF, 0x20);
 		if (debug > 0) printf("es_init rev == 7 || rev >= 9\n");
@@ -788,7 +790,7 @@ es_pci_attach(device_t dev)
 	if (pci_get_devid(dev) == ES1371_PCI_ID ||
 	    pci_get_devid(dev) == ES1371_PCI_ID2 ||
 	    pci_get_devid(dev) == ES1371_PCI_ID3) {
-		if(-1 == es1371_init(es, pci_get_revid(dev))) {
+		if(-1 == es1371_init(es, dev)) {
 			device_printf(dev, "unable to initialize the card\n");
 			goto bad;
 		}
