@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)chown.2	8.4 (Berkeley) 4/19/94
-.\"	$Id$
+.\"	$Id: chown.2,v 1.4 1996/08/29 21:23:59 wosch Exp $
 .\"
 .Dd April 19, 1994
 .Dt CHOWN 2
@@ -132,9 +132,10 @@ An I/O error occurred while reading from or writing to the file system.
 .Xr chmod 2 ,
 .Xr flock 2
 .Sh STANDARDS
-.Fn Chown
-is expected to conform to IEEE Std 1003.1-1988
-.Pq Dq Tn POSIX .
+The
+.Fn chown
+function call is expected to conform to 
+.St -p1003.1-90 .
 .Sh HISTORY
 A
 .Fn chown

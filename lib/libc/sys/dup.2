@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)dup.2	8.1 (Berkeley) 6/4/93
-.\"	$Id$
+.\"	$Id: dup.2,v 1.3 1996/08/29 21:24:06 wosch Exp $
 .\"
 .Dd June 4, 1993
 .Dt DUP 2
@@ -172,12 +172,12 @@ Too many descriptors are active.
 .Xr socketpair 2 ,
 .Xr getdtablesize 2
 .Sh STANDARDS
-.Fn Dup
+The
+.Fn dup
 and
 .Fn dup2
-are expected to conform
-to IEEE Std 1003.1-1988
-.Pq Dq Tn POSIX .
+function calls are expected to conform to 
+.St -p1003.1-90 .
 .Sh HISTORY
 A
 .Fn dup
