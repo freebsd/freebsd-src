@@ -1428,7 +1428,7 @@ sis_detach(dev)
 	struct ifnet		*ifp;
 
 	sc = device_get_softc(dev);
-	KASSERT(mtx_initialized(&sc->sis_mtx), "sis mutex not initialized");
+	KASSERT(mtx_initialized(&sc->sis_mtx), ("sis mutex not initialized"));
 	SIS_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 

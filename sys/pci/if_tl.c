@@ -1352,7 +1352,7 @@ tl_detach(dev)
 	struct ifnet		*ifp;
 
 	sc = device_get_softc(dev);
-	KASSERT(mtx_initialized(&sc->tl_mtx), "tl mutex not initialized");
+	KASSERT(mtx_initialized(&sc->tl_mtx), ("tl mutex not initialized"));
 	TL_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 

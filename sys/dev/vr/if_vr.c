@@ -921,7 +921,7 @@ vr_detach(dev)
 	struct ifnet		*ifp;
 
 	sc = device_get_softc(dev);
-	KASSERT(mtx_initialized(&sc->vr_mtx), "vr mutex not initialized");
+	KASSERT(mtx_initialized(&sc->vr_mtx), ("vr mutex not initialized"));
 	VR_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 
