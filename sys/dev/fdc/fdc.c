@@ -1157,6 +1157,7 @@ fdc_thread(void *arg)
 		mtx_lock(&fdc->fdc_mtx);
 	}
 	fdc->flags &= ~(FDC_KTHREAD_EXIT | FDC_KTHREAD_ALIVE);
+	wakeup(&fdc->fdc_thread);
 	mtx_unlock(&fdc->fdc_mtx);
 
 	kthread_exit(0);
@@ -1328,8 +1329,6 @@ struct g_class g_fd_class = {
 	.access =	fd_access,
 	.ioctl =	fd_ioctl,
 };
-
-DECLARE_GEOM_CLASS(g_fd_class, g_fd);
 
 static int
 fd_access(struct g_provider *pp, int r, int w, int e)
@@ -1660,6 +1659,7 @@ fdc_detach(device_t dev)
 	/* kill worker thread */
 	fdc->flags |= FDC_KTHREAD_EXIT;
 	mtx_lock(&fdc->fdc_mtx);
+	wakeup(&fdc->head);
 	while ((fdc->flags & FDC_KTHREAD_ALIVE) != 0)
 		msleep(&fdc->fdc_thread, &fdc->fdc_mtx, PRIBIO, "fdcdet", 0);
 	mtx_unlock(&fdc->fdc_mtx);
@@ -1979,4 +1979,12 @@ static driver_t fd_driver = {
 	sizeof(struct fd_data)
 };
 
-DRIVER_MODULE(fd, fdc, fd_driver, fd_devclass, 0, 0);
+static int
+fdc_modevent(module_t mod, int type, void *data)
+{
+
+	g_modevent(NULL, type, &g_fd_class);
+	return (0);
+}
+
+DRIVER_MODULE(fd, fdc, fd_driver, fd_devclass, fdc_modevent, 0);
