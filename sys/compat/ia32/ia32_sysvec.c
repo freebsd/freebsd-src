@@ -68,9 +68,15 @@ __FBSDID("$FreeBSD$");
 #include <compat/freebsd32/freebsd32_proto.h>
 #include <compat/freebsd32/freebsd32_syscall.h>
 #include <compat/ia32/ia32_signal.h>
+#ifdef __amd64__
 #include <machine/psl.h>
 #include <machine/segments.h>
 #include <machine/specialreg.h>
+#else
+#include <i386/include/psl.h>
+#include <i386/include/segments.h>
+#include <i386/include/specialreg.h>
+#endif
 #include <machine/frame.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>
@@ -111,7 +117,7 @@ struct sysentvec ia32_freebsd_sysvec = {
 	elf32_coredump,
 	NULL,
 	MINSIGSTKSZ,
-	PAGE_SIZE,
+	IA32_PAGE_SIZE,
 	0,
 	FREEBSD32_USRSTACK,
 	FREEBSD32_USRSTACK,
