@@ -48,6 +48,7 @@ static char sccsid[] = "@(#)rcmd.c	8.3 (Berkeley) 3/26/94";
 #include <signal.h>
 #include <fcntl.h>
 #include <netdb.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <pwd.h>
 #include <errno.h>
@@ -105,10 +106,28 @@ rcmd_af(ahost, rport, locuser, remuser, cmd, fd2p, af)
 	sigset_t oldmask, newmask;
 	pid_t pid;
 	int s, aport, lport, timo, error;
-	char c;
+	char c, *p;
 	int refused, nres;
 	char num[8];
 	static char canonnamebuf[MAXDNAME];	/* is it proper here? */
+
+	/* call rcmdsh() with specified remote shell if appropriate. */
+	if (!issetugid() && (p = getenv("RSH"))) {
+		struct servent *sp = getservbyname("shell", "tcp");
+
+		if (sp && sp->s_port == rport)
+			return (rcmdsh(ahost, rport, locuser, remuser,
+			    cmd, p));
+	}
+
+	/* use rsh(1) if non-root and remote port is shell. */
+	if (geteuid()) {
+		struct servent *sp = getservbyname("shell", "tcp");
+
+		if (sp && sp->s_port == rport)
+			return (rcmdsh(ahost, rport, locuser, remuser,
+			    cmd, NULL));
+	}
 
 	pid = getpid();
 
@@ -579,9 +598,6 @@ __ivaliduser_af(hostf, raddr, luser, ruser, af, len)
 	return __ivaliduser_sa(hostf, sa, sa->sa_len, luser, ruser);
 }
 
-/*
- * Returns 0 if ok, -1 if not ok.
- */
 int
 __ivaliduser_sa(hostf, raddr, salen, luser, ruser)
 	FILE *hostf;
