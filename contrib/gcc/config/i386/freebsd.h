@@ -30,9 +30,6 @@ Boston, MA 02111-1307, USA.  */
 #undef  ASM_SPEC
 #define ASM_SPEC	"%{v*: -v}"
 
-#undef  ASM_FINAL_SPEC
-#define ASM_FINAL_SPEC	"%|"
-
 /* Provide a LINK_SPEC appropriate for FreeBSD.  Here we provide support
    for the special GCC options -static and -shared, which allow us to
    link things in one of these three modes by applying the appropriate
