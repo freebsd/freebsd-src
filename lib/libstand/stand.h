@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: stand.h,v 1.2 1998/08/24 02:54:33 bde Exp $
+ *	$Id: stand.h,v 1.3 1998/09/18 22:58:00 msmith Exp $
  * From	$NetBSD: stand.h,v 1.22 1997/06/26 19:17:40 drochner Exp $	
  */
 
@@ -187,8 +187,6 @@ extern void	twiddle(void);
 extern void	ngets(char *, int);
 #define gets(x)	ngets((x), 0)
 extern int	fgetstr(char *buf, int size, int fd);
-
-extern const char *strerror(int);
 
 extern int	open(const char *, int);
 #define	O_RDONLY	0x0
