@@ -1200,7 +1200,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	have been split apart for ease of maintenance and further
 	development.</para>
 
-      <para>Support for file system Access Control Lists (ACLs) has
+      <para>Support for filesystem Access Control Lists (ACLs) has
 	been introduced, allowing more fine-grained control of
 	discretionary access control on files and directories.  This
 	support was integrated from the TrustedBSD Project.  More
@@ -2719,7 +2719,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       problem report. &merged;</para>
 
     <para>The &man.setfacl.1; and &man.getfacl.1; commands have been
-      added to manage file system Access Control Lists.</para>
+      added to manage filesystem Access Control Lists.</para>
 
     <para>&man.setproctitle.3; has been moved from
       <filename>libutil</filename> to

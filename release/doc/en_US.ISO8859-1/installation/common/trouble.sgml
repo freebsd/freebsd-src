@@ -23,7 +23,7 @@
     when asked.  You will then be placed into a shell with a wide
     variety of commands available (in the <filename>/stand</filename>
     and <filename>/mnt2/stand</filename> directories) for checking,
-    repairing and examining file systems and their contents.  Some
+    repairing and examining filesystems and their contents.  Some
     UNIX administration experience <emphasis>is</emphasis> required to
     use the fixit option.</para>
   </sect2>
