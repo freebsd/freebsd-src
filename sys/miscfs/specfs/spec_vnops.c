@@ -44,17 +44,13 @@
 #include <sys/vnode.h>
 #include <sys/stat.h>
 #include <sys/fcntl.h>
-#include <sys/disklabel.h>
 #include <sys/vmmeter.h>
-#include <sys/sysctl.h>
 #include <sys/tty.h>
 
 #include <vm/vm.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
-#include <vm/vnode_pager.h>
-#include <vm/vm_extern.h>
 
 static int	spec_advlock __P((struct vop_advlock_args *));  
 static int	spec_bmap __P((struct vop_bmap_args *));

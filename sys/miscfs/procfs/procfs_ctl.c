@@ -49,7 +49,6 @@
 #include <miscfs/procfs/procfs.h>
 
 #include <vm/vm.h>
-#include <vm/vm_extern.h>
 
 #ifndef FIX_SSTEP
 #define FIX_SSTEP(p)

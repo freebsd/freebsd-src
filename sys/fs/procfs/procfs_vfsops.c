@@ -47,7 +47,6 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
-#include <sys/syslog.h>
 #include <sys/mount.h>
 #include <sys/vnode.h>
 #include <miscfs/procfs/procfs.h>
