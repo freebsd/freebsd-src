@@ -172,7 +172,8 @@ cpu_fork(td1, p2, td2, flags)
 #endif
 
 	/* Point the pcb to the top of the stack */
-	pcb2 = (struct pcb *)(td2->td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
+	pcb2 = (struct pcb *)(td2->td_kstack +
+	    td2->td_kstack_pages * PAGE_SIZE) - 1;
 	td2->td_pcb = pcb2;
 
 	/* Copy p1's pcb */
@@ -346,8 +347,8 @@ void
 cpu_thread_setup(struct thread *td)
 {
 
-	td->td_pcb =
-	     (struct pcb *)(td->td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
+	td->td_pcb = (struct pcb *)(td->td_kstack +
+	    td->td_kstack_pages * PAGE_SIZE) - 1;
 	td->td_frame = (struct trapframe *)((caddr_t)td->td_pcb - 16) - 1;
 	td->td_pcb->pcb_ext = NULL; 
 }
