@@ -394,6 +394,12 @@ build32:
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 	    -p ${LIB32TMP}/usr/include >/dev/null
 	ln -sf ${.CURDIR}/sys ${WORLDTMP}
+.if !defined(NO_KERBEROS) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
+.for _t in obj depend all
+	cd ${.CURDIR}/kerberos5/tools; \
+	    MAKEOBJDIRPREFIX=${OBJTREE}/lib32 ${MAKE} ${_t}
+.endfor
+.endif
 .for _t in obj includes
 	cd ${.CURDIR}/include; \
 	    ${LIB32MAKE} DESTDIR=${LIB32TMP} ${_t}
@@ -414,12 +420,6 @@ build32:
 	cd ${.CURDIR}/${_dir}; \
 	    MAKEOBJDIRPREFIX=${OBJTREE}/lib32 ${MAKE} build-tools
 .endfor
-.if !defined(NO_KERBEROS) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
-.for _t in obj depend all
-	cd ${.CURDIR}/kerberos5/tools; \
-	    MAKEOBJDIRPREFIX=${OBJTREE}/lib32 ${MAKE} ${_t}
-.endfor
-.endif
 	cd ${.CURDIR}; \
 	    ${LIB32MAKE} -f Makefile.inc1 DESTDIR=${LIB32TMP} libraries 
 .for _t in obj depend all
