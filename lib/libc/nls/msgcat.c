@@ -108,7 +108,8 @@ int type;
 	if (type == NL_CAT_LOCALE)
 		lang = setlocale(LC_MESSAGES, NULL);
 	else {
-		if ((lang = (char *) getenv("LANG")) == NULL)
+		if ((lang = (char *) getenv("LANG")) == NULL ||
+		    strchr(lang, '/') != NULL)
 			lang = "C";
 	}
 	if ((nlspath = (char *) getenv("NLSPATH")) == NULL
