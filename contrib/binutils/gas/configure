@@ -817,8 +817,10 @@ for this_target in $target $canon_targets ; do
       i386-*-linux*)        fmt=elf em=linux ;;
       i386-*-lynxos*)       fmt=coff targ=i386coff
 			     em=lynx ;;
-      i386-*-sysv4* | i386-*-solaris* | i386-*-elf | i386-*-freebsdelf*)
+      i386-*-sysv4* | i386-*-solaris* | i386-*-elf)
 			    fmt=elf ;;
+      i386-*-freebsdelf*)   fmt=elf em=freebsd ;;
+      i386-*-freebsd*)      fmt=aout em=freebsd bfd_gas=yes ;;
       i386-*-sco*elf*)      fmt=elf targ=sco5 ;;
       i386-*-coff | i386-*-sysv* | i386-*-sco* | i386-*-isc*)
 			    fmt=coff targ=i386coff ;;

@@ -235,6 +235,7 @@ ALL_EMULATIONS = \
 	ei386aout.o \
 	ei386bsd.o \
 	ei386coff.o \
+	ei386freebsd.o \
 	ei386go32.o \
 	ei386linux.o \
 	ei386lynx.o \
@@ -480,6 +481,9 @@ ei386bsd.c: $(srcdir)/emulparams/i386bsd.sh \
 ei386coff.c: $(srcdir)/emulparams/i386coff.sh \
   $(srcdir)/emultempl/generic.em $(srcdir)/scripttempl/i386coff.sc ${GEN_DEPENDS}
 	${GENSCRIPTS} i386coff "$(tdir_i386coff)"
+ei386freebsd.c: $(srcdir)/emulparams/i386freebsd.sh \
+  $(srcdir)/emultempl/generic.em $(srcdir)/scripttempl/aout.sc ${GEN_DEPENDS}
+	${GENSCRIPTS} i386freebsd "$(tdir_i386freebsd)"
 ei386go32.c: $(srcdir)/emulparams/i386go32.sh \
   $(srcdir)/emultempl/generic.em $(srcdir)/scripttempl/i386go32.sc ${GEN_DEPENDS}
 	${GENSCRIPTS} i386go32 "$(tdir_i386go32)"
