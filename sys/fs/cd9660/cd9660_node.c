@@ -366,7 +366,8 @@ cd9660_deftstamp(isodir,inop,bp,ftype)
 	if (bp) {
 		ap = (struct iso_extended_attributes *)bp->b_data;
 		
-		if (isonum_711(ap->version) == 1) {
+		if (ftype != ISO_FTYPE_HIGH_SIERRA
+		    && isonum_711(ap->version) == 1) {
 			if (!cd9660_tstamp_conv17(ap->ftime,&inop->inode.iso_atime))
 				cd9660_tstamp_conv17(ap->ctime,&inop->inode.iso_atime);
 			if (!cd9660_tstamp_conv17(ap->ctime,&inop->inode.iso_ctime))
