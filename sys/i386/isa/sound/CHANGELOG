@@ -1,0 +1,55 @@
+Changelog for version 2.4
+-------------------------
+
+Since 2.3b
+- Fixed bug which made it impossible to make long recordings to disk.
+  Recording was not restarted after a buffer overflow situation.
+- Limited mixer support for GUS.
+- Numerous improvements to the GUS driver by Andrew Robinson. Including
+  some click removal etc.
+
+Since 2.3
+- Fixed some minor bugs in the SB16 driver.
+
+Since 2.2b
+- Full SB16 DSP support. 8/16 bit, mono/stereo
+- The SCO and FreeBSD versions should be in sync now. There are some
+  problems with SB16 and GUS in the freebsd versions.
+  The DMA buffer allocation of the SCO version has been polished but
+  there could still be some problems. At least it hogs memory.
+  The DMA channel
+  configuration method used in the sco/System is a hack.
+- Support for the MPU emulation of the SB16.
+- Some big arrays are now allocated boot time. This makes the bss segment
+  smaller which makes it possible to use the full driver with
+  NetBSD. These arrays are not allocated if no suitable soundcard is available.
+- Fixed a bug in the compute_and_set_volume in gus_wave.c
+- Fixed the too fast mono playback problem of SB Pro and PAS16.
+
+Since 2.2
+- Stereo recording for SB Pro. Somehow it was missing and nobody
+  had noticed it earlier.
+- Minor polishing.
+- Interpreting of boot time arguments (sound=) for Linux.
+- Breakup of sb_dsp.c. Parts of the code has been moved to
+  sb_mixer.c and sb_midi.c
+
+Since 2.1
+- Preliminary support for SB16. 
+  - The SB16 mixer is supported in it's native mode.
+  - Digitized voice capability up to 44.1 kHz/8 bit/mono
+    (16 bit and stereo support coming in the next release).
+- Fixed some bugs in the digitized voice driver for PAS16.
+- Proper initialization of the SB emulation of latest PAS16 models.
+
+- Significantly improved /dev/dsp and /dev/audio support.
+  - Now supports half duplex mode. It's now possible to record and
+    playback without closing and reopening the device.
+  - It's possible to use smaller buffers than earlier. There is a new
+    ioctl(fd, SNDCTL_DSP_SUBDIVIDE, &n) where n should be 1, 2 or 4.
+    This call instructs the driver to use smaller buffers. The default
+    buffer size (0.5 to 1.0 seconds) is divided by n. Should be called
+    immediately after opening the device.
+
+Since 2.0
+Just cosmetic changes. 
