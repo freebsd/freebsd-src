@@ -112,6 +112,7 @@
 .Op Fl u Ar uid
 .Op Fl F
 .Op Fl P
+.Op Fl 7
 .Op Fl a
 .Nm
 .Op Fl V Ar etcdir
@@ -145,7 +146,6 @@
 .Op group|gid
 .Op Fl C Ar config
 .Op Fl q
-.Op Fl F
 .Op Fl n Ar name
 .Op Fl g Ar gid
 .Op Fl l Ar name
@@ -681,9 +681,17 @@ If the
 option is used, then
 .Nm
 outputs the account details in a more human readable form.
+If the
+.Fl 7
+option is used, the account details are shown in v7 format.
 The
 .Fl a
 option lists all users currently on file.
+Using
+.Fl F
+forces
+.Nm
+to print the details of an account even if it does not exist.
 .Pp
 The command
 .Ar usernext
@@ -756,6 +764,11 @@ with the
 replacing
 .Fl u Ar uid
 to specify the group id.
+The
+.Fl 7
+option does not apply to the
+.Ar groupshow
+command.
 .Pp
 The command
 .Ar groupnext
