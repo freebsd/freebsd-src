@@ -504,9 +504,7 @@ nfs_close(struct vop_close_args *ap)
 		    error = nfs_flush(vp, ap->a_cred, MNT_WAIT, ap->a_td, cm);
 		    /* np->n_flag &= ~NMODIFIED; */
 		} else {
-		    vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, ap->a_td);
 		    error = nfs_vinvalbuf(vp, V_SAVE, ap->a_cred, ap->a_td, 1);
-		    VOP_UNLOCK(vp, 0, ap->a_td);
 		}
 		np->n_attrstamp = 0;
 	    }

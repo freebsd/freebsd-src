@@ -139,8 +139,6 @@ struct nfsnode {
 /*
  * Flags for n_flag
  */
-#define	NFLUSHWANT	0x0001	/* Want wakeup from a flush in prog. */
-#define	NFLUSHINPROG	0x0002	/* Avoid multiple calls to vinvalbuf() */
 #define	NMODIFIED	0x0004	/* Might have a modified buffer in bio */
 #define	NWRITEERR	0x0008	/* Flag write errors so close will know */
 /* 0x20, 0x40, 0x80 free */
