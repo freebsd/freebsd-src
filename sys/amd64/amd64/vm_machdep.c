@@ -160,6 +160,10 @@ cpu_fork(p1, p2, flags)
 			   ((int)p2->p_addr + UPAGES * PAGE_SIZE - 16) - 1;
 	bcopy(p1->p_md.md_regs, p2->p_md.md_regs, sizeof(*p2->p_md.md_regs));
 
+	p2->p_md.md_regs->tf_eax = 0;		/* Child returns zero */
+	p2->p_md.md_regs->tf_eflags &= ~PSL_C;	/* success */
+	p2->p_md.md_regs->tf_edx = 1;
+
 	/*
 	 * Set registers for trampoline to user mode.  Leave space for the
 	 * return address on stack.  These are the kernel mode register values.
