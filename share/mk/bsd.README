@@ -108,9 +108,9 @@ MANMODE		Manual mode.
 MANSUBDIR	Subdirectory under the manual page section, i.e. "/vax"
 		or "/tahoe" for machine specific manual pages.
 
-MAN1 ... MAN8	The manual pages to be installed (use a .0 suffix).
+MAN1 ... MAN9	The manual pages to be installed (use a .1 - .9 suffix).
 
-MLINKS		List of manual page links (using a .1 - .8 suffix).  The
+MLINKS		List of manual page links (using a .1 - .9 suffix).  The
 		linked-to file must come first, the linked file second,
 		and there may be multiple pairs.  The files are soft-linked.
 
@@ -210,8 +210,8 @@ LINKS		The list of binary links; should be full pathnames, the
 
 			LINKS=	${DESTDIR}/bin/test ${DESTDIR}/bin/[
 
-MAN1...MAN8	Manual pages (should end in .0).  If no MAN variable is
-		defined, "MAN1=${PROG}.0" is assumed.
+MAN1...MAN9	Manual pages (should end in .1  - .9).  If no MAN variable
+		is defined, "MAN1=${PROG}.1" is assumed.
 
 PROG		The name of the program to build.  If not supplied, nothing
 		is built.
@@ -259,7 +259,7 @@ To build foo from foo.c with a manual page foo.1, use:
 
 To build foo from foo.c with a manual page foo.2, add the line:
 
-	MAN2=	foo.0
+	MAN2=	foo.2
 
 If foo does not have a manual page at all, add the line:
 
@@ -300,7 +300,7 @@ LIBMODE		Library mode.
 
 LDADD		Additional loader objects.
 
-MAN1 ... MAN8	The manual pages to be installed (use a .0 suffix).
+MAN1 ... MAN9	The manual pages to be installed (use a .1 - .9 suffix).
 
 SRCS		List of source files to build the library.  Suffix types
 		.s, .c, and .f are supported.  Note, .s files are preferred
