@@ -169,6 +169,13 @@
       directory are available by anonymous FTP at <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/tools"></ulink> (many
       mirrors also have a copy of this directory).</para>
+
+    <para>One of the items in the release notes gave a workaround
+      for hangs during PCCARD ejection, but gave the wrong syntax for
+      the necessary command.  The correct command line is:
+
+    <screen><prompt>#</prompt> <userinput>pccardc power <replaceable>slot</replaceable> 0</userinput></screen>
+
 ]]>
   </sect1>
 </article>
