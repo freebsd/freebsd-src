@@ -208,10 +208,37 @@ char *p_flags[] = {
 	"PF_X|PF_W|PF_R"
 };
 
-char *sh_types[] = {
-	"SHT_NULL", "SHT_PROGBITS", "SHT_SYMTAB", "SHT_STRTAB",
-	"SHT_RELA", "SHT_HASH", "SHT_DYNAMIC", "SHT_NOTE", "SHT_NOBITS",
-	"SHT_REL", "SHT_SHLIB", "SHT_DYNSYM"
+/* http://www.sco.com/developers/gabi/latest/ch4.sheader.html#sh_type */
+const char 
+*sh_types(u_int64_t sht) {
+	switch (sht) {
+	case 0:	return "SHT_NULL";
+	case 1: return "SHT_PROGBITS";
+	case 2: return "SHT_SYMTAB";
+	case 3: return "SHT_STRTAB";
+	case 4: return "SHT_RELA";
+	case 5: return "SHT_HASH";
+	case 6: return "SHT_DYNAMIC";
+	case 7: return "SHT_NOTE";
+	case 8: return "SHT_NOBITS";
+	case 9: return "SHT_REL";
+	case 10: return "SHT_SHLIB";
+	case 11: return "SHT_DYNSYM";
+	case 14: return "SHT_INIT_ARRAY";
+	case 15: return "SHT_FINI_ARRAY";
+	case 16: return "SHT_PREINIT_ARRAY";
+	case 17: return "SHT_GROUP";
+	case 18: return "SHT_SYMTAB_SHNDX";
+	case 0x6ffffff0: return "XXX:VERSYM";
+	case 0x6ffffff7: return "SHT_GNU_LIBLIST";
+	case 0x6ffffffc: return "XXX:VERDEF";
+	case 0x6ffffffd: return "SHT_SUNW(GNU)_verdef";
+	case 0x6ffffffe: return "SHT_SUNW(GNU)_verneed";
+	case 0x6fffffff: return "SHT_SUNW(GNU)_versym";
+	case 0x7ffffffd: return "XXX:AUXILIARY";
+	case 0x7fffffff: return "XXX:FILTER";
+	default: return "ERROR: SHT NOT DEFINED";
+	}
 };
 
 char *sh_flags[] = {
@@ -562,7 +589,7 @@ elf_print_shdr(void *e, void *sh)
 		fprintf(out, "\n");
 		fprintf(out, "entry: %d\n", i);
 		fprintf(out, "\tsh_name: %s\n", shstrtab + name);
-		fprintf(out, "\tsh_type: %s\n", sh_types[type]);
+		fprintf(out, "\tsh_type: %s\n", sh_types(type));
 		fprintf(out, "\tsh_flags: %s\n", sh_flags[flags & 0x7]);
 		fprintf(out, "\tsh_addr: %#llx\n", addr);
 		fprintf(out, "\tsh_offset: %lld\n", offset);
