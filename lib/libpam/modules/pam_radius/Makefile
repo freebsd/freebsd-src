@@ -34,7 +34,8 @@ CFLAGS+=	-I${PAMDIR}/libpam/include
 CFLAGS+=	-I${.CURDIR}/../../libpam
 DPADD+=		${LIBRADIUS} ${LIBGCC_PIC}
 LDADD+=		-lradius -lgcc_pic
-INTERNALLIB=	yes
 INTERNALSTATICLIB=yes
+
+MAN8=		pam_radius.8
 
 .include <bsd.lib.mk>
