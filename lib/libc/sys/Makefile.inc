@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.3 (Berkeley) 10/24/94
-#	$Id: Makefile.inc,v 1.52 1998/05/01 15:46:06 bde Exp $
+#	$Id: Makefile.inc,v 1.53 1998/05/14 11:36:16 peter Exp $
 
 # sys sources
 .PATH: ${.CURDIR}/../libc/${MACHINE_ARCH}/sys ${.CURDIR}/../libc/sys
@@ -102,7 +102,8 @@ MAN2+=	_exit.2 accept.2 access.2 acct.2 adjtime.2 \
 	shmat.2 shmctl.2 shmget.2 shutdown.2 \
 	sigaction.2 sigaltstack.2 sigpending.2 sigprocmask.2 sigreturn.2 \
 	sigstack.2 sigsuspend.2 socket.2 socketpair.2 stat.2 statfs.2 \
-	swapon.2 symlink.2 sync.2 syscall.2 truncate.2 umask.2 undelete.2 \
+	swapon.2 symlink.2 sync.2 sysarch.2 syscall.2 \
+	truncate.2 umask.2 undelete.2 \
 	unlink.2 utimes.2 vfork.2 wait.2 write.2
 .if !defined(NO_P1003_1B)
 MAN2+=	sched_get_priority_max.2 sched_setparam.2 \
