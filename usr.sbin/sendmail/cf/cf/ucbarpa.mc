@@ -41,7 +41,8 @@ divert(-1)
 #  `SITECONFIG'.  See also ucbvax.mc.
 #
 
-VERSIONID(`@(#)ucbarpa.mc	8.3 (Berkeley) 8/6/95')
+divert(0)dnl
+VERSIONID(`@(#)ucbarpa.mc	8.4 (Berkeley) 3/23/96')
 DOMAIN(CS.Berkeley.EDU)dnl
 OSTYPE(bsd4.4)dnl
 MAILER(local)dnl

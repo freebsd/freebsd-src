@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1983, 1995 Eric P. Allman
+ * Copyright (c) 1983, 1995, 1996 Eric P. Allman
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)conf.c	8.243.1.9 (Berkeley) 9/17/96";
+static char sccsid[] = "@(#)conf.c	8.312 (Berkeley) 10/17/96";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -78,49 +78,50 @@ static char sccsid[] = "@(#)conf.c	8.243.1.9 (Berkeley) 9/17/96";
 struct hdrinfo	HdrInfo[] =
 {
 		/* originator fields, most to least significant  */
-	"resent-sender",		H_FROM|H_RESENT,
-	"resent-from",			H_FROM|H_RESENT,
-	"resent-reply-to",		H_FROM|H_RESENT,
-	"sender",			H_FROM,
-	"from",				H_FROM,
-	"reply-to",			H_FROM,
-	"full-name",			H_ACHECK,
-	"return-receipt-to",		H_FROM|H_RECEIPTTO,
-	"errors-to",			H_FROM|H_ERRORSTO,
+	{ "resent-sender",		H_FROM|H_RESENT			},
+	{ "resent-from",		H_FROM|H_RESENT			},
+	{ "resent-reply-to",		H_FROM|H_RESENT			},
+	{ "sender",			H_FROM				},
+	{ "from",			H_FROM				},
+	{ "reply-to",			H_FROM				},
+	{ "errors-to",			H_FROM|H_ERRORSTO		},
+	{ "full-name",			H_ACHECK			},
+	{ "return-receipt-to",		H_RECEIPTTO			},
 
 		/* destination fields */
-	"to",				H_RCPT,
-	"resent-to",			H_RCPT|H_RESENT,
-	"cc",				H_RCPT,
-	"resent-cc",			H_RCPT|H_RESENT,
-	"bcc",				H_RCPT|H_BCC,
-	"resent-bcc",			H_RCPT|H_BCC|H_RESENT,
-	"apparently-to",		H_RCPT,
+	{ "to",				H_RCPT				},
+	{ "resent-to",			H_RCPT|H_RESENT			},
+	{ "cc",				H_RCPT				},
+	{ "resent-cc",			H_RCPT|H_RESENT			},
+	{ "bcc",			H_RCPT|H_BCC			},
+	{ "resent-bcc",			H_RCPT|H_BCC|H_RESENT		},
+	{ "apparently-to",		H_RCPT				},
 
 		/* message identification and control */
-	"message-id",			0,
-	"resent-message-id",		H_RESENT,
-	"message",			H_EOH,
-	"text",				H_EOH,
+	{ "message-id",			0				},
+	{ "resent-message-id",		H_RESENT			},
+	{ "message",			H_EOH				},
+	{ "text",			H_EOH				},
 
 		/* date fields */
-	"date",				0,
-	"resent-date",			H_RESENT,
+	{ "date",			0				},
+	{ "resent-date",		H_RESENT			},
 
 		/* trace fields */
-	"received",			H_TRACE|H_FORCE,
-	"x400-received",		H_TRACE|H_FORCE,
-	"via",				H_TRACE|H_FORCE,
-	"mail-from",			H_TRACE|H_FORCE,
+	{ "received",			H_TRACE|H_FORCE			},
+	{ "x400-received",		H_TRACE|H_FORCE			},
+	{ "via",			H_TRACE|H_FORCE			},
+	{ "mail-from",			H_TRACE|H_FORCE			},
 
 		/* miscellaneous fields */
-	"comments",			H_FORCE,
-	"return-path",			H_FORCE|H_ACHECK,
-	"content-transfer-encoding",	H_CTE,
-	"content-type",			H_CTYPE,
-	"content-length",		H_ACHECK,
+	{ "comments",			H_FORCE|H_ENCODABLE		},
+	{ "return-path",		H_FORCE|H_ACHECK		},
+	{ "content-transfer-encoding",	H_CTE				},
+	{ "content-type",		H_CTYPE				},
+	{ "content-length",		H_ACHECK			},
+	{ "subject",			H_ENCODABLE			},
 
-	NULL,			0,
+	{ NULL,				0				}
 };
 
 
@@ -139,18 +140,18 @@ char	*PidFile =	_PATH_SENDMAILPID;	/* stores daemon proc id */
 
 struct prival PrivacyValues[] =
 {
-	"public",		PRIV_PUBLIC,
-	"needmailhelo",		PRIV_NEEDMAILHELO,
-	"needexpnhelo",		PRIV_NEEDEXPNHELO,
-	"needvrfyhelo",		PRIV_NEEDVRFYHELO,
-	"noexpn",		PRIV_NOEXPN,
-	"novrfy",		PRIV_NOVRFY,
-	"restrictmailq",	PRIV_RESTRICTMAILQ,
-	"restrictqrun",		PRIV_RESTRICTQRUN,
-	"authwarnings",		PRIV_AUTHWARNINGS,
-	"noreceipts",		PRIV_NORECEIPTS,
-	"goaway",		PRIV_GOAWAY,
-	NULL,			0,
+	{ "public",		PRIV_PUBLIC		},
+	{ "needmailhelo",	PRIV_NEEDMAILHELO	},
+	{ "needexpnhelo",	PRIV_NEEDEXPNHELO	},
+	{ "needvrfyhelo",	PRIV_NEEDVRFYHELO	},
+	{ "noexpn",		PRIV_NOEXPN		},
+	{ "novrfy",		PRIV_NOVRFY		},
+	{ "restrictmailq",	PRIV_RESTRICTMAILQ	},
+	{ "restrictqrun",	PRIV_RESTRICTQRUN	},
+	{ "authwarnings",	PRIV_AUTHWARNINGS	},
+	{ "noreceipts",		PRIV_NORECEIPTS		},
+	{ "goaway",		PRIV_GOAWAY		},
+	{ NULL,			0			}
 };
 
 
@@ -227,12 +228,15 @@ setdefaults(e)
 		TimeOuts.to_q_warning[i] = 0;		/* option T */
 	}
 	ServiceSwitchFile = "/etc/service.switch";
+	ServiceCacheMaxAge = (time_t) 10;
 	HostsFile = _PATH_HOSTS;
 	MustQuoteChars = "@,;:\\()[].'";
 	MciInfoTimeout = 30 MINUTES;
 	MaxRuleRecursion = MAXRULERECURSION;
 	MaxAliasRecursion = 10;
+	MaxMacroRecursion = 10;
 	ColonOkInAddr = TRUE;
+	DoubleBounceAddr = "postmaster";
 	setdefuser();
 	setupmaps();
 	setupmailers();
@@ -278,6 +282,14 @@ host_map_init(map, args)
 		  case 'a':
 			map->map_app = ++p;
 			break;
+
+		  case 'm':
+			map->map_mflags |= MF_MATCHONLY;
+			break;
+
+		  case 't':
+			map->map_mflags |= MF_NODEFER;
+			break;
 		}
 		while (*p != '\0' && !(isascii(*p) && isspace(*p)))
 			p++;
@@ -298,13 +310,13 @@ setupmailers()
 	char buf[100];
 	extern void makemailer();
 
-	strcpy(buf, "prog, P=/bin/sh, F=lsoD, T=DNS/RFC822/X-Unix, A=sh -c \201u");
+	strcpy(buf, "prog, P=/bin/sh, F=lsoDq9, T=DNS/RFC822/X-Unix, A=sh -c \201u");
 	makemailer(buf);
 
-	strcpy(buf, "*file*, P=[FILE], F=lsDFMPEou, T=DNS/RFC822/X-Unix, A=FILE");
+	strcpy(buf, "*file*, P=[FILE], F=lsDFMPEouq9, T=DNS/RFC822/X-Unix, A=FILE \201u");
 	makemailer(buf);
 
-	strcpy(buf, "*include*, P=/dev/null, F=su, A=INCLUDE");
+	strcpy(buf, "*include*, P=/dev/null, F=su, A=INCLUDE \201u");
 	makemailer(buf);
 }
 /*
@@ -360,6 +372,11 @@ setupmaps()
 	MAPDEF("nisplus", NULL, MCF_ALIASOK,
 		map_parseargs, nisplus_map_open, null_map_close,
 		nisplus_map_lookup, null_map_store);
+#endif
+#ifdef LDAPMAP
+	MAPDEF("ldapx", NULL, 0,
+	        ldap_map_parseargs, ldap_map_open, ldap_map_close,
+	        ldap_map_lookup, null_map_store);
 #endif
 
 #ifdef HESIOD
@@ -568,7 +585,7 @@ inithostmaps()
 		else if (strcmp(maptype[i], "netinfo") == 0 &&
 		    stab("aliases.netinfo", ST_MAP, ST_FIND) == NULL)
 		{
-			strcpy(buf, "aliases.netinfo netinfo /aliases");
+			strcpy(buf, "aliases.netinfo netinfo -z, /aliases");
 			(void) makemapentry(buf);
 		}
 #endif
@@ -672,15 +689,12 @@ switch_map_find(service, maptype, mapreturn)
 	char *maptype[MAXMAPSTACK];
 	short mapreturn[MAXMAPACTIONS];
 {
-	register FILE *fp;
 	int svcno;
-	static char buf[MAXLINE];
 
 #ifdef _USE_SUN_NSSWITCH_
 	struct __nsw_switchconfig *nsw_conf;
 	enum __nsw_parse_err pserr;
 	struct __nsw_lookup *lk;
-	int nsw_rc;
 	static struct __nsw_lookup lkp0 =
 		{ "files", {1, 0, 0, 0}, NULL, NULL };
 	static struct __nsw_switchconfig lkp_default =
@@ -761,44 +775,85 @@ switch_map_find(service, maptype, mapreturn)
 	**  Fall-back mechanism.
 	*/
 
+	STAB *st;
+	time_t now = curtime();
+
 	for (svcno = 0; svcno < MAXMAPACTIONS; svcno++)
 		mapreturn[svcno] = 0;
 
-	svcno = 0;
-	fp = fopen(ServiceSwitchFile, "r");
-	if (fp != NULL)
+	if ((now - ServiceCacheTime) > (time_t) ServiceCacheMaxAge)
 	{
-		while (fgets(buf, sizeof buf, fp) != NULL)
+		/* (re)read service switch */
+		register FILE *fp;
+
+		if (ConfigFileRead)
+			ServiceCacheTime = now;
+		fp = fopen(ServiceSwitchFile, "r");
+		if (fp != NULL)
 		{
-			register char *p;
+			char buf[MAXLINE];
 
-			p = strpbrk(buf, "#\n");
-			if (p != NULL)
-				*p = '\0';
-			p = strpbrk(buf, " \t");
-			if (p != NULL)
-				*p++ = '\0';
-			if (strcmp(buf, service) != 0)
-				continue;
-
-			/* got the right service -- extract data */
-			do
+			while (fgets(buf, sizeof buf, fp) != NULL)
 			{
+				register char *p;
+
+				p = strpbrk(buf, "#\n");
+				if (p != NULL)
+					*p = '\0';
+				p = strpbrk(buf, " \t");
+				if (p != NULL)
+					*p++ = '\0';
+				if (buf[0] == '\0')
+					continue;
 				while (isspace(*p))
 					p++;
 				if (*p == '\0')
-					break;
-				maptype[svcno++] = p;
-				p = strpbrk(p, " \t");
-				if (p != NULL)
-					*p++ = '\0';
-			} while (p != NULL);
-			fclose(fp);
-			return svcno;
-		}
+					continue;
 
-		/* service was not found -- use compiled in default */
-		fclose(fp);
+				/*
+				**  Find/allocate space for this service entry.
+				**	Space for all of the service strings
+				**	are allocated at once.  This means
+				**	that we only have to free the first
+				**	one to free all of them.
+				*/
+
+				st = stab(buf, ST_SERVICE, ST_ENTER);
+				if (st->s_service[0] != NULL)
+					free((void *) st->s_service[0]);
+				p = newstr(p);
+				for (svcno = 0; svcno < MAXMAPSTACK; )
+				{
+					if (*p == '\0')
+						break;
+					st->s_service[svcno++] = p;
+					p = strpbrk(p, " \t");
+					if (p == NULL)
+						break;
+					*p++ = '\0';
+					while (isspace(*p))
+						p++;
+				}
+				if (svcno < MAXMAPSTACK)
+					st->s_service[svcno] = NULL;
+			}
+			fclose(fp);
+		}
+	}
+
+	/* look up entry in cache */
+	st = stab(service, ST_SERVICE, ST_FIND);
+	if (st != NULL && st->s_service[0] != NULL)
+	{
+		/* extract data */
+		svcno = 0;
+		while (svcno < MAXMAPSTACK)
+		{
+			maptype[svcno] = st->s_service[svcno];
+			if (maptype[svcno++] == NULL)
+				break;
+		}
+		return --svcno;
 	}
 #endif
 
@@ -1019,9 +1074,14 @@ setsignal(sig, handler)
 	struct sigaction n, o;
 
 	bzero(&n, sizeof n);
+# if USE_SA_SIGACTION
+	n.sa_sigaction = (void(*)(int, siginfo_t *, void *)) handler;
+	n.sa_flags = SA_RESTART|SA_SIGINFO;
+# else
 	n.sa_handler = handler;
-# ifdef SA_RESTART
+#  ifdef SA_RESTART
 	n.sa_flags = SA_RESTART;
+#  endif
 # endif
 	if (sigaction(sig, &n, &o) < 0)
 		return SIG_ERR;
@@ -1044,13 +1104,20 @@ releasesignal(sig)
 	int sig;
 {
 #ifdef BSD4_3
-	return sigsetmask(sigblock(0) & ~(1 << sig));
+# ifndef sigmask
+#  define sigmask(s)	(1 << ((s) - 1))
+# endif
+	return sigsetmask(sigblock(0) & ~sigmask(sig));
 #else
+# ifdef ALTOS_SYSTEM_V
+	sigrelse(sig) ;
+# else
 	sigset_t sset;
 
 	sigemptyset(&sset);
 	sigaddset(&sset, sig);
 	return sigprocmask(SIG_UNBLOCK, &sset, NULL);
+# endif
 #endif
 }
 /*
@@ -1097,7 +1164,11 @@ rlsesigs()
 */
 
 #ifdef _AUX_SOURCE
-# include	<compat.h>
+# include <compat.h>
+#endif
+
+#if SHARE_V1
+# include <shares.h>
 #endif
 
 void
@@ -1107,6 +1178,18 @@ init_md(argc, argv)
 {
 #ifdef _AUX_SOURCE
 	setcompat(getcompat() | COMPAT_BSDPROT);
+#endif
+
+#ifdef SUN_EXTENSIONS
+	init_md_sun();
+#endif
+
+#if _CONVEX_SOURCE
+	/* keep gethostby*() from stripping the local domain name */
+	set_domain_trim_off();
+#endif
+#if SECUREWARE
+	set_auth_parameters(argc, argv);
 #endif
 
 #ifdef VENDOR_DEFAULT
@@ -1161,6 +1244,7 @@ init_vendor_macros(e)
 #define LA_READKSYM	8	/* SVR4: use MIOC_READKSYM ioctl call */
 #define LA_DGUX		9	/* special DGUX implementation */
 #define LA_HPUX		10	/* special HPUX implementation */
+#define LA_IRIX6	11	/* special IRIX 6.2 implementation */
 
 /* do guesses based on general OS type */
 #ifndef LA_TYPE
@@ -1176,9 +1260,6 @@ init_vendor_macros(e)
 #  define FSHIFT	10
 # endif
 
-# if defined(_AIX3)
-#  define FSHIFT	16
-# endif
 #endif
 
 #ifndef FSHIFT
@@ -1230,6 +1311,7 @@ struct nlist	Nl[] =
 #endif
 #define	X_AVENRUN	0
 
+int
 getla()
 {
 	static int kmem = -1;
@@ -1247,22 +1329,12 @@ getla()
 
 	if (kmem < 0)
 	{
-		kmem = open(_PATH_KMEM, 0, 0);
-		if (kmem < 0)
-		{
-			if (tTd(3, 1))
-				printf("getla: open(/dev/kmem): %s\n",
-					errstring(errno));
-			return (-1);
-		}
-		(void) fcntl(kmem, F_SETFD, 1);
-
 #ifdef _AUX_SOURCE
 		strcpy(Nl[X_AVENRUN].n_name, LA_AVENRUN);
 		Nl[1].n_name[0] = '\0';
 #endif
 
-#ifdef _AIX3
+#if defined(_AIX3) || defined(_AIX4)
 		if (knlist(Nl, 1, sizeof Nl[0]) < 0)
 #else
 		if (nlist(_PATH_UNIX, Nl) < 0)
@@ -1283,6 +1355,16 @@ getla()
 #ifdef NAMELISTMASK
 		Nl[X_AVENRUN].n_value &= NAMELISTMASK;
 #endif
+
+		kmem = open(_PATH_KMEM, 0, 0);
+		if (kmem < 0)
+		{
+			if (tTd(3, 1))
+				printf("getla: open(/dev/kmem): %s\n",
+					errstring(errno));
+			return (-1);
+		}
+		(void) fcntl(kmem, F_SETFD, 1);
 	}
 	if (tTd(3, 20))
 		printf("getla: symbol address = %#x\n", Nl[X_AVENRUN].n_value);
@@ -1297,9 +1379,15 @@ getla()
 # if (LA_TYPE == LA_INT) || (LA_TYPE == LA_SHORT)
 	if (tTd(3, 5))
 	{
+#  if LA_TYPE == LA_SHORT
 		printf("getla: avenrun = %d", avenrun[0]);
 		if (tTd(3, 15))
 			printf(", %d, %d", avenrun[1], avenrun[2]);
+#  else
+		printf("getla: avenrun = %ld", avenrun[0]);
+		if (tTd(3, 15))
+			printf(", %ld, %ld", avenrun[1], avenrun[2]);
+#  endif
 		printf("\n");
 	}
 	if (tTd(3, 1))
@@ -1452,6 +1540,7 @@ getla()
 # include <mach.h>
 #endif
 
+int
 getla()
 {
 	processor_set_t default_set;
@@ -1462,14 +1551,22 @@ getla()
 
 	error = processor_set_default(host_self(), &default_set);
 	if (error != KERN_SUCCESS)
+	{
+		if (tTd(3, 1))
+			perror("getla: processor_set_default failed:");
 		return -1;
+	}
 	info_count = PROCESSOR_SET_BASIC_INFO_COUNT;
 	if (processor_set_info(default_set, PROCESSOR_SET_BASIC_INFO,
 			       &host, (processor_set_info_t)&info,
 			       &info_count) != KERN_SUCCESS)
 	{
+		if (tTd(3, 1))
+			perror("getla: processor_set_info failed:");
 		return -1;
 	}
+	if (tTd(3, 1))
+		printf("getla: %d\n", (int) (info.load_average + (LOAD_SCALE / 2)) / LOAD_SCALE);
 	return (int) (info.load_average + (LOAD_SCALE / 2)) / LOAD_SCALE;
 }
 
@@ -1522,6 +1619,167 @@ getla()
 
 #endif /* LA_TYPE == LA_PROCSTR */
 
+#if LA_TYPE == LA_IRIX6
+
+#include <nlist.h>
+#include <sys/types.h>
+#include <unistd.h>
+
+#define	X_AVENRUN	0
+struct nlist	Nl32[] =
+{
+	{ LA_AVENRUN },
+	{ 0 },
+};
+struct nlist64	Nl64[] =
+{
+	{ LA_AVENRUN },
+	{ 0 },
+};
+
+int getla(void)
+{
+	static int kmem = -1;
+	static enum { getla_none, getla_32, getla_64 } kernel_type =
+					getla_none;
+	uint32_t avenrun32[3];
+	uint64_t avenrun64[3];
+
+	if (kernel_type == getla_none)
+	{
+		/* Try 32 bit kernel ... */
+		errno = 0;
+		if (nlist(_PATH_UNIX, Nl32) == 0)
+		{
+			if (tTd(3, 20))
+				printf("getla: Kernel is 32bit\n");
+
+			if (Nl32[X_AVENRUN].n_value == 0)
+			{
+				if (tTd(3, 1))
+					printf("getla: nlist(%s, %s) ==> 0\n",
+						_PATH_UNIX, LA_AVENRUN);
+			}
+			else
+				kernel_type = getla_32;
+		}
+		else if (errno != 0)
+		{
+			if (tTd(3, 1))
+				printf("getla: nlist(%s): %s\n",
+					_PATH_UNIX, errstring(errno));
+		}
+		else
+		{
+			if (tTd(3, 20))
+				printf("getla: Kernel is not 32bit\n");
+		}
+
+		/* Try 64 bit kernel ... */
+		errno = 0;
+		if (nlist64(_PATH_UNIX, Nl64) == 0)
+		{
+			if (tTd(3, 20))
+			printf("getla: Kernel is 64bit\n");
+
+			if (Nl64[X_AVENRUN].n_value == 0)
+			{
+				if (tTd(3, 1))
+					printf("getla: nlist(%s, %s) ==> 0\n",
+						_PATH_UNIX, LA_AVENRUN);
+			}
+			else
+				kernel_type = getla_64;
+		}
+		else if (errno != 0)
+		{
+			if (tTd(3, 1))
+				printf("getla: nlist64(%s): %s\n",
+					_PATH_UNIX, errstring(errno));
+		}
+		else
+		{
+			if (tTd(3, 20))
+				printf("getla: Kernel is not 64bit\n");
+		}
+	}
+
+	if (kernel_type == getla_none)
+	{
+		if (tTd(3, 1))
+			printf("getla: Failed to determine kernel type\n");
+		return -1;
+	}
+
+	if (kmem < 0)
+	{
+		kmem = open(_PATH_KMEM, 0, 0);
+		if (kmem < 0)
+		{
+			if (tTd(3, 1))
+				printf("getla: open(/dev/kmem): %s\n",
+					errstring(errno));
+			return -1;
+		}
+		(void) fcntl(kmem, F_SETFD, 1);
+	}
+
+	switch (kernel_type)
+	{
+	  case getla_32:
+		if (lseek(kmem, (off_t) Nl32[X_AVENRUN].n_value, SEEK_SET) == -1 ||
+		    read(kmem, (char *) avenrun32, sizeof(avenrun32)) < sizeof(avenrun32))
+		{
+			if (tTd(3, 1))
+				printf("getla: lseek or read: %s\n",
+					errstring(errno));
+			return -1;
+		}
+		if (tTd(3, 5))
+		{
+			printf("getla: avenrun{32} = %ld",
+				(long int) avenrun32[0]);
+			if (tTd(3, 15))
+				printf(", %ld, %ld",
+					(long int)avenrun32[1],
+					(long int)avenrun32[2]);
+			printf("\n");
+		}
+		if (tTd(3, 1))
+			printf("getla: %d\n",
+				(int) (avenrun32[0] + FSCALE/2) >> FSHIFT);
+		return ((int) (avenrun32[0] + FSCALE/2) >> FSHIFT);
+
+	  case getla_64:
+		/* Using of lseek64 is perhaps overkill ... */
+		if (lseek64(kmem, (off64_t) Nl64[X_AVENRUN].n_value, SEEK_SET) == -1 ||
+		    read(kmem, (char *) avenrun64, sizeof(avenrun64)) <
+					sizeof(avenrun64))
+		{
+			if (tTd(3, 1))
+				printf("getla: lseek64 or read: %s\n",
+					errstring(errno));
+			return -1;
+		}
+		if (tTd(3, 5))
+		{
+			printf("getla: avenrun{64} = %lld",
+				(long long int) avenrun64[0]);
+			if (tTd(3, 15))
+				printf(", %lld, %lld",
+					(long long int) avenrun64[1],
+					(long long int) avenrun64[2]);
+			printf("\n");
+		}
+		if (tTd(3, 1))
+			printf("getla: %d\n",
+				(int) (avenrun64[0] + FSCALE/2) >> FSHIFT);
+		return ((int) (avenrun64[0] + FSCALE/2) >> FSHIFT);
+	}
+	return -1;
+}
+#endif
+
 #if LA_TYPE == LA_ZERO
 
 getla()
@@ -1532,7 +1790,6 @@ getla()
 }
 
 #endif /* LA_TYPE == LA_ZERO */
-
 
 /*
  * Copyright 1989 Massachusetts Institute of Technology
@@ -1605,7 +1862,7 @@ shouldqueue(pri, ctime)
 	bool rval;
 
 	if (tTd(3, 30))
-		printf("shouldqueue: CurrentLA=%d, pri=%d: ", CurrentLA, pri);
+		printf("shouldqueue: CurrentLA=%d, pri=%ld: ", CurrentLA, pri);
 	if (CurrentLA < QueueLA)
 	{
 		if (tTd(3, 30))
@@ -1629,7 +1886,7 @@ shouldqueue(pri, ctime)
 **  REFUSECONNECTIONS -- decide if connections should be refused
 **
 **	Parameters:
-**		none.
+**		port -- port number (for error messages only)
 **
 **	Returns:
 **		TRUE if incoming SMTP connections should be refused
@@ -1641,8 +1898,12 @@ shouldqueue(pri, ctime)
 */
 
 bool
-refuseconnections()
+refuseconnections(port)
+	int port;
 {
+	time_t now;
+	static time_t lastconn = (time_t) 0;
+	static int conncnt = 0;
 	extern bool enoughdiskspace();
 	extern void setproctitle __P((const char *, ...));
 
@@ -1651,20 +1912,55 @@ refuseconnections()
 		return TRUE;
 #endif
 
+	now = curtime();
+	if (now != lastconn)
+	{
+		lastconn = now;
+		conncnt = 0;
+	}
+	else if (conncnt++ > ConnRateThrottle && ConnRateThrottle > 0)
+	{
+		/* sleep to flatten out connection load */
+		setproctitle("deferring connections on port %d: %d per second",
+			port, ConnRateThrottle);
+#ifdef LOG
+		if (LogLevel >= 14)
+			syslog(LOG_INFO, "deferring connections on port %d: %d per second",
+				port, ConnRateThrottle);
+#endif
+		sleep(1);
+	}
+
+	CurrentLA = getla();
 	if (CurrentLA >= RefuseLA)
 	{
-		setproctitle("rejecting connections: load average: %d",
-			CurrentLA);
+		setproctitle("rejecting connections on port %d: load average: %d",
+			port, CurrentLA);
+#ifdef LOG
+		if (LogLevel >= 14)
+			syslog(LOG_INFO, "rejecting connections on port %d: load average: %d",
+				port, CurrentLA);
+#endif
 	}
 	else if (!enoughdiskspace(MinBlocksFree + 1))
 	{
-		setproctitle("rejecting connections: min free: %d",
-			MinBlocksFree);
+		setproctitle("rejecting connections on port %d: min free: %d",
+			port, MinBlocksFree);
+#ifdef LOG
+		if (LogLevel >= 14)
+			syslog(LOG_INFO, "rejecting connections on port %d: min free: %d",
+				port, MinBlocksFree);
+#endif
 	}
 	else if (MaxChildren > 0 && CurChildren >= MaxChildren)
 	{
-		setproctitle("rejecting connections: maximum children: %d",
-			CurChildren);
+		setproctitle("rejecting connections on port %d: %d children, max %d",
+			port, CurChildren, MaxChildren);
+#ifdef LOG
+		if (LogLevel >= 14)
+			syslog(LOG_INFO, "rejecting connections on port %d: %d children, max %d",
+				port, CurChildren, MaxChildren);
+#endif
 	}
 	else
 		return FALSE;
@@ -1823,7 +2119,7 @@ setproctitle(fmt, va_alist)
 
 	/* print the argument string */
 	VA_START(fmt);
-	(void) vsnprintf(p, sizeof buf - (p - buf), fmt, ap);
+	(void) vsnprintf(p, SPACELEFT(buf, p), fmt, ap);
 	VA_END;
 
 	i = strlen(buf);
@@ -1852,7 +2148,7 @@ setproctitle(fmt, va_alist)
 	}
 	buf[PSARGSZ - 1] = '\0';
 	seek_off = UVUBLK + (off_t) u.u_psargs - (off_t) &u;
-	if (lseek(kmem, (char *) seek_off, SEEK_SET) == seek_off)
+	if (lseek(kmem, (off_t) seek_off, SEEK_SET) == seek_off)
 		(void) write(kmem, buf, PSARGSZ);
 #  endif
 #  if SPT_TYPE == SPT_REUSEARGV
@@ -1889,10 +2185,10 @@ reapchild(sig)
 	int sig;
 {
 	int olderrno = errno;
+	pid_t pid;
 # ifdef HASWAITPID
 	auto int status;
 	int count;
-	int pid;
 
 	count = 0;
 	while ((pid = waitpid(-1, &status, WNOHANG)) > 0)
@@ -1900,24 +2196,26 @@ reapchild(sig)
 		if (count++ > 1000)
 		{
 #ifdef LOG
-			syslog(LOG_ALERT, "reapchild: waitpid loop: pid=%d, status=%x",
-				pid, status);
+			if (LogLevel > 0)
+				syslog(LOG_ALERT,
+					"reapchild: waitpid loop: pid=%d, status=%x",
+					pid, status);
 #endif
 			break;
 		}
-		CurChildren--;
+		proc_list_drop(pid);
 	}
 # else
 # ifdef WNOHANG
 	union wait status;
 
-	while (wait3(&status, WNOHANG, (struct rusage *) NULL) > 0)
-		CurChildren--;
+	while ((pid = wait3(&status, WNOHANG, (struct rusage *) NULL)) > 0)
+		proc_list_drop(pid);
 # else /* WNOHANG */
 	auto int status;
 
-	while (wait(&status) > 0)
-		CurChildren--;
+	while ((pid = wait(&status)) > 0)
+		proc_list_drop(pid);
 # endif /* WNOHANG */
 # endif
 # ifdef SYS5SIGNALS
@@ -1958,7 +2256,7 @@ putenv(str)
 	 * find out how much of str to match when searching
 	 * for a string to replace.
 	 */
-	if ((tmp = index(str, '=')) == NULL || tmp == str)
+	if ((tmp = strchr(str, '=')) == NULL || tmp == str)
 		matchlen = strlen(str);
 	else
 		matchlen = (int) (tmp - str);
@@ -2322,7 +2620,7 @@ getopt(nargc,nargv,ostr)
 		if (!*place) ++optind;
 		tell(": illegal option -- ");
 	}
-	if (*++oli != ':') {		/* don't need argument */
+	if (oli && *++oli != ':') {		/* don't need argument */
 		optarg = NULL;
 		if (!*place) ++optind;
 	}
@@ -2408,6 +2706,7 @@ vsprintf(s, fmt, ap)
 /*static char _id[] = "$Id: snprintf.c,v 1.2 1995/10/09 11:19:47 roberto Exp $";*/
 static void dopr();
 static char *end;
+static int	SnprfOverflow;
 
 /* VARARGS3 */
 int
@@ -2421,30 +2720,34 @@ snprintf(str, count, fmt, va_alist)
 	va_dcl
 #endif
 {
-    VA_LOCAL_DECL
+	int len;
+	VA_LOCAL_DECL
 
-    VA_START (fmt);
-    (void) vsnprintf ( str, count, fmt, ap);
-    VA_END;
-       return( strlen( str ) );
+	VA_START(fmt);
+	len = vsnprintf(str, count, fmt, ap);
+	VA_END;
+	return len;
 }
 
 
 # ifndef luna2
 int
 vsnprintf(str, count, fmt, args)
-       char *str;
-       size_t count;
-       const char *fmt;
-       va_list args;
+	char *str;
+	size_t count;
+	const char *fmt;
+	va_list args;
 {
-       str[0] = 0;
-       end = str+count-1;
-       dopr( str, fmt, args );
-       if( count>0 ){
-               end[0] = 0;
-       }
-       return(strlen(str));
+	str[0] = 0;
+	end = str + count - 1;
+	SnprfOverflow = 0;
+	dopr( str, fmt, args );
+	if (count > 0)
+		end[0] = 0;
+	if (SnprfOverflow && tTd(57, 2))
+		printf("\nvsnprintf overflow, len = %d, str = %s",
+			count, shortenstring(str, 203));
+	return strlen(str);
 }
 
 /*
@@ -2543,8 +2846,11 @@ dopr( buffer, format, args )
                                fmtnum( value,-16,0, ljust, len, zpad ); break;
                        case 's':
                                strvalue = va_arg( args, char *);
-			       if (maxwidth > 0 || !pointflag)
+			       if (maxwidth > 0 || !pointflag) {
+				 if (pointflag && len > maxwidth)
+				   len = maxwidth; /* Adjust padding */
 				 fmtstr( strvalue,ljust,len,zpad, maxwidth);
+			       }
 			       break;
                        case 'c':
                                ch = va_arg( args, int );
@@ -2668,14 +2974,14 @@ dopr_outch( c )
 #if 0
        if( iscntrl(c) && c != '\n' && c != '\t' ){
                c = '@' + (c & 0x1F);
-               if( end == 0 || output < end ){
+               if( end == 0 || output < end )
                        *output++ = '^';
-               }
        }
 #endif
-       if( end == 0 || output < end ){
+       if( end == 0 || output < end )
                *output++ = c;
-       }
+       else
+		SnprfOverflow++;
 }
 
 # endif /* !luna2 */
@@ -2699,7 +3005,7 @@ dopr_outch( c )
 #  define _PATH_SHELLS	"/etc/shells"
 # endif
 
-# ifdef _AIX3
+# if defined(_AIX3) || defined(_AIX4)
 #  include <userconf.h>
 #  include <usersec.h>
 # endif
@@ -2727,7 +3033,7 @@ char	*DefaultUserShells[] =
 	"/bin/posix/sh",
 # endif
 #endif
-#ifdef _AIX3
+#if defined(_AIX3) || defined(_AIX4)
 	"/bin/ksh",		/* Korn shell */
 	"/usr/bin/ksh",
 	"/bin/tsh",		/* trusted shell */
@@ -3259,9 +3565,9 @@ chownsafe(fd)
 	tfd = open(s, O_RDONLY|O_CREAT, 0600);
 	rval = fchown(tfd, DefUid, DefGid) != 0;
 	close(tfd);
-	unlink(s);
 	setresuid(o_uid, o_euid, -1);
 	setresgid(o_gid, o_egid, -1);
+	unlink(s);
 	return rval;
 #else
 # ifdef _POSIX_CHOWN_RESTRICTED
@@ -3306,7 +3612,7 @@ chownsafe(fd)
 */
 
 #if HASSETRLIMIT
-# ifdef apollo
+# ifdef RLIMIT_NEEDS_SYS_TIME_H
 #  include <sys/time.h>
 # endif
 # include <sys/resource.h>
@@ -3414,10 +3720,21 @@ setvendor(vendor)
 **		none.
 */
 
+#if SHARE_V1
+int	DefShareUid;	/* default share uid to run as -- unused??? */
+#endif
+
 void
 vendor_pre_defaults(e)
 	ENVELOPE *e;
 {
+#if SHARE_V1
+	/* OTHERUID is defined in shares.h, do not be alarmed */
+	DefShareUid = OTHERUID;
+#endif
+#ifdef SUN_EXTENSIONS
+	sun_pre_defaults(e);
+#endif
 }
 
 
@@ -3425,6 +3742,91 @@ void
 vendor_post_defaults(e)
 	ENVELOPE *e;
 {
+#ifdef SUN_EXTENSIONS
+	sun_post_defaults(e);
+#endif
+}
+/*
+**  VENDOR_DAEMON_SETUP -- special vendor setup needed for daemon mode
+*/
+
+void
+vendor_daemon_setup(e)
+	ENVELOPE *e;
+{
+#if SECUREWARE
+	if (getluid() != -1)
+	{
+		usrerr("Daemon cannot have LUID");
+		exit(EX_USAGE);
+	}
+#endif /* SECUREWARE */
+}
+/*
+**  VENDOR_SET_UID -- do setup for setting a user id
+**
+**	This is called when we are still root.
+**
+**	Parameters:
+**		uid -- the uid we are about to become.
+**
+**	Returns:
+**		none.
+*/
+
+void
+vendor_set_uid(uid)
+	UID_T uid;
+{
+	/* 
+	**  We need to setup the share groups (lnodes)
+	**  and and auditing inforation (luid's)
+	**  before we loose our ``root''ness.
+	*/
+#if SHARE_V1
+	if (setupshares(uid, syserr) != 0)
+		syserr("Unable to set up shares");
+#endif
+#if SECUREWARE
+	(void) setup_secure(uid);
+#endif
+}
+/*
+**  VALIDATE_CONNECTION -- check connection for rationality
+**
+**	If the connection is rejected, this routine should log an
+**	appropriate message -- but should never issue any SMTP protocol.
+**
+**	Parameters:
+**		sap -- a pointer to a SOCKADDR naming the peer.
+**		hostname -- the name corresponding to sap.
+**		e -- the current envelope.
+**
+**	Returns:
+**		TRUE -- if the connection should be accepted.
+**		FALSE -- if it should be rejected.
+*/
+
+#if TCPWRAPPERS
+# include <tcpd.h>
+int	allow_severity	= LOG_INFO;
+int	deny_severity	= LOG_WARNING;
+#endif
+
+bool
+validate_connection(sap, hostname, e)
+	SOCKADDR *sap;
+	char *hostname;
+	ENVELOPE *e;
+{
+	if (rscheck("check_relay", hostname, anynet_ntoa(sap), e) != EX_OK)
+		return FALSE;
+
+#if TCPWRAPPERS
+	if (!hosts_ctl("sendmail", hostname, anynet_ntoa(sap), STRING_UNKNOWN))
+		return FALSE;
+#endif
+	return TRUE;
 }
 /*
 **  STRTOL -- convert string to long integer
@@ -3582,8 +3984,8 @@ sm_gethostbyname(name)
 	char *name;
 {
 	struct hostent *h;
-#if defined(SOLARIS) && SOLARIS < 204 || defined(sony_news) && defined(__svr4)
-# if SOLARIS == 203
+#if (SOLARIS > 10000 && SOLARIS < 20400) || (defined(SOLARIS) && SOLARIS < 204) || (defined(sony_news) && defined(__svr4))
+# if SOLARIS == 20300 || SOLARIS == 203
 	static struct hostent hp;
 	static char buf[1000];
 	extern struct hostent *_switch_gethostbyname_r();
@@ -3620,7 +4022,7 @@ sm_gethostbyname(name)
 		if (nmaps >= 0)
 		{
 			/* try short name */
-			if (strlen(name) > sizeof hbuf - 1)
+			if (strlen(name) > (SIZE_T) sizeof hbuf - 1)
 				return NULL;
 			strcpy(hbuf, name);
 			shorten_hostname(hbuf);
@@ -3651,8 +4053,8 @@ sm_gethostbyaddr(addr, len, type)
 	int len;
 	int type;
 {
-#if defined(SOLARIS) && SOLARIS < 204
-# if SOLARIS == 203
+#if (SOLARIS > 10000 && SOLARIS < 20400) || (defined(SOLARIS) && SOLARIS < 204)
+# if SOLARIS == 20300 || SOLARIS == 203
 	static struct hostent hp;
 	static char buf[1000];
 	extern struct hostent *_switch_gethostbyaddr_r();
@@ -3684,6 +4086,68 @@ sm_getpwuid(uid)
 {
 	return getpwuid(uid);
 }
+/*
+**  SECUREWARE_SETUP_SECURE -- Convex SecureWare setup
+**
+**	Set up the trusted computing environment for C2 level security
+**	under SecureWare.
+**
+**	Parameters:
+**		uid -- uid of the user to initialize in the TCB
+**
+**	Returns:
+**		none
+**
+**	Side Effects:
+**		Initialized the user in the trusted computing base
+*/
+
+#if SECUREWARE
+
+# include <sys/security.h>
+# include <prot.h>
+
+void
+secureware_setup_secure(uid)
+	UID_T uid;
+{
+	int rc;
+
+	if (getluid() != -1)
+		return;
+	
+	if ((rc = set_secure_info(uid)) != SSI_GOOD_RETURN)
+	{
+		switch (rc)
+		{
+		  case SSI_NO_PRPW_ENTRY:
+			syserr("No protected passwd entry, uid = %d", uid);
+			break;
+
+		  case SSI_LOCKED:
+			syserr("Account has been disabled, uid = %d", uid);
+			break;
+
+		  case SSI_RETIRED:
+			syserr("Account has been retired, uid = %d", uid);
+			break;
+
+		  case SSI_BAD_SET_LUID:
+			syserr("Could not set LUID, uid = %d", uid);
+			break;
+
+		  case SSI_BAD_SET_PRIVS:
+			syserr("Could not set kernel privs, uid = %d", uid);
+
+		  default:
+			syserr("Unknown return code (%d) from set_secure_info(%d)", 
+				rc, uid);
+			break;
+		}
+		exit(EX_NOPERM);
+	}
+}
+#endif /* SECUREWARE */
 /*
 **  LOAD_IF_NAMES -- load interface-specific names into $=w
 **
@@ -3730,7 +4194,6 @@ load_if_names()
 		close(s);
 		return;
 	}
-	close(s);
 
 	/* scan the list of IP address */
 	if (tTd(0, 40))
@@ -3743,6 +4206,9 @@ load_if_names()
 		struct sockaddr *sa = &ifr->ifr_addr;
 		struct in_addr ia;
 		struct hostent *hp;
+#ifdef SIOCGIFFLAGS
+		struct ifreq ifrf;
+#endif
 		char ip_addr[256];
 		extern char *inet_ntoa();
 		extern struct hostent *gethostbyaddr();
@@ -3757,19 +4223,35 @@ load_if_names()
 		if (tTd(0, 20))
 			printf("%s\n", anynet_ntoa((SOCKADDR *) sa));
 
-		/* for some reason gcc 2.3 pukes on || here */
-		if (!bitset(IFF_UP, ifr->ifr_flags))
-			continue;
 		if (ifr->ifr_addr.sa_family != AF_INET)
 			continue;
 
+#ifdef SIOCGIFFLAGS
+		bzero(&ifrf, sizeof(struct ifreq));
+		strncpy(ifrf.ifr_name, ifr->ifr_name, sizeof(ifrf.ifr_name));
+		ioctl(s, SIOCGIFFLAGS, (char *) &ifrf);
+		if (tTd(0, 41))
+			printf("\tflags: %x\n", ifrf.ifr_flags);
+		if (!bitset(IFF_UP, ifrf.ifr_flags))
+			continue;
+#else
+		if (!bitset(IFF_UP, ifr->ifr_flags))
+			continue;
+#endif
+
 		/* extract IP address from the list*/
 		ia = (((struct sockaddr_in *) sa)->sin_addr);
+		if (ia.s_addr == INADDR_ANY || ia.s_addr == INADDR_NONE)
+		{
+			message("WARNING: interface %s is UP with %s address",
+				ifr->ifr_name, inet_ntoa(ia));
+			continue;
+		}
 
 		/* save IP address in text from */
 		(void) snprintf(ip_addr, sizeof ip_addr, "[%.*s]",
 			sizeof ip_addr - 3,
-			inet_ntoa(((struct sockaddr_in *) sa)->sin_addr));
+			inet_ntoa(ia));
 		if (!wordinclass(ip_addr, 'w'))
 		{
 			setclass('w', ip_addr);
@@ -3785,8 +4267,12 @@ load_if_names()
 		hp = sm_gethostbyaddr((char *) &ia, sizeof(ia), AF_INET);
 		if (hp == NULL)
 		{
-			syslog(LOG_CRIT, "gethostbyaddr() failed for %.100s\n",
-				inet_ntoa(ia));
+#ifdef LOG
+			if (LogLevel > 3)
+				syslog(LOG_WARNING,
+					"gethostbyaddr() failed for %.100s\n",
+					inet_ntoa(ia));
+#endif
 			continue;
 		}
 
@@ -3810,6 +4296,7 @@ load_if_names()
 			hp->h_aliases++;
 		}
 	}
+	close(s);
 #endif
 }
 /*
@@ -3823,14 +4310,21 @@ load_if_names()
 
 # define MAXSYSLOGTRIES	100
 # undef syslog
+# ifdef V4FS
+#  define XCNST	const
+#  define CAST	(const char *)
+# else
+#  define XCNST
+#  define CAST
+# endif
 
-# ifdef __STDC__
 void
-hard_syslog(int pri, char *msg, ...)
+# ifdef __STDC__
+hard_syslog(int pri, XCNST char *msg, ...)
 # else
 hard_syslog(pri, msg, va_alist)
 	int pri;
-	char *msg;
+	XCNST char *msg;
 	va_dcl
 # endif
 {
@@ -3842,10 +4336,11 @@ hard_syslog(pri, msg, va_alist)
 	vsnprintf(buf, sizeof buf, msg, ap);
 	VA_END;
 
-	for (i = MAXSYSLOGTRIES; --i >= 0 && syslog(pri, "%s", buf) < 0; )
+	for (i = MAXSYSLOGTRIES; --i >= 0 && syslog(pri, CAST "%s", buf) < 0; )
 		continue;
 }
 
+# undef CAST
 #endif
 /*
 **  LOCAL_HOSTNAME_LENGTH
@@ -3891,11 +4386,17 @@ char	*CompileOptions[] =
 #if HES_GETMAILHOST
 	"HES_GETMAILHOST",
 #endif
+#if LDAPMAP
+	"LDAPMAP",
+#endif
 #ifdef LOG
 	"LOG",
 #endif
 #if MATCHGECOS
 	"MATCHGECOS",
+#endif
+#if MIME7TO8
+	"MIME7TO8",
 #endif
 #if MIME8TO7
 	"MIME8TO7",
@@ -3933,11 +4434,23 @@ char	*CompileOptions[] =
 #if NISPLUS
 	"NISPLUS",
 #endif
+#if QUEUE
+	"QUEUE",
+#endif
 #if SCANF
 	"SCANF",
 #endif
+#if SMTP
+	"SMTP",
+#endif
+#if SMTPDEBUG
+	"SMTPDEBUG",
+#endif
 #if SUID_ROOT_FILES_OK
 	"SUID_ROOT_FILES_OK",
+#endif
+#if TCPWRAPPERS
+	"TCPWRAPPERS",
 #endif
 #if USERDB
 	"USERDB",
@@ -3964,6 +4477,9 @@ char	*OsCompileOptions[] =
 #if HASFLOCK
 	"HASFLOCK",
 #endif
+#if HASGETDTABLESIZE
+	"HASGETDTABLESIZE",
+#endif
 #if HASGETUSERSHELL
 	"HASGETUSERSHELL",
 #endif
@@ -3976,17 +4492,35 @@ char	*OsCompileOptions[] =
 #if HASSETREUID
 	"HASSETREUID",
 #endif
+#if HASSETRLIMIT
+	"HASSETRLIMIT",
+#endif
 #if HASSETSID
 	"HASSETSID",
+#endif
+#if HASSETUSERCONTEXT
+	"HASSETUSERCONTEXT",
 #endif
 #if HASSETVBUF
 	"HASSETVBUF",
 #endif
+#if HASSIGSETMASK
+	"HASSIGSETMASK",
+#endif
 #if HASSNPRINTF
 	"HASSNPRINTF",
 #endif
+#if HASULIMIT
+	"HASULIMIT",
+#endif
 #if HASUNAME
 	"HASUNAME",
+#endif
+#if HASUNSETENV
+	"HASUNSETENV",
+#endif
+#if HASWAITPID
+	"HASWAITPID",
 #endif
 #if IDENTPROTO
 	"IDENTPROTO",
@@ -4000,11 +4534,23 @@ char	*OsCompileOptions[] =
 #if NOFTRUNCATE
 	"NOFTRUNCATE",
 #endif
+#if RLIMIT_NEEDS_SYS_TIME_H
+	"RLIMIT_NEEDS_SYS_TIME_H",
+#endif
+#if SECUREWARE
+	"SECUREWARE",
+#endif
+#if SHARE_V1
+	"SHARE_V1",
+#endif
 #if SYS5SETPGRP
 	"SYS5SETPGRP",
 #endif
 #if SYSTEM5
 	"SYSTEM5",
+#endif
+#if USE_SA_SIGACTION
+	"USE_SA_SIGACTION",
 #endif
 #if USESETEUID
 	"USESETEUID",

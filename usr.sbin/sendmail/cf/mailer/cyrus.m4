@@ -26,6 +26,7 @@ PUSHDIVERT(-1)
 ifdef(`CYRUS_MAILER_FLAGS',, `define(`CYRUS_MAILER_FLAGS', `A5@')')
 ifdef(`CYRUS_MAILER_PATH',, `define(`CYRUS_MAILER_PATH', /usr/cyrus/bin/deliver)')
 ifdef(`CYRUS_MAILER_ARGS',, `define(`CYRUS_MAILER_ARGS', `deliver -e -m $h -- $u')')
+ifdef(`CYRUS_MAILER_USER',, `define(`CYRUS_MAILER_USER', `cyrus:mail')')
 ifdef(`CYRUS_BB_MAILER_FLAGS',, `define(`CYRUS_BB_MAILER_FLAGS', `')')
 ifdef(`CYRUS_BB_MAILER_ARGS',, `define(`CYRUS_BB_MAILER_ARGS', `deliver -e -m $u')')
 
@@ -35,10 +36,12 @@ POPDIVERT
 ###   Cyrus Mailer specification               ###
 ##################################################
 
-VERSIONID(`@(#)cyrus.m4	8.2 (Carnegie Mellon) 9/12/95')
+VERSIONID(`@(#)cyrus.m4	8.4 (Carnegie Mellon) 9/2/96')
 
-Mcyrus,		P=CYRUS_MAILER_PATH, F=CONCAT(`lsDFMnP', CYRUS_MAILER_FLAGS), S=10, R=20/40, T=X-Unix,
-		ifdef(`CYRUS_MAILER_MAX', `M=CYRUS_MAILER_MAX, ')A=CYRUS_MAILER_ARGS
+Mcyrus,		P=CYRUS_MAILER_PATH, F=CONCAT(`lsDFMnPq', CYRUS_MAILER_FLAGS), S=10, R=20/40, T=X-Unix,
+		ifdef(`CYRUS_MAILER_MAX', `M=CYRUS_MAILER_MAX, ')U=CYRUS_MAILER_USER,
+		A=CYRUS_MAILER_ARGS
 
-Mcyrusbb,	P=CYRUS_MAILER_PATH, F=CONCAT(`lsDFMnP', CYRUS_MAILER_FLAGS), S=10, R=20/40, T=X-Unix,
-		ifdef(`CYRUS_MAILER_MAX', `M=CYRUS_MAILER_MAX, ')A=CYRUS_BB_MAILER_ARGS
+Mcyrusbb,	P=CYRUS_MAILER_PATH, F=CONCAT(`lsDFMnP', CYRUS_BB_MAILER_FLAGS), S=10, R=20/40, T=X-Unix,
+		ifdef(`CYRUS_MAILER_MAX', `M=CYRUS_MAILER_MAX, ')U=CYRUS_MAILER_USER,
+		A=CYRUS_BB_MAILER_ARGS

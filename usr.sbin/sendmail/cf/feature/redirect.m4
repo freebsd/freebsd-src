@@ -34,7 +34,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)redirect.m4	8.4 (Berkeley) 6/25/95')
+VERSIONID(`@(#)redirect.m4	8.5 (Berkeley) 8/17/96')
 divert(-1)
 
 
@@ -42,7 +42,7 @@ PUSHDIVERT(3)
 # addresses sent to foo@host.REDIRECT will give a 551 error code
 R$* < @ $+ .REDIRECT. >		$: $1 < @ $2 . REDIRECT . > < ${opMode} >
 R$* < @ $+ .REDIRECT. > <i>	$: $1 < @ $2 . REDIRECT. >
-R$* < @ $+ .REDIRECT. > < $- >	$# error $@ 5.1.1 $: "551 User not local; please try " <$1@$2>
+R$* < @ $+ .REDIRECT. > < $- >	$# error $@ 5.1.1 $: "551 User has moved; please try " <$1@$2>
 POPDIVERT
 
 PUSHDIVERT(6)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1983, 1995 Eric P. Allman
+ * Copyright (c) 1983, 1995, 1996 Eric P. Allman
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -36,9 +36,9 @@
 
 #ifndef lint
 #ifdef SMTP
-static char sccsid[] = "@(#)usersmtp.c	8.65.1.2 (Berkeley) 9/16/96 (with SMTP)";
+static char sccsid[] = "@(#)usersmtp.c	8.72 (Berkeley) 9/15/96 (with SMTP)";
 #else
-static char sccsid[] = "@(#)usersmtp.c	8.65.1.2 (Berkeley) 9/16/96 (without SMTP)";
+static char sccsid[] = "@(#)usersmtp.c	8.72 (Berkeley) 9/15/96 (without SMTP)";
 #endif
 #endif /* not lint */
 
@@ -64,6 +64,7 @@ int	SmtpPid;			/* pid of mailer */
 bool	SmtpNeedIntro;			/* need "while talking" in transcript */
 
 extern void	smtpmessage __P((char *f, MAILER *m, MCI *mci, ...));
+extern int	reply __P((MAILER *, MCI *, ENVELOPE *, time_t, void (*)()));
 /*
 **  SMTPINIT -- initialize SMTP.
 **
@@ -83,7 +84,7 @@ extern void	smtpmessage __P((char *f, MAILER *m, MCI *mci, ...));
 
 void
 smtpinit(m, mci, e)
-	struct mailer *m;
+	MAILER *m;
 	register MCI *mci;
 	ENVELOPE *e;
 {
@@ -327,7 +328,7 @@ helo_options(line, firstline, m, mci, e)
 
 int
 smtpmailfrom(m, mci, e)
-	struct mailer *m;
+	MAILER *m;
 	MCI *mci;
 	ENVELOPE *e;
 {
@@ -383,14 +384,16 @@ smtpmailfrom(m, mci, e)
 	else if (!bitset(MM_PASS8BIT, MimeMode))
 	{
 		/* cannot just send a 8-bit version */
+		extern char MsgBuf[];
+
 		usrerr("%s does not support 8BITMIME", mci->mci_host);
-		mci->mci_status = "5.6.3";
+		mci_setstat(mci, "5.6.3", MsgBuf);
 		return EX_DATAERR;
 	}
 
 	if (bitset(MCIF_DSN, mci->mci_flags))
 	{
-		if (e->e_envid != NULL && strlen(e->e_envid) < (SIZE_T) l)
+		if (e->e_envid != NULL && strlen(e->e_envid) < (SIZE_T) (l - 7))
 		{
 			strcat(optbuf, " ENVID=");
 			strcat(optbuf, e->e_envid);
@@ -454,6 +457,7 @@ smtpmailfrom(m, mci, e)
 	}
 	else if (REPLYTYPE(r) == 4)
 	{
+		mci_setstat(mci, smtptodsn(r), SmtpReplyBuffer);
 		return EX_TEMPFAIL;
 	}
 	else if (REPLYTYPE(r) == 2)
@@ -463,24 +467,25 @@ smtpmailfrom(m, mci, e)
 	else if (r == 501)
 	{
 		/* syntax error in arguments */
-		mci->mci_status = "5.5.2";
+		mci_setstat(mci, "5.5.2", SmtpReplyBuffer);
 		return EX_DATAERR;
 	}
 	else if (r == 553)
 	{
 		/* mailbox name not allowed */
-		mci->mci_status = "5.1.3";
+		mci_setstat(mci, "5.1.3", SmtpReplyBuffer);
 		return EX_DATAERR;
 	}
 	else if (r == 552)
 	{
 		/* exceeded storage allocation */
-		mci->mci_status = "5.2.2";
+		mci_setstat(mci, "5.2.2", SmtpReplyBuffer);
 		return EX_UNAVAILABLE;
 	}
 	else if (REPLYTYPE(r) == 5)
 	{
 		/* unknown error */
+		mci_setstat(mci, "5.0.0", SmtpReplyBuffer);
 		return EX_UNAVAILABLE;
 	}
 
@@ -494,6 +499,7 @@ smtpmailfrom(m, mci, e)
 #endif
 
 	/* protocol error -- close up */
+	mci_setstat(mci, "5.5.1", SmtpReplyBuffer);
 	smtpquit(m, mci, e);
 	return EX_PROTOCOL;
 }
@@ -523,7 +529,6 @@ smtprcpt(to, m, mci, e)
 	register int r;
 	int l;
 	char optbuf[MAXLINE];
-	extern char *smtptodsn();
 
 	strcpy(optbuf, "");
 	l = sizeof optbuf - 1;
@@ -581,10 +586,25 @@ smtprcpt(to, m, mci, e)
 		return EX_TEMPFAIL;
 	else if (REPLYTYPE(r) == 2)
 		return EX_OK;
-	else if (r == 550 || r == 551 || r == 553)
+	else if (r == 550)
+	{
+		to->q_status = "5.1.1";
 		return EX_NOUSER;
+	}
+	else if (r == 551)
+	{
+		to->q_status = "5.1.6";
+		return EX_NOUSER;
+	}
+	else if (r == 553)
+	{
+		to->q_status = "5.1.3";
+		return EX_NOUSER;
+	}
 	else if (REPLYTYPE(r) == 5)
+	{
 		return EX_UNAVAILABLE;
+	}
 
 #ifdef LOG
 	if (LogLevel > 1)
@@ -616,7 +636,7 @@ static void	datatimeout();
 
 int
 smtpdata(m, mci, e)
-	struct mailer *m;
+	MAILER *m;
 	register MCI *mci;
 	register ENVELOPE *e;
 {
@@ -723,6 +743,7 @@ smtpdata(m, mci, e)
 		return EX_TEMPFAIL;
 	}
 	mci->mci_state = MCIS_OPEN;
+	mci_setstat(mci, smtptodsn(r), SmtpReplyBuffer);
 	e->e_statmsg = newstr(&SmtpReplyBuffer[4]);
 	if (REPLYTYPE(r) == 4)
 		return EX_TEMPFAIL;

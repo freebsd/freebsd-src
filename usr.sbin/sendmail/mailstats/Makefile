@@ -1,8 +1,8 @@
-#	@(#)Makefile	8.1 (Berkeley) 6/7/93
+#	@(#)Makefile	8.2 (Berkeley) 9/21/96
 
 PROG=	mailstats
+MAN8=	mailstats.0
 CFLAGS+=-I${.CURDIR}/../src
-NOMAN=	noman
 
 .include "../../Makefile.inc"
 .include <bsd.prog.mk>

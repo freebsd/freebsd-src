@@ -42,7 +42,8 @@ divert(-1)
 #  This file is for the backup CS Division mail server.
 #
 
-VERSIONID(`@(#)huginn.cs.mc	8.6 (Berkeley) 8/25/95')
+divert(0)dnl
+VERSIONID(`@(#)huginn.cs.mc	8.7 (Berkeley) 3/23/96')
 OSTYPE(hpux9)dnl
 DOMAIN(CS.Berkeley.EDU)dnl
 MASQUERADE_AS(CS.Berkeley.EDU)dnl

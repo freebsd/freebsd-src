@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1983, 1995 Eric P. Allman
+ * Copyright (c) 1983, 1995, 1996 Eric P. Allman
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)headers.c	8.82.1.2 (Berkeley) 9/16/96";
+static char sccsid[] = "@(#)headers.c	8.100 (Berkeley) 9/15/96";
 #endif /* not lint */
 
 # include <errno.h>
@@ -74,7 +74,6 @@ chompheader(line, def, hdrp, e)
 	bool cond = FALSE;
 	bool headeronly;
 	BITMAP mopts;
-	char buf[MAXNAME + 1];
 
 	if (tTd(31, 6))
 	{
@@ -158,7 +157,6 @@ chompheader(line, def, hdrp, e)
 	if (bitset(H_EOH, hi->hi_flags))
 		return (hi->hi_flags);
 
-#ifdef LOTUS_NOTES_HACK
 	/*
 	**  Horrible hack to work around problem with Lotus Notes SMTP
 	**  mail gateway, which generates From: headers with newlines in
@@ -172,7 +170,6 @@ chompheader(line, def, hdrp, e)
 		while ((p = strchr(fvalue, '\n')) != NULL)
 			*p = ' ';
 	}
-#endif
 
 	/*
 	**  Drop explicit From: if same as what we would generate.
@@ -195,46 +192,6 @@ chompheader(line, def, hdrp, e)
 		    (strcmp(fvalue, e->e_from.q_paddr) == 0 ||
 		     strcmp(fvalue, e->e_from.q_user) == 0))
 			return (hi->hi_flags);
-#ifdef MAYBENEXTRELEASE		/* XXX UNTESTED XXX UNTESTED XXX UNTESTED XXX */
-#if USERDB
-		else
-		{
-			auto ADDRESS a;
-			char *fancy;
-			bool oldSuprErrs = SuprErrs;
-			extern char *crackaddr();
-			extern char *udbsender();
-
-			/*
-			**  Try doing USERDB rewriting even on fully commented
-			**  names; this saves the "comment" information (such
-			**  as full name) and rewrites the electronic part.
-			**
-			** XXX	This code doesn't belong here -- parsing should
-			** XXX	not be done during collect() phase because
-			** XXX	error messages can confuse the SMTP phase.
-			** XXX	Setting SuprErrs is a crude hack around this
-			** XXX	problem.
-			*/
-
-			if (OpMode == MD_SMTP || OpMode == MD_ARPAFTP)
-				SuprErrs = TRUE;
-			fancy = crackaddr(fvalue);
-			if (parseaddr(fvalue, &a, RF_COPYNONE, '\0', NULL, e) != NULL &&
-			    bitnset(M_CHECKUDB, a.q_mailer->m_flags) &&
-			    (p = udbsender(a.q_user)) != NULL)
-			{
-				char *oldg = macvalue('g', e);
-
-				define('g', p, e);
-				expand(fancy, buf, sizeof buf, e);
-				define('g', oldg, e);
-				fvalue = buf;
-			}
-			SuprErrs = oldSuprErrs;
-		}
-#endif
-#endif
 	}
 
 	/* delete default value for this header */
@@ -433,6 +390,7 @@ eatheader(e, full)
 	int hopcnt = 0;
 	char *msgid;
 	char buf[MAXLINE];
+	extern int priencode __P((char *));
 
 	/*
 	**  Set up macros for possible expansion in headers.
@@ -522,10 +480,6 @@ eatheader(e, full)
 			while (isascii(*msgid) && isspace(*msgid))
 				msgid++;
 		}
-
-		/* see if this is a return-receipt header */
-		if (bitset(H_RECEIPTTO, h->h_flags))
-			e->e_receiptto = h->h_value;
 	}
 	if (tTd(32, 1))
 		printf("----------------------------\n");
@@ -558,11 +512,11 @@ eatheader(e, full)
 	if (p != NULL)
 	{
 		/* (this should be in the configuration file) */
-		if (strcasecmp(p, "urgent"))
+		if (strcasecmp(p, "urgent") == 0)
 			e->e_timeoutclass = TOC_URGENT;
-		else if (strcasecmp(p, "normal"))
+		else if (strcasecmp(p, "normal") == 0)
 			e->e_timeoutclass = TOC_NORMAL;
-		else if (strcasecmp(p, "non-urgent"))
+		else if (strcasecmp(p, "non-urgent") == 0)
 			e->e_timeoutclass = TOC_NONURGENT;
 	}
 
@@ -807,6 +761,7 @@ crackaddr(addr)
 	int realcmtlev;
 	int anglelev, realanglelev;
 	int copylev;
+	int bracklev;
 	bool qmode;
 	bool realqmode;
 	bool skipping;
@@ -833,9 +788,10 @@ crackaddr(addr)
 	*/
 
 	bp = bufhead = buf;
-	buflim = &buf[sizeof buf - 5];
+	buflim = &buf[sizeof buf - 6];
 	p = addrhead = addr;
 	copylev = anglelev = realanglelev = cmtlev = realcmtlev = 0;
+	bracklev = 0;
 	qmode = realqmode = FALSE;
 
 	while ((c = *p++) != '\0')
@@ -892,7 +848,8 @@ crackaddr(addr)
 				realcmtlev++;
 				if (copylev++ <= 0)
 				{
-					*bp++ = ' ';
+					if (bp != bufhead)
+						*bp++ = ' ';
 					*bp++ = c;
 				}
 			}
@@ -918,20 +875,33 @@ crackaddr(addr)
 				bp--;
 		}
 
+		/* count nesting on [ ... ] (for IPv6 domain literals) */
+		if (c == '[')
+			bracklev++;
+		else if (c == ']')
+			bracklev--;
+
 		/* check for group: list; syntax */
-		if (c == ':' && anglelev <= 0 && !gotcolon && !ColonOkInAddr)
+		if (c == ':' && anglelev <= 0 && bracklev <= 0 &&
+		    !gotcolon && !ColonOkInAddr)
 		{
 			register char *q;
 
-			if (*p == ':')
+			/*
+			**  Check for DECnet phase IV ``::'' (host::user)
+			**  or **  DECnet phase V ``:.'' syntaxes.  The latter
+			**  covers ``user@DEC:.tay.myhost'' and
+			**  ``DEC:.tay.myhost::user'' syntaxes (bletch).
+			*/
+
+			if (*p == ':' || *p == '.')
 			{
-				/* special case -- :: syntax */
 				if (cmtlev <= 0 && !qmode)
 					quoteit = TRUE;
 				if (copylev > 0 && !skipping)
 				{
 					*bp++ = c;
-					*bp++ = c;
+					*bp++ = *p;
 				}
 				p++;
 				goto putg;
@@ -1086,6 +1056,8 @@ crackaddr(addr)
 	putg:
 		if (copylev <= 0 && !putgmac)
 		{
+			if (bp > bufhead && bp[-1] == ')')
+				*bp++ = ' ';
 			*bp++ = MACROEXPAND;
 			*bp++ = 'g';
 			putgmac = TRUE;
@@ -1102,7 +1074,11 @@ crackaddr(addr)
 	*bp++ = '\0';
 
 	if (tTd(33, 1))
-		printf("crackaddr=>`%s'\n", buf);
+	{
+		printf("crackaddr=>`");
+		xputs(buf);
+		printf("'\n");
+	}
 
 	return (buf);
 }
@@ -1129,11 +1105,12 @@ crackaddr(addr)
 #endif
 
 void
-putheader(mci, h, e)
+putheader(mci, hdr, e)
 	register MCI *mci;
-	register HDR *h;
+	HDR *hdr;
 	register ENVELOPE *e;
 {
+	register HDR *h;
 	char buf[MAX(MAXLINE,BUFSIZ)];
 	char obuf[MAXLINE];
 
@@ -1142,7 +1119,7 @@ putheader(mci, h, e)
 			mci->mci_mailer->m_name);
 
 	mci->mci_flags |= MCIF_INHEADER;
-	for (; h != NULL; h = h->h_link)
+	for (h = hdr; h != NULL; h = h->h_link)
 	{
 		register char *p = h->h_value;
 		extern bool bitintersect();
@@ -1155,7 +1132,7 @@ putheader(mci, h, e)
 
 		/* suppress Content-Transfer-Encoding: if we are MIMEing */
 		if (bitset(H_CTE, h->h_flags) &&
-		    bitset(MCIF_CVT8TO7|MCIF_INMIME, mci->mci_flags))
+		    bitset(MCIF_CVT8TO7|MCIF_CVT7TO8|MCIF_INMIME, mci->mci_flags))
 		{
 			if (tTd(34, 11))
 				printf(" (skipped (content-transfer-encoding))\n");
@@ -1166,7 +1143,8 @@ putheader(mci, h, e)
 		{
 			if (tTd(34, 11))
 				printf("\n");
-			goto vanilla;
+			put_vanilla_header(h, p, mci);
+			continue;
 		}
 
 		if (bitset(H_CHECK|H_ACHECK, h->h_flags) &&
@@ -1239,31 +1217,7 @@ putheader(mci, h, e)
 		}
 		else
 		{
-			/* vanilla header line */
-			register char *nlp;
-			register char *obp;
-
-vanilla:
-			obp = obuf;
-			(void) snprintf(obp, SPACELEFT(obuf, obp), "%.200s: ",
-				h->h_field);
-			obp = obuf + strlen(obuf);
-			while ((nlp = strchr(p, '\n')) != NULL)
-			{
-
-				*nlp = '\0';
-				snprintf(obp, SPACELEFT(obuf, obp), "%.*s",
-					sizeof obuf - (obp - obuf) - 1, p);
-				*nlp = '\n';
-				putline(obuf, mci);
-				p = ++nlp;
-				obp = obuf;
-				if (*p != ' ' && *p != '\t')
-					*obp++ = ' ';
-			}
-			snprintf(obp, SPACELEFT(obuf, obp), "%.*s",
-				sizeof obuf - (obp - obuf) - 1, p);
-			putline(obuf, mci);
+			put_vanilla_header(h, p, mci);
 		}
 	}
 
@@ -1277,7 +1231,7 @@ vanilla:
 	    bitset(EF_HAS8BIT, e->e_flags) &&
 	    !bitset(EF_DONT_MIME, e->e_flags) &&
 	    !bitnset(M_8BITS, mci->mci_mailer->m_flags) &&
-	    !bitset(MCIF_CVT8TO7, mci->mci_flags))
+	    !bitset(MCIF_CVT8TO7|MCIF_CVT7TO8, mci->mci_flags))
 	{
 		if (hvalue("MIME-Version", e->e_header) == NULL)
 			putline("MIME-Version: 1.0", mci);
@@ -1292,6 +1246,49 @@ vanilla:
 			putline("Content-Transfer-Encoding: 8bit", mci);
 	}
 #endif
+}
+/*
+**  PUT_VANILLA_HEADER -- output a fairly ordinary header
+**
+**	Parameters:
+**		h -- the structure describing this header
+**		v -- the value of this header
+**		mci -- the connection info for output
+**
+**	Returns:
+**		none.
+*/
+
+void
+put_vanilla_header(h, v, mci)
+	HDR *h;
+	char *v;
+	MCI *mci;
+{
+	register char *nlp;
+	register char *obp;
+	char obuf[MAXLINE];
+
+	(void) snprintf(obuf, sizeof obuf, "%.200s: ", h->h_field);
+	obp = obuf + strlen(obuf);
+	while ((nlp = strchr(v, '\n')) != NULL)
+	{
+		int l;
+
+		l = nlp - v;
+		if (sizeof obuf - (obp - obuf) < l)
+			l = sizeof obuf - (obp - obuf);
+
+		snprintf(obp, SPACELEFT(obuf, obp), "%.*s", l, v);
+		putline(obuf, mci);
+		v += l + 1;
+		obp = obuf;
+		if (*v != ' ' && *v != '\t')
+			*obp++ = ' ';
+	}
+	snprintf(obp, SPACELEFT(obuf, obp), "%.*s",
+		sizeof obuf - (obp - obuf) - 1, v);
+	putline(obuf, mci);
 }
 /*
 **  COMMAIZE -- output a header field, making a comma-translated list.
