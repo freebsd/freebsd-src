@@ -294,6 +294,9 @@
 	for the RealTek RTL8139C+, RTL8169, RTL8169S and RTL8110S PCI
 	Fast Ethernet and Gigabit Ethernet controllers.</para>
 
+      <para>&man.sk.4; now supports SK-9521 V2.0 and 3COM 3C940 based Gigabit
+        Ethernet NICs.</para>
+
       <para>The &man.uart.4; driver has been added to support various
 	classes of UART (Universal Asynchronous Receiver/Transmitter)
 	devices.  It is an analog of the &man.sio.4; driver but
@@ -458,6 +461,12 @@
     <para>&man.ipfw.8; now supports a <option>-n</option> flag
       to test the syntax of commands without actually changing anything.
       &merged;</para>
+
+    <para>The <filename>libalias</filename> library,
+      &man.natd.8;, and &man.ppp.8; now support Cisco Skinny Station protocol,
+      which is the protocol used by Cisco IP phones to talk to Cisco Call
+      Managers.  Note that currently having the Call Manager behind
+      the NAT gateway is not supported.</para>
 
     <para>The <filename>libcipher</filename> DES cryptography library
       has been removed.  All of its functionality is provided by the
