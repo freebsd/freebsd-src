@@ -28,7 +28,7 @@
  */
 
 #ifndef LINT
-static char rcsid[] = "$Id: ypbind.c,v 1.17 1995/07/20 22:32:59 wpaul Exp $";
+static char rcsid[] = "$Id: ypbind.c,v 1.18 1995/12/15 03:39:25 wpaul Exp $";
 #endif
 
 #include <sys/param.h>
@@ -132,7 +132,7 @@ struct in_addr restricted_addrs[RESTRICTED_SERVERS];
 #endif
 /* RPC timeout value */
 #ifndef FAIL_THRESHOLD
-#define FAIL_THRESHOLD 10
+#define FAIL_THRESHOLD 20
 #endif
 
 /* Number of times to fish for a response froma particular set of hosts */
@@ -193,7 +193,7 @@ CLIENT *clnt;
 		}
 		ypdb = (struct _dom_binding *)malloc(sizeof *ypdb);
 		if (ypdb == NULL) {
-			syslog(LOG_WARNING, "malloc: %s", strerror(errno));
+			syslog(LOG_WARNING, "malloc: %m");
 			res.ypbind_resp_u.ypbind_error = YPBIND_ERR_RESC;
 			return &res;
 		}
@@ -483,7 +483,7 @@ char **argv;
 			break;
 		case -1:
 			if (errno != EINTR)
-				syslog(LOG_WARNING, "select: %s", strerror(errno));
+				syslog(LOG_WARNING, "select: %m");
 			break;
 		default:
 			for(ypdb=ypbindlist; ypdb; ypdb=ypdb->dom_pnext) {
@@ -525,17 +525,52 @@ struct _dom_binding *ypdb;
 {
 	char buf[YPMAXDOMAIN + 1];
 	struct sockaddr_in addr;
+	int d = 0, a = 0;
+	struct _dom_binding *y, *prev = NULL;
+	char path[MAXPATHLEN];
 
-	if (read(READFD, &buf, sizeof(buf)) < 0)
-		syslog(LOG_WARNING, "could not read from child: %s", strerror(errno));
-	if (read(READFD, &addr, sizeof(struct sockaddr_in)) < 0)
-		syslog(LOG_WARNING, "could not read from child: %s", strerror(errno));
+	if ((d = read(READFD, &buf, sizeof(buf))) <= 0)
+		syslog(LOG_WARNING, "could not read from child: %m");
+
+	if ((a = read(READFD, &addr, sizeof(struct sockaddr_in))) < 0)
+		syslog(LOG_WARNING, "could not read from child: %m");
 
 	close(READFD);
 	FD_CLR(READFD, &fdsr);
 	FD_CLR(READFD, &svc_fdset);
 	READFD = WRITEFD = -1;
-	rpc_received((char *)&buf, &addr, 0);
+	if (d > 0 && a > 0)
+		rpc_received((char *)&buf, &addr, 0);
+	else {
+		for(y=ypbindlist; y; y=y->dom_pnext) {
+			if (y == ypdb)
+				break;
+			prev = y;
+		}
+		switch(ypdb->dom_default) {
+		case 0:
+			if (prev == NULL)
+				ypbindlist = y->dom_pnext;
+			else
+				prev->dom_pnext = y->dom_pnext;
+			sprintf(path, "%s/%s.%ld", BINDINGDIR,
+				ypdb->dom_domain, YPVERS);
+			close(ypdb->dom_lockfd);
+			unlink(path);
+			free(ypdb);
+			domains--;
+			return;
+		case 1:
+			ypdb->dom_broadcast_pid = 0;
+			ypdb->dom_alive = 0;
+			broadcast(ypdb);
+			return;
+		default:
+			break;
+		}
+	}
+
+	return;
 }
 
 /*
@@ -620,7 +655,7 @@ struct _dom_binding *ypdb;
 		return;
 
 	if (pipe(ypdb->dom_pipe_fds) < 0) {
-		syslog(LOG_WARNING, "pipe: %s",strerror(errno));
+		syslog(LOG_WARNING, "pipe: %m");
 		return;
 	}
 
@@ -634,9 +669,11 @@ struct _dom_binding *ypdb;
 	switch((ypdb->dom_broadcast_pid = fork())) {
 	case 0:
 		close(READFD);
+		signal(SIGCHLD, SIG_DFL);
+		signal(SIGTERM, SIG_DFL);
 		break;
 	case -1:
-		syslog(LOG_WARNING, "fork: %s", strerror(errno));
+		syslog(LOG_WARNING, "fork: %m");
 		close(READFD);
 		close(WRITEFD);
 		return;
@@ -810,7 +847,7 @@ int force;
 			return;
 		ypdb = (struct _dom_binding *)malloc(sizeof *ypdb);
 		if (ypdb == NULL) {
-			syslog(LOG_WARNING, "malloc: %s", strerror(errno));
+			syslog(LOG_WARNING, "malloc: %m");
 			return;
 		}
 		bzero((char *)ypdb, sizeof *ypdb);
@@ -870,7 +907,7 @@ int force;
 	*(u_short *)&ybr.ypbind_resp_u.ypbind_bindinfo.ypbind_binding_port = raddrp->sin_port;
 
 	if( writev(ypdb->dom_lockfd, iov, 2) != iov[0].iov_len + iov[1].iov_len) {
-		syslog(LOG_WARNING, "write: %s", strerror(errno));
+		syslog(LOG_WARNING, "write: %m");
 		close(ypdb->dom_lockfd);
 		ypdb->dom_lockfd = -1;
 		return;
