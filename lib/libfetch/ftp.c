@@ -267,7 +267,7 @@ _ftp_stat(int cd, const char *file, struct url_stat *us)
     }
     if (us->size == 0)
 	us->size = -1;
-    DEBUG(fprintf(stderr, "size: [\033[1m%lld\033[m]\n", (long long)us->size));
+    DEBUG(fprintf(stderr, "size: [%lld]\n", (long long)us->size));
 
     if ((e = _ftp_cmd(cd, "MDTM %s", s)) != FTP_FILE_STATUS) {
 	_ftp_seterr(e);
@@ -301,8 +301,7 @@ _ftp_stat(int cd, const char *file, struct url_stat *us)
 	t = time(NULL);
     us->mtime = t;
     us->atime = t;
-    DEBUG(fprintf(stderr, "last modified: [\033[1m%04d-%02d-%02d "
-		  "%02d:%02d:%02d\033[m]\n",
+    DEBUG(fprintf(stderr, "last modified: [%04d-%02d-%02d %02d:%02d:%02d]\n",
 		  tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
 		  tm.tm_hour, tm.tm_min, tm.tm_sec));
     return 0;
