@@ -92,7 +92,7 @@ __FBSDID("$FreeBSD$");
 #define TIOCPKT_WINDOW 0x80
 #endif
 
-#define		ARGSTR			"Dalnx"
+#define		ARGSTR			"Daln"
 
 /* wrapper for KAME-special getnameinfo() */
 #ifndef NI_WITHSCOPEID
@@ -159,11 +159,6 @@ main(int argc, char *argv[])
 		case 'n':
 			keepalive = 0;
 			break;
-#ifdef CRYPT
-		case 'x':
-			doencrypt = 1;
-			break;
-#endif
 		case '?':
 		default:
 			usage();
@@ -279,13 +274,6 @@ doit(int f, union sockunion *fromp)
 		write(f, "", 1);
 		confirmed = 1;		/* we sent the null! */
 	}
-#ifdef	CRYPT
-	if (doencrypt)
-		(void) des_enc_write(f,
-				     SECURE_MESSAGE,
-				     strlen(SECURE_MESSAGE),
-				     schedule, &kdata->session);
-#endif
 	netf = f;
 
 	pid = forkpty(&master, line, NULL, &win);
@@ -313,15 +301,7 @@ doit(int f, union sockunion *fromp)
 		fatal(STDERR_FILENO, _PATH_LOGIN, 1);
 		/*NOTREACHED*/
 	}
-#ifdef	CRYPT
-	/*
-	 * If encrypted, don't turn on NBIO or the des read/write
-	 * routines will croak.
-	 */
-
-	if (!doencrypt)
-#endif
-		ioctl(f, FIONBIO, &on);
+	ioctl(f, FIONBIO, &on);
 	ioctl(master, FIONBIO, &on);
 	ioctl(master, TIOCPKT, &on);
 	signal(SIGCHLD, cleanup);
@@ -424,13 +404,7 @@ protocol(int f, int p)
 			}
 		}
 		if (FD_ISSET(f, &ibits)) {
-#ifdef	CRYPT
-			if (doencrypt)
-				fcc = des_enc_read(f, fibuf, sizeof(fibuf),
-					schedule, &kdata->session);
-			else
-#endif
-				fcc = read(f, fibuf, sizeof(fibuf));
+			fcc = read(f, fibuf, sizeof(fibuf));
 			if (fcc < 0 && errno == EWOULDBLOCK)
 				fcc = 0;
 			else {
@@ -476,10 +450,7 @@ protocol(int f, int p)
 				break;
 			else if (pibuf[0] == 0) {
 				pbp++, pcc--;
-#ifdef	CRYPT
-				if (!doencrypt)
-#endif
-					FD_SET(f, &obits);	/* try write */
+				FD_SET(f, &obits);	/* try write */
 			} else {
 				if (pkcontrol(pibuf[0])) {
 					pibuf[0] |= oobdata[0];
@@ -489,13 +460,7 @@ protocol(int f, int p)
 			}
 		}
 		if ((FD_ISSET(f, &obits)) && pcc > 0) {
-#ifdef	CRYPT
-			if (doencrypt)
-				cc = des_enc_write(f, pbp, pcc,
-					schedule, &kdata->session);
-			else
-#endif
-				cc = write(f, pbp, pcc);
+			cc = write(f, pbp, pcc);
 			if (cc < 0 && errno == EWOULDBLOCK) {
 				/*
 				 * This happens when we try write after read
