@@ -24,7 +24,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aic7xxx.c,v 1.51 1996/01/03 06:32:10 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.29.2.7 1996/01/04 08:54:52 gibbs Exp $
  */
 /*
  * TODO:
@@ -752,7 +752,7 @@ ahcintr(arg)
 				outb(SCSIRATE + iobase, scratch); 
 	                        break;
 			}
-		    case MSG_REJECT:
+		    case REJECT_MSG:
 			{
 				/*
 				 * What we care about here is if we had an
