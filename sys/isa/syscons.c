@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.88 1995/01/03 16:56:05 bde Exp $
+ *	$Id: syscons.c,v 1.89 1995/01/12 11:42:44 sos Exp $
  */
 
 #include "sc.h"
@@ -2112,7 +2112,7 @@ ansi_put(scr_stat *scp, u_char c)
 		/* Print only printables */
 		*scp->crtat = (scp->term.cur_attr | scr_map[c]);
 		scp->crtat++;
-		if (++scp->xpos > scp->xsize) {
+		if (++scp->xpos >= scp->xsize) {
 			scp->xpos = 0;
 			scp->ypos++;
 		}
