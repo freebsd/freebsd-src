@@ -1,12 +1,8 @@
 # $FreeBSD$
 
-MAINTAINER= wosch
+MAINTAINER=	wosch
 
-
-MAN=	catman.1
-
-beforeinstall:
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-	    ${.CURDIR}/catman.perl ${DESTDIR}${BINDIR}/catman
+SCRIPTS=	catman.perl
+MAN=		catman.1
 
 .include <bsd.prog.mk>

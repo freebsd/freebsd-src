@@ -1,10 +1,8 @@
 # $FreeBSD$
 
-BINDIR=	/usr/bin
+SCRIPTS=lp.sh
 MAN=	lp.1
 
-beforeinstall:
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-	     ${.CURDIR}/lp.sh ${DESTDIR}${BINDIR}/lp
+BINDIR=	/usr/bin
 
 .include <bsd.prog.mk>

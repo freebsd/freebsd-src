@@ -1,11 +1,8 @@
 # $FreeBSD$
 
 MAINTAINER=	dougb@FreeBSD.org
+SCRIPTS=	mergemaster.sh
 MAN=		mergemaster.8
-
-beforeinstall:
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-	    ${.CURDIR}/mergemaster.sh ${DESTDIR}${BINDIR}/mergemaster
 
 .include <bsd.prog.mk>
 

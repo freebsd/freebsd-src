@@ -41,14 +41,6 @@ YFLAGS+=-d
 SRCS+= pfkey.c pfkey_dump.c key_debug.c ipsec_strerror.c
 CFLAGS+=-I${.CURDIR}/../../lib/libipsec -I${.CURDIR}/../../sys/netkey
 
-SCRIPTS=	scriptdump
-
-BINOWN  = root
-BINGRP  = bin
-BINMODE = 555
-
-all: ${PROG} scriptdump
-
 SRCS+=y.tab.h
 y.tab.h: parse.y
 CFLAGS+=-DIPSEC_DEBUG -DINET6 -DYY_NO_UNPUT -I.
@@ -56,8 +48,10 @@ DPADD+=	${LIBIPSEC}
 LDADD+=	-lipsec
 CLEANFILES+=	scriptdump y.tab.h
 
+SCRIPTS=scriptdump
 MAN=	setkey.8
-LOCALPREFIX=	/usr/local
+
+LOCALPREFIX=	/usr
 
 scriptdump: scriptdump.pl
 	sed -e 's#@LOCALPREFIX@#${LOCALPREFIX}#' < $> > scriptdump
