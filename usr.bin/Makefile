@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.3 (Berkeley) 1/7/94
-#	$Id: Makefile,v 1.121 1998/11/09 11:08:48 dima Exp $
+#	$Id: Makefile,v 1.123 1999/02/16 17:57:25 luoqi Exp $
 
 # XXX MISSING:		deroff diction graph learn plot
 #			spell spline struct xsend
@@ -209,6 +209,7 @@ SUBDIR+=telnet
 # Things that don't compile on alpha or are aout specific:
 SUBDIR+=ar \
 	brandelf \
+	doscmd \
 	gcore \
 	gprof \
 	gprof4 \
