@@ -424,15 +424,12 @@ rip6_output(m, va_alist)
 	 * Source address selection.
 	 */
 	if ((in6a = in6_selectsrc(dstsock, in6p->in6p_outputopts,
-	    in6p->in6p_moptions, &in6p->in6p_route, &in6p->in6p_laddr,
-	    &error)) == 0) {
+	    in6p->in6p_moptions, NULL, &in6p->in6p_laddr, &error)) == 0) {
 		if (error == 0)
 			error = EADDRNOTAVAIL;
 		goto bad;
 	}
 	ip6->ip6_src = *in6a;
-	if (in6p->in6p_route.ro_rt)
-		oifp = ifnet_byindex(in6p->in6p_route.ro_rt->rt_ifp->if_index);
 	ip6->ip6_flow = (ip6->ip6_flow & ~IPV6_FLOWINFO_MASK) |
 		(in6p->in6p_flowinfo & IPV6_FLOWINFO_MASK);
 	ip6->ip6_vfc = (ip6->ip6_vfc & ~IPV6_VERSION_MASK) |
@@ -477,7 +474,7 @@ rip6_output(m, va_alist)
 	}
 #endif /*IPSEC*/
 
-	error = ip6_output(m, in6p->in6p_outputopts, &in6p->in6p_route, 0,
+	error = ip6_output(m, in6p->in6p_outputopts, NULL, 0,
 			   in6p->in6p_moptions, &oifp, in6p);
 	if (so->so_proto->pr_protocol == IPPROTO_ICMPV6) {
 		if (oifp)
@@ -691,7 +688,7 @@ rip6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 #endif
 	/* Source address selection. XXX: need pcblookup? */
 	in6a = in6_selectsrc(addr, inp->in6p_outputopts,
-			     inp->in6p_moptions, &inp->in6p_route,
+			     inp->in6p_moptions, NULL,
 			     &inp->in6p_laddr, &error);
 	if (in6a == NULL)
 		return (error ? error : EADDRNOTAVAIL);
