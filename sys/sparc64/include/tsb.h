@@ -32,8 +32,8 @@
 #ifndef	_MACHINE_TSB_H_
 #define	_MACHINE_TSB_H_
 
-#define	TSB_KERNEL_MIN_ADDRESS		(0xd0000000)
-#define	TSB_USER_MIN_ADDRESS		(0xe0000000)
+#define	TSB_KERNEL_MIN_ADDRESS		(0xa0000000)
+#define	TSB_USER_MIN_ADDRESS		(0xb0000000)
 
 #define	TSB_MASK_WIDTH			(6)
 
@@ -61,17 +61,7 @@
 
 #define	TSB_KERNEL_PAGES		(1)
 #define	TSB_KERNEL_SIZE			(TSB_KERNEL_PAGES * PAGE_SIZE_4M)
-#define	TSB_KERNEL_MB			(512)
-#define	TSB_KERNEL_VM_RANGE		(TSB_KERNEL_MB * (1 << 20))
-#define	TSB_KERNEL_RANGE \
-	((TSB_KERNEL_VM_RANGE / PAGE_SIZE) * sizeof (struct stte))
-#define	TSB_KERNEL_MASK \
-	((TSB_KERNEL_RANGE / sizeof (struct stte)) - 1)
-
-#define	TSB_1M_STTE_SHIFT		(21)
-#define	TSB_1M_STTE_SIZE		(1 << TSB_1M_SHIFT)
-
-#define	TSB_SIZE_REG			(7)
+#define	TSB_KERNEL_MASK			((TSB_KERNEL_SIZE >> STTE_SHIFT) - 1)
 
 extern vm_offset_t tsb_kernel_phys;
 

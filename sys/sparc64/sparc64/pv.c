@@ -125,7 +125,7 @@ restart:
 		if (generation != pv_generation)
 			goto restart;
 #else
-		tlb_page_demap(TLB_DTLB, tte_get_ctx(tte), va);
+		tlb_page_demap(TLB_DTLB, TT_GET_CTX(tte.tte_tag), va);
 #endif
 	}
 	PV_UNLOCK();
@@ -135,8 +135,9 @@ int
 pv_bit_count(vm_page_t m, u_long bits)
 {
 	vm_offset_t pstp;
-	vm_offset_t pa;
 	vm_offset_t pvh;
+	vm_offset_t pa;
+	vm_offset_t va;
 	struct tte tte;
 	int count;
 
@@ -149,6 +150,7 @@ restart:
 #endif
 	for (pstp = pvh_get_first(pvh); pstp != 0; pstp = pv_get_next(pstp)) {
 		tte = pv_get_tte(pstp);
+		va = tte_get_va(tte);
 		KASSERT(TD_PA(tte.tte_data) == pa,
 		    ("pv_bit_count: corrupt alias chain"));
 		if (tte.tte_data & bits)
@@ -162,7 +164,7 @@ restart:
 		if (generation != pv_generation)
 			goto restart;
 #else
-		tlb_page_demap(TLB_DTLB, tte_get_ctx(tte), tte_get_va(tte));
+		tlb_page_demap(TLB_DTLB, TT_GET_CTX(tte.tte_tag), va);
 #endif
 	}
 	PV_UNLOCK();
@@ -175,6 +177,7 @@ pv_bit_set(vm_page_t m, u_long bits)
 	vm_offset_t pstp;
 	vm_offset_t pvh;
 	vm_offset_t pa;
+	vm_offset_t va;
 	struct tte tte;
 
 	pa = VM_PAGE_TO_PHYS(m);
@@ -185,6 +188,7 @@ restart:
 #endif
 	for (pstp = pvh_get_first(pvh); pstp != 0; pstp = pv_get_next(pstp)) {
 		tte = pv_get_tte(pstp);
+		va = tte_get_va(tte);
 		KASSERT(TD_PA(tte.tte_data) == pa,
 		    ("pv_bit_set: corrupt alias chain"));
 		if (tte.tte_data & bits)
@@ -199,7 +203,7 @@ restart:
 		if (generation != pv_generation)
 			goto restart;
 #else
-		tlb_page_demap(TLB_DTLB, tte_get_ctx(tte), tte_get_va(tte));
+		tlb_page_demap(TLB_DTLB, TT_GET_CTX(tte.tte_tag), va);
 #endif
 	}
 	PV_UNLOCK();

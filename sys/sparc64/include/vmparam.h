@@ -90,10 +90,10 @@
 #define	VM_KMEM_SIZE		(12*1024*1024)
 #endif
 
-#define	VM_MIN_KERNEL_ADDRESS	(0x400000)
-#define	VM_MAX_KERNEL_ADDRESS	(0xd0000000)
+#define	VM_MIN_KERNEL_ADDRESS	(0xc0000000)
+#define	VM_MAX_KERNEL_ADDRESS	(0xffffe000)
 
-#define	KERNBASE		(0x400000)
+#define	KERNBASE		(0xc0000000)
 
 /*
  * Initial pagein size of beginning of executable file.
