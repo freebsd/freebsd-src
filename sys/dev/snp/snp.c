@@ -96,16 +96,6 @@ dsnwrite(struct tty *tp, struct uio *uio, int flag)
 	return (error);
 }
 
-/*
- * XXX should there be a global version of this?
- */
-static int
-l_nullioctl(struct tty *tp, u_long cmd, char *data, int flags, struct proc *p)
-{
-
-	return (ENOIOCTL);
-}
-
 static struct linesw snpdisc = {
 	ttyopen,	ttylclose,	ttread,		dsnwrite,
 	l_nullioctl,	ttyinput,	ttstart,	ttymodem };
