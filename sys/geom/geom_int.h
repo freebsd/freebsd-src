@@ -59,7 +59,6 @@ extern int g_debugflags;
  * an internal eventqueue.
  */
 enum g_events {
-	EV_NEW_PROVIDER,	/* provider */
 	EV_CALL_ME,		/* func, arg */
 	EV_LAST
 };
