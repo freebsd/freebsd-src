@@ -317,10 +317,13 @@ Try increasing this number if you get the error
 Enables calling the VESA reset BIOS vector on the resume path.
 Some graphic chips have problems such as LCD white-out after resume.
 Try setting this to 0 if this causes problems for you.
-.It Va hw.acpi.os_name
-Some systems' ASL may have problems because they look for names 
-of Microsoft operating systems.  
-This tunable overrides the default value of "FreeBSD".
+.It Va hw.acpi.osname
+Some systems' ASL may have problems because they look for names
+of Microsoft operating systems.
+This tunable overrides the value of the
+.Qq Li \e_OS
+object from its default of
+.Qq Li FreeBSD .
 .It Va hw.acpi.pci.link.%d.%d.%d.irq
 Override the interrupt to use.
 .It Va hw.acpi.verbose
