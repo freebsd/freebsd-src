@@ -87,11 +87,11 @@ o It is also important to check the ERRATA.TXT file for any
 
 o Information regarding problems which arise after the CD 
   is printed can be found at:
-  ftp://ftp.freebsd.org/pub/FreeBSD/2.2.6-RELEASE/ERRATA.TXT
+  ftp://ftp.freebsd.org/pub/FreeBSD/3.0-RELEASE/ERRATA.TXT
 
 For the most up-to-date software along the RELENG_2_2 branch
 (also known as -Stable) which is now proceeding onwards toward
-the release of FreeBSD 2.2.7, please install from:
+the release of FreeBSD 2.2.8, please install from:
 
         ftp://releng22.freebsd.org/pub/FreeBSD/
 
@@ -112,4 +112,4 @@ subscribe freebsd-current
 end
 
 We hope you enjoy using FreeBSD as much as we enjoyed 
-creating it. :)
+creating it!
