@@ -82,9 +82,6 @@ PICFLAG=-fpic
 	${CC} -x assembler-with-cpp ${PICFLAG} -DPIC ${CFLAGS} \
 	    ${AINC} -c ${.IMPSRC} -o ${.TARGET}
 
-.S.o:
-	${CC} ${CFLAGS} ${AINC} -c ${.IMPSRC} -o ${.TARGET}
-
 .S.po:
 	${CC} -DPROF ${CFLAGS} ${AINC} -c ${.IMPSRC} -o ${.TARGET}
 
