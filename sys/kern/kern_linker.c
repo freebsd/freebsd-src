@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_linker.c,v 1.14 1998/11/04 15:20:56 peter Exp $
+ *	$Id: kern_linker.c,v 1.15 1998/11/06 15:10:17 peter Exp $
  */
 
 #include "opt_ddb.h"
@@ -123,11 +123,11 @@ linker_file_sysinit(linker_file_t lf)
      * Since some things care about execution order, this is the
      * operation which ensures continued function.
      */
-    for( sipp = (struct sysinit **)sysinits->ls_items; *sipp; sipp++) {
-	for( xipp = sipp + 1; *xipp; xipp++) {
-	    if( (*sipp)->subsystem < (*xipp)->subsystem ||
-		( (*sipp)->subsystem == (*xipp)->subsystem &&
-		  (*sipp)->order < (*xipp)->order))
+    for (sipp = (struct sysinit **)sysinits->ls_items; *sipp; sipp++) {
+	for (xipp = sipp + 1; *xipp; xipp++) {
+	    if ((*sipp)->subsystem <= (*xipp)->subsystem ||
+		 ((*sipp)->subsystem == (*xipp)->subsystem &&
+		  (*sipp)->order <= (*xipp)->order))
 		continue;	/* skip*/
 	    save = *sipp;
 	    *sipp = *xipp;
@@ -139,18 +139,15 @@ linker_file_sysinit(linker_file_t lf)
     /*
      * Traverse the (now) ordered list of system initialization tasks.
      * Perform each task, and continue on to the next task.
-     *
-     * The last item on the list is expected to be the scheduler,
-     * which will not return.
      */
-    for( sipp = (struct sysinit **)sysinits->ls_items; *sipp; sipp++) {
-	if( (*sipp)->subsystem == SI_SUB_DUMMY)
+    for (sipp = (struct sysinit **)sysinits->ls_items; *sipp; sipp++) {
+	if ((*sipp)->subsystem == SI_SUB_DUMMY)
 	    continue;	/* skip dummy task(s)*/
 
-	switch( (*sipp)->type) {
+	switch ((*sipp)->type) {
 	case SI_TYPE_DEFAULT:
 	    /* no special processing*/
-	    (*((*sipp)->func))( (*sipp)->udata);
+	    (*((*sipp)->func))((*sipp)->udata);
 	    break;
 
 	case SI_TYPE_KTHREAD:
@@ -172,7 +169,65 @@ linker_file_sysinit(linker_file_t lf)
 	    break;
 
 	default:
-	    panic( "linker_file_sysinit: unrecognized init type");
+	    panic ("linker_file_sysinit: unrecognized init type");
+	}
+    }
+}
+
+static void
+linker_file_sysuninit(linker_file_t lf)
+{
+    struct linker_set* sysuninits;
+    struct sysinit** sipp;
+    struct sysinit** xipp;
+    struct sysinit* save;
+
+    KLD_DPF(FILE, ("linker_file_sysuninit: calling SYSUNINITs for %s\n",
+		   lf->filename));
+
+    sysuninits = (struct linker_set*)
+	linker_file_lookup_symbol(lf, "sysuninit_set", 0);
+
+    KLD_DPF(FILE, ("linker_file_sysuninit: SYSUNINITs %p\n", sysuninits));
+    if (!sysuninits)
+	return;
+
+    /*
+     * Perform a reverse bubble sort of the system initialization objects
+     * by their subsystem (primary key) and order (secondary key).
+     *
+     * Since some things care about execution order, this is the
+     * operation which ensures continued function.
+     */
+    for (sipp = (struct sysinit **)sysuninits->ls_items; *sipp; sipp++) {
+	for (xipp = sipp + 1; *xipp; xipp++) {
+	    if ((*sipp)->subsystem >= (*xipp)->subsystem ||
+		 ((*sipp)->subsystem == (*xipp)->subsystem &&
+		  (*sipp)->order >= (*xipp)->order))
+		continue;	/* skip*/
+	    save = *sipp;
+	    *sipp = *xipp;
+	    *xipp = save;
+	}
+    }
+
+
+    /*
+     * Traverse the (now) ordered list of system initialization tasks.
+     * Perform each task, and continue on to the next task.
+     */
+    for (sipp = (struct sysinit **)sysuninits->ls_items; *sipp; sipp++) {
+	if ((*sipp)->subsystem == SI_SUB_DUMMY)
+	    continue;	/* skip dummy task(s)*/
+
+	switch ((*sipp)->type) {
+	case SI_TYPE_DEFAULT:
+	    /* no special processing*/
+	    (*((*sipp)->func))((*sipp)->udata);
+	    break;
+
+	default:
+	    panic("linker_file_sysuninit: unrecognized uninit type");
 	}
     }
 }
@@ -343,6 +398,8 @@ linker_file_unload(linker_file_t file)
 	lockmgr(&lock, LK_RELEASE, 0, curproc);
 	goto out;
     }
+
+    linker_file_sysuninit(file);
 
     TAILQ_REMOVE(&files, file, link);
     lockmgr(&lock, LK_RELEASE, 0, curproc);
