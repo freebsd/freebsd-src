@@ -230,9 +230,11 @@ static driver_t ata_iobus_sub_driver = {
 
 DRIVER_MODULE(ata, ataiobus, ata_iobus_sub_driver, ata_devclass, 0, 0);
 
-static void
+static int
 ata_iobus_locknoop(struct ata_channel *ch, int type)
 {
+
+        return (ch->unit);
 }
 
 static void
