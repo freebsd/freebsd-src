@@ -37,7 +37,7 @@
 4	MNOPROTO { ssize_t write(int fd, char *buf, ssize_t nbyte); }
 5	UNIMPL	old open
 6	MNOPROTO { int close(int fd); }
-7	STD	{ int osf1_wait4(int pid, int *status, int options, \
+7	MSTD	{ int osf1_wait4(int pid, int *status, int options, \
 		    struct osf1_rusage *rusage); }
 8	UNIMPL	old creat
 9	NOPROTO	{ int link(char *path, char *link); }

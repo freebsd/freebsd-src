@@ -37,7 +37,7 @@
 4	MNOPROTO { int write(int fd, char *buf, u_int nbyte); }
 5	STD	{ int linux_open(char *path, l_int flags, l_int mode); }
 6	MNOPROTO { int close(int fd); }
-7	STD	{ int linux_waitpid(l_pid_t pid, l_int *status, l_int options); }
+7	MSTD	{ int linux_waitpid(l_pid_t pid, l_int *status, l_int options); }
 8	STD	{ int linux_creat(char *path, l_int mode); }
 9	STD	{ int linux_link(char *path, char *to); }
 10	STD	{ int linux_unlink(char *path); }
@@ -59,7 +59,7 @@
 23	MSTD	{ int linux_setuid16(l_uid16_t uid); }
 24	MSTD	{ int linux_getuid16(void); }
 25	STD	{ int linux_stime(void); }
-26	STD	{ int linux_ptrace(l_long req, l_long pid, l_long addr, \
+26	MSTD	{ int linux_ptrace(l_long req, l_long pid, l_long addr, \
                             l_long data); }
 27	STD	{ int linux_alarm(l_uint secs); }
 28	STD	{ int linux_fstat(l_uint fd, struct ostat *up); }
@@ -156,7 +156,7 @@
 111	STD	{ int linux_vhangup(void); }
 112	UNIMPL	idle
 113	STD	{ int linux_vm86old(void); }
-114	STD	{ int linux_wait4(l_pid_t pid, l_uint *status, \
+114	MSTD	{ int linux_wait4(l_pid_t pid, l_uint *status, \
 				l_int options, struct l_rusage *rusage); }
 115	STD	{ int linux_swapoff(void); }
 116	STD	{ int linux_sysinfo(struct l_sysinfo *info); }
