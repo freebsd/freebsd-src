@@ -40,3 +40,4 @@
 #define _PATH_LOGACCESS		"/etc/login.access"
 #define _PATH_FBTAB		"/etc/fbtab"
 #define _PATH_LOGINDEVPERM	"/etc/logindevperm"
+#define _PATH_CHPASS		"/usr/bin/passwd"
