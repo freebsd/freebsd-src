@@ -2,7 +2,7 @@
 
 PROG=	xroach
 MAN6=	xroach.6
-CFLAGS+= -I${.CURDIR}/bitmaps
+CFLAGS+=	-I${.CURDIR}/bitmaps -I${X11BASE}/include
 DPADD+=		${X11BASE}/lib/libX11.a ${LIBM}
 LDDESTDIR+=	-L${X11BASE}/lib
 LDADD+=		-lX11 -lm
