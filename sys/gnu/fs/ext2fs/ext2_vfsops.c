@@ -128,7 +128,7 @@ ext2_mountroot()
 	int error;
 	
 	if ((error = bdevvp(rootdev, &rootvp))) {
-		printf("ext2_mountroot: can't find rootvp");
+		printf("ext2_mountroot: can't find rootvp\n");
 		return (error);
 	}
 	mp = bsd_malloc((u_long)sizeof(struct mount), M_MOUNT, M_WAITOK);

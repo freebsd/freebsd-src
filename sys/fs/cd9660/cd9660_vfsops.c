@@ -149,7 +149,7 @@ iso_mountroot(mp, p)
 	int error;
 
 	if ((error = bdevvp(rootdev, &rootvp))) {
-		printf("iso_mountroot: can't find rootvp");
+		printf("iso_mountroot: can't find rootvp\n");
 		return (error);
 	}
 	args.flags = ISOFSMNT_ROOT;
