@@ -201,7 +201,7 @@ or ``generic''.
 Assign the physical button 
 .Ar M 
 to the logical button 
-.Ar N.
+.Ar N .
 You may specify as many instances of this option as you like.
 More than one physical button may be assigned to a logical button at the
 same time.
@@ -413,7 +413,7 @@ serial port
 to the mouse.
 You can attach multiple USB mice to your system or to your USB hub.
 They are accessible as 
-.Pa /dev/ums0, /dev/ums1, 
+.Pa /dev/ums0 , /dev/ums1 ,
 and so on.
 .Pa
 You may want to create a symbolic link
@@ -458,25 +458,25 @@ option.
 You have to make a guess and try.
 There is rule of thumb:
 .Pp
-.Bl -tag -compact -width 1.X
-.It 1.
+.Bl -enum -compact -width 1.X
+.It
 The bus and InPort mice always use
 .Ar busmouse
 protocol regardless of the brand of the mouse.
-.It 2.
+.It
 The
 .Ar ps/2
 protocol should always be specified for the PS/2 mouse
 regardless of the brand of the mouse.
-.It 3.
+.It
 You must specify the
 .Ar auto
 protocol for the USB mouse.
-.It 4.
+.It
 Most 2-button serial mice support the
 .Ar microsoft
 protocol.
-.It 5.
+.It
 3-button serial mice may work with the
 .Ar mousesystems
 protocol.
@@ -487,7 +487,7 @@ the third (middle) button will not function.
 3-button serial mice may also work with the
 .Ar mouseman
 protocol under which the third button may function as expected.
-.It 6.
+.It
 3-button serial mice may have a small switch to choose between ``MS''
 and ``PC'', or ``2'' and ``3''.
 ``MS'' or ``2'' usually mean the 
@@ -496,7 +496,7 @@ protocol.
 ``PC'' or ``3'' will choose the 
 .Ar mousesystems
 protocol.
-.It 7.
+.It
 If the mouse has a roller or a wheel, it may be compatible with the
 .Ar intellimouse
 protocol.

@@ -122,22 +122,22 @@ value	region type
 Interactive commands are described below:
 .Bl -tag -width indent
 .It Cm s
-.Em Single step: 
+.Em Single step :
 Performs single-step execution of the current Control Method.  If
 the next instruction is an invocation of another Control Method,
 the step execution will continue in the following Control Method.
 .It Cm n
-.Em Step program:
+.Em Step program :
 Performs single-step execution of the current Control Method.
 Even if the next instruction is an invocation of another Control
 Method, the step execution will not continue.
 .It Cm c
-.Em Continue program being debugged:
+.Em Continue program being debugged :
 Resumes execution of the AML interpreter.  Because the current
 .Nm
 has no way of breakpoint, this command might not so much useful.
 .It Cm q
-.Em Quit method execution:
+.Em Quit method execution :
 Terminates execution of the current Control Method.  If
 .Nm
 is not in execution, this command causes to input the next
@@ -146,27 +146,27 @@ terminates
 .Nm
 itself.
 .It Cm t
-.Em Show local name space tree and variables:
+.Em Show local name space tree and variables :
 Displays the structure of the ACPI namespace tree.  If
 .Nm
 is in execution, this command displays the structure that relates
 to the objects, arguments, and local variables below the scope of the
 current Control Method.
 .It Cm i
-.Em Toggle region input prompt:
+.Em Toggle region input prompt :
 Switches whether the prompt for modifying the value read from the
 .Em region contents
 be showed or not.  Default is On.
 .It Cm o
-.Em Toggle region output prompt:
+.Em Toggle region output prompt :
 Switches whether the prompt for modifying the value to be written
 to the region contents will be shown or not.  The default is Off.
 .It Cm m
-.Em Show memory management statistics:
+.Em Show memory management statistics :
 Displays the current statistics of the memory management system
 on the AML interpreter.
 .It Cm r Ar method
-.Em Run specified method:
+.Em Run specified method :
 Executes the specified Control Method.  If it requires one or
 more arguments, a prompt such as the following appears;
 .Bd -literal
@@ -192,7 +192,7 @@ is identified.  For example, we can enter as follows:
 .Ed
 .Pp
 .It Cm f Ar string
-.Em Find named objects from namespace:
+.Em Find named objects from namespace :
 Lists the named objects that includes the specified string as the
 terminate elements searching from the ACPI namespace.  For the
 namespace is expressed as the sequence of four-character elements,
@@ -202,7 +202,7 @@ characters are necessary for specifying objects which have less than four
 character string.  Unless additional underscores specified, matching
 occurs as the beginning of word with the specified number of characters.
 .It Cm h
-.Em Show help messsage:
+.Em Show help messsage :
 Displays the command summary of
 .Nm .
 .El
@@ -313,7 +313,6 @@ yet implemented because nobody has ever needed it.
 .Sh FILES
 .Bl -tag -width region.ini -compact
 .It Pa region.ini
-.br
 .It Pa region.dmp
 .El
 .Sh SEE ALSO

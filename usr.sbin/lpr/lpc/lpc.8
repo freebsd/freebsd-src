@@ -40,10 +40,7 @@
 .Nd line printer control program
 .Sh SYNOPSIS
 .Nm
-.Oo
-.Ar command
-.Op Ar argument ...
-.Oc
+.Op Ar command Op Ar argument ...
 .Sh DESCRIPTION
 .Nm Lpc
 is used by the system administrator to control the
@@ -77,31 +74,44 @@ to read commands from file.
 Commands may be abbreviated;
 the following is the list of recognized commands.
 .Pp
-.Bl -tag -width Ds -compact
-.It Ic \&? No [ command ... ]
-.It Ic help No [ command ... ]
+.Bl -tag -width indent -compact
+.It Ic \&? Op Ar command ...
+.It Ic help Op Ar command ...
 Print a short description of each command specified in the argument list,
 or, if no argument is given, a list of the recognized commands.
 .Pp
-.It Ic abort  No {\ all\ |\ printer\ }
+.It Ic abort Xo
+.Es \&{ \&}
+.En Cm all | Ar printer
+.Xc
 Terminate an active spooling daemon on the local host immediately and
 then disable printing (preventing new daemons from being started by
 .Xr lpr 1 )
 for the specified printers.
 .Pp
-.It Ic clean  No {\ all\ |\ printer\ }
+.It Ic clean Xo
+.Es \&{ \&}
+.En Cm all | Ar printer
+.Xc
 Remove any temporary files, data files, and control files that cannot
 be printed (i.e., do not form a complete printer job)
 from the specified printer queue(s) on the local machine.
 .Pp
-.It Ic disable  No {\ all\ |\ printer\ }
+.It Ic disable Xo
+.Es \&{ \&}
+.En Cm all | Ar printer
+.Xc
 Turn the specified printer queues off.  This prevents new
 printer jobs from being entered into the queue by
 .Xr lpr 1 .
 .Pp
-.It Ic down No {\ all\ |\ printer\ } message ...
+.It Ic down Xo
+.Es \&{ \&}
+.En Cm all | Ar printer
+.Ar message ...
+.Xc
 Turn the specified printer queue off, disable printing and put
-.Em message
+.Ar message
 in the printer status file.
 The message doesn't need to be quoted, the
 remaining arguments are treated like
@@ -110,7 +120,10 @@ This is normally used to take a printer down and let others know why
 .Xr lpq 1
 will indicate the printer is down and print the status message).
 .Pp
-.It Ic enable  No {\ all\ |\ printer\ }
+.It Ic enable Xo
+.Es \&{ \&}
+.En Cm all | Ar printer
+.Xc
 Enable spooling on the local queue for the listed printers. 
 This will allow
 .Xr lpr 1
@@ -118,32 +131,50 @@ to put new jobs in the spool queue.
 .Pp
 .It Ic exit
 .It Ic quit
-Exit from lpc.
-.\" ne 1i
+Exit from
+.Nm .
 .Pp
-.It Ic restart  No {\ all\ |\ printer\ }
+.It Ic restart Xo
+.Es \&{ \&}
+.En Cm all | Ar printer
+.Xc
 Attempt to start a new printer daemon. 
 This is useful when some abnormal condition causes the daemon to
 die unexpectedly, leaving jobs in the queue.
-.Xr Lpq 1
+.Xr lpq 1
 will report that there is no daemon present when this condition occurs. 
 If the user is the super-user,
 try to abort the current daemon first (i.e., kill and restart a stuck daemon).
 .Pp
-.It Ic start  No {\ all\ |\ printer\ }
+.It Ic start Xo
+.Es \&{ \&}
+.En Cm all | Ar printer
+.Xc
 Enable printing and start a spooling daemon for the listed printers.
 .Pp
-.It Ic status  No {\ all\ |\ printer\ }
+.It Ic status Xo
+.Es \&{ \&}
+.En Cm all | Ar printer
+.Xc
 Display the status of daemons and queues on the local machine.
 .Pp
-.It Ic stop  No {\ all\ |\ printer\ }
+.It Ic stop Xo
+.Es \&{ \&}
+.En Cm all | Ar printer
+.Xc
 Stop a spooling daemon after the current job completes and disable
 printing.
 .Pp
-.It Ic topq No printer\ [\ jobnum\ ...\ ]\ [\ user\ ...\ ]
+.It Ic topq Ar printer Xo
+.Op Ar jobnum ...
+.Op Ar user ...
+.Xc
 Place the jobs in the order listed at the top of the printer queue.
 .Pp
-.It Ic up  No {\ all\ |\ printer\ }
+.It Ic up Xo
+.Es \&{ \&}
+.En Cm all | Ar printer
+.Xc
 Enable everything and start a new printer daemon.
 Undoes the effects of
 .Ic down .
@@ -164,7 +195,7 @@ lock file for queue control
 .Xr printcap 5 ,
 .Xr lpd 8
 .Sh DIAGNOSTICS
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Sy "?Ambiguous command"
 abbreviation matches more than one command
 .It Sy "?Invalid command"

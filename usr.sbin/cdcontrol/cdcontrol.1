@@ -55,7 +55,11 @@ to track
 .Ar last_track .
 The first track has number 1.
 Can be omitted in all cases.
-.It Cm play Ar start_m:start_s.start_f Op Ar end_m:end_s.end_f
+.It Cm play Xo
+.Ar start_m : Ns Ar start_s . Ns Ar start_f
+.Oo Ar end_m : Ns Ar end_s . Ns
+.Ar end_f Oc
+.Xc
 Play from the absolute address
 (MSF) defined by 
 .Ar start_m

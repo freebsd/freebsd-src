@@ -47,11 +47,11 @@
 .Nm
 .Op Fl cdeguv
 .Oo Fl s Ar option Ns
-.Op , Ns Ar option Ns Ar ...\& Oc
+.Op , Ns Ar option Ns Ar ... Oc
 .Oo Fl r Ar option Ns
-.Op , Ns Ar option Ns Ar ...\& Oc
+.Op , Ns Ar option Ns Ar ... Oc
 .Op Fl S Ar value
-.Ar special_file Ar [regular_file]
+.Ar special_file Op Ar regular_file
 .Op Ar feature
 .Nm
 .Fl a 
@@ -144,7 +144,13 @@ Set
 The list of allowed flags and their meanings are the same as for the
 .Fl r
 option.
-.It Fl S Ar value{k,m,g,t}
+.It Fl S Xo
+.Sm off
+.Ar value
+.Es \&{ \&}
+.En Cm k , m , g , t
+.Sm on
+.Xc
 If no regular file is specified, VN will use swap for backing store.
 This option specifies the size of the device and implies the
 .Fl c

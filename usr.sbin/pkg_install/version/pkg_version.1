@@ -61,7 +61,7 @@ cannot be located,
 .Nm
 will search for the package in the ports collection index file
 (typically
-.Pa /usr/ports/INDEX ).  
+.Pa /usr/ports/INDEX ) .
 Any matching version number(s) there will be used to determine whether
 the installed package is up-to-date or requires updating.
 .Pp
@@ -78,13 +78,13 @@ Each package name is printed, along with a one-character status flag:
 .Bl -tag -width indent
 .It Li =
 The installed version of the package is current.
-.It Li <
+.It Li \&<
 The installed version of the package is older than the current version.
-.It Li >
+.It Li \&>
 The installed version of the package is newer than the current version.
 This situation can arise with an out-of-date index file, or when
 testing new ports.
-.It Li ?
+.It Li \&?
 The installed package does not appear in the index. 
 This could be due to an out of date index or a package taken from a PR 
 that has not yet been committed.
@@ -96,7 +96,7 @@ Examples from the
 ports collection are the Tcl toolkit or the
 .Tn EMACS
 editor.
-.It Li !
+.It Li \&!
 The installed package exists in the index but for some reason,
 .Nm
 was unable to compare the version number of the installed package

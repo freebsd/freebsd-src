@@ -385,24 +385,22 @@ as it requires extra reassembly at forwarding node
 .It Ar policy
 .Ar policy
 is the one of following:
-.Bd -literal -offset
-.Xo
+.Pp
+.Bl -item -compact
+.It
 .Fl P
 .Ar direction
 .Li discard
-.Xc
-.Xo
+.It
 .Fl P
 .Ar direction
 .Li none
-.Xc
-.Xo
+.It
 .Fl P
 .Ar direction
 .Li ipsec
 .Ar protocol/mode/src-dst/level
-.Xc
-.Ed
+.El
 .Pp
 You must specify the direction of its policy as
 .Ar direction .
