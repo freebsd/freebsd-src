@@ -1,7 +1,7 @@
 		     Internet Software Consortium
 	   Dynamic Host Configuration Protocol Distribution
-		   Version 2, Beta 1, Patchlevel 17
-			  February 27, 1998
+		   Version 2, Beta 1, Patchlevel 18
+			    March 5, 1998
 
 This is the first Beta release of Version 2 of the Internet Software
 Consortium DHCP Distribution.  In version 2.0, this distribution
@@ -47,9 +47,9 @@ information.   On Digital Unix, type ``man pfilt''.
 To build the DHCP Distribution, unpack the compressed tar file using
 the tar utility and the gzip command - type something like:
 
-	zcat dhcp-2.0b1pl17.tar.gz |tar xvf -
+	zcat dhcp-2.0b1pl18.tar.gz |tar xvf -
 
-Now, cd to the dhcp-2.0b1pl17 subdirectory that you've just created and
+Now, cd to the dhcp-2.0b1pl18 subdirectory that you've just created and
 configure the source tree by typing:
 
 		./configure
