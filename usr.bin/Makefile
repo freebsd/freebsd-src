@@ -122,6 +122,7 @@ SUBDIR=	alias \
 	ncal \
 	${_ncplist} \
 	${_ncplogin} \
+	${_netcat} \
 	netstat \
 	newgrp \
 	${_newkey} \
@@ -248,6 +249,10 @@ _bluetooth=	bluetooth
 .if !defined(NOCRYPT) && !defined(NO_OPENSSL)
 _chkey=		chkey
 _newkey=	newkey
+.endif
+
+.if !defined(NO_NETCAT)
+_netcat=	nc
 .endif
 
 .if !defined(NO_NIS) 

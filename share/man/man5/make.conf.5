@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 19, 2004
+.Dd January 13, 2005
 .Dt MAKE.CONF 5
 .Os
 .Sh NAME
@@ -520,6 +520,11 @@ MTA selector.
 .It Va NOMAN
 .Pq Vt bool
 Set to not build manual pages.
+.It Va NO_NETCAT
+.Pq Vt bool
+Set to not build
+.Xr nc 1
+utility.
 .It Va NO_NIS
 .Pq Vt bool
 Set to not build
