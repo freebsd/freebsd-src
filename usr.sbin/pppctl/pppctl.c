@@ -1,6 +1,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <sys/un.h>
 #include <netdb.h>
 #include <signal.h>
@@ -170,6 +171,7 @@ main(int argc, char **argv)
         }
     } else {
         char *port, *host, *colon;
+	int hlen;
 
         colon = strchr(argv[arg], ':');
         if (colon) {
@@ -178,15 +180,24 @@ main(int argc, char **argv)
             host = argv[arg];
         } else {
             port = argv[arg];
-            host = "localhost";
+            host = "127.0.0.1";
         }
         sock = (struct sockaddr *)&ifsin;
         socksz = sizeof ifsin;
+        hlen = strlen(host);
 
-        if ((h = gethostbyname(host)) == 0) {
+        if (strspn(host, "0123456789.") == hlen) {
+            if (!inet_aton(host, (struct in_addr *)&ifsin.sin_addr.s_addr)) {
+                fprintf(stderr, "Cannot translate %s\n", host);
+                return 1;
+            }
+        } else if ((h = gethostbyname(host)) == 0) {
             fprintf(stderr, "Cannot resolve %s\n", host);
             return 1;
         }
+        else
+            ifsin.sin_addr.s_addr = *(u_long *)h->h_addr_list[0];
+
         if (colon)
             *colon = ':';
 
@@ -201,7 +212,6 @@ main(int argc, char **argv)
 
         ifsin.sin_len = sizeof(ifsin);
         ifsin.sin_family = AF_INET;
-        ifsin.sin_addr.s_addr = *(u_long *)h->h_addr_list[0];
 
         if (fd = socket(AF_INET, SOCK_STREAM, 0), fd < 0) {
             fprintf(stderr, "Cannot create internet socket\n");

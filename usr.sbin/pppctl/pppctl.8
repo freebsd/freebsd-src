@@ -1,4 +1,4 @@
-.\" $Id:$
+.\" $Id: pppctl.8,v 1.1 1997/06/28 01:04:52 brian Exp $
 .Dd 26 June 1997
 .Os FreeBSD
 .Dt PPPCTL 8
@@ -11,7 +11,7 @@ PPP control program
 .Op Fl v
 .Op Fl t Ar n
 .Op Fl p Ar passwd
-.Ar Port | LocalSocket
+.Ar [host:]Port | LocalSocket
 .Ar command
 .Op Ar ;command
 .Ar ...
@@ -26,11 +26,14 @@ expects at least two arguments.  The first is interpreted as the
 socket on which the
 .Nm ppp
 daemon is listening.  If the socket contains a leading '/', it
-is taken as an AF_LOCAL socket.  If it consists entirely of numbers,
-it is interpreted as a TCP port number on localhost.  If it contains
-any characters, the first of which is not a '/' character, it is
-interpreted as an entry of type "tcp" from
+is taken as an AF_LOCAL socket.  If it contains a colon, it is
+treated as a host:port pair, otherwise it is treated as just a
+port specification on the local machine (127.0.0.1).  Both the
+host and port may be specified numerically if you wish to avoid
+a DNS lookup or don't have an entry for the given port in
 .Pa /etc/services .
+
+.Pp
 All remaining arguments are concatenated to form the command(s) that
 will be sent to the
 .Nm ppp
