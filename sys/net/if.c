@@ -650,8 +650,10 @@ ifioctl(so, cmd, data, p)
 		if (ifr->ifr_mtu < 72 || ifr->ifr_mtu > 65535)
 			return (EINVAL);
 		error = (*ifp->if_ioctl)(ifp, cmd, data);
-		if (error == 0)
+		if (error == 0) {
 			getmicrotime(&ifp->if_lastchange);
+			rt_ifmsg(ifp);
+		}
 		return(error);
 
 	case SIOCADDMULTI:
