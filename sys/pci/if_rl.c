@@ -157,8 +157,10 @@ static struct rl_type rl_devs[] = {
 		"D-Link DFE-690TXD 10/100BaseTX" },
 	{ NORTEL_VENDORID, ACCTON_DEVICEID_5030,
 		"Nortel Networks 10/100BaseTX" },
-	{ COREGA_VENDORID, COREGA_DEVICEID_CBTXD,
+	{ COREGA_VENDORID, COREGA_DEVICEID_FETHERCBTXD,
 		"Corega FEther CB-TXD" },
+	{ COREGA_VENDORID, COREGA_DEVICEID_FETHERIICBTXD,
+		"Corega FEtherII CB-TXD" },
 	{ 0, 0, NULL }
 };
 
@@ -986,7 +988,8 @@ rl_attach(dev)
 	if (rl_did == RT_DEVICEID_8139 || rl_did == ACCTON_DEVICEID_5030 ||
 	    rl_did == DELTA_DEVICEID_8139 || rl_did == ADDTRON_DEVICEID_8139 ||
 	    rl_did == RT_DEVICEID_8138 || rl_did == DLINK_DEVICEID_530TXPLUS ||
-	    rl_did == DLINK_DEVICEID_690TXD || rl_did == COREGA_DEVICEID_CBTXD)
+	    rl_did == DLINK_DEVICEID_690TXD || rl_did == COREGA_DEVICEID_CBTXD ||
+	    rl_did == COREGA_DEVICEID_CBTXD)
 		sc->rl_type = RL_8139;
 	else if (rl_did == RT_DEVICEID_8129)
 		sc->rl_type = RL_8129;
