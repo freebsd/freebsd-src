@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.22.2.328
+    Original revision: 1.22.2.331
 -->
 
 <articleinfo>
@@ -145,6 +145,8 @@
     <sect3>
       <title>ネットワークインターフェイスの対応状況</title>
 
+      <para>cm ドライバが IPX に対応しました。</para>
+
       <para>&man.nge.4; ドライバがネットワークデバイスポーリング (
 	&man.polling.4;) に対応しました。</para>
 
@@ -197,6 +199,11 @@
         ドライバはライセンス上の問題により削除されました
         (実際には &release.prev; の公開時点ですでに削除されていたのですが、
         リリースノートには記載されていませんでした)。</para>
+
+      <para>&man.targ.4; ドライバが書き直され、
+        ダイレクトアクセスデバイスをエミュレートする新しいユーザモードが
+        <filename>/usr/share/examples/scsi_target</filename>
+        に追加されました。</para>
 
       <para>Tekram TRM-S1040 SCSI チップセットが搭載された
         SCSI アダプタに対応する trm ドライバが追加されました。</para>
@@ -275,6 +282,11 @@
     <para>FireWire サブシステムをユーザから操作・制御するための
       &man.fwcontrol.8; ユーティリティが追加されました。</para>
 
+    <para arch="alpha,i386"><filename>compat4x</filename>
+      配布物に、&os; 4.7-RELEASE に含まれる
+      <filename>libcrypto.so.2</filename>,
+      <filename>libssl.so.2</filename> ライブラリが追加されました。</para>
+
     <para>&man.ftpd.8; に、サーバメッセージ中に &man.ftpd.8;
       のバージョンやホスト名などの固有情報を表示しないようにする
       <option>-h</option> オプションが追加されました。</para>
@@ -310,6 +322,15 @@
     <para>&man.make.1; に新しいオプション <option>-C</option> が追加されました。
       これは、ターゲットを構築する前に、
       カレントディレクトリを指定されたディレクトリに移動します。</para>
+
+    <para>&man.mount.nfs.8; に、UDP マウントポイントに対して
+      &man.connect.2; を行なわないようにする <option>-c</option>
+      オプションが追加されました。このオプションは、サーバが
+      標準の NFS ポート番号である 2049 からの要求に応答しない、
+      あるいはその要求に対してサーバが異なる IP アドレスを
+      使って応答する (サーバがマルチホーム構成の場合など) 時に使います。
+      <varname>vfs.nfs.nfs_ip_paranoia</varname> sysctl 変数を
+      <literal>0</literal> にすると、このオプションがデフォルト動作になります。</para>
 
     <para>&man.newsyslog.8; に、エントリの圧縮処理の開始前に、
       前回開始した圧縮処理を強制終了させる
@@ -368,6 +389,11 @@
 
       <para><application>OpenSSH</application> がバージョン
         3.5p1 に更新されました。</para>
+
+      <para><application>OpenSSL</application> がリリース
+        0.9.7a に更新されました。
+        このリリースには、AES と &man.crypto.4;
+        デバイス対応が含まれています。</para>
 
       <para><application>sendmail</application> がバージョン
         8.12.7 に更新されました。</para>
