@@ -1,5 +1,4 @@
-/*	$FreeBSD$	*/
-/*	$KAME: policy_parse.y,v 1.10 2000/05/07 05:25:03 itojun Exp $	*/
+/*	$KAME: policy_parse.y,v 1.14 2003/06/27 03:39:20 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, 1998, and 1999 WIDE Project.
@@ -50,6 +49,9 @@
  */
 
 %{
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/socket.h>
@@ -85,8 +87,11 @@ static void policy_parse_request_init(void);
 static caddr_t policy_parse(char *msg, int msglen);
 
 extern void __policy__strbuffer__init__(char *msg);
+extern void __policy__strbuffer__free__(void);
 extern int yyparse(void);
 extern int yylex(void);
+
+extern char *__libipsecyytext;	/*XXX*/
 
 %}
 
@@ -210,8 +215,6 @@ void
 yyerror(msg)
 	char *msg;
 {
-	extern char *__libipsecyytext;	/*XXX*/
-
 	fprintf(stderr, "libipsec: %s while parsing \"%s\"\n",
 		msg, __libipsecyytext);
 
@@ -300,12 +303,14 @@ init_x_policy()
 		__ipsec_errcode = EIPSEC_NO_BUFS;
 		return -1;
 	}
+	memset(pbuf, 0, tlen);
 	p = (struct sadb_x_policy *)pbuf;
 	p->sadb_x_policy_len = 0;	/* must update later */
 	p->sadb_x_policy_exttype = SADB_X_EXT_POLICY;
 	p->sadb_x_policy_type = p_type;
 	p->sadb_x_policy_dir = p_dir;
-	p->sadb_x_policy_reserved = 0;
+	p->sadb_x_policy_id = 0;
+
 	offset = tlen;
 
 	__ipsec_errcode = EIPSEC_NO_ERROR;
@@ -398,6 +403,8 @@ policy_parse(msg, msglen)
 	__policy__strbuffer__init__(msg);
 
 	error = yyparse();	/* it must be set errcode. */
+	__policy__strbuffer__free__();
+
 	if (error) {
 		if (pbuf != NULL)
 			free(pbuf);
