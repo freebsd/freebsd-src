@@ -1,9 +1,9 @@
-#	$Id: Makefile,v 1.412 1998/10/09 07:07:55 jkh Exp $
+#	$Id: Makefile,v 1.413 1998/10/10 08:15:38 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
 # Where "/some/dir" is the pathname of a directory on a some
-# filesystem with at least 600MB of free space, "somename" is what
+# filesystem with at least 1000MB of free space, "somename" is what
 # you want the release to call itself and, optionally, which CVS "tag"
 # name should be used when checking out the sources to build the release
 # (default is HEAD).
