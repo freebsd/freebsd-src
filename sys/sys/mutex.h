@@ -449,22 +449,9 @@ void	witness_restore(struct mtx *, const char *, int);
 
 /* Common strings */
 #ifdef _KERN_MUTEX_C_
-#ifdef KTR_EXTEND
-
-/*
- * KTR_EXTEND saves file name and line for all entries, so we don't need them
- * here.  Theoretically we should also change the entries which refer to them
- * (from CTR5 to CTR3), but since they're just passed to snprintf as the last
- * parameters, it doesn't do any harm to leave them.
- */
-char	STR_mtx_enter_fmt[] = "GOT %s [%p] r=%d";
-char	STR_mtx_exit_fmt[] = "REL %s [%p] r=%d";
-char	STR_mtx_try_enter_fmt[] = "TRY_ENTER %s [%p] result=%d";
-#else
 char	STR_mtx_enter_fmt[] = "GOT %s [%p] r=%d at %s:%d";
 char	STR_mtx_exit_fmt[] = "REL %s [%p] r=%d at %s:%d";
 char	STR_mtx_try_enter_fmt[] = "TRY_ENTER %s [%p] result=%d at %s:%d";
-#endif
 char	STR_mtx_bad_type[] = "((type) & (MTX_NORECURSE | MTX_NOSWITCH)) == 0";
 char	STR_mtx_owned[] = "mtx_owned(mpp)";
 char	STR_mtx_recurse[] = "mpp->mtx_recurse == 0";
