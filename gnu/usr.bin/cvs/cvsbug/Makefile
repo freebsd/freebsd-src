@@ -21,6 +21,7 @@ cvsbug: cvsbug.in
 	    -e "s,@PACKAGE_BUGREPORT@,bug-cvs@gnu.org,g" \
 	    -e "s,@SENDMAIL@,/usr/sbin/sendmail,g" \
 	    -e "s,@MKTEMP_FUNCTION@,," \
+	    -e "s,@MKTEMP_SH_FUNCTION@,," \
 	    ${.ALLSRC} > ${.TARGET}
 
 .include <bsd.prog.mk>
