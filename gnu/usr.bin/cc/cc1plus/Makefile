@@ -13,7 +13,7 @@ SRCS+=	main.c cp-lang.c c-opts.c call.c class.c cvt.c cxx-pretty-print.c \
 
 BINDIR=	/usr/libexec
 NO_MAN=
-NOSHARED?=yes
+NO_SHARED?=yes
 
 CFLAGS+= -I${GCCDIR}/cp -I.
 

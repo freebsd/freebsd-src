@@ -12,7 +12,7 @@ SRCS+=	lstAppend.c lstConcat.c lstDeQueue.c lstDestroy.c \
 .PATH:	${.CURDIR}/lst.lib
 
 WARNS?=	3
-NOSHARED?=	YES
+NO_SHARED?=	YES
 
 CFLAGS+=-DMAKE_VERSION=\"5200408120\"
 .if defined(_UPGRADING)

@@ -1,5 +1,5 @@
 # $FreeBSD$
 
-NOSHARED?=	YES
+NO_SHARED?=	YES
 
 .include "../Makefile.inc"

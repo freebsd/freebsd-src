@@ -49,7 +49,7 @@ CFLAGS+=	-DCOMSPEED=${BOOT_COMCONSOLE_SPEED}
 
 CLEANFILES+=	boot.nohdr boot.strip boot.ldr boot1 boot2 sizetest
 LDFLAGS+=	-N -Ttext 0 -e start
-NOSHARED=	YES
+NO_SHARED=	YES
 NO_MAN=
 STRIP=
 

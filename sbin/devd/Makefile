@@ -5,7 +5,7 @@ SRCS=	devd.cc token.l parse.y y.tab.h
 MAN=	devd.8 devd.conf.5
 WARNS?=	1
 
-NOSHARED?=YES
+NO_SHARED?=YES
 
 DPADD=	${LIBL}
 LDADD=	-ll

@@ -43,7 +43,7 @@ CFLAGS+= -D_GNU_SOURCE
 CFLAGS+= -I${SRCDIR}/gas -I${SRCDIR}/gas/config -I${SRCDIR}
 CFLAGS+= -I${.CURDIR} -I${.CURDIR}/${TARGET_ARCH}-freebsd
 
-NOSHARED?=	yes
+NO_SHARED?=	yes
 
 DPADD=	${RELTOP}/libbfd/libbfd.a
 DPADD+=	${RELTOP}/libiberty/libiberty.a

@@ -19,6 +19,7 @@
 	NOOBJ:NO_OBJ \
 	NOPIC:NO_PIC \
 	NOPROFILE:NO_PROFILE \
+	NOSHARED:NO_SHARED \
 	NOTAGS:NO_TAGS
 .for old in ${oldnew:C/:.*//}
 .for new in ${oldnew:C/.*://}
