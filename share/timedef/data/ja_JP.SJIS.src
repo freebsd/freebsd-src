@@ -1,9 +1,6 @@
-# $Id: ja_JP.SJIS.src,v 1.1 1997/09/18 19:09:08 julian Exp $
+# $Id: ja_JP.SJIS.src,v 1.1.2.1 1997/09/18 19:22:45 julian Exp $
 #
-# submitted by: Nobuhrio Yasutomi <nobu@psrc.isac.co.jp>
-# 15 Sept 1997 
-# AM/PM changed to 2 letter versions for now, original SJIS versions
-# commented out. change/check later..
+#
 # WARNING: spaces may be essential at the end of lines
 # WARNING: empty lines are essential too
 #
@@ -24,44 +21,44 @@
 #
 # Long month names
 #
-1·î
-2·î
-3·î
-4·î
-5·î
-6·î
-7·î
-8·î
-9·î
-10·î
-11·î
-12·î
+1Œ
+2Œ
+3Œ
+4Œ
+5Œ
+6Œ
+7Œ
+8Œ
+9Œ
+10Œ
+11Œ
+12Œ
 #
 # Short weekday names
 #
 # it must be 3 char also
 # two char is our weekday name, and be careful one space is in the last
-Æü 
-·î 
-²Ğ 
-¿å 
-ÌÚ 
-¶â 
-ÅÚ 
+“ú 
+Œ 
+‰Î 
+… 
+–Ø 
+‹à 
+“y 
 #
 # Long weekday names
 #
-ÆüÍËÆü
-·îÍËÆü
-²ĞÍËÆü
-¿åÍËÆü
-ÌÚÍËÆü
-¶âÍËÆü
-ÅÚÍËÆü
+“ú—j“ú
+Œ—j“ú
+‰Î—j“ú
+…—j“ú
+–Ø—j“ú
+‹à—j“ú
+“y—j“ú
 #
 # X_fmt
 #
-%H»ş%MÊ¬%SÉÃ
+%H%M•ª%S•b
 #
 # x_fmt
 #
@@ -71,21 +68,20 @@
 #
 # just following tradition...
 # %a %b %e %H:%M:%S %Y
-# %Y³â %b¿ù %eÀÏ %a¿äÀÏ %X
 %a %b/%e %T %Y
 #
 # am
 #
 # it must be 2 char  
-#¸áÁ°
+#Œß‘O
 AM
 #
 # pm
 #
 # it must be 2 char  
-#¸á¸å
+#ŒßŒã
 PM
 #
 # date_fmt
 #
-%YÇ¯ %B%eÆü %A %X %Z
+%Y”N %B%e“ú %A %X %Z
