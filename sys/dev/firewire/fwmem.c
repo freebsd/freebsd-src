@@ -44,6 +44,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/conf.h>
 #include <sys/sysctl.h>
+#if __FreeBSD_version < 500000
+#include <sys/buf.h>
+#else
+#include <sys/bio.h>
+#endif
 
 #include <sys/bus.h>
 #include <machine/bus.h>
@@ -70,6 +75,8 @@ SYSCTL_INT(_hw_firewire_fwmem, OID_AUTO, speed, CTLFLAG_RW, &fwmem_speed, 0,
 SYSCTL_INT(_debug, OID_AUTO, fwmem_debug, CTLFLAG_RW, &fwmem_debug, 0,
 	"Fwmem driver debug flag");
 
+#define MAXLEN (512 << fwmem_speed)
+
 static struct fw_xfer *
 fwmem_xfer_req(
 	struct fw_device *fwdev,
@@ -81,19 +88,21 @@ fwmem_xfer_req(
 {
 	struct fw_xfer *xfer;
 
-	xfer = fw_xfer_alloc_buf(M_FWXFER, slen, rlen);
+	xfer = fw_xfer_alloc(M_FWXFER);
 	if (xfer == NULL)
 		return NULL;
 
 	xfer->fc = fwdev->fc;
-	xfer->dst = FWLOCALBUS | fwdev->dst;
+	xfer->send.hdr.mode.hdr.dst = FWLOCALBUS | fwdev->dst;
 	if (spd < 0)
-		xfer->spd = fwdev->speed;
+		xfer->send.spd = fwdev->speed;
 	else
-		xfer->spd = min(spd, fwdev->speed);
+		xfer->send.spd = min(spd, fwdev->speed);
 	xfer->act.hand = hand;
 	xfer->retry_req = fw_asybusy;
 	xfer->sc = sc;
+	xfer->send.pay_len = slen;
+	xfer->recv.pay_len = rlen;
 
 	return xfer;
 }
@@ -105,20 +114,24 @@ fwmem_read_quad(
 	u_int8_t spd,
 	u_int16_t dst_hi,
 	u_int32_t dst_lo,
+	void *data,
 	void (*hand)(struct fw_xfer *))
 {
 	struct fw_xfer *xfer;
 	struct fw_pkt *fp;
 
-	xfer = fwmem_xfer_req(fwdev, sc, spd, 12, 16, hand);
-	if (xfer == NULL)
+	xfer = fwmem_xfer_req(fwdev, (void *)sc, spd, 0, 4, hand);
+	if (xfer == NULL) {
 		return NULL;
+	}
 
-	fp = (struct fw_pkt *)xfer->send.buf;
+	fp = &xfer->send.hdr;
 	fp->mode.rreqq.tcode = FWTCODE_RREQQ;
-	fp->mode.rreqq.dst = xfer->dst;
 	fp->mode.rreqq.dest_hi = dst_hi;
 	fp->mode.rreqq.dest_lo = dst_lo;
+
+	xfer->send.payload = NULL;
+	xfer->recv.payload = (u_int32_t *)data;
 
 	if (fwmem_debug)
 		printf("fwmem_read_quad: %d %04x:%08x\n", fwdev->dst,
@@ -138,27 +151,27 @@ fwmem_write_quad(
 	u_int8_t spd,
 	u_int16_t dst_hi,
 	u_int32_t dst_lo,
-	u_int32_t data,
+	void *data,
 	void (*hand)(struct fw_xfer *))
 {
 	struct fw_xfer *xfer;
 	struct fw_pkt *fp;
 
-	xfer = fwmem_xfer_req(fwdev, sc, spd, 16, 12, hand);
+	xfer = fwmem_xfer_req(fwdev, sc, spd, 0, 0, hand);
 	if (xfer == NULL)
 		return NULL;
 
-	fp = (struct fw_pkt *)xfer->send.buf;
+	fp = &xfer->send.hdr;
 	fp->mode.wreqq.tcode = FWTCODE_WREQQ;
-	fp->mode.wreqq.dst = xfer->dst;
 	fp->mode.wreqq.dest_hi = dst_hi;
 	fp->mode.wreqq.dest_lo = dst_lo;
+	fp->mode.wreqq.data = *(u_int32_t *)data;
 
-	fp->mode.wreqq.data = data;
+	xfer->send.payload = xfer->recv.payload = NULL;
 
 	if (fwmem_debug)
 		printf("fwmem_write_quad: %d %04x:%08x %08x\n", fwdev->dst,
-			dst_hi, dst_lo, data);
+			dst_hi, dst_lo, *(u_int32_t *)data);
 
 	if (fw_asyreq(xfer->fc, -1, xfer) == 0)
 		return xfer;
@@ -175,21 +188,25 @@ fwmem_read_block(
 	u_int16_t dst_hi,
 	u_int32_t dst_lo,
 	int len,
+	void *data,
 	void (*hand)(struct fw_xfer *))
 {
 	struct fw_xfer *xfer;
 	struct fw_pkt *fp;
-
-	xfer = fwmem_xfer_req(fwdev, sc, spd, 16, roundup2(16+len,4), hand);
+	
+	xfer = fwmem_xfer_req(fwdev, sc, spd, 0, roundup2(len, 4), hand);
 	if (xfer == NULL)
 		return NULL;
 
-	fp = (struct fw_pkt *)xfer->send.buf;
+	fp = &xfer->send.hdr;
 	fp->mode.rreqb.tcode = FWTCODE_RREQB;
-	fp->mode.rreqb.dst = xfer->dst;
 	fp->mode.rreqb.dest_hi = dst_hi;
 	fp->mode.rreqb.dest_lo = dst_lo;
 	fp->mode.rreqb.len = len;
+	fp->mode.rreqb.extcode = 0;
+
+	xfer->send.payload = NULL;
+	xfer->recv.payload = data;
 
 	if (fwmem_debug)
 		printf("fwmem_read_block: %d %04x:%08x %d\n", fwdev->dst,
@@ -209,23 +226,25 @@ fwmem_write_block(
 	u_int16_t dst_hi,
 	u_int32_t dst_lo,
 	int len,
-	char *data,
+	void *data,
 	void (*hand)(struct fw_xfer *))
 {
 	struct fw_xfer *xfer;
 	struct fw_pkt *fp;
 
-	xfer = fwmem_xfer_req(fwdev, sc, spd, roundup(16+len, 4), 12, hand);
+	xfer = fwmem_xfer_req(fwdev, sc, spd, len, 0, hand);
 	if (xfer == NULL)
 		return NULL;
 
-	fp = (struct fw_pkt *)xfer->send.buf;
+	fp = &xfer->send.hdr;
 	fp->mode.wreqb.tcode = FWTCODE_WREQB;
-	fp->mode.wreqb.dst = xfer->dst;
 	fp->mode.wreqb.dest_hi = dst_hi;
 	fp->mode.wreqb.dest_lo = dst_lo;
 	fp->mode.wreqb.len = len;
-	bcopy(data, &fp->mode.wreqb.payload[0], len);
+	fp->mode.wreqb.extcode = 0;
+
+	xfer->send.payload = data;
+	xfer->recv.payload = NULL;
 
 	if (fwmem_debug)
 		printf("fwmem_write_block: %d %04x:%08x %d\n", fwdev->dst,
@@ -252,6 +271,7 @@ fwmem_open (dev_t dev, int flags, int fmt, fw_proc *td)
 		return ENOMEM;
 	bcopy(&fwmem_eui64, eui, sizeof(struct fw_eui64));
 	dev->si_drv1 = (void *)eui;
+	dev->si_iosize_max = DFLTPHYS;
 
 	return (0);
 }
@@ -265,145 +285,90 @@ fwmem_close (dev_t dev, int flags, int fmt, fw_proc *td)
 	return (0);
 }
 
-#define MAXLEN 2048
-#define USE_QUAD 0
-int
-fwmem_read (dev_t dev, struct uio *uio, int ioflag)
+
+static void
+fwmem_biodone(struct fw_xfer *xfer)
 {
-	struct firewire_softc *sc;
-	struct fw_device *fwdev;
-	struct fw_xfer *xfer;
-	int err = 0;
-        int unit = DEV2UNIT(dev);
-	u_int16_t dst_hi;
-	u_int32_t dst_lo;
-	off_t offset;
-	int len, s;
+	struct bio *bp;
 
-	sc = devclass_get_softc(firewire_devclass, unit);
-	fwdev = fw_noderesolve_eui64(sc->fc, (struct fw_eui64 *)dev->si_drv1);
-	if (fwdev == NULL) {
-		if (fwmem_debug)
-			printf("fwmem: no such device ID:%08x%08x\n",
-					fwmem_eui64.hi, fwmem_eui64.lo);
-		return EINVAL;
+	bp = (struct bio *)xfer->sc;
+	bp->bio_error = xfer->resp;
+
+	if (bp->bio_error != 0) {
+		printf("%s: err=%d\n", __FUNCTION__, bp->bio_error);
+		bp->bio_flags |= BIO_ERROR;
+		bp->bio_resid = bp->bio_bcount;
 	}
 
-	while(uio->uio_resid > 0 && !err) {
-		offset = uio->uio_offset;
-		dst_hi = (offset >> 32) & 0xffff;
-		dst_lo = offset & 0xffffffff;
-		len = uio->uio_resid;
-		if (len == 4 && (dst_lo & 3) == 0) {
-			s = splfw();
-			xfer = fwmem_read_quad(fwdev, NULL, fwmem_speed,
-				dst_hi, dst_lo, fw_asy_callback);
-			if (xfer == NULL) {
-				err = EINVAL;
-				splx(s);
-				break;
-			}
-			err = tsleep((caddr_t)xfer, FWPRI, "fwmrq", 0);
-			splx(s);
-			if (xfer->recv.buf == NULL)
-				err = EIO;
-			else if (xfer->resp != 0)
-				err = xfer->resp;
-			else if (err == 0)
-				err = uiomove(xfer->recv.buf + 4*3, 4, uio);
-		} else {
-			if (len > MAXLEN)
-				len = MAXLEN;
-			s = splfw();
-			xfer = fwmem_read_block(fwdev, NULL, fwmem_speed,
-				dst_hi, dst_lo, len, fw_asy_callback);
-			if (xfer == NULL) {
-				err = EINVAL;
-				splx(s);
-				break;
-			}
-			err = tsleep((caddr_t)xfer, FWPRI, "fwmrb", 0);
-			splx(s);
-			if (xfer->recv.buf == NULL)
-				err = EIO;
-			else if (xfer->resp != 0)
-				err = xfer->resp;
-			else if (err == 0)
-				err = uiomove(xfer->recv.buf + 4*4, len, uio);
-		}
-		fw_xfer_free(xfer);
-	}
-	return err;
+	fw_xfer_free(xfer);
+	biodone(bp);
 }
-int
-fwmem_write (dev_t dev, struct uio *uio, int ioflag)
+
+void
+fwmem_strategy(struct bio *bp)
 {
 	struct firewire_softc *sc;
 	struct fw_device *fwdev;
 	struct fw_xfer *xfer;
-	int err = 0;
-        int unit = DEV2UNIT(dev);
-	u_int16_t dst_hi;
-	u_int32_t dst_lo, quad;
-	char *data;
-	off_t offset;
-	int len, s;
+	dev_t dev;
+	int unit, err=0, s, iolen;
 
+	KASSERT(BUF_REFCNT(bp) > 0, ("fwmem_strategy: bp %p not busy %d", bp, BUF_REFCNT(bp)));
+	dev = bp->bio_dev;
+	/* XXX check request length */
+
+        unit = DEV2UNIT(dev);
 	sc = devclass_get_softc(firewire_devclass, unit);
+
+	s = splfw();
 	fwdev = fw_noderesolve_eui64(sc->fc, (struct fw_eui64 *)dev->si_drv1);
 	if (fwdev == NULL) {
 		if (fwmem_debug)
 			printf("fwmem: no such device ID:%08x%08x\n",
 					fwmem_eui64.hi, fwmem_eui64.lo);
-		return EINVAL;
+		err = EINVAL;
+		goto error;
 	}
 
-	data = malloc(MAXLEN, M_FW, M_WAITOK);
-	if (data == NULL)
-		return ENOMEM;
-
-	while(uio->uio_resid > 0 && !err) {
-		offset = uio->uio_offset;
-		dst_hi = (offset >> 32) & 0xffff;
-		dst_lo = offset & 0xffffffff;
-		len = uio->uio_resid;
-		if (len == 4 && (dst_lo & 3) == 0) {
-			err = uiomove((char *)&quad, sizeof(quad), uio);
-			s = splfw();
-			xfer = fwmem_write_quad(fwdev, NULL, fwmem_speed,
-				dst_hi, dst_lo, quad, fw_asy_callback);
-			if (xfer == NULL) {
-				err = EINVAL;
-				splx(s);
-				break;
-			}
-			err = tsleep((caddr_t)xfer, FWPRI, "fwmwq", 0);
-			splx(s);
-			if (xfer->resp != 0)
-				err = xfer->resp;
-		} else {
-			if (len > MAXLEN)
-				len = MAXLEN;
-			err = uiomove(data, len, uio);
-			if (err)
-				break;
-			s = splfw();
-			xfer = fwmem_write_block(fwdev, NULL, fwmem_speed,
-				dst_hi, dst_lo, len, data, fw_asy_callback);
-			if (xfer == NULL) {
-				err = EINVAL;
-				splx(s);
-				break;
-			}
-			err = tsleep((caddr_t)xfer, FWPRI, "fwmwb", 0);
-			splx(s);
-			if (xfer->resp != 0)
-				err = xfer->resp;
-		}
-		fw_xfer_free(xfer);
+	iolen = MIN(bp->bio_bcount, MAXLEN);
+	if ((bp->bio_cmd & BIO_READ) == BIO_READ) {
+		if (iolen == 4 && (bp->bio_offset & 3) == 0)
+			xfer = fwmem_read_quad(fwdev,
+			    (void *) bp, fwmem_speed,
+			    bp->bio_offset >> 32, bp->bio_offset & 0xffffffff,
+			    bp->bio_data, fwmem_biodone);
+		else
+			xfer = fwmem_read_block(fwdev,
+			    (void *) bp, fwmem_speed,
+			    bp->bio_offset >> 32, bp->bio_offset & 0xffffffff,
+			    iolen, bp->bio_data, fwmem_biodone);
+	} else {
+		if (iolen == 4 && (bp->bio_offset & 3) == 0)
+			xfer = fwmem_write_quad(fwdev,
+			    (void *)bp, fwmem_speed,
+			    bp->bio_offset >> 32, bp->bio_offset & 0xffffffff,
+			    bp->bio_data, fwmem_biodone);
+		else
+			xfer = fwmem_write_block(fwdev,
+			    (void *)bp, fwmem_speed,
+			    bp->bio_offset >> 32, bp->bio_offset & 0xffffffff,
+			    iolen, bp->bio_data, fwmem_biodone);
 	}
-	free(data, M_FW);
-	return err;
+	if (xfer == NULL) {
+		err = EIO;
+		goto error;
+	}
+	/* XXX */
+	bp->bio_resid = bp->bio_bcount - iolen;
+error:
+	splx(s);
+	if (err != 0) {
+		printf("%s: err=%d\n", __FUNCTION__, err);
+		bp->bio_error = err;
+		bp->bio_flags |= BIO_ERROR;
+		bp->bio_resid = bp->bio_bcount;
+		biodone(bp);
+	}
 }
 
 int
