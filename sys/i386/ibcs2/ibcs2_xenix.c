@@ -260,14 +260,18 @@ ibcs2_cxenix(struct proc *p, void *args, int *retval)
 			*retval = (OPEN_MAX);
 			break;
 		case 5:		/* _SC_JOB_CONTROL */
-#ifdef _POSIX_JOB_CONTORL
-			*retval = _POSIX_JOB_CONTORL;
+#ifdef _POSIX_JOB_CONTROL
+			*retval = (1);
 #else
-			*retval = (0);
+			*retval = (-1);
 #endif
 			break;
 		case 6:		/* _SC_SAVED_IDS */
-			*retval = (0);
+#ifdef _POSIX_SAVED_IDS
+			*retval = (1);
+#else
+			*retval = (-1);
+#endif
 			break;
 		case 7:		/* _SC_VERSION */
 			*retval = (_POSIX_VERSION);
