@@ -1520,7 +1520,7 @@ ed_alloc_port(dev, rid, size)
 	if (res) {
 		sc->port_rid = rid;
 		sc->port_res = res;
-		sc->port_used = 1;
+		sc->port_used = size;
 		return (0);
 	} else {
 		return (ENOENT);
@@ -1544,7 +1544,7 @@ ed_alloc_memory(dev, rid, size)
 	if (res) {
 		sc->mem_rid = rid;
 		sc->mem_res = res;
-		sc->mem_used = 1;
+		sc->mem_used = size;
 		return (0);
 	} else {
 		return (ENOENT);
