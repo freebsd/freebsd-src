@@ -120,7 +120,7 @@ feed_root(pcm_feeder *feeder, u_int8_t *buffer, u_int32_t count, struct uio *str
 	if (!tmp) panic("feed_root: uiomove didn't");
 	return tmp;
 }
-pcm_feeder feeder_root = { "root", NULL, NULL, feed_root };
+pcm_feeder feeder_root = { "root", 0, NULL, NULL, feed_root };
 
 /*****************************************************************************/
 
@@ -137,7 +137,7 @@ feed_8to16(pcm_feeder *f, u_int8_t *b, u_int32_t count, struct uio *stream)
 	}
 	return k * 2;
 }
-static pcm_feeder feeder_8to16 = { "8to16", NULL, NULL, feed_8to16 };
+static pcm_feeder feeder_8to16 = { "8to16", 0, NULL, NULL, feed_8to16 };
 
 /*****************************************************************************/
 
@@ -169,7 +169,7 @@ feed_16to8le(pcm_feeder *f, u_int8_t *b, u_int32_t count, struct uio *stream)
 	return i;
 }
 static pcm_feeder feeder_16to8le =
-	{ "16to8le", feed_16to8_init, feed_16to8_free, feed_16to8le };
+	{ "16to8le", 1, feed_16to8_init, feed_16to8_free, feed_16to8le };
 
 /*****************************************************************************/
 
@@ -187,7 +187,7 @@ feed_monotostereo8(pcm_feeder *f, u_int8_t *b, u_int32_t count, struct uio *stre
 	return k * 2;
 }
 static pcm_feeder feeder_monotostereo8 =
-	{ "monotostereo8", NULL, NULL, feed_monotostereo8 };
+	{ "monotostereo8", 0, NULL, NULL, feed_monotostereo8 };
 
 /*****************************************************************************/
 
@@ -219,7 +219,7 @@ feed_stereotomono8(pcm_feeder *f, u_int8_t *b, u_int32_t count, struct uio *stre
 	return i;
 }
 static pcm_feeder feeder_stereotomono8 =
-	{ "stereotomono8", feed_stereotomono8_init, feed_stereotomono8_free,
+	{ "stereotomono8", 1, feed_stereotomono8_init, feed_stereotomono8_free,
 	feed_stereotomono8 };
 
 /*****************************************************************************/
@@ -237,7 +237,7 @@ feed_endian(pcm_feeder *f, u_int8_t *b, u_int32_t count, struct uio *stream)
 	}
 	return i;
 }
-static pcm_feeder feeder_endian = { "endian", NULL, NULL, feed_endian };
+static pcm_feeder feeder_endian = { "endian", -1, NULL, NULL, feed_endian };
 
 /*****************************************************************************/
 
@@ -253,9 +253,9 @@ feed_sign(pcm_feeder *f, u_int8_t *b, u_int32_t count, struct uio *stream)
 	return i;
 }
 static pcm_feeder feeder_sign8 =
-	{ "sign8", NULL, NULL, feed_sign, (void *)1 };
+	{ "sign8", 0, NULL, NULL, feed_sign, (void *)1 };
 static pcm_feeder feeder_sign16 =
-	{ "sign16", NULL, NULL, feed_sign, (void *)2 };
+	{ "sign16", -1, NULL, NULL, feed_sign, (void *)2 };
 
 /*****************************************************************************/
 
@@ -270,9 +270,9 @@ feed_table(pcm_feeder *f, u_int8_t *b, u_int32_t count, struct uio *stream)
 	return i;
 }
 static pcm_feeder feeder_ulawtou8 =
-	{ "ulawtou8", NULL, NULL, feed_table, ulaw_to_u8 };
+	{ "ulawtou8", 0, NULL, NULL, feed_table, ulaw_to_u8 };
 static pcm_feeder feeder_u8toulaw =
-	{ "u8toulaw", NULL, NULL, feed_table, u8_to_ulaw };
+	{ "u8toulaw", 0, NULL, NULL, feed_table, u8_to_ulaw };
 
 /*****************************************************************************/
 
@@ -358,6 +358,7 @@ chn_feedchain(pcm_channel *c)
 	struct fmtcvt *e;
 
 	while (chn_removefeeder(c) != -1);
+	c->align = 0;
 	if ((c->format & chn_getcaps(c)->formats) == c->format)
 		return c->format;
 	getspec(c->format, &s);
@@ -389,6 +390,8 @@ chn_addfeeder(pcm_channel *c, pcm_feeder *f)
 	n->source = c->feeder;
 	c->feeder = n;
 	if (n->init) n->init(n);
+	if (n->align > 0) c->align += n->align;
+	else if (n->align < 0 && c->align < -n->align) c->align -= n->align;
 	return 0;
 }
 

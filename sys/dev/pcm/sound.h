@@ -142,6 +142,7 @@ int fkchan_setup(pcm_channel *c);
 #define SND_DEV_SEQ2	8	/* /dev/sequencer, level 2 interface */
 #define SND_DEV_SNDPROC 9	/* /dev/sndproc for programmable devices */
 #define SND_DEV_PSS	SND_DEV_SNDPROC /* ? */
+#define SND_DEV_NORESET	10
 
 #define DSP_DEFAULT_SPEED	8000
 

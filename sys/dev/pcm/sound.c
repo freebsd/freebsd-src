@@ -84,6 +84,9 @@ nomenclature:
 	/dev/pcmX/status
 	/dev/pcmX/mixer
 	[etc.]
+
+currently:
+minor = (channel << 8) + (unit << 4) + dev
 */
 
 #define PCMMINOR(x) (minor(x))
@@ -235,6 +238,7 @@ sndopen(dev_t i_dev, int flags, int mode, struct proc *p)
     	case SND_DEV_AUDIO:
     	case SND_DEV_DSP:
     	case SND_DEV_DSP16:
+	case SND_DEV_NORESET:
 		return d? dsp_open(d, chan, flags, dev) : ENXIO;
 
     	default:
