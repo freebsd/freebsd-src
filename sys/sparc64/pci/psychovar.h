@@ -87,6 +87,8 @@ struct psycho_softc {
 
 	struct rman			sc_mem_rman;
 	struct rman			sc_io_rman;
+
+	SLIST_ENTRY(psycho_softc)	sc_link;
 };
 
 #endif /* _SPARC64_PCI_PSYCHOVAR_H_ */
