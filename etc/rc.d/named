@@ -84,7 +84,7 @@ named_precmd()
 		! checkyesno named_rcng && return 0
 		# Is the user using a sandbox?
 		if [ -z "$named_chrootdir" ]; then
-			rc_flags="-u $nuser -g $ngroup rc_flags"
+			rc_flags="-u $nuser -g $ngroup $rc_flags"
 			return 0
 		fi
 
