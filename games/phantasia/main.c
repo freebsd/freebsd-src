@@ -1277,10 +1277,22 @@ bool	doexit;
 	endwin();
 	}
 
-    fclose(Playersfp);
-    fclose(Monstfp);
-    fclose(Messagefp);
-    fclose(Energyvoidfp);
+    if (Playersfp) {
+	fclose(Playersfp);
+	Playersfp = NULL;
+    }
+    if (Monstfp) {
+	fclose(Monstfp);
+	Monstfp = NULL;
+    }
+    if (Messagefp) {
+	fclose(Messagefp);
+	Messagefp = NULL;
+    }
+    if (Energyvoidfp) {
+	fclose(Energyvoidfp);
+	Energyvoidfp = NULL;
+    }
 
     if (doexit)
 	exit(0);
