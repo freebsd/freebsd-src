@@ -547,8 +547,7 @@ pccbb_attach(device_t brdev)
 		return (ENOMEM);
 	}
 
-	/* XXX INTR_TYPE_BIO IS WRONG here */
-	if (bus_setup_intr(brdev, sc->sc_irq_res, INTR_TYPE_BIO, pccbb_intr, sc,
+	if (bus_setup_intr(brdev, sc->sc_irq_res, INTR_TYPE_AV, pccbb_intr, sc,
 	    &sc->sc_intrhand)) {
 		device_printf(brdev, "couldn't establish interrupt");
 		bus_release_resource(brdev, SYS_RES_IRQ, 0, sc->sc_irq_res);
@@ -652,6 +651,38 @@ pccbb_shutdown(device_t brdev)
 	pci_write_config(brdev, PCIR_COMMAND, 0, 2);
 	return (0);
 }
+
+static int
+pccbb_setup_intr(device_t dev, device_t child, struct resource *irq,
+  int flags, driver_intr_t *intr, void *arg, void **cookiep)
+{
+	int err;
+
+	/*
+	 * You aren't allowed to have fast interrupts for pccard/cardbus
+	 * things since those interrupts are PCI and shared.  Since we use
+	 * the PCI interrupt for the status change interrupts, it can't be
+	 * free for use by the driver.  Fast interrupts must not be shared.
+	 */
+	if ((flags & INTR_FAST) != 0)
+		return (EINVAL);
+	err = bus_generic_setup_intr(dev, child, irq, flags, intr, arg,
+	    cookiep);
+	/*
+	 * XXX need to turn on ISA interrupts, if we ever support them, but
+	 * XXX for now that's all we need to do.
+	 */
+	return (err);
+}
+
+static int
+pccbb_teardown_intr(device_t dev, device_t child, struct resource *irq,
+    void *cookie)
+{
+	/* XXX Need to do different things for ISA interrupts. */
+	return (bus_generic_teardown_intr(dev, child, irq, cookie));
+}
+
 
 static void
 pccbb_driver_added(device_t brdev, driver_t *driver)
@@ -1721,8 +1752,7 @@ pccbb_resume(device_t self)
 	pccbb_set(sc, PCCBB_SOCKET_EVENT, tmp);
 
 	/* re-establish the interrupt. */
-	/* XXX INTR_TYPE_BIOS IS WRONG here */
-	if (bus_setup_intr(self, sc->sc_irq_res, INTR_TYPE_BIO, pccbb_intr, sc,
+	if (bus_setup_intr(self, sc->sc_irq_res, INTR_TYPE_AV, pccbb_intr, sc,
 	    &sc->sc_intrhand)) {
 		device_printf(self, "couldn't re-establish interrupt");
 		bus_release_resource(self, SYS_RES_IRQ, 0, sc->sc_irq_res);
@@ -1731,7 +1761,21 @@ pccbb_resume(device_t self)
 		mtx_destroy(&sc->sc_mtx);
 		error = ENOMEM;
 	}
-	bus_generic_resume(self);
+
+	/*
+	 * Some BIOSes will not save the BARs for the pci chips, so we
+	 * must do it ourselves.  If the BAR is reset to 0 for an I/O
+	 * device, it will read back as 0x1, so no explicit test for
+	 * memory devices are needed.
+	 *
+	 * Note: The PCI bus code should do this automatically for us on
+	 * suspend/resume, but until it does, we have to cope.
+	 */
+	if (pci_read_config(self, PCCBBR_SOCKBASE, 4) == 0)
+                pci_write_config(self, PCCBBR_SOCKBASE,
+		    rman_get_start(sc->sc_base_res), 4);
+
+	error = bus_generic_resume(self);
 
 	/* wakeup thread */
 	if (!error) {
@@ -1761,8 +1805,8 @@ static device_method_t pccbb_methods[] = {
 	DEVMETHOD(bus_deactivate_resource,	pccbb_deactivate_resource),
 	DEVMETHOD(bus_driver_added,		pccbb_driver_added),
 	DEVMETHOD(bus_child_detached,		pccbb_child_detached),
-	DEVMETHOD(bus_setup_intr,		bus_generic_setup_intr),
-	DEVMETHOD(bus_teardown_intr,		bus_generic_teardown_intr),
+	DEVMETHOD(bus_setup_intr,		pccbb_setup_intr),
+	DEVMETHOD(bus_teardown_intr,		pccbb_teardown_intr),
 
 	/* 16-bit card interface */
 	DEVMETHOD(card_set_res_flags,		pccbb_pcic_set_res_flags),
