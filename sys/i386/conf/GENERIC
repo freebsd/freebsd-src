@@ -152,6 +152,8 @@ device		sc0	at isa? flags 0x100
 # If you have a ThinkPAD, uncomment this along with the rest of the PCVT lines
 #options 	PCVT_SCANSET=2		# IBM keyboards are non-std
 
+device		agp		# support several AGP chipsets
+
 # Floating point support - do not disable.
 device		npx0	at nexus? port IO_NPX irq 13
 
