@@ -38,6 +38,7 @@ int	kern_chmod(struct thread *td, char *path, enum uio_seg pathseg,
 	    int mode);
 int	kern_chown(struct thread *td, char *path, enum uio_seg pathseg, int uid,
 	    int gid);
+int	kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg);
 int	kern_futimes(struct thread *td, int fd, struct timeval *tptr,
 	    enum uio_seg tptrseg);
 int	kern_lchown(struct thread *td, char *path, enum uio_seg pathseg,
