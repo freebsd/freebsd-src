@@ -106,8 +106,6 @@
     ufs
         ffs
         ..
-        mfs
-        ..
         ufs
         ..
     ..

@@ -110,8 +110,9 @@ defined in
 The
 .Fx
 VM system totally ignores the sticky bit
-.Pf ( Dv ISVTX
-) for executables.  On UFS-based filesystems (FFS, MFS, LFS) the sticky
+.Pq Dv ISVTX
+for executables.
+On UFS-based filesystems (FFS, LFS) the sticky
 bit may only be set upon directories.
 .Pp
 If mode

@@ -47,11 +47,10 @@ catmsgs() {
 }
 
 sflag=FALSE ignore=
-while getopts ams c
+while getopts as c
 do
 	case "$c" in
 		a) ignore="$ignore|^amd:";;
-		m) ignore="$ignore|^mfs:";;
 		s) sflag=TRUE;;
 	esac
 done

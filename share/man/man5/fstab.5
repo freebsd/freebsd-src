@@ -86,16 +86,12 @@ The system can support various filesystem types.
 Only the root, /usr, and /tmp filesystems need be statically
 compiled into the kernel; 
 everything else will be automatically loaded at mount
-time.  (Exception: the UFS family - FFS, MFS, and LFS cannot
+time.  (Exception: the UFS family - FFS and LFS cannot
 currently be demand-loaded.)  Some people still prefer to statically
 compile other filesystems as well.
 .Bl -tag -width indent -offset indent
 .It Em ufs 
 a local
-.Tn UNIX
-filesystem
-.It Em mfs 
-a local memory-based 
 .Tn UNIX
 filesystem
 .It Em nfs 
