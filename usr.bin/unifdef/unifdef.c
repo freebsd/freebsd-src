@@ -44,7 +44,7 @@ static const char copyright[] =
 #ifdef __IDSTRING
 __IDSTRING(Berkeley, "@(#)unifdef.c	8.1 (Berkeley) 6/6/93");
 __IDSTRING(NetBSD, "$NetBSD: unifdef.c,v 1.8 2000/07/03 02:51:36 matt Exp $");
-__IDSTRING(dotat, "$dotat: things/unifdef.c,v 1.130 2002/12/13 15:26:41 fanf2 Exp $");
+__IDSTRING(dotat, "$dotat: things/unifdef.c,v 1.133 2003/01/17 19:04:36 fanf2 Exp $");
 #endif
 #ifdef __FBSDID
 __FBSDID("$FreeBSD$");
@@ -168,7 +168,7 @@ static const char      *filename;		/* input file name */
 static int              linenum;		/* current line number */
 
 static char             tline[MAXLINE+10];	/* input buffer plus space */
-static char            *keyword;       		/* used for editing #elif's */
+static char            *keyword;		/* used for editing #elif's */
 
 static Comment_state    incomment;		/* comment parser state */
 static Line_state       linestate;		/* #if line parser state */
@@ -279,7 +279,7 @@ main(int argc, char *argv[])
 static void
 usage(void)
 {
-	fprintf (stderr, "usage: %s",
+	fprintf(stderr, "usage: %s",
 "unifdef [-cdklst] [[-Dsym[=val]] [-Usym] [-iDsym[=val]] [-iUsym]] ... [file]\n");
 	exit (2);
 }
@@ -449,7 +449,7 @@ getline(void)
 	Comment_state wascomment;
 
 	if (fgets(tline, MAXLINE, input) == NULL)
-		return LT_EOF;
+		return (LT_EOF);
 	retval = LT_PLAIN;
 	wascomment = incomment;
 	cp = skipcomment(tline);
@@ -514,20 +514,20 @@ getline(void)
 	}
 	debug("parser %s comment %s line",
 	    comment_name[incomment], linestate_name[linestate]);
-	return retval;
+	return (retval);
 }
 
 /*
  * These are the operators that are supported by the expression evaluator.
  */
-static int op_lt(int a, int b) { return a < b; }
-static int op_gt(int a, int b) { return a > b; }
-static int op_le(int a, int b) { return a <= b; }
-static int op_ge(int a, int b) { return a >= b; }
-static int op_eq(int a, int b) { return a == b; }
-static int op_ne(int a, int b) { return a != b; }
-static int op_or(int a, int b) { return a || b; }
-static int op_and(int a, int b) { return a && b; }
+static int op_lt(int a, int b) { return (a < b); }
+static int op_gt(int a, int b) { return (a > b); }
+static int op_le(int a, int b) { return (a <= b); }
+static int op_ge(int a, int b) { return (a >= b); }
+static int op_eq(int a, int b) { return (a == b); }
+static int op_ne(int a, int b) { return (a != b); }
+static int op_or(int a, int b) { return (a || b); }
+static int op_and(int a, int b) { return (a && b); }
 
 /*
  * An evaluation function takes three arguments, as follows: (1) a pointer to
@@ -586,16 +586,16 @@ eval_unary(const struct ops *ops, int *valp, const char **cpp)
 		debug("eval%d !", ops - eval_ops);
 		cp++;
 		if (eval_unary(ops, valp, &cp) == LT_IF)
-			return LT_IF;
+			return (LT_IF);
 		*valp = !*valp;
 	} else if (*cp == '(') {
 		cp++;
 		debug("eval%d (", ops - eval_ops);
 		if (eval_table(eval_ops, valp, &cp) == LT_IF)
-			return LT_IF;
+			return (LT_IF);
 		cp = skipcomment(cp);
 		if (*cp++ != ')')
-			return LT_IF;
+			return (LT_IF);
 	} else if (isdigit((unsigned char)*cp)) {
 		debug("eval%d number", ops - eval_ops);
 		*valp = strtol(cp, &ep, 0);
@@ -604,37 +604,37 @@ eval_unary(const struct ops *ops, int *valp, const char **cpp)
 		cp = skipcomment(cp+7);
 		debug("eval%d defined", ops - eval_ops);
 		if (*cp++ != '(')
-			return LT_IF;
+			return (LT_IF);
 		cp = skipcomment(cp);
 		sym = findsym(cp);
 		if (sym < 0 && !symlist)
-			return LT_IF;
+			return (LT_IF);
 		*valp = (value[sym] != NULL);
 		cp = skipsym(cp);
 		cp = skipcomment(cp);
 		if (*cp++ != ')')
-			return LT_IF;
+			return (LT_IF);
 		keepthis = false;
 	} else if (!endsym(*cp)) {
 		debug("eval%d symbol", ops - eval_ops);
 		sym = findsym(cp);
 		if (sym < 0 && !symlist)
-			return LT_IF;
+			return (LT_IF);
 		if (value[sym] == NULL)
 			*valp = 0;
 		else {
 			*valp = strtol(value[sym], &ep, 0);
 			if (*ep != '\0' || ep == value[sym])
-				return LT_IF;
+				return (LT_IF);
 		}
 		cp = skipsym(cp);
 		keepthis = false;
 	} else
-		return LT_IF;
+		return (LT_IF);
 
 	*cpp = cp;
 	debug("eval%d = %d", ops - eval_ops, *valp);
-	return *valp ? LT_TRUE : LT_FALSE;
+	return (*valp ? LT_TRUE : LT_FALSE);
 }
 
 /*
@@ -650,7 +650,7 @@ eval_table(const struct ops *ops, int *valp, const char **cpp)
 	debug("eval%d", ops - eval_ops);
 	cp = *cpp;
 	if (ops->inner(ops+1, valp, &cp) == LT_IF)
-		return LT_IF;
+		return (LT_IF);
 	for (;;) {
 		cp = skipcomment(cp);
 		for (op = ops->op; op->str != NULL; op++)
@@ -661,13 +661,13 @@ eval_table(const struct ops *ops, int *valp, const char **cpp)
 		cp += strlen(op->str);
 		debug("eval%d %s", ops - eval_ops, op->str);
 		if (ops->inner(ops+1, &val, &cp) == LT_IF)
-			return LT_IF;
+			return (LT_IF);
 		*valp = op->fn(*valp, val);
 	}
 
 	*cpp = cp;
 	debug("eval%d = %d", ops - eval_ops, *valp);
-	return *valp ? LT_TRUE : LT_FALSE;
+	return (*valp ? LT_TRUE : LT_FALSE);
 }
 
 /*
@@ -684,7 +684,7 @@ ifeval(const char **cpp)
 	debug("eval %s", *cpp);
 	keepthis = killconsts ? false : true;
 	ret = eval_table(eval_ops, &val, cpp);
-	return keepthis ? LT_IF : ret;
+	return (keepthis ? LT_IF : ret);
 }
 
 /*
@@ -699,7 +699,7 @@ skipcomment(const char *cp)
 	if (text || ignoring[depth]) {
 		while (isspace((unsigned char)*cp))
 			cp += 1;
-		return cp;
+		return (cp);
 	}
 	while (*cp != '\0')
 		if (strncmp(cp, "\\\n", 2) == 0)
@@ -721,7 +721,7 @@ skipcomment(const char *cp)
 			} else if (strchr(" \t", *cp) != NULL) {
 				cp += 1;
 			} else
-				return cp;
+				return (cp);
 			continue;
 		case CXX_COMMENT:
 			if (strncmp(cp, "\n", 1) == 0) {
@@ -763,7 +763,7 @@ skipcomment(const char *cp)
 			/* bug */
 			abort();
 		}
-	return cp;
+	return (cp);
 }
 
 /*
@@ -774,7 +774,7 @@ skipsym(const char *cp)
 {
 	while (!endsym(*cp))
 		++cp;
-	return cp;
+	return (cp);
 }
 
 /*
@@ -789,17 +789,17 @@ findsym(const char *str)
 
 	cp = skipsym(str);
 	if (cp == str)
-		return -1;
+		return (-1);
 	if (symlist)
 		printf("%.*s\n", (int)(cp-str), str);
 	for (symind = 0; symind < nsyms; ++symind) {
 		if (strlcmp(symname[symind], str, cp-str) == 0) {
 			debug("findsym %s %s", symname[symind],
 			    value[symind] ? value[symind] : "");
-			return symind;
+			return (symind);
 		}
 	}
-	return -1;
+	return (-1);
 }
 
 /*
@@ -844,10 +844,10 @@ strlcmp(const char *s, const char *t, size_t n)
 {
 	while (n-- && *t != '\0')
 		if (*s != *t)
-			return (unsigned char)*s - (unsigned char)*t;
+			return ((unsigned char)*s - (unsigned char)*t);
 		else
 			++s, ++t;
-	return (unsigned char)*s;
+	return ((unsigned char)*s);
 }
 
 /*
