@@ -1,7 +1,7 @@
 # Makefile.alpha -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.alpha	7.1 5/10/91
-#	$Id: Makefile.alpha,v 1.25 1999/05/10 03:02:22 peter Exp $
+#	$Id: Makefile.alpha,v 1.26 1999/06/26 12:45:17 peter Exp $
 #
 # Makefile for FreeBSD
 #
@@ -70,10 +70,7 @@ NORMAL_M= ${NORMAL_C}
 # everything just to do a make depend.
 SYSTEM_CFILES= ioconf.c param.c vnode_if.c config.c
 SYSTEM_SFILES= ${ALPHA}/alpha/locore.s
-SYSTEM_DEP= Makefile symbols.exclude symbols.sort ${SYSTEM_OBJS}
-.if ${CFLAGS:M-g} == ""
-SYMORDER_EXCLUDE=-x symbols.exclude
-.endif
+SYSTEM_DEP= Makefile ${SYSTEM_OBJS}
 SYSTEM_OBJS= locore.o setdef0.o vnode_if.o \
 	${OBJS} ioconf.o param.o config.o \
 	setdef1.o hack.So
@@ -115,22 +112,14 @@ ${SYSTEM_OBJS}: ${BEFORE_DEPEND:M*.h}
 
 clean:
 	rm -f *.o *.s eddep errs genassym gensetdefs ${KERNEL} ${FULLKERNEL} \
-	      linterrs makelinks param.c setdefs.h symbols.exclude \
-	      symbols.sort tags vers.c vnode_if.c vnode_if.h ${CLEAN}
+	      linterrs makelinks param.c setdefs.h \
+	      tags vers.c vnode_if.c vnode_if.h ${CLEAN}
 
 #lint: /tmp param.c
 #	@lint -hbxn -DGENERIC -Dvolatile= ${COPTS} ${PARAM} \
 #	  ${ALPHA}/alpha/Locore.c ${CFILES} ioconf.c param.c | \
 #	    grep -v 'struct/union .* never defined' | \
 #	    grep -v 'possible pointer alignment problem'
-
-symbols.exclude: Makefile
-	echo "gcc2_compiled." >symbols.exclude
-	echo "___gnu_compiled_c" >>symbols.exclude
-
-symbols.sort: ${ALPHA}/alpha/symbols.raw
-	grep -v '^#' ${ALPHA}/alpha/symbols.raw \
-	    | sed 's/^	//' | sort -u > symbols.sort
 
 locore.o: ${ALPHA}/alpha/locore.s assym.s
 	${NORMAL_S}
@@ -179,7 +168,7 @@ assym.s: genassym
 # Some of the defines that genassym outputs may well depend on the
 # value of kernel options.
 genassym.o: ${ALPHA}/alpha/genassym.c Makefile opt_global.h
-	${HCC} -c ${COPTS} ${PARAM} ${ALPHA}/alpha/genassym.c
+	${HCC} -c ${COPTS} ${PARAM} -UKERNEL ${ALPHA}/alpha/genassym.c
 
 genassym: genassym.o
 	${HCC} -static ${COPTS} ${PARAM} genassym.o -o $@
@@ -236,7 +225,7 @@ ${OBJS}: opt_global.h
 depend: assym.s param.c vnode_if.h ${BEFORE_DEPEND}
 	rm -f .newdep
 	mkdep -a -f .newdep ${COPTS} ${CFILES} ${SYSTEM_CFILES}
-	mkdep -a -f .newdep ${COPTS} ${PARAM} ${ALPHA}/alpha/genassym.c
+	mkdep -a -f .newdep ${COPTS} ${PARAM} -UKERNEL ${ALPHA}/alpha/genassym.c
 	MKDEP_CPP="${CC} -E -x assembler-with-cpp" ; export MKDEP_CPP ; \
 	mkdep -a -f .newdep -DLOCORE ${COPTS} ${SFILES} ${SYSTEM_SFILES}
 	rm -f .depend
