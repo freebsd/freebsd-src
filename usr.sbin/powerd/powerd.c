@@ -71,6 +71,8 @@ const char *modes[] = {
 static int	read_usage_times(long *idle, long *total);
 static int	read_freqs(int *numfreqs, int **freqs);
 static int	set_freq(int freq);
+static void	acline_init(void);
+static int	acline_read(void);
 static void	parse_mode(char *arg, int *mode, int ch);
 static void	usage(void);
 
@@ -84,6 +86,8 @@ static int	acline_mib[3];
 static int	cpu_running_mark;
 static int	cpu_idle_mark;
 static int	poll_ival;
+
+static int	apm_fd;
 
 static int
 read_usage_times(long *idle, long *total)
@@ -160,6 +164,52 @@ set_freq(int freq)
 	return (0);
 }
 
+/*
+ * Try to use ACPI to find the AC line status.  If this fails, fall back
+ * to APM.  If nothing succeeds, we'll just run in default mode.
+ */
+static void
+acline_init()
+{
+	int acline;
+	size_t len;
+
+	apm_fd = -1;
+	len = sizeof(acline);
+	if (sysctlbyname(ACPIAC, &acline, &len, NULL, 0) == 0) {
+		len = 3;
+		if (sysctlnametomib(ACPIAC, acline_mib, &len))
+			err(1, "lookup acline");
+	} else {
+		apm_fd = open(APMDEV, O_RDONLY);
+		if (apm_fd == -1)
+			warnx(
+		"cannot read AC line status, using default settings");
+	}
+}
+
+static int
+acline_read()
+{
+	int acline = SRC_UNKNOWN;
+	size_t len;
+
+#ifdef __i386__
+	struct apm_info info;
+
+	if (apm_fd != -1 && ioctl(apm_fd, APMIO_GETINFO, &info) == 0)
+		acline = info.ai_acline ? SRC_AC : SRC_BATTERY;
+#endif
+
+	if (acline == SRC_UNKNOWN) {
+		len = sizeof(acline);
+		if (sysctl(acline_mib, 3, &acline, &len, NULL, 0) == 0)
+			acline = acline ? SRC_AC : SRC_BATTERY;
+	}
+
+	return (acline);
+}
+
 static void
 parse_mode(char *arg, int *mode, int ch)
 {
@@ -186,11 +236,8 @@ usage(void)
 int
 main(int argc, char * argv[])
 {
-#ifdef __i386__
-	struct apm_info info;
-#endif
 	long idle, total;
-	int apm_fd, curfreq, *freqs, i, numfreqs;
+	int curfreq, *freqs, i, numfreqs;
 	int ch, mode_ac, mode_battery, mode_none, acline, mode, vflag;
 	size_t len;
 
@@ -200,6 +247,7 @@ main(int argc, char * argv[])
 	cpu_idle_mark = DEFAULT_IDLE_PERCENT;
 	poll_ival = DEFAULT_POLL_INTERVAL;
 	vflag = 0;
+	apm_fd = -1;
 
 	while ((ch = getopt(argc, argv, "a:b:i:n:p:r:v")) != EOF)
 		switch (ch) {
@@ -263,22 +311,7 @@ main(int argc, char * argv[])
 		err(1, "error reading supported CPU frequencies");
 
 	/* Decide whether to use ACPI or APM to read the AC line status. */
-	apm_fd = -1;
-	len = sizeof(acline);
-	if (sysctlbyname(ACPIAC, &acline, &len, NULL, 0)) {
-#ifdef __i386__
-		/* ACPI disabled, try APM */
-		apm_fd = open(APMDEV, O_RDONLY);
-#endif
-		if (apm_fd == -1) {
-			warnx("cannot read AC line status, "
-			    "using default settings");
-		}
-	} else {
-		len = 3;
-		if (sysctlnametomib(ACPIAC, acline_mib, &len))
-			err(1, "lookup acline");
-	}
+	acline_init();
 
 	/* Run in the background unless in verbose mode. */
 	if (!vflag)
@@ -290,20 +323,7 @@ main(int argc, char * argv[])
 		usleep(poll_ival);
 
 		/* Read the current AC status and record the mode. */
-		if (apm_fd != -1) {
-#ifdef __i386__
-			if (ioctl(apm_fd, APMIO_GETINFO, &info) == -1)
-				acline = SRC_UNKNOWN;
-			else
-				acline = info.ai_acline ? SRC_AC : SRC_BATTERY;
-#endif
-		} else {
-			len = sizeof(acline);
-			if (sysctl(acline_mib, 3, &acline, &len, NULL, 0))
-				acline = SRC_UNKNOWN;
-			else
-				acline = acline ? SRC_AC : SRC_BATTERY;
-		}
+		acline = acline_read();
 		switch (acline) {
 		case SRC_AC:
 			mode = mode_ac;
@@ -342,7 +362,7 @@ main(int argc, char * argv[])
 		if (mode == MODE_MAX) {
 			if (curfreq != freqs[0]) {
 				if (vflag) {
-					printf("Now operating on %s power; "
+					printf("now operating on %s power; "
 					    "changing frequency to %d MHz\n",
 					    modes[acline], freqs[0]);
 				}
@@ -390,11 +410,6 @@ main(int argc, char * argv[])
 		}
 	}
 	/* NOTREACHED */
-
-#ifdef __i386__
-	if (apm_fd != -1)
-		close(apm_fd);
-#endif
 
 	exit(0);
 }
