@@ -76,13 +76,21 @@ mpuintr (int unit)
  * polling.
  */
 
+/* XXX WARNING:  FreeBSD doesn't seem to have timer_lists like this,
+ * so until I figure out how to do the analogous thing in FreeBSD, I'm
+ * not all that sure WHAT this driver will do!  It might work, depending
+ * on the condition taken, but then again it might not!  -jkh
+ * XXX WARNING
+ */
 static void
 poll_mpu401 (unsigned long dummy)
 {
   unsigned long   flags;
 
+#ifdef linux
   static struct timer_list mpu401_timer =
   {NULL, 0, 0, poll_mpu401};
+#endif
 
   if (!(mpu401_opened & OPEN_READ))
     return;			/* No longer required */
@@ -92,8 +100,10 @@ poll_mpu401 (unsigned long dummy)
   if (input_avail ())
     mpu401_input_loop ();
 
+#ifdef linux
   mpu401_timer.expires = 1;
   add_timer (&mpu401_timer);	/* Come back later */
+#endif
 
   RESTORE_INTR (flags);
 }
@@ -264,7 +274,9 @@ attach_mpu401 (long mem_start, struct address_info *hw_config)
   printk ("snd5: <Roland MPU-401>");
 
   my_dev = num_midis;
+#ifdef linux
   mpu401_dev = num_midis;
+#endif
   midi_devs[num_midis++] = &mpu401_operations;
   return mem_start;
 }
