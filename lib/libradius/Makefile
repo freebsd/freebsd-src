@@ -31,7 +31,6 @@ CFLAGS+=	-Wall
 DPADD+=		${LIBMD}
 LDADD+=		-lmd
 SHLIB_MAJOR=	1
-SHLIB_MINOR=	0
 MAN=		libradius.3 radius.conf.5
 
 .include <bsd.lib.mk>

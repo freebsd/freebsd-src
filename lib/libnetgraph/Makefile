@@ -6,7 +6,6 @@ WARNS?=		2
 MAN=		netgraph.3
 
 SHLIB_MAJOR=	1
-#SHLIB_MINOR=	1
 
 SRCS=		sock.c msg.c debug.c
 INCS=		netgraph.h

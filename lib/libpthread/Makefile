@@ -9,7 +9,6 @@
 # system call stubs.
 LIB=pthread
 SHLIB_MAJOR= 5
-SHLIB_MINOR= 0
 CFLAGS+=-DPTHREAD_KERNEL -D_THREAD_SAFE 
 CFLAGS+=-I${.CURDIR}/../libc/include -I${.CURDIR}/thread \
 	-I${.CURDIR}/../../include
