@@ -1139,8 +1139,8 @@ rescan0:
 	}
 
 	/*
-	 * make sure that we have swap space -- if we are low on memory and
-	 * swap -- then kill the biggest process.
+	 * If we are out of swap and were not able to reach our paging
+	 * target, kill the largest process.
 	 *
 	 * We keep the process bigproc locked once we find it to keep anyone
 	 * from messing with it; however, there is a possibility of
@@ -1149,7 +1149,11 @@ rescan0:
 	 * lock while walking this list.  To avoid this, we don't block on
 	 * the process lock but just skip a process if it is already locked.
 	 */
+	if ((vm_swap_size < 64 && vm_page_count_min()) ||
+	    (swap_pager_full && vm_paging_target() > 0)) {
+#if 0
 	if ((vm_swap_size < 64 || swap_pager_full) && vm_page_count_min()) {
+#endif
 		mtx_unlock(&vm_mtx);
 		bigproc = NULL;
 		bigsize = 0;
@@ -1184,7 +1188,8 @@ rescan0:
 			/*
 			 * get the process size
 			 */
-			size = vmspace_resident_count(p->p_vmspace);
+			size = vmspace_resident_count(p->p_vmspace) +
+				vmspace_swap_count(p->p_vmspace);
 			/*
 			 * if the this process is bigger than the biggest one
 			 * remember it.
