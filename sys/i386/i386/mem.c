@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.29 1995/12/31 09:32:16 joerg Exp $
+ *	$Id: mem.c,v 1.30 1996/03/26 19:57:52 wollman Exp $
  */
 
 /*
@@ -111,17 +111,17 @@ memdevfs_init()
 		"/",	"kmem",	&mem_cdevsw,    1,	DV_CHR, 0,  2, 0640);
     null_devfs_token = devfs_add_devsw(
 		"/",	"null",	&mem_cdevsw,    2,	DV_CHR, 0,  0, 0666);
-    random_devfs_token = devfs_add_devsw(
-		"/",	"random", &mem_cdevsw,  3,	DV_CHR, 0,  0, 0666);
-    urandom_devfs_token = devfs_add_devsw(
-		"/",	"urandom", &mem_cdevsw, 4,	DV_CHR, 0,  0, 0666);
+    random_devfs_token = devfs_add_devswf(&mem_cdevsw, 3, DV_CHR, UID_ROOT,
+					  GID_WHEEL, 0644, "random");
+    urandom_devfs_token = devfs_add_devswf(&mem_cdevsw, 4, DV_CHR, UID_ROOT,
+					   GID_WHEEL, 0644, "urandom");
     zero_devfs_token = devfs_add_devsw(
 		"/",	"zero",	&mem_cdevsw,    12,	DV_CHR, 0,  0, 0666);
     io_devfs_token = devfs_add_devsw(
 		"/",	"io",	&mem_cdevsw,    14,	DV_CHR, 0,  0, 0600);
 #ifdef PERFMON
-    perfmon_devfs_token = devfs_add_devsw(
-		"/",	"perfmon", &mem_cdevsw,	32,	DV_CHR,	0,  0, 0666);
+    perfmon_devfs_token = devfs_add_devswf(&mem_cdevsw, 32, DV_CHR, UID_ROOT,
+					   GID_KMEM, 0640, "perfmon");
 #endif /* PERFMON */
 }
 #endif /* DEVFS */
