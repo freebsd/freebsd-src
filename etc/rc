@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.76 1995/11/01 00:22:45 ache Exp $
+#	$Id: rc,v 1.77 1995/11/01 16:53:25 nate Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -230,7 +230,7 @@ fi
 if [ "X${kerberos_server}" = X"YES" ]; then
 	echo -n ' kerberos';	kerberos >> /var/log/kerberos.log &
 	echo -n ' kadmind'; \
-		(sleep 20; /usr/sbin/kadmind -n >/dev/null 2>&1 &) &
+		(sleep 20; kadmind -n >/dev/null 2>&1 &) &
 fi
 
 echo -n ' inetd';		inetd
