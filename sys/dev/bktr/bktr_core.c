@@ -895,7 +895,9 @@ static const struct TUNER tuners[] = {
 #define	CARD_STB		3
 #define	CARD_INTEL		4
 #define	CARD_IMS_TURBO		5
-#define Bt848_MAX_CARD          6
+#define	CARD_AVER_MEDIA		6
+#define Bt848_MAX_CARD          7
+
 /*
  * the data for each type of card
  *
@@ -956,7 +958,16 @@ static const struct CARDTYPE cards[] = {
 	   0,
 	   PFC8582_WADDR,			/* EEProm type */
 	   (u_char)(256 / EEPROMBLOCKSIZE),	/* 256 bytes */
-	   { 0x01, 0x02, 0x01, 0x00, 1 } }	/* audio MUX values */
+	   { 0x01, 0x02, 0x01, 0x00, 1 } },     /* audio MUX values */
+
+        /* CARD_AVER_MEDIA */
+        { "AVer Media TV/FM",                   /* the 'name' */
+           NULL,                                /* the tuner */
+           0,                                   /* dbx is optional */
+           0,
+           0,                                   /* EEProm type */
+           0,                                   /* EEProm size */
+           { 0x0c, 0x00, 0x0b, 0x0b, 1 } },     /* audio MUX values */
 };
 
 struct bt848_card_sig bt848_card_signature[1]= {
@@ -1623,8 +1634,6 @@ video_open( bktr_ptr_t bktr )
 
 	}
 
-
-
 	bktr->flags = (bktr->flags & ~METEOR_DEV_MASK) | METEOR_DEV0;
 
 	bktr->max_clip_node = 0;
@@ -1664,7 +1673,6 @@ video_open( bktr_ptr_t bktr )
 	bt848->int_mask = BT848_INT_MYSTERYBIT;	/* if you take this out triton
                                                    based motherboards will 
 						   operate unreliably */
-
 	return( 0 );
 }
 
@@ -3537,7 +3545,6 @@ yuv12_prog( bktr_ptr_t bktr, char i_flag,
 
 	bt848->adc = SYNC_LEVEL;
 	bt848->oform = 0x0;
-
  
 	/* Construct Write */
  	inst  = OP_WRITE123  | OP_SOL | OP_EOL |  (cols); 
@@ -4195,9 +4202,6 @@ readEEProm( bktr_ptr_t bktr, int offset, int count, u_char *data )
 
 	return( 0 );
 }
-
-
-
 
 /*
  * get a signature of the card
