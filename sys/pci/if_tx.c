@@ -52,7 +52,6 @@
 #include <sys/queue.h>
 
 #if defined(__FreeBSD__)
-#include "opt_bdg.h"
 #define NBPFILTER	1
 
 #include <net/if.h>
@@ -61,10 +60,6 @@
 #include <net/if_media.h>
 
 #include <net/bpf.h>
-
-#ifdef BRIDGE
-#include <net/bridge.h>
-#endif
 
 #include <vm/vm.h>              /* for vtophys */
 #include <vm/pmap.h>            /* for vtophys */
@@ -931,51 +926,6 @@ epic_rx_done(sc)
 		if( sc->sc_if.if_bpf ) 
 			bpf_mtap( EPIC_BPFTAP_ARG(&sc->sc_if), m );
 #endif /* NBPFILTER > 0 */
-
-#ifdef BRIDGE
-		if (do_bridge) {
-			struct ifnet *bdg_ifp ;
-			bdg_ifp = bridge_in(m);
-			if (bdg_ifp == BDG_DROP) {
-				if (m)
-					m_free(m);
-				continue; /* and drop */
-			}
-			if (bdg_ifp != BDG_LOCAL)
-				bdg_forward(&m, bdg_ifp);
-			if (bdg_ifp != BDG_LOCAL && bdg_ifp != BDG_BCAST &&
-				bdg_ifp != BDG_MCAST) {
-				if (m)
-					m_free(m);
-				continue; /* and drop */
-			}
-			/* all others accepted locally */
-		}
-#endif
-
-#if defined (__FreeBSD__)
-		/*
-		 * This deserves explanation
-		 * If the bridge is _on_, then the following check
-		 * must not be done because occasionally the bridge
-		 * gets packets that are local but have the ethernet
-		 * address of one of the other interfaces.
-		 *
-		 * But if the bridge is off, then we have to drop
-		 * stuff that came in just via bpf.
-		 * 
-		 * In OpenBSD such filter stands in ether_input. (?)
-		 */
-		/* Accept only our packets, broadcasts and multicasts */
-#ifdef BRIDGE
-		if (do_bridge)
-#endif
-		if ((eh->ether_dhost[0] & 1) == 0 &&
-		    bcmp(eh->ether_dhost,sc->sc_macaddr,ETHER_ADDR_LEN)){
-			m_freem(m);
-			continue;
-		}
-#endif
 
 		/* Second mbuf holds packet ifself */
 		m->m_pkthdr.len = m->m_len = len - sizeof(struct ether_header);

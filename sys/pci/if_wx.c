@@ -1353,9 +1353,11 @@ wx_handle_rxint(sc)
 
 	for (idx = 0; idx < npkts; idx++) {
 		mb = pending[idx];
+#ifndef	__FreeBSD__
                 if (ifp->if_bpf) {
                         bpf_mtap(WX_BPFTAP_ARG(ifp), mb);
 		}
+#endif
                 ifp->if_ipackets++;
 		if (sc->wx_debug) {
 			printf("%s: RECV packet length %d\n",

@@ -62,10 +62,6 @@
 
 #include <isa/isavar.h>
 
-#ifdef BRIDGE
-#include <net/bridge.h>
-#endif
-
 #include <machine/clock.h>
 
 #include <dev/cs/if_csreg.h>
@@ -951,9 +947,6 @@ cs_get_packet(struct cs_softc *sc)
 	insw(iobase + RX_FRAME_PORT, m->m_data, (length+1)>>1);
 
 	eh = mtod(m, struct ether_header *);
-
-	if (ifp->if_bpf)
-		bpf_mtap(ifp, m);
 
 #ifdef CS_DEBUG
 	for (i=0;i<length;i++)

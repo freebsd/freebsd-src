@@ -312,7 +312,16 @@ transmit_event(struct dn_pipe *pipe)
 #ifdef BRIDGE
 	case DN_TO_BDG_FWD : {
 	    struct mbuf *m = (struct mbuf *)pkt ;
-	    bdg_forward(&m, pkt->ifp);
+	    struct ether_header hdr;
+
+	    if (m->m_len < ETHER_HDR_LEN
+	      && (m = m_pullup(m, ETHER_HDR_LEN)) == NULL) {
+		m_freem(m);
+		break;
+	    }
+	    bcopy(mtod(m, struct ether_header *), &hdr, ETHER_HDR_LEN);
+	    m_adj(m, ETHER_HDR_LEN);
+	    bdg_forward(&m, &hdr, pkt->ifp);
 	    if (m)
 		m_freem(m);
 	    }
