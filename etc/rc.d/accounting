@@ -20,22 +20,16 @@ stop_cmd="accounting_stop"
 
 accounting_start()
 {
-	case ${OSTYPE} in
-	FreeBSD)
-		_dir=`dirname "$accounting_file"`
-		if [ ! -d `dirname "$_dir"` ]; then
-			if ! mkdir -p "$_dir"; then
-				warn "Could not create $_dir."
-				return 1
-			fi
+	_dir=`dirname "$accounting_file"`
+	if [ ! -d `dirname "$_dir"` ]; then
+		if ! mkdir -p "$_dir"; then
+			warn "Could not create $_dir."
+			return 1
 		fi
-		if [ ! -e "$accounting_file" ]; then
-			touch "$accounting_file"
-		fi
-		;;
-	*)
-		;;
-	esac
+	fi
+	if [ ! -e "$accounting_file" ]; then
+		touch "$accounting_file"
+	fi
 
 	if [ ! -f ${accounting_file} ]; then
 		echo "Creating accounting file ${accounting_file}"
