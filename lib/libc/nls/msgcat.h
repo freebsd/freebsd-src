@@ -1,8 +1,7 @@
 /* $FreeBSD$ */
 
-/* -*-c++-*- */
-
-#ifndef __msgcath
+#ifndef _MSGCAT_H_
+#define _MSGCAT_H_
 
 
 /***********************************************************
@@ -44,23 +43,12 @@ up-to-date.  Many thanks.
  * On disk data structures
  */
 
-/* Edit History
-
-02/25/91   2 nazgul	Byte order flags, upped the version number
-11/03/90   1 hamilton	Alphalpha->Alfalfa & OmegaMail->Poste
-08/13/90   1 schulert	move from ua to omu
-*/
-
 /* For or'd constants */
 #define MCMakeId(s,m)		(unsigned long) ( ((unsigned short)s << (sizeof(short)*8)) \
 						 | (unsigned short)m )
 #define MCSetId(id)		(unsigned int) ( id >> (sizeof(short) * 8) )
 #define MCMsgId(id)		(unsigned int) ( (id << (sizeof(short) * 8)) \
 						>> (sizeof(short) * 8) )
-#undef S
-#undef UI
-#undef UL
-
 #define MCMagicLen	8
 #define MCMagic		"*nazgul*"
 #define MCLastMsg	0
@@ -142,7 +130,7 @@ typedef struct _MCSetT {
  */
 typedef struct {
     long	loadType;	/* How to load the messages (see MSLoadType) */
-    int		fd;		/* File descriptor of catalog (if load-on-demand) */
+    FILE        *fp;            /* File descriptor of catalog (if load-on-demand) */
     long	numSets;	/* Number of sets */
     MCSetT	*sets;		/* Pointer to the sets */
     off_t	firstSet;	/* Offset of first set on disk */
@@ -164,7 +152,4 @@ typedef struct {
 #define MC68KByteOrder	0x01
 #define MCn86ByteOrder	0x02
 
-
-
-
-#endif
+#endif /* !_MSGCAT_H_ */
