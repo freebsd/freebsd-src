@@ -67,14 +67,19 @@ softclockpending(void)
 
 #ifndef SMP
 
-#define	GENSPL(NAME, OP, MODIFIER, PC)		\
-unsigned NAME(void)				\
-{						\
-	unsigned x;				\
-						\
-	x = cpl;				\
-	cpl OP MODIFIER;			\
-	return (x);				\
+#define	GENSPL(NAME, OP, MODIFIER, PC)			\
+unsigned NAME(void)					\
+{							\
+	unsigned x;					\
+							\
+	x = cpl;					\
+	cpl OP MODIFIER;				\
+	return (x);					\
+}							\
+int							\
+is_##NAME(void)						\
+{							\
+	return ((cpl & (MODIFIER)) == (MODIFIER));	\
 }
 
 void
@@ -186,22 +191,34 @@ unsigned NAME(void)							\
 	IFCPL_UNLOCK();							\
 									\
 	return (x);							\
+}									\
+int									\
+is_##NAME(void)								\
+{									\
+	return ((cpl & (MODIFIER)) == (MODIFIER));			\
 }
+
 
 #else /* INTR_SPL */
 
-#define	GENSPL(NAME, OP, MODIFIER, PC)		\
-unsigned NAME(void)				\
-{						\
-	unsigned x;				\
-						\
-	IFCPL_LOCK();				\
-	x = cpl;				\
-	cpl OP MODIFIER;			\
-	IFCPL_UNLOCK();				\
-						\
-	return (x);				\
+#define	GENSPL(NAME, OP, MODIFIER, PC)			\
+unsigned NAME(void)					\
+{							\
+	unsigned x;					\
+							\
+	IFCPL_LOCK();					\
+	x = cpl;					\
+	cpl OP MODIFIER;				\
+	IFCPL_UNLOCK();					\
+							\
+	return (x);					\
+}							\
+int							\
+is_##NAME(void)						\
+{							\
+	return ((cpl & (MODIFIER)) == (MODIFIER));	\
 }
+
 
 #endif /* INTR_SPL */
 
