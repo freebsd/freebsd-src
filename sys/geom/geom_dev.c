@@ -80,8 +80,6 @@ static struct g_class g_dev_class	= {
 	"DEV-class",
 	g_dev_taste,
 	NULL,
-	g_dev_orphan,
-	NULL,
 	G_CLASS_INITSTUFF
 };
 
@@ -140,6 +138,7 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 		if (cp->geom->class == mp)
 			return (NULL);
 	gp = g_new_geomf(mp, pp->name);
+	gp->orphan = g_dev_orphan;
 	cp = g_new_consumer(gp);
 	g_attach(cp, pp);
 	error = g_access_rel(cp, 1, 0, 0);
