@@ -425,6 +425,7 @@ struct pthread {
 	char			*name;
 	u_int64_t		uniqueid; /* for gdb */
 	thr_id_t		thr_id;
+	sigset_t		savedsig;
 
 	/*
 	 * Lock for accesses to this thread structure.
