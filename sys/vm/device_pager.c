@@ -226,9 +226,10 @@ dev_pager_getpages(object, m, count, reqpage)
 	 */
 	page = dev_pager_getfake(paddr);
 	TAILQ_INSERT_TAIL(&object->un_pager.devp.devp_pglist, page, pageq);
-	for (i = 0; i < count; i++) {
+	vm_page_lock_queues();
+	for (i = 0; i < count; i++)
 		vm_page_free(m[i]);
-	}
+	vm_page_unlock_queues();
 	vm_page_insert(page, object, offset);
 
 	return (VM_PAGER_OK);
