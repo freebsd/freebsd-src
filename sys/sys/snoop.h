@@ -18,6 +18,9 @@
 #ifndef _SYS_SNOOP_H_
 #define	_SYS_SNOOP_H_
 
+#ifndef _KERNEL
+#include <sys/types.h>
+#endif
 #include <sys/ioccom.h>
 
 /*
