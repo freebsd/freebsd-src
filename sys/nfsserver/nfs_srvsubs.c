@@ -34,7 +34,6 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c  8.8 (Berkeley) 5/22/95
- * $FreeBSD$
  */
 
 #include <sys/cdefs.h>

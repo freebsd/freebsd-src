@@ -6,9 +6,10 @@
  * think this stuff is worth it, you can buy me a beer in return.
  *
  * Dan Moschuk
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/random.h>

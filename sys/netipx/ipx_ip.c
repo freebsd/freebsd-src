@@ -32,9 +32,10 @@
  * SUCH DAMAGE.
  * 
  *	@(#)ipx_ip.c
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * Software interface driver for encapsulating IPX in IP.

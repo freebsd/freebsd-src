@@ -1,8 +1,10 @@
-/* $FreeBSD$ */
 /*
  * Some data-tables that are often used.
  * Cannot be copyrighted.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/libkern.h>
 
