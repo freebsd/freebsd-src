@@ -4,7 +4,7 @@
 @ifinfo
 @format
 START-INFO-DIR-ENTRY
-* Reno 1: (reno-1).             The GNU C++ Renovation Project, Phase 1.
+* Reno 1: (reno).             The GNU C++ Renovation Project, Phase 1.
 END-INFO-DIR-ENTRY
 @end format
 @end ifinfo

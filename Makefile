@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.109.2.1 1996/11/28 21:43:35 phk Exp $
+#	$Id: Makefile,v 1.109.2.2 1996/12/20 08:20:06 asami Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -18,6 +18,7 @@
 #	-DNOSECURE do not go into secure subdir
 #	-DNOGAMES do not go into games subdir
 #	-DNOSHARE do not go into share subdir
+#	-DNOINFO do not make or install info files
 
 #
 # The intended user-driven targets are:
@@ -119,7 +120,7 @@ SUPFLAGS?=      -v
 # While building tools for bootstrapping, we dont need to waste time on
 # profiled libraries or man pages.  This speeds things up somewhat.
 #
-MK_FLAGS=	-DNOMAN -DNOPROFILE
+MK_FLAGS=	-DNOINFO -DNOMAN -DNOPROFILE
 
 #
 # world
@@ -501,6 +502,8 @@ libraries:
 #
 build-tools:
 .for d in				\
+		share/info		\
+		gnu/usr.bin/texinfo	\
 		usr.bin/symorder	\
 		usr.bin/sgmls		\
 		usr.bin/sgmlfmt		\
