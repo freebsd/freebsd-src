@@ -1362,6 +1362,8 @@ cs423x_probe(u_long csn, u_long vend_id)
 	s = "Yamaha SA2";
     else if ( id == 0x3000a865)
 	s = "Yamaha SA3";
+    else if ( id == 0x0000a865)
+	s = "Yamaha YMF719 OPL-SA3";
     else if (vend_id == 0x8140d315)
 	s = "SoundscapeVIVO";
     if (s) {
@@ -1395,7 +1397,7 @@ cs423x_attach(u_long csn, u_long vend_id, char *name,
     if (d.flags & DV_PNP_SBCODEC) {	/*** use sb-compatible codec ***/
 	dev->id_alive = 16 ; /* number of io ports ? */
 	tmp_d = sb_op_desc ;
-	if (vend_id==0x2000a865 || vend_id==0x3000a865 || vend_id==0x8140d315) {
+	if (vend_id == 0x0008a865 || vend_id==0x2000a865 || vend_id==0x3000a865 || vend_id==0x8140d315) {
 	    /* Yamaha SA2/SA3 or ENSONIQ SoundscapeVIVO ENS4081 */
 	    dev->id_iobase = d.port[0] ;
 	    tmp_d.alt_base = d.port[1] ;
@@ -1414,6 +1416,7 @@ cs423x_attach(u_long csn, u_long vend_id, char *name,
 
 	case 0x2000a865:	/* Yamaha SA2 */
 	case 0x3000a865:	/* Yamaha SA3 */
+	case 0x0000a865:	/* Yamaha YMF719 */
 	    dev->id_iobase = d.port[1];
 	    tmp_d.alt_base = d.port[0];
 	    tmp_d.conf_base = d.port[4];
