@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.10 1995/09/03 05:43:04 julian Exp $
+ *	$Id: mem.c,v 1.11 1995/09/08 11:07:08 bde Exp $
  */
 
 /*
@@ -67,7 +67,7 @@
 #include "sys/kernel.h"
 int mmopen();
 
-void memdev_init(caddr_t data) /* data not used */
+void memdev_init(void *data) /* data not used */
 {
   void * x;
 /*            path	name	devsw   minor	type   uid gid perm*/

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_mbuf.c	8.2 (Berkeley) 1/4/94
- * $Id: uipc_mbuf.c,v 1.10 1995/07/29 11:40:16 bde Exp $
+ * $Id: uipc_mbuf.c,v 1.11 1995/08/28 09:18:52 julian Exp $
  */
 
 #include <sys/param.h>
@@ -52,7 +52,7 @@
  * System initialization
  */
 
-static void mbinit __P((caddr_t));
+static void mbinit __P((void *));
 SYSINIT(mbuf, SI_SUB_MBUF, SI_ORDER_FIRST, mbinit, NULL)
 
 
@@ -67,8 +67,8 @@ int	max_datalen;
 
 /* ARGSUSED*/
 static void
-mbinit( udata)
-caddr_t		udata;		/* not used*/
+mbinit(udata)
+	void *udata;		/* not used*/
 {
 	int s;
 

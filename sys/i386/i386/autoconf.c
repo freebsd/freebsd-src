@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.36 1995/08/30 01:34:20 bde Exp $
+ *	$Id: autoconf.c,v 1.37 1995/09/03 05:43:00 julian Exp $
  */
 
 /*
@@ -74,13 +74,13 @@ extern struct vfsops	ufs_vfsops;
 extern struct vfsops	lfs_vfsops;
 #endif
 #ifdef NFS
-int nfs_mountroot __P((void));
+int nfs_mountroot __P((void *));
 #endif
 #ifdef CD9660
-int cd9660_mountroot __P((void));
+int cd9660_mountroot __P((void *));
 #endif
 #ifdef MSDOSFS
-int msdosfs_mountroot __P((void));
+int msdosfs_mountroot __P((void *));
 #endif
 #ifdef MFS_ROOT
 int mfs_initminiroot __P((u_char *));
@@ -118,7 +118,8 @@ static struct {
 };
 
 int
-find_cdrom_root()
+find_cdrom_root(dummy)
+	void *dummy;
 {
 	int i,j,k;
 
@@ -127,7 +128,7 @@ find_cdrom_root()
 			rootdev = makedev(try_cdrom[k].major,j*8);
 			printf("trying rootdev=0x%lx (%s%d)\n",
 				rootdev, try_cdrom[k].name,j);
-			i = (*cd9660_mountroot)();
+			i = (*cd9660_mountroot)(NULL);
 			if (!i) return i;
 		}
 	return EINVAL;
@@ -159,7 +160,8 @@ configure_finish()
  * Determine i/o configuration for a machine.
  */
 void
-configure( caddr_t dummy ) /* arg not used */
+configure(dummy) /* arg not used */
+	void *dummy;
 {
 
 	configure_start();

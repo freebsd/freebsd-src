@@ -69,7 +69,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: if_ppp.c,v 1.19 1995/07/31 21:54:46 bde Exp $ */
+/* $Id: if_ppp.c,v 1.20 1995/08/30 00:33:19 bde Exp $ */
 /* from if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp */
 
 #include "ppp.h"
@@ -123,7 +123,7 @@
 #include <net/if_ppp.h>
 #include <machine/cpu.h>
 
-static void pppattach __P((caddr_t));
+static void pppattach __P((void *));
 PSEUDO_SET(pppattach, if_ppp);
 
 /* This is a FreeBSD-2.x kernel. */
@@ -192,7 +192,7 @@ static u_short interactive_ports[8] = {
  */
 static void
 pppattach(udata)
-    caddr_t udata;
+    void *udata;
 {
     register struct ppp_softc *sc;
     register int i = 0;

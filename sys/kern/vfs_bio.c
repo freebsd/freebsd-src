@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.61 1995/09/03 19:56:14 dyson Exp $
+ * $Id: vfs_bio.c,v 1.62 1995/09/04 00:20:13 dyson Exp $
  */
 
 /*
@@ -63,7 +63,7 @@ static struct kproc_desc up_kp = {
 	vfs_update,
 	&updateproc
 };
-SYSINIT_KT(update, SI_SUB_KTHREAD_UPDATE, SI_ORDER_FIRST, kproc_start, (caddr_t)&up_kp)
+SYSINIT_KT(update, SI_SUB_KTHREAD_UPDATE, SI_ORDER_FIRST, kproc_start, &up_kp)
 
 
 struct buf *buf;		/* buffer header pool */

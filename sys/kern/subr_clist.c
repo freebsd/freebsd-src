@@ -6,7 +6,7 @@
  *   of this software, nor does the author assume any responsibility
  *   for damages incurred with its use.
  *
- * $Id: tty_subr.c,v 1.11 1995/07/11 19:39:54 bde Exp $
+ * $Id: tty_subr.c,v 1.12 1995/08/28 09:18:50 julian Exp $
  */
 
 /*
@@ -25,7 +25,7 @@
  * System initialization
  */
 
-static void clist_init __P((caddr_t));
+static void clist_init __P((void *));
 SYSINIT(clist, SI_SUB_CLIST, SI_ORDER_FIRST, clist_init, NULL)
 
 struct cblock *cfreelist = 0;
@@ -57,8 +57,8 @@ cbstat()
  */
 /* ARGSUSED*/
 static void
-clist_init( udata)
-caddr_t		udata;		/* not used*/
+clist_init(udata)
+	void *udata;		/* not used*/
 {
 	/*
 	 * Allocate an initial base set of cblocks as a 'slush'.
