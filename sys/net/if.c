@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- * $Id: if.c,v 1.22 1995/11/18 13:01:19 bde Exp $
+ * $Id: if.c,v 1.23 1995/12/05 02:01:36 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -56,7 +56,13 @@
  * System initialization
  */
 
+static int ifconf __P((int, caddr_t));
 static void ifinit __P((void *));
+static void if_qflush __P((struct ifqueue *));
+static void if_slowtimo __P((void *));
+static void link_rtrequest __P((int, struct rtentry *, struct sockaddr *));
+static char *sprint_d __P((u_int, char *, int));
+
 SYSINIT(interfaces, SI_SUB_PROTO_IF, SI_ORDER_FIRST, ifinit, NULL)
 
 
@@ -84,9 +90,9 @@ ifinit(dummy)
 	if_slowtimo(0);
 }
 
-int if_index = 0;
-struct ifaddr **ifnet_addrs;
-static char *sprint_d __P((u_int, char *, int));
+static int if_index = 0;
+static struct ifaddr **ifnet_addrs;
+
 
 /*
  * Attach an interface to the
@@ -260,23 +266,6 @@ ifa_ifwithnet(addr)
 }
 
 /*
- * Find an interface using a specific address family
- */
-struct ifaddr *
-ifa_ifwithaf(af)
-	register int af;
-{
-	register struct ifnet *ifp;
-	register struct ifaddr *ifa;
-
-	for (ifp = ifnet; ifp; ifp = ifp->if_next)
-	    for (ifa = ifp->if_addrlist; ifa; ifa = ifa->ifa_next)
-		if (ifa->ifa_addr->sa_family == af)
-			return (ifa);
-	return ((struct ifaddr *)0);
-}
-
-/*
  * Find an interface address specific to an interface best matching
  * a given address.
  */
@@ -328,7 +317,7 @@ ifaof_ifpforaddr(addr, ifp)
  * Lookup an appropriate real ifa to point to.
  * This should be moved to /sys/net/link.c eventually.
  */
-void
+static void
 link_rtrequest(cmd, rt, sa)
 	int cmd;
 	register struct rtentry *rt;
@@ -392,7 +381,7 @@ if_up(ifp)
 /*
  * Flush an interface queue.
  */
-void
+static void
 if_qflush(ifq)
 	register struct ifqueue *ifq;
 {
@@ -413,7 +402,7 @@ if_qflush(ifq)
  * from softclock, we decrement timers (if set) and
  * call the appropriate interface routine on expiration.
  */
-void
+static void
 if_slowtimo(arg)
 	void *arg;
 {
@@ -678,7 +667,7 @@ ifpromisc(ifp, pswitch)
  * other information.
  */
 /*ARGSUSED*/
-int
+static int
 ifconf(cmd, data)
 	int cmd;
 	caddr_t data;
