@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.c,v 1.16 1997/05/24 17:32:32 brian Exp $
+ * $Id: chap.c,v 1.17 1997/05/26 00:43:56 brian Exp $
  *
  *	TODO:
  */
@@ -62,10 +62,8 @@ int count;
   bcopy(&lh, MBUF_CTOP(bp), sizeof(struct fsmheader));
   if (count)
     bcopy(ptr, MBUF_CTOP(bp) + sizeof(struct fsmheader), count);
-#ifdef DEBUG
-  DumpBp(bp);
-#endif
-  LogPrintf(LOG_LCP_BIT, "ChapOutput: %s\n", chapcodes[code]);
+  LogDumpBp(LogDEBUG, "ChapOutput", bp);
+  LogPrintf(LogLCP, "ChapOutput: %s\n", chapcodes[code]);
   HdlcOutput(PRI_LINK, PROTO_CHAP, bp);
 }
 
@@ -96,23 +94,6 @@ int chapid;
   ChapOutput(CHAP_CHALLENGE, chapid, challenge_data, cp - challenge_data);
 }
 
-#ifdef DEBUG
-void
-DumpDigest(mes, cp, len)
-char *mes;
-char *cp;
-int len;
-{
-  int i;
-
-  logprintf("%s: ", mes);
-  for (i = 0; i < len; i++) {
-    logprintf(" %02x", *cp++ & 0xff);
-  }
-  logprintf("\n");
-}
-#endif
-
 void
 RecvChapTalk(chp, bp)
 struct fsmheader *chp;
@@ -127,16 +108,14 @@ struct mbuf *bp;
   char cdigest[16];
 
   len = ntohs(chp->length);
-#ifdef DEBUG
-  logprintf("length: %d\n", len);
-#endif
+  LogPrintf(LogDEBUG, "RecvChapTalk: length: %d\n", len);
   arglen = len - sizeof(struct fsmheader);
   cp = (char *)MBUF_CTOP(bp);
   valsize = *cp++ & 255;
   name = cp + valsize;
   namelen = arglen - valsize - 1;
   name[namelen] = 0;
-  LogPrintf(LOG_PHASE_BIT, " Valsize = %d, Name = %s\n", valsize, name);
+  LogPrintf(LogPHASE, " Valsize = %d, Name = %s\n", valsize, name);
 
   /*
    * Get a secret key corresponds to the peer
@@ -165,16 +144,12 @@ struct mbuf *bp;
     bcopy(keyp, ap, keylen);
     ap += keylen;
     bcopy(cp, ap, valsize);
-#ifdef DEBUG
-    DumpDigest("recv", ap, valsize);
-#endif
+    LogDumpBuff(LogDEBUG, "recv", ap, valsize);
     ap += valsize;
     MD5Init(&context);
     MD5Update(&context, answer, ap - answer);
     MD5Final(digest, &context);
-#ifdef DEBUG
-    DumpDigest("answer", digest, 16);
-#endif
+    LogDumpBuff(LogDEBUG, "answer", digest, 16);
     bcopy(name, digest + 16, namelen);
     ap += namelen;
     /* Send answer to the peer */
@@ -195,10 +170,8 @@ struct mbuf *bp;
       MD5Update(&context, answer, ap - answer);
       MD5Update(&context, challenge_data+1, challenge_len);
       MD5Final(cdigest, &context);
-#ifdef DEBUG
-      DumpDigest("got", cp, 16);
-      DumpDigest("expect", cdigest, 16);
-#endif
+      LogDumpBuff(LogDEBUG, "got", cp, 16);
+      LogDumpBuff(LogDEBUG, "expect", cdigest, 16);
       /*
        * Compare with the response
        */
@@ -227,9 +200,7 @@ struct mbuf *bp;
   struct lcpstate *lcp = &LcpInfo;
 
   len = ntohs(chp->length);
-#ifdef DEBUG
-  logprintf("length: %d\n", len);
-#endif
+  LogPrintf(LogDEBUG, "RecvChapResult: length: %d\n", len);
   if (chp->code == CHAP_SUCCESS) {
     if (lcp->auth_iwait == PROTO_CHAP) {
       lcp->auth_iwait = 0;
@@ -255,7 +226,7 @@ ChapInput(struct mbuf *bp)
     if (len >= ntohs(chp->length)) {
       if (chp->code < 1 || chp->code > 4)
 	chp->code = 0;
-      LogPrintf(LOG_LCP_BIT, "ChapInput: %s\n", chapcodes[chp->code]);
+      LogPrintf(LogLCP, "ChapInput: %s\n", chapcodes[chp->code]);
 
       bp->offset += sizeof(struct fsmheader);
       bp->cnt -= sizeof(struct fsmheader);

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.14 1997/05/10 01:22:10 brian Exp $
+ * $Id: hdlc.c,v 1.15 1997/05/26 00:43:59 brian Exp $
  *
  *	TODO:
  */
@@ -186,7 +186,7 @@ HdlcOutput(int pri, u_short proto, struct mbuf *bp)
     *cp++ = fcs >> 8;
   }
 
-  LogDumpBp(LOG_HDLC, "HdlcOutput", mhp);
+  LogDumpBp(LogHDLC, "HdlcOutput", mhp);
   for (statp = ProtocolStat; statp->number; statp++)
     if (statp->number == proto)
       break;
@@ -200,10 +200,9 @@ HdlcOutput(int pri, u_short proto, struct mbuf *bp)
 void
 DecodePacket(u_short proto, struct mbuf *bp)
 {
-#ifdef DEBUG
-  logprintf("proto = %04x\n", proto);
-#endif
   u_char *cp;
+
+  LogPrintf(LogDEBUG, "DecodePacket: proto = %04x\n", proto);
 
   switch (proto) {
   case PROTO_LCP:
@@ -239,7 +238,7 @@ DecodePacket(u_short proto, struct mbuf *bp)
     Pred1Input(bp);
     break;
   default:
-    LogPrintf(LOG_PHASE_BIT, "Unknown protocol 0x%04x\n", proto);
+    LogPrintf(LogPHASE, "Unknown protocol 0x%04x\n", proto);
     bp->offset -= 2;
     bp->cnt += 2;
     cp = MBUF_CTOP(bp);
@@ -260,18 +259,18 @@ ReportProtStatus()
   statp = ProtocolStat;
   statp--;
   cnt = 0;
-  printf("    Protocol     in        out      Protocol      in       out\n");
+  fprintf(VarTerm, "    Protocol     in        out      Protocol      in       out\n");
   do {
     statp++;
-    printf("   %-9s: %8lu, %8lu",
+    fprintf(VarTerm, "   %-9s: %8lu, %8lu",
       statp->name, statp->in_count, statp->out_count);
     if (++cnt == 2) {
-      printf("\n");
+      fprintf(VarTerm, "\n");
       cnt = 0;
     }
   } while (statp->number);
   if (cnt)
-     printf("\n");
+     fprintf(VarTerm, "\n");
   return(1);
 }
 
@@ -280,10 +279,12 @@ ReportHdlcStatus()
 {
   struct hdlcstat *hp = &HdlcStat;
 
-  printf("HDLC level errors\n\n");
-  printf("FCS: %u  ADDR: %u  COMMAND: %u  PROTO: %u\n",
-	hp->badfcs, hp->badaddr, hp->badcommand, hp->unknownproto);
-  return(1);
+  if (VarTerm) {
+    fprintf(VarTerm, "HDLC level errors\n\n");
+    fprintf(VarTerm, "FCS: %u  ADDR: %u  COMMAND: %u  PROTO: %u\n",
+	  hp->badfcs, hp->badaddr, hp->badcommand, hp->unknownproto);
+  }
+  return 0;
 }
 
 static struct hdlcstat laststat;
@@ -295,7 +296,7 @@ HdlcErrorCheck()
   struct hdlcstat *op = &laststat;
 
   if (bcmp(hp, op, sizeof(laststat))) {
-    LogPrintf(LOG_PHASE_BIT, "HDLC errors -> FCS: %u ADDR: %u COMD: %u PROTO: %u\n",
+    LogPrintf(LogPHASE, "HDLC errors -> FCS: %u ADDR: %u COMD: %u PROTO: %u\n",
 	hp->badfcs - op->badfcs, hp->badaddr - op->badaddr,
 	hp->badcommand - op->badcommand, hp->unknownproto - op->unknownproto);
   }
@@ -309,21 +310,18 @@ HdlcInput(struct mbuf *bp)
   u_char *cp, addr, ctrl;
   struct protostat *statp;
 
-  LogDumpBp(LOG_HDLC, "HdlcInput:", bp);
+  LogDumpBp(LogHDLC, "HdlcInput:", bp);
   if (DEV_IS_SYNC)
     fcs = GOODFCS;
   else
     fcs = HdlcFcs(INITFCS, MBUF_CTOP(bp), bp->cnt);
   HisLqrSave.SaveInOctets += bp->cnt + 1;
 
-#ifdef DEBUG
-  logprintf("fcs = %04x (%s)\n", fcs, (fcs == GOODFCS)? "good" : "bad");
-#endif
+  LogPrintf(LogDEBUG, "HdlcInput: fcs = %04x (%s)\n",
+	    fcs, (fcs == GOODFCS)? "good" : "bad");
   if (fcs != GOODFCS) {
     HisLqrSave.SaveInErrors++;
-#ifdef DEBUG
-    logprintf("Bad FCS\n");
-#endif
+    LogPrintf(LogDEBUG, "HdlcInput: Bad FCS\n");
     HdlcStat.badfcs++;
     pfree(bp);
     return;
@@ -349,9 +347,7 @@ HdlcInput(struct mbuf *bp)
     if (addr != HDLC_ADDR) {
       HisLqrSave.SaveInErrors++;
       HdlcStat.badaddr++;
-#ifdef DEBUG
-      logprintf("addr %02x\n", *cp);
-#endif
+      LogPrintf(LogDEBUG, "HdlcInput: addr %02x\n", *cp);
       pfree(bp);
       return;
     }
@@ -360,9 +356,7 @@ HdlcInput(struct mbuf *bp)
     if (ctrl != HDLC_UI) {
       HisLqrSave.SaveInErrors++;
       HdlcStat.badcommand++;
-#ifdef DEBUG
-      logprintf("command %02x\n", *cp);
-#endif
+      LogPrintf(LogDEBUG, "HdlcInput: %02x\n", *cp);
       pfree(bp);
       return;
     }

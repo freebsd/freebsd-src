@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id$
+ * $Id: fsm.h,v 1.7 1997/02/22 16:10:14 peter Exp $
  *
  *	TODO:
  */
@@ -26,7 +26,6 @@
 #include "defs.h"
 #include <netinet/in.h>
 #include "timeout.h"
-#include "cdefs.h"
 
 /*
  *  State of machine
@@ -66,15 +65,15 @@ struct fsm {
   int     reqcode;		/* Request code sent */
   struct pppTimer FsmTimer;	/* Restart Timer */
 
-  void	  (*LayerUp) __P((struct fsm *));
-  void	  (*LayerDown) __P((struct fsm *));
-  void	  (*LayerStart) __P((struct fsm *));
-  void	  (*LayerFinish) __P((struct fsm *));
-  void	  (*InitRestartCounter) __P((struct fsm *));
-  void	  (*SendConfigReq) __P((struct fsm *));
-  void	  (*SendTerminateReq) __P((struct fsm *));
-  void	  (*SendTerminateAck) __P((struct fsm *));
-  void	  (*DecodeConfig) __P((u_char *, int, int));
+  void	  (*LayerUp)(struct fsm *);
+  void	  (*LayerDown)(struct fsm *);
+  void	  (*LayerStart)(struct fsm *);
+  void	  (*LayerFinish)(struct fsm *);
+  void	  (*InitRestartCounter)(struct fsm *);
+  void	  (*SendConfigReq)(struct fsm *);
+  void	  (*SendTerminateReq)(struct fsm *);
+  void	  (*SendTerminateAck)(struct fsm *);
+  void	  (*DecodeConfig)(u_char *, int, int);
 };
 
 struct fsmheader {
@@ -100,7 +99,7 @@ struct fsmheader {
 #define	CODE_RESETACK	15		/* Used in CCP */
 
 struct fsmcodedesc {
-  void (*action) __P((struct fsm *, struct fsmheader *, struct mbuf *));
+  void (*action)(struct fsm *, struct fsmheader *, struct mbuf *);
   char *name;
 };
 
@@ -117,20 +116,20 @@ u_char ReqBuff[200];
 u_char *ackp, *nakp, *rejp;
 
 extern char const *StateNames[];
-extern void FsmInit __P((struct fsm *));
-extern void NewState __P((struct fsm *, int));
-extern void FsmOutput __P((struct fsm *, u_int, u_int, u_char *, int));
-extern void FsmOpen __P((struct fsm *));
-extern void FsmUp __P((struct fsm *));
-extern void FsmDown __P((struct fsm *));
-extern void FsmInput __P((struct fsm *, struct mbuf *));
+extern void FsmInit(struct fsm *);
+extern void NewState(struct fsm *, int);
+extern void FsmOutput(struct fsm *, u_int, u_int, u_char *, int);
+extern void FsmOpen(struct fsm *);
+extern void FsmUp(struct fsm *);
+extern void FsmDown(struct fsm *);
+extern void FsmInput(struct fsm *, struct mbuf *);
 
-extern void FsmRecvConfigReq __P((struct fsm *, struct fsmheader *, struct mbuf *));
-extern void FsmRecvConfigAck __P((struct fsm *, struct fsmheader *, struct mbuf *));
-extern void FsmRecvConfigNak __P((struct fsm *, struct fsmheader *, struct mbuf *));
-extern void FsmRecvTermReq __P((struct fsm *, struct fsmheader *, struct mbuf *));
-extern void FsmRecvTermAck __P((struct fsm *, struct fsmheader *, struct mbuf *));
-extern void FsmClose __P((struct fsm *fp));
+extern void FsmRecvConfigReq(struct fsm *, struct fsmheader *, struct mbuf *);
+extern void FsmRecvConfigAck(struct fsm *, struct fsmheader *, struct mbuf *);
+extern void FsmRecvConfigNak(struct fsm *, struct fsmheader *, struct mbuf *);
+extern void FsmRecvTermReq(struct fsm *, struct fsmheader *, struct mbuf *);
+extern void FsmRecvTermAck(struct fsm *, struct fsmheader *, struct mbuf *);
+extern void FsmClose(struct fsm *fp);
 
 extern struct fsm LcpFsm, IpcpFsm, CcpFsm;
 

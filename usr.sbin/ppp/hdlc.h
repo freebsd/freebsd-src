@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.h,v 1.7 1997/06/01 01:13:02 brian Exp $
+ * $Id: hdlc.h,v 1.8 1997/06/01 11:35:02 brian Exp $
  *
  *	TODO:
  */
@@ -60,11 +60,11 @@
 
 unsigned char EscMap[33];
 
-void HdlcInit __P((void));
-void HdlcErrorCheck __P((void));
-void HdlcInput __P((struct mbuf *bp));
-void HdlcOutput __P((int pri, u_short proto, struct mbuf *bp));
-void AsyncOutput __P((int pri, struct mbuf *bp, int proto));
-u_short HdlcFcs __P((u_short, u_char *, int));
-void DecodePacket __P((u_short, struct mbuf *));
+void HdlcInit(void);
+void HdlcErrorCheck(void);
+void HdlcInput(struct mbuf *bp);
+void HdlcOutput(int pri, u_short proto, struct mbuf *bp);
+void AsyncOutput(int pri, struct mbuf *bp, int proto);
+u_short HdlcFcs(u_short, u_char *, int);
+void DecodePacket(u_short, struct mbuf *);
 #endif

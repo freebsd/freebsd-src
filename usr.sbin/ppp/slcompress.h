@@ -1,7 +1,7 @@
 /*
  * Definitions for tcp compression routines.
  *
- * $Header: /home/ncvs/src/usr.sbin/ppp/slcompress.h,v 1.4 1997/01/14 07:15:40 jkh Exp $
+ * $Header: /home/ncvs/src/usr.sbin/ppp/slcompress.h,v 1.5 1997/02/22 16:10:55 peter Exp $
  *
  * Copyright (c) 1989 Regents of the University of California.
  * All rights reserved.
@@ -18,12 +18,11 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id$
+ * $Id: slcompress.h,v 1.5 1997/02/22 16:10:55 peter Exp $
  *
  *	Van Jacobson (van@helios.ee.lbl.gov), Dec 31, 1989:
  *	- Initial distribution.
  */
-#include "cdefs.h"
 
 #define MAX_STATES 16		/* must be > 2 and < 256 */
 #define MAX_HDR 128		/* XXX 4bsd-ism: should really be 128 */
@@ -138,7 +137,7 @@ struct slstat {
 /* flag values */
 #define SLF_TOSS 1		/* tossing rcvd frames because of input err */
 
-extern void sl_compress_init __P((struct slcompress *));
+extern void sl_compress_init(struct slcompress *);
 extern u_char sl_compress_tcp __P((struct mbuf *, struct ip *,
 				struct slcompress *, int compress_cid_flag));
-extern int sl_uncompress_tcp __P((u_char **, int,  u_int, struct slcompress *));
+extern int sl_uncompress_tcp(u_char **, int,  u_int, struct slcompress *);

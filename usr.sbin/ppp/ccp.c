@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.11 1997/05/10 01:22:06 brian Exp $
+ * $Id: ccp.c,v 1.12 1997/05/26 00:43:56 brian Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -30,19 +30,18 @@
 #include "loadalias.h"
 #include "vars.h"
 #include "pred.h"
-#include "cdefs.h"
 
 struct ccpstate CcpInfo;
 
-static void CcpSendConfigReq __P((struct fsm *));
-static void CcpSendTerminateReq __P((struct fsm *fp));
-static void CcpSendTerminateAck __P((struct fsm *fp));
-static void CcpDecodeConfig __P((u_char *cp, int flen, int mode));
-static void CcpLayerStart __P((struct fsm *));
-static void CcpLayerFinish __P((struct fsm *));
-static void CcpLayerUp __P((struct fsm *));
-static void CcpLayerDown __P((struct fsm *));
-static void CcpInitRestartCounter __P((struct fsm *));
+static void CcpSendConfigReq(struct fsm *);
+static void CcpSendTerminateReq(struct fsm *fp);
+static void CcpSendTerminateAck(struct fsm *fp);
+static void CcpDecodeConfig(u_char *cp, int flen, int mode);
+static void CcpLayerStart(struct fsm *);
+static void CcpLayerFinish(struct fsm *);
+static void CcpLayerUp(struct fsm *);
+static void CcpLayerDown(struct fsm *);
+static void CcpInitRestartCounter(struct fsm *);
 
 #define	REJECTED(p, x)	(p->his_reject & (1<<x))
 
@@ -83,11 +82,13 @@ ReportCcpStatus()
   struct ccpstate *icp = &CcpInfo;
   struct fsm *fp = &CcpFsm;
 
-  printf("%s [%s]\n", fp->name, StateNames[fp->state]);
-  printf("myproto = %s, hisproto = %s\n",
-	cftypes[icp->want_proto], cftypes[icp->his_proto]);
-  printf("Input: %ld --> %ld,  Output: %ld --> %ld\n",
-	icp->orgin, icp->compin, icp->orgout, icp->compout);
+  if (VarTerm) {
+    fprintf(VarTerm, "%s [%s]\n", fp->name, StateNames[fp->state]);
+    fprintf(VarTerm, "myproto = %s, hisproto = %s\n",
+	    cftypes[icp->want_proto], cftypes[icp->his_proto]);
+    fprintf(VarTerm, "Input: %ld --> %ld,  Output: %ld --> %ld\n",
+	    icp->orgin, icp->compin, icp->orgout, icp->compout);
+  }
   return 0;
 }
 
@@ -119,7 +120,7 @@ struct fsm *fp;
   struct ccpstate *icp = &CcpInfo;
 
   cp = ReqBuff;
-  LogPrintf(LOG_LCP_BIT, "%s: SendConfigReq\n", fp->name);
+  LogPrintf(LogLCP, "CcpSendConfigReq\n");
   if (icp->want_proto && !REJECTED(icp, TY_PRED1)) {
     *cp++ = TY_PRED1; *cp++ = 2;
   }
@@ -131,7 +132,7 @@ CcpSendResetReq(fp)
 struct fsm *fp;
 {
   Pred1Init(1);		/* Initialize Input part */
-  LogPrintf(LOG_LCP_BIT, "%s: SendResetReq\n", fp->name);
+  LogPrintf(LogLCP, "CcpSendResetReq\n");
   FsmOutput(fp, CODE_RESETREQ, fp->reqid, NULL, 0);
 }
 
@@ -146,7 +147,7 @@ static void
 CcpSendTerminateAck(fp)
 struct fsm *fp;
 {
-  LogPrintf(LOG_LCP_BIT, "  %s: SendTerminateAck\n", fp->name);
+  LogPrintf(LogLCP, "CcpSendTerminateAck\n");
   FsmOutput(fp, CODE_TERMACK, fp->reqid++, NULL, 0);
 }
 
@@ -161,21 +162,21 @@ static void
 CcpLayerStart(fp)
 struct fsm *fp;
 {
-  LogPrintf(LOG_LCP_BIT, "%s: LayerStart.\n", fp->name);
+  LogPrintf(LogLCP, "CcpLayerStart.\n");
 }
 
 static void
 CcpLayerFinish(fp)
 struct fsm *fp;
 {
-  LogPrintf(LOG_LCP_BIT, "%s: LayerFinish.\n", fp->name);
+  LogPrintf(LogLCP, "CcpLayerFinish.\n");
 }
 
 static void
 CcpLayerDown(fp)
 struct fsm *fp;
 {
-  LogPrintf(LOG_LCP_BIT, "%s: LayerDown.\n", fp->name);
+  LogPrintf(LogLCP, "CcpLayerDown.\n");
 }
 
 /*
@@ -185,11 +186,8 @@ static void
 CcpLayerUp(fp)
 struct fsm *fp;
 {
-#ifdef VERBOSE
-  fprintf(stderr, "%s: LayerUp(%d).\r\n", fp->name, fp->state);
-#endif
-  LogPrintf(LOG_LCP_BIT, "%s: LayerUp.\n", fp->name);
-  LogPrintf(LOG_LCP_BIT, "myproto = %d, hisproto = %d\n",
+  LogPrintf(LogLCP, "CcpLayerUp(%d).\n", fp->state);
+  LogPrintf(LogLCP, "myproto = %d, hisproto = %d\n",
 	CcpInfo.want_proto, CcpInfo.his_proto);
   Pred1Init(3);		/* Initialize Input and Output */
 }
@@ -198,7 +196,7 @@ void
 CcpUp()
 {
   FsmUp(&CcpFsm);
-  LogPrintf(LOG_LCP_BIT, "CCP Up event!!\n");
+  LogPrintf(LogLCP, "CCP Up event!!\n");
 }
 
 void
@@ -231,7 +229,7 @@ int mode;
     else
       snprintf(tbuff, sizeof(tbuff), " ");
 
-    LogPrintf(LOG_LCP_BIT, "%s\n", tbuff);
+    LogPrintf(LogLCP, "%s\n", tbuff);
 
     switch (type) {
     case TY_PRED1:
@@ -271,7 +269,7 @@ CcpInput(struct mbuf *bp)
   if (phase == PHASE_NETWORK)
     FsmInput(&CcpFsm, bp);
   else {
-    logprintf("ccp in phase %d\n", phase);
+    LogPrintf(LogERROR, "Unexpected CCP in phase %d\n", phase);
     pfree(bp);
   }
 }
