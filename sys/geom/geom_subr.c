@@ -190,7 +190,8 @@ g_new_providerf(struct g_geom *gp, char *fmt, ...)
 	pp->geom = gp;
 	LIST_INSERT_HEAD(&gp->provider, pp, provider);
 	g_nproviders++;
-	g_post_event(EV_NEW_PROVIDER, NULL, NULL, pp, NULL);
+	if (g_nproviders > 1)
+		g_post_event(EV_NEW_PROVIDER, NULL, NULL, pp, NULL);
 	return (pp);
 }
 
