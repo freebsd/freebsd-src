@@ -1,7 +1,7 @@
 <!--
 	The FreeBSD Simplified Chinese Project
 
-	Original Revision: 1.276
+	Original Revision: 1.277
 -->
 
 <!--
@@ -142,6 +142,8 @@
 
 	<para arch="alpha">由于 SRM 的限制， 不支持从这些控制器启动。</para>
       </note>
+
+    &hwlist.arcmsr;
 
     &hwlist.mlx;
 
