@@ -23,7 +23,7 @@ beforeinstall: ${SHARED}
 
 copies::
 .for dir in ${CFDIRS}
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 755 -d ${DDIR}/${dir}
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 755 -d ${DDIR}/${dir}
 .endfor
 .for file in ${CFFILES}
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${SENDMAIL_DIR}/${file} ${DDIR}/${file}
