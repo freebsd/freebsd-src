@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.19 1994/10/26 20:22:10 jkh Exp $
+ *	$Id: boot.c,v 1.20 1994/10/26 20:46:05 jkh Exp $
  */
 
 
@@ -273,14 +273,6 @@ getbootdev(howto)
 				if (c)
 					*ptr++ = 0;
 			}
-		}
-		if (name[0] != '/') {
-			int i;
-			/* This is incredibly gross, but nonetheless compact */
-			/* which is a good thing for a boot block to be */
-			for (i = NAMEBUF_LEN - 1; i; i--)
-				name[i] = name[i - 1];
-			name[0] = '/';
 		}
 	} else
 		printf("\n");
