@@ -90,7 +90,6 @@ extern short dmapageport[];
 #define	SBIC_INIT_WAIT	50000	/* wait per step (both) during init */
 #define SBIC_RESET_TIMEOUT	2000
 
-#define	b_cylin		b_resid
 #define SBIC_WAIT(sbic, until, timeo) sbicwait(sbic, until, timeo, __LINE__)
 #define SBIC_ENABLE_INT(iobase) { \
 		u_char tmp; \
