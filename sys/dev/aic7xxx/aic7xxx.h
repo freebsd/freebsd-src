@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7xxx.h,v 1.1 1998/09/15 07:24:16 gibbs Exp $
+ *	$Id: aic7xxx.h,v 1.2 1998/11/23 01:33:47 gibbs Exp $
  */
 
 #ifndef _AIC7XXX_H_
@@ -143,7 +143,10 @@ typedef enum {
 	AHC_EXTENDED_TRANS_B	= 0x200,
 	AHC_TERM_ENB_A		= 0x400,
 	AHC_TERM_ENB_B		= 0x800,
-	AHC_HANDLING_REQINITS	= 0x1000,
+	AHC_INITIATORMODE	= 0x1000,/*
+					  * Allow initiator operations on
+					  * this controller.
+					  */
 	AHC_TARGETMODE		= 0x2000,/*
 					  * Allow target operations on this
 					  * controller.
@@ -165,11 +168,6 @@ typedef enum {
 	SCB_DEVICE_RESET	= 0x0004,
 	SCB_SENSE		= 0x0008,
 	SCB_RECOVERY_SCB	= 0x0040,
-	SCB_MSGOUT_SENT		= 0x0200,
-	SCB_MSGOUT_SDTR		= 0x0400,
-	SCB_MSGOUT_WDTR		= 0x0800,
-	SCB_MSGOUT_BITS		= (SCB_MSGOUT_SDTR|SCB_MSGOUT_WDTR
-				   |SCB_MSGOUT_SENT),
 	SCB_ABORT		= 0x1000,
 	SCB_QUEUED_MSG		= 0x2000,
 	SCB_ACTIVE		= 0x4000,
@@ -384,7 +382,9 @@ struct ahc_syncrate {
 typedef enum {
 	MSG_TYPE_NONE			= 0x00,
 	MSG_TYPE_INITIATOR_MSGOUT	= 0x01,
-	MSG_TYPE_INITIATOR_MSGIN	= 0x02
+	MSG_TYPE_INITIATOR_MSGIN	= 0x02,
+	MSG_TYPE_TARGET_MSGOUT		= 0x03,
+	MSG_TYPE_TARGET_MSGIN		= 0x04
 } ahc_msg_type;
 
 struct ahc_softc {
@@ -442,10 +442,9 @@ struct ahc_softc {
 	 * Per target state bitmasks.
 	 */
 	u_int16_t		 ultraenb;	/* Using ultra sync rate  */
-	u_int16_t		 sdtrpending;	/* Pending SDTR request	  */
-	u_int16_t		 wdtrpending;	/* Pending WDTR request   */
 	u_int16_t	 	 discenable;	/* Disconnection allowed  */
 	u_int16_t		 tagenable;	/* Tagged Queuing allowed */
+	u_int16_t		 targ_msg_req;	/* Need negotiation messages */
 
 	/*
 	 * Hooks into the XPT.
@@ -481,10 +480,13 @@ struct ahc_softc {
 	/*
 	 * Incoming and outgoing message handling.
 	 */
+	u_int8_t		 send_msg_perror;
 	ahc_msg_type		 msg_type;
-	u_int8_t		 msg_buf[8];	/* Message we are sending */
-	u_int			 msg_len;	/* Length of message to send */
-	u_int			 msg_index;	/* Current index in message */
+	u_int8_t		 msgout_buf[8];	/* Message we are sending */
+	u_int8_t		 msgin_buf[8];	/* Message we are receiving */
+	u_int			 msgout_len;	/* Length of message to send */
+	u_int			 msgout_index;	/* Current index in msgout */
+	u_int			 msgin_index;	/* Current index in msgin */
 
 	/*
 	 * "Bus" addresses of our data structures.
