@@ -1142,7 +1142,7 @@
 
     <para>&man.last.1; now implements a <option>-d</option> that
     provides a <quote>snapshot</quote> of who was logged in at a
-    particular date and time</para>
+    particular date and time. &merged;</para>
 
     <para>&man.newfs.8; now implements write combining, which can make
     creation of new filesystems up to seven times
