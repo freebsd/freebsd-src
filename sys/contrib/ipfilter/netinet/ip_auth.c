@@ -109,7 +109,7 @@ static const char rcsid[] = "@(#)$FreeBSD$";
 #endif
 
 
-#if (SOLARIS || defined(__sgi)) && defined(_KERNEL)
+#ifdef USE_MUTEX
 extern KRWLOCK_T ipf_auth, ipf_mutex;
 extern kmutex_t ipf_authmx;
 # if SOLARIS

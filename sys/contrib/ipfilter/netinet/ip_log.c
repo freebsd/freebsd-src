@@ -128,7 +128,7 @@
 # endif
 
 
-# if SOLARIS || defined(__sgi)
+# if USE_MUTEX
 extern	kmutex_t	ipl_mutex;
 #  if SOLARIS
 extern	kcondvar_t	iplwait;
