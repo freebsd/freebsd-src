@@ -229,10 +229,11 @@ read_kld(char *filename, char *kldname)
 		check(ef_lookup_symbol(&ef, "__stop_set_" MDT_SETNAME, &sym));
 		finish = sym->st_value;
 		entries = (finish - start) / sizeof(void *);
-		check(ef_seg_read_entry(&ef, start, sizeof(*p) * entries, (void**)&p));
+		check(ef_seg_read_entry_rel(&ef, start, sizeof(*p) * entries,
+		    (void**)&p));
 		orgp = p;
 		while(entries--) {
-			check(ef_seg_read(&ef, (Elf_Off)*p, sizeof(md), &md));
+			check(ef_seg_read_rel(&ef, (Elf_Off)*p, sizeof(md), &md));
 			p++;
 			check(ef_seg_read(&ef, (Elf_Off)md.md_cval, sizeof(cval), cval));
 			cval[MAXMODNAME] = '\0';
