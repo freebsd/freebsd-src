@@ -13,11 +13,16 @@ SUBDIR=csu/${MACHINE}
 SUBDIR+=libalias libc libcompat libcom_err libcurses libdisk libedit \
 	libf2c libftpio libgnumalloc libipx \
 	libkvm libmd libmytinfo libncurses libpcap libresolv librpcsvc \
-	libscsi libskey libss libtcl libtermcap libutil libxpg4 liby libz
+	libscsi libskey libss libtermcap libutil libxpg4 liby libz
 	
 
 .if defined(WANT_LIBC_R)
 SUBDIR+= libc_r
+.endif
+
+.if !defined(NOTCL) && exists (${.CURDIR}/../contrib/tcl) && \
+	exists(${.CURDIR}/../usr.bin/tclsh) && exists (${.CURDIR}/libtcl)
+SUBDIR+=libtcl
 .endif
 
 .if !exists(${.CURDIR}/../secure) || defined(NOSECURE) || defined(NOCRYPT)
