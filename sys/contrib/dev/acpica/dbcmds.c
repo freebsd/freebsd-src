@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbcmds - debug commands and output routines
- *              $Revision: 112 $
+ *              $Revision: 113 $
  *
  ******************************************************************************/
 
@@ -161,6 +161,9 @@ ACPI_STATUS
 AcpiDbSleep (
     char                    *ObjectArg)
 {
+#if ACPI_MACHINE_WIDTH == 16
+    return (AE_OK);
+#else
     ACPI_STATUS             Status;
     UINT8                   SleepState;
 
@@ -185,6 +188,7 @@ AcpiDbSleep (
     Status = AcpiLeaveSleepState (SleepState);
 
     return (Status);
+#endif
 }
 
 
