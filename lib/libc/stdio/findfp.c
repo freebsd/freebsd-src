@@ -75,6 +75,10 @@ FILE __sF[3] = {
 struct glue __sglue = { &uglue, 3, __sF };
 static struct glue *lastglue = &uglue;
 
+FILE *__stdin = &__sF[0];
+FILE *__stdout = &__sF[1];
+FILE *__stderr = &__sF[2];
+
 static struct glue *	moreglue __P((int));
 
 static spinlock_t thread_lock = _SPINLOCK_INITIALIZER;
