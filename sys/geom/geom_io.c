@@ -281,13 +281,15 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 	if (g_collectstats) {
 		binuptime(&bt);
 		bp->bio_t0 = bt;
-		if (cp->stat->nop == cp->stat->nend)
+		if (cp->nstart == cp->nend)
 			cp->stat->wentbusy = bt; /* Consumer is idle */
-		if (pp->stat->nop == pp->stat->nend)
+		if (pp->nstart == pp->nend)
 			pp->stat->wentbusy = bt; /* Provider is idle */
+		cp->stat->nop++;
+		pp->stat->nop++;
 	}
-	cp->stat->nop++;
-	pp->stat->nop++;
+	cp->nstart++;
+	pp->nstart++;
 
 	/* Pass it on down. */
 	g_trace(G_T_BIO, "bio_request(%p) from %p(%s) to %p(%s) cmd %d",
@@ -364,9 +366,11 @@ g_io_deliver(struct bio *bp, int error)
 		/* Mark the structures as consistent again */
 		atomic_add_acq_int(&cp->stat->seq1, 1);
 		atomic_add_acq_int(&pp->stat->seq1, 1);
+		cp->stat->nend++;
+		pp->stat->nend++;
 	}
-	cp->stat->nend++;
-	pp->stat->nend++;
+	cp->nend++;
+	pp->nend++;
 
 	if (error == ENOMEM) {
 		printf("ENOMEM %p on %p(%s)\n", bp, pp, pp->name);
