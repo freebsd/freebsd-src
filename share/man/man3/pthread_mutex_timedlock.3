@@ -50,15 +50,6 @@ specified by abs_timeout,
 expires.
 The time of the timeout is an absolute time and
 is not relative to the current time.
-.Sh IMPLEMENTATION NOTES
-The
-.Fn pthread_mutex_timedlock
-function is only available in
-.Lb libpthread
-and
-.Lb libthr .
-This function is not implemented in
-.Lb libc_r .
 .Sh RETURN VALUES
 If successful,
 .Fn pthread_mutex_timedlock
