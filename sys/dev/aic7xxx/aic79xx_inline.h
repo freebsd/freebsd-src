@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic79xx_inline.h#49 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic79xx_inline.h#50 $
  *
  * $FreeBSD$
  */
@@ -271,7 +271,12 @@ ahd_setup_scb_common(struct ahd_softc *ahd, struct scb *scb)
 	scb->crc_retry_count = 0;
 	if ((scb->flags & SCB_PACKETIZED) != 0) {
 		/* XXX what about ACA??  It is type 4, but TAG_TYPE == 0x3. */
-		scb->hscb->task_attribute= scb->hscb->control & SCB_TAG_TYPE;
+		scb->hscb->task_attribute = scb->hscb->control & SCB_TAG_TYPE;
+	} else {
+		if (ahd_get_transfer_length(scb) & 0x01)
+			scb->hscb->task_attribute = SCB_XFERLEN_ODD;
+		else
+			scb->hscb->task_attribute = 0;
 	}
 
 	if (scb->hscb->cdb_len <= MAX_CDB_LEN_WITH_SENSE_ADDR
