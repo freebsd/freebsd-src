@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: disk.c,v 1.8 1995/04/30 11:04:13 phk Exp $
+ * $Id: disk.c,v 1.10 1995/05/01 04:05:25 phk Exp $
  *
  */
 
@@ -65,11 +65,13 @@ Int_Open_Disk(char *name, u_long size)
 		return 0;
 	}
 
+#if 0
 	for(i=0;i<ds.dss_nslices;i++)
 		if(ds.dss_slices[i].ds_openmask)
 			printf("  open(%d)=0x%2x",
 				i,ds.dss_slices[i].ds_openmask);
 	printf("\n");
+#endif
 
 	if (!size)
 		size = ds.dss_slices[WHOLE_DISK_SLICE].ds_size;
