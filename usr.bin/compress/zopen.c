@@ -33,6 +33,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -101,8 +103,8 @@ struct s_zstate {
 	enum {
 		S_START, S_MIDDLE, S_EOF
 	} zs_state;			/* State of computation */
-	int zs_n_bits;			/* Number of bits/code. */
-	int zs_maxbits;			/* User settable max # bits/code. */
+	size_t zs_n_bits;			/* Number of bits/code. */
+	size_t zs_maxbits;			/* User settable max # bits/code. */
 	code_int zs_maxcode;		/* Maximum code, given n_bits. */
 	code_int zs_maxmaxcode;		/* Should NEVER generate this code. */
 	count_int zs_htab [HSIZE];
@@ -117,7 +119,7 @@ struct s_zstate {
 	int zs_clear_flg;
 	long zs_ratio;
 	count_int zs_checkpoint;
-	int zs_offset;
+	size_t zs_offset;
 	long zs_in_count;		/* Length of input. */
 	long zs_bytes_out;		/* Length of compressed output. */
 	long zs_out_count;		/* # of codes output (for debugging). */
@@ -238,8 +240,8 @@ zwrite(cookie, wbp, num)
 	const char *wbp;
 	int num;
 {
-	register code_int i;
-	register int c, disp;
+	code_int i;
+	int c, disp;
 	struct s_zstate *zs;
 	const u_char *bp;
 	u_char tmp;
@@ -250,7 +252,7 @@ zwrite(cookie, wbp, num)
 
 	zs = cookie;
 	count = num;
-	bp = (u_char *)wbp;
+	bp = wbp;
 	if (state == S_MIDDLE)
 		goto middle;
 	state = S_MIDDLE;
@@ -374,8 +376,9 @@ output(zs, ocode)
 	struct s_zstate *zs;
 	code_int ocode;
 {
-	register int bits, r_off;
-	register char_type *bp;
+	int r_off;
+	size_t bits;
+	char_type *bp;
 
 	r_off = offset;
 	bits = n_bits;
@@ -464,7 +467,7 @@ zread(cookie, rbp, num)
 	char *rbp;
 	int num;
 {
-	register u_int count;
+	u_int count;
 	struct s_zstate *zs;
 	u_char *bp, header[3];
 
@@ -573,9 +576,9 @@ static code_int
 getcode(zs)
 	struct s_zstate *zs;
 {
-	register code_int gcode;
-	register int r_off, bits;
-	register char_type *bp;
+	code_int gcode;
+	int r_off, bits;
+	char_type *bp;
 
 	bp = gbuf;
 	if (clear_flg > 0 || roffset >= size || free_ent > maxcode) {
@@ -632,7 +635,7 @@ static int
 cl_block(zs)			/* Table clear for block compress. */
 	struct s_zstate *zs;
 {
-	register long rat;
+	long rat;
 
 	checkpoint = in_count + CHECK_GAP;
 
@@ -660,10 +663,10 @@ cl_block(zs)			/* Table clear for block compress. */
 static void
 cl_hash(zs, cl_hsize)			/* Reset code table. */
 	struct s_zstate *zs;
-	register count_int cl_hsize;
+	count_int cl_hsize;
 {
-	register count_int *htab_p;
-	register long i, m1;
+	count_int *htab_p;
+	long i, m1;
 
 	m1 = -1;
 	htab_p = htab + cl_hsize;
