@@ -71,7 +71,6 @@ options 	SYSVMSG			#SYSV-style message queues
 options 	SYSVSEM			#SYSV-style semaphores
 options		P1003_1B		#Posix P1003_1B real-time extentions
 options 	_KPOSIX_PRIORITY_SCHEDULING
-options 	RANDOMDEV		#entropy device
 
 # Standard busses
 device		isa
@@ -153,6 +152,7 @@ device		wb		# Winbond W89C840F
 device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 
 # Pseudo devices - the number indicates how many units to allocated.
+device		random		# Entropy device
 device		loop		# Network loopback
 device		ether		# Ethernet support
 device		sl		# Kernel SLIP
