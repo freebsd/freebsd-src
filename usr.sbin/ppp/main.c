@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.106 1997/12/03 10:23:50 brian Exp $
+ * $Id: main.c,v 1.107 1997/12/13 02:37:27 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -362,6 +362,17 @@ main(int argc, char **argv)
 {
   FILE *lockfile;
   char *name, *label;
+  int nfds;
+
+  nfds = getdtablesize();
+  if (nfds >= FD_SETSIZE)
+    /*
+     * If we've got loads of file descriptors, make sure they're all
+     * closed.  If they aren't, we may end up with a seg fault when our
+     * `fd_set's get too big when select()ing !
+     */
+    while (--nfds > 2)
+      close(nfds);
 
   VarTerm = 0;
   name = strrchr(argv[0], '/');
