@@ -78,7 +78,7 @@ addarg(al, arg, copy)
 	}
 	if (copy) {
 		if ((al->argv[al->argc++] = strdup(arg)) == NULL)
-			err(1, "mailwrapper:");
+			err(1, "mailwrapper");
 	} else
 		al->argv[al->argc++] = (char *)arg;
 }
@@ -152,10 +152,12 @@ main(argc, argv, envp)
 
 	(void)fclose(config);
 
+	al.argv[al.argc] = NULL;
 	execve(to, al.argv, envp);
+	warn("mailwrapper: execing %s", to);
 	freearg(&al, 0);
 	free(line);
-	err(1, "mailwrapper: execing %s", to);
+	exit(1);
 	/*NOTREACHED*/
 parse_error:
 	freearg(&al, 0);
