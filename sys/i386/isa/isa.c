@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.116 1998/10/22 05:58:39 bde Exp $
+ *	$Id: isa.c,v 1.117 1998/11/29 15:42:40 phk Exp $
  */
 
 /*
@@ -404,10 +404,6 @@ isa_configure()
 		if (!dvp->id_driver->sensitive_hw)
 			config_isadev(dvp, (u_int *)NULL);
 
-	bio_imask |= SWI_CLOCK_MASK;
-	net_imask |= SWI_NET_MASK;
-	tty_imask |= SWI_TTY_MASK;
-
 /*
  * XXX we should really add the tty device to net_imask when the line is
  * switched to SLIPDISC, and then remove it when it is switched away from
@@ -424,8 +420,6 @@ isa_configure()
 	net_imask |= tty_imask;
 	tty_imask = net_imask;
 #endif
-
-	/* bio_imask |= tty_imask ;  can some tty devices use buffers? */
 
 	if (bootverbose)
 		printf("imasks: bio %x, tty %x, net %x\n",
