@@ -121,16 +121,16 @@ typedef _BSD_VA_LIST_ __gnuc_va_list;		/* compatibility w/GNU headers*/
  * Internal names for basic integral types.  Omit the typedef if
  * not possible for a machine/compiler combination.
  */
-typedef	__signed char		   __int8_t;
-typedef	unsigned char		  __uint8_t;
-typedef	short			  __int16_t;
-typedef	unsigned short		 __uint16_t;
-typedef	int			  __int32_t;
-typedef	unsigned int		 __uint32_t;
-typedef	long			  __int64_t;
-typedef	unsigned long		 __uint64_t;
+typedef	__signed char		__int8_t;
+typedef	unsigned char		__uint8_t;
+typedef	short			__int16_t;
+typedef	unsigned short		__uint16_t;
+typedef	int			__int32_t;
+typedef	unsigned int		__uint32_t;
+typedef	long			__int64_t;
+typedef	unsigned long		__uint64_t;
 
-typedef	long			 __intptr_t;
+typedef	long			__intptr_t;
 typedef	unsigned long		__uintptr_t;
 
 /*
