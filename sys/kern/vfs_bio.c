@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.31 1995/02/25 01:46:26 davidg Exp $
+ * $Id: vfs_bio.c,v 1.32 1995/03/01 22:08:55 davidg Exp $
  */
 
 /*
@@ -187,9 +187,6 @@ bread(struct vnode * vp, daddr_t blkno, int size, struct ucred * cred,
 		vfs_busy_pages(bp, 0);
 		VOP_STRATEGY(bp);
 		return (biowait(bp));
-	} else if (bp->b_lblkno == bp->b_blkno) {
-		VOP_BMAP(vp, bp->b_lblkno, (struct vnode **) 0,
-		    &bp->b_blkno, (int *) 0);
 	}
 	return (0);
 }
@@ -223,9 +220,6 @@ breadn(struct vnode * vp, daddr_t blkno, int size,
 		vfs_busy_pages(bp, 0);
 		VOP_STRATEGY(bp);
 		++readwait;
-	} else if (bp->b_lblkno == bp->b_blkno) {
-		VOP_BMAP(vp, bp->b_lblkno, (struct vnode **) 0,
-		    &bp->b_blkno, (int *) 0);
 	}
 	for (i = 0; i < cnt; i++, rablkno++, rabsize++) {
 		if (inmem(vp, *rablkno))
@@ -331,6 +325,9 @@ bdwrite(struct buf * bp)
 			++curproc->p_stats->p_ru.ru_oublock;
 		bp->b_flags |= B_DONE | B_DELWRI;
 		reassignbuf(bp, bp->b_vp);
+	}
+	if( bp->b_lblkno == bp->b_blkno) {
+		VOP_BMAP(bp->b_vp, bp->b_lblkno, NULL, &bp->b_blkno, NULL);
 	}
 	brelse(bp);
 	return;
@@ -557,7 +554,8 @@ vfs_bio_awrite(struct buf * bp)
 		 * this is a possible cluster write
 		 */
 		if (ncl != 1) {
-			cluster_wbuild(vp, NULL, size, lblkno, ncl, -1);
+			bremfree(bp);
+			cluster_wbuild(vp, bp, size, lblkno, ncl, -1);
 			splx(s);
 			return;
 		}
@@ -646,6 +644,11 @@ trytofreespace:
 			return (0);
 		}
 		goto start;
+	}
+
+	if( bp->b_flags & B_WANTED) {
+		bp->b_flags &= ~(B_WANTED|B_PDWANTED);
+		wakeup((caddr_t) bp);
 	}
 	bremfree(bp);
 
