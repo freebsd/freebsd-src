@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: xms.c,v 1.2 1997/08/15 23:41:25 jlemon Exp $
+ *	$Id: xms.c,v 1.3 1997/09/30 22:04:06 jlemon Exp $
  */
 
 /*
@@ -70,7 +70,7 @@ static short  HMA_a20 = -1;
 static int    HMA_fd_off, HMA_fd_on;
 
 /* high memory mapfiles */
-static char *memfile = "/tmp/doscmd.XXXXXX";
+static char memfile[] = "/tmp/doscmd.XXXXXX";
 
 /* Upper memory block (UMB) management */
 UMB_block *UMB_freelist = NULL;
@@ -358,6 +358,16 @@ void initHMA()
     lseek(HMA_fd_on, 64 * 1024 - 1, 0);
     write(HMA_fd_on, "", 1);
 
+    if (mmap((caddr_t)0x000000, 0x100000,
+                   PROT_EXEC | PROT_READ | PROT_WRITE,
+                   MAP_ANON | MAP_FIXED | MAP_INHERIT | MAP_SHARED,
+                   -1, 0) < 0) {
+	perror("Error mapping HMA, HMA disabled: ");
+        HMA_a20 = -1;
+	close(HMA_fd_off);
+	close(HMA_fd_on);
+	return;
+    }
     if (mmap((caddr_t)0x000000, 64 * 1024,
                    PROT_EXEC | PROT_READ | PROT_WRITE,
                    MAP_FILE | MAP_FIXED | MAP_INHERIT | MAP_SHARED,
