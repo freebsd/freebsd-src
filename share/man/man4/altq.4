@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 2004 Max Laier <mlaier@freebsd.org>
+.\" Copyright (c) 2004 Max Laier <mlaier@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -23,14 +23,14 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$FreeBSD$
+.\" $FreeBSD$
 .\"
 .Dd December 24, 2004
 .Dt ALTQ 4
 .Os
 .Sh NAME
 .Nm ALTQ
-.Nd Alternate queuing of network packets
+.Nd "alternate queuing of network packets"
 .Sh DESCRIPTION
 The
 .Nm
@@ -58,36 +58,36 @@ operation:
 .Pp
 .Bl -tag -width ".Dv ALTQ_DEBUG" -compact
 .It Dv ALTQ
-enable
-.Nm
+Enable
+.Nm .
 .It Dv ALTQ_CBQ
-build the
+Build the
 .Dq "Class Based Queuing"
 discipline.
 .It Dv ALTQ_RED
-build the
+Build the
 .Dq "Random Early Drop"
 extension.
 .It Dv ALTQ_RIO
-build
+Build
 .Dq "Random Early Drop"
 for input and output.
 .It Dv ALTQ_HFSC
-build the
+Build the
 .Dq "Hierarchical Packet Scheduler"
 discipline.
 .It Dv ALTQ_CDNR
-build the traffic conditioner.
+Build the traffic conditioner.
 This option is meaningless at the moment as the conditioner is not used by
 any of the available disciplines or consumers.
 .It Dv ALTQ_PRIQ
-build the
+Build the
 .Dq "Priority Queuing"
 discipline.
 .It Dv ALTQ_NOPCC
-required for SMP builds.
+Required for SMP builds.
 .It Dv ALTQ_DEBUG
-enable additional debugging facilities.
+Enable additional debugging facilities.
 .El
 .Pp
 Note that
@@ -143,4 +143,4 @@ and includes the required modifications.
 .Xr pf.conf 5 ,
 .Xr ipfw 8 ,
 .Xr pfctl 8 ,
-.Xr altq 9 .
+.Xr altq 9
