@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ether.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ether.c,v 1.30 1996/06/08 08:18:56 bde Exp $
+ * $Id: if_ether.c,v 1.31 1996/06/13 02:54:19 davidg Exp $
  */
 
 /*
@@ -365,7 +365,7 @@ arpresolve(ac, rt, m, dst, desten, rt0)
 			rt->rt_expire = time.tv_sec;
 			if (la->la_asked++ < arp_maxtries)
 			    arprequest(ac,
-				&(SIN(rt0->rt_ifa->ifa_addr)->sin_addr.s_addr),
+			        &(SIN(rt->rt_ifa->ifa_addr)->sin_addr.s_addr),
 				&(SIN(dst)->sin_addr.s_addr),
 				ac->ac_enaddr);
 			else {
