@@ -1,5 +1,5 @@
 /* Expands front end tree to back end RTL for GNU C-Compiler
-   Copyright (C) 1987, 88, 89, 91-97, 1998 Free Software Foundation, Inc.
+   Copyright (C) 1987, 88, 89, 91-98, 1999 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -17,6 +17,8 @@ You should have received a copy of the GNU General Public License
 along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
+
+/* $FreeBSD$ */
 
 
 /* This file handles the generation of rtl code from tree structure
@@ -38,8 +40,6 @@ Boston, MA 02111-1307, USA.  */
    This function changes the DECL_RTL to be a stack slot instead of a reg
    then scans all the RTL instructions so far generated to correct them.  */
 
-/* $FreeBSD$ */
-
 #include "config.h"
 #include "system.h"
 #include "rtl.h"
@@ -58,9 +58,14 @@ Boston, MA 02111-1307, USA.  */
 #include "basic-block.h"
 #include "obstack.h"
 #include "toplev.h"
+#include "hash.h"
 
 #ifndef TRAMPOLINE_ALIGNMENT
 #define TRAMPOLINE_ALIGNMENT FUNCTION_BOUNDARY
+#endif
+
+#ifndef LOCAL_ALIGNMENT
+#define LOCAL_ALIGNMENT(TYPE, ALIGNMENT) ALIGNMENT
 #endif
 
 /* Some systems use __main in a way incompatible with its use in gcc, in these
@@ -129,16 +134,32 @@ int current_function_has_nonlocal_label;
 
 int current_function_has_nonlocal_goto;
 
-/* Nonzero if this function has a computed goto.
-
-   It is computed during find_basic_blocks or during stupid life
-   analysis.  */
-
-int current_function_has_computed_jump;
-
 /* Nonzero if function being compiled contains nested functions.  */
 
 int current_function_contains_functions;
+
+/* Nonzero if function being compiled doesn't contain any calls
+   (ignoring the prologue and epilogue).  This is set prior to
+   local register allocation and is valid for the remaining
+   compiler passes. */
+
+int current_function_is_leaf;
+
+/* Nonzero if function being compiled doesn't modify the stack pointer
+   (ignoring the prologue and epilogue).  This is only valid after
+   life_analysis has run. */
+
+int current_function_sp_is_unchanging;
+
+/* Nonzero if the function being compiled is a leaf function which only
+   uses leaf registers.  This is valid after reload (specifically after
+   sched2) and is useful only if the port defines LEAF_REGISTERS.  */
+
+int current_function_uses_only_leaf_regs;
+
+/* Nonzero if the function being compiled issues a computed jump.  */
+
+int current_function_has_computed_jump;
 
 /* Nonzero if the current function is a thunk (a lightweight function that
    just adjusts one of its arguments and forwards to another function), so
@@ -219,6 +240,13 @@ rtx current_function_internal_arg_pointer;
 /* Language-specific reason why the current function cannot be made inline.  */
 char *current_function_cannot_inline;
 
+/* Nonzero if instrumentation calls for function entry and exit should be
+   generated.  */
+int current_function_instrument_entry_exit;
+
+/* Nonzero if memory access checking be enabled in the current function.  */
+int current_function_check_memory_usage;
+
 /* The FUNCTION_DECL for an inline function currently being expanded.  */
 tree inline_function_decl;
 
@@ -232,10 +260,17 @@ int function_call_count;
 
 tree nonlocal_labels;
 
-/* RTX for stack slot that holds the current handler for nonlocal gotos.
+/* List (chain of EXPR_LIST) of stack slots that hold the current handlers
+   for nonlocal gotos.  There is one for every nonlocal label in the function;
+   this list matches the one in nonlocal_labels.
    Zero when function does not have nonlocal labels.  */
 
-rtx nonlocal_goto_handler_slot;
+rtx nonlocal_goto_handler_slots;
+
+/* List (chain of EXPR_LIST) of labels heading the current handlers for
+   nonlocal gotos.  */
+
+rtx nonlocal_goto_handler_labels;
 
 /* RTX for stack slot that holds the stack pointer value to restore
    for a nonlocal goto.
@@ -365,8 +400,21 @@ struct temp_slot
   /* The rtx used to represent the address if not the address of the
      slot above.  May be an EXPR_LIST if multiple addresses exist.  */
   rtx address;
+  /* The alignment (in bits) of the slot. */
+  int align;
   /* The size, in units, of the slot.  */
   HOST_WIDE_INT size;
+  /* The alias set for the slot.  If the alias set is zero, we don't
+     know anything about the alias set of the slot.  We must only
+     reuse a slot if it is assigned an object of the same alias set.
+     Otherwise, the rest of the compiler may assume that the new use
+     of the slot cannot alias the old use of the slot, which is
+     false.  If the slot has alias set zero, then we can't reuse the
+     slot at all, since we have no idea what alias set may have been
+     imposed on the memory.  For example, if the stack slot is the
+     call frame for an inline functioned, we have no idea what alias
+     sets will be assigned to various pieces of the call frame.  */
+  int alias_set;
   /* The value of `sequence_rtl_expr' when this temporary is allocated.  */
   tree rtl_expr;
   /* Non-zero if this temporary is currently in use.  */
@@ -415,19 +463,30 @@ struct fixup_replacement
   struct fixup_replacement *next;
 };
    
+struct insns_for_mem_entry {
+  /* The KEY in HE will be a MEM.  */
+  struct hash_entry he;
+  /* These are the INSNS which reference the MEM.  */
+  rtx insns;
+};
+
 /* Forward declarations.  */
 
 static rtx assign_outer_stack_local PROTO ((enum machine_mode, HOST_WIDE_INT,
 					    int, struct function *));
+static rtx assign_stack_temp_for_type PROTO ((enum machine_mode, HOST_WIDE_INT,
+					      int, tree));
 static struct temp_slot *find_temp_slot_from_address  PROTO((rtx));
 static void put_reg_into_stack	PROTO((struct function *, rtx, tree,
 				       enum machine_mode, enum machine_mode,
-				       int, int, int));
-static void fixup_var_refs	PROTO((rtx, enum machine_mode, int));
+				       int, int, int, 
+				       struct hash_table *));
+static void fixup_var_refs	PROTO((rtx, enum machine_mode, int, 
+				       struct hash_table *));
 static struct fixup_replacement
   *find_fixup_replacement	PROTO((struct fixup_replacement **, rtx));
 static void fixup_var_refs_insns PROTO((rtx, enum machine_mode, int,
-					rtx, int));
+					rtx, int, struct hash_table *));
 static void fixup_var_refs_1	PROTO((rtx, enum machine_mode, rtx *, rtx,
 				       struct fixup_replacement **));
 static rtx fixup_memory_subreg	PROTO((rtx, rtx, int));
@@ -454,8 +513,17 @@ static int all_blocks		PROTO((tree, tree *));
 static int *record_insns	PROTO((rtx));
 static int contains		PROTO((rtx, int *));
 #endif /* HAVE_prologue || HAVE_epilogue */
-static void put_addressof_into_stack PROTO((rtx));
-static void purge_addressof_1	PROTO((rtx *, rtx, int));
+static void put_addressof_into_stack PROTO((rtx, struct hash_table *));
+static void purge_addressof_1	PROTO((rtx *, rtx, int, int, 
+				       struct hash_table *));
+static struct hash_entry *insns_for_mem_newfunc PROTO((struct hash_entry *,
+						       struct hash_table *,
+						       hash_table_key));
+static unsigned long insns_for_mem_hash PROTO ((hash_table_key));
+static boolean insns_for_mem_comp PROTO ((hash_table_key, hash_table_key));
+static int insns_for_mem_walk   PROTO ((rtx *, void *));
+static void compute_insns_for_mem PROTO ((rtx, rtx, struct hash_table *));
+
 
 /* Pointer to chain of `struct function' for containing functions.  */
 struct function *outer_function_chain;
@@ -503,6 +571,7 @@ push_function_context_to (context)
   p->has_nonlocal_label = current_function_has_nonlocal_label;
   p->has_nonlocal_goto = current_function_has_nonlocal_goto;
   p->contains_functions = current_function_contains_functions;
+  p->has_computed_jump = current_function_has_computed_jump;
   p->is_thunk = current_function_is_thunk;
   p->args_size = current_function_args_size;
   p->pretend_args_size = current_function_pretend_args_size;
@@ -517,7 +586,8 @@ push_function_context_to (context)
   p->parm_reg_stack_loc = parm_reg_stack_loc;
   p->outgoing_args_size = current_function_outgoing_args_size;
   p->return_rtx = current_function_return_rtx;
-  p->nonlocal_goto_handler_slot = nonlocal_goto_handler_slot;
+  p->nonlocal_goto_handler_slots = nonlocal_goto_handler_slots;
+  p->nonlocal_goto_handler_labels = nonlocal_goto_handler_labels;
   p->nonlocal_goto_stack_level = nonlocal_goto_stack_level;
   p->nonlocal_labels = nonlocal_labels;
   p->cleanup_label = cleanup_label;
@@ -541,6 +611,8 @@ push_function_context_to (context)
   p->fixup_var_refs_queue = 0;
   p->epilogue_delay_list = current_function_epilogue_delay_list;
   p->args_info = current_function_args_info;
+  p->check_memory_usage = current_function_check_memory_usage;
+  p->instrument_entry_exit = current_function_instrument_entry_exit;
 
   save_tree_status (p, context);
   save_storage_status (p);
@@ -573,6 +645,7 @@ pop_function_context_from (context)
   current_function_contains_functions
     = p->contains_functions || p->inline_obstacks
       || context == current_function_decl;
+  current_function_has_computed_jump = p->has_computed_jump;
   current_function_name = p->name;
   current_function_decl = p->decl;
   current_function_pops_args = p->pops_args;
@@ -599,7 +672,8 @@ pop_function_context_from (context)
   parm_reg_stack_loc = p->parm_reg_stack_loc;
   current_function_outgoing_args_size = p->outgoing_args_size;
   current_function_return_rtx = p->return_rtx;
-  nonlocal_goto_handler_slot = p->nonlocal_goto_handler_slot;
+  nonlocal_goto_handler_slots = p->nonlocal_goto_handler_slots;
+  nonlocal_goto_handler_labels = p->nonlocal_goto_handler_labels;
   nonlocal_goto_stack_level = p->nonlocal_goto_stack_level;
   nonlocal_labels = p->nonlocal_labels;
   cleanup_label = p->cleanup_label;
@@ -623,6 +697,8 @@ pop_function_context_from (context)
   current_function_epilogue_delay_list = p->epilogue_delay_list;
   reg_renumber = 0;
   current_function_args_info = p->args_info;
+  current_function_check_memory_usage = p->check_memory_usage;
+  current_function_instrument_entry_exit = p->instrument_entry_exit;
 
   restore_tree_status (p, context);
   restore_storage_status (p);
@@ -637,7 +713,8 @@ pop_function_context_from (context)
   /* Finish doing put_var_into_stack for any of our variables
      which became addressable during the nested function.  */
   for (queue = p->fixup_var_refs_queue; queue; queue = queue->next)
-    fixup_var_refs (queue->modified, queue->promoted_mode, queue->unsignedp);
+    fixup_var_refs (queue->modified, queue->promoted_mode,
+		    queue->unsignedp, 0);
 
   free (p);
 
@@ -654,7 +731,7 @@ void pop_function_context ()
 /* Allocate fixed slots in the stack frame of the current function.  */
 
 /* Return size needed for stack frame based on slots so far allocated.
-   This size counts from zero.  It is not rounded to STACK_BOUNDARY;
+   This size counts from zero.  It is not rounded to PREFERRED_STACK_BOUNDARY;
    the caller may have to do that.  */
 
 HOST_WIDE_INT
@@ -689,9 +766,19 @@ assign_stack_local (mode, size, align)
 
   if (align == 0)
     {
-      alignment = GET_MODE_ALIGNMENT (mode) / BITS_PER_UNIT;
+      tree type;
+
+      alignment = GET_MODE_ALIGNMENT (mode);
       if (mode == BLKmode)
-	alignment = BIGGEST_ALIGNMENT / BITS_PER_UNIT;
+	alignment = BIGGEST_ALIGNMENT;
+
+      /* Allow the target to (possibly) increase the alignment of this
+	 stack slot.  */
+      type = type_for_mode (mode, 0);
+      if (type)
+	alignment = LOCAL_ALIGNMENT (type, alignment);
+
+      alignment /= BITS_PER_UNIT;
     }
   else if (align == -1)
     {
@@ -700,6 +787,10 @@ assign_stack_local (mode, size, align)
     }
   else
     alignment = align / BITS_PER_UNIT;
+
+#ifdef FRAME_GROWS_DOWNWARD
+  frame_offset -= size;
+#endif
 
   /* Round frame offset to that alignment.
      We must be careful here, since FRAME_OFFSET might be negative and
@@ -716,10 +807,6 @@ assign_stack_local (mode, size, align)
      use the least significant bytes of those that are allocated.  */
   if (BYTES_BIG_ENDIAN && mode != BLKmode)
     bigend_correction = size - GET_MODE_SIZE (mode);
-
-#ifdef FRAME_GROWS_DOWNWARD
-  frame_offset -= size;
-#endif
 
   /* If we have already instantiated virtual registers, return the actual
      address relative to the frame pointer.  */
@@ -764,9 +851,19 @@ assign_outer_stack_local (mode, size, align, function)
 
   if (align == 0)
     {
-      alignment = GET_MODE_ALIGNMENT (mode) / BITS_PER_UNIT;
+      tree type;
+
+      alignment = GET_MODE_ALIGNMENT (mode);
       if (mode == BLKmode)
-	alignment = BIGGEST_ALIGNMENT / BITS_PER_UNIT;
+	alignment = BIGGEST_ALIGNMENT;
+
+      /* Allow the target to (possibly) increase the alignment of this
+	 stack slot.  */
+      type = type_for_mode (mode, 0);
+      if (type)
+	alignment = LOCAL_ALIGNMENT (type, alignment);
+
+      alignment /= BITS_PER_UNIT;
     }
   else if (align == -1)
     {
@@ -775,6 +872,10 @@ assign_outer_stack_local (mode, size, align, function)
     }
   else
     alignment = align / BITS_PER_UNIT;
+
+#ifdef FRAME_GROWS_DOWNWARD
+  function->frame_offset -= size;
+#endif
 
   /* Round frame offset to that alignment.  */
 #ifdef FRAME_GROWS_DOWNWARD
@@ -788,9 +889,6 @@ assign_outer_stack_local (mode, size, align, function)
   if (BYTES_BIG_ENDIAN && mode != BLKmode)
     bigend_correction = size - GET_MODE_SIZE (mode);
 
-#ifdef FRAME_GROWS_DOWNWARD
-  function->frame_offset -= size;
-#endif
   addr = plus_constant (virtual_stack_vars_rtx,
 			function->frame_offset + bigend_correction);
 #ifndef FRAME_GROWS_DOWNWARD
@@ -820,14 +918,19 @@ assign_outer_stack_local (mode, size, align, function)
    with this flag.  KEEP is 2 if we allocate a longer term temporary,
    whose lifetime is controlled by CLEANUP_POINT_EXPRs.  KEEP is 3
    if we are to allocate something at an inner level to be treated as
-   a variable in the block (e.g., a SAVE_EXPR).  */
+   a variable in the block (e.g., a SAVE_EXPR).  
 
-rtx
-assign_stack_temp (mode, size, keep)
+   TYPE is the type that will be used for the stack slot.  */
+
+static rtx
+assign_stack_temp_for_type (mode, size, keep, type)
      enum machine_mode mode;
      HOST_WIDE_INT size;
      int keep;
+     tree type;
 {
+  int align;
+  int alias_set;
   struct temp_slot *p, *best_p = 0;
 
   /* If SIZE is -1 it means that somebody tried to allocate a temporary
@@ -835,19 +938,41 @@ assign_stack_temp (mode, size, keep)
   if (size == -1)
     abort ();
 
-  /* First try to find an available, already-allocated temporary that is the
-     exact size we require.  */
-  for (p = temp_slots; p; p = p->next)
-    if (p->size == size && GET_MODE (p->slot) == mode && ! p->in_use)
-      break;
+  /* If we know the alias set for the memory that will be used, use
+     it.  If there's no TYPE, then we don't know anything about the
+     alias set for the memory.  */
+  if (type)
+    alias_set = get_alias_set (type);
+  else 
+    alias_set = 0;
 
-  /* If we didn't find, one, try one that is larger than what we want.  We
-     find the smallest such.  */
-  if (p == 0)
-    for (p = temp_slots; p; p = p->next)
-      if (p->size > size && GET_MODE (p->slot) == mode && ! p->in_use
-	  && (best_p == 0 || best_p->size > p->size))
+  align = GET_MODE_ALIGNMENT (mode);
+  if (mode == BLKmode)
+    align = BIGGEST_ALIGNMENT;
+
+  if (! type)
+    type = type_for_mode (mode, 0);
+  if (type)
+    align = LOCAL_ALIGNMENT (type, align);
+
+  /* Try to find an available, already-allocated temporary of the proper
+     mode which meets the size and alignment requirements.  Choose the
+     smallest one with the closest alignment.  */
+  for (p = temp_slots; p; p = p->next)
+    if (p->align >= align && p->size >= size && GET_MODE (p->slot) == mode
+	&& ! p->in_use
+	&& (!flag_strict_aliasing
+	    || (alias_set && p->alias_set == alias_set))
+	&& (best_p == 0 || best_p->size > p->size
+	    || (best_p->size == p->size && best_p->align > p->align)))
+      {
+	if (p->align == align && p->size == size)
+	  {
+	    best_p = 0;
+	    break;
+	  }
 	best_p = p;
+      }
 
   /* Make our best, if any, the one to use.  */
   if (best_p)
@@ -855,9 +980,13 @@ assign_stack_temp (mode, size, keep)
       /* If there are enough aligned bytes left over, make them into a new
 	 temp_slot so that the extra bytes don't get wasted.  Do this only
 	 for BLKmode slots, so that we can be sure of the alignment.  */
-      if (GET_MODE (best_p->slot) == BLKmode)
+      if (GET_MODE (best_p->slot) == BLKmode
+	  /* We can't split slots if -fstrict-aliasing because the
+	     information about the alias set for the new slot will be
+	     lost.  */
+	  && !flag_strict_aliasing)
 	{
-	  int alignment = BIGGEST_ALIGNMENT / BITS_PER_UNIT;
+	  int alignment = best_p->align / BITS_PER_UNIT;
 	  HOST_WIDE_INT rounded_size = CEIL_ROUND (size, alignment);
 
 	  if (best_p->size - rounded_size >= alignment)
@@ -870,6 +999,7 @@ assign_stack_temp (mode, size, keep)
 	      p->slot = gen_rtx_MEM (BLKmode,
 				     plus_constant (XEXP (best_p->slot, 0),
 						    rounded_size));
+	      p->align = best_p->align;
 	      p->address = 0;
 	      p->rtl_expr = 0;
 	      p->next = temp_slots;
@@ -893,9 +1023,22 @@ assign_stack_temp (mode, size, keep)
 
       p = (struct temp_slot *) oballoc (sizeof (struct temp_slot));
 
-      /* If the temp slot mode doesn't indicate the alignment,
-	 use the largest possible, so no one will be disappointed.  */
-      p->slot = assign_stack_local (mode, size, mode == BLKmode ? -1 : 0);
+      /* We are passing an explicit alignment request to assign_stack_local.
+	 One side effect of that is assign_stack_local will not round SIZE
+	 to ensure the frame offset remains suitably aligned.
+
+	 So for requests which depended on the rounding of SIZE, we go ahead
+	 and round it now.  We also make sure ALIGNMENT is at least
+	 BIGGEST_ALIGNMENT.  */
+      if (mode == BLKmode && align < (BIGGEST_ALIGNMENT / BITS_PER_UNIT))
+	abort();
+      p->slot = assign_stack_local (mode,
+				    mode == BLKmode
+				      ? CEIL_ROUND (size, align) : size,
+				    align);
+
+      p->align = align;
+      p->alias_set = alias_set;
 
       /* The following slot size computation is necessary because we don't
 	 know the actual size of the temporary slot until assign_stack_local
@@ -947,7 +1090,21 @@ assign_stack_temp (mode, size, keep)
      set from before.  */
   RTX_UNCHANGING_P (p->slot) = 0;
   MEM_IN_STRUCT_P (p->slot) = 0;
+  MEM_SCALAR_P (p->slot) = 0;
+  MEM_ALIAS_SET (p->slot) = 0;
   return p->slot;
+}
+
+/* Allocate a temporary stack slot and record it for possible later
+   reuse.  First three arguments are same as in preceding function.  */
+
+rtx
+assign_stack_temp (mode, size, keep)
+     enum machine_mode mode;
+     HOST_WIDE_INT size;
+     int keep;
+{
+  return assign_stack_temp_for_type (mode, size, keep, NULL_TREE);
 }
 
 /* Assign a temporary of given TYPE.
@@ -981,8 +1138,8 @@ assign_temp (type, keep, memory_required, dont_promote)
 	  && TREE_CODE (TYPE_ARRAY_MAX_SIZE (type)) == INTEGER_CST)
 	size = TREE_INT_CST_LOW (TYPE_ARRAY_MAX_SIZE (type));
 
-      tmp = assign_stack_temp (mode, size, keep);
-      MEM_IN_STRUCT_P (tmp) = AGGREGATE_TYPE_P (type);
+      tmp = assign_stack_temp_for_type (mode, size, keep, type);
+      MEM_SET_IN_STRUCT_P (tmp, AGGREGATE_TYPE_P (type));
       return tmp;
     }
 
@@ -1006,6 +1163,11 @@ combine_temp_slots ()
   struct temp_slot *p, *q;
   struct temp_slot *prev_p, *prev_q;
   int num_slots;
+
+  /* We can't combine slots, because the information about which slot
+     is in which alias set will be lost.  */
+  if (flag_strict_aliasing)
+    return;
 
   /* If there are a lot of temp slots, don't do anything unless 
      high levels of optimizaton.  */
@@ -1439,8 +1601,8 @@ put_var_into_stack (decl)
 	put_reg_into_stack (function, reg, TREE_TYPE (decl),
 			    promoted_mode, decl_mode,
 			    TREE_SIDE_EFFECTS (decl), 0,
-			    TREE_USED (decl)
-			    || DECL_INITIAL (decl) != 0);
+			    TREE_USED (decl) || DECL_INITIAL (decl) != 0,
+			    0);
     }
   else if (GET_CODE (reg) == CONCAT)
     {
@@ -1452,17 +1614,21 @@ put_var_into_stack (decl)
       /* Since part 0 should have a lower address, do it second.  */
       put_reg_into_stack (function, XEXP (reg, 1), part_type, part_mode,
 			  part_mode, TREE_SIDE_EFFECTS (decl), 0,
-			  TREE_USED (decl) || DECL_INITIAL (decl) != 0);
+			  TREE_USED (decl) || DECL_INITIAL (decl) != 0,
+			  0);
       put_reg_into_stack (function, XEXP (reg, 0), part_type, part_mode,
 			  part_mode, TREE_SIDE_EFFECTS (decl), 0,
-			  TREE_USED (decl) || DECL_INITIAL (decl) != 0);
+			  TREE_USED (decl) || DECL_INITIAL (decl) != 0,
+			  0);
 #else
       put_reg_into_stack (function, XEXP (reg, 0), part_type, part_mode,
 			  part_mode, TREE_SIDE_EFFECTS (decl), 0,
-			  TREE_USED (decl) || DECL_INITIAL (decl) != 0);
+			  TREE_USED (decl) || DECL_INITIAL (decl) != 0,
+			  0);
       put_reg_into_stack (function, XEXP (reg, 1), part_type, part_mode,
 			  part_mode, TREE_SIDE_EFFECTS (decl), 0,
-			  TREE_USED (decl) || DECL_INITIAL (decl) != 0);
+			  TREE_USED (decl) || DECL_INITIAL (decl) != 0,
+			  0);
 #endif
 
       /* Change the CONCAT into a combined MEM for both parts.  */
@@ -1480,9 +1646,9 @@ put_var_into_stack (decl)
   else
     return;
   
-  if (flag_check_memory_usage)
+  if (current_function_check_memory_usage)
     emit_library_call (chkr_set_right_libfunc, 1, VOIDmode, 3,
-		       XEXP (reg, 0), ptr_mode,
+		       XEXP (reg, 0), Pmode,
 		       GEN_INT (GET_MODE_SIZE (GET_MODE (reg))),
 		       TYPE_MODE (sizetype),
 		       GEN_INT (MEMORY_USE_RW),
@@ -1498,7 +1664,7 @@ put_var_into_stack (decl)
 
 static void
 put_reg_into_stack (function, reg, type, promoted_mode, decl_mode, volatile_p,
-		    original_regno, used_p)
+		    original_regno, used_p, ht)
      struct function *function;
      rtx reg;
      tree type;
@@ -1506,6 +1672,7 @@ put_reg_into_stack (function, reg, type, promoted_mode, decl_mode, volatile_p,
      int volatile_p;
      int original_regno;
      int used_p;
+     struct hash_table *ht;
 {
   rtx new = 0;
   int regno = original_regno;
@@ -1540,7 +1707,8 @@ put_reg_into_stack (function, reg, type, promoted_mode, decl_mode, volatile_p,
      previously generated stack slot, then we need to copy the bit in
      case it was set for other reasons.  For instance, it is set for
      __builtin_va_alist.  */
-  MEM_IN_STRUCT_P (reg) = AGGREGATE_TYPE_P (type) | MEM_IN_STRUCT_P (new);
+  MEM_SET_IN_STRUCT_P (reg,
+		       AGGREGATE_TYPE_P (type) || MEM_IN_STRUCT_P (new));
   MEM_ALIAS_SET (reg) = get_alias_set (type);
 
   /* Now make sure that all refs to the variable, previously made
@@ -1567,14 +1735,15 @@ put_reg_into_stack (function, reg, type, promoted_mode, decl_mode, volatile_p,
     }
   else if (used_p)
     /* Variable is local; fix it up now.  */
-    fixup_var_refs (reg, promoted_mode, TREE_UNSIGNED (type));
+    fixup_var_refs (reg, promoted_mode, TREE_UNSIGNED (type), ht);
 }
 
 static void
-fixup_var_refs (var, promoted_mode, unsignedp)
+fixup_var_refs (var, promoted_mode, unsignedp, ht)
      rtx var;
      enum machine_mode promoted_mode;
      int unsignedp;
+     struct hash_table *ht;
 {
   tree pending;
   rtx first_insn = get_insns ();
@@ -1582,14 +1751,18 @@ fixup_var_refs (var, promoted_mode, unsignedp)
   tree rtl_exps = rtl_expr_chain;
 
   /* Must scan all insns for stack-refs that exceed the limit.  */
-  fixup_var_refs_insns (var, promoted_mode, unsignedp, first_insn, stack == 0);
+  fixup_var_refs_insns (var, promoted_mode, unsignedp, first_insn, 
+			stack == 0, ht);
+  /* If there's a hash table, it must record all uses of VAR.  */
+  if (ht)
+    return;
 
   /* Scan all pending sequences too.  */
   for (; stack; stack = stack->next)
     {
       push_to_sequence (stack->first);
       fixup_var_refs_insns (var, promoted_mode, unsignedp,
-			    stack->first, stack->next != 0);
+			    stack->first, stack->next != 0, 0);
       /* Update remembered end of sequence
 	 in case we added an insn at the end.  */
       stack->last = get_last_insn ();
@@ -1603,10 +1776,17 @@ fixup_var_refs (var, promoted_mode, unsignedp)
       if (seq != const0_rtx && seq != 0)
 	{
 	  push_to_sequence (seq);
-	  fixup_var_refs_insns (var, promoted_mode, unsignedp, seq, 0);
+	  fixup_var_refs_insns (var, promoted_mode, unsignedp, seq, 0,
+				0);
 	  end_sequence ();
 	}
     }
+
+  /* Scan the catch clauses for exception handling too.  */
+  push_to_sequence (catch_clauses);
+  fixup_var_refs_insns (var, promoted_mode, unsignedp, catch_clauses,
+			0, 0);
+  end_sequence ();
 }
 
 /* REPLACEMENTS is a pointer to a list of the struct fixup_replacement and X is
@@ -1641,14 +1821,26 @@ find_fixup_replacement (replacements, x)
    main chain of insns for the current function.  */
 
 static void
-fixup_var_refs_insns (var, promoted_mode, unsignedp, insn, toplevel)
+fixup_var_refs_insns (var, promoted_mode, unsignedp, insn, toplevel, ht)
      rtx var;
      enum machine_mode promoted_mode;
      int unsignedp;
      rtx insn;
      int toplevel;
+     struct hash_table *ht;
 {
   rtx call_dest = 0;
+  rtx insn_list = NULL_RTX;
+
+  /* If we already know which INSNs reference VAR there's no need
+     to walk the entire instruction chain.  */
+  if (ht)
+    {
+      insn_list = ((struct insns_for_mem_entry *) 
+		   hash_lookup (ht, var, /*create=*/0, /*copy=*/0))->insns;
+      insn = insn_list ? XEXP (insn_list, 0) : NULL_RTX;
+      insn_list = XEXP (insn_list, 1);
+    }
 
   while (insn)
     {
@@ -1821,7 +2013,16 @@ fixup_var_refs_insns (var, promoted_mode, unsignedp, insn, toplevel)
 	      XEXP (note, 0)
 		= walk_fixup_memory_subreg (XEXP (note, 0), insn, 1);
 	}
-      insn = next;
+
+      if (!ht)
+	insn = next;
+      else if (insn_list)
+	{
+	  insn = XEXP (insn_list, 0);
+	  insn_list = XEXP (insn_list, 1);
+	}
+      else
+	insn = NULL_RTX;
     }
 }
 
@@ -1859,18 +2060,45 @@ fixup_var_refs_1 (var, promoted_mode, loc, insn, replacements)
 	  /* Prevent sharing of rtl that might lose.  */
 	  rtx sub = copy_rtx (XEXP (var, 0));
 
-	  start_sequence ();
-
 	  if (! validate_change (insn, loc, sub, 0))
 	    {
-	      rtx y = force_operand (sub, NULL_RTX);
+	      rtx y = gen_reg_rtx (GET_MODE (sub));
+	      rtx seq, new_insn;
 
-	      if (! validate_change (insn, loc, y, 0))
-		*loc = copy_to_reg (y);
+	      /* We should be able to replace with a register or all is lost.
+		 Note that we can't use validate_change to verify this, since
+		 we're not caring for replacing all dups simultaneously.  */
+	      if (! validate_replace_rtx (*loc, y, insn))
+		abort ();
+
+	      /* Careful!  First try to recognize a direct move of the
+		 value, mimicking how things are done in gen_reload wrt
+		 PLUS.  Consider what happens when insn is a conditional
+		 move instruction and addsi3 clobbers flags.  */
+
+	      start_sequence ();
+	      new_insn = emit_insn (gen_rtx_SET (VOIDmode, y, sub));
+	      seq = gen_sequence ();
+	      end_sequence ();
+
+	      if (recog_memoized (new_insn) < 0)
+		{
+		  /* That failed.  Fall back on force_operand and hope.  */
+
+		  start_sequence ();
+		  force_operand (sub, y);
+		  seq = gen_sequence ();
+		  end_sequence ();
+		}
+
+#ifdef HAVE_cc0
+	      /* Don't separate setter from user.  */
+	      if (PREV_INSN (insn) && sets_cc0_p (PREV_INSN (insn)))
+		insn = PREV_INSN (insn);
+#endif
+
+	      emit_insn_before (seq, insn);
 	    }
-
-	  emit_insn_before (gen_sequence (), insn);
-	  end_sequence ();
 	}
       return;
 
@@ -1971,11 +2199,19 @@ fixup_var_refs_1 (var, promoted_mode, loc, insn, replacements)
 
 #ifdef HAVE_extzv
 	      if (GET_CODE (x) == ZERO_EXTRACT)
-		wanted_mode = insn_operand_mode[(int) CODE_FOR_extzv][1];
+		{
+		  wanted_mode = insn_operand_mode[(int) CODE_FOR_extzv][1];
+		  if (wanted_mode == VOIDmode)
+		    wanted_mode = word_mode;
+		}
 #endif
 #ifdef HAVE_extv
 	      if (GET_CODE (x) == SIGN_EXTRACT)
-		wanted_mode = insn_operand_mode[(int) CODE_FOR_extv][1];
+		{
+		  wanted_mode = insn_operand_mode[(int) CODE_FOR_extv][1];
+		  if (wanted_mode == VOIDmode)
+		    wanted_mode = word_mode;
+		}
 #endif
 	      /* If we have a narrower mode, we can do something.  */
 	      if (wanted_mode != VOIDmode
@@ -1996,8 +2232,7 @@ fixup_var_refs_1 (var, promoted_mode, loc, insn, replacements)
 		  newmem = gen_rtx_MEM (wanted_mode,
 					plus_constant (XEXP (tem, 0), offset));
 		  RTX_UNCHANGING_P (newmem) = RTX_UNCHANGING_P (tem);
-		  MEM_VOLATILE_P (newmem) = MEM_VOLATILE_P (tem);
-		  MEM_IN_STRUCT_P (newmem) = MEM_IN_STRUCT_P (tem);
+		  MEM_COPY_ATTRIBUTES (newmem, tem);
 
 		  /* Make the change and see if the insn remains valid.  */
 		  INSN_CODE (insn) = -1;
@@ -2164,10 +2399,13 @@ fixup_var_refs_1 (var, promoted_mode, loc, insn, replacements)
 		&& ! mode_dependent_address_p (XEXP (tem, 0))
 		&& ! MEM_VOLATILE_P (tem))
 	      {
-		enum machine_mode wanted_mode
-		  = insn_operand_mode[(int) CODE_FOR_insv][0];
+		enum machine_mode wanted_mode;
 		enum machine_mode is_mode = GET_MODE (tem);
 		HOST_WIDE_INT pos = INTVAL (XEXP (outerdest, 2));
+
+		wanted_mode = insn_operand_mode[(int) CODE_FOR_insv][0];
+		if (wanted_mode == VOIDmode)
+		  wanted_mode = word_mode;
 
 		/* If we have a narrower mode, we can do something.  */
 		if (GET_MODE_SIZE (wanted_mode) < GET_MODE_SIZE (is_mode))
@@ -2185,8 +2423,7 @@ fixup_var_refs_1 (var, promoted_mode, loc, insn, replacements)
 		    newmem = gen_rtx_MEM (wanted_mode,
 					  plus_constant (XEXP (tem, 0), offset));
 		    RTX_UNCHANGING_P (newmem) = RTX_UNCHANGING_P (tem);
-		    MEM_VOLATILE_P (newmem) = MEM_VOLATILE_P (tem);
-		    MEM_IN_STRUCT_P (newmem) = MEM_IN_STRUCT_P (tem);
+		    MEM_COPY_ATTRIBUTES (newmem, tem);
 
 		    /* Make the change and see if the insn remains valid.  */
 		    INSN_CODE (insn) = -1;
@@ -2637,7 +2874,9 @@ optimize_bit_field (body, insn, equiv_mem)
 	      while (GET_CODE (dest) == SUBREG
 		     && SUBREG_WORD (dest) == 0
 		     && (GET_MODE_CLASS (GET_MODE (dest))
-			 == GET_MODE_CLASS (GET_MODE (SUBREG_REG (dest)))))
+			 == GET_MODE_CLASS (GET_MODE (SUBREG_REG (dest))))
+		     && (GET_MODE_SIZE (GET_MODE (SUBREG_REG (dest)))
+			 <= UNITS_PER_WORD))
 		dest = SUBREG_REG (dest);
 
 	      validate_change (insn, &SET_DEST (body), dest, 1);
@@ -2684,6 +2923,7 @@ static int in_arg_offset;
 static int var_offset;
 static int dynamic_offset;
 static int out_arg_offset;
+static int cfa_offset;
 
 /* In most machines, the stack pointer register is equivalent to the bottom
    of the stack.  */
@@ -2722,6 +2962,13 @@ static int out_arg_offset;
 #endif
 #endif
 
+/* On a few machines, the CFA coincides with the arg pointer.  */
+
+#ifndef ARG_POINTER_CFA_OFFSET
+#define ARG_POINTER_CFA_OFFSET 0
+#endif
+
+
 /* Build up a (MEM (ADDRESSOF (REG))) rtx for a register REG that just had
    its address taken.  DECL is the decl for the object stored in the
    register, for later use if we do need to force REG into the stack.
@@ -2733,19 +2980,21 @@ gen_mem_addressof (reg, decl)
      tree decl;
 {
   tree type = TREE_TYPE (decl);
-
   rtx r = gen_rtx_ADDRESSOF (Pmode, gen_reg_rtx (GET_MODE (reg)), REGNO (reg));
   SET_ADDRESSOF_DECL (r, decl);
+  /* If the original REG was a user-variable, then so is the REG whose
+     address is being taken.  */
+  REG_USERVAR_P (XEXP (r, 0)) = REG_USERVAR_P (reg);
 
   XEXP (reg, 0) = r;
   PUT_CODE (reg, MEM);
   PUT_MODE (reg, DECL_MODE (decl));
   MEM_VOLATILE_P (reg) = TREE_SIDE_EFFECTS (decl);
-  MEM_IN_STRUCT_P (reg) = AGGREGATE_TYPE_P (type);
+  MEM_SET_IN_STRUCT_P (reg, AGGREGATE_TYPE_P (type));
   MEM_ALIAS_SET (reg) = get_alias_set (decl);
 
   if (TREE_USED (decl) || DECL_INITIAL (decl) != 0)
-    fixup_var_refs (reg, GET_MODE (reg), TREE_UNSIGNED (type));
+    fixup_var_refs (reg, GET_MODE (reg), TREE_UNSIGNED (type), 0);
 
   return reg;
 }
@@ -2761,14 +3010,15 @@ flush_addressof (decl)
       && GET_CODE (DECL_RTL (decl)) == MEM
       && GET_CODE (XEXP (DECL_RTL (decl), 0)) == ADDRESSOF
       && GET_CODE (XEXP (XEXP (DECL_RTL (decl), 0), 0)) == REG)
-    put_addressof_into_stack (XEXP (DECL_RTL (decl), 0));
+    put_addressof_into_stack (XEXP (DECL_RTL (decl), 0), 0);
 }
 
 /* Force the register pointed to by R, an ADDRESSOF rtx, into the stack.  */
 
 static void
-put_addressof_into_stack (r)
+put_addressof_into_stack (r, ht)
      rtx r;
+     struct hash_table *ht;
 {
   tree decl = ADDRESSOF_DECL (r);
   rtx reg = XEXP (r, 0);
@@ -2779,18 +3029,31 @@ put_addressof_into_stack (r)
   put_reg_into_stack (0, reg, TREE_TYPE (decl), GET_MODE (reg),
 		      DECL_MODE (decl), TREE_SIDE_EFFECTS (decl),
 		      ADDRESSOF_REGNO (r),
-		      TREE_USED (decl) || DECL_INITIAL (decl) != 0);
+		      TREE_USED (decl) || DECL_INITIAL (decl) != 0, ht);
 }
+
+/* List of replacements made below in purge_addressof_1 when creating
+   bitfield insertions.  */
+static rtx purge_bitfield_addressof_replacements;
+
+/* List of replacements made below in purge_addressof_1 for patterns
+   (MEM (ADDRESSOF (REG ...))).  The key of the list entry is the
+   corresponding (ADDRESSOF (REG ...)) and value is a substitution for
+   the all pattern.  List PURGE_BITFIELD_ADDRESSOF_REPLACEMENTS is not
+   enough in complex cases, e.g. when some field values can be
+   extracted by usage MEM with narrower mode. */
+static rtx purge_addressof_replacements;
 
 /* Helper function for purge_addressof.  See if the rtx expression at *LOC
    in INSN needs to be changed.  If FORCE, always put any ADDRESSOFs into
    the stack.  */
 
 static void
-purge_addressof_1 (loc, insn, force)
+purge_addressof_1 (loc, insn, force, store, ht)
      rtx *loc;
      rtx insn;
-     int force;
+     int force, store;
+     struct hash_table *ht;
 {
   rtx x;
   RTX_CODE code;
@@ -2813,49 +3076,232 @@ purge_addressof_1 (loc, insn, force)
 	 overwriting a REG rtx which is always shared.  */
       rtx sub = copy_rtx (XEXP (XEXP (x, 0), 0));
 
-      if (validate_change (insn, loc, sub, 0))
+      if (validate_change (insn, loc, sub, 0)
+	  || validate_replace_rtx (x, sub, insn))
 	return;
-
+  
       start_sequence ();
-      if (! validate_change (insn, loc,
-			     force_operand (sub, NULL_RTX),
-			     0))
+      sub = force_operand (sub, NULL_RTX);
+      if (! validate_change (insn, loc, sub, 0)
+	  && ! validate_replace_rtx (x, sub, insn))
 	abort ();
 
-      insns = get_insns ();
+      insns = gen_sequence ();
       end_sequence ();
-      emit_insns_before (insns, insn);
+      emit_insn_before (insns, insn);
       return;
     }
   else if (code == MEM && GET_CODE (XEXP (x, 0)) == ADDRESSOF && ! force)
     {
       rtx sub = XEXP (XEXP (x, 0), 0);
+      rtx sub2;
 
       if (GET_CODE (sub) == MEM)
-	sub = gen_rtx_MEM (GET_MODE (x), copy_rtx (XEXP (sub, 0)));
+	{
+	  sub2 = gen_rtx_MEM (GET_MODE (x), copy_rtx (XEXP (sub, 0)));
+	  MEM_COPY_ATTRIBUTES (sub2, sub);
+	  RTX_UNCHANGING_P (sub2) = RTX_UNCHANGING_P (sub);
+	  sub = sub2;
+	}
 
       if (GET_CODE (sub) == REG
 	  && (MEM_VOLATILE_P (x) || GET_MODE (x) == BLKmode))
 	{
-	  put_addressof_into_stack (XEXP (x, 0));
+	  put_addressof_into_stack (XEXP (x, 0), ht);
 	  return;
 	}
       else if (GET_CODE (sub) == REG && GET_MODE (x) != GET_MODE (sub))
 	{
-	  if (! BYTES_BIG_ENDIAN && ! WORDS_BIG_ENDIAN)
+	  int size_x, size_sub;
+
+	  if (!insn)
 	    {
-	      rtx sub2 = gen_rtx_SUBREG (GET_MODE (x), sub, 0);
-	      if (validate_change (insn, loc, sub2, 0))
-		goto restart;
+	      /* When processing REG_NOTES look at the list of
+		 replacements done on the insn to find the register that X
+		 was replaced by.  */
+	      rtx tem;
+
+	      for (tem = purge_bitfield_addressof_replacements;
+		   tem != NULL_RTX;
+		   tem = XEXP (XEXP (tem, 1), 1))
+		if (rtx_equal_p (x, XEXP (tem, 0)))
+		  {
+		    *loc = XEXP (XEXP (tem, 1), 0);
+		    return;
+		  }
+
+	      /* See comment for purge_addressof_replacements. */
+	      for (tem = purge_addressof_replacements;
+		   tem != NULL_RTX;
+		   tem = XEXP (XEXP (tem, 1), 1))
+		if (rtx_equal_p (XEXP (x, 0), XEXP (tem, 0)))
+		  {
+		    rtx z = XEXP (XEXP (tem, 1), 0);
+
+		    if (GET_MODE (x) == GET_MODE (z)
+			|| (GET_CODE (XEXP (XEXP (tem, 1), 0)) != REG
+			    && GET_CODE (XEXP (XEXP (tem, 1), 0)) != SUBREG))
+		      abort ();
+
+		    /* It can happen that the note may speak of things
+		       in a wider (or just different) mode than the
+		       code did.  This is especially true of
+		       REG_RETVAL. */
+
+		    if (GET_CODE (z) == SUBREG && SUBREG_WORD (z) == 0)
+		      z = SUBREG_REG (z);
+		    
+		    if (GET_MODE_SIZE (GET_MODE (x)) > UNITS_PER_WORD
+			&& (GET_MODE_SIZE (GET_MODE (x))
+			    > GET_MODE_SIZE (GET_MODE (z))))
+		      {
+			/* This can occur as a result in invalid
+			   pointer casts, e.g. float f; ... 
+			   *(long long int *)&f.
+			   ??? We could emit a warning here, but
+			   without a line number that wouldn't be
+			   very helpful.  */
+			z = gen_rtx_SUBREG (GET_MODE (x), z, 0);
+		      }
+		    else
+		      z = gen_lowpart (GET_MODE (x), z);
+
+		    *loc = z;
+		    return;
+		  }
+
+	      /* There should always be such a replacement.  */
+	      abort ();
+	    }
+
+	  size_x = GET_MODE_BITSIZE (GET_MODE (x));
+	  size_sub = GET_MODE_BITSIZE (GET_MODE (sub));
+
+	  /* Don't even consider working with paradoxical subregs,
+	     or the moral equivalent seen here.  */
+	  if (size_x <= size_sub
+	      && int_mode_for_mode (GET_MODE (sub)) != BLKmode)
+	    {
+	      /* Do a bitfield insertion to mirror what would happen
+		 in memory.  */
+
+	      rtx val, seq;
+
+	      if (store)
+		{
+		  rtx p = PREV_INSN (insn);
+
+		  start_sequence ();
+		  val = gen_reg_rtx (GET_MODE (x));
+		  if (! validate_change (insn, loc, val, 0))
+		    {
+		      /* Discard the current sequence and put the
+			 ADDRESSOF on stack.  */
+		      end_sequence ();
+		      goto give_up;
+		    }
+		  seq = gen_sequence ();
+		  end_sequence ();
+		  emit_insn_before (seq, insn);
+		  compute_insns_for_mem (p ? NEXT_INSN (p) : get_insns (), 
+					 insn, ht);
+	      
+		  start_sequence ();
+		  store_bit_field (sub, size_x, 0, GET_MODE (x),
+				   val, GET_MODE_SIZE (GET_MODE (sub)),
+				   GET_MODE_SIZE (GET_MODE (sub)));
+
+		  /* Make sure to unshare any shared rtl that store_bit_field
+		     might have created.  */
+		  for (p = get_insns(); p; p = NEXT_INSN (p))
+		    {
+		      reset_used_flags (PATTERN (p));
+		      reset_used_flags (REG_NOTES (p));
+		      reset_used_flags (LOG_LINKS (p));
+		    }
+		  unshare_all_rtl (get_insns ());
+
+		  seq = gen_sequence ();
+		  end_sequence ();
+		  p = emit_insn_after (seq, insn);
+		  if (NEXT_INSN (insn))
+		    compute_insns_for_mem (NEXT_INSN (insn), 
+					   p ? NEXT_INSN (p) : NULL_RTX,
+					   ht);
+		}
+	      else
+		{
+		  rtx p = PREV_INSN (insn);
+
+		  start_sequence ();
+		  val = extract_bit_field (sub, size_x, 0, 1, NULL_RTX,
+					   GET_MODE (x), GET_MODE (x),
+					   GET_MODE_SIZE (GET_MODE (sub)),
+					   GET_MODE_SIZE (GET_MODE (sub)));
+
+		  if (! validate_change (insn, loc, val, 0))
+		    {
+		      /* Discard the current sequence and put the
+			 ADDRESSOF on stack.  */
+		      end_sequence ();
+		      goto give_up;
+		    }
+
+		  seq = gen_sequence ();
+		  end_sequence ();
+		  emit_insn_before (seq, insn);
+		  compute_insns_for_mem (p ? NEXT_INSN (p) : get_insns (),
+					 insn, ht);
+		}
+
+	      /* Remember the replacement so that the same one can be done
+		 on the REG_NOTES.  */
+	      purge_bitfield_addressof_replacements
+		= gen_rtx_EXPR_LIST (VOIDmode, x,
+				     gen_rtx_EXPR_LIST
+				     (VOIDmode, val,
+				      purge_bitfield_addressof_replacements));
+
+	      /* We replaced with a reg -- all done.  */
+	      return;
 	    }
 	}
       else if (validate_change (insn, loc, sub, 0))
-	goto restart;
+	{
+	  /* Remember the replacement so that the same one can be done
+	     on the REG_NOTES.  */
+	  if (GET_CODE (sub) == REG || GET_CODE (sub) == SUBREG)
+	    {
+	      rtx tem;
+
+	      for (tem = purge_addressof_replacements;
+		   tem != NULL_RTX;
+		   tem = XEXP (XEXP (tem, 1), 1))
+		if (rtx_equal_p (XEXP (x, 0), XEXP (tem, 0)))
+		  {
+		    XEXP (XEXP (tem, 1), 0) = sub;
+		    return;
+		  }
+	      purge_addressof_replacements
+		= gen_rtx (EXPR_LIST, VOIDmode, XEXP (x, 0),
+			   gen_rtx_EXPR_LIST (VOIDmode, sub,
+					      purge_addressof_replacements));
+	      return;
+	    }
+	  goto restart;
+	}
+    give_up:;
       /* else give up and put it into the stack */
     }
   else if (code == ADDRESSOF)
     {
-      put_addressof_into_stack (x);
+      put_addressof_into_stack (x, ht);
+      return;
+    }
+  else if (code == SET)
+    {
+      purge_addressof_1 (&SET_DEST (x), insn, force, 1, ht);
+      purge_addressof_1 (&SET_SRC (x), insn, force, 0, ht);
       return;
     }
 
@@ -2864,11 +3310,128 @@ purge_addressof_1 (loc, insn, force)
   for (i = 0; i < GET_RTX_LENGTH (code); i++, fmt++)
     {
       if (*fmt == 'e')
-	purge_addressof_1 (&XEXP (x, i), insn, force);
+	purge_addressof_1 (&XEXP (x, i), insn, force, 0, ht);
       else if (*fmt == 'E')
 	for (j = 0; j < XVECLEN (x, i); j++)
-	  purge_addressof_1 (&XVECEXP (x, i, j), insn, force);
+	  purge_addressof_1 (&XVECEXP (x, i, j), insn, force, 0, ht);
     }
+}
+
+/* Return a new hash table entry in HT.  */
+
+static struct hash_entry *
+insns_for_mem_newfunc (he, ht, k)
+     struct hash_entry *he;
+     struct hash_table *ht;
+     hash_table_key k ATTRIBUTE_UNUSED;
+{
+  struct insns_for_mem_entry *ifmhe;
+  if (he)
+    return he;
+
+  ifmhe = ((struct insns_for_mem_entry *)
+	   hash_allocate (ht, sizeof (struct insns_for_mem_entry)));
+  ifmhe->insns = NULL_RTX;
+
+  return &ifmhe->he;
+}
+
+/* Return a hash value for K, a REG.  */
+
+static unsigned long
+insns_for_mem_hash (k)
+     hash_table_key k;
+{
+  /* K is really a RTX.  Just use the address as the hash value.  */
+  return (unsigned long) k;
+}
+
+/* Return non-zero if K1 and K2 (two REGs) are the same.  */
+
+static boolean
+insns_for_mem_comp (k1, k2)
+     hash_table_key k1;
+     hash_table_key k2;
+{
+  return k1 == k2;
+}
+
+struct insns_for_mem_walk_info {
+  /* The hash table that we are using to record which INSNs use which
+     MEMs.  */
+  struct hash_table *ht;
+
+  /* The INSN we are currently proessing.  */
+  rtx insn;
+
+  /* Zero if we are walking to find ADDRESSOFs, one if we are walking
+     to find the insns that use the REGs in the ADDRESSOFs.  */
+  int pass;
+};
+
+/* Called from compute_insns_for_mem via for_each_rtx.  If R is a REG
+   that might be used in an ADDRESSOF expression, record this INSN in
+   the hash table given by DATA (which is really a pointer to an
+   insns_for_mem_walk_info structure).  */
+
+static int
+insns_for_mem_walk (r, data)
+     rtx *r;
+     void *data;
+{
+  struct insns_for_mem_walk_info *ifmwi 
+    = (struct insns_for_mem_walk_info *) data;
+
+  if (ifmwi->pass == 0 && *r && GET_CODE (*r) == ADDRESSOF
+      && GET_CODE (XEXP (*r, 0)) == REG)
+    hash_lookup (ifmwi->ht, XEXP (*r, 0), /*create=*/1, /*copy=*/0);
+  else if (ifmwi->pass == 1 && *r && GET_CODE (*r) == REG)
+    {
+      /* Lookup this MEM in the hashtable, creating it if necessary.  */
+      struct insns_for_mem_entry *ifme 
+	= (struct insns_for_mem_entry *) hash_lookup (ifmwi->ht,
+						      *r,
+						      /*create=*/0,
+						      /*copy=*/0);
+
+      /* If we have not already recorded this INSN, do so now.  Since
+	 we process the INSNs in order, we know that if we have
+	 recorded it it must be at the front of the list.  */
+      if (ifme && (!ifme->insns || XEXP (ifme->insns, 0) != ifmwi->insn))
+	{
+	  /* We do the allocation on the same obstack as is used for
+	     the hash table since this memory will not be used once
+	     the hash table is deallocated.  */
+	  push_obstacks (&ifmwi->ht->memory, &ifmwi->ht->memory);
+	  ifme->insns = gen_rtx_EXPR_LIST (VOIDmode, ifmwi->insn, 
+					   ifme->insns);
+	  pop_obstacks ();
+	}
+    }
+
+  return 0;
+}
+
+/* Walk the INSNS, until we reach LAST_INSN, recording which INSNs use
+   which REGs in HT.  */
+
+static void
+compute_insns_for_mem (insns, last_insn, ht)
+     rtx insns;
+     rtx last_insn;
+     struct hash_table *ht;
+{
+  rtx insn;
+  struct insns_for_mem_walk_info ifmwi;
+  ifmwi.ht = ht;
+
+  for (ifmwi.pass = 0; ifmwi.pass < 2; ++ifmwi.pass)
+    for (insn = insns; insn != last_insn; insn = NEXT_INSN (insn))
+      if (GET_RTX_CLASS (GET_CODE (insn)) == 'i')
+	{
+	  ifmwi.insn = insn;
+	  for_each_rtx (&insn, insns_for_mem_walk, &ifmwi);
+	}
 }
 
 /* Eliminate all occurrences of ADDRESSOF from INSNS.  Elide any remaining
@@ -2880,14 +3443,34 @@ purge_addressof (insns)
      rtx insns;
 {
   rtx insn;
+  struct hash_table ht;
+  
+  /* When we actually purge ADDRESSOFs, we turn REGs into MEMs.  That
+     requires a fixup pass over the instruction stream to correct
+     INSNs that depended on the REG being a REG, and not a MEM.  But,
+     these fixup passes are slow.  Furthermore, more MEMs are not
+     mentioned in very many instructions.  So, we speed up the process
+     by pre-calculating which REGs occur in which INSNs; that allows
+     us to perform the fixup passes much more quickly.  */
+  hash_table_init (&ht, 
+		   insns_for_mem_newfunc,
+		   insns_for_mem_hash,
+		   insns_for_mem_comp);
+  compute_insns_for_mem (insns, NULL_RTX, &ht);
+
   for (insn = insns; insn; insn = NEXT_INSN (insn))
     if (GET_CODE (insn) == INSN || GET_CODE (insn) == JUMP_INSN
 	|| GET_CODE (insn) == CALL_INSN)
       {
 	purge_addressof_1 (&PATTERN (insn), insn,
-			   asm_noperands (PATTERN (insn)) > 0);
-	purge_addressof_1 (&REG_NOTES (insn), NULL_RTX, 0);
+			   asm_noperands (PATTERN (insn)) > 0, 0, &ht);
+	purge_addressof_1 (&REG_NOTES (insn), NULL_RTX, 0, 0, &ht);
       }
+
+  /* Clean up.  */
+  hash_table_free (&ht);
+  purge_bitfield_addressof_replacements = 0;
+  purge_addressof_replacements = 0;
 }
 
 /* Pass through the INSNS of function FNDECL and convert virtual register
@@ -2906,6 +3489,7 @@ instantiate_virtual_regs (fndecl, insns)
   var_offset = STARTING_FRAME_OFFSET;
   dynamic_offset = STACK_DYNAMIC_OFFSET (fndecl);
   out_arg_offset = STACK_POINTER_OFFSET;
+  cfa_offset = ARG_POINTER_CFA_OFFSET;
 
   /* Scan all variables and parameters of this function.  For each that is
      in memory, instantiate all virtual registers if the result is a valid
@@ -3095,7 +3679,7 @@ instantiate_virtual_regs_1 (loc, object, extra_insns)
   rtx x;
   RTX_CODE code;
   rtx new = 0;
-  HOST_WIDE_INT offset;
+  HOST_WIDE_INT offset = 0;
   rtx temp;
   rtx seq;
   int i, j;
@@ -3139,6 +3723,8 @@ instantiate_virtual_regs_1 (loc, object, extra_insns)
 	new = stack_pointer_rtx, offset = - dynamic_offset;
       else if (SET_DEST (x) == virtual_outgoing_args_rtx)
 	new = stack_pointer_rtx, offset = - out_arg_offset;
+      else if (SET_DEST (x) == virtual_cfa_rtx)
+	new = arg_pointer_rtx, offset = - cfa_offset;
 
       if (new)
 	{
@@ -3190,6 +3776,8 @@ instantiate_virtual_regs_1 (loc, object, extra_insns)
 		new = stack_pointer_rtx, offset = dynamic_offset;
 	      else if (inner == virtual_outgoing_args_rtx)
 		new = stack_pointer_rtx, offset = out_arg_offset;
+	      else if (inner == virtual_cfa_rtx)
+	        new = arg_pointer_rtx, offset = cfa_offset;
 	      else
 		{
 		  loc = &XEXP (x, 0);
@@ -3209,6 +3797,8 @@ instantiate_virtual_regs_1 (loc, object, extra_insns)
 	    new = stack_pointer_rtx, offset = dynamic_offset;
 	  else if (XEXP (x, 0) == virtual_outgoing_args_rtx)
 	    new = stack_pointer_rtx, offset = out_arg_offset;
+          else if (XEXP (x, 0) == virtual_cfa_rtx)
+            new = arg_pointer_rtx, offset = cfa_offset;
 	  else
 	    {
 	      /* We know the second operand is a constant.  Unless the
@@ -3416,6 +4006,8 @@ instantiate_virtual_regs_1 (loc, object, extra_insns)
 	new = stack_pointer_rtx, offset = dynamic_offset;
       else if (x == virtual_outgoing_args_rtx)
 	new = stack_pointer_rtx, offset = out_arg_offset;
+      else if (x == virtual_cfa_rtx)
+        new = arg_pointer_rtx, offset = cfa_offset;
 
       if (new)
 	{
@@ -3508,29 +4100,23 @@ delete_handlers ()
 		TREE_CHAIN (last_t) = TREE_CHAIN (t);
 	    }
 	}
-      if (GET_CODE (insn) == INSN
-	  && ((nonlocal_goto_handler_slot != 0
-	       && reg_mentioned_p (nonlocal_goto_handler_slot, PATTERN (insn)))
+      if (GET_CODE (insn) == INSN)
+	{
+	  int can_delete = 0;
+	  rtx t;
+	  for (t = nonlocal_goto_handler_slots; t != 0; t = XEXP (t, 1))
+	    if (reg_mentioned_p (t, PATTERN (insn)))
+	      {
+		can_delete = 1;
+		break;
+	      }
+	  if (can_delete
 	      || (nonlocal_goto_stack_level != 0
 		  && reg_mentioned_p (nonlocal_goto_stack_level,
-				      PATTERN (insn)))))
-	delete_insn (insn);
+				      PATTERN (insn))))
+	    delete_insn (insn);
+	}
     }
-}
-
-/* Return a list (chain of EXPR_LIST nodes) for the nonlocal labels
-   of the current function.  */
-
-rtx
-nonlocal_label_rtx_list ()
-{
-  tree t;
-  rtx x = 0;
-
-  for (t = nonlocal_labels; t; t = TREE_CHAIN (t))
-    x = gen_rtx_EXPR_LIST (VOIDmode, label_rtx (TREE_VALUE (t)), x);
-
-  return x;
 }
 
 /* Output a USE for any register use in RTL.
@@ -3681,7 +4267,9 @@ assign_parms (fndecl, second_time)
   /* This is a dummy PARM_DECL that we used for the function result if 
      the function returns a structure.  */
   tree function_result_decl = 0;
+#ifdef SETUP_INCOMING_VARARGS
   int varargs_setup = 0;
+#endif
   rtx conversion_insns = 0;
 
   /* Nonzero if the last arg is named `__builtin_va_alist',
@@ -3761,6 +4349,7 @@ assign_parms (fndecl, second_time)
       int did_conversion = 0;
       tree passed_type = DECL_ARG_TYPE (parm);
       tree nominal_type = TREE_TYPE (parm);
+      int pretend_named;
 
       /* Set LAST_NAMED if this is last named arg before some
 	 anonymous args.  */
@@ -3882,6 +4471,7 @@ assign_parms (fndecl, second_time)
 	 In this case, we call FUNCTION_ARG with NAMED set to 1 instead of
 	 0 as it was the previous time.  */
 
+      pretend_named = named_arg || PRETEND_OUTGOING_VARARGS_NAMED;
       locate_and_pad_parm (promoted_mode, passed_type,
 #ifdef STACK_PARMS_IN_REG_PARM_AREA
 			   1,
@@ -3889,12 +4479,11 @@ assign_parms (fndecl, second_time)
 #ifdef FUNCTION_INCOMING_ARG
 			   FUNCTION_INCOMING_ARG (args_so_far, promoted_mode,
 						  passed_type,
-						  (named_arg
-						   || varargs_setup)) != 0,
+						  pretend_named) != 0,
 #else
 			   FUNCTION_ARG (args_so_far, promoted_mode,
 					 passed_type,
-					 named_arg || varargs_setup) != 0,
+					 pretend_named) != 0,
 #endif
 #endif
 			   fndecl, &stack_args_size, &stack_offset, &arg_size);
@@ -3914,7 +4503,7 @@ assign_parms (fndecl, second_time)
 	  /* If this is a memory ref that contains aggregate components,
 	     mark it as such for cse and loop optimize.  Likewise if it
 	     is readonly.  */
-	  MEM_IN_STRUCT_P (stack_parm) = aggregate;
+	  MEM_SET_IN_STRUCT_P (stack_parm, aggregate);
 	  RTX_UNCHANGING_P (stack_parm) = TREE_READONLY (parm);
 	  MEM_ALIAS_SET (stack_parm) = get_alias_set (parm);
 	}
@@ -3978,6 +4567,8 @@ assign_parms (fndecl, second_time)
 	 to indicate there is no preallocated stack slot for the parm.  */
 
       if (entry_parm == stack_parm
+          || (GET_CODE (entry_parm) == PARALLEL
+              && XEXP (XVECEXP (entry_parm, 0, 0), 0) == NULL_RTX)
 #if defined (REG_PARM_STACK_SPACE) && ! defined (MAYBE_REG_PARM_STACK_SPACE)
 	  /* On some machines, even if a parm value arrives in a register
 	     there is still an (uninitialized) stack slot allocated for it.
@@ -4054,7 +4645,7 @@ assign_parms (fndecl, second_time)
 
 	  /* If this is a memory ref that contains aggregate components,
 	     mark it as such for cse and loop optimize.  */
-	  MEM_IN_STRUCT_P (stack_parm) = aggregate;
+	  MEM_SET_IN_STRUCT_P (stack_parm, aggregate);
 	}
 #endif /* 0 */
 
@@ -4111,7 +4702,7 @@ assign_parms (fndecl, second_time)
 
 		  /* If this is a memory ref that contains aggregate
 		     components, mark it as such for cse and loop optimize.  */
-		  MEM_IN_STRUCT_P (stack_parm) = aggregate;
+		  MEM_SET_IN_STRUCT_P (stack_parm, aggregate);
 		}
 
 	      else if (PARM_BOUNDARY % BITS_PER_WORD != 0)
@@ -4168,7 +4759,7 @@ assign_parms (fndecl, second_time)
 	    {
 	      DECL_RTL (parm)
 		= gen_rtx_MEM (TYPE_MODE (TREE_TYPE (passed_type)), parmreg);
-	      MEM_IN_STRUCT_P (DECL_RTL (parm)) = aggregate;
+	      MEM_SET_IN_STRUCT_P (DECL_RTL (parm), aggregate);
 	    }
 	  else
 	    DECL_RTL (parm) = parmreg;
@@ -4177,6 +4768,7 @@ assign_parms (fndecl, second_time)
 	  if (nominal_mode != passed_mode
 	      || promoted_nominal_mode != promoted_mode)
 	    {
+	      int save_tree_used;
 	      /* ENTRY_PARM has been converted to PROMOTED_MODE, its
 		 mode, by the caller.  We now have to convert it to 
 		 NOMINAL_MODE, if different.  However, PARMREG may be in
@@ -4203,8 +4795,11 @@ assign_parms (fndecl, second_time)
 	      push_to_sequence (conversion_insns);
 	      tempreg = convert_to_mode (nominal_mode, tempreg, unsignedp);
 
+	      /* TREE_USED gets set erroneously during expand_assignment.  */
+	      save_tree_used = TREE_USED (parm);
 	      expand_assignment (parm,
 				 make_tree (nominal_type, tempreg), 0, 0);
+	      TREE_USED (parm) = save_tree_used;
 	      conversion_insns = get_insns ();
 	      did_conversion = 1;
 	      end_sequence ();
@@ -4269,14 +4864,14 @@ assign_parms (fndecl, second_time)
 	      else
 		copy = assign_stack_temp (TYPE_MODE (type),
 					  int_size_in_bytes (type), 1);
-	      MEM_IN_STRUCT_P (copy) = AGGREGATE_TYPE_P (type);
+	      MEM_SET_IN_STRUCT_P (copy, AGGREGATE_TYPE_P (type));
 	      RTX_UNCHANGING_P (copy) = TREE_READONLY (parm);
 
 	      store_expr (parm, copy, 0);
 	      emit_move_insn (parmreg, XEXP (copy, 0));
-	      if (flag_check_memory_usage)
+	      if (current_function_check_memory_usage)
 		emit_library_call (chkr_set_right_libfunc, 1, VOIDmode, 3,
-				   XEXP (copy, 0), ptr_mode,
+				   XEXP (copy, 0), Pmode,
 				   GEN_INT (int_size_in_bytes (type)),
 				   TYPE_MODE (sizetype),
 				   GEN_INT (MEMORY_USE_RW),
@@ -4424,7 +5019,7 @@ assign_parms (fndecl, second_time)
 					  GET_MODE_SIZE (GET_MODE (entry_parm)), 0);
 		  /* If this is a memory ref that contains aggregate components,
 		     mark it as such for cse and loop optimize.  */
-		  MEM_IN_STRUCT_P (stack_parm) = aggregate;
+		  MEM_SET_IN_STRUCT_P (stack_parm, aggregate);
 		}
 
 	      if (promoted_mode != nominal_mode)
@@ -4439,11 +5034,11 @@ assign_parms (fndecl, second_time)
 		emit_move_insn (validize_mem (stack_parm),
 				validize_mem (entry_parm));
 	    }
-	  if (flag_check_memory_usage)
+	  if (current_function_check_memory_usage)
 	    {
 	      push_to_sequence (conversion_insns);
 	      emit_library_call (chkr_set_right_libfunc, 1, VOIDmode, 3,
-				 XEXP (stack_parm, 0), ptr_mode,
+				 XEXP (stack_parm, 0), Pmode,
 				 GEN_INT (GET_MODE_SIZE (GET_MODE 
 							 (entry_parm))),
 				 TYPE_MODE (sizetype),
@@ -4466,7 +5061,8 @@ assign_parms (fndecl, second_time)
 	  DECL_RTL (result)
 	    = gen_rtx_MEM (DECL_MODE (result), DECL_RTL (parm));
 
-	  MEM_IN_STRUCT_P (DECL_RTL (result)) = AGGREGATE_TYPE_P (restype);
+	  MEM_SET_IN_STRUCT_P (DECL_RTL (result), 
+			       AGGREGATE_TYPE_P (restype));
 	}
 
       if (TREE_THIS_VOLATILE (parm))
@@ -4606,7 +5202,7 @@ locate_and_pad_parm (passed_mode, type, in_regs, fndecl,
      enum machine_mode passed_mode;
      tree type;
      int in_regs;
-     tree fndecl;
+     tree fndecl ATTRIBUTE_UNUSED;
      struct args_size *initial_offset_ptr;
      struct args_size *offset_ptr;
      struct args_size *arg_size_ptr;
@@ -4800,6 +5396,14 @@ uninitialized_vars_warning (block)
 	  && ! AGGREGATE_TYPE_P (TREE_TYPE (decl))
 	  && DECL_RTL (decl) != 0
 	  && GET_CODE (DECL_RTL (decl)) == REG
+	  /* Global optimizations can make it difficult to determine if a
+	     particular variable has been initialized.  However, a VAR_DECL
+	     with a nonzero DECL_INITIAL had an initializer, so do not
+	     claim it is potentially uninitialized.
+
+	     We do not care about the actual value in DECL_INITIAL, so we do
+	     not worry that it may be a dangling pointer.  */
+	  && DECL_INITIAL (decl) == NULL_TREE
 	  && regno_uninitialized (REGNO (DECL_RTL (decl))))
 	warning_with_decl (decl,
 			   "`%s' might be used uninitialized in this function");
@@ -5288,11 +5892,12 @@ init_function_start (subr, filename, line)
   stack_slot_list = 0;
 
   /* There is no stack slot for handling nonlocal gotos.  */
-  nonlocal_goto_handler_slot = 0;
+  nonlocal_goto_handler_slots = 0;
   nonlocal_goto_stack_level = 0;
 
   /* No labels have been declared for nonlocal use.  */
   nonlocal_labels = 0;
+  nonlocal_goto_handler_labels = 0;
 
   /* No function calls so far in this function.  */
   function_call_count = 0;
@@ -5331,6 +5936,10 @@ init_function_start (subr, filename, line)
   current_function_has_nonlocal_label = 0;
   current_function_has_nonlocal_goto = 0;
   current_function_contains_functions = 0;
+  current_function_is_leaf = 0;
+  current_function_sp_is_unchanging = 0;
+  current_function_uses_only_leaf_regs = 0;
+  current_function_has_computed_jump = 0;
   current_function_is_thunk = 0;
 
   current_function_returns_pcc_struct = 0;
@@ -5467,6 +6076,15 @@ expand_function_start (subr, parms_have_cleanups)
      valid operands of arithmetic insns.  */
   init_recog_no_volatile ();
 
+  /* Set this before generating any memory accesses.  */
+  current_function_check_memory_usage
+    = (flag_check_memory_usage
+       && ! DECL_NO_CHECK_MEMORY_USAGE (current_function_decl));
+
+  current_function_instrument_entry_exit
+    = (flag_instrument_function_entry_exit
+       && ! DECL_NO_INSTRUMENT_FUNCTION_ENTRY_EXIT (subr));
+
   /* If function gets a static chain arg, store it in the stack frame.
      Do this first, so it gets the first stack slot offset.  */
   if (current_function_needs_context)
@@ -5493,6 +6111,7 @@ expand_function_start (subr, parms_have_cleanups)
      or if it returns a structure, or if it has parm cleanups.  */
 #ifdef HAVE_return
   if (cleanup_label == 0 && HAVE_return
+      && ! current_function_instrument_entry_exit
       && ! current_function_returns_pcc_struct
       && ! (current_function_returns_struct && ! optimize))
     return_label = 0;
@@ -5534,14 +6153,16 @@ expand_function_start (subr, parms_have_cleanups)
 	{
 	  DECL_RTL (DECL_RESULT (subr))
 	    = gen_rtx_MEM (DECL_MODE (DECL_RESULT (subr)), value_address);
-	  MEM_IN_STRUCT_P (DECL_RTL (DECL_RESULT (subr)))
-	    = AGGREGATE_TYPE_P (TREE_TYPE (DECL_RESULT (subr)));
+	  MEM_SET_IN_STRUCT_P (DECL_RTL (DECL_RESULT (subr)),
+			       AGGREGATE_TYPE_P (TREE_TYPE
+						 (DECL_RESULT
+						  (subr))));
 	}
     }
   else if (DECL_MODE (DECL_RESULT (subr)) == VOIDmode)
     /* If return mode is void, this decl rtl should not be used.  */
     DECL_RTL (DECL_RESULT (subr)) = 0;
-  else if (parms_have_cleanups)
+  else if (parms_have_cleanups || current_function_instrument_entry_exit)
     {
       /* If function will end with cleanup code for parms,
 	 compute the return values into a pseudo reg,
@@ -5659,6 +6280,21 @@ expand_function_start (subr, parms_have_cleanups)
 	}
     }
 
+  if (current_function_instrument_entry_exit)
+    {
+      rtx fun = DECL_RTL (current_function_decl);
+      if (GET_CODE (fun) == MEM)
+	fun = XEXP (fun, 0);
+      else
+	abort ();
+      emit_library_call (profile_function_entry_libfunc, 0, VOIDmode, 2,
+			 fun, Pmode,
+			 expand_builtin_return_addr (BUILT_IN_RETURN_ADDRESS,
+						     0,
+						     hard_frame_pointer_rtx),
+			 Pmode);
+    }
+
   /* After the display initializations is where the tail-recursion label
      should go, if we end up needing one.   Ensure we have a NOTE here
      since some things (like trampolines) get placed before this.  */
@@ -5712,8 +6348,15 @@ expand_function_end (filename, line, end_bindings)
   /* Save the argument pointer if a save area was made for it.  */
   if (arg_pointer_save_area)
     {
-      rtx x = gen_move_insn (arg_pointer_save_area, virtual_incoming_args_rtx);
-      emit_insn_before (x, tail_recursion_reentry);
+      /* arg_pointer_save_area may not be a valid memory address, so we
+	 have to check it and fix it if necessary.  */
+      rtx seq;
+      start_sequence ();
+      emit_move_insn (validize_mem (arg_pointer_save_area),
+		      virtual_incoming_args_rtx);
+      seq = gen_sequence ();
+      end_sequence ();
+      emit_insn_before (seq, tail_recursion_reentry);
     }
 
   /* Initialize any trampolines required by this function.  */
@@ -5789,7 +6432,8 @@ expand_function_end (filename, line, end_bindings)
     }
 
   /* Delete handlers for nonlocal gotos if nothing uses them.  */
-  if (nonlocal_goto_handler_slot != 0 && !current_function_has_nonlocal_label)
+  if (nonlocal_goto_handler_slots != 0
+      && ! current_function_has_nonlocal_label)
     delete_handlers ();
 
   /* End any sequences that failed to be closed due to syntax errors.  */
@@ -5872,6 +6516,21 @@ expand_function_end (filename, line, end_bindings)
       }
   }
 
+  if (current_function_instrument_entry_exit)
+    {
+      rtx fun = DECL_RTL (current_function_decl);
+      if (GET_CODE (fun) == MEM)
+	fun = XEXP (fun, 0);
+      else
+	abort ();
+      emit_library_call (profile_function_exit_libfunc, 0, VOIDmode, 2,
+			 fun, Pmode,
+			 expand_builtin_return_addr (BUILT_IN_RETURN_ADDRESS,
+						     0,
+						     hard_frame_pointer_rtx),
+			 Pmode);
+    }
+
   /* If we had calls to alloca, and this machine needs
      an accurate stack pointer to exit the function,
      insert some code to save and restore the stack pointer.  */
@@ -5948,6 +6607,10 @@ expand_function_end (filename, line, end_bindings)
       emit_move_insn (outgoing, value_address);
       use_variable (outgoing);
     }
+
+  /* If this is an implementation of __throw, do what's necessary to 
+     communicate between __builtin_eh_return and the epilogue.  */
+  expand_eh_return ();
 
   /* Output a return insn if we are using one.
      Otherwise, let the rtl chain end here, to drop through
@@ -6038,100 +6701,172 @@ contains (insn, vec)
 
 void
 thread_prologue_and_epilogue_insns (f)
-     rtx f;
+     rtx f ATTRIBUTE_UNUSED;
 {
+  int insertted = 0;
+
+  prologue = 0;
 #ifdef HAVE_prologue
   if (HAVE_prologue)
     {
-      rtx head, seq;
+      rtx seq;
 
-      /* The first insn (a NOTE_INSN_DELETED) is followed by zero or more
-	 prologue insns and a NOTE_INSN_PROLOGUE_END.  */
-      emit_note_after (NOTE_INSN_PROLOGUE_END, f);
-      seq = gen_prologue ();
-      head = emit_insn_after (seq, f);
-
-      /* Include the new prologue insns in the first block.  Ignore them
-	 if they form a basic block unto themselves.  */
-      if (basic_block_head && n_basic_blocks
-	  && GET_CODE (basic_block_head[0]) != CODE_LABEL)
-	basic_block_head[0] = NEXT_INSN (f);
+      start_sequence ();
+      seq = gen_prologue();
+      emit_insn (seq);
 
       /* Retain a map of the prologue insns.  */
-      prologue = record_insns (GET_CODE (seq) == SEQUENCE ? seq : head);
-    }
-  else
-#endif
-    prologue = 0;
+      if (GET_CODE (seq) != SEQUENCE)
+	seq = get_insns ();
+      prologue = record_insns (seq);
 
+      emit_note (NULL, NOTE_INSN_PROLOGUE_END);
+      seq = gen_sequence ();
+      end_sequence ();
+
+      /* If optimization is off, and perhaps in an empty function,
+	 the entry block will have no successors.  */
+      if (ENTRY_BLOCK_PTR->succ)
+	{
+	  /* Can't deal with multiple successsors of the entry block.  */
+	  if (ENTRY_BLOCK_PTR->succ->succ_next)
+	    abort ();
+
+	  insert_insn_on_edge (seq, ENTRY_BLOCK_PTR->succ);
+	  insertted = 1;
+	}
+      else
+	emit_insn_after (seq, f);
+    }
+#endif
+
+  epilogue = 0;
 #ifdef HAVE_epilogue
   if (HAVE_epilogue)
     {
-      rtx insn = get_last_insn ();
-      rtx prev = prev_nonnote_insn (insn);
+      edge e;
+      basic_block bb = 0;
+      rtx tail = get_last_insn ();
 
-      /* If we end with a BARRIER, we don't need an epilogue.  */
-      if (! (prev && GET_CODE (prev) == BARRIER))
+      /* ??? This is gastly.  If function returns were not done via uses,
+	 but via mark_regs_live_at_end, we could use insert_insn_on_edge
+	 and all of this uglyness would go away.  */
+
+      switch (optimize)
 	{
-	  rtx tail, seq, tem;
-	  rtx first_use = 0;
-	  rtx last_use = 0;
+	default:
+	  /* If the exit block has no non-fake predecessors, we don't
+	     need an epilogue.  Furthermore, only pay attention to the
+	     fallthru predecessors; if (conditional) return insns were
+	     generated, by definition we do not need to emit epilogue
+	     insns.  */
 
-	  /* The last basic block ends with a NOTE_INSN_EPILOGUE_BEG, the
-	     epilogue insns, the USE insns at the end of a function,
-	     the jump insn that returns, and then a BARRIER.  */
+	  for (e = EXIT_BLOCK_PTR->pred; e ; e = e->pred_next)
+	    if ((e->flags & EDGE_FAKE) == 0
+		&& (e->flags & EDGE_FALLTHRU) != 0)
+	      break;
+	  if (e == NULL)
+	    break;
 
-	  /* Move the USE insns at the end of a function onto a list.  */
-	  while (prev
-		 && GET_CODE (prev) == INSN
-		 && GET_CODE (PATTERN (prev)) == USE)
-	    {
-	      tem = prev;
+	  /* We can't handle multiple epilogues -- if one is needed,
+	     we won't be able to place it multiple times.
+
+	     ??? Fix epilogue expanders to not assume they are the
+	     last thing done compiling the function.  Either that
+	     or copy_rtx each insn.
+
+	     ??? Blah, it's not a simple expression to assert that
+	     we've exactly one fallthru exit edge.  */
+
+	  bb = e->src;
+	  tail = bb->end;
+
+	  /* ??? If the last insn of the basic block is a jump, then we
+	     are creating a new basic block.  Wimp out and leave these
+	     insns outside any block.  */
+	  if (GET_CODE (tail) == JUMP_INSN)
+	    bb = 0;
+
+	  /* FALLTHRU */
+	case 0:
+	  {
+	    rtx prev, seq, first_use;
+
+	    /* Move the USE insns at the end of a function onto a list.  */
+	    prev = tail;
+	    if (GET_CODE (prev) == BARRIER
+		|| GET_CODE (prev) == NOTE)
 	      prev = prev_nonnote_insn (prev);
 
-	      NEXT_INSN (PREV_INSN (tem)) = NEXT_INSN (tem);
-	      PREV_INSN (NEXT_INSN (tem)) = PREV_INSN (tem);
-	      if (first_use)
-		{
-		  NEXT_INSN (tem) = first_use;
-		  PREV_INSN (first_use) = tem;
-		}
-	      first_use = tem;
-	      if (!last_use)
-		last_use = tem;
-	    }
+	    first_use = 0;
+	    if (prev
+		&& GET_CODE (prev) == INSN
+		&& GET_CODE (PATTERN (prev)) == USE)
+	      {
+		/* If the end of the block is the use, grab hold of something
+		   else so that we emit barriers etc in the right place.  */
+		if (prev == tail)
+		  {
+		    do 
+		      tail = PREV_INSN (tail);
+		    while (GET_CODE (tail) == INSN
+			   && GET_CODE (PATTERN (tail)) == USE);
+		  }
 
-	  emit_barrier_after (insn);
+		do
+		  {
+		    rtx use = prev;
+		    prev = prev_nonnote_insn (prev);
 
-	  seq = gen_epilogue ();
-	  tail = emit_jump_insn_after (seq, insn);
+		    remove_insn (use);
+		    if (first_use)
+		      {
+			NEXT_INSN (use) = first_use;
+			PREV_INSN (first_use) = use;
+		      }
+		    else
+		      NEXT_INSN (use) = NULL_RTX;
+		    first_use = use;
+		  }
+		while (prev
+		       && GET_CODE (prev) == INSN
+		       && GET_CODE (PATTERN (prev)) == USE);
+	      }
 
-	  /* Insert the USE insns immediately before the return insn, which
-	     must be the first instruction before the final barrier.  */
-	  if (first_use)
-	    {
-	      tem = prev_nonnote_insn (get_last_insn ());
-	      NEXT_INSN (PREV_INSN (tem)) = first_use;
-	      PREV_INSN (first_use) = PREV_INSN (tem);
-	      PREV_INSN (tem) = last_use;
-	      NEXT_INSN (last_use) = tem;
-	    }
+	    /* The last basic block ends with a NOTE_INSN_EPILOGUE_BEG, the
+	       epilogue insns, the USE insns at the end of a function,
+	       the jump insn that returns, and then a BARRIER.  */
 
-	  emit_note_after (NOTE_INSN_EPILOGUE_BEG, insn);
+	    if (GET_CODE (tail) != BARRIER)
+	      {
+		prev = next_nonnote_insn (tail);
+		if (!prev || GET_CODE (prev) != BARRIER)
+		  emit_barrier_after (tail);
+	      }
 
-	  /* Include the new epilogue insns in the last block.  Ignore
-	     them if they form a basic block unto themselves.  */
-	  if (basic_block_end && n_basic_blocks
-	      && GET_CODE (basic_block_end[n_basic_blocks - 1]) != JUMP_INSN)
-	    basic_block_end[n_basic_blocks - 1] = tail;
+	    seq = gen_epilogue ();
+	    prev = tail;
+	    tail = emit_jump_insn_after (seq, tail);
 
-	  /* Retain a map of the epilogue insns.  */
-	  epilogue = record_insns (GET_CODE (seq) == SEQUENCE ? seq : tail);
-	  return;
+	    /* Insert the USE insns immediately before the return insn, which
+	       must be the last instruction emitted in the sequence.  */
+	    if (first_use)
+	      emit_insns_before (first_use, tail);
+	    emit_note_after (NOTE_INSN_EPILOGUE_BEG, prev);
+
+	    /* Update the tail of the basic block.  */
+	    if (bb)
+	      bb->end = tail;
+
+	    /* Retain a map of the epilogue insns.  */
+	    epilogue = record_insns (GET_CODE (seq) == SEQUENCE ? seq : tail);
+	  }
 	}
     }
 #endif
-  epilogue = 0;
+
+  if (insertted)
+    commit_edge_insertions ();
 }
 
 /* Reposition the prologue-end and epilogue-begin notes after instruction
@@ -6139,13 +6874,12 @@ thread_prologue_and_epilogue_insns (f)
 
 void
 reposition_prologue_and_epilogue_notes (f)
-     rtx f;
+     rtx f ATTRIBUTE_UNUSED;
 {
 #if defined (HAVE_prologue) || defined (HAVE_epilogue)
   /* Reposition the prologue and epilogue notes.  */
   if (n_basic_blocks)
     {
-      rtx next, prev;
       int len;
 
       if (prologue)
@@ -6166,6 +6900,7 @@ reposition_prologue_and_epilogue_notes (f)
 		}
 	      else if ((len -= contains (insn, prologue)) == 0)
 		{
+		  rtx next;
 		  /* Find the prologue-end note if we haven't already, and
 		     move it to just after the last prologue insn.  */
 		  if (note == 0)
@@ -6175,12 +6910,15 @@ reposition_prologue_and_epilogue_notes (f)
 			    && NOTE_LINE_NUMBER (note) == NOTE_INSN_PROLOGUE_END)
 			  break;
 		    }
+
 		  next = NEXT_INSN (note);
-		  prev = PREV_INSN (note);
-		  if (prev)
-		    NEXT_INSN (prev) = next;
-		  if (next)
-		    PREV_INSN (next) = prev;
+
+		  /* Whether or not we can depend on BLOCK_HEAD, 
+		     attempt to keep it up-to-date.  */
+		  if (BLOCK_HEAD (0) == note)
+		    BLOCK_HEAD (0) = next;
+
+		  remove_insn (note);
 		  add_insn_after (note, insn);
 		}
 	    }
@@ -6213,13 +6951,15 @@ reposition_prologue_and_epilogue_notes (f)
 			    && NOTE_LINE_NUMBER (note) == NOTE_INSN_EPILOGUE_BEG)
 			  break;
 		    }
-		  next = NEXT_INSN (note);
-		  prev = PREV_INSN (note);
-		  if (prev)
-		    NEXT_INSN (prev) = next;
-		  if (next)
-		    PREV_INSN (next) = prev;
-		  add_insn_after (note, PREV_INSN (insn));
+
+		  /* Whether or not we can depend on BLOCK_HEAD, 
+		     attempt to keep it up-to-date.  */
+		  if (n_basic_blocks
+		      && BLOCK_HEAD (n_basic_blocks-1) == insn)
+		    BLOCK_HEAD (n_basic_blocks-1) = note;
+
+		  remove_insn (note);
+		  add_insn_before (note, insn);
 		}
 	    }
 	}
