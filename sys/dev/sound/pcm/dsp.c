@@ -660,10 +660,18 @@ dsp_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct thread *td)
 
     	case SNDCTL_DSP_RESET:
 		DEB(printf("dsp reset\n"));
-		if (wrch)
+		if (wrch) {
+			CHN_LOCK(wrch);
 			chn_abort(wrch);
-		if (rdch)
+			chn_resetbuf(wrch);
+			CHN_UNLOCK(wrch);
+		}
+		if (rdch) {
+			CHN_LOCK(rdch);
 			chn_abort(rdch);
+			chn_resetbuf(rdch);
+			CHN_UNLOCK(rdch);
+		}
 		break;
 
     	case SNDCTL_DSP_SYNC:
