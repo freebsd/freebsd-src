@@ -284,7 +284,13 @@ static vm_map_entry_t
 vm_map_entry_create(map)
 	vm_map_t map;
 {
-	return zalloc((map->system_map || !mapentzone) ? kmapentzone : mapentzone);
+	vm_map_entry_t new_entry;
+
+	new_entry = zalloc((map->system_map || !mapentzone) ? 
+		kmapentzone : mapentzone);
+	if (new_entry == NULL)
+	    panic("vm_map_entry_create: kernel resources exhausted");
+	return(new_entry);
 }
 
 /*

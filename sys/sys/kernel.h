@@ -112,6 +112,7 @@ enum sysinit_sub_id {
 	SI_SUB_TUNABLES		= 0x0700000,	/* establish tunable values */
 	SI_SUB_VM		= 0x1000000,	/* virtual memory system init*/
 	SI_SUB_KMEM		= 0x1800000,	/* kernel memory*/
+	SI_SUB_KVM_RSRC		= 0x1A00000,	/* kvm operational limits*/
 	SI_SUB_CPU		= 0x2000000,	/* CPU resource(s)*/
 	SI_SUB_KLD		= 0x2100000,	/* KLD and module setup */
 	SI_SUB_INTRINSIC	= 0x2200000,	/* proc 0*/

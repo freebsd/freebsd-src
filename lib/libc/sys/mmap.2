@@ -253,7 +253,8 @@ was not page-aligned.  (See BUGS below.)
 .Dv MAP_FIXED
 was specified and the
 .Fa addr
-parameter wasn't available.
+parameter wasn't available, or the system has reached the per-process mmap
+limit specified in the vm.max_proc_mmap sysctl.
 .Dv MAP_ANON
 was specified and insufficient memory was available.
 .Sh "SEE ALSO"
