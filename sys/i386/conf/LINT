@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.365 1997/09/14 21:45:01 jmg Exp $
+#	$Id: LINT,v 1.366 1997/09/16 07:45:31 joerg Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -860,6 +860,10 @@ device		sio0	at isa? port "IO_COM1" tty flags 0x10 irq 4 vector siointr
 #		higher priority console).  This replaces the COMCONSOLE option.
 #	0x40	reserve this unit for low level console operations.  Do not
 #
+# PnP `flags' (set via userconfig using pnp x flags y)
+#	0x1	disable probing of this device.  Used to prevent your modem
+#		from being attached as a PnP modem.
+#
 
 # Options for serial drivers that support consoles (only for sio now):
 options		BREAK_TO_DEBUGGER	#a BREAK on a comconsole goes to 
@@ -870,6 +874,7 @@ options		CONSPEED=9600		#default speed for serial console (default 9600)
 options		COM_ESP			#code for Hayes ESP
 options		COM_MULTIPORT		#code for some cards with shared IRQs
 options		DSI_SOFT_MODEM		#code for DSI Softmodems
+options		"EXTRA_SIO=2"		#number of extra sio ports to allocate
 
 # Other flags for sio that aren't documented in the man page.
 #	0x20000	enable hardware RTS/CTS and larger FIFOs.  Only works for
