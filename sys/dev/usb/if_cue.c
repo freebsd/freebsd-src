@@ -94,8 +94,6 @@ Static struct cue_type cue_devs[] = {
 	{ 0, 0 }
 };
 
-Static struct usb_qdat cue_qdat;
-
 Static int cue_match(device_ptr_t);
 Static int cue_attach(device_ptr_t);
 Static int cue_detach(device_ptr_t);
@@ -542,8 +540,8 @@ USB_ATTACH(cue)
 	ifp->if_baudrate = 10000000;
 	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 
-	cue_qdat.ifp = ifp;
-	cue_qdat.if_rxstart = cue_rxstart;
+	sc->cue_qdat.ifp = ifp;
+	sc->cue_qdat.if_rxstart = cue_rxstart;
 
 	/*
 	 * Call MI attach routine.
@@ -758,7 +756,7 @@ cue_rxeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 
 	ifp->if_ipackets++;
 	m_adj(m, sizeof(u_int16_t));
-	m->m_pkthdr.rcvif = (struct ifnet *)&cue_qdat;
+	m->m_pkthdr.rcvif = (struct ifnet *)&sc->cue_qdat;
 	m->m_pkthdr.len = m->m_len = total_len;
 
 	/* Put the packet on the special USB input queue. */

@@ -174,6 +174,7 @@ struct kue_softc {
 #endif
 	char			kue_dying;
 	struct timeval		kue_rx_notice;
+	struct usb_qdat		kue_qdat;
 };
 
 #if 0

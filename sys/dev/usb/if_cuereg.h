@@ -182,6 +182,7 @@ struct cue_softc {
 #endif
 	char			cue_dying;
 	struct timeval		cue_rx_notice;
+	struct usb_qdat		cue_qdat;
 };
 
 #if 0

@@ -228,6 +228,7 @@ struct rue_softc {
 #endif
 	char			rue_dying;
 	struct timeval		rue_rx_notice;
+	struct usb_qdat		rue_qdat;
 };
 
 #if defined(__FreeBSD__)
