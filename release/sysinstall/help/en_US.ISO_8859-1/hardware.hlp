@@ -1,4 +1,4 @@
-Hardware Documentation Guide:  $Id: hardware.hlp,v 1.5 1995/06/05 15:17:54 jkh Exp $
+Hardware Documentation Guide:  $Id: hardware.hlp,v 1.6 1995/06/05 15:26:35 jkh Exp $
 
 Table of Contents
 -----------------
@@ -342,7 +342,7 @@ A: Not all of the companies that sell the Matsushita/Panasonic CR-562
 
 
 Q: I'm trying to install from a tape drive but all I get is something like:
-	st0(aha0:1:0) NOT READY csi 40,0,0,0
+        st0(aha0:1:0) NOT READY csi 40,0,0,0
    on the screen.  Help!
 
 A: There's a limitation in the current sysinstall that the tape MUST

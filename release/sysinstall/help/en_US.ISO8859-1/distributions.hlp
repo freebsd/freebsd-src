@@ -9,25 +9,25 @@ complete source tree minus any legally encumbered cryptography code.
 
 The "canned" installations are made up as follows:
 
-Developer:	Base ("bin") distribution, the man pages, the dictionary
-		files, profiling libraries and the complete source tree.
+Developer:      Base ("bin") distribution, the man pages, the dictionary
+                files, profiling libraries and the complete source tree.
 
 Kern-Developer: As above, but with only the kernel sources instead of
-		the complete source tree.
+                the complete source tree.
 
 User:           The base distribution, the man pages, the dictionary files,
-		the FreeBSD 1.x compatibility set and the FreeBSD 2.0
-		compatability set.
+                the FreeBSD 1.x compatibility set and the FreeBSD 2.0
+                compatability set.
 
-Minimal: 	Only the base distribution.
+Minimal:        Only the base distribution.
 
 Everything:     The base distribution, man pages, dictionary, profiling
-		libraries, the FreeBSD 1.x and the FreeBSD 2.0
-		compatability libraries, the complete source tree,
-		the games, and your choice of XFree86 modules.
-		N.B. Still no cryptocraphy source code!
+                libraries, the FreeBSD 1.x and the FreeBSD 2.0
+                compatability libraries, the complete source tree,
+                the games, and your choice of XFree86 modules.
+                N.B. Still no cryptocraphy source code!
 
-Custom:		Allow you to customize your selections or choose a
-		complete installation from scratch.
+Custom:         Allow you to customize your selections or choose a
+                complete installation from scratch.
 
-Reset:		Clear all currently selected distributions.
+Reset:          Clear all currently selected distributions.
