@@ -1,4 +1,4 @@
-.\"	$KAME: traceroute6.8,v 1.8 2000/06/12 16:29:18 itojun Exp $
+.\"	$KAME: traceroute6.8,v 1.10 2004/06/06 12:35:15 suz Exp $
 .\"
 .\" Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
 .\" All rights reserved.
@@ -35,12 +35,12 @@
 .\"
 .Sh NAME
 .Nm traceroute6
-.Nd "print the route IPv6 packets will take to the destination"
+.Nd "print the route IPv6 packets will take to a network node"
 .\"
 .Sh SYNOPSIS
 .Nm
 .Bk -words
-.Op Fl dlnrv
+.Op Fl dIlnrv
 .Ek
 .Bk -words
 .Op Fl f Ar firsthop
@@ -69,6 +69,20 @@
 .Ek
 .\"
 .Sh DESCRIPTION
+The
+.Nm
+utility
+uses the IPv6 protocol hop limit field to elicit an ICMPv6 TIME_EXCEEDED
+response from each gateway along the path to some host.
+.Pp
+The only mandatory parameter is the destination host name or IPv6 address.
+The default probe datagram carries 12 bytes of payload,
+in addition to the IPv6 header.
+The size of the payload can be specified by giving a length
+(in bytes)
+after the destination host name.
+.Pp
+Other options are:
 .Bl -tag -width Ds
 .It Fl d
 Debug mode.
@@ -78,13 +92,16 @@ Specify how many hops to skip in trace.
 Specify intermediate gateway
 .Nm (
 uses routing header).
-.It Fl m Ar hoplimit
-Specify maximum hoplimit.
+.It Fl I
+Use ICMP6 ECHO instead of UDP datagrams.
 .It Fl l
 Print both host hostnames and numeric addresses.
 Normally
 .Nm
 prints only hostnames if
+.It Fl m Ar hoplimit
+Specify maximum hoplimit, up to 255.
+The default is 30 hops.
 .Fl n
 is not specified, and only numeric addresses if
 .Fl n
@@ -105,6 +122,28 @@ specifies the source IPv6 address to be used.
 Be verbose.
 .It Fl w Ar waittime
 Specify the delay time between probes.
+.El
+.Pp
+This program prints the route to the given destination and the round-trip
+time to each gateway, in the same manner as traceroute.
+.Pp
+Here is a list of possible annotations after the round-trip time for each gateway:
+.Bl -hang -offset indent
+.It !N
+Destination Unreachable - No Route to Host.
+.It !P
+Destination Unreachable - Administratively Prohibited.
+.It !S
+Destination Unreachable - Not a Neighbour.
+.It !A
+Destination Unreachable - Address Unreachable.
+.It !\&
+This is printed if the hop limit is <= 1 on a port unreachable message.
+This means that the packet got to the destination,
+but that the reply had a hop limit that was just large enough to
+allow it to get back to the source of the traceroute6.
+This was more interesting in the IPv4 case,
+where some IP stack bugs could be identified by this behaviour.
 .El
 .\"
 .Sh RETURN VALUES
