@@ -235,7 +235,11 @@ SLIST_HEAD(tpd_list, tpd);
 
 #define MBUFL_OFFSET	16		/* two pointers for HARP */
 
-#define MBUF_ALLOC_SIZE	(PAGE_SIZE)
+#if PAGE_SIZE > 8192
+#define	MBUF_ALLOC_SIZE	(8192)
+#else
+#define	MBUF_ALLOC_SIZE	(PAGE_SIZE)
+#endif
 
 /* each allocated page has one of these structures at its very end. */
 struct mbuf_page_hdr {
