@@ -20,7 +20,7 @@
 %sections;
 
 <!-- The currently released version of FreeBSD -->
-<!ENTITY rel.current CDATA "2.1.6">
+<!ENTITY rel.current CDATA "2.1.7">
 
 ]>
 
@@ -31,7 +31,7 @@
       <author>
 	<name>The FreeBSD Documentation Project</name>
       </author>
-      <date>December 1996</date>
+      <date>February 1997</date>
 
 <abstract>Welcome to FreeBSD!  This handbook covers the
 installation and day to day use of <bf>FreeBSD Release
