@@ -73,7 +73,6 @@ struct msdosfsmount {
 	u_long pm_rootdirblk;	/* block # (cluster # for FAT32) of root directory number */
 	u_long pm_rootdirsize;	/* size in blocks (not clusters) */
 	u_long pm_firstcluster;	/* block number of first cluster */
-	u_long pm_nmbrofclusters;	/* # of clusters in filesystem */
 	u_long pm_maxcluster;	/* maximum cluster number */
 	u_long pm_freeclustercount;	/* number of free clusters */
 	u_long pm_cnshift;	/* shift file offset right this amount to get a cluster number */

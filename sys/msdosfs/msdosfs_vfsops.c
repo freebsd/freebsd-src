@@ -364,6 +364,7 @@ mountmsdosfs(devvp, mp, p, argp)
 	struct byte_bpb50 *b50;
 	struct byte_bpb710 *b710;
 	u_int8_t SecPerClust;
+	u_long clusters;
 	int	ronly, error;
 
 	/*
@@ -595,14 +596,13 @@ mountmsdosfs(devvp, mp, p, argp)
 		pmp->pm_firstcluster = pmp->pm_rootdirblk + pmp->pm_rootdirsize;
 	}
 
-	pmp->pm_nmbrofclusters = (pmp->pm_HugeSectors - pmp->pm_firstcluster) /
-	    SecPerClust;
-	pmp->pm_maxcluster = pmp->pm_nmbrofclusters + 1;
+	pmp->pm_maxcluster = (pmp->pm_HugeSectors - pmp->pm_firstcluster) /
+	    SecPerClust + 1;
 	pmp->pm_fatsize = pmp->pm_FATsecs * pmp->pm_BytesPerSec;
 
 #ifndef __FreeBSD__
 	if (argp->flags & MSDOSFSMNT_GEMDOSFS) {
-		if ((pmp->pm_nmbrofclusters <= (0xff0 - 2))
+		if ((pmp->pm_maxcluster <= (0xff0 - 2))
 		      && ((dtype == DTYPE_FLOPPY) || ((dtype == DTYPE_VNODE)
 		      && ((pmp->pm_Heads == 1) || (pmp->pm_Heads == 2))))
 		    ) {
@@ -633,6 +633,15 @@ mountmsdosfs(devvp, mp, p, argp)
 			pmp->pm_fatdiv = 1;
 		}
 	}
+
+	clusters = (pmp->pm_fatsize / pmp->pm_fatmult) * pmp->pm_fatdiv;
+	if (pmp->pm_maxcluster >= clusters) {
+		printf("Warning: number of clusters (%ld) exceeds FAT "
+		    "capacity (%ld)\n", pmp->pm_maxcluster + 1, clusters);
+		pmp->pm_maxcluster = clusters - 1;
+	}
+
+
 	if (FAT12(pmp))
 		pmp->pm_fatblocksize = 3 * pmp->pm_BytesPerSec;
 	else
@@ -829,7 +838,7 @@ msdosfs_statfs(mp, sbp, p)
 	pmp = VFSTOMSDOSFS(mp);
 	sbp->f_bsize = pmp->pm_bpcluster;
 	sbp->f_iosize = pmp->pm_bpcluster;
-	sbp->f_blocks = pmp->pm_nmbrofclusters;
+	sbp->f_blocks = pmp->pm_maxcluster + 1;
 	sbp->f_bfree = pmp->pm_freeclustercount;
 	sbp->f_bavail = pmp->pm_freeclustercount;
 	sbp->f_files = pmp->pm_RootDirEnts;			/* XXX */
