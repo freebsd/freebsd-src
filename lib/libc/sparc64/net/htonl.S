@@ -53,7 +53,9 @@
 #endif /* SYSLIBC_RCS and not lint */
 
 /* netorder = htonl(hostorder) */
-ENTRY(htonl)
+        .weak CNAME(htonl)
+        .set CNAME(htonl),CNAME(__htonl)
+ENTRY(__htonl)
 	retl
 	 srl	%o0, 0, %o0	/* zero extend -- or do we sign extend? */
-END(htonl)
+END(__htonl)

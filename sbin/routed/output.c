@@ -419,7 +419,7 @@ supply_out(struct ag_info *ag)
 		wb->n->n_metric = ((stopint || ag->ag_metric < 1)
 				   ? HOPCNT_INFINITY
 				   : ag->ag_metric);
-		HTONL(wb->n->n_metric);
+		wb->n->n_metric = htonl(wb->n->n_metric);
 		/* Any non-zero bits in the supposedly unused RIPv1 fields
 		 * cause the old `routed` to ignore the route.
 		 * That means the mask and so forth cannot be sent

@@ -65,6 +65,7 @@ static char sccsid[] = "@(#)clnt_vc.c 1.19 89/03/16 Copyr 1988 Sun Micro";
 #include <sys/un.h>
 #include <sys/uio.h>
 
+#include <arpa/inet.h>
 #include <assert.h>
 #include <err.h>
 #include <errno.h>

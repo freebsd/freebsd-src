@@ -284,7 +284,7 @@ iflookup(naddr addr)
 naddr					/* host byte order */
 std_mask(naddr addr)			/* network byte order */
 {
-	NTOHL(addr);			/* was a host, not a network */
+	addr = ntohl(addr);			/* was a host, not a network */
 
 	if (addr == 0)			/* default route has mask 0 */
 		return 0;
@@ -372,7 +372,7 @@ ripv1_mask_host(naddr addr,		/* in network byte order */
 int					/* 0=bad */
 check_dst(naddr addr)
 {
-	NTOHL(addr);
+	addr = ntohl(addr);
 
 	if (IN_CLASSA(addr)) {
 		if (addr == 0)

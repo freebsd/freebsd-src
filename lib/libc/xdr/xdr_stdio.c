@@ -49,6 +49,7 @@ static char *rcsid = "$FreeBSD$";
 #include "namespace.h"
 #include <stdio.h>
 
+#include <arpa/inet.h>
 #include <rpc/types.h>
 #include <rpc/xdr.h>
 #include "un-namespace.h"

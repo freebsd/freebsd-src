@@ -371,6 +371,19 @@ extern void		panic(const char *, ...) __dead2;
 extern struct fs_ops	*file_system[];
 extern struct devsw	*devsw[];
 
+/*
+ * Expose byteorder(3) functions.
+ */
+#define	htonl(x)	__htonl(x)
+#define	htons(x)	__htons(x)
+#define	ntohl(x)	__ntohl(x)
+#define	ntohs(x)	__ntohs(x)
+
+extern uint32_t		htonl(uint32_t);
+extern uint16_t		htons(uint16_t);
+extern uint32_t		ntohl(uint32_t);
+extern uint16_t		ntohs(uint16_t);
+
 #if 0
 
 static inline void *

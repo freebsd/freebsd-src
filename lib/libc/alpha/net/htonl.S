@@ -25,8 +25,11 @@
  *
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
+ *
+ * $FreeBSD$
  */
 
-#define	NAME	htonl
+#define	ALIAS	htonl
+#define	NAME	__htonl
 
 #include "byte_swap_4.S"

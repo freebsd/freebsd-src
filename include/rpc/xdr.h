@@ -261,13 +261,13 @@ struct xdr_discrim {
  * N.B. and frozen for all time: each data type here uses 4 bytes
  * of external representation.
  */
-#define IXDR_GET_INT32(buf)		((int32_t)ntohl((u_int32_t)*(buf)++))
-#define IXDR_PUT_INT32(buf, v)		(*(buf)++ =(int32_t)htonl((u_int32_t)v))
+#define IXDR_GET_INT32(buf)		((int32_t)__ntohl((u_int32_t)*(buf)++))
+#define IXDR_PUT_INT32(buf, v)		(*(buf)++ =(int32_t)__htonl((u_int32_t)v))
 #define IXDR_GET_U_INT32(buf)		((u_int32_t)IXDR_GET_INT32(buf))
 #define IXDR_PUT_U_INT32(buf, v)	IXDR_PUT_INT32((buf), ((int32_t)(v)))
 
-#define IXDR_GET_LONG(buf)		((long)ntohl((u_int32_t)*(buf)++))
-#define IXDR_PUT_LONG(buf, v)		(*(buf)++ =(int32_t)htonl((u_int32_t)v))
+#define IXDR_GET_LONG(buf)		((long)__ntohl((u_int32_t)*(buf)++))
+#define IXDR_PUT_LONG(buf, v)		(*(buf)++ =(int32_t)__htonl((u_int32_t)v))
 
 #define IXDR_GET_BOOL(buf)		((bool_t)IXDR_GET_LONG(buf))
 #define IXDR_GET_ENUM(buf, t)		((t)IXDR_GET_LONG(buf))

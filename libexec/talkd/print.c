@@ -43,6 +43,7 @@ static const char rcsid[] =
 
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <arpa/inet.h>
 #include <protocols/talkd.h>
 #include <stdio.h>
 #include <syslog.h>

@@ -28,6 +28,7 @@
  * rights to redistribute these changes.
  */
 
-#define	NAME	htons
+#define	ALIAS	htons
+#define	NAME	__htons
 
 #include <libkern/ia64/byte_swap_2.S>

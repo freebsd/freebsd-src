@@ -28,6 +28,7 @@
  * $FreeBSD$
  */
 
+#include <arpa/inet.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>

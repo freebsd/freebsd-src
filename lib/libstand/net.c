@@ -231,7 +231,7 @@ intoa(addr)
 	register int n;
 	static char buf[17];	/* strlen(".255.255.255.255") + 1 */
 
-	NTOHL(addr);
+	addr = ntohl(addr);
 	cp = &buf[sizeof buf];
 	*--cp = '\0';
 

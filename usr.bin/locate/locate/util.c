@@ -42,6 +42,7 @@
 #include <string.h>
 #include <err.h>
 #include <sys/param.h>
+#include <arpa/inet.h>
 #include <stdio.h>
 
 #include "locate.h"

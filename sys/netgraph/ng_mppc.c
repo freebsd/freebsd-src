@@ -574,7 +574,7 @@ ng_mppc_decompress(node_p node, struct mbuf *m, struct mbuf **resultp)
 	if (m->m_pkthdr.len < MPPC_HDRLEN)
 		return (EINVAL);
 	m_copydata(m, 0, MPPC_HDRLEN, (caddr_t)&header);
-	NTOHS(header);
+	header = ntohs(header);
 	cc = (header & MPPC_CCOUNT_MASK);
 
 	/* Copy payload into a contiguous region of memory */

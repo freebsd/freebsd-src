@@ -424,7 +424,7 @@ tcp_input(m, off0)
 		len = sizeof (struct ip) + tlen;
 		bzero(ipov->ih_x1, sizeof(ipov->ih_x1));
 		ipov->ih_len = (u_short)tlen;
-		HTONS(ipov->ih_len);
+		ipov->ih_len = htons(ipov->ih_len);
 		th->th_sum = in_cksum(m, len);
 	}
 	if (th->th_sum) {
@@ -486,10 +486,10 @@ tcp_input(m, off0)
 	/*
 	 * Convert TCP protocol specific fields to host format.
 	 */
-	NTOHL(th->th_seq);
-	NTOHL(th->th_ack);
-	NTOHS(th->th_win);
-	NTOHS(th->th_urp);
+	th->th_seq = ntohl(th->th_seq);
+	th->th_ack = ntohl(th->th_ack);
+	th->th_win = ntohs(th->th_win);
+	th->th_urp = ntohs(th->th_urp);
 
 	/*
 	 * Delay droping TCP, IP headers, IPv6 ext headers, and TCP options,
@@ -2246,7 +2246,7 @@ tcp_dooptions(to, cp, cnt, is_syn)
 			to->to_flags |= TOF_MSS;
 			bcopy((char *)cp + 2,
 			    (char *)&to->to_mss, sizeof(to->to_mss));
-			NTOHS(to->to_mss);
+			to->to_mss = ntohs(to->to_mss);
 			break;
 		case TCPOPT_WINDOW:
 			if (optlen != TCPOLEN_WINDOW)
@@ -2262,10 +2262,10 @@ tcp_dooptions(to, cp, cnt, is_syn)
 			to->to_flags |= TOF_TS;
 			bcopy((char *)cp + 2,
 			    (char *)&to->to_tsval, sizeof(to->to_tsval));
-			NTOHL(to->to_tsval);
+			to->to_tsval = ntohl(to->to_tsval);
 			bcopy((char *)cp + 6,
 			    (char *)&to->to_tsecr, sizeof(to->to_tsecr));
-			NTOHL(to->to_tsecr);
+			to->to_tsecr = ntohl(to->to_tsecr);
 			break;
 		case TCPOPT_CC:
 			if (optlen != TCPOLEN_CC)
@@ -2273,7 +2273,7 @@ tcp_dooptions(to, cp, cnt, is_syn)
 			to->to_flags |= TOF_CC;
 			bcopy((char *)cp + 2,
 			    (char *)&to->to_cc, sizeof(to->to_cc));
-			NTOHL(to->to_cc);
+			to->to_cc = ntohl(to->to_cc);
 			break;
 		case TCPOPT_CCNEW:
 			if (optlen != TCPOLEN_CC)
@@ -2283,7 +2283,7 @@ tcp_dooptions(to, cp, cnt, is_syn)
 			to->to_flags |= TOF_CCNEW;
 			bcopy((char *)cp + 2,
 			    (char *)&to->to_cc, sizeof(to->to_cc));
-			NTOHL(to->to_cc);
+			to->to_cc = ntohl(to->to_cc);
 			break;
 		case TCPOPT_CCECHO:
 			if (optlen != TCPOLEN_CC)
@@ -2293,7 +2293,7 @@ tcp_dooptions(to, cp, cnt, is_syn)
 			to->to_flags |= TOF_CCECHO;
 			bcopy((char *)cp + 2,
 			    (char *)&to->to_ccecho, sizeof(to->to_ccecho));
-			NTOHL(to->to_ccecho);
+			to->to_ccecho = ntohl(to->to_ccecho);
 			break;
 		default:
 			continue;
