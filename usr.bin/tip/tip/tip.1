@@ -48,8 +48,9 @@
 .Fl Ns Ns Ar speed 
 .Ar phone\-number
 .Sh DESCRIPTION
-.Nm Tip
-establish a full-duplex connection to another machine,
+The
+.Nm
+command establishes a full-duplex connection to another machine,
 giving the appearance of being logged in directly on the
 remote cpu.  It goes without saying that you must have a login
 on the machine (or equivalent) to which you wish to connect.
@@ -435,7 +436,7 @@ Record file.
 Line access log.
 .It Pa /var/spool/lock/LCK..*
 Lock file to avoid conflicts with
-.Xr uucp .
+.Xr uucp 1 .
 .El
 .Sh DIAGNOSTICS
 Diagnostics are, hopefully, self explanatory.
@@ -446,7 +447,7 @@ Diagnostics are, hopefully, self explanatory.
 .Sh HISTORY
 The
 .Nm
-appeared command in
+command appeared in
 .Bx 4.2 .
 .Sh BUGS
 The full set of variables is undocumented and should, probably, be
