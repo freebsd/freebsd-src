@@ -133,6 +133,8 @@ struct {
 };
 
 u_int vm_kmem_size;
+SYSCTL_UINT(_vm, OID_AUTO, kmem_size, CTLFLAG_RD, &vm_kmem_size, 0,
+    "Size of kernel memory");
 
 /*
  * The malloc_mtx protects the kmemstatistics linked list.
@@ -444,7 +446,11 @@ kmeminit(dummy)
 #endif
 
 	/* Allow final override from the kernel environment */
-	TUNABLE_INT_FETCH("kern.vm.kmem.size", &vm_kmem_size);
+#ifndef BURN_BRIDGES
+	if (TUNABLE_INT_FETCH("kern.vm.kmem.size", &vm_kmem_size) != 0)
+		printf("kern.vm.kmem.size is now called vm.kmem_size!\n");
+#endif
+	TUNABLE_INT_FETCH("vm.kmem_size", &vm_kmem_size);
 
 	/*
 	 * Limit kmem virtual size to twice the physical memory.
