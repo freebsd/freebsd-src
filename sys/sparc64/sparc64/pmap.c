@@ -1200,7 +1200,8 @@ pmap_release(pmap_t pm)
 	KASSERT(pmap_resident_count(pm) == 0,
 	    ("pmap_release: resident pages %ld != 0",
 	    pmap_resident_count(pm)));
-	TAILQ_FOREACH(m, &obj->memq, listq) {
+	while (!TAILQ_EMPTY(&obj->memq)) {
+		m = TAILQ_FIRST(&obj->memq);
 		if (vm_page_sleep_busy(m, FALSE, "pmaprl"))
 			continue;
 		vm_page_busy(m);
