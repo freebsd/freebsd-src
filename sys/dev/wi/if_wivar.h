@@ -160,6 +160,7 @@ struct wi_softc	{
 #ifdef WI_HOSTAP
 	struct wihap_info	wi_hostap_info;
 	u_int32_t		wi_icv;
+	int			wi_icv_flag;
 #endif
 	struct callout_handle	wi_stat_ch;
 	struct mtx		wi_mtx;
