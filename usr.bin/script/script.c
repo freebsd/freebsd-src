@@ -244,10 +244,10 @@ doshell(av)
 	login_tty(slave);
 	if (av[0]) {
 		execvp(av[0], av);
-		warn(av[0]);
+		warn("%s", av[0]);
 	} else {
 		execl(shell, shell, "-i", NULL);
-		warn(shell);
+		warn("%s", shell);
 	}
 	fail();
 }
