@@ -37,7 +37,7 @@ kget(char *out)
 
 #include "sysinstall.h"
 #include <sys/sysctl.h>
-#include <i386/isa/isa_device.h>
+#include <machine/uc_device.h>
 
 int
 kget(char *out)
@@ -47,7 +47,7 @@ kget(char *out)
     char *mib1 = "machdep.uc_devlist";
     char name[9];
     FILE *fout = NULL;
-    struct isa_device *id;
+    struct uc_device *id;
     char *p;
  
     /* create the output file; if we end up not writing to it, we'll 
@@ -79,8 +79,8 @@ kget(char *out)
 
     i = 0;
     while (i < len) {
-	id = (struct isa_device *)(buf + i);
-	p = (buf + i + sizeof(struct isa_device));
+	id = (struct uc_device *)(buf + i);
+	p = (buf + i + sizeof(struct uc_device));
 	strncpy(name, p, 8);
 	if (!id->id_enabled) {
 	    bytes_written += fprintf(fout, "di %s%d\n", name, id->id_unit);
@@ -110,7 +110,7 @@ kget(char *out)
 	    bytes_written += fprintf(fout, "f %s%d %#x\n", name,
 				     id->id_unit, id->id_flags);
 	}
-	i += sizeof(struct isa_device) + 8;
+	i += sizeof(struct uc_device) + 8;
     }
 
 bail:
