@@ -873,7 +873,7 @@ badformat:
 
 CMDFUNCSTART(chmtime)
 {
-    if (dotime(argv[1], &curinode->di_ctime))
+    if (dotime(argv[1], &curinode->di_mtime))
 	return 1;
     inodirty();
     printactive(0);
@@ -882,7 +882,7 @@ CMDFUNCSTART(chmtime)
 
 CMDFUNCSTART(chatime)
 {
-    if (dotime(argv[1], &curinode->di_ctime))
+    if (dotime(argv[1], &curinode->di_atime))
 	return 1;
     inodirty();
     printactive(0);
