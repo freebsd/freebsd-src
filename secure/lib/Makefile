@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-SUBDIR= libcipher libdes
+SUBDIR= libcipher libdes libtelnet
 
 .include <bsd.subdir.mk>
 

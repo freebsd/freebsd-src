@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-SUBDIR= bdes
+SUBDIR= bdes telnet
 
 .include <bsd.subdir.mk>
 
