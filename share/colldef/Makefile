@@ -21,6 +21,7 @@ LOCALES=	bg_BG.CP1251 \
 		la_LN.ISO8859-4 \
 		la_LN.US-ASCII \
 		lt_LT.ISO8859-4 \
+		pl_PL.ISO8859-2 \
 		ru_RU.CP866 \
 		ru_RU.ISO8859-5 \
 		ru_RU.KOI8-R \
@@ -41,7 +42,7 @@ LATIN1LINKS=	af_ZA da_DK en_AU en_CA en_GB en_NZ en_US fi_FI \
 		fr_BE fr_CA fr_CH fr_FR it_CH it_IT nl_BE nl_NL no_NO \
 		pt_PT
 
-LATIN2LINKS=	hr_HR hu_HU pl_PL ro_RO sl_SI
+LATIN2LINKS=	hr_HR hu_HU ro_RO sl_SI
 
 .SUFFIXES: .src .out
 
@@ -66,6 +67,7 @@ la_LN.ISO8859-1.out:    map.ISO8859-1
 la_LN.ISO8859-2.out:    map.ISO8859-2
 la_LN.ISO8859-4.out:    map.ISO8859-4
 lt_LT.ISO8859-4.out:    map.ISO8859-4
+pl_PL.ISO8859-2.out:    map.ISO8859-2
 ru_RU.CP866.out:        map.CP866
 ru_RU.ISO8859-5.out:    map.ISO8859-5
 ru_RU.KOI8-R.out:       map.KOI8-R
