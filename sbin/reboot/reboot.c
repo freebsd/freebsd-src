@@ -82,7 +82,7 @@ main(int argc, char *argv[])
 		case 'd':
 			howto |= RB_DUMP;
 			break;
-		case 'l':		/* Undocumented; used by shutdown. */
+		case 'l':
 			lflag = 1;
 			break;
 		case 'n':
