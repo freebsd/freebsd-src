@@ -145,10 +145,11 @@ linux_sysinfo(struct thread *td, struct linux_sysinfo_args *args)
 	sysinfo.freeram = sysinfo.totalram - cnt.v_wire_count * PAGE_SIZE;
 
 	sysinfo.sharedram = 0;
-	for (object = TAILQ_FIRST(&vm_object_list); object != NULL;
-	     object = TAILQ_NEXT(object, object_list))
+	mtx_lock(&vm_object_list_mtx);
+	TAILQ_FOREACH(object, &vm_object_list, object_list)
 		if (object->shadow_count > 1)
 			sysinfo.sharedram += object->resident_page_count;
+	mtx_unlock(&vm_object_list_mtx);
 
 	sysinfo.sharedram *= PAGE_SIZE;
 	sysinfo.bufferram = 0;

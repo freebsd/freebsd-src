@@ -143,9 +143,11 @@ linprocfs_domeminfo(PFS_FILL_ARGS)
 	swapused = j * PAGE_SIZE;
 	swapfree = swaptotal - swapused;
 	memshared = 0;
+	mtx_lock(&vm_object_list_mtx);
 	TAILQ_FOREACH(object, &vm_object_list, object_list)
 		if (object->shadow_count > 1)
 			memshared += object->resident_page_count;
+	mtx_unlock(&vm_object_list_mtx);
 	memshared *= PAGE_SIZE;
 	/*
 	 * We'd love to be able to write:
