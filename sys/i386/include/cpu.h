@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cpu.h	5.4 (Berkeley) 5/9/91
- *	$Id: cpu.h,v 1.22 1996/03/29 14:14:07 bde Exp $
+ *	$Id: cpu.h,v 1.23 1996/04/05 03:36:23 ache Exp $
  */
 
 #ifndef _MACHINE_CPU_H_
@@ -128,14 +128,11 @@ struct cpu_nameclass {
 }
 
 #ifdef KERNEL
-extern int	bootverbose;
 extern int	cpu;
 extern int	cpu_class;
 extern u_char	intr_nesting_level;
 extern struct cpu_nameclass i386_cpus[];
 extern int	want_resched;	/* resched was called */
-
-int	cpu_fork __P((struct proc *, struct proc *));
 #endif
 
 #endif /* !_MACHINE_CPU_H_ */
