@@ -1273,9 +1273,12 @@ make it the first or last character listed.
 This section lists the commands which
 are builtin because they need to perform some operation
 that cannot be performed by a separate process.  In addition to
-these, a builtin version of the
+these, builtin versions of the
 .Xr printf 1
-command is provided for efficiency.
+command and
+the
+.Xr test 1
+command are provided for efficiency.
 .Bl -tag -width Ds
 .It Ic \&:
 A null command that returns a 0 (true) exit value.
