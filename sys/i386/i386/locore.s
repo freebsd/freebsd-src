@@ -789,14 +789,15 @@ no_kernend:
 /* Map page zero read-write so bios32 calls can use it */
 	xorl	%eax, %eax
 	movl	$PG_RW,%edx
-	movl	$PAGE_SIZE,%ecx
+	movl	$1,%ecx
 	fillkptphys(%edx)
 
 /* Map read-only from page 1 to the beginning of the kernel text section */
-	movl	$PAGE_MASK, %eax
+	movl	$PAGE_SIZE, %eax
 	xorl	%edx,%edx
 	movl	$R(btext),%ecx
 	addl	$PAGE_MASK,%ecx
+	subl	%eax,%ecx
 	shrl	$PAGE_SHIFT,%ecx
 	fillkptphys(%edx)
 
