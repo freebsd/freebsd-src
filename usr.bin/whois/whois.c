@@ -70,24 +70,23 @@ static const char rcsid[] =
 #define	QNICHOST_TAIL	".whois-servers.net"
 #define	SNICHOST	"whois.6bone.net"
 #define	WHOIS_PORT	43
+#define	WHOIS_SERVER_ID	"Whois Server: "
+#define	NO_MATCH_ID	"No match for \""
 
 #define WHOIS_RECURSE		0x01
 #define WHOIS_INIC_FALLBACK	0x02
 #define WHOIS_QUICK		0x04
 
-static void usage __P((void));
-static void whois __P((char *, struct addrinfo *, int));
+static void usage(void);
+static void whois(char *, struct addrinfo *, int);
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char *argv[])
 {
-	int ch, i, j, error;
-	int use_qnichost, flags;
-	char *host;
-	char *qnichost;
 	struct addrinfo hints, *res;
+	const char *host;
+	char *qnichost;
+	int ch, error, flags, i, j, use_qnichost;
 
 #ifdef	SOCKS
 	SOCKSinit(argv[0]);
@@ -98,7 +97,7 @@ main(argc, argv)
 	flags = 0;
 	use_qnichost = 0;
 	while ((ch = getopt(argc, argv, "adgh:impQrR6")) != -1) {
-		switch((char)ch) {
+		switch (ch) {
 		case 'a':
 			host = ANICHOST;
 			break;
@@ -135,50 +134,42 @@ main(argc, argv)
 		case '?':
 		default:
 			usage();
+			/* NOTREACHED */
 		}
 	}
 	argc -= optind;
 	argv += optind;
 
-	if (!argc) {
+	if (!argc)
 		usage();
-	}
 
 	/*
-	 * If no nic host is specified, use whois-servers.net
-	 * if there is a '.' in the name, else fall back to NICHOST.
+	 * If no nic host is specified determine the top level domain from
+	 * the query.  If the TLD is a number, query ARIN.  Otherwise, use 
+	 * TLD.whois-server.net.  If the domain does not contain '.', fall
+	 * back to NICHOST.
 	 */
 	if (host == NULL) {
 		use_qnichost = 1;
 		host = NICHOST;
-		if (!(flags & WHOIS_QUICK)) {
+		if (!(flags & WHOIS_QUICK))
 			flags |= WHOIS_INIC_FALLBACK | WHOIS_RECURSE;
-		}
 	}
 	while (argc--) {
 		if (use_qnichost) {
-			if (qnichost) {
-				free(qnichost);
-				qnichost = NULL;
-			}
-			for (i = j = 0; (*argv)[i]; i++) {
-				if ((*argv)[i] == '.') {
+			for (i = j = 0; (*argv)[i]; i++)
+				if ((*argv)[i] == '.')
 					j = i;
-				}
-			}
 			if (j != 0) {
 				if (isdigit(*(*argv + j + 1))) {
-					(void) asprintf(&qnichost, "%s",
-					    ANICHOST);
+					asprintf(&qnichost, "%s", ANICHOST);
+					if (qnichost == NULL)
+						err(1, "asprintf()");
 				} else {
-					qnichost = (char *) calloc(i - j
-					    + 1 + strlen(QNICHOST_TAIL),
-					    sizeof(char));
-					if (!qnichost) {
-						err(1, "calloc");
-					}
-					strcpy(qnichost, *argv + j + 1);
-					strcat(qnichost, QNICHOST_TAIL);
+					asprintf(&qnichost, "%s%s",
+					    *argv + j + 1, QNICHOST_TAIL);
+					if (qnichost == NULL)
+						err(1, "asprintf()");
 				}
 
 				memset(&hints, 0, sizeof(hints));
@@ -186,13 +177,13 @@ main(argc, argv)
 				hints.ai_family = AF_UNSPEC;
 				hints.ai_socktype = SOCK_STREAM;
 				error = getaddrinfo(qnichost, "whois",
-						&hints, &res);
+				    &hints, &res);
 				if (error != 0)
 					errx(EX_NOHOST, "%s: %s", qnichost,
-						gai_strerror(error));
+					    gai_strerror(error));
 			}
 		}
-		if (!qnichost) {
+		if (qnichost == NULL) {
 			memset(&hints, 0, sizeof(hints));
 			hints.ai_flags = 0;
 			hints.ai_family = AF_UNSPEC;
@@ -200,9 +191,11 @@ main(argc, argv)
 			error = getaddrinfo(host, "whois", &hints, &res);
 			if (error != 0)
 				errx(EX_NOHOST, "%s: %s", host,
-					gai_strerror(error));
+				   gai_strerror(error));
 		}
 
+		free(qnichost);
+		qnichost = NULL;
 		whois(*argv++, res, flags);
 		freeaddrinfo(res);
 	}
@@ -210,79 +203,67 @@ main(argc, argv)
 }
 
 static void
-whois(name, res, flags)
-	char *name;
-	struct addrinfo *res;
-	int flags;
+whois(char *name, struct addrinfo *res, int flags)
 {
 	FILE *sfi, *sfo;
-	char *buf, *p, *nhost;
+	struct addrinfo hints, *res2;
+	char *buf, *nhost, *p;
+	int nomatch, error, s;
 	size_t len;
-	int s, nomatch;
 
 	for (; res; res = res->ai_next) {
 		s = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-		if (s < 0) {
+		if (s < 0)
 			continue;
-		}
-		if (connect(s, res->ai_addr, res->ai_addrlen) == 0) {
+		if (connect(s, res->ai_addr, res->ai_addrlen) == 0)
 			break;
-		}
 		close(s);
 	}
-	if (res == NULL) {
-		err(EX_OSERR, "connect");
-	}
+	if (res == NULL)
+		err(EX_OSERR, "connect()");
 
 	sfi = fdopen(s, "r");
 	sfo = fdopen(s, "w");
-	if (sfi == NULL || sfo == NULL) {
-		err(EX_OSERR, "fdopen");
-	}
-	(void)fprintf(sfo, "%s\r\n", name);
-	(void)fflush(sfo);
+	if (sfi == NULL || sfo == NULL)
+		err(EX_OSERR, "fdopen()");
+	fprintf(sfo, "%s\r\n", name);
+	fflush(sfo);
 	nhost = NULL;
 	nomatch = 0;
-	while ((buf = fgetln(sfi, &len))) {
-		if (buf[len - 2] == '\r') {
-			buf[len - 2] = '\0';
-		} else {
-			buf[len - 1] = '\0';
-		}
+	while ((buf = fgetln(sfi, &len)) != NULL) {
+		while (len && isspace(buf[len - 1]))
+			buf[--len] = '\0';
 
-		if ((flags & WHOIS_RECURSE) && !nhost &&
-		    (p = strstr(buf, "Whois Server: "))) {
-			p += sizeof("Whois Server: ") - 1;
-			if ((len = strcspn(p, " \t\n\r"))) {
-				if ((nhost = malloc(len + 1)) == NULL) {
-					err(1, "malloc");
-				}
-				memcpy(nhost, p, len);
-				nhost[len] = '\0';
+		if ((flags & WHOIS_RECURSE) && nhost == NULL &&
+		    (p = strstr(buf, WHOIS_SERVER_ID)) != NULL) {
+			p += sizeof(WHOIS_SERVER_ID) - 1;
+			if ((len = strcspn(p, " \t\n\r")) != 0) {
+				asprintf(&nhost, "%s", p);
+				if (nhost == NULL)
+					err(1, "asprintf()");
 			}
 		}
-		if ((flags & WHOIS_INIC_FALLBACK) && !nhost && !nomatch &&
-		    (p = strstr(buf, "No match for \""))) {
-			p += sizeof("No match for \"") - 1;
+
+		if ((flags & WHOIS_INIC_FALLBACK) && nhost == NULL &&
+		    !nomatch && (p = strstr(buf, NO_MATCH_ID)) != NULL) {
+			p += sizeof(NO_MATCH_ID) - 1;
 			if ((len = strcspn(p, "\"")) &&
 			    strncasecmp(name, p, len) == 0 &&
 			    name[len] == '\0' &&
-			    strchr(name, '.') == NULL) {
+			    strchr(name, '.') == NULL)
 				nomatch = 1;
-			}
 		}
-		(void)puts(buf);
+		printf("%s\n", buf);
 	}
 
-	/* Do second lookup as needed */
-	if (nomatch && !nhost) {
-		(void)printf("Looking up %s at %s.\n\n", name, INICHOST);
-		nhost = INICHOST;
+	/* Do second lookup as needed. */
+	if (nomatch && nhost == NULL) {
+		printf("Looking up %s at %s.\n\n", name, INICHOST);
+		if ((nhost = strdup(INICHOST)) == NULL)
+			err(1, "strdup()");
 	}
-	if (nhost) {
-		struct addrinfo hints, *res2;
-		int error;
 
+	if (nhost != NULL) {
 		memset(&hints, 0, sizeof(hints));
 		hints.ai_flags = 0;
 		hints.ai_family = AF_UNSPEC;
@@ -290,20 +271,19 @@ whois(name, res, flags)
 		error = getaddrinfo(nhost, "whois", &hints, &res2);
 		if (error != 0) {
 			warnx("%s: %s", nhost, gai_strerror(error));
+			free(nhost);
 			return;
 		}
-		if (!nomatch) {
-			free(nhost);
-		}
+		free(nhost);
 		whois(name, res2, 0);
 		freeaddrinfo(res2);
 	}
 }
 
 static void
-usage()
+usage(void)
 {
-	(void)fprintf(stderr,
+	fprintf(stderr,
 	    "usage: whois [-adgimpQrR6] [-h hostname] name ...\n");
 	exit(EX_USAGE);
 }
