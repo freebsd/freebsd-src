@@ -35,7 +35,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *
- * @(#)pcvt_vtf.c, 3.20, Last Edit-Date: [Thu Jan  5 15:56:25 1995]
+ * @(#)pcvt_vtf.c, 3.20, Last Edit-Date: [Wed Feb 22 14:16:13 1995]
  */
 
 /*---------------------------------------------------------------------------*
@@ -48,6 +48,10 @@
  *	-hm	fixed bug fkey labels not properly (re)set after ris
  *	-hm	Michael Havemester fixed NOFASTSCROLL define bug
  *	-hm	set caps/scroll/num_lock in vt_str() and made led_update()
+ *	-hm	applying patch from Joerg fixing Crtat bug
+ *	-hm	fixing NOFASTSCROLL operation for MDA/Hercules
+ *	-jw/hm	fixing bug in roll_up() and roll_down()
+ *	-hm	fastscroll/Crtat bugfix from Lon Willett
  *
  *---------------------------------------------------------------------------*/
 
@@ -1926,7 +1930,7 @@ vt_sed(struct video_state *svsp)
 }
 
 /*---------------------------------------------------------------------------*
- *	scroll screen one line up
+ *	scroll screen n lines up
  *---------------------------------------------------------------------------*/
 void
 roll_up(struct video_state *svsp, int n)
@@ -1934,13 +1938,18 @@ roll_up(struct video_state *svsp, int n)
 
 #if PCVT_NOFASTSCROLL==0
 
-	if ((svsp->scrr_beg == 0) && (svsp->scrr_len == svsp->screen_rows) &&
-	    ((svsp->screen_rows == svsp->screen_rowsize) || (svsp != vsp)))
+	if(svsp->scrr_beg == 0 &&	/* if scroll region is whole screen */
+           svsp->scrr_len == svsp->screen_rows &&
+	   (svsp != vsp ||		/* and either running in memory */
+	    (svsp->screen_rows == svsp->screen_rowsize && /* or no fkeys */
+	     adaptor_type != MDA_ADAPTOR)))	/* and not on MDA/Hercules */
 	{
-		u_short *Memory = (svsp == vsp) ? Crtat : svsp->Memory;
+		u_short *Memory =
+		    (vsp != svsp || (vsp->vt_status & VT_GRAFX)) ?
+					svsp->Memory : Crtat;
 
-		if (svsp->Crtat > (Memory + (svsp->screen_rows - n) *
-		     			    svsp->maxcol))
+		if(svsp->Crtat > (Memory + (svsp->screen_rows - n) *
+					svsp->maxcol))
 		{
 			bcopy(svsp->Crtat + svsp->maxcol * n, Memory,
 		       	      svsp->maxcol * (svsp->screen_rows - n) * CHR);
@@ -1948,9 +1957,11 @@ roll_up(struct video_state *svsp, int n)
 			svsp->Crtat = Memory;
 		}
 		else
+		{
 			svsp->Crtat += n * svsp->maxcol;
+		}
 
-		if (svsp == vsp)
+		if(vsp == svsp && !(vsp->vt_status & VT_GRAFX))
 		{
 			outb(addr_6845, CRTC_STARTADRH);
 			outb(addr_6845+1, (svsp->Crtat - Crtat) >> 8);
@@ -1975,18 +1986,23 @@ roll_up(struct video_state *svsp, int n)
 }
 
 /*---------------------------------------------------------------------------*
- *	scroll screen one line down
+ *	scroll screen n lines down
  *---------------------------------------------------------------------------*/
 static void
 roll_down(struct video_state *svsp, int n)
 {
 
 #if PCVT_NOFASTSCROLL==0
-
-	if ((svsp->scrr_beg == 0) && (svsp->scrr_len == svsp->screen_rows) &&
-	    ((svsp->screen_rows == svsp->screen_rowsize) || (svsp != vsp)))
+	
+	if(svsp->scrr_beg == 0 &&	/* if scroll region is whole screen */
+           svsp->scrr_len == svsp->screen_rows &&
+	   (svsp != vsp ||		/* and either running in memory */
+	    (svsp->screen_rows == svsp->screen_rowsize && /* or no fkeys */
+	     adaptor_type != MDA_ADAPTOR)))	/* and not on MDA/Hercules */
 	{
-		u_short *Memory = (svsp == vsp) ? Crtat : svsp->Memory;
+		u_short *Memory = 
+		    (vsp != svsp || (vsp->vt_status & VT_GRAFX)) ?
+					svsp->Memory : Crtat;
 
 		if (svsp->Crtat < (Memory + n * svsp->maxcol))
 		{
@@ -1997,9 +2013,11 @@ roll_down(struct video_state *svsp, int n)
 			svsp->Crtat = Memory + svsp->maxcol * svsp->screen_rows;
 		}
 		else
+		{
 			svsp->Crtat -= n * svsp->maxcol;
+		}
 
-		if (svsp == vsp)
+		if(vsp == svsp && !(vsp->vt_status & VT_GRAFX))
 		{
 			outb(addr_6845, CRTC_STARTADRH);
 			outb(addr_6845+1, (svsp->Crtat - Crtat) >> 8);

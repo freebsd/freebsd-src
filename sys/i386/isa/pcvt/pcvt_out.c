@@ -35,7 +35,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *
- * @(#)pcvt_out.c, 3.20, Last Edit-Date: [Wed Jan 25 16:38:07 1995]
+ * @(#)pcvt_out.c, 3.20, Last Edit-Date: [Sun Feb 26 13:39:16 1995]
  *
  */
 
@@ -52,6 +52,10 @@
  *	-hm	patch from Lon Willet to preserve the initial cursor shape
  *	-hm	if FAT_CURSOR is defined, you get the old cursor type back ..
  *	-hm	patch from Lon Willett regarding winsize settings
+ *	-hm	applying patch from Joerg fixing Crtat bug, non VGA startup bug
+ *	-hm	setting variable color for CGA and MDA/HGC in coldinit
+ *	-hm	fixing bug initializing cursor position on startup
+ *	-hm	fixing support for EGA boards in vt_coldinit()
  *
  *---------------------------------------------------------------------------*/
 
@@ -144,7 +148,7 @@ sput (u_char *s, U_char kernel, int len, int page)
     svsp = &vs[page];			/* pointer to current screen state */
 
     if(do_initialization)		/* first time called ? */
-	vt_coldinit();			/*   yes, we have ti init ourselves */
+	vt_coldinit();			/*   yes, we have to init ourselves */
 
     if(svsp == vsp)			/* on current displayed page ?	*/
     {
@@ -888,20 +892,21 @@ vt_coldinit(void)
 	extern u_short csd_ascii[];		/* pcvt_tbl.h */
 	extern u_short csd_supplemental[];
 	
-	u_short volatile *cp = Crtat + (CGA_BUF-MONO_BUF)/CHR;  /* gcc 2.4.5 */
+	u_short volatile *cp = Crtat + (CGA_BUF-MONO_BUF)/CHR;
 	u_short was;
 	int nscr, charset;
 	int equipment;
 	u_short *SaveCrtat = Crtat;
 	struct video_state *svsp;
 
-	do_initialization = 0;
+	do_initialization = 0;		/* reset init necessary flag */
+
+	/* get the equipment byte from the RTC chip */
 	
 	equipment = ((rtcin(RTC_EQUIPMENT)) >> 4) & 0x03;
 	
 	switch(equipment)
 	{
-		default:
 		case EQ_EGAVGA:
 
 			/* set memory start to CGA == B8000 */
@@ -924,97 +929,50 @@ vt_coldinit(void)
 				color = 1;
 			}
 
-			if(vga_test())
+			if(vga_test())		/* EGA or VGA ? */
 			{
 				adaptor_type = VGA_ADAPTOR;
 				totalfonts = 8;
+
 				if(color == 0)
 				{
-
-					/*
-					 * if a mono monitor is
-					 * attached to a vga, it comes
-					 * up with a mda emulation.
-					 */
-
-					/*
-					 * program sequencer to access
-					 * video ram
-					 */
-
-					/* synchronous reset */
-					outb(TS_INDEX, TS_SYNCRESET);
-					outb(TS_DATA, 0x01);
-
-					/* write to map 0 & 1 */
-					outb(TS_INDEX, TS_WRPLMASK);
-					outb(TS_DATA, 0x03);
-				
-					/* odd-even addressing */
-					outb(TS_INDEX, TS_MEMMODE);
-					outb(TS_DATA, 0x03);
-				
-					/* clear synchronous reset */
-					outb(TS_INDEX, TS_SYNCRESET);
-					outb(TS_DATA, 0x03);
-
-					/*
-					 * program graphics controller
-					 * to access character
-					 * generator
-					 */
-
-					/* select map 0 for cpu reads */
-					outb(GDC_INDEX, GDC_RDPLANESEL);
-					outb(GDC_DATA, 0x00);
-				
-					/* enable odd-even addressing */
-					outb(GDC_INDEX, GDC_MODE);
-					outb(GDC_DATA, 0x10);
-				
-					/* map starts at 0xb000 */
-					outb(GDC_INDEX, GDC_MISC);
-					outb(GDC_DATA, 0x0a);
-
+					mda2egaorvga();
 					Crtat = SaveCrtat; /* mono start */
 				}
+
 				/* find out which chipset we are running on */
 				vga_type = vga_chipset();
 			}
 			else
 			{
-				if(color)
+				adaptor_type = EGA_ADAPTOR;
+				totalfonts = 4;
+
+				if(color == 0)
 				{
-					adaptor_type = EGA_ADAPTOR;
-					totalfonts = 4;
-				}
-				else
-				{	/* mono ega -> MDA .... */
-					addr_6845 = MONO_BASE;
-					adaptor_type = MDA_ADAPTOR;
-					totalfonts = 0;
-					Crtat = SaveCrtat;
-					break;
-				}
-					
+					mda2egaorvga();
+					Crtat = SaveCrtat; /* mono start */
+				}	
 			}
 	
-			/* decouple vga charsets and intensity */
+			/* decouple ega/vga charsets and intensity */
 			set_2ndcharset();
 
 			break;
 
-		case EQ_40COLOR:
+		case EQ_40COLOR:	/* XXX should panic in 40 col mode ! */
 		case EQ_80COLOR:
 			Crtat = Crtat + (CGA_BUF-MONO_BUF)/CHR;
 			addr_6845 = CGA_BASE;
 			adaptor_type = CGA_ADAPTOR;
+			color = 1;
 			totalfonts = 0;
 			break;
 
 		case EQ_80MONO:
 			addr_6845 = MONO_BASE;
 			adaptor_type = MDA_ADAPTOR;
+			color = 0;			
 			totalfonts = 0;			
 			break;
 	}
@@ -1047,8 +1005,8 @@ vt_coldinit(void)
 		svsp->sevenbit = 0;		/* set to 8-bit path */
 		svsp->dis_fnc = 0;		/* disable display functions */
 		svsp->transparent = 0;		/* disable internal tranparency */
-		svsp->lastchar = 0;		/* VTxxx behaviour of last
-						 * char on line */
+		svsp->lastchar = 0;		/* VTxxx behaviour of last */
+						/*            char on line */
 		svsp->report_chars = NULL;	/* VTxxx reports init */
 		svsp->report_count = 0;		/* VTxxx reports init */
 		svsp->state = STATE_INIT;	/* main state machine init */
@@ -1056,8 +1014,8 @@ vt_coldinit(void)
 		svsp->m_om = 0;			/* origin mode = absolute */
 		svsp->sc_flag = 0;		/* init saved cursor flag */
 		svsp->which_fkl = SYS_FKL;	/* display system fkey-labels */
-		svsp->labels_on = 1;		/* if in HP-mode, display
-						 * fkey-labels */
+		svsp->labels_on = 1;		/* if in HP-mode, display */
+						/*            fkey-labels */
 		svsp->attribute = 0;		/* HP mode init */
 		svsp->key = 0;			/* HP mode init */
 		svsp->l_len = 0;		/* HP mode init */
@@ -1075,17 +1033,29 @@ vt_coldinit(void)
 
 		svsp->screen_rowsize = 25;	/* default 25 rows on screen */
 		svsp->scrr_beg = 0;		/* scrolling region begin row*/
-		svsp->scrr_len = svsp->screen_rows; /* scrolling region
-						     * end */
-		svsp->scrr_end = svsp->scrr_len - 1;
+		svsp->scrr_len = svsp->screen_rows; /* scrolling region length*/
+		svsp->scrr_end = svsp->scrr_len - 1;/* scrolling region end */
 
-		/* Preserve initial cursor shape */
-		if (nscr == 0) {
-			outb(addr_6845,CRTC_CURSTART);
-			svsp->cursor_start = inb(addr_6845+1);
-			outb(addr_6845,CRTC_CUREND);
-			svsp->cursor_end = inb(addr_6845+1);
-		} else {
+		if(nscr == 0)
+		{
+			if(adaptor_type == VGA_ADAPTOR)
+			{
+				/* only VGA can read cursor shape registers ! */
+				/* Preserve initial cursor shape */
+				outb(addr_6845,CRTC_CURSTART);
+				svsp->cursor_start = inb(addr_6845+1);
+				outb(addr_6845,CRTC_CUREND);
+				svsp->cursor_end = inb(addr_6845+1);
+			}
+			else
+			{
+				/* MDA,HGC,CGA,EGA registers are write-only */
+				svsp->cursor_start = 0;
+				svsp->cursor_end = 15;
+			}
+		}
+		else
+		{
 			svsp->cursor_start = vs[0].cursor_start;
 			svsp->cursor_end = vs[0].cursor_end;
 		}
@@ -1115,13 +1085,10 @@ vt_coldinit(void)
 		svsp->whichi = 0;		/* char set designate init */
 		svsp->which[0] = '\0';		/* char set designate init */
 		svsp->hp_state = SHP_INIT;	/* init HP mode state machine*/
-		svsp->dcs_state = DCS_INIT; /* init DCS mode state machine*/
+		svsp->dcs_state = DCS_INIT;	/* init DCS mode state machine*/
 		svsp->ss  = 0;			/* init single shift 2/3 */
 		svsp->Gs  = NULL;		/* Gs single shift 2/3 */
-		svsp->maxcol = SCR_COL80;	/* 80 columns now (you MUST!!!
-						 * start with 80!)
-						 * see et4000_col() for
-						 * reason ... */
+		svsp->maxcol = SCR_COL80;	/* 80 columns now (MUST!!!) */
 		svsp->wd132col = 0;		/* help good old WD .. */
 		svsp->scroll_lock = 0;		/* scrollock off */
 
@@ -1146,12 +1113,15 @@ vt_coldinit(void)
 
 		if(nscr == 0)
 		{
-			/* Preserve data on the startup screen that	*/
-			/* precedes the cursor position.		*/
-			/* Leave the cursor where it was found.		*/
-
+			/*
+			 * Preserve data on the startup screen that
+			 * precedes the cursor position.  Leave the
+			 * cursor where it was found.
+			 */
 			unsigned cursorat;
 			int filllen;
+
+			/* CRTC regs 0x0e and 0x0f are r/w everywhere */
 
 			outb(addr_6845, CRTC_CURSORH);
 			cursorat = inb(addr_6845+1) << 8;
@@ -1164,16 +1134,22 @@ vt_coldinit(void)
 
 			if (svsp->row >= svsp->screen_rows)
 			{
-				/* Scroll up; this should only happen when
-				   PCVT_24LINESDEF is set */
 
+			/*
+			 * Scroll up; this should only happen when
+			 * PCVT_24LINESDEF is set
+			 */
 				int nscroll =
-					svsp->row + 1 - svsp->screen_rows;
-				bcopy (svsp->Crtat + nscroll*svsp->maxcol,
+					svsp->row + 1
+					- svsp->screen_rows;
+				bcopy (svsp->Crtat
+				       + nscroll*svsp->maxcol,
 				       svsp->Crtat,
-				       svsp->screen_rows * svsp->maxcol * CHR);
+				       svsp->screen_rows
+				       * svsp->maxcol * CHR);
 				svsp->row -= nscroll;
-				svsp->cur_offset -= nscroll * svsp->maxcol;
+				svsp->cur_offset -=
+					nscroll * svsp->maxcol;
 			}
 
 			filllen = (svsp->maxcol * svsp->screen_rowsize)
@@ -1181,7 +1157,8 @@ vt_coldinit(void)
 
 			if (filllen > 0)
 				fillw(user_attr | ' ',
-				      svsp->Crtat+svsp->cur_offset, filllen);
+				      svsp->Crtat+svsp->cur_offset,
+				      filllen);
 		}
 
 #if PCVT_USL_VT_COMPAT
@@ -1198,6 +1175,7 @@ vt_coldinit(void)
 	{
 		vgacs[charset].loaded = 0;		/* not populated yet */
 		vgacs[charset].secondloaded = 0;	/* not populated yet */
+
 		switch(adaptor_type)
 		{
 			case VGA_ADAPTOR:
@@ -1272,6 +1250,7 @@ vt_coldmalloc(void)
 	int screen_max_size;
 
 	/* we need to initialize in case we are not the console */
+
 	if(do_initialization)
 		vt_coldinit();
 

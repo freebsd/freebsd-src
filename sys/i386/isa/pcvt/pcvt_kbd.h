@@ -38,7 +38,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *
- * @(#)pcvt_kbd.h, 3.20, Last Edit-Date: [Thu Jan  5 15:55:30 1995]
+ * @(#)pcvt_kbd.h, 3.20, Last Edit-Date: [Wed Feb 22 12:53:51 1995]
  *
  */
 
@@ -47,6 +47,7 @@
  *	pcvt_kbd.h	VT220 Driver Keyboard Interface Header
  *	------------------------------------------------------
  *	-hm	split off from pcvt_kbd.c
+ *	-hm	patch from Lon Willett to fix mapping of Control-R scancode
  *
  *---------------------------------------------------------------------------*/
 
@@ -138,7 +139,7 @@ static u_char extscantokey[] = {
 /*      -0- -1- -2- -3- -4- -5- -6- -7-    This layout is valid for US only */
 /*00*/   0,120,  0,116,114,112,113,123,  /* ??  F9  ??  F5  F3  F1  F2  F12 */
 /*08*/   0,121,119,117,115, 16,  1,  0,  /* ??  F10 F8  F6  F4  TAB `   ??  */
-/*10*/   0, 62,128,  0, 58, 17,  2,  0,  /* ??  ALr vSh ??  CTr Q   1   ??  */
+/*10*/   0, 62,128,  0, 64, 17,  2,  0,  /* ??  ALr vSh ??  CTr Q   1   ??  */
 /*18*/   0,  0, 46, 32, 31, 18,  3,  0,  /* ??  Z   S   A   W   2   ??  ??  */
 /*20*/   0, 48, 47, 33, 19,  5,  4,  0,  /* ??  C   X   D   E   4   3   ??  */
 /*28*/   0, 61, 49, 34, 21, 20,  6,  0,  /* ??  SP  V   F   T   R   5   ??  */
@@ -178,7 +179,7 @@ static u_char extscantokey[] = {
 /*00*/    0,110,  2,  3,  4,  5,  6,  7,  /* ??  ESC 1   2   3   4   5   6   */
 /*08*/    8,  9, 10, 11, 12, 13, 15, 16,  /* 7   8   9   0   -   =   BS  TAB */
 /*10*/   17, 18, 19, 20, 21, 22, 23, 24,  /* Q   W   E   R   T   Y   U   I   */
-/*18*/   25, 26, 27, 28,108, 58, 31, 32,  /* O   P   [   ]   KPE CTr A   S   */
+/*18*/   25, 26, 27, 28,108, 64, 31, 32,  /* O   P   [   ]   KPE CTr A   S   */
 /*20*/   33, 34, 35, 36, 37, 38, 39, 40,  /* D   F   G   H   J   K   L   ;   */
 /*28*/   41,  1,128, 29, 46, 47, 48, 49,  /* '   `   vSh \   Z   X   C   V   */
 /*30*/   50, 51, 52, 53, 54, 95, 57,124,  /* B   N   M   ,   .   KP/ SHr KP* */
