@@ -79,6 +79,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
     fprintf (FILE, "\tcall mcount\n");					\
 }
 
+#if 0 /* not ready for this; it should be decided at compile time */
 #define FUNCTION_PROFILER_EPILOGUE(FILE)  \
 {									\
   if (flag_pic)								\
@@ -86,6 +87,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
   else									\
     fprintf (FILE, "\tcall mexitcount\n");				\
 }
+#endif
 
 /* There are conflicting reports about whether this system uses
    a different assembler syntax.  wilson@cygnus.com says # is right.  */
