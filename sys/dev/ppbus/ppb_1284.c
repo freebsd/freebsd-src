@@ -88,7 +88,7 @@ ppb_1284_reset_error(device_t bus, int state)
  *
  * Get IEEE1284 state
  */
-static int
+int
 ppb_1284_get_state(device_t bus)
 {
         return (DEVTOSOFTC(bus)->state);
@@ -99,7 +99,7 @@ ppb_1284_get_state(device_t bus)
  *
  * Change IEEE1284 state if no error occured
  */
-static int
+int
 ppb_1284_set_state(device_t bus, int state)
 {
 	struct ppb_data *ppb = DEVTOSOFTC(bus);
