@@ -824,6 +824,15 @@ pci_add_map(device_t pcib, device_t bus, device_t dev,
 	 */
 	if (base == 0)
 		return 1;
+
+	/* if this is an ATA MASTERDEV on std addresses, resources are bogus */
+	if ((pci_get_class(dev) == PCIC_STORAGE) &&
+	    (pci_get_subclass(dev) == PCIS_STORAGE_IDE) &&
+	    (pci_get_progif(dev) & PCIP_STORAGE_IDE_MASTERDEV) &&
+	    !(pci_get_progif(dev) &
+	      (PCIP_STORAGE_IDE_MODEPRIM | PCIP_STORAGE_IDE_MODESEC)))
+		return 1;
+
 	start = base;
 	end = base + (1 << ln2size) - 1;
 	count = 1 << ln2size;
