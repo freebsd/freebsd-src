@@ -162,7 +162,7 @@ vga_mmap(dev_t dev, vga_softc_t *sc, vm_offset_t offset, int prot)
 #endif
 
 /* architecture dependent option */
-#ifdef __alpha__
+#if defined(__alpha__) || defined(__ia64__)
 #define VGA_NO_BIOS		1
 #endif
 
@@ -2468,6 +2468,9 @@ vga_mmap_buf(video_adapter_t *adp, vm_offset_t offset, int prot)
 #endif
 #ifdef __alpha__
     return alpha_btop(adp->va_info.vi_window + offset);
+#endif
+#ifdef __ia64__
+    return ia64_btop(adp->va_info.vi_window + offset);
 #endif
 }
 
