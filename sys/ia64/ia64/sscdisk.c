@@ -12,6 +12,7 @@
 
 #include "opt_mfs.h"		/* We have adopted some tasks from MFS */
 #include "opt_md.h"
+#include "opt_ski.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -32,6 +33,10 @@
 #include <vm/vm_extern.h>
 #include <vm/vm_object.h>
 #include <vm/vm_pager.h>
+
+#ifndef SKI_ROOT_FILESYSTEM
+#define SKI_ROOT_FILESYSTEM	"ia64-root.fs"
+#endif
 
 #define SSC_OPEN			50
 #define SSC_CLOSE			51
@@ -255,7 +260,7 @@ ssccreate(int unit)
 			      &ssc_cdevsw, &sscdisk_cdevsw);
 	sc->dev->si_drv1 = sc;
 	sc->nsect = SSC_NSECT;
-	sc->fd = ssc(ia64_tpa((u_int64_t) "/vol/v7/dfr/moo.fs"),
+	sc->fd = ssc(ia64_tpa((u_int64_t) SKI_ROOT_FILESYSTEM),
 		     1, 0, 0, SSC_OPEN);
 	if (sc->unit == 0) 
 		sscrootready = 1;
