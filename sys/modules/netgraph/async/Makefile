@@ -5,4 +5,4 @@ KMOD=		ng_async
 SRCS= 		ng_async.c
 MAN4=		ng_async.4
 
-.include "${.CURDIR}/../../../conf/kmod.mk"
+.include <bsd.kmod.mk>

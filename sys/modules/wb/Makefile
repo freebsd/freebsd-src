@@ -5,4 +5,4 @@ KMOD	= if_wb
 SRCS	= if_wb.c opt_bdg.h device_if.h
 SRCS	+= bus_if.h miibus_if.h pci_if.h
 
-.include "${.CURDIR}/../../conf/kmod.mk"
+.include <bsd.kmod.mk>

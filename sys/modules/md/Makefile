@@ -5,4 +5,4 @@ KMOD=	md
 SRCS=	md.c opt_mfs.h opt_md.h
 NOMAN=
 
-.include "${.CURDIR}/../../conf/kmod.mk"
+.include <bsd.kmod.mk>

@@ -26,4 +26,4 @@ unload:
 deinstall:
 	rm -f /modules/nwfs.ko
 
-.include "${.CURDIR}/../../conf/kmod.mk"
+.include <bsd.kmod.mk>

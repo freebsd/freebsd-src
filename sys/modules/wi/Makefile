@@ -4,4 +4,4 @@
 KMOD	= if_wi
 SRCS	= if_wi.c device_if.h bus_if.h
 
-.include "${.CURDIR}/../../conf/kmod.mk"
+.include <bsd.kmod.mk>

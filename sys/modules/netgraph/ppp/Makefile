@@ -5,4 +5,4 @@ KMOD=		ng_ppp
 SRCS= 		ng_ppp.c
 MAN4=		ng_ppp.4
 
-.include "${.CURDIR}/../../../conf/kmod.mk"
+.include <bsd.kmod.mk>
