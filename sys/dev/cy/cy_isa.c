@@ -2869,7 +2869,7 @@ cd_getreg(com, reg)
 	struct com_s	*basecom;
 	u_char	car;
 	int	cy_align;
-	criticale_t	savecrit;
+	critical_t	savecrit;
 	register_t	eflags;
 	cy_addr	iobase;
 	int	val;
