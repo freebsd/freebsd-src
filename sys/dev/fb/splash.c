@@ -83,7 +83,7 @@ splash_test(splash_decoder_t *decoder)
 {
 	if (splash_find_data(decoder))
 		return ENOENT;	/* XXX */
-	if ((*decoder->init)(splash_adp)) {
+	if (*decoder->init && (*decoder->init)(splash_adp)) {
 		decoder->data = NULL;
 		decoder->data_size = 0;
 		return ENODEV;	/* XXX */
@@ -193,7 +193,7 @@ splash_term(video_adapter_t *adp)
 	if (splash_decoder != NULL) {
 		if (splash_callback != NULL)
 			error = (*splash_callback)(SPLASH_TERM, splash_arg);
-		if (error == 0)
+		if (error == 0 && splash_decoder->term)
 			error = (*splash_decoder->term)(adp);
 		if (error == 0)
 			splash_decoder = NULL;
