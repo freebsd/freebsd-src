@@ -36,7 +36,7 @@
 static char sccsid[] = "From: @(#)route.c	8.6 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id: route.c,v 1.26 1997/05/10 10:03:43 jhay Exp $";
+	"$Id: route.c,v 1.27 1997/05/25 08:36:20 phk Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -636,7 +636,6 @@ netname(in, mask)
 	struct netent *np = 0;
 	u_long net, omask, dmask;
 	register u_long i;
-	int subnetshift;
 
 	i = ntohl(in);
 	omask = mask;
@@ -697,8 +696,6 @@ ipx_print(sa)
 	register struct sockaddr *sa;
 {
 	u_short port;
-	struct netent *np = 0;
-	struct hostent *hp = 0;
 	struct servent *sp = 0;	
 	char *net = "", *host = "";
 	register char *p; register u_char *q;
@@ -765,7 +762,6 @@ ipx_phost(sa)
 static	union ipx_net ipx_zeronet;
 	char *p;
 	struct ipx_addr in;
-	struct hostent *hp;
 
 	work = *sipx;
 	in = work.sipx_addr;
