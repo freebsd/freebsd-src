@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.17 1999/04/04 20:46:52 obrien Exp $
+# $Id: Makefile,v 1.18 1999/04/05 10:18:50 peter Exp $
 #
 
 #
@@ -157,8 +157,6 @@ tm.h:
 	echo '#include "${MACHINE_ARCH}/freebsd.h"' >> ${.TARGET}
 .if ${MACHINE_ARCH} == "i386"
 	echo '#include "${MACHINE_ARCH}/perform.h"' >> ${.TARGET}
-.elif ${MACHINE_ARCH} == "alpha"
-	echo '#include "${MACHINE_ARCH}/freebsd-elf.h"' >> ${.TARGET}
 .endif
 
 multilib.h: genmultilib
