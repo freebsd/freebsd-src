@@ -205,29 +205,12 @@ getconnmode()
 setconnmode(force)
     int force;
 {
-#ifdef	ENCRYPTION
-    static int enc_passwd = 0;
-#endif	/* ENCRYPTION */
     register int newmode;
 
     newmode = getconnmode()|(force?MODE_FORCE:0);
 
     TerminalNewMode(newmode);
 
-#ifdef  ENCRYPTION
-    if ((newmode & (MODE_ECHO|MODE_EDIT)) == MODE_EDIT) {
-	if (my_want_state_is_will(TELOPT_ENCRYPT)
-				&& (enc_passwd == 0) && !encrypt_output) {
-	    encrypt_request_start(0, 0);
-	    enc_passwd = 1;
-	}
-    } else {
-	if (enc_passwd) {
-	    encrypt_request_end();
-	    enc_passwd = 0;
-	}
-    }
-#endif	/* ENCRYPTION */
 
 }
 

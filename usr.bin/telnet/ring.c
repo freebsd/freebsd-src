@@ -112,9 +112,6 @@ Ring *ring;
 
     ring->top = ring->bottom+ring->size;
 
-#ifdef	ENCRYPTION
-    ring->clearto = 0;
-#endif	/* ENCRYPTION */
 
     return 1;
 }
@@ -185,15 +182,6 @@ ring_consumed(ring, count)
 		(ring_subtract(ring, ring->mark, ring->consume) < count)) {
 	ring->mark = 0;
     }
-#ifdef	ENCRYPTION
-    if (ring->consume < ring->clearto &&
-		ring->clearto <= ring->consume + count)
-	ring->clearto = 0;
-    else if (ring->consume + count > ring->top &&
-		ring->bottom <= ring->clearto &&
-		ring->bottom + ((ring->consume + count) - ring->top))
-	ring->clearto = 0;
-#endif	/* ENCRYPTION */
     ring->consume = ring_increment(ring, ring->consume, count);
     ring->consumetime = ++ring_clock;
     /*
@@ -325,38 +313,3 @@ ring_consume_data(ring, buffer, count)
 }
 #endif
 
-#ifdef	ENCRYPTION
-    void
-ring_encrypt(ring, encryptor)
-    Ring *ring;
-    void (*encryptor)();
-{
-    unsigned char *s, *c;
-
-    if (ring_empty(ring) || ring->clearto == ring->supply)
-	return;
-
-    if (!(c = ring->clearto))
-	c = ring->consume;
-
-    s = ring->supply;
-
-    if (s <= c) {
-	(*encryptor)(c, ring->top - c);
-	(*encryptor)(ring->bottom, s - ring->bottom);
-    } else
-	(*encryptor)(c, s - c);
-
-    ring->clearto = ring->supply;
-}
-
-    void
-ring_clearto(ring)
-    Ring *ring;
-{
-    if (!ring_empty(ring))
-	ring->clearto = ring->supply;
-    else
-	ring->clearto = 0;
-}
-#endif	/* ENCRYPTION */
