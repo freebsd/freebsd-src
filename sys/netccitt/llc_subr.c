@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)llc_subr.c	8.1 (Berkeley) 6/10/93
- * $Id: llc_subr.c,v 1.4 1995/05/11 19:26:40 rgrimes Exp $
+ * $Id: llc_subr.c,v 1.5 1995/05/30 08:08:52 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -85,6 +85,8 @@ struct bitslice llc_bitslice[] = {
 	{ 0x1f, 0x0 }
 };
 
+struct ifqueue llcintrq;
+
 /*
  * We keep the link control blocks on a doubly linked list -
  * primarily for checking in llc_time()
@@ -98,7 +100,6 @@ struct llccb_q llccb_q = { &llccb_q, &llccb_q };
  */
 
 int af_link_rts_init_done = 0;
-
 
 /*
  * Functions dealing with struct sockaddr_dl */

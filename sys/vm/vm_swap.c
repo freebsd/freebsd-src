@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_swap.c	8.5 (Berkeley) 2/17/94
- * $Id: vm_swap.c,v 1.21 1995/05/30 08:16:21 rgrimes Exp $
+ * $Id: vm_swap.c,v 1.22 1995/07/13 08:48:45 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -62,8 +62,6 @@ struct vnode *swapdev_vp;
 int nswap;			/* first block after the interleaved devs */
 int nswdev = NSWAPDEV;
 int vm_swap_size;
-int bswneeded;
-vm_offset_t swapbkva;		/* swap buffers kva */
 
 void
 swstrategy(bp)

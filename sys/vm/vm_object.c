@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.49 1995/07/13 08:48:34 davidg Exp $
+ * $Id: vm_object.c,v 1.50 1995/07/16 13:28:36 davidg Exp $
  */
 
 /*
@@ -112,11 +112,15 @@ static void _vm_object_allocate(objtype_t, vm_size_t, vm_object_t);
  *
  */
 
-
+int vm_object_cache_max;
+struct object_q vm_object_cached_list;
+int vm_object_cached;
+struct object_q vm_object_list;
+long vm_object_count;
+vm_object_t kernel_object;
+vm_object_t kmem_object;
 struct vm_object kernel_object_store;
 struct vm_object kmem_object_store;
-
-int vm_object_cache_max;
 
 long object_collapses;
 long object_bypasses;

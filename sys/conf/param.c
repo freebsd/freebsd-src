@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)param.c	8.2 (Berkeley) 1/21/94
- * $Id: param.c,v 1.10 1995/06/29 07:06:53 davidg Exp $
+ * $Id: param.c,v 1.11 1995/06/29 08:21:32 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -162,19 +162,24 @@ struct msginfo msginfo = {
 #endif
 
 /*
- * These are initialized at bootstrap time
- * to values dependent on memory size
+ * These may be set to nonzero here or by patching.
+ * If they are nonzero at bootstrap time then they are
+ * initialized to values dependent on the memory size.
  */
-int	nbuf, nswbuf;
+#ifdef	NBUF
+int	nbuf = NBUF;
+#else
+int	nbuf = 0;
+#endif
+int	nswbuf = 0;
 
 /*
  * These have to be allocated somewhere; allocating
  * them here forces loader errors if this file is omitted
  * (if they've been externed everywhere else; hah!).
  */
-struct 	callout *callout;
 struct	cblock *cfree;
-struct	buf *buf, *swbuf;
+struct	buf *swbuf;
 char	*buffers;
 
 /*

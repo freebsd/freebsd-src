@@ -398,7 +398,7 @@ struct sound_timer_operations {
 	    sizeof(sound_drivers) / sizeof (struct driver_info);
 
 #else
-	extern struct audio_operations * audio_devs[MAX_AUDIO_DEV]; int num_audiodevs;
+	extern struct audio_operations * audio_devs[MAX_AUDIO_DEV]; extern int num_audiodevs;
 	extern struct mixer_operations * mixer_devs[MAX_MIXER_DEV]; extern int num_mixers;
 	extern struct synth_operations * synth_devs[MAX_SYNTH_DEV+MAX_MIDI_DEV]; extern int num_synths;
 	extern struct midi_operations * midi_devs[MAX_MIDI_DEV]; extern int num_midis;

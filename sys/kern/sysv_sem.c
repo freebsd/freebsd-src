@@ -1,4 +1,4 @@
-/*	$Id: sysv_sem.c,v 1.4 1994/10/06 21:06:32 davidg Exp $ */
+/*	$Id: sysv_sem.c,v 1.5 1995/05/30 08:06:02 rgrimes Exp $ */
 
 /*
  * Implementation of SVID semaphores
@@ -18,6 +18,11 @@
 static int	semctl(), semget(), semop(), semconfig();
 int	(*semcalls[])() = { semctl, semget, semop, semconfig };
 int	semtot = 0;
+struct semid_ds *sema;		/* semaphore id pool */
+struct sem *sem;		/* semaphore pool */
+struct map *semmap;		/* semaphore allocation map */
+struct sem_undo *semu_list; 	/* list of active undo structures */
+int	*semu;			/* undo structure pool */
 
 static struct proc *semlock_holder = NULL;
 

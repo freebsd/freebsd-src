@@ -1,4 +1,4 @@
-/*	$Id: sysv_msg.c,v 1.3 1994/10/02 17:35:26 phk Exp $ */
+/*	$Id: sysv_msg.c,v 1.4 1995/05/30 08:06:01 rgrimes Exp $ */
 
 /*
  * Implementation of SVID messages
@@ -36,6 +36,10 @@ int	(*msgcalls[])() = { msgctl, msgget, msgsnd, msgrcv };
 int nfree_msgmaps;		/* # of free map entries */
 short free_msgmaps;		/* head of linked list of free map entries */
 struct msg *free_msghdrs;	/* list of free msg headers */
+char *msgpool;			/* MSGMAX byte long msg buffer pool */
+struct msgmap *msgmaps;		/* MSGSEG msgmap structures */
+struct msg *msghdrs;		/* MSGTQL msg headers */
+struct msqid_ds *msqids;	/* MSGMNI msqid_ds struct's */
 
 void
 msginit()

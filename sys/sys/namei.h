@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)namei.h	8.2 (Berkeley) 1/4/94
- * $Id: namei.h,v 1.4 1995/03/06 06:45:47 phk Exp $
+ * $Id: namei.h,v 1.5 1995/03/09 20:27:21 phk Exp $
  */
 
 #ifndef _SYS_NAMEI_H_
@@ -176,8 +176,10 @@ struct	namecache {
 };
 
 #ifdef KERNEL
-u_long	nextvnodeid;
-u_long	numvnodes, numcache;
+extern u_long	nextvnodeid;
+extern u_long	numcache;
+extern u_long	numvnodes;
+
 int	namei __P((struct nameidata *ndp));
 int	lookup __P((struct nameidata *ndp));
 int	relookup __P((struct vnode *dvp, struct vnode **vpp,
@@ -197,4 +199,7 @@ struct	nchstats {
 	long	ncs_pass2;		/* names found with passes == 2 */
 	long	ncs_2passes;		/* number of times we attempt it */
 };
+
+extern struct nchstats nchstats;
+
 #endif /* !_SYS_NAMEI_H_ */

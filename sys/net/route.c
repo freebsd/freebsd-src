@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.c	8.2 (Berkeley) 11/15/93
- *	$Id: route.c,v 1.23 1995/05/30 08:08:24 rgrimes Exp $
+ *	$Id: route.c,v 1.24 1995/07/10 15:22:37 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -54,6 +54,10 @@
 #include <netinet/ip_mroute.h>
 
 #define	SA(p) ((struct sockaddr *)(p))
+
+struct route_cb route_cb;
+struct rtstat rtstat;
+struct radix_node_head *rt_tables[AF_MAX+1];
 
 int	rttrash;		/* routes not in table but not freed */
 struct	sockaddr wildcard;	/* zero valued cookie for wildcard searches */

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ns_input.c	8.1 (Berkeley) 6/10/93
- * $Id: ns_input.c,v 1.4 1995/05/11 00:13:22 wollman Exp $
+ * $Id: ns_input.c,v 1.5 1995/05/30 08:12:27 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -76,12 +76,12 @@ struct nspcb nsrawpcb;
 struct ifqueue	nsintrq;
 int	nsqmaxlen = IFQ_MAXLEN;
 
+struct	idpstat	idpstat;
 int	idpcksum = 1;
 long	ns_pexseq;
 
 ns_init()
 {
-	extern struct timeval time;
 
 	ns_broadhost = * (union ns_host *) allones;
 	ns_broadnet = * (union ns_net *) allones;

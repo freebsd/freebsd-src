@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)pk_input.c	8.1 (Berkeley) 6/10/93
- * $Id: pk_input.c,v 1.4 1995/05/11 00:13:14 wollman Exp $
+ * $Id: pk_input.c,v 1.5 1995/05/30 08:08:59 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -61,6 +61,7 @@
 #include <netccitt/pk_var.h>
 #include <netccitt/llc_var.h>
 
+struct pklcd *pk_listenhead;
 struct pkcb_q pkcb_q = {&pkcb_q, &pkcb_q};
 
 /*
@@ -73,7 +74,6 @@ ccittintr (void)
 {
 	extern struct ifqueue pkintrq;
 	extern struct ifqueue hdintrq;
-	extern struct ifqueue llcintrq;
 
 #ifdef HDLC
 	if (hdintrq.ifq_len)

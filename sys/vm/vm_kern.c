@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_kern.c,v 1.13 1995/05/30 08:16:04 rgrimes Exp $
+ * $Id: vm_kern.c,v 1.14 1995/07/13 08:48:25 davidg Exp $
  */
 
 /*
@@ -84,13 +84,12 @@ vm_map_t buffer_map;
 vm_map_t kernel_map;
 vm_map_t kmem_map;
 vm_map_t mb_map;
+int mb_map_full;
 vm_map_t io_map;
 vm_map_t clean_map;
-vm_map_t pager_map;
 vm_map_t phys_map;
 vm_map_t exec_map;
 vm_map_t u_map;
-extern int mb_map_full;
 
 /*
  *	kmem_alloc_pageable:
