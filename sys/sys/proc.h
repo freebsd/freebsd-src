@@ -144,6 +144,7 @@ struct pargs {
  *      n - not locked, lazy
  *      o - ktrace lock
  *      p - select lock (sellock)
+ *      q - td_contested lock
  *      r - p_peers lock
  *      x - created at fork, only changes during single threading in exec
  *      z - zombie threads/kse/ksegroup lock
@@ -159,6 +160,7 @@ struct nlminfo;
 struct p_sched;
 struct td_sched;
 struct trapframe;
+struct turnstile;
 
 /*
  * Here we define the four structures used for process information.
@@ -259,11 +261,12 @@ struct thread {
 	TAILQ_ENTRY(thread) td_kglist;	/* (*) All threads in this ksegrp. */
 
 	/* The two queues below should someday be merged. */
-	TAILQ_ENTRY(thread) td_slpq;	/* (j) Sleep queue. XXXKSE */
-	TAILQ_ENTRY(thread) td_lockq;	/* (j) Lock queue. XXXKSE */
+	TAILQ_ENTRY(thread) td_slpq;	/* (j) Sleep queue. */
+	TAILQ_ENTRY(thread) td_lockq;	/* (j) Lock queue. */
 	TAILQ_ENTRY(thread) td_runq;	/* (j/z) Run queue(s). XXXKSE */
 
 	TAILQ_HEAD(, selinfo) td_selq;	/* (p) List of selinfos. */
+	struct turnstile *td_turnstile;	/* (k) Associated turnstile. */
 
 /* Cleared during fork1() or thread_sched_upcall(). */
 #define	td_startzero td_flags
@@ -278,10 +281,10 @@ struct thread {
 	u_char		td_lastcpu;	/* (j) Last cpu we were on. */
 	u_char		td_oncpu;	/* (j) Which cpu we are on. */
 	short		td_locks;	/* (k) DEBUG: lockmgr count of locks. */
-	struct mtx	*td_blocked;	/* (j) Mutex process is blocked on. */
+	struct turnstile *td_blocked;	/* (j) Lock process is blocked on. */
 	struct ithd	*td_ithd;	/* (b) For interrupt threads only. */
 	const char	*td_lockname;	/* (j) Name of lock blocked on. */
-	LIST_HEAD(, mtx) td_contested;	/* (j) Contested locks. */
+	LIST_HEAD(, turnstile) td_contested;	/* (q) Contested locks. */
 	struct lock_list_entry *td_sleeplocks; /* (k) Held sleep locks. */
 	int		td_intr_nesting_level; /* (k) Interrupt recursion. */
 	int		td_pinned;	/* (k) Temporary cpu pin count. */
@@ -342,6 +345,7 @@ struct thread {
 #define	TDF_IDLETD	0x000020 /* This is one of the per-CPU idle threads. */
 #define	TDF_SELECT	0x000040 /* Selecting; wakeup/waiting danger. */
 #define	TDF_CVWAITQ	0x000080 /* Thread is on a cv_waitq (not slpq). */
+#define	TDF_TSNOBLOCK	0x000100 /* Don't block on a turnstile due to race. */
 #define	TDF_ONSLEEPQ	0x000200 /* On the sleep queue. */
 #define	TDF_ASTPENDING	0x000800 /* Thread has some asynchronous events. */
 #define	TDF_TIMOFAIL	0x001000 /* Timeout from sleep after we were awake. */
