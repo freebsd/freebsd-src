@@ -34,10 +34,8 @@
  */
 
 /* This should be in <termcap.h> instead. */
-#ifndef __FreeBSD__
 extern char PC;
 extern short ospeed;
-#endif
 int	 tgetent __P((char *, char *));
 int	 tgetflag __P((char *));
 int	 tgetnum __P((char *));
