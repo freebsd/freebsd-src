@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2001 Networks Associates Technologies, Inc.
+ * Copyright (c) 2001 Networks Associates Technology, Inc.
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by Jonathan Lemon
