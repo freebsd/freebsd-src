@@ -1107,17 +1107,12 @@ done:
  * sync activity.
  */
 int
-vtruncbuf(vp, cred, td, length, blksize)
-	register struct vnode *vp;
-	struct ucred *cred;
-	struct thread *td;
-	off_t length;
-	int blksize;
+vtruncbuf(struct vnode *vp, struct ucred *cred, struct thread *td, off_t length, int blksize)
 {
-	register struct buf *bp;
-	struct buf *nbp;
+	struct buf *bp, *nbp;
 	int anyfreed;
 	int trunclbn;
+	struct bufobj *bo;
 
 	/*
 	 * Round up to the *next* lbn.
@@ -1127,60 +1122,58 @@ vtruncbuf(vp, cred, td, length, blksize)
 	ASSERT_VOP_LOCKED(vp, "vtruncbuf");
 restart:
 	VI_LOCK(vp);
+	bo = &vp->v_bufobj;
 	anyfreed = 1;
 	for (;anyfreed;) {
 		anyfreed = 0;
-		for (bp = TAILQ_FIRST(&vp->v_cleanblkhd); bp; bp = nbp) {
-			nbp = TAILQ_NEXT(bp, b_vnbufs);
-			if (bp->b_lblkno >= trunclbn) {
-				if (BUF_LOCK(bp,
-				    LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK,
-				    VI_MTX(vp)) == ENOLCK)
-					goto restart;
+		TAILQ_FOREACH_SAFE(bp, &bo->bo_clean.bv_hd, b_vnbufs, nbp) {
+			if (bp->b_lblkno < trunclbn)
+				continue;
+			if (BUF_LOCK(bp,
+			    LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK,
+			    VI_MTX(vp)) == ENOLCK)
+				goto restart;
 
-				bremfree(bp);
-				bp->b_flags |= (B_INVAL | B_RELBUF);
-				bp->b_flags &= ~B_ASYNC;
-				brelse(bp);
-				anyfreed = 1;
+			bremfree(bp);
+			bp->b_flags |= (B_INVAL | B_RELBUF);
+			bp->b_flags &= ~B_ASYNC;
+			brelse(bp);
+			anyfreed = 1;
 
-				if (nbp &&
-				    (((nbp->b_xflags & BX_VNCLEAN) == 0) ||
-				    (nbp->b_vp != vp) ||
-				    (nbp->b_flags & B_DELWRI))) {
-					goto restart;
-				}
-				VI_LOCK(vp);
+			if (nbp != NULL &&
+			    (((nbp->b_xflags & BX_VNCLEAN) == 0) ||
+			    (nbp->b_vp != vp) ||
+			    (nbp->b_flags & B_DELWRI))) {
+				goto restart;
 			}
+			VI_LOCK(vp);
 		}
 
-		for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
-			nbp = TAILQ_NEXT(bp, b_vnbufs);
-			if (bp->b_lblkno >= trunclbn) {
-				if (BUF_LOCK(bp,
-				    LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK,
-				    VI_MTX(vp)) == ENOLCK)
-					goto restart;
-				bremfree(bp);
-				bp->b_flags |= (B_INVAL | B_RELBUF);
-				bp->b_flags &= ~B_ASYNC;
-				brelse(bp);
-				anyfreed = 1;
-				if (nbp &&
-				    (((nbp->b_xflags & BX_VNDIRTY) == 0) ||
-				    (nbp->b_vp != vp) ||
-				    (nbp->b_flags & B_DELWRI) == 0)) {
-					goto restart;
-				}
-				VI_LOCK(vp);
+		TAILQ_FOREACH_SAFE(bp, &bo->bo_dirty.bv_hd, b_vnbufs, nbp) {
+			if (bp->b_lblkno < trunclbn)
+				continue;
+			if (BUF_LOCK(bp,
+			    LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK,
+			    VI_MTX(vp)) == ENOLCK)
+				goto restart;
+			bremfree(bp);
+			bp->b_flags |= (B_INVAL | B_RELBUF);
+			bp->b_flags &= ~B_ASYNC;
+			brelse(bp);
+			anyfreed = 1;
+			if (nbp != NULL &&
+			    (((nbp->b_xflags & BX_VNDIRTY) == 0) ||
+			    (nbp->b_vp != vp) ||
+			    (nbp->b_flags & B_DELWRI) == 0)) {
+				goto restart;
 			}
+			VI_LOCK(vp);
 		}
 	}
 
 	if (length > 0) {
 restartsync:
-		for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
-			nbp = TAILQ_NEXT(bp, b_vnbufs);
+		TAILQ_FOREACH_SAFE(bp, &bo->bo_dirty.bv_hd, b_vnbufs, nbp) {
 			if (bp->b_lblkno > 0)
 				continue;
 			/*
