@@ -66,7 +66,6 @@
 #include <sys/buf.h>
 #include <sys/reboot.h>
 #include <sys/callout.h>
-#include <sys/mbuf.h>
 #include <sys/msgbuf.h>
 #include <sys/sysent.h>
 #include <sys/sysctl.h>
