@@ -624,7 +624,7 @@ int
 vfs_stdextattrctl(mp, cmd, attrname, arg, p)
 	struct mount *mp;
 	int cmd;
-	char *attrname;
+	const char *attrname;
 	caddr_t arg;
 	struct proc *p;
 {

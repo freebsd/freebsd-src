@@ -28,29 +28,19 @@
 /* 
  * Userland/kernel interface for Access Control Lists
  *
- * This code from the FreeBSD POSIX.1e implementation.  Not all of the ACL
- * code is committed yet; in order to use the library routines listed
- * below, you'll need to download libposix1e_acl from the POSIX.1e
- * implementation page, or possibly update to a more recent version of
- * FreeBSD, as the code may have been committed.
- *
  * The POSIX.1e implementation page may be reached at:
  *   http://www.watson.org/fbsd-hardening/posix1e/
- *
- * However, all syscalls will pass through to appropriate VFS vnops, so
- * file systems implementing the vnops are accessible through the syscalls.
  */
 
 #ifndef _SYS_ACL_H
-#define _SYS_ACL_H
+#define	_SYS_ACL_H
 
 /*
  * POSIX.1e ACL types
  */
 
-#define MAX_ACL_ENTRIES 32    /* maximum entries in an ACL */
-#define _POSIX_ACL_PATH_MAX     MAX_ACL_ENTRIES
-#define	ACL_MAX_ENTRIES	MAX_ACL_ENTRIES
+#define	ACL_MAX_ENTRIES	32	/* maximum entries in an ACL */
+#define	_POSIX_ACL_PATH_MAX     ACL_MAX_ENTRIES
 
 typedef int	acl_type_t;
 typedef int	acl_tag_t;
@@ -65,36 +55,37 @@ typedef struct acl_entry	*acl_entry_t;
 
 struct acl {
 	int			acl_cnt;
-	struct acl_entry	acl_entry[MAX_ACL_ENTRIES];
+	struct acl_entry	acl_entry[ACL_MAX_ENTRIES];
 };
 typedef struct acl	*acl_t;
 
 /*
  * Possible valid values for a_type of acl_entry_t
  */
-#define ACL_USER_OBJ	0x00000001
-#define ACL_USER	0x00000002
-#define ACL_GROUP_OBJ	0x00000004
-#define ACL_GROUP	0x00000008
-#define ACL_MASK	0x00000010
-#define ACL_OTHER	0x00000020
-#define ACL_OTHER_OBJ	ACL_OTHER
-#define ACL_AFS_ID	0x00000040
+#define	ACL_USER_OBJ	0x00000001
+#define	ACL_USER	0x00000002
+#define	ACL_GROUP_OBJ	0x00000004
+#define	ACL_GROUP	0x00000008
+#define	ACL_MASK	0x00000010
+#define	ACL_OTHER	0x00000020
+#define	ACL_OTHER_OBJ	ACL_OTHER
+#define	ACL_AFS_ID	0x00000040
 
-#define ACL_TYPE_ACCESS		0x00000000
-#define ACL_TYPE_DEFAULT	0x00000001
+#define	ACL_TYPE_ACCESS	0x00000000
+#define	ACL_TYPE_DEFAULT	0x00000001
 
 /*
  * Possible flags in a_perm field
  */
-#define ACL_PERM_EXEC		0x0001
-#define ACL_PERM_WRITE		0x0002
-#define ACL_PERM_READ		0x0004
-#define ACL_PERM_NONE		0x0000
-#define ACL_PERM_BITS		(ACL_PERM_EXEC | ACL_PERM_WRITE | ACL_PERM_READ)
-#define ACL_POSIX1E_BITS	(ACL_PERM_EXEC | ACL_PERM_WRITE | ACL_PERM_READ)
+#define	ACL_PERM_EXEC	0x0001
+#define	ACL_PERM_WRITE	0x0002
+#define	ACL_PERM_READ	0x0004
+#define	ACL_PERM_NONE	0x0000
+#define	ACL_PERM_BITS	(ACL_PERM_EXEC | ACL_PERM_WRITE | ACL_PERM_READ)
+#define	ACL_POSIX1E_BITS	(ACL_PERM_EXEC | ACL_PERM_WRITE | ACL_PERM_READ)
 
 #ifdef _KERNEL
+
 /*
  * Storage for ACLs and support structures
  */
@@ -118,42 +109,40 @@ struct vattr;
 struct vop_getacl_args;
 struct vop_aclcheck_args;
 
-int	posix1e_acl_access(struct acl *a_acl, int a_mode, struct ucred *a_cred,
-			   struct proc *a_p);
 void	generic_attr_to_posix1e_acl(struct acl *a_acl, struct vattr *vattr);
-int	generic_vop_getacl(struct vop_getacl_args *ap);
 int	generic_vop_aclcheck(struct vop_aclcheck_args *ap);
+int	generic_vop_getacl(struct vop_getacl_args *ap);
+int	posix1e_acl_access(struct acl *a_acl, int a_mode, struct ucred *a_cred,
+	    struct proc *a_p);
 int	posix1e_vop_aclcheck(struct vop_aclcheck_args *ap);
 
-#else /* _KERNEL */
+#else /* !_KERNEL */
 
 /*
  * Syscall interface -- use the library calls instead as the syscalls
  * have strict acl entry ordering requirements
  */
-int	acl_syscall_get_file(char *path, acl_type_t type, struct acl *aclp);
-int	acl_syscall_set_file(char *path, acl_type_t type, struct acl *aclp);
-int	acl_syscall_get_fd(int filedes, acl_type_t type, struct acl *aclp);
-int	acl_syscall_set_fd(int filedes, acl_type_t type, struct acl *aclp);
-int	acl_syscall_delete_file(const char *path_p, acl_type_t type);
-int	acl_syscall_delete_fd(int filedes, acl_type_t type);
-int	acl_syscall_aclcheck_file(char *path, acl_type_t type,
-				  struct acl *aclp);
-int	acl_syscall_aclcheck_fd(int filedes, acl_type_t type,
-				struct acl *aclp);
+__BEGIN_DECLS
+int	__acl_aclcheck_fd(int filedes, acl_type_t type,
+	    struct acl *aclp);
+int	__acl_aclcheck_file(const char *path, acl_type_t type,
+	    struct acl *aclp);
+int	__acl_delete_fd(int filedes, acl_type_t type);
+int	__acl_delete_file(const char *path_p, acl_type_t type);
+int	__acl_get_fd(int filedes, acl_type_t type, struct acl *aclp);
+int	__acl_get_file(const char *path, acl_type_t type, struct acl *aclp);
+int	__acl_set_fd(int filedes, acl_type_t type, struct acl *aclp);
+int	__acl_set_file(const char *path, acl_type_t type, struct acl *aclp);
+__END_DECLS
 
 /*
  * Supported POSIX.1e ACL manipulation and assignment/retrieval API
- * These are currently provided by libposix1e_acl, which is not shipped
- * with the base distribution, but will be soon.  Some of these are
- * from POSIX.1e-extensions.
- *
- * Not all POSIX.1e ACL functions are listed here yet, but more will
- * be soon.
  */
+__BEGIN_DECLS
 int	acl_calc_mask(acl_t *acl_p);
-int	acl_delete_def_file(const char *path_p);
 int	acl_delete_def_fd(int filedes);
+int	acl_delete_def_file(const char *path_p);
+int	acl_free(void *obj_p);
 acl_t	acl_from_text(const char *buf_p);
 acl_t	acl_get_fd(int fd, acl_type_t type);
 acl_t	acl_get_file(const char *path_p, acl_type_t type);
@@ -162,9 +151,9 @@ int	acl_set_fd(int fd, acl_t acl, acl_type_t type);
 int	acl_set_file(const char *path_p, acl_type_t type, acl_t acl);
 char	*acl_to_text(acl_t acl, ssize_t *len_p);
 int	acl_valid(acl_t acl);
-int	acl_valid_file(const char *path_p, acl_type_t type, acl_t acl);
 int	acl_valid_fd(int fd, acl_type_t type, acl_t acl);
-int	acl_free(void *obj_p);
+int	acl_valid_file(const char *path_p, acl_type_t type, acl_t acl);
+__END_DECLS
 
-#endif /* _KERNEL */
-#endif /* _SYS_ACL_H */
+#endif /* !_KERNEL */
+#endif /* !_SYS_ACL_H */

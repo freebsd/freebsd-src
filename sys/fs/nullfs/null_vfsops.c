@@ -421,7 +421,7 @@ static int
 nullfs_extattrctl(mp, cmd, attrname, arg, p)
 	struct mount *mp;
 	int cmd;
-	char *attrname;
+	const char *attrname;
 	caddr_t arg;
 	struct proc *p;            
 {
