@@ -177,8 +177,8 @@ static devclass_t psycho_devclass;
 
 DRIVER_MODULE(psycho, nexus, psycho_driver, psycho_devclass, 0, 0);
 
-static int psycho_ndevs;
-static struct psycho_softc *psycho_softcs[4];
+SLIST_HEAD(, psycho_softc) psycho_softcs =
+    SLIST_HEAD_INITIALIZER(psycho_softcs);
 
 struct psycho_clr {
 	struct psycho_softc	*pci_sc;
@@ -361,21 +361,12 @@ psycho_attach(device_t dev)
 	 * the base physical address. This will be the same for a
 	 * pair of devices that share register space.
 	 */
-	for (n = 0; n < psycho_ndevs && n < sizeof(psycho_softcs) /
-	     sizeof(psycho_softcs[0]); n++) {
-		asc = (struct psycho_softc *)psycho_softcs[n];
-
-		if (asc == NULL || asc == sc)
-			/* This entry is not there or it is me */
-			continue;
-
-		if (asc->sc_basepaddr != sc->sc_basepaddr)
-			/* This is an unrelated psycho */
-			continue;
-
-		/* Found partner */
-		osc = asc;
-		break;
+	SLIST_FOREACH(asc, &psycho_softcs, sc_link) {
+		if (asc->sc_basepaddr == sc->sc_basepaddr) {
+			/* Found partner */
+			osc = asc;
+			break;
+		}
 	}
 
 	if (osc == NULL) {
@@ -473,11 +464,8 @@ psycho_attach(device_t dev)
 	sparc64_root_dma_tag = sc->sc_dmat;
 
 	/* Register the softc, this is needed for paired psychos. */
-	if (psycho_ndevs < sizeof(psycho_softcs) / sizeof(psycho_softcs[0]))
-		psycho_softcs[psycho_ndevs] = sc;
-	else
-		device_printf(dev, "XXX: bump the number of psycho_softcs");
-	psycho_ndevs++;
+	SLIST_INSERT_HEAD(&psycho_softcs, sc, sc_link);
+
 	/*
 	 * And finally, if we're a sabre or the first of a pair of psycho's to
 	 * arrive here, start up the IOMMU and get a config space tag.
