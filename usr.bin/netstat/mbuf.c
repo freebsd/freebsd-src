@@ -102,9 +102,9 @@ mbpr(u_long mbaddr, u_long mbtaddr __unused, u_long nmbcaddr, u_long nmbufaddr,
 	int i, j, nmbufs, nmbclusters, page_size, num_objs;
 	int nsfbufs, nsfbufspeak, nsfbufsused;
 	u_int mbuf_hiwm, clust_hiwm, mbuf_lowm, clust_lowm;
-	unsigned long long totspace[2];
-	u_long totused[2];
+	u_long totspace[2], totused[2];
 	u_long gentotnum, gentotfree, totnum, totfree;
+	u_long totmem, totmemalloced, totmemused;
 	short nmbtypes;
 	size_t mlen;
 	long *mbtypes = NULL;
@@ -289,8 +289,8 @@ mbpr(u_long mbaddr, u_long mbtaddr __unused, u_long nmbcaddr, u_long nmbufaddr,
 			    mbtypes[i], i);
 	}
 	if (cflag)
-		printf("\t%llu%% of mbuf map consumed\n",
-		    ((totspace[0] * 100) / (nmbufs * MSIZE)));
+		printf("\t%.1f%% of mbuf map consumed\n",
+		    totspace[0] * 100.0 / (nmbufs * MSIZE));
 
 	totnum = mbpstat[GENLST]->mb_clbucks * mbstat->m_clperbuck;
 	totfree = mbpstat[GENLST]->mb_clfree;
@@ -333,8 +333,8 @@ mbpr(u_long mbaddr, u_long mbtaddr __unused, u_long nmbcaddr, u_long nmbufaddr,
 #endif
 	}
 	if (cflag)
-		printf("\t%llu%% of cluster map consumed\n",
-		    ((totspace[1] * 100) / (nmbclusters * MCLBYTES)));
+		printf("\t%.1f%% of cluster map consumed\n",
+		    totspace[1] * 100.0 / (nmbclusters * MCLBYTES));
 	mlen = sizeof(nsfbufs);
 	if (!sysctlbyname("kern.ipc.nsfbufs", &nsfbufs, &mlen, NULL, NULL) &&
 	    !sysctlbyname("kern.ipc.nsfbufsused", &nsfbufsused, &mlen, NULL,
@@ -344,11 +344,13 @@ mbpr(u_long mbaddr, u_long mbtaddr __unused, u_long nmbcaddr, u_long nmbufaddr,
 		printf("%d/%d/%d sfbufs in use (current/peak/max)\n",
 		    nsfbufsused, nsfbufspeak, nsfbufs);
 	}
-	printf("%llu KBytes allocated to network "
-	    "(%lluK mbuf, %lluK mbuf cluster)\n",
-	    (totspace[0] + totspace[1]) / 1024,
-	    totspace[0] / 1024,
-	    totspace[1] / 1024);
+	totmem = nmbufs * MSIZE + nmbclusters * MCLBYTES;
+	totmemalloced = totspace[0] + totspace[1];
+	totmemused = totused[0] * MSIZE + totused[1] * MCLBYTES;
+	printf(
+	    "%lu KBytes allocated to network (%.1f%% in use, %.1f%% wired)\n",
+	    totmem / 1024, totmemused * 100.0 / totmem,
+	    totmemalloced * 100.0 / totmem);
 	printf("%lu requests for memory denied\n", mbstat->m_drops);
 	printf("%lu requests for memory delayed\n", mbstat->m_wait);
 	printf("%lu requests for sfbufs denied\n", mbstat->sf_allocfail);
@@ -369,6 +371,4 @@ err:
 			free(mbpstat[0]);
 		free(mbpstat);
 	}
-
-	return;
 }
