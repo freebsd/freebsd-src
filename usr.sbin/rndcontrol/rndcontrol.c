@@ -30,11 +30,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: rndcontrol.c,v 1.6 1997/02/22 16:12:47 peter Exp $
  *
  */
 
 #include <stdlib.h>
+#include <unistd.h>
 #include <stdio.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
