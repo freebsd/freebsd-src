@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.33 1994/09/11 12:55:54 jkh Exp $
+# $Id: bsd.port.mk,v 1.34 1994/09/13 06:22:11 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -15,7 +15,7 @@
 # PORTSDIR		- The root of the ports tree (default: /usr/ports).
 # DISTDIR 		- Where to get gzip'd, tarballed copies of original sources
 #				  (default: ${PORTSDIR}/distfiles).
-# MASTER_SITE	- Primary location for distribution files if not found
+# MASTER_SITES	- Primary location(s) for distribution files if not found
 #				  locally.
 # PACKAGES		- A top level directory where all packages go (rather than
 #				  going locally to each port). (default: ${PORTSDIR}/packages).
@@ -48,9 +48,6 @@
 # USE_IMAKE		- Says that the port uses imake.
 # HAS_CONFIGURE	- Says that the port has its own configure script.
 # CONFIGURE_ARGS - Pass these args to configure, if $HAS_CONFIGURE.
-# HOME_LOCATION	- site/path name (or user's email address) describing
-#				  where this port came from or can be obtained if the
-#				  tarball is missing and there is no MASTER_SITE.
 # DEPENDS		- A list of other ports this package depends on being
 #				  made first, relative to ${PORTSDIR} (e.g. x11/tk, lang/tcl,
 #				  etc).
