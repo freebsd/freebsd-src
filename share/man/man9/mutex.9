@@ -28,7 +28,7 @@
 .\"	from BSDI $Id: mutex.4,v 1.1.2.3 1998/04/27 22:53:13 ewv Exp $
 .\" $FreeBSD$
 .\"
-.Dd April 20, 1998
+.Dd February 12, 2001
 .Dt MUTEX 9
 .Os
 .Sh NAME
@@ -127,7 +127,7 @@ Once a spin mutex has been acquired it is not permissible to acquire a
 blocking mutex.
 .Pp
 The storage needed to implement a mutex is provided by a
-.Dv struct mtx .
+.Vt struct mtx .
 In general this should be treated as an opaque object and
 referenced only with the mutex primitives.
 .Pp
@@ -137,25 +137,27 @@ function must be used to initialize a mutex
 before it can be passed to
 .Fn mtx_lock .
 The
-.Ar name
+.Fa name
 argument is used by the witness code
 to classify a mutex when doing checks of lock ordering.
 The pointer passed in as the
-.Ar name
+.Fa name
 is saved rather than the data it points to.
 The data pointed to must remain stable
 until the mutex is destroyed.
 The
-.Ar opts 
-argument is used to set the type of mutex. It may contain either
+.Fa opts 
+argument is used to set the type of mutex.
+It may contain either
 .Dv MTX_DEF
 or
 .Dv MTX_SPIN
-but not both. Optionally, it may also contain the
+but not both.
+Optionally, it may also contain the
 .Dv MTX_RECURSE
 bit, which signifies that the mutex will be allowed to recurse.
 It is not permissible to pass the same
-.Ar mutex
+.Fa mutex
 to
 .Fn mtx_init
 multiple times without intervening calls to
@@ -199,15 +201,17 @@ functions acquire a
 or
 .Dv MTX_SPIN
 lock, respectively, and also accept a
-.Ar flags
+.Fa flags
 argument.
 In both cases, the only flag presently available for lock acquires is
 .Dv MTX_QUIET .
 If the
 .Dv MTX_QUIET
 bit is turned on in the
-.Ar flags
-argument, then if KTR_LOCK tracing is being done,
+.Fa flags
+argument, then if
+.Dv KTR_LOCK
+tracing is being done,
 it will be silenced during the lock acquire.
 .Pp
 The
@@ -215,7 +219,7 @@ The
 function is used to acquire exclusive access
 to those objects protected by the mutex
 pointed to by
-.Ar mutex .
+.Fa mutex .
 If the mutex can not be immediately acquired
 .Fn mtx_try_enter
 will return 0,
@@ -227,8 +231,9 @@ The
 function has the same behavior as
 .Fn mtx_trylock
 but should be used when the caller desires to pass in a
-.Ar flags
-value. Presently, the only valid value in the
+.Fa flags
+value.
+Presently, the only valid value in the
 .Fn mtx_trylock
 case is
 .Dv MTX_QUIET ,
@@ -260,7 +265,7 @@ and
 .Fn mtx_unlock_spin_flags
 functions behave in exactly the same way as do the standard mutex
 unlock routines above, while also allowing a
-.Ar flags
+.Fa flags
 argument which may only be
 .Dv MTX_QUIET
 in the
@@ -271,7 +276,8 @@ and
 .Dv MTX_NOSWITCH
 in the
 .Fn mtx_unlock_flags
-case. The behavior of
+case.
+The behavior of
 .Dv MTX_QUIET
 is identical to its behavior in the mutex lock routines.
 The
@@ -286,7 +292,7 @@ the release of the mutex.
 The
 .Fn mtx_destroy
 function is used to destroy
-.Ar mutex
+.Fa mutex
 so the data associated with it may be freed
 or otherwise overwritten.
 Any mutex which is destroyed
@@ -302,23 +308,23 @@ The
 .Fn mtx_owned
 function returns non-zero
 if the current process holds
-.Ar mutex .
+.Fa mutex .
 If the current process does not hold
-.Ar mutex
+.Fa mutex
 zero is returned.
 .Pp
 The
 .Fn mtx_recursed
 function returns non-zero if the
-.Ar mutex
+.Fa mutex
 is recursed.
 This check should only be made if the running thread already owns
-.Ar mutex .
+.Fa mutex .
 .Pp
 The
 .Fn mtx_assert
-function  allows assertions to be made about
-.Ar mutex .
+function allows assertions to be made about
+.Fa mutex .
 If the assertions are not true and the kernel is compiled with
 .Dv INVARIANTS
 then the kernel will panic.
@@ -374,7 +380,7 @@ their primary purpose is to protect portions of the code
 that implement default (i.e. sleep) locks.
 .Ss Initialization Options
 The options passed in the
-.Ar opts
+.Fa opts
 argument of
 .Fn mtx_init
 specify the mutex type.
@@ -413,13 +419,15 @@ and
 .Fn mtx_unlock_spin_flags 
 functions provide some basic options to the caller,
 and are often used only under special circumstances to modify lock or
-unlock behavior. Standard locking and unlocking should be performed with the
+unlock behavior.
+Standard locking and unlocking should be performed with the
 .Fn mtx_lock ,
 .Fn mtx_lock_spin ,
 .Fn mtx_unlock ,
 and
 .Fn mtx_unlock_spin
-functions. If one of these flags is required then, and only then,
+functions.
+If one of these flags is required then, and only then,
 should the corresponding flags-accepting routines be used.
 .Pp
 Options that modify mutex behavior:
