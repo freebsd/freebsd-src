@@ -148,7 +148,9 @@ do_header(char *dev, int match)
 		outf = fopen(file, "w");
 		if (outf == 0)
 			err(1, "%s", file);
+		fprintf(outf, "#ifndef BURN_BRIDGES\n");
 		fprintf(outf, "#define %s %d\n", name, count);
+		fprintf(outf, "#endif\n");
 		(void) fclose(outf);
 		return 0;
 	}
