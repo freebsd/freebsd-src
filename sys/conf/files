@@ -326,6 +326,7 @@ kern/md5c.c		standard
 kern/subr_autoconf.c	standard
 kern/subr_bus.c		standard
 kern/subr_devstat.c	standard
+kern/subr_disk.c	standard
 kern/subr_diskslice.c	standard
 kern/subr_dkbad.c	standard
 kern/subr_eventhandler.c	standard
