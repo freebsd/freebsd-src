@@ -93,8 +93,8 @@
 } } } while (0)
 
 #define RAY_DPRINTF(sc, mask, fmt, args...) do {if (RAY_DEBUG & (mask)) {\
-    printf("ray%d: %s(%d) " fmt "\n", (sc)->unit,			\
-	__FUNCTION__ , __LINE__ , ##args);				\
+    device_printf((sc)->dev, "%s(%d) " fmt "\n",			\
+    	__FUNCTION__ , __LINE__ , ##args);				\
 } } while (0)
 
 #else
@@ -108,7 +108,7 @@
  */
 #if RAY_DEBUG & RAY_DBG_COM
 #define RAY_COM_DUMP(sc, com, s) do { if (RAY_DEBUG & RAY_DBG_COM) {	\
-    printf("ray%d: %s(%d) %s com entry 0x%p\n",	(sc)->unit,		\
+    device_printf((sc)->dev, "%s(%d) %s com entry 0x%p\n",		\
         __FUNCTION__ , __LINE__ , (s) , (com));				\
     printf("  c_mesg %s\n", (com)->c_mesg);				\
     printf("  c_flags 0x%b\n", (com)->c_flags, RAY_COM_FLAGS_PRINTFB);	\
