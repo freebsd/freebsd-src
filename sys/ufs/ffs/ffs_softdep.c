@@ -52,7 +52,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: @(#)ffs_softdep.c	9.50 (McKusick) 1/12/00
+ *	from: @(#)ffs_softdep.c	9.53 (McKusick) 1/16/00
  * $FreeBSD$
  */
 
@@ -175,7 +175,7 @@ static	void initiate_write_inodeblock __P((struct inodedep *, struct buf *));
 static	void handle_workitem_freefile __P((struct freefile *));
 static	void handle_workitem_remove __P((struct dirrem *));
 static	struct dirrem *newdirrem __P((struct buf *, struct inode *,
-	    struct inode *, int));
+	    struct inode *, int, struct dirrem **));
 static	void free_diradd __P((struct diradd *));
 static	void free_allocindir __P((struct allocindir *, struct inodedep *));
 static	int indir_trunc __P((struct inode *, ufs_daddr_t, int, ufs_lbn_t,
@@ -2329,17 +2329,32 @@ softdep_setup_remove(bp, dp, ip, isrmdir)
 	struct inode *ip;	/* inode for directory entry being removed */
 	int isrmdir;		/* indicates if doing RMDIR */
 {
-	struct dirrem *dirrem;
+	struct dirrem *dirrem, *prevdirrem;
 
 	/*
 	 * Allocate a new dirrem if appropriate and ACQUIRE_LOCK.
 	 */
-	dirrem = newdirrem(bp, dp, ip, isrmdir);
+	dirrem = newdirrem(bp, dp, ip, isrmdir, &prevdirrem);
+
+	/*
+	 * If the COMPLETE flag is clear, then there were no active
+	 * entries and we want to roll back to a zeroed entry until
+	 * the new inode is committed to disk. If the COMPLETE flag is
+	 * set then we have deleted an entry that never made it to
+	 * disk. If the entry we deleted resulted from a name change,
+	 * then the old name still resides on disk. We cannot delete
+	 * its inode (returned to us in prevdirrem) until the zeroed
+	 * directory entry gets to disk. The new inode has never been
+	 * referenced on the disk, so can be deleted immediately.
+	 */
 	if ((dirrem->dm_state & COMPLETE) == 0) {
 		LIST_INSERT_HEAD(&dirrem->dm_pagedep->pd_dirremhd, dirrem,
 		    dm_next);
 		FREE_LOCK(&lk);
 	} else {
+		if (prevdirrem != NULL)
+			LIST_INSERT_HEAD(&dirrem->dm_pagedep->pd_dirremhd,
+			    prevdirrem, dm_next);
 		dirrem->dm_dirinum = dirrem->dm_pagedep->pd_ino;
 		FREE_LOCK(&lk);
 		handle_workitem_remove(dirrem);
@@ -2352,11 +2367,12 @@ softdep_setup_remove(bp, dp, ip, isrmdir)
  */
 static long num_dirrem;		/* number of dirrem allocated */
 static struct dirrem *
-newdirrem(bp, dp, ip, isrmdir)
+newdirrem(bp, dp, ip, isrmdir, prevdirremp)
 	struct buf *bp;		/* buffer containing directory block */
 	struct inode *dp;	/* inode for the directory being modified */
 	struct inode *ip;	/* inode for directory entry being removed */
 	int isrmdir;		/* indicates if doing RMDIR */
+	struct dirrem **prevdirremp; /* previously referenced inode, if any */
 {
 	int offset;
 	ufs_lbn_t lbn;
@@ -2384,6 +2400,7 @@ newdirrem(bp, dp, ip, isrmdir)
 	dirrem->dm_state = isrmdir ? RMDIR : 0;
 	dirrem->dm_mnt = ITOV(ip)->v_mount;
 	dirrem->dm_oldinum = ip->i_number;
+	*prevdirremp = NULL;
 
 	ACQUIRE_LOCK(&lk);
 	lbn = lblkno(dp->i_fs, dp->i_offset);
@@ -2410,15 +2427,29 @@ newdirrem(bp, dp, ip, isrmdir)
 			return (dirrem);
 	}
 	/*
-	 * Must be ATTACHED at this point, so just delete it.
+	 * Must be ATTACHED at this point.
 	 */
 	if ((dap->da_state & ATTACHED) == 0)
 		panic("newdirrem: not ATTACHED");
 	if (dap->da_newinum != ip->i_number)
 		panic("newdirrem: inum %d should be %d",
 		    ip->i_number, dap->da_newinum);
-	free_diradd(dap);
+	/*
+	 * If we are deleting a changed name that never made it to disk,
+	 * then return the dirrem describing the previous inode (which
+	 * represents the inode currently referenced from this entry on disk).
+	 */
+	if ((dap->da_state & DIRCHG) != 0) {
+		*prevdirremp = dap->da_previous;
+		dap->da_state &= ~DIRCHG;
+		dap->da_pagedep = pagedep;
+	}
+	/*
+	 * We are deleting an entry that never made it to disk.
+	 * Mark it COMPLETE so we can delete its inode immediately.
+	 */
 	dirrem->dm_state |= COMPLETE;
+	free_diradd(dap);
 	return (dirrem);
 }
 
@@ -2449,7 +2480,7 @@ softdep_setup_directory_change(bp, dp, ip, newinum, isrmdir)
 {
 	int offset;
 	struct diradd *dap = NULL;
-	struct dirrem *dirrem;
+	struct dirrem *dirrem, *prevdirrem;
 	struct pagedep *pagedep;
 	struct inodedep *inodedep;
 
@@ -2471,7 +2502,7 @@ softdep_setup_directory_change(bp, dp, ip, newinum, isrmdir)
 	/*
 	 * Allocate a new dirrem and ACQUIRE_LOCK.
 	 */
-	dirrem = newdirrem(bp, dp, ip, isrmdir);
+	dirrem = newdirrem(bp, dp, ip, isrmdir, &prevdirrem);
 	pagedep = dirrem->dm_pagedep;
 	/*
 	 * The possible values for isrmdir:
@@ -2505,11 +2536,35 @@ softdep_setup_directory_change(bp, dp, ip, newinum, isrmdir)
 	}
 
 	/*
+	 * If the COMPLETE flag is clear, then there were no active
+	 * entries and we want to roll back to the previous inode until
+	 * the new inode is committed to disk. If the COMPLETE flag is
+	 * set, then we have deleted an entry that never made it to disk.
+	 * If the entry we deleted resulted from a name change, then the old
+	 * inode reference still resides on disk. Any rollback that we do
+	 * needs to be to that old inode (returned to us in prevdirrem). If
+	 * the entry we deleted resulted from a create, then there is
+	 * no entry on the disk, so we want to roll back to zero rather
+	 * than the uncommitted inode. In either of the COMPLETE cases we
+	 * want to immediately free the unwritten and unreferenced inode.
+	 */
+	if ((dirrem->dm_state & COMPLETE) == 0) {
+		dap->da_previous = dirrem;
+	} else {
+		if (prevdirrem != NULL) {
+			dap->da_previous = prevdirrem;
+		} else {
+			dap->da_state &= ~DIRCHG;
+			dap->da_pagedep = pagedep;
+		}
+		dirrem->dm_dirinum = pagedep->pd_ino;
+		add_to_worklist(&dirrem->dm_list);
+	}
+	/*
 	 * Link into its inodedep. Put it on the id_bufwait list if the inode
 	 * is not yet written. If it is written, do the post-inode write
 	 * processing to put it on the id_pendinghd list.
 	 */
-	dap->da_previous = dirrem;
 	if (inodedep_lookup(dp->i_fs, newinum, DEPALLOC, &inodedep) == 0 ||
 	    (inodedep->id_state & ALLCOMPLETE) == ALLCOMPLETE) {
 		dap->da_state |= COMPLETE;
@@ -2519,18 +2574,6 @@ softdep_setup_directory_change(bp, dp, ip, newinum, isrmdir)
 		LIST_INSERT_HEAD(&pagedep->pd_diraddhd[DIRADDHASH(offset)],
 		    dap, da_pdlist);
 		WORKLIST_INSERT(&inodedep->id_bufwait, &dap->da_list);
-	}
-	/*
-	 * If the previous inode was never written or its previous directory
-	 * entry was never written, then we do not want to roll back to this
-	 * previous value. Instead we want to roll back to zero and immediately
-	 * free the unwritten or unreferenced inode.
-	 */
-	if (dirrem->dm_state & COMPLETE) {
-		dap->da_state &= ~DIRCHG;
-		dap->da_pagedep = pagedep;
-		dirrem->dm_dirinum = pagedep->pd_ino;
-		add_to_worklist(&dirrem->dm_list);
 	}
 	FREE_LOCK(&lk);
 }
