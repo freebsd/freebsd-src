@@ -227,11 +227,13 @@ CLEANFILES+=	${GENSRC} ${GENHDR} keys.list make_hash term.h.new \
 	make_keys MKterm.h.awk comp_captab.c curses.head \
 	namehdr nameftr codeftr ${NAMESRC} ${CODESRC}
 
+.if !defined(NOINSTALLLIB)
 SYMLINKS+=libncurses.a ${LIBDIR}/libcurses.a
 SYMLINKS+=libncurses.a ${LIBDIR}/libtermcap.a
 SYMLINKS+=libncurses.a ${LIBDIR}/libtermlib.a
 SYMLINKS+=libncurses.a ${LIBDIR}/libmytinfo.a
 SYMLINKS+=libncurses.a ${LIBDIR}/libtinfo.a
+.endif
 .if !defined(NOPIC)
 # no need for major at all, it's an ld-time redirection only
 SYMLINKS+=libncurses.so ${LIBDIR}/libcurses.so
