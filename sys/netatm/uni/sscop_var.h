@@ -168,7 +168,8 @@ int		sscop_send_poll(struct sscop *);
 int		sscop_send_stat(struct sscop *, sscop_seq);
 int		sscop_send_ustat(struct sscop *, sscop_seq);
 int		sscop_send_ud(struct sscop *, KBuffer *);
-void		sscop_pdu_print(struct sscop *, KBuffer *, char *);
+void		sscop_pdu_print(const struct sscop *,
+		    const KBuffer *, const char *);
 
 	/* sscop_sigaa.c */
 void		sscop_estreq_idle(struct sscop *, intptr_t, intptr_t);

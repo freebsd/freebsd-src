@@ -575,23 +575,21 @@ atm_intr(struct mbuf *m)
  *
  */
 void
-atm_pdu_print(m, msg)
-	KBuffer		*m;
-	char		*msg;
+atm_pdu_print(const KBuffer *m, const char *msg)
 {
-	caddr_t		cp;
+	const u_char	*cp;
 	int		i;
 	char		c = ' ';
 
 	printf("%s:", msg);
 	while (m) { 
-		KB_DATASTART(m, cp, caddr_t);
+		KB_DATASTART(m, cp, const u_char *);
 		printf("%cbfr=%p data=%p len=%d: ",
 			c, m, cp, KB_LEN(m));
 		c = '\t';
 		if (atm_print_data) {
 			for (i = 0; i < KB_LEN(m); i++) {
-				printf("%2x ", (u_char)*cp++);
+				printf("%2x ", *cp++);
 			}
 			printf("<end_bfr>\n");
 		} else {
@@ -600,4 +598,3 @@ atm_pdu_print(m, msg)
 		m = KB_NEXT(m);
 	}
 }
-
