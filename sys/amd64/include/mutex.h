@@ -258,26 +258,28 @@ extern char STR_SIEN[];
 #else	/* !LOCORE */
 
 /*
- * Simple assembly macros to get and release non-recursive spin locks
+ * Simple assembly macros to get and release spin locks
  */
 
 #if defined(I386_CPU)
 
-#define	MTX_ENTER(reg, lck)						\
-	pushf;								\
+#define	MTX_ENTER(lck, reg)						\
+	movl	_curproc,reg;						\
+	pushfl;								\
 	cli;								\
 	movl	reg,lck+MTX_LOCK;					\
-	popl	lck+MTX_SAVEINTR
+	popl	lck+MTX_SAVEINTR;
 
 #define	MTX_EXIT(lck, reg)						\
 	pushl	lck+MTX_SAVEINTR;					\
 	movl	$ MTX_UNOWNED,lck+MTX_LOCK;				\
-	popf
+	popfl;
 
 #else	/* I386_CPU */
 
-#define MTX_ENTER(reg, lck)						\
-	pushf;								\
+#define MTX_ENTER(lck, reg)						\
+	movl	_curproc,reg;						\
+	pushfl;								\
 	cli;								\
 9:	movl	$ MTX_UNOWNED,%eax;					\
 	MPLOCKED							\
@@ -286,15 +288,15 @@ extern char STR_SIEN[];
 	popl	lck+MTX_SAVEINTR;
 
 /* Must use locked bus op (cmpxchg) when setting to unowned (barrier) */
-#define	MTX_EXIT(lck,reg)						\
+#define	MTX_EXIT(lck, reg)						\
 	pushl	lck+MTX_SAVEINTR;					\
 	movl	lck+MTX_LOCK,%eax;					\
 	movl	$ MTX_UNOWNED,reg;					\
 	MPLOCKED							\
 	cmpxchgl reg,lck+MTX_LOCK;					\
-	popf
+	popfl;
 
-#define MTX_ENTER_WITH_RECURSION(reg, lck)				\
+#define MTX_ENTER_WITH_RECURSION(lck, reg)				\
 	pushf;								\
 	cli;								\
 	movl	lck+MTX_LOCK,%eax;					\
@@ -311,7 +313,7 @@ extern char STR_SIEN[];
 8:	add	$4,%esp;						\
 9:
 
-#define	MTX_EXIT_WITH_RECURSION(lck,reg)				\
+#define	MTX_EXIT_WITH_RECURSION(lck, reg)				\
 	movl	lck+MTX_RECURSE,%eax;					\
 	decl	%eax;							\
 	js	8f;							\
