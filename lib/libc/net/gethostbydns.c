@@ -53,7 +53,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)gethostnamadr.c	8.1 (Berkeley) 6/4/93";
-static char rcsid[] = "$Id: gethostbydns.c,v 1.5 1995/08/20 20:02:37 peter Exp $";
+static char rcsid[] = "$Id: gethostbydns.c,v 1.6 1995/08/21 09:15:32 bde Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -63,6 +63,7 @@ static char rcsid[] = "$Id: gethostbydns.c,v 1.5 1995/08/20 20:02:37 peter Exp $
 #include <arpa/nameser.h>
 
 #include <stdio.h>
+#include <unistd.h>
 #include <string.h>
 #include <netdb.h>
 #include <resolv.h>
