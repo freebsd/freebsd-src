@@ -303,6 +303,10 @@ static int wait_scrn_saver_stop(void);
 #define scsplash_stick(stick)
 #endif /* NSPLASH */
 static int switch_scr(scr_stat *scp, u_int next_scr);
+static int do_switch_scr(int s);
+static int vt_proc_alive(scr_stat *scp);
+static int signal_vt_rel(scr_stat *scp);
+static int signal_vt_acq(scr_stat *scp);
 static void exchange_scr(void);
 static void scan_esc(scr_stat *scp, u_char c);
 static void ansi_put(scr_stat *scp, u_char *buf, int len);
@@ -733,13 +737,28 @@ scclose(dev_t dev, int flag, int mode, struct proc *p)
 {
     struct tty *tp = scdevtotty(dev);
     struct scr_stat *scp;
+    int s;
 
     if (!tp)
 	return(ENXIO);
     if (minor(dev) < MAXCONS) {
 	scp = sc_get_scr_stat(tp->t_dev);
-	if (scp->status & SWITCH_WAIT_ACQ)
-	    wakeup((caddr_t)&scp->smode);
+
+	/* were we in the middle of the VT switching process? */
+	s = spltty();
+	if (scp->status & SWITCH_WAIT_REL) {
+	    /* assert(scp == cur_console) */
+	    printf("sc%d: scclose(): reset WAIT_REL\n", minor(dev));
+	    scp->status &= ~SWITCH_WAIT_REL;
+	    do_switch_scr(s);
+	}
+	if (scp->status & SWITCH_WAIT_ACQ) {
+	    /* assert(scp == cur_console) */
+	    printf("sc%d: scclose(): reset WAIT_ACQ\n", minor(dev));
+	    scp->status &= ~SWITCH_WAIT_ACQ;
+	    switch_in_progress = 0;
+	}
+
 #if not_yet_done
 	if (scp == &main_console) {
 	    scp->pid = 0;
@@ -763,6 +782,9 @@ scclose(dev_t dev, int flag, int mode, struct proc *p)
 	scp->proc = NULL;
 	scp->smode.mode = VT_AUTO;
 #endif
+	scp->kbd_mode = K_XLATE;
+	if (scp == cur_console)
+	    kbd_ioctl(kbd, KDSKBMODE, (caddr_t)&scp->kbd_mode);
     }
     spltty();
     (*linesw[tp->t_line].l_close)(tp, flag);
@@ -1449,16 +1471,39 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	struct vt_mode *mode;
 
 	mode = (struct vt_mode *)data;
-	if (ISSIGVALID(mode->relsig) && ISSIGVALID(mode->acqsig) &&
-	    ISSIGVALID(mode->frsig)) {
-	    bcopy(data, &scp->smode, sizeof(struct vt_mode));
-	    if (scp->smode.mode == VT_PROCESS) {
-		scp->proc = p;
-		scp->pid = scp->proc->p_pid;
+	if (scp->smode.mode == VT_PROCESS) {
+    	    if (scp->proc == pfind(scp->pid) && scp->proc != p) {
+		return EPERM;
 	    }
-	    return 0;
-	} else
-	    return EINVAL;
+	}
+	s = spltty();
+	if (mode->mode == VT_AUTO) {
+	    scp->smode.mode = VT_AUTO;
+	    scp->proc = NULL;
+	    scp->pid = 0;
+	    /* were we in the middle of the vty switching process? */
+	    if (scp->status & SWITCH_WAIT_REL) {
+		/* assert(scp == cur_console) */
+		scp->status &= ~SWITCH_WAIT_REL;
+		s = do_switch_scr(s);
+	    }
+	    if (scp->status & SWITCH_WAIT_ACQ) {
+		/* assert(scp == cur_console) */
+		scp->status &= ~SWITCH_WAIT_ACQ;
+		switch_in_progress = 0;
+	    }
+	} else {
+	    if (!ISSIGVALID(mode->relsig) || !ISSIGVALID(mode->acqsig)
+		|| !ISSIGVALID(mode->frsig)) {
+		splx(s);
+		return EINVAL;
+	    }
+	    bcopy(data, &scp->smode, sizeof(struct vt_mode));
+	    scp->proc = p;
+	    scp->pid = scp->proc->p_pid;
+	}
+	splx(s);
+	return 0;
     }
 
     case VT_GETMODE:    	/* get screen switcher mode */
@@ -1466,41 +1511,51 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	return 0;
 
     case VT_RELDISP:    	/* screen switcher ioctl */
+	s = spltty();
+	/*
+	 * This must be the current vty which is in the VT_PROCESS
+	 * switching mode...
+	 */
+	if ((scp != cur_console) || (scp->smode.mode != VT_PROCESS)) {
+	    splx(s);
+	    return EINVAL;
+	}
+	/* ...and this process is controlling it. */
+	if (scp->proc != p) {
+	    splx(s);
+	    return EPERM;
+	}
+	error = EINVAL;
 	switch(*(int *)data) {
 	case VT_FALSE:  	/* user refuses to release screen, abort */
 	    if (scp == old_scp && (scp->status & SWITCH_WAIT_REL)) {
 		old_scp->status &= ~SWITCH_WAIT_REL;
-		switch_in_progress = FALSE;
-		return 0;
+		switch_in_progress = 0;
+		error = 0;
 	    }
-	    return EINVAL;
+	    break;
 
 	case VT_TRUE:   	/* user has released screen, go on */
 	    if (scp == old_scp && (scp->status & SWITCH_WAIT_REL)) {
 		scp->status &= ~SWITCH_WAIT_REL;
-		exchange_scr();
-		if (new_scp->smode.mode == VT_PROCESS) {
-		    new_scp->status |= SWITCH_WAIT_ACQ;
-		    psignal(new_scp->proc, new_scp->smode.acqsig);
-		}
-		else
-		    switch_in_progress = FALSE;
-		return 0;
+		s = do_switch_scr(s);
+		error = 0;
 	    }
-	    return EINVAL;
+	    break;
 
 	case VT_ACKACQ: 	/* acquire acknowledged, switch completed */
 	    if (scp == new_scp && (scp->status & SWITCH_WAIT_ACQ)) {
 		scp->status &= ~SWITCH_WAIT_ACQ;
-		switch_in_progress = FALSE;
-		return 0;
+		switch_in_progress = 0;
+		error = 0;
 	    }
-	    return EINVAL;
+	    break;
 
 	default:
-	    return EINVAL;
+	    break;
 	}
-	/* NOT REACHED */
+	splx(s);
+	return error;
 
     case VT_OPENQRY:    	/* return free virtual console */
 	for (i = 0; i < MAXCONS; i++) {
@@ -1526,14 +1581,10 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	splx(s);
 	if (error)
 	    return error;
-	if (minor(dev) == *(int *)data - 1)
-	    return 0;
-	if (*(int *)data == 0) {
-	    if (scp == cur_console)
-		return 0;
-	}
-	else
+	if (*(int *)data != 0)
 	    scp = console[*(int *)data - 1];
+	if (scp == cur_console)
+	    return 0;
 	while ((error=tsleep((caddr_t)&scp->smode, PZERO|PCATCH,
 			     "waitvt", 0)) == ERESTART) ;
 	return error;
@@ -2445,62 +2496,233 @@ sc_clear_screen(scr_stat *scp)
 static int
 switch_scr(scr_stat *scp, u_int next_scr)
 {
-    /* delay switch if actively updating screen */
+    struct tty *tp;
+    int s;
+
+    if (bootverbose)
+	printf("sc0: sc_switch_scr() %d ", next_scr + 1);
+
+    /* delay switch if the screen is blanked or being updated */
     if (scrn_blanked || write_in_progress || blink_in_progress) {
-	delayed_next_scr = next_scr+1;
+	delayed_next_scr = next_scr + 1;
 	sc_touch_scrn_saver();
 	return 0;
     }
 
-    if (switch_in_progress && (cur_console->proc != pfind(cur_console->pid)))
-	switch_in_progress = FALSE;
+    s = spltty();
 
-    if (next_scr >= MAXCONS || switch_in_progress ||
-	(cur_console->smode.mode == VT_AUTO && ISGRAPHSC(cur_console))) {
+    /* we are in the middle of the vty switching process... */
+    if (switch_in_progress
+	&& (cur_console->smode.mode == VT_PROCESS)
+	&& cur_console->proc) {
+	if (cur_console->proc != pfind(cur_console->pid)) {
+	    /* 
+	     * The controlling process has died!!.  Do some clean up.
+	     * NOTE:`cur_scp->proc' and `cur_scp->smode.mode' 
+	     * are not reset here yet; they will be cleared later.
+	     */
+	    if (cur_console->status & SWITCH_WAIT_REL) {
+		/*
+		 * Force the previous switch to finish, but return now 
+		 * with error.
+		 */
+		cur_console->status &= ~SWITCH_WAIT_REL; 
+		s = do_switch_scr(s);
+		splx(s);
+		return EINVAL;
+	    } else if (cur_console->status & SWITCH_WAIT_ACQ) {
+		/* let's assume screen switch has been completed. */
+		cur_console->status &= ~SWITCH_WAIT_ACQ;
+		switch_in_progress = 0;
+	    } else {
+		/* 
+	 	 * We are in between screen release and acquisition, and
+		 * reached here via scgetc() or scrn_timer() which has 
+		 * interrupted exchange_scr(). Don't do anything stupid.
+		 */
+	    }
+	} else {
+	    /*
+	     * The controlling process is alive, but not responding... 
+	     * It is either buggy or it may be just taking time.
+	     * The following code is a gross kludge to cope with this
+	     * problem for which there is no clean solution. XXX
+	     */
+	    if (cur_console->status & SWITCH_WAIT_REL) {
+		switch (switch_in_progress++) {
+		case 1:
+		    break;
+		case 2:
+		    printf("sc0: switch_scr(): sending relsig again\n");
+		    signal_vt_rel(cur_console);
+		    break;
+		case 3:
+		    break;
+		case 4:
+		default:
+		    /*
+		     * Act as if the controlling program returned
+		     * VT_FALSE.
+		     */
+		    printf("sc0: switch_scr(): force reset WAIT_REL, ");
+		    cur_console->status &= ~SWITCH_WAIT_REL; 
+		    switch_in_progress = 0;
+		    splx(s);
+		    printf("act as if VT_FALSE was seen\n");
+		    return EINVAL;
+		}
+	    } else if (cur_console->status & SWITCH_WAIT_ACQ) {
+		switch (switch_in_progress++) {
+		case 1:
+		    break;
+		case 2:
+		    printf("sc0: switch_scr(): sending acqsig again\n");
+		    signal_vt_acq(cur_console);
+		    break;
+		case 3:
+		    break;
+		case 4:
+		default:
+		     /* clear the flag and finish the previous switch */
+		    printf("sc0: switch_scr(): force reset WAIT_ACQ\n");
+		    cur_console->status &= ~SWITCH_WAIT_ACQ;
+		    switch_in_progress = 0;
+		    break;
+		}
+	    }
+	}
+    }
+
+    /*
+     * Return error if an invalid argument is given, or vty switch
+     * is still in progress.
+     */
+    if (next_scr >= MAXCONS || switch_in_progress) {
+	splx(s);
 	do_bell(scp, BELL_PITCH, BELL_DURATION);
 	return EINVAL;
     }
 
-    /* is the wanted virtual console open ? */
+    /*
+     * Don't allow switching away from the graphics mode vty
+     * if the switch mode is VT_AUTO, unless the next vty is the same 
+     * as the current or the current vty has been closed (but showing).
+     */
+    tp = VIRTUAL_TTY(get_scr_num());
+    if ((get_scr_num() != next_scr)
+	&& (tp->t_state & TS_ISOPEN)
+	&& (cur_console->smode.mode == VT_AUTO)
+	&& ISGRAPHSC(cur_console)) {
+	splx(s);
+	do_bell(scp, BELL_PITCH, BELL_DURATION);
+	return EINVAL;
+    }
+
+    /*
+     * Is the wanted vty open? Don't allow switching to a closed vty.
+     * Note that we always allow the user to switch to the kernel 
+     * console even if it is closed.
+     */
     if (next_scr) {
-	struct tty *tp = VIRTUAL_TTY(next_scr);
+	tp = VIRTUAL_TTY(next_scr);
 	if (!(tp->t_state & TS_ISOPEN)) {
+	    splx(s);
 	    do_bell(scp, BELL_PITCH, BELL_DURATION);
 	    return EINVAL;
 	}
     }
 
-    switch_in_progress = TRUE;
+    /* this is the start of vty switching process... */
+    ++switch_in_progress;
+    delayed_next_scr = 0;
     old_scp = cur_console;
     new_scp = console[next_scr];
-    wakeup((caddr_t)&new_scp->smode);
     if (new_scp == old_scp) {
-	switch_in_progress = FALSE;
-	delayed_next_scr = FALSE;
+	switch_in_progress = 0;
+	wakeup((caddr_t)&new_scp->smode);
+	splx(s);
 	return 0;
     }
 
     /* has controlling process died? */
-    if (old_scp->proc && (old_scp->proc != pfind(old_scp->pid)))
-	old_scp->smode.mode = VT_AUTO;
-    if (new_scp->proc && (new_scp->proc != pfind(new_scp->pid)))
-	new_scp->smode.mode = VT_AUTO;
+    vt_proc_alive(old_scp);
+    vt_proc_alive(new_scp);
 
-    /* check the modes and switch appropriately */
-    if (old_scp->smode.mode == VT_PROCESS) {
-	old_scp->status |= SWITCH_WAIT_REL;
-	psignal(old_scp->proc, old_scp->smode.relsig);
+    /* wait for the controlling process to release the screen, if necessary */
+    if (signal_vt_rel(old_scp)) {
+	splx(s);
+	return 0;
     }
-    else {
-	exchange_scr();
-	if (new_scp->smode.mode == VT_PROCESS) {
-	    new_scp->status |= SWITCH_WAIT_ACQ;
-	    psignal(new_scp->proc, new_scp->smode.acqsig);
-	}
-	else
-	    switch_in_progress = FALSE;
+
+    /* go set up the new vty screen */
+    splx(s);
+    exchange_scr();
+    s = spltty();
+
+    /* wake up processes waiting for this vty */
+    wakeup((caddr_t)&cur_console->smode);
+
+    /* wait for the controlling process to acknowledge, if necessary */
+    if (signal_vt_acq(cur_console)) {
+	splx(s);
+	return 0;
     }
+
+    switch_in_progress = 0;
+    splx(s);
+
     return 0;
+}
+
+static int
+do_switch_scr(int s)
+{
+    vt_proc_alive(new_scp);
+
+    splx(s);
+    exchange_scr();
+    s = spltty();
+    /* cur_console == new_scp */
+    wakeup((caddr_t)&cur_console->smode);
+
+    /* wait for the controlling process to acknowledge, if necessary */
+    if (!signal_vt_acq(cur_console)) {
+	switch_in_progress = 0;
+    }
+
+    return s;
+}
+
+static int
+vt_proc_alive(scr_stat *scp)
+{
+    if (scp->proc) {
+	if (scp->proc == pfind(scp->pid))
+	    return TRUE;
+	scp->proc = NULL;
+	scp->smode.mode = VT_AUTO;
+    }
+    return FALSE;
+}
+
+static int
+signal_vt_rel(scr_stat *scp)
+{
+    if (scp->smode.mode != VT_PROCESS)
+	return FALSE;
+    scp->status |= SWITCH_WAIT_REL;
+    psignal(scp->proc, scp->smode.relsig);
+    return TRUE;
+}
+
+static int
+signal_vt_acq(scr_stat *scp)
+{
+    if (scp->smode.mode != VT_PROCESS)
+	return FALSE;
+    scp->status |= SWITCH_WAIT_ACQ;
+    psignal(scp->proc, scp->smode.acqsig);
+    return TRUE;
 }
 
 static void
@@ -2527,7 +2749,6 @@ exchange_scr(void)
 	kbd_ioctl(kbd, KDSKBMODE, (caddr_t)&new_scp->kbd_mode);
     update_kbd_state(new_scp->status, LOCK_MASK);
 
-    delayed_next_scr = FALSE;
     mark_all(new_scp);
 }
 
