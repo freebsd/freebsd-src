@@ -38,7 +38,9 @@
  */
 
 #include "compile_et.h"
+#if 0
 RCSID("$Id: parse.y,v 1.9 1999/07/04 14:54:58 assar Exp $");
+#endif
 
 void yyerror (char *s);
 long name2number(const char *str);
