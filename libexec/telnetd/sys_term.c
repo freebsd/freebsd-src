@@ -1778,34 +1778,48 @@ addarg(argv, val)
 /*
  * scrub_env()
  *
- * Remove a few things from the environment that
- * don't need to be there.
+ * We only accept the environment variables listed below.
  */
 	void
 scrub_env()
 {
-	register char **cpp, **cpp2;
+	static const char *reject[] = {
+		"TERMCAP=/",
+		NULL
+	};
 
-	for (cpp2 = cpp = environ; *cpp; cpp++) {
-#ifdef __FreeBSD__
-		if (strncmp(*cpp, "LD_LIBRARY_PATH=", 16) &&
-		    strncmp(*cpp, "LD_PRELOAD=", 11) &&
-#else
-		if (strncmp(*cpp, "LD_", 3) &&
-		    strncmp(*cpp, "_RLD_", 5) &&
-		    strncmp(*cpp, "LIBPATH=", 8) &&
-#endif
-		    strncmp(*cpp, "LOCALDOMAIN=", 12) &&
-		    strncmp(*cpp, "RES_OPTIONS=", 12) &&
-		    strncmp(*cpp, "TERMINFO=", 9) &&
-		    strncmp(*cpp, "TERMINFO_DIRS=", 14) &&
-		    strncmp(*cpp, "TERMPATH=", 9) &&
-		    strncmp(*cpp, "TERMCAP=/", 9) &&
-		    strncmp(*cpp, "ENV=", 4) &&
-		    strncmp(*cpp, "IFS=", 4))
-			*cpp2++ = *cpp;
-	}
-	*cpp2 = 0;
+	static const char *accept[] = {
+		"XAUTH=", "XAUTHORITY=", "DISPLAY=",
+		"TERM=",
+		"EDITOR=",
+		"PAGER=",
+		"LOGNAME=",
+		"POSIXLY_CORRECT=",
+		"PRINTER=",
+		NULL
+	};
+
+	char **cpp, **cpp2;
+	const char **p;
+ 
+ 	for (cpp2 = cpp = environ; *cpp; cpp++) {
+		int reject_it = 0;
+
+		for(p = reject; *p; p++)
+			if(strncmp(*cpp, *p, strlen(*p)) == 0) {
+				reject_it = 1;
+				break;
+			}
+		if (reject_it)
+			continue;
+
+		for(p = accept; *p; p++)
+			if(strncmp(*cpp, *p, strlen(*p)) == 0)
+				break;
+		if(*p != NULL)
+ 			*cpp2++ = *cpp;
+ 	}
+	*cpp2 = NULL;
 }
 
 /*
