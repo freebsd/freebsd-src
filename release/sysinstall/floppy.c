@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: floppy.c,v 1.6.2.15 1995/06/08 04:59:16 jkh Exp $
+ * $Id: floppy.c,v 1.6.2.16 1995/06/08 08:16:42 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -153,10 +153,10 @@ int
 mediaGetFloppy(Device *dev, char *file, Attribs *dist_attrs)
 {
     char		buf[PATH_MAX];
+#ifdef DO_CRC_CHECK
     char		*extn, *var;
     const char 		*val;
     char		attrib[10];
-#ifdef DO_CRC_CHECK
     u_long		cval1, clen1, cval2, clen2;
 #endif
     int			fd;

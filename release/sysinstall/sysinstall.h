@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.41.2.18 1995/06/07 07:21:50 jkh Exp $
+ * $Id: sysinstall.h,v 1.41.2.19 1995/06/10 08:59:27 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -342,6 +342,7 @@ extern int	distSetUser(char *str);
 extern int	distSetXUser(char *str);
 extern int	distSetMinimum(char *str);
 extern int	distSetEverything(char *str);
+extern int	distSetDES(char *str);
 extern int	distSetSrc(char *str);
 extern int	distSetXF86(char *str);
 extern void	distExtractAll(void);
