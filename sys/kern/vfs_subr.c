@@ -744,7 +744,6 @@ static void
 vnlru_proc(void)
 {
 	struct mount *mp, *nmp;
-	int s;
 	int done;
 	struct proc *p = vnlruproc;
 	struct thread *td = FIRST_THREAD_IN_PROC(p);	/* XXXKSE */
@@ -754,7 +753,6 @@ vnlru_proc(void)
 	EVENTHANDLER_REGISTER(shutdown_pre_sync, kproc_shutdown, p,
 	    SHUTDOWN_PRI_FIRST);
 
-	s = splbio();
 	for (;;) {
 		kthread_suspend_check(p);
 		mtx_lock(&vnode_free_list_mtx);
@@ -791,7 +789,6 @@ vnlru_proc(void)
 			tsleep(vnlruproc, PPAUSE, "vlrup", hz * 3);
 		}
 	}
-	splx(s);
 }
 
 static struct kproc_desc vnlru_kp = {
@@ -1107,7 +1104,7 @@ vinvalbuf(vp, flags, cred, td, slpflag, slptimeo)
 	int slpflag, slptimeo;
 {
 	struct buf *blist;
-	int s, error;
+	int error;
 	vm_object_t object;
 
 	GIANT_REQUIRED;
@@ -1116,19 +1113,16 @@ vinvalbuf(vp, flags, cred, td, slpflag, slptimeo)
 
 	VI_LOCK(vp);
 	if (flags & V_SAVE) {
-		s = splbio();
 		while (vp->v_numoutput) {
 			vp->v_iflag |= VI_BWAIT;
 			error = msleep(&vp->v_numoutput, VI_MTX(vp),
 			    slpflag | (PRIBIO + 1), "vinvlbuf", slptimeo);
 			if (error) {
 				VI_UNLOCK(vp);
-				splx(s);
 				return (error);
 			}
 		}
 		if (!TAILQ_EMPTY(&vp->v_dirtyblkhd)) {
-			splx(s);
 			VI_UNLOCK(vp);
 			if ((error = VOP_FSYNC(vp, cred, MNT_WAIT, td)) != 0)
 				return (error);
@@ -1137,14 +1131,11 @@ vinvalbuf(vp, flags, cred, td, slpflag, slptimeo)
 			 * enabled under INVARIANTS
 			 */
 			VI_LOCK(vp);
-			s = splbio();
 			if (vp->v_numoutput > 0 ||
 			    !TAILQ_EMPTY(&vp->v_dirtyblkhd))
 				panic("vinvalbuf: dirty bufs");
 		}
-		splx(s);
 	}
-	s = splbio();
 	/*
 	 * If you alter this loop please notice that interlock is dropped and
 	 * reacquired in flushbuflist.  Special care is needed to ensure that
@@ -1166,7 +1157,6 @@ vinvalbuf(vp, flags, cred, td, slpflag, slptimeo)
 		break;
 	}
 	if (error) {
-		splx(s);
 		VI_UNLOCK(vp);
 		return (error);
 	}
@@ -1190,8 +1180,6 @@ vinvalbuf(vp, flags, cred, td, slpflag, slptimeo)
 		VI_LOCK(vp);
 	} while (vp->v_numoutput > 0);
 	VI_UNLOCK(vp);
-
-	splx(s);
 
 	/*
 	 * Destroy the copy in the VM cache, too.
@@ -1298,7 +1286,7 @@ vtruncbuf(vp, cred, td, length, blksize)
 {
 	register struct buf *bp;
 	struct buf *nbp;
-	int s, anyfreed;
+	int anyfreed;
 	int trunclbn;
 
 	/*
@@ -1306,7 +1294,6 @@ vtruncbuf(vp, cred, td, length, blksize)
 	 */
 	trunclbn = (length + blksize - 1) / blksize;
 
-	s = splbio();
 	ASSERT_VOP_LOCKED(vp, "vtruncbuf");
 restart:
 	VI_LOCK(vp);
@@ -1390,8 +1377,6 @@ restartsync:
 		msleep(&vp->v_numoutput, VI_MTX(vp), PVM, "vbtrunc", 0);
 	}
 	VI_UNLOCK(vp);
-	splx(s);
-
 	vnode_pager_setsize(vp, length);
 
 	return (0);
@@ -1616,8 +1601,6 @@ bgetvp(vp, bp)
 	register struct vnode *vp;
 	register struct buf *bp;
 {
-	int s;
-
 	KASSERT(bp->b_vp == NULL, ("bgetvp: not free"));
 
 	KASSERT((bp->b_xflags & (BX_VNDIRTY|BX_VNCLEAN)) == 0,
@@ -1630,9 +1613,7 @@ bgetvp(vp, bp)
 	/*
 	 * Insert onto list for new vnode.
 	 */
-	s = splbio();
 	buf_vlist_add(bp, vp, BX_VNCLEAN);
-	splx(s);
 }
 
 /*
@@ -1643,7 +1624,6 @@ brelvp(bp)
 	register struct buf *bp;
 {
 	struct vnode *vp;
-	int s;
 
 	KASSERT(bp->b_vp != NULL, ("brelvp: NULL"));
 
@@ -1651,7 +1631,6 @@ brelvp(bp)
 	 * Delete from old vnode list, if on one.
 	 */
 	vp = bp->b_vp;
-	s = splbio();
 	VI_LOCK(vp);
 	if (bp->b_xflags & (BX_VNDIRTY | BX_VNCLEAN))
 		buf_vlist_remove(bp);
@@ -1662,11 +1641,10 @@ brelvp(bp)
 		mtx_unlock(&sync_mtx);
 	}
 	vdropl(vp);
-	VI_UNLOCK(vp);
 	bp->b_vp = (struct vnode *) 0;
 	if (bp->b_object)
 		bp->b_object = NULL;
-	splx(s);
+	VI_UNLOCK(vp);
 }
 
 /*
@@ -1675,9 +1653,8 @@ brelvp(bp)
 static void
 vn_syncer_add_to_worklist(struct vnode *vp, int delay)
 {
-	int s, slot;
+	int slot;
 
-	s = splbio();
 	ASSERT_VI_LOCKED(vp, "vn_syncer_add_to_worklist");
 
 	mtx_lock(&sync_mtx);
@@ -1692,8 +1669,6 @@ vn_syncer_add_to_worklist(struct vnode *vp, int delay)
 
 	LIST_INSERT_HEAD(&syncer_workitem_pending[slot], vp, v_synclist);
 	mtx_unlock(&sync_mtx);
-
-	splx(s);
 }
 
 struct  proc *updateproc;
@@ -1715,7 +1690,6 @@ sched_sync(void)
 	struct vnode *vp;
 	struct mount *mp;
 	long starttime;
-	int s;
 	struct thread *td = FIRST_THREAD_IN_PROC(updateproc);  /* XXXKSE */
 
 	mtx_lock(&Giant);
@@ -1732,13 +1706,11 @@ sched_sync(void)
 		 * Push files whose dirty time has expired.  Be careful
 		 * of interrupt race on slp queue.
 		 */
-		s = splbio();
 		mtx_lock(&sync_mtx);
 		slp = &syncer_workitem_pending[syncer_delayno];
 		syncer_delayno += 1;
 		if (syncer_delayno == syncer_maxdelay)
 			syncer_delayno = 0;
-		splx(s);
 
 		while ((vp = LIST_FIRST(slp)) != NULL) {
 			mtx_unlock(&sync_mtx);
@@ -1749,7 +1721,6 @@ sched_sync(void)
 				VOP_UNLOCK(vp, 0, td);
 				vn_finished_write(mp);
 			}
-			s = splbio();
 			mtx_lock(&sync_mtx);
 			if (LIST_FIRST(slp) == vp) {
 				mtx_unlock(&sync_mtx);
@@ -1775,7 +1746,6 @@ sched_sync(void)
 				VI_UNLOCK(vp);
 				mtx_lock(&sync_mtx);
 			}
-			splx(s);
 		}
 		mtx_unlock(&sync_mtx);
 
@@ -1900,7 +1870,6 @@ reassignbuf(bp, newvp)
 	register struct vnode *newvp;
 {
 	int delay;
-	int s;
 
 	if (newvp == NULL) {
 		printf("reassignbuf: NULL");
@@ -1915,7 +1884,6 @@ reassignbuf(bp, newvp)
 	if (bp->b_flags & B_PAGING)
 		panic("cannot reassign paging buffer");
 
-	s = splbio();
 	/*
 	 * Delete from old vnode list, if on one.
 	 */
@@ -1967,7 +1935,6 @@ reassignbuf(bp, newvp)
 		vholdl(bp->b_vp);
 	}
 	VI_UNLOCK(newvp);
-	splx(s);
 }
 
 /*
@@ -2306,13 +2273,9 @@ void
 vholdl(vp)
 	register struct vnode *vp;
 {
-	int s;
-
-	s = splbio();
 	vp->v_holdcnt++;
 	if (VSHOULDBUSY(vp))
 		vbusy(vp);
-	splx(s);
 }
 
 /*
@@ -2331,9 +2294,6 @@ void
 vdropl(vp)
 	register struct vnode *vp;
 {
-	int s;
-
-	s = splbio();
 	if (vp->v_holdcnt <= 0)
 		panic("vdrop: holdcnt");
 	vp->v_holdcnt--;
@@ -2341,7 +2301,6 @@ vdropl(vp)
 		vfree(vp);
 	else
 		vlruvp(vp);
-	splx(s);
 }
 
 /*
@@ -2741,8 +2700,6 @@ vgonel(vp, td)
 	struct vnode *vp;
 	struct thread *td;
 {
-	int s;
-
 	/*
 	 * If a vgone (or vclean) is already in progress,
 	 * wait until it is done and return.
@@ -2791,7 +2748,6 @@ vgonel(vp, td)
 	 */
 	VI_LOCK(vp);
 	if (vp->v_usecount == 0 && !(vp->v_iflag & VI_DOOMED)) {
-		s = splbio();
 		mtx_lock(&vnode_free_list_mtx);
 		if (vp->v_iflag & VI_FREE) {
 			TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
@@ -2801,7 +2757,6 @@ vgonel(vp, td)
 		}
 		TAILQ_INSERT_HEAD(&vnode_free_list, vp, v_freelist);
 		mtx_unlock(&vnode_free_list_mtx);
-		splx(s);
 	}
 
 	vp->v_type = VBAD;
@@ -3288,10 +3243,7 @@ void
 vfree(vp)
 	struct vnode *vp;
 {
-	int s;
-
 	ASSERT_VI_LOCKED(vp, "vfree");
-	s = splbio();
 	mtx_lock(&vnode_free_list_mtx);
 	KASSERT((vp->v_iflag & VI_FREE) == 0, ("vnode already free"));
 	if (vp->v_iflag & VI_AGE) {
@@ -3303,7 +3255,6 @@ vfree(vp)
 	mtx_unlock(&vnode_free_list_mtx);
 	vp->v_iflag &= ~VI_AGE;
 	vp->v_iflag |= VI_FREE;
-	splx(s);
 }
 
 /*
@@ -3313,9 +3264,6 @@ void
 vbusy(vp)
 	struct vnode *vp;
 {
-	int s;
-
-	s = splbio();
 	ASSERT_VI_LOCKED(vp, "vbusy");
 	KASSERT((vp->v_iflag & VI_FREE) != 0, ("vnode not free"));
 
@@ -3325,7 +3273,6 @@ vbusy(vp)
 	mtx_unlock(&vnode_free_list_mtx);
 
 	vp->v_iflag &= ~(VI_FREE|VI_AGE);
-	splx(s);
 }
 
 /*
@@ -3559,7 +3506,7 @@ sync_inactive(ap)
 /*
  * The syncer vnode is no longer needed and is being decommissioned.
  *
- * Modifications to the worklist must be protected at splbio().
+ * Modifications to the worklist must be protected by sync_mtx.
  */
 static int
 sync_reclaim(ap)
@@ -3568,11 +3515,9 @@ sync_reclaim(ap)
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
-	int s;
 
-	s = splbio();
-	vp->v_mount->mnt_syncer = NULL;
 	VI_LOCK(vp);
+	vp->v_mount->mnt_syncer = NULL;
 	if (vp->v_iflag & VI_ONWORKLST) {
 		mtx_lock(&sync_mtx);
 		LIST_REMOVE(vp, v_synclist);
@@ -3580,7 +3525,6 @@ sync_reclaim(ap)
 		vp->v_iflag &= ~VI_ONWORKLST;
 	}
 	VI_UNLOCK(vp);
-	splx(s);
 
 	return (0);
 }
