@@ -196,9 +196,14 @@ spec_open(ap)
 	VOP_UNLOCK(vp, 0, td);
 	if(dsw->d_flags & D_NOGIANT) {
 		DROP_GIANT();
-		error = dsw->d_open(dev, ap->a_mode, S_IFCHR, td);
+		if (dsw->d_fdopen != NULL)
+			error = dsw->d_fdopen(dev, ap->a_mode, td, ap->a_fdidx);
+		else
+			error = dsw->d_open(dev, ap->a_mode, S_IFCHR, td);
 		PICKUP_GIANT();
-	} else
+	} else if (dsw->d_fdopen != NULL)
+		error = dsw->d_fdopen(dev, ap->a_mode, td, ap->a_fdidx);
+	else
 		error = dsw->d_open(dev, ap->a_mode, S_IFCHR, td);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 

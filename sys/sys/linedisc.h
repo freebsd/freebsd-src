@@ -145,6 +145,7 @@ struct knote;
 typedef struct thread d_thread_t;
 
 typedef int d_open_t(dev_t dev, int oflags, int devtype, struct thread *td);
+typedef int d_fdopen_t(dev_t dev, int oflags, struct thread *td, int fdidx);
 typedef int d_close_t(dev_t dev, int fflag, int devtype, struct thread *td);
 typedef void d_strategy_t(struct bio *bp);
 typedef int d_ioctl_t(dev_t dev, u_long cmd, caddr_t data,
@@ -223,6 +224,7 @@ struct cdevsw {
 	u_int		d_flags;
 	const char	*d_name;
 	d_open_t	*d_open;
+	d_fdopen_t	*d_fdopen;
 	d_close_t	*d_close;
 	d_read_t	*d_read;
 	d_write_t	*d_write;
