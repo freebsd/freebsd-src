@@ -29,8 +29,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: ln.c,v 1.10 1997/03/28 15:24:22 imp Exp $
  */
 
 #ifndef lint
@@ -40,7 +38,11 @@ static char const copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char const sccsid[] = "@(#)ln.c	8.2 (Berkeley) 3/31/94";
+#if 0
+static char sccsid[] = "@(#)ln.c	8.2 (Berkeley) 3/31/94";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
