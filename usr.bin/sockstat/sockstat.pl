@@ -57,7 +57,7 @@ sub gather() {
 	die("exec(netstat): $!\n");
     }
     while ($line = <PIPE>) {
-	next unless ($line =~ m/^[0-9a-f]{8} /);
+	next unless ($line =~ m/^[0-9a-f]{8} /) || ($line =~ m/^[0-9a-f]{16} /);
 	chomp($line);
 	@fields = split(' ', $line);
 	$netstat{$fields[0]} = [ @fields ];
