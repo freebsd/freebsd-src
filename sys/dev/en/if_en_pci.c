@@ -60,15 +60,18 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/if_atm.h>
+#include <net/if_media.h>
 
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
 
+#include <dev/utopia/utopia.h>
 #include <dev/en/midwayreg.h>
 #include <dev/en/midwayvar.h>
 
 MODULE_DEPEND(en, pci, 1, 1, 1);
 MODULE_DEPEND(en, atm, 1, 1, 1);
+MODULE_DEPEND(en, utopia, 1, 1, 1);
 
 /*
  * local structures
