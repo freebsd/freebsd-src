@@ -139,7 +139,7 @@ ATOMIC_STORE_LOAD(long,	 64, "8")
 #undef ATOMIC_STORE_LOAD
 
 #define	IA64_ATOMIC(sz, type, name, width, op)				\
-	static __inline void						\
+	static __inline type						\
 	atomic_##name##_acq_##width(volatile type *p, type v)		\
 	{								\
 		type old, ret;						\
@@ -147,9 +147,10 @@ ATOMIC_STORE_LOAD(long,	 64, "8")
 			old = *p;					\
 			IA64_CMPXCHG(sz, acq, p, old, old op v, ret);	\
 		} while (ret != old);					\
+		return (old);						\
 	}								\
 									\
-	static __inline void						\
+	static __inline type						\
 	atomic_##name##_rel_##width(volatile type *p, type v)		\
 	{								\
 		type old, ret;						\
@@ -157,6 +158,7 @@ ATOMIC_STORE_LOAD(long,	 64, "8")
 			old = *p;					\
 			IA64_CMPXCHG(sz, rel, p, old, old op v, ret);	\
 		} while (ret != old);					\
+		return (old);						\
 	}
 
 IA64_ATOMIC(1, uint8_t,	 set, 8,  |)
