@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.20 1999/04/08 09:21:52 obrien Exp $
+# $Id: Makefile,v 1.21 1999/04/08 09:57:51 obrien Exp $
 #
 
 #
@@ -186,7 +186,9 @@ OBJS+=		${SRCS:N*.h:R:S/$/.o/g}
 # would do if we defined PROG, except for leaving out dependencies on
 # insn-*.h because these dependencies would be circular.
 #
-${OBJS}: ${SRCS:M*.h:Ninsn-*.h:Ngenrtl.h}
+# XXX pre-egcs we used something simular to this line.  Now it causes cycles...
+# ${OBJS}: ${SRCS:M*.h:Ninsn-*.h:Ntree-check.h:Ngenrtl.h}
+${OBJS}: ${COMMONHDRS:M*.h}
 
 # Give all dependencies on insn-*.h explicitly
 # This suffices for `make -j<any> depend', and after that all
