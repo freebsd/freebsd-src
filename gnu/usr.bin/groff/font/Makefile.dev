@@ -2,15 +2,15 @@
 # Client Makefiles define DEV and DEVFILES and provide rules for
 # individual font files
 #
-# $Id$
+# $Id: Makefile.dev,v 2.4 1997/02/22 15:45:42 peter Exp $
 
 .include "../Makefile.cfg"
 
 FONTDIR?=	/usr/share/groff_font
 DEVICEDIR?=	$(FONTDIR)/dev$(DEV)
-FONTOWN?=	bin
-FONTGRP?=	bin
-FONTMODE?=	444
+FONTOWN?=	${BINOWN}
+FONTGRP?=	${BINGRP}
+FONTMODE?=	${NOBINMODE}
 
 all:	$(DEVFILES)
 
