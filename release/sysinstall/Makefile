@@ -15,8 +15,7 @@ SRCS=	anonFTP.c attr.c cdrom.c command.c config.c devices.c \
 	label.c lndir.c main.c makedevs.c media.c menus.c misc.c mouse.c \
 	msg.c network.c nfs.c options.c package.c register.c system.c \
 	tape.c tcpip.c termcap.c ufs.c user.c variable.c wizard.c \
-	uc_eisa.c uc_isa.c uc_kmem.c uc_list.c uc_main.c uc_pci.c \
-	keymap.h
+	uc_eisa.c uc_isa.c uc_kmem.c uc_list.c uc_main.c uc_pci.c
 
 CFLAGS+= -Wall -I${.CURDIR}/../../gnu/lib/libdialog -I${.OBJDIR}
 CFLAGS+= -I${.CURDIR}/../../sys
