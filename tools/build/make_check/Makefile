@@ -24,7 +24,7 @@ all:
 		diff -u ${.CURDIR}/regress.variables.out - || ${MAKE} failure
 	@echo "PASS: Test variables detected no regression, output matches."
 	@echo "Running test targets"
-	@${MAKE} double || ${MAKE} failure
+	@${MAKE} double 2>/dev/null || ${MAKE} failure
 	@echo "PASS: Test targets detected no regression."
 	@echo "Running test sysvmatch"
 	@${MAKE} sysvmatch || ${MAKE} failure
