@@ -305,6 +305,9 @@ obj_free(Obj_Entry *obj)
 {
     Objlist_Entry *elm;
 
+    if (obj->tls_done) {
+	free_tls_offset(obj);
+    }
     free(obj->path);
     while (obj->needed != NULL) {
 	Needed_Entry *needed = obj->needed;

@@ -238,6 +238,7 @@ void *allocate_tls(Obj_Entry *, void *, size_t, size_t);
 void free_tls(void *, size_t, size_t);
 void *allocate_module_tls(int index);
 bool allocate_tls_offset(Obj_Entry *obj);
+void free_tls_offset(Obj_Entry *obj);
 
 /*
  * MD function declarations.
