@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_malloc.c	8.3 (Berkeley) 1/4/94
- * $Id: kern_malloc.c,v 1.47 1998/08/16 01:21:51 bde Exp $
+ * $Id: kern_malloc.c,v 1.48 1998/10/25 17:44:51 phk Exp $
  */
 
 #include "opt_vm.h"
@@ -53,12 +53,11 @@
 #include <vm/vm_map.h>
 
 static void kmeminit __P((void *));
-static void malloc_init __P((struct malloc_type *));
 SYSINIT(kmem, SI_SUB_KMEM, SI_ORDER_FIRST, kmeminit, NULL)
 
 static MALLOC_DEFINE(M_FREE, "free", "should be on free list");
 
-static struct malloc_type *kmemstatistics = M_FREE;
+static struct malloc_type *kmemstatistics;
 static struct kmembuckets bucket[MINBUCKET + 16];
 static struct kmemusage *kmemusage;
 static char *kmembase;
@@ -432,13 +431,17 @@ kmeminit(dummy)
 	}
 }
 
-static void
-malloc_init(type)
-	struct malloc_type *type;
+void
+malloc_init(data)
+	void *data;
 {
+	struct malloc_type *type = (struct malloc_type *)data;
 
 	if (type->ks_magic != M_MAGIC) 
 		panic("malloc type lacks magic");
+
+	if (type->ks_next)
+		return;
 
 	if (cnt.v_page_count == 0)
 		panic("malloc_init not allowed before vm init");
@@ -450,4 +453,29 @@ malloc_init(type)
 	type->ks_limit = vm_kmem_size / 2;
 	type->ks_next = kmemstatistics;	
 	kmemstatistics = type;
+}
+
+void
+malloc_uninit(data)
+	void *data;
+{
+	struct malloc_type *type = (struct malloc_type *)data;
+	struct malloc_type *t;
+
+	if (type->ks_magic != M_MAGIC) 
+		panic("malloc type lacks magic");
+
+	if (cnt.v_page_count == 0)
+		panic("malloc_uninit not allowed before vm init");
+
+	if (type == kmemstatistics)
+		kmemstatistics = type->ks_next;
+	else {
+		for (t = kmemstatistics; t->ks_next != NULL; t = t->ks_next) {
+			if (t->ks_next == type) {
+				t->ks_next = type->ks_next;
+				break;
+			}
+		}
+	}
 }

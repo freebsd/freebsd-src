@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)malloc.h	8.5 (Berkeley) 5/3/95
- * $Id: malloc.h,v 1.36 1997/12/27 09:42:03 bde Exp $
+ * $Id: malloc.h,v 1.37 1998/03/08 09:58:26 julian Exp $
  */
 
 #ifndef _SYS_MALLOC_H_
@@ -64,15 +64,20 @@ struct malloc_type {
 	u_short	ks_mapblocks;	/* number of times blocked for kernel map */
 };
 
+#ifdef KERNEL
+
+void	malloc_init __P((void *));
+void	malloc_uninit __P((void *));
+
 #define	MALLOC_DEFINE(type, shortdesc, longdesc) \
 	struct malloc_type type[1] = { \
 		{ NULL, 0, 0, 0, 0, 0, 0, M_MAGIC, shortdesc, 0, 0 } \
 	}; \
-	struct __hack
+	SYSINIT(type##_init, SI_SUB_KMEM, SI_ORDER_ANY, malloc_init, type); \
+	SYSUNINIT(type##_uninit, SI_SUB_KMEM, SI_ORDER_ANY, malloc_uninit, type)
 
 #define	MALLOC_DECLARE(type) \
-	extern struct malloc_type type[1]; \
-	struct __hack
+	extern struct malloc_type type[1]
 
 #ifdef MALLOC_INSTANTIATE
 #define	MALLOC_MAKE_TYPE(type, shortdesc, longdesc) \
@@ -85,6 +90,7 @@ struct malloc_type {
 MALLOC_MAKE_TYPE(M_CACHE, "namecache", "Dynamically allocated cache entries");
 MALLOC_MAKE_TYPE(M_DEVBUF, "devbuf", "device driver memory");
 MALLOC_MAKE_TYPE(M_TEMP, "temp", "misc temporary data buffers");
+#endif	/* KERNEL */
 
 /*
  * Array of descriptors that describe the contents of each page
