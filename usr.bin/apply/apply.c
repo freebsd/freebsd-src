@@ -55,23 +55,21 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
-void			usage (void);
-static int		exec_shell (const char *);
-
-static unsigned int	prespecified;
-static char		*shell;
+void	usage __P((void));
+int	system __P((const char *));
 
 int
-main(int argc, char **argv)
+main(argc, argv)
+	int argc;
+	char *argv[];
 {
-	int ch, debug, i, magic, n, nargs, rval;
-	size_t clen, l;
+	int ch, clen, debug, i, l, magic, n, nargs, rval;
 	char *c, *cmd, *p, *q;
 
 	debug = 0;
 	magic = '%';		/* Default magic char is `%'. */
 	nargs = -1;
-	while ((ch = getopt(argc, argv, "a:ds:0123456789")) != -1)
+	while ((ch = getopt(argc, argv, "a:d0123456789")) != -1)
 		switch (ch) {
 		case 'a':
 			if (optarg[1] != '\0')
@@ -81,10 +79,6 @@ main(int argc, char **argv)
 			break;
 		case 'd':
 			debug = 1;
-			break;
-		case 's':
-			prespecified = 1;
-			shell = optarg;
 			break;
 		case '0': case '1': case '2': case '3': case '4':
 		case '5': case '6': case '7': case '8': case '9':
@@ -130,9 +124,9 @@ main(int argc, char **argv)
 			nargs = 1;
 
 		p = cmd;
-		p += snprintf(cmd, sizeof(cmd), "exec %s", argv[0]);
+		p += sprintf(cmd, "exec %s", argv[0]);
 		for (i = 1; i <= nargs; i++)
-			p += snprintf(p, sizeof(p), " %c%d", magic, i);
+			p += sprintf(p, " %c%d", magic, i);
 
 		/*
 		 * If nargs set to the special value 0, eat a single
@@ -141,7 +135,7 @@ main(int argc, char **argv)
 		if (nargs == 0)
 			nargs = 1;
 	} else {
-		(void)snprintf(cmd, sizeof(cmd), "exec %s", argv[0]);
+		(void)sprintf(cmd, "exec %s", argv[0]);
 		nargs = n;
 	}
 
@@ -171,7 +165,7 @@ main(int argc, char **argv)
 		/* Expand command argv references. */
 		for (p = cmd, q = c; *p != '\0'; ++p)
 			if (p[0] == magic && isdigit(p[1]) && p[1] != '0')
-				q += snprintf(q, sizeof(q), "%s", argv[(++p)[0] - '0']);
+				q += sprintf(q, "%s", argv[(++p)[0] - '0']);
 			else
 				*q++ = *p;
 
@@ -182,7 +176,7 @@ main(int argc, char **argv)
 		if (debug)
 			(void)printf("%s\n", c);
 		else
-			if (exec_shell(c))
+			if (system(c))
 				rval = 1;
 	}
 
@@ -193,39 +187,28 @@ main(int argc, char **argv)
 }
 
 /*
- * exec_shell --
+ * system --
  * 	Private version of system(3).  Use the user's SHELL environment
  *	variable as the shell to execute.
  */
-static int
-exec_shell(const char *command)
+int
+system(command)
+	const char *command;
 {
-	static char *name;
-	char *tmpshell;
+	static char *name, *shell;
 	pid_t pid;
 	int omask, pstat;
 	sig_t intsave, quitsave;
-	unsigned int okshell = 0;
 
 	if (shell == NULL) {
 		if ((shell = getenv("SHELL")) == NULL)
-			if (strlcpy(shell, _PATH_BSHELL, sizeof(shell)) != strlen(shell))
-				err(1, "strlcpy() failed");
-		if ((name = strrchr(shell, '/')) == NULL) {
-			if (strlcpy(name, shell, sizeof(name)) != strlen(shell))
-				err(1, "strlcpy() failed");
-		} else {
+			shell = _PATH_BSHELL;
+		if ((name = strrchr(shell, '/')) == NULL)
+			name = shell;
+		else
 			++name;
-		}
 	}
-
-	/* Now double-check to make sure the shell is friendly */
-	if (!prespecified)
-		while((tmpshell = getusershell()) != NULL)
-			if (strcmp((const char *)tmpshell, (const char *)shell) == 0)
-				okshell = 1;
-
-	if (!command || !okshell)		/* just checking... */
+	if (!command)		/* just checking... */
 		return(1);
 
 	omask = sigblock(sigmask(SIGCHLD));
@@ -252,6 +235,6 @@ usage()
 {
 
 	(void)fprintf(stderr,
-	"usage: apply [-a magic] [-d] [-s shell] [-0123456789] command arguments ...\n");
+	"usage: apply [-a magic] [-d] [-0123456789] command arguments ...\n");
 	exit(1);
 }
