@@ -1866,6 +1866,7 @@ retry_lookup:
 				sbunlock(&so->so_snd);
 				goto done;
 			}
+			mbstat.sf_iocnt++;
 		} else
 			VM_OBJECT_UNLOCK(obj);
 		vm_page_unlock_queues();
@@ -1875,6 +1876,7 @@ retry_lookup:
 		 * but this wait can be interrupted.
 		 */
 		if ((sf = sf_buf_alloc(pg)) == NULL) {
+			mbstat.sf_allocfail++;
 			vm_page_lock_queues();
 			vm_page_unwire(pg, 0);
 			if (pg->wire_count == 0 && pg->object == NULL)

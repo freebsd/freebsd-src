@@ -261,6 +261,10 @@ struct mbstat {
 	u_int	m_clperbuck;	/* number of clusters per "bucket" */
 	/* Number of mbtypes (gives # elems in mbpstat's mb_mbtypes[] array: */
 	short	m_numtypes;
+	/* XXX: Sendfile stats should eventually move to their own struct */
+	u_long	sf_iocnt;	/* times sendfile had to do disk I/O */
+	u_long	sf_allocfail;	/* times sfbuf allocation failed */
+	u_long	sf_allocwait;	/* times sfbuf allocation had to wait */
 };
 
 /*
