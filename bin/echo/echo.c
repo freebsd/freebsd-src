@@ -49,6 +49,7 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 
+/* ARGSUSED */
 int
 main(int argc __unused, char *argv[])
 {
@@ -63,7 +64,7 @@ main(int argc __unused, char *argv[])
 		nflag = 0;
 
 	while (argv[0]) {
-		int len = strlen(argv[0]);
+		size_t len = strlen(argv[0]);
 
 		if (len >= 2 && !argv[1] && argv[0][len - 2] == '\\' && argv[0][len - 1] == 'c') {
 			argv[0][len - 2] = '\0';
@@ -75,5 +76,5 @@ main(int argc __unused, char *argv[])
 	}
 	if (!nflag)
 		putchar('\n');
-	exit(0);
+	return 0;
 }
