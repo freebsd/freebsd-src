@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id$ */
+/* $Id: if_fereg.h,v 1.5 1997/02/22 09:36:28 peter Exp $ */
 
 /*
  * Registers on FMV-180 series' ISA bus interface ASIC.
@@ -116,17 +116,3 @@
 
 /* IRQ configuration.  */
 #define	FE_RE1000_IRQCONF	0x10
-#define	FE_RE1000_IRQCONF_IRQ		0xf0
-#define	FE_RE1000_IRQCONF_IRQSHIFT	4
-
-/* MAC (station) address.  */
-#define	FE_RE1000_MAC0		0x11
-#define	FE_RE1000_MAC1		0x13
-#define	FE_RE1000_MAC2		0x15
-#define	FE_RE1000_MAC3		0x17
-#define	FE_RE1000_MAC4		0x19
-#define	FE_RE1000_MAC5		0x1B
-
-/* "Check sum" -- an xor of MAC0 through MAC5 */
-#define	FE_RE1000_MACCHK	0x1D
-
