@@ -338,7 +338,7 @@ vlan_start(struct ifnet *ifp)
 		 * knows how to find the VLAN tag to use, so we attach a
 		 * packet tag that holds it.
 		 */
-		if (p->if_capabilities & IFCAP_VLAN_HWTAGGING) {
+		if (p->if_capenable & IFCAP_VLAN_HWTAGGING) {
 			struct m_tag *mtag = m_tag_alloc(MTAG_VLAN,
 							 MTAG_VLAN_TAG,
 							 sizeof (u_int),
@@ -542,6 +542,12 @@ vlan_config(struct ifvlan *ifv, struct ifnet *p)
 	    (IFF_BROADCAST | IFF_MULTICAST | IFF_SIMPLEX | IFF_POINTOPOINT));
 	ifv->ifv_if.if_link_state = p->if_link_state;
 
+#if 0
+	/*
+	 * Not ready yet.  We need notification from the parent
+	 * when hw checksumming flags in its if_capenable change.
+	 * Flags set in if_capabilities only are useless.
+	 */
 	/*
 	 * If the parent interface can do hardware-assisted
 	 * VLAN encapsulation, then propagate its hardware-
@@ -549,6 +555,7 @@ vlan_config(struct ifvlan *ifv, struct ifnet *p)
 	 */
 	if (p->if_capabilities & IFCAP_VLAN_HWTAGGING)
 		ifv->ifv_if.if_capabilities |= p->if_capabilities & IFCAP_HWCSUM;
+#endif
 
 	/*
 	 * Set up our ``Ethernet address'' to reflect the underlying
