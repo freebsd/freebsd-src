@@ -759,9 +759,13 @@ set_ownership(struct archive *a, struct archive_entry *entry, int flags)
 	gid_t gid;
 
 	/* If UID/GID are already correct, return 0. */
-	/* TODO: Fix this; need to stat() to find on-disk GID <sigh> */
+	/* XXX TODO: Fix this; as written, this fails to set GID a lot.
+	 * Generally, we'll need to stat() to find on-disk GID <sigh> before
+	 * deciding this. */
+/*
 	if (a->user_uid == archive_entry_stat(entry)->st_uid)
 		return (0);
+*/
 
 	/* Not changed. */
 	if ((flags & ARCHIVE_EXTRACT_OWNER) == 0)
