@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.58 1997/04/11 23:37:23 dyson Exp $
+ *	$Id: kern_exec.c,v 1.59 1997/04/12 04:07:50 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -57,6 +57,8 @@
 #include <vm/vm_map.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
+
+#include <sys/user.h>
 
 #include <machine/reg.h>
 

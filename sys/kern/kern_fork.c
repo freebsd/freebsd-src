@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_fork.c	8.6 (Berkeley) 4/8/94
- * $Id: kern_fork.c,v 1.33 1997/04/07 07:16:01 peter Exp $
+ * $Id: kern_fork.c,v 1.34 1997/04/07 09:38:39 peter Exp $
  */
 
 #include "opt_ktrace.h"
@@ -98,7 +98,7 @@ vfork(p, uap, retval)
 	struct vfork_args *uap;
 	int retval[];
 {
-	return (fork1(p, (RFFDG|RFPROC|RFPPWAIT), retval));
+	return (fork1(p, (RFFDG|RFPROC|RFPPWAIT|RFMEM), retval));
 }
 
 /* ARGSUSED */
@@ -129,10 +129,50 @@ fork1(p1, flags, retval)
 	fle_p ep ;
 
 	ep = fork_list;
-	if ((flags & RFPROC) == 0)
-		return (EINVAL);
+
 	if ((flags & (RFFDG|RFCFDG)) == (RFFDG|RFCFDG))
 		return (EINVAL);
+
+	/*
+	 * Here we don't create a new process, but we divorce
+	 * certain parts of a process from itself.
+	 */
+	if ((flags & RFPROC) == 0) {
+
+		/*
+		 * Divorce the memory, if it is shared, essentially
+		 * this changes shared memory amongst threads, into
+		 * COW locally.
+		 */
+		if ((flags & RFMEM) == 0) {
+			if (p1->p_vmspace->vm_refcnt > 1) {
+				vmspace_unshare(p1);
+			}
+		}
+
+		/*
+		 * Close all file descriptors.
+		 */
+		if (flags & RFCFDG) {
+			struct filedesc *fdtmp;
+			fdtmp = fdinit(p1);
+			fdfree(p1);
+			p1->p_fd = fdtmp;
+		}
+
+		/*
+		 * Unshare file descriptors (from parent.)
+		 */
+		if (flags & RFFDG) {
+			if (p1->p_fd->fd_refcnt > 1) {
+				struct filedesc *newfd;
+				newfd = fdcopy(p1);
+				fdfree(p1);
+				p1->p_fd = newfd;
+			}
+		}
+		return (0);
+	}
 
 	/*
 	 * Although process entries are dynamically created, we still keep

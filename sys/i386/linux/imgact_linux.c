@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_linux.c,v 1.20 1997/02/22 09:38:18 peter Exp $
+ *	$Id: imgact_linux.c,v 1.21 1997/04/01 08:39:05 bde Exp $
  */
 
 #ifndef LKM
@@ -65,7 +65,7 @@ exec_linux_imgact(imgp)
     struct image_params *imgp;
 {
     const struct exec *a_out = (const struct exec *) imgp->image_header;
-    struct vmspace *vmspace = imgp->proc->p_vmspace;
+    struct vmspace *vmspace;
     vm_offset_t vmaddr;
     unsigned long virtual_offset, file_offset;
     vm_offset_t buffer;
@@ -122,6 +122,7 @@ exec_linux_imgact(imgp)
      * Destroy old process VM and create a new one (with a new stack)
      */
     exec_new_vmspace(imgp);
+    vmspace = imgp->proc->p_vmspace;
 
     /*
      * Check if file_offset page aligned,.

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_extern.h	8.2 (Berkeley) 1/12/94
- * $Id: vm_extern.h,v 1.32 1997/04/06 02:30:56 dyson Exp $
+ * $Id: vm_extern.h,v 1.33 1997/04/07 07:16:04 peter Exp $
  */
 
 #ifndef _VM_EXTERN_H_
@@ -88,6 +88,8 @@ void vm_set_page_size __P((void));
 void vmmeter __P((void));
 struct vmspace *vmspace_alloc __P((vm_offset_t, vm_offset_t, int));
 struct vmspace *vmspace_fork __P((struct vmspace *));
+void vmspace_exec __P((struct proc *));
+void vmspace_unshare __P((struct proc *));
 void vmspace_free __P((struct vmspace *));
 void vnode_pager_setsize __P((struct vnode *, vm_ooffset_t));
 void vnode_pager_umount __P((struct mount *));
