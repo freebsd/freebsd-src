@@ -75,11 +75,8 @@ static void		pcic_mapirq __P((struct slot *, int));
 static timeout_t 	pcictimeout;
 static struct callout_handle pcictimeout_ch
     = CALLOUT_HANDLE_INITIALIZER(&pcictimeout_ch);
-static int		pcic_modevent __P((module_t, int, void *));
-static int		pcic_unload __P((void));
 static int		pcic_memory(struct slot *, int);
 static int		pcic_io(struct slot *, int);
-static u_int		build_freelist(u_int);
 
 /*
  *	Per-slot data table.
@@ -206,84 +203,6 @@ int unregister_pcic_intr(int intr, ointhand2_t handler)
 
 #endif /* APIC_IO */
 
-
-/*
- *	Loadable kernel module interface.
- */
-
-/*
- *	Module handler that processes loads and unloads.
- *	Once the module is loaded, the probe routine
- *	is called to install the slots (if any).
- */
-static int
-pcic_modevent(module_t mod, int what, void *arg)
-{
-	int err = 0;	/* default = success*/
-	static int pcic_started = 0;
-
-	switch (what) {
-	case MOD_LOAD:
-
-		/*
-		 *	Call the probe routine to find the slots. If
-		 *	no slots exist, then don't bother loading the module.
-		 *	XXX but this is not appropriate as a static module.
-		 */
-		if (pcic_probe())
-			pcic_started = 1;
-		break;
-
-	case MOD_UNLOAD:
-		/*
-		 *	Attempt to unload the slot driver.
-		 */
-		if (pcic_started) {
-			printf("Unloading PCIC driver\n");
-			err = pcic_unload();
-			pcic_started = 0;
-		}
-		break;		/* Success*/
-
-	default:	/* we only care about load/unload; ignore shutdown */
-		break;
-	}
-
-	return(err);
-}
-
-static moduledata_t pcic_mod = {
-	"pcic",
-	pcic_modevent,
-	0
-};
-
-/* After configure() has run..  bring on the new bus system! */
-DECLARE_MODULE(pcic, pcic_mod, SI_SUB_CONFIGURE, SI_ORDER_MIDDLE);
-
-/*
- *	pcic_unload - Called when unloading a kernel module.
- *	Disables interrupts and resets PCIC.
- */
-static int
-pcic_unload()
-{
-	int	slot;
-	struct pcic_slot *sp = pcic_slots;
-
-	untimeout(pcictimeout, 0, pcictimeout_ch);
-	if (pcic_irq) {
-		for (slot = 0; slot < PCIC_MAX_SLOTS; slot++, sp++) {
-			if (sp->slt)
-				sp->putb(sp, PCIC_STAT_INT, 0);
-		}
-		unregister_pcic_intr(pcic_irq, pcicintr);
-	}
-	pccard_remove_controller(&cinfo);
-	return(0);
-}
-
-
 #if 0
 static void
 pcic_dump_attributes(unsigned char *scratch, int maxlen)
@@ -307,43 +226,6 @@ pcic_dump_attributes(unsigned char *scratch, int maxlen)
 	}
 }
 #endif
-
-static void
-nullfunc(int arg)
-{
-	/* empty */
-}
-
-static u_int
-build_freelist(u_int pcic_mask)
-{ 
-	int irq;
-	u_int mask, freemask; 
- 
-	/* No free IRQs (yet). */ 
-	freemask = 0; 
- 
-	/* Walk through all of the IRQ's and find any that aren't allocated. */ 
-	for (irq = 1; irq < ICU_LEN; irq++) { 
-		/* 
-		 * If the PCIC controller can't generate it, don't
-		 * bother checking to see if it it's free. 
-		 */ 
-		mask = 1 << irq; 
-		if (!(mask & pcic_mask)) continue; 
-
-		/* See if the IRQ is free. */
-		if (register_pcic_intr(irq, 0, 0, nullfunc, NULL, irq) == 0) {
-			/* Give it back, but add it to the mask */ 
-			INTRMASK(freemask, mask); 
-			unregister_pcic_intr(irq, nullfunc); 
-		}
-	} 
-#ifdef PCIC_DEBUG
-	printf("Freelist of IRQ's <0x%x>\n", freemask);
-#endif
-	return freemask; 
-}
 
 /*
  *	entry point from main code to map/unmap memory context.
@@ -571,18 +453,22 @@ printf("Map I/O 0x%x (size 0x%x) on Window %d\n", ip->start, ip->size, win);
  *	of slot 1.  Assume it's the only PCIC whose vendor ID is 0x84,
  *	contact Nate Williams <nate@FreeBSD.org> if incorrect.
  */
-int
-pcic_probe(void)
+static int
+pcic_probe(device_t dev)
 {
 	int slotnum, validslots = 0;
 	u_int free_irqs, desired_irq;
 	struct slot *slt;
 	struct pcic_slot *sp;
 	unsigned char c;
+	int i;
 	static int maybe_vlsi = 0;
 
+	if (device_get_unit(dev) != 0)
+		return ENXIO;
+
 	/* Determine the list of free interrupts */
-	free_irqs = build_freelist(PCIC_INT_MASK_ALLOWED);
+	free_irqs = PCIC_INT_MASK_ALLOWED;
 	
 	/*
 	 *	Initialise controller information structure.
@@ -749,6 +635,7 @@ pcic_probe(void)
 			cinfo.name = "Unknown!";
 			break;
 		}
+		device_set_desc(dev, cinfo.name);
 		/*
 		 *	OK it seems we have a PCIC or lookalike.
 		 *	Allocate a slot and initialise the data structures.
@@ -765,7 +652,6 @@ pcic_probe(void)
 		 *	then attempt to get one.
 		 */
 		if (pcic_irq == 0) {
-
 			pcic_imask = soft_imask;
 
 			/* See if the user has requested a specific IRQ */
@@ -851,7 +737,12 @@ pcic_probe(void)
 #endif	/* PC98 */
 	if (validslots && pcic_irq <= 0)
 		pcictimeout_ch = timeout(pcictimeout, 0, hz/2);
-	return(validslots);
+	if (validslots) {
+		for (i = 0; i < validslots; i++) {
+			device_add_child(dev, NULL, -1, NULL);
+		}
+	}
+	return(validslots ? 0 : ENXIO);
 }
 
 /*
@@ -1181,3 +1072,34 @@ pcic_resume(struct slot *slt)
 		setb(sp, PCIC_MISC2, PCIC_LPDM_EN);
 	}
 }
+
+static device_method_t pcic_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		pcic_probe),
+	DEVMETHOD(device_attach,	bus_generic_attach),
+	DEVMETHOD(device_detach,	bus_generic_detach),
+	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
+	DEVMETHOD(device_suspend,	bus_generic_suspend),
+	DEVMETHOD(device_resume,	bus_generic_resume),
+
+	/* Bus interface */
+	DEVMETHOD(bus_print_child,	bus_generic_print_child),
+	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
+	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
+	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
+
+	{ 0, 0 }
+};
+
+devclass_t	pcic_devclass;
+
+static driver_t pcic_driver = {
+	"pcic",
+	pcic_methods,
+	1,			/* no softc */
+};
+
+DRIVER_MODULE(pcic, isa, pcic_driver, pcic_devclass, 0, 0);

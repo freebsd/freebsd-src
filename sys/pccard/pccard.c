@@ -504,8 +504,6 @@ pccard_alloc_slot(struct slot_ctrl *ctrl)
 			ctrl->maxmem = NUM_MEM_WINDOWS;
 		if (ctrl->maxio > NUM_IO_WINDOWS)
 			ctrl->maxio = NUM_IO_WINDOWS;
-		printf("pcic: pccard bridge %s (%d mem & %d I/O windows)\n",
-			ctrl->name, ctrl->maxmem, ctrl->maxio);
 	}
 	callout_handle_init(&slt->insert_ch);
 	callout_handle_init(&slt->poff_ch);
@@ -573,7 +571,7 @@ allocate_driver(struct slot *slt, struct dev_desc *desc)
 	struct pccard_device *drv;
 	device_t pccarddev;
 	char devnam[128];
-	int err, irq = 0, s;
+	int err, irq = 0;
 
 	pccarddev = devclass_get_device(pccard_devclass, 0);
 	snprintf(devnam, sizeof(devnam), "pccard-%s", desc->name);
