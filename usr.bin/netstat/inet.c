@@ -453,6 +453,16 @@ tcp_stats(u_long off __unused, const char *name, int af1 __unused)
 	p(tcps_sc_zonefail, "\t\t%lu zone failure%s\n"); 
 	p(tcps_sc_sendcookie, "\t%lu cookie%s sent\n"); 
 	p(tcps_sc_recvcookie, "\t%lu cookie%s received\n"); 
+
+	p(tcps_sack_recovery_episode, "\t%lu SACK recovery episode%s\n"); 
+	p(tcps_sack_rexmits,
+		"\t%lu segment rexmit%s in SACK recovery episodes\n");
+	p(tcps_sack_rexmit_bytes,
+		"\t%lu byte rexmit%s in SACK recovery episodes\n"); 
+	p(tcps_sack_rcv_blocks,
+		"\t%lu SACK option%s (SACK blocks) received\n"); 
+	p(tcps_sack_send_blocks, "\t%lu SACK option%s (SACK blocks) sent\n"); 
+
 #undef p
 #undef p1a
 #undef p2
