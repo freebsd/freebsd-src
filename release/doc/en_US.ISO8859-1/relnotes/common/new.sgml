@@ -267,7 +267,10 @@
       <varname>net.inet.tcp.sendspace</varname> and 
       <varname>net.inet.tcp.recvspace</varname> sysctl variables, have
       been increased to 32K and 64K respectively.  Previously, the
-      default for both buffer sizes was 16K.</para>
+      default for both buffer sizes was 16K.  To try to avoid
+      increasing congestion, the default value for
+      <varname>net.inet.tcp.local_slowstart_flightsize</varname> has
+      been changed from infinity to 4.</para>
 
       <para>A bug in the TCP implementation, which could cause
       connections to stall if a sender saw a zero-sized window, has
