@@ -92,29 +92,29 @@ nl_langinfo(nl_item item) {
 		ret = (char*) __get_current_time_locale()->mon[_REL(ABMON_1)];
 		break;
 	case ERA:
-		/* XXX: ??? */
+		/* XXX: need to be implemented  */
 		ret = "";
 		break;
 	case ERA_D_FMT:
-		/* XXX: ??? */
+		/* XXX: need to be implemented  */
 		ret = "";
 		break;
 	case ERA_D_T_FMT:
-		/* XXX: ??? */
+		/* XXX: need to be implemented  */
 		ret = "";
 		break;
 	case ERA_T_FMT:
-		/* XXX: ??? */
+		/* XXX: need to be implemented  */
 		ret = "";
 		break;
 	case ALT_DIGITS:
-		/* XXX: ??? */
+		/* XXX: need to be implemented  */
 		ret = "";
 		break;
-	case RADIXCHAR:         /* deprecated */
+	case RADIXCHAR:
 		ret = (char*) __get_current_numeric_locale()->decimal_point;
 		break;
-	case THOUSEP:           /* deprecated */
+	case THOUSEP:
 		ret = (char*) __get_current_numeric_locale()->thousands_sep;
 		break;
 	case YESEXPR:
@@ -123,13 +123,17 @@ nl_langinfo(nl_item item) {
 	case NOEXPR:
 		ret = (char*) __get_current_messages_locale()->noexpr;
 		break;
-	case YESSTR:            /* deprecated */
+	/* All items marked with LEGACY are available, but not recomended
+	 * by SUSv2 to be used in portable applications since they're subject
+	 * to remove in future specification editions
+	 */
+	case YESSTR:            /* LEGACY  */
 		ret = (char*) __get_current_messages_locale()->yesstr;
 		break;
-	case NOSTR:             /* deprecated */
+	case NOSTR:             /* LEGACY  */
 		ret = (char*) __get_current_messages_locale()->nostr;
 		break;
-	case CRNCYSTR:          /* deprecated */
+	case CRNCYSTR:
 		ret = "";
 		cs = (char*) __get_current_monetary_locale()->currency_symbol;
 		if (*cs != '\0') {
