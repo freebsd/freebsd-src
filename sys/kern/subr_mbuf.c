@@ -1147,7 +1147,7 @@ m_get(int how, short type)
  * Allocate a given length worth of mbufs and/or clusters (whatever fits
  * best) and return a pointer to the top of the allocated chain.  If an
  * existing mbuf chain is provided, then we will append the new chain
- * to the existing one and return the top of the provided (existing)
+ * to the existing one but still return the top of the newly allocated
  * chain.  NULL is returned on failure, in which case the [optional]
  * provided chain is left untouched, and any memory already allocated
  * is freed.
@@ -1235,9 +1235,7 @@ m_getm(struct mbuf *m, int len, int how, short type)
 
 	if (mtail != NULL)
 		mtail->m_next = top;
-	else
-		mtail = top;
-	return mtail;
+	return top;
 failed:
 	if (top != NULL)
 		m_freem(top);
