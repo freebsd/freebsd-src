@@ -921,6 +921,8 @@ syncache_add(inc, to, th, sop, m)
 		sc->sc_route.ro_rt = NULL;
 	}
 	sc->sc_irs = th->th_seq;
+	sc->sc_flags = 0;
+	sc->sc_peer_mss = to->to_flags & TOF_MSS ? to->to_mss : 0;
 	if (tcp_syncookies)
 		sc->sc_iss = syncookie_generate(sc);
 	else
@@ -932,8 +934,6 @@ syncache_add(inc, to, th, sop, m)
 	win = imin(win, TCP_MAXWIN);
 	sc->sc_wnd = win;
 
-	sc->sc_flags = 0;
-	sc->sc_peer_mss = to->to_flags & TOF_MSS ? to->to_mss : 0;
 	if (tcp_do_rfc1323) {
 		/*
 		 * A timestamp received in a SYN makes
