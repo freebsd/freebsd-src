@@ -265,6 +265,9 @@ local to one source module should be declared
 .Pp
 Functions used from other parts of the kernel are prototyped in the
 relevant include file.
+Function prototypes should be listed in a logical order, preferably
+alphabetical unless there's a compelling reason to use a different
+ordering.
 .Pp
 Functions that are used locally in more than one module go into a
 separate header file, e.g.\&
