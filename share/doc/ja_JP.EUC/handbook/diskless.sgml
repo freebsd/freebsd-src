@@ -5,7 +5,8 @@
 
 <sect><heading>Diskless operation<label id="diskless"></heading>
 
-<p><em>Contributed by &a.martin;.</em>
+<p><em>原作: &a.martin;</em>
+<p><em>訳: &a.yasu;</em>
 
         <tt>netboot.com/netboot.rom</tt>によって、
         ディスクのないクライアントで
