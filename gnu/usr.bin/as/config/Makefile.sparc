@@ -1,5 +1,0 @@
-#	from: @(#)Makefile.i386	6.1 (Berkeley) 3/3/91
-#	$Id: Makefile.sparc,v 1.1 1993/10/02 20:58:22 pk Exp $
-
-CFLAGS+=	-DNON_BROKEN_WORDS
-SRCS+=		tc-sparc.c atof-ieee.c

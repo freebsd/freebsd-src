@@ -31,7 +31,6 @@
  * SUCH DAMAGE.
  *
  *	@(#)slcompress.c	8.2 (Berkeley) 4/16/94
- * $Id: slcompress.c,v 1.2 1994/08/02 07:46:46 davidg Exp $
  */
 
 /*
@@ -41,10 +40,11 @@
  * Van Jacobson (van@helios.ee.lbl.gov), Dec 31, 1989:
  *	- Initial distribution.
  *
+ * static char rcsid[] =
+ * "$Header: slcompress.c,v 1.19 89/12/31 08:52:59 van Exp $";
  */
 
 #include <sys/param.h>
-#include <sys/systm.h>
 #include <sys/mbuf.h>
 
 #include <netinet/in.h>

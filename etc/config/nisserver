@@ -1,4 +1,0 @@
-# $Id$
-# This file determines whether the Yellow Pages/NIS server software
-# is automatically started at boot time.  The default is off.
-off
