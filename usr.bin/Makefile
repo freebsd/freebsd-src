@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.3 (Berkeley) 1/7/94
-#	$Id: Makefile,v 1.115 1998/10/03 10:59:57 dfr Exp $
+#	$Id: Makefile,v 1.116 1998/10/03 17:59:26 sef Exp $
 
 # XXX MISSING:		deroff diction graph learn plot
 #			spell spline struct xsend
@@ -52,6 +52,7 @@ SUBDIR=	apply \
 	fsplit \
 	ftp \
 	gencat \
+	gensetdefs \
 	getopt \
 	global \
 	head \
