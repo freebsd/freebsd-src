@@ -67,7 +67,7 @@ main(argc, argv)
 	int i;
 	struct name *to, *cc, *bcc, *smopts;
 	char *subject, *replyto;
-	char *ef, *cp;
+	char *ef;
 	char nosrc = 0;
 	sig_t prevint;
 
