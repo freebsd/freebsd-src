@@ -11,8 +11,6 @@ ahc(4)		gibbs	Pre-commit review requested.
 NEWCARD		imp	Pre-commit review requested.
 OLDCARD		imp	Pre-commit review requested.
 wi		imp	Pre-commit review requested.
-perl5		markm	This is about to be deleted.
-			HARD LOCK! No commits at all!
 telnet		markm	commits _must_ be made to src/crypto/telnet
 			first, only then to "base" telnet via "make
 			unifdef"
