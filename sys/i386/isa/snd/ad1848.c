@@ -4,7 +4,7 @@
  * Driver for Microsoft Sound System/Windows Sound System (mss)
  * -compatible boards. This includes:
  * 
- * AD1848, CS4248, CS423x, OPTi931, Yamaha SA2 and many others.
+ * AD1848, CS4248, CS423x, OPTi931, Yamaha OPL/SAx and many others.
  *
  * Copyright Luigi Rizzo, 1997,1998
  * Copyright by Hannu Savolainen 1994, 1995
@@ -401,7 +401,7 @@ mss_callback(snddev_info *d, int reason)
 	/*
 	 * perform all necessary initializations for i/o
 	 */
-	d->rec_fmt = d->play_fmt ; /* no split format on the WSS */
+	d->rec_fmt = d->play_fmt ; /* no split format on the MSS */
 	snd_set_blocksize(d);
 	mss_reinit(d);
 	reset_dbuf(& (d->dbuf_in), SND_CHAN_RD );
@@ -561,15 +561,21 @@ again:
     if (mc11 & masked) 
         printf("irq reset failed, mc11 0x%02x, masked 0x%02x\n", mc11, masked);
     masked |= mc11 ;
+    /*
+     * the nice OPTi931 sets the IRQ line before setting the bits in
+     * mc11. So, on some occasions I have to retry (max 10 times).
+     */
     if ( mc11 == 0 ) { /* perhaps can return ... */
 	reason = inb(io_Status(d));
 	if (reason & 1) {
-	    printf("one more try...\n");
-	    goto again;
+	    DEB(printf("one more try...\n");)
+	    if (--loops)
+		goto again;
+	    else
+		DDB(printf("opti_intr: irq but mc11 not set!...\n");)
 	}
-	if (loops==10) {
+	if (loops==10)
 	    printf("ouch, intr but nothing in mcir11 0x%02x\n", mc11);
-	}
 	return;
     }
 
@@ -580,7 +586,8 @@ again:
 	dsp_wrintr(d);
     }
     opti_write(d->conf_base, 11, ~mc11); /* ack */
-    if (--loops) goto again;
+    if (--loops)
+	goto again;
     DEB(printf("xxx too many loops\n");)
 }
 
@@ -1354,7 +1361,7 @@ cs423x_probe(u_long csn, u_long vend_id)
     u_long id = vend_id & 0xff00ffff;
     if ( id == 0x3700630e )
 	s = "CS4237" ;
-    else if ( id == 0x3600630e )
+    else if ( id == 0x3500630e || id == 0x3600630e )
 	s = "CS4236" ;
     else if ( id == 0x3200630e)
 	s = "CS4232" ;
@@ -1364,6 +1371,8 @@ cs423x_probe(u_long csn, u_long vend_id)
 	s = "Yamaha SA3";
     else if (vend_id == 0x8140d315)
 	s = "SoundscapeVIVO";
+    else if (vend_id == 0x0008a865)
+	s = "Yamaha SA3";
     if (s) {
 	struct pnp_cinfo d;
 	read_pnp_parms(&d, 0);
@@ -1395,7 +1404,8 @@ cs423x_attach(u_long csn, u_long vend_id, char *name,
     if (d.flags & DV_PNP_SBCODEC) {	/*** use sb-compatible codec ***/
 	dev->id_alive = 16 ; /* number of io ports ? */
 	tmp_d = sb_op_desc ;
-	if (vend_id==0x2000a865 || vend_id==0x3000a865 || vend_id==0x8140d315) {
+	if (vend_id==0x2000a865 || vend_id==0x3000a865 ||
+	    vend_id==0x0008a865 || vend_id==0x8140d315) {
 	    /* Yamaha SA2/SA3 or ENSONIQ SoundscapeVIVO ENS4081 */
 	    dev->id_iobase = d.port[0] ;
 	    tmp_d.alt_base = d.port[1] ;
@@ -1414,6 +1424,7 @@ cs423x_attach(u_long csn, u_long vend_id, char *name,
 
 	case 0x2000a865:	/* Yamaha SA2 */
 	case 0x3000a865:	/* Yamaha SA3 */
+	case 0x0000a865:	/* Yamaha SA3 again */
 	    dev->id_iobase = d.port[1];
 	    tmp_d.alt_base = d.port[0];
 	    tmp_d.conf_base = d.port[4];
@@ -1431,6 +1442,7 @@ cs423x_attach(u_long csn, u_long vend_id, char *name,
 	    tmp_d.bd_id = MD_CS4237 ;
 	    break;
 
+	case 0x3500630e:        /* CS4236 */
 	case 0x3600630e:        /* CS4236 */
 	    tmp_d.bd_id = MD_CS4236 ;
 	    break;
@@ -1445,7 +1457,7 @@ cs423x_attach(u_long csn, u_long vend_id, char *name,
     write_pnp_parms( &d, ldn );
     enable_pnp_card();
 
-    if ( (vend_id & 0x2000ffff) == 0x2000a865 ) {
+    if ( (vend_id & 0x0000ffff) == 0x0000a865 ) {
 	/* special volume setting for the Yamaha... */
 	outb(tmp_d.conf_base, 7 /* volume, left */);
 	outb(tmp_d.conf_base+1, 0 );
@@ -1536,10 +1548,10 @@ opti931_attach(u_long csn, u_long vend_id, char *name,
     if (d.flags & DV_PNP_SBCODEC) { /* sb-compatible codec */
 	/*
 	 * the 931 is not a real SB, it has important pieces of
-	 * hardware controlled by both the WSS and the SB port...
+	 * hardware controlled by both the MSS and the SB port...
 	 */
 	printf("--- opti931 in sb mode ---\n");
-	opti_write(p, 6, 1); /* MCIR6 wss disable, sb enable */
+	opti_write(p, 6, 1); /* MCIR6 mss disable, sb enable */
 	/*
 	 * swap the main and alternate iobase address since we want
 	 * to work in sb mode.
@@ -1549,7 +1561,7 @@ opti931_attach(u_long csn, u_long vend_id, char *name,
 	dev->id_flags = DV_F_DUAL_DMA | d.drq[1] ;
     } else { /* mss-compatible codec */
 	tmp_d.bd_id = MD_OPTI931 ; /* to short-circuit the detect routine */
-	opti_write(p, 6 , 2);  /* MCIR6: wss enable, sb disable */
+	opti_write(p, 6 , 2);  /* MCIR6: mss enable, sb disable */
 	opti_write(p, 5, 0x28);  /* MCIR5: codec in exp. mode,fifo */
 	dev->id_flags = DV_F_DUAL_DMA | d.drq[1] ;
 	tmp_d.audio_fmt |= AFMT_FULLDUPLEX ; /* not really well... */

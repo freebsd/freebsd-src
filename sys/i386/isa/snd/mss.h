@@ -150,7 +150,7 @@ ahead.
 
 /*
  * Table of mixer registers. There is a default table for the
- * AD1848/CS423x clones, and one for the OPTI931. As more WSS
+ * AD1848/CS423x clones, and one for the OPTI931. As more MSS
  * clones come out, there ought to be more tables.
  *
  * Fields in the table are : polarity, register, offset, bits

@@ -1,36 +1,87 @@
-In this file I will try to build a database of cards supported by this
-driver. I also include the command to use for manual configuration of
-the card in case your BIOS is not PnP-aware. Of course it is your
-responsibility to pick up free prot ranges and irq and drq channels.
+In this file I will try to build a database of cards supported by
+this driver. I also include the command to use for manual configuration
+of the card in case your BIOS is not PnP-aware. Of course it is
+your responsibility to pick up free port ranges and irq and drq
+channels.
 
 For PnP cards, I also include the vendor_id and serial numbers of
-cards I have encountered. Underscores in the PnP id mean that there is
-a large variety of values in those positions.
+cards I have encountered. Underscores in the PnP id mean that
+(I believe) there is a large variety of values in those positions,
+and the code in the audio driver generally masks those bits.
 
 Finally, where available, I have put the URL where you can find the
 data sheets of the chip.
 
+To my knowledge, there are the following families of audio cards:
 
-CS4236: PnP id 0x36__630e
-CS4237: PnP id 0x37__630e
+* WSS (also called MSS) and clones:
+   these are true full duplex cards, have a very nice architecture and
+   are well documented. Chipsets implementing these functionalities
+   are made from Crystal, Analog Devices, Yamaha, OPTI.
 
+* SB16 and clones:
+   these cards have a higly asymmetric architecture, and are not very
+   well suited to full duplex operation. Made by Creative, Realtek.
+   There is no documentation on the newer codecs (Vibra16X and ALS100+),
+   so they are not fully working.
+
+* ESS
+   ESS builds cards that implement a superset of SB16. They are
+   often capable of full duplex, but my driver does not support them
+   other than in full duplex emulation. My fault, since documentation
+   on these cards _is_ available.
+
+* PCI cards.
+   I have no documentation on these cards, so they are unsupported by
+   my driver. Note that CreativeLabs has recently (fall'97) acquired
+   Ensoniq and the audio division of OPTI, both of which had a PCI
+   audio chipset. I don't know if there are other manufacturers of PCI
+   audio cards.
+
+Finally, some people wrote patches for the following chips:
+
+	AD1816
+	MAD16
+	ESS
+--------------------------
+CHIPSET:
+    CS4236: PnP id 0x36__630e 0x35__630e
+    CS4237: PnP id 0x37__630e
+
+MANUFACTURER:
+    A/Open (or AcerOpen) AW32, AW35
+    Also, integrated on the motherboard on some machines.
+	
+DATA SHEETS:
 	http://www.crystal.com/ 	4237full.pdf
 
+PNP CONFIG:
     pnp 1 0 os enable port0 0x534 port2 0x220 irq0 5 drq0 1 drq1 3
 
-    work like a charm. All modes, including full duplex, supported in
+COMMENTS:
+    Work like a charm. All modes, including full duplex, supported in
     MSS mode.
 
-    NOTE: cards based on the 4237, and possibly the 4236 as well,
-        connect the CD to AUX2. When used in MODE1/2 (as this driver
-	does) there is no route in the input mixer from AUX2 to the
-	ADC. So, to record directly from the CD, the only way is
-	to set the input to SOUND_MASK_IMIX.
+    Cards based on the 4237, and possibly the 4236 as well, connect
+    the CD to AUX2. When used in MODE1/2 (as this driver does)
+    there is no route in the input mixer from AUX2 to the ADC. So,
+    to record directly from the CD, the only way is to set the
+    input to SOUND_MASK_IMIX.
 
-CS4232: PnP id 0x3242630e
+--------------------------
+CHIPSET:
+    CS4232: PnP id 0x3242630e
 
+MANUFACTURER:
+    ???
+
+DATA SHEETS:
+	http://www.crystal.com/
+
+PNP CONFIG:
     pnp 1 0 os enable port0 0x534 port2 0x220 irq0 5 drq0 1 drq1 3
 
+COMMENTS:
     This chip is reported as broken in the OSS documentation. As a
     matter of fact, on my Intel Zappa motherboard, I have problems in
     make it use the secondary DMA channel. I have it working in
@@ -38,12 +89,20 @@ CS4232: PnP id 0x3242630e
     and working in playback mode in MSS emulation.
     Also have reports from some user that it works ok.
 
-OPTi931: PnP id 0x3109143e
+--------------------------
+CHIPSET:
+    OPTi931: PnP id 0x3109143e
 
-	http://www.opti.com/  opti931_21.pdf
+MANUFACTURER:
+    ExpertColor MED931 (europe)
 
+DATA SHEETS:
+    http://www.opti.com/  opti931_21.pdf
+
+PNP CONFIG:
     pnp 1 1 os enable port0 0x534 port2 0x220 port3 0xe0d irq0 10 drq0 1 drq1 6
 
+COMMENTS:
     The data sheets of this chip are very cryptic and do not match
     what the cards I have seem to do. I have it working
     in WSS emulation, in full duplex and all modes.
@@ -60,21 +119,45 @@ OPTi931: PnP id 0x3109143e
       does a conversion in software (much like the SBPro). Of course
       you lose 4-5 bits of dynamic range in the process.
     - in full duplex (and single DMA mode), the card occasionally
-      misses interrupts, or generates spurious ones. Spurious ints are
-      not problematic since they can be ignored, but missed ones are
-      as you can imagine... This is fixed by auto-dma mode.
+      misses interrupts, or generates spurious ones, or generates
+      interrupts before setting the status bits in the registers.
+      Spurious ints are not problematic since they can be easily
+      ignored, but missing interrupts are a nightmare to handle...
+      The only way to have this card work semi-reliably is to use
+      auto-dma mode (which is the default mode of operation in the
+      driver).
+    In any case, these cards are very cheap and widely available and
+    are a reasonable solution if you cannot find some other decent WSS
+    device.
 
-SB16 PnP: PnP id 0x__008c0e
+-------------------------------
+CHIPSET:
+    SB16: PnP id 0x__008c0e
+    Vibra16X: PnP id 0xf0008c0e
 
-	http://www.creative.com sbhwpg.pdf or SBHWPG.EXE
+MANUFACTURER:
+    CreativeLabs
 
+DATA SHEETS:
+    http://www.creative.com sbhwpg.pdf or SBHWPG.EXE
+
+PNP CONFIG:
     pnp 1 0 os enable port0 0x220 irq0 5 drq0 1 drq1 5
 
-    There are many such cards (plain SB16 PnP, AWE32, AWE64, Vibra16,
-    etc.) all differing in the PnP id. They have different synthesis
-    devices, which we do not support, so we are not affected by these
-    differences. Don't worry if the driver identifies the card as a
-    different SB16 than the one you have.
+COMMENTS:
+    SB16 really refers to a large number of different cards, starting
+    from the original, non-PnP SB16, to more modern cards (SB16PnP,
+    Vibra16C) and other including Wavetable Synthesis (AWE32, AWE64,
+    etc.). All these cards have different PnP ID.  They have
+    different synthesis devices, which we do not support, so we
+    are not affected by these differences. Don't worry if the driver
+    identifies the card as a different SB16 than the one you have.
+
+    BEWARE -- all recent (1998 ?) SB16 use a new codec, Vibra16X,
+    which is sufficiently different from the old one to not work with
+    this driver in capture mode or in full duplex. Documentation is
+    not available from Creative. I suggest to stay away from these
+    cards (and from SB16 in general).
 
     Full duplex support of this card is tricky since one channel can
     work in 16-bit and the other in 8-bit mode. You will need to use
@@ -83,7 +166,7 @@ SB16 PnP: PnP id 0x__008c0e
     is much lower than in 16-bit.
 
     Full duplex operation is unsupported by Creative. It seems to
-    work, although on my Vibra16 the command to stop DMA transfer
+    work, although on my Vibra16C the command to stop DMA transfer
     seems to erroneously affect both channels instead of the one
     they are issued for. The driver has a workaround, but I cannot
     guarantee that it works for everybody. I have had several
@@ -92,67 +175,111 @@ SB16 PnP: PnP id 0x__008c0e
     Some docs on how to use this card with the voxware driver
     are at http://multiverse.com/~rhh/awedrv
 
-    NOTE: 980122 I have had a couple of reports from people using
-    the Vibra16X (and clones, e.g. based on the Avance Logic
-    chipsets) which appears to use two 8-bit DMA channels.  It
-    might be possible that new SB16 are able to do true full duplex!
-    The driver _does not_ support these boards although the fix
-    should be relatively easy.
+--------------------------
+CHIPSET:
+    ALS100, ALS110, ...
+    Avance Asound 100: PnP id 0x01009305
 
-ASound:
-    Avance Logic makes SB clones, and apparently documentation
-    is available at
+MANUFACTURER:
+    Realtek (also Avance Asound and possibly other names)
+     
 
-	http://www.realtek.com.tw/cp/cp.html
+DOCUMENTATION:
+    
+    http://www.realtek.com.tw/cp/cp.html
+    but not very useful or detailed.
 
-    these card should be recognised as SB16 clones.
+COMMENTS:
+    These card should be recognised as SB16 clones. Some of them
+    emulate the Vibra16X, so the comments above apply.
 
-Yamaha SA2/SA3
 
-	http://www.yamaha.com ? YM711.pdf
-    (this is a huge file containing a few pages scanned and converted
-    to pdf. Not very useful or detailed.)
+------------------------------
+CHIPSET:
+    Yamaha SA2/SA3 . Both PnP and non-PnP versions.
+    OPL3-SA2 Sound Chip: PnP id 0x2000a865
+    OPL/SA3 : PnP id 0x3000a865
 
-    pnp 1 0 os enable port0 0x220 port1 0x530 irq0 5 drq0 1 drq1 5
+MANUFACTURER:
+    no-name cards, and also used in various laptops, e.g. Toshiba
+    Libretto and others. I
+
+DATA SHEETS:
+    http://www.yamaha.com ? YM711.pdf
+
+    This is a huge file containing a few pages scanned and converted
+    to pdf. Not very detailed. Luckily, this chipset appears to do a
+    good (i.e. bug-free) emulation of the WSS, so it is fully
+    supported by the driver.
+
+    pnp 1 0 os enable port0 0x220 port1 0x530 port2 0x388 port3 0x370 irq0 5 drq0 1 drq1 5
 
     this card emulates a WSS or SB. Have reports that it works, although
     it has incomplete mixer support (Yamaha defines an additional set
     of registers to control some mixer functions, such as the master
-    output volume). Currently we set the master volume to 100%.
-    Driver reported to work also on Toshiba DynaBook Portege 300CT
-    with OPL3SA-3(non-PNP)
+    output volume -- this is at 0x370 or 0x310). Currently we set
+    the master volume to 100% for the PnP card. Will put in code to do the
+    same for the non PnP card as soon as I find out how to tell
+    the Yamaha from other cards.
+    Driver reported to work also on
+    Toshiba DynaBook Portege 300CT with OPL3SA-3(non-PNP), and on the
+    Libretto50CT (has the non-PnP device).
 
-Ensoniq Soundscape VIVO
+------------------------
+CHIPSET:
+    ENSONIQ SoundscapeVIVO ENS4081: PnP id 0x8140d315
+MANUFACTURER:
+    Ensoniq Soundscape VIVO
 
+PNP CONFIG:
     pnp 1 0 os enable port0 0x220 port1 0x530 irq0 5 drq0 1 drq1 5
 
+COMMENTS:
     this card emulates a WSS or SB. Have reports that it works.
 
-GusPnP: PnP id 0x0100561e
+-------------------------
+CHIPSET:
+    AMD...
 
+MANUFACTURER:
+    GusPnP: PnP id 0x0100561e
+
+PNP CONFIG:
     pnp 1 0 os enable port0 0x220 port1 0x320 port2 0x32c irq0 5 drq0 7 drq1 5
 
+COMMENTS:
     It works in U8 and S16 mode, ulaw support still not working.
+    The Gus has been discontinued, so support for this card is only
+    there for historical reasons (the Gus used to be the only card
+    well supported in full duplex mode).
 
 
-NOT WORKING YET:
+---- THE FOLLOWING CARDS ARE NOT FULLY SUPPORTED: ----
 
-OPTI925: PnP id 0x2509143e
+CHIPSET:
+    OPTI925: PnP id 0x2509143e
 
+COMMENTS:
     there is code to recognize it as a SB clone. I have reports that
     it probes ok, but not sure if it works.
 
-OPTI924: PnP
+-------------------------
+CHIPSET:
+    OPTI924: PnP
 
+COMMENT:
     I have this card but it is still unsupported.
 
-OPTI930:
+-------------------------
+CHIPSET:
+    OPTI930:
 
     should work as an MSS clone, but support for it is not implemented
     yet.
 
-ESS1868
-ESS688
+CHIPSET:
+    ESS1868
+    ESS688
 
 	http://www.esstech.com
 
@@ -167,12 +294,13 @@ ESS688
     (the ESS688 is used on many notebooks. It is probably able to do 8
     and 16-bit, half duplex).
 
-PCI cards:
+-------------------------
+CHIPSET:
+    various PCI cards from Ensoniq, OPTI, CreativeLabs.
 
-    some vendors have PCI cards. This code _cannot_ work on these
-    cards as it is now, since they cannot obviously use the ISA DMA
-    controller. As there are no data sheets available for these PCI
-    cards, none of them is supported at the moment, although support
-    should be easy as soon as I can put my hands on the data sheets
-    and cards.
+    This code _cannot_ work on these cards as it is now, since I
+    don't think they can use the ISA DMA controller. As there are
+    no data sheets available for these PCI cards, none of them is
+    supported at the moment.
 
+--------------------------------------------------------------------
