@@ -1509,7 +1509,8 @@ do_srand(NODE *tree)
 
 	if (tree == NULL)
 #ifdef __FreeBSD__
-		srandom((unsigned int) (save_seed = (long) time((time_t *) 0) ^ getpid()));
+		srandom((unsigned int) (save_seed = (long) time((time_t *) 0)
+			^ (getpid() << 16)));
 #else
 		srandom((unsigned int) (save_seed = (long) time((time_t *) 0)));
 #endif
