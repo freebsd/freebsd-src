@@ -17,11 +17,17 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: print-sunrpc.c,v 1.26 96/12/31 21:27:43 leres Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-sunrpc.c,v 1.29 1999/11/21 09:37:02 fenner Exp $ (LBL)";
+#endif
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
 #endif
 
 #include <sys/param.h>

@@ -17,11 +17,17 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: print-udp.c,v 1.60 97/07/27 21:58:48 leres Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-udp.c,v 1.70 1999/12/22 06:27:23 itojun Exp $ (LBL)";
+#endif
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
 #endif
 
 #include <sys/param.h>
@@ -50,6 +56,10 @@ static const char rcsid[] =
 #include <rpc/rpc.h>
 
 #include <stdio.h>
+
+#ifdef INET6
+#include <netinet/ip6.h>
+#endif
 
 #include "interface.h"
 #include "addrtoname.h"
@@ -291,8 +301,23 @@ rtcp_print(const u_char *hdr, const u_char *ep)
 #define SNMP_PORT 161		/*XXX*/
 #define NTP_PORT 123		/*XXX*/
 #define SNMPTRAP_PORT 162	/*XXX*/
+#define ISAKMP_PORT 500		/*XXX*/
 #define RIP_PORT 520		/*XXX*/
 #define KERBEROS_SEC_PORT 750	/*XXX*/
+#define L2TP_PORT 1701		/*XXX*/
+#define ISAKMP_PORT_USER1 7500	/*??? - nonstandard*/
+#define ISAKMP_PORT_USER2 8500	/*??? - nonstandard*/
+#define RX_PORT_LOW 7000	/*XXX*/
+#define RX_PORT_HIGH 7009	/*XXX*/
+#define NETBIOS_NS_PORT   137
+#define NETBIOS_DGRAM_PORT   138
+#define CISCO_AUTORP_PORT 496	/*XXX*/
+
+#ifdef INET6
+#define RIPNG_PORT 521		/*XXX*/
+#define DHCP6_SERV_PORT 546	/*XXX*/
+#define DHCP6_CLI_PORT 547	/*XXX*/
+#endif
 
 void
 udp_print(register const u_char *bp, u_int length, register const u_char *bp2)
@@ -302,18 +327,30 @@ udp_print(register const u_char *bp, u_int length, register const u_char *bp2)
 	register const u_char *cp;
 	register const u_char *ep = bp + length;
 	u_short sport, dport, ulen;
+#ifdef INET6
+	register const struct ip6_hdr *ip6;
+#endif
 
 	if (ep > snapend)
 		ep = snapend;
 	up = (struct udphdr *)bp;
 	ip = (struct ip *)bp2;
+#ifdef INET6
+	if (ip->ip_v == 6)
+		ip6 = (struct ip6_hdr *)bp2;
+	else
+		ip6 = NULL;
+#endif /*INET6*/
 	cp = (u_char *)(up + 1);
 	if (cp > snapend) {
-		printf("[|udp]");
+		(void)printf("%s > %s: [|udp]",
+			ipaddr_string(&ip->ip_src), ipaddr_string(&ip->ip_dst));
 		return;
 	}
 	if (length < sizeof(struct udphdr)) {
-		(void)printf(" truncated-udp %d", length);
+		(void)printf("%s > %s: truncated-udp %d",
+			ipaddr_string(&ip->ip_src), ipaddr_string(&ip->ip_dst),
+			length);
 		return;
 	}
 	length -= sizeof(struct udphdr);
@@ -374,6 +411,15 @@ udp_print(register const u_char *bp, u_int length, register const u_char *bp2)
 			while (cp < ep)
 				cp = rtcp_print(cp, ep);
 			break;
+
+		case PT_SNMP:
+			(void)printf("%s.%s > %s.%s:",
+				ipaddr_string(&ip->ip_src),
+				udpport_string(sport),
+				ipaddr_string(&ip->ip_dst),
+				udpport_string(dport));
+			snmp_print((const u_char *)(up + 1), length);
+			break;
 		}
 		return;
 	}
@@ -411,9 +457,38 @@ udp_print(register const u_char *bp, u_int length, register const u_char *bp2)
 			return;
 		}
 	}
+#if 0
 	(void)printf("%s.%s > %s.%s:",
 		ipaddr_string(&ip->ip_src), udpport_string(sport),
 		ipaddr_string(&ip->ip_dst), udpport_string(dport));
+#else
+#ifdef INET6
+	if (ip6) {
+		if (ip6->ip6_nxt == IPPROTO_UDP) {
+			(void)printf("%s.%s > %s.%s: ",
+				ip6addr_string(&ip6->ip6_src),
+				udpport_string(sport),
+				ip6addr_string(&ip6->ip6_dst),
+				udpport_string(dport));
+		} else {
+			(void)printf("%s > %s: ",
+				udpport_string(sport), udpport_string(dport));
+		}
+	} else
+#endif /*INET6*/
+	{
+		if (ip->ip_p == IPPROTO_UDP) {
+			(void)printf("%s.%s > %s.%s: ",
+				ipaddr_string(&ip->ip_src),
+				udpport_string(sport),
+				ipaddr_string(&ip->ip_dst),
+				udpport_string(dport));
+		} else {
+			(void)printf("%s > %s: ",
+				udpport_string(sport), udpport_string(dport));
+		}
+	}
+#endif
 
 	if (!qflag) {
 #define ISPORT(p) (dport == (p) || sport == (p))
@@ -426,19 +501,51 @@ udp_print(register const u_char *bp, u_int length, register const u_char *bp2)
 			    sport, dport);
 		else if (ISPORT(RIP_PORT))
 			rip_print((const u_char *)(up + 1), length);
+		else if (ISPORT(ISAKMP_PORT))
+			isakmp_print((const u_char *)(up + 1), length, bp2);
+#if 1 /*???*/
+		else if (ISPORT(ISAKMP_PORT_USER1) || ISPORT(ISAKMP_PORT_USER2))
+			isakmp_print((const u_char *)(up + 1), length, bp2);
+#endif
 		else if (ISPORT(SNMP_PORT) || ISPORT(SNMPTRAP_PORT))
 			snmp_print((const u_char *)(up + 1), length);
 		else if (ISPORT(NTP_PORT))
 			ntp_print((const u_char *)(up + 1), length);
 		else if (ISPORT(KERBEROS_PORT) || ISPORT(KERBEROS_SEC_PORT))
 			krb_print((const void *)(up + 1), length);
+		else if (ISPORT(L2TP_PORT))
+			l2tp_print((const u_char *)(up + 1), length);
+ 		else if (ISPORT(NETBIOS_NS_PORT)) {
+			nbt_udp137_print((const u_char *)(up + 1), length);
+ 		}
+ 		else if (ISPORT(NETBIOS_DGRAM_PORT)) {
+ 			nbt_udp138_print((const u_char *)(up + 1), length);
+ 		}
 		else if (dport == 3456)
 			vat_print((const void *)(up + 1), length, up);
+ 		/*
+ 		 * Since there are 10 possible ports to check, I think
+ 		 * a <> test would be more efficient
+ 		 */
+ 		else if ((sport >= RX_PORT_LOW && sport <= RX_PORT_HIGH) ||
+ 			 (dport >= RX_PORT_LOW && dport <= RX_PORT_HIGH))
+ 			rx_print((const void *)(up + 1), length, sport, dport,
+ 				 (u_char *) ip);
+#ifdef INET6
+		else if (ISPORT(RIPNG_PORT))
+			ripng_print((const u_char *)(up + 1), length);
+		else if (ISPORT(DHCP6_SERV_PORT) || ISPORT(DHCP6_CLI_PORT)) {
+			dhcp6_print((const u_char *)(up + 1), length,
+				sport, dport);
+		}
+#endif /*INET6*/
 		/*
 		 * Kludge in test for whiteboard packets.
 		 */
 		else if (dport == 4567)
 			wb_print((const void *)(up + 1), length);
+		else if (ISPORT(CISCO_AUTORP_PORT))
+			cisco_autorp_print((const void *)(up + 1), length);
 		else
 			(void)printf(" udp %u",
 			    (u_int32_t)(ulen - sizeof(*up)));

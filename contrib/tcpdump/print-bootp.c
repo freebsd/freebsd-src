@@ -19,10 +19,16 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
  * Format and print bootp packets.
+ *
+ * $FreeBSD$
  */
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: print-bootp.c,v 1.46 98/07/18 13:33:58 leres Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-bootp.c,v 1.48 1999/11/21 09:36:49 fenner Exp $ (LBL)";
+#endif
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
 #endif
 
 #include <sys/param.h>
@@ -102,6 +108,8 @@ bootp_print(register const u_char *cp, u_int length,
 		printf(" xid:0x%x", (u_int32_t)ntohl(bp->bp_xid));
 	if (bp->bp_secs)
 		printf(" secs:%d", ntohs(bp->bp_secs));
+	if (bp->bp_flags)
+		printf(" flags:0x%x", ntohs(bp->bp_flags));
 
 	/* Client's ip address */
 	TCHECK(bp->bp_ciaddr);
@@ -207,6 +215,63 @@ static struct tok tag2str[] = {
 	{ TAG_SWAP_SERVER,	"iSS" },
 	{ TAG_ROOTPATH,		"aRP" },
 	{ TAG_EXTPATH,		"aEP" },
+/* RFC2132 tags */
+	{ TAG_IP_FORWARD,	"BIPF" },
+	{ TAG_NL_SRCRT,		"BSRT" },
+	{ TAG_PFILTERS,		"pPF" },
+	{ TAG_REASS_SIZE,	"sRSZ" },
+	{ TAG_DEF_TTL,		"bTTL" },
+	{ TAG_MTU_TIMEOUT,	"lMA" },
+	{ TAG_MTU_TABLE,	"sMT" },
+	{ TAG_INT_MTU,		"sMTU" },
+	{ TAG_LOCAL_SUBNETS,	"BLSN" },
+	{ TAG_BROAD_ADDR,	"iBR" },
+	{ TAG_DO_MASK_DISC,	"BMD" },
+	{ TAG_SUPPLY_MASK,	"BMS" },
+	{ TAG_DO_RDISC,		"BRD" },
+	{ TAG_RTR_SOL_ADDR,	"iRSA" },
+	{ TAG_STATIC_ROUTE,	"pSR" },
+	{ TAG_USE_TRAILERS,	"BUT" },
+	{ TAG_ARP_TIMEOUT,	"lAT" },
+	{ TAG_ETH_ENCAP,	"BIE" },
+	{ TAG_TCP_TTL,		"bTT" },
+	{ TAG_TCP_KEEPALIVE,	"lKI" },
+	{ TAG_KEEPALIVE_GO,	"BKG" },
+	{ TAG_NIS_DOMAIN,	"aYD" },
+	{ TAG_NIS_SERVERS,	"iYS" },
+	{ TAG_NTP_SERVERS,	"iNTP" },
+	{ TAG_VENDOR_OPTS,	"bVO" },
+	{ TAG_NETBIOS_NS,	"iWNS" },
+	{ TAG_NETBIOS_DDS,	"iWDD" },
+	{ TAG_NETBIOS_NODE,	"bWNT" },
+	{ TAG_NETBIOS_SCOPE,	"aWSC" },
+	{ TAG_XWIN_FS,		"iXFS" },
+	{ TAG_XWIN_DM,		"iXDM" },
+	{ TAG_NIS_P_DOMAIN,	"sN+D" },
+	{ TAG_NIS_P_SERVERS,	"iN+S" },
+	{ TAG_MOBILE_HOME,	"iMH" },
+	{ TAG_SMPT_SERVER,	"iSMTP" },
+	{ TAG_POP3_SERVER,	"iPOP3" },
+	{ TAG_NNTP_SERVER,	"iNNTP" },
+	{ TAG_WWW_SERVER,	"iWWW" },
+	{ TAG_FINGER_SERVER,	"iFG" },
+	{ TAG_IRC_SERVER,	"iIRC" },
+	{ TAG_STREETTALK_SRVR,	"iSTS" },
+	{ TAG_STREETTALK_STDA,	"iSTDA" },
+	{ TAG_REQUESTED_IP,	"iRQ" },
+	{ TAG_IP_LEASE,		"lLT" },
+	{ TAG_OPT_OVERLOAD,	"bOO" },
+	{ TAG_TFTP_SERVER,	"aTFTP" },
+	{ TAG_BOOTFILENAME,	"aBF" },
+	{ TAG_DHCP_MESSAGE,	" DHCP" },
+	{ TAG_SERVER_ID,	"iSID" },
+	{ TAG_PARM_REQUEST,	"bPR" },
+	{ TAG_MESSAGE,		"aMSG" },
+	{ TAG_MAX_MSG_SIZE,	"sMSZ" },
+	{ TAG_RENEWAL_TIME,	"lRN" },
+	{ TAG_REBIND_TIME,	"lRB" },
+	{ TAG_VENDOR_CLASS,	"bVC" },
+	{ TAG_CLIENT_ID,	"bCID" },
 	{ 0,			NULL }
 };
 
@@ -246,6 +311,35 @@ rfc1048_print(register const u_char *bp, register u_int length)
 		if (bp + len >= snapend) {
 			fputs(tstr, stdout);
 			return;
+		}
+
+		if (tag == TAG_DHCP_MESSAGE && len == 1) {
+			c = *bp++;
+			switch (c) {
+			case DHCPDISCOVER:	printf("DISCOVER");	break;
+			case DHCPOFFER:		printf("OFFER");	break;
+			case DHCPREQUEST:	printf("REQUEST");	break;
+			case DHCPDECLINE:	printf("DECLINE");	break;
+			case DHCPACK:		printf("ACK");		break;
+			case DHCPNAK:		printf("NACK");		break;
+			case DHCPRELEASE:	printf("RELEASE");	break;
+			case DHCPINFORM:	printf("INFORM");	break;
+			default:		printf("%u", c);	break;
+			}
+			continue;
+		}
+
+		if (tag == TAG_PARM_REQUEST) {
+			first = 1;
+			while (len-- > 0) {
+				c = *bp++;
+				cp = tok2str(tag2str, "?%d", c);
+				if (!first)
+					putchar('+');
+				printf("%s", cp + 1);
+				first = 0;
+			}
+			continue;
 		}
 
 		/* Print data */
@@ -288,6 +382,22 @@ rfc1048_print(register const u_char *bp, register u_int length)
 			}
 			break;
 
+		case 'p':
+			/* IP address pairs */
+			while (size >= 2*sizeof(ul)) {
+				if (!first)
+					putchar(',');
+				memcpy((char *)&ul, (char *)bp, sizeof(ul));
+				printf("(%s:", ipaddr_string(&ul));
+				bp += sizeof(ul);
+				memcpy((char *)&ul, (char *)bp, sizeof(ul));
+				printf("%s)", ipaddr_string(&ul));
+				bp += sizeof(ul);
+				size -= 2*sizeof(ul);
+				first = 0;
+			}
+			break;
+
 		case 's':
 			/* shorts */
 			while (size >= sizeof(us)) {
@@ -297,6 +407,28 @@ rfc1048_print(register const u_char *bp, register u_int length)
 				printf("%d", us);
 				bp += sizeof(us);
 				size -= sizeof(us);
+				first = 0;
+			}
+			break;
+
+		case 'B':
+			/* boolean */
+			while (size > 0) {
+				if (!first)
+					putchar(',');
+				switch (*bp) {
+				case 0:
+					putchar('N');
+					break;
+				case 1:
+					putchar('Y');
+					break;
+				default:
+					printf("%d?", *bp);
+					break;
+				}
+				++bp;
+				--size;
 				first = 0;
 			}
 			break;
