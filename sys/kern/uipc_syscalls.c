@@ -649,7 +649,8 @@ sendit(td, s, mp, flags)
 		if (auio.uio_resid != len && (error == ERESTART ||
 		    error == EINTR || error == EWOULDBLOCK))
 			error = 0;
-		if (error == EPIPE) {
+		/* Generation of SIGPIPE can be controlled per socket */
+		if (error == EPIPE && !(so->so_options & SO_NOSIGPIPE)) {
 			PROC_LOCK(td->td_proc);
 			psignal(td->td_proc, SIGPIPE);
 			PROC_UNLOCK(td->td_proc);
