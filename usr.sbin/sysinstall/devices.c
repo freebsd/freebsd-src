@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.23 1995/05/20 15:47:18 jkh Exp $
+ * $Id: devices.c,v 1.24 1995/05/20 15:49:53 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -130,7 +130,7 @@ deviceTry(char *name, char *try)
     if (fd > 0)
 	return fd;
     snprintf(try, FILENAME_MAX, "/mnt/dev/%s", name);
-    fd = open(try, O_RDONLY);
+    fd = open(try, O_RDWR);
     return fd;
 }
 
@@ -226,7 +226,7 @@ deviceGetAll(void)
 		close(fd);
 		deviceRegister(device_names[i].name, device_names[i].description, strdup(try),
 			       DEVICE_TYPE_FLOPPY, TRUE, mediaInitFloppy, mediaGetFloppy, mediaCloseFloppy, NULL);
-		msgDebug("Found a device of type TAPE named: %s\n", device_names[i].name);
+		msgDebug("Found a device of type floppy named: %s\n", device_names[i].name);
 	    }
 	    break;
 
