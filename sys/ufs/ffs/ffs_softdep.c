@@ -206,14 +206,6 @@ static	void softdep_deallocate_dependencies __P((struct buf *));
 static	void softdep_move_dependencies __P((struct buf *, struct buf *));
 static	int softdep_count_dependencies __P((struct buf *bp, int));
 
-struct bio_ops bioops = {
-	softdep_disk_io_initiation,		/* io_start */
-	softdep_disk_write_complete,		/* io_complete */
-	softdep_deallocate_dependencies,	/* io_deallocate */
-	softdep_move_dependencies,		/* io_movedeps */
-	softdep_count_dependencies,		/* io_countdeps */
-};
-
 /*
  * Locking primitives.
  *
@@ -1076,6 +1068,13 @@ softdep_initialize()
 	sema_init(&inodedep_in_progress, "inodedep", PRIBIO, 0);
 	newblk_hashtbl = hashinit(64, M_NEWBLK, &newblk_hash);
 	sema_init(&newblk_in_progress, "newblk", PRIBIO, 0);
+
+	/* initialise bioops hack */
+	bioops.io_start = softdep_disk_io_initiation;
+	bioops.io_complete = softdep_disk_write_complete;
+	bioops.io_deallocate = softdep_deallocate_dependencies;
+	bioops.io_movedeps = softdep_move_dependencies;
+	bioops.io_countdeps = softdep_count_dependencies;
 }
 
 /*
