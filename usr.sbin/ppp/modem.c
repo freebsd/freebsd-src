@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77.2.55 1998/04/21 01:02:24 brian Exp $
+ * $Id: modem.c,v 1.77.2.56 1998/04/24 19:16:07 brian Exp $
  *
  *  TODO:
  */
@@ -694,7 +694,7 @@ modem_PhysicalClose(struct physical *modem)
   StopTimer(&modem->Timer);
   bundle_SetTtyCommandMode(modem->dl->bundle, modem->dl);
   throughput_stop(&modem->link.throughput);
-  throughput_log(&modem->link.throughput, LogPHASE, "Modem");
+  throughput_log(&modem->link.throughput, LogPHASE, modem->link.name);
 }
 
 void
