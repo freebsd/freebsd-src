@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_misc.c,v 1.2 1995/10/04 07:08:04 julian Exp $
+ *  $Id: linux_misc.c,v 1.1.4.1 1995/10/07 12:31:18 davidg Exp $
  */
 
 #include <i386/linux/linux.h>
@@ -493,7 +493,7 @@ linux_time(struct proc *p, struct linux_time_args *args, int *retval)
 #endif
     microtime(&tv);
     tm = tv.tv_sec;
-    if (error = copyout(&tm, args->tm, sizeof(linux_time_t)))
+    if (args->tm && (error = copyout(&tm, args->tm, sizeof(linux_time_t))))
 	return error;
     *retval = tv.tv_sec;
     return 0;
