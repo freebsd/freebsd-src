@@ -30,12 +30,14 @@ The meanings of the different fields are as follows:
    password:  update authentication tokens.
  
  control-flag: How libpam handles success or failure of the module.
-   required:   success is required, and on failure all remaining
-               modules are run.
+   required:   success is required; on failure all remaining
+               modules are run, but the request will be denied.
    requisite:  success is required, and on failure no remaining
                modules are run.
    sufficient: success is sufficient, and if no previous required
                module failed, no remaining modules are run.
+   binding:    success is sufficient; on failure all remaining
+               modules are run, but the request will be denied.
    optional:   ignored unless the other modules return PAM_IGNORE.
  
  arguments: Module-specific options, plus some generic ones:
