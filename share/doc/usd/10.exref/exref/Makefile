@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.2 1997/07/01 16:20:56 bde Exp $
+# $FreeBSD$
 
 SRCS=	ex.rm
 

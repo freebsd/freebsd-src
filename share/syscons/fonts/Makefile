@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.17 1998/05/04 11:24:00 phk Exp $
+# $FreeBSD$
 
 FONTS=	cp437-8x8.fnt cp437-8x14.fnt cp437-8x16.fnt \
 	cp437-thin-8x8.fnt cp437-thin-8x16.fnt \

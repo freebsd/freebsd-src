@@ -1,4 +1,4 @@
-# $Id: cvs-supfile,v 1.17.2.4 1999/06/28 10:08:04 asami Exp $
+# $FreeBSD$
 #
 # This file contains all of the "CVSup collections" that make up the
 # CVS development tree of the FreeBSD system.

@@ -1,4 +1,4 @@
-# $Id: doc-supfile,v 1.1 1999/05/12 20:01:10 billf Exp $
+# $FreeBSD$
 #
 # This file contains all of the "CVSup collections" that make up the
 # FreeBSD-current source tree.

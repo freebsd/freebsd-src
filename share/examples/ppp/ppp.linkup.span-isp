@@ -1,4 +1,4 @@
-# $Id: ppp.linkup.span-isp,v 1.1 1999/06/09 12:32:51 brian Exp $
+# $FreeBSD$
 
 # Refer to ppp.conf.span-isp for a description of what this file is for.
 # This file is only required on the Gateway machine.
