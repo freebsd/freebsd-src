@@ -63,7 +63,6 @@ CFLAGS+=	-I${GCCDIR}/config -I${GCCDIR} -I.
 CFLAGS+=	-fexceptions
 CFLAGS+=	-DIN_GCC
 .if ${OBJFORMAT} != aout
-#CFLAGS+=	-D_PTHREADS -fPIC -DGTHREAD_USE_WEAK
 CFLAGS+=	-D_PTHREADS -DGTHREAD_USE_WEAK
 .endif
 CXXFLAGS+=	-I${GCCDIR}/cp/inc
@@ -86,7 +85,7 @@ NEW2SOBJS=	${NEW2FUNCS:S/$/.So/}
 NEW1POBJS=	${NEW1FUNCS:S/$/.po/}
 NEW2POBJS=	${NEW2FUNCS:S/$/.po/}
 
-OBJS=		${LIB1OBJS} ${LIB2OBJS} ${NEW1OBJS} ${NEW2OBJS}
+OBJS=	${LIB1OBJS} ${LIB2OBJS} ${NEW1OBJS} ${NEW2OBJS}
 
 config.h:
 	echo '#include <${MACHINE_ARCH}/xm-${MACHINE_ARCH}.h>'	> ${.TARGET}
@@ -132,22 +131,22 @@ ${NEW2OBJS}: new2.cc
 
 .if !defined(NOPIC)
 ${LIB1SOBJS}: libgcc1.c
-	${CC} -c -fpic ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c}
+	${CC} -c ${PICFLAG} ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c}
 	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
 
 ${LIB2SOBJS}: libgcc2.c
-	${XCC} -c -fpic ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c}
+	${XCC} -c ${PICFLAG} ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c}
 	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
 
 ${NEW1SOBJS}: new1.cc
-	${XCXX} -c -fpic ${CXXFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.cc}
+	${XCXX} -c ${PICFLAG} ${CXXFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.cc}
 	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
 
 ${NEW2SOBJS}: new2.cc
-	${CXX} -c -fpic ${CXXFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.cc}
+	${CXX} -c ${PICFLAG} ${CXXFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.cc}
 	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
 .endif
