@@ -1,5 +1,5 @@
-/* $Id: isp_pci.c,v 1.20 1999/04/24 20:14:02 peter Exp $ */
-/* release_4_3_99 */
+/* $Id: isp_pci.c,v 1.21 1999/05/09 17:07:07 peter Exp $ */
+/* release_5_11_99 */
 /*
  * PCI specific probe and attach routines for Qlogic ISP SCSI adapters.
  * FreeBSD Version.
@@ -256,10 +256,6 @@ struct isp_pcisoftc {
 	bus_dmamap_t			cntrol_dmap;
 	bus_dmamap_t			dmaps[MAXISPREQUEST];
 #endif
-	union {
-		sdparam	_x;
-		fcparam _y;
-	} _z;
 };
 
 static u_long ispunit;
@@ -288,10 +284,10 @@ isp_pci_probe(pcici_t tag, pcidi_t type)
 #endif
 #ifndef	ISP_DISABLE_1080_SUPPORT
 	case PCI_QLOGIC_ISP1080:
-#if	0
-	case PCI_QLOGIC_ISP1240:	/* 1240 not ready yet */
-#endif
-		x = "Qlogic ISP 1080/1240 PCI SCSI Adapter";
+		x = "Qlogic ISP 1080 PCI SCSI Adapter";
+		break;
+	case PCI_QLOGIC_ISP1240:
+		x = "Qlogic ISP 1240 PCI SCSI Adapter";
 		break;
 #endif
 #ifndef	ISP_DISABLE_2100_SUPPORT
@@ -317,10 +313,11 @@ isp_pci_attach(pcici_t config_id, int unit)
 {
 	int mapped;
 	pci_port_t io_port;
-	u_int32_t data, linesz;
+	u_int32_t data, linesz, psize, basetype;
 	struct isp_pcisoftc *pcs;
 	struct ispsoftc *isp;
 	vm_offset_t vaddr, paddr;
+	struct ispmdvec *mdvp;
 	ISP_LOCKVAL_DECL;
 
 
@@ -377,44 +374,48 @@ isp_pci_attach(pcici_t config_id, int unit)
 	printf("isp%d: using %s space register mapping\n", unit,
 	    pcs->pci_st == IO_SPACE_MAPPING? "I/O" : "Memory");
 
-	isp = &pcs->pci_isp;
-#if	__FreeBSD_version >= 300006
-	(void) snprintf(isp->isp_name, sizeof (isp->isp_name), "isp%d", unit);
-#else
-	(void) sprintf(isp->isp_name, "isp%d", unit);
-#endif
-	isp->isp_osinfo.unit = unit;
-
 	data = pci_conf_read(config_id, PCI_ID_REG);
 	pcs->pci_poff[BIU_BLOCK >> _BLK_REG_SHFT] = BIU_REGS_OFF;
 	pcs->pci_poff[MBOX_BLOCK >> _BLK_REG_SHFT] = PCI_MBOX_REGS_OFF;
 	pcs->pci_poff[SXP_BLOCK >> _BLK_REG_SHFT] = PCI_SXP_REGS_OFF;
 	pcs->pci_poff[RISC_BLOCK >> _BLK_REG_SHFT] = PCI_RISC_REGS_OFF;
 	pcs->pci_poff[DMA_BLOCK >> _BLK_REG_SHFT] = DMA_REGS_OFF;
+	/*
+ 	 * GCC!
+	 */
+	mdvp = &mdvec;
+	basetype = ISP_HA_SCSI_UNKNOWN;
+	psize = sizeof (sdparam);
 #ifndef	ISP_DISABLE_1020_SUPPORT
 	if (data == PCI_QLOGIC_ISP) {
-		isp->isp_mdvec = &mdvec;
-		isp->isp_type = ISP_HA_SCSI_UNKNOWN;
-		isp->isp_param = &pcs->_z._x;
+		mdvp = &mdvec;
+		basetype = ISP_HA_SCSI_UNKNOWN;
+		psize = sizeof (sdparam);
 	}
 #endif
 #ifndef	ISP_DISABLE_1080_SUPPORT
-	if (data == PCI_QLOGIC_ISP1080 || data == PCI_QLOGIC_ISP1240) {
-		isp->isp_mdvec = &mdvec_1080;
-		isp->isp_type = ISP_HA_SCSI_1080;
-		isp->isp_param = &pcs->_z._x;
+	if (data == PCI_QLOGIC_ISP1080) {
+		mdvp = &mdvec_1080;
+		basetype = ISP_HA_SCSI_1080;
+		psize = sizeof (sdparam);
+		pcs->pci_poff[DMA_BLOCK >> _BLK_REG_SHFT] =
+		    ISP1080_DMA_REGS_OFF;
+	}
+	if (data == PCI_QLOGIC_ISP1240) {
+		mdvp = &mdvec_1080;
+		basetype = ISP_HA_SCSI_12X0;
+		psize = 2 * sizeof (sdparam);
 		pcs->pci_poff[DMA_BLOCK >> _BLK_REG_SHFT] =
 		    ISP1080_DMA_REGS_OFF;
 	}
 #endif
 #ifndef	ISP_DISABLE_2100_SUPPORT
 	if (data == PCI_QLOGIC_ISP2100) {
-		isp->isp_mdvec = &mdvec_2100;
-		isp->isp_type = ISP_HA_FC_2100;
-		isp->isp_param = &pcs->_z._y;
+		mdvp = &mdvec_2100;
+		basetype = ISP_HA_FC_2100;
+		psize = sizeof (fcparam);
 		pcs->pci_poff[MBOX_BLOCK >> _BLK_REG_SHFT] =
 		    PCI_MBOX_REGS2100_OFF;
-
 		data = pci_conf_read(config_id, PCI_CLASS_REG);
 		if ((data & 0xff) < 3) {
 			/*
@@ -427,6 +428,21 @@ isp_pci_attach(pcici_t config_id, int unit)
 		}
 	}
 #endif
+	isp = &pcs->pci_isp;
+	isp->isp_param = malloc(psize, M_DEVBUF, M_NOWAIT);
+	if (isp->isp_param == NULL) {
+		printf("isp%d: cannot allocate parameter data\n", unit);
+		return;
+	}
+	bzero(isp->isp_param, psize);
+	isp->isp_mdvec = mdvp;
+	isp->isp_type = basetype;
+#if	__FreeBSD_version >= 300006
+	(void) snprintf(isp->isp_name, sizeof (isp->isp_name), "isp%d", unit);
+#else
+	(void) sprintf(isp->isp_name, "isp%d", unit);
+#endif
+	isp->isp_osinfo.unit = unit;
 
 #if	__FreeBSD_version >= 300004
 	ISP_LOCK(isp);
@@ -525,6 +541,7 @@ isp_pci_attach(pcici_t config_id, int unit)
 	ISP_LOCK(isp);
 	isp_reset(isp);
 	if (isp->isp_state != ISP_RESETSTATE) {
+		(void) pci_unmap_int(config_id);
 		ISP_UNLOCK(isp);
 		free(pcs, M_DEVBUF);
 		return;
@@ -534,7 +551,10 @@ isp_pci_attach(pcici_t config_id, int unit)
 		/* If we're a Fibre Channel Card, we allow deferred attach */
 		if (isp->isp_type & ISP_HA_SCSI) {
 			isp_uninit(isp);
+			(void) pci_unmap_int(config_id); /* Does nothing */
+			ISP_UNLOCK(isp);
 			free(pcs, M_DEVBUF);
+			return;
 		}
 	}
 	isp_attach(isp);
@@ -542,7 +562,10 @@ isp_pci_attach(pcici_t config_id, int unit)
 		/* If we're a Fibre Channel Card, we allow deferred attach */
 		if (IS_SCSI(isp)) {
 			isp_uninit(isp);
+			(void) pci_unmap_int(config_id); /* Does nothing */
+			ISP_UNLOCK(isp);
 			free(pcs, M_DEVBUF);
+			return;
 		}
 	}
 	ISP_UNLOCK(isp);
