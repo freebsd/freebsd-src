@@ -54,7 +54,7 @@ __FBSDID("$FreeBSD$");
 /* string defined by the Intel MP Spec as identifying the MP table */
 #define	MP_SIG			0x5f504d5f	/* _MP_ */
 
-#define	NAPICID			16	/* Max number of I/O APIC's */
+#define	NAPICID			32	/* Max number of I/O APIC's */
 
 #ifdef PC98
 #define BIOS_BASE		(0xe8000)
