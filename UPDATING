@@ -16,6 +16,9 @@ minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
 
+20030810:	p34	FreeBSD-SA-03:09.signal
+	Repair range-checking errors in signal handling.
+
 20030804:	p33	FreeBSD-SA-03:08.realpath
 	Correct a single byte buffer overflow in realpath(3).
 
