@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: isapnp.h,v 1.1 1998/09/18 00:24:25 msmith Exp $
+ *      $Id: isapnp.h,v 1.2 1998/10/21 20:07:04 msmith Exp $
  */
 
 #ifndef _I386_ISA_PNP_H_
@@ -44,13 +44,15 @@
 #define MAX_PNP_LDN	20
 
 /* Static ports to access PnP state machine */
-#if defined(PC98) && defined(KERNEL)
+#ifndef KERNEL
+#ifdef PC98
 /* pnp.h is included from pnpinfo.c. */
 #define _PNP_ADDRESS		0x259
 #define _PNP_WRITE_DATA		0xa59
 #else
 #define _PNP_ADDRESS		0x279
 #define _PNP_WRITE_DATA		0xa79
+#endif
 #endif
 
 /* PnP Registers.  Write to ADDRESS and then use WRITE/READ_DATA */

@@ -2,6 +2,6 @@
 SUBDIR+=		ficl
 
 # Pick the machine-dependant subdir based on the target architecture.
-SUBDIR+=		${MACHINE_ARCH}
+SUBDIR+=		${MACHINE}
 
 .include <bsd.subdir.mk>
