@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vnops.c	8.32 (Berkeley) 6/23/95
- * $Id: union_vnops.c,v 1.50 1998/01/22 02:14:59 kato Exp $
+ * $Id: union_vnops.c,v 1.51 1998/02/04 22:32:55 eivind Exp $
  */
 
 #include "opt_diagnostic.h"
@@ -1087,8 +1087,11 @@ union_remove(ap)
 		if (union_dowhiteout(un, cnp->cn_cred, cnp->cn_proc))
 			cnp->cn_flags |= DOWHITEOUT;
 		error = VOP_REMOVE(dvp, vp, cnp);
+#if 0
+		/* XXX */
 		if (!error)
 			union_removed_upper(un);
+#endif
 	} else {
 		FIXUP(dun, p);
 		error = union_mkwhiteout(
@@ -1332,8 +1335,11 @@ union_rmdir(ap)
 		if (union_dowhiteout(un, cnp->cn_cred, cnp->cn_proc))
 			cnp->cn_flags |= DOWHITEOUT;
 		error = VOP_RMDIR(dvp, vp, ap->a_cnp);
+#if 0
+		/* XXX */
 		if (!error)
 			union_removed_upper(un);
+#endif
 	} else {
 		FIXUP(dun, p);
 		error = union_mkwhiteout(
