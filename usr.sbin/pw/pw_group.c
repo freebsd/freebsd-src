@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pw_group.c,v 1.1.1.1.2.1 1996/12/10 00:32:00 joerg Exp $
+ *	$Id: pw_group.c,v 1.1.1.1.2.2 1996/12/11 00:14:16 joerg Exp $
  */
 
 #include <unistd.h>
@@ -303,8 +303,8 @@ print_group(struct group * grp, int pretty)
 	} else {
 		int             i;
 
-		printf("Group Name : %-10s   #%lu\n"
-		       "   Members : ",
+		printf("Group Name: %-15s   #%lu\n"
+		       "   Members: ",
 		       grp->gr_name, (long) grp->gr_gid);
 		for (i = 0; i < _UC_MAXGROUPS && grp->gr_mem[i]; i++)
 			printf("%s%s", i ? "," : "", grp->gr_mem[i]);
