@@ -480,7 +480,11 @@ sorthelp(const void *a, const void *b)
 
 	oa = a;
 	ob = b;
-	return (*oa > *ob);
+	if (*oa > *ob)
+		return 1;
+	if (*oa < *ob)
+		return -1;
+	return 0;
 }
 
 static void
@@ -721,7 +725,7 @@ main(int argc, char **argv)
        if ((i = modfind("g_bde")) < 0) {
 	       /* need to load the gbde module */
 	       if (kldload(GBDEMOD) < 0 || modfind("g_bde") < 0) {
-		       usage(GBDEMOD ": Kernel module not available");
+		       usage(GBDEMOD ": Kernel module not available\n");
 	       }
        }
 	doopen = 0;
