@@ -816,6 +816,13 @@ each_writable_segment(p, func, closure)
 		    (VM_PROT_READ|VM_PROT_WRITE))
 			continue;
 
+		/*
+		** Dont include mmapped data in the coredump if MAP_NOCORE 
+		** is set in mmap(2).
+		*/
+		if (entry->eflags & MAP_ENTRY_NOCOREDUMP)
+			continue;
+
 		if ((obj = entry->object.vm_object) == NULL)
 			continue;
 
