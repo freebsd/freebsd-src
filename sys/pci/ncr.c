@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.10 1994/10/14 23:59:36 se Exp $
+**  $Id: ncr.c,v 1.11 1994/10/27 20:12:46 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -1222,7 +1222,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.10 1994/10/14 23:59:36 se Exp $\n";
+	"\n$Id: ncr.c,v 1.11 1994/10/27 20:12:46 se Exp $\n";
 
 u_long	ncr_version = NCR_VERSION
 	+ (u_long) sizeof (struct ncb)
@@ -3327,7 +3327,7 @@ static	void ncr_attach (pcici_t config_id, int unit)
 		ncr_name (np));
 	DELAY (1000000);
 #endif
-	printf ("%s scanning for targets 0..%d ($Revision: 1.10 $)\n",
+	printf ("%s scanning for targets 0..%d ($Revision: 1.11 $)\n",
 		ncr_name (np), MAX_TARGET-1);
 
 	/*
@@ -6408,6 +6408,7 @@ struct table_entry {
 
 static struct table_entry device_tab[] =
 {
+	{"SONY", "SDT-5000", "3.17", QUIRK_NOMSG},
 	{"WangDAT", "Model 2600", "01.7", QUIRK_NOMSG},
 	{"WangDAT", "Model 3200", "02.2", QUIRK_NOMSG},
 	{"WangDAT", "Model 1300", "02.4", QUIRK_NOMSG},
