@@ -89,7 +89,7 @@ static default_attr kernel_default = {
 };
 
 static	int		sc_console_unit = -1;
-static	int		sc_saver_keyb_only;
+static	int		sc_saver_keyb_only = 1;
 static  scr_stat    	*sc_console;
 static	struct tty	*sc_console_tty;
 static	void		*kernel_console_ts;
