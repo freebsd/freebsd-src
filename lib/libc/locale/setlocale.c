@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <limits.h>
 #include <locale.h>
-#include <rune.h>
+#include <paths.h>	/* for _PATH_LOCALE */
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
