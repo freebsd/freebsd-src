@@ -29,7 +29,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: ypcat.c,v 1.1.8.1 1997/09/01 06:04:22 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -37,8 +37,8 @@ static const char rcsid[] =
 #include <sys/socket.h>
 #include <ctype.h>
 #include <err.h>
-#include <stdio.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <unistd.h>
 
 #include <rpc/rpc.h>
@@ -50,6 +50,7 @@ struct ypalias {
 	char *alias, *name;
 } ypaliases[] = {
 	{ "passwd", "passwd.byname" },
+	{ "master.passwd", "master.passwd.byname" },
 	{ "group", "group.byname" },
 	{ "networks", "networks.byaddr" },
 	{ "hosts", "hosts.byaddr" },
