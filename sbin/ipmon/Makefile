@@ -8,4 +8,6 @@ SRCS=	ipmon.c
 
 CFLAGS+=-DIPL_NAME=\"/dev/ipl\" -I- -I${.CURDIR}/../../sys -I${.CURDIR}/../../contrib/ipfilter
 
+MAINTAINER=	guido@freebsd.org
+
 .include <bsd.prog.mk>
