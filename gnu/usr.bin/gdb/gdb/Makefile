@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.13.2.3 1997/05/01 00:27:48 pst Exp $
+#	$Id: Makefile,v 1.13.2.4 1997/05/01 16:17:57 pst Exp $
 
 PROG = gdb
 
@@ -24,21 +24,22 @@ XSRCS = annotate.c blockframe.c breakpoint.c buildsym.c c-lang.c \
 	typeprint.c utils.c valarith.c valops.c \
 	valprint.c values.c version.c \
 	serial.c ser-unix.c ser-tcp.c mdebugread.c \
-	c-exp.tab.c f-exp.tab.c m2-exp.tab.c i387-tdep.c \
+	c-exp.c f-exp.c m2-exp.c i387-tdep.c \
 	kvm-fbsd.c bcache.c \
 	corefile.c ch-exp.c f-lang.c scm-exp.c scm-lang.c \
 	scm-valprint.c f-typeprint.c f-valprint.c nlmread.c \
 	callback.c
 XSRCS+= i386-dis.c dis-buf.c disassemble.c
-SRCS+=	init.c ${XSRCS}
-
-CLEANFILES+= init.c
+SRCS=	init.c ${XSRCS}
 
 CFLAGS+= -I$(.CURDIR) -I${DESTDIR}/usr/include/readline -I$(.CURDIR)/../bfd
 # use phkmalloc
 CFLAGS+= -DNO_MMALLOC
 # uncomment the next line if you want to debug gdb
 #CFLAGS+= -g
+
+CLEANFILES+=	c-exp.c f-exp.c m2-exp.c init.c y.tab.h init.c-tmp
+beforedepend:	c-exp.c f-exp.c m2-exp.c init.c
 
 .if exists(${.OBJDIR}/../bfd)
 LDADD+=   -L${.OBJDIR}/../bfd -lbfd
@@ -60,7 +61,7 @@ DPADD+=   ${.CURDIR}/../libiberty/libiberty.a
 .endif
 
 DPADD+= ${LIBTERMCAP}
-LDADD+= -ltermcap # -lmalloc
+LDADD+= -ltermcap
 
 .if exists(${.OBJDIR}/../libiberty)
 LDADD+=   -L${.OBJDIR}/../libiberty -liberty
@@ -87,7 +88,7 @@ init.c: ${XSRCS}
 	@echo '/* Do not modify this file.  */' >init.c-tmp
 	@echo '/* It is created automatically by the Makefile.  */'>>init.c-tmp
 	@echo 'void initialize_all_files () {' >>init.c-tmp
-	@for i in ${XSRCS} ; do \
+	@for i in ${.ALLSRC} ; do \
 	  filename=`echo $$i | sed \
 	    -e '/^Onindy.c/d' \
 	    -e '/^nindy.c/d' \
@@ -103,10 +104,7 @@ init.c: ${XSRCS}
 	    -e '/[a-z0-9A-Z_]*-exp.tab.c/d'` ; \
 	  case $$filename in \
 	    "") ;; \
-	    *) fn=${.CURDIR}/$$filename ; \
-	       test -f $$fn || fn=${GDBDIR}/gdb/$$filename ; \
-	       test -f $$fn || fn=${GDBDIR}/opcodes/$$filename ; \
-	       sed <$$fn >>init.c-tmp -n \
+	    *) sed <$$filename >>init.c-tmp -n \
 	-e '/^_initialize_[a-z_0-9A-Z]* *(/s/^\([a-z_0-9A-Z]*\).*/  {extern void \1 (); \1 ();}/p' ; ;; \
 	  esac ; \
 	done
