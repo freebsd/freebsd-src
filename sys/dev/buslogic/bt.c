@@ -1471,7 +1471,7 @@ btexecuteccb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	if (nseg != 0) {
 		bt_sg_t *sg;
 		bus_dma_segment_t *end_seg;
-		int op;
+		bus_dmasync_op_t op;
 
 		end_seg = dm_segs + nseg;
 
@@ -1608,7 +1608,7 @@ btdone(struct bt_softc *bt, struct bt_ccb *bccb, bt_mbi_comp_code_t comp_code)
 	}
 
 	if ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
-		int op;
+		bus_dmasync_op_t op;
 
 		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN)
 			op = BUS_DMASYNC_POSTREAD;

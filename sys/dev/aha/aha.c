@@ -1115,7 +1115,7 @@ ahaexecuteccb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	if (nseg != 0) {
 		aha_sg_t *sg;
 		bus_dma_segment_t *end_seg;
-		int op;
+		bus_dmasync_op_t op;
 
 		end_seg = dm_segs + nseg;
 
@@ -1254,7 +1254,7 @@ ahadone(struct aha_softc *aha, struct aha_ccb *accb, aha_mbi_comp_code_t comp_co
 	}
 
 	if ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
-		int op;
+		bus_dmasync_op_t op;
 
 		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN)
 			op = BUS_DMASYNC_POSTREAD;

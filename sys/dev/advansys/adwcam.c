@@ -255,7 +255,7 @@ adwexecuteacb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	}
 		
 	if (nseg != 0) {
-		int op;
+		bus_dmasync_op_t op;
 
 		acb->queue.data_addr = dm_segs[0].ds_addr;
 		acb->queue.data_cnt = ccb->csio.dxfer_len;
@@ -1334,7 +1334,7 @@ adw_intr(void *arg)
 		ccb = acb->ccb;
 		untimeout(adwtimeout, acb, ccb->ccb_h.timeout_ch);
 		if ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
-			int op;
+			bus_dmasync_op_t op;
 
 			if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN)
 				op = BUS_DMASYNC_POSTREAD;

@@ -864,6 +864,7 @@ struct uio;
 /*
  *	Operations performed by bus_dmamap_sync().
  */
+typedef int bus_dmasync_op_t;
 #define	BUS_DMASYNC_PREREAD	1
 #define	BUS_DMASYNC_POSTREAD	2
 #define	BUS_DMASYNC_PREWRITE	4
@@ -998,7 +999,7 @@ int bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map, struct uio *ui,
  */
 void _bus_dmamap_sync(bus_dma_tag_t, bus_dmamap_t, int);
 static __inline void
-bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t dmamap, int op)
+bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t dmamap, bus_dmasync_op_t op)
 {
 	if ((dmamap) != NULL)
 		_bus_dmamap_sync(dmat, dmamap, op);
