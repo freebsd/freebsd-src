@@ -21,6 +21,7 @@
 #endif
 
 #include "skey.h"
+#include "pathnames.h"
 
 static int isaddr();
 static int rdnets();
@@ -113,9 +114,15 @@ unsigned long host;
     char   *strtok();
     int     permit_it = 0;
 
-    fp = fopen("/etc/skey.access", "r");
-    if (fp == NULL)
-	return 1;				/* XXX */
+    /*
+     * If auth file not found, be backwards compatible with standard login
+     * and allow hard coded passwords in from anywhere.  Some may consider
+     * this a security hole,  but backwards compatibility is more desirable
+     * than others.  If you don't like it, change the return value to be zero.
+     */
+    if ((fp = fopen(_PATH_SKEYACCESS, "r")) == NULL)
+	return 1;
+
     while (fgets(buf, sizeof(buf), fp), !feof(fp)) {
 	if (buf[0] == '#')
 	    continue;				/* Comment */
