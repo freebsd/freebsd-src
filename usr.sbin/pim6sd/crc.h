@@ -25,8 +25,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 /*
  *  Questions concerning this software should be directed to
@@ -38,11 +36,12 @@
  * The pimd program is covered by the license in the accompanying file
  * named "LICENSE.pimd".
  *
+ * $FreeBSD$
  */
 
 #ifndef CRC_H
 #define CRC_H
 
-extern long    crc               __P((unsigned char *buf, int len));
+extern unsigned long crc __P((unsigned char *buf, int len));
 
 #endif

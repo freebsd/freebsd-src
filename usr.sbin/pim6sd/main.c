@@ -29,8 +29,6 @@
  *
  *  Other copyrights might apply to parts of this software and are so
  *  noted when applicable.
- *
- * $FreeBSD$
  */
 /*
  *  Questions concerning this software should be directed to
@@ -38,12 +36,12 @@
  *
  */
 /*
- * This program has been derived from pim6dd.
+ * This program has been derived from pim6dd.        
  * The pim6dd program is covered by the license in the accompanying file
  * named "LICENSE.pim6dd".
  */
 /*
- * This program has been derived from pimd.
+ * This program has been derived from pimd.        
  * The pimd program is covered by the license in the accompanying file
  * named "LICENSE.pimd".
  *
@@ -56,6 +54,7 @@
  * The mrouted program is COPYRIGHT 1989 by The Board of Trustees of
  * Leland Stanford Junior University.
  *
+ * $FreeBSD$
  */
 
 #include <sys/param.h>
@@ -85,7 +84,7 @@ char            	configfilename[256] = _PATH_PIM6D_CONF;
 char            	versionstring[100];
 char			logfilename[256] = _PATH_PIM6D_LOGFILE;
 
-/* TODO: not used
+/* TODO: not used 
 static char 		genidfilename[] = _PATH_PIM6D_GENID;
 */
 static char     	pidfilename[] = _PATH_PIM6D_PID;
@@ -96,15 +95,15 @@ char           		*progname;
 static int		foreground = 0;
 static int      	sighandled = 0;
 
-#define	GOT_SIGINT      0x01
-#define	GOT_SIGHUP      0x02
-#define	GOT_SIGUSR1     0x04
-#define	GOT_SIGUSR2     0x08
-#define	GOT_SIGALRM     0x10
-#define	GOT_SIGINFO	0x20
+#define GOT_SIGINT      0x01
+#define GOT_SIGHUP      0x02
+#define GOT_SIGUSR1     0x04
+#define GOT_SIGUSR2     0x08
+#define GOT_SIGALRM     0x10
+#define GOT_SIGINFO	0x20
 
 
-#define	NHANDLERS       3
+#define NHANDLERS       3
 
 static struct ihandler
 {
@@ -274,7 +273,7 @@ main(argc, argv)
 		    {
 			no=1;
 			p++;
-		    }
+		    }		
 		    len = strlen(p);
 		    for (i = 0, d = debugnames;
 			 i < sizeof(debugnames) / sizeof(debugnames[0]);
@@ -547,20 +546,20 @@ usage:
 	}
 	if ((n = select(nfds, &rfds, NULL, NULL, timeout)) < 0)
 	{
-	    if (errno != EINTR)
+	    if (errno != EINTR)	
 		log(LOG_WARNING, errno, "select failed");
 	    continue;
 	}
 
 	/*
 	 * Handle timeout queue.
-	 *
+	 * 
 	 * If select + packet processing took more than 1 second, or if there is
 	 * a timeout pending, age the timeout queue.
-	 *
+	 * 
 	 * If not, collect usec in difftime to make sure that the time doesn't
 	 * drift too badly.
-	 *
+	 * 
 	 * If the timeout handlers took more than 1 second, age the timeout
 	 * queue again.  XXX This introduces the potential for infinite
 	 * loops!
@@ -637,7 +636,7 @@ usage:
  * initial- ization.  This repetition after a short interval is desirable for
  * quickly building up topology and membership information in the presence of
  * possible packet loss.
- *
+ * 
  * 'virtual_time' advances at a rate that is only a crude approximation of real
  * time, because it does not take into account any time spent processing, and
  * because the timer intervals are sometimes shrunk by a random amount to
@@ -677,9 +676,9 @@ cleanup()
      * TODO: XXX (not in the spec): if I am the BSR, somehow inform the other
      * routers I am going down and need to elect another BSR? (probably by
      * sending a the Cand-RP-set with my_priority=LOWEST?)
-     *
-     */
-
+     * 
+     */ 
+	
      k_stop_pim(mld6_socket);
 }
 
@@ -736,7 +735,7 @@ restart(i)
      * reset all the entries
      */
     /*
-     * TODO: delete?
+     * TODO: delete? 
     free_all_routes();
      */
 

@@ -25,8 +25,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 /*
  *  Questions concerning this software should be directed to
@@ -34,24 +32,25 @@
  *
  */
 /*
- * This program has been derived from pim6dd.
+ * This program has been derived from pim6dd.        
  * The pim6dd program is covered by the license in the accompanying file
  * named "LICENSE.pim6dd".
  */
 /*
- * This program has been derived from pimd.
+ * This program has been derived from pimd.        
  * The pimd program is covered by the license in the accompanying file
  * named "LICENSE.pimd".
  *
+ * $FreeBSD$
  */
 
 
 #ifndef ROUTESOCK_H
-#define	ROUTESOCK_H
+#define ROUTESOCK_H
 
-void init_routesock();
+int init_routesock __P((void));
 extern int pid;
 extern int    k_req_incoming         __P((struct sockaddr_in6 *source,
-                      struct rpfctl *rpfp));
+                      struct rpfctl *rpfp)); 
 
 #endif
