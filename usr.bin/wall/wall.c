@@ -124,7 +124,8 @@ void
 makemsg(fname)
 	char *fname;
 {
-	register int ch, cnt;
+	register int cnt;
+	register unsigned char ch;
 	struct tm *lt;
 	struct passwd *pw;
 	struct stat sbuf;
@@ -172,13 +173,21 @@ makemsg(fname)
 	}
 	while (fgets(lbuf, sizeof(lbuf), stdin))
 		for (cnt = 0, p = lbuf; (ch = *p) != '\0'; ++p, ++cnt) {
+		again:
 			if (cnt == 79 || ch == '\n') {
 				for (; cnt < 79; ++cnt)
 					putc(' ', fp);
 				putc('\r', fp);
 				putc('\n', fp);
 				cnt = 0;
-			} else if (!isprint(ch) && !isspace(ch) && ch != '\007') {
+			} else if (  !isprint(ch) && !isspace(ch)
+				   && ch != '\007' && ch != '\010'
+				  ) {
+				if (ch & 0x80) {
+					ch &= 0x7F;
+					(void)fprintf(fp, "M-");
+					goto again;
+				}
 				putc('^', fp);
 				putc(ch^0x40, fp);	/* DEL to ?, others to alpha */
 			} else
