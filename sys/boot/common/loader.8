@@ -395,7 +395,11 @@ Value of
 .Nm Ns 's
 prompt.
 Defaults to
-.Dq Li "${currdev}>" .
+.Dq Li "${interpret}" .
+If variable
+.Va prompt
+is unset, the default prompt is
+.Ql > .
 .It Va root_disk_unit
 If the code which detects the disk unit number for the root disk is
 confused, e.g.\& by a mix of SCSI and IDE disks, or IDE disks with
