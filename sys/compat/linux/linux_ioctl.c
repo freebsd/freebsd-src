@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_ioctl.c,v 1.7 1996/03/03 19:07:50 peter Exp $
+ *  $Id: linux_ioctl.c,v 1.8 1996/03/04 11:15:19 peter Exp $
  */
 
 #include <sys/param.h>
@@ -81,6 +81,24 @@ static struct speedtab sptab[] = {
     { 19200, 14 }, { 38400, 15 }, 
     { 57600, 4097 }, { 115200, 4098 }, {-1, -1 }
 };
+
+struct linux_serial_struct {
+        int     type;
+        int     line;
+        int     port;
+        int     irq;
+        int     flags;
+        int     xmit_fifo_size;
+        int     custom_divisor;
+        int     baud_base;
+        unsigned short  close_delay;
+        char    reserved_char[2];
+        int     hub6;
+        unsigned short  closing_wait;
+        unsigned short  closing_wait2;
+        int     reserved[4];
+};
+
 
 static int
 linux_to_bsd_speed(int code, struct speedtab *table)
@@ -411,6 +429,23 @@ linux_to_bsd_termio(struct linux_termio *linux_termio,
   linux_to_bsd_termios(&tmios, bsd_termios);
 }
 
+static void
+linux_tiocgserial(struct file *fp, struct linux_serial_struct *lss)
+{
+  if (!fp || !lss)
+    return;
+
+  lss->type = LINUX_PORT_16550A;
+  lss->flags = 0;
+  lss->close_delay = 0;
+}
+
+static void
+linux_tiocsserial(struct file *fp, struct linux_serial_struct *lss)
+{
+  if (!fp || !lss)
+    return;
+}
 
 int
 linux_ioctl(struct proc *p, struct linux_ioctl_args *args, int *retval)
@@ -658,6 +693,32 @@ linux_ioctl(struct proc *p, struct linux_ioctl_args *args, int *retval)
     case LINUX_SNDCTL_DSP_NONBLOCK:
 	args->cmd = SNDCTL_DSP_NONBLOCK;
 	return ioctl(p, (struct ioctl_args *)args, retval);
+
+    case LINUX_TIOCGSERIAL:
+        linux_tiocgserial(fp, (struct linux_serial_struct *)args->arg);
+        return 0;
+
+    case LINUX_TIOCSSERIAL:
+        linux_tiocsserial(fp, (struct linux_serial_struct *)args->arg);
+	return 0;
+
+    case LINUX_TCFLSH:
+      args->cmd = TIOCFLUSH;
+      switch (args->arg) {
+        case LINUX_TCIFLUSH:
+                args->arg = FREAD;
+                break;
+        case LINUX_TCOFLUSH:
+                args->arg = FWRITE;
+                break;
+        case LINUX_TCIOFLUSH:
+                args->arg = FREAD | FWRITE;
+                break;
+        default:
+	        return EINVAL;
+      }
+      return ioctl(p, (struct ioctl_args *)args, retval);
+
     }
     uprintf("LINUX: 'ioctl' fd=%d, typ=0x%x(%c), num=0x%x not implemented\n",
 	    args->fd, (args->cmd&0xffff00)>>8,
