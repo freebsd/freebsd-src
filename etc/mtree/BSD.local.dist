@@ -1,4 +1,4 @@
-#	$Id: BSD.local.dist,v 1.8 1995/02/15 19:12:21 ache Exp $
+#	$Id: BSD.local.dist,v 1.9 1995/02/22 04:34:19 ache Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -6,6 +6,8 @@
     bin            
     ..
     etc            
+    ..
+    include
     ..
     info           
     ..
