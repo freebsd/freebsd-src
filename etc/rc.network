@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.network,v 1.1.2.13 1998/02/01 00:24:02 wollman Exp $
+#	$Id: rc.network,v 1.1.2.14 1998/02/15 14:24:50 jkh Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # Note that almost all the user-configurable behavior is no longer in
@@ -28,7 +28,7 @@ network_pass1() {
     # Set up all the network interfaces, calling startup scripts if needed
     for ifn in ${network_interfaces}; do
 	    if [ -e /etc/start_if.${ifn} ]; then
-		    . /etc/start_if.${ifn} ${ifn}
+		    . /etc/start_if.${ifn}
 	    fi
 	    # Do the primary ifconfig if specified
 	    eval ifconfig_args=\$ifconfig_${ifn}
