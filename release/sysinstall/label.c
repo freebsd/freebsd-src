@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.81 1998/02/06 04:35:21 jkh Exp $
+ * $Id: label.c,v 1.82 1998/03/13 11:09:03 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -786,8 +786,15 @@ diskLabel(Device *dev)
 
 		if (!vardev) {
 		    cp = variable_get(VAR_VAR_SIZE);
+		    if (cp)
+			sz = atoi(cp) * ONE_MEG;
+		    else
+			sz = variable_get(VAR_NO_USR)
+				?  space_free(label_chunk_info[here].c)
+				:  VAR_MIN_SIZE * ONE_MEG;
+
 		    tmp = Create_Chunk_DWIM(label_chunk_info[here].c->disk, label_chunk_info[here].c,
-					    (cp ? atoi(cp) : VAR_MIN_SIZE) * ONE_MEG, part, FS_BSDFFS, 0);
+					    sz, part, FS_BSDFFS, 0);
 		    if (!tmp) {
 			msgConfirm("Less than %dMB free for /var - you will need to\n"
 				   "partition your disk manually with a custom install!",
@@ -800,7 +807,7 @@ diskLabel(Device *dev)
 		    record_label_chunks(devs, dev);
 		}
 
-		if (!usrdev) {
+		if (!usrdev && !variable_get(VAR_NO_USR)) {
 		    cp = variable_get(VAR_USR_SIZE);
 		    if (cp)
 			sz = atoi(cp) * ONE_MEG;
@@ -828,6 +835,7 @@ diskLabel(Device *dev)
 			record_label_chunks(devs, dev);
 		    }
 		}
+
 		/* At this point, we're reasonably "labelled" */
 		if (((cp = variable_get(DISK_LABELLED)) == NULL) || (strcmp(cp, "written")))
 		    variable_set2(DISK_LABELLED, "yes");

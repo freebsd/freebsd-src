@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: variable.c,v 1.22 1998/03/10 17:24:08 jkh Exp $
+ * $Id: variable.c,v 1.23 1998/03/15 17:10:17 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -198,3 +198,27 @@ variable_check(char *data)
     else
         return getenv(tmp) ? TRUE : FALSE;
 } 
+
+int
+dump_variables(dialogMenuItem *unused)
+{
+    FILE *fp;
+    Variable *vp;
+
+    if (isDebug())
+	msgDebug("Writing sysinstall variables to file..");
+
+    fp = fopen("/etc/sysinstall.vars", "w");
+    if (!fp) {
+	msgConfirm("Unable to write to /etc/sysinstall.vars: %s",
+		   strerror(errno));
+	return DITEM_FAILURE;
+    }
+
+    for (vp = VarHead; vp; vp = vp->next)
+	fprintf(fp, "%s=\"%s\"\n", vp->name, vp->value);
+
+    fclose(fp);
+
+    return DITEM_SUCCESS;
+}
