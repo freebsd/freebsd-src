@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.160 1999/08/19 07:10:26 ru Exp $
+#	$Id: BSD.usr.dist,v 1.161 1999/08/23 05:12:42 rgrimes Exp $
 #
 # Please see the file README before making changes to this file.
 #
@@ -8,138 +8,138 @@
     bin
     ..
     games
-        hide        gname=games mode=0550
+        hide            gname=games mode=0550
         ..
     ..
     include
     ..
     lib
-	aout
-	..
-	compat
-		aout
-		..
-	..
+        aout
+        ..
+        compat
+            aout
+            ..
+        ..
     ..
     libdata
-	doscmd
-	..
-	gcc
-	..
-	ldscripts
-	..
-	lint
-	..
-	msdosfs
-	..
-	stallion
-	..
-	perl
-		5.00503
-			B
-			..
-			CGI
-			..
-			CPAN
-			..
-			Class
-			..
-			Data
-			..
-			Devel
-			..
-			ExtUtils
-			..
-			File
-				Spec
-				..
-			..
-			Getopt
-			..
-			I18N
-			..
-			IPC
-			..
-			Math
-			..
-			Net
-			..
-			Pod
-			..
-			Search
-			..
-			Sys
-			..
-			Term
-			..
-			Test
-			..
-			Text
-			..
-			Tie
-			..
-			Time
-			..
-			User
-			..
-			auto
-				Getopt
-					Long
-					..
-				..
-			..
-			mach
-				B
-				..
-				CORE
-				..
-				Data
-				..
-				IO
-				..
-				IPC
-				..
-				auto
-					B
-					..
-					DB_File
-					..
-					Data
-						Dumper
-						..
-					..
-					DynaLoader
-					..
-					Fcntl
-					..
-					IO
-					..
-					IPC
-						SysV
-						..
-					..
-					NDBM_File
-					..
-					Opcode
-					..
-					POSIX
-					..
-					SDBM_File
-					..
-					Socket
-					..
-					attrs
-					..
-					re
-					..
-					sdbm
-					..
-				..
-			..
-			pod
-			..
-		..
-	..
+        doscmd
+        ..
+        gcc
+        ..
+        ldscripts
+        ..
+        lint
+        ..
+        msdosfs
+        ..
+        stallion
+        ..
+        perl
+            5.00503
+                B
+                ..
+                CGI
+                ..
+                CPAN
+                ..
+                Class
+                ..
+                Data
+                ..
+                Devel
+                ..
+                ExtUtils
+                ..
+                File
+                    Spec
+                    ..
+                ..
+                Getopt
+                ..
+                I18N
+                ..
+                IPC
+                ..
+                Math
+                ..
+                Net
+                ..
+                Pod
+                ..
+                Search
+                ..
+                Sys
+                ..
+                Term
+                ..
+                Test
+                ..
+                Text
+                ..
+                Tie
+                ..
+                Time
+                ..
+                User
+                ..
+                auto
+                    Getopt
+                        Long
+                        ..
+                    ..
+                ..
+                mach
+                    B
+                    ..
+                    CORE
+                    ..
+                    Data
+                    ..
+                    IO
+                    ..
+                    IPC
+                    ..
+                    auto
+                        B
+                        ..
+                        DB_File
+                        ..
+                        Data
+                            Dumper
+                            ..
+                        ..
+                        DynaLoader
+                            ..
+                            Fcntl
+                            ..
+                            IO
+                            ..
+                            IPC
+                                SysV
+                                ..
+                            ..
+                            NDBM_File
+                            ..
+                            Opcode
+                            ..
+                            POSIX
+                            ..
+                            SDBM_File
+                            ..
+                            Socket
+                            ..
+                            attrs
+                            ..
+                            re
+                            ..
+                            sdbm
+                            ..
+                        ..
+                    ..
+                pod
+                ..
+            ..
+        ..
     ..
     libexec
         aout
@@ -147,11 +147,11 @@
         elf
         ..
         lpr
-		ru
-		..
+            ru
+            ..
         ..
-	sm.bin
-	..
+        sm.bin
+        ..
         uucp
         ..
     ..
@@ -165,12 +165,12 @@
     ..
     share
         calendar
-		de_DE.ISO_8859-1
-		..
-		hr_HR.ISO_8859-2
-		..
-		ru_SU.KOI8-R
-		..
+            de_DE.ISO_8859-1
+            ..
+            hr_HR.ISO_8859-2
+            ..
+            ru_SU.KOI8-R
+            ..
         ..
         dict
         ..
@@ -254,26 +254,26 @@
                 ..
             ..
             tutorials
-		ddwg
-		..
-		mh
-		..
-		devel
-		..
-		diskformat
-		..
-		disklessx
-		..
-		fonts
-		..
-		ppp
-		..
-		multios
-		..
-		newuser
-		..
-		upgrade
-		..
+                ddwg
+                ..
+                mh
+                ..
+                devel
+                ..
+                diskformat
+                ..
+                disklessx
+                ..
+                fonts
+                ..
+                ppp
+                ..
+                multios
+                ..
+                newuser
+                ..
+                upgrade
+                ..
             ..
             usd
                 04.csh
@@ -323,23 +323,23 @@
             ..
             cvsup
             ..
-	    diskless
-		209.157.86.12
-		..
-		HT.DISKLESS  
-		..
-		archive.backplane.com  
-		..
-		HT.STD  
-		..
-	    ..
+            diskless
+                209.157.86.12
+                ..
+                HT.DISKLESS  
+                ..
+                archive.backplane.com  
+                ..
+                HT.STD  
+                ..
+            ..
             drivers
             ..
             etc
-		defaults
-		..
-	    ..
-	    find_interface
+                defaults
+                ..
+            ..
+            find_interface
             ..
             ibcs2
             ..
@@ -362,27 +362,27 @@
             libvgl
             ..
             meteor
-	    ..
-	    mdoc
             ..
-	    perfmon
-	    ..
-	    portal
-	    ..
-	    ppi
-	    ..
-	    ppp
-	    ..
-	    printing
-	    ..
-	    slattach
-	    ..
-	    scsi_target
-	    ..
+            mdoc
+            ..
+            perfmon
+            ..
+            portal
+            ..
+            ppi
+            ..
+            ppp
+            ..
+            printing
+            ..
+            slattach
+            ..
+            scsi_target
+            ..
             sliplogin
             ..
-	    startslip
-	    ..
+            startslip
+            ..
             sunrpc
                 dir
                 ..
@@ -391,8 +391,8 @@
                 sort
                 ..
             ..
-	    svr4
-	    ..
+            svr4
+            ..
             worm
             ..
         ..
@@ -431,129 +431,129 @@
         info
         ..
         isdn
-	..
-	libg++
+        ..
+        libg++
         ..
         locale
-	    da_DK.ISO_8859-1
+            da_DK.ISO_8859-1
             ..
-	    da_DK.DIS_8859-15
+            da_DK.DIS_8859-15
             ..
-	    de_AT.ISO_8859-1
+            de_AT.ISO_8859-1
             ..
-	    de_AT.DIS_8859-15
-	    ..
-	    de_CH.ISO_8859-1
+            de_AT.DIS_8859-15
             ..
-	    de_CH.DIS_8859-15
-	    ..
-	    de_DE.ISO_8859-1
+            de_CH.ISO_8859-1
             ..
-	    de_DE.DIS_8859-15
-	    ..
-	    en_AU.ISO_8859-1
+            de_CH.DIS_8859-15
             ..
-	    en_AU.DIS_8859-15
+            de_DE.ISO_8859-1
             ..
-	    en_CA.ISO_8859-1
+            de_DE.DIS_8859-15
             ..
-	    en_CA.DIS_8859-15
+            en_AU.ISO_8859-1
             ..
-	    en_GB.ISO_8859-1
+            en_AU.DIS_8859-15
             ..
-	    en_GB.DIS_8859-15
+            en_CA.ISO_8859-1
             ..
-	    en_US.ISO_8859-1
+            en_CA.DIS_8859-15
             ..
-	    en_US.DIS_8859-15
+            en_GB.ISO_8859-1
             ..
-	    es_ES.ISO_8859-1
+            en_GB.DIS_8859-15
             ..
-	    es_ES.DIS_8859-15
+            en_US.ISO_8859-1
             ..
-	    fi_FI.ISO_8859-1
+            en_US.DIS_8859-15
             ..
-	    fi_FI.DIS_8859-15
+            es_ES.ISO_8859-1
             ..
-	    fr_BE.ISO_8859-1
+            es_ES.DIS_8859-15
             ..
-	    fr_BE.DIS_8859-15
-	    ..
-	    fr_CA.ISO_8859-1
+            fi_FI.ISO_8859-1
             ..
-	    fr_CA.DIS_8859-15
-	    ..
-	    fr_CH.ISO_8859-1
+            fi_FI.DIS_8859-15
             ..
-	    fr_CH.DIS_8859-15
-	    ..
-	    fr_FR.ISO_8859-1
-	    ..
-	    fr_FR.DIS_8859-15
-	    ..
-	    hr_HR.ISO_8859-2
+            fr_BE.ISO_8859-1
             ..
-	    hu_HU.ISO_8859-2
+            fr_BE.DIS_8859-15
             ..
-	    is_IS.ISO_8859-1
+            fr_CA.ISO_8859-1
             ..
-	    is_IS.DIS_8859-15
-	    ..
-	    it_CH.ISO_8859-1
+            fr_CA.DIS_8859-15
             ..
-	    it_CH.DIS_8859-15
-	    ..
-	    it_IT.ISO_8859-1
+            fr_CH.ISO_8859-1
             ..
-	    it_IT.DIS_8859-15
-	    ..
+            fr_CH.DIS_8859-15
+            ..
+            fr_FR.ISO_8859-1
+            ..
+            fr_FR.DIS_8859-15
+            ..
+            hr_HR.ISO_8859-2
+            ..
+            hu_HU.ISO_8859-2
+            ..
+            is_IS.ISO_8859-1
+            ..
+            is_IS.DIS_8859-15
+            ..
+            it_CH.ISO_8859-1
+            ..
+            it_CH.DIS_8859-15
+            ..
+            it_IT.ISO_8859-1
+            ..
+            it_IT.DIS_8859-15
+            ..
             ja_JP.EUC
             ..
             ja_JP.SJIS
             ..
             ja_JP.Shift_JIS
             ..
-	    ko_KR.EUC
+            ko_KR.EUC
             ..
-	    lt_LN.ASCII
+            lt_LN.ASCII
             ..
-	    lt_LN.ISO_8859-1
+            lt_LN.ISO_8859-1
             ..
-	    lt_LN.ISO_8859-2
+            lt_LN.ISO_8859-2
             ..
-	    lt_LN.DIS_8859-15
+            lt_LN.DIS_8859-15
             ..
-	    nl_BE.ISO_8859-1
+            nl_BE.ISO_8859-1
             ..
-	    nl_BE.DIS_8859-15
+            nl_BE.DIS_8859-15
             ..
-	    nl_NL.ISO_8859-1
+            nl_NL.ISO_8859-1
             ..
-	    nl_NL.DIS_8859-15
-	    ..
-	    no_NO.ISO_8859-1
+            nl_NL.DIS_8859-15
             ..
-	    no_NO.DIS_8859-15
-	    ..
-	    pl_PL.ISO_8859-2
+            no_NO.ISO_8859-1
             ..
-	    pt_PT.ISO_8859-1
+            no_NO.DIS_8859-15
             ..
-	    pt_PT.DIS_8859-15
-	    ..
+            pl_PL.ISO_8859-2
+            ..
+            pt_PT.ISO_8859-1
+            ..
+            pt_PT.DIS_8859-15
+            ..
             ru_SU.CP866
             ..
             ru_SU.KOI8-R
             ..
-	    sl_SI.ISO_8859-2
+            sl_SI.ISO_8859-2
             ..
-	    sv_SE.ISO_8859-1
+            sv_SE.ISO_8859-1
             ..
-	    sv_SE.DIS_8859-15
-	    ..
-	    zh_CN.EUC
+            sv_SE.DIS_8859-15
             ..
-	    zh_TW.Big5
+            zh_CN.EUC
+            ..
+            zh_TW.Big5
             ..
         ..
         man
@@ -584,9 +584,9 @@
                 i386
                 ..
             ..
-	    catn
-	    ..
-            ja		uname=root
+            catn
+            ..
+            ja              uname=root
                 cat1
                 ..
                 cat2
@@ -671,79 +671,79 @@
         mk
         ..
         nls
-	    C
-	    ..
-	    da_DK.ISO_8859-1
+            C
             ..
-	    da_DK.DIS_8859-15
+            da_DK.ISO_8859-1
             ..
-	    de_AT.ISO_8859-1
+            da_DK.DIS_8859-15
             ..
-	    de_AT.DIS_8859-15
+            de_AT.ISO_8859-1
             ..
-	    de_CH.ISO_8859-1
+            de_AT.DIS_8859-15
             ..
-	    de_CH.DIS_8859-15
+            de_CH.ISO_8859-1
             ..
-	    de_DE.ISO_8859-1
+            de_CH.DIS_8859-15
             ..
-	    de_DE.DIS_8859-15
+            de_DE.ISO_8859-1
             ..
-	    en_AU.ISO_8859-1
+            de_DE.DIS_8859-15
             ..
-	    en_AU.DIS_8859-15
+            en_AU.ISO_8859-1
             ..
-	    en_CA.ISO_8859-1
+            en_AU.DIS_8859-15
             ..
-	    en_CA.DIS_8859-15
+            en_CA.ISO_8859-1
             ..
-	    en_GB.ISO_8859-1
+            en_CA.DIS_8859-15
             ..
-	    en_GB.DIS_8859-15
+            en_GB.ISO_8859-1
             ..
-	    en_US.ISO_8859-1
+            en_GB.DIS_8859-15
             ..
-	    en_US.DIS_8859-15
+            en_US.ISO_8859-1
             ..
-	    es_ES.ISO_8859-1
+            en_US.DIS_8859-15
             ..
-	    es_ES.DIS_8859-15
+            es_ES.ISO_8859-1
             ..
-	    fi_FI.ISO_8859-1
+            es_ES.DIS_8859-15
             ..
-	    fi_FI.DIS_8859-15
+            fi_FI.ISO_8859-1
             ..
-	    fr_BE.ISO_8859-1
+            fi_FI.DIS_8859-15
             ..
-	    fr_BE.DIS_8859-15
+            fr_BE.ISO_8859-1
             ..
-	    fr_CA.ISO_8859-1
+            fr_BE.DIS_8859-15
             ..
-	    fr_CA.DIS_8859-15
+            fr_CA.ISO_8859-1
             ..
-	    fr_CH.ISO_8859-1
+            fr_CA.DIS_8859-15
             ..
-	    fr_CH.DIS_8859-15
+            fr_CH.ISO_8859-1
             ..
-	    fr_FR.ISO_8859-1
-	    ..
-	    fr_FR.DIS_8859-15
-	    ..
-	    hr_HR.ISO_8859-2
+            fr_CH.DIS_8859-15
             ..
-	    hu_HU.ISO_8859-2
+            fr_FR.ISO_8859-1
             ..
-	    is_IS.ISO_8859-1
+            fr_FR.DIS_8859-15
             ..
-	    is_IS.DIS_8859-15
+            hr_HR.ISO_8859-2
             ..
-	    it_CH.ISO_8859-1
+            hu_HU.ISO_8859-2
             ..
-	    it_CH.DIS_8859-15
+            is_IS.ISO_8859-1
             ..
-	    it_IT.ISO_8859-1
+            is_IS.DIS_8859-15
             ..
-	    it_IT.DIS_8859-15
+            it_CH.ISO_8859-1
+            ..
+            it_CH.DIS_8859-15
+            ..
+            it_IT.ISO_8859-1
+            ..
+            it_IT.DIS_8859-15
             ..
             ja_JP.EUC
             ..
@@ -751,53 +751,53 @@
             ..
             ja_JP.Shift_JIS
             ..
-	    ko_KR.EUC
+            ko_KR.EUC
             ..
-	    lt_LN.ASCII
+            lt_LN.ASCII
             ..
-	    lt_LN.ISO_8859-1
+            lt_LN.ISO_8859-1
             ..
-	    lt_LN.ISO_8859-2
+            lt_LN.ISO_8859-2
             ..
-	    lt_LN.DIS_8859-15
+            lt_LN.DIS_8859-15
             ..
-	    nl_BE.ISO_8859-1
+            nl_BE.ISO_8859-1
             ..
-	    nl_NL.ISO_8859-1
+            nl_NL.ISO_8859-1
             ..
-	    no_NO.ISO_8859-1
+            no_NO.ISO_8859-1
             ..
-	    pl_PL.ISO_8859-2
-	    ..
-	    pt_PT.ISO_8859-1
+            pl_PL.ISO_8859-2
             ..
-	    ru_SU.CP866
+            pt_PT.ISO_8859-1
+            ..
+            ru_SU.CP866
             ..
             ru_SU.KOI8-R
             ..
-	    sl_SI.ISO_8859-2
+            sl_SI.ISO_8859-2
             ..
-	    sv_SE.ISO_8859-1
+            sv_SE.ISO_8859-1
             ..
-	    sv_SE.DIS_8859-15
+            sv_SE.DIS_8859-15
             ..
-	    zh_CN.EUC
-	    ..
+            zh_CN.EUC
+            ..
         ..
-	pcvt
-	    Doc
-	    ..
-	    Etc
-	    ..
-	..
-	perl
-	    man
-		cat3		uname=man
-		..
-		man3
-		..
-	    ..
-	..
+        pcvt
+            Doc
+            ..
+            Etc
+            ..
+        ..
+        perl
+            man
+                cat3            uname=man
+                ..
+                man3
+                ..
+            ..
+        ..
         skel
         ..
         syscons
@@ -816,14 +816,14 @@
             mm
             ..
         ..
-	vi
-	    catalog
-	    ..
-	    perl
-	    ..
-	    tcl
-	    ..
-	..
+        vi
+            catalog
+            ..
+            perl
+            ..
+            tcl
+            ..
+        ..
         zoneinfo
             Africa
             ..
