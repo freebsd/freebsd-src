@@ -49,9 +49,9 @@ __FBSDID("$FreeBSD$");
 
 size_t
 fread(buf, size, count, fp)
-	void *buf;
+	void * __restrict buf;
 	size_t size, count;
-	FILE *fp;
+	FILE * __restrict fp;
 {
 	size_t resid;
 	char *p;

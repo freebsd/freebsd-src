@@ -48,9 +48,9 @@
 .Sh SYNOPSIS
 .In stdio.h
 .Ft size_t
-.Fn fread "void *ptr" "size_t size" "size_t nmemb" "FILE *stream"
+.Fn fread "void * restrict ptr" "size_t size" "size_t nmemb" "FILE * restrict stream"
 .Ft size_t
-.Fn fwrite "const void *ptr" "size_t size" "size_t nmemb" "FILE *stream"
+.Fn fwrite "const void * restrict ptr" "size_t size" "size_t nmemb" "FILE * restrict stream"
 .Sh DESCRIPTION
 The function
 .Fn fread

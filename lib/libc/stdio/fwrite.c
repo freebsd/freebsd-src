@@ -53,9 +53,9 @@ __FBSDID("$FreeBSD$");
  */
 size_t
 fwrite(buf, size, count, fp)
-	const void *buf;
+	const void * __restrict buf;
 	size_t size, count;
-	FILE *fp;
+	FILE * __restrict fp;
 {
 	size_t n;
 	struct __suio uio;

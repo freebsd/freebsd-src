@@ -52,18 +52,18 @@
 .Sh SYNOPSIS
 .In stdio.h
 .Ft int
-.Fn scanf "const char *format" ...
+.Fn scanf "const char * restrict format" ...
 .Ft int
-.Fn fscanf "FILE *stream" "const char *format" ...
+.Fn fscanf "FILE * restrict stream" "const char * restrict format" ...
 .Ft int
-.Fn sscanf "const char *str" "const char *format" ...
+.Fn sscanf "const char * restrict str" "const char * restrict format" ...
 .In stdarg.h
 .Ft int
-.Fn vscanf "const char *format" "va_list ap"
+.Fn vscanf "const char * restrict format" "va_list ap"
 .Ft int
-.Fn vsscanf "const char *str" "const char *format" "va_list ap"
+.Fn vsscanf "const char * restrict str" "const char * restrict format" "va_list ap"
 .Ft int
-.Fn vfscanf "FILE *stream" "const char *format" "va_list ap"
+.Fn vfscanf "FILE * restrict stream" "const char * restrict format" "va_list ap"
 .Sh DESCRIPTION
 The
 .Fn scanf

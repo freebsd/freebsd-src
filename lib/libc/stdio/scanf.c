@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
 #include "libc_private.h"
 
 int
-scanf(char const *fmt, ...)
+scanf(char const * __restrict fmt, ...)
 {
 	int ret;
 	va_list ap;

@@ -59,7 +59,7 @@ eofread(cookie, buf, len)
 }
 
 int
-sscanf(const char *str, char const *fmt, ...)
+sscanf(const char * __restrict str, char const * __restrict fmt, ...)
 {
 	int ret;
 	va_list ap;
