@@ -69,7 +69,6 @@
 	sum = l_util.s[0] + l_util.s[1];				  \
 	ADDCARRY(sum);							  \
     }
-#define INVERT		sum == 0xffff ? sum : ~sum & 0xffff
 
 static const u_int32_t in_masks[] = {
 	/*0 bytes*/ /*1 byte*/	/*2 bytes*/ /*3 bytes*/
@@ -267,7 +266,7 @@ skip_start:
 		len -= mlen;
 	}
 	REDUCE16;
-	return (INVERT);
+	return (~sum & 0xffff);
 }
 
 u_int in_cksum_hdr(ip)
