@@ -76,7 +76,7 @@ MALLOC_DEFINE(M_SSC, "SSC disk", "Memory Disk");
 MALLOC_DEFINE(M_SSCSECT, "SSC sectors", "Memory Disk Sectors");
 
 static int ssc_debug;
-SYSCTL_INT(_debug, OID_AUTO, mddebug, CTLFLAG_RW, &ssc_debug, 0, "");
+SYSCTL_INT(_debug, OID_AUTO, sscdebug, CTLFLAG_RW, &ssc_debug, 0, "");
 
 static int sscrootready;
 
