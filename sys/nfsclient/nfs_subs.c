@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_subs.c,v 1.46 1997/10/28 15:59:08 bde Exp $
+ * $Id: nfs_subs.c,v 1.47 1997/11/07 08:53:24 phk Exp $
  */
 
 /*
@@ -43,6 +43,7 @@
  * copy data between mbuf chains and uio lists.
  */
 #include <sys/param.h>
+#include <sys/buf.h>
 #include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -2081,11 +2082,13 @@ nfsrv_errmap(nd, err)
 }
 
 int
-nfsrv_object_create(struct vnode *vp) {
+nfsrv_object_create(vp)
+	struct vnode *vp;
+{
 
-	if ((vp == NULL) || (vp->v_type != VREG))
-		return 1;
-	return vfs_object_create(vp, curproc, curproc?curproc->p_ucred:NULL, 1);
+	if (vp == NULL || vp->v_type != VREG)
+		return (1);
+	return (vfs_object_create(vp, curproc,
+				  curproc ? curproc->p_ucred : NULL, 1));
 }
 #endif /* NFS_NOSERVER */
-
