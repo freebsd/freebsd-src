@@ -1,9 +1,16 @@
-# $Id: Makefile,v 1.2 1995/11/03 14:51:45 ache Exp $
+# $Id: Makefile,v 1.7 1997/02/28 19:51:39 wosch Exp $
 
 NOMAN=YES
 CLEANFILES+= ${LOCALES:S/$/.out/g}
 
-LOCALES=        ja_JP.EUC ru_SU.KOI8-R lt_LN.ASCII lt_LN.ISO_8859-1 ru_SU.CP866
+LOCALES=        ja_JP.EUC \
+		ko_KR.EUC \
+		lt_LN.ASCII \
+		lt_LN.ISO_8859-1 \
+		lt_LN.ISO_8859-2 \
+		ru_SU.CP866 \
+		ru_SU.KOI8-R 
+
 LOCALEDIR=	${DESTDIR}/usr/share/locale
 
 .if exists(${.OBJDIR}/..)
@@ -17,6 +24,8 @@ LATIN1LINKS = \
 	fr_BE fr_CA fr_CH fr_FR is_IS it_CH it_IT nl_BE nl_NL no_NO \
 	pt_PT sv_SE
 
+LATIN2LINKS = hr_HR
+
 .SUFFIXES: .src .out
 
 .src.out:
@@ -25,12 +34,17 @@ LATIN1LINKS = \
 all: ${LOCALES:S/$/.out/g}
 
 afterinstall:
-	for locale in ${LOCALES}; do \
-		${INSTALL} ${COPY} -m 644 -o ${BINOWN} -g ${BINGRP} $$locale.out ${LOCALEDIR}/$$locale/LC_CTYPE; \
-	done
-	for l in ${LATIN1LINKS}; do \
-		ln -fs ../lt_LN.ISO_8859-1/LC_CTYPE \
-		       ${LOCALEDIR}/$$l.ISO_8859-1/LC_CTYPE; \
-	done
+.for locale in ${LOCALES}
+	${INSTALL} ${COPY} -m 644 -o ${BINOWN} -g ${BINGRP} \
+		${locale}.out ${LOCALEDIR}/${locale}/LC_CTYPE
+.endfor
+.for link in ${LATIN1LINKS}
+	ln -fs ../lt_LN.ISO_8859-1/LC_CTYPE \
+		       ${LOCALEDIR}/${link}.ISO_8859-1/LC_CTYPE
+.endfor
+.for link in ${LATIN2LINKS}
+	ln -fs ../lt_LN.ISO_8859-2/LC_CTYPE \
+		${LOCALEDIR}/${link}.ISO_8859-2/LC_CTYPE
+.endfor
 
 .include <bsd.prog.mk>
