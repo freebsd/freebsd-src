@@ -402,14 +402,14 @@ acd_describe(struct acd_softc *cdp)
 	}
 	printf("\n");
 	if (cdp->cap.audio_play) {
-	    ata_printf(cdp->atp->controller, cdp->atp->unit, "Audio:");
+	    ata_printf(cdp->atp->controller, cdp->atp->unit, "Audio: ");
 	    if (cdp->cap.audio_play)
 		printf("play");
 	    if (cdp->cap.max_vol_levels)
 		printf(", %d volume levels", cdp->cap.max_vol_levels);
+	    printf("\n");
 	}
-	printf("\n");
-	ata_printf(cdp->atp->controller, cdp->atp->unit, "Mechanism:");
+	ata_printf(cdp->atp->controller, cdp->atp->unit, "Mechanism: ");
 	switch (cdp->cap.mech) {
 	case MST_MECH_CADDY:
 	    mechanism = "caddy"; break;
@@ -430,7 +430,7 @@ acd_describe(struct acd_softc *cdp)
 	    printf("ejectable");
 
 	if (cdp->cap.mech != MST_MECH_CHANGER) {
-	    ata_printf(cdp->atp->controller, cdp->atp->unit, "Medium:");
+	    ata_printf(cdp->atp->controller, cdp->atp->unit, "Medium: ");
 	    switch (cdp->cap.medium_type & MST_TYPE_MASK_HIGH) {
 	    case MST_CDROM:
 		printf("CD-ROM "); break;
@@ -441,39 +441,39 @@ acd_describe(struct acd_softc *cdp)
 	    case MST_DOOR_OPEN:
 		printf("door open"); break;
 	    case MST_NO_DISC:
-		printf("no/blank disc inside"); break;
+		printf("no/blank disc"); break;
 	    case MST_FMT_ERROR:
 		printf("medium format error"); break;
 	    }
 	    if ((cdp->cap.medium_type & MST_TYPE_MASK_HIGH)<MST_TYPE_MASK_HIGH){
 		switch (cdp->cap.medium_type & MST_TYPE_MASK_LOW) {
 		case MST_DATA_120:
-		    printf("120mm data disc loaded"); break;
+		    printf("120mm data disc"); break;
 		case MST_AUDIO_120:
-		    printf("120mm audio disc loaded"); break;
+		    printf("120mm audio disc"); break;
 		case MST_COMB_120:
-		    printf("120mm data/audio disc loaded"); break;
+		    printf("120mm data/audio disc"); break;
 		case MST_PHOTO_120:
-		    printf("120mm photo disc loaded"); break;
+		    printf("120mm photo disc"); break;
 		case MST_DATA_80:
-		    printf("80mm data disc loaded"); break;
+		    printf("80mm data disc"); break;
 		case MST_AUDIO_80:
-		    printf("80mm audio disc loaded"); break;
+		    printf("80mm audio disc"); break;
 		case MST_COMB_80:
-		    printf("80mm data/audio disc loaded"); break;
+		    printf("80mm data/audio disc"); break;
 		case MST_PHOTO_80:
-		    printf("80mm photo disc loaded"); break;
+		    printf("80mm photo disc"); break;
 		case MST_FMT_NONE:
 		    switch (cdp->cap.medium_type & MST_TYPE_MASK_HIGH) {
 		    case MST_CDROM:
-			printf("unknown medium"); break;
+			printf("unknown"); break;
 		    case MST_CDR:
 		    case MST_CDRW:
-			printf("blank medium"); break;
+			printf("blank"); break;
 		    }
 		    break;
 		default:
-		    printf("unknown type=0x%x", cdp->cap.medium_type); break;
+		    printf("unknown (0x%x)", cdp->cap.medium_type); break;
 		}
 	    }
 	}
