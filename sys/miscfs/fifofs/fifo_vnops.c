@@ -31,11 +31,12 @@
  * SUCH DAMAGE.
  *
  *	@(#)fifo_vnops.c	8.10 (Berkeley) 5/27/95
- * $Id: fifo_vnops.c,v 1.37 1997/10/27 15:33:04 bde Exp $
+ * $Id: fifo_vnops.c,v 1.38 1997/12/05 19:55:46 bde Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/unistd.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -71,6 +72,7 @@ static int	fifo_ioctl __P((struct vop_ioctl_args *));
 static int	fifo_poll __P((struct vop_poll_args *));
 static int	fifo_inactive __P((struct  vop_inactive_args *));
 static int	fifo_bmap __P((struct vop_bmap_args *));
+static int	fifo_pathconf __P((struct vop_pathconf_args *));
 static int	fifo_advlock __P((struct vop_advlock_args *));
 
 
@@ -92,7 +94,7 @@ static struct vnodeopv_entry_desc fifo_vnodeop_entries[] = {
 	{ &vop_mkdir_desc,		(vop_t *) fifo_badop },
 	{ &vop_mknod_desc,		(vop_t *) fifo_badop },
 	{ &vop_open_desc,		(vop_t *) fifo_open },
-	{ &vop_pathconf_desc,		(vop_t *) vop_stdpathconf },
+	{ &vop_pathconf_desc,		(vop_t *) fifo_pathconf },
 	{ &vop_poll_desc,		(vop_t *) fifo_poll },
 	{ &vop_print_desc,		(vop_t *) fifo_print },
 	{ &vop_read_desc,		(vop_t *) fifo_read },
@@ -480,6 +482,34 @@ fifo_print(ap)
 	fifo_printinfo(ap->a_vp);
 	printf("\n");
 	return (0);
+}
+
+/*
+ * Return POSIX pathconf information applicable to fifo's.
+ */
+int
+fifo_pathconf(ap)
+	struct vop_pathconf_args /* {
+		struct vnode *a_vp;
+		int a_name;
+		int *a_retval;
+	} */ *ap;
+{
+
+	switch (ap->a_name) {
+	case _PC_LINK_MAX:
+		*ap->a_retval = LINK_MAX;
+		return (0);
+	case _PC_PIPE_BUF:
+		*ap->a_retval = PIPE_BUF;
+		return (0);
+	case _PC_CHOWN_RESTRICTED:
+		*ap->a_retval = 1;
+		return (0);
+	default:
+		return (EINVAL);
+	}
+	/* NOTREACHED */
 }
 
 /*
