@@ -23,17 +23,25 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: collcmp.c,v 1.6 1996/09/17 19:27:06 ache Exp $
+ * $Id: collcmp.c,v 1.7 1996/10/23 15:35:46 ache Exp $
  */
 
 #define ASCII_COMPATIBLE_COLLATE        /* see usr.bin/colldef/data */
 
 #include <string.h>
-#include <limits.h>
-#include <locale.h>
+#include "collate.h"
 #ifndef ASCII_COMPATIBLE_COLLATE
 #include <ctype.h>
 #endif
+
+/* Temporary backward compatibility */
+
+int collate_range_cmp (c1, c2)
+	int c1, c2;
+{
+	return __collate_range_cmp(c1, c2);
+}
+
 
 /*
  * Compare two characters converting collate information
@@ -41,7 +49,7 @@
  * "[a-z]"-type ranges with national characters.
  */
 
-int collate_range_cmp (c1, c2)
+int __collate_range_cmp (c1, c2)
 	int c1, c2;
 {
 	static char s1[2], s2[2];
