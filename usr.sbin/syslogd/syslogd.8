@@ -40,7 +40,10 @@
 .Op Fl a Ar allowed_peer
 .Op Fl b Ar bind_address
 .Op Fl f Ar config_file
-.Op Fl l Ar path
+.Oo
+.Fl l Op Ar mode: Ns
+.Ar path
+.Oc
 .Op Fl m Ar mark_interval
 .Op Fl P Ar pid_file
 .Op Fl p Ar log_socket
@@ -206,10 +209,12 @@ The default is
 Specify a location where
 .Nm
 should place an additional log socket.
-Up to 19 additional logging sockets can be specified.
 The primary use for this is to place additional log sockets in
 .Pa /var/run/log
 of various chroot filespaces.
+File permissions for socket can be specified in octal representation
+before socket name, delimited with a colon.
+Path to socket location must be absolute.
 .It Fl s
 Operate in secure mode.
 Do not log messages from remote machines.
@@ -245,8 +250,10 @@ The
 .Nm
 utility reads messages from the
 .Ux
-domain socket
-.Pa /var/run/log ,
+domain sockets
+.Pa /var/run/log
+and
+.Pa /var/run/logpriv ,
 from an Internet domain socket specified in
 .Pa /etc/services ,
 and from the special device
@@ -288,6 +295,9 @@ default process ID file
 name of the
 .Ux
 domain datagram log socket
+.It Pa /var/run/logpriv
+.Ux
+socket for privileged applications
 .It Pa /dev/klog
 kernel log device
 .El
