@@ -1526,17 +1526,14 @@ acquire_seeprom(struct ahc_softc *ahc, struct seeprom_descriptor *sd)
 }
 
 static void
-release_seeprom(sd)
-	struct seeprom_descriptor *sd;
+release_seeprom(struct seeprom_descriptor *sd)
 {
 	/* Release access to the memory port and the serial EEPROM. */
 	SEEPROM_OUTB(sd, 0);
 }
 
 static void
-write_brdctl(ahc, value)
-	struct 	ahc_softc *ahc;
-	u_int8_t value;
+write_brdctl(struct ahc_softc *ahc, u_int8_t value)
 {
 	u_int8_t brdctl;
 
