@@ -48,11 +48,11 @@
 
 MALLOC_DEFINE(M_ACL, "acl", "access control list");
 
-static int	vacl_set_acl( struct thread *td, struct vnode *vp, acl_type_t type,
+static int	vacl_set_acl(struct thread *td, struct vnode *vp, acl_type_t type,
 	    struct acl *aclp);
-static int	vacl_get_acl( struct thread *td, struct vnode *vp, acl_type_t type,
+static int	vacl_get_acl(struct thread *td, struct vnode *vp, acl_type_t type,
 	    struct acl *aclp);
-static int	vacl_aclcheck( struct thread *td, struct vnode *vp,
+static int	vacl_aclcheck(struct thread *td, struct vnode *vp,
 	    acl_type_t type, struct acl *aclp);
 
 /*
@@ -562,7 +562,7 @@ acl_posix1e_check(struct acl *acl)
  * Given a vnode, set its ACL.
  */
 static int
-vacl_set_acl( struct thread *td, struct vnode *vp, acl_type_t type,
+vacl_set_acl(struct thread *td, struct vnode *vp, acl_type_t type,
     struct acl *aclp)
 {
 	struct acl inkernacl;
@@ -582,7 +582,7 @@ vacl_set_acl( struct thread *td, struct vnode *vp, acl_type_t type,
  * Given a vnode, get its ACL.
  */
 static int
-vacl_get_acl( struct thread *td, struct vnode *vp, acl_type_t type,
+vacl_get_acl(struct thread *td, struct vnode *vp, acl_type_t type,
     struct acl *aclp)
 {
 	struct acl inkernelacl;
@@ -601,13 +601,14 @@ vacl_get_acl( struct thread *td, struct vnode *vp, acl_type_t type,
  * Given a vnode, delete its ACL.
  */
 static int
-vacl_delete( struct thread *td, struct vnode *vp, acl_type_t type)
+vacl_delete(struct thread *td, struct vnode *vp, acl_type_t type)
 {
 	int error;
 
 	VOP_LEASE(vp, td, td->td_proc->p_ucred, LEASE_WRITE);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-	error = VOP_SETACL(vp, ACL_TYPE_DEFAULT, 0, td->td_proc->p_ucred, td);
+	error = VOP_SETACL(vp, ACL_TYPE_DEFAULT, 0, td->td_proc->p_ucred,
+	    td);
 	VOP_UNLOCK(vp, 0, td);
 	return (error);
 }
@@ -616,7 +617,7 @@ vacl_delete( struct thread *td, struct vnode *vp, acl_type_t type)
  * Given a vnode, check whether an ACL is appropriate for it
  */
 static int
-vacl_aclcheck( struct thread *td, struct vnode *vp, acl_type_t type,
+vacl_aclcheck(struct thread *td, struct vnode *vp, acl_type_t type,
     struct acl *aclp)
 {
 	struct acl inkernelacl;
@@ -625,7 +626,8 @@ vacl_aclcheck( struct thread *td, struct vnode *vp, acl_type_t type,
 	error = copyin(aclp, &inkernelacl, sizeof(struct acl));
 	if (error)
 		return(error);
-	error = VOP_ACLCHECK(vp, type, &inkernelacl, td->td_proc->p_ucred, td);
+	error = VOP_ACLCHECK(vp, type, &inkernelacl, td->td_proc->p_ucred,
+	    td);
 	return (error);
 }
 
@@ -641,13 +643,12 @@ vacl_aclcheck( struct thread *td, struct vnode *vp, acl_type_t type,
  * MPSAFE
  */
 int
-__acl_get_file( struct thread *td, struct __acl_get_file_args *uap)
+__acl_get_file(struct thread *td, struct __acl_get_file_args *uap)
 {
 	struct nameidata nd;
 	int error;
 
 	mtx_lock(&Giant);
-	/* what flags are required here -- possible not LOCKLEAF? */
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, SCARG(uap, path), td);
 	error = namei(&nd);
 	if (error == 0) {
@@ -665,7 +666,7 @@ __acl_get_file( struct thread *td, struct __acl_get_file_args *uap)
  * MPSAFE
  */
 int
-__acl_set_file( struct thread *td, struct __acl_set_file_args *uap)
+__acl_set_file(struct thread *td, struct __acl_set_file_args *uap)
 {
 	struct nameidata nd;
 	int error;
@@ -688,7 +689,7 @@ __acl_set_file( struct thread *td, struct __acl_set_file_args *uap)
  * MPSAFE
  */
 int
-__acl_get_fd( struct thread *td, struct __acl_get_fd_args *uap)
+__acl_get_fd(struct thread *td, struct __acl_get_fd_args *uap)
 {
 	struct file *fp;
 	int error;
@@ -709,7 +710,7 @@ __acl_get_fd( struct thread *td, struct __acl_get_fd_args *uap)
  * MPSAFE
  */
 int
-__acl_set_fd( struct thread *td, struct __acl_set_fd_args *uap)
+__acl_set_fd(struct thread *td, struct __acl_set_fd_args *uap)
 {
 	struct file *fp;
 	int error;
@@ -730,7 +731,7 @@ __acl_set_fd( struct thread *td, struct __acl_set_fd_args *uap)
  * MPSAFE
  */
 int
-__acl_delete_file( struct thread *td, struct __acl_delete_file_args *uap)
+__acl_delete_file(struct thread *td, struct __acl_delete_file_args *uap)
 {
 	struct nameidata nd;
 	int error;
@@ -752,7 +753,7 @@ __acl_delete_file( struct thread *td, struct __acl_delete_file_args *uap)
  * MPSAFE
  */
 int
-__acl_delete_fd( struct thread *td, struct __acl_delete_fd_args *uap)
+__acl_delete_fd(struct thread *td, struct __acl_delete_fd_args *uap)
 {
 	struct file *fp;
 	int error;
@@ -773,7 +774,7 @@ __acl_delete_fd( struct thread *td, struct __acl_delete_fd_args *uap)
  * MPSAFE
  */
 int
-__acl_aclcheck_file( struct thread *td, struct __acl_aclcheck_file_args *uap)
+__acl_aclcheck_file(struct thread *td, struct __acl_aclcheck_file_args *uap)
 {
 	struct nameidata	nd;
 	int	error;
@@ -796,7 +797,7 @@ __acl_aclcheck_file( struct thread *td, struct __acl_aclcheck_file_args *uap)
  * MPSAFE
  */
 int
-__acl_aclcheck_fd( struct thread *td, struct __acl_aclcheck_fd_args *uap)
+__acl_aclcheck_fd(struct thread *td, struct __acl_aclcheck_fd_args *uap)
 {
 	struct file *fp;
 	int error;
