@@ -31,8 +31,14 @@
  * SUCH DAMAGE.
  *
  *	@(#)pathnames.h	8.1 (Berkeley) 6/6/93
+ *
+ * $FreeBSD$
  */
 
 #include <paths.h>
 
 #define	_PATH_HELPFILE	"/usr/share/misc/more.help"
+#define _PATH_RC	".morerc"
+#define _PATH_DEFRC	".defmorerc"
+#define _PATH_SYSMORERC	"/etc/dot.morerc"
+/* Should have a /etc/dot.defmorerc, too... */

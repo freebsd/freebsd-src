@@ -77,6 +77,16 @@ option(argc, argv)
 	while ((ch = getopt(argc, argv, "/:ceinst:ux:f")) != -1)
 		switch((char)ch) {
 		case '/':
+			/*
+			 * Might be interesting to make this option search
+			 * through the whole list of files on the command line
+			 * until a match is found.  Prior to this commit adding
+			 * the new comand interpreter, it would sort-of do
+			 * this, provided all the files listed on the command
+			 * line were of length zero bytes (well, with the
+			 * exception of the file actually containing a match,
+			 * I suppose).
+			 */
 			firstsearch = optarg;
 			break;
 		case 'c':

@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 1988 Mark Nudleman
+ * Portions copyright (c) 1999 T. Michael Vanderhoek
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -41,114 +42,145 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
+/*
+ * Functions for interacting with the user directly printing hello
+ * messages or reading from the terminal.  All of these functions deal
+ * specifically with the prompt line, and only the prompt line.
+ */
+
 #include <sys/param.h>
 
+#include <assert.h>
 #include <ctype.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 
 #include "less.h"
 #include "pathnames.h"
 
-#define	NO_MCA		0
-#define	MCA_DONE	1
-#define	MCA_MORE	2
-
 extern int erase_char, kill_char, werase_char;
-extern int ispipe;
 extern int sigs;
 extern int quit_at_eof;
 extern int hit_eof;
-extern int sc_width;
-extern int sc_height;
-extern int sc_window;
 extern int horiz_off;
+extern int sc_width;
+extern int bo_width;
+extern int be_width;
+extern int so_width;
+extern int se_width;
 extern int curr_ac;
 extern int ac;
 extern char **av;
-extern int scroll;
 extern int screen_trashed;	/* The screen has been overwritten */
 
-static char cmdbuf[120];	/* Buffer for holding a multi-char command */
-static char *cp;		/* Pointer into cmdbuf */
-static int cmd_col;		/* Current column of the multi-char command */
-static int longprompt;		/* if stat command instead of prompt */
-static int mca;			/* The multicharacter command (action) */
-static int last_mca;		/* The previous mca */
-static int number;		/* The number typed by the user */
-static int wsearch;		/* Search for matches (1) or non-matches (0) */
+static int cmd_col;		/* Current screen column when accepting input */
 
-#define	CMD_RESET	cp = cmdbuf	/* reset command buffer to empty */
-#define	CMD_EXEC	lower_left(); flush()
+static cmd_char(), cmd_erase(), getcc();
 
-/* backspace in command buffer. */
-static
-cmd_erase()
+
+/*****************************************************************************
+ *
+ * Functions for reading-in user input.
+ *
+ */
+
+static int biggetinputhack_f;
+
+/* biggetinputhack()
+ *
+ * Performs as advertised.
+ */
+biggetinputhack()
 {
-	int c;
-	/*
-	 * backspace past beginning of the string: this usually means
-	 * abort the command.
-	 */
-	if (cp == cmdbuf)
-		return(1);
-
-	/* erase an extra character, for the carat. */
-	c = *--cp;
-	if (CONTROL_CHAR(c)) {
-		backspace();
-		--cmd_col;
-	}
-
-	backspace();
-	--cmd_col;
-	return(0);
-}
-
-/* set up the display to start a new multi-character command. */
-start_mca(action, prompt)
-	int action;
-	char *prompt;
-{
-	lower_left();
-	clear_eol();
-	putstr(prompt);
-	cmd_col = strlen(prompt);
-	mca = action;
+	biggetinputhack_f = 1;
 }
 
 /*
- * process a single character of a multi-character command, such as
- * a number, or the pattern of a search command.
+ * Read a line of input from the terminal.  Reads at most bufsiz - 1 characters
+ * and places them in buffer buf.  They are NUL-terminated.  Prints the
+ * temporary prompt prompt.
  */
-static
-cmd_char(c)
+getinput(prompt, buf, bufsiz)
+	const char *prompt;
+	char *buf;
+	int bufsiz;
+{
+	extern bo_width, be_width;
+	char *bufcur;
 	int c;
+
+	prmpt(prompt);
+
+	bufcur = buf;
+	for (;;) {
+		c = getcc();
+		if (c == '\n') {
+			*bufcur = '\0';
+			return;
+		}
+		if (c == READ_INTR ||
+		    cmd_char(c, buf, &bufcur, buf + bufsiz - 1)) {
+			/* input cancelled */
+			if (bufsiz) *buf = '\0';
+			return;
+		}
+		if (biggetinputhack_f) {
+			biggetinputhack_f = 0;
+			*bufcur = '\0';
+			return;
+		}
+	}
+}
+
+/*
+ * Process a single character of a multi-character input, such as
+ * a number, or the pattern of a search command.  Returns true if the user
+ * has cancelled the multi-character input, false otherwise and attempts
+ * to add it to buf (not exceeding bufsize).  Prints the character on the
+ * terminal output.  The bufcur should initially equal bufbeg.  After that
+ * it does not need to be touched or modified by the user, but may be expected
+ * to point at the future position of the next character.
+ */
+static int
+cmd_char(c, bufbeg, bufcur, bufend)
+	int c;          /* The character to process */
+	char *bufbeg;   /* The buffer to add the character to */
+	char **bufcur;  /* The position at which to add the character */
+	char *bufend;   /* The last spot available in the buffer --- remember
+	                 * to leave one after bufend for the '\0'!  (You must
+	                 * add the '\0' yourself!!) */
 {
 	if (c == erase_char)
-		return(cmd_erase());
+		return(cmd_erase(bufbeg, bufcur));
 	/* in this order, in case werase == erase_char */
 	if (c == werase_char) {
-		if (cp > cmdbuf) {
-			while (isspace(cp[-1]) && !cmd_erase());
-			while (!isspace(cp[-1]) && !cmd_erase());
-			while (isspace(cp[-1]) && !cmd_erase());
+		if (*bufcur > bufbeg) {
+			while (isspace((*bufcur)[-1]) &&
+			    !cmd_erase(bufbeg, bufcur)) ;
+			while (!isspace((*bufcur)[-1]) &&
+			    !cmd_erase(bufbeg, bufcur)) ;
+			while (isspace((*bufcur)[-1]) &&
+			    !cmd_erase(bufbeg, bufcur)) ;
 		}
-		return(cp == cmdbuf);
+		return *bufcur == bufbeg;
 	}
 	if (c == kill_char) {
-		while (!cmd_erase());
-		return(1);
+		while (!cmd_erase(bufbeg, bufcur));
+		return 1;
 	}
+
 	/*
 	 * No room in the command buffer, or no room on the screen;
-	 * {{ Could get fancy here; maybe shift the displayed line
-	 * and make room for more chars, like ksh. }}
+	 * XXX If there is no room on the screen, we should just let the
+	 * screen scroll down and set screen_trashed=1 appropriately, or
+	 * alternatively, scroll the prompt line horizontally.
 	 */
-	if (cp >= &cmdbuf[sizeof(cmdbuf)-1] || cmd_col >= sc_width-3)
+	assert (*bufcur <= bufend);
+	if (*bufcur == bufend || cmd_col >= sc_width - 3)
 		bell();
 	else {
-		*cp++ = c;
+		*(*bufcur)++ = c;
 		if (CONTROL_CHAR(c)) {
 			putchr('^');
 			cmd_col++;
@@ -158,12 +190,123 @@ cmd_char(c)
 		putchr(c);
 		cmd_col++;
 	}
-	return(0);
+	return 0;
 }
 
+/*
+ * Helper function to cmd_char().  Backs-up one character from bufcur in the
+ * buffer passed, and prints a backspace on the screen.  Returns true if the
+ * we backspaced past bufbegin (ie. the input is being aborted), and false
+ * otherwise.  The bufcur is expected to point to the future location of the
+ * next character in the buffer, and is modified appropriately.
+ */
+static
+cmd_erase(bufbegin, bufcur)
+	char *bufbegin;
+	char **bufcur;
+{
+	int c;
+
+	/*
+	 * XXX Could add code to detect a backspace that is backing us over
+	 * the beginning of a line and onto the previous line.  The backspace
+	 * would not be printed for some terminals (eg. hardcopy) in that
+	 * case.
+	 */
+
+	/*
+	 * backspace past beginning of the string: this usually means
+	 * abort the input.
+	 */
+	if (*bufcur == bufbegin)
+		return 1;
+
+	(*bufcur)--;
+
+	/* If erasing a control-char, erase an extra character for the carat. */
+	c = **bufcur;
+	if (CONTROL_CHAR(c)) {
+		backspace();
+		cmd_col--;
+	}
+
+	backspace();
+	cmd_col--;
+
+	return 0;
+}
+
+static int ungotcc;
+
+/*
+ * Get command character from the terminal.
+ */
+static
+getcc()
+{
+	int ch;
+	off_t position();
+
+	/* left over from error() routine. */
+	if (ungotcc) {
+		ch = ungotcc;
+		ungotcc = 0;
+		return(ch);
+	}
+
+	return(getchr());
+}
+
+/*
+ * Same as ungetc(), but works for people who don't like to use streams.
+ */
+ungetcc(c)
+	int c;
+{
+	ungotcc = c;
+}
+
+
+/*****************************************************************************
+ *
+ * prompts
+ *
+ */
+
+static int longprompt;
+
+/*
+ * Prints prmpt where the prompt would normally appear.  This is different
+ * from changing the current prompt --- this is more like printing a
+ * unimportant notice or error.  The prmpt line will be printed in bold (if
+ * possible).  Will in the future print only the last sc_width - 1 - bo_width
+ * characters (to prevent newline).  
+ */
+prmpt(prmpt)
+	const char *prmpt;
+{
+	lower_left();
+	clear_eol();
+	bo_enter();
+	putxstr(prmpt);
+	bo_exit();
+	flush();
+	cmd_col = strlen(prmpt) + bo_width + be_width;
+}
+
+/*
+ * Print the main prompt that signals we are ready for user commands.  This
+ * also magically positions the current file where it should be (either by
+ * calling repaint() if screen_trashed or by searching for a search
+ * string that was specified through option.c on the more(1) command line).
+ * Additional magic will randomly call the quit() function.
+ *
+ * This is really intended to do a lot of the work of commands().  It has
+ * little purpose outside of commands().
+ */
 prompt()
 {
-	extern int linenums, short_file;
+	extern int linenums, short_file, ispipe;
 	extern char *current_name, *firstsearch, *next_name;
 	off_t len, pos, ch_length(), position(), forw_line();
 	char pbuf[40];
@@ -173,8 +316,13 @@ prompt()
 	 * if search string provided, go there instead.
 	 */
 	if (position(TOP) == NULL_POSITION) {
+#if 0
+/* This code causes "more zero-byte-file /etc/termcap" to skip straight
+ * to the /etc/termcap file ... that is undesireable.  There are only a few
+ * instances where these two lines perform something useful. */
 		if (forw_line((off_t)0) == NULL_POSITION)
-			return(0);
+			return 0 ;
+#endif
 		if (!firstsearch || !search(1, firstsearch, 1, 1))
 			jump_back(1);
 	}
@@ -188,38 +336,42 @@ prompt()
 	/* select the proper prompt and display it. */
 	lower_left();
 	clear_eol();
+	pbuf[sizeof(pbuf) - 1] = '\0';
 	if (longprompt) {
 		/*
 		 * Get the current line/pos from the BOTTOM of the screen
 		 * even though that's potentially confusing for the user
-		 * when switching between NO_HORIZ_OFF and a valid horiz_off.
-		 * In exchange, it is sometimes easier for the user to tell
-		 * when a file is relatively short vs. long.
+		 * when switching between wraplines=true and a valid horiz_off
+		 * (with wraplines=false).  In exchange, it is sometimes
+		 * easier for the user to tell when a file is relatively
+		 * short vs. long.
 		 */
 		so_enter();
 		putstr(current_name);
 		putstr(":");
 		if (!ispipe) {
-			(void)snprintf(pbuf, sizeof(pbuf),
+			(void)snprintf(pbuf, sizeof(pbuf) - 1,
 			    " file %d/%d", curr_ac + 1, ac);
 			putstr(pbuf);
 		}
 		if (linenums) {
-			(void)snprintf(pbuf, sizeof(pbuf),
+			(void)snprintf(pbuf, sizeof(pbuf) - 1,
 			    " line %d", currline(BOTTOM));
 			putstr(pbuf);
 		}
+		(void)snprintf(pbuf, sizeof(pbuf) - 1, " col %d", horiz_off);
+		putstr(pbuf);
 		if ((pos = position(BOTTOM)) != NULL_POSITION) {
-			(void)snprintf(pbuf, sizeof(pbuf), " byte %qd", pos);
+			(void)snprintf(pbuf, sizeof(pbuf) - 1,
+			    " byte %qd", pos);
 			putstr(pbuf);
 			if (!ispipe && (len = ch_length())) {
-				(void)snprintf(pbuf, sizeof(pbuf),
+				(void)snprintf(pbuf, sizeof(pbuf) - 1,
 				    "/%qd pct %qd%%", len, ((100 * pos) / len));
 				putstr(pbuf);
 			}
 		}
 		so_exit();
-		longprompt = 0;
 	}
 	else {
 		so_enter();
@@ -235,144 +387,173 @@ prompt()
 		else if (!ispipe &&
 		    (pos = position(BOTTOM)) != NULL_POSITION &&
 		    (len = ch_length())) {
-			(void)snprintf(pbuf, sizeof(pbuf),
+			(void)snprintf(pbuf, sizeof(pbuf) - 1,
 			    " (%qd%%)", ((100 * pos) / len));
 			putstr(pbuf);
 		}
 		so_exit();
 	}
-	return(1);
-}
-
-/* get command character. */
-static
-getcc()
-{
-	extern int cmdstack;
-	int ch;
-	off_t position();
-
-	/* left over from error() routine. */
-	if (cmdstack) {
-		ch = cmdstack;
-		cmdstack = NULL;
-		return(ch);
-	}
-	if (cp > cmdbuf && position(TOP) == NULL_POSITION) {
-		/*
-		 * Command is incomplete, so try to complete it.
-		 * There are only two cases:
-		 * 1. We have "/string" but no newline.  Add the \n.
-		 * 2. We have a number but no command.  Treat as #g.
-		 * (This is all pretty hokey.)
-		 */
-		if (mca != A_DIGIT)
-			/* Not a number; must be search string */
-			return('\n');
-		else
-			/* A number; append a 'g' */
-			return('g');
-	}
-	return(getchr());
-}
-
-/* execute a multicharacter command. */
-static
-exec_mca()
-{
-	extern int file;
-	extern char *tagfile;
-	register char *p;
-	char *glob();
-
-	*cp = '\0';
-	CMD_EXEC;
-	switch (mca) {
-	case A_F_SEARCH:
-		(void)search(1, cmdbuf, number, wsearch);
-		break;
-	case A_B_SEARCH:
-		(void)search(0, cmdbuf, number, wsearch);
-		break;
-	case A_EXAMINE:
-		for (p = cmdbuf; isspace(*p); ++p);
-		(void)edit(glob(p));
-		break;
-	case A_TAGFILE:
-		for (p = cmdbuf; isspace(*p); ++p);
-		findtag(p);
-		if (tagfile == NULL)
-			break;
-		if (edit(tagfile))
-			(void)tagsearch();
-		break;
-	}
-}
-
-/* add a character to a multi-character command. */
-static
-mca_char(c)
-	int c;
-{
-	switch (mca) {
-	case 0:			/* not in a multicharacter command. */
-	case A_PREFIX:		/* in the prefix of a command. */
-		return(NO_MCA);
-	case A_DIGIT:
-		/*
-		 * Entering digits of a number.
-		 * Terminated by a non-digit.
-		 */
-		if (!isascii(c) || !isdigit(c) &&
-		    c != erase_char && c != kill_char && c != werase_char) {
-			/*
-			 * Not part of the number.
-			 * Treat as a normal command character.
-			 */
-			*cp = '\0';
-			number = atoi(cmdbuf);
-			CMD_RESET;
-			mca = 0;
-			return(NO_MCA);
-		}
-		break;
-	}
-
-	/*
-	 * Any other multicharacter command
-	 * is terminated by a newline.
-	 */
-	if (c == '\n' || c == '\r') {
-		exec_mca();
-		return(MCA_DONE);
-	}
-
-	/* append the char to the command buffer. */
-	if (cmd_char(c))
-		return(MCA_DONE);
-
-	return(MCA_MORE);
+	return 1;
 }
 
 /*
+ * Sets the current prompt.  Currently it sets the current prompt to the
+ * long prompt.
+ */
+statprompt(nostatprompt)
+	int nostatprompt;  /* Turn off the stat prompt?  (off by default...) */
+{
+	if (nostatprompt)
+		longprompt = 0;
+	else
+		longprompt = 1;
+}
+
+
+/*****************************************************************************
+ *
+ * Errors, next-of-kin to prompts.
+ *
+ */
+
+/*
+ * Shortcut function that may be used when setting the current erreur
+ * and erreur string at the same time.  The function name is chosen to be
+ * symetric with the SETERR() macro in less.h.  This could be written as
+ * macro, too, but we'd need to use a GNU C extension.
+ */
+SETERRSTR(enum error e, const char *s, ...)
+{
+	va_list args;
+
+	erreur = e;
+	if (errstr) free(errstr);
+	errstr = NULL;
+	va_start(args, s);
+	vasprintf(&errstr, s, args);
+	va_end(args);
+}
+
+/*
+ * Prints an error message and clears the current error.
+ */
+handle_error()
+{
+	if (erreur == E_OK)
+		return;
+
+	bell();
+	if (errstr)
+		error(errstr);
+	else
+		error(deferr[erreur]);
+	erreur = E_OK;
+	errstr = NULL;
+}
+
+/*
+ * Clears any error messages and pretends they never occurred.
+ */
+clear_error()
+{
+	erreur = E_OK;
+	if (errstr) free(errstr);
+	errstr = NULL;
+}
+
+int errmsgs;
+static char return_to_continue[] = "(press RETURN)";
+
+/*
+ * Output a message in the lower left corner of the screen
+ * and wait for carriage return.
+ */
+/* static */
+error(s)
+	char *s;
+{
+	extern int any_display;
+	int ch;
+
+	errmsgs++;
+	if (!any_display) {
+		/*
+		 * Nothing has been displayed yet.  Output this message on
+		 * error output (file descriptor 2) and don't wait for a
+		 * keystroke to continue.
+		 *
+		 * This has the desirable effect of producing all error
+		 * messages on error output if standard output is directed
+		 * to a file.  It also does the same if we never produce
+		 * any real output; for example, if the input file(s) cannot
+		 * be opened.  If we do eventually produce output, code in
+		 * edit() makes sure these messages can be seen before they
+		 * are overwritten or scrolled away.
+		 */
+		(void)write(2, s, strlen(s));
+		(void)write(2, "\n", 1);
+		return;
+	}
+
+	lower_left();
+	clear_eol();
+	so_enter();
+	if (s) {
+		putstr(s);
+		putstr("  ");
+	}
+	putstr(return_to_continue);
+	so_exit();
+
+	if ((ch = getchr()) != '\n') {
+		/* XXX hardcoded */
+		if (ch == 'q')
+			quit();
+		ungotcc = ch;
+	}
+	lower_left();
+
+	if ((s==NULL)?0:(strlen(s)) + sizeof(return_to_continue) +
+	    so_width + se_width + 1 > sc_width) {
+		/*
+		 * Printing the message has probably scrolled the screen.
+		 * {{ Unless the terminal doesn't have auto margins,
+		 *    in which case we just hammered on the right margin. }}
+		 */
+		/* XXX Should probably just set screen_trashed=1, but I'm
+		 * not going to touch that until all the places that call
+		 * error() have been checked, or until error() is staticized. */
+		repaint();
+	}
+	flush();
+}
+
+
+/****************************************************************************
+ *
+ * The main command processor.
+ *
+ * (Well, it deals with things on the prompt line, doesn't it?)
+ *
+ */
+
+/*
  * Main command processor.
+ *
  * Accept and execute commands until a quit command, then return.
  */
 commands()
 {
-	register int c;
-	register int action;
-	static int default_hscroll = 1;
-	static int saved_horiz_off = NO_HORIZ_OFF;
-	extern char *tagfile;
+	enum runmacro runmacro();
+	enum runmacro rmret;
+	long numberN;
+	enum { NOTGOTTEN=0, GOTTEN=1, GETTING } Nstate;  /* ie. numberNstate */
+	int c;
+	char inbuf[20], *incur = inbuf;
+	*inbuf = '\0';
 
-	last_mca = 0;
-	scroll = (sc_height + 1) / 2;
-
+	Nstate = GETTING;
 	for (;;) {
-		mca = 0;
-		number = 0;
-
 		/*
 		 * See if any signals need processing.
 		 */
@@ -380,287 +561,77 @@ commands()
 			psignals();
 
 		/*
-		 * Display prompt and accept a character.
+		 * Display prompt and generally get setup.  Don't display the
+		 * prompt if we are already in the middle of accepting a
+		 * set of characters.
 		 */
-		CMD_RESET;
-		if (!prompt()) {
+		if (!*inbuf && !prompt()) {
 			next_file(1);
 			continue;
 		}
-		noprefix();
+
 		c = getcc();
 
-again:		if (sigs)
-			continue;
+		/* Check sigs here --- getcc() may have given us READ_INTR */
+		if (sigs) {
+			/* terminate any current macro */
+			*inbuf = '\0';
+			incur = inbuf;
 
-		/*
-		 * If we are in a multicharacter command, call mca_char.
-		 * Otherwise we call cmd_decode to determine the
-		 * action to be performed.
-		 */
-		if (mca)
-			switch (mca_char(c)) {
-			case MCA_MORE:
-				/*
-				 * Need another character.
-				 */
-				c = getcc();
-				goto again;
-			case MCA_DONE:
-				/*
-				 * Command has been handled by mca_char.
-				 * Start clean with a prompt.
-				 */
-				continue;
-			case NO_MCA:
-				/*
-				 * Not a multi-char command
-				 * (at least, not anymore).
-				 */
-				break;
-			}
-
-		/* decode the command character and decide what to do. */
-		switch (action = cmd_decode(c)) {
-		case A_DIGIT:		/* first digit of a number */
-			start_mca(A_DIGIT, ":");
-			goto again;
-		case A_F_SCREEN:	/* forward one screen */
-			CMD_EXEC;
-			if (number <= 0 && (number = sc_window) <= 0)
-				number = sc_height - 1;
-			forward(number, 1);
-			break;
-		case A_B_SCREEN:	/* backward one screen */
-			CMD_EXEC;
-			if (number <= 0 && (number = sc_window) <= 0)
-				number = sc_height - 1;
-			backward(number, 1);
-			break;
-		case A_F_LINE:		/* forward N (default 1) line */
-			CMD_EXEC;
-			forward(number <= 0 ? 1 : number, 0);
-			break;
-		case A_B_LINE:		/* backward N (default 1) line */
-			CMD_EXEC;
-			backward(number <= 0 ? 1 : number, 0);
-			break;
-		case A_R_COL:		/* to the right N (default 1) cols */
-			/* XXX Should beep here rather than silently truncating
-			 * lines in line.c when we are about to exceed the
-			 * line buffer. */
-			if (number > 0)
-				default_hscroll = number;
-			horiz_off += default_hscroll;
-			repaint();
-			break;
-		case A_L_COL:		/* to the left N (default 1) cols */
-			if (number > 0)
-				default_hscroll = number;
-			if (horiz_off != 0 && horiz_off != NO_HORIZ_OFF) {
-				horiz_off -= default_hscroll;
-				if (horiz_off < 0)
-					horiz_off = 0;
-			} else
-				horiz_off = NO_HORIZ_OFF;
-			repaint();
-			break;
-		case A_HOME:
-			if (horiz_off != NO_HORIZ_OFF) {
-				saved_horiz_off = horiz_off;
-				horiz_off = NO_HORIZ_OFF;
-			} else
-				horiz_off = saved_horiz_off;
-			repaint();
-			break;
-		case A_F_SCROLL:	/* forward N lines */
-			CMD_EXEC;
-			if (number > 0)
-				scroll = number;
-			forward(scroll, 0);
-			break;
-		case A_B_SCROLL:	/* backward N lines */
-			CMD_EXEC;
-			if (number > 0)
-				scroll = number;
-			backward(scroll, 0);
-			break;
-		case A_FREPAINT:	/* flush buffers and repaint */
-			if (!ispipe) {
-				ch_init(0, 0);
-				clr_linenum();
-			}
-			/* FALLTHROUGH */
-		case A_REPAINT:		/* repaint the screen */
-			CMD_EXEC;
-			repaint();
-			break;
-		case A_GOLINE:		/* go to line N, default 1 */
-			CMD_EXEC;
-			if (number <= 0)
-				number = 1;
-			jump_back(number);
-			break;
-		case A_PERCENT:		/* go to percent of file */
-			CMD_EXEC;
-			if (number < 0)
-				number = 0;
-			else if (number > 100)
-				number = 100;
-			jump_percent(number);
-			break;
-		case A_GOEND:		/* go to line N, default end */
-			CMD_EXEC;
-			if (number <= 0)
-				jump_forw();
-			else
-				jump_back(number);
-			break;
-		case A_STAT:		/* print file name, etc. */
-			longprompt = 1;
-			continue;
-		case A_QUIT:		/* exit */
-			quit();
-		case A_F_SEARCH:	/* search for a pattern */
-		case A_B_SEARCH:
-			if (number <= 0)
-				number = 1;
-			start_mca(action, (action==A_F_SEARCH) ? "/" : "?");
-			last_mca = mca;
-			wsearch = 1;
-			c = getcc();
-			if (c == '!') {
-				/*
-				 * Invert the sense of the search; set wsearch
-				 * to 0 and get a new character for the start
-				 * of the pattern.
-				 */
-				start_mca(action,
-				    (action == A_F_SEARCH) ? "!/" : "!?");
-				wsearch = 0;
-				c = getcc();
-			}
-			goto again;
-		case A_AGAIN_SEARCH:		/* repeat previous search */
-			if (number <= 0)
-				number = 1;
-			if (wsearch)
-				start_mca(last_mca,
-				    (last_mca == A_F_SEARCH) ? "/" : "?");
-			else
-				start_mca(last_mca,
-				    (last_mca == A_F_SEARCH) ? "!/" : "!?");
-			CMD_EXEC;
-			(void)search(mca == A_F_SEARCH, (char *)NULL,
-			    number, wsearch);
-			break;
-		case A_HELP:			/* help */
-			if (ac > 0 && !strcmp(_PATH_HELPFILE, av[curr_ac])) {
-				error("Already viewing help.");
-				break;
-			}
-			lower_left();
-			clear_eol();
-			putstr("help");
-			CMD_EXEC;
-			help();
-			break;
-		case A_TAGFILE:			/* tag a new file */
-			CMD_RESET;
-			start_mca(A_TAGFILE, "Tag: ");
-			c = getcc();
-			goto again;
-		case A_NEXTTAG:
-			if (number <= 0)
-				number = 1;
-			nexttag(number);
-			if (tagfile == NULL)
-				break;
-			if (edit(tagfile))
-				(void)tagsearch();
-			break;
-		case A_PREVTAG:
-			if (number <= 0)
-				number = 1;
-			prevtag(number);
-			if (tagfile == NULL)
-				break;
-			if (edit(tagfile))
-				(void)tagsearch();
-			break;
-		case A_FILE_LIST:		/* show list of file names */
-			CMD_EXEC;
-			showlist();
-			repaint();
-			break;
-		case A_EXAMINE:			/* edit a new file */
-			CMD_RESET;
-			start_mca(A_EXAMINE, "Examine: ");
-			c = getcc();
-			goto again;
-		case A_VISUAL:			/* invoke the editor */
-			if (ispipe) {
-				error("Cannot edit standard input");
-				break;
-			}
-			CMD_EXEC;
-			editfile();
-			ch_init(0, 0);
-			clr_linenum();
-			break;
-		case A_NEXT_FILE:		/* examine next file */
-			if (number <= 0)
-				number = 1;
-			next_file(number);
-			break;
-		case A_PREV_FILE:		/* examine previous file */
-			if (number <= 0)
-				number = 1;
-			prev_file(number);
-			break;
-		case A_SETMARK:			/* set a mark */
-			lower_left();
-			clear_eol();
-			start_mca(A_SETMARK, "mark: ");
-			c = getcc();
-			if (c == erase_char || c == kill_char)
-				break;
-			setmark(c);
-			break;
-		case A_GOMARK:			/* go to mark */
-			lower_left();
-			clear_eol();
-			start_mca(A_GOMARK, "goto mark: ");
-			c = getcc();
-			if (c == erase_char || c == kill_char)
-				break;
-			gomark(c);
-			break;
-		case A_PREFIX:
-			/*
-			 * The command is incomplete (more chars are needed).
-			 * Display the current char so the user knows what's
-			 * going on and get another character.
-			 */
-			if (mca != A_PREFIX)
-				start_mca(A_PREFIX, "");
-			if (CONTROL_CHAR(c)) {
-				putchr('^');
-				c &= ~0200;
-				c = CARAT_CHAR(c);
-			}
-			putchr(c);
-			c = getcc();
-			goto again;
-		default:
-			bell();
-			break;
+			continue;  /* process the sigs */
 		}
-	}
+
+		if (Nstate == GETTING && !isdigit(c)) {
+			/* mark the end of an input number N, if any */
+
+			if (!*inbuf) {
+				/* We never actually got an input number */
+				Nstate = NOTGOTTEN;
+			} else {
+				numberN = atol(inbuf);
+				Nstate = GOTTEN;
+			}
+			*inbuf = '\0';
+			incur = inbuf;
+		}
+		cmd_char(c, inbuf, &incur, inbuf + sizeof(inbuf) - 1);
+		*incur = '\0';
+		if (*inbuf) prmpt(inbuf);
+
+		if (Nstate == GETTING) {
+			/* Still reading in the number N ... don't want to
+			 * try running the macro expander. */
+			continue;
+		} else {
+			/* Try expanding the macro */
+			switch (runmacro(inbuf, numberN, Nstate)) {
+			case TOOMACRO:
+				break;
+			case BADMACRO: case NOMACRO: case BADCOMMAND:
+				handle_error();
+				/* fallthrough */
+			case OK:
+				/* recock */
+				*inbuf = '\0';
+				incur = inbuf;
+				Nstate = GETTING;
+				break;
+			}
+		}
+	}  /* for (;;) */
 }
+
+
+/*****************************************************************************
+ *
+ * Misc functions that belong in ncommand.c but are here for historical
+ * and for copyright reasons.
+ * 
+ */
 
 editfile()
 {
+	off_t position();
 	extern char *current_file;
 	static int dolinenumber;
 	static char *editor;
