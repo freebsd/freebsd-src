@@ -767,3 +767,11 @@ card "Fast Ethernet" "Adapter"
 	insert	/etc/pccard_ether $device
 	remove	logger -t pccard:$device -s Planex FNW-3600-T removed
 	remove	/etc/pccard_ether_remove $device
+
+# IC-CARD+ Ethernet card
+card "IC-CARD+" "IC-CARD+"
+	config 0x20 "ed0" ?
+	insert logger -t pccard:$device -s IC-CARD+ Ethernet card inserted
+	insert /etc/pccard_ether $device
+	remove logger -t pccard:$device -s IC-CARD+ Ethernet card removed
+	remove ifconfig $device delete
