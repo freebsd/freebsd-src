@@ -38,16 +38,20 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: nfs_prot_freebsd3.h,v 1.1 1996/01/13 23:23:39 ezk Exp ezk $
+ * $Id: nfs_prot_freebsd3.h,v 1.1.1.1 1998/08/23 22:07:20 obrien Exp $
  *
  */
 
 #ifndef _AMU_NFS_PROT_H
 #define _AMU_NFS_PROT_H
 
+#ifdef COMMENT_OUT
 #ifdef HAVE_RPCSVC_NFS_PROT_H
 # include <rpcsvc/nfs_prot.h>
 #endif /* HAVE_RPCSVC_NFS_PROT_H */
+#endif	/* COMMENT_OUT */
+# include "nfs_prot.h"
+
 #ifdef HAVE_NFS_RPCV2_H
 # include <nfs/rpcv2.h>
 #endif /* HAVE_NFS_RPCV2_H */
@@ -154,11 +158,14 @@ typedef writeargs nfswriteargs;
 # define MOUNT_NFS3 MOUNT_NFS
 # define MNTOPT_NFS3 "nfs"
 
+#ifdef COMMENT_OUT
 #define FHSIZE3 64		/* size in bytes of a file handle (v3) */
+#endif	/* COMMENT_OUT */
 #define	NFS3_FHSIZE 64
 #define	MOUNTVERS3 ((unsigned long)(3))
 #define	NFS_V3 ((unsigned long)(3))
 
+#ifdef COMMENT_OUT
 typedef struct {
   u_int fhandle3_len;
   char *fhandle3_val;
@@ -194,6 +201,7 @@ struct mountres3 {
   } mountres3_u;
 };
 typedef struct mountres3 mountres3;
+#endif	/* COMMENT_OUT */
 
 struct nfs_fh3 {
   u_int fh3_length;
