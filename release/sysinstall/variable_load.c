@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: variable_load.c,v 1.1.2.2 1997/04/01 02:04:58 pst Exp $
+ * $Id: variable_load.c,v 1.1.2.3 1997/05/16 20:37:44 pst Exp $
  *
  * Copyright (c) 1997
  *	Paul Traina.  All rights reserved.
@@ -75,7 +75,7 @@ variableLoad(dialogMenuItem * self)
 
     fp = mediaDevice->get(mediaDevice, cp, TRUE);
     if (!fp) {
-	msgConfirm("Configuration file '%s' not found.");
+	msgConfirm("Configuration file '%s' not found.", cp);
 	variable_unset(VAR_INSTALL_CFG);
 	what |= DITEM_FAILURE;
 	goto terminate_device;
