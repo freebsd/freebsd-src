@@ -122,7 +122,7 @@ struct dinode zino[MAXBSIZE / sizeof(struct dinode)];
 
 int	fsi, fso;
 daddr_t	alloc();
-static int numbersperline();
+static int charsperline();
 
 mkfs(pp, fsys, fi, fo)
 	struct partition *pp;
@@ -138,6 +138,8 @@ mkfs(pp, fsys, fi, fo)
 	time_t utime;
 	quad_t sizepb;
 	void started();
+	int width;
+	char tmpbuf[100];	/* XXX this will break in about 2,500 years */
 
 #ifndef STANDALONE
 	time(&utime);
@@ -621,15 +623,21 @@ next:
 	 * then print out indices of cylinder groups.
 	 */
 	if (!mfs)
-		printf("super-block backups (for fsck -b #) at:");
-	i = numbersperline(sblock.fs_size * NSPF(&sblock));
+		printf("super-block backups (for fsck -b #) at:\n");
+	i = 0;
+	width = charsperline();
 	for (cylno = 0; cylno < sblock.fs_ncg; cylno++) {
 		initcg(cylno, utime);
 		if (mfs)
 			continue;
-		if (cylno % i == 0)
+		j = sprintf(tmpbuf, " %d,",
+			fsbtodb(&sblock, cgsblock(&sblock, cylno)));
+		if (i+j >= width) {
 			printf("\n");
-		printf(" %d,", fsbtodb(&sblock, cgsblock(&sblock, cylno)));
+			i = 0;
+		}
+		i += j;
+		printf("%s", tmpbuf);
 		fflush(stdout);
 	}
 	if (!mfs)
@@ -1268,22 +1276,17 @@ setblock(fs, cp, h)
 }
 
 /*
- * Determine the number of block numbers that will nicely fit into a
+ * Determine the number of characters in a
  * single line.
  */
 
 static int
-numbersperline(seccount)
-	long	seccount;
+charsperline()
 {
-	int i, columns;
+	int columns;
 	char *cp;
 	struct winsize ws;
 	extern char *getenv();
-
-	for (i = 0; seccount; i++, seccount /= 10)
-		;
-	i += 2;			/* account for comma+space */
 
 	columns = 0;
 	if (ioctl(0, TIOCGWINSZ, &ws) != -1)
@@ -1292,8 +1295,5 @@ numbersperline(seccount)
 		columns = atoi(cp);
 	if (columns == 0)
 		columns = 80;	/* last resort */
-	i = columns / i;
-	if (i < 3)
-		i = 3;		/* don't care */
-	return i;
+	return columns;
 }
