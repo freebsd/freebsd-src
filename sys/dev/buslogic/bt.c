@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: bt.c,v 1.11 1998/11/13 13:23:36 gibbs Exp $
+ *      $Id: bt.c,v 1.12 1998/12/04 22:54:44 archie Exp $
  */
 
  /*
@@ -1015,7 +1015,6 @@ btaction(struct cam_sim *sim, union ccb *ccb)
 	{
 		struct	bt_ccb	*bccb;
 		struct	bt_hccb *hccb;
-		u_int16_t targ_mask;
 
 		/*
 		 * get a bccb to use.
@@ -1048,7 +1047,6 @@ btaction(struct cam_sim *sim, union ccb *ccb)
 		hccb->target_lun = ccb->ccb_h.target_lun;
 		hccb->btstat = 0;
 		hccb->sdstat = 0;
-		targ_mask = (0x01 << hccb->target_id);
 
 		if (ccb->ccb_h.func_code == XPT_SCSI_IO) {
 			struct ccb_scsiio *csio;
@@ -1057,8 +1055,8 @@ btaction(struct cam_sim *sim, union ccb *ccb)
 			csio = &ccb->csio;
 			ccbh = &csio->ccb_h;
 			hccb->opcode = INITIATOR_CCB_WRESID;
-			hccb->datain = (ccb->ccb_h.flags & CAM_DIR_IN) != 0;
-			hccb->dataout = (ccb->ccb_h.flags & CAM_DIR_OUT) != 0;
+			hccb->datain = (ccb->ccb_h.flags & CAM_DIR_IN) ? 1 : 0;
+			hccb->dataout =(ccb->ccb_h.flags & CAM_DIR_OUT) ? 1 : 0;
 			hccb->cmd_len = csio->cdb_len;
 			if (hccb->cmd_len > sizeof(hccb->scsi_cdb)) {
 				ccb->ccb_h.status = CAM_REQ_INVALID;
@@ -1367,7 +1365,7 @@ btexecuteccb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 		bus_dmamap_sync(bt->buffer_dmat, bccb->dmamap, op);
 
 	} else {
-		bccb->hccb.opcode = INITIATOR_SG_CCB;
+		bccb->hccb.opcode = INITIATOR_CCB;
 		bccb->hccb.data_len = 0;
 		bccb->hccb.data_addr = 0;
 	}
@@ -1781,11 +1779,13 @@ bt_cmd(struct bt_softc *bt, bt_op_t opcode, u_int8_t *params, u_int param_len,
 	u_int	intstat;
 	u_int	reply_buf_size;
 	int	s;
+	int	cmd_complete;
 
 	/* No data returned to start */
 	reply_buf_size = reply_len;
 	reply_len = 0;
 	intstat = 0;
+	cmd_complete = 0;
 
 	bt->command_cmp = 0;
 	/*
@@ -1821,10 +1821,13 @@ bt_cmd(struct bt_softc *bt, bt_op_t opcode, u_int8_t *params, u_int param_len,
 		status = bt_inb(bt, STATUS_REG);
 		intstat = bt_inb(bt, INTSTAT_REG);
 		if ((intstat & (INTR_PENDING|CMD_COMPLETE))
-		 == (INTR_PENDING|CMD_COMPLETE))
+		 == (INTR_PENDING|CMD_COMPLETE)) {
+			cmd_complete = 1;
 			break;
+		}
 		if (bt->command_cmp != 0) {
 			status = bt->latched_status;
+			cmd_complete = 1;
 			break;
 		}
 		if ((status & DATAIN_REG_READY) != 0)
@@ -1846,7 +1849,7 @@ bt_cmd(struct bt_softc *bt, bt_op_t opcode, u_int8_t *params, u_int param_len,
 	 * the CMD_REG_BUSY status to clear and check for a command
 	 * failure.
 	 */
-	if (opcode == BOP_MODIFY_IO_ADDR) {
+	if (cmd_complete == 0 && opcode == BOP_MODIFY_IO_ADDR) {
 
 		while (--cmd_timeout) {
 			status = bt_inb(bt, STATUS_REG);
@@ -1871,7 +1874,7 @@ bt_cmd(struct bt_softc *bt, bt_op_t opcode, u_int8_t *params, u_int param_len,
 	 * For all other commands, we wait for any output data
 	 * and the final comand completion interrupt.
 	 */
-	while (--cmd_timeout) {
+	while (cmd_complete == 0 && --cmd_timeout) {
 
 		status = bt_inb(bt, STATUS_REG);
 		intstat = bt_inb(bt, INTSTAT_REG);
