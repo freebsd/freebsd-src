@@ -663,7 +663,7 @@ _btxld=	usr.sbin/btxld
 .endif
 
 .if ${TARGET_ARCH} == "sparc64"
-_elf2aout=	usr.sbin/elf2aout
+_elf2aout=	usr.bin/elf2aout
 .endif
 
 _xlint=	usr.bin/xlint/lint1 usr.bin/xlint/lint2 usr.bin/xlint/xlint
