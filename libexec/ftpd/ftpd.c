@@ -919,7 +919,7 @@ selecthost(union sockunion *su)
 static char *
 sgetsave(char *s)
 {
-	char *new = malloc((unsigned) strlen(s) + 1);
+	char *new = malloc(strlen(s) + 1);
 
 	if (new == NULL) {
 		perror_reply(421, "Local resource failure: malloc");
@@ -1062,7 +1062,7 @@ user(char *name)
 	 * attempt to slow down passwd-guessing programs.
 	 */
 	if (login_attempts)
-		sleep((unsigned) login_attempts);
+		sleep(login_attempts);
 }
 
 /*
@@ -1983,7 +1983,7 @@ pdata_err:
 		(void) fclose(file);
 		data = -1;
 		if (conerrno == EADDRINUSE) {
-			sleep((unsigned) swaitint);
+			sleep(swaitint);
 			retry += swaitint;
 		} else {
 			break;
@@ -2093,13 +2093,13 @@ send_data(FILE *instr, FILE *outstr, off_t blksize, off_t filesize, int isreg)
 		}
 
 oldway:
-		if ((buf = malloc((u_int)blksize)) == NULL) {
+		if ((buf = malloc(blksize)) == NULL) {
 			transflag = 0;
 			perror_reply(451, "Local resource failure: malloc");
 			return (-1);
 		}
 
-		while ((cnt = read(filefd, buf, (u_int)blksize)) > 0 &&
+		while ((cnt = read(filefd, buf, blksize)) > 0 &&
 		    write(netfd, buf, cnt) == cnt)
 			byte_count += cnt;
 		transflag = 0;
