@@ -327,8 +327,8 @@ route_output(struct mbuf *m, struct socket *so)
 		struct radix_node *t;
 		t = rn_addmask((caddr_t) info.rti_info[RTAX_GENMASK], 0, 1);
 		/* XXX why this odd cast to (caddr_t *) ? Maybe wrong ? */
-		if (t && bcmp((caddr_t *) info.rti_info[RTAX_GENMASK] + 1,
-			      (caddr_t *)t->rn_key + 1,
+		if (t && bcmp((caddr_t)info.rti_info[RTAX_GENMASK] + 1,
+			      (caddr_t)t->rn_key + 1,
 			      *(u_char *)t->rn_key - 1) == 0)
 			info.rti_info[RTAX_GENMASK] =
 				(struct sockaddr *)(t->rn_key);
