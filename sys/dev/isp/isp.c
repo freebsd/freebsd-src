@@ -399,7 +399,7 @@ isp_reset(struct ispsoftc *isp)
 			isp_prt(isp, ISP_LOGCONFIG, "Ultra Mode Capable");
 			sdp->isp_ultramode = 1;
 			/*
-			 * If we're in Ultra Mode, we have to be 60Mhz clock-
+			 * If we're in Ultra Mode, we have to be 60MHz clock-
 			 * even for the SBus version.
 			 */
 			isp->isp_clock = 60;
@@ -790,14 +790,10 @@ again:
 	 * It turns out that even for QLogic 2100s with ROM 1.10 and above
 	 * we do get a firmware attributes word returned in mailbox register 6.
 	 *
-	 * Because the lun is in a a different position in the Request Queue
+	 * Because the lun is in a different position in the Request Queue
 	 * Entry structure for Fibre Channel with expanded lun firmware, we
 	 * can only support one lun (lun zero) when we don't know what kind
 	 * of firmware we're running.
-	 *
-	 * Note that we only do this once (the first time thru isp_reset)
-	 * because we may be called again after firmware has been loaded once
-	 * and released.
 	 */
 	if (IS_SCSI(isp)) {
 		if (dodnld) {
@@ -1225,6 +1221,12 @@ isp_fibre_init(struct ispsoftc *isp)
 		fcp->isp_fwoptions &= ~ICBOPT_TGT_ENABLE;
 	}
 
+	if (isp->isp_role & ISP_ROLE_INITIATOR) {
+		fcp->isp_fwoptions &= ~ICBOPT_INI_DISABLE;
+	} else {
+		fcp->isp_fwoptions |= ICBOPT_INI_DISABLE;
+	}
+
 	/*
 	 * Propagate all of this into the ICB structure.
 	 */
@@ -1253,6 +1255,17 @@ isp_fibre_init(struct ispsoftc *isp)
 	icbp->icb_retry_delay = fcp->isp_retry_delay;
 	icbp->icb_retry_count = fcp->isp_retry_count;
 	icbp->icb_hardaddr = loopid;
+	if (icbp->icb_hardaddr >= 125) {
+		/*
+		 * We end up with a Loop ID of 255 for F-Port topologies
+		 */
+		if (icbp->icb_hardaddr != 255) {
+		    isp_prt(isp, ISP_LOGERR,
+			"bad hard address %u- resetting to zero",
+			icbp->icb_hardaddr); 
+		}
+		icbp->icb_hardaddr = 0;
+	}
 	/*
 	 * Right now we just set extended options to prefer point-to-point
 	 * over loop based upon some soft config options.
@@ -1288,7 +1301,19 @@ isp_fibre_init(struct ispsoftc *isp)
 			 * If we set ZIO, it will disable fast posting,
 			 * so we don't need to clear it in fwoptions.
 			 */
+#ifndef	ISP_NO_ZIO
 			icbp->icb_xfwoptions |= ICBXOPT_ZIO;
+#else
+			icbp->icb_fwoptions |= ICBOPT_FAST_POST;
+#endif
+#if	0
+			/*
+			 * Values, in 100us increments. The default
+			 * is 2 (200us) if a value 0 (default) is
+			 * selected.
+			 */
+			icbp->icb_idelaytimer = 2;
+#endif
 
 			if (isp->isp_confopts & ISP_CFG_ONEGB) {
 				icbp->icb_zfwoptions |= ICBZOPT_RATE_ONEGB;
@@ -1363,7 +1388,13 @@ isp_fibre_init(struct ispsoftc *isp)
 		icbp->icb_fwoptions &= ~(ICBOPT_BOTH_WWNS|ICBOPT_FULL_LOGIN);
 	}
 	icbp->icb_rqstqlen = RQUEST_QUEUE_LEN(isp);
+	if (icbp->icb_rqstqlen < 1) {
+		isp_prt(isp, ISP_LOGERR, "bad request queue length");
+	}
 	icbp->icb_rsltqlen = RESULT_QUEUE_LEN(isp);
+	if (icbp->icb_rsltqlen < 1) {
+		isp_prt(isp, ISP_LOGERR, "bad result queue length");
+	}
 	icbp->icb_rqstaddr[RQRSP_ADDR0015] = DMA_WD0(isp->isp_rquest_dma);
 	icbp->icb_rqstaddr[RQRSP_ADDR1631] = DMA_WD1(isp->isp_rquest_dma);
 	icbp->icb_rqstaddr[RQRSP_ADDR3247] = DMA_WD2(isp->isp_rquest_dma);
@@ -1628,7 +1659,7 @@ isp_fclink_test(struct ispsoftc *isp, int usdelay)
 	 * Check to see if we're on a fabric by trying to see if we
 	 * can talk to the fabric name server. This can be a bit
 	 * tricky because if we're a 2100, we should check always
-	 * (in case we're connected to an server doing aliasing).
+	 * (in case we're connected to a server doing aliasing).
 	 */
 	fcp->isp_onfabric = 0;
 
@@ -3153,7 +3184,7 @@ isp_start(XS_T *xs)
 		isp_update(isp);
 	}
 
-	if (isp_getrqentry(isp, &nxti, &optr, (void **)&qep)) {
+	if (isp_getrqentry(isp, &nxti, &optr, (void *)&qep)) {
 		isp_prt(isp, ISP_LOGDEBUG0, "Request Queue Overflow");
 		XS_SETERR(xs, HBA_BOTCH);
 		return (CMD_EAGAIN);
@@ -3182,7 +3213,7 @@ isp_start(XS_T *xs)
 			isp_put_request(isp, reqp, qep);
 			ISP_ADD_REQUEST(isp, nxti);
 			isp->isp_sendmarker &= ~(1 << i);
-			if (isp_getrqentry(isp, &nxti, &optr, (void **) &qep)) {
+			if (isp_getrqentry(isp, &nxti, &optr, (void *) &qep)) {
 				isp_prt(isp, ISP_LOGDEBUG0,
 				    "Request Queue Overflow+");
 				XS_SETERR(xs, HBA_BOTCH);
@@ -3851,7 +3882,7 @@ again:
 		}
 
 		/*
-		 * Free any dma resources. As a side effect, this may
+		 * Free any DMA resources. As a side effect, this may
 		 * also do any cache flushing necessary for data coherence.			 */
 		if (XS_XFRLEN(xs)) {
 			ISP_DMAFREE(isp, xs, sp->req_handle);
@@ -4212,9 +4243,13 @@ isp_parse_async(struct ispsoftc *isp, u_int16_t mbox)
 			break;
 		case ISP_CONN_FATAL:
 			isp_prt(isp, ISP_LOGERR, "FATAL CONNECTION ERROR");
+#ifdef	ISP_FW_CRASH_DUMP
+			isp_async(isp, ISPASYNC_FW_CRASH, NULL);
+#else
 			isp_async(isp, ISPASYNC_FW_CRASH, NULL);
 			isp_reinit(isp);
 			isp_async(isp, ISPASYNC_FW_RESTARTED, NULL);
+#endif
 			return (-1);
 		case ISP_CONN_LOOPBACK:
 			isp_prt(isp, ISP_LOGWARN,
@@ -4288,10 +4323,8 @@ isp_handle_other_response(struct ispsoftc *isp, int type,
 		if (isp_target_notify(isp, (ispstatusreq_t *) hp, optrp)) {
 			return (1);
 		}
-#else
-		optrp = optrp;
-		/* FALLTHROUGH */
 #endif
+		/* FALLTHROUGH */
 	case RQSTYPE_REQUEST:
 	default:
 		if (isp_async(isp, ISPASYNC_UNHANDLED_RESPONSE, hp)) {
@@ -4771,7 +4804,7 @@ isp_mbox_continue(struct ispsoftc *isp)
 #define	HIBYT(x)			((x) >> 0x8)
 #define	LOBYT(x)			((x)  & 0xff)
 #define	ISPOPMAP(a, b)			(((a) << 8) | (b))
-static u_int16_t mbpscsi[] = {
+static const u_int16_t mbpscsi[] = {
 	ISPOPMAP(0x01, 0x01),	/* 0x00: MBOX_NO_OP */
 	ISPOPMAP(0x1f, 0x01),	/* 0x01: MBOX_LOAD_RAM */
 	ISPOPMAP(0x03, 0x01),	/* 0x02: MBOX_EXEC_FIRMWARE */
@@ -4967,7 +5000,7 @@ static char *scsi_mbcmd_names[] = {
 };
 #endif
 
-static u_int16_t mbpfc[] = {
+static const u_int16_t mbpfc[] = {
 	ISPOPMAP(0x01, 0x01),	/* 0x00: MBOX_NO_OP */
 	ISPOPMAP(0x1f, 0x01),	/* 0x01: MBOX_LOAD_RAM */
 	ISPOPMAP(0x03, 0x01),	/* 0x02: MBOX_EXEC_FIRMWARE */
@@ -5197,7 +5230,7 @@ static char *fc_mbcmd_names[] = {
 	NULL,
 	NULL,
 	NULL,
-	NULL,
+	"DRIVER HEARTBEAT",
 	NULL,
 	"GET/SET DATA RATE",
 	NULL,
@@ -5239,15 +5272,13 @@ static char *fc_mbcmd_names[] = {
 static void
 isp_mboxcmd_qnw(struct ispsoftc *isp, mbreg_t *mbp, int nodelay)
 {
-	unsigned int lim, ibits, obits, box, opcode;
-	u_int16_t *mcp;
+	unsigned int ibits, obits, box, opcode;
+	const u_int16_t *mcp;
 
 	if (IS_FC(isp)) {
 		mcp = mbpfc;
-		lim = (sizeof (mbpfc) / sizeof (mbpfc[0]));
 	} else {
 		mcp = mbpscsi;
-		lim = (sizeof (mbpscsi) / sizeof (mbpscsi[0]));
 	}
 	opcode = mbp->param[0];
 	ibits = HIBYT(mcp[opcode]) & NMBOX_BMASK(isp);
@@ -5281,7 +5312,7 @@ isp_mboxcmd(struct ispsoftc *isp, mbreg_t *mbp, int logmask)
 {
 	char *cname, *xname, tname[16], mname[16];
 	unsigned int lim, ibits, obits, box, opcode;
-	u_int16_t *mcp;
+	const u_int16_t *mcp;
 
 	if (IS_FC(isp)) {
 		mcp = mbpfc;
@@ -5805,6 +5836,9 @@ isp_reinit(struct ispsoftc *isp)
 	XS_T *xs;
 	u_int16_t handle;
 
+	if (IS_FC(isp)) {
+		isp_mark_getpdb_all(isp);
+	}
 	isp_reset(isp);
 	if (isp->isp_state != ISP_RESETSTATE) {
 		isp_prt(isp, ISP_LOGERR, "isp_reinit cannot reset card");
@@ -6524,7 +6558,7 @@ isp2200_fw_dump(struct ispsoftc *isp)
 	}
 	ptr = isp->isp_mbxworkp;	/* finish fetch of final word */
 	*ptr++ = isp->isp_mboxtmp[2];
-	isp_prt(isp, ISP_LOGALL, "isp_fw_dump: SRAM dumped succesfully");
+	isp_prt(isp, ISP_LOGALL, "isp_fw_dump: SRAM dumped successfully");
 	FCPARAM(isp)->isp_dump_data[0] = isp->isp_type; /* now used */
 	(void) isp_async(isp, ISPASYNC_FW_DUMPED, 0);
 }
@@ -6687,7 +6721,7 @@ isp2300_fw_dump(struct ispsoftc *isp)
 	}
 	ptr = isp->isp_mbxworkp;	/* finish final word */
 	*ptr++ = mbs.param[2];
-	isp_prt(isp, ISP_LOGALL, "isp_fw_dump: SRAM dumped succesfully");
+	isp_prt(isp, ISP_LOGALL, "isp_fw_dump: SRAM dumped successfully");
 	FCPARAM(isp)->isp_dump_data[0] = isp->isp_type; /* now used */
 	(void) isp_async(isp, ISPASYNC_FW_DUMPED, 0);
 }
