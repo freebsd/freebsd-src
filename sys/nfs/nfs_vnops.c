@@ -1812,18 +1812,20 @@ nfs_symlink(ap)
 		nfsm_wcc_data(dvp, wccflag);
 	}
 	nfsm_reqdone;
-	if (newvp && error)
-		vput(newvp);
-	else
-		*ap->a_vpp = newvp;
-	VTONFS(dvp)->n_flag |= NMODIFIED;
-	if (!wccflag)
-		VTONFS(dvp)->n_attrstamp = 0;
 	/*
 	 * Kludge: Map EEXIST => 0 assuming that it is a reply to a retry.
 	 */
 	if (error == EEXIST)
 		error = 0;
+
+	if (error) {
+		if (newvp)
+			vput(newvp);
+	} else
+		*ap->a_vpp = newvp;
+	VTONFS(dvp)->n_flag |= NMODIFIED;
+	if (!wccflag)
+		VTONFS(dvp)->n_attrstamp = 0;
 	/*
 	 * cnp's buffer expected to be freed if SAVESTART not set or
 	 * if an error was returned.
