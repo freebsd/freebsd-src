@@ -187,6 +187,7 @@ static int vesa_bios_load_palette2(int start, int colors, u_char *r, u_char *g,
 #define STATE_REG	(1<<3)
 #define STATE_MOST	(STATE_HW | STATE_DATA | STATE_REG)
 #define STATE_ALL	(STATE_HW | STATE_DATA | STATE_DAC | STATE_REG)
+#define STATE_MAXSIZE	(2 * PAGE_SIZE)
 static int vesa_bios_state_buf_size(void);
 static int vesa_bios_save_restore(int code, void *p, size_t size);
 static int vesa_bios_get_line_length(void);
@@ -423,7 +424,7 @@ vesa_bios_state_buf_size(void)
 
 	bzero(&vmf, sizeof(vmf));
 	vmf.vmf_eax = 0x4f04; 
-	vmf.vmf_ecx = STATE_MOST;
+	vmf.vmf_ecx = STATE_ALL;
 	vmf.vmf_edx = STATE_SIZE;
 	err = vm86_intcall(0x10, &vmf);
 	if ((err != 0) || (vmf.vmf_ax != 0x4f))
@@ -438,15 +439,19 @@ vesa_bios_save_restore(int code, void *p, size_t size)
 	u_char *buf;
 	int err;
 
+	if (size > STATE_MAXSIZE)
+		return (1);
+
 	bzero(&vmf, sizeof(vmf));
 	vmf.vmf_eax = 0x4f04; 
-	vmf.vmf_ecx = STATE_MOST;
+	vmf.vmf_ecx = STATE_ALL;
 	vmf.vmf_edx = code;	/* STATE_SAVE/STATE_LOAD */
 	buf = (u_char *)vm86_getpage(&vesa_vmcontext, 1);
 	vm86_getptr(&vesa_vmcontext, (vm_offset_t)buf, &vmf.vmf_es, &vmf.vmf_bx);
 	bcopy(p, buf, size);
 
 	err = vm86_datacall(0x10, &vmf, &vesa_vmcontext);
+	bcopy(buf, p, size);
 	return ((err != 0) || (vmf.vmf_ax != 0x4f));
 }
 
@@ -797,7 +802,12 @@ vesa_bios_init(void)
 		printf("VESA: %d mode(s) found\n", modes);
 
 	has_vesa_bios = (modes > 0);
-	return (has_vesa_bios ? 0 : 1);
+	if (!has_vesa_bios)
+		return (1);
+
+	/* Get a second page to support STATE_MAXSIZE. */
+	(void)vm86_addpage(&vesa_vmcontext, 2, 0);
+	return (0);
 }
 
 static void
