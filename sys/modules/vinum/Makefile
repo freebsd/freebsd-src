@@ -14,14 +14,16 @@ NOMAN=
 
 # If you remove -DVINUMDEBUG here, you must also do it in src/sbin/Makefile.
 # Otherwise a number of ioctls will fail.
-CFLAGS+=	-DVINUMDEBUG -g -O
+CFLAGS+=	-DVINUMDEBUG -O
 
 all:
 
-state.h:  maketabs vinumstate.h
+state.h: vinumstate.h
 	./maketabs >state.h
 
+build-tools: maketabs
+
 maketabs: maketabs.c
-	${CC} -g -o maketabs maketabs.c
+	${CC} -o maketabs maketabs.c
 
 .include <bsd.kmod.mk>
