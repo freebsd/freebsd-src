@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2001 Erez Zadok
+ * Copyright (c) 1997-2003 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: fsinfo.h,v 1.4.2.2 2001/01/10 03:23:34 ezk Exp $
+ * $Id: fsinfo.h,v 1.4.2.5 2003/07/18 04:50:20 ezk Exp $
  *
  */
 
@@ -93,7 +93,7 @@ extern void init_que(qelem *);
 extern void ins_que(qelem *, qelem *);
 extern void lerror(ioloc *l, char *fmt, ...)
 	__attribute__((__format__(__printf__, 2, 3)));
-extern void log(char *fmt, ...)
+extern void fsi_log(char *fmt, ...)
 	__attribute__((__format__(__printf__, 1, 2)));
 extern void lwarning(ioloc *l, char *fmt, ...)
 	__attribute__((__format__(__printf__, 2, 3)));

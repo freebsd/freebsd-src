@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2001 Erez Zadok
+ * Copyright (c) 1997-2003 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: am_ops.c,v 1.6.2.3 2001/02/23 01:03:39 ezk Exp $
+ * $Id: am_ops.c,v 1.6.2.6 2002/12/27 22:44:28 ezk Exp $
  *
  */
 
@@ -130,8 +130,7 @@ static am_ops *vops[] =
    *	(1) amfs_auto
    *	(2) amfs_direct
    *	(3) amfs_toplvl
-   *	(4) autofs
-   *	(5) amfs_error
+   *	(4) amfs_error
    */
 #ifdef HAVE_AMU_FS_AUTO
   &amfs_auto_ops,		/* Automounter F/S */
@@ -142,9 +141,6 @@ static am_ops *vops[] =
 #ifdef HAVE_AMU_FS_TOPLVL
   &amfs_toplvl_ops,		/* top-level mount F/S */
 #endif /* HAVE_AMU_FS_TOPLVL */
-#ifdef HAVE_FS_AUTOFS
-  &autofs_ops,			/* autofs mount F/S */
-#endif /* HAVE_FS_AUTOFS */
 #ifdef HAVE_AMU_FS_ERROR
   &amfs_error_ops,		/* error F/S */
 #endif /* HAVE_AMU_FS_ERROR */
@@ -191,10 +187,6 @@ ops_showfstypes(char *buf)
   int l = 0;
 
   buf[0] = '\0';
-
-#ifdef MNTTAB_TYPE_AUTOFS
-  ops_show1(buf, &l, MNTTAB_TYPE_AUTOFS);
-#endif /* MNTTAB_TYPE_AUTOFS */
 
 #ifdef MNTTAB_TYPE_CACHEFS
   ops_show1(buf, &l, MNTTAB_TYPE_CACHEFS);

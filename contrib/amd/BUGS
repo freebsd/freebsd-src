@@ -1,5 +1,3 @@
-# -*- text -*-
-
 	    LIST OF KNOWN BUGS IN AM-UTILS OR OPERATING SYSTEMS
 
 
@@ -20,10 +18,20 @@ reliable as yp_all() which uses TCP, but it is better than hanging.
 (I have some reports that older version of hpux-9, with older libc, also
 leak file descriptors.)
 
+[1C] SGI's MIPSpro C compiler on IRIX 6 has the unfortunate habit of
+creating code specificially for the machine it runs on.  The ABI and ISA
+used depend very much on the OS version and compiler release used.  This
+means that the resulting amd binary won't run on machines different from
+the build host, particularly older ones.  Older versions of am-utils
+enforced the O32 ABI when compiling with cc to work around this, but this
+ABI is deprecated in favor of the N32 ABI now, so we use -n32 -mips3 to
+ensure that the binaries run on every host capable of running IRIX 6 at
+all.  If this is not appropriate for you, configure with something like
+CC='cc -64' instead to get the desired ABI and ISA.
 
 (2) alpha-unknown-linux-gnu (RedHat Linux 4.2)
 
-hasmntopt(mnt, opt) can goes into an infinite loop if opt is any substring
+hasmntopt(mnt, opt) can go into an infinite loop if opt is any substring
 of mnt->mnt_opts.  Redhat 5.0 does not have this libc bug.  Here is an
 example program:
 
@@ -99,7 +107,7 @@ Upgrade to gcc 2.8.x or use IBM's xlC compiler.
 in strlen inside strdup inside svc_register().
 
 
-(5) *-linux-gnu (RedHat Linux 5.1)
+(5) *-linux-rh51 (RedHat Linux 5.1)
 
 There's a UDP file descriptor leak in libnsl in RedHat Linux 5.1.  This
 library part of glibc2.  Am-utils currently declares redhat 5.1 systems as
@@ -129,19 +137,19 @@ plock on aix-4.3: set it to plock=no in amd.conf (which is the default if
 you do nothing).
 
 
-(8) *-linux-gnu (systems using glibc 2.1, such as RedHat-6.1)
+(8) *-linux (systems using glibc 2.1, such as RedHat-6.x)
 
-There's a UDP file descriptor leak in the nis routines in glibc, especially
+There's a UDP file descriptor leak in the NIS routines in glibc, especially
 those that do yp_bind.  Until this is bug fixed, do not set nis_domain in
 amd.conf, but let the system pick up the default domain name as set by your
 system.  That would avoid using the buggy yp_bind routines in libc.
 
 
-(9) *-linux-gnu (SuSE systems using unfsd)
+(9) *-linux (SuSE systems using unfsd)
 
-The user-level nfsd (2.2beta44) on SuSE Linux systems (and possibly others)
-dies with a SEGV when amd tries to contact it for access to a volume that
-does not exist, or one for which there is no permission to mount.
+The user-level nfsd (2.2beta44) on older SuSE Linux systems (and possibly
+others) dies with a SEGV when amd tries to contact it for access to a volume
+that does not exist, or one for which there is no permission to mount.
 
 
 (10) *-*-hpux11
@@ -150,13 +158,49 @@ If you're using NFSv3, you must install HP patches PHNE_20344 and
 PHNE_20371.  If you don't, and you try to use amd with NFSv3 over TCP, your
 kernel will panic.
 
+
 (11) *-linux* (any system using a 2.2.18+ kernel)
 
 The Linux kernels don't support Amd's direct mounts very well, leading to
 erratic behavior: shares that don't get remounted after the first timeout,
 inability to restart Amd because its mount points cannot be unmounted,
 etc. There are some kernel patches on the am-utils Web site, which solve
-these problems.
+these problems.  See http://www.am-utils.org/patches/.
+
+UPDATE: kernels 2.4.10 and later completely disallow the direct mount hack,
+so direct mounts are simply not possible on those Linux kernels.
+
+(12) *-aix5.1.0.0 and *-hpux9*
+
+/bin/sh is broken and fails to run the configure script properly. You need
+to use /bin/ksh instead. The buildall script will do it for you; if for some
+reason you need to run configure directly, run it using 'ksh configure'
+instead of just 'configure'.
+
+[12A] *-aix5.1.*
+
+Apparently there is an NFS client side bug in vmount() which causes amd to
+hang when it starts (and tries to NFS-mount itself).  According to IBM
+engineers, this has to do with partial support code for IPv6: the NFS kernel
+code doesn't appear to recognize the sin_family of the amd vmount(),
+although amd does the right thing.  The bug appears to have been fixed in
+AIX 5.2.  No known fix/patch is available for AIX 5.1 as of now (1/25/2003).
+
+(13) *-linux and *-darwin6.0
+
+Certain linux kernels (2.4.18+ are fine, 2.4.10- are probably bad, those in
+between have not been tested) have a bug which causes them to reconnect
+broken NFS/TCP connections using unprivileged ports (greater than 1024),
+unlike the initial connections which do originate from privileged
+ports.  This can upset quite a few NFS servers and causes accesses to the
+mounted shares to fail with "Operation not permitted" (EPERM).
+
+The darwin (MacOS X) kernel defaults to using unprivileged ports, but that
+can be changed by setting the resvport mount flag (which amd sets by
+default).  Nonetheless, if a TCP connection breaks, under certain unclear
+circumstances the kernel might "forget" about that flag and start using
+unprivileged ports, causing the same EPERM error above.
 
 
-Erez.
+Erez & Ion.
+

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2001 Erez Zadok
+ * Copyright (c) 1997-2003 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: mntfs.c,v 1.5.2.1 2001/01/10 03:23:07 ezk Exp $
+ * $Id: mntfs.c,v 1.5.2.4 2002/12/27 22:44:39 ezk Exp $
  *
  */
 
@@ -263,6 +263,17 @@ void
 free_mntfs(voidp v)
 {
   mntfs *mf = v;
+
+  /*
+   * We shouldn't ever be called to free something that has
+   * a non-positive refcount.  Something is badly wrong if
+   * we have been!  Ignore the request for now...
+   */
+  if(mf->mf_refc <= 0) {
+    plog(XLOG_ERROR, "IGNORING free_mntfs for <%s>: refc %d, flags %x",
+         mf->mf_mount, mf->mf_refc, mf->mf_flags);
+    return;
+  }
 
   if (--mf->mf_refc == 0) {
     if (mf->mf_flags & MFF_MOUNTED) {

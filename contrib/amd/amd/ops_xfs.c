@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2001 Erez Zadok
+ * Copyright (c) 1997-2003 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: ops_xfs.c,v 1.3.2.2 2001/01/12 23:28:58 ro Exp $
+ * $Id: ops_xfs.c,v 1.3.2.5 2002/12/27 22:44:43 ezk Exp $
  *
  */
 
@@ -127,12 +127,12 @@ mount_xfs(char *dir, char *fs_name, char *opts)
 
   flags = compute_mount_flags(&mnt);
 
-#ifdef HAVE_FIELD_XFS_ARGS_T_FLAGS
+#ifdef HAVE_XFS_ARGS_T_FLAGS
   xfs_args.flags = 0;		/* XXX: fix this to correct flags */
-#endif /* HAVE_FIELD_XFS_ARGS_T_FLAGS */
-#ifdef HAVE_FIELD_XFS_ARGS_T_FSPEC
+#endif /* HAVE_XFS_ARGS_T_FLAGS */
+#ifdef HAVE_XFS_ARGS_T_FSPEC
   xfs_args.fspec = fs_name;
-#endif /* HAVE_FIELD_XFS_ARGS_T_FSPEC */
+#endif /* HAVE_XFS_ARGS_T_FSPEC */
 
   /*
    * Call generic mount routine

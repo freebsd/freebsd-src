@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2001 Erez Zadok
+ * Copyright (c) 1997-2003 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: xutil.c,v 1.11.2.6 2001/01/10 03:23:41 ezk Exp $
+ * $Id: xutil.c,v 1.11.2.12 2003/04/04 15:53:35 ezk Exp $
  *
  */
 
@@ -80,11 +80,10 @@ static int orig_mem_bytes;
 #endif /* DEBUG_MEM */
 
 /* forward definitions */
+/* for GCC format string auditing */
 static void real_plog(int lvl, const char *fmt, va_list vargs)
      __attribute__((__format__(__printf__, 2, 0)));
-/* for GCC format string auditing */
-static const char *expand_error(const char *f, char *e, int maxlen)
-     __attribute__((__format_arg__(1)));
+
 
 #ifdef DEBUG
 /*
@@ -292,15 +291,6 @@ checkup_mem(void)
 static const char *
 expand_error(const char *f, char *e, int maxlen)
 {
-#ifndef HAVE_STRERROR
-  /*
-   * XXX: we are assuming that if a system doesn't has strerror,
-   * then it has sys_nerr.  If this assumption turns out to be wrong on
-   * some systems, we'll have to write a separate test to detect if
-   * a system has sys_nerr.  -Erez
-   */
-  extern int sys_nerr;
-#endif /* not HAVE_STRERROR */
   const char *p;
   char *q;
   int error = errno;
@@ -308,23 +298,7 @@ expand_error(const char *f, char *e, int maxlen)
 
   for (p = f, q = e; (*q = *p) && len < maxlen; len++, q++, p++) {
     if (p[0] == '%' && p[1] == 'm') {
-      const char *errstr;
-#ifdef HAVE_STRERROR
-      if (error < 0)
-#else /* not HAVE_STRERROR */
-      if (error < 0 || error >= sys_nerr)
-#endif /* not HAVE_STRERROR */
-	errstr = NULL;
-      else
-#ifdef HAVE_STRERROR
-	errstr = strerror(error);
-#else /* not HAVE_STRERROR */
-        errstr = sys_errlist[error];
-#endif /* not HAVE_STRERROR */
-      if (errstr)
-	strcpy(q, errstr);
-      else
-	sprintf(q, "Error %d", error);
+      strcpy(q, strerror(error));
       len += strlen(q) - 1;
       q += strlen(q) - 1;
       p++;
@@ -851,7 +825,11 @@ switch_to_logfile(char *logfile, int old_umask)
     (void) fclose(logfp);
   logfp = new_logfp;
 
-  plog(XLOG_INFO, "switched to logfile \"%s\"", logfile);
+  if (logfile)
+    plog(XLOG_INFO, "switched to logfile \"%s\"", logfile);
+  else
+    plog(XLOG_INFO, "no logfile defined; using stderr");
+
   return 0;
 }
 
@@ -923,24 +901,14 @@ amu_release_controlling_tty(void)
 #endif /* TIOCNOTTY */
   int tempfd;
 
-#ifdef HAVE_SETSID
-  /* XXX: one day maybe use vhangup(2) */
-  if (setsid() < 0) {
-    plog(XLOG_WARNING, "Could not release controlling tty using setsid(): %m");
-  } else {
-    plog(XLOG_INFO, "released controlling tty using setsid()");
-    return;
-  }
-#endif /* HAVE_SETSID */
-
   /*
    * In daemon mode, leaving open file descriptors to terminals or pipes
    * can be a really bad idea.
    * Case in point: the redhat startup script calls us through their 'initlog'
-   * program, which exits as soon as the original amd process exits. If, at some
-   * point, a misbehaved library function decides to print something to the screen,
-   * we get a SIGPIPE and die.
-   * More precisely: NIS libc functions will attempt to print to stderr
+   * program, which exits as soon as the original amd process exits. If,
+   * at some point, a misbehaved library function decides to print something
+   * to the screen, we get a SIGPIPE and die.
+   * And guess what: NIS glibc functions will attempt to print to stderr
    * "YPBINDPROC_DOMAIN: Domain not bound" if ypbind is running but can't find
    * a ypserver.
    *
@@ -954,6 +922,16 @@ amu_release_controlling_tty(void)
   fflush(stdout); close(1); dup2(tempfd, 1);
   fflush(stderr); close(2); dup2(tempfd, 2);
   close(tempfd);
+
+#ifdef HAVE_SETSID
+  /* XXX: one day maybe use vhangup(2) */
+  if (setsid() < 0) {
+    plog(XLOG_WARNING, "Could not release controlling tty using setsid(): %m");
+  } else {
+    plog(XLOG_INFO, "released controlling tty using setsid()");
+    return;
+  }
+#endif /* HAVE_SETSID */
 
 #ifdef TIOCNOTTY
   fd = open("/dev/tty", O_RDWR);

@@ -8,8 +8,7 @@ Please volunteer to do any of the following:
 	ncr2
 	sunos 3.5
 
-- autofs support: see README.autofs for details.
-	needs to be re-ported to solaris 2.6 (headers changed)
+- autofs support: see README.autofs for details. [done in 6.1]
 
 - deal with everything that has XXX on it in the sources
 - documentation update ("XXX: FILL IN" sections).
@@ -21,14 +20,11 @@ Please volunteer to do any of the following:
 	should be easier via the amd.conf file to specify type of map
 	perhaps done at the same time autofs support is done.
 
-- a selector ala if_exists() for networkmask(1.2.3.4/5.6.7.8), will match
-  against all known IP addresses of this host.
-
 - convert to using my own rpcgen .x files for amq/amq/nfs (v2 and v3)
 
-- support multiple "fail-over" NFS mounts in Solaris 2.6.
+- support multiple "fail-over read-only" NFS mounts in Solaris 2.6+.
 
-- use packaging info for various OSs (such as RPM, Redhat Package Format)
+- use packaging info for various OSs (such as RPM, Redhat Package Manager)
 
 - $mindelay and $maxdelay in milliseconds
 
@@ -88,8 +84,6 @@ amd.conf file (right now amd.conf overrides cmd-line options).
 
 - browsable 'auto' style maps.
 
-- amq man page: amq -f also reloads maps that are not updated
-
 - mention signals in amd man page
 
 - ALLOWED_MOUNT_TIME of 40 seconds is way too long!
@@ -111,8 +105,24 @@ amd.conf file (right now amd.conf overrides cmd-line options).
 
 - detecting down'ed hosts faster: use default portmap TTL variables?
 
-- entries w/ $key in /defaults, see "defaults" instead of the actual entry.
+- entries w/ $key in /defaults, see "defaults" instead of the actual
+  entry. [fixed in 6.1]
 
 - y2k: amq /home (mounted time uses YY instead of YYYY)
 
 - new amd.conf option to disable amq listener altogether (security)
+
+- new amd.conf option dynamic_system_params to recompute osver, karch,
+  etc. from uname() dynamically.
+
+- change uid (gid?) of hlfsd symlink each time, to circumvent symlink cache
+  on openbsd.
+
+- solaris 8 doesn't pick up hsfs/pcfs/etc *_args structures and mount flags
+
+- support opts:=loop for linux loopback mounts
+
+- map reloading interval timer (do_mapc_reload = clocktime() + ONE_HOUR);
+  right now it's fixed to 3600 seconds.
+
+- avoid having to compile ops_nfs3.o
