@@ -79,6 +79,7 @@ static int	sc_cur_scr;
 static int
 scsuspend(device_t dev)
 {
+#ifndef SC_NO_SUSPEND_VTYSWITCH
 	int		retry = 10;
 	static int	dummy;
 	sc_softc_t	*sc;
@@ -93,17 +94,20 @@ scsuspend(device_t dev)
 		tsleep(&dummy, 0, "scsuspend", 100);
 	} while (retry--);
 
+#endif
 	return (0);
 }
 
 static int
 scresume(device_t dev)
 {
+#ifndef SC_NO_SUSPEND_VTYSWITCH
 	sc_softc_t	*sc;
 
 	sc = &main_softc;
 	sc_switch_scr(sc, sc_cur_scr);
 
+#endif
 	return (0);
 }
 
