@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.51.2.37 1997/04/12 16:11:07 jkh Exp $
+ * $Id: config.c,v 1.51.2.38 1997/04/13 05:39:42 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -519,8 +519,9 @@ configXFree86(dialogMenuItem *self)
 
 	    dialog_clear_norefresh();
 	    msgNotify("Running CDE installation - please wait (this may take awhile!).");
-	    i = system("(cd /dist/CDE; sh Install)");
-	    dialog_clear_norefresh();
+	    dialog_clear();
+	    i = systemExecute("(cd /dist/CDE; sh Install)");
+	    dialog_clear();
 	    if (i) {
 		msgConfirm("/dist/CDE/dtinstall script returned an error status!\n\n"
 			   "To try again, you should run this command manually after the system\n"
