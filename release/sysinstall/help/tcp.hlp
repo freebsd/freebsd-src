@@ -17,6 +17,10 @@ hack :-):
 
 If you're running SLIP or PLIP, you also need to use it for specifying
 the remote end of the link (simply type the foreign IP address in).
+In the specific case where you're running PLIP with a Linux host peer
+rather than a FreeBSD one, you also must add the "-link0" flag after the
+foreign address.
+
 
 If you're dealing with an ethernet adaptor with multiple media
 connectors (e.g. AUI, 10BT, 10B2, etc), you can use this field to
