@@ -121,6 +121,13 @@ output.
 .It Ar path
 Path to a regular file or device.
 .El
+.Sh EXIT STATUS
+Exit status is 0 on success, or 1 if the command fails.
+To get details about the failure,
+.Nm
+should be called with the
+.Fl v
+option.
 .Sh EXAMPLES
 .Dq GEOMify
 the
@@ -139,13 +146,6 @@ umount /secret
 gbde detach ggate5
 ggatel destroy -u 5
 .Ed
-.Sh EXIT STATUS
-Exit status is 0 on success, or 1 if the command fails.
-To get details about the failure,
-.Nm
-should be called with the
-.Fl v
-option.
 .Sh SEE ALSO
 .Xr geom 4 ,
 .Xr gbde 8 ,

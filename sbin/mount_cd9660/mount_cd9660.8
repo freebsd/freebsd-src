@@ -140,15 +140,6 @@ The following command can be used to mount a Kodak Photo-CD:
 .Xr unmount 2 ,
 .Xr fstab 5 ,
 .Xr mount 8
-.Sh BUGS
-POSIX device node mapping is currently not supported.
-.Pp
-Version numbers are not stripped if Rockridge extensions are in use.
-In this case, accessing files that don't have Rockridge names without
-version numbers gets the one with the lowest version number and not
-the one with the highest.
-.Pp
-There is no ECMA support.
 .Sh HISTORY
 The
 .Nm
@@ -158,3 +149,12 @@ utility first appeared in
 The Unicode conversion routine was added by
 .An Ryuichiro Imura Aq imura@ryu16.org
 in 2003.
+.Sh BUGS
+POSIX device node mapping is currently not supported.
+.Pp
+Version numbers are not stripped if Rockridge extensions are in use.
+In this case, accessing files that don't have Rockridge names without
+version numbers gets the one with the lowest version number and not
+the one with the highest.
+.Pp
+There is no ECMA support.

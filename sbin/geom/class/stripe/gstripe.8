@@ -190,6 +190,8 @@ If this value is large, you should consider increasing the
 .Va kern.geom.stripe.maxmem
 value.
 .El
+.Sh EXIT STATUS
+Exit status is 0 on success, and 1 if the command fails.
 .Sh EXAMPLES
 The following example shows how to set up a striped device from four disks with a
 4 KB stripe size for automatic configuration,
@@ -204,8 +206,6 @@ umount /mnt
 gstripe stop data
 gstripe unload
 .Ed
-.Sh EXIT STATUS
-Exit status is 0 on success, and 1 if the command fails.
 .Sh COMPATIBILITY
 The
 .Nm

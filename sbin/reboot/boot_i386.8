@@ -291,17 +291,6 @@ default kernel
 .It Pa /boot/kernel.old/kernel
 typical non-default kernel (optional)
 .El
-.Sh SEE ALSO
-.Xr ddb 4 ,
-.Xr ttys 5 ,
-.Xr boot0cfg 8 ,
-.Xr bsdlabel 8 ,
-.Xr btxld 8 ,
-.Xr config 8 ,
-.Xr halt 8 ,
-.Xr loader 8 ,
-.Xr reboot 8 ,
-.Xr shutdown 8
 .Sh DIAGNOSTICS
 When disk-related errors occur, these are reported by the second-stage
 bootstrap using the same error codes returned by the BIOS, for example
@@ -341,6 +330,17 @@ When a
 .Dq Disk error 0x1
 is reported by the second-stage bootstrap, it generally means that this
 requirement has not been adhered to.
+.Sh SEE ALSO
+.Xr ddb 4 ,
+.Xr ttys 5 ,
+.Xr boot0cfg 8 ,
+.Xr bsdlabel 8 ,
+.Xr btxld 8 ,
+.Xr config 8 ,
+.Xr halt 8 ,
+.Xr loader 8 ,
+.Xr reboot 8 ,
+.Xr shutdown 8
 .Sh BUGS
 The
 .Xr bsdlabel 5

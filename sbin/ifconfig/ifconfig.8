@@ -934,19 +934,6 @@ it (or have need for it).
 Messages indicating the specified interface does not exist, the
 requested address is unknown, or the user is not privileged and
 tried to alter an interface's configuration.
-.Sh BUGS
-Basic IPv6 node operation requires a link-local address on each
-interface configured for IPv6.
-Normally, such an address is automatically configured by the
-kernel on each interface added to the system; this behaviour may
-be disabled by setting the sysctl MIB variable
-.Va net.inet6.ip6.auto_linklocal
-to 0.
-.Pp
-If you delete such an address using
-.Nm ,
-the kernel may act very oddly.
-Do this at your own risk.
 .Sh SEE ALSO
 .Xr netstat 1 ,
 .Xr netintro 4 ,
@@ -960,3 +947,16 @@ The
 .Nm
 utility appeared in
 .Bx 4.2 .
+.Sh BUGS
+Basic IPv6 node operation requires a link-local address on each
+interface configured for IPv6.
+Normally, such an address is automatically configured by the
+kernel on each interface added to the system; this behaviour may
+be disabled by setting the sysctl MIB variable
+.Va net.inet6.ip6.auto_linklocal
+to 0.
+.Pp
+If you delete such an address using
+.Nm ,
+the kernel may act very oddly.
+Do this at your own risk.

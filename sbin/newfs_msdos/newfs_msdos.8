@@ -162,6 +162,8 @@ struct bsxbpb {
     u_int16_t	bkbs;		/* [-k] backup boot sector */
 };
 .Ed
+.Sh EXIT STATUS
+Exit status is 0 on success and 1 on error.
 .Sh EXAMPLES
 .Bd -literal -offset indent
 newfs_msdos /dev/ad0s1
@@ -182,8 +184,6 @@ on
 .Xr disklabel 8 ,
 .Xr fdisk 8 ,
 .Xr newfs 8
-.Sh EXIT STATUS
-Exit status is 0 on success and 1 on error.
 .Sh HISTORY
 The
 .Nm

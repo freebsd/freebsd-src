@@ -2334,6 +2334,33 @@ the sleep terminates thus restoring the previous situation.
 .Xr reboot 8 ,
 .Xr sysctl 8 ,
 .Xr syslogd 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 2.0 .
+.Xr dummynet 4
+was introduced in
+.Fx 2.2.8 .
+Stateful extensions were introduced in
+.Fx 4.0 .
+.Nm ipfw2
+was introduced in Summer 2002.
+.Sh AUTHORS
+.An Ugen J. S. Antsilevich ,
+.An Poul-Henning Kamp ,
+.An Alex Nash ,
+.An Archie Cobbs ,
+.An Luigi Rizzo .
+.Pp
+.An -nosplit
+API based upon code written by
+.An Daniel Boulet
+for BSDI.
+.Pp
+Work on
+.Xr dummynet 4
+traffic shaper supported by Akamba Corp.
 .Sh BUGS
 The syntax has grown over the years and sometimes it might be confusing.
 Unfortunately, backward compatibility prevents cleaning up mistakes
@@ -2363,30 +2390,3 @@ If a packet is reinserted in this manner, later rules may be incorrectly
 applied, making the order of
 .Cm divert
 rules in the rule sequence very important.
-.Sh AUTHORS
-.An Ugen J. S. Antsilevich ,
-.An Poul-Henning Kamp ,
-.An Alex Nash ,
-.An Archie Cobbs ,
-.An Luigi Rizzo .
-.Pp
-.An -nosplit
-API based upon code written by
-.An Daniel Boulet
-for BSDI.
-.Pp
-Work on
-.Xr dummynet 4
-traffic shaper supported by Akamba Corp.
-.Sh HISTORY
-The
-.Nm
-utility first appeared in
-.Fx 2.0 .
-.Xr dummynet 4
-was introduced in
-.Fx 2.2.8 .
-Stateful extensions were introduced in
-.Fx 4.0 .
-.Nm ipfw2
-was introduced in Summer 2002.

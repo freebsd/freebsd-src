@@ -101,6 +101,8 @@ Hardcode providers' names in metadata.
 .It Fl v
 Be more verbose.
 .El
+.Sh EXIT STATUS
+Exit status is 0 on success, and 1 if the command fails.
 .Sh EXAMPLES
 The following example shows how to created a shared secret device.
 Secret will be split between a slice on the local disk and a USB Pen drive.
@@ -113,8 +115,6 @@ From now on, when USB Pen drive will be inserted, it will be automatically
 detected and connected making secret available via
 .Pa /dev/shsec/secret
 device.
-.Sh EXIT STATUS
-Exit status is 0 on success, and 1 if the command fails.
 .Sh SEE ALSO
 .Xr geom 4 ,
 .Xr gbde 8 ,

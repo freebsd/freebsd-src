@@ -171,6 +171,13 @@ Empty file.
 Its presence indicates that the machine's CMOS clock is set to local
 time, while its absence indicates a UTC CMOS clock.
 .El
+.Sh DIAGNOSTICS
+No diagnostics.
+If an error occurs,
+.Nm
+logs an error message via
+.Xr syslog 3
+and exits with a nonzero return code.
 .Sh SEE ALSO
 .Xr tzset 3 ,
 .Xr crontab 5 ,
@@ -179,17 +186,10 @@ time, while its absence indicates a UTC CMOS clock.
 .Xr sysctl 8 ,
 .Xr tzsetup 8 ,
 .Xr zic 8
-.Sh DIAGNOSTICS
-No diagnostics.
-If an error occurs,
-.Nm
-logs an error message via
-.Xr syslog 3
-and exits with a nonzero return code.
-.Sh AUTHORS
-.An Andrey A. Chernov Aq ache@astral.msk.su
 .Sh HISTORY
 The
 .Nm
 utility appeared in
 .Fx 1.0 .
+.Sh AUTHORS
+.An Andrey A. Chernov Aq ache@astral.msk.su
