@@ -1,7 +1,7 @@
-SUBDIR=		boot0
+#	$Id:$
 
-.if ${OBJFORMAT} == elf
-SUBDIR+=	btx libi386 loader
-.endif
+SUBDIR=		boot0 btx libi386 loader
+
+.MAKEFLAGS:	OBJFORMAT=elf
 
 .include <bsd.subdir.mk>
