@@ -904,6 +904,8 @@ pci_print_verbose(struct pci_devinfo *dinfo)
 
 		printf("found->\tvendor=0x%04x, dev=0x%04x, revid=0x%02x\n", 
 		       cfg->vendor, cfg->device, cfg->revid);
+		printf("\tbus=%d, slot=%d, func=%d\n",
+		       cfg->bus, cfg->slot, cfg->func);
 		printf("\tclass=%02x-%02x-%02x, hdrtype=0x%02x, mfdev=%d\n",
 		       cfg->baseclass, cfg->subclass, cfg->progif,
 		       cfg->hdrtype, cfg->mfdev);
