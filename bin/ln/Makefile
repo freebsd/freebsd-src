@@ -2,8 +2,7 @@
 # $FreeBSD$
 
 PROG=	ln
-MAN1=	ln.1
-MAN7=	symlink.7
+MAN=	ln.1 symlink.7
 
 LINKS=	${BINDIR}/ln ${BINDIR}/link
 MLINKS=	ln.1 link.1
