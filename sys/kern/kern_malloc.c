@@ -90,7 +90,7 @@ static char *kmemlimit;
 #define KMEM_ZBASE	16
 #define KMEM_ZMASK	(KMEM_ZBASE - 1)
 
-#define KMEM_ZMAX	8192
+#define KMEM_ZMAX	65536
 #define KMEM_ZSIZE	(KMEM_ZMAX >> KMEM_ZSHIFT)
 static u_int8_t kmemsize[KMEM_ZSIZE + 1];
 
@@ -110,6 +110,8 @@ struct {
 	{2048, "2048", NULL},
 	{4096, "4096", NULL},
 	{8192, "8192", NULL},
+	{32768, "32768", NULL},
+	{65536, "65536", NULL},
 	{0, NULL},
 };
 
