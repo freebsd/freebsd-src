@@ -337,7 +337,7 @@ static char	MATCDVERSION[]="Version  1(26) 18-Oct-95";
 static char	MATCDCOPYRIGHT[] = "Matsushita CD-ROM driver, Copr. 1994,1995 Frank Durda IV";
 /*	The proceeding strings may not be changed*/
 
-/* $Id: matcd.c,v 1.26 1997/05/04 15:24:21 joerg Exp $ */
+/* $Id: matcd.c,v 1.27 1997/05/10 12:13:17 joerg Exp $ */
 
 /*---------------------------------------------------------------------------
 	Include declarations
@@ -352,7 +352,6 @@ static char	MATCDCOPYRIGHT[] = "Matsushita CD-ROM driver, Copr. 1994,1995 Frank 
 #include	<sys/cdio.h>
 #include	<sys/disklabel.h>
 #include	<sys/fcntl.h>
-#include	<sys/proc.h>
 
 #include	"i386/isa/matcd/options.h"	/*Conditional compile options
 						  and probe port hints*/
@@ -2717,7 +2716,7 @@ static int matcd_igot(struct ioc_capability * sqp)
 
 
 #ifdef FULLDRIVER
-#include	"i386/isa/matcd/audio.c"	/*<15>ioctls related to
+#include	<i386/isa/matcd/audio.c>	/*<15>ioctls related to
 						      audio are here*/
 #endif	/*FULLDRIVER*/
 
