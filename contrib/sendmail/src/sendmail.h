@@ -1258,6 +1258,8 @@ EXTERN gid_t	RunAsGid;	/* GID to become for bulk of run */
 EXTERN int	MaxRcptPerMsg;	/* max recipients per SMTP message */
 EXTERN bool	DoQueueRun;	/* non-interrupt time queue run needed */
 EXTERN u_long	ConnectOnlyTo;	/* override connection address (for testing) */
+EXTERN int	MaxHeaderLines;	/* max lines of headers per message */
+EXTERN int	MaxHeaderLineLength;	/* max length of a header line */
 #if _FFR_DSN_RRT_OPTION
 EXTERN bool	RrtImpliesDsn;	/* turn Return-Receipt-To: into DSN */
 #endif
