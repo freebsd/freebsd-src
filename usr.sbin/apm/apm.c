@@ -1,7 +1,7 @@
 /*
  * apm / zzz	APM BIOS utility for FreeBSD
  *
- * Copyright (C) 1994-1996 by HOSOKAWA Tatasumi <hosokawa@mt.cs.keio.ac.jp>
+ * Copyright (C) 1994-1996 by Tatsumi Hosokawa <hosokawa@jp.FreeBSD.org>
  *
  * This software may be used, modified, copied, distributed, and sold,
  * in both source and binary form provided that the above copyright and
@@ -15,7 +15,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: apm.c,v 1.11 1997/11/06 23:55:38 imp Exp $";
+	"$Id: apm.c,v 1.12 1997/11/12 04:16:23 jdp Exp $";
 #endif /* not lint */
 
 #include <err.h>
