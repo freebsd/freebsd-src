@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_time.c	8.1 (Berkeley) 6/10/93
- * $Id: kern_time.c,v 1.16 1996/06/08 11:55:32 bde Exp $
+ * $Id: kern_time.c,v 1.17 1996/07/12 07:55:35 bde Exp $
  */
 
 #include <sys/param.h>
@@ -114,7 +114,6 @@ settimeofday(p, uap, retval)
 	    (error = copyin((caddr_t)uap->tzp, (caddr_t)&atz, sizeof(atz))))
 		return (error);
 	if (uap->tv) {
-		/* WHAT DO WE DO ABOUT PENDING REAL-TIME TIMEOUTS??? */
 		s = splclock();
 		/*
 		 * Calculate delta directly to minimize clock interrupt
@@ -136,6 +135,10 @@ settimeofday(p, uap, retval)
 		timevalfix(&delta);
 		timevaladd(&boottime, &delta);
 		timevaladd(&runtime, &delta);
+		/* re-use 'p' */
+		for (p = allproc.lh_first; p != 0; p = p->p_list.le_next)
+			if (timerisset(&p->p_realtimer.it_value))
+				timevaladd(&p->p_realtimer.it_value, &delta);
 		LEASE_UPDATETIME(delta.tv_sec);
 		splx(s);
 		resettodr();
