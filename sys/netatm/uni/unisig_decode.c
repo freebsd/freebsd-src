@@ -61,7 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <netatm/uni/unisig_decode.h>
 
 #define	ALLOC_IE(ie) do {						\
-	(ie) = uma_zalloc(unisig_ie_zone, M_WAITOK | M_ZERO);		\
+	(ie) = uma_zalloc(unisig_ie_zone, M_NOWAIT | M_ZERO);		\
 	if ((ie) == NULL)						\
 		return (ENOMEM);					\
 } while (0)

@@ -168,8 +168,9 @@ atm_cm_connect(epp, token, ap, copp)
 
 	/*
 	 * Get a connection block
+	 * May be called from timeout - don't wait.
 	 */
-	cop = uma_zalloc(atm_connection_zone, M_WAITOK);
+	cop = uma_zalloc(atm_connection_zone, M_NOWAIT);
 	if (cop == NULL)
 		return (ENOMEM);
 
@@ -399,8 +400,9 @@ atm_cm_connect(epp, token, ap, copp)
 
 	/*
 	 * Get a connection VCC block
+	 * May be called from timeouts - don't wait.
 	 */
-	cvp = uma_zalloc(atm_connvc_zone, M_WAITOK);
+	cvp = uma_zalloc(atm_connvc_zone, M_NOWAIT);
 	if (cvp == NULL) {
 		err = ENOMEM;
 		goto donex;
@@ -809,8 +811,9 @@ atm_cm_addllc(epp, token, llc, ecop, copp)
 
 	/*
 	 * Get a connection block
+	 * May be called from netisr - don't wait.
 	 */
-	cop = uma_zalloc(atm_connection_zone, M_WAITOK);
+	cop = uma_zalloc(atm_connection_zone, M_NOWAIT);
 	if (cop == NULL)
 		return (ENOMEM);
 
@@ -1260,8 +1263,9 @@ atm_cm_incoming(vcp, ap)
 
 	/*
 	 * Get a connection VCC block
+	 * May be called from netisr - don't wait.
 	 */
-	cvp = uma_zalloc(atm_connvc_zone, M_WAITOK);
+	cvp = uma_zalloc(atm_connvc_zone, M_NOWAIT);
 	if (cvp == NULL) {
 		err = ENOMEM;
 		goto fail;
@@ -1578,8 +1582,9 @@ atm_cm_incall(cvp)
 		if (cop == NULL) {
 			/*
 			 * Need a new connection block
+			 * May be called from timeout - dont wait.
 			 */
-			cop = uma_zalloc(atm_connection_zone, M_WAITOK);
+			cop = uma_zalloc(atm_connection_zone, M_NOWAIT);
 			if (cop == NULL) {
 				cvp->cvc_attr.cause = atm_cause_tmpl;
 				cvp->cvc_attr.cause.v.cause_value =
