@@ -1136,7 +1136,11 @@ bpf_mtap(ifp, m)
 		++d->bd_rcount;
 		slen = bpf_filter(d->bd_filter, (u_char *)m, pktlen, 0);
 		if (slen != 0)
-			catchpacket(d, (u_char *)m, pktlen, slen, bpf_mcopy);
+#ifdef MAC
+			if (mac_check_bpfdesc_receive(d, ifp) == 0)
+#endif
+				catchpacket(d, (u_char *)m, pktlen, slen,
+				    bpf_mcopy);
 		BPFD_UNLOCK(d);
 	}
 	BPFIF_UNLOCK(bp);
