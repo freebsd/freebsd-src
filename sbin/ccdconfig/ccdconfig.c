@@ -182,6 +182,7 @@ do_single(int argc, char **argv, int action)
 				i = 1;
 				continue;
 			}
+			ccio.ccio_size = ccd;
 			if (do_io(ccd, CCDIOCCLR, &ccio))
 				i = 1;
 			else
@@ -251,6 +252,7 @@ do_single(int argc, char **argv, int action)
 	ccio.ccio_ndisks = i;
 	ccio.ccio_ileave = ileave;
 	ccio.ccio_flags = flags;
+	ccio.ccio_size = ccd;
 
 	if (do_io(ccd, CCDIOCSET, &ccio)) {
 		free(disks);
@@ -379,11 +381,19 @@ do_io(int unit, u_long cmd, struct ccd_ioctl *cciop)
 	char *cp;
 	char *path;
 
-	asprintf(&path, "%sccd%dc", _PATH_DEV, unit);
+	asprintf(&path, "%s%s", _PATH_DEV, _PATH_CCDCTL);
 
 	if ((fd = open(path, O_RDWR, 0640)) < 0) {
-		warn("open: %s", path);
-		return (1);
+		asprintf(&path, "%sccd%dc", _PATH_DEV, unit);
+		if ((fd = open(path, O_RDWR, 0640)) < 0) {
+			warn("open: %s", path);
+			return (1);
+		}
+		fprintf(stderr,
+		    "***WARNING***: Kernel older than ccdconfig(8), please upgrade it.\n");
+		fprintf(stderr,
+		    "***WARNING***: Continuing in 30 seconds\n");
+		sleep(30);
 	}
 
 	if (ioctl(fd, cmd, cciop) < 0) {
@@ -510,19 +520,9 @@ print_ccd_info(struct ccd_s *cs)
 		warnx("can't read component info: invalid ccd name: %s", cp);
 		return;
 	}
-	cpps.size = 0;
-	if (do_io(ccd, CCDCPPINFO, (struct ccd_ioctl *) &cpps)) {
-		printf("\n");
-		warnx("can't read component info");
-		return;
-	}
+	cpps.size = 1024;
 	cpps.buffer = alloca(cpps.size);
-	if (cpps.buffer == NULL) {
-		printf("\n");
-		warn("ccd%d: can't allocate memory for component info",
-		    cs->sc_unit);
-		return;
-	}
+	memcpy(cpps.buffer, &ccd, sizeof ccd);
 	if (do_io(ccd, CCDCPPINFO, (struct ccd_ioctl *) &cpps)) {
 		printf("\n");
 		warnx("can't read component info");
@@ -530,11 +530,11 @@ print_ccd_info(struct ccd_s *cs)
 	}
 
 	/* Display component info. */
-	for (cp = cpps.buffer; cp - cpps.buffer < cpps.size; cp += strlen(cp) + 1) {
+	for (cp = cpps.buffer; *cp && cp - cpps.buffer < cpps.size; cp += strlen(cp) + 1) {
 		printf((cp + strlen(cp) + 1) < (cpps.buffer + cpps.size) ?
-		    "%s " : "%s\n", cp);
-		fflush(stdout);
+		    "%s " : "%s", cp);
 	}
+	printf("\n");
 	return;
 }
 
