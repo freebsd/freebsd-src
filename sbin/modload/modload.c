@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: modload.c,v 1.8 1995/05/30 06:09:20 rgrimes Exp $
+ *	$Id: modload.c,v 1.9 1995/10/28 13:06:11 peter Exp $
  */
 
 #include <stdio.h>
@@ -214,16 +214,6 @@ main(argc, argv)
 
 	modobj = argv[0];
 
-	if (!entry) {	/* calculate default entry point */
-		entry = strrchr(modobj, '/');
-		if (entry)
-			entry++;		/* skip over '/' */
-		else
-			entry = modobj;
-		entry = strdup(entry);		/* so we can modify it */
-		entry[strlen(entry) - 2] = '\0'; /* chop off .o */
-	}
-
 	atexit(cleanup);
 
 	/*
@@ -235,14 +225,35 @@ main(argc, argv)
 		err(3, _PATH_LKM);
 	fileopen |= DEV_OPEN;
 
-	strcpy(modout, modobj);
-
-	p = strchr(modout, '.');
+	p = strchr(modobj, '.');
 	if (!p || strcmp(p, ".o"))
 		errx(2, "module object must end in .o");
-	if (out == NULL) {
+
+	if (!out) {
+		p = strrchr(modobj, '/');
+		if (p)
+			p++;			/* skip over '/' */
+		else
+			p = modobj;
+		sprintf(modout, "%s%sut", _PATH_TMP, p);
 		out = modout;
-		*p = 0;
+		/*
+		 * reverse meaning of -u - if we've generated a /tmp
+		 * file, remove it automatically...
+		 */
+		dounlink = !dounlink;
+	}
+
+	if (!entry) {	/* calculate default entry point */
+		entry = strrchr(modobj, '/');
+		if (entry)
+			entry++;		/* skip over '/' */
+		else
+			entry = modobj;
+		entry = strdup(entry);		/* so we can modify it */
+		if (!entry)
+			errx(1, "Could not allocate memory");
+		entry[strlen(entry) - 2] = '\0'; /* chop off .o */
 	}
 
 	modfd = open(out, O_RDWR | O_CREAT, 0666);
