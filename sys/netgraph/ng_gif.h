@@ -78,7 +78,7 @@
 /* Netgraph control messages */
 enum {
 	NGM_GIF_GET_IFNAME = 1,		/* get the interface name */
-	NGM_GIF_GET_IFINDEX,		/* get the interface global index # */
+	NGM_GIF_GET_IFINDEX		/* get the interface global index # */
 };
 
 #endif /* _NETGRAPH_NG_GIF_H_ */
