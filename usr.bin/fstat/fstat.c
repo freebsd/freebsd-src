@@ -332,6 +332,11 @@ dofiles(kp)
 	if (p->p_tracep)
 		vtrans(p->p_tracep, TRACE, FREAD|FWRITE);
 	/*
+	 * text vnode, if one
+	 */
+	if (p->p_textvp)
+		vtrans(p->p_textvp, TEXT, FREAD);
+	/*
 	 * open files
 	 */
 #define FPSIZE	(sizeof (struct file *))
