@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.i386,v 1.16 1996/06/23 20:54:42 ache Exp $
+#	$Id: rc.i386,v 1.17 1996/09/07 19:04:48 ache Exp $
 #	Do i386 specific processing
 #
 
@@ -95,7 +95,7 @@ fi
 # mouse daemon
 if [ "X${mousedtype}" != XNO ] ; then
 	echo -n ' moused'
-	(sleep 20; moused ${mousedflags} -p ${mousedport} -t ${mousedtype}) &
+	moused ${mousedflags} -p ${mousedport} -t ${mousedtype}
 fi
 
 echo '.'
