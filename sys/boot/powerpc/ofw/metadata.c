@@ -294,7 +294,9 @@ md_load(char *args, vm_offset_t *modulep)
     addr = roundup(addr, PAGE_SIZE);
 
     kernend = 0;
-    kfp = file_findfile(NULL, "elf kernel");
+    kfp = file_findfile(NULL, "elf32 kernel");
+    if (kfp == NULL)
+	kfp = file_findfile(NULL, "elf kernel");
     if (kfp == NULL)
 	panic("can't find kernel file");
     file_addmetadata(kfp, MODINFOMD_HOWTO, sizeof howto, &howto);
