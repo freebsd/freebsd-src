@@ -90,7 +90,6 @@ Static usbd_status uhub_explore(usbd_device_handle hub);
 Static void uhub_intr(usbd_xfer_handle, usbd_private_handle,usbd_status);
 
 #if defined(__FreeBSD__)
-Static bus_child_detached_t uhub_child_detached;
 Static bus_child_location_str_t uhub_child_location_str;
 Static bus_child_pnpinfo_str_t uhub_child_pnpinfo_str;
 #endif
@@ -110,7 +109,6 @@ CFATTACH_DECL(uhub_uhub, sizeof(struct uhub_softc),
     uhub_match, uhub_attach, uhub_detach, uhub_activate);
 #elif defined(__FreeBSD__)
 USB_DECLARE_DRIVER_INIT(uhub,
-	DEVMETHOD(bus_child_detached, uhub_child_detached),
 	DEVMETHOD(bus_child_pnpinfo_str, uhub_child_pnpinfo_str),
 	DEVMETHOD(bus_child_location_str, uhub_child_location_str),
 	DEVMETHOD(bus_driver_added, bus_generic_driver_added),
@@ -123,7 +121,6 @@ USB_DECLARE_DRIVER_INIT(uhub,
 devclass_t uhubroot_devclass;
 
 Static device_method_t uhubroot_methods[] = {
-	DEVMETHOD(bus_child_detached, uhub_child_detached),
 	DEVMETHOD(bus_child_location_str, uhub_child_location_str),
 	DEVMETHOD(bus_child_pnpinfo_str, uhub_child_pnpinfo_str),
 	DEVMETHOD(bus_driver_added, bus_generic_driver_added),
@@ -378,7 +375,7 @@ uhub_explore(usbd_device_handle dev)
 		DPRINTFN(3,("uhub_explore: %s port %d status 0x%04x 0x%04x\n",
 			    USBDEVNAME(sc->sc_dev), port, status, change));
 		if (change & UPS_C_PORT_ENABLED) {
-			DPRINTF(("uhub_explore: C_PORT_ENABLED\n"));
+			DPRINTF(("uhub_explore: C_PORT_ENABLED 0x%x\n", change));
 			usbd_clear_port_feature(dev, port, UHF_C_PORT_ENABLE);
 			if (change & UPS_C_CONNECT_STATUS) {
 				/* Ignore the port error if the device
@@ -398,7 +395,7 @@ uhub_explore(usbd_device_handle dev)
 				else
 					printf("%s: port error, giving up "
 					       "port %d\n",
-					       USBDEVNAME(sc->sc_dev), port);
+					  USBDEVNAME(sc->sc_dev), port);
 			}
 		}
 		if (!(change & UPS_C_CONNECT_STATUS)) {
@@ -683,35 +680,6 @@ found_dev:
 		    iface->idesc->bInterfaceSubClass);
 	}
 	return (0);
-}
-
-/* Called when a device has been detached from it */
-Static void
-uhub_child_detached(device_t self, device_t child)
-{
-	struct uhub_softc *sc = device_get_softc(self);
-	usbd_device_handle devhub = sc->sc_hub;
-	usbd_device_handle dev;
-	int nports;
-	int port;
-	int i;
-
-	if (!devhub->hub)
-		/* should never happen; children are only created after init */
-		panic("hub not fully initialised, but child deleted?");
-
-	nports = devhub->hub->hubdesc.bNbrPorts;
-	for (port = 0; port < nports; port++) {
-		dev = devhub->hub->ports[port].device;
-		if (dev == NULL || dev->subdevs == NULL)
-			continue;
-		for (i = 0; dev->subdevs[i]; i++) {
-			if (dev->subdevs[i] == child) {
-				dev->subdevs[i] = NULL;
-				return;
-			}
-		}
-	}
 }
 #endif
 
