@@ -25,7 +25,7 @@ ntpdate_start()
 	fi
 	if [ -n "$ntpdate_hosts" -o -n "$rc_flags" ]; then
 		echo "Setting date via ntp."
-		${ntpdate_command:-ntpdate} $rc_flags $ntpdate_hosts
+		${ntpdate_program:-ntpdate} $rc_flags $ntpdate_hosts
 	fi
 }
 
