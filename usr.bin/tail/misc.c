@@ -50,42 +50,11 @@ static char sccsid[] = "@(#)misc.c	8.1 (Berkeley) 6/6/93";
 void
 ierr()
 {
-	err(0, "%s: %s", fname, strerror(errno));
+	err(0, "%s", fname);
 }
 
 void
 oerr()
 {
-	err(1, "stdout: %s", strerror(errno));
-}
-
-#if __STDC__
-#include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
-
-void
-#if __STDC__
-err(int fatal, const char *fmt, ...)
-#else
-err(fatal, fmt, va_alist)
-	int fatal;
-	char *fmt;
-	va_dcl
-#endif
-{
-	va_list ap;
-#if __STDC__
-	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
-	(void)fprintf(stderr, "tail: ");
-	(void)vfprintf(stderr, fmt, ap);
-	va_end(ap);
-	(void)fprintf(stderr, "\n");
-	if (fatal)
-		exit(1);
-	rval = 1;
+	err(1, "stdout");
 }

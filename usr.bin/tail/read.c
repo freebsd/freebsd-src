@@ -69,7 +69,7 @@ bytes(fp, off)
 	char *sp;
 
 	if ((sp = p = malloc(off)) == NULL)
-		err(1, "%s", strerror(errno));
+		err(1, "malloc");
 
 	for (wrap = 0, ep = p + off; (ch = getc(fp)) != EOF;) {
 		*p = ch;
@@ -142,7 +142,7 @@ lines(fp, off)
 	char *sp;
 
 	if ((lines = malloc(off * sizeof(*lines))) == NULL)
-		err(1, "%s", strerror(errno));
+		err(1, "malloc");
 	bzero(lines, off * sizeof(*lines));
 	sp = NULL;
 	blen = cnt = recno = wrap = 0;
@@ -150,7 +150,7 @@ lines(fp, off)
 	while ((ch = getc(fp)) != EOF) {
 		if (++cnt > blen) {
 			if ((sp = realloc(sp, blen += 1024)) == NULL)
-				err(1, "%s", strerror(errno));
+				err(1, "realloc");
 			p = sp + cnt - 1;
 		}
 		*p++ = ch;
@@ -159,7 +159,7 @@ lines(fp, off)
 				lines[recno].blen = cnt + 256;
 				if ((lines[recno].l = realloc(lines[recno].l,
 				    lines[recno].blen)) == NULL)
-					err(1, "%s", strerror(errno));
+					err(1, "realloc");
 			}
 			bcopy(sp, lines[recno].l, lines[recno].len = cnt);
 			cnt = 0;

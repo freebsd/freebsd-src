@@ -45,7 +45,6 @@ void reverse __P((FILE *, enum STYLE, long, struct stat *));
 int bytes __P((FILE *, off_t));
 int lines __P((FILE *, off_t));
 
-void err __P((int fatal, const char *fmt, ...));
 void ierr __P((void));
 void oerr __P((void));
 
