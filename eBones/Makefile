@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.1 (Berkeley) 6/25/90
-#	$Id: Makefile,v 1.2 1994/10/06 00:32:42 wollman Exp $
+#	$Id: Makefile,v 1.3 1994/10/06 00:48:55 wollman Exp $
 
 SUBDIR=	include
 
@@ -38,4 +38,17 @@ bootstrap:
 	rm -f /usr/lib/libkdb.so.4.0
 	${MAKE} ${MFLAGS} depend all install kprog
 
+help-distribute:	distribute
+	cd ${SDIR}/bin/rcp; ${MAKE} ${MFLAGS} distribute
+	cd ${SDIR}/libexec/rlogind; ${MAKE} ${MFLAGS} distribute
+	cd ${SDIR}/libexec/rshd; ${MAKE} ${MFLAGS} distribute
+	cd ${SDIR}/usr.bin/login; ${MAKE} ${MFLAGS} distribute
+	cd ${SDIR}/usr.bin/passwd; ${MAKE} ${MFLAGS} distribute
+	cd ${SDIR}/usr.bin/rlogin; ${MAKE} ${MFLAGS} distribute
+	cd ${SDIR}/usr.bin/rsh; ${MAKE} ${MFLAGS} distribute
+	cd ${SDIR}/usr.bin/su; ${MAKE} ${MFLAGS} distribute
+	cd ${SDIR}/libexec/kpasswdd; ${MAKE} ${MFLAGS} distribute
+
+
 .include <bsd.subdir.mk>
+
