@@ -785,7 +785,7 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	int oonstack, rndfsize;
 
 	frame = p->p_md.md_tf;
-	oonstack = (p->p_sigstk.ss_flags & SS_ONSTACK) ? 1 : 0;
+	oonstack = sigonstack(frame->tf_r[FRAME_SP]);
 	rndfsize = ((sizeof(sf) + 15) / 16) * 16;
 
 	/*
@@ -798,7 +798,10 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	bzero(&sf, sizeof(struct sigframe));
 	sf.sf_uc.uc_sigmask = *mask;
 	sf.sf_uc.uc_stack = p->p_sigstk;
+	sf.sf_uc.uc_stack.ss_flags = (p->p_flag & P_ALTSTACK)
+	    ? ((oonstack) ? SS_ONSTACK : 0) : SS_DISABLE;
 	sf.sf_uc.uc_mcontext.mc_flags = IA64_MC_FLAG_ONSTACK;
+	sf.sf_uc.uc_mcontext.mc_onstack = (oonstack) ? 1 : 0;
 
 	sf.sf_uc.uc_mcontext.mc_nat     = 0; /* XXX */
 	sf.sf_uc.uc_mcontext.mc_sp	= frame->tf_r[FRAME_SP];
@@ -837,8 +840,9 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		sbs = (u_int64_t) p->p_sigstk.ss_sp;
 		sfp = (struct sigframe *)((caddr_t)p->p_sigstk.ss_sp +
 		    p->p_sigstk.ss_size - rndfsize);
+#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
 		p->p_sigstk.ss_flags |= SS_ONSTACK;
-		sf.sf_uc.uc_mcontext.mc_onstack |= 1;
+#endif
 	} else
 		sfp = (struct sigframe *)(frame->tf_r[FRAME_SP] - rndfsize);
 
@@ -1009,10 +1013,12 @@ sigreturn(struct proc *p,
 
 	frame->tf_r[FRAME_SP] = mcp->mc_sp;
 
+#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
 	if (uc.uc_mcontext.mc_onstack & 1)
 		p->p_sigstk.ss_flags |= SS_ONSTACK;
 	else
 		p->p_sigstk.ss_flags &= ~SS_ONSTACK;
+#endif
 
 	p->p_sigmask = uc.uc_sigmask;
 	SIG_CANTMASK(p->p_sigmask);

@@ -782,20 +782,25 @@ osigstack(p, uap)
 	register struct osigstack_args *uap;
 {
 	struct sigstack ss;
-	int error = 0;
+	int error;
 
-	ss.ss_sp = p->p_sigstk.ss_sp;
-	ss.ss_onstack = p->p_sigstk.ss_flags & SS_ONSTACK;
-	if (uap->oss && (error = copyout(&ss, uap->oss,
-	    sizeof(struct sigstack))))
-		return (error);
-	if (uap->nss && (error = copyin(uap->nss, &ss, sizeof(ss))) == 0) {
+	if (uap->oss != NULL) {
+		ss.ss_sp = p->p_sigstk.ss_sp;
+		ss.ss_onstack = sigonstack(cpu_getstack(p));
+		error = copyout(&ss, uap->oss, sizeof(struct sigstack));
+		if (error)
+			return (error);
+	}
+
+	if (uap->nss != NULL) {
+		if ((error = copyin(uap->nss, &ss, sizeof(ss))) != 0)
+			return (error);
 		p->p_sigstk.ss_sp = ss.ss_sp;
 		p->p_sigstk.ss_size = 0;
 		p->p_sigstk.ss_flags |= ss.ss_onstack & SS_ONSTACK;
 		p->p_flag |= P_ALTSTACK;
 	}
-	return (error);
+	return (0);
 }
 #endif /* COMPAT_43 || COMPAT_SUNOS */
 
@@ -812,28 +817,33 @@ sigaltstack(p, uap)
 	register struct sigaltstack_args *uap;
 {
 	stack_t ss;
-	int error;
+	int error, oonstack;
 
-	if ((p->p_flag & P_ALTSTACK) == 0)
-		p->p_sigstk.ss_flags |= SS_DISABLE;
-	if (uap->oss && (error = copyout(&p->p_sigstk, uap->oss,
-	    sizeof(stack_t))))
-		return (error);
-	if (uap->ss == 0)
-		return (0);
-	if ((error = copyin(uap->ss, &ss, sizeof(ss))))
-		return (error);
-	if (ss.ss_flags & SS_DISABLE) {
-		if (p->p_sigstk.ss_flags & SS_ONSTACK)
-			return (EINVAL);
-		p->p_flag &= ~P_ALTSTACK;
-		p->p_sigstk.ss_flags = ss.ss_flags;
-		return (0);
+	oonstack = sigonstack(cpu_getstack(p));
+
+	if (uap->oss != NULL) {
+		ss = p->p_sigstk;
+		ss.ss_flags = (p->p_flag & P_ALTSTACK)
+		    ? ((oonstack) ? SS_ONSTACK : 0) : SS_DISABLE;
+		if ((error = copyout(&ss, uap->oss, sizeof(stack_t))) != 0)
+			return (error);
 	}
-	if (ss.ss_size < p->p_sysent->sv_minsigstksz)
-		return (ENOMEM);
-	p->p_flag |= P_ALTSTACK;
-	p->p_sigstk = ss;
+
+	if (uap->ss != NULL) {
+		if (oonstack)
+			return (EPERM);
+		if ((error = copyin(uap->ss, &ss, sizeof(ss))) != 0)
+			return (error);
+		if ((ss.ss_flags & ~SS_DISABLE) != 0)
+			return (EINVAL);
+		if (!(ss.ss_flags & SS_DISABLE)) {
+			if (ss.ss_size < p->p_sysent->sv_minsigstksz)
+				return (ENOMEM);
+			p->p_sigstk = ss;
+			p->p_flag |= P_ALTSTACK;
+		} else
+			p->p_flag &= ~P_ALTSTACK;
+	}
 	return (0);
 }
 

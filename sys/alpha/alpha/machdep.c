@@ -1258,7 +1258,7 @@ osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	int oonstack, fsize, rndfsize;
 
 	frame = p->p_md.md_tf;
-	oonstack = p->p_sigstk.ss_flags & SS_ONSTACK;
+	oonstack = sigonstack(alpha_pal_rdusp());
 	fsize = sizeof ksi;
 	rndfsize = ((fsize + 15) / 16) * 16;
 
@@ -1273,7 +1273,9 @@ osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
 		sip = (osiginfo_t *)((caddr_t)p->p_sigstk.ss_sp +
 		    p->p_sigstk.ss_size - rndfsize);
+#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
 		p->p_sigstk.ss_flags |= SS_ONSTACK;
+#endif
 	} else
 		sip = (osiginfo_t *)(alpha_pal_rdusp() - rndfsize);
 
@@ -1294,7 +1296,7 @@ osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	/*
 	 * Build the signal context to be used by sigreturn.
 	 */
-	ksi.si_sc.sc_onstack = oonstack;
+	ksi.si_sc.sc_onstack = (oonstack) ? 1 : 0;
 	SIG2OSIG(*mask, ksi.si_sc.sc_mask);
 	ksi.si_sc.sc_pc = frame->tf_regs[FRAME_PC];
 	ksi.si_sc.sc_ps = frame->tf_regs[FRAME_PS];
@@ -1358,14 +1360,16 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	}
 
 	frame = p->p_md.md_tf;
-	oonstack = (p->p_sigstk.ss_flags & SS_ONSTACK) ? 1 : 0;
+	oonstack = sigonstack(alpha_pal_rdusp());
 	rndfsize = ((sizeof(sf) + 15) / 16) * 16;
 
 	/* save user context */
 	bzero(&sf, sizeof(struct sigframe));
 	sf.sf_uc.uc_sigmask = *mask;
 	sf.sf_uc.uc_stack = p->p_sigstk;
-	sf.sf_uc.uc_mcontext.mc_onstack = oonstack;
+	sf.sf_uc.uc_stack.ss_flags = (p->p_flag & P_ALTSTACK)
+	    ? ((oonstack) ? SS_ONSTACK : 0) : SS_DISABLE;
+	sf.sf_uc.uc_mcontext.mc_onstack = (oonstack) ? 1 : 0;
 
 	fill_regs(p, (struct reg *)sf.sf_uc.uc_mcontext.mc_regs);
 	sf.sf_uc.uc_mcontext.mc_regs[R_SP] = alpha_pal_rdusp();
@@ -1390,7 +1394,9 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
 		sfp = (struct sigframe *)((caddr_t)p->p_sigstk.ss_sp +
 		    p->p_sigstk.ss_size - rndfsize);
+#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
 		p->p_sigstk.ss_flags |= SS_ONSTACK;
+#endif
 	} else
 		sfp = (struct sigframe *)(alpha_pal_rdusp() - rndfsize);
 
@@ -1503,6 +1509,8 @@ osigreturn(struct proc *p,
 	 */
 	if (ksc.sc_regs[R_ZERO] != 0xACEDBADE)		/* magic number */
 		return (EINVAL);
+
+#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
 	/*
 	 * Restore the user-supplied information
 	 */
@@ -1510,6 +1518,7 @@ osigreturn(struct proc *p,
 		p->p_sigstk.ss_flags |= SS_ONSTACK;
 	else
 		p->p_sigstk.ss_flags &= ~SS_ONSTACK;
+#endif
 
 	/*
 	 * longjmp is still implemented by calling osigreturn. The new
@@ -1571,10 +1580,12 @@ sigreturn(struct proc *p,
 	p->p_md.md_tf->tf_regs[FRAME_PC] = uc.uc_mcontext.mc_regs[R_PC];
 	alpha_pal_wrusp(uc.uc_mcontext.mc_regs[R_SP]);
 
+#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
 	if (uc.uc_mcontext.mc_onstack & 1)
 		p->p_sigstk.ss_flags |= SS_ONSTACK;
 	else
 		p->p_sigstk.ss_flags &= ~SS_ONSTACK;
+#endif
 
 	p->p_sigmask = uc.uc_sigmask;
 	SIG_CANTMASK(p->p_sigmask);
