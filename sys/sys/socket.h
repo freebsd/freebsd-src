@@ -351,26 +351,21 @@ struct cmsgcred {
 };
 
 /* given pointer to struct cmsghdr, return pointer to data */
-#define	CMSG_DATA(cmsg)		((u_char *)((cmsg) + 1))
-
-/*
- * Alignment requirement for CMSG struct manipulation.
- * This is different from ALIGN() defined in ARCH/include/param.h.
- * XXX think again carefully about architecture dependencies.
- */
-#define	CMSG_ALIGN(n)		(((n) + 3) & ~3)
+#define	CMSG_DATA(cmsg)		((u_char *)(cmsg) + \
+				 ALIGN(sizeof(struct cmsghdr)))
 
 /* given pointer to struct cmsghdr, return pointer to next cmsghdr */
 #define	CMSG_NXTHDR(mhdr, cmsg)	\
-	(((caddr_t)(cmsg) + (cmsg)->cmsg_len + sizeof(struct cmsghdr) > \
+	(((caddr_t)(cmsg) + ALIGN((cmsg)->cmsg_len) + \
+	  ALIGN(sizeof(struct cmsghdr)) > \
 	    (caddr_t)(mhdr)->msg_control + (mhdr)->msg_controllen) ? \
 	    (struct cmsghdr *)NULL : \
-	    (struct cmsghdr *)((caddr_t)(cmsg) + CMSG_ALIGN((cmsg)->cmsg_len)))
+	    (struct cmsghdr *)((caddr_t)(cmsg) + ALIGN((cmsg)->cmsg_len)))
 
 #define	CMSG_FIRSTHDR(mhdr)	((struct cmsghdr *)(mhdr)->msg_control)
 
-#define	CMSG_SPACE(l)		(CMSG_ALIGN(sizeof(struct cmsghdr)) + CMSG_ALIGN(l))
-#define	CMSG_LEN(l)		(CMSG_ALIGN(sizeof(struct cmsghdr)) + (l))
+#define	CMSG_SPACE(l)		(ALIGN(sizeof(struct cmsghdr)) + ALIGN(l))
+#define	CMSG_LEN(l)		(ALIGN(sizeof(struct cmsghdr)) + (l))
 
 /* "Socket"-level control message types: */
 #define	SCM_RIGHTS	0x01		/* access rights (array of int) */
