@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.124 1998/01/17 09:16:28 dyson Exp $
+ * $Id: vfs_subr.c,v 1.125 1998/01/22 17:29:52 dyson Exp $
  */
 
 /*
@@ -458,6 +458,7 @@ getnewvnode(tag, mp, vops, vpp)
 		vp->v_clen = 0;
 		vp->v_socket = 0;
 		vp->v_writecount = 0;	/* XXX */
+		vp->v_maxio = 0;
 	} else {
 		simple_unlock(&vnode_free_list_slock);
 		vp = (struct vnode *) zalloc(vnode_zone);
