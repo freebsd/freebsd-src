@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_trap.c,v 1.4 1994/08/13 03:49:24 wollman Exp $
+ *	$Id: db_trap.c,v 1.5 1994/08/18 22:34:27 wollman Exp $
  */
 
 /*
@@ -57,14 +57,17 @@ db_trap(type, code)
 		db_printf("After %d instructions (%d loads, %d stores),\n",
 			  db_inst_count, db_load_count, db_store_count);
 	    }
-	    if (bkpt)
-		db_printf("Breakpoint at\t");
-	    else if (watchpt)
-		db_printf("Watchpoint at\t");
-	    else
-		db_printf("Stopped at\t");
 	    db_dot = PC_REGS(DDB_REGS);
-	    db_print_loc_and_inst(db_dot);
+	    if(db_dot) {
+		if (bkpt)
+		    db_printf("Breakpoint at\t");
+		else if (watchpt)
+		    db_printf("Watchpoint at\t");
+		else
+		    db_printf("Stopped at\t");
+		    
+		db_print_loc_and_inst(db_dot);
+		}
 
 	    db_command_loop();
 	}
