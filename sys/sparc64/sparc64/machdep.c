@@ -427,7 +427,7 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 
 	/* Copy the sigframe out to the user's stack. */
 	if (rwindow_save(td) != 0 || copyout(&sf, sfp, sizeof(*sfp)) != 0 ||
-	    suword(&fp->f_in[6], tf->tf_out[6]) != 0) {
+	    suword(&fp->fr_in[6], tf->tf_out[6]) != 0) {
 		/*
 		 * Something is wrong with the stack pointer.
 		 * ...Kill the process.
@@ -637,12 +637,15 @@ fill_regs(struct thread *td, struct reg *regs)
 	struct trapframe *tf;
 
 	tf = td->td_frame;
+	regs->r_tstate = tf->tf_tstate;
+	regs->r_pc = tf->tf_tpc;
+	regs->r_npc = tf->tf_tnpc;
+	regs->r_y = tf->tf_y;
 	bcopy(tf->tf_global, regs->r_global, sizeof(tf->tf_global));
 	bcopy(tf->tf_out, regs->r_out, sizeof(tf->tf_out));
-	regs->r_npc = tf->tf_tnpc;
-	regs->r_pc = tf->tf_tpc;
-	regs->r_tstate = tf->tf_tstate;
-	regs->r_y = tf->tf_y;
+	/* XXX - these are a pain to get at */
+	bzero(regs->r_in, sizeof(regs->r_in));
+	bzero(regs->r_local, sizeof(regs->r_local));
 	return (0);
 }
 
@@ -656,12 +659,12 @@ set_regs(struct thread *td, struct reg *regs)
 		return (EINVAL);
 	if (!TSTATE_SECURE(regs->r_tstate))
 		return (EINVAL);
+	tf->tf_tstate = regs->r_tstate;
+	tf->tf_tpc = regs->r_pc;
+	tf->tf_tnpc = regs->r_npc;
+	tf->tf_y = regs->r_y;
 	bcopy(regs->r_global, tf->tf_global, sizeof(regs->r_global));
 	bcopy(regs->r_out, tf->tf_out, sizeof(regs->r_out));
-	tf->tf_tnpc = regs->r_npc;
-	tf->tf_tpc = regs->r_pc;
-	tf->tf_tstate = regs->r_tstate;
-	tf->tf_y = regs->r_y;
 	return (0);
 }
 
