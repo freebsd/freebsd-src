@@ -211,7 +211,7 @@ cd9660_open(path, f)
 				((char *) dp + isonum_711(dp->length));
 			off += isonum_711(dp->length);
 		}
-		if (off == dsize) {
+		if (off >= dsize) {
 			rc = ENOENT;
 			goto out;
 		}
