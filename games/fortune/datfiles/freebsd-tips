@@ -33,7 +33,7 @@ In tcsh, you can `set autolist' to have the shell automatically show
 all the possible matches when doing filename/directory expansion.
 %
 You can `set autologout = 30' to have tcsh log you off automatically
-if you leave the shell idle for more than 30 seconds.
+if you leave the shell idle for more than 30 minutes.
 %
 If you `set filec' (file completion) in tcsh and write a part of the
 filename, pressing TAB will show you the available choices when there
