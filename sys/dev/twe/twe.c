@@ -396,13 +396,13 @@ twe_startio(struct twe_softc *sc)
 	/* build a command from an outstanding bio */
 	if (tr == NULL) {
 	    
-	    /* see if there's work to be done */
-	    if ((bp = twe_dequeue_bio(sc)) == NULL)
+	    /* get a command to handle the bio with */
+	    if (twe_get_request(sc, &tr))
 		break;
 
-	    /* get a command to handle the bio with */
-	    if (twe_get_request(sc, &tr)) {
-		twe_enqueue_bio(sc, bp);	/* failed, put the bio back */
+	    /* see if there's work to be done */
+	    if ((bp = twe_dequeue_bio(sc)) == NULL) {
+		twe_release_request(tr);
 		break;
 	    }
 
