@@ -1543,25 +1543,19 @@ pmap_new_thread(struct thread *td)
 	/*
 	 * Allocate object for the kstack.
 	 */
-	ksobj = td->td_kstack_obj;
-	if (ksobj == NULL) {
-		ksobj = vm_object_allocate(OBJT_DEFAULT, KSTACK_PAGES);
-		td->td_kstack_obj = ksobj;
-	}
+	ksobj = vm_object_allocate(OBJT_DEFAULT, KSTACK_PAGES);
+	td->td_kstack_obj = ksobj;
 
 	/*
 	 * Get a kernel virtual address for the kstack for this thread.
 	 */
-	ks = td->td_kstack;
-	if (ks == 0) {
-		ks = kmem_alloc_nofault(kernel_map,
-		    (KSTACK_PAGES + KSTACK_GUARD_PAGES) * PAGE_SIZE);
-		if (ks == 0)
-			panic("pmap_new_thread: kstack allocation failed");
-		TLBIE(ks);
-		ks += KSTACK_GUARD_PAGES * PAGE_SIZE;
-		td->td_kstack = ks;
-	}
+	ks = kmem_alloc_nofault(kernel_map,
+	    (KSTACK_PAGES + KSTACK_GUARD_PAGES) * PAGE_SIZE);
+	if (ks == 0)
+		panic("pmap_new_thread: kstack allocation failed");
+	TLBIE(ks);
+	ks += KSTACK_GUARD_PAGES * PAGE_SIZE;
+	td->td_kstack = ks;
 
 	for (i = 0; i < KSTACK_PAGES; i++) {
 		/*
