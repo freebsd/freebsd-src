@@ -173,43 +173,11 @@ doreti_ast:
 	jmp	doreti_next
 
 	ALIGN_TEXT
-	.globl	_swi_net
-	.type	_swi_net,@function
-_swi_net:
-	MCOUNT
-	bsfl	_netisr,%eax
-	je	swi_net_done
-swi_net_more:
-	btrl	%eax,_netisr
-	jnc	swi_net_next
-	call	*_netisrs(,%eax,4)
-swi_net_next:
-	bsfl	_netisr,%eax
-	jne	swi_net_more
-swi_net_done:
-	ret
-
-	ALIGN_TEXT
 dummynetisr:
 	MCOUNT
 	ret	
 
-/*
- * The arg is in a nonstandard place, so swi_dispatcher() can't be called
- * directly and swi_generic() can't use ENTRY() or MCOUNT.
- */
-	ALIGN_TEXT
-	.globl	_swi_generic
-	.type	_swi_generic,@function
-_swi_generic:
-	pushl	%ecx
-	FAKE_MCOUNT(4(%esp))
-	call	_swi_dispatcher
-	popl	%ecx
-	ret
 
-ENTRY(swi_null)
-	ret
 
 #ifdef APIC_IO
 #include "i386/isa/apic_ipl.s"

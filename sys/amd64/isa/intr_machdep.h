@@ -218,9 +218,9 @@ int	icu_unset __P((int intr, driver_intr_t *handler));
  * WARNING: These are internal functions and not to be used by device drivers!
  * They are subject to change without notice. 
  */
-struct intrec *inthand_add(const char *name, int irq, driver_intr_t handler,
+struct intrhand *inthand_add(const char *name, int irq, driver_intr_t handler,
 			   void *arg, int pri, int flags);
-int inthand_remove(struct intrec *idesc);
+int inthand_remove(struct intrhand *idesc);
 void sched_ithd(void *);
 void ithd_loop(void *);
 void start_softintr(void *);

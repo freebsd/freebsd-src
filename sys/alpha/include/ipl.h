@@ -32,9 +32,6 @@
 
 #include <machine/cpu.h> 	/* for pal inlines */
 
-#define NSWI		32
-#define HWHI		0
-
 /*
  * Interprocessor interrupts for SMP.
  */

@@ -341,7 +341,7 @@ alpha_setup_intr(const char *name, int vector, driver_intr_t *handler,
 {
 	int h = HASHVEC(vector);
 	struct alpha_intr *i;
-	struct intrec *head, *idesc;
+	struct intrhand *head, *idesc;
 	struct ithd *ithd;
 	struct proc *p;
 	int s, errcode;
@@ -410,26 +410,26 @@ alpha_setup_intr(const char *name, int vector, driver_intr_t *handler,
 	}
 
 	/* Third, setup the interrupt descriptor for this handler. */
-	idesc = malloc(sizeof (struct intrec), M_DEVBUF, M_WAITOK);
+	idesc = malloc(sizeof (struct intrhand), M_DEVBUF, M_WAITOK);
 	if (idesc == NULL)
 		return ENOMEM;
-	bzero(idesc, sizeof(struct intrec));
+	bzero(idesc, sizeof(struct intrhand));
 
-	idesc->handler = handler;
-	idesc->argument = arg;
-	idesc->name = malloc(strlen(name) + 1, M_DEVBUF, M_WAITOK);
-	if (idesc->name == NULL) {
+	idesc->ih_handler = handler;
+	idesc->ih_argument = arg;
+	idesc->ih_name = malloc(strlen(name) + 1, M_DEVBUF, M_WAITOK);
+	if (idesc->ih_name == NULL) {
 		free(idesc, M_DEVBUF);
 		return(NULL);
 	}
-	strcpy(idesc->name, name);
+	strcpy(idesc->ih_name, name);
 
 	/* Fourth, add our handler to the end of the ithread's handler list. */
 	head = ithd->it_ih;
 	if (head) {
-		while (head->next != NULL)
-			head = head->next;
-		head->next = idesc;
+		while (head->ih_next != NULL)
+			head = head->ih_next;
+		head->ih_next = idesc;
 	} else
 		ithd->it_ih = idesc;
 
@@ -440,27 +440,27 @@ alpha_setup_intr(const char *name, int vector, driver_intr_t *handler,
 int
 alpha_teardown_intr(void *cookie)
 {
-	struct intrec *idesc = cookie;
+	struct intrhand *idesc = cookie;
 	struct ithd *ithd;
-	struct intrec *head;
+	struct intrhand *head;
 #if 0
 	struct alpha_intr *i;
 	int s;
 #endif
 
 	/* First, detach ourself from our interrupt thread. */
-	ithd = idesc->ithd;
+	ithd = idesc->ih_ithd;
 	KASSERT(ithd != NULL, ("idesc without an interrupt thread"));
 
 	head = ithd->it_ih;
 	if (head == idesc)
-		ithd->it_ih = idesc->next;
+		ithd->it_ih = idesc->ih_next;
 	else {
-		while (head != NULL && head->next != idesc)
-			head = head->next;
+		while (head != NULL && head->ih_next != idesc)
+			head = head->ih_next;
 		if (head == NULL)
 			return (-1);	/* couldn't find ourself */
-		head->next = idesc->next;
+		head->ih_next = idesc->ih_next;
 	}
 	free(idesc, M_DEVBUF);
 
@@ -541,7 +541,7 @@ void
 ithd_loop(void *dummy)
 {
 	struct ithd *ithd;		/* our thread context */
-	struct intrec *ih;		/* list of handlers */
+	struct intrhand *ih;		/* list of handlers */
 	struct alpha_intr *i;		/* interrupt source */
 
 	ithd = curproc->p_ithd;
@@ -565,17 +565,17 @@ ithd_loop(void *dummy)
 
                         alpha_wmb(); /* push out "it_need=0" */
 
-			for (ih = ithd->it_ih; ih != NULL; ih = ih->next) {
+			for (ih = ithd->it_ih; ih != NULL; ih = ih->ih_next) {
 				CTR5(KTR_INTR,
 				    "ithd_loop pid %d ih=%p: %p(%p) flg=%x",
 				    ithd->it_proc->p_pid, (void *)ih,
-				    (void *)ih->handler, ih->argument,
-				    ih->flags);
+				    (void *)ih->ih_handler, ih->ih_argument,
+				    ih->ih_flags);
 
-				if ((ih->flags & INTR_MPSAFE) == 0)
+				if ((ih->ih_flags & INTR_MPSAFE) == 0)
 					mtx_enter(&Giant, MTX_DEF);
-				ih->handler(ih->argument);
-				if ((ih->flags & INTR_MPSAFE) == 0)
+				ih->ih_handler(ih->ih_argument);
+				if ((ih->ih_flags & INTR_MPSAFE) == 0)
 					mtx_exit(&Giant, MTX_DEF);
 			}
 

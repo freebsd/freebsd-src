@@ -32,8 +32,3 @@
 #include <sys/ipl.h>
 #include <sys/interrupt.h>
 #include <machine/md_var.h>
-
-swihand_t *shandlers[NSWI] = {	/* software interrupts */
-	swi_null,	swi_net,	swi_null,	swi_null,
-	swi_vm,		swi_null,	softclock
-};

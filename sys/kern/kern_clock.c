@@ -58,6 +58,8 @@
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <sys/sysctl.h>
+#include <sys/bus.h>
+#include <sys/interrupt.h>
 
 #include <machine/cpu.h>
 #include <machine/limits.h>
@@ -192,7 +194,7 @@ hardclock(frame)
 	 * relatively high clock interrupt priority any longer than necessary.
 	 */
 	if (TAILQ_FIRST(&callwheel[ticks & callwheelmask]) != NULL) {
-		setsoftclock();
+		sched_swi(softclock_ih, SWI_NOSWITCH);
 	} else if (softticks + 1 == ticks)
 		++softticks;
 }
