@@ -70,7 +70,7 @@ int			smp_started;
 int			boot_cpu_id;
 u_int32_t		all_cpus;
 
-static struct globaldata	*cpuno_to_globaldata[NCPUS];
+static struct globaldata	*cpuid_to_globaldata[NCPUS];
 
 int smp_active = 0;	/* are the APs allowed to run? */
 SYSCTL_INT(_machdep, OID_AUTO, smp_active, CTLFLAG_RW, &smp_active, 0, "");
@@ -94,18 +94,18 @@ SYSCTL_INT(_machdep, OID_AUTO, forward_roundrobin_enabled, CTLFLAG_RW,
  * Initialise a struct globaldata.
  */
 void
-globaldata_init(struct globaldata *globaldata, int cpuno, size_t sz)
+globaldata_init(struct globaldata *globaldata, int cpuid, size_t sz)
 {
 	bzero(globaldata, sz);
-	globaldata->gd_cpuno = cpuno;
-	globaldata->gd_other_cpus = all_cpus & ~(1 << cpuno);
-	cpuno_to_globaldata[cpuno] = globaldata;
+	globaldata->gd_cpuid = cpuid;
+	globaldata->gd_other_cpus = all_cpus & ~(1 << cpuid);
+	cpuid_to_globaldata[cpuid] = globaldata;
 }
 
 struct globaldata *
-globaldata_find(int cpuno)
+globaldata_find(int cpuid)
 {
-	return cpuno_to_globaldata[cpuno];
+	return cpuid_to_globaldata[cpuid];
 }
 
 /* Other stuff */
@@ -659,16 +659,16 @@ smp_ipi_selected(u_int32_t cpus, u_int64_t ipi)
 	CTR2(KTR_SMP, "smp_ipi_selected: cpus: %x ipi: %lx", cpus, ipi);
 	ia64_mf();
 	while (cpus) {
-		int cpuno = ffs(cpus) - 1;
-		cpus &= ~(1 << cpuno);
+		int cpuid = ffs(cpus) - 1;
+		cpus &= ~(1 << cpuid);
 
-		globaldata = cpuno_to_globaldata[cpuno];
+		globaldata = cpuid_to_globaldata[cpuid];
 		if (globaldata) {
 			atomic_set_64(&globaldata->gd_pending_ipis, ipi);
 			ia64_mf();
 #if 0
-			CTR1(KTR_SMP, "calling alpha_pal_wripir(%d)", cpuno);
-			alpha_pal_wripir(cpuno);
+			CTR1(KTR_SMP, "calling alpha_pal_wripir(%d)", cpuid);
+			alpha_pal_wripir(cpuid);
 #endif
 		}
 	}
@@ -698,7 +698,7 @@ smp_ipi_all_but_self(u_int64_t ipi)
 void
 smp_ipi_self(u_int64_t ipi)
 {
-	smp_ipi_selected(1 << PCPU_GET(cpuno), ipi);
+	smp_ipi_selected(1 << PCPU_GET(cpuid), ipi);
 }
 
 /*
@@ -709,7 +709,7 @@ smp_handle_ipi(struct trapframe *frame)
 {
 	u_int64_t ipis;
 	u_int64_t ipi;
-	int cpuno = PCPU_GET(cpuno);
+	int cpuid = PCPU_GET(cpuid);
 
 	do {
 		ipis = PCPU_GET(pending_ipis);
@@ -732,8 +732,8 @@ smp_handle_ipi(struct trapframe *frame)
 
 		case IPI_AST:
 			CTR0(KTR_SMP, "IPI_AST");
-			atomic_clear_int(&checkstate_need_ast, 1<<cpuno);
-			atomic_set_int(&checkstate_pending_ast, 1<<cpuno);
+			atomic_clear_int(&checkstate_need_ast, 1<<cpuid);
+			atomic_set_int(&checkstate_pending_ast, 1<<cpuid);
 			if ((frame->tf_cr_ipsr & IA64_PSR_CPL)
 			    == IA64_PSR_CPL_USER)
 				ast(frame); /* XXX */
@@ -743,22 +743,22 @@ smp_handle_ipi(struct trapframe *frame)
 			CTR0(KTR_SMP, "IPI_CHECKSTATE");
 			if ((frame->tf_cr_ipsr & IA64_PSR_CPL)
 			    == IA64_PSR_CPL_USER)
-				checkstate_cpustate[cpuno] = CHECKSTATE_USER;
+				checkstate_cpustate[cpuid] = CHECKSTATE_USER;
 			else if (curproc->p_intr_nesting_level == 1)
-				checkstate_cpustate[cpuno] = CHECKSTATE_SYS;
+				checkstate_cpustate[cpuid] = CHECKSTATE_SYS;
 			else
-				checkstate_cpustate[cpuno] = CHECKSTATE_INTR;
-			checkstate_curproc[cpuno] = PCPU_GET(curproc);
-			atomic_set_int(&checkstate_probed_cpus, 1<<cpuno);
+				checkstate_cpustate[cpuid] = CHECKSTATE_INTR;
+			checkstate_curproc[cpuid] = PCPU_GET(curproc);
+			atomic_set_int(&checkstate_probed_cpus, 1<<cpuid);
 			break;
 
 		case IPI_STOP:
 			CTR0(KTR_SMP, "IPI_STOP");
-			atomic_set_int(&stopped_cpus, 1<<cpuno);
-			while ((started_cpus & (1<<cpuno)) == 0)
+			atomic_set_int(&stopped_cpus, 1<<cpuid);
+			while ((started_cpus & (1<<cpuid)) == 0)
 				ia64_mf();
-			atomic_clear_int(&started_cpus, 1<<cpuno);
-			atomic_clear_int(&stopped_cpus, 1<<cpuno);
+			atomic_clear_int(&started_cpus, 1<<cpuid);
+			atomic_clear_int(&stopped_cpus, 1<<cpuid);
 			break;
 		}
 	}
