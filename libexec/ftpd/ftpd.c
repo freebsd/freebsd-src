@@ -603,10 +603,11 @@ main(int argc, char *argv[], char **envp)
 		exit(0);
 	}
 #ifdef VIRTUAL_HOSTING
-	if ((fd = fopen(thishost->welcome, "r")) != NULL) {
+	fd = fopen(thishost->welcome, "r");
 #else
-	if ((fd = fopen(_PATH_FTPWELCOME, "r")) != NULL) {
+	fd = fopen(_PATH_FTPWELCOME, "r");
 #endif
+	if (fd != NULL) {
 		while (fgets(line, sizeof(line), fd) != NULL) {
 			if ((cp = strchr(line, '\n')) != NULL)
 				*cp = '\0';
@@ -987,15 +988,16 @@ user(char *name)
 	}
 
 	guest = 0;
+#ifdef VIRTUAL_HOSTING
+	pw = sgetpwnam(thishost->anonuser);
+#else
+	pw = sgetpwnam("ftp");
+#endif
 	if (strcmp(name, "ftp") == 0 || strcmp(name, "anonymous") == 0) {
 		if (checkuser(_PATH_FTPUSERS, "ftp", 0, NULL) ||
 		    checkuser(_PATH_FTPUSERS, "anonymous", 0, NULL))
 			reply(530, "User %s access denied.", name);
-#ifdef VIRTUAL_HOSTING
-		else if ((pw = sgetpwnam(thishost->anonuser)) != NULL) {
-#else
-		else if ((pw = sgetpwnam("ftp")) != NULL) {
-#endif
+		else if (pw != NULL) {
 			guest = 1;
 			askpasswd = 1;
 			reply(331,
@@ -1453,10 +1455,11 @@ skip:
 
 	if (guest && stats && statfd < 0)
 #ifdef VIRTUAL_HOSTING
-		if ((statfd = open(thishost->statfile, O_WRONLY|O_APPEND)) < 0)
+		statfd = open(thishost->statfile, O_WRONLY|O_APPEND);
 #else
-		if ((statfd = open(_PATH_FTPDSTATFILE, O_WRONLY|O_APPEND)) < 0)
+		statfd = open(_PATH_FTPDSTATFILE, O_WRONLY|O_APPEND);
 #endif
+		if (statfd < 0)
 			stats = 0;
 
 	dochroot =
@@ -1545,10 +1548,11 @@ skip:
 	 * N.B. reply(230,) must follow the message.
 	 */
 #ifdef VIRTUAL_HOSTING
-	if ((fd = fopen(thishost->loginmsg, "r")) != NULL) {
+	fd = fopen(thishost->loginmsg, "r");
 #else
-	if ((fd = fopen(_PATH_FTPLOGINMESG, "r")) != NULL) {
+	fd = fopen(_PATH_FTPLOGINMESG, "r");
 #endif
+	if (fd != NULL) {
 		char *cp, line[LINE_MAX];
 
 		while (fgets(line, sizeof(line), fd) != NULL) {
