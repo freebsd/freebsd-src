@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcibus.c,v 1.23 1996/04/07 17:32:15 bde Exp $
+**  $Id: pcibus.c,v 1.24 1996/04/30 21:37:21 se Exp $
 **
 **  pci bus subroutines for i386 architecture.
 **
@@ -146,7 +146,7 @@ DATA_SET (pcibus_set, i386pci);
 
 #define CONF1_ENABLE       0x80000000ul
 #define CONF1_ENABLE_CHK   0x80000000ul
-#define CONF1_ENABLE_MSK   0x00ff0700ul
+#define CONF1_ENABLE_MSK   0x7ff00000ul
 #define CONF1_ENABLE_CHK1  0xff000001ul
 #define CONF1_ENABLE_MSK1  0x80000001ul
 #define CONF1_ENABLE_RES1  0x80000000ul
