@@ -234,9 +234,8 @@ r_buf(FILE *fp)
 		 * If no input data for this block and we tossed some data,
 		 * recover it.
 		 */
-		if (!len) {
-			if (enomem)
-				enomem -= tl->len;
+		if (!len && enomem) {
+			enomem -= tl->len;
 			tl = tl->prev;
 			break;
 		}
