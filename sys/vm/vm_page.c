@@ -959,7 +959,6 @@ loop:
 	}
 	if (req & VM_ALLOC_WIRED) {
 		cnt.v_wire_count++;
-		m->flags |= PG_MAPPED;	/* XXX this does not belong here */
 		m->wire_count = 1;
 	} else
 		m->wire_count = 0;
@@ -1278,7 +1277,6 @@ vm_page_wire(vm_page_t m)
 	m->wire_count++;
 	KASSERT(m->wire_count != 0, ("vm_page_wire: wire_count overflow m=%p", m));
 	splx(s);
-	vm_page_flag_set(m, PG_MAPPED);	/* XXX this does not belong here */
 }
 
 /*
