@@ -1172,6 +1172,7 @@ after_listen:
 			      !IN_FASTRECOVERY(tp)))) {
 				KASSERT(headlocked, ("headlocked"));
 				INP_INFO_WUNLOCK(&tcbinfo);
+				headlocked = 0;
 				/*
 				 * this is a pure ack for outstanding data.
 				 */
@@ -1260,6 +1261,7 @@ after_listen:
 		    tlen <= sbspace(&so->so_rcv)) {
 			KASSERT(headlocked, ("headlocked"));
 			INP_INFO_WUNLOCK(&tcbinfo);
+			headlocked = 0;
 			/*
 			 * this is a pure, in-sequence data packet
 			 * with nothing on the reassembly queue and
@@ -2509,6 +2511,7 @@ dodata:							/* XXX */
 		}
 	}
 	INP_INFO_WUNLOCK(&tcbinfo);
+	headlocked = 0;
 #ifdef TCPDEBUG
 	if (so->so_options & SO_DEBUG)
 		tcp_trace(TA_INPUT, ostate, tp, (void *)tcp_saveipgen,
@@ -2522,6 +2525,7 @@ dodata:							/* XXX */
 		(void) tcp_output(tp);
 
 check_delack:
+	KASSERT(headlocked == 0, ("tcp_input: check_delack: head locked"));
 	INP_LOCK_ASSERT(inp);
 	if (tp->t_flags & TF_DELACK) {
 		tp->t_flags &= ~TF_DELACK;
