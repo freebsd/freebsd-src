@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)who.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: who.c,v 1.5 1997/08/26 11:14:57 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -90,6 +90,10 @@ main(argc, argv)
 			output(&usr);
 		break;
 	case 3:					/* who am i */
+	        if (strcmp(argv[1], "am")
+		    || (strcmp(argv[2], "I") && strcmp(argv[2], "i")))
+		        usage();
+		
 		ufp = file(_PATH_UTMP);
 
 		/* search through the utmp and find an entry for this tty */
