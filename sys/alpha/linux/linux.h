@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: linux.h,v 1.4 1996/01/30 22:56:29 mpp Exp $
+ *	$Id: linux.h,v 1.5 1996/03/02 19:37:47 peter Exp $
  */
 
 #ifndef _I386_LINUX_LINUX_H_
@@ -234,7 +234,9 @@ int	linux_fixup __P((int **stack_base, struct image_params *iparams));
 #define LINUX_VWERASE		14
 #define LINUX_VLNEXT		15
 #define LINUX_VEOL2		16
-#define LINUX_NCCS		17
+#define LINUX_NCCS		19
+
+#define LINUX_POSIX_VDISABLE	'\0'
 
 /* Linux c_iflag masks */
 #define LINUX_IGNBRK		0x0000001
