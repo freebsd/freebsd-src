@@ -29,9 +29,10 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)getsockopt.2	8.3 (Berkeley) 4/19/94
+.\"	@(#)getsockopt.2	8.3 (Berkeley) 4/19/94
+.\"	$Id$
 .\"
-.Dd April 19, 1994
+.Dd November 3, 1995
 .Dt GETSOCKOPT 2
 .Os BSD 4.3r
 .Sh NAME
@@ -228,7 +229,11 @@ are options to adjust the normal
 buffer sizes allocated for output and input buffers, respectively.
 The buffer size may be increased for high-volume connections,
 or may be decreased to limit the possible backlog of incoming data.
-The system places an absolute limit on these values.
+The system places an absolute maximum on these values, which is accessible
+through the
+.Xr sysctl 3
+MIB variable
+.Dq Li kern.maxsockbuf .
 .Pp
 .Dv SO_SNDLOWAT
 is an option to set the minimum count for output operations.
@@ -261,7 +266,7 @@ wait until they have received the smaller of the low water mark value
 or the requested amount.
 Receive calls may still return less than the low water mark if an error
 occurs, a signal is caught, or the type of data next in the receive queue
-is different than that returned.
+is different from that which was returned.
 .Pp
 .Dv SO_SNDTIMEO
 is an option to set a timeout value for output operations.
@@ -334,9 +339,11 @@ this error may also be returned if
 is not in a valid part of the process address space.
 .El
 .Sh SEE ALSO
+.Xr sysctl 1 ,
 .Xr ioctl 2 ,
 .Xr socket 2 ,
-.Xr getprotoent 3
+.Xr getprotoent 3 ,
+.Xr sysctl 3 ,
 .Xr protocols 5
 .Sh BUGS
 Several of the socket options should be handled at lower levels of the system.
