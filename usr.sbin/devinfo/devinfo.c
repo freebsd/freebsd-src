@@ -39,6 +39,13 @@
 
 int	rflag;
 
+static void	print_resource(struct devinfo_res *);
+static int	print_device_matching_resource(struct devinfo_res *, void *);
+static int	print_device_rman_resources(struct devinfo_rman *, void *);
+static int	print_device(struct devinfo_dev *, void *);
+static int	print_rman_resource(struct devinfo_res *, void *);
+static int	print_rman(struct devinfo_rman *, void *);
+
 struct indent_arg
 {
 	int	indent;
@@ -130,7 +137,7 @@ print_device(struct devinfo_dev *dev, void *arg)
 	int			i, indent;
 
 	if (dev->dd_name[0] != 0) {
-		indent = (int)arg;
+		indent = (int)(intptr_t)arg;
 		for (i = 0; i < indent; i++)
 			printf(" ");
 		printf("%s\n", dev->dd_name);
@@ -143,14 +150,14 @@ print_device(struct devinfo_dev *dev, void *arg)
 	}
 
 	return(devinfo_foreach_device_child(dev, print_device,
-	    (void *)(indent + 2)));
+	    (void *)((char *)arg + 2)));
 }
 
 /*
  * Print information about a resource under a resource manager.
  */
 int
-print_rman_resource(struct devinfo_res *res, void *arg)
+print_rman_resource(struct devinfo_res *res, void *arg __unused)
 {
 	struct devinfo_dev	*dev;
 	
@@ -170,7 +177,7 @@ print_rman_resource(struct devinfo_res *res, void *arg)
  * Print information about a resource manager.
  */
 int
-print_rman(struct devinfo_rman *rman, void *arg)
+print_rman(struct devinfo_rman *rman, void *arg __unused)
 {
 	printf("%s:\n", rman->dm_desc);
 	devinfo_foreach_rman_resource(rman, print_rman_resource, 0);
