@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.59 1998/03/16 18:39:41 julian Exp $
+ * $Id: vfs_cluster.c,v 1.60 1998/03/19 22:48:13 dyson Exp $
  */
 
 #include "opt_debug_cluster.h"
@@ -648,6 +648,9 @@ cluster_wbuild(vp, size, start_lbn, len)
 	int i, j, s;
 	int totalwritten = 0;
 	int dbsize = btodb(size);
+
+	if (vp->v_maxio == 0)
+		vp->v_maxio = DFLTPHYS;
 	while (len > 0) {
 		s = splbio();
 		if (((tbp = gbincore(vp, start_lbn)) == NULL) ||
