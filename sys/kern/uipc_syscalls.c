@@ -1836,7 +1836,11 @@ retry_lookup:
 		 * If page is not valid for what we need, initiate I/O
 		 */
 
-		if (!pg->valid || !vm_page_is_valid(pg, pgoff, xfsize)) {
+		if (pg->valid && vm_page_is_valid(pg, pgoff, xfsize)) {
+			VM_OBJECT_UNLOCK(obj);
+		} else if (uap->flags & SF_NODISKIO) {
+			error = EBUSY;
+		} else {
 			int bsize, resid;
 
 			/*
@@ -1867,26 +1871,25 @@ retry_lookup:
 			vm_page_lock_queues();
 			vm_page_flag_clear(pg, PG_ZERO);
 			vm_page_io_finish(pg);
-			if (error) {
-				vm_page_unwire(pg, 0);
-				/*
-				 * See if anyone else might know about this page.
-				 * If not and it is not valid, then free it.
-				 */
-				if (pg->wire_count == 0 && pg->valid == 0 &&
-				    pg->busy == 0 && !(pg->flags & PG_BUSY) &&
-				    pg->hold_count == 0) {
-					vm_page_busy(pg);
-					vm_page_free(pg);
-				}
-				vm_page_unlock_queues();
-				VM_OBJECT_UNLOCK(obj);
-				sbunlock(&so->so_snd);
-				goto done;
-			}
 			mbstat.sf_iocnt++;
-		} else {
+		}
+	
+		if (error) {
+			vm_page_unwire(pg, 0);
+			/*
+			 * See if anyone else might know about this page.
+			 * If not and it is not valid, then free it.
+			 */
+			if (pg->wire_count == 0 && pg->valid == 0 &&
+			    pg->busy == 0 && !(pg->flags & PG_BUSY) &&
+			    pg->hold_count == 0) {
+				vm_page_busy(pg);
+				vm_page_free(pg);
+			}
+			vm_page_unlock_queues();
 			VM_OBJECT_UNLOCK(obj);
+			sbunlock(&so->so_snd);
+			goto done;
 		}
 		vm_page_unlock_queues();
 

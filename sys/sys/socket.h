@@ -505,6 +505,11 @@ struct sf_hdtr {
 	struct iovec *trailers;	/* pointer to an array of trailer struct iovec's */
 	int trl_cnt;		/* number of trailer iovec's */
 };
+
+/*
+ * Sendfile-specific flag(s)
+ */
+#define        SF_NODISKIO     0x00000001
 #endif
 
 #ifndef	_KERNEL
