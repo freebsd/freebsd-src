@@ -919,7 +919,8 @@ elf_corehdr(p, vp, cred, numsegs, hdr, hdrsize)
 	bzero(&psinfo, sizeof psinfo);
 	psinfo.pr_version = PRPSINFO_VERSION;
 	psinfo.pr_psinfosz = sizeof(prpsinfo_t);
-	strncpy(psinfo.pr_fname, p->p_comm, MAXCOMLEN);
+	strncpy(psinfo.pr_fname, p->p_comm, sizeof(psinfo.pr_fname) - 1);
+	psinfo.pr_fname[sizeof(psinfo.pr_fname) - 1] = '\0';
 	/* XXX - We don't fill in the command line arguments properly yet. */
 	strncpy(psinfo.pr_psargs, p->p_comm, PRARGSZ);
 
