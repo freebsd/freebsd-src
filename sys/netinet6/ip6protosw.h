@@ -77,6 +77,7 @@
 struct	mbuf;
 struct	sockaddr;
 struct	socket;
+struct	sockopt;
 struct	domain;
 struct	proc;
 struct	ip6_hdr;
