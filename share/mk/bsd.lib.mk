@@ -1,5 +1,5 @@
 #	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
-#	$Id: bsd.lib.mk,v 1.50 1997/02/22 13:56:11 peter Exp $
+#	$Id: bsd.lib.mk,v 1.51 1997/04/09 16:10:24 bde Exp $
 #
 
 .if exists(${.CURDIR}/../Makefile.inc)
@@ -38,7 +38,7 @@ STRIP?=	-s
 	@${LD} -O ${.TARGET} -x -r ${.TARGET}
 
 .c.po:
-	${CC} -p ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+	${CC} -pg ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	@${LD} -O ${.TARGET} -X -r ${.TARGET}
 
 .c.so:
@@ -50,7 +50,7 @@ STRIP?=	-s
 	@${LD} -O ${.TARGET} -x -r ${.TARGET}
 
 .cc.po .C.po .cxx.po:
-	${CXX} -p ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+	${CXX} -pg ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	@${LD} -O ${.TARGET} -X -r ${.TARGET}
 
 .cc.so .C.so .cxx.so:
@@ -62,7 +62,7 @@ STRIP?=	-s
 	@${LD} -O ${.TARGET} -x -r ${.TARGET}
 
 .f.po:
-	${FC} -p ${FFLAGS} -o ${.TARGET} -c ${.IMPSRC} 
+	${FC} -pg ${FFLAGS} -o ${.TARGET} -c ${.IMPSRC} 
 	@${LD} -O ${.TARGET} -X -r ${.TARGET}
 
 .f.so:
@@ -95,7 +95,7 @@ STRIP?=	-s
 	@${LD} -O ${.TARGET} -x -r ${.TARGET}
 
 .m.po:
-	${CC} ${CFLAGS} -fgnu-runtime -p -c ${.IMPSRC} -o ${.TARGET}
+	${CC} ${CFLAGS} -fgnu-runtime -pg -c ${.IMPSRC} -o ${.TARGET}
 	@${LD} -O ${.TARGET} -X -r ${.TARGET}
 
 .m.o:
