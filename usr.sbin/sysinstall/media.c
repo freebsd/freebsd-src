@@ -105,11 +105,11 @@ mediaSetCDROM(dialogMenuItem *self)
 	status = dmenuOpenSimple(menu, FALSE);
 	free(menu);
 	if (!status)
-	    return DITEM_FAILURE | DITEM_RECREATE;
+	    return DITEM_FAILURE | DITEM_RESTORE;
     }
     else
 	mediaDevice = devs[0];
-    return (mediaDevice ? DITEM_SUCCESS | DITEM_LEAVE_MENU : DITEM_FAILURE) | DITEM_RECREATE;
+    return (mediaDevice ? DITEM_SUCCESS | DITEM_LEAVE_MENU : DITEM_FAILURE) | DITEM_RESTORE;
 }
 
 static int
@@ -146,11 +146,11 @@ mediaSetFloppy(dialogMenuItem *self)
 	status = dmenuOpenSimple(menu, FALSE);
 	free(menu);
 	if (!status)
-	    return DITEM_FAILURE | DITEM_RECREATE;
+	    return DITEM_FAILURE | DITEM_RESTORE;
     }
     else
 	mediaDevice = devs[0];
-    return (mediaDevice ? DITEM_LEAVE_MENU : DITEM_FAILURE) | DITEM_RECREATE;
+    return (mediaDevice ? DITEM_LEAVE_MENU : DITEM_FAILURE) | DITEM_RESTORE;
 }
 
 static int
@@ -185,11 +185,11 @@ mediaSetDOS(dialogMenuItem *self)
 	status = dmenuOpenSimple(menu, FALSE);
 	free(menu);
 	if (!status)
-	    return DITEM_FAILURE | DITEM_RECREATE;
+	    return DITEM_FAILURE | DITEM_RESTORE;
     }
     else
 	mediaDevice = devs[0];
-    return (mediaDevice ? DITEM_LEAVE_MENU : DITEM_FAILURE) | DITEM_RECREATE;
+    return (mediaDevice ? DITEM_LEAVE_MENU : DITEM_FAILURE) | DITEM_RESTORE;
 }
 
 static int
@@ -226,7 +226,7 @@ mediaSetTape(dialogMenuItem *self)
 	status = dmenuOpenSimple(menu, FALSE);
 	free(menu);
 	if (!status)
-	    return DITEM_FAILURE | DITEM_RECREATE;
+	    return DITEM_FAILURE | DITEM_RESTORE;
     }
     else
 	mediaDevice = devs[0];
@@ -243,7 +243,7 @@ mediaSetTape(dialogMenuItem *self)
 	else
 	    mediaDevice->private = strdup(val);
     }
-    return (mediaDevice ? DITEM_LEAVE_MENU : DITEM_FAILURE) | DITEM_RECREATE;
+    return (mediaDevice ? DITEM_LEAVE_MENU : DITEM_FAILURE) | DITEM_RESTORE;
 }
 
 /*
@@ -267,10 +267,10 @@ mediaSetFTP(dialogMenuItem *self)
     if (!cp) {
 	dialog_clear_norefresh();
 	if (!dmenuOpenSimple(&MenuMediaFTP, FALSE))
-	    return DITEM_FAILURE | DITEM_RECREATE;
+	    return DITEM_FAILURE | DITEM_RESTORE;
 	else
 	    cp = variable_get(VAR_FTP_PATH);
-	what = DITEM_RECREATE;
+	what = DITEM_RESTORE;
     }
     if (!cp)
 	return DITEM_FAILURE | what;
@@ -625,7 +625,7 @@ mediaGetType(dialogMenuItem *self)
     int i;
 
     i = dmenuOpenSimple(&MenuMedia, FALSE) ? DITEM_SUCCESS : DITEM_FAILURE;
-    return i | DITEM_RECREATE;
+    return i | DITEM_RESTORE;
 }
 
 /* Return TRUE if all the media variables are set up correctly */

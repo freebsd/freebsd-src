@@ -269,7 +269,7 @@ distSetDES(dialogMenuItem *self)
     }
     else
 	i = DITEM_FAILURE;
-    return i | DITEM_RECREATE | DITEM_RESTORE;
+    return i | DITEM_RECREATE;
 }
 
 static int
@@ -300,7 +300,7 @@ distMaybeSetDES(dialogMenuItem *self)
 	else
 	    i = DITEM_FAILURE;
     }
-    return i | DITEM_RECREATE | DITEM_RESTORE;
+    return i | DITEM_RECREATE;
 }
 
 int
@@ -316,7 +316,7 @@ distSetSrc(dialogMenuItem *self)
     }
     else
 	i = DITEM_FAILURE;
-    return i | DITEM_RECREATE | DITEM_RESTORE;
+    return i | DITEM_RECREATE;
 }
 
 int
@@ -336,7 +336,7 @@ distSetXF86(dialogMenuItem *self)
     }
     else
 	i = DITEM_FAILURE;
-    return i | DITEM_RECREATE | DITEM_RESTORE;
+    return i | DITEM_RECREATE;
 }
 
 static Boolean

@@ -361,5 +361,5 @@ int
 tcpMenuSelect(dialogMenuItem *self)
 {
     (void)tcpDeviceSelect();
-    return DITEM_SUCCESS | DITEM_RECREATE | DITEM_RESTORE;
+    return DITEM_SUCCESS | DITEM_RESTORE;
 }

@@ -161,7 +161,8 @@ mediaGetFloppy(Device *dev, char *file, Boolean probe)
 
     snprintf(buf, PATH_MAX, "/dist/%s", file);
 
-    msgDebug("Request for %s from floppy on /dist, probe is %d.\n", buf, probe);
+    if (isDebug())
+	msgDebug("Request for %s from floppy on /dist, probe is %d.\n", buf, probe);
     if (!file_readable(buf)) {
 	if (probe)
 	    return NULL;

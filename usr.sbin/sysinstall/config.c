@@ -575,7 +575,7 @@ configPackages(dialogMenuItem *self)
         tmp = tmp2;
     }
     index_init(NULL, &plist);
-    return DITEM_SUCCESS | DITEM_RESTORE | DITEM_RECREATE;
+    return DITEM_SUCCESS | DITEM_RESTORE;
 }
 
 #ifdef NETCON_EXTENTIONS

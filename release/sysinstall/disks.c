@@ -514,7 +514,7 @@ diskPartitionEditor(dialogMenuItem *self)
 	    i = dmenuOpenSimple(menu, FALSE) ? DITEM_SUCCESS : DITEM_FAILURE;
 	    free(menu);
 	}
-	i = i | DITEM_RECREATE;
+	i = i | DITEM_RESTORE;
     }
     return i;
 }

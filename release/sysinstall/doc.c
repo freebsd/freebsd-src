@@ -76,9 +76,9 @@ docBrowser(dialogMenuItem *self)
 
     /* Run browser on the appropriate doc */
     if (dmenuOpenSimple(&MenuHTMLDoc, FALSE))
-	return DITEM_SUCCESS | DITEM_RECREATE;
+	return DITEM_SUCCESS | DITEM_RESTORE;
     else
-	return DITEM_FAILURE | DITEM_RECREATE;
+	return DITEM_FAILURE | DITEM_RESTORE;
 }
 
 /* Try to show one of the documents requested from the HTML doc menu */
