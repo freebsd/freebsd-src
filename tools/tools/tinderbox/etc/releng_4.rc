@@ -4,6 +4,6 @@
 # $FreeBSD$
 #
 
-branches	= RELENG_4
+branches	= RELENG_4_7, RELENG_4_8, RELENG_4
 platforms	= alpha, i386/i386, i386/pc98
 recipient	= stable@freebsd.org,%%arch%%@freebsd.org
