@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.8 1993/12/03 05:01:40 alm Exp $
+ *	$Id: fd.c,v 1.9 1993/12/04 16:13:18 ats Exp $
  *
  */
 
@@ -66,7 +66,7 @@
 
 #define b_cylin b_resid
 #define FDBLK 512
-#define NUMTYPES 4
+#define NUMTYPES 5
 
 struct fd_type {
 	int	sectrac;		/* sectors per track         */
@@ -84,6 +84,7 @@ struct fd_type fd_types[NUMTYPES] =
 {
  	{ 18,2,0xFF,0x1B,80,2880,1,0,2 }, /* 1.44 meg HD 3.5in floppy    */
 	{ 15,2,0xFF,0x1B,80,2400,1,0,2 }, /* 1.2 meg HD floppy           */
+	{ 9,2,0xFF,0x20,80,1440,1,1,2 }, /* 720k floppy in HD drive     */
 	{ 9,2,0xFF,0x23,40,720,2,1,2 },	/* 360k floppy in 1.2meg drive */
 	{ 9,2,0xFF,0x2A,40,720,1,1,2 },	/* 360k floppy in DD drive     */
 };
@@ -509,13 +510,13 @@ Fdopen(dev, flags)
 	int	flags;
 {
  	fdu_t fdu = FDUNIT(minor(dev));
- 	/*int type = FDTYPE(minor(dev));*/
+	int type = FDTYPE(minor(dev));
 	int s;
 
 	/* check bounds */
 	if (fdu >= NFD || fd_data[fdu].fdc == NULL
 		|| fd_data[fdu].type == NO_TYPE) return(ENXIO);
-	/*if (type >= NUMTYPES) return(ENXIO);*/
+	if (type >= NUMTYPES) return(ENXIO);
 	fd_data[fdu].flags |= FD_OPEN;
 
 	return 0;
