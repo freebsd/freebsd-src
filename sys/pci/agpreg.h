@@ -57,6 +57,14 @@
 #define AGP_INTEL_ATTBASE	0xb8
 
 /*
+ * Config offsets for Intel i820/i840/i845/i850/i860 AGP chipsets.
+ */
+#define AGP_INTEL_MCHCFG	0x50
+#define AGP_INTEL_I820_RDCR	0x51
+#define AGP_INTEL_I845_MCHCFG	0x51
+#define AGP_INTEL_I8XX_ERRSTS	0xc8
+
+/*
  * Config offsets for VIA AGP chipsets.
  */
 #define AGP_VIA_GARTCTRL	0x80
