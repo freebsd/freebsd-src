@@ -788,7 +788,7 @@ nfs_clearcommit(struct mount *mp)
 	GIANT_REQUIRED;
 
 	s = splbio();
-	mtx_lock(&mntvnode_mtx);
+	MNT_ILOCK(mp);
 loop:
 	for (vp = TAILQ_FIRST(&mp->mnt_nvnodelist); vp; vp = nvp) {
 		if (vp->v_mount != mp)	/* Paranoia */
@@ -799,7 +799,7 @@ loop:
 			VI_UNLOCK(vp);
 			continue;
 		}
-		mtx_unlock(&mntvnode_mtx);
+		MNT_IUNLOCK(mp);
 		for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
 			nbp = TAILQ_NEXT(bp, b_vnbufs);
 			if (BUF_REFCNT(bp) == 0 &&
@@ -808,9 +808,9 @@ loop:
 				bp->b_flags &= ~(B_NEEDCOMMIT | B_CLUSTEROK);
 		}
 		VI_UNLOCK(vp);
-		mtx_lock(&mntvnode_mtx);
+		MNT_ILOCK(mp);
 	}
-	mtx_unlock(&mntvnode_mtx);
+	MNT_IUNLOCK(mp);
 	splx(s);
 }
 

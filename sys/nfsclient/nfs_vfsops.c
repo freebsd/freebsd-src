@@ -931,7 +931,7 @@ nfs_sync(struct mount *mp, int waitfor, struct ucred *cred, struct thread *td)
 	/*
 	 * Force stale buffer cache information to be flushed.
 	 */
-	mtx_lock(&mntvnode_mtx);
+	MNT_ILOCK(mp);
 loop:
 	for (vp = TAILQ_FIRST(&mp->mnt_nvnodelist);
 	     vp != NULL;
@@ -944,15 +944,15 @@ loop:
 			goto loop;
 		vnp = TAILQ_NEXT(vp, v_nmntvnodes);
 		VI_LOCK(vp);
-		mtx_unlock(&mntvnode_mtx);
+		MNT_IUNLOCK(mp);
 		if (VOP_ISLOCKED(vp, NULL) || TAILQ_EMPTY(&vp->v_dirtyblkhd) ||
 		    waitfor == MNT_LAZY) {
 			VI_UNLOCK(vp);
-			mtx_lock(&mntvnode_mtx);
+			MNT_ILOCK(mp);
 			continue;
 		}
 		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, td)) {
-			mtx_lock(&mntvnode_mtx);
+			MNT_ILOCK(mp);
 			goto loop;
 		}
 		error = VOP_FSYNC(vp, cred, waitfor, td);
@@ -960,8 +960,9 @@ loop:
 			allerror = error;
 		VOP_UNLOCK(vp, 0, td);
 		vrele(vp);
-		mtx_lock(&mntvnode_mtx);
+
+		MNT_ILOCK(mp);
 	}
-	mtx_unlock(&mntvnode_mtx);
+	MNT_IUNLOCK(mp);
 	return (allerror);
 }
