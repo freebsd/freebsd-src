@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.8 1995/09/02 17:20:52 amurai Exp $
+ * $Id: main.c,v 1.9 1995/09/17 16:14:48 amurai Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -661,17 +661,15 @@ DoLoop()
     usleep(TICKUNIT);
     TimerService();
 #endif
-    if ( qlen < 20 ) {
-      /*
-       *  If there are many packets queued, wait until they are drained.
-       */
-        FD_SET(tun_in, &rfds);
-    }
+
+    /* If there are aren't many packets queued, look for some more. */
+    if (qlen < 20)
+      FD_SET(tun_in, &rfds);
+
     if (netfd > -1) {
       FD_SET(netfd, &rfds);
       FD_SET(netfd, &efds);
     }
-
 
 #ifndef SIGALRM
     /*
