@@ -32,9 +32,11 @@
  */
 
 #ifndef lint
-/*static char sccsid[] = "From: @(#)docmd.c	8.1 (Berkeley) 6/9/93";*/
+#if 0
+static char sccsid[] = "From: @(#)docmd.c	8.1 (Berkeley) 6/9/93";
+#endif
 static const char rcsid[] =
-	"$Id: docmd.c,v 1.9 1997/02/22 19:56:40 peter Exp $";
+	"$Id$";
 #endif /* not lint */
 
 #include "defs.h"
@@ -185,13 +187,16 @@ done:
 		if (sc->sc_type == NOTIFY)
 			notify(tempfile, rhost, sc->sc_args, 0);
 	if (!nflag) {
+		struct linkbuf *nextihead;
+
 		(void) unlink(tempfile);
-		for (; ihead != NULL; ihead = ihead->nextp) {
-			free(ihead);
+		for (; ihead != NULL; ihead = nextihead) {
+			nextihead = ihead->nextp;
 			if ((opts & IGNLNKS) || ihead->count == 0)
 				continue;
 			log(lfp, "%s: Warning: missing links\n",
 				ihead->pathname);
+			free(ihead);
 		}
 	}
 }
