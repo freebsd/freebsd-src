@@ -53,14 +53,22 @@ the
 .Nm
 process forces a write out to disk of its dirty buffers.
 .Pp
-Usually,
-buffers will be written out no more than
-about 30 seconds
-after they are dirtied.
+The usual delay between the time buffers are dirtied
+and the time they are synced
+is controlled by the following
+.Xr sysctl 8
+tunable variables:
+.Bl -column "filedelayXXXX" "DefaultXX" "DescriptionXX"
+.It Em Variable Ta Em Default Ta Em Description
+.It Va kern.filedelay Ta 30 Ta "time to delay syncing files"
+.It Va kern.dirdelay Ta 29 Ta "time to delay syncing directories"
+.It Va kern.metadelay Ta 28 Ta "time to delay syncing metadata"
+.El
 .Sh SEE ALSO
 .Xr sync 2 ,
 .Xr fsck 8 ,
-.Xr sync 8
+.Xr sync 8 ,
+.Xr sysctl 8
 .Sh HISTORY
 The
 .Nm
