@@ -113,6 +113,7 @@
 #include <sys/conf.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
+#include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/uio.h>
 #include <sys/syslog.h>
@@ -136,6 +137,9 @@
 #include <net/bpf.h>
 #endif /* INET */
 
+#ifndef COMPAT_OLDISA
+#error "The olpt device requires the old isa compatibility shims"
+#endif
 
 #define	LPINITRDY	4	/* wait up to 4 seconds for a ready */
 #define	LPTOUTINITIAL	10	/* initial timeout to wait for ready 1/10 s */
@@ -284,8 +288,12 @@ static void lpintr(int);
 #endif /* INET */
 
 struct	isa_driver olptdriver = {
-	lptprobe, lptattach, "olpt"
+	INTR_TYPE_TTY,
+	lptprobe,
+	lptattach,
+	"olpt"
 };
+COMPAT_ISA_DRIVER(olpt, olptdriver);
 
 static	d_open_t	lptopen;
 static	d_close_t	lptclose;
