@@ -1083,7 +1083,11 @@
 
       <para>The &man.sound.4; (formerly &man.pcm.4;) driver has been modified to read
 	<filename>/boot/device.hints</filename> on startup, to allow setting
-	of default values for mixer channels.</para>
+	of default values for mixer channels.
+	Note that currently the device driver's name used in
+	<filename>/boot/device.hints</filename> is still <literal>pcm</literal>.
+	More detailed information and examples can be found in the &man.sound.4;
+	manual page.</para>
     </sect3>
 
     <sect3>
