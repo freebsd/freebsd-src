@@ -30,8 +30,14 @@ MACHINE_CPU = arm
 . if ${MACHINE_ARCH} == "i386"
 .  if ${CPUTYPE} == "pentium4"
 CPUTYPE = p4
+.  elif ${CPUTYPE} == "pentium4m"
+CPUTYPE = p4m
 .  elif ${CPUTYPE} == "pentium3"
 CPUTYPE = p3
+.  elif ${CPUTYPE} == "pentium3m"
+CPUTYPE = p3m
+.  elif ${CPUTYPE} == "pentium-m"
+CPUTYPE = p-m
 .  elif ${CPUTYPE} == "pentiumpro"
 CPUTYPE = i686
 .  elif ${CPUTYPE} == "pentium"
@@ -74,9 +80,15 @@ _ICC_CPUCFLAGS = -tpp5
 .  elif ${CPUTYPE} == "p4"
 _CPUCFLAGS = -march=pentium4
 _ICC_CPUCFLAGS = -tpp7 -xiMKW
+.  elif ${CPUTYPE} == "p4m"
+_CPUCFLAGS = -march=pentium4m
 .  elif ${CPUTYPE} == "p3"
 _CPUCFLAGS = -march=pentium3
 _ICC_CPUCFLAGS = -tpp6 -xiMK
+.  elif ${CPUTYPE} == "p3m"
+_CPUCFLAGS = -march=pentium3m
+.  elif ${CPUTYPE} == "p-m"
+_CPUCFLAGS = -march=pentium-m
 .  elif ${CPUTYPE} == "p2"
 _CPUCFLAGS = -march=pentium2
 _ICC_CPUCFLAGS = -tpp6 -xiM
@@ -135,9 +147,9 @@ MACHINE_CPU = 3dnow mmx k6 k5 i586 i486 i386
 MACHINE_CPU = mmx k6 k5 i586 i486 i386
 .  elif ${CPUTYPE} == "k5"
 MACHINE_CPU = k5 i586 i486 i386
-.  elif ${CPUTYPE} == "p4"
+.  elif ${CPUTYPE} == "p4" || ${CPUTYPE} == "p4m" || ${CPUTYPE} == "p-m"
 MACHINE_CPU = sse2 sse i686 mmx i586 i486 i386
-.  elif ${CPUTYPE} == "p3"
+.  elif ${CPUTYPE} == "p3" || ${CPUTYPE} == "p3m"
 MACHINE_CPU = sse i686 mmx i586 i486 i386
 .  elif ${CPUTYPE} == "p2"
 MACHINE_CPU = i686 mmx i586 i486 i386
