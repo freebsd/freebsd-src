@@ -1,0 +1,52 @@
+#	  fs: /usr/local
+#	  by: rgrimes
+#	date: Sun Aug 29 22:56:32 PDT 1993
+#
+
+/set type=file uname=bin gname=bin mode=0755
+bin	type=dir uname=bin gname=bin mode=0755
+..
+
+etc	type=dir uname=bin gname=bin mode=0755
+..
+
+lib	type=dir uname=bin gname=bin mode=0755
+..
+
+man	type=dir uname=bin gname=bin mode=0755
+	cat1	type=dir uname=bin gname=bin mode=0755
+	..
+	cat2	type=dir uname=bin gname=bin mode=0755
+	..
+	cat3	type=dir uname=bin gname=bin mode=0755
+	..
+	cat4	type=dir uname=bin gname=bin mode=0755
+	..
+	cat5	type=dir uname=bin gname=bin mode=0755
+	..
+	cat6	type=dir uname=bin gname=bin mode=0755
+	..
+	cat7	type=dir uname=bin gname=bin mode=0755
+	..
+	cat8	type=dir uname=bin gname=bin mode=0755
+	..
+	catl	type=dir uname=bin gname=bin mode=0755
+	..
+	man1	type=dir uname=bin gname=bin mode=0755
+	..
+	man2	type=dir uname=bin gname=bin mode=0755
+	..
+	man3	type=dir uname=bin gname=bin mode=0755
+	..
+	man4	type=dir uname=bin gname=bin mode=0755
+	..
+	man5	type=dir uname=bin gname=bin mode=0755
+	..
+	man6	type=dir uname=bin gname=bin mode=0755
+	..
+	man7	type=dir uname=bin gname=bin mode=0755
+	..
+	man8	type=dir uname=bin gname=bin mode=0755
+	..
+	manl	type=dir uname=bin gname=bin mode=0755
+..
