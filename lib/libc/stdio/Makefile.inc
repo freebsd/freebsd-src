@@ -14,9 +14,11 @@ SRCS+=	clrerr.c fclose.c fdopen.c feof.c ferror.c fflush.c fgetc.c \
 	vfscanf.c vprintf.c vscanf.c vsnprintf.c vsprintf.c vsscanf.c \
 	wbuf.c wsetup.c
 
-MAN3+=	fclose.0 ferror.0 fflush.0 fgetln.0 fgets.0 fopen.0 fputs.0 \
-	fread.0 fseek.0 funopen.0 getc.0 mktemp.0 printf.0 putc.0 remove.0 \
-	scanf.0 setbuf.0 stdio.0 tmpnam.0 ungetc.0
+MAN3+=	stdio/fclose.3 stdio/ferror.3 stdio/fflush.3 stdio/fgetln.3 \
+	stdio/fgets.3 stdio/fopen.3 stdio/fputs.3 stdio/fread.3 stdio/fseek.3 \
+	stdio/funopen.3 stdio/getc.3 stdio/mktemp.3 stdio/printf.3 \
+	stdio/putc.3 stdio/remove.3 stdio/scanf.3 stdio/setbuf.3 \
+	stdio/stdio.3 stdio/tmpnam.3 stdio/ungetc.3
 
 MLINKS+=ferror.3 clearerr.3 ferror.3 feof.3 ferror.3 fileno.3
 MLINKS+=fflush.3 fpurge.3
