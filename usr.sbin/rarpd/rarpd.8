@@ -28,6 +28,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl adfsv
+.Op Fl t Ar directory
 .Op Ar interface
 .Sh DESCRIPTION
 .Nm
@@ -93,6 +94,17 @@ Run in the foreground.
 Supply a response to any RARP request for which an ethernet to IP address
 mapping exists; do not depend on the existence of
 .Pa /tftpboot/\fIipaddr\fP* .
+.It Fl t
+Supple an alternative tftp root directory to
+.Pa /tftpboot ,
+matching similar behavior of the
+.Fl s
+flag on
+.Xr tftpd 8 .
+This permits
+.Nm
+to selectively respond to RARP requests, but use an alternative directory
+for IP checking.
 .It Fl v
 Enable verbose sysloging.
 .El
