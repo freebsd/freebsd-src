@@ -141,7 +141,7 @@ acquire(struct lock **lkpp, int extflags, int wanted) {
 	int s, error;
 
 	CTR3(KTR_LOCK,
-	    "acquire(): lkp == %p, extflags == 0x%x, wanted == 0x%x\n",
+	    "acquire(): lkp == %p, extflags == 0x%x, wanted == 0x%x",
 	    lkp, extflags, wanted);
 
 	if ((extflags & LK_NOWAIT) && (lkp->lk_flags & wanted)) {
