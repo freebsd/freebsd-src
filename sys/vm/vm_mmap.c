@@ -217,6 +217,7 @@ mmap(td, uap)
 	flags = uap->flags;
 	pos = uap->pos;
 
+	vp = NULL;
 	fp = NULL;
 	/* make sure mapping fits into numeric range etc */
 	if ((ssize_t) uap->len < 0 ||
@@ -310,6 +311,9 @@ mmap(td, uap)
 		if (fp->f_flag & FPOSIXSHM)
 			flags |= MAP_NOSYNC;
 		vp = (struct vnode *) fp->f_data;
+		error = vget(vp, LK_EXCLUSIVE, td);
+		if (error)
+			goto done;
 		if (vp->v_type != VREG && vp->v_type != VCHR) {
 			error = EINVAL;
 			goto done;
@@ -322,7 +326,11 @@ mmap(td, uap)
 				error = EINVAL;
 				goto done;
 			}
-			vp = (struct vnode*)obj->handle;
+			if (obj->handle != vp) {
+				vput(vp);
+				vp = (struct vnode*)obj->handle;
+				vget(vp, LK_EXCLUSIVE, td);
+			}
 		}
 		/*
 		 * XXX hack to handle use of /dev/zero to map anon memory (ala
@@ -423,14 +431,16 @@ mmap(td, uap)
 	mtx_unlock(&Giant);
 	error = vm_mmap(&vms->vm_map, &addr, size, prot, maxprot,
 	    flags, handle, pos);
+	mtx_lock(&Giant);
 	if (error == 0)
 		td->td_retval[0] = (register_t) (addr + pageoff);
-	goto done2;
 done:
+	if (vp)
+		vput(vp);
 	mtx_unlock(&Giant);
-done2:
 	if (fp)
 		fdrop(fp, td);
+
 	return (error);
 }
 
@@ -1165,6 +1175,7 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 	} else {
 		vp = (struct vnode *) handle;
 		mtx_lock(&Giant);
+		ASSERT_VOP_LOCKED(vp, "vm_mmap");
 		if (vp->v_type == VCHR) {
 			type = OBJT_DEVICE;
 			handle = (void *)(intptr_t)vp->v_rdev;
