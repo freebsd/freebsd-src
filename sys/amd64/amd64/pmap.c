@@ -1171,7 +1171,11 @@ pmap_pinit0(pmap)
 	pmap->pm_pdir =
 		(pd_entry_t *)kmem_alloc_pageable(kernel_map, PAGE_SIZE);
 	pmap_kenter((vm_offset_t)pmap->pm_pdir, (vm_offset_t)IdlePTD);
+#ifndef I386_CPU
 	invlpg((vm_offset_t)pmap->pm_pdir);
+#else
+	invltlb();
+#endif
 	pmap->pm_ptphint = NULL;
 	pmap->pm_active = 0;
 	TAILQ_INIT(&pmap->pm_pvlist);
@@ -2277,7 +2281,11 @@ pmap_kenter_temporary(vm_offset_t pa, int i)
 
 	va = (vm_offset_t)crashdumpmap + (i * PAGE_SIZE);
 	pmap_kenter(va, pa);
+#ifndef I386_CPU
 	invlpg(va);
+#else
+	invltlb();
+#endif
 	return ((void *)crashdumpmap);
 }
 
