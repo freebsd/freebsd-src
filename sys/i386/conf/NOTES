@@ -1607,22 +1607,19 @@ options 	ADW_ALLOW_MEMIO
 options 	EISA_SLOTS=12
 
 #
-# MII bus support is required for some PCI 10/100 ethernet NICs,
-# namely those which use MII-compliant transceivers or implement
-# tranceiver control interfaces that operate like an MII. Adding
-# "controller miibus0" to the kernel config pulls in support for
-# the generic miibus API and all of the PHY drivers, including a
-# generic one for PHYs that aren't specifically handled by an
-# individual driver.
-device		miibus0
-
-#
 # PCI devices & PCI options:
 #
 # The main PCI bus device is `pci'.  It provides auto-detection and
 # configuration support for all devices on the PCI bus, using either
 # configuration mode defined in the PCI specification.
+
+device		pci0
+
+# PCI options
 #
+#options 	PCI_QUIET	#quiets PCI code on chipset settings
+
+
 # The `ahc' device provides support for the Adaptec 29/3940(U)(W)
 # and motherboard based AIC7870/AIC7880 adapters.
 #
@@ -1778,12 +1775,11 @@ device		miibus0
 # The oltr driver supports the following Olicom PCI token-ring adapters
 # OC-3136, OC-3137, OC-3139, OC-3140, OC-3141, OC-3540, OC-3250
 #
-device		pci0
-device		ahc1
-device		amd0
-device		ncr0
-device		sym0
-device		isp0
+device		ahc1		# AHA2940 and onboard AIC7xxx devices
+device		amd0		# AMD 53C974 (Teckram DC-390(T))
+device		isp0		# Qlogic family
+device		ncr0		# NCR/Symbios Logic
+device		sym0		# NCR/Symbios Logic (newer chipsets)
 #
 # Options for ISP
 #
@@ -1842,22 +1838,50 @@ options 	SCSI_ISP_WWN="0x5000000099990000"
 #options 	ISP_COMPILE_2200_FW=1
 #options 	ISP_TARGET_MODE=1
 
-device		dc0
-device		de0
-device		fxp0
-device		rl0
-device		sf0
-device		sis0
+# Options used in dev/sym/ (Symbios SCSI driver).
+#options 	SYM_SETUP_LP_PROBE_MAP	#-Low Priority Probe Map (bits)
+					# Allows the ncr to take precedence
+					# 1 (1<<0) -> 810a, 860
+					# 2 (1<<1) -> 825a, 875, 885, 895
+					# 4 (1<<2) -> 895a, 896, 1510d 
+#options 	SYM_SETUP_SCSI_DIFF	#-HVD support for 825a, 875, 885
+					# disabled:0 (default), enabled:1
+#options 	SYM_SETUP_PCI_PARITY	#-PCI parity checking
+					# disabled:0, enabled:1 (default)
+#options 	SYM_SETUP_MAX_LUN	#-Number of LUNs supported
+					# default:8, range:[1..64]
+
+
+# MII bus support is required for some PCI 10/100 ethernet NICs,
+# namely those which use MII-compliant transceivers or implement
+# tranceiver control interfaces that operate like an MII. Adding
+# "controller miibus0" to the kernel config pulls in support for
+# the generic miibus API and all of the PHY drivers, including a
+# generic one for PHYs that aren't specifically handled by an
+# individual driver.
+device		miibus0
+
+# PCI Ethernet NICs that use the common MII bus controller code.
+controller	miibus0		# MII bus support
+device		dc0		# DEC/Intel 21143 and various workalikes
+device		rl0		# RealTek 8129/8139
+device		sf0		# Adaptec AIC-6915 (``Starfire'')
+device		sis0		# Silicon Integrated Systems SiS 900/SiS 7016
+device		ste0		# Sundance ST201 (D-Link DFE-550TX)
+device		tl0		# Texas Instruments ThunderLAN
+device		vr0		# VIA Rhine, Rhine II
+device		wb0		# Winbond W89C840F
+device		xl0		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
+
+# PCI Ethernet NICs.
+device		de0		# DEC/Intel DC21x4x (``Tulip'')
+device		fxp0		# Intel EtherExpress PRO/100B (82557, 82558)
+device		tx0		# SMC 9432TX (83c170 ``EPIC'')
+device		vx0		# 3Com 3c590, 3c595 (``Vortex'')
+
 device		sk0
-device		ste0
 device		ti0
-device		tl0
-device		tx0
-device		vr0
-device		vx0
-device		wb0
 device		wx0
-device		xl0
 device		fpa0
 device		meteor0
 #The oltr driver in the ISA section will also find PCI cards.
@@ -1873,11 +1897,6 @@ device		meteor0
 # I2C slaves connected to the external connector of some cards.
 #
 device		bktr0
-
-#
-# PCI options
-#
-#options 	PCI_QUIET	#quiets PCI code on chipset settings
 
 #
 # PCCARD/PCMCIA
