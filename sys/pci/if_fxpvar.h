@@ -38,6 +38,8 @@
 struct fxp_softc {
 	struct arpcom arpcom;		/* per-interface network data */
 	struct resource *mem;		/* resource descriptor for registers */
+	int rtp;			/* register resource type */
+	int rgd;			/* register descriptor in use */
 	struct resource *irq;		/* resource descriptor for interrupt */
 	void *ih;			/* interrupt handler cookie */
 	struct mtx sc_mtx;
