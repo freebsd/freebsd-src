@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.11.2.11 1997/06/20 10:28:07 kato Exp $
+ *	$Id: machdep.c,v 1.11.2.12 1997/09/17 09:09:23 kato Exp $
  */
 
 #include "npx.h"
@@ -1192,7 +1192,7 @@ init386(first)
 	 * the MAXMEM option or the npx0 "msize", then don't do the speculative
 	 * memory probe.
 	 */
-	if (Maxmem == 0x4000)
+	if (Maxmem >= 0x4000)
 		speculative_mprobe = TRUE;
 	else
 		speculative_mprobe = FALSE;
