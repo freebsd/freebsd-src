@@ -79,9 +79,10 @@ struct pci_quirk {
 
 struct pci_quirk pci_quirks[] = {
 	/*
-	 * The Intel 82371AB has a map register at offset 0x90.
+	 * The Intel 82371AB and 82443MX has a map register at offset 0x90.
 	 */
 	{ 0x71138086, PCI_QUIRK_MAP_REG,	0x90,	 0 },
+	{ 0x719b8086, PCI_QUIRK_MAP_REG,	0x90,	 0 },
 
 	{ 0 }
 };

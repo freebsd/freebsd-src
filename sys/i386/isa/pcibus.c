@@ -76,6 +76,9 @@ nexus_pcib_is_host_bridge(pcicfgregs *cfg,
 	case 0x71928086:
 		s = "Intel 82443BX host to PCI bridge (AGP disabled)";
 		break;
+	case 0x71948086:
+		s = "Intel 82443MX host to PCI bridge";
+		break;
 	case 0x71a08086:
 		s = "Intel 82443GX host to PCI bridge";
 		break;

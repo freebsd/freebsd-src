@@ -62,7 +62,7 @@ static struct _pcsid
 } pci_ids[] =
 {
 	{ 0x71138086,"Intel 82371AB Power management controller"},
-	
+ 	{ 0x719b8086,"Intel 82443MX Power management controller"},
 	{ 0x00000000,	NULL					}
 };
 static int intsmb_probe(device_t);
