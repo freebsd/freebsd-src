@@ -70,7 +70,7 @@ stop_dhcp() {
 	case ${startstop} in
 	[Ss][Tt][Oo][Pp])
 		if [ -z "${_nlist}" ]; then
-			sh `/etc/rc.d/dhclient start`
+			sh /etc/rc.d/dhclient start
 		else
 			start_dhcp_keep_current
 		fi
