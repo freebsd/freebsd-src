@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: brandelf.c,v 1.1.2.1 1997/02/09 20:38:03 joerg Exp $
+ *  $Id: brandelf.c,v 1.1.2.2 1997/06/24 06:45:22 charnier Exp $
  */
 
 #include <err.h>
@@ -67,8 +67,8 @@ main(int argc, char **argv)
 		char buffer[EI_NINDENT];
 		char string[(EI_NINDENT-EI_SPARE)+1];
 
-		if ((fd = open(argv[0], O_RDWR, 0)) < 0) {
-			warnx("no such file %s", argv[0]);
+		if ((fd = open(argv[0], change? O_RDWR: O_RDONLY, 0)) < 0) {
+			warn("error opening file %s", argv[0]);
 			retval = 1;
 			goto fail;
 			
