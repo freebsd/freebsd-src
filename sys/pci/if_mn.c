@@ -13,7 +13,7 @@
  * This card contains a FALC54 E1/T1 framer and a MUNICH32X 32-channel HDLC
  * controller. 
  *
- * The driver support E1 mode with up to 31 channels.  We send CRC4 but don't
+ * The driver supports E1 mode with up to 31 channels.  We send CRC4 but don't
  * check it coming in.
  *
  * The FALC54 and MUNICH32X have far too many registers and weird modes for
