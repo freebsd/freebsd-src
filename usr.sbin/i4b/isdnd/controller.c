@@ -79,6 +79,7 @@ name_of_controller(int ctrl_type, int card_type)
 		"Traverse Tech NETjet-S / Teles PCI-TJ",
 		"Eicon.Diehl DIVA 2.0 / 2.02 ISA PnP",
 		"Compaq Microcom 610",
+		"AVM Fritz!Card PCI Version 2",
 	};
 
 	static char *daic_card[] = {
