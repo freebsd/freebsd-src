@@ -77,12 +77,12 @@
 #define	SET_STACK_UC(ucp, stk)	(ucp)->uc_mcontext.mc_esp = (int)(stk)
 #define	FP_SAVE_UC(ucp)		do {			\
 	char	*fdata;					\
-	fdata = (char *) (ucp)->uc_mcontext.mc_fpregs;	\
+	fdata = (char *) (ucp)->uc_mcontext.mc_fpstate;	\
 	__asm__("fnsave %0": :"m"(*fdata));		\
 } while (0)
 #define	FP_RESTORE_UC(ucp)	do {			\
 	char	*fdata;					\
-	fdata = (char *) (ucp)->uc_mcontext.mc_fpregs;	\
+	fdata = (char *) (ucp)->uc_mcontext.mc_fpstate;	\
 	__asm__("frstor %0": :"m"(*fdata));		\
 } while (0)
 #define SET_RETURN_ADDR_JB(jb, ra)	(jb)[0]._jb[0] = (int)(ra)
