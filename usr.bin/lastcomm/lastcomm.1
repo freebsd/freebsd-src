@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)lastcomm.1	8.1 (Berkeley) 6/6/93
+.\" $Id: $
 .\"
 .Dd June 6, 1993
 .Dt LASTCOMM 1
@@ -39,6 +40,7 @@
 .Nd show last commands executed in reverse order
 .Sh SYNOPSIS
 .Nm lastcomm
+.Op Fl EScesu
 .Op Fl f Ar file
 .Op Ar command ...
 .Op Ar user ...
@@ -50,8 +52,35 @@ With no arguments,
 .Nm lastcomm
 prints information about all the commands recorded
 during the current accounting file's lifetime.
+
 .Pp
-Option:
+The following options are available:
+.Pp
+.Bl -tag -width Fl
+.Pp
+.It Fl E
+The time the process exited.
+.Pp
+.It Fl S
+The time the process started, default.
+
+.It Fl c
+The amount of cpu time used by the process (in seconds), default.
+.It Fl e
+The amount of elapsed time used by the process (in seconds).
+.It Fl s
+The amount of system time used by the process (in seconds).
+.It Fl u
+The amount of user time used by the process (in seconds).
+.El
+
+.Pp
+Use 
+.Op Fl cS
+as default if no one of these previous options called.
+.Pp
+.Pp
+
 .Pp
 .Bl -tag -width Fl
 .It Fl f Ar file
@@ -95,7 +124,8 @@ The command name under which the process was called.
 .It
 The amount of cpu time used by the process (in seconds).
 .It
-The time the process exited.
+.\" Wrong: The time the process exited.
+The time the process started.
 .El
 .Pp
 The flags are encoded as follows: ``S'' indicates the command was
