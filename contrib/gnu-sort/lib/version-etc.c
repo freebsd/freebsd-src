@@ -15,6 +15,8 @@
    along with this program; if not, write to the Free Software Foundation,
    Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
+/* $FreeBSD$ */
+
 /* Written by Jim Meyering. */
 
 #if HAVE_CONFIG_H
@@ -52,8 +54,8 @@ version_etc_va (FILE *stream,
   {
     va_list tmp_authors;
 
-#ifdef __va_copy
-    __va_copy (tmp_authors, authors);
+#ifdef va_copy
+    va_copy (tmp_authors, authors);
 #else
     tmp_authors = authors;
 #endif
