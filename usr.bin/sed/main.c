@@ -363,7 +363,8 @@ mf_fgets(SPACE *sp, enum e_spflag spflag)
 					errx(1, "%s: name too long", fname);
 			}
 			len = snprintf(tmpfname, sizeof(tmpfname),
-			    ".!%ld!%s", (long)getpid(), fname);
+			    "%s/.!%ld!%s", dirname(fname), (long)getpid(),
+			    basename(fname));
 			if (len >= sizeof(tmpfname))
 				errx(1, "%s: name too long", fname);
 			unlink(tmpfname);
