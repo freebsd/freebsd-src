@@ -306,18 +306,3 @@ contigfree(void *addr, unsigned long size, struct malloc_type *type)
 	GIANT_REQUIRED;
 	kmem_free(kernel_map, (vm_offset_t)addr, size);
 }
-
-vm_offset_t
-vm_page_alloc_contig(
-	vm_offset_t size,
-	vm_paddr_t low,
-	vm_paddr_t high,
-	vm_offset_t alignment)
-{
-	vm_offset_t ret;
-
-	GIANT_REQUIRED;
-	ret = ((vm_offset_t)contigmalloc1(size, M_DEVBUF, M_NOWAIT, low, high,
-					  alignment, 0ul, kernel_map));
-	return (ret);
-}
