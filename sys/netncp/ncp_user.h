@@ -31,8 +31,8 @@
  *
  * $FreeBSD$
  */
-#ifndef _NCP_USER_H_
-#define _NCP_USER_H_
+#ifndef _NETNCP_NCP_USER_H_
+#define _NETNCP_NCP_USER_H_
 
 /* 
  * "ncp" interface to kernel, this can be done via syscalls but may eat

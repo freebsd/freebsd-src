@@ -7,11 +7,11 @@
  * $FreeBSD$
  */
 
-#ifndef _NCP_H_
-#define _NCP_H_
+#ifndef _NETNCP_NCP_H_
+#define _NETNCP_NCP_H_
 
 #define NCP_VERMAJ	1
-#define NCP_VERMIN	3300
+#define NCP_VERMIN	3400
 #define NCP_VERSION	(NCP_VERMAJ*100000 + NCP_VERMIN)
 
 typedef u_int32_t	nwdirent;

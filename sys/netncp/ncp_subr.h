@@ -31,8 +31,8 @@
  *
  * $FreeBSD$
  */
-#ifndef _NCP_SUBR_H_
-#define _NCP_SUBR_H_
+#ifndef _NETNCP_NCP_SUBR_H_
+#define _NETNCP_NCP_SUBR_H_
 
 #define NCP_TIMER_TICK	2*hz	/* 1sec */
 #define	NCP_SIGMASK(set) 						\

@@ -31,8 +31,8 @@
  *
  * $FreeBSD$
  */
-#ifndef _NCP_NCP_RQ_H_
-#define _NCP_NCP_RQ_H_
+#ifndef _NETNCP_NCP_RQ_H_
+#define _NETNCP_NCP_RQ_H_
 
 #include <machine/endian.h>
 
@@ -160,25 +160,26 @@ void ncp_sign_init(const char *logindata, char *sign_root);
 
 #define	ncp_add_byte(conn,x) (conn)->packet[(conn)->rqsize++]=x
 
-void ncp_init_request(struct ncp_buf *conn);
-void ncp_init_request_s(struct ncp_buf *conn, int subfn);
-void ncp_add_word_lh(struct ncp_buf *conn, u_int16_t x);
-void ncp_add_dword_lh(struct ncp_buf *conn, u_int32_t x);
-void ncp_add_word_hl(struct ncp_buf *conn, u_int16_t x);
-void ncp_add_dword_hl(struct ncp_buf *conn, u_int32_t x);
-void ncp_add_mem(struct ncp_buf *conn, const void *source, int size);
-void ncp_add_mem_nls(struct ncp_buf *conn, const void *source, int size);
-void ncp_add_pstring(struct ncp_buf *conn, const char *s);
-void ncp_add_handle_path(struct ncp_buf *conn, nuint32 volNumber, nuint32 dirNumber,
-	int handleFlag, const char *path);
+__BEGIN_DECLS
+
+void ncp_init_request(struct ncp_buf *);
+void ncp_init_request_s(struct ncp_buf *, int);
+void ncp_add_word_lh(struct ncp_buf *, u_int16_t);
+void ncp_add_dword_lh(struct ncp_buf *, u_int32_t);
+void ncp_add_word_hl(struct ncp_buf *, u_int16_t);
+void ncp_add_dword_hl(struct ncp_buf *, u_int32_t);
+void ncp_add_mem(struct ncp_buf *, const void *, int);
+void ncp_add_mem_nls(struct ncp_buf *, const void *, int);
+void ncp_add_pstring(struct ncp_buf *, const char *);
+void ncp_add_handle_path(struct ncp_buf *, nuint32, nuint32, int, const char *);
 
 #define ncp_reply_data(conn,offset) ((conn)->packet+offset)
 #define ncp_reply_byte(conn,offset) (*(u_int8_t*)(ncp_reply_data(conn, offset)))
 
-u_int16_t ncp_reply_word_hl(struct ncp_buf *conn, int offset);
-u_int16_t ncp_reply_word_lh(struct ncp_buf *conn, int offset);
-u_int32_t ncp_reply_dword_hl(struct ncp_buf *conn, int offset);
-u_int32_t ncp_reply_dword_lh(struct ncp_buf *conn, int offset);
+u_int16_t ncp_reply_word_hl(struct ncp_buf *, int);
+u_int16_t ncp_reply_word_lh(struct ncp_buf *, int);
+u_int32_t ncp_reply_dword_hl(struct ncp_buf *, int);
+u_int32_t ncp_reply_dword_lh(struct ncp_buf *, int);
 
 static __inline void
 ConvertToNWfromDWORD(u_int32_t sfd, ncp_fh *fh) {
@@ -186,6 +187,8 @@ ConvertToNWfromDWORD(u_int32_t sfd, ncp_fh *fh) {
 	return;
 }
 
+__END_DECLS
+
 #endif /* ifdef KERNEL */
 
-#endif	/* _NCP_NCP_RQ_H_ */
+#endif	/* !_NETNCP_NCP_RQ_H_ */
