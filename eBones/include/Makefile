@@ -5,6 +5,7 @@ FILES=	kparse.h krb.h krb_db.h
 
 NOOBJ=	noobj
 NOMAN=	noman
+CFLAGS+=	KERBEROS
 
 all include clean cleandir depend lint tags:
 

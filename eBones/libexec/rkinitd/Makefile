@@ -2,7 +2,7 @@
 
 PROG=	rkinitd
 SRCS= 	${RKINITOBJDIR}/rkinit_err.h rkinitd.c util.c rpc.c krb.c
-CFLAGS+=-I${KRBOBJDIR} -I${RKINITOBJDIR}
+CFLAGS+=-I${KRBOBJDIR} -I${RKINITOBJDIR} -DKERBEROS
 DPADD=	${LIBKRB} ${LIBDES}
 LDADD=	-L${RKINITOBJDIR} -lrkinit -L${KRBOBJDIR} -lkrb \
 	-L${DESOBJDIR} -ldes
