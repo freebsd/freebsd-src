@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: rtld.c,v 1.48 1997/08/19 23:33:45 nate Exp $
+ *	$Id: rtld.c,v 1.49 1997/09/18 13:55:45 phk Exp $
  */
 
 #include <sys/param.h>
@@ -199,26 +199,31 @@ struct so_map		*link_map_head;
 struct so_map		*link_map_tail;
 struct rt_symbol	*rt_symbol_head;
 
-static void		*__dlopen __P((char *, int));
+static void		*__dlopen __P((const char *, int));
 static int		__dlclose __P((void *));
-static void		*__dlsym __P((void *, char *));
-static char		*__dlerror __P((void));
+static void		*__dlsym __P((void *, const char *));
+static const char	*__dlerror __P((void));
 static void		__dlexit __P((void));
-static void		*__dlsym3 __P((void *, char *, void *));
+static void		*__dlsym3 __P((void *, const char *, void *));
 
 static struct ld_entry	ld_entry = {
 	__dlopen, __dlclose, __dlsym, __dlerror, __dlexit, __dlsym3
 };
 
        void		xprintf __P((char *, ...));
-static struct so_map	*map_object __P((	char *,
+static struct so_map	*map_object __P((	const char *,
 						struct sod *,
 						struct so_map *));
 static int		map_preload __P((void));
 static int		map_sods __P((struct so_map *));
-static int		reloc_and_init __P((struct so_map *, int));
+static int		reloc_dag __P((struct so_map *, int));
 static void		unmap_object __P((struct so_map	*, int));
-static struct so_map	*alloc_link_map __P((	char *, struct sod *,
+static struct so_map	*alloc_link_map __P((	const char *, struct sod *,
+						struct so_map *, caddr_t,
+						struct _dynamic *));
+static void		init_link_map __P((	struct so_map *,
+						struct somap_private *,
+						const char *, struct sod *,
 						struct so_map *, caddr_t,
 						struct _dynamic *));
 static void		free_link_map __P((struct so_map *));
@@ -227,8 +232,10 @@ static inline int	check_text_reloc __P((	struct relocation_info *,
 						caddr_t));
 static int		reloc_map __P((struct so_map *, int));
 static void		reloc_copy __P((struct so_map *));
-static void		init_object __P((struct so_map *));
+static void		init_dag __P((struct so_map *));
 static void		init_sods __P((struct so_list *));
+static void		init_internal_malloc __P((struct _dynamic *));
+static void		init_external_malloc __P((void));
 static int		call_map __P((struct so_map *, char *));
 static char		*findhint __P((char *, int, int *));
 static char		*rtfindlib __P((char *, int, int));
@@ -236,9 +243,12 @@ static char		*rtfindfile __P((char *));
 void			binder_entry __P((void));
 long			binder __P((jmpslot_t *));
 static struct nzlist	*lookup __P((char *, struct so_map **, int));
-static inline struct rt_symbol	*lookup_rts __P((char *));
-static struct rt_symbol	*enter_rts __P((char *, long, int, caddr_t,
-						long, struct so_map *));
+static inline struct rt_symbol	*lookup_rts __P((char *, unsigned long));
+static struct nzlist	*lookup_in_obj __P((char *, unsigned long,
+    struct so_map *, int));
+static struct rt_symbol	*enter_rts __P((char *, unsigned long, long, int,
+    caddr_t, long, struct so_map *));
+static void		*sym_addr __P((char *));
 static void		die __P((void));
 static void		generror __P((char *, ...));
 static int		maphints __P((void));
@@ -247,6 +257,23 @@ static void		ld_trace __P((struct so_map *));
 static void		rt_readenv __P((void));
 static int		hinthash __P((char *, int));
 int			rtld __P((int, struct crt_ldso *, struct _dynamic *));
+
+/*
+ * Compute a hash value for symbol tables.  Don't change this -- the
+ * algorithm is dictated by the way the linker builds the symbol
+ * tables in the shared objects.
+ */
+static inline unsigned long
+sym_hash(s)
+	const char	*s;
+{
+	unsigned long	 h;
+
+	h = 0;
+	while (*s != '\0')
+		h = (h << 1) + *s++;
+	return h & 0x7fffffffUL;
+}
 
 static inline int
 strcmp (register const char *s1, register const char *s2)
@@ -319,6 +346,9 @@ struct _dynamic		*dp;
 	else
 		crtp->crt_dp->d_entry = &ld_entry;	/* _DYNAMIC */
 
+	/* Initialize our internal malloc package. */
+	init_internal_malloc(crtp->crt_dp);
+
 	/* Setup out (private) environ variable */
 	environ = crtp->crt_ep;
 
@@ -380,9 +410,20 @@ struct _dynamic		*dp;
 
 	crtp->crt_dp->d_un.d_sdt->sdt_loaded = link_map_head->som_next;
 
-	/* Relocate and initialize all mapped objects */
-	if(reloc_and_init(main_map, ld_bind_now != NULL) == -1)	/* Failed */
+	/* Relocate all mapped objects. */
+	if(reloc_dag(main_map, ld_bind_now != NULL) == -1)	/* Failed */
 		die();
+
+	/*
+         * Switch to the same malloc that the program uses.  We do
+         * this before initializing the loaded objects, because their
+         * initialization functions may well call malloc, and it won't
+         * work right until we have set it up.
+	 */
+	init_external_malloc();
+
+	/* Initialize all mapped objects. */
+	init_dag(main_map);
 
 	ddp = crtp->crt_dp->d_debug;
 	ddp->dd_cc = rt_symbol_head;
@@ -513,9 +554,9 @@ ld_trace(smp)
  * ADDR is the address at which the object has been mapped.  DP is a pointer
  * to its _dynamic structure.
  */
-	static struct so_map *
+static struct so_map *
 alloc_link_map(path, sodp, parent, addr, dp)
-	char		*path;
+	const char	*path;
 	struct sod	*sodp;
 	struct so_map	*parent;
 	caddr_t		addr;
@@ -523,25 +564,16 @@ alloc_link_map(path, sodp, parent, addr, dp)
 {
 	struct so_map		*smp;
 	struct somap_private	*smpp;
-        size_t                   smp_size;
 
 #ifdef DEBUG /* { */
 	xprintf("alloc_link_map: \"%s\" at %p\n", path, addr);
 #endif /* } */
 
-        /*
-         * Allocate so_map and private area with a single malloc.  Round
-         * up the size of so_map so the private area is aligned.
-         */
-        smp_size = ((((sizeof(struct so_map)) + sizeof (void *) - 1) /
-                     sizeof (void *)) * sizeof (void *));
-
-	smp = (struct so_map *)xmalloc(smp_size +
-                                        sizeof (struct somap_private));
-	smpp = (struct somap_private *) (((caddr_t) smp) + smp_size);
+	smp = (struct so_map *)xmalloc(sizeof(struct so_map));
+	smpp = (struct somap_private *)xmalloc(sizeof(struct somap_private));
+	init_link_map(smp, smpp, path, sodp, parent, addr, dp);
 
 	/* Link the new entry into the list of link maps */
-	smp->som_next = NULL;
 	smpp->spd_prev = link_map_tail;
 	if(link_map_tail == NULL)	/* First link map entered into list */
 		link_map_head = link_map_tail = smp;
@@ -550,31 +582,41 @@ alloc_link_map(path, sodp, parent, addr, dp)
 		link_map_tail = smp;
 	}
 
+	return smp;
+}
+
+/*
+ * Initialize a link map entry that has already been allocated.
+ */
+static void
+init_link_map(smp, smpp, path, sodp, parent, addr, dp)
+	struct so_map		*smp;
+	struct somap_private	*smpp;
+	const char		*path;
+	struct sod		*sodp;
+	struct so_map		*parent;
+	caddr_t			 addr;
+	struct _dynamic		*dp;
+{
+	memset(smp, 0, sizeof *smp);
+	memset(smpp, 0, sizeof *smpp);
+	smp->som_spd = (caddr_t)smpp;
 	smp->som_addr = addr;
 	smp->som_path = path ? strdup(path) : NULL;
 	smp->som_sod = sodp;
 	smp->som_dynamic = dp;
-	smp->som_spd = (caddr_t)smpp;
-
-	smpp->spd_refcount = 0;
-	smpp->spd_flags = 0;
 	smpp->spd_parent = parent;
-	smpp->spd_children = NULL;
-	smpp->a_text = 0;
-	smpp->a_data = 0;
-	smpp->a_bss = 0;
 #ifdef SUN_COMPAT
 	smpp->spd_offset =
 		(addr==0 && dp && dp->d_version==LD_VERSION_SUN) ? PAGSIZ : 0;
 #endif
-	return smp;
 }
 
 /*
  * Remove the specified link map entry from the list of link maps, and free
  * the associated storage.
  */
-	static void
+static void
 free_link_map(smp)
 	struct so_map	*smp;
 {
@@ -594,7 +636,9 @@ free_link_map(smp)
 	else				/* Update back link of next entry */
 		LM_PRIVATE(smp->som_next)->spd_prev = smpp->spd_prev;
 
-	free(smp->som_path);
+	if (smp->som_path != NULL)
+		free(smp->som_path);
+	free(smpp);
 	free(smp);
 }
 
@@ -617,9 +661,9 @@ free_link_map(smp)
  * If the operation failed, the return value is NULL.  In that case, an
  * error message can be retrieved by calling dlerror().
  */
-	static struct so_map *
+static struct so_map *
 map_object(path, sodp, parent)
-	char		*path;
+	const char	*path;
 	struct sod	*sodp;
 	struct so_map	*parent;
 {
@@ -821,7 +865,7 @@ map_preload __P((void)) {
  * Returns 0 on success.  Returns -1 on failure.  In that case, an error
  * message can be retrieved by calling dlerror().
  */
-	static int
+static int
 map_sods(parent)
 	struct so_map	*parent;
 {
@@ -872,7 +916,7 @@ map_sods(parent)
 			 */
 			(void)alloc_link_map(NULL, sodp, parent, 0, 0);
 		} else if (ld_ignore_missing_objects) {
-			char *msg;
+			const char *msg;
 			/*
 			 * Call __dlerror() even it we're not going to use
 			 * the message, in order to clear the saved message.
@@ -915,12 +959,12 @@ map_sods(parent)
 }
 
 /*
- * Relocate and initialize the tree of shared objects rooted at the given
- * link map entry.  Returns 0 on success, or -1 on failure.  On failure,
- * an error message can be retrieved via dlerror().
+ * Relocate the DAG of shared objects rooted at the given link map
+ * entry.  Returns 0 on success, or -1 on failure.  On failure, an
+ * error message can be retrieved via dlerror().
  */
-	static int
-reloc_and_init(root, bind_now)
+static int
+reloc_dag(root, bind_now)
 	struct so_map	*root;
 	int		bind_now;
 {
@@ -957,35 +1001,6 @@ reloc_and_init(root, bind_now)
 			reloc_copy(smp);
 	}
 
-	/*
-	 * Call any object initialization routines.
-	 *
-	 * Here, the order is very important, and we cannot simply loop
-	 * over the newly-loaded objects as we did before.  Rather, we
-	 * have to initialize the tree of new objects depth-first, and
-	 * process the sibling objects at each level in reverse order
-	 * relative to the dependency list.
-	 *
-	 * Here is the reason we initialize depth-first.  If an object
-	 * depends on one or more other objects, then the objects it
-	 * depends on should be initialized first, before the parent
-	 * object itself.  For it is possible that the parent's
-	 * initialization routine will need the services provided by the
-	 * objects it depends on -- and those objects had better already
-	 * be initialized.
-	 *
-	 * We initialize the objects at each level of the tree in reverse
-	 * order for a similar reason.  When an object is linked with
-	 * several libraries, it is common for routines in the earlier
-	 * libraries to call routines in the later libraries.  So, again,
-	 * the later libraries need to be initialized first.
-	 *
-	 * The upshot of these rules is that we have to use recursion to
-	 * get the libraries initialized in the best order.  But the
-	 * recursion is never likely to be very deep.
-	 */
-	init_object(root);
-
 	return 0;
 }
 
@@ -1009,7 +1024,7 @@ reloc_and_init(root, bind_now)
  * anything goes wrong, we consider it an internal error, and report
  * it with err().
  */
-	static void
+static void
 unmap_object(smp, keep)
 	struct so_map	*smp;
 	int		keep;
@@ -1218,7 +1233,7 @@ reloc_map(smp, bind_now)
 				relocation -= (long)smp->som_addr;
 
 			if (RELOC_COPY_P(r) && src_map) {
-				(void)enter_rts(sym,
+				(void)enter_rts(sym, sym_hash(sym),
 					(long)addr,
 					N_DATA + N_EXT,
 					src_map->som_addr + np->nz_value,
@@ -1252,7 +1267,7 @@ reloc_map(smp, bind_now)
 	return 0;
 }
 
-	static void
+static void
 reloc_copy(smp)
 	struct so_map		*smp;
 {
@@ -1266,8 +1281,11 @@ reloc_copy(smp)
 		}
 }
 
-	static void
-init_object(smp)
+/*
+ * Initialize the DAG of shared objects rooted at the given object.
+ */
+static void
+init_dag(smp)
 	struct so_map		*smp;
 {
 	struct somap_private	*smpp = LM_PRIVATE(smp);
@@ -1284,7 +1302,7 @@ init_object(smp)
 	}
 }
 
-	static void
+static void
 init_sods(solp)
 	struct so_list	*solp;
 {
@@ -1293,7 +1311,7 @@ init_sods(solp)
 		init_sods(solp->sol_next);
 
 	/* Initialize the first element of the list */
-	init_object(solp->sol_map);
+	init_dag(solp->sol_map);
 }
 
 
@@ -1304,7 +1322,7 @@ init_sods(solp)
  * Returns 0 on success, or -1 if the symbol was not found.  Failure is not
  * necessarily an error condition, so no error message is generated.
  */
-	static int
+static int
 call_map(smp, sym)
 	struct so_map		*smp;
 	char			*sym;
@@ -1329,69 +1347,46 @@ call_map(smp, sym)
 static struct rt_symbol 	*rt_symtab[RTC_TABSIZE];
 
 /*
- * Compute hash value for run-time symbol table
+ * Look up a symbol in the run-time common symbol table.  For efficiency,
+ * the symbol's hash value must be passed in too.
  */
-	static inline int
-hash_string(key)
-	char *key;
+static inline struct rt_symbol *
+lookup_rts(name, hash)
+	char		*name;
+	unsigned long	 hash;
 {
-	register char *cp;
-	register int k;
-
-	cp = key;
-	k = 0;
-	while (*cp)
-		k = (((k << 1) + (k >> 14)) ^ (*cp++)) & 0x3fff;
-
-	return k;
-}
-
-/*
- * Lookup KEY in the run-time common symbol table.
- */
-
-	static inline struct rt_symbol *
-lookup_rts(key)
-	char *key;
-{
-	register int			hashval;
 	register struct rt_symbol	*rtsp;
 
-	/* Determine which bucket.  */
-
-	hashval = hash_string(key) % RTC_TABSIZE;
-
-	/* Search the bucket.  */
-
-	for (rtsp = rt_symtab[hashval]; rtsp; rtsp = rtsp->rt_link)
-		if (strcmp(key, rtsp->rt_sp->nz_name) == 0)
+	for (rtsp = rt_symtab[hash % RTC_TABSIZE]; rtsp; rtsp = rtsp->rt_link)
+		if (strcmp(name, rtsp->rt_sp->nz_name) == 0)
 			return rtsp;
 
 	return NULL;
 }
 
-	static struct rt_symbol *
-enter_rts(name, value, type, srcaddr, size, smp)
+/*
+ * Enter a symbol into the run-time common symbol table.  For efficiency,
+ * the symbol's hash value must be passed in too.
+ */
+static struct rt_symbol *
+enter_rts(name, hash, value, type, srcaddr, size, smp)
 	char		*name;
-	long		value;
-	int		type;
-	caddr_t		srcaddr;
-	long		size;
+	unsigned long	 hash;
+	long		 value;
+	int		 type;
+	caddr_t		 srcaddr;
+	long		 size;
 	struct so_map	*smp;
 {
-	register int			hashval;
 	register struct rt_symbol	*rtsp, **rpp;
 
-	/* Determine which bucket */
-	hashval = hash_string(name) % RTC_TABSIZE;
-
 	/* Find end of bucket */
-	for (rpp = &rt_symtab[hashval]; *rpp; rpp = &(*rpp)->rt_link)
+	for (rpp = &rt_symtab[hash % RTC_TABSIZE]; *rpp; rpp = &(*rpp)->rt_link)
 		continue;
 
 	/* Allocate new common symbol */
-	rtsp = (struct rt_symbol *)malloc(sizeof(struct rt_symbol));
-	rtsp->rt_sp = (struct nzlist *)malloc(sizeof(struct nzlist));
+	rtsp = (struct rt_symbol *)xmalloc(sizeof(struct rt_symbol));
+	rtsp->rt_sp = (struct nzlist *)xmalloc(sizeof(struct nzlist));
 	rtsp->rt_sp->nz_name = strdup(name);
 	rtsp->rt_sp->nz_value = value;
 	rtsp->rt_sp->nz_type = type;
@@ -1412,140 +1407,193 @@ enter_rts(name, value, type, srcaddr, size, smp)
 
 /*
  * Lookup NAME in the link maps. The link map producing a definition
- * is returned in SRC_MAP. If SRC_MAP is not NULL on entry the search is
- * confined to that map. If STRONG is set, the symbol returned must
- * have a proper type (used by binder()).
+ * is returned in SRC_MAP. If SRC_MAP is not NULL on entry the search
+ * is confined to that map.
+ *
+ * REAL_DEF_ONLY is a boolean which specifies whether certain special
+ * symbols for functions should satisfy the lookup or not.  The
+ * reasons behind it are somewhat complicated.  They are motivated
+ * by the scenario in which the address of a single function is
+ * taken from several shared objects.  The address should come out
+ * the same in all cases, because the application code might decide
+ * to use it in comparisons.  To make this work, the linker creates
+ * a symbol entry for the function in the main executable, with a
+ * type of N_UNDF+N_EXT, an N_AUX of AUX_FUNC, and a value that
+ * refers to the PLT entry for the function in the main executable.
+ * If REAL_DEF_ONLY is false, then this kind of special symbol is
+ * considered a "definition" when lookup up the symbol.  Since the
+ * main executable is at the beginning of the shared object search
+ * list, the result is that references from all shared objects will
+ * resolve to the main program's PLT entry, and thus the function
+ * addresses will compare equal as they should.
+ *
+ * When relocating the PLT entry itself, we obviously must match
+ * only the true defining symbol for the function.  In that case, we
+ * set REAL_DEF_ONLY to true, which disables matching the special
+ * N_UNDF+N_EXT entries.
+ *
+ * It is not so clear how to set this flag for a lookup done from
+ * dlsym.  If the lookup specifies a particular shared object other
+ * than the main executable, the flag makes no difference -- only the
+ * true definition will be matched.  (That is because the special
+ * symbols are only present in the main executable, which will not
+ * be searched.)  But when the lookup is over all the shared objects
+ * (i.e., dlsym's "fd" parameter is NULL), then the flag does have an
+ * effect.  We elect to match only the true definition even in that
+ * case.
+ *
+ * The upshot of all this is the following rule of thumb: Set
+ * REAL_DEF_ONLY in all cases except when processing a non-PLT
+ * relocation.
  */
-	static struct nzlist *
-lookup(name, src_map, strong)
+static struct nzlist *
+lookup(name, src_map, real_def_only)
 	char		*name;
 	struct so_map	**src_map;	/* IN/OUT */
-	int		strong;
+	int		real_def_only;
 {
-	long			common_size = 0;
-	struct so_map		*smp;
-	struct rt_symbol	*rtsp;
+	unsigned long		 hash;
 
-	if ((rtsp = lookup_rts(name)) != NULL)
-		return rtsp->rt_sp;
+	hash = sym_hash(name);
 
-	/*
-	 * Search all maps for a definition of NAME
-	 */
-	for (smp = link_map_head; smp; smp = smp->som_next) {
-		int		buckets;
-		long		hashval;
-		struct rrs_hash	*hp;
-		char		*cp;
-		struct	nzlist	*np;
+	if (*src_map != NULL)	/* Look in just one specific object */
+		return lookup_in_obj(name, hash, *src_map, real_def_only);
+	else {	/* Search runtime symbols and all loaded objects */
+		unsigned long		 common_size;
+		struct so_map		*smp;
+		struct rt_symbol	*rtsp;
+		struct nzlist		*np;
 
-		/* Some local caching */
-		long		symbolbase;
-		struct rrs_hash	*hashbase;
-		char		*stringbase;
-		int		symsize;
+		if ((rtsp = lookup_rts(name, hash)) != NULL)
+			return rtsp->rt_sp;
 
-		if (*src_map && smp != *src_map)
-			continue;
-
-		if ((buckets = LD_BUCKETS(smp->som_dynamic)) == 0)
-			continue;
-
-		if (LM_PRIVATE(smp)->spd_flags & RTLD_RTLD)
-			continue;
-
-restart:
-		/*
-		 * Compute bucket in which the symbol might be found.
-		 */
-		for (hashval = 0, cp = name; *cp; cp++)
-			hashval = (hashval << 1) + *cp;
-
-		hashval = (hashval & 0x7fffffff) % buckets;
-
-		hashbase = LM_HASH(smp);
-		hp = hashbase + hashval;
-		if (hp->rh_symbolnum == -1)
-			/* Nothing in this bucket */
-			continue;
-
-		symbolbase = (long)LM_SYMBOL(smp, 0);
-		stringbase = LM_STRINGS(smp);
-		symsize	= LD_VERSION_NZLIST_P(smp->som_dynamic->d_version)?
-				sizeof(struct nzlist) :
-				sizeof(struct nlist);
-		while (hp) {
-			np = (struct nzlist *)
-				(symbolbase + hp->rh_symbolnum * symsize);
-			cp = stringbase + np->nz_strx;
-			if (strcmp(cp, name) == 0)
-				break;
-			if (hp->rh_next == 0)
-				hp = NULL;
-			else
-				hp = hashbase + hp->rh_next;
-		}
-		if (hp == NULL)
-			/* Nothing in this bucket */
-			continue;
-
-		/*
-		 * We have a symbol with the name we're looking for.
-		 */
-		if (np->nz_type == N_INDR+N_EXT) {
-			/*
-			 * Next symbol gives the aliased name. Restart
-			 * search with new name and confine to this map.
-			 */
-			name = stringbase + (++np)->nz_strx;
-			*src_map = smp;
-			goto restart;
-		}
-
-		if (np->nz_value == 0)
-			/* It's not a definition */
-			continue;
-
-		if (np->nz_type == N_UNDF+N_EXT && np->nz_value != 0) {
-			if (np->nz_other == AUX_FUNC) {
-				/* It's a weak function definition */
-				if (strong)
-					continue;
-			} else {
-				/* It's a common, note value and continue search */
+		common_size = 0;
+		for (smp = link_map_head; smp; smp = smp->som_next) {
+			if (LM_PRIVATE(smp)->spd_flags & RTLD_RTLD)
+				continue;
+			np = lookup_in_obj(name, hash, smp, real_def_only);
+			if (np == NULL)
+				continue;
+			/* We know that np->nz_value > 0 at this point. */
+			if (np->nz_type == N_UNDF+N_EXT &&
+			    N_AUX(&np->nlist) != AUX_FUNC) {	/* Common */
 				if (common_size < np->nz_value)
 					common_size = np->nz_value;
 				continue;
 			}
+
+			/* We found the symbol definition. */
+			*src_map = smp;
+			return np;
+		}
+		if (common_size > 0) {	/* It is a common symbol. */
+			void	*mem;
+
+			mem = memset(xmalloc(common_size), 0, common_size);
+			rtsp = enter_rts(name, hash, (long)mem, N_UNDF + N_EXT,
+			    0, common_size, NULL);
+			return rtsp->rt_sp;
 		}
 
-		*src_map = smp;
-		return np;
+		/* No definition was found for the symbol. */
+		return NULL;
 	}
+}
 
-	if (common_size == 0)
-		/* Not found */
+/*
+ * Lookup a symbol in one specific shared object.  The hash
+ * value is passed in for efficiency.  For an explanation of the
+ * "real_def_only" flag, see the comment preceding the "lookup"
+ * function.
+ */
+static struct nzlist *
+lookup_in_obj(name, hash, smp, real_def_only)
+	char		*name;
+	unsigned long	 hash;
+	struct so_map	*smp;
+	int		 real_def_only;
+{
+	unsigned long	 buckets;
+	struct rrs_hash	*hp;
+	char		*cp;
+	struct nzlist	*np;
+	char		*symbolbase;
+	struct rrs_hash	*hashbase;
+	char		*stringbase;
+	size_t		symsize;
+
+	if ((buckets = LD_BUCKETS(smp->som_dynamic)) == 0)
 		return NULL;
 
+	hashbase = LM_HASH(smp);
+
+restart:
+	hp = &hashbase[hash % buckets];
+	if (hp->rh_symbolnum == -1)
+		return NULL;
+
+	symbolbase = (char *)LM_SYMBOL(smp, 0);
+	stringbase = LM_STRINGS(smp);
+	symsize	= LD_VERSION_NZLIST_P(smp->som_dynamic->d_version)?
+	    sizeof(struct nzlist) : sizeof(struct nlist);
+	for ( ; ; ) {
+		np = (struct nzlist *)(symbolbase + hp->rh_symbolnum*symsize);
+		cp = stringbase + np->nz_strx;
+		if (strcmp(cp, name) == 0)
+			break;
+		if (hp->rh_next == 0)	/* End of hash chain */
+			return NULL;
+		hp = hashbase + hp->rh_next;
+	}
+
 	/*
-	 * It's a common, enter into run-time common symbol table.
+	 * We have a symbol with the name we're looking for.
 	 */
-	rtsp = enter_rts(name, (long)calloc(1, common_size),
-					N_UNDF + N_EXT, 0, common_size, NULL);
+	if (np->nz_type == N_INDR+N_EXT) {
+		/*
+		 * Next symbol gives the aliased name. Restart
+		 * search with new name.
+		 */
+		name = stringbase + (++np)->nz_strx;
+		hash = sym_hash(name);
+		goto restart;
+	}
 
-#if DEBUG
-	xprintf("Allocating common: %s size %d at %#x\n", name, common_size,
-                rtsp->rt_sp->nz_value);
-#endif
+	if (np->nz_value == 0)	/* It's not a definition */
+		return NULL;
 
-	return rtsp->rt_sp;
+	if (real_def_only)	/* Don't match special function symbols. */
+		if (np->nz_type == N_UNDF+N_EXT &&
+		    N_AUX(&np->nlist) == AUX_FUNC)
+			return NULL;
+
+	return np;
+}
+
+/*
+ * Return the value of a symbol in the user's program.  This is used
+ * internally for a few symbols which must exist.  If the requested
+ * symbol is not found, this simply exits with a fatal error.
+ */
+static void *
+sym_addr(name)
+	char		*name;
+{
+	struct so_map	*smp;
+	struct nzlist	*np;
+
+	smp = NULL;
+	np = lookup(name, &smp, 1);
+	if (np == NULL)
+		errx(1, "Program has no symbol \"%s\"", name);
+	return ((smp == NULL) ? NULL : smp->som_addr) + np->nz_value;
 }
 
 /*
  * This routine is called from the jumptable to resolve
  * procedure calls to shared objects.
  */
-	long
+long
 binder(jsp)
 	jmpslot_t	*jsp;
 {
@@ -1565,7 +1613,7 @@ binder(jsp)
 	}
 
 	if (smp == NULL)
-		errx(1, "Call to binder from unknown location: %#x\n", jsp);
+		errx(1, "Call to binder from unknown location: %p\n", jsp);
 
 	index = jsp->reloc_index & JMPSLOT_RELOC_MASK;
 
@@ -1575,7 +1623,7 @@ binder(jsp)
 
 	np = lookup(sym, &src_map, 1);
 	if (np == NULL)
-		errx(1, "Undefined symbol \"%s\" called from %s:%s at %#x",
+		errx(1, "Undefined symbol \"%s\" called from %s:%s at %p",
 				sym, main_progname, smp->som_path, jsp);
 
 	/* Fixup jmpslot so future calls transfer directly to target */
@@ -1600,7 +1648,7 @@ static char			*hstrtab;
  * Map the hints file into memory, if it is not already mapped.  Returns
  * 0 on success, or -1 on failure.
  */
-	static int
+static int
 maphints __P((void))
 {
 	static int		hints_bad;	/* TRUE if hints are unusable */
@@ -1657,7 +1705,7 @@ maphints __P((void))
 /*
  * Unmap the hints file, if it is currently mapped.
  */
-	static void
+static void
 unmaphints()
 {
 	if (hheader != NULL) {
@@ -1666,7 +1714,7 @@ unmaphints()
 	}
 }
 
-	int
+int
 hinthash(cp, vmajor)
 	char	*cp;
 	int	vmajor;
@@ -1694,7 +1742,7 @@ hinthash(cp, vmajor)
  *
  * Returns NULL if the library cannot be found.
  */
-	static char *
+static char *
 findhint(name, major, minorp)
 	char	*name;
 	int	major;
@@ -1748,7 +1796,7 @@ findhint(name, major, minorp)
  *
  * Returns NULL if the library cannot be found.
  */
-	static char *
+static char *
 rtfindlib(name, major, minor)
 	char	*name;
 	int	major, minor;
@@ -1794,7 +1842,7 @@ rtfindlib(name, major, minor)
  *
  * Returns NULL if the library cannot be found.
  */
-	static char *
+static char *
 rtfindfile(name)
 	char	*name;
 {
@@ -1839,10 +1887,10 @@ static char  dlerror_buf [DLERROR_BUF_SIZE];
 static char *dlerror_msg = NULL;
 
 
-	static void *
+static void *
 __dlopen(path, mode)
-	char	*path;
-	int	mode;
+	const char	*path;
+	int		 mode;
 {
 	struct so_map	*old_tail = link_map_tail;
 	struct so_map	*smp;
@@ -1862,8 +1910,9 @@ __dlopen(path, mode)
 
 	/* Relocate and initialize all newly-mapped objects */
 	if(link_map_tail != old_tail) {  /* We have mapped some new objects */
-		if(reloc_and_init(smp, bind_now) == -1)	/* Failed */
+		if(reloc_dag(smp, bind_now) == -1)	/* Failed */
 			return NULL;
+		init_dag(smp);
 	}
 
 	unmaphints();
@@ -1872,7 +1921,7 @@ __dlopen(path, mode)
 	return smp;
 }
 
-	static int
+static int
 __dlclose(fd)
 	void	*fd;
 {
@@ -1902,10 +1951,10 @@ __dlclose(fd)
  * it.  It can still be called by old executables that were linked with
  * old versions of crt0.
  */
-	static void *
+static void *
 __dlsym(fd, sym)
-	void	*fd;
-	char	*sym;
+	void		*fd;
+	const char	*sym;
 {
 	if (fd == RTLD_NEXT) {
 		generror("RTLD_NEXT not supported by this version of"
@@ -1915,7 +1964,7 @@ __dlsym(fd, sym)
 	return __dlsym3(fd, sym, NULL);
 }
 
-	static void *
+static void *
 resolvesym(fd, sym, retaddr)
 	void	*fd;
 	char	*sym;
@@ -1975,11 +2024,11 @@ resolvesym(fd, sym, retaddr)
 	return (void *)addr;
 }
 
-	static void *
+static void *
 __dlsym3(fd, sym, retaddr)
-	void	*fd;
-	char	*sym;
-	void	*retaddr;
+	void		*fd;
+	const char	*sym;
+	void		*retaddr;
 {
 	void *result;
 
@@ -1993,7 +2042,7 @@ __dlsym3(fd, sym, retaddr)
 	 */
 	if (result == NULL) {
 		/* Prepend an underscore and try again */
-		char *newsym = malloc(strlen(sym) + 2);
+		char *newsym = xmalloc(strlen(sym) + 2);
 
 		newsym[0] = '_';
 		strcpy(&newsym[1], sym);
@@ -2003,10 +2052,10 @@ __dlsym3(fd, sym, retaddr)
 	return result;
 }
 
-	static char *
+static const char *
 __dlerror __P((void))
 {
-        char *err;
+        const char	*err;
 
         err = dlerror_msg;
         dlerror_msg = NULL;  /* Next call will return NULL */
@@ -2014,7 +2063,7 @@ __dlerror __P((void))
         return err;
 }
 
-	static void
+static void
 __dlexit __P((void))
 {
 #ifdef DEBUG
@@ -2030,7 +2079,7 @@ xprintf("__dlexit called\n");
 static void
 die __P((void))
 {
-	char *msg;
+	const char	*msg;
 
 	fprintf(stderr, "ld.so failed");
 	if ((msg = __dlerror()) != NULL)
@@ -2145,4 +2194,163 @@ rt_readenv()
 			}
 		}
 	}
+}
+
+/*
+ * Malloc implementation for use within the dynamic linker.  At first
+ * we do a simple allocation using sbrk.  After the user's program
+ * has been loaded, we switch to using whatever malloc functions are
+ * defined there.
+ */
+
+/* Symbols related to the sbrk and brk implementations. */
+#define CURBRK_SYM	"curbrk"
+#define MINBRK_SYM	"minbrk"
+#define END_SYM		"_end"
+
+/* Symbols related to malloc. */
+#define FREE_SYM	"_free"
+#define MALLOC_SYM	"_malloc"
+#define REALLOC_SYM	"_realloc"
+
+/* Hooks into the implementation of sbrk and brk. */
+extern char *curbrk __asm__(CURBRK_SYM);
+extern char *minbrk __asm__(MINBRK_SYM);
+
+/* Pointers to the user program's malloc functions. */
+static void	*(*p_malloc) __P((size_t));
+static void	*(*p_realloc) __P((void *, size_t));
+static void	 (*p_free) __P((void *));
+
+/* Upper limit of the memory allocated by our internal malloc. */
+static char	*rtld_alloc_lev;
+
+/*
+ * Set up the internal malloc so that it will take its memory from the
+ * main program's sbrk arena.
+ */
+static void
+init_internal_malloc(dp)
+	struct _dynamic		*dp;
+{
+	struct so_map		 tmp_map;
+	struct somap_private	 map_private;
+	struct nzlist		*np;
+
+	/*
+         * Before anything calls sbrk or brk, we have to initialize
+         * its idea of the current break level to the main program's
+         * "_end" symbol, rather than that of the dynamic linker.  In
+         * order to do that, we need to look up the value of the main
+         * program's "_end" symbol.  We set up a temporary link map
+         * entry for the main program so that we can do the lookup.
+	 */
+	init_link_map(&tmp_map, &map_private, NULL, NULL, NULL, NULL, dp);
+	np = lookup_in_obj(END_SYM, sym_hash(END_SYM), &tmp_map, 1);
+	if (np == NULL)
+		errx(1, "Main program has no symbol \"%s\"", END_SYM);
+	rtld_alloc_lev = curbrk = minbrk = (char *)np->nz_value;
+}
+
+/*
+ * Set things up so that the dynamic linker can use the program's
+ * malloc functions.
+ */
+static void
+init_external_malloc __P((void))
+{
+	/*
+         * Patch the program's idea of the current break address to
+         * what it really is as a result of the allocations we have
+         * already done.
+	 */
+	*(char **)(sym_addr(CURBRK_SYM)) = curbrk;
+
+	/*
+	 * Set up pointers to the program's allocation functions, so
+	 * that we can use them from now on.
+	 */
+	p_malloc = (void *(*)(size_t))(sym_addr(MALLOC_SYM));
+	p_free = (void (*)(void *))(sym_addr(FREE_SYM));
+	p_realloc = (void *(*)(void *, size_t))(sym_addr(REALLOC_SYM));
+}
+
+void *
+malloc(size)
+	size_t	 size;
+{
+	char		*p;
+
+	/* If we are far enough along, we can use the system malloc. */
+	if (p_malloc != NULL)
+		return (*p_malloc)(size);
+
+	/*
+         * Otherwise we use our simple built-in malloc.  We get the
+         * memory from brk() in increments of one page.  We store the
+         * allocated size in the first word, so that realloc can be
+         * made to work.
+	 */
+	if (rtld_alloc_lev == NULL)
+		errx(1, "Internal error: internal malloc called before"
+		    " being initialized");
+
+	p = (char *)ALIGN(rtld_alloc_lev);
+	rtld_alloc_lev = p + sizeof(size_t) + size;
+
+	if (rtld_alloc_lev > curbrk) {	/* Get memory from system */
+		char	*newbrk;
+
+		newbrk = (char *)
+		    roundup2((unsigned long)rtld_alloc_lev, PAGSIZ);
+		if (brk(newbrk) == (char *)-1)
+			return NULL;
+	}
+
+	*(size_t *)p = size;
+	return p + sizeof(size_t);
+}
+
+void *
+realloc(ptr, size)
+	void	*ptr;
+	size_t	 size;
+{
+	size_t	 old_size;
+	void	*new_ptr;
+
+	if (ptr == NULL)
+		return malloc(size);
+
+	/*
+	 * If we are far enough along, and if the memory originally came
+	 * from the system malloc, we can use the system realloc.
+	 */
+	if (p_realloc != NULL && (char *)ptr >= rtld_alloc_lev)
+		return (*p_realloc)(ptr, size);
+
+	old_size = *((size_t *)ptr - 1);
+	if (old_size >= size)	/* Not expanding the region */
+		return ptr;
+
+	new_ptr = malloc(size);
+	if (new_ptr != NULL)
+		memcpy(new_ptr, ptr, old_size);
+	return new_ptr;
+}
+
+void
+free(ptr)
+	void	*ptr;
+{
+	if (ptr == NULL)
+		return;
+
+	/*
+	 * If we are far enough along, and if the memory originally came
+	 * from the system malloc, we can use the system free.  Otherwise
+	 * we can't free the memory and we just let it go to waste.
+	 */
+	if (p_free != NULL && (char *)ptr >= rtld_alloc_lev)
+		(*p_free)(ptr);
 }
