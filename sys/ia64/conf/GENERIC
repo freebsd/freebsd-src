@@ -54,7 +54,7 @@ options 	SYSVSEM			#SYSV-style semaphores
 options 	_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
 
 # SMP
-options 	SMP
+#options 	SMP
 
 # Debugging for use in -current
 options 	DDB			#Enable the kernel debugger
