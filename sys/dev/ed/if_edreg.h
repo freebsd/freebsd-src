@@ -1,7 +1,7 @@
 /*
  * National Semiconductor DS8390 NIC register definitions 
  *
- * $Id: if_edreg.h,v 2.2 1993/11/29 16:33:39 davidg Exp davidg $
+ * $Id: if_edreg.h,v 1.9 1993/11/29 17:07:33 davidg Exp $
  *
  * Modification history
  *
@@ -678,6 +678,8 @@ struct ed_ring	{
 #define ED_TYPE_WD8003S		0x02
 #define ED_TYPE_WD8003E		0x03
 #define ED_TYPE_WD8013EBT	0x05
+#define ED_TYPE_TOSHIBA1	0x11
+#define ED_TYPE_TOSHIBA2	0x14
 #define ED_TYPE_WD8013W		0x26
 #define ED_TYPE_WD8013EP	0x27
 #define ED_TYPE_WD8013WC	0x28
@@ -695,7 +697,11 @@ struct ed_ring	{
 /*
  * Checksum total. All 8 bytes in station address PROM will add up to this
  */
+#ifdef TOSH_ETHER
+#define ED_WD_ROM_CHECKSUM_TOTAL	0xA5
+#else
 #define ED_WD_ROM_CHECKSUM_TOTAL	0xFF
+#endif
 
 #define ED_WD_NIC_OFFSET	0x10		/* I/O base offset to NIC */
 #define ED_WD_ASIC_OFFSET	0		/* I/O base offset to ASIC */
