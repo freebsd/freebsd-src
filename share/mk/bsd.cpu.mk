@@ -7,16 +7,17 @@
 .if !defined(CPUTYPE) || empty(CPUTYPE)
 . if ${MACHINE_ARCH} == "i386"
 _CPUCFLAGS = -mcpu=pentiumpro
-CPUTYPE = i386
+MACHINE_CPU = i386
 . elif ${MACHINE_ARCH} == "alpha"
 _CPUCFLAGS = -mcpu=ev4 -mtune=ev5
-CPUTYPE = ev4
+MACHINE_CPU = ev4
+.elif ${MACHINE_ARCH} == "x86-64" || ${MACHINE_ARCH} == "x86_64"
+MACHINE_CPU = x86-64 sse2 sse
 . elif ${MACHINE_ARCH} == "ia64"
 _CPUCFLAGS =
-CPUTYPE = itanium
+MACHINE_CPU = itanium
 . elif ${MACHINE_ARCH} == "sparc64"
 _CPUCFLAGS =
-CPUTYPE = ultrasparc
 . endif
 .else
 
@@ -92,7 +93,6 @@ _CPUCFLAGS = -mcpu=ev45
 _CPUCFLAGS = -mcpu=ev4
 .  endif
 . endif
-.endif
 
 # NB: COPTFLAGS is handled in /usr/src/sys/conf/Makefile.<arch>
 
@@ -160,4 +160,5 @@ MACHINE_CPU = x86-64 sse2 sse
 . if ${CPUTYPE} == "itanium"
 MACHINE_CPU = itanium
 . endif
+.endif
 .endif
