@@ -1307,7 +1307,7 @@ xl_attach(dev)
 
 	sc->xl_flags = 0;
 	if (pci_get_device(dev) == TC_DEVICEID_HURRICANE_555)
-		sc->xl_flags |= XL_FLAG_EEPROM_OFFSET | XL_FLAG_PHYOK;
+		sc->xl_flags |= XL_FLAG_EEPROM_OFFSET_30 | XL_FLAG_PHYOK;
 	if (pci_get_device(dev) == TC_DEVICEID_HURRICANE_556 ||
 	    pci_get_device(dev) == TC_DEVICEID_HURRICANE_556B)
 		sc->xl_flags |= XL_FLAG_FUNCREG | XL_FLAG_PHYOK |
