@@ -945,6 +945,33 @@
       </itemizedlist>
     </para>
 
+    <para>National Semiconductor DP83820 and DP83821 Gigabit Ethernet
+    NICs (&man.nge.4 driver)
+      <itemizedlist>
+        <listitem>
+	  <para>Addtron AEG320T</para>
+        </listitem>
+        <listitem>
+	  <para>Asante FriendlyNet GigaNIC 1000TA and 1000TPC</para>
+        </listitem>
+        <listitem>
+	  <para>D-Link DGE-500T</para>
+        </listitem>
+        <listitem>
+	  <para>LinkSys EG1032 (32-bit PCI) and EG1064 (64-bit PCI)</para>
+        </listitem>
+        <listitem>
+	  <para>Netgear GA622T</para>
+        </listitem>
+        <listitem>
+	  <para>SMC EZ Card 1000 (SMC9462TX)</para>
+        </listitem>
+        <listitem>
+	  <para>Surecom Technology EP-320G-TX</para>
+        </listitem>
+      </itemizedlist>
+    </para>
+
     <para>Sundance Technologies ST201 PCI Fast Ethernet NICs
     (&man.ste.4; driver)
       <itemizedlist>
@@ -1440,6 +1467,18 @@
         <listitem>
 	  <para>NEC PC-9801N-25 and -J02R</para>
         </listitem>
+      </itemizedlist>
+    </para>
+
+    <para arch="i386">Gigabit Ethernet cards based on the Level 1
+    LXT1001 NetCellerator controller (&man.lge.4; driver)
+      <itemizedlist>
+        <listitem>
+	  <para>D-Link DGE=500SX</para>
+	</listitem>
+        <listitem>
+	  <para>SMC TigerCard 1000 (SMC9462SX)</para>
+	</listitem>
       </itemizedlist>
     </para>
 
