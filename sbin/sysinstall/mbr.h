@@ -18,7 +18,6 @@
 
 struct mbr
 {
-	unsigned char padding[2]; /* force longs to be long aligned */
 	unsigned char bootcode[DOSPARTOFF];
 	struct dos_partition dospart[4];
 	unsigned short magic;
@@ -73,8 +72,6 @@ struct part_type
 };
 
 extern char *part_type(int);
-extern int enable_label(int);
-extern int disable_label(int);
 extern int write_mbr(int, struct mbr *);
 extern int read_mbr(int, struct mbr *);
 extern void show_mbr(struct mbr *);
