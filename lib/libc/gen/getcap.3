@@ -136,11 +136,11 @@ A call to
 must precede the database traversal.  It must be called before the
 .Fn cgetent
 call. If a sequential access is being performed (see below), it must be called
-before the first sequential access call (
-.Fn cgetfirst
+before the first sequential access call
+.Fn ( cgetfirst
 or
-.Fn cgetnext
-), or be directly preceded by a
+.Fn cgetnext ) ,
+or be directly preceded by a
 .Fn cgetclose
 call.
 On success 0 is returned and \-1 on failure.
