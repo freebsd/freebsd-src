@@ -1052,18 +1052,15 @@ tryagain:
 	TAILQ_REMOVE(&nfs_reqq, rep, r_chain);
 	if (TAILQ_EMPTY(&nfs_reqq))
 		callout_stop(&nfs_callout);
-	mtx_unlock(&nfs_reqq_mtx);
-	splx(s);
-
 	/*
 	 * Decrement the outstanding request count.
 	 */
-	mtx_lock(&nfs_reqq_mtx);
 	if (rep->r_flags & R_SENT) {
 		rep->r_flags &= ~R_SENT;	/* paranoia */
 		nmp->nm_sent -= NFS_CWNDSCALE;
 	}
 	mtx_unlock(&nfs_reqq_mtx);
+	splx(s);
 
 	/*
 	 * If there was a successful reply and a tprintf msg.
@@ -1576,12 +1573,6 @@ nfs_sndunlock(struct nfsreq *rep)
  *	not occur with NFS/UDP and is supposed to only occassionally occur
  *	with TCP.  Use vfs.nfs.realign_count and realign_test to check this.
  *
- * XXX - This still looks buggy. If there are multiple mbufs in the mbuf chain
- * passed in that are unaligned, the first loop will allocate multiple new
- * mbufs. But then, it doesn't seem to chain these together. So, if there are
- * multiple unaligned mbufs, we're looking at a pretty serious mbuf leak.
- * But, this has been how it is, perhaps the misalignment only happens in the head
- * of the chain.
  */
 static int
 nfs_realign(struct mbuf **pm, int hsiz)
