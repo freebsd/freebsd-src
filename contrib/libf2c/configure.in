@@ -1,5 +1,5 @@
 # Process this file with autoconf to produce a configure script.
-#   Copyright (C) 1995, 1997, 1998 Free Software Foundation, Inc.
+#   Copyright (C) 1995, 1997, 1998, 1999 Free Software Foundation, Inc.
 #   Contributed by Dave Love (d.love@dl.ac.uk).
 #
 #This file is part of GNU Fortran.
@@ -19,9 +19,49 @@
 #the Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #02111-1307, USA.
 
+AC_PREREQ(2.13)
 AC_INIT(libF77/Version.c)
 
-AC_REVISION(1.12)
+if test "${srcdir}" = "."  ; then
+  if test "${with_target_subdir}" != "." ; then
+    topsrcdir=${with_multisrctop}../..
+  else
+    topsrcdir=${with_multisrctop}..
+  fi
+else
+  topsrcdir=${srcdir}/..
+fi
+dnl This is needed for a multilibbed build in the source tree so
+dnl that install-sh and config.sub get found.
+AC_CONFIG_AUX_DIR($topsrcdir)
+
+# If the language specific compiler does not exist, but the "gcc" directory 
+# does, we do not build anything. Note, $r is set by the top-level Makefile.
+# Note that when we look for the compiler, we search both with and without
+# extension to handle cross and canadian cross builds. 
+compiler_name=f771
+rm -f skip-this-dir
+AC_MSG_CHECKING(if compiler $compiler_name has been built)
+AC_CACHE_VAL(g77_cv_compiler_exists,
+[g77_cv_compiler_exists=yes
+if test -n "$r"; then
+  if test -d "$r"/gcc; then
+    if test -f "$r"/gcc/$compiler_name \
+       || test -f "$r"/gcc/$compiler_name.exe; then
+      true
+    else
+      g77_cv_compiler_exists=no
+      echo "rm -f config.cache config.log multilib.out" > skip-this-dir
+    fi
+  fi
+fi
+])
+AC_MSG_RESULT($g77_cv_compiler_exists)
+if test x$g77_cv_compiler_exists = xno
+then
+  rm -f Makefile conftest* confdefs* core
+  exit 0
+fi
 
 dnl Checks for programs.
 # For g77 we'll set CC to point at the built gcc, but this will get it into
@@ -50,14 +90,26 @@ the G77 runtime system.  If necessary, install gcc now with \`LANGUAGES=c',
 then the target library, then build with \`LANGUAGES=f77'.])])
 
 # We have to firkle with the info in hconfig.h to figure out suitable types
-# (via com.h).  proj.h and com.h are in $srcdir/.., config.h which they need
-# is in ../.. and the config files are in $srcdir/../../config.
+# (via com.h).  proj.h and com.h are in gcc/f/, config.h which they need
+# is in gcc/ and the config files are in gcc/config/.
 AC_MSG_CHECKING(f2c integer type)
+# Set this back later below!
 late_ac_cpp=$ac_cpp
-ac_cpp="$late_ac_cpp -I../../gcc/f  -I../../gcc -I../../gcc/config"
-if test "$subdir" != . ; then
-  ac_cpp="$ac_cpp -I$srcdir/../gcc/f -I$srcdir/../gcc -I$srcdir/../gcc/config"
-fi
+late_cflags=$CFLAGS
+extra_includes="-I$topsrcdir/gcc/f -I$topsrcdir/gcc -I$topsrcdir/include -I$topsrcdir/gcc/config -I$r/gcc"
+ac_cpp="$late_ac_cpp -DIN_GCC -DHAVE_CONFIG_H $extra_includes"
+
+# The AC_EGREP_CPPs below have been known to fail when the header
+# path is wrong after things have been moved about; the cpp error status
+# counts for nothing.  First check that there aren't any errors from
+# the headers.
+CFLAGS="$CFLAGS -DHAVE_CONFIG_H -DIN_GCC $extra_includes"
+AC_TRY_COMPILE([#include "proj.h"
+#define FFECOM_DETERMINE_TYPES 1
+#include "com.h"],,,
+AC_MSG_ERROR([Can't run check for integer sizes -- see config.log]))
+CFLAGS=$late_cflags
+
 AC_CACHE_VAL(g77_cv_sys_f2cinteger,
 echo "configure:__oline__: using $ac_cpp" >&AC_FD_CC
 AC_EGREP_CPP(F2C_INTEGER=long int,
@@ -96,15 +148,9 @@ fi
 )
 AC_MSG_RESULT($g77_cv_sys_f2cinteger)
 F2C_INTEGER=$g77_cv_sys_f2cinteger
-ac_cpp=$late_ac_cpp
 AC_SUBST(F2C_INTEGER)
 
 AC_MSG_CHECKING(f2c long int type)
-late_ac_cpp=$ac_cpp
-ac_cpp="$late_ac_cpp -I../../gcc/f  -I../../gcc -I../../gcc/config"
-if test "$subdir" != . ; then
-  ac_cpp="$ac_cpp -I$srcdir/../gcc/f -I$srcdir/../gcc -I$srcdir/../gcc/config"
-fi
 AC_CACHE_VAL(g77_cv_sys_f2clongint,
 echo "configure:__oline__: using $ac_cpp" >&AC_FD_CC
 AC_EGREP_CPP(F2C_LONGINT=long int,
@@ -120,6 +166,7 @@ F2C_LONGINT=long long int
 #endif
 ],
  g77_cv_sys_f2clongint="long int",)
+
 if test "$g77_cv_sys_f2clongint" = ""; then
 echo "configure:__oline__: using $ac_cpp" >&AC_FD_CC
   AC_EGREP_CPP(F2C_LONGINT=long long int,
@@ -143,8 +190,8 @@ fi
 )
 AC_MSG_RESULT($g77_cv_sys_f2clongint)
 F2C_LONGINT=$g77_cv_sys_f2clongint
-ac_cpp=$late_ac_cpp
 AC_SUBST(F2C_LONGINT)
+ac_cpp=$late_ac_cpp
 
 # avoid confusion in case the `makefile's from the f2c distribution have
 # got put here
@@ -165,9 +212,30 @@ AC_SUBST(gcc_version)
 AC_SUBST(gcc_version_trigger)
 AC_CANONICAL_SYSTEM
 AC_SUBST(target_alias)
-
 AC_CONFIG_SUBDIRS(libU77 libI77 libF77)
-AC_OUTPUT(Makefile g2c.h:g2c.hin)
+# Do Makefile first since g2c.h depends on it and shouldn't get an
+# earlier timestamp.  Of course, it does when the multilib gunk below
+# edits Makefile, sigh; see additional touch below.
+AC_OUTPUT(Makefile g2c.h:g2c.hin,
+ [test -z "$CONFIG_HEADERS" || echo timestamp > stamp-h
+if test -n "$CONFIG_FILES"; then
+  if test -n "${with_target_subdir}"; then
+    # FIXME: We shouldn't need to set ac_file
+    ac_file=Makefile
+    . ${topsrcdir}/config-ml.in
+    touch g2c.h   # to keep it more recent than Makefile
+  fi
+fi],
+srcdir=${srcdir}
+host=${host}
+target=${target}
+with_target_subdir=${with_target_subdir}
+with_multisubdir=${with_multisubdir}
+ac_configure_args="--enable-multilib ${ac_configure_args}"
+CONFIG_SHELL=${CONFIG_SHELL-/bin/sh}
+topsrcdir=${topsrcdir}
+)
+
 
 dnl Local Variables:
 dnl comment-start: "dnl "
