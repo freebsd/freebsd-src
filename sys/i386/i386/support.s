@@ -37,6 +37,7 @@
 
 #include <machine/asmacros.h>
 #include <machine/cputypes.h>
+#include <machine/intr_machdep.h>
 #include <machine/pmap.h>
 #include <machine/specialreg.h>
 
@@ -62,6 +63,16 @@ kernel_fpu_lock:
 	.byte	0xfe
 	.space	3
 #endif
+	ALIGN_DATA
+	.globl	intrcnt, eintrcnt
+intrcnt:
+	.space	INTRCNT_COUNT * 4
+eintrcnt:
+
+	.globl	intrnames, eintrnames
+intrnames:
+	.space	INTRCNT_COUNT * (MAXCOMLEN + 1)
+eintrnames:
 
 	.text
 
