@@ -122,16 +122,16 @@ initattr(int argc, char *argv[])
 		if (write(i, &uef, sizeof(uef)) == -1)
 			error = -1;
 		else if (fs_path) {
-			zero_buf = (char *) (malloc(uef.uef_size));
+			chunksize = sizeof(struct ufs_extattr_header) +
+			    uef.uef_size;
+			zero_buf = (char *) (malloc(chunksize));
 			if (zero_buf == NULL) {
 				perror("malloc");
 				unlink(argv[1]);
 				return (-1);
 			}
-			memset(zero_buf, 0, uef.uef_size);
+			memset(zero_buf, 0, chunksize);
 			num_inodes = num_inodes_by_path(fs_path);
-			chunksize = sizeof(struct ufs_extattr_header) +
-			    uef.uef_size;
 			for (loop = 0; loop < num_inodes; loop++) {
 				error = write(i, zero_buf, chunksize);
 				if (error != chunksize) {
