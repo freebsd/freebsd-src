@@ -177,7 +177,6 @@ struct pcb stoppcbs[MAXCPU];
 vm_offset_t smp_tlb_addr1;
 vm_offset_t smp_tlb_addr2;
 volatile int smp_tlb_wait;
-struct mtx smp_tlb_mtx;
 
 /*
  * Local data and functions.
@@ -387,7 +386,6 @@ cpu_mp_start(void)
 	setidt(IPI_STOP, IDTVEC(cpustop),
 	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 
-	mtx_init(&smp_tlb_mtx, "tlb", NULL, MTX_SPIN);
 
 	/* Set boot_cpu_id if needed. */
 	if (boot_cpu_id == -1) {
@@ -912,7 +910,7 @@ smp_tlb_shootdown(u_int vector, vm_offset_t addr1, vm_offset_t addr2)
 	ncpu = mp_ncpus - 1;	/* does not shootdown self */
 	if (ncpu < 1)
 		return;		/* no other cpus */
-	mtx_assert(&smp_tlb_mtx, MA_OWNED);
+	mtx_assert(&smp_rv_mtx, MA_OWNED);
 	smp_tlb_addr1 = addr1;
 	smp_tlb_addr2 = addr2;
 	atomic_store_rel_int(&smp_tlb_wait, 0);
@@ -998,7 +996,7 @@ smp_targeted_tlb_shootdown(u_int mask, u_int vector, vm_offset_t addr1, vm_offse
 		if (ncpu < 1)
 			return;
 	}
-	mtx_assert(&smp_tlb_mtx, MA_OWNED);
+	mtx_assert(&smp_rv_mtx, MA_OWNED);
 	smp_tlb_addr1 = addr1;
 	smp_tlb_addr2 = addr2;
 	atomic_store_rel_int(&smp_tlb_wait, 0);
