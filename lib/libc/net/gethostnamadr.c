@@ -55,7 +55,7 @@
 static char sccsid[] = "From: @(#)gethostnamadr.c	8.1 (Berkeley) 6/4/93";
 /*static char rcsid[] = "From: Id: gethnamaddr.c,v 4.9.1.1 1993/05/02 22:43:03 vixie Rel ";*/
 static const char rcsid[] =
-  "$Id$";
+  "$Id: gethostnamadr.c,v 1.2 1994/08/09 20:23:14 wollman Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -611,7 +611,7 @@ gethostbyaddr(const char *addr, int len, int type)
 	int nserv = 0;
 
 	if(!service_done) {
-		init_service();
+		init_services();
 	}
 
 	while(!hp) {
