@@ -113,13 +113,22 @@ chkerr $? "MFS mount on /etc"
 
 # Populate /etc, and then override the base setup with increasingly
 # specific files.
+# The copy, especially the one with the initial content, touches
+# a large number of files, and can be very slow if the server is
+# far away. So, if there exists a cpio archive with the proper
+# content, use that one instead.
+#
 # TODO:
 #   + find a way to assign a 'group' identifier to a machine
 #	so we can use group-specific configurations;
 #   + implement a way to _delete_ files when overriding configs.
 
 for i in base default ${bootp_ipbca} ${bootp_ipa} ; do
-	if [ -d /conf/${i}/etc ]; then
+	if [ -f /conf/${i}/etc.cpio.gz ]; then
+		echo "Loading ${i}/etc from cpio archive"
+		(cd / ; /stand/gzip -d < /conf/${i}/etc.cpio.gz | \
+			/stand/cpio --extract -d )
+	elif [ -d /conf/${i}/etc ]; then
 		cp -Rp /conf/${i}/etc/* /etc
 	fi
 done

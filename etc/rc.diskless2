@@ -79,7 +79,14 @@ if [ ! -h /tmp ]; then
 	mount_md ${tmpsize:=20480} /tmp 2
 fi
 
-# extract a list of device entries, then copy them to a writable fs
-(cd /; find -x dev | cpio -o -H newc) > /tmp/dev.tmp
+# Extract a list of device entries, then copy them to a writable fs.
+# The list can be long, so if there is already a cpio archive prepared
+# for us, use that one instead.
+
+if [ -f /conf/dev.cpio.gz ] ; then
+	ln -s /conf/dev.cpio.gz /tmp/dev.cpio.gz
+else
+	(cd /; find -x dev | cpio --create -H newc | gzip) > /tmp/dev.cpio.gz
+fi
 mount_md 4096 /dev 3 512
-(cd /; cpio -i -H newc -d < /tmp/dev.tmp)
+(cd /; gzip -dc /tmp/dev.cpio.gz | cpio --extract -H newc -d )
