@@ -15,7 +15,6 @@ NOI4B=		true
 NONAT=		true
 NOKLDLOAD=	true
 NORADIUS=	true
-NOSECURE=	true
 NOSUID=		true
 .endif
 
@@ -70,7 +69,7 @@ CFLAGS+=-DNOSUID
 SRCS+=	id.c
 .endif
 
-.if !exists(${.CURDIR}/../../secure) || defined(NOCRYPT) || defined(NOSECURE) || defined(NO_OPENSSL) || defined(NODES)
+.if !exists(${.CURDIR}/../../crypto) || defined(NOCRYPT) || defined(NO_OPENSSL) || defined(NODES)
 CFLAGS+=-DNODES
 .else
 DISTRIBUTION=crypto
