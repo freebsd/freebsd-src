@@ -223,6 +223,9 @@ dev/mii/pnaphy.c	optional miibus
 dev/mii/tlphy.c		optional miibus
 dev/mii/rlphy.c		optional miibus
 dev/mii/xmphy.c		optional miibus
+dev/mii/lxtphy.c	optional miibus
+dev/mii/qsphy.c		optional miibus
+dev/mii/acphy.c		optional miibus
 miibus_if.o		optional miibus					\
 	dependency	"miibus_if.c miibus_if.h"			\
 	compile-with	"${NORMAL_C}"					\
