@@ -493,6 +493,12 @@ ip6_input(m)
 		goto bad;
 	}
 
+	/* XXX: ff01::%ifN awareness is not merged, yet. */
+	if (IN6_IS_ADDR_MC_INTFACELOCAL(&ip6->ip6_src))
+		ip6->ip6_src.s6_addr16[1] = 0;
+	if (IN6_IS_ADDR_MC_INTFACELOCAL(&ip6->ip6_dst))
+		ip6->ip6_dst.s6_addr16[1] = 0;
+
 	/*
 	 * Multicast check
 	 */
