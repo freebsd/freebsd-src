@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_lnc.c,v 1.58 1999/05/06 18:12:26 peter Exp $
+ * $Id: if_lnc.c,v 1.59 1999/05/06 18:43:57 peter Exp $
  */
 
 /*
@@ -645,7 +645,9 @@ lnc_rint(struct lnc_softc *sc)
 						m_freem(head);
 				else
 				{
+#ifdef BRIDGE
 getit:
+#endif
 					/* Skip over the ether header */
 					head->m_data += sizeof *eh;
 					head->m_len -= sizeof *eh;
