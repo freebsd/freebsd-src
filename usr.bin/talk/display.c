@@ -54,7 +54,7 @@ int	curses_initialized = 0;
 
 /*
  * max HAS to be a function, it is called with
- * a argument of the form --foo at least once.
+ * an argument of the form --foo at least once.
  */
 int
 max(a,b)
@@ -70,11 +70,11 @@ max(a,b)
  */
 void
 display(win, text, size)
-	register xwin_t *win;
-	register char *text;
+	xwin_t *win;
+	char *text;
 	int size;
 {
-	register int i;
+	int i;
 	char cch;
 
 	for (i = 0; i < size; i++) {
@@ -84,6 +84,18 @@ display(win, text, size)
 			text++;
 			continue;
 		}
+		if (*text == 004 && win == &my_win) {
+			/* control-D clears the screen */
+			werase(my_win.x_win);
+			getyx(my_win.x_win, my_win.x_line, my_win.x_col);
+			wrefresh(my_win.x_win);
+			werase(his_win.x_win);
+			getyx(his_win.x_win, his_win.x_line, his_win.x_col);
+			wrefresh(his_win.x_win);
+			text++;
+			continue;
+		}
+
 		/* erase character */
 		if (   *text == win->cerase
 		    || *text == 010     /* BS */
@@ -105,7 +117,7 @@ display(win, text, size)
 		if (   *text == win->werase
 		    || *text == 027     /* ^W */
 		   ) {
-			int endcol, xcol, i, c;
+			int endcol, xcol, ii, c;
 
 			endcol = win->x_col;
 			xcol = endcol - 1;
@@ -122,7 +134,7 @@ display(win, text, size)
 				xcol--;
 			}
 			wmove(win->x_win, win->x_line, xcol + 1);
-			for (i = xcol + 1; i < endcol; i++)
+			for (ii = xcol + 1; ii < endcol; ii++)
 				waddch(win->x_win, ' ');
 			wmove(win->x_win, win->x_line, xcol + 1);
 			getyx(win->x_win, win->x_line, win->x_col);
@@ -173,7 +185,7 @@ readwin(win, line, col)
 	int col;
 {
 	int oldline, oldcol;
-	register int c;
+	int c;
 
 	getyx(win, oldline, oldcol);
 	wmove(win, line, col);

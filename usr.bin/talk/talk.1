@@ -96,7 +96,15 @@ in separate windows.
 Typing control-L
 .Ql ^L
 will cause the screen to
-be reprinted, while your erase, kill, and word kill characters will
+be reprinted.
+Typing control-D
+.Ql ^D
+will clear both parts of your screen to be cleared, while
+the control-D character will be sent to the remote side
+(and just displayed by this
+.Nm
+client).
+Your erase, kill, and word kill characters will
 behave normally.
 To exit, just type your interrupt character;
 .Nm
@@ -107,13 +115,6 @@ Permission to talk may be denied or granted by use of the
 .Xr mesg 1
 command.
 At the outset talking is allowed.
-Certain commands, in
-particular
-.Xr nroff 1
-and
-.Xr pr 1 ,
-disallow messages in order to
-prevent messy output.
 .Sh FILES
 .Bl -tag -width /var/run/utmp -compact
 .It Pa /etc/hosts
@@ -126,10 +127,11 @@ to find the recipient's tty
 .Xr mesg 1 ,
 .Xr wall 1 ,
 .Xr who 1 ,
-.Xr write 1
+.Xr write 1 ,
+.Xr talkd 8
 .Sh BUGS
 The version of
-.Xr talk 1
+.Nm
 released with
 .Bx 4.3
 uses a protocol that
