@@ -266,8 +266,10 @@ in_pcbbind(inp, nam, p)
 		int count;
 
 		if (inp->inp_laddr.s_addr != INADDR_ANY)
-			if (prison_ip(p, 0, &inp->inp_laddr.s_addr ))
+			if (prison_ip(p, 0, &inp->inp_laddr.s_addr )) {
+				inp->inp_laddr.s_addr = INADDR_ANY;
 				return (EINVAL);
+			}
 		inp->inp_flags |= INP_ANONPORT;
 
 		if (inp->inp_flags & INP_HIGHPORT) {
@@ -275,8 +277,10 @@ in_pcbbind(inp, nam, p)
 			last  = ipport_hilastauto;
 			lastport = &pcbinfo->lasthi;
 		} else if (inp->inp_flags & INP_LOWPORT) {
-			if (p && (error = suser_xxx(0, p, PRISON_ROOT)))
+			if (p && (error = suser_xxx(0, p, PRISON_ROOT))) {
+				inp->inp_laddr.s_addr = INADDR_ANY;
 				return error;
+			}
 			first = ipport_lowfirstauto;	/* 1023 */
 			last  = ipport_lowlastauto;	/* 600 */
 			lastport = &pcbinfo->lastlow;
@@ -300,10 +304,6 @@ in_pcbbind(inp, nam, p)
 
 			do {
 				if (count-- < 0) {	/* completely used? */
-					/*
-					 * Undo any address bind that may have
-					 * occurred above.
-					 */
 					inp->inp_laddr.s_addr = INADDR_ANY;
 					return (EAGAIN);
 				}
@@ -321,10 +321,6 @@ in_pcbbind(inp, nam, p)
 
 			do {
 				if (count-- < 0) {	/* completely used? */
-					/*
-					 * Undo any address bind that may have
-					 * occurred above.
-					 */
 					inp->inp_laddr.s_addr = INADDR_ANY;
 					return (EAGAIN);
 				}
@@ -337,8 +333,11 @@ in_pcbbind(inp, nam, p)
 		}
 	}
 	inp->inp_lport = lport;
-	if (prison_ip(p, 0, &inp->inp_laddr.s_addr))
+	if (prison_ip(p, 0, &inp->inp_laddr.s_addr)) {
+		inp->inp_laddr.s_addr = INADDR_ANY;
+		inp->inp_lport = 0;
 		return (EINVAL);
+	}
 	if (in_pcbinshash(inp) != 0) {
 		inp->inp_laddr.s_addr = INADDR_ANY;
 		inp->inp_lport = 0;
