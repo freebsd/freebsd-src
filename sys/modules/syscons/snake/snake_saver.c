@@ -25,14 +25,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: snake_saver.c,v 1.18 1998/09/15 18:16:39 sos Exp $
+ *	$Id: snake_saver.c,v 1.19 1998/09/17 19:40:30 sos Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/exec.h>
-#include <sys/sysent.h>
-#include <sys/lkm.h>
+#include <sys/module.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
@@ -41,8 +39,6 @@
 #include <machine/pc/display.h>
 
 #include <saver.h>
-
-MOD_MISC(snake_saver);
 
 static char	*message;
 static u_char	**messagep;
@@ -112,7 +108,7 @@ snake_saver(int blank)
 }
 
 static int
-snake_saver_load(struct lkm_table *lkmtp, int cmd)
+snake_saver_load(void)
 {
 	int err;
 
@@ -130,7 +126,7 @@ snake_saver_load(struct lkm_table *lkmtp, int cmd)
 }
 
 static int
-snake_saver_unload(struct lkm_table *lkmtp, int cmd)
+snake_saver_unload(void)
 {
 	int err;
 
@@ -142,9 +138,4 @@ snake_saver_unload(struct lkm_table *lkmtp, int cmd)
 	return err;
 }
 
-int
-snake_saver_mod(struct lkm_table *lkmtp, int cmd, int ver)
-{
-	MOD_DISPATCH(snake_saver, lkmtp, cmd, ver,
-		snake_saver_load, snake_saver_unload, lkm_nullcmd);
-}
+SAVER_MODULE(snake_saver);

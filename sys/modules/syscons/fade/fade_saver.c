@@ -25,20 +25,17 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: fade_saver.c,v 1.13 1998/09/15 18:16:39 sos Exp $
+ *	$Id: fade_saver.c,v 1.14 1998/09/17 19:40:30 sos Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/exec.h>
-#include <sys/sysent.h>
-#include <sys/lkm.h>
+#include <sys/kernel.h>
+#include <sys/module.h>
 
 #include <i386/isa/isa.h>
 
 #include <saver.h>
-
-MOD_MISC(fade_saver);
 
 static void
 fade_saver(int blank)
@@ -103,7 +100,7 @@ fade_saver(int blank)
 }
 
 static int
-fade_saver_load(struct lkm_table *lkmtp, int cmd)
+fade_saver_load(void)
 {
 	switch (crtc_type) {
 	case KD_MONO:
@@ -124,14 +121,9 @@ fade_saver_load(struct lkm_table *lkmtp, int cmd)
 }
 
 static int
-fade_saver_unload(struct lkm_table *lkmtp, int cmd)
+fade_saver_unload(void)
 {
 	return remove_scrn_saver(fade_saver);
 }
 
-int
-fade_saver_mod(struct lkm_table *lkmtp, int cmd, int ver)
-{
-	MOD_DISPATCH(fade_saver, lkmtp, cmd, ver,
-		fade_saver_load, fade_saver_unload, lkm_nullcmd);
-}
+SAVER_MODULE(fade_saver);

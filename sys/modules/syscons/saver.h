@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: saver.h,v 1.11 1998/09/15 18:16:38 sos Exp $
+ *	$Id: saver.h,v 1.12 1998/09/17 19:40:29 sos Exp $
  */
 #include <machine/apm_bios.h>
 #include <machine/console.h>
@@ -42,3 +42,24 @@ extern int	scrn_blanked;
 extern int	fonts_loaded;
 extern char	font_8[], font_14[], font_16[];
 extern char	palette[];
+
+#define SAVER_MODULE(name) \
+	static int name ## _modevent(module_t mod, modeventtype_t type, \
+		void *data) \
+	{ \
+		switch (type) { \
+		case MOD_LOAD: \
+			return name ## _load(); \
+		case MOD_UNLOAD: \
+			return name ## _unload(); \
+		default: \
+			break; \
+		} \
+		return 0; \
+	} \
+	static moduledata_t name ## _mod = { \
+		#name, \
+		name ## _modevent, \
+		NULL \
+	}; \
+	DECLARE_MODULE(name, name ## _mod, SI_SUB_PSEUDO, SI_ORDER_MIDDLE)
