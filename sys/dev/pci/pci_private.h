@@ -54,10 +54,10 @@ u_int32_t	pci_read_config_method(device_t dev, device_t child,
 		    int reg, int width);
 void		pci_write_config_method(device_t dev, device_t child, 
 		    int reg, u_int32_t val, int width);
-void		pci_enable_busmaster_method(device_t dev, device_t child);
-void		pci_disable_busmaster_method(device_t dev, device_t child);
-void		pci_enable_io_method(device_t dev, device_t child, int space);
-void		pci_disable_io_method(device_t dev, device_t child, int space);
+int		pci_enable_busmaster_method(device_t dev, device_t child);
+int		pci_disable_busmaster_method(device_t dev, device_t child);
+int		pci_enable_io_method(device_t dev, device_t child, int space);
+int		pci_disable_io_method(device_t dev, device_t child, int space);
 struct resource	*pci_alloc_resource(device_t dev, device_t child, 
 		    int type, int *rid, u_long start, u_long end, u_long count,
 		    u_int flags);
