@@ -33,7 +33,7 @@
  *  Questions concerning this software should be directed to 
  *  Kurt Windisch (kurtw@antc.uoregon.edu)
  *
- *  $Id: defs.h,v 1.7 2000/04/30 13:01:36 itojun Exp $
+ *  $Id: defs.h,v 1.9 2000/10/05 22:20:38 itojun Exp $
  */
 /*
  * Part of this program has been derived from PIM sparse-mode pimd.
@@ -64,6 +64,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
+#include <sys/queue.h>
 #include <fcntl.h>
 #if ((defined(SYSV)) || (defined(__bsdi__)) || ((defined SunOS) && (SunOS < 50)))
 #include <sys/sockio.h>
@@ -322,7 +323,8 @@ extern void config_vifs_from_file   __P((void));
 /* debug.c */
 extern char     *packet_kind __P((u_int proto, u_int type, u_int code));
 extern int      debug_kind   __P((u_int proto, u_int type, u_int code));
-extern void     log          __P((int, int, char *, ...));
+extern void     log          __P((int, int, char *, ...))
+	__attribute__((__format__(__printf__, 3, 4)));
 extern void	dump_mldqueriers __P((FILE *));
 extern int      log_level    __P((u_int proto, u_int type, u_int code));
 extern void     dump         __P((int i));
