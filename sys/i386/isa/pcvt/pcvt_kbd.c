@@ -945,27 +945,20 @@ scroll_reset:
 		shutdown_nice(0);
 #endif /* PCVT_CTRL_ALT_DEL */
 
-#if defined(DDB)		 /*   Check for cntl-alt-esc	*/
+#if defined(KDB)		 /*   Check for cntl-alt-esc	*/
 
   	if((key == 110) && ctrl_down && (meta_down || altgr_down))
  	{
- 		static u_char in_Debugger;
-
- 		if(!in_Debugger)
- 		{
- 			in_Debugger = 1;
-
-			/* the string is actually not used... */
-			Debugger("kbd");
-
- 			in_Debugger = 0;
- 			if(noblock)
- 				return NULL;
- 			else
- 				goto loop;
- 		}
- 	}
-#endif /* defined(DDB) */
+		if (!kdb_active)
+		{
+			kdb_enter("kbd");
+			if(noblock)
+				return NULL;
+			else
+				goto loop;
+		}
+	}
+#endif /* defined(KDB) */
 
 	/* look for keys with special handling */
 	if(key == 128)
