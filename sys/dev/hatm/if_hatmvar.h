@@ -422,6 +422,7 @@ struct hatm_softc {
 	bus_dma_tag_t		mbuf_tag;
 	struct mbuf_page	**mbuf_pages;
 	u_int			mbuf_npages;
+	u_int			mbuf_max_pages;
 	struct mbufx_free	*mbuf_list[2];
 
 	/* mbuf cluster tracking and mapping for group 0 */
