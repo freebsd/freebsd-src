@@ -31,8 +31,8 @@
 
 #ifdef _KERNEL
 
-/* With I/O APIC's we can have up to 159 interrupts. */
-#define	NUM_IO_INTS	159
+/* With I/O APIC's we can have up to 191 interrupts. */
+#define	NUM_IO_INTS	191
 #define	INTRCNT_COUNT	(1 + NUM_IO_INTS * 2)
 
 #ifndef LOCORE
