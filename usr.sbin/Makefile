@@ -3,13 +3,12 @@
 # XXX MISSING:		mkproto
 # XXX MISSING SOURCES:	quot
 # XXX TEMP. BROKEN:	iostat
-SUBDIR=	ac accton amd apm apmconf arp chown chroot \
-	cron crunch dbsym dev_mkdb diskpart edquota fdformat fdwrite \
-	inetd kbdcontrol kgmon kvm_mkdb lpr lptcontrol \
-	manctl mtree mrouted named nslookup pkg_install portmap pstat \
-	pwd_mkdb quotaon repquota routed rmt rtprio rwhod sa sendmail \
-	sliplogin sysctl syslogd tcpdump traceroute trpt tzsetup vidcontrol \
-	vipw xntpd ypbind yppoll ypset zic
+SUBDIR=	ac accton amd arp chown chroot cron crunch dbsym dev_mkdb \
+	diskpart edquota inetd kbdcontrol kgmon kvm_mkdb lpr manctl \
+	mtree mrouted named nslookup pkg_install portmap pstat pwd_mkdb \
+	quotaon repquota routed rmt rwhod sa sendmail sliplogin sysctl \
+	syslogd tcpdump timed traceroute trpt tzsetupvipw xntpd ypbind \
+	yppoll ypset zic
 
 #
 # XNSrouted and trsp are of very marginal utility to anyone at this
@@ -19,22 +18,24 @@ SUBDIR=	ac accton amd apm apmconf arp chown chroot \
 # SUBDIR+=XNSrouted trsp
 
 .if   make(clean) || make(cleandir)
-SUBDIR+=bad144 config config.new eeprom iostat swapinfo timed 
+SUBDIR+=apm apmconf bad144 config config.new eeprom fdformat fdwrite \
+	iostat kbdcontrol lptcontrol rtprio swapinfo vidcontrol 
 .elif ${MACHINE} == "hp300"
-SUBDIR+=config iostat timed 
+SUBDIR+=config iostat 
 .elif ${MACHINE} == "i386"
-SUBDIR+=bad144 config swapinfo timed
+SUBDIR+=apm apmconf bad144 config fdformat fdwrite kbdcontrol lptcontrol \
+	rtprio swapinfo vidcontrol
 # iostat
 .elif ${MACHINE} == "luna68k"
-SUBDIR+=config iostat timed 
+SUBDIR+=config iostat 
 .elif ${MACHINE} == "mips"
-SUBDIR+=config iostat timed 
+SUBDIR+=config iostat 
 .elif ${MACHINE} == "sparc"
-SUBDIR+=config.new eeprom timed 
+SUBDIR+=config.new eeprom 
 .elif ${MACHINE} == "tahoe"
-SUBDIR+=config iostat timed 
+SUBDIR+=config iostat 
 .elif ${MACHINE} == "vax"
-SUBDIR+=bad144 config iostat timed 
+SUBDIR+=bad144 config iostat 
 .endif
 
 .include <bsd.subdir.mk>
