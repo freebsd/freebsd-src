@@ -285,9 +285,10 @@ ieee80211_begin_scan(struct ieee80211com *ic, int reset)
 		ic->ic_stats.is_scan_active++;
 	} else
 		ic->ic_stats.is_scan_passive++;
-	IEEE80211_DPRINTF(ic, IEEE80211_MSG_SCAN, "begin %s scan, scangen %u\n",
+	IEEE80211_DPRINTF(ic, IEEE80211_MSG_SCAN,
+		"begin %s scan in %s mode, scangen %u\n",
 		(ic->ic_flags & IEEE80211_F_ASCAN) ?  "active" : "passive",
-		ic->ic_scan.nt_scangen);
+		ieee80211_phymode_name[ic->ic_curmode], ic->ic_scan.nt_scangen);
 	/*
 	 * Clear scan state and flush any previously seen AP's.
 	 */
