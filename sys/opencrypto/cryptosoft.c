@@ -35,9 +35,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 
 #include <crypto/blowfish/blowfish.h>
-#include <crypto/cast128/cast128.h>
 #include <crypto/sha1.h>
 #include <opencrypto/rmd160.h>
+#include <opencrypto/cast.h>
 #include <opencrypto/skipjack.h>
 #include <sys/md5.h>
 
