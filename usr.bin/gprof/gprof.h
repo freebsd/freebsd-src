@@ -56,6 +56,9 @@
 #if __i386__
 #   include "i386.h"
 #endif
+#if __arm__
+#   include "arm.h"
+#endif
 
     /*
      * booleans
