@@ -55,6 +55,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/filedesc.h>
 #include <sys/fnv_hash.h>
 
+#include <vm/uma.h>
+
 /*
  * This structure describes the elements in the cache of recent
  * names looked up by namei.
@@ -110,6 +112,28 @@ static u_long	numcachepl;		/* number of cache purge for leaf entries */
 SYSCTL_ULONG(_debug, OID_AUTO, numcachepl, CTLFLAG_RD, &numcachepl, 0, "");
 #endif
 struct	nchstats nchstats;		/* cache effectiveness statistics */
+
+/*
+ * UMA zones for the VFS cache.
+ *
+ * The small cache is used for entries with short names, which are the
+ * most common.  The large cache is used for entries which are too big to
+ * fit in the small cache.
+ */
+static uma_zone_t cache_zone_small;
+static uma_zone_t cache_zone_large;
+
+#define	CACHE_PATH_CUTOFF	32
+#define	CACHE_ZONE_SMALL	(sizeof(struct namecache) + CACHE_PATH_CUTOFF)
+#define	CACHE_ZONE_LARGE	(sizeof(struct namecache) + NAME_MAX)
+
+#define cache_alloc(len)	uma_zalloc(((len) <= CACHE_PATH_CUTOFF) ? \
+	cache_zone_small : cache_zone_large, M_WAITOK)
+#define cache_free(ncp)		do { \
+	if (ncp != NULL) \
+		uma_zfree(((ncp)->nc_nlen <= CACHE_PATH_CUTOFF) ? \
+		    cache_zone_small : cache_zone_large, (ncp)); \
+} while (0)
 
 static int	doingcache = 1;		/* 1 => enable the cache */
 SYSCTL_INT(_debug, OID_AUTO, vfscache, CTLFLAG_RW, &doingcache, 0, "");
@@ -253,7 +277,7 @@ cache_zap(ncp)
 		numneg--;
 	}
 	numcache--;
-	free(ncp, M_VFSCACHE);
+	cache_free(ncp);
 }
 
 /*
@@ -418,9 +442,8 @@ cache_enter(dvp, vp, cnp)
 		}
 	}
 
-	ncp = (struct namecache *)
-		malloc(sizeof *ncp + cnp->cn_namelen, M_VFSCACHE, M_WAITOK);
-	bzero((char *)ncp, sizeof *ncp);
+	ncp = cache_alloc(cnp->cn_namelen);
+	/* XXX can uma_zalloc(..., M_WAITOK) fail? */
 	numcache++;
 	if (!vp) {
 		numneg++;
@@ -472,6 +495,12 @@ nchinit(void *dummy __unused)
 {
 
 	TAILQ_INIT(&ncneg);
+
+	cache_zone_small = uma_zcreate("S VFS Cache", CACHE_ZONE_SMALL, NULL,
+	    NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_ZINIT);
+	cache_zone_large = uma_zcreate("L VFS Cache", CACHE_ZONE_LARGE, NULL,
+	    NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_ZINIT);
+
 	nchashtbl = hashinit(desiredvnodes * 2, M_VFSCACHE, &nchash);
 }
 SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_SECOND, nchinit, NULL)
