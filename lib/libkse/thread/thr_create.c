@@ -97,6 +97,7 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	struct pthread *curthread, *new_thread;
 	struct kse *kse = NULL;
 	struct kse_group *kseg = NULL;
+	void *p;
 	kse_critical_t crit;
 	int i;
 	int ret = 0;
@@ -123,7 +124,9 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 		ret = EAGAIN;
 	} else {
 		/* Initialize the thread structure: */
+		p = new_thread->alloc_addr;
 		memset(new_thread, 0, sizeof(struct pthread));
+		new_thread->alloc_addr = p;
 
 		/* Check if default thread attributes are required: */
 		if (attr == NULL || *attr == NULL)

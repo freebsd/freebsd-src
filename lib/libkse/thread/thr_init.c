@@ -311,10 +311,13 @@ _libpthread_init(struct pthread *curthread)
 static void
 init_main_thread(struct pthread *thread)
 {
+	void *p;
 	int i;
 
 	/* Zero the initial thread structure. */
+	p = thread->alloc_addr;
 	memset(thread, 0, sizeof(struct pthread));
+	thread->alloc_addr = p;
 
 	/* Setup the thread attributes. */
 	thread->attr = _pthread_attr_default;
