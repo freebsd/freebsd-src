@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.106 1998/08/13 08:09:08 dfr Exp $
+ * $Id: nfs_vnops.c,v 1.108 1998/09/29 23:29:48 mckusick Exp $
  */
 
 
@@ -1700,7 +1700,7 @@ nfs_link(ap)
 	caddr_t bpos, dpos, cp2;
 	int error = 0, wccflag = NFSV3_WCCRATTR, attrflag = 0;
 	struct mbuf *mreq, *mrep, *md, *mb, *mb2;
-	int v3 = NFS_ISV3(vp);
+	int v3;
 
 	if (vp->v_mount != tdvp->v_mount) {
 		VOP_ABORTOP(tdvp, cnp);
@@ -1715,6 +1715,7 @@ nfs_link(ap)
 	 */
 	VOP_FSYNC(vp, cnp->cn_cred, MNT_WAIT, cnp->cn_proc);
 
+	v3 = NFS_ISV3(vp);
 	nfsstats.rpccnt[NFSPROC_LINK]++;
 	nfsm_reqhead(vp, NFSPROC_LINK,
 		NFSX_FH(v3)*2 + NFSX_UNSIGNED + nfsm_rndup(cnp->cn_namelen));
