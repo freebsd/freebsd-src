@@ -219,25 +219,25 @@ umountfs(name, typelist)
 		strcpy(rname, name);
 	}
 
-	name = rname;
-
 	if (stat(name, &sb) < 0) {
-		if (((mntpt = getmntname(name, MNTFROM, &type)) == NULL) &&
+		if (((mntpt = getmntname(rname, MNTFROM, &type)) == NULL) &&
 		    ((mntpt = getmntname(name, MNTON, &type)) == NULL)) {
 			warnx("%s: not currently mounted", name);
 			return (1);
 		}
+		name = rname;
 	} else if (S_ISBLK(sb.st_mode)) {
 		if ((mntpt = getmntname(name, MNTON, &type)) == NULL) {
 			warnx("%s: not currently mounted", name);
 			return (1);
 		}
+		name = rname;
 	} else if (S_ISDIR(sb.st_mode)) {
-		mntpt = name;
-		if ((name = getmntname(mntpt, MNTFROM, &type)) == NULL) {
-			warnx("%s: not currently mounted", mntpt);
+		if ((name = getmntname(rname, MNTFROM, &type)) == NULL) {
+			warnx("%s: not currently mounted", name);
 			return (1);
 		}
+		mntpt = rname;
 	} else {
 		warnx("%s: not a directory or special device", name);
 		return (1);
