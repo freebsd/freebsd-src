@@ -43,6 +43,8 @@ PLAN	*find_formplan(char **);
 PLAN	*not_squish(PLAN *);
 PLAN	*or_squish(PLAN *);
 PLAN	*paren_squish(PLAN *);
+struct timeb;
+time_t	 parsedate(char *, struct timeb *);
 struct stat;
 void	 printlong(char *, char *, struct stat *);
 int	 queryuser(char **);
