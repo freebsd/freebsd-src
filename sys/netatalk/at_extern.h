@@ -24,9 +24,8 @@ extern void	ddp_init	__P((void ));
 extern struct ifaddr *at_ifawithnet	__P((struct sockaddr_at *,
 						struct ifaddrhead *));
 #ifdef	_NETATALK_DDP_VAR_H_
-extern int     ddp_output    __P((struct mbuf *m, struct socket *so)); 
+extern int	ddp_output	__P((struct mbuf *m, struct socket *so)); 
 
-/*extern int	ddp_output	__P(( struct ddpcb *ddp, struct mbuf *m));*/
 #endif
 #if	defined (_NETATALK_DDP_VAR_H_) && defined(_NETATALK_AT_VAR_H_)
 extern struct ddpcb  *ddp_search __P((struct sockaddr_at *,
