@@ -716,6 +716,9 @@ thread_kern_poll(int wait_reqd)
 			 */
 			timeout_ms = INFTIM;
 		}
+		else if (pthread->wakeup_time.tv_sec - ts.tv_sec > 60000)
+			/* Limit maximum timeout to prevent rollover. */
+			timeout_ms = 60000;
 		else {
 			/*
 			 * Calculate the time left for the next thread to
