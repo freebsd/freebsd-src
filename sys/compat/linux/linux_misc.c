@@ -569,27 +569,6 @@ select_out:
 	return error;
 }
 
-int
-linux_getpgid(struct thread *td, struct linux_getpgid_args *args)
-{
-	struct proc *curp;
-
-#ifdef DEBUG
-	if (ldebug(getpgid))
-		printf(ARGS(getpgid, "%d"), args->pid);
-#endif
-
-	if (args->pid != td->td_proc->p_pid) {
-		if (!(curp = pfind(args->pid)))
-			return ESRCH;
-		td->td_retval[0] = curp->p_pgid;
-		PROC_UNLOCK(curp);
-	} else
-		td->td_retval[0] = td->td_proc->p_pgid;
-
-	return 0;
-}
-
 int     
 linux_mremap(struct thread *td, struct linux_mremap_args *args)
 {
