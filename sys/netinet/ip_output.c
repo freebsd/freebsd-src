@@ -126,6 +126,8 @@ extern	struct protosw inetsw[];
  * header (with len, off, ttl, proto, tos, src, dst).
  * The mbuf chain containing the packet will be freed.
  * The mbuf opt, if present, will not be freed.
+ * In the IP forwarding case, the packet will arrive with options already
+ * inserted, so must have a NULL opt pointer.
  */
 int
 ip_output(struct mbuf *m0, struct mbuf *opt, struct route *ro,
