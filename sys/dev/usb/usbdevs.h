@@ -1,10 +1,10 @@
-/*	$NetBSD: usbdevs.h,v 1.6 1998/10/05 02:31:13 mark Exp $	*/
+/*	$NetBSD: usbdevs.h,v 1.8 1998/12/02 22:51:50 augustss Exp $	*/
 
 /*
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	NetBSD: usbdevs,v 1.5 1998/10/05 02:30:17 mark Exp 
+ *	NetBSD: usbdevs,v 1.8 1998/12/02 22:49:51 augustss Exp 
  */
 
 /*
@@ -49,14 +49,22 @@
 
 #define	USB_VENDOR_NEC	0x0409		/* NEC */
 #define	USB_VENDOR_KODAK	0x040a		/* Eastman Kodak */
+/* Computer Access Technology Corporation */
+#define	USB_VENDOR_CATC	0x0423		/* CATC */
 #define	USB_VENDOR_NANAO	0x0440		/* Nanao */
 #define	USB_VENDOR_UNIXTAR	0x0451		/* Unixtar */
 #define	USB_VENDOR_GENIUS	0x0458		/* Genius */
 #define	USB_VENDOR_CHERRY	0x046a		/* Cherry */
+/* Behavior Technology Corporation */
+#define	USB_VENDOR_BTC	0x046e		/* BTC */
 #define	USB_VENDOR_PHILIPS	0x0471		/* Philips */
 #define	USB_VENDOR_CONNECTIX	0x0478		/* Connectix */
-#define	USB_VENDOR_CYPRESS	0x04b4		/* Cypress Semicondutor */
+#define	USB_VENDOR_CYPRESS	0x04b4		/* Cypress Semiconductor */
+#define	USB_VENDOR_3COM	0x04c1		/* 3Com */
+#define	USB_VENDOR_JAZZ	0x04fa		/* Jazz */
+#define	USB_VENDOR_ATEN	0x0557		/* ATen */
 #define	USB_VENDOR_EIZO	0x056d		/* EIZO */
+#define	USB_VENDOR_AGILER	0x056e		/* Agiler */
 #define	USB_VENDOR_BELKIN	0x05ab		/* Belkin */
 #define	USB_VENDOR_EIZONANAO	0x05e7		/* EIZO Nanao */
 #define	USB_VENDOR_CHIC	0x05fe		/* Chic Technology */
@@ -74,6 +82,9 @@
 /* Kodak products */
 #define	USB_PRODUCT_KODAK_DC260	0x0110		/* Digital Science DC260 */
 
+/* CATC products */
+#define	USB_PRODUCT_CATC_ANDROMEDA	0x1237		/* Andromeda hub */
+
 /* Nanao products */
 #define	USB_PRODUCT_NANAO_HUB	0x0000		/* hub */
 #define	USB_PRODUCT_NANAO_MONITOR	0x0001		/* monitor */
@@ -89,6 +100,9 @@
 #define	USB_PRODUCT_CHERRY_MY3000KBD	0x0001		/* My3000 keyboard */
 #define	USB_PRODUCT_CHERRY_MY3000HUB	0x0003		/* My3000 hub */
 
+/* Behavior Technology Corporation products */
+#define	USB_PRODUCT_BTC_BTC7932	0x6782		/* Keyboard with mouse port */
+
 /* Philips products */
 #define	USB_PRODUCT_PHILIPS_DSS	0x0101		/* DSS 350 Digital Speaker System */
 #define	USB_PRODUCT_PHILIPS_HUB	0x0201		/* hub */
@@ -96,8 +110,20 @@
 /* Connectix products */
 #define	USB_PRODUCT_CONNECTIX_QUICKCAM	0x0001		/* QuickCam */
 
+/* 3Com products */
+#define	USB_PRODUCT_3COM_USR56K	0x3021		/* U.S.Robotics 56000 Voice USB Modem */
+
+/* Jazz products */
+#define	USB_PRODUCT_JAZZ_J6502	0x4201		/* J-6502 speakers */
+
 /* Cypress Semiconduuctor products */
 #define	USB_PRODUCT_CYPRESS_MOUSE	0x0001		/* mouse */
+
+/* ATen */
+#define	USB_PRODUCT_ATEN_UC1284	0x2001		/* Parallel printer adapter */
+
+/* Agiler products */
+#define	USB_PRODUCT_AGILER_MOUSE29UO	0x0002		/* mouse 29UO */
 
 /* Belkin products */
 #define	USB_PRODUCT_BELKIN_F5U002	0x0002		/* Parallel printer adapter */

@@ -122,21 +122,19 @@ usbd_get_string(dev, si, buf)
 	int lang;	/* NWH */
 
 	if (si == 0)
-		return 0;
+		return (0);
+	if (dev->quirks->uq_flags & UQ_NO_STRINGS)
+		return (0);
 
-	/* NWH added fetching of language
-	 * See 9.6.5 (spec v1.0)
-	 */
-	req.bmRequestType = UT_READ_DEVICE;
+	req.bmRequestType = UT_READ_DEVICE;	/* fetch default language */
 	req.bRequest = UR_GET_DESCRIPTOR;
 	USETW2(req.wValue, UDESC_STRING, 0);
 	USETW(req.wIndex, 0);
-	USETW(req.wLength, 4);	/* only first word in bString */
+	USETW(req.wLength, 1);	/* only first word in bString */
 	r = usbd_do_request(dev, &req, &us);
 	if (r != USBD_NORMAL_COMPLETION)
 		return 0;
 	lang = UGETW(us.bString[0]);
-	/* NWH end */
 
 	req.bmRequestType = UT_READ_DEVICE;
 	req.bRequest = UR_GET_DESCRIPTOR;
@@ -176,19 +174,6 @@ usbd_devinfo_vp(dev, v, p)
 #ifdef USBVERBOSE
 	struct usb_knowndev *kdp;
 #endif
-
-	if (!dev) {
-		DPRINTF(("usbd_devinfo_vp: dev not set\n"));
-		return;
-	}
-	if (!v) {
-		DPRINTF(("usbd_devinfo_vp: v not set\n"));
-		return;
-	}
-	if (!p) {
-		DPRINTF(("usbd_devinfo_vp: p not set\n"));
-		return;
-	}
 
 	vendor = usbd_get_string(dev, udd->iManufacturer, v);
 	product = usbd_get_string(dev, udd->iProduct, p);
@@ -241,8 +226,7 @@ usbd_devinfo(dev, showclass, cp)
 	int bcdDevice, bcdUSB;
 
 	usbd_devinfo_vp(dev, vendor, product);
-	cp += sprintf(cp, "%s", vendor);
-	cp += sprintf(cp, " %s", product);
+	cp += sprintf(cp, "%s %s", vendor, product);
 	if (showclass)
 		cp += sprintf(cp, " (class %d/%d)",
 			      udd->bDeviceClass, udd->bDeviceSubClass);
@@ -253,7 +237,7 @@ usbd_devinfo(dev, showclass, cp)
 	*cp++ = '/';
 	cp += usbd_printBCD(cp, bcdDevice);
 	*cp++ = ')';
-	cp += sprintf(cp, " (addr %d)", dev->address);
+	cp += sprintf(cp, " addr %d", dev->address);
 }
 
 /* Delay for a certain number of ms */
@@ -546,8 +530,6 @@ usbd_setup_pipe(dev, iface, ep, pipe)
 {
 	usbd_pipe_handle p;
 	usbd_status r;
-
-	*pipe = NULL;
 
 	DPRINTFN(1,("usbd_setup_pipe: dev=%p iface=%p ep=%p pipe=%p\n",
 		    dev, iface, ep, pipe));
@@ -849,10 +831,14 @@ usbd_print(aux, pnp)
 		if (!uaa->usegeneric)
 			return (QUIET);
 		usbd_devinfo(uaa->device, 1, devinfo);
-		printf("%s at %s", devinfo, pnp);
+		printf("%s, %s", devinfo, pnp);
 	}
 	if (uaa->port != 0)
 		printf(" port %d", uaa->port);
+	if (uaa->configno != UHUB_UNK_CONFIGURATION)
+		printf(" configuration %d", uaa->configno);
+	if (uaa->ifaceno != UHUB_UNK_INTERFACE)
+		printf(" interface %d", uaa->ifaceno);
 	return (UNCONF);
 }
 
@@ -864,9 +850,15 @@ usbd_submatch(parent, cf, aux)
 {
 	struct usb_attach_arg *uaa = aux;
 
-	if (uaa->port != 0 &&
-	    cf->uhubcf_port != UHUB_UNK_PORT &&
-	    cf->uhubcf_port != uaa->port)
+	if ((uaa->port != 0 &&
+	     cf->uhubcf_port != UHUB_UNK_PORT &&
+	     cf->uhubcf_port != uaa->port) ||
+	    (uaa->configno != UHUB_UNK_CONFIGURATION &&
+	     cf->uhubcf_configuration != UHUB_UNK_CONFIGURATION &&
+	     cf->uhubcf_configuration != uaa->configno) ||
+	    (uaa->ifaceno != UHUB_UNK_INTERFACE &&
+	     cf->uhubcf_interface != UHUB_UNK_INTERFACE &&
+	     cf->uhubcf_interface != uaa->ifaceno))
 		return 0;
 	return ((*cf->cf_attach->ca_match)(parent, cf, aux));
 }

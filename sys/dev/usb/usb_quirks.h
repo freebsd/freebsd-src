@@ -42,6 +42,7 @@ struct usbd_quirks {
 #define UQ_SWAP_UNICODE	0x02	/* has some Unicode strings swapped. */
 #define UQ_HUB_POWER	0x04	/* does not respond correctly to get
 				   device status; use get hub status. */
+#define UQ_NO_STRINGS  0x08    /* string descriptors are broken. */
 };
 
 extern struct usbd_quirks usbd_no_quirk;

@@ -648,7 +648,7 @@ ums_ioctl(v, cmd, data, flag, p)
 		return (0);
 	}
 
-	return (-1); /* NWH XXX ??? */
+	return (-1); /* NWH XXX Should we not return something ? */
 }
 
 #elif defined(__FreeBSD__)

@@ -336,9 +336,10 @@ usbd_set_idle(iface, duration, id)
 }
 
 usbd_status
-usbd_get_report_descriptor(dev, i, size, d)
+usbd_get_report_descriptor(dev, ifcno, repid, size, d)
 	usbd_device_handle dev;
-	int i;
+	int ifcno;
+	int repid;
 	int size;
 	void *d;
 {
@@ -346,8 +347,8 @@ usbd_get_report_descriptor(dev, i, size, d)
 
 	req.bmRequestType = UT_READ_INTERFACE;
 	req.bRequest = UR_GET_DESCRIPTOR;
-	USETW2(req.wValue, UDESC_REPORT, 0);
-	USETW(req.wIndex, i);
+	USETW2(req.wValue, UDESC_REPORT, repid);
+	USETW(req.wIndex, ifcno);
 	USETW(req.wLength, size);
 	return (usbd_do_request(dev, &req, d));
 }
@@ -393,6 +394,7 @@ usbd_alloc_report_desc(ifc, descp, sizep, mem)
 #endif
 	
 {
+	usb_interface_descriptor_t *id;
 	usb_hid_descriptor_t *hid;
 	usbd_device_handle dev;
 	usbd_status r;
@@ -400,6 +402,9 @@ usbd_alloc_report_desc(ifc, descp, sizep, mem)
 	r = usbd_interface2device_handle(ifc, &dev);
 	if (r != USBD_NORMAL_COMPLETION)
 		return (r);
+	id = usbd_get_interface_descriptor(ifc);
+	if (!id)
+		return (USBD_INVAL);
 	hid = usbd_get_hid_descriptor(ifc);
 	if (!hid)
 		return (USBD_IOERROR);
@@ -407,7 +412,9 @@ usbd_alloc_report_desc(ifc, descp, sizep, mem)
 	*descp = malloc(*sizep, mem, M_NOWAIT);
 	if (!*descp)
 		return (USBD_NOMEM);
-	r = usbd_get_report_descriptor(dev, 0, *sizep, *descp);
+	/* XXX should not use 0 Report ID */
+	r = usbd_get_report_descriptor(dev, id->bInterfaceNumber, 0,
+					*sizep, *descp);
 	if (r != USBD_NORMAL_COMPLETION) {
 		free(*descp, mem);
 		return (r);
