@@ -118,7 +118,11 @@ struct ipq;
 struct m_tag;
 struct mbuf;
 struct mount;
+struct msg;
+struct msqid_kernel;
 struct proc;
+struct semid_kernel;
+struct shmid_kernel;
 struct sockaddr;
 struct socket;
 struct sysctl_oid;
@@ -143,6 +147,10 @@ void	mac_init_cred(struct ucred *);
 void	mac_init_devfsdirent(struct devfs_dirent *);
 void	mac_init_ifnet(struct ifnet *);
 int	mac_init_inpcb(struct inpcb *, int flag);
+void	mac_init_sysv_msgmsg(struct msg *);
+void	mac_init_sysv_msgqueue(struct msqid_kernel*);
+void	mac_init_sysv_sema(struct semid_kernel*);
+void	mac_init_sysv_shm(struct shmid_kernel*);
 int	mac_init_ipq(struct ipq *, int flag);
 int	mac_init_socket(struct socket *, int flag);
 void	mac_init_pipe(struct pipepair *);
@@ -158,6 +166,10 @@ void	mac_destroy_cred(struct ucred *);
 void	mac_destroy_devfsdirent(struct devfs_dirent *);
 void	mac_destroy_ifnet(struct ifnet *);
 void	mac_destroy_inpcb(struct inpcb *);
+void	mac_destroy_sysv_msgmsg(struct msg *);
+void	mac_destroy_sysv_msgqueue(struct msqid_kernel *);
+void	mac_destroy_sysv_sema(struct semid_kernel *);
+void	mac_destroy_sysv_shm(struct shmid_kernel *);
 void	mac_destroy_ipq(struct ipq *);
 void	mac_destroy_socket(struct socket *);
 void	mac_destroy_pipe(struct pipepair *);
@@ -208,6 +220,18 @@ void	mac_set_socket_peer_from_socket(struct socket *oldsocket,
 void	mac_create_pipe(struct ucred *cred, struct pipepair *pp);
 
 /*
+ * Labeling event operations: System V IPC primitives
+ */
+void	mac_create_sysv_msgmsg(struct ucred *cred,
+	    struct msqid_kernel *msqkptr, struct msg *msgptr);
+void	mac_create_sysv_msgqueue(struct ucred *cred,
+	    struct msqid_kernel *msqkptr);
+void	mac_create_sysv_sema(struct ucred *cred,
+	    struct semid_kernel *semakptr);
+void	mac_create_sysv_shm(struct ucred *cred,
+	    struct shmid_kernel *shmsegptr);
+
+/*
  * Labeling event operations: network objects.
  */
 void	mac_create_bpfdesc(struct ucred *cred, struct bpf_d *bpf_d);
@@ -245,11 +269,51 @@ void	mac_create_proc0(struct ucred *cred);
 void	mac_create_proc1(struct ucred *cred);
 void	mac_thread_userret(struct thread *td);
 
+/*
+ * Label cleanup operation: This is the inverse complement for the
+ * mac_create and associate type of hooks. This hook lets the policy
+ * module(s) perform a cleanup/flushing operation on the label
+ * associated with the objects, without freeing up the space allocated.
+ * This hook is useful in cases where it is desirable to remove any
+ * labeling reference when recycling any object to a pool. This hook
+ * does not replace the mac_destroy hooks.
+ */
+void	mac_cleanup_sysv_msgmsg(struct msg *msgptr);
+void	mac_cleanup_sysv_msgqueue(struct msqid_kernel *msqkptr);
+void	mac_cleanup_sysv_sema(struct semid_kernel *semakptr);
+void	mac_cleanup_sysv_shm(struct shmid_kernel *shmsegptr);
+
 /* Access control checks. */
 int	mac_check_bpfdesc_receive(struct bpf_d *bpf_d, struct ifnet *ifnet);
 int	mac_check_cred_visible(struct ucred *u1, struct ucred *u2);
 int	mac_check_ifnet_transmit(struct ifnet *ifnet, struct mbuf *m);
 int	mac_check_inpcb_deliver(struct inpcb *inp, struct mbuf *m);
+int	mac_check_sysv_msgmsq(struct ucred *cred, struct msg *msgptr,
+	    struct msqid_kernel *msqkptr);
+int	mac_check_sysv_msgrcv(struct ucred *cred, struct msg *msgptr);
+int	mac_check_sysv_msgrmid(struct ucred *cred, struct msg *msgptr);
+int	mac_check_sysv_msqget(struct ucred *cred,
+	    struct msqid_kernel *msqkptr);
+int	mac_check_sysv_msqsnd(struct ucred *cred,
+	    struct msqid_kernel *msqkptr);
+int	mac_check_sysv_msqrcv(struct ucred *cred,
+	    struct msqid_kernel *msqkptr);
+int	mac_check_sysv_msqctl(struct ucred *cred,
+	    struct msqid_kernel *msqkptr, int cmd);
+int	mac_check_sysv_semctl(struct ucred *cred,
+	    struct semid_kernel *semakptr, int cmd);
+int	mac_check_sysv_semget(struct ucred *cred,
+	   struct semid_kernel *semakptr);
+int	mac_check_sysv_semop(struct ucred *cred,struct semid_kernel *semakptr,
+	    size_t accesstype);
+int	mac_check_sysv_shmat(struct ucred *cred,
+	    struct shmid_kernel *shmsegptr, int shmflg);
+int	mac_check_sysv_shmctl(struct ucred *cred,
+	    struct shmid_kernel *shmsegptr, int cmd);
+int	mac_check_sysv_shmdt(struct ucred *cred,
+	    struct shmid_kernel *shmsegptr);
+int	mac_check_sysv_shmget(struct ucred *cred,
+	    struct shmid_kernel *shmsegptr, int shmflg);
 int	mac_check_kenv_dump(struct ucred *cred);
 int	mac_check_kenv_get(struct ucred *cred, char *name);
 int	mac_check_kenv_set(struct ucred *cred, char *name, char *value);
