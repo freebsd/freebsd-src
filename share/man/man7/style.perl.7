@@ -66,6 +66,26 @@ is documented in
  #!/usr/bin/perl -wT
 .Ed
 .Pp
+The main program should be placed in a block labeled MAIN:.  This
+makes it easier to identify the entry point in a large perl script,
+and provides a scope for variables which are used in the main
+program but nowhere else.
+.Bd -literal -offset 0i
+ MAIN:{
+	print(foo("/usr/bin/man", "7", "style.perl"));
+	exit(0);
+ }
+.Ed
+.Pp
+All subroutines should be defined using argument prototypes as defined in
+.Xr perlsub 1 .
+.Bd -literal -offset 0i
+ sub foo($@) {
+	my $cmd = shift;
+	my @args = @_;
+ }
+.Ed
+.Pp
 All variables should be defined before use; this is enforced if operating
 under
 .Fa use strict .
