@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.110 1999/01/27 08:22:08 kato Exp $
+ *  $Id: syscons.c,v 1.111 1999/01/30 12:17:38 phk Exp $
  */
 
 #include "sc.h"
@@ -721,7 +721,6 @@ scopen(dev_t dev, int flag, int mode, struct proc *p)
 {
     struct tty *tp = scdevtotty(dev);
     keyarg_t key;
-    int s;
 
     if (!tp)
 	return(ENXIO);
@@ -745,12 +744,6 @@ scopen(dev_t dev, int flag, int mode, struct proc *p)
 	(*linesw[tp->t_line].l_modem)(tp, 1);
     	if (minor(dev) == SC_MOUSE)
 	    mouse_level = 0;		/* XXX */
-	if (minor(dev) < MAXCONS && console[minor(dev)] && scrn_blanked) {
-	    s = spltty();
-	    sc_touch_scrn_saver();
-	    sc_clean_up(console[minor(dev)]);
-	    splx(s);
-	}
     }
     else
 	if (tp->t_state & TS_XCLUDE && suser(p->p_ucred, &p->p_acflag))
@@ -822,6 +815,7 @@ scread(dev_t dev, struct uio *uio, int flag)
 
     if (!tp)
 	return(ENXIO);
+    sc_touch_scrn_saver();
     return((*linesw[tp->t_line].l_read)(tp, uio, flag));
 }
 
