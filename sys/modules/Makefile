@@ -61,7 +61,6 @@ SUBDIR=	3dfx \
 	lge \
 	libiconv \
 	libmchain \
-	lnc \
 	lpt \
 	mac_biba \
 	mac_bsdextended \
@@ -182,6 +181,7 @@ SUBDIR+=aac \
 	iir \
 	linprocfs \
 	linux \
+	lnc \
 	lomac \
 	mly \
 	ncv \
