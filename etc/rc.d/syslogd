@@ -5,7 +5,7 @@
 #
 
 # PROVIDE: syslogd
-# REQUIRE: mountcritremote
+# REQUIRE: mountcritremote cleanvar
 # BEFORE:  SERVERS
 # KEYWORD: FreeBSD
 
