@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.h,v 1.30 1996/09/08 20:44:43 dyson Exp $
+ * $Id: vm_object.h,v 1.31 1996/09/28 03:33:31 dyson Exp $
  */
 
 /*
@@ -71,9 +71,7 @@
 #ifndef	_VM_OBJECT_
 #define	_VM_OBJECT_
 
-#ifdef KERNEL
-#include <sys/proc.h>		/* XXX for wakeup() */
-#endif
+#include <sys/queue.h>
 
 enum obj_type { OBJT_DEFAULT, OBJT_SWAP, OBJT_VNODE, OBJT_DEVICE };
 typedef enum obj_type objtype_t;
