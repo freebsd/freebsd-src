@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_ep.c,v 1.18 1995/01/08 10:47:23 davidg Exp $
+ *	$Id: if_ep.c,v 1.19 1995/01/24 20:53:45 davidg Exp $
  */
 
 /*
@@ -451,8 +451,12 @@ epinit(unit)
 
     outw(BASE + EP_COMMAND, SET_INTR_MASK | S_5_INTS);
 
-    outw(BASE + EP_COMMAND, SET_RX_FILTER | FIL_INDIVIDUAL |
-	 FIL_GROUP | FIL_BRDCST);
+	if(ep_ftst(F_PROMISC))
+		outw(BASE + EP_COMMAND, SET_RX_FILTER | FIL_INDIVIDUAL |
+		 FIL_GROUP | FIL_BRDCST | FIL_ALL);
+	else
+		outw(BASE + EP_COMMAND, SET_RX_FILTER | FIL_INDIVIDUAL |
+		 FIL_GROUP | FIL_BRDCST);
 
 	/*
 	 * you can `ifconfig ep0 (bnc|aui)' to get the following
@@ -643,8 +647,8 @@ epintr(unit)
     struct ifnet *ifp = &sc->arpcom.ac_if;
     struct mbuf *m;
 
-    outw(BASE + EP_COMMAND, SET_INTR_MASK);	/* disable all Ints */
-    outw(BASE + EP_COMMAND, C_INTR_LATCH);	/* ACK int Latch */
+rescan:
+    /* outw(BASE + EP_COMMAND, SET_INTR_MASK);	/* disable all Ints */
 
     while ((status = inw(BASE + EP_STATUS)) & S_5_INTS) {
 	if (status & (S_RX_COMPLETE | S_RX_EARLY)) {
@@ -672,7 +676,7 @@ epintr(unit)
 		   sc->rx_no_first, sc->rx_no_mbuf, sc->rx_bpf_disc, sc->rx_overrunf,
 		   sc->rx_overrunl, sc->tx_underrun);
 #else
-	    printf("ep%d: Status: %x\n", unit, status);
+	    printf("ep%d: Status: %x\n", unit, status); 
 #endif
 	    epinit(unit);
 	    return;
@@ -716,7 +720,12 @@ epintr(unit)
 	}			/* end TX_COMPLETE */
     }
     /* re-enable ints */
-    outw(BASE + EP_COMMAND, SET_INTR_MASK | S_5_INTS);
+    /* outw(BASE + EP_COMMAND, SET_INTR_MASK | S_5_INTS); */
+
+    outw(BASE + EP_COMMAND, C_INTR_LATCH);	/* ACK int Latch */
+
+    if ((status = inw(BASE + EP_STATUS)) & S_5_INTS) 
+	goto rescan;
 }
 
 void
@@ -1016,6 +1025,16 @@ epioctl(ifp, cmd, data)
 	}
 	if (ifp->if_flags & IFF_UP && (ifp->if_flags & IFF_RUNNING) == 0)
 	    epinit(ifp->if_unit);
+
+	if ( (ifp->if_flags & IFF_PROMISC) &&  !ep_ftst(F_PROMISC) ) {
+	    ep_fset(F_PROMISC);
+	    epinit(ifp->if_unit);
+	    }
+	else if( !(ifp->if_flags & IFF_PROMISC) && ep_ftst(F_PROMISC) ) {
+	    ep_frst(F_PROMISC);
+	    epinit(ifp->if_unit);
+	    }
+
 	break;
 #ifdef notdef
       case SIOCGHWADDR:
