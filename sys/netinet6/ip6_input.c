@@ -169,13 +169,22 @@ ip6_init()
 	pr = (struct ip6protosw *)pffindproto(PF_INET6, IPPROTO_RAW, SOCK_RAW);
 	if (pr == 0)
 		panic("ip6_init");
+
+	/* Initialize the entire ip_protox[] array to IPPROTO_RAW. */
 	for (i = 0; i < IPPROTO_MAX; i++)
 		ip6_protox[i] = pr - inet6sw;
+	/*
+	 * Cycle through IP protocols and put them into the appropriate place
+	 * in ip6_protox[].
+	 */
 	for (pr = (struct ip6protosw *)inet6domain.dom_protosw;
 	    pr < (struct ip6protosw *)inet6domain.dom_protoswNPROTOSW; pr++)
 		if (pr->pr_domain->dom_family == PF_INET6 &&
-		    pr->pr_protocol && pr->pr_protocol != IPPROTO_RAW)
-			ip6_protox[pr->pr_protocol] = pr - inet6sw;
+		    pr->pr_protocol && pr->pr_protocol != IPPROTO_RAW) {
+			/* Be careful to only index valid IP protocols. */
+			if (pr->pr_protocol <= IPPROTO_MAX)
+				ip6_protox[pr->pr_protocol] = pr - inet6sw;
+		}
 
 	/* Initialize packet filter hooks. */
 	inet6_pfil_hook.ph_type = PFIL_TYPE_AF;
