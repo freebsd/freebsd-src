@@ -270,7 +270,7 @@ extern ADDRESS	NullAddress;	/* a null (template) address [main.c] */
 
 /* functions */
 extern void	cataddr __P((char **, char **, char *, int, int));
-extern char	*crackaddr __P((char *));
+extern char	*crackaddr __P((char *, ENVELOPE *));
 extern bool	emptyaddr __P((ADDRESS *));
 extern ADDRESS	*getctladdr __P((ADDRESS *));
 extern int	include __P((char *, bool, ADDRESS *, ADDRESS **, int, ENVELOPE *));

@@ -3133,7 +3133,7 @@ testmodeline(line, e)
 				printf("Usage: /parse address\n");
 				return;
 			}
-			q = crackaddr(p);
+			q = crackaddr(p, e);
 			printf("Cracked address = ");
 			xputs(q);
 			printf("\nParsing %s %s address\n",
