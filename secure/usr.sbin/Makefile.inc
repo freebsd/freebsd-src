@@ -2,4 +2,4 @@
 
 BINDIR?=	/usr/sbin
 
-.include "${.CURDIR}/../../Makefile.inc"
+.include "../Makefile.inc"
