@@ -1,5 +1,0 @@
-#	@(#)Linux	8.4	(Berkeley)	3/22/1998
-define(`confSTDIR', `/etc')
-define(`confHFDIR', `/usr/lib')
-define(`confDEPEND_TYPE', `CC-M')
-define(`confMANROOT', `/usr/man/man')
