@@ -4037,7 +4037,7 @@ static void fload(FICL_VM *pVM)
     CELL    id;
 
     pFilename->count = stackPopINT32(pVM->pStack);
-    pFilename->text = stackPopPtr(pVM->pStack);
+    bcopy(stackPopPtr(pVM->pStack), &pFilename->text, sizeof(char *));
     fd = open(pFilename->text, O_RDONLY);
     if (fd == -1)
     {
@@ -4090,7 +4090,7 @@ static void fexists(FICL_VM *pVM)
     int     fd;
 
     pFilename->count = stackPopINT32(pVM->pStack);
-    pFilename->text = stackPopPtr(pVM->pStack);
+    bcopy(stackPopPtr(pVM->pStack), &pFilename->text, sizeof(char *));
     fd = open(pFilename->text, O_RDONLY);
     if (fd > 0) {
 	stackPushINT32(pVM->pStack, TRUE);
@@ -4283,8 +4283,8 @@ void ficlCompileCore(FICL_DICT *dp)
     dictAppendWord(dp, "\\",        commentLine,    FW_IMMEDIATE);
 
     /* FreeBSD extention words */
-    dictAppendWord(dp, "fload",	    fload,	    FW_IMMEDIATE);
-    dictAppendWord(dp, "fexists",   fexists,	    FW_IMMEDIATE);
+    dictAppendWord(dp, "fload",	    fload,	    FW_DEFAULT);
+    dictAppendWord(dp, "fexists",   fexists,	    FW_DEFAULT);
     dictAppendWord(dp, "key",	    key,	    FW_DEFAULT);
 
     /*
