@@ -30,8 +30,6 @@
  * SUCH DAMAGE.
  */
 
-#include "opt_random_ip_id.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -98,9 +96,6 @@ frag6_init()
 
 	IP6Q_LOCK_INIT();
 
-#ifndef RANDOM_IP_ID
-	ip6_id = arc4random();
-#endif
 	ip6q.ip6q_next = ip6q.ip6q_prev = &ip6q;
 }
 

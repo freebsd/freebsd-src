@@ -65,7 +65,6 @@
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
-#include "opt_random_ip_id.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -389,11 +388,7 @@ in6_pcbconnect(inp, nam, cred)
 	inp->in6p_flowinfo &= ~IPV6_FLOWLABEL_MASK;
 	if (inp->in6p_flags & IN6P_AUTOFLOWLABEL)
 		inp->in6p_flowinfo |=
-#ifdef RANDOM_IP_ID
 		    (htonl(ip6_randomflowlabel()) & IPV6_FLOWLABEL_MASK);
-#else
-		    (htonl(ip6_flow_seq++) & IPV6_FLOWLABEL_MASK);
-#endif
 
 	in_pcbrehash(inp);
 #ifdef IPSEC

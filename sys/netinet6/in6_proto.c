@@ -64,7 +64,6 @@
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
-#include "opt_random_ip_id.h"
 
 #include <sys/param.h>
 #include <sys/socket.h>
@@ -290,9 +289,6 @@ int	ip6_maxfrags;	/* initialized in frag6.c:frag6_init() */
 int	ip6_log_interval = 5;
 int	ip6_hdrnestlimit = 50;	/* appropriate? */
 int	ip6_dad_count = 1;	/* DupAddrDetectionTransmits */
-#ifndef RANDOM_IP_ID
-u_int32_t ip6_flow_seq;
-#endif
 int	ip6_auto_flowlabel = 1;
 int	ip6_gif_hlim = 0;
 int	ip6_use_deprecated = 1;	/* allow deprecated addr (RFC2462 5.5.4) */
@@ -300,9 +296,6 @@ int	ip6_rr_prune = 5;	/* router renumbering prefix
 				 * walk list every 5 sec. */
 int	ip6_v6only = 1;
 
-#ifndef RANDOM_IP_ID
-u_int32_t ip6_id = 0UL;
-#endif
 int	ip6_keepfaith = 0;
 time_t	ip6_log_time = (time_t)0L;
 

@@ -22,7 +22,6 @@
 
 #include "opt_mac.h"
 #include "opt_mrouting.h"
-#include "opt_random_ip_id.h"
 
 #ifdef PIM
 #define _PIM_VT 1
@@ -1884,11 +1883,7 @@ encap_send(struct ip *ip, struct vif *vifp, struct mbuf *m)
      */
     ip_copy = mtod(mb_copy, struct ip *);
     *ip_copy = multicast_encap_iphdr;
-#ifdef RANDOM_IP_ID
-    ip_copy->ip_id = ip_randomid();
-#else
-    ip_copy->ip_id = htons(ip_id++);
-#endif
+    ip_copy->ip_id = ip_newid();
     ip_copy->ip_len += len;
     ip_copy->ip_src = vifp->v_lcl_addr;
     ip_copy->ip_dst = vifp->v_rmt_addr;
@@ -3093,11 +3088,7 @@ pim_register_send_rp(struct ip *ip, struct vif *vifp,
      */
     ip_outer = mtod(mb_first, struct ip *);
     *ip_outer = pim_encap_iphdr;
-#ifdef RANDOM_IP_ID
-    ip_outer->ip_id = ip_randomid();
-#else
-    ip_outer->ip_id = htons(ip_id++);
-#endif
+    ip_outer->ip_id = ip_newid();
     ip_outer->ip_len = len + sizeof(pim_encap_iphdr) + sizeof(pim_encap_pimhdr);
     ip_outer->ip_src = viftable[vifi].v_lcl_addr;
     ip_outer->ip_dst = rt->mfc_rp;

@@ -539,7 +539,7 @@ device		musycc	# LMC/SBE LMC1504 quad T1/E1
 #  The `pflog' device provides the pflog0 interface which logs packets.
 #  The `pfsync' device provides the pfsync0 interface used for
 #   synchronization of firewall state tables (over the net).
-# Requires option PFIL_HOOKS and (when used as a module) option RANDOM_IP_ID
+# Requires option PFIL_HOOKS
 #
 # The PPP_BSDCOMP option enables support for compress(1) style entire
 # packet compression, the PPP_DEFLATE is for zlib/gzip style compression.
@@ -646,13 +646,6 @@ options 	TCPDEBUG
 # various random failures / extreme cases related to mbuf
 # functions.  See mbuf(9) for a list of available test cases.
 options 	MBUF_STRESS_TEST
-
-# RANDOM_IP_ID causes the ID field in IP packets to be randomized
-# instead of incremented by 1 with each packet generated.  This
-# option closes a minor information leak which allows remote
-# observers to determine the rate of packet generation on the
-# machine by watching the counter.
-options 	RANDOM_IP_ID
 
 # Statically Link in accept filters
 options 	ACCEPT_FILTER_DATA

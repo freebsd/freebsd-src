@@ -33,7 +33,6 @@
 #include "opt_ipsec.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_random_ip_id.h"
 #include "opt_tcpdebug.h"
 
 #include <sys/param.h>
@@ -946,12 +945,8 @@ tcp6_connect(tp, nam, td)
 	/* update flowinfo - draft-itojun-ipv6-flowlabel-api-00 */
 	inp->in6p_flowinfo &= ~IPV6_FLOWLABEL_MASK;
 	if (inp->in6p_flags & IN6P_AUTOFLOWLABEL)
-		inp->in6p_flowinfo |=
-#ifdef RANDOM_IP_ID
+		inp->in6p_flowinfo |= 
 		    (htonl(ip6_randomflowlabel()) & IPV6_FLOWLABEL_MASK);
-#else
-		    (htonl(ip6_flow_seq++) & IPV6_FLOWLABEL_MASK);
-#endif
 	in_pcbrehash(inp);
 
 	/* Compute window scaling to request.  */
