@@ -203,7 +203,11 @@ ensure octal interpretation.
 .Sh AUTHENTICATION
 .Bl -column minpasswordlen indent indent
 .It Sy "Name	Type	Notes	Description
+.It "login_prompt	string		The login prompt given by
+.Xr login 1
 .It "minpasswordlen	number	6	The minimum length a local password may be.
+.It "passwd_prompt	string		The password prompt presented by
+.Xr login 1
 .It "passwd_format	string	md5	The encryption format that new or
 changed passwords will use.
 Valid values include "des", "md5" and "blf".
