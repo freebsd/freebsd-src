@@ -566,8 +566,27 @@ fifo_close_f(struct file *fp, struct thread *td)
 static int
 fifo_ioctl_f(struct file *fp, u_long com, void *data, struct ucred *cred, struct thread *td)
 {
+	struct fifoinfo *fi;
+	struct file filetmp;	/* Local, so need not be locked. */
+	int error;
 
-	return (vnops.fo_ioctl(fp, com, data, cred, td));
+	error = ENOTTY;
+	fi = fp->f_data;
+	if (com == FIONBIO)
+		return (0);
+	if (fp->f_flag & FREAD) {
+		filetmp.f_data = fi->fi_readsock;
+		filetmp.f_cred = cred;
+		error = soo_ioctl(&filetmp, com, data, cred, td);
+		if (error)
+			return (error);
+	}
+	if (fp->f_flag & FWRITE) {
+		filetmp.f_data = fi->fi_writesock;
+		filetmp.f_cred = cred;
+		error = soo_ioctl(&filetmp, com, data, cred, td);
+	}
+	return (error);
 }
 
 static int
