@@ -2,7 +2,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.19 1996/03/25 21:56:59 julian Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.20 1996/03/28 14:32:27 scrappy Exp $
  */
 
 #include "param.h"
@@ -996,33 +996,7 @@ void *devfs_add_devsw(char *path,
 *  a link to the already created device given as an arg..		*
 * this function is exported.. see sys/devfsext.h			*
 \***********************************************************************/
-void *dev_link(char *path, char *name, void *original)
-{
-	devnm_p	new_dev;
-	devnm_p	orig = (devnm_p) original;
-	dn_p	dirnode;	/* devnode for parent directory */
-	int	retval;
-	int major ;
-	union	typeinfo by;
-
-	DBPRINT(("dev_add\n"));
-	retval = dev_finddir(path,NULL,1,&dirnode);
-	if (retval) return 0;
-	/*
-	 *  The DEV_CDEV below is not used other than it must NOT be DEV_DIR
-	 * the correctness of original shuold be checked..
-	 */
-	if( dev_add_name(name, dirnode, NULL, orig->dnp, &new_dev))
-		return NULL;
-	return new_dev;
-}
-
-/***********************************************************************\
-* Add the named device entry into the given directory, and make it 	*
-*  a link to the already created device given as an arg..		*
-* this function is exported.. see sys/devfsext.h			*
-\***********************************************************************/
-void *dev_linkf(void *original, char *fmt, ...)
+void *devfs_link(void *original, char *fmt, ...)
 {
 	devnm_p	new_dev;
 	devnm_p	orig = (devnm_p) original;
