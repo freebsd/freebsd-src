@@ -50,6 +50,8 @@
  * variables are put in a struct sb_unit[] array
  */
 
+
+
 int             sbc_base = 0;
 int             sbc_irq = 0;
 static int      open_mode = 0;	/* Read, write or both */
@@ -231,7 +233,6 @@ dsp_speed(int speed)
     u_long   flags;
     int             max_speed = 44100;
 
-printf("dsp_speed %d\n", speed); /* XXX lr 970601 */
     if (speed < 4000)
 	    speed = 4000;
 
@@ -310,7 +311,6 @@ printf("dsp_speed %d\n", speed); /* XXX lr 970601 */
 	speed /= 2;
 
     dsp_current_speed = speed;
-printf("dsp_speed done %d\n", speed);
     return speed;
 }
 
@@ -445,6 +445,9 @@ dsp_cleanup(void)
 static int
 sb_dsp_prepare_for_input(int dev, int bsize, int bcount)
 {
+    int fudge = -1;
+    struct dma_buffparms *dmap =  audio_devs[dev]->dmap_in;
+
     dsp_cleanup();
     dsp_speaker(OFF);
 
@@ -470,6 +473,14 @@ sb_dsp_prepare_for_input(int dev, int bsize, int bcount)
 	dsp_speed(dsp_current_speed);	/* Speed must be recalculated
 					 * if #channels * changes */
     }
+
+    fudge = audio_devs[my_dev]->dmachan1;
+    if (dmap->dma_chan != fudge ) {
+      isa_dma_release( dmap->dma_chan);
+      isa_dma_acquire(fudge);
+      dmap->dma_chan = fudge;
+    }
+
     trigger_bits = 0;
     sb_dsp_command(DSP_CMD_DMAHALT);	/* Halt DMA */
     return 0;
@@ -478,6 +489,10 @@ sb_dsp_prepare_for_input(int dev, int bsize, int bcount)
 static int
 sb_dsp_prepare_for_output(int dev, int bsize, int bcount)
 {
+
+    int fudge;
+    struct dma_buffparms *dmap =  audio_devs[dev]->dmap_out;
+
     dsp_cleanup();
     dsp_speaker(ON);
 
@@ -488,6 +503,7 @@ sb_dsp_prepare_for_output(int dev, int bsize, int bcount)
 	 * 16 bit specific instructions
 	 */
 	audio_devs[my_dev]->dmachan1 = dsp_16bit ? dma16 : dma8;
+
 	if (Jazz16_detected != 2)	/* SM Wave */
 	    sb_mixer_set_stereo(dsp_stereo);
 	if (dsp_stereo)
@@ -501,6 +517,14 @@ sb_dsp_prepare_for_output(int dev, int bsize, int bcount)
 					 * if #channels * changes */
     }
 #endif
+    fudge = audio_devs[my_dev]->dmachan1;
+
+    if (dmap->dma_chan != fudge ) {
+      isa_dma_release( dmap->dma_chan);
+      isa_dma_acquire(fudge);
+      dmap->dma_chan = fudge;
+    }
+
     trigger_bits = 0;
     sb_dsp_command(DSP_CMD_DMAHALT);	/* Halt DMA */
     return 0;
@@ -548,6 +572,7 @@ sb_dsp_open(int dev, int mode)
     sb_dsp_busy = 1;
     open_mode = mode;
 
+
     return 0;
 }
 
@@ -569,6 +594,7 @@ sb_dsp_close(int dev)
     sb_dsp_busy = 0;
     sb_dsp_highspeed = 0;
     open_mode = 0;
+
 }
 
 #ifdef JAZZ16
