@@ -72,7 +72,7 @@ struct kse_mailbox {
 	kse_func_t		*km_func;	/* UTS function */
 	stack_t			km_stack;	/* UTS context */
 	void			*km_udata;	/* For use by the UTS */
-	int			tm_spare[8];
+	int			km_spare[8];
 };
 
 #ifndef _KERNEL
