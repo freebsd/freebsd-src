@@ -58,6 +58,7 @@ struct g_geom;
 struct g_consumer;
 struct g_provider;
 struct g_event;
+struct g_stat;
 struct thread;
 struct bio;
 struct sbuf;
@@ -136,28 +137,6 @@ struct g_bioq {
 };
 
 /*
- * A g_stat contains the statistics we collect on consumers and
- * providers.
- */
-struct g_stat {
-	void		*id;
-	uint64_t	nop;
-	uint64_t	nend;
-	struct bintime	it;
-	struct bintime	wentidle;
-	struct {
-		uint64_t	nop;
-		uint64_t	nbyte;
-		uint64_t	nmem;
-		uint64_t	nerr;
-		struct bintime	dt;
-	} ops[3];
-#define G_STAT_IDX_READ		0
-#define G_STAT_IDX_WRITE	1
-#define G_STAT_IDX_DELETE	2
-};
-
-/*
  * A g_consumer is an attachment point for a g_provider.  One g_consumer
  * can only be attached to one g_provider, but multiple g_consumers
  * can be attached to one g_provider.
@@ -172,7 +151,7 @@ struct g_consumer {
 	int			acr, acw, ace;
 	struct g_event		*event;
 	int			spoiled;
-	struct g_stat		stat;
+	struct g_stat		*stat;
 };
 
 /*
@@ -191,7 +170,7 @@ struct g_provider {
 	u_int			index;
 	off_t			mediasize;
 	u_int			sectorsize;
-	struct g_stat		stat;
+	struct g_stat		*stat;
 };
 
 /*
