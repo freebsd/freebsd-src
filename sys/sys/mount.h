@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mount.h	8.21 (Berkeley) 5/20/95
- *	$Id: mount.h,v 1.61 1998/04/08 18:31:59 wosch Exp $
+ *	$Id: mount.h,v 1.62 1998/05/06 05:29:39 msmith Exp $
  */
 
 #ifndef _SYS_MOUNT_H_
@@ -378,6 +378,18 @@ struct vfsops {
 #include <sys/sysent.h>
 #include <sys/lkm.h>
 
+#ifdef VFS_LKM_NO_DEFAULT_DISPATCH
+#define VFS_LKM_DISPATCH(fsname) \
+	extern int \
+	fsname ## _mod __P((struct lkm_table *, int, int));
+#else
+#define VFS_LKM_DISPATCH(fsname) \
+	int \
+	fsname ## _mod(struct lkm_table *lkmtp, int cmd, int ver) { \
+		MOD_DISPATCH(fsname, \
+		lkmtp, cmd, ver, lkm_nullcmd, lkm_nullcmd, lkm_nullcmd); }
+#endif
+
 #define VFS_SET(vfsops, fsname, index, flags) \
 	static struct vfsconf _fs_vfsconf = { \
 		&vfsops, \
@@ -388,12 +400,7 @@ struct vfsops {
 	}; \
 	extern struct linker_set MODVNOPS; \
 	MOD_VFS(fsname,&MODVNOPS,&_fs_vfsconf); \
-	extern int \
-	fsname ## _mod __P((struct lkm_table *, int, int)); \
-	int \
-	fsname ## _mod(struct lkm_table *lkmtp, int cmd, int ver) { \
-		MOD_DISPATCH(fsname, \
-		lkmtp, cmd, ver, lkm_nullcmd, lkm_nullcmd, lkm_nullcmd); }
+	VFS_LKM_DISPATCH(fsname)
 #else
 
 #define VFS_SET(vfsops, fsname, index, flags) \
