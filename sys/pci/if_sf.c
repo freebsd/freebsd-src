@@ -603,27 +603,27 @@ sf_probe(dev)
 			case AD_SUBSYSID_62011_REV1:
 				device_set_desc(dev,
 				    "Adaptec ANA-62011 10/100BaseTX");
-				return(0);
+				return (BUS_PROBE_DEFAULT);
 			case AD_SUBSYSID_62022:
 				device_set_desc(dev,
 				    "Adaptec ANA-62022 10/100BaseTX");
-				return(0);
+				return (BUS_PROBE_DEFAULT);
 			case AD_SUBSYSID_62044_REV0:
 			case AD_SUBSYSID_62044_REV1:
 				device_set_desc(dev,
 				    "Adaptec ANA-62044 10/100BaseTX");
-				return(0);
+				return (BUS_PROBE_DEFAULT);
 			case AD_SUBSYSID_62020:
 				device_set_desc(dev,
 				    "Adaptec ANA-62020 10/100BaseFX");
-				return(0);
+				return (BUS_PROBE_DEFAULT);
 			case AD_SUBSYSID_69011:
 				device_set_desc(dev,
 				    "Adaptec ANA-69011 10/100BaseTX");
-				return(0);
+				return (BUS_PROBE_DEFAULT);
 			default:
 				device_set_desc(dev, t->sf_name);
-				return(0);
+				return (BUS_PROBE_DEFAULT);
 				break;
 			}
 		}

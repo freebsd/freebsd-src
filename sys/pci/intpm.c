@@ -156,7 +156,7 @@ intsmb_probe(device_t dev)
                 return (EINVAL);    /* XXX don't know what to return else */
         device_set_desc(dev,"Intel PIIX4 SMBUS Interface");
         
-        return (0);          /* XXX don't know what to return else */
+        return (BUS_PROBE_DEFAULT); /* XXX don't know what to return else */
 }
 static int
 intsmb_attach(device_t dev)
@@ -735,7 +735,7 @@ intpm_probe(device_t dev)
     if(ep->desc!=NULL){
       device_set_desc(dev,ep->desc);
       bus_set_resource(dev,SYS_RES_IRQ,0,9,1); /* XXX setup intr resource */
-      return 0;
+      return (BUS_PROBE_DEFAULT);
     }else{
       return ENXIO;
     }

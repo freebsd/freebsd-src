@@ -1319,7 +1319,7 @@ mn_probe (device_t self)
 		return (ENXIO);
 
 	device_set_desc_copy(self, "Munich32X E1/T1 HDLC Controller");
-	return (0);
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int

@@ -1621,7 +1621,7 @@ dc_probe(device_t dev)
 
 	if (t != NULL) {
 		device_set_desc(dev, t->dc_name);
-		return (0);
+		return (BUS_PROBE_DEFAULT);
 	}
 
 	return (ENXIO);

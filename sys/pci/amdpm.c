@@ -163,7 +163,7 @@ amdpm_probe(device_t dev)
 		base &= 0xff00;
 		bus_set_resource(dev, SYS_RES_IOPORT, AMDPCI_PMBASE,
 				 base+0xe0, 32);
-		return (0);
+		return (BUS_PROBE_DEFAULT);
 	}
 
 	if ((vid == AMDPM_VENDORID_NVIDIA) &&
@@ -179,7 +179,7 @@ amdpm_probe(device_t dev)
 		bus_set_resource(dev, SYS_RES_IOPORT, NFPCI_PMBASE,
 				 base, 32);
 
-		return (0);
+		return (BUS_PROBE_DEFAULT);
 	}
 
 	return ENXIO;
