@@ -66,8 +66,8 @@
 <comment>	+	"<h4>Comment</h4>"	+
 </comment>		
 
-<abstract>	+	"<p><hr><em>"
-</abstract>		"</em><hr></p>"			+
+<abstract>	+	"<hr><p><em>"
+</abstract>		"</em></p><hr>"			+
 
 <appendix>	+	"<h2>Appendix</h2>"	+
 </appendix>
@@ -189,8 +189,10 @@
 <biblio>	+	"<BIBLIO STYLE=\"[STYLE]\" FILES=\"[FILES]\">" +
 </biblio>	
 
-<code>		+	"<hr>\n<pre>"		+
-</code>		+	"</pre>\n<hr>"		+
+<code>		+	"<pre>\n"		+
+</code>		+	"\n</pre>"		+
+% <code>		+	"<pre>\n<hr>"		+
+% </code>		+	"<hr>\n</pre>"		+
 
 <verb>		+	"<pre>"		+
 </verb>		+	"</pre>"		+
