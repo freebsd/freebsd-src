@@ -215,7 +215,7 @@ ep_eisa_attach(device_t dev)
 		irq = 2;
 
 	GO_WINDOW(0);
-	SET_IRQ(BASE, irq);
+	SET_IRQ(sc, irq);
 
 	if ((error = ep_attach(sc))) {
 		device_printf(dev, "ep_attach() failed! (%d)\n", error);
