@@ -168,6 +168,18 @@ print_reject_code(int code)
 	printf("%u", code);
 }
 
+/**
+ * _s_x holds a string-int pair for various lookups.
+ * s=NULL terminates the struct.
+ */
+struct _s_x { char *s; int x; };
+static struct _s_x limit_masks[] = {
+	{"src-addr",    DYN_SRC_ADDR},
+	{"src-port",    DYN_SRC_PORT},
+	{"dst-addr",    DYN_DST_ADDR},
+	{"dst-port",    DYN_DST_PORT},
+	{NULL,          0} };
+
 static void
 show_ipfw(struct ip_fw *chain, int pcwidth, int bcwidth)
 {
@@ -204,7 +216,7 @@ show_ipfw(struct ip_fw *chain, int pcwidth, int bcwidth)
 	}
 
 	if (chain->fw_flg & IP_FW_F_RND_MATCH) {
-		double d = 1.0 * (int)(chain->pipe_ptr);
+		double d = 1.0 * chain->dont_match_prob;
 		d = 1 - (d / 0x7fffffff);
 		printf("prob %f ", d);
 	}
@@ -373,10 +385,22 @@ show_ipfw(struct ip_fw *chain, int pcwidth, int bcwidth)
 	}
 
 	if (chain->fw_flg & IP_FW_F_KEEP_S) {
-		if (chain->next_rule_ptr)
-			printf(" keep-state %d", (int)chain->next_rule_ptr);
-		else
+		struct _s_x *p = limit_masks;
+		switch(chain->dyn_type) {
+		default:
+			printf(" *** unknown type ***");
+			break ;
+		case DYN_KEEP_STATE:
 			printf(" keep-state");
+			break;
+		case DYN_LIMIT:
+			printf(" limit");
+			for ( ; p->s != NULL ; p++)
+				if (chain->limit_mask & p->x)
+					printf(" %s", p->s);
+			printf(" %d", chain->conn_limit);
+			break ;
+		}
 	}
 	/* Direction */
 	if (chain->fw_flg & IP_FW_BRIDGED)
@@ -797,28 +821,32 @@ list(int ac, char *av[])
 			continue;
 		}
 
-                printf("%05d %qu %qu (T %d, # %d) ty %d",
-                    (int)(d->chain),
+                printf("%05d %qu %qu (T %d, slot %d)",
+                    (int)(d->rule),
                     d->pcnt, d->bcnt,
                     d->expire,
-                    d->bucket,
-                    d->type);
+                    d->bucket);
+		switch (d->dyn_type) {
+		case DYN_LIMIT_PARENT:
+			printf(" PARENT %d", d->count);
+			break;
+		case DYN_LIMIT:
+			printf(" LIMIT");
+			break;
+		case DYN_KEEP_STATE: /* bidir, no mask */
+			printf(" <->");
+			break;
+		}
+
 		pe = getprotobynumber(d->id.proto);
 		if (pe)
 			printf(" %s,", pe->p_name);
 		else
 			printf(" %u,", d->id.proto);
                 a.s_addr = htonl(d->id.src_ip);
-                printf(" %s", inet_ntoa(a));
-                printf(" %d", d->id.src_port);
-                switch (d->type) {
-                default: /* bidir, no mask */
-                    printf(" <->");
-                    break;
-                }
+                printf(" %s %d", inet_ntoa(a), d->id.src_port);
                 a.s_addr = htonl(d->id.dst_ip);
-                printf(" %s", inet_ntoa(a));
-                printf(" %d", d->id.dst_port);
+                printf("<-> %s %d", inet_ntoa(a), d->id.dst_port);
                 printf("\n");
                 if (d->next == NULL)
                     break;
@@ -1624,8 +1652,7 @@ add(int ac, char *av[])
 			errx(EX_DATAERR, "illegal match prob. %s", av[1]);
 		if (d != 1) { /* 1 means always match */
 			rule.fw_flg |= IP_FW_F_RND_MATCH;
-			/* we really store dont_match probability */
-			(long)rule.pipe_ptr = (long)((1 - d) * 0x7fffffff);
+			rule.dont_match_prob = (long)((1 - d) * 0x7fffffff);
 		}
 		av += 2; ac -= 2;
 	}
@@ -1886,13 +1913,41 @@ add(int ac, char *av[])
 		} else if (!strncmp(*av, "in", strlen(*av))) {
 			rule.fw_flg |= IP_FW_F_IN;
 			av++; ac--;
+		} else if (!strncmp(*av,"limit",strlen(*av))) {
+			/* dyn. rule used to limit number of connections. */
+			rule.fw_flg |= IP_FW_F_KEEP_S;
+			rule.dyn_type = DYN_LIMIT ;
+			rule.limit_mask = 0 ;
+			av++; ac--;
+			for (; ac >1 ;) {
+			    struct _s_x *p = limit_masks;
+			    int found = 0;
+			    for ( ; p->s != NULL ; p++)
+				if (!strncmp(*av, p->s, strlen(*av))) {
+				    rule.limit_mask |= p->x ;
+				    av++; ac-- ;
+				    found = 1 ;
+				}
+			    if (found == 0) {
+				if (rule.limit_mask == 0)
+				    errx(EX_USAGE, "missing limit mask");
+				break ;
+			    }
+			}
+			if (ac < 1)
+			    errx(EX_USAGE,
+				"limit needs mask and # of connections");
+			rule.conn_limit = atoi(*av);
+			if (rule.conn_limit == 0)
+			    errx(EX_USAGE, "limit: limit must be >0");
+			av++; ac--;
 		} else if (!strncmp(*av, "keep-state", strlen(*av))) {
 			u_long type;
 			rule.fw_flg |= IP_FW_F_KEEP_S;
 
 			av++; ac--;
 			if (ac > 0 && (type = atoi(*av)) != 0) {
-				(int)rule.next_rule_ptr = type;
+				rule.dyn_type = type;
 				av++; ac--;
 			}
 		} else if (!strncmp(*av, "bridged", strlen(*av))) {

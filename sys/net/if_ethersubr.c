@@ -58,6 +58,7 @@
 #include <net/if_types.h>
 #include <net/bpf.h>
 #include <net/ethernet.h>
+#include <net/bridge.h>
 
 #if defined(INET) || defined(INET6)
 #include <netinet/in.h>
@@ -96,10 +97,6 @@ extern u_char	at_org_code[3];
 extern u_char	aarp_org_code[3];
 #endif /* NETATALK */
 
-#ifdef BRIDGE
-#include <net/bridge.h>
-#endif
-
 #include "vlan.h"
 #if NVLAN > 0
 #include <net/if_vlan_var.h>
@@ -113,6 +110,13 @@ void	(*ng_ether_input_orphan_p)(struct ifnet *ifp,
 int	(*ng_ether_output_p)(struct ifnet *ifp, struct mbuf **mp);
 void	(*ng_ether_attach_p)(struct ifnet *ifp);
 void	(*ng_ether_detach_p)(struct ifnet *ifp);
+
+/* bridge support */
+int do_bridge = 0;
+bridge_in_t *bridge_in_ptr;
+bdg_forward_t *bdg_forward_ptr;
+bdgtakeifaces_t *bdgtakeifaces_ptr;
+struct bdg_softc *ifp2sc = NULL;
 
 static	int ether_resolvemulti __P((struct ifnet *, struct sockaddr **,
 				    struct sockaddr *));
@@ -366,19 +370,19 @@ ether_output_frame(ifp, m)
 {
 	int s, error = 0;
 
-#ifdef BRIDGE
-	if (do_bridge && BDG_USED(ifp) ) {
+	struct ether_header *eh = mtod(m, struct ether_header *);
+
+	if (BDG_ACTIVE(ifp) ) {
 		struct ether_header *eh; /* a ptr suffices */
 
 		m->m_pkthdr.rcvif = NULL;
 		eh = mtod(m, struct ether_header *);
 		m_adj(m, ETHER_HDR_LEN);
-		m = bdg_forward(m, eh, ifp);
+		m = bdg_forward_ptr(m, eh, ifp);
 		if (m != NULL)
 			m_freem(m);
 		return (0);
 	}
-#endif
 
 	s = splimp();
 	/*
@@ -415,9 +419,7 @@ ether_input(ifp, eh, m)
 	struct ether_header *eh;
 	struct mbuf *m;
 {
-#ifdef BRIDGE
 	struct ether_header save_eh;
-#endif
 
 	/* Check for a BPF tap */
 	if (ifp->if_bpf != NULL) {
@@ -437,13 +439,19 @@ ether_input(ifp, eh, m)
 			return;
 	}
 
-#ifdef BRIDGE
+#if 0
+	printf("--eth_in: %s%d %6D -> %6D ty 0x%04x\n",
+		ifp->if_name, ifp->if_unit,
+		eh->ether_shost, ":",
+		eh->ether_dhost, ":",
+		ntohs(eh->ether_type));
+#endif
 	/* Check for bridging mode */
-	if (do_bridge && BDG_USED(ifp) ) {
+	if (BDG_ACTIVE(ifp) ) {
 		struct ifnet *bif;
 
 		/* Check with bridging code */
-		if ((bif = bridge_in(ifp, eh)) == BDG_DROP) {
+		if ((bif = bridge_in_ptr(ifp, eh)) == BDG_DROP) {
 			m_freem(m);
 			return;
 		}
@@ -451,9 +459,9 @@ ether_input(ifp, eh, m)
 			struct mbuf *oldm = m ;
 
 			save_eh = *eh ; /* because it might change */
-			m = bdg_forward(m, eh, bif);	/* needs forwarding */
+			m = bdg_forward_ptr(m, eh, bif); /* needs forwarding */
 			/*
-			 * Do not continue if bdg_forward() processed our
+			 * Do not continue if bdg_forward_ptr() processed our
 			 * packet (and cleared the mbuf pointer m) or if
 			 * it dropped (m_free'd) the packet itself.
 			 */
@@ -475,11 +483,8 @@ ether_input(ifp, eh, m)
 			m_freem(m);
 		return;
        }
-#endif
 
-#ifdef BRIDGE
 recvLocal:
-#endif
 	/* Continue with upper layer processing */
 	ether_demux(ifp, eh, m);
 }
@@ -500,9 +505,7 @@ ether_demux(ifp, eh, m)
 	register struct llc *l;
 #endif
 
-#ifdef BRIDGE
-    if (! (do_bridge && BDG_USED(ifp) ) )
-#endif
+    if (! (BDG_ACTIVE(ifp) ) )
 	/* Discard packet if upper layers shouldn't see it because it was
 	   unicast to a different Ethernet address. If the driver is working
 	   properly, then this situation can only happen when the interface
@@ -698,6 +701,8 @@ ether_ifattach(ifp, bpf)
 		bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 	if (ng_ether_attach_p != NULL)
 		(*ng_ether_attach_p)(ifp);
+	if (BDG_LOADED)
+		bdgtakeifaces_ptr();
 }
 
 /*
@@ -713,6 +718,8 @@ ether_ifdetach(ifp, bpf)
 	if (bpf)
 		bpfdetach(ifp);
 	if_detach(ifp);
+	if (BDG_LOADED)
+		bdgtakeifaces_ptr();
 }
 
 SYSCTL_DECL(_net_link);
