@@ -38,7 +38,7 @@
 #include "termsort.c"		/* this C file is generated */
 #include <parametrized.h>	/* so is this */
 
-MODULE_ID("$Id: dump_entry.c,v 1.54 2000/10/01 01:34:06 tom Exp $")
+MODULE_ID("$Id: dump_entry.c,v 1.55 2001/03/10 19:45:51 tom Exp $")
 
 #define INDENT			8
 #define DISCARD(string) string = ABSENT_STRING
@@ -773,7 +773,7 @@ fmt_entry(TERMTYPE * tterm,
      * It gives an idea of which entries are deadly to even *scan past*,
      * as opposed to *use*.
      */
-    return (infodump ? len : termcap_length(outbuf.text));
+    return (infodump ? len : (int) termcap_length(outbuf.text));
 }
 
 int

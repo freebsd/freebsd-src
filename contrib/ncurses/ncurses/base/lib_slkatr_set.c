@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -37,20 +37,19 @@
  */
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_slkatr_set.c,v 1.3 1999/05/16 17:13:59 juergen Exp $")
+MODULE_ID("$Id: lib_slkatr_set.c,v 1.5 2000/12/10 02:43:27 tom Exp $")
 
-int
-slk_attr_set(const attr_t attr, short color_pair_number, void* opts)
+NCURSES_EXPORT(int)
+slk_attr_set
+(const attr_t attr, short color_pair_number, void *opts)
 {
-  T((T_CALLED("slk_attr_set(%s,%d)"), _traceattr(attr), color_pair_number));
+    T((T_CALLED("slk_attr_set(%s,%d)"), _traceattr(attr), color_pair_number));
 
-  if (SP!=0 && SP->_slk!=0 && !opts &&
-      color_pair_number>=0 && color_pair_number<COLOR_PAIRS)
-    {
-      SP->_slk->attr = attr;
-      toggle_attr_on(SP->_slk->attr,COLOR_PAIR(color_pair_number));
-      returnCode(OK);
-    }
-  else
-    returnCode(ERR);
+    if (SP != 0 && SP->_slk != 0 && !opts &&
+	color_pair_number >= 0 && color_pair_number < COLOR_PAIRS) {
+	SP->_slk->attr = attr;
+	toggle_attr_on(SP->_slk->attr, COLOR_PAIR(color_pair_number));
+	returnCode(OK);
+    } else
+	returnCode(ERR);
 }

@@ -39,7 +39,7 @@ DESCRIPTION
 AUTHOR
    Author: Eric S. Raymond <esr@snark.thyrsus.com> 1993
 
-$Id: ncurses.c,v 1.138 2000/09/17 01:24:00 tom Exp $
+$Id: ncurses.c,v 1.143 2001/05/12 23:49:04 tom Exp $
 
 ***************************************************************************/
 
@@ -118,6 +118,9 @@ extern int _nc_tracing;
 #define QUIT		CTRL('Q')
 #define ESCAPE		CTRL('[')
 #define BLANK		' '	/* this is the background character */
+
+static int max_colors;		/* the actual number of colors we'll use */
+static int max_pairs;		/* ...and the number of color pairs */
 
 /* The behavior of mvhline, mvvline for negative/zero length is unspecified,
  * though we can rely on negative x/y values to stop the macro.
@@ -253,7 +256,7 @@ getch_test(void)
     int c;
     int incount = 0, firsttime = 0;
     bool blocking = TRUE;
-    int y, x;
+    int y;
 
     refresh();
 
@@ -267,7 +270,7 @@ getch_test(void)
     noecho();
     nonl();
 
-    if (isdigit(buf[0])) {
+    if (isdigit(CharOf(buf[0]))) {
 	timeout(atoi(buf) * 100);
 	blocking = FALSE;
     }
@@ -301,7 +304,7 @@ getch_test(void)
 		else
 		    (void) printw("%s (ASCII control character)\n", unctrl(c));
 	    }
-	    getyx(stdscr, y, x);
+	    y = getcury(stdscr);
 	    if (y >= LINES - 1)
 		move(0, 0);
 	    clrtoeol();
@@ -405,7 +408,7 @@ show_attr(int row, int skip, chtype attr, const char *name)
 	    };
 	    unsigned n;
 	    bool found = FALSE;
-	    for (n = 0; n < sizeof(table) / sizeof(table[0]); n++) {
+	    for (n = 0; n < SIZEOF(table); n++) {
 		if ((table[n] & attr) != 0
 		    && ((1 << n) & ncv) != 0) {
 		    found = TRUE;
@@ -426,11 +429,9 @@ attr_getc(int *skip, int *fg, int *bg, int *ac)
 
     if (isdigit(ch)) {
 	*skip = (ch - '0');
-	return TRUE;
     } else if (ch == CTRL('L')) {
 	touchwin(stdscr);
 	touchwin(curscr);
-	return TRUE;
     } else if (has_colors()) {
 	switch (ch) {
 	case 'a':
@@ -454,15 +455,14 @@ attr_getc(int *skip, int *fg, int *bg, int *ac)
 	default:
 	    return FALSE;
 	}
-	if (*fg >= COLORS)
+	if (*fg >= max_colors)
 	    *fg = 0;
 	if (*fg < 0)
-	    *fg = COLORS - 1;
-	if (*bg >= COLORS)
+	    *fg = max_colors - 1;
+	if (*bg >= max_colors)
 	    *bg = 0;
 	if (*bg < 0)
-	    *bg = COLORS - 1;
-	return TRUE;
+	    *bg = max_colors - 1;
     } else {
 	switch (ch) {
 	case 'a':
@@ -474,9 +474,8 @@ attr_getc(int *skip, int *fg, int *bg, int *ac)
 	default:
 	    return FALSE;
 	}
-	return TRUE;
     }
-    return FALSE;
+    return TRUE;
 }
 
 static void
@@ -488,7 +487,7 @@ attr_test(void)
     int fg = COLOR_BLACK;	/* color pair 0 is special */
     int bg = COLOR_BLACK;
     int ac = 0;
-    bool *pairs = (bool *) calloc(COLOR_PAIRS, sizeof(bool));
+    bool *pairs = (bool *) calloc(max_pairs, sizeof(bool));
     pairs[0] = TRUE;
 
     if (skip < 0)
@@ -501,7 +500,7 @@ attr_test(void)
 	int normal = A_NORMAL | BLANK;
 
 	if (has_colors()) {
-	    int pair = (fg * COLORS) + bg;
+	    int pair = (fg * max_colors) + bg;
 	    if (!pairs[pair]) {
 		init_pair(pair, fg, bg);
 		pairs[pair] = TRUE;
@@ -574,7 +573,7 @@ static NCURSES_CONST char *color_names[] =
 static void
 show_color_name(int y, int x, int color)
 {
-    if (COLORS > 8)
+    if (max_colors > 8)
 	mvprintw(y, x, "%02d   ", color);
     else
 	mvaddstr(y, x, color_names[color]);
@@ -591,29 +590,30 @@ color_test(void)
     refresh();
     (void) printw("There are %d color pairs\n", COLOR_PAIRS);
 
-    width = (COLORS > 8) ? 4 : 8;
-    hello = (COLORS > 8) ? "Test" : "Hello";
+    width = (max_colors > 8) ? 4 : 8;
+    hello = (max_colors > 8) ? "Test" : "Hello";
 
     for (base = 0; base < 2; base++) {
-	top = (COLORS > 8) ? 0 : base * (COLORS + 3);
+	top = (max_colors > 8) ? 0 : base * (max_colors + 3);
 	clrtobot();
 	(void) mvprintw(top + 1, 0,
 			"%dx%d matrix of foreground/background colors, bright *%s*\n",
-			COLORS, COLORS,
+			max_colors, max_colors,
 			base ? "on" : "off");
-	for (i = 0; i < COLORS; i++)
+	for (i = 0; i < max_colors; i++)
 	    show_color_name(top + 2, (i + 1) * width, i);
-	for (i = 0; i < COLORS; i++)
+	for (i = 0; i < max_colors; i++)
 	    show_color_name(top + 3 + i, 0, i);
-	for (i = 1; i < COLOR_PAIRS; i++) {
-	    init_pair(i, i % COLORS, i / COLORS);
+	for (i = 1; i < max_pairs; i++) {
+	    init_pair(i, i % max_colors, i / max_colors);
 	    attron((attr_t) COLOR_PAIR(i));
 	    if (base)
 		attron((attr_t) A_BOLD);
-	    mvaddstr(top + 3 + (i / COLORS), (i % COLORS + 1) * width, hello);
+	    mvaddstr(top + 3 + (i / max_colors), (i % max_colors + 1) *
+		     width, hello);
 	    attrset(A_NORMAL);
 	}
-	if ((COLORS > 8) || base)
+	if ((max_colors > 8) || base)
 	    Pause();
     }
 
@@ -653,7 +653,6 @@ color_edit(void)
 {
     int i, this_c = 0, value = 0, current = 0, field = 0;
     int last_c;
-    int max_colors = COLORS > 16 ? 16 : COLORS;
 
     refresh();
 
@@ -1200,7 +1199,7 @@ newwin_legend(FRAME * curp)
 	}
     };
     size_t n;
-    int y, x;
+    int x;
     bool do_keypad = HaveKeypad(curp);
     bool do_scroll = HaveScroll(curp);
     char buf[BUFSIZ];
@@ -1221,7 +1220,7 @@ newwin_legend(FRAME * curp)
 	    sprintf(buf, legend[n].msg, do_keypad ? "/ESC" : "");
 	    break;
 	}
-	getyx(stdscr, y, x);
+	x = getcurx(stdscr);
 	addstr((COLS < (x + 3 + (int) strlen(buf))) ? "\n" : (n ? ", " : ""));
 	addstr(buf);
     }
@@ -2297,7 +2296,7 @@ padgetch(WINDOW *win)
 	    switch (c = wGetchar(win)) {
 	    case '!':
 		ShellOut(FALSE);
-		c = KEY_REFRESH;
+		/* FALLTHRU */
 	    case CTRL('r'):
 		endwin();
 		refresh();
@@ -3022,7 +3021,7 @@ form_virtualize(FORM * f, WINDOW *w)
 	    mode = REQ_INS_MODE;
 	c = mode;
     } else {
-	for (n = 0; n < sizeof(lookup) / sizeof(lookup[0]); n++) {
+	for (n = 0; n < SIZEOF(lookup); n++) {
 	    if (lookup[n].code == c) {
 		c = lookup[n].result;
 		break;
@@ -3366,7 +3365,7 @@ usage(void)
 #endif
     };
     size_t n;
-    for (n = 0; n < sizeof(tbl) / sizeof(tbl[0]); n++)
+    for (n = 0; n < SIZEOF(tbl); n++)
 	fprintf(stderr, "%s\n", tbl[n]);
     exit(EXIT_FAILURE);
 }
@@ -3504,12 +3503,20 @@ main(int argc, char *argv[])
     /* tests, in general, will want these modes */
     if (has_colors()) {
 	start_color();
-#ifdef NCURSES_VERSION
+#ifdef NCURSES_VERSION_PATCH
+	max_colors = COLORS > 16 ? 16 : COLORS;
 	if (default_colors)
 	    use_default_colors();
+#if NCURSES_VERSION_PATCH >= 20000708
 	else if (assumed_colors)
 	    assume_default_colors(default_fg, default_bg);
 #endif
+#else /* normal SVr4 curses */
+	max_colors = COLORS > 8 ? 8 : COLORS;
+#endif
+	max_pairs = (max_colors * max_colors);
+	if (max_pairs < COLOR_PAIRS)
+	    max_pairs = COLOR_PAIRS;
     }
     set_terminal_modes();
     def_prog_mode();
@@ -3574,7 +3581,7 @@ main(int argc, char *argv[])
 		if (command == 0)
 		    command = 'q';
 		break;
-	    } else if (command == 0 && !isspace(ch)) {
+	    } else if (command == 0 && !isspace(CharOf(ch))) {
 		command = ch;
 	    } else if (ch == '\n' || ch == '\r') {
 		if (command != 0)

@@ -21,7 +21,7 @@
 
 #include <tack.h>
 
-MODULE_ID("$Id: ansi.c,v 1.5 2000/04/22 21:06:57 tom Exp $")
+MODULE_ID("$Id: ansi.c,v 1.8 2001/03/24 22:00:27 tom Exp $")
 
 /*
  * Standalone tests for ANSI terminals.  Three entry points:
@@ -135,7 +135,7 @@ read_ansi(void)
 	int ch, i, j, last_escape;
 
 	fflush(stdout);
-	read_key(ansi_buf, sizeof(ansi_buf));
+	read_key((char *)ansi_buf, sizeof(ansi_buf));
 	/* Throw away control characters inside CSI sequences.
 	   Convert two character 7-bit sequences into 8-bit sequences. */
 	for (i = j = last_escape = 0; (ch = ansi_buf[i]) != 0; i++) {
@@ -174,13 +174,13 @@ read_ansi(void)
 static int
 valid_mode(int expected)
 {
-	char *s;
+	unsigned char *s;
 	int ch, terminator;
 
 	read_ansi();
 
 	ape = 0;
-	ch = pack_buf[0] & 0xff;
+	ch = CharOf(pack_buf[0]);
 	ansi_value[0] = 0;
 	if (ch != A_CSI && ch != A_DCS)
 		return FALSE;
@@ -216,6 +216,7 @@ read_reports(void)
 {
 	int i, j, k, tc, vcr, lc;
 	char *s;
+	const char *t;
 
 	lc = 5;
 	terminal_class = tc = 0;
@@ -254,15 +255,15 @@ read_reports(void)
 				vcr = TRUE;
 				break;
 			}
-		j = pack_buf[0] & 0xff;
+		j = CharOf(pack_buf[0]);
 		if (j != A_CSI && j != A_DCS) {
 			put_crlf();
-			s = "*** The above request gives illegal response ***";
-			ptext(s);
-			for (j = strlen(s); j < 49; j++)
+			t = "*** The above request gives illegal response ***";
+			ptext(t);
+			for (j = strlen(t); j < 49; j++)
 				putchp(' ');
 		}
-		s = expand(ansi_buf);
+		s = expand((const char *)ansi_buf);
 		if (char_count + expand_chars >= columns) {
 			put_str("\r\n        ");
 			lc++;
@@ -322,14 +323,14 @@ request_cfss(void)
 		putchp(' ');
 		for (j = 0; ansi_buf[j]; j++) {
 			if (ansi_buf[j] == 'r') {
-				for (k = j++; (ch = (ansi_buf[k] & 0xff)); k++)
+				for (k = j++; (ch = CharOf(ansi_buf[k])) != 0; k++)
 					if (ch == A_ESC) {
 						break;
 					} else if (ch == A_ST) {
 						break;
 					}
 				ansi_buf[k] = '\0';
-				s = expand(&ansi_buf[j]);
+				s = expand((const char *)&ansi_buf[j]);
 				if (char_count + expand_chars >= columns)
 					put_str("\r\n        ");
 				put_str(s);
@@ -432,7 +433,7 @@ terminal_state(void)
 				tc_putp(temp);
 				if (!valid_mode(('$' << 8) | 'y')) {
 					/* not valid, save terminating value */
-					s = expand(ansi_buf);
+					s = expand((const char *)ansi_buf);
 					sprintf(tms, "%s%s%d %s  ", tms,
 						puc[i], j, s);
 					break;

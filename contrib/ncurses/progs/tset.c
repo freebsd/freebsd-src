@@ -103,7 +103,7 @@ char *ttyname(int fd);
 #include <dump_entry.h>
 #include <transform.h>
 
-MODULE_ID("$Id: tset.c,v 0.47 2000/10/08 01:01:08 tom Exp $")
+MODULE_ID("$Id: tset.c,v 0.49 2001/02/24 23:29:33 tom Exp $")
 
 extern char **environ;
 
@@ -120,7 +120,7 @@ static int intrchar = -1;	/* new interrupt character */
 static int tkillchar = -1;	/* new kill character */
 static int tlines, tcolumns;	/* window size */
 
-#define LOWERCASE(c) ((isalpha(c) && isupper(c)) ? tolower(c) : (c))
+#define LOWERCASE(c) ((isalpha(CharOf(c)) && isupper(CharOf(c))) ? tolower(CharOf(c)) : (c))
 
 static int
 CaselessCmp(const char *a, const char *b)
@@ -159,14 +159,14 @@ failed(const char *msg)
 static void
 cat(char *file)
 {
-    register int fd, nr, nw;
+    register int fd, nr;
     char buf[BUFSIZ];
 
     if ((fd = open(file, O_RDONLY, 0)) < 0)
 	failed(file);
 
     while ((nr = read(fd, buf, sizeof(buf))) > 0)
-	if ((nw = write(STDERR_FILENO, buf, (size_t) nr)) == -1)
+	if (write(STDERR_FILENO, buf, (size_t) nr) == -1)
 	    failed("write to stderr");
     if (nr != 0)
 	failed(file);
@@ -495,7 +495,7 @@ mapped(const char *type)
 static const char *
 get_termcap_entry(char *userarg)
 {
-    int rval, errret;
+    int errret;
     char *p;
     const char *ttype;
 #if HAVE_GETTTYNAM
@@ -534,7 +534,7 @@ get_termcap_entry(char *userarg)
 
 	    while (fgets(buffer, sizeof(buffer) - 1, fp) != 0) {
 		for (s = buffer, t = d = 0; *s; s++) {
-		    if (isspace(*s))
+		    if (isspace(CharOf(*s)))
 			*s = '\0';
 		    else if (t == 0)
 			t = s;
@@ -588,8 +588,8 @@ get_termcap_entry(char *userarg)
 	    ttype = askuser(0);
     }
     /* Find the terminfo entry.  If it doesn't exist, ask the user. */
-    while ((rval = setupterm((NCURSES_CONST char *) ttype, STDOUT_FILENO,
-			     &errret)) != OK) {
+    while (setupterm((NCURSES_CONST char *) ttype, STDOUT_FILENO, &errret)
+	   != OK) {
 	if (errret == 0) {
 	    (void) fprintf(stderr, "tset: unknown terminal type %s\n",
 			   ttype);

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -33,8 +33,8 @@
 
 /* panel.h -- interface file for panels library */
 
-#ifndef _PANEL_H
-#define _PANEL_H
+#ifndef NCURSES_PANEL_H_incl
+#define NCURSES_PANEL_H_incl 1
 
 #include <curses.h>
 
@@ -50,26 +50,26 @@ typedef struct panel
 extern "C" {
 #endif
 
-extern  WINDOW* panel_window(const PANEL *);
-extern  void    update_panels(void);
-extern  int     hide_panel(PANEL *);
-extern  int     show_panel(PANEL *);
-extern  int     del_panel(PANEL *);
-extern  int     top_panel(PANEL *);
-extern  int     bottom_panel(PANEL *);
-extern  PANEL*  new_panel(WINDOW *);
-extern  PANEL*  panel_above(const PANEL *);
-extern  PANEL*  panel_below(const PANEL *);
-extern  int     set_panel_userptr(PANEL *, NCURSES_CONST void *);
-extern  NCURSES_CONST void* panel_userptr(const PANEL *);
-extern  int     move_panel(PANEL *, int, int);
-extern  int     replace_panel(PANEL *,WINDOW *);
-extern	int     panel_hidden(const PANEL *);
+extern NCURSES_EXPORT(WINDOW*) panel_window (const PANEL *);
+extern NCURSES_EXPORT(void)    update_panels (void);
+extern NCURSES_EXPORT(int)     hide_panel (PANEL *);
+extern NCURSES_EXPORT(int)     show_panel (PANEL *);
+extern NCURSES_EXPORT(int)     del_panel (PANEL *);
+extern NCURSES_EXPORT(int)     top_panel (PANEL *);
+extern NCURSES_EXPORT(int)     bottom_panel (PANEL *);
+extern NCURSES_EXPORT(PANEL*)  new_panel (WINDOW *);
+extern NCURSES_EXPORT(PANEL*)  panel_above (const PANEL *);
+extern NCURSES_EXPORT(PANEL*)  panel_below (const PANEL *);
+extern NCURSES_EXPORT(int)     set_panel_userptr (PANEL *, NCURSES_CONST void *);
+extern NCURSES_EXPORT(NCURSES_CONST void*) panel_userptr (const PANEL *);
+extern NCURSES_EXPORT(int)     move_panel (PANEL *, int, int);
+extern NCURSES_EXPORT(int)     replace_panel (PANEL *,WINDOW *);
+extern NCURSES_EXPORT(int)     panel_hidden (const PANEL *);
 
 #if	defined(__cplusplus)
 }
 #endif
 
-#endif /* _PANEL_H */
+#endif /* NCURSES_PANEL_H_incl */
 
 /* end of panel.h */

@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_terminfo.3x,v 1.13 2000/07/01 20:07:34 tom Exp $
+.\" $Id: curs_terminfo.3x,v 1.14 2000/12/03 00:07:23 tom Exp $
 .TH curs_terminfo 3X ""
 .ds n 5
 .SH NAME
@@ -253,6 +253,10 @@ In System V Release 4, the third argument of \fBtputs\fR has the type
 
 The XSI Curses standard prototypes \fBtparm\fR with a fixed number of parameters,
 rather than a variable argument list.
+That prototype assumes that none of the parameters are strings
+(or if so, that a long is big enough to hold a pointer).
+The variable argument list implemented in ncurses does not rely on
+that assumption.
 
 XSI notes that after calling \fBmvcur\fR, the curses state may not match the
 actual terminal state, and that an application should touch and refresh

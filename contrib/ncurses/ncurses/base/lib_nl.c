@@ -42,13 +42,13 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_nl.c,v 1.6 2000/02/13 00:59:39 tom Exp $")
+MODULE_ID("$Id: lib_nl.c,v 1.8 2000/12/10 02:43:27 tom Exp $")
 
 #ifdef __EMX__
 #include <io.h>
 #endif
 
-int
+NCURSES_EXPORT(int)
 nl(void)
 {
     T((T_CALLED("nl()")));
@@ -63,7 +63,7 @@ nl(void)
     returnCode(OK);
 }
 
-int
+NCURSES_EXPORT(int)
 nonl(void)
 {
     T((T_CALLED("nonl()")));

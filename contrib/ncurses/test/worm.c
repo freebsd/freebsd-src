@@ -34,7 +34,7 @@ Options:
   traces will be dumped.  The program stops and waits for one character of
   input at the beginning and end of the interval.
 
-  $Id: worm.c,v 1.31 2000/09/02 18:41:01 tom Exp $
+  $Id: worm.c,v 1.32 2000/12/31 01:54:07 tom Exp $
 */
 
 #include <test.priv.h>
@@ -45,7 +45,6 @@ static chtype flavor[] =
 {
     'O', '*', '#', '$', '%', '0', '@',
 };
-#define MAXWORMS	(sizeof(flavor)/sizeof(chtype))
 static const short xinc[] =
 {
     1, 1, 1, 0, -1, -1, -1, 0
@@ -378,7 +377,7 @@ main(int argc, char *argv[])
 	for (n = 0, w = &worm[0]; n < number; n++, w++) {
 	    if ((x = w->xpos[h = w->head]) < 0) {
 		move(y = w->ypos[h] = bottom, x = w->xpos[h] = 0);
-		addch(flavor[n % MAXWORMS]);
+		addch(flavor[n % SIZEOF(flavor)]);
 		ref[y][x]++;
 	    } else {
 		y = w->ypos[h];
@@ -419,7 +418,7 @@ main(int argc, char *argv[])
 
 	    if (y < 0)
 		y = 0;
-	    addch(flavor[n % MAXWORMS]);
+	    addch(flavor[n % SIZEOF(flavor)]);
 	    ref[w->ypos[h] = y][w->xpos[h] = x]++;
 	}
 	napms(10);

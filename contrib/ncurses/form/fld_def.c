@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,7 +32,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fld_def.c,v 1.12 1999/05/16 17:37:48 juergen Exp $")
+MODULE_ID("$Id: fld_def.c,v 1.13 2000/12/10 02:09:38 tom Exp $")
 
 /* this can't be readonly */
 static FIELD default_field = {
@@ -63,7 +63,7 @@ static FIELD default_field = {
   (char *)0                /* usrptr */
 };
 
-FIELD *_nc_Default_Field = &default_field;
+NCURSES_EXPORT_VAR(FIELD *) _nc_Default_Field = &default_field;
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnform  
@@ -79,8 +79,9 @@ FIELD *_nc_Default_Field = &default_field;
 |   Return Values :  Pointer to argument structure. Maybe NULL.
 |                    In case of an error in *err an errorcounter is increased. 
 +--------------------------------------------------------------------------*/
-TypeArgument*
-_nc_Make_Argument(const FIELDTYPE *typ, va_list *ap, int *err)
+NCURSES_EXPORT(TypeArgument*)
+_nc_Make_Argument
+(const FIELDTYPE *typ, va_list *ap, int *err)
 {
   TypeArgument *res = (TypeArgument *)0; 
   TypeArgument *p;
@@ -121,9 +122,10 @@ _nc_Make_Argument(const FIELDTYPE *typ, va_list *ap, int *err)
 |   Return Values :  Pointer to argument structure. Maybe NULL.
 |                    In case of an error in *err an errorcounter is increased. 
 +--------------------------------------------------------------------------*/
-TypeArgument*
-_nc_Copy_Argument(const FIELDTYPE *typ,
-		  const TypeArgument *argp, int *err)
+NCURSES_EXPORT(TypeArgument*)
+_nc_Copy_Argument
+    (const FIELDTYPE *typ,
+     const TypeArgument *argp, int *err)
 {
   TypeArgument *res = (TypeArgument *)0;
   TypeArgument *p;
@@ -166,8 +168,9 @@ _nc_Copy_Argument(const FIELDTYPE *typ,
 |
 |   Return Values :  -
 +--------------------------------------------------------------------------*/
-void
-_nc_Free_Argument(const FIELDTYPE * typ, TypeArgument * argp)
+NCURSES_EXPORT(void)
+_nc_Free_Argument
+(const FIELDTYPE * typ, TypeArgument * argp)
 {
   if (!typ || !(typ->status & _HAS_ARGS)) 
     return;
@@ -195,8 +198,9 @@ _nc_Free_Argument(const FIELDTYPE * typ, TypeArgument * argp)
 |   Return Values :  TRUE       - copy worked
 |                    FALSE      - error occured
 +--------------------------------------------------------------------------*/
-bool
-_nc_Copy_Type(FIELD *dst, FIELD const *src)
+NCURSES_EXPORT(bool)
+_nc_Copy_Type
+(FIELD *dst, FIELD const *src)
 {
   int err = 0;
 
@@ -228,8 +232,8 @@ _nc_Copy_Type(FIELD *dst, FIELD const *src)
 |
 |   Return Values :  -
 +--------------------------------------------------------------------------*/
-void
-_nc_Free_Type(FIELD *field)
+NCURSES_EXPORT(void)
+_nc_Free_Type (FIELD *field)
 {
   assert(field);
   if (field->type) 
@@ -253,7 +257,9 @@ _nc_Free_Type(FIELD *field)
 |
 |   Return Values :  Pointer to the new field or NULL if failure.
 +--------------------------------------------------------------------------*/
-FIELD *new_field(int rows, int cols, int frow, int fcol, int nrow, int nbuf)
+NCURSES_EXPORT(FIELD *)
+new_field
+(int rows, int cols, int frow, int fcol, int nrow, int nbuf)
 {
   FIELD *New_Field = (FIELD *)0;
   int err = E_BAD_ARGUMENT;
@@ -317,7 +323,8 @@ FIELD *new_field(int rows, int cols, int frow, int fcol, int nrow, int nbuf)
 |                    E_BAD_ARGUMENT - invalid field pointer
 |                    E_CONNECTED    - field is connected
 +--------------------------------------------------------------------------*/
-int free_field(FIELD * field)
+NCURSES_EXPORT(int)
+free_field (FIELD * field)
 {
   if (!field) 
     RETURN(E_BAD_ARGUMENT);

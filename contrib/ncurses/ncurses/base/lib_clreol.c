@@ -40,9 +40,9 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_clreol.c,v 1.16 2000/04/29 21:14:54 tom Exp $")
+MODULE_ID("$Id: lib_clreol.c,v 1.19 2000/12/10 02:43:26 tom Exp $")
 
-int
+NCURSES_EXPORT(int)
 wclrtoeol(WINDOW *win)
 {
     int code = ERR;
@@ -60,7 +60,7 @@ wclrtoeol(WINDOW *win)
 	 * If we have just wrapped the cursor, the clear applies to the
 	 * new line, unless we are at the lower right corner.
 	 */
-	if (win->_flags & _WRAPPED
+	if ((win->_flags & _WRAPPED) != 0
 	    && y < win->_maxy) {
 	    win->_flags &= ~_WRAPPED;
 	}
@@ -69,7 +69,7 @@ wclrtoeol(WINDOW *win)
 	 * There's no point in clearing if we're not on a legal
 	 * position, either.
 	 */
-	if (win->_flags & _WRAPPED
+	if ((win->_flags & _WRAPPED) != 0
 	    || y > win->_maxy
 	    || x > win->_maxx)
 	    returnCode(ERR);

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -31,7 +31,6 @@
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
  ****************************************************************************/
 
-
 /*
 **	lib_inchstr.c
 **
@@ -41,22 +40,23 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_inchstr.c,v 1.7 1998/02/11 12:13:55 tom Exp $")
+MODULE_ID("$Id: lib_inchstr.c,v 1.9 2000/12/10 02:43:27 tom Exp $")
 
-int winchnstr(WINDOW *win, chtype *str, int n)
+NCURSES_EXPORT(int)
+winchnstr(WINDOW *win, chtype * str, int n)
 {
-	int	i = 0;
+    int i = 0;
 
-	T((T_CALLED("winchnstr(%p,%p,%d)"), win, str, n));
+    T((T_CALLED("winchnstr(%p,%p,%d)"), win, str, n));
 
-	if (!str)
-	  returnCode(0);
+    if (!str)
+	returnCode(0);
 
-	if (win) {
-	  for (; (n < 0 || (i < n)) && (win->_curx + i <= win->_maxx); i++)
+    if (win) {
+	for (; (n < 0 || (i < n)) && (win->_curx + i <= win->_maxx); i++)
 	    str[i] = win->_line[win->_cury].text[win->_curx + i];
-	}
-	str[i] = (chtype)0;
+    }
+    str[i] = (chtype) 0;
 
-	returnCode(i);
+    returnCode(i);
 }

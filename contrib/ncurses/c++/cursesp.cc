@@ -1,6 +1,6 @@
 // * this is for making emacs happy: -*-Mode: C++;-*-
 /****************************************************************************
- * Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998,1999,2000,2001 Free Software Foundation, Inc.         *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -31,11 +31,11 @@
  *   Author: Juergen Pfeifer <juergen.pfeifer@gmx.net> 1993,1997            *
  ****************************************************************************/
 
-#include "cursesp.h"
 #include "internal.h"
+#include "cursesp.h"
 #include <string.h>
 
-MODULE_ID("$Id: cursesp.cc,v 1.16 2000/07/15 21:08:13 tom Exp $")
+MODULE_ID("$Id: cursesp.cc,v 1.18 2001/03/24 20:04:04 tom Exp $")
 
 NCursesPanel* NCursesPanel::dummy = (NCursesPanel*)0;
 
@@ -75,7 +75,7 @@ NCursesPanel::redraw() {
 int
 NCursesPanel::refresh() {
   ::update_panels();
-  return doupdate();
+  return ::doupdate();
 }
 
 int
@@ -116,7 +116,7 @@ NCursesPanel::label(const char *tLabel, const char *bLabel) {
 void
 NCursesPanel::centertext(int row,const char *label) {
   if (label) {
-    int x = (maxx() - strlen(label)) / 2;
+    int x = (maxx() - ::strlen(label)) / 2;
     if (x<0)
       x=0;
     OnError(addstr(row, x, label, width()));

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -31,7 +31,6 @@
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
  ****************************************************************************/
 
-
 /*
  *	comp_hash.c --- Routines to deal with the hashtable of capability
  *			names.
@@ -46,12 +45,12 @@
 #ifdef MAIN_PROGRAM
 #include <ctype.h>
 #undef  DEBUG
-#define DEBUG(level, params) /*nothing*/
+#define DEBUG(level, params)	/*nothing */
 #endif
 
-MODULE_ID("$Id: comp_hash.c,v 1.21 1999/06/26 21:25:11 tom Exp $")
+MODULE_ID("$Id: comp_hash.c,v 1.24 2000/12/10 02:55:07 tom Exp $")
 
-static  int hash_function(const char *);
+static int hash_function(const char *);
 
 /*
  *	_nc_make_hash_table()
@@ -65,31 +64,32 @@ static  int hash_function(const char *);
 #ifdef MAIN_PROGRAM
 
 #undef MODULE_ID
-#define MODULE_ID(id) /*nothing*/
+#define MODULE_ID(id)		/*nothing */
 #include <tinfo/doalloc.c>
 
-static void _nc_make_hash_table(struct name_table_entry *table,
-		     struct name_table_entry **hash_table)
+static void
+_nc_make_hash_table(struct name_table_entry *table,
+		    struct name_table_entry **hash_table)
 {
-int	i;
-int	hashvalue;
-int	collisions = 0;
+    int i;
+    int hashvalue;
+    int collisions = 0;
 
-	for (i = 0; i < CAPTABSIZE; i++) {
-	    hashvalue = hash_function(table[i].nte_name);
+    for (i = 0; i < CAPTABSIZE; i++) {
+	hashvalue = hash_function(table[i].nte_name);
 
-	    if (hash_table[hashvalue] != (struct name_table_entry *) 0)
-		collisions++;
+	if (hash_table[hashvalue] != (struct name_table_entry *) 0)
+	    collisions++;
 
-	    if (hash_table[hashvalue] != 0)
-		table[i].nte_link = (short)(hash_table[hashvalue] - table);
-	    hash_table[hashvalue] = &table[i];
-	}
+	if (hash_table[hashvalue] != 0)
+	    table[i].nte_link = (short) (hash_table[hashvalue] - table);
+	hash_table[hashvalue] = &table[i];
+    }
 
-	DEBUG(4, ("Hash table complete: %d collisions out of %d entries", collisions, CAPTABSIZE));
+    DEBUG(4, ("Hash table complete: %d collisions out of %d entries",
+	      collisions, CAPTABSIZE));
 }
 #endif
-
 
 /*
  *	int hash_function(string)
@@ -105,18 +105,17 @@ static
 int
 hash_function(const char *string)
 {
-long	sum = 0;
+    long sum = 0;
 
-	DEBUG(9, ("hashing %s", string));
-	while (*string) {
-	    sum += (long)(*string + (*(string + 1) << 8));
-	    string++;
-	}
+    DEBUG(9, ("hashing %s", string));
+    while (*string) {
+	sum += (long) (*string + (*(string + 1) << 8));
+	string++;
+    }
 
-	DEBUG(9, ("sum is %ld", sum));
-	return (int)(sum % HASHTABSIZE);
+    DEBUG(9, ("sum is %ld", sum));
+    return (int) (sum % HASHTABSIZE);
 }
-
 
 /*
  *	struct name_table_entry *
@@ -128,23 +127,24 @@ long	sum = 0;
  */
 
 #ifndef MAIN_PROGRAM
-struct name_table_entry const *
-_nc_find_entry(const char *string, const struct name_table_entry *const *hash_table)
+NCURSES_EXPORT(struct name_table_entry const *)
+_nc_find_entry
+(const char *string, const struct name_table_entry *const *hash_table)
 {
-int	hashvalue;
-struct name_table_entry	const *ptr;
+    int hashvalue;
+    struct name_table_entry const *ptr;
 
-	hashvalue = hash_function(string);
+    hashvalue = hash_function(string);
 
-	if ((ptr = hash_table[hashvalue]) != 0) {
-		while (strcmp(ptr->nte_name, string) != 0) {
-			if (ptr->nte_link < 0)
-				return 0;
-			ptr = ptr->nte_link + hash_table[HASHTABSIZE];
-		}
+    if ((ptr = hash_table[hashvalue]) != 0) {
+	while (strcmp(ptr->nte_name, string) != 0) {
+	    if (ptr->nte_link < 0)
+		return 0;
+	    ptr = ptr->nte_link + hash_table[HASHTABSIZE];
 	}
+    }
 
-	return (ptr);
+    return (ptr);
 }
 
 /*
@@ -158,19 +158,20 @@ struct name_table_entry	const *ptr;
  *	in the table or 0 if not found.
  */
 
-struct name_table_entry const *
-_nc_find_type_entry(const char *string,
-		    int type,
-		    const struct name_table_entry *table)
+NCURSES_EXPORT(struct name_table_entry const *)
+_nc_find_type_entry
+(const char *string,
+ int type,
+ const struct name_table_entry *table)
 {
-struct name_table_entry	const *ptr;
+    struct name_table_entry const *ptr;
 
-	for (ptr = table; ptr < table + CAPTABSIZE; ptr++) {
-	    if (ptr->nte_type == type && strcmp(string, ptr->nte_name) == 0)
-		return(ptr);
-	}
+    for (ptr = table; ptr < table + CAPTABSIZE; ptr++) {
+	if (ptr->nte_type == type && strcmp(string, ptr->nte_name) == 0)
+	    return (ptr);
+    }
 
-	return ((struct name_table_entry *)NULL);
+    return ((struct name_table_entry *) NULL);
 }
 #endif
 
@@ -187,139 +188,144 @@ struct name_table_entry	const *ptr;
 
 #define MAX_COLUMNS BUFSIZ	/* this _has_ to be worst-case */
 
-static char **parse_columns(char *buffer)
+static char **
+parse_columns(char *buffer)
 {
-	static char **list;
+    static char **list;
 
-	int col = 0;
+    int col = 0;
 
-	if (list == 0 && (list = typeCalloc(char *, MAX_COLUMNS)) == 0)
-		return(0);
+    if (list == 0 && (list = typeCalloc(char *, MAX_COLUMNS)) == 0)
+	  return (0);
 
-	if (*buffer != '#') {
-		while (*buffer != '\0') {
-			char *s;
-			for (s = buffer; (*s != '\0') && !isspace(*s); s++)
-				/*EMPTY*/;
-			if (s != buffer) {
-				char mark = *s;
-				*s = '\0';
-				if ((s - buffer) > 1
-				 && (*buffer == '"')
-				 && (s[-1] == '"')) {	/* strip the quotes */
-					buffer++;
-					s[-1] = '\0';
-				}
-				list[col] = buffer;
-				col++;
-				if (mark == '\0')
-					break;
-				while (*++s && isspace(*s))
-					/*EMPTY*/;
-				buffer = s;
-			} else
-				break;
+    if (*buffer != '#') {
+	while (*buffer != '\0') {
+	    char *s;
+	    for (s = buffer; (*s != '\0') && !isspace(CharOf(*s)); s++)
+		/*EMPTY */ ;
+	    if (s != buffer) {
+		char mark = *s;
+		*s = '\0';
+		if ((s - buffer) > 1
+		    && (*buffer == '"')
+		    && (s[-1] == '"')) {	/* strip the quotes */
+		    buffer++;
+		    s[-1] = '\0';
 		}
+		list[col] = buffer;
+		col++;
+		if (mark == '\0')
+		    break;
+		while (*++s && isspace(CharOf(*s)))
+		    /*EMPTY */ ;
+		buffer = s;
+	    } else
+		break;
 	}
-	return col ? list : 0;
+    }
+    return col ? list : 0;
 }
 
-int main(int argc, char **argv)
+int
+main(int argc, char **argv)
 {
-	struct name_table_entry *name_table = typeCalloc(struct name_table_entry, CAPTABSIZE);
-	struct name_table_entry **hash_table = typeCalloc(struct name_table_entry *, HASHTABSIZE);
-	const char *root_name = "";
-	int  column = 0;
-	int  n;
-	char buffer[BUFSIZ];
+    struct name_table_entry *name_table = typeCalloc(struct
+						     name_table_entry, CAPTABSIZE);
+    struct name_table_entry **hash_table = typeCalloc(struct name_table_entry
+						      *, HASHTABSIZE);
+    const char *root_name = "";
+    int column = 0;
+    int n;
+    char buffer[BUFSIZ];
 
-	static const char * typenames[] = { "BOOLEAN", "NUMBER", "STRING" };
+    static const char *typenames[] =
+    {"BOOLEAN", "NUMBER", "STRING"};
 
-	short BoolCount = 0;
-	short NumCount  = 0;
-	short StrCount  = 0;
+    short BoolCount = 0;
+    short NumCount = 0;
+    short StrCount = 0;
 
-	/* The first argument is the column-number (starting with 0).
-	 * The second is the root name of the tables to generate.
-	 */
-	if (argc <= 2
-	 || (column = atoi(argv[1])) <= 0
-	 || (column >= MAX_COLUMNS)
-	 || *(root_name = argv[2]) == 0) {
-		fprintf(stderr, "usage: make_hash column root_name\n");
-		exit(EXIT_FAILURE);
+    /* The first argument is the column-number (starting with 0).
+     * The second is the root name of the tables to generate.
+     */
+    if (argc <= 2
+	|| (column = atoi(argv[1])) <= 0
+	|| (column >= MAX_COLUMNS)
+	|| *(root_name = argv[2]) == 0) {
+	fprintf(stderr, "usage: make_hash column root_name\n");
+	exit(EXIT_FAILURE);
+    }
+
+    /*
+     * Read the table into our arrays.
+     */
+    for (n = 0; (n < CAPTABSIZE) && fgets(buffer, BUFSIZ, stdin);) {
+	char **list, *nlp = strchr(buffer, '\n');
+	if (nlp)
+	    *nlp = '\0';
+	list = parse_columns(buffer);
+	if (list == 0)		/* blank or comment */
+	    continue;
+	name_table[n].nte_link = -1;	/* end-of-hash */
+	name_table[n].nte_name = strdup(list[column]);
+	if (!strcmp(list[2], "bool")) {
+	    name_table[n].nte_type = BOOLEAN;
+	    name_table[n].nte_index = BoolCount++;
+	} else if (!strcmp(list[2], "num")) {
+	    name_table[n].nte_type = NUMBER;
+	    name_table[n].nte_index = NumCount++;
+	} else if (!strcmp(list[2], "str")) {
+	    name_table[n].nte_type = STRING;
+	    name_table[n].nte_index = StrCount++;
+	} else {
+	    fprintf(stderr, "Unknown type: %s\n", list[2]);
+	    exit(EXIT_FAILURE);
 	}
+	n++;
+    }
+    _nc_make_hash_table(name_table, hash_table);
 
-	/*
-	 * Read the table into our arrays.
-	 */
-	for (n = 0; (n < CAPTABSIZE) && fgets(buffer, BUFSIZ, stdin); ) {
-		char **list, *nlp = strchr(buffer, '\n');
-		if (nlp)
-		    *nlp = '\0';
-		list = parse_columns(buffer);
-		if (list == 0)	/* blank or comment */
-		    continue;
-		name_table[n].nte_link = -1;	/* end-of-hash */
-		name_table[n].nte_name = strdup(list[column]);
-		if (!strcmp(list[2], "bool")) {
-			name_table[n].nte_type  = BOOLEAN;
-			name_table[n].nte_index = BoolCount++;
-		} else if (!strcmp(list[2], "num")) {
-			name_table[n].nte_type  = NUMBER;
-			name_table[n].nte_index = NumCount++;
-		} else if (!strcmp(list[2], "str")) {
-			name_table[n].nte_type  = STRING;
-			name_table[n].nte_index = StrCount++;
-		} else {
-			fprintf(stderr, "Unknown type: %s\n", list[2]);
-			exit(EXIT_FAILURE);
-		}
-		n++;
+    /*
+     * Write the compiled tables to standard output
+     */
+    printf("static struct name_table_entry const _nc_%s_table[] =\n",
+	   root_name);
+    printf("{\n");
+    for (n = 0; n < CAPTABSIZE; n++) {
+	sprintf(buffer, "\"%s\"",
+		name_table[n].nte_name);
+	printf("\t{ %15s,\t%10s,\t%3d, %3d }%c\n",
+	       buffer,
+	       typenames[name_table[n].nte_type],
+	       name_table[n].nte_index,
+	       name_table[n].nte_link,
+	       n < CAPTABSIZE - 1 ? ',' : ' ');
+    }
+    printf("};\n\n");
+
+    printf("const struct name_table_entry * const _nc_%s_hash_table[%d] =\n",
+	   root_name,
+	   HASHTABSIZE + 1);
+    printf("{\n");
+    for (n = 0; n < HASHTABSIZE; n++) {
+	if (hash_table[n] != 0) {
+	    sprintf(buffer, "_nc_%s_table + %3ld",
+		    root_name,
+		    (long) (hash_table[n] - name_table));
+	} else {
+	    strcpy(buffer, "0");
 	}
-	_nc_make_hash_table(name_table, hash_table);
+	printf("\t%s,\n", buffer);
+    }
+    printf("\t_nc_%s_table\t/* base-of-table */\n", root_name);
+    printf("};\n\n");
 
-	/*
-	 * Write the compiled tables to standard output
-	 */
-	printf("static struct name_table_entry const _nc_%s_table[] =\n",
-		root_name);
-	printf("{\n");
-	for (n = 0; n < CAPTABSIZE; n++) {
-		sprintf(buffer, "\"%s\"",
-			name_table[n].nte_name);
-		printf("\t{ %15s,\t%10s,\t%3d, %3d }%c\n",
-			buffer,
-			typenames[name_table[n].nte_type],
-			name_table[n].nte_index,
-			name_table[n].nte_link,
-			n < CAPTABSIZE - 1 ? ',' : ' ');
-	}
-	printf("};\n\n");
+    printf("#if (BOOLCOUNT!=%d)||(NUMCOUNT!=%d)||(STRCOUNT!=%d)\n",
+	   BoolCount, NumCount, StrCount);
+    printf("#error\t--> term.h and comp_captab.c disagree about the <--\n");
+    printf("#error\t--> numbers of booleans, numbers and/or strings <--\n");
+    printf("#endif\n\n");
 
-	printf("const struct name_table_entry * const _nc_%s_hash_table[%d] =\n",
-		root_name,
-		HASHTABSIZE+1);
-	printf("{\n");
-	for (n = 0; n < HASHTABSIZE; n++) {
-		if (hash_table[n] != 0) {
-			sprintf(buffer, "_nc_%s_table + %3ld",
-				root_name,
-				(long) (hash_table[n] - name_table));
-		} else {
-			strcpy(buffer, "0");
-		}
-		printf("\t%s,\n", buffer);
-	}
-	printf("\t_nc_%s_table\t/* base-of-table */\n", root_name);
-	printf("};\n\n");
-
-	printf("#if (BOOLCOUNT!=%d)||(NUMCOUNT!=%d)||(STRCOUNT!=%d)\n",
-		BoolCount, NumCount, StrCount);
-	printf("#error\t--> term.h and comp_captab.c disagree about the <--\n");
-	printf("#error\t--> numbers of booleans, numbers and/or strings <--\n");
-	printf("#endif\n\n");
-
-	return EXIT_SUCCESS;
+    return EXIT_SUCCESS;
 }
 #endif

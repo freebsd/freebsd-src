@@ -47,10 +47,11 @@
 
 #include <term.h>		/* lines, columns, cur_term */
 
-MODULE_ID("$Id: lib_restart.c,v 1.3 2000/09/02 18:09:44 tom Exp $")
+MODULE_ID("$Id: lib_restart.c,v 1.4 2000/12/10 01:26:52 tom Exp $")
 
-int
-restartterm(NCURSES_CONST char *termp, int filenum, int *errret)
+NCURSES_EXPORT(int)
+restartterm
+(NCURSES_CONST char *termp, int filenum, int *errret)
 {
     int saveecho = SP->_echo;
     int savecbreak = SP->_cbreak;

@@ -40,9 +40,9 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_scrreg.c,v 1.8 2000/04/29 21:13:04 tom Exp $")
+MODULE_ID("$Id: lib_scrreg.c,v 1.10 2000/12/10 02:43:27 tom Exp $")
 
-int
+NCURSES_EXPORT(int)
 wsetscrreg(WINDOW *win, int top, int bottom)
 {
     T((T_CALLED("wsetscrreg(%p,%d,%d)"), win, top, bottom));

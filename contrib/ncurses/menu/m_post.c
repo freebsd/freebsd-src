@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -37,7 +37,7 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_post.c,v 1.16 1999/05/16 17:27:38 juergen Exp $")
+MODULE_ID("$Id: m_post.c,v 1.17 2000/12/10 02:16:48 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnmenu  
@@ -48,7 +48,8 @@ MODULE_ID("$Id: m_post.c,v 1.16 1999/05/16 17:27:38 juergen Exp $")
 |
 |   Return Values :  -
 +--------------------------------------------------------------------------*/
-void _nc_Post_Item(const MENU * menu, const ITEM * item)
+NCURSES_EXPORT(void)
+_nc_Post_Item (const MENU * menu, const ITEM * item)
 {
   int i;
   chtype ch;
@@ -189,7 +190,8 @@ void _nc_Post_Item(const MENU * menu, const ITEM * item)
 |
 |   Return Values :  -
 +--------------------------------------------------------------------------*/
-void _nc_Draw_Menu(const MENU * menu)
+NCURSES_EXPORT(void)
+_nc_Draw_Menu (const MENU * menu)
 {
   ITEM *item = menu->items[0];
   ITEM *lasthor, *lastvert;
@@ -257,7 +259,8 @@ void _nc_Draw_Menu(const MENU * menu)
 |                    E_BAD_STATE         - Menu in userexit routine
 |                    E_POSTED            - Menu already posted
 +--------------------------------------------------------------------------*/
-int post_menu(MENU * menu)
+NCURSES_EXPORT(int)
+post_menu (MENU * menu)
 {
   if (!menu)
     RETURN(E_BAD_ARGUMENT);
@@ -330,7 +333,8 @@ int post_menu(MENU * menu)
 |                    E_BAD_STATE       - menu in userexit routine
 |                    E_NOT_POSTED      - menu is not posted
 +--------------------------------------------------------------------------*/
-int unpost_menu(MENU * menu)
+NCURSES_EXPORT(int)
+unpost_menu (MENU * menu)
 {
   WINDOW *win;
   

@@ -1,6 +1,6 @@
 // * This makes emacs happy -*-Mode: C++;-*-
 /****************************************************************************
- * Copyright (c) 1998,1999 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -31,10 +31,10 @@
  *   Author: Juergen Pfeifer <juergen.pfeifer@gmx.net> 1997                 *
  ****************************************************************************/
 
-// $Id: cursesm.h,v 1.13 1999/10/30 23:59:37 tom Exp $
+// $Id: cursesm.h,v 1.15 2001/03/24 21:41:28 tom Exp $
 
-#ifndef _CURSESM_H
-#define _CURSESM_H
+#ifndef NCURSES_CURSESM_H_incl
+#define NCURSES_CURSESM_H_incl 1
 
 #include <cursesp.h>
 
@@ -46,7 +46,7 @@ extern "C" {
 // This wraps the ITEM type of <menu.h>
 // -------------------------------------------------------------------------
 //
-class NCursesMenuItem {
+class NCURSES_IMPEXP NCursesMenuItem {
   friend class NCursesMenu;
   
 protected:
@@ -135,7 +135,7 @@ typedef bool ITEMCALLBACK(NCursesMenuItem&);
 // If you don't like to create a child class for individual items to
 // overload action(), you may use this class and provide a callback
 // function pointer for items.
-class NCursesMenuCallbackItem : public NCursesMenuItem {
+class NCURSES_IMPEXP NCursesMenuCallbackItem : public NCursesMenuItem {
 private:
   ITEMCALLBACK* p_fct;
 
@@ -156,7 +156,7 @@ public:
 // This wraps the MENU type of <menu.h>
 // -------------------------------------------------------------------------
 //
-class NCursesMenu : public NCursesPanel {
+class NCURSES_IMPEXP NCursesMenu : public NCursesPanel {
 protected:
   MENU *menu;
 
@@ -514,7 +514,7 @@ public:
 // to create a UserItem.
 // -------------------------------------------------------------------------
 //
-template<class T> class NCursesUserItem : public NCursesMenuItem
+template<class T> class NCURSES_IMPEXP NCursesUserItem : public NCursesMenuItem
 {
 public:
   NCursesUserItem (const char* p_name,
@@ -541,7 +541,7 @@ public:
 // The same mechanism is used to attach user data to a menu
 // -------------------------------------------------------------------------
 //
-template<class T> class NCursesUserMenu : public NCursesMenu
+template<class T> class NCURSES_IMPEXP NCursesUserMenu : public NCursesMenu
 {
 protected:
   NCursesUserMenu( int  lines, 
@@ -589,4 +589,4 @@ public:
   }
 };
 
-#endif // _CURSESM_H
+#endif // NCURSES_CURSESM_H_incl

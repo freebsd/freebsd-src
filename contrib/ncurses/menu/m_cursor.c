@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -37,7 +37,7 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_cursor.c,v 1.13 1999/05/16 17:24:43 juergen Exp $")
+MODULE_ID("$Id: m_cursor.c,v 1.14 2000/12/10 02:16:48 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnmenu
@@ -49,9 +49,9 @@ MODULE_ID("$Id: m_cursor.c,v 1.13 1999/05/16 17:24:43 juergen Exp $")
 |                    E_BAD_ARGUMENT  - invalid menu
 |                    E_NOT_POSTED    - Menu is not posted
 +--------------------------------------------------------------------------*/
-int _nc_menu_cursor_pos(const MENU* menu,
-			const ITEM* item,
-			int* pY, int* pX)
+NCURSES_EXPORT(int)
+_nc_menu_cursor_pos
+(const MENU* menu, const ITEM* item, int* pY, int* pX)
 {
   if (!menu || !pX || !pY)
     return(E_BAD_ARGUMENT);
@@ -80,7 +80,8 @@ int _nc_menu_cursor_pos(const MENU* menu,
 |                    E_BAD_ARGUMENT  - invalid menu
 |                    E_NOT_POSTED    - Menu is not posted
 +--------------------------------------------------------------------------*/
-int pos_menu_cursor(const MENU * menu)
+NCURSES_EXPORT(int)
+pos_menu_cursor (const MENU * menu)
 {
   WINDOW *win, *sub;
   int x, y;

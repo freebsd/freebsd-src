@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,7 +32,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: frm_opts.c,v 1.8 1999/05/16 17:38:05 juergen Exp $")
+MODULE_ID("$Id: frm_opts.c,v 1.9 2000/12/10 02:09:37 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnform  
@@ -44,7 +44,8 @@ MODULE_ID("$Id: frm_opts.c,v 1.8 1999/05/16 17:38:05 juergen Exp $")
 |   Return Values :  E_OK              - success
 |                    E_BAD_ARGUMENT    - invalid options
 +--------------------------------------------------------------------------*/
-int set_form_opts(FORM * form, Form_Options  opts)
+NCURSES_EXPORT(int)
+set_form_opts (FORM * form, Form_Options  opts)
 {
   opts &= ALL_FORM_OPTS;
   if (opts & ~ALL_FORM_OPTS)
@@ -64,7 +65,8 @@ int set_form_opts(FORM * form, Form_Options  opts)
 |
 |   Return Values :  The option flags.
 +--------------------------------------------------------------------------*/
-Form_Options form_opts(const FORM * form)
+NCURSES_EXPORT(Form_Options)
+form_opts (const FORM * form)
 {
   return (Normalize_Form(form)->opts & ALL_FORM_OPTS);
 }
@@ -79,7 +81,8 @@ Form_Options form_opts(const FORM * form)
 |   Return Values :  E_OK            - success 
 |                    E_BAD_ARGUMENT  - invalid options
 +--------------------------------------------------------------------------*/
-int form_opts_on(FORM * form, Form_Options opts)
+NCURSES_EXPORT(int)
+form_opts_on (FORM * form, Form_Options opts)
 {
   opts &= ALL_FORM_OPTS;
   if (opts & ~ALL_FORM_OPTS)
@@ -101,7 +104,8 @@ int form_opts_on(FORM * form, Form_Options opts)
 |   Return Values :  E_OK            - success 
 |                    E_BAD_ARGUMENT  - invalid options
 +--------------------------------------------------------------------------*/
-int form_opts_off(FORM * form, Form_Options opts)
+NCURSES_EXPORT(int)
+form_opts_off (FORM * form, Form_Options opts)
 {
   opts &= ALL_FORM_OPTS;
   if (opts & ~ALL_FORM_OPTS)

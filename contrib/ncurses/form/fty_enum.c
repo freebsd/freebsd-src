@@ -13,7 +13,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fty_enum.c,v 1.13 2000/09/10 00:55:26 juergen Exp $")
+MODULE_ID("$Id: fty_enum.c,v 1.15 2000/12/09 23:46:12 tom Exp $")
 
 typedef struct {
   char **kwds;
@@ -47,7 +47,7 @@ static void *Make_Enum_Type(va_list * ap)
       argp->checkunique = cunique ? TRUE : FALSE;
 
       kp = argp->kwds;
-      while( (kp && *kp++) ) cnt++;
+      while( kp && (*kp++) ) cnt++;
       argp->count = cnt;
     }
   return (void *)argp;
@@ -290,6 +290,6 @@ static FIELDTYPE typeENUM = {
   Previous_Enum
 };
 
-FIELDTYPE* TYPE_ENUM = &typeENUM;
+NCURSES_EXPORT_VAR(FIELDTYPE*) TYPE_ENUM = &typeENUM;
 
 /* fty_enum.c ends here */

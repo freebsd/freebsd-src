@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -37,7 +37,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: frm_req_name.c,v 1.7 1999/05/16 17:21:53 juergen Exp $")
+MODULE_ID("$Id: frm_req_name.c,v 1.8 2000/12/10 02:09:37 tom Exp $")
 
 static const char *request_names[ MAX_FORM_COMMAND - MIN_FORM_COMMAND + 1 ] = {
   "NEXT_PAGE"	 ,
@@ -113,7 +113,8 @@ static const char *request_names[ MAX_FORM_COMMAND - MIN_FORM_COMMAND + 1 ] = {
 |   Return Values :  Pointer to name      - on success
 |                    NULL                 - on invalid request code
 +--------------------------------------------------------------------------*/
-const char *form_request_name( int request )
+NCURSES_EXPORT(const char *)
+form_request_name ( int request )
 {
   if ( (request < MIN_FORM_COMMAND) || (request > MAX_FORM_COMMAND) )
     {
@@ -134,7 +135,8 @@ const char *form_request_name( int request )
 |   Return Values :  Request Id       - on success
 |                    E_NO_MATCH       - request not found
 +--------------------------------------------------------------------------*/
-int form_request_by_name( const char *str )
+NCURSES_EXPORT(int)
+form_request_by_name ( const char *str )
 { 
   /* because the table is so small, it doesn't really hurt
      to run sequentially through it.

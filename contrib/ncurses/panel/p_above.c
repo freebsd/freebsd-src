@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -35,10 +35,10 @@
  */
 #include "panel.priv.h"
 
-MODULE_ID("$Id: p_above.c,v 1.3 1999/09/18 11:03:28 juergen Exp $")
+MODULE_ID("$Id: p_above.c,v 1.4 2000/12/10 02:20:44 tom Exp $")
 
-PANEL*
-panel_above(const PANEL *pan)
+NCURSES_EXPORT(PANEL *)
+panel_above (const PANEL *pan)
 {
   if(!pan)
     {
