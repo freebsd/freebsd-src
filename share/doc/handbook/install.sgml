@@ -182,10 +182,11 @@ Boot:
 
 	    <item>Adaptec 1505 ISA SCSI controller
 	    <item>Adaptec 152x series ISA SCSI controllers
+	    <item>Adaptec 1535 ISA SCSI controllers
 	    <item>Adaptec 154x series ISA SCSI controllers
 	    <item>Adaptec 174x series EISA SCSI controller in
 	      standard and enhanced mode.
-	    <item>Adaptec 274x/284x/2940/3940
+	    <item>Adaptec 274x/284x/2940/2940U/3940
               (Narrow/Wide/Twin)
 	      series EISA/VLB/PCI SCSI controllers
 	    <item>Adaptec AIC7850 on-board SCSI controllers
