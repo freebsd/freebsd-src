@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.168 1995/05/22 06:25:26 jkh Exp $
+#	$Id: Makefile,v 1.169 1995/05/22 14:08:45 jkh Exp $
 #
 # How to roll a release:
 #
@@ -275,7 +275,7 @@ release.6:
 	( cd ${RD}/trees/bin/dev ; \
 		ls console tty ttyv1 null zero \
 		*[sw]d* cuaa[01] fd[01] rfd[01] \
-		cd0a mcd0a scd0a matcd0a rst0 ft0 wt0 | \
+		cd0a mcd0a scd0a matcd0a rst0 ft0 rwt0 | \
 	cpio -dump ${RD}/bootfd/dev )
 	tar --exclude CVS -cf - -C ${.CURDIR}/sysinstall help | \
 		tar xvf - -C ${RD}/bootfd/stand
