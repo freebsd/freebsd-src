@@ -1,274 +1,296 @@
-.Dd August 27, 1993
+.Dd January 17, 1996
 .Dt ST 4
 .Os FreeBSD
 .Sh NAME
 .Nm st
-.Nd scsi tape driver
+.Nd SCSI tape driver
 .Sh SYNOPSIS
-.Nm tape st
-.Nm device st1 target 4 lun 0
+.Cd tape st
+.Cd device st1 at scbus0 target 4 lun 0
 .Sh DESCRIPTION
 The
-.Xr st
+.Nm
 driver provides support for a 
-.Em scsi
+.Tn SCSI
 tape. It allows the tape
 to be run in upto four different modes depending on minor numbers
-and supports several different 'sub modes'.
+and supports several different `submodes'.
 The device can have both a
 .Em raw
 interface
 and a
-.Em Block mode
-interface however only the raw interface is usually used (or recommended).
+.Em block
+interface; however, only the raw interface is usually used (or recommended).
 In general the interfaces are similar to those described by 
 .Xr wt 4 
 or
 .Xr mt 4 .
-
 .Pp
 Where the 
 .Xr wt 4
 device has a fairly low level interface to the system, 
-.Em SCSI
+.Tn SCSI
 devices have a much higher level interface and talk to the system via
 a 
-.Em SCSI Adapter
-and a
-.Em Scsi Adapter driver
-e.g. 
-.Xr AHA1542 .
-A scsi adapter must also be separatly configured into the system
-before a scsi tape can be configured.
+.Tn SCSI
+adapter and a
+.Tn SCSI
+adapter driver
+(e.g.,
+.Xr ahc 4 ) .
+A
+.Tn SCSI
+adapter must also be separatly configured into the system
+before a
+.Tn SCSI
+tape can be configured.
 .Pp
-As the scsi adapter is probed during boot, the 
-.Em SCSI
-bus is scanned for devices. Any devices found which answer as 'Sequential'
+As the
+.Tn SCSI
+adapter is probed during boot, the 
+.Tn SCSI
+bus is scanned for devices. Any devices found which answer as
+.Sq Em Sequential
 type devices will be attached to the 
 .Nm
 driver.
-In FreeBSD releases prior to 2.1, the first found will be attached as
+In
+.Tn FreeBSD
+releases prior to 2.1, the first found is attached as
 .Em st0
 and the next, 
-.Em st1
+.Em st1 ,
 etc.
-Beginning in 2.1 it is possible to specify what cd unit a device should
+Beginning in release 2.1 it is possible to specify what
+.Nm
+unit a device should
 come on line as; refer to
 .Xr scsi 4
 for details on kernel configuration.
-.Pp
 .Sh MOUNT SESSIONS
 The 
 .Nm
 driver is based around the concept of a 
-.Em Mount Session
-, which is defined as the period between the time that a tape is mounted,
-and the time when it is unmounted. Any parameters set during a 
-.Em Mount Session
-remain in effect for the remainder of the session or until replaced. The
-Tape can be unmounted, bringing the session to a close in several ways.
-These include:
-.Bl -tag -width ABOUT_THIS_BIG_BUT_REALLY_BIGGER
-.It Pa closing an 'unmount device'
-This is referred to as sub-mode 00 (see below). An example is /dev/rst0.
-.It Pa an MTOFFL ioctl
-Reachable through the 'offline' command of 
-.Xr st 1
-.It Pa Opening another mode.
+.Dq Em mount session ,
+which is defined as the period between the time that a tape is
+mounted, and the time when it is unmounted.  Any parameters set during
+a mount session remain in effect for the remainder of the session or
+until replaced. The tape can be unmounted, bringing the session to a
+close in several ways.  These include:
+.Bl -enum
+.It
+Closing an `unmount device',
+referred to as sub-mode 00 below. An example is 
+.Pa /dev/rst0 .
+.It
+Using the MTOFFL
+.Xr ioctl 2
+command, reachable through the
+.Sq Cm offline
+command of
+.Xr st 1 .
+.It
 Opening a different mode will implicitly unmount the tape, thereby closing
-off the mode that was previously mounted. All parameters will be loaded
-freshly from the new mode. (see below for more on 'modes').
+off the mode that was previously mounted.  All parameters will be loaded
+freshly from the new mode.  (See below for more on modes.)
 .El
 .Pp
-Parameters that are required to last across the unmounting of a tape,
-should be set on the control device. This is submode 3 (see below) and is
-reached through a file with a name of the form /dev/st{y}ctl.{x}, where
-{y} is the drive number and {x} is the mode number.
-.Pp
-.Sh MODES AND SUB MODES
-There are four Operation modes. These are  controlled by bits 2
-and 3 of the minor number and are designed to allow people to easily
-read and write different formats of tape on devices that allow
-multiple formats. The parameters for each mode can be set individually
-by hand with the
-.Xr st 1
-variant of the
+Parameters that are required to last across the unmounting of a tape
+should be set on the control device.  This is submode 3 (see below) and is
+reached through a file with a name of the form
+.Pa /dev/st Ns Ar y Ns Pa ctl. Ns Ar x ,
+where
+.Ar y
+is the drive number and
+.Ar x
+is the mode number.
+.Sh MODES AND SUBMODES
+There are four 
+.Sq operation
+modes. These are controlled by bits 2 and 3 of the minor number and
+are designed to allow users to easily read and write different formats
+of tape on devices that allow multiple formats.  The parameters for
+each mode can be set individually by hand with the
 .Xr mt 1
-command. When a device corresponding to a particular mode is first mounted,
-The operating parameters for that
-.Em Mount Session
-are copied from that mode. Further changes to the parameters during the
+command.  When a device corresponding to a particular mode is first
+mounted, The operating parameters for that
+mount session
+are copied from that mode.  Further changes to the parameters during the
 session will change those in effect for the session but not those set
-in the Operating Mode. To change the parameters for an Operating Mode, 
-One must either assign the parameters to the control device, or compile
-them into the 'Rogues Gallery' table within the driver.
+in the operation mode.  To change the parameters for an operation mode, 
+one must either assign the parameters to the control device, or compile
+them into the
+.Dq Em Rogues Gallery
+table in the driver's source code.
 .Pp
-In addition to the four Operation Modes mentionned above, 
-bits 0 and 1 of the minor number are interpretted as being 'sub-modes'.
-The following sub-modes are supported 
-.Bl -tag -width ABOUT_THIS_BIG
-.It Pa 00
-A close will rewind the device. If the tape has been 
-written, then a Filemark will be written before the rewind is requested.
-The device is UNMOUNTED.
-.It Pa 01
-A close will leave the tape MOUNTED.
-If the tape was written to a filemark will be written.
+In addition to the four operating modes mentioned above, 
+bits 0 and 1 of the minor number are interpreted as
+.Sq submodes .
+The submodes differ in the action taken when the device is closed:
+.Bl -tag -width XXXX
+.It 00
+A close will rewind the device; if the tape has been 
+written, then a file mark will be written before the rewind is requested.
+The device is unmounted.
+.It 01
+A close will leave the tape mounted.
+If the tape was written to, a file mark will be written.
 No other head positioning takes place.
 Any further reads or writes will occur directly after the
-last read, or the written filemark.
-.It Pa 10
+last read, or the written file mark.
+.It 10
 A close will rewind the device. If the tape has been 
-written, then a Filemark will be written before the rewind is requested.
-On completion of the rewind an UNLOAD command will be issued.
-The device is UNMOUNTED.
-.It Pa 11
-This is a special mode.
-It is known as the 
-.Em CONTROL DEVICE
-for the mode. Parameters set for the mode while in this sub
-mode will be remembered from one mount to the next. This allows the
-system administrator to set different characteristics (e.g. density,
-blocksize, (and eventually compression)) on each mode, and have the
-different modes keep those parameters independent of any parameter
-changes a user may invoke during a single mount session. At the
-completion of the user's mount session, drive parameters will revert
-to those set by the administrator. IO operations cannot be performed
-on this device/submode. General 
+written, then a file mark will be written before the rewind is requested.
+On completion of the rewind an unload command will be issued.
+The device is unmounted.
+.It 11
+This is a special mode, known as the 
+.Dq control device
+for the mode.  Parameters set for the mode while in this sub mode will
+be remembered from one mount to the next.  This allows the system
+administrator to set different characteristics (e.g., density,
+blocksize)
+.\" (and eventually compression)
+on each mode, and have the different modes keep those parameters
+independent of any parameter changes a user may invoke during a single
+mount session.  At the completion of the user's mount session, drive
+parameters will revert to those set by the administrator.  I/O
+operations cannot be performed on this device/submode.  General
 .Xr scsi 4
-ioctls 
-.Em MUST
+ioctls can
+.Em only
 be performed against the control device.
 .El
 .Sh BLOCKING MODES
-Scsi Tapes may run in either 'variable' or 'fixed block' modes.
-Most QIC type devices run in Fixed block mode, where most 'reel to reel' tapes and 
-many new cartridge formats, allow variable blocksize. The difference between
-the two is as follows:
-.Bl -tag -width variable-blocksize
-.It Pa Variable Blocksize
+.Tn SCSI
+tapes may run in either 
+.Sq Em variable
+or
+.Sq Em fixed
+ block-size modes.
+Most 
+.Tn QIC Ns -type
+devices run in fixed block-size mode, where most nine-track tapes and
+many new cartridge formats allow variable block-size.  The difference
+between the two is as follows:
+.Bl -inset
+.It Variable block-size:
 Each write made to the device results in a single logical record
-written to the tape. You can never read or write PART of a record
-from tape, (though you may request a larger block and read a smaller
-record). You cannot read multiple blocks either.  Data from a single
-write is therefore read by a single read. The block size used may
-be any value supported by the device, the scsi adapter and the
-system.  (often variable between 1 byte and 64k (sometimes more)).
+written to the tape.  One can never read or write 
+.Em part
+of a record from tape (though you may request a larger block and read
+a smaller record); nor can one read multiple blocks.  Data from a
+single write is therefore read by a single read. The block size used
+may be any value supported by the device, the
+.Tn SCSI
+adapter and the system (usually between 1 byte and 64 Kbytes,
+sometimes more).
 .Pp
 When reading a variable record/block from the tape, the head is
 logically considered to be immediately after the last item read,
-and before the next item after that. If the next item is a Filemark,
-but you never read it because you have all the data, then the next
-process to read will immediately read the filemark and return EOF.
-(assuming you were in non-rewind mode).
-.It Pa fixed Blocksize
+and before the next item after that. If the next item is a file mark,
+but it was never read, then the next
+process to read will immediately hit the file mark and receive an end-of-file nification.
+.It Fixed block-size
 Data written by the user is passed to the tape as a succession of
-fixed size blocks. It may be contiguouse in ram and read in a single
-DMA pass, however it is considered to be a series of independent
-blocks. You may never write an amount of data that is not an exact
-multiple of the blocksize.  You may read and write the same data
-as a different set of records, In other words, blocks that were
-written together may be read separatly, and visa versa.
+fixed size blocks.  It may be contiguouse in memory, but it is
+considered to be a series of independent blocks. One may never write
+an amount of data that is not an exact multiple of the blocksize.  One
+may read and write the same data as a different set of records, In
+other words, blocks that were written together may be read separately,
+and vice-versa.
 .Pp
-If you ask for more blocks than there are left in the file, then
-the drive will encounter the filemark. Because there is some data
-to return to you (unless there were no records before the filemark)
-the driver will return the data to you (less than you requested),
-but hide from you the discovery of the Filemark. The  NEXT read
-will be returned immediately with an EOF. If you never Make the next
-read, but close the device, the next process to read will immediately
-read the filemark and return EOF. (assuming you were in non-rewind
-mode).
+If one requests more blocks than remain in the file, the drive will
+encounter the file mark.  Because there is some data to return (unless
+there were no records before the file mark), the read will succeed,
+returning that data, The next read will return immediately with an
+EOF.  (As above, if the file mark is never read, it remains for the next process to read if in no-rewind mode.)
 .El
-.Sh FILEMARK HANDLING
-The handling of filemarks on write is pretty much automatic. If you
-have written to the tape, and not done a read since, then a filemark will
-be written to the tape when you close the device. If a rewind is requested
-after a write, then the driver assumes that you have written the last file
-on the tape and ensures that there are two filemarks written to the tape.
-It takes into account any filemarks already written (whether by close
-or by explicit ioctl). The exception to this is that there seems to be
-a standard (which we follow, but don't understand why) that certain
-types of tape do not actually write two filemarks to tape,
-but when read, report a 'phantom' filemark when the last file is read.
-These devices include the QIC family of devices. It might be that this
-set of devices is the same set as that of fixed block devices. This has not
-been detirmined yet, and they are treated as separate behaviors by the
-driver at this time.
-.Pp
-.SH KERNEL CONFIGURATION
-In configuring, if an optional
-.Ar count
-is given in
-the specification, that number of scsi tapes are configured;
-Most storage for them is allocated only when found so a large number 
-of configured devices is cheap. (once the first has included the driver).
-.Pp
+.Sh FILE MARK HANDLING
+The handling of file marks on write is automatic. If the user has
+written to the tape, and has not done a read since the last write,
+then a file mark will be written to the tape when the device is
+closed.  If a rewind is requested after a write, then the driver
+assumes that the last file on the tape has been written, and ensures
+that there are two filemarks written to the tape.  The exception to
+this is that there seems to be a standard (which we follow, but don't
+understand why) that certain types of tape do not actually write two
+filemarks to tape, but when read, report a `phantom' filemark when the
+last file is read.  These devices include the QIC family of devices.
+(It might be that this set of devices is the same set as that of fixed
+block devices.  This has not been detirmined yet, and they are treated
+as separate behaviors by the driver at this time.)
+.Sh KERNEL CONFIGURATION
 Because different tape drives behave differently, there is a mechanism 
-within the source to st, to quickly and conveniently recognise and deal
+within the source to
+.Nm
+to quickly and conveniently recognise and deal
 with brands and models of drive that have special requirements.
 .Pp
-There is a table (called the rogues gallery) in which the indentification
-strings of known errant drives can be stored. Along with each is
+There is a table (called the
+.Dq Em Rogues' Gallery )
+in which the indentification
+strings of known errant drives can be stored.  Alongside each is
 a set of flags that allows the setting of densities and blocksizes for each 
-of the 4 modes, along with a set of 'QUIRK' flags that can be
+of the four modes, along with a set of `QUIRK' flags that can be
 used to enable or disable sections of code within the driver if a particular
 drive is recognised.
-.Pp
 .Sh IOCTLS
 The following 
 .Xr ioctl 2
-calls apply to scsi tapes. Some also apply to other tapes. They are defined
+calls apply to
+.Tn SCSI
+tapes.  Some also apply to other tapes.  They are defined
 in the header file
-.Em /sys/mtio.h.
-
+.Aq Pa /sys/mtio.h .
+.Pp
 .Bl -tag -width MTIOCEEOT
-.It Pa MTIOCGET
+.It Dv MTIOCGET
 Get the mt control structure filled out by the driver, showing
 all the present settings.
-.It Pa MTIOCTOP
+.It Dv MTIOCTOP
 Perform one of the following operations. These operations all have a 
 single argument, which is either a boolean, or a signed integer, depending
 on the operation.
 .Bl -tag -width MTSELDNSTY
-.It Pa MTWEOF
+.It Dv MTWEOF
 Write N end of file marks at the present head position.
-.It Pa MTFSF
+.It Dv MTFSF
 Skip over N Filemarks. Leave the head on the EOM side of the last skipped
 Filemark.
-.It Pa MTBSF
+.It Dv MTBSF
 Skip BACKWARDS over N Filemarks. Leave the head on the BOM (beginning of media)
 side of the last skipped Filemark.
-.It Pa MTFSR
+.It Dv MTFSR
 Skip forwards over N records.
-.It Pa MTBSR
+.It Dv MTBSR
 Skip backwards over N records.
-.It Pa MTREW
+.It Dv MTREW
 Rewind the device to the beginning of the media.
-.It Pa MTOFFL
-Rewind the media (and if possible eject). Even if the device cannot
+.It Dv MTOFFL
+Rewind the media (and, if possible, eject). Even if the device cannot
 eject the media it will often no longer respond to normal requests.
-.It Pa MTNOP
+.It Dv MTNOP
 No Op, set status only..
-.It Pa MTCACHE
-Enable controller Buffering.
-.It Pa MTNOCACHE
-Disable controller Buffering.
-.It Pa MTSETBSIZ
+.It Dv MTCACHE
+Enable controller buffering.
+.It Dv MTNOCACHE
+Disable controller buffering.
+.It Dv MTSETBSIZ
 Set the blocksize to use for the device/mode. If the device is capable of
 variable blocksize operation, and the blocksize is set to 0, then the drive
 will be driven in variable mode. This parameter is in effect for the present
 mount session only, unless set on the control device.
-.It Pa MTSETDNSTY
+.It Dv MTSETDNSTY
 Set the Density value (see 
-.Xr st 1
-) to use when running in the mode opened (minor bits 2,3).
+.Xr mt 1 )
+to use when running in the mode opened (minor bits 2 and 3).
 This parameter is in effect for the present
 mount session only, unless set on the control device.
 .El
-.It Pa MTIOCIEOT
+.It Dv MTIOCIEOT
 ?Set END of TAPE processing... not yet supported.
-.It Pa MTIOCEEOT
+.It Dv MTIOCEEOT
 ?Set END of TAPE processing... not yet supported.
 .El
 .Pp
@@ -276,8 +298,8 @@ In addition, the
 .Nm
 driver will allow the use of any of the general 
 .Xr scsi 4
-ioctls, as long as the control device is used.
-
+.Fn ioctl
+commands, on the control device only.
 .Sh FILES
 .Bl -tag -width /dev/[n][e]rst[0-9].[0-3] -compact
 .It Pa /dev/[n][e]rst[0-9].[0-3]
@@ -308,5 +330,8 @@ None.
 .Sh HISTORY
 This
 .Nm
-driver appeared in MACH 2.5 .
-
+driver was originally written for
+.Tn Mach
+2.5, and was ported to 
+.Tn FreeBSD
+by Julian Elischer.
