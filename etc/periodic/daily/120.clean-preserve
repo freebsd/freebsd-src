@@ -15,20 +15,39 @@ fi
 
 case "$daily_clean_preserve_enable" in
     [Yy][Ee][Ss])
-	if [ -n "$daily_clean_preserve_days" -a -d /var/preserve ]
+	if [ -z "$daily_clean_preserve_days" ]
 	then
+	    echo '$daily_clean_preserve_enable is set but' \
+		'$daily_clean_preserve_days is not'
+	    rc=2
+	elif [ ! -d /var/preserve ]
+	then
+	    echo '$daily_clean_preserve_enable is set but /var/preserve' \
+		"doesn't exist"
+	    rc=2
+	else
 	    echo ""
 	    echo "Removing stale files from /var/preserve:"
 
-	    case "$daily_clean_preserve_verbose" in
-		[Yy][Ee][Ss])
-		    print=-print;;
-		*)
-		    print=;;
-	    esac
+	    if cd /var/preserve
+	    then
+		case "$daily_clean_preserve_verbose" in
+		    [Yy][Ee][Ss])
+			print=-print;;
+		    *)
+			print=;;
+		esac
 
-	    cd /var/preserve &&
-		find . ! -name . -mtime +$daily_clean_preserve_days \
-		    -delete $print
+		rc=$(find . ! -name . -mtime +$daily_clean_preserve_days \
+		    -delete $print | tee /dev/stderr | wc -l)
+		[ -z "$print" ] && rc=0
+		[ $rc -gt 1 ] && rc=1
+	    else
+		rc=3
+	    fi
 	fi;;
+
+    *)  rc=0;;
 esac
+
+exit $rc

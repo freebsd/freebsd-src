@@ -16,5 +16,13 @@ case "$weekly_status_pkg_enable" in
 	echo ""
 	echo "Check for out of date packages:"
 
-	pkg_version -v | sed -n 's/^\([^ ]*\)  *<  */  \1 /p';;
+	rc=$(pkg_version -v |
+	    sed -n 's/^\([^ ]*\)  *<  */  \1 /p' |
+	    tee /dev/stderr |
+	    wc -l)
+	[ $rc -gt 1 ] && rc=1;;
+
+    *)  rc=0;;
 esac
+
+exit $rc
