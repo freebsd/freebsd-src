@@ -266,8 +266,6 @@ static	struct tstate tstate;
 static	int db_ktr_verbose;
 static	int db_mach_vtrace(void);
 
-#define	NUM_LINES_PER_PAGE	18
-
 DB_SHOW_COMMAND(ktr, db_ktr_all)
 {
 	int quit;
