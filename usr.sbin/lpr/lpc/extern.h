@@ -40,9 +40,15 @@
 #include <sys/types.h>
 #include <sys/cdefs.h>
 
+/*
+ * Options for setup_myprinter().
+ */
+#define SUMP_NOHEADER	0x0001		/* Do not print a header line */
+#define SUMP_CHDIR_SD	0x0002		/* chdir into the spool directory */
 
 __BEGIN_DECLS
 void	 abort_q(struct printer *_pp);
+void	 bottomq_cmd(int _argc, char *_argv[]);
 void	 clean_gi(int _argc, char *_argv[]);
 void	 clean_q(struct printer *_pp);
 void	 disable_q(struct printer *_pp);
@@ -61,8 +67,13 @@ void	 start_q(struct printer *_pp);
 void	 status(struct printer *_pp);
 void	 stop_q(struct printer *_pp);
 void	 tclean_gi(int _argc, char *_argv[]);
-void	 topq(int _argc, char *_argv[]);
+void	 topq_cmd(int _argc, char *_argv[]);
 void	 up_q(struct printer *_pp);
+void	 topq(int _argc, char *_argv[]);	/* X-version */
+
+/* from lpc.c: */
+struct printer	*setup_myprinter(char *_pwanted, struct printer *_pp,
+		    int _sump_opts);
 __END_DECLS
 
 extern int NCMDS;
