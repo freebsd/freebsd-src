@@ -227,6 +227,28 @@ _fetch_ref(conn_t *conn)
 
 
 /*
+ * Bind a socket to a specific local address
+ */
+int
+_fetch_bind(int sd, int af, const char *addr)
+{
+	struct addrinfo hints, *res, *res0;
+	int err;
+
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = af;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_protocol = 0;
+	if ((err = getaddrinfo(addr, NULL, &hints, &res0)) != 0)
+		return (-1);
+	for (res = res0; res; res = res->ai_next)
+		if (bind(sd, res->ai_addr, res->ai_addrlen) == 0)
+			return (0);
+	return (-1);
+}
+
+
+/*
  * Establish a TCP connection to the specified port on the specified host.
  */
 conn_t *
@@ -234,6 +256,7 @@ _fetch_connect(const char *host, int port, int af, int verbose)
 {
 	conn_t *conn;
 	char pbuf[10];
+	const char *bindaddr;
 	struct addrinfo hints, *res, *res0;
 	int sd, err;
 
@@ -252,19 +275,25 @@ _fetch_connect(const char *host, int port, int af, int verbose)
 		_netdb_seterr(err);
 		return (NULL);
 	}
+	bindaddr = getenv("FETCH_BIND_ADDRESS");
 
 	if (verbose)
 		_fetch_info("connecting to %s:%d", host, port);
 
 	/* try to connect */
-	for (sd = -1, res = res0; res; res = res->ai_next) {
+	for (sd = -1, res = res0; res; sd = -1, res = res->ai_next) {
 		if ((sd = socket(res->ai_family, res->ai_socktype,
 			 res->ai_protocol)) == -1)
 			continue;
-		if (connect(sd, res->ai_addr, res->ai_addrlen) != -1)
+		if (bindaddr != NULL && *bindaddr != '\0' &&
+		    _fetch_bind(sd, res->ai_family, bindaddr) != 0) {
+			_fetch_info("failed to bind to '%s'", bindaddr);
+			close(sd);
+			continue;
+		}
+		if (connect(sd, res->ai_addr, res->ai_addrlen) == 0)
 			break;
 		close(sd);
-		sd = -1;
 	}
 	freeaddrinfo(res0);
 	if (sd == -1) {
