@@ -66,7 +66,11 @@ __FBSDID("$FreeBSD$");
 
 static struct buf *nfs_getcacheblk(struct vnode *vp, daddr_t bn, int size,
 		    struct thread *td);
+static int nfs_directio_write(struct vnode *vp, struct uio *uiop, 
+			      struct ucred *cred, int ioflag);
 
+extern int nfs_directio_enable;
+extern int nfs_directio_allow_mmap;
 /*
  * Vnode op for VM getpages.
  */
@@ -84,10 +88,12 @@ nfs_getpages(struct vop_getpages_args *ap)
 	struct nfsmount *nmp;
 	vm_object_t object;
 	vm_page_t *pages;
+	struct nfsnode *np;
 
 	GIANT_REQUIRED;
 
 	vp = ap->a_vp;
+	np = VTONFS(vp);
 	td = curthread;				/* XXX */
 	cred = curthread->td_ucred;		/* XXX */
 	nmp = VFSTONFS(vp->v_mount);
@@ -96,6 +102,12 @@ nfs_getpages(struct vop_getpages_args *ap)
 
 	if ((object = vp->v_object) == NULL) {
 		printf("nfs_getpages: called with non-merged cache vnode??\n");
+		return VM_PAGER_ERROR;
+	}
+
+	if (!nfs_directio_allow_mmap && (np->n_flag & NNONCACHE) && 
+	    (vp->v_type == VREG)) {
+		printf("nfs_getpages: called on non-cacheable vnode??\n");
 		return VM_PAGER_ERROR;
 	}
 
@@ -275,6 +287,10 @@ nfs_putpages(struct vop_putpages_args *ap)
 		(void)nfs_fsinfo(nmp, vp, cred, td);
 	}
 
+	if (!nfs_directio_allow_mmap && (np->n_flag & NNONCACHE) && 
+	    (vp->v_type == VREG))
+		printf("nfs_putpages: called on noncache-able vnode??\n");
+
 	for (i = 0; i < npages; i++)
 		rtvals[i] = VM_PAGER_AGAIN;
 
@@ -365,6 +381,11 @@ nfs_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 	if (vp->v_type != VDIR &&
 	    (uio->uio_offset + uio->uio_resid) > nmp->nm_maxfilesize)
 		return (EFBIG);
+
+	if (nfs_directio_enable && (ioflag & IO_DIRECT) && (vp->v_type == VREG))
+		/* No caching/ no readaheads. Just read data into the user buffer */
+		return nfs_readrpc(vp, uio, cred);
+
 	biosize = vp->v_mount->mnt_stat.f_iosize;
 	seqcount = (int)((off_t)(ioflag >> IO_SEQSHIFT) * biosize / BKVASIZE);
 	/*
@@ -684,6 +705,136 @@ again:
 }
 
 /*
+ * The NFS write path cannot handle iovecs with len > 1. So we need to 
+ * break up iovecs accordingly (restricting them to wsize).
+ * For the SYNC case, we can do this with 1 copy (user buffer -> mbuf). 
+ * For the ASYNC case, 2 copies are needed. The first a copy from the 
+ * user buffer to a staging buffer and then a second copy from the staging
+ * buffer to mbufs. This can be optimized by copying from the user buffer
+ * directly into mbufs and passing the chain down, but that requires a 
+ * fair amount of re-working of the relevant codepaths (and can be done
+ * later).
+ */
+static int
+nfs_directio_write(vp, uiop, cred, ioflag)
+	struct vnode *vp;
+	struct uio *uiop;
+	struct ucred *cred;
+	int ioflag;
+{
+	int error;
+	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
+	struct thread *td = uiop->uio_td;
+	int size;
+
+	if (ioflag & IO_SYNC) {
+		int iomode, must_commit;
+		struct uio uio;
+		struct iovec iov;
+do_sync:
+		while (uiop->uio_resid > 0) {
+			size = min(uiop->uio_resid, nmp->nm_wsize);
+			size = min(uiop->uio_iov->iov_len, size);
+			iov.iov_base = uiop->uio_iov->iov_base;
+			iov.iov_len = size;
+			uio.uio_iov = &iov;
+			uio.uio_iovcnt = 1;
+			uio.uio_offset = uiop->uio_offset;
+			uio.uio_resid = size;
+			uio.uio_segflg = UIO_USERSPACE;
+			uio.uio_rw = UIO_WRITE;
+			uio.uio_td = td;
+			iomode = NFSV3WRITE_FILESYNC;
+			error = (nmp->nm_rpcops->nr_writerpc)(vp, &uio, cred, 
+						      &iomode, &must_commit);
+			KASSERT((must_commit == 0), 
+				("nfs_directio_write: Did not commit write"));
+			if (error)
+				return (error);
+			uiop->uio_offset += size;
+			uiop->uio_resid -= size;
+			if (uiop->uio_iov->iov_len <= size) {
+				uiop->uio_iovcnt--;
+				uiop->uio_iov++;
+			} else {
+				uiop->uio_iov->iov_base = 
+					(char *)uiop->uio_iov->iov_base + size;
+				uiop->uio_iov->iov_len -= size;
+			}
+		}
+	} else {
+		struct uio *t_uio;
+		struct iovec *t_iov;
+		struct buf *bp;
+		
+		/*
+		 * Break up the write into blocksize chunks and hand these
+		 * over to nfsiod's for write back.
+		 * Unfortunately, this incurs a copy of the data. Since 
+		 * the user could modify the buffer before the write is 
+		 * initiated.
+		 * 
+		 * The obvious optimization here is that one of the 2 copies
+		 * in the async write path can be eliminated by copying the
+		 * data here directly into mbufs and passing the mbuf chain
+		 * down. But that will require a fair amount of re-working
+		 * of the code and can be done if there's enough interest
+		 * in NFS directio access.
+		 */
+		while (uiop->uio_resid > 0) {
+			size = min(uiop->uio_resid, nmp->nm_wsize);
+			size = min(uiop->uio_iov->iov_len, size);
+			bp = getpbuf(&nfs_pbuf_freecnt);
+			t_uio = malloc(sizeof(struct uio), M_NFSDIRECTIO, M_WAITOK);
+			t_iov = malloc(sizeof(struct iovec), M_NFSDIRECTIO, M_WAITOK);
+			t_iov->iov_base = malloc(size, M_NFSDIRECTIO, M_WAITOK);
+			t_iov->iov_len = size;
+			t_uio->uio_iov = t_iov;
+			t_uio->uio_iovcnt = 1;
+			t_uio->uio_offset = uiop->uio_offset;
+			t_uio->uio_resid = size;
+			t_uio->uio_segflg = UIO_SYSSPACE;
+			t_uio->uio_rw = UIO_WRITE;
+			t_uio->uio_td = td;
+			bcopy(uiop->uio_iov->iov_base, t_iov->iov_base, size);
+			bp->b_flags |= B_DIRECT;
+			bp->b_iocmd = BIO_WRITE;
+			if (cred != NOCRED) {
+				crhold(cred);
+				bp->b_wcred = cred;
+			} else 
+				bp->b_wcred = NOCRED;			
+			bp->b_caller1 = (void *)t_uio;
+			bp->b_vp = vp;
+			vhold(vp);
+			error = nfs_asyncio(nmp, bp, NOCRED, td);
+			if (error) {
+				free(t_iov->iov_base, M_NFSDIRECTIO);
+				free(t_iov, M_NFSDIRECTIO);
+				free(t_uio, M_NFSDIRECTIO);
+				vdrop(bp->b_vp);
+				bp->b_vp = NULL;
+				relpbuf(bp, &nfs_pbuf_freecnt);
+				if (error == EINTR)
+					return (error);
+				goto do_sync;
+			}
+			uiop->uio_offset += size;
+			uiop->uio_resid -= size;
+			if (uiop->uio_iov->iov_len <= size) {
+				uiop->uio_iovcnt--;
+				uiop->uio_iov++;
+			} else {
+				uiop->uio_iov->iov_base = 
+					(char *)uiop->uio_iov->iov_base + size;
+				uiop->uio_iov->iov_len -= size;
+			}
+		}
+	}
+	return (0);
+}
+
+/*
  * Vnode op for write using bio
  */
 int
@@ -755,6 +906,9 @@ restart:
 		return (EFBIG);
 	if (uio->uio_resid == 0)
 		return (0);
+
+	if (nfs_directio_enable && (ioflag & IO_DIRECT) && vp->v_type == VREG)
+		return nfs_directio_write(vp, uio, cred, ioflag);
 
 	/*
 	 * We need to obtain the rslock if we intend to modify np->n_size
@@ -1259,6 +1413,26 @@ again:
 	 */
 	NFS_DPF(ASYNCIO, ("nfs_asyncio: no iods available, i/o is synchronous\n"));
 	return (EIO);
+}
+
+void
+nfs_doio_directwrite(struct buf *bp)
+{
+	int iomode, must_commit;
+	struct uio *uiop = (struct uio *)bp->b_caller1;
+	char *iov_base = uiop->uio_iov->iov_base;
+	struct nfsmount *nmp = VFSTONFS(bp->b_vp->v_mount);
+	
+	iomode = NFSV3WRITE_FILESYNC;
+	uiop->uio_td = NULL; /* NULL since we're in nfsiod */
+	(nmp->nm_rpcops->nr_writerpc)(bp->b_vp, uiop, bp->b_wcred, &iomode, &must_commit);
+	KASSERT((must_commit == 0), ("nfs_doio_directwrite: Did not commit write"));
+	free(iov_base, M_NFSDIRECTIO);
+	free(uiop->uio_iov, M_NFSDIRECTIO);
+	free(uiop, M_NFSDIRECTIO);
+	vdrop(bp->b_vp);
+	bp->b_vp = NULL;
+	relpbuf(bp, &nfs_pbuf_freecnt);
 }
 
 /*

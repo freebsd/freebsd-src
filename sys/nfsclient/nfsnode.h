@@ -127,6 +127,7 @@ struct nfsnode {
 	u_char			*n_name;	/* leaf name, for v4 OPEN op */
 	uint32_t		n_namelen;
 	daddr_t			ra_expect_lbn;
+	int			n_directio_opens;
 };
 
 #define n_atim		n_un1.nf_atim
@@ -149,6 +150,7 @@ struct nfsnode {
 #define	NCREATED	0x0800	/* Opened by nfs_create() */
 #define	NTRUNCATE	0x1000	/* Opened by nfs_setattr() */
 #define	NSIZECHANGED	0x2000  /* File size has changed: need cache inval */
+#define NNONCACHE	0x4000  /* Node marked as noncacheable */
 
 /*
  * Convert between nfsnode pointers and vnode pointers
