@@ -1745,7 +1745,9 @@
     </para>
 
     <para arch="i386,alpha">Gigabit Ethernet NICs based on the Intel 82542 and 82543
-    controller chips (&man.gx.4; and &man.em.4; drivers)
+    controller chips (&man.gx.4; and &man.em.4; drivers), plus NICs
+    supported by the Intel 82540EM and 82544 controller chips
+    (&man.em.4; driver only)
       <itemizedlist>
 	<listitem>
 	  <para>Intel PRO/1000 Gigabit Ethernet</para>
