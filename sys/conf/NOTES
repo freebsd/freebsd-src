@@ -2393,8 +2393,6 @@ options		KSTACK_MAX_PAGES=32 # Maximum pages to give the kernel stack
 
 # Yet more undocumented options for linting.
 options 	AAC_DEBUG
-options 	ACPI_MAX_THREADS=1
-#!options 	ACPI_NO_SEMAPHORES
 # Broken:
 ##options 	ASR_MEASURE_PERFORMANCE
 # BKTR_ALLOC_PAGES has no effect except to cause warnings, and
