@@ -121,17 +121,21 @@ SUPFLAGS+=	-h ${SUPHOST}
 
 MAKEOBJDIRPREFIX?=	/usr/obj
 TARGET_ARCH?=	${MACHINE_ARCH}
+.if ${TARGET_ARCH} == ${MACHINE_ARCH}
 TARGET?=	${MACHINE}
+.else
+TARGET?=	${TARGET_ARCH}
+.endif
 .if make(buildworld)
 BUILD_ARCH!=	sysctl -n hw.machine_arch
 .if ${MACHINE_ARCH} != ${BUILD_ARCH}
 .error To cross-build, set TARGET_ARCH.
 .endif
 .endif
-.if ${MACHINE_ARCH} == ${TARGET_ARCH}
+.if ${MACHINE} == ${TARGET}
 OBJTREE=	${MAKEOBJDIRPREFIX}
 .else
-OBJTREE=	${MAKEOBJDIRPREFIX}/${TARGET_ARCH}
+OBJTREE=	${MAKEOBJDIRPREFIX}/${TARGET}
 .endif
 WORLDTMP=	${OBJTREE}${.CURDIR}/${MACHINE_ARCH}
 # /usr/games added for fortune which depend on strfile
@@ -390,13 +394,6 @@ KERNWARN=	yes
 KERNCONF?=	GENERIC
 .endif
 INSTKERNNAME?=	kernel
-
-# The only exotic TARGET_ARCH/TARGET combination valid at this
-# time is i386/pc98. In all other cases set TARGET equal to
-# TARGET_ARCH.
-.if ${TARGET_ARCH} != "i386" || ${TARGET} != "pc98"
-TARGET=		${TARGET_ARCH}
-.endif
 
 KRNLSRCDIR=	${.CURDIR}/sys
 KRNLCONFDIR=	${KRNLSRCDIR}/${TARGET}/conf
