@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from:@(#)syscons.c	1.3 940129
- *	$Id: syscons.c,v 1.38 1994/03/08 15:17:41 davidg Exp $
+ *	$Id: syscons.c,v 1.39 1994/03/20 20:05:55 davidg Exp $
  *
  */
 
@@ -1465,7 +1465,6 @@ static void move_crsr(scr_stat *scp, int x, int y)
 	scp->crtat = scp->crt_base + scp->ypos * scp->xsize + scp->xpos;
 }
 
-#if 0
 static void move_up(u_short *s, u_short *d, u_int len)
 {
 	s += len;
@@ -1473,19 +1472,12 @@ static void move_up(u_short *s, u_short *d, u_int len)
 	while (len-- > 0)
 		*--d = *--s;
 }
-#endif
 
-
-#if 0
 static void move_down(u_short *s, u_short *d, u_int len)
 {
 	while (len-- > 0)
 		*d++ = *s++;
 }
-#endif
-#define move_down(s,d,len) bcopyw(s,d,len/2)
-#define move_up(s,d,len) bcopyw(s,d,len/2)
-
 
 static void scan_esc(scr_stat *scp, u_char c)
 {
