@@ -31,4 +31,4 @@ ${.OBJDIR}/config_h.sh: ${PERL5SRC}/config_h.SH
 	@ln -sf ${.OODATE} ${.TARGET}
 
 ${PROG}.1: ${PROG}.pod
-	miniperl ${.OBJDIR}/../../pod/pod2man/pod2man ${.OODATE} > ${.TARGET}
+	miniperl ${MINIPERLOPT} ${.OBJDIR}/../../pod/pod2man/pod2man ${.OODATE} > ${.TARGET}
