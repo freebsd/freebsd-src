@@ -40,7 +40,7 @@ CFLAGS+=	-I${.CURDIR}/..
 vers.c: ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
 	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
 
-LDFLAGS=-e start -N -Ttext ${LOAD_ADDRESS}
+LDFLAGS=-e start -Ttext ${LOAD_ADDRESS} -T ${.CURDIR}/../common/ldscript
 
 FILES=	${BOOT}
 # XXX INSTALLFLAGS_${BOOT}= -b
