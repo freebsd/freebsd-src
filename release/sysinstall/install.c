@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.70.2.8 1995/06/01 22:32:03 jkh Exp $
+ * $Id: install.c,v 1.70.2.9 1995/06/01 22:42:47 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -232,7 +232,6 @@ installInitial(void)
 	execlp("sh", "-sh", 0);
 	exit(1);
     }
-    root_extract();
     alreadyDone = TRUE;
     return TRUE;
 }
@@ -258,6 +257,7 @@ installCommit(char *str)
 	    return 0;
 	configFstab();
     }
+    root_extract();
     distExtractAll();
 
     if (access("/kernel", R_OK))
@@ -385,12 +385,16 @@ copy_self(void)
     (void)vsystem("cd /mnt/stand; find etc | cpio -pdmv /mnt");
 }
 
-static void loop_on_root_floppy();
+static Boolean loop_on_root_floppy(void);
 
 static void
 root_extract(void)
 {
     int fd;
+    static Boolean alreadyExtracted = FALSE;
+
+    if (alreadyExtracted)
+	return;
 
     if (OnCDROM) {
 	fd = open("/floppies/root.flp", O_RDONLY);
@@ -406,7 +410,7 @@ root_extract(void)
 
 	case DEVICE_TYPE_TAPE:
 	case DEVICE_TYPE_FLOPPY:
-	    loop_on_root_floppy();
+	    alreadyExtracted = loop_on_root_floppy();
 	    break;
 
 	default:
@@ -416,7 +420,7 @@ root_extract(void)
 	    fd = (*mediaDevice->get)("floppies/root.flp");
 	    if (fd != -1) {
 		msgNotify("Loading root floppy from %s", mediaDevice->name);
-		(void)mediaExtractDist("/", fd);
+		alreadyExtracted = mediaExtractDist("/", fd);
 		if (mediaDevice->close)
 		    (*mediaDevice->close)(mediaDevice, fd);
 		else
@@ -426,25 +430,27 @@ root_extract(void)
 		msgConfirm("Couldn't get root floppy image from %s\n, falling back to floppy.", mediaDevice->name);
 		if (mediaDevice->shutdown)
 		    (*mediaDevice->shutdown)(mediaDevice);
-	        loop_on_root_floppy();
+	        alreadyExtracted = loop_on_root_floppy();
 	    }
 	    break;
 	}
     }
     else
-	loop_on_root_floppy();
+	alreadyExtracted = loop_on_root_floppy();
 }
 
-static void
+static Boolean
 loop_on_root_floppy(void)
 {
     int fd;
+    int status = FALSE;
 
     while (1) {
 	fd = getRootFloppy();
 	if (fd != -1) {
-	    mediaExtractDist("/", fd);
+	    status = mediaExtractDist("/", fd);
 	    break;
 	}
     }
+    return status;
 }
