@@ -536,8 +536,16 @@ maybe_preempt(struct thread *td)
 		/*
 		 * If this is a threaded process we actually ARE on the
 		 * ksegrp run queue so take it off that first.
+		 * Also undo any damage done to the last_assigned pointer.
+		 * XXX Fix setrunqueue so this isn't needed
 		 */
-		remrunqueue(td); /* maybe use a simpler version */
+		struct ksegrp *kg;
+
+		kg = td->td_ksegrp;
+		if (kg->kg_last_assigned == td)
+			kg->kg_last_assigned =
+			    TAILQ_PREV(td, threadqueue, td_runq);  
+		TAILQ_REMOVE(&kg->kg_runq, td, td_runq);
 	}
 		
 	TD_SET_RUNNING(td);
