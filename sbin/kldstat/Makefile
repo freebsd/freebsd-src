@@ -27,6 +27,7 @@
 #
 
 PROG=	kldstat
+MAN=	kldstat.8
 
 CFLAGS+=-I${.CURDIR}/../../sys
 

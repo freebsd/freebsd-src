@@ -2,7 +2,6 @@
 # $FreeBSD$
 
 PROG=	md5
-MAN1=	${PROG}.1
 
 LDADD+=	-lmd
 DPADD+= ${LIBMD}

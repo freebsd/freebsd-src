@@ -3,4 +3,3 @@
 
 BINDIR?=	/sbin
 NOSHARED?=	YES
-MANSECT?=	8

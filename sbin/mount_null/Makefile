@@ -3,6 +3,7 @@
 
 PROG=	mount_null
 SRCS=	mount_null.c getmntopts.c
+MAN=	mount_null.8
 
 MOUNT=	${.CURDIR}/../mount
 CFLAGS+= -I${.CURDIR}/../../sys -I${MOUNT}
