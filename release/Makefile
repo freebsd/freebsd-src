@@ -840,7 +840,7 @@ iso.1:
 		  fbsd_livefs ${CD}/disc2.iso ${CD_DISC2}; \
 		if [ "x${CD_EXTRA_BITS}" != "x" ]; then \
 			sh ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh ${BOOTABLE} \
-			  fbsd_boot ${CD}/disc1.iso ${CD_DISC1} ${CD_EXTRA_BITS}; \
+			  fbsd_boot ${CD}/disc1.iso ${CD_DISC1} ${CD_EXTRA_BITS} \
 			    && false; \
 		fi \
 	else \
