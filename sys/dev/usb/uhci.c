@@ -1090,7 +1090,7 @@ uhci_idone(uhci_intr_info_t *ii)
 	if (xfer->nframes != 0) {
 		/* Isoc transfer, do things differently. */
 		uhci_soft_td_t **stds = upipe->u.iso.stds;
-		int i, n, nframes;
+		int i, n, nframes, len;
 
 		DPRINTFN(5,("uhci_idone: ii=%p isoc ready\n", ii));
 
@@ -1108,7 +1108,9 @@ uhci_idone(uhci_intr_info_t *ii)
 			if (++n >= UHCI_VFRAMELIST_COUNT)
 				n = 0;
 			status = LE(std->td.td_status);
-			actlen += UHCI_TD_GET_ACTLEN(status);
+			len = UHCI_TD_GET_ACTLEN(status);
+			xfer->frlengths[i] = len;
+			actlen += len;
 		}
 		upipe->u.iso.inuse -= nframes;
 		xfer->actlen = actlen;
