@@ -7,7 +7,7 @@
 # Updated from RFC 1340, ``Assigned Numbers'' (July 1992).  Not all ports
 # are included, only the more common ones.
 #
-#	$Id: services,v 1.3 1993/11/07 00:31:23 wollman Exp $
+#	$Id: services,v 1.4 1993/12/05 16:39:47 ats Exp $
 #	From: @(#)services	5.8 (Berkeley) 5/9/91
 #
 tcpmux		1/tcp		# TCP port service multiplexer
@@ -115,7 +115,7 @@ imap3		220/udp				# Protocol v3
 ulistserv	372/tcp				# UNIX Listserv
 ulistserv	372/udp
 #
-# UNIX specific services
+# Berkeley-specific services
 #
 exec		512/tcp
 biff		512/udp		comsat
