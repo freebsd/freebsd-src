@@ -93,6 +93,32 @@ In
 .Cd hint.sio.11.flags="0xb05"
 .Cd hint.sio.11.irq="12"
 .Pp
+For Netmos Nm9845 multiport cards with 6 ports:
+.Cd "options COM_MULTIPORT"
+.Cd "device sio"
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.sio.4.at="isa"
+.Cd hint.sio.4.port="0xb000"
+.Cd hint.sio.4.flags="0x901"
+.Cd hint.sio.5.at="isa"
+.Cd hint.sio.5.port="0xb400"
+.Cd hint.sio.5.flags="0x901"
+.Cd hint.sio.6.at="isa"
+.Cd hint.sio.6.port="0xb800"
+.Cd hint.sio.6.flags="0x901"
+.Cd hint.sio.7.at="isa"
+.Cd hint.sio.7.port="0xbc00"
+.Cd hint.sio.7.flags="0x901"
+.Cd hint.sio.8.at="isa"
+.Cd hint.sio.8.port="0xc000"
+.Cd hint.sio.8.flags="0x901"
+.Cd hint.sio.9.at="isa"
+.Cd hint.sio.9.port="0xac00"
+.Cd hint.sio.9.flags="0x901"
+.Cd hint.sio.9.irq="12"
+.Pp
 For Hayes ESP cards:
 .Cd "options COM_ESP"
 .Cd "device sio"
