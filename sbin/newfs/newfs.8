@@ -89,7 +89,7 @@ The default format is UFS2.
 .It Fl T Ar disktype
 For backward compatibility.
 .It Fl U
-Enables soft updates on the new file system.
+Enable soft updates on the new file system.
 .It Fl a Ar maxcontig
 Specify the maximum number of contiguous blocks that will be
 laid out before forcing a rotational delay.
@@ -146,7 +146,7 @@ to create more inodes a smaller number should be given.
 One inode is required for each distinct file, so this value effectively
 specifies the average file size on the file system.
 .It Fl l
-Enables multilabel MAC on the new file system.
+Enable multilabel MAC on the new file system.
 .It Fl m Ar free-space
 The percentage of space reserved from normal users; the minimum free
 space threshold.
@@ -217,8 +217,8 @@ on file systems that contain many small files.
 .Xr fdformat 1 ,
 .Xr disktab 5 ,
 .Xr fs 5 ,
-.Xr camcontrol 8 ,
 .Xr bsdlabel 8 ,
+.Xr camcontrol 8 ,
 .Xr dumpfs 8 ,
 .Xr fsck 8 ,
 .Xr mount 8 ,

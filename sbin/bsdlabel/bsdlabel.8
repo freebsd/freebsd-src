@@ -40,30 +40,28 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl A
-.Op Fl f
-.Ar disk/file
+.Ar disk | Fl f Ar file
 .Nm
 .Fl w
 .Op Fl \&An
 .Op Fl B Op Fl b Ar boot
 .Op Fl m Ar machine
-.Op Fl f
-.Ar disk/file
+.Ar disk | Fl f Ar file
 .Op Ar type
 .Nm
 .Fl e
 .Op Fl \&An
 .Op Fl B Op Fl b Ar boot
 .Op Fl m Ar machine
-.Op Fl f
-.Ar disk/file
+.Ar disk | Fl f Ar file
 .Nm
 .Fl R
 .Op Fl \&An
 .Op Fl B Op Fl b Ar boot
 .Op Fl m Ar machine
 .Op Fl f
-.Ar disk/file protofile
+.Ar disk | Fl f Ar file
+.Ar protofile
 .Sh DESCRIPTION
 The
 .Nm
@@ -75,9 +73,9 @@ In addition,
 .Nm
 can install bootstrap code.
 .Ss Disk Device Name
-When specifying the device (i.e. when the
+When specifying the device (i.e., when the
 .Fl f
-option is not used), 
+option is not used),
 the
 .Pa /dev/
 path prefix may be omitted;
