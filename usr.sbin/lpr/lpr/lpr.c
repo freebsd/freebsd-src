@@ -61,6 +61,8 @@ static const char rcsid[] =
 #include <sys/param.h>
 #include <sys/stat.h>
 
+#include <netinet/in.h>		/* N_BADMAG uses ntohl() */
+
 #include <dirent.h>
 #include <fcntl.h>
 #include <a.out.h>
