@@ -599,7 +599,9 @@ Reloc types used for i960/b.out.
 @deffnx {} BFD_RELOC_SPARC_GLOB_DAT
 @deffnx {} BFD_RELOC_SPARC_JMP_SLOT
 @deffnx {} BFD_RELOC_SPARC_RELATIVE
+@deffnx {} BFD_RELOC_SPARC_UA16
 @deffnx {} BFD_RELOC_SPARC_UA32
+@deffnx {} BFD_RELOC_SPARC_UA64
 SPARC ELF relocations.  There is probably some overlap with other
 relocation types already defined.
 @end deffn
@@ -752,6 +754,17 @@ Relocation against a MIPS literal section.
 @deffnx {} BFD_RELOC_MIPS_GOT_PAGE
 @deffnx {} BFD_RELOC_MIPS_GOT_OFST
 @deffnx {} BFD_RELOC_MIPS_GOT_DISP
+@deffnx {} BFD_RELOC_MIPS_SHIFT5
+@deffnx {} BFD_RELOC_MIPS_SHIFT6
+@deffnx {} BFD_RELOC_MIPS_INSERT_A
+@deffnx {} BFD_RELOC_MIPS_INSERT_B
+@deffnx {} BFD_RELOC_MIPS_DELETE
+@deffnx {} BFD_RELOC_MIPS_HIGHEST
+@deffnx {} BFD_RELOC_MIPS_HIGHER
+@deffnx {} BFD_RELOC_MIPS_SCN_DISP
+@deffnx {} BFD_RELOC_MIPS_REL16
+@deffnx {} BFD_RELOC_MIPS_RELGOT
+@deffnx {} BFD_RELOC_MIPS_JALR
 MIPS ELF relocations.
 @end deffn
 @deffn {} BFD_RELOC_386_GOT32

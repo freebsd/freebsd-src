@@ -1,5 +1,6 @@
 /* This file is tc-z8k.h
-   Copyright (C) 1987-1992, 93, 95, 97, 98, 2000
+   Copyright 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1995, 1997, 1998,
+   2000
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.

@@ -1,5 +1,5 @@
 /* BFD support for the SPARC architecture.
-   Copyright (C) 1992, 94, 95, 96, 97, 2000 Free Software Foundation, Inc.
+   Copyright 1992, 1995, 1996, 1998, 2000 Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
 

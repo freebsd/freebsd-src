@@ -16,8 +16,8 @@ d10v-dis.c
 d10v-opc.c
 d30v-dis.c
 d30v-opc.c
-disassemble.c
 dis-buf.c
+disassemble.c
 fr30-asm.c
 fr30-desc.c
 fr30-desc.h
@@ -40,12 +40,12 @@ ia64-dis.c
 ia64-gen.c
 ia64-opc-a.c
 ia64-opc-b.c
-ia64-opc.c
 ia64-opc-d.c
 ia64-opc-f.c
-ia64-opc.h
 ia64-opc-i.c
 ia64-opc-m.c
+ia64-opc.c
+ia64-opc.h
 m10200-dis.c
 m10200-opc.c
 m10300-dis.c
@@ -65,9 +65,9 @@ m68k-opc.c
 m88k-dis.c
 mcore-dis.c
 mcore-opc.h
-mips16-opc.c
 mips-dis.c
 mips-opc.c
+mips16-opc.c
 ns32k-dis.c
 pj-dis.c
 pj-opc.c
@@ -89,5 +89,5 @@ vax-dis.c
 w65-dis.c
 w65-opc.h
 z8k-dis.c
-z8kgen.c
 z8k-opc.h
+z8kgen.c

@@ -1,5 +1,6 @@
 /* This module handles expression trees.
-   Copyright (C) 1991, 92, 93, 94, 95, 96, 97, 98, 99, 2000
+   Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
+   2001
    Free Software Foundation, Inc.
    Written by Steve Chamberlain of Cygnus Support <sac@cygnus.com>.
 
@@ -593,10 +594,11 @@ exp_fold_tree (tree, current_section, allocation_done, dot, dotp)
 
     case etree_assign:
     case etree_provide:
+    case etree_provided:
       if (tree->assign.dst[0] == '.' && tree->assign.dst[1] == 0)
 	{
 	  /* Assignment to dot can only be done during allocation */
-	  if (tree->type.node_class == etree_provide)
+	  if (tree->type.node_class != etree_assign)
 	    einfo (_("%F%S can not PROVIDE assignment to location counter\n"));
 	  if (allocation_done == lang_allocating_phase_enum
 	      || (allocation_done == lang_final_phase_enum
@@ -666,6 +668,8 @@ exp_fold_tree (tree, current_section, allocation_done, dot, dotp)
 		  h->type = bfd_link_hash_defined;
 		  h->u.def.value = result.value;
 		  h->u.def.section = result.section->bfd_section;
+		  if (tree->type.node_class == etree_provide)
+		    tree->type.node_class = etree_provided;
 		}
 	    }
 	}
@@ -880,6 +884,7 @@ exp_print_tree (tree)
       exp_print_tree (tree->assign.src);
       break;
     case etree_provide:
+    case etree_provided:
       fprintf (config.map_file, "PROVIDE (%s, ", tree->assign.dst);
       exp_print_tree (tree->assign.src);
       fprintf (config.map_file, ")");

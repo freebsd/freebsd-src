@@ -1,5 +1,5 @@
 /* This file is listing.h
-   Copyright (C) 1987, 88, 89, 90, 91, 92, 93, 94, 95, 1997
+   Copyright 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1995, 1997, 1998
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.

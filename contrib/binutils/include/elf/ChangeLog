@@ -1,3 +1,39 @@
+2001-06-11  Alan Modra  <amodra@bigpond.net.au>
+
+	Merge from mainline.
+	2001-05-15  Ralf Baechle  <ralf@gnu.org>
+	* common.h: Remove definition of EM_MIPS_RS4_BE.  The constant was
+	never in active use and is used otherwise by the ABI.
+
+	2001-05-07  Thiemo Seufer <seufer@csv.ica.uni-stuttgart.de>
+	* external.h: Fix typo.
+	* mips.h: Add/Extend many comments with reference to the MIPS ELF64
+	spec v. 2.4, available at e.g.
+	ftp://oss.sgi.com/pub/linux/mips/doc/ABI/ELF64.ps.
+	(EF_MIPS_UCODE): Define.
+	(EF_MIPS_OPTIONS_FIRST): Define.
+	(EF_MIPS_ARCH_ASE): Define.
+	(EF_MIPS_ARCH_ASE_MDMX): Define.
+	(EF_MIPS_ARCH_ASE_M16): Define.
+	(SHF_MIPS_ADDR): Renamed SHF_MIPS_ADDR32.
+	(SHF_MIPS_STRING): Renamed SHF_MIPS_ADDR64.
+	(SHF_MIPS_NODUPES): Define.
+	(ELF64_MIPS_R_SSYM): New MIPS ELF 64 relocation info access macro.
+	(ELF64_MIPS_R_TYPE3): Likewise.
+	(ELF64_MIPS_R_TYPE2): Likewise.
+	(ELF64_MIPS_R_TYPE): Likewise.
+	(OHW_R10KLDL): Define.
+
+	2001-04-24  Todd Fries  <todd@fries.net>
+	* sparc.h: Fix typo.
+
+	2001-03-23  Nick Clifton  <nickc@redhat.com>
+	* mips.h: Remove extraneous whitespace.
+
+2001-06-07  Alan Modra  <amodra@bigpond.net.au>
+
+	* Many files: Update copyright notices.
+
 2001-01-11  Peter Targett  <peter.targett@arccores.com>
 
 	* arc.h (E_ARC_MACH_ARC5, E_ARC_MACH_ARC6, E_ARC_MACH_ARC7,
@@ -18,14 +54,14 @@
 
         * mips.h (E_MIPS_ARCH_32): New constant.
         (E_MIPS_MACH_MIPS32, E_MIPS_MACH_MIPS32_4K): Replace the
-        former with the latter. 
+        former with the latter.
 
         * mips.h (E_MIPS_ARCH_5, E_MIPS_ARCH_64): New definitions.
 
         * mips.h (E_MIPS_MACH_SB1): New constant.
 
 2000-11-30  Jan Hubicka  <jh@suse.cz>
-	
+
         * common.h (EM_X86_64): New macro.
         * x86-64.h: New file.
 
@@ -85,7 +121,7 @@
 
 2000-09-13  Anders Norlander  <anorland@acc.umu.se>
 
- 	* mips.h (E_MIPS_MACH_4K): New define.
+	* mips.h (E_MIPS_MACH_4K): New define.
 
 2000-09-05  Alan Modra  <alan@linuxcare.com.au>
 
@@ -102,13 +138,18 @@
 
 2000-08-14  Jim Wilson  <wilson@cygnus.com>
 
-	* elf/ia64.h (EF_IA_64_REDUCEDFP, EF_IA_64_CONS_GP,
+	* ia64.h (EF_IA_64_REDUCEDFP, EF_IA_64_CONS_GP,
 	EF_IA_64_NOFUNCDESC_CONS_GP, EF_IA_64_ABSOLUTE): Define.
 
 2000-08-07  Nick Clifton  <nickc@cygnus.com>
 
 	* ppc.h: Remove spurious CYGNUS LOCAL comments.
 	* v850.h: Likewise.
+
+2000-07-22  Jason Eckhardt  <jle@cygnus.com>
+
+	* i860.h: New file.
+	(elf_i860_reloc_type): Defined ELF32 i860 relocations.
 
 2000-07-20  Hans-Peter Nilsson  <hp@axis.com>
 
@@ -148,7 +189,7 @@
 
 2000-07-10  Alan Modra  <alan@linuxcare.com.au>
 
-	* hppa.h: Add comments to all the relocs. 
+	* hppa.h: Add comments to all the relocs.
 
 2000-06-26  Marek Michalkiewicz  <marekm@linux.org.pl>
 
@@ -535,7 +576,7 @@ Thu Feb 18 18:58:26 1999  Ian Lance Taylor  <ian@cygnus.com>
 
 	Patch submitted by: Scott Bambrough <scottb@corelcomputer.com>
 
-	* elf/external.h: struct Elf_External_Versym must be packed on
+	* external.h: struct Elf_External_Versym must be packed on
 	ARM.  Code uses sizeof(Elf_External_Versym) and assumes it is
 	equal to sizeof(char[2]).  Reported by Jim Pick <jim@jimpick.com>
 
@@ -579,6 +620,11 @@ Mon Feb  1 11:33:56 1999  Catherine Moore  <clm@cygnus.com>
 	* mips.h: Add more LL_* options from Irix 6.5.
 
 	* mips.h: Add R_MIPS_JALR and adjust R_MIPS_max appropriately.
+
+Mon Nov 30 15:25:58 1998  J"orn Rennecke <amylaar@cygnus.co.uk>
+
+	* sh.h (elf_sh_reloc_type): Add R_SH_FIRST_INVALID_RELOC,
+	R_SH_LAST_INVALID_RELOC, R_SH_SWITCH8 and R_SH_max.
 
 Tue Nov 10 15:12:28 1998  Nick Clifton  <nickc@cygnus.com>
 

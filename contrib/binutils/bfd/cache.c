@@ -1,5 +1,5 @@
 /* BFD library -- caching of file descriptors.
-   Copyright 1990, 91, 92, 93, 94, 95, 1996, 2000, 2001
+   Copyright 1990, 1991, 1992, 1993, 1994, 1996, 2000, 2001
    Free Software Foundation, Inc.
    Hacked by Steve Chamberlain of Cygnus Support (steve@cygnus.com).
 

@@ -1,5 +1,6 @@
 /* DWARF 2 support.
-   Copyright 1994, 95, 96, 97, 98, 99, 2000 Free Software Foundation, Inc.
+   Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001
+   Free Software Foundation, Inc.
 
    Adapted from gdb/dwarf2read.c by Gavin Koch of Cygnus Solutions
    (gavin@cygnus.com).
@@ -436,9 +437,9 @@ read_abbrevs (abfd, offset, stash)
 	return 0;
     }
 
-  if (offset > stash->dwarf_abbrev_size)
+  if (offset >= stash->dwarf_abbrev_size)
     {
-      (*_bfd_error_handler) (_("Dwarf Error: Abbrev offset (%u) bigger than abbrev size (%u)."),
+      (*_bfd_error_handler) (_("Dwarf Error: Abbrev offset (%u) greater than or equal to abbrev size (%u)."),
 			     offset, stash->dwarf_abbrev_size );
       bfd_set_error (bfd_error_bad_value);
       return 0;
@@ -803,7 +804,7 @@ decode_line_info (unit, stash)
      below.  */
   if (unit->line_offset >= stash->dwarf_line_size)
     {
-      (*_bfd_error_handler) (_("Dwarf Error: Line offset (%u) bigger than line size (%u)."),
+      (*_bfd_error_handler) (_("Dwarf Error: Line offset (%u) greater than or equal to line size (%u)."),
 			     unit->line_offset, stash->dwarf_line_size);
       bfd_set_error (bfd_error_bad_value);
       return 0;

@@ -1,5 +1,6 @@
 /* BFD back-end for i386 a.out binaries.
-   Copyright 1990, 91, 92, 94, 95, 96, 1997 Free Software Foundation, Inc.
+   Copyright 1990, 1991, 1992, 1994, 1996, 1997
+   Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
 

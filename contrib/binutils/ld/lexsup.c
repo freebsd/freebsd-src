@@ -1,5 +1,6 @@
 /* Parse options for the GNU linker.
-   Copyright (C) 1991, 92, 93, 94, 95, 96, 97, 98, 99, 2000, 2001
+   Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
+   2001
    Free Software Foundation, Inc.
 
 This file is part of GLD, the Gnu Linker.
@@ -808,7 +809,7 @@ parse_args (argc, argv)
 	  /* Fall through.  */
 	case OPTION_RPATH:
 	  if (command_line.rpath == NULL)
-	    command_line.rpath = buystring (optarg);
+	    command_line.rpath = xstrdup (optarg);
 	  else
 	    {
 	      size_t rpath_len = strlen (command_line.rpath);
@@ -845,7 +846,7 @@ parse_args (argc, argv)
 	  break;
 	case OPTION_RPATH_LINK:
 	  if (command_line.rpath_link == NULL)
-	    command_line.rpath_link = buystring (optarg);
+	    command_line.rpath_link = xstrdup (optarg);
 	  else
 	    {
 	      char *buf;

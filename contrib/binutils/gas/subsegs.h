@@ -1,5 +1,5 @@
 /* subsegs.h -> subsegs.c
-   Copyright (C) 1987, 92, 93, 94, 95, 96, 98, 2000
+   Copyright 1987, 1992, 1993, 1994, 1995, 1996, 1998, 2000
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
