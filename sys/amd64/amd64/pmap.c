@@ -1784,14 +1784,15 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 			va_next = eva;
 
 		for (; sva != va_next; sva += PAGE_SIZE) {
-			pt_entry_t pbits;
+			pt_entry_t obits, pbits;
 			pt_entry_t *pte;
 			vm_page_t m;
 
 			pte = pmap_pte(pmap, sva);
 			if (pte == NULL)
 				continue;
-			pbits = *pte;
+retry:
+			obits = pbits = *pte;
 			if (pbits & PG_MANAGED) {
 				m = NULL;
 				if (pbits & PG_A) {
@@ -1805,14 +1806,14 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 						m = PHYS_TO_VM_PAGE(pbits &
 						    PG_FRAME);
 					vm_page_dirty(m);
-					pbits &= ~PG_M;
 				}
 			}
 
-			pbits &= ~PG_RW;
+			pbits &= ~(PG_RW | PG_M);
 
-			if (pbits != *pte) {
-				pte_store(pte, pbits);
+			if (pbits != obits) {
+				if (!atomic_cmpset_long(pte, obits, pbits))
+					goto retry;
 				anychanged = 1;
 			}
 		}
