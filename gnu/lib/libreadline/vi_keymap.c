@@ -26,7 +26,9 @@
 
 #include "readline.h"
 
+#if 0
 extern KEYMAP_ENTRY_ARRAY vi_escape_keymap;
+#endif
 
 /* The keymap arrays for handling vi mode. */
 KEYMAP_ENTRY_ARRAY vi_movement_keymap = {
@@ -59,7 +61,7 @@ KEYMAP_ENTRY_ARRAY vi_movement_keymap = {
   { ISFUNC, rl_yank },			/* Control-y */
   { ISFUNC, (Function *)0x0 },		/* Control-z */
 
-  { ISFUNC, rl_abort },			/* Control-[ */
+  { ISFUNC, rl_abort },			/* Control-[ */	/* vi_escape_keymap */
   { ISFUNC, (Function *)0x0 },		/* Control-\ */
   { ISFUNC, (Function *)0x0 },		/* Control-] */
   { ISFUNC, (Function *)0x0 },		/* Control-^ */
@@ -84,7 +86,7 @@ KEYMAP_ENTRY_ARRAY vi_movement_keymap = {
   { ISFUNC, rl_vi_search },		/* / */
 
   /* Regular digits. */
-  { ISFUNC, rl_vi_arg_digit },		/* 0 */
+  { ISFUNC, rl_beg_of_line },		/* 0 */
   { ISFUNC, rl_vi_arg_digit },		/* 1 */
   { ISFUNC, rl_vi_arg_digit },		/* 2 */
   { ISFUNC, rl_vi_arg_digit },		/* 3 */
@@ -592,8 +594,9 @@ KEYMAP_ENTRY_ARRAY vi_insertion_keymap = {
 #endif /* KEYMAP_SIZE > 128 */
 };
 
+/* Unused for the time being. */
+#if 0
 KEYMAP_ENTRY_ARRAY vi_escape_keymap = {
-
   /* The regular control keys come first. */
   { ISFUNC, (Function *)0x0 },		/* Control-@ */
   { ISFUNC, (Function *)0x0 },		/* Control-a */
@@ -871,3 +874,4 @@ KEYMAP_ENTRY_ARRAY vi_escape_keymap = {
   { ISFUNC, (Function *)0x0 }
 #endif /* KEYMAP_SIZE > 128 */
 };
+#endif

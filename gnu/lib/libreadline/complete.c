@@ -43,17 +43,19 @@
 extern int errno;
 #endif /* !errno */
 
-/* These next are for filename completion.  Perhaps this belongs
-   in a different place. */
 #include <pwd.h>
-#if defined (USG) && !defined (isc386) && !defined (sgi)
-extern struct passwd *getpwuid (), *getpwent ();
-#endif
-#if defined (isc386) && !defined (__STDC__) && defined (_POSIX_SOURCE)
+#if defined (USG) && !defined (HAVE_GETPW_DECLS)
 extern struct passwd *getpwent ();
-#endif
+#endif /* USG && !HAVE_GETPW_DECLS */
 
-/* #define HACK_TERMCAP_MOTION */
+/* ISC systems don't define getpwent() if _POSIX_SOURCE is defined. */
+#if defined (isc386) && defined (_POSIX_SOURCE)
+#  if defined (__STDC__)
+extern struct passwd *getpwent (void);
+#  else
+extern struct passwd *getpwent ();
+#  endif /* !__STDC__ */
+#endif /* isc386 && _POSIX_SOURCE */
 
 #include "posixstat.h"
 
@@ -95,10 +97,13 @@ extern char *xmalloc (), *xrealloc ();
 /* If non-zero, then this is the address of a function to call when
    completing on a directory name.  The function is called with
    the address of a string (the current directory name) as an arg. */
-Function *rl_symbolic_link_hook = (Function *)NULL;
+Function *rl_directory_completion_hook = (Function *)NULL;
 
 /* Non-zero means readline completion functions perform tilde expansion. */
 int rl_complete_with_tilde_expansion = 0;
+
+/* If non-zero, non-unique completions always show the list of matches. */
+int _rl_complete_show_all = 0;
 
 #if defined (VISIBLE_STATS)
 #  if !defined (X_OK)
@@ -133,6 +138,10 @@ Function *rl_completion_entry_function = (Function *)NULL;
    array of strings returned. */
 CPPFunction *rl_attempted_completion_function = (CPPFunction *)NULL;
 
+/* Non-zero means to suppress normal filename completion after the
+   user-specified completion function has been called. */
+int rl_attempted_completion_over = 0;
+
 /* Local variable states what happened during the last completion attempt. */
 static int completion_changed_buffer = 0;
 
@@ -144,22 +153,24 @@ rl_complete (ignore, invoking_key)
      int ignore, invoking_key;
 {
   if (rl_last_func == rl_complete && !completion_changed_buffer)
-    rl_complete_internal ('?');
+    return (rl_complete_internal ('?'));
+  else if (_rl_complete_show_all)
+    return (rl_complete_internal ('!'));
   else
-    rl_complete_internal (TAB);
+    return (rl_complete_internal (TAB));
 }
 
 /* List the possible completions.  See description of rl_complete (). */
 rl_possible_completions (ignore, invoking_key)
      int ignore, invoking_key;
 {
-  rl_complete_internal ('?');
+  return (rl_complete_internal ('?'));
 }
 
 rl_insert_completions (ignore, invoking_key)
      int ignore, invoking_key;
 {
-  rl_complete_internal ('*');
+  return (rl_complete_internal ('*'));
 }
 
 /* The user must press "y" or "n". Non-zero return means "y" pressed. */
@@ -170,9 +181,9 @@ get_y_or_n ()
   for (;;)
     {
       c = rl_read_key ();
-      if (c == 'y' || c == 'Y')
+      if (c == 'y' || c == 'Y' || c == ' ')
 	return (1);
-      if (c == 'n' || c == 'N')
+      if (c == 'n' || c == 'N' || c == RUBOUT)
 	return (0);
       if (c == ABORT_CHAR)
 	rl_abort ();
@@ -263,11 +274,90 @@ _delete_quotes (text)
 }
 #endif /* SHELL */
 
+/* Return the portion of PATHNAME that should be output when listing
+   possible completions.  If we are hacking filename completion, we
+   are only interested in the basename, the portion following the
+   final slash.  Otherwise, we return what we were passed. */
+static char *
+printable_part (pathname)
+      char *pathname;
+{
+  char *temp = (char *)NULL;
+
+  if (rl_filename_completion_desired)
+    temp = strrchr (pathname, '/');
+
+  if (!temp)
+    return (pathname);
+  else
+    return (++temp);
+}
+
+/* Output TO_PRINT to rl_outstream.  If VISIBLE_STATS is defined and we
+   are using it, check for and output a single character for `special'
+   filenames.  Return 1 if we printed an extension character, 0 if not. */
+static int
+print_filename (to_print, full_pathname)
+     char *to_print, *full_pathname;
+{
+#if !defined (VISIBLE_STATS)
+  fputs (to_print, rl_outstream);
+  return 0;
+#else  
+  char *s, c, *new_full_pathname;
+  int extension_char = 0, slen, tlen;
+
+  fputs (to_print, rl_outstream);
+  if (rl_filename_completion_desired && rl_visible_stats)
+    {
+      /* If to_print != full_pathname, to_print is the basename of the
+	 path passed.  In this case, we try to expand the directory
+	 name before checking for the stat character. */
+      if (to_print != full_pathname)
+	{
+	  /* Terminate the directory name. */
+	  c = to_print[-1];
+	  to_print[-1] = '\0';
+
+	  s = tilde_expand (full_pathname);
+	  if (rl_directory_completion_hook)
+	    (*rl_directory_completion_hook) (&s);
+
+	  slen = strlen (s);
+	  tlen = strlen (to_print);
+	  new_full_pathname = xmalloc (slen + tlen + 2);
+	  strcpy (new_full_pathname, s);
+	  new_full_pathname[slen] = '/';
+	  strcpy (new_full_pathname + slen + 1, to_print);
+
+	  extension_char = stat_char (new_full_pathname);
+
+	  free (new_full_pathname);
+	  to_print[-1] = c;
+	}
+      else
+	{
+	  s = tilde_expand (full_pathname);
+	  extension_char = stat_char (s);
+	}
+
+      free (s);
+      if (extension_char)
+	putc (extension_char, rl_outstream);
+      return (extension_char != 0);
+    }
+  else
+    return 0;
+#endif /* VISIBLE_STATS */
+}
+
 /* Complete the word at or before point.
    WHAT_TO_DO says what to do with the completion.
    `?' means list the possible completions.
    TAB means do standard completion.
-   `*' means insert all of the possible completions. */
+   `*' means insert all of the possible completions.
+   `!' means to do standard completion, and list all possible completions if
+   there is more than one. */
 rl_complete_internal (what_to_do)
      int what_to_do;
 {
@@ -276,10 +366,10 @@ rl_complete_internal (what_to_do)
   int start, scan, end, delimiter = 0, pass_next;
   char *text, *saved_line_buffer;
   char *replacement;
+  char quote_char = '\0';
 #if defined (SHELL)
   int found_quote = 0;
 #endif
-  char quote_char = '\0';
 
   if (rl_line_buffer)
     saved_line_buffer = savestring (rl_line_buffer);
@@ -352,12 +442,13 @@ rl_complete_internal (what_to_do)
 	     substring on which to complete. */
 	  while (--rl_point)
 	    {
+	      scan = rl_line_buffer[rl_point];
 #if defined (SHELL)
 	      /* Don't let word break characters in quoted substrings break
 		 words for the completer. */
 	      if (found_quote)
 		{
-		  if (strchr (rl_completer_quote_characters, rl_line_buffer[rl_point]))
+		  if (strchr (rl_completer_quote_characters, scan))
 		    {
 		      quoted = !quoted;
 		      continue;
@@ -366,23 +457,23 @@ rl_complete_internal (what_to_do)
 		    continue;
 		}
 #endif /* SHELL */
-	      if (strchr (rl_completer_word_break_characters, rl_line_buffer[rl_point]))
+	      if (strchr (rl_completer_word_break_characters, scan))
 	        break;
 	    }
 	}
 
       /* If we are at a word break, then advance past it. */
-      if (strchr (rl_completer_word_break_characters, rl_line_buffer[rl_point]))
+      scan = rl_line_buffer[rl_point];
+      if (strchr (rl_completer_word_break_characters, scan))
 	{
 	  /* If the character that caused the word break was a quoting
 	     character, then remember it as the delimiter. */
-	  if (strchr ("\"'", rl_line_buffer[rl_point]) && (end - rl_point) > 1)
-	    delimiter = rl_line_buffer[rl_point];
+	  if (strchr ("\"'", scan) && (end - rl_point) > 1)
+	    delimiter = scan;
 
 	  /* If the character isn't needed to determine something special
 	     about what kind of completion to perform, then advance past it. */
-	  if (!rl_special_prefixes ||
-	      !strchr (rl_special_prefixes, rl_line_buffer[rl_point]))
+	  if (!rl_special_prefixes || strchr (rl_special_prefixes, scan) == 0)
 	    rl_point++;
 	}
     }
@@ -399,11 +490,9 @@ rl_complete_internal (what_to_do)
     {
       matches = (*rl_attempted_completion_function) (text, start, end);
 
-      if (matches)
+      if (matches || rl_attempted_completion_over)
 	{
-	  /* XXX - This is questionable code. - XXX */
-	  if (matches == (char **)-1)
-	    matches = (char **)NULL;
+	  rl_attempted_completion_over = 0;
 	  our_func = (Function *)NULL;
 	  goto after_usual_completion;
 	}
@@ -441,6 +530,7 @@ rl_complete_internal (what_to_do)
 	  char *lowest_common;
 	  int j, newlen = 0;
 	  char dead_slot;
+	  char **temp_array;
 
 	  /* Sort the items. */
 	  /* It is safe to sort this array, because the lowest common
@@ -464,25 +554,19 @@ rl_complete_internal (what_to_do)
 
 	  /* We have marked all the dead slots with (char *)&dead_slot.
 	     Copy all the non-dead entries into a new array. */
-	  {
-	    char **temp_array =
-	      (char **)xmalloc ((3 + newlen) * sizeof (char *));
+	  temp_array = (char **)xmalloc ((3 + newlen) * sizeof (char *));
+	  for (i = j = 1; matches[i]; i++)
+	    {
+	      if (matches[i] != (char *)&dead_slot)
+		temp_array[j++] = matches[i];
+	    }
+	  temp_array[j] = (char *)NULL;
 
-	    for (i = 1, j = 1; matches[i]; i++)
-	      {
-		if (matches[i] != (char *)&dead_slot)
-		  temp_array[j++] = matches[i];
-	      }
+	  if (matches[0] != (char *)&dead_slot)
+	    free (matches[0]);
+	  free (matches);
 
-	    temp_array[j] = (char *)NULL;
-
-	    if (matches[0] != (char *)&dead_slot)
-	      free (matches[0]);
-
-	    free (matches);
-
-	    matches = temp_array;
-	  }
+	  matches = temp_array;
 
 	  /* Place the lowest common denominator back in [0]. */
 	  matches[0] = lowest_common;
@@ -500,6 +584,7 @@ rl_complete_internal (what_to_do)
       switch (what_to_do)
 	{
 	case TAB:
+	case '!':
 	  /* If we are matching filenames, then here is our chance to
 	     do clever processing by re-examining the list.  Call the
 	     ignore function with the array as a parameter.  It can
@@ -529,7 +614,11 @@ rl_complete_internal (what_to_do)
 		 This also checks whether the common prefix of several
 		 matches needs to be quoted.  If the common prefix should
 		 not be checked, add !matches[1] to the if clause. */
-	      if (rl_strpbrk (matches[0], rl_completer_word_break_characters))
+	      if (rl_strpbrk (matches[0], rl_completer_word_break_characters)
+#if defined (SHELL)
+	          || rl_strpbrk (matches[0], "$`")
+#endif
+		 )
 		do_replace = matches[1] ? MULT_MATCH : SINGLE_MATCH;
 
 	      if (do_replace != NO_MATCH)
@@ -558,7 +647,7 @@ rl_complete_internal (what_to_do)
 		    free (mtext);
 
 		  rlen = strlen (rtext);
-		  replacement = (char *)alloca (rlen + 1);
+		  replacement = xmalloc (rlen + 1);
 		  strcpy (replacement, rtext);
 		  if (do_replace == MULT_MATCH)
 		    replacement[rlen - 1] = '\0';
@@ -567,7 +656,7 @@ rl_complete_internal (what_to_do)
 		  /* Found an embedded word break character in a potential
 		     match, so we need to prepend a quote character if we
 		     are replacing the completion string. */
-		  replacement = (char *)alloca (strlen (matches[0]) + 2);
+		  replacement = xmalloc (strlen (matches[0]) + 2);
 		  quote_char = *rl_completer_quote_characters;
 		  *replacement = quote_char;
 		  strcpy (replacement + 1, matches[0]);
@@ -577,9 +666,13 @@ rl_complete_internal (what_to_do)
 
 	  if (replacement)
 	    {
+	      rl_begin_undo_group ();
 	      rl_delete_text (start, rl_point);
 	      rl_point = start;
 	      rl_insert_text (replacement);
+	      rl_end_undo_group ();
+	      if (replacement != matches[0])
+		free (replacement);
 	    }
 
 	  /* If there are more matches, ring the bell to indicate.
@@ -589,7 +682,9 @@ rl_complete_internal (what_to_do)
 	     of the line, then add a space. */
 	  if (matches[1])
 	    {
-	      if (rl_editing_mode != vi_mode)
+	      if (what_to_do == '!')
+		goto display_matches;		/* XXX */
+	      else if (rl_editing_mode != vi_mode)
 		ding ();	/* There are other matches remaining. */
 	    }
 	  else
@@ -608,8 +703,7 @@ rl_complete_internal (what_to_do)
 		  struct stat finfo;
 		  char *filename = tilde_expand (matches[0]);
 
-		  if ((stat (filename, &finfo) == 0) &&
-		      S_ISDIR (finfo.st_mode))
+		  if ((stat (filename, &finfo) == 0) && S_ISDIR (finfo.st_mode))
 		    {
 		      if (rl_line_buffer[rl_point] != '/')
 			rl_insert_text ("/");
@@ -633,9 +727,9 @@ rl_complete_internal (what_to_do)
 	  {
 	    int i = 1;
 
+	    rl_begin_undo_group ();
 	    rl_delete_text (start, rl_point);
 	    rl_point = start;
-	    rl_begin_undo_group ();
 	    if (matches[1])
 	      {
 		while (matches[i])
@@ -655,34 +749,17 @@ rl_complete_internal (what_to_do)
 
 	case '?':
 	  {
-	    int len, count, limit, max = 0;
+	    int len, count, limit, max;
 	    int j, k, l;
 
 	    /* Handle simple case first.  What if there is only one answer? */
 	    if (!matches[1])
 	      {
-		char *temp = (char *)NULL;
+		char *temp;
 
-		if (rl_filename_completion_desired)
-		  temp = strrchr (matches[0], '/');
-
-		if (!temp)
-		  temp = matches[0];
-		else
-		  temp++;
-
+		temp = printable_part (matches[0]);
 		crlf ();
-		fprintf (rl_outstream, "%s", temp);
-#if defined (VISIBLE_STATS)
-		if (rl_filename_completion_desired && rl_visible_stats)
-		  {
-		    int extension_char;
-
-		    extension_char = stat_char (matches[0]);
-		    if (extension_char)
-		      putc (extension_char, rl_outstream);
-		  }
-#endif /* VISIBLE_STATS */
+		print_filename (temp, matches[0]);
 		crlf ();
 		goto restart;
 	      }
@@ -690,23 +767,13 @@ rl_complete_internal (what_to_do)
 	    /* There is more than one answer.  Find out how many there are,
 	       and find out what the maximum printed length of a single entry
 	       is. */
-	    for (i = 1; matches[i]; i++)
+	  display_matches:
+	    for (max = 0, i = 1; matches[i]; i++)
 	      {
 		char *temp;
 		int name_length;
 
-		/* If we are hacking filenames, then only count the characters
-		   after the last slash in the pathname. */
-		if (rl_filename_completion_desired)
-		  temp = strrchr (matches[i], '/');
-		else
-		  temp = (char *)NULL;
-
-		if (!temp)
-		  temp = matches[i];
-		else
-		  temp++;
-
+		temp = printable_part (matches[i]);
 		name_length = strlen (temp);
 
 		if (name_length > max)
@@ -764,40 +831,15 @@ rl_complete_internal (what_to_do)
 		for (j = 0, l = i; j < limit; j++)
 		  {
 		    if (l > len || !matches[l])
-		      {
-			break;
-		      }
+		      break;
 		    else
 		      {
-			char *temp = (char *)NULL;
+			char *temp;
 			int printed_length;
 
-			if (rl_filename_completion_desired)
-			  temp = strrchr (matches[l], '/');
-
-			if (!temp)
-			  temp = matches[l];
-			else
-			  temp++;
-
+			temp = printable_part (matches[l]);
 			printed_length = strlen (temp);
-			fprintf (rl_outstream, "%s", temp);
-
-#if defined (VISIBLE_STATS)
-			if (rl_filename_completion_desired &&
-			    rl_visible_stats)
-			  {
-			    int extension_char;
-
-			    extension_char = stat_char (matches[l]);
-
-			    if (extension_char)
-			      {
-				putc (extension_char, rl_outstream);
-				printed_length++;
-			      }
-			  }
-#endif /* VISIBLE_STATS */
+			printed_length += print_filename (temp, matches[l]);
 
 			if (j + 1 < limit)
 			  {
@@ -835,6 +877,7 @@ rl_complete_internal (what_to_do)
 
       free (saved_line_buffer);
     }
+  return 0;
 }
 
 #if defined (VISIBLE_STATS)
@@ -848,11 +891,18 @@ stat_char (filename)
      char *filename;
 {
   struct stat finfo;
-  int character = 0;
+  int character, r;
 
-  if (stat (filename, &finfo) == -1)
-    return (character);
+#if defined (S_ISLNK)
+  r = lstat (filename, &finfo);
+#else
+  r = stat (filename, &finfo);
+#endif
 
+  if (r == -1)
+    return (0);
+
+  character = 0;
   if (S_ISDIR (finfo.st_mode))
     character = '/';
 #if defined (S_ISLNK)
@@ -888,9 +938,9 @@ username_completion_function (text, state)
      int state;
      char *text;
 {
-#if defined (_GO32_)
+#if defined (__GO32__)
   return (char *)NULL;
-#else /* !_GO32_ */
+#else /* !__GO32__ */
   static char *username = (char *)NULL;
   static struct passwd *entry;
   static int namelen, first_char, first_char_loc;
@@ -914,7 +964,8 @@ username_completion_function (text, state)
 
   while (entry = getpwent ())
     {
-      if (strncmp (username, entry->pw_name, namelen) == 0)
+      if ((username[0] == entry->pw_name[0]) &&
+	  (strncmp (username, entry->pw_name, namelen) == 0))
 	break;
     }
 
@@ -936,7 +987,7 @@ username_completion_function (text, state)
 
       return (value);
     }
-#endif /* !_GO32_ */
+#endif /* !__GO32__ */
 }
 
 /* **************************************************************** */
@@ -1091,13 +1142,20 @@ filename_completion_function (text, state)
       users_dirname = savestring (dirname);
       {
 	char *temp_dirname;
+	int replace_dirname;
 
 	temp_dirname = tilde_expand (dirname);
 	free (dirname);
 	dirname = temp_dirname;
 
-	if (rl_symbolic_link_hook)
-	  (*rl_symbolic_link_hook) (&dirname);
+	replace_dirname = 0;
+	if (rl_directory_completion_hook)
+	  replace_dirname = (*rl_directory_completion_hook) (&dirname);
+	if (replace_dirname)
+	  {
+	    free (users_dirname);
+	    users_dirname = savestring (dirname);
+	  }
       }
       directory = opendir (dirname);
       filename_len = strlen (filename);
@@ -1125,14 +1183,12 @@ filename_completion_function (text, state)
 	}
       else
 	{
-	  /* Otherwise, if these match upto the length of filename, then
+	  /* Otherwise, if these match up to the length of filename, then
 	     it is a match. */
 	    if (((int)D_NAMLEN (entry)) >= filename_len &&
 		(entry->d_name[0] == filename[0]) &&
 		(strncmp (filename, entry->d_name, filename_len) == 0))
-	      {
-		break;
-	      }
+	      break;
 	}
     }
 
@@ -1166,7 +1222,8 @@ filename_completion_function (text, state)
     {
       char *temp;
 
-      if (dirname && (strcmp (dirname, ".") != 0))
+      /* dirname && (strcmp (dirname, ".") != 0) */
+      if (dirname && (dirname[0] != '.' || dirname[1]))
 	{
 	  if (rl_complete_with_tilde_expansion && *users_dirname == '~')
 	    {
@@ -1191,9 +1248,8 @@ filename_completion_function (text, state)
 	  strcat (temp, entry->d_name);
 	}
       else
-	{
-	  temp = (savestring (entry->d_name));
-	}
+	temp = (savestring (entry->d_name));
+
       return (temp);
     }
 }
@@ -1239,10 +1295,11 @@ rl_tilde_expand (ignore, key)
       int len;
 
       len = end - start + 1;
-      temp = (char *)alloca (len + 1);
+      temp = xmalloc (len + 1);
       strncpy (temp, rl_line_buffer + start, len);
       temp[len] = '\0';
       homedir = tilde_expand (temp);
+      free (temp);
 
     insert:
       rl_begin_undo_group ();

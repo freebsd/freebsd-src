@@ -40,10 +40,10 @@ extern int errno;
 extern int readline_echoing_p;
 extern int _rl_eof_char;
 
-#if defined (_GO32_)
+#if defined (__GO32__)
 #  include <sys/pc.h>
 #  undef HANDLE_SIGNALS
-#endif /* _GO32_ */
+#endif /* __GO32__ */
 
 /* **************************************************************** */
 /*								    */
@@ -107,10 +107,10 @@ release_sigint ()
 
   sigint_blocked = 0;
 }
-
+
 /* **************************************************************** */
 /*								    */
-/*		      Controlling the Meta Key			    */
+/*	 	Controlling the Meta Key and Keypad		    */
 /*								    */
 /* **************************************************************** */
 
@@ -118,11 +118,13 @@ extern int term_has_meta;
 extern char *term_mm;
 extern char *term_mo;
 
-static void
+extern char *term_ks;
+extern char *term_ke;
+static int
 outchar (c)
      int c;
 {
-  putc (c, rl_outstream);
+  return putc (c, rl_outstream);
 }
 
 /* Turn on/off the meta key depending on ON. */
@@ -138,7 +140,17 @@ control_meta_key (on)
 	tputs (term_mo, 1, outchar);
     }
 }
-
+
+static void
+control_keypad (on)
+     int on;
+{
+  if (on && term_ks)
+    tputs (term_ks, 1, outchar);
+  else if (!on && term_ke)
+    tputs (term_ke, 1, outchar);
+}
+
 /* **************************************************************** */
 /*								    */
 /*		      Saving and Restoring the TTY	    	    */
@@ -250,7 +262,7 @@ prepare_terminal_settings (meta_flag, otio, tiop)
      int meta_flag;
      TIOTYPE otio, *tiop;
 {
-#if !defined (_GO32_)
+#if !defined (__GO32__)
   readline_echoing_p = (otio.sgttyb.sg_flags & ECHO);
 
   /* Copy the original settings to the structure we're going to use for
@@ -316,7 +328,7 @@ prepare_terminal_settings (meta_flag, otio, tiop)
   tiop->ltchars.t_dsuspc = -1;	/* C-y */
   tiop->ltchars.t_lnextc = -1;	/* C-v */
 #endif /* TIOCGLTC */
-#endif /* !_GO32_ */
+#endif /* !__GO32__ */
 }
 
 #else  /* !defined (NEW_TTY_DRIVER) */
@@ -455,7 +467,7 @@ void
 rl_prep_terminal (meta_flag)
      int meta_flag;
 {
-#if !defined (_GO32_)
+#if !defined (__GO32__)
   int tty = fileno (rl_instream);
   TIOTYPE tio;
 
@@ -482,17 +494,18 @@ rl_prep_terminal (meta_flag)
     }
 
   control_meta_key (1);
+  control_keypad (1);
   terminal_prepped = 1;
 
   release_sigint ();
-#endif /* !_GO32_ */
+#endif /* !__GO32__ */
 }
 
 /* Restore the terminal's normal settings and modes. */
 void
 rl_deprep_terminal ()
 {
-#if !defined (_GO32_)
+#if !defined (__GO32__)
   int tty = fileno (rl_instream);
 
   if (!terminal_prepped)
@@ -508,10 +521,11 @@ rl_deprep_terminal ()
     }
 
   control_meta_key (0);
+  control_keypad (0);
   terminal_prepped = 0;
 
   release_sigint ();
-#endif /* !_GO32_ */
+#endif /* !__GO32__ */
 }
 
 /* **************************************************************** */
@@ -548,6 +562,8 @@ rl_restart_output (count, key)
 #    endif /* TCXONC */
 #  endif /* !TERMIOS_TTY_DRIVER */
 #endif /* !TIOCSTART */
+
+  return 0;
 }
 
 rl_stop_output (count, key)
@@ -573,6 +589,8 @@ rl_stop_output (count, key)
 #   endif /* TCXONC */
 # endif /* !TERMIOS_TTY_DRIVER */
 #endif /* !TIOCSTOP */
+
+  return 0;
 }
 
 /* **************************************************************** */

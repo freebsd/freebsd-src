@@ -32,18 +32,22 @@ extern char *xmalloc ();
 #define UNMETA(c) ((c) & (~meta_character_bit))
 #define UNCTRL(c) to_upper(((c)|control_character_bit))
 
-#define lowercase_p(c) (((c) > ('a' - 1) && (c) < ('z' + 1)))
-#define uppercase_p(c) (((c) > ('A' - 1) && (c) < ('Z' + 1)))
+#define lowercase_p(c) islower(c)
+#define uppercase_p(c) isupper(c)
 
-#define pure_alphabetic(c) (lowercase_p(c) || uppercase_p(c))
+#define pure_alphabetic(c) isalpha(c)
 
 #ifndef to_upper
-#define to_upper(c) (lowercase_p(c) ? ((c) - 32) : (c))
-#define to_lower(c) (uppercase_p(c) ? ((c) + 32) : (c))
+#define to_upper(c) toupper(c)
+#define to_lower(c) tolower(c)
 #endif
 
 #define CTRL_P(c) ((c) < control_character_threshold)
 #define META_P(c) ((c) > meta_character_threshold)
+
+#ifndef digit_value
+#define digit_value(x) ((x) - '0')
+#endif
 
 #ifndef NEWLINE
 #define NEWLINE '\n'
@@ -54,7 +58,7 @@ extern char *xmalloc ();
 #endif
 
 #ifndef RUBOUT
-#define RUBOUT 0x07f
+#define RUBOUT 0x7f
 #endif
 
 #ifndef TAB
@@ -74,7 +78,7 @@ extern char *xmalloc ();
 #ifdef SPACE
 #undef SPACE
 #endif
-#define SPACE 0x020
+#define SPACE 0x20
 
 #ifdef ESC
 #undef ESC

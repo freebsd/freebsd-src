@@ -322,7 +322,7 @@ KEYMAP_ENTRY_ARRAY emacs_standard_keymap = {
   { ISFUNC, rl_insert },	/* Latin small letter y with acute */
   { ISFUNC, rl_insert },	/* Latin small letter thorn (Icelandic) */
   { ISFUNC, rl_insert }		/* Latin small letter y with diaeresis */
-#endif /* MEYMAP_SIZE > 128 */
+#endif /* KEYMAP_SIZE > 128 */
 };
 
 KEYMAP_ENTRY_ARRAY emacs_meta_keymap = {
@@ -336,7 +336,7 @@ KEYMAP_ENTRY_ARRAY emacs_meta_keymap = {
   { ISFUNC, (Function *)0x0 },	/* Meta-Control-e */
   { ISFUNC, (Function *)0x0 },	/* Meta-Control-f */
   { ISFUNC, rl_abort },		/* Meta-Control-g */
-  { ISFUNC, (Function *)0x0 },	/* Meta-Control-h */
+  { ISFUNC, rl_backward_kill_word },	/* Meta-Control-h */
   { ISFUNC, rl_tab_insert },	/* Meta-Control-i */
   { ISFUNC, rl_vi_editing_mode }, /* Meta-Control-j */
   { ISFUNC, (Function *)0x0 },	/* Meta-Control-k */
@@ -356,7 +356,7 @@ KEYMAP_ENTRY_ARRAY emacs_meta_keymap = {
   { ISFUNC, rl_yank_nth_arg },	/* Meta-Control-y */
   { ISFUNC, (Function *)0x0 },	/* Meta-Control-z */
 
-  { ISFUNC, (Function *)0x0 },	/* Meta-Control-[ */
+  { ISFUNC, rl_complete },	/* Meta-Control-[ */
   { ISFUNC, (Function *)0x0 },	/* Meta-Control-\ */
   { ISFUNC, (Function *)0x0 },	/* Meta-Control-] */
   { ISFUNC, (Function *)0x0 },	/* Meta-Control-^ */
@@ -469,7 +469,7 @@ KEYMAP_ENTRY_ARRAY emacs_meta_keymap = {
   { ISFUNC, (Function *)0x0 },	/* Meta-{ */
   { ISFUNC, (Function *)0x0 },	/* Meta-| */
   { ISFUNC, (Function *)0x0 },	/* Meta-} */
-  { ISFUNC, (Function *)0x0 },	/* Meta-~ */
+  { ISFUNC, rl_tilde_expand },	/* Meta-~ */
   { ISFUNC, rl_backward_kill_word }, /* Meta-rubout */
 
 #if KEYMAP_SIZE > 128
