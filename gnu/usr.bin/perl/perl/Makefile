@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.15 1998/10/11 18:13:42 markm Exp $
+# $Id: Makefile,v 1.16 1998/10/15 18:50:04 markm Exp $
 #
 
 PROG=	perl
@@ -10,7 +10,7 @@ NOSHARED= no
 DPADD=	lib/auto/DynaLoader/DynaLoader.a ${LIBPERL} ${LIBM} ${LIBCRYPT}
 LDADD=	lib/auto/DynaLoader/DynaLoader.a -lperl -lm -lcrypt
 LINKS=	${BINDIR}/${PROG} ${BINDIR}/perl5 \
-	${BINDIR}/${PROG} ${BINDIR}/perl5.00502
+	${BINDIR}/${PROG} ${BINDIR}/perl5.00503
 
 CLEANFILES=	config.h config.sh config_h.sh writemain writemain.sh \
 		Config.pm cflags cflags.sh myconfig perlmain.c miniperlmain.c \
@@ -138,23 +138,23 @@ install:
 .for I in ${DYNAMIC_EXT}
 	cd ${.OBJDIR}/ext/${I:H} ;\
 	make -B install \
-		INSTALLPRIVLIB=${DESTDIR}/usr/libdata/perl/5.00502 \
-		INSTALLARCHLIB=${DESTDIR}/usr/libdata/perl/5.00502/mach
+		INSTALLPRIVLIB=${DESTDIR}/usr/libdata/perl/5.00503 \
+		INSTALLARCHLIB=${DESTDIR}/usr/libdata/perl/5.00503/mach
 .endfor
 	cd ${.OBJDIR}/lib ;\
 	for i in `find . \! -type d \! -name \*.3.gz` ; do \
 		j=`echo $$i|sed -e 's|auto/DynaLoader|mach/auto/DynaLoader|'` ;\
 		${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-			$$i ${DESTDIR}/usr/libdata/perl/5.00502/$$j ;\
+			$$i ${DESTDIR}/usr/libdata/perl/5.00503/$$j ;\
 	done
 	cd ${.OBJDIR}/lib ;\
 	${INSTALL} ${COPY} -o ${MANOWN} -g ${MANGRP} -m ${MANMODE} \
 		*.3.gz ${DESTDIR}/usr/share/perl/man/man3
 	cd ${.OBJDIR} ;\
 	${INSTALL} ${COPY} -o ${SHAREOWN} -g ${SHAREGRP} -m ${SHAREMODE} \
-		*.h ${DESTDIR}/usr/libdata/perl/5.00502/mach/CORE
+		*.h ${DESTDIR}/usr/libdata/perl/5.00503/mach/CORE
 	cd ${.OBJDIR} ;\
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-		Config.pm ${DESTDIR}/usr/libdata/perl/5.00502/mach
+		Config.pm ${DESTDIR}/usr/libdata/perl/5.00503/mach
 
 .PATH:	${PERL5SRC}
