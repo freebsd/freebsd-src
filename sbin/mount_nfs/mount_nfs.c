@@ -172,7 +172,7 @@ int retrycnt = DEF_RETRY;
 int opflags = 0;
 int nfsproto = IPPROTO_UDP;
 int mnttcp_ok = 1;
-u_short port_no = 0;
+char *port_no = "nfs";
 enum {
 	ANY,
 	V2,
@@ -366,8 +366,11 @@ main(argc, argv)
 				nfsargsp->sotype = SOCK_STREAM;
 				nfsproto = IPPROTO_TCP;
 			}
-			if(altflags & ALTF_PORT)
-				port_no = atoi(strstr(optarg, "port=") + 5);
+			if(altflags & ALTF_PORT) {
+				port_no = strdup(strstr(optarg, "port=") + 5);
+				if (port_no == NULL)
+					err(1, NULL);
+			}
 			mountmode = ANY;
 			if(altflags & ALTF_NFSV2)
 				mountmode = V2;
@@ -641,7 +644,7 @@ getnfsargs(spec, nfsargsp)
 	memset(&hints, 0, sizeof hints);
 	hints.ai_flags = AI_NUMERICHOST;
 	hints.ai_socktype = nfsargsp->sotype;
-	if (getaddrinfo(hostp, "nfs", &hints, &ai_nfs) == 0) {
+	if (getaddrinfo(hostp, port_no, &hints, &ai_nfs) == 0) {
 		if ((nfsargsp->flags & NFSMNT_KERB)) {
 			hints.ai_flags = 0;
 			if (getnameinfo(ai->ai_addr, ai->ai_addrlen, host,
@@ -653,7 +656,7 @@ getnfsargs(spec, nfsargsp)
 		}
 	} else {
 		hints.ai_flags = 0;
-		if ((ecode = getaddrinfo(hostp, "nfs", &hints, &ai_nfs)) != 0) {
+		if ((ecode = getaddrinfo(hostp, port_no, &hints, &ai_nfs)) != 0) {
 			warnx("can't get net id for host/nfs: %s",
 			    gai_strerror(ecode));
 			return (0);
