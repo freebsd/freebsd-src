@@ -48,6 +48,8 @@
  * SUCH DAMAGE.
  *
  * $FreeBSD$
+ *
+ * MAINTAINER: Matthew N. Dodd <winter@jurai.net>
  */
 
 /*
@@ -163,7 +165,6 @@ static int	ieattach(struct isa_device * dvp);
 static ointhand2_t	ieintr;
 static int	sl_probe(struct isa_device * dvp);
 static int	el_probe(struct isa_device * dvp);
-static int	ni_probe(struct isa_device * dvp);
 static int	ee16_probe(struct isa_device * dvp);
 
 static int	check_ie_present(int unit, caddr_t where, unsigned size);
@@ -326,8 +327,6 @@ ieprobe(struct isa_device *dvp)
 	if (!ret)
 		ret = el_probe(dvp);
 	if (!ret)
-		ret = ni_probe(dvp);
-	if (!ret)
 		ret = ee16_probe(dvp);
 
 	return (ret);
@@ -336,30 +335,33 @@ ieprobe(struct isa_device *dvp)
 static int
 sl_probe(struct isa_device *dvp)
 {
-	int	unit = dvp->id_unit;
-	u_char	c;
+	struct ie_softc *	sc = &ie_softc[dvp->id_unit];
+	int			unit = dvp->id_unit;
+	u_char			c;
 
-	ie_softc[unit].port = dvp->id_iobase;
-	ie_softc[unit].iomembot = dvp->id_maddr;
-	ie_softc[unit].iomem = 0;
-	ie_softc[unit].bus_use = 0;
+	sc->port = dvp->id_iobase;
+	sc->iomembot = dvp->id_maddr;
+	sc->iomem = 0;
+	sc->bus_use = 0;
 
 	c = inb(PORT + IEATT_REVISION);
 	switch (SL_BOARD(c)) {
 	case SL10_BOARD:
-		ie_softc[unit].hard_type = IE_STARLAN10;
-		ie_softc[unit].ie_reset_586 = sl_reset_586;
-		ie_softc[unit].ie_chan_attn = sl_chan_attn;
+		sc->hard_type = IE_STARLAN10;
 		break;
 	case EN100_BOARD:
-		ie_softc[unit].hard_type = IE_EN100;
-		ie_softc[unit].ie_reset_586 = sl_reset_586;
-		ie_softc[unit].ie_chan_attn = sl_chan_attn;
+		sc->hard_type = IE_EN100;
 		break;
 	case SLFIBER_BOARD:
-		ie_softc[unit].hard_type = IE_SLFIBER;
-		ie_softc[unit].ie_reset_586 = sl_reset_586;
-		ie_softc[unit].ie_chan_attn = sl_chan_attn;
+		sc->hard_type = IE_SLFIBER;
+		break;
+	case 0x00:
+		if (inb(PORT + IEATT_ATTRIB) != 0x55)
+			return (0);
+	
+		sc->hard_type = IE_NI5210;
+		sc->bus_use = 1;
+
 		break;
 
 		/*
@@ -369,33 +371,47 @@ sl_probe(struct isa_device *dvp)
 		return (0);
 	}
 
-	ie_softc[unit].hard_vers = SL_REV(c);
+	sc->ie_reset_586 = sl_reset_586;
+	sc->ie_chan_attn = sl_chan_attn;
+
+	sc->hard_vers = SL_REV(c);
 
 	/*
 	 * Divine memory size on-board the card.  Ususally 16k.
 	 */
-	find_ie_mem_size(unit);
+	find_ie_mem_size(sc->unit);
 
-	if (!ie_softc[unit].iosize) {
+	if (!sc->iosize) {
 		return (0);
 	}
-	dvp->id_msize = ie_softc[unit].iosize;
 
-	switch (ie_softc[unit].hard_type) {
-	case IE_EN100:
-	case IE_STARLAN10:
-	case IE_SLFIBER:
-		sl_read_ether(unit, ie_softc[unit].arpcom.ac_enaddr);
-		break;
+	if (!dvp->id_msize) {
+		dvp->id_msize = sc->iosize;
+	} else if (dvp->id_msize != sc->iosize) {
+		printf("ie%d: kernel configured msize %d "
+		       "doesn't match board configured msize %d\n",
+			sc->unit,
+			dvp->id_msize,
+			sc->iosize);
+		return (0);
+	}
 
+	switch (sc->hard_type) {
+		case IE_EN100:
+		case IE_STARLAN10:
+		case IE_SLFIBER:
+		case IE_NI5210:
+			sl_read_ether(sc->unit, sc->arpcom.ac_enaddr);
+			break;
 	default:
 		if (bootverbose)
-			printf("ie%d: unknown AT&T board type code %d\n", unit,
-		       	ie_softc[unit].hard_type);
+			printf("ie%d: unknown AT&T board type code %d\n",
+				sc->unit,
+		       		sc->hard_type);
 		return (0);
 	}
 
-	return (1);
+	return (16);
 }
 
 
@@ -488,59 +504,6 @@ el_probe(struct isa_device *dvp)
 	outb(PORT + IE507_ICTRL, 1);
 
 	return (16);
-}
-
-
-static int
-ni_probe(struct isa_device *dvp)
-{
-	int	unit = dvp->id_unit;
-	int	boardtype, c;
-
-	ie_softc[unit].port = dvp->id_iobase;
-	ie_softc[unit].iomembot = dvp->id_maddr;
-	ie_softc[unit].iomem = 0;
-	ie_softc[unit].bus_use = 1;
-
-	boardtype = inb(PORT + IEATT_REVISION);
-	c = inb(PORT + IEATT_REVISION + 1);
-	boardtype = boardtype + (c << 8);
-	switch (boardtype) {
-	case 0x5500:		/* This is the magic cookie for the NI5210 */
-		ie_softc[unit].hard_type = IE_NI5210;
-		ie_softc[unit].ie_reset_586 = sl_reset_586;
-		ie_softc[unit].ie_chan_attn = sl_chan_attn;
-		break;
-
-		/*
-		 * Anything else is not recognized or cannot be used.
-		 */
-	default:
-		return (0);
-	}
-
-	ie_softc[unit].hard_vers = 0;
-
-	/*
-	 * Divine memory size on-board the card.  Either 8 or 16k.
-	 */
-	find_ie_mem_size(unit);
-
-	if (!ie_softc[unit].iosize) {
-		return (0);
-	}
-	if (!dvp->id_msize)
-		dvp->id_msize = ie_softc[unit].iosize;
-	else if (dvp->id_msize != ie_softc[unit].iosize) {
-		printf("ie%d: kernel configured msize %d "
-		       "doesn't match board configured msize %d\n",
-		       unit, dvp->id_msize, ie_softc[unit].iosize);
-		return (0);
-	}
-	sl_read_ether(unit, ie_softc[unit].arpcom.ac_enaddr);
-
-	return (8);
-
 }
 
 
