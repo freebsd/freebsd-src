@@ -201,8 +201,7 @@ iso88025_ioctl(struct ifnet *ifp, int command, caddr_t data)
                 }
                 break;
 
-        case SIOCGIFADDR:
-                {
+        case SIOCGIFADDR: {
                         struct sockaddr *sa;
 
                         sa = (struct sockaddr *) & ifr->ifr_data;
