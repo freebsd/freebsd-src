@@ -138,6 +138,17 @@ intr_remove_handler(void *cookie)
 	return (error);
 }
 
+int
+intr_config_intr(int vector, enum intr_trigger trig, enum intr_polarity pol)
+{
+	struct intsrc *isrc;
+
+	isrc = intr_lookup_source(vector);
+	if (isrc == NULL)
+		return (EINVAL);
+	return (isrc->is_pic->pic_config_intr(isrc, trig, pol));
+}
+
 void
 intr_execute_handlers(struct intsrc *isrc, struct intrframe *iframe)
 {

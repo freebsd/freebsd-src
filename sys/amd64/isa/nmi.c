@@ -43,10 +43,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/md_var.h>
 
-#ifdef DEV_MCA
-#include <i386/bios/mca_machdep.h>
-#endif
-
 #define NMI_PARITY (1 << 7)
 #define NMI_IOCHAN (1 << 6)
 #define ENMI_WATCHDOG (1 << 7)
@@ -65,10 +61,6 @@ isa_nmi(int cd)
 	int eisa_port = inb(0x461);
 
 	log(LOG_CRIT, "NMI ISA %x, EISA %x\n", isa_port, eisa_port);
-#ifdef DEV_MCA
-	if (MCA_system && mca_bus_nmi())
-		return(0);
-#endif
 	
 	if (isa_port & NMI_PARITY) {
 		log(LOG_CRIT, "RAM parity error, likely hardware failure.");
