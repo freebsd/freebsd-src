@@ -8,7 +8,7 @@
 # being perfomed on a machine for which this config file is inappropriate,
 # it should be replaced with a suitable one prior to performing the upgrade.
 #
-#	$Id: GENERICupgrade,v 1.2 1998/09/15 08:25:09 kato Exp $
+#	$Id: GENERICupgrade,v 1.3 1998/09/22 16:10:40 kato Exp $
 #
 
 # GENERIC98 -- Generic PC98 machine with WD/SCSI disks
@@ -101,7 +101,7 @@ options	BS_TARG_SAFEMODE
 # Logitec LHA-20x
 #controller bs0 at isa? port "IO_SCSI" bio irq 5 drq 3 flags 0x50000 vector bsintr
 
-controller	aic0	at isa? port 0x1840 bio irq 5 flags 0x10000 vector aicintr
+#controller	aic0	at isa? port 0x1840 bio irq 5 flags 0x10000 vector aicintr
 
 controller	scbus0
 
