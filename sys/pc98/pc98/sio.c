@@ -1004,6 +1004,7 @@ static struct isa_pnp_id sio_ids[] = {
 	{0x70207256, NULL},	/* USR2070 - U.S.Robotics Inc. Sportster 560 */
 	{0x30307256, NULL},	/* USR3030 - U.S. Robotics 56K FAX INT */
 	{0x31307256, NULL},	/* USR3031 - U.S. Robotics 56K FAX INT */
+	{0x50307256, NULL},	/* USR3050 - U.S. Robotics 56K FAX INT */
 	{0x70307256, NULL},	/* USR3070 - U.S. Robotics 56K Voice INT */
 	{0x90307256, NULL},	/* USR3090 - USR ? */
 	{0x90917256, NULL},	/* USR9190 - USR 56k Voice INT */
