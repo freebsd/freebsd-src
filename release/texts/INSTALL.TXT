@@ -79,7 +79,7 @@ there are 3 ways of starting the installation from it:
            and boot the system to begin installation.
 
         2. If you have drivers which allow you to see your CDROM drive
-           from from DOS, first disable any fancy memory managers you may
+           from DOS, first disable any fancy memory managers you may
            have configured, change directory to the CDROM (E:\ in the example
            below) and then type this:
 
@@ -430,6 +430,33 @@ installation can continue over NFS or FTP.
                 ftp://foo.bar.com:1234/pub/FreeBSD
 
         Where "1234" is the port number of the proxy ftp server.
+
+
+1.6     Tips for Serial Console Users
+---     -----------------------------
+
+If you'd like to use a serial console for the installation of the
+FreeBSD into i386 machines, follow these steps.
+
+        1. Connect the serial console to the COM1 port of the PC you
+           are installing FreeBSD into.
+
+        2. Try to boot from either the floppy disk made from kern.flp
+           or the installation CD-ROM with the keyboard unplugged.
+
+        3. If you don't get any output on your serial console, re-plug
+           in your keyboard and wait for some beeps.  If you are
+           booting from the CD-ROM, proceed to Step 5 as you hear the
+           beep.
+
+        4. Remove kern.flp and insert mfsroot.flp, and press enter.
+           And wait for another beep.
+
+        5. Hit the space bar, then enter
+
+               boot -h
+
+           and you should be receiving everything from COM1.
 
 
 2.0     DOS user's Question and Answer section
