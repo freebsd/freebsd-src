@@ -1,0 +1,43 @@
+08-Nov-2003
+	WARNS=6 fixed.
+
+28-Jan-2003
+	WARNS=5 fixes.
+
+09-Jan-2003
+	snmpd: remove local socket in case of an error to fully initialize it.
+	Use chmod instead of fchmod. The latter seems not really to change
+	the mode of the socket.
+
+	lib: at program exit remove the local socket in the library.
+
+11-Dec-2002
+	Implement listening on unix domain sockets. The client must bind
+	its socket, or the server cannot send back its response. These
+	sockets are considered to be more secure, because it is much
+	harder for an intruder to listen on them.
+
+	This requires changes in snmpmod.h and snmpclient.h.
+
+04-Dec-2002
+	Sparc fixes.
+
+15-Aug-2002
+	Use inttypes.h instead of limits.h to get integer limits. This
+	seems to be the Posix way.
+
+	First drafts of an snmpd, gensnmptree, asn1, bsnmplib,
+	bsnmpclient, bsnmpagent, snmpmod, snmp_mibII, snmp_netgraph man pages.
+
+	snmpd/main.c: reorder getopt options according to style(9). Implement
+	a -h option to print a short help.
+
+25-Jun-2002
+	Makefiles rewritten to not use bsnmpmod.mk. The BSD makefiles are
+	really hard to use, because a) they are not documented and b) they
+	change much too often.
+
+	Make the patch a context diff instead of a unified one.
+
+28-Feb-2002
+	Library code for SNMP clients.
