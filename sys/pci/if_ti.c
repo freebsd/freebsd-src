@@ -1626,6 +1626,10 @@ ti_setmulti(sc)
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		mc = malloc(sizeof(struct ti_mc_entry), M_DEVBUF, M_NOWAIT);
+		if (mc == NULL) {
+			if_printf(ifp, "no memory for mcast filter entry\n");
+			continue;
+		}
 		bcopy(LLADDR((struct sockaddr_dl *)ifma->ifma_addr),
 		    (char *)&mc->mc_addr, ETHER_ADDR_LEN);
 		SLIST_INSERT_HEAD(&sc->ti_mc_listhead, mc, mc_entries);
