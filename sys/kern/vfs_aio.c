@@ -203,7 +203,6 @@ struct kaioinfo {
 static TAILQ_HEAD(,aioproclist) aio_freeproc, aio_activeproc;
 static TAILQ_HEAD(,aiocblist) aio_jobs;			/* Async job list */
 static TAILQ_HEAD(,aiocblist) aio_bufjobs;		/* Phys I/O job list */
-static TAILQ_HEAD(,aiocblist) aio_freejobs;		/* Pool of free jobs */
 
 static void	aio_init_aioinfo(struct proc *p);
 static void	aio_onceonly(void *);
@@ -224,14 +223,13 @@ static vm_zone_t aiolio_zone = 0;
 /*
  * Startup initialization
  */
-void
+static void
 aio_onceonly(void *na)
 {
 	TAILQ_INIT(&aio_freeproc);
 	TAILQ_INIT(&aio_activeproc);
 	TAILQ_INIT(&aio_jobs);
 	TAILQ_INIT(&aio_bufjobs);
-	TAILQ_INIT(&aio_freejobs);
 	kaio_zone = zinit("AIO", sizeof (struct kaioinfo), 0, 0, 1);
 	aiop_zone = zinit("AIOP", sizeof (struct aioproclist), 0, 0, 1);
 	aiocb_zone = zinit("AIOCB", sizeof (struct aiocblist), 0, 0, 1);
@@ -247,7 +245,7 @@ aio_onceonly(void *na)
  * Init the per-process aioinfo structure.  The aioinfo limits are set
  * per-process for user limit (resource) management.
  */
-void
+static void
 aio_init_aioinfo(struct proc *p)
 {
 	struct kaioinfo *ki;
@@ -280,7 +278,7 @@ aio_init_aioinfo(struct proc *p)
  * delay forever.  If we delay, we return a flag that says that we have to
  * restart the queue scan.
  */
-int
+static int
 aio_free_entry(struct aiocblist *aiocbe)
 {
 	struct kaioinfo *ki;
@@ -372,8 +370,8 @@ aio_free_entry(struct aiocblist *aiocbe)
 		TAILQ_REMOVE(&ki->kaio_liojoblist, lj, lioj_list);
 		zfree(aiolio_zone, lj);
 	}
-	TAILQ_INSERT_HEAD(&aio_freejobs, aiocbe, list);
 	aiocbe->jobstate = JOBST_NULL;
+	zfree(aiocb_zone, aiocbe);
 	return 0;
 }
 #endif /* VFS_AIO */
@@ -545,7 +543,7 @@ aio_selectjob(struct aioproclist *aiop)
  * and this code should work in all instances for every type of file, including
  * pipes, sockets, fifos, and regular files.
  */
-void
+static void
 aio_process(struct aiocblist *aiocbe)
 {
 	struct filedesc *fdp;
@@ -618,8 +616,6 @@ aio_process(struct aiocblist *aiocbe)
 	cnt -= auio.uio_resid;
 	cb->_aiocb_private.error = error;
 	cb->_aiocb_private.status = cnt;
-
-	return;
 }
 
 /*
@@ -823,7 +819,7 @@ aio_daemon(void *uproc)
 			s = splnet();
 			if (aiocbe->jobflags & AIOCBLIST_ASYNCFREE) {
 				aiocbe->jobflags &= ~AIOCBLIST_ASYNCFREE;
-				TAILQ_INSERT_HEAD(&aio_freejobs, aiocbe, list);
+				zfree(aiocb_zone, aiocbe);
 			} else {
 				TAILQ_REMOVE(&ki->kaio_jobqueue, aiocbe, plist);
 				TAILQ_INSERT_TAIL(&ki->kaio_jobdone, aiocbe,
@@ -942,10 +938,15 @@ aio_newproc()
 }
 
 /*
- * Try the high-performance physio method for eligible VCHR devices.  This
- * routine doesn't require the use of any additional threads, and have overhead.
+ * Try the high-performance, low-overhead physio method for eligible
+ * VCHR devices.  This method doesn't use an aio helper thread, and
+ * thus has very low overhead. 
+ *
+ * Assumes that the caller, _aio_aqueue(), has incremented the file
+ * structure's reference count, preventing its deallocation for the
+ * duration of this call. 
  */
-int
+static int
 aio_qphysio(struct proc *p, struct aiocblist *aiocbe)
 {
 	int error;
@@ -991,8 +992,6 @@ aio_qphysio(struct proc *p, struct aiocblist *aiocbe)
 	ki = p->p_aioinfo;
 	if (ki->kaio_buffer_count >= ki->kaio_ballowed_count) 
 		return (-1);
-
-	fhold(fp);
 
 	ki->kaio_buffer_count++;
 
@@ -1082,7 +1081,6 @@ aio_qphysio(struct proc *p, struct aiocblist *aiocbe)
 	splx(s);
 	if (notify)
 		KNOTE(&aiocbe->klist, 0);
-	fdrop(fp, p);
 	return 0;
 
 doerror:
@@ -1091,14 +1089,13 @@ doerror:
 		lj->lioj_buffer_count--;
 	aiocbe->bp = NULL;
 	relpbuf(bp, NULL);
-	fdrop(fp, p);
 	return error;
 }
 
 /*
  * This waits/tests physio completion.
  */
-int
+static int
 aio_fphysio(struct proc *p, struct aiocblist *iocb, int flgwait)
 {
 	int s;
@@ -1211,11 +1208,7 @@ _aio_aqueue(struct proc *p, struct aiocb *job, struct aio_liojob *lj, int type)
 	struct kqueue *kq;
 	struct file *kq_fp;
 
-	if ((aiocbe = TAILQ_FIRST(&aio_freejobs)) != NULL)
-		TAILQ_REMOVE(&aio_freejobs, aiocbe, list);
-	else
-		aiocbe = zalloc (aiocb_zone);
-
+	aiocbe = zalloc(aiocb_zone);
 	aiocbe->inputcharge = 0;
 	aiocbe->outputcharge = 0;
 	SLIST_INIT(&aiocbe->klist);
@@ -1224,12 +1217,10 @@ _aio_aqueue(struct proc *p, struct aiocb *job, struct aio_liojob *lj, int type)
 	suword(&job->_aiocb_private.error, 0);
 	suword(&job->_aiocb_private.kernelinfo, -1);
 
-	error = copyin((caddr_t)job, (caddr_t) &aiocbe->uaiocb, sizeof
-	    aiocbe->uaiocb);
+	error = copyin(job, &aiocbe->uaiocb, sizeof(aiocbe->uaiocb));
 	if (error) {
 		suword(&job->_aiocb_private.error, error);
-
-		TAILQ_INSERT_HEAD(&aio_freejobs, aiocbe, list);
+		zfree(aiocb_zone, aiocbe);
 		return error;
 	}
 
@@ -1249,7 +1240,7 @@ _aio_aqueue(struct proc *p, struct aiocb *job, struct aio_liojob *lj, int type)
 	 */
 	fd = aiocbe->uaiocb.aio_fildes;
 	if (fd >= fdp->fd_nfiles) {
-		TAILQ_INSERT_HEAD(&aio_freejobs, aiocbe, list);
+		zfree(aiocb_zone, aiocbe);
 		if (type == 0)
 			suword(&job->_aiocb_private.error, EBADF);
 		return EBADF;
@@ -1258,14 +1249,14 @@ _aio_aqueue(struct proc *p, struct aiocb *job, struct aio_liojob *lj, int type)
 	fp = aiocbe->fd_file = fdp->fd_ofiles[fd];
 	if ((fp == NULL) || ((opcode == LIO_WRITE) && ((fp->f_flag & FWRITE) ==
 	    0))) {
-		TAILQ_INSERT_HEAD(&aio_freejobs, aiocbe, list);
+		zfree(aiocb_zone, aiocbe);
 		if (type == 0)
 			suword(&job->_aiocb_private.error, EBADF);
 		return EBADF;
 	}
 
 	if (aiocbe->uaiocb.aio_offset == -1LL) {
-		TAILQ_INSERT_HEAD(&aio_freejobs, aiocbe, list);
+		zfree(aiocb_zone, aiocbe);
 		if (type == 0)
 			suword(&job->_aiocb_private.error, EINVAL);
 		return EINVAL;
@@ -1273,7 +1264,7 @@ _aio_aqueue(struct proc *p, struct aiocb *job, struct aio_liojob *lj, int type)
 
 	error = suword(&job->_aiocb_private.kernelinfo, jobrefid);
 	if (error) {
-		TAILQ_INSERT_HEAD(&aio_freejobs, aiocbe, list);
+		zfree(aiocb_zone, aiocbe);
 		if (type == 0)
 			suword(&job->_aiocb_private.error, EINVAL);
 		return error;
@@ -1286,7 +1277,7 @@ _aio_aqueue(struct proc *p, struct aiocb *job, struct aio_liojob *lj, int type)
 		jobrefid++;
 	
 	if (opcode == LIO_NOP) {
-		TAILQ_INSERT_HEAD(&aio_freejobs, aiocbe, list);
+		zfree(aiocb_zone, aiocbe);
 		if (type == 0) {
 			suword(&job->_aiocb_private.error, 0);
 			suword(&job->_aiocb_private.status, 0);
@@ -1296,7 +1287,7 @@ _aio_aqueue(struct proc *p, struct aiocb *job, struct aio_liojob *lj, int type)
 	}
 
 	if ((opcode != LIO_READ) && (opcode != LIO_WRITE)) {
-		TAILQ_INSERT_HEAD(&aio_freejobs, aiocbe, list);
+		zfree(aiocb_zone, aiocbe);
 		if (type == 0) {
 			suword(&job->_aiocb_private.status, 0);
 			suword(&job->_aiocb_private.error, EINVAL);
@@ -1323,7 +1314,7 @@ _aio_aqueue(struct proc *p, struct aiocb *job, struct aio_liojob *lj, int type)
 		if (kevp == NULL)
 			goto no_kqueue;
 
-		error = copyin((caddr_t)kevp, (caddr_t)&kev, sizeof(kev));
+		error = copyin(kevp, &kev, sizeof(kev));
 		if (error)
 			goto aqueue_fail;
 	}
@@ -1340,7 +1331,7 @@ _aio_aqueue(struct proc *p, struct aiocb *job, struct aio_liojob *lj, int type)
 	error = kqueue_register(kq, &kev, p);
 aqueue_fail:
 	if (error) {
-		TAILQ_INSERT_HEAD(&aio_freejobs, aiocbe, list);
+		zfree(aiocb_zone, aiocbe);
 		if (type == 0)
 			suword(&job->_aiocb_private.error, error);
 		goto done;
@@ -1872,7 +1863,7 @@ aio_read(struct proc *p, struct aio_read_args *uap)
 #ifndef VFS_AIO
 	return ENOSYS;
 #else
-	return aio_aqueue(p, (struct aiocb *)uap->aiocbp, LIO_READ);
+	return aio_aqueue(p, uap->aiocbp, LIO_READ);
 #endif /* VFS_AIO */
 }
 
@@ -1882,7 +1873,7 @@ aio_write(struct proc *p, struct aio_write_args *uap)
 #ifndef VFS_AIO
 	return ENOSYS;
 #else
-	return aio_aqueue(p, (struct aiocb *)uap->aiocbp, LIO_WRITE);
+	return aio_aqueue(p, uap->aiocbp, LIO_WRITE);
 #endif /* VFS_AIO */
 }
 
@@ -1936,7 +1927,7 @@ lio_listio(struct proc *p, struct lio_listio_args *uap)
 	 */
 	if (uap->sig && (uap->mode == LIO_NOWAIT)) {
 		error = copyin(uap->sig, &lj->lioj_signal,
-		    sizeof(lj->lioj_signal));
+			       sizeof(lj->lioj_signal));
 		if (error)
 			return error;
 		lj->lioj_flags |= LIOJ_SIGNAL;
@@ -2160,8 +2151,7 @@ aio_waitcomplete(struct proc *p, struct aio_waitcomplete_args *uap)
 	timo = 0;
 	if (uap->timeout) {
 		/* Get timespec struct. */
-		error = copyin((caddr_t)uap->timeout, (caddr_t)&ts,
-		    sizeof(ts));
+		error = copyin(uap->timeout, &ts, sizeof(ts));
 		if (error)
 			return error;
 
