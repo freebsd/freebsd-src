@@ -12,3 +12,5 @@ POWERMAC		opt_platform.h
 PSIM
 
 SC_OFWFB		opt_ofwfb.h
+
+OFWCONS_POLL_HZ		opt_ofw.h
