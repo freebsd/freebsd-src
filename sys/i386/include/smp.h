@@ -142,11 +142,6 @@ void	u_sleep			__P((int));
 u_int	io_apic_read		__P((int, int));
 void	io_apic_write		__P((int, int, u_int));
 
-
-/* global data in init_smp.c */
-extern int			invltlb_ok;
-extern volatile int		smp_idle_loops;
-
 #endif /* !LOCORE */
 #endif /* SMP && !APIC_IO */
 

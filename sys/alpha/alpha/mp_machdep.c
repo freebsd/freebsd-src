@@ -153,14 +153,6 @@ smp_init_secondary(void)
 	(void)alpha_pal_swpipl(ALPHA_PSL_IPL_HIGH);
 	mc_expected = 0;
 
-        /*
-         * Set curproc to our per-cpu idleproc so that mutexes have
-         * something unique to lock with.
-	 *
-	 * XXX: shouldn't this already be set for us?
-         */
-        PCPU_SET(curthread, PCPU_GET(idlethread));
-
 	/*
 	 * Set flags in our per-CPU slot in the HWRPB.
 	 */
@@ -187,8 +179,9 @@ smp_init_secondary(void)
 
 	smp_cpus++;
 
-	CTR0(KTR_SMP, "smp_init_secondary");
+	CTR1(KTR_SMP, "SMP: AP CPU #%d Launched", PCPU_GET(cpuid));
 
+	/* Build our map of 'other' CPUs. */
 	PCPU_SET(other_cpus, all_cpus & ~(1 << PCPU_GET(cpuid)));
 
 	printf("SMP: AP CPU #%d Launched!\n", PCPU_GET(cpuid));
@@ -201,17 +194,16 @@ smp_init_secondary(void)
 	mtx_unlock_spin(&ap_boot_mtx);
 
 	while (smp_started == 0)
-		alpha_mb(); /* nothing */
+		; /* nothing */
 
 	microuptime(PCPU_PTR(switchtime));
 	PCPU_SET(switchticks, ticks);
 
 	/* ok, now grab sched_lock and enter the scheduler */
-	(void)alpha_pal_swpipl(ALPHA_PSL_IPL_0);
 	mtx_lock_spin(&sched_lock);
 	cpu_throw();	/* doesn't return */
 
-	panic("scheduler returned us to " __func__);
+	panic("scheduler returned us to %s", __func__);
 }
 
 static int
