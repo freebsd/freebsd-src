@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.100 1995/01/09 16:04:37 davidg Exp $
+ *	$Id: machdep.c,v 1.101 1995/01/14 13:20:08 bde Exp $
  */
 
 #include "npx.h"
@@ -576,8 +576,7 @@ sendsig(catcher, sig, mask, code)
  * Return to previous pc and psl as specified by
  * context left by sendsig. Check carefully to
  * make sure that the user has not modified the
- * psl to gain improper privileges or to cause
- * a machine fault.
+ * state to gain improper privileges.
  */
 struct sigreturn_args {
 	struct sigcontext *sigcntxp;
@@ -608,13 +607,21 @@ sigreturn(p, uap, retval)
 		return(EINVAL);
 
 	/*
-	 * Don't allow users to change privileged or reserved flags.  Let
-	 * the hardware check for changing to excess I/O privilege.
+	 * Don't allow users to change privileged or reserved flags.
 	 */
 #define	EFLAGS_SECURE(ef, oef)	((((ef) ^ (oef)) & ~PSL_USERCHANGE) == 0)
-
 	eflags = scp->sc_ps;
-	if (!EFLAGS_SECURE(eflags, regs[tEFLAGS])) {
+	/*
+	 * XXX do allow users to change the privileged flag PSL_RF.  The
+	 * cpu sets PSL_RF in tf_eflags for faults.  Debuggers should
+	 * sometimes set it there too.  tf_eflags is kept in the signal
+	 * context during signal handling and there is no other place
+	 * to remember it, so the PSL_RF bit may be corrupted by the
+	 * signal handler without us knowing.  Corruption of the PSL_RF
+	 * bit at worst causes one more or one less debugger trap, so
+	 * allowing it is fairly harmless.
+	 */
+	if (!EFLAGS_SECURE(eflags & ~PSL_RF, regs[tEFLAGS] & ~PSL_RF)) {
 #ifdef DEBUG
     		printf("sigreturn: eflags = 0x%x\n", eflags);
 #endif
