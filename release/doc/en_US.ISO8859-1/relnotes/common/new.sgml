@@ -1768,6 +1768,10 @@
     line.  This allows the user to run an arbitrary program as if it were
     written to be a daemon.</para>
 
+    <para>&man.syslogd.8; now has the ability to bind to a specific
+    address--as opposed to using every available one--via the
+    <option>-b</option> option.</para>
+
     <sect3>
       <title>Contributed Software</title>
 
