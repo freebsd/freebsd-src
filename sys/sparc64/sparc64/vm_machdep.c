@@ -377,7 +377,7 @@ sf_buf_alloc(struct vm_page *m, int flags)
 	mtx_lock(&sf_freelist.sf_lock);
 	while ((sf = SLIST_FIRST(&sf_freelist.sf_head)) == NULL) {
 		if (flags & SFB_NOWAIT)
-			goto break;
+			break;
 		sf_buf_alloc_want++;
 		mbstat.sf_allocwait++;
 		error = msleep(&sf_freelist, &sf_freelist.sf_lock,
