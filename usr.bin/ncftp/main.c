@@ -2,7 +2,7 @@
 
 #define _main_c_
 
-#define FTP_VERSION "1.9.1 (January 1, 1995)"
+#define FTP_VERSION "1.9.2 (January 20, 1995)"
 
 /* #define BETA 1 */ /* If defined, it prints a little warning message. */
 
@@ -345,8 +345,9 @@ Examples:\n\
 		makeargv();
 		/* setpeer uses this to tell if it was called from the cmd-line. */
 		eventnumber = 0L;
-		if (cmdOpen(margc, margv) != NOERR)
+		if (cmdOpen(margc, margv) != NOERR) {
 			exit(1);
+		}
 	}
 	eventnumber = 1L;
 

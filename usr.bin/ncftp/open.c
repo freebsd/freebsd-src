@@ -637,7 +637,8 @@ int cmdOpen(int argc, char **argv)
 	if ((GetOpenOptions(argc, argv, &openopt) == USAGE) ||
 		((result = Open(&openopt)) == USAGE))
 		return USAGE;
-	return (www ? result : NOERR);
+	/* Return an error if colon-mode/URL didn't work. */
+	return (openopt.colonmodepath[0] != '\0' ? result : NOERR);
 }	/* cmdOpen */
 
 /* eof open.c */
