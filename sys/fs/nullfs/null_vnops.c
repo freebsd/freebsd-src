@@ -392,7 +392,7 @@ null_lookup(ap)
 	 * Rely only on the PDIRUNLOCK flag which should be carefully
 	 * tracked by underlying filesystem.
 	 */
-	if (cnp->cn_flags & PDIRUNLOCK)
+	if ((cnp->cn_flags & PDIRUNLOCK) && dvp->v_vnlock != ldvp->v_vnlock)
 		VOP_UNLOCK(dvp, LK_THISLAYER, td);
 	if ((error == 0 || error == EJUSTRETURN) && lvp != NULL) {
 		if (ldvp == lvp) {
