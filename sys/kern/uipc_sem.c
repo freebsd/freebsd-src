@@ -31,6 +31,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
+#include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/lock.h>
@@ -57,7 +58,7 @@ static void sem_free(struct ksem *ksnew);
 static int sem_perm(struct thread *td, struct ksem *ks);
 static void sem_enter(struct proc *p, struct ksem *ks);
 static int sem_leave(struct proc *p, struct ksem *ks);
-static void sem_exithook(struct proc *p);
+static void sem_exithook(void *arg, struct proc *p);
 static int sem_hasopen(struct thread *td, struct ksem *ks);
 
 static int kern_sem_close(struct thread *td, semid_t id);
@@ -113,6 +114,8 @@ static MALLOC_DEFINE(M_SEM, "sems", "semaphore data");
 static int nsems = 0;
 SYSCTL_DECL(_p1003_1b);
 SYSCTL_INT(_p1003_1b, OID_AUTO, nsems, CTLFLAG_RD, &nsems, 0, "");
+
+static eventhandler_tag sem_exit_tag, sem_exec_tag;
 
 #ifdef SEM_DEBUG
 #define DP(x)	printf x
@@ -769,7 +772,8 @@ err:
 }
 
 static void
-sem_exithook(p)
+sem_exithook(arg, p)
+	void *arg;
 	struct proc *p;
 {
 	struct ksem *ks, *ksnext;
@@ -800,16 +804,18 @@ sem_modload(struct module *module, int cmd, void *arg)
 		mtx_init(&sem_lock, "sem", "semaphore", MTX_DEF);
 		p31b_setcfg(CTL_P1003_1B_SEM_NSEMS_MAX, SEM_MAX);
 		p31b_setcfg(CTL_P1003_1B_SEM_VALUE_MAX, SEM_VALUE_MAX);
-		at_exec(&sem_exithook);
-		at_exit(&sem_exithook);
+		sem_exit_tag = EVENTHANDLER_REGISTER(process_exit, sem_exithook,
+		    NULL, EVENTHANDLER_PRI_ANY);
+		sem_exec_tag = EVENTHANDLER_REGISTER(process_exec, sem_exithook,
+		    NULL, EVENTHANDLER_PRI_ANY);
                 break;
         case MOD_UNLOAD:
 		if (nsems != 0) {
 			error = EOPNOTSUPP;
 			break;
 		}
-		rm_at_exit(&sem_exithook);
-		rm_at_exec(&sem_exithook);
+		EVENTHANDLER_DEREGISTER(process_exit, sem_exit_tag);
+		EVENTHANDLER_DEREGISTER(process_exec, sem_exec_tag);
 		mtx_destroy(&sem_lock);
                 break;
         case MOD_SHUTDOWN:
