@@ -29,7 +29,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)xdr_rec.c 1.21 87/08/11 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)xdr_rec.c	2.2 88/08/01 4.0 RPCSRC";*/
-static char *rcsid = "$Id: xdr_rec.c,v 1.5 1996/12/30 14:07:10 peter Exp $";
+static char *rcsid = "$Id: xdr_rec.c,v 1.8 1997/05/28 04:57:38 wpaul Exp $";
 #endif
 
 /*
@@ -550,6 +550,12 @@ set_input_fragment(rstrm)
 		return (FALSE);
 	header = (long)ntohl(header);
 	rstrm->last_frag = ((header & LAST_FRAG) == 0) ? FALSE : TRUE;
+	/*
+	 * Sanity check. Try not to accept wildly incorrect
+	 * record sizes.
+	 */
+	if ((header & (~LAST_FRAG)) > rstrm->recvsize)
+		return(FALSE);
 	rstrm->fbtbc = header & (~LAST_FRAG);
 	return (TRUE);
 }
