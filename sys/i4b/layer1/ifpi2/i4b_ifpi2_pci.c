@@ -462,13 +462,13 @@ avma1pp2_attach_avma1pp(device_t dev)
 
 	/* probably not really required */
 	if(unit > IFPI2_MAXUNIT) {
-		printf("avma1pp2-%d: Error, unit > IFPI_MAXUNIT!\n", unit);
+		printf("ifpi2-%d: Error, unit > IFPI_MAXUNIT!\n", unit);
 		splx(s);
 		return(ENXIO);
 	}
 
 	if ((vid != PCI_AVMA1_VID) && (did != PCI_AVMA1_V2_DID)) {
-		printf("avma1pp2-%d: unknown device!?\n", unit);
+		printf("ifpi2-%d: unknown device!?\n", unit);
 		goto fail;
 	}
 
@@ -480,7 +480,7 @@ avma1pp2_attach_avma1pp(device_t dev)
 		0, ~0, 1, RF_ACTIVE);
 
 	if (sc->sc_resources.io_base[0] == NULL) {
-		printf("avma1pp2-%d: couldn't map IO port\n", unit);
+		printf("ifpi2-%d: couldn't map IO port\n", unit);
 		error = ENXIO;
 		goto fail;
 	}
@@ -495,7 +495,7 @@ avma1pp2_attach_avma1pp(device_t dev)
 
 	if (sc->sc_resources.irq == NULL) {
 		bus_release_resource(dev, SYS_RES_IOPORT, PCIR_MAPS+4, sc->sc_resources.io_base[0]);
-		printf("avma1pp2-%d: couldn't map interrupt\n", unit);
+		printf("ifpi2-%d: couldn't map interrupt\n", unit);
 		error = ENXIO;
 		goto fail;
 	}
@@ -505,7 +505,7 @@ avma1pp2_attach_avma1pp(device_t dev)
 	if (error) {
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sc_resources.irq);
 		bus_release_resource(dev, SYS_RES_IOPORT, PCIR_MAPS+4, sc->sc_resources.io_base[0]);
-		printf("avma1pp2-%d: couldn't set up irq\n", unit);
+		printf("ifpi2-%d: couldn't set up irq\n", unit);
 		goto fail;
 	}
 
