@@ -12,7 +12,15 @@ fi
 
 if [ "x$pccard_ifconfig" != "xNO" ] ; then
 	if [ "x$pccard_ifconfig" = "xDHCP" ] ; then
-		# DHCP currently not implemented
+		if [ -f /usr/local/sbin/dhclient ] ; then
+		    if [ -s /var/run/dhclient.pid ] ; then
+			kill `cat /var/run/dhclient.pid`
+			rm /var/run/dhclient.pid
+		    fi
+		    /usr/local/sbin/dhclient
+		else
+		    echo "DHCP client software not available (isc-dhcp2)"
+		fi
 	else
 		interface=$1
 		shift
