@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.23 1998/06/24 19:33:30 brian Exp $
+ *	$Id: bundle.c,v 1.24 1998/06/27 12:03:35 brian Exp $
  */
 
 #include <sys/param.h>
@@ -1457,7 +1457,7 @@ bundle_ReceiveDatalink(struct bundle *bundle, int s, struct sockaddr_un *sun)
   if (strncmp(Version, iov[0].iov_base, iov[0].iov_len)) {
     log_Printf(LogWARN, "Cannot receive datalink, incorrect version"
                " (\"%.*s\", not \"%s\")\n", (int)iov[0].iov_len,
-               iov[0].iov_base, Version);
+               (char *)iov[0].iov_base, Version);
     close(link_fd);
     while (niov--)
       free(iov[niov].iov_base);
