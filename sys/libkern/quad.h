@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)quad.h	8.1 (Berkeley) 6/4/93
- * $Id$
+ *	$Id$
  */
 
 /*
@@ -96,7 +96,11 @@ union uu {
 #define	LHALF(x)	((x) & ((1 << HALF_BITS) - 1))
 #define	LHUP(x)		((x) << HALF_BITS)
 
-extern u_quad_t __qdivrem __P((u_quad_t u, u_quad_t v, u_quad_t *rem));
+quad_t		__divdi3 __P((quad_t a, quad_t b));
+quad_t		__moddi3 __P((quad_t a, quad_t b));
+u_quad_t	__qdivrem __P((u_quad_t u, u_quad_t v, u_quad_t *rem));
+u_quad_t	__udivdi3 __P((u_quad_t a, u_quad_t b));
+u_quad_t	__umoddi3 __P((u_quad_t a, u_quad_t b));
 
 /*
  * XXX
