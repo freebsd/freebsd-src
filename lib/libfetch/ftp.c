@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ftp.c,v 1.3 1998/07/11 21:29:08 des Exp $
+ *	$Id: ftp.c,v 1.4 1998/07/12 22:34:39 des Exp $
  */
 
 /*
@@ -216,7 +216,7 @@ _ftp_transfer(FILE *cf, char *oper, char *file, char *mode, int pasv)
     /* s now points to file name */
 
     /* open data socket */
-    if ((sd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0) {
+    if ((sd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1) {
 	_ftp_syserr();
 	return NULL;
     }
@@ -242,13 +242,13 @@ _ftp_transfer(FILE *cf, char *oper, char *file, char *mode, int pasv)
 
 	/* construct sockaddr for data socket */
 	l = sizeof(sin);
-	if (getpeername(fileno(cf), (struct sockaddr *)&sin, &l) < 0)
+	if (getpeername(fileno(cf), (struct sockaddr *)&sin, &l) == -1)
 	    goto sysouch;
 	bcopy(addr, (char *)&sin.sin_addr, 4);
 	bcopy(addr + 4, (char *)&sin.sin_port, 2);	
 
 	/* connect to data port */
-	if (connect(sd, (struct sockaddr *)&sin, sizeof(sin)) < 0)
+	if (connect(sd, (struct sockaddr *)&sin, sizeof(sin)) == -1)
 	    goto sysouch;
 	
 	/* make the server initiate the transfer */
@@ -262,16 +262,16 @@ _ftp_transfer(FILE *cf, char *oper, char *file, char *mode, int pasv)
 	
 	/* find our own address, bind, and listen */
 	l = sizeof(sin);
-	if (getsockname(fileno(cf), (struct sockaddr *)&sin, &l) < 0)
+	if (getsockname(fileno(cf), (struct sockaddr *)&sin, &l) == -1)
 	    goto sysouch;
 	sin.sin_port = 0;
-	if (bind(sd, (struct sockaddr *)&sin, l) < 0)
+	if (bind(sd, (struct sockaddr *)&sin, l) == -1)
 	    goto sysouch;
-	if (listen(sd, 1) < 0)
+	if (listen(sd, 1) == -1)
 	    goto sysouch;
 
 	/* find what port we're on and tell the server */
-	if (getsockname(sd, (struct sockaddr *)&sin, &l) < 0)
+	if (getsockname(sd, (struct sockaddr *)&sin, &l) == -1)
 	    goto sysouch;
 	a = ntohl(sin.sin_addr.s_addr);
 	p = ntohs(sin.sin_port);
@@ -285,7 +285,7 @@ _ftp_transfer(FILE *cf, char *oper, char *file, char *mode, int pasv)
 	    goto ouch;
 	
 	/* accept the incoming connection and go to town */
-	if ((d = accept(sd, NULL, NULL)) < 0)
+	if ((d = accept(sd, NULL, NULL)) == -1)
 	    goto sysouch;
 	close(sd);
 	sd = d;
@@ -329,7 +329,7 @@ _ftp_connect(char *host, int port, char *user, char *pwd)
     }
 
     /* check connection */
-    if (sd < 0) {
+    if (sd == -1) {
 	_ftp_syserr();
 	return NULL;
     }
@@ -341,7 +341,7 @@ _ftp_connect(char *host, int port, char *user, char *pwd)
     }
 
     /* expect welcome message */
-    if (_ftp_chkerr(f, NULL) < 0)
+    if (_ftp_chkerr(f, NULL) == -1)
 	goto fouch;
     
     /* send user name and password */
@@ -420,9 +420,8 @@ fetchXxxFTP(url_t *url, char *oper, char *mode, char *flags)
     if (!url->port)
 	url->port = FTP_DEFAULT_PORT;
     
-    /* try to use previously cached connection */
+    /* try to use previously cached connection; there should be a 226 waiting */
     if (_ftp_isconnected(url)) {
-	fprintf(cached_socket, "PWD" ENDL);
 	_ftp_chkerr(cached_socket, &e);
 	if (e > 0)
 	    cf = cached_socket;

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: fetch.h,v 1.1.1.1 1998/07/09 16:52:41 des Exp $
+ *	$Id: fetch.h,v 1.3 1998/07/11 21:29:08 des Exp $
  */
 
 #ifndef _FETCH_H_INCLUDED
@@ -70,6 +70,8 @@ url_t	*fetchParseURL(char *);
 void	 fetchFreeURL(url_t *);
 FILE	*fetchGetURL(char *, char *);
 FILE	*fetchPutURL(char *, char *);
+FILE	*fetchGet(url_t *, char *);
+FILE	*fetchPut(url_t *, char *);
 
 /* Error code and string */
 extern int fetchLastErrCode;
