@@ -82,6 +82,14 @@ is invoked.
 Booting will also be attempted at stage two, if the
 third stage cannot be loaded.
 .Pp
+Make note of the fact that
+.Pa /boot.config
+is read only from the
+.Ql a
+partition.  As a result, slices which are missing an
+.Ql a
+parition require user intervention during the boot process.
+.Pp
 The remainder of this subsection deals only with the boot blocks.
 The
 .Xr loader 8
@@ -91,12 +99,12 @@ After the boot blocks have been loaded,
 you should see a prompt similar to the following:
 .Bd -literal
 >> FreeBSD/i386 BOOT
-Default: 0:ad(0,a)/kernel
+Default: 0:ad(0,a)/boot/loader
 boot:
 .Ed
 .Pp
 The automatic boot will attempt to load
-.Pa /kernel
+.Pa /boot/loader
 from partition
 .Ql a
 of either the floppy or the hard disk.
