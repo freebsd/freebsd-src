@@ -37,15 +37,20 @@
  *
  *	@(#)nlist.h	8.2 (Berkeley) 1/21/94
  *
- *	$Id$
+ *	$Id: nlist.h,v 1.5 1997/02/23 09:17:14 peter Exp $
  */
 
 #ifndef _NLIST_H_
 #define	_NLIST_H_
 
 /*
- * Symbol table entry format.  The #ifdef's are so that programs including
- * nlist.h can initialize nlist structures statically.
+ * Symbol table entries in a.out files.
+ */
+
+/*
+ * Layout of each symbol.  The "#ifdef _AOUT_INCLUDE_" is so that
+ * programs including nlist.h can initialize nlist structures
+ * statically.
  */
 struct nlist {
 #ifdef _AOUT_INCLUDE_
@@ -56,7 +61,17 @@ struct nlist {
 #else
 	char *n_name;		/* symbol name (in memory) */
 #endif
+	unsigned char n_type;	/* type defines */
+	char n_other;		/* ".type" and binding information */
+	short n_desc;		/* used by stab entries */
+	unsigned long n_value;	/* address/value of the symbol */
+};
 
+#define	n_hash	n_desc		/* used internally by ld(1); XXX */
+
+/*
+ * Defines for n_type.
+ */
 #define	N_UNDF	0x00		/* undefined */
 #define	N_ABS	0x02		/* absolute address */
 #define	N_TEXT	0x04		/* text segment */
@@ -77,16 +92,25 @@ struct nlist {
 
 #define	N_EXT	0x01		/* external (global) bit, OR'ed in */
 #define	N_TYPE	0x1e		/* mask for all the type bits */
-	unsigned char n_type;	/* type defines */
+#define	N_STAB	0xe0		/* mask for debugger symbols -- stab(5) */
 
-	char n_other;		/* spare */
-#define	n_hash	n_desc		/* used internally by ld(1); XXX */
-	short n_desc;		/* used by stab entries */
-	unsigned long n_value;	/* address/value of the symbol */
-};
+/*
+ * Defines for n_other.  It contains the ".type" (AUX) field in the least
+ * significant 4 bits, and the binding (for weak symbols) in the most
+ * significant 4 bits.
+ */
+#define N_AUX(p)	((p)->n_other & 0xf)
+#define N_BIND(p)	(((unsigned int)(p)->n_other >> 4) & 0xf)
+#define N_OTHER(r, v)	(((unsigned int)(r) << 4) | ((v) & 0xf))
+
+#define AUX_OBJECT	1	/* data object */
+#define AUX_FUNC	2	/* function */
+
+/*#define BIND_LOCAL	0	not used */
+/*#define BIND_GLOBAL	1	not used */
+#define BIND_WEAK	2	/* weak binding */
 
 #define	N_FORMAT	"%08x"	/* namelist value format; XXX */
-#define	N_STAB		0x0e0	/* mask for debugger symbols -- stab(5) */
 
 #include <sys/cdefs.h>
 

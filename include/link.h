@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: link.h,v 1.15 1997/11/22 03:34:39 brian Exp $
+ *	$Id: link.h,v 1.16 1997/11/28 19:05:11 jdp Exp $
  */
 
 /*
@@ -84,6 +84,8 @@ struct so_map {		/* Shared Object Map */
 struct nzlist {
 	struct nlist	nlist;
 	u_long		nz_size;
+};
+
 #define nz_un		nlist.n_un
 #define nz_strx		nlist.n_un.n_strx
 #define nz_name		nlist.n_un.n_name
@@ -91,18 +93,6 @@ struct nzlist {
 #define nz_value	nlist.n_value
 #define nz_desc		nlist.n_desc
 #define nz_other	nlist.n_other
-};
-
-#define N_AUX(p)	((p)->n_other & 0xf)
-#define N_BIND(p)	(((unsigned int)(p)->n_other >> 4) & 0xf)
-#define N_OTHER(r, v)	(((unsigned int)(r) << 4) | ((v) & 0xf))
-
-#define AUX_OBJECT	1
-#define AUX_FUNC	2
-/*#define BIND_LOCAL	0	not used */
-/*#define BIND_GLOBAL	1	not used */
-#define BIND_WEAK	2
-
 
 /*
  * The `section_dispatch_table' structure contains offsets to various data
@@ -290,4 +280,3 @@ struct hints_bucket {
 #define _PATH_LD_HINTS		"/var/run/ld.so.hints"
 
 #endif /* _LINK_H_ */
-
