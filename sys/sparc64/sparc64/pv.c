@@ -44,6 +44,7 @@
 #include <sys/smp.h>
 
 #include <vm/vm.h> 
+#include <vm/vm_extern.h>
 #include <vm/vm_param.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_object.h>
@@ -77,7 +78,7 @@ pv_alloc(void)
 		pmap_pagedaemon_waken = 1;
 		wakeup(&vm_pages_needed);
 	}
-	return (uma_zalloc(pvzone), M_WAITOK);
+	return (uma_zalloc(pvzone, M_WAITOK));
 }
 
 void *
