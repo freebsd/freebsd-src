@@ -382,7 +382,7 @@ serve(int sfd, struct sockaddr *s)
 	}
 	if (error != 0)
 		sendfail(sfd, error, NULL);
-	flags = g_gate_openflags(sinit.gs_flags);;
+	flags = g_gate_openflags(sinit.gs_flags);
 	fd = open(ex->e_path, flags);
 	if (fd < 0) {
 		sendfail(sfd, errno, "Error while opening %s: %s.", ex->e_path,
