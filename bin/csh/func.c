@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: func.c,v 1.3 1995/05/30 00:06:34 rgrimes Exp $
+ *	$Id: func.c,v 1.4 1995/10/23 23:08:26 ache Exp $
  */
 
 #ifndef lint
@@ -1016,6 +1016,10 @@ dounsetenv(v, t)
 		if (!Gmatch(name, *v))
 		    continue;
 		maxi = 1;
+		/*
+		 * Delete name, and start again cause the environment changes
+		 */
+		Unsetenv(name);
 		if (eq(name, STRLANG) || eq(name, STRLC_CTYPE) ||
 		    eq(name, STRLC_ALL) || eq(name, STRLC_COLLATE)) {
 #ifdef NLS
@@ -1031,10 +1035,6 @@ dounsetenv(v, t)
 			getenv("LC_CTYPE") == NULL;
 #endif				/* NLS */
 		}
-		/*
-		 * Delete name, and start again cause the environment changes
-		 */
-		Unsetenv(name);
 		break;
 	    }
     xfree((ptr_t) name);
