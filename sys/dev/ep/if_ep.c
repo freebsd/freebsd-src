@@ -331,6 +331,8 @@ ep_attach(sc)
 	EP_FSET(sc, F_RX_FIRST);
 	sc->top = sc->mcur = 0;
 
+	epstop(sc);
+
 	return 0;
 }
 
