@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr_reg.h,v 2.0.0.4 94/08/09 23:10:10 wolf Exp $
+**  $Id: ncr_reg.h,v 2.0.0.5 94/08/25 22:51:04 wolf Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -44,6 +44,9 @@
 **-------------------------------------------------------------------------
 **
 **  $Log:	ncr_reg.h,v $
+**  Revision 2.0.0.5  94/08/25  22:51:04  wolf
+**  New SCR_REG_OFS() macro.
+**  
 **  Revision 2.0.0.4  94/08/09  23:10:10  wolf
 **  new message.
 **  
@@ -365,14 +368,17 @@ struct scr_tblsel {
 **-----------------------------------------------------------
 */
 
+#define SCR_REG_OFS(ofs) ((ofs) << 16ul)
+
 #define SCR_SFBR_REG(reg,op,data) \
-        (0x68000000 | (REG(reg) << 16ul) | (op) | ((data)<<8ul))
+        (0x68000000 | (SCR_REG_OFS(REG(reg))) | (op) | ((data)<<8ul))
 
 #define SCR_REG_SFBR(reg,op,data) \
-        (0x70000000 | (REG(reg) << 16ul) | (op) | ((data)<<8ul))
+        (0x70000000 | (SCR_REG_OFS(REG(reg))) | (op) | ((data)<<8ul))
 
 #define SCR_REG_REG(reg,op,data) \
-        (0x78000000 | (REG(reg) << 16ul) | (op) | ((data)<<8ul))
+        (0x78000000 | (SCR_REG_OFS(REG(reg))) | (op) | ((data)<<8ul))
+
 
 #define      SCR_LOAD   0x00000000
 #define      SCR_SHL    0x01000000
