@@ -17,7 +17,7 @@
  */
 
 #if !defined(lint) && !defined(LINT)
-static char rcsid[] = "$Id: crontab.c,v 1.2 1994/12/21 11:06:08 ache Exp $";
+static char rcsid[] = "$Id: crontab.c,v 1.3 1995/05/30 03:47:04 rgrimes Exp $";
 #endif
 
 /* crontab - install and manage per-user crontab files
@@ -404,8 +404,7 @@ edit_cmd() {
 				ProgramName);
 			exit(ERROR_EXIT);
 		}
-		sprintf(q, "%s %s", editor, Filename);
-		execlp(_PATH_BSHELL, _PATH_BSHELL, "-c", q, NULL);
+		execlp(editor, editor, Filename, NULL);
 		perror(editor);
 		exit(ERROR_EXIT);
 		/*NOTREACHED*/
@@ -415,7 +414,16 @@ edit_cmd() {
 	}
 
 	/* parent */
+	{
+	void (*f[4])();
+	f[0] = signal(SIGHUP, SIG_IGN);
+	f[1] = signal(SIGINT, SIG_IGN);
+	f[2] = signal(SIGTERM, SIG_IGN);
 	xpid = wait(&waiter);
+	signal(SIGHUP, f[0]);
+	signal(SIGINT, f[1]);
+	signal(SIGTERM, f[2]);
+	}
 	if (xpid != pid) {
 		fprintf(stderr, "%s: wrong PID (%d != %d) from \"%s\"\n",
 			ProgramName, xpid, pid, editor);
