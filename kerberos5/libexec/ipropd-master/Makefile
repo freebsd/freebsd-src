@@ -16,11 +16,12 @@ CFLAGS+=	-I${KRB5DIR}/include \
 _krb4libs=	-lkrb -lkafs
 _krb4deps=	${LIBKRB} ${LIBKAFS}
 .endif
-LDADD=		-L${KRB5OBJDIR} -lkrb5 \
+LDADD=		\
+		-L${KADM5SOBJDIR} -lkadm5srv \
+		-L${KRB5OBJDIR} -lkrb5 \
 		-L${HDBOBJDIR} -lhdb -L${ROKENOBJDIR} -lroken \
 		-L${VERSOBJDIR} -lvers \
 		${_krb4libs} \
-		-L${KADM5COBJDIR} -lkadm5clnt -L${KADM5SOBJDIR} -lkadm5srv \
 		-L${ASN1OBJDIR} -lasn1 -lcrypto -lmd -lcrypt -lcom_err
 DPADD=		${LIBKRB5} ${LIBKAFS5} ${LIBHDB} ${LIBROKEN} ${_krb4deps} \
 		${LIBASN1} ${LIBCRYPTO} ${LIBMD} ${LIBCRYPT} ${LIBCOM_ERR}
