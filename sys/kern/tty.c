@@ -227,6 +227,23 @@ static int  drainwait = 5*60;
 SYSCTL_INT(_kern, OID_AUTO, drainwait, CTLFLAG_RW, &drainwait,
 	0, "Output drain timeout in seconds");
 
+static struct tty *
+tty_gettp(struct cdev *dev)
+{
+	struct tty *tp;
+	struct cdevsw *csw;
+
+	csw = dev_refthread(dev);
+	KASSERT(csw != NULL, ("No cdevsw in ttycode (%s)", devtoname(dev)));
+	KASSERT(csw->d_flags & D_TTY,
+	    ("non D_TTY (%s) in tty code", devtoname(dev)));
+	dev_relthread(dev);
+	tp = dev->si_tty;
+	KASSERT(tp != NULL,
+	    ("no tty pointer on (%s) in tty code", devtoname(dev)));
+	return (tp);
+}
+
 /*
  * Initial open of tty, or (re)entry to standard tty line discipline.
  */
@@ -1225,11 +1242,8 @@ ttypoll(struct cdev *dev, int events, struct thread *td)
 	int revents = 0;
 	struct tty *tp;
 
-	KASSERT(devsw(dev)->d_flags & D_TTY,
-	    ("ttypoll() called on non D_TTY device (%s)", devtoname(dev)));
-	tp = dev->si_tty;
-	KASSERT(tp != NULL,
-	    ("ttypoll(): no tty pointer on device (%s)", devtoname(dev)));
+	tp = tty_gettp(dev);
+
 	if (tp == NULL)	/* XXX used to return ENXIO, but that means true! */
 		return ((events & (POLLIN | POLLOUT | POLLRDNORM | POLLWRNORM))
 			| POLLHUP);
@@ -1265,11 +1279,8 @@ ttykqfilter(struct cdev *dev, struct knote *kn)
 	struct knlist *klist;
 	int s;
 
-	KASSERT(devsw(dev)->d_flags & D_TTY,
-	    ("ttykqfilter() called on non D_TTY device (%s)", devtoname(dev)));
-	tp = dev->si_tty;
-	KASSERT(tp != NULL,
-	    ("ttykqfilter(): no tty pointer on device (%s)", devtoname(dev)));
+	tp = tty_gettp(dev);
+
 	switch (kn->kn_filter) {
 	case EVFILT_READ:
 		klist = &tp->t_rsel.si_note;
@@ -2994,11 +3005,8 @@ ttyread(struct cdev *dev, struct uio *uio, int flag)
 {
 	struct tty *tp;
 
-	KASSERT(devsw(dev)->d_flags & D_TTY,
-	    ("ttyread() called on non D_TTY device (%s)", devtoname(dev)));
-	tp = dev->si_tty;
-	KASSERT(tp != NULL,
-	    ("ttyread(): no tty pointer on device (%s)", devtoname(dev)));
+	tp = tty_gettp(dev);
+
 	if (tp->t_state & TS_GONE)
 		return (ENODEV);
 	return (ttyld_read(tp, uio, flag));
@@ -3009,11 +3017,8 @@ ttywrite(struct cdev *dev, struct uio *uio, int flag)
 {
 	struct tty *tp;
 
-	KASSERT(devsw(dev)->d_flags & D_TTY,
-	    ("ttywrite() called on non D_TTY device (%s)", devtoname(dev)));
-	tp = dev->si_tty;
-	KASSERT(tp != NULL,
-	    ("ttywrite(): no tty pointer on device (%s)", devtoname(dev)));
+	tp = tty_gettp(dev);
+
 	if (tp->t_state & TS_GONE)
 		return (ENODEV);
 	return (ttyld_write(tp, uio, flag));
