@@ -185,9 +185,6 @@ struct pmap kernel_pmap_store;
 LIST_HEAD(pmaplist, pmap);
 static struct pmaplist allpmaps;
 static struct mtx allpmaps_lock;
-#ifdef SMP
-static struct mtx lazypmap_lock;
-#endif
 
 vm_paddr_t avail_end;	/* PA of last available physical page */
 vm_offset_t virtual_avail;	/* VA of first avail page (after kernel bss) */
@@ -333,9 +330,6 @@ pmap_bootstrap(firstaddr, loadaddr)
 	kernel_pmap->pm_active = -1;	/* don't allow deactivation */
 	TAILQ_INIT(&kernel_pmap->pm_pvlist);
 	LIST_INIT(&allpmaps);
-#ifdef SMP
-	mtx_init(&lazypmap_lock, "lazypmap", NULL, MTX_SPIN);
-#endif
 	mtx_init(&allpmaps_lock, "allpmaps", NULL, MTX_SPIN);
 	mtx_lock_spin(&allpmaps_lock);
 	LIST_INSERT_HEAD(&allpmaps, kernel_pmap, pm_list);
@@ -1307,7 +1301,7 @@ pmap_lazyfix(pmap_t pmap)
 	while ((mask = pmap->pm_active) != 0) {
 		spins = 50000000;
 		mask = mask & -mask;	/* Find least significant set bit */
-		mtx_lock_spin(&lazypmap_lock);
+		mtx_lock_spin(&smp_tlb_mtx);
 #ifdef PAE
 		lazyptd = vtophys(pmap->pm_pdpt);
 #else
@@ -1327,7 +1321,7 @@ pmap_lazyfix(pmap_t pmap)
 					break;
 			}
 		}
-		mtx_unlock_spin(&lazypmap_lock);
+		mtx_unlock_spin(&smp_tlb_mtx);
 		if (spins == 0)
 			printf("pmap_lazyfix: spun for 50000000\n");
 	}

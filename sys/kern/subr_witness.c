@@ -352,7 +352,6 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "smp rendezvous", &lock_class_mtx_spin },
 #if defined(__i386__) || defined(__amd64__)
 	{ "tlb", &lock_class_mtx_spin },
-	{ "lazypmap", &lock_class_mtx_spin },
 #endif
 #ifdef __sparc64__
 	{ "ipi", &lock_class_mtx_spin },
