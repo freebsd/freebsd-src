@@ -10,7 +10,6 @@ SRCS=	svr4_sysent.c svr4_sysvec.c opt_compat.h opt_global.h opt_vmpage.h \
 OBJS=	svr4_locore.o 
 NOMAN=1
 MAN8=	svr4.8
-CFLAGS+= -D_KERNEL
 MAINTAINER=	newton@freebsd.org
 
 EXPORT_SYMS=_svr4_mod
@@ -19,14 +18,14 @@ CLEANFILES= svr4_assym.h svr4_genassym.o opt_svr4.h
 svr4.h:	opt_global.h opt_svr4.h
 
 svr4_assym.h:	svr4_genassym.o
-	genassym -o ${.TARGET} ${.ALLSRC}
+	genassym ${.ALLSRC} > ${.TARGET}
 
 svr4_locore.o:	svr4_locore.s svr4_assym.h
-	${CC} -c -x assembler-with-cpp -DLOCORE -D_KERNEL ${CFLAGS} \
+	${CC} -c -x assembler-with-cpp -DLOCORE ${CFLAGS} \
 		${.IMPSRC} -o ${.TARGET}
 
 svr4_genassym.o:	svr4_genassym.c svr4.h @ machine
-	${CC} -c ${CFLAGS} -U_KERNEL ${.IMPSRC}
+	${CC} -c ${CFLAGS} ${.IMPSRC}
 
 opt_compat.h:
 	echo "#define COMPAT_43 1" > opt_compat.h
