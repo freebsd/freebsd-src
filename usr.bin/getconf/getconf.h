@@ -29,7 +29,10 @@
  * $FreeBSD$
  */
 
-int	find_confstr(const char *name);
-int	find_sysconf(const char *name);
-int	find_pathconf(const char *name);
+#include <stdint.h>
 
+int	find_confstr(const char *name, int *key);
+int	find_limit(const char *name, intmax_t *value);
+int	find_pathconf(const char *name, int *key);
+int	find_progenv(const char *name, const char **alt_path);
+int	find_sysconf(const char *name, int *key);
