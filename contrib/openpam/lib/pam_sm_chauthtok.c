@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $P4: //depot/projects/openpam/lib/pam_sm_chauthtok.c#3 $
  */
 
 #include <sys/param.h>
@@ -74,6 +74,7 @@ pam_sm_chauthtok(pam_handle_t *pamh,
  *	PAM_AUTHTOK_RECOVERY_ERR
  *	PAM_AUTHTOK_LOCK_BUSY
  *	PAM_AUTHTOK_DISABLE_AGING
+ *	PAM_TRY_AGAIN
  */
 
 /**

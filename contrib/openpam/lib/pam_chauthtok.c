@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $P4: //depot/projects/openpam/lib/pam_chauthtok.c#8 $
  */
 
 #include <sys/param.h>
@@ -51,8 +51,18 @@ int
 pam_chauthtok(pam_handle_t *pamh,
 	int flags)
 {
+	int pam_err;
 
-	return (openpam_dispatch(pamh, PAM_SM_CHAUTHTOK, flags));
+	if (flags & PAM_PRELIM_CHECK || flags & PAM_UPDATE_AUTHTOK)
+		return (PAM_SYMBOL_ERR);
+	pam_err = openpam_dispatch(pamh, PAM_SM_CHAUTHTOK,
+	    flags | PAM_PRELIM_CHECK);
+	if (pam_err == PAM_SUCCESS)
+		pam_err = openpam_dispatch(pamh, PAM_SM_CHAUTHTOK,
+		    flags | PAM_UPDATE_AUTHTOK);
+	pam_set_item(pamh, PAM_OLDAUTHTOK, NULL);
+	pam_set_item(pamh, PAM_AUTHTOK, NULL);
+	return (pam_err);
 }
 
 /*
@@ -61,4 +71,5 @@ pam_chauthtok(pam_handle_t *pamh,
  *	=openpam_dispatch
  *	=pam_sm_chauthtok
  *	!PAM_IGNORE
+ *	PAM_SYMBOL_ERR
  */
