@@ -30,8 +30,6 @@
 #include <machine/mutex.h>
 #include "assym.s"
 
-/**************************************************************************/
-	
 /*
  * savectx: save process context, i.e. callee-saved registers
  *
@@ -45,16 +43,20 @@
  */
 
 LEAF(savectx, 1)
-	alloc	r2=ar.pfs,1,0,0,0
-	;;
 	flushrs				// push out caller's dirty regs
 	mov	r3=ar.unat		// caller's value for ar.unat
 	;;
-	mov	ar.rsc=r0		// stop the RSE after the flush
+	mov	ar.rsc=0		// stop the RSE after the flush
 	;;
 	mov	r16=ar.rnat		// read RSE's NaT collection
 	mov	r17=in0
 	mov	r18=ar.bspstore
+	mov	r19=b0
+	mov	r20=b1
+	mov	r21=b2
+	mov	r22=b3
+	mov	r23=b4
+	mov	r24=b5
 	;;	
 	st8.spill [r17]=r4,8 ;;		// save r4..r6 
 	st8.spill [r17]=r5,8 ;;		// and accumulate NaT bits
@@ -65,10 +67,16 @@ LEAF(savectx, 1)
 	stf.spill [r17]=f3,16 ;;
 	stf.spill [r17]=f4,16 ;;
 	stf.spill [r17]=f5,16 ;;
+
+	st8	[r17]=r19,8 ;;		// save b0..b5
+	st8	[r17]=r20,8 ;;
+	st8	[r17]=r21,8 ;;
+	st8	[r17]=r22,8 ;;
+	st8	[r17]=r23,8 ;;
+	st8	[r17]=r24,8 ;;
 	
 	mov	r19=ar.unat		// NaT bits for r4..r6
 	mov	r20=pr
-	mov	r21=rp
 	mov	ret0=r0			// return zero
 
 	st8	[r17]=r3,8 ;;		// save caller's ar.unat
@@ -78,7 +86,6 @@ LEAF(savectx, 1)
 	st8	[r17]=r19,8 ;;		// our NaT bits
 	st8	[r17]=r16,8 ;;		// ar.rnat
 	st8	[r17]=r20,8 ;;		// pr
-	st8	[r17]=r21,8 ;;		// return address
 
 	mov	ar.rsc=3		// turn RSE back on
 
@@ -97,21 +104,35 @@ LEAF(savectx, 1)
  */
 
 LEAF(restorectx, 1)
-	alloc	r2=ar.pfs,1,0,0,0
-	
 	add	r3=U_PCB_UNAT,in0	// point at NaT for r4..r7
-	mov	ar.rsc=r0 ;;		// switch off the RSE
+	mov	ar.rsc=0 ;;		// switch off the RSE
 	ld8	r16=[r3]		// load NaT for r4..r7
+	;;
+	mov	ar.unat=r16
 	;;
 	ld8.fill r4=[in0],8 ;;		// restore r4
 	ld8.fill r5=[in0],8 ;;		// restore r5
 	ld8.fill r6=[in0],8 ;;		// restore r6
 	ld8.fill r7=[in0],8 ;;		// restore r7
 
-	ldf.fill f2=[in0],8 ;;		// restore f2
-	ldf.fill f3=[in0],8 ;;		// restore f3
-	ldf.fill f4=[in0],8 ;;		// restore f4
-	ldf.fill f5=[in0],8 ;;		// restore f5
+	ldf.fill f2=[in0],16 ;;		// restore f2
+	ldf.fill f3=[in0],16 ;;		// restore f3
+	ldf.fill f4=[in0],16 ;;		// restore f4
+	ldf.fill f5=[in0],16 ;;		// restore f5
+
+	ld8	r16=[in0],8 ;;		// restore b0
+	ld8	r17=[in0],8 ;;		// restore b1
+	ld8	r18=[in0],8 ;;		// restore b2
+	ld8	r19=[in0],8 ;;		// restore b3
+	ld8	r20=[in0],8 ;;		// restore b4
+	ld8	r21=[in0],8 ;;		// restore b5
+
+	mov	b0=r16
+	mov	b1=r17
+	mov	b2=r18
+	mov	b3=r19
+	mov	b4=r20
+	mov	b5=r21
 
 	ld8	r16=[in0],8 ;;		// caller's ar.unat
 	ld8	sp=[in0],8 ;;		// stack pointer
@@ -119,37 +140,39 @@ LEAF(restorectx, 1)
 	ld8	r18=[in0],16 ;;		// ar.bspstore, skip ar.unat
 	ld8	r19=[in0],8 ;;		// ar.rnat
 	ld8	r20=[in0],8 ;;		// pr
-	ld8	r21=[in0],8 ;;		// iip
 
 	mov	ar.unat=r16
 	mov	ar.pfs=r17
 	mov	ar.bspstore=r18 ;;
 	mov	ar.rnat=r19
 	mov	pr=r20,0x1ffff
-	mov	rp=r21
-	mov	ret0=r21		// non-zero return
+	mov	ret0=r18		// non-zero return
 	;;
 	loadrs
 	mov	ar.rsc=3		// restart RSE
+	invala
 	;;
 	br.ret.sptk.few rp
 	END(restorectx)	
-
-/**************************************************************************/
-
-IMPORT(want_resched, 4)
 
 /*
  * switch_trampoline()
  *
  * Arrange for a function to be invoked neatly, after a cpu_switch().
  *
- * Invokes the function specified by the s0 register with the return
- * address specified by the s1 register and with one argument, a
- * pointer to the executing process's proc structure.
+ * Invokes the function specified by the r4 register with the return
+ * address specified by the r5 register and with one argument, taken
+ * from r6.
  */
 LEAF(switch_trampoline, 0)
-	MTX_EXIT(sched_lock#, r14, r15)
-	/* XXX write this */
+	MTX_EXIT(sched_lock, r14, r15)
+
+	alloc	r16=ar.pfs,0,0,1,0
+	mov	b7=r4
+	mov	b0=r5
+	mov	out0=r6
+	;;
+	br.call.sptk.few b6=b7
+
 	END(switch_trampoline)
 

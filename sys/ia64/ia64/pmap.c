@@ -667,12 +667,6 @@ pmap_swapin_proc(p)
 		vm_page_wakeup(m);
 		vm_page_flag_set(m, PG_MAPPED | PG_WRITEABLE);
 	}
-
-	/*
-	 * The pcb may be at a different physical address now so cache the
-	 * new address.
-	 */
-	p->p_md.md_pcbpaddr = (void*) vtophys((vm_offset_t) &p->p_addr->u_pcb);
 }
 
 /***************************************************
