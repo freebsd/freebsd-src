@@ -57,6 +57,8 @@ SYSCTL_INT(_kern, OID_AUTO, ccpu, CTLFLAG_RD, &ccpu, 0, "");
 static void sched_setup(void *dummy);
 SYSINIT(sched_setup, SI_SUB_RUN_QUEUE, SI_ORDER_FIRST, sched_setup, NULL)
 
+int realstathz;
+
 #define	SCHED_STRICT_RESCHED 1
 
 /*
@@ -110,38 +112,40 @@ struct td_sched *thread0_sched = &td_sched;
 /*
  * This priority range has 20 priorities on either end that are reachable
  * only through nice values.
+ *
+ * PRI_RANGE:	Total priority range for timeshare threads.
+ * PRI_NRESV:	Reserved priorities for nice.
+ * PRI_BASE:	The start of the dynamic range.
+ * DYN_RANGE:	Number of priorities that are available int the dynamic
+ *		priority range.
+ * DYN_HALF:	Half of DYN_RANGE for convenience elsewhere.
+ * PRI_DYN:	The dynamic priority which is derived from the number of ticks
+ *		running vs the total number of ticks.
  */
-#define	SCHED_PRI_RANGE	(PRI_MAX_TIMESHARE - PRI_MIN_TIMESHARE + 1)
-#define	SCHED_PRI_NRESV	40
-#define	SCHED_PRI_BASE	(SCHED_PRI_NRESV / 2)
-#define	SCHED_PRI_DYN	(SCHED_PRI_RANGE - SCHED_PRI_NRESV)
-#define	SCHED_PRI_DYN_HALF	(SCHED_PRI_DYN / 2)
+#define	SCHED_PRI_RANGE		(PRI_MAX_TIMESHARE - PRI_MIN_TIMESHARE + 1)
+#define	SCHED_PRI_NRESV		40
+#define	SCHED_PRI_BASE		((SCHED_PRI_NRESV / 2) + PRI_MIN_TIMESHARE)
+#define	SCHED_DYN_RANGE		(SCHED_PRI_RANGE - SCHED_PRI_NRESV)
+#define	SCHED_DYN_HALF		(SCHED_DYN_RANGE / 2)
+#define	SCHED_PRI_DYN(run, total)	(((run) * SCHED_DYN_RANGE) / (total))
+
 
 /*
- * These determine how sleep time effects the priority of a process.
+ * These determine the interactivity of a process.
  *
  * SLP_RUN_MAX:	Maximum amount of sleep time + run time we'll accumulate
  *		before throttling back.
- * SLP_RUN_THORTTLE:	Divisor for reducing slp/run time.
- * SLP_RATIO:	Compute a bounded ratio of slp time vs run time.
- * SLP_TOPRI:	Convert a number of ticks slept and ticks ran into a priority
+ * SLP_RUN_THROTTLE:	Divisor for reducing slp/run time.
+ * INTERACT_RANGE:	Range of interactivity values.  Smaller is better.
+ * INTERACT_HALF:	Convenience define, half of the interactivity range.
+ * INTERACT_THRESH:	Threshhold for placement on the current runq.
  */
-#define	SCHED_SLP_RUN_MAX	((hz * 30) * 1024)
+#define	SCHED_SLP_RUN_MAX	((hz * 30) << 10)
 #define	SCHED_SLP_RUN_THROTTLE	(10)
-static __inline int
-sched_slp_ratio(int b, int s)
-{
-	b /= SCHED_PRI_DYN_HALF;
-	if (b == 0)
-		return (0);
-	s /= b;
-	return (s);
-}
-#define	SCHED_SLP_TOPRI(slp, run)					\
-    ((((slp) > (run))?							\
-    sched_slp_ratio((slp), (run)):					\
-    SCHED_PRI_DYN_HALF + (SCHED_PRI_DYN_HALF - sched_slp_ratio((run), (slp))))+ \
-    SCHED_PRI_NRESV / 2)
+#define	SCHED_INTERACT_RANGE	(100)
+#define	SCHED_INTERACT_HALF	(SCHED_INTERACT_RANGE / 2)
+#define	SCHED_INTERACT_THRESH	(10)
+
 /*
  * These parameters and macros determine the size of the time slice that is
  * granted to each thread.
@@ -151,23 +155,23 @@ sched_slp_ratio(int b, int s)
  * SLICE_RANGE:	Range of available time slices scaled by hz.
  * SLICE_SCALE:	The number slices granted per unit of pri or slp.
  * PRI_TOSLICE:	Compute a slice size that is proportional to the priority.
- * SLP_TOSLICE:	Compute a slice size that is inversely proportional to the
- *		amount of time slept. (smaller slices for interactive ksegs)
+ * INTERACT_TOSLICE:	Compute a slice size that is inversely proportional to 
+ *		the amount of time slept. (smaller slices for interactive ksegs)
  * PRI_COMP:	This determines what fraction of the actual slice comes from 
  *		the slice size computed from the priority.
- * SLP_COMP:	This determines what component of the actual slice comes from
- *		the slize size computed from the sleep time.
+ * INTERACT_COMP:This determines what component of the actual slice comes from
+ *		the slize size computed from the interactivity score.
  */
-#define	SCHED_SLICE_MIN		(hz / 100)
-#define	SCHED_SLICE_MAX		(hz / 4)
-#define	SCHED_SLICE_RANGE	(SCHED_SLICE_MAX - SCHED_SLICE_MIN + 1)
+#define	SCHED_SLICE_MIN			(hz / 100)
+#define	SCHED_SLICE_MAX			(hz / 10)
+#define	SCHED_SLICE_RANGE		(SCHED_SLICE_MAX - SCHED_SLICE_MIN + 1)
 #define	SCHED_SLICE_SCALE(val, max)	(((val) * SCHED_SLICE_RANGE) / (max))
+#define	SCHED_INTERACT_COMP(slice)	((slice) / 2)	/* 50% */
+#define	SCHED_PRI_COMP(slice)		((slice) / 2)	/* 50% */
 #define	SCHED_PRI_TOSLICE(pri)						\
     (SCHED_SLICE_MAX - SCHED_SLICE_SCALE((pri), SCHED_PRI_RANGE))
-#define	SCHED_SLP_TOSLICE(slp)						\
-    (SCHED_SLICE_MAX - SCHED_SLICE_SCALE((slp), SCHED_PRI_DYN))
-#define	SCHED_SLP_COMP(slice)	(((slice) / 5) * 3)	/* 60% */
-#define	SCHED_PRI_COMP(slice)	(((slice) / 5) * 2)	/* 40% */
+#define	SCHED_INTERACT_TOSLICE(score)					\
+    (SCHED_SLICE_SCALE((score), SCHED_INTERACT_RANGE))
 
 /*
  * This macro determines whether or not the kse belongs on the current or
@@ -175,8 +179,7 @@ sched_slp_ratio(int b, int s)
  * 
  * XXX nice value should effect how interactive a kg is.
  */
-#define	SCHED_CURR(kg)	(((kg)->kg_slptime > (kg)->kg_runtime &&	\
-	sched_slp_ratio((kg)->kg_slptime, (kg)->kg_runtime) > 4))
+#define	SCHED_CURR(kg)	(sched_interact_score(kg) < SCHED_INTERACT_THRESH)
 
 /*
  * Cpu percentage computation macros and defines.
@@ -218,6 +221,7 @@ struct kseq	kseq_cpu;
 
 static int sched_slice(struct ksegrp *kg);
 static int sched_priority(struct ksegrp *kg);
+static int sched_interact_score(struct ksegrp *kg);
 void sched_pctcpu_update(struct kse *ke);
 int sched_pickcpu(void);
 
@@ -327,6 +331,8 @@ sched_setup(void *dummy)
 {
 	int i;
 
+	realstathz = stathz ? stathz : hz;
+
 	mtx_lock_spin(&sched_lock);
 	/* init kseqs */
 	for (i = 0; i < MAXCPU; i++)
@@ -346,11 +352,8 @@ sched_priority(struct ksegrp *kg)
 	if (kg->kg_pri_class != PRI_TIMESHARE)
 		return (kg->kg_user_pri);
 
-	pri = SCHED_SLP_TOPRI(kg->kg_slptime, kg->kg_runtime);
-	CTR2(KTR_RUNQ, "sched_priority: slptime: %d\tpri: %d",
-	    kg->kg_slptime, pri);
-
-	pri += PRI_MIN_TIMESHARE;
+	pri = sched_interact_score(kg) * SCHED_DYN_RANGE / SCHED_INTERACT_RANGE;
+	pri += SCHED_PRI_BASE;
 	pri += kg->kg_nice;
 
 	if (pri > PRI_MAX_TIMESHARE)
@@ -370,23 +373,15 @@ static int
 sched_slice(struct ksegrp *kg)
 {
 	int pslice;
-	int sslice;
+	int islice;
 	int slice;
 	int pri;
 
 	pri = kg->kg_user_pri;
 	pri -= PRI_MIN_TIMESHARE;
 	pslice = SCHED_PRI_TOSLICE(pri);
-	sslice = SCHED_PRI_TOSLICE(SCHED_SLP_TOPRI(kg->kg_slptime, kg->kg_runtime));
-/*
-SCHED_SLP_TOSLICE(SCHED_SLP_RATIO(
-	    kg->kg_slptime, kg->kg_runtime));
-*/
-	slice = SCHED_SLP_COMP(sslice) + SCHED_PRI_COMP(pslice);
-
-	CTR4(KTR_RUNQ,
-	    "sched_slice: pri: %d\tsslice: %d\tpslice: %d\tslice: %d",
-	    pri, sslice, pslice, slice);
+	islice = SCHED_INTERACT_TOSLICE(sched_interact_score(kg));
+	slice = SCHED_INTERACT_COMP(islice) + SCHED_PRI_COMP(pslice);
 
 	if (slice < SCHED_SLICE_MIN)
 		slice = SCHED_SLICE_MIN;
@@ -404,6 +399,34 @@ SCHED_SLP_TOSLICE(SCHED_SLP_RATIO(
 	}
 
 	return (slice);
+}
+
+static int
+sched_interact_score(struct ksegrp *kg)
+{
+	int big;
+	int small;
+	int base;
+
+	if (kg->kg_runtime > kg->kg_slptime) {
+		big = kg->kg_runtime;
+		small = kg->kg_slptime;
+		base = SCHED_INTERACT_HALF;
+	} else {
+		big = kg->kg_slptime;
+		small = kg->kg_runtime;
+		base = 0;
+	}
+
+	big /= SCHED_INTERACT_HALF;
+	if (big != 0)
+		small /= big;
+	else
+		small = 0;
+
+	small += base;
+	/* XXX Factor in nice */
+	return (small);
 }
 
 int
@@ -502,8 +525,8 @@ sched_switchout(struct thread *td)
 	if (TD_IS_RUNNING(td)) {
 		setrunqueue(td);
 		return;
-	} else
-		td->td_kse->ke_runq = NULL;
+	}
+	td->td_kse->ke_runq = NULL;
 
 	/*
 	 * We will not be on the run queue. So we must be
@@ -547,13 +570,6 @@ sched_sleep(struct thread *td, u_char prio)
 	td->td_slptime = ticks;
 	td->td_priority = prio;
 
-	/*
-	 * If this is an interactive task clear its queue so it moves back
-	 * on to curr when it wakes up.  Otherwise let it stay on the queue
-	 * that it was assigned to.
-	 */
-	if (SCHED_CURR(td->td_kse->ke_ksegrp))
-		td->td_kse->ke_runq = NULL;
 #ifdef SMP
 	if (td->td_priority < PZERO) {
 		kseq_sleep(KSEQ_CPU(td->td_kse->ke_cpu), td->td_kse);
@@ -575,7 +591,7 @@ sched_wakeup(struct thread *td)
 		struct ksegrp *kg;
 
 		kg = td->td_ksegrp;
-		kg->kg_slptime += (ticks - td->td_slptime) * 1024;
+		kg->kg_slptime += (ticks - td->td_slptime) << 10;
 		sched_priority(kg);
 		td->td_slptime = 0;
 	}
@@ -608,11 +624,11 @@ sched_fork(struct ksegrp *kg, struct ksegrp *child)
 
 	/* XXX Need something better here */
 	if (kg->kg_slptime > kg->kg_runtime) {
-		child->kg_slptime = SCHED_PRI_DYN;
-		child->kg_runtime = kg->kg_slptime / SCHED_PRI_DYN;
+		child->kg_slptime = SCHED_DYN_RANGE;
+		child->kg_runtime = kg->kg_slptime / SCHED_DYN_RANGE;
 	} else {
-		child->kg_runtime = SCHED_PRI_DYN;
-		child->kg_slptime = kg->kg_runtime / SCHED_PRI_DYN;
+		child->kg_runtime = SCHED_DYN_RANGE;
+		child->kg_slptime = kg->kg_runtime / SCHED_DYN_RANGE;
 	}
 #if 0
 	child->kg_slptime = kg->kg_slptime;
@@ -696,7 +712,7 @@ sched_clock(struct thread *td)
 	 * We used a tick charge it to the ksegrp so that we can compute our
 	 * "interactivity".
 	 */
-	kg->kg_runtime += 1024;
+	kg->kg_runtime += 1 << 10;
 
 	/*
 	 * We used up one time slice.
@@ -705,8 +721,8 @@ sched_clock(struct thread *td)
 	/*
 	 * We're out of time, recompute priorities and requeue
 	 */
-	if (ke->ke_slice == 0) {
-		td->td_priority = sched_priority(kg);
+	if (ke->ke_slice <= 0) {
+		sched_priority(kg);
 		ke->ke_slice = sched_slice(kg);
 		td->td_flags |= TDF_NEEDRESCHED;
 		ke->ke_runq = NULL;
