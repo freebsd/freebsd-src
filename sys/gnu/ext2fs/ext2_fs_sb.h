@@ -73,6 +73,7 @@ struct ext2_sb_info {
 	unsigned int  s_fsbtodb;		/* shift to get disk block */
 	char    s_rd_only;                      /* read-only 		*/
 	char    s_dirt;                         /* fs modified flag */
+	char	s_wasvalid;			/* valid at mount time */
 
 	char    fs_fsmnt[MAXMNTLEN];            /* name mounted on */
 };
