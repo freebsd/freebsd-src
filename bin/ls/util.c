@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)util.c	8.3 (Berkeley) 4/2/94";
 #else
 static const char rcsid[] =
-	"$Id: util.c,v 1.14 1998/04/24 12:43:26 des Exp $";
+	"$Id: util.c,v 1.15 1998/04/24 20:15:43 des Exp $";
 #endif
 #endif /* not lint */
 
@@ -90,7 +90,7 @@ len_octal(s, len)
         int r;
 
 	while (len--)
-		if (isprint(*s++)) r++; else r += 4;
+		if (isprint((unsigned char)*s++)) r++; else r += 4;
 	return r;
 }
 
