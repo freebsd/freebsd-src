@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.97 1998/07/11 07:46:11 bde Exp $
+ * $Id: swap_pager.c,v 1.98 1998/07/28 15:30:01 bde Exp $
  */
 
 /*
@@ -1590,7 +1590,9 @@ swap_pager_finish(spc)
 			PAGE_BWAKEUP(ma[i]);
 		}
 
+		s = splvm();
 		object->paging_in_progress -= spc->spc_count;
+		splx(s);
 		if ((object->paging_in_progress == 0) &&
 			(object->flags & OBJ_PIPWNT)) {
 			object->flags &= ~OBJ_PIPWNT;
