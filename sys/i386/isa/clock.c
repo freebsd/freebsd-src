@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.129.2.1 1999/04/27 19:29:54 jhay Exp $
+ *	$Id: clock.c,v 1.129.2.2 1999/06/25 03:06:06 green Exp $
  */
 
 /*
@@ -137,6 +137,7 @@ u_int	stat_imask = SWI_CLOCK_MASK;
 u_int	timer_freq = TIMER_FREQ;
 int	timer0_max_count;
 u_int	tsc_freq;
+int	tsc_is_broken;
 int	wall_cmos_clock;	/* wall CMOS clock assumed if != 0 */
 
 static	int	beeping = 0;
@@ -802,7 +803,7 @@ startrtclock()
 		return;
 #endif /* NAPM > 0 */
 
-	if (tsc_present && tsc_freq != 0) {
+	if (tsc_present && tsc_freq != 0 && !tsc_is_broken) {
 		tsc_timecounter.tc_frequency = tsc_freq;
 		init_timecounter(&tsc_timecounter);
 	}
