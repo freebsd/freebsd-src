@@ -274,10 +274,14 @@ Adaptec AIC-6260 and AIC-6360 based boards, which includes
 the AHA-152x and SoundBlaster SCSI cards.
 
 ** Note: You cannot boot from the Soundblaster cards
-as they have no on-board BIOS, which is necessary.
+as they have no on-board BIOS, which is necessary for mapping
+the boot device into the system BIOS I/O vectors.
 They're perfectly usable for external tapes, CDROMs, etc,
 however.  The same goes for any other AIC-6x60 based card
-without a boot ROM.
+without a boot ROM.  Some systems DO have a boot ROM, which
+is generally indicated by some sort of message when the system
+is first powered up or reset.  Check your system/board documentation
+for more details.
 
 [Note that Buslogic was formerly known as "Bustec"]
 Buslogic 545S & 545c
@@ -523,4 +527,4 @@ hope you enjoy this release of FreeBSD!
 
 			The FreeBSD Core Team
 
-$Id: RELNOTES.FreeBSD,v 1.14 1994/11/18 01:12:13 jkh Exp $
+$Id: RELNOTES.FreeBSD,v 1.15 1994/11/18 03:10:32 jkh Exp $
