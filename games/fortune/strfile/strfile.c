@@ -62,7 +62,7 @@ static const char rcsid[] =
 # include	"strfile.h"
 
 /*
- *	This program takes a file composed of strings seperated by
+ *	This program takes a file composed of strings separated by
  * lines starting with two consecutive delimiting character (default
  * character is '%') and creates another file which consists of a table
  * describing the file (structure from "strfile.h"), a table of seek

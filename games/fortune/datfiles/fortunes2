@@ -7168,6 +7168,24 @@ paper reports "The pilots fly out to sea and directly to the penguin
 colony and overfly it.  Heads go up, up, up, and ten thousand penguins
 fall over gently onto their backs.
 		-- Audobon Society Magazine
+
+2001-02-02, from http://new.bbc.co.uk:
+
+For five weeks, a team from the British Antarctic Survey (BAS)
+monitored 1,000 king penguins on the island of South Georgia as
+Lynx helicopters passed overhead.
+
+"Not one king penguin fell over when the helicopters came over,"
+said team leader Dr Richard Stone.
+
+"As the aircraft approached, the birds went quiet and stopped
+calling to each other, and adolescent birds that were not associated
+with nests began walking away from the noise. Pure animal instinct,
+really."
+
+The conclusion, said Dr Stone, is that flights over 305 metres
+(1,000 feet) caused "only minor and transitory ecological effects"
+on king penguins.
 %
 A mighty creature is the germ,
 Though smaller than the pachyderm.
@@ -13399,6 +13417,10 @@ COMPUTER SCIENCE:
 	5) Tautology harnessed in the service of Man at the speed of light.
 	6) The Post-Turing decline in formal systems theory.
 %
+Computer Science is no more about computers than astronomy is about
+telescopes.
+		-- Edsger W. Dijkstra
+%
 Computer Science is the only discipline in which we view
 adding a new wing to a building as being maintenance
 		-- Jim Horning
@@ -17234,12 +17256,6 @@ FORTRAN, "the infantile disorder", by now nearly 20 years old, is hopelessly
 inadequate for whatever computer application you have in mind today: it is
 too clumsy, too risky, and too expensive to use.
 		-- Edsger W. Dijkstra, SIGPLAN Notices, Volume 17, Number 5
-%
-FORTRAN, "the infantile disorder", by now nearly 20 years old, is
-hopelessly inadequate for whatever computer application you have
-in mind today: it is now too clumsy, too risky, and too expensive
-to use.
-		-- E.W. Dijkstra
 %
 [FORTRAN] will persist for some time --
 probably for at least the next decade.
@@ -35883,10 +35899,6 @@ pixel, n:
 %
 P-K4
 %
-PL/1, "the fatal disease", belongs more
-to the problem set than to the solution set.
-		-- E.W. Dijkstra
-%
 Plagiarize, plagiarize,
 Let no man's work evade your eyes,
 Remember why the good Lord made your eyes,
@@ -37789,9 +37801,11 @@ Reality must take precedence over public relations, for Mother Nature
 cannot be fooled.
 		-- R.P. Feynman
 %
-Reality must take precedence over public
-relations, for Mother Nature cannot be fooled.
-		-- R.P. Feynman
+The Feynman Problem-Solving Algorithm: 
+        (1) write down the problem.
+        (2) think very hard. 
+        (3) write down the answer.
+                --Murray Gell-mann
 %
 Really??  What a coincidence, I'm shallow too!!
 %
@@ -44789,10 +44803,6 @@ remain each in their own position.
 		-- Letter to Sir Theodore Martin, 29 May 1870, from
 		   Queen Victoria
 %
-The question of whether computers can think is just like the question of
-whether submarines can swim.
-		-- Edsger W. Dijkstra
-%
 The questions remain the same.
 The answers are eternally variable.
 %
@@ -45667,10 +45677,6 @@ is a symptom of professional immaturity.
 The use of COBOL cripples the mind; its teaching should, therefore, be
 regarded as a criminal offence.
 		-- Edsger W. Dijkstra, SIGPLAN Notices, Volume 17, Number 5
-%
-The use of COBOL cripples the mind;
-its teaching should, therefore, be regarded as a criminal offense.
-		-- E.W. Dijkstra
 %
 The use of money is all the advantage there is to having money.
 		-- B. Franklin
