@@ -71,7 +71,6 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	extern int optind;
 	struct stat sb;
 	int ch, exitval;
 	char *p, *sourcedir;
