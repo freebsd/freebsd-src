@@ -52,7 +52,7 @@ and in
 The
 .Nm
 policy module implements the Multi-Level Security, or MLS model,
-which controls accesses between subjects and objects based on their
+which controls access between subjects and objects based on their
 confidentiality by means of a strict information flow policy.
 Each subject and object in the system has an MLS label associated with it;
 each subject's MLS label contains information on its clearance level,
@@ -66,7 +66,7 @@ describing the order.
 The sensitivity level is expressed as a value between 0 and
 65535, with higher values reflecting higher sensitivity levels.
 The compartment field is expressed as a set of up to 256 components,
-numbered from 0 to 255.
+numbered from 1 to 256.
 A complete label consists of both sensitivity and compartment
 elements.
 .Pp
@@ -132,7 +132,7 @@ In general, object labels are represented in the following form:
 For example:
 .Pp
 .Bd -literal -offset indent
-mls/10:2+3+6
+mls/10:2+3+6++10
 mls/low
 .Ed
 .Pp
@@ -191,7 +191,7 @@ and was developed by the TrustedBSD Project.
 .Sh AUTHORS
 This software was contributed to the
 .Fx
-Project by Network Associates Labs,
+Project by Network Associates Laboratories,
 the Security Research Division of Network Associates
 Inc. under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"),
 as part of the DARPA CHATS research program.
