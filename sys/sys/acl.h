@@ -97,13 +97,13 @@ typedef struct acl	*acl_t;
 /*
  * Possible entry_id values for acl_get_entry()
  */
-#define        ACL_FIRST_ENTRY         0
-#define        ACL_NEXT_ENTRY          1
+#define	ACL_FIRST_ENTRY		0
+#define	ACL_NEXT_ENTRY		1
 
 /*
  * Undefined value in ae_id field
  */
-#define        ACL_UNDEFINED_ID        ((uid_t)-1)
+#define	ACL_UNDEFINED_ID	((uid_t)-1)
 
 
 #ifdef _KERNEL
