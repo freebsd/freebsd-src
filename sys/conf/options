@@ -394,6 +394,9 @@ NETGRAPH_TTY		opt_netgraph.h
 NETGRAPH_UI		opt_netgraph.h
 NETGRAPH_VJC		opt_netgraph.h
 
+# NgATM options
+NGATM_ATM		opt_netgraph.h
+
 # DRM options
 DRM_DEBUG		opt_drm.h
 

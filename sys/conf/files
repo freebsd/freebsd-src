@@ -1314,6 +1314,7 @@ netatm/uni/unisig_sigmgr_state.c	optional atm_uni atm_core
 netatm/uni/unisig_subr.c	optional atm_uni atm_core
 netatm/uni/unisig_util.c	optional atm_uni atm_core
 netatm/uni/unisig_vc_state.c	optional atm_uni atm_core
+netgraph/atm/ng_atm.c	optional ngatm_atm
 netgraph/ng_UI.c	optional netgraph_UI
 netgraph/ng_async.c	optional netgraph_async
 netgraph/ng_base.c	optional netgraph
