@@ -34,11 +34,15 @@
  * SUCH DAMAGE.
  *
  *	@(#)lockf.h	8.1 (Berkeley) 6/11/93
- * $Id: lockf.h,v 1.7 1997/02/22 09:45:31 peter Exp $
+ * $Id: lockf.h,v 1.8 1997/09/07 05:27:16 bde Exp $
  */
 
 #ifndef _SYS_LOCKF_H_
 #define	_SYS_LOCKF_H_
+
+#include <sys/queue.h>
+
+struct vop_advlock_args;
 
 /*
  * The lockf structure is a kernel structure which contains the information
