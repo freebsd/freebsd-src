@@ -1,4 +1,4 @@
-#	$Id: options,v 1.113 1998/12/28 16:31:26 peter Exp $
+#	$Id: options,v 1.114 1999/01/08 17:31:05 eivind Exp $
 #
 #        On the handling of kernel options   
 # 
@@ -254,6 +254,7 @@ DIAGNOSTIC		opt_global.h
 ENABLE_VFS_IOOPT	opt_global.h
 INVARIANT_SUPPORT	opt_global.h
 INVARIANTS		opt_global.h
+NO_SYSCTL_DESCRIPTIONS	opt_global.h
 SIMPLELOCK_DEBUG	opt_global.h
 VFS_BIO_DEBUG		opt_global.h
 
