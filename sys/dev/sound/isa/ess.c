@@ -890,11 +890,32 @@ ess_detach(device_t dev)
 	return 0;
 }
 
+static int
+ess_resume(device_t dev)
+{
+	struct ess_info *sc;
+
+	sc = pcm_getdevinfo(dev);
+
+	if (ess_reset_dsp(sc)) {
+		device_printf(dev, "unable to reset DSP at resume\n");
+		return ENXIO;
+	}
+
+	if (mixer_reinit(dev)) {
+		device_printf(dev, "unable to reinitialize mixer at resume\n");
+		return ENXIO;
+	}
+
+	return 0;
+}
+
 static device_method_t ess_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		ess_probe),
 	DEVMETHOD(device_attach,	ess_attach),
 	DEVMETHOD(device_detach,	ess_detach),
+	DEVMETHOD(device_resume,	ess_resume),
 
 	{ 0, 0 }
 };
