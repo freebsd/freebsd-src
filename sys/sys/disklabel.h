@@ -66,6 +66,11 @@
 #define LABELOFFSET	64
 #endif
 
+#ifdef __ia64__
+#define LABELSECTOR	1			/* sector containing label */
+#define LABELOFFSET	0			/* offset of label in sector */
+#endif
+
 #ifndef	LABELSECTOR
 #define LABELSECTOR	0			/* sector containing label */
 #endif
