@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: stage3.c,v 1.3 1994/10/20 19:30:53 ache Exp $
+ * $Id: stage3.c,v 1.4 1994/10/21 02:14:52 phk Exp $
  *
  */
 
@@ -17,91 +17,49 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
+#include <fstab.h>
 
 #include <sys/param.h>
 #include <sys/mount.h>
 #include <sys/stat.h>
-
-#if 0
-#include <sys/types.h>
-#include <sys/disklabel.h>
-#include <sys/ioctl.h>
-#include <sys/reboot.h>
-#include <sys/wait.h>
-#include "bootarea.h"
-#include <ufs/ffs/fs.h>
-#endif
 
 #include "sysinstall.h"
 
 void
 stage3()
 {
-	char		pbuf[90];
-	char		dbuf[90];
-	FILE		*f;
+	char		pbuf[90],*p;
+	int		mountflags;
+	struct		fstab *fs;
 
 	/*
-	 * Extract the disk-name from /etc/fstab, we wrote it ourselves,
-	 * so we know how to read it :-)
-	 * XXX: Multidisk installs.  We need to mount all partitions.
+	 * Mount things in /etc/fstab we like.
 	 */
 
-	f = fopen("/this_is_hd","r");
-	if (!f) {
-		Fatal("Couldn't open /this_is_hd");
+	mountflags = MNT_UPDATE;
+	while((fs = getfsent()) != NULL) {
+		if (strcmp(fs->fs_vfstype,"ufs")) continue;
+		p = fs->fs_spec;
+		if (*p++ != '/') continue;
+		if (*p++ != 'd') continue;
+		if (*p++ != 'e') continue;
+		if (*p++ != 'v') continue;
+		if (*p++ != '/') continue;
+		if (!strcmp(fs->fs_type,"ro"))
+			mountflags |= MNT_RDONLY;
+		else if (!strcmp(fs->fs_type,"rw"))
+			;
+		else
+			continue;
+		strcpy(pbuf,"/dev/r");
+		strcat(pbuf,p);
+		TellEm("fsck -y %s",pbuf);
+		if (exec(0, "/stand/fsck",
+			"/stand/fsck", "-y", pbuf, 0) == -1)
+			Fatal(errmsg);
+
+		MountUfs(p,fs->fs_file,0,mountflags);
+		mountflags = 0;
 	}
-	while(fgets(dbuf,sizeof pbuf, f)) {
-		dbuf[strlen(dbuf)-1] = 0;
-		fgets(pbuf,sizeof pbuf, f);
-		pbuf[strlen(pbuf)-1] = 0;
-		MountUfs(dbuf,0,pbuf,0);
-	}
-	fclose(f);
-
-	Mkdir("/proc");
-	Mkdir("/root");
-	Mkdir("/var");
-	Mkdir("/var/run");
-
-	sprintf(scratch, "Insert CPIO floppy in floppy drive 0\n");
-	dialog_msgbox("Stage 2 installation", scratch, 6, 75, 1);
-
-	MountUfs("/dev/fd0a",0,"/mnt",0);
-	TellEm("sh -c 'cd / ; gunzip < /mnt/inst2.cpio.gz | cpio -idum'");
-
-	if (exec(0, "/bin/sh",
-		"/bin/sh", "-e", "-c",
-		 "cd / ; gunzip < /mnt/inst2.cpio.gz | cpio -idum", 0) == -1)
-		Fatal(errmsg);
-
-	TellEm("sh -c 'cd /mnt ; ls install magic | cpio -dump /'");
-
-	if (exec(0, "/bin/sh",
-		"/bin/sh", "-e", "-c",
-		 "cd /mnt ; ls magic | cpio -dump /", 0) == -1)
-		Fatal(errmsg);
-
-	TellEm("unmount /mnt");
-	if (unmount("/mnt", 0) == -1) {
-		sprintf(errmsg, "Error unmounting /mnt: %s\n", strerror(errno));
-		Fatal(errmsg);
-	}
-	TellEm("sh -c 'cd /dev ; sh MAKEDEV all'");
-	if (exec(0, "/bin/sh",
-		"/bin/sh", "-e", "-c",
-		 "PATH=/bin:/sbin:/usr/bin:/usr/sbin; export PATH ; cd /dev ; sh MAKEDEV all", 0) == -1)
-		Fatal(errmsg);
-
-	TellEm("unlink /sbin/oinit");
-	unlink("/sbin/oinit");
-	TellEm("link /stand/sysinstall /sbin/init");
-	link("/stand/sysinstall", "/sbin/init");
-	dialog_clear();
-	dialog_update();
-	end_dialog();
-	close(0);
-	close(1);
-	close(2);
-	execl(0,"/sbin/init", "init", 0);
+	endfsent();
 }
