@@ -344,6 +344,10 @@ extern int crypto_support;
 /* for openbsd compatibility */
 #define	DPRINTF(x)	do { if (ipsec_debug) printf x; } while (0)
 
+/* XXX for KAME code compatibility */
+#define ipsec_pcbconn(_x)
+#define	ipsec_pcbdisconn(_x)
+
 extern	struct ipsecrequest *ipsec_newisr(void);
 extern	void ipsec_delisr(struct ipsecrequest *);
 
