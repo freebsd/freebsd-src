@@ -29,6 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kdb.h>
 #include <sys/proc.h>
 #include <sys/sysent.h>
 
@@ -46,47 +47,122 @@ __FBSDID("$FreeBSD$");
 #include <ddb/db_sym.h>
 #include <ddb/db_variables.h>
 
-db_varfcn_t db_dr0;
-db_varfcn_t db_dr1;
-db_varfcn_t db_dr2;
-db_varfcn_t db_dr3;
-db_varfcn_t db_dr4;
-db_varfcn_t db_dr5;
-db_varfcn_t db_dr6;
-db_varfcn_t db_dr7;
+static db_varfcn_t db_dr0;
+static db_varfcn_t db_dr1;
+static db_varfcn_t db_dr2;
+static db_varfcn_t db_dr3;
+static db_varfcn_t db_dr4;
+static db_varfcn_t db_dr5;
+static db_varfcn_t db_dr6;
+static db_varfcn_t db_dr7;
+static db_varfcn_t db_esp;
+static db_varfcn_t db_frame;
+static db_varfcn_t db_ss;
 
 /*
  * Machine register set.
  */
+#define	DB_OFFSET(x)	(db_expr_t *)offsetof(struct trapframe, x)
 struct db_variable db_regs[] = {
-	{ "cs",		&ddb_regs.tf_cs,     FCN_NULL },
-	{ "ds",		&ddb_regs.tf_ds,     FCN_NULL },
-	{ "es",		&ddb_regs.tf_es,     FCN_NULL },
-	{ "fs",		&ddb_regs.tf_fs,     FCN_NULL },
-#if 0
-	{ "gs",		&ddb_regs.tf_gs,     FCN_NULL },
-#endif
-	{ "ss",		&ddb_regs.tf_ss,     FCN_NULL },
-	{ "eax",	&ddb_regs.tf_eax,    FCN_NULL },
-	{ "ecx",	&ddb_regs.tf_ecx,    FCN_NULL },
-	{ "edx",	&ddb_regs.tf_edx,    FCN_NULL },
-	{ "ebx",	&ddb_regs.tf_ebx,    FCN_NULL },
-	{ "esp",	&ddb_regs.tf_esp,    FCN_NULL },
-	{ "ebp",	&ddb_regs.tf_ebp,    FCN_NULL },
-	{ "esi",	&ddb_regs.tf_esi,    FCN_NULL },
-	{ "edi",	&ddb_regs.tf_edi,    FCN_NULL },
-	{ "eip",	&ddb_regs.tf_eip,    FCN_NULL },
-	{ "efl",	&ddb_regs.tf_eflags, FCN_NULL },
-	{ "dr0",	NULL,		     db_dr0 },
-	{ "dr1",	NULL,		     db_dr1 },
-	{ "dr2",	NULL,		     db_dr2 },
-	{ "dr3",	NULL,		     db_dr3 },
-	{ "dr4",	NULL,		     db_dr4 },
-	{ "dr5",	NULL,		     db_dr5 },
-	{ "dr6",	NULL,		     db_dr6 },
-	{ "dr7",	NULL,		     db_dr7 },
+	{ "cs",		DB_OFFSET(tf_cs),	db_frame },
+	{ "ds",		DB_OFFSET(tf_ds),	db_frame },
+	{ "es",		DB_OFFSET(tf_es),	db_frame },
+	{ "fs",		DB_OFFSET(tf_fs),	db_frame },
+	{ "ss",		NULL,			db_ss },
+	{ "eax",	DB_OFFSET(tf_eax),	db_frame },
+	{ "ecx",	DB_OFFSET(tf_ecx),	db_frame },
+	{ "edx",	DB_OFFSET(tf_edx),	db_frame },
+	{ "ebx",	DB_OFFSET(tf_ebx),	db_frame },
+	{ "esp",	NULL,			db_esp },
+	{ "ebp",	DB_OFFSET(tf_ebp),	db_frame },
+	{ "esi",	DB_OFFSET(tf_esi),	db_frame },
+	{ "edi",	DB_OFFSET(tf_edi),	db_frame },
+	{ "eip",	DB_OFFSET(tf_eip),	db_frame },
+	{ "efl",	DB_OFFSET(tf_eflags),	db_frame },
+	{ "dr0",	NULL,			db_dr0 },
+	{ "dr1",	NULL,			db_dr1 },
+	{ "dr2",	NULL,			db_dr2 },
+	{ "dr3",	NULL,			db_dr3 },
+	{ "dr4",	NULL,			db_dr4 },
+	{ "dr5",	NULL,			db_dr5 },
+	{ "dr6",	NULL,			db_dr6 },
+	{ "dr7",	NULL,			db_dr7 },
 };
 struct db_variable *db_eregs = db_regs + sizeof(db_regs)/sizeof(db_regs[0]);
+
+#define DB_DRX_FUNC(reg)		\
+static int				\
+db_ ## reg (vp, valuep, op)		\
+	struct db_variable *vp;		\
+	db_expr_t * valuep;		\
+	int op;				\
+{					\
+	if (op == DB_VAR_GET)		\
+		*valuep = r ## reg ();	\
+	else				\
+		load_ ## reg (*valuep); \
+	return (1);			\
+}
+
+DB_DRX_FUNC(dr0)
+DB_DRX_FUNC(dr1)
+DB_DRX_FUNC(dr2)
+DB_DRX_FUNC(dr3)
+DB_DRX_FUNC(dr4)
+DB_DRX_FUNC(dr5)
+DB_DRX_FUNC(dr6)
+DB_DRX_FUNC(dr7)
+
+static __inline int
+get_esp(struct trapframe *tf)
+{
+	return ((ISPL(tf->tf_cs)) ? tf->tf_esp :
+	    (db_expr_t)tf + (uintptr_t)DB_OFFSET(tf_esp));
+}
+
+static int
+db_frame(struct db_variable *vp, db_expr_t *valuep, int op)
+{
+	int *reg;
+
+	if (kdb_frame == NULL)
+		return (0);
+
+	reg = (int *)((uintptr_t)kdb_frame + (db_expr_t)vp->valuep);
+	if (op == DB_VAR_GET)
+		*valuep = *reg;
+	else
+		*reg = *valuep;
+	return (1);
+}
+
+static int
+db_esp(struct db_variable *vp, db_expr_t *valuep, int op)
+{
+
+	if (kdb_frame == NULL)
+		return (0);
+
+	if (op == DB_VAR_GET)
+		*valuep = get_esp(kdb_frame);
+	else if (ISPL(kdb_frame->tf_cs))
+		kdb_frame->tf_esp = *valuep;
+	return (1);
+}
+
+static int
+db_ss(struct db_variable *vp, db_expr_t *valuep, int op)
+{
+
+	if (kdb_frame == NULL)
+		return (0);
+
+	if (op == DB_VAR_GET)
+		*valuep = (ISPL(kdb_frame->tf_cs)) ? kdb_frame->tf_ss : rss();
+	else if (ISPL(kdb_frame->tf_cs))
+		kdb_frame->tf_ss = *valuep;
+	return (1);
+}
 
 /*
  * Stack trace.
@@ -104,13 +180,10 @@ struct i386_frame {
 #define	INTERRUPT	2
 #define	SYSCALL		3
 
-static void db_nextframe(struct i386_frame **, db_addr_t *, struct proc *);
+static void db_nextframe(struct i386_frame **, db_addr_t *, struct thread *);
 static int db_numargs(struct i386_frame *);
 static void db_print_stack_entry(const char *, int, char **, int *, db_addr_t);
-static void decode_syscall(int, struct proc *);
-static void db_trace_one_stack(int count, boolean_t have_addr,
-		struct proc *p, struct i386_frame *frame, db_addr_t callpc);
-
+static void decode_syscall(int, struct thread *);
 
 static char * watchtype_str(int type);
 int  i386_set_watch(int watchnum, unsigned int watchaddr, int size, int access,
@@ -119,7 +192,6 @@ int  i386_clr_watch(int watchnum, struct dbreg * d);
 int  db_md_set_watchpoint(db_expr_t addr, db_expr_t size);
 int  db_md_clr_watchpoint(db_expr_t addr, db_expr_t size);
 void db_md_list_watchpoints(void);
-
 
 /*
  * Figure out how many arguments were passed into the frame at "fp".
@@ -175,16 +247,16 @@ db_print_stack_entry(name, narg, argnp, argp, callpc)
 }
 
 static void
-decode_syscall(number, p)
-	int number;
-	struct proc *p;
+decode_syscall(int number, struct thread *td)
 {
+	struct proc *p;
 	c_db_sym_t sym;
 	db_expr_t diff;
 	sy_call_t *f;
 	const char *symname;
 
 	db_printf(" (%d", number);
+	p = (td != NULL) ? td->td_proc : NULL;
 	if (p != NULL && 0 <= number && number < p->p_sysent->sv_size) {
 		f = p->p_sysent->sv_table[number].sy_call;
 		sym = db_search_symbol((db_addr_t)f, DB_STGY_ANY, &diff);
@@ -200,10 +272,7 @@ decode_syscall(number, p)
  * Figure out the next frame up in the call stack.
  */
 static void
-db_nextframe(fp, ip, p)
-	struct i386_frame **fp;		/* in/out */
-	db_addr_t	*ip;		/* out */
-	struct proc	*p;		/* in */
+db_nextframe(struct i386_frame **fp, db_addr_t *ip, struct thread *td)
 {
 	struct trapframe *tf;
 	int frame_type;
@@ -254,8 +323,7 @@ db_nextframe(fp, ip, p)
 		tf = (struct trapframe *)((int)*fp + 8);
 
 	if (INKERNEL((int) tf)) {
-		esp = (ISPL(tf->tf_cs) == SEL_UPL) ?
-		    tf->tf_esp : (int)&tf->tf_esp;
+		esp = get_esp(tf);
 		eip = tf->tf_eip;
 		ebp = tf->tf_ebp;
 		switch (frame_type) {
@@ -264,7 +332,7 @@ db_nextframe(fp, ip, p)
 			break;
 		case SYSCALL:
 			db_printf("--- syscall");
-			decode_syscall(tf->tf_eax, p);
+			decode_syscall(tf->tf_eax, td);
 			break;
 		case INTERRUPT:
 			db_printf("--- interrupt");
@@ -280,135 +348,26 @@ db_nextframe(fp, ip, p)
 	*fp = (struct i386_frame *) ebp;
 }
 
-void
-db_stack_trace_cmd(addr, have_addr, count, modif)
-	db_expr_t addr;
-	boolean_t have_addr;
-	db_expr_t count;
-	char *modif;
+static int
+db_backtrace(struct thread *td, struct trapframe *tf, struct i386_frame *frame,
+    db_addr_t pc, int count)
 {
-	struct i386_frame *frame;
-	struct proc *p;
-	struct pcb *pcb;
-	struct thread *td;
-	db_addr_t callpc;
-	pid_t pid;
+	struct i386_frame *actframe;
+#define MAXNARG	16
+	char *argnames[MAXNARG], **argnp = NULL;
+	const char *name;
+	int *argp;
+	db_expr_t offset;
+	c_db_sym_t sym;
+	int narg;
+	boolean_t first;
 
 	if (count == -1)
 		count = 1024;
 
-	if (!have_addr) {
-		td = curthread;
-		p = td->td_proc;
-		frame = (struct i386_frame *)ddb_regs.tf_ebp;
-		if (frame == NULL)
-			frame = (struct i386_frame *)(ddb_regs.tf_esp - 4);
-		callpc = (db_addr_t)ddb_regs.tf_eip;
-	} else if (!INKERNEL(addr)) {
-		pid = (addr % 16) + ((addr >> 4) % 16) * 10 +
-		    ((addr >> 8) % 16) * 100 + ((addr >> 12) % 16) * 1000 +
-		    ((addr >> 16) % 16) * 10000;
-		/*
-		 * The pcb for curproc is not valid at this point,
-		 * so fall back to the default case.
-		 */
-		if (pid == curthread->td_proc->p_pid) {
-			td = curthread;
-			p = td->td_proc;
-			frame = (struct i386_frame *)ddb_regs.tf_ebp;
-			if (frame == NULL)
-				frame = (struct i386_frame *)
-				    (ddb_regs.tf_esp - 4);
-			callpc = (db_addr_t)ddb_regs.tf_eip;
-		} else {
-
-			/* sx_slock(&allproc_lock); */
-			LIST_FOREACH(p, &allproc, p_list) {
-				if (p->p_pid == pid)
-					break;
-			}
-			/* sx_sunlock(&allproc_lock); */
-			if (p == NULL) {
-				db_printf("pid %d not found\n", pid);
-				return;
-			}
-			if ((p->p_sflag & PS_INMEM) == 0) {
-				db_printf("pid %d swapped out\n", pid);
-				return;
-			}
-			pcb = FIRST_THREAD_IN_PROC(p)->td_pcb;	/* XXXKSE */
-			frame = (struct i386_frame *)pcb->pcb_ebp;
-			if (frame == NULL)
-				frame = (struct i386_frame *)
-				    (pcb->pcb_esp - 4);
-			callpc = (db_addr_t)pcb->pcb_eip;
-		}
-	} else {
-		p = NULL;
-		frame = (struct i386_frame *)addr;
-		callpc = (db_addr_t)db_get_value((int)&frame->f_retaddr, 4, FALSE);
-		frame = frame->f_frame;
-	}
-	db_trace_one_stack(count, have_addr, p, frame, callpc);
-}
-
-void
-db_stack_thread(db_expr_t addr, boolean_t have_addr,
-		db_expr_t count, char *modif)
-{
-	struct i386_frame *frame;
-	struct thread *td;
-	struct proc *p;
-	struct pcb *pcb;
-	db_addr_t callpc;
-
-	if (!have_addr)
-		return;
-	if (!INKERNEL(addr)) {
-		printf("bad thread address");
-		return;
-	}
-	td = (struct thread *)addr;
-	/* quick sanity check */
-	if ((p = td->td_proc) != td->td_ksegrp->kg_proc)
-		return;
-	if (TD_IS_SWAPPED(td)) {
-		db_printf("thread at %p swapped out\n", td);
-		return;
-	}
-	if (td == curthread) {
-		frame = (struct i386_frame *)ddb_regs.tf_ebp;
-		if (frame == NULL)
-			frame = (struct i386_frame *)(ddb_regs.tf_esp - 4);
-		callpc = (db_addr_t)ddb_regs.tf_eip;
-	} else {
-		pcb = td->td_pcb;
-		frame = (struct i386_frame *)pcb->pcb_ebp;
-		if (frame == NULL)
-			frame = (struct i386_frame *) (pcb->pcb_esp - 4);
-		callpc = (db_addr_t)pcb->pcb_eip;
-	}
-	db_trace_one_stack(count, have_addr, p, frame, callpc);
-}
-
-static void
-db_trace_one_stack(int count, boolean_t have_addr,
-		struct proc *p, struct i386_frame *frame, db_addr_t callpc)
-{
-	int *argp;
-	boolean_t first;
-
 	first = TRUE;
 	while (count--) {
-		struct i386_frame *actframe;
-		int		narg;
-		const char *	name;
-		db_expr_t	offset;
-		c_db_sym_t	sym;
-#define MAXNARG	16
-		char	*argnames[MAXNARG], **argnp = NULL;
-
-		sym = db_search_symbol(callpc, DB_STGY_ANY, &offset);
+		sym = db_search_symbol(pc, DB_STGY_ANY, &offset);
 		db_symbol_values(sym, &name, NULL);
 
 		/*
@@ -424,37 +383,33 @@ db_trace_one_stack(int count, boolean_t have_addr,
 		 */
 		actframe = frame;
 		if (first) {
-			if (!have_addr) {
+			if (tf != NULL) {
 				int instr;
 
-				instr = db_get_value(callpc, 4, FALSE);
-				if ((instr & 0x00ffffff) == 0x00e58955) {
+				instr = db_get_value(pc, 4, FALSE);
+				if ((instr & 0xffffff) == 0x00e58955) {
 					/* pushl %ebp; movl %esp, %ebp */
-					actframe = (struct i386_frame *)
-					    (ddb_regs.tf_esp - 4);
-				} else if ((instr & 0x0000ffff) == 0x0000e589) {
+					actframe = (void *)(get_esp(tf) - 4);
+				} else if ((instr & 0xffff) == 0x0000e589) {
 					/* movl %esp, %ebp */
-					actframe = (struct i386_frame *)
-					    ddb_regs.tf_esp;
-					if (ddb_regs.tf_ebp == 0) {
-						/* Fake caller's frame better. */
+					actframe = (void *)get_esp(tf);
+					if (tf->tf_ebp == 0) {
+						/* Fake frame better. */
 						frame = actframe;
 					}
-				} else if ((instr & 0x000000ff) == 0x000000c3) {
+				} else if ((instr & 0xff) == 0x000000c3) {
 					/* ret */
-					actframe = (struct i386_frame *)
-					    (ddb_regs.tf_esp - 4);
+					actframe = (void *)(get_esp(tf) - 4);
 				} else if (offset == 0) {
-					/* Probably a symbol in assembler code. */
-					actframe = (struct i386_frame *)
-					    (ddb_regs.tf_esp - 4);
+					/* Probably an assembler symbol. */
+					actframe = (void *)(get_esp(tf) - 4);
 				}
 			} else if (strcmp(name, "fork_trampoline") == 0) {
 				/*
 				 * Don't try to walk back on a stack for a
 				 * process that hasn't actually been run yet.
 				 */
-				db_print_stack_entry(name, 0, 0, 0, callpc);
+				db_print_stack_entry(name, 0, 0, 0, pc);
 				break;
 			}
 			first = FALSE;
@@ -468,60 +423,68 @@ db_trace_one_stack(int count, boolean_t have_addr,
 			narg = db_numargs(frame);
 		}
 
-		db_print_stack_entry(name, narg, argnp, argp, callpc);
+		db_print_stack_entry(name, narg, argnp, argp, pc);
 
 		if (actframe != frame) {
 			/* `frame' belongs to caller. */
-			callpc = (db_addr_t)
+			pc = (db_addr_t)
 			    db_get_value((int)&actframe->f_retaddr, 4, FALSE);
 			continue;
 		}
 
-		db_nextframe(&frame, &callpc, p);
+		db_nextframe(&frame, &pc, td);
 
-		if (INKERNEL((int) callpc) && !INKERNEL((int) frame)) {
-			sym = db_search_symbol(callpc, DB_STGY_ANY, &offset);
+		if (INKERNEL((int)pc) && !INKERNEL((int) frame)) {
+			sym = db_search_symbol(pc, DB_STGY_ANY, &offset);
 			db_symbol_values(sym, &name, NULL);
-			db_print_stack_entry(name, 0, 0, 0, callpc);
+			db_print_stack_entry(name, 0, 0, 0, pc);
 			break;
 		}
 		if (!INKERNEL((int) frame)) {
 			break;
 		}
 	}
+
+	return (0);
 }
 
 void
-db_print_backtrace(void)
+db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count,
+    char *modif)
 {
+	struct thread *td;
+
+	td = (have_addr) ? kdb_thr_lookup(addr) : kdb_thread;
+	if (td == NULL) {
+		db_printf("Thread %d not found\n", addr);
+		return;
+	}
+	db_trace_thread(td, count);
+}
+
+void
+db_trace_self(void)
+{
+	struct i386_frame *frame;
+	db_addr_t callpc;
 	register_t ebp;
 
 	__asm __volatile("movl %%ebp,%0" : "=r" (ebp));
-	db_stack_trace_cmd(ebp, 1, -1, NULL);
+	frame = (struct i386_frame *)ebp;
+	callpc = (db_addr_t)db_get_value((int)&frame->f_retaddr, 4, FALSE);
+	frame = frame->f_frame;
+	db_backtrace(curthread, NULL, frame, callpc, -1);
 }
 
-#define DB_DRX_FUNC(reg)		\
-int					\
-db_ ## reg (vp, valuep, op)		\
-	struct db_variable *vp;		\
-	db_expr_t * valuep;		\
-	int op;				\
-{					\
-	if (op == DB_VAR_GET)		\
-		*valuep = r ## reg ();	\
-	else				\
-		load_ ## reg (*valuep); \
-	return (0);			\
-} 
+int
+db_trace_thread(struct thread *thr, int count)
+{
+	struct pcb *ctx;
 
-DB_DRX_FUNC(dr0)
-DB_DRX_FUNC(dr1)
-DB_DRX_FUNC(dr2)
-DB_DRX_FUNC(dr3)
-DB_DRX_FUNC(dr4)
-DB_DRX_FUNC(dr5)
-DB_DRX_FUNC(dr6)
-DB_DRX_FUNC(dr7)
+	ctx = kdb_thr_ctx(thr);
+	return (db_backtrace(thr, NULL, (struct i386_frame *)ctx->pcb_ebp,
+		    ctx->pcb_eip, count));
+}
 
 int
 i386_set_watch(watchnum, watchaddr, size, access, d)

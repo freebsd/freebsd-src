@@ -166,29 +166,3 @@ dumpthread(volatile struct proc *p, volatile struct thread *td)
 	} else
 		db_printf(" %s\n", p->p_comm);
 }
-
-
-#define INKERNEL(va)    (((vm_offset_t)(va)) >= USRSTACK)
-void
-db_show_one_thread(db_expr_t addr, boolean_t have_addr,
-		db_expr_t count, char *modif)
-{
-	struct proc *p;
-	struct thread *td;
-
-	if (!have_addr)
-		td = curthread;
-	else if (!INKERNEL(addr)) {
-		printf("bad thread address");
-		return;
-	} else
-		td = (struct thread *)addr;
-	/* quick sanity check */
-	if ((p = td->td_proc) != td->td_ksegrp->kg_proc)
-		return;
-	printf("Proc %p ",p);
-	dumpthread(p, td);
-#ifdef	__i386__
-	db_stack_thread((db_expr_t)td, 1, count, modif);
-#endif
-}

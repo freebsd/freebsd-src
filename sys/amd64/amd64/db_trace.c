@@ -29,6 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kdb.h>
 #include <sys/proc.h>
 #include <sys/sysent.h>
 
@@ -46,55 +47,133 @@ __FBSDID("$FreeBSD$");
 #include <ddb/db_sym.h>
 #include <ddb/db_variables.h>
 
-db_varfcn_t db_dr0;
-db_varfcn_t db_dr1;
-db_varfcn_t db_dr2;
-db_varfcn_t db_dr3;
-db_varfcn_t db_dr4;
-db_varfcn_t db_dr5;
-db_varfcn_t db_dr6;
-db_varfcn_t db_dr7;
+static db_varfcn_t db_dr0;
+static db_varfcn_t db_dr1;
+static db_varfcn_t db_dr2;
+static db_varfcn_t db_dr3;
+static db_varfcn_t db_dr4;
+static db_varfcn_t db_dr5;
+static db_varfcn_t db_dr6;
+static db_varfcn_t db_dr7;
+static db_varfcn_t db_frame;
+static db_varfcn_t db_rsp;
+static db_varfcn_t db_ss;
 
 /*
  * Machine register set.
  */
+#define	DB_OFFSET(x)	(db_expr_t *)offsetof(struct trapframe, x)
 struct db_variable db_regs[] = {
-	{ "cs",		&ddb_regs.tf_cs,     FCN_NULL },
+	{ "cs",		DB_OFFSET(tf_cs),	db_frame },
 #if 0
-	{ "ds",		&ddb_regs.tf_ds,     FCN_NULL },
-	{ "es",		&ddb_regs.tf_es,     FCN_NULL },
-	{ "fs",		&ddb_regs.tf_fs,     FCN_NULL },
-	{ "gs",		&ddb_regs.tf_gs,     FCN_NULL },
+	{ "ds",		DB_OFFSET(tf_ds),	db_frame },
+	{ "es",		DB_OFFSET(tf_es),	db_frame },
+	{ "fs",		DB_OFFSET(tf_fs),	db_frame },
+	{ "gs",		DB_OFFSET(tf_gs),	db_frame },
 #endif
-	{ "ss",		&ddb_regs.tf_ss,     FCN_NULL },
-	{ "rax",	&ddb_regs.tf_rax,    FCN_NULL },
-	{ "rcx",	&ddb_regs.tf_rcx,    FCN_NULL },
-	{ "rdx",	&ddb_regs.tf_rdx,    FCN_NULL },
-	{ "rbx",	&ddb_regs.tf_rbx,    FCN_NULL },
-	{ "rsp",	&ddb_regs.tf_rsp,    FCN_NULL },
-	{ "rbp",	&ddb_regs.tf_rbp,    FCN_NULL },
-	{ "rsi",	&ddb_regs.tf_rsi,    FCN_NULL },
-	{ "rdi",	&ddb_regs.tf_rdi,    FCN_NULL },
-	{ "r8",		&ddb_regs.tf_r8,     FCN_NULL },
-	{ "r9",		&ddb_regs.tf_r9,     FCN_NULL },
-	{ "r10",	&ddb_regs.tf_r10,    FCN_NULL },
-	{ "r11",	&ddb_regs.tf_r11,    FCN_NULL },
-	{ "r12",	&ddb_regs.tf_r12,    FCN_NULL },
-	{ "r13",	&ddb_regs.tf_r13,    FCN_NULL },
-	{ "r14",	&ddb_regs.tf_r14,    FCN_NULL },
-	{ "r15",	&ddb_regs.tf_r15,    FCN_NULL },
-	{ "rip",	&ddb_regs.tf_rip,    FCN_NULL },
-	{ "rflags",	&ddb_regs.tf_rflags, FCN_NULL },
-	{ "dr0",	NULL,		     db_dr0 },
-	{ "dr1",	NULL,		     db_dr1 },
-	{ "dr2",	NULL,		     db_dr2 },
-	{ "dr3",	NULL,		     db_dr3 },
-	{ "dr4",	NULL,		     db_dr4 },
-	{ "dr5",	NULL,		     db_dr5 },
-	{ "dr6",	NULL,		     db_dr6 },
-	{ "dr7",	NULL,		     db_dr7 },
+	{ "ss",		NULL,			db_ss },
+	{ "rax",	DB_OFFSET(tf_rax),	db_frame },
+	{ "rcx",        DB_OFFSET(tf_rcx),	db_frame },
+	{ "rdx",	DB_OFFSET(tf_rdx),	db_frame },
+	{ "rbx",	DB_OFFSET(tf_rbx),	db_frame },
+	{ "rsp",	NULL,			db_rsp },
+	{ "rbp",	DB_OFFSET(tf_rbp),	db_frame },
+	{ "rsi",	DB_OFFSET(tf_rsi),	db_frame },
+	{ "rdi",	DB_OFFSET(tf_rdi),	db_frame },
+	{ "r8",		DB_OFFSET(tf_r8),	db_frame },
+	{ "r9",		DB_OFFSET(tf_r9),	db_frame },
+	{ "r10",	DB_OFFSET(tf_r10),	db_frame },
+	{ "r11",	DB_OFFSET(tf_r11),	db_frame },
+	{ "r12",	DB_OFFSET(tf_r12),	db_frame },
+	{ "r13",	DB_OFFSET(tf_r13),	db_frame },
+	{ "r14",	DB_OFFSET(tf_r14),	db_frame },
+	{ "r15",	DB_OFFSET(tf_r15),	db_frame },
+	{ "rip",	DB_OFFSET(tf_rip),	db_frame },
+	{ "rflags",	DB_OFFSET(tf_rflags),	db_frame },
+	{ "dr0",	NULL,			db_dr0 },
+	{ "dr1",	NULL,			db_dr1 },
+	{ "dr2",	NULL,			db_dr2 },
+	{ "dr3",	NULL,			db_dr3 },
+	{ "dr4",	NULL,			db_dr4 },
+	{ "dr5",	NULL,			db_dr5 },
+	{ "dr6",	NULL,			db_dr6 },
+	{ "dr7",	NULL,			db_dr7 },
 };
 struct db_variable *db_eregs = db_regs + sizeof(db_regs)/sizeof(db_regs[0]);
+
+#define DB_DRX_FUNC(reg)		\
+static int				\
+db_ ## reg (vp, valuep, op)		\
+	struct db_variable *vp;		\
+	db_expr_t * valuep;		\
+	int op;				\
+{					\
+	if (op == DB_VAR_GET)		\
+		*valuep = r ## reg ();	\
+	else				\
+		load_ ## reg (*valuep); \
+	return (1);			\
+}
+
+DB_DRX_FUNC(dr0)
+DB_DRX_FUNC(dr1)
+DB_DRX_FUNC(dr2)
+DB_DRX_FUNC(dr3)
+DB_DRX_FUNC(dr4)
+DB_DRX_FUNC(dr5)
+DB_DRX_FUNC(dr6)
+DB_DRX_FUNC(dr7)
+
+static __inline long
+get_rsp(struct trapframe *tf)
+{
+	return ((ISPL(tf->tf_cs)) ? tf->tf_rsp :
+	    (db_expr_t)tf + offsetof(struct trapframe, tf_rsp));
+}
+
+static int
+db_frame(struct db_variable *vp, db_expr_t *valuep, int op)
+{
+	long *reg;
+
+	if (kdb_frame == NULL)
+		return (0);
+
+	reg = (long *)((uintptr_t)kdb_frame + (db_expr_t)vp->valuep);
+	if (op == DB_VAR_GET)
+		*valuep = *reg;
+	else
+		*reg = *valuep;
+	return (1);
+}
+
+static int
+db_rsp(struct db_variable *vp, db_expr_t *valuep, int op)
+{
+
+	if (kdb_frame == NULL)
+		return (0);
+
+	if (op == DB_VAR_GET)
+		*valuep = get_rsp(kdb_frame);
+	else if (ISPL(kdb_frame->tf_cs))
+		kdb_frame->tf_rsp = *valuep;
+	return (1);
+}
+
+static int
+db_ss(struct db_variable *vp, db_expr_t *valuep, int op)
+{
+
+	if (kdb_frame == NULL)
+		return (0);
+
+	if (op == DB_VAR_GET)
+		*valuep = (ISPL(kdb_frame->tf_cs)) ? kdb_frame->tf_ss : rss();
+	else if (ISPL(kdb_frame->tf_cs))
+		kdb_frame->tf_ss = *valuep;
+	return (1);
+}
 
 /*
  * Stack trace.
@@ -112,13 +191,10 @@ struct amd64_frame {
 #define	INTERRUPT	2
 #define	SYSCALL		3
 
-static void db_nextframe(struct amd64_frame **, db_addr_t *, struct proc *);
+static void db_nextframe(struct amd64_frame **, db_addr_t *, struct thread *);
 static int db_numargs(struct amd64_frame *);
 static void db_print_stack_entry(const char *, int, char **, long *, db_addr_t);
-static void decode_syscall(int, struct proc *);
-static void db_trace_one_stack(int count, boolean_t have_addr,
-		struct proc *p, struct amd64_frame *frame, db_addr_t callpc);
-
+static void decode_syscall(int, struct thread *);
 
 static char * watchtype_str(int type);
 int  amd64_set_watch(int watchnum, unsigned int watchaddr, int size, int access,
@@ -127,7 +203,6 @@ int  amd64_clr_watch(int watchnum, struct dbreg * d);
 int  db_md_set_watchpoint(db_expr_t addr, db_expr_t size);
 int  db_md_clr_watchpoint(db_expr_t addr, db_expr_t size);
 void db_md_list_watchpoints(void);
-
 
 /*
  * Figure out how many arguments were passed into the frame at "fp".
@@ -189,16 +264,16 @@ db_print_stack_entry(name, narg, argnp, argp, callpc)
 }
 
 static void
-decode_syscall(number, p)
-	int number;
-	struct proc *p;
+decode_syscall(int number, struct thread *td)
 {
+	struct proc *p;
 	c_db_sym_t sym;
 	db_expr_t diff;
 	sy_call_t *f;
 	const char *symname;
 
 	db_printf(" (%d", number);
+	p = (td != NULL) ? td->td_proc : NULL;
 	if (p != NULL && 0 <= number && number < p->p_sysent->sv_size) {
 		f = p->p_sysent->sv_table[number].sy_call;
 		sym = db_search_symbol((db_addr_t)f, DB_STGY_ANY, &diff);
@@ -214,10 +289,7 @@ decode_syscall(number, p)
  * Figure out the next frame up in the call stack.
  */
 static void
-db_nextframe(fp, ip, p)
-	struct amd64_frame **fp;	/* in/out */
-	db_addr_t	*ip;		/* out */
-	struct proc	*p;		/* in */
+db_nextframe(struct amd64_frame **fp, db_addr_t *ip, struct thread *td)
 {
 	struct trapframe *tf;
 	int frame_type;
@@ -265,8 +337,7 @@ db_nextframe(fp, ip, p)
 	tf = (struct trapframe *)((long)*fp + 16);
 
 	if (INKERNEL((long) tf)) {
-		rsp = (ISPL(tf->tf_cs) == SEL_UPL) ?
-		    tf->tf_rsp : (long)&tf->tf_rsp;
+		rsp = get_rsp(tf);
 		rip = tf->tf_rip;
 		rbp = tf->tf_rbp;
 		switch (frame_type) {
@@ -275,7 +346,7 @@ db_nextframe(fp, ip, p)
 			break;
 		case SYSCALL:
 			db_printf("--- syscall");
-			decode_syscall(tf->tf_rax, p);
+			decode_syscall(tf->tf_rax, td);
 			break;
 		case INTERRUPT:
 			db_printf("--- interrupt");
@@ -291,135 +362,26 @@ db_nextframe(fp, ip, p)
 	*fp = (struct amd64_frame *) rbp;
 }
 
-void
-db_stack_trace_cmd(addr, have_addr, count, modif)
-	db_expr_t addr;
-	boolean_t have_addr;
-	db_expr_t count;
-	char *modif;
+static int
+db_backtrace(struct thread *td, struct trapframe *tf,
+    struct amd64_frame *frame, db_addr_t pc, int count)
 {
-	struct amd64_frame *frame;
-	struct proc *p;
-	struct pcb *pcb;
-	struct thread *td;
-	db_addr_t callpc;
-	pid_t pid;
+	struct amd64_frame *actframe;
+#define MAXNARG	16
+	char *argnames[MAXNARG], **argnp = NULL;
+	const char *name;
+	long *argp;
+	db_expr_t offset;
+	c_db_sym_t sym;
+	int narg;
+	boolean_t first;
 
 	if (count == -1)
 		count = 1024;
 
-	if (!have_addr) {
-		td = curthread;
-		p = td->td_proc;
-		frame = (struct amd64_frame *)ddb_regs.tf_rbp;
-		if (frame == NULL)
-			frame = (struct amd64_frame *)(ddb_regs.tf_rsp - 8);
-		callpc = (db_addr_t)ddb_regs.tf_rip;
-	} else if (!INKERNEL(addr)) {
-		pid = (addr % 16) + ((addr >> 4) % 16) * 10 +
-		    ((addr >> 8) % 16) * 100 + ((addr >> 12) % 16) * 1000 +
-		    ((addr >> 16) % 16) * 10000;
-		/*
-		 * The pcb for curproc is not valid at this point,
-		 * so fall back to the default case.
-		 */
-		if (pid == curthread->td_proc->p_pid) {
-			td = curthread;
-			p = td->td_proc;
-			frame = (struct amd64_frame *)ddb_regs.tf_rbp;
-			if (frame == NULL)
-				frame = (struct amd64_frame *)
-				    (ddb_regs.tf_rsp - 8);
-			callpc = (db_addr_t)ddb_regs.tf_rip;
-		} else {
-
-			/* sx_slock(&allproc_lock); */
-			LIST_FOREACH(p, &allproc, p_list) {
-				if (p->p_pid == pid)
-					break;
-			}
-			/* sx_sunlock(&allproc_lock); */
-			if (p == NULL) {
-				db_printf("pid %d not found\n", pid);
-				return;
-			}
-			if ((p->p_sflag & PS_INMEM) == 0) {
-				db_printf("pid %d swapped out\n", pid);
-				return;
-			}
-			pcb = FIRST_THREAD_IN_PROC(p)->td_pcb;	/* XXXKSE */
-			frame = (struct amd64_frame *)pcb->pcb_rbp;
-			if (frame == NULL)
-				frame = (struct amd64_frame *)
-				    (pcb->pcb_rsp - 8);
-			callpc = (db_addr_t)pcb->pcb_rip;
-		}
-	} else {
-		p = NULL;
-		frame = (struct amd64_frame *)addr;
-		callpc = (db_addr_t)db_get_value((long)&frame->f_retaddr, 8, FALSE);
-		frame = frame->f_frame;
-	}
-	db_trace_one_stack(count, have_addr, p, frame, callpc);
-}
-
-void
-db_stack_thread(db_expr_t addr, boolean_t have_addr,
-		db_expr_t count, char *modif)
-{
-	struct amd64_frame *frame;
-	struct thread *td;
-	struct proc *p;
-	struct pcb *pcb;
-	db_addr_t callpc;
-
-	if (!have_addr)
-		return;
-	if (!INKERNEL(addr)) {
-		printf("bad thread address");
-		return;
-	}
-	td = (struct thread *)addr;
-	/* quick sanity check */
-	if ((p = td->td_proc) != td->td_ksegrp->kg_proc)
-		return;
-	if (TD_IS_SWAPPED(td)) {
-		db_printf("thread at %p swapped out\n", td);
-		return;
-	}
-	if (td == curthread) {
-		frame = (struct amd64_frame *)ddb_regs.tf_rbp;
-		if (frame == NULL)
-			frame = (struct amd64_frame *)(ddb_regs.tf_rsp - 8);
-		callpc = (db_addr_t)ddb_regs.tf_rip;
-	} else {
-		pcb = td->td_pcb;
-		frame = (struct amd64_frame *)pcb->pcb_rbp;
-		if (frame == NULL)
-			frame = (struct amd64_frame *) (pcb->pcb_rsp - 8);
-		callpc = (db_addr_t)pcb->pcb_rip;
-	}
-	db_trace_one_stack(count, have_addr, p, frame, callpc);
-}
-
-static void
-db_trace_one_stack(int count, boolean_t have_addr,
-		struct proc *p, struct amd64_frame *frame, db_addr_t callpc)
-{
-	long *argp;
-	boolean_t first;
-
 	first = TRUE;
 	while (count--) {
-		struct amd64_frame *actframe;
-		int		narg;
-		const char *	name;
-		db_expr_t	offset;
-		c_db_sym_t	sym;
-#define MAXNARG	16
-		char	*argnames[MAXNARG], **argnp = NULL;
-
-		sym = db_search_symbol(callpc, DB_STGY_ANY, &offset);
+		sym = db_search_symbol(pc, DB_STGY_ANY, &offset);
 		db_symbol_values(sym, &name, NULL);
 
 		/*
@@ -435,37 +397,33 @@ db_trace_one_stack(int count, boolean_t have_addr,
 		 */
 		actframe = frame;
 		if (first) {
-			if (!have_addr) {
+			if (tf != NULL) {
 				int instr;
 
-				instr = db_get_value(callpc, 4, FALSE);
+				instr = db_get_value(pc, 4, FALSE);
 				if ((instr & 0xffffffff) == 0xe5894855) {
 					/* pushq %rbp; movq %rsp, %rbp */
-					actframe = (struct amd64_frame *)
-					    (ddb_regs.tf_rsp - 8);
-				} else if ((instr & 0x00ffffff) == 0x00e58948) {
+					actframe = (void *)(get_rsp(tf) - 8);
+				} else if ((instr & 0xffffff) == 0xe58948) {
 					/* movq %rsp, %rbp */
-					actframe = (struct amd64_frame *)
-					    ddb_regs.tf_rsp;
-					if (ddb_regs.tf_rbp == 0) {
-						/* Fake caller's frame better. */
+					actframe = (void *)get_rsp(tf);
+					if (tf->tf_rbp == 0) {
+						/* Fake frame better. */
 						frame = actframe;
 					}
-				} else if ((instr & 0x000000ff) == 0x000000c3) {
+				} else if ((instr & 0xff) == 0xc3) {
 					/* ret */
-					actframe = (struct amd64_frame *)
-					    (ddb_regs.tf_rsp - 8);
+					actframe = (void *)(get_rsp(tf) - 8);
 				} else if (offset == 0) {
-					/* Probably a symbol in assembler code. */
-					actframe = (struct amd64_frame *)
-					    (ddb_regs.tf_rsp - 8);
+					/* Probably an assembler symbol. */
+					actframe = (void *)(get_rsp(tf) - 8);
 				}
 			} else if (strcmp(name, "fork_trampoline") == 0) {
 				/*
 				 * Don't try to walk back on a stack for a
 				 * process that hasn't actually been run yet.
 				 */
-				db_print_stack_entry(name, 0, 0, 0, callpc);
+				db_print_stack_entry(name, 0, 0, 0, pc);
 				break;
 			}
 			first = FALSE;
@@ -479,60 +437,68 @@ db_trace_one_stack(int count, boolean_t have_addr,
 			narg = db_numargs(frame);
 		}
 
-		db_print_stack_entry(name, narg, argnp, argp, callpc);
+		db_print_stack_entry(name, narg, argnp, argp, pc);
 
 		if (actframe != frame) {
 			/* `frame' belongs to caller. */
-			callpc = (db_addr_t)
+			pc = (db_addr_t)
 			    db_get_value((long)&actframe->f_retaddr, 8, FALSE);
 			continue;
 		}
 
-		db_nextframe(&frame, &callpc, p);
+		db_nextframe(&frame, &pc, td);
 
-		if (INKERNEL((long) callpc) && !INKERNEL((long) frame)) {
-			sym = db_search_symbol(callpc, DB_STGY_ANY, &offset);
+		if (INKERNEL((long)pc) && !INKERNEL((long)frame)) {
+			sym = db_search_symbol(pc, DB_STGY_ANY, &offset);
 			db_symbol_values(sym, &name, NULL);
-			db_print_stack_entry(name, 0, 0, 0, callpc);
+			db_print_stack_entry(name, 0, 0, 0, pc);
 			break;
 		}
 		if (!INKERNEL((long) frame)) {
 			break;
 		}
 	}
+
+	return (0);
 }
 
 void
-db_print_backtrace(void)
+db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count,
+    char *modif)
 {
-	register_t ebp;
+	struct thread *td;
 
-	__asm __volatile("movq %%rbp,%0" : "=r" (ebp));
-	db_stack_trace_cmd(ebp, 1, -1, NULL);
+	td = (have_addr) ? kdb_thr_lookup(addr) : kdb_thread;
+	if (td == NULL) {
+		db_printf("Thread %ld not found\n", addr);
+		return;
+	}
+	db_trace_thread(td, count);
 }
 
-#define DB_DRX_FUNC(reg)		\
-int					\
-db_ ## reg (vp, valuep, op)		\
-	struct db_variable *vp;		\
-	db_expr_t * valuep;		\
-	int op;				\
-{					\
-	if (op == DB_VAR_GET)		\
-		*valuep = r ## reg ();	\
-	else				\
-		load_ ## reg (*valuep); \
-	return (0);			\
-} 
+void
+db_trace_self(void)
+{
+	struct amd64_frame *frame;
+	db_addr_t callpc;
+	register_t rbp;
 
-DB_DRX_FUNC(dr0)
-DB_DRX_FUNC(dr1)
-DB_DRX_FUNC(dr2)
-DB_DRX_FUNC(dr3)
-DB_DRX_FUNC(dr4)
-DB_DRX_FUNC(dr5)
-DB_DRX_FUNC(dr6)
-DB_DRX_FUNC(dr7)
+	__asm __volatile("movq %%rbp,%0" : "=r" (rbp));
+	frame = (struct amd64_frame *)rbp;
+	callpc = (db_addr_t)db_get_value((long)&frame->f_retaddr, 8, FALSE);
+	frame = frame->f_frame;
+	db_backtrace(curthread, NULL, frame, callpc, -1);
+}
+
+int
+db_trace_thread(struct thread *thr, int count)
+{
+	struct pcb *ctx;
+
+	ctx = kdb_thr_ctx(thr);
+	return (db_backtrace(thr, NULL, (struct amd64_frame *)ctx->pcb_rbp,
+		    ctx->pcb_rip, count));
+}
 
 int
 amd64_set_watch(watchnum, watchaddr, size, access, d)
