@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: psparse - Parser top level AML parse routines
- *              $Revision: 101 $
+ *              $Revision: 104 $
  *
  *****************************************************************************/
 
@@ -298,25 +298,18 @@ AcpiPsCompleteThisOp (
     ACPI_PARSE_OBJECT       *Prev;
     ACPI_PARSE_OBJECT       *Next;
     const ACPI_OPCODE_INFO  *ParentInfo;
-    UINT32                  OpcodeClass;
     ACPI_PARSE_OBJECT       *ReplacementOp = NULL;
 
 
     FUNCTION_TRACE_PTR ("PsCompleteThisOp", Op);
 
 
-    OpcodeClass = ACPI_GET_OP_CLASS (WalkState->OpInfo);
 
 
     /* Delete this op and the subtree below it if asked to */
 
     if (((WalkState->ParseFlags & ACPI_PARSE_TREE_MASK) == ACPI_PARSE_DELETE_TREE) &&
-        (OpcodeClass != OPTYPE_CONSTANT)        &&
-        (OpcodeClass != OPTYPE_LITERAL)         &&
-        (OpcodeClass != OPTYPE_LOCAL_VARIABLE)  &&
-        (OpcodeClass != OPTYPE_METHOD_ARGUMENT) &&
-        (OpcodeClass != OPTYPE_DATA_TERM)       &&
-        (Op->Opcode  != AML_INT_NAMEPATH_OP))
+        (WalkState->OpInfo->Class != AML_CLASS_ARGUMENT))
     {
         /* Make sure that we only delete this subtree */
 
@@ -328,12 +321,13 @@ AcpiPsCompleteThisOp (
              */
             ParentInfo  = AcpiPsGetOpcodeInfo (Op->Parent->Opcode);
 
-            switch (ACPI_GET_OP_CLASS (ParentInfo))
+            switch (ParentInfo->Class)
             {
-            case OPTYPE_CONTROL:        /* IF, ELSE, WHILE only */
+            case AML_CLASS_CONTROL:        /* IF, ELSE, WHILE only */
                 break;
 
-            case OPTYPE_NAMED_OBJECT:   /* Scope, method, etc. */
+            case AML_CLASS_NAMED_OBJECT:   /* Scope, method, etc. */
+            case AML_CLASS_CREATE:
 
                 /*
                  * These opcodes contain TermArg operands.  The current
@@ -652,18 +646,10 @@ AcpiPsParseLoop (
              * 3) An unknown/invalid opcode
              */
             WalkState->OpInfo = AcpiPsGetOpcodeInfo (WalkState->Opcode);
-            switch (ACPI_GET_OP_TYPE (WalkState->OpInfo))
+            switch (WalkState->OpInfo->Class)
             {
-            case ACPI_OP_TYPE_OPCODE:
-
-                /* Found opcode info, this is a normal opcode */
-
-                ParserState->Aml += AcpiPsGetOpcodeSize (WalkState->Opcode);
-                WalkState->ArgTypes = WalkState->OpInfo->ParseArgs;
-                break;
-
-            case ACPI_OP_TYPE_ASCII:
-            case ACPI_OP_TYPE_PREFIX:
+            case AML_CLASS_ASCII:
+            case AML_CLASS_PREFIX:
                 /*
                  * Starts with a valid prefix or ASCII char, this is a name
                  * string.  Convert the bare name string to a namepath.
@@ -672,12 +658,12 @@ AcpiPsParseLoop (
                 WalkState->ArgTypes = ARGP_NAMESTRING;
                 break;
 
-            case ACPI_OP_TYPE_UNKNOWN:
+            case AML_CLASS_UNKNOWN:
 
                 /* The opcode is unrecognized.  Just skip unknown opcodes */
 
                 ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-                    "Found unknown opcode %lX at AML offset %X, ignoring\n",
+                    "Found unknown opcode %X at AML offset %X, ignoring\n",
                     WalkState->Opcode, WalkState->AmlOffset));
 
                 DUMP_BUFFER (ParserState->Aml, 128);
@@ -686,6 +672,15 @@ AcpiPsParseLoop (
 
                 ParserState->Aml++;
                 continue;
+
+            default:
+
+                /* Found opcode info, this is a normal opcode */
+
+                ParserState->Aml += AcpiPsGetOpcodeSize (WalkState->Opcode);
+                WalkState->ArgTypes = WalkState->OpInfo->ParseArgs;
+                break;
+
             }
 
 
@@ -822,7 +817,7 @@ AcpiPsParseLoop (
             if (WalkState->OpInfo)
             {
                 ACPI_DEBUG_PRINT ((ACPI_DB_PARSE,
-                    "Op=%p Opcode=%4.4lX Aml %p Oft=%5.5lX\n",
+                    "Op=%p Opcode=%4.4X Aml %p Oft=%5.5X\n",
                      Op, Op->Opcode, ParserState->Aml, Op->AmlOffset));
             }
         }
@@ -1171,7 +1166,7 @@ AcpiPsParseAml (
 
     FUNCTION_TRACE ("PsParseAml");
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "Entered with WalkState=%p Aml=%p size=%lX\n",
+    ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "Entered with WalkState=%p Aml=%p size=%X\n",
         WalkState, WalkState->ParserState.Aml, WalkState->ParserState.AmlSize));
 
 

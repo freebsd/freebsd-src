@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acgcc.h - GCC specific defines, etc.
- *       $Revision: 13 $
+ *       $Revision: 14 $
  *
  *****************************************************************************/
 
@@ -250,5 +250,10 @@
 /*! [End] no source code translation !*/
 
 #endif /* IA 32 */
+
+/* This macro is used to tag functions as "printf-like" because
+ * some compilers (like GCC) can catch printf format string problems.
+ */
+#define ACPI_PRINTF_LIKE_FUNC __attribute__ ((__format__ (__printf__, 4, 5)))
 
 #endif /* __ACGCC_H__ */
