@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: eni_intr.c,v 1.4 1998/08/26 23:28:54 mks Exp $
+ *	@(#) $Id: eni_intr.c,v 1.1 1998/09/15 08:22:53 phk Exp $
  *
  */
 
@@ -36,7 +36,7 @@
  */
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: eni_intr.c,v 1.4 1998/08/26 23:28:54 mks Exp $";
+static char *RCSid = "@(#) $Id: eni_intr.c,v 1.1 1998/09/15 08:22:53 phk Exp $";
 #endif
 
 #include <netatm/kern_include.h>
@@ -174,7 +174,7 @@ eni_intr ( arg )
 	 * Handle miscelaneous interrupts
 	 */
 	if ( mask & ENI_INT_STAT ) {			/* STAT_OVFL */
-		log ( LOG_INFO, "eni_intr: stat_ovfl: 0x%x\n", sval );
+		log ( LOG_INFO, "eni_intr: stat_ovfl: 0x%lx\n", sval );
 	}
 	if ( mask & ENI_INT_SUNI ) {			/* SUNI_INTR */
 		eni_suni_intr ( eup );

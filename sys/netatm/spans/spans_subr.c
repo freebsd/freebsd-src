@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: spans_subr.c,v 1.9 1998/08/26 23:29:10 mks Exp $
+ *	@(#) $Id: spans_subr.c,v 1.1 1998/09/15 08:23:04 phk Exp $
  *
  */
 
@@ -36,7 +36,7 @@
  */
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: spans_subr.c,v 1.9 1998/08/26 23:29:10 mks Exp $";
+static char *RCSid = "@(#) $Id: spans_subr.c,v 1.1 1998/09/15 08:23:04 phk Exp $";
 #endif
 
 #include <netatm/kern_include.h>
@@ -77,7 +77,7 @@ spans_open_vcc(spp, cvp)
 	spans_aal		aal;
 	int			err, pvc, vpi, vci;
 
-	ATM_DEBUG2("spans_open_vcc: spp=0x%x, cvp=0x%x\n", spp, cvp);
+	ATM_DEBUG2("spans_open_vcc: spp=%p, cvp=%p\n", spp, cvp);
 
 	/*
 	 * Validate user parameters. AAL and encapsulation are
@@ -269,7 +269,7 @@ spans_close_vcc(spp, svp, force)
 {
 	int		err = 0;
 
-	ATM_DEBUG2("spans_close_vcc: svp=0x%x, state=%d\n", svp,
+	ATM_DEBUG2("spans_close_vcc: svp=%p, state=%d\n", svp,
 			svp->sv_sstate);
 
 	/*
@@ -361,7 +361,7 @@ spans_clear_vcc(spp, svp)
 {
 	u_char	outstate;
 
-	ATM_DEBUG2("spans_clear_vcc: svp=0x%x, state=%d\n", svp,
+	ATM_DEBUG2("spans_clear_vcc: svp=%p, state=%d\n", svp,
 			svp->sv_sstate);
 
 	/*
@@ -438,7 +438,7 @@ spans_switch_reset(spp, cause)
 	int		s;
 	struct vccb	*vcp, *vnext;
 
-	ATM_DEBUG2("spans_switch_reset: spp=0x%x, cause=%d\n",
+	ATM_DEBUG2("spans_switch_reset: spp=%p, cause=%d\n",
 			spp, cause);
 
 	/*
@@ -486,7 +486,7 @@ spans_switch_reset(spp, cause)
 				break;
 			}
 		} else {
-			log(LOG_ERR, "spans: invalid VCC type: vccb=0x%x, type=%d\n",
+			log(LOG_ERR, "spans: invalid VCC type: vccb=%p, type=%d\n",
 					vcp, vcp->vc_type);
 		}
 	}

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: spans_proto.c,v 1.7 1998/08/26 23:29:10 mks Exp $
+ *	@(#) $Id: spans_proto.c,v 1.1 1998/09/15 08:23:03 phk Exp $
  *
  */
 
@@ -36,7 +36,7 @@
  */
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: spans_proto.c,v 1.7 1998/08/26 23:29:10 mks Exp $";
+static char *RCSid = "@(#) $Id: spans_proto.c,v 1.1 1998/09/15 08:23:03 phk Exp $";
 #endif
 
 #include <netatm/kern_include.h>
@@ -200,8 +200,8 @@ spans_timer(tip)
 	spp = (struct spans *)
 		((caddr_t)tip - (int)(&((struct spans *)0)->sp_time));
 
-	ATM_DEBUG2("spans_timer: spp=0x%x,state=%d\n",
-			(int)spp, spp->sp_state);
+	ATM_DEBUG2("spans_timer: spp=%p,state=%d\n",
+			spp, spp->sp_state);
 
 	/*
 	 * Process timeout based on protocol state
@@ -314,8 +314,8 @@ spans_timer(tip)
 		break;
 
 	default:
-		log(LOG_ERR, "spans: timer state: spp=0x%x, state=%d\n",
-			(int)spp, spp->sp_state);
+		log(LOG_ERR, "spans: timer state: spp=%p, state=%d\n",
+			spp, spp->sp_state);
 	}
 }
 
@@ -350,8 +350,8 @@ spans_vctimer(tip)
 			(int)(&((struct vccb *)0)->vc_time));
 	spp = (struct spans *)svp->sv_pif->pif_siginst;
 
-	ATM_DEBUG3("spans_vctimer: svp=0x%x, sstate=%d, ustate=%d\n",
-			(int)svp, svp->sv_sstate, svp->sv_ustate);
+	ATM_DEBUG3("spans_vctimer: svp=%p, sstate=%d, ustate=%d\n",
+			svp, svp->sv_sstate, svp->sv_ustate);
 
 	/*
 	 * Process timeout based on protocol state
@@ -444,8 +444,8 @@ spans_vctimer(tip)
 		break;
 
 	default:
-		log(LOG_ERR, "spans: vctimer state: svp=0x%x, sstate=%d\n",
-				(int)svp, svp->sv_sstate);
+		log(LOG_ERR, "spans: vctimer state: svp=%p, sstate=%d\n",
+				svp, svp->sv_sstate);
 	}
 }
 
@@ -486,14 +486,13 @@ spans_connected(tok)
 {
 	struct spans		*spp = (struct spans *)tok;
 
-	ATM_DEBUG2("spans_connected: spp=0x%x,state=%d\n",
-			(int)spp, spp->sp_state);
+	ATM_DEBUG2("spans_connected: spp=%p,state=%d\n",
+			spp, spp->sp_state);
 
 	/*
 	 * Connected routine shouldn't ever get called for a PVC
 	 */
-	log(LOG_ERR, "spans: connected function called, tok=0x%x\n",
-			(int)spp);
+	log(LOG_ERR, "spans: connected function called, tok=%p\n", spp);
 }
 
 
@@ -548,8 +547,8 @@ spans_cpcs_data(tok, m)
 {
 	struct spans	*spp = tok;
 
-	ATM_DEBUG3("spans_cpcs_data: spp=0x%x,state=%d,m=0x%x,\n",
-			(int)spp, spp->sp_state, m);
+	ATM_DEBUG3("spans_cpcs_data: spp=%p,state=%d,m=%p,\n",
+			spp, spp->sp_state, m);
 
 	/*
 	 * Process data

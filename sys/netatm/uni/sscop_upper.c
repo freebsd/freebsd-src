@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: sscop_upper.c,v 1.6 1998/08/26 23:29:20 mks Exp $
+ *	@(#) $Id: sscop_upper.c,v 1.1 1998/09/15 08:23:08 phk Exp $
  *
  */
 
@@ -36,7 +36,7 @@
  */
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: sscop_upper.c,v 1.6 1998/08/26 23:29:20 mks Exp $";
+static char *RCSid = "@(#) $Id: sscop_upper.c,v 1.1 1998/09/15 08:23:08 phk Exp $";
 #endif
 
 #include <netatm/kern_include.h>
@@ -199,8 +199,8 @@ sscop_upper(cmd, tok, arg1, arg2)
 	caddr_t		trlr;
 	int		type;
 
-	ATM_DEBUG5("sscop_upper: cmd=0x%x, sop=0x%x, state=%d, arg1=0x%x, arg2=0x%x\n",
-		cmd, (int)sop, sop->so_state, arg1, arg2);
+	ATM_DEBUG5("sscop_upper: cmd=0x%x, sop=%p, state=%d, arg1=0x%x, arg2=0x%x\n",
+		cmd, sop, sop->so_state, arg1, arg2);
 
 	switch (cmd) {
 
@@ -218,8 +218,8 @@ sscop_upper(cmd, tok, arg1, arg2)
 		 */
 		if (sop->so_state > SOS_MAXSTATE) {
 			log(LOG_ERR, 
-				"sscop_upper: invalid state sop=0x%x, state=%d\n",
-				(int)sop, sop->so_state);
+				"sscop_upper: invalid state sop=%p, state=%d\n",
+				sop, sop->so_state);
 			KB_FREEALL((KBuffer *)arg1);
 			return;
 		}
@@ -241,8 +241,8 @@ sscop_upper(cmd, tok, arg1, arg2)
 		break;
 
 	default:
-		log(LOG_ERR, "sscop_upper: unknown cmd 0x%x, sop=0x%x\n",
-			cmd, (int)sop);
+		log(LOG_ERR, "sscop_upper: unknown cmd 0x%x, sop=%p\n",
+			cmd, sop);
 	}
 
 	return;

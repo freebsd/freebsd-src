@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: unisig_decode.c,v 1.13 1998/08/26 23:29:20 mks Exp $
+ *	@(#) $Id: unisig_decode.c,v 1.1 1998/09/15 08:23:10 phk Exp $
  *
  */
 
@@ -36,7 +36,7 @@
  */
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: unisig_decode.c,v 1.13 1998/08/26 23:29:20 mks Exp $";
+static char *RCSid = "@(#) $Id: unisig_decode.c,v 1.1 1998/09/15 08:23:10 phk Exp $";
 #endif
 
 #include <netatm/kern_include.h>
@@ -755,8 +755,7 @@ usf_dec_msg(usf, msg)
 	u_char			c, *ie_tbl;
 	struct ie_generic	*ie;
 
-	ATM_DEBUG2("usf_dec_msg: usf=0x%x, msg=0x%x\n", (int) usf,
-			(int) msg);
+	ATM_DEBUG2("usf_dec_msg: usf=%p, msg=%p\n", usf, msg);
 
 	/*
 	 * Check the total message length

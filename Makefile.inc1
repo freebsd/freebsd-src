@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc1,v 1.14 1998/09/15 11:44:30 phk Exp $
+#	$Id: Makefile.inc1,v 1.15 1998/09/17 03:56:23 gibbs Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -561,6 +561,7 @@ includes:
 	cd ${.CURDIR}/lib/csu/${MACHINE_ARCH};	${MAKE} beforeinstall
 .endif
 	cd ${.CURDIR}/lib/libalias;		${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/libatm;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libdevstat;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libc;			${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libcalendar;		${MAKE} beforeinstall

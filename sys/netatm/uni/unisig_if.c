@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: unisig_if.c,v 1.12 1998/07/30 22:36:57 mks Exp $
+ *	@(#) $Id: unisig_if.c,v 1.1 1998/09/15 08:23:11 phk Exp $
  *
  */
 
@@ -36,7 +36,7 @@
  */
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: unisig_if.c,v 1.12 1998/07/30 22:36:57 mks Exp $";
+static char *RCSid = "@(#) $Id: unisig_if.c,v 1.1 1998/09/15 08:23:11 phk Exp $";
 #endif
 
 #include <netatm/kern_include.h>
@@ -248,7 +248,7 @@ unisig_attach(smp, pip)
 	int			err = 0, s;
 	struct unisig		*usp = NULL;
 
-	ATM_DEBUG2("unisig_attach: smp=%x, pip=%x\n", smp, pip);
+	ATM_DEBUG2("unisig_attach: smp=%p, pip=%p\n", smp, pip);
 
 	/*
 	 * Allocate UNISIG protocol instance control block
@@ -358,7 +358,7 @@ unisig_detach(pip)
 	struct unisig		*usp;
 	int			err;
 
-	ATM_DEBUG1("unisig_detach: pip=0x%x\n", pip);
+	ATM_DEBUG1("unisig_detach: pip=%p\n", pip);
 
 	/*
 	 * Get UNISIG protocol instance
@@ -418,7 +418,7 @@ unisig_setup(cvp, errp)
 	struct unisig	*usp = (struct unisig *)pip->pif_siginst;
 	int		rc = 0;
 
-	ATM_DEBUG1("unisig_setup: cvp=0x%x\n", cvp);
+	ATM_DEBUG1("unisig_setup: cvp=%p\n", cvp);
 
 	/*
 	 * Intialize the returned error code
@@ -485,7 +485,7 @@ unisig_release(vcp, errp)
 	struct atm_pif	*pip = vcp->vc_pif;
 	struct unisig	*usp = (struct unisig *)pip->pif_siginst;
 
-	ATM_DEBUG1("unisig_release: vcp=0x%x\n", vcp);
+	ATM_DEBUG1("unisig_release: vcp=%p\n", vcp);
 
 	/*
 	 * Initialize returned error code
@@ -548,7 +548,7 @@ unisig_accept(vcp, errp)
 	struct atm_pif		*pip = uvp->uv_pif;
 	struct unisig		*usp = (struct unisig *)pip->pif_siginst;
 
-	ATM_DEBUG1("unisig_accept: vcp=0x%x\n", vcp);
+	ATM_DEBUG1("unisig_accept: vcp=%p\n", vcp);
 
 	/*
 	 * Initialize the returned error code
@@ -622,7 +622,7 @@ unisig_reject(vcp, errp)
 	struct atm_pif		*pip = uvp->uv_pif;
 	struct unisig		*usp = (struct unisig *)pip->pif_siginst;
 
-	ATM_DEBUG1("unisig_reject: uvp=0x%x\n", uvp);
+	ATM_DEBUG1("unisig_reject: uvp=%p\n", uvp);
 
 	/*
 	 * Initialize the returned error code
@@ -684,7 +684,7 @@ unisig_abort(vcp)
 	struct vccb	*vcp;
 {
 
-	ATM_DEBUG1("unisig_abort: vcp=0x%x\n", (int)vcp);
+	ATM_DEBUG1("unisig_abort: vcp=%p\n", vcp);
 
 	/*
 	 * Only abort once
@@ -733,7 +733,7 @@ unisig_free(vcp)
 	struct atm_pif *pip = vcp->vc_pif;
 	struct unisig *usp = (struct unisig *)pip->pif_siginst;
 
-	ATM_DEBUG1("unisig_free: vcp = 0x%x\n", vcp);
+	ATM_DEBUG1("unisig_free: vcp = %p\n", vcp);
 
 	/*
 	 * Make sure VCC has been closed

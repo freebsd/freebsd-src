@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: uniarp.c,v 1.10 1998/07/20 18:58:45 mks Exp $
+ *	@(#) $Id: uniarp.c,v 1.1 1998/09/15 08:23:09 phk Exp $
  *
  */
 
@@ -36,7 +36,7 @@
  */
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: uniarp.c,v 1.10 1998/07/20 18:58:45 mks Exp $";
+static char *RCSid = "@(#) $Id: uniarp.c,v 1.1 1998/09/15 08:23:09 phk Exp $";
 #endif
 
 #include <netatm/kern_include.h>
@@ -181,7 +181,7 @@ uniarp_ipact(uip)
 {
 	struct unisig		*usp;
 
-	ATM_DEBUG1("uniarp_ipact: uip=0x%x\n", (int)uip);
+	ATM_DEBUG1("uniarp_ipact: uip=%p\n", uip);
 
 	/*
 	 * Set initial state
@@ -229,7 +229,7 @@ uniarp_ipdact(uip)
 	struct uniarp		*uap, *unext;
 	int	i;
 
-	ATM_DEBUG1("uniarp_ipdact: uip=0x%x\n", (int)uip);
+	ATM_DEBUG1("uniarp_ipdact: uip=%p\n", uip);
 
 	/* 
 	 * Delete all interface entries
@@ -337,7 +337,7 @@ uniarp_ifaddr(sip)
 	struct atm_nif		*nip;
 	struct uniip		*uip;
 
-	ATM_DEBUG1("uniarp_ifaddr: sip=0x%x\n", (int)sip);
+	ATM_DEBUG1("uniarp_ifaddr: sip=%p\n", sip);
 
 	/*
 	 * We've got to handle this for every network interface
@@ -406,7 +406,7 @@ uniarp_server_mode(uip)
 	struct uniarp	*uap, *unext;
 	int		i;
 
-	ATM_DEBUG1("uniarp_server_mode: uip=0x%x\n", (int)uip);
+	ATM_DEBUG1("uniarp_server_mode: uip=%p\n", uip);
 
 	/*
 	 * Handle client/server mode changes first
@@ -525,8 +525,8 @@ uniarp_client_mode(uip, aap)
 	struct ipvcc		*ivp, *inext;
 	int			i;
 
-	ATM_DEBUG2("uniarp_client_mode: uip=0x%x, atm=(%s,-)\n",
-		(int)uip, aap ? unisig_addr_print(aap): "-");
+	ATM_DEBUG2("uniarp_client_mode: uip=%p, atm=(%s,-)\n",
+		uip, aap ? unisig_addr_print(aap): "-");
 
 	/*
 	 * Handle client/server mode changes first
@@ -747,7 +747,7 @@ uniarp_iftimeout(tip)
 	uip = (struct uniip *)
 		((caddr_t)tip - (int)(&((struct uniip *)0)->uip_arptime));
 
-	ATM_DEBUG2("uniarp_iftimeout: uip=0x%x, state=%d\n", (int)uip, 
+	ATM_DEBUG2("uniarp_iftimeout: uip=%p, state=%d\n", uip, 
 		uip->uip_arpstate);
 
 	/*

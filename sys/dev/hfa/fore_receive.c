@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: fore_receive.c,v 1.10 1998/07/17 20:19:35 root Exp $
+ *	@(#) $Id: fore_receive.c,v 1.1 1998/09/15 08:22:55 phk Exp $
  *
  */
 
@@ -36,7 +36,7 @@
  */
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: fore_receive.c,v 1.10 1998/07/17 20:19:35 root Exp $";
+static char *RCSid = "@(#) $Id: fore_receive.c,v 1.1 1998/09/15 08:22:55 phk Exp $";
 #endif
 
 #include <dev/hfa/fore_include.h>
@@ -278,7 +278,7 @@ retry:
 				if (vcp->vc_nif)
 					vcp->vc_nif->nif_if.if_ierrors++;
 			}
-			ATM_DEBUG1("fore receive error: hdr=0x%x\n", hdr);
+			ATM_DEBUG1("fore receive error: hdr=0x%lx\n", hdr);
 			error = 1;
 		}
 
@@ -316,8 +316,8 @@ retry:
 
 			default:
 				log(LOG_ERR,
-					"fore_recv_drain: bhp=0x%x type=0x%x\n",
-					(int)bhp, bhp->bh_type);
+					"fore_recv_drain: bhp=%p type=0x%x\n",
+					bhp, bhp->bh_type);
 				panic("fore_recv_drain: bad buffer type");
 			}
 

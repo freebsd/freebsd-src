@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: sscf_uni.c,v 1.6 1998/03/24 21:10:38 mks Exp $
+ *	@(#) $Id: sscf_uni.c,v 1.1 1998/09/15 08:23:06 phk Exp $
  *
  */
 
@@ -36,7 +36,7 @@
  */
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: sscf_uni.c,v 1.6 1998/03/24 21:10:38 mks Exp $";
+static char *RCSid = "@(#) $Id: sscf_uni.c,v 1.1 1998/09/15 08:23:06 phk Exp $";
 #endif
 
 #include <netatm/kern_include.h>
@@ -188,7 +188,7 @@ sscf_uni_inst(ssp, cvp)
 	struct univcc	*uvp;
 	int		err;
 
-	ATM_DEBUG2("sscf_uni_inst: ssp=0x%x, cvp=0x%x\n", ssp, cvp);
+	ATM_DEBUG2("sscf_uni_inst: ssp=%p, cvp=%p\n", ssp, cvp);
 
 	/*
 	 * Validate lower SAP

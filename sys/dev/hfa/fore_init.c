@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: fore_init.c,v 1.7 1997/05/06 22:09:43 mks Exp $
+ *	@(#) $Id: fore_init.c,v 1.1 1998/09/15 08:22:55 phk Exp $
  *
  */
 
@@ -36,7 +36,7 @@
  */
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: fore_init.c,v 1.7 1997/05/06 22:09:43 mks Exp $";
+static char *RCSid = "@(#) $Id: fore_init.c,v 1.1 1998/09/15 08:22:55 phk Exp $";
 #endif
 
 #include <dev/hfa/fore_include.h>
@@ -122,7 +122,7 @@ fore_initialize(fup)
 		errmsg = "unsupported microcode version";
 		goto failed;
 	}
-	sprintf(fup->fu_config.ac_firm_vers, "%d.%d.%d",
+	sprintf(fup->fu_config.ac_firm_vers, "%ld.%ld.%ld",
 		(vers >> 16) & 0xff, (vers >> 8) & 0xff, vers & 0xff);
 
 #ifdef notdef
@@ -211,21 +211,21 @@ fore_initialize_complete(fup)
 	if (CP_READ(aap->aali_init.init_status) & QSTAT_ERROR) {
 
 		log(LOG_ERR, 
-			"fore initialization failed: intf=%s%d, hbeat=0x%x\n",
+			"fore initialization failed: intf=%s%d, hbeat=0x%lx\n",
 			fup->fu_pif.pif_name, fup->fu_pif.pif_unit,
 			CP_READ(aap->aali_heartbeat));
 		return;
 	}
 
-	ATM_DEBUG1("heap=0x%x\n", aap->aali_heap);
-	ATM_DEBUG1("heaplen=0x%x\n", aap->aali_heaplen);
-	ATM_DEBUG1("cmd_q=0x%x\n", aap->aali_cmd_q);
-	ATM_DEBUG1("xmit_q=0x%x\n", aap->aali_xmit_q);
-	ATM_DEBUG1("recv_q=0x%x\n", aap->aali_recv_q);
-	ATM_DEBUG1("buf1s_q=0x%x\n", aap->aali_buf1s_q);
-	ATM_DEBUG1("buf1l_q=0x%x\n", aap->aali_buf1l_q);
-	ATM_DEBUG1("buf2s_q=0x%x\n", aap->aali_buf2s_q);
-	ATM_DEBUG1("buf2l_q=0x%x\n", aap->aali_buf2l_q);
+	ATM_DEBUG1("heap=0x%lx\n", aap->aali_heap);
+	ATM_DEBUG1("heaplen=0x%lx\n", aap->aali_heaplen);
+	ATM_DEBUG1("cmd_q=0x%lx\n", aap->aali_cmd_q);
+	ATM_DEBUG1("xmit_q=0x%lx\n", aap->aali_xmit_q);
+	ATM_DEBUG1("recv_q=0x%lx\n", aap->aali_recv_q);
+	ATM_DEBUG1("buf1s_q=0x%lx\n", aap->aali_buf1s_q);
+	ATM_DEBUG1("buf1l_q=0x%lx\n", aap->aali_buf1l_q);
+	ATM_DEBUG1("buf2s_q=0x%lx\n", aap->aali_buf2s_q);
+	ATM_DEBUG1("buf2l_q=0x%lx\n", aap->aali_buf2l_q);
 
 	/*
 	 * Initialize all of our queues

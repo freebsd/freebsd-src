@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: unisig_msg.c,v 1.10 1998/08/26 23:29:22 mks Exp $
+ *	@(#) $Id: unisig_msg.c,v 1.1 1998/09/15 08:23:11 phk Exp $
  *
  */
 
@@ -36,7 +36,7 @@
  */
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: unisig_msg.c,v 1.10 1998/08/26 23:29:22 mks Exp $";
+static char *RCSid = "@(#) $Id: unisig_msg.c,v 1.1 1998/09/15 08:23:11 phk Exp $";
 #endif
 
 #include <netatm/kern_include.h>
@@ -183,7 +183,7 @@ unisig_send_msg(usp, msg)
 	int		err = 0;
 	struct usfmt	usf;
 
-	ATM_DEBUG2("unisig_send_msg: msg=0x%x, type=%d\n", msg,
+	ATM_DEBUG2("unisig_send_msg: msg=%p, type=%d\n", msg,
 			msg->msg_type);
 
 	/*
@@ -257,7 +257,7 @@ unisig_send_setup(usp, uvp)
 	struct unisig_msg	*setup;
 	Atm_attributes		*ap = &uvp->uv_connvc->cvc_attr;
 
-	ATM_DEBUG1("unisig_send_setup: uvp=0x%x\n", (int) uvp);
+	ATM_DEBUG1("unisig_send_setup: uvp=%p\n", uvp);
 
 	/*
 	 * Make sure required connection attriutes are set
@@ -355,8 +355,8 @@ unisig_send_release(usp, uvp, msg, cause)
 	struct unisig_msg	*rls_msg;
 	struct ie_generic	*cause_ie;
 
-	ATM_DEBUG2("unisig_send_release: usp=0x%x, uvp=0x%x\n",
-			(int) usp, (int) uvp);
+	ATM_DEBUG2("unisig_send_release: usp=%p, uvp=%p\n",
+			usp, uvp);
 
 	/*
 	 * Get memory for a RELEASE message
@@ -431,8 +431,8 @@ unisig_send_release_complete(usp, uvp, msg, cause)
 	struct unisig_msg	*rls_cmp;
 	struct ie_generic	*cause_ie;
 
-	ATM_DEBUG4("unisig_send_release_complete usp=0x%x, uvp=0x%x, msg=0x%x, cause=%d\n",
-			(int) usp, (int) uvp, (int) msg, cause);
+	ATM_DEBUG4("unisig_send_release_complete usp=%p, uvp=%p, msg=%p, cause=%d\n",
+			usp, uvp, msg, cause);
 
 	/*
 	 * Get memory for a RELEASE COMPLETE message
@@ -510,8 +510,8 @@ unisig_send_status(usp, uvp, msg, cause)
 	struct unisig_msg	*stat_msg;
 	struct ie_generic	*cause_ie, *clst_ie, *iep;
 
-	ATM_DEBUG4("unisig_send_status: usp=0x%x, uvp=0x%x, msg=0x%x, cause=%d\n",
-			(int) usp, (int) uvp, (int) msg, cause);
+	ATM_DEBUG4("unisig_send_status: usp=%p, uvp=%p, msg=%p, cause=%d\n",
+			usp, uvp, msg, cause);
 
 	/*
 	 * Get memory for a STATUS message
@@ -621,7 +621,7 @@ unisig_rcv_restart(usp, msg)
 	struct unisig_msg	*rsta_msg;
 	int			s;
 
-	ATM_DEBUG2("unisig_rcv_restart: usp=0x%x, msg=0x%x\n",
+	ATM_DEBUG2("unisig_rcv_restart: usp=%p, msg=%p\n",
 			usp, msg);
 
 	/*
@@ -709,7 +709,7 @@ unisig_rcv_setup(usp, msg)
 	struct unisig_vccb	*uvp = NULL;
 	struct ie_generic	*iep;
 
-	ATM_DEBUG2("unisig_rcv_setup: usp=0x%x, msg=0x%x\n", usp, msg);
+	ATM_DEBUG2("unisig_rcv_setup: usp=%p, msg=%p\n", usp, msg);
 
 	/*
 	 * If we already have a VCC with the call reference,
@@ -816,7 +816,7 @@ unisig_rcv_msg(usp, m)
 	struct unisig_vccb	*uvp = 0;
 	struct ie_generic	*iep;
 
-	ATM_DEBUG2("unisig_rcv_msg: bfr=0x%x, len=%d\n", (int)m, KB_LEN(m));
+	ATM_DEBUG2("unisig_rcv_msg: bfr=%p, len=%d\n", m, KB_LEN(m));
 
 #ifdef NOTDEF
 	unisig_print_mbuf(m);
