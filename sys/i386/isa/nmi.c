@@ -49,14 +49,15 @@
 #include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/syslog.h>
+#include <sys/ipl.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/unistd.h>
 #include <sys/errno.h>
 #include <sys/interrupt.h>
-#include <machine/ipl.h>
 #include <machine/md_var.h>
 #include <machine/segments.h>
 #include <sys/bus.h> 
@@ -690,8 +691,23 @@ inthand_remove(struct intrec *idesc)
 		ih->next = ih->next->next;
 			}
 	
-	if (ithd->it_ih == NULL)	/* no handlers left, */
+	if (ithd->it_ih == NULL) {	/* no handlers left, */
 		icu_unset(ithd->irq, idesc->handler);
+		ithds[ithd->irq] = NULL;
+
+		mtx_enter(&sched_lock, MTX_SPIN);
+		if (ithd->it_proc->p_stat == SWAIT) {
+			ithd->it_proc->p_stat = SRUN;
+			setrunqueue(ithd->it_proc);
+			/*
+			 * We don't do an ast here because we really
+			 * don't care when it runs next.
+			 *
+			 * XXX: should we lower the threads priority?
+			 */
+		}
+		mtx_exit(&sched_lock, MTX_SPIN);
+	}
 	free(idesc, M_DEVBUF);
 	return (0);
 }
