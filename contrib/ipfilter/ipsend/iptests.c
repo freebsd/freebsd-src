@@ -4,6 +4,8 @@
  * Redistribution and use in source and binary forms are permitted
  * provided that this notice is preserved and due credit is given
  * to the original author and the contributors.
+ *
+ * $FreeBSD$
  */
 #if !defined(lint)
 static const char sccsid[] = "%W% %G% (C)1995 Darren Reed";
@@ -16,6 +18,7 @@ static const char rcsid[] = "@(#)$Id: iptests.c,v 2.1 1999/08/04 17:31:09 darren
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/param.h>
+#include <sys/lock.h>
 #define _KERNEL
 #define KERNEL
 #if !defined(solaris) && !defined(linux) && !defined(__sgi)
