@@ -404,6 +404,7 @@ product IODATA USBETTX		0x0904	USB ETTX
 
 /* Iomega products */
 product IOMEGA ZIP100		0x0001	Zip 100
+product IOMEGA ZIP250		0x0030	Zip 250
 
 /* Kawasaki products */
 product KLSI DUH3E10BT		0x0008	USB ethernet controller engine
