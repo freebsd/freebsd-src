@@ -28,6 +28,7 @@
 #include <vm/vm.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
+#include <vm/vm_param.h>
 #include <vm/vm_map.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
@@ -253,6 +254,112 @@ zbootinit(vm_zone_t z, char *name, int size, void *item, int nitems)
 }
 
 /*
+ * Destroy a zone, freeing the allocated memory.
+ * This does not do any locking for the zone; make sure it is not used
+ * any more before calling. All zalloc()'ated memory in the zone must have
+ * been zfree()'d.
+ * zdestroy() may not be used with zbootinit()'ed zones.
+ */
+void
+zdestroy(vm_zone_t z)
+{
+	int i, nitems, nbytes;
+	void *item, *min, **itp;
+	vm_map_t map;
+	vm_map_entry_t entry;
+	vm_object_t obj;
+	vm_pindex_t pindex;
+	vm_prot_t prot;
+	boolean_t wired;
+
+	GIANT_REQUIRED;
+	KASSERT(z != NULL, ("invalid zone"));
+	/*
+	 * This is needed, or the algorithm used for non-interrupt zones will
+	 * blow up badly.
+	 */
+	KASSERT(z->ztotal == z->zfreecnt,
+	    ("zdestroy() used with an active zone"));
+	KASSERT((z->zflags & ZONE_BOOT) == 0,
+	    ("zdestroy() used with a zbootinit()'ed zone"))
+
+	if (z->zflags & ZONE_INTERRUPT) {
+		kmem_free(kernel_map, z->zkva, z->zpagemax * PAGE_SIZE);
+		vm_object_deallocate(z->zobj);
+		atomic_subtract_int(&zone_kmem_kvaspace,
+		    z->zpagemax * PAGE_SIZE);
+		atomic_subtract_int(&zone_kmem_pages,
+		    z->zpagecount);
+		cnt.v_wire_count -= z->zpagecount;
+	} else {
+		/*
+		 * This is evil h0h0 magic:
+		 * The items may be in z->zitems in a random oder; we have to
+		 * free the start of an allocated area, but do not want to save
+		 * extra information. Additionally, we may not access items that
+		 * were in a freed area.
+		 * This is achieved in the following way: the smallest address
+		 * is selected, and, after removing all items that are in a
+		 * range of z->zalloc * PAGE_SIZE (one allocation unit) from
+		 * it, kmem_free is called on it (since it is the smallest one,
+		 * it must be the start of an area). This is repeated until all
+		 * items are gone.
+		 */
+		nbytes = z->zalloc * PAGE_SIZE;
+		nitems = nbytes / z->zsize;
+		while (z->zitems != NULL) {
+			/* Find minimal element. */
+			item = min = z->zitems;
+			while (item != NULL) {
+				if (item < min)
+					min = item;
+				item = ((void **)item)[0];
+			}
+			/* Free. */
+			itp = &z->zitems;
+			i = 0;
+			while (*itp != NULL && i < nitems) {
+				if ((char *)*itp >= (char *)min &&
+				    (char *)*itp < (char *)min + nbytes) {
+					*itp = ((void **)*itp)[0];
+					i++;
+				} else
+					itp = &((void **)*itp)[0];
+			}
+			KASSERT(i == nitems, ("zdestroy(): corrupt zone"));
+			/*
+			 * We can allocate from kmem_map (kmem_malloc) or
+			 * kernel_map (kmem_alloc).
+			 * kmem_map is a submap of kernel_map, so we can use
+			 * vm_map_lookup to retrieve the map we need to use.
+			 */
+			map = kernel_map;
+			if (vm_map_lookup(&map, (vm_offset_t)min, VM_PROT_NONE,
+			    &entry, &obj, &pindex, &prot, &wired) !=
+			    KERN_SUCCESS)
+				panic("zalloc mapping lost");
+			/* Need to unlock. */
+			vm_map_lookup_done(map, entry);
+			if (map == kmem_map) {
+				atomic_subtract_int(&zone_kmem_pages,
+				    z->zalloc);
+			} else if (map == kernel_map) {
+				atomic_subtract_int(&zone_kern_pages,
+				    z->zalloc);
+			} else
+				panic("zdestroy(): bad map");
+			kmem_free(map, (vm_offset_t)min, nbytes);
+		}
+	}
+
+	mtx_lock(&zone_mtx);
+	SLIST_REMOVE(&zlist, z, vm_zone, zent);
+	mtx_unlock(&zone_mtx);
+	mtx_destroy(&z->zmtx);
+	free(z, M_ZONE);
+}
+
+/*
  * Grow the specified zone to accomodate more items.
  */
 static void *
@@ -285,6 +392,7 @@ _zget(vm_zone_t z)
 		}
 		nitems = (i * PAGE_SIZE) / z->zsize;
 	} else {
+		/* Please check zdestroy() when changing this! */
 		nbytes = z->zalloc * PAGE_SIZE;
 
 		/*
