@@ -61,6 +61,8 @@ static char *members[MAXGRP];
 #define	MAXLINELENGTH	1024
 static char line[MAXLINELENGTH];
 
+#define GROUP_IGNORE_COMMENTS	1	/* allow comments in /etc/group */
+
 struct group *
 getgrent()
 {
@@ -236,6 +238,15 @@ grscan(search, gid, name)
 				;
 			continue;
 		}
+
+#ifdef GROUP_IGNORE_COMMENTS
+		for (cp = line; *cp != '\0'; cp++)
+			if (*cp != ' ' && *cp != '\t')
+				break;
+		if (*cp == '#' || *cp == '\0')
+			continue;
+#endif
+
 		if ((_gr_group.gr_name = strsep(&bp, ":\n")) == NULL) {
 			/* this may be benign - eg. empty line at end of file */
 		/*	syslog(LOG_ALERT, "/etc/group is corrupt: group field is empty"); */
