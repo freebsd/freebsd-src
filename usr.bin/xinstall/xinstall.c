@@ -40,7 +40,7 @@ static const char copyright[] =
 #ifndef lint
 /*static char sccsid[] = "From: @(#)xinstall.c	8.1 (Berkeley) 7/21/93";*/
 static const char rcsid[] =
-	"$Id: xinstall.c,v 1.5 1996/02/08 06:17:50 pst Exp $";
+	"$Id: xinstall.c,v 1.6 1996/04/06 01:50:40 julian Exp $";
 #endif /* not lint */
 
 /*-
@@ -172,8 +172,10 @@ main(argc, argv)
 
 #ifdef ALLOW_NUMERIC_IDS
 
-	uid = resolve_uid(owner);
-	gid = resolve_gid(group);
+	if (owner)
+		uid = resolve_uid(owner);
+	if (group)
+		gid = resolve_gid(group);
 
 #else
 
