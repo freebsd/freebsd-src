@@ -235,9 +235,6 @@ ENTRY(cpu_switch, 0)
 
 1:
 	st8	[r14]=ret0		// set r13->gd_curproc
-	add	r15=@gprel(want_resched),gp
-	;;
-	st4	[r15]=r0		// we've rescheduled
 	mov	ar.k7=ret0
 	mov	r4=ret0			// save from call
 	;; 
