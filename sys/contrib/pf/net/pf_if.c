@@ -822,7 +822,14 @@ pfi_if_create(const char *name, struct pfi_kif *q, int flags)
 	p->pfik_flags = flags;
 	p->pfik_parent = q;
 #ifdef __FreeBSD__
-	p->pfik_tzero = time_second;
+	/*
+	 * It seems that the value of time_second is in unintialzied state when
+	 * pf sets interface statistics clear time in boot phase if pf was
+	 * statically linked to kernel. Instead of setting the bogus time value
+	 * have pfi_get_ifaces handle this case. In pfi_get_ifaces it uses
+	 * boottime.tv_sec if it sees the time is 0.
+	 */
+	p->pfik_tzero = time_second > 1 ? time_second : 0;
 #else
 	p->pfik_tzero = time.tv_sec;
 #endif
