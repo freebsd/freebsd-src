@@ -1,0 +1,158 @@
+Known problems:
+
+* The diffutils 2.7 documentation for `patch' is obsolete; this should be
+  fixed in diffutils 2.8.  Until then, see `patch --help' or `man patch'.
+
+Change in version 2.4:
+
+* New options:
+  -Z or --set-utc sets times of patched files, assuming diff uses UTC (GMT).
+  -T or --set-time is similar, assuming local time (not recommended).
+  --backup-if-mismatch makes a backup if the patch does not match exactly
+  --no-backup-if-mismatch makes a backup only if otherwise requested
+
+* The default is now --backup-if-mismatch unless POSIXLY_CORRECT is set.
+
+* The -B or --prefix, -Y or --basename-prefix, and -z or --suffix options
+  no longer affect whether backups are made (as they did in patch 2.2 and 2.3);
+  they now merely specify the file names used when simple backups are made.
+
+* When patching a nonexistent file and making backups, an empty backup file
+  is now made (just as with traditional patch); but the backup file is
+  unreadable, as a way of indicating that it represents a nonexistent file.
+
+* `patch' now matches against empty and nonexistent files more generously.
+  A patch against an empty file applies to a nonexistent file, and vice versa.
+
+* -g or --get and PATCH_GET now have a numeric value that specifies
+  whether `patch' is getting files.
+  If the value is positive, working files are gotten from RCS or SCCS files;
+  if zero, `patch' ignores RCS and SCCS and working files are not gotten;
+  and if negative, `patch' asks the user whether to get each file.
+  The default is normally negative, but it is zero if POSIXLY_CORRECT is set.
+
+* The -G or --no-get option introduced in GNU patch 2.3 has been removed;
+  use -g0 instead.
+
+* The method used to intuit names of files to be patched is changed again:
+  `Index:' lines are normally ignored for context diffs,
+  and RCS and SCCS files are normally looked for when files do not exist.
+  The complete new method is described in the man page.
+
+* By default, `patch' is now more verbose when patches do not match exactly.
+
+* The manual page has a new COMPATIBILITY ISSUES section.
+
+Changes in version 2.3:
+
+* Unless the POSIXLY_CORRECT environment variable is set:
+
+  - `patch' now distinguishes more accurately between empty and
+    nonexistent files if the input is a context diff.
+    A file is assumed to not exist if its context diff header
+    suggests that it is empty, and if the header timestamp
+    looks like it might be equivalent to 1970-01-01 00:00:00 UTC.
+  - Files that ``become nonexistent'' after patching are now removed.
+    When a file is removed, any empty ancestor directories are also removed.
+
+* Files are now automatically gotten from RCS and SCCS
+  if the -g or --get option is specified.
+  (The -G or --no-get option, also introduced in 2.3, was withdrawn in 2.4.)
+
+* If the PATCH_VERSION_CONTROL environment variable is set,
+  it overrides the VERSION_CONTROL environment variable.
+
+* The method used to intuit names of files to be patched is changed.
+  (It was further revised in 2.4; see above.)
+
+* The new --binary option makes `patch' read and write files in binary mode.
+  This option has no effect on POSIX-compliant hosts;
+  it is useful only in on operating systems like DOS
+  that distinguish between text and binary I/O.
+
+* The environment variables TMP and TEMP are consulted for the name of
+  the temporary directory if TMPDIR is not set.
+
+* A port to MS-DOS and MS-Windows is available; see the `pc' directory.
+
+* Backup file names are no longer ever computed by uppercasing characters,
+  since this isn't portable to systems with case-insensitive file names.
+
+Changes in version 2.2:
+
+* Arbitrary limits removed (e.g. line length, file name length).
+
+* On POSIX.1-compliant hosts, you can now patch binary files using the output
+  of GNU `diff -a'.
+
+* New options:
+  --dry-run
+  --help
+  --verbose
+  -i FILE or --input=FILE
+  -y PREF or --basename-prefix=PREF
+
+* patch is now quieter by default; use --verbose for the old chatty behavior.
+
+* Patch now complies better with POSIX.2 if your host complies with POSIX.1.
+
+  Therefore:
+  - By default, no backups are made.
+    (But this was changed again in patch 2.4; see above.)
+  - The simple backup file name for F defaults to F.orig
+    regardless of whether the file system supports long file names,
+    and F~ is used only if F.orig is too long for that particular file.
+  - Similarly for the reject file names F.rej and F#.
+
+  Also:
+  - The pseudo-option `+' has been withdrawn.
+  - -b is equivalent to --version-control=simple;
+    `-z SUFF' has the meaning that `-b SUFF' used to.
+  - Names of files to be patched are taken first from *** line and then from
+    --- line of context diffs; then from Index: line; /dev/tty is
+    consulted if none of the above files exist.  However, if the patch
+    appears to create a file, the file does not have to exist: instead,
+    the first name with the longest existing directory prefix is taken.
+    (These rules were changed again in patch 2.3 and 2.4; see above.)
+  - Exit status 0 means success, 1 means hunks were rejected, 2 means trouble.
+  - `-l' ignores changes only in spaces and tabs, not in other white space.
+  - If no `-p' option is given, `-pINFINITY' is assumed, instead of trying
+    to guess the proper value.
+  - `-p' now requires an operand; use `-p 0' to get the effect of the old plain
+    `-p' option.
+  - `-p' treats two or more adjacent slashes as if it were one slash.
+  - The TERM signal is caught.
+  - New option `-i F' reads patch from F instead of stdin.
+
+* The `patch' options and build procedure conform to current GNU standards.
+  For example, the `--version' option now outputs copyright information.
+
+* When the patch is creating a file, but a nonempty file of that name already
+  exists, `patch' now asks for confirmation before patching.
+
+* RCS is used only if the version control method is `existing'
+  and there is already an RCS file.  Similarly for SCCS.
+  (But this was changed again in patch 2.3 and 2.4; see above.)
+
+* Copyright notices have been clarified.  Every file in this version of `patch'
+  can be distributed under the GNU General Public License.  See README for
+  details.
+
+Changes in version 2.1:
+
+* A few more portability bugs have been fixed.  The version number has
+  been changed from 2.0.12g11 to 2.1, because the name
+  `patch-2.0.12g10' was too long for traditional Unix file systems.
+
+Versions 2.0.12g9 through 2.0.12g11 fix various portability bugs.
+
+Changes in version 2.0.12g8:
+
+* Start of the 12g series, with a GNU-style configure script and
+  long-named options.
+* Added the -t --batch option, similar to -f.
+* Improved detection of files that are locked under RCS or SCCS.
+* Reinstate the -E option to remove output files that are empty after
+  being patched.
+* Print the system error message when system calls fail.
+* Fixed various bugs and portability problems.
