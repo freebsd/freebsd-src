@@ -17,7 +17,7 @@
  *
  * From: Version 2.4, Thu Apr 30 17:17:21 MSD 1997
  *
- * $Id: if_spppsubr.c,v 1.47 1998/12/11 21:40:13 phk Exp $
+ * $Id: if_spppsubr.c,v 1.48 1998/12/16 18:42:30 phk Exp $
  */
 
 #include <sys/param.h>
@@ -95,11 +95,11 @@
 #include <net/if_sppp.h>
 
 #if defined (__FreeBSD__)
-# define UNTIMEOUT(fun, arg, handle)	\
-	untimeout(fun, arg, handle)
+# define UNTIMEOUT(fun, arg, handle) untimeout(fun, arg, handle)
+# define TIMEOUT(fun, arg1, arg2, handle) handle = timeout(fun, arg1, arg2)
 #else
-# define UNTIMEOUT(fun, arg, handle)	\
-	untimeout(fun, arg)
+# define UNTIMEOUT(fun, arg, handle) untimeout(fun, arg)
+# define TIMEOUT(fun, arg1, arg2, handle) timeout(fun, arg1, arg2)
 #endif
 #define MAXALIVECNT     3               /* max. alive packets */
 
@@ -771,17 +771,17 @@ sppp_attach(struct ifnet *ifp)
 
 	/* Initialize keepalive handler. */
 	if (! spppq)
-#if defined (__FreeBSD__)
-		keepalive_ch = 
-#endif
-		timeout(sppp_keepalive, 0, hz * 10);
+		TIMEOUT(sppp_keepalive, 0, hz * 10, keepalive_ch);
 
 	/* Insert new entry into the keepalive list. */
 	sp->pp_next = spppq;
 	spppq = sp;
 
+	sp->pp_if.if_mtu = PP_MTU;
+	sp->pp_if.if_flags = IFF_POINTOPOINT | IFF_MULTICAST;
 	sp->pp_if.if_type = IFT_PPP;
 	sp->pp_if.if_output = sppp_output;
+	sp->pp_flags = PP_KEEPALIVE;
 	sp->pp_fastq.ifq_maxlen = 32;
 	sp->pp_cpq.ifq_maxlen = 20;
 	sp->pp_loopcnt = 0;
@@ -1708,10 +1708,8 @@ sppp_to_event(const struct cp *cp, struct sppp *sp)
 		case STATE_STOPPING:
 			sppp_cp_send(sp, cp->proto, TERM_REQ, ++sp->pp_seq,
 				     0, 0);
-#if defined (__FreeBSD__)
-			sp->ch[cp->protoidx] =
-#endif
-			timeout(cp->TO, (void *)sp, sp->lcp.timeout);
+			TIMEOUT(cp->TO, (void *)sp, sp->lcp.timeout, 
+			    sp->ch[cp->protoidx]);
 			break;
 		case STATE_REQ_SENT:
 		case STATE_ACK_RCVD:
@@ -1721,10 +1719,8 @@ sppp_to_event(const struct cp *cp, struct sppp *sp)
 			break;
 		case STATE_ACK_SENT:
 			(cp->scr)(sp);
-#if defined (__FreeBSD__)
-			sp->ch[cp->protoidx] = 
-#endif
-			timeout(cp->TO, (void *)sp, sp->lcp.timeout);
+			TIMEOUT(cp->TO, (void *)sp, sp->lcp.timeout,
+			    sp->ch[cp->protoidx]);
 			break;
 		}
 
@@ -1753,10 +1749,8 @@ sppp_cp_change_state(const struct cp *cp, struct sppp *sp, int newstate)
 	case STATE_REQ_SENT:
 	case STATE_ACK_RCVD:
 	case STATE_ACK_SENT:
-#if defined (__FreeBSD__)
-		sp->ch[cp->protoidx]  =
-#endif
-		timeout(cp->TO, (void *)sp, sp->lcp.timeout);
+		TIMEOUT(cp->TO, (void *)sp, sp->lcp.timeout, 
+		    sp->ch[cp->protoidx]);
 		break;
 	}
 }
@@ -3253,11 +3247,7 @@ sppp_chap_tlu(struct sppp *sp)
 		 * a number between 300 and 810 seconds.
 		 */
 		i = 300 + ((unsigned)(random() & 0xff00) >> 7);
-
-#if defined (__FreeBSD__)
-		sp->ch[IDX_CHAP] =
-#endif
-		timeout(chap.TO, (void *)sp, i * hz);
+		TIMEOUT(chap.TO, (void *)sp, i * hz, sp->ch[IDX_CHAP]);
 	}
 
 	if (debug) {
@@ -3522,10 +3512,8 @@ sppp_pap_open(struct sppp *sp)
 	if (sp->myauth.proto == PPP_PAP) {
 		/* we are peer, send a request, and start a timer */
 		pap.scr(sp);
-#if defined (__FreeBSD__)
-		sp->pap_my_to_ch =
-#endif
-		timeout(sppp_pap_my_TO, (void *)sp, sp->lcp.timeout);
+		TIMEOUT(sppp_pap_my_TO, (void *)sp, sp->lcp.timeout,
+		    sp->pap_my_to_ch);
 	}
 }
 
@@ -3800,10 +3788,7 @@ sppp_keepalive(void *dummy)
 		}
 	}
 	splx(s);
-#if defined (__FreeBSD__)
-	keepalive_ch =
-#endif
-	timeout(sppp_keepalive, 0, hz * 10);
+	TIMEOUT(sppp_keepalive, 0, hz * 10, keepalive_ch);
 }
 
 /*
