@@ -911,8 +911,8 @@ ccdstart(struct ccd_s *cs, struct bio *bp)
 			 * also try to avoid hogging.
 			 */
 			if (cbp[0]->cb_buf.bio_cmd == BIO_WRITE) {
-				BIO_STRATEGY(&cbp[0]->cb_buf, 0);
-				BIO_STRATEGY(&cbp[1]->cb_buf, 0);
+				BIO_STRATEGY(&cbp[0]->cb_buf);
+				BIO_STRATEGY(&cbp[1]->cb_buf);
 			} else {
 				int pick = cs->sc_pick;
 				daddr_t range = cs->sc_size / 16;
@@ -923,13 +923,13 @@ ccdstart(struct ccd_s *cs, struct bio *bp)
 					cs->sc_pick = pick = 1 - pick;
 				}
 				cs->sc_blk[pick] = bn + btodb(rcount);
-				BIO_STRATEGY(&cbp[pick]->cb_buf, 0);
+				BIO_STRATEGY(&cbp[pick]->cb_buf);
 			}
 		} else {
 			/*
 			 * Not mirroring
 			 */
-			BIO_STRATEGY(&cbp[0]->cb_buf, 0);
+			BIO_STRATEGY(&cbp[0]->cb_buf);
 		}
 		bn += btodb(rcount);
 		addr += rcount;
@@ -1216,7 +1216,7 @@ ccdiodone(struct bio *ibp)
 				if (cbp->cb_buf.bio_flags & BIO_ERROR) {
 					cbp->cb_mirror->cb_pflags |= 
 					    CCDPF_MIRROR_DONE;
-					BIO_STRATEGY(&cbp->cb_mirror->cb_buf, 0);
+					BIO_STRATEGY(&cbp->cb_mirror->cb_buf);
 					putccdbuf(cbp);
 					splx(s);
 					return;
