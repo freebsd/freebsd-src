@@ -799,7 +799,7 @@ main(argc, argv)
 	 * <directory>:<directory>:<directory>...
 	 */
 	if (Var_Exists("VPATH", VAR_CMD)) {
-		char *vpath, *path1, *cp1, savec;
+		char *vpath, savec;
 		/*
 		 * GCC stores string constants in read-only memory, but
 		 * Var_Subst will want to write this thing, so store it
@@ -808,18 +808,18 @@ main(argc, argv)
 		static char VPATH[] = "${VPATH}";
 
 		vpath = Var_Subst(NULL, VPATH, VAR_CMD, FALSE);
-		path1 = vpath;
+		path = vpath;
 		do {
 			/* skip to end of directory */
-			for (cp1 = path1; *cp1 != ':' && *cp1 != '\0'; cp1++)
+			for (cp = path; *cp != ':' && *cp != '\0'; cp++)
 				continue;
 			/* Save terminator character so know when to stop */
-			savec = *cp1;
-			*cp1 = '\0';
+			savec = *cp;
+			*cp = '\0';
 			/* Add directory to search path */
-			Dir_AddDir(dirSearchPath, path1);
-			*cp1 = savec;
-			path1 = cp1 + 1;
+			Dir_AddDir(dirSearchPath, path);
+			*cp = savec;
+			path = cp + 1;
 		} while (savec == ':');
 		(void)free(vpath);
 	}
