@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: devicename.c,v 1.1.1.1 1998/08/21 03:17:41 msmith Exp $
  */
 
 #include <stand.h>
@@ -224,7 +224,7 @@ i386_setcurrdev(struct env_var *ev, int flags, void *value)
 {
     struct i386_devdesc	*ncurr;
     int			rv;
-    
+
     if ((rv = i386_parsedev(&ncurr, value, NULL)) != 0)
 	return(rv);
     free(ncurr);
