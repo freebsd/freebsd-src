@@ -143,11 +143,6 @@ awi_pccard_attach(device_t dev)
 
 	ifp->if_name = "awi";
 	ifp->if_unit = device_get_unit(dev);
-	if (ifp->if_name == NULL) {
-		printf("awi%d: awi_pccard_attach: cannot get device name\n",
-		    device_get_unit(dev));
-		goto fail;
-	}
 	snprintf(sc->sc_dev.dv_xname, sizeof(sc->sc_dev.dv_xname),
 	    "%s%d", ifp->if_name, ifp->if_unit);
 
