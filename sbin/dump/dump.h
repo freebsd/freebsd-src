@@ -31,6 +31,8 @@
  * SUCH DAMAGE.
  *
  *	@(#)dump.h	8.2 (Berkeley) 4/28/95
+ *
+ * $FreeBSD$
  */
 
 #define MAXINOPB	(MAXBSIZE / sizeof(struct dinode))
@@ -166,11 +168,6 @@ struct dumpdates {
 	char	dd_level;
 	time_t	dd_ddate;
 };
-struct dumptime {
-	struct	dumpdates dt_value;
-	struct	dumptime *dt_next;
-};
-struct	dumptime *dthead;	/* head of the list version */
 int	nddates;		/* number of records (might be zero) */
 int	ddates_in;		/* we have read the increment file */
 struct	dumpdates **ddatev;	/* the arrayfied version */
