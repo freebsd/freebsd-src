@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_de.c,v 1.44 1996/03/23 19:29:09 fenner Exp $
+ * $Id: if_de.c,v 1.45 1996/05/02 14:20:44 phk Exp $
  *
  */
 
@@ -1301,7 +1301,7 @@ tulip_start(
 	do {
 	    int len = m0->m_len;
 	    caddr_t addr = mtod(m0, caddr_t);
-	    unsigned clsize = PAGE_SIZE - (((u_long) addr) & (PAGE_SIZE-1));
+	    unsigned clsize = PAGE_SIZE - (((u_long) addr) & PAGE_MASK);
 
 	    next_m0 = m0->m_next;
 	    while (len > 0) {

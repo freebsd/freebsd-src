@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.87 1996/05/02 14:19:52 phk Exp $
+ *	$Id: pmap.c,v 1.88 1996/05/02 22:24:58 phk Exp $
  */
 
 /*
@@ -630,14 +630,14 @@ pmap_growkernel(vm_offset_t addr)
 		kernel_vm_end = KERNBASE;
 		nkpt = 0;
 		while (pdir_pde(PTD, kernel_vm_end)) {
-			kernel_vm_end = (kernel_vm_end + PAGE_SIZE * NPTEPG) & ~(PAGE_SIZE * NPTEPG - 1);
+			kernel_vm_end = (kernel_vm_end + NBPDR) & ~(NBPDR-1);
 			++nkpt;
 		}
 	}
-	addr = (addr + PAGE_SIZE * NPTEPG) & ~(PAGE_SIZE * NPTEPG - 1);
+	addr = (addr + NBPDR) & ~(NBPDR - 1);
 	while (kernel_vm_end < addr) {
 		if (pdir_pde(PTD, kernel_vm_end)) {
-			kernel_vm_end = (kernel_vm_end + PAGE_SIZE * NPTEPG) & ~(PAGE_SIZE * NPTEPG - 1);
+			kernel_vm_end = (kernel_vm_end + NBPDR) & ~(NBPDR-1);
 			continue;
 		}
 		++nkpt;
@@ -659,7 +659,7 @@ pmap_growkernel(vm_offset_t addr)
 			}
 		}
 		*pmap_pde(kernel_pmap, kernel_vm_end) = pdir_pde(PTD, kernel_vm_end);
-		kernel_vm_end = (kernel_vm_end + PAGE_SIZE * NPTEPG) & ~(PAGE_SIZE * NPTEPG - 1);
+		kernel_vm_end = (kernel_vm_end + NBPDR) & ~(NBPDR-1);
 	}
 	splx(s);
 }
@@ -839,8 +839,7 @@ init_pv_entries(npg)
 	 * kvm space is fairly cheap, be generous!!!  (the system can panic if
 	 * this is too small.)
 	 */
-	npvvapg = ((npg * PVSPERPAGE) * sizeof(struct pv_entry)
-		+ PAGE_SIZE - 1) / PAGE_SIZE;
+	npvvapg = btoc((npg * PVSPERPAGE) * sizeof(struct pv_entry));
 	pvva = kmem_alloc_pageable(kernel_map, npvvapg * PAGE_SIZE);
 	/*
 	 * get the first batch of entries
