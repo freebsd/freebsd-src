@@ -479,7 +479,7 @@ g_bsd_try(struct g_geom *gp, struct g_slicer *gsp, struct g_consumer *cp, int se
  */
 
 static void
-g_bsd_ioctl(void *arg)
+g_bsd_ioctl(void *arg, int flag __unused)
 {
 	struct bio *bp;
 	struct g_geom *gp;
@@ -608,7 +608,7 @@ g_bsd_diocbsdbb(dev_t dev, u_long cmd __unused, caddr_t data, int fflag __unused
  * footshooting as best we can.
  */
 static void
-g_bsd_hotwrite(void *arg)
+g_bsd_hotwrite(void *arg, int flag __unused)
 {
 	struct bio *bp;
 	struct g_geom *gp;
@@ -682,7 +682,7 @@ g_bsd_start(struct bio *bp)
 		/* We do not allow deleting our hot spots */
 		return (EPERM);
 	case BIO_WRITE:
-		g_call_me(g_bsd_hotwrite, bp);
+		g_call_me(g_bsd_hotwrite, bp, gp, NULL);
 		return (EJUSTRETURN);
 	case BIO_GETATTR:
 		if (g_handleattr(bp, "BSD::labelsum", ms->labelsum,
@@ -723,7 +723,7 @@ g_bsd_start(struct bio *bp)
 		 * some I/O requests.  Ask the event-handler to schedule
 		 * us in a less restricted environment.
 		 */
-		error = g_call_me(g_bsd_ioctl, bp);
+		error = g_call_me(g_bsd_ioctl, bp, gp, NULL);
 		if (error)
 			g_io_deliver(bp, error);
 		/*
