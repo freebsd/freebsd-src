@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.15 1998/01/25 09:44:18 jb Exp $
+# $Id: Makefile,v 1.16 1998/03/12 13:03:05 bde Exp $
 #
 
 LIB=	gmp
@@ -8,8 +8,6 @@ SUBDIR=	doc
 
 GMPDIR=	${.CURDIR}/../../../contrib/libgmp
 .PATH:	${GMPDIR} ${GMPDIR}/mpn
-
-CFLAGS+=	-I${GMPDIR} -I${GMPDIR}/mpn/generic
 
 .if ${MACHINE_ARCH} == "alpha"
 .PATH:		${GMPDIR}/mpn/alpha ${GMPDIR}/mpn/generic
@@ -33,6 +31,8 @@ CFLAGS+=	-I${GMPDIR}/mpn/m68k
 MPN_SRC_ASM=	add_n.S lshift.S rshift.S sub_n.S
 
 .endif
+
+CFLAGS+=	-I${GMPDIR} -I${GMPDIR}/mpn/generic
 
 MPN_SRC_C=	add_n.c addmul_1.c bdivmod.c cmp.c divmod_1.c divrem.c \
 		divrem_1.c dump.c gcd.c gcd_1.c gcdext.c get_str.c hamdist.c \
