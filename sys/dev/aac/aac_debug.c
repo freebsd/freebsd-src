@@ -37,6 +37,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/conf.h>
 
 #include <dev/aac/aac_compat.h>
 #include <sys/bus.h>
