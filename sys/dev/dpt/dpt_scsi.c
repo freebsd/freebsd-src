@@ -43,7 +43,7 @@
  *	       arrays that span controllers (Wow!).
  */
 
-#ident "$Id: dpt_scsi.c,v 1.16 1998/09/22 04:55:07 gibbs Exp $"
+#ident "$Id: dpt_scsi.c,v 1.17 1998/10/02 03:40:53 gibbs Exp $"
 
 #define _DPT_C_
 
@@ -1590,7 +1590,7 @@ dptprocesserror(dpt_softc_t *dpt, dpt_ccb_t *dccb, union ccb *ccb,
 		break;
 	default:
 		printf("dpt%d: Undocumented Error %x\n", dpt->unit, hba_stat);
-		printf("Please mail this message to shimon@i-connect.net\n");
+		printf("Please mail this message to shimon@simon-shapiro.org\n");
 		ccb->ccb_h.status = CAM_REQ_CMP_ERR;
 		break;
 	}
@@ -1614,6 +1614,14 @@ dpttimeout(void *arg)
 
 	s = splcam();
 
+	/*
+	 * Try to clear any pending jobs.  FreeBSD will loose interrupts,
+	 * leaving the controller suspended, and commands timed-out.
+	 * By calling the interrupt handler, any command thus stuck will be
+	 * completed.
+	 */
+	dpt_intr(dpt);
+	
 	if ((dccb->state & DCCB_ACTIVE) == 0) {
 		xpt_print_path(ccb->ccb_h.path);
 		printf("CCB %p - timed out CCB already completed\n",
@@ -1622,7 +1630,7 @@ dpttimeout(void *arg)
 		return;
 	}
 
-	/* Do an abort.  I have no idea what this really does... */
+	/* Abort this particular command.  Leave all others running */
 	dpt_send_immediate(dpt, &dccb->eata_ccb, dccb->eata_ccb.cp_busaddr,
 			   /*retries*/20000, EATA_SPECIFIC_ABORT, 0, 0);
 	ccb->ccb_h.status = CAM_CMD_TIMEOUT;
