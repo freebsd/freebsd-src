@@ -1443,8 +1443,6 @@ ahc_clear_critical_section(struct ahc_softc *ahc)
 		 * so we are really executing the instruction just
 		 * before it.
 		 */
-		if (seqaddr != 0)
-			seqaddr -= 1;
 		cs = ahc->critical_sections;
 		for (i = 0; i < ahc->num_critical_sections; i++, cs++) {
 			
