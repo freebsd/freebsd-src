@@ -148,7 +148,7 @@ components.
 and
 .Fn fetchParseURL
 return a pointer to a
-.Fa url
+.Vt url
 structure, which is defined as follows in
 .Aq Pa fetch.h :
 .Bd -literal
@@ -187,7 +187,7 @@ method, and call the appropriate lower-level functions to perform the
 actual transfer.
 .Fn fetchXGetURL
 also returns the remote document's metadata in the
-.Fa url_stat
+.Vt url_stat
 structure pointed to by the
 .Fa us
 argument.
@@ -203,7 +203,7 @@ in the appropriate section below.
 attempts to obtain the requested document's metadata and fill in the
 structure pointed to by its second argument.
 The
-.Fa url_stat
+.Vt url_stat
 structure is defined as follows in
 .Aq Pa fetch.h :
 .Bd -literal
@@ -228,10 +228,10 @@ field is set to the modification time.
 attempts to list the contents of the directory pointed to by the URL
 provided.
 If successful, it returns a malloced array of
-.Fa url_ent
+.Vt url_ent
 structures.
 The
-.Fa url_ent
+.Vt url_ent
 structure is defined as follows in
 .Aq Pa fetch.h :
 .Bd -literal
@@ -261,7 +261,7 @@ and
 .Fn fetchStatURL ,
 except that they expect a pre-parsed URL in the form of a pointer to
 a
-.Fa struct url
+.Vt struct url
 rather than a string.
 .Pp
 All of the
@@ -296,7 +296,7 @@ do not accept any flags.
 .Pp
 .Fn fetchPutFile
 accepts the
-.Fa a
+.Ql a
 (append to file) flag.
 If that flag is specified, the data written to
 the stream returned by
@@ -311,18 +311,18 @@ and
 implement the FTP protocol as described in RFC959.
 .Pp
 If the
-.Fa p
+.Ql p
 (passive) flag is specified, a passive (rather than active) connection
 will be attempted.
 .Pp
 If the
-.Fa l
+.Ql l
 (low) flag is specified, data sockets will be allocated in the low (or
 default) port range instead of the hifh port range (see
 .Xr ip 4 ) .
 .Pp
 If the
-.Fa d
+.Ql d
 (direct) flag is specified,
 .Fn fetchXGetFTP ,
 .Fn fetchGetFTP
@@ -345,7 +345,7 @@ With a little luck, there's
 even a chance that they comply with RFC2616 and RFC2617.
 .Pp
 If the
-.Fa d
+.Ql d
 (direct) flag is specified,
 .Fn fetchXGetHTTP ,
 .Fn fetchGetHTTP
@@ -362,7 +362,7 @@ is currently unimplemented.
 .Sh AUTHENTICATION
 Apart from setting the appropriate environment variables and
 specifying the user name and password in the URL or the
-.Fa struct url ,
+.Vt struct url ,
 the calling program has the option of defining an authentication
 function with the following prototype:
 .Pp
@@ -374,11 +374,11 @@ The callback function should fill in the
 and
 .Fa pwd
 fields in the provided
-.Fa struct url
+.Vt struct url
 and return 0 on success, or any other value to indicate failure.
 .Pp
 To register the authentication callback, simply set
-.Fa fetchAuthMethod
+.Va fetchAuthMethod
 to point at it.
 The callback will be used whenever a site requires authentication and
 the appropriate environment variables aren't set.
@@ -387,7 +387,7 @@ This interface is experimental and may be subject to change.
 .Sh RETURN VALUES
 .Fn fetchParseURL
 returns a pointer to a
-.Fa struct url
+.Vt struct url
 containing the individual components of the URL.
 If it is
 unable to allocate memory, or the URL is syntactically incorrect,
@@ -515,7 +515,7 @@ URL.
 .It Ev HTTP_USER_AGENT
 Specifies the User-Agent string to use for HTTP requests.
 This can be useful when working with HTTP origin or proxy servers that
-differentiate between usder agents.
+differentiate between user agents.
 .El
 .Sh SEE ALSO
 .Xr fetch 1 ,
