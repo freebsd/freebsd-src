@@ -330,8 +330,7 @@ main(argc, argv)
 			if (nfunix < MAXFUNIX)
 				funixn[nfunix++] = optarg;
 			else
-				fprintf(stderr,
-				   "syslogd: out of descriptors, ignoring %s\n",
+				warnx("out of descriptors, ignoring %s",
 					optarg);
 			break;
 		case 'u':		/* only log specified priority */
@@ -1160,7 +1159,7 @@ domark(signo)
 			 * will also log the event.
 			 */
 			kill(q->dq_pid, SIGTERM);
-			/* FALLTROUGH */
+			/* FALLTHROUGH */
 
 		default:
 			q->dq_timeout--;

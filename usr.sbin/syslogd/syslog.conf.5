@@ -56,7 +56,7 @@ field which specifies the types of messages and priorities to which the
 line applies, and an
 .Em action
 field which specifies the action to be taken if a message
-.Xr syslogd
+.Xr syslogd 8
 receives matches the selection criteria.
 The
 .Em selector
@@ -65,15 +65,15 @@ field is separated from the
 field by one or more tab characters or spaces. 
 .Pp
 Note that if you use spaces as separators, your 
-.Em syslog.conf
+.Pa syslog.conf
 might be incompatible with other Unices or Unix-like systems.
 This functionality was added for the ease of configuration
 (e.g. it is possible to cut-and-paste into 
-.Em syslog.conf
+.Pa syslog.conf
 ), 
 and to avoid possible mistakes. This change however preserves 
 backwards compatibility with the old style of the
-.Em syslog.conf
+.Pa syslog.conf
 (i.e. tab characters only).
 .Pp
 The
@@ -132,7 +132,7 @@ These keywords correspond to the
 similar
 .Dq Dv LOG_
 values specified to the
-.Xr syslog
+.Xr syslog 3
 library routine.
 .Pp
 Each block of lines is separated from the previous block by a tag. The tag
@@ -141,7 +141,8 @@ is a line beginning with
 or
 .Em !prog
 (the former is for compatibility with the previous syslogd, if one is sharing
-syslog.conf files, for example)
+.Pa syslog.conf
+files, for example)
 and each block will be associated with calls to syslog from that specific
 program. A tag for ``foo'' will also match any message logged by the kernel
 with the prefix ``foo: ''.
@@ -233,7 +234,7 @@ A hostname (preceded by an at
 .Pq Dq @
 sign).
 Selected messages are forwarded to the
-.Xr syslogd
+.Xr syslogd 8
 program on the named host.
 .It
 A comma separated list of users.
@@ -338,7 +339,9 @@ security.*						/var/log/security
 configuration file
 .El
 .Sh BUGS
-The effects of multiple selectors are sometimes not intuitive.
+The effects of multiple
+.Em selectors
+are sometimes not intuitive.
 For example
 .Dq mail.crit,*.err
 will select
