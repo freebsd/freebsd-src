@@ -167,7 +167,6 @@ static struct cdevsw sabtty_cdevsw = {
 	.d_ioctl =	sabttyioctl,
 	.d_poll =	ttypoll,
 	.d_name =	"sabtty",
-	.d_maj =	MAJOR_AUTO,
 	.d_flags =	D_TTY,
 	.d_kqfilter =	ttykqfilter,
 };

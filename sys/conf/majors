@@ -4,8 +4,9 @@
 # the current allocation of device major numbers.
 #
 # Unless very special circumstants demand otherwise, all device drivers
-# are able to use the "MAJOR_AUTO" facility for auto-allocating major
-# numbers at runtime.
+# are able to use a dynamically allocated major number.  If the d_maj
+# element of the cdevsw is uninitialized (preferred) or initialized to
+# MAJOR_AUTO, this dynamic allocation will happen.
 # 
 # NOTICE: FreeBSD does not use block major numbers anymore, you neither
 # need to assign nor use a block major number for any device driver any
