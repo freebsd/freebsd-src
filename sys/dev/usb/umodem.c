@@ -118,10 +118,11 @@ SYSCTL_INT(_hw_usb_umodem, OID_AUTO, debug, CTLFLAG_RW,
 static const struct umodem_product {
 	u_int16_t	vendor;
 	u_int16_t	product;
+	u_int8_t	interface;
 } umodem_products[] = {
 	/* Kyocera AH-K3001V*/
-	{ USB_VENDOR_KYOCERA, USB_PRODUCT_KYOCERA_AHK3001V },
-	{ 0, 0 },
+	{ USB_VENDOR_KYOCERA, USB_PRODUCT_KYOCERA_AHK3001V, 0 },
+	{ 0, 0, 0 },
 };
 
 /*
@@ -236,7 +237,8 @@ USB_MATCH(umodem)
 	ret = UMATCH_NONE;
 	for (i = 0; umodem_products[i].vendor != 0; i++) {
 		if (umodem_products[i].vendor == UGETW(dd->idVendor) &&
-		    umodem_products[i].product == UGETW(dd->idProduct)) {
+		    umodem_products[i].product == UGETW(dd->idProduct) &&
+		    umodem_products[i].interface == id->bInterfaceNumber) {
 			ret = UMATCH_VENDOR_PRODUCT;
 			break;
 		}
