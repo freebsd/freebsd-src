@@ -3,15 +3,12 @@ DEVICE=		/dev/ttyv0
 CFLAGS+= 	-I${.CURDIR}/../keycap -DKEYB_DEVICE=\"${DEVICE}\"
 
 .if exists(${.OBJDIR}/../keycap)
-LIBDESTDIR=	${.OBJDIR}/../keycap
+LIBKEYCAP=	${.OBJDIR}/../keycap/libkeycap.a
 .else
-LIBDESTDIR=	${.CURDIR}/../keycap
+LIBKEYCAP=	${.CURDIR}/../keycap/libkeycap.a
 .endif
 
-# the -Lfoo could be omitted if libkeycap.a were installed before
-# making those programs here
-
-DPADD =       ${LIBDESTDIR}/libkeycap.a
-LDADD =       -L${LIBDESTDIR} -lkeycap
+DPADD=		${LIBKEYCAP}
+LDADD=		${LIBKEYCAP}
 
 .include <bsd.prog.mk>
