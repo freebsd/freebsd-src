@@ -724,6 +724,7 @@ ng_btsocket_rfcomm_detach(struct socket *so)
 	FREE(pcb, M_NETGRAPH_BTSOCKET_RFCOMM);
 
 	soisdisconnected(so);
+	ACCEPT_LOCK();
 	SOCK_LOCK(so);
 	so->so_pcb = NULL;
 	sotryfree(so);

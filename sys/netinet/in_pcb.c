@@ -687,6 +687,7 @@ in_pcbdetach(inp)
 	inp->inp_gencnt = ++ipi->ipi_gencnt;
 	in_pcbremlists(inp);
 	if (so) {
+		ACCEPT_LOCK();
 		SOCK_LOCK(so);
 		so->so_pcb = NULL;
 		sotryfree(so);
