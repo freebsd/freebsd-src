@@ -1440,9 +1440,8 @@ sendfile(struct proc *p, struct sendfile_args *uap)
 	 * Do argument checking. Must be a regular file in, stream
 	 * type and connected socket out, positive offset.
 	 */
-	if (((u_int)uap->fd) >= fdp->fd_nfiles ||
-	    (fp = fdp->fd_ofiles[uap->fd]) == NULL ||
-	    (fp->f_flag & FREAD) == 0) {
+	fp = getfp(fdp, uap->fd, FREAD);
+	if (fp == NULL) {
 		error = EBADF;
 		goto done;
 	}
