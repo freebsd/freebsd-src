@@ -1,14 +1,14 @@
    -----------------------------------------
-       FreeBSD 2.2.x  ---  RELENG Version              ,        ,
+       FreeBSD 2.2.5  ---  RELEASE Version              ,        ,
    -----------------------------------------          /(        )`
                                                       \ \___   / |
-Welcome to the 2.2 RELEASE branch of FreeBSD!         /- _  `-/  '
+Welcome to the 2.2.5 RELEASE version of FreeBSD!      /- _  `-/  '
                                                      (/\/ \ \   /\
-This is a full release on the RELENG_2_2 branch,     / /   | `    \
-part of a new cycle of FreeBSD release technology    O O   ) /    |
-which takes over from where the 2.1 branch left      `-^--'`<     '
-off.                                                (_.)  _  )   /
-                                                     `.___/`    /
+This is a full release to follow 2.2.2-RELEASE,      / /   | `    \
+which was released in June, 1997.  Many bugs have    O O   ) /    |
+been fixed and the general stability of the system   `-^--'`<     '
+enhanced, a conservative set of subsystem upgrades  (_.)  _  )   /
+and new features also being added for 2.2.5.         `.___/`    /
                                                        `-----' /
 Feedback or offers to help with anything  <----.     __ / __   \
 you see in this release are most welcome  <----|====O)))==) \) /====
@@ -18,7 +18,7 @@ ABOUT.TXT file for more information.                    \       /       /\
                                                    ______( (_  / \______/
                                                  ,'  ,-----'   |
                                                  `--{__________)
-
+					    
 
 
 ** Most files here are also in the Documentation Menu of the boot floppy **

@@ -70,16 +70,18 @@ sites, then this can be easily accomplished in one of three ways:
            NOTE: If this fails for some reason, go to step 3:
 
 
-        3. Build a FreeBSD boot floppy from the floppies/boot.flp
-           file in a FreeBSD distribution.  If you have a CD distribution,
-           simply run the ``makeflp.bat'' script, otherwise read
+        3. Build a FreeBSD boot floppy from the floppies/boot.flp file
+           in a FreeBSD distribution.  If you have a CD distribution
+           then simply run the ``makeflp.bat'' script, otherwise read
            floppies/README.TXT for information on how to "image copy"
-           this file onto a floppy.  Then simply boot directly from the
-           floppy and you should go into the installation after making a
-           stop at the kernel configuration menu.
+           this file onto a floppy using various utilities.
+
+           Then simply boot directly from the floppy and you should go
+           directly into the installation after making a stop at the
+           kernel configuration menu.
 
 
-Once you're in the installation screen, you should be able to follow
+Once you're at the installation screen, you should be able to follow
 the various menu prompts and go from there.  If you've never used the
 FreeBSD installation before, you are also encouraged to read some of
 the documentation in the first "Usage" menu choice, as well as the
@@ -297,11 +299,8 @@ Robert Nordier's "setup.exe" program.  It will give you a menu of
 distribution choices, verify that you have enough free space and do
 all the copying to C:\FREEBSD for you automatically.
 
-Once you've copied the directories or run setup.exe and let it do all
-the work for you, you can simply launch the installation from DOS by
-running the install.bat script (NOTE: Some memory managers don't like
-this - disable QEMM or EMM386 if they're running before trying this)
-or making a boot floppy as described in section 0.1.
+Once you've done all this, make a boot floppy as described in section
+0.1.3 and boot from it.
 
 
 
