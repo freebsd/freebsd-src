@@ -94,30 +94,29 @@ vm_contig_launder(int queue)
 		next = TAILQ_NEXT(m, pageq);
 		KASSERT(m->queue == queue,
 		    ("vm_contig_launder: page %p's queue is not %d", m, queue));
-		if (vm_page_sleep_busy(m, TRUE, "vpctw0"))
+		if (vm_page_sleep_if_busy(m, TRUE, "vpctw0")) {
+			vm_page_lock_queues();
 			return (TRUE);
+		}
 		vm_page_test_dirty(m);
 		if (m->dirty) {
 			object = m->object;
 			if (object->type == OBJT_VNODE) {
+				vm_page_unlock_queues();
 				vn_lock(object->handle,
 				    LK_EXCLUSIVE | LK_RETRY, curthread);
 				vm_object_page_clean(object, 0, 0, OBJPC_SYNC);
 				VOP_UNLOCK(object->handle, 0, curthread);
+				vm_page_lock_queues();
 				return (TRUE);
 			} else if (object->type == OBJT_SWAP ||
 				   object->type == OBJT_DEFAULT) {
 				m_tmp = m;
-				vm_page_lock_queues();
 				vm_pageout_flush(&m_tmp, 1, 0);
-				vm_page_unlock_queues();
 				return (TRUE);
 			}
-		} else if (m->busy == 0 && m->hold_count == 0) {
-			vm_page_lock_queues();
+		} else if (m->busy == 0 && m->hold_count == 0)
 			vm_page_cache(m);
-			vm_page_unlock_queues();
-		}
 	}
 	return (FALSE);
 }
@@ -155,6 +154,7 @@ contigmalloc1(
 	start = 0;
 	for (pass = 0; pass <= 1; pass++) {
 		s = splvm();
+		vm_page_lock_queues();
 again:
 		/*
 		 * Find first page in array that is free, within range, aligned, and
@@ -181,6 +181,7 @@ again1:
 				goto again1;
 			if (vm_contig_launder(PQ_ACTIVE))
 				goto again1;
+			vm_page_unlock_queues();
 			splx(s);
 			continue;
 		}
@@ -199,7 +200,6 @@ again1:
 				goto again;
 			}
 		}
-		vm_page_lock_queues();
 		for (i = start; i < (start + size / PAGE_SIZE); i++) {
 			vm_page_t m = &pga[i];
 
