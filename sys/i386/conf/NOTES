@@ -1969,12 +1969,12 @@ hint.gsc.0.drq="3"
 device		joy			# PnP aware, hints for nonpnp only
 hint.joy.0.at="isa"
 hint.joy.0.port="0x201"
-#device		cy	1
-#options 	CY_PCI_FASTINTR		# Use with cy_pci unless irq is shared
-#hint.cy.0.at="isa"
-#hint.cy.0.irq="10"
-#hint.cy.0.maddr="0xd4000"
-#hint.cy.0.msize="0x2000"
+device		cy	1
+options 	CY_PCI_FASTINTR		# Use with cy_pci unless irq is shared
+hint.cy.0.at="isa"
+hint.cy.0.irq="10"
+hint.cy.0.maddr="0xd4000"
+hint.cy.0.msize="0x2000"
 device		dgb	1
 options 	NDGBPORTS=16		# Defaults to 16*NDGB
 hint.dgb.0.at="isa"
