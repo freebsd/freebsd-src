@@ -312,7 +312,7 @@ struct fs {
 	u_char	 fs_fsmnt[MAXMNTLEN];	/* name mounted on */
 	u_char	 fs_volname[MAXVOLLEN];	/* volume name */
 	u_int64_t fs_swuid;		/* system-wide uid */
-	int32_t  fs_pad;		/* padding for non-i386 */
+	int32_t  fs_pad;		/* due to alignment of fs_swuid */
 /* these fields retain the current block allocation info */
 	int32_t	 fs_cgrotor;		/* last cg searched */
 	void 	*fs_ocsp[NOCSPTRS];	/* padding; was list of fs_cs buffers */
@@ -350,6 +350,11 @@ struct fs {
 					/* old fs_rotbloff */
 	int32_t	 fs_magic;		/* magic number */
 };
+
+/* Sanity checking. */
+#ifdef CTASSERT
+CTASSERT(sizeof(struct fs) == 1376);
+#endif
 
 /*
  * Filesystem identification
