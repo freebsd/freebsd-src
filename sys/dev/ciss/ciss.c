@@ -2613,33 +2613,14 @@ ciss_cam_emulate(struct ciss_softc *sc, struct ccb_scsiio *csio)
 	*(u_int8_t *)csio->cdb_io.cdb_ptr : csio->cdb_io.cdb_bytes[0];
 
     /*
-     * Handle requests for volumes that don't exist.  A selection timeout
-     * is slightly better than an illegal request.  Other errors might be
-     * better.
+     * Handle requests for volumes that don't exist or are not online.
+     * A selection timeout is slightly better than an illegal request.
+     * Other errors might be better.
      */
-    if (sc->ciss_logical[bus][target].cl_status == CISS_LD_NONEXISTENT) {
+    if (sc->ciss_logical[bus][target].cl_status != CISS_LD_ONLINE) {
 	csio->ccb_h.status = CAM_SEL_TIMEOUT;
 	xpt_done((union ccb *)csio);
 	return(1);
-    }
-
-    /*
-     * Handle requests for volumes that exist but are offline.
-     *
-     * I/O operations should fail, everything else should work.
-     */
-    if (sc->ciss_logical[bus][target].cl_status == CISS_LD_OFFLINE) {
-	switch(opcode) {
-	case READ_6:
-	case READ_10:
-	case READ_12:
-	case WRITE_6:
-	case WRITE_10:
-	case WRITE_12:
-	    csio->ccb_h.status = CAM_SEL_TIMEOUT;
-	    xpt_done((union ccb *)csio);
-	    return(1);
-	}
     }
 
     /* if we have to fake Synchronise Cache */
