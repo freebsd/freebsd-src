@@ -14,29 +14,44 @@ S_isa_lookup(pTHX_ HV *stash, const char *name, int len, int level)
     GV* gv;
     GV** gvp;
     HV* hv = Nullhv;
+    SV* subgen = Nullsv;
 
     if (!stash)
 	return &PL_sv_undef;
 
-    if(strEQ(HvNAME(stash), name))
+    if (strEQ(HvNAME(stash), name))
 	return &PL_sv_yes;
 
     if (level > 100)
-	Perl_croak(aTHX_ "Recursive inheritance detected in package '%s'", HvNAME(stash));
+	Perl_croak(aTHX_ "Recursive inheritance detected in package '%s'",
+		   HvNAME(stash));
 
     gvp = (GV**)hv_fetch(stash, "::ISA::CACHE::", 14, FALSE);
 
-    if (gvp && (gv = *gvp) != (GV*)&PL_sv_undef && (hv = GvHV(gv))) {
-	SV* sv;
-	SV** svp = (SV**)hv_fetch(hv, name, len, FALSE);
-	if (svp && (sv = *svp) != (SV*)&PL_sv_undef)
-	    return sv;
+    if (gvp && (gv = *gvp) != (GV*)&PL_sv_undef && (subgen = GvSV(gv))
+	&& (hv = GvHV(gv)))
+    {
+	if (SvIV(subgen) == PL_sub_generation) {
+	    SV* sv;
+	    SV** svp = (SV**)hv_fetch(hv, name, len, FALSE);
+	    if (svp && (sv = *svp) != (SV*)&PL_sv_undef) {
+	        DEBUG_o( Perl_deb(aTHX_ "Using cached ISA %s for package %s\n",
+				  name, HvNAME(stash)) );
+		return sv;
+	    }
+	}
+	else {
+	    DEBUG_o( Perl_deb(aTHX_ "ISA Cache in package %s is stale\n",
+			      HvNAME(stash)) );
+	    hv_clear(hv);
+	    sv_setiv(subgen, PL_sub_generation);
+	}
     }
 
     gvp = (GV**)hv_fetch(stash,"ISA",3,FALSE);
-    
+
     if (gvp && (gv = *gvp) != (GV*)&PL_sv_undef && (av = GvAV(gv))) {
-	if(!hv) {
+	if (!hv || !subgen) {
 	    gvp = (GV**)hv_fetch(stash, "::ISA::CACHE::", 14, TRUE);
 
 	    gv = *gvp;
@@ -44,9 +59,14 @@ S_isa_lookup(pTHX_ HV *stash, const char *name, int len, int level)
 	    if (SvTYPE(gv) != SVt_PVGV)
 		gv_init(gv, stash, "::ISA::CACHE::", 14, TRUE);
 
-	    hv = GvHVn(gv);
+	    if (!hv)
+		hv = GvHVn(gv);
+	    if (!subgen) {
+		subgen = newSViv(PL_sub_generation);
+		GvSV(gv) = subgen;
+	    }
 	}
-	if(hv) {
+	if (hv) {
 	    SV** svp = AvARRAY(av);
 	    /* NOTE: No support for tied ISA */
 	    I32 items = AvFILLp(av) + 1;
@@ -54,14 +74,13 @@ S_isa_lookup(pTHX_ HV *stash, const char *name, int len, int level)
 		SV* sv = *svp++;
 		HV* basestash = gv_stashsv(sv, FALSE);
 		if (!basestash) {
-		    dTHR;
 		    if (ckWARN(WARN_MISC))
 			Perl_warner(aTHX_ WARN_SYNTAX,
 		             "Can't locate package %s for @%s::ISA",
 			    SvPVX(sv), HvNAME(stash));
 		    continue;
 		}
-		if(&PL_sv_yes == isa_lookup(basestash, name, len, level + 1)) {
+		if (&PL_sv_yes == isa_lookup(basestash, name, len, level + 1)) {
 		    (void)hv_store(hv,name,len,&PL_sv_yes,0);
 		    return &PL_sv_yes;
 		}
@@ -88,23 +107,23 @@ Perl_sv_derived_from(pTHX_ SV *sv, const char *name)
 {
     char *type;
     HV *stash;
-  
+
     stash = Nullhv;
     type = Nullch;
- 
+
     if (SvGMAGICAL(sv))
         mg_get(sv) ;
 
     if (SvROK(sv)) {
         sv = SvRV(sv);
         type = sv_reftype(sv,0);
-        if(SvOBJECT(sv))
+        if (SvOBJECT(sv))
             stash = SvSTASH(sv);
     }
     else {
         stash = gv_stashsv(sv, FALSE);
     }
- 
+
     return (type && strEQ(type,name)) ||
             (stash && isa_lookup(stash, name, strlen(name), 0) == &PL_sv_yes)
         ? TRUE
@@ -174,9 +193,9 @@ XS(XS_UNIVERSAL_can)
     name = (char *)SvPV(ST(1),n_a);
     rv = &PL_sv_undef;
 
-    if(SvROK(sv)) {
+    if (SvROK(sv)) {
         sv = (SV*)SvRV(sv);
-        if(SvOBJECT(sv))
+        if (SvOBJECT(sv))
             pkg = SvSTASH(sv);
     }
     else {
@@ -242,12 +261,12 @@ XS(XS_UNIVERSAL_VERSION)
 		    break;
 	    }
 	    if (len) {
-		if (SvNIOKp(req) && SvPOK(req)) {
+		if (SvNOK(req) && SvPOK(req)) {
 		    /* they said C<use Foo v1.2.3> and $Foo::VERSION
 		     * doesn't look like a float: do string compare */
 		    if (sv_cmp(req,sv) == 1) {
-			Perl_croak(aTHX_ "%s v%vd required--"
-				   "this is only v%vd",
+			Perl_croak(aTHX_ "%s v%"VDf" required--"
+				   "this is only v%"VDf,
 				   HvNAME(pkg), req, sv);
 		    }
 		    goto finish;
@@ -263,7 +282,7 @@ XS(XS_UNIVERSAL_VERSION)
 	/* if we get here, we're looking for a numeric comparison,
 	 * so force the required version into a float, even if they
 	 * said C<use Foo v1.2.3> */
-	if (SvNIOKp(req) && SvPOK(req)) {
+	if (SvNOK(req) && SvPOK(req)) {
 	    NV n = SvNV(req);
 	    req = sv_newmortal();
 	    sv_setnv(req, n);

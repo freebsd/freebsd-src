@@ -14,8 +14,32 @@ EXPECT
 Use of EQ is deprecated at - line 8.
 ########
 
+# Check compile time warning
+use warnings FATAL => 'all' ;
+{
+    no warnings ;
+    1 if $a EQ $b ;
+}
+1 if $a EQ $b ; 
+print STDERR "The End.\n" ;
+EXPECT
+Use of EQ is deprecated at - line 8.
+########
+
 # Check runtime scope of pragma
 use warnings FATAL => 'uninitialized' ;
+{
+    no warnings ;
+    my $b ; chop $b ;
+}
+my $b ; chop $b ;
+print STDERR "The End.\n" ;
+EXPECT
+Use of uninitialized value in scalar chop at - line 8.
+########
+
+# Check runtime scope of pragma
+use warnings FATAL => 'all' ;
 {
     no warnings ;
     my $b ; chop $b ;
@@ -30,6 +54,18 @@ Use of uninitialized value in scalar chop at - line 8.
 no warnings ;
 {
     use warnings FATAL => 'uninitialized' ;
+    $a = sub { my $b ; chop $b ; }
+}
+&$a ;
+print STDERR "The End.\n" ;
+EXPECT
+Use of uninitialized value in scalar chop at - line 6.
+########
+
+# Check runtime scope of pragma
+no warnings ;
+{
+    use warnings FATAL => 'all' ;
     $a = sub { my $b ; chop $b ; }
 }
 &$a ;
@@ -240,3 +276,37 @@ eval '
 print STDERR "The End.\n" ;
 EXPECT
 Use of EQ is deprecated at - line 8.
+########
+
+use warnings 'void' ;
+
+time ;
+
+{
+    use warnings FATAL => qw(void) ;
+    length "abc" ;
+}
+
+join "", 1,2,3 ;
+
+print "done\n" ;
+EXPECT
+Useless use of time in void context at - line 4.
+Useless use of length in void context at - line 8.
+########
+
+use warnings ;
+
+time ;
+
+{
+    use warnings FATAL => qw(void) ;
+    length "abc" ;
+}
+
+join "", 1,2,3 ;
+
+print "done\n" ;
+EXPECT
+Useless use of time in void context at - line 4.
+Useless use of length in void context at - line 8.

@@ -198,10 +198,6 @@ EXPECT
 Semicolon seems to be missing at - line 3.
 ########
 # toke.c
-BEGIN {
-    # Scalars leaked: due to syntax errors
-    $ENV{PERL_DESTRUCT_LEVEL} = 0 unless $ENV{PERL_DESTRUCT_LEVEL} > 3;
-}
 use warnings 'syntax' ;
 my $a =+ 2 ;
 $a =- 2 ;
@@ -214,25 +210,21 @@ $a =| 2 ;
 $a =< 2 ;
 $a =/ 2 ;
 EXPECT
-Reversed += operator at - line 7.
-Reversed -= operator at - line 8.
-Reversed *= operator at - line 9.
-Reversed %= operator at - line 10.
-Reversed &= operator at - line 11.
-Reversed .= operator at - line 12.
-syntax error at - line 12, near "=."
-Reversed ^= operator at - line 13.
-syntax error at - line 13, near "=^"
-Reversed |= operator at - line 14.
-syntax error at - line 14, near "=|"
-Reversed <= operator at - line 15.
-Unterminated <> operator at - line 15.
+Reversed += operator at - line 3.
+Reversed -= operator at - line 4.
+Reversed *= operator at - line 5.
+Reversed %= operator at - line 6.
+Reversed &= operator at - line 7.
+Reversed .= operator at - line 8.
+Reversed ^= operator at - line 9.
+Reversed |= operator at - line 10.
+Reversed <= operator at - line 11.
+syntax error at - line 8, near "=."
+syntax error at - line 9, near "=^"
+syntax error at - line 10, near "=|"
+Unterminated <> operator at - line 11.
 ########
 # toke.c
-BEGIN {
-    # Scalars leaked: due to syntax errors
-    $ENV{PERL_DESTRUCT_LEVEL} = 0 unless $ENV{PERL_DESTRUCT_LEVEL} > 3;
-}
 no warnings 'syntax' ;
 my $a =+ 2 ;
 $a =- 2 ;
@@ -245,10 +237,10 @@ $a =| 2 ;
 $a =< 2 ;
 $a =/ 2 ;
 EXPECT
-syntax error at - line 12, near "=."
-syntax error at - line 13, near "=^"
-syntax error at - line 14, near "=|"
-Unterminated <> operator at - line 15.
+syntax error at - line 8, near "=."
+syntax error at - line 9, near "=^"
+syntax error at - line 10, near "=|"
+Unterminated <> operator at - line 11.
 ########
 # toke.c
 use warnings 'syntax' ;
@@ -290,6 +282,9 @@ Can't use \1 to mean $1 in expression at - line 4.
 # toke.c
 use warnings 'reserved' ;
 $a = abc;
+$a = { def
+
+=> 1 };
 no warnings 'reserved' ;
 $a = abc;
 EXPECT
@@ -434,13 +429,14 @@ Ambiguous call resolved as CORE::time(), qualify as such or use & at - line 4.
 # toke.c
 use warnings ;
 eval <<'EOE';
+#  line 30 "foo"
+warn "yelp";
 {
-#line 30 "foo"
   $_ = " \x{123} " ;
 }
 EOE
 EXPECT
-
+yelp at foo line 30.
 ########
 # toke.c
 my $a = rand + 4 ;
@@ -581,3 +577,11 @@ EXPECT
 Integer overflow in binary number at - line 5.
 Integer overflow in hexadecimal number at - line 8.
 Integer overflow in octal number at - line 11.
+########
+# toke.c
+use warnings 'ambiguous';
+"@mjd_previously_unused_array";        
+no warnings 'ambiguous';
+"@mjd_previously_unused_array";        
+EXPECT
+Possible unintended interpolation of @mjd_previously_unused_array in string at - line 3.

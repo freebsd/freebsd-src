@@ -63,11 +63,15 @@ the new features in this release.
 
 =over 4
 
-=item Core sources now require ANSI C compiler
+=item *
+
+Core sources now require ANSI C compiler
 
 An ANSI C compiler is now B<required> to build perl.  See F<INSTALL>.
 
-=item All Perl global variables must now be referenced with an explicit prefix
+=item *
+
+All Perl global variables must now be referenced with an explicit prefix
 
 All Perl global variables that are visible for use by extensions now
 have a C<PL_> prefix.  New extensions should C<not> refer to perl globals
@@ -87,7 +91,9 @@ support may cease in a future release.
 
 See L<perlguts/"API LISTING">.
 
-=item Enabling threads has source compatibility issues
+=item *
+
+Enabling threads has source compatibility issues
 
 Perl built with threading enabled requires extensions to use the new
 C<dTHR> macro to initialize the handle to access per-thread data.
@@ -525,7 +531,7 @@ The hints files for most Unix platforms have seen incremental improvements.
 
 =head2 New Modules
 
-=over
+=over 4
 
 =item B
 
@@ -596,12 +602,14 @@ Various pragmata to control behavior of regular expressions.
 
 =head2 Changes in existing modules
 
-=over
+=over 4
 
 =item Benchmark
 
 You can now run tests for I<x> seconds instead of guessing the right
 number of tests to run.
+
+Keeps better time.
 
 =item Carp
 
@@ -660,10 +668,6 @@ See <perlmodinstall> and L<CPAN>.
 
 Cwd::cwd is faster on most platforms.
 
-=item Benchmark
-
-Keeps better time.
-
 =back
 
 =head1 Utility Changes
@@ -702,7 +706,7 @@ L<perlthrtut> gives a tutorial on threads.
 
 =head1 New Diagnostics
 
-=over
+=over 4
 
 =item Ambiguous call resolved as CORE::%s(), qualify as such or use &
 
@@ -859,7 +863,7 @@ are outside the range which can be represented by integers internally.
 One possible workaround is to force Perl to use magical string
 increment by prepending "0" to your numbers.
 
-=item Recursive inheritance detected while looking for method '%s' in package '%s'
+=item Recursive inheritance detected while looking for method '%s' %s
 
 (F) More than 100 levels of inheritance were encountered while invoking a
 method.  Probably indicates an unintended loop in your inheritance hierarchy.
@@ -916,7 +920,7 @@ fix the problem can be found in L<perllocale/"LOCALE PROBLEMS">.
 
 =head1 Obsolete Diagnostics
 
-=over
+=over 4
 
 =item Can't mktemp()
 

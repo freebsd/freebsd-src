@@ -439,7 +439,7 @@ EXT char *PL_op_desc[] = {
 	"integer addition (+)",
 	"subtraction (-)",
 	"integer subtraction (-)",
-	"concatenation (.)",
+	"concatenation (.) or string",
 	"string",
 	"left bitshift (<<)",
 	"right bitshift (>>)",
@@ -513,7 +513,7 @@ EXT char *PL_op_desc[] = {
 	"unpack",
 	"pack",
 	"split",
-	"join",
+	"join or string",
 	"list",
 	"list slice",
 	"anonymous list ([])",
@@ -541,7 +541,7 @@ EXT char *PL_op_desc[] = {
 	"method lookup",
 	"subroutine entry",
 	"subroutine exit",
-	"lvalue subroutine exit",
+	"lvalue subroutine return",
 	"caller",
 	"warn",
 	"die",
@@ -1205,7 +1205,7 @@ EXT OP * (CPERLscope(*PL_check)[]) (pTHX_ OP *op) = {
 	MEMBER_TO_FPTR(Perl_ck_fun),	/* oct */
 	MEMBER_TO_FPTR(Perl_ck_fun),	/* abs */
 	MEMBER_TO_FPTR(Perl_ck_lengthconst),	/* length */
-	MEMBER_TO_FPTR(Perl_ck_fun),	/* substr */
+	MEMBER_TO_FPTR(Perl_ck_substr),	/* substr */
 	MEMBER_TO_FPTR(Perl_ck_fun),	/* vec */
 	MEMBER_TO_FPTR(Perl_ck_index),	/* index */
 	MEMBER_TO_FPTR(Perl_ck_index),	/* rindex */
@@ -1278,7 +1278,7 @@ EXT OP * (CPERLscope(*PL_check)[]) (pTHX_ OP *op) = {
 	MEMBER_TO_FPTR(Perl_ck_null),	/* iter */
 	MEMBER_TO_FPTR(Perl_ck_null),	/* enterloop */
 	MEMBER_TO_FPTR(Perl_ck_null),	/* leaveloop */
-	MEMBER_TO_FPTR(Perl_ck_null),	/* return */
+	MEMBER_TO_FPTR(Perl_ck_return),	/* return */
 	MEMBER_TO_FPTR(Perl_ck_null),	/* last */
 	MEMBER_TO_FPTR(Perl_ck_null),	/* next */
 	MEMBER_TO_FPTR(Perl_ck_null),	/* redo */

@@ -5,10 +5,11 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    unshift @INC, '../lib' if -d '../lib';
+    @INC = '../lib';
+    $| = 1;
 }
 
-print "1..73\n";
+print "1..80\n";
 
 $a = {};
 bless $a, "Bob";
@@ -28,6 +29,19 @@ sub new { bless {} }
 
 $Alice::VERSION = 2.718;
 
+{
+    package Cedric;
+    our @ISA;
+    use base qw(Human);
+}
+
+{
+    package Programmer;
+    our $VERSION = 1.667;
+
+    sub write_perl { 1 }
+}
+
 package main;
 
 my $i = 2;
@@ -45,11 +59,33 @@ test $a->isa("Human");
 
 test ! $a->isa("Male");
 
+test ! $a->isa('Programmer');
+
 test $a->can("drink");
 
 test $a->can("eat");
 
 test ! $a->can("sleep");
+
+test (!Cedric->isa('Programmer'));
+
+test (Cedric->isa('Human'));
+
+push(@Cedric::ISA,'Programmer');
+
+test (Cedric->isa('Programmer'));
+
+{
+    package Alice;
+    base::->import('Programmer');
+}
+
+test $a->isa('Programmer');
+test $a->isa("Female");
+
+@Cedric::ISA = qw(Bob);
+
+test (!Cedric->isa('Programmer'));
 
 my $b = 'abc';
 my @refs = qw(SCALAR SCALAR     LVALUE      GLOB ARRAY HASH CODE);
@@ -88,7 +124,7 @@ eval "use UNIVERSAL";
 
 test $a->isa("UNIVERSAL");
 
-my $sub2 = join ' ', sort grep { defined &{"UNIVERSAL::$_"} } keys %UNIVERSAL::; 
+my $sub2 = join ' ', sort grep { defined &{"UNIVERSAL::$_"} } keys %UNIVERSAL::;
 # XXX import being here is really a bug
 if ('a' lt 'A') {
     test $sub2 eq "can import isa VERSION";

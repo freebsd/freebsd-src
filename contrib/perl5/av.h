@@ -1,6 +1,6 @@
 /*    av.h
  *
- *    Copyright (c) 1991-2000, Larry Wall
+ *    Copyright (c) 1991-2001, Larry Wall
  *
  *    You may distribute under the terms of either the GNU General Public
  *    License or the Artistic License, as specified in the README file.
@@ -32,8 +32,8 @@ struct xpvav {
  * real if the array needs to be modified in some way.  Functions that
  * modify fake AVs check both flags to call av_reify() as appropriate.
  *
- * Note that the Perl stack has neither flag set. (Thus, items that go
- * on the stack are never refcounted.)
+ * Note that the Perl stack and @DB::args have neither flag set. (Thus,
+ * items that go on the stack are never refcounted.)
  *
  * These internal details are subject to change any time.  AV
  * manipulations external to perl should not care about any of this.

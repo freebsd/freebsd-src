@@ -1,6 +1,6 @@
 #!./perl
 
-print "1..66\n";
+print "1..70\n";
 
 #
 # @foo, @bar, and @ary are also used from tie-stdarray after tie-ing them
@@ -139,8 +139,8 @@ t("@foo" eq "bar burbl blah");					# 39
 @foo = ('XXX',@foo, 'YYY');
 t("@foo" eq "XXX bar burbl blah YYY");				# 40
 
-@foo = @foo = qw(foo bar burbl blah);
-t("@foo" eq "foo bar burbl blah");				# 41
+@foo = @foo = qw(foo b\a\r bu\\rbl blah);
+t("@foo" eq 'foo b\a\r bu\\rbl blah');				# 41
 
 @bar = @foo = qw(foo bar);					# 42
 t("@foo" eq "foo bar");
@@ -216,3 +216,16 @@ reify('ok');
 print "not " unless qw(foo bar snorfle)[2] eq 'snorfle';
 print "ok 66\n";
 
+@ary = (12,23,34,45,56);
+
+print "not " unless shift(@ary) == 12;
+print "ok 67\n";
+
+print "not " unless pop(@ary) == 56;
+print "ok 68\n";
+
+print "not " unless push(@ary,56) == 4;
+print "ok 69\n";
+
+print "not " unless unshift(@ary,12) == 5;
+print "ok 70\n";

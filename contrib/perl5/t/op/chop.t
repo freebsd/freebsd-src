@@ -1,6 +1,6 @@
 #!./perl
 
-print "1..30\n";
+print "1..37\n";
 
 # optimized
 
@@ -89,3 +89,30 @@ $_ = "ab\n";
 $/ = \3;
 print chomp() == 0 ? "ok 29\n" : "not ok 29\n";
 print $_ eq "ab\n" ? "ok 30\n" : "not ok 30\n";
+
+# Go Unicode.
+
+$_ = "abc\x{1234}";
+chop;
+print $_ eq "abc" ? "ok 31\n" : "not ok 31\n";
+
+$_ = "abc\x{1234}d";
+chop;
+print $_ eq "abc\x{1234}" ? "ok 32\n" : "not ok 32\n";
+
+$_ = "\x{1234}\x{2345}";
+chop;
+print $_ eq "\x{1234}" ? "ok 33\n" : "not ok 33\n";
+
+my @stuff = qw(this that);
+print chop(@stuff[0,1]) eq 't' ? "ok 34\n" : "not ok 34\n";
+
+# bug id 20010305.012
+@stuff = qw(ab cd ef);
+print chop(@stuff = @stuff) eq 'f' ? "ok 35\n" : "not ok 35\n";
+
+@stuff = qw(ab cd ef);
+print chop(@stuff[0, 2]) eq 'f' ? "ok 36\n" : "not ok 36\n";
+
+my %stuff = (1..4);
+print chop(@stuff{1, 3}) eq '4' ? "ok 37\n" : "not ok 37\n";

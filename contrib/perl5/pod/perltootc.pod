@@ -12,7 +12,7 @@ the class itself.
 
 Here are a few examples where class attributes might come in handy:
 
-=over
+=over 4
 
 =item *
 
@@ -73,6 +73,15 @@ of inheritance or sensitive to it.  If you choose lexical variables,
 you can elect to permit access to them from anywhere in the entire file
 scope, or you can limit direct data access exclusively to the methods
 implementing those attributes.
+
+=head1 Class Data in a Can
+
+One of the easiest ways to solve a hard problem is to let someone else
+do it for you!  In this case, Class::Data::Inheritable (available on a
+CPAN near you) offers a canned solution to the class data problem
+using closures.  So before you wade into this document, consider
+having a look at that module.
+
 
 =head1 Class Data as Package Variables
 
@@ -184,7 +193,7 @@ to which beginning Perl programmers attempt to put symbolic references,
 we have much better approaches, like nested hashes or hashes of arrays.
 But there's nothing wrong with using symbolic references to manipulate
 something that is meaningful only from the perspective of the package
-symbol symbol table, like method names or package variables.  In other
+symbol table, like method names or package variables.  In other
 words, when you want to refer to the symbol table, use symbol references.
 
 Clustering all the class attributes in one place has several advantages.
@@ -1302,7 +1311,8 @@ would just confuse the examples.
 
 L<perltoot>, L<perlobj>, L<perlmod>, and L<perlbot>.
 
-The Tie::SecureHash module from CPAN is worth checking out.
+The Tie::SecureHash and Class::Data::Inheritable modules from CPAN are
+worth checking out.
 
 =head1 AUTHOR AND COPYRIGHT
 
@@ -1334,4 +1344,4 @@ object-oriented languages enforce.
 
 =head1 HISTORY
 
-Last edit: Fri May 21 15:47:56 MDT 1999
+Last edit: Sun Feb  4 20:50:28 EST 2001

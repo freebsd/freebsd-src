@@ -2,7 +2,7 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    unshift @INC, '../lib';
+    @INC = '../lib';
     $ENV{PERL5LIB} = '../lib';
 }
 
@@ -110,6 +110,30 @@ EXPECT
 use subs qw( open ) ;
 open 1,2 ;
 sub open { print $_[0] + $_[1], "\n" }
+EXPECT
+3
+########
+
+# override a built-in function, call after definition
+use subs qw( open ) ;
+sub open { print $_[0] + $_[1], "\n" }
+open 1,2 ;
+EXPECT
+3
+########
+
+# override a built-in function, call with ()
+use subs qw( open ) ;
+open (1,2) ;
+sub open { print $_[0] + $_[1], "\n" }
+EXPECT
+3
+########
+
+# override a built-in function, call with () after definition
+use subs qw( open ) ;
+sub open { print $_[0] + $_[1], "\n" }
+open (1,2) ;
 EXPECT
 3
 ########

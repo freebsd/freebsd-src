@@ -2,12 +2,12 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    unshift @INC, '../lib';
+    @INC = '../lib';
 }
 
 use File::Basename qw(fileparse basename dirname);
 
-print "1..36\n";
+print "1..41\n";
 
 # import correctly?
 print +(defined(&basename) && !defined(&fileparse_set_fstype) ?
@@ -96,29 +96,34 @@ print +(basename(':arma:virumque:cano.trojae') eq 'cano.trojae' ?
         '' : 'not '),"ok 25\n";
 print +(dirname(':arma:virumque:cano.trojae') eq ':arma:virumque:' ?
         '' : 'not '),"ok 26\n";
-print +(dirname('arma:') eq 'arma:' ? '' : 'not '),"ok 27\n";
-print +(dirname(':') eq ':' ? '' : 'not '),"ok 28\n";
+print +(dirname(':arma:virumque:') eq ':arma:' ? '' : 'not '),"ok 27\n";
+print +(dirname(':arma:virumque') eq ':arma:' ? '' : 'not '),"ok 28\n";
+print +(dirname(':arma:') eq ':' ? '' : 'not '),"ok 29\n";
+print +(dirname(':arma') eq ':' ? '' : 'not '),"ok 30\n";
+print +(dirname('arma:') eq 'arma:' ? '' : 'not '),"ok 31\n";
+print +(dirname('arma') eq ':' ? '' : 'not '),"ok 32\n";
+print +(dirname(':') eq ':' ? '' : 'not '),"ok 33\n";
 
 
 # Check quoting of metacharacters in suffix arg by basename()
 print +(basename(':arma:virumque:cano.trojae','.trojae') eq 'cano' ?
-        '' : 'not '),"ok 29\n";
+        '' : 'not '),"ok 34\n";
 print +(basename(':arma:virumque:cano_trojae','.trojae') eq 'cano_trojae' ?
-        '' : 'not '),"ok 30\n";
+        '' : 'not '),"ok 35\n";
 
 # extra tests for a few specific bugs
 
 File::Basename::fileparse_set_fstype 'MSDOS';
 # perl5.003_18 gives C:/perl/.\
-print +((fileparse 'C:/perl/lib')[1] eq 'C:/perl/' ? '' : 'not '), "ok 31\n";
+print +((fileparse 'C:/perl/lib')[1] eq 'C:/perl/' ? '' : 'not '), "ok 36\n";
 # perl5.003_18 gives C:\perl\
-print +(dirname('C:\\perl\\lib\\') eq 'C:\\perl' ? '' : 'not '), "ok 32\n";
+print +(dirname('C:\\perl\\lib\\') eq 'C:\\perl' ? '' : 'not '), "ok 37\n";
 
 File::Basename::fileparse_set_fstype 'UNIX';
 # perl5.003_18 gives '.'
-print +(dirname('/perl/') eq '/' ? '' : 'not '), "ok 33\n";
+print +(dirname('/perl/') eq '/' ? '' : 'not '), "ok 38\n";
 # perl5.003_18 gives '/perl/lib'
-print +(dirname('/perl/lib//') eq '/perl' ? '' : 'not '), "ok 34\n";
+print +(dirname('/perl/lib//') eq '/perl' ? '' : 'not '), "ok 39\n";
 
 #   The empty tainted value, for tainting strings
 my $TAINT = substr($^X, 0, 0);
@@ -134,6 +139,6 @@ sub all_tainted (@) {
     1;
 }
 
-print +(tainted(dirname($TAINT.'/perl/lib//')) ? '' : 'not '), "ok 35\n";
+print +(tainted(dirname($TAINT.'/perl/lib//')) ? '' : 'not '), "ok 40\n";
 print +(all_tainted(fileparse($TAINT.'/dir/draft.book7','\.book\d+'))
-		? '' : 'not '), "ok 36\n";
+		? '' : 'not '), "ok 41\n";

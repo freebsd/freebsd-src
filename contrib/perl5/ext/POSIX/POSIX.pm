@@ -565,9 +565,9 @@ sub chmod {
 sub fstat {
     usage "fstat(fd)" if @_ != 1;
     local *TMP;
-    open(TMP, "<&$_[0]");		# Gross.
+    CORE::open(TMP, "<&$_[0]");		# Gross.
     my @l = CORE::stat(TMP);
-    close(TMP);
+    CORE::close(TMP);
     @l;
 }
 
@@ -893,7 +893,7 @@ sub load_imports {
 		difftime mktime strftime tzset tzname)],
 
     unistd_h =>	[qw(F_OK NULL R_OK SEEK_CUR SEEK_END SEEK_SET
-		STRERR_FILENO STDIN_FILENO STDOUT_FILENO W_OK X_OK
+		STDERR_FILENO STDIN_FILENO STDOUT_FILENO W_OK X_OK
 		_PC_CHOWN_RESTRICTED _PC_LINK_MAX _PC_MAX_CANON
 		_PC_MAX_INPUT _PC_NAME_MAX _PC_NO_TRUNC _PC_PATH_MAX
 		_PC_PIPE_BUF _PC_VDISABLE _POSIX_CHOWN_RESTRICTED

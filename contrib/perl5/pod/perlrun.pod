@@ -284,11 +284,15 @@ be skipped.
 
 runs the program under the Perl debugger.  See L<perldebug>.
 
-=item B<-d:>I<foo>
+=item B<-d:>I<foo[=bar,baz]>
 
 runs the program under the control of a debugging, profiling, or
 tracing module installed as Devel::foo. E.g., B<-d:DProf> executes
-the program using the Devel::DProf profiler.  See L<perldebug>.
+the program using the Devel::DProf profiler.  As with the B<-M>
+flag, options may be passed to the Devel::foo package where they
+will be received and interpreted by the Devel::foo::import routine.
+The comma-separated list of options must follow a C<=> character.
+See L<perldebug>.
 
 =item B<-D>I<letters>
 
@@ -307,7 +311,7 @@ equivalent to B<-Dtls>):
         8  t  Trace execution
        16  o  Method and overloading resolution
        32  c  String/numeric conversions
-       64  P  Print preprocessor command for -P
+       64  P  Print preprocessor command for -P, source file input state
       128  m  Memory allocation
       256  f  Format processing
       512  r  Regular expression parsing and execution
@@ -318,6 +322,7 @@ equivalent to B<-Dtls>):
     16384  X  Scratchpad allocation
     32768  D  Cleaning up
     65536  S  Thread synchronization
+   131072  T  Tokenising
 
 All these flags require B<-DDEBUGGING> when you compile the Perl
 executable.  See the F<INSTALL> file in the Perl source distribution 
@@ -445,8 +450,7 @@ specified in the extension then it will skip that file and continue on
 with the next one (if it exists).
 
 For a discussion of issues surrounding file permissions and B<-i>,
-see L<perlfaq5/Why does Perl let me delete read-only files?  Why
-does -i clobber protected files?  Isn't this a bug in Perl?>.
+see L<perlfaq5/Why does Perl let me delete read-only files?  Why does -i clobber protected files?  Isn't this a bug in Perl?>.
 
 You cannot use B<-i> to create directories or to strip extensions from
 files.
@@ -565,21 +569,39 @@ the implicit loop, just as in B<awk>.
 =item B<-P>
 
 causes your program to be run through the C preprocessor before
-compilation by Perl.  (Because both comments and B<cpp> directives begin
+compilation by Perl.  Because both comments and B<cpp> directives begin
 with the # character, you should avoid starting comments with any words
-recognized by the C preprocessor such as "if", "else", or "define".)
+recognized by the C preprocessor such as C<"if">, C<"else">, or C<"define">.
+Also, in some platforms the C preprocessor knows too much: it knows
+about the C++ -style until-end-of-line comments starting with C<"//">.
+This will cause problems with common Perl constructs like
+
+    s/foo//;
+
+because after -P this will became illegal code
+
+    s/foo
+
+The workaround is to use some other quoting separator than C<"/">,
+like for example C<"!">:
+
+    s!foo!!;
 
 =item B<-s>
 
 enables rudimentary switch parsing for switches on the command
 line after the program name but before any filename arguments (or before
-a B<-->).  Any switch found there is removed from @ARGV and sets the
+an argument of B<-->).  This means you can have switches with two leading
+dashes (B<--help>).  Any switch found there is removed from @ARGV and sets the
 corresponding variable in the Perl program.  The following program
 prints "1" if the program is invoked with a B<-xyz> switch, and "abc"
 if it is invoked with B<-xyz=abc>.
 
     #!/usr/bin/perl -s
     if ($xyz) { print "$xyz\n" }
+
+Do note that B<--help> creates the variable ${-help}, which is not compliant
+with C<strict refs>.
 
 =item B<-S>
 
@@ -808,6 +830,18 @@ after compilation.
 Relevant only if your perl executable was built with B<-DDEBUGGING>,
 this controls the behavior of global destruction of objects and other
 references.
+
+=item PERL_ROOT (specific to the VMS port)
+
+A translation concealed rooted logical name that contains perl and the
+logical device for the @INC path on VMS only.  Other logical names that
+affect perl on VMS include PERLSHR, PERL_ENV_TABLES, and 
+SYS$TIMEZONE_DIFFERENTIAL but are optional and discussed further in 
+L<perlvms> and in F<README.vms> in the Perl source distribution.
+
+=item SYS$LOGIN (specific to the VMS port)
+
+Used if chdir has no argument and HOME and LOGDIR are not set.
 
 =back
 

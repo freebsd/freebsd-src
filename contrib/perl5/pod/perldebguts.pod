@@ -13,17 +13,17 @@ intimate with Perl's guts to understand.  Caveat lector.
 
 Perl has special debugging hooks at compile-time and run-time used
 to create debugging environments.  These hooks are not to be confused
-with the I<perl -Dxxx> command described in L<perlrun>, which are
-usable only if a special Perl built per the instructions the
+with the I<perl -Dxxx> command described in L<perlrun>, which is
+usable only if a special Perl is built per the instructions in the
 F<INSTALL> podpage in the Perl source tree.
 
 For example, whenever you call Perl's built-in C<caller> function
 from the package DB, the arguments that the corresponding stack
-frame was called with are copied to the the @DB::args array.  The
+frame was called with are copied to the @DB::args array.  The
 general mechanisms is enabled by calling Perl with the B<-d> switch, the
 following additional features are enabled (cf. L<perlvar/$^P>):
 
-=over
+=over 4
 
 =item *
 
@@ -32,20 +32,22 @@ Perl inserts the contents of C<$ENV{PERL5DB}> (or C<BEGIN {require
 
 =item *
 
-The array C<@{"_<$filename"}> holds the lines of $filename for all
-files compiled by Perl.  The same for C<eval>ed strings that contain
+Each array C<@{"_<$filename"}> holds the lines of $filename for a
+file compiled by Perl.  The same for C<eval>ed strings that contain
 subroutines, or which are currently being executed.  The $filename
 for C<eval>ed strings looks like C<(eval 34)>.   Code assertions
-in regexes look like C<(re_eval 19)>.
+in regexes look like C<(re_eval 19)>.  
+
+Values in this array are magical in numeric context: they compare
+equal to zero only if the line is not breakable.
 
 =item *
 
-The hash C<%{"_<$filename"}> contains breakpoints and actions keyed
+Each hash C<%{"_<$filename"}> contains breakpoints and actions keyed
 by line number.  Individual entries (as opposed to the whole hash)
 are settable.  Perl only cares about Boolean true here, although
 the values used by F<perl5db.pl> have the form
-C<"$break_condition\0$action">.  Values in this hash are magical
-in numeric context: they are zeros if the line is not breakable.
+C<"$break_condition\0$action">.  
 
 The same holds for evaluated strings that contain subroutines, or
 which are currently being executed.  The $filename for C<eval>ed strings
@@ -53,7 +55,7 @@ looks like C<(eval 34)> or  C<(re_eval 19)>.
 
 =item *
 
-The scalar C<${"_<$filename"}> contains C<"_<$filename">.  This is
+Each scalar C<${"_<$filename"}> contains C<"_<$filename">.  This is
 also the case for evaluated strings that contain subroutines, or
 which are currently being executed.  The $filename for C<eval>ed
 strings looks like C<(eval 34)> or C<(re_eval 19)>.
@@ -154,7 +156,7 @@ L<perldebug/"Options"> for description of options parsed by
 C<DB::parse_options(string)>.  The function C<DB::dump_trace(skip[,
 count])> skips the specified number of frames and returns a list
 containing information about the calling frames (all of them, if
-C<count> is missing).  Each entry is reference to a a hash with
+C<count> is missing).  Each entry is reference to a hash with
 keys C<context> (either C<.>, C<$>, or C<@>), C<sub> (subroutine
 name, or info about C<eval>), C<args> (C<undef> or a reference to
 an array), C<file>, and C<line>.
@@ -400,7 +402,7 @@ shorter than 7 chars.
 
 The fields of interest which may appear in the last line are
 
-=over
+=over 4
 
 =item C<anchored> I<STRING> C<at> I<POS>
 
@@ -630,7 +632,7 @@ Perl is a profligate wastrel when it comes to memory use.  There
 is a saying that to estimate memory usage of Perl, assume a reasonable
 algorithm for memory allocation, multiply that estimate by 10, and
 while you still may miss the mark, at least you won't be quite so
-astonished.  This is not absolutely true, but may prvide a good
+astonished.  This is not absolutely true, but may provide a good
 grasp of what happens.
 
 Assume that an integer cannot take less than 20 bytes of memory, a
@@ -639,7 +641,7 @@ than 32 bytes (all these examples assume 32-bit architectures, the
 result are quite a bit worse on 64-bit architectures).  If a variable
 is accessed in two of three different ways (which require an integer,
 a float, or a string), the memory footprint may increase yet another
-20 bytes.  A sloppy malloc(3) implementation can make inflate these
+20 bytes.  A sloppy malloc(3) implementation can inflate these
 numbers dramatically.
 
 On the opposite end of the scale, a declaration like
@@ -666,7 +668,7 @@ the top level of the Perl source tree.
 
 If your perl is using Perl's malloc() and was compiled with the
 necessary switches (this is the default), then it will print memory
-usage statistics after compiling your code hwen C<< $ENV{PERL_DEBUG_MSTATS}
+usage statistics after compiling your code when C<< $ENV{PERL_DEBUG_MSTATS}
 > 1 >>, and before termination of the program when C<<
 $ENV{PERL_DEBUG_MSTATS} >= 1 >>.  The report format is similar to
 the following example:
@@ -686,12 +688,12 @@ the following example:
   Total sbrk(): 215040/47:145. Odd ends: pad+heads+chain+tail: 0+2192+0+6144.
 
 It is possible to ask for such a statistic at arbitrary points in
-your execution using the mstats() function out of the standard
+your execution using the mstat() function out of the standard
 Devel::Peek module.
 
 Here is some explanation of that format:
 
-=over
+=over 4
 
 =item C<buckets SMALLEST(APPROX)..GREATEST(APPROX)>
 
@@ -720,7 +722,7 @@ of two--or possibly one page greater.  In the second row, if present,
 the memory footprints of the buckets are between the memory footprints
 of two buckets "above".
 
-For example, suppose under the pervious example, the memory footprints
+For example, suppose under the previous example, the memory footprints
 were
 
      free:    8     16    32    64    128  256 512 1024 2048 4096 8192
@@ -804,7 +806,7 @@ To see this list, insert two C<warn('!...')> statements around the call:
   do 'lib/auto/POSIX/autosplit.ix';
   warn('!!! "after"');
 
-and run it with PErl's B<-DL> option.  The first warn() will print
+and run it with Perl's B<-DL> option.  The first warn() will print
 memory allocation info before parsing the file and will memorize
 the statistics at this point (we ignore what it prints).  The second
 warn() prints increments with respect to these memorized data.  This
@@ -838,11 +840,11 @@ per glob - for glob name, and glob stringification magic.
 
 Here are explanations for other I<Id>s above: 
 
-=over
+=over 4
 
 =item C<717> 
 
-CReates bigger C<XPV*> structures.  In the case above, it
+Creates bigger C<XPV*> structures.  In the case above, it
 creates 3 C<AV>s per subroutine, one for a list of lexical variable
 names, one for a scratchpad (which contains lexical variables and
 C<targets>), and one for the array of scratchpads needed for
@@ -892,7 +894,7 @@ these categories.
 
 If warn() string starts with
 
-=over
+=over 4
 
 =item C<!!!> 
 

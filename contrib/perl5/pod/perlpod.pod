@@ -63,15 +63,17 @@ Item, over, and back require a little more explanation: "=over" starts a
 section specifically for the generation of a list using "=item" commands. At
 the end of your list, use "=back" to end it. You will probably want to give
 "4" as the number to "=over", as some formatters will use this for indentation.
-This should probably be a default. Note also that there are some basic rules
-to using =item: don't use them outside of an =over/=back block, use at least
-one inside an =over/=back block, you don't _have_ to include the =back if
-the list just runs off the document, and perhaps most importantly, keep the
-items consistent: either use "=item *" for all of them, to produce bullets,
-or use "=item 1.", "=item 2.", etc., to produce numbered lists, or use
-"=item foo", "=item bar", etc., i.e., things that looks nothing like bullets
-or numbers. If you start with bullets or numbers, stick with them, as many
-formatters use the first "=item" type to decide how to format the list.
+The unit of indentation is optional. If the unit is not given the natural
+indentation of the formatting system applied will be used. Note also that
+there are some basic rules to using =item: don't use them outside of 
+an =over/=back block, use at least one inside an =over/=back block, you don't
+_have_ to include the =back if the list just runs off the document, and
+perhaps most importantly, keep the items consistent: either use "=item *" for
+all of them, to produce bullets, or use "=item 1.", "=item 2.", etc., to
+produce numbered lists, or use "=item foo", "=item bar", etc., i.e., things
+that looks nothing like bullets or numbers. If you start with bullets or
+numbers, stick with them, as many formatters use the first "=item" type to
+decide how to format the list.
 
 =item =for
 

@@ -1,5 +1,6 @@
 package charnames;
 use bytes ();		# for $bytes::hint_bits
+use warnings();
 $charnames::hint_bits = 0x20000;
 
 my $txt;
@@ -29,8 +30,11 @@ sub charnames {
     }
   }
   die "Unknown charname '$name'" unless @off;
-  
-  my $ord = hex substr $txt, $off[0] - 4, 4;
+
+  my $hexlen = 4; # Unicode guarantees 4-, 5-, or 6-digit format
+  $hexlen++ while
+      $hexlen < 6 && substr($txt, $off[0] - $hexlen - 1, 1) =~ /[0-9a-f]/;
+  my $ord = hex substr $txt, $off[0] - $hexlen, $hexlen;
   if ($^H & $bytes::hint_bits) {	# "use bytes" in effect?
     use bytes;
     return chr $ord if $ord <= 255;
@@ -51,6 +55,13 @@ sub import {
   $^H{charnames_full} = delete $h{':full'};
   $^H{charnames_short} = delete $h{':short'};
   $^H{charnames_scripts} = [map uc, keys %h];
+  if (warnings::enabled('utf8') && @{$^H{charnames_scripts}}) {
+	$txt = do "unicode/Name.pl" unless $txt;
+    for (@{$^H{charnames_scripts}}) {
+        warnings::warn('utf8',  "No such script: '$_'") unless
+	    $txt =~ m/\t\t$_ (?:CAPITAL |SMALL )?LETTER /;
+	}
+  }
 }
 
 

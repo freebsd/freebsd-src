@@ -37,6 +37,14 @@ use symbolic references (see L<perlref>).
     $file = "STDOUT";
     print $file "Hi!";	# error; note: no comma after $file
 
+There is one exception to this rule:
+
+    $bar = \&{'foo'};
+    &$bar;
+
+is allowed so that C<goto &$AUTOLOAD> would not break under stricture.
+
+
 =item C<strict vars>
 
 This generates a compile-time error if you access a variable that wasn't

@@ -85,7 +85,7 @@ We need regression/sanity tests for suidperl
 
 This value may or may not be accurate, but it certainly is
 eye-catching.  For some things perl5 is faster than perl4, but often
-the reliability and extensability have come at a cost of speed.  The
+the reliability and extensibility have come at a cost of speed.  The
 benchmark suite that Gisle released earlier has been hailed as both a
 fantastic solution and as a source of entirely meaningless figures.
 Do we need to test "real applications"?  Can you do so?  Anyone have
@@ -110,10 +110,6 @@ the problem?  If the latter, Brad Appleton's pod work may fix the
 problem for free.
 
 =head1 Perl Language
-
-=head2 our ($var)
-
-Declare global variables (lexically or otherwise).
 
 =head2 64-bit Perl
 
@@ -161,7 +157,7 @@ Sarathy, I believe, did the work.  Here's what he has to say:
 
 Yeah, I hope to implement it someday too.  The points that were
 raised in TPC2 were all to do with calling DESTROY() methods, but
-I think we can accomodate that by extending bless() to stash
+I think we can accommodate that by extending bless() to stash
 extra information for objects so we track their lifetime accurately
 for those that want their DESTROY() to be predictable (this will be
 a speed hit, naturally, and will therefore be optional, naturally. :)
@@ -532,14 +528,6 @@ Kurt Starsinic is working on h2ph.  mjd has fixed bugs in a2p in the
 past.  a2p apparently doesn't work on nawk and gawk extensions.
 Graham Barr has an Include module that does h2ph work at runtime.
 
-=head2 POD Converters
-
-Brad's PodParser code needs to become part of the core, and the Pod::*
-and pod2* programs rewritten to use this standard parser.  Currently
-the converters take different options, some behave in different
-fashions, and some are more picky than others in terms of the POD
-files they accept.
-
 =head2 pod2html
 
 A short-term fix: pod2html generates absolute HTML links.  Make it
@@ -863,7 +851,7 @@ See Time::HiRes.
 
 =head2 autocroak?
 
-This is the Fatal.pm module, so any builtin that that does
+This is the Fatal.pm module, so any builtin that does
 not return success automatically die()s.  If you're feeling brave, tie
 this in with the unified exceptions scheme.
 

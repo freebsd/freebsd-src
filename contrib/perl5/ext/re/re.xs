@@ -25,7 +25,6 @@ static int oldfl;
 static void
 deinstall(pTHX)
 {
-    dTHR;
     PL_regexecp = Perl_regexec_flags;
     PL_regcompp = Perl_pregcomp;
     PL_regint_start = Perl_re_intuit_start;
@@ -39,7 +38,6 @@ deinstall(pTHX)
 static void
 install(pTHX)
 {
-    dTHR;
     PL_colorset = 0;			/* Allow reinspection of ENV. */
     PL_regexecp = &my_regexec;
     PL_regcompp = &my_regcomp;

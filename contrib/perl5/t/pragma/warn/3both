@@ -195,3 +195,72 @@ my $b ;
 chop $b ;
 EXPECT
 Use of uninitialized value in scalar chop at - line 7.
+########
+
+# Check scope of pragma with eval
+BEGIN {  $^W = 1 }
+{
+    no warnings ;
+    eval '
+        my $b ; chop $b ;
+    '; print STDERR $@ ;
+    my $b ; chop $b ;
+}
+EXPECT
+
+########
+
+# Check scope of pragma with eval
+BEGIN {  $^W = 1 }
+use warnings;
+{
+    no warnings ;
+    eval q[ 
+        use warnings 'uninitialized' ;
+        my $b ; chop $b ;
+    ]; print STDERR $@;
+    my $b ; chop $b ;
+}
+EXPECT
+Use of uninitialized value in scalar chop at (eval 1) line 3.
+########
+
+# Check scope of pragma with eval
+BEGIN {  $^W = 0 }
+{
+    use warnings 'uninitialized' ;
+    eval '
+        my $b ; chop $b ;
+    '; print STDERR $@ ;
+    my $b ; chop $b ;
+}
+EXPECT
+Use of uninitialized value in scalar chop at (eval 1) line 2.
+Use of uninitialized value in scalar chop at - line 9.
+########
+
+# Check scope of pragma with eval
+BEGIN {  $^W = 0 }
+{
+    use warnings 'uninitialized' ;
+    eval '
+        no warnings ;
+        my $b ; chop $b ;
+    '; print STDERR $@ ;
+    my $b ; chop $b ;
+}
+EXPECT
+Use of uninitialized value in scalar chop at - line 10.
+########
+
+# Check scope of pragma with eval
+BEGIN {  $^W = 1 }
+{
+    no warnings ;
+    eval '
+        1 if $a EQ $b ;
+    '; print STDERR $@ ;
+    1 if $a EQ $b ;
+}
+EXPECT
+

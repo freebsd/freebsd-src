@@ -6,10 +6,10 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    unshift @INC, '../lib';
+    @INC = '../lib';
 }
 
-print "1..30\n";
+print "1..44\n";
 
 # numerics
 print ((0xdead & 0xbeef) == 0x9ead ? "ok 1\n" : "not ok 1\n");
@@ -39,7 +39,7 @@ print (((1 << ($bits - 1)) == $cusp &&
 	do { use integer; 1 << ($bits - 1) } == -$cusp)
        ? "ok 11\n" : "not ok 11\n");
 print ((($cusp >> 1) == ($cusp / 2) &&
-	do { use integer; $cusp >> 1 } == -($cusp / 2))
+       do { use integer; abs($cusp >> 1) } == ($cusp / 2))
        ? "ok 12\n" : "not ok 12\n");
 
 $Aaz = chr(ord("A") & ord("z"));
@@ -81,3 +81,91 @@ print "ok 27\n" if sprintf("%vd", v4095 ^ v801) eq 3294;
 print "ok 28\n" if sprintf("%vd", v4095.801.4095 & v801.4095) eq '801.801';
 print "ok 29\n" if sprintf("%vd", v4095.801.4095 | v801.4095) eq '4095.4095.4095';
 print "ok 30\n" if sprintf("%vd", v801.4095 ^ v4095.801.4095) eq '3294.3294.4095';
+#
+print "ok 31\n" if sprintf("%vd", v120.300 & v200.400) eq '72.256';
+print "ok 32\n" if sprintf("%vd", v120.300 | v200.400) eq '248.444';
+print "ok 33\n" if sprintf("%vd", v120.300 ^ v200.400) eq '176.188';
+#
+my $a = v120.300;
+my $b = v200.400;
+$a ^= $b;
+print "ok 34\n" if sprintf("%vd", $a) eq '176.188';
+my $a = v120.300;
+my $b = v200.400;
+$a |= $b;
+print "ok 35\n" if sprintf("%vd", $a) eq '248.444';
+
+#
+# UTF8 ~ behaviour
+#
+
+my @not36;
+
+for (0x100...0xFFF) {
+  $a = ~(chr $_);
+  push @not36, sprintf("%#03X", $_)
+      if $a ne chr(~$_) or length($a) != 1 or ~$a ne chr($_);
+}
+if (@not36) {
+    print "# test 36 failed\n";
+    print "not ";
+}
+print "ok 36\n";
+
+my @not37;
+
+for my $i (0xEEE...0xF00) {
+  for my $j (0x0..0x120) {
+    $a = ~(chr ($i) . chr $j);
+    push @not37, sprintf("%#03X %#03X", $i, $j)
+	if $a ne chr(~$i).chr(~$j) or
+	   length($a) != 2 or 
+           ~$a ne chr($i).chr($j);
+  }
+}
+if (@not37) {
+    print "# test 37 failed\n";
+    print "not ";
+}
+print "ok 37\n";
+
+print "not " unless ~chr(~0) eq "\0";
+print "ok 38\n";
+
+my @not39;
+
+for my $i (0x100..0x120) {
+    for my $j (0x100...0x120) {
+	push @not39, sprintf("%#03X %#03X", $i, $j)
+	    if ~(chr($i)|chr($j)) ne (~chr($i)&~chr($j));
+    }
+}
+if (@not39) {
+    print "# test 39 failed\n";
+    print "not ";
+}
+print "ok 39\n";
+
+my @not40;
+
+for my $i (0x100..0x120) {
+    for my $j (0x100...0x120) {
+	push @not40, sprintf("%#03X %#03X", $i, $j)
+	    if ~(chr($i)&chr($j)) ne (~chr($i)|~chr($j));
+    }
+}
+if (@not40) {
+    print "# test 40 failed\n";
+    print "not ";
+}
+print "ok 40\n";
+
+# More variations on 19 and 22.
+print "ok \xFF\x{FF}\n" & "ok 41\n";
+print "ok \x{FF}\xFF\n" & "ok 42\n";
+
+# Tests to see if you really can do casts negative floats to unsigned properly
+$neg1 = -1.0;
+print ((~ $neg1 == 0) ? "ok 43\n" : "not ok 43\n");
+$neg7 = -7.0;
+print ((~ $neg7 == 6) ? "ok 44\n" : "not ok 44\n");

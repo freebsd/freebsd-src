@@ -1,11 +1,14 @@
 # Term::ANSIColor -- Color screen output using ANSI escape sequences.
-# $Id: ANSIColor.pm,v 1.1 1997/12/10 20:05:29 eagle Exp $
+# $Id: ANSIColor.pm,v 1.3 2000/08/06 18:28:10 eagle Exp $
 #
-# Copyright 1996, 1997 by Russ Allbery <rra@stanford.edu>
-#                     and Zenin <zenin@best.com>
+# Copyright 1996, 1997, 1998, 2000
+#   by Russ Allbery <rra@stanford.edu> and Zenin <zenin@best.com>
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the same terms as Perl itself.
+#
+# Ah, September, when the sysadmins turn colors and fall off the trees....
+#                               -- Dave Van Domelen
 
 ############################################################################
 # Modules and declarations
@@ -27,8 +30,10 @@ use Exporter ();
                                  ON_GREEN ON_YELLOW ON_BLUE ON_MAGENTA
                                  ON_CYAN ON_WHITE)]);
 Exporter::export_ok_tags ('constants');
-    
-($VERSION = (split (' ', q$Revision: 1.1 $ ))[1]) =~ s/\.(\d)$/.0$1/;
+
+# Don't use the CVS revision as the version, since this module is also in
+# Perl core and too many things could munge CVS magic revision strings.
+$VERSION = 1.03;
 
 
 ############################################################################
@@ -38,6 +43,7 @@ Exporter::export_ok_tags ('constants');
 %attributes = ('clear'      => 0,
                'reset'      => 0,
                'bold'       => 1,
+               'dark'       => 2,
                'underline'  => 4,
                'underscore' => 4,
                'blink'      => 5,
@@ -92,7 +98,8 @@ sub AUTOLOAD {
         };
         goto &$AUTOLOAD;
     } else {
-        die "undefined subroutine &$AUTOLOAD called";
+        require Carp;
+        Carp::croak ("undefined subroutine &$AUTOLOAD called");
     }
 }
 
@@ -119,19 +126,28 @@ sub color {
 
 # Given a string and a set of attributes, returns the string surrounded by
 # escape codes to set those attributes and then clear them at the end of the
-# string.  If $EACHLINE is set, insert a reset before each occurrence of the
-# string $EACHLINE and the starting attribute code after the string
-# $EACHLINE, so that no attribute crosses line delimiters (this is often
-# desirable if the output is to be piped to a pager or some other program).
+# string.  The attributes can be given either as an array ref as the first
+# argument or as a list as the second and subsequent arguments.  If
+# $EACHLINE is set, insert a reset before each occurrence of the string
+# $EACHLINE and the starting attribute code after the string $EACHLINE, so
+# that no attribute crosses line delimiters (this is often desirable if the
+# output is to be piped to a pager or some other program).
 sub colored {
-    my $string = shift;
+    my ($string, @codes);
+    if (ref $_[0]) {
+        @codes = @{+shift};
+        $string = join ('', @_);
+    } else {
+        $string = shift;
+        @codes = @_;
+    }
     if (defined $EACHLINE) {
-        my $attr = color (@_);
+        my $attr = color (@codes);
         join '', 
             map { $_ && $_ ne $EACHLINE ? $attr . $_ . "\e[0m" : $_ }
                 split (/(\Q$EACHLINE\E)/, $string);
     } else {
-        color (@_) . $string . "\e[0m";
+        color (@codes) . $string . "\e[0m";
     }
 }
 
@@ -157,6 +173,7 @@ Term::ANSIColor - Color screen output using ANSI escape sequences
     print "This text is normal.\n";
     print colored ("Yellow on magenta.\n", 'yellow on_magenta');
     print "This text is normal.\n";
+    print colored ['yellow on_magenta'], "Yellow on magenta.\n";
 
     use Term::ANSIColor qw(:constants);
     print BOLD, BLUE, "This text is in bold blue.\n", RESET;
@@ -179,22 +196,30 @@ you can save it as a string, pass it to something else, send it to a file
 handle, or do anything else with it that you might care to).
 
 The recognized attributes (all of which should be fairly intuitive) are
-clear, reset, bold, underline, underscore, blink, reverse, concealed,
-black, red, green, yellow, blue, magenta, on_black, on_red, on_green,
-on_yellow, on_blue, on_magenta, on_cyan, and on_white.  Case is not
-significant.  Underline and underscore are equivalent, as are clear and
-reset, so use whichever is the most intuitive to you.  The color alone
+clear, reset, dark, bold, underline, underscore, blink, reverse,
+concealed, black, red, green, yellow, blue, magenta, on_black, on_red,
+on_green, on_yellow, on_blue, on_magenta, on_cyan, and on_white.  Case is
+not significant.  Underline and underscore are equivalent, as are clear
+and reset, so use whichever is the most intuitive to you.  The color alone
 sets the foreground color, and on_color sets the background color.
 
-Note that attributes, once set, last until they are unset (by sending the
-attribute "reset").  Be careful to do this, or otherwise your attribute will
-last after your script is done running, and people get very annoyed at
-having their prompt and typing changed to weird colors.
+Note that not all attributes are supported by all terminal types, and some
+terminals may not support any of these sequences.  Dark, blink, and
+concealed in particular are frequently not implemented.
+
+Attributes, once set, last until they are unset (by sending the attribute
+"reset").  Be careful to do this, or otherwise your attribute will last
+after your script is done running, and people get very annoyed at having
+their prompt and typing changed to weird colors.
 
 As an aid to help with this, colored() takes a scalar as the first
 argument and any number of attribute strings as the second argument and
 returns the scalar wrapped in escape codes so that the attributes will be
 set as requested before the string and reset to normal after the string.
+Alternately, you can pass a reference to an array as the first argument,
+and then the contents of that array will be taken as attributes and color
+codes and the remainder of the arguments as text to colorize.
+
 Normally, colored() just puts attribute codes at the beginning and end of
 the string, but if you set $Term::ANSIColor::EACHLINE to some string,
 that string will be considered the line delimiter and the attribute will
@@ -205,10 +230,10 @@ Normally you'll want to set $Term::ANSIColor::EACHLINE to C<"\n"> to use
 this feature.
 
 Alternately, if you import C<:constants>, you can use the constants CLEAR,
-RESET, BOLD, UNDERLINE, UNDERSCORE, BLINK, REVERSE, CONCEALED, BLACK, RED,
-GREEN, YELLOW, BLUE, MAGENTA, ON_BLACK, ON_RED, ON_GREEN, ON_YELLOW,
-ON_BLUE, ON_MAGENTA, ON_CYAN, and ON_WHITE directly.  These are the same
-as color('attribute') and can be used if you prefer typing:
+RESET, BOLD, DARK, UNDERLINE, UNDERSCORE, BLINK, REVERSE, CONCEALED,
+BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, ON_BLACK, ON_RED, ON_GREEN,
+ON_YELLOW, ON_BLUE, ON_MAGENTA, ON_CYAN, and ON_WHITE directly.  These are
+the same as color('attribute') and can be used if you prefer typing:
 
     print BOLD BLUE ON_WHITE "Text\n", RESET;
 
@@ -231,14 +256,14 @@ will reset the display mode afterwards, whereas:
 will not.
 
 The subroutine interface has the advantage over the constants interface in
-that only 2 soubrutines are exported into your namespace, verses 22 in the
-constants interface.  On the flip side, the constants interface has the
-advantage of better compile time error checking, since misspelled names of
-colors or attributes in calls to color() and colored() won't be caught
-until runtime whereas misspelled names of constants will be caught at
-compile time.  So, polute your namespace with almost two dozen subrutines
-that you may not even use that oftin, or risk a silly bug by mistyping an
-attribute.  Your choice, TMTOWTDI after all.
+that only two subroutines are exported into your namespace, versus
+twenty-two in the constants interface.  On the flip side, the constants
+interface has the advantage of better compile time error checking, since
+misspelled names of colors or attributes in calls to color() and colored()
+won't be caught until runtime whereas misspelled names of constants will
+be caught at compile time.  So, polute your namespace with almost two
+dozen subroutines that you may not even use that often, or risk a silly
+bug by mistyping an attribute.  Your choice, TMTOWTDI after all.
 
 =head1 DIAGNOSTICS
 
@@ -246,11 +271,11 @@ attribute.  Your choice, TMTOWTDI after all.
 
 =item Invalid attribute name %s
 
-You passed an invalid attribute name to either color() or colored().
+(F) You passed an invalid attribute name to either color() or colored().
 
-=item Identifier %s used only once: possible typo
+=item Name "%s" used only once: possible typo
 
-You probably mistyped a constant color name such as:
+(W) You probably mistyped a constant color name such as:
 
     print FOOBAR "This text is color FOOBAR\n";
 
@@ -259,7 +284,7 @@ force the next error.
 
 =item No comma allowed after filehandle
 
-You probably mistyped a constant color name such as:
+(F) You probably mistyped a constant color name such as:
 
     print FOOBAR, "This text is color FOOBAR\n";
 
@@ -267,9 +292,9 @@ Generating this fatal compile error is one of the main advantages of using
 the constants interface, since you'll immediately know if you mistype a
 color name.
 
-=item Bareword %s not allowed while "strict subs" in use
+=item Bareword "%s" not allowed while "strict subs" in use
 
-You probably mistyped a constant color name such as:
+(F) You probably mistyped a constant color name such as:
 
     $Foobar = FOOBAR . "This line should be blue\n";
 
@@ -297,6 +322,25 @@ commas unless you're using $Term::ANSIColor::AUTORESET.)
 For easier debuging, you may prefer to always use the commas when not
 setting $Term::ANSIColor::AUTORESET so that you'll get a fatal compile
 error rather than a warning.
+
+=head1 NOTES
+
+Jean Delvare provided the following table of different common terminal
+emulators and their support for the various attributes:
+
+              clear    bold     dark    under    blink   reverse  conceal
+ ------------------------------------------------------------------------
+ xterm         yes      yes      no      yes     bold      yes      yes
+ linux         yes      yes      yes    bold      yes      yes      no
+ rxvt          yes      yes      no      yes  bold/black   yes      no
+ dtterm        yes      yes      yes     yes    reverse    yes      yes
+ teraterm      yes    reverse    no      yes    rev/red    yes      no
+ aixterm      kinda   normal     no      yes      no       yes      yes
+
+Where the entry is other than yes or no, that emulator interpret the given
+attribute as something else instead.  Note that on an aixterm, clear
+doesn't reset colors; you have to explicitly set the colors back to what
+you want.  More entries in this table are welcome.
 
 =head1 AUTHORS
 

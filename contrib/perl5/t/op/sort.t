@@ -2,16 +2,10 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    unshift @INC, '../lib';
+    @INC = '../lib';
 }
 use warnings;
-print "1..49\n";
-
-# XXX known to leak scalars
-{
-  no warnings 'uninitialized';
-  $ENV{PERL_DESTRUCT_LEVEL} = 0 unless $ENV{PERL_DESTRUCT_LEVEL} > 3;
-}
+print "1..57\n";
 
 # these shouldn't hang
 {
@@ -270,3 +264,54 @@ print "# x = '@b'\n";
 @b = sort main::Backwards_stacked @a;
 print ("@b" eq '90 5 255 1996 19' ? "ok 49\n" : "not ok 49\n");
 print "# x = '@b'\n";
+
+# check if context for sort arguments is handled right
+
+$test = 49;
+sub test_if_list {
+    my $gimme = wantarray;
+    print "not " unless $gimme;
+    ++$test;
+    print "ok $test\n";
+}
+my $m = sub { $a <=> $b };
+
+sub cxt_one { sort $m test_if_list() }
+cxt_one();
+sub cxt_two { sort { $a <=> $b } test_if_list() }
+cxt_two();
+sub cxt_three { sort &test_if_list() }
+cxt_three();
+
+sub test_if_scalar {
+    my $gimme = wantarray;
+    print "not " if $gimme or !defined($gimme);
+    ++$test;
+    print "ok $test\n";
+}
+
+$m = \&test_if_scalar;
+sub cxt_four { sort $m 1,2 }
+@x = cxt_four();
+sub cxt_five { sort { test_if_scalar($a,$b); } 1,2 }
+@x = cxt_five();
+sub cxt_six { sort test_if_scalar 1,2 }
+@x = cxt_six();
+
+# test against a reentrancy bug
+{
+    package Bar;
+    sub compare { $a cmp $b }
+    sub reenter { my @force = sort compare qw/a b/ }
+}
+{
+    my($def, $init) = (0, 0);
+    @b = sort {
+	$def = 1 if defined $Bar::a;
+	Bar::reenter() unless $init++;
+	$a <=> $b
+    } qw/4 3 1 2/;
+    print ("@b" eq '1 2 3 4' ? "ok 56\n" : "not ok 56\n");
+    print "# x = '@b'\n";
+    print !$def ? "ok 57\n" : "not ok 57\n";
+}

@@ -4,7 +4,7 @@ perlfaq4 - Data Manipulation ($Revision: 1.49 $, $Date: 1999/05/23 20:37:49 $)
 
 =head1 DESCRIPTION
 
-The section of the FAQ answers question related to the manipulation
+The section of the FAQ answers questions related to the manipulation
 of data as numbers, dates, strings, arrays, hashes, and miscellaneous
 data issues.
 
@@ -13,13 +13,13 @@ data issues.
 =head2 Why am I getting long decimals (eg, 19.9499999999999) instead of the numbers I should be getting (eg, 19.95)?
 
 The infinite set that a mathematician thinks of as the real numbers can
-only be approximate on a computer, since the computer only has a finite
+only be approximated on a computer, since the computer only has a finite
 number of bits to store an infinite number of, um, numbers.
 
 Internally, your computer represents floating-point numbers in binary.
 Floating-point numbers read in from a file or appearing as literals
 in your program are converted from their decimal floating-point
-representation (eg, 19.95) to the internal binary representation.
+representation (eg, 19.95) to an internal binary representation.
 
 However, 19.95 can't be precisely represented as a binary
 floating-point number, just like 1/3 can't be exactly represented as a
@@ -29,7 +29,7 @@ of 19.95, therefore, isn't exactly 19.95.
 When a floating-point number gets printed, the binary floating-point
 representation is converted back to decimal.  These decimal numbers
 are displayed in either the format you specify with printf(), or the
-current output format for numbers (see L<perlvar/"$#"> if you use
+current output format for numbers.  (See L<perlvar/"$#"> if you use
 print.  C<$#> has a different default value in Perl5 than it did in
 Perl4.  Changing C<$#> yourself is deprecated.)
 
@@ -75,7 +75,7 @@ functions.
     $ceil   = ceil(3.5);			# 4
     $floor  = floor(3.5);			# 3
 
-In 5.000 to 5.003 Perls, trigonometry was done in the Math::Complex
+In 5.000 to 5.003 perls, trigonometry was done in the Math::Complex
 module.  With 5.004, the Math::Trig module (part of the standard Perl
 distribution) implements the trigonometric functions. Internally it
 uses the Math::Complex module and some functions can break out from
@@ -206,8 +206,8 @@ than more.
 
 Computers are good at being predictable and bad at being random
 (despite appearances caused by bugs in your programs :-).
-http://www.perl.com/CPAN/doc/FMTEYEWTK/random, courtesy of Tom
-Phoenix, talks more about this..  John von Neumann said, ``Anyone who
+http://www.perl.com/CPAN/doc/FMTEYEWTK/random , courtesy of Tom
+Phoenix, talks more about this.  John von Neumann said, ``Anyone who
 attempts to generate random numbers by deterministic means is, of
 course, living in a state of sin.''
 
@@ -286,7 +286,7 @@ Use the Time::JulianDay module (part of the Time-modules bundle
 available from CPAN.)
 
 Before you immerse yourself too deeply in this, be sure to verify that it
-is the I<Julian> Day you really want.  Are they really just interested in
+is the I<Julian> Day you really want.  Are you really just interested in
 a way of getting serial days so that they can do date arithmetic?  If you
 are interested in performing date arithmetic, this can be done using
 either Date::Manip or Date::Calc, without converting to Julian Day first.
@@ -370,7 +370,7 @@ you can.  Is that the pencil's fault?  Of course it isn't.
 The date and time functions supplied with Perl (gmtime and localtime)
 supply adequate information to determine the year well beyond 2000
 (2038 is when trouble strikes for 32-bit machines).  The year returned
-by these functions when used in an array context is the year minus 1900.
+by these functions when used in a list context is the year minus 1900.
 For years between 1910 and 1999 this I<happens> to be a 2-digit decimal
 number. To avoid the year 2000 problem simply do not treat the year as
 a 2-digit number.  It isn't.
@@ -398,7 +398,7 @@ addresses, etc.) for details.
 
 It depends just what you mean by ``escape''.  URL escapes are dealt
 with in L<perlfaq9>.  Shell escapes with the backslash (C<\>)
-character are removed with:
+character are removed with
 
     s/\\(.)/$1/g;
 
@@ -512,7 +512,7 @@ use substr() as an lvalue:
     substr($a, 0, 3) = "Tom";
 
 Although those with a pattern matching kind of thought process will
-likely prefer:
+likely prefer
 
     $a =~ s/^.../Tom/;
 
@@ -549,7 +549,7 @@ repetition count and repeated pattern like this:
 
 =head2 How can I count the number of occurrences of a substring within a string?
 
-There are a number of ways, with varying efficiency: If you want a
+There are a number of ways, with varying efficiency.  If you want a
 count of a certain single character (X) within a string, you can use the
 C<tr///> function like so:
 
@@ -574,8 +574,8 @@ To make the first letter of each word upper case:
         $line =~ s/\b(\w)/\U$1/g;
 
 This has the strange effect of turning "C<don't do it>" into "C<Don'T
-Do It>".  Sometimes you might want this, instead (Suggested by brian d. 
-foy):
+Do It>".  Sometimes you might want this.  Other times you might need a
+more thorough solution (Suggested by brian d.  foy):
 
     $string =~ s/ (
                  (^\w)    #at the beginning of the line
@@ -637,15 +637,15 @@ distribution) lets you say:
     use Text::ParseWords;
     @new = quotewords(",", 0, $text);
 
-There's also a Text::CSV module on CPAN.
+There's also a Text::CSV (Comma-Separated Values) module on CPAN.
 
 =head2 How do I strip blank space from the beginning/end of a string?
 
-Although the simplest approach would seem to be:
+Although the simplest approach would seem to be
 
     $string =~ s/^\s*(.*?)\s*$/$1/;
 
-Not only is this unnecessarily slow and destructive, it also fails with
+not only is this unnecessarily slow and destructive, it also fails with
 embedded newlines.  It is much faster to do this operation in two steps:
 
     $string =~ s/^\s+//;
@@ -740,7 +740,7 @@ you can use this kind of thing:
 =head2 How do I find the soundex value of a string?
 
 Use the standard Text::Soundex module distributed with Perl.
-But before you do so, you may want to determine whether `soundex' is in
+Before you do so, you may want to determine whether `soundex' is in
 fact what you think it is.  Knuth's soundex algorithm compresses words
 into a small space, and so it does not necessarily distinguish between
 two words which you might want to appear separately.  For example, the
@@ -779,9 +779,9 @@ of the FAQ.
 
 =head2 What's wrong with always quoting "$vars"?
 
-The problem is that those double-quotes force stringification,
-coercing numbers and references into strings, even when you
-don't want them to be.  Think of it this way: double-quote
+The problem is that those double-quotes force stringification--
+coercing numbers and references into strings--even when you
+don't want them to be strings.  Think of it this way: double-quote
 expansion is used to produce new strings.  If you already 
 have a string, why do you need more?
 
@@ -857,13 +857,13 @@ in the indentation.
 A nice general-purpose fixer-upper function for indented here documents
 follows.  It expects to be called with a here document as its argument.
 It looks to see whether each line begins with a common substring, and
-if so, strips that off.  Otherwise, it takes the amount of leading
-white space found on the first line and removes that much off each
+if so, strips that substring off.  Otherwise, it takes the amount of leading
+whitespace found on the first line and removes that much off each
 subsequent line.
 
     sub fix {
         local $_ = shift;
-        my ($white, $leader);  # common white space and common leading string
+        my ($white, $leader);  # common whitespace and common leading string
         if (/^\s*(?:([^\w\s]+)(\s*).*\n)(?:\s*\1\2?.*\n)+$/) {
             ($white, $leader) = ($2, quotemeta($1));
         } else {
@@ -886,7 +886,7 @@ This works with leading special strings, dynamically determined:
 	@@@ }
     MAIN_INTERPRETER_LOOP
 
-Or with a fixed amount of leading white space, with remaining
+Or with a fixed amount of leading whitespace, with remaining
 indentation correctly preserved:
 
     $poem = fix<<EVER_ON_AND_ON;
@@ -910,7 +910,7 @@ Subroutines are passed and return lists, you put things into list
 context, you initialize arrays with lists, and you foreach() across
 a list.  C<@> variables are arrays, anonymous arrays are arrays, arrays
 in scalar context behave like the number of elements in them, subroutines
-access their arguments through the array C<@_>, push/pop/shift only work
+access their arguments through the array C<@_>, and push/pop/shift only work
 on arrays.
 
 As a side note, there's no such thing as a list in scalar context.
@@ -924,7 +924,7 @@ last value to be returned: 9.
 
 =head2 What is the difference between $array[1] and @array[1]?
 
-The former is a scalar value, the latter an array slice, which makes
+The former is a scalar value; the latter an array slice, making
 it a list with one (scalar) value.  You should use $ when you want a
 scalar value (most of the time) and @ when you want a list with one
 scalar value in it (very, very rarely; nearly never, in fact).
@@ -948,33 +948,43 @@ ordered and whether you wish to preserve the ordering.
 
 =over 4
 
-=item a) If @in is sorted, and you want @out to be sorted:
+=item a)
+
+If @in is sorted, and you want @out to be sorted:
 (this assumes all true values in the array)
 
-    $prev = 'nonesuch';
-    @out = grep($_ ne $prev && ($prev = $_), @in);
+    $prev = "not equal to $in[0]";
+    @out = grep($_ ne $prev && ($prev = $_, 1), @in);
 
 This is nice in that it doesn't use much extra memory, simulating
-uniq(1)'s behavior of removing only adjacent duplicates.  It's less
-nice in that it won't work with false values like undef, 0, or "";
-"0 but true" is OK, though.
+uniq(1)'s behavior of removing only adjacent duplicates.  The ", 1"
+guarantees that the expression is true (so that grep picks it up)
+even if the $_ is 0, "", or undef.
 
-=item b) If you don't know whether @in is sorted:
+=item b)
+
+If you don't know whether @in is sorted:
 
     undef %saw;
     @out = grep(!$saw{$_}++, @in);
 
-=item c) Like (b), but @in contains only small integers:
+=item c)
+
+Like (b), but @in contains only small integers:
 
     @out = grep(!$saw[$_]++, @in);
 
-=item d) A way to do (b) without any loops or greps:
+=item d)
+
+A way to do (b) without any loops or greps:
 
     undef %saw;
     @saw{@in} = ();
     @out = sort keys %saw;  # remove sort if undesired
 
-=item e) Like (d), but @in contains only small positive integers:
+=item e)
+
+Like (d), but @in contains only small positive integers:
 
     undef @ary;
     @ary[@in] = @in;
@@ -1023,11 +1033,11 @@ Now check whether C<vec($read,$n,1)> is true for some C<$n>.
 
 Please do not use
 
-    $is_there = grep $_ eq $whatever, @array;
+    ($is_there) = grep $_ eq $whatever, @array;
 
 or worse yet
 
-    $is_there = grep /$whatever/, @array;
+    ($is_there) = grep /$whatever/, @array;
 
 These are slow (checks every element even if the first matches),
 inefficient (same reason), and potentially buggy (what if there are
@@ -1057,7 +1067,7 @@ each element is unique in a given array:
     }
 
 Note that this is the I<symmetric difference>, that is, all elements in
-either A or in B, but not in both.  Think of it as an xor operation.
+either A or in B but not in both.  Think of it as an xor operation.
 
 =head2 How do I test whether two arrays or hashes are equal?
 
@@ -1148,7 +1158,7 @@ You could walk the list this way:
     }
     print "\n";
 
-You could grow the list this way:
+You could add to the list this way:
 
     my ($head, $tail);
     $tail = append($head, 1);       # grow a new head
@@ -1189,7 +1199,6 @@ Use this:
         my $i;
         for ($i = @$array; --$i; ) {
             my $j = int rand ($i+1);
-            next if $i == $j;
             @$array[$i,$j] = @$array[$j,$i];
         }
     }
@@ -1197,7 +1206,7 @@ Use this:
     fisher_yates_shuffle( \@array );    # permutes @array in place
 
 You've probably seen shuffling algorithms that work using splice,
-randomly picking another element to swap the current element with:
+randomly picking another element to swap the current element with
 
     srand;
     @new = ();
@@ -1298,7 +1307,7 @@ case-insensitively.
     }
     @sorted = @data[ sort { $idx[$a] cmp $idx[$b] } 0 .. $#idx ];
 
-Which could also be written this way, using a trick
+which could also be written this way, using a trick
 that's come to be known as the Schwartzian Transform:
 
     @sorted = map  { $_->[0] }
@@ -1439,7 +1448,7 @@ table, at which point you've totally bamboozled the iterator code.
 Even if the table doesn't double, there's no telling whether your new
 entry will be inserted before or after the current iterator position.
 
-Either treasure up your changes and make them after the iterator finishes,
+Either treasure up your changes and make them after the iterator finishes
 or use keys to fetch all the old keys at once, and iterate over the list
 of keys.
 
@@ -1472,7 +1481,7 @@ take the scalar sense of the keys() function:
 
     $num_keys = scalar keys %hash;
 
-In void context, the keys() function just resets the iterator, which is
+The keys() function also resets the iterator, which in void context is
 faster for tied hashes than would be iterating through the whole 
 hash, one key-value pair at a time.
 
@@ -1488,8 +1497,8 @@ keys or values:
 	    } keys %hash; 	# and by value
 
 Here we'll do a reverse numeric sort by value, and if two keys are
-identical, sort by length of key, and if that fails, by straight ASCII
-comparison of the keys (well, possibly modified by your locale -- see
+identical, sort by length of key, or if that fails, by straight ASCII
+comparison of the keys (well, possibly modified by your locale--see
 L<perllocale>).
 
     @keys = sort {
@@ -1746,7 +1755,7 @@ if you just want to say, ``Is this a float?''
 
 Or you could check out the String::Scanf module on CPAN instead.  The
 POSIX module (part of the standard Perl distribution) provides the
-C<strtol> and C<strtod> for converting strings to double and longs,
+C<strtod> and C<strtol> for converting strings to double and longs,
 respectively.
 
 =head2 How do I keep persistent data across program calls?

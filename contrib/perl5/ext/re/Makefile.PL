@@ -1,4 +1,6 @@
 use ExtUtils::MakeMaker;
+use File::Spec;
+
 WriteMakefile(
     NAME		=> 're',
     VERSION_FROM	=> 're.pm',
@@ -9,33 +11,28 @@ WriteMakefile(
     clean		=> { FILES => '*$(OBJ_EXT) *.c ../../lib/re.pm' },
 );
 
-sub MY::postamble {
-  if ($^O eq 'VMS') {
-    return <<'VMS_EOF';
-re_comp.c : [--]regcomp.c
-	- $(RM_F) $(MMS$TARGET_NAME)
-	$(CP) [--]regcomp.c $(MMS$TARGET_NAME)
+package MY;
 
-re_comp$(OBJ_EXT) : re_comp.c
+sub upupfile {
+    File::Spec->catfile(File::Spec->updir, File::Spec->updir, $_[0]);
+}
 
-re_exec.c : [--]regexec.c
-	- $(RM_F) $(MMS$TARGET_NAME)
-	$(CP) [--]regexec.c $(MMS$TARGET_NAME)
+sub postamble {
+    my $regcomp_c = upupfile('regcomp.c');
+    my $regexec_c = upupfile('regexec.c');
 
-re_exec$(OBJ_EXT) : re_exec.c
+    <<EOF;
+re_comp.c : $regcomp_c
+	- \$(RM_F) re_comp.c
+	\$(CP) $regcomp_c re_comp.c
 
+re_comp\$(OBJ_EXT) : re_comp.c
 
-VMS_EOF
-  } else {
-    return <<'EOF';
-re_comp.c: ../../regcomp.c
-	-$(RM_F) $@
-	$(CP) ../../regcomp.c $@
+re_exec.c : $regexec_c
+	- \$(RM_F) re_exec.c
+	\$(CP) $regexec_c re_exec.c
 
-re_exec.c: ../../regexec.c
-	-$(RM_F) $@
-	$(CP) ../../regexec.c $@
+re_exec\$(OBJ_EXT) : re_exec.c
 
 EOF
-  }
 }

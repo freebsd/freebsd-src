@@ -56,6 +56,7 @@ sub exists
 sub _fileno
 {
  my($self, $f) = @_;
+ return unless defined $f;
  $f = $f->[0] if ref($f) eq 'ARRAY';
  ($f =~ /^\d+$/) ? $f : fileno($f);
 }
@@ -300,9 +301,9 @@ Return an array of all registered handles.
 =item can_read ( [ TIMEOUT ] )
 
 Return an array of handles that are ready for reading. C<TIMEOUT> is
-the maximum amount of time to wait before returning an empty list. If
-C<TIMEOUT> is not given and any handles are registered then the call
-will block.
+the maximum amount of time to wait before returning an empty list, in
+seconds, possibly fractional. If C<TIMEOUT> is not given and any
+handles are registered then the call will block.
 
 =item can_write ( [ TIMEOUT ] )
 

@@ -114,8 +114,7 @@ sub new {
 sub TIEHASH {
     my $pkg = shift;
     if (defined &{"${pkg}::new"}) {
-	warnings::warn "WARNING: calling ${pkg}->new since ${pkg}->TIEHASH is missing"
-	    if warnings::enabled();
+	warnings::warnif("WARNING: calling ${pkg}->new since ${pkg}->TIEHASH is missing");
 	$pkg->new(@_);
     }
     else {

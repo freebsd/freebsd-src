@@ -34,7 +34,7 @@ use warnings::register;
 $host = 'localhost' unless $host;	# set $syslog'host to change
 
 if ($] >= 5 && warnings::enabled()) {
-    warnings::warn "You should 'use Sys::Syslog' instead; continuing";
+    warnings::warn("You should 'use Sys::Syslog' instead; continuing");
 } 
 
 require 'syslog.ph';

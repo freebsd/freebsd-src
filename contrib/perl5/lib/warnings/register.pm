@@ -1,5 +1,13 @@
 package warnings::register ;
 
+=pod
+
+=head1 NAME
+
+warnings::register - warnings import function
+
+=cut
+
 require warnings ;
 
 sub mkMask

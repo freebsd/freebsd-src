@@ -97,38 +97,42 @@ use File::Basename ();
 use Exporter ();
 use strict;
 
-our $VERSION = "1.0403";
+our $VERSION = "1.0404";
 our @ISA = qw( Exporter );
 our @EXPORT = qw( mkpath rmtree );
 
 my $Is_VMS = $^O eq 'VMS';
+my $Is_MacOS = $^O eq 'MacOS';
 
 # These OSes complain if you want to remove a file that you have no
 # write permission to:
-my $force_writeable = ($^O eq 'os2' || $^O eq 'dos' || $^O eq 'MSWin32'
-		       || $^O eq 'amigaos');
+my $force_writeable = ($^O eq 'os2' || $^O eq 'dos' || $^O eq 'MSWin32' ||
+		       $^O eq 'amigaos' || $^O eq 'MacOS' || $^O eq 'epoc');
 
 sub mkpath {
     my($paths, $verbose, $mode) = @_;
     # $paths   -- either a path string or ref to list of paths
     # $verbose -- optional print "mkdir $path" for each directory created
     # $mode    -- optional permissions, defaults to 0777
-    local($")="/";
+    local($")=$Is_MacOS ? ":" : "/";
     $mode = 0777 unless defined($mode);
     $paths = [$paths] unless ref $paths;
     my(@created,$path);
     foreach $path (@$paths) {
 	$path .= '/' if $^O eq 'os2' and $path =~ /^\w:\z/s; # feature of CRT 
-	next if -d $path;
 	# Logic wants Unix paths, so go with the flow.
-	$path = VMS::Filespec::unixify($path) if $Is_VMS;
-	my $parent = File::Basename::dirname($path);
-	# Allow for creation of new logical filesystems under VMS
-	if (not $Is_VMS or $parent !~ m:/[^/]+/000000/?:) {
-	    unless (-d $parent or $path eq $parent) {
-		push(@created,mkpath($parent, $verbose, $mode));
+	if ($Is_VMS) {
+	    next if $path eq '/';
+	    $path = VMS::Filespec::unixify($path);
+	    if ($path =~ m:^(/[^/]+)/?\z:) {
+	        $path = $1.'/000000';
 	    }
 	}
+	next if -d $path;
+	my $parent = File::Basename::dirname($path);
+	unless (-d $parent or $path eq $parent) {
+	    push(@created,mkpath($parent, $verbose, $mode));
+ 	}
 	print "mkdir $path\n" if $verbose;
 	unless (mkdir($path,$mode)) {
 	    my $e = $!;
@@ -157,7 +161,12 @@ sub rmtree {
 
     my($root);
     foreach $root (@{$roots}) {
-	$root =~ s#/\z##;
+    	if ($Is_MacOS) {
+	    $root = ":$root" if $root !~ /:/;
+	    $root =~ s#([^:])\z#$1:#;
+	} else {
+	    $root =~ s#/\z##;
+	}
 	(undef, undef, my $rp) = lstat $root or next;
 	$rp &= 07777;	# don't forget setuid, setgid, sticky bits
 	if ( -d _ ) {
@@ -182,7 +191,11 @@ sub rmtree {
 	    # is faster if done in reverse ASCIIbetical order 
 	    @files = reverse @files if $Is_VMS;
 	    ($root = VMS::Filespec::unixify($root)) =~ s#\.dir\z## if $Is_VMS;
-	    @files = map("$root/$_", grep $_!~/^\.{1,2}\z/s,@files);
+	    if ($Is_MacOS) {
+		@files = map("$root$_", @files);
+	    } else {
+		@files = map("$root/$_", grep $_!~/^\.{1,2}\z/s,@files);
+	    }
 	    $count += rmtree(\@files,$verbose,$safe);
 	    if ($safe &&
 		($Is_VMS ? !&VMS::Filespec::candelete($root) : !-w $root)) {

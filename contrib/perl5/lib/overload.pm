@@ -106,7 +106,7 @@ sub mycan {				# Real can would leave stubs.
 }
 
 %constants = (
-	      'integer'	  =>  0x1000, 
+	      'integer'	  =>  0x1000,
 	      'float'	  =>  0x2000,
 	      'binary'	  =>  0x4000,
 	      'q'	  =>  0x8000,
@@ -127,11 +127,29 @@ sub mycan {				# Real can would leave stubs.
 	 dereferencing	  => '${} @{} %{} &{} *{}',
 	 special	  => 'nomethod fallback =');
 
+use warnings::register;
 sub constant {
   # Arguments: what, sub
   while (@_) {
-    $^H{$_[0]} = $_[1];
-    $^H |= $constants{$_[0]} | $overload::hint_bits;
+    if (@_ == 1) {
+        warnings::warnif ("Odd number of arguments for overload::constant");
+        last;
+    }
+    elsif (!exists $constants {$_ [0]}) {
+        warnings::warnif ("`$_[0]' is not an overloadable type");
+    }
+    elsif (!ref $_ [1] || "$_[1]" !~ /CODE\(0x[\da-f]+\)$/) {
+        # Can't use C<ref $_[1] eq "CODE"> above as code references can be
+        # blessed, and C<ref> would return the package the ref is blessed into.
+        if (warnings::enabled) {
+            $_ [1] = "undef" unless defined $_ [1];
+            warnings::warn ("`$_[1]' is not a code reference");
+        }
+    }
+    else {
+        $^H{$_[0]} = $_[1];
+        $^H |= $constants{$_[0]} | $overload::hint_bits;
+    }
     shift, shift;
   }
 }
@@ -149,7 +167,7 @@ sub remove_constant {
 
 __END__
 
-=head1 NAME 
+=head1 NAME
 
 overload - Package for overloading perl operations
 
@@ -157,7 +175,7 @@ overload - Package for overloading perl operations
 
     package SomeThing;
 
-    use overload 
+    use overload
 	'+' => \&myadd,
 	'-' => \&mysub;
 	# etc
@@ -179,12 +197,12 @@ The compilation directive
 
     package Number;
     use overload
-	"+" => \&add, 
+	"+" => \&add,
 	"*=" => "muas";
 
 declares function Number::add() for addition, and method muas() in
 the "class" C<Number> (or one of its base classes)
-for the assignment form C<*=> of multiplication.  
+for the assignment form C<*=> of multiplication.
 
 Arguments of this directive come in (key, value) pairs.  Legal values
 are values legal inside a C<&{ ... }> call, so the name of a
@@ -279,20 +297,20 @@ if C<+=> is not overloaded.
 =back
 
 B<Warning.>  Due to the presense of assignment versions of operations,
-routines which may be called in assignment context may create 
-self-referential structures.  Currently Perl will not free self-referential 
+routines which may be called in assignment context may create
+self-referential structures.  Currently Perl will not free self-referential
 structures until cycles are C<explicitly> broken.  You may get problems
 when traversing your structures too.
 
-Say, 
+Say,
 
   use overload '+' => sub { bless [ \$_[0], \$_[1] ] };
 
 is asking for trouble, since for code C<$obj += $foo> the subroutine
-is called as C<$obj = add($obj, $foo, undef)>, or C<$obj = [\$obj, 
+is called as C<$obj = add($obj, $foo, undef)>, or C<$obj = [\$obj,
 \$foo]>.  If using such a subroutine is an important optimization, one
 can overload C<+=> explicitly by a non-"optimized" version, or switch
-to non-optimized version if C<not defined $_[2]> (see 
+to non-optimized version if C<not defined $_[2]> (see
 L<Calling Conventions for Binary Operations>).
 
 Even if no I<explicit> assignment-variants of operators are present in
@@ -365,6 +383,11 @@ be used instead.  C<bool> is used in the flow control operators
 return any arbitrary Perl value.  If the corresponding operation for this value
 is overloaded too, that operation will be called again with this value.
 
+As a special case if the overload returns the object itself then it will
+be used directly. An overloaded conversion returning the object is
+probably a bug, because you're likely to get something that looks like
+C<YourPackage=HASH(0x8172b34)>.
+
 =item * I<Iteration>
 
     "<>"
@@ -381,6 +404,12 @@ I<globbing> syntax C<E<lt>${var}E<gt>>.
 If not overloaded, the argument will be dereferenced I<as is>, thus
 should be of correct type.  These functions should return a reference
 of correct type, or another object with overloaded dereferencing.
+
+As a special case if the overload returns the object itself then it
+will be used directly (provided it is the correct type).
+
+The dereference operators must be specified explicitly they will not be passed to
+"nomethod".
 
 =item * I<Special>
 
@@ -464,11 +493,16 @@ the last one is used.  Say, C<1-$a> can be equivalent to
 if the pair C<"nomethod" =E<gt> "nomethodMethod"> was specified in the
 C<use overload> directive.
 
+The C<"nomethod"> mechanism is I<not> used for the dereference operators
+( ${} @{} %{} &{} *{} ).
+
+
 If some operation cannot be resolved, and there is no function
 assigned to C<"nomethod">, then an exception will be raised via die()--
 unless C<"fallback"> was specified as a key in C<use overload> directive.
 
-=head2 Fallback 
+
+=head2 Fallback
 
 The key C<"fallback"> governs what to do if a method for a particular
 operation is not found.  Three different cases are possible depending on
@@ -492,7 +526,7 @@ present.
 =item * defined, but FALSE
 
 No autogeneration is tried.  Perl tries to call
-C<"nomethod"> value, and if this is missing, raises an exception. 
+C<"nomethod"> value, and if this is missing, raises an exception.
 
 =back
 
@@ -510,7 +544,7 @@ This operation is called in the situations when a mutator is applied
 to a reference that shares its object with some other reference, such
 as
 
-	$a=$b; 
+	$a=$b;
 	++$a;
 
 To make this change $a and not change $b, a copy of C<$$a> is made,
@@ -521,7 +555,7 @@ done if C<++> is expressed via a method for C<'++'> or C<'+='> (or
 C<nomethod>).  Note that if this operation is expressed via C<'+'>
 a nonmutator, i.e., as in
 
-	$a=$b; 
+	$a=$b;
 	$a=$a+1;
 
 then C<$a> does not reference a new copy of C<$$a>, since $$a does not
@@ -535,15 +569,15 @@ string copy if the object is a plain scalar.
 
 =item B<Example>
 
-The actually executed code for 
+The actually executed code for
 
-	$a=$b; 
+	$a=$b;
         Something else which does not modify $a or $b....
 	++$a;
 
 may be
 
-	$a=$b; 
+	$a=$b;
         Something else which does not modify $a or $b....
 	$a = $a->clone(undef,"");
         $a->incr(undef,"");
@@ -570,7 +604,7 @@ substitutions are possible for the following operations:
 C<$a+=$b> can use the method for C<"+"> if the method for C<"+=">
 is not defined.
 
-=item I<Conversion operations> 
+=item I<Conversion operations>
 
 String, numeric, and boolean conversion are calculated in terms of one
 another if not all of them are defined.
@@ -597,7 +631,7 @@ string or numerical conversion.
 
 can be expressed in terms of string conversion.
 
-=item I<Comparison operations> 
+=item I<Comparison operations>
 
 can be expressed in terms of its "spaceship" counterpart: either
 C<E<lt>=E<gt>> or C<cmp>:
@@ -705,20 +739,20 @@ to overload constant pieces of regular expressions.
 
 The corresponding values are references to functions which take three arguments:
 the first one is the I<initial> string form of the constant, the second one
-is how Perl interprets this constant, the third one is how the constant is used.  
+is how Perl interprets this constant, the third one is how the constant is used.
 Note that the initial string form does not
-contain string delimiters, and has backslashes in backslash-delimiter 
+contain string delimiters, and has backslashes in backslash-delimiter
 combinations stripped (thus the value of delimiter is not relevant for
-processing of this string).  The return value of this function is how this 
+processing of this string).  The return value of this function is how this
 constant is going to be interpreted by Perl.  The third argument is undefined
 unless for overloaded C<q>- and C<qr>- constants, it is C<q> in single-quote
 context (comes from strings, regular expressions, and single-quote HERE
-documents), it is C<tr> for arguments of C<tr>/C<y> operators, 
+documents), it is C<tr> for arguments of C<tr>/C<y> operators,
 it is C<s> for right-hand side of C<s>-operator, and it is C<qq> otherwise.
 
 Since an expression C<"ab$cd,,"> is just a shortcut for C<'ab' . $cd . ',,'>,
 it is expected that overloaded constant strings are equipped with reasonable
-overloaded catenation operator, otherwise absurd results will result.  
+overloaded catenation operator, otherwise absurd results will result.
 Similarly, negative numbers are considered as negations of positive constants.
 
 Note that it is probably meaningless to call the functions overload::constant()
@@ -732,7 +766,7 @@ From these methods they may be called as
 	  overload::constant integer => sub {Math::BigInt->new(shift)};
 	}
 
-B<BUGS> Currently overloaded-ness of constants does not propagate 
+B<BUGS> Currently overloaded-ness of constants does not propagate
 into C<eval '...'>.
 
 =head1 IMPLEMENTATION
@@ -774,7 +808,7 @@ packages acquire a magic during the next C<bless>ing into the
 package. This magic is three-words-long for packages without
 overloading, and carries the cache table if the package is overloaded.
 
-Copying (C<$a=$b>) is shallow; however, a one-level-deep copying is 
+Copying (C<$a=$b>) is shallow; however, a one-level-deep copying is
 carried out before any operation that can imply an assignment to the
 object $a (or $b) refers to, like C<$a++>.  You can override this
 behavior by defining your own copy constructor (see L<"Copy Constructor">).
@@ -785,8 +819,8 @@ to be changed are constant (but this is not enforced).
 =head1 Metaphor clash
 
 One may wonder why the semantic of overloaded C<=> is so counter intuitive.
-If it I<looks> counter intuitive to you, you are subject to a metaphor 
-clash.  
+If it I<looks> counter intuitive to you, you are subject to a metaphor
+clash.
 
 Here is a Perl object metaphor:
 
@@ -805,10 +839,10 @@ that $a and $b are separate entities.
 
 The difference is not relevant in the absence of mutators.  After
 a Perl-way assignment an operation which mutates the data referenced by $a
-would change the data referenced by $b too.  Effectively, after 
+would change the data referenced by $b too.  Effectively, after
 C<$a = $b> values of $a and $b become I<indistinguishable>.
 
-On the other hand, anyone who has used algebraic notation knows the 
+On the other hand, anyone who has used algebraic notation knows the
 expressive power of the arithmetic metaphor.  Overloading works hard
 to enable this metaphor while preserving the Perlian way as far as
 possible.  Since it is not not possible to freely mix two contradicting
@@ -817,7 +851,7 @@ far as all the mutators are called via overloaded access only>.  The
 way it is done is described in L<Copy Constructor>.
 
 If some mutator methods are directly applied to the overloaded values,
-one may need to I<explicitly unlink> other values which references the 
+one may need to I<explicitly unlink> other values which references the
 same value:
 
     $a = new Data 23;
@@ -841,7 +875,7 @@ However, it would not make
 preserve "objectness" of $a.  But Perl I<has> a way to make assignments
 to an object do whatever you want.  It is just not the overload, but
 tie()ing interface (see L<perlfunc/tie>).  Adding a FETCH() method
-which returns the object itself, and STORE() method which changes the 
+which returns the object itself, and STORE() method which changes the
 value of the object, one can reproduce the arithmetic metaphor in its
 completeness, at least for variables which were tie()d from the start.
 
@@ -878,16 +912,15 @@ numeric value.)  This prints:
 =head2 Two-face references
 
 Suppose you want to create an object which is accessible as both an
-array reference, and a hash reference, similar to the builtin
-L<array-accessible-as-a-hash|perlref/"Pseudo-hashes: Using an array as
-a hash"> builtin Perl type.  Let us make it better than the builtin
-type, there will be no restriction that you cannot use the index 0 of
-your array.
+array reference and a hash reference, similar to the
+L<pseudo-hash|perlref/"Pseudo-hashes: Using an array as a hash">
+builtin Perl type.  Let's make it better than a pseudo-hash by
+allowing index 0 to be treated as a normal element.
 
   package two_refs;
   use overload '%{}' => \&gethash, '@{}' => sub { $ {shift()} };
-  sub new { 
-    my $p = shift; 
+  sub new {
+    my $p = shift;
     bless \ [@_], $p;
   }
   sub gethash {
@@ -901,13 +934,13 @@ your array.
   my %fields;
   my $i = 0;
   $fields{$_} = $i++ foreach qw{zero one two three};
-  sub STORE { 
+  sub STORE {
     my $self = ${shift()};
     my $key = $fields{shift()};
     defined $key or die "Out of band access";
     $$self->[$key] = shift;
   }
-  sub FETCH { 
+  sub FETCH {
     my $self = ${shift()};
     my $key = $fields{shift()};
     defined $key or die "Out of band access";
@@ -934,26 +967,26 @@ would would lead to a memory leak.
 Both these problems can be cured.  Say, if we want to overload hash
 dereference on a reference to an object which is I<implemented> as a
 hash itself, the only problem one has to circumvent is how to access
-this I<actual> hash (as opposed to the I<virtual> exhibited by
+this I<actual> hash (as opposed to the I<virtual> hash exhibited by the
 overloaded dereference operator).  Here is one possible fetching routine:
 
   sub access_hash {
     my ($self, $key) = (shift, shift);
     my $class = ref $self;
-    bless $self, 'overload::dummy'; # Disable overloading of %{} 
+    bless $self, 'overload::dummy'; # Disable overloading of %{}
     my $out = $self->{$key};
     bless $self, $class;	# Restore overloading
     $out;
   }
 
-To move creation of the tied hash on each access, one may an extra
+To remove creation of the tied hash on each access, one may an extra
 level of indirection which allows a non-circular structure of references:
 
   package two_refs1;
   use overload '%{}' => sub { ${shift()}->[1] },
                '@{}' => sub { ${shift()}->[0] };
-  sub new { 
-    my $p = shift; 
+  sub new {
+    my $p = shift;
     my $a = [@_];
     my %h;
     tie %h, $p, $a;
@@ -970,23 +1003,23 @@ level of indirection which allows a non-circular structure of references:
   my %fields;
   my $i = 0;
   $fields{$_} = $i++ foreach qw{zero one two three};
-  sub STORE { 
+  sub STORE {
     my $a = ${shift()};
     my $key = $fields{shift()};
     defined $key or die "Out of band access";
     $a->[$key] = shift;
   }
-  sub FETCH { 
+  sub FETCH {
     my $a = ${shift()};
     my $key = $fields{shift()};
     defined $key or die "Out of band access";
     $a->[$key];
   }
 
-Now if $baz is overloaded like this, then C<$bar> is a reference to a
+Now if $baz is overloaded like this, then C<$baz> is a reference to a
 reference to the intermediate array, which keeps a reference to an
 actual array, and the access hash.  The tie()ing object for the access
-hash is also a reference to a reference to the actual array, so 
+hash is a reference to a reference to the actual array, so
 
 =over
 
@@ -1061,7 +1094,7 @@ Add a pretty-printer method to the module F<symbolic.pm>:
     $a = $a->pretty if ref $a;
     $b = $b->pretty if ref $b;
     "[$meth $a $b]";
-  } 
+  }
 
 Now one can finish the script by
 
@@ -1073,7 +1106,7 @@ inside such a method it is not necessary to pretty-print the
 I<components> $a and $b of an object.  In the above subroutine
 C<"[$meth $a $b]"> is a catenation of some strings and components $a
 and $b.  If these components use overloading, the catenation operator
-will look for an overloaded operator C<.>, if not present, it will
+will look for an overloaded operator C<.>; if not present, it will
 look for an overloaded operator C<"">.  Thus it is enough to use
 
   use overload nomethod => \&wrap, '""' => \&str;
@@ -1082,7 +1115,7 @@ look for an overloaded operator C<"">.  Thus it is enough to use
     $a = 'u' unless defined $a;
     $b = 'u' unless defined $b;
     "[$meth $a $b]";
-  } 
+  }
 
 Now one can change the last line of the script to
 
@@ -1093,7 +1126,7 @@ which outputs
   side = [/ [- [sqrt [+ 1 [** [n 1 u] 2]] u] 1] [n 1 u]]
 
 and one can inspect the value in debugger using all the possible
-methods.  
+methods.
 
 Something is is still amiss: consider the loop variable $cnt of the
 script.  It was a number, not an object.  We cannot make this value of
@@ -1127,9 +1160,9 @@ slightly modified str()):
     } else {
       "[$meth $a]";
     }
-  } 
-  my %subr = ( n => sub {$_[0]}, 
-	       sqrt => sub {sqrt $_[0]}, 
+  }
+  my %subr = ( n => sub {$_[0]},
+	       sqrt => sub {sqrt $_[0]},
 	       '-' => sub {shift() - shift()},
 	       '+' => sub {shift() + shift()},
 	       '/' => sub {shift() / shift()},
@@ -1138,7 +1171,7 @@ slightly modified str()):
 	     );
   sub num {
     my ($meth, $a, $b) = @{+shift};
-    my $subr = $subr{$meth} 
+    my $subr = $subr{$meth}
       or die "Do not know how to ($meth) in symbolic";
     $a = $a->num if ref $a eq __PACKAGE__;
     $b = $b->num if ref $b eq __PACKAGE__;
@@ -1176,7 +1209,7 @@ mutator methods (C<++>, C<-=> and so on), does not do deep copying
 (not required without mutators!), and implements only those arithmetic
 operations which are used in the example.
 
-To implement most arithmetic operations is easy, one should just use
+To implement most arithmetic operations is easy; one should just use
 the tables of operations, and change the code which fills %subr to
 
   my %subr = ( 'n' => sub {$_[0]} );
@@ -1198,7 +1231,7 @@ special to make C<+=> and friends work, except filling C<+=> entry of
 way to know that the implementation of C<'+='> does not mutate
 the argument, compare L<Copy Constructor>).
 
-To implement a copy constructor, add C<'=' => \&cpy> to C<use overload>
+To implement a copy constructor, add C<< '=' => \&cpy >> to C<use overload>
 line, and code (this code assumes that mutators change things one level
 deep only, so recursive copying is not needed):
 
@@ -1207,7 +1240,7 @@ deep only, so recursive copying is not needed):
     bless [@$self], ref $self;
   }
 
-To make C<++> and C<--> work, we need to implement actual mutators, 
+To make C<++> and C<--> work, we need to implement actual mutators,
 either directly, or in C<nomethod>.  We continue to do things inside
 C<nomethod>, thus add
 
@@ -1216,7 +1249,7 @@ C<nomethod>, thus add
       return $obj;
     }
 
-after the first line of wrap().  This is not a most effective 
+after the first line of wrap().  This is not a most effective
 implementation, one may consider
 
   sub inc { $_[0] = bless ['++', shift, 1]; }
@@ -1239,8 +1272,8 @@ As a final remark, note that one can fill %subr by
   $subr{'++'} = $subr{'+'};
   $subr{'--'} = $subr{'-'};
 
-This finishes implementation of a primitive symbolic calculator in 
-50 lines of Perl code.  Since the numeric values of subexpressions 
+This finishes implementation of a primitive symbolic calculator in
+50 lines of Perl code.  Since the numeric values of subexpressions
 are not cached, the calculator is very slow.
 
 Here is the answer for the exercise: In the case of str(), we need no
@@ -1266,9 +1299,9 @@ until the value is I<used>.
 
 To see it in action, add a method
 
-  sub STORE { 
-    my $obj = shift; 
-    $#$obj = 1; 
+  sub STORE {
+    my $obj = shift;
+    $#$obj = 1;
     @$obj->[0,1] = ('=', shift);
   }
 
@@ -1337,6 +1370,27 @@ key (in fact a presence of this method shows that this package has
 overloading enabled, and it is what is used by the C<Overloaded>
 function of module C<overload>).
 
+The module might issue the following warnings:
+
+=over 4
+
+=item Odd number of arguments for overload::constant
+
+(W) The call to overload::constant contained an odd number of arguments.
+The arguments should come in pairs.
+
+=item `%s' is not an overloadable type
+
+(W) You tried to overload a constant type the overload package is unaware of.
+
+=item `%s' is not a code reference
+
+(W) The second (fourth, sixth, ...) argument of overload::constant needs
+to be a code reference. Either an anonymous subroutine, or a reference
+to a subroutine.
+
+=back
+
 =head1 BUGS
 
 Because it is used for overloading, the per-package hash %OVERLOAD now
@@ -1348,12 +1402,12 @@ C<fallback> is present (possibly undefined). This may create
 interesting effects if some package is not overloaded, but inherits
 from two overloaded packages.
 
-Relation between overloading and tie()ing is broken.  Overloading is 
+Relation between overloading and tie()ing is broken.  Overloading is
 triggered or not basing on the I<previous> class of tie()d value.
 
-This happens because the presence of overloading is checked too early, 
+This happens because the presence of overloading is checked too early,
 before any tie()d access is attempted.  If the FETCH()ed class of the
-tie()d value does not change, a simple workaround is to access the value 
+tie()d value does not change, a simple workaround is to access the value
 immediately after tie()ing, so that after this call the I<previous> class
 coincides with the current one.
 

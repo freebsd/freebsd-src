@@ -151,11 +151,12 @@ sub AUTOLOAD {
 
 
 # This isn't really an override.  It's just here because ExtUtils::MM_VMS
-# appears in @MM::ISA before ExtUtils::Liblist, so if there isn't an ext()
+# appears in @MM::ISA before ExtUtils::Liblist::Kid, so if there isn't an ext()
 # in MM_VMS, then AUTOLOAD is called, and bad things happen.  So, we just
-# mimic inheritance here and hand off to ExtUtils::Liblist.
+# mimic inheritance here and hand off to ExtUtils::Liblist::Kid.
 sub ext {
-  ExtUtils::Liblist::ext(@_);
+  require ExtUtils::Liblist;
+  ExtUtils::Liblist::Kid::ext(@_);
 }
 
 =back
@@ -231,7 +232,9 @@ invoke Perl images.
 sub find_perl {
     my($self, $ver, $names, $dirs, $trace) = @_;
     my($name,$dir,$vmsfile,@sdirs,@snames,@cand);
+    my($rslt);
     my($inabs) = 0;
+    local *TCF;
     # Check in relative directories first, so we pick up the current
     # version of Perl if we're running MakeMaker as part of the main build.
     @sdirs = sort { my($absa) = $self->file_name_is_absolute($a);
@@ -277,15 +280,28 @@ sub find_perl {
     foreach $name (@cand) {
 	print "Checking $name\n" if ($trace >= 2);
 	# If it looks like a potential command, try it without the MCR
-	if ($name =~ /^[\w\-\$]+$/ &&
-            `$name -e "require $ver; print ""VER_OK\\n"""` =~ /VER_OK/) {
+        if ($name =~ /^[\w\-\$]+$/) {
+            open(TCF,">temp_mmvms.com") || die('unable to open temp file');
+            print TCF "\$ set message/nofacil/nosever/noident/notext\n";
+            print TCF "\$ $name -e \"require $ver; print \"\"VER_OK\\n\"\"\"\n";
+            close TCF;
+            $rslt = `\@temp_mmvms.com` ;
+            unlink('temp_mmvms.com');
+            if ($rslt =~ /VER_OK/) {
 	    print "Using PERL=$name\n" if $trace;
 	    return $name;
 	}
+        }
 	next unless $vmsfile = $self->maybe_command($name);
 	$vmsfile =~ s/;[\d\-]*$//;  # Clip off version number; we can use a newer version as well
 	print "Executing $vmsfile\n" if ($trace >= 2);
-        if (`MCR $vmsfile -e "require $ver; print ""VER_OK\\n"""` =~ /VER_OK/) {
+        open(TCF,">temp_mmvms.com") || die('unable to open temp file');
+        print TCF "\$ set message/nofacil/nosever/noident/notext\n";
+        print TCF "\$ mcr $vmsfile -e \"require $ver; print \"\"VER_OK\\n\"\"\" \n";
+        close TCF;
+        $rslt = `\@temp_mmvms.com`;
+        unlink('temp_mmvms.com');
+        if ($rslt =~ /VER_OK/) {
 	    print "Using PERL=MCR $vmsfile\n" if $trace;
 	    return "MCR $vmsfile";
 	}
@@ -611,7 +627,7 @@ INST_ARCHAUTODIR = $self->{INST_ARCHAUTODIR}
     if ($self->has_link_code()) {
 	push @m,'
 INST_STATIC = $(INST_ARCHAUTODIR)$(BASEEXT)$(LIB_EXT)
-INST_DYNAMIC = $(INST_ARCHAUTODIR)$(BASEEXT).$(DLEXT)
+INST_DYNAMIC = $(INST_ARCHAUTODIR)$(DLBASE).$(DLEXT)
 INST_BOOT = $(INST_ARCHAUTODIR)$(BASEEXT).bs
 ';
     } else {
@@ -811,7 +827,7 @@ pm_to_blib.ts : $(TO_INST_PM)
     }
     push(@m,"\t\$(NOECHO) \$(PERL) -e \"print '$line'\" >>.MM_tmp\n") if $line;
 
-    push(@m,q[	$(PERL) "-I$(PERL_LIB)" "-MExtUtils::Install" -e "pm_to_blib({split(' ',<STDIN>)},'].$autodir.q[')" <.MM_tmp]);
+    push(@m,q[	$(PERL) "-I$(PERL_LIB)" "-MExtUtils::Install" -e "pm_to_blib({split(' ',<STDIN>)},'].$autodir.q[','$(PM_FILTER)')" <.MM_tmp]);
     push(@m,qq[
 	\$(NOECHO) Delete/NoLog/NoConfirm .MM_tmp;
 	\$(NOECHO) \$(TOUCH) pm_to_blib.ts
@@ -866,6 +882,11 @@ sub tool_xsubpp {
 	unshift( @tmargs, $self->{XSOPT} );
     }
 
+    if ($Config{'ldflags'} && 
+        $Config{'ldflags'} =~ m!/Debug!i &&
+        (!exists($self->{XSOPT}) || $self->{XSOPT} !~ /linenumbers/)) {
+        unshift(@tmargs,'-nolinenumbers');
+    }
     my $xsubpp_version = $self->xsubpp_version($self->catfile($xsdir,'xsubpp'));
 
     # What are the correct thresholds for version 1 && 2 Paul?
@@ -1018,7 +1039,7 @@ sub dist {
 
     # Sanitize these for use in $(DISTVNAME) filespec
     $attribs{VERSION} =~ s/[^\w\$]/_/g;
-    $attribs{NAME} =~ s/[^\w\$]/_/g;
+    $attribs{NAME} =~ s/[^\w\$]/-/g;
 
     return ExtUtils::MM_Unix::dist($self,%attribs);
 }
@@ -1194,8 +1215,8 @@ $(BASEEXT).opt : Makefile.PL
 	                   s/.*[:>\/\]]//;       # Trim off dir spec
 			   $upcase ? uc($_) : $_;
 	                 } split ' ', $self->eliminate_macros($self->{OBJECT});
-	my($tmp,@lines,$elt) = '';
-	my $tmp = shift @omods;
+        my($tmp,@lines,$elt) = '';
+	$tmp = shift @omods;
 	foreach $elt (@omods) {
 	    $tmp .= ",$elt";
 		if (length($tmp) > 80) { push @lines, $tmp;  $tmp = ''; }
@@ -1652,6 +1673,9 @@ dist : $(DIST_DEFAULT)
 zipdist : $(DISTVNAME).zip
 	$(NOECHO) $(NOOP)
 
+tardist : $(DISTVNAME).tar$(SUFFIX)
+	$(NOECHO) $(NOOP)
+
 $(DISTVNAME).zip : distdir
 	$(PREOP)
 	$(ZIP) "$(ZIPFLAGS)" $(MMS$TARGET) [.$(DISTVNAME)...]*.*;
@@ -1661,7 +1685,7 @@ $(DISTVNAME).zip : distdir
 $(DISTVNAME).tar$(SUFFIX) : distdir
 	$(PREOP)
 	$(TO_UNIX)
-	$(TAR) "$(TARFLAGS)" $(DISTVNAME).tar [.$(DISTVNAME)]
+        $(TAR) "$(TARFLAGS)" $(DISTVNAME).tar [.$(DISTVNAME)...]
 	$(RM_RF) $(DISTVNAME)
 	$(COMPRESS) $(DISTVNAME).tar
 	$(POSTOP)
@@ -1872,6 +1896,7 @@ $(OBJECT) : $(PERL_INC)iperlsys.h
 # We do NOT just update config.h because that is not sufficient.
 # An out of date config.h is not fatal but complains loudly!
 $(PERL_INC)config.h : $(PERL_SRC)config.sh
+	$(NOOP)
 
 $(PERL_ARCHLIB)Config.pm : $(PERL_SRC)config.sh
 	$(NOECHO) Write Sys$Error "$(PERL_ARCHLIB)Config.pm may be out of date with config.h or genconfig.pl"

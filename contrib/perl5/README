@@ -1,7 +1,7 @@
 
 			   Perl Kit, Version 5.0
 
-		       Copyright 1989-2000, Larry Wall
+		       Copyright 1989-2001, Larry Wall
 			    All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
@@ -22,8 +22,10 @@
     Kit, in the file named "Artistic".  If not, I'll be glad to provide one.
 
     You should also have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software Foundation,
-    Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA.
+    along with this program in the file named "Copying". If not, write to the 
+    Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 
+    02111-1307, USA or visit their web page on the internet at
+    http://www.gnu.org/copyleft/gpl.html.
 
     For those of you that choose to use the GNU General Public License,
     my interpretation of the GNU General Public License is that no Perl
@@ -70,7 +72,7 @@ corresponding README.
 2) Read the manual entries before running perl.
 
 3) IMPORTANT!  Help save the world!  Communicate any problems and suggested
-patches to perlbug@perl.com so we can keep the world in sync.
+patches to perlbug@perl.org so we can keep the world in sync.
 If you have a problem, there's someone else out there who either has had
 or will have the same problem.  It's usually helpful if you send the
 output of the "myconfig" script in the main perl directory.

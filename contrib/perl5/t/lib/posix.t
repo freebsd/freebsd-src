@@ -2,7 +2,7 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    unshift @INC, '../lib';
+    @INC = '../lib';
     require Config; import Config;
     if ($^O ne 'VMS' and $Config{'extensions'} !~ /\bPOSIX\b/) {
 	print "1..0\n";
@@ -17,6 +17,7 @@ $| = 1;
 print "1..27\n";
 
 $Is_W32 = $^O eq 'MSWin32';
+$Is_Dos = $^O eq 'dos';
 
 $testfd = open("TEST", O_RDONLY, 0) and print "ok 1\n";
 read($testfd, $buffer, 9) if $testfd > 2;
@@ -24,6 +25,11 @@ print $buffer eq "#!./perl\n" ? "ok 2\n" : "not ok 2\n";
 
 write(1,"ok 3\nnot ok 3\n", 5);
 
+if ($Is_Dos) {
+    for (4..5) {
+        print "ok $_ # skipped, no pipe() support on dos\n";
+    }
+} else {
 @fds = POSIX::pipe();
 print $fds[0] > $testfd ? "ok 4\n" : "not ok 4\n";
 CORE::open($reader = \*READER, "<&=".$fds[0]);
@@ -32,10 +38,11 @@ print $writer "ok 5\n";
 close $writer;
 print <$reader>;
 close $reader;
+}
 
-if ($Is_W32) {
+if ($Is_W32 || $Is_Dos) {
     for (6..11) {
-	print "ok $_ # skipped, no sigaction support on win32\n";
+	print "ok $_ # skipped, no sigaction support on win32/dos\n";
     }
 }
 else {

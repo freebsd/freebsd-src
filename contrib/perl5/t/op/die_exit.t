@@ -7,7 +7,7 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    unshift @INC, '../lib' if -e '../lib';
+    @INC = '../lib';
 }
 
 if ($^O eq 'mpeix') {

@@ -183,9 +183,6 @@ one-liners:
       rename $was, $_ unless $was eq $_;
   }
 
-(this is the I<rename> program that comes in the I<eg/> directory
-of the Perl source distribution).
-
 The decompiler has several options for the code it generates.  For
 instance, you can set the size of each indent from 4 (as above) to
 2 with:
@@ -308,7 +305,7 @@ I<assemble> program that produces bytecode.
 
 This module is used by the B::CC back end.  It walks "basic blocks".
 A basic block is a series of operations which is known to execute from
-start to finish, with no possiblity of branching or halting.
+start to finish, with no possibility of branching or halting.
 
 =item B::Bytecode
 
@@ -369,12 +366,12 @@ can identify.  See L</"The Lint Back End"> for details about usage.
 =item B::Showlex
 
 This module prints out the my() variables used in a function or a
-file.  To gt a list of the my() variables used in the subroutine
+file.  To get a list of the my() variables used in the subroutine
 mysub() defined in the file myperlprogram:
 
   $ perl -MO=Showlex,mysub myperlprogram
 
-To gt a list of the my() variables used in the file myperlprogram:
+To get a list of the my() variables used in the file myperlprogram:
 
   $ perl -MO=Showlex myperlprogram
 
@@ -419,7 +416,7 @@ names.
 
 The optimized C backend outputs code for more modules than it should
 (e.g., DirHandle).  It also has little hope of properly handling
-C<goto LABEL> outside the running subroutine (C<goto &sub> is ok).
+C<goto LABEL> outside the running subroutine (C<goto &sub> is okay).
 C<goto LABEL> currently does not work at all in this backend.
 It also creates a huge initialization function that gives
 C compilers headaches.  Splitting the initialization function gives

@@ -30,6 +30,7 @@ Perl_ck_null
 Perl_ck_open
 Perl_ck_repeat
 Perl_ck_require
+Perl_ck_return
 Perl_ck_rfun
 Perl_ck_rvconst
 Perl_ck_sassign
@@ -40,6 +41,7 @@ Perl_ck_sort
 Perl_ck_spair
 Perl_ck_split
 Perl_ck_subr
+Perl_ck_substr
 Perl_ck_svconst
 Perl_ck_trunc
 Perl_pp_null

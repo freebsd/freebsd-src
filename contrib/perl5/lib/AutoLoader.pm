@@ -4,15 +4,19 @@ use 5.005_64;
 our(@EXPORT, @EXPORT_OK, $VERSION);
 
 my $is_dosish;
+my $is_epoc;
 my $is_vms;
+my $is_macos;
 
 BEGIN {
     require Exporter;
     @EXPORT = @EXPORT = ();
     @EXPORT_OK = @EXPORT_OK = qw(AUTOLOAD);
     $is_dosish = $^O eq 'dos' || $^O eq 'os2' || $^O eq 'MSWin32';
+    $is_epoc = $^O eq 'epoc';
     $is_vms = $^O eq 'VMS';
-    $VERSION = '5.57';
+    $is_macos = $^O eq 'MacOS';
+    $VERSION = '5.58';
 }
 
 AUTOLOAD {
@@ -36,7 +40,12 @@ AUTOLOAD {
 	my ($pkg,$func) = ($sub =~ /(.*)::([^:]+)$/);
 	$pkg =~ s#::#/#g;
 	if (defined($filename = $INC{"$pkg.pm"})) {
-	    $filename =~ s#^(.*)$pkg\.pm\z#$1auto/$pkg/$func.al#s;
+	    if ($is_macos) {
+		$pkg =~ tr#/#:#;
+		$filename =~ s#^(.*)$pkg\.pm\z#$1auto:$pkg:$func.al#s;
+	    } else {
+		$filename =~ s#^(.*)$pkg\.pm\z#$1auto/$pkg/$func.al#s;
+	    }
 
 	    # if the file exists, then make sure that it is a
 	    # a fully anchored path (i.e either '/usr/lib/auto/foo/bar.al',
@@ -51,11 +60,15 @@ AUTOLOAD {
 			     $filename = "./$filename";
 			}
 		    }
-		    elsif ($is_vms) {
+		    elsif ($is_epoc) {
+			unless ($filename =~ m{^([a-z?]:)?[\\/]}is) {
+			     $filename = "./$filename";
+			}
+		    }elsif ($is_vms) {
 			# XXX todo by VMSmiths
 			$filename = "./$filename";
 		    }
-		    else {
+		    elsif (!$is_macos) {
 			$filename = "./$filename";
 		    }
 		}
@@ -138,6 +151,11 @@ sub import {
 	    Carp::carp($error);
 	}
     } 
+}
+
+sub unimport {
+  my $callpkg = caller;
+  eval "package $callpkg; sub AUTOLOAD;";
 }
 
 1;
@@ -258,6 +276,12 @@ situations as an alternative to explicitly qualifying all globals with
 the package namespace.  Variables pre-declared with this pragma will be
 visible to any autoloaded routines (but will not be invisible outside
 the package, unfortunately).
+
+=head2 Not Using AutoLoader
+
+You can stop using AutoLoader by simply
+
+	no AutoLoader;
 
 =head2 B<AutoLoader> vs. B<SelfLoader>
 

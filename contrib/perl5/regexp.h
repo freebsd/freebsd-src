@@ -19,6 +19,8 @@ typedef struct regnode regnode;
 
 struct reg_substr_data;
 
+struct reg_data;
+
 typedef struct regexp {
 	I32 *startp;
 	I32 *endp;

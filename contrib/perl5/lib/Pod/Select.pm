@@ -10,7 +10,7 @@
 package Pod::Select;
 
 use vars qw($VERSION);
-$VERSION = 1.12;  ## Current version of this package
+$VERSION = 1.13;  ## Current version of this package
 require  5.005;    ## requires this Perl version or later
 
 #############################################################################
@@ -92,7 +92,7 @@ The formal syntax of a section specification is:
 
 =over 4
 
-=item
+=item *
 
 I<head1-title-regex>/I<head2-title-regex>/...
 
@@ -109,33 +109,39 @@ Some example section specifications follow.
 
 =over 4
 
-=item
+=item *
+
 Match the C<NAME> and C<SYNOPSIS> sections and all of their subsections:
 
 C<NAME|SYNOPSIS>
 
-=item
+=item *
+
 Match only the C<Question> and C<Answer> subsections of the C<DESCRIPTION>
 section:
 
 C<DESCRIPTION/Question|Answer>
 
-=item
+=item *
+
 Match the C<Comments> subsection of I<all> sections:
 
 C</Comments>
 
-=item
+=item *
+
 Match all subsections of C<DESCRIPTION> I<except> for C<Comments>:
 
 C<DESCRIPTION/!Comments>
 
-=item
+=item *
+
 Match the C<DESCRIPTION> section but do I<not> match any of its subsections:
 
 C<DESCRIPTION/!.+>
 
-=item
+=item *
+
 Match all top level sections but none of their subsections:
 
 C</!.+>
@@ -160,7 +166,7 @@ The formal syntax of a range specification is:
 
 =over 4
 
-=item
+=item *
 
 /I<start-range-regex>/[../I<end-range-regex>/]
 

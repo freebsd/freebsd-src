@@ -72,6 +72,7 @@ typedef struct {
 #define	GLOB_QUOTE	0x0400	/* Quote special chars with \. */
 #define	GLOB_TILDE	0x0800	/* Expand tilde names from the passwd file. */
 #define	GLOB_NOCASE	0x1000	/* Treat filenames without regard for case. */
+#define	GLOB_ALPHASORT	0x2000	/* Alphabetic, not ASCII sort, like csh. */
 
 #define	GLOB_NOSPACE	(-1)	/* Malloc call failed. */
 #define	GLOB_ABEND	(-2)	/* Unignored error. */

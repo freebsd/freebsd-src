@@ -209,9 +209,9 @@ with a regular expression (as documented in L<perlre>).
 	unless /^([+-]?)(?=\d|\.\d)\d*(\.\d*)?([Ee]([+-]?\d+))?$/;
 
 The length of an array is a scalar value.  You may find the length
-of array @days by evaluating C<$#days>, as in B<csh>.  Technically
-speaking, this isn't the length of the array; it's the subscript
-of the last element, since there is ordinarily a 0th element.
+of array @days by evaluating C<$#days>, as in B<csh>.  However, this
+isn't the length of the array; it's the subscript of the last element,
+which is a different value since there is ordinarily a 0th element.
 Assigning to C<$#days> actually changes the length of the array.
 Shortening an array this way destroys intervening values.  Lengthening
 an array that was previously shortened does not recover values
@@ -259,7 +259,7 @@ of sixteen buckets has been touched, and presumably contains all
 10,000 of your items.  This isn't supposed to happen.
 
 You can preallocate space for a hash by assigning to the keys() function.
-This rounds up the allocated bucked to the next power of two:
+This rounds up the allocated buckets to the next power of two:
 
     keys(%users) = 1000;		# allocate 1024 buckets
 
@@ -303,7 +303,8 @@ price is $Z<>100."
     print "The price is $Price.\n";	# interpreted
 
 As in some shells, you can enclose the variable name in braces to
-disambiguate it from following alphanumerics.  You must also do
+disambiguate it from following alphanumerics (and underscores).
+You must also do
 this when interpolating a variable into a string to separate the
 variable name from a following double-colon or an apostrophe, since
 these would be otherwise treated as a package separator:
@@ -412,20 +413,20 @@ string may be either an identifier (a word), or some quoted text.  If
 quoted, the type of quotes you use determines the treatment of the
 text, just as in regular quoting.  An unquoted identifier works like
 double quotes.  There must be no space between the C<< << >> and
-the identifier.  (If you put a space it will be treated as a null
-identifier, which is valid, and matches the first empty line.)  The
-terminating string must appear by itself (unquoted and with no
-surrounding whitespace) on the terminating line.
+the identifier, unless the identifier is quoted.  (If you put a space it
+will be treated as a null identifier, which is valid, and matches the first
+empty line.)  The terminating string must appear by itself (unquoted and
+with no surrounding whitespace) on the terminating line.
 
 	print <<EOF;
     The price is $Price.
     EOF
 
-	print <<"EOF";	# same as above
+	print << "EOF";	# same as above
     The price is $Price.
     EOF
 
-	print <<`EOC`;	# execute commands
+	print << `EOC`;	# execute commands
     echo hi there
     echo lo there
     EOC
@@ -436,7 +437,7 @@ surrounding whitespace) on the terminating line.
     I said bar.
     bar
 
-	myfunc(<<"THIS", 23, <<'THAT');
+	myfunc(<< "THIS", 23, <<'THAT');
     Here's a line
     or two.
     THIS
@@ -460,6 +461,39 @@ from each line manually:
 	The Road goes ever on and on, 
 	down from the door where it began.
     FINIS
+
+If you use a here-doc within a delimited construct, such as in C<s///eg>,
+the quoted material must come on the lines following the final delimiter.
+So instead of
+
+    s/this/<<E . 'that'
+    the other
+    E
+     . 'more '/eg;
+
+you have to write
+
+    s/this/<<E . 'that' 
+     . 'more '/eg; 
+    the other 
+    E 
+
+If the terminating identifier is on the last line of the program, you
+must be sure there is a newline after it; otherwise, Perl will give the
+warning B<Can't find string terminator "END" anywhere before EOF...>.
+
+Additionally, the quoting rules for the identifier are not related to
+Perl's quoting rules -- C<q()>, C<qq()>, and the like are not supported
+in place of C<''> and C<"">, and the only interpolation is for backslashing
+the quoting character:
+
+    print << "abc\"def";
+    testing...
+    abc"def
+
+Finally, quoted strings cannot span multiple lines.  The general rule is
+that the identifier must be a string literal.  Stick with that, and you
+should be safe.
 
 =head2 List value constructors
 
@@ -522,6 +556,15 @@ The null list is represented by ().  Interpolating it in a list
 has no effect.  Thus ((),(),()) is equivalent to ().  Similarly,
 interpolating an array with no elements is the same as if no
 array had been interpolated at that point.
+
+This interpolation combines with the facts that the opening
+and closing parentheses are optional (except necessary for
+precedence) and lists may end with an optional comma to mean that
+multiple commas within lists are legal syntax. The list C<1,,3> is a
+concatenation of two lists, C<1,> and C<3>, the first of which ends
+with that optional comma.  C<1,,3> is C<(1,),(3)> is C<1,3> (And
+similarly for C<1,,,3> is C<(1,),(,),3> is C<1,3> and so on.)  Not that
+we'd advise you to use this obfuscation.
 
 A list value may also be subscripted like a normal array.  You must
 put the list in parentheses to avoid ambiguity.  For example:

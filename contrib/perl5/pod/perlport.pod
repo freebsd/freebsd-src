@@ -94,6 +94,26 @@ from) C<\015\012>, depending on whether you're reading or writing.
 Unix does the same thing on ttys in canonical mode.  C<\015\012>
 is commonly referred to as CRLF.
 
+A common cause of unportable programs is the misuse of chop() to trim
+newlines:
+
+    # XXX UNPORTABLE!
+    while(<FILE>) {
+        chop;
+        @array = split(/:/);
+        #...
+    }
+
+You can get away with this on Unix and MacOS (they have a single
+character end-of-line), but the same program will break under DOSish
+perls because you're only chop()ing half the end-of-line.  Instead,
+chomp() should be used to trim newlines.  The Dunce::Files module can
+help audit your code for misuses of chop().
+
+When dealing with binary files (or text files in binary mode) be sure
+to explicitly set $/ to the appropriate value for your file format
+before using chomp().
+
 Because of the "text" mode translation, DOSish perls have limitations
 in using C<seek> and C<tell> on a file accessed in "text" mode.
 Stick to C<seek>-ing to locations you got from C<tell> (and no
@@ -181,10 +201,12 @@ numbers to secondary storage such as a disk file or tape.
 
 Conflicting storage orders make utter mess out of the numbers.  If a
 little-endian host (Intel, VAX) stores 0x12345678 (305419896 in
-decimal), a big-endian host (Motorola, MIPS, Sparc, PA) reads it as
-0x78563412 (2018915346 in decimal).  To avoid this problem in network
-(socket) connections use the C<pack> and C<unpack> formats C<n>
-and C<N>, the "network" orders.  These are guaranteed to be portable.
+decimal), a big-endian host (Motorola, Sparc, PA) reads it as
+0x78563412 (2018915346 in decimal).  Alpha and MIPS can be either:
+Digital/Compaq used/uses them in little-endian mode; SGI/Cray uses
+them in big-endian mode.  To avoid this problem in network (socket)
+connections use the C<pack> and C<unpack> formats C<n> and C<N>, the
+"network" orders.  These are guaranteed to be portable.
 
 You can explore the endianness of your platform by unpacking a
 data structure packed in native format such as:
@@ -197,7 +219,7 @@ If you need to distinguish between endian architectures you could use
 either of the variables set like so:
 
     $is_big_endian   = unpack("h*", pack("s", 1)) =~ /01/;
-    $is_litte_endian = unpack("h*", pack("s", 1)) =~ /^1/;
+    $is_little_endian = unpack("h*", pack("s", 1)) =~ /^1/;
 
 Differing widths can cause truncation even between platforms of equal
 endianness.  The platform of shorter width loses the upper parts of the
@@ -217,7 +239,7 @@ So, it is reasonably safe to assume that all platforms support the
 notion of a "path" to uniquely identify a file on the system.  How
 that path is really written, though, differs considerably.
 
-Atlhough similar, file path specifications differ between Unix,
+Although similar, file path specifications differ between Unix,
 Windows, S<Mac OS>, OS/2, VMS, VOS, S<RISC OS>, and probably others.
 Unix, for example, is one of the few OSes that has the elegant idea
 of a single root directory.
@@ -332,7 +354,10 @@ operating systems put mandatory locks on such files.
 
 Don't count on a specific environment variable existing in C<%ENV>.
 Don't count on C<%ENV> entries being case-sensitive, or even
-case-preserving.
+case-preserving.  Don't try to clear %ENV by saying C<%ENV = ();>, or,
+if you really have to, make it conditional on C<$^O ne 'VMS'> since in
+VMS the C<%ENV> table is much more than a per-process key-value string
+table.
 
 Don't count on signals or C<%SIG> for anything.
 
@@ -355,7 +380,7 @@ Commands that launch external processes are generally supported on
 most platforms (though many of them do not support any type of
 forking).  The problem with using them arises from what you invoke
 them on.  External tools are often named differently on different
-platforms, may not be available in the same location, migth accept
+platforms, may not be available in the same location, might accept
 different arguments, can behave differently, and often present their
 results in a platform-dependent way.  Thus, you should seldom depend
 on them to produce consistent results. (Then again, if you're calling 
@@ -650,6 +675,15 @@ DOSish perls are as follows:
     Windows NT    MSWin32    MSWin32-ppc
     Cygwin        cygwin
 
+The various MSWin32 Perl's can distinguish the OS they are running on
+via the value of the fifth element of the list returned from 
+Win32::GetOSVersion().  For example:
+
+    if ($^O eq 'MSWin32') {
+        my @os_version_info = Win32::GetOSVersion();
+        print +('3.1','95','NT')[$os_version_info[4]],"\n";
+    }
+
 Also see:
 
 =over 4
@@ -681,15 +715,16 @@ The ActiveState Pages, http://www.activestate.com/
 =item *
 
 The Cygwin environment for Win32; F<README.cygwin> (installed 
-as L<perlcygwin>), http://sourceware.cygnus.com/cygwin/
+as L<perlcygwin>), http://www.cygwin.com/
 
 =item *
 
 The U/WIN environment for Win32,
-<http://www.research.att.com/sw/tools/uwin/
+http://www.research.att.com/sw/tools/uwin/
 
-=item Build instructions for OS/2, L<perlos2>
+=item *
 
+Build instructions for OS/2, L<perlos2>
 
 =back
 
@@ -888,9 +923,9 @@ vmsperl on the web, http://www.sidhe.org/vmsperl/index.html
 
 =head2 VOS
 
-Perl on VOS is discussed in F<README.vos> in the perl distribution.
-Perl on VOS can accept either VOS- or Unix-style file
-specifications as in either of the following:
+Perl on VOS is discussed in F<README.vos> in the perl distribution
+(installed as L<perlvos>).  Perl on VOS can accept either VOS- or
+Unix-style file specifications as in either of the following:
 
     $ perl -ne "print if /perl_setup/i" >system>notices
     $ perl -ne "print if /perl_setup/i" /system/notices
@@ -906,12 +941,11 @@ contain a slash character cannot be processed.  Such files must be
 renamed before they can be processed by Perl.  Note that VOS limits
 file names to 32 or fewer characters.
 
-The following C functions are unimplemented on VOS, and any attempt by
-Perl to use them will result in a fatal error message and an immediate
-exit from Perl:  dup, do_aspawn, do_spawn, fork, waitpid.  Once these
-functions become available in the VOS POSIX.1 implementation, you can
-either recompile and rebind Perl, or you can download a newer port from
-ftp.stratus.com.
+See F<README.vos> for restrictions that apply when Perl is built
+with the alpha version of VOS POSIX.1 support.
+
+Perl on VOS is built without any extensions and does not support
+dynamic loading.
 
 The value of C<$^O> on VOS is "VOS".  To determine the architecture that
 you are running on without resorting to loading all of C<%Config> you
@@ -1042,7 +1076,8 @@ Also see:
 
 *
 
-L<perlos390>, F<README.os390>, F<README.posix-bc>, F<README.vmesa>
+L<perlos390>, F<README.os390>, F<perlbs2000>, F<README.vmesa>,
+L<perlebcdic>.
 
 =item *
 
@@ -1053,7 +1088,7 @@ general usage issues for all EBCDIC Perls.  Send a message body of
 =item  *
 
 AS/400 Perl information at
-ttp://as400.rochester.ibm.com/
+http://as400.rochester.ibm.com/
 as well as on CPAN in the F<ports/> directory.
 
 =back
@@ -1200,7 +1235,7 @@ Be OS, F<README.beos>
 =item *
 
 HP 300 MPE/iX, F<README.mpeix> and Mark Bixby's web page
-http://www.cccd.edu/~markb/perlix.html
+http://www.bixby.org/mark/perlix.html
 
 =item *
 
@@ -1208,7 +1243,7 @@ A free perl5-based PERL.NLM for Novell Netware is available in
 precompiled binary and source code form from http://www.novell.com/
 as well as from CPAN.
 
-=item 
+=item  *
 
 Plan 9, F<README.plan9>
 
@@ -1640,6 +1675,10 @@ Not implemented. (S<Mac OS>, Win32, VMS, S<RISC OS>, VOS, VM/ESA)
 
 =item stat
 
+Platforms that do not have rdev, blksize, or blocks will return these
+as '', so numeric comparison or manipulation of these fields may cause
+'not numeric' warnings.
+
 mtime and atime are the same thing, and ctime is creation time instead of
 inode change time. (S<Mac OS>)
 
@@ -1649,6 +1688,9 @@ device and inode are not necessarily reliable.  (VMS)
 
 mtime, atime and ctime all return the last modification time.  Device and
 inode are not necessarily reliable.  (S<RISC OS>)
+
+dev, rdev, blksize, and blocks are not available.  inode is not
+meaningful and will differ between stat calls on the same file.  (os2)
 
 =item symlink OLDFILE,NEWFILE
 
@@ -1746,7 +1788,7 @@ two seconds. (Win32)
 Not implemented. (S<Mac OS>, VOS)
 
 Can only be applied to process handles returned for processes spawned
-using C<system(1, ...)>. (Win32)
+using C<system(1, ...)> or pseudo processes created with C<fork()>. (Win32)
 
 Not useful. (S<RISC OS>)
 
@@ -1755,6 +1797,11 @@ Not useful. (S<RISC OS>)
 =head1 CHANGES
 
 =over 4
+
+=item v1.48, 02 February 2001
+
+Various updates from perl5-porters over the past year, supported
+platforms update from Jarkko Hietaniemi.
 
 =item v1.47, 22 March 2000
 
@@ -1838,96 +1885,98 @@ First public release with perl5.005.
 
 =head1 Supported Platforms
 
-As of early March 2000 (the Perl release 5.6.0), the following
-platforms are able to build Perl from the standard source code
-distribution available at http://www.perl.com/CPAN/src/index.html
+As of early 2001 (the Perl release 5.6.1), the following platforms are
+able to build Perl from the standard source code distribution
+available at http://www.perl.com/CPAN/src/index.html
 
 	AIX
+	AmigaOS
+	Darwin		(Rhapsody)
+	DG/UX
 	DOS DJGPP 	1)
+	DYNIX/ptx
+	EPOC
 	FreeBSD
 	HP-UX
 	IRIX
 	Linux
-	LynxOS
 	MachTen
-	MPE/iX
-	NetBSD
+	MacOS Classic	2)
+	NonStop-UX
+	ReliantUNIX	(SINIX)
 	OpenBSD
+	OpenVMS		(VMS)
 	OS/2
+	OS X
 	QNX
-	Rhapsody/Darwin 2)
-	SCO SV
-	SINIX
 	Solaris
-	SVR4
-	Tru64 UNIX      3)
+	Tru64 UNIX      (DEC OSF/1, Digital UNIX)
 	UNICOS
 	UNICOS/mk
-	Unixware
-	VMS
 	VOS
-	Windows 3.1     1)
-	Windows 95      1) 4)
-	Windows 98      1) 4)
-	Windows NT      1) 4)
+	Win32/NT/2K	3)
 
         1) in DOS mode either the DOS or OS/2 ports can be used
-        2) new in 5.6.0: the BSD/NeXT-based UNIX of Mac OS X
-        3) formerly known as Digital UNIX and before that DEC OSF/1
-        4) compilers: Borland, Cygwin, Mingw32 EGCS/GCC, VC++
+        2) Mac OS Classic (pre-X) is almost 5.6.1-ready; building from
+	   the source does work with 5.6.1, but additional MacOS specific
+           source code is needed for a complete build.  Contact the mailing
+           list macperl-porters@macperl.org for more information.
+        3) compilers: Borland, Cygwin, Mingw32 EGCS/GCC, VC++
 
-The following platforms worked for the previous major release
-(5.005_03 being the latest maintenance release of that, as of early
-March 2000), but be did not manage to test these in time for the 5.6.0
-release of Perl.  There is a very good chance that these will work
-just fine with 5.6.0.
+The following platforms worked for the previous release (5.6.0),
+but we did not manage to test these in time for the 5.6.1 release.
+There is a very good chance that these will work fine with 5.6.1.
 
+	DomainOS
+	Hurd
+	LynxOS
+	MinGW
+	MPE/iX
+	NetBSD
+	PowerMAX
+	SCO SV
+	SunOS
+	SVR4
+	Unixware
+	Windows 3.1
+	Windows 95
+	Windows 98
+	Windows Me
+
+The following platform worked for the 5.005_03 major release but not
+5.6.0.  Standardization on UTF-8 as the internal string representation
+in 5.6.0 and 5.6.1 has introduced incompatibilities in this EBCDIC
+platform.  While Perl 5.6.1 will build on this platform some
+regression tests may fail and the C<use utf8;> pragma typically
+introduces text handling errors.  UTF-8 support for this platform may
+be enabled in a future release:
+
+	OS/390	1)
+
+	1) previously known as MVS, about to become z/OS.
+
+Strongly related to the OS/390 platform by also being EBCDIC-based
+mainframe platforms are the following platforms:
+
+	POSIX-BC	(BS2000)
+	VM/ESA
+
+These are also expected to work, albeit with no UTF-8 support, under 5.6.1 
+for the same reasons as OS/390.  Contact the mailing list perl-mvs@perl.org 
+for more details.
+
+The following platforms have been known to build Perl from source in
+the past (5.005_03 and earlier), but we haven't been able to verify
+their status for the current release, either because the
+hardware/software platforms are rare or because we don't have an
+active champion on these platforms--or both.  They used to work,
+though, so go ahead and try compiling them, and let perlbug@perl.org
+of any trouble.
+
+	3b1
 	A/UX
 	BeOS
 	BSD/OS
-	DG/UX
-	DYNIX/ptx
-	DomainOS
-	Hurd
-	NextSTEP
-	OpenSTEP
-	PowerMAX
-	SCO ODT/OSR	
-	SunOS
-	Ultrix
-
-The following platform worked for the previous major release (5.005_03
-being the latest maintenance release of that, as of early March 2000).
-However, standardization on UTF-8 as the internal string representation
-in 5.6.0 has introduced incompatibilities in this EBCDIC platform.
-Support for this platform may be enabled in a future release:
-
-	OS390	1)
-
-	1) Previously known as MVS, or OpenEdition MVS.
-
-Strongly related to the OS390 platform by also being EBCDIC-based
-mainframe platforms are the following platforms:
-
-	BS2000
-	VM/ESA
-
-These are also not expected to work under 5.6.0 for the same reasons
-as OS390.  Contact the mailing list perl-mvs@perl.org for more details.
-
-MacOS (Classic, pre-X) is almost 5.6.0-ready; building from the source
-does work with 5.6.0, but additional MacOS specific source code is needed
-for a complete port.  Contact the mailing list macperl-porters@macperl.org
-for more information.
-
-The following platforms have been known to build Perl from source in
-the past, but we haven't been able to verify their status for the
-current release, either because the hardware/software platforms are
-rare or because we don't have an active champion on these
-platforms--or both:
-
-	3b1
-	AmigaOS
 	ConvexOS
 	CX/UX
 	DC/OSx
@@ -1944,16 +1993,21 @@ platforms--or both:
 	MiNT
 	MPC
 	NEWS-OS
+	NextSTEP
+	OpenSTEP
 	Opus
 	Plan 9
 	PowerUX
 	RISC/os
+	SCO ODT/OSR	
 	Stellar
 	SVR2
 	TI1500
 	TitanOS
+	Ultrix
 	Unisys Dynix
 	Unixware
+	UTS
 
 Support for the following platform is planned for a future Perl release:
 
@@ -1964,8 +2018,8 @@ binaries available via http://www.perl.com/CPAN/ports/index.html:
 
 				Perl release
 
-	AS/400			5.003
 	Netware			5.003_07
+	OS/400			5.005_02
 	Tandem Guardian		5.004
 
 The following platforms have only binaries available via
@@ -1984,8 +2038,9 @@ http://www.perl.com/CPAN/ports/index.html for binary distributions.
 
 =head1 SEE ALSO
 
-L<perlamiga>, L<perlcygwin>, L<perldos>, L<perlhpux>, L<perlos2>,
-L<perlos390>, L<perlwin32>, L<perlvms>, and L<Win32>.
+L<perlaix>, L<perlamiga>, L<perlcygwin>, L<perldos>, L<perlepoc>,
+L<perlebcdic>, L<perlhpux>, L<perlos2>, L<perlos390>, L<perlbs2000>,
+L<perlwin32>, L<perlvms>, L<perlvos>, and L<Win32>.
 
 =head1 AUTHORS / CONTRIBUTORS
 
@@ -2001,7 +2056,7 @@ Neale Ferguson <neale@mailbox.tabnsw.com.au>,
 David J. Fiander <davidf@mks.com>,
 Paul Green <Paul_Green@stratus.com>,
 M.J.T. Guy <mjtg@cus.cam.ac.uk>,
-Jarkko Hietaniemi <jhi@iki.fi<gt>,
+Jarkko Hietaniemi <jhi@iki.fi>,
 Luther Huffman <lutherh@stratcom.com>,
 Nick Ing-Simmons <nick@ni-s.u-net.com>,
 Andreas J. KE<ouml>nig <koenig@kulturbox.de>,

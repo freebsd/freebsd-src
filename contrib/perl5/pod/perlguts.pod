@@ -4,10 +4,10 @@ perlguts - Introduction to the Perl API
 
 =head1 DESCRIPTION
 
-This document attempts to describe how to use the Perl API, as well as containing 
-some info on the basic workings of the Perl core. It is far from complete 
-and probably contains many errors. Please refer any questions or 
-comments to the author below.
+This document attempts to describe how to use the Perl API, as well as
+containing some info on the basic workings of the Perl core. It is far
+from complete and probably contains many errors. Please refer any
+questions or comments to the author below.
 
 =head1 Variables
 
@@ -34,8 +34,8 @@ as well.)
 =head2 Working with SVs
 
 An SV can be created and loaded with one command.  There are four types of
-values that can be loaded: an integer value (IV), a double (NV), a string,
-(PV), and another scalar (SV).
+values that can be loaded: an integer value (IV), a double (NV),
+a string (PV), and another scalar (SV).
 
 The six routines are:
 
@@ -75,6 +75,10 @@ the string, and the string's contents are therefore untrustworthy (see
 L<perlsec>).  This pointer may be NULL if that information is not
 important.  Note that this function requires you to specify the length of
 the format.
+
+STRLEN is an integer type (Size_t, usually defined as size_t in
+config.h) guaranteed to be large enough to represent the size of 
+any string that perl can handle.
 
 The C<sv_set*()> functions are not generic enough to operate on values
 that have "magic".  See L<Magic Virtual Tables> later in this document.
@@ -209,6 +213,48 @@ line and all will be well.
 
 To free an SV that you've created, call C<SvREFCNT_dec(SV*)>.  Normally this
 call is not necessary (see L<Reference Counts and Mortality>).
+
+=head2 Offsets
+
+Perl provides the function C<sv_chop> to efficiently remove characters
+from the beginning of a string; you give it an SV and a pointer to
+somewhere inside the the PV, and it discards everything before the
+pointer. The efficiency comes by means of a little hack: instead of
+actually removing the characters, C<sv_chop> sets the flag C<OOK>
+(offset OK) to signal to other functions that the offset hack is in
+effect, and it puts the number of bytes chopped off into the IV field
+of the SV. It then moves the PV pointer (called C<SvPVX>) forward that
+many bytes, and adjusts C<SvCUR> and C<SvLEN>. 
+
+Hence, at this point, the start of the buffer that we allocated lives
+at C<SvPVX(sv) - SvIV(sv)> in memory and the PV pointer is pointing
+into the middle of this allocated storage.
+
+This is best demonstrated by example:
+
+  % ./perl -Ilib -MDevel::Peek -le '$a="12345"; $a=~s/.//; Dump($a)'
+  SV = PVIV(0x8128450) at 0x81340f0
+    REFCNT = 1
+    FLAGS = (POK,OOK,pPOK)
+    IV = 1  (OFFSET)
+    PV = 0x8135781 ( "1" . ) "2345"\0
+    CUR = 4
+    LEN = 5
+
+Here the number of bytes chopped off (1) is put into IV, and
+C<Devel::Peek::Dump> helpfully reminds us that this is an offset. The
+portion of the string between the "real" and the "fake" beginnings is
+shown in parentheses, and the values of C<SvCUR> and C<SvLEN> reflect
+the fake beginning, not the real one.
+
+Something similar to the offset hack is perfomed on AVs to enable
+efficient shifting and splicing off the beginning of the array; while
+C<AvARRAY> points to the first element in the array that is visible from
+Perl, C<AvALLOC> points to the real start of the C array. These are
+usually the same, but a C<shift> operation can be carried out by
+increasing C<AvARRAY> by one and decreasing C<AvFILL> and C<AvLEN>.
+Again, the location of the real start of the C array only comes into
+play when freeing the array. See C<av_shift> in F<av.c>.
 
 =head2 What's Really Stored in an SV?
 
@@ -832,6 +878,8 @@ The current kinds of Magic Virtual Tables are:
     a        vtbl_amagicelem     %OVERLOAD hash element
     c        (none)              Holds overload table (AMT) on stash
     B        vtbl_bm             Boyer-Moore (fast string search)
+    D        vtbl_regdata        Regex match position data (@+ and @- vars)
+    d        vtbl_regdatum       Regex match position data element
     E        vtbl_env            %ENV hash
     e        vtbl_envelem        %ENV hash element
     f        vtbl_fm             Formline ('compiled' format)
@@ -1053,7 +1101,7 @@ an C<ENTER>/C<LEAVE> pair.
 
 Inside such a I<pseudo-block> the following service is available:
 
-=over
+=over 4
 
 =item C<SAVEINT(int i)>
 
@@ -1078,8 +1126,20 @@ and back.
 =item C<SAVEFREESV(SV *sv)>
 
 The refcount of C<sv> would be decremented at the end of
-I<pseudo-block>. This is similar to C<sv_2mortal>, which should (?) be
-used instead.
+I<pseudo-block>.  This is similar to C<sv_2mortal> in that it is also a
+mechanism for doing a delayed C<SvREFCNT_dec>.  However, while C<sv_2mortal>
+extends the lifetime of C<sv> until the beginning of the next statement,
+C<SAVEFREESV> extends it until the end of the enclosing scope.  These
+lifetimes can be wildly different.
+
+Also compare C<SAVEMORTALIZESV>.
+
+=item C<SAVEMORTALIZESV(SV *sv)>
+
+Just like C<SAVEFREESV>, but mortalizes C<sv> at the end of the current
+scope instead of decrementing its reference count.  This usually has the
+effect of keeping C<sv> alive until the statement that called the currently
+live scope has finished executing.
 
 =item C<SAVEFREEOP(OP *op)>
 
@@ -1126,7 +1186,7 @@ provide pointers to the modifiable data explicitly (either C pointers,
 or Perlish C<GV *>s).  Where the above macros take C<int>, a similar 
 function takes C<int *>.
 
-=over
+=over 4
 
 =item C<SV* save_scalar(GV *gv)>
 
@@ -1215,6 +1275,7 @@ to use the macros:
 
 These macros automatically adjust the stack for you, if needed.  Thus, you
 do not need to call C<EXTEND> to extend the stack.
+However, see L</Putting a C value on Perl stack>
 
 For more information, consult L<perlxs> and L<perlxstut>.
 
@@ -1344,6 +1405,23 @@ The macro to put this target on stack is C<PUSHTARG>, and it is
 directly used in some opcodes, as well as indirectly in zillions of
 others, which use it via C<(X)PUSH[pni]>.
 
+Because the target is reused, you must be careful when pushing multiple
+values on the stack. The following code will not do what you think:
+
+    XPUSHi(10);
+    XPUSHi(20);
+
+This translates as "set C<TARG> to 10, push a pointer to C<TARG> onto
+the stack; set C<TARG> to 20, push a pointer to C<TARG> onto the stack".
+At the end of the operation, the stack does not contain the values 10
+and 20, but actually contains two pointers to C<TARG>, which we have set
+to 20. If you need to push multiple different values, use C<XPUSHs>,
+which bypasses C<TARG>.
+
+On a related note, if you do use C<(X)PUSH[npi]>, then you're going to
+need a C<dTARG> in your variable declarations so that the C<*PUSH*>
+macros can make use of the local variable C<TARG>. 
+
 =head2 Scratchpads
 
 The question remains on when the SVs which are I<target>s for opcodes
@@ -1461,15 +1539,40 @@ The execution order is indicated by C<===E<gt>> marks, thus it is C<3
 4 5 6> (node C<6> is not included into above listing), i.e.,
 C<gvsv gvsv add whatever>.
 
+Each of these nodes represents an op, a fundamental operation inside the
+Perl core. The code which implements each operation can be found in the
+F<pp*.c> files; the function which implements the op with type C<gvsv>
+is C<pp_gvsv>, and so on. As the tree above shows, different ops have
+different numbers of children: C<add> is a binary operator, as one would
+expect, and so has two children. To accommodate the various different
+numbers of children, there are various types of op data structure, and
+they link together in different ways.
+
+The simplest type of op structure is C<OP>: this has no children. Unary
+operators, C<UNOP>s, have one child, and this is pointed to by the
+C<op_first> field. Binary operators (C<BINOP>s) have not only an
+C<op_first> field but also an C<op_last> field. The most complex type of
+op is a C<LISTOP>, which has any number of children. In this case, the
+first child is pointed to by C<op_first> and the last child by
+C<op_last>. The children in between can be found by iteratively
+following the C<op_sibling> pointer from the first child to the last.
+
+There are also two other op types: a C<PMOP> holds a regular expression,
+and has no children, and a C<LOOP> may or may not have children. If the
+C<op_children> field is non-zero, it behaves like a C<LISTOP>. To
+complicate matters, if a C<UNOP> is actually a C<null> op after
+optimization (see L</Compile pass 2: context propagation>) it will still
+have children in accordance with its former type.
+
 =head2 Compile pass 1: check routines
 
-The tree is created by the I<pseudo-compiler> while yacc code feeds it
-the constructions it recognizes. Since yacc works bottom-up, so does
+The tree is created by the compiler while I<yacc> code feeds it
+the constructions it recognizes. Since I<yacc> works bottom-up, so does
 the first pass of perl compilation.
 
 What makes this pass interesting for perl developers is that some
 optimization may be performed on this pass.  This is optimization by
-so-called I<check routines>.  The correspondence between node names
+so-called "check routines".  The correspondence between node names
 and corresponding check routines is described in F<opcode.pl> (do not
 forget to run C<make regen_headers> if you modify this file).
 
@@ -1521,10 +1624,42 @@ additional complications for conditionals).  These optimizations are
 done in the subroutine peep().  Optimizations performed at this stage
 are subject to the same restrictions as in the pass 2.
 
-=head1 How multiple interpreters and concurrency are supported
+=head1 Examining internal data structures with the C<dump> functions
 
-WARNING: This information is subject to radical changes prior to
-the Perl 5.6 release.  Use with caution.
+To aid debugging, the source file F<dump.c> contains a number of
+functions which produce formatted output of internal data structures.
+
+The most commonly used of these functions is C<Perl_sv_dump>; it's used
+for dumping SVs, AVs, HVs, and CVs. The C<Devel::Peek> module calls
+C<sv_dump> to produce debugging output from Perl-space, so users of that
+module should already be familiar with its format. 
+
+C<Perl_op_dump> can be used to dump an C<OP> structure or any of its
+derivatives, and produces output similiar to C<perl -Dx>; in fact,
+C<Perl_dump_eval> will dump the main root of the code being evaluated,
+exactly like C<-Dx>.
+
+Other useful functions are C<Perl_dump_sub>, which turns a C<GV> into an
+op tree, C<Perl_dump_packsubs> which calls C<Perl_dump_sub> on all the
+subroutines in a package like so: (Thankfully, these are all xsubs, so
+there is no op tree)
+
+    (gdb) print Perl_dump_packsubs(PL_defstash)
+
+    SUB attributes::bootstrap = (xsub 0x811fedc 0)
+
+    SUB UNIVERSAL::can = (xsub 0x811f50c 0)
+
+    SUB UNIVERSAL::isa = (xsub 0x811f304 0)
+
+    SUB UNIVERSAL::VERSION = (xsub 0x811f7ac 0)
+
+    SUB DynaLoader::boot_DynaLoader = (xsub 0x805b188 0)
+
+and C<Perl_dump_all>, which dumps all the subroutines in the stash and
+the op tree of the main root.
+
+=head1 How multiple interpreters and concurrency are supported
 
 =head2 Background and PERL_IMPLICIT_CONTEXT
 
@@ -1540,8 +1675,8 @@ interpreter.
 Three macros control the major Perl build flavors: MULTIPLICITY,
 USE_THREADS and PERL_OBJECT.  The MULTIPLICITY build has a C structure
 that packages all the interpreter state, there is a similar thread-specific
-data structure under USE_THREADS, and the PERL_OBJECT build has a C++
-class to maintain interpreter state.  In all three cases,
+data structure under USE_THREADS, and the (now deprecated) PERL_OBJECT
+build has a C++ class to maintain interpreter state.  In all three cases,
 PERL_IMPLICIT_CONTEXT is also normally defined, and enables the
 support for passing in a "hidden" first argument that represents all three
 data structures.
@@ -1557,17 +1692,11 @@ First problem: deciding which functions will be public API functions and
 which will be private.  All functions whose names begin C<S_> are private 
 (think "S" for "secret" or "static").  All other functions begin with
 "Perl_", but just because a function begins with "Perl_" does not mean it is
-part of the API. The easiest way to be B<sure> a function is part of the API
-is to find its entry in L<perlapi>.  If it exists in L<perlapi>, it's part
-of the API.  If it doesn't, and you think it should be (i.e., you need it fo
-r your extension), send mail via L<perlbug> explaining why you think it
-should be.
-
-(L<perlapi> itself is generated by embed.pl, a Perl script that generates
-significant portions of the Perl source code.  It has a list of almost
-all the functions defined by the Perl interpreter along with their calling
-characteristics and some flags.  Functions that are part of the public API
-are marked with an 'A' in its flags.)
+part of the API. (See L</Internal Functions>.) The easiest way to be B<sure> a 
+function is part of the API is to find its entry in L<perlapi>.  
+If it exists in L<perlapi>, it's part of the API.  If it doesn't, and you 
+think it should be (i.e., you need it for your extension), send mail via 
+L<perlbug> explaining why you think it should be.
 
 Second problem: there must be a syntax so that the same subroutine
 declarations and calls can pass a structure as their first argument,
@@ -1590,10 +1719,11 @@ C<pTHX_> is one of a number of macros (in perl.h) that hide the
 details of the interpreter's context.  THX stands for "thread", "this",
 or "thingy", as the case may be.  (And no, George Lucas is not involved. :-)
 The first character could be 'p' for a B<p>rototype, 'a' for B<a>rgument,
-or 'd' for B<d>eclaration.
+or 'd' for B<d>eclaration, so we have C<pTHX>, C<aTHX> and C<dTHX>, and
+their variants.
 
-When Perl is built without PERL_IMPLICIT_CONTEXT, there is no first
-argument containing the interpreter's context.  The trailing underscore
+When Perl is built without options that set PERL_IMPLICIT_CONTEXT, there is no
+first argument containing the interpreter's context.  The trailing underscore
 in the pTHX_ macro indicates that the macro expansion needs a comma
 after the context argument because other arguments follow it.  If
 PERL_IMPLICIT_CONTEXT is not defined, pTHX_ will be ignored, and the
@@ -1602,14 +1732,14 @@ macro without the trailing underscore is used when there are no additional
 explicit arguments.
 
 When a core function calls another, it must pass the context.  This
-is normally hidden via macros.  Consider C<sv_setsv>.  It expands
+is normally hidden via macros.  Consider C<sv_setsv>.  It expands into
 something like this:
 
     ifdef PERL_IMPLICIT_CONTEXT
-      define sv_setsv(a,b)	Perl_sv_setsv(aTHX_ a, b)
+      define sv_setsv(a,b)      Perl_sv_setsv(aTHX_ a, b)
       /* can't do this for vararg functions, see below */
     else
-      define sv_setsv		Perl_sv_setsv
+      define sv_setsv           Perl_sv_setsv
     endif
 
 This works well, and means that XS authors can gleefully write:
@@ -1629,8 +1759,8 @@ Under PERL_OBJECT in the core, that will translate to either:
                                        # see objXSUB.h
 
 Under PERL_OBJECT in extensions (aka PERL_CAPI), or under
-MULTIPLICITY/USE_THREADS w/ PERL_IMPLICIT_CONTEXT in both core
-and extensions, it will be:
+MULTIPLICITY/USE_THREADS with PERL_IMPLICIT_CONTEXT in both core
+and extensions, it will become:
 
     Perl_sv_setsv(aTHX_ foo, bar);     # the canonical Perl "API"
                                        # for all build flavors
@@ -1652,6 +1782,14 @@ You can ignore [pad]THX[xo] when browsing the Perl headers/sources.
 Those are strictly for use within the core.  Extensions and embedders
 need only be aware of [pad]THX.
 
+=head2 So what happened to dTHR?
+
+C<dTHR> was introduced in perl 5.005 to support the older thread model.
+The older thread model now uses the C<THX> mechanism to pass context
+pointers around, so C<dTHR> is not useful any more.  Perl 5.6.0 and
+later still have it for backward source compatibility, but it is defined
+to be a no-op.
+
 =head2 How do I use all this in extensions?
 
 When Perl is built with PERL_IMPLICIT_CONTEXT, extensions that call
@@ -1668,7 +1806,7 @@ Thus, something like:
 
         sv_setsv(asv, bsv);
 
-in your extesion will translate to this when PERL_IMPLICIT_CONTEXT is
+in your extension will translate to this when PERL_IMPLICIT_CONTEXT is
 in effect:
 
         Perl_sv_setsv(Perl_get_context(), asv, bsv);
@@ -1684,31 +1822,31 @@ work.
 The second, more efficient way is to use the following template for
 your Foo.xs:
 
-	#define PERL_NO_GET_CONTEXT	/* we want efficiency */
-	#include "EXTERN.h"
-	#include "perl.h"
-	#include "XSUB.h"
+        #define PERL_NO_GET_CONTEXT     /* we want efficiency */
+        #include "EXTERN.h"
+        #include "perl.h"
+        #include "XSUB.h"
 
         static my_private_function(int arg1, int arg2);
 
-	static SV *
-	my_private_function(int arg1, int arg2)
-	{
-	    dTHX;	/* fetch context */
-	    ... call many Perl API functions ...
-	}
+        static SV *
+        my_private_function(int arg1, int arg2)
+        {
+            dTHX;       /* fetch context */
+            ... call many Perl API functions ...
+        }
 
         [... etc ...]
 
-	MODULE = Foo		PACKAGE = Foo
+        MODULE = Foo            PACKAGE = Foo
 
-	/* typical XSUB */
+        /* typical XSUB */
 
-	void
-	my_xsub(arg)
-		int arg
-	    CODE:
-		my_private_function(arg, 10);
+        void
+        my_xsub(arg)
+                int arg
+            CODE:
+                my_private_function(arg, 10);
 
 Note that the only two changes from the normal way of writing an
 extension is the addition of a C<#define PERL_NO_GET_CONTEXT> before
@@ -1723,32 +1861,32 @@ The third, even more efficient way is to ape how it is done within
 the Perl guts:
 
 
-	#define PERL_NO_GET_CONTEXT	/* we want efficiency */
-	#include "EXTERN.h"
-	#include "perl.h"
-	#include "XSUB.h"
+        #define PERL_NO_GET_CONTEXT     /* we want efficiency */
+        #include "EXTERN.h"
+        #include "perl.h"
+        #include "XSUB.h"
 
         /* pTHX_ only needed for functions that call Perl API */
         static my_private_function(pTHX_ int arg1, int arg2);
 
-	static SV *
-	my_private_function(pTHX_ int arg1, int arg2)
-	{
-	    /* dTHX; not needed here, because THX is an argument */
-	    ... call Perl API functions ...
-	}
+        static SV *
+        my_private_function(pTHX_ int arg1, int arg2)
+        {
+            /* dTHX; not needed here, because THX is an argument */
+            ... call Perl API functions ...
+        }
 
         [... etc ...]
 
-	MODULE = Foo		PACKAGE = Foo
+        MODULE = Foo            PACKAGE = Foo
 
-	/* typical XSUB */
+        /* typical XSUB */
 
-	void
-	my_xsub(arg)
-		int arg
-	    CODE:
-		my_private_function(aTHX_ arg, 10);
+        void
+        my_xsub(arg)
+                int arg
+            CODE:
+                my_private_function(aTHX_ arg, 10);
 
 This implementation never has to fetch the context using a function
 call, since it is always passed as an extra argument.  Depending on
@@ -1759,15 +1897,34 @@ Never add a comma after C<pTHX> yourself--always use the form of the
 macro with the underscore for functions that take explicit arguments,
 or the form without the argument for functions with no explicit arguments.
 
+=head2 Should I do anything special if I call perl from multiple threads?
+
+If you create interpreters in one thread and then proceed to call them in
+another, you need to make sure perl's own Thread Local Storage (TLS) slot is
+initialized correctly in each of those threads.
+
+The C<perl_alloc> and C<perl_clone> API functions will automatically set
+the TLS slot to the interpreter they created, so that there is no need to do
+anything special if the interpreter is always accessed in the same thread that
+created it, and that thread did not create or call any other interpreters
+afterwards.  If that is not the case, you have to set the TLS slot of the
+thread before calling any functions in the Perl API on that particular
+interpreter.  This is done by calling the C<PERL_SET_CONTEXT> macro in that
+thread as the first thing you do:
+
+	/* do this before doing anything else with some_perl */
+	PERL_SET_CONTEXT(some_perl);
+
+	... other Perl API calls on some_perl go here ...
+
 =head2 Future Plans and PERL_IMPLICIT_SYS
 
 Just as PERL_IMPLICIT_CONTEXT provides a way to bundle up everything
 that the interpreter knows about itself and pass it around, so too are
 there plans to allow the interpreter to bundle up everything it knows
 about the environment it's running on.  This is enabled with the
-PERL_IMPLICIT_SYS macro.  Currently it only works with PERL_OBJECT,
-but is mostly there for MULTIPLICITY and USE_THREADS (see inside
-iperlsys.h).
+PERL_IMPLICIT_SYS macro.  Currently it only works with PERL_OBJECT
+and USE_THREADS on Windows (see inside iperlsys.h).
 
 This allows the ability to provide an extra pointer (called the "host"
 environment) for all the system calls.  This makes it possible for
@@ -1781,6 +1938,364 @@ actually different "processes", would be done here.
 The Perl engine/interpreter and the host are orthogonal entities.
 There could be one or more interpreters in a process, and one or
 more "hosts", with free association between them.
+
+=head1 Internal Functions
+
+All of Perl's internal functions which will be exposed to the outside
+world are be prefixed by C<Perl_> so that they will not conflict with XS
+functions or functions used in a program in which Perl is embedded.
+Similarly, all global variables begin with C<PL_>. (By convention,
+static functions start with C<S_>)
+
+Inside the Perl core, you can get at the functions either with or
+without the C<Perl_> prefix, thanks to a bunch of defines that live in
+F<embed.h>. This header file is generated automatically from
+F<embed.pl>. F<embed.pl> also creates the prototyping header files for
+the internal functions, generates the documentation and a lot of other
+bits and pieces. It's important that when you add a new function to the
+core or change an existing one, you change the data in the table at the
+end of F<embed.pl> as well. Here's a sample entry from that table:
+
+    Apd |SV**   |av_fetch   |AV* ar|I32 key|I32 lval
+
+The second column is the return type, the third column the name. Columns
+after that are the arguments. The first column is a set of flags:
+
+=over 3
+
+=item A
+
+This function is a part of the public API.
+
+=item p
+
+This function has a C<Perl_> prefix; ie, it is defined as C<Perl_av_fetch>
+
+=item d
+
+This function has documentation using the C<apidoc> feature which we'll
+look at in a second.
+
+=back
+
+Other available flags are:
+
+=over 3
+
+=item s
+
+This is a static function and is defined as C<S_whatever>, and usually
+called within the sources as C<whatever(...)>.
+
+=item n
+
+This does not use C<aTHX_> and C<pTHX> to pass interpreter context. (See
+L<perlguts/Background and PERL_IMPLICIT_CONTEXT>.)
+
+=item r
+
+This function never returns; C<croak>, C<exit> and friends.
+
+=item f
+
+This function takes a variable number of arguments, C<printf> style.
+The argument list should end with C<...>, like this:
+
+    Afprd   |void   |croak          |const char* pat|...
+
+=item M
+
+This function is part of the experimental development API, and may change 
+or disappear without notice.
+
+=item o
+
+This function should not have a compatibility macro to define, say,
+C<Perl_parse> to C<parse>. It must be called as C<Perl_parse>.
+
+=item j
+
+This function is not a member of C<CPerlObj>. If you don't know
+what this means, don't use it.
+
+=item x
+
+This function isn't exported out of the Perl core.
+
+=back
+
+If you edit F<embed.pl>, you will need to run C<make regen_headers> to
+force a rebuild of F<embed.h> and other auto-generated files.
+
+=head2 Formatted Printing of IVs, UVs, and NVs
+
+If you are printing IVs, UVs, or NVS instead of the stdio(3) style
+formatting codes like C<%d>, C<%ld>, C<%f>, you should use the
+following macros for portability
+
+        IVdf            IV in decimal
+        UVuf            UV in decimal
+        UVof            UV in octal
+        UVxf            UV in hexadecimal
+        NVef            NV %e-like
+        NVff            NV %f-like
+        NVgf            NV %g-like
+
+These will take care of 64-bit integers and long doubles.
+For example:
+
+        printf("IV is %"IVdf"\n", iv);
+
+The IVdf will expand to whatever is the correct format for the IVs.
+
+If you are printing addresses of pointers, use UVxf combined
+with PTR2UV(), do not use %lx or %p.
+
+=head2 Pointer-To-Integer and Integer-To-Pointer
+
+Because pointer size does not necessarily equal integer size,
+use the follow macros to do it right.
+
+        PTR2UV(pointer)
+        PTR2IV(pointer)
+        PTR2NV(pointer)
+        INT2PTR(pointertotype, integer)
+
+For example:
+
+        IV  iv = ...;
+        SV *sv = INT2PTR(SV*, iv);
+
+and
+
+        AV *av = ...;
+        UV  uv = PTR2UV(av);
+
+=head2 Source Documentation
+
+There's an effort going on to document the internal functions and
+automatically produce reference manuals from them - L<perlapi> is one
+such manual which details all the functions which are available to XS
+writers. L<perlintern> is the autogenerated manual for the functions
+which are not part of the API and are supposedly for internal use only.
+
+Source documentation is created by putting POD comments into the C
+source, like this:
+
+ /*
+ =for apidoc sv_setiv
+
+ Copies an integer into the given SV.  Does not handle 'set' magic.  See
+ C<sv_setiv_mg>.
+
+ =cut
+ */
+
+Please try and supply some documentation if you add functions to the
+Perl core.
+
+=head1 Unicode Support
+
+Perl 5.6.0 introduced Unicode support. It's important for porters and XS
+writers to understand this support and make sure that the code they
+write does not corrupt Unicode data.
+
+=head2 What B<is> Unicode, anyway?
+
+In the olden, less enlightened times, we all used to use ASCII. Most of
+us did, anyway. The big problem with ASCII is that it's American. Well,
+no, that's not actually the problem; the problem is that it's not
+particularly useful for people who don't use the Roman alphabet. What
+used to happen was that particular languages would stick their own
+alphabet in the upper range of the sequence, between 128 and 255. Of
+course, we then ended up with plenty of variants that weren't quite
+ASCII, and the whole point of it being a standard was lost.
+
+Worse still, if you've got a language like Chinese or
+Japanese that has hundreds or thousands of characters, then you really
+can't fit them into a mere 256, so they had to forget about ASCII
+altogether, and build their own systems using pairs of numbers to refer
+to one character.
+
+To fix this, some people formed Unicode, Inc. and
+produced a new character set containing all the characters you can
+possibly think of and more. There are several ways of representing these
+characters, and the one Perl uses is called UTF8. UTF8 uses
+a variable number of bytes to represent a character, instead of just
+one. You can learn more about Unicode at http://www.unicode.org/
+
+=head2 How can I recognise a UTF8 string?
+
+You can't. This is because UTF8 data is stored in bytes just like
+non-UTF8 data. The Unicode character 200, (C<0xC8> for you hex types)
+capital E with a grave accent, is represented by the two bytes
+C<v196.172>. Unfortunately, the non-Unicode string C<chr(196).chr(172)>
+has that byte sequence as well. So you can't tell just by looking - this
+is what makes Unicode input an interesting problem.
+
+The API function C<is_utf8_string> can help; it'll tell you if a string
+contains only valid UTF8 characters. However, it can't do the work for
+you. On a character-by-character basis, C<is_utf8_char> will tell you
+whether the current character in a string is valid UTF8.
+
+=head2 How does UTF8 represent Unicode characters?
+
+As mentioned above, UTF8 uses a variable number of bytes to store a
+character. Characters with values 1...128 are stored in one byte, just
+like good ol' ASCII. Character 129 is stored as C<v194.129>; this
+continues up to character 191, which is C<v194.191>. Now we've run out of
+bits (191 is binary C<10111111>) so we move on; 192 is C<v195.128>. And
+so it goes on, moving to three bytes at character 2048.
+
+Assuming you know you're dealing with a UTF8 string, you can find out
+how long the first character in it is with the C<UTF8SKIP> macro:
+
+    char *utf = "\305\233\340\240\201";
+    I32 len;
+
+    len = UTF8SKIP(utf); /* len is 2 here */
+    utf += len;
+    len = UTF8SKIP(utf); /* len is 3 here */
+
+Another way to skip over characters in a UTF8 string is to use
+C<utf8_hop>, which takes a string and a number of characters to skip
+over. You're on your own about bounds checking, though, so don't use it
+lightly.
+
+All bytes in a multi-byte UTF8 character will have the high bit set, so
+you can test if you need to do something special with this character
+like this:
+
+    UV uv;
+
+    if (utf & 0x80)
+        /* Must treat this as UTF8 */
+        uv = utf8_to_uv(utf);
+    else
+        /* OK to treat this character as a byte */
+        uv = *utf;
+
+You can also see in that example that we use C<utf8_to_uv> to get the
+value of the character; the inverse function C<uv_to_utf8> is available
+for putting a UV into UTF8:
+
+    if (uv > 0x80)
+        /* Must treat this as UTF8 */
+        utf8 = uv_to_utf8(utf8, uv);
+    else
+        /* OK to treat this character as a byte */
+        *utf8++ = uv;
+
+You B<must> convert characters to UVs using the above functions if
+you're ever in a situation where you have to match UTF8 and non-UTF8
+characters. You may not skip over UTF8 characters in this case. If you
+do this, you'll lose the ability to match hi-bit non-UTF8 characters;
+for instance, if your UTF8 string contains C<v196.172>, and you skip
+that character, you can never match a C<chr(200)> in a non-UTF8 string.
+So don't do that!
+
+=head2 How does Perl store UTF8 strings?
+
+Currently, Perl deals with Unicode strings and non-Unicode strings
+slightly differently. If a string has been identified as being UTF-8
+encoded, Perl will set a flag in the SV, C<SVf_UTF8>. You can check and
+manipulate this flag with the following macros:
+
+    SvUTF8(sv)
+    SvUTF8_on(sv)
+    SvUTF8_off(sv)
+
+This flag has an important effect on Perl's treatment of the string: if
+Unicode data is not properly distinguished, regular expressions,
+C<length>, C<substr> and other string handling operations will have
+undesirable results.
+
+The problem comes when you have, for instance, a string that isn't
+flagged is UTF8, and contains a byte sequence that could be UTF8 -
+especially when combining non-UTF8 and UTF8 strings.
+
+Never forget that the C<SVf_UTF8> flag is separate to the PV value; you
+need be sure you don't accidentally knock it off while you're
+manipulating SVs. More specifically, you cannot expect to do this:
+
+    SV *sv;
+    SV *nsv;
+    STRLEN len;
+    char *p;
+
+    p = SvPV(sv, len);
+    frobnicate(p);
+    nsv = newSVpvn(p, len);
+
+The C<char*> string does not tell you the whole story, and you can't
+copy or reconstruct an SV just by copying the string value. Check if the
+old SV has the UTF8 flag set, and act accordingly:
+
+    p = SvPV(sv, len);
+    frobnicate(p);
+    nsv = newSVpvn(p, len);
+    if (SvUTF8(sv))
+        SvUTF8_on(nsv);
+
+In fact, your C<frobnicate> function should be made aware of whether or
+not it's dealing with UTF8 data, so that it can handle the string
+appropriately.
+
+=head2 How do I convert a string to UTF8?
+
+If you're mixing UTF8 and non-UTF8 strings, you might find it necessary
+to upgrade one of the strings to UTF8. If you've got an SV, the easiest
+way to do this is:
+
+    sv_utf8_upgrade(sv);
+
+However, you must not do this, for example:
+
+    if (!SvUTF8(left))
+        sv_utf8_upgrade(left);
+
+If you do this in a binary operator, you will actually change one of the
+strings that came into the operator, and, while it shouldn't be noticeable
+by the end user, it can cause problems.
+
+Instead, C<bytes_to_utf8> will give you a UTF8-encoded B<copy> of its
+string argument. This is useful for having the data available for
+comparisons and so on, without harming the original SV. There's also
+C<utf8_to_bytes> to go the other way, but naturally, this will fail if
+the string contains any characters above 255 that can't be represented
+in a single byte.
+
+=head2 Is there anything else I need to know?
+
+Not really. Just remember these things:
+
+=over 3
+
+=item *
+
+There's no way to tell if a string is UTF8 or not. You can tell if an SV
+is UTF8 by looking at is C<SvUTF8> flag. Don't forget to set the flag if
+something should be UTF8. Treat the flag as part of the PV, even though
+it's not - if you pass on the PV to somewhere, pass on the flag too.
+
+=item *
+
+If a string is UTF8, B<always> use C<utf8_to_uv> to get at the value,
+unless C<!(*s & 0x80)> in which case you can use C<*s>.
+
+=item *
+
+When writing to a UTF8 string, B<always> use C<uv_to_utf8>, unless
+C<uv < 0x80> in which case you can use C<*s = uv>.
+
+=item *
+
+Mixing UTF8 and non-UTF8 strings is tricky. Use C<bytes_to_utf8> to get
+a new string which is UTF8 encoded. There are tricks you can use to
+delay deciding whether you need to use a UTF8 string until you get to a
+high character - C<HALF_UPGRADE> is one of those.
+
+=back
 
 =head1 AUTHORS
 
