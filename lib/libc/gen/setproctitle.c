@@ -126,6 +126,16 @@ setproctitle(const char *fmt, ...)
 			oargc = ps_strings->ps_nargvstr;
 			oargv = ps_strings->ps_argvstr;
 			for (i = len = 0; i < oargc; i++) {
+				/*
+				 * The program may have scribbled into its
+				 * argv array, e.g., to remove some arguments.
+				 * If that has happened, break out before
+				 * trying to call strlen on a NULL pointer.
+				 */
+				if (oargv[i] == NULL) {
+					oargc = i;
+					break;
+				}
 				snprintf(obuf + len, sizeof(obuf) - len, "%s%s",
 				    len ? " " : "", oargv[i]);
 				if (len)
