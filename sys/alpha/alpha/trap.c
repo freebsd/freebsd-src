@@ -921,6 +921,11 @@ Gfloat_reg_cvt(input)
 extern int	alpha_unaligned_print, alpha_unaligned_fix;
 extern int	alpha_unaligned_sigbus;
 
+struct unaligned_fixup_data {
+	const char *type;	/* opcode name */
+	int size;		/* size, 0 if fixup not supported */
+};
+
 int
 unaligned_fixup(va, opcode, reg, p)
 	unsigned long va, opcode, reg;
@@ -931,10 +936,11 @@ unaligned_fixup(va, opcode, reg, p)
 	const char *type;
 	unsigned long *regptr, longdata, uac;
 	int intdata;		/* signed to get extension when storing */
-	struct {
-		const char *type;	/* opcode name */
-		int size;		/* size, 0 if fixup not supported */
-	} tab[0x10] = {
+	u_int16_t worddata;	/* unsigned to _avoid_ extension */
+	const struct unaligned_fixup_data tab_0c[0x2] = {
+		{ "ldwu",	2 },	{ "stw",	2 },
+	};
+	const struct unaligned_fixup_data tab_20[0x10] = {
 #ifdef FIX_UNALIGNED_VAX_FP
 		{ "ldf",	4 },	{ "ldg",	8 },
 #else
@@ -971,9 +977,12 @@ unaligned_fixup(va, opcode, reg, p)
 	 * Find out which opcode it is.  Arrange to have the opcode
 	 * printed if it's an unknown opcode.
 	 */
-	if (opcode >= 0x20 && opcode <= 0x2f) {
-		type = tab[opcode - 0x20].type;
-		size = tab[opcode - 0x20].size;
+	if (opcode >= 0x0c && opcode <= 0x0d) {
+		type = tab_0c[opcode - 0x0c].type;
+		size = tab_0c[opcode - 0x0c].size;
+	} else if (opcode >= 0x20 && opcode <= 0x2f) {
+		type = tab_20[opcode - 0x20].type;
+		size = tab_20[opcode - 0x20].size;
 	} else {
 		type = "0x%lx";
 		size = 0;
@@ -1016,6 +1025,15 @@ unaligned_fixup(va, opcode, reg, p)
 	signal = SIGBUS;
 	if (dofix && size != 0) {
 		switch (opcode) {
+		case 0x0c:                      /* ldwu */
+			/* XXX ONLY WORKS ON LITTLE-ENDIAN ALPHA */
+			unaligned_load_integer(worddata);
+			break;
+
+		case 0x0d:                      /* stw */
+			/* XXX ONLY WORKS ON LITTLE-ENDIAN ALPHA */
+			unaligned_store_integer(worddata);
+			break;
 #ifdef FIX_UNALIGNED_VAX_FP
 		case 0x20:			/* ldf */
 			unaligned_load_floating(intdata, Ffloat_to_reg);
