@@ -805,11 +805,6 @@ mb_free(struct mb_lstmngr *mb_list, void *m, short type, short persist,
 	struct mb_bucket *bucket;
 	u_int owner;
 
-#ifdef MAC
-	if (type != MT_NOTMBUF && ((struct mbuf *)m)->m_flags & M_PKTHDR)
-		mac_destroy_mbuf((struct mbuf *)m);
-#endif
-
 	bucket = mb_list->ml_btable[MB_BUCKET_INDX(m, mb_list)];
 
 	/*
@@ -1266,8 +1261,8 @@ m_gethdr(int how, short type)
 		_mbhdr_setup(mb, type);
 #ifdef MAC
 		if (mac_init_mbuf(mb, how) != 0) {
-			mb_free(&mb_list_mbuf, mb, type, 0, NULL);
-			return (NULL);
+			m_free(mb);
+			return NULL;
 		}
 #endif
 	}
@@ -1315,8 +1310,8 @@ m_gethdr_clrd(int how, short type)
 		_mbhdr_setup(mb, type);
 #ifdef MAC
 		if (mac_init_mbuf(mb, how) != 0) {
-			mb_free(&mb_list_mbuf, mb, type, 0, NULL);
-			return (NULL);
+			m_free(mb);
+			return NULL;
 		}
 #endif
 		bzero(mtod(mb, caddr_t), MHLEN);
@@ -1345,7 +1340,11 @@ m_free(struct mbuf *mb)
 		m_freem(mb->m_pkthdr.aux);
 		mb->m_pkthdr.aux = NULL;
 	}
-
+#ifdef MAC
+	if ((mb->m_flags & M_PKTHDR) &&
+	    (mb->m_pkthdr.label.l_flags & MAC_FLAG_INITIALIZED))
+		mac_destroy_mbuf(mb);
+#endif
 	nb = mb->m_next;
 	if ((mb->m_flags & M_EXT) != 0) {
 		MEXT_REM_REF(mb);
@@ -1392,6 +1391,11 @@ m_freem(struct mbuf *mb)
 			m_freem(mb->m_pkthdr.aux);
 			mb->m_pkthdr.aux = NULL;
 		}
+#ifdef MAC
+		if ((mb->m_flags & M_PKTHDR) &&
+		    (mb->m_pkthdr.label.l_flags & MAC_FLAG_INITIALIZED))
+			mac_destroy_mbuf(mb);
+#endif
 		persist = 0;
 		m = mb;
 		mb = mb->m_next;
@@ -1458,6 +1462,12 @@ m_getcl(int how, short type, int flags)
 		_mcl_setup(mb);
 		_mext_init_ref(mb, &cl_refcntmap[cl2ref(mb->m_ext.ext_buf)]);
 	}
+#ifdef MAC
+	if ((type & M_PKTHDR) && (mac_init_mbuf(mb, how) != 0)) {
+		m_free(mb);
+		return NULL;
+	}
+#endif
 	return (mb);
 }
 
