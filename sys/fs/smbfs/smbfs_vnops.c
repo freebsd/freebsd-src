@@ -31,6 +31,7 @@
  *
  * $FreeBSD$
  */
+#include <machine/limits.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/namei.h>
@@ -974,9 +975,12 @@ smbfs_advlock(ap)
 /*	int flags = ap->a_flags;*/
 	struct proc *p = curproc;
 	struct smb_cred scred;
-	off_t start, end, size;
+	u_quad_t size;
+	off_t start, end;
 	int error, lkop;
 
+	if (fl->l_len < 0)
+		return EINVAL;
 	if (vp->v_type == VDIR) {
 		/*
 		 * SMB protocol have no support for directory locking.
@@ -994,6 +998,9 @@ smbfs_advlock(ap)
 		start = fl->l_start;
 		break;
 	    case SEEK_END:
+		/* size always >= 0 */
+		if (fl->l_start > 0 && size > OFF_MAX - fl->l_start)
+			return EOVERFLOW;
 		start = fl->l_start + size;
 	    default:
 		return EINVAL;
@@ -1003,7 +1010,12 @@ smbfs_advlock(ap)
 	if (fl->l_len == 0)
 		end = -1;
 	else {
-		end = start + fl->l_len - 1;
+		off_t oadd = fl->l_len - 1;
+
+		/* fl->l_len & start are non-negative */
+		if (oadd > OFF_MAX - start)
+			return EOVERFLOW;
+		end = start + oadd;
 		if (end < start)
 			return EINVAL;
 	}
