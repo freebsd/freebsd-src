@@ -15,6 +15,7 @@ LOCALES=	af_ZA.ISO8859-1 \
 		fi_FI.ISO8859-1 \
 		fr_BE.ISO8859-1 \
 		fr_FR.ISO8859-1 \
+		hi_IN.ISCII-DEV \
 		hr_HR.ISO8859-2 \
 		hu_HU.ISO8859-2 \
 		is_IS.ISO8859-1 \
@@ -24,6 +25,7 @@ LOCALES=	af_ZA.ISO8859-1 \
 		nl_NL.ISO8859-1 \
 		no_NO.ISO8859-1 \
 		pl_PL.ISO8859-2 \
+		pt_BR.ISO8859-1 \
 		pt_PT.ISO8859-1 \
 		ro_RO.ISO8859-2 \
 		ru_RU.CP866 \
@@ -112,5 +114,7 @@ afterinstall:
 	ln -sf ../${link}.ISO8859-1/LC_NUMERIC \
 		${LOCALEDIR}/${link}.US-ASCII/LC_NUMERIC
 .endfor
+	ln -sf ../ja_JP.eucJP/LC_NUMERIC \
+		${LOCALEDIR}/ja_JP.SJIS/LC_NUMERIC
 
 .include <bsd.prog.mk>
