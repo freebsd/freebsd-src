@@ -281,17 +281,16 @@ schedcpu(arg)
 				 * The kse slptimes are not touched in wakeup
 				 * because the thread may not HAVE a KSE.
 				 */
-				if ((ke->ke_state == KES_ONRUNQ) ||
-				    ((ke->ke_state == KES_THREAD) &&
-				    (ke->ke_thread->td_state == TDS_RUNNING))) {
-					ke->ke_slptime = 0;
+				if (ke->ke_state == KES_ONRUNQ) {
 					awake = 1;
-				} else {
-					/* XXXKSE
-					 * This is probably a pointless
-					 * statistic in a KSE world.
-					 */
-					ke->ke_slptime++;
+					ke->ke_flags &= ~KEF_DIDRUN;
+				} else if ((ke->ke_state == KES_THREAD) &&
+				    (ke->ke_thread->td_state == TDS_RUNNING)) {
+					awake = 1;
+					/* Do not clear KEF_DIDRUN */
+				} else if (ke->ke_flags & KEF_DIDRUN) {
+					awake = 1;
+					ke->ke_flags &= ~KEF_DIDRUN;
 				}
 
 				/*
@@ -306,10 +305,8 @@ schedcpu(arg)
 				 * stop recalculating its priority until
 				 * it wakes up.
 				 */
-				if (ke->ke_slptime > 1) {
+				if (ke->ke_cpticks == 0)
 					continue;
-				}
-
 #if	(FSHIFT >= CCPU_SHIFT)
 				ke->ke_pctcpu += (realstathz == 100) ?
 				    ((fixpt_t) ke->ke_cpticks) <<
@@ -327,11 +324,25 @@ schedcpu(arg)
 			 * If there are ANY running threads in this KSEGRP,
 			 * then don't count it as sleeping.
 			 */
-			if (awake == 0) {
-				kg->kg_slptime++;
-			} else {
+			if (awake) {
+				if (kg->kg_slptime > 1) {
+					/*
+					 * In an ideal world, this should not
+					 * happen, because whoever woke us
+					 * up from the long sleep should have
+					 * unwound the slptime and reset our
+					 * priority before we run at the stale
+					 * priority.  Should KASSERT at some
+					 * point when all the cases are fixed.
+					 */
+					updatepri(kg);
+				}
 				kg->kg_slptime = 0;
+			} else {
+				kg->kg_slptime++;
 			}
+			if (kg->kg_slptime > 1)
+				continue;
 			kg->kg_estcpu = decay_cpu(loadfac, kg->kg_estcpu);
 		      	resetpriority(kg);
 			FOREACH_THREAD_IN_GROUP(kg, td) {
@@ -508,7 +519,6 @@ msleep(ident, mtx, priority, wmesg, timo)
 
 	td->td_wchan = ident;
 	td->td_wmesg = wmesg;
-	td->td_kse->ke_slptime = 0;	/* XXXKSE */
 	td->td_ksegrp->kg_slptime = 0;
 	td->td_priority = priority & PRIMASK;
 	CTR5(KTR_PROC, "msleep: thread %p (pid %d, %s) on %s (%p)",

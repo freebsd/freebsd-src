@@ -156,8 +156,10 @@ retry:
 	} else {
 		/* Simulate runq_choose() having returned the idle thread */
 		td = PCPU_GET(idlethread);
+		ke = td->td_kse;
 		CTR1(KTR_RUNQ, "choosethread: td=%p (idle)", td);
 	}
+	ke->ke_flags |= KEF_DIDRUN;
 	if (panicstr && ((td->td_proc->p_flag & P_SYSTEM) == 0 &&
 	    (td->td_flags & TDF_INPANIC) == 0))
 		goto retry;
