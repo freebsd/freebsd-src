@@ -72,6 +72,8 @@ static d_ioctl_t	isavga_ioctl;
 static d_mmap_t		isavga_mmap;
 
 static struct cdevsw isavga_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	isavga_open,
 	.d_close =	isavga_close,
 	.d_read =	isavga_read,

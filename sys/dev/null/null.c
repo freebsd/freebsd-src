@@ -52,20 +52,21 @@ static d_read_t zero_read;
 #define ZERO_MINOR	12
 
 static struct cdevsw null_cdevsw = {
+	.d_version =	D_VERSION,
 	.d_read =	(d_read_t *)nullop,
 	.d_write =	null_write,
 	.d_ioctl =	null_ioctl,
 	.d_name =	"null",
 	.d_maj =	CDEV_MAJOR,
-	.d_flags =	D_NOGIANT,
 };
 
 static struct cdevsw zero_cdevsw = {
+	.d_version =	D_VERSION,
 	.d_read =	zero_read,
 	.d_write =	null_write,
 	.d_name =	"zero",
 	.d_maj =	CDEV_MAJOR,
-	.d_flags =	D_MMAP_ANON | D_NOGIANT,
+	.d_flags =	D_MMAP_ANON,
 };
 
 static void *zbuf;

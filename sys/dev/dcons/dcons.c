@@ -88,11 +88,12 @@ static d_ioctl_t	dcons_ioctl;
 
 static struct cdevsw dcons_cdevsw = {
 #if __FreeBSD_version >= 500104
+	.d_version =	D_VERSION,
 	.d_open =	dcons_open,
 	.d_close =	dcons_close,
 	.d_ioctl =	dcons_ioctl,
 	.d_name =	"dcons",
-	.d_flags =	D_TTY,
+	.d_flags =	D_TTY | D_NEEDGIANT,
 #else
 	/* open */	dcons_open,
 	/* close */	dcons_close,

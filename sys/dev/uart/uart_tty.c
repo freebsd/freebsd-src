@@ -67,11 +67,12 @@ static d_close_t uart_tty_close;
 static d_ioctl_t uart_tty_ioctl;
 
 static struct cdevsw uart_cdevsw = {
+	.d_version =	D_VERSION,
 	.d_open =	uart_tty_open,
 	.d_close =	uart_tty_close,
 	.d_ioctl =	uart_tty_ioctl,
 	.d_name =	uart_driver_name,
-	.d_flags =	D_TTY,
+	.d_flags =	D_TTY | D_NEEDGIANT,
 };
 
 static struct uart_devinfo uart_console;

@@ -59,6 +59,8 @@ __FBSDID("$FreeBSD$");
 /* device structures */
 static	d_ioctl_t	ata_ioctl;
 static struct cdevsw ata_cdevsw = {  
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_ioctl =	ata_ioctl,
 	.d_name =	"ata",
 };

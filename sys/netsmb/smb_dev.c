@@ -87,6 +87,8 @@ int smb_dev_queue(struct smb_dev *ndp, struct smb_rq *rqp, int prio);
 */
 
 static struct cdevsw nsmb_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	nsmb_dev_open,
 	.d_close =	nsmb_dev_close,
 	.d_ioctl =	nsmb_dev_ioctl,

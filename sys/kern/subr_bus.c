@@ -220,6 +220,8 @@ static d_poll_t		devpoll;
 
 #define CDEV_MAJOR 173
 static struct cdevsw dev_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	devopen,
 	.d_close =	devclose,
 	.d_read =	devread,

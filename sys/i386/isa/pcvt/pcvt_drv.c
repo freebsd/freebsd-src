@@ -93,14 +93,14 @@ static	d_close_t	pcvt_close;
 static	d_ioctl_t	pcvt_ioctl;
 static	d_mmap_t	pcvt_mmap;
 
-
 static struct cdevsw vt_cdevsw = {
+	.d_version =	D_VERSION,
 	.d_open =	pcvt_open,
 	.d_close =	pcvt_close,
 	.d_ioctl =	pcvt_ioctl,
 	.d_mmap =	pcvt_mmap,
 	.d_name =	"vt",
-	.d_flags =	D_TTY,
+	.d_flags =	D_TTY | D_NEEDGIANT,
 };
 
 static int pcvt_probe(device_t dev);

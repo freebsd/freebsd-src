@@ -623,6 +623,7 @@ fdin_rd(fdc_p fdc)
 #endif /* PC98 */
 
 static struct cdevsw fd_cdevsw = {
+	.d_version =	D_VERSION,
 	.d_open =	fdopen,
 	.d_close =	fdclose,
 	.d_read =	physread,
@@ -630,7 +631,7 @@ static struct cdevsw fd_cdevsw = {
 	.d_ioctl =	fdioctl,
 	.d_strategy =	fdstrategy,
 	.d_name =	"fd",
-	.d_flags =	D_DISK,
+	.d_flags =	D_DISK | D_NEEDGIANT,
 };
 
 /*

@@ -75,9 +75,10 @@ devclass_t smapi_devclass;
 static d_ioctl_t smapi_ioctl;
 
 static struct cdevsw smapi_cdevsw = {
+	.d_version =	D_VERSION,
 	.d_ioctl =	smapi_ioctl,
 	.d_name =	"smapi",
-	.d_flags =	D_MEM,
+	.d_flags =	D_MEM | D_NEEDGIANT,
 };
 
 static void	smapi_identify		(driver_t *, device_t);

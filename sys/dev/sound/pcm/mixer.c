@@ -73,6 +73,8 @@ static d_open_t mixer_open;
 static d_close_t mixer_close;
 
 static struct cdevsw mixer_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	mixer_open,
 	.d_close =	mixer_close,
 	.d_ioctl =	mixer_ioctl,

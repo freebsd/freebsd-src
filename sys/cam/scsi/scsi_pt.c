@@ -118,6 +118,8 @@ PERIPHDRIVER_DECLARE(pt, ptdriver);
 
 
 static struct cdevsw pt_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	ptopen,
 	.d_close =	ptclose,
 	.d_read =	physread,

@@ -58,6 +58,7 @@ static d_strategy_t	g_dev_strategy;
 static d_ioctl_t	g_dev_ioctl;
 
 static struct cdevsw g_dev_cdevsw = {
+	.d_version =	D_VERSION,
 	.d_open =	g_dev_open,
 	.d_close =	g_dev_close,
 	.d_read =	physread,
@@ -66,7 +67,7 @@ static struct cdevsw g_dev_cdevsw = {
 	.d_strategy =	g_dev_strategy,
 	.d_name =	"g_dev",
 	.d_maj =	GEOM_MAJOR,
-	.d_flags =	D_DISK | D_TRACKCLOSE | D_NOGIANT,
+	.d_flags =	D_DISK | D_TRACKCLOSE,
 };
 
 static g_taste_t g_dev_taste;

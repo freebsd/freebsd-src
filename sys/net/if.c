@@ -134,6 +134,8 @@ static d_ioctl_t	netioctl;
 static d_kqfilter_t	netkqfilter;
 
 static struct cdevsw net_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	netopen,
 	.d_close =	netclose,
 	.d_ioctl =	netioctl,

@@ -197,6 +197,8 @@ static d_poll_t		ascpoll;
 
 
 static struct cdevsw asc_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	ascopen,
 	.d_close =	ascclose,
 	.d_read =	ascread,

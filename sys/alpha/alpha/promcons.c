@@ -64,11 +64,12 @@ static	d_close_t	promclose;
 static	d_ioctl_t	promioctl;
 
 static struct cdevsw prom_cdevsw = {
+	.d_version =	D_VERSION,
 	.d_open =	promopen,
 	.d_close =	promclose,
 	.d_ioctl =	promioctl,
 	.d_name =	"prom",
-	.d_flags =	D_TTY,
+	.d_flags =	D_TTY | D_NEEDGIANT,
 };
 
 

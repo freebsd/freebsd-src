@@ -104,6 +104,8 @@ LINUX_IOCTL_SET(tdfx, LINUX_IOCTL_TDFX_MIN, LINUX_IOCTL_TDFX_MAX);
 
 /* Char. Dev. file operations structure */
 static struct cdevsw tdfx_cdev = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	tdfx_open,
 	.d_close =	tdfx_close,
 	.d_ioctl =	tdfx_ioctl,

@@ -105,6 +105,8 @@ static	d_ioctl_t	spigot_ioctl;
 static	d_mmap_t	spigot_mmap;
 
 static struct cdevsw spigot_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	spigot_open,
 	.d_close =	spigot_close,
 	.d_read =	spigot_read,

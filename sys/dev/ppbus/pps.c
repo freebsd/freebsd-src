@@ -63,6 +63,8 @@ static	d_close_t	ppsclose;
 static	d_ioctl_t	ppsioctl;
 
 static struct cdevsw pps_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	ppsopen,
 	.d_close =	ppsclose,
 	.d_ioctl =	ppsioctl,

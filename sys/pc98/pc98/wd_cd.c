@@ -49,6 +49,7 @@ static d_strategy_t	acdstrategy;
 
 
 static struct cdevsw acd_cdevsw = {
+	.d_version =	D_VERSION,
 	.d_open =	acdopen,
 	.d_close =	acdclose,
 	.d_read =	physread,
@@ -56,7 +57,7 @@ static struct cdevsw acd_cdevsw = {
 	.d_ioctl =	acdioctl,
 	.d_strategy =	acdstrategy,
 	.d_name =	"wcd",
-	.d_flags =	D_DISK,
+	.d_flags =	D_DISK | D_NEEDGIANT,
 };
 
 #define NUNIT	16		/* Max # of devices */

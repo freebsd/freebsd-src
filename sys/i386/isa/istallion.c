@@ -643,13 +643,14 @@ COMPAT_ISA_DRIVER(stli, stlidriver);
  */
 
 static struct cdevsw stli_cdevsw = {
+	.d_version =	D_VERSION,
 	.d_open =	stliopen,
 	.d_close =	stliclose,
 	.d_read =	stliread,
 	.d_write =	stliwrite,
 	.d_ioctl =	stliioctl,
 	.d_name =	stli_drvname,
-	.d_flags =	D_TTY,
+	.d_flags =	D_TTY | D_NEEDGIANT,
 };
 
 #endif

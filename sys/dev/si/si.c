@@ -118,12 +118,13 @@ static	d_write_t	siwrite;
 static	d_ioctl_t	siioctl;
 
 static struct cdevsw si_cdevsw = {
+	.d_version =	D_VERSION,
 	.d_open =	siopen,
 	.d_close =	siclose,
 	.d_write =	siwrite,
 	.d_ioctl =	siioctl,
 	.d_name =	"si",
-	.d_flags =	D_TTY,
+	.d_flags =	D_TTY | D_NEEDGIANT,
 };
 
 static int si_Nports;

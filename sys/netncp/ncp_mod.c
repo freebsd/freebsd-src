@@ -66,6 +66,8 @@ static dev_t		ncp_dev;
 static d_ioctl_t	ncp_ioctl;
 
 static struct cdevsw ncp_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_ioctl =	ncp_ioctl,
 	.d_name =	"ncp",
 };

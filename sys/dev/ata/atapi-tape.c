@@ -53,6 +53,7 @@ static	d_close_t	ast_close;
 static	d_ioctl_t	ast_ioctl;
 static	d_strategy_t	ast_strategy;
 static struct cdevsw ast_cdevsw = {
+	.d_version =	D_VERSION,
 	.d_open =	ast_open,
 	.d_close =	ast_close,
 	.d_read =	physread,
@@ -61,7 +62,7 @@ static struct cdevsw ast_cdevsw = {
 	.d_strategy =	ast_strategy,
 	.d_name =	"ast",
 	.d_maj =	119,
-	.d_flags =	D_TAPE | D_TRACKCLOSE | D_NOGIANT,
+	.d_flags =	D_TAPE | D_TRACKCLOSE,
 };
 
 /* prototypes */

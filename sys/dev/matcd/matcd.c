@@ -740,6 +740,7 @@ static	int	matcd_pitch(int ldrive, int cdrive, int controller,
 ---------------------------------------------------------------------------*/
 
 static struct cdevsw matcd_cdevsw = {
+	.d_version =	D_VERSION,
 	.d_open =	matcdopen,	/* open */
 	.d_close =	matcdclose,	/* close */
 	.d_read =	physread,	/* read */
@@ -750,7 +751,7 @@ static struct cdevsw matcd_cdevsw = {
 	.d_strategy =	matcdstrategy,	/* strategy */
 	.d_name =	"matcd",	/* name */
 	.d_maj =	RAW_DEVICE,	/* maj */
-	.d_flags =	D_DISK,		/* flags */
+	.d_flags =	D_DISK | D_NEEDGIANT,
 };
 
 

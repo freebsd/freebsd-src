@@ -58,11 +58,12 @@ static	d_close_t	sscclose;
 static	d_ioctl_t	sscioctl;
 
 static struct cdevsw ssc_cdevsw = {
+	.d_version =	D_VERSION,
 	.d_open =	sscopen,
 	.d_close =	sscclose,
 	.d_ioctl =	sscioctl,
 	.d_name =	"ssc",
-	.d_flags =	D_TTY,
+	.d_flags =	D_TTY | D_NEEDGIANT,
 };
 
 static struct tty *ssc_tp = NULL;

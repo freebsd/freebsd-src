@@ -134,6 +134,8 @@ static d_poll_t i4btelpoll;
 
 
 static struct cdevsw i4btel_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	i4btelopen,
 	.d_close =	i4btelclose,
 	.d_read =	i4btelread,

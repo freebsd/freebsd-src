@@ -75,6 +75,8 @@ static d_poll_t i4btrcpoll;
 
 
 static struct cdevsw i4btrc_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	i4btrcopen,
 	.d_close =	i4btrcclose,
 	.d_read =	i4btrcread,

@@ -105,6 +105,8 @@ SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_minttllog, CTLFLAG_RW,
 
 #define CDEV_MAJOR 79
 static struct cdevsw ipl_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	iplopen,
 	.d_close =	iplclose,
 	.d_read =	iplread,

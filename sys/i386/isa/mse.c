@@ -140,6 +140,8 @@ static  d_ioctl_t	mseioctl;
 static	d_poll_t	msepoll;
 
 static struct cdevsw mse_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	mseopen,
 	.d_close =	mseclose,
 	.d_read =	mseread,

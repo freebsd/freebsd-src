@@ -192,6 +192,8 @@ static	d_read_t	gscread;
 static	d_ioctl_t	gscioctl;
 
 static struct cdevsw gsc_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	gscopen,
 	.d_close =	gscclose,
 	.d_read =	gscread,

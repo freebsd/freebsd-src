@@ -190,6 +190,8 @@ static	d_read_t	lptread;
 static	d_ioctl_t	lptioctl;
 
 static struct cdevsw lpt_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	lptopen,
 	.d_close =	lptclose,
 	.d_read =	lptread,
