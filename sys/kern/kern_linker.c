@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_linker.c,v 1.21 1999/01/19 22:26:46 peter Exp $
+ *	$Id: kern_linker.c,v 1.22 1999/01/23 03:45:22 peter Exp $
  */
 
 #include "opt_ddb.h"
@@ -355,6 +355,7 @@ linker_make_file(const char* pathname, void* priv, struct linker_file_ops* ops)
 
     lf->refs = 1;
     lf->userrefs = 0;
+    lf->flags = 0;
     lf->filename = (char*) (lf + 1);
     strcpy(lf->filename, filename);
     lf->id = next_file_id++;
@@ -410,7 +411,9 @@ linker_file_unload(linker_file_t file)
 	goto out;
     }
 
-    linker_file_sysuninit(file);
+    /* Don't try to run SYSUNINITs if we are unloaded due to a link error */
+    if (file->flags & LINKER_FILE_LINKED)
+	linker_file_sysuninit(file);
 
     TAILQ_REMOVE(&files, file, link);
     lockmgr(&lock, LK_RELEASE, 0, curproc);

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: link_elf.c,v 1.10 1998/11/06 15:16:07 peter Exp $
+ *	$Id: link_elf.c,v 1.11 1998/12/31 09:17:20 peter Exp $
  */
 
 #include <sys/param.h>
@@ -175,6 +175,7 @@ link_elf_init(void* arg)
 	}
 	(void)parse_module_symbols(linker_kernel_file);
 	linker_current_file = linker_kernel_file;
+	linker_kernel_file->flags |= LINKER_FILE_LINKED;
     }
 #endif
 }
@@ -384,6 +385,7 @@ link_elf_load_module(const char *filename, linker_file_t *result)
 	return error;
     }
     (void)parse_module_symbols(lf);
+    lf->flags |= LINKER_FILE_LINKED;
     *result = lf;
     return (0);
 }
@@ -672,6 +674,8 @@ link_elf_load_file(const char* filename, linker_file_t* result)
     ef->ddbsymtab = (const Elf_Sym *)ef->symbase;
     ef->ddbstrcnt = strcnt;
     ef->ddbstrtab = ef->strbase;
+
+    lf->flags |= LINKER_FILE_LINKED;
 
 nosyms:
 
