@@ -91,6 +91,7 @@
  */
 static void	tbr_timeout(void *);
 int (*altq_input)(struct mbuf *, int) = NULL;
+static struct mbuf *tbr_dequeue(struct ifaltq *, int);
 static int tbr_timer = 0;	/* token bucket regulator timer */
 static struct callout tbr_callout = CALLOUT_INITIALIZER;
 
@@ -312,7 +313,7 @@ altq_assert(file, line, failedexpr)
 #define	TBR_SCALE(x)	((int64_t)(x) << TBR_SHIFT)
 #define	TBR_UNSCALE(x)	((x) >> TBR_SHIFT)
 
-struct mbuf *
+static struct mbuf *
 tbr_dequeue(ifq, op)
 	struct ifaltq *ifq;
 	int op;
@@ -370,6 +371,9 @@ tbr_set(ifq, profile)
 	struct tb_profile *profile;
 {
 	struct tb_regulator *tbr, *otbr;
+	
+	if (tbr_dequeue_ptr == NULL)
+		tbr_dequeue_ptr = tbr_dequeue;
 
 	if (machclk_freq == 0)
 		init_machclk();
