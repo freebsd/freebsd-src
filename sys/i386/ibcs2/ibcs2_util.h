@@ -90,4 +90,8 @@ int ibcs2_emul_find __P((struct proc *, caddr_t *, const char *, char *,
 #define CHECKALTCREAT(p, sgp, path) \
     ibcs2_emul_find(p, sgp, ibcs2_emul_path, path, &(path), 1)
 
+#ifdef SPX_HACK
+int spx_open __P((struct proc *p, void *uap, int *retval));
+#endif
+
 #endif /* !_IBCS2_UTIL_H_ */
