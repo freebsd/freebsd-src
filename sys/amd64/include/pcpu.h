@@ -55,7 +55,6 @@
 struct globaldata {
 	struct privatespace *gd_prvspace;	/* self-reference */
 	struct proc	*gd_curproc;
-	struct proc	*gd_prevproc;
 	struct proc	*gd_npxproc;
 	struct pcb	*gd_curpcb;
 	struct proc	*gd_idleproc;
