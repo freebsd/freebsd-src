@@ -23,7 +23,7 @@ MAN9+=	device.9 device_add_child.9 device_delete_child.9 device_enable.9 \
 	device_find_child.9 device_get_devclass.9 device_get_driver.9 \
 	device_get_ivars.9 device_get_softc.9 device_get_state.9 \
 	device_get_unit.9 device_probe_and_attach.9 device_quiet.9 \
-	device_set_desc.9 driver.9 \
+	device_set_desc.9 device_set_flags.9 driver.9 \
 	devclass.9 devclass_add_driver.9 devclass_find.9 \
 	devclass_get_device.9 devclass_get_devices.9 devclass_get_maxunit.9 \
 	devclass_get_name.9 devclass_get_softc.9 \
@@ -89,6 +89,8 @@ MLINKS+=device_get_state.9 device_is_alive.9
 MLINKS+=device_quiet.9 device_verbose.9
 MLINKS+=device_quiet.9 device_is_quiet.9
 MLINKS+=device_set_desc.9 device_get_desc.9
+MLINKS+=device_set_desc.9 device_set_desc_copy.9
+MLINKS+=device_set_flags.9 device_get_flags.9
 MLINKS+=devclass_add_driver.9 devclass_delete_driver.9
 MLINKS+=devclass_add_driver.9 devclass_find_driver.9
 MLINKS+=BUS_READ_IVAR.9 BUS_WRITE_IVAR.9
