@@ -60,7 +60,7 @@ struct devsw *devsw[] = {
 
 struct fs_ops *file_system[] = {
 	&efi_fsops,
-	&ufs_fsops,
+/*	&ufs_fsops, */
 	&nfs_fsops,
 	&zipfs_fsops,
 	NULL
