@@ -68,7 +68,7 @@ exec tclsh $0 $*
 #
 ################################################################################
 #
-# $Id: KernelDriver,v 1.3 1997/01/21 08:23:31 msmith Exp $
+# $Id: KernelDriver,v 1.1.1.1 1997/01/21 08:34:14 msmith Exp $
 #
 ################################################################################
 
@@ -96,7 +96,7 @@ proc findDrvFile_try {hint} {
 		set candidate [glob -nocomplain "$hint/*.drvinfo"];
 		switch [llength $candidate] {
 		    0 {
-			error "no driver info files in directory : $hint";
+			# nothing there
 		    }
 		    1 {
 			return $candidate;
@@ -111,7 +111,11 @@ proc findDrvFile_try {hint} {
 	    }
 	}
     }
-    return "";
+    # maybe we need an extension
+    if {[file exists $hint.drvinfo]} {
+	return $hint.drvinfo;
+    }
+    error "can't find a driver info file using '$hint'";
 }
 
 proc findDrvFile {hint} {
@@ -391,16 +395,17 @@ proc listInstalledDrv {kpath} {
 
     global Drv;
 
-    set drvopt "";    	# drivers with options
-    
     # pick up all the options information first
     set fname [format "%si386/conf/options.i386" $kpath];
+    if {![file readable $fname]} {
+	error "not a kernel directory";
+    }
     set fh [open $fname r];
 
     while {[gets $fh line] >= 0} {
     
 	# got a driver?
-	if {[scan $line "\#\# driver: %s" Drv(driver)] == 1} {
+	if {[scan $line "\#\# driver: %s" driver] == 1} {
 	    # read driver details, ignore
 	    gets $fh line;
 	    # loop reading option details
@@ -409,15 +414,14 @@ proc listInstalledDrv {kpath} {
 		if {$line == "\#\# enddriver"} {
 		    break ;
 		}
-		# parse
-		if {[scan $line "%s %s" $opt $hdr] == 2} {
-		    lappend opts($driver:list) $opt;
-		    # learn all of the options at once
-		    set Drv(option:$opt) $hdr;
+		# parse option/header tuple
+		if {[scan $line "%s %s" opt hdr] == 2} {
+		    # remember that this driver uses this option
+		    lappend drivers($driver:options) $opt;
+		    # remember that this option goes in this header
+		    set options($opt) $hdr;
 		}
 	    }
-	    # this driver has options
-	    lappend drvopt $driver;
 	}
     }
     close $fh;
@@ -427,19 +431,27 @@ proc listInstalledDrv {kpath} {
     
     while {[gets $fh line] >= 0} {
 
-	# got a driver?
-	if {[scan $line "\#\# driver: %s" Drv(driver)] == 1} {
+	# got a driver? 
+	if {[scan $line "\#\# driver: %s" driver] == 1} {
+	    # clear global and reset
+	    catch {unset Drv};
+	    set Drv(driver) $driver;
 	    # read driver details
 	    gets $fh line;
 	    set Drv(description) [string range $line 2 end];
 	    set Drv(files) "";
 	    # options?
-	    if {[lsearch -exact $drvopt $Drv(driver)] != -1} {
-		set Drv(options) $opts($Drv(driver));
+	    if {[info exists drivers($Drv(driver):options)]} {
+		set Drv(options) $drivers($Drv(driver):options);
+		# get pathnames
+		foreach opt $Drv(options) {
+		    set Drv(option:$opt) $options($opt);
+		}
 	    }
 	    # loop reading file details
 	    while {[gets $fh line] >= 0} {
 		if {$line == "\#\# enddriver"} {
+		    # print this driver and loop
 		    printDrv;
 		    break ;
 		}
@@ -468,8 +480,10 @@ proc printDrv {} {
 	foreach f $Drv(files) {
 	    puts " $Drv(file:$f)$f"
 	}
-	foreach opt $Drv(options) {
-	    puts " $opt in $Drv(option:$opt)";
+	if {[info exists Drv(options)]} {
+	    foreach opt $Drv(options) {
+		puts " $opt in $Drv(option:$opt)";
+	    }
 	}
     }
 }
@@ -690,7 +704,7 @@ proc getOptions {} {
 # getKpath
 #
 # Given (hint), return the kernel path.  If (hint) is empty, return /sys.
-# If the kernel path is not a directory, dump the usage.
+# If the kernel path is not a directory, complain and dump the usage.
 #
 proc getKpath {hint} {
 
@@ -703,6 +717,7 @@ proc getKpath {hint} {
 	set kpath $hint;
     }
     if {![file isdirectory $kpath]} {
+	puts "not a directory : $kpath";
 	usage ;
     }
     set plast [expr [string length $kpath] -1];
@@ -733,7 +748,7 @@ proc main {} {
 
 	    # check driver file argument
 	    if {[catch {set drv [findDrvFile $hint]} msg]} {
-		puts stderr msg;
+		puts stderr $msg;
 		usage ;
 	    }
 	    if {([file type $drv] != "file") ||
@@ -787,11 +802,14 @@ proc main {} {
 		exit ;
 	    }
 	}
-	list {
+	list { 
 	    set kpath [getKpath [lindex $cmdline 1]];
-	    listInstalledDrv $kpath
+	    if {[catch {listInstalledDrv $kpath} msg]} {
+		puts stderr "can't list drivers in '$kpath' : $msg";
+	    }
 	}
 	default {
+	    puts stderr "unknown command '$mode'";
 	    usage ;
 	}
     }
