@@ -408,6 +408,10 @@ _local_getpw(rv, cb_data, ap)
 		(void)(_pw_db->close)(_pw_db);
 		_pw_db = (DB *)NULL;
 	}
+	if (rval == 0) {
+		_pw_passwd.pw_fields &= ~_PWF_SOURCE;
+		_pw_passwd.pw_fields |= _PWF_FILES;
+	}
 	return (rval);
 }
 
@@ -481,8 +485,11 @@ _dns_getpw(rv, cb_data, ap)
 		if (search == _PW_KEYBYNUM)
 			goto nextdnsbynum;	/* skip dogdy entries */
 		r = NS_UNAVAIL;
-	} else
+	} else {
+		_pw_passwd.pw_fields &= ~_PWF_SOURCE;
+		_pw_passwd.pw_fields |= _PWF_HESIOD;
 		r = NS_SUCCESS;
+	}
  cleanup_dns_getpw:
 	hesiod_end(context);
 	return (r);
@@ -589,8 +596,11 @@ _nis_getpw(rv, cb_data, ap)
 		strncpy(line, data, sizeof(line));
 		line[sizeof(line) - 1] = '\0';
 				free(data);
-		if (! __pwparse(&_pw_passwd, line))
+		if (! __pwparse(&_pw_passwd, line)) {
+			_pw_passwd.pw_fields &= ~_PWF_SOURCE;
+			_pw_passwd.pw_fields |= _PWF_NIS;
 			return NS_SUCCESS;
+		}
 	}
 	/* NOTREACHED */
 } /* _nis_getpw */
