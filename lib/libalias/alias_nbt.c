@@ -44,23 +44,6 @@
 
 #include "alias_local.h"
 
-#define ADJUST_CHECKSUM(acc, cksum) { \
-    acc += cksum; \
-    if (acc < 0) \
-    { \
-        acc = -acc; \
-        acc = (acc >> 16) + (acc & 0xffff); \
-        acc += acc >> 16; \
-        cksum = (u_short) ~acc; \
-    } \
-    else \
-    { \
-        acc = (acc >> 16) + (acc & 0xffff); \
-        acc += acc >> 16; \
-        cksum = (u_short) acc; \
-    } \
-}
-
 typedef struct {
 	struct in_addr		oldaddr;
 	u_short 			oldport;
