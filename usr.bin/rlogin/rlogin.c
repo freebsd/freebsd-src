@@ -773,6 +773,7 @@ reader(omask)
 #endif
 	(void)signal(SIGTTOU, SIG_IGN);
 	(void)signal(SIGURG, oob);
+	(void)signal(SIGUSR1, oob); /* When propogating SIGURG from parent */
 	ppid = getppid();
 	(void)fcntl(rem, F_SETOWN, pid);
 	(void)setjmp(rcvtop);
@@ -864,12 +865,12 @@ lostpeer(signo)
 	done(1);
 }
 
-/* copy SIGURGs to the child process. */
+/* copy SIGURGs to the child process via SIGUSR1. */
 void
 copytochild(signo)
 	int signo;
 {
-	(void)kill(child, SIGURG);
+	(void)kill(child, SIGUSR1);
 }
 
 void
