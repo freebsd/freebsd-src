@@ -426,7 +426,9 @@ radius_Process(struct radius *r, int got)
                      */
                     ((const char *)data)++;
                     len--;
-                  }
+                  } else
+                    log_Printf(LogWARN, "Warning: The MS-CHAP-Error "
+                               "attribute is mis-formatted.  Compensating\n");
                   if ((r->errstr = rad_cvt_string((const char *)data,
                                                   len)) == NULL) {
                     log_Printf(LogERROR, "rad_cvt_string: %s\n",
@@ -451,7 +453,9 @@ radius_Process(struct radius *r, int got)
                      */
                     ((const char *)data)++;
                     len--;
-                  }
+                  } else
+                    log_Printf(LogWARN, "Warning: The MS-CHAP2-Success "
+                               "attribute is mis-formatted.  Compensating\n");
                   if ((r->msrepstr = rad_cvt_string((const char *)data,
                                                     len)) == NULL) {
                     log_Printf(LogERROR, "rad_cvt_string: %s\n",
