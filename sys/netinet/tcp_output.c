@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_output.c	8.3 (Berkeley) 12/30/93
- * $Id: tcp_output.c,v 1.8 1995/02/16 00:55:40 wollman Exp $
+ * $Id: tcp_output.c,v 1.9 1995/04/09 01:29:25 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -311,7 +311,7 @@ send:
 			opt[0] = TCPOPT_MAXSEG;
 			opt[1] = TCPOLEN_MAXSEG;
 			mss = htons((u_short) tcp_mssopt(tp));
-			bcopy((caddr_t)&mss, (caddr_t)(opt + 2), sizeof(mss));
+			(void)memcpy(opt + 2, &mss, sizeof(mss));
 			optlen = TCPOLEN_MAXSEG;
 	 
 			if ((tp->t_flags & TF_REQ_SCALE) &&
@@ -520,7 +520,7 @@ send:
 	ti = mtod(m, struct tcpiphdr *);
 	if (tp->t_template == 0)
 		panic("tcp_output");
-	bcopy((caddr_t)tp->t_template, (caddr_t)ti, sizeof (struct tcpiphdr));
+	(void)memcpy(ti, tp->t_template, sizeof (struct tcpiphdr));
 
 	/*
 	 * Fill in fields, remembering maximum advertised
@@ -549,7 +549,7 @@ send:
 		ti->ti_seq = htonl(tp->snd_max);
 	ti->ti_ack = htonl(tp->rcv_nxt);
 	if (optlen) {
-		bcopy((caddr_t)opt, (caddr_t)(ti + 1), optlen);
+		(void)memcpy(ti + 1, opt, optlen);
 		ti->ti_off = (sizeof (struct tcphdr) + optlen) >> 2;
 	}
 	ti->ti_flags = flags;
