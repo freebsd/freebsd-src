@@ -29,6 +29,7 @@
 # $FreeBSD$
 #
 
+use 5.006_001;
 use strict;
 use Fcntl qw(:DEFAULT :flock);
 use POSIX;
@@ -55,7 +56,8 @@ my %userenv;
 my %cmds = (
     'world'	=> 0,
     'generic'	=> 0,
-    'lint'	=> 0
+    'lint'	=> 0,
+    'release'	=> 0,
 );
 
 sub message(@) {
@@ -240,11 +242,12 @@ Options:
   -v, --verbose                 Verbose mode
 
 Parameters:
-  -a, --arch=ARCH               Target architecture
+  -a, --arch=ARCH               Target architecture (e.g. i386)
   -b, --branch=BRANCH           CVS branch to check out
   -d, --date=DATE               Date of sources to check out
   -j, --jobs=NUM                Maximum number of paralell jobs
-  -l, --logfile=FILE            Path to log file
+  -l, --logfile=FILE            Path to log file (e.g. pc98)
+  -m, --machine=MACHINE         Target machine
   -r, --repository=DIR          Location of CVS repository
   -s, --sandbox=DIR             Location of sandbox
 
@@ -252,6 +255,7 @@ Commands:
   world                         Build the world
   generic                       Build the GENERIC kernel
   lint                          Build the LINT kernel
+  release                       Build a full release (run as root!)
 
 Report bugs to <des\@freebsd.org>.
 ");
@@ -264,8 +268,10 @@ MAIN:{
     tzset();
 
     # Set defaults
-    $arch = `/usr/bin/uname -m`;
+    $arch = `/usr/bin/uname -p`;
     chomp($arch);
+    $machine = `/usr/bin/uname -m`;
+    chomp($machine);
     $branch = "CURRENT";
     $jobs = 0;
     $repository = "/home/ncvs";
@@ -390,7 +396,6 @@ MAIN:{
     }
 
     # Prepare environment for make(1);
-    cd("$sandbox/src");
     %ENV = (
 	'TZ'			=> "GMT",
 	'PATH'			=> "/usr/bin:/usr/sbin:/bin:/sbin",
@@ -403,9 +408,33 @@ MAIN:{
 
 	'CFLAGS'		=> "-O -pipe",
 	'NO_CPU_CFLAGS'		=> "YES",
-	'COPTFLAGS'		=> "-O -pipe",
-	'NO_CPU_COPTFLAGS'	=> "YES",
     );
+
+    # Kernel-specific variables
+    if ($cmds{'generic'} || $cmds{'lint'} || $cmds{'release'}) {
+	$ENV{'COPTFLAGS'} = "-O -pipe";
+	$ENV{'NO_CPU_COPTFLAGS'} = "YES";
+    }
+
+    # Release-specific variables
+    if ($cmds{'release'}) {
+	$ENV{'BUILDNAME'} = "${branch}_TINDERBOX";
+	$ENV{'CHROOTDIR'} = "$sandbox/root";
+	$ENV{'CVSROOT'} = $repository;
+	$ENV{'RELEASETAG'} = $branch
+	    if $branch ne 'CURRENT';
+	$ENV{'CVSCMDARGS'} = "-D$date"
+	    if defined($date);
+	$ENV{'WORLD_FLAGS'} = $ENV{'KERNEL_FLAGS'} =
+	    ($jobs > 1) ? "-j$jobs" : "-B";
+
+	# Save time and space
+	$ENV{'NOCDROM'} = "YES";
+	$ENV{'NODOC'} = "YES";
+	$ENV{'NOPORTS'} = "YES";
+    }
+
+    # User-supplied variables
     foreach my $key (keys(%userenv)) {
 	if (exists($ENV{$key})) {
 	    warning("will not allow override of $key");
@@ -422,6 +451,7 @@ MAIN:{
     # Build the world
     if ($cmds{'world'}) {
 	logstage("building world");
+	cd("$sandbox/src");
 	make('buildworld')
 	    or error("failed to build world");
     }
@@ -429,23 +459,37 @@ MAIN:{
     # Build GENERIC if requested
     if ($cmds{'generic'}) {
 	logstage("building generic kernel");
+	cd("$sandbox/src");
 	spawn('/usr/bin/make', 'buildkernel', 'KERNCONF=GENERIC')
 	    or error("failed to build generic kernel");
     }
 
     # Build LINT if requested
-    if ($cmds{'lint'} && ! -f "$sandbox/src/sys/$machine/conf/NOTES") {
-	logstage("no NOTES, skipping lint kernel");
-	$cmds{'lint'} = 0;
+    if ($cmds{'lint'}) {
+	if (-f "$sandbox/src/sys/$machine/conf/NOTES") {
+	    logstage("generating LINT kernel config");
+	    cd("$sandbox/src/sys/$machine/conf");
+	    make('LINT')
+		or error("failed to generate LINT kernel config");
+	}
+	if (! -f "$sandbox/src/sys/$machine/conf/LINT") {
+	    logstage("no LINT kernel config, skipping LINT kernel");
+	    $cmds{'lint'} = 0;
+	}
     }
     if ($cmds{'lint'}) {
-	logstage("building lint kernel");
-	cd("$sandbox/src/sys/$machine/conf");
-	make('LINT')
-	    or error("failed to generate lint config");
+	logstage("building LINT kernel");
 	cd("$sandbox/src");
 	spawn('/usr/bin/make', 'buildkernel', 'KERNCONF=LINT')
 	    or error("failed to build lint kernel");
+    }
+
+    # Build a release if requested
+    if ($cmds{'release'}) {
+	logstage("building a release");
+	cd("$sandbox/src");
+	make('release')
+	    or error("failed to build release");
     }
 
     # Exiting releases the lock file
