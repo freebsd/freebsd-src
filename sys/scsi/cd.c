@@ -91,6 +91,7 @@ static int32   cdstrats, cdqueues;
 #define SECSIZE 2048	/* XXX */	/* default only */
 #define	CDOUTSTANDING	2
 #define	CDRETRIES	1
+#define LEADOUT         0xaa            /* leadout toc entry */
 
 #define PARTITION(z)	(minor(z) & 0x07)
 #define RAW_PART        2
@@ -193,16 +194,6 @@ cd_registerdev(int unit)
 	} else {
 		SCSI_DATA(&cd_switch, unit)->dkunit = -1;
 	}
-}
-
-static inline void lba2msf (int lba, u_char *m, u_char *s, u_char *f)
-{
-	lba += 150;             /* offset of first logical frame */
-	lba &= 0xffffff;        /* negative lbas use only 24 bits */
-	*m = lba / (60 * 75);
-	lba %= (60 * 75);
-	*s = lba / 75;
-	*f = lba % 75;
 }
 
 /*
@@ -762,14 +753,18 @@ cd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 		break;
 	case CDIOREADTOCENTRYS:
 		{
-			struct cd_toc {
+			struct {
 				struct ioc_toc_header header;
 				struct cd_toc_entry entries[100];
 			} data;
+			struct {
+				struct ioc_toc_header header;
+				struct cd_toc_entry entry;
+			} lead;
 			struct ioc_read_toc_entry *te =
 			(struct ioc_read_toc_entry *) addr;
 			struct ioc_toc_header *th;
-			u_int32 len;
+			u_int32 len, readlen, idx, num;
 			u_int32 starting_track = te->starting_track;
 
 			if (   te->data_len < sizeof(struct cd_toc_entry)
@@ -789,7 +784,7 @@ cd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 
 			if (starting_track == 0)
 				starting_track = th->starting_track;
-			else if (starting_track == 170)
+			else if (starting_track == LEADOUT)
 				starting_track = th->ending_track + 1;
 			else if (starting_track < th->starting_track ||
 				 starting_track > th->ending_track + 1) {
@@ -797,21 +792,43 @@ cd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 				break;
 			}
 
-			len = ((th->ending_track + 1 - starting_track) + 1) *
-				sizeof(struct cd_toc_entry);
-			if (te->data_len < len)
+			/* calculate reading length without leadout entry */
+			readlen = (th->ending_track - starting_track + 1) *
+				  sizeof(struct cd_toc_entry);
+
+			/* and with leadout entry */
+			len = readlen + sizeof(struct cd_toc_entry);
+			if (te->data_len < len) {
 				len = te->data_len;
+				if (readlen > len)
+					readlen = len;
+			}
 			if (len > sizeof(data.entries)) {
 				error = EINVAL;
 				break;
 			}
+			num = len / sizeof(struct cd_toc_entry);
 
-			error = cd_read_toc(unit, te->address_format,
-				starting_track,
-				(struct cd_toc_entry *)&data,
-				len + sizeof (*th));
-			if (error)
-				break;
+			if (readlen > 0) {
+				error = cd_read_toc(unit, te->address_format,
+					starting_track,
+					(struct cd_toc_entry *)&data,
+					readlen + sizeof (*th));
+				if (error)
+					break;
+			}
+
+			/* make leadout entry if needed */
+			idx = starting_track + num - 1;
+			if (idx == th->ending_track + 1) {
+				error = cd_read_toc(unit, te->address_format,
+					LEADOUT,
+					(struct cd_toc_entry *)&lead,
+					sizeof(lead));
+				if (error)
+					break;
+				data.entries[idx - starting_track] = lead.entry;
+			}
 
 			error = copyout(data.entries, te->data, len);
 		}
