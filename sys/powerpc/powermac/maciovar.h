@@ -82,7 +82,8 @@ struct macio_devinfo {
 	phandle_t  mdi_node;
 	char      *mdi_name;
 	char      *mdi_device_type;
-	int        mdi_interrupt;
+	int        mdi_interrupts[5];
+	int	   mdi_ninterrupts;
 	int        mdi_base;
 	int        mdi_nregs;
 	u_int      mdi_reg[MACIO_MAXREG];
