@@ -467,6 +467,14 @@ multiple physical layers on some devices.)
 .It Dv IFF_MULTICAST
 .Aq S*
 This interface supports multicast.
+.It Dv IFF_POLLING
+.Aq D*
+The interface is in
+.Xr polling 4
+mode.
+See
+.Sx Interface Capabilities Flags
+for details.
 .El
 .Pp
 The macro
@@ -511,6 +519,10 @@ The following capabilities are currently supported by the system:
 .Bl -tag -width ".Dv IFCAP_VLAN_HWTAGGING" -offset indent
 .It Dv IFCAP_NETCONS
 This interface can be a network console.
+.It Dv IFCAP_POLLING
+This interface supports
+.Xr polling 4 .
+See below for details.
 .It Dv IFCAP_RXCSUM
 This interface can do checksum validation on receiving data.
 Some interfaces do not have sufficient buffer storage to store frames
@@ -587,6 +599,48 @@ containing the packet.
 See
 .Xr mbuf 9
 for details.
+.Pp
+The capability of a network interface to operate in
+.Xr polling 4
+mode involves several flags in different
+global variables and per-interface fields.
+First, there is a system-wide
+.Xr sysctl 8
+master switch named
+.Va kern.polling.enable ,
+which can toggle
+.Xr polling 4
+globally.
+If that variable is set to non-zero,
+.Xr polling 4
+will be used on those devices where it is enabled individually.
+Otherwise,
+.Xr polling 4
+will not be used in the system.
+Second, the capability flag
+.Dv IFCAP_POLLING
+set in interface's
+.Va if_capabilities
+indicates support for
+.Xr polling 4
+on the particular interface.
+If set in
+.Va if_capabilities ,
+the same flag can be marked or cleared in the interface's
+.Va if_capenable ,
+thus initiating switch of the interface to
+.Xr polling 4
+mode or interrupt
+mode, respectively.
+The actual mode change will occur at an implementation-specific moment
+in the future, e.g., during the next interrupt or
+.Xr polling 4
+cycle.
+And finally, if the mode transition has been successful, the flag
+.Dv IFF_POLLING
+is marked or cleared in the interface's
+.Va if_flags
+to indicate the current mode of the interface.
 .Ss The Vt if_data Ss Structure
 In
 .Bx 4.4 ,
@@ -1190,8 +1244,6 @@ for an address matching
 and returns a pointer to that
 .Vt "struct ifmultiaddr"
 if one is found, else it returns a null pointer.
-.\" .Sh POLLING
-.\" XXX write me!
 .Sh SEE ALSO
 .Xr ioctl 2 ,
 .Xr link_addr 3 ,
@@ -1201,6 +1253,7 @@ if one is found, else it returns a null pointer.
 .Xr ifmib 4 ,
 .Xr lo 4 ,
 .Xr netintro 4 ,
+.Xr polling 4 ,
 .Xr config 8 ,
 .Xr ppp 8 ,
 .Xr mbuf 9 ,
