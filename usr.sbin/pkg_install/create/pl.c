@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: pl.c,v 1.8 1996/07/30 10:48:13 jkh Exp $";
+	"$Id: pl.c,v 1.8.2.1 1997/10/09 07:09:06 charnier Exp $";
 #endif
 
 /*
@@ -85,8 +85,10 @@ trylink(const char *from, const char *to)
 #define PUSHOUT() /* push out string */ \
 	if (where_count > sizeof(STARTSTRING)-1) { \
 		    strcat(where_args, "|tar xpf -"); \
-		    if (system(where_args)) \
-			cleanup(0), errx(2, "can't invoke tar pipeline"); \
+		    if (system(where_args)) { \
+			cleanup(0); \
+			errx(2, "can't invoke tar pipeline"); \
+		    } \
 		    memset(where_args, 0, maxargs); \
  		    last_chdir = NULL; \
 		    strcpy(where_args, STARTSTRING); \
@@ -112,8 +114,10 @@ copy_plist(char *home, Package *plist)
     maxargs -= 64;			/* some slop for the tar cmd text,
 					   and sh -c */
     where_args = malloc(maxargs);
-    if (!where_args)
-	cleanup(0), errx(2, "can't get argument list space");
+    if (!where_args) {
+	cleanup(0);
+	errx(2, "can't get argument list space");
+    }
 
     memset(where_args, 0, maxargs);
     strcpy(where_args, STARTSTRING);
@@ -173,8 +177,10 @@ copy_plist(char *home, Package *plist)
 					 p->name);
 		    last_chdir = home;
 		}
-		if (add_count > maxargs - where_count)
-		    cleanup(0), errx(2, "oops, miscounted strings!");
+		if (add_count > maxargs - where_count) {
+		    cleanup(0);
+		    errx(2, "oops, miscounted strings!");
+		}
 		where_count += add_count;
 	    }
 	    /*
@@ -207,8 +213,10 @@ copy_plist(char *home, Package *plist)
 					 " -C %s %s",
 					 mythere ? mythere : where,
 					 p->name);
-		if (add_count > maxargs - where_count)
-		    cleanup(0), errx(2, "oops, miscounted strings!");
+		if (add_count > maxargs - where_count) {
+		    cleanup(0);
+		    errx(2, "oops, miscounted strings!");
+		}
 		where_count += add_count;
 		last_chdir = (mythere ? mythere : where);
 	    }

@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: extract.c,v 1.7.6.10 1998/07/04 14:10:56 jkh Exp $";
+	"$Id: extract.c,v 1.7.6.11 1998/07/04 14:12:19 jkh Exp $";
 #endif
 
 /*
@@ -36,9 +36,11 @@ static const char rcsid[] =
         if (where_count > sizeof(STARTSTRING)-1) { \
 		    strcat(where_args, "|tar xf - -C "); \
 		    strcat(where_args, todir); \
-		    if (system(where_args)) \
-	cleanup(0), errx(2, "can not invoke %d byte tar pipeline: %s", \
-				strlen(where_args), where_args); \
+		    if (system(where_args)) { \
+	                cleanup(0); \
+		        errx(2, "can not invoke %d byte tar pipeline: %s", \
+			     strlen(where_args), where_args); \
+		    } \
 		    strcpy(where_args, STARTSTRING); \
 		    where_count = sizeof(STARTSTRING)-1; \
 	} \
@@ -85,11 +87,15 @@ extract_plist(char *home, Package *pkg)
 
     maxargs = sysconf(_SC_ARG_MAX) / 2;	/* Just use half the argument space */
     where_args = alloca(maxargs);
-    if (!where_args)
-	cleanup(0), errx(2, "can't get argument list space");
+    if (!where_args) {
+	cleanup(0);
+	errx(2, "can't get argument list space");
+    }
     perm_args = alloca(maxargs);
-    if (!perm_args)
-	cleanup(0), errx(2, "can't get argument list space");
+    if (!perm_args) {
+	cleanup(0);
+	errx(2, "can't get argument list space");
+    }
 
     strcpy(where_args, STARTSTRING);
     where_count = sizeof(STARTSTRING)-1;
@@ -123,8 +129,10 @@ extract_plist(char *home, Package *pkg)
 	    if (!Fake) {
 		char try[FILENAME_MAX];
 
-		if (strrchr(p->name,'\''))
-		  cleanup(0), errx(2, "Bogus filename \"%s\"", p->name);
+		if (strrchr(p->name,'\'')) {
+		  cleanup(0);
+		  errx(2, "Bogus filename \"%s\"", p->name);
+		}
 		
 		/* first try to rename it into place */
 		snprintf(try, FILENAME_MAX, "%s/%s", Directory, p->name);
@@ -150,8 +158,10 @@ extract_plist(char *home, Package *pkg)
 			PUSHOUT(Directory);
 		    }
 		    add_count = snprintf(&perm_args[perm_count], maxargs - perm_count, "'%s' ", p->name);
-		    if (add_count > maxargs - perm_count)
-			cleanup(0), errx(2, "oops, miscounted strings!");
+		    if (add_count > maxargs - perm_count) {
+			cleanup(0);
+			errx(2, "oops, miscounted strings!");
+		    }
 		    perm_count += add_count;
 		}
 		else {
@@ -168,14 +178,18 @@ extract_plist(char *home, Package *pkg)
 			PUSHOUT(Directory);
 		    }
 		    add_count = snprintf(&where_args[where_count], maxargs - where_count, " '%s'", p->name);
-		    if (add_count > maxargs - where_count)
-			cleanup(0), errx(2, "oops, miscounted strings!");
+		    if (add_count > maxargs - where_count) {
+			cleanup(0);
+			errx(2, "oops, miscounted strings!");
+		    }
 		    where_count += add_count;
 		    add_count = snprintf(&perm_args[perm_count],
 					 maxargs - perm_count,
 					 "'%s' ", p->name);
-		    if (add_count > maxargs - perm_count)
-			cleanup(0), errx(2, "oops, miscounted strings!");
+		    if (add_count > maxargs - perm_count) {
+			cleanup(0);
+			errx(2, "oops, miscounted strings!");
+		    }
 		    perm_count += add_count;
 		}
 	    }
@@ -186,9 +200,10 @@ extract_plist(char *home, Package *pkg)
 		printf("extract: CWD to %s\n", p->name);
 	    PUSHOUT(Directory);
 	    if (strcmp(p->name, ".")) {
-		if (!Fake && make_hierarchy(p->name) == FAIL)
-		    cleanup(0), errx(2, "unable to make directory '%s'",
-					p->name);
+		if (!Fake && make_hierarchy(p->name) == FAIL) {
+		    cleanup(0);
+		    errx(2, "unable to make directory '%s'", p->name);
+		}
 		Directory = p->name;
 	    }
 	    else
@@ -197,12 +212,14 @@ extract_plist(char *home, Package *pkg)
 
 	case PLIST_CMD:
 	    if ((strstr(p->name, "%B") || strstr(p->name, "%F") ||
-		 strstr(p->name, "%f")) && last_file == NULL)
-		cleanup(0), errx(2, "no last file specified for '%s' command",
-					p->name);
-	    if (strstr(p->name, "%D") && Directory == NULL)
-		cleanup(0), errx(2, "no directory specified for '%s' command",
-					p->name);
+		 strstr(p->name, "%f")) && last_file == NULL) {
+		cleanup(0);
+		errx(2, "no last file specified for '%s' command", p->name);
+	    }
+	    if (strstr(p->name, "%D") && Directory == NULL) {
+		cleanup(0);
+		errx(2, "no directory specified for '%s' command", p->name);
+	    }
 	    format_cmd(cmd, p->name, Directory, last_file);
 	    PUSHOUT(Directory);
 	    if (Verbose)
