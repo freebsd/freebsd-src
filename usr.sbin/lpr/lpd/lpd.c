@@ -114,8 +114,8 @@ static void	 doit(void);
 static void	 startup(void);
 static void	 chkhost(struct sockaddr *_f);
 static int	 ckqueue(struct printer *_pp);
+static int	*socksetup(int _af, int _debuglvl);
 static void	 usage(void);
-static int	*socksetup(int _af, int _options);
 
 /* XXX from libc/net/rcmd.c */
 extern int __ivaliduser_sa __P((FILE *, struct sockaddr *, socklen_t,
@@ -299,10 +299,7 @@ main(int argc, char **argv)
 	FD_SET(funix, &defreadfds);
 	listen(funix, 5);
 	if (pflag == 0) {
-		options = SO_REUSEADDR;
-		if (socket_debug)
-			options |= SO_DEBUG;
-		finet = socksetup(family, options);
+		finet = socksetup(family, socket_debug);
 	} else
 		finet = NULL;	/* pretend we couldn't open TCP socket. */
 	if (finet) {
@@ -322,7 +319,7 @@ main(int argc, char **argv)
 	 * XXX - should be redone for multi-protocol
 	 */
 	for (;;) {
-		int domain = -1, nfds, s = -1;
+		int domain, nfds, s;
 		fd_set readfds;
 
 		FD_COPY(&defreadfds, &readfds);
@@ -332,8 +329,8 @@ main(int argc, char **argv)
 				syslog(LOG_WARNING, "select: %m");
 			continue;
 		}
-		domain = 0;			/* avoid compile-time warning */
-		s = 0;				/* avoid compile-time warning */
+		domain = -1;		    /* avoid compile-time warning */
+		s = -1;			    /* avoid compile-time warning */
 		if (FD_ISSET(funix, &readfds)) {
 			domain = AF_UNIX, fromlen = sizeof(fromunix);
 			s = accept(funix,
@@ -699,7 +696,7 @@ again:
 /* if af is PF_UNSPEC more than one socket may be returned */
 /* the returned list is dynamically allocated, so caller needs to free it */
 static int *
-socksetup(int af, int options)
+socksetup(int af, int debuglvl)
 {
 	struct addrinfo hints, *res, *r;
 	int error, maxs, *s, *socks;
@@ -732,16 +729,15 @@ socksetup(int af, int options)
 			syslog(LOG_DEBUG, "socket(): %m");
 			continue;
 		}
-		if (options & SO_REUSEADDR)
-			if (setsockopt(*s, SOL_SOCKET, SO_REUSEADDR, &on,
-				       sizeof(on)) < 0) {
-				syslog(LOG_ERR, "setsockopt(SO_REUSEADDR): %m");
-				close(*s);
-				continue;
-			}
-		if (options & SO_DEBUG)
-			if (setsockopt(*s, SOL_SOCKET, SO_DEBUG,
-				       &on, sizeof(on)) < 0) {
+		if (setsockopt(*s, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on))
+		    < 0) {
+			syslog(LOG_ERR, "setsockopt(SO_REUSEADDR): %m");
+			close(*s);
+			continue;
+		}
+		if (debuglvl)
+			if (setsockopt(*s, SOL_SOCKET, SO_DEBUG, &debuglvl,
+			    sizeof(debuglvl)) < 0) {
 				syslog(LOG_ERR, "setsockopt (SO_DEBUG): %m");
 				close(*s);
 				continue;
