@@ -39,8 +39,6 @@
 #include "opt_compat.h"
 #include "opt_ddb.h"
 #include "opt_sio.h"
-#include "card.h"
-#include "pci.h"
 
 /*
  * Serial driver, based on 386BSD-0.1 com driver.
@@ -53,7 +51,6 @@
  */
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/bus.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/dkstat.h>
@@ -75,17 +72,13 @@
 #include <sys/timetc.h>
 #include <sys/timepps.h>
 
-#include <isa/isareg.h>
-#include <isa/isavar.h>
-#if NPCI > 0
-#include <pci/pcireg.h>
-#include <pci/pcivar.h>
-#endif
-
 #include <machine/clock.h>
 #include <machine/resource.h>
 
 #include <dev/sio/sioreg.h>
+#include <dev/sio/siovar.h>
+
+#include <isa/isavar.h>
 
 #ifdef COM_ESP
 #include <dev/ic/esp.h>
@@ -118,8 +111,6 @@
 #define	COM_LOSESOUTINTS(flags)	((flags) & 0x08)
 #define	COM_NOFIFO(flags)		((flags) & 0x02)
 #define COM_ST16650A(flags)	((flags) & 0x20000)
-#define COM_C_NOPROBE		(0x40000)
-#define COM_NOPROBE(flags)	((flags) & COM_C_NOPROBE)
 #define COM_C_IIR_TXRDYBUG	(0x80000)
 #define COM_IIR_TXRDYBUG(flags)	((flags) & COM_C_IIR_TXRDYBUG)
 #define	COM_FIFOSIZE(flags)	(((flags) & 0xff000000) >> 24)
@@ -166,121 +157,11 @@ static	char const * const	error_desc[] = {
 	"tty-level buffer overflow",
 };
 
-#define	CE_NTYPES			3
 #define	CE_RECORD(com, errnum)		(++(com)->delta_error_counts[errnum])
-
-/* types.  XXX - should be elsewhere */
-typedef u_int	Port_t;		/* hardware port */
-typedef u_char	bool_t;		/* boolean */
-
-/* queue of linear buffers */
-struct lbq {
-	u_char	*l_head;	/* next char to process */
-	u_char	*l_tail;	/* one past the last char to process */
-	struct lbq *l_next;	/* next in queue */
-	bool_t	l_queued;	/* nonzero if queued */
-};
-
-/* com device structure */
-struct com_s {
-	u_int	flags;		/* Copy isa device flags */
-	u_char	state;		/* miscellaneous flag bits */
-	bool_t  active_out;	/* nonzero if the callout device is open */
-	u_char	cfcr_image;	/* copy of value written to CFCR */
-#ifdef COM_ESP
-	bool_t	esp;		/* is this unit a hayes esp board? */
-#endif
-	u_char	extra_state;	/* more flag bits, separate for order trick */
-	u_char	fifo_image;	/* copy of value written to FIFO */
-	bool_t	hasfifo;	/* nonzero for 16550 UARTs */
-	bool_t	st16650a;	/* Is a Startech 16650A or RTS/CTS compat */
-	bool_t	loses_outints;	/* nonzero if device loses output interrupts */
-	u_char	mcr_image;	/* copy of value written to MCR */
-#ifdef COM_MULTIPORT
-	bool_t	multiport;	/* is this unit part of a multiport device? */
-#endif /* COM_MULTIPORT */
-	bool_t	no_irq;		/* nonzero if irq is not attached */
-	bool_t  gone;		/* hardware disappeared */
-	bool_t	poll;		/* nonzero if polling is required */
-	bool_t	poll_output;	/* nonzero if polling for output is required */
-	int	unit;		/* unit	number */
-	int	dtr_wait;	/* time to hold DTR down on close (* 1/hz) */
-	u_int	tx_fifo_size;
-	u_int	wopeners;	/* # processes waiting for DCD in open() */
-
-	/*
-	 * The high level of the driver never reads status registers directly
-	 * because there would be too many side effects to handle conveniently.
-	 * Instead, it reads copies of the registers stored here by the
-	 * interrupt handler.
-	 */
-	u_char	last_modem_status;	/* last MSR read by intr handler */
-	u_char	prev_modem_status;	/* last MSR handled by high level */
-
-	u_char	hotchar;	/* ldisc-specific char to be handled ASAP */
-	u_char	*ibuf;		/* start of input buffer */
-	u_char	*ibufend;	/* end of input buffer */
-	u_char	*ibufold;	/* old input buffer, to be freed */
-	u_char	*ihighwater;	/* threshold in input buffer */
-	u_char	*iptr;		/* next free spot in input buffer */
-	int	ibufsize;	/* size of ibuf (not include error bytes) */
-	int	ierroff;	/* offset of error bytes in ibuf */
-
-	struct lbq	obufq;	/* head of queue of output buffers */
-	struct lbq	obufs[2];	/* output buffers */
-
-	bus_space_tag_t		bst;
-	bus_space_handle_t	bsh;
-
-	Port_t	data_port;	/* i/o ports */
-#ifdef COM_ESP
-	Port_t	esp_port;
-#endif
-	Port_t	int_id_port;
-	Port_t	modem_ctl_port;
-	Port_t	line_status_port;
-	Port_t	modem_status_port;
-	Port_t	intr_ctl_port;	/* Ports of IIR register */
-
-	struct tty	*tp;	/* cross reference */
-
-	/* Initial state. */
-	struct termios	it_in;	/* should be in struct tty */
-	struct termios	it_out;
-
-	/* Lock state. */
-	struct termios	lt_in;	/* should be in struct tty */
-	struct termios	lt_out;
-
-	bool_t	do_timestamp;
-	bool_t	do_dcd_timestamp;
-	struct timeval	timestamp;
-	struct timeval	dcd_timestamp;
-	struct	pps_state pps;
-
-	u_long	bytes_in;	/* statistics */
-	u_long	bytes_out;
-	u_int	delta_error_counts[CE_NTYPES];
-	u_long	error_counts[CE_NTYPES];
-
-	struct resource *irqres;
-	struct resource *ioportres;
-	void *cookie;
-	dev_t devs[6];
-
-	/*
-	 * Data area for output buffers.  Someday we should build the output
-	 * buffer queue without copying data.
-	 */
-	u_char	obuf1[256];
-	u_char	obuf2[256];
-};
 
 #ifdef COM_ESP
 static	int	espattach	__P((struct com_s *com, Port_t esp_port));
 #endif
-static	int	sioattach	__P((device_t dev, int rid));
-static	int	sio_isa_attach	__P((device_t dev));
 
 static	timeout_t siobusycheck;
 static	timeout_t siodtrwakeup;
@@ -291,8 +172,6 @@ static	void	siointr		__P((void *arg));
 static	int	commctl		__P((struct com_s *com, int bits, int how));
 static	int	comparam	__P((struct tty *tp, struct termios *t));
 static	void	siopoll		__P((void *));
-static	int	sioprobe	__P((device_t dev, int xrid));
-static	int	sio_isa_probe	__P((device_t dev));
 static	void	siosettimeout	__P((void));
 static	int	siosetwater	__P((struct com_s *com, speed_t speed));
 static	void	comstart	__P((struct tty *tp));
@@ -301,73 +180,14 @@ static	timeout_t comwakeup;
 static	void	disc_optim	__P((struct tty	*tp, struct termios *t,
 				     struct com_s *com));
 
-#if NCARD > 0
-static	int	sio_pccard_attach __P((device_t dev));
-static	int	sio_pccard_detach __P((device_t dev));
-static	int	sio_pccard_probe __P((device_t dev));
-#endif /* NCARD > 0 */
-
-#if NPCI > 0
-static	int	sio_pci_attach __P((device_t dev));
-static	void	sio_pci_kludge_unit __P((device_t dev));
-static	int	sio_pci_probe __P((device_t dev));
-#endif /* NPCI > 0 */
-
-static char	driver_name[] = "sio";
+char		sio_driver_name[] = "sio";
 static struct	mtx sio_lock;
 static int	sio_inited;
 
 /* table and macro for fast conversion from a unit number to its com struct */
-static	devclass_t	sio_devclass;
+devclass_t	sio_devclass;
 #define	com_addr(unit)	((struct com_s *) \
 			 devclass_get_softc(sio_devclass, unit))
-
-static device_method_t sio_isa_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe,		sio_isa_probe),
-	DEVMETHOD(device_attach,	sio_isa_attach),
-
-	{ 0, 0 }
-};
-
-static driver_t sio_isa_driver = {
-	driver_name,
-	sio_isa_methods,
-	sizeof(struct com_s),
-};
-
-#if NCARD > 0
-static device_method_t sio_pccard_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe,		sio_pccard_probe),
-	DEVMETHOD(device_attach,	sio_pccard_attach),
-	DEVMETHOD(device_detach,	sio_pccard_detach),
-
-	{ 0, 0 }
-};
-
-static driver_t sio_pccard_driver = {
-	driver_name,
-	sio_pccard_methods,
-	sizeof(struct com_s),
-};
-#endif /* NCARD > 0 */
-
-#if NPCI > 0
-static device_method_t sio_pci_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe,		sio_pci_probe),
-	DEVMETHOD(device_attach,	sio_pci_attach),
-
-	{ 0, 0 }
-};
-
-static driver_t sio_pci_driver = {
-	driver_name,
-	sio_pci_methods,
-	sizeof(struct com_s),
-};
-#endif /* NPCI > 0 */
 
 static	d_open_t	sioopen;
 static	d_close_t	sioclose;
@@ -385,7 +205,7 @@ static struct cdevsw sio_cdevsw = {
 	/* poll */	ttypoll,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
-	/* name */	driver_name,
+	/* name */	sio_driver_name,
 	/* maj */	CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
@@ -502,39 +322,8 @@ sysctl_machdep_comdefaultrate(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_machdep, OID_AUTO, conspeed, CTLTYPE_INT | CTLFLAG_RW,
 	    0, 0, sysctl_machdep_comdefaultrate, "I", "");
 
-#define SET_FLAG(dev, bit) device_set_flags(dev, device_get_flags(dev) | (bit))
-#define CLR_FLAG(dev, bit) device_set_flags(dev, device_get_flags(dev) & ~(bit))
-
-#if NCARD > 0
-static int
-sio_pccard_probe(dev)
-	device_t	dev;
-{
-	/* Do not probe IRQ - pccard doesn't turn on the interrupt line */
-	/* until bus_setup_intr */
-	SET_FLAG(dev, COM_C_NOPROBE);
-
-	return (sioprobe(dev, 0));
-}
-
-static int
-sio_pccard_attach(dev)
-	device_t	dev;
-{
-	return (sioattach(dev, 0));
-}
-
-/*
- *	sio_detach - unload the driver and clear the table.
- *	XXX TODO:
- *	This is usually called when the card is ejected, but
- *	can be caused by a modunload of a controller driver.
- *	The idea is to reset the driver's view of the device
- *	and ensure that any driver entry points such as
- *	read and write do not hang.
- */
-static int
-sio_pccard_detach(dev)
+int
+siodetach(dev)
 	device_t	dev;
 {
 	struct com_s	*com;
@@ -565,190 +354,14 @@ sio_pccard_detach(dev)
 		if (com->ibuf != NULL)
 			free(com->ibuf, M_DEVBUF);
 	}
-	device_printf(dev, "unloaded\n");
 	return (0);
 }
-#endif /* NCARD > 0 */
 
-#if NPCI > 0
-struct pci_ids {
-	u_int32_t	type;
-	const char	*desc;
-	int		rid;
-};
-
-static struct pci_ids pci_ids[] = {
-	{ 0x100812b9, "3COM PCI FaxModem", 0x10 },
-	{ 0x2000131f, "CyberSerial (1-port) 16550", 0x10 },
-	{ 0x01101407, "Koutech IOFLEX-2S PCI Dual Port Serial", 0x10 },
-	{ 0x01111407, "Koutech IOFLEX-2S PCI Dual Port Serial", 0x10 },
-	{ 0x048011c1, "Lucent kermit based PCI Modem", 0x14 },
-	{ 0x95211415, "Oxford Semiconductor PCI Dual Port Serial", 0x10 },
-	{ 0x0000151f, "SmartLink 5634PCV SurfRider", 0x10 },
-	/* { 0xXXXXXXXX, "Xircom Cardbus modem", 0x10 }, */
-	{ 0x00000000, NULL, 0 }
-};
-
-static int
-sio_pci_attach(dev)
-	device_t	dev;
-{
-	u_int32_t	type;
-	struct pci_ids	*id;
-
-	type = pci_get_devid(dev);
-	id = pci_ids;
-	while (id->type && id->type != type)
-		id++;
-	if (id->desc == NULL)
-		return (ENXIO);
-	sio_pci_kludge_unit(dev);
-	return (sioattach(dev, id->rid));
-}
-
-/*
- * Don't cut and paste this to other drivers.  It is a horrible kludge
- * which will fail to work and also be unnecessary in future versions.
- */
-static void
-sio_pci_kludge_unit(dev)
-	device_t dev;
-{
-	devclass_t	dc;
-	int		err;
-	int		start;
-	int		unit;
-
-	unit = 0;
-	start = 0;
-	while (resource_int_value("sio", unit, "port", &start) == 0 && 
-	    start > 0)
-		unit++;
-	if (device_get_unit(dev) < unit) {
-		dc = device_get_devclass(dev);
-		while (devclass_get_device(dc, unit))
-			unit++;
-		device_printf(dev, "moving to sio%d\n", unit);
-		err = device_set_unit(dev, unit);	/* EVIL DO NOT COPY */
-		if (err)
-			device_printf(dev, "error moving device %d\n", err);
-	}
-}
-
-static int
-sio_pci_probe(dev)
-	device_t	dev;
-{
-	u_int32_t	type;
-	struct pci_ids	*id;
-
-	type = pci_get_devid(dev);
-	id = pci_ids;
-	while (id->type && id->type != type)
-		id++;
-	if (id->desc == NULL)
-		return (ENXIO);
-	device_set_desc(dev, id->desc);
-	return (sioprobe(dev, id->rid));
-}
-#endif /* NPCI > 0 */
-
-static struct isa_pnp_id sio_ids[] = {
-	{0x0005d041, "Standard PC COM port"},	/* PNP0500 */
-	{0x0105d041, "16550A-compatible COM port"},	/* PNP0501 */
-	{0x0205d041, "Multiport serial device (non-intelligent 16550)"}, /* PNP0502 */
-	{0x1005d041, "Generic IRDA-compatible device"},	/* PNP0510 */
-	{0x1105d041, "Generic IRDA-compatible device"},	/* PNP0511 */
-	/* Devices that do not have a compatid */
-	{0x12206804, NULL},     /* ACH2012 - 5634BTS 56K Video Ready Modem */
-	{0x7602a904, NULL},	/* AEI0276 - 56K v.90 Fax Modem (LKT) */
-	{0x00007905, NULL},	/* AKY0000 - 56K Plug&Play Modem */
-	{0x01405407, NULL},	/* AZT4001 - AZT3000 PnP SOUND DEVICE, MODEM */
-	{0x56039008, NULL},	/* BDP0356 - Best Data 56x2 */
-	{0x56159008, NULL},	/* BDP1556 - B.D. Smart One 56SPS,Voice Modem*/
-	{0x36339008, NULL},	/* BDP3336 - Best Data Prods. 336F */
-	{0x0014490a, NULL},	/* BRI1400 - Boca 33.6 PnP */
-	{0x0015490a, NULL},	/* BRI1500 - Internal Fax Data */
-	{0x0034490a, NULL},	/* BRI3400 - Internal ACF Modem */
-	{0x0094490a, NULL},	/* BRI9400 - Boca K56Flex PnP */
-	{0x00b4490a, NULL},	/* BRIB400 - Boca 56k PnP */
-	{0x0030320d, NULL},	/* CIR3000 - Cirrus Logic V43 */
-	{0x0100440e, NULL},	/* CRD0001 - Cardinal MVP288IV ? */
-	{0x36033610, NULL},     /* DAV0336 - DAVICOM 336PNP MODEM */
-	{0x0000aa1a, NULL},	/* FUJ0000 - FUJITSU Modem 33600 PNP/I2 */
-	{0x1200c31e, NULL},	/* GVC0012 - VF1128HV-R9 (win modem?) */
-	{0x0303c31e, NULL},	/* GVC0303 - MaxTech 33.6 PnP D/F/V */
-	{0x0505c31e, NULL},	/* GVC0505 - GVC 56k Faxmodem */
-	{0x0116c31e, NULL},	/* GVC1601 - Rockwell V.34 Plug & Play Modem */
-	{0x0050c31e, NULL},	/* GVC5000 - some GVC modem */
-	{0x3800f91e, NULL},	/* GWY0038 - Telepath with v.90 */
-	{0x9062f91e, NULL},	/* GWY6290 - Telepath with x2 Technology */
-	{0x8100e425, NULL},	/* IOD0081 - I-O DATA DEVICE,INC. IFML-560 */
-	{0x21002534, NULL},	/* MAE0021 - Jetstream Int V.90 56k Voice Series 2*/
-	{0x0000f435, NULL},	/* MOT0000 - Motorola ModemSURFR 33.6 Intern */
-	{0x5015f435, NULL},	/* MOT1550 - Motorola ModemSURFR 56K Modem */
-	{0xf015f435, NULL},	/* MOT15F0 - Motorola VoiceSURFR 56K Modem */
-	{0x6045f435, NULL},	/* MOT4560 - Motorola ? */
-	{0x61e7a338, NULL},	/* NECE761 - 33.6Modem */
- 	{0x08804f3f, NULL},	/* OZO8008 - Zoom  (33.6k Modem) */
-	{0x0f804f3f, NULL},	/* OZO800f - Zoom 2812 (56k Modem) */
-	{0x39804f3f, NULL},	/* OZO8039 - Zoom 56k flex */
-	{0x00914f3f, NULL},	/* OZO9100 - Zoom 2919 (K56 Faxmodem) */
-	{0x3024a341, NULL},	/* PMC2430 - Pace 56 Voice Internal Modem */
-	{0x1000eb49, NULL},	/* ROK0010 - Rockwell ? */
-	{0x1200b23d, NULL},     /* RSS0012 - OMRON ME5614ISA */
-	{0x5002734a, NULL},	/* RSS0250 - 5614Jx3(G) Internal Modem */
-	{0x6202734a, NULL},	/* RSS0262 - 5614Jx3[G] V90+K56Flex Modem */
-	{0xc100ad4d, NULL},	/* SMM00C1 - Leopard 56k PnP */
-	{0x9012b04e, NULL},	/* SUP1290 - Supra ? */
-	{0x1013b04e, NULL},	/* SUP1310 - SupraExpress 336i PnP */
-	{0x8013b04e, NULL},	/* SUP1380 - SupraExpress 288i PnP Voice */
-	{0x8113b04e, NULL},	/* SUP1381 - SupraExpress 336i PnP Voice */
-	{0x5016b04e, NULL},	/* SUP1650 - Supra 336i Sp Intl */
-	{0x7016b04e, NULL},	/* SUP1670 - Supra 336i V+ Intl */
-	{0x7420b04e, NULL},	/* SUP2070 - Supra ? */
-	{0x8020b04e, NULL},	/* SUP2080 - Supra ? */
-	{0x8420b04e, NULL},	/* SUP2084 - SupraExpress 56i PnP */
-	{0x7121b04e, NULL},	/* SUP2171 - SupraExpress 56i Sp? */
-	{0x8024b04e, NULL},	/* SUP2480 - Supra ? */
-	{0x01007256, NULL},	/* USR0001 - U.S. Robotics Inc., Sportster W */
-	{0x02007256, NULL},	/* USR0002 - U.S. Robotics Inc. Sportster 33. */
-	{0x04007256, NULL},	/* USR0004 - USR Sportster 14.4k */
-	{0x06007256, NULL},	/* USR0006 - USR Sportster 33.6k */
-	{0x11007256, NULL},	/* USR0011 - USR ? */
-	{0x01017256, NULL},	/* USR0101 - USR ? */
-	{0x30207256, NULL},	/* USR2030 - U.S.Robotics Inc. Sportster 560 */
-	{0x50207256, NULL},	/* USR2050 - U.S.Robotics Inc. Sportster 33. */
-	{0x70207256, NULL},	/* USR2070 - U.S.Robotics Inc. Sportster 560 */
-	{0x30307256, NULL},	/* USR3030 - U.S. Robotics 56K FAX INT */
-	{0x31307256, NULL},	/* USR3031 - U.S. Robotics 56K FAX INT */
-	{0x50307256, NULL},	/* USR3050 - U.S. Robotics 56K FAX INT */
-	{0x70307256, NULL},	/* USR3070 - U.S. Robotics 56K Voice INT */
-	{0x90307256, NULL},	/* USR3090 - USR ? */
-	{0x70917256, NULL},	/* USR9170 - U.S. Robotics 56K FAX INT */
-	{0x90917256, NULL},	/* USR9190 - USR 56k Voice INT */
-	{0x0300695c, NULL},	/* WCI0003 - Fax/Voice/Modem/Speakphone/Asvd */
-	{0x01a0896a, NULL},	/* ZTIA001 - Zoom Internal V90 Faxmodem */
-	{0x61f7896a, NULL},	/* ZTIF761 - Zoom ComStar 33.6 */
-	{0}
-};
-
-
-
-static int
-sio_isa_probe(dev)
-	device_t	dev;
-{
-	/* Check isapnp ids */
-	if (ISA_PNP_PROBE(device_get_parent(dev), dev, sio_ids) == ENXIO)
-		return (ENXIO);
-	return (sioprobe(dev, 0));
-}
-
-static int
-sioprobe(dev, xrid)
+int
+sioprobe(dev, xrid, noprobe)
 	device_t	dev;
 	int		xrid;
+	int		noprobe;
 {
 #if 0
 	static bool_t	already_init;
@@ -780,7 +393,7 @@ sioprobe(dev, xrid)
 
 	while (sio_inited != 2)
 		if (atomic_cmpset_int(&sio_inited, 0, 1)) {
-			mtx_init(&sio_lock, driver_name, (comconsole != -1) ?
+			mtx_init(&sio_lock, sio_driver_name, (comconsole != -1) ?
 			    MTX_SPIN | MTX_QUIET : MTX_SPIN);
 			atomic_store_rel_int(&sio_inited, 2);
 		}
@@ -944,7 +557,7 @@ sioprobe(dev, xrid)
 	 * Some pcmcia cards have the "TXRDY bug", so we check everyone
 	 * for IIR_TXRDY implementation ( Palido 321s, DC-1S... )
 	 */
-	if (COM_NOPROBE(flags)) {
+	if (noprobe) {
 		/* Reading IIR register twice */
 		for (fn = 0; fn < 2; fn ++) {
 			DELAY(10000);
@@ -1106,14 +719,7 @@ espattach(com, esp_port)
 }
 #endif /* COM_ESP */
 
-static int
-sio_isa_attach(dev)
-	device_t	dev;
-{
-	return (sioattach(dev, 0));
-}
-
-static int
+int
 sioattach(dev, xrid)
 	device_t	dev;
 	int		xrid;
@@ -3385,14 +2991,4 @@ siogdbputc(c)
 	siocnclose(&sp, siogdbiobase);
 	splx(s);
 }
-#endif
-
-DRIVER_MODULE(sio, isa, sio_isa_driver, sio_devclass, 0, 0);
-DRIVER_MODULE(sio, acpi, sio_isa_driver, sio_devclass, 0, 0);
-#if NCARD > 0
-DRIVER_MODULE(sio, pccard, sio_pccard_driver, sio_devclass, 0, 0);
-#endif
-#if NPCI > 0
-DRIVER_MODULE(sio, pci, sio_pci_driver, sio_devclass, 0, 0);
-DRIVER_MODULE(sio, cardbus, sio_pci_driver, sio_devclass, 0, 0);
 #endif
