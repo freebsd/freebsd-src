@@ -1104,6 +1104,7 @@ ath_start(struct ifnet *ifp)
 			ni = ieee80211_find_txnode(ic, eh->ether_dhost);
 			if (ni == NULL) {
 				/* NB: ieee80211_find_txnode does stat+msg */
+				m_freem(m);
 				goto bad;
 			}
 			if ((ni->ni_flags & IEEE80211_NODE_PWR_MGT) &&
@@ -1121,6 +1122,7 @@ ath_start(struct ifnet *ifp)
 				DPRINTF(sc, ATH_DEBUG_XMIT,
 					"%s: discard, classification failure\n",
 					__func__);
+				m_freem(m);
 				goto bad;
 			}
 			ifp->if_opackets++;
