@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_variables.c,v 1.7 1995/05/30 07:57:17 rgrimes Exp $
+ *	$Id: db_variables.c,v 1.8 1995/11/24 14:13:41 bde Exp $
  */
 
 /*
@@ -39,19 +39,23 @@
 #include <ddb/db_lex.h>
 #include <ddb/db_variables.h>
 
-extern int	db_find_variable __P((struct db_variable **varp));
-extern int	db_set_variable __P((db_expr_t value));
+static int	db_find_variable __P((struct db_variable **varp));
 static void	db_write_variable __P((struct db_variable *, db_expr_t *));
 
-struct db_variable db_vars[] = {
+#ifdef notused
+static int	db_set_variable __P((db_expr_t value));
+#endif
+
+static struct db_variable db_vars[] = {
 	{ "radix",	&db_radix, FCN_NULL },
 	{ "maxoff",	(int *)&db_maxoff, FCN_NULL },
 	{ "maxwidth",	&db_max_width, FCN_NULL },
 	{ "tabstops",	&db_tab_stop_width, FCN_NULL },
 };
-struct db_variable *db_evars = db_vars + sizeof(db_vars)/sizeof(db_vars[0]);
+static struct db_variable *db_evars = 
+		db_vars + sizeof(db_vars)/sizeof(db_vars[0]);
 
-int
+static int
 db_find_variable(varp)
 	struct db_variable	**varp;
 {
@@ -91,7 +95,8 @@ db_get_variable(valuep)
 	return (1);
 }
 
-int
+#ifdef notused
+static int
 db_set_variable(value)
 	db_expr_t	value;
 {
@@ -104,7 +109,7 @@ db_set_variable(value)
 
 	return (1);
 }
-
+#endif
 
 void
 db_read_variable(vp, valuep)

@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_expr.c,v 1.5 1995/05/30 07:56:56 rgrimes Exp $
+ *	$Id: db_expr.c,v 1.6 1995/11/24 14:13:34 bde Exp $
  */
 
 /*
@@ -38,13 +38,13 @@
 #include <ddb/db_access.h>
 #include <ddb/db_command.h>
 
-extern boolean_t	db_add_expr __P((db_expr_t *valuep));
-extern boolean_t	db_mult_expr __P((db_expr_t *valuep));
-extern boolean_t	db_shift_expr __P((db_expr_t *valuep));
-extern boolean_t	db_term __P((db_expr_t *valuep));
-extern boolean_t	db_unary __P((db_expr_t *valuep));
+static boolean_t	db_add_expr __P((db_expr_t *valuep));
+static boolean_t	db_mult_expr __P((db_expr_t *valuep));
+static boolean_t	db_shift_expr __P((db_expr_t *valuep));
+static boolean_t	db_term __P((db_expr_t *valuep));
+static boolean_t	db_unary __P((db_expr_t *valuep));
 
-boolean_t
+static boolean_t
 db_term(valuep)
 	db_expr_t *valuep;
 {
@@ -99,7 +99,7 @@ db_term(valuep)
 	return (FALSE);
 }
 
-boolean_t
+static boolean_t
 db_unary(valuep)
 	db_expr_t *valuep;
 {
@@ -127,7 +127,7 @@ db_unary(valuep)
 	return (db_term(valuep));
 }
 
-boolean_t
+static boolean_t
 db_mult_expr(valuep)
 	db_expr_t *valuep;
 {
@@ -164,7 +164,7 @@ db_mult_expr(valuep)
 	return (TRUE);
 }
 
-boolean_t
+static boolean_t
 db_add_expr(valuep)
 	db_expr_t *valuep;
 {
@@ -191,7 +191,7 @@ db_add_expr(valuep)
 	return (TRUE);
 }
 
-boolean_t
+static boolean_t
 db_shift_expr(valuep)
 	db_expr_t *valuep;
 {

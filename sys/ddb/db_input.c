@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_input.c,v 1.7 1995/05/30 07:56:58 rgrimes Exp $
+ *	$Id: db_input.c,v 1.8 1995/11/24 14:13:36 bde Exp $
  */
 
 /*
@@ -57,11 +57,11 @@ char *	db_le;		/* one past last character */
 #define	BLANK		' '
 #define	BACKUP		'\b'
 
-extern int	cnmaygetc __P((void));
-extern void	db_delete __P((int n, int bwd));
-extern int	db_inputchar __P((int c));
-extern void	db_putnchars __P((int c, int count));
-extern void	db_putstring __P((char *s, int count));
+static int	cnmaygetc __P((void));
+static void	db_delete __P((int n, int bwd));
+static int	db_inputchar __P((int c));
+static void	db_putnchars __P((int c, int count));
+static void	db_putstring __P((char *s, int count));
 
 void
 db_putstring(s, count)
