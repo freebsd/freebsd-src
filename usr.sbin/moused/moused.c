@@ -46,7 +46,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: moused.c,v 1.26 1999/03/01 04:47:37 gpalmer Exp $";
+	"$Id: moused.c,v 1.27 1999/06/03 12:42:10 yokota Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -79,6 +79,12 @@ static const char rcsid[] =
 
 #define MOUSE_XAXIS	(-1)
 #define MOUSE_YAXIS	(-2)
+
+/* Logitech PS2++ protocol */
+#define MOUSE_PS2PLUS_CHECKBITS(b)	\
+			((((b[2] & 0x03) << 2) | 0x02) == (b[1] & 0x0f))
+#define MOUSE_PS2PLUS_PACKET_TYPE(b)	\
+			(((b[0] & 0x30) >> 2) | ((b[1] & 0x30) >> 4))
 
 #define	ChordMiddle	0x0001
 #define Emulate3Button	0x0002
@@ -1504,13 +1510,40 @@ r_protocol(u_char rBuf, mousestatus_t *act)
 	    act->dz = (char)pBuf[3];
 	    break;
 	case MOUSE_MODEL_MOUSEMANPLUS:
-	    if ((pBuf[0] & ~MOUSE_PS2_BUTTONS) == 0xc8) {
+	    if (((pBuf[0] & MOUSE_PS2PLUS_SYNCMASK) == MOUSE_PS2PLUS_SYNC)
+		    && (abs(act->dx) > 191)
+		    && MOUSE_PS2PLUS_CHECKBITS(pBuf)) {
 		/* the extended data packet encodes button and wheel events */
-		act->dx = act->dy = 0;
-		act->dz = (pBuf[2] & MOUSE_PS2PLUS_ZNEG)
-		    ? (pBuf[2] & 0x0f) - 16 : (pBuf[2] & 0x0f);
-		act->button |= ((pBuf[2] & MOUSE_PS2PLUS_BUTTON4DOWN)
-		    ? MOUSE_BUTTON4DOWN : 0);
+		switch (MOUSE_PS2PLUS_PACKET_TYPE(pBuf)) {
+		case 1:
+		    /* wheel data packet */
+		    act->dx = act->dy = 0;
+		    if (pBuf[2] & 0x80) {
+			/* horizontal roller count - ignore it XXX*/
+		    } else {
+			/* vertical roller count */
+			act->dz = (pBuf[2] & MOUSE_PS2PLUS_ZNEG)
+			    ? (pBuf[2] & 0x0f) - 16 : (pBuf[2] & 0x0f);
+		    }
+		    act->button |= (pBuf[2] & MOUSE_PS2PLUS_BUTTON4DOWN)
+			? MOUSE_BUTTON4DOWN : 0;
+		    act->button |= (pBuf[2] & MOUSE_PS2PLUS_BUTTON5DOWN)
+			? MOUSE_BUTTON5DOWN : 0;
+		    break;
+		case 2:
+		    /* this packet type is reserved, and currently ignored */
+		    /* FALL THROUGH */
+		case 0:
+		    /* device type packet - shouldn't happen */
+		    /* FALL THROUGH */
+		default:
+		    act->dx = act->dy = 0;
+		    act->button = act->obutton;
+            	    debug("unknown PS2++ packet type %d: 0x%02x 0x%02x 0x%02x\n",
+			  MOUSE_PS2PLUS_PACKET_TYPE(pBuf),
+			  pBuf[0], pBuf[1], pBuf[2]);
+		    break;
+		}
 	    } else {
 		/* preserve button states */
 		act->button |= act->obutton & MOUSE_EXTBUTTONS;
