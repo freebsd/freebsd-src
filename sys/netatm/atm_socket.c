@@ -350,7 +350,7 @@ atm_sock_listen(so, epp)
 	/*
 	 * Start listening for incoming calls
 	 */
-	return (atm_cm_listen(epp, atp, &atp->atp_attr, &atp->atp_conn));
+	return (atm_cm_listen(so, epp, atp, &atp->atp_attr, &atp->atp_conn));
 }
 
 

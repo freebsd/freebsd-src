@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2004 The FreeBSD Foundation
- * Copyright (c) 2004-2005 Robert Watson
+ * Copyright (c) 2004-2005 Robert N. M. Watson
  * Copyright (c) 1982, 1986, 1988, 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -270,6 +270,18 @@ sodealloc(struct socket *so)
 	mtx_unlock(&so_global_mtx);
 }
 
+/*
+ * solisten() transitions a socket from a non-listening state to a listening
+ * state, but can also be used to update the listen queue depth on an
+ * existing listen socket.  The protocol will call back into the sockets
+ * layer using solisten_proto_check() and solisten_proto() to check and set
+ * socket-layer listen state.  Call backs are used so that the protocol can
+ * acquire both protocol and socket layer locks in whatever order is reuiqred
+ * by the protocol.
+ *
+ * Protocol implementors are advised to hold the socket lock across the
+ * socket-layer test and set to avoid races at the socket layer.
+ */
 int
 solisten(so, backlog, td)
 	struct socket *so;
@@ -278,26 +290,42 @@ solisten(so, backlog, td)
 {
 	int error;
 
-	/*
-	 * XXXRW: Ordering issue here -- perhaps we need to set
-	 * SO_ACCEPTCONN before the call to pru_listen()?
-	 * XXXRW: General atomic test-and-set concerns here also.
-	 */
-	if (so->so_state & (SS_ISCONNECTED | SS_ISCONNECTING |
-			    SS_ISDISCONNECTING))
-		return (EINVAL);
 	error = (*so->so_proto->pr_usrreqs->pru_listen)(so, td);
 	if (error)
 		return (error);
-	ACCEPT_LOCK();
-	SOCK_LOCK(so);
-	so->so_options |= SO_ACCEPTCONN;
-	SOCK_UNLOCK(so);
+
+	/*
+	 * XXXRW: The following state adjustment should occur in
+	 * solisten_proto(), but we don't currently pass the backlog request
+	 * to the protocol via pru_listen().
+	 */
 	if (backlog < 0 || backlog > somaxconn)
 		backlog = somaxconn;
 	so->so_qlimit = backlog;
-	ACCEPT_UNLOCK();
 	return (0);
+}
+
+int
+solisten_proto_check(so)
+	struct socket *so;
+{
+
+	SOCK_LOCK_ASSERT(so);
+
+	if (so->so_state & (SS_ISCONNECTED | SS_ISCONNECTING |
+	    SS_ISDISCONNECTING))
+		return (EINVAL);
+	return (0);
+}
+
+void
+solisten_proto(so)
+	struct socket *so;
+{
+
+	SOCK_LOCK_ASSERT(so);
+
+	so->so_options |= SO_ACCEPTCONN;
 }
 
 /*

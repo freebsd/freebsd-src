@@ -1466,10 +1466,15 @@ spx_listen(so, td)
 	ipxp = sotoipxpcb(so);
 	cb = ipxtospxpcb(ipxp);
 
-	if (ipxp->ipxp_lport == 0)
+	SOCK_LOCK(so);
+	error = solisten_proto_check(so);
+	if (error == 0 && ipxp->ipxp_lport == 0)
 		error = ipx_pcbbind(ipxp, NULL, td);
-	if (error == 0)
+	if (error == 0) {
 		cb->s_state = TCPS_LISTEN;
+		solisten_proto(so);
+	}
+	SOCK_UNLOCK(so);
 	return (error);
 }
 
