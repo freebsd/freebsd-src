@@ -49,6 +49,9 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #undef TARGET_VERSION
 #define TARGET_VERSION fprintf (stderr, " (FreeBSD/alpha ELF)");
 
+#define SWITCH_TAKES_ARG(CHAR) (FBSD_SWITCH_TAKES_ARG(CHAR))
+#define WORD_SWITCH_TAKES_ARG(STR) (FBSD_WORD_SWITCH_TAKES_ARG(STR))
+
 #undef TARGET_DEFAULT
 #define TARGET_DEFAULT (MASK_FP | MASK_FPREGS | MASK_GAS)
 
