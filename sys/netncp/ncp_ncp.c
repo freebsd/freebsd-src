@@ -200,8 +200,8 @@ ncp_renegotiate_connparam(struct ncp_conn *conn, int buffsize, u_int8_t in_optio
 		in_options |= NCP_SECURITY_LEVEL_SIGN_HEADERS;
 	if (conn->li.saddr.sa_family == AF_IPX) {
 		ilen = sizeof(ckslevel);
-		error = ncp_sysctlbyname("net.ipx.ipx.checksum", &ckslevel, &ilen,
-		    NULL, 0, NULL);
+		error = kernel_sysctlbyname(curproc, "net.ipx.ipx.checksum",
+		    &ckslevel, &ilen, NULL, 0, NULL);
 		if (error)
 			return error;
 		if (ckslevel == 2)
