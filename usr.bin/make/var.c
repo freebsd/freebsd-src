@@ -1739,6 +1739,8 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
      *  	  	    	(pathname minus the suffix).
      *	    	  :lhs=rhs  	Like :S, but the rhs goes to the end of
      *	    	    	    	the invocation.
+     *		  :U		Converts variable to upper-case.
+     *		  :L		Converts variable to lower-case.
      */
     if ((str != (char *)NULL) && haveModifier) {
 	/*
@@ -1753,6 +1755,38 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 		printf("Applying :%c to \"%s\"\n", *tstr, str);
 	    }
 	    switch (*tstr) {
+	        case 'U':
+			if (tstr[1] == endc || tstr[1] == ':') {
+				Buffer buf;
+				buf = Buf_Init(MAKE_BSIZE);
+				for (cp = str; *cp ; cp++)
+					Buf_AddByte(buf, (Byte) toupper(*cp));
+
+				Buf_AddByte(buf, (Byte) '\0');
+				newStr = (char *) Buf_GetAll(buf, (int *) NULL);
+				Buf_Destroy(buf, FALSE);
+
+				cp = tstr + 1;
+				termc = *cp;
+				break;
+			}
+			/* FALLTHROUGH */
+		case 'L':
+			if (tstr[1] == endc || tstr[1] == ':') {
+				Buffer buf;
+				buf = Buf_Init(MAKE_BSIZE);
+				for (cp = str; *cp ; cp++)
+					Buf_AddByte(buf, (Byte) tolower(*cp));
+
+				Buf_AddByte(buf, (Byte) '\0');
+				newStr = (char *) Buf_GetAll(buf, (int *) NULL);
+				Buf_Destroy(buf, FALSE);
+
+				cp = tstr + 1;
+				termc = *cp;
+				break;
+			}
+			/* FALLTHROUGH */
 		case 'N':
 		case 'M':
 		{
