@@ -239,10 +239,10 @@ static void
 usage()
 {
     fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n",
-	"usage: pkg_info [-cdDfGiIkLmopqrRsvVx] [-e package] [-l prefix]",
-	"                [-t template] [pkg-name ...]",
+	"usage: pkg_info [-cdDfgGiIkLmopPqrRsvVx] [-e package] [-l prefix]",
+	"                [-t template] -a | pkg-name ...",
 	"       pkg_info [-q] -W filename",
 	"       pkg_info [-q] -O origin",
-	"       pkg_info -a [flags]");
+	"       pkg_info");
     exit(1);
 }
