@@ -37,6 +37,7 @@
 #include <sys/param.h>
 
 #include <stdlib.h>
+#include <string.h>
 
 #include <security/pam_appl.h>
 #include <security/openpam.h>
