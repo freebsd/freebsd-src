@@ -18,7 +18,7 @@
  *		Columbus, OH  43221
  *		(614)451-1883
  *
- * $Id: chat.c,v 1.36 1997/10/29 01:19:39 brian Exp $
+ * $Id: chat.c,v 1.37 1997/11/09 06:22:39 brian Exp $
  *
  *  TODO:
  *	o Support more UUCP compatible control sequences.
@@ -60,7 +60,7 @@
 #endif
 
 
-#define	IBSIZE 200
+#define	IBSIZE LINE_LEN
 
 static int TimeoutSec;
 static int abort_next, timeout_next;
@@ -235,7 +235,7 @@ ExpandString(char *str, char *result, int reslen, int sendmode)
   return (result);
 }
 
-#define MAXLOGBUFF 200
+#define MAXLOGBUFF LINE_LEN
 static char logbuff[MAXLOGBUFF];
 static int loglen = 0;
 
@@ -485,7 +485,7 @@ SendString(char *str)
 {
   char *cp;
   int on;
-  char buff[200];
+  char buff[LINE_LEN];
 
   if (abort_next) {
     abort_next = 0;
