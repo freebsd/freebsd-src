@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:36:34  rpd
- *	$Id: sys.c,v 1.10 1997/02/22 09:43:10 peter Exp $
+ *	$Id: sys.c,v 1.11 1997/03/16 10:57:54 kato Exp $
  */
 
 /*
@@ -35,27 +35,29 @@
 #include <sys/dirent.h>
 #include <sys/reboot.h>
 
-#ifdef 0
+#if 0
 /* #define BUFSIZE 4096 */
 #define BUFSIZE MAXBSIZE
-
-char buf[BUFSIZE], fsbuf[SBSIZE], iobuf[MAXBSIZE];
+static char buf[BUFSIZE], fsbuf[SBSIZE], iobuf[MAXBSIZE];
 #endif
 
 static char biosdrivedigit;
 
 #define BUFSIZE 8192
 #define MAPBUFSIZE BUFSIZE
-char buf[BUFSIZE], fsbuf[BUFSIZE], iobuf[BUFSIZE];
+static char buf[BUFSIZE], fsbuf[BUFSIZE], iobuf[BUFSIZE];
 
-char mapbuf[MAPBUFSIZE];
-int mapblock;
+static char mapbuf[MAPBUFSIZE];
+static int mapblock;
 
 int poff;
 
 #ifdef RAWBOOT
 #define STARTBYTE	8192	/* Where on the media the kernel starts */
 #endif
+
+static int block_map(int file_block);
+static int find(char *path);
 
 void
 xread(char *addr, int size)
@@ -132,9 +134,9 @@ read(char *buffer, int count)
 		bcopy(iobuf, buffer, count);
 	}
 }
-
 #endif
-int
+
+static int
 find(char *path)
 {
 	char *rest, ch;
@@ -182,7 +184,7 @@ loop:
 }
 
 
-int
+static int
 block_map(int file_block)
 {
 	int bnum;
