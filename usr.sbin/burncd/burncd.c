@@ -54,7 +54,7 @@ main(int argc, char **argv)
 	int block_size, cdopen = 0, size, tot_size = 0;
 	struct cdr_track track;
 
-	while ((ch = getopt(argc, argv, "ef:pqs:")) != -1) {
+	while ((ch = getopt(argc, argv, "ef:pqs:t")) != -1) {
 		switch (ch) {
 		case 'e':
 			eject = 1;
@@ -81,6 +81,7 @@ main(int argc, char **argv)
 			break;
 
 		default: 
+			exit(EX_USAGE);
 		}
 	}
 	argc -= optind;
