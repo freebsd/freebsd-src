@@ -72,9 +72,6 @@ struct bus_space mainbus_bs_tag = {
 	nexus_bs_alloc,
 	nexus_bs_free,
 
-	/* get kernel virtual address */
-	0, /* there is no linear mapping */
-
 	/* barrier */
 	nexus_bs_barrier,
 
