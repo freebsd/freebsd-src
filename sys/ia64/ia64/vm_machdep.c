@@ -145,6 +145,8 @@ cpu_thread_swapin(struct thread *td)
 void
 cpu_thread_swapout(struct thread *td)
 {
+
+	ia64_highfp_save(td);
 }
 
 void
