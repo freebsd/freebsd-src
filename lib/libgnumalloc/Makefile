@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1 1996/02/11 18:12:41 phk Exp $
+#	$Id: Makefile,v 1.2 1996/02/12 12:40:04 phk Exp $
 
 LIB=	fakegnumalloc
 SHLIB_MAJOR=	2
@@ -12,7 +12,7 @@ afterinstall:
 		if [ -d $$i ] ; then exit 0 ; fi ; \
 	done && \
 	( cd ${DESTDIR}${SHLIBDIR} && \
-	  rm -f libgnumalloc.so.SHLIB_MAJOR}.${SHLIB_MINOR} && \
+	  rm -f libgnumalloc.so.${SHLIB_MAJOR}.${SHLIB_MINOR} && \
 	  ln -fs libfakegnumalloc.so.${SHLIB_MAJOR}.${SHLIB_MINOR} \
 		 libgnumalloc.so.${SHLIB_MAJOR}.${SHLIB_MINOR} )
 
