@@ -161,6 +161,19 @@ distribution:
 .endif
 
 distrib-dirs:
+	-set - `grep "^[a-zA-Z]" ${.CURDIR}/locale.deprecated`; \
+	while [ $$# -gt 0 ] ; \
+	do \
+		for dir in /usr/share/locale \
+			   /usr/share/nls \
+			   /usr/local/share/nls; \
+		do \
+			test -d ${DESTDIR}/$${dir} && cd ${DESTDIR}/$${dir}; \
+			test -L "$$2" && rm -rf "$$2"; \
+			test \! -L "$$1" && test -d "$$1" && mv "$$1" "$$2"; \
+		done; \
+		shift; shift; \
+	done
 	mtree -deU -f ${.CURDIR}/mtree/BSD.root.dist -p ${DESTDIR}/
 	mtree -deU -f ${.CURDIR}/mtree/BSD.var.dist -p ${DESTDIR}/var
 	mtree -deU -f ${.CURDIR}/mtree/BSD.usr.dist -p ${DESTDIR}/usr

@@ -40,9 +40,7 @@ it_CH.ISO_8859-1        it_CH.ISO8859-1
 it_CH.ISO_8859-15       it_CH.ISO8859-15
 it_IT.ISO_8859-1        it_IT.ISO8859-1
 it_IT.ISO_8859-15       it_IT.ISO8859-15
-ja_JP.EUC               ja_JP.eucJP
 ja_JP.Shift_JIS         ja_JP.SJIS
-ko_KR.EUC               ko_KR.eucKR
 la_LN.ASCII             la_LN.US-ASCII
 la_LN.ISO_8859-1        la_LN.ISO8859-1
 la_LN.ISO_8859-15       la_LN.ISO8859-15
@@ -63,4 +61,3 @@ sl_SI.ISO_8859-2        sl_SI.ISO8859-2
 sv_SE.ISO_8859-1        sv_SE.ISO8859-1
 sv_SE.ISO_8859-15       sv_SE.ISO8859-15
 tr_TR.ISO_8859-9        tr_TR.ISO8859-9
-zh_CN.EUC               zh_CN.eucCN
