@@ -207,28 +207,6 @@ typedef struct Shell {
 
 extern char *shellPath;
 extern char *shellName;
-
-/*
- * If REMOTE is defined then these things need exposed, otherwise they are
- * static to job.c!
- */
-#ifdef REMOTE
-extern char 	*targFmt;   	/* Format string for banner that separates
-				 * output from multiple jobs. Contains a
-				 * single %s where the name of the node being
-				 * made should be put. */
-extern GNode	*lastNode;  	/* Last node for which a banner was printed.
-				 * If Rmt module finds it necessary to print
-				 * a banner, it should set this to the node
-				 * for which the banner was printed */
-extern int  	nJobs;	    	/* Number of jobs running (local and remote) */
-extern int  	nLocal;	    	/* Number of jobs running locally */
-extern Lst  	jobs;	    	/* List of active job descriptors */
-extern Lst  	stoppedJobs;	/* List of jobs that are stopped or didn't
-				 * quite get started */
-extern Boolean	jobFull;    	/* Non-zero if no more jobs should/will start*/
-#endif
-
 extern int	maxJobs;	/* Number of jobs that may run */
 
 
