@@ -55,6 +55,7 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/poll.h>
+#include <sys/sysctl.h>
 #include <sys/sysent.h>
 #ifdef KTRACE
 #include <sys/ktrace.h>
@@ -579,8 +580,9 @@ ioctl(p, uap)
 	return (error);
 }
 
-static int	nselcoll;
+static int	nselcoll;	/* Select collisions since boot */
 int	selwait;
+SYSCTL_INT(_kern, OID_AUTO, nselcoll, CTLFLAG_RD, &nselcoll, 0, "");
 
 /*
  * Select system call.
