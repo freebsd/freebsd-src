@@ -2709,6 +2709,7 @@ process_command (argc, argv)
 #ifdef FREEBSD_NATIVE
   add_prefix (&exec_prefixes, "/usr/libexec/", 0, 0, NULL_PTR);
   add_prefix (&exec_prefixes, "/usr/bin/", 0, 0, NULL_PTR);
+  add_prefix (&startfile_prefixes, "/usr/libdata/gcc/", 0, 0, NULL_PTR);
 #else /* not FREEBSD_NATIVE */
 #ifndef OS2
   add_prefix (&exec_prefixes, standard_exec_prefix, 0, 2, NULL_PTR);
