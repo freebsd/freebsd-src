@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)syslogd.c	8.3 (Berkeley) 4/4/94";
 #endif
 static const char rcsid[] =
-	"$Id: syslogd.c,v 1.43 1998/12/04 06:49:20 jkh Exp $";
+	"$Id: syslogd.c,v 1.44 1998/12/28 00:39:14 cwt Exp $";
 #endif /* not lint */
 
 /*
@@ -1270,7 +1270,7 @@ init(signo)
 		if(*p=='!') {
 			p++;
 			while(isspace(*p)) p++;
-			if(!*p) {
+			if((!*p) || (*p == '*')) {
 				strcpy(prog, "*");
 				continue;
 			}
