@@ -672,7 +672,7 @@ soreceive(so, psa, uio, mp0, controlp, flagsp)
 	struct mbuf **controlp;
 	int *flagsp;
 {
-	register struct mbuf *m, **mp;
+	struct mbuf *m, **mp;
 	register int flags, len, error, s, offset;
 	struct protosw *pr = so->so_proto;
 	struct mbuf *nextrecord;
@@ -798,23 +798,22 @@ dontblock:
 			m = m->m_next;
 		} else {
 			sbfree(&so->so_rcv, m);
-			if (controlp) {
-				if (pr->pr_domain->dom_externalize &&
-				    mtod(m, struct cmsghdr *)->cmsg_type ==
-				    SCM_RIGHTS)
-				   error = (*pr->pr_domain->dom_externalize)(m);
+			so->so_rcv.sb_mb = m->m_next;
+			m->m_next = NULL;
+			if (pr->pr_domain->dom_externalize)
+				error =
+				(*pr->pr_domain->dom_externalize)(m, controlp);
+			else if (controlp)
 				*controlp = m;
-				so->so_rcv.sb_mb = m->m_next;
-				m->m_next = 0;
-				m = so->so_rcv.sb_mb;
-			} else {
-				MFREE(m, so->so_rcv.sb_mb);
-				m = so->so_rcv.sb_mb;
-			}
+			else
+				m_freem(m);
+			m = so->so_rcv.sb_mb;
 		}
 		if (controlp) {
 			orig_resid = 0;
-			controlp = &(*controlp)->m_next;
+			do
+				controlp = &(*controlp)->m_next;
+			while (*controlp != NULL);
 		}
 	}
 	if (m) {
