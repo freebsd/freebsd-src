@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.53 1997/08/09 06:41:06 kato Exp $
+ *  $Id: syscons.c,v 1.54 1997/08/10 10:52:17 kato Exp $
  */
 
 #include "sc.h"
@@ -1109,28 +1109,17 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	    if (scp->his_atr != NULL)
 	    free(scp->his_atr, M_DEVBUF);
 #endif
-	    scp->history_size = *(int*)data;
-	    if (scp->history_size < scp->ysize)
+	    scp->history_size = max(scp->ysize, *(int *)data)*scp->xsize;
+	    scp->history_head = scp->history_pos = scp->history =
+		(u_short *)malloc(scp->history_size*sizeof(u_short),
+				  M_DEVBUF, M_WAITOK);
+	    bzero(scp->history_head, scp->history_size*sizeof(u_short));
 #ifdef PC98
-	    {
+	    scp->his_atr_head = scp->his_atr_pos = scp->his_atr =
+		(u_short *)malloc(scp->history_size*sizeof(u_short),
+				  M_DEVBUF, M_WAITOK);
+	    bzero(scp->his_atr_head, scp->history_size*sizeof(u_short));
 #endif
-		scp->history = NULL;
-#ifdef PC98
-		scp->his_atr = NULL; }
-#endif
-	    else {
-		scp->history_size *= scp->xsize;
-		scp->history_head = scp->history_pos = scp->history =
-		    (u_short *)malloc(scp->history_size*sizeof(u_short),
-				      M_DEVBUF, M_WAITOK);
-		bzero(scp->history_head, scp->history_size*sizeof(u_short));
-#ifdef PC98
-		scp->his_atr_head = scp->his_atr_pos = scp->his_atr =
-		    (u_short *)malloc(scp->history_size*sizeof(u_short),
-				      M_DEVBUF, M_WAITOK);
-		bzero(scp->his_atr_head, scp->history_size*sizeof(u_short));
-#endif
-	    }
 	    return 0;
 	}
 	else
@@ -1314,6 +1303,13 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	free(cut_buffer, M_DEVBUF);
     	cut_buffer = (char *)malloc(scp->xsize*scp->ysize, M_DEVBUF, M_NOWAIT);
 	cut_buffer[0] = 0x00;
+	if (scp->history != NULL)
+	    free(scp->history, M_DEVBUF);
+	scp->history_size = max(HISTORY_SIZE, scp->xsize*scp->ysize);
+	scp->history_head = scp->history_pos = scp->history = (u_short *)
+	    malloc(scp->history_size*sizeof(u_short), M_DEVBUF, M_NOWAIT);
+	if (scp->history != NULL)
+	    bzero(scp->history, scp->history_size*sizeof(u_short));
 	if (scp == cur_console)
 	    set_mode(scp);
 	scp->status &= ~UNKNOWN_MODE;
@@ -3630,7 +3626,7 @@ init_scp(scr_stat *scp)
 #ifdef PC98
     scp->his_atr_head = scp->his_atr_pos = scp->his_atr = NULL;
 #endif
-    scp->history_size = HISTORY_SIZE;
+    scp->history_size = max(HISTORY_SIZE, scp->xsize*scp->ysize);
 #ifdef KANJI
     scp->kanji_1st_char = 0;
     scp->kanji_type = 0;
