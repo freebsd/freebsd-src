@@ -6,7 +6,7 @@
  * Copyright 1994, Robert Knier (rknier@qgraph.com)
  * Copyright 1992, 1994 Drew Eckhardt (drew@colorado.edu)
  * Copyright 1994, Julian Elischer (julian@tfs.com)
- * Copyright 1994, Serge Vakulenko (vak@cronyx.ru)
+ * Copyright 1994-1995, Serge Vakulenko (vak@cronyx.ru)
  *
  * Others that has contributed by example code is
  * 		Glen Overby (overby@cray.com)
@@ -44,6 +44,7 @@
  *               instead of BIOS signatures analysis, better timeout handling,
  *               new asm fragments for data input/output, target-dependent
  *               delays, device flags, polling mode, generic cleanup
+ * vak    950115 Added request-sense ops
  *
  * $Id: seagate.c,v 1.3 1994/06/16 13:26:14 sean Exp $
  */
@@ -52,9 +53,8 @@
  * What should really be done:
  *
  * Restructure interrupt enable/disable code (runs too long with int disabled)
- * Find bug? giving problem with tape status
  * Add code to handle Future Domain 840, 841, 880 and 881
- * add code to use tagged commands in SCSI2
+ * Add code to use tagged commands in SCSI2
  * Add code to handle slow devices better (sleep if device not disconnecting)
  * Fix unnecessary interrupts
  */
@@ -120,16 +120,14 @@
 #   define PRINT(s)     /*void*/
 #endif
 
-#define	SEA_SCB_MAX	8	/* allow maximally 8 scsi control blocks */
 #define SCB_TABLE_SIZE	8	/* start with 8 scb entries in table */
 #define BLOCK_SIZE	512	/* size of READ/WRITE areas on SCSI card */
-#define SEA_SCSI_ADDR   7       /* address of the adapter on the SCSI bus */
+#define HOST_SCSI_ADDR  7       /* address of the adapter on the SCSI bus */
 
 /*
  * Defice config flags
  */
 #define FLAG_NOPARITY   0x01    /* disable SCSI bus parity check */
-#define FLAG_SENSEFIRST 0x02    /* place REQUEST_SENSE ops ahead of queue */
 
 /*
  * Board CONTROL register
@@ -157,19 +155,18 @@
 #define STAT_BITS       "\20\1bsy\2msg\3i/o\4c/d\5req\6sel\7parity\10arb"
 
 /*
- * SCSI bus requests
+ * SCSI bus phases
  */
-#define REQ_MASK        (STAT_MSG | STAT_CD | STAT_IO)
-#define REQ_DATAOUT     0
-#define REQ_DATAIN      STAT_IO
-#define REQ_CMDOUT      STAT_CD
-#define REQ_STATIN      (STAT_CD | STAT_IO)
-#define REQ_MSGOUT      (STAT_MSG | STAT_CD)
-#define REQ_MSGIN       (STAT_MSG | STAT_CD | STAT_IO)
+#define PHASE_MASK              (STAT_MSG | STAT_CD | STAT_IO)
+#define PHASE_DATAOUT           0
+#define PHASE_DATAIN            STAT_IO
+#define PHASE_CMDOUT            STAT_CD
+#define PHASE_STATIN            (STAT_CD | STAT_IO)
+#define PHASE_MSGOUT            (STAT_MSG | STAT_CD)
+#define PHASE_MSGIN             (STAT_MSG | STAT_CD | STAT_IO)
+#define PHASE_NAME(ph)          phase_name[(ph)>>2]
 
-#define REQ_UNKNOWN	0xff
-
-static char *sea_phase_name[] = {
+static char *phase_name[] = {
 	"DATAOUT", "Phase1?",  "Phase2?", "Phase3?",
 	"DATAIN",  "Phase5?",  "Phase6?", "Phase7?",
 	"CMDOUT",  "Phase9?",  "MSGOUT",  "Phase11?",
@@ -193,19 +190,21 @@ static char *sea_phase_name[] = {
 /*
  * SCSI control block used to keep info about a scsi command
  */
-struct sea_scb {
+typedef struct scb {
 	int flags;                      /* status of the instruction */
-#define	SCB_FREE	0
-#define	SCB_ACTIVE	1
-#define SCB_ABORTED	2
-#define SCB_TIMEOUT	4
-#define SCB_ERROR	8
-#define	SCB_TIMECHK	16		/* We have set a timeout on this one */
-	struct sea_scb *next;		/* in free list */
+#define SCB_FREE        0x00
+#define SCB_ACTIVE      0x01
+#define SCB_ABORTED     0x02
+#define SCB_TIMEOUT     0x04
+#define SCB_ERROR       0x08
+#define SCB_TIMECHK     0x10            /* we have set a timeout on this one */
+#define SCB_SENSE       0x20            /* sensed data available */
+#define SCB_TBUSY       0x40            /* target busy */
+	struct scb *next;               /* in free list */
 	struct scsi_xfer *xfer;		/* the scsi_xfer for this cmd */
 	u_char *data;                   /* position in data buffer so far */
 	int32 datalen;			/* bytes remaining to transfer */;
-};
+} scb_t;
 
 typedef enum {
 	CTLR_NONE,
@@ -213,40 +212,36 @@ typedef enum {
 	CTLR_FUTURE_DOMAIN,
 } ctlr_t;
 
-char *sea_name[] = {
-	"Unknown",
-	"Seagate ST01/ST02",
-	"Future Domain TMC-885/TMC-950",
-};
-
 /*
  * Flags for waiting for REQ deassert during some SCSI bus phases.
  */
-struct sea_phase {
+typedef struct {
 	unsigned cmdout1 : 1;   /* after CMDOUT[0] byte */
 	unsigned cmdout : 1;    /* after CMDOUT[1..N] bytes */
 	unsigned msgout : 1;    /* after MSGOUT byte */
 	unsigned statin : 1;    /* after STATIN byte */
-};
+} phase_t;
 
 /*
  * Data structure describing the target state.
  */
-struct sea_target {
-	struct sea_data *adapter;       /* pointer to the adapter structure */
-	volatile u_char busy;           /* mask of busy luns at device target */
-	u_long perrcnt;                 /* counter of target parity errors */
-	struct sea_phase ndelay;        /* "don't delay" flags */
-	struct sea_phase init;          /* "initialized" flags */
-};
+typedef struct {
+	struct adapter *adapter;        /* pointer to the adapter structure */
+	u_char  busy;                   /* mask of busy luns at device target */
+	u_long  perrcnt;                /* counter of target parity errors */
+	phase_t ndelay;                 /* "don't delay" flags */
+	phase_t init;                   /* "initialized" flags */
+} target_t;
 
 /*
  * Data structure describing current status of the scsi bus. One for each
  * controller card.
  */
-struct sea_data {
+typedef struct adapter {
 	ctlr_t  type;                   /* Seagate or Future Domain */
+	char    *name;                  /* adapter name */
 	volatile u_char *addr;          /* base address for card */
+
 	volatile u_char *CONTROL;       /* address of control register */
 	volatile u_char *STATUS;        /* address of status register */
 	volatile u_char *DATA;          /* address of data register */
@@ -255,19 +250,20 @@ struct sea_data {
 	u_char  scsi_id;                /* our scsi id mask */
 	u_char  parity;                 /* parity flag: CMD_EN_PARITY or 0 */
 	u_char  irq;                    /* IRQ number used or 0 if no IRQ */
-	unsigned sensefirst : 1;        /* place REQUEST_SENSE ops ahead */
-	unsigned timeout_active : 1;    /* sea_timeout active (requested) */
+	u_int   timeout_active : 1;     /* timeout() active (requested) */
 
 	struct scsi_link sc_link;	/* struct connecting different data */
-	struct sea_scb *connected;	/* currently connected command */
-	struct sea_scb *issue_queue;	/* waiting to be issued */
-	struct sea_scb *disconnected_queue; /* waiting to reconnect */
+	scb_t   *queue;                 /* waiting to be issued */
+	scb_t   *disconnected_queue;    /* waiting to reconnect */
 
 	int     numscb;                 /* number of scsi control blocks */
-	struct sea_scb scbs[SCB_TABLE_SIZE];
-	struct sea_scb *free_scb;	/* free scb list */
-	struct sea_target target[8];    /* target state data */
-} seadata[NSEA];
+	scb_t   *free_scb;              /* free scb list */
+	scb_t   scbs[SCB_TABLE_SIZE];
+
+	target_t target[8];             /* target state data */
+} adapter_t;
+
+adapter_t seadata[NSEA];
 
 #define IS_BUSY(a,b)    ((a)->target[(b)->xfer->sc_link->target].busy &\
 				(1 << (b)->xfer->sc_link->lun))
@@ -278,13 +274,13 @@ struct sea_data {
 
 /*
  * Wait for condition, given as an boolean expression.
- * Print the message on timeout (approx 10 msec).
+ * Print the message on timeout.
  */
 #define WAITFOR(condition,message) {\
-	register long cnt = 100000; char *msg = message;\
+	register u_long cnt = 100000; char *msg = message;\
 	while (cnt-- && ! (condition)) continue;\
 	if (cnt == -1 && msg)\
-		printf ("sea: timeout waiting for %s\n", msg); }
+		printf ("sea: %s timeout\n", msg); }
 
 /*
  * Seagate adapter does not support in hardware
@@ -305,48 +301,40 @@ struct sea_data {
  * 4) Set `init' flag.  Done.
  */
 #define WAITREQ(t,op,cnt) {\
-	if (! t->ndelay.op &&\
-	    ! sea_wait_for_req_deassert (t->adapter, cnt, #op) &&\
-	    ! t->init.op)\
-		t->ndelay.op = 1;\
-	t->init.op = 1; }
+	if (! (t)->ndelay.op &&\
+	    ! sea_wait_for_req_deassert ((t)->adapter, cnt, #op) &&\
+	    ! (t)->init.op)\
+		(t)->ndelay.op = 1;\
+	(t)->init.op = 1; }
 
-int sea_probe (struct isa_device *dev);
-int sea_detect (struct sea_data *sea, struct isa_device *dev);
-int sea_attach (struct isa_device *dev);
 int seaintr (int unit);
-int32 sea_scsi_cmd (struct scsi_xfer *xs);
-u_int32 sea_adapter_info (int unit);
-void sea_timeout (void *scb);
-void seaminphys (struct buf *bp);
-void sea_done (int unit, struct sea_scb *scb);
-struct sea_scb *sea_get_scb (int unit, int flags);
-void sea_free_scb (int unit, struct sea_scb *scb, int flags);
-static void sea_start (void);
-static void sea_information_transfer (struct sea_data *sea);
-int sea_poll (struct scsi_xfer *xs);
-int sea_init (struct sea_data *sea, struct isa_device *dev);
-int sea_send_scb (struct sea_data *sea, struct sea_scb *scb);
-int sea_reselect (struct sea_data *sea);
-int sea_select (struct sea_data *sea, struct sea_scb *scb);
-int sea_abort (int unit, struct sea_scb *scb);
-void sea_msg_output (struct sea_data *sea, u_char msg);
-u_char sea_msg_input (struct sea_data *sea);
+static int sea_probe (struct isa_device *dev);
+static int sea_detect (adapter_t *z, struct isa_device *dev);
+static int sea_attach (struct isa_device *dev);
+static int32 sea_scsi_cmd (struct scsi_xfer *xs);
+static u_int32 sea_adapter_info (int unit);
+static void sea_timeout (void *scb);
+static void seaminphys (struct buf *bp);
+static void sea_done (adapter_t *z, scb_t *scb);
+static void sea_start (adapter_t *z);
+static void sea_information_transfer (adapter_t *z, scb_t *scb);
+static int sea_poll (adapter_t *z, scb_t *scb);
+static int sea_init (adapter_t *z);
+static int sea_reselect (adapter_t *z);
+static int sea_select (adapter_t *z, scb_t *scb);
+static int sea_abort (adapter_t *z, scb_t *scb);
+static void sea_send_abort (adapter_t *z);
+static u_char sea_msg_input (adapter_t *z);
+static void sea_tick (void *arg);
+static int sea_sense (adapter_t *z, scb_t *scb);
+static void sea_data_output (adapter_t *z, u_char **pdata, u_long *plen);
+static void sea_data_input (adapter_t *z, u_char **pdata, u_long *plen);
+static void sea_cmd_output (target_t *z, u_char *cmd, int cmdlen);
 
-struct scsi_adapter sea_switch = {
-	sea_scsi_cmd, seaminphys, 0, 0,
-	sea_adapter_info, "sea", {0},
+static struct scsi_adapter sea_switch = {
+	sea_scsi_cmd, seaminphys, 0, 0, sea_adapter_info, "sea", {0},
 };
-
-/* the below structure is so we have a default dev struct for our link struct */
-struct scsi_device sea_dev = {
-	NULL,		/* use default error handler */
-	NULL,		/* have a queue, served by this */
-	NULL,		/* have no async handler */
-	NULL,		/* Use default 'done' routine */
-	"sea", 0, {0},
-};
-
+static struct scsi_device sea_dev = { NULL, NULL, NULL, NULL, "sea", 0, {0} };
 struct isa_driver seadriver = { sea_probe, sea_attach, "sea" };
 
 /*
@@ -357,74 +345,96 @@ struct isa_driver seadriver = { sea_probe, sea_attach, "sea" };
  */
 int sea_probe (struct isa_device *dev)
 {
-	struct sea_data *sea = &seadata[dev->id_unit];
+	adapter_t *z = &seadata[dev->id_unit];
 	static const addrtab[] = {
 		0xc8000, 0xca000, 0xcc000, 0xce000, 0xdc000, 0xde000, 0,
 	};
 	int i;
 
+	/* Init fields used by our routines */
+	z->parity = (dev->id_flags & FLAG_NOPARITY) ? 0 : CMD_EN_PARITY;
+	z->scsi_addr = HOST_SCSI_ADDR;
+	z->scsi_id = 1 << z->scsi_addr;
+	z->irq = dev->id_irq ? ffs (dev->id_irq) - 1 : 0;
+	z->queue = 0;
+	z->disconnected_queue = 0;
+	for (i=0; i<8; i++) {
+		z->target[i].adapter = z;
+		z->target[i].busy = 0;
+	}
+
+	/* Link up the free list of scbs */
+	z->numscb = SCB_TABLE_SIZE;
+	z->free_scb = z->scbs;
+	for (i=1; i<SCB_TABLE_SIZE; i++)
+		z->scbs[i-1].next = z->scbs + i;
+	z->scbs[SCB_TABLE_SIZE-1].next = 0;
+
+	/* Detect the adapter. */
 	dev->id_msize = 0x4000;
 	if (! dev->id_maddr)
 		for (i=0; addrtab[i]; ++i) {
 			dev->id_maddr = (u_char*) KERNBASE + addrtab[i];
-			if (sea_detect (sea, dev))
+			if (sea_detect (z, dev))
 				return (1);
 		}
-	else if (sea_detect (sea, dev))
+	else if (sea_detect (z, dev))
 		return (1);
-	sea->type = CTLR_NONE;
+
+	bzero (z, sizeof (*z));
 	return (0);
 }
 
-int sea_detect (struct sea_data *sea, struct isa_device *dev)
+int sea_detect (adapter_t *z, struct isa_device *dev)
 {
-	sea->addr      = dev->id_maddr;
+	z->addr = dev->id_maddr;
 
 	/* Try Seagate. */
-	sea->type      = CTLR_SEAGATE;
-	sea->CONTROL   = sea->addr + 0x1a00; /* ST01/ST02 register offsets */
-	sea->STATUS    = sea->addr + 0x1a00;
-	sea->DATA      = sea->addr + 0x1c00;
-	if (sea_init (sea, dev) == 0)
+	z->type    = CTLR_SEAGATE;
+	z->name    = "Seagate ST01/ST02";
+	z->CONTROL = z->addr + 0x1a00; /* ST01/ST02 register offsets */
+	z->STATUS  = z->addr + 0x1a00;
+	z->DATA    = z->addr + 0x1c00;
+	if (sea_init (z) == 0)
 		return (1);
 
 	/* Try Future Domain. */
-	sea->type      = CTLR_FUTURE_DOMAIN;
-	sea->CONTROL   = sea->addr + 0x1c00; /* TMC-885/TMC-950 reg. offsets */
-	sea->STATUS    = sea->addr + 0x1c00;
-	sea->DATA      = sea->addr + 0x1e00;
-	if (sea_init (sea, dev) == 0)
+	z->type    = CTLR_FUTURE_DOMAIN;
+	z->name    = "Future Domain TMC-885/TMC-950";
+	z->CONTROL = z->addr + 0x1c00; /* TMC-885/TMC-950 reg. offsets */
+	z->STATUS  = z->addr + 0x1c00;
+	z->DATA    = z->addr + 0x1e00;
+	if (sea_init (z) == 0)
 		return (1);
 
 	return (0);
 }
 
 /*
- * Probe the adapter, and if found,
- * reset the board and the scsi bus.
+ * Probe the adapter, and if found, reset the board and the scsi bus.
+ * Return 0 if the adapter found.
  */
-int sea_init (struct sea_data *sea, struct isa_device *dev)
+int sea_init (adapter_t *z)
 {
 	volatile u_char *p;
-	u_char c;
-	int i;
+	int i, c;
 
 	/* Check that STATUS..STATUS+200h are equal. */
-	p = sea->STATUS;
+	p = z->STATUS;
 	c = *p;
 	if (c == 0xff)
 		return (2);
-	while (++p < sea->STATUS+0x200)
+	while (++p < z->STATUS+0x200)
 		if (*p != c)
 			return (3);
 
 	/* Check that DATA..DATA+200h are equal. */
-	for (p=sea->DATA, c= *p++; p<sea->DATA+0x200; ++p)
+	for (p=z->DATA, c= *p++; p<z->DATA+0x200; ++p)
 		if (*p != c)
 			return (4);
 
 	/* Check that addr..addr+1800h are not writable. */
-	for (p=sea->addr; p<sea->addr+0x1800; ++p) {
+	for (p=z->addr; p<z->addr+0x1800; ++p) {
 		c = *p;
 		*p = ~c;
 		if (*p == ~c) {
@@ -434,7 +444,7 @@ int sea_init (struct sea_data *sea, struct isa_device *dev)
 	}
 
 	/* Check that addr+1800h..addr+1880h are writable. */
-	for (p=sea->addr+0x1800; p<sea->addr+0x1880; ++p) {
+	for (p=z->addr+0x1800; p<z->addr+0x1880; ++p) {
 		c = *p;
 		*p = 0x55;
 		if (*p != 0x55) {
@@ -448,62 +458,39 @@ int sea_init (struct sea_data *sea, struct isa_device *dev)
 		}
 	}
 
-	/* Parse device flags. */
-	sea->parity = (dev->id_flags & FLAG_NOPARITY) ? 0 : CMD_EN_PARITY;
-
 	/* Reset the scsi bus (I don't know if this is needed). */
-	*sea->CONTROL = CMD_RST | CMD_DRVR_ENABLE;
+	*z->CONTROL = CMD_RST | CMD_DRVR_ENABLE;
 	/* Hold reset for at least 25 microseconds. */
 	DELAY (25);
 	/* Check that status cleared. */
-	if (*sea->STATUS != 0) {
-		*sea->CONTROL = 0;
+	if (*z->STATUS != 0) {
+		*z->CONTROL = 0;
 		return (8);
 	}
 
 	/* Check that DATA register is writable. */
 	for (i=0; i<256; ++i) {
-		*sea->DATA = i;
-		if (*sea->DATA != i) {
-			*sea->CONTROL = 0;
+		*z->DATA = i;
+		if (*z->DATA != i) {
+			*z->CONTROL = 0;
 			return (9);
 		}
 	}
 
 	/* Enable the adapter. */
-	*sea->CONTROL = CMD_INTR | sea->parity;
+	*z->CONTROL = CMD_INTR | z->parity;
 	/* Wait a Bus Clear Delay (800 ns + bus free delay 800 ns). */
 	DELAY (10);
 
 	/* Check that DATA register is NOT writable. */
-	c = *sea->DATA;
+	c = *z->DATA;
 	for (i=0; i<256; ++i) {
-		*sea->DATA = i;
-		if (*sea->DATA != c) {
-			*sea->CONTROL = 0;
+		*z->DATA = i;
+		if (*z->DATA != c) {
+			*z->CONTROL = 0;
 			return (10);
 		}
 	}
-
-	/* Init fields used by our routines */
-	sea->sensefirst = (dev->id_flags & FLAG_SENSEFIRST) ? 1 : 0;
-	sea->scsi_addr = SEA_SCSI_ADDR;
-	sea->scsi_id = 1 << sea->scsi_addr;
-	sea->irq = dev->id_irq ? ffs (dev->id_irq) - 1 : 0;
-	sea->connected = 0;
-	sea->issue_queue = 0;
-	sea->disconnected_queue = 0;
-	for (i=0; i<8; i++) {
-		sea->target[i].adapter = sea;
-		sea->target[i].busy = 0;
-	}
-
-	/* Link up the free list of scbs */
-	sea->numscb = SCB_TABLE_SIZE;
-	sea->free_scb = sea->scbs;
-	for (i=1; i<SCB_TABLE_SIZE; i++)
-		sea->scbs[i-1].next = sea->scbs + i;
-	sea->scbs[SCB_TABLE_SIZE-1].next = 0;
 
 	return (0);
 }
@@ -521,22 +508,20 @@ static struct kern_devconf sea_kdc[NSEA] = {{
 int sea_attach (struct isa_device *dev)
 {
 	int unit = dev->id_unit;
-	struct sea_data *sea = &seadata[unit];
+	adapter_t *z = &seadata[unit];
 
-	sprintf (sea_description, "%s SCSI controller", sea_name[sea->type]);
-	printf ("\n");
-	printf ("sea%d: type %s%s%s\n", unit, sea_name[sea->type],
-		(dev->id_flags & FLAG_NOPARITY) ? ", no parity" : "",
-		(dev->id_flags & FLAG_SENSEFIRST) ? ", sense ahead" : "");
+	sprintf (sea_description, "%s SCSI controller", z->name);
+	printf ("\nsea%d: type %s%s\n", unit, z->name,
+		(dev->id_flags & FLAG_NOPARITY) ? ", no parity" : "");
 
 	/* fill in the prototype scsi_link */
-	sea->sc_link.adapter_unit = unit;
-	sea->sc_link.adapter_targ = sea->scsi_addr;
-	sea->sc_link.adapter = &sea_switch;
-	sea->sc_link.device = &sea_dev;
+	z->sc_link.adapter_unit = unit;
+	z->sc_link.adapter_targ = z->scsi_addr;
+	z->sc_link.adapter = &sea_switch;
+	z->sc_link.device = &sea_dev;
 
 	/* ask the adapter what subunits are present */
-	scsi_attachdevs (&(sea->sc_link));
+	scsi_attachdevs (&(z->sc_link));
 
 	if (dev->id_unit)
 		sea_kdc[dev->id_unit] = sea_kdc[0];
@@ -564,81 +549,29 @@ void seaminphys (struct buf *bp)
  */
 int seaintr (int unit)
 {
-	struct sea_data *sea = &seadata[unit];
+	adapter_t *z = &seadata[unit];
 
-	PRINT (("sea%d: interrupt status=%b\n", unit, *sea->STATUS, STAT_BITS));
-	while ((*sea->STATUS & (STAT_SEL | STAT_IO)) == (STAT_SEL | STAT_IO)) {
-		/* Reselect interrupt */
-		sea_reselect (sea);
-		sea_start ();
-	}
+	PRINT (("sea%d: interrupt status=%b\n", unit, *z->STATUS, STAT_BITS));
+	sea_start (z);
 	return (1);
 }
 
 /*
- * Get a free scb. If there are none, see if we can allocate a new one. If so,
- * put it in the hash table too, otherwise return an error or sleep.
+ * This routine is used in the case when we have no IRQ line (z->irq == 0).
+ * It is called every timer tick and polls for reconnect from target.
  */
-struct sea_scb *sea_get_scb (int unit, int flags)
+void sea_tick (void *arg)
 {
-	struct sea_data *sea = &seadata[unit];
-	struct sea_scb *scbp;
-	int x = 0;
+	adapter_t *z = arg;
+	int x = splbio ();
 
-	if (! (flags & SCSI_NOMASK))
-		x = splbio ();
-
-	/*
-	 * If we can and have to, sleep waiting for one to come free
-	 * but only if we can't allocate a new one.
-	 */
-	while (! (scbp = sea->free_scb))
-		if (sea->numscb < SEA_SCB_MAX) {
-			PRINT (("malloced new scb\n"));
-			scbp = (struct sea_scb*) malloc (sizeof (struct sea_scb),
-				M_TEMP, M_NOWAIT);
-			if (scbp) {
-				bzero (scbp, sizeof (struct sea_scb));
-				sea->numscb++;
-				scbp->flags = SCB_ACTIVE;
-				scbp->next = 0;
-			} else
-				printf ("sea%d: can't malloc scb\n",unit);
-			goto ret;
-		} else if (! (flags & SCSI_NOSLEEP))
-			tsleep ((caddr_t)&sea->free_scb, PRIBIO, "seascb", 0);
-	if (scbp) {
-		/* Get SCB from free list */
-		sea->free_scb = scbp->next;
-		scbp->next = 0;
-		scbp->flags = SCB_ACTIVE;
+	z->timeout_active = 0;
+	sea_start (z);
+	if (z->disconnected_queue && ! z->timeout_active) {
+		timeout (sea_tick, z, 1);
+		z->timeout_active = 1;
 	}
-ret:    if (! (flags & SCSI_NOMASK))
-		splx (x);
-	return (scbp);
-}
-
-void sea_free_scb (int unit, struct sea_scb *scb, int flags)
-{
-	struct sea_data *sea = &seadata[unit];
-	int x = 0;
-
-	if (! (flags & SCSI_NOMASK))
-		x = splbio ();
-
-	scb->next = sea->free_scb;
-	sea->free_scb = scb;
-	scb->flags = SCB_FREE;
-
-	/*
-	 * If there were none, wake anybody waiting for one to come free,
-	 * starting with queued entries.
-	 */
-	if (! scb->next)
-		wakeup ((caddr_t) &sea->free_scb);
-
-	if (! (flags & SCSI_NOMASK))
-		splx (x);
+	splx (x);
 }
 
 /*
@@ -649,11 +582,11 @@ void sea_free_scb (int unit, struct sea_scb *scb, int flags)
 int32 sea_scsi_cmd (struct scsi_xfer *xs)
 {
 	int unit = xs->sc_link->adapter_unit, flags = xs->flags, x = 0;
-	struct sea_data *sea = &seadata[unit];
-	struct sea_scb *scb;
+	adapter_t *z = &seadata[unit];
+	scb_t *scb;
 
-	PRINT (("sea%d:%d:%d command 0x%x\n", unit, xs->sc_link->target,
-		xs->sc_link->lun, xs->cmd->opcode));
+	/* PRINT (("sea%d/%d/%d command 0x%x\n", unit, xs->sc_link->target,
+		xs->sc_link->lun, xs->cmd->opcode)); */
 	if (xs->bp)
 		flags |= SCSI_NOSLEEP;
 	if (flags & ITSDONE) {
@@ -664,52 +597,51 @@ int32 sea_scsi_cmd (struct scsi_xfer *xs)
 		printf ("sea%d: not in use?", unit);
 		xs->flags |= INUSE;
 	}
-	scb = sea_get_scb (unit, flags);
-	if (! scb) {
-		xs->error = XS_DRIVER_STUFFUP;
-		return (TRY_AGAIN_LATER);
+	if (flags & SCSI_RESET)
+		printf ("sea%d: SCSI_RESET not implemented\n", unit);
+
+	if (! (flags & SCSI_NOMASK))
+		x = splbio ();
+
+	/* Get a free scb.
+	 * If we can and have to, sleep waiting for one to come free. */
+	while (! (scb = z->free_scb)) {
+		if (flags & SCSI_NOSLEEP) {
+			xs->error = XS_DRIVER_STUFFUP;
+			if (! (flags & SCSI_NOMASK))
+				splx (x);
+			return (TRY_AGAIN_LATER);
+		}
+		tsleep ((caddr_t)&z->free_scb, PRIBIO, "seascb", 0);
 	}
+	/* Get scb from free list. */
+	z->free_scb = scb->next;
+	scb->next = 0;
+	scb->flags = SCB_ACTIVE;
 
 	/* Put all the arguments for the xfer in the scb */
 	scb->xfer = xs;
 	scb->datalen = xs->datalen;
 	scb->data = xs->data;
 
-	if (flags & SCSI_RESET)
-		/* Try to send a reset command to the card. This is done
-		 * by calling the Reset function. Should then return COMPLETE.
-		 * Need to take care of the possible current connected command.
-		 * Not implemented right now. */
-		printf ("sea%d: got a SCSI_RESET!\n", unit);
-
-	if (! (flags & SCSI_NOMASK))
-		x = splbio ();
-
 	/* Setup the scb to contain necessary values.
 	 * The interesting values can be read from the xs that is saved.
 	 * I therefore think that the structure can be kept very small.
 	 * The driver doesn't use DMA so the scatter/gather is not needed? */
-	/* A check is done to see if the command contains
-	 * a REQUEST_SENSE command, and if so the command is put first
-	 * in the queue, otherwise the command is added to the end
-	 * of the queue. ?? Not correct ?? */
-	if (! sea->issue_queue ||
-	    (sea->sensefirst && xs->cmd->opcode == REQUEST_SENSE)) {
-		scb->next = sea->issue_queue;
-		sea->issue_queue = scb;
+	if (! z->queue) {
+		scb->next = z->queue;
+		z->queue = scb;
 	} else {
-		struct sea_scb *q;
+		scb_t *q;
 
-		for (q=sea->issue_queue; q->next; q=q->next)
+		for (q=z->queue; q->next; q=q->next)
 			continue;
 		q->next = scb;
 		scb->next = 0;  /* placed at the end of the queue */
 	}
 
-	/* Try to send this command to the board. Because this board
-	 * does not use any mailboxes, this routine simply adds the command
-	 * to the queue held by the sea_data structure. */
-	sea_start ();
+	/* Try to send this command to the board. */
+	sea_start (z);
 
 	/* Usually return SUCCESSFULLY QUEUED. */
 	if (! (flags & SCSI_NOMASK)) {
@@ -721,13 +653,13 @@ int32 sea_scsi_cmd (struct scsi_xfer *xs)
 			return (SUCCESSFULLY_QUEUED);
 		timeout (sea_timeout, (caddr_t) scb, (xs->timeout * hz) / 1000);
 		scb->flags |= SCB_TIMECHK;
-		PRINT (("sea%d:%d:%d command queued\n", unit,
+		PRINT (("sea%d/%d/%d command queued\n", unit,
 			xs->sc_link->target, xs->sc_link->lun));
 		return (SUCCESSFULLY_QUEUED);
 	}
 
 	/* If we can't use interrupts, poll on completion. */
-	if (! sea_poll (xs)) {
+	if (! sea_poll (z, scb)) {
 		/* We timed out, so call the timeout handler manually,
 		 * accounting for the fact that the clock is not running yet
 		 * by taking out the clock queue entry it makes. */
@@ -737,98 +669,71 @@ int32 sea_scsi_cmd (struct scsi_xfer *xs)
 		 * sea_timeout made. */
 		untimeout (sea_timeout, (void*) scb);
 
-		if (! sea_poll (xs))
+		if (! sea_poll (z, scb))
 			/* We timed out again... This is bad. Notice that
 			 * this time there is no clock queue entry to remove. */
 			sea_timeout ((void*) scb);
 	}
-	PRINT (("sea%d:%d:%d command %s\n", unit,
+	/* PRINT (("sea%d/%d/%d command %s\n", unit,
 		xs->sc_link->target, xs->sc_link->lun,
-		xs->error ? "failed" : "done"));
+		xs->error ? "failed" : "done")); */
 	return (xs->error ? HAD_ERROR : COMPLETE);
 }
 
 /*
  * Coroutine that runs as long as more work can be done.
- * Both sea_scsi_cmd and sea_intr will try to start it in
+ * Both scsi_cmd() and intr() will try to start it in
  * case it is not running.
  * Always called with interrupts disabled.
  */
-static void sea_start (void)
+void sea_start (adapter_t *z)
 {
-	int unit, done;
-
-again:  done = 1;
-	for (unit=0; unit<NSEA && seadata[unit].type; ++unit) {
-		struct sea_data *sea = &seadata[unit];
-
-		if (! sea->connected) {
-			/* Search through the issue_queue for a command
-			 * destined for a target that's not busy. */
-			struct sea_scb *q, *prev = 0;
-
-			for (q=sea->issue_queue; q; prev=q, q=q->next) {
-				if (IS_BUSY (sea, q))
-					continue;
-
-				/* First check that if any device has tried
-				 * a reconnect while we have done other things
-				 * with interrupts disabled. */
-				if ((*sea->STATUS & (STAT_SEL | STAT_IO)) ==
-				    (STAT_SEL | STAT_IO)) {
-					sea_reselect (sea);
-					break;
-				}
-
-				/* When we find the command, remove it
-				 * from the issue queue. */
-				if (prev)
-					prev->next = q->next;
-				else
-					sea->issue_queue = q->next;
-				q->next = 0;
-
-				/* Attempt to establish an I_T_L nexus here.
-				 * On success, sea->connected is set.
-				 * On failure, we must add the command back to
-				 * the issue queue so we can keep trying. */
-				if (sea_select (sea, q))
-					break;
-				q->next = sea->issue_queue;
-				sea->issue_queue = q;
-				printf ("sea_start: select failed\n");
-			}
-		}
-
-		if (sea->connected) {
-			/* We are connected. Do the task. */
-			sea_information_transfer (sea);
-			done = 0;
-		}
-	}
-	if (! done)
+	scb_t *q, *prev;
+again:
+	/* First check that if any device has tried
+	 * a reconnect while we have done other things
+	 * with interrupts disabled. */
+	if (sea_reselect (z))
 		goto again;
+
+	/* Search through the queue for a command
+	 * destined for a target that's not busy. */
+	for (q=z->queue, prev=0; q; prev=q, q=q->next) {
+		/* Attempt to establish an I_T_L nexus here. */
+		if (IS_BUSY (z, q) || ! sea_select (z, q))
+			continue;
+
+		/* Remove the command from the issue queue. */
+		if (prev)
+			prev->next = q->next;
+		else
+			z->queue = q->next;
+		q->next = 0;
+
+		/* We are connected. Do the task. */
+		sea_information_transfer (z, q);
+		goto again;
+	}
 }
 
 void sea_timeout (void *arg)
 {
-	struct sea_scb *scb = (struct sea_scb*) arg;
+	scb_t *scb = (scb_t*) arg;
 	int unit = scb->xfer->sc_link->adapter_unit;
+	adapter_t *z = &seadata[unit];
 	int x = splbio ();
 
 	if (! (scb->xfer->flags & SCSI_NOMASK))
-		printf ("sea%d:%d:%d (%s%d) timed out\n", unit,
+		printf ("sea%d/%d/%d (%s%d) timed out\n", unit,
 			scb->xfer->sc_link->target,
 			scb->xfer->sc_link->lun,
 			scb->xfer->sc_link->device->name,
 			scb->xfer->sc_link->dev_unit);
 
-	/*
-	 * If it has been through before, then a previous abort has failed,
-	 * don't try abort again.
-	 */
-	if (! (scb->flags & SCB_ABORTED) /*&& sea_abort (unit, scb)*/) {
-		sea_abort (unit, scb);
+	/* If it has been through before, then a previous abort has failed,
+	 * don't try abort again. */
+	if (! (scb->flags & SCB_ABORTED)) {
+		sea_abort (z, scb);
 		/* 2 seconds for the abort */
 		timeout (sea_timeout, (caddr_t)scb, 2*hz);
 		scb->flags |= (SCB_ABORTED | SCB_TIMECHK);
@@ -836,143 +741,156 @@ void sea_timeout (void *arg)
 		/* abort timed out */
 		scb->flags |= SCB_ABORTED;
 		scb->xfer->retries = 0;
-		sea_done (unit, scb);
+		sea_done (z, scb);
 	}
 	splx (x);
+}
+
+/*
+ * Wait until REQ goes down.  This is needed for some devices (CDROMs)
+ * after every MSGOUT, MSGIN, CMDOUT, STATIN request.
+ * Return true if REQ deassert found.
+ */
+static inline int sea_wait_for_req_deassert (adapter_t *z, int cnt, char *msg)
+{
+	asm ("
+	1:      testb $0x10, %2
+		jz 2f
+		loop 1b
+	2:"
+	: "=c" (cnt)                            /* output */
+	: "0" (cnt), "m" (*z->STATUS));         /* input */
+	if (! cnt) {
+		PRINT (("sea%d (%s) timeout waiting for !REQ\n",
+			z->sc_link.adapter_unit, msg));
+		return (0);
+	}
+	/* PRINT (("sea_wait_for_req_deassert %s count=%d\n", msg, cnt)); */
+	return (1);
 }
 
 /*
  * Establish I_T_L or I_T_L_Q nexus for new or existing command
  * including ARBITRATION, SELECTION, and initial message out
  * for IDENTIFY and queue messages.
- * Return 0 if selection could not execute for some reason, 1 if selection
- * succeded or failed because the target did not respond.
+ * Return 1 if selection succeded.
  */
-int sea_select (struct sea_data *sea, struct sea_scb *scb)
+int sea_select (adapter_t *z, scb_t *scb)
 {
-	PRINT (("sea%d:%d:%d select\n", sea->sc_link.adapter_unit,
-		scb->xfer->sc_link->target, scb->xfer->sc_link->lun));
-	*sea->CONTROL = sea->parity;
-	*sea->DATA = sea->scsi_id;
-	*sea->CONTROL = CMD_START_ARB | sea->parity;
+	/* Start arbitration. */
+	*z->CONTROL = z->parity;
+	*z->DATA = z->scsi_id;
+	*z->CONTROL = CMD_START_ARB | z->parity;
 
 	/* Wait for arbitration to complete. */
-	WAITFOR (*sea->STATUS & STAT_ARB_CMPL, "arbitration");
-
-	if (! (*sea->STATUS & STAT_ARB_CMPL)) {
-		if (*sea->STATUS & STAT_SEL) {
+	WAITFOR (*z->STATUS & STAT_ARB_CMPL, "arbitration");
+	if (! (*z->STATUS & STAT_ARB_CMPL)) {
+		if (*z->STATUS & STAT_SEL) {
 			printf ("sea: arbitration lost\n");
 			scb->flags |= SCB_ERROR;
 		} else {
 			printf ("sea: arbitration timeout\n");
 			scb->flags |= SCB_TIMEOUT;
 		}
-		*sea->CONTROL = CMD_INTR | sea->parity;
+		*z->CONTROL = CMD_INTR | z->parity;
 		return (0);
 	}
 	DELAY (2);
 
-	*sea->DATA = (1 << scb->xfer->sc_link->target) | sea->scsi_id;
-	*sea->CONTROL = CMD_DRVR_ENABLE | CMD_SEL | CMD_ATTN | sea->parity;
+	*z->DATA = (1 << scb->xfer->sc_link->target) | z->scsi_id;
+	*z->CONTROL = CMD_DRVR_ENABLE | CMD_SEL | CMD_ATTN | z->parity;
 	DELAY (1);
 
 	/* Wait for a bsy from target.
 	 * If the target is not present on the bus, we get
 	 * the timeout.  Don't PRINT any message -- it's not an error. */
-	WAITFOR (*sea->STATUS & STAT_BSY, 0);
-
-	if (! (*sea->STATUS & STAT_BSY)) {
-		/* The target does not respond.  Not an error, though.
-		 * Should return some error to the higher level driver? */
-		*sea->CONTROL = CMD_INTR | sea->parity;
+	WAITFOR (*z->STATUS & STAT_BSY, 0);
+	if (! (*z->STATUS & STAT_BSY)) {
+		/* The target does not respond.  Not an error, though. */
+		PRINT (("sea%d/%d/%d target does not respond\n",
+			z->sc_link.adapter_unit, scb->xfer->sc_link->target,
+			scb->xfer->sc_link->lun));
+		*z->CONTROL = CMD_INTR | z->parity;
 		scb->flags |= SCB_TIMEOUT;
-		return (1);
-	}
-
-	/* Try to make the target to take a message from us. */
-	*sea->CONTROL = CMD_DRVR_ENABLE | CMD_ATTN | sea->parity;
-	DELAY (1);
-
-	/* Should start a msg_out phase. */
-	WAITFOR (*sea->STATUS & STAT_REQ, 0);
-
-	if (! (*sea->STATUS & STAT_REQ)) {
-		/* This should not be taken as an error, but more like
-		 * an unsupported feature!
-		 * Should set a flag indicating that the target don't support
-		 * messages, and continue without failure.
-		 * (THIS IS NOT AN ERROR!)
-		 */
-		printf ("sea: target does not support messages, canceled\n");
-		scb->flags |= SCB_ERROR;
-		*sea->CONTROL = CMD_INTR | sea->parity;
 		return (0);
 	}
 
-	sea->connected = scb;
-	SET_BUSY (sea, scb);
-	*sea->CONTROL = CMD_DRVR_ENABLE | sea->parity;
+	/* Try to make the target to take a message from us.
+	 * Should start a MSGOUT phase. */
+	*z->CONTROL = CMD_DRVR_ENABLE | CMD_ATTN | z->parity;
+	DELAY (1);
+	WAITFOR (*z->STATUS & STAT_REQ, 0);
+	if (! (*z->STATUS & STAT_REQ)) {
+		PRINT (("sea%d/%d/%d timeout waiting for REQ\n",
+			z->sc_link.adapter_unit, scb->xfer->sc_link->target,
+			scb->xfer->sc_link->lun));
+		scb->flags |= SCB_ERROR;
+		*z->CONTROL = CMD_INTR | z->parity;
+		return (0);
+	}
+
+	/* Check for phase mismatch. */
+	if ((*z->STATUS & PHASE_MASK) != PHASE_MSGOUT) {
+		PRINT (("sea%d/%d/%d waiting for MSGOUT: invalid phase %s\n",
+			z->sc_link.adapter_unit, scb->xfer->sc_link->target,
+			scb->xfer->sc_link->lun,
+			PHASE_NAME (*z->STATUS & PHASE_MASK)));
+		scb->flags |= SCB_ERROR;
+		*z->CONTROL = CMD_INTR | z->parity;
+		return (0);
+	}
 
 	/* Allow disconnects. */
-	sea_msg_output (sea, MSG_IDENTIFY (scb->xfer->sc_link->lun));
+	*z->CONTROL = CMD_DRVR_ENABLE | z->parity;
+	*z->DATA = MSG_IDENTIFY (scb->xfer->sc_link->lun);
+	WAITREQ (&z->target[scb->xfer->sc_link->target], msgout, 1000);
+	*z->CONTROL = CMD_INTR | CMD_DRVR_ENABLE | z->parity;
 
-	if (! (*sea->STATUS & STAT_BSY))
-		printf ("sea: target disconnected after successful arbitrate\n");
-
-	*sea->CONTROL = CMD_INTR | CMD_DRVR_ENABLE | sea->parity;
+	SET_BUSY (z, scb);
 	return (1);
 }
 
-int sea_reselect (struct sea_data *sea)
+int sea_reselect (adapter_t *z)
 {
-	struct sea_scb *q = 0, *prev = 0;
-	u_char msg, target_mask;
-
-	PRINT (("sea%d reselect: ", sea->sc_link.adapter_unit));
-
-	if (! (*sea->STATUS & STAT_SEL)) {
-		printf ("sea: wrong state 0x%x\n", *sea->STATUS);
-		return (0);
-	}
-
+	scb_t *q = 0, *prev = 0;
+	u_char msg, target_mask, lun;
+again:
 	/* Wait for a device to win the reselection phase. */
 	/* Signals this by asserting the I/O signal. */
-	WAITFOR ((*sea->STATUS & (STAT_SEL | STAT_IO | STAT_BSY)) ==
-		(STAT_SEL | STAT_IO), "reselection phase");
+	if ((*z->STATUS & (STAT_SEL | STAT_IO | STAT_BSY)) !=
+	    (STAT_SEL | STAT_IO))
+		return (0);
 
 	/* The data bus contains original initiator id ORed with target id. */
 	/* See that we really are the initiator. */
-	target_mask = *sea->DATA;
-	if (! (target_mask & sea->scsi_id)) {
-		printf ("sea: polled reselection was not for me: %x\n",
-			target_mask);
-		return (0);
+	target_mask = *z->DATA;
+	if (! (target_mask & z->scsi_id)) {
+		PRINT (("sea%d reselect not for me: mask=0x%x, status=%b\n",
+			z->sc_link.adapter_unit, target_mask,
+			*z->STATUS, STAT_BITS));
+		goto again;
 	}
 
 	/* Find target who won. */
 	/* Host responds by asserting the BSY signal. */
 	/* Target should respond by deasserting the SEL signal. */
-	target_mask &= ~sea->scsi_id;
-	*sea->CONTROL = CMD_DRVR_ENABLE | CMD_BSY | sea->parity;
-	WAITFOR (! (*sea->STATUS & STAT_SEL), "reselection acknowledge");
+	target_mask &= ~z->scsi_id;
+	*z->CONTROL = CMD_DRVR_ENABLE | CMD_BSY | z->parity;
+	WAITFOR (! (*z->STATUS & STAT_SEL), "reselection acknowledge");
 
 	/* Remove the busy status. */
-	*sea->CONTROL = CMD_INTR | CMD_DRVR_ENABLE | sea->parity;
-
-	/* We are connected. Now we wait for the MSGIN condition. */
-	WAITFOR (*sea->STATUS & STAT_REQ, "identify message");
+	/* Target should set the MSGIN phase. */
+	*z->CONTROL = CMD_INTR | CMD_DRVR_ENABLE | z->parity;
+	WAITFOR (*z->STATUS & STAT_REQ, "identify message");
 
 	/* Hope we get an IDENTIFY message. */
-	msg = sea_msg_input (sea);
-	if (! MSG_ISIDENT (msg))
-		printf ("sea: expecting IDENTIFY message, got 0x%x\n", msg);
-	else {
+	msg = sea_msg_input (z);
+	if (MSG_ISIDENT (msg)) {
 		/* Find the command corresponding to the I_T_L or I_T_L_Q
 		 * nexus we just restablished, and remove it from
 		 * the disconnected queue. */
-		unsigned char lun = (msg & 7);
-
-		for (q=sea->disconnected_queue; q; prev=q, q=q->next) {
+		lun = (msg & 7);
+		for (q=z->disconnected_queue; q; prev=q, q=q->next) {
 			if (target_mask != (1 << q->xfer->sc_link->target))
 				continue;
 			if (lun != q->xfer->sc_link->lun)
@@ -980,22 +898,25 @@ int sea_reselect (struct sea_data *sea)
 			if (prev)
 				prev->next = q->next;
 			else
-				sea->disconnected_queue = q->next;
+				z->disconnected_queue = q->next;
 			q->next = 0;
-			sea->connected = q;
-			PRINT (("lun %d done\n", lun));
+			PRINT (("sea%d/%d/%d reselect done\n",
+				z->sc_link.adapter_unit,
+				ffs (target_mask) - 1, lun));
+			sea_information_transfer (z, q);
+			WAITFOR (! (*z->STATUS & STAT_BSY), "reselect !busy");
 			return (1);
 		}
-		/* Since we have an established nexus that we can't
-		 * do anything with, we must abort it. */
-		PRINT (("lun %d aborted\n", lun));
-	}
+	} else
+		printf ("sea%d reselect: expecting IDENTIFY, got 0x%x\n",
+			z->sc_link.adapter_unit, msg);
 
-	/* Abort the connection. */
-	*sea->CONTROL = CMD_INTR | CMD_DRVR_ENABLE | CMD_ATTN | sea->parity;
-	sea_msg_output (sea, MSG_ABORT);
-	*sea->CONTROL = CMD_INTR | CMD_DRVR_ENABLE | sea->parity;
-	return (0);
+	/* Since we have an established nexus that we can't
+	 * do anything with, we must abort it. */
+	sea_send_abort (z);
+	PRINT (("sea%d reselect aborted\n", z->sc_link.adapter_unit));
+	WAITFOR (! (*z->STATUS & STAT_BSY), "bus free after reselect abort");
+	goto again;
 }
 
 /*
@@ -1003,15 +924,14 @@ int sea_reselect (struct sea_data *sea)
  * Return 1 success, 0 on failure.
  * Called on splbio level.
  */
-int sea_abort (int unit, struct sea_scb *scb)
+int sea_abort (adapter_t *z, scb_t *scb)
 {
-	struct sea_data *sea = &seadata[unit];
-	struct sea_scb *q, **prev;
+	scb_t *q, **prev;
 
 	/* If the command hasn't been issued yet, we simply remove it
 	 * from the issue queue. */
-	prev = &sea->issue_queue;
-	for (q=sea->issue_queue; q; q=q->next) {
+	prev = &z->queue;
+	for (q=z->queue; q; q=q->next) {
 		if (scb == q) {
 			(*prev) = q->next;
 			q->next = 0;
@@ -1020,29 +940,19 @@ int sea_abort (int unit, struct sea_scb *scb)
 		prev = &q->next;
 	}
 
-	/* If any commands are connected, we're going to fail the abort
-	 * and let the high level SCSI driver retry at a later time
-	 * or issue a reset. */
-	if (sea->connected)
-		return (0);
-
 	/* If the command is currently disconnected from the bus,
-	 * and there are no connected commands, we reconnect
-	 * the I_T_L or I_T_L_Q nexus associated with it,
+	 * we reconnect the I_T_L or I_T_L_Q nexus associated with it,
 	 * go into message out, and send an abort message. */
-	for (q=sea->disconnected_queue; q; q=q->next) {
+	for (q=z->disconnected_queue; q; q=q->next) {
 		if (scb != q)
 			continue;
 
-		if (! sea_select (sea, scb))
+		if (! sea_select (z, scb))
 			return (0);
+		sea_send_abort (z);
 
-		*sea->CONTROL = CMD_INTR | CMD_DRVR_ENABLE | CMD_ATTN | sea->parity;
-		sea_msg_output (sea, MSG_ABORT);
-		*sea->CONTROL = CMD_INTR | CMD_DRVR_ENABLE | sea->parity;
-
-		prev = &sea->disconnected_queue;
-		for (q=sea->disconnected_queue; q; q=q->next) {
+		prev = &z->disconnected_queue;
+		for (q=z->disconnected_queue; q; q=q->next) {
 			if (scb == q) {
 				*prev = q->next;
 				q->next = 0;
@@ -1054,11 +964,15 @@ int sea_abort (int unit, struct sea_scb *scb)
 		}
 	}
 
-	/* Command not found in any queue, race condition in the code? */
-	return (1);
+	/* Command not found in any queue. */
+	return (0);
 }
 
-void sea_done (int unit, struct sea_scb *scb)
+/*
+ * The task accomplished, mark the i/o control block as done.
+ * Always called with interrupts disabled.
+ */
+void sea_done (adapter_t *z, scb_t *scb)
 {
 	struct scsi_xfer *xs = scb->xfer;
 
@@ -1073,9 +987,23 @@ void sea_done (int unit, struct sea_scb *scb)
 			xs->error = XS_TIMEOUT;
 		else if (scb->flags & SCB_ERROR)
 			xs->error = XS_DRIVER_STUFFUP;
+		else if (scb->flags & SCB_TBUSY)
+			xs->error = XS_BUSY;
+		else if (scb->flags & SCB_SENSE)
+			xs->error = XS_SENSE;
 
 	xs->flags |= ITSDONE;
-	sea_free_scb (unit, scb, xs->flags);
+
+	/* Free the control block. */
+	scb->next = z->free_scb;
+	z->free_scb = scb;
+	scb->flags = SCB_FREE;
+
+	/* If there were none, wake anybody waiting for one to come free,
+	 * starting with queued entries. */
+	if (! scb->next)
+		wakeup ((caddr_t) &z->free_scb);
+
 	scsi_done (xs);
 }
 
@@ -1083,82 +1011,125 @@ void sea_done (int unit, struct sea_scb *scb)
  * Wait for completion of command in polled mode.
  * Always called with interrupts masked out.
  */
-int sea_poll (struct scsi_xfer *xs)
+int sea_poll (adapter_t *z, scb_t *scb)
 {
 	int count;
 
-	for (count=0; count<1000; ++count) {
-		if (xs->flags & ITSDONE)
-			return (1);
-		/* Try to do something. */
-		DELAY (30);
-		sea_start ();
+	for (count=0; count<30; ++count) {
+		DELAY (1000);                   /* delay for a while */
+		sea_start (z);                  /* retry operation */
+		if (scb->xfer->flags & ITSDONE)
+			return (1);             /* all is done */
+		if (scb->flags & SCB_TIMEOUT)
+			return (0);             /* no target present */
 	}
 	return (0);
 }
 
 /*
- * Wait until REQ goes down.  This is needed for some devices (CDROMs)
- * after every MSGOUT, MSGIN, CMDOUT, STATIN request.
- * Return true if REQ deassert found.
+ * Send data to the target.
  */
-static inline int sea_wait_for_req_deassert (struct sea_data *sea,
-	int cnt, char *msg)
+void sea_data_output (adapter_t *z, u_char **pdata, u_long *plen)
 {
-	asm ("
-	1:      testb $0x10, %2
-		jz 2f
+	u_char *data = *pdata;
+	u_long len = *plen;
+
+	asm ("cld
+	1:      movb (%%ebx), %%al
+		xorb $1, %%al
+		testb $0xf, %%al
+		jnz 2f
+		testb $0x10, %%al
+		jz 1b
+		lodsb
+		movb %%al, (%%edi)
 		loop 1b
 	2:"
-	: "=c" (cnt)                            /* output */
-	: "0" (cnt), "m" (*sea->STATUS));       /* input */
-	if (! cnt) {
-		PRINT (("sea%d:%d:%d (%s) timeout waiting for !REQ\n",
-			sea->sc_link.adapter_unit,
-			sea->connected->xfer->sc_link->target,
-			sea->connected->xfer->sc_link->lun, msg));
-		return (0);
+	: "=S" (data), "=c" (len)               /* output */
+	: "D" (z->DATA), "b" (z->STATUS),       /* input */
+		"0" (data), "1" (len)
+	: "eax", "ebx", "edi");                 /* clobbered */
+	PRINT (("sea (DATAOUT) send %ld bytes\n", *plen - len));
+	*plen = len;
+	*pdata = data;
+}
+
+/*
+ * Receive data from the target.
+ */
+void sea_data_input (adapter_t *z, u_char **pdata, u_long *plen)
+{
+	u_char *data = *pdata;
+	u_long len = *plen;
+
+	if (len >= 512) {
+		asm ("  cld
+		1:      movb (%%esi), %%al
+			xorb $5, %%al
+			testb $0xf, %%al
+			jnz 2f
+			testb $0x10, %%al
+			jz 1b
+			movb (%%ebx), %%al
+			stosb
+			loop 1b
+		2:"
+		: "=D" (data), "=c" (len)               /* output */
+		: "b" (z->DATA), "S" (z->STATUS),
+			"0" (data), "1" (len)           /* input */
+		: "eax", "ebx", "esi");                 /* clobbered */
+	} else {
+		asm ("  cld
+		1:      movb (%%esi), %%al
+			xorb $5, %%al
+			testb $0xf, %%al
+			jnz 2f
+			testb $0x10, %%al
+			jz 1b
+			movb (%%ebx), %%al
+			stosb
+			movb $1000, %%al
+		3:      testb $0x10, (%%esi)
+			jz 4f
+			dec %%al
+			jnz 3b
+		4:      loop 1b
+		2:"
+		: "=D" (data), "=c" (len)               /* output */
+		: "b" (z->DATA), "S" (z->STATUS),
+			"0" (data), "1" (len)           /* input */
+		: "eax", "ebx", "esi");                 /* clobbered */
 	}
-	/* PRINT (("sea_wait_for_req_deassert %s count=%d\n", msg, cnt)); */
-	return (1);
+	PRINT (("sea (DATAIN) got %ld bytes\n", *plen - len));
+	*plen = len;
+	*pdata = data;
 }
 
 /*
  * Send the command to the target.
  */
-void sea_cmd_output (struct sea_data *sea, u_char *cmd, int cmdlen)
+void sea_cmd_output (target_t *t, u_char *cmd, int cmdlen)
 {
-	struct sea_target *t = &sea->target[sea->connected->xfer->sc_link->target];
+	adapter_t *z = t->adapter;
 
-	if (! cmdlen || ! cmd) {
-		printf ("sea%d:%d:%d no command\n",
-			sea->sc_link.adapter_unit,
-			sea->connected->xfer->sc_link->target,
-			sea->connected->xfer->sc_link->lun);
-		*sea->DATA = 0;
-		sea_wait_for_req_deassert (sea, 1000, "ZCMDOUT");
-		return;
-	}
-	PRINT (("sea%d:%d:%d (CMDOUT) send %d bytes ",
-		sea->sc_link.adapter_unit,
-		sea->connected->xfer->sc_link->target,
-		sea->connected->xfer->sc_link->lun, cmdlen));
+	PRINT (("sea%d send command (%d bytes) ", z->sc_link.adapter_unit,
+		cmdlen));
 
 	PRINT (("%x", *cmd));
-	*sea->DATA = *cmd++;
+	*z->DATA = *cmd++;
 	WAITREQ (t, cmdout1, 10000);
 	--cmdlen;
 
 	while (cmdlen) {
 		/* Check for target disconnect. */
-		u_char sts = *sea->STATUS;
+		u_char sts = *z->STATUS;
 		if (! (sts & STAT_BSY))
 			break;
 
 		/* Check for phase mismatch. */
-		if ((sts & REQ_MASK) != REQ_CMDOUT) {
+		if ((sts & PHASE_MASK) != PHASE_CMDOUT) {
 			printf ("sea: sending command: invalid phase %s\n",
-				sea_phase_name[sts & REQ_MASK]);
+				PHASE_NAME (sts & PHASE_MASK));
 			return;
 		}
 
@@ -1167,7 +1138,7 @@ void sea_cmd_output (struct sea_data *sea, u_char *cmd, int cmdlen)
 			continue;
 
 		PRINT (("-%x", *cmd));
-		*sea->DATA = *cmd++;
+		*z->DATA = *cmd++;
 		WAITREQ (t, cmdout, 1000);
 		--cmdlen;
 	}
@@ -1177,100 +1148,135 @@ void sea_cmd_output (struct sea_data *sea, u_char *cmd, int cmdlen)
 /*
  * Send the message to the target.
  */
-void sea_msg_output (struct sea_data *sea, u_char msg)
+void sea_send_abort (adapter_t *z)
 {
-	struct sea_target *t = sea->connected ?
-		&sea->target[sea->connected->xfer->sc_link->target] : 0;
-	register u_long cnt = 0;
-	register u_char sts;
+	u_char sts;
+
+	*z->CONTROL = CMD_INTR | CMD_DRVR_ENABLE | CMD_ATTN | z->parity;
 
 	/* Wait for REQ, after which the phase bits will be valid. */
-again:  sts = *sea->STATUS;
-	if (! (sts & STAT_REQ)) {
-		if (++cnt > 1000000L) {
-			printf ("sea: sending message: no REQ\n");
-			return;
-		}
-		goto again;
-	}
+	WAITFOR (*z->STATUS & STAT_REQ, "abort message");
+	sts = *z->STATUS;
+	if (! (sts & STAT_REQ))
+		goto ret;
 
 	/* Check for phase mismatch. */
-	if ((sts & REQ_MASK) != REQ_MSGOUT) {
-		printf ("sea: sending message: invalid phase %s\n",
-			sea_phase_name[sts & REQ_MASK]);
-		return;
+	if ((sts & PHASE_MASK) != PHASE_MSGOUT) {
+		printf ("sea: sending MSG_ABORT: invalid phase %s\n",
+			PHASE_NAME (sts & PHASE_MASK));
+		goto ret;
 	}
 
-	*sea->DATA = msg;
-	if (! t)
-		sea_wait_for_req_deassert (sea, 1000, "MSG_OUTPUT");
-	else
-		WAITREQ (t, msgout, 1000);
-	PRINT (("sea%d:%d:%d (MSGOUT) send 0x%x\n",
-		sea->sc_link.adapter_unit,
-		sea->connected ? sea->connected->xfer->sc_link->target : 9,
-		sea->connected ? sea->connected->xfer->sc_link->lun : 9,
-		msg));
+	*z->DATA = MSG_ABORT;
+	sea_wait_for_req_deassert (z, 1000, "MSG_OUTPUT");
+	PRINT (("sea%d send abort message\n", z->sc_link.adapter_unit));
+ret:
+	*z->CONTROL = CMD_INTR | CMD_DRVR_ENABLE | z->parity;
 }
 
 /*
  * Get the message from the target.
  * Return the length of the received message.
  */
-u_char sea_msg_input (struct sea_data *sea)
+u_char sea_msg_input (adapter_t *z)
 {
-	register u_long cnt = 0;
-	register u_char sts, msg;
+	u_char sts, msg;
 
 	/* Wait for REQ, after which the phase bits will be valid. */
-again:  sts = *sea->STATUS;
-	if (! (sts & STAT_REQ)) {
-		if (++cnt > 1000000L) {
-			printf ("sea: receiving message: no REQ\n");
-			return (MSG_ABORT);
-		}
-		goto again;
-	}
+	WAITFOR (*z->STATUS & STAT_REQ, "message input");
+	sts = *z->STATUS;
+	if (! (sts & STAT_REQ))
+		return (MSG_ABORT);
 
 	/* Check for phase mismatch.
-	 * Reached if the target decides that it has finished
-	 * the transfer. */
-	if ((sts & REQ_MASK) != REQ_MSGIN) {
+	 * Reached if the target decides that it has finished the transfer. */
+	if ((sts & PHASE_MASK) != PHASE_MSGIN) {
 		printf ("sea: sending message: invalid phase %s\n",
-			sea_phase_name[sts & REQ_MASK]);
+			PHASE_NAME (sts & PHASE_MASK));
 		return (MSG_ABORT);
 	}
 
 	/* Do actual transfer from SCSI bus to/from memory. */
-	msg = *sea->DATA;
-	sea_wait_for_req_deassert (sea, 1000, "MSG_INPUT");
-	PRINT (("sea%d:%d:%d (MSG_INPUT) got 0x%x\n",
-		sea->sc_link.adapter_unit,
-		sea->connected ? sea->connected->xfer->sc_link->target : 9,
-		sea->connected ? sea->connected->xfer->sc_link->lun : 9, msg));
+	msg = *z->DATA;
+	sea_wait_for_req_deassert (z, 1000, "MSG_INPUT");
+	PRINT (("sea%d (MSG_INPUT) got 0x%x\n", z->sc_link.adapter_unit, msg));
 	return (msg);
 }
 
 /*
- * This routine is used in the case when we have no IRQ line (sea->irq == 0).
- * It is called every timer tick and polls for reconnect from target.
+ * Send request-sense op to the target.
+ * Return 1 success, 0 on failure.
+ * Called on splbio level.
  */
-void sea_tick (void *arg)
+int sea_sense (adapter_t *z, scb_t *scb)
 {
-	struct sea_data *sea = arg;
-	int x = splbio ();
+	u_char cmd[6], status, msg, *data;
+	u_long len;
 
-	sea->timeout_active = 0;
-	while ((*sea->STATUS & (STAT_SEL | STAT_IO)) == (STAT_SEL | STAT_IO)) {
-		/* Reselect interrupt */
-		sea_reselect (sea);
-		sea_start ();
-	}
-	if (sea->disconnected_queue && ! sea->timeout_active) {
-		timeout (sea_tick, sea, 1);
-		sea->timeout_active = 1;
-	}
-	splx (x);
+	/* Wait for target to disconnect. */
+	WAITFOR (! (*z->STATUS & STAT_BSY), "sense bus free");
+	if (*z->STATUS & STAT_BSY)
+		return (0);
+
+	/* Select the target again. */
+	if (! sea_select (z, scb))
+		return (0);
+
+	/* Wait for CMDOUT phase. */
+	WAITFOR (*z->STATUS & STAT_REQ, "sense CMDOUT");
+	if (! (*z->STATUS & STAT_REQ) ||
+	    (*z->STATUS & PHASE_MASK) != PHASE_CMDOUT)
+		return (0);
+
+	/* Send command. */
+	len = sizeof (scb->xfer->sense);
+	cmd[0] = REQUEST_SENSE;
+	cmd[1] = scb->xfer->sc_link->lun << 5;
+	cmd[2] = 0;
+	cmd[3] = 0;
+	cmd[4] = len;
+	cmd[5] = 0;
+	sea_cmd_output (&z->target[scb->xfer->sc_link->target],
+		cmd, sizeof (cmd));
+
+	/* Wait for DATAIN phase. */
+	WAITFOR (*z->STATUS & STAT_REQ, "sense DATAIN");
+	if (! (*z->STATUS & STAT_REQ) ||
+	    (*z->STATUS & PHASE_MASK) != PHASE_DATAIN)
+		return (0);
+
+	data = (u_char*) &scb->xfer->sense;
+	sea_data_input (z, &data, &len);
+	PRINT (("sea%d sense %x-%x-%x-%x-%x-%x-%x-%x\n",
+		z->sc_link.adapter_unit, scb->xfer->sense.error_code,
+		scb->xfer->sense.ext.extended.segment,
+		scb->xfer->sense.ext.extended.flags,
+		scb->xfer->sense.ext.extended.info[0],
+		scb->xfer->sense.ext.extended.info[1],
+		scb->xfer->sense.ext.extended.info[2],
+		scb->xfer->sense.ext.extended.info[3],
+		scb->xfer->sense.ext.extended.extra_len));
+
+	/* Wait for STATIN phase. */
+	WAITFOR (*z->STATUS & STAT_REQ, "sense STATIN");
+	if (! (*z->STATUS & STAT_REQ) ||
+	    (*z->STATUS & PHASE_MASK) != PHASE_STATIN)
+		return (0);
+
+	status = *z->DATA;
+
+	/* Wait for MSGIN phase. */
+	WAITFOR (*z->STATUS & STAT_REQ, "sense MSGIN");
+	if (! (*z->STATUS & STAT_REQ) ||
+	    (*z->STATUS & PHASE_MASK) != PHASE_MSGIN)
+		return (0);
+
+	msg = *z->DATA;
+
+	if (status != 0 || msg != 0)
+		printf ("sea%d: bad sense status=0x%x, msg=0x%x\n",
+			z->sc_link.adapter_unit, status, msg);
+	return (1);
 }
 
 /*
@@ -1278,160 +1284,120 @@ void sea_tick (void *arg)
  * call sea_done when task accomplished. Dialog controlled by the target.
  * Always called with interrupts disabled.
  */
-static void sea_information_transfer (register struct sea_data *sea)
+void sea_information_transfer (adapter_t *z, scb_t *scb)
 {
-	struct sea_scb *scb = sea->connected;   /* current control block */
 	u_char *data = scb->data;               /* current data buffer */
 	u_long datalen = scb->datalen;          /* current data transfer size */
-	struct sea_target *t = &sea->target[scb->xfer->sc_link->target];
+	target_t *t = &z->target[scb->xfer->sc_link->target];
 	register u_char sts;
 	u_char msg;
 
-	while ((sts = *sea->STATUS) & STAT_BSY) {
+	while ((sts = *z->STATUS) & STAT_BSY) {
 		/* We only have a valid SCSI phase when REQ is asserted. */
 		if (! (sts & STAT_REQ))
 			continue;
 		if (sts & STAT_PARITY) {
 			int target = scb->xfer->sc_link->target;
-			if (++sea->target[target].perrcnt < 8)
-				printf ("sea%d:%d:%d parity error\n",
-					sea->sc_link.adapter_unit, target,
+			if (++z->target[target].perrcnt <= 8)
+				printf ("sea%d/%d/%d parity error\n",
+					z->sc_link.adapter_unit, target,
 					scb->xfer->sc_link->lun);
-			else if (sea->target[target].perrcnt == 8)
-				printf ("sea%d:%d:%d too many parity errors, not logging any more\n",
-					sea->sc_link.adapter_unit, target,
+			if (z->target[target].perrcnt == 8)
+				printf ("sea%d/%d/%d too many parity errors, not logging any more\n",
+					z->sc_link.adapter_unit, target,
 					scb->xfer->sc_link->lun);
 		}
-		switch (sts & REQ_MASK) {
-		case REQ_DATAOUT:
+		switch (sts & PHASE_MASK) {
+		case PHASE_DATAOUT:
 			if (datalen <= 0) {
-				printf ("sea%d:%d:%d data length underflow\n",
-					sea->sc_link.adapter_unit,
+				printf ("sea%d/%d/%d data length underflow\n",
+					z->sc_link.adapter_unit,
 					scb->xfer->sc_link->target,
 					scb->xfer->sc_link->lun);
-				*sea->DATA = 0;
+				/* send zero byte */
+				*z->DATA = 0;
 				break;
 			}
-			asm ("cld
-			1:      movb (%%ebx), %%al
-				xorb $1, %%al
-				testb $0xf, %%al
-				jnz 2f
-				testb $0x10, %%al
-				jz 1b
-				lodsb
-				movb %%al, (%%edi)
-				loop 1b
-			2:"
-			: "=S" (data), "=c" (datalen)           /* output */
-			: "D" (sea->DATA), "b" (sea->STATUS),   /* input */
-				"0" (data), "1" (datalen)
-			: "eax", "ebx", "edi");                 /* clobbered */
-			PRINT (("sea%d:%d:%d (DATAOUT) send %ld bytes\n",
-				sea->sc_link.adapter_unit,
-				scb->xfer->sc_link->target,
-				scb->xfer->sc_link->lun,
-				scb->datalen - datalen));
+			sea_data_output (z, &data, &datalen);
 			break;
-		case REQ_DATAIN:
+		case PHASE_DATAIN:
 			if (datalen <= 0) {
+				/* Get extra data.  Some devices (e.g. CDROMs)
+				 * use fixed-length blocks (e.g. 2k),
+				 * even if we need less. */
 				PRINT (("@"));
-				sts = *sea->DATA;
+				sts = *z->DATA;
 				break;
 			}
-			if (datalen >= 512) {
-				asm ("  cld
-				1:      movb (%%esi), %%al
-					xorb $5, %%al
-					testb $0xf, %%al
-					jnz 2f
-					testb $0x10, %%al
-					jz 1b
-					movb (%%ebx), %%al
-					stosb
-					loop 1b
-				2:"
-				: "=D" (data), "=c" (datalen)   /* output */
-				: "b" (sea->DATA), "S" (sea->STATUS),
-					"0" (data), "1" (datalen) /* input */
-				: "eax", "ebx", "esi");         /* clobbered */
-			} else {
-				asm ("  cld
-				1:      movb (%%esi), %%al
-					xorb $5, %%al
-					testb $0xf, %%al
-					jnz 2f
-					testb $0x10, %%al
-					jz 1b
-					movb (%%ebx), %%al
-					stosb
-					movb $1000, %%al
-				3:      testb $0x10, (%%esi)
-					jz 4f
-					dec %%al
-					jnz 3b
-				4:      loop 1b
-				2:"
-				: "=D" (data), "=c" (datalen)   /* output */
-				: "b" (sea->DATA), "S" (sea->STATUS),
-					"0" (data), "1" (datalen) /* input */
-				: "eax", "ebx", "esi");         /* clobbered */
-			}
-			PRINT (("sea%d:%d:%d (DATAIN) got %ld bytes\n",
-				sea->sc_link.adapter_unit,
-				scb->xfer->sc_link->target,
-				scb->xfer->sc_link->lun,
-				scb->datalen - datalen));
+			sea_data_input (z, &data, &datalen);
 			break;
-		case REQ_CMDOUT:
-			sea_cmd_output (sea, (u_char*) scb->xfer->cmd,
+		case PHASE_CMDOUT:
+			sea_cmd_output (t, (u_char*) scb->xfer->cmd,
 				scb->xfer->cmdlen);
 			break;
-		case REQ_STATIN:
-			scb->xfer->status = *sea->DATA;
+		case PHASE_STATIN:
+			scb->xfer->status = *z->DATA;
 			WAITREQ (t, statin, 2000);
-			PRINT (("sea%d:%d:%d (STATIN) got 0x%x\n",
-				sea->sc_link.adapter_unit,
+			PRINT (("sea%d/%d/%d (STATIN) got 0x%x\n",
+				z->sc_link.adapter_unit,
 				scb->xfer->sc_link->target,
 				scb->xfer->sc_link->lun,
 				(u_char) scb->xfer->status));
 			break;
-		case REQ_MSGOUT:
-			*sea->DATA = MSG_NOP;
-			sea_wait_for_req_deassert (sea, 1000, "MSGOUT");
-			PRINT (("sea%d:%d:%d (MSGOUT) send NOP\n",
-				sea->sc_link.adapter_unit,
+		case PHASE_MSGOUT:
+			/* Send no-op message. */
+			*z->DATA = MSG_NOP;
+			sea_wait_for_req_deassert (z, 1000, "MSGOUT");
+			PRINT (("sea%d/%d/%d (MSGOUT) send NOP\n",
+				z->sc_link.adapter_unit,
 				scb->xfer->sc_link->target,
 				scb->xfer->sc_link->lun));
 			break;
-		case REQ_MSGIN:
+		case PHASE_MSGIN:
 			/* Don't handle multi-byte messages here, because they
 			 * should not be present here. */
-			msg = *sea->DATA;
-			sea_wait_for_req_deassert (sea, 2000, "MSGIN");
-			PRINT (("sea%d:%d:%d (MSGIN) got 0x%x\n",
-				sea->sc_link.adapter_unit,
+			msg = *z->DATA;
+			sea_wait_for_req_deassert (z, 2000, "MSGIN");
+			PRINT (("sea%d/%d/%d (MSGIN) got 0x%x\n",
+				z->sc_link.adapter_unit,
 				scb->xfer->sc_link->target,
 				scb->xfer->sc_link->lun, msg));
 			switch (msg) {
 			case MSG_COMMAND_COMPLETE:
 				scb->data = data;
 				scb->datalen = datalen;
+				/* In the case of check-condition status,
+				 * perform the request-sense op. */
+				switch (scb->xfer->status & 0x1e) {
+				case SCSI_CHECK:
+					if (sea_sense (z, scb))
+						scb->flags = SCB_SENSE;
+					break;
+				case SCSI_BUSY:
+					scb->flags = SCB_TBUSY;
+					break;
+				}
 				goto done;
 			case MSG_ABORT:
 				printf ("sea: command aborted by target\n");
 				scb->flags = SCB_ABORTED;
 				goto done;
+			case MSG_MESSAGE_REJECT:
+				printf ("sea: message rejected\n");
+				scb->flags = SCB_ABORTED;
+				goto done;
 			case MSG_DISCONNECT:
-				scb->next = sea->disconnected_queue;
-				sea->disconnected_queue = scb;
-				sea->connected = 0;
-				*sea->CONTROL = CMD_INTR | sea->parity;
-				if (! sea->irq && ! sea->timeout_active) {
-					timeout (sea_tick, sea, 1);
-					sea->timeout_active = 1;
+				scb->next = z->disconnected_queue;
+				z->disconnected_queue = scb;
+				if (! z->irq && ! z->timeout_active) {
+					timeout (sea_tick, z, 1);
+					z->timeout_active = 1;
 				}
-				return;
+				PRINT (("sea%d/%d/%d disconnected\n",
+					z->sc_link.adapter_unit,
+					scb->xfer->sc_link->target,
+					scb->xfer->sc_link->lun));
+				goto ret;
 			case MSG_SAVE_POINTERS:
 				scb->data = data;
 				scb->datalen = datalen;
@@ -1440,28 +1406,27 @@ static void sea_information_transfer (register struct sea_data *sea)
 				data = scb->data;
 				datalen = scb->datalen;
 				break;
-			case MSG_MESSAGE_REJECT:
-				PRINT (("sea: message_reject received\n"));
-				break;
 			default:
-				printf ("sea%d:%d:%d unknown message: 0x%x\n",
-					sea->sc_link.adapter_unit, scb->xfer->sc_link->target,
+				printf ("sea%d/%d/%d unknown message: 0x%x\n",
+					z->sc_link.adapter_unit,
+					scb->xfer->sc_link->target,
 					scb->xfer->sc_link->lun, msg);
 				break;
 			}
 			break;
 		default:
-			printf ("sea: unknown phase: %b\n",
-				sts & REQ_MASK, STAT_BITS);
+			printf ("sea: unknown phase: %b\n", sts, STAT_BITS);
+			break;
 		}
 	}
-	printf ("sea%d:%d:%d unexpected target disconnect\n",
-		sea->sc_link.adapter_unit, scb->xfer->sc_link->target,
+	printf ("sea%d/%d/%d unexpected target disconnect\n",
+		z->sc_link.adapter_unit, scb->xfer->sc_link->target,
 		scb->xfer->sc_link->lun);
 	scb->flags = SCB_ERROR;
-done:   sea->connected = 0;
-	CLEAR_BUSY (sea, scb);
-	*sea->CONTROL = CMD_INTR | sea->parity;
-	sea_done (sea->sc_link.adapter_unit, scb);
+done:
+	CLEAR_BUSY (z, scb);
+	sea_done (z, scb);
+ret:
+	*z->CONTROL = CMD_INTR | z->parity;
 }
 #endif /* NSEA */
