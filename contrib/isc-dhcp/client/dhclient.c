@@ -185,6 +185,9 @@ int main (argc, argv, envp)
 		} else if (!strcmp (argv [i], "-q")) {
 			quiet = 1;
 			quiet_interface_discovery = 1;
+		} else if (!strcmp (argv [i], "-v")) {
+			quiet = 0;
+			quiet_interface_discovery = 0;
 		} else if (!strcmp (argv [i], "-s")) {
 			if (++i == argc)
 				usage ();
