@@ -148,7 +148,7 @@ cpu_fork(p1, p2, flags)
 		p1->p_addr->u_pcb.pcb_gs = rgs();
 	savecrit = critical_enter();
 	if (PCPU_GET(npxproc) == p1)
-		npxsave(&p1->p_addr->u_pcb.pcb_savefpu);
+		npxsave(&p1->p_addr->u_pcb.pcb_save);
 	critical_exit(savecrit);
 #endif
 

@@ -386,6 +386,11 @@ restart:
 			ucode = T_FPOPFLT;
 			i = SIGILL;
 			break;
+
+		case T_XMMFLT:		/* SIMD floating-point exception */
+			ucode = 0; /* XXX */
+			i = SIGFPE;
+			break;
 		}
 	} else {
 		/* kernel trap */

@@ -2221,6 +2221,8 @@ invltlb(void)
  * This is called once the rest of the system is up and running and we're
  * ready to let the AP's out of the pen.
  */
+extern void	enable_sse(void);
+
 void
 ap_init(void)
 {
@@ -2259,6 +2261,9 @@ ap_init(void)
 
 	/* set up FPU state on the AP */
 	npxinit(__INITIAL_NPXCW__);
+
+	/* set up SSE registers */
+	enable_sse();
 
 	/* A quick check from sanity claus */
 	apic_id = (apic_id_to_logical[(lapic.id & 0x0f000000) >> 24]);
