@@ -53,6 +53,7 @@
  *
  *      @(#)nameser.h	8.2 (Berkeley) 2/16/94
  *	From Id: nameser.h,v 4.9.1.15 1994/07/19 22:51:24 vixie Exp
+ *	$Id$
  */
 
 #ifndef _ARPA_NAMESER_H_
