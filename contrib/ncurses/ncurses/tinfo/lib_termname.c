@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1998,2000,2001 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,7 +29,7 @@
 #include <curses.priv.h>
 #include <tic.h>		/* for MAX_ALIAS */
 
-MODULE_ID("$Id: lib_termname.c,v 1.6 2000/12/10 02:55:08 tom Exp $")
+MODULE_ID("$Id: lib_termname.c,v 1.7 2001/08/04 19:29:38 tom Exp $")
 
 NCURSES_EXPORT(char *)
 termname(void)
@@ -37,12 +37,12 @@ termname(void)
     char *name = getenv("TERM");
     static char ret[MAX_ALIAS + 1];
 
-    T(("termname() called"));
+    T((T_CALLED("termname()")));
 
     if (name != 0) {
 	ret[0] = '\0';
 	(void) strncat(ret, name, sizeof(ret) - 1);
 	name = ret;
     }
-    return name;
+    returnPtr(name);
 }

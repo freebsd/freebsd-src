@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998 Free Software Foundation, Inc.                        *
+.\" Copyright (c) 1998,2001,2002 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_field_attributes.3x,v 1.5 1998/11/29 01:06:02 Rick.Ohnemus Exp $
+.\" $Id: form_field_attributes.3x,v 1.7 2002/01/19 22:48:14 tom Exp $
 .TH form_field_attributes 3X ""
 .SH NAME
 \fBform_field_attributes\fR - color and attribute control for form fields
@@ -44,7 +44,7 @@ chtype field_back(const FIELD *field);
 .br
 int set_field_pad(FIELD *field, int pad);
 .br
-chtype field_pad(const FIELD *field);
+int field_pad(const FIELD *field);
 .br
 .SH DESCRIPTION
 The function \fBset_field_fore\fR sets the foreground attribute of
@@ -72,7 +72,7 @@ System error occurred (see \fBerrno\fR).
 \fBE_BAD_ARGUMENT\fR
 Routine detected an incorrect or out-of-range argument.
 .SH SEE ALSO
-\fBcurses\fR(3X) and 3X pages whose names begin "form_" for detailed
+\fBcurses\fR(3X) and related pages whose names begin "form_" for detailed
 descriptions of the entry points.
 .SH NOTES
 The header file \fB<form.h>\fR automatically includes the header file

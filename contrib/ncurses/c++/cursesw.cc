@@ -25,7 +25,7 @@
 #include "internal.h"
 #include "cursesw.h"
 
-MODULE_ID("$Id: cursesw.cc,v 1.21 2001/04/07 22:11:39 tom Exp $")
+MODULE_ID("$Id: cursesw.cc,v 1.24 2001/12/08 21:02:33 tom Exp $")
 
 #define COLORS_NEED_INITIALIZATION  -1
 #define COLORS_NOT_INITIALIZED       0
@@ -35,6 +35,14 @@ MODULE_ID("$Id: cursesw.cc,v 1.21 2001/04/07 22:11:39 tom Exp $")
 // declare static variables for the class
 long NCursesWindow::count = 0L;
 bool NCursesWindow::b_initialized = FALSE;
+
+/*
+ * The ncurses library has a fallback for vsscanf(), which may work...
+ */
+#if !(USE_STRSTREAM_VSCAN || USE_STRSTREAM_VSCAN_CAST)
+#  undef  USE_STDIO_VSCAN
+#  define USE_STDIO_VSCAN 1
+#endif
 
 #if defined(__GNUG__)
 #  ifndef _IO_va_list
@@ -46,23 +54,25 @@ int
 NCursesWindow::scanw(const char* fmt, ...)
 {
     int result = ERR;
-#if defined(__GNUG__)
     char buf[BUFSIZ];
 
     if (::wgetnstr(w, buf, sizeof(buf)) != ERR) {
 	va_list args;
 	va_start(args, fmt);
 #if USE_STDIO_VSCAN
-	if (::vscanf(fmt, args) != -1)
+	if (::vsscanf(buf, fmt, args) != -1)
 	    result = OK;
-#elif USE_STRSTREAM_VSCAN	/* pre-gcc 3.0 */
+#elif USE_STRSTREAM_VSCAN	/* powerpc, os390 */
+	strstreambuf ss(buf, sizeof(buf));
+	if (ss.vscan(fmt, args) != -1)
+	    result = OK;
+#elif USE_STRSTREAM_VSCAN_CAST	/* pre-gcc 3.0 */
 	strstreambuf ss(buf, sizeof(buf));
 	if (ss.vscan(fmt, (_IO_va_list)args) != -1)
 	    result = OK;
 #endif
 	va_end(args);
     }
-#endif
     return result;
 }
 
@@ -71,7 +81,6 @@ int
 NCursesWindow::scanw(int y, int x, const char* fmt, ...)
 {
     int result = ERR;
-#if defined(__GNUG__)
     char buf[BUFSIZ];
 
     if (::wmove(w, y, x) != ERR) {
@@ -79,9 +88,13 @@ NCursesWindow::scanw(int y, int x, const char* fmt, ...)
 	    va_list args;
 	    va_start(args, fmt);
 #if USE_STDIO_VSCAN
-	    if (::vscanf(fmt, args) != -1)
+	    if (::vsscanf(buf, fmt, args) != -1)
 		result = OK;
-#elif USE_STRSTREAM_VSCAN	/* pre-gcc 3.0 */
+#elif USE_STRSTREAM_VSCAN	/* powerpc, os390 */
+	    strstreambuf ss(buf, sizeof(buf));
+	    if (ss.vscan(fmt, args) != -1)
+		result = OK;
+#elif USE_STRSTREAM_VSCAN_CAST	/* pre-gcc 3.0 */
 	    strstreambuf ss(buf, sizeof(buf));
 	    if (ss.vscan(fmt, (_IO_va_list)args) != -1)
 		result = OK;
@@ -89,7 +102,6 @@ NCursesWindow::scanw(int y, int x, const char* fmt, ...)
 	    va_end(args);
 	}
     }
-#endif
     return result;
 }
 

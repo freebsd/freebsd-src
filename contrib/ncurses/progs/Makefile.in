@@ -1,4 +1,4 @@
-# $Id: Makefile.in,v 1.52 2001/03/24 19:53:31 tom Exp $
+# $Id: Makefile.in,v 1.56 2001/12/08 18:48:01 tom Exp $
 ##############################################################################
 # Copyright (c) 1998,1999,2000,2001 Free Software Foundation, Inc.           #
 #                                                                            #
@@ -107,7 +107,10 @@ AUTO_SRC = \
 	termsort.c \
 	transform.h
 
-PROGS = tic$x toe$x infocmp$x clear$x tput$x tset$x
+# tic and toe rely on direct access to the terminfo database
+GET_PROGS = infocmp$x clear$x tput$x tset$x
+PUT_PROGS = @MAKE_TERMINFO@ tic$x toe$x
+PROGS = $(PUT_PROGS) $(GET_PROGS)
 
 TESTPROGS = mvcur$x tctest$x hardscroll$x hashmap$x
 
@@ -147,35 +150,35 @@ transform.h :
 	echo "#define PROG_INIT      \"$(actual_init)\""      >>$@
 
 install.progs: $(AUTO_SRC) $(PROGS) $(DESTDIR)$(bindir)
-	$(LIBTOOL) $(INSTALL_PROGRAM) tic$x     $(DESTDIR)$(bindir)/$(actual_tic)
-	$(LIBTOOL) $(INSTALL_PROGRAM) toe$x     $(DESTDIR)$(bindir)/$(actual_toe)
+@MAKE_TERMINFO@	$(LIBTOOL) $(INSTALL_PROGRAM) tic$x     $(DESTDIR)$(bindir)/$(actual_tic)
+@MAKE_TERMINFO@	$(LIBTOOL) $(INSTALL_PROGRAM) toe$x     $(DESTDIR)$(bindir)/$(actual_toe)
+@MAKE_TERMINFO@	@echo "linking $(actual_infotocap) to $(actual_tic)"
+@MAKE_TERMINFO@	-@rm -f $(DESTDIR)$(bindir)/$(actual_infotocap)
+@MAKE_TERMINFO@	(cd $(DESTDIR)$(bindir) && $(LN_S) $(actual_tic) $(actual_infotocap))
+@MAKE_TERMINFO@	@echo "linking $(actual_captoinfo) to $(actual_tic)"
+@MAKE_TERMINFO@	-@rm -f $(DESTDIR)$(bindir)/$(actual_captoinfo)
+@MAKE_TERMINFO@	(cd $(DESTDIR)$(bindir) && $(LN_S) $(actual_tic) $(actual_captoinfo))
 	$(LIBTOOL) $(INSTALL_PROGRAM) infocmp$x $(DESTDIR)$(bindir)/$(actual_infocmp)
 	$(LIBTOOL) $(INSTALL_PROGRAM) clear$x   $(DESTDIR)$(bindir)/$(actual_clear)
 	$(LIBTOOL) $(INSTALL_PROGRAM) tput$x    $(DESTDIR)$(bindir)/$(actual_tput)
 	$(LIBTOOL) $(INSTALL_PROGRAM) tset$x    $(DESTDIR)$(bindir)/$(actual_tset)
-	@echo "linking $(actual_captoinfo) to $(actual_tic)"
-	-@rm -f $(DESTDIR)$(bindir)/$(actual_captoinfo)
-	(cd $(DESTDIR)$(bindir) && $(LN_S) $(actual_tic) $(actual_captoinfo))
-	@echo "linking $(actual_infotocap) to $(actual_tic)"
-	-@rm -f $(DESTDIR)$(bindir)/$(actual_infotocap)
-	(cd $(DESTDIR)$(bindir) && $(LN_S) $(actual_tic) $(actual_infotocap))
 	@echo "linking $(actual_reset) to $(actual_tset)"
 	-@rm -f $(DESTDIR)$(bindir)/$(actual_reset)
 	(cd $(DESTDIR)$(bindir) && $(LN_S) $(actual_tset) $(actual_reset))
 
 uninstall.progs:
-	-@$(LIBTOOL) rm -f $(DESTDIR)$(bindir)/$(actual_tic)
-	-@$(LIBTOOL) rm -f $(DESTDIR)$(bindir)/$(actual_toe)
+@MAKE_TERMINFO@	-@$(LIBTOOL) rm -f $(DESTDIR)$(bindir)/$(actual_tic)
+@MAKE_TERMINFO@	-@$(LIBTOOL) rm -f $(DESTDIR)$(bindir)/$(actual_toe)
+@MAKE_TERMINFO@	-@rm -f $(DESTDIR)$(bindir)/$(actual_captoinfo)
+@MAKE_TERMINFO@	-@rm -f $(DESTDIR)$(bindir)/$(actual_infotocap)
 	-@$(LIBTOOL) rm -f $(DESTDIR)$(bindir)/$(actual_infocmp)
 	-@$(LIBTOOL) rm -f $(DESTDIR)$(bindir)/$(actual_clear)
 	-@$(LIBTOOL) rm -f $(DESTDIR)$(bindir)/$(actual_tput)
 	-@$(LIBTOOL) rm -f $(DESTDIR)$(bindir)/$(actual_tset)
-	-@rm -f $(DESTDIR)$(bindir)/$(actual_captoinfo)
-	-@rm -f $(DESTDIR)$(bindir)/$(actual_infotocap)
 	-@rm -f $(DESTDIR)$(bindir)/$(actual_reset)
 
 $(DESTDIR)$(bindir) :
-	$(srcdir)/../mkinstalldirs $@
+	sh $(srcdir)/../mkinstalldirs $@
 
 #
 # Utilities normally built by make all start here
@@ -222,7 +225,7 @@ tset$x: $(DEPS_TSET) $(DEPS_CURSES) transform.h
 	@ECHO_LINK@ $(LINK) $(DEPS_TSET) $(LDFLAGS_DEFAULT) -o $@
 
 termsort.c: $(srcdir)/MKtermsort.sh
-	sh -c "$(srcdir)/MKtermsort.sh $(AWK) $(srcdir)/../include/Caps" >$@
+	sh -c "$(srcdir)/MKtermsort.sh $(AWK) $(srcdir)/../include/@TERMINFO_CAPS@" >$@
 
 #
 # Utility productions start here
@@ -235,7 +238,7 @@ tags:
 @MAKE_UPPER_TAGS@	etags *.[ch]
 
 mostlyclean ::
-	-rm -f core tags TAGS *~ *.i *.ln *.atac trace
+	-rm -f core tags TAGS *~ *.bak *.i *.ln *.atac trace
 	-rm -f $(TESTPROGS)
 
 clean :: mostlyclean
@@ -257,10 +260,10 @@ $(DEPS_CURSES) :
 	cd ../ncurses; $(MAKE) $(CF_MFLAGS)
 
 lint:
+@MAKE_TERMINFO@	$(LINT) $(LINT_OPTS) $(CPPFLAGS) $(srcdir)/tic.c     $(srcdir)/dump_entry.c $(LINT_LIBS)
+@MAKE_TERMINFO@	$(LINT) $(LINT_OPTS) $(CPPFLAGS) $(srcdir)/toe.c     $(srcdir)/dump_entry.c $(LINT_LIBS)
 	$(LINT) $(LINT_OPTS) $(CPPFLAGS) $(srcdir)/clear.c                          $(LINT_LIBS)
 	$(LINT) $(LINT_OPTS) $(CPPFLAGS) $(srcdir)/infocmp.c $(srcdir)/dump_entry.c $(LINT_LIBS)
-	$(LINT) $(LINT_OPTS) $(CPPFLAGS) $(srcdir)/tic.c     $(srcdir)/dump_entry.c $(LINT_LIBS)
-	$(LINT) $(LINT_OPTS) $(CPPFLAGS) $(srcdir)/toe.c     $(srcdir)/dump_entry.c $(LINT_LIBS)
 	$(LINT) $(LINT_OPTS) $(CPPFLAGS) $(srcdir)/tput.c                           $(LINT_LIBS)
 	$(LINT) $(LINT_OPTS) $(CPPFLAGS) $(srcdir)/tset.c    $(srcdir)/dump_entry.c $(LINT_LIBS)
 

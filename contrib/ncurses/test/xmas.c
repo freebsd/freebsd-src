@@ -92,11 +92,9 @@
 /******************************************************************************/
 
 /*
- * $Id: xmas.c,v 1.15 2000/09/02 18:45:53 tom Exp $
+ * $Id: xmas.c,v 1.18 2002/03/23 21:46:58 tom Exp $
  */
 #include <test.priv.h>
-
-#include <signal.h>
 
 #define FROMWHO "Mark Hessling - (M.Hessling@gu.edu.au)"
 
@@ -149,11 +147,10 @@ static int strng5(void);
 static int reindeer(void);
 static int blinkit(void);
 
-static RETSIGTYPE
-done(int sig) GCC_NORETURN;
+static RETSIGTYPE done(int sig) GCC_NORETURN;
 
-     static void
-       set_color(WINDOW *win, chtype color)
+static void
+set_color(WINDOW *win, chtype color)
 {
     if (has_colors()) {
 	static bool *pairs;
@@ -1156,5 +1153,5 @@ done(int sig GCC_UNUSED)
     refresh();
     endwin();
     curs_set(1);
-    exit(EXIT_SUCCESS);
+    ExitProgram(EXIT_SUCCESS);
 }

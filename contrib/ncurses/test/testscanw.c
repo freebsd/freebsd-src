@@ -2,7 +2,7 @@
  * Date:  1997/03/17
  * From:  bayern@morpheus.cis.yale.edu
  *
- * $Id: testscanw.c,v 1.6 2000/11/04 23:32:56 tom Exp $
+ * $Id: testscanw.c,v 1.8 2001/09/15 21:41:45 tom Exp $
  */
 #include <test.priv.h>
 #include <ctype.h>
@@ -22,7 +22,7 @@ main(int argc, char *argv[])
     trace(TRACE_UPDATE | TRACE_CALLS);
 #endif
     while (argc > 1) {
-	if (isdigit(CharOf(*argv[1])))
+	if (isdigit(UChar(*argv[1])))
 	    move(atoi(argv[1]), 0);
 	else if (!strcmp(argv[1], "-k"))
 	    keypad(stdscr, TRUE);
@@ -35,5 +35,5 @@ main(int argc, char *argv[])
 	scanw("%20ld", response);	/* yes, it's a pointer */
     }
     endwin();
-    return EXIT_SUCCESS;
+    ExitProgram(EXIT_SUCCESS);
 }

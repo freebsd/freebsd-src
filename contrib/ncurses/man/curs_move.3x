@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998 Free Software Foundation, Inc.                        *
+.\" Copyright (c) 1998,2001 Free Software Foundation, Inc.                   *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_move.3x,v 1.6 1998/03/11 21:12:53 juergen Exp $
+.\" $Id: curs_move.3x,v 1.7 2001/11/03 19:58:47 tom Exp $
 .TH curs_move 3X ""
 .SH NAME
 \fBmove\fR, \fBwmove\fR - move \fBcurses\fR window cursor
@@ -52,7 +52,7 @@ Note that \fBmove\fR may be a macro.
 These functions are described in the XSI Curses standard, Issue 4.  The
 standard specifies that if (y,x) is within a multi-column character, the cursor
 is moved to the first column of that character; however, this implementation
-does not yet support the extended-level XSI multi-byte characters.
+does not yet support the extended-level XSI multibyte characters.
 .SH SEE ALSO
 \fBcurses\fR(3X), \fBcurs_refresh\fR(3X)
 .\"#

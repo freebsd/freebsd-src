@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 3.0//EN">
 <!--
-  $Id: ncurses-intro.html,v 1.34 2000/06/11 00:03:55 tom Exp $
+  $Id: ncurses-intro.html,v 1.35 2001/09/02 00:23:11 tom Exp $
 -->
 <HTML>
 <HEAD>
@@ -704,7 +704,11 @@ restore the ncurses screen from before the escape.
 <CODE>newterm()</CODE> instead of <CODE>initscr()</CODE>.  <CODE>newterm()</CODE> should
 be called once for each terminal.  It returns a variable of type
 <CODE>SCREEN *</CODE> which should be saved as a reference to that
-terminal. The arguments are the type of the terminal (a string) and
+terminal.
+(NOTE: a SCREEN variable is not a <em>screen</em> in the sense we
+are describing in this introduction, but a collection of 
+parameters used to assist in optimizing the display.)
+The arguments are the type of the terminal (a string) and
 <CODE>FILE</CODE> pointers for the output and input of the terminal.  If
 type is NULL then the environment variable <CODE>$TERM</CODE> is used.
 <CODE>endwin()</CODE> should called once at wrapup time for each terminal

@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_addstr.3x,v 1.9 2000/07/01 19:54:05 tom Exp $
+.\" $Id: curs_addstr.3x,v 1.10 2002/03/09 23:09:29 tom Exp $
 .TH curs_addstr 3X ""
 .SH NAME
 \fBaddstr\fR,
@@ -38,29 +38,34 @@
 \fBmvwaddstr\fR,
 \fBmvwaddnstr\fR - add a string of characters to a \fBcurses\fR window and advance cursor
 .SH SYNOPSIS
+.nf
 \fB#include <curses.h>\fR
 
-\fBint addstr(const char *str);\fR
+\fBint addstr(const char *\fR\fIstr\fR\fB);\fR
 .br
-\fBint addnstr(const char *str, int n);\fR
+\fBint addnstr(const char *\fR\fIstr\fR\fB, int \fR\fIn\fR\fB);\fR
 .br
-\fBint waddstr(WINDOW *win, const char *str);\fR
+\fBint waddstr(WINDOW *\fR\fIwin\fR\fB, const char *\fR\fIstr\fR\fB);\fR
 .br
-\fBint waddnstr(WINDOW *win, const char *str, int n);\fR
+\fBint waddnstr(WINDOW *\fR\fIwin\fR\fB, const char *\fR\fIstr\fR\fB, int \fR\fIn\fR\fB);\fR
 .br
-\fBint mvaddstr(int y, int x, const char *str);\fR
+\fBint mvaddstr(int \fR\fIy\fR\fB, int \fR\fIx\fR\fB, const char *\fR\fIstr\fR\fB);\fR
 .br
-\fBint mvaddnstr(int y, int x, const char *str, int n);\fR
+\fBint mvaddnstr(int \fR\fIy\fR\fB, int \fR\fIx\fR\fB, const char *\fR\fIstr\fR\fB, int \fR\fIn\fR\fB);\fR
 .br
-\fBint mvwaddstr(WINDOW *win, int y, int x, const char *str);\fR
+\fBint mvwaddstr(WINDOW *\fR\fIwin\fR\fB, int \fR\fIy\fR\fB, int \fR\fIx\fR\fB, const char *\fR\fIstr\fR\fB);\fR
 .br
-\fBint mvwaddnstr(WINDOW *win, int y, int x, const char *str, int n);\fR
+\fBint mvwaddnstr(WINDOW *\fR\fIwin\fR\fB, int \fR\fIy\fR\fB, int \fR\fIx\fR\fB, const char *\fR\fIstr, int \fR\fIn\fR\fB);\fR
+.fi
 .SH DESCRIPTION
 These routines write the characters of the (null-terminated) character string
-\fIstr\fR on the given window.  It is similar to calling \fBwaddch\fR once for
-each character in the string.  The four routines with \fIn\fR as the last
-argument write at most \fIn\fR characters.  If \fIn\fR is -1, then the
-entire string will be added.
+\fIstr\fR on the given window.
+It is similar to calling \fBwaddch\fR once for each character in the string.
+The four routines with \fIn\fR as the last argument
+write at most \fIn\fR characters.
+If \fIn\fR is -1, then the entire string will be added,
+up to the maximum number of characters that will fit on the line,
+or until a terminating null is reached.
 .SH RETURN VALUE
 All routines return the integer \fBERR\fR upon failure and \fBOK\fR on success
 (the SVr4 manuals specify only "an integer value other than \fBERR\fR") upon

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2001,2002 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -26,11 +26,6 @@
  * authorization.                                                           *
  ****************************************************************************/
 
-/****************************************************************************
- *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995               *
- *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
- ****************************************************************************/
-
 /*
 **	lib_addch.c
 **
@@ -41,7 +36,7 @@
 #include <curses.priv.h>
 #include <ctype.h>
 
-MODULE_ID("$Id: lib_addch.c,v 1.47 2000/12/10 02:43:26 tom Exp $")
+MODULE_ID("$Id: lib_addch.c,v 1.64 2002/05/11 18:16:43 tom Exp $")
 
 /*
  * Ugly microtweaking alert.  Everything from here to end of module is
@@ -54,41 +49,35 @@ MODULE_ID("$Id: lib_addch.c,v 1.47 2000/12/10 02:43:26 tom Exp $")
  */
 
 /* Return bit mask for clearing color pair number if given ch has color */
-#define COLOR_MASK(ch) (~(chtype)((ch)&A_COLOR?A_COLOR:0))
+#define COLOR_MASK(ch) (~(attr_t)((ch)&A_COLOR?A_COLOR:0))
 
-static inline chtype
-render_char(WINDOW *win, chtype ch)
+static inline NCURSES_CH_T
+render_char(WINDOW *win, NCURSES_CH_T ch)
 /* compute a rendition of the given char correct for the current context */
 {
-    chtype a = win->_attrs;
+    attr_t a = win->_attrs;
 
-    if (ch == ' ') {
-	/* color in attrs has precedence over bkgd */
-	ch = a | (win->_bkgd & COLOR_MASK(a));
+    if (ISBLANK(ch) && AttrOf(ch) == A_NORMAL) {
+	/* color in attrs has precedence over bkgrnd */
+	ch = win->_nc_bkgd;
+	SetAttr(ch, a | (AttrOf(win->_nc_bkgd) & COLOR_MASK(a)));
     } else {
-	/* color in attrs has precedence over bkgd */
-	a |= (win->_bkgd & A_ATTRIBUTES) & COLOR_MASK(a);
+	/* color in attrs has precedence over bkgrnd */
+	a |= (AttrOf(win->_nc_bkgd) & A_ATTRIBUTES) & COLOR_MASK(a);
 	/* color in ch has precedence */
-	ch |= (a & COLOR_MASK(ch));
+	AddAttr(ch, (a & COLOR_MASK(AttrOf(ch))));
     }
 
-    TR(TRACE_VIRTPUT, ("bkg = %lx, attrs = %lx -> ch = %lx", win->_bkgd,
-		       win->_attrs, ch));
+    TR(TRACE_VIRTPUT, ("bkg = %s, attrs = %s -> ch = %s",
+		       _tracech_t2(1, CHREF(win->_nc_bkgd)),
+		       _traceattr(win->_attrs),
+		       _tracech_t2(3, CHREF(ch))));
 
     return (ch);
 }
 
-NCURSES_EXPORT(chtype)
-_nc_background
-(WINDOW *win)
-/* make render_char() visible while still allowing us to inline it below */
-{
-    return (win->_bkgd);
-}
-
-NCURSES_EXPORT(chtype)
-_nc_render
-(WINDOW *win, chtype ch)
+NCURSES_EXPORT(NCURSES_CH_T)
+_nc_render(WINDOW *win, NCURSES_CH_T ch)
 /* make render_char() visible while still allowing us to inline it below */
 {
     return render_char(win, ch);
@@ -111,7 +100,7 @@ _nc_render
 #endif
 
 static inline int
-waddch_literal(WINDOW *win, chtype ch)
+waddch_literal(WINDOW *win, NCURSES_CH_T ch)
 {
     int x;
     struct ldat *line;
@@ -140,8 +129,12 @@ waddch_literal(WINDOW *win, chtype ch)
     CHANGED_CELL(line, x);
 
     line->text[x++] = ch;
+    if_WIDEC({
+	if (wcwidth(CharOf(ch)) > 1)
+	    AddAttr(line->text[x++], WA_NAC);
+    });
 
-    TR(TRACE_VIRTPUT, ("(%d, %d) = %s", win->_cury, x, _tracechtype(ch)));
+    TR(TRACE_VIRTPUT, ("(%d, %d) = %s", win->_cury, x, _tracech_t(CHREF(ch))));
     if (x > win->_maxx) {
 	/*
 	 * The _WRAPPED flag is useful only for telling an application that
@@ -169,15 +162,15 @@ waddch_literal(WINDOW *win, chtype ch)
 }
 
 static inline int
-waddch_nosync(WINDOW *win, const chtype ch)
+waddch_nosync(WINDOW *win, const NCURSES_CH_T ch)
 /* the workhorse function -- add a character to the given window */
 {
     int x, y;
     chtype t = 0;
     const char *s = 0;
 
-    if ((ch & A_ALTCHARSET)
-	|| ((t = TextOf(ch)) > 127)
+    if ((AttrOf(ch) & A_ALTCHARSET)
+	|| ((t = CharOf(ch)) > 127)
 	|| ((s = unctrl(t))[1] == 0))
 	return waddch_literal(win, ch);
 
@@ -194,7 +187,8 @@ waddch_nosync(WINDOW *win, const chtype ch)
 	 */
 	if ((!win->_scroll && (y == win->_regbottom))
 	    || (x <= win->_maxx)) {
-	    chtype blank = (' ' | AttrOf(ch));
+	    NCURSES_CH_T blank = NewChar2(BLANK_TEXT, BLANK_ATTR);
+	    AddAttr(blank, AttrOf(ch));
 	    while (win->_curx < x) {
 		if (waddch_literal(win, blank) == ERR)
 		    return (ERR);
@@ -236,9 +230,12 @@ waddch_nosync(WINDOW *win, const chtype ch)
 	win->_flags &= ~_WRAPPED;
 	break;
     default:
-	while (*s)
-	    if (waddch_literal(win, (*s++) | AttrOf(ch)) == ERR)
+	while (*s) {
+	    NCURSES_CH_T sch;
+	    SetChar(sch, *s++, AttrOf(ch));
+	    if (waddch_literal(win, sch) == ERR)
 		return ERR;
+	}
 	return (OK);
     }
 
@@ -249,8 +246,7 @@ waddch_nosync(WINDOW *win, const chtype ch)
 }
 
 NCURSES_EXPORT(int)
-_nc_waddch_nosync
-(WINDOW *win, const chtype c)
+_nc_waddch_nosync(WINDOW *win, const NCURSES_CH_T c)
 /* export copy of waddch_nosync() so the string-put functions can use it */
 {
     return (waddch_nosync(win, c));
@@ -265,15 +261,16 @@ _nc_waddch_nosync
 /* These are actual entry points */
 
 NCURSES_EXPORT(int)
-waddch
-(WINDOW *win, const chtype ch)
+waddch(WINDOW *win, const chtype ch)
 {
     int code = ERR;
+    NCURSES_CH_T wch;
+    SetChar2(wch, ch);
 
     TR(TRACE_VIRTPUT | TRACE_CCALLS, (T_CALLED("waddch(%p, %s)"), win,
 				      _tracechtype(ch)));
 
-    if (win && (waddch_nosync(win, ch) != ERR)) {
+    if (win && (waddch_nosync(win, wch) != ERR)) {
 	_nc_synchook(win);
 	code = OK;
     }
@@ -283,15 +280,16 @@ waddch
 }
 
 NCURSES_EXPORT(int)
-wechochar
-(WINDOW *win, const chtype ch)
+wechochar(WINDOW *win, const chtype ch)
 {
     int code = ERR;
+    NCURSES_CH_T wch;
+    SetChar2(wch, ch);
 
     TR(TRACE_VIRTPUT | TRACE_CCALLS, (T_CALLED("wechochar(%p, %s)"), win,
 				      _tracechtype(ch)));
 
-    if (win && (waddch_nosync(win, ch) != ERR)) {
+    if (win && (waddch_nosync(win, wch) != ERR)) {
 	bool save_immed = win->_immed;
 	win->_immed = TRUE;
 	_nc_synchook(win);
@@ -301,3 +299,41 @@ wechochar
     TR(TRACE_VIRTPUT | TRACE_CCALLS, (T_RETURN("%d"), code));
     return (code);
 }
+
+#if USE_WIDEC_SUPPORT
+NCURSES_EXPORT(int)
+wadd_wch(WINDOW *win, const cchar_t * wch)
+{
+    int code = ERR;
+
+    TR(TRACE_VIRTPUT | TRACE_CCALLS, (T_CALLED("wadd_wch(%p, %s)"), win,
+				      _tracech_t(wch)));
+
+    if (win && (waddch_nosync(win, *wch) != ERR)) {
+	_nc_synchook(win);
+	code = OK;
+    }
+
+    TR(TRACE_VIRTPUT | TRACE_CCALLS, (T_RETURN("%d"), code));
+    return (code);
+}
+
+NCURSES_EXPORT(int)
+wecho_wchar(WINDOW *win, const cchar_t * wch)
+{
+    int code = ERR;
+
+    TR(TRACE_VIRTPUT | TRACE_CCALLS, (T_CALLED("wecho_wchar(%p, %s)"), win,
+				      _tracech_t(wch)));
+
+    if (win && (waddch_nosync(win, *wch) != ERR)) {
+	bool save_immed = win->_immed;
+	win->_immed = TRUE;
+	_nc_synchook(win);
+	win->_immed = save_immed;
+	code = OK;
+    }
+    TR(TRACE_VIRTPUT | TRACE_CCALLS, (T_RETURN("%d"), code));
+    return (code);
+}
+#endif /* USE_WIDEC_SUPPORT */

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1999,2000 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1999-2001,2002 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,17 +29,18 @@
 /*
  * Author: Thomas E. Dickey <dickey@clark.net> 1999
  *
- * $Id: cardfile.c,v 1.6 2000/11/04 23:14:28 tom Exp $
+ * $Id: cardfile.c,v 1.11 2002/04/06 23:12:50 tom Exp $
  *
  * File format: text beginning in column 1 is a title; other text forms the content.
  */
 
 #include <test.priv.h>
 
+#if HAVE_FORM_H && HAVE_PANEL_H && HAVE_LIBFORM && HAVE_LIBPANEL
+
 #include <form.h>
 #include <panel.h>
 
-#include <string.h>
 #include <ctype.h>
 
 #define VISIBLE_CARDS 10
@@ -75,7 +76,7 @@ strdup(char *s)
 static const char *
 skip(const char *buffer)
 {
-    while (isspace(CharOf(*buffer)))
+    while (isspace(UChar(*buffer)))
 	buffer++;
     return buffer;
 }
@@ -84,7 +85,7 @@ static void
 trim(char *buffer)
 {
     unsigned n = strlen(buffer);
-    while (n-- && isspace(CharOf(buffer[n])))
+    while (n-- && isspace(UChar(buffer[n])))
 	buffer[n] = 0;
 }
 
@@ -166,7 +167,7 @@ read_data(char *fname)
     if ((fp = fopen(fname, "r")) != 0) {
 	while (fgets(buffer, sizeof(buffer), fp)) {
 	    trim(buffer);
-	    if (isspace(CharOf(*buffer))) {
+	    if (isspace(UChar(*buffer))) {
 		if (card == 0)
 		    card = add_title("");
 		add_content(card, buffer);
@@ -378,6 +379,11 @@ cardfile(char *fname)
 	    case MAX_FORM_COMMAND + 4:
 		write_data(fname);
 		break;
+#ifdef KEY_RESIZE
+	    case KEY_RESIZE:
+		flash();
+		break;
+#endif
 	    default:
 		beep();
 		break;
@@ -416,5 +422,13 @@ main(int argc, char *argv[])
 
     endwin();
 
-    return EXIT_SUCCESS;
+    ExitProgram(EXIT_SUCCESS);
 }
+#else
+int
+main(void)
+{
+    printf("This program requires the curses form and panel libraries\n");
+    ExitProgram(EXIT_FAILURE);
+}
+#endif

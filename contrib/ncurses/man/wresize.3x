@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998 Free Software Foundation, Inc.                        *
+.\" Copyright (c) 1998,2002 Free Software Foundation, Inc.                   *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -28,38 +28,32 @@
 .\"
 .\" Author: Thomas E. Dickey <dickey@clark.net> 1996
 .\"
-.\" $Id: wresize.3x,v 1.5 1998/03/14 23:42:44 tom Exp $
+.\" $Id: wresize.3x,v 1.7 2002/02/16 22:40:59 tom Exp $
 .TH wresize 3X ""
 .SH NAME
 \fBwresize\fR - resize a curses window
-..
 .SH SYNOPSIS
 \fB#include <curses.h>\fR
 
 \fBint wresize(WINDOW *win, int lines, int columns);\fR
-..
 .SH DESCRIPTION
 The \fBwresize\fR function reallocates storage for an \fBncurses\fR
 window to adjust its dimensions to the specified values.
 If either dimension is larger than the current values, the
 window's data is filled with blanks that have the current background rendition
 (as set by \fBwbkgndset\fR) merged into them.
-..
 .SH RETURN VALUE
 The function returns the integer \fBERR\fR upon failure and \fBOK\fR on success.
 It will fail if either of the dimensions less than or equal to zero,
 or if an error occurs while (re)allocating memory for the window.
-..
 .SH NOTES
 The only restriction placed on the dimensions is that they be greater than zero.
 The dimensions are not compared to \fBcurses\fR screen dimensions to
 simplify the logic of \fBresizeterm\fR.
 The caller must ensure that the window's dimensions fit within the
 actual screen dimensions.
-..
 .SH SEE ALSO
 \fBresizeterm\fR(3X).
-..
 .SH AUTHOR
 Thomas Dickey (from an equivalent function written in 1988 for BSD curses).
 .\"#

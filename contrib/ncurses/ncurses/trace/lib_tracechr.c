@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1998-2001,2002 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -36,22 +36,20 @@
  */
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_tracechr.c,v 1.4 2000/12/10 03:02:45 tom Exp $")
+MODULE_ID("$Id: lib_tracechr.c,v 1.8 2002/02/10 01:26:04 tom Exp $")
 
 #ifdef TRACE
 NCURSES_EXPORT(char *)
-_tracechar(const unsigned char ch)
+_tracechar(int ch)
 {
-    static char crep[20];
-    (void) sprintf(crep, "'%s' = 0x%02x", unctrl(ch), (unsigned) ch);
+    static char crep[40];
+    (void) sprintf(crep, "'%.30s' = %#03o",
+		   (ch > KEY_MIN)
+		   ? keyname(ch)
+		   : unctrl(ch),
+		   (unsigned) ch);
     return (crep);
 }
 #else
-extern
-NCURSES_EXPORT(void)
-_nc_lib_tracechr(void);
-NCURSES_EXPORT(void)
-_nc_lib_tracechr(void)
-{
-}
+empty_module(_nc_lib_tracechr)
 #endif

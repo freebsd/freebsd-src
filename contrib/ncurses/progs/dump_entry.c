@@ -38,7 +38,7 @@
 #include "termsort.c"		/* this C file is generated */
 #include <parametrized.h>	/* so is this */
 
-MODULE_ID("$Id: dump_entry.c,v 1.55 2001/03/10 19:45:51 tom Exp $")
+MODULE_ID("$Id: dump_entry.c,v 1.56 2001/08/12 00:21:22 tom Exp $")
 
 #define INDENT			8
 #define DISCARD(string) string = ABSENT_STRING
@@ -56,7 +56,6 @@ static int sortmode;		/* sort mode to use */
 static int width = 60;		/* max line width for listings */
 static int column;		/* current column, limited by 'width' */
 static int oldcol;		/* last value of column before wrap */
-static int tracelevel;		/* level of debug output */
 static bool pretty;		/* true if we format if-then-else strings */
 
 static DYNBUF outbuf;
@@ -172,7 +171,6 @@ dump_init(const char *version, int mode, int sort, int twidth, int traceval,
 {
     width = twidth;
     pretty = formatted;
-    tracelevel = traceval;
 
     /* versions */
     if (version == 0)

@@ -1,6 +1,6 @@
-# $Id: Makefile.in,v 1.58 2001/04/21 21:31:08 tom Exp $
+# $Id: Makefile.in,v 1.64 2002/01/19 20:25:31 NIIBE.Yutaka Exp $
 ##############################################################################
-# Copyright (c) 1998,1999,2000,2001 Free Software Foundation, Inc.           #
+# Copyright (c) 1998,1999,2000,2001,2002 Free Software Foundation, Inc.      #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -55,6 +55,9 @@ INSTALL_DATA	= @INSTALL_DATA@
 
 AR		= @AR@
 AR_OPTS		= @AR_OPTS@
+
+CXX_AR		= @CXX_AR@
+CXX_AR_OPTS	= @CXX_AR_OPTS@
 RANLIB		= @RANLIB@
 
 CXX		= @CXX@
@@ -88,9 +91,9 @@ LIBNAME_LIBTOOL	= @LIB_PREFIX@$(LIBROOT)@LIB_SUFFIX@.la
 LIBNAME_NORMAL	= @LIB_PREFIX@$(LIBROOT)@LIB_SUFFIX@.a
 LIBNAME		= @LIB_PREFIX@$(LIBROOT)@CXX_LIB_SUFFIX@
 
-LINK_FLAGS	= @EXTRA_LDFLAGS@ -L../lib -L$(libdir) -l$(LIBROOT)@LIB_SUFFIX@
+LINK_FLAGS	= @EXTRA_LDFLAGS@ -L../lib -l$(LIBROOT)@LIB_SUFFIX@
 
-LINK_LIBTOOL	= @EXTRA_LDFLAGS@ -L../lib -L$(libdir) ../lib/$(LIBNAME)
+LINK_LIBTOOL	= @EXTRA_LDFLAGS@ -L../lib ../lib/$(LIBNAME)
 LINK_NORMAL	= $(LINK_FLAGS)
 LINK_DEBUG	= $(LINK_FLAGS)
 LINK_PROFILE	= $(LINK_FLAGS)
@@ -117,6 +120,8 @@ all ::		demo$x
 
 sources :	$(AUTO_SRC)
 
+depend :
+
 # Build a conventional library for installing, since a shared library would
 # pull in all of the ncurses libraries (panel, menu, form, ncurses) as direct
 # dependencies.
@@ -131,7 +136,7 @@ LIB_OBJS = \
 	$(MODEL)/cursesmain.o
 
 ../lib/$(LIBNAME_NORMAL) : $(LIB_OBJS)
-	$(AR) $(AR_OPTS) $@ $?
+	$(CXX_AR) $(CXX_AR_OPTS) $@ $?
 	$(RANLIB) $@
 
 ../lib/$(LIBNAME_LIBTOOL) : $(LIB_OBJS)
@@ -154,7 +159,7 @@ etip.h:	$(srcdir)/etip.h.in $(srcdir)/edit_cfg.sh
 	sh $(srcdir)/edit_cfg.sh ../include/ncurses_cfg.h $@
 
 $(DESTDIR)$(libdir) :
-	$(srcdir)/../mkinstalldirs $@
+	sh $(srcdir)/../mkinstalldirs $@
 
 install \
 install.libs:: ../lib/$(LIBNAME) $(DESTDIR)$(libdir)
@@ -165,9 +170,10 @@ uninstall.libs::
 	-$(LIBTOOL) rm -f $(DESTDIR)$(libdir)/$(LIBNAME)
 
 mostlyclean ::
-	-rm -f core tags TAGS *~ *.i *.ii *.ln *.atac trace
+	-rm -f core tags TAGS *~ *.bak *.i *.ii *.ln *.atac trace
 
 clean :: mostlyclean
+	-rm -rf $(MODEL)/SunWS_cache
 	-$(LIBTOOL) rm -f demo$x $(AUTO_SRC) ../lib/$(LIBNAME) $(LIB_OBJS) $(LIB_OBJS:.o=.lo) $(OBJS_DEMO)
 	-rm -rf .libs
 

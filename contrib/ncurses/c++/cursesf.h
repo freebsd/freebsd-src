@@ -31,7 +31,7 @@
  *   Author: Juergen Pfeifer <juergen.pfeifer@gmx.net> 1997                 *
  ****************************************************************************/
 
-// $Id: cursesf.h,v 1.15 2001/03/24 21:41:23 tom Exp $
+// $Id: cursesf.h,v 1.16 2001/07/15 00:02:53 tom Exp $
 
 #ifndef NCURSES_CURSESF_H_incl
 #define NCURSES_CURSESF_H_incl 1
@@ -265,7 +265,7 @@ public:
     OnError(::set_field_buffer(field,buffer,val));
   }
 
-  // Retrieve the value of a fields buffer. The defaukt buffer is nr. 0
+  // Retrieve the value of a fields buffer. The default buffer is nr. 0
   inline char* value(int buffer = 0) const {
     return ::field_buffer(field,buffer);
   }

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998,1999,2000,2001 Free Software Foundation, Inc.         *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -47,7 +47,7 @@
 #include <term.h>		/* clear_screen, cup & friends, cur_term */
 #include <tic.h>
 
-MODULE_ID("$Id: lib_newterm.c,v 1.50 2000/12/10 02:43:27 tom Exp $")
+MODULE_ID("$Id: lib_newterm.c,v 1.52 2001/08/04 16:47:48 tom Exp $")
 
 #ifndef ONLCR			/* Allows compilation under the QNX 4.2 OS */
 #define ONLCR 0
@@ -89,7 +89,9 @@ static int filter_mode = FALSE;
 NCURSES_EXPORT(void)
 filter(void)
 {
+    T((T_CALLED("filter")));
     filter_mode = TRUE;
+    returnVoid;
 }
 
 NCURSES_EXPORT(SCREEN *)
@@ -110,7 +112,7 @@ newterm
 
     /* this loads the capability entry, then sets LINES and COLS */
     if (setupterm(name, fileno(ofp), &errret) == ERR)
-	return 0;
+	returnSP(0);
 
     /* implement filter mode */
     if (filter_mode) {
@@ -140,7 +142,7 @@ newterm
 	if (slk_format) {
 	    if (ERR == _nc_ripoffline(-SLK_LINES(slk_format),
 				      _nc_slk_initialize))
-		return 0;
+		returnSP(0);
 	}
     /* this actually allocates the screen structure, and saves the
      * original terminal settings.
@@ -149,7 +151,7 @@ newterm
     _nc_set_screen(0);
     if (_nc_setupscreen(LINES, COLS, ofp) == ERR) {
 	_nc_set_screen(current);
-	return 0;
+	returnSP(0);
     }
 
     /* if the terminal type has real soft labels, set those up */
@@ -192,26 +194,6 @@ newterm
     SP->_use_rmso = SGR0_TEST(exit_standout_mode);
     SP->_use_rmul = SGR0_TEST(exit_underline_mode);
 
-#if USE_WIDEC_SUPPORT
-    /*
-     * XFree86 xterm can be configured to support UTF-8 based on environment
-     * variable settings.
-     */
-    {
-	char *s;
-	s = getenv("LC_ALL");
-	if (s == NULL || *s == '\0') {
-	    s = getenv("LC_CTYPE");
-	    if (s == NULL || *s == '\0') {
-		s = getenv("LANG");
-	    }
-	}
-	if (s != NULL && *s != '\0' && strstr(s, "UTF-8") != NULL) {
-	    SP->_outch = _nc_utf8_outch;
-	}
-    }
-#endif
-
     /* compute movement costs so we can do better move optimization */
     _nc_mvcur_init();
 
@@ -223,6 +205,5 @@ newterm
 
     _nc_signal_handler(TRUE);
 
-    T((T_RETURN("%p"), SP));
-    return (SP);
+    returnSP(SP);
 }

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1998,2000,2001 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -38,7 +38,7 @@
 #include <curses.priv.h>
 #include <term.h>		/* cur_term */
 
-MODULE_ID("$Id: lib_ttyflags.c,v 1.5 2000/12/10 02:55:08 tom Exp $")
+MODULE_ID("$Id: lib_ttyflags.c,v 1.6 2001/12/16 01:19:01 tom Exp $")
 
 #undef tabs
 
@@ -121,7 +121,7 @@ reset_prog_mode(void)
     if (cur_term != 0) {
 	_nc_set_tty_mode(&cur_term->Nttyb);
 	if (SP) {
-	    if (stdscr && stdscr->_use_keypad)
+	    if (SP->_keypad_on)
 		_nc_keypad(TRUE);
 	    NC_BUFFERED(TRUE);
 	}
