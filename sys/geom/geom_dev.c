@@ -151,7 +151,7 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 	g_topology_unlock();
 	mtx_lock(&Giant);
 	dev = make_dev(&g_dev_cdevsw, unit2minor(unit++),
-	    UID_ROOT, GID_WHEEL, 0600, gp->name);
+	    UID_ROOT, GID_OPERATOR, 0640, gp->name);
 	mtx_unlock(&Giant);
 	g_topology_lock();
 
