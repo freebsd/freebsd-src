@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 /*
- * Copyright (C) 1984-2000  Mark Nudelman
+ * Copyright (C) 1984-2002  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -177,6 +177,7 @@ main(argc, argv)
 		ifile = get_ifile(FAKE_HELPFILE, ifile);
 	while (argc-- > 0)
 	{
+		char *filename;
 #if (MSDOS_COMPILER && MSDOS_COMPILER != DJGPPC)
 		/*
 		 * Because the "shell" doesn't expand filename patterns,
@@ -186,16 +187,23 @@ main(argc, argv)
 		 */
 		struct textlist tlist;
 		char *gfilename;
-		char *filename;
 		
 		gfilename = lglob(*argv++);
 		init_textlist(&tlist, gfilename);
 		filename = NULL;
 		while ((filename = forw_textlist(&tlist, filename)) != NULL)
-			ifile = get_ifile(filename, ifile);
+		{
+			(void) get_ifile(filename, ifile);
+			ifile = prev_ifile(NULL_IFILE);
+		}
 		free(gfilename);
 #else
-		ifile = get_ifile(*argv++, ifile);
+		filename = shell_quote(*argv);
+		if (filename == NULL)
+			filename = *argv;
+		argv++;
+		(void) get_ifile(filename, ifile);
+		ifile = prev_ifile(NULL_IFILE);
 #endif
 	}
 	/*
@@ -224,10 +232,9 @@ main(argc, argv)
 	if (missing_cap && !know_dumb && !more_mode)
 		error("WARNING: terminal is not fully functional", NULL_PARG);
 	init_mark();
-	raw_mode(1);
 	open_getchr();
+	raw_mode(1);
 	init_signals(1);
-
 
 	/*
 	 * Select the first file to examine.
@@ -273,6 +280,7 @@ main(argc, argv)
 	commands();
 	quit(QUIT_OK);
 	/*NOTREACHED*/
+	return (0);
 }
 
 /*
@@ -307,6 +315,7 @@ ecalloc(count, size)
 	error("Cannot allocate memory", NULL_PARG);
 	quit(QUIT_ERROR);
 	/*NOTREACHED*/
+	return (NULL);
 }
 
 /*
