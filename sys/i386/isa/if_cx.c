@@ -86,7 +86,7 @@ static void cxinput (cx_chan_t *c, void *buf, unsigned len);
 extern int cxrinta (cx_chan_t *c);
 extern void cxtinta (cx_chan_t *c);
 extern void cxmint (cx_chan_t *c);
-extern void cxtimeout (caddr_t a);
+extern timeout_t cxtimeout;
 static void cxdown (cx_chan_t *c);
 static void cxup (cx_chan_t *c);
 
@@ -288,7 +288,7 @@ cxattach (struct isa_device *id)
 
 	/* Activate the timeout routine. */
 	if (unit == 0)
-		timeout ((timeout_func_t) cxtimeout, 0, hz*5);
+		timeout (cxtimeout, 0, hz*5);
 
 	printf ("cx%d: <Cronyx-%s>\n", unit, b->name);
 #ifdef DEVFS
