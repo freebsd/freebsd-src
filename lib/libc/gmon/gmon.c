@@ -35,12 +35,15 @@
 static char sccsid[] = "@(#)gmon.c	8.1 (Berkeley) 6/4/93";
 #endif
 
-#ifndef __NETBSD_SYSCALLS
+#ifndef __alpha__
+
 #include <sys/param.h>
 #include <sys/time.h>
 #include <sys/gmon.h>
 #include <sys/sysctl.h>
 
+#include <err.h>
+#include <errno.h>
 #include <stdio.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -50,6 +53,8 @@ extern char *minbrk asm (".minbrk");
 #else
 extern char *minbrk asm ("minbrk");
 #endif
+
+extern char *__progname;
 
 struct gmonparam _gmonparam = { GMON_PROF_OFF };
 
@@ -139,6 +144,7 @@ _mcleanup()
 	struct gmonparam *p = &_gmonparam;
 	struct gmonhdr gmonhdr, *hdr;
 	struct clockinfo clockinfo;
+	char outname[128];
 	int mib[2];
 	size_t size;
 #ifdef DEBUG
@@ -165,15 +171,16 @@ _mcleanup()
 	}
 
 	moncontrol(0);
-	fd = open("gmon.out", O_CREAT|O_TRUNC|O_WRONLY, 0666);
+	snprintf(outname,sizeof(outname),"%s.gmon",__progname);
+	fd = open(outname, O_CREAT|O_TRUNC|O_WRONLY, 0666);
 	if (fd < 0) {
-		perror("mcount: gmon.out");
+		warnx("_mcleanup: %s - %s",outname,strerror(errno));
 		return;
 	}
 #ifdef DEBUG
 	log = open("gmon.log", O_CREAT|O_TRUNC|O_WRONLY, 0664);
 	if (log < 0) {
-		perror("mcount: gmon.log");
+		perror("_mcleanup: gmon.log");
 		return;
 	}
 	len = sprintf(buf, "[mcleanup1] kcount 0x%x ssiz %d\n",
