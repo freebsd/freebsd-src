@@ -6,7 +6,7 @@
  * to the original author and the contributors.
  *
  * @(#)ip_fil.h	1.35 6/5/96
- * $Id: ip_fil.h,v 2.29.2.4 2000/11/12 11:54:53 darrenr Exp $
+ * $Id: ip_fil.h,v 2.29.2.3 2000/06/05 13:12:42 darrenr Exp $
  * $FreeBSD$
  */
 
@@ -469,8 +469,7 @@ typedef	struct	ipflog	{
  * with this!
  */
 #if (defined(NetBSD) && (NetBSD > 199609) && (NetBSD <= 1991011)) || \
-    (defined(NetBSD1_2) && NetBSD1_2 > 1) || (defined(__FreeBSD_version) && \
-     (__FreeBSD_version >= 500011))
+    (defined(NetBSD1_2) && NetBSD1_2 > 1)
 # if (NetBSD >= 199905)
 #  define PFIL_HOOKS
 # endif

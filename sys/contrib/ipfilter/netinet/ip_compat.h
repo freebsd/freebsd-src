@@ -6,7 +6,7 @@
  * to the original author and the contributors.
  *
  * @(#)ip_compat.h	1.8 1/14/96
- * $Id: ip_compat.h,v 2.26.2.9 2001/01/14 14:58:01 darrenr Exp $
+ * $Id: ip_compat.h,v 2.1.2.3 1999/11/18 13:55:26 darrenr Exp $
  * $FreeBSD$
  */
 
@@ -267,8 +267,6 @@ union	i6addr	{
 # ifdef IPFILTER_LKM
 #  include <sys/param.h>
 #  define       ACTUALLY_LKM_NOT_KERNEL
-# else
-#  include <sys/param.h>
 # endif
 # if __FreeBSD__ < 3
 #  include <machine/spl.h>
