@@ -1779,8 +1779,6 @@ retry_lookup:
 		 */
 
 		if (!pg->valid || !vm_page_is_valid(pg, pgoff, xfsize)) {
-			struct uio auio;
-			struct iovec aiov;
 			int bsize;
 
 			/*
@@ -1793,18 +1791,11 @@ retry_lookup:
 			 * Get the page from backing store.
 			 */
 			bsize = vp->v_mount->mnt_stat.f_iosize;
-			auio.uio_iov = &aiov;
-			auio.uio_iovcnt = 1;
-			aiov.iov_base = 0;
-			aiov.iov_len = MAXBSIZE;
-			auio.uio_resid = MAXBSIZE;
-			auio.uio_offset = trunc_page(off);
-			auio.uio_segflg = UIO_NOCOPY;
-			auio.uio_rw = UIO_READ;
-			auio.uio_td = td;
 			vn_lock(vp, LK_SHARED | LK_NOPAUSE | LK_RETRY, td);
-			error = VOP_READ(vp, &auio, IO_VMIO | ((MAXBSIZE / bsize) << 16),
-			        td->td_ucred);
+			error = vn_rdwr(UIO_READ, vp, NULL, MAXBSIZE,
+			    trunc_page(off), UIO_NOCOPY, IO_NODELOCKED |
+			    IO_VMIO | ((MAXBSIZE / bsize) << 16),
+			    td->td_ucred, NULL, td);
 			VOP_UNLOCK(vp, 0, td);
 			vm_page_flag_clear(pg, PG_ZERO);
 			vm_page_io_finish(pg);
