@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 12, 2005
+.Dd February 14, 2005
 .Dt NG_ETHER 4
 .Os
 .Sh NAME
@@ -55,9 +55,6 @@ module is loaded into the kernel, a node is automatically created
 for each Ethernet interface in the system.
 Each node will attempt to name itself with the same name
 as the associated interface.
-All
-.Nm ether
-nodes are persistent for as long as the interface itself exists.
 .Pp
 Three hooks are supported:
 .Va lower , upper ,
@@ -179,14 +176,18 @@ This control message is equivalent to using the
 .Dv SIOCDELMULTI
 .Xr ioctl 2
 system call.
+.It Dv NGM_ETHER_DETACH Pq Li detach
+Detach from underlying Ethernet interface and shutdown node.
 .El
 .Sh SHUTDOWN
-This node is persistent for as long as the corresponding interface exists.
 Upon receipt of the
 .Dv NGM_SHUTDOWN
 control message, all hooks are disconnected, promiscuous mode is disabled,
 and the source address override flag is re-enabled,
 but the node is not removed.
+Node can be shut down only using
+.Dv NGM_ETHER_DETACH
+control message.
 If the interface itself is detached (e.g., because of PC Card removal), the
 node disappears as well.
 .Sh EXAMPLES
