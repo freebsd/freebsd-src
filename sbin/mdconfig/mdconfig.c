@@ -37,7 +37,7 @@ void
 usage()
 {
 	fprintf(stderr, "usage:\n");
-	fprintf(stderr, "\tmdconfig -a -t type [-o [no]option]... [ -f file] [-s size] [-u unit]\n");
+	fprintf(stderr, "\tmdconfig -a -t type [-o [no]option]... [ -f file] [-s size] [-S sectorsize] [-u unit]\n");
 	fprintf(stderr, "\tmdconfig -d -u unit\n");
 	fprintf(stderr, "\tmdconfig -l [-u unit]\n");
 	fprintf(stderr, "\t\ttype = {malloc, preload, vnode, swap}\n");
@@ -54,7 +54,7 @@ main(int argc, char **argv)
 	int cmdline = 0;
 
 	for (;;) {
-		ch = getopt(argc, argv, "ab:df:lo:s:t:u:");
+		ch = getopt(argc, argv, "ab:df:lo:s:S:t:u:");
 		if (ch == -1)
 			break;
 		switch (ch) {
@@ -129,6 +129,11 @@ main(int argc, char **argv)
 				mdio.md_options &= ~MD_RESERVE;
 			else
 				errx(1, "Unknown option.");
+			break;
+		case 'S':
+			if (cmdline != 2)
+				usage();
+			mdio.md_secsize = strtoul(optarg, &p, 0);
 			break;
 		case 's':
 			if (cmdline != 2)

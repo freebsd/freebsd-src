@@ -746,6 +746,8 @@ mdcreate_malloc(struct md_ioctl *mdio)
 		return (EINVAL);
 	if (mdio->md_options & ~(MD_AUTOUNIT | MD_COMPRESS | MD_RESERVE))
 		return (EINVAL);
+	if (mdio->md_secsize != 0 && !powerof2(mdio->md_secsize))
+		return (EINVAL);
 	/* Compression doesn't make sense if we have reserved space */
 	if (mdio->md_options & MD_RESERVE)
 		mdio->md_options &= ~MD_COMPRESS;
@@ -760,8 +762,12 @@ mdcreate_malloc(struct md_ioctl *mdio)
 			return (EBUSY);
 	}
 	sc->type = MD_MALLOC;
-	sc->secsize = DEV_BSIZE;
+	if (mdio->md_secsize != 0)
+		sc->secsize = mdio->md_secsize;
+	else
+		sc->secsize = DEV_BSIZE;
 	sc->nsect = mdio->md_size;
+	sc->nsect /= (sc->secsize / DEV_BSIZE);
 	sc->flags = mdio->md_options & (MD_COMPRESS | MD_FORCE);
 	sc->indir = dimension(sc->nsect);
 	sc->uma = uma_zcreate(sc->name, sc->secsize,
