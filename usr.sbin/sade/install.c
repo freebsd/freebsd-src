@@ -654,7 +654,7 @@ nodisks:
 #endif
 
     dialog_clear_norefresh();
-    if (msgNoYes("Does this system have a USB mouse attached to it?"))
+    if (!msgNoYes("Does this system have a non-USB mouse attached to it?"))
 	dmenuOpenSimple(&MenuMouse, FALSE);
 
     /* Now would be a good time to checkpoint the configuration data */
