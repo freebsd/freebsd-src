@@ -119,17 +119,12 @@ struct _pcm_channel {
 	u_int32_t speed;
 	u_int32_t flags;
 	u_int32_t format, hwfmt;
-	u_int32_t blocksize;
-	u_int32_t blocksize2nd;
-	u_int32_t fragments;
+	u_int32_t blocksize, blocksize2nd;
+	u_int32_t fragments, blocks;
 
 	int direction;
-	snd_dbuf buffer;
-#define	SMEGBUFSZ 4
-	u_int8_t smegbuf[SMEGBUFSZ];
-	u_int32_t smegcnt;
+	snd_dbuf buffer, buffer2nd;
 	void *devinfo;
-	snd_dbuf buffer2nd;
 };
 
 typedef void (pcm_swap_t)(void *data, int dir);
