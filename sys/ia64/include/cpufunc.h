@@ -32,6 +32,7 @@
 #ifdef _KERNEL
 
 #include <sys/types.h>
+#include <machine/ia64_cpu.h>
 
 #ifdef __GNUC__
 
@@ -43,22 +44,44 @@ breakpoint(void)
 
 #endif
 
+extern u_int64_t	ia64_port_base;
+
+static __inline volatile void *
+ia64_port_address(u_int port)
+{
+    return (volatile void *)(ia64_port_base
+			     | ((port >> 2) << 12)
+			     | (port & ((1 << 12) - 1)));
+}
+
 static __inline u_int8_t
 inb(u_int port)
 {
-	return 0;		/* TODO: implement this */
+	volatile u_int8_t *p = ia64_port_address(port);
+	u_int8_t v = *p;
+	ia64_mf_a();
+	ia64_mf();
+	return v;
 }
 
 static __inline u_int16_t
 inw(u_int port)
 {
-	return 0;		/* TODO: implement this */
+	volatile u_int16_t *p = ia64_port_address(port);
+	u_int16_t v = *p;
+	ia64_mf_a();
+	ia64_mf();
+	return v;
 }
 
 static __inline u_int32_t
 inl(u_int port)
 {
-	return 0;		/* TODO: implement this */
+	volatile u_int32_t *p = ia64_port_address(port);
+	u_int32_t v = *p;
+	ia64_mf_a();
+	ia64_mf();
+	return v;
 }
 
 static __inline void
@@ -88,19 +111,28 @@ insl(u_int port, void *addr, size_t count)
 static __inline void
 outb(u_int port, u_int8_t data)
 {
-	return;			/* TODO: implement this */
+	volatile u_int8_t *p = ia64_port_address(port);
+	*p = data;
+	ia64_mf_a();
+	ia64_mf();
 }
 
 static __inline void
 outw(u_int port, u_int16_t data)
 {
-	return;			/* TODO: implement this */
+	volatile u_int16_t *p = ia64_port_address(port);
+	*p = data;
+	ia64_mf_a();
+	ia64_mf();
 }
 
 static __inline void
 outl(u_int port, u_int32_t data)
 {
-	return;			/* TODO: implement this */
+	volatile u_int32_t *p = ia64_port_address(port);
+	*p = data;
+	ia64_mf_a();
+	ia64_mf();
 }
 
 static __inline void
