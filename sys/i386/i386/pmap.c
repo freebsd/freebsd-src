@@ -1363,15 +1363,9 @@ pmap_lazyfix(pmap_t pmap)
 void
 pmap_release(pmap_t pmap)
 {
-	vm_object_t object;
-	vm_page_t m;
+	vm_page_t m, ptdpg[NPGPTD];
 	int i;
 
-	object = pmap->pm_pteobj;
-
-	KASSERT(object->ref_count == 1,
-	    ("pmap_release: pteobj reference count %d != 1",
-	    object->ref_count));
 	KASSERT(pmap->pm_stats.resident_count == 0,
 	    ("pmap_release: pmap resident count %ld != 0",
 	    pmap->pm_stats.resident_count));
@@ -1380,6 +1374,9 @@ pmap_release(pmap_t pmap)
 	mtx_lock_spin(&allpmaps_lock);
 	LIST_REMOVE(pmap, pm_list);
 	mtx_unlock_spin(&allpmaps_lock);
+
+	for (i = 0; i < NPGPTD; i++)
+		ptdpg[i] = PHYS_TO_VM_PAGE(pmap->pm_pdir[PTDPTDI + i]);
 
 	bzero(pmap->pm_pdir + PTDPTDI, (nkpt + NPGPTD) *
 	    sizeof(*pmap->pm_pdir));
@@ -1391,7 +1388,7 @@ pmap_release(pmap_t pmap)
 
 	vm_page_lock_queues();
 	for (i = 0; i < NPGPTD; i++) {
-		m = TAILQ_FIRST(&object->memq);
+		m = ptdpg[i];
 #ifdef PAE
 		KASSERT(VM_PAGE_TO_PHYS(m) == (pmap->pm_pdpt[i] & PG_FRAME),
 		    ("pmap_release: got wrong ptd page"));
@@ -1401,8 +1398,6 @@ pmap_release(pmap_t pmap)
 		vm_page_busy(m);
 		vm_page_free_zero(m);
 	}
-	KASSERT(TAILQ_EMPTY(&object->memq),
-	    ("pmap_release: leaking page table pages"));
 	vm_page_unlock_queues();
 }
 
