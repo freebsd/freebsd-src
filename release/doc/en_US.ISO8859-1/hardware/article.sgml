@@ -727,6 +727,8 @@
       RTL8110S based PCI Fast Ethernet and Gigabit Ethernet
       controllers (&man.re.4; driver)</para>
 
+    &hwlist.ixgb;
+
   </sect2>
 
   <sect2 id="fddi">
