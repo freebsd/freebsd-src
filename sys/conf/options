@@ -1,4 +1,4 @@
-#	$Id: options,v 1.101 1998/09/29 17:32:18 abial Exp $
+#	$Id: options,v 1.102 1998/10/02 05:15:45 ken Exp $
 #
 #        On the handling of kernel options   
 # 
@@ -32,10 +32,13 @@
 
 # Adaptec aic7xxx SCSI controller options
 AHC_ALLOW_MEMIO		opt_aic7xxx.h	# Allow PCI devices to use memory
-					# mapped I/o
+					# mapped I/O
 
 AHC_TMODE_ENABLE	opt_aic7xxx.h	# Bitmap of units to enable
 					# targetmode operations.
+
+ADW_ALLOW_MEMIO		opt_adw.h	# Allow PCI devices to use memory
+					# mapped I/O
 
 # Miscellaneous options.
 COMPAT_43	opt_compat.h
@@ -213,6 +216,8 @@ ATM_UNI			opt_atm.h
 # This makes "atm.h" unusable.
 NATM			opt_natm.h
 
+DPT_ALLOW_MEMIO		opt_dpt.h	# Allow PCI devices to use memory
+					# mapped I/O
 # DPT driver debug flags
 DPT_VERIFY_HINTR	opt_dpt.h
 DPT_USE_SINTR		opt_dpt.h
