@@ -309,6 +309,8 @@ uart_bus_attach(device_t dev)
 	 */
 	sc->sc_leaving = 1;
 
+	mtx_init(&sc->sc_hwmtx, "uart_hwmtx", NULL, MTX_SPIN);
+
 	/*
 	 * Re-allocate. We expect that the softc contains the information
 	 * collected by uart_bus_probe() intact.

@@ -24,6 +24,9 @@
 #
 # $FreeBSD$
 
+#include <sys/param.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/bus.h>
 #include <machine/bus.h>
 #include <dev/uart/uart.h>
