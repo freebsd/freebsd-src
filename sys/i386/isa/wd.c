@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.14 1993/11/19 06:30:00 davidg Exp $
+ *	$Id: wd.c,v 1.15 1993/11/22 23:25:46 nate Exp $
  */
 
 /* TODO:peel out buffer at low ipl, speed improvement */
@@ -65,7 +65,7 @@
 #define _NWD  (NWD - 1)       /* One is for the controller XXX */
 
 #ifndef WDCTIMEOUT
-#define WDCTIMEOUT	300000  /* arbitrary timeout for drive ready waits */
+#define WDCTIMEOUT	10000000  /* arbitrary timeout for drive ready waits */
 #endif
 
 #define	RETRIES		5	/* number of retries before giving up */
