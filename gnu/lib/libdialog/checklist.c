@@ -316,6 +316,10 @@ draw:
 
 			save = dupwin(newscr);
 			st = ditems[scroll + choice].fire(&ditems[scroll + choice]);
+			if (st & DITEM_RESTORE) {
+			    touchwin(save);
+			    wrefresh(save);
+			}
 			if (st & DITEM_REDRAW) {
 			    wmove(dialog, cur_y, cur_x);  /* Restore cursor to previous position */
 			    for (i = 0; i < item_no; i++)
@@ -328,10 +332,6 @@ draw:
 			    print_arrows(dialog, scroll, list_height, item_no, box_x, box_y, check_x + 4,
 					 cur_x, cur_y);
 			    wrefresh(dialog);
-			}
-			else if (st & DITEM_RESTORE) {
-			    touchwin(save);
-			    wrefresh(save);
 			}
 			else if (st & DITEM_RECREATE) {
 			    delwin(save);
