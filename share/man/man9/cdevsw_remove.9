@@ -33,11 +33,10 @@
 .Nm cdevsw_remove
 .Nd "Removes a cdevsw entry"
 .Sh SYNOPSIS
+.Fd #include <sys/param.h>
 .Fd #include <sys/conf.h>
 .Ft int
-.Fo cdevsw_add
-.Fa "struct cdevsw *oldentry"
-.Fc
+.Fn cdevsw_add "struct cdevsw *oldentry"
 .Sh DESCRIPTION
 The
 .Nm

@@ -33,14 +33,10 @@
 .Nm lockmgr
 .Nd "Aquires, releases and updates locks"
 .Sh SYNOPSIS
+.Fd #include <sys/types.h>
 .Fd #include <sys/lockmgr.h>
 .Ft int
-.Fo lockmgr
-.Fa "struct lock *lkp"
-.Fa "u_int flags"
-.Fa "struct mtx *interlkp"
-.Fa "struct proc *p"
-.Fc
+.Fn lockmgr "struct lock *lkp" "u_int flags" "struct mtx *interlkp" "struct proc *p"
 .Sh DESCRIPTION
 The
 .Nm

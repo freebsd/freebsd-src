@@ -33,15 +33,10 @@
 .Nm vfs_mount
 .Nd "Generic filesystem mount function"
 .Sh SYNOPSIS
+.Fd #include <sys/param.h>
 .Fd #include <sys/mount.h>
 .Ft int
-.Fo vfs_mount
-.Fa "struct proc *vp"
-.Fa "char *fstype"
-.Fa "char *fspath"
-.Fa "int fsflags"
-.Fa "void *fsdata"
-.Fc
+.Fn vfs_mount "struct proc *vp" "char *fstype" "char *fspath" "int fsflags" "void *fsdata"
 .Sh DESCRIPTION
 The
 .Nm

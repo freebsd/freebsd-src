@@ -33,11 +33,10 @@
 .Nm BUF_REFCNT
 .Nd "Returns the reference count of the buffer lock"
 .Sh SYNOPSIS
+.Fd #include <sys/param.h>
 .Fd #include <sys/buf.h>
 .Ft int
-.Fo BUF_REFCNT
-.Fa "struct buf *bp"
-.Fc
+.Fn BUF_REFCNT "struct buf *bp"
 .Sh DESCRIPTION
 The
 .Nm

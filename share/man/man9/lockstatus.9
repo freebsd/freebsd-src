@@ -33,12 +33,10 @@
 .Nm lockstatus
 .Nd "Returns the lock status"
 .Sh SYNOPSIS
+.Fd #include <sys/types.h>
 .Fd #include <sys/lockmgr.h>
 .Ft int
-.Fo lockstatus
-.Fa "struct lock *lkp"
-.Fa "struct proc *p"
-.Fc
+.Fn lockstatus "struct lock *lkp" "struct proc *p"
 .Sh DESCRIPTION
 The
 .Nm
