@@ -96,7 +96,7 @@ crypto/des/des_ecb.c		optional	netsmbcrypto
 crypto/des/des_setkey.c		optional	netsmbcrypto
 dev/advansys/adv_isa.c		optional	adv isa
 dev/aic/aic_isa.c		optional	aic isa
-#dev/ar/if_ar_isa.c		optional	ar isa
+dev/ar/if_ar_isa.c		optional	ar isa
 dev/ed/if_ed_isa.c		optional	ed isa
 dev/eisa/eisaconf.c		optional	eisa
 dev/fb/fb.c			optional	fb
