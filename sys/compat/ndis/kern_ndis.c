@@ -305,17 +305,17 @@ ndis_create_sysctls(arg)
 	    "NDIS API Version", "0x00050001", CTLFLAG_RD);
 
 	/* Bus type (PCI, PCMCIA, etc...) */
-	sprintf(buf, "%d\n", (int)sc->ndis_iftype);
+	sprintf(buf, "%d", (int)sc->ndis_iftype);
 	ndis_add_sysctl(sc, "BusType", "Bus Type", buf, CTLFLAG_RD);
 
 	if (sc->ndis_res_io != NULL) {
-		sprintf(buf, "0x%lx\n", rman_get_start(sc->ndis_res_io));
+		sprintf(buf, "0x%lx", rman_get_start(sc->ndis_res_io));
 		ndis_add_sysctl(sc, "IOBaseAddress",
 		    "Base I/O Address", buf, CTLFLAG_RD);
 	}
 
 	if (sc->ndis_irq != NULL) {
-		sprintf(buf, "%lu\n", rman_get_start(sc->ndis_irq));
+		sprintf(buf, "%lu", rman_get_start(sc->ndis_irq));
 		ndis_add_sysctl(sc, "InterruptNumber",
 		    "Interrupt Number", buf, CTLFLAG_RD);
 	}
