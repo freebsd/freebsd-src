@@ -1,3 +1,4 @@
+/* $OpenBSD: netcat.c,v 1.76 2004/12/10 16:51:31 hshoexer Exp $ */
 /*
  * Copyright (c) 2001 Eric Jackson <ericj@monkey.org>
  *
@@ -24,7 +25,6 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * From: $OpenBSD: netcat.c,v 1.76 2004/12/10 16:51:31 hshoexer Exp $
  * $FreeBSD$
  */
 
