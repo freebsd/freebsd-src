@@ -101,6 +101,7 @@ typedef	__wint_t	wint_t;
 #endif
 
 struct __sFILE;
+struct tm;
 
 __BEGIN_DECLS
 wint_t	btowc(int);
@@ -127,6 +128,8 @@ wchar_t	*wcschr(const wchar_t *, wchar_t);
 int	wcscmp(const wchar_t *, const wchar_t *);
 wchar_t	*wcscpy(wchar_t * __restrict, const wchar_t * __restrict);
 size_t	wcscspn(const wchar_t *, const wchar_t *);
+size_t	wcsftime(wchar_t * __restrict, size_t, const wchar_t * __restrict,
+	    const struct tm * __restrict);
 size_t	wcslcat(wchar_t *, const wchar_t *, size_t);
 size_t	wcslcpy(wchar_t *, const wchar_t *, size_t);
 size_t	wcslen(const wchar_t *);
