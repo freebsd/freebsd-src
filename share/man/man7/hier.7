@@ -41,304 +41,322 @@
 .Sh DESCRIPTION
 A sketch of the filesystem hierarchy.
 .Bl -tag -width "/stand/"
-.It Li /
+.It Pa /
 root directory of the filesystem
-.It Li /bin/
+.It Pa /bin/
 user utilities fundamental to both single-user and multi-user environments
-.It Li /boot/
+.It Pa /boot/
 programs and configuration files used during operating system bootstrap
 .Pp
 .Bl -tag -width defaults/ -compact
-.It Li defaults/
+.It Pa defaults/
 default bootstrapping configuration files; see
 .Xr loader.conf 5
 .El
-.It Li /dev/
+.It Pa /dev/
 block and character device files
 .Pp
 .Bl -tag -width MAKEDEV -compact
-.It Li MAKEDEV
+.It Pa MAKEDEV
 script for creating device files;
 see
 .Xr MAKEDEV 8
-.It Li fd/ 
+.It Pa fd/ 
 file descriptor files;
 see
 .Xr \&fd 4
 .El
-.It Li /etc/
+.It Pa /etc/
 system configuration files and scripts 
 .Pp
 .Bl -tag -width "disklabels/" -compact
-.It Li defaults/
+.It Pa defaults/
 default system configuration files;
 see
 .Xr rc 8
-.It Li gnats/
+.It Pa gnats/
 gnats configuration files;
 see
 .Xr send-pr 1
-.It Li isdn/
+.It Pa isdn/
 isdn4bsd configuration files;
 see
 .Xr isdnd 8
-.It Li kerberosIV/ 
+.It Pa kerberosIV/ 
 configuration files for the kerberos version IV;
 see
 .Xr kerberos 1
-.It Li localtime
+.It Pa localtime
 local timezone information;
 see
 .Xr ctime 3
-.It Li mail/
+.It Pa mail/
 spam-filtering information
-.It Li mtree/ 
+.It Pa mtree/ 
 mtree configuration files;
 see
 .Xr mtree 8
-.It Li namedb/ 
+.It Pa namedb/ 
 named configuration files;
 see
 .Xr named 8
-.It Li periodic/
+.It Pa periodic/
 scripts that are run daily, weekly, and monthly, via
 .Xr cron 8 ;
 see
 .Xr periodic 8
-.It Li ppp/
-.Xr ppp 8 
+.It Pa ppp/
 ppp configuration files;
 see 
 .Xr ppp 8
-.It Li ssl/
+.It Pa ssl/
 OpenSSL configuration files
-.It Li uucp/
+.It Pa uucp/
 uucp configuration files;
 see
 .Xr uucp 1
 .El
-.It Li /kernel
+.It Pa /kernel
 pure kernel executable (the operating system loaded into memory
 at boot time).  
-.It Li /modules/
+.It Pa /modules/
 loadable kernel modules;
 see 
 .Xr kldstat 8 
-.It Li /mnt/
+.It Pa /mnt/
 empty directory commonly used by
 system administrators as a temporary mount point
-.It Li /proc/
+.It Pa /proc/
 process file system;
 see
 .Xr procfs 5 ,
 .Xr mount_procfs 8
-.It Li /root/
+.It Pa /root/
 root's HOME directory
-.It Li /sbin/
+.It Pa /sbin/
 system programs and administration utilities
 fundamental to both single-user and multi-user environments
-.It Li /stand/
+.It Pa /stand/
 programs used in a standalone environment
-.It Li /tmp/ 
-temporary files, usually a
-.Xr mfs 8
-memory-based filesystem (the contents
-of /tmp are usually NOT preserved across a system reboot)
-.It Li /usr/
+.It Pa /tmp/ 
+temporary files
+.It Pa /usr/
 contains the majority of user utilities and applications 
 .Pp
 .Bl -tag -width "libdata/" -compact
-.It Li bin/
+.It Pa bin/
 common utilities, programming tools, and applications 
-.It Li games/
+.It Pa games/
 useful and semi-frivolous programs
-.It Li include/
+.It Pa include/
 standard C include files
 .Pp
 .Bl -tag -width "kerberosIV/" -compact
-.It Li arpa/
+.It Pa arpa/
 C include files for Internet service protocols
-.It Li cam/
+.It Pa cam/
 C include files for the Common Access Methods Layer
 .Bl -tag -width "kerberosIV/" -compact
 .It scsi/
 The SCSI device on top of CAM
 .El
-.It Li dev/
+.It Pa dev/
+C include files for programming various
+.Fx
+devices
 .Bl -tag -width "kerberosIV/" -compact
-.It usb/
+.It Pa ppbus/
+The parallel port bus;
+see
+.Xr ppbus 4
+.It Pa usb/
 The USB subsystem
 .El
-.It Li g++/
+.It Pa fs/
+.Bl -tag -width "kerberosIV/" -compact
+.It Pa smbfs/
+SMB/CIFS filesystem
+.El
+.It Pa g++/
 GNU C++ include files
 .Bl -tag -width "kerberosIV/" -compact
-.It Li std/
+.It Pa std/
 GNU C++ libstdc++ include files
 .El
-.It Li isc/
+.It Pa isc/
 ISC utility library libisc include files
-.It Li isofs/
+.It Pa isofs/
 .Bl -tag -width "kerberosIV/" -compact
-.It Li cd9660/
+.It Pa cd9660/
 iso9660 filesystem
 .El
-.It Li kerberosIV/
+.It Pa kerberosIV/
 C include files for kerberos authentication package;
 see
 .Xr kerberos 1
-.It Li machine/
-machine specific C include files
-.It Li msdosfs/
+.It Pa machine/
+machine-specific C include files
+.It Pa msdosfs/
 MS-DOS file system
-.It Li net/
+.It Pa net/
 misc network C include files
-.It Li netatalk/
+.It Pa netatalk/
 Appletalk protocol
-.It Li netatm/
+.It Pa netatm/
 ATM include files;
 see
 .Xr atm 8
-.It Li netinet/
+.It Pa netinet/
 C include files for Internet standard protocols;
 see
 .Xr inet 4
-.It Li netinet6/
+.It Pa netinet6/
 C include files for Internet protocol version 6;
 see
 .Xr inet6 4
-.It Li netipx/
+.It Pa netipx/
 IPX/SPX protocol stacks
-.It Li netkey/
+.It Pa netkey/
 kernel key-management service
-.It Li netns/
+.It Pa netns/
 Xerox NS protocols
-.It Li netnatm/
+.It Pa netsmb/
+SMB/CIFS requester
+.It Pa netnatm/
 NATM include files;
 see
 .Xr natm 4
-.It Li nfs/
+.It Pa nfs/
 C include files for NFS (Network File System)
-.It Li objc/
+.It Pa objc/
 Objective C include files
-.It Li openssl/
+.It Pa openssl/
 OpenSSL (Cryptography/SSL toolkit) headers
-.It Li pccard/
+.It Pa pccard/
 PC-CARD controllers
-.It Li posix4/
+.It Pa posix4/
 POSIX real-time extensions includes;
 see
 .Xr p1003_1b 9
-.It Li protocols/
+.It Pa protocols/
 C include files for Berkeley service protocols
-.It Li readline/
-get a line from a user with editing;
+.It Pa readline/
+get a line from a user, with editing;
 see
 .Xr readline 3
-.It Li rpc/
+.It Pa rpc/
 remote procedure calls;
 see
 .Xr rpc 3
-.It Li rpcsvc/
-defintion of RPC service structures; see
-.Xr rpc 3 .
-.It Li security/
+.It Pa rpcsvc/
+definition of RPC service structures; see
+.Xr rpc 3
+.It Pa security/
 PAM; see
 .Xr pam 8
-.It Li ss/
+.It Pa ss/
 MIT SIPB
 .Sq subsystem
 library, part of Kerberos IV.
-.It Li sys/
+.It Pa sys/
 system C include files (kernel data structures)
-.\" .It Li tcl/
+.\" .It Pa tcl/
 .\" Tcl language;
 .\" see
 .\" .Xr Tcl n
 .\" .Bl -tag -width "kerberosIV/" -compact
-.\" .It Li generic/
+.\" .It Pa generic/
 .\" ???
-.\" .It Li unix/
+.\" .It Pa unix/
 .\" ???
 .\" .El
-.It Li ufs/
+.It Pa ufs/
 C include files for UFS (The U-word File System)
 .Bl -tag -width "kerberosIV/" -compact
-.It Li ffs/
+.It Pa ffs/
 Fast filesystem
-.It Li mfs/
+.It Pa mfs/
 memory file system;
 see
 .Xr mount_mfs 8
-.It Li ufs/
+.It Pa ufs/
 UFS filesystem
 .El
-.It Li vm/
+.It Pa vm/
 virtual memory;
 see 
 .Xr vmstat 8
 .El
 .Pp
-.It Li lib/
+.It Pa lib/
 archive libraries
 .Bl -tag -width Fl -compact
-.It Li aout/
+.It Pa aout/
 a.out archive libraries
-.It Li compat/
+.It Pa compat/
 shared libraries for compatibility
 .Bl -tag -width Fl -compact
-.It Li aout/
+.It Pa aout/
 a.out backward compatibility libraries
 .El
 .El
 .Pp
-.It Li libdata/
+.It Pa libdata/
 misc. utility data files
 .Bl -tag -width Fl -compact
-.It Li gcc/
+.It Pa doscmd/
+files used by doscmd (drivers, fonts, etc.);
+see
+.Xr doscmd 1
+.Bl -tag -width 6n -compact
+.It Pa fonts/
+fonts used by doscmd
+.El
+.It Pa gcc/
 ???
-.It Li lint/
+.It Pa ldscripts/
+linker scripts;
+see
+.Xr ld 1
+.It Pa lint/
 various prebuilt lint libraries;
 see 
 .Xr lint 1
-.It Li msdosfs/
-Chatacter set conversion tables
-.It Li perl/
+.It Pa msdosfs/
+Character set conversion tables
+.It Pa perl/
 .Bl -tag -width Fl -compact
-.It Li 5.00503/
+.It Pa 5.00503/
 contains Perl modules for Perl version 5.00503;
 see
 .Xr perl 1
 .El
-.It Li stallion/
-holding the download firmware images
-.It Li tcl
-???;
-see
-.Xr Tcl n
+.It Pa stallion/
+holds the download firmware images
 .El
 .Pp
-.It Li libexec/
+.It Pa libexec/
 system daemons & system utilities (executed by other programs)
 .Bl -tag -width Fl -compact
-.It Li aout/
-utilities to manipulate a.out executables.
-.It Li elf/
-utilities to manipulate ELF executables.
-.It Li lpr/
+.It Pa aout/
+utilities to manipulate a.out executables
+.It Pa elf/
+utilities to manipulate ELF executables
+.It Pa lpr/
 utilities and filters for LP print system;
 see
 .Xr lpr 1
-.It Li sm.bin/
+.It Pa sm.bin/
 restricted shell for sendmail;
 see 
 .Xr smrsh 8
-.It Li uucp/
+.It Pa uucp/
 uucp utilities;
 see
 .Xr uucp 1
 .El
 .Pp
-.It Li local/
+.It Pa local/
 local executables, libraries, etc.
 Also used as the default destination for the
 .Fx
@@ -346,343 +364,366 @@ ports framework.
 Within local/, the general layout sketched out by
 .Xr hier 7
 for /usr
-should be used.  Exceptions are the man directory is directly under local/
-rather than under local/share/.  Ports documentation is in share/doc/<port>/
-.It Li obj/
+should be used.  Exceptions are the man directory (directly under local/
+rather than under local/share/), ports documentation (in share/doc/<port>/),
+and /usr/local/etc (mimics /etc).
+.It Pa obj/
 architecture-specific target tree produced by building the /usr/src tree
-.It Li ports
+.It Pa ports/
 The
 .Fx
 ports collection (optional).
-.It Li sbin/
+.It Pa sbin/
 system daemons & system utilities (executed by users)
-.It Li share/
+.It Pa share/
 architecture-independent files
 .Pp
 .Bl -tag -width "calendar/" -compact
-.It Li calendar/
+.It Pa calendar/
 a variety of pre-fab calendar files;
 see
 .Xr calendar 1
-.It Li dict/
+.It Pa dict/
 word lists;
 see
 .Xr look 1
 .Pp
 .Bl -tag -width Fl -compact
-.It Li words
+.It Pa words
 common words
-.It Li web2
+.It Pa web2
 words from Webster's 2nd International
-.It Li papers/
+.It Pa papers/
 reference databases;
 see
 .Xr refer 1
-.It Li special/
+.It Pa special/
 custom word lists;
 see
 .Xr spell 1
 .El
 .Pp
-.It Li doc/
-misc documentation;
-src for most of the printed
+.It Pa doc/
+miscellaneous documentation;
+source for most of the printed
 .Bx
 manuals (available
 from the
 .Tn USENIX
 association)
 .Bl -tag -width Fl -compact
-.It Li FAQ/
+.It Pa FAQ/
 Frequently Asked Questions
-.It Li handbook/
+.It Pa IPv6/
+implementation notes for IPv6
+.It Pa bind/
+documents pertaining to BIND (the Berkeley Internet Name Domain)
+.It Pa es/
+Spanish translations of documents in /usr/share/doc
+.It Pa handbook/
 .Fx
 Handbook
-.It Li papers/
+.It Pa ja/
+Japanese translations of documents in /usr/share/doc
+.It Pa ncurses/
+HTML documents pertaining to ncurses;
+see
+.Xr ncurses 3X
+.It Pa ntp/
+HTML documents pertaining to the Network Time Protocol
+.It Pa papers/
 UNIX Papers
-.It Li psd/
+.It Pa psd/
 UNIX Programmer's Supplementary Documents
-.It Li smm/
+.It Pa ru/
+Russian translations of documents in /usr/share/doc
+.It Pa smm/
 UNIX System Manager's Manual
-.It Li usd/
+.It Pa tutorials/
+.Fx
+tutorials
+.It Pa usd/
 UNIX User's Supplementary Documents
+.It Pa zh/
+Chinese translations of documents in /usr/share/doc
 .El
 .Pp
-.It Li examples/
+.It Pa examples/
 various examples for users and programmers
-.It Li games/
+.It Pa games/
 ASCII text files used by various games
-.It Li groff_font/
+.It Pa groff_font/
 device description file for device name
-.It Li info/
+.It Pa info/
 GNU Info hypertext system
-.It Li isdn/
+.It Pa isdn/
 ISDN
-.It Li libg++/
+.It Pa libg++/
 libg++'s genclass prototype/template class files
-.It Li locale/
-internationalization files;
+.It Pa locale/
+localization files;
 see
 .Xr setlocale 3
-.It Li man/
+.It Pa man/
 manual pages 
-.It Li me/
-macros for use with the me macro package
-.It Li misc/
+.It Pa me/
+macros for use with the me macro package;
+see
+.Xr me 7
+.It Pa misc/
 misc system-wide ASCII text files
 .Bl -tag -width Fl -compact
-.It Li fonts/
+.It Pa fonts/
 ???
-.It Li pcvtfonts/
+.It Pa pcvtfonts/
 pcvt fonts;
 see
 .Xr pcvt 4
-.It Li termcap
+.It Pa termcap
 terminal characteristics database;
 see
 .Xr termcap 5
 .El
-.It Li mk/
+.It Pa mk/
 templates for make;
 see
 .Xr make 1
-.It Li nls/
+.It Pa nls/
 national language support files;
 see 
 .Xr mklocale 1
-.It Li pcvt/
+.It Pa pcvt/
 pcvt documentation and etc examples;
 see
 .Xr pcvt 4
-.It Li perl/
+.It Pa perl/
 perl library files;
 see
 .Xr perl 1
-.It Li sendmail/ 
+.It Pa sendmail/ 
 sendmail configuration files;
 see
 .Xr sendmail 8
-.It Li skel/
+.It Pa skel/
 example . (dot) files for new accounts
-.It Li syscons/
-console staff;
+.It Pa syscons/
+files used by syscons;
 see
 .Xr syscons 4
 .Bl -tag -width "scrnmaps/xx" -compact
-.It Li fonts/
+.It Pa fonts/
 console fonts;
 see
 .Xr vidcontrol 1
 and
 .Xr vidfont 1
-.It Li keymaps/
+.It Pa keymaps/
 console keyboard maps;
 see
 .Xr kbdcontrol 1
 and
 .Xr kbdmap 1
-.It Li scrnmaps/
+.It Pa scrnmaps/
 console screen maps
 .El
-.It Li tabset/
+.It Pa tabset/
 tab description files for a variety of terminals; used in 
 the termcap file;
 see
 .Xr termcap 5
-.It Li tmac/
+.It Pa tmac/
 text processing macros;
 see
 .Xr nroff 1
 and 
 .Xr troff 1
-.It Li vi/
+.It Pa vi/
 localization support and utilities for
-.Xr vi 1 .
-.It Li zoneinfo/
+.Xr vi 1
+.It Pa zoneinfo/
 timezone configuration information;
 see
 .Xr tzfile 5
 .El
-.It Li src/
-BSD and/or local source files
+.It Pa src/
+BSD, third-party, and/or local source files
 .Pp
 .Bl -tag -width "kerberosIV/" -compact
-.It Li bin/
-src for files in /bin 
-.It Li contrib/
-src for files from contributed software
-.It Li crypto
-DES
-.It Li etc/
-src for files in /etc
-.It Li games/
-src for files in /usr/games
-.It Li gnu/
-Utilities covered by the GNU Public License
-.It Li include/
-src for files in /usr/include
-.It Li kerberosIV/
-src for kerberos version IV
-.It Li lib/
-src for files in /usr/lib
-.It Li libexec/
-src for files in /usr/libexec
-.It Li release/
+.It Pa bin/
+source code for files in /bin 
+.It Pa contrib/
+source code for contributed software
+.It Pa crypto/
+source code for contributed cryptography software
+.It Pa etc/
+source code for files in /etc
+.It Pa games/
+source code for files in /usr/games
+.It Pa gnu/
+Utilities covered by the GNU General Public License
+.It Pa include/
+source code for files in /usr/include
+.It Pa kerberosIV/
+source code for kerberos version IV
+.It Pa lib/
+source code for files in /usr/lib
+.It Pa libexec/
+source code for files in /usr/libexec
+.It Pa release/
 files required to produce a
 .Fx 
 release
-.It Li sbin/
-src for files in /sbin
-.It Li secure
-FreeSec sources
-.It Li share/
-src for files in /usr/share
-.It Li sys/
-kernel src files
-.It Li tools/
+.It Pa sbin/
+source code for files in /sbin
+.It Pa secure/
+build directory for files in /usr/src/crypto
+.It Pa share/
+source for files in /usr/share
+.It Pa sys/
+kernel source code
+.It Pa tools/
 tools used for maintenance and testing of
 .Fx
-.It Li usr.bin/
-src for files in /usr/bin
-.It Li usr.sbin/
-src for files in /usr/sbin
+.It Pa usr.bin/
+source code for files in /usr/bin
+.It Pa usr.sbin/
+source code for files in /usr/sbin
 .El
 .Pp
-.It Li X11R6/
+.It Pa X11R6/
 X11R6 distribution executables, libraries, etc (optional).
 .Bl -tag -width "include/" -compact
-.It Li bin/
+.It Pa bin/
 X11R6 binaries (servers, utilities, local packages/ports).
-.It Li etc/
+.It Pa etc/
 X11R6 configuration files and scripts.
-.It Li include/
+.It Pa include/
 X11R6 include files.
-.It Li lib/
+.It Pa lib/
 X11R6 libraries.
-.It Li man/
+.It Pa man/
 X11R6 manual pages.
-.It Li share/
-architecture independant files.
+.It Pa share/
+architecture-independent files.
 .El
 .El
-.It Li /var/
+.It Pa /var/
 multi-purpose log, temporary, transient, and spool files
 .Pp
 .Bl -tag -width "preserve/" -compact
-.It Li account/ 
+.It Pa account/ 
 system accounting files
 .Pp
 .Bl -tag -width Fl -compact
-.It Li acct
+.It Pa acct
 execution accounting file;
 see
 .Xr acct 5
 .El
 .Pp
-.It Li at/
+.It Pa at/
 timed command scheduling files;
 see
 .Xr \&at 1
 .Bl -tag -width "preserve/" -compact
-.It Li jobs/
+.It Pa jobs/
 directory containing job files
-.It Li spool/
+.It Pa spool/
 directory containing output spool files 
 .El
 .Pp
-.It Li backups/
+.It Pa backups/
 misc. backup files
-.It Li crash/
-default drectory to store kernel crash dumps; see
+.It Pa crash/
+default directory to store kernel crash dumps; see
 .Xr crash 8
 and
-.Xr savecore 8 .
-.It Li cron/
-.Bl -tag -width "preserve/" -compact
-.It Li log
-cron log files;
+.Xr savecore 8
+.It Pa cron/
+files used by cron;
 see
 .Xr cron 8
-.It Li tabs/
+.Bl -tag -width "preserve/" -compact
+.It Pa tabs/
 crontab files;
 see
 .Xr crontab 5
 .El
 .Pp
-.It Li db/ 
+.It Pa db/ 
 misc. automatically generated system-specific database files
-.It Li games/ 
+.It Pa games/ 
 misc. game status and score files
-.It Li log/ 
+.It Pa log/ 
 misc. system log files
 .Pp
 .Bl -tag -width Fl -compact
-.It Li wtmp
+.It Pa wtmp
 login/logout log;
 see
 .Xr wtmp 5
 .El
 .Pp
-.It Li mail/ 
+.It Pa mail/ 
 user mailbox files
-.It Li preserve/
+.It Pa preserve/
 temporary home of files preserved after an accidental death
 of an editor;
 see
 .Xr \&ex 1 
-.It Li msgs/
+.It Pa msgs/
 system messages database;
 see
 .Xr msgs 1
-.It Li quotas/ 
+.It Pa quotas/ 
 filesystem quota information files
-.It Li run/
+.It Pa run/
 system information files describing various info about
 system since it was booted
 .Pp
 .Bl -tag -width Fl -compact
-.It Li utmp
+.It Pa utmp
 database of current users;
 see
 .Xr utmp 5
 .El
 .Pp
-.It Li rwho/ 
+.It Pa rwho/ 
 rwho data files;
 see
 .Xr rwhod 8 ,
 .Xr rwho 1 ,
 and
 .Xr ruptime 1
-.It Li spool/ 
+.It Pa spool/ 
 misc. printer and mail system spooling directories
 .Pp
 .Bl -tag -width Fl -compact
-.It Li ftp/ 
+.It Pa ftp/ 
 commonly ~ftp; the anonymous ftp root directory
-.It Li mqueue/ 
+.It Pa mqueue/ 
 undelivered mail queue;
 see
 .Xr sendmail 8
-.It Li output/
+.It Pa output/
 line printer spooling directories
-.It Li secretmail/ 
+.It Pa secretmail/ 
 secretmail spool directory;
 see
 .Xr xget 1
-.It Li uucp/ 
+.It Pa uucp/ 
 uucp spool directory
-.It Li uucppublic/
+.It Pa uucppublic/
 commonly ~uucp; public uucp temporary directory
 .El
 .Pp
-.It Li tmp/ 
+.It Pa tmp/ 
 temporary files that are kept between system reboots
 .Bl -tag -width Fl -compact
-.It Li vi.recover/
+.It Pa vi.recover/
 the directory where recovery files are stored
 .El
-.It Li yp
+.It Pa yp/
 the NIS maps
 .El
 .El
