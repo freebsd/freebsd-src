@@ -165,26 +165,26 @@ mlxd_ioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
  * be a multiple of a sector in length.
  */
 static void
-mlxd_strategy(struct buf *bp)
+mlxd_strategy(struct bio *bp)
 {
-    struct mlxd_softc	*sc = (struct mlxd_softc *)bp->b_dev->si_drv1;
+    struct mlxd_softc	*sc = (struct mlxd_softc *)bp->bio_dev->si_drv1;
 
     debug_called(1);
 
     /* bogus disk? */
     if (sc == NULL) {
-	bp->b_error = EINVAL;
+	bp->bio_error = EINVAL;
 	goto bad;
     }
 
     /* XXX may only be temporarily offline - sleep? */
     if (sc->mlxd_drive->ms_state == MLX_SYSD_OFFLINE) {
-	bp->b_error = ENXIO;
+	bp->bio_error = ENXIO;
 	goto bad;
     }
 
     /* do-nothing operation */
-    if (bp->b_bcount == 0)
+    if (bp->bio_bcount == 0)
 	goto done;
 
     devstat_start_transaction(&sc->mlxd_stats);
@@ -192,13 +192,13 @@ mlxd_strategy(struct buf *bp)
     return;
 
  bad:
-    bp->b_ioflags |= BIO_ERROR;
+    bp->bio_flags |= BIO_ERROR;
 
  done:
     /*
      * Correctly set the buf to indicate a completed transfer
      */
-    bp->b_resid = bp->b_bcount;
+    bp->bio_resid = bp->bio_bcount;
     biodone(bp);
     return;
 }
@@ -206,17 +206,17 @@ mlxd_strategy(struct buf *bp)
 void
 mlxd_intr(void *data)
 {
-    struct buf *bp = (struct buf *)data;
-    struct mlxd_softc	*sc = (struct mlxd_softc *)bp->b_dev->si_drv1;
+    struct bio *bp = (struct bio *)data;
+    struct mlxd_softc	*sc = (struct mlxd_softc *)bp->bio_dev->si_drv1;
 
     debug_called(1);
 	
-    if (bp->b_ioflags & BIO_ERROR)
-	bp->b_error = EIO;
+    if (bp->bio_flags & BIO_ERROR)
+	bp->bio_error = EIO;
     else
-	bp->b_resid = 0;
+	bp->bio_resid = 0;
 
-    devstat_end_transaction_buf(&sc->mlxd_stats, bp);
+    devstat_end_transaction_bio(&sc->mlxd_stats, bp);
     biodone(bp);
 }
 

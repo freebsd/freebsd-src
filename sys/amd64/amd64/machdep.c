@@ -2362,54 +2362,54 @@ Debugger(const char *msg)
  * if needed, and signal errors or early completion.
  */
 int
-bounds_check_with_label(struct buf *bp, struct disklabel *lp, int wlabel)
+bounds_check_with_label(struct bio *bp, struct disklabel *lp, int wlabel)
 {
-        struct partition *p = lp->d_partitions + dkpart(bp->b_dev);
+        struct partition *p = lp->d_partitions + dkpart(bp->bio_dev);
         int labelsect = lp->d_partitions[0].p_offset;
         int maxsz = p->p_size,
-                sz = (bp->b_bcount + DEV_BSIZE - 1) >> DEV_BSHIFT;
+                sz = (bp->bio_bcount + DEV_BSIZE - 1) >> DEV_BSHIFT;
 
         /* overwriting disk label ? */
         /* XXX should also protect bootstrap in first 8K */
-        if (bp->b_blkno + p->p_offset <= LABELSECTOR + labelsect &&
+        if (bp->bio_blkno + p->p_offset <= LABELSECTOR + labelsect &&
 #if LABELSECTOR != 0
-            bp->b_blkno + p->p_offset + sz > LABELSECTOR + labelsect &&
+            bp->bio_blkno + p->p_offset + sz > LABELSECTOR + labelsect &&
 #endif
-            (bp->b_iocmd == BIO_WRITE) && wlabel == 0) {
-                bp->b_error = EROFS;
+            (bp->bio_cmd == BIO_WRITE) && wlabel == 0) {
+                bp->bio_error = EROFS;
                 goto bad;
         }
 
 #if     defined(DOSBBSECTOR) && defined(notyet)
         /* overwriting master boot record? */
-        if (bp->b_blkno + p->p_offset <= DOSBBSECTOR &&
-            (bp->b_iocmd == BIO_WRITE) && wlabel == 0) {
-                bp->b_error = EROFS;
+        if (bp->bio_blkno + p->p_offset <= DOSBBSECTOR &&
+            (bp->bio_cmd == BIO_WRITE) && wlabel == 0) {
+                bp->bio_error = EROFS;
                 goto bad;
         }
 #endif
 
         /* beyond partition? */
-        if (bp->b_blkno < 0 || bp->b_blkno + sz > maxsz) {
+        if (bp->bio_blkno < 0 || bp->bio_blkno + sz > maxsz) {
                 /* if exactly at end of disk, return an EOF */
-                if (bp->b_blkno == maxsz) {
-                        bp->b_resid = bp->b_bcount;
+                if (bp->bio_blkno == maxsz) {
+                        bp->bio_resid = bp->bio_bcount;
                         return(0);
                 }
                 /* or truncate if part of it fits */
-                sz = maxsz - bp->b_blkno;
+                sz = maxsz - bp->bio_blkno;
                 if (sz <= 0) {
-                        bp->b_error = EINVAL;
+                        bp->bio_error = EINVAL;
                         goto bad;
                 }
-                bp->b_bcount = sz << DEV_BSHIFT;
+                bp->bio_bcount = sz << DEV_BSHIFT;
         }
 
-        bp->b_pblkno = bp->b_blkno + p->p_offset;
+        bp->bio_pblkno = bp->bio_blkno + p->p_offset;
         return(1);
 
 bad:
-        bp->b_ioflags |= BIO_ERROR;
+        bp->bio_flags |= BIO_ERROR;
         return(-1);
 }
 

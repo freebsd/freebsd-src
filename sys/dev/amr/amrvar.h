@@ -136,7 +136,7 @@ struct amr_softc
     struct callout_handle	amr_timeout;		/* periodic status check */
 
     /* per-controller queues */
-    struct buf_queue_head 	amr_bufq;		/* pending I/O */
+    struct bio_queue_head 	amr_bioq;		/* pending I/O */
     int				amr_waitbufs;
     struct amr_command		*amr_busycmd[AMR_MAXCMD];
     int				amr_busycmdcount;
@@ -239,7 +239,7 @@ struct amrd_softc
 /*
  * Interface between driver core and disk driver (should be using a bus?)
  */
-extern int	amr_submit_buf(struct amr_softc *sc, struct buf *bp);
+extern int	amr_submit_buf(struct amr_softc *sc, struct bio *bp);
 extern int	amr_submit_ioctl(struct amr_softc *sc, struct amr_logdrive *drive, u_long cmd, 
 				 caddr_t addr, int32_t flag, struct proc *p);
 extern void	amrd_intr(void *data);

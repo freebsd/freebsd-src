@@ -190,7 +190,7 @@ ida_init(struct ida_softc *ida)
 
 	SLIST_INIT(&ida->free_qcbs);
 	STAILQ_INIT(&ida->qcb_queue);
-        bufq_init(&ida->buf_queue);
+        bioq_init(&ida->bio_queue);
 
 	ida->qcbs = (struct ida_qcb *)
 	    malloc(IDA_QCB_MAX * sizeof(struct ida_qcb), M_DEVBUF, M_NOWAIT);
@@ -358,9 +358,9 @@ ida_command(struct ida_softc *ida, int command, void *data, int datasize,
 }
 
 void
-ida_submit_buf(struct ida_softc *ida, struct buf *bp)
+ida_submit_buf(struct ida_softc *ida, struct bio *bp)
 {
-        bufq_insert_tail(&ida->buf_queue, bp);
+        bioq_insert_tail(&ida->bio_queue, bp);
         ida_construct_qcb(ida);
 	ida_start(ida);
 }
@@ -371,9 +371,9 @@ ida_construct_qcb(struct ida_softc *ida)
 	struct ida_hardware_qcb *hwqcb;
 	struct ida_qcb *qcb;
 	bus_dmasync_op_t op;
-	struct buf *bp;
+	struct bio *bp;
 
-	bp = bufq_first(&ida->buf_queue);
+	bp = bioq_first(&ida->bio_queue);
 	if (bp == NULL)
 		return;				/* no more buffers */
 
@@ -381,7 +381,7 @@ ida_construct_qcb(struct ida_softc *ida)
 	if (qcb == NULL)
 		return;				/* out of resources */
 
-	bufq_remove(&ida->buf_queue, bp);
+	bioq_remove(&ida->bio_queue, bp);
 	qcb->buf = bp;
 	qcb->flags = 0;
 
@@ -389,7 +389,7 @@ ida_construct_qcb(struct ida_softc *ida)
 	bzero(hwqcb, sizeof(struct ida_hdr) + sizeof(struct ida_req));
 
 	bus_dmamap_load(ida->buffer_dmat, qcb->dmamap,
-	    (void *)bp->b_data, bp->b_bcount, ida_setup_dmamap, hwqcb, 0);
+	    (void *)bp->bio_data, bp->bio_bcount, ida_setup_dmamap, hwqcb, 0);
 	op = qcb->flags & DMA_DATA_IN ?
 	    BUS_DMASYNC_PREREAD : BUS_DMASYNC_PREWRITE;
 	bus_dmamap_sync(ida->buffer_dmat, qcb->dmamap, op);
@@ -398,13 +398,13 @@ ida_construct_qcb(struct ida_softc *ida)
 	 * XXX
 	 */
 	{
-		struct id_softc *drv = (struct id_softc *)bp->b_driver1;
+		struct id_softc *drv = (struct id_softc *)bp->bio_driver1;
 		hwqcb->hdr.drive = drv->unit;
 	}
 
-	hwqcb->req.blkno = bp->b_pblkno;
-	hwqcb->req.bcount = howmany(bp->b_bcount, DEV_BSIZE);
-	hwqcb->req.command = bp->b_iocmd == BIO_READ ? CMD_READ : CMD_WRITE;
+	hwqcb->req.blkno = bp->bio_pblkno;
+	hwqcb->req.bcount = howmany(bp->bio_bcount, DEV_BSIZE);
+	hwqcb->req.command = bp->bio_cmd == BIO_READ ? CMD_READ : CMD_WRITE;
 
 	STAILQ_INSERT_TAIL(&ida->qcb_queue, qcb, link.stqe);
 }
@@ -519,7 +519,7 @@ ida_done(struct ida_softc *ida, struct ida_qcb *qcb)
 			wakeup(qcb);
 	} else {
 		if (error)
-			qcb->buf->b_ioflags |= BIO_ERROR;
+			qcb->buf->bio_flags |= BIO_ERROR;
 		id_intr(qcb->buf);
 	}
 

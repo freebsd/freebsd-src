@@ -1766,14 +1766,14 @@ ufs_strategy(ap)
 		if (error) {
 			bp->b_error = error;
 			bp->b_ioflags |= BIO_ERROR;
-			biodone(bp);
+			bufdone(bp);
 			return (error);
 		}
 		if ((long)bp->b_blkno == -1)
 			vfs_bio_clrbuf(bp);
 	}
 	if ((long)bp->b_blkno == -1) {
-		biodone(bp);
+		bufdone(bp);
 		return (0);
 	}
 	vp = ip->i_devvp;

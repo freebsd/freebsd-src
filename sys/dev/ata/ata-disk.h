@@ -44,7 +44,7 @@ struct ad_softc {
 #define		AD_F_32B_ENABLED	0x0004
 #define		AD_F_TAG_ENABLED	0x0008
 
-    struct buf_queue_head	queue;		/* head of request queue */
+    struct bio_queue_head	queue;		/* head of request queue */
     struct devstat		stats;		/* devstat entry */
     struct disk			disk;		/* disklabel/slice stuff */
     dev_t			dev1, dev2;	/* device place holder */
@@ -65,7 +65,7 @@ struct ad_request {
 #define		ADR_F_FORCE_PIO		0x0008
 
     int8_t			*data;		/* pointer to data buf */
-    struct buf			*bp;		/* associated buf ptr */
+    struct bio			*bp;		/* associated bio ptr */
     u_int8_t			tag;		/* tag ID of this request */
     TAILQ_ENTRY(ad_request)	chain;		/* list management */
 };

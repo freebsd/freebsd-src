@@ -103,7 +103,7 @@ struct ida_qcb {
 	} link;
 	bus_dmamap_t	dmamap;
 	bus_addr_t	hwqcb_busaddr;
-	struct		buf *buf;		/* buf associated with qcb */
+	struct		bio *buf;		/* bio associated with qcb */
 };
 
 struct ida_softc;
@@ -154,7 +154,7 @@ struct ida_softc {
 	struct		ida_qcb *qcbs;			/* kernel QCB array */
 	SLIST_HEAD(, ida_qcb)	free_qcbs;	
 	STAILQ_HEAD(, ida_qcb) 	qcb_queue;
-	struct		buf_queue_head buf_queue;
+	struct		bio_queue_head bio_queue;
 
 	struct		ida_access cmd;
 };
@@ -192,9 +192,9 @@ extern int ida_init(struct ida_softc *ida);
 extern void ida_attach(struct ida_softc *ida); 
 extern int ida_command(struct ida_softc *ida, int command, void *data,
 	int datasize, int drive, int flags);
-extern void ida_submit_buf(struct ida_softc *ida, struct buf *bp);
+extern void ida_submit_buf(struct ida_softc *ida, struct bio *bp);
 extern void ida_intr(void *data);
 
-extern void id_intr(struct buf *bp);
+extern void id_intr(struct bio *bp);
 
 #endif /* _IDAVAR_H */

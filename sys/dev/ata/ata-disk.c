@@ -202,7 +202,7 @@ ad_attach(struct ata_softc *scp, int32_t device)
     dev->si_iosize_max = 256 * DEV_BSIZE;
     adp->dev2 = dev;
 
-    bufq_init(&adp->queue);
+    bioq_init(&adp->queue);
 }
 
 void
@@ -234,20 +234,20 @@ adopen(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
 }
 
 static void 
-adstrategy(struct buf *bp)
+adstrategy(struct bio *bp)
 {
-    struct ad_softc *adp = bp->b_dev->si_drv1;
+    struct ad_softc *adp = bp->bio_dev->si_drv1;
     int32_t s;
 
     /* if it's a null transfer, return immediatly. */
-    if (bp->b_bcount == 0) {
-	bp->b_resid = 0;
+    if (bp->bio_bcount == 0) {
+	bp->bio_resid = 0;
 	biodone(bp);
 	return;
     }
 
     s = splbio();
-    bufqdisksort(&adp->queue, bp);
+    bioqdisksort(&adp->queue, bp);
     ata_start(adp->controller);
     splx(s);
 }
@@ -319,7 +319,7 @@ addump(dev_t dev)
 void
 ad_start(struct ad_softc *adp)
 {
-    struct buf *bp = bufq_first(&adp->queue);
+    struct bio *bp = bioq_first(&adp->queue);
     struct ad_request *request;
 
     if (!bp)
@@ -334,13 +334,13 @@ ad_start(struct ad_softc *adp)
     bzero(request, sizeof(struct ad_request));
     request->device = adp;
     request->bp = bp;
-    request->blockaddr = bp->b_pblkno;
-    request->bytecount = bp->b_bcount;
-    request->data = bp->b_data;
-    request->flags = (bp->b_iocmd == BIO_READ) ? ADR_F_READ : 0;
+    request->blockaddr = bp->bio_pblkno;
+    request->bytecount = bp->bio_bcount;
+    request->data = bp->bio_data;
+    request->flags = (bp->bio_cmd == BIO_READ) ? ADR_F_READ : 0;
 
     /* remove from drive queue */
-    bufq_remove(&adp->queue, bp); 
+    bioq_remove(&adp->queue, bp); 
 
     /* link onto controller queue */
     TAILQ_INSERT_TAIL(&adp->controller->ata_queue, request, chain);
@@ -538,8 +538,8 @@ oops:
 
     /* finish up transfer */
     if (request->flags & ADR_F_ERROR) {
-	request->bp->b_error = EIO;
-	request->bp->b_ioflags |= BIO_ERROR;
+	request->bp->bio_error = EIO;
+	request->bp->bio_flags |= BIO_ERROR;
     } 
     else {
 	request->bytecount -= request->currentsize;
@@ -550,8 +550,8 @@ oops:
 	}
     }
 
-    request->bp->b_resid = request->bytecount;
-    devstat_end_transaction_buf(&adp->stats, request->bp);
+    request->bp->bio_resid = request->bytecount;
+    devstat_end_transaction_bio(&adp->stats, request->bp);
     biodone(request->bp);
 
     /* disarm timeout for this transfer */
@@ -598,9 +598,9 @@ ad_timeout(struct ad_request *request)
 	TAILQ_INSERT_HEAD(&adp->controller->ata_queue, request, chain);
     else {
 	/* retries all used up, return error */
-	request->bp->b_error = EIO;
-	request->bp->b_ioflags |= BIO_ERROR;
-	devstat_end_transaction_buf(&adp->stats, request->bp);
+	request->bp->bio_error = EIO;
+	request->bp->bio_flags |= BIO_ERROR;
+	devstat_end_transaction_bio(&adp->stats, request->bp);
 	biodone(request->bp);
 	free(request, M_AD);
     }

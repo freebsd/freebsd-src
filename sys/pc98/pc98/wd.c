@@ -194,15 +194,15 @@ struct disk {
 static int wdtest = 0;
 
 static struct disk *wddrives[NWD];	/* table of units */
-static struct buf_queue_head drive_queue[NWD];	/* head of queue per drive */
+static struct bio_queue_head drive_queue[NWD];	/* head of queue per drive */
 static struct {
 	int	b_active;
 } wdutab[NWD];
 /*
-static struct buf wdtab[NWDC];
+static struct bio wdtab[NWDC];
 */
 static struct {
-	struct	buf_queue_head controller_queue;
+	struct	bio_queue_head controller_queue;
 	int	b_errcnt;
 	int	b_active;
 } wdtab[NWDC];
@@ -210,7 +210,7 @@ static struct {
 struct wddma wddma[NWDC];
 
 #ifdef notyet
-static struct buf rwdbuf[NWD];	/* buffers for raw IO */
+static struct bio rwdbuf[NWD];	/* buffers for raw IO */
 #endif
 #ifdef PC98
 static short wd_ctlr;
@@ -220,7 +220,7 @@ static int old_epson_note;
 static int wdprobe(struct isa_device *dvp);
 static int wdattach(struct isa_device *dvp);
 static void wdustart(struct disk *du);
-static int wdcontrol(struct buf *bp);
+static int wdcontrol(struct bio *bp);
 static int wdcommand(struct disk *du, u_int cylinder, u_int head,
 		     u_int sector, u_int count, u_int command);
 static int wdsetctlr(struct disk *du);
@@ -229,7 +229,7 @@ static int wdwsetctlr(struct disk *du);
 #endif
 static int wdsetmode(int mode, void *wdinfo);
 static int wdgetctlr(struct disk *du);
-static void wderror(struct buf *bp, struct disk *du, char *mesg);
+static void wderror(struct bio *bp, struct disk *du, char *mesg);
 static void wdflushirq(struct disk *du, int old_ipl);
 static int wdreset(struct disk *du);
 static void wdsleep(int ctrlr, char *wmesg);
@@ -486,10 +486,10 @@ wdattach(struct isa_device *dvp)
 	if (eide_quirks & Q_CMD640B) {
 		if (dvp->id_unit == PRIMARY) {
 			printf("wdc0: CMD640B workaround enabled\n");
-			bufq_init(&wdtab[PRIMARY].controller_queue);
+			bioq_init(&wdtab[PRIMARY].controller_queue);
 		}
 	} else
-		bufq_init(&wdtab[dvp->id_unit].controller_queue);
+		bioq_init(&wdtab[dvp->id_unit].controller_queue);
 
 	sprintf(buf, "wdc%d", dvp->id_unit);
 	for (i = resource_query_string(-1, "at", buf);
@@ -521,7 +521,7 @@ wdattach(struct isa_device *dvp)
 		if (wddrives[lunit] != NULL)
 			panic("drive attached twice");
 		wddrives[lunit] = du;
-		bufq_init(&drive_queue[lunit]);
+		bioq_init(&drive_queue[lunit]);
 		bzero(du, sizeof *du);
 		du->dk_ctrlr = dvp->id_unit;
 		if (eide_quirks & Q_CMD640B) {
@@ -650,18 +650,18 @@ next: ;
  * be a multiple of a sector in length.
  */
 void
-wdstrategy(register struct buf *bp)
+wdstrategy(register struct bio *bp)
 {
 	struct disk *du;
-	int	lunit = dkunit(bp->b_dev);
+	int	lunit = dkunit(bp->bio_dev);
 	int	s;
 
 	/* valid unit, controller, and request?  */
-	if (lunit >= NWD || bp->b_blkno < 0 || (du = wddrives[lunit]) == NULL
-	    || bp->b_bcount % DEV_BSIZE != 0) {
+	if (lunit >= NWD || bp->bio_blkno < 0 || (du = wddrives[lunit]) == NULL
+	    || bp->bio_bcount % DEV_BSIZE != 0) {
 
-		bp->b_error = EINVAL;
-		bp->b_ioflags |= BIO_ERROR;
+		bp->bio_error = EINVAL;
+		bp->bio_flags |= BIO_ERROR;
 		goto done;
 	}
 
@@ -670,7 +670,7 @@ wdstrategy(register struct buf *bp)
 #endif
 
 	/*
-	 * Do bounds checking, adjust transfer, and set b_pblkno.
+	 * Do bounds checking, adjust transfer, and set bio_pblkno.
 	 */
 	if (dscheck(bp, du->dk_slices) <= 0)
 		goto done;
@@ -684,7 +684,7 @@ wdstrategy(register struct buf *bp)
 		du->dk_state = WANTOPEN;
 	}
 
-	bufqdisksort(&drive_queue[lunit], bp);
+	bioqdisksort(&drive_queue[lunit], bp);
 
 	if (wdutab[lunit].b_active == 0)
 		wdustart(du);	/* start drive */
@@ -711,7 +711,7 @@ done:
 static void
 wdustart(register struct disk *du)
 {
-	register struct buf *bp;
+	register struct bio *bp;
 	int	ctrlr = du->dk_ctrlr_cmd640;
 
 #ifdef PC98
@@ -722,19 +722,19 @@ wdustart(register struct disk *du)
 		return;
 
 
-	bp = bufq_first(&drive_queue[du->dk_lunit]);
+	bp = bioq_first(&drive_queue[du->dk_lunit]);
 	if (bp == NULL) {	/* yes, an assign */
 		return;
 	}
 	/*
 	 * store away which device we came from.
 	 */
-	bp->b_driver1 = du;
+	bp->bio_driver1 = du;
 
-	bufq_remove(&drive_queue[du->dk_lunit], bp);
+	bioq_remove(&drive_queue[du->dk_lunit], bp);
 
 	/* link onto controller queue */
-	bufq_insert_tail(&wdtab[ctrlr].controller_queue, bp);
+	bioq_insert_tail(&wdtab[ctrlr].controller_queue, bp);
 
 	/* mark the drive unit as busy */
 	wdutab[du->dk_lunit].b_active = 1;
@@ -753,7 +753,7 @@ void
 wdstart(int ctrlr)
 {
 	register struct disk *du;
-	register struct buf *bp;
+	register struct bio *bp;
 	struct diskgeom *lp;	/* XXX sic */
 	long	blknum;
 	long	secpertrk, secpercyl;
@@ -773,7 +773,7 @@ wdstart(int ctrlr)
 	if (wdtab[ctrlr].b_active)
 		return;
 	/* is there a drive for the controller to do a transfer with? */
-	bp = bufq_first(&wdtab[ctrlr].controller_queue);
+	bp = bioq_first(&wdtab[ctrlr].controller_queue);
 	if (bp == NULL) {
 		if (atapi_start && atapi_start (ctrlr_atapi))
 			/* mark controller active in ATAPI mode */
@@ -782,7 +782,7 @@ wdstart(int ctrlr)
 	}
 
 	/* obtain controller and drive information */
-	lunit = dkunit(bp->b_dev);
+	lunit = dkunit(bp->bio_dev);
 	du = wddrives[lunit];
 
 #ifdef PC98
@@ -801,12 +801,12 @@ wdstart(int ctrlr)
 	}
 
 	/* calculate transfer details */
-	blknum = bp->b_pblkno + du->dk_skip;
+	blknum = bp->bio_pblkno + du->dk_skip;
 #ifdef WDDEBUG
 	if (du->dk_skip == 0)
 		printf("wd%d: wdstart: %s %d@%d; map ", lunit,
-		       (bp->b_iocmd == BIO_READ) ? "read" : "write",
-		       bp->b_bcount, blknum);
+		       (bp->bio_cmd == BIO_READ) ? "read" : "write",
+		       bp->bio_bcount, blknum);
 	else {
 		if (old_epson_note)
 			printf(" %d)%x", du->dk_skip, epson_inb(du->dk_altport);
@@ -820,7 +820,7 @@ wdstart(int ctrlr)
 	secpercyl = lp->d_secpercyl;
 
 	if (du->dk_skip == 0)
-		du->dk_bc = bp->b_bcount;
+		du->dk_bc = bp->bio_bcount;
 
 	wdtab[ctrlr].b_active = 1;	/* mark controller active */
 
@@ -843,7 +843,7 @@ wdstart(int ctrlr)
 		 * XXX this looks like an attempt to skip bad sectors
 		 * on write.
 		 */
-		if (wdtab[ctrlr].b_errcnt && (bp->b_iocmd == BIO_WRITE))
+		if (wdtab[ctrlr].b_errcnt && (bp->bio_cmd == BIO_WRITE))
 			du->dk_bc += DEV_BSIZE;
 
 		count1 = howmany( du->dk_bc, DEV_BSIZE);
@@ -851,26 +851,26 @@ wdstart(int ctrlr)
 		du->dk_flags &= ~DKFL_MULTI;
 
 		if (du->dk_flags & DKFL_SINGLE) {
-			command = (bp->b_iocmd == BIO_READ)
+			command = (bp->bio_cmd == BIO_READ)
 				  ? WDCC_READ : WDCC_WRITE;
 			count1 = 1;
 			du->dk_currentiosize = 1;
 		} else {
 			if((du->dk_flags & DKFL_USEDMA) &&
 			   wddma[du->dk_interface].wdd_dmaverify(du->dk_dmacookie,
-				(void *)((int)bp->b_data + 
+				(void *)((int)bp->bio_data + 
 				     du->dk_skip * DEV_BSIZE),
 				du->dk_bc,
-				bp->b_iocmd == BIO_READ)) {
+				bp->bio_cmd == BIO_READ)) {
 				du->dk_flags |= DKFL_DMA;
-				if(bp->b_iocmd == BIO_READ)
+				if(bp->bio_cmd == BIO_READ)
 					command = WDCC_READ_DMA;
 				else
 					command = WDCC_WRITE_DMA;
 				du->dk_currentiosize = count1;
 			} else if( (count1 > 1) && (du->dk_multi > 1)) {
 				du->dk_flags |= DKFL_MULTI;
-				if(bp->b_iocmd == BIO_READ) {
+				if(bp->bio_cmd == BIO_READ) {
 					command = WDCC_READ_MULTI;
 				} else {
 					command = WDCC_WRITE_MULTI;
@@ -879,7 +879,7 @@ wdstart(int ctrlr)
 				if( du->dk_currentiosize > count1)
 					du->dk_currentiosize = count1;
 			} else {
-				if(bp->b_iocmd == BIO_READ) {
+				if(bp->bio_cmd == BIO_READ) {
 					command = WDCC_READ;
 				} else {
 					command = WDCC_WRITE;
@@ -903,10 +903,10 @@ wdstart(int ctrlr)
 
 		if ((du->dk_flags & (DKFL_DMA|DKFL_SINGLE)) == DKFL_DMA) {
 			wddma[du->dk_interface].wdd_dmaprep(du->dk_dmacookie,
-					   (void *)((int)bp->b_data + 
+					   (void *)((int)bp->bio_data + 
 						    du->dk_skip * DEV_BSIZE),
 					   du->dk_bc,
-					   bp->b_iocmd == BIO_READ);
+					   bp->bio_cmd == BIO_READ);
 		}
 		while (wdcommand(du, cylin, head, sector, count1, command)
 		       != 0) {
@@ -917,7 +917,7 @@ wdstart(int ctrlr)
 #ifdef WDDEBUG
 		printf("cylin %ld head %ld sector %ld addr %x sts ",
 		       cylin, head, sector,
-		       (int)bp->b_data + du->dk_skip * DEV_BSIZE);
+		       (int)bp->bio_data + du->dk_skip * DEV_BSIZE);
 		if (old_epson_note)
 			printf("%x\n", epson_inb(du->dk_altport));
 		else
@@ -954,7 +954,7 @@ wdstart(int ctrlr)
 	}
 
 	/* If this is a read operation, just go away until it's done. */
-	if (bp->b_iocmd == BIO_READ)
+	if (bp->bio_cmd == BIO_READ)
 		return;
 
 	/* Ready to send data? */
@@ -983,18 +983,18 @@ wdstart(int ctrlr)
 	if (!old_epson_note) {
 		if (du->dk_flags & DKFL_32BIT)
 			outsl(du->dk_port + wd_data,
-			      (void *)((int)bp->b_data
+			      (void *)((int)bp->bio_data
 						+ du->dk_skip * DEV_BSIZE),
 			      (count * DEV_BSIZE) / sizeof(long));
 		else
 			outsw(du->dk_port + wd_data,
-			      (void *)((int)bp->b_data
+			      (void *)((int)bp->bio_data
 						+ du->dk_skip * DEV_BSIZE),
 			      (count * DEV_BSIZE) / sizeof(short));
 		}
 	else
 		epson_outsw(du->dk_port + wd_data,
-		      (void *)((int)bp->b_data + du->dk_skip * DEV_BSIZE),
+		      (void *)((int)bp->bio_data + du->dk_skip * DEV_BSIZE),
 		      (count * DEV_BSIZE) / sizeof(short));
 		
 	du->dk_bc -= DEV_BSIZE * count;
@@ -1010,7 +1010,7 @@ void
 wdintr(void *unitnum)
 {
 	register struct	disk *du;
-	register struct buf *bp;
+	register struct bio *bp;
 	int dmastat = 0;			/* Shut up GCC */
 	int unit = (int)unitnum;
 
@@ -1046,8 +1046,8 @@ wdintr(void *unitnum)
 		wdstart (unit);
 		return;
 	}
-	bp = bufq_first(&wdtab[unit].controller_queue);
-	du = wddrives[dkunit(bp->b_dev)];
+	bp = bioq_first(&wdtab[unit].controller_queue);
+	du = wddrives[dkunit(bp->bio_dev)];
 
 #ifdef PC98
 	outb(0x432,(du->dk_unit)%2);
@@ -1123,8 +1123,8 @@ oops:
 				wdtab[unit].b_active = 0;
 			} else {
 				wderror(bp, du, "hard error");
-				bp->b_error = EIO;
-				bp->b_ioflags |= BIO_ERROR;	/* flag the error */
+				bp->bio_error = EIO;
+				bp->bio_flags |= BIO_ERROR;	/* flag the error */
 			}
 		} else if (du->dk_status & WDCS_ECCCOR)
 			wderror(bp, du, "soft ecc");
@@ -1133,7 +1133,7 @@ oops:
 	/*
 	 * If this was a successful read operation, fetch the data.
 	 */
-	if (bp->b_iocmd == BIO_READ && !(bp->b_ioflags & BIO_ERROR)
+	if (bp->bio_cmd == BIO_READ && !(bp->bio_flags & BIO_ERROR)
             && !((du->dk_flags & (DKFL_DMA|DKFL_SINGLE)) == DKFL_DMA)
 	    && wdtab[unit].b_active) {
 		u_int	chk, dummy, multisize;
@@ -1158,11 +1158,11 @@ oops:
 		/* suck in data */
 		if( du->dk_flags & DKFL_32BIT)
 			insl(du->dk_port + wd_data,
-			     (void *)((int)bp->b_data + du->dk_skip * DEV_BSIZE),
+			     (void *)((int)bp->bio_data + du->dk_skip * DEV_BSIZE),
 					chk / sizeof(long));
 		else
 			insw(du->dk_port + wd_data,
-			     (void *)((int)bp->b_data + du->dk_skip * DEV_BSIZE),
+			     (void *)((int)bp->bio_data + du->dk_skip * DEV_BSIZE),
 					chk / sizeof(short));
 		du->dk_bc -= chk;
 
@@ -1175,7 +1175,7 @@ oops:
 	}
 
 	/* final cleanup on DMA */
-	if (((bp->b_ioflags & BIO_ERROR) == 0)
+	if (((bp->bio_flags & BIO_ERROR) == 0)
             && ((du->dk_flags & (DKFL_DMA|DKFL_SINGLE)) == DKFL_DMA)
 	    && wdtab[unit].b_active) {
 		int iosize;
@@ -1188,7 +1188,7 @@ oops:
 
 outt:
 	if (wdtab[unit].b_active) {
-		if ((bp->b_ioflags & BIO_ERROR) == 0) {
+		if ((bp->bio_flags & BIO_ERROR) == 0) {
 			du->dk_skip += du->dk_currentiosize;/* add to successful sectors */
 			if (wdtab[unit].b_errcnt)
 				wderror(bp, du, "soft error");
@@ -1197,7 +1197,7 @@ outt:
 			/* see if more to transfer */
 			if (du->dk_bc > 0 && (du->dk_flags & DKFL_ERROR) == 0) {
 				if( (du->dk_flags & DKFL_SINGLE) ||
-					(bp->b_iocmd == BIO_WRITE)) {
+					(bp->bio_cmd == BIO_WRITE)) {
 					wdtab[unit].b_active = 0;
 					wdstart(unit);
 				} else {
@@ -1218,12 +1218,12 @@ outt:
 done: ;
 		/* done with this transfer, with or without error */
 		du->dk_flags &= ~(DKFL_SINGLE|DKFL_DMA);
-		bufq_remove( &wdtab[unit].controller_queue, bp);
+		bioq_remove( &wdtab[unit].controller_queue, bp);
 		wdtab[unit].b_errcnt = 0;
-		bp->b_resid = bp->b_bcount - du->dk_skip * DEV_BSIZE;
+		bp->bio_resid = bp->bio_bcount - du->dk_skip * DEV_BSIZE;
 		wdutab[du->dk_lunit].b_active = 0;
 		du->dk_skip = 0;
-		devstat_end_transaction_buf(&du->dk_stats, bp);
+		devstat_end_transaction_bio(&du->dk_stats, bp);
 		biodone(bp);
 	}
 
@@ -1416,12 +1416,12 @@ wdopen(dev_t dev, int flags, int fmt, struct proc *p)
  * Returns 0 if operation still in progress, 1 if completed, 2 if error.
  */
 static int
-wdcontrol(register struct buf *bp)
+wdcontrol(register struct bio *bp)
 {
 	register struct disk *du;
 	int	ctrlr;
 
-	du = wddrives[dkunit(bp->b_dev)];
+	du = wddrives[dkunit(bp->bio_dev)];
 	ctrlr = du->dk_ctrlr_cmd640;
 
 #ifdef PC98
@@ -1447,8 +1447,8 @@ maybe_retry:
 			du->dk_state = WANTOPEN;
 			if (++wdtab[ctrlr].b_errcnt < RETRIES)
 				goto tryagainrecal;
-			bp->b_error = ENXIO;	/* XXX needs translation */
-			bp->b_ioflags |= BIO_ERROR;
+			bp->bio_error = ENXIO;	/* XXX needs translation */
+			bp->bio_flags |= BIO_ERROR;
 			return (2);
 		}
 		wdtab[ctrlr].b_errcnt = 0;
@@ -1652,7 +1652,7 @@ wdsetctlr(struct disk *du)
 		if (wdcommand(du, du->dk_dd.d_ncylinders, 						      du->dk_dd.d_ntracks - 1, 0,
 		      	      du->dk_dd.d_nsectors, WDCC_IDC) != 0
 	    		      || wdwait(du, WDCS_READY, TIMEOUT) < 0) {
-			wderror((struct buf *)NULL, du, "wdsetctlr failed");
+			wderror((struct bio *)NULL, du, "wdsetctlr failed");
 			return (1);
 		}
 	}
@@ -2121,7 +2121,7 @@ wddump(dev_t dev)
 	if (wdcommand(du, 0, 0, 0, 0, WDCC_RESTORE | WD_STEP) != 0
 	    || wdwait(du, WDCS_READY | WDCS_SEEKCMPLT, TIMEOUT) != 0
 	    || wdsetctlr(du) != 0) {
-		wderror((struct buf *)NULL, du, "wddump: recalibrate failed");
+		wderror((struct bio *)NULL, du, "wddump: recalibrate failed");
 		return (EIO);
 	}
 
@@ -2161,7 +2161,7 @@ wddump(dev_t dev)
 		/* Do the write. */
 		if (wdcommand(du, cylin, head, sector, blkcnt, WDCC_WRITE)
 		    != 0) {
-			wderror((struct buf *)NULL, du,
+			wderror((struct bio *)NULL, du,
 				"wddump: timeout waiting to to give command");
 			return (EIO);
 		}
@@ -2177,7 +2177,7 @@ wddump(dev_t dev)
 			DELAY(5);	/* ATA spec */
 			if (wdwait(du, WDCS_READY | WDCS_SEEKCMPLT | WDCS_DRQ, TIMEOUT)
 			    < 0) {
-				wderror((struct buf *)NULL, du,
+				wderror((struct bio *)NULL, du,
 					"wddump: timeout waiting for DRQ");
 				return (EIO);
 			}
@@ -2208,7 +2208,7 @@ wddump(dev_t dev)
 		/* Wait for completion. */
 		DELAY(5);	/* ATA spec XXX NOT */
 		if (wdwait(du, WDCS_READY | WDCS_SEEKCMPLT, TIMEOUT) < 0) {
-			wderror((struct buf *)NULL, du,
+			wderror((struct bio *)NULL, du,
 				"wddump: timeout waiting for status");
 			return (EIO);
 		}
@@ -2217,7 +2217,7 @@ wddump(dev_t dev)
 		if ((du->dk_status
 		    & (WDCS_READY | WDCS_SEEKCMPLT | WDCS_DRQ | WDCS_ERR))
 		    != (WDCS_READY | WDCS_SEEKCMPLT)) {
-			wderror((struct buf *)NULL, du,
+			wderror((struct bio *)NULL, du,
 				"wddump: extra DRQ, or error");
 			return (EIO);
 		}
@@ -2234,13 +2234,13 @@ wddump(dev_t dev)
 }
 
 static void
-wderror(struct buf *bp, struct disk *du, char *mesg)
+wderror(struct bio *bp, struct disk *du, char *mesg)
 {
 	if (bp == NULL)
 		printf("wd%d: %s", du->dk_lunit, mesg);
 	else
 		diskerr(bp, mesg, LOG_PRINTF, du->dk_skip,
-			dsgetlabel(bp->b_dev, du->dk_slices));
+			dsgetlabel(bp->bio_dev, du->dk_slices));
 	printf(" (status %b error %b)\n",
 	       du->dk_status, WDCS_BITS, du->dk_error, WDERR_BITS);
 }
@@ -2336,7 +2336,7 @@ wdtimeout(void *cdu)
 			msg = (timeouts > 5) ?
 "Last time I say: interrupt timeout.  Probably a portable PC." :
 "interrupt timeout";
-			wderror((struct buf *)NULL, du, msg);
+			wderror((struct bio *)NULL, du, msg);
 			if (du->dk_dmacookie)
 				printf("wd%d: wdtimeout() DMA status %b\n", 
 				       du->dk_lunit,
@@ -2386,7 +2386,7 @@ wdunwedge(struct disk *du)
 		    && wdsetctlr(du) == 0)
 			return (0);
 	}
-	wderror((struct buf *)NULL, du, "wdunwedge failed");
+	wderror((struct bio *)NULL, du, "wdunwedge failed");
 	return (1);
 }
 
