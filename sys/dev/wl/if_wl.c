@@ -1119,7 +1119,14 @@ wlread(struct wl_softc *sc, u_short fd_p)
      */
     mlen = 0;
     mb_p = mtod(m, u_char *);
-    bytes_in_mbuf = MCLBYTES;
+    bytes_in_mbuf = m->m_len;
+
+    /* Put the ethernet header inside the mbuf. */
+    bcopy(&fd.destination[0], mb_p, 14);
+    mb_p += 14;
+    mlen += 14;
+    bytes_in_mbuf -= 14;
+
     bytes = min(bytes_in_mbuf, bytes_in_msg);
     for (;;) {
 	if (bytes & 1) {
@@ -1144,6 +1151,7 @@ wlread(struct wl_softc *sc, u_short fd_p)
 	    return 0;
 	}
 	mb_p += bytes;
+	bytes_in_mbuf -= bytes;
 	bytes_in_msg -= bytes;
 	if (bytes_in_msg == 0) {
 	    if (rbd.status & RBD_SW_EOF || rbd.next_rbd_offset == I82586NULL) {
