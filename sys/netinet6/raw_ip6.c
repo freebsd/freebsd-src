@@ -492,7 +492,7 @@ rip6_output(m, va_alist)
 			ip6_clearpktopts(optp, 0, -1);
 		m_freem(control);
 	}
-	return(error);
+	return (error);
 }
 
 /*
@@ -510,7 +510,7 @@ rip6_ctloutput(so, sopt)
 		 * XXX: is it better to call icmp6_ctloutput() directly
 		 * from protosw?
 		 */
-		return(icmp6_ctloutput(so, sopt));
+		return (icmp6_ctloutput(so, sopt));
 	else if (sopt->sopt_level != IPPROTO_IPV6)
 		return (EINVAL);
 
@@ -647,7 +647,7 @@ rip6_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	    ((struct in6_ifaddr *)ia)->ia6_flags &
 	    (IN6_IFF_ANYCAST|IN6_IFF_NOTREADY|
 	     IN6_IFF_DETACHED|IN6_IFF_DEPRECATED)) {
-		return(EADDRNOTAVAIL);
+		return (EADDRNOTAVAIL);
 	}
 	inp->in6p_laddr = addr->sin6_addr;
 	return 0;

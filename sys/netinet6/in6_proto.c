@@ -368,9 +368,9 @@ sysctl_ip6_temppltime(SYSCTL_HANDLER_ARGS)
 	if (ip6_temp_preferred_lifetime <
 	    ip6_desync_factor + ip6_temp_regen_advance) {
 		ip6_temp_preferred_lifetime = old;
-		return(EINVAL);
+		return (EINVAL);
 	}
-	return(error);
+	return (error);
 }
 
 static int
@@ -386,9 +386,9 @@ sysctl_ip6_tempvltime(SYSCTL_HANDLER_ARGS)
 	error = SYSCTL_IN(req, arg1, sizeof(int));
 	if (ip6_temp_valid_lifetime < ip6_temp_preferred_lifetime) {
 		ip6_temp_preferred_lifetime = old;
-		return(EINVAL);
+		return (EINVAL);
 	}
-	return(error);
+	return (error);
 }
 
 SYSCTL_INT(_net_inet6_ip6, IPV6CTL_FORWARDING,

@@ -507,7 +507,7 @@ in6_ifattach_linklocal(ifp, altifp)
 			    "configure a link-local address on %s "
 			    "(errno=%d)\n",
 			    if_name(ifp), error);
-		return(-1);
+		return (-1);
 	}
 
 	/*
@@ -562,7 +562,7 @@ in6_ifattach_linklocal(ifp, altifp)
 	 */
 	if (nd6_prefix_lookup(&pr0) == NULL) {
 		if ((error = nd6_prelist_add(&pr0, NULL, NULL)) != 0)
-			return(error);
+			return (error);
 	}
 
 	return 0;
@@ -617,7 +617,7 @@ in6_ifattach_loopback(ifp)
 		log(LOG_ERR, "in6_ifattach_loopback: failed to configure "
 		    "the loopback address on %s (errno=%d)\n",
 		    if_name(ifp), error);
-		return(-1);
+		return (-1);
 	}
 
 	return 0;
