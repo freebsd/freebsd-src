@@ -292,14 +292,17 @@ _thread_signal(pthread_t pthread, int sig)
 	case PS_SLEEP_WAIT:
 	case PS_SIGWAIT:
 	case PS_SELECT_WAIT:
-		/* Flag the operation as interrupted: */
-		pthread->interrupted = 1;
+		if (sig != SIGCHLD ||
+		    _thread_sigact[sig - 1].sa_handler != SIG_DFL) {
+			/* Flag the operation as interrupted: */
+			pthread->interrupted = 1;
 
-		/* Change the state of the thread to run: */
-		PTHREAD_NEW_STATE(pthread,PS_RUNNING);
+			/* Change the state of the thread to run: */
+			PTHREAD_NEW_STATE(pthread,PS_RUNNING);
 
-		/* Return the signal number: */
-		pthread->signo = sig;
+			/* Return the signal number: */
+			pthread->signo = sig;
+		}
 		break;
 	}
 }
