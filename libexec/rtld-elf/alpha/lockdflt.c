@@ -26,64 +26,133 @@
  */
 
 /*
- * Default thread locking implementation for the dynamic linker.  It
- * is used until the client registers a different implementation with
- * dllockinit().  The default implementation does mutual exclusion by
- * blocking almost all signals.  This is based on the observation that
- * most userland thread packages use signals to support preemption.
+ * Thread locking implementation for the dynamic linker.
+ *
+ * We use the "simple, non-scalable reader-preference lock" from:
+ *
+ *   J. M. Mellor-Crummey and M. L. Scott. "Scalable Reader-Writer
+ *   Synchronization for Shared-Memory Multiprocessors." 3rd ACM Symp. on
+ *   Principles and Practice of Parallel Programming, April 1991.
+ *
+ * In this algorithm the lock is a single word.  Its low-order bit is
+ * set when a writer holds the lock.  The remaining high-order bits
+ * contain a count of readers desiring the lock.  The algorithm requires
+ * atomic "compare_and_store" and "add" operations, which we implement
+ * using assembly language sequences in "rtld_start.S".
+ *
+ * These are spinlocks.  When spinning we call nanosleep() for 1
+ * microsecond each time around the loop.  This will most likely yield
+ * the CPU to other threads (including, we hope, the lockholder) allowing
+ * them to make some progress.
  */
 
-#include <dlfcn.h>
-#include <signal.h>
 #include <stdlib.h>
+#include <time.h>
 
 #include "debug.h"
 #include "rtld.h"
 
-typedef struct Struct_LockDflt {
-    sigset_t lock_mask;
-    sigset_t old_mask;
-    int depth;
-} LockDflt;
+/*
+ * This value of CACHE_LINE_SIZE is conservative.  The actual size
+ * is 32 on the  21064, 21064A, 21066, 21066A, and 21164.  It is 64
+ * on the 21264.  Compaq recommends sequestering each lock in its own
+ * 128-byte block to allow for future implementations with larger
+ * cache lines.
+ */
+#define CACHE_LINE_SIZE		128
 
-void
-lockdflt_acquire(void *lock)
+#define WAFLAG		0x1	/* A writer holds the lock */
+#define RC_INCR		0x2	/* Adjusts count of readers desiring lock */
+
+typedef struct Struct_Lock {
+	volatile int lock;
+	void *base;
+} Lock;
+
+static const struct timespec usec = { 0, 1000 };	/* 1 usec. */
+
+static void *
+lock_create(void *context)
 {
-    LockDflt *l = (LockDflt *)lock;
-    sigprocmask(SIG_BLOCK, &l->lock_mask, &l->old_mask);
-    assert(l->depth == 0);
-    l->depth++;
-}
+    void *base;
+    char *p;
+    uintptr_t r;
+    Lock *l;
 
-void *
-lockdflt_create(void *context)
-{
-    LockDflt *l;
-
-    l = NEW(LockDflt);
-    l->depth = 0;
-    sigfillset(&l->lock_mask);
-    sigdelset(&l->lock_mask, SIGTRAP);
-    sigdelset(&l->lock_mask, SIGABRT);
-    sigdelset(&l->lock_mask, SIGBUS);
-    sigdelset(&l->lock_mask, SIGSEGV);
-    sigdelset(&l->lock_mask, SIGKILL);
-    sigdelset(&l->lock_mask, SIGSTOP);
+    /*
+     * Arrange for the lock to occupy its own cache line.  First, we
+     * optimistically allocate just a cache line, hoping that malloc
+     * will give us a well-aligned block of memory.  If that doesn't
+     * work, we allocate a larger block and take a well-aligned cache
+     * line from it.
+     */
+    base = xmalloc(CACHE_LINE_SIZE);
+    p = (char *)base;
+    if ((uintptr_t)p % CACHE_LINE_SIZE != 0) {
+	free(base);
+	base = xmalloc(2 * CACHE_LINE_SIZE);
+	p = (char *)base;
+	if ((r = (uintptr_t)p % CACHE_LINE_SIZE) != 0)
+	    p += CACHE_LINE_SIZE - r;
+    }
+    l = (Lock *)p;
+    l->base = base;
+    l->lock = 0;
     return l;
 }
 
-void
-lockdflt_destroy(void *lock)
+static void
+lock_destroy(void *lock)
 {
-    LockDflt *l = (LockDflt *)lock;
-    free(l);
+    Lock *l = (Lock *)lock;
+
+    free(l->base);
+}
+
+static void
+rlock_acquire(void *lock)
+{
+    Lock *l = (Lock *)lock;
+
+    atomic_add_int(&l->lock, RC_INCR);
+    while (l->lock & WAFLAG)
+	    nanosleep(&usec, NULL);
+}
+
+static void
+wlock_acquire(void *lock)
+{
+    Lock *l = (Lock *)lock;
+
+    while (cmp0_and_store_int(&l->lock, WAFLAG) != 0)
+	nanosleep(&usec, NULL);
+}
+
+static void
+rlock_release(void *lock)
+{
+    Lock *l = (Lock *)lock;
+
+    atomic_add_int(&l->lock, -RC_INCR);
+}
+
+static void
+wlock_release(void *lock)
+{
+    Lock *l = (Lock *)lock;
+
+    atomic_add_int(&l->lock, -WAFLAG);
 }
 
 void
-lockdflt_release(void *lock)
+lockdflt_init(LockInfo *li)
 {
-    LockDflt *l = (LockDflt *)lock;
-    assert(l->depth == 1);
-    l->depth--;
-    sigprocmask(SIG_SETMASK, &l->old_mask, NULL);
+    li->context = NULL;
+    li->lock_create = lock_create;
+    li->rlock_acquire = rlock_acquire;
+    li->wlock_acquire = wlock_acquire;
+    li->rlock_release = rlock_release;
+    li->wlock_release = wlock_release;
+    li->lock_destroy = lock_destroy;
+    li->context_destroy = NULL;
 }
