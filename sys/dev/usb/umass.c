@@ -565,6 +565,8 @@ umass_match_proto(struct umass_softc *sc, usbd_interface_handle iface,
 
 	dd = usbd_get_device_descriptor(udev);
 
+#if 0
+	/* XXX ATAPI support is untested. Don't use it for the moment */
 	if (UGETW(dd->idVendor) == USB_VENDOR_SHUTTLE
 	    && UGETW(dd->idProduct) == USB_PRODUCT_SHUTTLE_EUSB) {
 		sc->drive = SHUTTLE_EUSB;
@@ -584,6 +586,7 @@ umass_match_proto(struct umass_softc *sc, usbd_interface_handle iface,
 		sc->quirks |= NO_TEST_UNIT_READY | NO_START_STOP;
 		return(UMATCH_VENDOR_PRODUCT);
 	}
+#endif
 
 	if (UGETW(dd->idVendor) == USB_VENDOR_YEDATA
 	    && UGETW(dd->idProduct) == USB_PRODUCT_YEDATA_FLASHBUSTERU) {
@@ -627,8 +630,11 @@ umass_match_proto(struct umass_softc *sc, usbd_interface_handle iface,
 		break;
 	case USUBCLASS_SFF8020I:
 	case USUBCLASS_SFF8070I:
+#if 0
+		/* XXX ATAPI support is untested. Don't use it for the moment */
 		sc->proto |= PROTO_ATAPI;
 		break;
+#endif
 	default:
 		DPRINTF(UDMASS_GEN, ("%s: Unsupported command protocol %d\n",
 			USBDEVNAME(sc->sc_dev), id->bInterfaceSubClass));
