@@ -353,20 +353,14 @@ devpoll(dev_t dev, int events, d_thread_t *td)
 {
 	int	revents = 0;
 
-	if (events & (POLLIN | POLLRDNORM))
-		revents |= events & (POLLIN | POLLRDNORM);
-
-	if (events & (POLLOUT | POLLWRNORM))
-		revents |= events & (POLLOUT | POLLWRNORM);
-
 	mtx_lock(&devsoftc.mtx);
-	if (events & POLLRDBAND)
+	if (events & (POLLIN | POLLRDNORM)) {
 		if (!TAILQ_EMPTY(&devsoftc.devq))
-			revents |= POLLRDBAND;
+			revents = events & (POLLIN | POLLRDNORM);
+		else
+			selrecord(td, &devsoftc.sel);
+	}
 	mtx_unlock(&devsoftc.mtx);
-
-	if (revents == 0)
-		selrecord(td, &devsoftc.sel);
 
 	return (revents);
 }
