@@ -96,6 +96,7 @@ static struct s_flist *files, **fl_nextp = &files;
 
 int aflag, eflag, nflag;
 int rflags = 0;
+static int rval;		/* Exit status */
 
 /*
  * Current file and line number; line numbers restart across compilation
@@ -175,7 +176,7 @@ main(argc, argv)
 	cfclose(prog, NULL);
 	if (fclose(stdout))
 		err(1, "stdout");
-	exit (0);
+	exit(rval);
 }
 
 static void
@@ -318,8 +319,12 @@ mf_fgets(sp, spflag)
 						continue;
 				}
 				fname = files->fname;
-				if ((f = fopen(fname, "r")) == NULL)
-					err(1, "%s", fname);
+				if ((f = fopen(fname, "r")) == NULL) {
+					warn("%s", fname);
+					rval = 1;
+					files = files->next;
+					continue;
+				}
 				if (inplace != NULL && *inplace == '\0')
 					unlink(fname);
 			}
@@ -350,7 +355,7 @@ mf_fgets(sp, spflag)
 	/* Advance to next non-empty file */
 	while ((c = getc(f)) == EOF) {
 		(void)fclose(f);
-		files = files->next;
+next:		files = files->next;
 		if (files == NULL) {
 			lastline = 1;
 			return (1);
@@ -366,8 +371,11 @@ mf_fgets(sp, spflag)
 					continue;
 			}
 			fname = files->fname;
-			if ((f = fopen(fname, "r")) == NULL)
-				err(1, "%s", fname);
+			if ((f = fopen(fname, "r")) == NULL) {
+				warn("%s", fname);
+				rval = 1;
+				goto next;
+			}
 			if (inplace != NULL && *inplace == '\0')
 				unlink(fname);
 		}
