@@ -450,7 +450,8 @@ MCReadCat(int fd)
 static void
 printS(int fd, const char *str)
 {
-    write(fd, str, strlen(str));
+    if (str)
+	write(fd, str, strlen(str));
 }
 
 static void
