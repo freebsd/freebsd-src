@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-cd.c,v 1.11 1999/02/10 00:03:32 ken Exp $
+ *	$Id: atapi-cd.c,v 1.12 1999/03/16 13:34:03 sos Exp $
  */
 
 #include "wdc.h"
@@ -143,15 +143,15 @@ acd_init_lun(struct atapi *ata, int unit, struct atapi_params *ap, int lun,
         DV_CHR, UID_ROOT, GID_OPERATOR, 0640,
         "rwcd%da", lun);
     ptr->rc_devfs_token =
-        devfs_add_devswf(&wcd_cdevsw, dkmakeminor(lun, 0, RAW_PART),
+        devfs_add_devswf(&acd_cdevsw, dkmakeminor(lun, 0, RAW_PART),
         DV_CHR, UID_ROOT, GID_OPERATOR, 0640,
         "rwcd%dc", lun);
     ptr->a_devfs_token =
-        devfs_add_devswf(&wcd_cdevsw, dkmakeminor(lun, 0, 0),
+        devfs_add_devswf(&acd_cdevsw, dkmakeminor(lun, 0, 0),
         DV_BLK, UID_ROOT, GID_OPERATOR, 0640,
         "wcd%da", lun);
     ptr->c_devfs_token =
-        devfs_add_devswf(&wcd_cdevsw, dkmakeminor(lun, 0, RAW_PART),
+        devfs_add_devswf(&acd_cdevsw, dkmakeminor(lun, 0, RAW_PART),
         DV_BLK, UID_ROOT, GID_OPERATOR, 0640,
         "wcd%dc", lun);
 #endif
