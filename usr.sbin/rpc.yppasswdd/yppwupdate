@@ -8,7 +8,7 @@
 #
 # Comment out the LOG=yes line to disable logging.
 #
-#	$Id: yppwupdate,v 1.1.1.1 1996/02/12 15:09:01 wpaul Exp $
+#	$Id: yppwupdate,v 1.4 1996/06/03 16:17:21 wpaul Exp $
 #
 
 LOG=yes
@@ -27,7 +27,7 @@ fi
 
 if [ ! $LOG ];
 then
-	cd /var/yp; /usr/bin/make MASTER_PASSWD=$1 UPDATE_DOMAIN=$2 2>&1
+	cd /var/yp; /usr/bin/make MASTER_PASSWD=$1 UPDATE_DOMAIN=$2 $3 2>&1
 else
-	cd /var/yp; /usr/bin/make MASTER_PASSWD=$1 UPDATE_DOMAIN=$2 >> $LOGFILE 2>&1
+	cd /var/yp; /usr/bin/make MASTER_PASSWD=$1 UPDATE_DOMAIN=$2 $3 >> $LOGFILE 2>&1
 fi

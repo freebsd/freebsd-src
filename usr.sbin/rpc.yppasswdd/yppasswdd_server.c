@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yppasswdd_server.c,v 1.2 1996/02/24 22:10:42 wpaul Exp $
+ *	$Id: yppasswdd_server.c,v 1.16 1996/06/04 00:00:19 wpaul Exp $
  */
 
 #include <stdio.h>
@@ -52,6 +52,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/param.h>
+#include <sys/fcntl.h>
 struct dom_binding {};
 #include <rpcsvc/ypclnt.h>
 #include "yppasswdd_extern.h"
@@ -60,7 +61,7 @@ struct dom_binding {};
 #include "yppasswd_comm.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: yppasswdd_server.c,v 1.2 1996/02/24 22:10:42 wpaul Exp $";
+static const char rcsid[] = "$Id: yppasswdd_server.c,v 1.16 1996/06/04 00:00:19 wpaul Exp $";
 #endif /* not lint */
 
 char *tempname;
@@ -307,8 +308,118 @@ static char *find_domain(pw)
 		yp_error("found same user in two different domains");
 		return(NULL);
 	} else
-		return(&domain);
+		return((char *)&domain);
 }
+
+static int update_inplace(pw, domain)
+	struct passwd *pw;
+	char *domain;
+{
+	DB *dbp = NULL;
+	DBT key = { NULL, 0 };
+	DBT data = { NULL, 0 };
+	char pwbuf[YPMAXRECORD];
+	char keybuf[20];
+	int rval, i;
+	char *maps[] = { "master.passwd.byname", "master.passwd.byuid",
+			 "passwd.byname", "passwd.byuid" };
+
+	char *formats[] = { "%s:%s:%d:%d:%s:%ld:%ld:%s:%s:%s",
+			    "%s:%s:%d:%d:%s:%ld:%ld:%s:%s:%s",
+			    "%s:%s:%d:%d:%s:%s:%s", "%s:%s:%d:%d:%s:%s:%s" };
+	char *ptr = NULL;
+	char *yp_last = "YP_LAST_MODIFIED";
+	char yplastbuf[YPMAXRECORD];
+
+	snprintf(yplastbuf, sizeof(yplastbuf), "%lu", time(NULL));
+
+	for (i = 0; i < 4; i++) {
+
+		if (i % 2) {
+			snprintf(keybuf, sizeof(keybuf), "%ld", pw->pw_uid);
+			key.data = (char *)&keybuf;
+			key.size = strlen(keybuf);
+		} else {
+			key.data = pw->pw_name;
+			key.size = strlen(pw->pw_name);
+		}
+
+		/*
+		 * XXX The passwd.byname and passwd.byuid maps come in
+		 * two flavors: secure and insecure. The secure version
+		 * has a '*' in the password field whereas the insecure one
+		 * has a real crypted password. The maps will be insecure
+		 * if they were built with 'unsecure = TRUE' enabled in
+		 * /var/yp/Makefile, but we'd have no way of knowing if
+		 * this has been done unless we were to try parsing the
+		 * Makefile, which is a disgusting thought. Instead, we
+		 * read the records from the maps, skip to the first ':'
+		 * in them, and then look at the character immediately
+		 * following it. If it's an '*' then the map is 'secure'
+		 * and we must not insert a real password into the pw_passwd
+		 * field. If it's not an '*', then we put the real crypted
+		 * password in.
+		 */
+		if (yp_get_record(domain,maps[i],&key,&data,1) != YP_TRUE) {
+			yp_error("couldn't read %s/%s: %s", domain,
+						maps[i], strerror(errno));
+			return(1);
+		}
+
+		if ((ptr = strchr(data.data, ':')) == NULL) {
+			yp_error("no colon in passwd record?!");
+			return(1);
+		}
+
+		if (i < 2) {
+			snprintf(pwbuf, sizeof(pwbuf), formats[i],
+			   pw->pw_name, pw->pw_passwd, pw->pw_uid,
+			   pw->pw_gid, pw->pw_class, pw->pw_change,
+			   pw->pw_expire, pw->pw_gecos, pw->pw_dir,
+			   pw->pw_shell);
+		} else {
+			snprintf(pwbuf, sizeof(pwbuf), formats[i],
+			   pw->pw_name, *(ptr+1) == '*' ? "*" : pw->pw_passwd,
+			   pw->pw_uid, pw->pw_gid, pw->pw_gecos, pw->pw_dir,
+			   pw->pw_shell);
+		}
+
+#define FLAGS O_RDWR|O_CREAT
+
+		if ((dbp = yp_open_db_rw(domain, maps[i], FLAGS)) == NULL) {
+			yp_error("couldn't open %s/%s r/w: %s",domain,
+						maps[i],strerror(errno));
+			return(1);
+		}
+
+		data.data = pwbuf;
+		data.size = strlen(pwbuf);
+
+		if (yp_put_record(dbp, &key, &data, 1) != YP_TRUE) {
+			yp_error("failed to update record in %s/%s", domain,
+								maps[i]);
+			(void)(dbp->close)(dbp);
+			return(1);
+		}
+
+		key.data = yp_last;
+		key.size = strlen(yp_last);
+		data.data = (char *)&yplastbuf;
+		data.size = strlen(yplastbuf);
+
+		if (yp_put_record(dbp, &key, &data, 1) != YP_TRUE) {
+			yp_error("failed to update timestamp in %s/%s", domain,
+								maps[i]);
+			(void)(dbp->close)(dbp);
+			return(1);
+		}
+
+		(void)(dbp->close)(dbp);
+	}
+
+	return(0);
+}
+
 
 int *
 yppasswdproc_update_1_svc(yppasswd *argp, struct svc_req *rqstp)
@@ -462,11 +573,22 @@ cleaning up and bailing out");
 		}
 	}
 
+	if (inplace) {
+		if ((rval = update_inplace(&yp_password, domain))) {
+			yp_error("inplace update failed -- rebuilding maps");
+		}
+	}
+
 	switch((pid = fork())) {
 	case 0:
 		/* unlink(passfile_hold); */
-    		execlp(MAP_UPDATE_PATH, MAP_UPDATE, passfile,
-			yppasswd_domain, NULL);
+		if (inplace && !rval) {
+    			execlp(MAP_UPDATE_PATH, MAP_UPDATE, passfile,
+				yppasswd_domain, "pushpw", NULL);
+		} else {
+    			execlp(MAP_UPDATE_PATH, MAP_UPDATE, passfile,
+				yppasswd_domain, NULL);
+		}
     		yp_error("couldn't exec map update process: %s",
 					strerror(errno));
 		unlink(passfile);
@@ -602,11 +724,23 @@ cleaning up and bailing out");
 		}
 	}
 
+	if (inplace) {
+		if ((rval = update_inplace((struct passwd *)&argp->newpw,
+							argp->domain))) {
+			yp_error("inplace update failed -- rebuilding maps");
+		}
+	}
+
 	switch((pid = fork())) {
 	case 0:
 		close(yp_sock);
-    		execlp(MAP_UPDATE_PATH, MAP_UPDATE, passfile,
-			argp->domain, NULL);
+		if (inplace && !rval) {
+    			execlp(MAP_UPDATE_PATH, MAP_UPDATE, passfile,
+				argp->domain, "pushpw", NULL);
+    		} else {
+			execlp(MAP_UPDATE_PATH, MAP_UPDATE, passfile,
+				argp->domain, NULL);
+		}
     		yp_error("couldn't exec map update process: %s",
 					strerror(errno));
 		unlink(passfile);
