@@ -121,7 +121,7 @@
 #	ipl	ipfilter control devices (ipl, ipnat, ipstate, ipauth)
 #	kbd	keyboard devices
 #
-#	$Id: MAKEDEV,v 1.183.2.5 1999/03/07 00:37:59 gibbs Exp $
+#	$Id: MAKEDEV,v 1.183.2.6 1999/05/11 04:46:34 mjacob Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH
@@ -293,7 +293,7 @@ wt*)
 od*s*|sd*s*|da*s*|vn*s*|wd*s*|wfd*s*|fla*s*)
 	umask $disk_umask
 	case $i in
-	fla*s*) name=fla; blk=28; chr=101;;
+	fla*s*) name=fla; blk=28; chr=102;;
 	od*s*) name=od; blk=4;  chr=13;;
 	sd*s*) name=sd; blk=4;  chr=13;;
 	da*s*) name=da; blk=4;  chr=13;;
@@ -464,7 +464,7 @@ ft*)
 sd*|od*|da*|vn*|wd*|wfd*|fla*)
 	umask $disk_umask
 	case $i in
-	fla*) name=fla; blk=28; chr=101;;
+	fla*) name=fla; blk=28; chr=102;;
 	sd*) name=sd; blk=4; chr=13;;
 	od*) name=od; blk=4; chr=13;;
 	da*) name=da; blk=4;  chr=13;;
