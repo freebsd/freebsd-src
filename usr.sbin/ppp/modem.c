@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77.2.36 1998/03/16 22:52:32 brian Exp $
+ * $Id: modem.c,v 1.77.2.37 1998/03/16 22:54:12 brian Exp $
  *
  *  TODO:
  */
@@ -956,9 +956,10 @@ modem_ShowStatus(struct cmdargs const *arg)
 #endif
   prompt_Printf(&prompt, "outq packets:  %d\n",
                 link_QueueLen(&arg->cx->physical->link));
-  prompt_Printf(&prompt, "DialScript:    %s\n", arg->cx->cfg.script.dial);
-  prompt_Printf(&prompt, "LoginScript:   %s\n", arg->cx->cfg.script.login);
-  prompt_Printf(&prompt, "Phone list:    %s\n", arg->cx->cfg.phone.list);
+  prompt_Printf(&prompt, "Dial Script:   %s\n", arg->cx->cfg.script.dial);
+  prompt_Printf(&prompt, "Login Script:  %s\n", arg->cx->cfg.script.login);
+  prompt_Printf(&prompt, "Hangup Script: %s\n", arg->cx->cfg.script.hangup);
+  prompt_Printf(&prompt, "Phone List:    %s\n", arg->cx->cfg.phone.list);
   prompt_Printf(&prompt, "Phone Number:  %s\n", arg->cx->phone.chosen);
 
   prompt_Printf(&prompt, "\n");
