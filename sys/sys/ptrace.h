@@ -55,14 +55,32 @@
 #include <machine/ptrace.h>	/* machine-specific requests, if any */
 
 #ifdef _KERNEL
-int	ptrace_set_pc __P((struct thread *td, unsigned long addr));
-int	ptrace_single_step __P((struct thread *td));
+int	ptrace_set_pc(struct thread *_td, unsigned long _addr);
+int	ptrace_single_step(struct thread *_td);
+
+/*
+ * These are prototypes for functions that implement some of the
+ * debugging functionality exported by procfs / linprocfs and by the
+ * ptrace(2) syscall.  They used to be part of procfs, but they don't
+ * really belong there.
+ */
+struct reg;
+struct fpreg;
+struct dbreg;
+int	procfs_read_regs(struct thread *_td, struct reg *_reg);
+int	procfs_write_regs(struct thread *_td, struct reg *_reg);
+int	procfs_read_fpregs(struct thread *_td, struct fpreg *_fpreg);
+int	procfs_write_fpregs(struct thread *_td, struct fpreg *_fpreg);
+int	procfs_read_dbregs(struct thread *_td, struct dbreg *_dbreg);
+int	procfs_write_dbregs(struct thread *_td, struct dbreg *_dbreg);
+int	procfs_sstep(struct thread *_td);
+int	proc_rwmem(struct proc *_p, struct uio *_uio);
 #else /* !_KERNEL */
 
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-int	ptrace __P((int _request, pid_t _pid, caddr_t _addr, int _data));
+int	ptrace(int _request, pid_t _pid, caddr_t _addr, int _data);
 __END_DECLS
 
 #endif /* !_KERNEL */

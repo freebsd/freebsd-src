@@ -640,12 +640,12 @@ fs/nwfs/nwfs_vnops.c		optional nwfs
 fs/portalfs/portal_vfsops.c	optional portalfs
 fs/portalfs/portal_vnops.c	optional portalfs
 fs/procfs/procfs_ctl.c	optional procfs
-fs/procfs/procfs_dbregs.c	standard
-fs/procfs/procfs_fpregs.c	standard
+fs/procfs/procfs_dbregs.c	optional procfs
+fs/procfs/procfs_fpregs.c	optional procfs
 fs/procfs/procfs_map.c	optional procfs
-fs/procfs/procfs_mem.c	standard
+fs/procfs/procfs_mem.c	optional procfs
 fs/procfs/procfs_note.c	optional procfs
-fs/procfs/procfs_regs.c	standard
+fs/procfs/procfs_regs.c	optional procfs
 fs/procfs/procfs_rlimit.c	optional procfs
 fs/procfs/procfs_status.c	optional procfs
 fs/procfs/procfs_subr.c	optional procfs
