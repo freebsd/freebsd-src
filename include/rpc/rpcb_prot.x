@@ -326,7 +326,7 @@ typedef rpcb_stat rpcb_stat_byvers[RPCBVERS_STAT];
 %#ifdef __cplusplus
 %extern "C" bool_t xdr_netbuf(XDR *, struct netbuf *);
 %
-%#else __STDC__
+%#else /* __STDC__ */
 %extern  bool_t xdr_netbuf(XDR *, struct netbuf *);
 %
 %#endif
