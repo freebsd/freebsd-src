@@ -757,8 +757,8 @@ stub_check_system_swapoff(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-stub_check_system_sysctl(struct ucred *cred, int *name, u_int namelen,
-    void *old, size_t *oldlenp, int inkernel, void *new, size_t newlen)
+stub_check_system_sysctl(struct ucred *cred, struct sysctl_oid *oidp,
+    void *arg1, int arg2, struct sysctl_req *req)
 {
 
 	return (0);
