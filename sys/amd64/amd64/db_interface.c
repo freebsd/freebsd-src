@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id$
+ *	$Id: db_interface.c,v 1.26 1997/02/22 09:32:14 peter Exp $
  */
 
 /*
@@ -44,6 +44,7 @@
 #include <vm/pmap.h>
 
 #include <ddb/ddb.h>
+
 #include <setjmp.h>
 
 static jmp_buf *db_nofault = 0;
@@ -52,6 +53,9 @@ extern jmp_buf	db_jmpbuf;
 extern void	gdb_handle_exception __P((db_regs_t *, int, int));
 
 db_regs_t ddb_regs;
+
+static jmp_buf	db_global_jmpbuf;
+static int	db_global_jmpbuf_valid;
 
 #ifdef __GNUC__
 #define	rss() ({u_short ss; __asm __volatile("movl %%ss,%0" : "=r" (ss)); ss;})
@@ -108,6 +112,14 @@ kdb_trap(type, code, regs)
 	}
 
 	/*
+	 * This handles unexpected traps in ddb commands, including calls to
+	 * non-ddb functions.  db_nofault only applies to memory accesses by
+	 * internal ddb commands.
+	 */
+	if (db_global_jmpbuf_valid)
+	    longjmp(db_global_jmpbuf, 1);
+
+	/*
 	 * XXX We really should switch to a local stack here.
 	 */
 	ddb_regs = *regs;
@@ -122,10 +134,13 @@ kdb_trap(type, code, regs)
 
 	cnpollc(TRUE);
 
+	(void) setjmp(db_global_jmpbuf);
+	db_global_jmpbuf_valid = TRUE;
 	if (ddb_mode)
 	    db_trap(type, code);
 	else
 	    gdb_handle_exception(&ddb_regs, type, code);
+	db_global_jmpbuf_valid = FALSE;
 
 	cnpollc(FALSE);
 
