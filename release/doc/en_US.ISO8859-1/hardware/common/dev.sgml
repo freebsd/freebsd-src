@@ -859,9 +859,9 @@
 
   <sect2 id="camera">
     <title>Camera and Video Capture Devices</title>
-    <para arch="i386,pc98">Brooktree Bt848/849/878/879-based frame grabbers (&man.bktr.4;
-    driver)
-    </para>      
+
+    &hwlist.bktr;
+
     <para arch="i386">Connectix QuickCam</para>
   </sect2>
 
