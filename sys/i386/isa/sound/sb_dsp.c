@@ -132,7 +132,8 @@ static volatile int irq_mode = IMODE_NONE;	/* IMODE_INPUT, IMODE_OUTPUT
 						 * or IMODE_NONE */
 static volatile int irq_ok = 0;
 
-static int      dsp_model = 1;	/* 1=SB, 2=SB Pro */
+static int      dsp_model = 1;  /* DSP version */
+static int      dsp_mono = 1;   /* 1 SB, 0 SB Pro */
 static int      duplex_midi = 0;
 static int      my_dev = 0;
 
@@ -357,7 +358,7 @@ dsp_set_stereo (int mode)
 {
   dsp_stereo = 0;
 
-  if (dsp_model == 1)
+  if (dsp_mono == 1)
     return 0;			/* Sorry no stereo */
 
   if (mode && midi_busy)
@@ -1261,10 +1262,13 @@ sb_dsp_init (long mem_start, struct address_info *hw_config)
 	    }
 	}
     }
+  if (major == 2)
+    dsp_model = 2;
 
 #ifndef EXCLUDE_SBPRO
   if (detect_mixer ())
     {
+      dsp_mono = 0;
       sprintf (sb_dsp_operations.name, "SoundBlaster Pro %d.%d", major, minor);
       init_mixer ();
 #if SBC_DMA < 4
