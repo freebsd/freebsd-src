@@ -173,6 +173,7 @@ dev/ida/ida_pci.c	optional ida pci
 dev/isp/isp_freebsd.c	optional isp
 dev/isp/isp.c		optional isp
 dev/isp/isp_target.c	optional isp
+dev/ispfw/ispfw.c	optional ispfw
 dev/mca/mca_bus.c	optional mca
 dev/md/md.c		optional md
 dev/mii/mii.c		optional miibus
