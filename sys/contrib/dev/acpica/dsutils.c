@@ -167,7 +167,8 @@ AcpiDsIsResultUsed (
      * An executing method typically has no parent, since each method
      * is parsed separately.
      */
-    if (!Op->Common.Parent)
+    if (!Op->Common.Parent ||
+        Op->Common.Parent->Common.AmlOpcode == AML_SCOPE_OP)
     {
         /*
          * If this is the last statement in the method, we know it is not a
