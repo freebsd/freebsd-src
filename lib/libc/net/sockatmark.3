@@ -39,19 +39,22 @@
 To find out if the read pointer is currently pointing at
 the mark in the data stream, the
 .Fn sockatmark
-function is provided.  If
+function is provided.
+If
 .Fn sockatmark
 returns 1, the next read will return data
-after the mark.  Otherwise (assuming out of band data has arrived), 
+after the mark.
+Otherwise (assuming out of band data has arrived),
 the next read will provide data sent by the client prior
-to transmission of the out of band signal.  The routine used
+to transmission of the out of band signal.
+The routine used
 in the remote login process to flush output on receipt of an
 interrupt or quit signal is shown below.
 It reads the normal data up to the mark (to discard it),
 then reads the out-of-band byte.
 .Bd -literal -offset indent
 #include <sys/socket.h>
- ...
+\&...
 oob()
 {
 	int out = FWRITE, mark;
@@ -79,10 +82,12 @@ oob()
 Upon successful completion, the
 .Fn sockatmark
 function returns the value 1 if the read pointer is pointing at
-the OOB mark, 0 if it is not.  Otherwise the value\~-1 is returned
-and the global variable \*[Va-font]errno\f[P] is set to
+the OOB mark, 0 if it is not.
+Otherwise the value \-1 is returned
+and the global variable
+.Va errno
+is set to
 indicate the error.
-.\" partly copied from .Rv
 .Sh ERRORS
 The
 .Fn sockatmark
@@ -96,8 +101,8 @@ is not a valid descriptor.
 is a descriptor for a file, not a socket.
 .El
 .Sh SEE ALSO
-.Xr send 2 ,
-.Xr recv 2
+.Xr recv 2 ,
+.Xr send 2
 .Sh HISTORY
 The
 .Fn sockatmark
@@ -105,7 +110,7 @@ function call was introduced by
 .St -p1003.1-2001 ,
 to standardize the historical
 .Dv SIOCATMARK
-.Fn ioctl .
+.Xr ioctl 2 .
 The
 .Er ENOTTY
 error instead of the usual
