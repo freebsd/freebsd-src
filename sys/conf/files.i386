@@ -258,7 +258,6 @@ i386/ibcs2/ibcs2_util.c		optional	ibcs2
 i386/ibcs2/ibcs2_xenix.c	optional	ibcs2
 i386/ibcs2/ibcs2_xenix_sysent.c	optional	ibcs2
 i386/ibcs2/imgact_coff.c	optional	ibcs2
-i386/isa/asc.c			count		asc
 i386/isa/atpic.c		standard
 i386/isa/atpic_vector.s		standard
 i386/isa/clock.c		standard
