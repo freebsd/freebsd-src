@@ -26,7 +26,8 @@
  * $FreeBSD$
  */
 
-#include <elf.h>
+#include <sys/types.h>
+#include <machine/elf.h>
 #include "kgz.h"
 
 /* Section header indices */

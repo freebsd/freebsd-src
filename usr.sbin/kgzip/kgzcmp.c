@@ -29,6 +29,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
+#include <machine/elf.h>
 
 #include <err.h>
 #include <fcntl.h>
@@ -37,7 +38,6 @@
 #include <unistd.h>
 
 #include <a.out.h>
-#include <elf.h>
 
 #include "aouthdr.h"
 #include "elfhdr.h"
