@@ -1158,7 +1158,6 @@ p_candebug(struct proc *p1, struct proc *p2, int *privused)
 	if (privused != NULL)
 		*privused = 0;
 
-	/* XXX it is authorized, but semantics don't permit it */
 	if (p1 == p2)
 		return (0);
 
