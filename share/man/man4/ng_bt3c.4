@@ -25,7 +25,7 @@
 .\" $Id: ng_bt3c.4,v 1.3 2003/09/14 23:28:51 max Exp $
 .\" $FreeBSD$
 .\"
-.Dd June 14, 2002
+.Dd December 17, 2004
 .Dt NG_BT3C 4
 .Os
 .Sh NAME
@@ -37,7 +37,7 @@
 .Sh DESCRIPTION
 The
 .Nm btccc
-node type is both a persistent Netgraph node type and a driver for
+node type is both a persistent Netgraph node type and a driver for the
 3Com Bluetooth PC card (3CRWB6096-HP).
 It implements a Bluetooth HCI
 UART transport layer as per chapter H4 of the Bluetooth Specification
@@ -46,16 +46,16 @@ A new node is created when the card is plugged.
 .Pp
 In order to use the card one
 .Em MUST
-download firmware first.
-Due to copyright issues I will no longer provide firmware with the driver.
+download the firmware first.
+Due to copyright issues the firmware cannot be provided with this driver.
 The firmware can be obtained
-from the Windows driver package that can be downloaded from the 3COM web
+from the Windows driver package that can be downloaded from the 3Com web
 site at no charge.
 The firmware name is
 .Pa BT3CPCC.BIN .
-To load firmware into the card, use
+To load the firmware into the card, use
 .Xr bt3cfw 8 .
-I am using original firmware that came with the card on CD-ROM.
+I am using the original firmware that came with the card on CD-ROM.
 .Pp
 .Dl "MD5 (BT3CPCC.BIN) = 36170fda56ea9fdbf1702c966f8a97f1"
 .Pp
@@ -63,7 +63,7 @@ For
 .Pa OLDCARD
 systems the entry in
 .Xr pccard.conf 5
-might look like this
+might look like this:
 .Bd -literal -offset indent
 # 3Com 3CRWB60-A Bluetooth PC Card
 card "3COM" "3CRWB60-A" "Bluetooth PC Card"
@@ -71,7 +71,7 @@ card "3COM" "3CRWB60-A" "Bluetooth PC Card"
 	insert	/usr/sbin/bt3cfw -n $device -f /etc/BT3CPCC.bin
 .Ed
 .Pp
-Do not forget to load module and
+Do not forget to load the module and
 .Dv SIGHUP
 .Xr pccardd 8 .
 .Pp
@@ -84,6 +84,10 @@ HCI frames received on
 .Dv hook
 are transmitted out.
 No modification to the data is performed in either direction.
+.Sh HARDWARE
+The
+.Nm
+driver provides support for the 3Com Bluetooth PC card (3CRWB6096-HP).
 .Sh HOOKS
 This node type supports the following hooks:
 .Bl -tag -width indent
@@ -96,18 +100,18 @@ structure.
 This node type supports the generic control messages, plus the following:
 .Bl -tag -width indent
 .It Dv NGM_BT3C_NODE_GET_STATE
-Returns current receiving state for the node.
+Returns the current receiving state for the node.
 .It Dv NGM_BT3C_NODE_GET_DEBUG
 Returns an integer containing the current debug level for the node.
 .It Dv NGM_BT3C_NODE_SET_DEBUG
-This command takes an integer argument and sets current debug level
+This command takes an integer argument and sets the current debug level
 for the node.
 .It Dv NGM_BT3C_NODE_GET_QLEN
 This command takes a parameter that specifies queue number and returns
-current length of the queue for the node.
+the current length of the queue for the node.
 .It Dv NGM_BT3C_NODE_SET_QLEN
-This command takes two parameters that specify queue number and
-maximum length of the queue and sets maximum length of the queue for
+This command takes two parameters that specify the queue number and
+the maximum length of the queue and sets the maximum length of the queue for
 the node.
 .It Dv NGM_BT3C_NODE_GET_STAT
 Returns various statistic information for the node, such as: number of
@@ -123,7 +127,7 @@ This node shuts down when the corresponding card is un-plugged.
 .Sh BUGS
 The driver is based on information obtained from
 .An Jose Orlando Pereira Aq jop@di.uminho.pt
-and disassembled W2K driver.
+and disassembled the W2K driver.
 .Sh SEE ALSO
 .Xr cardbus 4 ,
 .Xr netgraph 4 ,
