@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mpapic.h,v 1.1 1997/05/01 06:57:56 smp Exp smp $
+ *	$Id: mpapic.h,v 1.3 1997/05/01 19:33:06 fsmp Exp $
  */
 
 #ifndef _MACHINE_MPAPIC_H_
@@ -38,7 +38,7 @@
 
 /* total number of APIC INTs, including SHARED INTs */
 #if !defined(NINTR)
-#define NINTR		24
+#define NINTR		64
 #endif /* NINTR */
 
 /* size of APIC ID list */
