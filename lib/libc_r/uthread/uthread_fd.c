@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_fd.c,v 1.2.2.1 1997/06/24 00:27:56 julian Exp $
+ * $Id: uthread_fd.c,v 1.2.2.2 1998/02/13 01:35:55 julian Exp $
  *
  */
 #include <errno.h>
@@ -113,17 +113,14 @@ _thread_fd_table_init(int fd)
 				_thread_fd_table[fd]->flags =
 				    _pthread_stdio_flags[fd];
 
-			/* Make the file descriptor non-blocking: */
-			if (_thread_sys_fcntl(fd, F_SETFL,
-			    _thread_fd_table[fd]->flags | O_NONBLOCK) == -1) {
-				/*
-				 * Some devices don't support
-				 * non-blocking calls (sigh):
-				 */
-				if (errno != ENODEV) {
-				   ret = -1;
-				}
-			}
+			/*
+			 * Make the file descriptor non-blocking.
+			 * This might fail if the device driver does
+			 * not support non-blocking calls, or if the
+			 * driver is naturally non-blocking.
+			 */
+			_thread_sys_fcntl(fd, F_SETFL,
+			    _thread_fd_table[fd]->flags | O_NONBLOCK);
 		}
 
 		/* Check if one of the fcntl calls failed: */
