@@ -170,4 +170,7 @@ SUBDIR+=apm \
 	wlconfig
 .endif
 
+.if ${MACHINE} == "pc98"
+SUBDIR+=boot98cfg
+.endif
 .include <bsd.subdir.mk>
