@@ -44,7 +44,7 @@
 .Sh NAME
 .Nm fputwc ,
 .Nm putwc ,
-.Nm putwchar ,
+.Nm putwchar
 .Nd output a wide-character to a stream
 .Sh LIBRARY
 .Lb libc
@@ -66,21 +66,26 @@ writes the wide-character
 to the output stream pointed to by
 .Fa stream .
 .Pp
+The
 .Fn putwc
+function
 acts essentially identically to
 .Fn fputwc .
 .Pp
+The
 .Fn putwchar
+function
 is identical to
 .Fn putwc
 with an output stream of
 .Em stdout .
 .Sh RETURN VALUES
-The functions,
+The
 .Fn fputwc ,
-.Fn putwc
+.Fn putwc ,
 and
 .Fn putwchar
+functions
 return the wide-character written.
 If an error occurs, the value
 .Dv WEOF
@@ -92,10 +97,11 @@ is returned.
 .Xr putc 3 ,
 .Xr stdio 3
 .Sh STANDARDS
-The functions
+The
 .Fn fputwc ,
 .Fn putwc ,
 and
 .Fn putwchar
+functions
 conform to
 .St -isoC-99 .
