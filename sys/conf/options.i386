@@ -2,7 +2,6 @@
 # Options specific to the i386 platform kernels
 
 DISABLE_PSE
-IDE_DELAY
 MATH_EMULATE		opt_math_emulate.h
 GPL_MATH_EMULATE	opt_math_emulate.h
 PMAP_SHPGPERPROC	opt_pmap.h
