@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: scsi_all.c,v 1.4 1998/09/29 22:11:30 ken Exp $
+ *	$Id: scsi_all.c,v 1.5 1998/10/02 21:00:54 ken Exp $
  */
 
 #include <sys/param.h>
@@ -1560,7 +1560,7 @@ scsi_error_action(int asc, int ascq, struct scsi_inquiry_data *inq_data)
 }
 
 char *
-scsi_cdb_string(u_int8_t *cdb_ptr, char *cdb_string)
+scsi_cdb_string(u_int8_t *cdb_ptr, char *cdb_string, size_t len)
 {
 	u_int8_t cdb_len;
 	char holdstr[8];
@@ -1610,6 +1610,13 @@ scsi_cdb_string(u_int8_t *cdb_ptr, char *cdb_string)
 	*cdb_string = '\0';
 	for (i = 0; i < cdb_len; i++) {
 		sprintf(holdstr, "%x ", cdb_ptr[i]);
+		/*
+		 * If we're about to exceed the length of the string,
+		 * just return what we've already printed.
+		 */
+		if (strlen(holdstr) + strlen(cdb_string) > len)
+			break;
+
 		strcat(cdb_string, holdstr);
 	}
 
@@ -1672,12 +1679,14 @@ scsi_sense_print(struct ccb_scsiio *csio)
 			printf("%s. CDB: %s\n", 
 				scsi_op_desc(csio->cdb_io.cdb_ptr[0],
 				&cgd.inq_data),
-				scsi_cdb_string(csio->cdb_io.cdb_ptr, cdb_str));
+				scsi_cdb_string(csio->cdb_io.cdb_ptr, cdb_str,
+						sizeof(cdb_str)));
 		} else {
 			printf("%s. CDB: %s\n",
 				scsi_op_desc(csio->cdb_io.cdb_bytes[0], 
 				&cgd.inq_data), scsi_cdb_string(
-				csio->cdb_io.cdb_bytes, cdb_str));
+				csio->cdb_io.cdb_bytes, cdb_str,
+				sizeof(cdb_str)));
 		}
 	}
 
@@ -1809,7 +1818,7 @@ scsi_sense_string(struct cam_device *device, struct ccb_scsiio *csio,
 	char	  path_str[64];
 	char	  tmpstr[2048];
 	int	  tmpstrlen = 2048;
-	int	  cur_len = 0, retlen;
+	int	  cur_len = 0, tmplen = 0, retlen;
 
 	if ((device == NULL) || (csio == NULL) || (str == NULL))
 		return(NULL);
@@ -1836,23 +1845,34 @@ scsi_sense_string(struct cam_device *device, struct ccb_scsiio *csio,
 
 		retlen = snprintf(tmpstr, tmpstrlen, "%s", path_str);
 
-		strncat(str, tmpstr, str_len - cur_len - 1);
+		if ((tmplen = str_len - cur_len - 1) < 0)
+			goto sst_bailout;
+
+		strncat(str, tmpstr, tmplen);
 		cur_len += retlen;
+		str[str_len - 1] = '\0';
 
 		if ((csio->ccb_h.flags & CAM_CDB_POINTER) != 0) {
 			retlen = snprintf(tmpstr, tmpstrlen, "%s. CDB: %s\n", 
 					  scsi_op_desc(csio->cdb_io.cdb_ptr[0], 
 						       &device->inq_data),
 					  scsi_cdb_string(csio->cdb_io.cdb_ptr, 
-							  cdb_str));
+							  cdb_str,
+							  sizeof(cdb_str)));
 		} else {
 			retlen = snprintf(tmpstr, tmpstrlen, "%s. CDB: %s\n",
 					 scsi_op_desc(csio->cdb_io.cdb_bytes[0],
 					  &device->inq_data), scsi_cdb_string(
-				(u_int8_t *)&csio->cdb_io.cdb_bytes, cdb_str));
+					  csio->cdb_io.cdb_bytes, cdb_str,
+					  sizeof(cdb_str)));
 		}
-		strncat(str, tmpstr, str_len - cur_len - 1);
+
+		if ((tmplen = str_len - cur_len - 1) < 0)
+			goto sst_bailout;
+
+		strncat(str, tmpstr, tmplen);
 		cur_len += retlen;
+		str[str_len - 1] = '\0';
 	}
 
 	/*
@@ -1886,8 +1906,13 @@ scsi_sense_string(struct cam_device *device, struct ccb_scsiio *csio,
 
 
 	retlen = snprintf(tmpstr, tmpstrlen, "%s", path_str);
-	strncat(str, tmpstr, str_len - cur_len - 1);
+
+	if ((tmplen = str_len - cur_len - 1) < 0)
+		goto sst_bailout;
+
+	strncat(str, tmpstr, tmplen);
 	cur_len += retlen;
+	str[str_len - 1] = '\0';
 
 	error_code = sense->error_code & SSD_ERRCODE;
 	sense_key = sense->flags & SSD_KEY;
@@ -1895,15 +1920,25 @@ scsi_sense_string(struct cam_device *device, struct ccb_scsiio *csio,
 	switch (error_code) {
 	case SSD_DEFERRED_ERROR:
 		retlen = snprintf(tmpstr, tmpstrlen, "Deferred Error: ");
-		strncat(str, tmpstr, str_len - cur_len - 1);
+
+		if ((tmplen = str_len - cur_len - 1) < 0)
+			goto sst_bailout;
+
+		strncat(str, tmpstr, tmplen);
 		cur_len += retlen;
+		str[str_len - 1] = '\0';
 		/* FALLTHROUGH */
 	case SSD_CURRENT_ERROR:
 
 		retlen = snprintf(tmpstr, tmpstrlen, "%s", 
 				  scsi_sense_key_text[sense_key]);
-		strncat(str, tmpstr, str_len - cur_len - 1);
+
+		if ((tmplen = str_len - cur_len - 1) < 0)
+			goto sst_bailout;
+
+		strncat(str, tmpstr, tmplen);
 		cur_len += retlen;
+		str[str_len - 1] = '\0';
 
 		info = scsi_4btoul(sense->info);
 		
@@ -1919,8 +1954,13 @@ scsi_sense_string(struct cam_device *device, struct ccb_scsiio *csio,
 				retlen = snprintf(tmpstr, tmpstrlen, 
 						  " req sz: %d (decimal)", 
 						  info);
-				strncat(str, tmpstr, str_len - cur_len - 1);
+
+				if ((tmplen = str_len - cur_len - 1) < 0)
+					goto sst_bailout;
+
+				strncat(str, tmpstr, tmplen);
 				cur_len += retlen;
+				str[str_len - 1] = '\0';
 				break;
 			default:
 				if (info) {
@@ -1936,15 +1976,24 @@ scsi_sense_string(struct cam_device *device, struct ccb_scsiio *csio,
 								  " info:%x", 
 								  info);
 					}
-					strncat(str, tmpstr, 
-						str_len - cur_len - 1);
+
+					if ((tmplen = str_len - cur_len -1) < 0)
+						goto sst_bailout;
+
+					strncat(str, tmpstr, tmplen);
 					cur_len += retlen;
+ 					str[str_len - 1] = '\0';
 				}
 			}
 		} else if (info) {
 			retlen = snprintf(tmpstr, tmpstrlen," info?:%x", info);
-			strncat(str, tmpstr, str_len - cur_len - 1);
+
+			if ((tmplen = str_len - cur_len -1) < 0)
+				goto sst_bailout;
+
+			strncat(str, tmpstr, tmplen);
 			cur_len += retlen;
+ 			str[str_len - 1] = '\0';
 		}
 
 		if (sense->extra_len >= 4) {
@@ -1955,8 +2004,13 @@ scsi_sense_string(struct cam_device *device, struct ccb_scsiio *csio,
 						  sense->cmd_spec_info[1],
 						  sense->cmd_spec_info[2],
 						  sense->cmd_spec_info[3]);
-				strncat(str, tmpstr, str_len - cur_len - 1);
+
+				if ((tmplen = str_len - cur_len -1) < 0)
+					goto sst_bailout;
+
+				strncat(str, tmpstr, tmplen);
 				cur_len += retlen;
+				str[str_len - 1] = '\0';
 			}
 		}
 
@@ -1969,15 +2023,25 @@ scsi_sense_string(struct cam_device *device, struct ccb_scsiio *csio,
 			retlen = snprintf(tmpstr, tmpstrlen, 
 					  " asc:%x,%x\n%s%s", asc, ascq, 
 					  path_str, desc);
-			strncat(str, tmpstr, str_len - cur_len - 1);
+
+			if ((tmplen = str_len - cur_len -1) < 0)
+				goto sst_bailout;
+
+			strncat(str, tmpstr, tmplen);
 			cur_len += retlen;
+			str[str_len - 1] = '\0';
 		}
 
 		if (sense->extra_len >= 7 && sense->fru) {
 			retlen = snprintf(tmpstr, tmpstrlen, 
 					  " field replaceable unit: %x", 
 					  sense->fru);
-			strncat(str, tmpstr, str_len - cur_len - 1);
+
+			if ((tmplen = str_len - cur_len -1) < 0)
+				goto sst_bailout;
+
+			strncat(str, tmpstr, tmplen);
+			str[str_len - 1] = '\0';
 			cur_len += retlen;
 		}
 
@@ -1986,7 +2050,12 @@ scsi_sense_string(struct cam_device *device, struct ccb_scsiio *csio,
 			retlen = snprintf(tmpstr, tmpstrlen, " sks:%x,%x", 
 					sense->sense_key_spec[0],
 			       		scsi_2btoul(&sense->sense_key_spec[1]));
-			strncat(str, tmpstr, str_len - cur_len - 1);
+
+			if ((tmplen = str_len - cur_len -1) < 0)
+				goto sst_bailout;
+
+			strncat(str, tmpstr, tmplen);
+			str[str_len - 1] = '\0';
 			cur_len += retlen;
 		}
 		break;
@@ -1994,21 +2063,38 @@ scsi_sense_string(struct cam_device *device, struct ccb_scsiio *csio,
 	default:
 		retlen = snprintf(tmpstr, tmpstrlen, "error code %d",
 				  sense->error_code & SSD_ERRCODE);
-		strncat(str, tmpstr, str_len - cur_len - 1);
+
+		if ((tmplen = str_len - cur_len -1) < 0)
+			goto sst_bailout;
+
+		strncat(str, tmpstr, tmplen);
 		cur_len += retlen;
+ 		str[str_len - 1] = '\0';
 
 		if (sense->error_code & SSD_ERRCODE_VALID) {
 			retlen = snprintf(tmpstr, tmpstrlen, 
 					  " at block no. %d (decimal)",
 					  info = scsi_4btoul(sense->info));
-			strncat(str, tmpstr, str_len - cur_len - 1);
+
+			if ((tmplen = str_len - cur_len -1) < 0)
+				goto sst_bailout;
+
+			strncat(str, tmpstr, tmplen);
 			cur_len += retlen;
+ 			str[str_len - 1] = '\0';
 		}
 	}
 
 	retlen = snprintf(tmpstr, tmpstrlen, "\n");
-	strncat(str, tmpstr, str_len - cur_len - 1);
+
+	if ((tmplen = str_len - cur_len -1) < 0)
+		goto sst_bailout;
+
+	strncat(str, tmpstr, tmplen);
 	cur_len += retlen;
+ 	str[str_len - 1] = '\0';
+
+sst_bailout:
 
 	return(str);
 }
