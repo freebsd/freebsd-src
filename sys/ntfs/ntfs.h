@@ -23,10 +23,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ntfs.h,v 1.2 1999/02/19 12:31:02 semenu Exp $
+ *	$Id: ntfs.h,v 1.2.2.1 1999/03/14 09:47:05 semenu Exp $
  */
 
-#define DIAGNOSTIC
 /*#define NTFS_DEBUG 1*/
 
 typedef u_int64_t cn_t;
