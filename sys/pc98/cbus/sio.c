@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.67 1998/09/14 11:37:29 kato Exp $
+ *	$Id: sio.c,v 1.68 1998/10/22 05:58:45 bde Exp $
  */
 
 #include "opt_comconsole.h"
@@ -2628,11 +2628,9 @@ comparam(tp, t)
 	int		divisor;
 	u_char		dlbh;
 	u_char		dlbl;
-	int		error;
 	Port_t		iobase;
 	int		s;
 	int		unit;
-	int		txtimeout;
 #ifdef PC98
 	Port_t		tmp_port;
 	int		tmp_flg;
@@ -2726,72 +2724,11 @@ comparam(tp, t)
 #endif
 		outb(iobase + com_fifo, com->fifo_image);
 	}
-
-	/*
-	 * Some UARTs lock up if the divisor latch registers are selected
-	 * while the UART is doing output (they refuse to transmit anything
-	 * more until given a hard reset).  Fix this by stopping filling
-	 * the device buffers and waiting for them to drain.  Reading the
-	 * line status port outside of siointr1() might lose some receiver
-	 * error bits, but that is acceptable here.
-	 */
 #ifdef PC98
 	}
 #endif
-	disable_intr();
-retry:
-	com->state &= ~CS_TTGO;
-	txtimeout = tp->t_timeout;
-	enable_intr();
-#ifdef PC98
-	if(IS_8251(com->pc98_if_type)){
-		tmp_port = com->sts_port;
-		tmp_flg = (STS8251_TxRDY|STS8251_TxEMP);
-	} else {
-		tmp_port = com->line_status_port;
-		tmp_flg = (LSR_TSRE|LSR_TXRDY);
-	}
-	while ((inb(tmp_port) & tmp_flg) != tmp_flg) {
-#else
-	while ((inb(com->line_status_port) & (LSR_TSRE | LSR_TXRDY))
-	       != (LSR_TSRE | LSR_TXRDY)) {
-#endif
-		tp->t_state |= TS_SO_OCOMPLETE;
-		error = ttysleep(tp, TSA_OCOMPLETE(tp), TTIPRI | PCATCH,
-				 "siotx", hz / 100);
-		if (   txtimeout != 0
-		    && (!error || error	== EAGAIN)
-		    && (txtimeout -= hz	/ 100) <= 0
-		   )
-			error = EIO;
-		if (com->gone)
-			error = ENODEV;
-		if (error != 0 && error != EAGAIN) {
-			if (!(tp->t_state & TS_TTSTOP)) {
-				disable_intr();
-				com->state |= CS_TTGO;
-				enable_intr();
-			}
-			splx(s);
-			return (error);
-		}
-	}
 
-	disable_intr();		/* very important while com_data is hidden */
-
-	/*
-	 * XXX - clearing CS_TTGO is not sufficient to stop further output,
-	 * because siopoll() calls comstart() which usually sets it again
-	 * because TS_TTSTOP is clear.  Setting TS_TTSTOP would not be
-	 * sufficient, for similar reasons.
-	 */
-#ifdef PC98
-	if ((inb(tmp_port) & tmp_flg) != tmp_flg)
-#else
-	if ((inb(com->line_status_port) & (LSR_TSRE | LSR_TXRDY))
-	    != (LSR_TSRE | LSR_TXRDY))
-#endif
-		goto retry;
+  	disable_intr();		/* very important while com_data is hidden */
 
 #ifdef PC98
 	if(!IS_8251(com->pc98_if_type)){
@@ -3043,7 +2980,6 @@ siostop(tp, rw)
 		    /* XXX avoid h/w bug. */
 		    if (!com->esp)
 #endif
-			/* XXX does this flush everything? */
 			outb(com->iobase + com_fifo,
 			     FIFO_XMT_RST | com->fifo_image);
 		com->obufs[0].l_queued = FALSE;
@@ -3059,7 +2995,6 @@ siostop(tp, rw)
 		    /* XXX avoid h/w bug. */
 		    if (!com->esp)
 #endif
-			/* XXX does this flush everything? */
 			outb(com->iobase + com_fifo,
 			     FIFO_RCV_RST | com->fifo_image);
 		com_events -= (com->iptr - com->ibuf);
