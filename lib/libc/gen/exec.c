@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)exec.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-	"$Id: exec.c,v 1.7 1997/11/20 15:09:38 bde Exp $";
+	"$Id: exec.c,v 1.8 1998/10/14 18:53:36 des Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -112,7 +112,7 @@ execl(name, arg, va_alist)
 #else
 	va_start(ap);
 #endif
-	n = 0;
+	n = 1;
 	while (va_arg(ap, char *) != NULL)
 		n++ ;
 	va_end(ap);
@@ -124,7 +124,8 @@ execl(name, arg, va_alist)
 #else
 	va_start(ap);
 #endif
-	n = 0;
+	n = 1;
+	argv[0] = arg;
 	while ((argv[n] = va_arg(ap, char *)) != NULL)
 		n++;
 	va_end(ap);
