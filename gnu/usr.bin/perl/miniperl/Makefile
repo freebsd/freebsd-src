@@ -16,6 +16,8 @@ LDADD=	${MYLIBPERL} -lm -lcrypt
 
 build-tools:	${PROG}
 
+NO_PERL_SCRIPT_MAKE=	true
+
 .include <bsd.prog.mk>
 
 .PATH:	${PERL5SRC}
@@ -23,4 +25,7 @@ build-tools:	${PROG}
 opmini.c:	op.c
 	ln -sf ${.OODATE} ${.TARGET}
 
-CLEANFILES+=	opmini.c
+config.h:	links
+	@sh config_h.sh
+
+CLEANFILES+=	opmini.c config.h
