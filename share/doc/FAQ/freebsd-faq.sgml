@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: freebsd-faq.sgml,v 1.25 1996/01/02 23:31:25 jfieber Exp $
+<date> $Id: freebsd-faq.sgml,v 1.26 1996/01/03 10:18:55 jkh Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -772,7 +772,8 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
 </verb>
 
 	<p>
-	  See <a href="/handbook/kernelconfig.html">configuring the kernel</a>
+	  See <url url="/handbook/kernelconfig.html"
+	  name="configuring the kernel">
 	  if you've no experience with building kernels.
 
 	  Once you have a kernel detecting psm0 correctly at boot time,
@@ -783,11 +784,11 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
 </verb>
 	  When logged in as root.
 	<p>
-	  <strong>Note: </strong> Some PS/2 mouse controllers have a problem
+	  Note: Some PS/2 mouse controllers have a problem
 	  where the presence of the psm0 driver will cause the keyboard to
 	  lock up (which is why this driver is not present by default in the
 	  GENERIC kernel).  This can sometimes be fixed by bouncing the
-	  <strong>NumLock</strong> key during the boot process.  The real
+	  NumLock key during the boot process.  The real
 	  fix is, of course, to merge the PS/2 mouse driver with syscons.
 	  Any volunteers? :)
 
