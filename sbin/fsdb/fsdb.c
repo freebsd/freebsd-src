@@ -669,7 +669,7 @@ CMDFUNCSTART(chmode)
 	return 1;
 
     modebits = strtol(argv[1], &cp, 8);
-    if (cp == argv[1] || *cp != '\0' ) { 
+    if (cp == argv[1] || *cp != '\0' || (modebits & ~07777)) { 
 	warnx("bad modebits `%s'", argv[1]);
 	return 1;
     }
