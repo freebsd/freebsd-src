@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)uipc_usrreq.c	8.3 (Berkeley) 1/4/94
- *	$Id: uipc_usrreq.c,v 1.25 1997/09/02 01:18:23 bde Exp $
+ *	$Id: uipc_usrreq.c,v 1.26 1997/09/02 20:05:59 bde Exp $
  */
 
 #include <sys/param.h>
@@ -413,7 +413,7 @@ struct pr_usrreqs uipc_usrreqs = {
 	uipc_connect2, pru_control_notsupp, uipc_detach, uipc_disconnect,
 	uipc_listen, uipc_peeraddr, uipc_rcvd, pru_rcvoob_notsupp,
 	uipc_send, uipc_sense, uipc_shutdown, uipc_sockaddr,
-	sosend, soreceive, soselect
+	sosend, soreceive, sopoll
 };
 	
 /*
