@@ -34,7 +34,11 @@
 .Nm aio
 .Nd asynchronous I/O
 .Sh SYNOPSIS
+To link into the kernel:
 .Cd "options VFS_AIO"
+.Pp
+To load as a kernel loadable module:
+.Dl kldload aio
 .Sh DESCRIPTION
 The
 .Nm
@@ -49,7 +53,10 @@ dynamic kernel module.
 .Xr aio_return 2 ,
 .Xr aio_suspend 2 ,
 .Xr aio_waitcomplete 2 ,
-.Xr aio_write 2
+.Xr aio_write 2 ,
+.Xr config 8 ,
+.Xr kldload 8 ,
+.Xr kldunload 8
 .Sh HISTORY
 The
 .Nm
