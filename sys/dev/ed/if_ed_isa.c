@@ -27,9 +27,6 @@
  * $FreeBSD$
  */
 
-#include "card.h"
-#if NCARD == 0
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/socket.h>
@@ -157,4 +154,3 @@ static driver_t ed_isa_driver = {
 static devclass_t ed_isa_devclass;
 
 DRIVER_MODULE(ed, isa, ed_isa_driver, ed_isa_devclass, 0, 0);
-#endif
