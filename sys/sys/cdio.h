@@ -107,8 +107,7 @@ struct cd_sub_channel_info {
 * Ioctls for the CD drive					*
 \***************************************************************/
 
-struct ioc_play_track
-{
+struct ioc_play_track {
 	u_char	start_track;
 	u_char	start_index;
 	u_char	end_track;
@@ -117,8 +116,7 @@ struct ioc_play_track
 #define	CDIOCPLAYTRACKS	_IOW('c',1,struct ioc_play_track)
 
 
-struct ioc_play_blocks
-{
+struct ioc_play_blocks {
 	int	blk;
 	int	len;
 };
@@ -166,15 +164,13 @@ struct ioc_read_toc_single_entry {
 #define CDIOREADTOCENTRY _IOWR('c',6,struct ioc_read_toc_single_entry)
 
 
-struct	ioc_patch
-{
+struct ioc_patch {
 	u_char	patch[4];	/* one for each channel */
 };
 #define	CDIOCSETPATCH	_IOW('c',9,struct ioc_patch)
 
 
-struct	ioc_vol
-{
+struct ioc_vol {
 	u_char	vol[4];	/* one for each channel */
 };
 #define	CDIOCGETVOL	_IOR('c',10,struct ioc_vol)
@@ -209,8 +205,7 @@ struct	ioc_vol
 #define	CDIOCEJECT	_IO('c',24)
 
 
-struct ioc_play_msf
-{
+struct ioc_play_msf {
 	u_char	start_m;
 	u_char	start_s;
 	u_char	start_f;
@@ -230,8 +225,8 @@ struct ioc_play_msf
 #define CDIOCCLOSE	_IO('c',28)	/*<1>*/
 
 
-struct	ioc_pitch		/*<1>For drives that support it, this*/
-{				/*<1>call instructs the drive to play the*/
+struct ioc_pitch {		/*<1>For drives that support it, this*/
+				/*<1>call instructs the drive to play the*/
 	short	speed;		/*<1>audio at a faster or slower-than-normal*/
 };				/*<1>rate. -32767 to -1 is slower, 0==normal,*/
 				/*<1>and 1 to 32767 is faster.  LSB bits are*/
@@ -273,8 +268,7 @@ struct ioc_capability {			/*<2>*/
 
 #define	CDIOCCAPABILITY	_IOR('c',30,struct ioc_capability)	/*<2>*/
 
-struct ioc_read_audio
-{
+struct ioc_read_audio {
 	u_char address_format;
 	union msf_lba address;
 	int nframes;

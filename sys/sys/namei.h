@@ -183,7 +183,7 @@ int	relookup __P((struct vnode *dvp, struct vnode **vpp,
 /*
  * Stats on usefulness of namei caches.
  */
-struct	nchstats {
+struct nchstats {
 	long	ncs_goodhits;		/* hits that we can really use */
 	long	ncs_neghits;		/* negative hits that we can use */
 	long	ncs_badhits;		/* hits we must drop */

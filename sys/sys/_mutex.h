@@ -35,7 +35,7 @@
  * Sleep/spin mutex
  */
 
-struct	mtx {
+struct mtx {
 	struct	lock_object mtx_object;	/* Common lock properties. */
 	volatile uintptr_t mtx_lock;	/* owner (and state for sleep locks) */
 	volatile u_int mtx_recurse;	/* number of recursive holds */

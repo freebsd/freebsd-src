@@ -96,12 +96,12 @@ typedef	_BSD_SOCKLEN_T_	socklen_t;
 /*
  * Structure used for manipulating linger option.
  */
-struct	linger {
+struct linger {
 	int	l_onoff;		/* option on/off */
 	int	l_linger;		/* linger time */
 };
 
-struct	accept_filter_arg {
+struct accept_filter_arg {
 	char	af_name[16];
 	char	af_arg[256-16];
 };

@@ -57,7 +57,7 @@
 #define	RUSAGE_SELF	0
 #define	RUSAGE_CHILDREN	-1
 
-struct	rusage {
+struct rusage {
 	struct timeval ru_utime;	/* user time used */
 	struct timeval ru_stime;	/* system time used */
 	long	ru_maxrss;		/* max resident set size */
