@@ -39,9 +39,13 @@
  *
  *-M************************************************************************/
 
-VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.36 1996/05/23 15:01:47 gibbs Exp $"
+VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.37 1996/05/27 23:16:55 gibbs Exp $"
 
+#if defined(__NetBSD__)
+#include "../../../../dev/ic/aic7xxxreg.h"
+#elif defined(__FreeBSD__)
 #include "../../dev/aic7xxx/aic7xxx_reg.h"
+#endif
 
 /*
  * We can't just use ACCUM in the sequencer code because it
@@ -496,10 +500,10 @@ p_mesgout_start:
  */
 p_mesgout_loop:
 	test	SSTAT0,SPIORDY	jz p_mesgout_loop
+	test	SSTAT1,PHASEMIS	jnz p_mesgout_phasemis
 	cmp	DINDEX,1	jne p_mesgout_outb	/* last byte? */
 	mvi	CLRSINT1,CLRATNO			/* drop ATN */
 p_mesgout_outb:
-	test	SSTAT1,PHASEMIS	jnz p_mesgout_phasemis
 	dec	DINDEX
 	or	CLRSINT0, CLRSPIORDY
 	mov	SCSIDATL,SINDIR
