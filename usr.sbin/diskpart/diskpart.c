@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)diskpart.c	8.3 (Berkeley) 11/30/94";
 #endif
 static const char rcsid[] =
-	"$Id: diskpart.c,v 1.8 1997/02/22 16:05:46 peter Exp $";
+	"$Id: diskpart.c,v 1.9 1997/09/17 06:27:23 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -402,7 +402,7 @@ promptfordisk(name)
 			break;
 		}
 		fprintf(stderr, "%s: unrecognized controller type\n", buf);
-		fprintf(stderr, "use one of:\n", buf);
+		fprintf(stderr, "use one of:\n");
 		for (tp = dktypenames; *tp; tp++)
 			if (index(*tp, ' ') == 0)
 				fprintf(stderr, "\t%s\n", *tp);
