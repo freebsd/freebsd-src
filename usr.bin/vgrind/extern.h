@@ -32,6 +32,7 @@
  * SUCH DAMAGE.
  *
  *      @(#)extern.h	8.1 (Berkeley) 6/6/93
+ * $FreeBSD$
  */
 
 typedef int boolean;
@@ -53,7 +54,7 @@ extern char    *l_prcbeg;              /* regular expr for procedure begin */
 extern char    *l_strbeg;              /* delimiter for string constant */
 extern char    *l_strend;              /* delimiter for string constant */
 extern boolean  l_toplex;              /* procedures only defined at top lex level */
-extern char    *language;              /* the language indicator */
+extern const char *language;           /* the language indicator */
 
 #include <sys/cdefs.h>
 

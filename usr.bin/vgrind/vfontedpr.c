@@ -31,19 +31,19 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
 static const char copyright[] =
 "@(#) Copyright (c) 1980, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
+#endif
 
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)vfontedpr.c	8.1 (Berkeley) 6/6/93";
+static const char sccsid[] = "@(#)vfontedpr.c	8.1 (Berkeley) 6/6/93";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -99,7 +99,7 @@ static boolean  pass = FALSE;	/*
 
 static int	blklevel;	/* current nesting level */
 static int	comtype;	/* type of comment */
-static char    *defsfile[2] = { _PATH_VGRINDEFS, 0 };
+static const char *defsfile[2] = { _PATH_VGRINDEFS, 0 };
 				/* name of language definitions file */
 static int	margin;
 static int	plstack[PSMAX];	/* the procedure nesting level stack */
@@ -127,7 +127,7 @@ char	*l_prcbeg;		/* regular expr for procedure begin */
 char    *l_strbeg;		/* delimiter for string constant */
 char    *l_strend;		/* delimiter for string constant */
 boolean	 l_toplex;		/* procedures only defined at top lex level */
-char	*language = "c";	/* the language indicator */
+const char *language = "c";	/* the language indicator */
 
 #define	ps(x)	printf("%s", x)
 
@@ -136,7 +136,7 @@ main(argc, argv)
     int argc;
     char *argv[];
 {
-    char *fname = "";
+    const char *fname = "";
     struct stat stbuf;
     char buf[BUFSIZ];
     char *defs;
@@ -166,7 +166,7 @@ main(argc, argv)
 	    if (!strcmp(argv[0], "-f")) {
 		filter++;
 		argv[0] = argv[argc-1];
-		argv[argc-1] = "-";
+		argv[argc-1] = strdup("-");
 		continue;
 	    }
 
@@ -179,7 +179,7 @@ main(argc, argv)
 	    /* build an index */
 	    if (!strcmp(argv[0], "-x")) {
 		idx++;
-		argv[0] = "-n";
+		argv[0] = strdup("-n");
 	    }
 
 	    /* indicate no keywords */
@@ -719,7 +719,7 @@ iskw(s)
 
 	while (++cp, isidchr(*cp))
 		i++;
-	while (cp = *ss++)
+	while ((cp = *ss++))
 		if (!STRNCMP(s,cp,i) && !isidchr(cp[i]))
 			return (i);
 	return (0);
