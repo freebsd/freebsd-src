@@ -138,7 +138,9 @@ struct route;
 struct sockopt;
 
 extern struct	ipstat	ipstat;
+#ifndef RANDOM_IP_ID
 extern u_short	ip_id;				/* ip packet ctr, for ids */
+#endif
 extern int	ip_defttl;			/* default IP ttl */
 extern int	ipforwarding;			/* ip forwarding */
 extern struct route ipforward_rt;		/* ip forwarding cached route */
@@ -164,6 +166,10 @@ void	 ip_slowtimo __P((void));
 struct mbuf *
 	 ip_srcroute __P((void));
 void	 ip_stripoptions __P((struct mbuf *, struct mbuf *));
+#ifdef RANDOM_IP_ID
+u_int16_t	
+	 ip_randomid __P((void));
+#endif
 int	 rip_ctloutput __P((struct socket *, struct sockopt *));
 void	 rip_ctlinput __P((int, struct sockaddr *, void *));
 void	 rip_init __P((void));

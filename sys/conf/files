@@ -1037,6 +1037,7 @@ netinet/igmp.c		optional inet
 netinet/in.c		optional inet
 netinet/in_gif.c	optional gif inet
 #netinet/in_hostcache.c	optional inet
+netinet/ip_id.c		optional inet
 netinet/in_pcb.c	optional inet
 netinet/in_proto.c	optional inet
 netinet/in_rmx.c	optional inet
