@@ -48,13 +48,13 @@
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/timex.h>
+#include <vm/vm.h>
 #include <sys/sysctl.h>
 
 /*
  * The following variables are used by the hardclock() routine in the
  * kern_clock.c module and are described in that module. 
  */
-extern struct timeval time;	/* kernel time variable */
 extern int time_state;		/* clock state */
 extern int time_status;		/* clock status bits */
 extern long time_offset;	/* time adjustment (us) */
