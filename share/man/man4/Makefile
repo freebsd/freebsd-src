@@ -82,6 +82,7 @@ MAN=	aac.4 \
 	icmp.4 \
 	icmp6.4 \
 	ida.4 \
+	idt.4 \
 	ieee80211.4 \
 	ifmib.4 \
 	iic.4 \
@@ -332,6 +333,7 @@ MLINKS+=gre.4 if_gre.4
 MLINKS+=gx.4 if_gx.4
 MLINKS+=hatm.4 if_hatm.4
 MLINKS+=hme.4 if_hme.4
+MLINKS+=idt.4 if_idt.4
 MLINKS+=ipfirewall.4 ipacct.4 ipfirewall.4 ipaccounting.4 ipfirewall.4 ipfw.4
 MLINKS+=kue.4 if_kue.4
 MLINKS+=lge.4 if_lge.4
