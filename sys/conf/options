@@ -1,4 +1,4 @@
-#	$Id: options,v 1.80 1998/06/30 07:36:33 jmg Exp $
+#	$Id: options,v 1.81 1998/06/30 07:47:42 jmg Exp $
 #
 #        On the handling of kernel options   
 # 
@@ -230,6 +230,12 @@ ENABLE_VFS_IOOPT	opt_global.h
 VM_KMEM_SIZE	opt_vm.h
 VM_KMEM_SIZE_SCALE opt_vm.h
 VM_KMEM_SIZE_MAX	opt_vm.h
+PQ_NOOPT	opt_vmpage.h
+PQ_NORMALCACHE	opt_vmpage.h
+PQ_MEDIUMCACHE	opt_vmpage.h
+PQ_LARGECACHE	opt_vmpage.h
+PQ_HUGECACHE	opt_vmpage.h
+
 
 # sys/netkey
 KEY
