@@ -1,9 +1,10 @@
 /*
+ * Copyright (c) 2002, 2003 Tony Finch <dot@dotat.at>
  * Copyright (c) 1985, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
- * Dave Yost. Support for #if and #elif was added by Tony Finch.
+ * Dave Yost. It was rewritten to support ANSI C by Tony Finch.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -42,14 +43,15 @@ static const char copyright[] =
 "@(#) Copyright (c) 1985, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif
-
 #ifdef __IDSTRING
 __IDSTRING(Berkeley, "@(#)unifdef.c	8.1 (Berkeley) 6/6/93");
 __IDSTRING(NetBSD, "$NetBSD: unifdef.c,v 1.8 2000/07/03 02:51:36 matt Exp $");
-__IDSTRING(dotat, "$dotat: things/unifdef.c,v 1.148 2003/01/20 12:05:41 fanf2 Exp $");
+__IDSTRING(dotat, "$dotat: things/unifdef.c,v 1.156 2003/06/30 14:30:54 fanf2 Exp $");
 #endif
 #endif /* not lint */
+#ifdef __FBSDID
 __FBSDID("$FreeBSD$");
+#endif
 
 /*
  * unifdef - remove ifdef'ed lines
@@ -302,7 +304,7 @@ static void
 usage(void)
 {
 	fprintf(stderr, "usage: unifdef [-cdeklst]"
-	    " [[-Dsym[=val]] [-Usym] [-iDsym[=val]] [-iUsym]] ... [file]\n");
+	    " [-Dsym[=val]] [-Usym] [-iDsym[=val]] [-iUsym] ... [file]\n");
 	exit(2);
 }
 
@@ -310,7 +312,7 @@ usage(void)
  * A state transition function alters the global #if processing state
  * in a particular way. The table below is indexed by the current
  * processing state and the type of the current line. A NULL entry
- * indicate that processing is complete.
+ * indicates that processing is complete.
  *
  * Nesting is handled by keeping a stack of states; some transition
  * functions increase or decrease the depth. They also maintain the
@@ -501,7 +503,8 @@ process(void)
 
 /*
  * Parse a line and determine its type. We keep the preprocessor line
- * parser state between calls in a global variable.
+ * parser state between calls in the global variable linestate, with
+ * help from skipcomment().
  */
 static Linetype
 getline(void)
@@ -587,7 +590,9 @@ getline(void)
 }
 
 /*
- * These are the operators that are supported by the expression evaluator.
+ * These are the binary operators that are supported by the expression
+ * evaluator. Note that if support for division is added then we also
+ * need short-circuiting booleans because of divide-by-zero.
  */
 static int op_lt(int a, int b) { return (a < b); }
 static int op_gt(int a, int b) { return (a > b); }
@@ -758,16 +763,18 @@ ifeval(const char **cpp)
 
 /*
  * Skip over comments and stop at the next character position that is
- * not whitespace. Between calls we keep the comment state in a global
- * variable, and we also make a note when we get a proper end-of-line.
+ * not whitespace. Between calls we keep the comment state in the
+ * global variable incomment, and we also adjust the global variable
+ * linestate when we see a newline.
  * XXX: doesn't cope with the buffer splitting inside a state transition.
  */
 static const char *
 skipcomment(const char *cp)
 {
 	if (text || ignoring[depth]) {
-		while (isspace((unsigned char)*cp))
-			cp += 1;
+		for (; isspace((unsigned char)*cp); cp++)
+			if (*cp == '\n')
+				linestate = LS_START;
 		return (cp);
 	}
 	while (*cp != '\0')
