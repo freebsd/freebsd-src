@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.29 1997/09/09 11:29:09 kato Exp $
+ *	$Id: if_ed.c,v 1.30 1997/09/10 08:07:06 kato Exp $
  */
 
 /*
@@ -933,11 +933,6 @@ ed_probe_WD80x3(isa_dev)
 	if (isa16bit) {
 		if (sc->is790) {
 			sc->wd_laar_proto = inb(sc->asic_addr + ED_WD_LAAR);
-			/*
-			 * Enable zero waitstate operation
-			 */
-			outb(sc->asic_addr + ED_WD790_GCR, inb(sc->asic_addr +
-			    ED_WD790_GCR) | ED_WD790_GCR_ZWSEN);
 		} else {
 			sc->wd_laar_proto = ED_WD_LAAR_L16EN | ED_WD_LAAR_0WS16 |
 			    ((kvtop(sc->mem_start) >> 19) & ED_WD_LAAR_ADDRHI);
