@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: csh.c,v 1.2 1994/09/24 02:53:51 davidg Exp $
+ *	$Id: csh.c,v 1.3 1995/05/30 00:06:30 rgrimes Exp $
  */
 
 #ifndef lint
@@ -618,7 +618,8 @@ importpath(cp)
 	for (;;) {
 	    if ((c = *dp) == ':' || c == 0) {
 		*dp = 0;
-		if ((*cp != '/' || *cp == '\0') && (euid == 0 || uid == 0))
+		if ((*cp != '/' || *cp == '\0') && (euid == 0 || uid == 0) &&
+		    (intact || intty && isatty(SHOUT)))
 		    (void) fprintf(csherr,
 	    "Warning: imported path contains relative components\n");
 		pv[i++] = Strsave(*cp ? cp : STRdot);
