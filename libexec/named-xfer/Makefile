@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.2 1996/09/01 00:53:45 ache Exp $
+# $Id: Makefile,v 1.2.2.1 1996/11/28 21:51:40 phk Exp $
 
 .include "${.CURDIR}/../../usr.sbin/named/Makefile.inc"
 
@@ -6,7 +6,7 @@
 .PATH:	${BIND_DIR}/man
 
 PROG=	named-xfer
-SRCS=	named-xfer.c db_glue.c storage.c dmalloc.c version.c
+SRCS=	named-xfer.c db_glue.c storage.c version.c
 MAN8=	named-xfer.8
 
 CLEANFILES+= version.c
