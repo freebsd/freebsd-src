@@ -18,22 +18,21 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: main.c,v 1.3 1995/04/29 13:55:34 ache Exp $";
+static char rcsid[] = "$Id: main.c,v 1.4 1995/05/30 03:51:13 rgrimes Exp $";
 #endif
 
 #define SETSID
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <signal.h>
-#include <unistd.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <syslog.h>
 #include <netdb.h>
 #include <utmp.h>
 #include <pwd.h>
-#include <sys/wait.h>
 
 /*
  * If REQ_SYSOPTIONS is defined to 1, pppd will not run unless
@@ -57,6 +56,7 @@ static char rcsid[] = "$Id: main.c,v 1.3 1995/04/29 13:55:34 ache Exp $";
 #include <sys/stat.h>
 #include <sys/socket.h>
 #include <sys/time.h>
+#include <sys/wait.h>
 #include <net/if.h>
 
 #include "callout.h"
@@ -103,7 +103,7 @@ static pid_t	pgrpid;		/* Process Group ID */
 uid_t uid;			/* Our real user-id */
 gid_t gid;
 
-char devname[MAXPATHLEN] = "/dev/tty";	/* Device name */
+char devnam[MAXPATHLEN] = "/dev/tty";	/* Device name */
 int default_device = TRUE;	/* use default device (stdin/out) */
 
 int fd = -1;			/* Device file descriptor */
@@ -121,8 +121,8 @@ static int initfdflags = -1;	/* Initial file descriptor flags */
 
 static int restore_term;	/* 1 => we've munged the terminal */
 
-u_char outpacket_buf[MTU+DLLHEADERLEN]; /* buffer for outgoing packet */
-static u_char inpacket_buf[MTU+DLLHEADERLEN]; /* buffer for incoming packet */
+u_char outpacket_buf[MTU+PPP_HDRLEN]; /* buffer for outgoing packet */
+static u_char inpacket_buf[MTU+PPP_HDRLEN]; /* buffer for incoming packet */
 
 int hungup;			/* terminal has been hung up */
 static int n_children;		/* # child processes still running */
@@ -138,6 +138,8 @@ char *disconnector = NULL;	/* "disconnect" command */
 int inspeed = 0;		/* Input/Output speed requested */
 int baud_rate;			/* bits/sec currently used */
 u_long netmask = 0;		/* netmask to use on ppp interface */
+u_long dns1 = 0;		/* primary DNS */
+u_long dns2 = 0;		/* secondary DNS */
 int crtscts = 0;		/* use h/w flow control */
 int nodetach = 0;		/* don't fork */
 int modem = 0;			/* use modem control lines */
@@ -151,25 +153,24 @@ int lockflag = 0;		/* lock the serial device */
 
 
 /* prototypes */
-static void hup __ARGS((int));
-static void intr __ARGS((int));
-static void term __ARGS((int));
-static void alrm __ARGS((int));
-static void io __ARGS((int));
-static void chld __ARGS((int));
-static void incdebug __ARGS((int));
-static void nodebug __ARGS((int));
-void establish_ppp __ARGS((void));
+static void hup __P((int));
+static void term __P((int));
+static void alrm __P((int));
+static void io __P((int));
+static void chld __P((int));
+static void incdebug __P((int));
+static void nodebug __P((int));
+void establish_ppp __P((void));
 
-void reap_kids __ARGS((void));
-void cleanup __ARGS((int, caddr_t));
-void die __ARGS((int));
-void novm __ARGS((char *));
+void reap_kids __P((void));
+void cleanup __P((int, caddr_t));
+void die __P((int));
+void novm __P((char *));
 
-void log_packet __ARGS((u_char *, int, char *));
-void format_packet __ARGS((u_char *, int,
+void log_packet __P((u_char *, int, char *));
+void format_packet __P((u_char *, int,
 			   void (*) (void *, char *, ...), void *));
-void pr_log __ARGS((void *, char *, ...));
+void pr_log __P((void *, char *, ...));
 
 /*
  * PPP Data Link Layer "protocol" table.
@@ -184,9 +185,9 @@ static struct protent {
     char *name;
 } prottbl[] = {
     { LCP, lcp_init, lcp_input, lcp_protrej, lcp_printpkt, "LCP" },
-    { IPCP, ipcp_init, ipcp_input, ipcp_protrej, ipcp_printpkt, "IPCP" },
-    { UPAP, upap_init, upap_input, upap_protrej, upap_printpkt, "PAP" },
-    { CHAP, ChapInit, ChapInput, ChapProtocolReject, ChapPrintPkt, "CHAP" },
+    { PPP_IPCP, ipcp_init, ipcp_input, ipcp_protrej, ipcp_printpkt, "PPP_IPCP" },
+    { PPP_PAP, upap_init, upap_input, upap_protrej, upap_printpkt, "PAP" },
+    { PPP_CHAP, ChapInit, ChapInput, ChapProtocolReject, ChapPrintPkt, "CHAP" },
 };
 
 #define N_PROTO		(sizeof(prottbl) / sizeof(prottbl[0]))
@@ -204,7 +205,7 @@ main(argc, argv)
 
     p = ttyname(0);
     if (p)
-	strcpy(devname, p);
+	strcpy(devnam, p);
 
     if (gethostname(hostname, MAXNAMELEN) < 0 ) {
 	perror("couldn't get hostname");
@@ -314,7 +315,7 @@ main(argc, argv)
 #endif
 
     if (lockflag && !default_device)
-	if (lock(devname) < 0)
+	if (lock(devnam) < 0)
 	    die(1);
 
     /* Get an internet socket for doing socket ioctl's on. */
@@ -341,7 +342,7 @@ main(argc, argv)
 #define SIGNAL(s, handler)	{ \
 	sa.sa_handler = handler; \
 	if (sigaction(s, &sa, NULL) < 0) { \
-	    syslog(LOG_ERR, "sigaction(%d): %m", s); \
+	    syslog(LOG_ERR, "Couldn't establish signal handler (%d): %m", s); \
 	    die(1); \
 	} \
     }
@@ -349,7 +350,7 @@ main(argc, argv)
     sa.sa_mask = mask;
     sa.sa_flags = 0;
     SIGNAL(SIGHUP, hup);		/* Hangup */
-    SIGNAL(SIGINT, intr);		/* Interrupt */
+    SIGNAL(SIGINT, term);		/* Interrupt */
     SIGNAL(SIGTERM, term);		/* Terminate */
     SIGNAL(SIGALRM, alrm);		/* Timeout */
     SIGNAL(SIGIO, io);			/* Input available */
@@ -374,8 +375,8 @@ main(argc, argv)
     /*
      * Open the serial device and set it up to be the ppp interface.
      */
-    if ((fd = open(devname, O_RDWR /*| O_NDELAY*/)) < 0) {
-	syslog(LOG_ERR, "open(%s): %m", devname);
+    if ((fd = open(devnam, O_RDWR /*| O_NDELAY*/)) < 0) {
+	syslog(LOG_ERR, "open(%s): %m", devnam);
 	die(1);
     }
     hungup = 0;
@@ -478,7 +479,7 @@ main(argc, argv)
      * Block all signals, start opening the connection, and  wait for
      * incoming signals (reply, timeout, etc.).
      */
-    syslog(LOG_NOTICE, "Connect: %s <--> %s", ifname, devname);
+    syslog(LOG_NOTICE, "Connect: %s <--> %s", ifname, devnam);
     sigprocmask(SIG_BLOCK, &mask, NULL); /* Block signals now */
     lcp_lowerup(0);		/* XXX Well, sort of... */
     lcp_open(0);		/* Start protocol */
@@ -982,22 +983,6 @@ term(sig)
 
 
 /*
- * intr - Catch SIGINT signal (DEL/^C).
- *
- * Indicates that we should initiate a graceful disconnect and exit.
- */
-static void
-intr(sig)
-    int sig;
-{
-    syslog(LOG_INFO, "Interrupt received: terminating link");
-    persist = 0;		/* don't try to restart */
-    adjtimeout();		/* Adjust timeouts */
-    lcp_close(0);		/* Close connection */
-}
-
-
-/*
  * alrm - Catch SIGALRM signal.
  *
  * Indicates a timeout.
@@ -1104,14 +1089,14 @@ io(sig)
 	if (debug /*&& (debugflags & DBG_INPACKET)*/)
 	    log_packet(p, len, "rcvd ");
 
-	if (len < DLLHEADERLEN) {
+	if (len < PPP_HDRLEN) {
 	    MAINDEBUG((LOG_INFO, "io(): Received short packet."));
 	    return;
 	}
 
 	p += 2;				/* Skip address and control */
 	GETSHORT(protocol, p);
-	len -= DLLHEADERLEN;
+	len -= PPP_HDRLEN;
 
 	/*
 	 * Toss all non-LCP packets unless LCP is OPEN.
@@ -1134,7 +1119,7 @@ io(sig)
 	if (i == sizeof (prottbl) / sizeof (struct protent)) {
 	    syslog(LOG_WARNING, "input: Unknown protocol (%x) received!",
 		   protocol);
-	    lcp_sprotrej(0, p - DLLHEADERLEN, len + DLLHEADERLEN);
+	    lcp_sprotrej(0, p - PPP_HDRLEN, len + PPP_HDRLEN);
 	}
     }
 }
@@ -1330,17 +1315,17 @@ void
 format_packet(p, len, printer, arg)
     u_char *p;
     int len;
-    void (*printer) __ARGS((void *, char *, ...));
+    void (*printer) __P((void *, char *, ...));
     void *arg;
 {
     int i, n;
     u_short proto;
     u_char x;
 
-    if (len >= DLLHEADERLEN && p[0] == ALLSTATIONS && p[1] == UI) {
+    if (len >= PPP_HDRLEN && p[0] == ALLSTATIONS && p[1] == UI) {
 	p += 2;
 	GETSHORT(proto, p);
-	len -= DLLHEADERLEN;
+	len -= PPP_HDRLEN;
 	for (i = 0; i < N_PROTO; ++i)
 	    if (proto == prottbl[i].protocol)
 		break;
@@ -1419,7 +1404,7 @@ void
 print_string(p, len, printer, arg)
     char *p;
     int len;
-    void (*printer) __ARGS((void *, char *, ...));
+    void (*printer) __P((void *, char *, ...));
     void *arg;
 {
     int c;

@@ -19,7 +19,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: chap.c,v 1.2 1994/09/25 02:31:54 wollman Exp $";
+static char rcsid[] = "$Id: chap.c,v 1.3 1995/05/30 03:51:05 rgrimes Exp $";
 #endif
 
 /*
@@ -27,30 +27,31 @@ static char rcsid[] = "$Id: chap.c,v 1.2 1994/09/25 02:31:54 wollman Exp $";
  */
 
 #include <stdio.h>
+#include <string.h>
 #include <sys/types.h>
 #include <sys/time.h>
 #include <syslog.h>
+#include <md5.h>
 
 #include "ppp.h"
 #include "pppd.h"
 #include "chap.h"
-#include "md5.h"
 
-chap_state chap[NPPP];		/* CHAP state; one for each unit */
+chap_state chap[NUM_PPP];		/* CHAP state; one for each unit */
 
-static void ChapChallengeTimeout __ARGS((caddr_t));
-static void ChapResponseTimeout __ARGS((caddr_t));
-static void ChapReceiveChallenge __ARGS((chap_state *, u_char *, int, int));
-static void ChapReceiveResponse __ARGS((chap_state *, u_char *, int, int));
-static void ChapReceiveSuccess __ARGS((chap_state *, u_char *, int, int));
-static void ChapReceiveFailure __ARGS((chap_state *, u_char *, int, int));
-static void ChapSendStatus __ARGS((chap_state *, int));
-static void ChapSendChallenge __ARGS((chap_state *));
-static void ChapSendResponse __ARGS((chap_state *));
-static void ChapGenChallenge __ARGS((chap_state *));
+static void ChapChallengeTimeout __P((caddr_t));
+static void ChapResponseTimeout __P((caddr_t));
+static void ChapReceiveChallenge __P((chap_state *, u_char *, int, int));
+static void ChapReceiveResponse __P((chap_state *, u_char *, int, int));
+static void ChapReceiveSuccess __P((chap_state *, u_char *, int, int));
+static void ChapReceiveFailure __P((chap_state *, u_char *, int, int));
+static void ChapSendStatus __P((chap_state *, int));
+static void ChapSendChallenge __P((chap_state *));
+static void ChapSendResponse __P((chap_state *));
+static void ChapGenChallenge __P((chap_state *));
 
-extern double drand48 __ARGS((void));
-extern void srand48 __ARGS((long));
+extern double drand48 __P((void));
+extern void srand48 __P((long));
 
 /*
  * ChapInit - Initialize a CHAP unit.
@@ -148,7 +149,7 @@ ChapChallengeTimeout(arg)
 	/* give up on peer */
 	syslog(LOG_ERR, "Peer failed to respond to CHAP challenge");
 	cstate->serverstate = CHAPSS_BADAUTH;
-	auth_peer_fail(cstate->unit, CHAP);
+	auth_peer_fail(cstate->unit, PPP_CHAP);
 	return;
     }
 
@@ -258,10 +259,10 @@ ChapProtocolReject(unit)
 
     if (cstate->serverstate != CHAPSS_INITIAL &&
 	cstate->serverstate != CHAPSS_CLOSED)
-	auth_peer_fail(unit, CHAP);
+	auth_peer_fail(unit, PPP_CHAP);
     if (cstate->clientstate != CHAPCS_INITIAL &&
 	cstate->clientstate != CHAPCS_CLOSED)
-	auth_withpeer_fail(unit, CHAP);
+	auth_withpeer_fail(unit, PPP_CHAP);
     ChapLowerDown(unit);		/* shutdown chap */
 }
 
@@ -345,6 +346,7 @@ ChapReceiveChallenge(cstate, inp, id, len)
     char secret[MAXSECRETLEN];
     char rhostname[256];
     MD5_CTX mdContext;
+    unsigned char digest[16];
 
     CHAPDEBUG((LOG_INFO, "ChapReceiveChallenge: Rcvd id %d.", id));
     if (cstate->clientstate == CHAPCS_CLOSED ||
@@ -399,8 +401,8 @@ ChapReceiveChallenge(cstate, inp, id, len)
 	MD5Update(&mdContext, &cstate->resp_id, 1);
 	MD5Update(&mdContext, secret, secret_len);
 	MD5Update(&mdContext, rchallenge, rchallenge_len);
-	MD5Final(&mdContext);
-	BCOPY(mdContext.digest, cstate->response, MD5_SIGNATURE_SIZE);
+	MD5Final(digest, &mdContext);
+	BCOPY(digest, cstate->response, MD5_SIGNATURE_SIZE);
 	cstate->resp_length = MD5_SIGNATURE_SIZE;
 	break;
 
@@ -429,6 +431,7 @@ ChapReceiveResponse(cstate, inp, id, len)
     char rhostname[256];
     u_char buf[256];
     MD5_CTX mdContext;
+    unsigned char digest[16];
     u_char msg[256];
     char secret[MAXSECRETLEN];
 
@@ -503,10 +506,10 @@ ChapReceiveResponse(cstate, inp, id, len)
 	    MD5Update(&mdContext, &cstate->chal_id, 1);
 	    MD5Update(&mdContext, secret, secret_len);
 	    MD5Update(&mdContext, cstate->challenge, cstate->chal_len);
-	    MD5Final(&mdContext);
+	    MD5Final(digest, &mdContext);
 
 	    /* compare local and remote MDs and send the appropriate status */
-	    if (bcmp (mdContext.digest, remmd, MD5_SIGNATURE_SIZE) == 0)
+	    if (memcmp (digest, remmd, MD5_SIGNATURE_SIZE) == 0)
 		code = CHAP_SUCCESS;	/* they are the same! */
 	    break;
 
@@ -521,7 +524,7 @@ ChapReceiveResponse(cstate, inp, id, len)
 	old_state = cstate->serverstate;
 	cstate->serverstate = CHAPSS_OPEN;
 	if (old_state == CHAPSS_INITIAL_CHAL) {
-	    auth_peer_success(cstate->unit, CHAP);
+	    auth_peer_success(cstate->unit, PPP_CHAP);
 	}
 	if (cstate->chal_interval != 0)
 	    TIMEOUT(ChapRechallenge, (caddr_t) cstate, cstate->chal_interval);
@@ -529,7 +532,7 @@ ChapReceiveResponse(cstate, inp, id, len)
     } else {
 	syslog(LOG_ERR, "CHAP peer authentication failed");
 	cstate->serverstate = CHAPSS_BADAUTH;
-	auth_peer_fail(cstate->unit, CHAP);
+	auth_peer_fail(cstate->unit, PPP_CHAP);
     }
 }
 
@@ -567,7 +570,7 @@ ChapReceiveSuccess(cstate, inp, id, len)
 
     cstate->clientstate = CHAPCS_OPEN;
 
-    auth_withpeer_success(cstate->unit, CHAP);
+    auth_withpeer_success(cstate->unit, PPP_CHAP);
 }
 
 
@@ -602,7 +605,7 @@ ChapReceiveFailure(cstate, inp, id, len)
 	PRINTMSG(inp, len);
 
     syslog(LOG_ERR, "CHAP authentication failed");
-    auth_withpeer_fail(cstate->unit, CHAP);
+    auth_withpeer_fail(cstate->unit, PPP_CHAP);
 }
 
 
@@ -622,7 +625,7 @@ ChapSendChallenge(cstate)
     outlen = CHAP_HEADERLEN + sizeof (u_char) + chal_len + name_len;
     outp = outpacket_buf;
 
-    MAKEHEADER(outp, CHAP);		/* paste in a CHAP header */
+    MAKEHEADER(outp, PPP_CHAP);		/* paste in a CHAP header */
 
     PUTCHAR(CHAP_CHALLENGE, outp);
     PUTCHAR(cstate->chal_id, outp);
@@ -634,7 +637,7 @@ ChapSendChallenge(cstate)
 
     BCOPY(cstate->chal_name, outp, name_len);	/* append hostname */
 
-    output(cstate->unit, outpacket_buf, outlen + DLLHEADERLEN);
+    output(cstate->unit, outpacket_buf, outlen + PPP_HDRLEN);
 
     CHAPDEBUG((LOG_INFO, "ChapSendChallenge: Sent id %d.", cstate->chal_id));
 
@@ -664,13 +667,13 @@ ChapSendStatus(cstate, code)
     outlen = CHAP_HEADERLEN + msglen;
     outp = outpacket_buf;
 
-    MAKEHEADER(outp, CHAP);	/* paste in a header */
+    MAKEHEADER(outp, PPP_CHAP);	/* paste in a header */
 
     PUTCHAR(code, outp);
     PUTCHAR(cstate->chal_id, outp);
     PUTSHORT(outlen, outp);
     BCOPY(msg, outp, msglen);
-    output(cstate->unit, outpacket_buf, outlen + DLLHEADERLEN);
+    output(cstate->unit, outpacket_buf, outlen + PPP_HDRLEN);
 
     CHAPDEBUG((LOG_INFO, "ChapSendStatus: Sent code %d, id %d.", code,
 	       cstate->chal_id));
@@ -722,7 +725,7 @@ ChapSendResponse(cstate)
     outlen = CHAP_HEADERLEN + sizeof (u_char) + md_len + name_len;
     outp = outpacket_buf;
 
-    MAKEHEADER(outp, CHAP);
+    MAKEHEADER(outp, PPP_CHAP);
 
     PUTCHAR(CHAP_RESPONSE, outp);	/* we are a response */
     PUTCHAR(cstate->resp_id, outp);	/* copy id from challenge packet */
@@ -735,7 +738,7 @@ ChapSendResponse(cstate)
     BCOPY(cstate->resp_name, outp, name_len); /* append our name */
 
     /* send the packet */
-    output(cstate->unit, outpacket_buf, outlen + DLLHEADERLEN);
+    output(cstate->unit, outpacket_buf, outlen + PPP_HDRLEN);
 
     cstate->clientstate = CHAPCS_RESPONSE;
     TIMEOUT(ChapResponseTimeout, (caddr_t) cstate, cstate->timeouttime);
@@ -753,7 +756,7 @@ int
 ChapPrintPkt(p, plen, printer, arg)
     u_char *p;
     int plen;
-    void (*printer) __ARGS((void *, char *, ...));
+    void (*printer) __P((void *, char *, ...));
     void *arg;
 {
     int code, id, len;

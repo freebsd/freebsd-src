@@ -18,7 +18,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: ipcp.c,v 1.2 1994/09/25 02:31:59 wollman Exp $";
+static char rcsid[] = "$Id: ipcp.c,v 1.3 1995/05/30 03:51:08 rgrimes Exp $";
 #endif
 
 /*
@@ -30,6 +30,7 @@ static char rcsid[] = "$Id: ipcp.c,v 1.2 1994/09/25 02:31:59 wollman Exp $";
 #include <syslog.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <netinet/in.h>
 
 #include "pppd.h"
 #include "ppp.h"
@@ -38,35 +39,38 @@ static char rcsid[] = "$Id: ipcp.c,v 1.2 1994/09/25 02:31:59 wollman Exp $";
 #include "pathnames.h"
 
 /* global vars */
-ipcp_options ipcp_wantoptions[NPPP];	/* Options that we want to request */
-ipcp_options ipcp_gotoptions[NPPP];	/* Options that peer ack'd */
-ipcp_options ipcp_allowoptions[NPPP];	/* Options we allow peer to request */
-ipcp_options ipcp_hisoptions[NPPP];	/* Options that we ack'd */
+ipcp_options ipcp_wantoptions[NUM_PPP];	/* Options that we want to request */
+ipcp_options ipcp_gotoptions[NUM_PPP];	/* Options that peer ack'd */
+ipcp_options ipcp_allowoptions[NUM_PPP];	/* Options we allow peer to request */
+ipcp_options ipcp_hisoptions[NUM_PPP];	/* Options that we ack'd */
 
 extern char ifname[];
-extern char devname[];
+extern char devnam[];
 extern int baud_rate;
 
+extern u_long dns1;
+extern u_long dns2;
+
 /* local vars */
-static int cis_received[NPPP];		/* # Conf-Reqs received */
+static int cis_received[NUM_PPP];		/* # Conf-Reqs received */
 
 /*
  * Callbacks for fsm code.  (CI = Configuration Information)
  */
-static void ipcp_resetci __ARGS((fsm *));	/* Reset our CI */
-static int  ipcp_cilen __ARGS((fsm *));	        /* Return length of our CI */
-static void ipcp_addci __ARGS((fsm *, u_char *, int *)); /* Add our CI */
-static int  ipcp_ackci __ARGS((fsm *, u_char *, int));	/* Peer ack'd our CI */
-static int  ipcp_nakci __ARGS((fsm *, u_char *, int));	/* Peer nak'd our CI */
-static int  ipcp_rejci __ARGS((fsm *, u_char *, int));	/* Peer rej'd our CI */
-static int  ipcp_reqci __ARGS((fsm *, u_char *, int *, int)); /* Rcv CI */
-static void ipcp_up __ARGS((fsm *));		/* We're UP */
-static void ipcp_down __ARGS((fsm *));		/* We're DOWN */
-static void ipcp_script __ARGS((fsm *, char *)); /* Run an up/down script */
+static void ipcp_resetci __P((fsm *));	/* Reset our CI */
+static int  ipcp_cilen __P((fsm *));	        /* Return length of our CI */
+static void ipcp_addci __P((fsm *, u_char *, int *)); /* Add our CI */
+static int  ipcp_ackci __P((fsm *, u_char *, int));	/* Peer ack'd our CI */
+static int  ipcp_nakci __P((fsm *, u_char *, int));	/* Peer nak'd our CI */
+static int  ipcp_rejci __P((fsm *, u_char *, int));	/* Peer rej'd our CI */
+static int  ipcp_reqci __P((fsm *, u_char *, int *, int)); /* Rcv CI */
+static void ipcp_up __P((fsm *));		/* We're UP */
+static void ipcp_down __P((fsm *));		/* We're DOWN */
+static void ipcp_script __P((fsm *, char *)); /* Run an up/down script */
 
-fsm ipcp_fsm[NPPP];		/* IPCP fsm structure */
+fsm ipcp_fsm[NUM_PPP];		/* PPP_IPCP fsm structure */
 
-static fsm_callbacks ipcp_callbacks = { /* IPCP callback routines */
+static fsm_callbacks ipcp_callbacks = { /* PPP_IPCP callback routines */
     ipcp_resetci,		/* Reset our Configuration Information */
     ipcp_cilen,			/* Length of our Configuration Information */
     ipcp_addci,			/* Add our Configuration Information */
@@ -81,7 +85,7 @@ static fsm_callbacks ipcp_callbacks = { /* IPCP callback routines */
     NULL,			/* Called when Protocol-Reject received */
     NULL,			/* Retransmission is necessary */
     NULL,			/* Called to handle protocol-specific codes */
-    "IPCP"			/* String name of protocol */
+    "PPP_IPCP"			/* String name of protocol */
 };
 
 /*
@@ -119,7 +123,7 @@ u_long ipaddr;
 
 
 /*
- * ipcp_init - Initialize IPCP.
+ * ipcp_init - Initialize PPP_IPCP.
  */
 void
 ipcp_init(unit)
@@ -130,7 +134,7 @@ ipcp_init(unit)
     ipcp_options *ao = &ipcp_allowoptions[unit];
 
     f->unit = unit;
-    f->protocol = IPCP;
+    f->protocol = PPP_IPCP;
     f->callbacks = &ipcp_callbacks;
     fsm_init(&ipcp_fsm[unit]);
 
@@ -157,7 +161,7 @@ ipcp_init(unit)
 
 
 /*
- * ipcp_open - IPCP is allowed to come up.
+ * ipcp_open - PPP_IPCP is allowed to come up.
  */
 void
 ipcp_open(unit)
@@ -168,7 +172,7 @@ ipcp_open(unit)
 
 
 /*
- * ipcp_close - Take IPCP down.
+ * ipcp_close - Take PPP_IPCP down.
  */
 void
 ipcp_close(unit)
@@ -201,7 +205,7 @@ ipcp_lowerdown(unit)
 
 
 /*
- * ipcp_input - Input IPCP packet.
+ * ipcp_input - Input PPP_IPCP packet.
  */
 void
 ipcp_input(unit, p, len)
@@ -214,7 +218,7 @@ ipcp_input(unit, p, len)
 
 
 /*
- * ipcp_protrej - A Protocol-Reject was received for IPCP.
+ * ipcp_protrej - A Protocol-Reject was received for PPP_IPCP.
  *
  * Pretend the lower layer went down, so we shut up.
  */
@@ -435,7 +439,7 @@ bad:
 /*
  * ipcp_nakci - Peer has sent a NAK for some of our CIs.
  * This should not modify any state if the Nak is bad
- * or if IPCP is in the OPENED state.
+ * or if PPP_IPCP is in the OPENED state.
  *
  * Returns:
  *	0 - Nak was bad.
@@ -757,6 +761,28 @@ ipcp_reqci(f, inp, len, reject_if_disagree)
 	next += cilen;			/* Step to next CI */
 
 	switch (citype) {		/* Check CI type */
+	case CI_DNS1:
+	case CI_DNS2:
+	    if ( (citype == CI_DNS1 && !dns1) ||
+	         (citype == CI_DNS2 && !dns2)) {
+		orc = CONFREJ;		/* Reject DNS */
+		break;
+	    }
+	    IPCPDEBUG((LOG_INFO, "ipcp: received DNS[12] "));
+	    GETLONG(tl, p);		/* Parse his idea */
+	    ciaddr1 = htonl(tl);
+	    IPCPDEBUG((LOG_INFO, "(%s:", ip_ntoa(ciaddr1)));
+	    if ( (citype == CI_DNS1 && ciaddr1 != dns1) ||
+	         (citype == CI_DNS2 && ciaddr1 != dns2)) {
+		orc = CONFNAK;
+		if (!reject_if_disagree) {
+		    DECPTR(sizeof (long), p);
+		    tl = ntohl(citype == CI_DNS1 ? dns1 : dns2);
+		    PUTLONG(tl, p);
+		}
+	    }
+	    break;
+
 	case CI_ADDRS:
 	    IPCPDEBUG((LOG_INFO, "ipcp: received ADDRS "));
 	    if (!ao->neg_addr ||
@@ -952,7 +978,7 @@ endswitch:
 
 
 /*
- * ipcp_up - IPCP has come UP.
+ * ipcp_up - PPP_IPCP has come UP.
  *
  * Configure the IP network interface appropriately and bring it up.
  */
@@ -1038,7 +1064,7 @@ ipcp_up(f)
 
 
 /*
- * ipcp_down - IPCP has gone DOWN.
+ * ipcp_down - PPP_IPCP has gone DOWN.
  *
  * Take the IP network interface down, clear its addresses
  * and delete routes through it.
@@ -1083,7 +1109,7 @@ ipcp_script(f, script)
 
     argv[0] = script;
     argv[1] = ifname;
-    argv[2] = devname;
+    argv[2] = devnam;
     argv[3] = strspeed;
     argv[4] = strlocal;
     argv[5] = strremote;
@@ -1092,7 +1118,7 @@ ipcp_script(f, script)
 }
 
 /*
- * ipcp_printpkt - print the contents of an IPCP packet.
+ * ipcp_printpkt - print the contents of an PPP_IPCP packet.
  */
 char *ipcp_codenames[] = {
     "ConfReq", "ConfAck", "ConfNak", "ConfRej",
@@ -1174,6 +1200,34 @@ ipcp_printpkt(p, plen, printer, arg)
 		    p += 2;
 		    GETLONG(cilong, p);
 		    printer(arg, "addr %s", ip_ntoa(htonl(cilong)));
+		}
+		break;
+	    case CI_DNS1:
+		if (olen == CILEN_ADDR) {
+		    p += 2;
+		    GETLONG(cilong, p);
+		    printer(arg, "dns1 %s", ip_ntoa(htonl(cilong)));
+		}
+		break;
+	    case CI_DNS2:
+		if (olen == CILEN_ADDR) {
+		    p += 2;
+		    GETLONG(cilong, p);
+		    printer(arg, "dns2 %s", ip_ntoa(htonl(cilong)));
+		}
+		break;
+	    case CI_NBNS1:
+		if (olen == CILEN_ADDR) {
+		    p += 2;
+		    GETLONG(cilong, p);
+		    printer(arg, "nbns1 %s", ip_ntoa(htonl(cilong)));
+		}
+		break;
+	    case CI_NBNS2:
+		if (olen == CILEN_ADDR) {
+		    p += 2;
+		    GETLONG(cilong, p);
+		    printer(arg, "nbns2 %s", ip_ntoa(htonl(cilong)));
 		}
 		break;
 	    }

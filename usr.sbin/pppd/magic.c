@@ -18,7 +18,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: magic.c,v 1.1 1993/11/11 03:54:25 paulus Exp $";
+static char rcsid[] = "$Id: magic.c,v 1.2 1994/09/25 02:32:05 wollman Exp $";
 #endif
 
 #include <stdio.h>
@@ -30,9 +30,9 @@ static char rcsid[] = "$Id: magic.c,v 1.1 1993/11/11 03:54:25 paulus Exp $";
 
 static u_long next;		/* Next value to return */
 
-extern u_long gethostid __ARGS((void));
-extern long random __ARGS((void));
-extern void srandom __ARGS((int));
+extern u_long gethostid __P((void));
+extern long random __P((void));
+extern void srandom __P((int));
 
 
 /*

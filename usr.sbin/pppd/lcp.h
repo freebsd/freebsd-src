@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.h,v 1.4 1994/05/24 11:22:28 paulus Exp $
+ * $Id: lcp.h,v 1.2 1994/09/25 02:32:03 wollman Exp $
  */
 
 /*
@@ -47,7 +47,7 @@ typedef struct lcp_options {
     int restart : 1;		/* Restart vs. exit after close */
     int neg_mru : 1;		/* Negotiate the MRU? */
     int neg_asyncmap : 1;	/* Negotiate the async map? */
-    int neg_upap : 1;		/* Ask for UPAP authentication? */
+    int neg_upap : 1;		/* Ask for PPP_PAP authentication? */
     int neg_chap : 1;		/* Ask for CHAP authentication? */
     int neg_magicnumber : 1;	/* Ask for magic number? */
     int neg_pcompression : 1;	/* HDLC Protocol Field Compression? */
@@ -72,16 +72,16 @@ extern u_long xmit_accm[][8];
 #define MINMRU	128		/* No MRUs below this */
 #define MAXMRU	16384		/* Normally limit MRU to this */
 
-void lcp_init __ARGS((int));
-void lcp_open __ARGS((int));
-void lcp_close __ARGS((int));
-void lcp_lowerup __ARGS((int));
-void lcp_lowerdown __ARGS((int));
-void lcp_input __ARGS((int, u_char *, int));
-void lcp_protrej __ARGS((int));
-void lcp_sprotrej __ARGS((int, u_char *, int));
-int  lcp_printpkt __ARGS((u_char *, int,
-			  void (*) __ARGS((void *, char *, ...)), void *));
+void lcp_init __P((int));
+void lcp_open __P((int));
+void lcp_close __P((int));
+void lcp_lowerup __P((int));
+void lcp_lowerdown __P((int));
+void lcp_input __P((int, u_char *, int));
+void lcp_protrej __P((int));
+void lcp_sprotrej __P((int, u_char *, int));
+int  lcp_printpkt __P((u_char *, int,
+			  void (*) __P((void *, char *, ...)), void *));
 
 extern int lcp_warnloops;	/* Warn about a loopback this often */
 #define DEFWARNLOOPS	10	/* Default value for above */

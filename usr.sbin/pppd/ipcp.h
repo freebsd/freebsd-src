@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.h,v 1.2 1994/09/25 02:32:00 wollman Exp $
+ * $Id: ipcp.h,v 1.3 1995/05/30 03:51:11 rgrimes Exp $
  */
 
 /*
@@ -25,6 +25,10 @@
 #define CI_ADDRS	1	/* IP Addresses */
 #define CI_COMPRESSTYPE	2	/* Compression Type */
 #define	CI_ADDR		3
+#define CI_DNS1		129	/* Primary DNS */
+#define CI_NBNS1	130	/* Primary NBNS */
+#define CI_DNS2		131	/* Secondary DNS */
+#define CI_NBNS2	132	/* Secondary NBNS */
 
 #define MAX_STATES 16		/* from slcompress.h */
 
@@ -58,11 +62,11 @@ extern ipcp_options ipcp_gotoptions[];
 extern ipcp_options ipcp_allowoptions[];
 extern ipcp_options ipcp_hisoptions[];
 
-void ipcp_init __ARGS((int));
-void ipcp_open __ARGS((int));
-void ipcp_close __ARGS((int));
-void ipcp_lowerup __ARGS((int));
-void ipcp_lowerdown __ARGS((int));
-void ipcp_input __ARGS((int, u_char *, int));
-void ipcp_protrej __ARGS((int));
-int  ipcp_printpkt __ARGS((u_char *, int, void (*)(), void *));
+void ipcp_init __P((int));
+void ipcp_open __P((int));
+void ipcp_close __P((int));
+void ipcp_lowerup __P((int));
+void ipcp_lowerdown __P((int));
+void ipcp_input __P((int, u_char *, int));
+void ipcp_protrej __P((int));
+int  ipcp_printpkt __P((u_char *, int, void (*)(), void *));

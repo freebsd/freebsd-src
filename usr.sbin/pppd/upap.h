@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: upap.h,v 1.2 1994/04/11 07:13:44 paulus Exp $
+ * $Id: upap.h,v 1.2 1994/09/25 02:32:18 wollman Exp $
  */
 
 /*
@@ -26,7 +26,7 @@
 
 
 /*
- * UPAP codes.
+ * PPP_PAP codes.
  */
 #define UPAP_AUTHREQ	1	/* Authenticate-Request */
 #define UPAP_AUTHACK	2	/* Authenticate-Ack */
@@ -80,12 +80,12 @@ typedef struct upap_state {
 
 extern upap_state upap[];
 
-void upap_init __ARGS((int));
-void upap_authwithpeer __ARGS((int, char *, char *));
-void upap_authpeer __ARGS((int));
-void upap_lowerup __ARGS((int));
-void upap_lowerdown __ARGS((int));
-void upap_input __ARGS((int, u_char *, int));
-void upap_protrej __ARGS((int));
-int  upap_printpkt __ARGS((u_char *, int,
-			   void (*) __ARGS((void *, char *, ...)), void *));
+void upap_init __P((int));
+void upap_authwithpeer __P((int, char *, char *));
+void upap_authpeer __P((int));
+void upap_lowerup __P((int));
+void upap_lowerdown __P((int));
+void upap_input __P((int, u_char *, int));
+void upap_protrej __P((int));
+int  upap_printpkt __P((u_char *, int,
+			   void (*) __P((void *, char *, ...)), void *));
