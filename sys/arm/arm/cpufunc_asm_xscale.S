@@ -1,6 +1,6 @@
 /*	$NetBSD: cpufunc_asm_xscale.S,v 1.16 2002/08/17 16:36:32 thorpej Exp $	*/
 
-/*
+/*-
  * Copyright (c) 2001, 2002 Wasabi Systems, Inc.
  * All rights reserved.
  *
@@ -36,7 +36,7 @@
  *
  */
 
-/*
+/*-
  * Copyright (c) 2001 Matt Thomas.
  * Copyright (c) 1997,1998 Mark Brinicombe.
  * Copyright (c) 1997 Causality Limited

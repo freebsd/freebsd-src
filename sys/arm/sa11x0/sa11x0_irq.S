@@ -1,6 +1,6 @@
 /*	$NetBSD: sa11x0_irq.S,v 1.5 2003/03/31 19:52:35 chris Exp $	*/
 
-/*
+/*-
  * Copyright (c) 1998 Mark Brinicombe.
  * Copyright (c) 1998 Causality Limited
  * All rights reserved.

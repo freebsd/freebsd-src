@@ -1,6 +1,6 @@
 /*	$NetBSD: mainbus_io_asm.S,v 1.1 2001/02/24 19:38:02 reinoud Exp $	*/
 
-/*
+/*-
  * Copyright (c) 1997 Mark Brinicombe.
  * All rights reserved.
  *

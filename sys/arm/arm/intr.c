@@ -1,6 +1,6 @@
 /*	$NetBSD: intr.c,v 1.12 2003/07/15 00:24:41 lukem Exp $	*/
 
-/*
+/*-
  * Copyright (c) 2004 Olivier Houchard.
  * Copyright (c) 1994-1998 Mark Brinicombe.
  * All rights reserved.

@@ -1,6 +1,6 @@
 /*	$NetBSD: vectors.S,v 1.4 2002/08/17 16:36:32 thorpej Exp $	*/
 
-/*
+/*-
  * Copyright (C) 1994-1997 Mark Brinicombe
  * Copyright (C) 1994 Brini
  * All rights reserved. 

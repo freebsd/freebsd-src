@@ -1,6 +1,6 @@
 /*	$NetBSD: iq80321reg.h,v 1.4 2003/05/14 19:46:39 thorpej Exp $	*/
 
-/*
+/*-
  * Copyright (c) 2002 Wasabi Systems, Inc.
  * All rights reserved.
  *

@@ -1,6 +1,6 @@
 /*	$NetBSD: cpufunc_asm_ixp12x0.S,v 1.2 2002/08/17 16:36:31 thorpej Exp $	*/
 
-/*
+/*-
  * Copyright (c) 2002 Wasabi Systems, Inc.
  * All rights reserved.
  *

@@ -1,6 +1,6 @@
 /*	$NetBSD: bcopyinout.S,v 1.11 2003/10/13 21:22:40 scw Exp $	*/
 
-/*
+/*-
  * Copyright (c) 2002 Wasabi Systems, Inc.
  * All rights reserved.
  *

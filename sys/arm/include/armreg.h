@@ -1,6 +1,6 @@
 /*	$NetBSD: armreg.h,v 1.28 2003/10/31 16:30:15 scw Exp $	*/
 
-/*
+/*-
  * Copyright (c) 1998, 2001 Ben Harris
  * Copyright (c) 1994-1996 Mark Brinicombe.
  * Copyright (c) 1994 Brini.

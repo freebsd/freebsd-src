@@ -1,6 +1,6 @@
 /*	$NetBSD: blockio.S,v 1.5 2002/08/15 01:38:16 briggs Exp $	*/
 
-/*
+/*-
  * Copyright (c) 2001 Ben Harris.
  * Copyright (c) 1994 Mark Brinicombe.
  * Copyright (c) 1994 Brini.

@@ -1,5 +1,5 @@
 /* From: $NetBSD: pmap.c,v 1.148 2004/04/03 04:35:48 bsh Exp $ */
-/*
+/*-
  * Copyright 2004 Olivier Houchard.
  * Copyright 2003 Wasabi Systems, Inc.
  * All rights reserved.
@@ -35,7 +35,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-/*
+/*-
  * Copyright (c) 2002-2003 Wasabi Systems, Inc.
  * Copyright (c) 2001 Richard Earnshaw
  * Copyright (c) 2001-2002 Christopher Gilbert
@@ -98,11 +98,11 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-/*
+/*-
  * Copyright (c) 1994-1998 Mark Brinicombe.
  * Copyright (c) 1994 Brini.
  * All rights reserved.
-  *
+ *
  * This code is derived from software written for Brini by Mark Brinicombe
  *
  * Redistribution and use in source and binary forms, with or without

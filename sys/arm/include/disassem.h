@@ -1,6 +1,6 @@
 /*	$NetBSD: disassem.h,v 1.4 2001/03/04 04:15:58 matt Exp $	*/
 
-/*
+/*-
  * Copyright (c) 1997 Mark Brinicombe.
  * Copyright (c) 1997 Causality Limited.
  *

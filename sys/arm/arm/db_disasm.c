@@ -1,6 +1,6 @@
 /*	$NetBSD: db_disasm.c,v 1.4 2003/07/15 00:24:38 lukem Exp $	*/
 
-/*
+/*-
  * Copyright (c) 1996 Mark Brinicombe.
  * Copyright (c) 1996 Brini.
  *

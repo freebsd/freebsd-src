@@ -1,6 +1,6 @@
 /*	$NetBSD: bootconfig.c,v 1.2 2002/03/10 19:56:39 lukem Exp $	*/
 
-/*
+/*-
  * Copyright (c) 1994-1998 Mark Brinicombe.
  * Copyright (c) 1994 Brini.
  * All rights reserved.

@@ -1,6 +1,6 @@
 /*	$NetBSD: copystr.S,v 1.8 2002/10/13 14:54:48 bjh21 Exp $	*/
 
-/*
+/*-
  * Copyright (c) 1995 Mark Brinicombe.
  * All rights reserved.
  *

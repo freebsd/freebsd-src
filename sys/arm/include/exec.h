@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2001 David E. O'Brien
  * All rights reserved.
  *
