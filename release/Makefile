@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.240 1996/10/04 13:33:38 jkh Exp $
+#	$Id: Makefile,v 1.241 1996/10/05 06:10:58 jkh Exp $
 #
 # How to roll a release:
 #
@@ -201,7 +201,7 @@ release.3:
 release.4:
 	@cd ${.CURDIR} && $(MAKE) ckRELEASEDIR
 	cd ${.CURDIR}/sysinstall && make depend all \
-	  KERNEL_NAME=${RD}/kernels/GENERIC
+	  KERNEL_NAME=${RD}/kernels/BOOTMFS.std
 	rm -rf ${RD}/crunch
 	mkdir -p ${RD}/crunch
 	for j in ${WHICH_CRUNCH} ; do \
