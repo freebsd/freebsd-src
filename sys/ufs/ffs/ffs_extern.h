@@ -90,7 +90,6 @@ vfs_vget_t ffs_vget;
 vfs_vptofh_t ffs_vptofh;
 
 extern vop_t **ffs_vnodeop_p;
-extern vop_t **ffs_specop_p;
 extern vop_t **ffs_fifoop_p;
 
 /*

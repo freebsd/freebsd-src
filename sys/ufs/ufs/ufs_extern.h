@@ -53,7 +53,6 @@ struct vop_reclaim_args;
 
 int	ufs_vnoperate(struct vop_generic_args *);
 int	ufs_vnoperatefifo(struct vop_generic_args *);
-int	ufs_vnoperatespec(struct vop_generic_args *);
 
 int	 ufs_bmap(struct vop_bmap_args *);
 int	 ufs_bmaparray(struct vnode *, ufs2_daddr_t, ufs2_daddr_t *,
@@ -89,7 +88,7 @@ void	 ffs_snapgone(struct inode *);
 vfs_root_t ufs_root;
 vfs_start_t ufs_start;
 int	 ufs_uninit(struct vfsconf *);
-int	 ufs_vinit(struct mount *, vop_t **, vop_t **, struct vnode **);
+int	 ufs_vinit(struct mount *, vop_t **, struct vnode **);
 
 /*
  * Soft update function prototypes.
