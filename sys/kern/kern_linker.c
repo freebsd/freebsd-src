@@ -362,7 +362,6 @@ linker_find_file_by_name(const char *filename)
 {
 	linker_file_t lf = 0;
 	char *koname;
-	int err;
 
 	koname = malloc(strlen(filename) + 4, M_LINKER, M_WAITOK);
 	if (koname == NULL)
@@ -371,11 +370,9 @@ linker_find_file_by_name(const char *filename)
 
 	lockmgr(&lock, LK_SHARED, 0, curthread);
 	TAILQ_FOREACH(lf, &linker_files, link) {
-		err = strcmp(lf->filename, koname);
-		if (err == 0)
+		if (strcmp(lf->filename, koname) == 0)
 			break;
-		err = strcmp(lf->filename, filename);
-		if (err == 0)
+		if (strcmp(lf->filename, filename) == 0)
 			break;
 	}
 	lockmgr(&lock, LK_RELEASE, 0, curthread);
@@ -549,7 +546,7 @@ linker_file_lookup_symbol(linker_file_t file, const char *name, int deps)
 	linker_symval_t symval;
 	caddr_t address;
 	size_t common_size = 0;
-	int err, i;
+	int i;
 
 	KLD_DPF(SYM, ("linker_file_lookup_symbol: file=%x, name=%s, deps=%d\n",
 	    file, name, deps));
@@ -589,8 +586,7 @@ linker_file_lookup_symbol(linker_file_t file, const char *name, int deps)
 		struct common_symbol *cp;
 
 		STAILQ_FOREACH(cp, &file->common, link) {
-			err = strcmp(cp->name, name);
-			if (err == 0) {
+			if (strcmp(cp->name, name) == 0) {
 				KLD_DPF(SYM, ("linker_file_lookup_symbol:"
 				    " old common value=%x\n", cp->address));
 				return (cp->address);
@@ -983,11 +979,10 @@ static modlist_t
 modlist_lookup(const char *name, int ver)
 {
 	modlist_t mod;
-	int err;
 
 	TAILQ_FOREACH(mod, &found_modules, link) {
-		err = strcmp(mod->name, name);
-		if (err == 0 && (ver == 0 || mod->version == ver))
+		if (strcmp(mod->name, name) == 0 &&
+		    (ver == 0 || mod->version == ver))
 			return (mod);
 	}
 	return (NULL);
@@ -997,15 +992,14 @@ static modlist_t
 modlist_lookup2(const char *name, struct mod_depend *verinfo)
 {
 	modlist_t mod, bestmod;
-	int err, ver;
+	int ver;
 
 	if (verinfo == NULL)
 		return (modlist_lookup(name, 0));
 	bestmod = NULL;
 	for (mod = TAILQ_FIRST(&found_modules); mod;
 	    mod = TAILQ_NEXT(mod, link)) {
-		err = strcmp(mod->name, name);
-		if (err != 0)
+		if (strcmp(mod->name, name) != 0)
 			continue;
 		ver = mod->version;
 		if (ver == verinfo->md_ver_preferred)
@@ -1111,7 +1105,7 @@ linker_preload(void *arg)
 	char *modtype;
 	linker_file_t lf;
 	linker_class_t lc;
-	int error, err;
+	int error;
 	linker_file_list_t loaded_files;
 	linker_file_list_t depended_files;
 	struct mod_metadata *mp, *nmp;
@@ -1189,8 +1183,7 @@ restart:
 					    NULL);
 					nmodname = linker_reloc_ptr(lf,
 					    nmp->md_cval);
-					err = strcmp(modname, nmodname);
-					if (err == 0)
+					if (strcmp(modname, nmodname) == 0)
 						break;
 				}
 				if (nmdp < stop)   /* it's a self reference */
@@ -1675,7 +1668,7 @@ linker_load_dependencies(linker_file_t lf)
 	struct mod_depend *verinfo;
 	modlist_t mod;
 	const char *modname, *nmodname;
-	int ver, error = 0, err, count;
+	int ver, error = 0, count;
 
 	/*
 	 * All files are dependant on /kernel.
@@ -1714,8 +1707,7 @@ linker_load_dependencies(linker_file_t lf)
 			if (nmp->md_type != MDT_VERSION)
 				continue;
 			nmodname = linker_reloc_ptr(lf, nmp->md_cval);
-			err = strcmp(modname, nmodname);
-			if (err == 0)
+			if (strcmp(modname, nmodname) == 0)
 				break;
 		}
 		if (nmdp < stop)/* early exit, it's a self reference */
