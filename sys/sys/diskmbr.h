@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)disklabel.h	8.2 (Berkeley) 7/10/94
- * $Id: disklabel.h,v 1.33 1998/07/07 04:19:25 bde Exp $
+ * $Id: disklabel.h,v 1.34 1998/07/12 16:48:08 dfr Exp $
  */
 
 #ifndef	_SYS_DISKLABEL_H_
@@ -98,9 +98,6 @@ struct disklabel {
 	 * as found in /usr/mdec.  These are returned when using
 	 * getdiskbyname(3) to retrieve the values from /etc/disktab.
 	 */
-#if defined(KERNEL) || defined(STANDALONE)
-	char	  d_packname[16];		/* pack identifier */ 
-#else
 	union {
 		char	un_d_packname[16];	/* pack identifier */
 		struct {
@@ -111,7 +108,6 @@ struct disklabel {
 #define d_packname	d_un.un_d_packname
 #define d_boot0		d_un.un_b.un_d_boot0
 #define d_boot1		d_un.un_b.un_d_boot1
-#endif	/* ! KERNEL or STANDALONE */
 
 			/* disk geometry: */
 	u_int32_t d_secsize;		/* # of bytes per sector */
