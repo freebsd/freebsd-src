@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000 Michael Smith
+ * Copyright (c) 2000, 2001 Michael Smith
  * Copyright (c) 2000 BSDi
  * All rights reserved.
  *
@@ -46,6 +46,7 @@
 #include <pci/pcivar.h>
 
 #include <dev/mly/mlyreg.h>
+#include <dev/mly/mlyio.h>
 #include <dev/mly/mlyvar.h>
 
 static int	mly_pci_probe(device_t dev);
@@ -60,7 +61,6 @@ static int	mly_sg_map(struct mly_softc *sc);
 static void	mly_sg_map_helper(void *arg, bus_dma_segment_t *segs, int nseg, int error);
 static int	mly_mmbox_map(struct mly_softc *sc);
 static void	mly_mmbox_map_helper(void *arg, bus_dma_segment_t *segs, int nseg, int error);
-static void	mly_free_command_cluster(struct mly_command_cluster *mcc);
 
 static device_method_t mly_methods[] = {
     /* Device interface */
@@ -236,7 +236,7 @@ mly_pci_attach(device_t dev)
 			   BUS_SPACE_MAXADDR,		/* lowaddr */
 			   BUS_SPACE_MAXADDR, 		/* highaddr */
 			   NULL, NULL, 			/* filter, filterarg */
-			   sizeof(union mly_command_packet) * MLY_CMD_CLUSTERCOUNT, 1,	/* maxsize, nsegments */
+			   sizeof(union mly_command_packet) * MLY_MAXCOMMANDS, 1,	/* maxsize, nsegments */
 			   BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			   0,				/* flags */
 			   &sc->mly_packet_dmat)) {
@@ -515,16 +515,22 @@ mly_mmbox_map_helper(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 void
 mly_free(struct mly_softc *sc)
 {
-    struct mly_command_cluster	*mcc;
-
+    struct mly_command	*mc;
+    
     debug_called(1);
 
     /* detach from CAM */
     mly_cam_detach(sc);
 
-    /* throw away any command buffers */
-    while ((mcc = mly_dequeue_cluster(sc)) != NULL)
-	mly_free_command_cluster(mcc);
+    /* throw away command buffer DMA maps */
+    while (mly_alloc_command(sc, &mc) == 0)
+	bus_dmamap_destroy(sc->mly_buffer_dmat, mc->mc_datamap);
+
+    /* release the packet storage */
+    if (sc->mly_packet != NULL) {
+	bus_dmamap_unload(sc->mly_packet_dmat, sc->mly_packetmap);
+	bus_dmamem_free(sc->mly_packet_dmat, sc->mly_packet, sc->mly_packetmap);
+    }
 
     /* throw away the controllerinfo structure */
     if (sc->mly_controllerinfo != NULL)
@@ -567,24 +573,5 @@ mly_free(struct mly_softc *sc)
     /* release the register window mapping */
     if (sc->mly_regs_resource != NULL)
 	bus_release_resource(sc->mly_dev, SYS_RES_MEMORY, sc->mly_regs_rid, sc->mly_regs_resource);
-}
-
-/********************************************************************************
- * Free a command cluster.
- */
-static void
-mly_free_command_cluster(struct mly_command_cluster *mcc)
-{
-    struct mly_softc	*sc = mcc->mcc_command[0].mc_sc;
-    int			i;
-
-    debug_called(1);
-
-    for (i = 0; i < MLY_CMD_CLUSTERCOUNT; i++)
-	bus_dmamap_destroy(sc->mly_buffer_dmat, mcc->mcc_command[i].mc_datamap);
-
-    bus_dmamap_unload(sc->mly_packet_dmat, mcc->mcc_packetmap);
-    bus_dmamem_free(sc->mly_packet_dmat, mcc->mcc_packet, mcc->mcc_packetmap);
-    free(mcc, M_DEVBUF);
 }
 

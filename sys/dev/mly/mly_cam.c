@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000 Michael Smith
+ * Copyright (c) 2000, 2001 Michael Smith
  * Copyright (c) 2000 BSDi
  * All rights reserved.
  *
@@ -41,11 +41,13 @@
 #include <cam/cam_sim.h>
 #include <cam/cam_xpt_sim.h>
 #include <cam/scsi/scsi_all.h>
+#include <cam/scsi/scsi_message.h>
 
 #include <machine/resource.h>
 #include <machine/bus.h>
 
 #include <dev/mly/mlyreg.h>
+#include <dev/mly/mlyio.h>
 #include <dev/mly/mlyvar.h>
 #include <dev/mly/mly_tables.h>
 
@@ -58,12 +60,20 @@ static struct cam_periph	*mly_find_periph(struct mly_softc *sc, int bus, int tar
  * CAM-specific queue primitives
  */
 static __inline void
+mly_initq_ccb(struct mly_softc *sc)
+{
+    TAILQ_INIT(&sc->mly_cam_ccbq);
+    MLYQ_INIT(sc, MLYQ_CCB);
+}
+
+static __inline void
 mly_enqueue_ccb(struct mly_softc *sc, union ccb *ccb)
 {
     int		s;
 
     s = splcam();
     TAILQ_INSERT_TAIL(&sc->mly_cam_ccbq, &ccb->ccb_h, sim_links.tqe);
+    MLYQ_ADD(sc, MLYQ_CCB);
     splx(s);
 }
 
@@ -74,6 +84,7 @@ mly_requeue_ccb(struct mly_softc *sc, union ccb *ccb)
 
     s = splcam();
     TAILQ_INSERT_HEAD(&sc->mly_cam_ccbq, &ccb->ccb_h, sim_links.tqe);
+    MLYQ_ADD(sc, MLYQ_CCB);
     splx(s);
 }
 
@@ -84,8 +95,10 @@ mly_dequeue_ccb(struct mly_softc *sc)
     int		s;
 
     s = splcam();
-    if ((ccb = (union ccb *)TAILQ_FIRST(&sc->mly_cam_ccbq)) != NULL)
+    if ((ccb = (union ccb *)TAILQ_FIRST(&sc->mly_cam_ccbq)) != NULL) {
 	TAILQ_REMOVE(&sc->mly_cam_ccbq, &ccb->ccb_h, sim_links.tqe);
+	MLYQ_REMOVE(sc, MLYQ_CCB);
+    }
     splx(s);
     return(ccb);
 }
@@ -112,12 +125,12 @@ int
 mly_cam_attach(struct mly_softc *sc)
 {
     struct cam_devq	*devq;
-    int			chn, nchn;
+    int			chn, i;
 
     debug_called(1);
 
     /* initialise the CCB queue */
-    TAILQ_INIT(&sc->mly_cam_ccbq);
+    mly_initq_ccb(sc);
 
     /*
      * Allocate a devq for all our channels combined.
@@ -129,11 +142,11 @@ mly_cam_attach(struct mly_softc *sc)
 
     /*
      * Iterate over channels, registering them with CAM.
+     *
+     * Physical channels are set up to support tagged commands and only a single
+     * untagged command.  Virtual channels do not support tags, and don't need them.
      */
-    nchn = sc->mly_controllerinfo->physical_channels_present +
-	sc->mly_controllerinfo->virtual_channels_present;
-    for (chn = 0; chn < nchn; chn++) {
-
+    for (i = 0, chn = 0; i < sc->mly_controllerinfo->physical_channels_present; i++, chn++) {
 	/* allocate a sim */
 	if ((sc->mly_cam_sim[chn] = cam_sim_alloc(mly_cam_action, 
 						  mly_cam_poll, 
@@ -147,14 +160,30 @@ mly_cam_attach(struct mly_softc *sc)
 	    mly_printf(sc, "CAM SIM attach failed\n");
 	    return(ENOMEM);
 	}
+    }
+    for (i = 0; i < sc->mly_controllerinfo->virtual_channels_present; i++, chn++) {
+	/* allocate a sim */
+	if ((sc->mly_cam_sim[chn] = cam_sim_alloc(mly_cam_action, 
+						  mly_cam_poll, 
+						  "mly", 
+						  sc,
+						  device_get_unit(sc->mly_dev), 
+						  sc->mly_controllerinfo->maximum_parallel_commands,
+						  0,
+						  devq)) ==  NULL) {
+	    cam_simq_free(devq);
+	    mly_printf(sc, "CAM SIM attach failed\n");
+	    return(ENOMEM);
+	}
+    }
 
-	/* register the bus ID so we can get it later */
-	if (xpt_bus_register(sc->mly_cam_sim[chn], chn)) {
+    for (i = 0; i < chn; i++) {
+	/* register the bus IDs so we can get them later */
+	if (xpt_bus_register(sc->mly_cam_sim[i], i)) {
 	    mly_printf(sc, "CAM XPT bus registration failed\n");
 	    return(ENXIO);
 	}
-	debug(1, "registered sim %p bus %d", sc->mly_cam_sim[chn], chn);
-
+	debug(1, "registered sim %p bus %d", sc->mly_cam_sim[i], i);
     }
 
     return(0);
@@ -312,6 +341,59 @@ mly_cam_action(struct cam_sim *sim, union ccb *ccb)
 	break;
     }
 
+    case XPT_GET_TRAN_SETTINGS:
+    {
+	struct ccb_trans_settings	*cts = &ccb->cts;
+	int				bus, target;
+
+	bus = cam_sim_bus(sim);
+	target = cts->ccb_h.target_id;
+
+	debug(2, "XPT_GET_TRAN_SETTINGS %d:%d", bus, target);
+	cts->valid = 0;
+
+	/* logical device? */
+	if (sc->mly_btl[bus][target].mb_flags & MLY_BTL_LOGICAL) {
+	    /* nothing special for these */
+
+	/* physical device? */
+	} else if (sc->mly_btl[bus][target].mb_flags & MLY_BTL_PHYSICAL) {
+	    /* allow CAM to try tagged transactions */
+	    cts->flags |= CCB_TRANS_TAG_ENB;
+	    cts->valid |= CCB_TRANS_TQ_VALID;
+
+	    /* convert speed (MHz) to usec */
+	    cts->sync_period = 1000000 / sc->mly_btl[bus][target].mb_speed;
+
+	    /* convert bus width to CAM internal encoding */
+	    switch (sc->mly_btl[bus][target].mb_width) {
+	    case 32:
+		cts->bus_width = MSG_EXT_WDTR_BUS_32_BIT;
+		break;
+	    case 16:
+		cts->bus_width = MSG_EXT_WDTR_BUS_16_BIT;
+		break;
+	    case 8:
+	    default:
+		cts->bus_width = MSG_EXT_WDTR_BUS_8_BIT;
+		break;
+	    }
+	    cts->valid |= CCB_TRANS_SYNC_RATE_VALID | CCB_TRANS_BUS_WIDTH_VALID;
+
+	    /* not a device, bail out */
+	} else {
+	    cts->ccb_h.status = CAM_REQ_CMP_ERR;
+	    break;
+	}
+
+	/* disconnect always OK */
+	cts->flags |= CCB_TRANS_DISC_ENB;
+	cts->valid |= CCB_TRANS_DISC_VALID;
+
+	cts->ccb_h.status = CAM_REQ_CMP;
+	break;
+    }
+
     default:		/* we can't do this */
 	debug(2, "unspported func_code = 0x%x", ccb->ccb_h.func_code);
 	ccb->ccb_h.status = CAM_REQ_INVALID;
@@ -362,7 +444,6 @@ mly_cam_command(struct mly_softc *sc, struct mly_command **mcp)
     }
 
     /* build the command */
-    MLY_CMD_SETSTATE(mc, MLY_CMD_SETUP);
     mc->mc_data = csio->data_ptr;
     mc->mc_length = csio->dxfer_len;
     mc->mc_complete = mly_cam_complete;
