@@ -74,6 +74,8 @@ ${FULLKERNEL}: ${SYSTEM_DEP} vers.o
 ${SYSTEM_OBJS}: assym.s miidevs.h vnode_if.h ${BEFORE_DEPEND:M*.h} ${MFILES:T:S/.m$/.h/}
 .endif
 
+LNFILES=	${CFILES:T:S/.c$/.ln/}
+
 .for mfile in ${MFILES}
 # XXX the low quality .m.o rules gnerated by config are normally used
 # instead of the .m.c rules here.
@@ -90,8 +92,9 @@ kernel-clean:
 	      ${MFILES:T:S/.m$/.c/} ${MFILES:T:S/.m$/.h/} \
 	      ${CLEAN}
 
-lint: ${CFILES}
-	${LINT} ${LINTKERNFLAGS} ${CFLAGS:M-[DILU]*} ${.ALLSRC}
+lint: ${LNFILES}
+	${LINT} ${LINTKERNFLAGS} ${CFLAGS:M-[DILU]*} ${.ALLSRC} \
+	      2>&1 | tee -a linterrs
 
 # This is a hack.  BFD "optimizes" away dynamic mode if there are no
 # dynamic references.  We could probably do a '-Bforcedynamic' mode like
@@ -206,11 +209,20 @@ kernel-reinstall:
 config.o:
 	${NORMAL_C}
 
+config.ln:
+	${NORMAL_LINT}
+
 env.o:	env.c
 	${NORMAL_C}
 
+env.ln:	env.c
+	${NORMAL_LINT}
+
 hints.o:	hints.c
 	${NORMAL_C}
+
+hints.ln:	hints.c
+	${NORMAL_LINT}
 
 vers.c: $S/conf/newvers.sh $S/sys/param.h ${SYSTEM_DEP}
 	sh $S/conf/newvers.sh ${KERN_IDENT}
@@ -219,6 +231,9 @@ vers.c: $S/conf/newvers.sh $S/sys/param.h ${SYSTEM_DEP}
 # only appear there, but we don't handle that.
 vers.o:
 	${NORMAL_C}
+
+vers.ln:
+	${NORMAL_LINT}
 
 vnode_if.c: $S/tools/vnode_if.awk $S/kern/vnode_if.src
 	${AWK} -f $S/tools/vnode_if.awk $S/kern/vnode_if.src -c
@@ -229,10 +244,16 @@ vnode_if.h: $S/tools/vnode_if.awk $S/kern/vnode_if.src
 vnode_if.o:
 	${NORMAL_C}
 
+vnode_if.ln:
+	${NORMAL_LINT}
+
 majors.c: $S/conf/majors $S/conf/majors.awk
 	${AWK} -f $S/conf/majors.awk $S/conf/majors > majors.c
 
 majors.o:
 	${NORMAL_C}
+
+majors.ln:
+	${NORMAL_LINT}
 
 .include "kern.mk"
