@@ -376,10 +376,11 @@ soreserve(so, sndcc, rcvcc)
 	register struct socket *so;
 	u_long sndcc, rcvcc;
 {
+	struct proc *p = curproc;
 
-	if (sbreserve(&so->so_snd, sndcc) == 0)
+	if (sbreserve(&so->so_snd, sndcc, so, p) == 0)
 		goto bad;
-	if (sbreserve(&so->so_rcv, rcvcc) == 0)
+	if (sbreserve(&so->so_rcv, rcvcc, so, p) == 0)
 		goto bad2;
 	if (so->so_rcv.sb_lowat == 0)
 		so->so_rcv.sb_lowat = 1;
@@ -389,7 +390,7 @@ soreserve(so, sndcc, rcvcc)
 		so->so_snd.sb_lowat = so->so_snd.sb_hiwat;
 	return (0);
 bad2:
-	sbrelease(&so->so_snd);
+	sbrelease(&so->so_snd, so);
 bad:
 	return (ENOBUFS);
 }
@@ -400,12 +401,25 @@ bad:
  * if buffering efficiency is near the normal case.
  */
 int
-sbreserve(sb, cc)
+sbreserve(sb, cc, so, p)
 	struct sockbuf *sb;
 	u_long cc;
+	struct socket *so;
+	struct proc *p;
 {
+	rlim_t delta;
+
+	/*
+	 * p will only be NULL when we're in an interrupt
+	 * (e.g. in tcp_input())
+	 */
 	if ((u_quad_t)cc > (u_quad_t)sb_max * MCLBYTES / (MSIZE + MCLBYTES))
 		return (0);
+	delta = (rlim_t)cc - sb->sb_hiwat;
+	if (p && delta >= 0 && chgsbsize(so->so_cred->cr_uid, 0) + delta >
+	    p->p_rlimit[RLIMIT_SBSIZE].rlim_cur)
+		return (0);
+	(void)chgsbsize(so->so_cred->cr_uid, delta);
 	sb->sb_hiwat = cc;
 	sb->sb_mbmax = min(cc * sb_efficiency, sb_max);
 	if (sb->sb_lowat > sb->sb_hiwat)
@@ -417,11 +431,13 @@ sbreserve(sb, cc)
  * Free mbufs held by a socket, and reserved mbuf space.
  */
 void
-sbrelease(sb)
+sbrelease(sb, so)
 	struct sockbuf *sb;
+	struct socket *so;
 {
 
 	sbflush(sb);
+	(void)chgsbsize(so->so_cred->cr_uid, -(rlim_t)sb->sb_hiwat);
 	sb->sb_hiwat = sb->sb_mbmax = 0;
 }
 
