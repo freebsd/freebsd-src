@@ -141,7 +141,9 @@ or
 .Pa /compat/svr4/dev .
 Internally, the
 .Xr streams 4
-driver produces a socket descriptor and "tags" it with additional STREAMS
+driver produces a socket descriptor and
+.Dq tags
+it with additional STREAMS
 state information before returning it to the client application.
 The
 .Nm
@@ -177,9 +179,11 @@ archives containing pre-populated trees can be obtained from
 .Pp
 Extensive testing has only really been carried out with Solaris 2.x binaries,
 with anecdotal reports of limited success coming from testers with
-early-revision SCO media.  In theory, the basic SVR4 ABI should be constant
+early-revision SCO media.
+In theory, the basic SVR4 ABI should be constant
 across the set of vendors who produce SVR4 operating systems, but in
-practice that's probably not the case.  If necessary, future work can
+practice that's probably not the case.
+If necessary, future work can
 either implement additional
 .Xr kld 4
 modules which produce functionality which contains OS-dependent
@@ -187,7 +191,9 @@ departures from the behaviour which has been implemented in this
 ABI implementation.
 Alternatively,
 .Xr sysctl 8
-variables could set the "personality" the environment should present to
+variables could set the
+.Dq personality
+the environment should present to
 client applications.
 .Sh FILES
 .Bl -tag -width /sys/compat/svr4/syscalls.master -compact
