@@ -291,11 +291,78 @@ The include file
 similarly contains the definitions for
 Human Interface Devices
 .Pq Tn HID .
+.Sh USB EVENT INTERFACE
+All
+.Tn USB
+events are reported via the
+.Pa /dev/usb
+device.  This devices can be opened for reading and each
+.Xr read 2
+will yield an event record (if something has happened).
+The
+.Xr poll 2
+system call can be used to determine if an event record is available
+for reading.
+.Pp
+The event record has the following definition:
+.Bd -literal
+struct usb_event {
+        int                                 ue_type;
+#define USB_EVENT_CTRLR_ATTACH 1
+#define USB_EVENT_CTRLR_DETACH 2
+#define USB_EVENT_DEVICE_ATTACH 3
+#define USB_EVENT_DEVICE_DETACH 4
+#define USB_EVENT_DRIVER_ATTACH 5
+#define USB_EVENT_DRIVER_DETACH 6
+        struct timespec                     ue_time;
+        union {
+                struct {
+                        int                 ue_bus;
+                } ue_ctrlr;
+                struct usb_device_info      ue_device;
+                struct {
+                        usb_event_cookie_t  ue_cookie;
+                        char                ue_devname[16];
+                } ue_driver;
+        } u;
+};
+.Ed
+The
+.Va ue_type
+field identifies the type of event that is described.
+The possible events are attach/detach of a host controller,
+a device, or a device driver.  The union contains information
+pertinent to the different types of events.
+.br
+The
+.Va ue_bus
+contains the number of the
+.Tn USB
+bus for host controller events.
+.br
+The
+.Va ue_device
+record contains information about the device in a device event event.
+.br
+The
+.Va ue_cookie
+is an opaque value that uniquely determines which which
+device a device driver has been attached to (i.e., it equals
+the cookie value in the device that the driver attached to).
+The
+.Va ue_devname
+contains the name of the device (driver) as seen in, e.g.,
+kernel messages.
+.Pp
+Note that that there is a separation between device and device
+driver events.  A device event is generated when a physical
+USB device is attached or detached.  A single USB device may
+have zero, one, or many device drivers associated with it.
 .Sh SEE ALSO
 The
 .Tn USB
 specifications can be found at:
-.D1 http://www.usb.org/developers/docs.htm .
+.D1 http://www.usb.org/developers/docs.html
 .Pp
 .Xr usb 3 ,
 .Xr aue 4 ,
