@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)kdump.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: kdump.c,v 1.12 1999/05/21 01:09:45 jmz Exp $";
+	"$Id: kdump.c,v 1.13 1999/06/16 18:46:40 dt Exp $";
 #endif /* not lint */
 
 #define KERNEL
@@ -233,7 +233,7 @@ int nsyscalls = sizeof (syscallnames) / sizeof (syscallnames[0]);
 static char *ptrace_ops[] = {
 	"PT_TRACE_ME",	"PT_READ_I",	"PT_READ_D",	"PT_READ_U",
 	"PT_WRITE_I",	"PT_WRITE_D",	"PT_WRITE_U",	"PT_CONTINUE",
-	"PT_KILL",	"PT_STEP",
+	"PT_KILL",	"PT_STEP",	"PT_ATTACH",	"PT_DETACH",
 };
 
 ktrsyscall(ktr)
@@ -271,8 +271,25 @@ ktrsyscall(ktr)
 				ip++;
 				narg--;
 			} else if (ktr->ktr_code == SYS_ptrace) {
-				if (*ip <= PT_STEP && *ip >= 0)
+				if (*ip < sizeof(ptrace_ops) /
+				    sizeof(ptrace_ops[0]) && *ip >= 0)
 					(void)printf("(%s", ptrace_ops[*ip]);
+#ifdef PT_GETREGS
+				else if (*ip == PT_GETREGS)
+					(void)printf("(%s", "PT_GETREGS");
+#endif
+#ifdef PT_SETREGS
+				else if (*ip == PT_SETREGS)
+					(void)printf("(%s", "PT_SETREGS");
+#endif
+#ifdef PT_GETFPREGS
+				else if (*ip == PT_GETFPREGS)
+					(void)printf("(%s", "PT_GETFPREGS");
+#endif
+#ifdef PT_SETFPREGS
+				else if (*ip == PT_SETFPREGS)
+					(void)printf("(%s", "PT_SETFPREGS");
+#endif
 				else
 					(void)printf("(%ld", (long)*ip);
 				c = ',';
