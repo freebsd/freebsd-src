@@ -10,6 +10,8 @@ SENDMAIL_DIR=	${.CURDIR}/../../contrib/sendmail
 SMDIR=		${SENDMAIL_DIR}/src
 CFDIR=		${SENDMAIL_DIR}/cf
 
+SENDMAIL_M4_FLAGS+=	-D_FFR_TLS_O_T
+
 # this is overkill, but....
 M4FILES!=	find ${CFDIR} -type f -name '*.m4' -print
 
@@ -18,7 +20,8 @@ M4FILES!=	find ${CFDIR} -type f -name '*.m4' -print
 .mc.cf:		${M4FILES}
 	${RM} ${.TARGET}
 	(cd ${.CURDIR} && \
-	    ${M4} -D_CF_DIR_=${CFDIR}/ ${CFDIR}/m4/cf.m4 ${@:R}.mc) > ${.TARGET}
+	    ${M4} -D_CF_DIR_=${CFDIR}/ ${SENDMAIL_M4_FLAGS} \
+		${CFDIR}/m4/cf.m4 ${@:R}.mc) > ${.TARGET}
 	${CHMOD} ${ROMODE} ${.TARGET}
 
 ALL=	freebsd.cf
