@@ -1,4 +1,4 @@
-/*	$Id: sysv_msg.c,v 1.17 1997/11/06 19:29:24 phk Exp $ */
+/*	$Id: sysv_msg.c,v 1.18 1998/03/30 09:50:35 phk Exp $ */
 
 /*
  * Implementation of SVID messages
@@ -252,8 +252,11 @@ msgctl(p, uap)
 			return(eval);
 		if ((eval = copyin(user_msqptr, &msqbuf, sizeof(msqbuf))) != 0)
 			return(eval);
-		if (msqbuf.msg_qbytes > msqptr->msg_qbytes && cred->cr_uid != 0)
-			return(EPERM);
+		if (msqbuf.msg_qbytes > msqptr->msg_qbytes) {
+			eval = suser(cred, &p->p_acflag);
+			if (eval)
+				return(eval);
+		}
 		if (msqbuf.msg_qbytes > msginfo.msgmnb) {
 #ifdef MSG_DEBUG_OK
 			printf("can't increase msg_qbytes beyond %d (truncating)\n",
