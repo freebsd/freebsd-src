@@ -251,7 +251,6 @@ __elf_fdnlist(fd, list)
 	Elf_Ehdr ehdr;
 	char *strtab = NULL;
 	Elf_Shdr *shdr = NULL;
-	Elf_Shdr *sh;
 	Elf_Word shdr_size;
 	void *base;
 	struct stat st;

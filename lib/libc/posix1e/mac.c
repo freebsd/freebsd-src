@@ -97,9 +97,7 @@ mac_init_internal(void)
 		return (0);
 
 	while (fgets(line, LINE_MAX, file)) {
-		char *argv[ARG_MAX];
-		char *arg, *parse, *statement, *policyname, *modulename;
-		int argc;
+		char *arg, *parse, *statement;
 
 		if (line[strlen(line)-1] == '\n')
 			line[strlen(line)-1] = '\0';
@@ -206,7 +204,6 @@ mac_reload(void)
 int
 mac_free(struct mac *mac)
 {
-	int error;
 
 	if (mac->m_string != NULL)
 		free(mac->m_string);
@@ -218,9 +215,6 @@ mac_free(struct mac *mac)
 int
 mac_from_text(struct mac **mac, const char *text)
 {
-	struct mac *temp;
-	char *dup, *element, *search;
-	int count, error;
 
 	*mac = (struct mac *) malloc(sizeof(**mac));
 	if (*mac == NULL)
@@ -251,7 +245,6 @@ mac_to_text(struct mac *mac, char **text)
 int
 mac_prepare(struct mac **mac, char *elements)
 {
-	struct mac *temp;
 
 	if (strlen(elements) >= MAC_MAX_LABEL_BUF_LEN)
 		return (EINVAL);
