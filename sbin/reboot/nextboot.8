@@ -24,14 +24,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.\" Note: The date here should be updated whenever a non-trivial
-.\" change is made to the manual page.
 .Dd November 4, 2002
 .Dt NEXTBOOT 8
 .Os
 .Sh NAME
 .Nm nextboot
-.Nd specify an alternate kernel and boot flags for the next reboot
+.Nd "specify an alternate kernel and boot flags for the next reboot"
 .Sh SYNOPSIS
 .Nm
 .Op Fl f
@@ -43,7 +41,10 @@
 The
 .Nm
 utility allows specifying an alternate kernel and/or boot flags for the
-next time the machine is booted. Once the loader loads in the new kernel
+next time the machine is booted.
+Once the
+.Xr loader 8
+loads in the new kernel
 information, it is deleted so in case the new kernel hangs the machine,
 once it is rebooted, the machine will automatically revert to its previous
 configuration.
@@ -53,32 +54,35 @@ The options are as follows:
 .It Fl D
 Invoking
 .Nm
-with the
-.Fl D
-option removes an existing nextboot configuration.
+with this
+option removes an existing
+.Nm
+configuration.
 .It Fl f
-The
-.Fl f
+This
 option disables the sanity checking which checks if the kernel really exists
-before writing the nextboot configuration.
+before writing the
+.Nm
+configuration.
 .It Fl k Ar kernel
-The
-.Fl k
-option with required kernel argument specifies a kernel directory relative to
+This option specifies a kernel directory relative to
 .Pa /boot
 to load the kernel and any modules from.
 .It Fl o Ar options
-The
-.Fl o
-allows the passing of kernel flags for the nextboot.
+This option
+allows the passing of kernel flags for the next boot.
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /boot/nextboot.conf" -compact
 .It Pa /boot/nextboot.conf
-The configuration file that the nextboot configuration is written into.
+The configuration file that the
+.Nm
+configuration is written into.
 .El
 .Sh EXAMPLES
-To boot the GENERIC kernel with the
+To boot the
+.Pa GENERIC
+kernel with the
 .Nm
 command:
 .Pp
@@ -109,8 +113,13 @@ appeared in
 This manual page was written by
 .An Gordon Tetlow Aq gordon@FreeBSD.org .
 .Sh BUGS
-The nextboot code is implemented in the loader. It is not the most throughly
-tested code. It is also my first attempt to write in Forth.
+The
+.Nm
+code is implemented in the
+.Xr loader 8 .
+It is not the most throughly tested code.
+It is also my first attempt to write in Forth.
 .Pp
 Finally, it does some evil things like writing to the filesystem before it
-has been checked. If it scrambles your filesystem, don't blame me.
+has been checked.
+If it scrambles your filesystem, do not blame me.
