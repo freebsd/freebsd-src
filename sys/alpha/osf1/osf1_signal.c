@@ -491,11 +491,13 @@ osf1_sigprocmask(td, uap)
 
 	case OSF1_SIG_UNBLOCK:
 		SIGSETNAND(p->p_sigmask, bss);
+		signotify(p);
 		break;
 
 	case OSF1_SIG_SETMASK:
 		p->p_sigmask = bss;
 		SIG_CANTMASK(p->p_sigmask);
+		signotify(p);
 		break;
 
 	default:
@@ -729,6 +731,7 @@ osf1_sigreturn(struct thread *td,
 	 */
 	osf1_to_bsd_sigset(&ksc.sc_mask, &p->p_sigmask);
 	SIG_CANTMASK(p->p_sigmask);
+	signotify(p);
 	PROC_UNLOCK(p);
 
 	set_regs(td, (struct reg *)ksc.sc_regs);

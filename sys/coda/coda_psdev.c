@@ -602,6 +602,7 @@ coda_call(mntinfo, inSize, outSize, buffer)
 		}
 	} while (error && i++ < 128 && VC_OPEN(vcp));
 	p->p_sigmask = psig_omask;
+	signotify(p);
 	PROC_UNLOCK(p);
 #else
 	(void) tsleep(&vmp->vm_sleep, coda_call_sleep, "coda_call", 0);

@@ -328,6 +328,7 @@ ibcs2_sigsys(td, uap)
 				        /* return SIG_HOLD and unblock signal*/
                                         td->td_retval[0] = (int)IBCS2_SIG_HOLD;
 					SIGDELSET(p->p_sigmask, signum);
+					signotify(p);
 				}
 				PROC_UNLOCK(p);
 			}
@@ -426,11 +427,13 @@ ibcs2_sigprocmask(td, uap)
 
 	case IBCS2_SIG_UNBLOCK:
 		SIGSETNAND(p->p_sigmask, bss);
+		signotify(p);
 		break;
 
 	case IBCS2_SIG_SETMASK:
 		p->p_sigmask = bss;
 		SIG_CANTMASK(p->p_sigmask);
+		signotify(p);
 		break;
 
 	default:
