@@ -258,14 +258,6 @@
 #define NGE_TXDMA_256BYTES	0x00600000
 #define NGE_TXDMA_512BYTES	0x00700000
 
-#define NGE_TXCFG_100	\
-	(NGE_TXDMA_64BYTES|NGE_TXCFG_AUTOPAD|\
-	 NGE_TXCFG_FILL(64)|NGE_TXCFG_DRAIN(1536))
-
-#define NGE_TXCFG_10	\
-	(NGE_TXDMA_32BYTES|NGE_TXCFG_AUTOPAD|\
-	 NGE_TXCFG_FILL(64)|NGE_TXCFG_DRAIN(1536))
-
 #define NGE_TXCFG	\
 	(NGE_TXDMA_512BYTES|NGE_TXCFG_AUTOPAD|\
 	 NGE_TXCFG_FILL(64)|NGE_TXCFG_DRAIN(6400))
@@ -486,9 +478,12 @@ struct nge_desc_64 {
 	/* Driver software section */
 	union {
 		struct mbuf		*nge_mbuf;
+		u_int64_t		nge_dummy;
+	} nge_mb_u;
+	union {
 		struct nge_desc_64	*nge_nextdesc;
-		u_int64_t		nge_dummy[2];
-	} nge_u;
+		u_int64_t		nge_dummy;
+	} nge_nd_u;
 };
 
 struct nge_desc_32 {
@@ -503,14 +498,17 @@ struct nge_desc_32 {
 	/* Driver software section */
 	union {
 		struct mbuf		*nge_mbuf;
+		u_int64_t		nge_dummy;
+	} nge_mb_u;
+	union {
 		struct nge_desc_32	*nge_nextdesc;
-		u_int64_t		nge_dummy[2];
-	} nge_u;
+		u_int64_t		nge_dummy;
+	} nge_nd_u;
 };
 
 #define nge_desc	nge_desc_32
-#define nge_mbuf	nge_u.nge_mbuf
-#define nge_nextdesc	nge_u.nge_nextdesc
+#define nge_mbuf	nge_mb_u.nge_mbuf
+#define nge_nextdesc	nge_nd_u.nge_nextdesc
 
 #define NGE_CMDSTS_BUFLEN	0x0000FFFF
 #define NGE_CMDSTS_PKT_OK	0x08000000
