@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vmparam.h	5.9 (Berkeley) 5/12/91
- *	$Id$
+ *	$Id: vmparam.h,v 1.24 1997/02/22 09:35:23 peter Exp $
  */
 
 
@@ -108,7 +108,7 @@
 #define UPT_MAX_ADDRESS		VADDR(PTDPTDI, PTDPTDI)
 #define UPT_MIN_ADDRESS		VADDR(PTDPTDI, 0)
 
-#define VM_MAXUSER_ADDRESS	VADDR(KSTKPTDI, KSTKPTEOFF)
+#define VM_MAXUSER_ADDRESS	VADDR(UMAXPTDI, UMAXPTEOFF)
 
 #define USRSTACK		VM_MAXUSER_ADDRESS
 
