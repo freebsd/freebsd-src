@@ -119,7 +119,7 @@ as for example the
 command of
 .Xr cdcontrol 1
 is printing.
-You may mount an arbitrary session of a multi-session CD by specifying
+It is possible to mount an arbitrary session of a multi-session CD by specifying
 the correct
 .Ar startsector
 here.
@@ -127,10 +127,9 @@ here.
 Be verbose about the starting sector decisions made.
 .El
 .Sh EXAMPLES
-The following command can be used to mount a Kodak Photo-CD :
-.Bd -literal -offset indent
-mount_cd9660 -o rw -v -s 0 /dev/cd0c /cdrom
-.Ed
+The following command can be used to mount a Kodak Photo-CD:
+.Pp
+.Dl "mount_cd9660 -o rw -v -s 0 /dev/cd0c /cdrom"
 .Sh SEE ALSO
 .Xr cdcontrol 1 ,
 .Xr mount 2 ,
