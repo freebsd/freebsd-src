@@ -705,7 +705,7 @@ set_timer_freq(u_int freq, int intr_freq)
  * when it happnes, it messes up the hardclock interval and system clock,
  * which leads to the infamous "calcru: negative time" problem.
  */
-void
+static void
 i8254_restore(void)
 {
 
@@ -714,6 +714,27 @@ i8254_restore(void)
 	outb(TIMER_CNTR0, timer0_max_count & 0xff);
 	outb(TIMER_CNTR0, timer0_max_count >> 8);
 	mtx_unlock_spin(&clock_lock);
+}
+
+static void
+rtc_restore(void)
+{
+
+	/* Reenable RTC updates and interrupts. */
+	/* XXX locking is needed for RTC access? */
+	writertc(RTC_STATUSB, RTCSB_HALT | RTCSB_24HR);
+	writertc(RTC_STATUSB, rtc_statusb);
+}
+
+/*
+ * Restore all the timers atomically.
+ */
+void
+timer_restore(void)
+{
+
+	i8254_restore();		/* restore timer_freq and hz */
+	rtc_restore();			/* reenable RTC interrupts */
 }
 
 /*
