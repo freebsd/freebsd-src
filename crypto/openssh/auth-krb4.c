@@ -1,6 +1,25 @@
 /*
- *    Dug Song <dugsong@UMICH.EDU>
- *    Kerberos v4 authentication and ticket-passing routines.
+ * Copyright (c) 1999 Dug Song.  All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include "includes.h"
@@ -8,6 +27,8 @@
 #include "xmalloc.h"
 #include "ssh.h"
 #include "servconf.h"
+
+RCSID("$OpenBSD: auth-krb4.c,v 1.18 2000/09/07 20:27:49 deraadt Exp $");
 
 #ifdef KRB4
 char *ticket = NULL;
@@ -80,11 +101,12 @@ auth_krb4_password(struct passwd * pw, const char *password)
 			if (r == RD_AP_UNDEC) {
 				/*
 				 * Probably didn't have a srvtab on
-				 * localhost. Allow login.
+				 * localhost. Disallow login.
 				 */
 				log("Kerberos V4 TGT for %s unverifiable, "
 				    "no srvtab installed? krb_rd_req: %s",
 				    pw->pw_name, krb_err_txt[r]);
+				goto kerberos_auth_failure;
 			} else if (r != KSUCCESS) {
 				log("Kerberos V4 %s ticket unverifiable: %s",
 				    KRB4_SERVICE_NAME, krb_err_txt[r]);
@@ -92,12 +114,13 @@ auth_krb4_password(struct passwd * pw, const char *password)
 			}
 		} else if (r == KDC_PR_UNKNOWN) {
 			/*
-			 * Allow login if no rcmd service exists, but
+			 * Disallow login if no rcmd service exists, and
 			 * log the error.
 			 */
 			log("Kerberos V4 TGT for %s unverifiable: %s; %s.%s "
 			    "not registered, or srvtab is wrong?", pw->pw_name,
 			krb_err_txt[r], KRB4_SERVICE_NAME, phost);
+			goto kerberos_auth_failure;
 		} else {
 			/*
 			 * TGT is bad, forget it. Possibly spoofed!
@@ -150,7 +173,7 @@ krb4_init(uid_t uid)
 		if (lstat("/ticket", &st) != -1)
 			tkt_root = "/ticket/";
 #endif /* AFS */
-		snprintf(ticket, MAXPATHLEN, "%s%d_%d", tkt_root, uid, getpid());
+		snprintf(ticket, MAXPATHLEN, "%s%u_%d", tkt_root, uid, getpid());
 		(void) krb_set_tkt_string(ticket);
 	}
 	/* Register ticket cleanup in case of fatal error. */

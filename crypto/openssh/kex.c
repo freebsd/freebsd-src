@@ -9,11 +9,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by Markus Friedl.
- * 4. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -28,7 +23,7 @@
  */
 
 #include "includes.h"
-RCSID("$Id: kex.c,v 1.7 2000/05/25 20:45:20 markus Exp $");
+RCSID("$OpenBSD: kex.c,v 1.10 2000/09/07 20:27:51 deraadt Exp $");
 
 #include "ssh.h"
 #include "ssh2.h"
@@ -287,13 +282,14 @@ char *
 get_match(char *client, char *server)
 {
 	char *sproposals[MAX_PROP];
-	char *c, *s, *p, *ret;
+	char *c, *s, *p, *ret, *cp, *sp;
 	int i, j, nproposals;
 
-	c = xstrdup(client);
-	s = xstrdup(server);
+	c = cp = xstrdup(client);
+	s = sp = xstrdup(server);
 
-	for ((p = strtok(s, SEP)), i=0; p; (p = strtok(NULL, SEP)), i++) {
+	for ((p = strsep(&sp, SEP)), i=0; p && *p != '\0'; 
+	     (p = strsep(&sp, SEP)), i++) {
 		if (i < MAX_PROP)
 			sproposals[i] = p;
 		else
@@ -301,7 +297,8 @@ get_match(char *client, char *server)
 	}
 	nproposals = i;
 
-	for ((p = strtok(c, SEP)), i=0; p; (p = strtok(NULL, SEP)), i++) {
+	for ((p = strsep(&cp, SEP)), i=0; p && *p != '\0'; 
+	     (p = strsep(&cp, SEP)), i++) {
 		for (j = 0; j < nproposals; j++) {
 			if (strcmp(p, sproposals[j]) == 0) {
 				ret = xstrdup(p);
