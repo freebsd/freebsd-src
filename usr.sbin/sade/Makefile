@@ -6,9 +6,13 @@ SRCS=	anonFTP.c cdrom.c command.c config.c devices.c dhcp.c \
 	disks.c dispatch.c dist.c dmenu.c doc.c dos.c floppy.c \
 	ftp.c globals.c http.c index.c install.c installUpgrade.c keymap.c \
 	label.c main.c makedevs.c media.c menus.c misc.c modules.c \
-	mouse.c msg.c network.c nfs.c options.c package.c pccard.c \
+	mouse.c msg.c network.c nfs.c options.c package.c \
 	system.c tape.c tcpip.c termcap.c ttys.c ufs.c usb.c user.c \
 	variable.c wizard.c keymap.h
+
+.if ${MACHINE_ARCH} == "i386"
+SRCS+=  pccard.c
+.endif
 
 CFLAGS+= -I${.CURDIR}/../../gnu/lib/libdialog -I.
 .if ${MACHINE} == "pc98"
