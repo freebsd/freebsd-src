@@ -1,11 +1,11 @@
 #
-#	$Id: Makefile,v 1.6 1998/08/20 21:37:22 jb Exp $
+#	$Id: Makefile,v 1.9 1999/04/24 02:07:17 jdp Exp $
 #
 
 SRCS=		crt1.c crtbegin.c crtend.c
 OBJS=		crt1.o crtbegin.o crtend.o
 SOBJS=		crtbegin.So crtend.So
-CFLAGS+=	-Wall -Wno-unused -I${.CURDIR}/../../../libexec/rtld-elf
+CFLAGS+=	-Wall -Wno-unused
 NOMAN=		true
 NOPIC=		true
 NOPROFILE=	true
