@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 
@@ -53,6 +54,8 @@ __FBSDID("$FreeBSD$");
 #include "authfile.h"
 #include "log.h"
 #include "pam_ssh.h"
+
+int IPv4or6 = AF_UNSPEC;
 
 /*
  * Generic cleanup function for SSH "Key" type.
@@ -404,6 +407,11 @@ pam_sm_open_session(pam_handle_t *pamh, int flags, int argc, const char **argv)
 		}
 		else if (strcmp(&env_string[strlen(env_string) -
 		    strlen(ENV_PID_SUFFIX)], ENV_PID_SUFFIX) == 0) {
+			env_value = strdup(env_value);
+			if (env_value == NULL) {
+				syslog(LOG_CRIT, "%s: %m", MODULE_NAME);
+				PAM_RETURN(PAM_SERVICE_ERR);
+			}
 			retval = pam_set_data(pamh, "ssh_agent_pid",
 			    env_value, ssh_cleanup);
 			if (retval != PAM_SUCCESS)
