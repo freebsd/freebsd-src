@@ -9,7 +9,7 @@ auth		sufficient	pam_rootok.so		no_warn
 auth		sufficient	pam_self.so		no_warn
 auth		requisite	pam_group.so		no_warn root_only fail_safe
 auth		sufficient	pam_opie.so		no_warn no_fake_prompts
-auth		requisite	pam_opieaccess.so	no_warn
+auth		requisite	pam_opieaccess.so	no_warn allow_local
 #auth		sufficient	pam_kerberosIV.so	no_warn
 #auth		sufficient	pam_krb5.so		no_warn try_first_pass auth_as_self
 #auth		required	pam_ssh.so		no_warn try_first_pass
