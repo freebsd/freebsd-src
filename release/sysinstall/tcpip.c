@@ -359,7 +359,7 @@ tcpOpenDialog(Device *devp)
 	if (!variable_cmp(VAR_TRY_RTSOL, "YES") || 
 	    (variable_get(VAR_TRY_RTSOL)==0 && !msgNoYes("Do you want to try IPv6 configuration of the interface?"))) {
 	    int i;
-	    int len;
+	    size_t len;
 
 	    i = 0;
 	    sysctlbyname("net.inet6.ip6.forwarding", NULL, 0, &i, sizeof(i));
