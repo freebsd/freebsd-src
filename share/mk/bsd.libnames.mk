@@ -41,6 +41,7 @@ LIBGCC_PIC?=	${DESTDIR}${LIBDIR}/libgcc_pic.a
 LIBGEOM?=	${DESTDIR}${LIBDIR}/libgeom.a
 LIBGNUREGEX?=	${DESTDIR}${LIBDIR}/libgnuregex.a
 LIBGSSAPI?=	${DESTDIR}${LIBDIR}/libgssapi.a	# XXX in secure dist, not base
+LIBHDB?=	${DESTDIR}${LIBDIR}/libhdb.a	# XXX in secure dist, not base
 LIBHISTORY?=	${DESTDIR}${LIBDIR}/libhistory.a
 LIBIPSEC?=	${DESTDIR}${LIBDIR}/libipsec.a
 LIBIPX?=	${DESTDIR}${LIBDIR}/libipx.a
