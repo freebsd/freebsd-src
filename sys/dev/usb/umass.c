@@ -1473,10 +1473,10 @@ umass_bbb_state(usbd_xfer_handle xfer, usbd_private_handle priv,
 				sc->transfer_actlen, sc->transfer_datalen);
 		} else if (sc->transfer_datalen - sc->transfer_actlen
 			   != UGETDW(sc->csw.dCSWDataResidue)) {
-			DPRINTF(UDMASS_BBB, ("%s: actlen=%d != residue=%d\n",
+			DPRINTF(UDMASS_BBB, ("%s: residue=%d != calc.res.=%d\n",
 				USBDEVNAME(sc->sc_dev),
-				sc->transfer_datalen - sc->transfer_actlen,
-				UGETDW(sc->csw.dCSWDataResidue)));
+				UGETDW(sc->csw.dCSWDataResidue),
+				sc->transfer_datalen - sc->transfer_actlen));
 
 			umass_bbb_reset(sc, STATUS_WIRE_FAILED);
 			return;
