@@ -29,7 +29,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id$
+.\"	$Id: ypxfr.8,v 1.1 1995/02/06 22:15:21 wpaul Exp $
 .\"
 .Dd February 5, 1995
 .Dt YPXFR 8
@@ -114,9 +114,16 @@ when
 is run on the NIS master server, however it is good practice
 on large networks where possible outages could cause NIS servers to
 fall out of sync with each other.
+.Pp
+When
+.Nm ypxfr
+is invoked without a controlling terminal, e.g. from inside
+.Xr ypserv 8 ,
+it logs all its output to
+.Pa /var/yp/ypxfr.log .
 .Sh OPTIONS
 The following options are supported by
-.Nm yppxfr :
+.Nm ypxfr :
 .Bl -tag -width flag
 .It Fl f
 Force a map transfer. Normally,
@@ -182,11 +189,6 @@ The NIS maps for a particular NIS domain.
 .Xr ypserv 8 ,
 .Xr ypxfr 8 ,
 .Xr yp 8
-.Sh BUGS
-.Nm ypxfr
-should log its output to /var/yp/ypxfr.log when it is started without
-a controlling terminal. Hopefully this feature will be added in the
-next release of FreeBSD.
 .Sh LICENSE
 This program is covered by the GNU Public License version 2.
 .Sh AUTHOR

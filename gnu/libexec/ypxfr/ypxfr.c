@@ -18,7 +18,7 @@
 
     Modified for use with FreeBSD 2.x by Bill Paul (wpaul@ctr.columbia.edu)
 
-	$Id: ypxfr.c,v 1.1 1995/01/31 09:28:47 wpaul Exp $
+	$Id: ypxfr.c,v 1.2 1995/02/06 23:35:49 wpaul Exp $
 */
 
 #include <stdio.h>
@@ -29,6 +29,7 @@
 #include <paths.h>
 #include <rpc/rpc.h>
 #include <sys/types.h>
+#include <sys/param.h>
 #include <db.h>
 #include <limits.h>
 #include <sys/stat.h>
@@ -36,7 +37,7 @@
 DB *db;
 
 #ifndef _PATH_YP
-#define _PATH_YP "/var/yp"
+#define _PATH_YP "/var/yp/"
 #endif
 
 #define PERM_SECURE (S_IRUSR|S_IWUSR)
@@ -190,7 +191,7 @@ ypxfr(char *mapName) {
 
 	if (!Force) {
 		DBT inKey, inVal;
-		sprintf(dbName, "%s/%s/%s", _PATH_YP, TargetDomain, mapName);
+		sprintf(dbName, "%s%s/%s", _PATH_YP, TargetDomain, mapName);
 		if ((db = dbopen(dbName,O_RDWR|O_EXCL, PERM_SECURE,
 				DB_HASH, &openinfo)) == NULL) {
 			perror("dbopen");
@@ -215,7 +216,7 @@ ypxfr(char *mapName) {
 		if (localOrderNum>=masterOrderNum) return YPXFR_AGE;
 	}
 
-	sprintf(dbName, "%s/%s/%s~", _PATH_YP, TargetDomain, mapName);
+	sprintf(dbName, "%s%s/%s~", _PATH_YP, TargetDomain, mapName);
 	if ((db = dbopen(dbName,O_RDWR|O_EXCL|O_CREAT, PERM_SECURE, DB_HASH,
 			&openinfo)) == NULL) {
 		fprintf(stderr, "%s: Cannot open\n", dbName);
@@ -240,8 +241,8 @@ ypxfr(char *mapName) {
 	y=__yp_all(SourceDomain, mapName, &callback);
 
 	(void)(db->close)(db);
-	sprintf(dbName, "%s/%s/%s~", _PATH_YP, TargetDomain, mapName);
-	sprintf(dbName2, "%s/%s/%s", _PATH_YP, TargetDomain, mapName);
+	sprintf(dbName, "%s%s/%s~", _PATH_YP, TargetDomain, mapName);
+	sprintf(dbName2, "%s%s/%s", _PATH_YP, TargetDomain, mapName);
 	unlink(dbName2);
 	rename(dbName, dbName2);
 
@@ -266,6 +267,20 @@ char *progname;
 void
 main (int argc, char **argv)
 {
+	if (!isatty(0)) {
+		int fd;
+		char logfile[MAXPATHLEN];
+		sprintf (logfile, "%sypxfr.log", _PATH_YP);
+		if ((fd = open("/var/yp/ypxfr.log",
+				O_CREAT|O_WRONLY|O_APPEND, 0644))) {
+			close(0);
+			dup(fd);
+			close(1);
+			dup(fd);
+			close(2);
+			dup(fd);
+		}
+	}
 
 	if (argc < 2)
 	{
