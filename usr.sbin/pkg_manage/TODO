@@ -75,6 +75,7 @@ done 6Apr95
   Low priority, because something fishy is going on then anyway
 
 - use $TMPDIR to create tmp directory into
+done 18Apr95
 
 - make sure that when calling help, the helplines are disabled.
 done 11Apr95, also implemented a different mechanism to save and 
@@ -84,4 +85,4 @@ restore helplines
 done 11Apr95
 
 - (next version?) implement exec_catch_errors with popen(), I think
-  this will speed up things quite a bit.
+  this will speed up things quite a bit. (not sure about it)
