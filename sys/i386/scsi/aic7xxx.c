@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.110 1997/04/04 04:09:29 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.111 1997/04/04 04:21:43 gibbs Exp $
  */
 /*
  * TODO:
@@ -3141,8 +3141,17 @@ bus_reset:
 				timeout(ahc_timeout, (caddr_t)scb,
 					(200 * hz) / 1000);
 				ahc_outb(ahc, SCBPTR, saved_scbptr);
-				/* ahc_run_waiting_queue will unpause us */
+				/*
+				 * ahc_run_waiting_queue may unpause us
+				 * so do this last.
+				 */
 				ahc_run_waiting_queue(ahc);
+				/*
+				 * If we are using AAP, ahc_run_waiting_queue
+				 * will not unpause us, so ensure we are
+				 * unpaused.
+				 */
+				unpause_sequencer(ahc, /*unpause_always*/FALSE);
 			} else {
 				/* Go "immediatly" to the bus reset */
 				sc_print_addr(scb->xs->sc_link);
