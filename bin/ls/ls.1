@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)ls.1	8.7 (Berkeley) 7/29/94
-.\"	$Id: ls.1,v 1.16 1997/12/25 09:36:39 hoek Exp $
+.\"	$Id: ls.1,v 1.17 1998/04/21 22:01:58 des Exp $
 .\"
 .Dd July 29, 1994
 .Dt LS 1
@@ -43,7 +43,7 @@
 .Nd list directory contents
 .Sh SYNOPSIS
 .Nm ls
-.Op Fl ACFLRTWabcdfgikloqrstu1
+.Op Fl ?ABCFLRTWabcdfgikloqrstu1
 .Op Ar file ...
 .Sh DESCRIPTION
 For each operand that names a
@@ -70,12 +70,17 @@ lexicographical order.
 .Pp
 The following options are available:
 .Bl -tag -width indent
+.It Fl ?
+Displays a short list of valid options.
 .It Fl A
 List all entries except for
 .Ql \&.
 and
 .Ql \&.. .
 Always set for the super-user.
+.It Fl B
+Force printing of non-graphic characters in file names as \\xxx,
+where xxx is the numeric value of the character in octal.
 .It Fl C
 Force multi-column output; this is the default when output is to a terminal.
 .It Fl F
@@ -101,8 +106,9 @@ Display whiteouts when scanning directories.
 Include directory entries whose names begin with a
 dot (.).
 .It Fl b
-Force printing of non-graphic characters in file names as \\xxx,
-where xxx is the numeric value of the character in octal.
+As 
+.Fl B ,
+but use C escape codes whenever possible.
 .It Fl c
 Use time when file status was last changed for sorting or printing.
 .It Fl d
