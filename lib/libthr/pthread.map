@@ -234,6 +234,8 @@ global:
 	pthread_cond_wait;
 	pthread_condattr_destroy;
 	pthread_condattr_init;
+	pthread_condattr_getclock;
+	pthread_condattr_setclock;
 	pthread_create;
 	pthread_detach;
 	pthread_equal;
