@@ -43,8 +43,10 @@ files, are:
 	System V Release 4		README.svr4
 	Ultrix 4.x			README.ultrix
 
-(Unfortunately, AIX 4 is no longer supported, since I don't have a
-maintainer for the AIX 4 port.  If you want to volunteer, contact me.)
+Unfortunately, AIX 4 is no longer supported, since I don't have a
+maintainer for the AIX 4 port.  If you want to volunteer, contact me.
+The Ultrix port is untested, as I no longer have access to an Ultrix
+box.
 
 In each case you start by running the ./configure script.  This works
 out which operating system you are using and creates symbolic links to
@@ -65,8 +67,59 @@ use any IP address.  (This only applies where the peer is
 authenticating itself to you, of course.)
 
 
-What's new in ppp-2.3.3.
+What's new in ppp-2.3.5.
 ************************
+
+* Minor corrections to the Digital UNIX and NetBSD ports.
+
+* A workaround to avoid tickling a bug in the `se' serial port driver
+on Sun PCI Ultra machines running Solaris.
+
+* Fixed a bug in the negotiation of the Microsoft WINS server address
+option.
+
+* Fixed a bug in the Linux port where it would fail for kernel
+versions above 2.1.99.
+
+
+What was new in ppp-2.3.4.
+**************************
+
+* The NeXT port has been updated, thanks to Steve Perkins.
+
+* ppp-2.3.4 compiles and works under Solaris 2.6, using either gcc or
+cc.
+
+* With the Solaris, SVR4 and SunOS ports, you can control the choice
+of C compiler, C compiler options, and installation directories by
+editing the svr4/Makedefs or sunos4/Makedefs file.
+
+* Until now, we have been using the number 24 to identify Deflate
+compression in the CCP negotiations, which was the number in the draft
+RFC describing Deflate.  The number actually assigned to Deflate is
+26.  The code has been changed to use 26, but to allow the use of 24
+for now for backwards compatibility.  (This can be disabled with the
+`nodeflatedraft' option to pppd.)
+
+* Fixed some bugs in the linux driver and deflate compressor which
+were causing compression problems, including corrupting long
+incompressible packets sometimes.
+
+* Fixes to the PAM and shadow password support in pppd, from Al
+Longyear and others.
+
+* Pppd now sets some environment variables for scripts it invokes
+(ip-up/down, auth-ip/down), giving information about the connection.
+The variables it sets are PEERNAME, IPLOCAL, IPREMOTE, UID, DEVICE,
+SPEED, and IFNAME.
+
+* Pppd now has an `updetach' option, which will cause it to detach
+from its controlling terminal once the link has come up (i.e. once it
+is available for IP traffic).
+
+
+What was new in ppp-2.3.3.
+**************************
 
 * Fixed compilation problems under SunOS.
 
