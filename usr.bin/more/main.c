@@ -91,7 +91,8 @@ edit(filename)
 	extern int errno;
 	register int f;
 	register char *m;
-	off_t initial_pos, prev_pos, position();
+	off_t initial_pos, position();
+	static off_t prev_pos;
 	static int didpipe;
 	char message[MAXPATHLEN + 50], *p;
 	char *rindex(), *strerror(), *save(), *bad_file();
@@ -105,7 +106,7 @@ edit(filename)
 		filename = save(av[curr_ac]);
 	}
 	else if (strcmp(filename, "#") == 0) {
-		if (*previous_file == '\0') {
+		if (!previous_file || *previous_file == '\0') {
 			error("no previous file");
 			return(0);
 		}
