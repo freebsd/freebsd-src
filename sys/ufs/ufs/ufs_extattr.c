@@ -57,7 +57,7 @@
 #include <sys/extattr.h>
 #include <sys/sysctl.h>
 
-#include <vm/vm_zone.h>
+#include <vm/uma.h>
 
 #include <ufs/ufs/dir.h>
 #include <ufs/ufs/extattr.h>
@@ -259,7 +259,7 @@ ufs_extattr_lookup(struct vnode *start_dvp, int lockparent, char *dirname,
 		cnp.cn_flags |= LOCKPARENT;
 	cnp.cn_thread = td;
 	cnp.cn_cred = td->td_ucred;
-	cnp.cn_pnbuf = zalloc(namei_zone);
+	cnp.cn_pnbuf = uma_zalloc(namei_zone, M_WAITOK);
 	cnp.cn_nameptr = cnp.cn_pnbuf;
 	error = copystr(dirname, cnp.cn_pnbuf, MAXPATHLEN,
 	    (size_t *) &cnp.cn_namelen);
@@ -267,7 +267,7 @@ ufs_extattr_lookup(struct vnode *start_dvp, int lockparent, char *dirname,
 		if (lockparent == UE_GETDIR_LOCKPARENT_DONT) {
 			VOP_UNLOCK(start_dvp, 0, td);
 		}
-		zfree(namei_zone, cnp.cn_pnbuf);
+		uma_zfree(namei_zone, cnp.cn_pnbuf);
 		printf("ufs_extattr_lookup: copystr failed\n");
 		return (error);
 	}
@@ -277,7 +277,7 @@ ufs_extattr_lookup(struct vnode *start_dvp, int lockparent, char *dirname,
 	vargs.a_vpp = &target_vp;
 	vargs.a_cnp = &cnp;
 	error = ufs_lookup(&vargs);
-	zfree(namei_zone, cnp.cn_pnbuf);
+	uma_zfree(namei_zone, cnp.cn_pnbuf);
 	if (error) {
 		/*
 		 * Error condition, may have to release the lock on the parent
