@@ -133,7 +133,8 @@ ia64_efi_init(void)
 		static EFI_GUID acpi = ACPI_TABLE_GUID;
 		static EFI_GUID acpi20 = ACPI_20_TABLE_GUID;
 		if (!memcmp(&conf[i].VendorGuid, &sal, sizeof(EFI_GUID)))
-			saltab = conf[i].VendorTable;
+			saltab = (struct sal_system_table *)
+			    IA64_PHYS_TO_RR7((u_int64_t) conf[i].VendorTable);
 		if (!memcmp(&conf[i].VendorGuid, &acpi, sizeof(EFI_GUID)))
 			ia64_efi_acpi_table = (u_int64_t) conf[i].VendorTable;
 		if (!memcmp(&conf[i].VendorGuid, &acpi20, sizeof(EFI_GUID)))
