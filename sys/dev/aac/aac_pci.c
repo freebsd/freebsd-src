@@ -89,6 +89,7 @@ struct aac_ident
 } aac_identifiers[] = {
     {0x1028, 0x0001, 0x1028, 0x0001, AAC_HWIF_I960RX,    "Dell PERC 2/Si"},
     {0x1028, 0x0002, 0x1028, 0x0002, AAC_HWIF_I960RX,    "Dell PERC 3/Di"},
+    {0x1028, 0x0002, 0x1028, 0x00d1, AAC_HWIF_I960RX,    "Dell PERC 3/Di"},
     {0x1028, 0x0003, 0x1028, 0x0003, AAC_HWIF_I960RX,    "Dell PERC 3/Si"},
     {0x9005, 0x0282, 0x9005, 0x0282, AAC_HWIF_I960RX,    "Adaptec AAC-2622"},
     {0x1011, 0x0046, 0x9005, 0x0364, AAC_HWIF_STRONGARM, "Adaptec AAC-364"},
