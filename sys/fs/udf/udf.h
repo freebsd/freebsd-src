@@ -29,7 +29,6 @@
 #define UDF_HASHTBLSIZE 100
 
 struct udf_node {
-	LIST_ENTRY(udf_node)	le;
 	struct vnode	*i_vnode;
 	struct udf_mnt	*udfmp;
 	ino_t		hash_id;
