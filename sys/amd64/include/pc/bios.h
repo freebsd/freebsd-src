@@ -213,6 +213,8 @@ struct bios_args {
 #define PCIBIOS_WRITE_CONFIG_BYTE	0xb10b
 #define PCIBIOS_WRITE_CONFIG_WORD	0xb10c
 #define PCIBIOS_WRITE_CONFIG_DWORD	0xb10d
+#define PCIBIOS_GET_IRQ_ROUTING		0xb10e
+#define PCIBIOS_ROUTE_INTERRUPT		0xb10f
 
 extern int bios16(struct bios_args *, char *, ...);
 extern int bios16_call(struct bios_regs *, char *);
