@@ -1354,10 +1354,8 @@ nfs_doio(struct vnode *vp, struct buf *bp, struct ucred *cr, struct thread *td)
 		/* ASSERT_VOP_LOCKED(vp, "nfs_doio"); */
 		if (p && (vp->v_vflag & VV_TEXT) &&
 			(np->n_mtime != np->n_vattr.va_mtime.tv_sec)) {
-			uprintf("Process killed due to text file modification\n");
 			PROC_LOCK(p);
-			psignal(p, SIGKILL);
-			_PHOLD(p);
+			killproc(p, "text file modification");
 			PROC_UNLOCK(p);
 		}
 		break;
