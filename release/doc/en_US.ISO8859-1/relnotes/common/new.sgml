@@ -1,5 +1,5 @@
 <articleinfo>
-  <title>&os;/&arch; &release.current; Release Notes</title>
+  <title>&os;/&arch; &release.current; Draft Release Notes</title>
 
   <pubdate>$FreeBSD$</pubdate>
 
@@ -14,7 +14,7 @@
 
   <abstract>
     <para>The release notes for &os; &release.current; contain a
-      summary of the changes made in the &os; base system since
+      summary of the changes made to the &os; base system since
       &release.prev;.  Both changes for kernel and userland are
       listed, as well as applicable security advisories for the base
       system that were issued since the last release.  Some brief
@@ -31,20 +31,10 @@
     since &release.prev;.  It also provides some notes on upgrading
     from previous versions of &os;.</para>
 
-<![ %release.type.snapshot [
-
-  <para>The &release.type; distribution to which these release notes
-    apply represents a point along the &release.branch; development
-    branch between &release.prev; and the future &release.next;.  Some
-    pre-built, binary &release.type; distributions along this branch
-    can be found at <ulink url="&release.url;"></ulink>.</para>
-
-]]>
-
-<![ %release.type.release [
-
   <para>This distribution of &os; &release.current; is a
-    &release.type; distribution.  It can be found at <ulink
+    <quote>point release</quote>, intended to address some issues
+    (primarily security-related) discovered in &os; &release.base;.
+    The distribution can be found at <ulink
     url="&release.url;"></ulink> or any of its mirrors.  More
     information on obtaining this (or other) &release.type;
     distributions of &os; can be found in the <ulink
@@ -53,7 +43,6 @@
     url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">FreeBSD
     Handbook</ulink>.</para>
 
-]]>
 </sect1>
 
 <!--
@@ -85,6 +74,9 @@
     major bugfixes, or contributed software upgrades.  Security
     advisories for the base system that were issued after
     &release.prev; are also listed.</para>
+
+  <para>Release note entries that describe changes specific to this
+    point release are marked with &new.461;.</para>
 
   <sect2 id="kernel">
     <title>Kernel Changes</title>
@@ -234,18 +226,8 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para>The &man.ata.4; driver was synchronized with the driver from
 	&os; -CURRENT as of 18 March 2002.</para>
 
-      <important>
-	<para>Some users have experienced problems during testing with
-	  ATA tagged queueing.  Typical symptoms are read timeouts at
-	  boot time leading to a failure to mount the root filesystem.
-	  These problems have only appeared on systems having disks
-	  supporting tagged queueing attached to motherboard ATA
-	  controllers.  As this feature is only supported by certain
-	  ATA hard disks, and must be enabled explicitly (by setting
-	  <literal>hw.ata.tags="1"</literal> in
-	  <filename>/boot/loader.conf</filename>), this should not
-	  pose a problem for a majority of users.</para>
-      </important>
+      <para>&new.461; A bug which sometimes prevented &man.ata.4; tagged
+        queueing from working correctly has been corrected.</para>
 
       <para>The &man.ata.4; driver now has support for creating,
 	deleting, querying, and rebuilding ATA RAIDs under control of
@@ -264,8 +246,15 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <sect3>
       <title>PCCARD Support</title>
 
-      <para></para>
-    </sect3>
+      <para arch="i386">&new.461; A bug has been fixed in the PCCARD
+        power code.  This fixes a problem (primarily seen with Sony
+        VAIO and Toshiba laptops) where some machines would hang at
+        boot-time or at their first PCCARD access.  Some other
+        problems related to this bug may be also be corrected;
+        in particular, Toshiba laptops based on the ToPIC chip will
+        now be able to use both slots at the same time, and some
+        workarounds for PCI add-in cards are no longer
+        necessary.</para> </sect3>
 
     <sect3>
       <title>Multimedia Support</title>
@@ -384,6 +373,28 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       system can be made to reboot.  This bug has been corrected (see
       security advisory <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:27.rc.asc">FreeBSD-SA-02:27</ulink>).</para>
+
+    <para>&new.461; A buffer overflow in the resolver, which could be exploited
+      by a malicious domain name server or an attacker forging DNS
+      messages, has been fixed.  See security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:28.resolv.asc">FreeBSD-SA-02:28</ulink>
+      for more details.</para>
+
+    <para>&new.461; A buffer overflow in &man.tcpdump.1;, which could be triggered by
+      badly-formed NFS packets, has been fixed.  See security advisory
+      <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:29.tcpdump.asc">FreeBSD-SA-02:29</ulink>
+      for more details.</para>
+
+    <para>&new.461; &man.ktrace.1; can no longer trace the operation of formerly
+      privileged processes; this prevents the leakage of sensitive
+      information that the process could have obtained before
+      abandoning its privileges.  For a discussion of this issue, see
+      security advisory
+      <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:30.ktrace.asc">FreeBSD-SA-02:30</ulink>
+      for more details.</para>
+
   </sect2>
 
   <sect2 id="userland">
@@ -490,10 +501,24 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       flag to read a patch from a file, rather than standard
       input.</para>
 
+    <para>&new.461; &man.pam.opie.8; no longer emits fake challenges when the
+      <varname>no_fake_prompts</varname> variable is
+      specified.</para>
+
+    <para>&new.461; A &man.pam.opieaccess.8; module has been added.</para>
+
+    <para>&new.461; &man.pam.radius.8;, &man.pam.ssh.8;, and &man.pam.tacplus.8;
+      have been synchronized with the versions in &os; -CURRENT as of 3
+      July 2002.</para>
+
     <para>A &man.pam.ssh.8; module has been added to allow the use of
       SSH passphrases and keypairs for authentication.  This module
       also handles session management by invoking
       &man.ssh-agent.1;.</para>
+
+    <para>&new.461; &man.pam.unix.8; has been synchronized with the version in
+      &os; -CURRENT as of 9 March 2002
+      (pre-<application>OpenPAM</application>).</para>
 
     <para>&man.pr.1; now supports the <option>-f</option> and
       <option>-p</option> flags to pause output going to a
@@ -548,8 +573,8 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <sect3>
       <title>Contributed Software</title>
 
-      <para><application>BIND</application> has been updated to
-	8.3.2-T1B.</para>
+      <para>&new.461; <application>BIND</application> has been updated to
+	8.3.3.</para>
 
       <para><application>bzip2</application> has been updated to
 	1.0.2.</para>
@@ -559,6 +584,58 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
       <para>The <application>ISC DHCP</application> client has been
 	updated to 3.0.1RC8.</para>
+
+      <para>&new.461; <application>OpenSSH</application> has been updated to
+	version 3.4p1.  Among the changes:
+	  <itemizedlist>
+	    <listitem>
+	      <para>The <filename>*2</filename> files are obsolete
+		(for example,
+		<filename>~/.ssh/known_hosts</filename> can hold the
+		contents of
+		<filename>~/.ssh/known_hosts2</filename>).</para>
+	    </listitem>
+
+	    <listitem>
+	      <para>&man.ssh-keygen.1; can import and export keys using
+		the SECSH Public Key File Format, for key exchange
+		with several commercial SSH implementations.</para>
+	    </listitem>
+
+	    <listitem>
+	      <para>&man.ssh-add.1; now adds all three default keys.</para>
+	    </listitem>
+
+	    <listitem>
+	      <para>&man.ssh-keygen.1; no longer defaults to a
+		specific key type; one must be specified with the
+		<option>-t</option> option.</para>
+	    </listitem>
+
+	    <listitem>
+	      <para>A <quote>privilege separation</quote> feature,
+		which uses unprivileged processes to contain and
+		restrict the effects of future compromises or
+		programming errors.</para>
+	    </listitem>
+
+	    <listitem>
+	      <para>Several bugfixes, including closure of a
+		security hole that could lead to an integer overflow
+		and undesired privilege escalation.</para>
+	    </listitem>
+
+	  </itemizedlist>
+
+	  <note>
+	    <para>As with &os; &release.base;, <literal>Protocol
+	      1,2</literal> remains the default protocol setting in
+	      <filename>/et/ssh/ssh_config</filename>.  In &os;
+	      -CURRENT (and &os; &release.branch; as of this writing),
+	      the default is <literal>Protocol 2,1</literal>.</para>
+	  </note>
+
+	</para>
 
       <para><application>texinfo</application> has been updated to
 	4.1.</para>
@@ -602,6 +679,14 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	  statistics file, <filename>/var/log/sendmail.st</filename>, have
 	  been changed from mode 0644 to mode 0640 to protect against
 	  a file locking local denial of service.</para>
+
+	<para>&new.461; A potential DNS map buffer overflow bug has been
+	  fixed.
+	  <note>
+	    <para>This bug has been addressed in &os; 4.6-STABLE by
+	      the import of a newer version of
+	      <application>sendmail</application>.</para>
+	  </note>
 
       </sect4>
 
@@ -661,7 +746,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <listitem>
 	<para>From source code in <filename>/usr/src</filename>.  This
 	  route is more flexible, but requires more disk space, time,
-	  and more technical expertise.  More information can be found
+	  and technical expertise.  More information can be found
 	  in the <ulink
 	  url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/makeworld.html"><quote>Using
 	  <command>make world</command></quote></ulink> section of the <ulink

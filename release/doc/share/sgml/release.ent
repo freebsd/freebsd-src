@@ -6,7 +6,10 @@
 
 <!-- Version of the OS we're describing.  This needs to be updated
      with each new release. -->
-<!ENTITY release.current "4.6-RELEASE">
+<!ENTITY release.current "4.6.1-RELEASE">
+
+<!-- The previous minor release, used as a base for this point release. -->
+<!ENTITY release.base "4.6-RELEASE">
 
 <!-- The previous version used for comparison in the "What's New"
      section.  For -CURRENT, we might point back to the last
