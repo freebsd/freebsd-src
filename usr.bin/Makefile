@@ -104,7 +104,6 @@ SUBDIR=	apply \
 	mklocale \
 	mkstr \
 	mktemp \
-	more \
 	msgs \
 	mt \
 	ncal \
