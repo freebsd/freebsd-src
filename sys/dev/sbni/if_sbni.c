@@ -226,26 +226,24 @@ sbni_attach(struct sbni_softc *sc, int unit, struct sbni_flags flags)
 	set_initial_values(sc, flags);
 
 	callout_handle_init(&sc->wch);
-	if (!ifp->if_name) {
-		/* Initialize ifnet structure */
-		ifp->if_softc	= sc;
-		ifp->if_unit	= unit;
-		ifp->if_name	= "sbni";
-		ifp->if_init	= sbni_init;
-		ifp->if_start	= sbni_start;
-	        ifp->if_output	= ether_output;
-		ifp->if_ioctl	= sbni_ioctl;
-		ifp->if_watchdog	= sbni_watchdog;
-		ifp->if_snd.ifq_maxlen	= IFQ_MAXLEN;
+	/* Initialize ifnet structure */
+	ifp->if_softc	= sc;
+	ifp->if_unit	= unit;
+	ifp->if_name	= "sbni";
+	ifp->if_init	= sbni_init;
+	ifp->if_start	= sbni_start;
+	ifp->if_output	= ether_output;
+	ifp->if_ioctl	= sbni_ioctl;
+	ifp->if_watchdog	= sbni_watchdog;
+	ifp->if_snd.ifq_maxlen	= IFQ_MAXLEN;
 
-		/* report real baud rate */
-		csr0 = sbni_inb(sc, CSR0);
-		ifp->if_baudrate =
-			(csr0 & 0x01 ? 500000 : 2000000) / (1 << flags.rate);
+	/* report real baud rate */
+	csr0 = sbni_inb(sc, CSR0);
+	ifp->if_baudrate =
+		(csr0 & 0x01 ? 500000 : 2000000) / (1 << flags.rate);
 
-	        ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-		ether_ifattach(ifp, sc->arpcom.ac_enaddr);
-	}
+	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
+	ether_ifattach(ifp, sc->arpcom.ac_enaddr);
 	/* device attach does transition from UNCONFIGURED to IDLE state */
 
 	if_printf(ifp, "speed %ld, address %6D, rxl ",
