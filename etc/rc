@@ -401,9 +401,10 @@ case ${swapfile} in
 	;;
 esac
 
-# Set sysctl variables as early as we can
+# Early pass to set the variables we can
 #
 if [ -r /etc/rc.sysctl ]; then
+	echo 'Warnings here may be due to modules that have not been loaded yet'
 	. /etc/rc.sysctl
 fi
 
@@ -912,6 +913,12 @@ esac
 
 if [ -n "${network_pass3_done}" ]; then
 	network_pass4
+fi
+
+# Late pass to set variables we missed the first time
+#
+if [ -r /etc/rc.sysctl ]; then
+	. /etc/rc.sysctl
 fi
 
 # Raise kernel security level.  This should be done only after `fsck' has
