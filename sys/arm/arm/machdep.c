@@ -297,12 +297,21 @@ cpu_halt(void)
 int
 ptrace_single_step(struct thread *td)
 {
+	/* XXX */
+	return (0);
+}
+
+int
+ptrace_clear_single_step(struct thread *td)
+{
+	/* XXX */
 	return (0);
 }
 
 int
 ptrace_set_pc(struct thread *td, unsigned long addr)
 {
+	td->td_frame->tf_pc = addr;
 	return (0);
 }
 
