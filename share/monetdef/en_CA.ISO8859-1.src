@@ -4,7 +4,7 @@
 # WARNING: empty lines are essential too
 #
 # int_curr_symbol
-CAD
+CAD 
 # currency_symbol
 $
 # mon_decimal_point
