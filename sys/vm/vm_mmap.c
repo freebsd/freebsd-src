@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.64 1997/06/15 23:35:32 dyson Exp $
+ * $Id: vm_mmap.c,v 1.65 1997/07/17 04:34:03 dyson Exp $
  */
 
 /*
@@ -872,14 +872,10 @@ munlock(p, uap, retval)
  * Handle is either a vnode pointer or NULL for MAP_ANON.
  */
 int
-vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
-	register vm_map_t map;
-	register vm_offset_t *addr;
-	register vm_size_t size;
-	vm_prot_t prot, maxprot;
-	register int flags;
-	caddr_t handle;		/* XXX should be vp */
-	vm_ooffset_t foff;
+vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
+	vm_prot_t maxprot, int flags,
+	caddr_t handle,		 /* XXX should be vp */
+	vm_ooffset_t foff)
 {
 	boolean_t fitit;
 	vm_object_t object;

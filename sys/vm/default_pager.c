@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: default_pager.c,v 1.11 1997/02/22 09:47:58 peter Exp $
  */
 
 #include <sys/param.h>
@@ -72,11 +72,8 @@ struct pagerops defaultpagerops = {
  * no_pager_alloc just returns an initialized object.
  */
 static vm_object_t
-default_pager_alloc(handle, size, prot, offset)
-	void *handle;
-	register vm_size_t size;
-	vm_prot_t prot;
-	vm_ooffset_t offset;
+default_pager_alloc(void *handle, vm_size_t size, vm_prot_t prot,
+		    vm_ooffset_t offset)
 {
 	if (handle != NULL)
 		panic("default_pager_alloc: handle specified");

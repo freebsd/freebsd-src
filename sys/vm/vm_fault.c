@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.68 1997/04/06 16:16:11 peter Exp $
+ * $Id: vm_fault.c,v 1.69 1997/05/19 14:36:54 dfr Exp $
  */
 
 /*
@@ -123,11 +123,7 @@ int vm_fault_additional_pages __P((vm_page_t, int, int, vm_page_t *, int *));
  *	Caller may hold no locks.
  */
 int
-vm_fault(map, vaddr, fault_type, fault_flags)
-	vm_map_t map;
-	vm_offset_t vaddr;
-	vm_prot_t fault_type;
-	int fault_flags;
+vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type, int fault_flags)
 {
 	vm_object_t first_object;
 	vm_pindex_t first_pindex;
