@@ -372,36 +372,38 @@ void
 GetNext(int *i, int *n, struct dirent **nl, const char *dir, const char *name, u_long *ignored, u_long *bogus, u_long *wrong)
 {
 	char buf[BUFSIZ];
+	char buf1[BUFSIZ];
 
 	for (;;) {
 		for (;;) {
 			(*i)++;
 			if (*i >= *n)
 				return;
-			*buf = 0;
-			if (*dir != '/')
-				strcat(buf, "/");
-			strcat(buf, dir); 
-			if (buf[strlen(buf)-1] != '/')
-				strcat(buf, "/"); 
-			strcat(buf, name);
-			if (buf[strlen(buf)-1] != '/')
-				strcat(buf, "/"); 
-			strcat(buf, nl[*i]->d_name);
+			strcpy(buf1, name);
+			if (buf1[strlen(buf1)-1] != '/')
+				strcat(buf1, "/"); 
+			strcat(buf1, nl[*i]->d_name);
 			if (flag_ignore && 
-			    !regexec(&reg_ignore, buf, 0, 0, 0)) {
+			    !regexec(&reg_ignore, buf1, 0, 0, 0)) {
 				(*ignored)++;
-				fprintf(logf, "Ignore %s\n", buf);
+				fprintf(logf, "Ignore %s\n", buf1);
 				if (verbose > 2) {
-					fprintf(stderr, "Ignore %s\n", buf);
+					fprintf(stderr, "Ignore %s\n", buf1);
 				}
 			} else if (flag_bogus && 
-			    !regexec(&reg_bogus, buf, 0, 0, 0)) {
+			    !regexec(&reg_bogus, buf1, 0, 0, 0)) {
 				(*bogus)++;
-				fprintf(logf, "Bogus %s\n", buf);
-				fprintf(stderr, "Bogus %s\n", buf);
+				fprintf(logf, "Bogus %s\n", buf1);
+				fprintf(stderr, "Bogus %s\n", buf1);
 				damage++;
 			} else {
+				*buf = 0;
+				if (*dir != '/')
+					strcat(buf, "/");
+				strcat(buf, dir); 
+				if (buf[strlen(buf)-1] != '/')
+					strcat(buf, "/"); 
+				strcat(buf, buf1);
 				break;
 			}
 			free(nl[*i]); nl[*i] = 0;
