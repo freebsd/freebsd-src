@@ -24,12 +24,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 6, 2002
+.Dd September 15, 2002
 .Dt STDINT 7
 .Os
 .Sh NAME
 .Nm stdint
-.Nd "integer types"
+.Nd "standard integer types"
 .Sh SYNOPSIS
 .In stdint.h
 .Sh DESCRIPTION
@@ -37,7 +37,8 @@ The
 .Aq Pa stdint.h
 header provides source-portable integer types of a specific
 size, smallest memory footprint with a minimum size, fastest
-access speed with a minimum size, and largest integer size.
+access speed with a minimum size, largest integer size, and
+those capable of storing pointers.
 .Pp
 The types
 .Vt int8_t ,
@@ -103,6 +104,24 @@ provides an unsigned integer type large
 enough to hold any other unsigned integer.
 These types are generally the largest signed and unsigned
 integer types available on a specific architecture.
+.Pp
+The type
+.Vt intptr_t
+provides a signed integer type with the ability to hold a pointer to
+.Vt void ,
+that can later be converted back to a pointer to
+.Vt void .
+.Pp
+The type
+.Vt uintptr_t
+provides an unsigned integer type with the ability to hold a pointer to
+.Vt void ,
+that can later be converted back to a pointer to
+.Vt void .
+.Pp
+Additionally, the
+.Aq Pa stdint.h
+header defines some macros, but none of them are documented here.
 .Sh STANDARDS
 The
 .Aq Pa stdint.h
@@ -115,7 +134,3 @@ The
 .Aq Pa stdint.h
 header was first introduced in
 .Fx 5.0 .
-.Sh BUGS
-Not all of the
-.Aq Pa stdint.h
-header's features are documented.
