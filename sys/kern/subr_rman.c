@@ -475,9 +475,7 @@ rman_await_resource(struct resource *r, int pri, int timo)
 static int
 int_rman_deactivate_resource(struct resource *r)
 {
-	struct	rman *rm;
 
-	rm = r->r_rm;
 	r->r_flags &= ~RF_ACTIVE;
 	if (r->r_flags & RF_WANTED) {
 		r->r_flags &= ~RF_WANTED;

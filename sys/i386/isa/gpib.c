@@ -768,13 +768,10 @@ sendrawgpibfifo(unsigned char device, char *data, int count)
 {
 	int status;
 	int counter;
-	int fifopos;
 	int sleeptime;
 
 	sleeptime = SLEEP_MIN;
 	counter = 0;
-
-	fifopos = 0;
 
 	status = EWOULDBLOCK;
 	do {
@@ -810,7 +807,6 @@ sendgpibfifo(unsigned char device, char *data, int count)
 {
 	int status;
 	int counter;
-	int fifopos;
 	int sleeptime;
 
 	outb(IMR2, 0x30);	/* we have to enable DMA (0x30) for turbo488 to work */
@@ -835,12 +831,9 @@ sendgpibfifo(unsigned char device, char *data, int count)
 	} while (!(inb(ISR2) & 8) && status == EWOULDBLOCK);
 
 	outb(AUXMR, gts);	/* Set to Standby (Controller) */
-	fifopos = 0;
 
 	sleeptime = SLEEP_MIN;
 	counter = 0;
-
-	fifopos = 0;
 
 	outb(CMDR, 0x20);
 	outb(CFG, 0x47);	/* 16 bit, write, fifo B first, TMOE TIM */
@@ -956,7 +949,6 @@ readgpibfifo(unsigned char device, char *data, int count)
 	int status2 = 0;
 	int status1;
 	int counter;
-	int fifopos;
 	unsigned inword;
 
 	outb(IMR2, 0x30);	/* we have to enable DMA (0x30) for turbo488 to work */
@@ -991,7 +983,6 @@ readgpibfifo(unsigned char device, char *data, int count)
 	outb(AUXMR, gts);	/* Set to Standby (Controller) */
 
 	counter = 0;
-	fifopos = 0;
 
 	outb(CMDR, 0x04);	/* Tell TURBO488 to GO */
 
