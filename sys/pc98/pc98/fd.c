@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.7.2.4 1996/12/21 18:33:49 bde Exp $
+ *	$Id: fd.c,v 1.7.2.5 1997/02/03 17:56:27 kato Exp $
  *
  */
 
@@ -74,6 +74,7 @@
 #endif
 #ifdef PC98
 #include <pc98/pc98/pc98.h>
+#include <pc98/pc98/pc98_machdep.h>
 #include <pc98/pc98/epsonio.h>
 #include <i386/isa/isa_device.h>
 #include <pc98/pc98/fdreg.h>

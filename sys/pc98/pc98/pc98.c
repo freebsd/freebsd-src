@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: pc98.c,v 1.10.2.3 1997/01/04 17:01:01 kato Exp $
+ *	$Id: pc98.c,v 1.10.2.4 1997/01/04 17:02:27 kato Exp $
  */
 
 /*
@@ -68,6 +68,7 @@
 #include <i386/isa/isa_device.h>
 #ifdef PC98
 #include <pc98/pc98/pc98.h>
+#include <pc98/pc98/pc98_machdep.h>
 #include <pc98/pc98/epsonio.h>
 #else
 #include <i386/isa/isa.h>

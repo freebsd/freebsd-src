@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.9.2.4 1997/01/10 09:04:00 kato Exp $
+ *	$Id: wd.c,v 1.9.2.5 1997/01/15 05:39:12 kato Exp $
  */
 
 /* TODO:
@@ -88,6 +88,7 @@
 #include <machine/md_var.h>
 #ifdef PC98
 #include <pc98/pc98/pc98.h>
+#include <pc98/pc98/pc98_machdep.h>
 #include <pc98/pc98/epsonio.h>
 #else
 #include <i386/isa/isa.h>
