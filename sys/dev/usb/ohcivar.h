@@ -44,7 +44,7 @@ typedef struct ohci_soft_ed {
 	ohci_physaddr_t physaddr;
 } ohci_soft_ed_t;
 #define OHCI_SED_SIZE ((sizeof (struct ohci_soft_ed) + OHCI_ED_ALIGN - 1) / OHCI_ED_ALIGN * OHCI_ED_ALIGN)
-#define OHCI_SED_CHUNK 128
+#define OHCI_SED_CHUNK	(PAGE_SIZE / OHCI_SED_SIZE)
 
 typedef struct ohci_soft_td {
 	ohci_td_t td;
@@ -60,7 +60,7 @@ typedef struct ohci_soft_td {
 #define OHCI_TD_HANDLED	0x0004		/* signal process_done has seen it */
 } ohci_soft_td_t;
 #define OHCI_STD_SIZE ((sizeof (struct ohci_soft_td) + OHCI_TD_ALIGN - 1) / OHCI_TD_ALIGN * OHCI_TD_ALIGN)
-#define OHCI_STD_CHUNK 128
+#define OHCI_STD_CHUNK (PAGE_SIZE / OHCI_STD_SIZE)
 
 typedef struct ohci_soft_itd {
 	ohci_itd_t itd;
@@ -77,7 +77,7 @@ typedef struct ohci_soft_itd {
 #endif
 } ohci_soft_itd_t;
 #define OHCI_SITD_SIZE ((sizeof (struct ohci_soft_itd) + OHCI_ITD_ALIGN - 1) / OHCI_ITD_ALIGN * OHCI_ITD_ALIGN)
-#define OHCI_SITD_CHUNK 64
+#define OHCI_SITD_CHUNK (PAGE_SIZE / OHCI_SITD_SIZE)
 
 #define OHCI_NO_EDS (2*OHCI_NO_INTRS-1)
 
