@@ -1,4 +1,4 @@
-<!-- $Id: handbook.sgml,v 1.38 1995/12/21 17:16:29 jfieber Exp $ -->
+<!-- $Id: handbook.sgml,v 1.39 1996/01/31 14:26:07 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN" [
@@ -132,8 +132,8 @@ Web server">.
 
     <part><heading>Advanced topics</heading>
     &current;
-      &ctm; 
-      &sup;
+    &stable;
+    &synching; 
     &submitters;
     &troubleshooting;
     &kerneldebug;
