@@ -41,9 +41,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <net/if.h>
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 #include <net/if_var.h>
-#endif /* __FreeBSD__ >= 3 */
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 #include <arpa/inet.h>
