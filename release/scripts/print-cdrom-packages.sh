@@ -117,6 +117,7 @@ CDROM_SET_1="${CDROM_SET_1} print/ghostscript-gnu-nox11"
 CDROM_SET_1="${CDROM_SET_1} print/ghostview"
 CDROM_SET_1="${CDROM_SET_1} print/gv"
 CDROM_SET_1="${CDROM_SET_1} print/psutils-letter"
+CDROM_SET_1="${CDROM_SET_1} security/sudo
 CDROM_SET_1="${CDROM_SET_1} shells/bash2"
 CDROM_SET_1="${CDROM_SET_1} shells/pdksh"
 CDROM_SET_1="${CDROM_SET_1} shells/zsh"
