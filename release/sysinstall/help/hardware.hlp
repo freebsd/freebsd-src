@@ -1,4 +1,4 @@
-ardware Documentation Guide:  $Id$
+ardware Documentation Guide:  $Id: hardware.hlp,v 1.21 1997/02/22 14:13:04 peter Exp $
 
 Contents last changed:  Jan 14th, 1997
 
@@ -93,6 +93,7 @@ ed0     280     5       dyn     d8000   WD & SMC 80xx; Novell NE1000 &
 ed1     300     5       dyn     d8000   Same as ed0
 eg0     310     5       dyn     dyn     3Com 3C505
 ep0     300     10      dyn     dyn     3Com 3C509
+ex0     dyn     dyn     dyn     n/a     Intel EtherExpress Pro/10 cards
 fe0     300     dyn     n/a     n/a     Allied-Telesis AT1700, RE2000 and
                                         Fujitsu FMV-180 series cards.
 fxp0    dyn     dyn     n/a     dyn     Intel EtherExpress Pro/100B
