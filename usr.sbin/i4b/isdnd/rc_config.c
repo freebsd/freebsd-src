@@ -31,7 +31,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Fri Oct  6 10:08:09 2000]
+ *      last edit-date: [Tue Oct 31 10:57:07 2000]
  *
  *---------------------------------------------------------------------------*/
 
@@ -1229,7 +1229,7 @@ check_config(void)
 	{
 		/* isdn controller number */
 
-		if((cep->isdncontroller < 0) || (cep->isdncontroller > (ncontroller-1)))
+		if((cep->isdncontroller < -1) || (cep->isdncontroller > (ncontroller-1)))
 		{
 			log(LL_ERR, "check_config: WARNING, isdncontroller out of range in entry %d!", i);
 		}
