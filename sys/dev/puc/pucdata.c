@@ -996,6 +996,7 @@ const struct puc_device_description puc_devices[] = {
 	},
 
 	{   "IC Book Labs Dreadnought x16 Lite",
+	    NULL,
 	    {	0xb00c, 0x091c, 0,	0	},
 	    {   0xffff, 0xffff, 0,      0       },
 	    {
