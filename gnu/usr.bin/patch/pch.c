@@ -1,6 +1,9 @@
-/* $Header: pch.c,v 2.0.1.7 88/06/03 15:13:28 lwall Locked $
+/* $Header: /home/cvs/386BSD/src/gnu/usr.bin/patch/pch.c,v 1.1.1.1 1993/06/19 14:21:52 paul Exp $
  *
- * $Log:	pch.c,v $
+ * $Log: pch.c,v $
+ * Revision 1.1.1.1  1993/06/19  14:21:52  paul
+ * b-maked patch-2.10
+ *
  * Revision 2.0.2.0  90/05/01  22:17:51  davison
  * patch12u: unidiff support added
  *
@@ -177,6 +180,7 @@ there_is_another_patch()
 	if (force || batch) {
 	    say1("No file to patch.  Skipping...\n");
 	    filearg[0] = savestr(bestguess);
+	    skip_rest_of_patch = TRUE;
 	    return TRUE;
 	}
 	ask1("File to patch: ");
