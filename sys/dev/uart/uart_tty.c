@@ -146,13 +146,8 @@ uart_tty_close(struct tty *tp)
 	struct uart_softc *sc;
 
 	sc = tp->t_sc;
-	if (sc == NULL || sc->sc_leaving)
+	if (sc == NULL || sc->sc_leaving || !sc->sc_opened) 
 		return;
-	if (!sc->sc_opened) {
-		KASSERT(!(tp->t_state & TS_ISOPEN), ("foo"));
-		return;
-	}
-	KASSERT(tp->t_state & TS_ISOPEN, ("foo"));
 
 	if (sc->sc_hwiflow)
 		UART_IOCTL(sc, UART_IOCTL_IFLOW, 0);
@@ -162,7 +157,6 @@ uart_tty_close(struct tty *tp)
 		UART_SETSIG(sc, SER_DDTR | SER_DRTS);
 
 	wakeup(sc);
-	KASSERT(!(tp->t_state & TS_ISOPEN), ("foo"));
 	sc->sc_opened = 0;
 	return;
 }
