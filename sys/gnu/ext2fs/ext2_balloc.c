@@ -62,18 +62,18 @@
 int
 ext2_balloc(ip, bn, size, cred, bpp, flags)
 	struct inode *ip;
-	daddr_t bn;
+	int32_t bn;
 	int size;
 	struct ucred *cred;
 	struct buf **bpp;
 	int flags;
 {
 	struct ext2_sb_info *fs;
-	daddr_t nb;
+	int32_t nb;
 	struct buf *bp, *nbp;
 	struct vnode *vp = ITOV(ip);
 	struct indir indirs[NIADDR + 2];
-	daddr_t newb, lbn, *bap, pref;
+	int32_t newb, lbn, *bap, pref;
 	int osize, nsize, num, i, error;
 /*
 ext2_debug("ext2_balloc called (%d, %d, %d)\n", 
@@ -174,7 +174,7 @@ ext2_debug("ext2_balloc called (%d, %d, %d)\n",
 	nb = ip->i_ib[indirs[0].in_off];
 	if (nb == 0) {
 #if 0
-		pref = ext2_blkpref(ip, lbn, 0, (daddr_t *)0, 0);
+		pref = ext2_blkpref(ip, lbn, 0, (int32_t *)0, 0);
 #else
 		/* see the comment by ext2_blkpref. What we do here is
 		   to pretend that it'd be good for a block holding indirect
@@ -218,7 +218,7 @@ ext2_debug("ext2_balloc called (%d, %d, %d)\n",
 			brelse(bp);
 			return (error);
 		}
-		bap = (daddr_t *)bp->b_data;
+		bap = (int32_t *)bp->b_data;
 		nb = bap[indirs[i].in_off];
 		if (i == num)
 			break;
@@ -238,7 +238,7 @@ ext2_debug("ext2_balloc called (%d, %d, %d)\n",
 			pref = ext2_blkpref(ip, lbn, indirs[i].in_off, bap,
 						bp->b_lblkno);
 #else
-			pref = ext2_blkpref(ip, lbn, 0, (daddr_t *)0, 0);
+			pref = ext2_blkpref(ip, lbn, 0, (int32_t *)0, 0);
 #endif
 		if ((error =
 		    ext2_alloc(ip, lbn, pref, (int)fs->s_blocksize, cred, &newb)) != 0) {
