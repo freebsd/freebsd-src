@@ -1,4 +1,4 @@
-#	$Id: options,v 1.132 1999/04/09 16:28:11 des Exp $
+#	$Id: options,v 1.133 1999/04/11 20:53:50 n_hibma Exp $
 #
 #        On the handling of kernel options   
 # 
@@ -220,7 +220,6 @@ TCP_COMPAT_42		opt_compat.h
 TCPDEBUG
 IPFILTER		opt_ipfilter.h
 IPFILTER_LOG		opt_ipfilter.h
-IPFILTER_LKM		opt_ipfilter.h
 SLIP_IFF_OPTS		opt_slip.h
 
 # ATM (HARP version)
@@ -356,6 +355,3 @@ UMS_DEBUG		opt_usb.h
 
 # Vinum options
 VINUMDEBUG		opt_vinum.h
-
-# Include LKM compatability module
-LKM
