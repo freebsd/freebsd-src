@@ -86,7 +86,7 @@ identifycpu(void)
 	strncpy(cpu_model, i386_cpus[cpu].cpu_name, sizeof cpu_model);
 
 #if defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)
-	if (0 == strcmp(cpu_vendor,"GenuineIntel")) {
+	if (strcmp(cpu_vendor,"GenuineIntel") == 0) {
 		if ((cpu_id & 0xf00) > 3) {
 			cpu_model[0] = '\0';
 
@@ -135,9 +135,11 @@ identifycpu(void)
 				break;
 			}
 		}
-	} else if (0 == strcmp(cpu_vendor,"AuthenticAMD")) {
-		// values taken from AMD Processor Recognition
-		// http://www.amd.com/html/products/pcd/techdocs/appnotes/20734c.pdf
+	} else if (strcmp(cpu_vendor,"AuthenticAMD") == 0) {
+		/*
+		 * Values taken from AMD Processor Recognition
+		 * http://www.amd.com/html/products/pcd/techdocs/appnotes/20734c.pdf
+		 */
 		cpu_model[0] = '\0';
 		strcpy(cpu_model, "AMD ");
 		switch (cpu_id & 0xFF0) {
@@ -204,8 +206,8 @@ identifycpu(void)
 	if(cpu_id)
 		printf("  Id = 0x%lx",cpu_id);
 
-	if (0 == strcmp(cpu_vendor, "GenuineIntel")
-		|| 0 == strcmp(cpu_vendor, "AuthenticAMD")) {
+	if (strcmp(cpu_vendor, "GenuineIntel") == 0 ||
+	    strcmp(cpu_vendor, "AuthenticAMD") == 0) {
 		printf("  Stepping=%ld", cpu_id & 0xf);
 		if (cpu_high > 0) {
 			/*
