@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: ruptime.c,v 1.9 1997/02/22 19:56:50 peter Exp $ */
+/* $Id: ruptime.c,v 1.10 1997/03/29 04:32:02 imp Exp $ */
 
 #ifndef lint
 static char copyright[] =
@@ -211,10 +211,10 @@ interval(tval, updown)
 	hours %= 24;
 	if (days)
 		(void)snprintf(resbuf, sizeof(resbuf),
-		    "%s %2d+%02d:%02d", updown, days, hours, minutes);
+		    "%s %3d+%02d:%02d", updown, days, hours, minutes);
 	else
 		(void)snprintf(resbuf, sizeof(resbuf),
-		    "%s    %2d:%02d", updown, hours, minutes);
+		    "%s     %2d:%02d", updown, hours, minutes);
 	return (resbuf);
 }
 
