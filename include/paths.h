@@ -53,7 +53,6 @@
 #define	_PATH_CP	"/bin/cp"
 #define	_PATH_CSHELL	"/bin/csh"
 #define	_PATH_DEFTAPE	"/dev/sa0"
-#define	_PATH_DEVDB	"/var/run/dev.db"
 #define	_PATH_DEVNULL	"/dev/null"
 #define	_PATH_DEVZERO	"/dev/zero"
 #define	_PATH_DRUM	"/dev/drum"
