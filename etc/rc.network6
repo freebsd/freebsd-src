@@ -31,8 +31,8 @@ network6_pass1() {
 		#
 		case ${ipv6_network_interfaces} in
 		[Aa][Uu][Tt][Oo])
-			ipv6_network_interfaces="`ifconfig -l \
-				| sed -e 's/ .*//'`"
+			set `ifconfig -l`
+			ipv6_network_interfaces="$1"
 			;;
 		esac
 		;;
@@ -72,12 +72,9 @@ network6_pass1() {
 					prefix $i $j::
 					;;
 				*)
-					laddr=`ifconfig $i inet6 \
-						| grep 'inet6 fe80:' \
-						| head -1 | awk '{print $2}'`
-					hostid=`echo ${laddr} | sed \
-					    -e 's/fe80:[0-9a-fA-F]+::/fe80::/' \
-					    -e 's/fe80:://' -e 's/%.*//'`
+					laddr=`network6_getladdr $i`
+					hostid=`expr "${laddr}" : \
+						     'fe80::\(.*\)%\(.*\)`
 					address=$j\:${hostid}
 
 					eval hostid_$i=${hostid}
@@ -103,9 +100,7 @@ network6_pass1() {
 		# Filter out interfaces on which IPv6 addr init failed.
 		ipv6_working_interfaces=""
 		for i in ${ipv6_network_interfaces}; do
-			laddr=`ifconfig $i inet6 2>/dev/null | \
-				grep 'inet6 fe80:' | \
-				head -1 | grep -v tentative`
+			laddr=`network6_getladdr $i exclude_tentative`
 			case ${laddr} in
 			'')
 				;;
@@ -157,8 +152,16 @@ network6_pass1() {
 		case ${rtadvd_enable} in
 		[Yy][Ee][Ss])
 			# default
-			rtadvd_interfaces=`echo ${ipv6_network_interfaces} | \
-				sed -e 's/ stf0//'`
+			for i in ${ipv6_network_interfaces}; do
+				case $i in
+				stf*)
+					continue
+					;;
+				*)
+					rtadvd_interfaces="${rtadvd_interfaces} ${i}"
+					;;
+				esac
+			done
 			rtadvd ${rtadvd_interfaces}
 			#
 			# Enable Router Renumbering, unicast case
@@ -244,8 +247,6 @@ network6_stf_setup() {
 	[Nn][Oo] | '')
 		;;
 	*)
-		# setup outer IPv4 addrs
-		gifconfig stf0 ${stf_interface_ipv4addr} 255.255.255.255
 		# assign IPv6 addr and interface route for 6to4 interface
 		stf_prefixlen=$((16+${stf_interface_ipv4plen:-0}))
 		OIFS="$IFS"
@@ -256,11 +257,18 @@ network6_stf_setup() {
 			$(($1*256 + $2)) $(($3*256 + $4))`
 		case ${stf_interface_ipv6_ifid} in
 		[Aa][Uu][Tt][Oo] | '')
-			laddr=`ifconfig stf0 inet6 | grep 'inet6 fe80:' \
-				| head -1 | awk '{print $2}'`
-			stf_interface_ipv6_ifid=`echo ${laddr} | sed \
-				-e 's/fe80:[0-9a-fA-F]+::/fe80::/' \
-				-e 's/fe80:://' -e 's/%.*//'`
+			for i in ${ipv6_network_interfaces}; do
+				laddr=`network6_getladdr ${i}`
+				case ${laddr} in
+				'')
+					;;
+				*)
+					break
+					;;
+				esac
+			done
+			stf_interface_ipv6_ifid=`expr "${laddr}" : \
+						      'fe80::\(.*\)%\(.*\)'`
 			case ${stf_interface_ipv6_ifid} in
 			'')
 				stf_interface_ipv6_ifid=0:0:0:1
@@ -271,9 +279,10 @@ network6_stf_setup() {
 		ifconfig stf0 inet6 2002:${ipv4_in_hexformat}:${stf_interface_ipv6_slaid:-0}:${stf_interface_ipv6_ifid} \
 			prefixlen ${stf_prefixlen}
 		# disallow packets to malicious 6to4 prefix
-		route add -inet6 2002:7f00:0000:: -prefixlen 24 ::1 -reject
-		route add -inet6 2002:0000:0000:: -prefixlen 48 ::1 -reject
-		route add -inet6 2002:ffff:ffff:: -prefixlen 48 ::1 -reject
+		route add -inet6 2002:e000:: -prefixlen 20 ::1 -reject
+		route add -inet6 2002:7f00:: -prefixlen 24 ::1 -reject
+		route add -inet6 2002:0000:: -prefixlen 24 ::1 -reject
+		route add -inet6 2002:ff00:: -prefixlen 24 ::1 -reject
 		;;
 	esac
 }
@@ -297,9 +306,7 @@ network6_default_interface_setup() {
 	case ${ipv6_default_interface} in
 	[Nn][Oo] | '')
 		for i in ${ipv6_network_interfaces}; do
-			laddr=`ifconfig $i inet6 2>/dev/null \
-				| grep 'inet6 fe80:' | \
-				head -1 | grep -v tentative`
+			laddr=`network6_getladdr $i exclude_tentative`
 			case ${laddr} in
 			'')
 				;;
@@ -320,12 +327,34 @@ network6_default_interface_setup() {
 		route add -inet6 ff02:: -prefixlen 16 ::1 -reject
 		;;
 	*)
-		laddr=`ifconfig ${ipv6_default_interface} inet6 \
-			| grep 'inet6 fe80:' | head -1 | awk '{print $2}'`
+		laddr=`network6_getladdr ${ipv6_default_interface}`
 		route add -inet6 fe80:: ${laddr} -prefixlen 10 -interface \
 			-cloning
 		route add -inet6 ff02:: ${laddr} -prefixlen 16 -interface \
 			-cloning
 		;;
 	esac
+}
+
+network6_getladdr() {
+	ifconfig $1 2>/dev/null | while read proto addr rest; do
+		case ${proto} in
+		inet6)
+			case ${addr} in
+			fe80::*)
+				if [ -z "$2" ]; then
+					echo ${addr}
+					return
+				fi
+				case ${rest} in
+				*tentative*)
+					continue
+					;;
+				*)
+					echo ${addr}
+					return
+				esac
+			esac
+		esac
+	done
 }
