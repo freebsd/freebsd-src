@@ -135,6 +135,10 @@ Should never happen.
 Indicates that an expected transmitter interrupt didn't occur.
 Usually caused by an
 interrupt conflict with another card on the ISA bus.
+This condition could also be caused if the kernel is configured for a
+different IRQ channel than the one the card is actually using.
+If that is the case, you will have to either reconfigure the card
+using a DOS utility or set the jumpers on the card appropriately.
 .It "ed%d: NIC memory corrupt - invalid packet length %d."
 Indicates that a packet was received with a packet length that was either larger than
 the maximum size or smaller than the minimum size allowed by the IEEE 802.3 standard.
