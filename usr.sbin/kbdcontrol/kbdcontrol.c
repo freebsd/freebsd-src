@@ -28,7 +28,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: kbdcontrol.c,v 1.14 1998/05/05 19:02:01 des Exp $";
+	"$Id: kbdcontrol.c,v 1.15 1998/08/03 09:12:39 yokota Exp $";
 #endif /* not lint */
 
 #include <ctype.h>
@@ -178,6 +178,8 @@ get_entry()
 		return DBG | 0x100;
 	case TSUSP:
 		return SUSP | 0x100;
+	case TSPSC:
+		return SPSC | 0x100;
 	case TACC:
 		if (ACC(number) > L_ACC)
 			return -1;
@@ -382,6 +384,9 @@ print_entry(FILE *fp, int value)
 	case SUSP | 0x100:
 		fprintf(fp, " susp  ");
 		break;
+	case SPSC | 0x100:
+		fprintf(fp, " saver ");
+		break;
 	default:
 		if (value & 0x100) {
 		 	if (val >= F_FN && val <= L_FN)
@@ -547,6 +552,9 @@ dump_entry(int value)
 			break;
 		case SUSP:
 			printf(" SUSP, ");
+			break;
+		case SPSC:
+			printf(" SPSC, ");
 			break;
 		default:
 	 		if (value >= F_FN && value <= L_FN)
