@@ -254,12 +254,8 @@ DOCSDIR= /usr/share/doc/ncurses
 DOCS=	ncurses-intro.html hackguide.html
 
 .if !defined(NOHTML)
-afterinstall:
-.for file in ${DOCS}
-	cd ${.CURDIR}/../../contrib/ncurses/doc/html ; \
-	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 ${file} \
-		${DESTDIR}${DOCSDIR}
-.endfor
+.PATH: ${NCURSES}/doc/html
+FILESGROUPS=	DOCS
 .endif
 
 # Generated source
