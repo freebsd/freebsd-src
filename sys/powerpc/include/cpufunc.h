@@ -121,7 +121,7 @@ intr_disable(void)
 	register_t	msr;
 
 	msr = mfmsr();
-	mtmsr(msr & ~(PSL_EE|PSL_RI));
+	mtmsr(msr & ~PSL_EE);
 	return (msr);
 }
 
