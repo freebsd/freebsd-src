@@ -5,8 +5,7 @@
 #
 
 # PROVIDE: route6d
-# REQUIRE: DAEMON
-# BEFORE:  LOGIN
+# REQUIRE: network_ipv6
 # KEYWORD: FreeBSD NetBSD
 
 . /etc/rc.subr
