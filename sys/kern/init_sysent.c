@@ -5,7 +5,6 @@
  * created from	Id: syscalls.master,v 1.23 1996/01/08 04:13:25 peter Exp 
  */
 
-#include "opt_sysvipc.h"
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/mount.h>
