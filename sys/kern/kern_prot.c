@@ -788,6 +788,8 @@ setregid(p, uap)
 		change_svgid(newcred, newcred->cr_groups[0]);
 		setsugid(p);
 	}
+	p->p_ucred = newcred;
+	crfree(oldcred);
 	return (0);
 }
 
