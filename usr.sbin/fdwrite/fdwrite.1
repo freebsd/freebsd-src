@@ -6,7 +6,7 @@
 .\" this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 .\" ----------------------------------------------------------------------------
 .\"
-.\" $Id: fdwrite.1,v 1.4 1997/02/22 16:05:48 peter Exp $
+.\" $Id: fdwrite.1,v 1.5 1997/05/19 16:33:27 eivind Exp $
 .\"
 .\"
 .Dd September 16, 1993
@@ -17,9 +17,10 @@
 .Nd format and write floppy disks
 .Sh SYNOPSIS
 .Nm fdwrite
-.Bq Fl v
-.Bq Fl f Ar inputfile
-.Bq Fl d Ar device
+.Op Fl v
+.Op Fl y
+.Op Fl f Ar inputfile
+.Op Fl d Ar device
 .Sh DESCRIPTION
 .Nm Fdwrite
 formats and writes one and more floppy disks.
@@ -40,7 +41,7 @@ This continues until the program is interrupted or EOF is encountered on the
 The options are as follows:
 .Bl -tag -width 10n -offset indent
 .It Fl v
-toggles verbosity on stdout.
+Toggle verbosity on stdout.
 Default is ``on''.
 After 
 .Ar device
@@ -49,6 +50,9 @@ During operation progress will be reported with the number of tracks
 remaining on the current floppy disk, and the letters I, Z, F, W,
 R and C, which indicates completion of Input, Zero-fill, Format
 Write, Read and Compare of current track respectively.
+.It Fl y
+Don't ask for presence of a floppy disk in the drive. This non-interactive flag
+is useful for shell scripts.
 .It Fl f Ar inputfile
 Input file to read.  If none is given, stdin is assumed.
 .It Fl d Ar device
@@ -92,7 +96,7 @@ Some of the code was taken from
 .Xr fdformat 1 .
 .Sh AUTHOR
 The program has been contributed by
-Poul-Henning Kamp <phk@login.dknet.dk>
+.An Poul-Henning Kamp Aq phk@login.dknet.dk
 .Sh BUGS
 Diagnostics are less than complete at present.
 
