@@ -977,7 +977,7 @@ pathname
 				gl.gl_matchc = MAXGLOBARGS;
 				if (glob($1, flags, NULL, &gl) ||
 				    gl.gl_pathc == 0) {
-					reply(550, "not found");
+					reply(550, "wildcard expansion error");
 					$$ = NULL;
 				} else if (gl.gl_pathc > 1) {
 					reply(550, "ambiguous");
