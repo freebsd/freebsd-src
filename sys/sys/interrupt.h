@@ -39,4 +39,9 @@ void	unregister_swi __P((int intr, swihand_t *handler));
 
 extern swihand_t *ihandlers[];
 
+/* Counts and names for statistics (defined in MD code). */
+extern u_long	eintrcnt[];	/* end of intrcnt[] */
+extern char	eintrnames[];	/* end of intrnames[] */
+extern u_long	intrcnt[];	/* counts for for each device and stray */
+extern char	intrnames[];	/* string table containing device names */
 #endif

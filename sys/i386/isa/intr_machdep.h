@@ -140,9 +140,6 @@ typedef void inthand_t __P((u_int cs, u_int ef, u_int esp, u_int ss));
 
 #define	IDTVEC(name)	__CONCAT(X,name)
 
-extern char eintrnames[];	/* end of intrnames[] */
-extern u_long intrcnt[];	/* counts for for each device and stray */
-extern char intrnames[];	/* string table containing device names */
 extern u_long *intr_countp[];	/* pointers into intrcnt[] */
 extern inthand2_t *intr_handler[];	/* C entry points of intr handlers */
 extern u_int intr_mask[];	/* sets of intrs masked during handling of 1 */
