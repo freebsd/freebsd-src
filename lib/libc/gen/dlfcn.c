@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: dlfcn.c,v 1.1 1998/02/09 06:05:24 jdp Exp $
+ *	$Id: dlfcn.c,v 1.2 1998/03/07 19:57:05 jdp Exp $
  */
 
 /*
@@ -92,6 +92,14 @@ dlsym(void *handle, const char *name)
 {
 	_rtld_error(sorry);
 	return NULL;
+}
+
+#pragma weak dlversion
+int
+dlversion(void)
+{
+	_rtld_error(sorry);
+	return 0;
 }
 
 #else /* a.out format */
@@ -163,6 +171,13 @@ dlsym(void *handle, const char *name)
 		return (__ldso_entry->dlsym3)(handle, name, retaddr);
 	} else
 		return (__ldso_entry->dlsym)(handle, name);
+}
+
+/* We don't support dlversion() on a.out systems. */
+int
+dlversion(void)
+{
+	return 0;
 }
 
 #endif /* __ELF__ */
