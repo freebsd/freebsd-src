@@ -1587,13 +1587,13 @@ device_is_enabled(device_t dev)
 int
 device_is_alive(device_t dev)
 {
-	return (dev->state >= DS_ALIVE);
+	return (dev != NULL && dev->state >= DS_ALIVE);
 }
 
 int
 device_is_attached(device_t dev)
 {
-	return (dev->state >= DS_ATTACHED);
+	return (dev != NULL && dev->state >= DS_ATTACHED);
 }
 
 int
