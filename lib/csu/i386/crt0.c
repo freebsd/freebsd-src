@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: crt0.c,v 1.14 1994/09/24 16:01:30 ache Exp $
+ *	$Id: crt0.c,v 1.15 1995/02/07 13:27:29 jkh Exp $
  */
 
 
@@ -193,7 +193,6 @@ __do_dynamic_link ()
 	struct crt_ldso	crt;
 	struct exec	hdr;
 	char		*ldso;
-	int		dupzfd;
 	int		(*entry)();
 
 #ifdef DEBUG
