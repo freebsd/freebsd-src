@@ -39,6 +39,8 @@
 #include <machine/ansi.h>
 
 #if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
+#include <machine/types.h>
+
 #ifdef	_BSD_RUNE_T_
 typedef	_BSD_RUNE_T_	rune_t;
 #undef	_BSD_RUNE_T_
@@ -130,6 +132,10 @@ void	 srand48 __P((long));
 
 void	*alloca __P((size_t));		/* built-in for gcc */
 					/* getcap(3) functions */
+u_int32_t
+	 arc4random __P((void));
+void	 arc4random_addrandom __P((unsigned char *dat, int datlen));
+void	 arc4random_stir __P((void));
 char	*getbsize __P((int *, long *));
 char	*cgetcap __P((char *, char *, int));
 int	 cgetclose __P((void));
@@ -156,7 +162,7 @@ int	 getsubopt __P((char **, char * const *, char **));
 char	*group_from_gid __P((unsigned long, int));
 int	 heapsort __P((void *, size_t, size_t,
 	    int (*)(const void *, const void *)));
-char	*initstate __P((unsigned, char *, int));
+char	*initstate __P((unsigned long, char *, long));
 int	 mergesort __P((void *, size_t, size_t,
 	    int (*)(const void *, const void *)));
 int	 radixsort __P((const unsigned char **, int, const unsigned char *,
@@ -166,7 +172,8 @@ int	 sradixsort __P((const unsigned char **, int, const unsigned char *,
 long	 random __P((void));
 char	*realpath __P((const char *, char resolved_path[]));
 char	*setstate __P((char *));
-void	 srandom __P((unsigned));
+void	 srandom __P((unsigned long));
+void	 srandomdev __P((void));
 char	*user_from_uid __P((unsigned long, int));
 #ifndef __STRICT_ANSI__
 long long
