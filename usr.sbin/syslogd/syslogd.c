@@ -273,6 +273,7 @@ int	family = PF_UNSPEC;	/* protocol family (IPv4, IPv6 or both) */
 int	family = PF_INET;	/* protocol family (IPv4 only) */
 #endif
 int	send_to_all = 0;	/* send message to all IPv4/IPv6 addresses */
+int	no_compress = 0;	/* don't compress messages (1=pipes, 2=all) */
 
 char	bootfile[MAXLINE+1];	/* booted kernel file */
 
@@ -333,7 +334,7 @@ main(argc, argv)
 	socklen_t len;
 
 	bindhostname = NULL;
-	while ((ch = getopt(argc, argv, "46Aa:b:df:kl:m:np:P:suv")) != -1)
+	while ((ch = getopt(argc, argv, "46Aa:b:cdf:kl:m:np:P:suv")) != -1)
 		switch (ch) {
 		case '4':
 			family = PF_INET;
@@ -352,6 +353,9 @@ main(argc, argv)
 			break;
 		case 'b':
 			bindhostname = optarg;
+			break;
+		case 'c':
+			no_compress++;
 			break;
 		case 'd':		/* debug */
 			Debug++;
@@ -860,7 +864,8 @@ logmsg(pri, msg, from, flags)
 		/*
 		 * suppress duplicate lines to this file
 		 */
-		if ((flags & MARK) == 0 && msglen == f->f_prevlen &&
+		if (no_compress - (f->f_type != F_PIPE) < 1 &&
+		    (flags & MARK) == 0 && msglen == f->f_prevlen &&
 		    !strcmp(msg, f->f_prevline) &&
 		    !strcasecmp(from, f->f_prevhost)) {
 			(void)strlcpy(f->f_lasttime, timestamp, 16);
