@@ -14,6 +14,13 @@ struct	exec head;
 char	*loadpoint;
 char	*kernel;
 char	kernel_buf[128];
+#ifdef INCLUDE_3COM
+#ifdef _3COM_USE_AUI
+short aui = 1;
+#else
+short aui = 0;
+#endif
+#endif
 void	(*kernelentry)();
 struct	nfs_diskless nfsdiskless;
 int	hostnamelen;
@@ -79,6 +86,18 @@ load()
 	char	cmd_line[80];
 	int	err, offset, read_size;
 	long	addr, broadcast;
+
+/* Initialize this early on */
+
+        nfsdiskless.root_args.rsize = 8192;
+        nfsdiskless.root_args.wsize = 8192;
+        nfsdiskless.swap_args.rsize = 8192;
+        nfsdiskless.swap_args.wsize = 8192;
+        nfsdiskless.root_args.sotype = SOCK_DGRAM;
+        nfsdiskless.root_args.flags = (NFSMNT_WSIZE | NFSMNT_RSIZE);
+        nfsdiskless.swap_args.sotype = SOCK_DGRAM;
+        nfsdiskless.swap_args.flags = (NFSMNT_WSIZE | NFSMNT_RSIZE);
+
 
 		/* Find a server to get BOOTP reply from */
 	if (!arptable[ARP_CLIENT].ipaddr || !arptable[ARP_SERVER].ipaddr) {
@@ -172,12 +191,8 @@ load()
 		nfsdiskless.swap_saddr.sin_port = htons(swap_nfs_port);
 		nfsdiskless.swap_saddr.sin_addr.s_addr = 
 			htonl(arptable[ARP_SWAPSERVER].ipaddr);
-        	nfsdiskless.swap_args.sotype = SOCK_DGRAM;
-        	nfsdiskless.swap_args.flags = (NFSMNT_WSIZE | NFSMNT_RSIZE);
         	nfsdiskless.swap_args.timeo = 10;
         	nfsdiskless.swap_args.retrans = 100;
-        	nfsdiskless.swap_args.rsize = 8192;
-        	nfsdiskless.swap_args.wsize = 8192;
 	}
 
 		/* Lookup NFS/MOUNTD ports for ROOT using PORTMAP */
@@ -198,16 +213,13 @@ load()
 	nfsdiskless.root_saddr.sin_port = htons(root_nfs_port);
 	nfsdiskless.root_saddr.sin_addr.s_addr = 
 		htonl(arptable[ARP_ROOTSERVER].ipaddr);
-        nfsdiskless.root_args.sotype = SOCK_DGRAM;
-        nfsdiskless.root_args.flags = (NFSMNT_WSIZE | NFSMNT_RSIZE);
         nfsdiskless.root_args.timeo = 10;
         nfsdiskless.root_args.retrans = 100;
-        nfsdiskless.root_args.rsize = 8192;
-        nfsdiskless.root_args.wsize = 8192;
 	nfsdiskless.root_time = 0;
 
 	if (err = nfs_lookup(ARP_ROOTSERVER, root_nfs_port,
-		&nfsdiskless.root_fh, kernel, &kernel_handle)) {
+		&nfsdiskless.root_fh, *kernel == '/' ? kernel+1 : kernel,
+		&kernel_handle)) {
 		printf("Unable to open %s: ",kernel);
 		nfs_err(err);
 		longjmp(jmp_bootmenu,1);

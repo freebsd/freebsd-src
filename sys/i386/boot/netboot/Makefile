@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.2 1994/10/28 22:13:22 phk Exp $
 #
 # Makefile for NETBOOT
 #
@@ -9,7 +9,10 @@
 #	-DRELOC		- Relocation address (usually 0x90000)
 #	-DINCLUDE_WD	- Include Western Digital/SMC support
 #	-DINCLUDE_NE	- Include NE1000/NE2000 support
+#       -DINCLUDE_3COM  - Include 3c503 support
+#       -D_3COM_USE_AUI - Disable transceiver on 3c503 by default
 #	-DNE_BASE	- Base I/O address for NE1000/NE2000
+#       -D_3COM_BASE    - Base I/O address for 3c503
 #	-DWD_DEFAULT_MEM- Default memory location for WD/SMC cards
 #
 
@@ -20,8 +23,9 @@ SRCS=	start2.S main.c misc.c ether.c bootmenu.c rpc.c
 BINDIR=		/usr/mdec
 BINMODE=	555
 CFLAGS=		-O2 -DNFS -DROMSIZE=${ROMSIZE} -DRELOC=${RELOCADDR}
-CFLAGS+=	-DINCLUDE_WD -DWD_DEFAULT_MEM=0xD0000
+#CFLAGS+=	-DINCLUDE_WD -DWD_DEFAULT_MEM=0xD0000
 #CFLAGS+=	-DINCLUDE_NE -DNE_BASE=0x320
+CFLAGS+=	-DINCLUDE_3COM -D_3COM_BASE=0x300
 CLEANFILES+=	netboot.com.nohdr netboot.com.strip
 CLEANFILES+=	netboot.rom.nohdr netboot.rom.strip netboot.rom
 CLEANFILES+=	makerom start2.ro

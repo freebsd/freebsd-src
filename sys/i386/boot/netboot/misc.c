@@ -55,6 +55,28 @@ bcompare(d,s,n)
 }
 
 /**************************************************************************
+SUBSTR (slightly wacky but functional)
+**************************************************************************/
+char *substr(a,b)
+char *a,*b;
+{
+char *loc1;
+char *loc2;
+
+        while (*a != '\0') {
+                loc1 = a;
+                loc2 = b;
+                while (*loc1 == *loc2++) {
+                        if (*loc1 == '\0') return (0);
+                        loc1++;
+                        if (*loc2 == '\0') return (loc1);
+                }
+        a++;
+        }
+        return (0);
+}
+
+/**************************************************************************
 PRINTF and friends
 
 	Formats:
