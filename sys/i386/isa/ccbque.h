@@ -78,7 +78,7 @@ DEV##_get_ccb()								\
 	if (CCBTYPE##que.count < CCBTYPE##que.maxccb)			\
 	{								\
 		CCBTYPE##que.count ++;					\
-		cb = CCBTYPE##que.CCBTYPE##tab.tqh_first;		\
+		cb = TAILQ_FIRST(&(CCBTYPE##que.CCBTYPE##tab));		\
 		if (cb != NULL)						\
 		{							\
 			TAILQ_REMOVE(&CCBTYPE##que.CCBTYPE##tab, cb, CHAIN);\
