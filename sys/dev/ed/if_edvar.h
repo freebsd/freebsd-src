@@ -38,7 +38,11 @@ struct ed_softc {
 	char   *type_str;	/* pointer to type string */
 	u_char  vendor;		/* interface vendor */
 	u_char  type;		/* interface type code */
+	u_char	chip_type;	/* the type of chip (one of ED_CHIP_TYPE_*) */
 	u_char	gone;		/* HW missing, presumed having a good time */
+	u_char  isa16bit;	/* width of access to card 0=8 or 1=16 */
+	u_char  mem_shared;	/* NIC memory is shared with host */
+	u_char  xmit_busy;	/* transmitter is busy */
 
 	int	port_rid;	/* resource id for port range */
 	int	port_used;	/* nonzero if ports used */
@@ -63,8 +67,6 @@ struct ed_softc {
  */
 	u_char  wd_laar_proto;
 	u_char	cr_proto;
-	u_char  isa16bit;	/* width of access to card 0=8 or 1=16 */
-	int	chip_type;	/* the type of chip (one of ED_CHIP_TYPE_*) */
 
 /*
  * HP PC LAN PLUS card support.
@@ -79,8 +81,6 @@ struct ed_softc {
 	uint32_t mem_size;	/* total NIC memory size */
 	caddr_t mem_ring;	/* start of RX ring-buffer (in NIC mem) */
 
-	u_char  mem_shared;	/* NIC memory is shared with host */
-	u_char  xmit_busy;	/* transmitter is busy */
 	u_char  txb_cnt;	/* number of transmit buffers */
 	u_char  txb_inuse;	/* number of TX buffers currently in-use */
 
