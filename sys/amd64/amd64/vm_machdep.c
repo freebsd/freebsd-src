@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.101 1998/02/25 03:56:09 dyson Exp $
+ *	$Id: vm_machdep.c,v 1.102 1998/03/12 09:55:57 bde Exp $
  */
 
 #include "npx.h"
@@ -949,7 +949,7 @@ vm_page_zero_idle()
 	if (try_mplock()) {
 #endif
 		s = splvm();
-		enable_intr();
+		__asm __volatile("sti" : : : "memory");
 		m = vm_page_list_find(PQ_FREE, free_rover);
 		if (m != NULL) {
 			--(*vm_page_queues[m->queue].lcnt);
@@ -973,7 +973,7 @@ vm_page_zero_idle()
 			++cnt_prezero;
 		}
 		splx(s);
-		disable_intr();
+		__asm __volatile("cli" : : : "memory");
 #ifdef SMP
 		rel_mplock();
 #endif
