@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.i386,v 1.1 1995/03/30 06:26:19 rgrimes Exp $
+#	$Id: rc.i386,v 1.2 1995/03/30 09:39:51 ache Exp $
 #	Do i386 specific processing
 #
 
@@ -30,7 +30,7 @@ vidadjust=NO
 	"X${blanktime}" != X"NO" ] && vidadjust=YES
 
 [ "X${kbdadjust}" != X"NO" -o "X${vidadjust}" != X"NO" -o \
-	"X${saver}" != X"NO" ] && { echo; echo "configuring syscons:" }
+	"X${saver}" != X"NO" ] && { echo; echo "configuring syscons:"; }
 
 [ "X${kbdadjust}" != X"NO" ] && echo -n ' [kbdcontrol:'
 
