@@ -44,7 +44,7 @@
  * SUCH DAMAGE.
  *End copyright
  *
- *      $Id: su.c,v 1.9 1995/12/08 11:19:01 julian Exp $
+ *      $Id: su.c,v 1.10 1995/12/08 23:22:29 phk Exp $
  *
  * Tabstops 4
  * XXX devfs entries for this device should be handled by generic scsiconfig
@@ -65,10 +65,11 @@
 #include <scsi/scsiconf.h>
 #define CDEV_MAJOR 18
 
+/* These three used by ssc. */
+extern	d_open_t	suopen;
+extern	d_close_t	suclose;
+extern	d_ioctl_t	suioctl;
 
-	d_open_t	suopen; /* these three used by ssc */
-	d_close_t	suclose;
-	d_ioctl_t	suioctl;
 static	d_read_t	suread;
 static	d_write_t	suwrite;
 static	d_select_t	suselect;
@@ -258,28 +259,6 @@ suioctl(dev_t dev, int cmd, caddr_t data, int fflag, struct proc *p)
 	(void)getsws(dev, S_IFCHR, 0, &cdev, &base);
 
 	return (*cdev->d_ioctl)(base, cmd, data, fflag, p);
-}
-
-static	int
-sudump(dev_t dev)
-{
-	dev_t base;
-	struct bdevsw *bdev;
-
-	(void)getsws(dev, S_IFBLK, &bdev, 0, &base);
-
-	return (*bdev->d_dump)(base);
-}
-
-static	int
-supsize(dev_t dev)
-{
-	dev_t base;
-	struct bdevsw *bdev;
-
-	(void)getsws(dev, S_IFBLK, &bdev, 0, &base);
-
-	return (*bdev->d_psize)(base);
 }
 
 static	int
