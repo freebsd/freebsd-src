@@ -79,17 +79,6 @@ static MALLOC_DEFINE(M_SIGIO, "sigio", "sigio structures");
 
 static uma_zone_t file_zone;
 
-static	 d_open_t  fdopen;
-#define	NUMFDESC 64
-
-#define	CDEV_MAJOR 22
-static struct cdevsw fildesc_cdevsw = {
-	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT,
-	.d_open =	fdopen,
-	.d_name =	"FD",
-	.d_maj =	CDEV_MAJOR,
-};
 
 /* How to treat 'new' parameter when allocating a fd for do_dup(). */
 enum dup_type { DUP_VARIABLE, DUP_FIXED };
@@ -2210,35 +2199,6 @@ done2:
 	mtx_unlock(&Giant);
 	return (error);
 }
-
-/*
- * File Descriptor pseudo-device driver (/dev/fd/).
- *
- * Opening minor device N dup()s the file (if any) connected to file
- * descriptor N belonging to the calling process.  Note that this driver
- * consists of only the ``open()'' routine, because all subsequent
- * references to this file will be direct to the other driver.
- */
-/* ARGSUSED */
-static int
-fdopen(dev, mode, type, td)
-	struct cdev *dev;
-	int mode, type;
-	struct thread *td;
-{
-
-	/*
-	 * XXX Kludge: set curthread->td_dupfd to contain the value of the
-	 * the file descriptor being sought for duplication. The error
-	 * return ensures that the vnode for this device will be released
-	 * by vn_open. Open will detect this special error and take the
-	 * actions in dupfdopen below. Other callers of vn_open or VOP_OPEN
-	 * will simply report the error.
-	 */
-	td->td_dupfd = dev2unit(dev);
-	return (ENODEV);
-}
-
 /*
  * Duplicate the specified descriptor to a free descriptor.
  */
@@ -2462,18 +2422,6 @@ SYSCTL_INT(_kern, KERN_MAXFILES, maxfiles, CTLFLAG_RW,
 SYSCTL_INT(_kern, OID_AUTO, openfiles, CTLFLAG_RD,
     &openfiles, 0, "System-wide number of open files");
 
-static void
-fildesc_drvinit(void *unused)
-{
-	struct cdev *dev;
-
-	dev = make_dev(&fildesc_cdevsw, 0, UID_ROOT, GID_WHEEL, 0666, "fd/0");
-	make_dev_alias(dev, "stdin");
-	dev = make_dev(&fildesc_cdevsw, 1, UID_ROOT, GID_WHEEL, 0666, "fd/1");
-	make_dev_alias(dev, "stdout");
-	dev = make_dev(&fildesc_cdevsw, 2, UID_ROOT, GID_WHEEL, 0666, "fd/2");
-	make_dev_alias(dev, "stderr");
-}
 
 static fo_rdwr_t	badfo_readwrite;
 static fo_ioctl_t	badfo_ioctl;
@@ -2556,9 +2504,6 @@ badfo_close(fp, td)
 	return (EBADF);
 }
 
-SYSINIT(fildescdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,
-					fildesc_drvinit,NULL)
-
 static void filelistinit(void *);
 SYSINIT(select, SI_SUB_LOCK, SI_ORDER_FIRST, filelistinit, NULL)
 
@@ -2573,3 +2518,55 @@ filelistinit(dummy)
 	sx_init(&filelist_lock, "filelist lock");
 	mtx_init(&sigio_lock, "sigio lock", NULL, MTX_DEF);
 }
+
+/*-------------------------------------------------------------------*/
+
+/*
+ * File Descriptor pseudo-device driver (/dev/fd/).
+ *
+ * Opening minor device N dup()s the file (if any) connected to file
+ * descriptor N belonging to the calling process.  Note that this driver
+ * consists of only the ``open()'' routine, because all subsequent
+ * references to this file will be direct to the other driver.
+ *
+ * XXX: we could give this one a cloning event handler if necessary.
+ */
+
+/* ARGSUSED */
+static int
+fdopen(struct cdev *dev, int mode, int type, struct thread *td)
+{
+
+	/*
+	 * XXX Kludge: set curthread->td_dupfd to contain the value of the
+	 * the file descriptor being sought for duplication. The error
+	 * return ensures that the vnode for this device will be released
+	 * by vn_open. Open will detect this special error and take the
+	 * actions in dupfdopen below. Other callers of vn_open or VOP_OPEN
+	 * will simply report the error.
+	 */
+	td->td_dupfd = dev2unit(dev);
+	return (ENODEV);
+}
+
+static struct cdevsw fildesc_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
+	.d_open =	fdopen,
+	.d_name =	"FD",
+};
+
+static void
+fildesc_drvinit(void *unused)
+{
+	struct cdev *dev;
+
+	dev = make_dev(&fildesc_cdevsw, 0, UID_ROOT, GID_WHEEL, 0666, "fd/0");
+	make_dev_alias(dev, "stdin");
+	dev = make_dev(&fildesc_cdevsw, 1, UID_ROOT, GID_WHEEL, 0666, "fd/1");
+	make_dev_alias(dev, "stdout");
+	dev = make_dev(&fildesc_cdevsw, 2, UID_ROOT, GID_WHEEL, 0666, "fd/2");
+	make_dev_alias(dev, "stderr");
+}
+
+SYSINIT(fildescdev, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, fildesc_drvinit, NULL)
