@@ -1,3 +1,3 @@
 /* Current version of ISC DHCP Distribution. */
 
-#define DHCP_VERSION	"2.0pl5"
+#define DHCP_VERSION	"2.0pl5+v3_fixes"
