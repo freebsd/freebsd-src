@@ -6,7 +6,7 @@
  * to the original author and the contributors.
  *
  * @(#)ip_fil.h	1.35 6/5/96
- * $Id: ip_fil.h,v 2.29.2.2 2000/05/22 10:26:13 darrenr Exp $
+ * $FreeBSD$
  */
 
 #ifndef	__IP_FIL_H__
@@ -529,8 +529,6 @@ extern	int	iplread __P((dev_t, struct uio *, cred_t *));
 # else /* SOLARIS */
 extern	int	fr_check __P((ip_t *, int, void *, int, mb_t **));
 extern	int	(*fr_checkp) __P((ip_t *, int, void *, int, mb_t **));
-extern	int	send_reset __P((struct ip *, fr_info_t *));
-extern	int	send_icmp_err __P((ip_t *, int, fr_info_t *, int));
 extern	int	ipfr_fastroute __P((mb_t *, fr_info_t *, frdest_t *));
 extern	size_t	mbufchainlen __P((mb_t *));
 #  ifdef	__sgi
