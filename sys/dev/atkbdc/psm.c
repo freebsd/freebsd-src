@@ -2033,7 +2033,9 @@ psmintr(void *arg)
     
 	getmicrouptime(&now);
 	if ((pb->inputbytes > 0) && timevalcmp(&now, &sc->inputtimeout, >)) {
+#if DEBUG
 	    log(LOG_DEBUG, "psmintr: delay too long; resetting byte count\n");
+#endif
 	    pb->inputbytes = 0;
 	    sc->syncerrors = 0;
 	}
@@ -2045,7 +2047,7 @@ psmintr(void *arg)
         if (pb->inputbytes < sc->mode.packetsize) 
 	    continue;
 
-#if 0
+#if DEBUG
         log(LOG_DEBUG, "psmintr: %02x %02x %02x %02x %02x %02x\n",
 	    pb->ipacket[0], pb->ipacket[1], pb->ipacket[2],
 	    pb->ipacket[3], pb->ipacket[4], pb->ipacket[5]);
@@ -2054,30 +2056,40 @@ psmintr(void *arg)
 	c = pb->ipacket[0];
 
 	if ((c & sc->mode.syncmask[0]) != sc->mode.syncmask[1]) {
+#if DEBUG
             log(LOG_DEBUG, "psmintr: out of sync (%04x != %04x) %d"
 		" cmds since last error.\n", 
 		c & sc->mode.syncmask[0], sc->mode.syncmask[1],
 		sc->cmdcount - sc->lasterr);
+#endif
 	    haderror = 1;
 	    sc->lasterr = sc->cmdcount;
 	    dropqueue(sc);
 	    ++sc->syncerrors;
 	    sc->lastinputerr = now;
 	    if (sc->syncerrors < sc->mode.packetsize) {
+#if DEBUG
 		log(LOG_DEBUG, "psmintr: discard a byte (%d).\n", sc->syncerrors);
+#endif
 		--pb->inputbytes;
 		bcopy(&pb->ipacket[1], &pb->ipacket[0], pb->inputbytes);
 	    } else if (sc->syncerrors == sc->mode.packetsize) {
+#if DEBUG
 		log(LOG_DEBUG, "psmintr: re-enable the mouse.\n");
+#endif
 		pb->inputbytes = 0;
 		disable_aux_dev(sc->kbdc);
 		enable_aux_dev(sc->kbdc);
 	    } else if (sc->syncerrors < PSM_SYNCERR_THRESHOLD1) {
+#if DEBUG
 		log(LOG_DEBUG, "psmintr: discard a byte (%d).\n", sc->syncerrors);
+#endif
 		--pb->inputbytes;
 		bcopy(&pb->ipacket[1], &pb->ipacket[0], pb->inputbytes);
 	    } else if (sc->syncerrors >= PSM_SYNCERR_THRESHOLD1) {
+#if DEBUG
 		log(LOG_DEBUG, "psmintr: reset the mouse.\n");
+#endif
 		reinitialize(sc, TRUE);
 	    }
 	    continue;
