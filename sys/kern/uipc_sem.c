@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <sys/sysent.h>
 #include <sys/sysctl.h>
+#include <sys/time.h>
 #include <sys/malloc.h>
 #include <sys/fcntl.h>
 
@@ -63,7 +64,8 @@ static int sem_hasopen(struct thread *td, struct ksem *ks);
 
 static int kern_sem_close(struct thread *td, semid_t id);
 static int kern_sem_post(struct thread *td, semid_t id);
-static int kern_sem_wait(struct thread *td, semid_t id, int tryflag);
+static int kern_sem_wait(struct thread *td, semid_t id, int tryflag,
+    struct timespec *abstime);
 static int kern_sem_init(struct thread *td, int dir, unsigned int value,
     semid_t *idp);
 static int kern_sem_open(struct thread *td, int dir, const char *name,
@@ -475,7 +477,7 @@ sem_hasopen(td, ks)
 	struct ksem *ks;
 {
 	
-	return ((ks->ks_name == NULL && sem_perm(td, ks))
+	return ((ks->ks_name == NULL && sem_perm(td, ks) == 0)
 	    || sem_getuser(td->td_proc, ks) != NULL);
 }
 
@@ -653,7 +655,37 @@ ksem_wait(td, uap)
 	struct ksem_wait_args *uap;
 {
 
-	return (kern_sem_wait(td, uap->id, 0));
+	return (kern_sem_wait(td, uap->id, 0, NULL));
+}
+
+#ifndef _SYS_SYSPROTO_H_
+struct ksem_timedwait_args {
+	semid_t id;
+	struct timespec *abstime;
+};
+int ksem_timedwait(struct thread *td, struct ksem_timedwait_args *uap);
+#endif
+int
+ksem_timedwait(td, uap)
+	struct thread *td;
+	struct ksem_timedwait_args *uap;
+{
+	struct timespec abstime;
+	struct timespec *ts;
+	int error;
+
+	/* We allow a null timespec (wait forever). */
+	if (uap->abstime == NULL)
+		ts = NULL;
+	else {
+		error = copyin(uap->abstime, &abstime, sizeof(abstime));
+		if (error != 0)
+			return (error);
+		if (abstime.tv_nsec >= 1000000000 || abstime.tv_nsec < 0)
+			return (EINVAL);
+		ts = &abstime;
+	}
+	return (kern_sem_wait(td, uap->id, 0, ts));
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -668,15 +700,18 @@ ksem_trywait(td, uap)
 	struct ksem_trywait_args *uap;
 {
 
-	return (kern_sem_wait(td, uap->id, 1));
+	return (kern_sem_wait(td, uap->id, 1, NULL));
 }
 
 static int
-kern_sem_wait(td, id, tryflag)
+kern_sem_wait(td, id, tryflag, abstime)
 	struct thread *td;
 	semid_t id;
 	int tryflag;
+	struct timespec *abstime;
 {
+	struct timespec ts1, ts2;
+	struct timeval tv;
 	struct ksem *ks;
 	int error;
 
@@ -697,7 +732,26 @@ kern_sem_wait(td, id, tryflag)
 	DP(("kern_sem_wait value = %d, tryflag %d\n", ks->ks_value, tryflag));
 	if (ks->ks_value == 0) {
 		ks->ks_waiters++;
-		error = tryflag ? EAGAIN : cv_wait_sig(&ks->ks_cv, &sem_lock);
+		if (tryflag != 0)
+			error = EAGAIN;
+		else if (abstime == NULL)
+			error = cv_wait_sig(&ks->ks_cv, &sem_lock);
+		else {
+			for (;;) {
+				ts1 = *abstime;
+				getnanotime(&ts2);
+				timespecsub(&ts1, &ts2);
+				TIMESPEC_TO_TIMEVAL(&tv, &ts1);
+				if (tv.tv_sec < 0) {
+					error = ETIMEDOUT;
+					break;
+				}
+				error = cv_timedwait_sig(&ks->ks_cv,
+				    &sem_lock, tvtohz(&tv));
+				if (error != EWOULDBLOCK)
+					break;
+			}
+		}
 		ks->ks_waiters--;
 		if (error)
 			goto err;
@@ -839,6 +893,7 @@ SYSCALL_MODULE_HELPER(ksem_unlink);
 SYSCALL_MODULE_HELPER(ksem_close);
 SYSCALL_MODULE_HELPER(ksem_post);
 SYSCALL_MODULE_HELPER(ksem_wait);
+SYSCALL_MODULE_HELPER(ksem_timedwait);
 SYSCALL_MODULE_HELPER(ksem_trywait);
 SYSCALL_MODULE_HELPER(ksem_getvalue);
 SYSCALL_MODULE_HELPER(ksem_destroy);
