@@ -16,6 +16,10 @@ minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
 
+20011221	p22
+	A bug was fixed wherein the pw(8) command created a short-lived
+	but world-readable copy of /etc/master.passwd.
+
 20011202	p21
 	A security hole in OpenSSH involving `UseLogin yes' has been
 	patched.
