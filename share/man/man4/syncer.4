@@ -52,6 +52,11 @@ on that queue,
 the 
 .Nm
 process forces a write out to disk of its dirty buffers.
+.Pp
+Usually,
+buffers will be written out no more than
+about 30 seconds
+after they are dirtied.
 .Sh SEE ALSO
 .Xr sync 2 ,
 .Xr fsck 8 ,
