@@ -67,6 +67,8 @@
 
 #include <netatm/sigpvc/sigpvc_var.h>
 
+#include <vm/uma.h>
+
 #ifndef lint
 __RCSID("@(#) $FreeBSD$");
 #endif
@@ -75,12 +77,7 @@ __RCSID("@(#) $FreeBSD$");
 /*
  * Global variables
  */
-struct sp_info	sigpvc_vcpool = {
-	"sigpvc vcc pool",		/* si_name */
-	sizeof(struct sigpvc_vccb),	/* si_blksiz */
-	10,				/* si_blkcnt */
-	50				/* si_maxallow */
-};
+uma_zone_t	sigpvc_vc_zone;
 
 /*
  * Local functions
@@ -153,6 +150,10 @@ sigpvc_start()
 		return (EINVAL);
 	}
 
+	sigpvc_vc_zone = uma_zcreate("sigpvc vc", sizeof(struct sigpvc_vccb),
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+	uma_zone_set_max(sigpvc_vc_zone, 50);		
+ 
 	/*
 	 * Register ourselves with system
 	 */
@@ -209,7 +210,7 @@ sigpvc_stop()
 		/*
 		 * Free up our vccb storage pool
 		 */
-		atm_release_pool(&sigpvc_vcpool);
+		uma_zdestroy(sigpvc_vc_zone);
 	} else
 		err = ENXIO;
 
@@ -510,7 +511,7 @@ sigpvc_free(vcp)
 	 */
 	vcp->vc_ustate = VCCU_NULL;
 	vcp->vc_sstate = VCCS_NULL;
-	atm_free((caddr_t)vcp);
+	uma_zfree(sigpvc_vc_zone, vcp);
 
 	/*
 	 * If we're detaching and this was the last vcc queued,
