@@ -1,5 +1,5 @@
 .\" manual page [] for natd 1.4
-.\"	$Id:$
+.\"	$Id: natd.8,v 1.16 1999/03/07 18:23:55 brian Exp $
 .Dd 15 April 1997
 .Os FreeBSD
 .Dt NATD 8
@@ -45,9 +45,9 @@ Network Address Translation Daemon
 This program provides a Network Address Translation facility for use
 with
 .Xr divert 4
-sockets under FreeBSD.  Most of the command line options are available
-in a single character short form or in a long form.  Use of the long
-form is encouraged as it makes things clearer to the casual observer.
+sockets under FreeBSD.  It is intended for use with NICs - if you want
+to do NAT on a PPP link, use the -alias switch to
+.Xr ppp 8 .
 
 .Pp
 .Nm Natd
