@@ -25,6 +25,8 @@ static char cpu_model[128];
 SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD,
     cpu_model, 0, "Machine model");
 
+int cpu_impl;
+
 void
 cpu_identify(unsigned int freq)
 {
@@ -46,20 +48,21 @@ cpu_identify(unsigned int freq)
 		manus = "Sun Microsystems";
 		break;
 	}
-	switch (VER_IMPL(vers)) {
-	case 0x01:
+	cpu_impl = VER_IMPL(vers);
+	switch (cpu_impl) {
+	case CPU_IMPL_SPARC64:
 		impls = "SPARC64";
 		break;
-	case 0x10:
+	case CPU_IMPL_ULTRASPARCI:
 		impls = "UltraSparc-I";
 		break;
-	case 0x11:
+	case CPU_IMPL_ULTRASPARCII:
 		impls = "UltraSparc-II";
 		break;
-	case 0x12:
+	case CPU_IMPL_ULTRASPARCIIi:
 		impls = "UltraSparc-IIi";
 		break;
-	case 0x13:
+	case CPU_IMPL_ULTRASPARCIIe:
 		/* V9 Manual says `UltraSparc-e'.  I assume this is wrong. */
 		impls = "UltraSparc-IIe";
 		break;
