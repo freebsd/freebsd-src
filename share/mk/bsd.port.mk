@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.73 1994/11/21 10:30:37 ats Exp $
+# $Id: bsd.port.mk,v 1.74 1994/11/25 17:04:02 ache Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -36,8 +36,10 @@
 # DISTNAME		- Name of port or distribution.
 # DISTFILES		- Name(s) of archive file(s) containing distribution
 #				  (default: ${DISTDIR}/${DISTNAME}${EXTRACT_SUFX}).
-# EXTRACT_ONLY		- If defined, a subset of ${DISTFILES} you want to
-#			  	actually extract.
+# PKGNAME		- Name of the package file to create if the DISTNAME 
+#				  isn't really relevant for the port/package
+# EXTRACT_ONLY	- If defined, a subset of ${DISTFILES} you want to
+#			  	  actually extract.
 # PATCHDIR 		- A directory containing any required patches.
 # SCRIPTDIR 	- A directory containing any auxilliary scripts.
 # FILESDIR 		- A directory containing any miscellaneous additional files.
@@ -54,6 +56,8 @@
 # NO_DEPENDS	- Don't verify build of dependencies.
 # USE_GMAKE		- Says that the port uses gmake.
 # USE_IMAKE		- Says that the port uses imake.
+# NO_INSTALL_MANPAGES - For imake ports that don't like the install.man
+						target.
 # HAS_CONFIGURE	- Says that the port has its own configure script.
 # GNU_CONFIGURE	- Set if you are using GNU configure (optional).
 # CONFIGURE_ARGS - Pass these args to configure, if $HAS_CONFIGURE.
@@ -149,7 +153,11 @@ TOUCH_FLAGS?=	-f
 
 PATCH?=			patch
 PATCH_STRIP?=	-p0
-PATCH_ARGS?=	 -d ${WRKSRC} --quiet -E ${PATCH_STRIP}
+.if defined(PATCH_DEBUG)
+PATCH_ARGS?=	-d ${WRKSRC} -E ${PATCH_STRIP}
+.else
+PATCH_ARGS?=	-d ${WRKSRC} --forward --quiet -E ${PATCH_STRIP}
+.endif
 
 EXTRACT_CMD?=	tar
 EXTRACT_SUFX?=	.tar.gz
@@ -176,11 +184,12 @@ MASTER_SITES=	${MASTER_SITE_OVERRIDE}
 
 # Derived names so that they're easily overridable.
 DISTFILES?=		${DISTNAME}${EXTRACT_SUFX}
+PKGNAME?=		${DISTNAME}
 
 .if exists(${PACKAGES})
-PKGFILE?=		${PACKAGES}/${DISTNAME}${PKG_SUFX}
+PKGFILE?=		${PACKAGES}/${PKGNAME}${PKG_SUFX}
 .else
-PKGFILE?=		${DISTNAME}${PKG_SUFX}
+PKGFILE?=		${PKGNAME}${PKG_SUFX}
 .endif
 
 .if defined(GNU_CONFIGURE)
@@ -281,7 +290,7 @@ ${INSTALL_COOKIE}:
 	@(cd ${WRKSRC}; ${GMAKE} PREFIX=${PREFIX} ${MAKE_FLAGS} ${MAKEFILE} ${INSTALL_TARGET})
 .else defined(USE_GMAKE)
 	@(cd ${WRKSRC}; ${MAKE} PREFIX=${PREFIX} ${MAKE_FLAGS} ${MAKEFILE} ${INSTALL_TARGET})
-.if defined(USE_IMAKE) && defined(INSTALL_MANPAGES)
+.if defined(USE_IMAKE) && !defined(NO_INSTALL_MANPAGES)
 	@(cd ${WRKSRC}; ${MAKE} ${MAKE_FLAGS} ${MAKEFILE} install.man)
 .endif
 .endif
@@ -357,8 +366,18 @@ patch: pre-patch ${PATCH_COOKIE}
 
 ${PATCH_COOKIE}:
 	@if [ -d ${PATCHDIR} ]; then \
+.if defined(PATCH_DEBUG)
 		echo "===>  Applying patches for ${DISTNAME}" ; \
-		for i in ${PATCHDIR}/patch-*; do ${PATCH} ${PATCH_ARGS} < $$i; done; \
+		for i in ${PATCHDIR}/patch-*; \
+			echo "===>   Applying patch $$i" ; \
+			do ${PATCH} ${PATCH_ARGS} < $$i; \
+		done; \
+	fi
+.else
+		echo "===>  Applying patches for ${DISTNAME}" ; \
+		for i in ${PATCHDIR}/patch-*; \
+			do ${PATCH} {$PATCH_ARGS} < $$i; \
+		done;\
 	fi
 	@${TOUCH} ${TOUCH_FLAGS} ${PATCH_COOKIE}
 .endif
