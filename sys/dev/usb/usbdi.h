@@ -124,6 +124,7 @@ usb_endpoint_descriptor_t *usbd_interface2endpoint_descriptor
 usbd_status usbd_abort_pipe __P((usbd_pipe_handle pipe));
 usbd_status usbd_clear_endpoint_stall __P((usbd_pipe_handle pipe));
 usbd_status usbd_clear_endpoint_stall_async __P((usbd_pipe_handle pipe));
+void usbd_clear_endpoint_toggle __P((usbd_pipe_handle pipe));
 usbd_status usbd_endpoint_count
 	__P((usbd_interface_handle dev, u_int8_t *count));
 usbd_status usbd_interface_count
