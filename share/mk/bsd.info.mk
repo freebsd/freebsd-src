@@ -22,7 +22,7 @@
 # ICOMPRESS_CMD	Program to compress info files. Output is to
 #		stdout. [${COMPRESS_CMD}]
 #
-# INFO		texinfo files, without suffix.  [set in Makefile] 
+# INFO		texinfo files, without suffix.  [set in Makefile]
 #
 # INFO2HTML	A program for converting GNU info files into HTML files
 #		[info2html]
@@ -111,11 +111,11 @@ DVIPS2ASCII?=	dvips2ascii
 	mv -f ${.TARGET}.new ${.TARGET}
 
 .dvi.ps:
-	${DVIPS} -o ${.TARGET} ${.IMPSRC} 	
+	${DVIPS} -o ${.TARGET} ${.IMPSRC}
 
 .info.html:
 	${INFO2HTML} ${.IMPSRC}
-	ln -f ${.TARGET:R}.info.Top.html ${.TARGET} 
+	ln -f ${.TARGET:R}.info.Top.html ${.TARGET}
 
 .PATH: ${.CURDIR} ${SRCDIR}
 
