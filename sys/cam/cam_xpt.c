@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.16 1998/10/06 19:27:19 ken Exp $
+ *      $Id: cam_xpt.c,v 1.17 1998/10/07 03:25:21 gibbs Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -5543,8 +5543,13 @@ xpt_config(void *arg)
 	if (busses_to_config == 0) {
 		/* Call manually because we don't have any busses */
 		xpt_finishconfig(xpt_periph, NULL);
-	} else 
+	} else  {
+		if (SCSI_DELAY >= 2000) {
+			printf("Waiting %d seconds for SCSI "
+			       "devices to settle\n", SCSI_DELAY/1000);
+		}
 		xpt_for_all_busses(xptconfigfunc, NULL);
+	}
 }
 
 static int
