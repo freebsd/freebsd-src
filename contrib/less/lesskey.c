@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2000  Mark Nudelman
+ * Copyright (C) 1984-2002  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -93,87 +93,87 @@ struct cmdname
 
 struct cmdname cmdnames[] = 
 {
-	"back-bracket",		A_B_BRACKET,
-	"back-line",		A_B_LINE,
-	"back-line-force",	A_BF_LINE,
-	"back-screen",		A_B_SCREEN,
-	"back-scroll",		A_B_SCROLL,
-	"back-search",		A_B_SEARCH,
-	"back-window",		A_B_WINDOW,
-	"debug",		A_DEBUG,
-	"digit",		A_DIGIT,
-	"display-flag",		A_DISP_OPTION,
-	"display-option",	A_DISP_OPTION,
-	"end",			A_GOEND,
-	"examine",		A_EXAMINE,
-	"first-cmd",		A_FIRSTCMD,
-	"firstcmd",		A_FIRSTCMD,
-	"flush-repaint",	A_FREPAINT,
-	"forw-bracket",		A_F_BRACKET,
-	"forw-forever",		A_F_FOREVER,
-	"forw-line",		A_F_LINE,
-	"forw-line-force",	A_FF_LINE,
-	"forw-screen",		A_F_SCREEN,
-	"forw-screen-force",	A_FF_SCREEN,
-	"forw-scroll",		A_F_SCROLL,
-	"forw-search",		A_F_SEARCH,
-	"forw-window",		A_F_WINDOW,
-	"goto-end",		A_GOEND,
-	"goto-line",		A_GOLINE,
-	"goto-mark",		A_GOMARK,
-	"help",			A_HELP,
-	"index-file",		A_INDEX_FILE,
-	"invalid",		A_UINVALID,
-	"left-scroll",		A_LSHIFT,
-	"next-file",		A_NEXT_FILE,
-	"next-tag",		A_NEXT_TAG,
-	"noaction",		A_NOACTION,
-	"percent",		A_PERCENT,
-	"pipe",			A_PIPE,
-	"prev-file",		A_PREV_FILE,
-	"prev-tag",		A_PREV_TAG,
-	"quit",			A_QUIT,
-	"remove-file",		A_REMOVE_FILE,
-	"repaint",		A_REPAINT,
-	"repaint-flush",	A_FREPAINT,
-	"repeat-search",	A_AGAIN_SEARCH,
-	"repeat-search-all",	A_T_AGAIN_SEARCH,
-	"reverse-search",	A_REVERSE_SEARCH,
-	"reverse-search-all",	A_T_REVERSE_SEARCH,
-	"right-scroll",		A_RSHIFT,
-	"set-mark",		A_SETMARK,
-	"shell",		A_SHELL,
-	"status",		A_STAT,
-	"toggle-flag",		A_OPT_TOGGLE,
-	"toggle-option",	A_OPT_TOGGLE,
-	"undo-hilite",		A_UNDO_SEARCH,
-	"version",		A_VERSION,
-	"visual",		A_VISUAL,
-	NULL,			0
+	{ "back-bracket",	A_B_BRACKET },
+	{ "back-line",		A_B_LINE },
+	{ "back-line-force",	A_BF_LINE },
+	{ "back-screen",	A_B_SCREEN },
+	{ "back-scroll",	A_B_SCROLL },
+	{ "back-search",	A_B_SEARCH },
+	{ "back-window",	A_B_WINDOW },
+	{ "debug",		A_DEBUG },
+	{ "digit",		A_DIGIT },
+	{ "display-flag",	A_DISP_OPTION },
+	{ "display-option",	A_DISP_OPTION },
+	{ "end",		A_GOEND },
+	{ "examine",		A_EXAMINE },
+	{ "first-cmd",		A_FIRSTCMD },
+	{ "firstcmd",		A_FIRSTCMD },
+	{ "flush-repaint",	A_FREPAINT },
+	{ "forw-bracket",	A_F_BRACKET },
+	{ "forw-forever",	A_F_FOREVER },
+	{ "forw-line",		A_F_LINE },
+	{ "forw-line-force",	A_FF_LINE },
+	{ "forw-screen",	A_F_SCREEN },
+	{ "forw-screen-force",	A_FF_SCREEN },
+	{ "forw-scroll",	A_F_SCROLL },
+	{ "forw-search",	A_F_SEARCH },
+	{ "forw-window",	A_F_WINDOW },
+	{ "goto-end",		A_GOEND },
+	{ "goto-line",		A_GOLINE },
+	{ "goto-mark",		A_GOMARK },
+	{ "help",		A_HELP },
+	{ "index-file",		A_INDEX_FILE },
+	{ "invalid",		A_UINVALID },
+	{ "left-scroll",	A_LSHIFT },
+	{ "next-file",		A_NEXT_FILE },
+	{ "next-tag",		A_NEXT_TAG },
+	{ "noaction",		A_NOACTION },
+	{ "percent",		A_PERCENT },
+	{ "pipe",		A_PIPE },
+	{ "prev-file",		A_PREV_FILE },
+	{ "prev-tag",		A_PREV_TAG },
+	{ "quit",		A_QUIT },
+	{ "remove-file",	A_REMOVE_FILE },
+	{ "repaint",		A_REPAINT },
+	{ "repaint-flush",	A_FREPAINT },
+	{ "repeat-search",	A_AGAIN_SEARCH },
+	{ "repeat-search-all",	A_T_AGAIN_SEARCH },
+	{ "reverse-search",	A_REVERSE_SEARCH },
+	{ "reverse-search-all",	A_T_REVERSE_SEARCH },
+	{ "right-scroll",	A_RSHIFT },
+	{ "set-mark",		A_SETMARK },
+	{ "shell",		A_SHELL },
+	{ "status",		A_STAT },
+	{ "toggle-flag",	A_OPT_TOGGLE },
+	{ "toggle-option",	A_OPT_TOGGLE },
+	{ "undo-hilite",	A_UNDO_SEARCH },
+	{ "version",		A_VERSION },
+	{ "visual",		A_VISUAL },
+	{ NULL, 0 }
 };
 
 struct cmdname editnames[] = 
 {
-	"back-complete",	EC_B_COMPLETE,
-	"backspace",		EC_BACKSPACE,
-	"delete",		EC_DELETE,
-	"down",			EC_DOWN,
-	"end",			EC_END,
-	"expand",		EC_EXPAND,
-	"forw-complete",	EC_F_COMPLETE,
-	"home",			EC_HOME,
-	"insert",		EC_INSERT,
-	"invalid",		EC_UINVALID,
-	"kill-line",		EC_LINEKILL,
-	"left",			EC_LEFT,
-	"literal",		EC_LITERAL,
-	"right",		EC_RIGHT,
-	"up",			EC_UP,
-	"word-backspace",	EC_W_BACKSPACE,
-	"word-delete",		EC_W_DELETE,
-	"word-left",		EC_W_LEFT,
-	"word-right",		EC_W_RIGHT,
-	NULL,			0
+	{ "back-complete",	EC_B_COMPLETE },
+	{ "backspace",		EC_BACKSPACE },
+	{ "delete",		EC_DELETE },
+	{ "down",		EC_DOWN },
+	{ "end",		EC_END },
+	{ "expand",		EC_EXPAND },
+	{ "forw-complete",	EC_F_COMPLETE },
+	{ "home",		EC_HOME },
+	{ "insert",		EC_INSERT },
+	{ "invalid",		EC_UINVALID },
+	{ "kill-line",		EC_LINEKILL },
+	{ "left",		EC_LEFT },
+	{ "literal",		EC_LITERAL },
+	{ "right",		EC_RIGHT },
+	{ "up",			EC_UP },
+	{ "word-backspace",	EC_W_BACKSPACE },
+	{ "word-delete",	EC_W_DELETE },
+	{ "word-left",		EC_W_LEFT },
+	{ "word-right",		EC_W_RIGHT },
+	{ NULL, 0 }
 };
 
 struct table
@@ -352,8 +352,9 @@ init_tables()
  * Parse one character of a string.
  */
 	char *
-tstr(pp)
+tstr(pp, xlate)
 	char **pp;
+	int xlate;
 {
 	register char *p;
 	register char ch;
@@ -380,7 +381,7 @@ tstr(pp)
 				ch = 8*ch + (*p - '0');
 			while (*++p >= '0' && *p <= '7' && ++i < 3);
 			*pp = p;
-			if (ch == CONTROL('K'))
+			if (xlate && ch == CONTROL('K'))
 				return tstr_control_k;
 			buf[0] = ch;
 			buf[1] = '\0';
@@ -403,31 +404,35 @@ tstr(pp)
 			*pp = p+1;
 			return ("\t");
 		case 'k':
-			switch (*++p)
+			if (xlate)
 			{
-			case 'u': ch = SK_UP_ARROW; break;
-			case 'd': ch = SK_DOWN_ARROW; break;
-			case 'r': ch = SK_RIGHT_ARROW; break;
-			case 'l': ch = SK_LEFT_ARROW; break;
-			case 'U': ch = SK_PAGE_UP; break;
-			case 'D': ch = SK_PAGE_DOWN; break;
-			case 'h': ch = SK_HOME; break;
-			case 'e': ch = SK_END; break;
-			case 'x': ch = SK_DELETE; break;
-			default:
-				error("illegal char after \\k");
+				switch (*++p)
+				{
+				case 'u': ch = SK_UP_ARROW; break;
+				case 'd': ch = SK_DOWN_ARROW; break;
+				case 'r': ch = SK_RIGHT_ARROW; break;
+				case 'l': ch = SK_LEFT_ARROW; break;
+				case 'U': ch = SK_PAGE_UP; break;
+				case 'D': ch = SK_PAGE_DOWN; break;
+				case 'h': ch = SK_HOME; break;
+				case 'e': ch = SK_END; break;
+				case 'x': ch = SK_DELETE; break;
+				default:
+					error("illegal char after \\k");
+					*pp = p+1;
+					return ("");
+				}
 				*pp = p+1;
-				return ("");
+				buf[0] = SK_SPECIAL_KEY;
+				buf[1] = ch;
+				buf[2] = 6;
+				buf[3] = 1;
+				buf[4] = 1;
+				buf[5] = 1;
+				buf[6] = '\0';
+				return (buf);
 			}
-			*pp = p+1;
-			buf[0] = SK_SPECIAL_KEY;
-			buf[1] = ch;
-			buf[2] = 6;
-			buf[3] = 1;
-			buf[4] = 1;
-			buf[5] = 1;
-			buf[6] = '\0';
-			return (buf);
+			/* FALLTHRU */
 		default:
 			/*
 			 * Backslash followed by any other char 
@@ -436,7 +441,7 @@ tstr(pp)
 			*pp = p+1;
 			buf[0] = *p;
 			buf[1] = '\0';
-			if (buf[0] == CONTROL('K'))
+			if (xlate && buf[0] == CONTROL('K'))
 				return tstr_control_k;
 			return (buf);
 		}
@@ -454,7 +459,7 @@ tstr(pp)
 	*pp = p+1;
 	buf[0] = *p;
 	buf[1] = '\0';
-	if (buf[0] == CONTROL('K'))
+	if (xlate && buf[0] == CONTROL('K'))
 		return tstr_control_k;
 	return (buf);
 }
@@ -639,7 +644,7 @@ parse_cmdline(p)
 	cmdlen = 0;
 	do
 	{
-		s = tstr(&p);
+		s = tstr(&p, 1);
 		cmdlen += strlen(s);
 		if (cmdlen > MAX_CMDLEN)
 			error("command too long");
@@ -688,7 +693,7 @@ parse_cmdline(p)
 		 */
 		add_cmd_char(action | A_EXTRA);
 		while (*p != '\0')
-			add_cmd_str(tstr(&p));
+			add_cmd_str(tstr(&p, 0));
 		add_cmd_char('\0');
 	}
 }
@@ -701,7 +706,7 @@ parse_varline(p)
 
 	do
 	{
-		s = tstr(&p);
+		s = tstr(&p, 0);
 		add_cmd_str(s);
 	} while (*p != ' ' && *p != '\t' && *p != '=' && *p != '\0');
 	/*
@@ -721,7 +726,7 @@ parse_varline(p)
 	p = skipsp(p);
 	while (*p != '\0')
 	{
-		s = tstr(&p);
+		s = tstr(&p, 0);
 		add_cmd_str(s);
 	}
 	add_cmd_char('\0');
@@ -763,7 +768,7 @@ main(argc, argv)
 {
 	FILE *desc;
 	FILE *out;
-	char line[200];
+	char line[1024];
 
 #ifdef WIN32
 	if (getenv("HOME") == NULL)

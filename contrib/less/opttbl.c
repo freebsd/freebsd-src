@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2000  Mark Nudelman
+ * Copyright (C) 1984-2002  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -34,8 +34,8 @@ public int back_scroll;		/* Repaint screen on backwards movement */
 public int forw_scroll;		/* Repaint screen on forward movement */
 public int caseless;		/* Do "caseless" searches */
 public int linenums;		/* Use line numbers */
-public int cbufs;		/* Current number of buffers */
 public int autobuf;		/* Automatically allocate buffers as needed */
+public int bufspace;		/* Max buffer space per file (K) */
 public int ctldisp;		/* Send control chars to screen untranslated */
 public int force_open;		/* Open the file even if not regular file */
 public int swindow;		/* Size of scrolling window */
@@ -47,6 +47,7 @@ public int twiddle;             /* Show tildes after EOF */
 public int show_attn;		/* Hilite first unread line */
 public int shift_count;		/* Number of positions to shift horizontally */
 public int status_col;		/* Display a status column */
+public int use_lessopen;	/* Use the LESSOPEN filter */
 #if HILITE_SEARCH
 public int hilite_search;	/* Highlight matched search patterns? */
 #endif
@@ -75,6 +76,7 @@ static struct optname J__optname     = { "status-column",        NULL };
 #if USERFILE
 static struct optname k_optname      = { "lesskey-file",         NULL };
 #endif
+static struct optname L__optname     = { "no-lessopen",          NULL };
 static struct optname m_optname      = { "long-prompt",          NULL };
 static struct optname n_optname      = { "line-numbers",         NULL };
 #if LOGFILE
@@ -118,238 +120,304 @@ static struct optname keypad_optname = { "no-keypad",            NULL };
  * a new value, and odesc[1], if not NULL, is the set of characters
  * that are valid in the string.
  */
-static struct option option[] =
+static struct loption option[] =
 {
 	{ 'a', &a_optname,
 		BOOL, OPT_OFF, &how_search, NULL,
-		"Search includes displayed screen",
-		"Search skips displayed screen",
-		NULL
+		{
+			"Search includes displayed screen",
+			"Search skips displayed screen",
+			NULL
+		}
 	},
 
 	{ 'b', &b_optname,
-		NUMBER, 10, &cbufs, opt_b, 
-		"Buffers: ",
-		"%d buffers",
-		NULL
+		NUMBER|INIT_HANDLER, 64, &bufspace, opt_b, 
+		{
+			"Max buffer space per file (K): ",
+			"Max buffer space per file: %dK",
+			NULL
+		}
 	},
 	{ 'B', &B__optname,
 		BOOL, OPT_ON, &autobuf, NULL,
-		"Don't automatically allocate buffers",
-		"Automatically allocate buffers when needed",
-		NULL
+		{
+			"Don't automatically allocate buffers",
+			"Automatically allocate buffers when needed",
+			NULL
+		}
 	},
 	{ 'c', &c_optname,
 		TRIPLE, OPT_OFF, &top_scroll, NULL,
-		"Repaint by scrolling from bottom of screen",
-		"Repaint by clearing each line",
-		"Repaint by painting from top of screen"
+		{
+			"Repaint by scrolling from bottom of screen",
+			"Repaint by clearing each line",
+			"Repaint by painting from top of screen"
+		}
 	},
 	{ 'd', &d_optname,
 		BOOL|NO_TOGGLE, OPT_OFF, &know_dumb, NULL,
-		"Assume intelligent terminal",
-		"Assume dumb terminal",
-		NULL
+		{
+			"Assume intelligent terminal",
+			"Assume dumb terminal",
+			NULL
+		}
 	},
 #if MSDOS_COMPILER
 	{ 'D', &D__optname,
 		STRING|REPAINT|NO_QUERY, 0, NULL, opt_D,
-		"color desc: ", 
-		"Ddknsu0123456789.",
-		NULL
+		{
+			"color desc: ", 
+			"Ddknsu0123456789.",
+			NULL
+		}
 	},
 #endif
 	{ 'e', &e_optname,
 		TRIPLE, OPT_OFF, &quit_at_eof, NULL,
-		"Don't quit at end-of-file",
-		"Quit at end-of-file",
-		"Quit immediately at end-of-file"
+		{
+			"Don't quit at end-of-file",
+			"Quit at end-of-file",
+			"Quit immediately at end-of-file"
+		}
 	},
 	{ 'f', &f_optname,
 		BOOL, OPT_OFF, &force_open, NULL,
-		"Open only regular files",
-		"Open even non-regular files",
-		NULL
+		{
+			"Open only regular files",
+			"Open even non-regular files",
+			NULL
+		}
 	},
 	{ 'F', &F__optname,
 		BOOL, OPT_OFF, &quit_if_one_screen, NULL,
-		"Don't quit if end-of-file on first screen",
-		"Quit if end-of-file on first screen",
-		NULL
+		{
+			"Don't quit if end-of-file on first screen",
+			"Quit if end-of-file on first screen",
+			NULL
+		}
 	},
 #if HILITE_SEARCH
 	{ 'g', &g_optname,
 		TRIPLE|HL_REPAINT, OPT_ONPLUS, &hilite_search, NULL,
-		"Don't highlight search matches",
-		"Highlight matches for previous search only",
-		"Highlight all matches for previous search pattern",
+		{
+			"Don't highlight search matches",
+			"Highlight matches for previous search only",
+			"Highlight all matches for previous search pattern",
+		}
 	},
 #endif
 	{ 'h', &h_optname,
 		NUMBER, -1, &back_scroll, NULL,
-		"Backwards scroll limit: ",
-		"Backwards scroll limit is %d lines",
-		NULL
+		{
+			"Backwards scroll limit: ",
+			"Backwards scroll limit is %d lines",
+			NULL
+		}
 	},
 	{ 'i', &i_optname,
 		TRIPLE|HL_REPAINT, OPT_OFF, &caseless, opt_i,
-		"Case is significant in searches",
-		"Ignore case in searches",
-		"Ignore case in searches and in patterns"
+		{
+			"Case is significant in searches",
+			"Ignore case in searches",
+			"Ignore case in searches and in patterns"
+		}
 	},
 	{ 'j', &j_optname,
 		NUMBER, 1, &jump_sline, NULL,
-		"Target line: ",
-		"Position target at screen line %d",
-		NULL
+		{
+			"Target line: ",
+			"Position target at screen line %d",
+			NULL
+		}
 	},
 	{ 'J', &J__optname,
 		BOOL|REPAINT, OPT_OFF, &status_col, NULL,
-		"Don't display a status column",
-		"Display a status column",
-		NULL
+		{
+			"Don't display a status column",
+			"Display a status column",
+			NULL
+		}
 	},
 #if USERFILE
 	{ 'k', &k_optname,
 		STRING|NO_TOGGLE|NO_QUERY, 0, NULL, opt_k,
-		NULL, NULL, NULL
+		{ NULL, NULL, NULL }
 	},
 #endif
 	{ 'l', NULL,
 		STRING|NO_TOGGLE|NO_QUERY, 0, NULL, opt_l,
-		NULL, NULL, NULL
+		{ NULL, NULL, NULL }
+	},
+	{ 'L', &L__optname,
+		BOOL, OPT_ON, &use_lessopen, NULL,
+		{
+			"Don't use the LESSOPEN filter",
+			"Use the LESSOPEN filter",
+			NULL
+		}
 	},
 	{ 'm', &m_optname,
 		TRIPLE, OPT_OFF, &pr_type, NULL,
-		"Short prompt",
-		"Medium prompt",
-		"Long prompt"
+		{
+			"Short prompt",
+			"Medium prompt",
+			"Long prompt"
+		}
 	},
 	{ 'n', &n_optname,
 		TRIPLE|REPAINT, OPT_ON, &linenums, NULL,
-		"Don't use line numbers",
-		"Use line numbers",
-		"Constantly display line numbers"
+		{
+			"Don't use line numbers",
+			"Use line numbers",
+			"Constantly display line numbers"
+		}
 	},
 #if LOGFILE
 	{ 'o', &o_optname,
 		STRING, 0, NULL, opt_o,
-		"log file: ", NULL, NULL
+		{ "log file: ", NULL, NULL }
 	},
 	{ 'O', &O__optname,
 		STRING, 0, NULL, opt__O,
-		"Log file: ", NULL, NULL
+		{ "Log file: ", NULL, NULL }
 	},
 #endif
 	{ 'p', &p_optname,
 		STRING|NO_TOGGLE|NO_QUERY, 0, NULL, opt_p,
-		NULL, NULL, NULL
+		{ NULL, NULL, NULL }
 	},
 	{ 'P', &P__optname,
 		STRING, 0, NULL, opt__P,
-		"prompt: ", NULL, NULL
+		{ "prompt: ", NULL, NULL }
 	},
 	{ 'q', &q_optname,
 		TRIPLE, OPT_OFF, &quiet, NULL,
-		"Ring the bell for errors AND at eof/bof",
-		"Ring the bell for errors but not at eof/bof",
-		"Never ring the bell"
+		{
+			"Ring the bell for errors AND at eof/bof",
+			"Ring the bell for errors but not at eof/bof",
+			"Never ring the bell"
+		}
 	},
 	{ 'r', &r_optname,
 		TRIPLE|REPAINT, OPT_OFF, &ctldisp, NULL,
-		"Display control characters as ^X",
-		"Display control characters directly",
-		"Display control characters directly, processing ANSI sequences"
+		{
+			"Display control characters as ^X",
+			"Display control characters directly",
+			"Display control characters directly, processing ANSI sequences"
+		}
 	},
 	{ 's', &s_optname,
 		BOOL|REPAINT, OPT_OFF, &squeeze, NULL,
-		"Display all blank lines",
-		"Squeeze multiple blank lines",
-		NULL
+		{
+			"Display all blank lines",
+			"Squeeze multiple blank lines",
+			NULL
+		}
 	},
 	{ 'S', &S__optname,
 		BOOL|REPAINT, OPT_OFF, &chopline, NULL,
-		"Fold long lines",
-		"Chop long lines",
-		NULL
+		{
+			"Fold long lines",
+			"Chop long lines",
+			NULL
+		}
 	},
 #if TAGS
 	{ 't', &t_optname,
 		STRING|NO_QUERY, 0, NULL, opt_t,
-		"tag: ", NULL, NULL
+		{ "tag: ", NULL, NULL }
 	},
 	{ 'T', &T__optname,
 		STRING, 0, NULL, opt__T,
-		"tags file: ", NULL, NULL
+		{ "tags file: ", NULL, NULL }
 	},
 #endif
 	{ 'u', &u_optname,
 		TRIPLE|REPAINT, OPT_OFF, &bs_mode, NULL,
-		"Display underlined text in underline mode",
-		"Backspaces cause overstrike",
-		"Print backspace as ^H"
+		{
+			"Display underlined text in underline mode",
+			"Backspaces cause overstrike",
+			"Print backspace as ^H"
+		}
 	},
 	{ 'V', &V__optname,
 		NOVAR, 0, NULL, opt__V,
-		NULL, NULL, NULL
+		{ NULL, NULL, NULL }
 	},
 	{ 'w', &w_optname,
 		TRIPLE|REPAINT, OPT_OFF, &show_attn, NULL,
-		"Don't highlight first unread line",
-		"Highlight first unread line after forward-screen",
-		"Highlight first unread line after any forward movement",
+		{
+			"Don't highlight first unread line",
+			"Highlight first unread line after forward-screen",
+			"Highlight first unread line after any forward movement",
+		}
 	},
 	{ 'x', &x_optname,
 		STRING|REPAINT, 0, NULL, opt_x,
-		"Tab stops: ",
-		"0123456789,",
-		NULL
+		{
+			"Tab stops: ",
+			"0123456789,",
+			NULL
+		}
 	},
 	{ 'X', &X__optname,
 		BOOL|NO_TOGGLE, OPT_OFF, &no_init, NULL,
-		"Send init/deinit strings to terminal",
-		"Don't use init/deinit strings",
-		NULL
+		{
+			"Send init/deinit strings to terminal",
+			"Don't use init/deinit strings",
+			NULL
+		}
 	},
 	{ 'y', &y_optname,
 		NUMBER, -1, &forw_scroll, NULL,
-		"Forward scroll limit: ",
-		"Forward scroll limit is %d lines",
-		NULL
+		{
+			"Forward scroll limit: ",
+			"Forward scroll limit is %d lines",
+			NULL
+		}
 	},
 	{ 'z', &z_optname,
 		NUMBER, -1, &swindow, NULL,
-		"Scroll window size: ",
-		"Scroll window size is %d lines",
-		NULL
+		{
+			"Scroll window size: ",
+			"Scroll window size is %d lines",
+			NULL
+		}
 	},
 	{ '"', &quote_optname,
 		STRING, 0, NULL, opt_quote,
-		"quotes: ", NULL, NULL
+		{ "quotes: ", NULL, NULL }
 	},
 	{ '~', &tilde_optname,
 		BOOL|REPAINT, OPT_ON, &twiddle, NULL,
-		"Don't show tildes after end of file",
-		"Show tildes after end of file",
-		NULL
+		{
+			"Don't show tildes after end of file",
+			"Show tildes after end of file",
+			NULL
+		}
 	},
 	{ '?', &query_optname,
 		NOVAR, 0, NULL, opt_query,
-		NULL, NULL, NULL
+		{ NULL, NULL, NULL }
 	},
 	{ '#', &pound_optname,
 		NUMBER, 0, &shift_count, NULL,
-		"Horizontal shift: ",
-		"Horizontal shift %d positions",
-		NULL
+		{
+			"Horizontal shift: ",
+			"Horizontal shift %d positions",
+			NULL
+		}
 	},
 	{ '.', &keypad_optname,
 		BOOL|NO_TOGGLE, OPT_OFF, &no_keypad, NULL,
-		"Use keypad mode",
-		"Don't use keypad mode",
-		NULL
+		{
+			"Use keypad mode",
+			"Don't use keypad mode",
+			NULL
+		}
 	},
-	{ '\0', NULL, NOVAR, 0, NULL, NULL, NULL, NULL, NULL }
+	{ '\0', NULL, NOVAR, 0, NULL, NULL, { NULL, NULL, NULL } }
 };
 
 
@@ -359,7 +427,7 @@ static struct option option[] =
 	public void
 init_option()
 {
-	register struct option *o;
+	register struct loption *o;
 
 	for (o = option;  o->oletter != '\0';  o++)
 	{
@@ -368,17 +436,19 @@ init_option()
 		 */
 		if (o->ovar != NULL)
 			*(o->ovar) = o->odefault;
+		if (o->otype & INIT_HANDLER)
+			(*(o->ofunc))(INIT, (char *) NULL);
 	}
 }
 
 /*
  * Find an option in the option table, given its option letter.
  */
-	public struct option *
+	public struct loption *
 findopt(c)
 	int c;
 {
-	register struct option *o;
+	register struct loption *o;
 
 	for (o = option;  o->oletter != '\0';  o++)
 	{
@@ -391,27 +461,44 @@ findopt(c)
 }
 
 /*
+ *
+ */
+	static int
+is_optchar(c)
+	char c;
+{
+	if (SIMPLE_IS_UPPER(c))
+		return 1;
+	if (SIMPLE_IS_LOWER(c))
+		return 1;
+	if (c == '-')
+		return 1;
+	return 0;
+}
+
+/*
  * Find an option in the option table, given its option name.
  * p_optname is the (possibly partial) name to look for, and
  * is updated to point after the matched name.
  * p_oname if non-NULL is set to point to the full option name.
  */
-	public struct option *
+	public struct loption *
 findopt_name(p_optname, p_oname, p_err)
 	char **p_optname;
 	char **p_oname;
 	int *p_err;
 {
 	char *optname = *p_optname;
-	register struct option *o;
+	register struct loption *o;
 	register struct optname *oname;
 	register int len;
 	int uppercase;
-	struct option *maxo = NULL;
+	struct loption *maxo = NULL;
 	struct optname *maxoname = NULL;
 	int maxlen = 0;
 	int ambig = 0;
 	int exact = 0;
+	char *eq;
 
 	/*
 	 * Check all options.
@@ -431,6 +518,13 @@ findopt_name(p_optname, p_oname, p_err)
 			for (uppercase = 0;  uppercase <= 1;  uppercase++)
 			{
 				len = sprefix(optname, oname->oname, uppercase);
+				if (len <= 0 || is_optchar(optname[len]))
+				{
+					/*
+					 * We didn't use all of the option name.
+					 */
+					continue;
+				}
 				if (!exact && len == maxlen)
 					/*
 					 * Already had a partial match,
@@ -466,6 +560,6 @@ findopt_name(p_optname, p_oname, p_err)
 	}
 	*p_optname = optname + maxlen;
 	if (p_oname != NULL)
-		*p_oname = maxoname->oname;
+		*p_oname = maxoname == NULL ? NULL : maxoname->oname;
 	return (maxo);
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2000  Mark Nudelman
+ * Copyright (C) 1984-2002  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -23,6 +23,7 @@
 #define	NO_TOGGLE	0100	/* Option cannot be toggled with "-" cmd */
 #define	HL_REPAINT	0200	/* Repaint hilites after toggling option */
 #define	NO_QUERY	0400	/* Option cannot be queried with "_" cmd */
+#define	INIT_HANDLER	01000	/* Call option handler function at startup */
 
 #define	OTYPE		(BOOL|TRIPLE|NUMBER|STRING|NOVAR)
 
@@ -49,7 +50,7 @@ struct optname
 	struct optname *onext;  /* List of synonymous option names */
 };
 
-struct option
+struct loption
 {
 	char oletter;		/* The controlling letter (a-z) */
 	struct optname *onames; /* Long (GNU-style) option name */

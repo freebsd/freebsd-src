@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2000  Mark Nudelman
+ * Copyright (C) 1984-2002  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -624,7 +624,26 @@ v370 12/23/01	Fix tags error messages.
 -----------------------------------------------------------------
 v371 12/26/01	Fix new_file bug; use popen in Windows version;
 		fix some compiler warnings.
-
+v372 12/29/01	Make -b be in units of 1K.
+v373  1/14/02	Improve handling of filenames containing shell metachars.
+v374   2/7/02	Fix memory leak; fix bug in -x argument parsing.
+v375   4/7/02	Fix searching for SGR sequences; fix SECURE build;
+		add SGR support to DJGPP version (thanks to Eli Zaretskii).
+v376  6/10/02	Fix bug in overstriking mulitbyte UTF-8 characters
+		(thanks to Jungshik Shin).
+		Posted to Web page.
+-----------------------------------------------------------------
+v377  9/10/02	Fix bug in Windows version when file contains CR;
+		fix bug in search highlights with -R;
+		make initial buffer limit really be 64K not unlimited.
+v378  9/30/02	Misc bug fixes and compiler warning cleanup.
+		Posted to Web page.
+-----------------------------------------------------------------
+v379 11/23/02	Add -L option; fix bug with ctrl-K in lesskey files;
+		improve UTF-8 overstriking and underscore overstriking;
+		fix minor man page problems; change to autoconf 2.54.
+v380 11/24/02	Make LINENUM same as POSITION.
+v381 11/28/02	Make -N use 7 columns for line number if possible.
 */
 
-char version[] = "371";
+char version[] = "381";
