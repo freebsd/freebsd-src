@@ -344,7 +344,7 @@ static void
 lpt_identify(driver_t *driver, device_t parent)
 {
 
-	BUS_ADD_CHILD(parent, 0, LPT_NAME, 0);
+	BUS_ADD_CHILD(parent, 0, LPT_NAME, -1);
 }
 
 /*
