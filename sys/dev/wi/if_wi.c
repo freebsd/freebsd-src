@@ -2781,6 +2781,12 @@ wi_cache_store(struct wi_softc *sc, struct ether_header *eh,
 
 	sig = (rx_quality >> 8) & 0xFF;
 	noise = rx_quality & 0xFF;
+
+	/*
+	 * -149 is Lucent specific to convert to dBm.  Prism2 cards do
+	 * things differently, sometimes don't have a noise measurement,
+	 * and is firmware dependent :-(
+	 */
 	sc->wi_sigcache[cache_slot].signal = sig - 149;
 	sc->wi_sigcache[cache_slot].noise = noise - 149;
 	sc->wi_sigcache[cache_slot].quality = sig - noise;
