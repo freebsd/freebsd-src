@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.238 1997/04/22 06:55:26 jdp Exp $
+ *	$Id: machdep.c,v 1.239 1997/04/26 11:45:10 peter Exp $
  */
 
 #include "npx.h"
@@ -462,7 +462,7 @@ sendsig(catcher, sig, mask, code)
 	u_long code;
 {
 	register struct proc *p = curproc;
-	register int *regs;
+	register struct trapframe *regs;
 	register struct sigframe *fp;
 	struct sigframe sf;
 	struct sigacts *psp = p->p_sigacts;
@@ -479,7 +479,7 @@ sendsig(catcher, sig, mask, code)
 		    psp->ps_sigstk.ss_size - sizeof(struct sigframe));
 		psp->ps_sigstk.ss_flags |= SS_ONSTACK;
 	} else {
-		fp = (struct sigframe *)regs[tESP] - 1;
+		fp = (struct sigframe *)regs->tf_esp - 1;
 	}
 
 	/*
@@ -514,31 +514,31 @@ sendsig(catcher, sig, mask, code)
 	sf.sf_signum = sig;
 	sf.sf_code = code;
 	sf.sf_scp = &fp->sf_sc;
-	sf.sf_addr = (char *) regs[tERR];
+	sf.sf_addr = (char *) regs->tf_err;
 	sf.sf_handler = catcher;
 
 	/* save scratch registers */
-	sf.sf_sc.sc_eax = regs[tEAX];
-	sf.sf_sc.sc_ebx = regs[tEBX];
-	sf.sf_sc.sc_ecx = regs[tECX];
-	sf.sf_sc.sc_edx = regs[tEDX];
-	sf.sf_sc.sc_esi = regs[tESI];
-	sf.sf_sc.sc_edi = regs[tEDI];
-	sf.sf_sc.sc_cs = regs[tCS];
-	sf.sf_sc.sc_ds = regs[tDS];
-	sf.sf_sc.sc_ss = regs[tSS];
-	sf.sf_sc.sc_es = regs[tES];
-	sf.sf_sc.sc_isp = regs[tISP];
+	sf.sf_sc.sc_eax = regs->tf_eax;
+	sf.sf_sc.sc_ebx = regs->tf_ebx;
+	sf.sf_sc.sc_ecx = regs->tf_ecx;
+	sf.sf_sc.sc_edx = regs->tf_edx;
+	sf.sf_sc.sc_esi = regs->tf_esi;
+	sf.sf_sc.sc_edi = regs->tf_edi;
+	sf.sf_sc.sc_cs = regs->tf_cs;
+	sf.sf_sc.sc_ds = regs->tf_ds;
+	sf.sf_sc.sc_ss = regs->tf_ss;
+	sf.sf_sc.sc_es = regs->tf_es;
+	sf.sf_sc.sc_isp = regs->tf_isp;
 
 	/*
 	 * Build the signal context to be used by sigreturn.
 	 */
 	sf.sf_sc.sc_onstack = oonstack;
 	sf.sf_sc.sc_mask = mask;
-	sf.sf_sc.sc_sp = regs[tESP];
-	sf.sf_sc.sc_fp = regs[tEBP];
-	sf.sf_sc.sc_pc = regs[tEIP];
-	sf.sf_sc.sc_ps = regs[tEFLAGS];
+	sf.sf_sc.sc_sp = regs->tf_esp;
+	sf.sf_sc.sc_fp = regs->tf_ebp;
+	sf.sf_sc.sc_pc = regs->tf_eip;
+	sf.sf_sc.sc_ps = regs->tf_eflags;
 
 	/*
 	 * Copy the sigframe out to the user's stack.
@@ -551,13 +551,13 @@ sendsig(catcher, sig, mask, code)
 		sigexit(p, SIGILL);
 	};
 
-	regs[tESP] = (int)fp;
-	regs[tEIP] = (int)(((char *)PS_STRINGS) - *(p->p_sysent->sv_szsigcode));
-	regs[tEFLAGS] &= ~PSL_VM;
-	regs[tCS] = _ucodesel;
-	regs[tDS] = _udatasel;
-	regs[tES] = _udatasel;
-	regs[tSS] = _udatasel;
+	regs->tf_esp = (int)fp;
+	regs->tf_eip = (int)(((char *)PS_STRINGS) - *(p->p_sysent->sv_szsigcode));
+	regs->tf_eflags &= ~PSL_VM;
+	regs->tf_cs = _ucodesel;
+	regs->tf_ds = _udatasel;
+	regs->tf_es = _udatasel;
+	regs->tf_ss = _udatasel;
 }
 
 /*
@@ -579,11 +579,11 @@ sigreturn(p, uap, retval)
 {
 	register struct sigcontext *scp;
 	register struct sigframe *fp;
-	register int *regs = p->p_md.md_regs;
+	register struct trapframe *regs = p->p_md.md_regs;
 	int eflags;
 
 	/*
-	 * (XXX old comment) regs[tESP] points to the return address.
+	 * (XXX old comment) regs->tf_esp points to the return address.
 	 * The user scp pointer is above that.
 	 * The return address is faked in the signal trampoline code
 	 * for consistency.
@@ -610,7 +610,7 @@ sigreturn(p, uap, retval)
 	 * bit at worst causes one more or one less debugger trap, so
 	 * allowing it is fairly harmless.
 	 */
-	if (!EFLAGS_SECURE(eflags & ~PSL_RF, regs[tEFLAGS] & ~PSL_RF)) {
+	if (!EFLAGS_SECURE(eflags & ~PSL_RF, regs->tf_eflags & ~PSL_RF)) {
 #ifdef DEBUG
     		printf("sigreturn: eflags = 0x%x\n", eflags);
 #endif
@@ -632,17 +632,17 @@ sigreturn(p, uap, retval)
 	}
 
 	/* restore scratch registers */
-	regs[tEAX] = scp->sc_eax;
-	regs[tEBX] = scp->sc_ebx;
-	regs[tECX] = scp->sc_ecx;
-	regs[tEDX] = scp->sc_edx;
-	regs[tESI] = scp->sc_esi;
-	regs[tEDI] = scp->sc_edi;
-	regs[tCS] = scp->sc_cs;
-	regs[tDS] = scp->sc_ds;
-	regs[tES] = scp->sc_es;
-	regs[tSS] = scp->sc_ss;
-	regs[tISP] = scp->sc_isp;
+	regs->tf_eax = scp->sc_eax;
+	regs->tf_ebx = scp->sc_ebx;
+	regs->tf_ecx = scp->sc_ecx;
+	regs->tf_edx = scp->sc_edx;
+	regs->tf_esi = scp->sc_esi;
+	regs->tf_edi = scp->sc_edi;
+	regs->tf_cs = scp->sc_cs;
+	regs->tf_ds = scp->sc_ds;
+	regs->tf_es = scp->sc_es;
+	regs->tf_ss = scp->sc_ss;
+	regs->tf_isp = scp->sc_isp;
 
 	if (useracc((caddr_t)scp, sizeof (*scp), B_WRITE) == 0)
 		return(EINVAL);
@@ -652,10 +652,10 @@ sigreturn(p, uap, retval)
 	else
 		p->p_sigacts->ps_sigstk.ss_flags &= ~SS_ONSTACK;
 	p->p_sigmask = scp->sc_mask & ~sigcantmask;
-	regs[tEBP] = scp->sc_fp;
-	regs[tESP] = scp->sc_sp;
-	regs[tEIP] = scp->sc_pc;
-	regs[tEFLAGS] = eflags;
+	regs->tf_ebp = scp->sc_fp;
+	regs->tf_esp = scp->sc_sp;
+	regs->tf_eip = scp->sc_pc;
+	regs->tf_eflags = eflags;
 	return(EJUSTRETURN);
 }
 
@@ -689,7 +689,7 @@ setregs(p, entry, stack)
 	u_long entry;
 	u_long stack;
 {
-	int *regs = p->p_md.md_regs;
+	struct trapframe *regs = p->p_md.md_regs;
 
 #ifdef USER_LDT
 	struct pcb *pcb = &p->p_addr->u_pcb;
@@ -704,14 +704,14 @@ setregs(p, entry, stack)
  	}
 #endif
   
-	bzero(regs, sizeof(struct trapframe));
-	regs[tEIP] = entry;
-	regs[tESP] = stack;
-	regs[tEFLAGS] = PSL_USER | (regs[tEFLAGS] & PSL_T);
-	regs[tSS] = _udatasel;
-	regs[tDS] = _udatasel;
-	regs[tES] = _udatasel;
-	regs[tCS] = _ucodesel;
+	bzero((char *)regs, sizeof(struct trapframe));
+	regs->tf_eip = entry;
+	regs->tf_esp = stack;
+	regs->tf_eflags = PSL_USER | (regs->tf_eflags & PSL_T);
+	regs->tf_ss = _udatasel;
+	regs->tf_ds = _udatasel;
+	regs->tf_es = _udatasel;
+	regs->tf_cs = _ucodesel;
 
 	/*
 	 * Initialize the math emulator (if any) for the current process.
@@ -1447,23 +1447,12 @@ init386(first)
 	proc0.p_addr->u_pcb.pcb_mpnest = 1;
 }
 
-/*
- * The registers are in the frame; the frame is in the user area of
- * the process in question; when the process is active, the registers
- * are in "the kernel stack"; when it's not, they're still there, but
- * things get flipped around.  So, since p->p_md.md_regs is the whole address
- * of the register set, take its offset from the kernel stack, and
- * index into the user block.  Don't you just *love* virtual memory?
- * (I'm starting to think seymour is right...)
- */
-#define	TF_REGP(p)	((struct trapframe *)(p)->p_md.md_regs)
-
 int
 ptrace_set_pc(p, addr)
 	struct proc *p;
 	unsigned int addr;
 {
-	TF_REGP(p)->tf_eip = addr;
+	p->p_md.md_regs->tf_eip = addr;
 	return (0);
 }
 
@@ -1471,7 +1460,7 @@ int
 ptrace_single_step(p)
 	struct proc *p;
 {
-	TF_REGP(p)->tf_eflags |= PSL_T;
+	p->p_md.md_regs->tf_eflags |= PSL_T;
 	return (0);
 }
 
@@ -1490,7 +1479,7 @@ int ptrace_write_u(p, off, data)
 	 */
 	min = (char *)p->p_md.md_regs - (char *)p->p_addr;
 	if (off >= min && off <= min + sizeof(struct trapframe) - sizeof(int)) {
-		tp = TF_REGP(p);
+		tp = p->p_md.md_regs;
 		frame_copy = *tp;
 		*(int *)((char *)&frame_copy + (off - min)) = data;
 		if (!EFLAGS_SECURE(frame_copy.tf_eflags, tp->tf_eflags) ||
@@ -1514,7 +1503,7 @@ fill_regs(p, regs)
 {
 	struct trapframe *tp;
 
-	tp = TF_REGP(p);
+	tp = p->p_md.md_regs;
 	regs->r_es = tp->tf_es;
 	regs->r_ds = tp->tf_ds;
 	regs->r_edi = tp->tf_edi;
@@ -1539,7 +1528,7 @@ set_regs(p, regs)
 {
 	struct trapframe *tp;
 
-	tp = TF_REGP(p);
+	tp = p->p_md.md_regs;
 	if (!EFLAGS_SECURE(regs->r_eflags, tp->tf_eflags) ||
 	    !CS_SECURE(regs->r_cs))
 		return (EINVAL);
