@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: strxfrm.c,v 1.2 1995/02/16 17:01:11 ache Exp $
+ * $Id: strxfrm.c,v 1.3 1995/02/18 01:39:00 ache Exp $
  */
 
 #include <stdlib.h>
@@ -49,13 +49,15 @@ strxfrm(dest, src, len)
 	}
 
 	if (__collate_load_error) {
-		size_t slen, ncopy;
+		size_t slen = strlen(src);
 
-		slen = strlen(src);
-		ncopy = slen < len ? slen : len - 1;
-		(void)memcpy(d, src, ncopy);
-		d[ncopy] = '\0';
-		return ncopy;
+		if (slen < len) {
+			strcpy(d, src);
+			return slen;
+		}
+		strncpy(d, src, len - 1);
+		d[len - 1] = '\0';
+		return len - 1;
 	}
 
 	ss = s = __collate_substitute(src);
