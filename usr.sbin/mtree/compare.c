@@ -68,14 +68,8 @@ static char *ftype __P((u_int));
 #define	INDENTNAMELEN	8
 #define	LABEL \
 	if (!label++) { \
-		len = printf("%s: ", RP(p)); \
-		if (len > INDENTNAMELEN) { \
-			tab = "\t"; \
-			(void)printf("\n"); \
-		} else { \
-			tab = ""; \
-			(void)printf("%*s", INDENTNAMELEN - (int)len, ""); \
-		} \
+		len = printf("%s changed\n", RP(p)); \
+		tab = "\t"; \
 	}
 
 int
@@ -119,7 +113,7 @@ compare(name, s, p)
 	case F_SOCK:
 		if (!S_ISSOCK(p->fts_statp->st_mode)) {
 typeerr:		LABEL;
-			(void)printf("\ttype (%s, %s)\n",
+			(void)printf("\ttype expected %s found %s\n",
 			    ftype(s->type), inotype(p->fts_statp->st_mode));
 		}
 		break;
@@ -127,57 +121,58 @@ typeerr:		LABEL;
 	/* Set the uid/gid first, then set the mode. */
 	if (s->flags & (F_UID | F_UNAME) && s->st_uid != p->fts_statp->st_uid) {
 		LABEL;
-		(void)printf("%suser (%lu, %lu",
+		(void)printf("%suser expected %lu found %lu",
 		    tab, (u_long)s->st_uid, (u_long)p->fts_statp->st_uid);
 		if (uflag)
 			if (chown(p->fts_accpath, s->st_uid, -1))
-				(void)printf(", not modified: %s)\n",
+				(void)printf(" not modified: %s\n",
 				    strerror(errno));
 			else
-				(void)printf(", modified)\n");
+				(void)printf(" modified\n");
 		else
-			(void)printf(")\n");
+			(void)printf("\n");
 		tab = "\t";
 	}
 	if (s->flags & (F_GID | F_GNAME) && s->st_gid != p->fts_statp->st_gid) {
 		LABEL;
-		(void)printf("%sgid (%lu, %lu",
+		(void)printf("%sgid expected %lu found %lu",
 		    tab, (u_long)s->st_gid, (u_long)p->fts_statp->st_gid);
 		if (uflag)
 			if (chown(p->fts_accpath, -1, s->st_gid))
-				(void)printf(", not modified: %s)\n",
+				(void)printf(" not modified: %s\n",
 				    strerror(errno));
 			else
-				(void)printf(", modified)\n");
+				(void)printf(" modified\n");
 		else
-			(void)printf(")\n");
+			(void)printf("\n");
 		tab = "\t";
 	}
 	if (s->flags & F_MODE &&
 	    s->st_mode != (p->fts_statp->st_mode & MBITS)) {
 		LABEL;
-		(void)printf("%spermissions (%#o, %#o",
+		(void)printf("%spermissions expected %#o found %#o",
 		    tab, s->st_mode, p->fts_statp->st_mode & MBITS);
 		if (uflag)
 			if (chmod(p->fts_accpath, s->st_mode))
-				(void)printf(", not modified: %s)\n",
+				(void)printf(" not modified: %s\n",
 				    strerror(errno));
 			else
-				(void)printf(", modified)\n");
+				(void)printf(" modified\n");
 		else
-			(void)printf(")\n");
+			(void)printf("\n");
 		tab = "\t";
 	}
 	if (s->flags & F_NLINK && s->type != F_DIR &&
 	    s->st_nlink != p->fts_statp->st_nlink) {
 		LABEL;
-		(void)printf("%slink count (%u, %u)\n",
+		(void)printf("%slink_count expected %u found %u\n",
 		    tab, s->st_nlink, p->fts_statp->st_nlink);
 		tab = "\t";
 	}
-	if (s->flags & F_SIZE && s->st_size != p->fts_statp->st_size) {
+	if (s->flags & F_SIZE && s->st_size != p->fts_statp->st_size &&
+		!S_ISDIR(p->fts_statp->st_mode)) {
 		LABEL;
-		(void)printf("%ssize (%qd, %qd)\n",
+		(void)printf("%ssize expected %qd found %qd\n",
 		    tab, s->st_size, p->fts_statp->st_size);
 		tab = "\t";
 	}
@@ -189,9 +184,9 @@ typeerr:		LABEL;
 	     ((s->st_mtimespec.tv_sec != p->fts_statp->st_mtimespec.tv_sec) ||
 	     (s->st_mtimespec.tv_nsec != p->fts_statp->st_mtimespec.tv_nsec))) {
 		LABEL;
-		(void)printf("%smodification time (%.24s, ",
+		(void)printf("%smodification time expected %.24s ",
 		    tab, ctime(&s->st_mtimespec.tv_sec));
-		(void)printf("%.24s)\n",
+		(void)printf("found %.24s\n",
 		    ctime(&p->fts_statp->st_mtimespec.tv_sec));
 		tab = "\t";
 	}
@@ -211,7 +206,7 @@ typeerr:		LABEL;
 			(void)close(fd);
 			if (s->cksum != val) {
 				LABEL;
-				(void)printf("%scksum (%lu, %lu)\n",
+				(void)printf("%scksum expected %lu found %lu\n",
 				    tab, s->cksum, val);
 			}
 			tab = "\t";
@@ -226,21 +221,21 @@ typeerr:		LABEL;
 	if ((s->flags & F_FLAGS) && s->st_flags != p->fts_statp->st_flags) {
 		LABEL;
 		fflags = flags_to_string(s->st_flags);
-		(void)printf("%sflags (\"%s\" is not ", tab, fflags);
+		(void)printf("%sflags expected \"%s\"", tab, fflags);
 		free(fflags);
 
 		fflags = flags_to_string(p->fts_statp->st_flags);
-		(void)printf("\"%s\"", fflags);
+		(void)printf(" found \"%s\"", fflags);
 		free(fflags);
 
 		if (uflag)
 			if (chflags(p->fts_accpath, s->st_flags))
-				(void)printf(", not modified: %s)\n",
+				(void)printf(" not modified: %s\n",
 				    strerror(errno));
 			else
-				(void)printf(", modified)\n");
+				(void)printf(" modified\n");
 		else
-			(void)printf(")\n");
+			(void)printf("\n");
 		tab = "\t";
 	}
 #ifdef MD5
@@ -250,12 +245,12 @@ typeerr:		LABEL;
 		new_digest = MD5File(p->fts_accpath, buf);
 		if (!new_digest) {
 			LABEL;
-			printf("%sMD5File: %s: %s\n", tab, p->fts_accpath,
+			printf("%sMD5: %s: %s\n", tab, p->fts_accpath,
 			       strerror(errno));
 			tab = "\t";
 		} else if (strcmp(new_digest, s->md5digest)) {
 			LABEL;
-			printf("%sMD5 (%s, %s)\n", tab, s->md5digest,
+			printf("%sMD5 expected %s found %s\n", tab, s->md5digest,
 			       new_digest);
 			tab = "\t";
 		}
@@ -268,13 +263,13 @@ typeerr:		LABEL;
 		new_digest = SHA1_File(p->fts_accpath, buf);
 		if (!new_digest) {
 			LABEL;
-			printf("%sSHA1_File: %s: %s\n", tab, p->fts_accpath,
+			printf("%sSHA-1: %s: %s\n", tab, p->fts_accpath,
 			       strerror(errno));
 			tab = "\t";
 		} else if (strcmp(new_digest, s->sha1digest)) {
 			LABEL;
-			printf("%sSHA-1 (%s, %s)\n", tab, s->sha1digest,
-			       new_digest);
+			printf("%sSHA-1 expected %s found %s\n", 
+			       tab, s->sha1digest, new_digest);
 			tab = "\t";
 		}
 	}
@@ -286,13 +281,13 @@ typeerr:		LABEL;
 		new_digest = RIPEMD160_File(p->fts_accpath, buf);
 		if (!new_digest) {
 			LABEL;
-			printf("%sRIPEMD160_File: %s: %s\n", tab,
+			printf("%sRIPEMD160: %s: %s\n", tab,
 			       p->fts_accpath, strerror(errno));
 			tab = "\t";
 		} else if (strcmp(new_digest, s->rmd160digest)) {
 			LABEL;
-			printf("%sRIPEMD160 (%s, %s)\n", tab, s->rmd160digest,
-			       new_digest);
+			printf("%sRIPEMD160 expected %s found %s\n",
+			       tab, s->rmd160digest, new_digest);
 			tab = "\t";
 		}
 	}
@@ -301,7 +296,8 @@ typeerr:		LABEL;
 	if (s->flags & F_SLINK &&
 	    strcmp(cp = rlink(p->fts_accpath), s->slink)) {
 		LABEL;
-		(void)printf("%slink ref (%s, %s)\n", tab, cp, s->slink);
+		(void)printf("%slink_ref expected %s found %s\n",
+		      tab, cp, s->slink);
 	}
 	return (label);
 }
