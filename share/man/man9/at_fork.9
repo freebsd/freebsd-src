@@ -35,7 +35,8 @@
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
 .Fd #include <sys/systm.h>
-.Ft typedef void \*(lp*forklist_fn\*(rp \*(lpstruct proc*, struct proc*, int\*(rp;
+.Ft "typedef void" ( *forklist_fn )
+.Fa ( "struct proc*" , "struct proc*" , int ) ;
 .Pp
 .Ft int
 .Fn at_fork "forklist_fn func"
