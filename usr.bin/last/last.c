@@ -83,6 +83,8 @@ struct ttytab {
 static long	currentout,			/* current logout value */
 		maxrec;				/* records to display */
 static char	*file = _PATH_WTMP;		/* wtmp file */
+static int	sflag = 0;			/* show delta in seconds */
+static int	width = 5;			/* show seconds in delta */
 
 void	 addarg __P((int, char *));
 void	 hostconv __P((char *));
@@ -90,6 +92,14 @@ void	 onintr __P((int));
 char	*ttyconv __P((char *));
 int	 want __P((struct utmp *));
 void	 wtmp __P((void));
+
+void
+usage(void)
+{
+	(void)fprintf(stderr,
+	"usage: last [-#] [-f file] [-h hostname] [-t tty] [-s|w] [user ...]\n");
+	exit(1);
+}
 
 int
 main(argc, argv)
@@ -104,7 +114,7 @@ main(argc, argv)
 	(void) setlocale(LC_TIME, "");
 
 	maxrec = -1;
-	while ((ch = getopt(argc, argv, "0123456789f:h:t:")) != -1)
+	while ((ch = getopt(argc, argv, "0123456789f:h:st:w")) != -1)
 		switch (ch) {
 		case '0': case '1': case '2': case '3': case '4':
 		case '5': case '6': case '7': case '8': case '9':
@@ -129,15 +139,21 @@ main(argc, argv)
 			hostconv(optarg);
 			addarg(HOST_TYPE, optarg);
 			break;
+		case 's':
+			sflag++;	/* Show delta as seconds */
+			break;
 		case 't':
 			addarg(TTY_TYPE, ttyconv(optarg));
 			break;
+		case 'w':
+			width = 8;
+			break;
 		case '?':
 		default:
-			(void)fprintf(stderr,
-	"usage: last [-#] [-f file] [-t tty] [-h hostname] [user ...]\n");
-			exit(1);
+			usage();
 		}
+
+	if (sflag && width == 8) usage();
 
 	if (argc) {
 		setlinebuf(stdout);
@@ -280,13 +296,18 @@ wtmp()
 							printf("- %5.5s", ct + 11);
 						}
 						delta = tt->logout - bp->ut_time;
-						tm = gmtime(&delta);
-						(void) strftime(ct, sizeof(ct), "%c", tm);
-						if (delta < 86400)
-							printf("  (%5.5s)\n", ct + 11);
-						else
-							printf(" (%ld+%5.5s)\n",
-							    delta / 86400, ct + 11);
+						if ( sflag ) {
+							printf("  (%8lu)\n", 
+								delta);
+						} else {
+						    tm = gmtime(&delta);
+						    (void) strftime(ct, sizeof(ct), "%c", tm);
+						    if (delta < 86400)
+							printf("  (%*.*s)\n", width, width, ct + 11);
+						    else
+							printf(" (%ld+%*.*s)\n",
+							    delta / 86400, width, width, ct + 11);
+						}
 					}
 					LIST_REMOVE(tt, list);
 					free(tt);
