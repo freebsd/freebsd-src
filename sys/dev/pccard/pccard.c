@@ -807,6 +807,20 @@ pccard_detach(device_t dev)
 	return 0;
 }
 
+static int
+pccard_suspend(device_t self)
+{
+	pccard_detach_card(self, 0);
+	return (0);
+}
+
+static
+int
+pccard_resume(device_t self)
+{
+	return (0);
+}
+
 static void
 pccard_print_resources(struct resource_list *rl, const char *name, int type,
     int count, const char *format)
@@ -1200,8 +1214,8 @@ static device_method_t pccard_methods[] = {
 	DEVMETHOD(device_attach,	pccard_attach),
 	DEVMETHOD(device_detach,	pccard_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	DEVMETHOD(device_suspend,	bus_generic_suspend),
-	DEVMETHOD(device_resume,	bus_generic_resume),
+	DEVMETHOD(device_suspend,	pccard_suspend),
+	DEVMETHOD(device_resume,	pccard_resume),
 
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	pccard_print_child),
