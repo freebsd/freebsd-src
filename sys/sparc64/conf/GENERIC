@@ -136,7 +136,6 @@ device		mc146818	# Motorola MC146818 and compatible clocks
 
 # Serial (COM) ports
 #device		sab		# Siemens SAB82532 based serial ports
-#device		zs		# Zilog 8530 based serial ports
 device		uart		# Multi-uart driver
 device		puc		# Multi-channel uarts
 
