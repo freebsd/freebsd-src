@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_subr.c	8.20 (Berkeley) 5/20/95
- * $Id: union_subr.c,v 1.20 1997/08/14 03:57:46 kato Exp $
+ * $Id: union_subr.c,v 1.21 1997/09/21 04:23:32 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -74,9 +74,17 @@ static int	union_relookup __P((struct union_mount *um, struct vnode *dvp,
 				    struct componentname *cnp,
 				    struct componentname *cn, char *path,
 				    int pathlen));
-extern void	union_updatevp __P((struct union_node *un,
+static void	union_updatevp __P((struct union_node *un,
 				    struct vnode *uppervp,
 				    struct vnode *lowervp));
+static void union_newlower __P((struct union_node *, struct vnode *));
+static void union_newupper __P((struct union_node *, struct vnode *));
+static int union_copyfile __P((struct vnode *, struct vnode *,
+					struct ucred *, struct proc *));
+static int union_vn_create __P((struct vnode **, struct union_node *,
+				struct proc *));
+static int union_vn_close __P((struct vnode *, int, struct ucred *,
+				struct proc *));
 
 int
 union_init()
@@ -118,7 +126,7 @@ union_list_unlock(ix)
 	}
 }
 
-void
+static void
 union_updatevp(un, uppervp, lowervp)
 	struct union_node *un;
 	struct vnode *uppervp;
@@ -127,7 +135,7 @@ union_updatevp(un, uppervp, lowervp)
 	int ohash = UNION_HASH(un->un_uppervp, un->un_lowervp);
 	int nhash = UNION_HASH(uppervp, lowervp);
 	int docache = (lowervp != NULLVP || uppervp != NULLVP);
-	int lhash, hhash, uhash;
+	int lhash, uhash;
 
 	/*
 	 * Ensure locking is ordered from lower to higher
@@ -190,7 +198,7 @@ union_updatevp(un, uppervp, lowervp)
 	union_list_unlock(nhash);
 }
 
-void
+static void
 union_newlower(un, lowervp)
 	struct union_node *un;
 	struct vnode *lowervp;
@@ -199,7 +207,7 @@ union_newlower(un, lowervp)
 	union_updatevp(un, un->un_uppervp, lowervp);
 }
 
-void
+static void
 union_newupper(un, uppervp)
 	struct union_node *un;
 	struct vnode *uppervp;
@@ -568,7 +576,7 @@ union_freevp(vp)
  * using a sequence of reads and writes.  both (fvp)
  * and (tvp) are locked on entry and exit.
  */
-int
+static int
 union_copyfile(fvp, tvp, cred, p)
 	struct vnode *fvp;
 	struct vnode *tvp;
@@ -840,7 +848,6 @@ union_mkwhiteout(um, dvp, cnp, path)
 	char *path;
 {
 	int error;
-	struct vattr va;
 	struct proc *p = cnp->cn_proc;
 	struct vnode *wvp;
 	struct componentname cn;
@@ -879,7 +886,7 @@ union_mkwhiteout(um, dvp, cnp, path)
  * things, and b) it doesn't start at the "right" directory,
  * whereas relookup is told where to start.
  */
-int
+static int
 union_vn_create(vpp, un, p)
 	struct vnode **vpp;
 	struct union_node *un;
@@ -960,7 +967,7 @@ union_vn_create(vpp, un, p)
 	return (0);
 }
 
-int
+static int
 union_vn_close(vp, fmode, cred, p)
 	struct vnode *vp;
 	int fmode;
