@@ -417,7 +417,8 @@ loop:
 		nvp = TAILQ_NEXT(xvp, v_nmntvnodes);
 		VI_LOCK(xvp);
 		mtx_unlock(&mntvnode_mtx);
-		if (xvp->v_usecount == 0 || xvp->v_type == VNON ||
+		if ((xvp->v_iflag & VI_XLOCK) ||
+		    xvp->v_usecount == 0 || xvp->v_type == VNON ||
 		    (VTOI(xvp)->i_flags & SF_SNAPSHOT)) {
 			VI_UNLOCK(xvp);
 			mtx_lock(&mntvnode_mtx);
