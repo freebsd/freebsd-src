@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_module.c,v 1.1 1997/05/07 16:05:31 dfr Exp $
+ *	$Id: kern_module.c,v 1.2 1997/08/02 14:31:33 bde Exp $
  */
 
 #include <sys/param.h>
@@ -77,13 +77,13 @@ module_shutdown(int arg1, void* arg2)
 }
 
 void
-module_register_static(void *arg)
+module_register_init(void *arg)
 {
     moduledata_t* data = (moduledata_t*) arg;
     int error;
 
     if (error = module_register(data->name, data->evhand, data->priv))
-	printf("module_register_static: module_register(%s, %x, %x) returned %d",
+	printf("module_register_init: module_register(%s, %x, %x) returned %d",
 	       data->name, data->evhand, data->priv, error);
 }
 
