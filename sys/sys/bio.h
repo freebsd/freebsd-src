@@ -439,6 +439,7 @@ bufq_first(struct buf_queue_head *head)
 
 #ifdef KERNEL
 extern int	nbuf;			/* The number of buffer headers */
+extern int      buf_maxio;              /* nominal maximum I/O for buffer */
 extern struct	buf *buf;		/* The buffer headers. */
 extern char	*buffers;		/* The buffer contents. */
 extern int	bufpages;		/* Number of memory pages in the buffer pool. */
