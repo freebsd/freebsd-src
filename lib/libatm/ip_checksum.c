@@ -66,9 +66,7 @@ __FBSDID("$FreeBSD$");
  *
  */
 short
-ip_checksum(addr, count)
-	char 	*addr;
-	int	count;
+ip_checksum(const char *addr, int count)
 {
 	/* Compute Internet Checksum for "count" bytes
 	 * beginning at location "addr".
@@ -77,14 +75,14 @@ ip_checksum(addr, count)
 
 	while( count > 1 ) {
 		/* This is the inner loop */
-		sum += ntohs(* (unsigned short *)(void *)addr);
+		sum += ntohs(* (const unsigned short *)(const void *)addr);
 		addr += sizeof(unsigned short);
 		count -= sizeof(unsigned short);
 	}
 
 	/* Add left-over byte, if any */
 	if( count > 0 )
-		sum += * (unsigned char *) addr;
+		sum += * (const unsigned char *) addr;
 
 	/* Fold 32-bit sum to 16 bits */
 	while (sum>>16)
