@@ -126,7 +126,7 @@ ddp_input(m, ifp, elh, phase)
 	 * Make sure that we point to the phase1 ifaddr info 
 	 * and that it's valid for this packet.
 	 */
-	for (aa = at_ifaddr; aa; aa = aa->aa_next) {
+	for (aa = at_ifaddr_list; aa != NULL; aa = aa->aa_next) {
 	    if ((aa->aa_ifp == ifp)
 	    && ((aa->aa_flags & AFA_PHASE2) == 0)
 	    && ((to.sat_addr.s_node == AA_SAT(aa)->sat_addr.s_node)
@@ -185,7 +185,7 @@ ddp_input(m, ifp, elh, phase)
 	     * this node number will match (which may NOT be what we want,
 	     * but it's probably safe in 99.999% of cases.
 	     */
-	    for (aa = at_ifaddr; aa; aa = aa->aa_next) {
+	    for (aa = at_ifaddr_list; aa != NULL; aa = aa->aa_next) {
 		if (phase == 1 && (aa->aa_flags & AFA_PHASE2)) {
 		    continue;
 		}
@@ -204,7 +204,7 @@ ddp_input(m, ifp, elh, phase)
 	     * A destination network was given. We just try to find 
 	     * which ifaddr info matches it.
 	     */
-	    for (aa = at_ifaddr; aa; aa = aa->aa_next) {
+	    for (aa = at_ifaddr_list; aa != NULL; aa = aa->aa_next) {
 		/*
 		 * This is a kludge. Accept packets that are
 		 * for any router on a local netrange.
