@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 1/4/94
-#	$Id: Makefile,v 1.17 1994/10/26 18:35:39 ljo Exp $
+#	$Id: Makefile,v 1.18 1994/10/31 00:42:20 ats Exp $
 #
 # Doing a make install builds /usr/include
 #
@@ -42,7 +42,7 @@ OSREL	= ${DESTDIR}/usr/include/osreldate.h
 beforeinstall: ${SHARED}
 	@${ECHO} installing ${FILES}
 	@-for i in ${FILES}; do \
-		cmp -s $$i ${DESTDIR}/usr/include/$$i > /dev/null 2>&1 || \
+		cmp -s $$i ${DESTDIR}/usr/include/$$i || \
 		    install -c -o ${BINOWN} -g ${BINGRP} -m 444 $$i \
 		    ${DESTDIR}/usr/include/$$i; \
 	done
@@ -50,7 +50,7 @@ beforeinstall: ${SHARED}
 	@echo \#'undef __FreeBSD_version' > ${OSREL}.new
 	@echo \#'define __FreeBSD_version '`sysctl -n kern.osreldate` \
 		>> ${OSREL}.new
-	@if cmp -s ${OSREL} ${OSREL}.new >/dev/null 2>&1 ; then \
+	@if cmp -s ${OSREL} ${OSREL}.new ; then \
 		rm -f ${OSREL}.new ; else \
 		mv -f ${OSREL}.new ${OSREL} ; fi
 	@chown ${BINOWN}.${BINGRP} ${OSREL}
@@ -64,8 +64,7 @@ beforeinstall: ${SHARED}
 		chown ${BINOWN}.${BINGRP} ${DESTDIR}/usr/include/$$i; \
 		chmod 755 ${DESTDIR}/usr/include/$$i; \
 		(cd $$i; for j in *.[ih]; do \
-			cmp -s $$j ${DESTDIR}/usr/include/$$i/$$j > \
-			    /dev/null 2>&1 || \
+			cmp -s $$j ${DESTDIR}/usr/include/$$i/$$j || \
 			    install -c -o ${BINOWN} -g ${BINGRP} -m 444 $$j \
 			    ${DESTDIR}/usr/include/$$i/$$j; \
 		done); \
