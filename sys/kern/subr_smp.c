@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.65 1998/02/09 06:08:13 eivind Exp $
+ *	$Id: mp_machdep.c,v 1.66 1998/03/01 04:18:50 dyson Exp $
  */
 
 #include "opt_smp.h"
@@ -2280,12 +2280,14 @@ forward_statclock(int pscnt)
 		checkstate_need_ast |= map;
 		selected_apic_ipi(map, XCPUAST_OFFSET, APIC_DELMODE_FIXED);
 		i = 0;
-		while (checkstate_need_ast != 0) {
+		while ((checkstate_need_ast & map) != 0) {
 			/* spin */
 			i++;
-			if (i > 1000000) { 
+			if (i > 100000) { 
+#ifdef BETTER_CLOCK_DIAGNOSTIC
 				printf("forward_statclock: dropped ast 0x%x\n",
-				       checkstate_need_ast);
+				       checkstate_need_ast & map);
+#endif
 				break;
 			}
 		}
@@ -2369,12 +2371,14 @@ forward_hardclock(int pscnt)
 		checkstate_need_ast |= map;
 		selected_apic_ipi(map, XCPUAST_OFFSET, APIC_DELMODE_FIXED);
 		i = 0;
-		while (checkstate_need_ast != 0) {
+		while ((checkstate_need_ast & map) != 0) {
 			/* spin */
 			i++;
-			if (i > 1000000) { 
+			if (i > 100000) { 
+#ifdef BETTER_CLOCK_DIAGNOSTIC
 				printf("forward_hardclock: dropped ast 0x%x\n",
-				       checkstate_need_ast);
+				       checkstate_need_ast & map);
+#endif
 				break;
 			}
 		}
