@@ -416,25 +416,27 @@ Delete_Chunk(struct disk *d, struct chunk *c)
 int
 Delete_Chunk2(struct disk *d, struct chunk *c, int rflags)
 {
-	struct chunk *c1 = 0, *c2, *c3;
-	chunk_e type = c->type;
+	struct chunk *c1, *c2, *c3;
 	u_long offset = c->offset;
 
-	if(type == whole)
+	switch (c->type) {
+	case whole:
+	case unused:
 		return 1;
-#ifndef PC98
-	if (!c1 && (type == freebsd || type == fat || type == unknown))
-		c1 = Find_Mother_Chunk(d->chunks, c->offset, c->end, extended);
-#endif
-	if (!c1 && (type == freebsd || type == fat || type == unknown))
+	case extended:
 		c1 = Find_Mother_Chunk(d->chunks, c->offset, c->end, whole);
-#ifndef PC98
-	if (!c1 && type == extended)
-		c1 = Find_Mother_Chunk(d->chunks, c->offset, c->end, whole);
-#endif
-	if (!c1 && type == part)
+		break;
+	case part:
 		c1 = Find_Mother_Chunk(d->chunks, c->offset, c->end, freebsd);
-	if (!c1)
+		break;
+	default:
+		c1 = Find_Mother_Chunk(d->chunks, c->offset, c->end, extended);
+		if (c1 == NULL)
+			c1 = Find_Mother_Chunk(d->chunks, c->offset, c->end,
+			    whole);
+		break;
+	}
+	if (c1 == NULL)
 		return 1;
 	for (c2 = c1->part; c2; c2 = c2->next) {
 		if (c2 == c) {
