@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: bioscall.s,v 1.1 1997/08/01 06:07:13 msmith Exp $
+ *      $Id: bioscall.s,v 1.2 1999/07/29 01:49:18 msmith Exp $
  */
 
 /*
@@ -33,11 +33,6 @@
 #include <machine/asmacros.h>
 
 #include "assym.s"
-
-#define	KCSEL		0x08 		/* GSEL(GCODE_SEL, SEL_KPL) */
-#define	KDSEL		0x10 		/* GSEL(GDATA_SEL, SEL_KPL) */
-#define	BC32SEL		0x40 		/* GSEL(GBIOSCODE32_SEL, SEL_KPL) */
-#define	BSSEL		0x60 		/* GSEL(GBIOSSTACK_SEL, SEL_KPL) */
 
 #define data16		.byte	0x66
 
