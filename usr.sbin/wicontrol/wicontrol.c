@@ -72,6 +72,7 @@ static void wi_dumpinfo(const char *);
 static void wi_dumpstats(const char *);
 static void wi_setkeys(const char *, char *, int);
 static void wi_printkeys(struct wi_req *);
+static void wi_printaplist(const char *);
 static int wi_hex2int(char);
 static void wi_str2key(char *, struct wi_key *);
 #ifdef WICACHE
@@ -79,6 +80,8 @@ static void wi_zerocache(const char *);
 static void wi_readcache(const char *);
 #endif
 static void usage(const char *);
+
+int listaps;
 
 static void
 wi_getval(const char *iface, struct wi_req *wreq)
@@ -298,7 +301,7 @@ wi_setkeys(const char *iface, char *key, int idx)
 
 	keylen = strlen(key);
 	if (key[0] == '0' && (key[1] == 'x' || key[1] == 'X')) {
-		if(keylen != 2 && keylen != 12 && keylen != 28) {
+		if (keylen != 2 && keylen != 12 && keylen != 28) {
 			errx(1, "encryption key must be 0, 10, or 26 "
 			    "hex digits long");
 		}
@@ -343,7 +346,7 @@ wi_printkeys(struct wi_req *wreq)
 				break;
 			}
 		}
-		if(isprintable) {
+		if (isprintable) {
 			ptr[j] = '\0';
 			printf("[ %s ]", ptr);
 		} else {
@@ -402,6 +405,103 @@ wi_printhex(struct wi_req *wreq)
 	return;
 }
 
+void
+wi_printaplist(const char *iface)
+{
+	int			prism2, len, i = 0, j;
+	struct wi_req		wreq;
+	struct wi_scan_p2_hdr	*wi_p2_h;
+	struct wi_scan_res	*res;
+
+	printf("Available APs:\n");
+
+	/* first determine if this is a prism2 card or not */
+	wreq.wi_len = WI_MAX_DATALEN;
+	wreq.wi_type = WI_RID_PRISM2;
+
+	wi_getval(iface, &wreq);
+	prism2 = wreq.wi_val[0];
+
+	/* send out a scan request */
+	wreq.wi_len = prism2 ? 3 : 1;
+	wreq.wi_type = WI_RID_SCAN_REQ;
+
+	if (prism2) {
+		wreq.wi_val[0] = 0x3FFF;
+		wreq.wi_val[1] = 0x000F;
+	}
+
+	wi_setval(iface, &wreq);
+
+	/*
+	 * sleep for 100 milliseconds so there's enough time for the card to
+	 * respond... prism2's take a little longer.
+	 */
+	usleep(prism2 ? 500000 : 100000);
+
+	/* get the scan results */
+	wreq.wi_len = WI_MAX_DATALEN;
+	wreq.wi_type = WI_RID_SCAN_RES;
+
+	wi_getval(iface, &wreq);
+
+	if (prism2) {
+		wi_p2_h = (struct wi_scan_p2_hdr *)wreq.wi_val;
+
+		/* if the reason is 0, this info is invalid */
+		if (wi_p2_h->wi_reason == 0)
+			return;
+
+		i = 4;
+	}
+
+	len = prism2 ? WI_PRISM2_RES_SIZE : WI_WAVELAN_RES_SIZE;
+
+	for (; i < (wreq.wi_len * 2) - len; i += len) {
+		res = (struct wi_scan_res *)((char *)wreq.wi_val + i);
+
+		res->wi_ssid[res->wi_ssid_len] = '\0';
+
+		printf("    %-8s  [ %02x:%02x:%02x:%02x:%02x:%02x ]  [ %-2d ]  "
+		    "[ %d %d %d ]  %-3d  ", res->wi_ssid,
+		    res->wi_bssid[0], res->wi_bssid[1], res->wi_bssid[2],
+		    res->wi_bssid[3], res->wi_bssid[4], res->wi_bssid[5],
+		    res->wi_chan, res->wi_signal - res->wi_noise,
+		    res->wi_signal, res->wi_noise, res->wi_interval);
+
+		if (res->wi_capinfo) {
+			printf("[ ");
+			if (res->wi_capinfo & WI_CAPINFO_ESS)
+				printf("ess ");
+			if (res->wi_capinfo & WI_CAPINFO_IBSS)
+				printf("ibss ");
+			if (res->wi_capinfo & WI_CAPINFO_PRIV)
+				printf("priv ");
+			printf("]  ");
+		}
+
+		if (prism2) {
+			printf("\n              [ ");
+			for (j = 0; res->wi_srates[j] != 0; j++) {
+				res->wi_srates[j] = res->wi_srates[j] &
+				    WI_VAR_SRATES_MASK;
+				printf("%d.%d ", res->wi_srates[j] / 2,
+				    (res->wi_srates[j] % 2) * 5);
+			}
+			printf("]  ");
+
+			printf("* %2.1f *", res->wi_rate == 0xa ? 1 :
+			    (res->wi_rate == 0x14 ? 2 :
+			    (res->wi_rate == 0x37 ? 5.5 :
+			    (res->wi_rate == 0x6e ? 11 : 0))));
+		}
+
+		putchar('\n');
+	}
+
+	return;
+}
+
 #define WI_STRING		0x01
 #define WI_BOOL			0x02
 #define WI_WORDS		0x03
@@ -426,6 +526,8 @@ static struct wi_table wi_table[] = {
 	{ WI_RID_CURRENT_CHAN, WI_WORDS, "Current channel:\t\t\t" },
 	{ WI_RID_COMMS_QUALITY, WI_WORDS, "Comms quality/signal/noise:\t\t" },
 	{ WI_RID_PROMISC, WI_BOOL, "Promiscuous mode:\t\t\t" },
+	{ WI_RID_PROCFRAME, WI_BOOL, "Process 802.11b Frame:\t\t\t" },
+	{ WI_RID_PRISM2, WI_WORDS, "Intersil-Prism2 based card:\t\t" },
 	{ WI_RID_PORTTYPE, WI_WORDS, "Port type (1=BSS, 3=ad-hoc):\t\t"},
 	{ WI_RID_MAC_NODE, WI_HEXBYTES, "MAC address:\t\t\t\t"},
 	{ WI_RID_TX_RATE, WI_WORDS, "TX rate (selection):\t\t\t"},
@@ -524,6 +626,9 @@ wi_dumpinfo(const char *iface)
 		}
 	}
 
+	if (listaps)
+		wi_printaplist(iface);
+
 	return;
 }
 
@@ -593,6 +698,7 @@ usage(const char *p)
 {
 	fprintf(stderr, "usage:  %s -i iface\n", p);
 	fprintf(stderr, "\t%s -i iface -o\n", p);
+	fprintf(stderr, "\t%s -i iface -l\n", p);
 	fprintf(stderr, "\t%s -i iface -t tx rate\n", p);
 	fprintf(stderr, "\t%s -i iface -n network name\n", p);
 	fprintf(stderr, "\t%s -i iface -s station name\n", p);
@@ -606,6 +712,7 @@ usage(const char *p)
 	fprintf(stderr, "\t%s -i iface -k encryption key [-v 1|2|3|4]\n", p);
 	fprintf(stderr, "\t%s -i iface -r RTS threshold\n", p);
 	fprintf(stderr, "\t%s -i iface -f frequency\n", p);
+	fprintf(stderr, "\t%s -i iface -F 0|1\n", p);
 	fprintf(stderr, "\t%s -i iface -P 0|1t\n", p);
 	fprintf(stderr, "\t%s -i iface -S max sleep duration\n", p);
 	fprintf(stderr, "\t%s -i iface -T 1|2|3|4\n", p);
@@ -707,7 +814,7 @@ main(int argc, char *argv[])
 	opterr = 1;
 		
 	while((ch = getopt(argc, argv,
-	    "a:hoc:d:e:f:i:k:p:r:q:t:n:s:m:v:P:S:T:ZC")) != -1) {
+	    "a:hoc:d:e:f:i:k:lp:r:q:t:n:s:m:v:F:P:S:T:ZC")) != -1) {
 		switch(ch) {
 		case 'Z':
 #ifdef WICACHE
@@ -745,8 +852,15 @@ main(int argc, char *argv[])
 			wi_setword(iface, WI_RID_OWN_CHNL, atoi(optarg));
 			exit(0);
 			break;
-		case 'k':
-			key = optarg;
+		case 'F':
+			wi_setword(iface, WI_RID_PROCFRAME, atoi(optarg));
+			exit(0);
+			break;
+ 		case 'k':
+ 			key = optarg;
+			break;
+		case 'l':
+			listaps = 1;
 			break;
 		case 'p':
 			wi_setword(iface, WI_RID_PORTTYPE, atoi(optarg));
