@@ -1,7 +1,7 @@
 .\" Copyright (c) 1988 Massachusetts Institute of Technology,
 .\" Student Information Processing Board.  All rights reserved.
 .\"
-.\" $Header: /home/ncvs/src/usr.bin/compile_et/compile_et.1,v 1.1 1995/01/14 22:29:30 wollman Exp $
+.\" $Header: /home/ncvs/src/usr.bin/compile_et/compile_et.1,v 1.1.6.1 1997/07/01 06:22:09 charnier Exp $
 .\"
 .Dd	November 22, 1988
 .Os
@@ -10,7 +10,7 @@
 .Nm compile_et
 .Nd error table compiler
 .Sh SYNOPSIS
-.Nm
+.Nm compile_et
 .Ar file
 .Sh DESCRIPTION
 .Nm Compile_et
@@ -64,7 +64,7 @@ A ``#'' in the source file is treated as a comment character, and all
 remaining text to the end of the source line will be ignored.
 .Sh BUGS
 Since
-.Nm
+.Nm compile_et
 uses a very simple parser based on
 .Xr yacc 1 ,
 its error recovery leaves much to be desired.
