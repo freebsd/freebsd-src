@@ -280,3 +280,14 @@ METHOD int child_location_str {
 	char		*_buf;
 	size_t		_buflen;
 };
+
+#
+# Allow (bus) drivers to specify the trigger mode and polarity of the
+# specified interrupt.
+#
+METHOD int config_intr {
+	device_t	_dev;
+	int		_irq;
+	enum intr_trigger _trig;
+	enum intr_polarity _pol;
+} DEFAULT bus_generic_config_intr;
