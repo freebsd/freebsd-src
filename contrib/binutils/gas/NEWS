@@ -1,4 +1,7 @@
 -*- text -*-
+
+Changes in 2.12:
+
 Support for Don Knuth's MMIX, by Hans-Peter Nilsson.
 
 Support for the OpenRISC 32-bit embedded processor by OpenCores.

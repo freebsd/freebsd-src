@@ -18,7 +18,7 @@ Unpacking and Installation -- quick overview
 
 When you unpack the binutils archive file, you will get a directory
 called something like `binutils-XXX', where XXX is the number of the
-release.  (Probably 2.11.2 or higher).  This directory contains
+release.  (Probably 2.12 or higher).  This directory contains
 various files and sub-directories.  Most of the files in the top
 directory are for information and for configuration.  The actual
 source code is in sub-directories.
@@ -110,7 +110,7 @@ the ranlib program in order to build the distribution.
 Porting
 =======
 
-Binutils-2.11 supports many different architectures, but there
+Binutils-2.12 supports many different architectures, but there
 are many more not supported, including some that were supported
 by earlier versions.  We are hoping for volunteers to improve this
 situation.
@@ -118,7 +118,7 @@ situation.
 The major effort in porting binutils to a new host and/or target
 architecture involves the BFD library.  There is some documentation
 in ../bfd/doc.  The file ../gdb/doc/gdbint.texinfo (distributed
-with gdb-4.x) may also be of help.
+with gdb-5.x) may also be of help.
 
 Reporting bugs
 ==============

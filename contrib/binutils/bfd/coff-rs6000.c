@@ -46,7 +46,7 @@ extern boolean _bfd_xcoff_slurp_armap PARAMS ((bfd *));
 extern const bfd_target *_bfd_xcoff_archive_p PARAMS ((bfd *));
 extern PTR _bfd_xcoff_read_ar_hdr PARAMS ((bfd *));
 extern bfd *_bfd_xcoff_openr_next_archived_file PARAMS ((bfd *, bfd *));
-extern int _bfd_xcoff_generic_stat_arch_elt PARAMS ((bfd *, struct stat *));
+extern int _bfd_xcoff_stat_arch_elt PARAMS ((bfd *, struct stat *));
 extern boolean _bfd_xcoff_write_armap
   PARAMS ((bfd *, unsigned int, struct orl *, unsigned int, int));
 extern boolean _bfd_xcoff_write_archive_contents PARAMS ((bfd *));
@@ -1389,7 +1389,7 @@ _bfd_xcoff_openr_next_archived_file (archive, last_file)
 /* Stat an element in an XCOFF archive.  */
 
 int
-_bfd_xcoff_generic_stat_arch_elt (abfd, s)
+_bfd_xcoff_stat_arch_elt (abfd, s)
      bfd *abfd;
      struct stat *s;
 {
@@ -1399,7 +1399,7 @@ _bfd_xcoff_generic_stat_arch_elt (abfd, s)
       return -1;
     }
 
-  if (! xcoff_big_format_p (abfd))
+  if (! xcoff_big_format_p (abfd->my_archive))
     {
       struct xcoff_ar_hdr *hdrp = arch_xhdr (abfd);
 
@@ -3536,7 +3536,7 @@ const bfd_target rs6000coff_vec =
   _bfd_xcoff_read_ar_hdr,                  /* _read_ar_hdr */
   _bfd_xcoff_openr_next_archived_file,     /* _openr_next_archived_file */
   _bfd_generic_get_elt_at_index,           /* _get_elt_at_index */
-  _bfd_xcoff_generic_stat_arch_elt,        /* _generic_dtat_arch_elt */
+  _bfd_xcoff_stat_arch_elt,                /* _generic_stat_arch_elt */
                                            /* XCOFF archives do not have
 					      a timestamp.  */
   bfd_true,                                /* _update_armap_timestamp */
@@ -3797,7 +3797,7 @@ const bfd_target pmac_xcoff_vec =
   _bfd_xcoff_read_ar_hdr,                  /* _read_ar_hdr */
   _bfd_xcoff_openr_next_archived_file,     /* _openr_next_archived_file */
   _bfd_generic_get_elt_at_index,           /* _get_elt_at_index */
-  _bfd_xcoff_generic_stat_arch_elt,        /* _generic_dtat_arch_elt */
+  _bfd_xcoff_stat_arch_elt,                /* _generic_stat_arch_elt */
                                            /* XCOFF archives do not have
 					      a timestamp.  */
   bfd_true,                                /* _update_armap_timestamp */

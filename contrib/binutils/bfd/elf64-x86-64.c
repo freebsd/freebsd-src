@@ -1473,7 +1473,7 @@ elf64_x86_64_relocate_section (output_bfd, info, input_bfd, input_section,
 					 rela->r_offset);
 	      if (outrel.r_offset == (bfd_vma) -1)
 		skip = true;
-	      else if (outrel.r_offset == (bfd_vma) -1)
+	      else if (outrel.r_offset == (bfd_vma) -2)
 		skip = true, relocate = true;
 
 	      outrel.r_offset += (input_section->output_section->vma
