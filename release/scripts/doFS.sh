@@ -20,7 +20,7 @@ FSLABEL=$1 ; shift
 #
 # We don't have any bootblocks on ia64. Note that -B implies -r,
 # so we have to specifically specify -r when we don't have -B.
-# disklabel fails otherwise.
+# bsdlabel fails otherwise.
 #
 if [ -f "${RD}/trees/base/boot/boot" ]; then
 	BOOT="-B -b ${RD}/trees/base/boot/boot"
