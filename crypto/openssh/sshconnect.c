@@ -12,7 +12,7 @@
 #include "includes.h"
 RCSID("$OpenBSD: sshconnect.c,v 1.56 2000/02/18 08:50:33 markus Exp $");
 
-#include <ssl/bn.h>
+#include <openssl/bn.h>
 #include "xmalloc.h"
 #include "rsa.h"
 #include "ssh.h"
@@ -25,7 +25,7 @@ RCSID("$OpenBSD: sshconnect.c,v 1.56 2000/02/18 08:50:33 markus Exp $");
 #include "readconf.h"
 #include "fingerprint.h"
 
-#include <ssl/md5.h>
+#include <openssl/md5.h>
 
 /* Session id for the current session. */
 unsigned char session_id[16];

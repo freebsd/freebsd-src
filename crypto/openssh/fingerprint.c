@@ -25,6 +25,8 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #include "includes.h"
@@ -32,7 +34,7 @@ RCSID("$Id: fingerprint.c,v 1.4 1999/11/24 16:15:25 markus Exp $");
 
 #include "ssh.h"
 #include "xmalloc.h"
-#include <ssl/md5.h>
+#include <openssl/md5.h>
 
 #define FPRINT "%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x"
 
