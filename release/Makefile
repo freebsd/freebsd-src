@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.9 1994/11/05 07:52:14 jkh Exp $
+#	$Id: Makefile,v 1.10 1994/11/05 07:55:30 jkh Exp $
 #
 
 FLOPPY=		fd0
@@ -62,6 +62,8 @@ boot.flp:
 	install -c -m 400 ${.CURDIR}/../README ${MNT}/README
 	install -c -m 400 ${.CURDIR}/../share/FAQ/DISKSPACE.FAQ \
 		${MNT}/DISKSPACE.FAQ
+	install -c -m 400 ${.CURDIR}/../share/FAQ/RELNOTES.FreeBSD \
+		${MNT}/RELNOTES.FreeBSD
 	touch ${MNT}/this_is_boot_flp
 	-umount ${MNT}
 	fsck /dev/r${FLOPPY}
