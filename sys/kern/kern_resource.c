@@ -1133,14 +1133,11 @@ chgsbsize(uip, hiwat, to, max)
 	rlim_t	max;
 {
 	rlim_t new;
-	int s;
 
-	s = splnet();
 	UIDINFO_LOCK(uip);
 	new = uip->ui_sbsize + to - *hiwat;
 	/* Don't allow them to exceed max, but allow subtraction */
 	if (to > *hiwat && new > max) {
-		splx(s);
 		UIDINFO_UNLOCK(uip);
 		return (0);
 	}
@@ -1148,7 +1145,6 @@ chgsbsize(uip, hiwat, to, max)
 	*hiwat = to;
 	if (uip->ui_sbsize < 0)
 		printf("negative sbsize for uid = %d\n", uip->ui_uid);
-	splx(s);
 	UIDINFO_UNLOCK(uip);
 	return (1);
 }
