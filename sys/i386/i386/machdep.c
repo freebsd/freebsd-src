@@ -553,15 +553,17 @@ osigreturn(td, uap)
 	} */ *uap;
 {
 #ifdef COMPAT_43
+	struct osigcontext sc;
 	struct trapframe *regs;
 	struct osigcontext *scp;
 	struct proc *p = td->td_proc;
-	int eflags;
+	int eflags, error;
 
 	regs = td->td_frame;
-	scp = uap->sigcntxp;
-	if (!useracc((caddr_t)scp, sizeof(*scp), VM_PROT_READ))
-		return (EFAULT);
+	error = copyin(uap->sigcntxp, &sc, sizeof(sc));
+	if (error != 0)
+		return (error);
+	scp = &sc;
 	eflags = scp->sc_ps;
 	if (eflags & PSL_VM) {
 		struct trapframe_vm86 *tf = (struct trapframe_vm86 *)regs;
@@ -667,14 +669,16 @@ sigreturn(td, uap)
 		const __ucontext *sigcntxp;
 	} */ *uap;
 {
+	ucontext_t uc;
 	struct proc *p = td->td_proc;
 	struct trapframe *regs;
 	const ucontext_t *ucp;
-	int cs, eflags;
+	int cs, eflags, error;
 
-	ucp = uap->sigcntxp;
-	if (!useracc((caddr_t)(uintptr_t)ucp, sizeof(*ucp), VM_PROT_READ))
-		return (EFAULT);
+	error = copyin(uap->sigcntxp, &uc, sizeof(uc));
+	if (error != 0)
+		return (error);
+	ucp = &uc;
 	regs = td->td_frame;
 	eflags = ucp->uc_mcontext.mc_eflags;
 	if (eflags & PSL_VM) {
