@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.194 1996/03/06 08:08:16 asami Exp $
+# $Id: bsd.port.mk,v 1.195 1996/03/06 08:14:26 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -14,14 +14,14 @@
 # 
 # PORTSDIR		- The root of the ports tree (default: /usr/ports).
 # DISTDIR 		- Where to get gzip'd, tarballed copies of original sources
-#				  (default: ${PORTSDIR}/distfiles).
+#				  (default: ${PORTSDIR}/distfiles/${DIST_SUBDIR}).
 # PREFIX		- Where to install things in general (default: /usr/local).
 # MASTER_SITES	- Primary location(s) for distribution files if not found
 #				  locally (default:
-#				   ftp://ftp.freebsd.org/pub/FreeBSD/distfiles)
+#				   ftp://ftp.freebsd.org/pub/FreeBSD/distfiles/${DIST_SUBDIR}/)
 # PATCH_SITES	- Primary location(s) for distribution patch files
 #				  (see PATCHFILES below) if not found locally (default:
-#				   ftp://ftp.freebsd.org/pub/FreeBSD/distfiles)
+#				   ftp://ftp.freebsd.org/pub/FreeBSD/distfiles/${DIST_SUBDIR}/)
 #
 # MASTER_SITE_OVERRIDE - If set, override the MASTER_SITES setting with this
 #				  value.
@@ -47,14 +47,16 @@
 #				  NO_WRKSUBDIR is set, in which case simply ${WRKDIR}).
 # DISTNAME		- Name of port or distribution.
 # DISTFILES		- Name(s) of archive file(s) containing distribution
-#				  (default: ${DISTDIR}/${DISTNAME}${EXTRACT_SUFX}).
+#				  (default: ${DISTNAME}${EXTRACT_SUFX}).
 # PATCHFILES	- Name(s) of additional files that contain distribution
 #				  patches (default: none).  make will look for them at
 #				  PATCH_SITES (see above).  They will automatically be
 #				  uncompressed before patching if the names end with
 #				  ".gz" or ".Z".
-# PATCH_PRFX	- Filename prefix for distribution patches (default: none)
-#				  typically ${DISTNAME}/ or foo-
+# DIST_SUBDIR	- Suffix to ${DISTDIR} (see above).  If set, all ${DISTFILES} 
+#				  and ${PATCHFILES} will be put in this subdirectory of
+#				  ${DISTDIR}.  Also they will be fetched in this subdirectory 
+#				  from FreeBSD mirror sites.
 # PKGNAME		- Name of the package file to create if the DISTNAME 
 #				  isn't really relevant for the port/package
 #				  (default: ${DISTNAME}).
@@ -93,8 +95,9 @@
 # HAS_CONFIGURE	- Says that the port has its own configure script.
 # GNU_CONFIGURE	- Set if you are using GNU configure (optional).
 # CONFIGURE_SCRIPT - Name of configure script, defaults to 'configure'.
-# CONFIGURE_ARGS - Pass these args to configure, if ${HAS_CONFIGURE} set.
-# CONFIGURE_ENV  - Pass these env (shell-like) to configure, if ${HAS_CONFIGURE} set.
+# CONFIGURE_ARGS - Pass these args to configure if ${HAS_CONFIGURE} is set.
+# CONFIGURE_ENV  - Pass these env (shell-like) to configure if
+#				  ${HAS_CONFIGURE} is set.
 # IS_INTERACTIVE - Set this if your port needs to interact with the user
 #				  during a build.  User can then decide to skip this port by
 #				  setting ${BATCH}, or compiling only the interactive ports
@@ -170,8 +173,8 @@
 # checkpatch	- Do a "patch -C" instead of a "patch".  Note that it may
 #				  give incorrect results if multiple patches deal with
 #				  the same file.
-# checksum		- Use files/md5 to ensure that your distfiles are valid
-# makesum		- Generate files/md5 (only do this for your own ports!)
+# checksum		- Use files/md5 to ensure that your distfiles are valid.
+# makesum		- Generate files/md5 (only do this for your own ports!).
 #
 # Default sequence for "all" is:  fetch checksum extract patch configure build
 #
@@ -192,7 +195,7 @@
 # by individual Makefiles.
 PORTSDIR?=		${DESTDIR}/usr/ports
 X11BASE?=		/usr/X11R6
-DISTDIR?=		${PORTSDIR}/distfiles
+DISTDIR?=		${PORTSDIR}/distfiles/${DIST_SUBDIR}
 PACKAGES?=		${PORTSDIR}/packages
 .if !defined(NO_WRKDIR)
 WRKDIR?=		${.CURDIR}/work
@@ -338,24 +341,17 @@ INSTALL_TARGET?=	install
 
 # If the user has this set, go to the FreeBSD respository for everything.
 .if defined(MASTER_SITE_FREEBSD)
-MASTER_SITE_OVERRIDE=  ftp://ftp.freebsd.org/pub/FreeBSD/distfiles/ 
+MASTER_SITE_OVERRIDE=  ftp://ftp.freebsd.org/pub/FreeBSD/distfiles/${DIST_SUBDIR}/
 .endif
 
 # I guess we're in the master distribution business! :)  As we gain mirror
 # sites for distfiles, add them to this list.
 .if !defined(MASTER_SITE_OVERRIDE)
-MASTER_SITES+=	ftp://ftp.freebsd.org/pub/FreeBSD/distfiles/
-PATCH_SITES+=	ftp://ftp.freebsd.org/pub/FreeBSD/distfiles/${PATCH_PRFX}
+MASTER_SITES+=	ftp://ftp.freebsd.org/pub/FreeBSD/distfiles/${DIST_SUBDIR}/
+PATCH_SITES+=	ftp://ftp.freebsd.org/pub/FreeBSD/distfiles/${DIST_SUBDIR}/
 .else
 MASTER_SITES:=	${MASTER_SITE_OVERRIDE} ${MASTER_SITES}
-PATCH_SITES:=	${MASTER_SITE_OVERRIDE}${PATCH_PRFX} ${PATCH_SITES}
-.endif
-
-.if defined(PATCH_PRFX)
-PATCHDIST!=	${ECHO} ${PATCH_PRFX} | ${SED} 's|^\(.*\)/$$|/\1|'
-PATCHDIST:=	${DISTDIR}${PATCHDIST}
-.else
-PATCHDIST:=	${DISTDIR}
+PATCH_SITES:=	${MASTER_SITE_OVERRIDE} ${PATCH_SITES}
 .endif
 
 # Derived names so that they're easily overridable.
@@ -517,12 +513,12 @@ do-fetch:
 	    fi \
 	 done)
 .if defined(PATCHFILES)
-	@if [ ! -d ${PATCHDIST} ]; then ${MKDIR} -p ${PATCHDIST}; fi
-	@(cd ${PATCHDIST}; \
+	@if [ ! -d ${DISTDIR} ]; then ${MKDIR} -p ${DISTDIR}; fi
+	@(cd ${DISTDIR}; \
 	 for file in ${PATCHFILES}; do \
 		if [ ! -f $$file -a ! -f `${BASENAME} $$file` ]; then \
 			if [ -h $$file -o -h `${BASENAME} $$file` ]; then \
-				${ECHO_MSG} ">> ${PATCHDIST}/$$file is a broken symlink."; \
+				${ECHO_MSG} ">> ${DISTDIR}/$$file is a broken symlink."; \
 				${ECHO_MSG} ">> Perhaps a filesystem (most likely a CD) isn't mounted?"; \
 				${ECHO_MSG} ">> Please correct this problem and try again."; \
 				exit 1; \
@@ -536,7 +532,7 @@ do-fetch:
 				fi \
 			done; \
 			${ECHO_MSG} ">> Couldn't fetch it - please try to retreive this";\
-			${ECHO_MSG} ">> port manually into ${PATCHDIST} and try again."; \
+			${ECHO_MSG} ">> port manually into ${DISTDIR} and try again."; \
 			exit 1; \
 	    fi \
 	 done)
@@ -564,7 +560,7 @@ do-patch:
 .if defined(PATCHFILES)
 	@${ECHO_MSG} "===>  Applying distribution patches for ${PKGNAME}"
 .if defined(PATCH_DEBUG)
-	@(cd ${PATCHDIST}; \
+	@(cd ${DISTDIR}; \
 	  for i in ${PATCHFILES}; do \
 		${ECHO_MSG} "===>   Applying distribution patch $$i" ; \
 		case $$i in \
@@ -577,7 +573,7 @@ do-patch:
 		esac; \
 	  done)
 .else
-	@(cd ${PATCHDIST}; \
+	@(cd ${DISTDIR}; \
 	  for i in ${PATCHFILES}; do \
 		case $$i in \
 			*.Z|*.gz) \
@@ -922,7 +918,7 @@ fetch-list:
 	 for file in ${PATCHFILES}; do \
 		if [ ! -f $$file -a ! -f `${BASENAME} $$file` ]; then \
 			for site in ${PATCH_SITES}; do \
-				${ECHO} -n ${NCFTP} ${NCFTPFLAGS} $${site}$${file} ${PATCH_PRFX}$${file} "${NCFTPTAIL}" '||' ; \
+				${ECHO} -n ${NCFTP} ${NCFTPFLAGS} $${site}$${file} "${NCFTPTAIL}" '||' ; \
 					break; \
 			done; \
 			${ECHO} "echo $${file} not fetched" ; \
@@ -938,7 +934,7 @@ makesum: fetch
 	@if [ ! -d ${FILESDIR} ]; then ${MKDIR} -p ${FILESDIR}; fi
 	@if [ -f ${MD5_FILE} ]; then ${RM} -f ${MD5_FILE}; fi
 	@(cd ${DISTDIR}; \
-	 for file in ${DISTFILES} ${PATCHFILES:S|^|${PATCH_PRFX}|}; do \
+	 for file in ${DISTFILES} ${PATCHFILES}; do \
 		${MD5} $$file >> ${MD5_FILE}; \
 	 done)
 .endif
@@ -949,7 +945,7 @@ checksum: fetch
 		${ECHO_MSG} ">> No MD5 checksum file."; \
 	else \
 		(cd ${DISTDIR}; OK=""; \
-		  for file in ${DISTFILES} ${PATCHFILES:S|^|${PATCH_PRFX}|}; do \
+		  for file in ${DISTFILES} ${PATCHFILES}; do \
 			CKSUM=`${MD5} $$file | ${AWK} '{print $$4}'`; \
 			CKSUM2=`${GREP} "($$file)" ${MD5_FILE} | ${AWK} '{print $$4}'`; \
 			if [ "$$CKSUM2" = "" ]; then \
