@@ -32,7 +32,7 @@
 .Nd merge configuration files, et al during an upgrade
 .Sh SYNOPSIS
 .Nm
-.Op Fl scrvahipC
+.Op Fl scrvahipCP
 .Op Fl m Ar /path/to/sources
 .Op Fl t Ar /path/to/temp/root
 .Op Fl d
@@ -90,6 +90,12 @@ compares the files themselves.
 You can
 also specify that the script ignore the $Id strings and
 compare every file.
+.Pp
+The merge menu option is designed to let you easily combine your
+customizations from the old version of a file into the new one.
+While you can use the merge function to incorporate changes from
+files that you have not customized,
+it is not recommended.
 .Pp
 The
 .Nm
@@ -199,6 +205,12 @@ After a standard
 .Nm
 run,
 compares your rc.conf[.local] options to the defaults.
+.It Fl P
+Preserve files that you replace in
+.Pa /var/tmp/mergemaster/preserved-files-<date> ,
+or another directory you specify in your
+.Nm
+rc file.
 .It Fl m Ar /path/to/sources
 Specify the path to the directory where you want to do the
 .Xr make 1 .
@@ -315,6 +327,10 @@ with all values commented out:
 #
 # Compare /etc/rc.conf[.local] to /etc/defaults/rc.conf
 #COMP_CONFS=yes
+#
+# Preserve files that you replace
+#PRESERVE_FILES=yes
+#PRESERVE_FILES_DIR=/var/tmp/mergemaster/preserved-files-`date +%y%m%d-%H%M%S`
 #
 # Sourcedir is the directory to do the 'make' in (where the new files are)
 #SOURCEDIR='/usr/src/etc'
