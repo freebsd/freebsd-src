@@ -286,7 +286,8 @@ int
 pcic_attach(device_t dev)
 {
 	int		error;
-	int		irq;
+	u_int		flags;
+	int		irq = 0;
 	int		i;
 	device_t	kid;
 	struct resource *r;
@@ -320,29 +321,30 @@ pcic_attach(device_t dev)
 		sp->sc = sc;
 	}
 
-	irq = bus_get_resource_start(dev, SYS_RES_IRQ, 0);
-	if (irq == 0) {
-		/* See if the user has requested a specific IRQ */
-		if (!getenv_int("machdep.pccard.pcic_irq", &irq))
-			irq = 0;
-	}
 	rid = 0;
-	r = 0;
-	if (irq > 0) {
-		r = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, irq,
-		    irq, 1, RF_ACTIVE);
+	r = NULL;
+	flags = RF_ACTIVE;
+	if (sc->flags & PCIC_SHARED_IRQ)
+		flags |= RF_SHAREABLE;
+	r = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1, flags);
+	if (r == NULL) {
+		/* See if the user has requested a specific IRQ */
+		if (getenv_int("machdep.pccard.pcic_irq", &irq))
+			r = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
+			    irq, irq, 1, flags);
 	}
 	if (r && ((1 << (rman_get_start(r))) & PCIC_INT_MASK_ALLOWED) == 0) {
 		device_printf(dev,
 		    "Hardware does not support irq %d, trying polling.\n",
 		    irq);
 		bus_release_resource(dev, SYS_RES_IRQ, rid, r);
-		r = 0;
 		irq = 0;
+		r = NULL;
 	}
 	sc->irqrid = rid;
 	sc->irqres = r;
-	if (r) {
+	irq = 0;
+	if (r != NULL) {
 		error = bus_setup_intr(dev, r, INTR_TYPE_MISC,
 		    pcicintr, (void *) sc, &sc->ih);
 		if (error) {
@@ -351,8 +353,6 @@ pcic_attach(device_t dev)
 		}
 		irq = rman_get_start(r);
 		device_printf(dev, "management irq %d\n", irq);
-	} else {
-		irq = 0;
 	}
 	if (irq == 0) {
 		sc->timeout_ch = timeout(pcictimeout, (void *) sc, hz/2);
