@@ -196,6 +196,12 @@ For the same reason SLIP has been removed from the mfsroot image as well.
 
 Support for AlphaServer 2100A ('Lynx') has been added.
 
+netgraph(4) has received some updates.
+
+sbufs, null-terminated string data structures, and their associated
+support routines, have been added to the kernel.  Details are in
+sbuf(9).
+
 
 1.2. SECURITY FIXES
 -------------------
@@ -242,6 +248,15 @@ A bug in OpenSSH in which a server was unable to disable ssh-agent or
 X11 forwarding was fixed.  [MERGED]
 
 The ssh(1) binary is no longer SUID root by default.
+
+Some fixes were applied to the Kerberos IV implementation related to
+environment variables, a possible buffer overrun, and overwriting
+ticket files. [MERGED]
+
+telnet(1) now does a better job of sanitizing its environment. [MERGED]
+
+Several vulnerabilities in procfs(4) were fixed (see security advisory
+FreeBSD-SA-00:78).  [MERGED]
 
 
 1.3. USERLAND CHANGES
@@ -473,15 +488,28 @@ top(1) will now use the full width of its tty.
 groff(1) and its related utilities have been updated to FSF version
 1.16.1. [MERGED]
 
-A number of cleanups have been applied to the PCI subsystem.
-/usr/share/misc/pci_vendors now contains a vendor/device database,
-which can be used by pciconf(8).
+A number of cleanups and enhancements have been applied to the PCI
+subsystem.  /usr/share/misc/pci_vendors now contains a vendor/device
+database, which can be used by pciconf(8).
 
 growfs(8), a utility for growing FFS filesystems, has been added.
 ffsinfo(8), a utility for dump all the meta-information of an existing
 filesystem, has also been added.
 
 indent(1) has gained some new formatting options. [MERGED]
+
+sysinstall now uses some more intuitive defaults thanks to some new
+dialog support functions.  [MERGED]
+
+gcc has been updated to 2.96.
+
+Shortly after the receipt of a SIGINFO signal (normally control-T from
+the controlling tty), fsck_ffs will now output a line indicating the
+current phase number and progress information relevant to the current
+phase.
+
+Catching up with most other network utilities in the base system,
+lpd(1), lpd(8), syslogd(8), and logger(1) are now all IPv6-capable.
 
 
 2. Supported Configurations
