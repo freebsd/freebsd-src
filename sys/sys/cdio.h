@@ -43,9 +43,15 @@ union msf_lba {
 };
 
 struct cd_toc_entry {
-	u_int	:8;
-	u_int	control:4;
-	u_int	addr_type:4;
+#if BYTE_ORDER == LITTLE_ENDIAN
+	u_int16_t	:8;
+	u_int16_t	control:4;
+	u_int16_t	addr_type:4;
+#else
+	u_int16_t	:8;
+	u_int16_t	addr_type:4;
+	u_int16_t	control:4;
+#endif
 	u_char  track;
 	u_int	:8;
 	union msf_lba  addr;
