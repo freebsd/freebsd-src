@@ -25,6 +25,12 @@ MLINKS+= \
 	libgeom.3 geom_stats_snapshot_free.3 \
 	libgeom.3 geom_stats_snapshot_timestamp.3 \
 	libgeom.3 geom_stats_snapshot_reset.3 \
-	libgeom.3 geom_stats_snapshot_next.3
+	libgeom.3 geom_stats_snapshot_next.3 \
+	libgeom.3 gctl_get_handle.3 \
+	libgeom.3 gctl_ro_param.3 \
+	libgeom.3 gctl_rw_param.3 \
+	libgeom.3 gctl_issue.3 \
+	libgeom.3 gctl_free.3 \
+	libgeom.3 gctl_dump.3
 
 .include <bsd.lib.mk>
