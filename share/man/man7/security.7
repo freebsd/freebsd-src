@@ -208,7 +208,7 @@ virtually every server ever run as root, including basic system servers.
 If you are running a machine through which people only login via sshd and
 never login via telnetd or rshd or rlogind, then turn off those services!
 .Pp
-.Bx Free
+.Fx
 now defaults to running ntalkd, comsat, and finger in a sandbox.
 Another program which may be a candidate for running in a sandbox is
 .Xr named 8 .
@@ -288,7 +288,7 @@ below
 If an attacker breaks root he can do just about anything, but there
 are certain conveniences.  For example, most modern kernels have a
 packet sniffing device driver built in.  Under
-.Bx Free
+.Fx
 it is called
 the
 .Sq bpf
@@ -503,7 +503,7 @@ a couple of services or that you will add a new internal
 service and forget to update the firewall.  You can still open up the 
 high-numbered port range on the firewall to allow permissive-like operation
 without compromising your low ports.  Also take note that
-.Bx Free
+.Fx
 allows you to
 control the range of port numbers used for dynamic binding via the various
 net.inet.ip.portrange sysctl's
@@ -534,7 +534,7 @@ saturate a server's incoming network and cause the server to saturate its
 outgoing network with ICMP responses.  This type of attack can also crash the
 server by running it out of mbuf's, especially if the server cannot drain the
 ICMP responses it generates fast enough.  The
-.Bx Free
+.Fx
 kernel has a new kernel
 compile option called ICMP_BANDLIM which limits the effectiveness of these 
 sorts of attacks.  The last major class of springboard attacks is related to
@@ -574,11 +574,15 @@ table from attack.
 .Xr find 1 ,
 .Xr kerberos 1 ,
 .Xr md5 1 ,
-.Xr ssh 1 ,
-.Xr sshd 1 ,
+.Xr netstat 1 ,
 .Xr syslogd 1 ,
 .Xr xdm 1 ,
 .Xr sysctl 8
+
+The following are part of security ports collection:
+
+.Xr ssh 1 ,
+.Xr sshd 1
 .Sh HISTORY
 The
 .Nm
