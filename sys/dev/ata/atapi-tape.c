@@ -256,8 +256,8 @@ ast_describe(struct ast_softc *stp)
 	printf("\n");
     }
     else {
-	ata_prtdev(stp->device, "TAPE <%.40s> at ata%d-%s %s\n",
-		   stp->device->param->model,
+	ata_prtdev(stp->device, "TAPE <%.40s/%.8s> at ata%d-%s %s\n",
+		   stp->device->param->model, stp->device->param->revision,
 		   device_get_unit(stp->device->channel->dev),
 		   (stp->device->unit == ATA_MASTER) ? "master" : "slave",
 		   ata_mode2str(stp->device->mode));
