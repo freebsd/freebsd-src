@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: warp_saver.c,v 1.1 1998/12/27 22:03:09 des Exp $
  */
 
 #include <sys/param.h>
@@ -47,6 +47,7 @@ static u_char *vid;
 #define STARS (SPP*(1+2+4+8))
 
 static int star[STARS];
+static u_char save_pal[768];
 static u_char warp_pal[768] = {
     0x00, 0x00, 0x00,
     0x66, 0x66, 0x66,
@@ -61,7 +62,7 @@ warp_update(void)
 {
     int i, j, k, n;
 
-    for (i = k = 1, n = SPP*8; i < 5; i++, n /= 2)
+    for (i = 1, k = 0, n = SPP*8; i < 5; i++, n /= 2)
 	for (j = 0; j < n; j++, k++) {
 	    vid[star[k]] = 0;
 	    star[k] += i;
@@ -85,10 +86,11 @@ warp_saver(int blank)
 	    saved_mode = scp->mode;
 	    scp->mode = M_VGA_CG320;
 	    scp->status |= SAVER_RUNNING|GRAPHICS_MODE;
+	    save_palette(scp, (char *)save_pal);
 	    set_mode(scp);
+	    load_palette(scp, (char *)warp_pal);
 	    scrn_blanked++;
 	    vid = (u_char *)Crtat;
-	    load_palette(scp, (char *)warp_pal);
 	    splx(pl);
 	    bzero(vid, SCRW*SCRH);
 	}
@@ -105,6 +107,7 @@ warp_saver(int blank)
 		scp->mode = saved_mode;
 		scp->status &= ~(SAVER_RUNNING|GRAPHICS_MODE);
 		set_mode(scp);
+		load_palette(scp, (char *)save_pal);
 		saved_mode = 0;
 		splx(pl);
 	    }
