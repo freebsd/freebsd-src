@@ -6,7 +6,7 @@ MAN8=	vinum.8
 
 CFLAGS+=	-I${.CURDIR}/../../sys -Wall -DVINUMDEBUG
 DPADD=	${LIBREADLINE} ${LIBTERMCAP} ${LIBDEVSTAT}
-LDADD=	-lutil -lreadline -ltermcap -ldevstat
+LDADD=	-lreadline -ltermcap -ldevstat
 
 .PATH: ${.CURDIR}/../../sys/dev/vinum
 
