@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1994-1995 Søren Schmidt
+ * Copyright (c) 1994-1996 Søren Schmidt
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,11 +25,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: linux.h,v 1.5 1996/03/02 19:37:47 peter Exp $
+ *	$Id: linux.h,v 1.6 1996/03/03 19:07:49 peter Exp $
  */
 
 #ifndef _I386_LINUX_LINUX_H_
 #define _I386_LINUX_LINUX_H_
+#include "i386/linux/linux_syscall.h"
 
 typedef unsigned short linux_uid_t;
 typedef unsigned short linux_gid_t;
@@ -97,13 +98,20 @@ struct linux_sigframe {
 	sig_t	sf_handler;
 };
 
+extern int bsd_to_linux_errno[];
 extern int bsd_to_linux_signal[];
 extern int linux_to_bsd_signal[];
+extern char linux_sigcode[];
+extern int linux_szsigcode;
+extern const char linux_emul_path[];
 
+extern struct sysent linux_sysent[LINUX_SYS_MAXSYSCALL];
 extern struct sysentvec linux_sysvec;
+extern struct sysentvec elf_linux_sysvec;
 
+/* dummy struct definitions */
 struct image_params;
-int	linux_fixup __P((int **stack_base, struct image_params *iparams));
+struct trapframe;
 
 /* misc defines */
 #define LINUX_NAME_MAX		255
