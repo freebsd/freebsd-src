@@ -26,8 +26,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ * $FreeBSD$
  */
+
+#include "vlan.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -71,6 +73,8 @@
 
 #include <dev/gx/if_gxreg.h>
 #include <dev/gx/if_gxvar.h>
+
+#define VLAN_INPUT_TAG(ifp, eh, m, tag)		vlan_input_tag(eh, m, tag)
 
 MODULE_DEPEND(gx, miibus, 1, 1, 1);
 #include "miibus_if.h"
@@ -350,8 +354,7 @@ gx_attach(device_t dev)
 
 	/* see if we can enable hardware checksumming */
 	if (gx->gx_vflags & GXF_CSUM) {
-		ifp->if_capabilities = IFCAP_HWCSUM;
-		ifp->if_capenable = ifp->if_capabilities;
+		ifp->if_hwassist = GX_CSUM_FEATURES;
 	}
 
 	/* figure out transciever type */
@@ -469,13 +472,9 @@ gx_init(void *xsc)
 		ctrl |= GX_RXC_LONG_PKT_ENABLE;
 
 	/* setup receive checksum control */
-	if (ifp->if_capenable & IFCAP_RXCSUM)
+	if (ifp->if_hwassist)
 		CSR_WRITE_4(gx, GX_RX_CSUM_CONTROL,
 		    GX_CSUM_TCP/* | GX_CSUM_IP*/);
-
-	/* setup transmit checksum control */
-	if (ifp->if_capenable & IFCAP_TXCSUM)
-	        ifp->if_hwassist = GX_CSUM_FEATURES;
 
 	ctrl |= GX_RXC_STRIP_ETHERCRC;		/* not on 82542? */
 	CSR_WRITE_4(gx, GX_RX_CONTROL, ctrl);
@@ -910,7 +909,7 @@ gx_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	struct gx_softc	*gx = ifp->if_softc;
 	struct ifreq *ifr = (struct ifreq *)data;
 	struct mii_data *mii;
-	int s, mask, error = 0;
+	int s, error = 0;
 
 	s = splimp();
 	GX_LOCK(gx);
@@ -956,17 +955,6 @@ gx_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			    &mii->mii_media, command);
 		} else {
 			error = ifmedia_ioctl(ifp, ifr, &gx->gx_media, command);
-		}
-		break;
-	case SIOCSIFCAP:
-		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
-		if (mask & IFCAP_HWCSUM) {
-			if (IFCAP_HWCSUM & ifp->if_capenable)
-				ifp->if_capenable &= ~IFCAP_HWCSUM;
-			else
-				ifp->if_capenable |= IFCAP_HWCSUM;
-			if (ifp->if_flags & IFF_RUNNING)
-				gx_init(gx);
 		}
 		break;
 	default:
@@ -1294,7 +1282,7 @@ gx_rxeof(struct gx_softc *gx)
 #define IP_CSMASK 	(GX_RXSTAT_IGNORE_CSUM | GX_RXSTAT_HAS_IP_CSUM)
 #define TCP_CSMASK \
     (GX_RXSTAT_IGNORE_CSUM | GX_RXSTAT_HAS_TCP_CSUM | GX_RXERR_TCP_CSUM)
-		if (ifp->if_capenable & IFCAP_RXCSUM) {
+		if (ifp->if_hwassist) {
 #if 0
 			/*
 			 * Intel Erratum #23 indicates that the Receive IP
@@ -1313,6 +1301,7 @@ gx_rxeof(struct gx_softc *gx)
 				m->m_pkthdr.csum_data = 0xffff;
 			}
 		}
+#if NVLAN > 0
 		/*
 		 * If we received a packet with a vlan tag, pass it
 		 * to vlan_input() instead of ether_input().
@@ -1321,6 +1310,7 @@ gx_rxeof(struct gx_softc *gx)
 			VLAN_INPUT_TAG(ifp, eh, m, rx->rx_special);
 			continue;
 		}
+#endif
 		ether_input(ifp, eh, m);
 		continue;
 
