@@ -17,9 +17,10 @@ SONAME=		${LCRYPTSO}
 
 .PATH:		${.CURDIR}/../libmd
 SRCS=		crypt.c crypt-md5.c misc.c
-STATICSRCS=	md5c.c
+STATICSRCS=	md5c.c sha1c.c
 STATICOBJS=	${STATICSRCS:S/.c/.o/g}
 MAN3=		crypt.3
+MLINKS=		crypt.3 crypt_get_format.3 crypt.3 crypt_set_format.3
 CFLAGS+=	-I${.CURDIR}/../libmd
 CFLAGS+=	-DLIBC_SCCS -Wall
 PRECIOUSLIB=	yes

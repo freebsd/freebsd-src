@@ -42,6 +42,7 @@ static const char rcsid[] =
 #include <sys/resource.h>
 #include <unistd.h>
 #include <utmp.h>
+#include <login_cap.h>
 #if defined(USE_MD5RAND)
 #include <md5.h>
 #endif
@@ -544,11 +545,19 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 		}
 
 		if ((arg = getarg(args, 'w')) != NULL && getarg(args, 'h') == NULL) {
+			login_cap_t *lc;
+
+			lc = login_getpwclass(pwd);
+			if (lc == NULL ||
+			    login_setcryptfmt(lc, "md5", NULL) == NULL)
+				warn("setting crypt(3) format");
+			login_close(lc);
 			pwd->pw_passwd = pw_password(cnf, args, pwd->pw_name);
 			edited = 1;
 		}
 
 	} else {
+		login_cap_t *lc;
 
 		/*
 		 * Add code
@@ -565,13 +574,17 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 		pwd = &fakeuser;
 		pwd->pw_name = a_name->val;
 		pwd->pw_class = cnf->default_class ? cnf->default_class : "";
-		pwd->pw_passwd = pw_password(cnf, args, pwd->pw_name);
 		pwd->pw_uid = pw_uidpolicy(cnf, args);
 		pwd->pw_gid = pw_gidpolicy(cnf, args, pwd->pw_name, (gid_t) pwd->pw_uid);
 		pwd->pw_change = pw_pwdpolicy(cnf, args);
 		pwd->pw_expire = pw_exppolicy(cnf, args);
 		pwd->pw_dir = pw_homepolicy(cnf, args, pwd->pw_name);
 		pwd->pw_shell = pw_shellpolicy(cnf, args, NULL);
+		lc = login_getpwclass(pwd);
+		if (lc == NULL || login_setcryptfmt(lc, "md5", NULL) == NULL)
+			warn("setting crypt(3) format");
+		login_close(lc);
+		pwd->pw_passwd = pw_password(cnf, args, pwd->pw_name);
 		edited = 1;
 
 		if (pwd->pw_uid == 0 && strcmp(pwd->pw_name, "root") != 0)
@@ -600,6 +613,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 			int             b;
 			int             istty = isatty(fd);
 			struct termios  t;
+			login_cap_t	*lc;
 
 			if (istty) {
 				if (tcgetattr(fd, &t) == -1)
@@ -629,6 +643,11 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 				*p = '\0';
 			if (!*line)
 				errx(EX_DATAERR, "empty password read on file descriptor %d", fd);
+			lc = login_getpwclass(pwd);
+			if (lc == NULL ||
+			    login_setcryptfmt(lc, "md5", NULL) == NULL)
+				warn("setting crypt(3) format");
+			login_close(lc);
 			pwd->pw_passwd = pw_pwcrypt(line);
 			edited = 1;
 		}
