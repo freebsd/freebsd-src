@@ -26,16 +26,18 @@
 
 static unsigned char *welcome[] = {
     "1. README",
-    "Read the `READ ME FIRST' File .",
+    "READ THIS FIRST.",
     "2. Release Notes",
      "Read the 2.0 Release Notes (recommended).",
-    "3. COPYRIGHT",
+    "3. Troubleshooting",
+    "Read this if you're having trouble getting installed."
+    "4. COPYRIGHT",
     "Read FreeBSD Copyright Information.",
-    "4. Proceed",
-    "Proceed with installation.",
-    "5. Fixit",
+    "5. Install",
+    "Proceed with full installation.",
+    "6. Fixit",
     "Repair existing installation (`fixit' mode).",
-    "6. Quit",
+    "7. Quit",
     "Don't do anything, just reboot.",
 };
 
@@ -58,16 +60,21 @@ evil_goto:
 	goto evil_goto;
 	break;
 
-    case 3:	/* View copyrights */
+    case 3:	/* View the troubleshooting file */
+        ShowFile(TROUBLE_FILE, "Troubleshooting");
+	goto evil_goto;
+	break;
+
+    case 4:	/* View copyrights */
         ShowFile(COPYRIGHT_FILE, "COPYRIGHT");
 	goto evil_goto;
 	break;
 
-    case 4:	/* Proceed (do nothing special, really) */
+    case 5:	/* Proceed (do nothing special, really) */
 	break;
 
-    case 5:
-	dialog_msgbox("Sorry!", "This feature not currently implemented.",
+    case 6:
+	dialog_msgbox("Sorry!", "This feature is not currently implemented.",
 		      6, 75, 1);
 	goto evil_goto;
 	break;
