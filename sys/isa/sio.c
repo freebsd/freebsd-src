@@ -106,12 +106,6 @@
 #define enable_intr()	COM_ENABLE_INTR()
 #endif /* SMP */
 
-#ifndef EXTRA_SIO
-#define EXTRA_SIO 4		/* XXX shouldn't need NSIO */
-#endif
-
-#define NSIOTOT (NSIO + EXTRA_SIO)
-
 #define	LOTS_OF_EVENTS	64	/* helps separate urgent events from input */
 
 #define	CALLOUT_MASK		0x80
@@ -154,7 +148,7 @@
  *
  * The following com and tty flags correspond closely:
  *	CS_BUSY		= TS_BUSY (maintained by comstart(), siopoll() and
- *				   siostop())
+ *				   comstop())
  *	CS_TTGO		= ~TS_TTSTOP (maintained by comparam() and comstart())
  *	CS_CTS_OFLOW	= CCTS_OFLOW (maintained by comparam())
  *	CS_RTS_IFLOW	= CRTS_IFLOW (maintained by comparam())
@@ -395,6 +389,7 @@ static	int	sio_timeout;
 static	int	sio_timeouts_until_log;
 static	struct	callout_handle sio_timeout_handle
     = CALLOUT_HANDLE_INITIALIZER(&sio_timeout_handle);
+static	int	sio_numunits;
 
 static	struct speedtab comspeedtab[] = {
 	{ 0,		0 },
@@ -484,11 +479,23 @@ sysctl_machdep_comdefaultrate SYSCTL_HANDLER_ARGS
 SYSCTL_PROC(_machdep, OID_AUTO, conspeed, CTLTYPE_INT | CTLFLAG_RW,
 	    0, 0, sysctl_machdep_comdefaultrate, "I", "");
 
+#define SET_FLAG(dev, bit) device_set_flags(dev, device_get_flags(dev) | (bit))
+#define CLR_FLAG(dev, bit) device_set_flags(dev, device_get_flags(dev) & ~(bit))
+
 #if NCARD > 0
 static int
 sio_pccard_probe(dev)
 	device_t	dev;
 {
+	const char *name;
+
+	name = pccard_get_name(dev);
+	if (strcmp(name, "sio"))
+		return ENXIO;
+
+	/* Do not probe IRQ - pccardd has not arranged for it yet */
+	SET_FLAG(dev, COM_C_NOPROBE);
+
 	return (sioprobe(dev));
 }
 
@@ -539,8 +546,6 @@ sio_pccard_detach(dev)
 }
 #endif /* NCARD > 0 */
 
-#define SET_FLAG(dev, bit) device_set_flags(dev, device_get_flags(dev) | (bit))
-#define CLR_FLAG(dev, bit) device_set_flags(dev, device_get_flags(dev) & ~(bit))
 
 static struct isa_pnp_id sio_ids[] = {
 	{0x0005d041, "Standard PC COM port"},	/* PNP0500 */
@@ -570,7 +575,10 @@ static int
 sioprobe(dev)
 	device_t	dev;
 {
+#if 0
 	static bool_t	already_init;
+	device_t	xdev;
+#endif
 	bool_t		failures[10];
 	int		fn;
 	device_t	idev;
@@ -579,7 +587,10 @@ sioprobe(dev)
 	intrmask_t	irqs;
 	u_char		mcr_image;
 	int		result;
-	device_t	xdev;
+#ifdef COM_MULTIPORT
+	Port_t		xiobase;
+#endif
+	int		xirq;
 	u_int		flags = device_get_flags(dev);
 	int		rid;
 	struct resource *port;
@@ -590,6 +601,14 @@ sioprobe(dev)
 	if (!port)
 		return ENXIO;
 
+#if 0
+	/*
+	 * XXX this is broken - when we are first called, there are no
+	 * previously configured IO ports.  We could hard code
+	 * 0x3f8, 0x2f8, 0x3e8, 0x2e8 etc but that's probably worse.
+	 * This code has been doing nothing since the conversion since
+	 * "count" is zero the first time around.
+	 */
 	if (!already_init) {
 		/*
 		 * Turn off MCR_IENABLE for all likely serial ports.  An unused
@@ -598,17 +617,19 @@ sioprobe(dev)
 		 * XXX the gate enable is elsewhere for some multiports.
 		 */
 		device_t *devs;
-		int count, i;
+		int count, i, xioport;
 
 		devclass_get_devices(sio_devclass, &devs, &count);
 		for (i = 0; i < count; i++) {
 			xdev = devs[i];
-			if (device_is_enabled(xdev))
-				outb(isa_get_port(xdev) + com_mcr, 0);
+			xioport = bus_get_resource_start(xdev, SYS_RES_IOPORT, 0);
+			if (device_is_enabled(xdev) && xioport > 0)
+				outb(xioport + com_mcr, 0);
 		}
 		free(devs, M_TEMP);
 		already_init = TRUE;
 	}
+#endif
 
 	if (COM_LLCONSOLE(flags)) {
 		printf("sio%d: reserved for low-level i/o\n",
@@ -627,21 +648,22 @@ sioprobe(dev)
 	idev = dev;
 	mcr_image = MCR_IENABLE;
 #ifdef COM_MULTIPORT
-	if (COM_ISMULTIPORT(flags)) {
+	if (COM_ISMULTIPORT(flags) && !COM_NOTAST4(flags)) {
 		idev = devclass_get_device(sio_devclass, COM_MPMASTER(flags));
 		if (idev == NULL) {
 			printf("sio%d: master device %d not configured\n",
 			       device_get_unit(dev), COM_MPMASTER(flags));
 			idev = dev;
 		}
-		if (!COM_NOTAST4(flags)) {
-			outb(isa_get_port(idev) + com_scr,
-			     isa_get_irq(idev) >= 0 ? 0x80 : 0);
-			mcr_image = 0;
+		xiobase = bus_get_resource_start(idev, SYS_RES_IOPORT, 0);
+		if (xiobase > 0) {
+			xirq = bus_get_resource_start(idev, SYS_RES_IRQ, 0);
+			outb(xiobase + com_scr, xirq >= 0 ? 0x80 : 0);
 		}
+		mcr_image = 0;
 	}
 #endif /* COM_MULTIPORT */
-	if (isa_get_irq(idev) < 0)
+	if (bus_get_resource_start(idev, SYS_RES_IRQ, 0) <= 0)
 		mcr_image = 0;
 
 	bzero(failures, sizeof failures);
@@ -726,31 +748,39 @@ sioprobe(dev)
 	/*
 	 * Some pcmcia cards have the "TXRDY bug", so we check everyone
 	 * for IIR_TXRDY implementation ( Palido 321s, DC-1S... )
-	 * XXX Bruce, is this OK? XXX
 	 */
-#if 0
+#if 1
 	/* Reading IIR register twice */
-	for ( fn = 0; fn < 2; fn ++ ) {
+	for (fn = 0; fn < 2; fn ++) {
 		DELAY(10000);
 		failures[6] = inb(iobase + com_iir);
 	}
 	/* Check IIR_TXRDY clear ? */
 	result = 0;
-	if ( failures[6] & IIR_TXRDY ) {
+	if (failures[6] & IIR_TXRDY) {
 		/* Nop, Double check with clearing IER */
 		outb(iobase + com_ier, 0);
-		if ( inb(iobase + com_iir) & IIR_NOPEND ) {
+		if (inb(iobase + com_iir) & IIR_NOPEND) {
 			/* Ok. we're familia this gang */
-			SET_FLAG(dev, COM_C_IIR_TXRDYBUG); /* Set IIR_TXRDYBUG */
+			SET_FLAG(dev, COM_C_IIR_TXRDYBUG);
 		} else {
 			/* Unknown, Just omit this chip.. XXX */
 			result = ENXIO;
 		}
 	} else {
 		/* OK. this is well-known guys */
-		CLR_FLAG(dev, COM_C_IIR_TXRDYBUG); /*Clear IIR_TXRDYBUG*/
+		CLR_FLAG(dev, COM_C_IIR_TXRDYBUG);
 	}
+#else
+	result = 0;
 #endif
+	if (COM_NOPROBE(flags)) {
+		outb(iobase + com_cfcr, CFCR_8BITS);
+		enable_intr();
+		bus_release_resource(dev, SYS_RES_IOPORT, rid, port);
+		return (iobase == siocniobase ? 0 : result);
+	}
+
 	/*
 	 * Check that
 	 *	o the CFCR, IER and MCR in UART hold the values written to them
@@ -789,10 +819,11 @@ sioprobe(dev)
 	enable_intr();
 
 	irqs = irqmap[1] & ~irqmap[0];
-	if (isa_get_irq(idev) >= 0 && ((1 << isa_get_irq(idev)) & irqs) == 0)
+	xirq = bus_get_resource_start(idev, SYS_RES_IRQ, 0);
+	if (xirq >= 0 && ((1 << xirq) & irqs) == 0)
 		printf(
 		"sio%d: configured irq %d not in bitmap of probed irqs %#x\n",
-		    device_get_unit(dev), isa_get_irq(idev), irqs);
+		    device_get_unit(dev), xirq, irqs);
 	if (bootverbose)
 		printf("sio%d: irq maps: %#x %#x %#x %#x\n",
 		    device_get_unit(dev),
@@ -898,11 +929,13 @@ sioattach(dev)
 	Port_t		*espp;
 #endif
 	Port_t		iobase;
+	int		irq;
 	int		unit;
 	void		*ih;
-	u_int		flags = device_get_flags(dev);
+	u_int		flags;
 	int		rid;
 	struct resource *port;
+	int		ret;
 
 	rid = 0;
 	port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
@@ -911,9 +944,13 @@ sioattach(dev)
 		return ENXIO;
 
 	iobase = rman_get_start(port);
+	irq = bus_get_resource_start(dev, SYS_RES_IRQ, 0);
 	unit = device_get_unit(dev);
 	com = device_get_softc(dev);
+	flags = device_get_flags(dev);
 
+	if (unit >= sio_numunits)
+		sio_numunits = unit + 1;
 	/*
 	 * sioprobe() has initialized the device registers as follows:
 	 *	o cfcr = CFCR_8BITS.
@@ -932,7 +969,7 @@ sioattach(dev)
 	com->cfcr_image = CFCR_8BITS;
 	com->dtr_wait = 3 * hz;
 	com->loses_outints = COM_LOSESOUTINTS(flags) != 0;
-	com->no_irq = isa_get_irq(dev) < 0;
+	com->no_irq = irq < 0;
 	com->tx_fifo_size = 1;
 	com->obufs[0].l_head = com->obuf1;
 	com->obufs[1].l_head = com->obuf2;
@@ -1076,19 +1113,23 @@ determined_type: ;
 
 #ifdef COM_MULTIPORT
 	if (COM_ISMULTIPORT(flags)) {
+		device_t masterdev;
+		int irq;
+
 		com->multiport = TRUE;
 		printf(" (multiport");
 		if (unit == COM_MPMASTER(flags))
 			printf(" master");
 		printf(")");
-		com->no_irq =
-			isa_get_irq(devclass_get_device
-				    (sio_devclass, COM_MPMASTER(flags))) < 0;
+		masterdev = devclass_get_device(sio_devclass,
+		    COM_MPMASTER(flags));
+		irq = bus_get_resource_start(masterdev, SYS_RES_IRQ, 0);
+		com->no_irq = irq < 0;
 	 }
 #endif /* COM_MULTIPORT */
 	if (unit == comconsole)
 		printf(", console");
-	if ( COM_IIR_TXRDYBUG(flags) )
+	if (COM_IIR_TXRDYBUG(flags))
 		printf(" with a bogus IIR_TXRDY register");
 	printf("\n");
 
@@ -1114,10 +1155,14 @@ determined_type: ;
 
 	rid = 0;
 	com->irqres = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0ul, ~0ul, 1,
-	    RF_SHAREABLE | RF_ACTIVE);
-	BUS_SETUP_INTR(device_get_parent(dev), dev, com->irqres,
-		       INTR_TYPE_TTY | INTR_TYPE_FAST,
-		       siointr, com, &ih);
+	    RF_ACTIVE);
+	if (com->irqres) {
+		ret = BUS_SETUP_INTR(device_get_parent(dev), dev, com->irqres,
+			       INTR_TYPE_TTY | INTR_TYPE_FAST,
+			       siointr, com, &ih);
+		if (ret)
+			device_printf(dev, "could not activate interrupt\n");
+	}
 
 	return (0);
 }
@@ -1139,7 +1184,8 @@ sioopen(dev, flag, mode, p)
 
 	mynor = minor(dev);
 	unit = MINOR_TO_UNIT(mynor);
-	if ((u_int) unit >= NSIOTOT || (com = com_addr(unit)) == NULL)
+	com = com_addr(unit);
+	if (com == NULL)
 		return (ENXIO);
 	if (com->gone)
 		return (ENXIO);
@@ -1589,7 +1635,7 @@ siointr(arg)
 	COM_LOCK();
 	do {
 		possibly_more_intrs = FALSE;
-		for (unit = 0; unit < NSIOTOT; ++unit) {
+		for (unit = 0; unit < sio_numunits; ++unit) {
 			com = com_addr(unit);
 			/*
 			 * XXX COM_LOCK();
@@ -1775,7 +1821,7 @@ cont:
 					com->obufq.l_next = qp;
 				} else {
 					/* output just completed */
-					if ( COM_IIR_TXRDYBUG(com->flags) ) {
+					if (COM_IIR_TXRDYBUG(com->flags)) {
 						int_ctl_new = int_ctl & ~IER_ETXRDY;
 					}
 					com->state &= ~CS_BUSY;
@@ -1786,7 +1832,7 @@ cont:
 					setsofttty();	/* handle at high level ASAP */
 				}
 			}
-			if ( COM_IIR_TXRDYBUG(com->flags) && (int_ctl != int_ctl_new)) {
+			if (COM_IIR_TXRDYBUG(com->flags) && (int_ctl != int_ctl_new)) {
 				outb(com->intr_ctl_port, int_ctl_new);
 			}
 		}
@@ -1966,7 +2012,7 @@ siopoll()
 	if (com_events == 0)
 		return;
 repeat:
-	for (unit = 0; unit < NSIOTOT; ++unit) {
+	for (unit = 0; unit < sio_numunits; ++unit) {
 		struct com_s	*com;
 		int		incc;
 		struct tty	*tp;
@@ -2475,7 +2521,7 @@ siosettimeout()
 	untimeout(comwakeup, (void *)NULL, sio_timeout_handle);
 	sio_timeout = hz;
 	someopen = FALSE;
-	for (unit = 0; unit < NSIOTOT; ++unit) {
+	for (unit = 0; unit < sio_numunits; ++unit) {
 		com = com_addr(unit);
 		if (com != NULL && com->tp != NULL
 		    && com->tp->t_state & TS_ISOPEN && !com->gone) {
@@ -2511,7 +2557,7 @@ comwakeup(chan)
 	 * Recover from lost output interrupts.
 	 * Poll any lines that don't use interrupts.
 	 */
-	for (unit = 0; unit < NSIOTOT; ++unit) {
+	for (unit = 0; unit < sio_numunits; ++unit) {
 		com = com_addr(unit);
 		if (com != NULL && !com->gone
 		    && (com->state >= (CS_BUSY | CS_TTGO) || com->poll)) {
@@ -2527,7 +2573,7 @@ comwakeup(chan)
 	if (--sio_timeouts_until_log > 0)
 		return;
 	sio_timeouts_until_log = hz / sio_timeout;
-	for (unit = 0; unit < NSIOTOT; ++unit) {
+	for (unit = 0; unit < sio_numunits; ++unit) {
 		int	errnum;
 
 		com = com_addr(unit);
@@ -2651,7 +2697,7 @@ siocngetspeed(iobase, table)
 
 	code = dlbh << 8 | dlbl;
 
-	for ( ; table->sp_speed != -1; table++)
+	for (; table->sp_speed != -1; table++)
 		if (table->sp_code == code)
 			return (table->sp_speed);
 
