@@ -22,9 +22,9 @@ The
 .Fx
 firewalling system also has the capability to limit bandwidth using
 .Xr dummynet 4 .
-This feature can be useful when you need to guarentee a certain
+This feature can be useful when you need to guarantee a certain
 amount of bandwidth for a critical purpose.  For example, if you
-are doing video conferencing over the internet via your
+are doing video conferencing over the Internet via your
 office T1 (1.5 MBits), you may wish to bandwidth-limit all other
 T1 traffic to 1 MBit in order to reserve at least 0.5 MBits
 for your video conferencing connections.  Similarly if you are
@@ -102,17 +102,17 @@ rules.
 Here is an example ipfw-based firewall taken from a machine with three
 interface cards.  fxp0 is connected to the 'exposed' LAN.  Machines
 on this LAN are dual-homed with both internal 10. IP addresses and
-internet-routed IP addresses.  In our example, 192.100.5.x represents
-the internet-routed IP block while 10.x.x.x represents the internal
+Internet-routed IP addresses.  In our example, 192.100.5.x represents
+the Internet-routed IP block while 10.x.x.x represents the internal
 networks.  While it isn't relevant to the example, 10.0.1.x is
 assigned as the internal address block for the LAN on fxp0, 10.0.2.x
 for the LAN on fxp1, and 10.0.3.x for the LAN on fxp2.
 .Pp
-In this example we want to isolate all three LANs from the internet
+In this example we want to isolate all three LANs from the Internet
 as well as isolate them from each other, and we want to give all
-internal addresses access to the internet through a NAT gateway running
+internal addresses access to the Internet through a NAT gateway running
 on this machine.  To make the NAT gateway work, the firewall machine
-is given two internet-exposed addresses on fxp0 in addition to an
+is given two Internet-exposed addresses on fxp0 in addition to an
 internal 10. address on fxp0: one exposed address (not shown)
 represents the machine's official address, and the second exposed
 address (192.100.5.5 in our example) represents the NAT gateway
@@ -120,13 +120,13 @@ rendezvous IP.  We make the example more complex by giving the machines
 on the exposed LAN internal 10.0.0.x addresses as well as exposed
 addresses.  The idea here is that you can bind internal services
 to internal addresses even on exposed machines and still protect
-those services from the internet.  The only services you run on
+those services from the Internet.  The only services you run on
 exposed IP addresses would be the ones you wish to expose to the
-internet.
+Internet.
 .Pp
 It is important to note that the 10.0.0.x network in our example
 is not protected by our firewall.  You must make sure that your
-internet router protects this network from outside spoofing.
+Internet router protects this network from outside spoofing.
 Also, in our example, we pretty much give the exposed hosts free
 reign on our internal network when operating services through
 internal IP addresses (10.0.0.x).   This is somewhat of security
@@ -164,8 +164,8 @@ ip_portrange_last=5000
 # LAN2	    10.0.2.X
 # sw:	    ethernet switch (unmanaged)
 #
-# 192.100.5.x represents IP addresses exposed to the internet
-# (i.e. internet routeable).  10.x.x.x represent internal IPs
+# 192.100.5.x represents IP addresses exposed to the Internet
+# (i.e. Internet routeable).  10.x.x.x represent internal IPs
 # (not exposed)
 #
 #   [LAN1]
@@ -182,7 +182,7 @@ ip_portrange_last=5000
 #   INTERNET (secondary firewall)
 #    ROUTER
 #      |
-#    [internet]
+#    [Internet]
 #
 # NOT SHOWN:  The INTERNET ROUTER must contain rules to disallow
 # all packets with source IP addresses in the 10. block in order
@@ -230,7 +230,7 @@ add 01001 allow all from any to any out via fxp2
 # internal networks.  Packets received via fxp1 MUST come from
 # 10.0.1.x.  Packets received via fxp2 MUST come from 10.0.2.x.
 # Packets received via fxp0 cannot come from the LAN1 or LAN2
-# blocks.  We can't protect 10.0.0.x here, the internet router
+# blocks.  We can't protect 10.0.0.x here, the Internet router
 # must do that for us.
 #
 add 01500 deny all from not 10.0.1.0/24 in via fxp1
@@ -313,14 +313,14 @@ add 03000 allow tcp from any to any auth,pop3,ftp,ftp-data
 #	14	Timestamp Reply
 #
 # Sometimes people need to allow ICMP REDIRECT packets, which is
-# type 5, but if you allow it make sure that your internet router
+# type 5, but if you allow it make sure that your Internet router
 # disallows it.
 
 add 04000 allow icmp from any to any icmptypes 0,5,8,11,12,13,14
 
 # log any remaining fragments that get through.  Might be useful,
 # otherwise don't bother.  Have a final deny rule as a safety to
-# guarentee that your firewall is inclusive no matter how the kernel
+# guarantee that your firewall is inclusive no matter how the kernel
 # is configured.
 #
 add 05000 deny log ip from any to any frag
