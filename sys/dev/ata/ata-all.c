@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ata.h>
 #include <sys/kernel.h>
 #include <sys/endian.h>
+#include <sys/ctype.h>
 #include <sys/conf.h>
 #include <sys/bus.h>
 #include <sys/bio.h>
@@ -555,6 +556,8 @@ ata_getparam(struct ata_device *atadev, u_int8_t command)
 	    }
 	    ata_free_request(request);
 	}
+	if (!isalpha(atacap->model[0]) || !isalpha(atacap->model[1]))
+	    error = ENXIO;
 	if (error) {
 	    atadev->param = NULL;
 	    free(atacap, M_ATA);
