@@ -37,12 +37,11 @@
 .Sh DESCRIPTION
 This section contains information about the interfaces and
 subroutines in the kernel.
-
 .Sh PROTOTYPES ANSI-C AND ALL THAT
 Yes please.
-
+.Pp
 We would like all code to be fully prototyped.
-
+.Pp
 If your code compiles cleanly with 
 .Nm cc
 .Ar -Wall 
@@ -52,21 +51,19 @@ It is important to understand that this isn't a question of just shutting up
 it is a question about avoiding the things it complains about.
 To put it bluntly, don't hide the problem by casting and other
 obfuscating practices, solve the problem.
-
 .Sh INDENTATION AND STYLE
 Belive it or not, there actually exists a guide for indentation and style.
 It isn't generally applied though.
-
+.Pp
 We would appreciate if people would pay attention to it, and at least not
 violate it blatantly.
-
+.Pp
 We don't mind it too badly if you have your own style, but please make 
 sure we can read it too.
-
+.Pp
 Please take time to read
 .Xr style 9
 for more information.
-
 .Sh NAMING THINGS
 Some general rules exist:
 .Bl -enum 
@@ -83,26 +80,23 @@ And the name of the procedure should start with the prefix
 .Li DDB_ 
 to clearly identify the procedure as a debugger routine.
 .El
-
-
 .Sh SCOPE OF SYMBOLS
 It is important to carefully consider the scope of symbols in the kernel.
 The default is to make everything static, unless some reason requires
 the opposite.
-
+.Pp
 There are several reasons for this policy,
 the main one is that the kernel is one monolithic name-space,
 and pollution is not a good idea here either.
-
+.Pp
 For device drivers and other modules that don't add new internal interfaces
 to the kernel, the entire source should be in one file it possible.
 That way all symbols can be made static.
-
+.Pp
 If for some reason a module is split over multiple source files, then try
 to split the module along some major fault-line and consider using the
 number of global symbols as your guide.
 The fewer the better.
-
 .Sh HISTORY
 The
 .Nm intro
