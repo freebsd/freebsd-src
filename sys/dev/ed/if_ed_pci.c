@@ -21,7 +21,6 @@
  */
 
 #include <sys/param.h>
-#include <sys/systm.h>
 #include <sys/socket.h>
 #include <sys/kernel.h>
 

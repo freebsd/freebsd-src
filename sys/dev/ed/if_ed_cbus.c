@@ -48,7 +48,6 @@
 #include <net/if_mib.h>
 
 #include <isa/isavar.h>
-#include <isa/pnpvar.h>
 
 #include <dev/ed/if_edvar.h>
 #ifdef PC98
