@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
+#include <sys/sysctl.h>
 #include <sys/uio.h>
 
 #include <net/if.h>
@@ -197,6 +198,7 @@ struct bootpc_globalcontext {
 #define TAG_SWAPSIZE	129
 #define TAG_ROOTOPTS	130
 #define TAG_SWAPOPTS	131
+#define TAG_COOKIE	134	/* ascii info for userland, via sysctl */
 
 #define TAG_DHCP_MSGTYPE 53
 #define TAG_DHCP_REQ_ADDR 50
@@ -208,6 +210,10 @@ struct bootpc_globalcontext {
 #define DHCP_OFFER    2
 #define DHCP_REQUEST  3
 #define DHCP_ACK      5
+
+static char bootp_cookie[128];
+SYSCTL_STRING(_kern, OID_AUTO, bootp_cookie, CTLFLAG_RD,
+	bootp_cookie, 0, "Cookie (T134) supplied by bootp server");
 
 /* mountd RPC */
 static int	md_mount(struct sockaddr_in *mdsin, char *path, u_char *fhp,
@@ -1607,6 +1613,15 @@ bootpc_decode_reply(struct nfsv3_diskless *nd, struct bootpc_ifcontext *ifctx,
 			gctx->sethostname = ifctx;
 		}
 	}
+	p = bootpc_tag(&gctx->tag, &ifctx->reply, ifctx->replylen,
+			TAG_COOKIE);
+	if (p != NULL) {        /* store in a sysctl variable */
+		int i, l = sizeof(bootp_cookie) - 1;
+		for (i = 0; i < l && p[i] != '\0'; i++)
+			bootp_cookie[i] = p[i];
+		p[i] = '\0';
+	}
+
 
 	printf("\n");
 
