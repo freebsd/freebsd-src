@@ -1289,9 +1289,8 @@ struct extattr_list_link_args {
 	char nbytes_l_[PADL_(size_t)]; size_t nbytes; char nbytes_r_[PADR_(size_t)];
 };
 struct kse_switchin_args {
-	char mcp_l_[PADL_(const struct __mcontext *)]; const struct __mcontext * mcp; char mcp_r_[PADR_(const struct __mcontext *)];
-	char val_l_[PADL_(long)]; long val; char val_r_[PADR_(long)];
-	char loc_l_[PADL_(long *)]; long * loc; char loc_r_[PADR_(long *)];
+	char tmbx_l_[PADL_(struct kse_thr_mailbox *)]; struct kse_thr_mailbox * tmbx; char tmbx_r_[PADR_(struct kse_thr_mailbox *)];
+	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
 };
 struct ksem_timedwait_args {
 	char id_l_[PADL_(semid_t)]; semid_t id; char id_r_[PADR_(semid_t)];

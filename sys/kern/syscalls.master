@@ -626,8 +626,8 @@
 		    int attrnamespace, void *data, size_t nbytes); }
 439	STD	{ ssize_t extattr_list_link(const char *path, \
 		    int attrnamespace, void *data, size_t nbytes); }
-440	MSTD	{ int kse_switchin(const struct __mcontext *mcp, \
-		    long val, long *loc); }
+440	MSTD	{ int kse_switchin(struct kse_thr_mailbox *tmbx, \
+		    int flags); }
 441	MNOSTD	{ int ksem_timedwait(semid_t id, struct timespec *abstime); }
 442	MSTD	{ int thr_suspend(const struct timespec *timeout); }
 443	MSTD	{ int thr_wake(long id); }
