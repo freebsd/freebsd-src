@@ -2019,6 +2019,7 @@ struct pthread *
 _thr_alloc(struct pthread *curthread)
 {
 	kse_critical_t crit;
+	void *p;
 	struct pthread *thread = NULL;
 
 	if (curthread != NULL) {
@@ -2035,8 +2036,13 @@ _thr_alloc(struct pthread *curthread)
 			_kse_critical_leave(crit);
 		}
 	}
-	if (thread == NULL)
-		thread = (struct pthread *)malloc(sizeof(struct pthread));
+	if (thread == NULL) {
+		p = malloc(sizeof(struct pthread) + THR_ALIGNBYTES);
+		if (p != NULL) {
+			thread = (struct pthread *)THR_ALIGN(p);
+			thread->alloc_addr = p;
+		}
+	}
 	return (thread);
 }
 
@@ -2052,7 +2058,7 @@ _thr_free(struct pthread *curthread, struct pthread *thread)
 			_lockuser_destroy(&thread->lockusers[i]);
 		}
 		_lock_destroy(&thread->lock);
-		free(thread);
+		free(thread->alloc_addr);
 	}
 	else {
 		crit = _kse_critical_enter();
