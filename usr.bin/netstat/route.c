@@ -36,7 +36,7 @@
 static char sccsid[] = "From: @(#)route.c	8.3 (Berkeley) 3/9/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: route.c,v 1.3 1995/01/23 20:19:16 wollman Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -478,11 +478,13 @@ p_rtentry(rt)
 				 "%.6s%d", name, ifnet.if_unit);
 		}
 		if(rt->rt_rmx.rmx_expire) {
-			time_t now = time((time_t *)0);
+			time_t expire_time;
 
-			printf(" %8.8s %6d%s", prettyname,
-			       rt->rt_rmx.rmx_expire - now,
-			       rt->rt_nodes[0].rn_dupedkey ? " =>" : "");
+		        if ((expire_time 
+			       =rt->rt_rmx.rmx_expire - time((time_t *)0)) > 0)
+			    printf(" %8.8s %6d%s", prettyname,
+				   expire_time,
+				   rt->rt_nodes[0].rn_dupedkey ? " =>" : "");
 		} else {
 			printf(" %8.8s%s", prettyname, 
 			       rt->rt_nodes[0].rn_dupedkey ? " =>" : "");
