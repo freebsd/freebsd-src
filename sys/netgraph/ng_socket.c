@@ -276,7 +276,7 @@ printf("errx=%d\n",error);
 
 #else
 	/* The callee will free the msg when done. The path is our business. */
-	NG_SEND_MSG_PATH(error, pcbp->sockdata->node, msg, path, NULL);
+	NG_SEND_MSG_PATH(error, pcbp->sockdata->node, msg, path, 0);
 #endif
 release:
 	if (path != NULL)
@@ -650,7 +650,7 @@ ng_connect_data(struct sockaddr *nam, struct ngpcb *pcbp)
 	if (item == NULL) {
 		return (ENOMEM);
 	}
-	if ((error = ng_address_path(NULL, item,  sap->sg_data, NULL)))
+	if ((error = ng_address_path(NULL, item,  sap->sg_data, 0)))
 		return (error); /* item is freed on failure */
 
 	/*
