@@ -57,6 +57,7 @@ while (<ACCESS>) {
 	chomp;
 	next if /^#/;
 	($accuser, undef) = split /\s/;
+	$accuser =~ s/_//g;
 	print "access user: $accuser\n" if $debug;
 	$access{$accuser} = 1;
 }
