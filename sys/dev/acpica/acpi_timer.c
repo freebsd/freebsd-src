@@ -138,7 +138,7 @@ acpi_timer_identify(driver_t *driver, device_t parent)
     if (getenv("debug.acpi.timer_test") != NULL)
 	acpi_timer_test();
 
-    acpi_timer_timecounter.tc_get_timecount = acpi_timer_get_timecount;
+    acpi_timer_timecounter.tc_get_timecount = acpi_timer_get_timecount_safe;
     acpi_timer_timecounter.tc_frequency = acpi_timer_frequency;
     tc_init(&acpi_timer_timecounter);
 
