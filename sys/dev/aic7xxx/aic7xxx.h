@@ -181,6 +181,10 @@ struct seeprom_descriptor;
 /* Reset line assertion time in us */
 #define AHC_BUSRESET_DELAY	25
 
+/* Phase change constants used in target mode. */
+#define	AHC_BUSSETTLE_DELAY	400
+#define	AHC_DATARELEASE_DELAY	400
+
 /******************* Chip Characteristics/Operating Settings  *****************/
 /*
  * Chip Type

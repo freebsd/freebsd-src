@@ -2828,10 +2828,16 @@ reswitch:
 	case MSG_TYPE_TARGET_MSGIN:
 	{
 		int msgdone;
-		int msgout_request;
 
 		if (ahc->msgout_len == 0)
 			panic("Target MSGIN with no active message");
+
+#ifdef AHC_DEBUG
+		if ((ahc_debug & AHC_SHOW_MESSAGES) != 0) {
+			ahc_print_devinfo(ahc, &devinfo);
+			printf("TARGET_MSG_IN");
+		}
+#endif
 
 		/*
 		 * If we interrupted a mesgout session, the initiator
@@ -2840,24 +2846,47 @@ reswitch:
 		 * first byte.
 		 */
 		if ((ahc_inb(ahc, SCSISIGI) & ATNI) != 0
-		 && ahc->msgout_index > 0)
-			msgout_request = TRUE;
-		else
-			msgout_request = FALSE;
-
-		if (msgout_request) {
+		 && ahc->msgout_index > 0) {
 
 			/*
-			 * Change gears and see if
-			 * this messages is of interest to
-			 * us or should be passed back to
-			 * the sequencer.
+			 * Change gears and see if this messages is
+			 * of interest to us or should be passed back
+			 * to the sequencer.
 			 */
+#ifdef AHC_DEBUG
+			if ((ahc_debug & AHC_SHOW_MESSAGES) != 0)
+				printf(" Honoring ATN Request.\n");
+#endif
 			ahc->msg_type = MSG_TYPE_TARGET_MSGOUT;
+
+			/*
+			 * Disable SCSI Programmed I/O during the
+			 * phase change so as to avoid phantom REQs.
+			 */
+			ahc_outb(ahc, SXFRCTL0,
+				 ahc_inb(ahc, SXFRCTL0) & ~SPIOEN);
+
+			/*
+			 * Since SPIORDY asserts when ACK is asserted
+			 * for P_MSGOUT, and SPIORDY's assertion triggered
+			 * our entry into this routine, wait for ACK to
+			 * *de-assert* before changing phases.
+			 */
+			while ((ahc_inb(ahc, SCSISIGI) & ACKI) != 0)
+				;
+
 			ahc_outb(ahc, SCSISIGO, P_MESGOUT | BSYO);
+
+			/*
+			 * All phase line changes require a bus
+			 * settle delay before REQ is asserted.
+			 * [SCSI SPI4 10.7.1]
+			 */
+			ahc_flush_device_writes(ahc);
+			aic_delay(AHC_BUSSETTLE_DELAY);
+
 			ahc->msgin_index = 0;
-			/* Dummy read to REQ for first byte */
-			ahc_inb(ahc, SCSIDATL);
+			/* Enable SCSI Programmed I/O to REQ for first byte */
 			ahc_outb(ahc, SXFRCTL0,
 				 ahc_inb(ahc, SXFRCTL0) | SPIOEN);
 			break;
@@ -2874,6 +2903,11 @@ reswitch:
 		/*
 		 * Present the next byte on the bus.
 		 */
+#ifdef AHC_DEBUG
+		if ((ahc_debug & AHC_SHOW_MESSAGES) != 0)
+			printf(" byte 0x%x\n",
+			       ahc->msgout_buf[ahc->msgout_index]);
+#endif
 		ahc_outb(ahc, SXFRCTL0, ahc_inb(ahc, SXFRCTL0) | SPIOEN);
 		ahc_outb(ahc, SCSIDATL, ahc->msgout_buf[ahc->msgout_index++]);
 		break;
@@ -2883,6 +2917,12 @@ reswitch:
 		int lastbyte;
 		int msgdone;
 
+#ifdef AHC_DEBUG
+		if ((ahc_debug & AHC_SHOW_MESSAGES) != 0) {
+			ahc_print_devinfo(ahc, &devinfo);
+			printf("TARGET_MSG_OUT");
+		}
+#endif
 		/*
 		 * The initiator signals that this is
 		 * the last byte by dropping ATN.
@@ -2896,6 +2936,13 @@ reswitch:
 		 */
 		ahc_outb(ahc, SXFRCTL0, ahc_inb(ahc, SXFRCTL0) & ~SPIOEN);
 		ahc->msgin_buf[ahc->msgin_index] = ahc_inb(ahc, SCSIDATL);
+
+#ifdef AHC_DEBUG
+		if ((ahc_debug & AHC_SHOW_MESSAGES) != 0)
+			printf(" byte 0x%x\n",
+			       ahc->msgin_buf[ahc->msgin_index]);
+#endif
+
 		msgdone = ahc_parse_msg(ahc, &devinfo);
 		if (msgdone == MSGLOOP_TERMINATED) {
 			/*
@@ -2921,7 +2968,33 @@ reswitch:
 			 * to the Message in phase and send it.
 			 */
 			if (ahc->msgout_len != 0) {
+#ifdef AHC_DEBUG
+				if ((ahc_debug & AHC_SHOW_MESSAGES) != 0) {
+					ahc_print_devinfo(ahc, &devinfo);
+					printf(" preparing response.\n");
+				}
+#endif
 				ahc_outb(ahc, SCSISIGO, P_MESGIN | BSYO);
+
+				/*
+				 * All phase line changes require a bus
+				 * settle delay before REQ is asserted.
+				 * [SCSI SPI4 10.7.1]  When transitioning
+				 * from an OUT to an IN phase, we must
+				 * also wait a data release delay to allow
+				 * the initiator time to release the data
+				 * lines. [SCSI SPI4 10.12]
+				 */
+				ahc_flush_device_writes(ahc);
+				aic_delay(AHC_BUSSETTLE_DELAY
+					+ AHC_DATARELEASE_DELAY);
+
+				/*
+				 * Enable SCSI Programmed I/O.  This will
+				 * immediately cause SPIORDY to assert,
+				 * and the sequencer will call our message
+				 * loop again.
+				 */
 				ahc_outb(ahc, SXFRCTL0,
 					 ahc_inb(ahc, SXFRCTL0) | SPIOEN);
 				ahc->msg_type = MSG_TYPE_TARGET_MSGIN;
@@ -7052,7 +7125,7 @@ bus_reset:
 			active_scb = ahc_lookup_scb(ahc, active_scb_index);
 			if (active_scb != scb) {
 				if (ahc_other_scb_timeout(ahc, scb,
-							  active_scb) != 0)
+							  active_scb) == 0)
 					goto bus_reset;
 				continue;
 			} 
