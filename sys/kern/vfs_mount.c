@@ -1117,8 +1117,6 @@ devfs_fixup(struct thread *td)
 	mtx_unlock(&mountlist_mtx);
 	VOP_UNLOCK(vp, 0, td);
 	vfs_unbusy(mp, td);
-	VREF(vp);
-	vput(vp);
 	vput(dvp);
 
 	/* Unlink the no longer needed /dev/dev -> / symlink */
