@@ -28,7 +28,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: od.c,v 1.38 1998/04/27 11:36:04 des Exp $
+ *	$Id: od.c,v 1.39 1998/06/07 17:12:48 dfr Exp $
  */
 
 /*
@@ -78,6 +78,8 @@
 #include <scsi/scsiconf.h>
 #include <scsi/scsi_debug.h>
 #include <scsi/scsi_driver.h>
+
+#include "ioconf.h"
 
 static u_int32_t odstrats, odqueues;
 
