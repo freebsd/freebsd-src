@@ -37,6 +37,7 @@
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
+#include "system.h"
 
 #include <sys/types.h>
 #include <stdio.h>
@@ -53,10 +54,6 @@ char *calloc();
 char *malloc();
 #endif /* __STDC__ */
 #endif /* STDC_HEADERS */
-
-#ifdef _MINIX
-#undef	POSIX		/* Minix 1.6 doesn't support POSIX.1 sigaction yet */
-#endif
 
 /* Define the highest signal number (usually) */
 #ifndef SIGMAX
@@ -78,7 +75,7 @@ static	struct SIG_hlist	**SIG_handlers;
 
 /* Define array of default signal vectors */
 
-#ifdef POSIX
+#ifdef POSIX_SIGNALS
 static	struct sigaction	*SIG_defaults;
 #else
 #ifdef BSD_SIGNALS
@@ -90,7 +87,7 @@ static	RETSIGTYPE		(**SIG_defaults)();
 
 /* Critical section housekeeping */
 static	int		SIG_crSectNest = 0;	/* Nesting level */
-#ifdef POSIX
+#ifdef POSIX_SIGNALS
 static	sigset_t	SIG_crSectMask;		/* Signal mask */
 #else
 static	int		SIG_crSectMask;		/* Signal mask */
@@ -103,14 +100,14 @@ static	int		SIG_crSectMask;		/* Signal mask */
 static int SIG_init()
 {
 	int i;
-#ifdef POSIX
+#ifdef POSIX_SIGNALS
 	sigset_t sigset_test;
 #endif
 
 	if (SIG_defaults && SIG_handlers)	/* already allocated */
 		return (0);
 
-#ifdef POSIX
+#ifdef POSIX_SIGNALS
 	(void) sigfillset(&sigset_test);
 	for (i = 1; i < SIGMAX && sigismember(&sigset_test, i) == 1; i++)
 		;
@@ -175,7 +172,7 @@ RETSIGTYPE	(*fn)();
 {
 	int			val;
 	struct SIG_hlist	*this;
-#ifdef POSIX
+#ifdef POSIX_SIGNALS
 	struct sigaction	act;
 	sigset_t		sigset_mask, sigset_omask;
 #else
@@ -191,7 +188,7 @@ RETSIGTYPE	(*fn)();
 	val = 0;
 
 	/* Block this signal while we look at handler chain */
-#ifdef POSIX
+#ifdef POSIX_SIGNALS
 	(void) sigemptyset(&sigset_mask);
 	(void) sigaddset(&sigset_mask, sig);
 	(void) sigprocmask(SIG_BLOCK, &sigset_mask, &sigset_omask);
@@ -220,7 +217,7 @@ RETSIGTYPE	(*fn)();
 
 		if (SIG_handlers[sig] == (struct SIG_hlist *) NULL)
 		{
-#ifdef POSIX
+#ifdef POSIX_SIGNALS
 			act.sa_handler = SIG_handle;
 			(void) sigemptyset(&act.sa_mask);
 			act.sa_flags = 0;
@@ -257,7 +254,7 @@ RETSIGTYPE	(*fn)();
 	}
 
 	/* Unblock the signal */
-#ifdef POSIX
+#ifdef POSIX_SIGNALS
 	(void) sigprocmask(SIG_SETMASK, &sigset_omask, NULL);
 #else
 #ifdef BSD_SIGNALS
@@ -280,7 +277,7 @@ RETSIGTYPE	(*fn)();
 	int			val;
 	struct SIG_hlist	*this;
 	struct SIG_hlist	*last;
-#ifdef POSIX
+#ifdef POSIX_SIGNALS
 	sigset_t		sigset_mask, sigset_omask;
 #else
 #ifdef BSD_SIGNALS
@@ -295,7 +292,7 @@ RETSIGTYPE	(*fn)();
 	last = (struct SIG_hlist *) NULL;
 
 	/* Block this signal while we look at handler chain */
-#ifdef POSIX
+#ifdef POSIX_SIGNALS
 	(void) sigemptyset(&sigset_mask);
 	(void) sigaddset(&sigset_mask, sig);
 	(void) sigprocmask(SIG_BLOCK, &sigset_mask, &sigset_omask);
@@ -330,7 +327,7 @@ RETSIGTYPE	(*fn)();
 	/* Restore default behavior if there are no registered handlers */
 	if (SIG_handlers[sig] == (struct SIG_hlist *) NULL)
 	{
-#ifdef POSIX
+#ifdef POSIX_SIGNALS
 		val = sigaction(sig, &SIG_defaults[sig],
 				(struct sigaction *) NULL);
 #else
@@ -344,7 +341,7 @@ RETSIGTYPE	(*fn)();
 	}
 
 	/* Unblock the signal */
-#ifdef POSIX
+#ifdef POSIX_SIGNALS
 	(void) sigprocmask(SIG_SETMASK, &sigset_omask, NULL);
 #else
 #ifdef BSD_SIGNALS
@@ -365,7 +362,7 @@ void SIG_beginCrSect()
 	{
 		if (SIG_crSectNest == 0)
 		{
-#ifdef POSIX
+#ifdef POSIX_SIGNALS
 			sigset_t sigset_mask;
 
 			(void) sigfillset(&sigset_mask);
@@ -394,7 +391,7 @@ void SIG_endCrSect()
 		SIG_crSectNest--;
 		if (SIG_crSectNest == 0)
 		{
-#ifdef POSIX
+#ifdef POSIX_SIGNALS
 			(void) sigprocmask(SIG_SETMASK, &SIG_crSectMask, NULL);
 #else
 #ifdef BSD_SIGNALS

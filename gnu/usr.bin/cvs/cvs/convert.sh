@@ -23,6 +23,6 @@ for i in ${attics} ; do
 		echo $j
 		cp $j $i/SAVE
 		co -l $j
-		ci -K -m"recording file death" $j
+		ci -f -sdead -m"recording file death" $j
 	done
 done

@@ -1,17 +1,18 @@
-# $Id: Makefile,v 1.5 1995/02/22 21:49:46 roberto Exp $
+# $Id: Makefile,v 1.3 1995/12/10 23:07:36 peter Exp $
 
-CVSFILES= commitinfo loginfo rcsinfo editinfo modules
+CVSFILES= checkoutlist commitinfo cvswrappers editinfo loginfo modules \
+	  rcsinfo rcstemplate taginfo unwrap wrap
 
 EXAMPDIR = /usr/share/examples/cvs
 
 NOMAN = noman
+NOOBJ = noobj
 
 all clean:
 	@echo -n
 
 install:
-	cd ${.CURDIR}; \
-	install -c -o ${BINOWN} -g ${BINGRP} -m 444 ${CVSFILES} \
-		${DESTDIR}${EXAMPDIR}
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${CVSFILES} \
+		${DESTDIR}${EXAMPDIR}/examples
 
 .include <bsd.prog.mk>

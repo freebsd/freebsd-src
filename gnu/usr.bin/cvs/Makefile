@@ -1,5 +1,5 @@
-#	$Id: Makefile,v 1.5 1995/03/31 07:55:01 nate Exp $
+#	$Id: Makefile,v 1.7 1995/12/10 22:58:29 peter Exp $
 
-SUBDIR = lib cvs mkmodules cvsinit doc examples
+SUBDIR = lib cvs mkmodules contrib cvsbug cvsinit doc examples
 
 .include <bsd.subdir.mk>

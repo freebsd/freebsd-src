@@ -1,11 +1,10 @@
 $CVSid: @(#)TODO 1.26 94/09/21 $
 
-01. testing.  An automated testing enviroment would be a big win.
-
 14. Pathname stripper, for checkout, as well as for writing the
     Repository file.
     [[ I have a simple one, but need to make sure to call it at all the
        appropriate points ]]
+    (I'm not sure what this means -kingdon, Jun 1995).
 
 16. List of current users of a directory needs to be maintained.
     [[ sort of solved by history database ]]
@@ -13,6 +12,8 @@ $CVSid: @(#)TODO 1.26 94/09/21 $
 22. Catch signals for cleanup when "add"ing files.
 
 24. Insist on a log message.
+    (This should be configurable via commitinfo or some new config file
+    -kingdon, Jun 1995).
 
 30. Add "patch" program option to the modules database.
 
@@ -37,11 +38,7 @@ $CVSid: @(#)TODO 1.26 94/09/21 $
     file system directly, using special known command names?
 
 49. cvs xxx commands should be able to deal with files in other
-    directories.  I want to do a cvs ci foo/bar.c.  This complicates things
-    a bit because one might specify files in different directories, but you
-    could just bucket sort them and do everything for each directory
-    together.  Other than that, it's just a matter of using the adm
-    directory from the directory containing the file rather than the cwd.
+    directories.  I want to do a cvs add foo/bar.c.
     [[ most commands now use the generic recursion processor, but not all;
     this note is left here to remind me to fix the others ]]
 
@@ -84,11 +81,6 @@ $CVSid: @(#)TODO 1.26 94/09/21 $
 	  inverse command should be supported as well) and other's are notified
 	  that a merge will be necessary before their checkin can be
 	  successful.
-
-56. There should be a .cvsrc file that is sourced to customize various
-    variables.  Perhaps there should be a system-wide .cvsrc file that is
-    sourced, then the one in one's home directory, then the environment
-    variables are checked for overriding values.
 
 62. Consider using revision controlled files and directories to handle the
     new module format -- consider a cvs command front-end to
@@ -135,14 +127,6 @@ $CVSid: @(#)TODO 1.26 94/09/21 $
 85. Add revision controlled symbolic links to CVS using one of the tag
     fields in the RCS file.
 
-87. Consider renaming directories and files.
-
-88. Consider using mmap to read files on Sun systems and using a smaller
-    buffer to read files on other systems.  A patch has been supplied.
-
-89. Study the new Dick Grune version of CVS and port any new interesting
-    features to my version of CVS.
-
 91. Better document the format of the source repository and how one might
     convert their current SCCS or RCS files into CVS format.
 
@@ -155,13 +139,6 @@ $CVSid: @(#)TODO 1.26 94/09/21 $
 
 93. Need to think hard about release and development environments.  Think
     about execsets as well.
-
-94. Need to think hard about remote source control and environments
-    together.
-    [[ a contributor has this working over Internet TCP links! ]]
-
-97. Think about some way to undo a change.  This looks hard given the
-    current framework of CVS.
 
 98. If diff3 bombs out (too many differences) cvs then thinks that the file
     has been updated and is OK to be commited even though the file 
@@ -177,10 +154,8 @@ $CVSid: @(#)TODO 1.26 94/09/21 $
 104. cvs should recover nicely on unreadable files/directories.
 
 105. cvs should have administrative tools to allow for changing permissions
-     and modes and what not.
-
-106. Need to figure out how to delete and rename directories from a release
-     and yet have old releases still be accessible.
+     and modes and what not.  In particular, this would make cvs a
+     more attractive alternative to rdist.
 
 107. It should be possible to specify a list of symbolic revisions to
      checkout such that the list is processed in reverse order looking for
@@ -213,17 +188,8 @@ $CVSid: @(#)TODO 1.26 94/09/21 $
      error.  I think a later cvs get sys seemed to work so perhaps
      something is amiss in handling multiple arguments to cvs get?
 
-112. When merging in changes (Glist) and the file ends up exactly as the
-     RCS revision, an "M" is displayed as the "cvs update" output.  This
-     should really just be a "U".  Just an optimization.
-
 113. The "cvs update" command should tee its output to a log file in ".".
-
-114. I wanted to check in my metapreen code tonight, which I had put into
-     a new file called preen.c.  So, recalling your excellent instructions,
-     I typed "cvs add preen.c".  However, cvs complained that there was
-     already a preen.c in /master/etc/fsck/Attic and therefore it wouldn't
-     take mine.  Now what?
+     (why?  What is wrong with piping stdout to "tee"? -kingdon, Jun 1995)
 
 115. I still think "cvs modules" is a good idea.
    Since everything else is inside cvs, "mkmodules" should be in there too:
@@ -238,13 +204,6 @@ $CVSid: @(#)TODO 1.26 94/09/21 $
    "mod -p module ..."	Print relative filenames contained in modules.(no ",v")
    "mod -l module ..."	Prints more info about relative filenames ("ls -l"?)
    "mod -f file ..."	Tells you what module(s) the filenames are in.
-
-116. The first thing import did was to complain about a missing CVSROOT.adm.
-     How about having "import()" copy some "CVSROOT.adm/{loginfo,modules}"
-     templates into place if it discovers none pointed to by $CVSROOT?  As it
-     stands, one has to hand-craft them.  It would be real nice to have it
-     happen automatically.
-     [[ I hope to add a "cvsinit" command to the installation instructions ]]
 
 119. Consider an option to have import checkout the RCS or SCCS files
      if necessary.
@@ -294,14 +253,6 @@ $CVSid: @(#)TODO 1.26 94/09/21 $
      number of each file it is checking in.
      [[ Sort of solved by contrib/log.pl, which does a good job of this ]]
 
-136. Is it possible to specify a command to be run on each file when it is
-     checked out and another command to be run before it is checked in?
-     My idea of how this feature would be used:
-	On checkout:
-		run indent with user's preferred style
-	On checkin:
-		run indent with space-saving, style-free for checkin
-
 137. Some sites might want CVS to fsync() the RCS ,v file to protect
      against nasty hardware errors.  There is a slight performance hit with
      doing so, though, so it should be configurable in the .cvsrc file.
@@ -312,14 +263,6 @@ $CVSid: @(#)TODO 1.26 94/09/21 $
 138. Some people have suggested that CVS use a VPATH-like environment
      variable to limit the amount of sources that need to be duplicated for
      sites with giant source trees and no disk space.
-
-139. murf@dingus.sps.mot.com (Steve Murphy) suggests adding a mode where
-     CVS can work across e-mail to a single repository located at some
-     "known" mail address.  The update/commit operations would work through
-     email aliases, causing them to be slow, but would work nonetheless.
-     This could allow for very cheap remote development sites.
-     [[ We may get to TCP connections over the Internet for the next
-     release, but probably won't do an e-mail linkup right away ]]
 
 141. Import should accept modules as its directory argument.
 
@@ -357,14 +300,8 @@ $CVSid: @(#)TODO 1.26 94/09/21 $
 
 146. The merging of files should be controlled via a hook so that programs
      other than "rcsmerge" can be used, like Sun's filemerge or emacs's
-     emerge.el.
-
-148. It would be nice if cvs import (and perhaps commit when the rcs file
-     is created) would set the comment leader automagically to the prefix
-     string of $Log entry, if some option is given.  For example, if a file
-     has a line `%*&# $Log...'  the comment leader would be set to `%*&# '.
-     It would help a lot for unknown files with unknown suffix, and if the
-     comment leader is not standard.  Perhaps for cvs 1.4.
+     emerge.el.  (but be careful in making this work client/server--it means
+     doing the interactive merging at the end after the server is done).
 
 149. On Sun, 2 Feb 92 22:01:38 EST, rouilj@dl5000.bc.edu (John P. Rouillard)
      said:
@@ -452,33 +389,15 @@ $CVSid: @(#)TODO 1.26 94/09/21 $
 161. The date parser included with CVS (lib/getdate.y) does not support
      such RCS-supported dates as "1992/03/07".  It probably should.
 
-162. We have had a number of cases where some idiot does a "cd" into $CVSROOT
-     and tries to run checkout.  I suggest you make it impossible for someone
-     to check out anything directly into $CVSROOT.  This works (though there
-     is no error checking):
- 
-	getwd(curdir);
-	chdir(getenv("CVSROOT"));
-	getwd(cvsrootdir);
-	strcat(cvsrootdir, "/");
-	chdir(curdir);
- 
- 	if (!strncmp (curdir, cvsrootdir, strlen(cvsrootdir))) {
-		abort with a nasty message about writing into the repository.
-	}
-
-     (In other words, if the real path where $CVSROOT is stored is a parent of
-     the real pathname of your current directory, die horribly.)
-
 163. The rtag/tag commands should have an option that removes the specified
      tag from any file that is in the attic.  This allows one to re-use a
      tag (like "Mon", "Tue", ...) all the time and still have it tag the
      real main-line code.
 
-164. The rcsinfo file should be able to expand environment variables to
-     find the pathname to the template file.  Perhaps it should just
-     popen("cat <line>"); and read the resulting output, to let the shell
-     do the dirty work.
+164. The *info files should allow multiple ocurrences of $CVSROOT and/or
+     other cvs variables.  They probably should *not* expand environment
+     variables, as their behavior probably should not depend on who is 
+     running CVS.
 
 165. The "import" command will create RCS files automatically, but will
      screw-up when trying to create long file names on short file name
@@ -499,37 +418,6 @@ $CVSid: @(#)TODO 1.26 94/09/21 $
 
      where "C2" is a magic branch that resolves to 1.63.2 do not print the
      same things.  Sigh.
-
-168. After making changes to a set of files, some of which were in
-     sub-directories, I wanted to build a patch file for the whole works:
- 
-        cvs diff -c -rPROD-REL .
- 
-     However, any diffs for files in sub-directories did not have relative
-     pathnames.  For example, with local changes to perl's hints/aix_rs.sh:
- 
-        ===================================================================
-        RCS file: /local/src-CVS/misc/perl/hints/aix_rs.sh,v
-        retrieving revision 1.1.1.1
-        diff -c -r1.1.1.1 aix_rs.sh
-        *** 1.1.1.1     1992/12/17 19:43:32
-        --- aix_rs.sh   1993/01/05 21:33:12
-        ***************
-        *** 1,3 ****
- 
-     It was easy enough to fix in this case, but I'd suggest that the file
-     name have the relative directory prepended and a proper patch "Index:"
-     line be added, such as this:
- 
-        ===================================================================
-        RCS file: /local/src-CVS/misc/perl/hints/aix_rs.sh,v
-        retrieving revision 1.1.1.1
-        diff -c -r1.1.1.1 hints/aix_rs.sh
-        Index: hints/aix_rs.sh
-        *** 1.1.1.1     1992/12/17 19:43:32
-        --- hints/aix_rs.sh     1993/01/05 21:33:12
-        ***************
-        *** 1,3 ****
 
 169. We are using CVS as the configuration control for a software reuse library.
      What we do is do system calls passing the needed arguments. In the next
@@ -552,19 +440,6 @@ $CVSid: @(#)TODO 1.26 94/09/21 $
      It would also be nice if there was some sort of "verboseness" switch to
      the checkout and update commands that could turn this invocation of the
      script off, for mature users.
-
-171. We have been actively using CVS since September, and we still have the
-     opinion that automerge is dangerous.  We have been burned by it a
-     couple of times so far, when people missed the notification of a
-     conflict during an update, and then they committed the files with the
-     >>>>>>> and <<<<<<< reports in them.  This kind of problem usually gets
-     noticed before commit in compiled files when the compiler croaks, but
-     we also maintain many documentation files in CVS, and in one case the
-     problem was not noticed until months later.
-
-172. "cvs add foo/bar" doesn't work, but "cvs remove foo/bar" works. Maybe
-     "cvs add" should be rewritten to use the recursive directory code that
-     most of CVS uses.
 
 173. We have a tagged branch in CVS.  How do we get the version of that branch
      (for an entire directory) that corresponds to the files on that branch on a
@@ -594,17 +469,6 @@ $CVSid: @(#)TODO 1.26 94/09/21 $
      its tag is different from the "main" distribution. I've tried to
      use "-I" to ignore the directory, as well as .cvsignore, but this
      doesn't work.
-
-178. At our site we tag all releases of the sw with
-     product name and version number, the tag is pretty
-     long and if you by accident write an old tag which
-     was in use on an old release, the default behaviour
-     of cvs is to change the old tag!!!
-
-     Could the CVS system reject to reuse an old tag?
-     You have the possibility to manually remove it,
-     but you will not have to be afraid of one tag
-     silently changing.
 
 179. "cvs admin" does not log its actions with loginfo, nor does it check
      whether the action is allowed with commitinfo.  It should.

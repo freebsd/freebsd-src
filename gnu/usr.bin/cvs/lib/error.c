@@ -18,26 +18,20 @@
 /* David MacKenzie */
 /* Brian Berliner added support for CVS */
 
-#ifndef lint
-static char rcsid[] = "$CVSid: @(#)error.c 1.13 94/09/30 $";
-#endif /* not lint */
+#include "cvs.h"
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#ifndef lint
+static const char rcsid[] = "$CVSid: @(#)error.c 1.13 94/09/30 $";
+USE(rcsid);
+#endif /* not lint */
 
 #include <stdio.h>
 
-/* turn on CVS support by default, since this is the CVS distribution */
-#define	CVS_SUPPORT
-
-#ifdef CVS_SUPPORT
-#if __STDC__
-void Lock_Cleanup(void);
-#else
-void Lock_Cleanup();
-#endif /* __STDC__ */
-#endif /* CVS_SUPPORT */
+/* If non-zero, error will use the CVS protocol to stdout to report error
+   messages.  This will only be set in the CVS server parent process;
+   most other code is run via do_cvs_command, which forks off a child
+   process and packages up its stderr in the protocol.  */
+int error_use_protocol; 
 
 #ifdef HAVE_VPRINTF
 
@@ -74,6 +68,20 @@ void exit ();
 
 extern char *strerror ();
 
+typedef void (*fn_returning_void) ();
+
+/* Function to call before exiting.  */
+static fn_returning_void cleanup_fn;
+
+fn_returning_void
+error_set_cleanup (arg)
+     fn_returning_void arg;
+{
+  fn_returning_void retval = cleanup_fn;
+  cleanup_fn = arg;
+  return retval;
+}
+
 /* Print the program name and error message MESSAGE, which is a printf-style
    format string with optional args.
    If ERRNUM is nonzero, print its corresponding system error message.
@@ -81,59 +89,57 @@ extern char *strerror ();
 /* VARARGS */
 void
 #if defined (HAVE_VPRINTF) && __STDC__
-error (int status, int errnum, char *message, ...)
+error (int status, int errnum, const char *message, ...)
 #else
 error (status, errnum, message, va_alist)
      int status;
      int errnum;
-     char *message;
+     const char *message;
      va_dcl
 #endif
 {
+  FILE *out = stderr;
   extern char *program_name;
-#ifdef CVS_SUPPORT
   extern char *command_name;
-#endif
 #ifdef HAVE_VPRINTF
   va_list args;
 #endif
 
-#ifdef CVS_SUPPORT
+  if (error_use_protocol)
+    {
+      out = stdout;
+      printf ("E ");
+    }
+
   if (command_name && *command_name)
     if (status)
-      fprintf (stderr, "%s [%s aborted]: ", program_name, command_name);
+      fprintf (out, "%s [%s aborted]: ", program_name, command_name);
     else
-      fprintf (stderr, "%s %s: ", program_name, command_name);
+      fprintf (out, "%s %s: ", program_name, command_name);
   else
-    fprintf (stderr, "%s: ", program_name);
-#else
-  fprintf (stderr, "%s: ", program_name);
-#endif
+    fprintf (out, "%s: ", program_name);
 #ifdef HAVE_VPRINTF
   VA_START (args, message);
-  vfprintf (stderr, message, args);
+  vfprintf (out, message, args);
   va_end (args);
 #else
 #ifdef HAVE_DOPRNT
-  _doprnt (message, &args, stderr);
+  _doprnt (message, &args, out);
 #else
-  fprintf (stderr, message, a1, a2, a3, a4, a5, a6, a7, a8);
+  fprintf (out, message, a1, a2, a3, a4, a5, a6, a7, a8);
 #endif
 #endif
   if (errnum)
-    fprintf (stderr, ": %s", strerror (errnum));
-  putc ('\n', stderr);
-  fflush (stderr);
+    fprintf (out, ": %s", strerror (errnum));
+  putc ('\n', out);
+  fflush (out);
   if (status)
     {
-#ifdef CVS_SUPPORT
-      Lock_Cleanup();
-#endif
+      if (cleanup_fn)
+	(*cleanup_fn) ();
       exit (status);
     }
 }
-
-#ifdef CVS_SUPPORT
 
 /* Print the program name and error message MESSAGE, which is a printf-style
    format string with optional args to the file specified by FP.
@@ -175,11 +181,8 @@ fperror (fp, status, errnum, message, va_alist)
   fflush (fp);
   if (status)
     {
-#ifdef CVS_SUPPORT
-      Lock_Cleanup();
-#endif
+      if (cleanup_fn)
+	(*cleanup_fn) ();
       exit (status);
     }
 }
-
-#endif /* CVS_SUPPORT */

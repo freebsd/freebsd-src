@@ -1,16 +1,16 @@
 /*
  * Copyright (c) 1992, Brian Berliner and Jeff Polk
  * Copyright (c) 1989-1992, Brian Berliner
- *
+ * 
  * You may distribute under the terms of the GNU General Public License as
  * specified in the README file that comes with the CVS 1.4 kit.
- *
+ * 
  * This file holds (most of) the configuration tweaks that can be made to
  * customize CVS for your site.  CVS comes configured for a typical SunOS 4.x
  * environment.  The comments for each configurable item are intended to be
  * self-explanatory.  All #defines are tested first to see if an over-riding
  * option was specified on the "make" command line.
- *
+ * 
  * If special libraries are needed, you will have to edit the Makefile.in file
  * or the configure script directly.  Sorry.
  */
@@ -33,7 +33,7 @@
  * you should turn on the following define.  It only exists to try to do
  * reasonable things with your existing checked out files when you upgrade to
  * RCS V5, since the keyword expansion formats have changed with RCS V5.
- *
+ * 
  * If you already have been running with RCS5, or haven't been running with CVS
  * yet at all, or are sticking with RCS V4 for now, leave the commented out.
  */
@@ -53,26 +53,30 @@
 
 /*
  * The "diff" program to execute when creating patch output.  This "diff"
- * must support the "-c" option for context diffing.  Specify a full pathname
- * if your site wants to use a particular diff.  If you are using the GNU
- * version of diff (version 1.15 or later), this should be "diff -a".
- *
- * NOTE: this program is only used for the ``patch'' sub-command.  The other
- * commands use rcsdiff which will use whatever version of diff was specified
+ * must support the "-c" option for context diffing.  Specify a full
+ * pathname if your site wants to use a particular diff.  If you are
+ * using the GNU version of diff (version 1.15 or later), this should
+ * be "diff -a".  
+ * 
+ * NOTE: this program is only used for the ``patch'' sub-command (and
+ * for ``update'' if you are using the server).  The other commands
+ * use rcsdiff which will use whatever version of diff was specified
  * when rcsdiff was built on your system.
  */
+
 #ifndef DIFF
-#define	DIFF	"diff"
+#define	DIFF	"/usr/bin/diff -a"
 #endif
 
 /*
  * The "grep" program to execute when checking to see if a merged file had
- * any conflicts.  This "grep" must support the "-s" option and a standard
+ * any conflicts.  This "grep" must support a standard basic
  * regular expression as an argument.  Specify a full pathname if your site
  * wants to use a particular grep.
  */
+
 #ifndef GREP
-#define	GREP	"grep"
+#define GREP "grep"
 #endif
 
 /*
@@ -93,6 +97,15 @@
 #endif
 
 /*
+ * The "patch" program to run when using the CVS server and accepting
+ * patches across the network.  Specify a full pathname if your site
+ * wants to use a particular patch.
+ */
+#ifndef PATCH_PROGRAM
+#define PATCH_PROGRAM	"patch"
+#endif
+
+/*
  * By default, RCS programs are executed with the shell or through execlp(),
  * so the user's PATH environment variable is searched.  If you'd like to
  * bind all RCS programs to a certain directory (perhaps one not in most
@@ -100,7 +113,7 @@
  * this here will cause all RCS programs to be executed from this directory,
  * unless the user overrides the default with the RCSBIN environment variable
  * or the "-b" option to CVS.
- *
+ * 
  * This define should be either the empty string ("") or a full pathname to the
  * directory containing all the installed programs from the RCS distribution.
  */
@@ -120,10 +133,34 @@
 #endif
 
 /*
+ * The default umask to use when creating or otherwise setting file or
+ * directory permissions in the repository.  Must be a value in the
+ * range of 0 through 0777.  For example, a value of 002 allows group
+ * rwx access and world rx access; a value of 007 allows group rwx
+ * access but no world access.  This value is overridden by the value
+ * of the CVSUMASK environment variable, which is interpreted as an
+ * octal number.
+ */
+#ifndef UMASK_DFLT
+#define	UMASK_DFLT	002
+#endif
+
+/*
+ * The cvs admin command is restricted to the members of the group
+ * CVS_ADMIN_GROUP.  If this group does not exist, all users are
+ * allowed to run cvs admin.  To disable the cvs admin for all users,
+ * create an empty group CVS_ADMIN_GROUP.  To disable access control for
+ * cvs admin, comment out the define below.
+ */
+#ifndef CVS_ADMIN_GROUP
+#define CVS_ADMIN_GROUP "cvsadmin"
+#endif
+
+/*
  * The Repository file holds the path to the directory within the source
  * repository that contains the RCS ,v files for each CVS working directory.
  * This path is either a full-path or a path relative to CVSROOT.
- *
+ * 
  * The only advantage that I can see to having a relative path is that One can
  * change the physical location of the master source repository, change one's
  * CVSROOT environment variable, and CVS will work without problems.  I
@@ -175,6 +212,19 @@
 #endif
 
 /*
+ * The "cvs admin" command allows people to get around most of the logging
+ * and info procedures within CVS.  For exmaple, "cvs tag tagname filename"
+ * will perform some validity checks on the tag, while "cvs admin -Ntagname"
+ * will not perform those checks.  For this reason, some sites may wish to
+ * disable the admin function completely.
+ *
+ * To disable the admin function, uncomment the lines below.
+ */
+#ifndef CVS_NOADMIN
+/* #define CVS_NOADMIN */
+#endif
+
+/*
  * The "cvs diff" command accepts all the single-character options that GNU
  * diff (1.15) accepts.  Except -D.  GNU diff uses -D as a way to put
  * cpp-style #define's around the output differences.  CVS, by default, uses
@@ -184,6 +234,40 @@
  */
 #ifndef CVS_DIFFDATE
 #define	CVS_DIFFDATE
+#endif
+
+/*
+ * define this to enable the SETXID support (see FAQ 4D.13)
+ */
+#ifndef SETXID_SUPPORT
+/* #define SETXID_SUPPORT */
+#endif
+
+/*
+ * The authenticated client/server is under construction.  Don't
+ * define either of these unless you're testing them, in which case 
+ * you're me and you already know that.
+ */
+/* #undef AUTH_CLIENT_SUPPORT */
+/* #undef AUTH_SERVER_SUPPORT */
+
+/*
+ * If you are working with a large remote repository and a 'cvs checkout' is
+ * swamping your network and memory, define these to enable flow control.
+ * You will end up with even less guarantees of a consistant checkout,
+ * but that may be better than no checkout at all.  The master server process
+ * will monitor how far it is getting behind, if it reaches the high water
+ * mark, it will signal the child process to stop generating data when
+ * convenient (ie: no locks are held, currently at the beginning of a 
+ * new directory).  Once the buffer has drained sufficiently to reach the
+ * low water mark, it will be signalled to start again.
+ * -- EXPERIMENTAL! --  A better solution may be in the works.
+ * You may override the default hi/low watermarks here too.
+ */
+#ifndef SERVER_FLOWCONTROL
+# define SERVER_FLOWCONTROL
+# define SERVER_HI_WATER (2 * 1024 * 1024)
+# define SERVER_LO_WATER (1 * 1024 * 1024)
 #endif
 
 /* End of CVS configuration section */

@@ -1,17 +1,17 @@
 /*
  * Copyright (c) 1992, Brian Berliner and Jeff Polk
- *
+ * 
  * You may distribute under the terms of the GNU General Public License as
  * specified in the README file that comes with the CVS 1.4 kit.
- *
+ * 
  * Polk's hash list manager.  So cool.
  */
 
 #include "cvs.h"
 
 #ifndef lint
-static char rcsid[] = "$CVSid: @(#)hash.c 1.19 94/09/23 $";
-USE(rcsid)
+static const char rcsid[] = "$CVSid: @(#)hash.c 1.19 94/09/23 $";
+USE(rcsid);
 #endif
 
 /* global caches */
@@ -23,7 +23,7 @@ static void freenode_mem PROTO((Node * p));
 /* hash function */
 static int
 hashp (key)
-    char *key;
+    const char *key;
 {
     unsigned int h = 0;
     unsigned int g;
@@ -203,7 +203,7 @@ freenode (p)
 /*
  * insert item p at end of list "list" (maybe hash it too) if hashing and it
  * already exists, return -1 and don't actually put it in the list
- *
+ * 
  * return 0 on success
  */
 int
@@ -254,7 +254,7 @@ addnode (list, p)
 Node *
 findnode (list, key)
     List *list;
-    char *key;
+    const char *key;
 {
     Node *head, *p;
 
@@ -277,7 +277,7 @@ findnode (list, key)
 int
 walklist (list, proc, closure)
     List *list;
-    int (*proc) ();
+    int (*proc) PROTO ((Node *, void *));
     void *closure;
 {
     Node *head, *p;
@@ -298,7 +298,7 @@ walklist (list, proc, closure)
 void
 sortlist (list, comp)
     List *list;
-    int (*comp) ();
+    int (*comp) PROTO ((const Node *, const Node *));
 {
     Node *head, *remain, *p, *q;
 
@@ -363,7 +363,8 @@ nodetypestring (type)
     return("<trash>");
 }
 
-int
+static int printnode PROTO ((Node *, void *));
+static int
 printnode (node, closure)
      Node *node;
      void *closure;
@@ -392,7 +393,7 @@ printlist (list)
 
     (void) printf("List at 0x%p: list = 0x%p, HASHSIZE = %d, next = 0x%p\n",
 	   list, list->list, HASHSIZE, list->next);
-
+    
     (void) walklist(list, printnode, NULL);
 
     return;

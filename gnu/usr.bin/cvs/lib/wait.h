@@ -17,6 +17,9 @@
 
 #ifdef HAVE_SYS_WAIT_H
 #include <sys/types.h>		/* For pid_t. */
+#ifdef HAVE_SYS_RESOURCE_H
+#include <sys/resource.h>	/* for rusage */
+#endif
 #include <sys/wait.h>
 #else
 #define WIFSTOPPED(w) (((w) & 0xff) == 0x7f)
