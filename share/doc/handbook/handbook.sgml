@@ -1,4 +1,4 @@
-<!-- $Id: handbook.sgml,v 1.53 1996/08/09 15:33:27 jfieber Exp $ -->
+<!-- $Id: handbook.sgml,v 1.54 1996/08/21 07:28:42 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN" [
@@ -94,7 +94,7 @@ name="FreeBSD FTP server"> or one of the numerous
     &printing;
 
     &quotas;
-    <chapt><heading>The X-Window System</heading>
+    <chapt><heading>The X Window System</heading>
        <p>Pending the completion of this section, please refer to
          documentation supplied by the <url url="http://www.xfree86.org/"
          name="The XFree86 Project, Inc">.
