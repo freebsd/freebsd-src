@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.38 1996/04/08 01:21:59 davidg Exp $
+ *	$Id: kern_exec.c,v 1.39 1996/04/29 15:07:59 smpatel Exp $
  */
 
 #include <sys/param.h>
@@ -39,11 +39,14 @@
 #include <sys/imgact.h>
 #include <sys/imgact_elf.h>
 #include <sys/wait.h>
+#include <sys/proc.h>
 #include <sys/malloc.h>
+#include <sys/namei.h>
 #include <sys/sysent.h>
 #include <sys/syslog.h>
 #include <sys/shm.h>
 #include <sys/sysctl.h>
+#include <sys/vnode.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
