@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.92 1995/01/04 07:35:46 jkh Exp $
+# $Id: bsd.port.mk,v 1.93 1995/01/04 08:30:33 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -370,7 +370,7 @@ pre-build:
 .endif
 
 .if !target(build)
-build: configure depends ${BUILD_COOKIE}
+build: depends configure ${BUILD_COOKIE}
 
 ${BUILD_COOKIE}:
 	@echo "===>  Building for ${DISTNAME}"
