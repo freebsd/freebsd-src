@@ -45,7 +45,10 @@
 .Op Fl N Ar system
 .Op Fl O Ar fmt
 .Op Fl o Ar fmt
-.Op Fl p Ar pid
+.Oo Fl p Ar pid Ns Xo
+.Op , Ns Ar pid Ns No ...
+.Xc
+.Oc
 .Op Fl t Ar tty
 .Op Fl U Ar username
 .Nm
@@ -134,7 +137,7 @@ This causes the printed header to use the specified string instead of
 the standard header.
 .It Fl p
 Display information associated with the specified process
-.Tn ID .
+.Tn ID(s) .
 .It Fl r
 Sort by current cpu usage, instead of by process
 .Tn ID .

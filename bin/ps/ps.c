@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 
 #include <ctype.h>
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <kvm.h>
 #include <limits.h>
@@ -102,6 +103,7 @@ static void	 scanvars(void);
 static void	 dynsizevars(KINFO *);
 static void	 sizevars(void);
 static void	 usage(void);
+static pid_t	*getpids(const char *, int *);
 static uid_t	*getuids(const char *, int *);
 
 static char dfmt[] = "pid,tt,state,time,command";
@@ -127,10 +129,10 @@ main(int argc, char *argv[])
 	struct varent *vent;
 	struct winsize ws;
 	dev_t ttydev;
-	pid_t pid;
+	pid_t *pids;
 	uid_t *uids;
 	int all, ch, flag, i, _fmt, lineno, nentries, nocludge, dropgid;
-	int prtheader, wflag, what, xflg, uid, nuids, showthreads;
+	int prtheader, wflag, what, xflg, pid, uid, npids, nuids, showthreads;
 	char errbuf[_POSIX2_LINE_MAX];
 	const char *cp, *nlistf, *memf;
 
@@ -167,9 +169,8 @@ main(int argc, char *argv[])
 	}
 
 	all = _fmt = prtheader = wflag = xflg = 0;
-	pid = -1;
-	nuids = 0;
-	uids = NULL;
+	npids = nuids = 0;
+	pids = uids = NULL;
 	ttydev = NODEV;
 	dropgid = 0;
 	memf = nlistf = _PATH_DEVNULL;
@@ -243,7 +244,7 @@ main(int argc, char *argv[])
 			break;
 #endif
 		case 'p':
-			pid = atol(optarg);
+			pids = getpids(optarg, &npids);
 			xflg = 1;
 			break;
 		case 'r':
@@ -333,7 +334,7 @@ main(int argc, char *argv[])
 		parsefmt(dfmt, 0);
 
 	/* XXX - should be cleaner */
-	if (!all && ttydev == NODEV && pid == -1 && !nuids) {
+	if (!all && ttydev == NODEV && !npids && !nuids) {
 		if ((uids = malloc(sizeof (*uids))) == NULL)
 			errx(1, "malloc failed");
 		nuids = 1;
@@ -354,9 +355,9 @@ main(int argc, char *argv[])
 	} else if (ttydev != NODEV) {
 		what = KERN_PROC_TTY | showthreads;
 		flag = ttydev;
-	} else if (pid != -1) {
+	} else if (npids == 1) {
 		what = KERN_PROC_PID | showthreads;
-		flag = pid;
+		flag = *pids;
 	} else {
 		what = showthreads != 0 ? KERN_PROC_ALL : KERN_PROC_PROC;
 		flag = 0;
@@ -365,15 +366,18 @@ main(int argc, char *argv[])
 	/*
 	 * select procs
 	 */
-	if ((kp = kvm_getprocs(kd, what, flag, &nentries)) == 0 || nentries < 0)
+	kp = kvm_getprocs(kd, what, flag, &nentries);
+	if ((kp == 0 && nentries != 0) || nentries < 0)
 		errx(1, "%s", kvm_geterr(kd));
-	if ((kinfo = malloc(nentries * sizeof(*kinfo))) == NULL)
-		errx(1, "malloc failed");
-	for (i = nentries; --i >= 0; ++kp) {
-		kinfo[i].ki_p = kp;
-		if (needuser)
-			saveuser(&kinfo[i]);
-		dynsizevars(&kinfo[i]);
+	if (nentries > 0) {
+		if ((kinfo = malloc(nentries * sizeof(*kinfo))) == NULL)
+			errx(1, "malloc failed");
+		for (i = nentries; --i >= 0; ++kp) {
+			kinfo[i].ki_p = kp;
+			if (needuser)
+				saveuser(&kinfo[i]);
+			dynsizevars(&kinfo[i]);
+		}
 	}
 
 	sizevars();
@@ -395,6 +399,14 @@ main(int argc, char *argv[])
 		if (xflg == 0 && (KI_EPROC(&kinfo[i])->e_tdev == NODEV ||
 		    (KI_PROC(&kinfo[i])->p_flag & P_CONTROLT ) == 0))
 			continue;
+		if (npids > 1) {
+			for (pid = 0; pid < npids; pid++)
+				if (KI_PROC(&kinfo[i])->p_pid ==
+				    pids[pid])
+					break;
+			if (pid == npids)
+				continue;
+		}
 		if (nuids > 1) {
 			for (uid = 0; uid < nuids; uid++)
 				if (KI_EPROC(&kinfo[i])->e_ucred.cr_uid ==
@@ -418,6 +430,75 @@ main(int argc, char *argv[])
 	free(uids);
 
 	exit(eval);
+}
+
+#define	BSD_PID_MAX	99999		/* Copy of PID_MAX from sys/proc.h */
+pid_t *
+getpids(const char *arg, int *npids)
+{
+	char copyarg[32];
+	char *copyp, *endp;
+	pid_t *pids, *morepids;
+	int alloc;
+	long tempid;
+
+	alloc = 0;
+	*npids = 0;
+	pids = NULL;
+	while (*arg != '\0') {
+		while (*arg != '\0' && strchr(SEP, *arg) != NULL)
+			arg++;
+		if (*arg == '\0' || strchr(SEP, *arg) != NULL)
+			tempid = 0;
+		else {
+			copyp = copyarg;
+			endp = copyarg + sizeof(copyarg) - 1;
+			while (*arg != '\0' && strchr(SEP, *arg) == NULL &&
+			    copyp <= endp)
+				*copyp++ = *arg++;
+			if (copyp > endp) {
+				*endp = '\0';
+				tempid = -1;
+				while (*arg != '\0' &&
+				    strchr(SEP, *arg) == NULL)
+					arg++;
+			} else {
+				*copyp = '\0';
+				errno = 0;
+				tempid = strtol(copyarg, &endp, 10);
+			}
+			/*
+			 * Write warning messages for any values which
+			 * would never be a valid process number.
+			 */
+			if (*endp != '\0' || tempid < 0 || copyarg == endp) {
+				warnx("invalid process number: %s", copyarg);
+				errno = ERANGE;
+			} else if (errno != 0 || tempid > BSD_PID_MAX) {
+				warnx("process number too large: %s", copyarg);
+				errno = ERANGE;
+			}
+			if (errno == ERANGE) {
+				/* Ignore this value from the given list. */
+				continue;
+			}
+		}
+		if (*npids >= alloc) {
+			alloc = (alloc + 1) << 1;
+			morepids = realloc(pids, alloc * sizeof (*pids));
+			if (morepids == NULL) {
+				free(pids);
+				errx(1, "realloc failed");
+			}
+			pids = morepids;
+		}
+		pids[(*npids)++] = tempid;
+	}
+
+	if (!*npids)
+		errx(1, "No valid process numbers specified");
+
+	return (pids);
 }
 
 uid_t *
@@ -672,8 +753,8 @@ usage(void)
 {
 
 	(void)fprintf(stderr, "%s\n%s\n%s\n",
-	    "usage: ps [-aChjlmrSTuvwx] [-O|o fmt] [-p pid] [-t tty] [-U user]",
-	    "          [-M core] [-N system]",
+	    "usage: ps [-aChjlmrSTuvwx] [-O|o fmt] [-p pid[,pid]] [-t tty]",
+	    "          [-U user[,user]] [-M core] [-N system]",
 	    "       ps [-L]");
 	exit(1);
 }
