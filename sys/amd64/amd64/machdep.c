@@ -2168,7 +2168,10 @@ get_fpcontext(struct thread *td, mcontext_t *mcp)
 	 * npxgetregs()'s internals.
 	 */
 	addr = (union savefpu *)&mcp->mc_fpstate;
-	if (td == PCPU_GET(fpcurthread) && cpu_fxsr &&
+	if (td == PCPU_GET(fpcurthread) &&
+#ifdef CPU_ENABLE_SSE
+	    cpu_fxsr &&
+#endif
 	    ((uintptr_t)(void *)addr & 0xF)) {
 		do
 			addr = (void *)((char *)addr + 4);
@@ -2200,7 +2203,10 @@ set_fpcontext(struct thread *td, const mcontext_t *mcp)
 	    mcp->mc_ownedfp == _MC_FPOWNED_PCB) {
 		/* XXX align as above. */
 		addr = (union savefpu *)&mcp->mc_fpstate;
-		if (td == PCPU_GET(fpcurthread) && cpu_fxsr &&
+		if (td == PCPU_GET(fpcurthread) &&
+#ifdef CPU_ENABLE_SSE
+		    cpu_fxsr &&
+#endif
 		    ((uintptr_t)(void *)addr & 0xF)) {
 			do
 				addr = (void *)((char *)addr + 4);
