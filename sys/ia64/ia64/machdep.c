@@ -244,9 +244,17 @@ cpu_throw(struct thread *old __unused, struct thread *new)
 void
 cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t size)
 {
-	KASSERT(size >= sizeof(struct pcpu) + sizeof(struct pcb),
+	size_t pcpusz;
+
+	/*
+	 * Make sure the PCB is 16-byte aligned by making the PCPU
+	 * a multiple of 16 bytes. We assume the PCPU is 16-byte
+	 * aligned itself.
+	 */
+	pcpusz = (sizeof(struct pcpu) + 15) & ~15;
+	KASSERT(size >= pcpusz + sizeof(struct pcb),
 	    ("%s: too small an allocation for pcpu", __func__));
-	pcpu->pc_pcb = (void*)(pcpu+1);
+	pcpu->pc_pcb = (struct pcb *)((char*)pcpu + pcpusz);
 }
 
 static void
