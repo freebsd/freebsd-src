@@ -86,29 +86,7 @@ static void ia32_syscall(struct trapframe *tf);
 /*
  * EFI-Provided FPSWA interface (Floating Point SoftWare Assist)
  */
-
-/* The function entry address */
-extern FPSWA_INTERFACE *fpswa_interface;
-
-/* Copy of the faulting instruction bundle */
-typedef struct {
-	u_int64_t	bundle_low64;
-	u_int64_t	bundle_high64;
-} FPSWA_BUNDLE;
-
-/*
- * The fp state descriptor... tell FPSWA where the "true" copy is.
- * We save some registers in the trapframe, so we have to point some of
- * these there.  The rest of the registers are "live"
- */
-typedef struct {
-	u_int64_t	bitmask_low64;			/* f63 - f2 */
-	u_int64_t	bitmask_high64;			/* f127 - f64 */
-	union _ia64_fpreg *fp_low_preserved;		/* f2 - f5 */
-	union _ia64_fpreg *fp_low_volatile;		/* f6 - f15 */
-	union _ia64_fpreg *fp_high_preserved;		/* f16 - f31 */
-	union _ia64_fpreg *fp_high_volatile;		/* f32 - f127 */
-} FP_STATE;
+extern struct fpswa_iface *fpswa_iface;
 
 #ifdef WITNESS
 extern char *syscallnames[];
@@ -699,16 +677,17 @@ trap(int vector, struct trapframe *tf)
 
 	case IA64_VEC_FLOATING_POINT_FAULT:
 	case IA64_VEC_FLOATING_POINT_TRAP: {
-		FP_STATE fp_state;
-		FPSWA_RET fpswa_ret;
-		FPSWA_BUNDLE bundle;
+		struct fpswa_bundle bundle;
+		struct fpswa_fpctx fpctx;
+		struct fpswa_ret ret;
 		char *ip;
+		u_long fault;
 
 		/* Always fatal in kernel. Should never happen. */
 		if (!user)
 			trap_panic(vector, tf);
 
-		if (fpswa_interface == NULL) {
+		if (fpswa_iface == NULL) {
 			sig = SIGFPE;
 			ucode = 0;
 			break;
@@ -718,7 +697,7 @@ trap(int vector, struct trapframe *tf)
 		if (vector == IA64_VEC_FLOATING_POINT_TRAP &&
 		    (tf->tf_special.psr & IA64_PSR_RI) == 0)
 			ip -= 16;
-		error = copyin(ip, &bundle, 16);
+		error = copyin(ip, &bundle, sizeof(bundle));
 		if (error) {
 			sig = SIGBUS;	/* EFAULT, basically */
 			ucode = 0;	/* exception summary */
@@ -726,12 +705,14 @@ trap(int vector, struct trapframe *tf)
 		}
 
 		/* f6-f15 are saved in exception_save */
-		fp_state.bitmask_low64 = 0xffc0;	/* bits 6 - 15 */
-		fp_state.bitmask_high64 = 0x0;
-		fp_state.fp_low_preserved = NULL;
-		fp_state.fp_low_volatile = &tf->tf_scratch_fp.fr6;
-		fp_state.fp_high_preserved = NULL;
-		fp_state.fp_high_volatile = NULL;
+		fpctx.mask_low = 0xffc0;		/* bits 6 - 15 */
+		fpctx.mask_high = 0;
+		fpctx.fp_low_preserved = NULL;
+		fpctx.fp_low_volatile = &tf->tf_scratch_fp.fr6;
+		fpctx.fp_high_preserved = NULL;
+		fpctx.fp_high_volatile = NULL;
+
+		fault = (vector == IA64_VEC_FLOATING_POINT_FAULT) ? 1 : 0;
 
 		/*
 		 * We have the high FP registers disabled while in the
@@ -740,11 +721,10 @@ trap(int vector, struct trapframe *tf)
 		ia64_enable_highfp();
 
 		/* The docs are unclear.  Is Fpswa reentrant? */
-		fpswa_ret = fpswa_interface->Fpswa(
-			(vector == IA64_VEC_FLOATING_POINT_FAULT) ? 1 : 0,
-			&bundle, &tf->tf_special.psr, &tf->tf_special.fpsr,
-			&tf->tf_special.isr, &tf->tf_special.pr,
-			&tf->tf_special.cfm, &fp_state);
+		ret = fpswa_iface->if_fpswa(fault, &bundle,
+		    &tf->tf_special.psr, &tf->tf_special.fpsr,
+		    &tf->tf_special.isr, &tf->tf_special.pr,
+		    &tf->tf_special.cfm, &fpctx);
 
 		ia64_disable_highfp();
 
@@ -752,8 +732,7 @@ trap(int vector, struct trapframe *tf)
 		 * Update ipsr and iip to next instruction. We only
 		 * have to do that for faults.
 		 */
-		if (vector == IA64_VEC_FLOATING_POINT_FAULT &&
-		    (fpswa_ret.status == 0 || (fpswa_ret.status & 2))) {
+		if (fault && (ret.status == 0 || (ret.status & 2))) {
 			int ei;
 
 			ei = (tf->tf_special.isr >> 41) & 0x03;
@@ -769,11 +748,11 @@ trap(int vector, struct trapframe *tf)
 			}
 		}
 
-		if (fpswa_ret.status == 0) {
+		if (ret.status == 0) {
 			goto out;
-		} else if (fpswa_ret.status == -1) {
+		} else if (ret.status == -1) {
 			printf("FATAL: FPSWA err1 %lx, err2 %lx, err3 %lx\n",
-			    fpswa_ret.err1, fpswa_ret.err2, fpswa_ret.err3);
+			    ret.err1, ret.err2, ret.err3);
 			panic("fpswa fatal error on fp fault");
 		} else {
 			sig = SIGFPE;
