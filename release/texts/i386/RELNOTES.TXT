@@ -318,7 +318,7 @@ AMI MegaRAID Express and Enterprise family RAID controllers:
     HP Embedded NetRAID
 Booting from these controllers is supported.
 
-Mylex DAC960 and DAC1100 RAID controllers with 2.x, 3.x, 4.x and 5.x 
+Mylex DAC960 and DAC1100 RAID controllers with 2.x, 3.x, 4.x and 5.x
 firmware:
     DAC960P
     DAC960PD
@@ -329,7 +329,7 @@ firmware:
     AcceleRAID 150
     AcceleRAID 250
     eXtremeRAID 1100
-Booting from these controllers is supported. EISA adapters are not 
+Booting from these controllers is supported. EISA adapters are not
 supported.
 
 Mylex PCI to SCSI RAID controllers with 6.x firmware:
@@ -398,7 +398,7 @@ The following CD-ROM type systems are supported at this time:
 The following drivers were supported under the old SCSI subsystem, but are
 NOT YET supported under the new CAM SCSI subsystem:
 
-  NCR5380/NCR53400 ("ProAudio Spectrum") SCSI controller. 
+  NCR5380/NCR53400 ("ProAudio Spectrum") SCSI controller.
 
   UltraStor 14F, 24F and 34F SCSI controllers.
 
@@ -408,8 +408,8 @@ NOT YET supported under the new CAM SCSI subsystem:
 
   WD7000 SCSI controller.
 
-  [ Note:  There is work-in-progress to port the UltraStor driver to 
-    the new CAM SCSI framework, but no estimates on when or if it will 
+  [ Note:  There is work-in-progress to port the UltraStor driver to
+    the new CAM SCSI framework, but no estimates on when or if it will
     be completed. ]
 
 Unmaintained drivers, they might or might not work for your hardware:
@@ -443,7 +443,7 @@ chipsets, including the following:
   Silicon Graphics Gigabit Ethernet
 
 AMD PCnet/PCI (79c970 & 53c974 or 79c974)
-AMD PCnet/FAST, PCnet/FAST+, PCnet/FAST III, PCnet/PRO, 
+AMD PCnet/FAST, PCnet/FAST+, PCnet/FAST III, PCnet/PRO,
 PCnet/Home, and HomePNA.
 
 SMC Elite 16 WD8013 Ethernet interface, and most other WD8003E,
@@ -580,7 +580,7 @@ Winbond W89C940, Surecom NE-34, VIA VT86C926.
 
 3Com 3C507 Etherlink 16/TP
 
-3Com 3C509, 3C529 (MCA), 3C579, 
+3Com 3C509, 3C529 (MCA), 3C579,
 3C589/589B/589C/589D/589E/XE589ET/574TX/574B (PC-card/PCMCIA),
 3C590/592/595/900/905/905B/905C PCI,
 3C556/556B MiniPCI,
@@ -785,7 +785,7 @@ You can ftp FreeBSD and any or all of its optional packages from
 For other locations that mirror the FreeBSD software see the file
 MIRROR.SITES.  Please ftp the distribution from the site closest (in
 networking terms) to you.  Additional mirror sites are always welcome!
-Contact freebsd-admin@FreeBSD.org for more details if you'd like to 
+Contact freebsd-admin@FreeBSD.org for more details if you'd like to
 become an official mirror site.
 
 If you do not have access to the Internet and electronic mail is your
