@@ -159,7 +159,8 @@ iavc_isa_probe(device_t dev)
 
 	if(ret)
 	{
-		printf("iavc%d: no card ? b1_detect returns 0x02x\n", sc->sc_unit, ret);
+		printf("iavc%d: no card ? b1_detect returns %0x02x\n",
+			sc->sc_unit, ret);
 		return(ENXIO);
 	}
 
