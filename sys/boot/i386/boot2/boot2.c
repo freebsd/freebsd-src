@@ -435,7 +435,6 @@ parse(char *arg)
 		dsk.drive = (dsk.type <= TYPE_MAXHARD
 			     ? DRV_HARD : 0) + drv;
 		dsk_meta = 0;
-		fsread(0, NULL, 0);
 	    }
 	    if ((i = p - arg - !*(p - 1))) {
 		if (i >= sizeof(kname))
