@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumio.c,v 1.37 2003/05/04 05:23:42 grog Exp grog $
+ * $Id: vinumio.c,v 1.38 2003/05/07 03:29:30 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -153,7 +153,7 @@ init_drive(struct drive *drive, int verbose)
     if (drive->lasterror) {
 	if (verbose)
 	    log(LOG_ERR,
-		"vinum: Can't get partition information for %s: error %d\n",
+		"vinum: Can't get drive dimensions for %s: error %d\n",
 		drive->devicename,
 		drive->lasterror);
 	close_drive(drive);
@@ -482,10 +482,9 @@ format_config(char *config, int len)
 		drivename = "*invalid*";
 	    snprintf(s,
 		configend - s,
-		"sd name %s drive %s plex %s len %llus driveoffset %llus state %s",
+		"sd name %s drive %s len %llus driveoffset %llus state %s",
 		sd->name,
 		drivename,
-		vinum_conf.plex[sd->plexno].name,
 		(unsigned long long) sd->sectors,
 		(unsigned long long) sd->driveoffset,
 		sd_state(sd->state));
@@ -494,7 +493,8 @@ format_config(char *config, int len)
 	    if (sd->plexno >= 0)
 		snprintf(s,
 		    configend - s,
-		    " plexoffset %llds",
+		    " plex %s plexoffset %llds",
+		    vinum_conf.plex[sd->plexno].name,
 		    (long long) sd->plexoffset);
 	    else
 		snprintf(s, configend - s, " detached");
@@ -940,6 +940,14 @@ vinum_scandisk(char *devicename)
 		*eptr = '\0';				    /* and delimit */
 		if (setjmp(command_fail) == 0) {	    /* come back here on error and continue */
 		    parse_status = parse_config(config_line, &keyword_set, 1); /* parse the config line */
+		    /*
+		     * parse_config recognizes referenced
+		     * drives and builds a drive entry for
+		     * them.  This may expand the drive
+		     * table, thus invalidating the pointer.
+		     */
+		    drive = &DRIVE[drivelist[driveno]];	    /* point to the drive */
+
 		    if (parse_status < 0) {		    /* error in config */
 			/*
 			   * This config should have been parsed
@@ -960,7 +968,7 @@ vinum_scandisk(char *devicename)
 		    cptr++;				    /* skip to next line */
 	    }
 	}
-	drive->flags |= VF_CONFIGURED;			    /* read this drive's configuration */
+	drive->flags |= VF_CONFIGURED;			    /* this drive's configuration is complete */
     }
 
     Free(config_text);
