@@ -178,6 +178,7 @@ minphys(bp)
 	if(!maxphys) {
 		printf("WARNING: %s maxphys = 0 ??", devtoname(bp->b_dev));
 		maxphys = DFLTPHYS;
+		bp->b_dev->si_iosize_max = DFLTPHYS;
 	}
 	if (bp->b_kvasize && (bp->b_kvasize < maxphys))
 		maxphys = bp->b_kvasize;

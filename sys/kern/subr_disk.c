@@ -116,7 +116,8 @@ diskopen(dev_t dev, int oflags, int devtype, struct proc *p)
 		return (ENXIO);
 
 	if (!dsisopen(dp->d_slice)) {
-		pdev->si_iosize_max = dev->si_iosize_max;
+		if (!pdev->si_iosize_max)
+			pdev->si_iosize_max = dev->si_iosize_max;
 		error = dp->d_devsw->d_open(pdev, oflags, devtype, p);
 	}
 
