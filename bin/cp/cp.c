@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cp.c,v 1.3 1994/12/30 13:12:12 bde Exp $
+ *	$Id: cp.c,v 1.4 1995/01/25 07:31:01 davidg Exp $
  */
 
 #ifndef lint
@@ -389,17 +389,19 @@ copy(argv, type, fts_options)
 			if (Rflag) {
 				if (copy_special(curr->fts_statp, !dne))
 					rval = 1;
-			} else
+			} else {
 				if (copy_file(curr, dne))
 					rval = 1;
+			}
 			break;
 		case S_IFIFO:
-			if (Rflag)
+			if (Rflag) {
 				if (copy_fifo(curr->fts_statp, !dne))
 					rval = 1;
-			else 
+			} else {
 				if (copy_file(curr, dne))
 					rval = 1;
+			}
 			break;
 		default:
 			if (copy_file(curr, dne))
