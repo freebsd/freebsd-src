@@ -381,6 +381,11 @@ extern SVCXPRT *svc_vc_create __P((const int, const u_int, const u_int));
  *      const u_int recvsize;                   -- max recv size
  */
 
+/*
+ * Added for compatibility to old rpc 4.0. Obsoleted by svc_vc_create().
+ */
+extern SVCXPRT *svcunix_create __P((int, u_int, u_int, char *));
+
 extern SVCXPRT *svc_dg_create __P((const int, const u_int, const u_int));
         /*
          * const int fd;                                -- open connection
@@ -399,6 +404,11 @@ extern SVCXPRT *svc_fd_create __P((const int, const u_int, const u_int));
  *      const u_int sendsize;                   -- max send size
  *      const u_int recvsize;                   -- max recv size
  */
+
+/*
+ * Added for compatibility to old rpc 4.0. Obsoleted by svc_fd_create().
+ */
+extern SVCXPRT *svcunixfd_create __P((int, u_int, u_int));
 
 /*
  * Memory based rpc (for speed check and testing)

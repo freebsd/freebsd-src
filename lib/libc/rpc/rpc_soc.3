@@ -29,6 +29,7 @@
 .Nm clnttcp_create ,
 .Nm clntudp_bufcreate ,
 .Nm clntudp_create ,
+.Nm clntunix_create ,
 .Nm get_myaddress ,
 .Nm pmap_getmaps ,
 .Nm pmap_getport ,
@@ -56,7 +57,9 @@
 .Nm svcerr_systemerr ,
 .Nm svcerr_weakauth ,
 .Nm svcfd_create ,
+.Nm svcunixfd_create ,
 .Nm svcraw_create ,
+.Nm svcunix_create ,
 .Nm xdr_accepted_reply ,
 .Nm xdr_authunix_parms ,
 .Nm xdr_callhdr ,
@@ -761,6 +764,53 @@ for sending and receiving
 messages.
 .Pp
 .It Xo
+.Ft "CLIENT *"
+.Xc
+.It Xo
+.Fo clntunix_create
+.Fa "struct sockaddr_un *raddr"
+.Fa "u_long prognum"
+.Fa "u_long versnum"
+.Fa "int *sockp"
+.Fa "u_int sendsz"
+.Fa "u_int recvsz"
+.Fc
+.Xc
+.Pp
+This routine creates an
+.Tn RPC
+client for the local
+program
+.Fa prognum ,
+version
+.Fa versnum ;
+the client uses
+.Tn UNIX Ns -domain
+sockets as a transport.
+The local program is located at the
+.Fa *raddr .
+The parameter
+.Fa sockp
+is a socket; if it is
+.Dv RPC_ANYSOCK ,
+then this routine opens a new one and sets
+.Fa sockp .
+Since
+.Tn UNIX Ns \-based
+.Tn RPC
+uses buffered
+.Tn I/O ,
+the user may specify the size of the send and receive buffers
+with the parameters
+.Fa sendsz
+and
+.Fa recvsz ;
+values of zero choose suitable defaults.
+This routine returns
+.Dv NULL
+if it fails.
+.Pp
+.It Xo
 .Ft int
 .Xc
 .It Xo
@@ -1358,6 +1408,59 @@ uses buffered
 .Tn I/O ,
 users may specify the size of buffers; values of zero
 choose suitable defaults.
+.Pp
+.It Xo
+.Ft "SVCXPRT *"
+.Xc
+.It Xo
+.Fn svcunix_create "int sock" "u_int send_buf_size" "u_int recv_buf_size" "char *path"
+.Xc
+.Pp
+This routine creates a
+.Tn UNIX Ns \-based
+.Tn RPC
+service transport, to which it returns a pointer.
+The transport is associated with the socket
+.Fa sock ,
+which may be
+.Dv RPC_ANYSOCK ,
+in which case a new socket is created.
+.Fa *path
+is a variable-length filesystem pathname of
+at most 104 characters.
+This file is
+.Em not
+removed when the socket is closed.
+.Xr unlink 2
+must be used to remove the file.
+Upon completion,
+.Fa xprt\->xp_fd
+is the transport's socket descriptor.
+This routine returns
+.Dv NULL
+if it fails.
+Since
+.Tn UNIX Ns \-based
+.Tn RPC
+uses buffered
+.Tn I/O ,
+users may specify the size of buffers; values of zero
+choose suitable defaults.
+.Pp
+.It Xo
+.Ft "SVCXPRT *"
+.Xc
+.It Xo
+.Fn svcunixfd_create "int fd" "u_int sendsize" "u_int recvsize"
+.Xc
+.Pp
+Create a service on top of any open descriptor.
+.Fa sendsize
+and
+.Fa recvsize
+indicate sizes for the send and receive buffers.
+If they are
+zero, a reasonable default is chosen.
 .Pp
 .It Xo
 .Ft "SVCXPRT *"
