@@ -38,7 +38,7 @@
  */
 
 /*
- *  $Id: if_ep.c,v 1.40 1996/02/06 18:50:41 wollman Exp $
+ *  $Id: if_ep.c,v 1.41 1996/02/13 15:55:33 gibbs Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -108,73 +108,85 @@
 #include <i386/isa/if_epreg.h>
 #include <i386/isa/elink.h>
 
-static int eeprom_rdy __P((struct isa_device *is));
-static struct ep_board *ep_look_for_board_at(struct isa_device *);
-static int get_e __P((struct isa_device *is, int offset));
+/* Exported variables */
+u_long	ep_unit;
+int	ep_boards;
+struct	ep_board ep_board[EP_MAX_BOARDS + 1];
 
-static int epprobe __P((struct isa_device *));
-static int epattach __P((struct isa_device *));
-static int epioctl __P((struct ifnet * ifp, int, caddr_t));
-static void epmbuffill __P((caddr_t, int));
-static void epmbufempty __P((struct ep_softc *));
+static	int eeprom_rdy __P((struct ep_softc *sc));
 
-static void epinit __P((int));
-static void epread __P((struct ep_softc *));
-void epreset __P((int));
-static void epstart __P((struct ifnet *));
-static void epstop __P((int));
-static void epwatchdog __P((struct ifnet *));
+static	int ep_isa_probe __P((struct isa_device *));
+static struct ep_board * ep_look_for_board_at __P((struct isa_device *is));
+static	int ep_isa_attach __P((struct isa_device *));
+static	void ep_isa_registerdev __P((struct ep_softc *sc,
+				     struct isa_device *id));
+static	int epioctl __P((struct ifnet * ifp, int, caddr_t));
+static	void epmbuffill __P((caddr_t, int));
+static	void epmbufempty __P((struct ep_softc *));
 
-static int send_ID_sequence __P((int));
-static int get_eeprom_data __P((int, int));
+static	void epinit __P((struct ep_softc *));
+static	void epread __P((struct ep_softc *));
+void	epreset __P((int));
+static	void epstart __P((struct ifnet *));
+static	void epstop __P((struct ep_softc *));
+static	void epwatchdog __P((struct ifnet *));
 
-static struct ep_softc ep_softc[NEP];
+static	int send_ID_sequence __P((int));
+static	int get_eeprom_data __P((int, int));
+
+static	struct ep_softc* ep_softc[NEP];
+static	int ep_current_tag = EP_LAST_TAG + 1;
+static	char *ep_conn_type[] = {"UTP", "AUI", "???", "BNC"};
 
 #define ep_ftst(f) (sc->stat&(f))
 #define ep_fset(f) (sc->stat|=(f))
 #define ep_frst(f) (sc->stat&=~(f))
 
 struct isa_driver epdriver = {
-    epprobe,
-    epattach,
+    ep_isa_probe,
+    ep_isa_attach,
     "ep",
-	0
+    0
 };
 
-static struct kern_devconf kdc_ep[NEP] = { {
-      0, 0, 0,			/* filled in by dev_attach */
-      "ep", 0, { MDDT_ISA, 0, "net" },
-      isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
-      &kdc_isa0,		/* parent */
-      0,			/* parentdata */
-      DC_UNCONFIGURED,		/* state */
-      "3Com 3C509 Ethernet adapter",
-      DC_CLS_NETIF		/* class */
-} };
+static struct kern_devconf kdc_isa_ep = {
+    0, 0, 0,			/* filled in by dev_attach */
+    "ep", 0, { MDDT_ISA, 0, "net" },
+    isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
+    &kdc_isa0,		/* parent */
+    0,			/* parentdata */
+    DC_UNCONFIGURED,		/* state */
+    "3Com 3C509 Ethernet adapter",
+    DC_CLS_NETIF		/* class */
+};
 
-static inline void
-ep_registerdev(struct isa_device *id)
+static void
+ep_isa_registerdev(sc, id)
+    struct ep_softc *sc;
+    struct isa_device *id;
 {
-      if(id->id_unit)
-              kdc_ep[id->id_unit] = kdc_ep[0];
-      kdc_ep[id->id_unit].kdc_unit = id->id_unit;
-      kdc_ep[id->id_unit].kdc_parentdata = id;
-      dev_attach(&kdc_ep[id->id_unit]);
+    sc->kdc = (struct kern_devconf *)malloc(sizeof(struct kern_devconf),
+					    M_DEVBUF, M_NOWAIT);
+    if (!sc->kdc) {
+	printf("WARNING: ep_isa_registerdev unable to malloc! "
+	       "Device kdc will not be registerd\n");
+	return;
+    }
+    bcopy(&kdc_isa_ep, sc->kdc, sizeof(kdc_isa_ep));
+    sc->kdc->kdc_unit = sc->unit;
+    sc->kdc->kdc_parentdata = id;
+    dev_attach(sc->kdc);
 }
 
-static int ep_current_tag = EP_LAST_TAG + 1;
-
-static struct ep_board ep_board[EP_MAX_BOARDS + 1];
-
 static int
-eeprom_rdy(is)
-    struct isa_device *is;
+eeprom_rdy(sc)
+    struct ep_softc *sc;
 {
     int i;
 
-    for (i = 0; is_eeprom_busy(IS_BASE) && i < MAX_EEPROMBUSY; i++);
+    for (i = 0; is_eeprom_busy(BASE) && i < MAX_EEPROMBUSY; i++);
     if (i >= MAX_EEPROMBUSY) {
-	printf("ep%d: eeprom failed to come ready.\n", is->id_unit);
+	printf("ep%d: eeprom failed to come ready.\n", sc->unit);
 	return (0);
     }
     return (1);
@@ -185,34 +197,11 @@ ep_look_for_board_at(is)
     struct isa_device *is;
 {
     int data, i, j, io_base, id_port = ELINK_ID_PORT;
-    int nisa = 0, neisa = 0;
+    int count = 0;
 
     if (ep_current_tag == (EP_LAST_TAG + 1)) {
 	/* Come here just one time */
 
-	/* Look for the EISA boards, leave them activated */
-	for(j = 1; j < 16; j++) {
-	    io_base = (j * EP_EISA_START) | EP_EISA_W0;
-	    if (inw(io_base + EP_W0_MFG_ID) != MFG_ID)
-		continue;
-
-	    /* we must found 0x1f if the board is EISA configurated */
-	    if ((inw(io_base + EP_W0_ADDRESS_CFG) & 0x1f) != 0x1f)
-		continue;
-
-	    /* Reset and Enable the card */
-	    outb(io_base + EP_W0_CONFIG_CTRL, W0_P4_CMD_RESET_ADAPTER);
-	    DELAY(1000); /* we must wait at least 1 ms */
-	    outb(io_base + EP_W0_CONFIG_CTRL, W0_P4_CMD_ENABLE_ADAPTER);
-
-	    /*
-	     * Once activated, all the registers are mapped in the range
-	     * x000 - x00F, where x is the slot number.
-             */
-	    ep_board[neisa].epb_isa = 0;
-	    ep_board[neisa].epb_used = 0;
-	    ep_board[neisa++].epb_addr = j * EP_EISA_START;
-	}
 	ep_current_tag--;
 
         /* Look for the ISA boards. Init and leave them actived */
@@ -240,36 +229,34 @@ ep_look_for_board_at(is)
 	    /* and save this address for later use */
 
 	    for (j = 0; j < 3; j++)
-		 ep_board[neisa+nisa].eth_addr[j] = get_eeprom_data(id_port, j);
+		 ep_board[ep_boards].eth_addr[j] = get_eeprom_data(id_port, j);
 
-	    ep_board[neisa+nisa].res_cfg =
+	    ep_board[ep_boards].res_cfg =
 		get_eeprom_data(id_port, EEPROM_RESOURCE_CFG);
 
-	    ep_board[neisa+nisa].prod_id =
+	    ep_board[ep_boards].prod_id =
 		get_eeprom_data(id_port, EEPROM_PROD_ID);
 
-	    ep_board[neisa].epb_isa = 1;
-	    ep_board[neisa+nisa].epb_used = 0;
-	    ep_board[neisa+nisa++].epb_addr =
+	    ep_board[ep_boards].epb_used = 0;
+	    ep_board[ep_boards].epb_addr =
 			(get_eeprom_data(id_port, EEPROM_ADDR_CFG) & 0x1f) * 0x10 + 0x200;
+
+	    if(ep_board[ep_boards].epb_addr > 0x3E0)
+		/* Board in EISA configuration mode */
+		continue;
 
 	    outb(id_port, ep_current_tag);	/* tags board */
 	    outb(id_port, ACTIVATE_ADAPTER_TO_CONFIG);
+	    ep_boards++;
+	    count++;
 	    ep_current_tag--;
 	}
 
-	ep_board[neisa+nisa].epb_addr = 0;
-	if (neisa) {
-	    printf("%d 3C5x9 board(s) on EISA found at", neisa);
+	ep_board[ep_boards].epb_addr = 0;
+	if (count) {
+	    printf("%d 3C5x9 board(s) on ISA found at", count);
 	    for (j = 0; ep_board[j].epb_addr; j++)
-		if (ep_board[j].epb_addr >= EP_EISA_START)
-		    printf(" 0x%x", ep_board[j].epb_addr);
-	    printf("\n");
-	}
-	if (nisa) {
-	    printf("%d 3C5x9 board(s) on ISA found at", nisa);
-	    for (j = 0; ep_board[j].epb_addr; j++)
-		if (ep_board[j].epb_addr < EP_EISA_START)
+		if (ep_board[j].epb_addr <= 0x3E0)
 		    printf(" 0x%x", ep_board[j].epb_addr);
 	    printf("\n");
 	}
@@ -301,7 +288,7 @@ ep_look_for_board_at(is)
 	    return 0;
 
 	if (inw(IS_BASE + EP_W0_EEPROM_COMMAND) & EEPROM_TST_MODE)
-	    printf("ep%d: 3c5x9 at 0x%x in test mode. Erase pencil mark!\n",
+	    printf("ep%d: 3c5x9 at 0x%x in PnP mode. Disable PnP mode!\n",
 		   is->id_unit, IS_BASE);
 	ep_board[i].epb_used=1;
 
@@ -313,43 +300,99 @@ ep_look_for_board_at(is)
  * get_e: gets a 16 bits word from the EEPROM. we must have set the window
  * before
  */
-static int
-get_e(is, offset)
-    struct isa_device *is;
+u_int16_t
+get_e(sc, offset)
+    struct ep_softc *sc;
     int offset;
 {
-    if (!eeprom_rdy(is))
+    if (!eeprom_rdy(sc))
 	return (0xffff);
-    outw(IS_BASE + EP_W0_EEPROM_COMMAND, EEPROM_CMD_RD | offset);
-    if (!eeprom_rdy(is))
+    outw(BASE + EP_W0_EEPROM_COMMAND, EEPROM_CMD_RD | offset);
+    if (!eeprom_rdy(sc))
 	return (0xffff);
-    return (inw(IS_BASE + EP_W0_EEPROM_DATA));
+    return (inw(BASE + EP_W0_EEPROM_DATA));
+}
+
+struct ep_softc *
+ep_alloc(unit, epb)
+    int	unit;
+    struct	ep_board *epb;
+{
+    struct	ep_softc *sc;
+
+    if (unit >= NEP) {
+	printf("ep: unit number (%d) too high\n", unit);
+	return NULL;
+    }
+ 
+    /*
+     * Allocate a storage area for us
+     */
+    if (ep_softc[unit]) {
+	printf("ep%d: unit number already allocated to another "
+	       "adaptor\n", unit);
+	return NULL;
+    }
+
+    sc = malloc(sizeof(struct ep_softc), M_DEVBUF, M_NOWAIT);
+    if(!sc) {
+	printf("ep%d: cannot malloc!\n", unit);
+	return NULL;
+    }
+    bzero(sc, sizeof(struct ep_softc));
+    ep_softc[unit] = sc;
+    sc->unit = unit;
+    sc->ep_io_addr = epb->epb_addr;
+    sc->epb = epb;
+
+    return(sc);
+}
+
+void
+ep_free(sc)
+    struct ep_softc *sc;
+{
+    ep_softc[sc->unit] = NULL;
+    free(sc, M_DEVBUF);
+    return;
 }
 
 int
-epprobe(is)
+ep_isa_probe(is)
     struct isa_device *is;
 {
-    struct ep_softc *sc = &ep_softc[is->id_unit];
+    struct ep_softc *sc;
+    struct ep_board *epb;
     u_short k;
     int i;
 
-    ep_registerdev(is);
-
-    if(( sc->epb=ep_look_for_board_at(is) )==0)
+    if(( epb=ep_look_for_board_at(is) )==0)
 	return (0);
+
+    /*
+     * Allocate a storage area for us
+     */
+    sc = ep_alloc(ep_unit, epb); 
+    if( !sc )
+	return (0);
+
+    is->id_unit = ep_unit++;
+
+    ep_isa_registerdev(sc, is);
+
     /*
      * The iobase was found and MFG_ID was 0x6d50. PROD_ID should be
      * 0x9[0-f]50
      */
     GO_WINDOW(0);
-    k = sc->epb->epb_isa ? sc->epb->prod_id : get_e(is, EEPROM_PROD_ID);
+    k = sc->epb->prod_id;
     if ((k & 0xf0ff) != (PROD_ID & 0xf0ff)) {
-	printf("epprobe: ignoring model %04x\n", k);
+	printf("ep_isa_probe: ignoring model %04x\n", k);
+	ep_free(sc);
 	return (0);
     }
 
-    k = sc->epb->epb_isa ? sc->epb->res_cfg : get_e(is, EEPROM_RESOURCE_CFG);
+    k = sc->epb->res_cfg;
 
     k >>= 12;
 
@@ -367,90 +410,100 @@ epprobe(is)
 	is->id_irq= 1 << ( (k==2) ? 9 : k );
     }
 
-    if (BASE >= EP_EISA_START) /* we have an EISA board, we allow 32 bits access */
-	sc->stat = F_ACCESS_32_BITS;
-    else
-	sc->stat = 0;
+    sc->stat = 0;	/* 16 bit access */
 
     /* By now, the adapter is already activated */
 
-    return (0x10);		/* 16 bytes of I/O space used. */
+    return (EP_IOSIZE);		/* 16 bytes of I/O space used. */
 }
 
-static char *ep_conn_type[] = {"UTP", "AUI", "???", "BNC"};
-
 static int
-epattach(is)
+ep_isa_attach(is)
     struct isa_device *is;
 {
-    struct ep_softc *sc = &ep_softc[is->id_unit];
-    struct ifnet *ifp = &sc->arpcom.ac_if;
-    u_short i, j, *p;
-    struct ifaddr *ifa;
-    struct sockaddr_dl *sdl;
+    struct ep_softc *sc = ep_softc[is->id_unit];
+    u_short config;
     int irq;
 
-    /* BASE = IS_BASE; */
-    sc->ep_io_addr = is->id_iobase;
-
-    printf("ep%d: ", is->id_unit);
+    printf("ep%d: ", sc->unit);
 
     sc->ep_connectors = 0;
-    i = inw(IS_BASE + EP_W0_CONFIG_CTRL);
-    j = inw(IS_BASE + EP_W0_ADDRESS_CFG) >> ACF_CONNECTOR_BITS;
-    if (i & IS_AUI) {
-	printf("aui");
+    config = inw(IS_BASE + EP_W0_CONFIG_CTRL);
+    if (config & IS_AUI) {
 	sc->ep_connectors |= AUI;
     }
-    if (i & IS_BNC) {
-	if (sc->ep_connectors)
-	    printf("/");
-	printf("bnc");
+    if (config & IS_BNC) {
 	sc->ep_connectors |= BNC;
     }
-    if (i & IS_UTP) {
-	if (sc->ep_connectors)
-	    printf("/");
-	printf("utp");
+    if (config & IS_UTP) {
 	sc->ep_connectors |= UTP;
     }
     if (!(sc->ep_connectors & 7))
 	printf("no connectors!");
-    else
-	printf("[*%s*]", ep_conn_type[j]);
-
-    /*
-     * Read the station address from the eeprom
-     */
-    p = (u_short *) & sc->arpcom.ac_enaddr;
-    for (i = 0; i < 3; i++) {
-	GO_WINDOW(0);
-	p[i] = htons( sc->epb->epb_isa ? sc->epb->eth_addr[i] : get_e(is, i) );
-	GO_WINDOW(2);
-	outw(BASE + EP_W2_ADDR_0 + (i * 2), ntohs(p[i]));
-    }
-    printf(" address %6D", sc->arpcom.ac_enaddr, ":");
-
+    sc->ep_connector = inw(BASE + EP_W0_ADDRESS_CFG);
     /*
      * Write IRQ value to board
      */
 
-    i=is->id_irq;
-    if(i==0) {
-	printf(" irq STRANGE\n");
+    irq = ffs(is->id_irq) - 1;
+    if(irq == -1) {
+	printf(" invalid irq... cannot attach\n");
 	return 0;
-	}
+    }
 
-    for(irq=0; !(i & 1) && irq<16 ; i>>=1, irq++);
-
-    if(irq==9)
-	irq=2;
     printf(" irq %d\n",irq);
     GO_WINDOW(0);
+    if(irq == 9)
+	irq = 2;
     outw(BASE + EP_W0_RESOURCE_CFG, SET_IRQ(irq));
 
+    ep_attach(sc);
+    return 1;
+}
+
+int
+ep_attach(sc)
+    struct ep_softc *sc;
+{
+    struct ifaddr *ifa;
+    struct ifnet *ifp = &sc->arpcom.ac_if;
+    struct sockaddr_dl *sdl;
+    u_short *p;
+    int i;
+
+    printf("ep%d: ", sc->unit);
+    /*
+     * Current media type
+     */
+    if(sc->ep_connectors & AUI) {
+	printf("aui");
+	if(sc->ep_connectors & ~AUI)
+		printf("/");
+    }
+    if(sc->ep_connectors & UTP) {
+	printf("utp");
+	if(sc->ep_connectors & BNC)
+		printf("/");
+    }
+    if(sc->ep_connectors & BNC) {
+	printf("bnc");
+    }
+
+    printf("[*%s*]", ep_conn_type[sc->ep_connector >> ACF_CONNECTOR_BITS]);
+
+    /*
+     * Setup the station address
+     */
+    p = (u_short *) & sc->arpcom.ac_enaddr;
+    GO_WINDOW(2);
+    for (i = 0; i < 3; i++) {
+	p[i] = htons(sc->epb->eth_addr[i]);
+	outw(BASE + EP_W2_ADDR_0 + (i * 2), ntohs(p[i]));
+    }
+    printf(" address %6D\n", sc->arpcom.ac_enaddr, ":");
+
     ifp->if_softc = sc;
-    ifp->if_unit = is->id_unit;
+    ifp->if_unit = sc->unit;
     ifp->if_name = "ep";
     ifp->if_mtu = ETHERMTU;
     ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
@@ -463,7 +516,7 @@ epattach(is)
     ether_ifattach(ifp);
 
     /* device attach does transition from UNCONFIGURED to IDLE state */
-    kdc_ep[is->id_unit].kdc_state=DC_IDLE;
+    sc->kdc->kdc_state=DC_IDLE;
 
     /*
      * Fill the hardware address into ifa_addr if we find an AF_LINK entry.
@@ -510,7 +563,7 @@ epattach(is)
 #if NBPFILTER > 0
     bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
-    return 1;
+    return 0;
 }
 
 
@@ -519,10 +572,9 @@ epattach(is)
  * interrupts. ?!
  */
 static void
-epinit(unit)
-    int unit;
+epinit(sc)
+    struct ep_softc *sc;
 {
-    register struct ep_softc *sc = &ep_softc[unit];
     register struct ifnet *ifp = &sc->arpcom.ac_if;
     int s, i, j;
 
@@ -602,10 +654,8 @@ epinit(unit)
 	outw(BASE + EP_W4_MEDIA_TYPE, ENABLE_UTP);
 	GO_WINDOW(1);
     } else {
-	GO_WINDOW(0);
-	j = inw(BASE + EP_W0_ADDRESS_CFG) >> ACF_CONNECTOR_BITS;
 	GO_WINDOW(1);
-	switch(j) {
+	switch(sc->ep_connector) {
 	    case ACF_CONNECTOR_UTP:
 		if(sc->ep_connectors & UTP) {
 		    GO_WINDOW(4);
@@ -624,7 +674,7 @@ epinit(unit)
 		break;
 	    default:
 		printf("ep%d: strange connector type in EEPROM: assuming AUI\n",
-		    unit);
+		    sc->unit);
 		break;
 	}
     }
@@ -801,12 +851,22 @@ void
 epintr(unit)
     int unit;
 {
+    register struct ep_softc *sc = ep_softc[unit];
+    ep_intr(sc);
+}
+
+void
+ep_intr(arg)
+    void *arg;
+{
+    struct ep_softc *sc;
     register int status;
-    register struct ep_softc *sc = &ep_softc[unit];
     struct ifnet *ifp;
     int x;
 
     x=splbio();
+
+    sc = (struct ep_softc *)arg;
 
     ifp = &sc->arpcom.ac_if;
 
@@ -834,7 +894,7 @@ rescan:
 	if (status & S_CARD_FAILURE) {
 	    ifp->if_timer=0;
 #ifdef EP_LOCAL_STATS
-	    printf("\nep%d:\n\tStatus: %x\n", unit, status);
+	    printf("\nep%d:\n\tStatus: %x\n", sc->unit, status);
 	    GO_WINDOW(4);
 	    printf("\tFIFO Diagnostic: %x\n", inw(BASE + EP_W4_FIFO_DIAG));
 	    printf("\tStat: %x\n", sc->stat);
@@ -846,13 +906,13 @@ rescan:
 #else
 
 #ifdef DIAGNOSTIC
-	    printf("ep%d: Status: %x (input buffer overflow)\n", unit, status);
+	    printf("ep%d: Status: %x (input buffer overflow)\n", sc->unit, status);
 #else
 	    ++ifp->if_ierrors;
 #endif
 
 #endif
-	    epinit(unit);
+	    epinit(sc);
 	    splx(x);
 	    return;
 	}
@@ -1175,12 +1235,12 @@ epioctl(ifp, cmd, data)
 	ifp->if_flags |= IFF_UP;
 
 	/* netifs are BUSY when UP */
-	kdc_ep[ifp->if_unit].kdc_state=DC_BUSY;
+	sc->kdc->kdc_state=DC_BUSY;
 
 	switch (ifa->ifa_addr->sa_family) {
 #ifdef INET
 	  case AF_INET:
-	    epinit(ifp->if_unit);	/* before arpwhohas */
+	    epinit(sc);	/* before arpwhohas */
 	    arp_ifinit((struct arpcom *)ifp, ifa);
 	    break;
 #endif
@@ -1198,7 +1258,7 @@ epioctl(ifp, cmd, data)
 			  (caddr_t) sc->arpcom.ac_enaddr,
 			  sizeof(sc->arpcom.ac_enaddr));
 		}
-		epinit(ifp->if_unit);
+		epinit(sc);
 		break;
 	    }
 #endif
@@ -1216,12 +1276,12 @@ epioctl(ifp, cmd, data)
 			  (caddr_t) sc->arpcom.ac_enaddr,
 			  sizeof(sc->arpcom.ac_enaddr));
 		}
-		epinit(ifp->if_unit);
+		epinit(sc);
 		break;
 	    }
 #endif
 	  default:
-	    epinit(ifp->if_unit);
+	    epinit(sc);
 	    break;
 	}
 	break;
@@ -1236,18 +1296,18 @@ epioctl(ifp, cmd, data)
 	break;
       case SIOCSIFFLAGS:
 	/* UP controls BUSY/IDLE */
-	kdc_ep[ifp->if_unit].kdc_state= ( (ifp->if_flags & IFF_UP)
+	sc->kdc->kdc_state= ( (ifp->if_flags & IFF_UP)
 		? DC_BUSY
 		: DC_IDLE );
 
 	if ((ifp->if_flags & IFF_UP) == 0 && ifp->if_flags & IFF_RUNNING) {
 	    ifp->if_flags &= ~IFF_RUNNING;
-	    epstop(ifp->if_unit);
+	    epstop(sc);
 	    epmbufempty(sc);
 	    break;
 	} else {
 	    /* reinitialize card on any parameter change */
-	    epinit(ifp->if_unit);
+	    epinit(sc);
 	    break;
 	}
 
@@ -1300,15 +1360,13 @@ epwatchdog(ifp)
 
     ifp->if_flags &= ~IFF_OACTIVE;
     epstart(ifp);
-    epintr(ifp->if_unit);
+    ep_intr(ifp->if_softc);
 }
 
 static void
-epstop(unit)
-    int unit;
+epstop(sc)
+    struct ep_softc *sc;
 {
-    struct ep_softc *sc = &ep_softc[unit];
-
     outw(BASE + EP_COMMAND, RX_DISABLE);
     outw(BASE + EP_COMMAND, RX_DISCARD_TOP_PACK);
     while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS);
