@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id$
+ * $Id: pppd.h,v 1.9 1997/08/19 17:52:46 peter Exp $
  */
 
 /*
@@ -313,6 +313,8 @@ int  getword __P((FILE *f, char *word, int *newlinep, char *filename));
 				/* Read a word from a file */
 void option_error __P((char *fmt, ...));
 				/* Print an error message about an option */
+int setipaddr __P((char *));	/* set IP addresses */
+
 
 /*
  * This structure is used to store information about certain
