@@ -60,12 +60,6 @@
  * Configurable parameters.
  *****************************************************************************/
 
-#if 0
-#include "opt_pcic_isa_alloc_iobase.h"
-#include "opt_pcic_isa_alloc_iosize.h"
-#include "opt_pcic_isa_intr_alloc_mask.h"
-#endif
-
 /*
  * Default I/O allocation range.  If both are set to non-zero, these
  * values will be used instead.  Otherwise, the code attempts to probe
@@ -227,6 +221,7 @@ pcic_isa_bus_width_probe (device_t dev)
 	}
 }
 
+#if 0
 static int
 pcic_isa_check(device_t dev, u_int16_t addr)
 {
@@ -273,10 +268,12 @@ pcic_isa_check(device_t dev, u_int16_t addr)
 
 	return (found);
 }
+#endif
 
 static void
 pcic_isa_identify(driver_t *driver, device_t parent)
 {
+#if 0
 	device_t child;
 	u_int16_t ioaddrs[] = { 0x3e0, 0x3e2, 0x3e4, 0x3e6, 0 };
 	u_int16_t ioaddr;
@@ -295,12 +292,17 @@ pcic_isa_identify(driver_t *driver, device_t parent)
 			    PCIC_IOSIZE);
 		}
 	}
+#endif
 }
 
 static int
 pcic_isa_probe(device_t dev)
 {
 	int error;
+	struct resource *res;
+	int rid;
+	int i;
+	u_long mem;
 
 	/* Check isapnp ids */
 	error = ISA_PNP_PROBE(device_get_parent(dev), dev, pcic_ids);
@@ -308,17 +310,62 @@ pcic_isa_probe(device_t dev)
 		return (ENXIO);
 
 	/* If we had some other problem. */
-	if (!(error == 0 || error == ENOENT)) {
+	if (!(error == 0 || error == ENOENT))
 		return (error);
-	}
 
 	/* If we have the resources we need then we're good to go. */
-	if ((bus_get_resource_start(dev, SYS_RES_IOPORT, 0) != 0) &&
-	    (bus_get_resource_start(dev, SYS_RES_IRQ, 0) != 0)) {
-		return (0);
-	}
+	if (bus_get_resource_start(dev, SYS_RES_IOPORT, 0) == 0)
+		return (ENXIO);
 
-	return (ENXIO);
+	rid = 0;
+	res = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1, RF_ACTIVE);
+	if (res == NULL) {
+		/*
+		 * No IRQ specified, find one.  This can be due to the PnP
+		 * data not specifying any IRQ
+		 */
+		for (i = 0; res == NULL && i < 16; i++) {
+			if (((1 << i) & PCIC_INTR_IRQ_VALIDMASK) == 0)
+				continue;
+			res = bus_alloc_resource(dev, SYS_RES_IRQ,
+			    &rid, i, i, 1, RF_ACTIVE);
+		}
+		if (res == NULL)
+			return (ENXIO);
+		mem = rman_get_start(res);
+		bus_release_resource(dev, SYS_RES_IRQ, rid, res);	
+		bus_set_resource(dev, SYS_RES_IRQ, 0, mem, 1);
+	} else {
+		bus_release_resource(dev, SYS_RES_IRQ, rid, res);
+	}
+		
+	/* XXX This might not be needed in future, get it directly from
+	 * XXX parent */
+	rid = 0;
+	res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, 0, ~0, 
+	    1 << 13, RF_ACTIVE);
+	if (res == NULL) {
+		/*
+		 * We failed to get memory.  Since this XXX comment above
+		 * indicates that this is transient, we try to get a hunk
+		 * of memory in the isa hole.  Sure would be nice if there
+		 * were some MI constants for this.
+		 */
+		res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, 
+		    0xa0000, 0xdffff, 1 << 13, RF_ACTIVE);
+		if (res != NULL) {
+			mem = rman_get_start(res);
+			bus_release_resource(dev, SYS_RES_MEMORY, res, rid);
+			bus_set_resource(dev, SYS_RES_MEMORY, 0, mem, 1 << 13);
+		}
+	}
+	if (res == NULL) {
+		device_printf(dev, "Cannot allocate mem\n");
+		return ENOMEM;
+	}
+	bus_release_resource(dev, SYS_RES_MEMORY, rid, res);
+
+	return (0);
 }
 
 static int
@@ -335,6 +382,7 @@ pcic_isa_attach(device_t dev)
 static int
 pcic_isa_detach(device_t dev)
 {
+	pcic_deactivate(dev);
 	return 0;
 }
 
