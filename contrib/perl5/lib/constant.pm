@@ -20,6 +20,18 @@ constant - Perl pragma to declare constants
 
     print "This line does nothing"		unless DEBUGGING;
 
+    # references can be declared constant
+    use constant CHASH		=> { foo => 42 };
+    use constant CARRAY		=> [ 1,2,3,4 ];
+    use constant CPSEUDOHASH	=> [ { foo => 1}, 42 ];
+    use constant CCODE		=> sub { "bite $_[0]\n" };
+
+    print CHASH->{foo};
+    print CARRAY->[$i];
+    print CPSEUDOHASH->{foo};
+    print CCODE->("me");
+    print CHASH->[10];				# compile-time error
+
 =head1 DESCRIPTION
 
 This will declare a symbol to be a constant with the given scalar
@@ -85,6 +97,8 @@ constants at compile time, allowing for way cool stuff like this.
     use constant E2BIG => ($! = 7);
     print   E2BIG, "\n";	# something like "Arg list too long"
     print 0+E2BIG, "\n";	# "7"
+
+Errors in dereferencing constant references are trapped at compile-time.
 
 =head1 TECHNICAL NOTE
 

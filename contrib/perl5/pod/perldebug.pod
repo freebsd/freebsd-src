@@ -1109,7 +1109,7 @@ or B<pop>, the stack backtrace will not show the original values.
 
 Perl is I<very> frivolous with memory.  There is a saying that to
 estimate memory usage of Perl, assume a reasonable algorithm of
-allocation, and multiply your estimages by 10.  This is not absolutely
+allocation, and multiply your estimates by 10.  This is not absolutely
 true, but may give you a good grasp of what happens.
 
 Say, an integer cannot take less than 20 bytes of memory, a float
@@ -1161,7 +1161,7 @@ in the following example:
   Total sbrk(): 215040/47:145. Odd ends: pad+heads+chain+tail: 0+2192+0+6144.
 
 It is possible to ask for such a statistic at arbitrary moment by
-usind Devel::Peek::mstats() (module Devel::Peek is available on CPAN).
+using Devel::Peek::mstats() (module Devel::Peek is available on CPAN).
 
 Here is the explanation of different parts of the format:
 
@@ -1195,7 +1195,7 @@ memory footprints of the buckets are between memory footprints of two
 buckets "above".  
 
 Say, with the above example the memory footprints are (with current
-algorith)
+algorithm)
 
      free:    8     16    32    64    128  256 512 1024 2048 4096 8192
 	   4     12    24    48    80
@@ -1328,7 +1328,7 @@ though the subroutine itself is not defined yet).
 
 It also creates C arrays to keep data for the stash (this is one HV,
 but it grows, thus there are 4 big allocations: the big chunks are not
-freeed, but are kept as additional arenas for C<SV> allocations).
+freed, but are kept as additional arenas for C<SV> allocations).
 
 =item C<054>
 

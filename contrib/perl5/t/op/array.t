@@ -1,6 +1,6 @@
 #!./perl
 
-print "1..63\n";
+print "1..65\n";
 
 #
 # @foo, @bar, and @ary are also used from tie-stdarray after tie-ing them
@@ -206,3 +206,8 @@ t("@bar" eq "foo bar");						# 43
     t("@bee" eq "foo bar burbl blah");				# 63
 }
 
+# make sure reification behaves
+my $t = 63;
+sub reify { $_[1] = ++$t; print "@_\n"; }
+reify('ok');
+reify('ok');

@@ -7,7 +7,7 @@ BEGIN {
 
 use Text::ParseWords;
 
-print "1..17\n";
+print "1..18\n";
 
 @words = shellwords(qq(foo "bar quiz" zoo));
 print "not " if $words[0] ne 'foo';
@@ -101,3 +101,8 @@ $string = 'aaaa"bbbbb" cc\ cc \\\\\"dddd\' eee\\\\\"\\\'ffff\' gg';
 $result = join('|', parse_line('\s+', 0, $string));
 print "not " unless $result eq 'aaaabbbbb|cc cc|\"dddd eee\\\\"\'ffff|gg';
 print "ok 17\n";
+
+# test whitespace in the delimiters
+@words = quotewords(' ', 1, '4 3 2 1 0');
+print "not " unless join(";", @words) eq qq(4;3;2;1;0);
+print "ok 18\n";

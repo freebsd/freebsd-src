@@ -314,9 +314,11 @@ known as the I<radial> coordinate.  The angle in the I<xy>-plane
 coordinate.  The angle from the I<z>-axis is B<phi>, also known as the
 I<polar> coordinate.  The `North Pole' is therefore I<0, 0, rho>, and
 the `Bay of Guinea' (think of the missing big chunk of Africa) I<0,
-pi/2, rho>.
+pi/2, rho>.  In geographical terms I<phi> is latitude (northward
+positive, southward negative) and I<theta> is longitude (eastward
+positive, westward negative).
 
-B<Beware>: some texts define I<theta> and I<phi> the other way round,
+B<BEWARE>: some texts define I<theta> and I<phi> the other way round,
 some texts define the I<phi> to start from the horizontal plane, some
 texts use I<r> in place of I<rho>.
 
@@ -374,12 +376,24 @@ by importing the C<great_circle_distance> function:
 
 	use Math::Trig 'great_circle_distance'
 
-    $distance = great_circle_distance($theta0, $phi0, $theta1, $phi, [, $rho]);
+  $distance = great_circle_distance($theta0, $phi0, $theta1, $phi1, [, $rho]);
 
 The I<great circle distance> is the shortest distance between two
 points on a sphere.  The distance is in C<$rho> units.  The C<$rho> is
 optional, it defaults to 1 (the unit sphere), therefore the distance
 defaults to radians.
+
+If you think geographically the I<theta> are longitudes: zero at the
+Greenwhich meridian, eastward positive, westward negative--and the
+I<phi> are latitudes: zero at the North Pole, northward positive,
+southward negative.  B<NOTE>: this formula thinks in mathematics, not
+geographically: the I<phi> zero is at the North Pole, not at the
+Equator on the west coast of Africa (Bay of Guinea).  You need to
+subtract your geographical coordinates from I<pi/2> (also known as 90
+degrees).
+
+  $distance = great_circle_distance($lon0, pi/2 - $lat0,
+                                    $lon1, pi/2 - $lat1, $rho);
 
 =head1 EXAMPLES
 
@@ -394,8 +408,8 @@ To calculate the distance between London (51.3N 0.5W) and Tokyo (35.7N
 
         $km = great_circle_distance(@L, @T, 6378);
 
-The answer may be off by up to 0.3% because of the irregular (slightly
-aspherical) form of the Earth.
+The answer may be off by few percentages because of the irregular
+(slightly aspherical) form of the Earth.
 
 =head1 BUGS
 

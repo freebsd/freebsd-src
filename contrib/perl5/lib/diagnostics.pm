@@ -27,7 +27,7 @@ Aa a program:
 =head2 The C<diagnostics> Pragma
 
 This module extends the terse diagnostics normally emitted by both the
-perl compiler and the perl interpeter, augmenting them with the more
+perl compiler and the perl interpreter, augmenting them with the more
 explicative and endearing descriptions found in L<perldiag>.  Like the
 other pragmata, it affects the compilation phase of your program rather
 than merely the execution phase.

@@ -111,7 +111,8 @@ fsetpos(handle, pos)
 	SV *		pos
     CODE:
 	char *p;
-	if (handle && (p = SvPVx(pos, PL_na)) && PL_na == sizeof(Fpos_t))
+	STRLEN n_a;
+	if (handle && (p = SvPVx(pos, n_a)) && n_a == sizeof(Fpos_t))
 #ifdef PerlIO
 	    RETVAL = PerlIO_setpos(handle, (Fpos_t*)p);
 #else

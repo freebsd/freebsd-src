@@ -20,6 +20,7 @@
 # Distinguish between MC68020, MC68030, MC68040
 # Don't assume every OS != 10 is < 10, (e.g., 11).
 # From: Chuck Phillips <cdp@fc.hp.com>
+# HP-UX 10 pthreads hints: Matthew T Harden <mthard@mthard1.monsanto.com>
 
 # This version: August 15, 1997
 # Current maintainer: Jeff Okamoto <okamoto@corp.hp.com>
@@ -80,6 +81,16 @@ EOM
 	esac
     else
 	ccflags="$ccflags -Aa"	# The add-on compiler supports ANSI C
+	# cppstdin and cpprun need the -Aa option if you use the unbundled 
+	# ANSI C compiler (*not* the bundled K&R compiler or gcc)
+	# [XXX this should be set automatically by Configure, but isn't yet.]
+	# [XXX This is reported not to work.  You may have to edit config.sh.
+	#  After running Configure, set cpprun and cppstdin in config.sh,
+	#  run "Configure -S" and then "make".]
+	cpprun="${cc:-cc} -E -Aa"
+	cppstdin="$cpprun"
+	cppminus='-'
+	cpplast='-'
     fi
     # For HP's ANSI C compiler, up to "+O3" is safe for everything
     # except shared libraries (PIC code).  Max safe for PIC is "+O2".
@@ -128,6 +139,60 @@ else
 	selecttype='int *'
 fi
 
+# This script UU/usethreads.cbu will get 'called-back' by Configure 
+# after it has prompted the user for whether to use threads.
+cat > UU/usethreads.cbu <<'EOCBU'
+case "$usethreads" in
+$define|true|[yY]*)
+        if [ "$xxOsRevMajor" -lt 10 ]; then
+            cat <<EOM >&4
+HP-UX $xxOsRevMajor cannot support POSIX threads.
+Consider upgrading to at least HP-UX 11.
+Cannot continue, aborting.
+EOM
+            exit 1
+        fi
+        case "$xxOsRevMajor" in
+        10)
+            # Under 10.X, a threaded perl can be built, but it needs
+            # libcma and OLD_PTHREADS_API.  Also <pthread.h> needs to
+            # be #included before any other includes (in perl.h)
+            if [ ! -f /usr/include/pthread.h -o ! -f /usr/lib/libcma.sl ]; then
+                cat <<EOM >&4
+In HP-UX 10.X for POSIX threads you need both of the files
+/usr/include/pthread.h and /usr/lib/libcma.sl.
+Either you must install the CMA package or you must upgrade to HP-UX 11.
+Cannot continue, aborting.
+EOM
+     	        exit 1
+            fi
+
+            # HP-UX 10.X uses the old pthreads API
+            case "$d_oldpthreads" in
+            '') d_oldpthreads="$define" ;;
+            esac
+
+            # include libcma before all the others
+            libswanted="cma $libswanted"
+
+            # tell perl.h to include <pthread.h> before other include files
+            ccflags="$ccflags -DPTHREAD_H_FIRST"
+
+            # CMA redefines select to cma_select, and cma_select expects int *
+            # instead of fd_set * (just like 9.X)
+            selecttype='int *'
+            ;;
+        11 | 12) # 12 may want upping the _POSIX_C_SOURCE datestamp...
+            ccflags=" -D_POSIX_C_SOURCE=199506L $ccflags"
+            set `echo X "$libswanted "| sed -e 's/ c / pthread c /'`
+            shift
+            libswanted="$*"
+	    ;;
+        esac
+	usemymalloc='n'
+	;;
+esac
+EOCBU
 
 # Remove bad libraries that will cause problems
 # (This doesn't remove libraries that don't actually exist)
@@ -183,24 +248,3 @@ esac
 #     assembler of the form:
 #          (warning) Use of GR3 when frame >= 8192 may cause conflict.
 #     These warnings are harmless and can be safely ignored.
-
-#
-# cppstdin and cpprun need the -Aa option if you use the unbundled 
-# ANSI C compiler (*not* the bundled K&R compiler or gcc)
-# [XXX this should be enabled automatically by Configure, but isn't yet.]
-# [XXX This is reported not to work.  You may have to edit config.sh.
-#  After running Configure, set cpprun and cppstdin in config.sh,
-#  run "Configure -S" and then "make".]
-#
-case "$cppstdin" in
-'')
-    case "$ccflags" in
-    *-Aa*)
-	cpprun="${cc:-cc} -E -Aa"
-	cppstdin="$cpprun"
-	cppminus='-'
-	cpplast='-'
-	;;
-    esac
-    ;;
-esac

@@ -10,7 +10,7 @@ The latest version of this document is available from
 =head2 How to contribute to this document
 
 You may mail corrections, additions, and suggestions to me
-at dgris@tdrenterprises.com but the preferred method would be
+at dgris@dimensional.com but the preferred method would be
 to follow the instructions set forth in this document and 
 submit a patch 8-).
 
@@ -35,6 +35,12 @@ include patches not rooted in the appropriate place in the directory structure,
 and patches not produced using standard utilities (such as diff).
 
 =head1 Proper Patch Guidelines
+
+=head2 What to patch
+
+Generally speaking you should patch the latest development release
+of perl.  The maintainers of the individual branches will see to it
+that patches are picked up and applied as appropriate.
 
 =head2 How to prepare your patch
 
@@ -159,18 +165,19 @@ guidelines (courtesy of Gurusamy Sarathy (gsar@engin.umich.edu))-
 	Interpret results strictly.
 	Use unrelated features (this will flush out bizarre interactions).
 	Use non-standard idioms (otherwise you are not testing TIMTOWTDI).
-	Avoid using hardcoded test umbers whenever possible (the EXPECTED/GOT style
-	  found in t/op/tie.t is much more maintainable, and gives better failure
-	  reports).
+	Avoid using hardcoded test numbers whenever possible (the 
+          EXPECTED/GOT found in t/op/tie.t is much more maintainable, 
+          and gives better failure reports).
 	Give meaningful error messages when a test fails.
 	Avoid using qx// and system() unless you are testing for them.  If you
 	  do use them, make sure that you cover _all_ perl platforms.
 	Unlink any temporary files you create.
 	Promote unforeseen warnings to errors with $SIG{__WARN__}.
-	Be sure to use the libraries and modules shipped with version being tested,
-	  not those that were already installed.
+	Be sure to use the libraries and modules shipped with version 
+          being tested, not those that were already installed.
 	Add comments to the code explaining what you are testing for.
-	Make updating the '1..42' string unnecessary.  Or make sure that you update it.
+	Make updating the '1..42' string unnecessary.  Or make sure that 
+          you update it.
 	Test _all_ behaviors of a given operator, library, or function-
 	  All optional arguments
 	  Return values in various contexts (boolean, scalar, list, lvalue)
@@ -289,23 +296,25 @@ others will have an easy time using your work, and it should be easier
 for the maintainers to coordinate the occasionally large numbers of 
 patches received.
 
-Also, just because you're not a brilliant coder doesn't mean that you can't
-contribute.  As valuable as code patches are there is always a need for better
-documentation (especially considering the general level of joy that most
-programmers feel when forced to sit down and write docs).  If all you do
-is patch the documentation you have still contributed more than the person
-who sent in an amazing new feature that noone can use because noone understands
-the code (what I'm getting at is that documentation is both the hardest part to
-do (because everyone hates doing it) and the most valuable).
+Also, just because you're not a brilliant coder doesn't mean that you
+can't contribute.  As valuable as code patches are there is always a
+need for better documentation (especially considering the general
+level of joy that most programmers feel when forced to sit down and
+write docs).  If all you do is patch the documentation you have still
+contributed more than the person who sent in an amazing new feature
+that no one can use because no one understands the code (what I'm
+getting at is that documentation is both the hardest part to do
+(because everyone hates doing it) and the most valuable).
 
-Mostly, when contributing patches, imagine that it is B<you> receiving hundreds
-of patches and that it is B<your> responsibility to integrate them into the source.
-Obviously you'd want the patches to be as easy to apply as possible.  Keep that in
-mind.  8-)
+Mostly, when contributing patches, imagine that it is B<you> receiving
+hundreds of patches and that it is B<your> responsibility to integrate
+them into the source.  Obviously you'd want the patches to be as easy
+to apply as possible.  Keep that in mind.  8-)
 
 =head1 Last Modified
 
-Last modified 21 May 1998 by Daniel Grisinger <dgris@perrin.dimensional.com>
+Last modified 21 January 1999 
+Daniel Grisinger <dgris@dimensional.com>
 
 =head1 Author and Copyright Information
 
@@ -314,6 +323,3 @@ Copyright (c) 1998 Daniel Grisinger
 Adapted from a posting to perl5-porters by Tim Bunce (Tim.Bunce@ig.co.uk).
 
 I'd like to thank the perl5-porters for their suggestions.
-
-
-

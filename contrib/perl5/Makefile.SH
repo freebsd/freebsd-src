@@ -43,11 +43,16 @@ true)
 		# NeXT uses a different name.
 		ldlibpth="DYLD_LIBRARY_PATH=`pwd`:$DYLD_LIBRARY_PATH"
 		;;
+	beos*)	ldlibpth="LIBRARY_PATH=`pwd`:$LIBRARY_PATH"
+		;;
 	os2*)	# OS/2 doesn't need anything special for LD_LIBRARY_PATH.
 		ldlibpth=''
 		;;
-	sunos*|freebsd[23]*|netbsd*)
+	sunos*)
 		linklibperl="-lperl"
+		;;
+	netbsd*|freebsd[234]*)
+		linklibperl="-L. -lperl"
 		;;
 	aix*)
 		shrpldflags="-H512 -T512 -bhalt:4 -bM:SRE -bE:perl.exp"
@@ -161,7 +166,7 @@ shellflags = $shellflags
 $make_set_make
 
 # These variables may need to be manually set for non-Unix systems.
-AR = $ar
+AR = $full_ar
 EXE_EXT = $_exe
 LIB_EXT = $_a
 OBJ_EXT = $_o
@@ -450,14 +455,15 @@ perly.h: perly.y
 	-@sh -c true
 
 # No compat3.sym here since and including the 5.004_50.
-SYM  = global.sym interp.sym perlio.sym thread.sym
+# No interp.sym since 5.005_03.
+SYM  = global.sym perlio.sym thread.sym
 
 SYMH = perlvars.h thrdvar.h
 
 # The following files are generated automatically
 #	keywords.h:	keywords.pl
 #	opcode.h:	opcode.pl
-#	embed.h:  	embed.pl global.sym interp.sym
+#	embed.h:  	embed.pl global.sym
 #	byterun.h:	bytecode.pl
 #	byterun.c:	bytecode.pl
 #	lib/B/Asmdata.pm:	bytecode.pl
@@ -598,13 +604,13 @@ minitest: miniperl lib/re.pm
 # Please *don't* use this unless all tests pass.
 # If you want to report test failures, use "make nok" instead.
 ok:	utilities
-	$(LBLIBPTH) ./perl -Ilib utils/perlbug -ok -s '(UNINSTALLED)'
+	$(LDLIBPTH) ./perl -Ilib utils/perlbug -ok -s '(UNINSTALLED)'
 
 okfile:	utilities
-	$(LBLIBPTH) ./perl -Ilib utils/perlbug -ok -s '(UNINSTALLED)' -F perl.ok
+	$(LDLIBPTH) ./perl -Ilib utils/perlbug -ok -s '(UNINSTALLED)' -F perl.ok
 
 nok:	utilities
-	$(LBLIBPTH) ./perl -Ilib utils/perlbug -nok -s '(UNINSTALLED)'
+	$(LDLIBPTH) ./perl -Ilib utils/perlbug -nok -s '(UNINSTALLED)'
 
 clist:	$(c)
 	echo $(c) | tr ' ' $(TRNL) >.clist
@@ -644,3 +650,70 @@ case `pwd` in
     ;;
 esac
 $rm -f $firstmakefile
+
+# Now do any special processing required before building.
+
+case "$ebcdic" in
+$define)
+    xxx=''
+    echo "This is an EBCDIC system, checking if any parser files need regenerating." >&4
+case "$osname" in
+os390)
+    rm -f y.tab.c y.tab.h
+    yacc -d perly.y >/dev/null 2>&1
+    if cmp -s y.tab.c perly.c; then
+        rm -f y.tab.c
+    else
+        echo "perly.y -> perly.c" >&2
+        mv -f y.tab.c perly.c
+        chmod u+w perly.c
+	sed -e 's/fprintf *( *stderr *,/PerlIO_printf(Perl_debug_log,/g' \
+	    -e 's/y\.tab/perly/g' perly.c >perly.tmp && mv perly.tmp perly.c
+        xxx="$xxx perly.c"
+    fi
+    if cmp -s y.tab.h perly.h; then
+        rm -f y.tab.h
+    else
+        echo "perly.y -> perly.h" >&2
+        mv -f y.tab.h perly.h
+        xxx="$xxx perly.h"
+    fi
+    if cd x2p
+    then
+        rm -f y.tab.c y.tab.h
+        yacc a2p.y >/dev/null 2>&1
+        if cmp -s y.tab.c a2p.c
+        then
+            rm -f y.tab.c
+        else
+            echo "a2p.y -> a2p.c" >&2
+            mv -f y.tab.c a2p.c
+            chmod u+w a2p.c
+            sed -e 's/fprintf *( *stderr *,/PerlIO_printf(Perl_debug_log,/g' \
+                -e 's/y\.tab/a2p/g' a2p.c >a2p.tmp && mv a2p.tmp a2p.c
+            xxx="$xxx a2p.c"
+        fi
+        # In case somebody yacc -d:ed the a2p.y.
+        if test -f y.tab.h
+        then
+            if cmp -s y.tab.h a2p.h
+            then
+                rm -f y.tab.h
+            else
+                echo "a2p.h -> a2p.h" >&2
+                mv -f y.tab.h a2p.h
+                xxx="$xxx a2p.h"
+            fi
+        fi
+        cd ..
+    fi
+    ;;
+*)
+    echo "'$osname' is an EBCDIC system I don't know that well." >&4
+    ;;
+esac
+    case "$xxx" in
+    '') echo "No parser files were regenerated.  That's okay." >&2 ;;
+    esac
+    ;;
+esac

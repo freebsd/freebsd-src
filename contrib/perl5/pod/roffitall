@@ -36,6 +36,7 @@ toroff=`
     $mandir/perlre.1	\
     $mandir/perlrun.1	\
     $mandir/perlfunc.1	\
+    $mandir/perlopentut.1	\
     $mandir/perlvar.1	\
     $mandir/perlsub.1	\
     $mandir/perlmod.1	\
@@ -44,6 +45,7 @@ toroff=`
     $mandir/perlform.1	\
     $mandir/perllocale.1	\
     $mandir/perlref.1	\
+    $mandir/perlreftut.1	\
     $mandir/perldsc.1	\
     $mandir/perllol.1	\
     $mandir/perltoot.1	\
@@ -65,6 +67,7 @@ toroff=`
     $mandir/perlxstut.1	\
     $mandir/perlguts.1	\
     $mandir/perlcall.1	\
+    $mandir/perlthrtut.1	\
     $mandir/perlhist.1	\
     $mandir/perldelta.1	\
     $mandir/perl5004delta.1	\
@@ -149,6 +152,7 @@ toroff=`
     $libdir/Devel::SelfStubber.3	\
     $libdir/DirHandle.3	\
     $libdir/DynaLoader.3	\
+    $libdir/Dumpvalue.3	\
     $libdir/English.3	\
     $libdir/Env.3	\
     $libdir/Errno.3	\

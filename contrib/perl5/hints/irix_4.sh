@@ -22,3 +22,14 @@ If you have problems, you might have try including
 	-DSTANDARD_C -cckr 
 in ccflags.
 EOM
+
+case "$usethreads" in
+$define|true|[yY]*)
+        cat >&4 <<EOM
+IRIX `uname -r` does not support POSIX threads.
+You should upgrade to at least IRIX 6.2 with pthread patches.
+EOM
+	exit 1
+	;;
+esac
+

@@ -14,8 +14,7 @@ package CGI::Push;
 # listing the modifications you have made.
 
 # The most recent version and complete docs are available at:
-#   http://www.genome.wi.mit.edu/ftp/pub/software/WWW/cgi_docs.html
-#   ftp://ftp-genome.wi.mit.edu/pub/software/WWW/
+#   http://stein.cshl.org/WWW/software/CGI/
 
 $CGI::Push::VERSION='1.01';
 use CGI;
@@ -287,19 +286,14 @@ Recognition of NPH scripts happens automatically with WebSTAR and
 Microsoft IIS.  Users of other servers should see their documentation
 for help.
 
-=head1 CAVEATS
-
-This is a new module.  It hasn't been extensively tested.
-
 =head1 AUTHOR INFORMATION
 
-be used and modified freely, but I do request that this copyright
-notice remain attached to the file.  You may modify this module as you
-wish, but if you redistribute a modified version, please attach a note
-listing the modifications you have made.
+Copyright 1995-1998, Lincoln D. Stein.  All rights reserved.  
 
-Address bug reports and comments to:
-lstein@genome.wi.mit.edu
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself.
+
+Address bug reports and comments to: lstein@cshl.org
 
 =head1 BUGS
 

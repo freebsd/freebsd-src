@@ -1,6 +1,6 @@
 /*    cv.h
  *
- *    Copyright (c) 1991-1997, Larry Wall
+ *    Copyright (c) 1991-1999, Larry Wall
  *
  *    You may distribute under the terms of either the GNU General Public
  *    License or the Artistic License, as specified in the README file.
@@ -94,3 +94,12 @@ struct xpvcv {
 #define CvLOCKED(cv)		(CvFLAGS(cv) & CVf_LOCKED)
 #define CvLOCKED_on(cv)		(CvFLAGS(cv) |= CVf_LOCKED)
 #define CvLOCKED_off(cv)	(CvFLAGS(cv) &= ~CVf_LOCKED)
+
+#define CvEVAL(cv)		(CvUNIQUE(cv) && !SvFAKE(cv))
+#define CvEVAL_on(cv)		(CvUNIQUE_on(cv),SvFAKE_off(cv))
+#define CvEVAL_off(cv)		CvUNIQUE_off(cv)
+
+/* BEGIN|INIT|END */
+#define CvSPECIAL(cv)		(CvUNIQUE(cv) && SvFAKE(cv))
+#define CvSPECIAL_on(cv)	(CvUNIQUE_on(cv),SvFAKE_on(cv))
+#define CvSPECIAL_off(cv)	(CvUNIQUE_off(cv),SvFAKE_off(cv))

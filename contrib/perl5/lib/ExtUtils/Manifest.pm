@@ -298,7 +298,7 @@ but in doing so checks each line in an existing C<MANIFEST> file and
 includes any comments that are found in the existing C<MANIFEST> file
 in the new one. Anything between white space and an end of line within
 a C<MANIFEST> file is considered to be a comment. Filenames and
-comments are seperated by one or more TAB characters in the
+comments are separated by one or more TAB characters in the
 output. All files that match any regular expression in a file
 C<MANIFEST.SKIP> (if such a file exists) are ignored.
 
@@ -317,7 +317,7 @@ Fullcheck() does both a manicheck() and a filecheck().
 Skipcheck() lists all the files that are skipped due to your
 C<MANIFEST.SKIP> file.
 
-Manifind() retruns a hash reference. The keys of the hash are the
+Manifind() returns a hash reference. The keys of the hash are the
 files found below the current directory.
 
 Maniread($file) reads a named C<MANIFEST> file (defaults to

@@ -1,6 +1,6 @@
 =head1 NAME
 
-perlfaq4 - Data Manipulation ($Revision: 1.26 $, $Date: 1998/08/05 12:04:00 $)
+perlfaq4 - Data Manipulation ($Revision: 1.40 $, $Date: 1999/01/08 04:26:39 $)
 
 =head1 DESCRIPTION
 
@@ -41,7 +41,7 @@ are consequently slower.
 
 To get rid of the superfluous digits, just use a format (eg,
 C<printf("%.2f", 19.95)>) to get the required precision.
-See L<perlop/"Floating-point Arithmetic">.
+See L<perlop/"Floating-point Arithmetic">.  
 
 =head2 Why isn't my octal data interpreted correctly?
 
@@ -59,7 +59,7 @@ umask(), or sysopen(), which all want permissions in octal.
     chmod(644,  $file);	# WRONG -- perl -w catches this
     chmod(0644, $file);	# right
 
-=head2 Does perl have a round function?  What about ceil() and floor()?  Trig functions?
+=head2 Does Perl have a round() function?  What about ceil() and floor()?  Trig functions?
 
 Remember that int() merely truncates toward 0.  For rounding to a
 certain number of digits, sprintf() or printf() is usually the easiest
@@ -88,6 +88,19 @@ cases, it probably pays not to trust whichever system rounding is
 being used by Perl, but to instead implement the rounding function you
 need yourself.
 
+To see why, notice how you'll still have an issue on half-way-point
+alternation:
+
+    for ($i = 0; $i < 1.01; $i += 0.05) { printf "%.1f ",$i}
+
+    0.0 0.1 0.1 0.2 0.2 0.2 0.3 0.3 0.4 0.4 0.5 0.5 0.6 0.7 0.7 
+    0.8 0.8 0.9 0.9 1.0 1.0
+
+Don't blame Perl.  It's the same as in C.  IEEE says we have to do this.
+Perl numbers whose absolute values are integers under 2**31 (on 32 bit
+machines) will work pretty much like mathematical integers.  Other numbers
+are not guaranteed.
+
 =head2 How do I convert bits into ints?
 
 To turn a string of 1s and 0s like C<10110110> into a scalar containing
@@ -99,6 +112,33 @@ L<perlfunc/"pack">):
 Here's an example of going the other way:
 
     $binary_string = join('', unpack('B*', "\x29"));
+
+=head2 Why doesn't & work the way I want it to?
+
+The behavior of binary arithmetic operators depends on whether they're
+used on numbers or strings.  The operators treat a string as a series
+of bits and work with that (the string C<"3"> is the bit pattern
+C<00110011>).  The operators work with the binary form of a number
+(the number C<3> is treated as the bit pattern C<00000011>).
+
+So, saying C<11 & 3> performs the "and" operation on numbers (yielding
+C<1>).  Saying C<"11" & "3"> performs the "and" operation on strings
+(yielding C<"1">).
+
+Most problems with C<&> and C<|> arise because the programmer thinks
+they have a number but really it's a string.  The rest arise because
+the programmer says:
+
+    if ("\020\020" & "\101\101") {
+	# ...
+    }
+
+but a string consisting of two null bytes (the result of C<"\020\020"
+& "\101\101">) is not a false value in Perl.  You need:
+
+    if ( ("\020\020" & "\101\101") !~ /[^\000]/) {
+	# ...
+    }
 
 =head2 How do I multiply matrices?
 
@@ -120,12 +160,12 @@ To call a function on each element of an array, but ignore the
 results:
 
     foreach $iterator (@array) {
-        &my_func($iterator);
+        some_func($iterator);
     }
 
 To call a function on each integer in a (small) range, you B<can> use:
 
-    @results = map { &my_func($_) } (5 .. 25);
+    @results = map { some_func($_) } (5 .. 25);
 
 but you should be aware that the C<..> operator creates an array of
 all integers in the range.  This can take a lot of memory for large
@@ -133,7 +173,7 @@ ranges.  Instead use:
 
     @results = ();
     for ($i=5; $i < 500_005; $i++) {
-        push(@results, &my_func($i));
+        push(@results, some_func($i));
     }
 
 =head2 How can I output Roman numerals?
@@ -142,20 +182,25 @@ Get the http://www.perl.com/CPAN/modules/by-module/Roman module.
 
 =head2 Why aren't my random numbers random?
 
-The short explanation is that you're getting pseudorandom numbers, not
-random ones, because computers are good at being predictable and bad
-at being random (despite appearances caused by bugs in your programs
-:-).  A longer explanation is available on
-http://www.perl.com/CPAN/doc/FMTEYEWTK/random, courtesy of Tom
-Phoenix.  John von Neumann said, ``Anyone who attempts to generate
-random numbers by deterministic means is, of course, living in a state
-of sin.''
+If you're using a version of Perl before 5.004, you must call C<srand>
+once at the start of your program to seed the random number generator.
+5.004 and later automatically call C<srand> at the beginning.  Don't
+call C<srand> more than once--you make your numbers less random, rather
+than more.
 
-You should also check out the Math::TrulyRandom module from CPAN.  It
-uses the imperfections in your system's timer to generate random
-numbers, but this takes quite a while.  If you want a better
+Computers are good at being predictable and bad at being random
+(despite appearances caused by bugs in your programs :-).
+http://www.perl.com/CPAN/doc/FMTEYEWTK/random, courtesy of Tom
+Phoenix, talks more about this..  John von Neumann said, ``Anyone who
+attempts to generate random numbers by deterministic means is, of
+course, living in a state of sin.''
+
+If you want numbers that are more random than C<rand> with C<srand>
+provides, you should also check out the Math::TrulyRandom module from
+CPAN.  It uses the imperfections in your system's timer to generate
+random numbers, but this takes quite a while.  If you want a better
 pseudorandom generator than comes with your operating system, look at
-``Numerical Recipes in C'' at http://nr.harvard.edu/nr/bookc.html .
+``Numerical Recipes in C'' at http://www.nr.com/ .
 
 =head1 Data: Dates
 
@@ -178,10 +223,10 @@ You can find the week of the year by dividing this by 7:
 Of course, this believes that weeks start at zero.  The Date::Calc
 module from CPAN has a lot of date calculation functions, including
 day of the year, week of the year, and so on.   Note that not
-all business consider ``week 1'' to be the same; for example,
-American business often consider the first week with a Monday
-in it to be Work Week #1, despite ISO 8601, which consider 
-WW1 to be the frist week with a Thursday in it.
+all businesses consider ``week 1'' to be the same; for example,
+American businesses often consider the first week with a Monday
+in it to be Work Week #1, despite ISO 8601, which considers
+WW1 to be the first week with a Thursday in it.
 
 =head2 How can I compare two dates and find the difference?
 
@@ -201,23 +246,38 @@ and Date::Manip modules from CPAN.
 
 Neither Date::Manip nor Date::Calc deal with Julian days.  Instead,
 there is an example of Julian date calculation that should help you in
-http://www.perl.com/CPAN/authors/David_Muir_Sharnoff/modules/Time/JulianDay.pm.gz
-.
+Time::JulianDay (part of the Time-modules bundle) which can be found at
+http://www.perl.com/CPAN/modules/by-module/Time/.
+
+
+=head2 How do I find yesterday's date?
+
+The C<time()> function returns the current time in seconds since the
+epoch.  Take one day off that:
+
+    $yesterday = time() - ( 24 * 60 * 60 );
+
+Then you can pass this to C<localtime()> and get the individual year,
+month, day, hour, minute, seconds values.
 
 =head2 Does Perl have a year 2000 problem?  Is Perl Y2K compliant?
 
-Short answer: No, Perl does not have a Year 2000 problem.  Yes,
-Perl is Y2K compliant.  The programmers you're hired to use it,
-however, probably are not.
+Short answer: No, Perl does not have a Year 2000 problem.  Yes, Perl is
+Y2K compliant (whatever that means).  The programmers you've hired to
+use it, however, probably are not.
 
-Long answer: Perl is just as Y2K compliant as your pencil--no more,
-and no less.  The date and time functions supplied with perl (gmtime
-and localtime) supply adequate information to determine the year well
-beyond 2000 (2038 is when trouble strikes for 32-bit machines).  The
-year returned by these functions when used in an array context is the
-year minus 1900.  For years between 1910 and 1999 this I<happens> to
-be a 2-digit decimal number. To avoid the year 2000 problem simply do
-not treat the year as a 2-digit number.  It isn't.
+Long answer: The question belies a true understanding of the issue.
+Perl is just as Y2K compliant as your pencil--no more, and no less.
+Can you use your pencil to write a non-Y2K-compliant memo?  Of course
+you can.  Is that the pencil's fault?  Of course it isn't.
+
+The date and time functions supplied with perl (gmtime and localtime)
+supply adequate information to determine the year well beyond 2000
+(2038 is when trouble strikes for 32-bit machines).  The year returned
+by these functions when used in an array context is the year minus 1900.
+For years between 1910 and 1999 this I<happens> to be a 2-digit decimal
+number. To avoid the year 2000 problem simply do not treat the year as
+a 2-digit number.  It isn't.
 
 When gmtime() and localtime() are used in scalar context they return
 a timestamp string that contains a fully-expanded year.  For example,
@@ -286,8 +346,9 @@ parser.
 If you are serious about writing a parser, there are a number of
 modules or oddities that will make your life a lot easier.  There is
 the CPAN module Parse::RecDescent, the standard module Text::Balanced,
-the byacc program, and Mark-Jason Dominus's excellent I<py> tool at
-http://www.plover.com/~mjd/perl/py/ .
+the byacc program, the CPAN module Parse::Yapp, and Mark-Jason
+Dominus's excellent I<py> tool at http://www.plover.com/~mjd/perl/py/
+.
 
 One simple destructive, inside-out approach that you might try is to
 pull out the smallest nesting parts one at a time:
@@ -295,6 +356,21 @@ pull out the smallest nesting parts one at a time:
     while (s//BEGIN((?:(?!BEGIN)(?!END).)*)END/gs) {
 	# do something with $1
     } 
+
+A more complicated and sneaky approach is to make Perl's regular
+expression engine do it for you.  This is courtesy Dean Inada, and
+rather has the nature of an Obfuscated Perl Contest entry, but it
+really does work:
+
+    # $_ contains the string to parse
+    # BEGIN and END are the opening and closing markers for the
+    # nested text.
+ 
+    @( = ('(','');
+    @) = (')','');
+    ($re=$_)=~s/((BEGIN)|(END)|.)/$)[!$3]\Q$1\E$([!$2]/gs;
+    @$ = (eval{/$re/},$@!~/unmatched/);
+    print join("\n",@$[0..$#$]) if( $$[-1] );
 
 =head2 How do I reverse a string?
 
@@ -378,7 +454,7 @@ There are a number of ways, with varying efficiency: If you want a
 count of a certain single character (X) within a string, you can use the
 C<tr///> function like so:
 
-    $string = "ThisXlineXhasXsomeXx'sXinXit":
+    $string = "ThisXlineXhasXsomeXx'sXinXit";
     $count = ($string =~ tr/X//);
     print "There are $count X charcters in the string";
 
@@ -422,6 +498,11 @@ You can (and probably should) enable locale awareness of those
 characters by placing a C<use locale> pragma in your program.
 See L<perllocale> for endless details on locales.
 
+This is sometimes referred to as putting something into "title
+case", but that's not quite accurate.  Consdier the proper
+capitalization of the movie I<Dr. Strangelove or: How I Learned to
+Stop Worrying and Love the Bomb>, for example.
+
 =head2 How can I split a [character] delimited string except when inside
 [character]? (Comma-separated files)
 
@@ -457,13 +538,15 @@ distribution) lets you say:
     use Text::ParseWords;
     @new = quotewords(",", 0, $text);
 
+There's also a Text::CSV module on CPAN.
+
 =head2 How do I strip blank space from the beginning/end of a string?
 
 Although the simplest approach would seem to be:
 
     $string =~ s/^\s*(.*?)\s*$/$1/;
 
-This is unneccesarily slow, destructive, and fails with embedded newlines.
+This is unnecessarily slow, destructive, and fails with embedded newlines.
 It is much better faster to do this in two steps:
 
     $string =~ s/^\s+//;
@@ -487,6 +570,44 @@ values of a hash if you use a slide:
         s/^\s+//;
         s/\s+$//;
     }
+
+=head2 How do I pad a string with blanks or pad a number with zeroes?
+
+(This answer contributed by Uri Guttman)
+
+In the following examples, C<$pad_len> is the length to which you wish
+to pad the string, C<$text> or C<$num> contains the string to be
+padded, and C<$pad_char> contains the padding character. You can use a
+single character string constant instead of the C<$pad_char> variable
+if you know what it is in advance.
+
+The simplest method use the C<sprintf> function. It can pad on the
+left or right with blanks and on the left with zeroes.
+
+    # Left padding with blank:
+    $padded = sprintf( "%${pad_len}s", $text ) ;
+
+    # Right padding with blank:
+    $padded = sprintf( "%${pad_len}s", $text ) ;
+
+    # Left padding with 0:
+    $padded = sprintf( "%0${pad_len}d", $num ) ;
+
+If you need to pad with a character other than blank or zero you can use
+one of the following methods.
+
+These methods generate a pad string with the C<x> operator and
+concatenate that with the original text.
+
+Left and right padding with any character:
+
+    $padded = $pad_char x ( $pad_len - length( $text ) ) . $text ;
+    $padded = $text . $pad_char x ( $pad_len - length( $text ) ) ;
+
+Or you can left or right pad $text directly:
+
+    $text .= $pad_char x ( $pad_len - length( $text ) ) ;
+    substr( $text, 0, 0 ) = $pad_char x ( $pad_len - length( $text ) ) ;
 
 =head2 How do I extract selected columns from a string?
 
@@ -523,13 +644,13 @@ Let's assume that you have a string like:
 If those were both global variables, then this would
 suffice:
 
-    $text =~ s/\$(\w+)/${$1}/g;
+    $text =~ s/\$(\w+)/${$1}/g;  # no /e needed
 
 But since they are probably lexicals, or at least, they could
 be, you'd have to do this:
 
     $text =~ s/(\$\w+)/$1/eeg;
-    die if $@;			# needed on /ee, not /e
+    die if $@;			# needed /ee, not /e
 
 It's probably better in the general case to treat those
 variables as entries in some special hash.  For example:
@@ -547,7 +668,9 @@ of the FAQ.
 
 The problem is that those double-quotes force stringification,
 coercing numbers and references into strings, even when you
-don't want them to be.
+don't want them to be.  Think of it this way: double-quote
+expansion is used to produce new strings.  If you already 
+have a string, why do you need more?
 
 If you get used to writing odd things like these:
 
@@ -583,7 +706,7 @@ Stringification also destroys arrays.
     print "@lines";		# WRONG - extra blanks
     print @lines;		# right
 
-=head2 Why don't my <<HERE documents work?
+=head2 Why don't my E<lt>E<lt>HERE documents work?
 
 Check for these three things:
 
@@ -665,6 +788,27 @@ indentation correctly preserved:
 
 =head1 Data: Arrays
 
+=head2 What is the difference between a list and an array?
+
+An array has a changeable length.  A list does not.  An array is something
+you can push or pop, while a list is a set of values.  Some people make
+the distinction that a list is a value while an array is a variable.
+Subroutines are passed and return lists, you put things into list
+context, you initialize arrays with lists, and you foreach() across
+a list.  C<@> variables are arrays, anonymous arrays are arrays, arrays
+in scalar context behave like the number of elements in them, subroutines
+access their arguments through the array C<@_>, push/pop/shift only work
+on arrays.
+
+As a side note, there's no such thing as a list in scalar context.
+When you say
+
+    $scalar = (2, 5, 7, 9);
+
+you're using the comma operator in scalar context, so it evaluates the
+left hand side, then evaluates and returns the left hand side.  This
+causes the last value to be returned: 9.
+
 =head2 What is the difference between $array[1] and @array[1]?
 
 The former is a scalar value, the latter an array slice, which makes
@@ -724,6 +868,8 @@ nice in that it won't work with false values like undef, 0, or "";
 
 =back
 
+But perhaps you should have been using a hash all along, eh?
+
 =head2 How can I tell whether a list or array contains a certain element?
 
 Hearing the word "in" is an I<in>dication that you probably should have
@@ -770,7 +916,17 @@ or worse yet
 
 These are slow (checks every element even if the first matches),
 inefficient (same reason), and potentially buggy (what if there are
-regexp characters in $whatever?).
+regexp characters in $whatever?).  If you're only testing once, then
+use:
+
+    $is_there = 0;
+    foreach $elt (@array) {
+	if ($elt eq $elt_to_find) {
+	    $is_there = 1;
+	    last;
+	}
+    }
+    if ($is_there) { ... }
 
 =head2 How do I compute the difference of two arrays?  How do I compute the intersection of two arrays?
 
@@ -785,11 +941,60 @@ each element is unique in a given array:
 	push @{ $count{$element} > 1 ? \@intersection : \@difference }, $element;
     }
 
+=head2 How do I test whether two arrays or hashes are equal?
+
+The following code works for single-level arrays.  It uses a stringwise
+comparison, and does not distinguish defined versus undefined empty
+strings.  Modify if you have other needs.
+
+    $are_equal = compare_arrays(\@frogs, \@toads);
+
+    sub compare_arrays {
+	my ($first, $second) = @_;
+	local $^W = 0;  # silence spurious -w undef complaints
+	return 0 unless @$first == @$second;
+	for (my $i = 0; $i < @$first; $i++) {
+	    return 0 if $first->[$i] ne $second->[$i];
+	}
+	return 1;
+    }
+
+For multilevel structures, you may wish to use an approach more
+like this one.  It uses the CPAN module FreezeThaw:
+
+    use FreezeThaw qw(cmpStr);
+    @a = @b = ( "this", "that", [ "more", "stuff" ] );
+
+    printf "a and b contain %s arrays\n",
+        cmpStr(\@a, \@b) == 0 
+	    ? "the same" 
+	    : "different";
+
+This approach also works for comparing hashes.  Here
+we'll demonstrate two different answers:
+
+    use FreezeThaw qw(cmpStr cmpStrHard);
+
+    %a = %b = ( "this" => "that", "extra" => [ "more", "stuff" ] );
+    $a{EXTRA} = \%b;
+    $b{EXTRA} = \%a;                    
+
+    printf "a and b contain %s hashes\n",
+	cmpStr(\%a, \%b) == 0 ? "the same" : "different";
+
+    printf "a and b contain %s hashes\n",
+	cmpStrHard(\%a, \%b) == 0 ? "the same" : "different";
+
+
+The first reports that both those the hashes contain the same data,
+while the second reports that they do not.  Which you prefer is left as
+an exercise to the reader.
+
 =head2 How do I find the first array element for which a condition is true?
 
 You can use this if you care about the index:
 
-    for ($i=0; $i < @array; $i++) {
+    for ($i= 0; $i < @array; $i++) {
         if ($array[$i] eq "Waldo") {
 	    $found_index = $i;
             last;
@@ -810,7 +1015,42 @@ need to copy pointers each time.
 
 If you really, really wanted, you could use structures as described in
 L<perldsc> or L<perltoot> and do just what the algorithm book tells you
-to do.
+to do.  For example, imagine a list node like this:
+
+    $node = {
+        VALUE => 42,
+        LINK  => undef,
+    };
+
+You could walk the list this way:
+
+    print "List: ";
+    for ($node = $head;  $node; $node = $node->{LINK}) {
+        print $node->{VALUE}, " ";
+    }
+    print "\n";
+
+You could grow the list this way:
+
+    my ($head, $tail);
+    $tail = append($head, 1);       # grow a new head
+    for $value ( 2 .. 10 ) {
+        $tail = append($tail, $value);
+    }
+
+    sub append {
+        my($list, $value) = @_;
+        my $node = { VALUE => $value };
+        if ($list) {
+            $node->{LINK} = $list->{LINK};
+            $list->{LINK} = $node;
+        } else {
+            $_[0] = $node;      # replace caller's version
+        }
+        return $node;
+    }
+
+But again, Perl's built-in are virtually always good enough.
 
 =head2 How do I handle circular lists?
 
@@ -1006,9 +1246,54 @@ get those bits into your @ints array:
 This method gets faster the more sparse the bit vector is.
 (Courtesy of Tim Bunce and Winfried Koenig.)
 
+Here's a demo on how to use vec():
+
+    # vec demo
+    $vector = "\xff\x0f\xef\xfe";
+    print "Ilya's string \\xff\\x0f\\xef\\xfe represents the number ", 
+	unpack("N", $vector), "\n";
+    $is_set = vec($vector, 23, 1);
+    print "Its 23rd bit is ", $is_set ? "set" : "clear", ".\n";
+    pvec($vector);
+
+    set_vec(1,1,1);
+    set_vec(3,1,1);
+    set_vec(23,1,1);
+
+    set_vec(3,1,3);
+    set_vec(3,2,3);
+    set_vec(3,4,3);
+    set_vec(3,4,7);
+    set_vec(3,8,3);
+    set_vec(3,8,7);
+
+    set_vec(0,32,17);
+    set_vec(1,32,17);
+
+    sub set_vec { 
+	my ($offset, $width, $value) = @_;
+	my $vector = '';
+	vec($vector, $offset, $width) = $value;
+	print "offset=$offset width=$width value=$value\n";
+	pvec($vector);
+    }
+
+    sub pvec {
+	my $vector = shift;
+	my $bits = unpack("b*", $vector);
+	my $i = 0;
+	my $BASE = 8;
+
+	print "vector length in bytes: ", length($vector), "\n";
+	@bytes = unpack("A8" x length($vector), $bits);
+	print "bits are: @bytes\n\n";
+    } 
+
 =head2 Why does defined() return true on empty arrays and hashes?
 
-See L<perlfunc/defined> in the 5.004 release or later of Perl.
+The short story is that you should probably only use defined on scalars or
+functions, not on aggregates (arrays and hashes).  See L<perlfunc/defined>
+in the 5.004 release or later of Perl for more detail.
 
 =head1 Data: Hashes (Associative Arrays)
 
@@ -1243,9 +1528,21 @@ awk's behavior.
 
 =head2 How can I make the Perl equivalent of a C structure/C++ class/hash or array of hashes or arrays?
 
-Use references (documented in L<perlref>).  Examples of complex data
-structures are given in L<perldsc> and L<perllol>.  Examples of
-structures and object-oriented classes are in L<perltoot>.
+Usually a hash ref, perhaps like this:
+
+    $record = {
+        NAME   => "Jason",
+        EMPNO  => 132,
+        TITLE  => "deputy peon",
+        AGE    => 23,
+        SALARY => 37_000,
+        PALS   => [ "Norbert", "Rhys", "Phineas"],
+    };
+
+References are documented in L<perlref> and the upcoming L<perlreftut>.
+Examples of complex data structures are given in L<perldsc> and
+L<perllol>.  Examples of structures and object-oriented classes are
+in L<perltoot>.
 
 =head2 How can I use a reference as a hash key?
 
@@ -1263,8 +1560,9 @@ this works fine (assuming the files are found):
 	print "Your kernel is GNU-zip enabled!\n";
     }
 
-On some systems, however, you have to play tedious games with "text"
-versus "binary" files.  See L<perlfunc/"binmode">.
+On some legacy systems, however, you have to play tedious games with
+"text" versus "binary" files.  See L<perlfunc/"binmode">, or the upcoming
+L<perlopentut> manpage.
 
 If you're concerned about 8-bit ASCII data, then see L<perllocale>.
 
@@ -1276,14 +1574,14 @@ some gotchas.  See the section on Regular Expressions.
 Assuming that you don't care about IEEE notations like "NaN" or
 "Infinity", you probably just want to use a regular expression.
 
-   warn "has nondigits"        if     /\D/;
-    warn "not a natural number" unless /^\d+$/;             # rejects -3
-    warn "not an integer"       unless /^-?\d+$/;           # rejects +3
-   warn "not an integer"       unless /^[+-]?\d+$/;
-   warn "not a decimal number" unless /^-?\d+\.?\d*$/;  # rejects .2
-   warn "not a decimal number" unless /^-?(?:\d+(?:\.\d*)?|\.\d+)$/;
-   warn "not a C float"
-       unless /^([+-]?)(?=\d|\.\d)\d*(\.\d*)?([Ee]([+-]?\d+))?$/;
+   if (/\D/)            { print "has nondigits\n" }
+   if (/^\d+$/)         { print "is a whole number\n" }
+   if (/^-?\d+$/)       { print "is an integer\n" }
+   if (/^[+-]?\d+$/)    { print "is a +/- integer\n" }
+   if (/^-?\d+\.?\d*$/) { print "is a real number\n" }
+   if (/^-?(?:\d+(?:\.\d*)?|\.\d+)$/) { print "is a decimal number" }
+   if (/^([+-]?)(?=\d|\.\d)\d*(\.\d*)?([Ee]([+-]?\d+))?$/)
+			{ print "a C float" }
 
 If you're on a POSIX system, Perl's supports the C<POSIX::strtod>
 function.  Its semantics are somewhat cumbersome, so here's a C<getnum>
@@ -1308,28 +1606,41 @@ if you just want to say, ``Is this a float?''
 
     sub is_numeric { defined &getnum } 
 
-Or you could check out
-http://www.perl.com/CPAN/modules/by-module/String/String-Scanf-1.1.tar.gz
-instead.  The POSIX module (part of the standard Perl distribution)
-provides the C<strtol> and C<strtod> for converting strings to double
+Or you could check out String::Scanf which can be found at
+http://www.perl.com/CPAN/modules/by-module/String/.
+The POSIX module (part of the standard Perl distribution) provides 
+the C<strtol> and C<strtod> for converting strings to double
 and longs, respectively.
 
 =head2 How do I keep persistent data across program calls?
 
 For some specific applications, you can use one of the DBM modules.
-See L<AnyDBM_File>.  More generically, you should consult the
-FreezeThaw, Storable, or Class::Eroot modules from CPAN.
+See L<AnyDBM_File>.  More generically, you should consult the FreezeThaw,
+Storable, or Class::Eroot modules from CPAN.  Here's one example using
+Storable's C<store> and C<retrieve> functions:
+
+    use Storable; 
+    store(\%hash, "filename");
+
+    # later on...  
+    $href = retrieve("filename");        # by ref
+    %hash = %{ retrieve("filename") };   # direct to hash
 
 =head2 How do I print out or copy a recursive data structure?
 
-The Data::Dumper module on CPAN is nice for printing out
-data structures, and FreezeThaw for copying them.  For example:
+The Data::Dumper module on CPAN (or the 5.005 release of Perl) is great
+for printing out data structures.  The Storable module, found on CPAN,
+provides a function called C<dclone> that recursively copies its argument.
 
-    use FreezeThaw qw(freeze thaw);
-    $new = thaw freeze $old;
+    use Storable qw(dclone); 
+    $r2 = dclone($r1);
 
-Where $old can be (a reference to) any kind of data structure you'd like.
-It will be deeply copied.
+Where $r1 can be a reference to any kind of data structure you'd like.
+It will be deeply copied.  Because C<dclone> takes and returns references,
+you'd have to add extra punctuation if you had a hash of arrays that
+you wanted to copy.
+
+    %newhash = %{ dclone(\%oldhash) };
 
 =head2 How do I define methods for every class/object?
 
@@ -1339,14 +1650,20 @@ Use the UNIVERSAL class (see L<UNIVERSAL>).
 
 Get the Business::CreditCard module from CPAN.
 
+=head2 How do I pack arrays of doubles or floats for XS code?
+
+The kgbpack.c code in the PGPLOT module on CPAN does just this.
+If you're doing a lot of float or double processing, consider using
+the PDL module from CPAN instead--it makes number-crunching easy.
+
 =head1 AUTHOR AND COPYRIGHT
 
-Copyright (c) 1997, 1998 Tom Christiansen and Nathan Torkington.
+Copyright (c) 1997-1999 Tom Christiansen and Nathan Torkington.
 All rights reserved.
 
 When included as part of the Standard Version of Perl, or as part of
 its complete documentation whether printed or otherwise, this work
-may be distributed only under the terms of Perl's Artistic License.
+may be distributed only under the terms of Perl's Artistic Licence.
 Any distribution of this file or derivatives thereof I<outside>
 of that package require that special arrangements be made with
 copyright holder.
@@ -1356,3 +1673,4 @@ are hereby placed into the public domain.  You are permitted and
 encouraged to use this code in your own programs for fun
 or for profit as you see fit.  A simple comment in the code giving
 credit would be courteous but is not required.
+

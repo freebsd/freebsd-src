@@ -1,11 +1,12 @@
 # BeOS hints file
 # $Id: beos.sh,v 1.1 1998/02/16 03:51:45 dogcow Exp $
 
-if [ ! -f beos/nm ]; then mwcc -w all -o beos/nm beos/nm.c; fi
+if [ ! -f beos/nm ]; then mwcc -w all -o beos/nm beos/nm.c 2>/dev/null; fi
+# If this fails, that's all right - it's only for PPC.
 
 prefix="/boot/home/config"
 
-cpp="mwcc -e"
+#cpp="mwcc -e"
 
 libpth='/boot/beos/system/lib /boot/home/config/lib'
 usrinc='/boot/develop/headers/posix'
@@ -37,9 +38,16 @@ d_syserrlst='undef'
 # the array syserrlst[] is useless for the most part.
 # large negative numbers really kind of suck in arrays.
 
-#d_socket='undef'
+d_socket='undef'
+d_gethbyaddr='undef'
+d_gethbyname='undef'
+d_getsbyname='undef'
+
+ld='gcc'
+
 # Sockets really don't work with the current version of perl and the
 # current BeOS sockets; I suspect that a new module a la GSAR's WIN32 port
 # will be required.
+# Of course, this may also change with R5.
 
 export PATH="$PATH:$PWD/beos"

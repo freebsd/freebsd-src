@@ -1,7 +1,7 @@
 /* dl_vms.xs
  * 
  * Platform:  OpenVMS, VAX or AXP
- * Author:    Charles Bailey  bailey@genetics.upenn.edu
+ * Author:    Charles Bailey  bailey@newman.upenn.edu
  * Revised:   12-Dec-1994
  *
  *                           Implementation Note

@@ -8,8 +8,8 @@ BEGIN {
         print "1..0\n";
         exit 0;
     }
-  # test 30 rather naughtily expects English error messages
-  $ENV{'LC_ALL'} = 'C';
+    # test 30 rather naughtily expects English error messages
+    $ENV{'LC_ALL'} = 'C';
 }
 
 # Tests Todo:
@@ -122,11 +122,9 @@ print $@ =~ /foo bar/ ? "ok 29\n" : "not ok 29\n";
   
 my $t = 30;
 $cpt->rdo('/non/existant/file.name');
-print +(($! =~ /No such file/ || $! =~ /file specification syntax error/) ||
-      $! =~ /A file or directory in the path name does not exist/ ||
-      $! =~ /Invalid argument/ ||
-      $! =~ /Device not configured/ ?
-      "ok $t\n" : "not ok $t # $!\n"); $t++;
+# The regexp is getting rather baroque.
+print $! =~ /No such file|file specification syntax error|A file or directory in the path name does not exist|Invalid argument|Device not configured|file not found/i ? "ok $t\n" : "not ok $t # $!\n"; $t++;
+# test #31 is gone.
 print 1 ? "ok $t\n" : "not ok $t\n#$@/$!\n"; $t++;
   
 #my $rdo_file = "tmp_rdo.tpl";

@@ -85,7 +85,7 @@ begin with C<perl> be referenced with a C<Perl_> prefix.  The bare function
 names without the C<Perl_> prefix are supported with macros, but this
 support may cease in a future release.
 
-See L<perlguts/API LISTING>.
+See L<perlguts/"API LISTING">.
 
 =item Enabling threads has source compatibility issues
 
@@ -100,7 +100,7 @@ directly accessing perl globals as C<GvSV(errgv)>.  The API call is
 backward compatible with existing perls and provides source compatibility
 with threading is enabled.
 
-See L<API Changes for more information>.
+See L<"C Source Compatibility"> for more information.
 
 =back
 
@@ -152,6 +152,9 @@ implementation may change without notice.  There are known limitations
 and some bugs.  These are expected to be fixed in future versions.
 
 See L<README.threads>.
+
+Mach cthreads (NEXTSTEP, OPENSTEP, Rhapsody) are now supported by
+the Thread extension.
 
 =head2 Compiler
 
@@ -310,7 +313,7 @@ and in XSUBs.
 Perl used to complain if it encountered literal carriage returns in
 scripts.  Now they are mostly treated like whitespace within program text.
 Inside string literals and here documents, literal carriage returns are
-ignored if they occur paired with newlines, or get interpreted as newlines
+ignored if they occur paired with linefeeds, or get interpreted as whitespace
 if they stand alone.  This behavior means that literal carriage returns
 in files should be avoided.  You can get the older, more compatible (but
 less generous) behavior by defining the preprocessor symbol
@@ -488,6 +491,30 @@ If C<$/> is a referenence to an integer, or a scalar that holds an integer,
 E<lt>E<gt> will read in records instead of lines. For more info, see
 L<perlvar/$/>.
 
+=head2 pack() format 'Z' supported
+
+The new format type 'Z' is useful for packing and unpacking null-terminated
+strings.  See L<perlfunc/"pack">.
+
+=head1 Significant bug fixes
+
+=head2 E<lt>HANDLEE<gt> on empty files
+
+With C<$/> set to C<undef>, slurping an empty file returns a string of
+zero length (instead of C<undef>, as it used to) for the first time the
+HANDLE is read.  Subsequent reads yield C<undef>.
+
+This means that the following will append "foo" to an empty file (it used
+to not do anything before):
+
+    perl -0777 -pi -e 's/^/foo/' empty_file
+
+Note that the behavior of:
+
+    perl -pi -e 's/^/foo/' empty_file
+
+is unchanged (it continues to leave the file empty).
+
 =head1 Supported Platforms
 
 Configure has many incremental improvements.  Site-wide policy for building
@@ -500,9 +527,15 @@ BeOS is now supported.  See L<README.beos>.
 
 DOS is now supported under the DJGPP tools.  See L<README.dos>.
 
+GNU/Hurd is now supported.
+
+MiNT is now supported.  See L<README.mint>.
+
 MPE/iX is now supported.  See L<README.mpeix>.
 
-MVS (OS390) is now supported.  See L<README.os390>.
+MVS (aka OS390, aka Open Edition) is now supported.  See L<README.os390>.
+
+Stratus VOS is now supported.  See L<README.vos>.
 
 =head2 Changes in existing support
 
@@ -527,6 +560,10 @@ Perl compiler and tools.  See L<B>.
 =item Data::Dumper
 
 A module to pretty print Perl data.  See L<Data::Dumper>.
+
+=item Dumpvalue
+
+A module to dump perl values to the screen. See L<Dumpvalue>.
 
 =item Errno
 
@@ -587,9 +624,51 @@ Various pragmata to control behavior of regular expressions.
 
 =over
 
+=item Benchmark
+
+You can now run tests for I<n> seconds instead of guessing the right
+number of tests to run: e.g. timethese(-5, ...) will run each of the
+codes for at least 5 CPU seconds.  Zero as the "number of repetitions"
+means "for at least 3 CPU seconds".  The output format has also
+changed.  For example: 
+
+use Benchmark;$x=3;timethese(-5,{a=>sub{$x*$x},b=>sub{$x**2}})
+
+will now output something like this:
+
+Benchmark: running a, b, each for at least 5 CPU seconds...
+         a:  5 wallclock secs ( 5.77 usr +  0.00 sys =  5.77 CPU) @ 200551.91/s (n=1156516)
+         b:  4 wallclock secs ( 5.00 usr +  0.02 sys =  5.02 CPU) @ 159605.18/s (n=800686)
+
+New features: "each for at least N CPU seconds...", "wallclock secs",
+and the "@ operations/CPU second (n=operations)".
+
+=item Carp
+
+Carp has a new function cluck(). cluck() warns, like carp(), but also adds
+a stack backtrace to the error message, like confess().
+
 =item CGI
 
 CGI has been updated to version 2.42.
+
+=item Fcntl
+
+More Fcntl constants added: F_SETLK64, F_SETLKW64, O_LARGEFILE for
+large (more than 4G) file access (the 64-bit support is not yet
+working, though, so no need to get overly excited), Free/Net/OpenBSD
+locking behaviour flags F_FLOCK, F_POSIX, Linux F_SHLCK, and
+O_ACCMODE: the mask of O_RDONLY, O_WRONLY, and O_RDWR.
+
+=item Math::Complex
+
+The accessor methods Re, Im, arg, abs, rho, and theta, can now also
+act as mutators (accessor $z->Re(), mutator $z->Re(3)).
+
+=item Math::Trig
+
+A little bit of radial trigonometry (cylindrical and spherical) added:
+radial coordinate conversions and the great circle distance.
 
 =item POSIX
 
@@ -655,6 +734,12 @@ sites.
 
 Some more Perl traps are documented now.  See L<perltrap>.
 
+L<perlopentut> gives a tutorial on using open().
+
+L<perlreftut> gives a tutorial on references.
+
+L<perlthrtut> gives a tutorial on threads.
+
 =head1 New Diagnostics
 
 =over
@@ -696,6 +781,10 @@ Something like this will reproduce the error:
     $BADREF = 42;
     process $BADREF 1,2,3;
     $BADREF->process(1,2,3);
+
+=item Can't check filesystem of script "%s" for nosuid
+
+(P) For some reason you can't check the filesystem of the script for nosuid.
 
 =item Can't coerce array into hash
 
@@ -776,7 +865,7 @@ See L<perlre/(?{ code })>.
 (W) You are blessing a reference to a zero length string.  This has
 the effect of blessing the reference into the package main.  This is
 usually not what you want.  Consider providing a default target
-package, e.g. bless($ref, $p or 'MyPackage');
+package, e.g. bless($ref, $p || 'MyPackage');
 
 =item Illegal hex digit ignored
 
@@ -860,7 +949,7 @@ not use those settings.  This was not dead serious, fortunately: there
 is a "default locale" called "C" that Perl can and will use, the
 script will be run.  Before you really fix the problem, however, you
 will get the same error message each time you run Perl.  How to really
-fix the problem can be found in L<perllocale> section B<LOCALE PROBLEMS>.
+fix the problem can be found in L<perllocale/"LOCALE PROBLEMS">.
 
 =back
 
@@ -874,17 +963,38 @@ fix the problem can be found in L<perllocale> section B<LOCALE PROBLEMS>.
 (F) The mktemp() routine failed for some reason while trying to process
 a B<-e> switch.  Maybe your /tmp partition is full, or clobbered.
 
+Removed because B<-e> doesn't use temporary files any more.
+
 =item Can't write to temp file for B<-e>: %s
 
 (F) The write routine failed for some reason while trying to process
 a B<-e> switch.  Maybe your /tmp partition is full, or clobbered.
+
+Removed because B<-e> doesn't use temporary files any more.
 
 =item Cannot open temporary file
 
 (F) The create routine failed for some reason while trying to process
 a B<-e> switch.  Maybe your /tmp partition is full, or clobbered.
 
+Removed because B<-e> doesn't use temporary files any more.
+
+=item regexp too big
+
+(F) The current implementation of regular expressions uses shorts as
+address offsets within a string.  Unfortunately this means that if
+the regular expression compiles to longer than 32767, it'll blow up.
+Usually when you want a regular expression this big, there is a better
+way to do it with multiple statements.  See L<perlre>.
+
 =back
+
+=head1 Configuration Changes
+
+You can use "Configure -Uinstallusrbinperl" which causes installperl
+to skip installing perl also as /usr/bin/perl.  This is useful if you
+prefer not to modify /usr/bin for some reason or another but harmful
+because many scripts assume to find Perl in /usr/bin/perl.
 
 =head1 BUGS
 

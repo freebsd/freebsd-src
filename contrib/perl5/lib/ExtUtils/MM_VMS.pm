@@ -3,7 +3,7 @@
 #   This package is inserted into @ISA of MakeMaker's MM before the
 #   built-in ExtUtils::MM_Unix methods if MakeMaker.pm is run under VMS.
 #
-#   Author:  Charles Bailey  bailey@genetics.upenn.edu
+#   Author:  Charles Bailey  bailey@newman.upenn.edu
 
 package ExtUtils::MM_VMS;
 
@@ -14,7 +14,7 @@ use VMS::Filespec;
 use File::Basename;
 
 use vars qw($Revision);
-$Revision = '5.42 (31-Mar-1997)';
+$Revision = '5.52 (12-Sep-1998)';
 
 unshift @MM::ISA, 'ExtUtils::MM_VMS';
 
@@ -829,7 +829,7 @@ sub cflags {
 	    $quals =~ s/ -$type$def\s*//;
 	    $def =~ s/"/""/g;
 	    if    ($type eq 'D') { $definestr .= qq["$def",]; }
-	    elsif ($type eq 'I') { $flagincstr .= ',' . $self->fixpath($def,1); }
+	    elsif ($type eq 'I') { $incstr .= ',' . $self->fixpath($def,1); }
 	    else                 { $undefstr  .= qq["$def",]; }
 	}
     }
@@ -869,7 +869,7 @@ sub cflags {
 	my(@includes) = split(/\s+/,$self->{INC});
 	foreach (@includes) {
 	    s/^-I//;
-	    $incstr .= ', '.$self->fixpath($_,1);
+	    $incstr .= ','.$self->fixpath($_,1);
 	}
     }
     $quals .= "$incstr)";
@@ -1322,6 +1322,7 @@ sub dlsyms {
 
     my($funcs) = $attribs{DL_FUNCS} || $self->{DL_FUNCS} || {};
     my($vars)  = $attribs{DL_VARS}  || $self->{DL_VARS}  || [];
+    my($funclist)  = $attribs{FUNCLIST}  || $self->{FUNCLIST}  || [];
     my(@m);
 
     unless ($self->{SKIPHASH}{'dynamic'}) {
@@ -1343,7 +1344,8 @@ $(INST_ARCHAUTODIR)$(BASEEXT).opt : $(BASEEXT).opt
 $(BASEEXT).opt : Makefile.PL
 	$(PERL) "-I$(PERL_ARCHLIB)" "-I$(PERL_LIB)" -e "use ExtUtils::Mksymlists;" -
 	',qq[-e "Mksymlists('NAME' => '$self->{NAME}', 'DL_FUNCS' => ],
-	neatvalue($funcs),q[, 'DL_VARS' => ],neatvalue($vars),')"
+	neatvalue($funcs),q[, 'DL_VARS' => ],neatvalue($vars),
+	q[, 'FUNCLIST' => ],neatvalue($funclist),')"
 	$(PERL) -e "print ""$(INST_STATIC)/Include=$(BASEEXT)\n$(INST_STATIC)/Library\n"";" >>$(MMS$TARGET)
 ');
 
@@ -1389,7 +1391,7 @@ INST_DYNAMIC_DEP = $inst_dynamic_dep
     push @m, '
 $(INST_DYNAMIC) : $(INST_STATIC) $(PERL_INC)perlshr_attr.opt $(INST_ARCHAUTODIR).exists $(EXPORT_LIST) $(PERL_ARCHIVE) $(INST_DYNAMIC_DEP)
 	$(NOECHO) $(MKPATH) $(INST_ARCHAUTODIR)
-	$(NOECHO) If F$TrnLNm("',$shr,'").eqs."" Then Define/NoLog/User ',"$shr Sys\$Share:$shr.$Config{'dlext'}",'
+	If F$TrnLNm("',$shr,'").eqs."" Then Define/NoLog/User ',"$shr Sys\$Share:$shr.$Config{'dlext'}",'
 	Link $(LDFLAGS) /Shareable=$(MMS$TARGET)$(OTHERLDFLAGS) $(BASEEXT).opt/Option,$(PERL_INC)perlshr_attr.opt/Option
 ';
 
@@ -1441,7 +1443,7 @@ $(INST_STATIC) :
 	$(NOECHO) $(NOOP)
 ' unless ($self->{OBJECT} or @{$self->{C} || []} or $self->{MYEXTLIB});
 
-    my(@m);
+    my(@m,$lib);
     push @m,'
 # Rely on suffix rule for update action
 $(OBJECT) : $(INST_ARCHAUTODIR).exists
@@ -1463,7 +1465,10 @@ $(INST_STATIC) : $(OBJECT) $(MYEXTLIB)
       push(@m,"\t",'Library/Object/Replace $(MMS$TARGET) $(MMS$SOURCE_LIST)',"\n");
     }
     
-    push(@m,"\t",'$(NOECHO) $(PERL) -e "open F,\'>>$(INST_ARCHAUTODIR)extralibs.ld\';print F qq{$(EXTRALIBS)\n};close F;"',"\n");
+    foreach $lib (split $self->{EXTRALIBS}) {
+      $lib = '""' if $lib eq '"';
+      push(@m,"\t",'$(NOECHO) $(PERL) -e "print qq{',$lib,'\n}" >>$(INST_ARCHAUTODIR)extralibs.ld',"\n");
+    }
     push @m, $self->dir_target('$(INST_ARCHAUTODIR)');
     join('',@m);
 }
@@ -1530,15 +1535,20 @@ sub processPL {
     return "" unless $self->{PL_FILES};
     my(@m, $plfile);
     foreach $plfile (sort keys %{$self->{PL_FILES}}) {
-	my $vmsplfile = vmsify($plfile);
-	my $vmsfile = vmsify($self->{PL_FILES}->{$plfile});
-	push @m, "
+        my $list = ref($self->{PL_FILES}->{$plfile})
+		? $self->{PL_FILES}->{$plfile}
+		: [$self->{PL_FILES}->{$plfile}];
+	foreach $target (@$list) {
+	    my $vmsplfile = vmsify($plfile);
+	    my $vmsfile = vmsify($target);
+	    push @m, "
 all :: $vmsfile
 	\$(NOECHO) \$(NOOP)
 
 $vmsfile :: $vmsplfile
-",'	$(PERL) "-I$(INST_ARCHLIB)" "-I$(INST_LIB)" "-I$(PERL_ARCHLIB)" "-I$(PERL_LIB)" '," $vmsplfile
+",'	$(PERL) "-I$(INST_ARCHLIB)" "-I$(INST_LIB)" "-I$(PERL_ARCHLIB)" "-I$(PERL_LIB)" '," $vmsplfile $vmsfile
 ";
+	}
     }
     join "", @m;
 }
@@ -2188,7 +2198,8 @@ $(MAP_TARGET) :: $(MAKE_APERL_FILE)
     }
 
 
-    my($linkcmd,@staticopts,@staticpkgs,$extralist,$targdir,$libperldir);
+    my($linkcmd,@optlibs,@staticpkgs,$extralist,$targdir,$libperldir,%libseen);
+    local($_);
 
     # The front matter of the linkcommand...
     $linkcmd = join ' ', $Config{'ld'},
@@ -2251,28 +2262,46 @@ $(MAP_TARGET) :: $(MAKE_APERL_FILE)
     # (e.g. Intuit::DWIM will precede Intuit, so unresolved
     # references from [.intuit.dwim]dwim.obj can be found
     # in [.intuit]intuit.olb).
-    for (sort keys %olbs) {
+    for (sort { length($a) <=> length($b) } keys %olbs) {
 	next unless $olbs{$_} =~ /\Q$self->{LIB_EXT}\E$/;
 	my($dir) = $self->fixpath($_,1);
 	my($extralibs) = $dir . "extralibs.ld";
 	my($extopt) = $dir . $olbs{$_};
 	$extopt =~ s/$self->{LIB_EXT}$/.opt/;
+	push @optlibs, "$dir$olbs{$_}";
+	# Get external libraries this extension will need
 	if (-f $extralibs ) {
+	    my %seenthis;
 	    open LIST,$extralibs or warn $!,next;
-	    push @$extra, <LIST>;
+	    while (<LIST>) {
+		chomp;
+		# Include a library in the link only once, unless it's mentioned
+		# multiple times within a single extension's options file, in which
+		# case we assume the builder needed to search it again later in the
+		# link.
+		my $skip = exists($libseen{$_}) && !exists($seenthis{$_});
+		$libseen{$_}++;  $seenthis{$_}++;
+		next if $skip;
+		push @$extra,$_;
+	    }
 	    close LIST;
 	}
+	# Get full name of extension for ExtUtils::Miniperl
 	if (-f $extopt) {
 	    open OPT,$extopt or die $!;
 	    while (<OPT>) {
 		next unless /(?:UNIVERSAL|VECTOR)=boot_([\w_]+)/;
-		# ExtUtils::Miniperl expects Unix paths
-		(my($pkg) = "$1_$1$self->{LIB_EXT}") =~ s#_*#/#g;
+		my $pkg = $1;
+		$pkg =~ s#__*#::#g;
 		push @staticpkgs,$pkg;
 	    }
-	    push @staticopts, $extopt;
 	}
     }
+    # Place all of the external libraries after all of the Perl extension
+    # libraries in the final link, in order to maximize the opportunity
+    # for XS code from multiple extensions to resolve symbols against the
+    # same external library while only including that library once.
+    push @optlibs, @$extra;
 
     $target = "Perl$Config{'exe_ext'}" unless $target;
     ($shrtarget,$targdir) = fileparse($target);
@@ -2281,11 +2310,11 @@ $(MAP_TARGET) :: $(MAKE_APERL_FILE)
     $target = "Perlshr.$Config{'dlext'}" unless $target;
     $tmp = "[]" unless $tmp;
     $tmp = $self->fixpath($tmp,1);
-    if (@$extra) {
-	$extralist = join(' ',@$extra);
-	$extralist =~ s/[,\s\n]+/, /g;
-    }
-    else { $extralist = ''; }
+    if (@optlibs) { $extralist = join(' ',@optlibs); }
+    else          { $extralist = ''; }
+    # Let ExtUtils::Liblist find the necessary for us (but skip PerlShr;
+    # that's what we're building here).
+    push @optlibs, grep { !/PerlShr/i } split +($self->ext())[2];
     if ($libperl) {
 	unless (-f $libperl || -f ($libperl = $self->catfile($Config{'installarchlib'},'CORE',$libperl))) {
 	    print STDOUT "Warning: $libperl not found\n";
@@ -2309,19 +2338,22 @@ $(MAP_TARGET) :: $(MAKE_APERL_FILE)
 MAP_TARGET    = ',$self->fixpath($target,0),'
 MAP_SHRTARGET = ',$self->fixpath($shrtarget,0),"
 MAP_LINKCMD   = $linkcmd
-MAP_PERLINC   = ", $perlinc ? map('"$_" ',@{$perlinc}) : '','
-# We use the linker options files created with each extension, rather than
-#specifying the object files directly on the command line.
-MAP_STATIC    = ',@staticopts ? join(' ', @staticopts) : '','
-MAP_OPTS    = ',@staticopts ? ','.join(',', map($_.'/Option', @staticopts)) : '',"
+MAP_PERLINC   = ", $perlinc ? map('"$_" ',@{$perlinc}) : '',"
 MAP_EXTRA     = $extralist
 MAP_LIBPERL = ",$self->fixpath($libperl,0),'
 ';
 
 
-    push @m,'
-$(MAP_SHRTARGET) : $(MAP_LIBPERL) $(MAP_STATIC) ',"${libperldir}Perlshr_Attr.Opt",'
-	$(MAP_LINKCMD)/Shareable=$(MMS$TARGET) $(MAP_OPTS), $(MAP_EXTRA), $(MAP_LIBPERL) ',"${libperldir}Perlshr_Attr.Opt",'
+    push @m,"\n${tmp}Makeaperl.Opt : \$(MAP_EXTRA)\n";
+    foreach (@optlibs) {
+	push @m,'	$(NOECHO) $(PERL) -e "print q{',$_,'}" >>$(MMS$TARGET)',"\n";
+    }
+    push @m,"\n${tmp}PerlShr.Opt :\n\t";
+    push @m,'$(NOECHO) $(PERL) -e "print q{$(MAP_SHRTARGET)}" >$(MMS$TARGET)',"\n";
+
+push @m,'
+$(MAP_SHRTARGET) : $(MAP_LIBPERL) Makeaperl.Opt ',"${libperldir}Perlshr_Attr.Opt",'
+	$(MAP_LINKCMD)/Shareable=$(MMS$TARGET) $(MAP_LIBPERL), Makeaperl.Opt/Option ',"${libperldir}Perlshr_Attr.Opt/Option",'
 $(MAP_TARGET) : $(MAP_SHRTARGET) ',"${tmp}perlmain\$(OBJ_EXT) ${tmp}PerlShr.Opt",'
 	$(MAP_LINKCMD) ',"${tmp}perlmain\$(OBJ_EXT)",', PerlShr.Opt/Option
 	$(NOECHO) $(SAY) "To install the new ""$(MAP_TARGET)"" binary, say"
@@ -2329,13 +2361,17 @@ $(MAP_TARGET) : $(MAP_SHRTARGET) ',"${tmp}perlmain\$(OBJ_EXT) ${tmp}PerlShr.Opt"
 	$(NOECHO) $(SAY) "To remove the intermediate files, say
 	$(NOECHO) $(SAY) "    $(MMS)$(MMSQUALIFIERS)$(USEMAKEFILE)$(MAKEFILE) map_clean"
 ';
-    push @m,'
-',"${tmp}perlmain.c",' : $(MAKEFILE)
-	$(NOECHO) $(PERL) $(MAP_PERLINC) -e "use ExtUtils::Miniperl; writemain(qw|',@staticpkgs,'|)" >$(MMS$TARGET)
-';
+    push @m,"\n${tmp}perlmain.c : \$(MAKEFILE)\n\t\$(NOECHO) \$(PERL) -e 1 >${tmp}Writemain.tmp\n";
+    push @m, "# More from the 255-char line length limit\n";
+    foreach (@staticpkgs) {
+	push @m,'	$(NOECHO) $(PERL) -e "print q{',$_,qq[}" >>${tmp}Writemain.tmp\n];
+    }
+	push @m,'
+	$(NOECHO) $(PERL) $(MAP_PERLINC) -ane "use ExtUtils::Miniperl; writemain(@F)" ',$tmp,'Writemain.tmp >$(MMS$TARGET)
+	$(NOECHO) $(RM_F) ',"${tmp}Writemain.tmp\n";
 
     push @m, q[
-# More from the 255-char line length limit
+# Still more from the 255-char line length limit
 doc_inst_perl :
 	$(NOECHO) $(PERL) -e "print 'Perl binary $(MAP_TARGET)|'" >.MM_tmp
 	$(NOECHO) $(PERL) -e "print 'MAP_STATIC|$(MAP_STATIC)|'" >>.MM_tmp
@@ -2358,7 +2394,7 @@ clean :: map_clean
 
 map_clean :
 	\$(RM_F) ${tmp}perlmain\$(OBJ_EXT) ${tmp}perlmain.c \$(MAKEFILE)
-	\$(RM_F) ${tmp}PerlShr.Opt \$(MAP_TARGET)
+	\$(RM_F) ${tmp}Makeaperl.Opt ${tmp}PerlShr.Opt \$(MAP_TARGET)
 ";
 
     join '', @m;

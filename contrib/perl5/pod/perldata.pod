@@ -253,7 +253,7 @@ literals are subject to backslash and variable substitution;
 single-quoted strings are not (except for "C<\'>" and "C<\\>").
 The usual Unix backslash rules apply for making characters such as
 newline, tab, etc., as well as some more exotic forms.  See
-L<perlop/Quote and Quotelike Operators> for a list.
+L<perlop/"Quote and Quotelike Operators"> for a list.
 
 Octal or hex representations in string literals (e.g. '0xffff') are not
 automatically converted to their integer representation.  The hex() and
@@ -471,7 +471,7 @@ is legal to assign to:
 
     ($map{'red'}, $map{'blue'}, $map{'green'}) = (0x00f, 0x0f0, 0xf00);
 
-Array assignment in a scalar context returns the number of elements
+List assignment in a scalar context returns the number of elements
 produced by the expression on the right side of the assignment:
 
     $x = (($foo,$bar) = (3,2,1));	# set $x to 3, not 2

@@ -74,7 +74,7 @@ to $gr_gid if you import the fields.  Array references are available as
 regular array variables, so C<@{ $group_obj-E<gt>members() }> would be
 simply @gr_members.
 
-The getpw() funtion is a simple front-end that forwards
+The getpw() function is a simple front-end that forwards
 a numeric argument to getpwuid() and the rest to getpwnam().
 
 To access this functionality without the core overrides,

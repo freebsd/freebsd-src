@@ -46,7 +46,7 @@ C<Symbol::qualify> turns unqualified symbol names into qualified
 variable names (e.g. "myvar" -E<gt> "MyPackage::myvar").  If it is given a
 second parameter, C<qualify> uses it as the default package;
 otherwise, it uses the package of its caller.  Regardless, global
-variable names (e.g. "STDOUT", "ENV", "SIG") are always qualfied with
+variable names (e.g. "STDOUT", "ENV", "SIG") are always qualified with
 "main::".
 
 Qualification applies only to symbol names (strings).  References are

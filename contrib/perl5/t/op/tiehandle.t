@@ -64,7 +64,7 @@ sub READ {
 sub WRITE {
     compare(WRITE => @_);
     $data = substr($_[1],$_[3] || 0, $_[2]);
-    4;
+    length($data);
 }
 
 sub CLOSE {
@@ -77,7 +77,7 @@ package main;
 
 use Symbol;
 
-print "1..23\n";
+print "1..29\n";
 
 my $fh = gensym;
 
@@ -131,6 +131,20 @@ $data = "";
 $r = syswrite $fh,$buf,4,1;
 ok($r == 4);
 ok($data eq "wert");
+
+$buf = "qwerty";
+@expect = (WRITE => $ob, $buf, 4);
+$data = "";
+$r = syswrite $fh,$buf,4;
+ok($r == 4);
+ok($data eq "qwer");
+
+$buf = "qwerty";
+@expect = (WRITE => $ob, $buf, 6);
+$data = "";
+$r = syswrite $fh,$buf;
+ok($r == 6);
+ok($data eq "qwerty");
 
 @expect = (CLOSE => $ob);
 $r = close $fh;

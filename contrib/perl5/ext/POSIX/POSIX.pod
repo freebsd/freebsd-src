@@ -1009,13 +1009,14 @@ Convert date and time information to string.  Returns the string.
 
 Synopsis:
 
-	strftime(fmt, sec, min, hour, mday, mon, year, wday = 0, yday = 0, isdst = 0)
+	strftime(fmt, sec, min, hour, mday, mon, year, wday = -1, yday = -1, isdst = -1)
 
 The month (C<mon>), weekday (C<wday>), and yearday (C<yday>) begin at zero.
 I.e. January is 0, not 1; Sunday is 0, not 1; January 1st is 0, not 1.  The
-year (C<year>) is given in years since 1900.  I.e. The year 1995 is 95; the
+year (C<year>) is given in years since 1900.  I.e., the year 1995 is 95; the
 year 2001 is 101.  Consult your system's C<strftime()> manpage for details
-about these and the other arguments.
+about these and the other arguments.  The given arguments are made consistent
+by calling C<mktime()> before calling your system's C<strftime()> function.
 
 The string for Tuesday, December 12, 1995.
 
