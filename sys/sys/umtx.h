@@ -95,11 +95,11 @@ umtx_trylock(struct umtx *umtx, long id)
 }
 
 static __inline int
-umtx_timedlock(struct umtx *umtx, long id, const struct timespec *abstime)
+umtx_timedlock(struct umtx *umtx, long id, const struct timespec *timeout)
 {
 	if (atomic_cmpset_acq_ptr(&umtx->u_owner, (void *)UMTX_UNOWNED,
 	    (void *)id) == 0)
-		return (- _umtx_op(umtx, UMTX_OP_LOCK, id, 0, (void *)abstime));
+		return (- _umtx_op(umtx, UMTX_OP_LOCK, id, 0, (void *)timeout));
 	return (0);
 }
 
@@ -113,15 +113,9 @@ umtx_unlock(struct umtx *umtx, long id)
 }
 
 static __inline int
-umtx_wait(struct umtx *umtx, long id)
+umtx_wait(struct umtx *umtx, long id, const struct timespec *timeout)
 {
-	return (- _umtx_op(umtx, UMTX_OP_WAIT, id, 0, 0));
-}
-
-static __inline int
-umtx_timedwait(struct umtx *umtx, long id, const struct timespec *abstime)
-{
-	return (- _umtx_op(umtx, UMTX_OP_WAIT, id, 0, (void *)abstime));
+	return (- _umtx_op(umtx, UMTX_OP_WAIT, id, 0, timeout));
 }
 
 /* Wake threads waiting on a user address. */
