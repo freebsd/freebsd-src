@@ -159,6 +159,8 @@
             ..
             ja_JP.EUC
             ..
+	    ko_KR.EUC
+            ..
 	    lt_LN.ASCII
             ..
 	    lt_LN.ISO_8859-1
