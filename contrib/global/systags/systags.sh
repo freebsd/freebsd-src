@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (c) 1997 Shigio Yamaguchi. All rights reserved.
+# Copyright (c) 1997, 1998 Shigio Yamaguchi. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -29,59 +29,219 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#       systags.sh               7-Jul-97
+#       systags.sh				17-Aug-98
 #
 # script to make hypertext of kernel source.
-# supporting FreeBSD and Linux.
+# support OS: FreeBSD, NetBSD, OpenBSD, Linux, GNUmach, GNUhurd
 #
-case $1 in
--n)	nflag=1; shift;;
-esac
+while case $1 in
+	-*)
+		if grep '[^-cfgn]' <<! >/dev/null 2>&1; then
+$1
+!
+			echo "usage: systags [-c][-f][-g][-n][dir]"
+			exit 1
+		fi
+		case $1 in
+		*c*)	cflag=c;;
+		esac
+		case $1 in
+		*f*)	fflag=f;;
+		esac
+		case $1 in
+		*g*)	gflag=g;;
+		esac
+		case $1 in
+		*n*)	nflag=n;;
+		esac
+		;;
+	*)	false;;
+	esac
+do
+	shift
+done
 case $1 in
 "")	dir=.;;
 *)	dir=$1;;
 esac
+if [ ! -d $dir -o ! -w $dir ]; then
+	echo "systags: '$dir' is not a directory or not writable."
+	exit 1
+fi
+tmpdir=$dir/systags_tmpdir_$$
 #
 # get release number from source tree.
 #
 if [ -f conf/newvers.sh ]; then
-	os=FreeBSD
-	release=`awk -F= '/^RELEASE=/ {print $2}' < conf/newvers.sh`
+	# (Free|Net|Open)BSD?
+	if ! mkdir $tmpdir 2>/dev/null; then
+		echo "systags: '$dir' is not writable."
+		exit 1
+	fi
+	cwd=`pwd`
+	(cd $tmpdir; sh $cwd/conf/newvers.sh)
+	os=`awk -F\" '/char[ \t]+ostype\[\][ \t]*=[ \t]*\"[^"]+\"/ {print $2}' < $tmpdir/vers.c`;
+	release=`awk -F\" '/char[ \t]+osrelease\[\][ \t]*=[ \t]*\"[^"]+\"/ {print $2}' < $tmpdir/vers.c`;
+	rm -rf $tmpdir
 elif [ -f Makefile ] && grep '^vmlinux:' Makefile >/dev/null; then
+	# Linux?
 	os=Linux
 	version=`awk -F= '/^VERSION *=/ {print $2}' < Makefile`
 	patchlevel=`awk -F= '/^PATCHLEVEL *=/ {print $2}' < Makefile`
 	sublevel=`awk -F= '/^SUBLEVEL *=/ {print $2}' < Makefile`
 	release=`echo "$version.$patchlevel.$sublevel" | tr -d ' '`
+elif [ -f version.c ]; then
+	# GNU mach?
+	version=`awk -F\" '/char[ \t]+version\[\][ \t]*=[ \t]*\"[^"]+\"/ {print $2}' < version.c`
+	os=`echo $version | awk '{print $1}'` 
+	release=`echo $version | awk '{print $2}'` 
+elif [ -f version.h ]; then
+	# GNU hurd?
+	release=`awk -F\" '/^#define[ \t]+HURD_VERSION[ \t]+"[^"]+\"/ {print $2}' < version.h`
+	if [ ${release}X != X ]; then
+		os=GNUhurd
+	fi
 fi
 #
 # remove old files
 #
+files=
+for f in htags.log gtags.log GTAGS GRTAGS GSYMS GPATH HTML; do
+	files="$files $dir/$f";
+done
+com="rm -rf $files"
 case $nflag in
-1)	echo "rm -rf $dir/htags.log $dir/gtags.log $dir/GTAGS $dir/GRTAGS $dir/GSYMS $dir/HTML";;
-*)	rm -rf $dir/htags.log $dir/gtags.log $dir/GTAGS $dir/GRTAGS $dir/GSYMS $dir/HTML;;
+n)	echo $com;;
+*)	eval $com;;
 esac
 #
-# make global database(GTAGS, GRTAGS, GSYMS).
+# FreeBSD System macros.
 #
+#	These macros with argument are used out of function.
+#	gctags(1) knows these are not function by '.notfunction' list.
+#
+# kernel.h	MAKE_SET,TEXT_SET,DATA_SET,BSS_SET,ABS_SET,
+#		SYSINIT,SYSINIT_KT,SYSINIT_KP,PSEUDO_SET
+# sysctl.h	SYSCTL_OID,SYSCTL_NODE,SYSCTL_STRING,SYSCTL_INT,SYSCTL_OPAQUE,
+#		SYSCTL_STRUCT,SYSCTL_PROC
+# domain.h	DOMAIN_SET
+# mount.h	VFS_SET
+# lkm.h		MOD_DECL,MOD_SYSCALL,MOD_VFS,MOD_DEV,MOD_EXEC,MOD_MISC
+# vnode.h	VNODEOP_SET
+# spl.h		GENSPL
+# queue.h	SLIST_HEAD,SLIST_ENTRY,SLIST_INIT,SLIST_INSERT_AFTER,
+#		SLIST_INSERT_HEAD,SLIST_REMOVE_HEAD,SLIST_REMOVE,STAILQ_HEAD,
+#		STAILQ_ENTRY,STAILQ_INIT,STAILQ_INSERT_HEAD,STAILQ_INSERT_TAIL,
+#		STAILQ_INSERT_AFTER,STAILQ_REMOVE_HEAD,STAILQ_REMOVE,
+#		LIST_HEAD,LIST_ENTRY,LIST_INIT,LIST_INSERT_AFTER,LIST_INSERT_BEFORE,
+#		LIST_INSERT_HEAD,LIST_REMOVE,TAILQ_HEAD,TAILQ_ENTRY,
+#		TAILQ_EMPTY,TAILQ_FIRST,TAILQ_LAST,TAILQ_NEXT,TAILQ_PREV,
+#		TAILQ_INIT,TAILQ_INSERT_HEAD,TAILQ_INSERT_TAIL,TAILQ_INSERT_AFTER,
+#		TAILQ_INSERT_BEFORE,TAILQ_REMOVE,CIRCLEQ_HEAD,CIRCLEQ_ENTRY,
+#		CIRCLEQ_INIT,CIRCLEQ_INSERT_AFTER,CIRCLEQ_INSERT_BEFORE,
+#		CIRCLEQ_INSERT_HEAD,CIRCLEQ_INSERT_TAIL,CIRCLEQ_REMOVE
+#
+case $os in
+FreeBSD)
+	cat <<-! >.notfunction
+	MAKE_SET
+	TEXT_SET
+	DATA_SET
+	BSS_SET
+	ABS_SET
+	SYSINIT
+	SYSINIT_KT
+	SYSINIT_KP
+	PSEUDO_SET
+	SYSCTL_OID
+	SYSCTL_NODE
+	SYSCTL_STRING
+	SYSCTL_INT
+	SYSCTL_OPAQUE
+	SYSCTL_STRUCT
+	SYSCTL_PROC
+	DOMAIN_SET
+	VFS_SET
+	MOD_DECL
+	MOD_SYSCALL
+	MOD_VFS
+	MOD_DEV
+	MOD_EXEC
+	MOD_MISC
+	VNODEOP_SET
+	GENSPL
+	SLIST_HEAD
+	SLIST_ENTRY
+	SLIST_INIT
+	SLIST_INSERT_AFTER
+	SLIST_INSERT_HEAD
+	SLIST_REMOVE_HEAD
+	SLIST_REMOVE
+	STAILQ_HEAD
+	STAILQ_ENTRY
+	STAILQ_INIT
+	STAILQ_INSERT_HEAD
+	STAILQ_INSERT_TAIL
+	STAILQ_INSERT_AFTER
+	STAILQ_REMOVE_HEAD
+	STAILQ_REMOVE
+	LIST_HEAD
+	LIST_ENTRY
+	LIST_INIT
+	LIST_INSERT_AFTER
+	LIST_INSERT_BEFORE
+	LIST_INSERT_HEAD
+	LIST_REMOVE
+	TAILQ_HEAD
+	TAILQ_ENTRY
+	TAILQ_EMPTY
+	TAILQ_FIRST
+	TAILQ_LAST
+	TAILQ_NEXT
+	TAILQ_PREV
+	TAILQ_INIT
+	TAILQ_INSERT_HEAD
+	TAILQ_INSERT_TAIL
+	TAILQ_INSERT_AFTER
+	TAILQ_INSERT_BEFORE
+	TAILQ_REMOVE
+	CIRCLEQ_HEAD
+	CIRCLEQ_ENTRY
+	CIRCLEQ_INIT
+	CIRCLEQ_INSERT_AFTER
+	CIRCLEQ_INSERT_BEFORE
+	CIRCLEQ_INSERT_HEAD
+	CIRCLEQ_INSERT_TAIL
+	CIRCLEQ_REMOVE
+!
+esac
+#
+# make global database(GTAGS, GRTAGS).
+#
+com="gtags -owv $dir > $dir/gtags.log 2>&1"
 case $nflag in
-1)	echo "gtags -v $dir > $dir/gtags.log 2>&1";;
-*)	gtags -v $dir > $dir/gtags.log 2>&1;;
+n)	echo $com;;
+*)	eval $com;;
 esac
 case $? in
 0)	;;
 *)	exit 1;;
 esac
+case $gflag in
+g)	exit 0;;
+esac
 #
 # make hypertext.
 # (please replace this title with a suitable one.) 
 #
-case $os$release in
-"")	program=`/bin/pwd | sed 's/.*\///'`
-	title="Welcome to $program source tour!";;
-*)	title="Welcome to $os $release kernel source tour!";;
-esac
+if [ ${os}X != X -a ${release}X != X ]; then
+	title="Welcome to $os $release kernel source tour!"
+else
+	program=`/bin/pwd | sed 's/.*\///'`
+	title="Welcome to $program source tour!"
+fi
+com="htags -${cflag}${fflag}lhnvat '$title' -d $dir $dir > $dir/htags.log 2>&1"
 case $nflag in
-1)	echo "htags -fnvat '$title' -d $dir $dir > $dir/htags.log 2>&1";;
-*)	htags -fnvat "$title" -d $dir $dir> $dir/htags.log 2>&1;;
+n)	echo $com;;
+*)	eval $com;;
 esac
