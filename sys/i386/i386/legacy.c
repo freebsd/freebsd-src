@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: nexus.c,v 1.3 1999/04/19 08:04:19 peter Exp $
+ *	$Id: nexus.c,v 1.4 1999/04/21 07:26:26 peter Exp $
  */
 
 /*
@@ -245,7 +245,7 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	if (type == SYS_RES_MEMORY) {
 		caddr_t vaddr = 0;
 
-		if (rv->r_end < 1024 * 1024 * 1024) {
+		if (rv->r_end < 1024 * 1024) {
 			/*
 			 * The first 1Mb is mapped at KERNBASE.
 			 */
