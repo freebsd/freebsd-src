@@ -79,16 +79,16 @@ soo_read(fp, uio, active_cred, flags, td)
 	struct socket *so = fp->f_data;
 	int error;
 
-	mtx_lock(&Giant);
+	NET_LOCK_GIANT();
 #ifdef MAC
 	error = mac_check_socket_receive(active_cred, so);
 	if (error) {
-		mtx_unlock(&Giant);
+		NET_UNLOCK_GIANT();
 		return (error);
 	}
 #endif
 	error = so->so_proto->pr_usrreqs->pru_soreceive(so, 0, uio, 0, 0, 0);
-	mtx_unlock(&Giant);
+	NET_UNLOCK_GIANT();
 	return (error);
 }
 
@@ -104,17 +104,17 @@ soo_write(fp, uio, active_cred, flags, td)
 	struct socket *so = fp->f_data;
 	int error;
 
-	mtx_lock(&Giant);
+	NET_LOCK_GIANT();
 #ifdef MAC
 	error = mac_check_socket_send(active_cred, so);
 	if (error) {
-		mtx_unlock(&Giant);
+		NET_UNLOCK_GIANT();
 		return (error);
 	}
 #endif
 	error = so->so_proto->pr_usrreqs->pru_sosend(so, 0, uio, 0, 0, 0,
 						    uio->uio_td);
-	mtx_unlock(&Giant);
+	NET_UNLOCK_GIANT();
 	return (error);
 }
 
