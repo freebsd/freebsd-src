@@ -430,7 +430,7 @@ pccbb_attach(device_t brdev)
 			    -(sockbase & 0xfffffff0);
 			sc->sc_base_res = bus_generic_alloc_resource(
 			    device_get_parent(brdev), brdev, SYS_RES_MEMORY,
-			    &rid, 0, ~0, sockbase,
+			    &rid, 0x10000000, ~0, sockbase,
 			    RF_ACTIVE|rman_make_alignment_flags(sockbase));
 			if (!sc->sc_base_res){
 				device_printf(brdev,
