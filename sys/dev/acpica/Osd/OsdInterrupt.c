@@ -57,6 +57,11 @@ AcpiOsInstallInterruptHandler(UINT32 InterruptNumber, OSD_HANDLER ServiceRoutine
 
     FUNCTION_TRACE(__func__);
 
+    if ((sc = devclass_get_softc(acpi_devclass, 0)) == NULL)
+	panic("can't find ACPI device to register interrupt");
+    if (sc->acpi_dev == NULL)
+	panic("acpi softc has invalid device");
+
     if ((InterruptNumber < 0) || (InterruptNumber > 255))
 	return_ACPI_STATUS(AE_BAD_PARAMETER);
     if (ServiceRoutine == NULL)
@@ -66,11 +71,6 @@ AcpiOsInstallInterruptHandler(UINT32 InterruptNumber, OSD_HANDLER ServiceRoutine
 	return_ACPI_STATUS(AE_BAD_PARAMETER);
     }
     InterruptHandler = ServiceRoutine;
-
-    if ((sc = devclass_get_softc(acpi_devclass, 0)) == NULL)
-	panic("can't find ACPI device to register interrupt");
-    if (sc->acpi_dev == NULL)
-	panic("acpi softc has invalid device");
 
     /*
      * This isn't strictly true, as we ought to be able to handle > 1 interrupt.  The ACPI
