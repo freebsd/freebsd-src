@@ -134,8 +134,8 @@ __set_subwin(orig, win)
 	/*  Point line pointers to line space. */
 	for (lp = win->lspace, i = 0; i < win->maxy; i++, lp++) {
 		win->lines[i] = lp;
-		olp = orig->lines[i + win->begy];
-		lp->line = &olp->line[win->begx];
+		olp = orig->lines[i + win->begy - orig->begy];
+		lp->line = &olp->line[win->ch_off];
 		lp->firstchp = &olp->firstch;
 		lp->lastchp = &olp->lastch;
 		lp->hash = __hash((char *) lp->line, win->maxx * __LDATASIZE);
