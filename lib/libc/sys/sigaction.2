@@ -32,7 +32,7 @@
 .\"	From: @(#)sigaction.2	8.2 (Berkeley) 4/3/94
 .\" $FreeBSD$
 .\"
-.Dd April 3, 1994
+.Dd June 7, 2004
 .Dt SIGACTION 2
 .Os
 .Sh NAME
@@ -201,6 +201,12 @@ a
 (or equivalent), it blocks until all of the calling process's child
 processes terminate, and then returns a value of -1 with errno set to
 .Er ECHILD .
+The same effect of avoiding zombie creation can also be achieved by setting
+.Fa sa_handler
+for
+.Dv SIGCHLD
+to
+.Dv SIG_IGN .
 .It Dv SA_ONSTACK
 If this bit is set, the system will deliver the signal to the process
 on a
@@ -601,6 +607,10 @@ and
 .\" and
 .\" SA_SIGINFO
 flags are featuring options commonly found in other operating systems.
+The flags are approved by
+.St -susv2 ,
+along with the option to avoid zombie creation by ignoring
+.Dv SIGCHLD .
 .Sh SEE ALSO
 .Xr kill 1 ,
 .Xr kill 2 ,
