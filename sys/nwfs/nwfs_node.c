@@ -149,7 +149,7 @@ loop:
 rescan:
 	if (nwfs_hashlookup(nmp, fid, &np) == 0) {
 		vp = NWTOV(np);
-		simple_lock(&vp->v_interlock);
+		mtx_enter(&vp->v_interlock, MTX_DEF);
 		lockmgr(&nwhashlock, LK_RELEASE, NULL, p);
 		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, p))
 			goto loop;
