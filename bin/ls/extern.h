@@ -57,4 +57,6 @@ void     colorquit __P((int));
 extern  char    *ansi_fgcol;
 extern  char    *ansi_bgcol;
 extern  char    *ansi_coloff;
+extern  char    *attrs_off;
+extern  char    *enter_bold;
 #endif

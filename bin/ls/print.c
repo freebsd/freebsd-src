@@ -94,9 +94,14 @@ typedef enum Colors {
     C_NUMCOLORS        /* just a place-holder */
 } Colors ;
 
-char *defcolors = "4x5x2x3x1x464301060203";
+char *defcolors = "exfxcxdxbxegedabagacad";
 
-static int colors[C_NUMCOLORS][2];
+/* colors for file types */
+static struct {
+	int num[2];
+	int bold;
+} colors[C_NUMCOLORS];
+
 #endif
 
 void
@@ -386,14 +391,17 @@ printcolor(c)
 {
 	char *ansiseq;
 
-	if (colors[c][0] != -1) {
-		ansiseq = tgoto(ansi_fgcol, 0, colors[c][0]);
+	if (colors[c].bold)
+		tputs(enter_bold, 1, putch);
+
+	if (colors[c].num[0] != -1) {
+		ansiseq = tgoto(ansi_fgcol, 0, colors[c].num[0]);
 		if (ansiseq)
 			tputs(ansiseq, 1, putch);
 	}
 
-	if (colors[c][1] != -1) {
-		ansiseq = tgoto(ansi_bgcol, 0, colors[c][1]);
+	if (colors[c].num[1] != -1) {
+		ansiseq = tgoto(ansi_bgcol, 0, colors[c].num[1]);
 		if (ansiseq)
 			tputs(ansiseq, 1, putch);
 	}
@@ -404,6 +412,7 @@ endcolor(sig)
 	int sig;
 {
 	tputs(ansi_coloff, 1, sig ? writech : putch);
+	tputs(attrs_off, 1, sig ? writech : putch);
 }
 
 static int
@@ -454,10 +463,13 @@ char *cs;
 {
 	int i, j, len;
 	char c[2];
+	short legacy_warn = 0;
 
 	if (cs == NULL)    cs = ""; /* LSCOLORS not set */
 	len = strlen(cs);
 	for (i = 0 ; i < C_NUMCOLORS ; i++) {
+		colors[i].bold = 0;
+
 		if (len <= 2*i) {
 			c[0] = defcolors[2*i];
 			c[1] = defcolors[2*i+1];
@@ -467,17 +479,29 @@ char *cs;
 			c[1] = cs[2*i+1];
 		}
 		for (j = 0 ; j < 2 ; j++) {
-			if ((c[j] < '0' || c[j] > '7') &&
-			    tolower((unsigned char)c[j]) != 'x') {
+			/* Legacy colours used 0-7 */
+			if (c[j] >= '0' && c[j] <= '7') {
+				colors[i].num[j] = c[j] - '0';
+				if (!legacy_warn) {
+					fprintf(stderr,
+					    "warn: colors are now defined "
+					    "using a-h instead of 0-9. "
+					    "see manual page.\n");
+				}
+				legacy_warn = 1;
+			} else if (c[j] >= 'a' && c[j] <= 'h')
+				colors[i].num[j] = c[j] - 'a';
+			else if (c[j] >= 'A' && c[j] <= 'H') {
+				colors[i].num[j] = c[j] - 'A';
+				colors[i].bold = 1;
+			} else if (tolower((unsigned char)c[j] == 'x'))
+				colors[i].num[j] = -1;
+			else {
 				fprintf(stderr,
-					"error: invalid character '%c' in LSCOLORS env var\n",
-					c[j]);
-				c[j] = defcolors[2*i+j];
+				    "error: invalid character '%c' in LSCOLORS"
+				    " env var\n", c[j]);
+				colors[i].num[j] = defcolors[2*i+j]-'0';
 			}
-			if (tolower((unsigned char)c[j]) == 'x')
-			    colors[i][j] = -1;
-			else
-			    colors[i][j] = c[j]-'0';
 		}
 	}
 }
