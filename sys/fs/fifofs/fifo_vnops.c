@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)fifo_vnops.c	8.2 (Berkeley) 1/4/94
- * $Id: fifo_vnops.c,v 1.16 1996/02/13 18:16:23 wollman Exp $
+ * $Id: fifo_vnops.c,v 1.17 1996/09/03 14:22:23 bde Exp $
  */
 
 #include <sys/param.h>
@@ -531,7 +531,7 @@ fifo_advlock(ap)
 	} */ *ap;
 {
 
-	return (EOPNOTSUPP);
+	return (ap->a_flags & F_FLOCK ? EOPNOTSUPP : EINVAL);
 }
 
 /*
