@@ -40,7 +40,7 @@ ipfilter_prestart()
 case ${OSTYPE} in
 FreeBSD)
 	# load ipfilter kernel module if needed
-	if ! sysctl net.inet.ipf.fr_pass > /dev/null 2>&1; then
+	if ! kldstat -v | grep "IP Filter" > /dev/null 2>&1; then
 		if kldload ipl; then
 			info 'IP-filter module loaded.'
 		else
@@ -79,12 +79,15 @@ ipfilter_start()
 	echo "Enabling ipfilter."
 	case ${OSTYPE} in
 	FreeBSD)
-		${ipfilter_program:-/sbin/ipf} -EFa
+		if [ `sysctl -n net.inet.ipf.fr_running` -eq 0 ]; then
+			${ipfilter_program:-/sbin/ipf} -E
+		fi 
+		${ipfilter_program:-/sbin/ipf} -Fa
 		if [ -r "${ipfilter_rules}" ]; then
 			${ipfilter_program:-/sbin/ipf} \
 			    -f "${ipfilter_rules}" ${ipfilter_flags}
 		fi
-		${ipfilter_program:-/sbin/ipf} -6 -EFa
+		${ipfilter_program:-/sbin/ipf} -6 -Fa
 		if [ -r "${ipv6_ipfilter_rules}" ]; then
 			${ipfilter_program:-/sbin/ipf} -6 \
 			    -f "${ipv6_ipfilter_rules}" ${ipfilter_flags}
@@ -104,17 +107,21 @@ ipfilter_start()
 
 ipfilter_stop()
 {
-	case ${OSTYPE} in
-	FreeBSD)
-		echo "Saving firewall state tables"
-		${ipfs_program:-/sbin/ipfs} -W ${ipfs_flags}
-		;;
-	NetBSD)
-		;;
-	esac
-	# XXX - The following command is not effective for 'lkm's
-	echo "Disabling ipfilter."
-	/sbin/ipf -D
+	# XXX - The ipf -D command is not effective for 'lkm's
+	if [ `sysctl -n net.inet.ipf.fr_running` -eq 1 ]; then
+		case ${OSTYPE} in
+		FreeBSD)
+			echo "Saving firewall state tables"
+			${ipfs_program:-/sbin/ipfs} -W ${ipfs_flags}
+			echo "Disabling ipfilter."
+			${ipfilter_program:-/sbin/ipf} -D
+			;;
+		NetBSD)
+			echo "Disabling ipfilter."
+			/sbin/ipf -D
+			;;
+		esac
+	fi
 }
 
 ipfilter_reload()
@@ -157,7 +164,7 @@ ipfilter_resync()
 	case ${OSTYPE} in
 	FreeBSD)
 		# Don't resync if ipfilter is not loaded
-		[ sysctl net.inet.ipf.fr_pass > /dev/null 2>&1 ] && return
+		[ kldstat -v | grep "IP Filter" > /dev/null 2>&1 ] && return
 		;;
 	esac
 	${ipfilter_program:-/sbin/ipf} -y ${ipfilter_flags}
