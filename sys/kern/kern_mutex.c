@@ -634,7 +634,7 @@ _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 	if (LOCK_LOG_TEST(&m->mtx_object, opts))
 		CTR1(KTR_LOCK, "_mtx_unlock_sleep: %p contested", m);
 
-#if defined(SMP) && defined(ADAPTIVE_MUTEXES)
+#if defined(SMP) && !defined(NO_ADAPTIVE_MUTEXES)
 	if (ts == NULL) {
 		_release_lock_quick(m);
 		if (LOCK_LOG_TEST(&m->mtx_object, opts))
