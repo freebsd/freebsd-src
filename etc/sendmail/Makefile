@@ -8,17 +8,17 @@ RM=		rm -f
 
 SENDMAIL_DIR=	${.CURDIR}/../../contrib/sendmail
 SMDIR=		${SENDMAIL_DIR}/src
-CFDIR=		${SENDMAIL_DIR}/cf
+SENDMAIL_CF_DIR?=${SENDMAIL_DIR}/cf
 
 # this is overkill, but....
-M4FILES!=	find ${CFDIR} -type f -name '*.m4' -print
+M4FILES!=	find ${SENDMAIL_CF_DIR} -type f -name '*.m4' -print
 
 .SUFFIXES: .mc .cf
 
 .mc.cf: ${M4FILES}
 	${RM} ${.TARGET}
-	${M4} -D_CF_DIR_=${CFDIR}/ ${SENDMAIL_M4_FLAGS} \
-	    ${CFDIR}/m4/cf.m4 ${.IMPSRC} > ${.TARGET}
+	${M4} -D_CF_DIR_=${SENDMAIL_CF_DIR}/ ${SENDMAIL_M4_FLAGS} \
+	    ${SENDMAIL_CF_DIR}/m4/cf.m4 ${.IMPSRC} > ${.TARGET}
 	${CHMOD} ${ROMODE} ${.TARGET}
 
 DEST_CF=	${DESTDIR}/etc/mail/sendmail.cf
@@ -61,10 +61,10 @@ ${mc:T:R}.cf: ${mc}
 all: ${ALL}
 
 # Build the installed submit.cf from the sendmail distributed submit.mc.
-freebsd.submit.cf:	${CFDIR}/cf/submit.mc
+freebsd.submit.cf:	${SENDMAIL_CF_DIR}/cf/submit.mc
 	${RM} ${.TARGET}
-	${M4} -D_CF_DIR_=${CFDIR}/ ${SENDMAIL_M4_FLAGS} \
-	    ${CFDIR}/m4/cf.m4 ${.ALLSRC} > ${.TARGET}
+	${M4} -D_CF_DIR_=${SENDMAIL_CF_DIR}/ ${SENDMAIL_M4_FLAGS} \
+	    ${SENDMAIL_CF_DIR}/m4/cf.m4 ${.ALLSRC} > ${.TARGET}
 	${CHMOD} ${ROMODE} ${.TARGET}
 
 install distribution:
@@ -76,7 +76,8 @@ install distribution:
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 	    ${.CURDIR}/freebsd.mc freebsd.cf ${DESTDIR}/etc/mail
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
-	    ${CFDIR}/cf/submit.mc ${DESTDIR}/etc/mail/freebsd.submit.mc
+	    ${SENDMAIL_CF_DIR}/cf/submit.mc \
+	    ${DESTDIR}/etc/mail/freebsd.submit.mc
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    freebsd.submit.cf ${DESTDIR}/etc/mail
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
