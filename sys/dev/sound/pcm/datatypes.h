@@ -60,18 +60,16 @@ struct _snd_mixer {
 struct _snd_dbuf {
         u_int8_t *buf;
         int bufsize;
-        volatile int rp, fp; /* pointers to the ready and free area */
         volatile int dl; /* transfer size */
+        volatile int rp, fp; /* pointers to the ready and free area */
 	volatile int rl, fl; /* lenght of ready and free areas. */
 	volatile u_int32_t int_count, prev_int_count;
+	volatile u_int32_t total, prev_total;
 	int chan, dir;       /* dma channel */
-	int sample_size; /* 1, 2, 4 */
-	struct selinfo sel;
-	u_long total;	/* total bytes processed */
-	u_long prev_total; /* copy of the above when GETxPTR called */
-	int first_poll;
-	bus_dmamap_t dmamap;
+	int fmt, blksz, blkcnt;
 	int underflow;
+	bus_dmamap_t dmamap;
+	struct selinfo sel;
 };
 
 typedef int (pcmfeed_init_t)(pcm_feeder *feeder);
@@ -118,9 +116,8 @@ struct _pcm_channel {
 	int volume;
 	u_int32_t speed;
 	u_int32_t flags;
-	u_int32_t format, hwfmt;
-	u_int32_t blocksize, blocksize2nd;
-	u_int32_t fragments, blocks;
+	u_int32_t format;
+	u_int32_t blocks;
 
 	int direction;
 	snd_dbuf buffer, buffer2nd;
