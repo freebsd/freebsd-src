@@ -96,6 +96,7 @@ struct mtx;
 struct proc;
 struct timeval;
 struct tty;
+struct ucred;
 struct uio;
 
 void	Debugger __P((const char *msg));
@@ -165,6 +166,13 @@ void	statclock __P((struct clockframe *frame));
 void	startprofclock __P((struct proc *));
 void	stopprofclock __P((struct proc *));
 void	setstatclockrate __P((int hzrate));
+
+/* flags for suser_xxx() */
+#define PRISON_ROOT	1
+
+int	suser __P((const struct proc *));
+int	suser_xxx __P((const struct ucred *cred, const struct proc *proc,
+    int flag));
 
 char	*getenv __P((char *name));
 int	getenv_int __P((char *name, int *data));

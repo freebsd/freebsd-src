@@ -61,7 +61,6 @@
 #include <machine/cpu.h>
 #endif
 #endif
-#include <sys/proc.h>
 #include <sys/queue.h>
 
 #include <machine/bus.h>

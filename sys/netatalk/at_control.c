@@ -1,11 +1,12 @@
 /*
  * Copyright (c) 1990,1991 Regents of The University of Michigan.
  * All Rights Reserved.
+ *
+ * $FreeBSD$
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/proc.h>
 #include <sys/sockio.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>

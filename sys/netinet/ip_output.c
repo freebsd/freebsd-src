@@ -51,7 +51,6 @@
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
-#include <sys/proc.h>
 
 #include <net/if.h>
 #include <net/route.h>

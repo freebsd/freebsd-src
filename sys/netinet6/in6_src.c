@@ -76,7 +76,6 @@
 #include <sys/socketvar.h>
 #include <sys/errno.h>
 #include <sys/time.h>
-#include <sys/proc.h>
 
 #include <net/if.h>
 #include <net/route.h>
