@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.78 1997/04/07 07:15:56 peter Exp $
+ *	$Id: vm_machdep.c,v 1.79 1997/04/16 12:11:37 kato Exp $
  */
 
 #include "npx.h"
@@ -53,9 +53,13 @@
 #include <sys/vmmeter.h>
 
 #include <machine/clock.h>
-#include <machine/md_var.h>
 #include <machine/cpu.h>
 #include <machine/reg.h>
+#include <machine/md_var.h>
+#include <machine/npx.h>
+#ifdef SMP
+#include <machine/smp.h>
+#endif
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -72,6 +76,13 @@
 #include <pc98/pc98/pc98.h>
 #else
 #include <i386/isa/isa.h>
+#endif
+
+#ifdef SMP
+extern struct proc *SMPnpxproc[];
+#define npxproc (SMPnpxproc[cpunumber()])
+#else
+extern struct proc *npxproc;
 #endif
 
 #ifdef BOUNCE_BUFFERS
@@ -569,32 +580,40 @@ cpu_fork(p1, p2)
 {
 	struct pcb *pcb2 = &p2->p_addr->u_pcb;
 
-	/*
-	 * copy current pcb, and save current context into it while it's
-	 * possibly in some writeback cache line.
-	 */
-	bcopy(&p1->p_addr->u_pcb, pcb2, sizeof(struct pcb));
-	pcb2->pcb_cr3 = vtophys(p2->p_vmspace->vm_pmap.pm_pdir);
-	savectx(pcb2);	/* irrelevant? fp registers? */
+	/* Ensure that p1's pcb is up to date. */
+	if (npxproc == p1)
+		npxsave(&p1->p_addr->u_pcb.pcb_savefpu);
+
+	/* Copy p1's pcb. */
+	p2->p_addr->u_pcb = p1->p_addr->u_pcb;
 
 	/*
 	 * Create a new fresh stack for the new process.
-	 * Copy the trap frame for the return to user mode as if from a syscall.
-	 * This copies the user mode register values.
+	 * Copy the trap frame for the return to user mode as if from a
+	 * syscall.  This copies the user mode register values.
 	 */
-	p2->p_md.md_regs = (int *)(((struct trapframe *)
-		((int)p2->p_addr + (UPAGES * PAGE_SIZE))) - 1);
-	bcopy(p1->p_md.md_regs, p2->p_md.md_regs, sizeof(struct trapframe));
+	p2->p_md.md_regs = (struct trapframe *)
+			   ((int)p2->p_addr + UPAGES * PAGE_SIZE) - 1;
+	*p2->p_md.md_regs = *p1->p_md.md_regs;
 
 	/*
 	 * Set registers for trampoline to user mode.  Leave space for the
 	 * return address on stack.  These are the kernel mode register values.
 	 */
-	/* XXX these overwrite most of the regs from savectx() above! */
-	pcb2->pcb_eip = (int)fork_trampoline;
+	pcb2->pcb_cr3 = vtophys(p2->p_vmspace->vm_pmap.pm_pdir);
+	pcb2->pcb_edi = p2->p_md.md_regs->tf_edi;
 	pcb2->pcb_esi = (int)fork_return;
-	pcb2->pcb_ebx = (int)p2;
+	pcb2->pcb_ebp = p2->p_md.md_regs->tf_ebp;
 	pcb2->pcb_esp = (int)p2->p_md.md_regs - sizeof(void *);
+	pcb2->pcb_ebx = (int)p2;
+	pcb2->pcb_eip = (int)fork_trampoline;
+	/*
+	 * pcb2->pcb_ldt:	duplicated below, if necessary.
+	 * pcb2->pcb_ldt_len:	cloned above.
+	 * pcb2->pcb_savefpu:	cloned above.
+	 * pcb2->pcb_flags:	cloned above (always 0 here?).
+	 * pcb2->pcb_onfault:	cloned above (always NULL here?).
+	 */
 
 #ifdef USER_LDT
         /* Copy the LDT, if necessary. */
