@@ -55,7 +55,10 @@ static const char rcsid[] =
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
 
+#if 0 /* XXX: Not used yet and may never be. */
 #include <machine/autoconf.h>
+#endif
+
 #include <machine/intr.h>
 #include <machine/psl.h>
 #include <machine/pio.h>
