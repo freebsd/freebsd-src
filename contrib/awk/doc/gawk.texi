@@ -21,10 +21,10 @@
 @c applies to, and when the document was updated.
 @set TITLE Effective AWK Programming
 @set SUBTITLE A User's Guide for GNU Awk
-@set PATCHLEVEL 3
+@set PATCHLEVEL 4
 @set EDITION 1.0.@value{PATCHLEVEL}
 @set VERSION 3.0
-@set UPDATE-MONTH February 1997
+@set UPDATE-MONTH April, 1999
 @iftex
 @set DOCUMENT book
 @end iftex
@@ -74,7 +74,7 @@ particular records in a file and perform operations upon them.
 This is Edition @value{EDITION} of @cite{@value{TITLE}},
 for the @value{VERSION}.@value{PATCHLEVEL} version of the GNU implementation of AWK.
 
-Copyright (C) 1989, 1991, 92, 93, 96, 97 Free Software Foundation, Inc.
+Copyright (C) 1989, 1991, 92, 93, 96, 97, 98, 99 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -138,7 +138,7 @@ Corporation. @*
 Registered Trademark of Paramount Pictures Corporation. @*
 @c sorry, i couldn't resist
 @sp 3
-Copyright @copyright{} 1989, 1991, 92, 93, 96, 97 Free Software Foundation, Inc.
+Copyright @copyright{} 1989, 1991, 92, 93, 96, 97, 98, 99 Free Software Foundation, Inc.
 @sp 2
         
 This is Edition @value{EDITION} of @cite{@value{TITLE}}, @*
@@ -153,16 +153,16 @@ for the @value{VERSION}.@value{PATCHLEVEL} (or later) version of the GNU impleme
 @item Seattle, WA 98155 USA @tab Boston, MA  02111-1307 USA
 @item Phone: +1-206-782-7733 @tab Phone: +1-617-542-5942
 @item Fax: +1-206-782-7191 @tab Fax: +1-617-542-2652
-@item E-mail: @code{sales@@ssc.com} @tab E-mail: @code{gnu@@prep.ai.mit.edu}
+@item E-mail: @code{sales@@ssc.com} @tab E-mail: @code{gnu@@gnu.org}
 @item URL: @code{http://www.ssc.com/} @tab URL: @code{http://www.fsf.org/}
 @end multitable
 
 @sp 1
 @c this ISBN can change! Check with SSC
 @c This one is correct for gawk 3.0 and edition 1.0 from the FSF
-@c ISBN 1-882114-26-4 @*
+ISBN 1-882114-26-4 @*
 @c This one is correct for gawk 3.0.3 and edition 1.0.3 from SSC
-ISBN 1-57831-000-8 @*
+@c ISBN 1-57831-000-8 @*
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -1387,6 +1387,12 @@ Self-contained @code{awk} scripts are useful when you want to write a
 program which users can invoke without their having to know that the program is
 written in @code{awk}.
 
+@strong{Caution:} You should not put more than one argument on the @samp{#!}
+line after the path to @code{awk}. This will not work. The operating system
+treats the rest of the line as a single agument, and passes it to @code{awk}.
+Doing this will lead to confusing behavior: most likely a usage diagnostic
+of some sort from @code{awk}.
+
 @cindex shell scripts
 @cindex scripts, shell
 Some older systems do not support the @samp{#!} mechanism. You can get a
@@ -1440,6 +1446,21 @@ You can put comment lines into keyboard-composed throw-away @code{awk}
 programs also, but this usually isn't very useful; the purpose of a
 comment is to help you or another person understand the program at
 a later time.
+
+@strong{Caution:} As mentioned in
+@ref{One-shot, ,One-shot Throw-away @code{awk} Programs},
+you can enclose small to medium programs in single quotes, in order to keep
+your shell scripts self-contained.  When doing so, @emph{don't} put
+an apostrophe (i.e., a single quote) into a comment (or anywhere else
+in your program). The shell will interpret the quote as the closing
+quote for the entire program. As a result, usually the shell will
+print a message about mismatched quotes, and if @code{awk} actually
+runs, it will probably print strange messages about syntax errors.
+For example:
+
+@example
+awk 'BEGIN @{ print "hello" @} # let's be cute'
+@end example
 
 @node Very Simple, Two Rules, Running gawk, Getting Started
 @section A Very Simple Example
@@ -2142,7 +2163,7 @@ listed in the table above.
 Another interesting question arises. Suppose you use an octal or hexadecimal
 escape to represent a regexp metacharacter
 (@pxref{Regexp Operators, ,  Regular Expression Operators}).
-Does @code{awk} treat the character as literal character, or as a regexp
+Does @code{awk} treat the character as a literal character, or as a regexp
 operator?
 
 @cindex dark corner
@@ -4450,6 +4471,8 @@ According to POSIX, @samp{@var{expression} | getline} is ambiguous if
 because the concatenation operator is not parenthesized, and you should
 write it as @samp{("echo " "date") | getline} if you want your program
 to be portable to other @code{awk} implementations.
+(It happens that @code{gawk} gets it right, but you should not
+rely on this. Parentheses make it easier to read, anyway.) 
 
 @node Getline/Variable/Pipe, Getline Summary, Getline/Pipe, Getline
 @subsection Using @code{getline} Into a Variable from a Pipe
@@ -4482,6 +4505,8 @@ According to POSIX, @samp{@var{expression} | getline @var{var}} is ambiguous if
 because the concatenation operator is not parenthesized, and you should
 write it as @samp{("echo " "date") | getline @var{var}} if you want your
 program to be portable to other @code{awk} implementations.
+(It happens that @code{gawk} gets it right, but you should not
+rely on this. Parentheses make it easier to read, anyway.) 
 @end ifinfo
 
 @node Getline Summary,  , Getline/Variable/Pipe, Getline
@@ -4616,7 +4641,7 @@ single @code{print} can make any number of lines this way.
 
 Here is an example of printing a string that contains embedded newlines
 (the @samp{\n} is an escape sequence, used to represent the newline
-character; see @ref{Escape Sequences}):
+character; @pxref{Escape Sequences}):
 
 @example
 @group
@@ -6975,6 +7000,8 @@ by putting a newline after either character.
 However, you cannot put a newline in front
 of either character without using backslash continuation
 (@pxref{Statements/Lines, ,@code{awk} Statements Versus Lines}).
+If @samp{--posix} is specified
+(@pxref{Options, , Command Line Options}), then this extension is disabled.
 
 @node Function Calls, Precedence, Conditional Exp, Expressions
 @section Function Calls
@@ -8264,7 +8291,7 @@ example:
 @example
 @group
 BEGIN @{
-       if (("date" | getline date_now) < 0) @{
+       if (("date" | getline date_now) <= 0) @{
          print "Can't get system date" > "/dev/stderr"
          exit 1
        @}
@@ -8627,8 +8654,26 @@ contains @code{"inventory-shipped"}, and @code{ARGV[2]} contains
 
 Notice that the @code{awk} program is not entered in @code{ARGV}.  The
 other special command line options, with their arguments, are also not
-entered.  But variable assignments on the command line @emph{are}
+entered.  This includes variable assignments done with the @samp{-v}
+option (@pxref{Options, ,Command Line Options}).
+Normal variable assignments on the command line @emph{are}
 treated as arguments, and do show up in the @code{ARGV} array.
+
+@example
+$ cat showargs.awk
+@print{} BEGIN @{
+@print{}     printf "A=%d, B=%d\n", A, B
+@print{}     for (i = 0; i < ARGC; i++)
+@print{}         printf "\tARGV[%d] = %s\n", i, ARGV[i]
+@print{} @}
+@print{} END   @{ printf "A=%d, B=%d\n", A, B @}
+$ awk -v A=1 -f showargs.awk B=2 /dev/null
+@print{} A=1, B=0
+@print{} 	ARGV[0] = awk
+@print{} 	ARGV[1] = B=2
+@print{} 	ARGV[2] = /dev/null
+@print{} A=1, B=2
+@end example
 
 Your program can alter @code{ARGC} and the elements of @code{ARGV}.
 Each time @code{awk} reaches the end of an input file, it uses the next
@@ -9171,6 +9216,14 @@ The @code{split} function
 clears out the target array first. This call asks it to split
 apart the null string. Since there is no data to split out, the
 function simply clears the array and then returns.
+
+@strong{Caution:} Deleting an array does not change its type; you cannot
+delete an array and then use the array's name as a scalar. For
+example, this will not work:
+
+@example
+a[1] = 3; delete a; a = 3
+@end example
 
 @node Numeric Array Subscripts, Uninitialized Subscripts, Delete, Arrays
 @section Using Numbers to Subscript Arrays
@@ -9785,6 +9838,10 @@ string (d.c.).  The POSIX standard allows this as well.
 Before splitting the string, @code{split} deletes any previously existing
 elements in the array @var{array} (d.c.).
 
+If @var{string} does not match @var{fieldsep} at all, @var{array} will have
+one element. The value of that element will be the original
+@var{string}.
+
 @item sprintf(@var{format}, @var{expression1},@dots{})
 @findex sprintf
 This returns (without printing) the string that @code{printf} would
@@ -9901,6 +9958,9 @@ such as in the above example. However, using any other non-changeable
 object as the third parameter will cause a fatal error, and your program
 will not run.
 
+Finally, if the @var{regexp} is not a regexp constant, it is converted into a
+string and then the value of that string is treated as the regexp to match.
+
 @item gsub(@var{regexp}, @var{replacement} @r{[}, @var{target}@r{]})
 @findex gsub
 This is similar to the @code{sub} function, except @code{gsub} replaces
@@ -9979,6 +10039,9 @@ passed directly to @code{print} for printing.
 If the @var{how} argument is a string that does not begin with @samp{g} or
 @samp{G}, or if it is a number that is less than zero, only one
 substitution is performed.
+
+If @var{regexp} does not match @var{target}, @code{gensub}'s return value
+is the original, unchanged value of @var{target}.
 
 @cindex differences between @code{gawk} and @code{awk}
 @code{gensub} is a @code{gawk} extension; it is not available
@@ -10310,7 +10373,7 @@ and nonzero otherwise.
 @item system(@var{command})
 @findex system
 @cindex interaction, @code{awk} and other programs
-The system function allows the user to execute operating system commands
+The @code{system} function allows the user to execute operating system commands
 and then return to the @code{awk} program.  The @code{system} function
 executes the command given by the string @var{command}.  It returns, as
 its value, the status returned by the command that was executed.
@@ -10329,7 +10392,17 @@ the system administrator will be sent mail when the @code{awk} program
 finishes processing input and begins its end-of-input processing.
 
 Note that redirecting @code{print} or @code{printf} into a pipe is often
-enough to accomplish your task.  However, if your @code{awk}
+enough to accomplish your task.  If you need to run many commands, it
+will be more efficient to simply print them to a pipe to the shell:
+
+@example
+while (@var{more stuff to do})
+    print @var{command} | "/bin/sh"
+close("/bin/sh")
+@end example
+
+@noindent
+However, if your @code{awk}
 program is interactive, @code{system} is useful for cranking up large
 self-contained programs, such as a shell or an editor.
 
@@ -11889,7 +11962,7 @@ Here is a second version of @code{nextfile} that remedies this problem.
 @c file eg/lib/nextfile.awk
 # nextfile --- skip remaining records in current file
 # correctly handle successive occurrences of the same file
-# Arnold Robbins, arnold@@gnu.ai.mit.edu, Public Domain
+# Arnold Robbins, arnold@@gnu.org, Public Domain
 # May, 1993
 
 # this should be read in before the "main" awk program
@@ -11983,7 +12056,7 @@ that is being tested.
 @c @group
 @c file eg/lib/assert.awk
 # assert --- assert that a condition is true. Otherwise exit.
-# Arnold Robbins, arnold@@gnu.ai.mit.edu, Public Domain
+# Arnold Robbins, arnold@@gnu.org, Public Domain
 # May, 1993
 
 function assert(condition, string)
@@ -12038,7 +12111,8 @@ mydata:1357: assertion failed: a <= 5 && b >= 17
 @end example
 
 There is a problem with this version of @code{assert}, that it may not
-be possible to work around.  An @code{END} rule is automatically added
+be possible to work around with standard @code{awk}.
+An @code{END} rule is automatically added
 to the program calling @code{assert}.  Normally, if a program consists
 of just a @code{BEGIN} rule, the input files and/or standard input are
 not read. However, now that the program has an @code{END} rule, @code{awk}
@@ -12069,7 +12143,7 @@ it might be useful if your awk's @code{printf} does unbiased rounding.
 @c file eg/lib/round.awk
 # round --- do normal rounding
 #
-# Arnold Robbins, arnold@@gnu.ai.mit.edu, August, 1996
+# Arnold Robbins, arnold@@gnu.org, August, 1996
 # Public Domain
 
 function round(x,   ival, aval, fraction)
@@ -12130,7 +12204,7 @@ reason to build them into the @code{awk} interpreter.
 #    _ord_init:    function to initialize _ord_
 #
 # Arnold Robbins
-# arnold@@gnu.ai.mit.edu
+# arnold@@gnu.org
 # Public Domain
 # 16 January, 1992
 # 20 July, 1992, revised
@@ -12254,7 +12328,7 @@ assumption since the array was likely created with @code{split}
 @group
 @c file eg/lib/join.awk
 # join.awk --- join an array into a string
-# Arnold Robbins, arnold@@gnu.ai.mit.edu, Public Domain
+# Arnold Robbins, arnold@@gnu.org, Public Domain
 # May 1993
 
 function join(array, start, end, sep,    result, i)
@@ -12329,7 +12403,7 @@ assignment.
 @c file eg/lib/mktime.awk
 # mktime.awk --- convert a canonical date representation
 #                into a timestamp
-# Arnold Robbins, arnold@@gnu.ai.mit.edu, Public Domain
+# Arnold Robbins, arnold@@gnu.org, Public Domain
 # May 1993
 
 BEGIN    \
@@ -12624,7 +12698,7 @@ time formatted in the same way as the @code{date} utility.
 @c @group
 @c file eg/lib/gettime.awk
 # gettimeofday --- get the time of day in a usable format
-# Arnold Robbins, arnold@@gnu.ai.mit.edu, Public Domain, May 1993
+# Arnold Robbins, arnold@@gnu.org, Public Domain, May 1993
 #
 # Returns a string in the format of output of date(1)
 # Populates the array argument time with individual values:
@@ -12732,7 +12806,7 @@ Besides solving the problem in only nine(!) lines of code, it does so
 # that each take the name of the file being started or
 # finished, respectively.
 #
-# Arnold Robbins, arnold@@gnu.ai.mit.edu, January 1992
+# Arnold Robbins, arnold@@gnu.org, January 1992
 # Public Domain
 
 FILENAME != _oldfilename \
@@ -12784,7 +12858,7 @@ This version solves the problem.
 #
 # user supplies beginfile() and endfile() functions
 #
-# Arnold Robbins, arnold@@gnu.ai.mit.edu. November 1992
+# Arnold Robbins, arnold@@gnu.org, November 1992
 # Public Domain
 
 FNR == 1 @{
@@ -12929,7 +13003,7 @@ The discussion walks through the code a bit at a time.
 @c file eg/lib/getopt.awk
 # getopt --- do C library getopt(3) function in awk
 #
-# arnold@@gnu.ai.mit.edu
+# arnold@@gnu.org
 # Public domain
 #
 # Initial version: March, 1991
@@ -13206,7 +13280,7 @@ Here is @code{pwcat}, a C program that ``cats'' the password database.
  * Generate a printable version of the password database
  *
  * Arnold Robbins
- * arnold@@gnu.ai.mit.edu
+ * arnold@@gnu.org
  * May 1993
  * Public Domain
  */
@@ -13289,7 +13363,7 @@ functions of the same name.
 @c file eg/lib/passwdawk.in
 @group
 # passwd.awk --- access password file information
-# Arnold Robbins, arnold@@gnu.ai.mit.edu, Public Domain
+# Arnold Robbins, arnold@@gnu.org, Public Domain
 # May 1993
 
 BEGIN @{
@@ -13477,7 +13551,7 @@ Here is @code{grcat}, a C program that ``cats'' the group database.
  *
  * Generate a printable version of the group database
  *
- * Arnold Robbins, arnold@@gnu.ai.mit.edu
+ * Arnold Robbins, arnold@@gnu.org
  * May 1993
  * Public Domain
  */
@@ -13558,7 +13632,7 @@ There are several, modeled after the C library functions of the same names.
 @group
 @c file eg/lib/groupawk.in
 # group.awk --- functions for dealing with the group file
-# Arnold Robbins, arnold@@gnu.ai.mit.edu, Public Domain
+# Arnold Robbins, arnold@@gnu.org, Public Domain
 # May 1993
 
 BEGIN    \
@@ -13725,7 +13799,7 @@ user name, and returns the list of groups that have the user as a member.
 function getgrent()
 @{
     _gr_init()
-    if (++gr_count in _gr_bycount)
+    if (++_gr_count in _gr_bycount)
         return _gr_bycount[_gr_count]
     return ""
 @}
@@ -13947,7 +14021,7 @@ if invalid arguments are supplied.
 @c @group
 @c file eg/prog/cut.awk
 # cut.awk --- implement cut in awk
-# Arnold Robbins, arnold@@gnu.ai.mit.edu, Public Domain
+# Arnold Robbins, arnold@@gnu.org, Public Domain
 # May 1993
 
 # Options:
@@ -14275,7 +14349,7 @@ that processes the command line arguments with @code{getopt}.  The @samp{-i}
 @c @group
 @c file eg/prog/egrep.awk
 # egrep.awk --- simulate egrep in awk
-# Arnold Robbins, arnold@@gnu.ai.mit.edu, Public Domain
+# Arnold Robbins, arnold@@gnu.org, Public Domain
 # May 1993
 
 # Options:
@@ -14558,7 +14632,7 @@ numbers.
 @c @group
 @c file eg/prog/id.awk
 # id.awk --- implement id in awk
-# Arnold Robbins, arnold@@gnu.ai.mit.edu, Public Domain
+# Arnold Robbins, arnold@@gnu.org, Public Domain
 # May 1993
 
 # output is:
@@ -14670,7 +14744,7 @@ is used as the prefix for the output file names.
 @c @group
 @c file eg/prog/split.awk
 # split.awk --- do split in awk
-# Arnold Robbins, arnold@@gnu.ai.mit.edu, Public Domain
+# Arnold Robbins, arnold@@gnu.org, Public Domain
 # May 1993
 
 # usage: split [-num] [file] [outname]
@@ -14798,7 +14872,7 @@ Finally, @code{awk} is forced to read the standard input by setting
 @group
 @c file eg/prog/tee.awk
 # tee.awk --- tee in awk
-# Arnold Robbins, arnold@@gnu.ai.mit.edu, Public Domain
+# Arnold Robbins, arnold@@gnu.org, Public Domain
 # May 1993
 # Revised December 1995
 @end group
@@ -14961,7 +15035,7 @@ standard output, @file{/dev/stdout}.
 @c @group
 @c file eg/prog/uniq.awk
 # uniq.awk --- do uniq in awk
-# Arnold Robbins, arnold@@gnu.ai.mit.edu, Public Domain
+# Arnold Robbins, arnold@@gnu.org, Public Domain
 # May 1993
 
 @group
@@ -15197,7 +15271,7 @@ be true if more than one file was named on the command line.
 @c @group
 @c file eg/prog/wc.awk
 # wc.awk --- count lines, words, characters
-# Arnold Robbins, arnold@@gnu.ai.mit.edu, Public Domain
+# Arnold Robbins, arnold@@gnu.org, Public Domain
 # May 1993
 
 # Options:
@@ -15354,7 +15428,7 @@ unusual.
 @group
 @c file eg/prog/dupword.awk
 # dupword --- find duplicate words in text
-# Arnold Robbins, arnold@@gnu.ai.mit.edu, Public Domain
+# Arnold Robbins, arnold@@gnu.org, Public Domain
 # December 1991
 
 @{
@@ -15398,7 +15472,7 @@ to itself, in case the user is not looking at their computer or terminal.)
 @c @group
 @c file eg/prog/alarm.awk
 # alarm --- set an alarm
-# Arnold Robbins, arnold@@gnu.ai.mit.edu, Public Domain
+# Arnold Robbins, arnold@@gnu.org, Public Domain
 # May 1993
 
 # usage: alarm time [ "message" [ count [ delay ] ] ]
@@ -15585,7 +15659,7 @@ Finally, the processing rule simply calls @code{translate} for each record.
 @c @group
 @c file eg/prog/translate.awk
 # translate --- do tr like stuff
-# Arnold Robbins, arnold@@gnu.ai.mit.edu, Public Domain
+# Arnold Robbins, arnold@@gnu.org, Public Domain
 # August 1989
 
 # bugs: does not handle things like: tr A-Z a-z, it has
@@ -15703,7 +15777,7 @@ not have been an even multiple of 20 labels in the data.
 @c @group
 @c file eg/prog/labels.awk
 # labels.awk
-# Arnold Robbins, arnold@@gnu.ai.mit.edu, Public Domain
+# Arnold Robbins, arnold@@gnu.org, Public Domain
 # June 1992
 
 # Program to print labels.  Each label is 5 lines of data
@@ -15919,7 +15993,7 @@ The @code{END} rule simply prints out the lines, in order.
 @group
 @c file eg/prog/histsort.awk
 # histsort.awk --- compact a shell history file
-# Arnold Robbins, arnold@@gnu.ai.mit.edu, Public Domain
+# Arnold Robbins, arnold@@gnu.org, Public Domain
 # May 1993
 
 # Thanks to Byron Rakitzis for the general idea
@@ -16016,6 +16090,28 @@ and @samp{endfile} lines.  The @code{gawk} distribution uses a copy of
 @file{extract.awk} to extract the sample
 programs and install many of them in a standard directory, where
 @code{gawk} can find them.
+The Texinfo file looks something like this:
+
+@example
+@dots{}
+This program has a @@code@{BEGIN@} block,
+which prints a nice message:
+
+@@example
+@@c file examples/messages.awk
+BEGIN @@@{ print "Don't panic!" @@@}
+@@c end file
+@@end example
+
+It also prints some final advice:
+
+@@example
+@@c file examples/messages.awk
+END @@@{ print "Always avoid bored archeologists!" @@@}
+@@c end file
+@@end example
+@dots{}
+@end example
 
 @file{extract.awk} begins by setting @code{IGNORECASE} to one, so that
 mixed upper-case and lower-case letters in the directives won't matter.
@@ -16030,7 +16126,7 @@ exited with a zero exit status, signifying OK.
 @c file eg/prog/extract.awk
 # extract.awk --- extract files and run programs
 #                 from texinfo files
-# Arnold Robbins, arnold@@gnu.ai.mit.edu, Public Domain
+# Arnold Robbins, arnold@@gnu.org, Public Domain
 # May 1993
 
 BEGIN    @{ IGNORECASE = 1 @}
@@ -16080,6 +16176,9 @@ function.  If the line is an ``endfile'' line, then it breaks out of
 the loop.
 If the line is an @samp{@@group} or @samp{@@end group} line, then it
 ignores it, and goes on to the next line.
+(These Texinfo control lines keep blocks of code together on one page;
+unfortunately, @TeX{} isn't always smart enough to do things exactly right,
+and we have to give it some advice.)
 
 Most of the work is in the following few lines.  If the line has no @samp{@@}
 symbols, it can be printed directly.  Otherwise, each leading @samp{@@} must be
@@ -16213,7 +16312,7 @@ are provided, the standard input is used.
 # awksed.awk --- do s/foo/bar/g using just print
 #    Thanks to Michael Brennan for the idea
 
-# Arnold Robbins, arnold@@gnu.ai.mit.edu, Public Domain
+# Arnold Robbins, arnold@@gnu.org, Public Domain
 # August 1995
 
 @group
@@ -16447,7 +16546,7 @@ Here's the program:
 #! /bin/sh
 
 # igawk --- like gawk but do @@include processing
-# Arnold Robbins, arnold@@gnu.ai.mit.edu, Public Domain
+# Arnold Robbins, arnold@@gnu.org, Public Domain
 # July 1993
 
 if [ "$1" = debug ]
@@ -18493,7 +18592,7 @@ Free Software Foundation @*
 Boston, MA  02111-1307 USA @*
 Phone: +1-617-542-5942 @*
 Fax (including Japan): +1-617-542-2652 @*
-E-mail: @code{gnu@@prep.ai.mit.edu} @*
+E-mail: @code{gnu@@gnu.org} @*
 @end quotation
 
 @noindent
@@ -18502,7 +18601,7 @@ and to the production of more free software.
 
 @item
 You can get @code{gawk} by using anonymous @code{ftp} to the Internet host
-@code{ftp.gnu.ai.mit.edu}, in the directory @file{/pub/gnu}.
+@code{gnudist.gnu.org}, in the directory @file{/gnu/gawk}.
 
 Here is a list of alternate @code{ftp} sites from which you can obtain GNU
 software.  When a site is listed as ``@var{site}@code{:}@var{directory}'' the
@@ -19318,17 +19417,17 @@ can send mail to.
 
 @table @asis
 @item Internet:
-@samp{bug-gnu-utils@@prep.ai.mit.edu}
+@samp{bug-gnu-utils@@gnu.org}
 
 @item UUCP:
-@samp{uunet!prep.ai.mit.edu!bug-gnu-utils}
+@samp{uunet!gnu.org!bug-gnu-utils}
 @end table
 
 Please include the
 version number of @code{gawk} you are using.  You can get this information
 with the command @samp{gawk --version}.
 You should send a carbon copy of your mail to Arnold Robbins, who can
-be reached at @samp{arnold@@gnu.ai.mit.edu}.
+be reached at @samp{arnold@@gnu.org}.
 
 @cindex @code{comp.lang.awk}
 @strong{Important!} Do @emph{not} try to report bugs in @code{gawk} by
@@ -19408,13 +19507,15 @@ This section briefly describes where to get them.
 @item Unix @code{awk}
 Brian Kernighan has been able to make his implementation of
 @code{awk} freely available.  You can get it via anonymous @code{ftp}
-to the host @code{@w{netlib.att.com}}.  Change directory to
+to the host @code{@w{netlib.bell-labs.com}}.  Change directory to
 @file{/netlib/research}. Use ``binary'' or ``image'' mode, and
-retrieve @file{awk.bundle.Z}.
+retrieve @file{awk.bundle.gz}.
 
-This is a shell archive that has been compressed with the @code{compress}
-utility. It can be uncompressed with either @code{uncompress} or the
-GNU @code{gunzip} utility.
+This is a shell archive that has been compressed with the GNU @code{gzip}
+utility. It can be uncompressed with the @code{gunzip} utility.
+
+You can also retrieve this version via the World Wide Web from
+@uref{http://cm.bell-labs.com/who/bwk, Brian Kernighan's home page}.
 
 This version requires an ANSI C compiler; GCC (the GNU C compiler)
 works quite nicely.
@@ -19496,7 +19597,7 @@ and any considerations you should bear in mind.
 You are free to add any new features you like to @code{gawk}.
 However, if you want your changes to be incorporated into the @code{gawk}
 distribution, there are several steps that you need to take in order to
-make it possible for me to include to your changes.
+make it possible for me to include your changes.
 
 @enumerate 1
 @item
@@ -19598,7 +19699,7 @@ effect, or assign the copyright in your changes to the FSF.
 Both of these actions are easy to do, and @emph{many} people have done so
 already. If you have questions, please contact me
 (@pxref{Bugs, , Reporting Problems and Bugs}),
-or @code{gnu@@prep.ai.mit.edu}.
+or @code{gnu@@gnu.org}.
 
 @item
 Update the documentation.
@@ -19718,7 +19819,7 @@ effect, or assign the copyright in your code to the FSF.
 @ifinfo
 Both of these actions are easy to do, and @emph{many} people have done so
 already. If you have questions, please contact me, or
-@code{gnu@@prep.ai.mit.edu}.
+@code{gnu@@gnu.org}.
 @end ifinfo
 @end enumerate
 
@@ -19855,11 +19956,6 @@ important regexp matching issues.
 The GNU version of @code{malloc} could potentially speed up @code{gawk},
 since it relies heavily on the use of dynamic memory allocation.
 
-@item Use of the @code{rx} regexp library
-The @code{rx} regular expression library could potentially speed up
-all regexp operations that require knowing the exact location of matches.
-This includes record termination, field and array splitting,
-and the @code{sub}, @code{gsub}, @code{gensub} and @code{match} functions.
 @end table
 
 @node Improvements,  , Future Extensions, Notes
@@ -20006,7 +20102,7 @@ countries use an extension of ASCII known as ISO-8859-1 (ISO Latin-1).
 A preprocessor for @code{pic} that reads descriptions of molecules
 and produces @code{pic} input for drawing them.  It was written in @code{awk}
 by Brian Kernighan and Jon Bentley, and is available from
-@code{@w{netlib@@research.att.com}}.
+@email{@w{netlib@@research.bell-labs.com}}.
 
 @item Compound Statement
 A series of @code{awk} statements, enclosed in curly braces.  Compound

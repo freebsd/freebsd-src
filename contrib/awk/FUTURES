@@ -73,8 +73,6 @@ In 3.1
 
 	Use GNU malloc.
 
-	Use rx instead of regex.
-
 	DONE: Do a reference card.
 
 	? Have strftime() pay attention to the value of ENVIRON["TZ"]

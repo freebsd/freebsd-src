@@ -3,7 +3,7 @@
  */
 
 /* 
- * Copyright (C) 1986, 1988, 1989, 1991-1997 the Free Software Foundation, Inc.
+ * Copyright (C) 1986, 1988, 1989, 1991-1999 the Free Software Foundation, Inc.
  * 
  * This file is part of GAWK, the GNU implementation of the
  * AWK Programming Language.
@@ -25,6 +25,14 @@
 
 /* ------------------------------ Includes ------------------------------ */
 
+/*
+ * config.h absolutely, positively, *M*U*S*T* be included before
+ * any system headers.  Otherwise, extreme death, destruction
+ * and loss of life results.
+ *
+ * Well, OK, gawk just won't work on systems using egcs and LFS.  But
+ * that's almost as bad.
+ */
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
@@ -34,6 +42,7 @@
 #endif /* _GNU_SOURCE */
 
 #include <stdio.h>
+#include <assert.h>
 #ifdef HAVE_LIMITS_H
 #include <limits.h>
 #endif /* HAVE_LIMITS_H */
@@ -584,7 +593,8 @@ extern char casetable[];	/* for case-independent regexp matching */
 /* ------------------------- Pseudo-functions ------------------------- */
 
 #define is_identchar(c)		(isalnum(c) || (c) == '_')
-#define isnondecimal(str)	(((str)[0]) == '0')
+#define isnondecimal(str)	(((str)[0]) == '0' && (ISDIGIT((str)[1]) \
+					|| (str)[1] == 'x' || (str)[1] == 'X'))
 
 #ifdef MPROF
 #define	getnode(n)	emalloc(n, NODE *, sizeof(NODE), "getnode")

@@ -3,7 +3,7 @@
  */
 
 /* 
- * Copyright (C) 1986, 1988, 1989, 1991-1997 the Free Software Foundation, Inc.
+ * Copyright (C) 1986, 1988, 1989, 1991-1999 the Free Software Foundation, Inc.
  * 
  * This file is part of GAWK, the GNU implementation of the
  * AWK Programming Language.
@@ -36,6 +36,7 @@ register NODE *n;
 	char save;
 	char *ptr;
 	unsigned int newflags;
+	extern double strtod();
 
 #ifdef DEBUG
 	if (n == NULL)
@@ -140,7 +141,16 @@ register NODE *s;
 	/* not an integral value, or out of range */
 	if ((val = double_to_int(s->numbr)) != s->numbr
 	    || val < LONG_MIN || val > LONG_MAX) {
-#ifdef GFMT_WORKAROUND
+		/*
+		 * Once upon a time, if GFMT_WORKAROUND wasn't defined,
+		 * we just blindly did this:
+		 *	sprintf(sp, format, s->numbr);
+		 *	s->stlen = strlen(sp);
+		 *	s->stfmt = (char) index;
+		 * but that's no good if, e.g., OFMT is %s. So we punt,
+		 * and just always format the value ourselves.
+		 */
+
 		NODE *dummy, *r;
 		unsigned short oflags;
 		extern NODE *format_tree P((const char *, int, NODE *));
@@ -161,15 +171,6 @@ register NODE *s;
 		freenode(dummy);	/* to keep s->stptr == r->stpr.  */
 
 		goto no_malloc;
-#else
-		/*
-		 * no need for a "replacement" formatting by gawk,
-		 * just use sprintf
-		 */
-		sprintf(sp, format, s->numbr);
-		s->stlen = strlen(sp);
-		s->stfmt = (char) index;
-#endif /* GFMT_WORKAROUND */
 	} else {
 		/* integral value */
 	        /* force conversion to long only once */
@@ -183,11 +184,9 @@ register NODE *s;
 		}
 		s->stfmt = -1;
 	}
-	emalloc(s->stptr, char *, s->stlen + 2, "force_string");
+	emalloc(s->stptr, char *, s->stlen + 2, "format_val");
 	memcpy(s->stptr, sp, s->stlen+1);
-#ifdef GFMT_WORKAROUND
 no_malloc:
-#endif /* GFMT_WORKAROUND */
 	s->stref = 1;
 	s->flags |= STR;
 	return s;
@@ -495,7 +494,9 @@ char **string_ptr;
 		}
 		i = 0;
 		for (;;) {
-			if (ISXDIGIT((c = *(*string_ptr)++))) {
+			/* do outside test to avoid multiple side effects */
+			c = *(*string_ptr)++;
+			if (ISXDIGIT(c)) {
 				i *= 16;
 				if (ISDIGIT(c))
 					i += c - '0';
