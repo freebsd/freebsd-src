@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.246.2.50 1997/06/23 01:50:13 jkh Exp $
+#	$Id: Makefile,v 1.246.2.51 1997/06/24 23:07:32 jkh Exp $
 #
 # How to roll a release:
 #
@@ -175,14 +175,17 @@ rerelease release:
 .if defined(NOPORTS)
 	echo "export NOPORTS=${NOPORTS}"	>> ${CHROOTDIR}/mk
 .endif
-.if defined(BOOT_CONFIG)
-	echo "export BOOT_CONFIG=\"${BOOT_CONFIG}\"">> ${CHROOTDIR}/mk
-.endif
 .if defined(NODOC)
 	echo "export NODOC=${NODOC}"		>> ${CHROOTDIR}/mk
 .endif
 .if defined(NOSRC)
 	echo "export NOSRC=${NOSRC}"		>> ${CHROOTDIR}/mk
+.endif
+.if defined(NOSHARED)
+	echo "export NOSHARED=${NOSHARED}"	>> ${CHROOTDIR}/mk
+.endif
+.if defined(BOOT_CONFIG)
+	echo "export BOOT_CONFIG=\"${BOOT_CONFIG}\"">> ${CHROOTDIR}/mk
 .endif
 	# Don't remove this, or the build will fall over!
 	echo "export RELEASEDIR=/R"		>> ${CHROOTDIR}/mk
