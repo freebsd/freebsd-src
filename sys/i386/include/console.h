@@ -12,8 +12,6 @@
  *	Søren Schmidt 		Email:	sos@kmd-ac.dk
  *	Tritonvej 36		UUCP:	...uunet!dkuug!kmd-ac!sos
  *	DK9210 Aalborg SO	Phone:  +45 9814 8076
- *
- *	$Id$
  */
 
 #ifndef	_CONSOLE_H_
@@ -32,7 +30,7 @@
 #define KDSKBSTATE	_IO('K', 20)
 #define KDENABIO	_IO('K', 60)
 #define KDDISABIO	_IO('K', 61)
-#define KIOCSOUND	_IO('k', 63)
+#define KIOCSOUND	_IO('K', 63)
 #define KDGKBTYPE	_IOR('K', 64, int)
 #define KDGETLED	_IOR('K', 65, int)
 #define KDSETLED	_IO('K', 66) 
@@ -85,7 +83,6 @@ struct vt_mode {
 	short	frsig;			/* not implemented yet	SOS	*/
 };
 
-typedef struct vt_mode vtmode_t;
 
 #define KD_MONO		1		/* monochrome adapter        	*/
 #define KD_HERCULES	2		/* hercules adapter          	*/
@@ -101,26 +98,26 @@ typedef struct vt_mode vtmode_t;
 #define K_RAW		0		/* keyboard returns scancodes	*/
 #define K_XLATE		1		/* keyboard returns ascii 	*/
 
-#define KB_84		1
-#define KB_101		2
-#define KB_OTHER	3
+#define KB_84		1		/* 'old' 84 key AT-keyboard	*/
+#define KB_101		2		/* MF-101 or MF-102 keyboard	*/
+#define KB_OTHER	3		/* keyboard not known 		*/
 
-#define CLKED		1
-#define NLKED		2
-#define SLKED		4
-#define ALKED		8
-#define LED_CAP		1
-#define LED_NUM		2
-#define LED_SCR		4
+#define CLKED		1		/* Caps locked			*/
+#define NLKED		2		/* Num locked			*/
+#define SLKED		4		/* Scroll locked		*/
+#define ALKED		8		/* AltGr locked			*/
+#define LED_CAP		1		/* Caps lock LED 		*/ 
+#define LED_NUM		2		/* Num lock LED 		*/
+#define LED_SCR		4		/* Scroll lock LED 		*/
 
 /* possible flag values */
 #define	FLAG_LOCK_O	0
 #define	FLAG_LOCK_C	1
 #define FLAG_LOCK_N	2
 
-#define NUM_KEYS	256
-#define NUM_STATES	8
-#define ALTGR_OFFSET	128
+#define NUM_KEYS	256		/* number of keys in table	*/
+#define NUM_STATES	8		/* states per key		*/
+#define ALTGR_OFFSET	128		/* offset for altlock keys	*/
 
 struct keymap {
 	u_short	n_keys;
@@ -165,31 +162,39 @@ typedef struct keymap keymap_t;
 typedef struct fkeytab fkeytab_t;
 typedef struct fkeyarg fkeyarg_t;
 typedef struct vid_info vid_info_t;
+typedef struct vt_mode vtmode_t;
 typedef struct {char scrmap[256];} scrmap_t;
 typedef struct {char fnt8x8[8*256];} fnt8_t;
 typedef struct {char fnt8x14[14*256];} fnt14_t;
 typedef struct {char fnt8x16[16*256];} fnt16_t;
 
+/* defines for "special" keys (spcl bit set in keymap) */
+#define NOP		0x00		/* nothing (dead key)		*/
+#define LSH		0x02		/* left shift key		*/
+#define RSH		0x03		/* right shift key		*/
+#define CLK		0x04		/* caps lock key		*/
+#define NLK		0x05		/* num lock key			*/
+#define SLK		0x06		/* scroll lock key		*/
+#define LALT		0x07		/* left alt key			*/
+#define LCTR		0x09		/* left control key		*/
+#define NEXT		0x0a		/* switch to next screen 	*/
+#define F_SCR		0x0b		/* switch to first screen 	*/
+#define L_SCR		0x1a		/* switch to last screen 	*/
+#define F_FN		0x1b		/* first function key 		*/
+#define L_FN		0x7a		/* last function key 		*/
+#define RCTR		0x7b		/* right control key		*/
+#define RALT		0x7c		/* right alt (altgr) key	*/
+#define ALK		0x7d		/* alt lock key			*/
+#define ASH		0x7e		/* alt shift key		*/
+#define META		0x7f		/* meta key			*/
+#define RBT		0x80		/* boot machine			*/
+#define DBG		0x81		/* call debugger		*/
+
 #define F(x)		((x)+F_FN-1)
 #define	S(x)		((x)+F_SCR-1)
-#define NOP		0x00
-#define LSH		0x02
-#define RSH		0x03
-#define CLK		0x04
-#define NLK		0x05
-#define SLK		0x06
-#define LALT		0x07
-#define LCTR		0x09
-#define RCTR		0x7b
-#define RALT		0x7c
-#define ALK		0x7d
-#define ASH		0x7e
-
-#define F_SCR		11		/* switch to first screen 	*/
-#define L_SCR		26		/* switch to last screen 	*/
-#define F_FN		27		/* first function key 		*/
-#define L_FN		122		/* last function key 		*/
+#define NOKEY		0x100		/* no key pressed marker 	*/
 #define FKEY		0x200		/* funtion key marker 		*/
+#define MKEY		0x400		/* meta key marker (prepend ESC)*/
 
 #define	KB_DATA		0x60		/* kbd data port 		*/
 #define	KB_STAT		0x64		/* kbd status port 		*/
