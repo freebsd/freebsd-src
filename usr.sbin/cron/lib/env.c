@@ -193,14 +193,16 @@ load_env(envstr, f)
 					break;
 				}
 			} else {
-				if (isspace (*c)) {
-					state++;
-					c++;
-					break;
-				}
-				if (state == NAME && *c == '=') {
-					state++;
-					break;
+				if (state == NAME) {
+					if (isspace (*c)) {
+						c++;
+						state++;
+						break;
+					}
+					if (*c == '=') {
+						state++;
+						break;
+					}
 				}
 			}
 			*str++ = *c++;
@@ -232,9 +234,14 @@ load_env(envstr, f)
 		Set_LineNum(fileline);
 		return (FALSE);
 	}
+	if (state == VALUE) {
+		/* End of unquoted value: trim trailing whitespace */
+		c = val + strlen (val);
+		while (c > val && isspace (*(c - 1)))
+			*(--c) = '\0';
+	}
 
-	/* 2 fields from parser; looks like an env setting
-	 */
+	/* 2 fields from parser; looks like an env setting */
 
 	if (strlen(name) + 1 + strlen(val) >= MAX_ENVSTR-1)
 		return (FALSE);
