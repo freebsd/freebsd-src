@@ -783,6 +783,7 @@ ccdbuffer(struct ccdbuf **cb, struct ccd_s *cs, struct bio *bp, daddr_t bn, cadd
 			return (ENOMEM);
 		}
 		bcopy(cb[0], cbp, sizeof(struct ccdbuf));
+		cbp->cb_buf.bio_caller2 = cbp;
 		cbp->cb_buf.bio_dev = ci2->ci_dev;
 		cbp->cb_comp = ci2 - cs->sc_cinfo;
 		cb[1] = cbp;
