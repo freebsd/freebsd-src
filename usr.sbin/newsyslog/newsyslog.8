@@ -28,6 +28,7 @@
 .Op Fl Fnrv
 .Op Fl f Ar config_file
 .Op Fl a Ar directory
+.Op Ar
 .Sh DESCRIPTION
 .Nm Newsyslog
 is a program that should be scheduled to run periodically by
@@ -355,6 +356,11 @@ to trim the logs, even if the trim conditions have not been met.  This
 option is useful for diagnosing system problems by providing you with
 fresh logs that contain only the problems.
 .El
+.Pp
+If additional command line arguments are given,
+.Nm
+will only examine log files that match those arguments; otherwise, it
+will examine all files listed in the configuration file.
 .Sh FILES
 .Bl -tag -width /etc/newsyslog.confxxxx -compact
 .It Pa /etc/newsyslog.conf
