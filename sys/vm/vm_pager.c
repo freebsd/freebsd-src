@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pager.c,v 1.4 1994/08/06 09:15:40 davidg Exp $
+ * $Id: vm_pager.c,v 1.5 1994/08/07 13:10:42 davidg Exp $
  */
 
 /*
@@ -281,7 +281,6 @@ vm_pager_map_page(m)
 
 	kva = kmem_alloc_wait(pager_map, PAGE_SIZE);
 	pmap_kenter(kva, VM_PAGE_TO_PHYS(m));
-	pmap_update();
 	return(kva);
 }
 
