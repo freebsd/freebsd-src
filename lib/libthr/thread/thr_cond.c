@@ -147,8 +147,12 @@ _pthread_cond_init(pthread_cond_t *cond, const pthread_condattr_t *cond_attr)
 int
 _pthread_cond_destroy(pthread_cond_t *cond)
 {
-	if (cond == NULL || *cond == NULL)
-		return (EINVAL);
+	/*
+	 * Short circuit for a statically initialized condvar
+	 * that is being destroyed without having been used.
+	 */
+	if (*cond == PTHREAD_COND_INITIALIZER)
+		return (0);
 
 	COND_LOCK(*cond);
 
