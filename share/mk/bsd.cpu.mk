@@ -76,7 +76,9 @@ _CPUCFLAGS = -march=pentium
 _CPUCFLAGS = -march=i486
 .  endif
 . elif ${MACHINE_ARCH} == "alpha"
-.  if ${CPUTYPE} == "ev6"
+.  if ${CPUTYPE} == "ev67"
+_CPUCFLAGS = -mcpu=ev67
+.  elif ${CPUTYPE} == "ev6"
 _CPUCFLAGS = -mcpu=ev6
 .  elif ${CPUTYPE} == "pca56"
 _CPUCFLAGS = -mcpu=pca56
@@ -85,7 +87,7 @@ _CPUCFLAGS = -mcpu=ev56
 .  elif ${CPUTYPE} == "ev5"
 _CPUCFLAGS = -mcpu=ev5
 .  elif ${CPUTYPE} == "ev45"
-_CPUCFLAGS = -mcpu=ev4		# No -mcpu=ev45 for gcc
+_CPUCFLAGS = -mcpu=ev45
 .  elif ${CPUTYPE} == "ev4"
 _CPUCFLAGS = -mcpu=ev4
 .  endif
