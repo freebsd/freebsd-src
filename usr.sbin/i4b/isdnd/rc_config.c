@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Tue Mar 26 14:37:38 2002]
+ *      last edit-date: [Sun Aug 11 12:30:49 2002]
  *
  *---------------------------------------------------------------------------*/
 
@@ -409,6 +409,13 @@ cfg_setval(int keyword)
 				log(LL_ERR, "ERROR parsing config file: unknown parameter for keyword \"b1protocol\" at line %d!", lineno);
 				config_error_flag++;
 			}
+			break;
+
+		case BCAP:
+			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: bcap = %s", entrycount, yylval.str)));
+			cfg_entry_tab[entrycount].bcap = BCAP_NONE;
+			if(!(strcmp(yylval.str, "dov")))
+				cfg_entry_tab[entrycount].bcap = BCAP_DOV;
 			break;
 
 		case BEEPCONNECT:

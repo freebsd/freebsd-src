@@ -32,7 +32,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Tue Mar 26 14:37:59 2002]
+ *      last edit-date: [Sun Aug 11 12:27:50 2002]
  *
  *---------------------------------------------------------------------------*/
 
@@ -92,6 +92,7 @@ aliasing			{ return ALIASING; }
 aliasfile			{ return ALIASFNAME; }
 answerprog			{ return ANSWERPROG; }
 b1protocol			{ return B1PROTOCOL; }
+bcap				{ return BCAP; }
 beepconnect			{ return BEEPCONNECT; }
 budget-callbackperiod		{ return BUDGETCALLBACKPERIOD; }
 budget-callbackncalls		{ return BUDGETCALLBACKNCALLS; }

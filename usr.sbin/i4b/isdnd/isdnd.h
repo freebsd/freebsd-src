@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Tue Mar 26 14:36:20 2002]
+ *      last edit-date: [Sun Aug 11 12:31:44 2002]
  *
  *---------------------------------------------------------------------------*/
 
@@ -287,6 +287,8 @@ typedef struct cfg_entry {
 #define REACT_CALLBACK	 4
 
 	int b1protocol;			/* hdlc / raw */
+
+	int bcap;			/* special bearer capability (DoV) */
 
 	int idle_time_in;		/* max idle time incoming calls */
 	int idle_time_out;		/* max idle time outgoing calls */

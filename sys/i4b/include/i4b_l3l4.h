@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *	last edit-date: [Sat Mar  9 15:57:44 2002]
+ *	last edit-date: [Sun Aug 11 12:52:41 2002]
  *
  *---------------------------------------------------------------------------*/
 
@@ -137,6 +137,8 @@ typedef struct
 	int	channelexcl;		/* channel exclusive		*/
 
 	int	bprot;			/* B channel protocol BPROT_XXX */
+
+	int	bcap;			/* special bearer capabilities BCAP_XXX */	
 
 	int	driver;			/* driver to use for B channel	*/
 	int	driver_unit;		/* unit for above driver number	*/
