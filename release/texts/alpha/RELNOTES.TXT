@@ -1,16 +1,17 @@
                                  RELEASE NOTES
-                          FreeBSD snapshot of 4.1-RC
+                              FreeBSD 4.1-RELEASE
 
 Any installation failures or crashes should be reported by using the
 send-pr command (those preferring a Web-based interface can also see
 http://www.freebsd.org/send-pr.html).
 
-For information about FreeBSD and the layout of the 4.1
+For information about FreeBSD and the layout of the 4.1-RELEASE
 directory (especially if you're installing from floppies!), see
 ABOUT.TXT.  For installation instructions, see the INSTALL.TXT and
 HARDWARE.TXT files.
 
-For the latest of these 4.x-stable snapshots, you should always see:
+For the latest 4.1-stable snapshots (post-4.1 snaps), you should
+always see:
 
         ftp://releng4.freebsd.org/pub/FreeBSD
 
