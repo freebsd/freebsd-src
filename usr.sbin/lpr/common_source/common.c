@@ -37,8 +37,11 @@
  */
 
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)common.c	8.5 (Berkeley) 4/28/95";
+#endif /* not lint */
 #endif
+
 #include "lp.cdefs.h"		/* A cross-platform version of <sys/cdefs.h> */
 __FBSDID("$FreeBSD$");
 
