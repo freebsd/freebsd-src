@@ -564,8 +564,6 @@ extern int	(*lease_check_hook)(struct vop_lease_args *);
 extern int	(*softdep_fsync_hook)(struct vnode *);
 extern int	(*softdep_process_worklist_hook)(struct mount *);
 
-struct	vnode *addaliasu(struct vnode *vp, dev_t nvp_rdev);
-int	bdevvp(struct cdev *dev, struct vnode **vpp);
 /* cache_* may belong in namei.h. */
 void	cache_enter(struct vnode *dvp, struct vnode *vp,
 	    struct componentname *cnp);

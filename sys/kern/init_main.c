@@ -512,7 +512,6 @@ start_init(void *dummy)
 	char *ucp, **uap, *arg0, *arg1;
 	struct thread *td;
 	struct proc *p;
-	int init_does_devfs = 0;
 
 	mtx_lock(&Giant);
 
@@ -523,33 +522,9 @@ start_init(void *dummy)
 
 	vfs_mountroot();
 
-	/* Get the vnode for '/'.  Set p->p_fd->fd_cdir to reference it. */
-	if (VFS_ROOT(TAILQ_FIRST(&mountlist), &rootvnode, td))
-		panic("cannot find root vnode");
-	FILEDESC_LOCK(p->p_fd);
-	p->p_fd->fd_cdir = rootvnode;
-	VREF(p->p_fd->fd_cdir);
-	p->p_fd->fd_rdir = rootvnode;
-	VREF(p->p_fd->fd_rdir);
-	FILEDESC_UNLOCK(p->p_fd);
-	VOP_UNLOCK(rootvnode, 0, td);
 #ifdef MAC
 	mac_create_root_mount(td->td_ucred, TAILQ_FIRST(&mountlist));
 #endif
-
-	/*
-	 * For disk based systems, we probably cannot do this yet
-	 * since the fs will be read-only.  But a NFS root
-	 * might be ok.  It is worth a shot.
-	 */
-	error = kern_mkdir(td, "/dev", UIO_SYSSPACE, 0700);
-	if (error == EEXIST)
-		error = 0;
-	if (error == 0)
-		error = kernel_vmount(0, "fstype", "devfs",
-		    "fspath", "/dev", NULL);
-	if (error != 0)
-		init_does_devfs = 1;
 
 	/*
 	 * Need just enough stack to hold the faked-up "execve()" arguments.
@@ -598,10 +573,6 @@ start_init(void *dummy)
 		(void)subyte(--ucp, 'C');
 		options = 1;
 #endif
-		if (init_does_devfs) {
-			(void)subyte(--ucp, 'd');
-			options = 1;
-		}
 
 		if (options == 0)
 			(void)subyte(--ucp, '-');
