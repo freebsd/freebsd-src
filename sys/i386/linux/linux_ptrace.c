@@ -346,7 +346,7 @@ linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 			break;
 #endif
 		/* FALL THROUGH */
-	case PTRACE_GETFPXREGS: {	
+	case PTRACE_GETFPXREGS: {
 #ifdef CPU_ENABLE_SSE
 		struct proc *p;
 		struct thread *td2;
@@ -449,7 +449,7 @@ linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 			map_regs_from_linux(&u.bsd_reg, &r.reg);
 			error = kern_ptrace(td, PT_SETREGS, pid, &u.bsd_reg, 0);
 		}
-		
+
 		/*
 		 * Simulate debug registers access
 		 */
@@ -459,7 +459,7 @@ linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 			    0);
 			if (error != 0)
 				break;
-			
+
 			uap->addr -= LINUX_DBREG_OFFSET;
 			if (req == PTRACE_PEEKUSR) {
 				error = copyout((char *)&u.bsd_dbreg +

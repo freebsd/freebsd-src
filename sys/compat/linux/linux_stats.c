@@ -6,7 +6,7 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer 
+ *    notice, this list of conditions and the following disclaimer
  *    in this position and unchanged.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
@@ -141,7 +141,7 @@ linux_newlstat(struct thread *td, struct linux_newlstat_args *args)
 	LFREEPATH(path);
 	if (error)
 		return (error);
-	NDFREE(&nd, NDF_ONLY_PNBUF); 
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 
 	error = vn_stat(nd.ni_vp, &sb, td->td_ucred, NOCRED, td);
 	vput(nd.ni_vp);
@@ -264,7 +264,7 @@ linux_statfs(struct thread *td, struct linux_statfs_args *args)
 	linux_statfs.f_blocks = bsd_statfs->f_blocks;
 	linux_statfs.f_bfree = bsd_statfs->f_bfree;
 	linux_statfs.f_bavail = bsd_statfs->f_bavail;
-  	linux_statfs.f_ffree = bsd_statfs->f_ffree;
+	linux_statfs.f_ffree = bsd_statfs->f_ffree;
 	linux_statfs.f_files = bsd_statfs->f_files;
 	linux_statfs.f_fsid.val[0] = bsd_statfs->f_fsid.val[0];
 	linux_statfs.f_fsid.val[1] = bsd_statfs->f_fsid.val[1];
@@ -308,7 +308,7 @@ linux_fstatfs(struct thread *td, struct linux_fstatfs_args *args)
 	linux_statfs.f_blocks = bsd_statfs->f_blocks;
 	linux_statfs.f_bfree = bsd_statfs->f_bfree;
 	linux_statfs.f_bavail = bsd_statfs->f_bavail;
-  	linux_statfs.f_ffree = bsd_statfs->f_ffree;
+	linux_statfs.f_ffree = bsd_statfs->f_ffree;
 	linux_statfs.f_files = bsd_statfs->f_files;
 	linux_statfs.f_fsid.val[0] = bsd_statfs->f_fsid.val[0];
 	linux_statfs.f_fsid.val[1] = bsd_statfs->f_fsid.val[1];
@@ -318,7 +318,7 @@ linux_fstatfs(struct thread *td, struct linux_fstatfs_args *args)
 	return error;
 }
 
-struct l_ustat 
+struct l_ustat
 {
 	l_daddr_t	f_tfree;
 	l_ino_t		f_tinode;
@@ -460,7 +460,7 @@ linux_lstat64(struct thread *td, struct linux_lstat64_args *args)
 	LFREEPATH(filename);
 	if (error)
 		return (error);
-	NDFREE(&nd, NDF_ONLY_PNBUF); 
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 
 	error = vn_stat(nd.ni_vp, &sb, td->td_ucred, NOCRED, td);
 	vput(nd.ni_vp);

@@ -6,7 +6,7 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer 
+ *    notice, this list of conditions and the following disclaimer
  *    in this position and unchanged.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
@@ -260,7 +260,7 @@ linux_ipc_perm_to_ipc64_perm(struct l_ipc_perm *in, struct l_ipc64_perm *out)
 	out->mode = in->mode;
 	out->seq = in->seq;
 }
-    
+
 static int
 linux_msqid_pullup(l_int ver, struct l_msqid_ds *linux_msqid, caddr_t uaddr)
 {
@@ -531,7 +531,7 @@ linux_semctl(struct thread *td, struct linux_semctl_args *args)
 		error = __semctl(td, &bsd_args);
 		if (error)
 			return error;
-		td->td_retval[0] = IXSEQ_TO_IPCID(bsd_args.semid, 
+		td->td_retval[0] = IXSEQ_TO_IPCID(bsd_args.semid,
 							unptr->buf->sem_perm);
 		bsd_to_linux_semid_ds(unptr->buf, &linux_semid);
 		return (linux_semid_pushdown(args->cmd & LINUX_IPC_64,
@@ -567,10 +567,10 @@ int
 linux_msgsnd(struct thread *td, struct linux_msgsnd_args *args)
 {
     struct msgsnd_args /* {
-	int     msqid;   
-	void    *msgp;   
-	size_t  msgsz;   
-	int     msgflg; 
+	int     msqid;
+	void    *msgp;
+	size_t  msgsz;
+	int     msgflg;
     } */ bsd_args;
 
     bsd_args.msqid = args->msqid;
@@ -583,13 +583,13 @@ linux_msgsnd(struct thread *td, struct linux_msgsnd_args *args)
 int
 linux_msgrcv(struct thread *td, struct linux_msgrcv_args *args)
 {
-    struct msgrcv_args /* {     
-        int 	msqid;   
-	void	*msgp;   
-	size_t	msgsz;   
-	long	msgtyp; 
-	int	msgflg; 
-    } */ bsd_args; 
+    struct msgrcv_args /* {
+	int	msqid;
+	void	*msgp;
+	size_t	msgsz;
+	long	msgtyp;
+	int	msgflg;
+    } */ bsd_args;
 
     bsd_args.msqid = args->msqid;
     bsd_args.msgp = args->msgp;
@@ -604,7 +604,7 @@ linux_msgget(struct thread *td, struct linux_msgget_args *args)
 {
     struct msgget_args /* {
 	key_t	key;
-        int 	msgflg;
+	int	msgflg;
     } */ bsd_args;
 
     bsd_args.key = args->key;
@@ -616,7 +616,7 @@ int
 linux_msgctl(struct thread *td, struct linux_msgctl_args *args)
 {
     struct msgctl_args /* {
-	int     msqid; 
+	int     msqid;
 	int     cmd;
 	struct	msqid_ds *buf;
     } */ bsd_args;

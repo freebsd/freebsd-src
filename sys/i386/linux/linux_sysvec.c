@@ -6,7 +6,7 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer 
+ *    notice, this list of conditions and the following disclaimer
  *    in this position and unchanged.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
@@ -115,15 +115,15 @@ static void     linux_sendsig(sig_t catcher, int sig, sigset_t *mask,
  * Linux syscalls return negative errno's, we do positive and map them
  */
 static int bsd_to_linux_errno[ELAST + 1] = {
-  	-0,  -1,  -2,  -3,  -4,  -5,  -6,  -7,  -8,  -9,
- 	-10, -35, -12, -13, -14, -15, -16, -17, -18, -19,
- 	-20, -21, -22, -23, -24, -25, -26, -27, -28, -29,
- 	-30, -31, -32, -33, -34, -11,-115,-114, -88, -89,
- 	-90, -91, -92, -93, -94, -95, -96, -97, -98, -99,
+	-0,  -1,  -2,  -3,  -4,  -5,  -6,  -7,  -8,  -9,
+	-10, -35, -12, -13, -14, -15, -16, -17, -18, -19,
+	-20, -21, -22, -23, -24, -25, -26, -27, -28, -29,
+	-30, -31, -32, -33, -34, -11,-115,-114, -88, -89,
+	-90, -91, -92, -93, -94, -95, -96, -97, -98, -99,
 	-100,-101,-102,-103,-104,-105,-106,-107,-108,-109,
 	-110,-111, -40, -36,-112,-113, -39, -11, -87,-122,
 	-116, -66,  -6,  -6,  -6,  -6,  -6, -37, -38,  -9,
-  	-6, -6, -43, -42, -75, -6, -84
+	-6, -6, -43, -42, -75, -6, -84
 };
 
 int bsd_to_linux_signal[LINUX_SIGTBLSZ] = {
@@ -230,9 +230,9 @@ elf_linux_fixup(register_t **stack_base, struct image_params *imgp)
 {
 	Elf32_Auxargs *args = (Elf32_Auxargs *)imgp->auxargs;
 	register_t *pos;
-             
-	pos = *stack_base + (imgp->argc + imgp->envc + 2);  
-    
+
+	pos = *stack_base + (imgp->argc + imgp->envc + 2);
+
 	if (args->trace)
 		AUXARGS_ENTRY(pos, AT_DEBUG, 1);
 	if (args->execfd != -1)
@@ -251,8 +251,8 @@ elf_linux_fixup(register_t **stack_base, struct image_params *imgp)
 	AUXARGS_ENTRY(pos, AT_EGID, imgp->proc->p_ucred->cr_svgid);
 	PROC_UNLOCK(imgp->proc);
 	AUXARGS_ENTRY(pos, AT_NULL, 0);
-	
-	free(imgp->auxargs, M_TEMP);      
+
+	free(imgp->auxargs, M_TEMP);
 	imgp->auxargs = NULL;
 
 	(*stack_base)--;
@@ -266,9 +266,9 @@ extern unsigned long linux_sznonrtsigcode;
 static void
 linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 {
-	register struct thread *td = curthread;
-	register struct proc *p = td->td_proc;
-	register struct trapframe *regs;
+	struct thread *td = curthread;
+	struct proc *p = td->td_proc;
+	struct trapframe *regs;
 	struct l_rt_sigframe *fp, frame;
 	int oonstack;
 
@@ -371,7 +371,7 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	 * Build context to run handler in.
 	 */
 	regs->tf_esp = (int)fp;
-	regs->tf_eip = PS_STRINGS - *(p->p_sysent->sv_szsigcode) + 
+	regs->tf_eip = PS_STRINGS - *(p->p_sysent->sv_szsigcode) +
 	    linux_sznonrtsigcode;
 	regs->tf_eflags &= ~(PSL_T | PSL_VM);
 	regs->tf_cs = _ucodesel;
@@ -396,9 +396,9 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 static void
 linux_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 {
-	register struct thread *td = curthread;
-	register struct proc *p = td->td_proc;
-	register struct trapframe *regs;
+	struct thread *td = curthread;
+	struct proc *p = td->td_proc;
+	struct trapframe *regs;
 	struct l_sigframe *fp, frame;
 	l_sigset_t lmask;
 	int oonstack, i;
@@ -508,7 +508,7 @@ linux_sigreturn(struct thread *td, struct linux_sigreturn_args *args)
 {
 	struct proc *p = td->td_proc;
 	struct l_sigframe frame;
-	register struct trapframe *regs;
+	struct trapframe *regs;
 	l_sigset_t lmask;
 	int eflags, i;
 
@@ -542,7 +542,7 @@ linux_sigreturn(struct thread *td, struct linux_sigreturn_args *args)
 	 * allowing it is fairly harmless.
 	 */
 	if (!EFLAGS_SECURE(eflags & ~PSL_RF, regs->tf_eflags & ~PSL_RF))
-    		return(EINVAL);
+		return(EINVAL);
 
 	/*
 	 * Don't allow users to load a valid privileged %cs.  Let the
@@ -605,7 +605,7 @@ linux_rt_sigreturn(struct thread *td, struct linux_rt_sigreturn_args *args)
 	struct l_sigcontext *context;
 	l_stack_t *lss;
 	stack_t ss;
-	register struct trapframe *regs;
+	struct trapframe *regs;
 	int eflags;
 
 	regs = td->td_frame;
@@ -640,7 +640,7 @@ linux_rt_sigreturn(struct thread *td, struct linux_rt_sigreturn_args *args)
 	 * allowing it is fairly harmless.
 	 */
 	if (!EFLAGS_SECURE(eflags & ~PSL_RF, regs->tf_eflags & ~PSL_RF))
-    		return(EINVAL);
+		return(EINVAL);
 
 	/*
 	 * Don't allow users to load a valid privileged %cs.  Let the
@@ -757,12 +757,12 @@ linux_aout_coredump(struct thread *td, struct vnode *vp, off_t limit)
 		    (caddr_t)trunc_page(USRSTACK - ctob(vm->vm_ssize)),
 		    round_page(ctob(vm->vm_ssize)),
 		    (off_t)ctob(uarea_pages + kstack_pages) +
-		        ctob(vm->vm_dsize), UIO_USERSPACE,
+			ctob(vm->vm_dsize), UIO_USERSPACE,
 		    IO_UNIT | IO_DIRECT, cred, NOCRED, (int *) NULL, td);
 	return (error);
 }
 /*
- * If a linux binary is exec'ing something, try this image activator 
+ * If a linux binary is exec'ing something, try this image activator
  * first.  We override standard shell script execution in order to
  * be able to modify the interpreter path.  We only do this if a linux
  * binary is doing the exec, so we do not create an EXEC module for it.
@@ -810,12 +810,12 @@ struct sysentvec linux_sysvec = {
 	0xff,
 	LINUX_SIGTBLSZ,
 	bsd_to_linux_signal,
-	ELAST + 1, 
+	ELAST + 1,
 	bsd_to_linux_errno,
 	translate_traps,
 	linux_fixup,
 	linux_sendsig,
-	linux_sigcode,	
+	linux_sigcode,
 	&linux_szsigcode,
 	linux_prepsyscall,
 	"Linux a.out",
