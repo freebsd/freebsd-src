@@ -497,7 +497,7 @@ static int pcn_attach(dev)
 	unit = device_get_unit(dev);
 
 	/* Initialize our mutex. */
-	mtx_init(&sc->pcn_mtx, device_get_nameunit(dev), MTX_DEF);
+	mtx_init(&sc->pcn_mtx, device_get_nameunit(dev), MTX_DEF | MTX_RECURSE);
 	PCN_LOCK(sc);
 
 	/*

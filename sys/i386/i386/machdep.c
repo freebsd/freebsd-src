@@ -422,7 +422,7 @@ again:
 		TAILQ_INIT(&callwheel[i]);
 	}
 
-	mtx_init(&callout_lock, "callout", MTX_SPIN);
+	mtx_init(&callout_lock, "callout", MTX_SPIN | MTX_RECURSE);
 
 #if defined(USERCONFIG)
 	userconfig();
@@ -441,7 +441,7 @@ again:
 	SLIST_INIT(&cpuhead);
 	SLIST_INSERT_HEAD(&cpuhead, GLOBALDATA, gd_allcpu);
 
-	mtx_init(&sched_lock, "sched lock", MTX_SPIN | MTX_COLD);
+	mtx_init(&sched_lock, "sched lock", MTX_SPIN | MTX_COLD | MTX_RECURSE);
 
 #ifdef SMP
 	/*
@@ -1939,7 +1939,7 @@ init386(first)
 	/*
 	 * We need this mutex before the console probe.
 	 */
-	mtx_init(&clock_lock, "clk", MTX_SPIN | MTX_COLD);
+	mtx_init(&clock_lock, "clk", MTX_SPIN | MTX_COLD | MTX_RECURSE);
 
 	/*
 	 * Initialize the console before we print anything out.
@@ -1954,7 +1954,7 @@ init386(first)
 	/*
 	 * Giant is used early for at least debugger traps and unexpected traps.
 	 */
-	mtx_init(&Giant, "Giant", MTX_DEF | MTX_COLD);
+	mtx_init(&Giant, "Giant", MTX_DEF | MTX_COLD | MTX_RECURSE);
 
 #ifdef DDB
 	kdb_init();

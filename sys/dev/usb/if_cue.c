@@ -504,7 +504,8 @@ USB_ATTACH(cue)
 		}
 	}
 
-	mtx_init(&sc->cue_mtx, device_get_nameunit(self), MTX_DEF);
+	mtx_init(&sc->cue_mtx, device_get_nameunit(self), MTX_DEF |
+	    MTX_RECURSE);
 	CUE_LOCK(sc);
 
 #ifdef notdef
