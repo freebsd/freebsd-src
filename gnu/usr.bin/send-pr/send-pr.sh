@@ -31,7 +31,7 @@ SUBMITTER=unknown
 GNATS_ROOT=
 
 # The default mail address for PR submissions. 
-GNATS_ADDR=FreeBSD-gnats@freefall.cdrom.com
+GNATS_ADDR=FreeBSD-gnats-submit@freefall.cdrom.com
 
 # Where the gnats category tree lives.
 DATADIR=@DATADIR@
@@ -310,12 +310,12 @@ __EOF__
 
 
       cat >> $file << __EOF__
-
 To: $GNATS_ADDR
 Subject: 
 From: $FROM
 Reply-To: $REPLY_TO
 X-send-pr-version: $VERSION
+
 
 >Submitter-Id:   $SUBMITTER
 >Originator:     $ORIGINATOR
