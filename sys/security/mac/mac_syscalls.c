@@ -721,7 +721,7 @@ mac_init_mbuf(struct mbuf *m, int flag)
 {
 	int error;
 
-	KASSERT(m->m_flags & M_PKTHDR, ("mac_init_mbuf on non-header mbuf"));
+	M_ASSERTPKTHDR(m);
 
 	mac_init_label(&m->m_pkthdr.label);
 
@@ -2270,7 +2270,7 @@ mac_check_ifnet_transmit(struct ifnet *ifnet, struct mbuf *mbuf)
 	if (!mac_enforce_network)
 		return (0);
 
-	KASSERT(mbuf->m_flags & M_PKTHDR, ("packet has no pkthdr"));
+	M_ASSERTPKTHDR(mbuf);
 	if (!(mbuf->m_pkthdr.label.l_flags & MAC_FLAG_INITIALIZED))
 		if_printf(ifnet, "not initialized\n");
 

@@ -1827,8 +1827,7 @@ X_rsvp_input(struct mbuf *m, int off)
 	printf("rsvp_input: check vifs\n");
 
 #ifdef DIAGNOSTIC
-    if (!(m->m_flags & M_PKTHDR))
-	panic("rsvp_input no hdr");
+    M_ASSERTPKTHDR(m);
 #endif
 
     ifp = m->m_pkthdr.rcvif;

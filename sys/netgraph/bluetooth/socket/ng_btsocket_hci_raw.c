@@ -451,8 +451,7 @@ ng_btsocket_hci_raw_data_input(struct mbuf *nam)
 
 	KASSERT((nam->m_type == MT_SONAME),
 		("%s: m_type=%d\n", __func__, nam->m_type));
-	KASSERT((m0->m_flags & M_PKTHDR),
-		("%s: m_flags=%#x\n", __func__, m0->m_flags));
+	M_ASSERTPKTHDR(m0);
 
 	sa = mtod(nam, struct sockaddr_hci *);
 
@@ -614,8 +613,7 @@ ng_btsocket_hci_raw_output(node_p node, hook_p hook, void *arg1, int arg2)
 
 	KASSERT((nam->m_type == MT_SONAME),
 		("%s: m_type=%d\n", __func__, nam->m_type));
-	KASSERT((m->m_flags & M_PKTHDR),
-		("%s: m_flags=%#x\n", __func__, m->m_flags));
+	M_ASSERTPKTHDR(m);
 
 	sa = mtod(nam, struct sockaddr_hci *);
 

@@ -906,8 +906,7 @@ iommu_dvmamap_load_mbuf(bus_dma_tag_t pt, bus_dma_tag_t dt,
 	struct mbuf *m;
 	int error = 0, first = 1, nsegs = -1;
 
-	KASSERT(m0->m_flags & M_PKTHDR,
-	    ("iommu_dvmamap_load_mbuf: no packet header"));
+	M_ASSERTPKTHDR(m0);
 
 	if (map->dm_loaded) {
 #ifdef DIAGNOSTIC

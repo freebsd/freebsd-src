@@ -203,8 +203,7 @@ faithoutput(ifp, m, dst, rt)
 {
 	int isr;
 
-	if ((m->m_flags & M_PKTHDR) == 0)
-		panic("faithoutput no HDR");
+	M_ASSERTPKTHDR(m);
 
 	/* BPF write needs to be handled specially */
 	if (dst->sa_family == AF_UNSPEC) {

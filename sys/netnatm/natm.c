@@ -705,8 +705,7 @@ natmintr(struct mbuf *m)
   struct natmpcb *npcb;
 
 #ifdef DIAGNOSTIC
-  if ((m->m_flags & M_PKTHDR) == 0)
-    panic("natmintr no HDR");
+  M_ASSERTPKTHDR(m);
 #endif
 
   npcb = (struct natmpcb *) m->m_pkthdr.rcvif; /* XXX: overloaded */

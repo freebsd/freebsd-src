@@ -446,8 +446,7 @@ nexus_dmamap_load_mbuf(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat,
 #endif
 	int nsegs, error;
 
-	KASSERT(m0->m_flags & M_PKTHDR,
-		("nexus_dmamap_load_mbuf: no packet header"));
+	M_ASSERTPKTHDR(m0);
 
 	nsegs = 0;
 	error = 0;

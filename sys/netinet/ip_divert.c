@@ -180,7 +180,7 @@ divert_packet(struct mbuf *m, int incoming, int port, int rule)
 		struct ifaddr *ifa;
 
 		/* Sanity check */
-		KASSERT((m->m_flags & M_PKTHDR), ("%s: !PKTHDR", __func__));
+		M_ASSERTPKTHDR(m);
 
 		/* Find IP address for receive interface */
 		TAILQ_FOREACH(ifa, &m->m_pkthdr.rcvif->if_addrhead, ifa_link) {

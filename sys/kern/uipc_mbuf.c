@@ -87,8 +87,7 @@ m_move_pkthdr(struct mbuf *to, struct mbuf *from)
 
 #if 0
 	/* see below for why these are not enabled */
-	KASSERT(to->m_flags & M_PKTHDR,
-	    ("m_move_pkthdr: called on non-header"));
+	M_ASSERTPKTHDR(to);
 	KASSERT(SLIST_EMPTY(&to->m_pkthdr.tags),
 	    ("m_move_pkthdr: to has tags"));
 #endif
@@ -125,7 +124,7 @@ m_dup_pkthdr(struct mbuf *to, struct mbuf *from, int how)
 	 * smash the pkthdr as needed causing these
 	 * assertions to trip.  For now just disable them.
 	 */
-	KASSERT(to->m_flags & M_PKTHDR, ("m_dup_pkthdr: called on non-header"));
+	M_ASSERTPKTHDR(to);
 	KASSERT(SLIST_EMPTY(&to->m_pkthdr.tags), ("m_dup_pkthdr: to has tags"));
 #endif
 #ifdef MAC
@@ -349,7 +348,7 @@ m_dup(struct mbuf *m, int how)
 	/* Sanity check */
 	if (m == NULL)
 		return (NULL);
-	KASSERT((m->m_flags & M_PKTHDR) != 0, ("%s: !PKTHDR", __func__));
+	M_ASSERTPKTHDR(m);
 
 	/* While there's more data, get a new mbuf, tack it on, and fill it */
 	remain = m->m_pkthdr.len;
