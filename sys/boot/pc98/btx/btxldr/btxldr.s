@@ -426,7 +426,7 @@ gdtdesc:	.word gdt.1-gdt-1		# Limit
 #
 # Messages.
 #
-m_logo: 	.asciz "\nBTX loader 1.00  "
+m_logo: 	.asciz " \nBTX loader 1.00  "
 m_vers: 	.asciz "BTX version is \0\n"
 e_fmt:		.asciz "Error: Client format not supported\n"
 #.ifdef BTXLDR_VERBOSE
