@@ -121,7 +121,7 @@ eni_test_memory ( eup )
 	 * This makes sure we don't leave anything funny in the
 	 * queues.
 	 */
-	KM_ZERO ( (uintptr_t)eup->eu_ram, ram_size );
+	bzero ( (uintptr_t)eup->eu_ram, ram_size );
 
 	/*
 	 * If we'd like to claim to have less memory, here's where
@@ -162,12 +162,9 @@ eni_init_memory ( eup )
 	/*
 	 * Allocate initial element which will hold all of memory
 	 */
-	if ( ( eup->eu_memmap = (Mbd *)KM_ALLOC(sizeof(Mbd), M_DEVBUF,
-	    M_NOWAIT ) ) == NULL )
-	{
-		/* Memory allocation error */
-		return -1;
-	}
+	eup->eu_memmap = malloc(sizeof(Mbd), M_DEVBUF, M_NOWAIT);
+	if (eup->eu_memmap == NULL)
+		return (-1);
 
 	/*
 	 * Test and size memory
@@ -272,9 +269,8 @@ eni_allocate_buffer ( eup, size )
 			Mbd	*etmp;
 
 			/* Yep - create a new segment */
-			etmp = (Mbd *)KM_ALLOC(sizeof(Mbd), M_DEVBUF,
-			    M_NOWAIT );
-			if ( etmp == (Mbd *)NULL ) {
+			etmp = malloc(sizeof(Mbd), M_DEVBUF, M_NOWAIT);
+			if (etmp == NULL) {
 				/*
 				 * Couldn't allocate a new descriptor. Indicate 
 				 * failure and exit now or we'll start losing
@@ -282,7 +278,7 @@ eni_allocate_buffer ( eup, size )
 				 */
 				eup->eu_stats.eni_st_drv.drv_mm_nodesc++;
 				*size = 0;
-				return ( (caddr_t)NULL );
+				return (NULL);
 			}
 			/* Place it in the list */
 			etmp->next = eptr->next;
@@ -437,7 +433,7 @@ eni_free_buffer ( eup, base )
 				/* Reset to where we want to be */
 				eptr = eptr->prev;
 				/* and free this element */
-				(void)KM_FREE(etmp, etmp->size, M_DEVBUF);
+				free(etmp, M_DEVBUF);
 			    }
 			/* with next */
 			if ( eptr->next )
@@ -453,7 +449,7 @@ eni_free_buffer ( eup, base )
 				/* skip next block */
 				eptr->next = etmp->next;
 				/* and free next element */
-				(void)KM_FREE(etmp, etmp->size, M_DEVBUF);
+				free(etmp, M_DEVBUF);
 			    }
 			/*
 			 * We've freed the buffer and done any compaction,
