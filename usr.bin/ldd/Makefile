@@ -1,7 +1,7 @@
-#	$Id: Makefile,v 1.7 1997/09/02 21:54:38 jdp Exp $
+#	$Id: Makefile,v 1.8 1998/06/01 13:55:12 peter Exp $
 
 PROG=		ldd
 SRCS=		ldd.c sods.c
-CFLAGS+=	-Wall
+CFLAGS+=	-Wall -DFREEBSD_AOUT
 
 .include <bsd.prog.mk>
