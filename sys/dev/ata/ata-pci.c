@@ -152,18 +152,13 @@ ata_pci_attach(device_t dev)
 	cmd = pci_read_config(dev, PCIR_COMMAND, 2);
     }
 #endif
-    /* is busmastering supported and configured ? */
+    /* if busmastering configured get the I/O resource */
     if ((cmd & PCIM_CMD_BUSMASTEREN) == PCIM_CMD_BUSMASTEREN) {
 	int rid = ATA_BMADDR_RID;
 
-	if (!ctlr->r_io2) {
-	    if (!(ctlr->r_io1 = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-						    0, ~0, 1, RF_ACTIVE)))
-		device_printf(dev, "Busmastering DMA not configured\n");
-	}
+	ctlr->r_io1 = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
+					 0, ~0, 1, RF_ACTIVE);
     }
-    else
-	device_printf(dev, "Busmastering DMA not supported\n");
 
     ctlr->chipinit(dev);
 
