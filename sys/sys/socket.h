@@ -510,18 +510,15 @@ struct sf_hdtr {
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-/*
- * XXX functions missing restrict type-qualifiers.
- */
-int	accept(int, struct sockaddr *, socklen_t *);
+int	accept(int, struct sockaddr * __restrict, socklen_t * __restrict);
 int	bind(int, const struct sockaddr *, socklen_t);
 int	connect(int, const struct sockaddr *, socklen_t);
-int	getpeername(int, struct sockaddr *, socklen_t *);
-int	getsockname(int, struct sockaddr *, socklen_t *);
-int	getsockopt(int, int, int, void *, socklen_t *);
+int	getpeername(int, struct sockaddr * __restrict, socklen_t * __restrict);
+int	getsockname(int, struct sockaddr * __restrict, socklen_t * __restrict);
+int	getsockopt(int, int, int, void * __restrict, socklen_t * __restrict);
 int	listen(int, int);
 ssize_t	recv(int, void *, size_t, int);
-ssize_t	recvfrom(int, void *, size_t, int, struct sockaddr *, socklen_t *);
+ssize_t	recvfrom(int, void *, size_t, int, struct sockaddr * __restrict, socklen_t * __restrict);
 ssize_t	recvmsg(int, struct msghdr *, int);
 ssize_t	send(int, const void *, size_t, int);
 ssize_t	sendto(int, const void *,
