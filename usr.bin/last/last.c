@@ -208,10 +208,10 @@ wtmp()
 			 */
 			if (bp->ut_line[0] == '~' && !bp->ut_line[1]) {
 				/* everybody just logged out */
-				for (tt = ttylist.lh_first; tt;) {
+				for (tt = LIST_FIRST(&ttylist); tt;) {
 					LIST_REMOVE(tt, list);
 					ttx = tt;
-					tt = tt->list.le_next;
+					tt = LIST_NEXT(tt, list);
 					free(ttx);
 				}
 				currentout = -bp->ut_time;
@@ -252,20 +252,20 @@ wtmp()
 			}
 			if (bp->ut_name[0] == '\0' || want(bp)) {
 				/* find associated tty */
-				for (tt = ttylist.lh_first; ; tt = tt->list.le_next) {
-					if (tt == NULL) {
-						/* add new one */
-						tt = malloc(sizeof(struct ttytab));
-						if (tt == NULL)
-							err(1, "malloc failure");
-						tt->logout = currentout;
-						strncpy(tt->tty, bp->ut_line, UT_LINESIZE);
-						LIST_INSERT_HEAD(&ttylist, tt, list);
-						break;
-					}
+				LIST_FOREACH(tt, &ttylist, list)
 					if (!strncmp(tt->tty, bp->ut_line, UT_LINESIZE))
 						break;
+
+				if (tt == NULL) {
+					/* add new one */
+					tt = malloc(sizeof(struct ttytab));
+					if (tt == NULL)
+						err(1, "malloc failure");
+					tt->logout = currentout;
+					strncpy(tt->tty, bp->ut_line, UT_LINESIZE);
+					LIST_INSERT_HEAD(&ttylist, tt, list);
 				}
+
 				if (bp->ut_name[0]) {
 					/*
 					 * when uucp and ftp log in over a network, the entry in
