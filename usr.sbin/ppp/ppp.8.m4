@@ -5329,6 +5329,14 @@ keywords.
 .It RAD_SESSION_TIMEOUT
 If supplied, the client connection is closed after the given number of
 seconds.
+.It RAD_REPLY_MESSAGE
+If supplied, this message is passed back to the peer as the authentication
+SUCCESS text.
+.It RAD_MICROSOFT_MS_CHAP_ERROR
+If this
+.Dv RAD_VENDOR_MICROSOFT
+vendor specific attribute is supplied, it is passed back to the peer as the
+authentication FAILURE text.
 .El
 Values received from the RADIUS server may be viewed using
 .Dq show bundle .
