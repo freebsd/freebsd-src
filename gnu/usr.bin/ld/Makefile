@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.25 1998/06/12 15:50:57 peter Exp $
+# $Id: Makefile,v 1.26 1998/09/07 05:46:09 jb Exp $
 #
 
 RTLD=	${.CURDIR}/../../../libexec/rtld-aout
@@ -9,10 +9,10 @@ BINDIR= /usr/libexec/aout
 MAN1aout=ld.1aout
 SRCS=	ld.c symbol.c lib.c shlib.c warnings.c support.c rrs.c xbits.c md.c \
 	cplus-dem.c
-CFLAGS+= -I${.CURDIR} -I${RTLD} -I${RTLD}/${MACHINE} \
+CFLAGS+= -I${.CURDIR} -I${RTLD} -I${RTLD}/${MACHINE_ARCH} \
 	-I${GCCDIR} -DIN_GCC -DDEMANGLE_CPLUSPLUS -DFREEBSD_AOUT
 NOSHARED?= yes
 
-.PATH: ${RTLD} ${RTLD}/${MACHINE} ${GCCDIR}
+.PATH: ${RTLD} ${RTLD}/${MACHINE_ARCH} ${GCCDIR}
 
 .include <bsd.prog.mk>
