@@ -475,12 +475,10 @@ bge_miibus_readreg(dev, phy, reg)
 	int phy, reg;
 {
 	struct bge_softc *sc;
-	struct ifnet *ifp;
 	u_int32_t val, autopoll;
 	int i;
 
 	sc = device_get_softc(dev);
-	ifp = &sc->arpcom.ac_if;
 
 	if (phy != 1)
 		switch(sc->bge_chipid) {
