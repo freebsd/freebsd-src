@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.63.2.24 1998/03/06 23:44:40 julian Exp $
+ **      $Id: userconfig.c,v 1.63.2.25 1998/03/10 08:04:34 jkh Exp $
  **/
 
 /**
@@ -225,9 +225,7 @@ static DEVCLASS_INFO devclass_names[] = {
 
 static DEV_INFO device_info[] = {
 /*---Name-----   ---Description---------------------------------------------- */
-#ifdef DPTOPT
 {"dpt",         "DPT RAID, Caching SCSI HBA", 0, CLS_STORAGE},
-#endif /* DPTOPT */
 {"bt",          "Buslogic SCSI controller",		0,		CLS_STORAGE},
 {"ahc",         "Adaptec 274x/284x/294x SCSI controller",	0,	CLS_STORAGE},
 {"ahb",         "Adaptec 174x SCSI controller",		0,		CLS_STORAGE},
@@ -2370,7 +2368,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.63.2.24 1998/03/06 23:44:40 julian Exp $
+ *      $Id: userconfig.c,v 1.63.2.25 1998/03/10 08:04:34 jkh Exp $
  */
 
 #include "scbus.h"

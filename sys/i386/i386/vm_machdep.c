@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.71.2.3 1997/09/13 16:18:53 joerg Exp $
+ *	$Id: vm_machdep.c,v 1.71.2.4 1998/01/20 12:47:33 tegge Exp $
  */
 
 #include "npx.h"
@@ -872,6 +872,16 @@ vm_page_zero_idle() {
 		return 1;
 	}
 	return 0;
+}
+
+/*
+ * Software interrupt handler for queued VM system processing.
+ */
+void
+swi_vm()
+{
+	if (busdma_swi_pending != 0)
+		busdma_swi();
 }
 
 /*
