@@ -150,7 +150,7 @@ swapdev_strategy(ap)
 		}
 		sp->sw_vp->v_numoutput++;
 	}
-	pbreassignbuf(bp, sp->sw_vp);
+	bp->b_vp = sp->sw_vp;
 	splx(s);
 	BUF_STRATEGY(bp);
 	return 0;
