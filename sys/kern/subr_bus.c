@@ -1054,15 +1054,10 @@ devclass_get_softc(devclass_t dc, int unit)
 int
 devclass_get_devices(devclass_t dc, device_t **devlistp, int *devcountp)
 {
-	int i;
-	int count;
+	int count, i;
 	device_t *list;
 
-	count = 0;
-	for (i = 0; i < dc->maxunit; i++)
-		if (dc->devices[i])
-			count++;
-
+	count = devclass_get_count(dc);
 	list = malloc(count * sizeof(device_t), M_TEMP, M_NOWAIT|M_ZERO);
 	if (!list)
 		return (ENOMEM);
@@ -1079,6 +1074,23 @@ devclass_get_devices(devclass_t dc, device_t **devlistp, int *devcountp)
 	*devcountp = count;
 
 	return (0);
+}
+
+/**
+ * @brief Get the number of devices in a devclass
+ *
+ * @param dc		the devclass to examine
+ */
+int
+devclass_get_count(devclass_t dc)
+{
+	int count, i;
+
+	count = 0;
+	for (i = 0; i < dc->maxunit; i++)
+		if (dc->devices[i])
+			count++;
+	return (count);
 }
 
 /**
