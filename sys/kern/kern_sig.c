@@ -1343,9 +1343,8 @@ psignal(p, sig)
 	struct thread *td;
 	register int prop;
 
-
-	KASSERT(_SIG_VALID(sig),
-	    ("psignal(): invalid signal %d\n", sig));
+	if (!_SIG_VALID(sig))
+	    panic("psignal(): invalid signal");
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	KNOTE(&p->p_klist, NOTE_SIGNAL | sig);
