@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.27 1994/10/23 21:27:52 wollman Exp $
+ *      $Id: cd.c,v 1.28 1994/10/27 20:45:00 jkh Exp $
  */
 
 #define SPLCD splbio
@@ -58,11 +58,6 @@ static errval cd_read_subchannel __P((u_int32, u_int32, u_int32, int, struct cd_
 static errval cd_getdisklabel __P((u_int8));
 
 int32   cdstrats, cdqueues;
-
-#ifdef	DDB
-#else	/* DDB */
-#define Debugger(x)
-#endif	/* DDB */
 
 #define PAGESIZ 	4096
 #define SECSIZE 2048	/* XXX */	/* default only */
