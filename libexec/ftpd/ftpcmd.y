@@ -69,6 +69,7 @@ static const char rcsid[] =
 #include <time.h>
 #include <unistd.h>
 #include <libutil.h>
+#include <md5.h>
 
 #include "extern.h"
 
@@ -126,7 +127,7 @@ extern int epsvall;
 	CDUP	STOU	SMNT	SYST	SIZE	MDTM
 	LPRT	LPSV	EPRT	EPSV
 
-	UMASK	IDLE	CHMOD
+	UMASK	IDLE	CHMOD	MDFIVE
 
 	LEXERR
 
@@ -585,6 +586,18 @@ cmd
 	| SITE SP HELP SP STRING CRLF
 		{
 			help(sitetab, $5);
+		}
+	| SITE SP MDFIVE check_login SP pathname CRLF
+		{
+			char p[64], *q;
+
+			if ($4) {
+				q = MD5File($6, p);
+				if (q != NULL)
+					reply(200, "MD5(%s) = %s", $6, p);
+				else
+					perror_reply(550, $6);
+			}
 		}
 	| SITE SP UMASK check_login CRLF
 		{
@@ -1084,6 +1097,7 @@ struct tab cmdtab[] = {		/* In order defined in RFC 765 */
 };
 
 struct tab sitetab[] = {
+	{ "MD5", MDFIVE, STR1, 1,	"[ <sp> file-name ]" },
 	{ "UMASK", UMASK, ARGS, 1,	"[ <sp> umask ]" },
 	{ "IDLE", IDLE, ARGS, 1,	"[ <sp> maximum-idle-time ]" },
 	{ "CHMOD", CHMOD, NSTR, 1,	"<sp> mode <sp> file-name" },
