@@ -91,8 +91,14 @@ contrib/dev/oltr/if_oltr.c	optional	oltr
 contrib/dev/oltr/trlldbm.c	optional	oltr
 contrib/dev/oltr/trlldhm.c	optional	oltr
 contrib/dev/oltr/trlldmac.c	optional	oltr
-crypto/des/des_ecb.c		optional	netsmbcrypto
-crypto/des/des_setkey.c		optional	netsmbcrypto
+bf_enc.o			optional	ipsec ipsec_esp		\
+	dependency	"$S/crypto/blowfish/arch/i386/bf_enc.S $S/crypto/blowfish/arch/i386/bf_enc_586.S $S/crypto/blowfish/arch/i386/bf_enc_686.S"		\
+	compile-with	"${CC} -c -I$S/crypto/blowfish/arch/i386 ${ASM_CFLAGS} ${WERROR} ${.IMPSRC}"	\
+	no-implicit-rule
+crypto/des/arch/i386/des_enc.S		optional	ipsec ipsec_esp
+crypto/des/des_ecb.c			optional	netsmbcrypto
+crypto/des/arch/i386/des_enc.S		optional	netsmbcrypto
+crypto/des/des_setkey.c			optional	netsmbcrypto
 dev/advansys/adv_isa.c		optional	adv isa
 dev/aic/aic_isa.c		optional	aic isa
 dev/ar/if_ar_isa.c		optional	ar isa

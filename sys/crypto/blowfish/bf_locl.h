@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: bf_locl.h,v 1.5 2000/08/31 06:03:48 itojun Exp $	*/
+/*	$KAME: bf_locl.h,v 1.6 2001/09/10 04:03:56 itojun Exp $	*/
 
 /* crypto/bf/bf_local.h */
 /* Copyright (C) 1995-1997 Eric Young (eay@mincom.oz.au)
@@ -163,7 +163,6 @@
  */
 #undef	BF_PTR
 #undef	BF_PTR2
-#ifdef __NetBSD__
 #ifdef __i386__
 #define	BF_PTR2
 #else
@@ -171,7 +170,6 @@
 #define	BF_PTR
 #endif
 #endif
-#endif /*NetBSD*/
 
 #define BF_M	0x3fc
 #define BF_0	22L

@@ -8,6 +8,8 @@
 # dependency lines other than the first are silently ignored.
 #
 
+crypto/blowfish/bf_enc.c	optional	ipsec ipsec_esp
+crypto/des/des_enc.c		optional	ipsec ipsec_esp
 dev/ofw/ofw_console.c		optional	ofw_console
 dev/ofw/openfirm.c		standard
 libkern/ffs.c			standard

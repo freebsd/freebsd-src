@@ -178,6 +178,8 @@ compat/linux/linux_socket.c	optional	compat_linux
 compat/linux/linux_sysctl.c	optional	compat_linux
 compat/linux/linux_stats.c	optional	compat_linux
 compat/linux/linux_util.c	optional	compat_linux
+crypto/blowfish/bf_enc.c	optional	ipsec ipsec_esp
+crypto/des/des_enc.c		optional	ipsec ipsec_esp
 dev/advansys/adv_isa.c		optional	adv isa
 dev/aic/aic_isa.c		optional	aic isa
 dev/dec/mcclock.c		optional	mcclock
