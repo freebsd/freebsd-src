@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: linker.h,v 1.13 1999/01/27 21:50:00 dillon Exp $
+ *	$Id: linker.h,v 1.14 1999/01/27 23:45:44 dillon Exp $
  */
 
 #ifndef _SYS_LINKER_H_
@@ -209,6 +209,7 @@ int linker_ddb_symbol_values(c_linker_sym_t sym, linker_symval_t *symval);
 #define MODINFO_ADDR		0x0003		/* Loaded address */
 #define MODINFO_SIZE		0x0004		/* Size of module */
 #define MODINFO_EMPTY		0x0005		/* Has been deleted */
+#define MODINFO_ARGS		0x0006		/* Parameters string */
 #define MODINFO_METADATA	0x8000		/* Module-specfic */
 
 #define MODINFOMD_AOUTEXEC	0x0001		/* a.out exec header */

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bootinfo.c,v 1.15 1998/11/13 23:40:02 msmith Exp $
+ *	$Id: bootinfo.c,v 1.16 1999/01/24 00:12:04 msmith Exp $
  */
 
 #include <stand.h>
@@ -152,6 +152,7 @@ bi_copyenv(vm_offset_t addr)
  *
  * MOD_NAME	(variable)		module name (string)
  * MOD_TYPE	(variable)		module type (string)
+ * MOD_ARGS	(variable)		module parameters (string)
  * MOD_ADDR	sizeof(vm_offset_t)	module load address
  * MOD_SIZE	sizeof(size_t)		module size
  * MOD_METADATA	(variable)		type-specific metadata
@@ -171,6 +172,7 @@ bi_copyenv(vm_offset_t addr)
 
 #define MOD_NAME(a, s)	MOD_STR(MODINFO_NAME, a, s)
 #define MOD_TYPE(a, s)	MOD_STR(MODINFO_TYPE, a, s)
+#define MOD_ARGS(a, s)	MOD_STR(MODINFO_ARGS, a, s)
 
 #define MOD_VAR(t, a, s) {			\
     COPY32(t, a);				\
@@ -205,6 +207,7 @@ bi_copymodules(vm_offset_t addr)
 
 	MOD_NAME(addr, mp->m_name);	/* this field must come first */
 	MOD_TYPE(addr, mp->m_type);
+	MOD_ARGS(addr, mp->m_args);
 	MOD_ADDR(addr, mp->m_addr);
 	MOD_SIZE(addr, mp->m_size);
 	for (md = mp->m_metadata; md != NULL; md = md->md_next)
