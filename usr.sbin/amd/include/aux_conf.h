@@ -1,3 +1,5 @@
+/* $FreeBSD$ */
+
 /*
  * aux_conf.h:
  * This file gets "filled in" for each architecture.
@@ -15,12 +17,11 @@
  */
 
 /* $srcdir/conf/trap/trap_default.h */
-#ifdef COMMENT_GET_DIRECTLY_FROM_FILE
+#ifdef COMMENT_OUT__GET_DIRECTLY_FROM_FILE
 #define MOUNT_TRAP(type, mnt, flags, mnt_data) mount(type, mnt->mnt_dir, flags, mnt_data)
-#endif	/* COMMENT_GET_DIRECTLY_FROM_FILE */
+#endif	/* COMMENT_OUT__GET_DIRECTLY_FROM_FILE */
 #include "conf/trap/trap_default.h"
 /* End of included MOUNT_TRAP macro definition file */
-
 
 /*
  * The next line is a literal replacement of a variable which defines the
@@ -40,9 +41,9 @@
  */
 
 /* $srcdir/conf/fh_dref/fh_dref_freebsd22.h */
-#ifdef COMMENT_GET_DIRECTLY_FROM_FILE
+#ifdef COMMENT_OUT__GET_DIRECTLY_FROM_FILE
 #define	NFS_FH_DREF(dst, src) (dst) = (u_char *) (src)
-#endif	/* COMMENT_GET_DIRECTLY_FROM_FILE */
+#endif	/* COMMENT_OUT__GET_DIRECTLY_FROM_FILE */
 #include "conf/fh_dref/fh_dref_freebsd22.h"
 /* End of included NFS_FH_DREF macro definition file */
 
@@ -54,12 +55,12 @@
  */
 
 /* $srcdir/conf/sa_dref/sa_dref_bsd44.h */
-#ifdef COMMENT_GET_DIRECTLY_FROM_FILE
+#ifdef COMMENT_OUT__GET_DIRECTLY_FROM_FILE
 #define	NFS_SA_DREF(dst, src) { \
 		(dst)->addr = (struct sockaddr *) (src); \
 		(dst)->addrlen = sizeof(*src); \
 	}
-#endif	/* COMMENT_GET_DIRECTLY_FROM_FILE */
+#endif	/* COMMENT_OUT__GET_DIRECTLY_FROM_FILE */
 #include "conf/sa_dref/sa_dref_bsd44.h"
 /* End of included NFS_SA_DREF macro definition file */
 
@@ -71,9 +72,9 @@
  */
 
 /* $srcdir/conf/hn_dref/hn_dref_default.h */
-#ifdef COMMENT_GET_DIRECTLY_FROM_FILE
+#ifdef COMMENT_OUT__GET_DIRECTLY_FROM_FILE
 #define NFS_HN_DREF(dst, src) (dst) = (src)
-#endif	/* COMMENT_GET_DIRECTLY_FROM_FILE */
+#endif	/* COMMENT_OUT__GET_DIRECTLY_FROM_FILE */
 #include "conf/hn_dref/hn_dref_default.h"
 /* End of included NFS_HN_DREF macro definition file */
 
