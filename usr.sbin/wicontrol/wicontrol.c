@@ -613,7 +613,7 @@ static void usage(p)
 	fprintf(stderr, "\t%s -i iface -k encryption key [-v 1|2|3|4]\n", p);
 	fprintf(stderr, "\t%s -i iface -r RTS threshold\n", p);
 	fprintf(stderr, "\t%s -i iface -f frequency\n", p);
-	fprintf(stderr, "\t%s -i iface -P 0|1t\n", p);
+	fprintf(stderr, "\t%s -i iface -P 0|1\n", p);
 	fprintf(stderr, "\t%s -i iface -S max sleep duration\n", p);
 	fprintf(stderr, "\t%s -i iface -T 1|2|3|4\n", p);
 #ifdef WICACHE
