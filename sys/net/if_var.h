@@ -131,6 +131,13 @@ struct ifnet {
 	const char *if_dname;		/* driver name */
 	int	if_dunit;		/* unit or IF_DUNIT_NONE */
 	struct	ifaddrhead if_addrhead;	/* linked list of addresses per if */
+		/*
+		 * if_addrhead is the list of all addresses associated to
+		 * an interface. The first element of the list must be
+		 * of type AF_LINK, and contains sockaddr_dl addresses,
+		 * which include the link-level address and the name
+		 * of the interface.
+		 */
 	struct	klist if_klist;		/* events attached to this if */
 	int	if_pcount;		/* number of promiscuous listeners */
 	struct	bpf_if *if_bpf;		/* packet filter structure */
@@ -338,6 +345,10 @@ if_handoff(struct ifqueue *ifq, struct mbuf *m, struct ifnet *ifp, int adjust)
  * of an interface.  They are maintained by the different address families,
  * are allocated and attached when an address is set, and are linked
  * together so all addresses for an interface can be located.
+ *
+ * NOTE: a 'struct ifaddr' is always at the beginning of a larger
+ * chunk of malloc'ed memory, where we store the three addresses
+ * (ifa_addr, ifa_dstaddr and ifa_netmask) referenced here.
  */
 struct ifaddr {
 	struct	sockaddr *ifa_addr;	/* address of interface */
@@ -352,9 +363,6 @@ struct ifaddr {
 	u_short	ifa_flags;		/* mostly rt_flags for cloning */
 	u_int	ifa_refcnt;		/* references to this structure */
 	int	ifa_metric;		/* cost of going out this interface */
-#ifdef notdef
-	struct	rtentry *ifa_rt;	/* XXXX for ROUTETOIF ????? */
-#endif
 	int (*ifa_claim_addr)		/* check if an addr goes to this if */
 		(struct ifaddr *, struct sockaddr *);
 	struct mtx ifa_mtx;
