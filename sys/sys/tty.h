@@ -119,7 +119,7 @@ struct tty {
 
 #define	t_cc		t_termios.c_cc
 #define	t_cflag		t_termios.c_cflag
-#define t_dev		ttyu.t_kdev
+#define	t_dev		ttyu.t_kdev
 #define	t_iflag		t_termios.c_iflag
 #define	t_ispeed	t_termios.c_ispeed
 #define	t_lflag		t_termios.c_lflag
@@ -132,10 +132,10 @@ struct tty {
 #define	TTOPRI		(PSOCK + 2)	/* Sleep priority for tty writes. */
 
 /*
- * Userland version of struct tty, for sysctl
+ * Userland version of struct tty, for sysctl.
  */
 struct xtty {
-	size_t	xt_size;		/* Structure size */
+	size_t	xt_size;		/* Structure size. */
 	long	xt_rawcc;		/* Raw input queue statistics. */
 	long	xt_cancc;		/* Canonical queue statistics. */
 	long	xt_outcc;		/* Output queue statistics. */
@@ -143,9 +143,9 @@ struct xtty {
 	udev_t	xt_dev;			/* Userland (sysctl) instance. */
 	int	xt_state;		/* Device and driver (TS*) state. */
 	int	xt_flags;		/* Tty flags. */
-	int     xt_timeout;		/* Timeout for ttywait() */
-	pid_t	xt_pgid;		/* Process group ID */
-	pid_t	xt_sid;			/* Session ID */
+	int     xt_timeout;		/* Timeout for ttywait(). */
+	pid_t	xt_pgid;		/* Process group ID. */
+	pid_t	xt_sid;			/* Session ID. */
 	struct	termios xt_termios;	/* Termios state. */
 	struct	winsize xt_winsize;	/* Window size. */
 	int	xt_column;		/* Tty output column. */
