@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.15 (Berkeley) 5/19/95
- * $Id: proc.h,v 1.40 1997/06/16 00:29:25 dyson Exp $
+ * $Id: proc.h,v 1.41 1997/06/22 16:04:22 peter Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -177,7 +177,7 @@ struct	proc {
 	struct	rusage *p_ru;	/* Exit information. XXX */
 
 	int	p_nthreads;	/* number of threads (only in leader) */
-	int	p_npeers;	/* number of kernel threads (only in leader) */
+	void	*p_aioinfo;	/* ASYNC I/O info */
 	int	p_wakeup;	/* thread id */
 	struct proc *p_peers;	
 	struct proc *p_leader;
