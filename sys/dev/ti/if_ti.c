@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_ti.c,v 1.6 1999/05/24 14:56:55 wpaul Exp $
+ *	$Id: if_ti.c,v 1.114 1999/07/05 19:20:31 wpaul Exp $
  */
 
 /*
@@ -128,7 +128,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id: if_ti.c,v 1.6 1999/05/24 14:56:55 wpaul Exp $";
+	"$Id: if_ti.c,v 1.114 1999/07/05 19:20:31 wpaul Exp $";
 #endif
 
 /*
@@ -198,7 +198,6 @@ static int ti_init_rx_ring_jumbo	__P((struct ti_softc *));
 static void ti_free_rx_ring_jumbo	__P((struct ti_softc *));
 static int ti_init_rx_ring_mini	__P((struct ti_softc *));
 static void ti_free_rx_ring_mini	__P((struct ti_softc *));
-static void ti_refill_rx_rings	__P((struct ti_softc *));
 static void ti_free_tx_ring	__P((struct ti_softc *));
 static int ti_init_tx_ring	__P((struct ti_softc *));
 
@@ -770,8 +769,7 @@ static int ti_newbuf_std(sc, i, m)
 		}
 	}
 
-	m_new->m_len -= ETHER_ALIGN;
-	m_new->m_data += ETHER_ALIGN;
+	m_adj(m_new, ETHER_ALIGN);
 	sc->ti_cdata.ti_rx_std_chain[i] = m_new;
 	r = &sc->ti_rdata->ti_rx_std_ring[i];
 	TI_HOSTADDR(r->ti_addr) = vtophys(mtod(m_new, caddr_t));
@@ -809,8 +807,7 @@ static int ti_newbuf_mini(sc, i, m)
 			return(ENOBUFS);
 		}
 	}
-	m_new->m_len -= ETHER_ALIGN;
-	m_new->m_data += ETHER_ALIGN;
+	m_adj(m_new, ETHER_ALIGN);
 	r = &sc->ti_rdata->ti_rx_mini_ring[i];
 	sc->ti_cdata.ti_rx_mini_chain[i] = m_new;
 	TI_HOSTADDR(r->ti_addr) = vtophys(mtod(m_new, caddr_t));
@@ -901,8 +898,7 @@ static int ti_init_rx_ring_std(sc)
 	};
 
 	TI_UPDATE_STDPROD(sc, i - 1);
-	sc->ti_std_old = sc->ti_std = i - 1;
-	sc->ti_std_cnt = 0;
+	sc->ti_std = i - 1;
 
 	return(0);
 }
@@ -936,8 +932,7 @@ static int ti_init_rx_ring_jumbo(sc)
 	};
 
 	TI_UPDATE_JUMBOPROD(sc, i - 1);
-	sc->ti_jumbo_old = sc->ti_jumbo = i - 1;
-	sc->ti_jumbo_cnt = 0;
+	sc->ti_jumbo = i - 1;
 
 	return(0);
 }
@@ -970,8 +965,7 @@ static int ti_init_rx_ring_mini(sc)
 	};
 
 	TI_UPDATE_MINIPROD(sc, i - 1);
-	sc->ti_mini_old = sc->ti_mini = i - 1;
-	sc->ti_mini_cnt = 0;
+	sc->ti_mini = i - 1;
 
 	return(0);
 }
@@ -988,55 +982,6 @@ static void ti_free_rx_ring_mini(sc)
 		}
 		bzero((char *)&sc->ti_rdata->ti_rx_mini_ring[i],
 		    sizeof(struct ti_rx_desc));
-	}
-
-	return;
-}
-
-/*
- * In order to reduce the amount of work we have to do in the interrupt
- * handler, we delay putting new buffers in the receive rings until a
- * certain amount have been used. This lets us hand over descriptors to
- * the NIC in fairly large chunks instead of one (or a few) at a time,
- * and it lets tx_rxeof() run a bit faster some of the time.
- */
-static void ti_refill_rx_rings(sc)
-	struct ti_softc		*sc;
-{
-	register int		i;
-	struct ti_cmd_desc	cmd;
-
-	if (sc->ti_std_cnt > 15) {
-		for (i = sc->ti_std_old; i != sc->ti_std;
-		    TI_INC(i, TI_STD_RX_RING_CNT)) {
-			if (ti_newbuf_std(sc, i, NULL) == ENOBUFS)
-				break;
-		};
-		TI_UPDATE_STDPROD(sc, i);
-		sc->ti_std_old = i;
-		sc->ti_std_cnt = 0;
-	}
-
-	if (sc->ti_jumbo_cnt > 15) {
-		for (i = sc->ti_jumbo_old; i != sc->ti_jumbo;
-		    TI_INC(i, TI_JUMBO_RX_RING_CNT)) {
-			if (ti_newbuf_jumbo(sc, i, NULL) == ENOBUFS)
-				break;
-		};
-		TI_UPDATE_JUMBOPROD(sc, i);
-		sc->ti_jumbo_old = i;
-		sc->ti_jumbo_cnt = 0;
-	}
-
-	if (sc->ti_mini_cnt > 15) {
-		for (i = sc->ti_mini_old; i != sc->ti_mini;
-		    TI_INC(i, TI_MINI_RX_RING_CNT)) {
-			if (ti_newbuf_mini(sc, i, NULL) == ENOBUFS)
-				break;
-		};
-		TI_UPDATE_MINIPROD(sc, i);
-		sc->ti_mini_old = i;
-		sc->ti_mini_cnt = 0;
 	}
 
 	return;
@@ -1762,6 +1707,7 @@ static void ti_rxeof(sc)
 	struct ti_softc		*sc;
 {
 	struct ifnet		*ifp;
+	struct ti_cmd_desc	cmd;
 
 	ifp = &sc->arpcom.ac_if;
 
@@ -1797,10 +1743,13 @@ static void ti_rxeof(sc)
 			if (cur_rx->ti_flags & TI_BDFLAG_ERROR) {
 				ifp->if_ierrors++;
 				ti_newbuf_jumbo(sc, sc->ti_jumbo, m);
-				TI_INC(sc->ti_jumbo_old, TI_JUMBO_RX_RING_CNT);
 				continue;
 			}
-			sc->ti_jumbo_cnt++;
+			if (ti_newbuf_jumbo(sc, sc->ti_jumbo, NULL) == ENOBUFS) {
+				ifp->if_ierrors++;
+				ti_newbuf_jumbo(sc, sc->ti_jumbo, m);
+				continue;
+			}
 		} else if (cur_rx->ti_flags & TI_BDFLAG_MINI_RING) {
 			TI_INC(sc->ti_mini, TI_MINI_RX_RING_CNT);
 			m = sc->ti_cdata.ti_rx_mini_chain[rxidx];
@@ -1808,10 +1757,13 @@ static void ti_rxeof(sc)
 			if (cur_rx->ti_flags & TI_BDFLAG_ERROR) {
 				ifp->if_ierrors++;
 				ti_newbuf_mini(sc, sc->ti_mini, m);
-				TI_INC(sc->ti_mini_old, TI_MINI_RX_RING_CNT);
 				continue;
 			}
-			sc->ti_mini_cnt++;
+			if (ti_newbuf_mini(sc, sc->ti_mini, NULL) == ENOBUFS) {
+				ifp->if_ierrors++;
+				ti_newbuf_mini(sc, sc->ti_mini, m);
+				continue;
+			}
 		} else {
 			TI_INC(sc->ti_std, TI_STD_RX_RING_CNT);
 			m = sc->ti_cdata.ti_rx_std_chain[rxidx];
@@ -1819,10 +1771,13 @@ static void ti_rxeof(sc)
 			if (cur_rx->ti_flags & TI_BDFLAG_ERROR) {
 				ifp->if_ierrors++;
 				ti_newbuf_std(sc, sc->ti_std, m);
-				TI_INC(sc->ti_std_old, TI_STD_RX_RING_CNT);
 				continue;
 			}
-			sc->ti_std_cnt++;
+			if (ti_newbuf_std(sc, sc->ti_std, NULL) == ENOBUFS) {
+				ifp->if_ierrors++;
+				ti_newbuf_std(sc, sc->ti_std, m);
+				continue;
+			}
 		}
 
 		m->m_pkthdr.len = m->m_len = cur_rx->ti_len;
@@ -1878,7 +1833,9 @@ static void ti_rxeof(sc)
 		CSR_WRITE_4(sc, TI_GCR_RXRETURNCONS_IDX,
 		    sc->ti_rx_saved_considx);
 
-	ti_refill_rx_rings(sc);
+	TI_UPDATE_STDPROD(sc, sc->ti_std);
+	TI_UPDATE_MINIPROD(sc, sc->ti_mini);
+	TI_UPDATE_JUMBOPROD(sc, sc->ti_jumbo);
 
 	return;
 }

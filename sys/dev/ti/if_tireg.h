@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_tireg.h,v 1.3 1999/05/26 23:01:50 gallatin Exp $
+ *	$Id: if_tireg.h,v 1.46 1999/07/05 19:20:31 wpaul Exp $
  */
 
 /*
@@ -1135,12 +1135,6 @@ struct ti_softc {
 	u_int16_t		ti_std;		/* current std ring head */
 	u_int16_t		ti_mini;	/* current mini ring head */
 	u_int16_t		ti_jumbo;	/* current jumo ring head */
-	u_int16_t		ti_std_old;
-	u_int16_t		ti_mini_old;
-	u_int16_t		ti_jumbo_old;
-	u_int16_t		ti_std_cnt;
-	u_int16_t		ti_mini_cnt;
-	u_int16_t		ti_jumbo_cnt;
 	SLIST_HEAD(__ti_mchead, ti_mc_entry)	ti_mc_listhead;
 	SLIST_HEAD(__ti_jfreehead, ti_jpool_entry)	ti_jfree_listhead;
 	SLIST_HEAD(__ti_jinusehead, ti_jpool_entry)	ti_jinuse_listhead;
@@ -1185,6 +1179,7 @@ struct ti_softc {
 
 #ifdef __alpha__
 #undef vtophys
-#define vtophys(va)     alpha_XXX_dmamap((vm_offset_t)va)
+#define vtophys(va)     (pmap_kextract(((vm_offset_t) (va))) \
+                         + 1*1024*1024*1024)
 #endif
 
