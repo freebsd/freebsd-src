@@ -674,7 +674,7 @@ pcn_detach(dev)
 	sc = device_get_softc(dev);
 	ifp = &sc->arpcom.ac_if;
 
-	KASSERT(mtx_initialized(&sc->pcn_mtx), "pcn mutex not initialized");
+	KASSERT(mtx_initialized(&sc->pcn_mtx), ("pcn mutex not initialized"));
 	PCN_LOCK(sc);
 
 	if (device_is_alive(dev)) {

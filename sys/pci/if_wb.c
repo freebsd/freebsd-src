@@ -984,7 +984,7 @@ wb_detach(dev)
 	struct ifnet		*ifp;
 
 	sc = device_get_softc(dev);
-	KASSERT(mtx_initialized(&sc->wb_mtx), "wb mutex not initialized");
+	KASSERT(mtx_initialized(&sc->wb_mtx), ("wb mutex not initialized"));
 	WB_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 

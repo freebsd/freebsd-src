@@ -835,7 +835,7 @@ sf_detach(dev)
 	struct ifnet		*ifp;
 
 	sc = device_get_softc(dev);
-	KASSERT(mtx_initialized(&sc->sf_mtx), "sf mutex not initialized");
+	KASSERT(mtx_initialized(&sc->sf_mtx), ("sf mutex not initialized"));
 	SF_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 
