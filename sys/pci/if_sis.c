@@ -1641,12 +1641,12 @@ sis_intr(void *arg)
 
 	SIS_LOCK(sc);
 #ifdef DEVICE_POLLING
-	if ((ifp->if_flags & IFF_POLLING) ||
-	   ((ifp->if_capenable & IFCAP_POLLING) &&
-	    ether_poll_register(sis_poll, ifp))) { /* ok, disable interrupts */
+	if (ifp->if_flags & IFF_POLLING)
+		goto done;
+	if ((ifp->if_capenable & IFCAP_POLLING) &&
+	    ether_poll_register(sis_poll, ifp)) { /* ok, disable interrupts */
 		CSR_WRITE_4(sc, SIS_IER, 0);
-		SIS_UNLOCK(sc);
-		return;
+		goto done;
 	}
 #endif /* DEVICE_POLLING */
 
@@ -1687,6 +1687,9 @@ sis_intr(void *arg)
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		sis_startl(ifp);
 
+#ifdef DEVICE_POLLING
+done:
+#endif /* DEVICE_POLLING */
 	SIS_UNLOCK(sc);
 }
 
