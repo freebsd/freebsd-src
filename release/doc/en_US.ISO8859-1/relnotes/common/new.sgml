@@ -396,11 +396,21 @@
       statically-linked <quote>crunched</quote> binary that lives in
       <filename>/rescue</filename>.  This functionality is similar to
       the <filename>/stand</filename> directory installed by
-      &man.sysinstall.8;, but it <filename>/rescue</filename> includes
-      more functionality and is updated by as part of
-      buildworld/installworld operations.  More details can be found in
+      &man.sysinstall.8;, but <filename>/rescue</filename> includes
+      more functionality and is updated as part of
+      <literal>buildworld</literal>/<literal>installworld</literal> operations.  More details can be found in
       &man.rescue.8;.
       </para>
+
+    <para>It is now possible to build <filename>/bin</filename> and
+      <filename>/sbin</filename> directories containing
+      dynamically-linked executables.  This feature brings support for
+      loadable PAM and NSS modules to base system utilities located in
+      those directories.  It also reduces the storage requirements for
+      the root filesystem due to the use of shared libraries.  This
+      feature can be enabled in a <literal>buildworld</literal> by
+      defining the Makefile variable
+      <varname>WITH_DYNAMICROOT</varname>.</para>
 
   </sect2>
 
