@@ -567,10 +567,6 @@ PCFCLOCK_VERBOSE	opt_pcfclock.h
 PCFCLOCK_MAX_RETRIES	opt_pcfclock.h
 TDFX_LINUX		opt_tdfx.h
 
-# RAIDframe options
-RAID_AUTOCONFIG		opt_raid.h
-RAID_DEBUG		opt_raid.h
-
 KTR			opt_global.h
 KTR_ALQ			opt_ktr.h
 KTR_MASK		opt_ktr.h
