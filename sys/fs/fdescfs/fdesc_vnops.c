@@ -189,7 +189,7 @@ fdesc_lookup(ap)
 	VOP_UNLOCK(dvp, 0, td);
 	if (cnp->cn_namelen == 1 && *pname == '.') {
 		*vpp = dvp;
-		VREF(dvp);	
+		VREF(dvp);
 		vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY, td);
 		return (0);
 	}

@@ -69,9 +69,9 @@
 static int	 do_setopt_accept_filter(struct socket *so, struct sockopt *sopt);
 #endif
 
-static void 	filt_sordetach(struct knote *kn);
-static int 	filt_soread(struct knote *kn, long hint);
-static void 	filt_sowdetach(struct knote *kn);
+static void	filt_sordetach(struct knote *kn);
+static int	filt_soread(struct knote *kn, long hint);
+static void	filt_sowdetach(struct knote *kn);
 static int	filt_sowrite(struct knote *kn, long hint);
 static int	filt_solisten(struct knote *kn, long hint);
 
@@ -167,14 +167,14 @@ int
 socreate(dom, aso, type, proto, cred, td)
 	int dom;
 	struct socket **aso;
-	register int type;
+	int type;
 	int proto;
 	struct ucred *cred;
 	struct thread *td;
 {
-	register struct protosw *prp;
-	register struct socket *so;
-	register int error;
+	struct protosw *prp;
+	struct socket *so;
+	int error;
 
 	if (proto)
 		prp = pffindproto(dom, proto, type);
@@ -258,7 +258,7 @@ sodealloc(struct socket *so)
 
 int
 solisten(so, backlog, td)
-	register struct socket *so;
+	struct socket *so;
 	int backlog;
 	struct thread *td;
 {
@@ -285,7 +285,7 @@ solisten(so, backlog, td)
 
 void
 sofree(so)
-	register struct socket *so;
+	struct socket *so;
 {
 	struct socket *head = so->so_head;
 
@@ -327,7 +327,7 @@ sofree(so)
  */
 int
 soclose(so)
-	register struct socket *so;
+	struct socket *so;
 {
 	int s = splnet();		/* conservative */
 	int error = 0;
@@ -405,7 +405,7 @@ soabort(so)
 
 int
 soaccept(so, nam)
-	register struct socket *so;
+	struct socket *so;
 	struct sockaddr **nam;
 {
 	int s = splnet();
@@ -421,7 +421,7 @@ soaccept(so, nam)
 
 int
 soconnect(so, nam, td)
-	register struct socket *so;
+	struct socket *so;
 	struct sockaddr *nam;
 	struct thread *td;
 {
@@ -449,7 +449,7 @@ soconnect(so, nam, td)
 
 int
 soconnect2(so1, so2)
-	register struct socket *so1;
+	struct socket *so1;
 	struct socket *so2;
 {
 	int s = splnet();
@@ -462,7 +462,7 @@ soconnect2(so1, so2)
 
 int
 sodisconnect(so)
-	register struct socket *so;
+	struct socket *so;
 {
 	int s = splnet();
 	int error;
@@ -517,7 +517,7 @@ struct so_zerocopy_stats so_zerocp_stats = {0,0,0};
 
 int
 sosend(so, addr, uio, top, control, flags, td)
-	register struct socket *so;
+	struct socket *so;
 	struct sockaddr *addr;
 	struct uio *uio;
 	struct mbuf *top;
@@ -526,8 +526,8 @@ sosend(so, addr, uio, top, control, flags, td)
 	struct thread *td;
 {
 	struct mbuf **mp;
-	register struct mbuf *m;
-	register long space, len, resid;
+	struct mbuf *m;
+	long space, len, resid;
 	int clen = 0, error, s, dontroute, mlen;
 	int atomic = sosendallatonce(so) || top;
 #ifdef ZERO_COPY_SOCKETS
@@ -642,10 +642,10 @@ restart:
 				mlen = MLEN;
 			}
 			if (resid >= MINCLSIZE) {
-#ifdef ZERO_COPY_SOCKETS				
+#ifdef ZERO_COPY_SOCKETS
 				if (so_zero_copy_send &&
-				    resid>=PAGE_SIZE && 
-				    space>=PAGE_SIZE && 
+				    resid>=PAGE_SIZE &&
+				    space>=PAGE_SIZE &&
 				    uio->uio_iov->iov_len>=PAGE_SIZE) {
 					so_zerocp_stats.size_ok++;
 					if (!((vm_offset_t)
@@ -653,7 +653,7 @@ restart:
 						so_zerocp_stats.align_ok++;
 						cow_send = socow_setup(m, uio);
 					}
-				} 
+				}
 				if (!cow_send){
 #endif /* ZERO_COPY_SOCKETS */
 				MCLGET(m, M_TRYWAIT);
@@ -665,7 +665,7 @@ restart:
 #ifdef ZERO_COPY_SOCKETS
 					len = PAGE_SIZE;
 				}
-					
+
 			} else {
 #endif /* ZERO_COPY_SOCKETS */
 nopages:
@@ -763,7 +763,7 @@ out:
  */
 int
 soreceive(so, psa, uio, mp0, controlp, flagsp)
-	register struct socket *so;
+	struct socket *so;
 	struct sockaddr **psa;
 	struct uio *uio;
 	struct mbuf **mp0;
@@ -771,7 +771,7 @@ soreceive(so, psa, uio, mp0, controlp, flagsp)
 	int *flagsp;
 {
 	struct mbuf *m, **mp;
-	register int flags, len, error, s, offset;
+	int flags, len, error, s, offset;
 	struct protosw *pr = so->so_proto;
 	struct mbuf *nextrecord;
 	int moff, type = 0;
@@ -980,7 +980,7 @@ dontblock:
 					disposable = 1;
 				else
 					disposable = 0;
- 
+
 				pg = PHYS_TO_VM_PAGE(vtophys(mtod(m, caddr_t) +
 					moff));
 
@@ -1102,10 +1102,10 @@ release:
 
 int
 soshutdown(so, how)
-	register struct socket *so;
-	register int how;
+	struct socket *so;
+	int how;
 {
-	register struct protosw *pr = so->so_proto;
+	struct protosw *pr = so->so_proto;
 
 	if (!(how == SHUT_RD || how == SHUT_WR || how == SHUT_RDWR))
 		return (EINVAL);
@@ -1119,11 +1119,11 @@ soshutdown(so, how)
 
 void
 sorflush(so)
-	register struct socket *so;
+	struct socket *so;
 {
-	register struct sockbuf *sb = &so->so_rcv;
-	register struct protosw *pr = so->so_proto;
-	register int s;
+	struct sockbuf *sb = &so->so_rcv;
+	struct protosw *pr = so->so_proto;
+	int s;
 	struct sockbuf asb;
 
 	sb->sb_flags |= SB_NOINTR;
@@ -1686,7 +1686,7 @@ soopt_mcopyout(struct sockopt *sopt, struct mbuf *m)
 
 void
 sohasoutofband(so)
-	register struct socket *so;
+	struct socket *so;
 {
 	if (so->so_sigio != NULL)
 		pgsigio(&so->so_sigio, SIGURG, 0);

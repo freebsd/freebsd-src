@@ -92,7 +92,7 @@ smbfs_readvdir(struct vnode *vp, struct uio *uio, struct ucred *cred)
 	np = VTOSMB(vp);
 	SMBVDEBUG("dirname='%s'\n", np->n_name);
 	smb_makescred(&scred, uio->uio_td, cred);
-	offset = uio->uio_offset / DE_SIZE; 	/* offset in the directory */
+	offset = uio->uio_offset / DE_SIZE;	/* offset in the directory */
 	limit = uio->uio_resid / DE_SIZE;
 	if (uio->uio_resid < DE_SIZE || uio->uio_offset < 0)
 		return EINVAL;
@@ -161,7 +161,7 @@ smbfs_readvdir(struct vnode *vp, struct uio *uio, struct ucred *cred)
 			if (!error) {
 				cn.cn_nameptr = de.d_name;
 				cn.cn_namelen = de.d_namlen;
-		    		cache_enter(vp, newvp, &cn);
+				cache_enter(vp, newvp, &cn);
 				vput(newvp);
 			}
 		}
@@ -367,7 +367,7 @@ smbfs_doio(struct buf *bp, struct ucred *cr, struct thread *td)
 		 * the block is reused. This is indicated by setting
 		 * the B_DELWRI and B_NEEDCOMMIT flags.
 		 */
-    		if (error == EINTR
+		if (error == EINTR
 		    || (!error && (bp->b_flags & B_NEEDCOMMIT))) {
 			int s;
 
@@ -382,7 +382,7 @@ smbfs_doio(struct buf *bp, struct ucred *cr, struct thread *td)
 			if ((bp->b_flags & B_ASYNC) == 0)
 			    bp->b_flags |= B_EINTR;
 			splx(s);
-	    	} else {
+		} else {
 			if (error) {
 				bp->b_ioflags |= BIO_ERROR;
 				bp->b_error = error;
@@ -531,7 +531,7 @@ smbfs_getpages(ap)
 			 */
 			;
 		}
-		
+
 		if (i != reqpage) {
 			/*
 			 * Whether or not to leave the page activated is up in

@@ -188,7 +188,7 @@ udf_permtomode(struct udf_node *node)
 
 	return (mode);
 }
- 
+
 static int
 udf_access(struct vop_access_args *a)
 {
@@ -266,7 +266,7 @@ udf_timetotimespec(struct timestamp *time, struct timespec *t)
 	/* Calclulate the month */
 	lpyear = udf_isaleapyear(time->year);
 	for (i = 1; i < time->month; i++)
-		t->tv_sec += mon_lens[lpyear][i] * 3600 * 24; 
+		t->tv_sec += mon_lens[lpyear][i] * 3600 * 24;
 
 	/* Speed up the calculation */
 	if (time->year > 1979)
@@ -458,7 +458,7 @@ udf_transname(char *cs0string, char *destname, int len)
 	}
 
 	/* At this point, the name is in 16-bit Unicode.  Compact it down
- 	 * to 8-bit
+	 * to 8-bit
 	 */
 	for (i = 0; i < unilen ; i++) {
 		if (transname[i] & 0xff00) {
@@ -739,7 +739,7 @@ udf_readdir(struct vop_readdir_args *a)
 			dir.d_namlen = 1;
 			dir.d_reclen = GENERIC_DIRSIZ(&dir);
 			uiodir.dirent = &dir;
-			error = udf_uiodir(&uiodir, dir.d_reclen, uio, 1); 
+			error = udf_uiodir(&uiodir, dir.d_reclen, uio, 1);
 			if (error)
 				break;
 
@@ -1032,7 +1032,7 @@ udf_reclaim(struct vop_reclaim_args *a)
 }
 
 /*
- * Read the block and then set the data pointer to correspond with the 
+ * Read the block and then set the data pointer to correspond with the
  * offset passed in.  Only read in at most 'size' bytes, and then set 'size'
  * to the number of bytes pointed to.  If 'size' is zero, try to read in a
  * whole extent.
@@ -1157,7 +1157,7 @@ udf_bmap_internal(struct udf_node *node, uint32_t offset, daddr_t *sector, uint3
 			ad_num++;
 		} while(offset >= icblen);
 
-		lsector = (offset >> udfmp->bshift) + 
+		lsector = (offset >> udfmp->bshift) +
 		    ((struct long_ad *)(icb))->loc.lb_num;
 
 		*max_size = GETICBLEN(long_ad, icb) - offset;

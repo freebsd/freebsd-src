@@ -406,7 +406,7 @@ msdosfs_setattr(ap)
 	if (vap->va_uid != (uid_t)VNOVAL || vap->va_gid != (gid_t)VNOVAL) {
 		uid_t uid;
 		gid_t gid;
-		
+
 		if (vp->v_mount->mnt_flag & MNT_RDONLY)
 			return (EROFS);
 		uid = vap->va_uid;
@@ -523,7 +523,7 @@ msdosfs_read(ap)
 		return (EINVAL);
 
 	if ((uoff_t)uio->uio_offset > DOS_FILESIZE_MAX)
-                return (0);
+		return (0);
 	/*
 	 * If they didn't ask for any data, then we are done.
 	 */
@@ -559,7 +559,7 @@ msdosfs_read(ap)
 			    de_cn2off(pmp, rablock) < dep->de_FileSize) {
 				rasize = pmp->pm_bpcluster;
 				error = breadn(vp, lbn, blsize,
-				    &rablock, &rasize, 1, NOCRED, &bp); 
+				    &rablock, &rasize, 1, NOCRED, &bp);
 			} else {
 				error = bread(vp, lbn, blsize, NOCRED, &bp);
 			}
@@ -653,7 +653,7 @@ msdosfs_write(ap)
 	}
 
 	if ((uoff_t)uio->uio_offset + uio->uio_resid > DOS_FILESIZE_MAX)
-                return (EFBIG);
+		return (EFBIG);
 
 	/*
 	 * If the offset we are starting the write at is beyond the end of
@@ -703,8 +703,8 @@ msdosfs_write(ap)
 
 		bn = de_cluster(pmp, uio->uio_offset);
 		if ((uio->uio_offset & pmp->pm_crbomask) == 0
-		    && (de_cluster(pmp, uio->uio_offset + uio->uio_resid) 
-		        > de_cluster(pmp, uio->uio_offset)
+		    && (de_cluster(pmp, uio->uio_offset + uio->uio_resid)
+			> de_cluster(pmp, uio->uio_offset)
 			|| uio->uio_offset + uio->uio_resid >= dep->de_FileSize)) {
 			/*
 			 * If either the whole cluster gets written,
@@ -1229,17 +1229,17 @@ static struct {
 } dosdirtemplate = {
 	{	".       ", "   ",			/* the . entry */
 		ATTR_DIRECTORY,				/* file attribute */
-		0,	 				/* reserved */
+		0,					/* reserved */
 		0, { 0, 0 }, { 0, 0 },			/* create time & date */
 		{ 0, 0 },				/* access date */
 		{ 0, 0 },				/* high bits of start cluster */
 		{ 210, 4 }, { 210, 4 },			/* modify time & date */
 		{ 0, 0 },				/* startcluster */
-		{ 0, 0, 0, 0 } 				/* filesize */
+		{ 0, 0, 0, 0 }				/* filesize */
 	},
 	{	"..      ", "   ",			/* the .. entry */
 		ATTR_DIRECTORY,				/* file attribute */
-		0,	 				/* reserved */
+		0,					/* reserved */
 		0, { 0, 0 }, { 0, 0 },			/* create time & date */
 		{ 0, 0 },				/* access date */
 		{ 0, 0 },				/* high bits of start cluster */
@@ -1370,13 +1370,13 @@ msdosfs_rmdir(ap)
 		struct componentname *a_cnp;
 	} */ *ap;
 {
-	register struct vnode *vp = ap->a_vp;
-	register struct vnode *dvp = ap->a_dvp;
-	register struct componentname *cnp = ap->a_cnp;
-	register struct denode *ip, *dp;
+	struct vnode *vp = ap->a_vp;
+	struct vnode *dvp = ap->a_dvp;
+	struct componentname *cnp = ap->a_cnp;
+	struct denode *ip, *dp;
 	struct thread *td = cnp->cn_thread;
 	int error;
-	
+
 	ip = VTODE(vp);
 	dp = VTODE(dvp);
 

@@ -37,7 +37,7 @@
 /*
  * TODO:
  *	remove empty directories
- *	mknod: hunt down DE_DELETED, compare name, reinstantiate. 
+ *	mknod: hunt down DE_DELETED, compare name, reinstantiate.
  *	mkdir: want it ?
  */
 
@@ -84,7 +84,7 @@ static vop_t **devfs_specop_p;
 
 /*
  * Construct the fully qualified path name relative to the mountpoint
- */ 
+ */
 static char *
 devfs_fqpn(char *buf, struct vnode *dvp, struct componentname *cnp)
 {
@@ -223,7 +223,7 @@ devfs_getattr(ap)
 	vap->va_uid = de->de_uid;
 	vap->va_gid = de->de_gid;
 	vap->va_mode = de->de_mode;
-	if (vp->v_type == VLNK) 
+	if (vp->v_type == VLNK)
 		vap->va_size = de->de_dirent->d_namlen;
 	else if (vp->v_type == VDIR)
 		vap->va_size = vap->va_bytes = DEV_BSIZE;
@@ -312,7 +312,7 @@ devfs_lookupx(ap)
 	dmp = VFSTODEVFS(dvp->v_mount);
 	cloned = 0;
 	dd = dvp->v_data;
-	
+
 	*vpp = NULLVP;
 	cnp->cn_flags &= ~PDIRUNLOCK;
 
@@ -453,11 +453,11 @@ static int
 devfs_mknod(struct vop_mknod_args *ap)
 /*
 struct vop_mknod_args {
-        struct vnodeop_desc *a_desc;
-        struct vnode *a_dvp;
-        struct vnode **a_vpp;
-        struct componentname *a_cnp;
-        struct vattr *a_vap;
+	struct vnodeop_desc *a_desc;
+	struct vnode *a_dvp;
+	struct vnode **a_vpp;
+	struct componentname *a_cnp;
+	struct vattr *a_vap;
 };
 */
 {
@@ -480,7 +480,7 @@ struct vop_mknod_args {
 	nameiop = cnp->cn_nameiop;
 	cloned = 0;
 	dd = dvp->v_data;
-	
+
 	error = ENOENT;
 	TAILQ_FOREACH(de, &dd->de_dlist, de_list) {
 		if (cnp->cn_namelen != de->de_dirent->d_namlen)
@@ -587,7 +587,7 @@ devfs_readdir(ap)
 	off = 0;
 	oldoff = uio->uio_offset;
 	TAILQ_FOREACH(dd, &de->de_dlist, de_list) {
-		if (dd->de_flags & DE_WHITEOUT) 
+		if (dd->de_flags & DE_WHITEOUT)
 			continue;
 		if (dd->de_dirent->d_type == DT_DIR)
 			de = dd->de_dir;
@@ -607,13 +607,13 @@ devfs_readdir(ap)
 	}
 	if( !error && ap->a_ncookies != NULL && ap->a_cookies != NULL ) {
 		MALLOC(cookiebuf, u_long *, ncookies * sizeof(u_long),
-                       M_TEMP, M_WAITOK);
+		       M_TEMP, M_WAITOK);
 		cookiep = cookiebuf;
 		dps = (struct dirent *)((char *)uio->uio_iov->iov_base -
 		    (uio->uio_offset - oldoff));
 		dpe = (struct dirent *) uio->uio_iov->iov_base;
-		for( dp = dps; 
-			dp < dpe; 
+		for( dp = dps;
+			dp < dpe;
 			dp = (struct dirent *)((caddr_t) dp + dp->d_reclen)) {
 				oldoff += dp->d_reclen;
 				*cookiep++ = (u_long) oldoff;

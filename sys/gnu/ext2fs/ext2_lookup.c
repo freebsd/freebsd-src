@@ -73,7 +73,7 @@ static int dirchk = 0;
 SYSCTL_NODE(_vfs, OID_AUTO, e2fs, CTLFLAG_RD, 0, "EXT2FS filesystem");
 SYSCTL_INT(_vfs_e2fs, OID_AUTO, dircheck, CTLFLAG_RW, &dirchk, 0, "");
 
-/* 
+/*
    DIRBLKSIZE in ffs is DEV_BSIZE (in most cases 512)
    while it is the native blocksize in ext2fs - thus, a #define
    is no longer appropriate
@@ -131,21 +131,21 @@ static int	ext2_dirbadentry(struct vnode *dp, struct ext2_dir_entry_2 *de,
  * this is exactly what we do here - the problem is that the conversion
  * will blow up some entries by four bytes, so it can't be done in place.
  * This is too bad. Right now the conversion is done entry by entry, the
- * converted entry is sent via uiomove. 
+ * converted entry is sent via uiomove.
  *
  * XXX allocate a buffer, convert as many entries as possible, then send
  * the whole buffer to uiomove
  */
 int
 ext2_readdir(ap)
-        struct vop_readdir_args /* {
-                struct vnode *a_vp;
-                struct uio *a_uio;
-                struct ucred *a_cred;
-        } */ *ap;
+	struct vop_readdir_args /* {
+		struct vnode *a_vp;
+		struct uio *a_uio;
+		struct ucred *a_cred;
+	} */ *ap;
 {
-        struct uio *uio = ap->a_uio;
-        int count, error;
+	struct uio *uio = ap->a_uio;
+	int count, error;
 
 	struct ext2_dir_entry_2 *edp, *dp;
 	int ncookies;
@@ -171,7 +171,7 @@ ext2_readdir(ap)
 		count += DIRBLKSIZ;
 
 #ifdef EXT2FS_DEBUG
-	printf("ext2_readdir: uio_offset = %lld, uio_resid = %d, count = %d\n", 
+	printf("ext2_readdir: uio_offset = %lld, uio_resid = %d, count = %d\n",
 	    uio->uio_offset, uio->uio_resid, count);
 #endif
 
@@ -189,7 +189,7 @@ ext2_readdir(ap)
 		edp = (struct ext2_dir_entry_2 *)&dirbuf[readcnt];
 		ncookies = 0;
 		bzero(&dstdp, offsetof(struct dirent, d_name));
-		for (dp = (struct ext2_dir_entry_2 *)dirbuf; 
+		for (dp = (struct ext2_dir_entry_2 *)dirbuf;
 		    !error && uio->uio_resid > 0 && dp < edp; ) {
 			/*-
 			 * "New" ext2fs directory entries differ in 3 ways
@@ -220,8 +220,8 @@ ext2_readdir(ap)
 				if(dstdp.d_reclen <= uio->uio_resid) {
 					/* advance dp */
 					dp = (struct ext2_dir_entry_2 *)
-					    ((char *)dp + dp->rec_len); 
-					error = 
+					    ((char *)dp + dp->rec_len);
+					error =
 					  uiomove(&dstdp, dstdp.d_reclen, uio);
 					if (!error)
 						ncookies++;
@@ -258,7 +258,7 @@ ext2_readdir(ap)
 	FREE(dirbuf, M_TEMP);
 	if (ap->a_eofflag)
 		*ap->a_eofflag = VTOI(ap->a_vp)->i_size <= uio->uio_offset;
-        return (error);
+	return (error);
 }
 
 /*
@@ -351,7 +351,7 @@ ext2_lookup(ap)
 	if ((nameiop == CREATE || nameiop == RENAME) &&
 	    (flags & ISLASTCN)) {
 		slotstatus = NONE;
-		slotneeded = EXT2_DIR_REC_LEN(cnp->cn_namelen); 
+		slotneeded = EXT2_DIR_REC_LEN(cnp->cn_namelen);
 		/* was
 		slotneeded = (sizeof(struct direct) - MAXNAMLEN +
 			cnp->cn_namelen + 3) &~ 3; */
@@ -740,28 +740,28 @@ ext2_dirbadentry(dp, de, entryoffsetinblock)
 {
 	int	DIRBLKSIZ = VTOI(dp)->i_e2fs->s_blocksize;
 
-        char * error_msg = NULL;
+	char * error_msg = NULL;
 
-        if (de->rec_len < EXT2_DIR_REC_LEN(1))
-                error_msg = "rec_len is smaller than minimal";
-        else if (de->rec_len % 4 != 0)
-                error_msg = "rec_len % 4 != 0";
-        else if (de->rec_len < EXT2_DIR_REC_LEN(de->name_len))
-                error_msg = "reclen is too small for name_len";
-        else if (entryoffsetinblock + de->rec_len > DIRBLKSIZ)
-                error_msg = "directory entry across blocks";
-        /* else LATER
+	if (de->rec_len < EXT2_DIR_REC_LEN(1))
+		error_msg = "rec_len is smaller than minimal";
+	else if (de->rec_len % 4 != 0)
+		error_msg = "rec_len % 4 != 0";
+	else if (de->rec_len < EXT2_DIR_REC_LEN(de->name_len))
+		error_msg = "reclen is too small for name_len";
+	else if (entryoffsetinblock + de->rec_len > DIRBLKSIZ)
+		error_msg = "directory entry across blocks";
+	/* else LATER
 	     if (de->inode > dir->i_sb->u.ext2_sb.s_es->s_inodes_count)
-                error_msg = "inode out of bounds";
+		error_msg = "inode out of bounds";
 	*/
 
-        if (error_msg != NULL) {
-                printf("bad directory entry: %s\n", error_msg);
-                printf("offset=%d, inode=%lu, rec_len=%u, name_len=%u\n",
+	if (error_msg != NULL) {
+		printf("bad directory entry: %s\n", error_msg);
+		printf("offset=%d, inode=%lu, rec_len=%u, name_len=%u\n",
 			entryoffsetinblock, (unsigned long)de->inode,
 			de->rec_len, de->name_len);
-        }
-        return error_msg == NULL ? 0 : 1;
+	}
+	return error_msg == NULL ? 0 : 1;
 }
 
 /*
@@ -929,7 +929,7 @@ ext2_dirremove(dvp, cnp)
 	struct ext2_dir_entry_2 *ep;
 	struct buf *bp;
 	int error;
-	 
+
 	dp = VTOI(dvp);
 	if (dp->i_count == 0) {
 		/*
@@ -1004,7 +1004,7 @@ ext2_dirempty(ip, parentino, cred)
 	struct dirtemplate dbuf;
 	struct ext2_dir_entry_2 *dp = (struct ext2_dir_entry_2 *)&dbuf;
 	int error, count, namlen;
-		 
+
 #define	MINDIRSIZ (sizeof (struct dirtemplate) / 2)
 
 	for (off = 0; off < ip->i_size; off += dp->rec_len) {
@@ -1106,4 +1106,3 @@ out:
 		vput(vp);
 	return (error);
 }
-
