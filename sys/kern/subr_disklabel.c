@@ -72,7 +72,7 @@ readdisklabel(dev, lp)
 	bp->b_bcount = lp->d_secsize;
 	bp->b_flags &= ~B_INVAL;
 	bp->b_iocmd = BIO_READ;
-	DEV_STRATEGY(bp, 1);
+	DEV_STRATEGY(bp);
 	if (bufwait(bp))
 		msg = "I/O error";
 	else if (bp->b_resid != 0)
@@ -177,7 +177,7 @@ writedisklabel(dev, lp)
 	 */
 	bp->b_flags &= ~B_INVAL;
 	bp->b_iocmd = BIO_READ;
-	DEV_STRATEGY(bp, 1);
+	DEV_STRATEGY(bp);
 	error = bufwait(bp);
 	if (error)
 		goto done;
@@ -197,7 +197,7 @@ writedisklabel(dev, lp)
 #ifdef __alpha__
 			alpha_fix_srm_checksum(bp);
 #endif
-			DEV_STRATEGY(bp, 1);
+			DEV_STRATEGY(bp);
 			error = bufwait(bp);
 			goto done;
 		}
@@ -210,7 +210,7 @@ done:
 	*dlp = *lp;
 	bp->b_flags &= ~B_INVAL;
 	bp->b_iocmd = BIO_WRITE;
-	DEV_STRATEGY(bp, 1);
+	DEV_STRATEGY(bp);
 	error = bufwait(bp);
 #endif
 	bp->b_flags |= B_INVAL | B_AGE;
