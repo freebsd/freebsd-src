@@ -2582,9 +2582,8 @@ aac_linux_ioctl(struct thread *td, struct linux_ioctl_args *args)
 
 	debug_called(2);
 
-	fp = ffind_hold(td, args->fd);
-	if (fp == NULL)
-		return (EBADF);
+	if ((error = fget(td, args->fd, &fp)) != 0)
+		return (error);
 	cmd = args->cmd;
 
 	/*

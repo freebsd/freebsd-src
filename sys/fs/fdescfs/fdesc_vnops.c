@@ -213,11 +213,8 @@ fdesc_lookup(ap)
 		fd = 10 * fd + *pname++ - '0';
 	}
 
-	fp = ffind_hold(td, fd);
-	if (fp == NULL) {
-		error = EBADF;
+	if ((error = fget(td, fd, &fp)) != 0)
 		goto bad;
-	}
 
 	error = fdesc_allocvp(Fdesc, FD_DESC+fd, dvp->v_mount, &fvp, td);
 	fdrop(fp, td);
@@ -301,9 +298,8 @@ fdesc_getattr(ap)
 	case Fdesc:
 		fd = VTOFDESC(vp)->fd_fd;
 
-		fp = ffind_hold(ap->a_td, fd);
-		if (fp == NULL)
-			return (EBADF);
+		if ((error = fget(ap->a_td, fd, &fp)) != 0)
+			return (error);
 
 		bzero(&stb, sizeof(stb));
 		error = fo_stat(fp, &stb, ap->a_td);

@@ -1717,8 +1717,7 @@ svr4_sys_putmsg(td, uap)
 	struct file     *fp;
 	int error;
 
-	fp = ffind_hold(td, uap->fd);
-	if (fp == NULL) {
+	if ((error = fget(td, uap->fd, &fp)) != 0) {
 #ifdef DEBUG_SVR4
 	        uprintf("putmsg: bad fp\n");
 #endif
@@ -1905,8 +1904,7 @@ svr4_sys_getmsg(td, uap)
 	struct file     *fp;
 	int error;
 
-	fp = ffind_hold(td, uap->fd);
-	if (fp == NULL) {
+	if ((error = fget(td, uap->fd, &fp)) != 0) {
 #ifdef DEBUG_SVR4
 	        uprintf("getmsg: bad fp\n");
 #endif

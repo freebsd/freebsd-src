@@ -246,23 +246,14 @@ fd_revoke(td, fd)
 	struct thread *td;
 	int fd;
 {
-	struct file *fp;
 	struct vnode *vp;
 	struct mount *mp;
 	struct vattr vattr;
 	int error, *retval;
 
 	retval = td->td_retval;
-	fp = ffind_hold(td, fd);
-	if (fp == NULL)
-		return EBADF;
-
-	if (fp->f_type != DTYPE_VNODE) {
-		fdrop(fp, td);
-		return EINVAL;
-	}
-
-	vp = (struct vnode *) fp->f_data;
+	if ((error = fgetvp(td, fd, &vp)) != 0)
+		return (error);
 
 	if (vp->v_type != VCHR && vp->v_type != VBLK) {
 		error = EINVAL;
@@ -283,7 +274,6 @@ fd_revoke(td, fd)
 	vn_finished_write(mp);
 out:
 	vrele(vp);
-	fdrop(fp, td);
 	return error;
 }
 
@@ -294,7 +284,6 @@ fd_truncate(td, fd, flp)
 	int fd;
 	struct flock *flp;
 {
-	struct file *fp;
 	off_t start, length;
 	struct vnode *vp;
 	struct vattr vattr;
@@ -306,18 +295,16 @@ fd_truncate(td, fd, flp)
 	/*
 	 * We only support truncating the file.
 	 */
-	fp = ffind_hold(td, fd);
-	if (fp == NULL)
-		return EBADF;
+	if ((error = fgetvp(td, uap->fd, &vp)) != 0)
+		return (error);
 
-	vp = (struct vnode *)fp->f_data;
-	if (fp->f_type != DTYPE_VNODE || vp->v_type == VFIFO) {
-		fdrop(fp, td);
+	if (vp->v_type == VFIFO) {
+		vrele(vp);
 		return ESPIPE;
 	}
 
 	if ((error = VOP_GETATTR(vp, &vattr, td->td_proc->p_ucred, td)) != 0)
-		fdrop(fp, td);
+		vrele(vp);
 		return error;
 	}
 
@@ -337,7 +324,7 @@ fd_truncate(td, fd, flp)
 		break;
 
 	default:
-		fdrop(fp, td);
+		vrele(vp);
 		return EINVAL;
 	}
 
@@ -351,7 +338,7 @@ fd_truncate(td, fd, flp)
 
 	error = ftruncate(td, &ft);
 
-	fdrop(fp, td);
+	vrele(vp);
 	return (error);
 }
 
@@ -386,13 +373,13 @@ svr4_sys_open(td, uap)
 #if defined(NOTYET)
 		struct file	*fp;
 
-		fp = ffind_hold(td, retval);
+		error = fget(td, retval, &fp);
 		PROC_UNLOCK(p);
 		/*
 		 * we may have lost a race the above open() and
 		 * another thread issuing a close()
 		 */
-		if (fp == NULL) 
+		if (error) 
 			return (EBADF);	/* XXX: correct errno? */
 		/* ignore any error, just give it a try */
 		if (fp->f_type == DTYPE_VNODE)

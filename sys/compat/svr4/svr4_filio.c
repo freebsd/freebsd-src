@@ -107,8 +107,7 @@ svr4_sys_read(td, uap)
      SCARG(&ra, buf) = SCARG(uap, buf);
      SCARG(&ra, nbyte) = SCARG(uap, nbyte);
 
-     fp = ffind_hold(td, uap->fd);
-     if (fp == NULL) {
+     if (fget(td, uap->fd, &fp) != 0) {
        DPRINTF(("Something fishy with the user-supplied file descriptor...\n"));
        return EBADF;
      }
