@@ -15,6 +15,14 @@ start_cmd="ugidfw_start"
 start_precmd="ugidfw_precmd"
 stop_cmd="ugidfw_stop"
 
+ugidfw_load()
+{
+	if [ -r "${bsdextended_script}" ]; then
+		. "${bsdextended_script}"
+		echo -n " ${_bsdextended_profile}"
+	fi
+}
+
 ugidfw_precmd()
 {
 	if ! sysctl security.mac.bsdextended
@@ -31,13 +39,19 @@ ugidfw_precmd()
 
 ugidfw_start()
 {
-	# set the default policy script if none was specified
-	[ -z "${bsdextended_script}" ] && bsdextended_script=/etc/rc.bsdextended
+	# check for existing profiles and set the default policy script 
+	# if none was specified
+	[ -z "${bsdextended_profiles}" ] && {
+	  bsdextended_profiles=default
+	  [ -z "${bsdextended_script}" ] && bsdextended_script=/etc/rc.bsdextended
+	  bsdextended_default_script=/etc/rc.bsdextended
+	}
 
-	if [ -r "${bsdextended_script}" ]; then
-		. "${bsdextended_script}"
-		echo -n 'MAC bsdextended rules loaded sucessfully.'
-	fi
+	echo -n "Loading MAC bsdextended rules:" 
+	for _bsdextended_profile in ${bsdextended_profiles}; do
+	  eval bsdextended_script=\"\$bsdextended_${_bsdextended_profile}_script\"
+	  ugidfw_load
+	done
 	echo '.'
 }
 
