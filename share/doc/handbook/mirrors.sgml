@@ -1,4 +1,4 @@
-<!-- $Id: mirrors.sgml,v 1.53 1997/03/11 15:19:32 ache Exp $ -->
+<!-- $Id: mirrors.sgml,v 1.54 1997/03/19 00:06:57 jdp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -147,7 +147,7 @@ for this domain.
 <item>
 <url url="ftp://sunsite.mff.cuni.cz/OS/FreeBSD"
 	name="ftp://sunsite.mff.cuni.cz/OS/FreeBSD"><newline>
-	Contact: <url url="jj@sunsite.mff.cuni.cz"
+	Contact: <url url="mailto:jj@sunsite.mff.cuni.cz"
 	name="jj@sunsite.mff.cuni.cz">.
 
 </itemize>
