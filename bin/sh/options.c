@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: options.c,v 1.8 1996/10/29 03:12:48 steve Exp $
+ *	$Id: options.c,v 1.9 1996/12/14 06:19:24 steve Exp $
  */
 
 #ifndef lint
@@ -110,9 +110,11 @@ procargs(argc, argv)
 		setinputfile(commandname, 0);
 	}
 	/* POSIX 1003.2: first arg after -c cmd is $0, remainder $1... */
-	if (*argptr && minusc)
+	if (argptr && minusc)
 		arg0 = *argptr++;
+
 	shellparam.p = argptr;
+	shellparam.reset = 1;
 	/* assert(shellparam.malloc == 0 && shellparam.nparam == 0); */
 	while (*argptr) {
 		shellparam.nparam++;
@@ -284,6 +286,7 @@ setparam(argv)
 	shellparam.nparam = nparam;
 	shellparam.p = newparam;
 	shellparam.optnext = NULL;
+	shellparam.reset = 1;
 }
 
 
@@ -423,8 +426,9 @@ getopts(optstr, optvar, optfirst, optnext, optptr)
 		p = **optnext;
 		if (p == NULL || *p != '-' || *++p == '\0') {
 atend:
-			*optnext = NULL;
 			ind = *optnext - optfirst + 1;
+			*optnext = NULL;
+			p = NULL;
 			done = 1;
 			goto out;
 		}
