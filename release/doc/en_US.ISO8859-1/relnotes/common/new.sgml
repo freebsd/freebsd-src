@@ -72,6 +72,63 @@
   <sect2 id="kernel">
     <title>Kernel Changes</title>
 
+    <para arch="i386">The &man.amdpm.4; driver has been added to
+    provide access to the system monitoring functions of the AMD 756
+    chipset. &merged;</para>
+
+    <para>The &man.agp.4; driver for AGP devices has been added. &merged;</para>
+
+    <para>A new &man.ddb.4; command <command>show pcpu</command> lists
+    some of the per-CPU data.</para>
+
+    <para>Two new &man.ddb.4; commands, <command>hwatch</command> and
+    <command>dhwatch</command>, have been introduced.  Analogous to
+    <command>watch</command> and <command>dwatch</command>, they install
+    hardware watchpoints (as opposed to software watchpoints) if supported
+    by the architecture. &merged;</para>
+
+    <para>&man.devfs.5;, which allows entries in the
+    <filename>/dev</filename> directory to be built automatically and
+    supports more flexible attachment of devices, has been largely
+    reworked.  &man.devfs.5; is now enabled by default and can be
+    disabled by the <literal>NODEVFS</literal> kernel option.</para>
+
+    <para>The dgm driver has been removed in favor of the digi driver.</para>
+
+    <para>A new digi driver has been added to support PCI Xr-based and ISA
+    Xem Digiboard cards.  A new &man.digictl.8; program is (mainly) used to
+    re-initialize cards that have external port modules attached such as
+    the PC/Xem.</para>
+
+    <para>An &man.eaccess.2; system call has been added, similar to
+    &man.access.2; except that the former uses effective credentials
+    rather than real credentials.</para>
+
+    <para arch="i386">The &man.ichsmb.4; driver for the Intel 82801AA
+    (ICH) SMBus controller and compatibles has been
+    added. &merged;</para>
+
+    <para>Each &man.jail.2; environment can now run under its own
+    securelevel.</para>
+
+    <para>The tunable sysctl variables for &man.jail.2; have moved
+    from <varname>jail.*</varname> to the
+    <varname>security.*</varname> hierarchy.  Other security-related
+    sysctl variables have moved from <varname>kern.security.*</varname> to
+    <varname>security.*</varname>.</para>
+
+    <para>The <varname>kern.maxvnodes</varname> limit now properly
+    limits the number of vnodes in use.  Previously only vnodes with
+    no cached pages could be freed; this could allow the number of
+    vnodes to grow without limit on large-memory machines accessing
+    many small files.  A <literal>vnlru</literal> kernel thread helps
+    to flush and reuse vnodes. &merged;</para>
+
+    <para>The kernel message buffer is now accessible by the
+    (machine-independent) <varname>kern.msgbuf</varname> sysctl
+    variable; &man.dmesg.8; no longer needs to be SGID
+    <groupname>kmem</groupname>.</para>
+
     <para>The &man.kqueue.2; event notification facility was added to
     the &os; kernel.  This is a new interface which is able to
     replace &man.poll.2;/&man.select.2;, offering improved performance,
@@ -79,22 +136,54 @@
     Support for monitoring changes in sockets, pipes, fifos, and files
     are present, as well as for signals and processes. &merged;</para>
 
-    <para>Support for USB devices was added to the
-    <filename>GENERIC</filename> kernel and to the installation
-    programs to support USB devices out of the box.  Note that SRM
-    does not support USB devices at the moment, so you must still use
-    an AT keyboard if you are not using a serial console. &merged;</para>
+    <para arch="i386">A new <varname>KVA_SPACE</varname> kernel option
+    can be used to reconfigure the size of the kernel virtual address
+    space. &merged;</para>
 
-    <para>POSIX.1b Shared Memory Objects are now supported.  The
-    implementation uses regular files, but automatically enables the
-    MAP_NOSYNC flag when they are &man.mmap.2;-ed. &merged;</para>
+    <para>The &man.labpc.4; driver has been removed due to
+    <quote>bitrot</quote>.</para>
 
-    <para>The &man.agp.4; driver for AGP devices has been added. &merged;</para>
+    <para>The loader and kernel linker now look for files named
+    <filename>linker.hints</filename> in each directory with KLDs for a
+    module name and version to KLD filename mapping.  The new
+    &man.kldxref.8; utility is used to generate these files.</para>
 
-    <para>Replaced the <literal>PQ_*CACHE</literal> options with a
-    single <literal>PQ_CACHESIZE</literal> option to be set to
-    the cache size in kilobytes.  The old options are still supported
-    for backwards compatibility. &merged;</para>
+    <para>Linux emulation now supports the kernel functionality
+    required by the
+    <port>emulators/linux_base-7</port> (RedHat 7.X emulation)
+    port. &merged;</para>
+
+    <para>&man.lomac.4;, a Low-Watermark Mandatory Access Control
+    security facility, has been added as a kernel module.  It provides
+    a drop-in security mechanism in addition to the traditional
+    UID-based security facilities, requiring no additional
+    configuration from the administrator.  Work on this feature was
+    sponsored by DARPA and NAI Labs.</para>
+
+    <para>The <varname>maxusers</varname> kernel configuration
+    parameter is now a boot-time tunable variable.  The kernel
+    parameters derived from <varname>maxusers</varname> are now also
+    tunables and can be overridden at boot-time.  The
+    <varname>hz</varname> parameter is also now a tunable. &merged;</para>
+
+    <para>Specifying a value of <literal>0</literal> for the
+    <varname>maxusers</varname> kernel configuration parameter will
+    now cause an appropriate value to be calculated at boot-time
+    (between 32 and 512, depending on the amount of memory present).
+    This value is now the default for all
+    <filename>GENERIC</filename> kernels. &merged;</para>
+
+    <para arch="alpha">A <varname>MAXMEM</varname> kernel option,
+    along with the <varname>hw.physmem</varname> environment variable, can be
+    used to artificially reduce the memory size of a machine for
+    testing (or other purposes). &merged;</para>
+
+    <para>The kernel configuration parameters
+    <varname>MAXTSIZ</varname>, <varname>DFLDSIZ</varname>,
+    <varname>MAXDSIZ</varname>, <varname>DFLSSIZ</varname>,
+    <varname>MAXSSIZ</varname>, and <varname>SGROWSIZ</varname> are
+    all loader tunables (<varname>kern.maxtsiz</varname>,
+    <varname>kern.maxdfldsiz</varname>, etc.). &merged;</para>
 
     <para arch="i386">The <literal>NCPU</literal>, <literal>NAPIC</literal>,
     <literal>NBUS</literal>, and <literal>NINTR</literal> kernel
@@ -103,59 +192,33 @@
     and the other, aforementioned options are now
     dynamic. &merged;</para>
 
-    <para>&man.devfs.5;, which allows entries in the
-    <filename>/dev</filename> directory to be built automatically and
-    supports more flexible attachment of devices, has been largely
-    reworked.  &man.devfs.5; is now enabled by default and can be
-    disabled by the <literal>NODEVFS</literal> kernel option.</para>
+    <para>A &man.nmdm.4; null-modem terminal driver has been added.
+    &merged;</para>
 
-    <para>Write combining for crashdumps has been implemented.  This
-    feature is useful when write caching is disabled on both SCSI and
-    IDE disks, where large memory dumps could take up to an hour to
-    complete. &merged;</para>
+    <para>The <literal>O_DIRECT</literal> flag has been added to
+    &man.open.2; and &man.fcntl.2;.  Specifying this flag for open
+    files will attempt to minimize the cache effects of reading and
+    writing. &merged;</para>
 
-    <para>Extremely large swap areas (&gt;67 GB) no longer panic the
-    system.</para>
-
-    <para arch="i386">The &man.ichsmb.4; driver for the Intel 82801AA
-    (ICH) SMBus controller and compatibles has been
-    added. &merged;</para>
-
-    <para arch="i386">The &man.uscanner.4; driver for basic USB scanner support
-    using SANE has been added. See <ulink
-    url="http://www.mostang.com/sane/">the SANE home page</ulink> for
-    supported scanners. The HP ScanJet 4100C, 5200C and 6300C are
-    known to be working.</para>
-
-    <para arch="i386">The umodem driver for USB modems has been added.
-    Support is provided for the 3Com 5605 and Metricom Ricochet GS
-    wireless USB modems.</para>
-
-    <para arch="alpha">Support for threads under Linux emulation has been
-    added.</para>
-
-    <para>A number of cleanups and enhancements have been applied to
-    the PCI subsystem.</para>
-
-    <para arch="i386">The &man.spic.4; driver, which provides access to the jog
-    dial device on some Sony laptops, has been added.</para>
+    <para>An &man.orm.4; device has been added to claim the option
+    ROMs in the ISA memory I/O space, to prevent other drivers from
+    mistakenly assigning addresses that conflict with these ROMs. &merged;</para>
 
     <para arch="i386">PECOFF (Win32 Execution file format) support has been
     added.</para>
 
-    <para>A VESA S3 linear framebuffer driver has been added.</para>
+    <para arch="i386">The pmc driver, which supports the power
+    management controller of the NEC PC-98NOTE, has been
+    added. &merged;</para>
 
-    <para>The <maketarget>buildkernel</maketarget> target now gets the
-    name of the configuration(s) to build from the
-    <varname>KERNCONF</varname> variable, not
-    <varname>KERNEL</varname>.  It is no longer required, in some
-    cases, for a <maketarget>buildworld</maketarget> to precede a
-    <maketarget>buildkernel</maketarget>.  (The
-    <maketarget>buildworld</maketarget> is still required when
-    upgrading across major releases, across
-    <application>binutil</application> updates and when &man.config.8;
-    changes version.) &merged;
-    </para>
+    <para>POSIX.1b Shared Memory Objects are now supported.  The
+    implementation uses regular files, but automatically enables the
+    MAP_NOSYNC flag when they are &man.mmap.2;-ed. &merged;</para>
+
+    <para>Replaced the <literal>PQ_*CACHE</literal> options with a
+    single <literal>PQ_CACHESIZE</literal> option to be set to
+    the cache size in kilobytes.  The old options are still supported
+    for backwards compatibility. &merged;</para>
 
     <para>The &man.random.4; device has been rewritten to use the
     <application>Yarrow</application> algorithm.  It harvests entropy
@@ -169,38 +232,65 @@
     generates a stream of pseudo-random data and now behaves exactly
     as <filename>/dev/urandom</filename>.</para>
 
-    <para>The &man.syscons.4; driver now supports keyboard-controlled
-    pasting, by default bound to
-    <keycap>Shift</keycap>-<keycap>Insert</keycap>.</para>
-
-    <para>The &man.labpc.4; driver has been removed due to
-    <quote>bitrot</quote>.</para>
-
     <para>A new kernel option, <literal>options REGRESSION</literal>,
     enables interfaces and functionality intended for use during
     correctness and regression testing.</para>
 
+    <para arch="i386">The &man.spic.4; driver, which provides access to the jog
+    dial device on some Sony laptops, has been added.</para>
+
+    <para>The &man.syscons.4; driver now supports keyboard-controlled
+    pasting, by default bound to
+    <keycap>Shift</keycap>-<keycap>Insert</keycap>.</para>
+
+    <para>Support for USB devices was added to the
+    <filename>GENERIC</filename> kernel and to the installation
+    programs to support USB devices out of the box.  Note that SRM
+    does not support USB devices at the moment, so you must still use
+    an AT keyboard if you are not using a serial console. &merged;</para>
+
+    <para arch="i386">The umodem driver for USB modems has been added.
+    Support is provided for the 3Com 5605 and Metricom Ricochet GS
+    wireless USB modems.</para>
+
+    <para arch="i386">The &man.uscanner.4; driver for basic USB scanner support
+    using SANE has been added. See <ulink
+    url="http://www.mostang.com/sane/">the SANE home page</ulink> for
+    supported scanners. The HP ScanJet 4100C, 5200C and 6300C are
+    known to be working.</para>
+
     <para>The <literal>USER_LDT</literal> kernel option is now
     activated by default.</para>
 
-    <para>A new &man.ddb.4; command <command>show pcpu</command> lists
-    some of the per-CPU data.</para>
+    <para>A VESA S3 linear framebuffer driver has been added.</para>
 
-    <para>A new digi driver has been added to support PCI Xr-based and ISA
-    Xem Digiboard cards.  A new &man.digictl.8; program is (mainly) used to
-    re-initialize cards that have external port modules attached such as
-    the PC/Xem.</para>
+    <!-- Above this line, sort kernel changes by manpage/keyword-->
 
-    <para>The dgm driver has been removed in favor of the digi driver.</para>
+    <para>Write combining for crashdumps has been implemented.  This
+    feature is useful when write caching is disabled on both SCSI and
+    IDE disks, where large memory dumps could take up to an hour to
+    complete. &merged;</para>
 
-    <para>The <literal>O_DIRECT</literal> flag has been added to
-    &man.open.2; and &man.fcntl.2;.  Specifying this flag for open
-    files will attempt to minimize the cache effects of reading and
-    writing. &merged;</para>
+    <para>Extremely large swap areas (&gt;67 GB) no longer panic the
+    system.</para>
 
-    <para>An &man.orm.4; device has been added to claim the option
-    ROMs in the ISA memory I/O space, to prevent other drivers from
-    mistakenly assigning addresses that conflict with these ROMs. &merged;</para>
+    <para arch="alpha">Support for threads under Linux emulation has been
+    added.</para>
+
+    <para>A number of cleanups and enhancements have been applied to
+    the PCI subsystem.</para>
+
+    <para>The <maketarget>buildkernel</maketarget> target now gets the
+    name of the configuration(s) to build from the
+    <varname>KERNCONF</varname> variable, not
+    <varname>KERNEL</varname>.  It is no longer required, in some
+    cases, for a <maketarget>buildworld</maketarget> to precede a
+    <maketarget>buildkernel</maketarget>.  (The
+    <maketarget>buildworld</maketarget> is still required when
+    upgrading across major releases, across
+    <application>binutil</application> updates and when &man.config.8;
+    changes version.) &merged;
+    </para>
 
     <para>The out-of-swap process termination code now begins killing
     processes earlier to avoid deadlocks; it now also takes into
@@ -220,41 +310,9 @@
     <option>create</option> option should be used when another device
     instance is desired. &merged;</para>
 
-    <para>The kernel message buffer is now accessible by the
-    (machine-independent) <varname>kern.msgbuf</varname> sysctl
-    variable; &man.dmesg.8; no longer needs to be SGID
-    <groupname>kmem</groupname>.</para>
-
-    <para>Two new &man.ddb.4; commands, <command>hwatch</command> and
-    <command>dhwatch</command>, have been introduced.  Analogous to
-    <command>watch</command> and <command>dwatch</command>, they install
-    hardware watchpoints (as opposed to software watchpoints) if supported
-    by the architecture. &merged;</para>
-
-    <para>A &man.nmdm.4; null-modem terminal driver has been added.
-    &merged;</para>
-
-    <para>The <varname>maxusers</varname> kernel configuration
-    parameter is now a boot-time tunable variable.  The kernel
-    parameters derived from <varname>maxusers</varname> are now also
-    tunables and can be overridden at boot-time.  The
-    <varname>hz</varname> parameter is also now a tunable. &merged;</para>
-
-    <para>Specifying a value of <literal>0</literal> for the
-    <varname>maxusers</varname> kernel configuration parameter will
-    now cause an appropriate value to be calculated at boot-time
-    (between 32 and 512, depending on the amount of memory present).
-    This value is now the default for all
-    <filename>GENERIC</filename> kernels. &merged;</para>
-
     <para>It is now possible to hardwire kernel environment variables (such
     as tuneables) at compile-time using &man.config.8;'s
     <literal>ENV</literal> directive.</para>
-
-    <para>The loader and kernel linker now look for files named
-    <filename>linker.hints</filename> in each directory with KLDs for a
-    module name and version to KLD filename mapping.  The new
-    &man.kldxref.8; utility is used to generate these files.</para>
 
     <para>Idle zeroing of pages can be enabled with the
     <varname>vm.zeroidle_enable</varname> sysctl variable.</para>
@@ -264,29 +322,9 @@
     utilities such as &man.ps.1; can work with kernels compiled at
     different addresses. &merged;</para>
 
-    <para arch="i386">A new <varname>KVA_SPACE</varname> kernel option
-    can be used to reconfigure the size of the kernel virtual address
-    space. &merged;</para>
-
     <para>Coredumps of large processes (or of a large number of
     processes) no longer lock up the machine for long periods of
     time. &merged;</para>
-
-    <para>Each &man.jail.2; environment can now run under its own
-    securelevel.</para>
-
-    <para arch="alpha">A <varname>MAXMEM</varname> kernel option,
-    along with the <varname>hw.physmem</varname> environment variable, can be
-    used to artificially reduce the memory size of a machine for
-    testing (or other purposes). &merged;</para>
-
-    <para>An &man.eaccess.2; system call has been added, similar to
-    &man.access.2; except that the former uses effective credentials
-    rather than real credentials.</para>
-
-    <para arch="i386">The &man.amdpm.4; driver has been added to
-    provide access to the system monitoring functions of the AMD 756
-    chipset. &merged;</para>
 
     <para>The kernel is now aware of the concept that there are
     smaller units of scheduling than a process (but only one thread
@@ -305,25 +343,9 @@
     booting (instead of the stripped-down kernel used on
     floppies). &merged;</para>
 
-    <para arch="i386">The pmc driver, which supports the power
-    management controller of the NEC PC-98NOTE, has been
-    added. &merged;</para>
-
-    <para>The kernel configuration parameters
-    <varname>MAXTSIZ</varname>, <varname>DFLDSIZ</varname>,
-    <varname>MAXDSIZ</varname>, <varname>DFLSSIZ</varname>,
-    <varname>MAXSSIZ</varname>, and <varname>SGROWSIZ</varname> are
-    all loader tunables (<varname>kern.maxtsiz</varname>,
-    <varname>kern.maxdfldsiz</varname>, etc.). &merged;</para>
-
     <para>The system load average computation now adds some jitter to
     the timing of samples, in order to avoid synchronization with
     processes that run periodically. &merged;</para>
-
-    <para>Linux emulation now supports the kernel functionality
-    required by the
-    <port>emulators/linux_base-7</port> (RedHat 7.X emulation)
-    port. &merged;</para>
 
     <para>If a debugging kernel with modules is being built
     (i.e. using <literal>makeoptions DEBUG=-g</literal>), the modules
@@ -331,26 +353,6 @@
     completeness.  A side effect of this change is that modules built
     and installed with debugging kernels will now occupy more space on
     disk than they did previously. &merged;</para>
-
-    <para>&man.lomac.4;, a Low-Watermark Mandatory Access Control
-    security facility, has been added as a kernel module.  It provides
-    a drop-in security mechanism in addition to the traditional
-    UID-based security facilities, requiring no additional
-    configuration from the administrator.  Work on this feature was
-    sponsored by DARPA and NAI Labs.</para>
-
-    <para>The tunable sysctl variables for &man.jail.2; have moved
-    from <varname>jail.*</varname> to the
-    <varname>security.*</varname> hierarchy.  Other security-related
-    sysctl variables have moved from <varname>kern.security.*</varname> to
-    <varname>security.*</varname>.</para>
-
-    <para>The <varname>kern.maxvnodes</varname> limit now properly
-    limits the number of vnodes in use.  Previously only vnodes with
-    no cached pages could be freed; this could allow the number of
-    vnodes to grow without limit on large-memory machines accessing
-    many small files.  A <literal>vnlru</literal> kernel thread helps
-    to flush and reuse vnodes. &merged;</para>
 
     <sect3>
       <title>Processor/Motherboard Support</title>
