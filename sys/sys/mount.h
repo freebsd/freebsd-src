@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mount.h	8.13 (Berkeley) 3/27/94
- * $Id: mount.h,v 1.8 1994/09/21 03:47:31 wollman Exp $
+ * $Id: mount.h,v 1.10 1994/09/22 01:05:03 wollman Exp $
  */
 
 #ifndef _SYS_MOUNT_H_
@@ -463,9 +463,11 @@ int	vfs_export			    /* process mount export info */
 	  __P((struct mount *, struct netexport *, struct export_args *));
 struct	netcred *vfs_export_lookup	    /* lookup host in fs export list */
 	  __P((struct mount *, struct netexport *, struct mbuf *));
-int	vfs_lock __P((struct mount *));     /* lock a vfs */
-int	vfs_mountedon __P((struct vnode *));/* is a vfs mounted on vp */
-void	vfs_unlock __P((struct mount *));   /* unlock a vfs */
+int	vfs_lock __P((struct mount *));         /* lock a vfs */
+int	vfs_mountedon __P((struct vnode *));    /* is a vfs mounted on vp */
+void	vfs_unlock __P((struct mount *));       /* unlock a vfs */
+int	vfs_busy __P((struct mount *));         /* mark a vfs  busy */
+void	vfs_unbusy __P((struct mount *));       /* mark a vfs not busy */
 extern	TAILQ_HEAD(mntlist, mount) mountlist;	/* mounted filesystem list */
 extern	struct vfsops *vfssw[];			/* filesystem type table */
 
