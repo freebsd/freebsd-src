@@ -88,7 +88,7 @@ mediaShutdownNFS(Device *dev)
     if (!NFSMounted)
 	return;
 
-    msgDebug("Unmounting NFS partition on %s", mountpoint);
+    msgDebug("Unmounting NFS partition on %s\n", mountpoint);
     if (unmount(mountpoint, MNT_FORCE) != 0)
 	msgConfirm("Could not unmount the NFS partition: %s", strerror(errno));
     NFSMounted = FALSE;

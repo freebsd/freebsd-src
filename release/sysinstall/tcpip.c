@@ -309,7 +309,7 @@ rtsolGetInfo(Device *devp)
 	return;
     while (fgets(data, sizeof(data), ifp) != NULL) {
 	if (isDebug())
-	    msgDebug("RTSOL configured interface returns %s", data);
+	    msgDebug("RTSOL configured interface returns %s\n", data);
 	if ((cp = strstr(data, "inet6 ")) != NULL) {
 	    cp += 6;	/* move over keyword */
 	    if (strncmp(cp, "fe80:", 5)) {
