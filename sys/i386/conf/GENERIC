@@ -1,7 +1,7 @@
 #
 # GENERIC -- Generic machine with WD/AHx/NCR/BTx family disks
 #
-#	$Id: GENERIC,v 1.58 1995/12/29 02:04:19 jkh Exp $
+#	$Id: GENERIC,v 1.59 1996/01/07 19:19:38 gibbs Exp $
 #
 
 machine		"i386"
@@ -88,6 +88,7 @@ device		sc0	at isa? port "IO_KBD" tty irq 1 vector scintr
 # If you have a ThinkPAD, uncomment this along with the rest of the PCVT lines
 #options		PCVT_SCANSET=2		# IBM keyboards are non-std
 
+# Mandatory, don't remove
 device		npx0	at isa? port "IO_NPX" irq 13 vector npxintr
 
 device		sio0	at isa? port "IO_COM1" tty irq 4 vector siointr
