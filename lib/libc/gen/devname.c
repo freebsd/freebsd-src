@@ -87,7 +87,8 @@ devname(dev, type)
 	mode_t type;
 {
 	static char buf[SPECNAMELEN + 1];
-	int i, j;
+	int i;
+	size_t j;
 	char *r;
 
 	/* First check the DB file. */
