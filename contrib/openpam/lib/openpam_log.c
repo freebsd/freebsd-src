@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/openpam_log.c#15 $
+ * $P4: //depot/projects/openpam/lib/openpam_log.c#16 $
  */
 
 #include <ctype.h>
@@ -74,6 +74,7 @@ _openpam_log(int level, const char *func, const char *fmt, ...)
 		priority = LOG_NOTICE;
 		break;
 	case PAM_LOG_ERROR:
+	default:
 		priority = LOG_ERR;
 		break;
 	}
@@ -118,6 +119,7 @@ openpam_log(int level, const char *fmt, ...)
 		priority = LOG_NOTICE;
 		break;
 	case PAM_LOG_ERROR:
+	default:
 		priority = LOG_ERR;
 		break;
 	}
