@@ -32,7 +32,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)vnode_if.sh	8.1 (Berkeley) 6/10/93
-# $Id: vnode_if.sh,v 1.4 1995/08/01 18:50:40 davidg Exp $
+# $Id: vnode_if.sh,v 1.5 1995/09/04 00:20:18 dyson Exp $
 #
 
 # Script to produce VFS front-end sugar.
@@ -115,6 +115,27 @@ $AWK '
 
 		# Print out extern declaration.
 		printf("extern struct vnodeop_desc %s_desc;\n", name);
+
+		# Print out prototype.
+		printf("static int %s __P((\n", uname);
+		sep = ",\n";
+		for (c2 = 0; c2 < c1; ++c2) {
+			if (c2 == c1 - 1)
+				sep = "));\n";
+			c3 = split(a[c2], t);
+			printf("\t");
+			if (t[2] ~ "WILLRELE")
+				c4 = 3;
+			else
+				c4 = 2;
+			for (; c4 < c3; ++c4)
+				printf("%s ", t[c4]);
+			beg = match(t[c3], "[^*]");
+			end = match(t[c3], ";");
+			printf("%s%s%s",
+			    substr(t[c4], 0, beg - 1),
+			    substr(t[c4], beg, end - beg), sep);
+		}
 
 		# Print out inline struct.
 		printf("static inline int %s(", uname);
@@ -353,6 +374,8 @@ struct vop_strategy_args {
 	struct buf *a_bp;
 };
 extern struct vnodeop_desc vop_strategy_desc;
+static int VOP_STRATEGY __P((
+	struct buf *bp));
 static inline int VOP_STRATEGY(bp)
 	struct buf *bp;
 {
@@ -368,6 +391,8 @@ struct vop_bwrite_args {
 	struct buf *a_bp;
 };
 extern struct vnodeop_desc vop_bwrite_desc;
+static int VOP_BWRITE __P((
+	struct buf *bp));
 static inline int VOP_BWRITE(bp)
 	struct buf *bp;
 {
