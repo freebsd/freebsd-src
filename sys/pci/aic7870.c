@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7870.c,v 1.35 1996/05/23 15:02:18 gibbs Exp $
+ *	$Id: aic7870.c,v 1.36 1996/05/30 07:20:17 gibbs Exp $
  */
 
 #if defined(__FreeBSD__)
@@ -550,7 +550,7 @@ ahc_pci_attach(parent, self, aux)
 						break;
 				}
 			}
-			if(i != 0x60) {
+			if((i != 0x60) && (our_id != 0)) {
 				printf("%s: Using left over BIOS settings\n",
 					ahc_name(ahc));
 				ahc->flags &= ~AHC_USEDEFAULTS;
