@@ -193,9 +193,7 @@ NON_GPROF_ENTRY(bootMP)
 	/* Now load the global descriptor table */
 	addr32
 	data32
-	/* XXX: sigh: lgdt	MP_GDTptr-_bootMP GAS BUG! */
-	.byte	0x0f, 0x01, 0x15		/* XXX hand assemble! */
-	.long	MP_GDTptr-_bootMP		/* XXX hand assemble! */
+	lgdt	MP_GDTptr-_bootMP
 
 	/* Enable protected mode */
 	data32
