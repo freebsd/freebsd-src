@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: machdep.c,v 1.44 1999/06/08 16:42:14 dt Exp $
+ *	$Id: machdep.c,v 1.45 1999/06/10 20:40:53 dt Exp $
  */
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -389,12 +389,6 @@ again:
 	 */
 	{
 		vm_offset_t mb_map_size;
-		int xclusters;
-
-		/* Allow override of NMBCLUSTERS from the kernel environment */
-		if (getenv_int("kern.ipc.nmbclusters", &xclusters) && 
-		    xclusters > nmbclusters)
-		    nmbclusters = xclusters;
 
 		mb_map_size = nmbufs * MSIZE + nmbclusters * MCLBYTES;
 		mb_map_size = roundup2(mb_map_size, max(MCLBYTES, PAGE_SIZE));
