@@ -124,7 +124,6 @@ static uint32_t		 cpu_duty_width;
 
 /* Platform hardware resource information. */
 static uint32_t		 cpu_smi_cmd;	/* Value to write to SMI_CMD. */
-static uint8_t		 cpu_pstate_cnt;/* Register to take over throttling. */
 static uint8_t		 cpu_cst_cnt;	/* Indicate we are _CST aware. */
 static int		 cpu_rid;	/* Driver-wide resource id. */
 static int		 cpu_quirks;	/* Indicate any hardware bugs. */
@@ -469,7 +468,6 @@ acpi_cpu_throttle_probe(struct acpi_cpu_softc *sc)
     /* Get throttling parameters from the FADT.  0 means not supported. */
     if (device_get_unit(sc->cpu_dev) == 0) {
 	cpu_smi_cmd = AcpiGbl_FADT->SmiCmd;
-	cpu_pstate_cnt = AcpiGbl_FADT->PstateCnt;
 	cpu_cst_cnt = AcpiGbl_FADT->CstCnt;
 	cpu_duty_offset = AcpiGbl_FADT->DutyOffset;
 	cpu_duty_width = AcpiGbl_FADT->DutyWidth;
@@ -811,13 +809,6 @@ acpi_cpu_startup_throttling()
 		    OID_AUTO, "throttle_state",
 		    CTLTYPE_INT | CTLFLAG_RW, &cpu_throttle_state,
 		    0, acpi_cpu_throttle_sysctl, "I", "current CPU speed");
-
-    /* If ACPI 2.0+, signal platform that we are taking over throttling. */
-    if (cpu_pstate_cnt != 0) {
-	ACPI_LOCK(acpi);
-	AcpiOsWritePort(cpu_smi_cmd, cpu_pstate_cnt, 8);
-	ACPI_UNLOCK(acpi);
-    }
 
     /* Set initial speed to maximum. */
     ACPI_SERIAL_BEGIN(cpu);
