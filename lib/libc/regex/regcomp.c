@@ -2045,7 +2045,8 @@ struct re_guts *g;
 			    g->mlen + ssuffix - suffix);
                         suffix++;
                 }
-                ssuffix = pmatches[ssuffix];
+		if (suffix < g->mlen)
+			ssuffix = pmatches[ssuffix];
         }
 
 	free(pmatches);
