@@ -28,39 +28,6 @@ Boston, MA 02111-1307, USA.  */
 #undef TARGET_VERSION
 #define TARGET_VERSION fprintf (stderr, " (i386 FreeBSD/ELF)");
 
-/* The svr4 ABI for the i386 says that records and unions are returned
-   in memory.  */
-/* On FreeBSD, we do not. */
-#undef DEFAULT_PCC_STRUCT_RETURN
-#define DEFAULT_PCC_STRUCT_RETURN 0
-
-/* This gets defined in tm.h->linux.h->svr4.h, and keeps us from using
-   libraries compiled with the native cc, so undef it. */
-#undef NO_DOLLAR_IN_LABEL
-
-/* Don't assume anything about the header files.  */
-#undef NO_IMPLICIT_EXTERN_C
-#define NO_IMPLICIT_EXTERN_C
-
-/* This defines which switch letters take arguments.  On FreeBSD, most of
-   the normal cases (defined in gcc.c) apply, and we also have -h* and
-   -z* options (for the linker) (comming from svr4).
-   We also have -R (alias --rpath), no -z, --soname (-h), --assert etc.  */
-
-#undef SWITCH_TAKES_ARG
-#define SWITCH_TAKES_ARG(CHAR)						\
-  (DEFAULT_SWITCH_TAKES_ARG (CHAR)					\
-   || (CHAR) == 'h'							\
-   || (CHAR) == 'z' /* ignored by ld */					\
-   || (CHAR) == 'R')
-
-#undef WORD_SWITCH_TAKES_ARG
-#define WORD_SWITCH_TAKES_ARG(STR)					\
-  (DEFAULT_WORD_SWITCH_TAKES_ARG (STR)					\
-   || !strcmp (STR, "rpath") || !strcmp (STR, "rpath-link")		\
-   || !strcmp (STR, "soname") || !strcmp (STR, "defsym") 		\
-   || !strcmp (STR, "assert") || !strcmp (STR, "dynamic-linker"))
-
 #define MASK_PROFILER_EPILOGUE	010000000000
 #define MASK_AOUT		004000000000	/* a.out not elf */
 #define MASK_UNDERSCORES	002000000000	/* use leading _ */
@@ -275,16 +242,6 @@ do {									\
   }									\
 } while (0)
 
-#undef DEFAULT_VTABLE_THUNKS
-#define DEFAULT_VTABLE_THUNKS 1
-
-/* This is BSD, so we want the DBX format.  */
-#define DBX_DEBUGGING_INFO
-
-/* Use stabs instead of DWARF debug format.  */
-#undef PREFERRED_DEBUGGING_TYPE
-#define PREFERRED_DEBUGGING_TYPE DBX_DEBUG
-
 /* in elf, the function stabs come first, before the relative offsets */
 #undef DBX_FUNCTION_FIRST
 #define DBX_CHECK_FUNCTION_FIRST TARGET_ELF
@@ -492,7 +449,7 @@ do {									\
 #define WCHAR_TYPE_SIZE BITS_PER_WORD
     
 #undef CPP_PREDEFINES
-#define CPP_PREDEFINES "-Di386 -Dunix -D__FreeBSD__=4 -D__FreeBSD_cc_version=400002 -Asystem(unix) -Asystem(FreeBSD) -Acpu(i386) -Amachine(i386)"
+#define CPP_PREDEFINES "-Di386 -Acpu(i386) -Amachine(i386)" CPP_FBSD_PREDEFINES
 
 #undef CPP_SPEC
 #if TARGET_CPU_DEFAULT == 2
@@ -516,10 +473,6 @@ do {									\
 
 #undef  ASM_SPEC
 #define ASM_SPEC	"%{v*: -v} %{maout: %{fpic:-k} %{fPIC:-k}}"
-
-/* Like the default, except no -lg, and no -p.  */
-#undef LIB_SPEC
-#define LIB_SPEC "%{!shared:%{!pg:%{!pthread:%{!kthread:-lc}%{kthread:-lpthread -lc}}%{pthread:-lc_r}}%{pg:%{!pthread:%{!kthread:-lc_p}%{kthread:-lpthread_p -lc_p}}%{pthread:-lc_r_p}}}"
 
 /* Provide a LINK_SPEC appropriate for FreeBSD.  Here we provide support
    for the special GCC options -static and -shared, which allow us to
@@ -583,8 +536,6 @@ do {									\
 /* This goes away when the math emulator is fixed.  */
 #undef TARGET_DEFAULT
 #define TARGET_DEFAULT	(MASK_NO_FANCY_MATH_387 | 0301)
-
-#define HAVE_ATEXIT
 
 /* FreeBSD ELF using our home-grown crtbegin.o/crtend.o does not support the
    DWARF2 unwinding mechanisms.  Once `make world' bootstraping problems with
