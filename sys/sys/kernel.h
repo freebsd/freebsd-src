@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernel.h	8.3 (Berkeley) 1/21/94
- * $Id: kernel.h,v 1.40 1998/05/09 12:14:18 bde Exp $
+ * $Id: kernel.h,v 1.41 1998/06/07 17:13:02 dfr Exp $
  */
 
 #ifndef _SYS_KERNEL_H_
@@ -151,11 +151,13 @@ extern long timedelta;
  */
 enum sysinit_sub_id {
 	SI_SUB_DUMMY		= 0x0000000,	/* not executed; for linker*/
+	SI_SUB_DONE		= 0x0000001,	/* processed*/
 	SI_SUB_CONSOLE		= 0x0800000,	/* console*/
 	SI_SUB_COPYRIGHT	= 0x0800001,	/* first use of console*/
 	SI_SUB_VM		= 0x1000000,	/* virtual memory system init*/
 	SI_SUB_KMEM		= 0x1800000,	/* kernel memory*/
 	SI_SUB_CPU		= 0x2000000,	/* CPU resource(s)*/
+	SI_SUB_KLD		= 0x2100000,	/* KLD and module setup */
 	SI_SUB_DEVFS		= 0x2200000,	/* get DEVFS ready */
 	SI_SUB_DRIVERS		= 0x2300000,	/* Let Drivers initialize */
 	SI_SUB_CONFIGURE	= 0x2400000,	/* Configure devices */
@@ -282,6 +284,7 @@ struct kproc_desc {
 };
 
 void	kproc_start __P((void *udata));
+void	sysinit_add __P((struct sysinit **set));
 
 #ifdef PSEUDO_LKM
 #include <sys/conf.h>
