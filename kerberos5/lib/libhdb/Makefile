@@ -59,13 +59,7 @@ asn1_compile:	parse.o lex.o main.c hash.c symbol.c emalloc.c gen.c \
 		gen_encode.c gen_decode.c gen_free.c gen_length.c \
 		gen_copy.c gen_glue.c getarg.c warnerr.c print_version.o \
 		get_window_size.c strupr.c
-	${CC} ${CFLAGS} ${.OODATE} -o ${.TARGET}
-
-.if defined(BOOTSTRAPPING) && \
-    ( ${BOOTSTRAPPING} < 440001 || \
-    ( ${BOOTSTRAPPING} >= 500000 && ${BOOTSTRAPPING} < 500023 ))
-asn1_compile: getprogname.c setprogname.c
-.endif
+	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.OODATE} ${LDADD}
 
 parse.o:	parse.c
 
