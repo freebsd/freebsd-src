@@ -57,21 +57,6 @@ acpi_init()
 	}
 }
 
-#if 0
-static int
-acpi_enable_disable(int enable)
-{
-	if (ioctl(acpifd, enable, NULL) == -1) {
-		if (enable == ACPIIO_ENABLE)
-			err(EX_IOERR, "enable failed");
-		else
-			err(EX_IOERR, "disable failed");
-	}
-
-	return (0);
-}
-#endif
-
 static int
 acpi_sleep(int sleep_type)
 {
@@ -138,7 +123,7 @@ acpi_battinfo(int num)
 static void
 usage(const char* prog)
 {
-	printf("usage: %s [-deh] [-i batt] [-s 1-5]\n", prog);
+	printf("usage: %s [-h] [-i batt] [-s 1-5]\n", prog);
 	exit(0);
 }
 
@@ -155,19 +140,11 @@ main(int argc, char *argv[])
 
 	sleep_type = -1;
 	acpi_init();
-	while ((c = getopt(argc, argv, "dehi:s:")) != -1) {
+	while ((c = getopt(argc, argv, "hi:s:")) != -1) {
 		switch (c) {
 		case 'i':
 			acpi_battinfo(atoi(optarg));
 			break;
-#if 0
-		case 'd':
-			acpi_enable_disable(ACPIIO_DISABLE);
-			break;
-		case 'e':
-			acpi_enable_disable(ACPIIO_ENABLE);
-			break;
-#endif
 		case 's':
 			if (optarg[0] == 'S')
 				sleep_type = optarg[1] - '0';
