@@ -1084,45 +1084,27 @@ struct ifnet *
 ifunit(const char *name)
 {
 	char namebuf[IFNAMSIZ + 1];
-	const char *cp;
 	struct ifnet *ifp;
-	int unit;
-	unsigned len, m;
-	char c;
+	dev_t dev;
 
-	len = strlen(name);
-	if (len < 2 || len > IFNAMSIZ)
-		return NULL;
-	cp = name + len - 1;
-	c = *cp;
-	if (c < '0' || c > '9')
-		return NULL;		/* trailing garbage */
-	unit = 0;
-	m = 1;
-	do {
-		if (cp == name)
-			return NULL;	/* no interface name */
-		unit += (c - '0') * m;
-		if (unit > 1000000)
-			return NULL;	/* number is unreasonable */
-		m *= 10;
-		c = *--cp;
-	} while (c >= '0' && c <= '9');
-	len = cp - name + 1;
-	bcopy(name, namebuf, len);
-	namebuf[len] = '\0';
 	/*
 	 * Now search all the interfaces for this name/number
 	 */
+
+	/*
+	 * XXX
+	 * Devices should really be known as /dev/fooN, not /dev/net/fooN.
+	 */
+	snprintf(namebuf, IFNAMSIZ, "%s/%s", net_cdevsw.d_name, name);
 	TAILQ_FOREACH(ifp, &ifnet, if_link) {
-		if (strcmp(ifp->if_name, namebuf))
-			continue;
-		if (unit == ifp->if_unit)
+		dev = ifdev_byindex(ifp->if_index);
+		if (strcmp(devtoname(dev), namebuf) == 0)
+			break;
+		if (dev_named(dev, name))
 			break;
 	}
 	return (ifp);
 }
-
 
 /*
  * Map interface name in a sockaddr_dl to
