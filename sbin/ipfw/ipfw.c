@@ -1660,7 +1660,7 @@ config_pipe(int ac, char **av)
 				    "net.inet.ip.dummynet.red_lookup_depth");
 			if (lookup_depth == 0)
 				errx(EX_DATAERR, "net.inet.ip.dummynet.red_lookup_depth"
-				     " must be greater than zero");
+				    " must be greater than zero");
 
 			len = sizeof(int);
 			if (sysctlbyname("net.inet.ip.dummynet.red_avg_pkt_size",
@@ -1786,7 +1786,7 @@ add(int ac, char *av[])
 				rule.fw_divert_port = ntohs(s->s_port);
 			else
 				errx(EX_DATAERR, "illegal %s port",
-				     "tee divert");
+				    "tee divert");
 		}
 	} else if (!strncmp(*av, "fwd", strlen(*av))
 	    || !strncmp(*av, "forward", strlen(*av))) {
@@ -1807,7 +1807,7 @@ add(int ac, char *av[])
 			i = lookup_port(pp, 0, 1, 0);
 			if (i == -1)
 				errx(EX_DATAERR, "illegal forwarding"
-				     " port ``%s''", pp);
+				    " port ``%s''", pp);
 			else
 				rule.fw_fwd_ip.sin_port = (u_short)i;
 		}
