@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)operators.c	8.3 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: operators.c,v 1.7 1998/05/18 06:51:53 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -66,6 +66,7 @@ const char *const unary_op[] = {
       "-w",
       "-x",
       "-z",
+      "-S",
       NULL
 };
 
@@ -97,6 +98,7 @@ const char *const andor_op[] = {
 
 const char op_priority[] = {
       3,
+      12,
       12,
       12,
       12,
@@ -147,6 +149,7 @@ const char op_argflag[] = {
       OP_FILE,
       OP_FILE,
       OP_STRING,
+      OP_FILE,
       0,
       0,
       0,
