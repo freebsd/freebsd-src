@@ -126,7 +126,7 @@ ipx_init()
 
 	ipxintrq.ifq_maxlen = ipxqmaxlen;
 	mtx_init(&ipxintrq.ifq_mtx, "ipx_inq", NULL, MTX_DEF);
-	netisr_register(NETISR_IPX, ipxintr, &ipxintrq, 0);
+	netisr_register(NETISR_IPX, ipxintr, &ipxintrq, NETISR_MPSAFE);
 }
 
 /*
