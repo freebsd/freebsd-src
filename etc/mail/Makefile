@@ -146,6 +146,14 @@ depend:
 
 cf:		${INSTALL_CF}
 
+submit.cf:	submit.mc
+.ifdef SENDMAIL_SET_USER_ID
+	@echo ">>> ERROR: You should not create a submit.cf file if you are using a"
+	@echo "           set-user-ID sendmail binary (SENDMAIL_SET_USER_ID is set"
+	@echo "           in make.conf)."
+	@false
+.endif
+
 maps:		${SENDMAIL_MAP_OBJ}
 
 aliases:	${SENDMAIL_ALIASES}.db
