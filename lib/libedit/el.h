@@ -125,6 +125,8 @@ struct editline {
     el_history_t  el_history;	/* History stuff			*/
     el_search_t	  el_search;	/* Search stuff				*/
     el_signal_t	  el_signal;	/* Signal handling stuff		*/
+
+    void         *data;		/* user data */
 };
 
 #endif /* _h_el */
