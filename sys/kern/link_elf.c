@@ -717,6 +717,12 @@ link_elf_load_file(linker_class_t cls, const char* filename, linker_file_t* resu
 #endif
     }
 
+#ifdef GPROF
+    /* Update profiling information with the new text segment. */
+    kmupetext((uintfptr_t)(mapbase + segs[0]->p_vaddr - base_vaddr +
+	segs[0]->p_memsz));
+#endif
+
     ef->dynamic = (Elf_Dyn *) (mapbase + phdyn->p_vaddr - base_vaddr);
 
     lf->address = ef->address;
