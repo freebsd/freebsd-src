@@ -291,7 +291,8 @@ int dialog_textbox(unsigned char *title, unsigned char *file, int height, int wi
           wrefresh(dialog);
         }
         break;
-      case ' ':    /* Next page */
+      case 'F':    /* Next page */
+      case 'f':
       case KEY_NPAGE:
         if (!end_reached) {
           begin_reached = 0;
