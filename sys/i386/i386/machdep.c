@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.128.4.2 1995/08/24 03:48:25 davidg Exp $
+ *	$Id: machdep.c,v 1.128.4.3 1995/09/08 04:22:49 davidg Exp $
  */
 
 #include "npx.h"
@@ -396,16 +396,35 @@ again:
 	 * Configure the system.
 	 */
 	configure();
+
+	/*
+	 * In verbose mode, print out the BIOS's idea of the disk geometries.
+	 */
 	if (bootverbose) {
 		printf("BIOS Geometries:\n");
-		for (i=0; i < N_BIOS_GEOM; i++) {
-			int j = bootinfo.bi_bios_geom[i];
-			if (j == 0x4f010f)
-				continue;
-			printf(" %x:%08x", i, j);
-			printf(" %d cyl, %d heads, %d sects\n",
-				j >> 16, (j >> 8) & 0xff, j & 0xff);
+		for (i = 0; i < N_BIOS_GEOM; i++) {
+			unsigned long bios_geom;
+			int max_cylinder, max_head, max_sector;
 
+			bios_geom = bootinfo.bi_bios_geom[i];
+
+			/*
+			 * XXX the bootstrap punts a 1200K floppy geometry
+			 * when the get-disk-geometry interrupt fails.  Skip
+			 * drives that have this geometry.
+			 */
+			if (bios_geom == 0x4f010f)
+				continue;
+
+			printf(" %x:%08x ", i, bios_geom);
+			max_cylinder = bios_geom >> 16;
+			max_head = (bios_geom >> 8) & 0xff;
+			max_sector = bios_geom & 0xff;
+			printf(
+		"0..%d=%d cylinders, 0..%d=%d heads, 1..%d=%d sectors\n",
+			       max_cylinder, max_cylinder + 1,
+			       max_head, max_head + 1,
+			       max_sector, max_sector);
 		}
 		printf(" %d accounted for\n", bootinfo.bi_n_bios_used);
 	}
