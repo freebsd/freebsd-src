@@ -200,6 +200,7 @@ nocyclic-seq	{ PREPROC; return(NOCYCLICSEQ); }
 	/* upper layer protocols */
 icmp		{ PREPROC; yylval.num = IPPROTO_ICMP; return(UP_PROTO); }
 icmp6		{ PREPROC; yylval.num = IPPROTO_ICMPV6; return(UP_PROTO); }
+ip4		{ PREPROC; yylval.num = IPPROTO_IPV4; return(UP_PROTO); }
 tcp		{ PREPROC; yylval.num = IPPROTO_TCP; return(UP_PROTO); }
 udp		{ PREPROC; yylval.num = IPPROTO_UDP; return(UP_PROTO); }
 
