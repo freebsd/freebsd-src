@@ -255,11 +255,18 @@ static struct da_quirk_entry da_quirk_table[] =
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Sony", "Sony DSC", "*"},
 		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
 	},
-        {
+    {
 		/*
 		 * Maxtor 3000LE USB Drive
 		 */
 		{T_DIRECT, SIP_MEDIA_FIXED, "MAXTOR*", "K040H2*", "*"},
+		/*quirks*/ DA_Q_NO_6_BYTE
+	},
+    {
+		/*
+		 * LaCie USB drive, among others
+		 */
+		{T_DIRECT, SIP_MEDIA_FIXED, "Maxtor*", "D080H4*", "*"},
 		/*quirks*/ DA_Q_NO_6_BYTE
 	},
 	{
