@@ -1,4 +1,4 @@
-<!-- $Id: ports.sgml,v 1.14 1996/10/04 22:54:10 wosch Exp $ -->
+<!-- $Id: ports.sgml,v 1.15 1996/10/23 09:05:24 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>The Ports collection<label id="ports"></heading>
@@ -655,6 +655,18 @@ For all the tarballs for a single ports directory, do
 and for just one port - well, I think you've guessed already.
 
 <item>
+Q. I know it's probably faster to fetch the tarballs from one of the
+FreeBSD mirror sites close by. Is there any way to tell the port to
+fetch them from servers other than ones listed in the MASTER_SITES?
+<p>
+A. Yes. If you know, for example, ftp.FreeBSD.ORG is much closer than
+sites listed in MASTER_SITES, do as following example.
+<verb>
+ # cd /usr/ports/directory
+ # make MASTER_SITE_OVERRIDE=ftp://ftp.FreeBSD.ORG/pub/FreeBSD/distfiles/ fetch
+</verb>
+
+<item>
 Q. I want to know what files make is going to need before it tries to
 pull them down.
 <p>
@@ -738,11 +750,6 @@ And it'll tell you:-
  Information for grizzle-6.5:
  grizzle-6.5 - the combined piano tutorial, LOGO interpreter and shoot 'em up arcade game.
 </verb>
-
-<item>
-Q. Nope, that's still too complicated.
-<p>
-A. Do 'pkg_manage' to get a friendly front-end to the package manager.
 
 <item>
 Q. Talking of disk space, the ports directory seems to be taking up
