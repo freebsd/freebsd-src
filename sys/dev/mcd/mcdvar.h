@@ -3,8 +3,6 @@
  */
 
 struct mcd_mbx {
-	short		unit;
-	short		port;
 	short		retry;
 	short		nblk;
 	int		sz;
@@ -24,9 +22,7 @@ struct mcd_data {
 	short			status;
 	int			blksize;
 	u_long			disksize;
-	int			iobase;
-	struct disklabel	dlabel;
-	int			partflags[MAXPARTITIONS];
+	int			partflags;
 	int			openflags;
 	struct mcd_volinfo	volinfo;   
 	struct mcd_qchninfo	toc[MCD_MAXTOCS]; 
@@ -40,7 +36,7 @@ struct mcd_data {
 
 struct mcd_softc {
 	device_t		dev;
-	dev_t			mcd_dev_t[3];
+	dev_t			mcd_dev_t;
 	int			debug;
 
 	struct resource *	port;
