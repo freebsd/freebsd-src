@@ -638,7 +638,7 @@ extern TERMINAL _term_buf;
 
 extern char *tparm __P((const char *, ...));
 extern int setupterm __P((char *, int, int *)), set_curterm __P((TERMINAL *));
-extern int del_curterm __P((TERMINAL *)), tputs __P((const char *, int, int (*)(char)));
+extern int del_curterm __P((TERMINAL *)), tputs __P((const char *, int, int (*)(int)));
 extern int putp __P((char *));
 extern int tigetflag __P((char *)), tigetnum __P((char *));
 extern char *tigetstr __P((char *));

@@ -240,7 +240,7 @@ char *str; {
 #else /* lint */
 #ifdef USE_STDARG
 #ifdef USE_PROTOTYPES
-char *tparm(char *str, ...) {
+char *tparm(const char *str, ...) {
 #else /* USE_PROTOTYPES */
 char *tparm(str)
 char *str; {
@@ -253,8 +253,9 @@ va_dcl {
 #endif
 	static char OOPS[] = "OOPS";
 	static char buf[MAX_LINE];
-	register char *sp, *dp;
+	register char *dp;
 	register char *fmt;
+	const char *sp;
 	char conv_char;
 	char scan_for;
 	int scan_depth = 0, if_depth;
