@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_mx.c,v 1.37 1999/04/01 02:00:04 wpaul Exp $
+ *	$Id: if_mx.c,v 1.39 1999/04/08 17:33:23 wpaul Exp $
  */
 
 /*
@@ -94,7 +94,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_mx.c,v 1.37 1999/04/01 02:00:04 wpaul Exp $";
+	"$Id: if_mx.c,v 1.39 1999/04/08 17:33:23 wpaul Exp $";
 #endif
 
 /*
@@ -105,6 +105,10 @@ static struct mx_type mx_devs[] = {
 		"Macronix 98713 10/100BaseTX" },
 	{ MX_VENDORID, MX_DEVICEID_98713,
 		"Macronix 98713A 10/100BaseTX" },
+	{ CP_VENDORID, CP_DEVICEID_98713,
+		"Compex RL100-TX 10/100BaseTX" },
+	{ CP_VENDORID, CP_DEVICEID_98713,
+		"Compex RL100-TX 10/100BaseTX" },
 	{ MX_VENDORID, MX_DEVICEID_987x5,
 		"Macronix 98715/98715A 10/100BaseTX" },
 	{ MX_VENDORID, MX_DEVICEID_987x5,
@@ -1257,6 +1261,9 @@ mx_probe(config_id, device_id)
 			if (t->mx_did == MX_DEVICEID_98713 &&
 						rev >= MX_REVISION_98713A)
 				t++;
+			if (t->mx_did == CP_DEVICEID_98713 &&
+						rev >= MX_REVISION_98713A)
+				t++;
 			if (t->mx_did == MX_DEVICEID_987x5 &&
 						rev >= MX_REVISION_98725)
 				t++;
@@ -1386,6 +1393,8 @@ mx_attach(config_id, unit)
 	pci_id = (pci_conf_read(config_id,MX_PCI_VENDOR_ID) >> 16) & 0x0000FFFF;
 
 	if (pci_id == MX_DEVICEID_98713 && revision < MX_REVISION_98713A)
+		sc->mx_type = MX_TYPE_98713;
+	else if (pci_id == CP_DEVICEID_98713 && revision < MX_REVISION_98713A)
 		sc->mx_type = MX_TYPE_98713;
 	else if (pci_id == MX_DEVICEID_98713 && revision >= MX_REVISION_98713A)
 		sc->mx_type = MX_TYPE_98713A;
@@ -1580,7 +1589,7 @@ static int mx_list_rx_init(sc)
 
 	for (i = 0; i < MX_RX_LIST_CNT; i++) {
 		cd->mx_rx_chain[i].mx_ptr =
-			(volatile struct mx_desc *)&ld->mx_rx_list[i];
+			(struct mx_desc *)&ld->mx_rx_list[i];
 		if (mx_newbuf(sc, &cd->mx_rx_chain[i]) == ENOBUFS)
 			return(ENOBUFS);
 		if (i == (MX_RX_LIST_CNT - 1)) {
@@ -1951,7 +1960,7 @@ static int mx_encap(sc, c, m_head)
 	struct mbuf		*m_head;
 {
 	int			frag = 0;
-	volatile struct mx_desc	*f = NULL;
+	struct mx_desc		*f = NULL;
 	int			total_len;
 	struct mbuf		*m;
 
