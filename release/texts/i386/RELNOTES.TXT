@@ -154,6 +154,9 @@ The ida disk driver now has crashdump support.
 The if(4) and an(4) drivers now default to BSS (infrastructure) mode;
 previously the default was ad-hoc mode.
 
+The mly(4) driver has received some changes in queueing, concurrency
+improvements, and stability fixes.
+
 
 1.2. SECURITY FIXES
 -------------------
@@ -237,6 +240,8 @@ lpr(1), lpq(1), and lpd(8) have received a few minor enhancements.
 
 OpenSSH has been upgraded to 2.3.0.  This version adds support for the
 Rijndael encryption algorithm.
+
+Kerberos compatability has been added to OpenSSH.
 
 syslogd(8) now supports a "LOG_CONSOLE" facility (disabled by
 default), which can be used to log /dev/console output.
@@ -393,6 +398,24 @@ OpenSSL.
 OpenSSL now has support for machine-dependent ASM optimizations,
 activated by the new CPUTYPE/MACHINE_CPU Makefile variables.
 
+dump(8) now supports inheritance of the "nodump" flag down a
+hierarchy.
+
+The ISC DHCP client has been updated to 2.0pl5.
+
+stty(1) now has support for an "erase2" control character, so that
+both "delete" and "backspace" can be used to erase characters.
+
+split(1) now has the ability to split a file longer than 2GB.
+
+units(1) has received some updates and bugfixes.
+
+netstat(1) now keeps track of input and output packets on a
+per-address basis for each interface.
+
+Many manual pages were improved, both in terms of their formatting
+markup and in their content.
+
 
 2. Supported Configurations
 ---------------------------
@@ -424,7 +447,7 @@ Adaptec 152x series ISA SCSI controllers
 Adaptec AIC-6260 and AIC-6360 based boards, which includes the AHA-152x
 and SoundBlaster SCSI cards.
 
-Adaptec 1400, 2100S, 3200S, and 3400S SCSI RAID controllers.
+Adaptec 2100S, 2400A, 3200S, and 3400S SCSI RAID controllers.
 
 Adaptec FSA family RAID controllers:
     Adaptec AAC-2622
