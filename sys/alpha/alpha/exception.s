@@ -254,19 +254,15 @@ LEAF(exception_return, 1)			/* XXX should be NESTED */
 Ler1:	LDGP(pv)
 
 	ldq	s1, (FRAME_PS * 8)(sp)		/* get the saved PS */
-	and	s1, ALPHA_PSL_USERMODE, t0	/* are we returning to user? */
-	beq	t0, Lkernelret			/* no: kernel return */
-
 	and	s1, ALPHA_PSL_IPL_MASK, t0	/* look at the saved IPL */
 	bne	t0, Lrestoreregs		/* != 0: can't do AST or SIR */
+
+	and	s1, ALPHA_PSL_USERMODE, t0	/* are we returning to user? */
+	beq	t0, Lrestoreregs		/* no: just return */
 
 	/* Handle any AST's or resched's. */
 	mov	sp, a0				/* only arg is frame */
 	CALL(ast)
-	br	Lrestoreregs
-
-Lkernelret:
-	stq	globalp,(FRAME_T7*8)(sp)	/* fixup globalp */
 
 Lrestoreregs:
 	/* set the hae register if this process has specified a value */
