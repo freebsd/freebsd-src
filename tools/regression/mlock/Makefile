@@ -1,6 +1,6 @@
 # $FreeBSD$
 
 PROG=	mlock
-NO_MAN=	yes
+NOMAN=	yes
 
 .include <bsd.prog.mk>
