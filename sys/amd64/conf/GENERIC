@@ -46,8 +46,10 @@ options 	CD9660			# ISO 9660 Filesystem
 options 	PROCFS			# Process filesystem (requires PSEUDOFS)
 options 	PSEUDOFS		# Pseudo-filesystem framework
 options 	GEOM_GPT		# GUID Partition Tables.
+options 	COMPAT_43		# Needed by COMPAT_LINUX32
 options 	COMPAT_IA32		# Compatible with i386 binaries
 options 	COMPAT_FREEBSD4		# Compatible with FreeBSD4
+options 	COMPAT_LINUX32		# Compatible with i386 linux binaries 
 options 	SCSI_DELAY=5000		# Delay (in ms) before probing SCSI
 options 	KTRACE			# ktrace(1) support
 options 	SYSVSHM			# SYSV-style shared memory
@@ -76,6 +78,9 @@ options 	SMP			# Symmetric MultiProcessor Kernel
 # Workarounds for some known-to-be-broken chipsets (nVidia nForce3-Pro150)
 device		atpic			# 8259A compatability
 options 	NO_MIXED_MODE		# Don't penalize working chipsets
+
+# Linux 32-bit ABI support
+options 	LINPROCFS		# Cannot be a module yet.
 
 # Bus support.  Do not remove isa, even if you have no isa slots
 device		acpi
