@@ -70,6 +70,8 @@ typedef struct ohci_soft_itd {
 	LIST_ENTRY(ohci_soft_itd) hnext;
 	usbd_xfer_handle xfer;
 	u_int16_t flags;
+#define	OHCI_ITD_ACTIVE	0x0010		/* Hardware op in progress */
+#define	OHCI_ITD_INTFIN	0x0020		/* Hw completion interrupt seen.*/
 #ifdef DIAGNOSTIC
 	char isdone;
 #endif
@@ -149,9 +151,11 @@ typedef struct ohci_softc {
 struct ohci_xfer {
 	struct usbd_xfer xfer;
 	struct usb_task	abort_task;
+	u_int32_t ohci_xfer_flags;
 };
+#define OHCI_ISOC_DIRTY  0x01
 
-#define OXFER(xfer) ((struct ehci_xfer *)(xfer))
+#define OXFER(xfer) ((struct ohci_xfer *)(xfer))
 
 usbd_status	ohci_init(ohci_softc_t *);
 int		ohci_intr(void *);
