@@ -177,6 +177,8 @@ int umassdebug = UDMASS_ALL;
 #endif
 #define UMASS_SCSIID_HOST	UMASS_SCSIID_MAX
 
+#define UMASS_SIM_UNIT		0	/* we use one sim for all drives */
+
 #define MS_TO_TICKS(ms) ((ms) * hz / 1000)                            
 
 
@@ -1953,7 +1955,7 @@ umass_cam_attach_sim()
 		return(ENOMEM);
 
 	umass_sim = cam_sim_alloc(umass_cam_action, umass_cam_poll, DEVNAME_SIM,
-				NULL /*priv*/, UMASS_SCSIID_HOST/*unit number*/,
+				NULL /*priv*/, UMASS_SIM_UNIT /*unit number*/,
 				1 /*maximum device openings*/,
 				0 /*maximum tagged device openings*/,
 				devq);
@@ -2000,7 +2002,7 @@ umass_cam_rescan(struct umass_softc *sc)
 		USBDEVUNIT(sc->sc_dev), CAM_LUN_WILDCARD));
 
 	if (xpt_create_path(&path, xpt_periph, cam_sim_path(umass_sim),
-			    UMASS_SCSIID_HOST, 0)
+			    CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD)
 	    != CAM_REQ_CMP)
 		return;
 
@@ -2078,6 +2080,7 @@ umass_cam_detach(struct umass_softc *sc)
 {
 	struct cam_path *path;
 
+	if (umass_sim) {
 	/* detach of sim not done until module unload */
 	DPRINTF(UDMASS_SCSI, ("%s:%d:%d:%d: losing CAM device entry\n",
 		USBDEVNAME(sc->sc_dev), cam_sim_path(umass_sim),
@@ -2087,8 +2090,10 @@ umass_cam_detach(struct umass_softc *sc)
 		    USBDEVUNIT(sc->sc_dev), CAM_LUN_WILDCARD)
 	    != CAM_REQ_CMP)
 		return(ENOMEM);
+
 	xpt_async(AC_LOST_DEVICE, path, NULL);
 	xpt_free_path(path);
+	}
 
 	return(0);
 }
