@@ -37,10 +37,8 @@
  *	@(#)conf.c	8.2 (Berkeley) 3/27/94
  */
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <errno.h>
 #include <limits.h>
