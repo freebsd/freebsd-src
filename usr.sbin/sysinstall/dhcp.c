@@ -89,7 +89,7 @@ dhcpParseLeases(char *file, char *hostname, char *domain, char *nameserver,
 		continue;
 	    }
 	    if ((tptr = (char *)strchr(tempbuf, ';')) && (*(tptr + 1) == 0)) {
-		*tptr = NULL;
+		*tptr = '\0';
 		endedflag = 1;
 	    }
 	    if (!isalnum(tempbuf[0])) {
@@ -114,7 +114,7 @@ dhcpParseLeases(char *file, char *hostname, char *domain, char *nameserver,
 		continue;
 	    }
 	    if ((tptr = (char *)strchr(tempbuf, ';')) && (*(tptr + 1) == 0)) {
-		*tptr = NULL;
+		*tptr = '\0';
 		endedflag = 1;
 	    }
 	    if (tempbuf[0] == '"') {
@@ -135,14 +135,14 @@ dhcpParseLeases(char *file, char *hostname, char *domain, char *nameserver,
 		strcpy(ipaddr, optbuf);
 	    } else if (!strcasecmp("routers", optname)) {
 		if((tptr = (char *)strchr(optbuf, ',')))
-		    *tptr = NULL;
+		    *tptr = '\0';
 		strcpy(gateway, optbuf);
 	    } else if (!strcasecmp("subnet-mask", optname)) {
 		strcpy(netmask, optbuf);
 	    } else if (!strcasecmp("domain-name-servers", optname)) {
 		/* <jkh> ...one value per property */
 		if((tptr = (char *)strchr(optbuf, ',')))
-		    *tptr = NULL;
+		    *tptr = '\0';
 		strcpy(nameserver, optbuf);
 	    }
 	    if (endedflag) {
