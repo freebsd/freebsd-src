@@ -1300,6 +1300,11 @@ sanitize_partition(struct dos_partition *partp)
     if (start % dos_sectors == 0 && (start + size) % dos_sectors == 0)
 	return (1);
 
+    if (start == 0) {
+	    warnx("WARNING: partition overlaps with partition table");
+	    if (ok("Correct this automatically?"))
+		    start = dos_sectors;
+    }
     if (start % dos_sectors != 0)
 	warnx("WARNING: partition does not start on a head boundary");
     if ((start  +size) % dos_sectors != 0)
