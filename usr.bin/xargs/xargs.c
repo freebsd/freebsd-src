@@ -83,7 +83,7 @@ static const char *eofstr;
 static int count, insingle, indouble, pflag, tflag, Rflag, rval, zflag;
 static int cnt, Iflag, jfound, Lflag, wasquoted, xflag;
 
-extern char *environ[];
+extern char **environ;
 
 int
 main(int argc, char *argv[])
