@@ -32,8 +32,9 @@
  */
 #ifndef _I386_PHYSIO_PROC_H_
 #define _I386_PHYSIO_PROC_H_
-#include <sys/buf.h>
 #include <sys/queue.h>
+
+struct buf;
 
 struct physio_proc {
 };
