@@ -21,13 +21,15 @@ speed for a hardwired cable).
 If you're using a modem then PPP is almost certainly your only choice.
 Make sure that you have your service provider's information handy as
 you'll need to know it fairly early in the installation process.  You
-will need to know, at the minimum, your service provider's IP address
-and possibly your own (though you can also leave it blank and allow
-PPP to negotiate it with your ISP if your ISP supports such dynamic
-negotiation).  You will also need to know how to use the various "AT
-commands" to dial the ISP with your particular brand of modem as the
-PPP dialer provides only a very simple terminal emulator and has no
-"modem capabilities database".
+will need to know your service provider's IP address, the IP address 
+of your provider's DNS server, and possibly your own IP address unless
+your ISP supports dynamic negotiation, most do.  If you do not choose
+a PAP or CHAP login you will also need to know how to use the various
+"AT commands" to dial the ISP with your particular brand of modem as
+the PPP dialer provides only a very simple terminal emulator and has no
+"modem capabilities database".  If you choose a PAP or CHAP login you
+can simply enter `dial' (without the quotes) at the ppp prompt if your
+modem uses the Hayes compatible AT command set.
 
 If a hard-wired connection to another FreeBSD (2.0R or later) machine
 is available, you might also consider installing over a "laplink"
