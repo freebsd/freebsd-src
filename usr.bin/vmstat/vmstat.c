@@ -164,8 +164,7 @@ main(argc, argv)
 	u_int interval;
 	int reps;
 	char *memf, *nlistf;
-        char errbuf[_POSIX2_LINE_MAX];
-	char *err_str;
+	char errbuf[_POSIX2_LINE_MAX];
 
 	memf = nlistf = NULL;
 	interval = reps = todo = 0;
@@ -318,9 +317,6 @@ char **
 getdrivedata(argv)
 	char **argv;
 {
-	register int i;
-	char buf[30];
-
 	if ((num_devices = getnumdevs()) < 0)
 		errx(1, "%s", devstat_errbuf);
 
@@ -477,7 +473,7 @@ dovmstat(interval, reps)
 			printf("Can't get kerninfo: %s\n", strerror(errno));
 			bzero(&total, sizeof(total));
 		}
-		(void)printf("%2d%2d%2d",
+		(void)printf("%2d %2d %2d",
 		    total.t_rq - 1, total.t_dw + total.t_pw, total.t_sw);
 #define vmstat_pgtok(a) ((a) * sum.v_page_size >> 10)
 #define	rate(x)	(((x) + halfuptime) / uptime)	/* round */
@@ -527,13 +523,13 @@ printhdr()
 	int i, num_shown;
 
 	num_shown = (num_selected < maxshowdevs) ? num_selected : maxshowdevs;
-	(void)printf(" procs      memory      page%*s", 19, "");
+	(void)printf(" procs        memory      page%*s", 19, "");
 	if (num_shown > 1)
 		(void)printf(" disks %*s", num_shown * 4 - 7, "");
 	else if (num_shown == 1)
 		(void)printf("disk");
 	(void)printf("   faults      cpu\n");
-	(void)printf(" r b w     avm    fre  flt  re  pi  po  fr  sr ");
+	(void)printf(" r  b  w     avm    fre  flt  re  pi  po  fr  sr ");
 	for (i = 0; i < num_devices; i++)
 		if ((dev_select[i].selected)
 		 && (dev_select[i].selected <= maxshowdevs))
@@ -764,7 +760,6 @@ domem()
 	long totuse = 0, totfree = 0, totreq = 0;
 	const char *name;
 	struct malloc_type kmemstats[MAX_KMSTATS], *kmsp;
-	char *kmemnames[MAX_KMSTATS];
 	char buf[1024];
 	struct kmembuckets buckets[MINBUCKET + 16];
 
@@ -795,7 +790,7 @@ domem()
 			(void)printf("%4d",size);
 		else
 			(void)printf("%3dK",size>>10);
-		(void)printf(" %8ld %6ld %10ld %7ld %10ld\n",
+		(void)printf(" %8ld %6ld %10lld %7ld %10ld\n",
 			kp->kb_total - kp->kb_totalfree,
 			kp->kb_totalfree, kp->kb_calls,
 			kp->kb_highwat, kp->kb_couldfree);
@@ -841,7 +836,7 @@ domem()
 	for (i = 0, ks = &kmemstats[0]; i < nkms; i++, ks++) {
 		if (ks->ks_calls == 0)
 			continue;
-		(void)printf("%13s%6ld%6ldK%7ldK%6ldK%9ld%5u%6u",
+		(void)printf("%13s%6ld%6ldK%7ldK%6ldK%9lld%5u%6u",
 		    ks->ks_shortdesc,
 		    ks->ks_inuse, (ks->ks_memuse + 1023) / 1024,
 		    (ks->ks_maxused + 1023) / 1024,
