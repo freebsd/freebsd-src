@@ -650,6 +650,25 @@ The supported IP options are:
 The absence of a particular option may be denoted
 with a
 .Ql ! .
+.It Cm tcpoptions Ar spec
+Match if the TCP header contains the comma separated list of
+options specified in
+.Ar spec .
+The supported TCP options are:
+.Pp
+.Cm mss
+(maximum segment size),
+.Cm window
+(tcp window advertisement),
+.Cm sack
+(selective ack),
+.Cm ts
+(rfc1323 timestamp) and
+.Cm cc
+(rfc1644 t/tcp connection count).
+The absence of a particular option may be denoted
+with a
+.Ql ! .
 .It Cm established
 TCP packets only.
 Match packets that have the RST or ACK bits set.
