@@ -8,7 +8,7 @@
 .include "${.CURDIR}/make.conf"
 
 # parallism flag for make.
-MAKEJ?="-j12"
+MAKEJ?="-j3"
 
 .if defined(WITH_GEOM_VOL)
 # Do not hardcode device names, use FFS volume labels instead.
@@ -47,7 +47,7 @@ WD?=	${.OBJDIR}/_.w
 # configuration slice.
 #CFGMASTER?=	${.CURDIR}/cfgmaster
 
-.for cust in CUSTOMIZE CFGMASTER
+.for cust in CFGMASTER
 .if !empty(${cust})
 .if exists(${.CURDIR}/${${cust}})
 ${cust}_PATH=	${.CURDIR}/${${cust}}
@@ -71,14 +71,15 @@ all:	buildworld installworld buildimage
 #
 Customize:	_.cs
 _.cs:	_.iw _.di _.ik _.di
-.if empty(CUSTOMIZE_PATH)
-	# useful stuff for diskless boot
-	sed -i "" -e /beastie/d ${WD}/boot/loader.rc
-	sed -i "" -e /ttyd0/s/off/on/ ${WD}/etc/ttys
-	echo " -h" > ${WD}/boot.config
+.for cust in ${CUSTOMIZE}
+.if exists(${.CURDIR}/Customize/${${cust}})
+	sh -e ${.CURDIR}/Customize/${cust} ${WD} ${WORLDDIR} ${.CURDIR} ${CUSTOMIZE_ARGS}
+.elif exists(${.CURDIR}/${${cust}})
+	sh -e ${.CURDIR}/${cust} ${WD} ${WORLDDIR} ${.CURDIR} ${CUSTOMIZE_ARGS}
 .else
-	sh -e ${CUSTOMIZE_PATH} ${WD} ${WORLDDIR} ${.CURDIR} ${CUSTOMIZE_ARGS}
+	sh -e ${cust} ${WD} ${WORLDDIR} ${.CURDIR} ${CUSTOMIZE_ARGS}
 .endif
+.endfor
 	touch _.cs
 
 ###########################################################################

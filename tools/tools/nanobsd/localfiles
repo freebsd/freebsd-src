@@ -21,7 +21,7 @@
 #
 # Both SRC and PKG may contain shell wildcards.
 #
-# Exampes:
+# Examples:
 #
 # Copy a file from the local system to the same location on the image
 #/usr/local/libexec/foo
