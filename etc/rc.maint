@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc.maint,v 1.2 1995/03/24 00:16:25 jkh Exp $
+#	$Id: rc.maint,v 1.3 1995/03/29 03:30:22 jkh Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # Various maintainance tasks to be done as the system is coming up
@@ -16,6 +16,8 @@ fi
 rm -f /etc/nologin
 rm -f /var/spool/lock/*
 rm -f /var/spool/uucp/.Temp/*
+
+# clean out the old utmp file.
 (cd /var/run && { rm -rf -- *; cp /dev/null utmp; chmod 644 utmp; })
 
 # Check the quotas
