@@ -147,9 +147,9 @@ static struct  try *newtry;
 
 static void init_keytry()
 {
-    newtry = NULL;
+	newtry = NULL;
 
-#include "keys.tries"
+#include "keys.tries.h"
 
 	SP->_keytry = newtry;
 }
