@@ -31,15 +31,10 @@
 
 #if NSND > 0	/* from "snd.h" */
 #include <vm/vm.h>
-#include <vm/vm_kern.h>
-#include <vm/vm_param.h>
 #include <vm/pmap.h>
-#include <vm/vm_extern.h>
 #include <sys/mman.h>
 
-#include <i386/isa/sound/dev_table.h>
 #include <i386/isa/isa_device.h>
-#include <i386/isa/isa.h>
 
 
 /*
