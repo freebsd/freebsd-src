@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $P4: //depot/projects/openpam/lib/openpam_set_option.c#3 $
  */
 
 #include <sys/param.h>
@@ -72,10 +72,20 @@ openpam_set_option(pam_handle_t *pamh,
 		    (cur->optv[i][len] == '\0' || cur->optv[i][len] == '='))
 			break;
 	}
+	if (value == NULL) {
+		/* remove */
+		if (i == cur->optc)
+			return (PAM_SUCCESS);
+		for (free(cur->optv[i]); i < cur->optc; ++i)
+			cur->optv[i] = cur->optv[i + 1];
+		cur->optv[i] = NULL;
+		return (PAM_SUCCESS);
+	}
 	if ((opt = malloc(len + strlen(value) + 2)) == NULL)
 		return (PAM_BUF_ERR);
 	sprintf(opt, "%.*s=%s", (int)len, option, value);
 	if (i == cur->optc) {
+		/* add */
 		optv = realloc(cur->optv, sizeof(char *) * (cur->optc + 2));
 		if (optv == NULL) {
 			free(opt);
@@ -85,6 +95,10 @@ openpam_set_option(pam_handle_t *pamh,
 		optv[i + 1] = NULL;
 		cur->optv = optv;
 		++cur->optc;
+	} else {
+		/* replace */
+		free(cur->optv[i]);
+		cur->optv[i] = opt;
 	}
 	return (PAM_SUCCESS);
 }

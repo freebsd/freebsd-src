@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $P4: //depot/projects/openpam/lib/openpam_load.c#10 $
  */
 
 #include <dlfcn.h>
@@ -54,16 +54,14 @@ const char *_pam_sm_func_name[PAM_NUM_PRIMITIVES] = {
 static pam_module_t *modules;
 
 /*
- * Load a dynamic module, or locate a static one.  Keep a list of
- * previously found modules to speed up the process.
+ * Locate a matching dynamic or static module.  Keep a list of previously
+ * found modules to speed up the process.
  */
 
 static pam_module_t *
 openpam_load_module(const char *path)
 {
 	pam_module_t *module;
-	void *dlh;
-	int i;
 
 	/* check cache first */
 	for (module = modules; module != NULL; module = module->next)
@@ -71,17 +69,7 @@ openpam_load_module(const char *path)
 			goto found;
 
 	/* nope; try to load */
-	if ((dlh = dlopen(path, RTLD_NOW)) == NULL) {
-		openpam_log(PAM_LOG_ERROR, "dlopen(): %s", dlerror());
-	} else {
-		if ((module = calloc(1, sizeof *module)) == NULL)
-			goto buf_err;
-		if ((module->path = strdup(path)) == NULL)
-			goto buf_err;
-		module->dlh = dlh;
-		for (i = 0; i < PAM_NUM_PRIMITIVES; ++i)
-			module->func[i] = dlsym(dlh, _pam_sm_func_name[i]);
-	}
+	module = openpam_dynamic(path);
 	openpam_log(PAM_LOG_DEBUG, "%s dynamic %s",
 	    (module == NULL) ? "no" : "using", path);
 
@@ -101,11 +89,6 @@ openpam_load_module(const char *path)
  found:
 	++module->refcount;
 	return (module);
- buf_err:
-	openpam_log(PAM_LOG_ERROR, "malloc(): %m");
-	dlclose(dlh);
-	free(module);
-	return (NULL);
 }
 
 
@@ -136,6 +119,7 @@ openpam_release_module(pam_module_t *module)
 		module->prev->next = module->next;
 	if (module->next != NULL)
 		module->next->prev = module->prev;
+	free(module->path);
 	free(module);
 }
 

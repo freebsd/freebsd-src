@@ -32,7 +32,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $Id$
+# $P4: //depot/projects/openpam/misc/gendoc.pl#9 $
 #
 
 use strict;
@@ -104,7 +104,7 @@ sub parse_source($) {
     if (!defined($COPYRIGHT) && $source =~ m,^(/\*-\n.*?)\s*\*/,s) {
 	$COPYRIGHT = $1;
 	$COPYRIGHT =~ s,^.\*,.\\\",gm;
-	$COPYRIGHT =~ s,(\$Id).*?\$,$1\$,;
+	$COPYRIGHT =~ s,(\$(?:)P4).*?\$,$1\$,;
 	$COPYRIGHT .= "\n.\\\"";
     }
     $func = $fn;
