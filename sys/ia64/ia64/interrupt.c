@@ -78,7 +78,7 @@ extern int mp_ipi_test;
 volatile int mc_expected, mc_received;
 
 static void 
-dummy_perf(unsigned long vector, struct trapframe *framep)  
+dummy_perf(unsigned long vector, struct trapframe *tf)  
 {
 	printf("performance interrupt!\n");
 }
@@ -124,7 +124,7 @@ SYSCTL_INT(_debug, OID_AUTO, clock_adjust_ticks, CTLFLAG_RW,
     &adjust_ticks, 0, "Total number of ITC interrupts with adjustment");
 
 int
-interrupt(u_int64_t vector, struct trapframe *framep)
+interrupt(u_int64_t vector, struct trapframe *tf)
 {
 	struct thread *td;
 	volatile struct ia64_interrupt_block *ib = IA64_INTERRUPT_BLOCK;
@@ -166,12 +166,12 @@ interrupt(u_int64_t vector, struct trapframe *framep)
 		while (delta >= ia64_clock_reload) {
 			/* Only the BSP runs the real clock */
 			if (PCPU_GET(cpuid) == 0)
-				hardclock((struct clockframe *)framep);
+				hardclock((struct clockframe *)tf);
 			else
-				hardclock_process((struct clockframe *)framep);
+				hardclock_process((struct clockframe *)tf);
 			if (profprocs != 0)
-				profclock((struct clockframe *)framep);
-			statclock((struct clockframe *)framep);
+				profclock((struct clockframe *)tf);
+			statclock((struct clockframe *)tf);
 			delta -= ia64_clock_reload;
 			clk += ia64_clock_reload;
 			if (adj != 0)
@@ -231,11 +231,11 @@ interrupt(u_int64_t vector, struct trapframe *framep)
 #endif
 	} else {
 		ints[PCPU_GET(cpuid)]++;
-		ia64_dispatch_intr(framep, vector);
+		ia64_dispatch_intr(tf, vector);
 	}
 
 	atomic_subtract_int(&td->td_intr_nesting_level, 1);
-	return (TRAPF_USERMODE(framep));
+	return (TRAPF_USERMODE(tf));
 }
 
 /*
