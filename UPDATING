@@ -20,7 +20,7 @@ build and install as described in the COMMON ITEMS section.
 20020814:
 	FreeBSD 4.6.2-RELEASE.
 
-20020813:	p11
+20020813:	p11	FreeBSD-SA-02:38.signed-error
 	Bounds checking errors in accept(), getsockname(),
 	getpeername(), and a VESA ioctl() command were corrected.
 
