@@ -1000,9 +1000,8 @@ initconn()
 	char *p, *a;
 	int result, len, tmpno = 0;
 	int on = 1;
-	int count;
+	int tos, ports;
 	u_long a1,a2,a3,a4,p1,p2;
-	static u_short last_port = FTP_DATA_BOTTOM;
 
 	if (passivemode) {
 		data = socket(AF_INET, SOCK_STREAM, 0);
@@ -1044,15 +1043,18 @@ initconn()
 			return(1);
 		}
 #ifdef IP_TOS
-		on = IPTOS_THROUGHPUT;
-		if (setsockopt(data, IPPROTO_IP, IP_TOS, (char *)&on,
-		    sizeof(int)) < 0)
+		tos = IPTOS_THROUGHPUT;
+		if (setsockopt(data, IPPROTO_IP, IP_TOS, (char *)&tos,
+		    sizeof(tos)) < 0)
 			perror("ftp: setsockopt TOS (ignored)");
 #endif
 		return(0);
 	}
 
 noport:
+	data_addr = myctladdr;
+	if (sendport)
+		data_addr.sin_port = 0;	/* let system pick one */
 	if (data != -1)
 		(void) close(data);
 	data = socket(AF_INET, SOCK_STREAM, 0);
@@ -1062,53 +1064,22 @@ noport:
 			sendport = 1;
 		return (1);
 	}
-	data_addr = myctladdr;
-	if (sendport) {
-		if (restricted_data_ports) {
-			for (count = 0;
-			     count < FTP_DATA_TOP-FTP_DATA_BOTTOM; count++) {
-				last_port++;
-				if (last_port < FTP_DATA_BOTTOM ||
-				    last_port > FTP_DATA_TOP)
-					last_port = FTP_DATA_BOTTOM;
-
-				data_addr.sin_port = htons(last_port);
-				if (bind(data, (struct sockaddr *)&data_addr,
-					 sizeof(data_addr)) < 0) {
-					if (errno == EADDRINUSE)
-						continue;
-					else {
-						warn("bind");
-						goto bad;
-					}
-				}
-				break;
-			}
-			if (count >= FTP_DATA_TOP-FTP_DATA_BOTTOM) {
-				perror("ftp: all data ports in use");
-				goto bad;
-			}
-		} else {
-			data_addr.sin_port = 0;		 /* use any port */
-			if (bind(data, (struct sockaddr *)&data_addr,
-				 sizeof(data_addr)) < 0) {
-				warn("bind");
-				goto bad;
-			}
-		}
-	} else {
-		if (setsockopt(data, SOL_SOCKET, SO_REUSEADDR,
-			       (char *)&on, sizeof (on)) < 0) {
+	if (!sendport)
+		if (setsockopt(data, SOL_SOCKET, SO_REUSEADDR, (char *)&on,
+			       sizeof (on)) < 0) {
 			warn("setsockopt (reuse address)");
 			goto bad;
 		}
-		if (bind(data, (struct sockaddr *)&data_addr,
-			 sizeof (data_addr)) < 0) {
-			warn("bind");
-			goto bad;
-		}
-	}	
-
+#ifdef IP_PORTRANGE
+	ports = restricted_data_ports ? IP_PORTRANGE_HIGH : IP_PORTRANGE_DEFAULT;
+	if (setsockopt(data, IPPROTO_IP, IP_PORTRANGE, (char *)&ports,
+		       sizeof (ports)) < 0)
+		warn("setsockopt PORTRANGE (ignored)");
+#endif
+	if (bind(data, (struct sockaddr *)&data_addr, sizeof (data_addr)) < 0) {
+		warn("bind");
+		goto bad;
+	}
 	if (options & SO_DEBUG &&
 	    setsockopt(data, SOL_SOCKET, SO_DEBUG, (char *)&on, sizeof (on)) < 0)
 		warn("setsockopt (ignored)");
