@@ -49,6 +49,7 @@
 #include <sys/resourcevar.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
+#include <sys/time.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -519,8 +520,13 @@ calcru(p, up, sp, ip)
 		 * quantum, which is much greater than the sampling error.
 		 */
 		microuptime(&tv);
-		tu += (tv.tv_usec - switchtime.tv_usec) +
-		    (tv.tv_sec - switchtime.tv_sec) * (int64_t)1000000;
+		if (timevalcmp(&tv, &switchtime, <))
+			printf("microuptime() went backwards (%ld.%06ld -> %ld,%06ld)\n",
+			    switchtime.tv_sec, switchtime.tv_usec, 
+			    tv.tv_sec, tv.tv_usec);
+		else
+			tu += (tv.tv_usec - switchtime.tv_usec) +
+			    (tv.tv_sec - switchtime.tv_sec) * (int64_t)1000000;
 	}
 	ptu = p->p_stats->p_uu + p->p_stats->p_su + p->p_stats->p_iu;
 	if (tu < ptu || (int64_t)tu < 0) {

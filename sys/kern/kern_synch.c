@@ -791,8 +791,15 @@ mi_switch()
 	 * process was running, and add that to its total so far.
 	 */
 	microuptime(&new_switchtime);
-	p->p_runtime += (new_switchtime.tv_usec - switchtime.tv_usec) +
-	    (new_switchtime.tv_sec - switchtime.tv_sec) * (int64_t)1000000;
+	if (timevalcmp(&new_switchtime, &switchtime, <)) {
+		printf("microuptime() went backwards (%ld.%06ld -> %ld,%06ld)\n",
+		    switchtime.tv_sec, switchtime.tv_usec, 
+		    new_switchtime.tv_sec, new_switchtime.tv_usec);
+		new_switchtime = switchtime;
+	} else {
+		p->p_runtime += (new_switchtime.tv_usec - switchtime.tv_usec) +
+		    (new_switchtime.tv_sec - switchtime.tv_sec) * (int64_t)1000000;
+	}
 
 	/*
 	 * Check if the process exceeds its cpu resource allocation.
