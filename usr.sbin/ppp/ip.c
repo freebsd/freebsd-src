@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.22 1997/06/16 21:20:00 brian Exp $
+ * $Id: ip.c,v 1.23 1997/08/25 00:29:13 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -38,6 +38,7 @@
 #include "filter.h"
 #include "mbuf.h"
 #include "log.h"
+#include "os.h"
 
 extern void SendPppFrame();
 extern void LcpClose();
@@ -71,7 +72,7 @@ StartIdleTimer()
 void
 UpdateIdleTimer()
 {
-  if (IdleTimer.state == TIMER_RUNNING)
+  if (OsLinkIsUp())
     StartIdleTimer();
 }
 
