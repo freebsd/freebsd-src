@@ -5543,7 +5543,7 @@ static void init_registers()
   set_number_reg("dw", int(tt->tm_wday + 1));
   set_number_reg("dy", int(tt->tm_mday));
   set_number_reg("mo", int(tt->tm_mon + 1));
-  set_number_reg("yr", int(tt->tm_year));
+  set_number_reg("yr", int(tt->tm_year)%100);
   set_number_reg("$$", getpid());
   number_reg_dictionary.define(".A",
 			       new constant_reg(ascii_output_flag
