@@ -1216,6 +1216,50 @@ dounmount(mp, flags, td)
 }
 
 /*
+ * Lookup a filesystem type, and if found allocate and initialize
+ * a mount structure for it.
+ *
+ * Devname is usually updated by mount(8) after booting.
+ */
+int
+vfs_rootmountalloc(fstypename, devname, mpp)
+	char *fstypename;
+	char *devname;
+	struct mount **mpp;
+{
+	struct thread *td = curthread;	/* XXX */
+	struct vfsconf *vfsp;
+	struct mount *mp;
+
+	if (fstypename == NULL)
+		return (ENODEV);
+	for (vfsp = vfsconf; vfsp; vfsp = vfsp->vfc_next)
+		if (!strcmp(vfsp->vfc_name, fstypename))
+			break;
+	if (vfsp == NULL)
+		return (ENODEV);
+	mp = malloc((u_long)sizeof(struct mount), M_MOUNT, M_WAITOK | M_ZERO);
+	lockinit(&mp->mnt_lock, PVFS, "vfslock", 0, LK_NOPAUSE);
+	(void)vfs_busy(mp, LK_NOWAIT, 0, td);
+	TAILQ_INIT(&mp->mnt_nvnodelist);
+	TAILQ_INIT(&mp->mnt_reservedvnlist);
+	mp->mnt_vfc = vfsp;
+	mp->mnt_op = vfsp->vfc_vfsops;
+	mp->mnt_flag = MNT_RDONLY;
+	mp->mnt_vnodecovered = NULLVP;
+	vfsp->vfc_refcount++;
+	mp->mnt_iosize_max = DFLTPHYS;
+	mp->mnt_stat.f_type = vfsp->vfc_typenum;
+	mp->mnt_flag |= vfsp->vfc_flags & MNT_VISFLAGMASK;
+	strncpy(mp->mnt_stat.f_fstypename, vfsp->vfc_name, MFSNAMELEN);
+	mp->mnt_stat.f_mntonname[0] = '/';
+	mp->mnt_stat.f_mntonname[1] = 0;
+	(void) copystr(devname, mp->mnt_stat.f_mntfromname, MNAMELEN - 1, 0);
+	*mpp = mp;
+	return (0);
+}
+
+/*
  * Find and mount the root filesystem
  */
 void
