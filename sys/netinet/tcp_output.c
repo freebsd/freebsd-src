@@ -356,8 +356,13 @@ after_sack_rexmit:
 		len = tp->t_maxseg;
 		sendalot = 1;
 	}
-	if (off + len < so->so_snd.sb_cc)
-		flags &= ~TH_FIN;
+	if (sack_rxmit) {
+		if (SEQ_LT(p->rxmit + len, tp->snd_una + so->so_snd.sb_cc))
+			flags &= ~TH_FIN;
+	} else { 
+		if (SEQ_LT(tp->snd_nxt + len, tp->snd_una + so->so_snd.sb_cc))
+			flags &= ~TH_FIN;
+	}
 
 	recwin = sbspace(&so->so_rcv);
 
@@ -1088,8 +1093,12 @@ timer:
 			 * No need to check for TH_FIN here because
 			 * the TF_SENTFIN flag handles that case.
 			 */
-			if ((flags & TH_SYN) == 0)
-				tp->snd_nxt -= len;
+			if ((flags & TH_SYN) == 0) {
+				if (sack_rxmit)
+					p->rxmit -= len;
+				else 
+					tp->snd_nxt -= len;
+			}
 		}
 
 out:
