@@ -123,7 +123,7 @@ main(int argc,
 	(void)gethostname(myname, sizeof(myname)-1);
 	(void)gethost(myname, &myaddr);
 
-	while ((n = getopt(argc, argv, "sqdghmpAtT:F:P:")) != -1) {
+	while ((n = getopt(argc, argv, "sqdghmAtT:F:P:")) != -1) {
 		switch (n) {
 		case 's':
 			supplier = 1;
@@ -225,7 +225,7 @@ main(int argc,
 	if (argc != 0) {
 usage:
 		logbad(0, "usage: routed [-sqdghmpAt] [-T tracefile]"
-		       " [-F net[,metric]] [-P parms]");
+		       " [-F net[/mask[,metric]]] [-P parms]");
 	}
 	if (geteuid() != 0)
 		logbad(0, "requires UID 0");
