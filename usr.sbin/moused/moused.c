@@ -382,6 +382,8 @@ static struct rodentparam {
     long button2timeout;	/* 3 button emulation timeout */
     mousehw_t hw;		/* mouse device hardware information */
     mousemode_t mode;		/* protocol information */
+    float accelx;		/* Acceleration in the X axis */
+    float accely;		/* Acceleration in the Y axis */
 } rodent = { 
     flags : 0, 
     portname : NULL,
@@ -398,6 +400,8 @@ static struct rodentparam {
     mremcfd : -1,
     clickthreshold : DFLT_CLICKTHRESHOLD,
     button2timeout : DFLT_BUTTON2TIMEOUT,
+    accelx : 1.0,
+    accely : 1.0,
 };
 
 /* button status */
@@ -502,7 +506,7 @@ main(int argc, char *argv[])
     for (i = 0; i < MOUSE_MAXBUTTON; ++i)
 	mstate[i] = &bstate[i];
 
-    while((c = getopt(argc,argv,"3C:DE:F:I:PRS:cdfhi:l:m:p:r:st:w:z:")) != -1)
+    while((c = getopt(argc,argv,"3C:DE:F:I:PRS:a:cdfhi:l:m:p:r:st:w:z:")) != -1)
 	switch(c) {
 
 	case '3':
@@ -518,6 +522,18 @@ main(int argc, char *argv[])
 	    }
 	    break;
 
+	case 'a':
+	    i = sscanf(optarg, "%f,%f", &rodent.accelx, &rodent.accely);
+	    if (i == 0) {
+		warnx("invalid acceleration argument '%s'", optarg);
+		usage();
+	    }
+	    
+	    if (i == 1)
+		rodent.accely = rodent.accelx;
+	    
+	    break;
+	    
 	case 'c':
 	    rodent.flags |= ChordMiddle;
 	    break;
@@ -919,8 +935,8 @@ moused(void)
 	        if (action2.flags & MOUSE_POSCHANGED) {
     		    mouse.operation = MOUSE_MOTION_EVENT;
 	            mouse.u.data.buttons = action2.button;
-	            mouse.u.data.x = action2.dx;
-	            mouse.u.data.y = action2.dy;
+	            mouse.u.data.x = action2.dx * rodent.accelx;
+	            mouse.u.data.y = action2.dy * rodent.accely;
 	            mouse.u.data.z = action2.dz;
 		    if (debug < 2)
 	                ioctl(rodent.cfd, CONS_MOUSECTL, &mouse);
@@ -928,8 +944,8 @@ moused(void)
 	    } else {
 	        mouse.operation = MOUSE_ACTION;
 	        mouse.u.data.buttons = action2.button;
-	        mouse.u.data.x = action2.dx;
-	        mouse.u.data.y = action2.dy;
+	        mouse.u.data.x = action2.dx * rodent.accelx;
+	        mouse.u.data.y = action2.dy * rodent.accely;
 	        mouse.u.data.z = action2.dz;
 		if (debug < 2)
 	            ioctl(rodent.cfd, CONS_MOUSECTL, &mouse);
@@ -986,8 +1002,8 @@ usage(void)
 {
     fprintf(stderr, "%s\n%s\n%s\n",
 	"usage: moused [-DRcdfs] [-I file] [-F rate] [-r resolution] [-S baudrate]",
-	"              [-C threshold] [-m N=M] [-w N] [-z N] [-t <mousetype>]",
-	"              [-3 [-E timeout]] -p <port>",
+	"              [-a X [,Y]] [-C threshold] [-m N=M] [-w N] [-z N]",
+	"              [-t <mousetype>] [-3 [-E timeout]] -p <port>",
 	"       moused [-d] -i <info> -p <port>");
     exit(1);
 }
