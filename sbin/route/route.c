@@ -39,7 +39,7 @@ static const char copyright[] =
 
 #ifndef lint
 #if 0
-static char sccsid[] = "@(#)route.c	8.3 (Berkeley) 3/19/94";
+static char sccsid[] = "@(#)route.c	8.6 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
   "$FreeBSD$";
@@ -318,7 +318,7 @@ routename(sa)
 	if (first) {
 		first = 0;
 		if (gethostname(domain, MAXHOSTNAMELEN) == 0 &&
-		    (cp = index(domain, '.'))) {
+		    (cp = strchr(domain, '.'))) {
 			domain[MAXHOSTNAMELEN] = '\0';
 			(void) strcpy(domain, cp + 1);
 		} else
@@ -340,7 +340,7 @@ routename(sa)
 			hp = gethostbyaddr((char *)&in, sizeof (struct in_addr),
 				AF_INET);
 			if (hp) {
-				if ((cp = index(hp->h_name, '.')) &&
+				if ((cp = strchr(hp->h_name, '.')) &&
 				    !strcmp(cp + 1, domain))
 					*cp = 0;
 				cp = hp->h_name;
@@ -774,7 +774,7 @@ newroute(argc, argv)
 			break;
 		if (af == AF_INET && *gateway && hp && hp->h_addr_list[1]) {
 			hp->h_addr_list++;
-			bcopy(hp->h_addr_list[0], &so_gate.sin.sin_addr,
+			memmove(&so_gate.sin.sin_addr, hp->h_addr_list[0],
 			    MIN(hp->h_length, sizeof(so_gate.sin.sin_addr)));
 		} else
 			break;
@@ -990,7 +990,7 @@ getaddr(which, s, hpp)
 		if (which == RTA_DST) {
 			extern short ns_bh[3];
 			struct sockaddr_ns *sms = &(so_mask.sns);
-			bzero((char *)sms, sizeof(*sms));
+			memset(sms, 0, sizeof(*sms));
 			sms->sns_family = 0;
 			sms->sns_len = 6;
 			sms->sns_addr.x_net = *(union ns_net *)ns_bh;
@@ -1058,7 +1058,7 @@ netdone:
 	if (hp) {
 		*hpp = hp;
 		su->sin.sin_family = hp->h_addrtype;
-		bcopy(hp->h_addr, (char *)&su->sin.sin_addr, 
+		memmove((char *)&su->sin.sin_addr, hp->h_addr,
 		    MIN(hp->h_length, sizeof(su->sin.sin_addr)));
 		return (1);
 	}
@@ -1138,9 +1138,9 @@ ns_print(sns)
 		return (mybuf);
 	}
 
-	if (bcmp((char *)ns_bh, (char *)work.x_host.c_host, 6) == 0)
+	if (memcmp(ns_bh, work.x_host.c_host, 6) == 0)
 		host = "any";
-	else if (bcmp((char *)ns_nullh, (char *)work.x_host.c_host, 6) == 0)
+	else if (memcmp(ns_nullh, work.x_host.c_host, 6) == 0)
 		host = "*";
 	else {
 		q = work.x_host.c_host;
@@ -1225,12 +1225,12 @@ rtmsg(cmd, flags)
 
 #define NEXTADDR(w, u) \
 	if (rtm_addrs & (w)) {\
-	    l = ROUNDUP(u.sa.sa_len); bcopy((char *)&(u), cp, l); cp += l;\
+	    l = ROUNDUP(u.sa.sa_len); memmove(cp, &(u), l); cp += l;\
 	    if (verbose) sodump(&(u),"u");\
 	}
 
 	errno = 0;
-	bzero((char *)&m_rtmsg, sizeof(m_rtmsg));
+	memset(&m_rtmsg, 0, sizeof(m_rtmsg));
 	if (cmd == 'a')
 		cmd = RTM_ADD;
 	else if (cmd == 'c')
@@ -1620,7 +1620,7 @@ sockaddr(addr, sa)
 	char *cplim = cp + size;
 	register int byte = 0, state = VIRGIN, new = 0 /* foil gcc */;
 
-	bzero(cp, size);
+	memset(cp, 0, size);
 	cp++;
 	do {
 		if ((*addr >= '0') && (*addr <= '9')) {
