@@ -37,9 +37,14 @@ static const char copyright[] =
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
+#if 0
 #ifndef lint
-static const char sccsid[] = "@(#)checknr.c	8.1 (Berkeley) 6/6/93";
+static char sccsid[] = "@(#)checknr.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
+#endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * checknr: check an nroff/troff input file for matching macro calls.
@@ -58,12 +63,12 @@ static const char sccsid[] = "@(#)checknr.c	8.1 (Berkeley) 6/6/93";
 #define MAXCMDS	500	/* Max number of commands known */
 
 void addcmd __P((char *));
-void addmac __P((char *));
-int binsrch __P((char *));
+void addmac __P((const char *));
+int binsrch __P((const char *));
 void checkknown __P((char *));
 void chkcmd __P((char *, char *));
 void complain __P((int));
-int eq __P((char *, char *));
+int eq __P((const char *, const char *));
 void nomatch __P((char *));
 void pe __P((int));
 void process __P((FILE *));
@@ -85,8 +90,8 @@ int stktop;
  * The kinds of opening and closing brackets.
  */
 struct brstr {
-	char *opbr;
-	char *clbr;
+	const char *opbr;
+	const char *clbr;
 } br[MAXBR] = {
 	/* A few bare bones troff commands */
 #define SZ	0
@@ -143,7 +148,7 @@ struct brstr {
  * All commands known to nroff, plus macro packages.
  * Used so we can complain about unrecognized commands.
  */
-char *knowncmds[MAXCMDS] = {
+const char *knowncmds[MAXCMDS] = {
 "$c", "$f", "$h", "$p", "$s", "(b", "(c", "(d", "(f", "(l", "(q", "(t",
 "(x", "(z", ")b", ")c", ")d", ")f", ")l", ")q", ")t", ")x", ")z", "++",
 "+c", "1C", "1c", "2C", "2c", "@(", "@)", "@C", "@D", "@F", "@I", "@M",
@@ -178,8 +183,7 @@ char *knowncmds[MAXCMDS] = {
 };
 
 int	lineno;		/* current line number in input file */
-char	line[256];	/* the current line */
-char	*cfilename;	/* name of current file */
+const char *cfilename;	/* name of current file */
 int	nfiles;		/* number of files to process */
 int	fflag;		/* -f: ignore \f */
 int	sflag;		/* -s: ignore \s */
@@ -211,10 +215,8 @@ char **argv;
 			for (i=0; br[i].opbr; i++)
 				;
 			for (cp=argv[1]+3; cp[-1]; cp += 6) {
-				br[i].opbr = malloc(3);
-				strncpy(br[i].opbr, cp, 2);
-				br[i].clbr = malloc(3);
-				strncpy(br[i].clbr, cp+3, 2);
+				br[i].opbr = strncpy(malloc(3), cp, 2);
+				br[i].clbr = strncpy(malloc(3), cp+3, 2);
 				addmac(br[i].opbr);	/* knows pairs are also known cmds */
 				addmac(br[i].clbr);
 				i++;
@@ -280,9 +282,10 @@ void
 process(f)
 FILE *f;
 {
-	register int i, n;
+	int i, n;
 	char mac[5];	/* The current macro or nroff command */
 	int pl;
+	static char line[256];	/* the current line */
 
 	stktop = -1;
 	for (lineno = 1; fgets(line, sizeof line, f); lineno++) {
@@ -404,10 +407,10 @@ int i;
 
 void
 chkcmd(line, mac)
-char *line;
+char *line __unused;
 char *mac;
 {
-	register int i;
+	int i;
 
 	/*
 	 * Check to see if it matches top of stack.
@@ -444,7 +447,7 @@ void
 nomatch(mac)
 char *mac;
 {
-	register int i, j;
+	int i, j;
 
 	/*
 	 * Look for a match further down on stack
@@ -488,19 +491,19 @@ char *mac;
 /* eq: are two strings equal? */
 int
 eq(s1, s2)
-char *s1, *s2;
+const char *s1, *s2;
 {
 	return (strcmp(s1, s2) == 0);
 }
 
 /* print the first part of an error message, given the line number */
 void
-pe(lineno)
-int lineno;
+pe(linen)
+int linen;
 {
 	if (nfiles > 1)
 		printf("%s: ", cfilename);
-	printf("%d: ", lineno);
+	printf("%d: ", linen);
 }
 
 void
@@ -556,14 +559,14 @@ char *line;
  */
 void
 addmac(mac)
-char *mac;
+const char *mac;
 {
-	register char **src, **dest, **loc;
+	const char **src, **dest, **loc;
 
 	if (binsrch(mac) >= 0){	/* it's OK to redefine something */
 #ifdef DEBUG
 		printf("binsrch(%s) -> already in table\n", mac);
-#endif DEBUG
+#endif
 		return;
 	}
 	/* binsrch sets slot as a side effect */
@@ -575,8 +578,7 @@ printf("binsrch(%s) -> %d\n", mac, slot);
 	dest = src+1;
 	while (dest > loc)
 		*dest-- = *src--;
-	*loc = malloc(3);
-	strcpy(*loc, mac);
+	*loc = strcpy(malloc(3), mac);
 	ncmds++;
 #ifdef DEBUG
 printf("after: %s %s %s %s %s, %d cmds\n", knowncmds[slot-2], knowncmds[slot-1], knowncmds[slot], knowncmds[slot+1], knowncmds[slot+2], ncmds);
@@ -589,12 +591,12 @@ printf("after: %s %s %s %s %s, %d cmds\n", knowncmds[slot-2], knowncmds[slot-1],
  */
 int
 binsrch(mac)
-char *mac;
+const char *mac;
 {
-	register char *p;	/* pointer to current cmd in list */
-	register int d;		/* difference if any */
-	register int mid;	/* mid point in binary search */
-	register int top, bot;	/* boundaries of bin search, inclusive */
+	const char *p;	/* pointer to current cmd in list */
+	int d;		/* difference if any */
+	int mid;	/* mid point in binary search */
+	int top, bot;	/* boundaries of bin search, inclusive */
 
 	top = ncmds-1;
 	bot = 0;
