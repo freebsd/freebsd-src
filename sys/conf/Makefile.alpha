@@ -276,6 +276,7 @@ all:	modules
 depend: modules-depend
 clean:  modules-clean
 cleandepend:  modules-cleandepend
+cleandir:  modules-cleandir
 tags:  modules-tags
 install install.debug: modules-install
 reinstall reinstall.debug: modules-reinstall
