@@ -194,7 +194,7 @@ dispatch_msgConfirm(dialogMenuItem *unused)
     char *msg = variable_get(VAR_COMMAND);
 
     if (msg) {
-	msgConfirm(msg);
+	msgConfirm("%s", msg);
 	return DITEM_SUCCESS;
     }
 

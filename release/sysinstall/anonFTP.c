@@ -175,7 +175,7 @@ createFtpUser(void)
 	msgConfirm("Could not open master password file.");
 	return DITEM_FAILURE;
     }
-    fprintf(fptr, pwline);
+    fprintf(fptr, "%s", pwline);
     fclose(fptr);
     msgNotify("Remaking password file: %s", _PATH_MASTERPASSWD);
     vsystem("pwd_mkdb -p %s", _PATH_MASTERPASSWD);
