@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  *
  *	From Id: lpt.c,v 1.55.2.1 1996/11/12 09:08:38 phk Exp
- *	$Id: if_plip.c,v 1.2 1998/08/12 18:02:48 bde Exp $
+ *	$Id: if_plip.c,v 1.3 1998/08/17 01:05:23 bde Exp $
  */
 
 /*
@@ -212,7 +212,7 @@ lpprobe(struct ppb_data *ppb)
 	lp->lp_unit = nlp;
 
 	if (bootverbose)
-		printf("plip: irq %d", ppb->ppb_link->id_irq);
+		printf("plip: irq %d\n", ppb->ppb_link->id_irq);
 
 	/*
 	 * ppbus dependent initialisation.
