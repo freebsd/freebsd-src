@@ -23,14 +23,16 @@
  *   Does not support BSD terminal I/O. Anyone care to add it?
  */
 
+#include <unistd.h>
 #include <sys/types.h>
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
 #include <signal.h>
 #include <time.h>
+#include <sys/time.h>
 #include <sys/ioctl.h>
-#include <sys/termio.h>
+#include <sys/termios.h>
 
 #include "xc-conf.h"
 
@@ -222,16 +224,16 @@ static char telno[64];		/* Telephone number w/meta-chars */
 static int Debug;
 static int fShangup = FALSE;	/* TRUE if HUP signal received */
 static FILE  *dbf = NULL;
-static struct termio old, new;
+static struct termios old, new;
 
-extern int usignal();
-extern int uhup();
+static void usignal();
+static void uhup();
 
 static struct siglist
 {
   int signal;
-  int (*o_catcher) ();
-  int (*n_catcher) ();
+  void (*o_catcher) ();
+  void (*n_catcher) ();
 } sigtbl[] = {
              { SIGHUP,   NULL, uhup },
              { SIGINT,   NULL, usignal },
@@ -244,17 +246,17 @@ static struct siglist
 
 extern struct script *read_script();
 extern void msleep();
-extern char xgetc();
-extern void charlog();
-extern void setup_tty();
-extern void restore_tty();
-extern void ttoslow();
-extern void ttflui();
-extern void tthang();
-extern void ttbreak();
-extern void tt7bit();
-extern void ttpar();
-extern void DEBUG();
+static char xgetc();
+static void charlog();
+static void setup_tty();
+static void restore_tty();
+static void ttoslow();
+static void ttflui();
+static void tthang();
+static void ttbreak();
+static void tt7bit();
+static void ttpar();
+static void DEBUG();
 
 extern void *malloc();
 
@@ -335,7 +337,7 @@ char *argv[];
   sigs = &sigtbl[0];
   while(sigs->signal)
     {
-      sigs->o_catcher = (int (*) ())signal(sigs->signal, sigs->n_catcher);
+      sigs->o_catcher = signal(sigs->signal, sigs->n_catcher);
       sigs += 1;
     }
 
@@ -1140,7 +1142,7 @@ int do_script(begin)
 /*
  * usignal - generic signal catcher
  */
-static int usignal(isig)
+static void usignal(isig)
      int isig;
 {
   DEBUG(DB_LOG, "Caught signal %d. Exiting...\n", isig);
@@ -1151,7 +1153,7 @@ static int usignal(isig)
 /*
  * uhup - HUP catcher
  */
-static int uhup(isig)
+static void uhup(isig)
      int isig;
 {
   DEBUG(DB_LOG, "Data set hangup.\n");
@@ -1173,14 +1175,15 @@ int tmo;			/* Timeout, seconds */
 {
   char c;
   struct timeval s;
-  int f = 1;			/* Select on stdin */
+  fd_set f;
   int result;
 
+  FD_SET(0,&f);                 /* Select on stdin */
   if(read(0, &c, 1)  <= 0)	/* If no data available */
     {
       s.tv_sec = (long)tmo;
       s.tv_usec = 0L;
-      if(select (1, &f, (int *) NULL, &f, &s) == 1)
+      if(select (1, &f, (fd_set *) NULL, &f, &s) == 1)
 	read(0, &c, 1);
       else
 	c = '\377';
@@ -1291,7 +1294,7 @@ static void setup_tty()
 {
   register int i;
 
-  ioctl(0, TCGETA, &old);
+  tcgetattr(0,&old);
 
   new = old;
 
@@ -1302,7 +1305,7 @@ static void setup_tty()
   new.c_iflag = ISTRIP;		/* Raw mode, 7-bit stripping */
   new.c_lflag = 0;		/* No special line discipline */
 
-  ioctl(0, TCSETA, &new);
+  tcsetattr(0,TCSANOW,&new);
 }
 
 /*
@@ -1311,7 +1314,7 @@ static void setup_tty()
 static void restore_tty(sig)
 int sig;
 {
-  ioctl(0, TCSETA, &old);
+  tcsetattr(0,TCSANOW,&old);
   return;
 }
 
@@ -1343,7 +1346,7 @@ static void ttoslow(s, len, delay)
 static void ttflui()
 {
   if(isatty(0))
-    (void) ioctl ( 0, TCFLSH, 0);
+    tcflush(0,TCIFLUSH);
 }
 
 /*
@@ -1361,13 +1364,13 @@ static int ttcd()
  */
 static void tthang()
 {
-  if(!isatty())
+  if(!isatty(1))
     return;
 
-#ifdef TCCLRDTR
-  (void) ioctl (1, TCCLRDTR, 0);
+#ifdef TIOCCDTR
+  (void) ioctl (1, TIOCCDTR, 0);
   sleep (2);
-  (void) ioctl (1, TCSETDTR, 0);
+  (void) ioctl (1, TIOCSDTR, 0);
 #endif
 
   return;
@@ -1378,7 +1381,7 @@ static void tthang()
  */
 static void ttbreak()
 {
-  (void) ioctl (1, TCSBRK, 0);
+  tcsendbreak(1,5);
 }
 
 /*
@@ -1402,7 +1405,7 @@ static void tt7bit(enable)
   else
     new.c_iflag &= ~ISTRIP;
 
-  ioctl(0, TCSETA, &new);
+  tcsetattr(0,TCSANOW,&new);
 }
 
 /*
@@ -1433,12 +1436,5 @@ static void ttpar(mode)
       break;
     }
 
-  ioctl(0, TCSETA, &new);
+  tcsetattr(0,TCSANOW,&new);
 }
-
-
-
-
-
-
-
