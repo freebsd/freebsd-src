@@ -702,7 +702,9 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 				tp->t_flags &= ~TF_MORETOCOME;
 		}
 	} else {
+		SOCKBUF_LOCK(&so->so_snd);
 		if (sbspace(&so->so_snd) < -512) {
+			SOCKBUF_UNLOCK(&so->so_snd);
 			m_freem(m);
 			error = ENOBUFS;
 			goto out;
@@ -715,7 +717,8 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 		 * of data past the urgent section.
 		 * Otherwise, snd_up should be one lower.
 		 */
-		sbappendstream(&so->so_snd, m);
+		sbappendstream_locked(&so->so_snd, m);
+		SOCKBUF_UNLOCK(&so->so_snd);
 		if (nam && tp->t_state < TCPS_SYN_SENT) {
 			/*
 			 * Do implied connect if not yet connected,
