@@ -1869,25 +1869,11 @@ init386(first)
 
 	/* make ldt memory segments */
 	/*
-	 * The data segment limit must not cover the user area because we
-	 * don't want the user area to be writable in copyout() etc. (page
-	 * level protection is lost in kernel mode on 386's).  Also, we
-	 * don't want the user area to be writable directly (page level
-	 * protection of the user area is not available on 486's with
-	 * CR0_WP set, because there is no user-read/kernel-write mode).
-	 *
 	 * XXX - VM_MAXUSER_ADDRESS is an end address, not a max.  And it
 	 * should be spelled ...MAX_USER...
 	 */
-#define VM_END_USER_RW_ADDRESS	VM_MAXUSER_ADDRESS
-	/*
-	 * The code segment limit has to cover the user area until we move
-	 * the signal trampoline out of the user area.  This is safe because
-	 * the code segment cannot be written to directly.
-	 */
-#define VM_END_USER_R_ADDRESS	(VM_END_USER_RW_ADDRESS + UPAGES * PAGE_SIZE)
-	ldt_segs[LUCODE_SEL].ssd_limit = atop(VM_END_USER_R_ADDRESS - 1);
-	ldt_segs[LUDATA_SEL].ssd_limit = atop(VM_END_USER_RW_ADDRESS - 1);
+	ldt_segs[LUCODE_SEL].ssd_limit = atop(VM_MAXUSER_ADDRESS - 1);
+	ldt_segs[LUDATA_SEL].ssd_limit = atop(VM_MAXUSER_ADDRESS - 1);
 	for (x = 0; x < sizeof ldt_segs / sizeof ldt_segs[0]; x++)
 		ssdtosd(&ldt_segs[x], &ldt[x].sd);
 
