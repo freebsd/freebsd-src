@@ -51,6 +51,7 @@ static const char rcsid[] =
 #include <sys/param.h>
 #include <sys/syslog.h>
 #include <sys/wait.h>
+#include <sys/linker.h>
 #include <sys/mount.h>
 #include <sys/time.h>
 #include <sys/sysctl.h>
@@ -73,16 +74,15 @@ int
 main(int argc, char *argv[])
 {
 	int ch;
-	struct vfsconf vfc;
+	struct xvfsconf vfc;
 	int error;
 	unsigned int iodmin, iodmax, num_servers;
 	size_t len;
 
 	error = getvfsbyname("nfs", &vfc);
-	if (error && vfsisloadable("nfs")) {
-		if (vfsload("nfs"))
-			err(1, "vfsload(nfs)");
-		endvfsent();	/* flush cache */
+	if (error) {
+		if (kldload("nfs"))
+			err(1, "kldload(nfs)");
 		error = getvfsbyname("nfs", &vfc);
 	}
 	if (error)

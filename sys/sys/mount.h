@@ -319,7 +319,30 @@ struct nfs_public {
  * type of filesystem supported by the kernel. These are searched at
  * mount time to identify the requested filesystem.
  */
+#ifdef _KERNEL
 struct vfsconf {
+	struct	vfsops *vfc_vfsops;	/* filesystem operations vector */
+	char	vfc_name[MFSNAMELEN];	/* filesystem type name */
+	int	vfc_typenum;		/* historic filesystem type number */
+	int	vfc_refcount;		/* number mounted of this type */
+	int	vfc_flags;		/* permanent flags */
+	struct	vfsoptdecl *vfc_opts;	/* mount options */
+	struct	vfsconf *vfc_next;	/* next in list */
+};
+#endif /* _KERNEL */
+
+/* Userland version of the struct vfsconf. */
+struct xvfsconf {
+	struct	vfsops *vfc_vfsops;	/* filesystem operations vector */
+	char	vfc_name[MFSNAMELEN];	/* filesystem type name */
+	int	vfc_typenum;		/* historic filesystem type number */
+	int	vfc_refcount;		/* number mounted of this type */
+	int	vfc_flags;		/* permanent flags */
+	struct	vfsconf *vfc_next;	/* next in list */
+};
+
+/* Userland version of the struct vfsconf. */
+struct xvfsconf {
 	struct	vfsops *vfc_vfsops;	/* filesystem operations vector */
 	char	vfc_name[MFSNAMELEN];	/* filesystem type name */
 	int	vfc_typenum;		/* historic filesystem type number */
@@ -516,11 +539,9 @@ int	unmount(const char *, int);
 
 /* C library stuff */
 void	endvfsent(void);
-struct	ovfsconf *getvfsbyname(const char *);
 struct	ovfsconf *getvfsbytype(int);
 struct	ovfsconf *getvfsent(void);
-#define	getvfsbyname	new_getvfsbyname
-int	new_getvfsbyname(const char *, struct vfsconf *);
+int	getvfsbyname(const char *, struct xvfsconf *);
 void	setvfsent(int);
 int	vfsisloadable(const char *);
 int	vfsload(const char *);

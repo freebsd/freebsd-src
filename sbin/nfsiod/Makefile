@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 PROG=	nfsiod
+WARNS?=	6
 MAN=	nfsiod.8
 
 .include <bsd.prog.mk>

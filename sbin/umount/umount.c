@@ -200,7 +200,7 @@ main(int argc, char *argv[])
 int
 umountall(char **typelist)
 {
-	struct vfsconf vfc;
+	struct xvfsconf vfc;
 	struct fstab *fs;
 	int rval;
 	char *cp;

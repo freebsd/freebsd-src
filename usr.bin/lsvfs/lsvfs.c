@@ -8,13 +8,12 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#define _NEW_VFSCONF
-
 #include <sys/param.h>
 #include <sys/mount.h>
 
 #include <err.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #define FMT "%-32.32s %5d %s\n"
@@ -26,12 +25,10 @@ static const char *fmt_flags(int);
 int
 main(int argc, char **argv)
 {
-  int rv = 0;
-  struct vfsconf vfc;
-  struct ovfsconf *ovfcp;
+  int cnt, rv = 0, i; 
+  struct xvfsconf vfc, *xvfsp;
+  size_t buflen;
   argc--, argv++;
-
-  setvfsent(1);
 
   printf(HDRFMT, "Filesystem", "Refs", "Flags");
   fputs(DASHES, stdout);
@@ -46,13 +43,22 @@ main(int argc, char **argv)
       }
     }
   } else {
-    while ((ovfcp = getvfsent()) != NULL) {
-      printf(FMT, ovfcp->vfc_name, ovfcp->vfc_refcount,
-             fmt_flags(ovfcp->vfc_flags));
+    if (sysctlbyname("vfs.conflist", NULL, &buflen, NULL, 0) < 0)
+      err(1, "sysctl(vfs.conflist)");
+    xvfsp = malloc(buflen);
+    if (xvfsp == NULL)
+      errx(1, "malloc failed");
+    if (sysctlbyname("vfs.conflist", xvfsp, &buflen, NULL, 0) < 0)
+      err(1, "sysctl(vfs.conflist)");
+    cnt = buflen / sizeof(struct xvfsconf);
+
+    for (i = 0; i < cnt; i++) {
+      printf(FMT, xvfsp[i].vfc_name, xvfsp[i].vfc_refcount,
+             fmt_flags(xvfsp[i].vfc_flags));
     }
+    free(xvfsp);
   }
 
-  endvfsent();
   return rv;
 }
 
