@@ -142,7 +142,7 @@ ast(struct trapframe *framep)
 	struct proc *p;
 	struct ksegrp *kg;
 	struct rlimit rlim;
-	u_int prticks, sticks;
+	u_int sticks;
 	int sflag;
 	int flags;
 	int sig;
@@ -180,11 +180,6 @@ ast(struct trapframe *framep)
 	td->td_flags &= ~(TDF_ASTPENDING | TDF_NEEDSIGCHK |
 	    TDF_NEEDRESCHED | TDF_OWEUPC | TDF_INTERRUPT);
 	cnt.v_soft++;
-	prticks = 0;
-	if (flags & TDF_OWEUPC && p->p_flag & P_PROFIL) {
-		prticks = p->p_stats->p_prof.pr_ticks;
-		p->p_stats->p_prof.pr_ticks = 0;
-	}
 	mtx_unlock_spin(&sched_lock);
 	/*
 	 * XXXKSE While the fact that we owe a user profiling
@@ -196,8 +191,11 @@ ast(struct trapframe *framep)
 
 	if (td->td_ucred != p->p_ucred) 
 		cred_update_thread(td);
-	if (flags & TDF_OWEUPC && p->p_flag & P_PROFIL)
-		addupc_task(td, p->p_stats->p_prof.pr_addr, prticks);
+	if (flags & TDF_OWEUPC && p->p_flag & P_PROFIL) {
+		addupc_task(td, p->p_stats->p_prof.pr_addr,
+		    p->p_stats->p_prof.pr_ticks);
+		p->p_stats->p_prof.pr_ticks = 0;
+	}
 	if (sflag & PS_ALRMPEND) {
 		PROC_LOCK(p);
 		psignal(p, SIGVTALRM);
