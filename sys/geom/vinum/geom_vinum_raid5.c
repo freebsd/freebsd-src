@@ -357,7 +357,9 @@ gv_build_raid5_req(struct gv_raid5_packet *wp, struct bio *bp, caddr_t addr,
 		 * the desired data.
 		 */
 		if (wp->type == DEGRADED) {
-			wp->buf = g_malloc(wp->length, M_WAITOK | M_ZERO);
+			wp->buf = g_malloc(wp->length, M_NOWAIT | M_ZERO);
+			if (wp->buf == NULL)
+				return (ENOMEM);
 			wp->bufmalloc = 1;
 			LIST_FOREACH(s, &p->subdisks, in_plex) {
 				/* Skip the broken subdisk. */
@@ -369,7 +371,9 @@ gv_build_raid5_req(struct gv_raid5_packet *wp, struct bio *bp, caddr_t addr,
 				if (rbp->bio == NULL)
 					return (ENOMEM);
 				rbp->buf = g_malloc(wp->length,
-					M_WAITOK | M_ZERO);
+					M_NOWAIT | M_ZERO);
+				if (rbp->buf == NULL)
+					return (ENOMEM);
 				rbp->malloc = 1;
 				rbp->bio->bio_cmd = BIO_READ;
 				rbp->bio->bio_offset = wp->offset;
@@ -414,7 +418,9 @@ gv_build_raid5_req(struct gv_raid5_packet *wp, struct bio *bp, caddr_t addr,
 		 * write the parity stripe back out.
 		 */
 		if (wp->type == DEGRADED) {
-			wp->buf = g_malloc(wp->length, M_WAITOK | M_ZERO);
+			wp->buf = g_malloc(wp->length, M_NOWAIT | M_ZERO);
+			if (wp->buf == NULL)
+				return (ENOMEM);
 			wp->bufmalloc = 1;
 
 			/* Copy the original data. */
@@ -432,7 +438,9 @@ gv_build_raid5_req(struct gv_raid5_packet *wp, struct bio *bp, caddr_t addr,
 				if (rbp->bio == NULL)
 					return (ENOMEM);
 				rbp->buf = g_malloc(wp->length,
-				    M_WAITOK | M_ZERO);
+				    M_NOWAIT | M_ZERO);
+				if (rbp->buf == NULL)
+					return (ENOMEM);
 				rbp->malloc = 1;
 				rbp->bio->bio_cmd = BIO_READ;
 				rbp->bio->bio_data = rbp->buf;
@@ -476,7 +484,9 @@ gv_build_raid5_req(struct gv_raid5_packet *wp, struct bio *bp, caddr_t addr,
 		 * recalculate the parity again.
 		 */
 		} else if (wp->type == COMBINED) {
-			wp->buf = g_malloc(wp->length, M_WAITOK | M_ZERO);
+			wp->buf = g_malloc(wp->length, M_NOWAIT | M_ZERO);
+			if (wp->buf == NULL)
+				return (ENOMEM);
 			wp->bufmalloc = 1;
 
 			/* Get the data from all subdisks. */
@@ -492,7 +502,9 @@ gv_build_raid5_req(struct gv_raid5_packet *wp, struct bio *bp, caddr_t addr,
 					return (ENOMEM);
 				rbp->bio->bio_cmd = BIO_READ;
 				rbp->buf = g_malloc(wp->length,
-				    M_WAITOK | M_ZERO);
+				    M_NOWAIT | M_ZERO);
+				if (rbp->buf == NULL)
+					return (ENOMEM);
 				rbp->malloc = 1;
 				rbp->bio->bio_data = rbp->buf;
 				rbp->bio->bio_offset = wp->offset;
@@ -544,7 +556,9 @@ gv_build_raid5_req(struct gv_raid5_packet *wp, struct bio *bp, caddr_t addr,
 					return (ENOMEM);
 				rbp->bio->bio_cmd = BIO_READ;
 				rbp->buf = g_malloc(wp->length,
-				    M_WAITOK | M_ZERO);
+				    M_NOWAIT | M_ZERO);
+				if (rbp->buf == NULL)
+					return (ENOMEM);
 				rbp->malloc = 1;
 				rbp->bio->bio_data = rbp->buf;
 				rbp->bio->bio_offset = wp->offset;
@@ -568,7 +582,9 @@ gv_build_raid5_req(struct gv_raid5_packet *wp, struct bio *bp, caddr_t addr,
 		 * out the parity again.
 		 */
 		} else {
-			wp->buf = g_malloc(wp->length, M_WAITOK | M_ZERO);
+			wp->buf = g_malloc(wp->length, M_NOWAIT | M_ZERO);
+			if (wp->buf == NULL)
+				return (ENOMEM);
 			wp->bufmalloc = 1;
 			LIST_FOREACH(s, &p->subdisks, in_plex) {
 				/* Skip the parity stripe. */
@@ -591,7 +607,9 @@ gv_build_raid5_req(struct gv_raid5_packet *wp, struct bio *bp, caddr_t addr,
 				} else {
 					rbp->bio->bio_cmd = BIO_READ;
 					rbp->buf = g_malloc(wp->length,
-					    M_WAITOK | M_ZERO);
+					    M_NOWAIT | M_ZERO);
+					if (rbp->buf == NULL)
+						return (ENOMEM);
 					rbp->malloc = 1;
 				}
 				rbp->bio->bio_data = rbp->buf;
