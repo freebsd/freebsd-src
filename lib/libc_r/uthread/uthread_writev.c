@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995 John Birrell <jb@cimlogic.com.au>.
+ * Copyright (c) 1995-1998 John Birrell <jb@cimlogic.com.au>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,13 +29,15 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_writev.c,v 1.1.2.1 1997/06/24 00:28:13 julian Exp $
+ * $Id: uthread_writev.c,v 1.1.2.2 1998/02/13 01:35:57 julian Exp $
  *
  */
 #include <sys/types.h>
 #include <sys/fcntl.h>
 #include <sys/uio.h>
 #include <errno.h>
+#include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #ifdef _THREAD_SAFE
 #include <pthread.h>
@@ -44,17 +46,95 @@
 ssize_t
 writev(int fd, const struct iovec * iov, int iovcnt)
 {
-	int	ret;
-	int	status;
+	int	blocking;
+	int	idx = 0;
+	ssize_t cnt;
+	ssize_t n;
+	ssize_t num = 0;
+	ssize_t	ret;
+	struct iovec liov[20];
+	struct iovec *p_iov = liov;
+
+	/* Check if the array size exceeds to compiled in size: */
+	if (iovcnt > (sizeof(liov) / sizeof(struct iovec))) {
+		/* Allocate memory for the local array: */
+		if ((p_iov = (struct iovec *)
+		    malloc(iovcnt * sizeof(struct iovec))) == NULL) {
+			/* Insufficient memory: */
+			errno = ENOMEM;
+			return (-1);
+		}
+	}
+
+	/* Copy the caller's array so that it can be modified locally: */
+	memcpy(p_iov,iov,iovcnt * sizeof(struct iovec));
 
 	/* Lock the file descriptor for write: */
 	if ((ret = _thread_fd_lock(fd, FD_WRITE, NULL,
 	    __FILE__, __LINE__)) == 0) {
-		/* Perform a non-blocking writev syscall: */
-		while ((ret = _thread_sys_writev(fd, iov, iovcnt)) < 0) {
-			if ((_thread_fd_table[fd]->flags & O_NONBLOCK) == 0 &&
-			    (errno == EWOULDBLOCK || errno == EAGAIN)) {
-				_thread_kern_sig_block(&status);
+		/* Check if file operations are to block */
+		blocking = ((_thread_fd_table[fd]->flags & O_NONBLOCK) == 0);
+
+		/*
+		 * Loop while no error occurs and until the expected number
+		 * of bytes are written if performing a blocking write:
+		 */
+		while (ret == 0) {
+			/* Perform a non-blocking write syscall: */
+			n = _thread_sys_writev(fd, &p_iov[idx], iovcnt - idx);
+
+			/* Check if one or more bytes were written: */
+			if (n > 0) {
+				/*
+				 * Keep a count of the number of bytes
+				 * written:
+				 */
+				num += n;
+
+				/*
+				 * Enter a loop to check if a short write
+				 * occurred and move the index to the
+				 * array entry where the short write
+				 * ended:
+				 */
+				cnt = n;
+				while (cnt > 0 && idx < iovcnt) {
+					/*
+					 * If the residual count exceeds
+					 * the size of this vector, then
+					 * it was completely written:
+					 */
+					if (cnt >= p_iov[idx].iov_len)
+						/*
+						 * Decrement the residual
+						 * count and increment the
+						 * index to the next array
+						 * entry:
+						 */
+						cnt -= p_iov[idx++].iov_len;
+					else {
+						/*
+						 * This entry was only
+						 * partially written, so
+						 * adjust it's length
+						 * and base pointer ready
+						 * for the next write:
+						 */
+						p_iov[idx].iov_len -= cnt;
+						p_iov[idx].iov_base += cnt;
+						cnt = 0;
+					}
+				}
+			}
+
+			/*
+			 * If performing a blocking write, check if the
+			 * write would have blocked or if some bytes
+			 * were written but there are still more to
+			 * write:
+			 */
+			if (blocking && ((n < 0 && (errno == EWOULDBLOCK ||
+			    errno == EAGAIN)) || idx < iovcnt)) {
 				_thread_run->data.fd.fd = fd;
 				_thread_kern_set_timeout(NULL);
 
@@ -69,15 +149,32 @@ writev(int fd, const struct iovec * iov, int iovcnt)
 				 * interrupted by a signal
 				 */
 				if (_thread_run->interrupted) {
+					/* Return an error: */
 					ret = -1;
-					break;
 				}
-			} else {
+
+			/*
+			 * If performing a non-blocking write or if an
+			 * error occurred, just return whatever the write
+			 * syscall did:
+			 */
+			} else if (!blocking || n < 0) {
+				/* A non-blocking call might return zero: */
+				ret = n;
 				break;
-			}
+
+			/* Check if the write has completed: */
+			} else if (idx == iovcnt)
+				/* Return the number of bytes written: */
+				ret = num;
 		}
 		_thread_fd_unlock(fd, FD_RDWR);
 	}
+
+	/* If memory was allocated for the array, free it: */
+	if (p_iov != liov)
+		free(p_iov);
+
 	return (ret);
 }
 #endif
