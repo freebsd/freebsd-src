@@ -67,8 +67,6 @@ enum constants {
     MAXCONFIGLINE = 1024,				    /* maximum size of a single config line */
     MINVINUMSLICE = 1048576,				    /* minimum size of a slice */
 
-    VINUM_CDEV_MAJOR = 91,				    /* major number for character device */
-
     ROUND_ROBIN_READPOL = -1,				    /* round robin read policy */
 
     /*
