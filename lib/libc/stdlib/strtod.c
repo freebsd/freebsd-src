@@ -217,12 +217,16 @@ extern "C" {
 Exactly one of IEEE_8087, IEEE_MC68k, VAX, or IBM should be defined.
 #endif
 
+union doubleasulongs {
+	double x;
+	unsigned long w[2];
+};
 #ifdef IEEE_8087
-#define word0(x) ((unsigned long *)&x)[1]
-#define word1(x) ((unsigned long *)&x)[0]
+#define word0(x) (((union doubleasulongs *)&x)->w)[1]
+#define word1(x) (((union doubleasulongs *)&x)->w)[0]
 #else
-#define word0(x) ((unsigned long *)&x)[0]
-#define word1(x) ((unsigned long *)&x)[1]
+#define word0(x) (((union doubleasulongs *)&x)->w)[0]
+#define word1(x) (((union doubleasulongs *)&x)->w)[1]
 #endif
 
 /* The following definition of Storeinc is appropriate for MIPS processors.
