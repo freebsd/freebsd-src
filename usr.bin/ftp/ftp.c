@@ -102,14 +102,23 @@ union sockunion {
 union sockunion myctladdr, hisctladdr, data_addr;
 
 char *
-hookup(host, port)
-	const char *host;
+hookup(host0, port)
+	const char *host0;
 	char *port;
 {
 	int s, len, tos, error;
 	struct addrinfo hints, *res, *res0;
 	static char hostnamebuf[MAXHOSTNAMELEN];
+	char *host;
 
+	if (*host0 == '[' && strrchr(host0, ']') != NULL) { /*IPv6 addr in []*/
+		strncpy(hostnamebuf, host0 + 1, strlen(host0) - 2);
+		hostnamebuf[strlen(host0) - 2] = '\0';
+	} else {
+		strncpy(hostnamebuf, host0, strlen(host0));
+		hostnamebuf[strlen(host0)] = '\0';
+	}
+	host = hostnamebuf;
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_flags = AI_CANONNAME;
 	hints.ai_family = AF_UNSPEC;
