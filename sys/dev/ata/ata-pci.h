@@ -47,7 +47,7 @@ struct ata_pci_controller {
     struct ata_chip_id	 *chip;
     int			(*chipinit)(device_t);
     int			(*allocate)(device_t, struct ata_channel *);
-    int			(*dmainit)(struct ata_channel *);
+    void		(*dmainit)(struct ata_channel *);
     void		(*setmode)(struct ata_device *, int);
     void		(*locking)(struct ata_channel *, int);
     int			  locked_ch;
@@ -271,7 +271,7 @@ struct ata_pci_controller {
 #define VIABUG		0x10
 
 /* global prototypes */
-int ata_dmainit(struct ata_channel *);
+void ata_dmainit(struct ata_channel *);
 int ata_dmastart(struct ata_channel *, caddr_t, int32_t, int);
 int ata_dmastop(struct ata_channel *);
 

@@ -251,7 +251,7 @@ struct ata_dma {
 #define ATA_DMA_ACTIVE			0x01	/* DMA transfer in progress */
 #define ATA_DMA_READ			0x02	/* transaction is a read */
 
-    int (*alloc)(struct ata_channel *ch);
+    void (*alloc)(struct ata_channel *ch);
     void (*free)(struct ata_channel *ch);
     int (*setup)(struct ata_device *atadev, caddr_t data, int32_t count);
     int (*start)(struct ata_channel *ch, caddr_t data, int32_t count, int dir);
