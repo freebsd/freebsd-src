@@ -1,4 +1,6 @@
 /*
+ * Copyright (c) 1999 Hellmuth Michaelis
+ *
  * Copyright (c) 1992, 1995 Hellmuth Michaelis and Joerg Wunsch.
  *
  * Copyright (c) 1992, 1994 Brian Dunford-Shore.
@@ -30,20 +32,16 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *
- * @(#)pcvt_conf.h, 3.20, Last Edit-Date: [Sun Apr  2 18:57:45 1995]
- *
  */
 
 /*---------------------------------------------------------------------------
  *
  *	pcvt_conf.h	VT220 driver global configuration file
  *	------------------------------------------------------
- *	-hm	introduced pcvt_conf.h
- *	-hm	re-integrated selfconfiguration for NetBSD from Onno
- *	-hm	patch from Onno for NetBSD-current
- *	-hm	removed PCVT_FAKE_SYSCONS10
+ *
+ *	Last Edit-Date: [Mon Dec 27 14:09:58 1999]
+ *
+ * $FreeBSD$
  *
  *---------------------------------------------------------------------------*/
 

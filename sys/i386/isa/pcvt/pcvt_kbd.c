@@ -1,4 +1,6 @@
 /*
+ * Copyright (c) 1999 Hellmuth Michaelis
+ *
  * Copyright (c) 1992, 1995 Hellmuth Michaelis and Joerg Wunsch.
  *
  * Copyright (c) 1992, 1993 Brian Dunford-Shore and Holger Veit.
@@ -36,33 +38,16 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *
- * @(#)pcvt_kbd.c, 3.20, Last Edit-Date: [Mon Apr 19 17:16:47 1999]
- *
  */
 
 /*---------------------------------------------------------------------------*
  *
  *	pcvt_kbd.c	VT220 Driver Keyboard Interface Code
  *	----------------------------------------------------
- *	-hm	------------ Release 3.00 --------------
- *	-hm	integrating NetBSD-current patches
- *	-jw	introduced kbd_emulate_pc() if scanset > 1
- *	-hm	patch from joerg for timeout in kbd_emulate_pc()
- *	-hm	starting to implement alt-shift/ctrl key mappings
- *	-hm	Gateway 2000 Keyboard fix from Brian Moore
- *	-hm	some #if adjusting for NetBSD 0.9
- *	-hm	split off pcvt_kbd.h
- *	-hm	applying Joerg's patches for FreeBSD 2.0
- *	-hm	patch from Martin, PCVT_NO_LED_UPDATE
- *	-hm	PCVT_VT220KEYB patches from Lon Willet
- *	-hm	PR #399, patch from Bill Sommerfeld: Return with PCVT_META_ESC
- *	-hm	allow keyboard-less kernel boot for serial consoles and such ..
- *	-hm	patch from Lon Willett for led-update and showkey()
- *	-hm	patch from Lon Willett to fix mapping of Control-R scancode
- *	-hm	delay patch from Martin Husemann after port-i386 ml-discussion
- *	-hm	added PCVT_NONRESP_KEYB_TRY definition to doreset()
+ *
+ *	Last Edit-Date: [Mon Dec 27 14:01:50 1999]
+ *
+ * $FreeBSD$
  *
  *---------------------------------------------------------------------------*/
 
@@ -104,6 +89,11 @@ static int	ledstate  = LEDSTATE_UPDATE_PENDING;	/* keyboard led's */
 static int	tpmrate   = KBD_TPD500|KBD_TPM100;
 static u_char	altkpflag = 0;
 static u_short	altkpval  = 0;
+
+static u_short *scrollback_savedscreen = (u_short *)0;
+static size_t scrnsv_size = (size_t)-1;
+static void scrollback_save_screen ( void );
+static void scrollback_restore_screen ( void );
 
 #if PCVT_SHOWKEYS
 u_char rawkeybuf[80];
@@ -1081,8 +1071,8 @@ u_char *
 sgetc(int noblock)
 {
 	u_char		*cp;
-	u_char		dt;
-	u_char		key;
+	u_char		dt = 0;
+	u_char		key = 0;
 	u_short		type;
 
 #if PCVT_KBD_FIFO && PCVT_SLOW_INTERRUPT
@@ -1110,6 +1100,12 @@ sgetc(int noblock)
 #endif /* _DEV_KBD_KBDREG_H_ */
 
 loop:
+
+	if(noblock == 31337)
+	{
+		vsp->scrolling = 1;
+		goto scroll_reset;
+	}
 
 #ifdef XSERVER
 
@@ -1589,6 +1585,100 @@ regular:
 		key = 129;
 
 	kbd_status.extended = kbd_status.ext1 = 0;
+
+	if ((key == 85) && shift_down && kbd_lastkey != 85)
+	{
+		if (vsp->scr_offset > (vsp->screen_rows - 1))
+		{
+			if (!vsp->scrolling)
+			{
+				vsp->scrolling += vsp->screen_rows - 2;
+				if (vsp->Scrollback)
+				{
+					scrollback_save_screen();
+					if (vsp->scr_offset == vsp->max_off)
+					{
+						bcopy(vsp->Scrollback +
+						      vsp->maxcol,
+						      vsp->Scrollback,
+						      vsp->maxcol *
+						      vsp->max_off * CHR);
+						vsp->scr_offset--;
+					}
+					bcopy(vsp->Crtat + vsp->cur_offset -
+					      vsp->col, vsp->Scrollback +
+				      	      ((vsp->scr_offset + 1) *
+					      vsp->maxcol), vsp->maxcol * CHR);
+				}
+
+				if (vsp->cursor_on)
+					sw_cursor(0);
+			}
+
+			vsp->scrolling += vsp->screen_rows - 1;
+
+			if (vsp->scrolling > vsp->scr_offset)
+				vsp->scrolling = vsp->scr_offset;
+
+			bcopy(vsp->Scrollback + ((vsp->scr_offset -
+			      vsp->scrolling) * vsp->maxcol), vsp->Crtat,
+			      vsp->screen_rows * vsp->maxcol * CHR);
+		}
+
+		kbd_lastkey = 85;
+		goto loop;
+	}
+	else if ((key == 86) && shift_down && kbd_lastkey != 86)
+	{
+
+scroll_reset:
+		if (vsp->scrolling > 0)
+		{
+			vsp->scrolling -= vsp->screen_rows - 1;
+			if (vsp->scrolling < 0)
+				vsp->scrolling = 0;
+
+			if (vsp->scrolling <= vsp->screen_rows)
+			{
+				vsp->scrolling = 0;
+				scrollback_restore_screen();
+			}
+			else
+			{
+				bcopy(vsp->Scrollback + ((vsp->scr_offset -
+			      	      vsp->scrolling) * vsp->maxcol),
+			              vsp->Crtat, vsp->screen_rows *
+				      vsp->maxcol * CHR);
+			}
+		}
+
+		if (vsp->scrolling == 0)
+		{
+			if (vsp->cursor_on)
+			{
+				sw_cursor(1);
+			}
+		}
+
+		if (noblock == 31337)
+			return NULL;
+
+		if (key != 86)
+		{
+			goto regular;
+		}
+		else
+		{
+			kbd_lastkey = 86;
+			goto loop;
+		}
+	}
+	else if (vsp->scrolling && key != 128 && key != 44 && key != 85 &&
+		 key != 86)
+	{
+		vsp->scrolling = 1;
+		goto scroll_reset;
+	}
 
 #if PCVT_CTRL_ALT_DEL		/*   Check for cntl-alt-del	*/
 	if((key == 76) && ctrl_down && (meta_down||altgr_down))
@@ -3174,6 +3264,42 @@ cfkey12(void)
 }
 
 #endif	/* PCVT_VT220KEYB */
+
+/*---------------------------------------------------------------------------*
+ *	
+ *---------------------------------------------------------------------------*/
+static void
+scrollback_save_screen(void)
+{
+	int x = spltty();
+	register size_t s;
+
+	s = sizeof(u_short) * vsp->screen_rowsize * vsp->maxcol;
+
+	if (scrollback_savedscreen)
+		free(scrollback_savedscreen, M_TEMP);
+
+	scrnsv_size = s;
+
+	if (!(scrollback_savedscreen = (u_short *)malloc(s, M_TEMP, M_NOWAIT)))
+	{
+		splx(x);
+		return;
+	}
+	bcopy(vsp->Crtat, scrollback_savedscreen, scrnsv_size);
+	splx(x);
+}
+
+/*---------------------------------------------------------------------------*
+ *	
+ *---------------------------------------------------------------------------*/
+static void
+scrollback_restore_screen(void)
+{
+	if (scrollback_savedscreen)
+		bcopy(scrollback_savedscreen, vsp->Crtat, scrnsv_size);
+}
+ 
 
 #endif	/* NVT > 0 */
 

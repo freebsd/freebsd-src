@@ -1,4 +1,6 @@
 /*
+ * Copyright (c) 1999 Hellmuth Michaelis
+ *
  * Copyright (c) 1992, 1995 Hellmuth Michaelis and Joerg Wunsch.
  *
  * Copyright (c) 1992, 1993 Brian Dunford-Shore and Scott Turner.
@@ -35,29 +37,16 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *
- * @(#)pcvt_sup.c, 3.20, Last Edit-Date: [Thu Apr  6 10:49:44 1995]
- *
  */
 
 /*---------------------------------------------------------------------------*
  *
  *	pcvt_sup.c	VT220 Driver Support Routines
  *	---------------------------------------------
- *	-hm	------------ Release 3.00 --------------
- *	-hm	integrating NetBSD-current patches
- *	-hm	removed paranoid delay()/DELAY() from vga_test()
- *	-hm	removing vgapage() protection if PCVT_KBD_FIFO
- *	-hm	some new CONF_ - values
- *	-hm	Joerg's patches for FreeBSD ttymalloc
- *	-hm	applying Joerg's patches for FreeBSD 2.0
- *	-hm	applying Lon Willet's patches for NetBSD
- *	-hm	NetBSD PR #400: patch to short-circuit TIOCSWINSZ
- *	-hm	getting PCVT_BURST reported correctly for FreeBSD 2.0
- *	-hm	applying patch from Joerg fixing Crtat bug
- *	-hm	moving ega/vga coldinit support code to mda2egaorvga()
- *	-hm	patch from Thomas Eberhardt fixing force 24 lines fkey update
+ *
+ *	Last Edit-Date: [Thu Dec 30 17:01:03 1999]
+ *
+ * $FreeBSD$
  *
  *---------------------------------------------------------------------------*/
 
@@ -241,6 +230,12 @@ vgaioctl(Dev_t dev, int cmd, caddr_t data, int flag)
 			else
 				return EINVAL;
 			break;
+
+#if 0			
+		case SETSCROLLSIZE:
+			reallocate_scrollbuffer(vsp, *(u_short *)data);
+			break;
+#endif
 
 		case TIOCSWINSZ:
 			/* do nothing here */
@@ -778,9 +773,61 @@ set_screen_size(struct video_state *svsp, int size)
 				pgsignal(svsp->vs_tty->t_pgrp, SIGWINCH, 1);
 #endif /* PCVT_SIGWINCH */
 
+			reallocate_scrollbuffer(svsp, svsp->scrollback_pages);
 			break;
 		}
  	}
+}
+
+/*---------------------------------------------------------------------------*
+ *	resize the scrollback buffer to the specified number of "pages"
+ *---------------------------------------------------------------------------*/
+void
+reallocate_scrollbuffer(struct video_state *svsp, int pages)
+{
+	int s;
+	u_short *stmp;
+	
+	if(pages < 2)
+		pages = 2;
+	if(pages > 50)
+		pages = 50;
+
+	s = splhigh();
+
+	if((stmp = (u_short *)malloc(svsp->maxcol * svsp->screen_rows *
+			pages * CHR, M_DEVBUF, M_NOWAIT)) == NULL)
+	{
+		splx(s);
+		printf("pcvt: reallocate_scrollbuffer, malloc failed\n");
+		return;
+	}
+
+	svsp->max_off = svsp->screen_rows * pages - 1;
+	
+	if(svsp->Scrollback)
+	{
+		bcopy(svsp->Scrollback, stmp,
+			(min(pages, svsp->scrollback_pages)) *
+			svsp->screen_rows * svsp->maxcol * CHR);
+		free(svsp->Scrollback, M_DEVBUF);
+		svsp->Scrollback = stmp;
+	}
+	else
+	{
+		svsp->scr_offset = 0;
+		svsp->scrolling = 0;
+		svsp->Scrollback = stmp;
+
+		bcopy(svsp->Crtat, svsp->Scrollback,
+			svsp->screen_rows * svsp->maxcol * CHR);
+
+		svsp->scr_offset = svsp->row;
+	}
+
+	svsp->scrollback_pages = pages;
+
+	splx(s);
 }
 
 /*---------------------------------------------------------------------------*

@@ -1,4 +1,6 @@
 /*
+ * Copyright (c) 1999 Hellmuth Michaelis
+ *
  * Copyright (c) 1992, 1995 Hellmuth Michaelis and Joerg Wunsch.
  *
  * Copyright (c) 1992, 1993 Brian Dunford-Shore.
@@ -30,36 +32,16 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *
- * @(#)pcvt_hdr.h, 3.20, Last Edit-Date: [Fri Apr  7 10:16:58 1995]
- * $FreeBSD$
  */
 
 /*---------------------------------------------------------------------------
  *
  *	pcvt_hdr.h	VT220 Driver Global Include File
  *	------------------------------------------------
- *	-hm	------------ Release 3.00 --------------
- *	-hm	integrating NetBSD-current patches
- *	-hm	integrating patches from Thomas Gellekum
- *	-hm	moving vt_selattr() inline into this file
- *	-hm	Michael's keyboard fifo diffs
- *	-hm	documenting some #ifdef's ...
- *	-hm	Joerg's patches for FreeBSD's ttymalloc
- *	-jw	introduced kbd_emulate_pc() if scanset > 1
- *	-hm	moved user configurable items to pcvt_conf.h
- *	-hm	applying Joerg's patches for FreeBSD 2.0
- *	-hm	patch from Onno & Martin for NetBSD-current (post 1.0)
- *	-hm	some adjustments for NetBSD 1.0
- *	-hm	patch from Joerg fixing FreeBSD 2.0 support
- *	-hm	patch from Onno/John for NetBSD-current
- *	-hm	applying patch from Joerg fixing Crtat bug
- *	-hm	removed PCVT_FAKE_SYSCONS10
- *	-hm	added pcstop (patch from Onno)
- *	-hm	multiple X server bugfixes from Lon Willett
- *	-hm	patch from Joerg for FreeBSD pre-2.1
- *	-jw	adding more support for FreeBSD pre-2.1
+ *
+ *	Last Edit-Date: [Mon Dec 27 14:06:31 1999]
+ *
+ * $FreeBSD$
  *
  *---------------------------------------------------------------------------*/
 
@@ -265,6 +247,9 @@ in the config file"
 #if PCVT_SCANSET !=1 && PCVT_SCANSET !=2
 #error "Supported keyboard scancode sets are 1 and 2 only (for now)!!!"
 #endif
+
+/* initial default scrollback buffer size (in pages) */
+#define SCROLLBACK_PAGES       8
 
 /*---------------------------------------------------------------------------*
  *	Keyboard and Keyboard Controller
@@ -895,6 +880,12 @@ typedef struct video_state {
 	u_char	num_lock;		/* num lock, true = keypad num mode */
 	u_char	abs_write;		/* write outside of scroll region */
 
+	u_short *Scrollback;            /* scrollback buffer */
+	u_short scrollback_pages;	/* size of scrollback buffer */
+	u_short scr_offset;             /* current scrollback offset (lines) */
+	short scrolling;                /* current scrollback page */
+	u_short max_off;                /* maximum scrollback offset */
+	
 #if PCVT_USL_VT_COMPAT			/* SysV compatibility :-( */
 
 	struct vt_mode smode;
@@ -1297,6 +1288,7 @@ void	set_2ndcharset ( void );
 void	set_charset ( struct video_state *svsp, int curvgacs );
 void	set_emulation_mode ( struct video_state *svsp, int mode );
 void	set_screen_size ( struct video_state *svsp, int size );
+void	reallocate_scrollbuffer ( struct video_state *svsp, int pages );
 u_char *sgetc ( int noblock );
 void	sixel_vga ( struct sixels *charsixel, u_char *charvga );
 void	sput ( u_char *s, U_char attrib, int len, int page );

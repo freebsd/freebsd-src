@@ -1,4 +1,6 @@
 /*
+ * Copyright (c) 1999 Hellmuth Michaelis
+ *
  * Copyright (c) 1992, 1995 Hellmuth Michaelis and Joerg Wunsch.
  *
  * Copyright (c) 1992, 1993 Brian Dunford-Shore.
@@ -33,27 +35,16 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *
- * @(#)pcvt_vtf.c, 3.20, Last Edit-Date: [Wed Apr  5 18:08:50 1995]
  */
 
 /*---------------------------------------------------------------------------*
  *
  *	pcvt_vtf.c	VT220 Terminal Emulator Functions
  *	-------------------------------------------------
- *	-hm	------------ Release 3.00 --------------
- *	-hm	integrating NetBSD-current patches
- *	-hm	integrating patch from Thomas Gellekum
- *	-hm	fixed bug fkey labels not properly (re)set after ris
- *	-hm	Michael Havemester fixed NOFASTSCROLL define bug
- *	-hm	set caps/scroll/num_lock in vt_str() and made led_update()
- *	-hm	applying patch from Joerg fixing Crtat bug
- *	-hm	fixing NOFASTSCROLL operation for MDA/Hercules
- *	-jw/hm	fixing bug in roll_up() and roll_down()
- *	-hm	fastscroll/Crtat bugfix from Lon Willett
- *	-hm	patch for non-XSERVER/UCONSOLE compiles from Rafal Boni
- *	-hm	bugfix: PCVT_USL_COMPAT renamed to PCVT_USL_VT_COMPAT ...
+ *
+ *	Last Edit-Date: [Mon Dec 27 14:13:33 1999]
+ *
+ * $FreeBSD$
  *
  *---------------------------------------------------------------------------*/
 
