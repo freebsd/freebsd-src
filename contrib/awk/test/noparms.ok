@@ -1,0 +1,4 @@
+gawk: noparms.awk:1: function x(a, b, c , ,) {}
+gawk: noparms.awk:1:                      ^ parse error
+gawk: noparms.awk:1: function x(a, b, c , ,) {}
+gawk: noparms.awk:1:                       ^ parse error
