@@ -1762,19 +1762,37 @@ trimthenstep6:
 					tp->snd_nxt = th->th_ack;
 					tp->snd_cwnd = tp->t_maxseg;
 					(void) tcp_output(tp);
+					KASSERT(tp->snd_limited <= 2,
+					    ("tp->snd_limited too big"));
 					tp->snd_cwnd = tp->snd_ssthresh +
-						tp->t_maxseg * tp->t_dupacks;
+					     tp->t_maxseg *
+					     (tp->t_dupacks - tp->snd_limited);
 					if (SEQ_GT(onxt, tp->snd_nxt))
 						tp->snd_nxt = onxt;
 					goto drop;
 				} else if (tcp_do_rfc3042) {
 					u_long oldcwnd = tp->snd_cwnd;
+					tcp_seq oldsndmax = tp->snd_max;
+					u_int sent;
 					KASSERT(tp->t_dupacks == 1 ||
 					    tp->t_dupacks == 2,
 					    ("dupacks not 1 or 2"));
-					tp->snd_cwnd += tp->t_dupacks *
-								tp->t_maxseg;
+					if (tp->t_dupacks == 1) {
+						tp->snd_limited = 0;
+						tp->snd_cwnd += tp->t_maxseg;
+					} else {
+						tp->snd_cwnd +=
+						    tp->t_maxseg * 2;
+					}
 					(void) tcp_output(tp);
+					sent = tp->snd_max - oldsndmax;
+					if (sent > tp->t_maxseg) {
+						KASSERT(tp->snd_limited == 0 &&
+						    tp->t_dupacks == 2,
+						    ("sent too much"));
+						tp->snd_limited = 2;
+					} else if (sent > 0)
+						++tp->snd_limited;
 					tp->snd_cwnd = oldcwnd;
 					goto drop;
 				}
