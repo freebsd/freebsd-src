@@ -141,7 +141,8 @@ SUBDIR+=snc
 .endif
 
 .if ${MACHINE_ARCH} == "alpha"
-SUBDIR+=osf1
+SUBDIR+=linux \
+	osf1
 .endif
 
 .if defined(WANT_EXT2FS_MODULE)
