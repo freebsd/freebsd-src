@@ -73,8 +73,7 @@ main(int argc, char **argv)
 	struct iovec iov[6];
 	int ch, mntflags, opts;
 	char *dev, *dir, mntpath[MAXPATHLEN];
-	struct vfsconf vfc;
-	int error, verbose;
+	int verbose;
 
 	mntflags = opts = verbose = 0;
 	while ((ch = getopt(argc, argv, "o:v")) != -1)
@@ -109,20 +108,11 @@ main(int argc, char **argv)
 	 * UDF filesystems are not writeable.
 	 */
 	mntflags |= MNT_RDONLY;
-	error = getvfsbyname("udf", &vfc);
-	if (error && vfsisloadable("udf")) {
-		if (vfsload("udf"))
-			err(EX_OSERR, "vfsload(udf)");
-		endvfsent();	/* flush cache */
-		error = getvfsbyname("udf", &vfc);
-	}
-	if (error)
-		errx(1, "udf filesystem is not available");
 
 	iov[0].iov_base = "fstype";
 	iov[0].iov_len = sizeof("fstype");
-	iov[1].iov_base = vfc.vfc_name;
-	iov[1].iov_len = strlen(vfc.vfc_name) + 1;
+	iov[1].iov_base = "udf";
+	iov[1].iov_len = strlen(iov[1].iov_base) + 1;
 	iov[2].iov_base = "fspath";
 	iov[2].iov_len = sizeof("fspath");
 	iov[3].iov_base = mntpath;

@@ -76,7 +76,6 @@ main(int argc, char *argv[]) {
 	struct nwfs_args mdata;
 	struct ncp_conn_loginfo li;
 	struct stat st;
-	struct vfsconf vfc;
 	struct nw_entry_info einfo;
 	struct tm *tm;
 	time_t ltime;
@@ -96,16 +95,6 @@ main(int argc, char *argv[]) {
 			    (NWFS_VERSION % 1000) / 100);
 		}
 	}
-
-	error = getvfsbyname(NWFS_VFSNAME, &vfc);
-	if (error && vfsisloadable(NWFS_VFSNAME)) {
-		if(vfsload(NWFS_VFSNAME))
-			err(EX_OSERR, "vfsload("NWFS_VFSNAME")");
-		endvfsent();
-		error = getvfsbyname(NWFS_VFSNAME, &vfc);
-	}
-	if (error)
-		errx(EX_OSERR, "NetWare filesystem is not available");
 
 	if(ncp_initlib()) exit(1);
 

@@ -78,8 +78,7 @@ main(argc, argv)
 	int ch, mntflags;
 	char source[MAXPATHLEN];
 	char target[MAXPATHLEN];
-	struct vfsconf vfc;
-	int error, iovcnt;
+	int iovcnt;
 
 	iovcnt = 6;
 	mntflags = 0;
@@ -121,20 +120,10 @@ main(argc, argv)
 		errx(EX_USAGE, "%s (%s) and %s (%s) are not distinct paths",
 		    argv[0], target, argv[1], source);
 
-	error = getvfsbyname("unionfs", &vfc);
-	if (error && vfsisloadable("unionfs")) {
-		if (vfsload("unionfs"))
-			err(EX_OSERR, "vfsload(unionfs)");
-		endvfsent();	/* flush cache */
-		error = getvfsbyname("unionfs", &vfc);
-	}
-	if (error)
-		errx(EX_OSERR, "union filesystem is not available");
-
 	iov[0].iov_base = "fstype";
 	iov[0].iov_len = strlen(iov[0].iov_base) + 1;
-	iov[1].iov_base = vfc.vfc_name;
-	iov[1].iov_len = strlen(vfc.vfc_name) + 1;
+	iov[1].iov_base = "unionfs";
+	iov[1].iov_len = strlen(iov[1].iov_base) + 1;
 	iov[2].iov_base = "fspath";
 	iov[2].iov_len = strlen(iov[2].iov_base) + 1;
 	iov[3].iov_base = source;

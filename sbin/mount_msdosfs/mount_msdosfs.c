@@ -88,9 +88,8 @@ main(argc, argv)
 {
 	struct msdosfs_args args;
 	struct stat sb;
-	int c, error, mntflags, set_gid, set_uid, set_mask;
+	int c, mntflags, set_gid, set_uid, set_mask;
 	char *dev, *dir, mntpath[MAXPATHLEN];
-	struct vfsconf vfc;
 
 	mntflags = set_gid = set_uid = set_mask = 0;
 	(void)memset(&args, '\0', sizeof(args));
@@ -173,17 +172,7 @@ main(argc, argv)
 			args.mask = sb.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO);
 	}
 
-	error = getvfsbyname("msdosfs", &vfc);
-	if (error && vfsisloadable("msdosfs")) {
-		if (vfsload("msdosfs"))
-			err(EX_OSERR, "vfsload(msdosfs)");
-		endvfsent();	/* clear cache */
-		error = getvfsbyname("msdosfs", &vfc);
-	}
-	if (error)
-		errx(EX_OSERR, "msdos filesystem is not available");
-
-	if (mount(vfc.vfc_name, mntpath, mntflags, &args) < 0)
+	if (mount("msdosfs", mntpath, mntflags, &args) < 0)
 		err(EX_OSERR, "%s", dev);
 
 	exit (0);

@@ -66,14 +66,9 @@ main(argc, argv)
 {
 	struct hpfs_args args;
 	struct stat sb;
-	int c, mntflags, set_gid, set_uid, set_mask,error;
+	int c, mntflags, set_gid, set_uid, set_mask;
 	int forcerw = 0;
 	char *dev, *dir, ndir[MAXPATHLEN+1];
-#if __FreeBSD_version >= 300000
-	struct vfsconf vfc;
-#else
-	struct vfsconf *vfc;
-#endif
 
 	mntflags = set_gid = set_uid = set_mask = 0;
 	(void)memset(&args, '\0', sizeof(args));
@@ -148,35 +143,7 @@ main(argc, argv)
 			args.mode = sb.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO);
 	}
 
-#if __FreeBSD_version >= 300000
-	error = getvfsbyname("hpfs", &vfc);
-	if(error && vfsisloadable("hpfs")) {
-		if(vfsload("hpfs"))
-#else
-	vfc = getvfsbyname("hpfs");
-	if(!vfc && vfsisloadable("hpfs")) {
-		if(vfsload("hpfs"))
-#endif
-			err(EX_OSERR, "vfsload(hpfs)");
-		endvfsent();	/* clear cache */
-#if __FreeBSD_version >= 300000
-		error = getvfsbyname("hpfs", &vfc);
-#else
-		vfc = getvfsbyname("hpfs");
-#endif
-	}
-#if __FreeBSD_version >= 300000
-	if (error)
-#else
-	if (!vfc)
-#endif
-		errx(EX_OSERR, "hpfs filesystem is not available");
-
-#if __FreeBSD_version >= 300000
-	if (mount(vfc.vfc_name, dir, mntflags, &args) < 0)
-#else
-	if (mount(vfc->vfc_index, dir, mntflags, &args) < 0)
-#endif
+	if (mount("hpfs", dir, mntflags, &args) < 0)
 		err(EX_OSERR, "%s", dev);
 
 	exit (0);

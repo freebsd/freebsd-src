@@ -247,8 +247,6 @@ main(argc, argv)
 	int mntflags, altflags, nfssvc_flag, num;
 	char *name, *p, *spec;
 	char mntpath[MAXPATHLEN];
-	struct vfsconf vfc;
-	int error = 0;
 
 	mntflags = 0;
 	altflags = 0;
@@ -436,17 +434,7 @@ main(argc, argv)
 	/* resolve the mountpoint with realpath(3) */
 	(void)checkpath(name, mntpath);
 
-	error = getvfsbyname("nfs", &vfc);
-	if (error && vfsisloadable("nfs")) {
-		if(vfsload("nfs"))
-			err(EX_OSERR, "vfsload(nfs)");
-		endvfsent();	/* clear cache */
-		error = getvfsbyname("nfs", &vfc);
-	}
-	if (error)
-		errx(EX_OSERR, "nfs filesystem is not available");
-
-	if (mount(vfc.vfc_name, mntpath, mntflags, nfsargsp))
+	if (mount("nfs", mntpath, mntflags, nfsargsp))
 		err(1, "%s", mntpath);
 
 	exit(0);
