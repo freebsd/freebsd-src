@@ -1945,7 +1945,7 @@ em_setup_interface(device_t dev, struct adapter * adapter)
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
 #if __FreeBSD_version >= 500000
 	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU;
-	ifp->if_capenable |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU;
+	ifp->if_capenable |= IFCAP_VLAN_MTU;
 #endif
 
 #ifdef DEVICE_POLLING
