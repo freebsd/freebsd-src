@@ -231,7 +231,7 @@ DPADD		Additional dependencies for the program.  Usually used for
 			LIBPLOT		/usr/lib/libplot.a
 			LIBREADLINE	/usr/lib/libreadline.a
 			LIBRESOLV	/usr/lib/libresolv.a
-			LIBRPCSVC	/usr/lib/librpcsvc
+			LIBRPCSVC	/usr/lib/librpcsvc.a
 			LIBSCRYPT	/usr/lib/libscrypt.a
 			LIBSKEY		/usr/lib/libskey.a
 			LIBTELNET	/usr/lib/libtelnet.a
