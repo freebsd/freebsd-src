@@ -366,7 +366,11 @@ CcpSendConfigReq(struct fsm *fp)
             break;
 
       if (alloc || *o == NULL) {
-        *o = (struct ccp_opt *)malloc(sizeof(struct ccp_opt));
+        if ((*o = (struct ccp_opt *)malloc(sizeof(struct ccp_opt))) == NULL) {
+	  log_Printf(LogERROR, "%s: Not enough memory for CCP REQ !\n",
+		     fp->link->name);
+	  break;
+	}
         (*o)->val.hdr.id = algorithm[f]->id;
         (*o)->val.hdr.len = 2;
         (*o)->next = NULL;
