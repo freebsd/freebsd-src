@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: globals.c,v 1.2 1995/05/06 09:34:16 jkh Exp $
+ * $Id: globals.c,v 1.3 1995/05/08 21:39:36 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -56,8 +56,6 @@ Boolean		DialogActive;
 Boolean		ColorDisplay;
 Boolean		OnVTY;
 Variable	*VarHead; /* The head of the variable chain */
-DeviceType	MediaType;	/* Where we're installing from */
-char		*MediaDevice;	/* More detail on how to find it */
 
 /*
  * Yes, I know some of these are already automatically initialized as

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: command.c,v 1.1 1995/05/08 06:08:27 jkh Exp $
+ * $Id: command.c,v 1.2 1995/05/11 09:01:24 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -47,7 +47,10 @@
 
 typedef struct {
     char key[FILENAME_MAX];
-    char *cmds[MAX_NUM_COMMANDS];
+    struct {
+	enum { CMD_SHELL, CMD_FUNCTION } type;
+	void *ptr, *data;
+    } cmds[MAX_NUM_COMMANDS];
     int ncmds;
 } Command;
 
@@ -55,6 +58,7 @@ typedef struct {
 static Command *commandStack[MAX_CMDS];
 int numCommands;
 
+/* Nuke the command stack */
 void
 command_clear(void)
 {
@@ -62,13 +66,15 @@ command_clear(void)
 
     for (i = 0; i < numCommands; i++)
 	for (j = 0; j < commandStack[i]->ncmds; j++)
-	    free(commandStack[i]->cmds[j]);
+	    if (commandStack[i]->cmds[j].type == CMD_SHELL)
+		free(commandStack[i]->cmds[j].ptr);
     free(commandStack[i]);
     numCommands = 0;
 }
 
+/* Add a shell command under a given key */
 void
-command_add(char *key, char *fmt, ...)
+command_shell_add(char *key, char *fmt, ...)
 {
     va_list args;
     char *cmd;
@@ -82,22 +88,59 @@ command_add(char *key, char *fmt, ...)
     /* First, look for the key already present and add a command to it */
     for (i = 0; i < numCommands; i++) {
 	if (!strcmp(commandStack[i]->key, key)) {
-	    commandStack[i]->cmds[commandStack[i]->ncmds++] = cmd;
 	    if (commandStack[i]->ncmds == MAX_NUM_COMMANDS)
 		msgFatal("More than %d commands stacked up behind %s??",
 			 MAX_NUM_COMMANDS, key);
+	    commandStack[i]->cmds[commandStack[i]->ncmds].type = CMD_SHELL;
+	    commandStack[i]->cmds[commandStack[i]->ncmds].ptr = (void *)cmd;
+	    commandStack[i]->cmds[commandStack[i]->ncmds].data = NULL;
+	    ++(commandStack[i]->ncmds);
 	    return;
 	}
     }
+    if (numCommands == MAX_CMDS)
+	msgFatal("More than %d commands accumulated??", MAX_CMDS);
+
     /* If we fell to here, it's a new key */
     commandStack[numCommands] = safe_malloc(sizeof(Command));
     strcpy(commandStack[numCommands]->key, key);
     commandStack[numCommands]->ncmds = 1;
-    commandStack[numCommands++]->cmds[0] = cmd;
-    if (numCommands == MAX_CMDS)
-	msgFatal("More than %d commands accumulated??", MAX_CMDS);
+    commandStack[numCommands]->cmds[0].type = CMD_SHELL;
+    commandStack[numCommands]->cmds[0].ptr = (void *)cmd;
+    commandStack[numCommands]->cmds[0].data = NULL;
 }
 
+/* Add a shell command under a given key */
+void
+command_func_add(char *key, commandFunc func, void *data)
+{
+    int i;
+
+    /* First, look for the key already present and add a command to it */
+    for (i = 0; i < numCommands; i++) {
+	if (!strcmp(commandStack[i]->key, key)) {
+	    if (commandStack[i]->ncmds == MAX_NUM_COMMANDS)
+		msgFatal("More than %d commands stacked up behind %s??",
+			 MAX_NUM_COMMANDS, key);
+	    commandStack[i]->cmds[commandStack[i]->ncmds].type = CMD_FUNC;
+	    commandStack[i]->cmds[commandStack[i]->ncmds].ptr = (void *)func;
+	    commandStack[i]->cmds[commandStack[i]->ncmds].data = data;
+	    ++(commandStack[i]->ncmds);
+	    return;
+	}
+    }
+    if (numCommands == MAX_CMDS)
+	msgFatal("More than %d commands accumulated??", MAX_CMDS);
+
+    /* If we fell to here, it's a new key */
+    commandStack[numCommands] = safe_malloc(sizeof(Command));
+    strcpy(commandStack[numCommands]->key, key);
+    commandStack[numCommands]->ncmds = 1;
+    commandStack[numCommands]->cmds[0].type = CMD_FUNC;
+    commandStack[numCommands++]->cmds[0].ptr = (void *)func;
+}
+
+/* arg to sort */
 static int
 sort_compare(const void *p1, const void *p2)
 {
@@ -110,17 +153,30 @@ command_sort(void)
     qsort(commandStack, numCommands, sizeof(Command *), sort_compare);
 }
 
+/* Run all accumulated commands in sorted order */
 void
 command_execute(void)
 {
     int i, j, ret;
+    commandFunc func;
 
     for (i = 0; i < numCommands; i++) {
 	for (j = 0; j < commandStack[i]->ncmds; j++) {
-	    msgNotify("Executing command: %s", commandStack[i]->cmds[j]);
-	    ret = system(commandStack[i]->cmds[j]);
-	    msgDebug("Command: %s returns status %d\n",
-		     commandStack[i]->cmds[j], ret);
+	    if (commandStack[i].type == CMD_SHELL) {
+		msgNotify("Executing command: %s",
+			  commandStack[i]->cmds[j].ptr);
+		ret = system((char *)commandStack[i]->cmds[j].ptr);
+		msgDebug("Command `%s' returns status %d\n",
+			 commandStack[i]->cmds[j].ptr, ret);
+	    }
+	    else {
+		func = (commandFunc)commandStack[i]->cmds.ptr;
+		msgNotify("Executing internal command @ %0x", func);
+		ret = (*func)(commandStack[i]->cmds.key,
+			      commandStack[i]->cmds.data);
+		msgDebug("Function @ %x returns status %d\n",
+			 commandStack[i]->cmds[j].ptr, ret);
+	    }
 	}
     }
 }

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: main.c,v 1.4 1995/05/05 23:47:42 jkh Exp $
+ * $Id: main.c,v 1.5 1995/05/07 03:38:00 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -63,10 +63,12 @@ main(int argc, char **argv)
     /* Default to English */
     /* lang_set_English(NULL); */
 
+    /* 
     /* Begin user dialog at outer menu */
     while (1) {
 	choice = scroll = curr = max = 0;
 	dmenuOpen(&MenuInitial, &choice, &scroll, &curr, &max);
+	dialog_clear();
 	if (getpid() != 1 || !msgYesNo("Are you sure you wish to exit?  System will reboot."))
 	    break;
     }
