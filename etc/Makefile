@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.57 1994/05/03 10:11:21 rgrimes Exp $
+#	$Id: Makefile,v 1.58 1994/05/17 13:03:34 jkh Exp $
 
 NOOBJ=	noobj
 
@@ -165,6 +165,8 @@ distribution: distrib-dirs
 	    ${DESTDIR}/etc/dumpdates
 	install -c -o nobody -g ${BINGRP} -m 664 /dev/null \
 	    ${DESTDIR}/var/db/locate.database
+	install -c -o ${BINOWN} -g ${BINGRP} -m 664 minfree \
+	    ${DESTDIR}/var/crash
 	install -c -o ${BINOWN} -g ${BINGRP} -m 664 /dev/null \
 	    ${DESTDIR}/var/log/lpd-errs
 	install -c -o ${BINOWN} -g ${BINGRP} -m 664 /dev/null \
