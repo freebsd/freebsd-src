@@ -65,7 +65,7 @@ static const char rcsid[] =
 #include <unistd.h>
 
 #include <security/pam_appl.h>
-#include <security/pam_misc.h>
+#include <security/openpam.h>
 
 #define PAM_END() do {						\
 	int local_ret;						\
@@ -111,7 +111,7 @@ int
 main(int argc, char *argv[])
 {
 	struct passwd	*pwd;
-	struct pam_conv	conv = {misc_conv, NULL};
+	struct pam_conv	conv = { openpam_ttyconv, NULL };
 	enum tristate	iscsh;
 	login_cap_t	*lc;
 	union {
