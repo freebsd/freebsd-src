@@ -53,10 +53,10 @@ all:
 	@echo "Running test double_quotes2"
 	@! ${MAKE} double_quotes2 >/dev/null 2>&1 && true || ${MAKE} failure
 	@echo "PASS: Test double_quotes2 detected no regression."
-	@echo "Running test pass_cmd_vars "
+	@echo "Running test pass_cmd_vars"
 	@${MAKE} pass_cmd_vars || ${MAKE} failure
 	@echo "PASS: Test pass_cmd_vars detected no regression."
-	@echo "Running test plus_flag "
+	@echo "Running test plus_flag"
 	@${MAKE} plus_flag || ${MAKE} failure
 	@echo "PASS: Test plus_flag detected no regression."
 
@@ -155,17 +155,17 @@ pass_cmd_vars_1:
 	@:
 
 .if ${CMD1} != cmd1 || ${CMD2} != cmd2
-.error "variables not passed through MAKEFLAGS"
+.error variables not passed through MAKEFLAGS
 .endif
 
 # Check that the variable definition is in MAKEFLAGS
 .if ${.MAKEFLAGS:MCMD1=*} != "CMD1=cmd1" || ${.MAKEFLAGS:MCMD2=*} != "CMD2=cmd2"
-.error "variable assignment not found in $${MAKEFLAGS}"
+.error variable assignment not found in $${MAKEFLAGS}
 .endif
 
 # Check that the variable definition is not in MFLAGS
 .if ${MFLAGS:MCMD1=*} != "" || ${MFLAGS:MCMD2=*} != ""
-.error "variable assignment found in $${MFLAGS}"
+.error variable assignment found in $${MFLAGS}
 .endif
 .endif
 
@@ -175,7 +175,7 @@ CMD1=foo1
 CMD2=foo2
 
 .if ${CMD1} != cmd1 || ${CMD2} != cmd2
-.error "MAKEFLAGS-passed variables overridden"
+.error MAKEFLAGS-passed variables overridden
 .endif
 
 pass_cmd_vars_2:
@@ -192,7 +192,7 @@ pass_cmd_vars_3:
 
 .if make(pass_cmd_vars_3_1)
 .if ${CMD1} != foo1 || ${CMD2} != cmd2
-.error "MAKEFLAGS-passed variables not overridden on command line"
+.error MAKEFLAGS-passed variables not overridden on command line
 .endif
 pass_cmd_vars_3_1:
 	@:
@@ -205,18 +205,16 @@ pass_cmd_vars_3_1:
 .MAKEFLAGS: CMD1=baz1
 
 pass_cmd_vars_4:
-	@:
-# The following does not yet work (see standards/57295)
-#	${MAKE} pass_cmd_vars_4_1
+	@${MAKE} pass_cmd_vars_4_1
 
 .if ${CMD1} != baz1 || ${CMD2} != cmd2
-.error "MAKEFLAGS-passed variables not overridden via .MAKEFLAGS target"
+.error MAKEFLAGS-passed variables not overridden via .MAKEFLAGS target
 .endif
 
 .endif
 .if make(pass_cmd_vars_4_1)
 .if ${CMD1} != baz1 || ${CMD2} != cmd2
-.error "MAKEFLAGS-passed variables not overridden via .MAKEFLAGS target (2)"
+.error MAKEFLAGS-passed variables not overridden via .MAKEFLAGS target (2)
 .endif
 pass_cmd_vars_4_1:
 	@:
@@ -228,7 +226,7 @@ pass_cmd_vars_4_1:
 .if make(plus_flag)
 OUT != ${MAKE} -n plus_flag_1
 .if ${OUT} != "/tmp"
-.error "make doesn't handle + flag"
+.error make doesn't handle + flag
 .endif
 plus_flag:
 	@:
