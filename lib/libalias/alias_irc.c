@@ -253,6 +253,7 @@ lFOUND_CTCP:
 			 if ( dcc_link ) {
 				 struct in_addr alias_address;	/* Address from aliasing */
 				 u_short alias_port;	/* Port given by aliasing */
+				 int n;
 
 #ifndef NO_FW_PUNCH
 				 /* Generate firewall hole as appropriate */
@@ -260,17 +261,26 @@ lFOUND_CTCP:
 #endif
 
 				 alias_address = GetAliasAddress(link);
-				 iCopy += snprintf(&newpacket[iCopy],
+				 n = snprintf(&newpacket[iCopy],
 										 sizeof(newpacket)-iCopy,
 										 "%lu ", (u_long)htonl(alias_address.s_addr));
-				 if( iCopy >= sizeof(newpacket) ) { /* Truncated/fit exactly - bad news */
+				 if( n < 0 ) {
+					 DBprintf(("DCC packet construct failure.\n"));
+					 goto lBAD_CTCP;
+				 }
+				 if( (iCopy += n) >= sizeof(newpacket) ) { /* Truncated/fit exactly - bad news */
 					 DBprintf(("DCC constructed packet overflow.\n"));
 					 goto lBAD_CTCP;
 				 }
 				 alias_port = GetAliasPort(dcc_link);
-				 iCopy += snprintf(&newpacket[iCopy],
+				 n = snprintf(&newpacket[iCopy],
 										 sizeof(newpacket)-iCopy,
 										 "%u", htons(alias_port) );
+				 if( n < 0 ) {
+					 DBprintf(("DCC packet construct failure.\n"));
+					 goto lBAD_CTCP;
+				 }
+				 iCopy += n;
 				 /* Done - truncated cases will be taken care of by lBAD_CTCP */
 				 DBprintf(("Aliased IP %lu and port %u\n", alias_address.s_addr, (unsigned)alias_port));
 			 }
