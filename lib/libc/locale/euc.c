@@ -113,7 +113,7 @@ _EUC_init(rl)
 		memcpy(rl->variable, ei, sizeof(_EucInfo));
 		free(ei);
 	} else {
-		rl->variable = &ei;
+		rl->variable = ei;
 	}
 	rl->variable_len = sizeof(_EucInfo);
 	_CurrentRuneLocale = rl;
