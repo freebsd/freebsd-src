@@ -662,6 +662,7 @@ static struct isa_pnp_id sio_ids[] = {
 	{0x00007905, NULL},	/* AKY0000 - 56K Plug&Play Modem */
 	{0x01405407, NULL},	/* AZT4001 - AZT3000 PnP SOUND DEVICE, MODEM */
 	{0x56039008, NULL},	/* BDP0356 - Best Data 56x2 */
+	{0x56159008, NULL},	/* BDP1556 - B.D. Smart One 56SPS,Voice Modem*/
 	{0x36339008, NULL},	/* BDP3336 - Best Data Prods. 336F */
 	{0x0014490a, NULL},	/* BRI1400 - Boca 33.6 PnP */
 	{0x0015490a, NULL},	/* BRI1500 - Internal Fax Data */
