@@ -845,7 +845,7 @@ pci_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		case 4:
 		case 2:
 		case 1:
-			probe.hose = 0; /* XXXXX */
+			probe.hose = -1;
 			probe.bus = io->pi_sel.pc_bus;
 			probe.slot = io->pi_sel.pc_dev;
 			probe.func = io->pi_sel.pc_func;
@@ -866,7 +866,7 @@ pci_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		case 4:
 		case 2:
 		case 1:
-			probe.hose = 0; /* XXXXX */
+			probe.hose = -1; 
 			probe.bus = io->pi_sel.pc_bus;
 			probe.slot = io->pi_sel.pc_dev;
 			probe.func = io->pi_sel.pc_func;
