@@ -17,6 +17,9 @@
  * its use.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include "dialog.h"
 
 void
@@ -66,6 +69,7 @@ dialog_gauge(char *title, char *prompt, int y, int x,
     for (i=0; i<glen; i++) waddch(gw, ' ');
 
     wrefresh(gw);
+    delwin(gw);
 
     return;
 } /* dialog_gauge() */
