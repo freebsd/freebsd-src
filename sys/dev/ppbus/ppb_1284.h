@@ -116,6 +116,8 @@ extern int ppb_1284_negociate(device_t, int, int);
 extern int ppb_1284_terminate(device_t);
 extern int ppb_1284_read_id(device_t, int, char *, int, int *);
 extern int ppb_1284_read(device_t, int, char *, int, int *);
+extern int ppb_1284_get_state(device_t bus);
+extern int ppb_1284_set_state(device_t bus, int state);
 
 extern int ppb_peripheral_terminate(device_t, int);
 extern int ppb_peripheral_negociate(device_t, int, int);
