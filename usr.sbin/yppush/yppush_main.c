@@ -651,6 +651,7 @@ main(argc,argv)
 	sigaddset(&sa.sa_mask, SIGALRM);
 	sigaddset(&sa.sa_mask, SIGINT);
 	sa.sa_handler = async_handler;
+	sa.sa_flags = 0;
 
 	sigaction(SIGIO, &sa, NULL);
 
