@@ -25,6 +25,10 @@
  */
 
 #include "archive_platform.h"
+
+/* Don't compile this if we don't have zlib. */
+#if HAVE_ZLIB_H
+
 __FBSDID("$FreeBSD$");
 
 #include <errno.h>
@@ -496,3 +500,5 @@ fatal:
 	    a->compression_name);
 	return (ARCHIVE_FATAL);
 }
+
+#endif /* HAVE_ZLIB_H */
