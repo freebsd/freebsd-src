@@ -107,6 +107,11 @@ __FBSDID("$FreeBSD$");
 #endif
 #endif
 
+/* If we don't have Cronyx's sppp version, we don't have fr support via sppp */
+#ifndef PP_FR
+#define PP_FR 0
+#endif
+
 #define CT_DEBUG(d,s)	({if (d->chan->debug) {\
 				printf ("%s: ", d->name); printf s;}})
 #define CT_DEBUG2(d,s)	({if (d->chan->debug>1) {\
@@ -1333,7 +1338,7 @@ static int ct_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, struct threa
 
 #ifndef NETGRAPH
 	case SERIAL_GETPROTO:
-	        strcpy ((char*)data, /*(d->pp.pp_flags & PP_FR) ? "fr" :*/
+	        strcpy ((char*)data, (d->pp.pp_flags & PP_FR) ? "fr" :
 	                (d->pp.pp_if.if_flags & PP_CISCO) ? "cisco" : "ppp");
 	        return 0;
 
@@ -1351,21 +1356,21 @@ static int ct_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, struct threa
 		if (d->pp.pp_if.if_flags & IFF_RUNNING)
 			return EBUSY;
 	        if (! strcmp ("cisco", (char*)data)) {
-/*	                d->pp.pp_flags &= ~(PP_FR);*/
+	                d->pp.pp_flags &= ~(PP_FR);
 	                d->pp.pp_flags |= PP_KEEPALIVE;
 	                d->pp.pp_if.if_flags |= PP_CISCO;
-/*	        } else if (! strcmp ("fr", (char*)data)) {
+	        } else if (! strcmp ("fr", (char*)data)) {
 	                d->pp.pp_if.if_flags &= ~(PP_CISCO);
-	                d->pp.pp_flags |= PP_FR | PP_KEEPALIVE;*/
+	                d->pp.pp_flags |= PP_FR | PP_KEEPALIVE;
 	        } else if (! strcmp ("ppp", (char*)data)) {
-	                d->pp.pp_flags &= ~(/*PP_FR | */PP_KEEPALIVE);
+	                d->pp.pp_flags &= ~(PP_FR | PP_KEEPALIVE);
 	                d->pp.pp_if.if_flags &= ~(PP_CISCO);
 	        } else
 			return EINVAL;
 	        return 0;
 
 	case SERIAL_GETKEEPALIVE:
-		if (/*(d->pp.pp_flags & PP_FR) ||*/
+		if ((d->pp.pp_flags & PP_FR) ||
 			(d->pp.pp_if.if_flags & PP_CISCO))
 			return EINVAL;
 	        *(int*)data = (d->pp.pp_flags & PP_KEEPALIVE) ? 1 : 0;
@@ -1382,7 +1387,7 @@ static int ct_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, struct threa
 #endif /* __FreeBSD_version >= 500000 */
 	        if (error)
 	                return error;
-		if (/*(d->pp.pp_flags & PP_FR) ||*/
+		if ((d->pp.pp_flags & PP_FR) ||
 			(d->pp.pp_if.if_flags & PP_CISCO))
 			return EINVAL;
 	        if (*(int*)data)
