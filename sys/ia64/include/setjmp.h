@@ -44,26 +44,8 @@
 
 #include <sys/cdefs.h>
 
-/*
- * IA64 assembler doesn't like C style comments.  This also means we can't
- * include other include files to get things like the roundup2() macro.
- *
- * NOTE:  Actual register storage must start on a 16 byte boundary.  Both
- * setjmp and longjmp make that adjustment before referencing the contents
- * of jmp_buf.  The macro JMPBUF_ADDR_OF() allows someone to get the address
- * of an individual item saved in jmp_buf.
- */
-
 #if __BSD_VISIBLE
-#define	our_roundup(x, y)	(((x)+((y)-1))&(~((y)-1)))
-#endif
-
-#define	_JMPBUF_ALIGNMENT	0x10
-
-#if __BSD_VISIBLE
-#define	JMPBUF_ALIGNMENT	_JMPBUF_ALIGNMENT
-#define	JMPBUF_ADDR_OF(buf, item) \
-    ((size_t)((our_roundup((size_t)buf, JMPBUF_ALIGNMENT)) + item))
+#define	JMPBUF_ADDR_OF(buf, item)	((unsigned long)((char *)buf + item))
 
 #define	J_UNAT		0
 #define	J_NATS		0x8
@@ -109,10 +91,11 @@
 #define	J_SIGMASK	0x1e8
 #endif /* __BSD_VISIBLE */
 
-#define	_J_END		0x1f0
-#if __BSD_VISIBLE
-#define	J_END		_J_END
-#endif
+/*
+ * We have 16 bytes left for future use, but it's a nice round,
+ * but above all large number. Size is in bytes.
+ */
+#define	_JMPBUFSZ	0x200
 
 /*
  * XXX this check is wrong, since LOCORE is in the application namespace and
@@ -123,20 +106,24 @@
  * implementation.
  */
 #ifndef LOCORE
+
 /*
  * jmp_buf and sigjmp_buf are encapsulated in different structs to force
  * compile-time diagnostics for mismatches.  The structs are the same
  * internally to avoid some run-time errors for mismatches.
  */
 #if __BSD_VISIBLE || __POSIX_VISIBLE || __XSI_VISIBLE
-typedef	struct _sigjmp_buf {
-	char	_Buffer[_J_END + _JMPBUF_ALIGNMENT];
-} sigjmp_buf[1];
+struct _sigjmp_buf {
+	char	_Buffer[_JMPBUFSZ];
+} __aligned(16);
+typedef struct _sigjmp_buf sigjmp_buf[1];
 #endif
 
-typedef	struct _jmp_buf {
-    char	_Buffer[ _J_END + _JMPBUF_ALIGNMENT ];
-} jmp_buf[1];
-#endif
+struct _jmp_buf {
+	char	_Buffer[_JMPBUFSZ];
+} __aligned(16);
+typedef struct _jmp_buf	jmp_buf[1];
+
+#endif /* !LOCORE */
 
 #endif /* !_MACHINE_SETJMP_H_ */

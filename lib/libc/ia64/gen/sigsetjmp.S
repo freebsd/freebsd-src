@@ -45,27 +45,17 @@
  */
 
 ENTRY(sigsetjmp, 2)
-	//
-	// Compensate for the pointer twiddling that setjmp does.
-	//
-	dep	r14=r0,r32,0,4
-	;; 
-	add	r14=J_SIGMASK+0x10,r14		// place to save mask
+	add	r14=J_SIGMASK,in0		// place to save mask
+	cmp.ne	p6,p7=0,in1			// save signal state?
 	;;
 	st8	[r14]=in1			// save mask value
-	cmp.ne	p6,p7=0,in1			// save signal state?
 (p6)	br.cond.dptk.many setjmp
 (p7)	br.cond.dpnt.many _setjmp		
 END(sigsetjmp)
 
 	WEAK_ALIAS(siglongjmp,__siglongjmp)
 ENTRY(__siglongjmp, 2)
-	//
-	// Compensate for the pointer twiddling that setjmp does.
-	//
-	dep	r14=r0,r32,0,4
-	;; 
-	add	r14=J_SIGMASK+0x10,r14		// address of mask value
+	add	r14=J_SIGMASK,in0		// address of mask value
 	;;
 	ld8	r14=[r14]
 	;;
