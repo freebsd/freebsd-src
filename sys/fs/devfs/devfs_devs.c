@@ -152,7 +152,7 @@ devfs_attemptoverflow(int insist)
 	ot = NULL;
 	or = NULL;
 	n = devfs_noverflowwant;
-	nb = sizeof (struct dev_t *) * n;
+	nb = sizeof (dev_t *) * n;
 	MALLOC(ot, dev_t **, nb, M_DEVFS, (insist ? M_WAITOK : M_NOWAIT) | M_ZERO);
 	if (ot == NULL)
 		goto bail;
