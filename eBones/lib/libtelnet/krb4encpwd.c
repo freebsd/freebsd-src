@@ -115,7 +115,6 @@ static	AUTH_DAT adat = { 0 };
 #ifdef	ENCRYPTION
 static Block	session_key	= { 0 };
 #endif	/* ENCRYPTION */
-static Schedule sched;
 static char  challenge[REALM_SZ];
 
 	static int
