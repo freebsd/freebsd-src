@@ -1952,6 +1952,13 @@ done:
  * If syncio is TRUE, dirty pages are written synchronously.
  * If invalidate is TRUE, any cached pages are freed as well.
  *
+ * If the size of the region from start to end is zero, we are
+ * supposed to flush all modified pages within the region containing
+ * start.  Unfortunately, a region can be split or coalesced with
+ * neighboring regions, making it difficult to determine what the
+ * original region was.  Therefore, we approximate this requirement by
+ * flushing the current region containing start.
+ *
  * Returns an error if any part of the specified range is not mapped.
  */
 int
@@ -1973,6 +1980,9 @@ vm_map_sync(
 	if (!vm_map_lookup_entry(map, start, &entry)) {
 		vm_map_unlock_read(map);
 		return (KERN_INVALID_ADDRESS);
+	} else if (start == end) {
+		start = entry->start;
+		end = entry->end;
 	}
 	/*
 	 * Make a first pass to check for holes.
