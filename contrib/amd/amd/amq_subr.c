@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2003 Erez Zadok
+ * Copyright (c) 1997-2004 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: amq_subr.c,v 1.6.2.4 2002/12/27 22:44:33 ezk Exp $
+ * $Id: amq_subr.c,v 1.6.2.6 2004/01/19 00:25:55 ezk Exp $
  * $FreeBSD$
  *
  */
@@ -75,7 +75,7 @@ amqproc_mnttree_1_svc(voidp argp, struct svc_req *rqstp)
   static am_node *mp;
 
   mp = find_ap(*(char **) argp);
-  return (amq_mount_tree_p *) &mp;
+  return (amq_mount_tree_p *) ((void *)&mp);
 }
 
 
@@ -101,7 +101,7 @@ amqproc_umnt_1_svc(voidp argp, struct svc_req *rqstp)
 amq_mount_stats *
 amqproc_stats_1_svc(voidp argp, struct svc_req *rqstp)
 {
-  return (amq_mount_stats *) &amd_stats;
+  return (amq_mount_stats *) ((void *)&amd_stats);
 }
 
 
@@ -169,7 +169,7 @@ amqproc_setopt_1_svc(voidp argp, struct svc_req *rqstp)
 amq_mount_info_list *
 amqproc_getmntfs_1_svc(voidp argp, struct svc_req *rqstp)
 {
-  return (amq_mount_info_list *) &mfhead;	/* XXX */
+  return (amq_mount_info_list *) ((void *)&mfhead); /* XXX */
 }
 
 
@@ -286,7 +286,7 @@ xdr_amq_mount_tree(XDR *xdrs, amq_mount_tree *objp)
   if (!xdr_amq_mount_tree_node(xdrs, objp)) {
     return (FALSE);
   }
-  if (!xdr_pointer(xdrs, (char **) &mnil, sizeof(amq_mount_tree), (XDRPROC_T_TYPE) xdr_amq_mount_subtree)) {
+  if (!xdr_pointer(xdrs, (char **) ((void *)&mnil), sizeof(amq_mount_tree), (XDRPROC_T_TYPE) xdr_amq_mount_subtree)) {
     return (FALSE);
   }
   if (!xdr_pointer(xdrs, (char **) &mp->am_child, sizeof(amq_mount_tree), (XDRPROC_T_TYPE) xdr_amq_mount_subtree)) {
