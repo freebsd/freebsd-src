@@ -203,10 +203,6 @@ roundrobin(void *arg)
 static fixpt_t	ccpu = 0.95122942450071400909 * FSCALE;	/* exp(-1/20) */
 SYSCTL_INT(_kern, OID_AUTO, ccpu, CTLFLAG_RD, &ccpu, 0, "");
 
-/* kernel uses `FSCALE', userland (SHOULD) use kern.fscale */
-static int	fscale __unused = FSCALE;
-SYSCTL_INT(_kern, OID_AUTO, fscale, CTLFLAG_RD, 0, FSCALE, "");
-
 /*
  * If `ccpu' is not equal to `exp(-1/20)' and you still want to use the
  * faster/more-accurate formula, you'll have to estimate CCPU_SHIFT below
@@ -328,7 +324,6 @@ schedcpu(void *arg)
 		mtx_unlock_spin(&sched_lock);
 	} /* end of process loop */
 	sx_sunlock(&allproc_lock);
-	wakeup(&lbolt);
 	callout_reset(&schedcpu_callout, hz, schedcpu, NULL);
 }
 
