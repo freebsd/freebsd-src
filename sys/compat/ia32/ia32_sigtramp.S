@@ -37,6 +37,7 @@
 	.code32
 /*
  * Signal trampoline, copied to top of user stack
+ * XXX may need to be MD to match backend sendsig handoff protocol
  */
 	ALIGN_TEXT
 	.globl	ia32_sigcode

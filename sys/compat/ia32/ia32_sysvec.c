@@ -79,11 +79,11 @@ static register_t *ia32_copyout_strings(struct image_params *imgp);
 static void ia32_setregs(struct thread *td, u_long entry, u_long stack,
     u_long ps_strings);
 
-extern struct sysent ia32_sysent[];
+extern struct sysent freebsd32_sysent[];
 
 struct sysentvec ia32_freebsd_sysvec = {
 	SYS_MAXSYSCALL,
-	ia32_sysent,
+	freebsd32_sysent,
 	0,
 	0,
 	NULL,
@@ -124,8 +124,7 @@ SYSINIT(ia32, SI_SUB_EXEC, SI_ORDER_ANY,
 	(sysinit_cfunc_t) elf32_insert_brand_entry,
 	&ia32_brand_info);
 
-extern int _ucode32sel, _udatasel;
-
+/* XXX may be freebsd32 MI */
 static register_t *
 ia32_copyout_strings(struct image_params *imgp)
 {
@@ -232,7 +231,9 @@ ia32_copyout_strings(struct image_params *imgp)
 
 /*
  * Clear registers on exec
+ * XXX backend MD
  */
+extern int _ucode32sel, _udatasel;
 void
 ia32_setregs(td, entry, stack, ps_strings)
 	struct thread *td;
