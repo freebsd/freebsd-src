@@ -8,7 +8,9 @@ MAKEWHATIS?=	makewhatis
 
 makedb:
 	${MAKEWHATIS} ${DESTDIR}${BINDIR}/man
+.if !defined(NOCRYPT) && !defined(NO_OPENSSL)
 	${MAKEWHATIS} ${DESTDIR}${BINDIR}/openssl/man
+.endif
 
 .include "${.CURDIR}/../Makefile.inc"
 .include <bsd.subdir.mk>
