@@ -139,13 +139,13 @@ namespace std
       {
 	size_type __dnew = static_cast<size_type>(distance(__beg, __end));
 
+	if (__beg == __end && __a == _Alloc())
+	  return _S_empty_rep()._M_refcopy();
+
 	// NB: Not required, but considered best practice.
 	if (__builtin_expect(__beg == _InIter(), 0))
 	  __throw_logic_error("attempt to create string with null pointer");
 	
-	if (__beg == __end && __a == _Alloc())
-	  return _S_empty_rep()._M_refcopy();
-
 	// Check for out_of_range and length_error exceptions.
 	_Rep* __r = _Rep::_S_create(__dnew, __a);
 	try 
@@ -223,8 +223,8 @@ namespace std
   template<typename _CharT, typename _Traits, typename _Alloc>
     basic_string<_CharT, _Traits, _Alloc>::
     basic_string(const _CharT* __s, const _Alloc& __a)
-    : _M_dataplus(_S_construct(__s, __s ? __s + traits_type::length(__s) : 0, 
-			       __a), __a)
+    : _M_dataplus(_S_construct(__s, __s ? __s + traits_type::length(__s) :
+			       __s + npos, __a), __a)
     { }
 
   template<typename _CharT, typename _Traits, typename _Alloc>
@@ -497,7 +497,6 @@ namespace std
 	this->erase(__n);
       // else nothing (in particular, avoid calling _M_mutate() unnecessarily.)
     }
-  
 
   // This is the general replace helper, which currently gets instantiated both
   // for input iterators and reverse iterators. It buffers internally and then
@@ -885,9 +884,11 @@ namespace std
     compare(const _CharT* __s) const
     {
       size_type __size = this->size();
-      int __r = traits_type::compare(_M_data(), __s, __size);
+      size_type __osize = traits_type::length(__s);
+      size_type __len = min(__size, __osize);
+      int __r = traits_type::compare(_M_data(), __s, __len);
       if (!__r)
-	__r = __size - traits_type::length(__s);
+	__r = __size - __osize;
       return __r;
     }
 
@@ -958,6 +959,7 @@ namespace std
     basic_istream<char>& 
     getline(basic_istream<char>&, string&);
 
+#ifdef _GLIBCPP_USE_WCHAR_T
   extern template class basic_string<wchar_t>;
   extern template 
     basic_istream<wchar_t>& 
@@ -971,6 +973,7 @@ namespace std
   extern template 
     basic_istream<wchar_t>& 
     getline(basic_istream<wchar_t>&, wstring&);
+#endif
 } // namespace std
 
 #endif

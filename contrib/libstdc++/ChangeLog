@@ -1,3 +1,296 @@
+2002-11-19  Release Manager
+
+	* GCC 3.2.1 Released.
+
+2002-11-19  Release Manager
+
+	* GCC 3.2.1 Released.
+
+2002-11-18  Release Manager
+
+	* GCC 3.2.1 Released.
+
+2002-11-17  Jakub Jelinek  <jakub@redhat.com>
+
+	* config/linker-map.gnu: Export _S_construct even if size_t is
+	unsigned long.  Collapse std::codecvt<char>::codecvt(size_t)
+	and std::codecvt<wchar_t>::codecvt(size_t) into one export pattern.
+
+2002-11-13  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* config/linker-map.gnu: Export all _S_construct.
+	
+2002-11-06  David Edelsohn  <edelsohn@gnu.org>
+
+	PR 8362
+	* testsuite/abi_check.cc: Add guards to prevent -mpower ICE.
+
+2002-11-05  Jonathan Wakely  <cow@compsoc.man.ac.uk>
+
+	* include/std/std_sstream.h
+	(basic_stringbuf::str(const __string_type&)):
+	Prefer data() to c_str() thus avoiding assigning the
+	unnecessary NULL-terminator.
+
+2002-11-05  Benjamin Kosnik  <bkoz@redhat.com>
+
+	PR libstdc++/8258
+	* include/bits/istream.tcc (istream::readsome): Don't set eofbit
+	for null buffer.
+	(istream::operator>>(_CharT*)): Use traits_type.
+	(istream::ws): Same.
+	(istream::operator>>(string)): Same.	
+	* testsuite/27_io/istream_unformatted.cc (test11): Add.
+
+2002-11-05  Benjamin Kosnik  <bkoz@redhat.com>
+
+	PR libstdc++/7219
+	* include/bits/ios_base.h (ios_base::streampos): Add.
+	(ios_base::streamoff): Add.
+	* testsuite/27_io/ios_base_type.cc: New.
+
+2002-11-05  Paolo Carlini  <pcarlini@unitus.it>
+
+	PR libstdc++/8466
+	* include/std/std_sstream.h
+	(basic_stringbuf::str(const __string_type&)):
+	Cannot use simple assignment since the COW-nature of v3
+	basic_string is not taken into account in basic_stringbuf.
+	* testsuite/27_io/stringstream_members.cc: Add test04 from PR.
+
+2002-11-04  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* config/linker-map.gnu: Export string operator+.
+	Export __default_alloc_template::_S_force_new.
+	* testsuite/abi_check.cc: Output tweaks.
+
+2002-11-04  Benjamin Kosnik  <bkoz@redhat.com>
+
+        PR libstdc++/8172
+        * src/string-inst.cc: Add instantiation.
+	
+2002-11-04  Christian Ehrhardt  <ehrhardt@mathematik.uni-ulm.de>
+
+	PR libstdc++/8197
+	* config/link-map.gnu: Export math stubbs.
+
+2002-11-04  Benjamin Kosnik  <bkoz@redhat.com>
+
+	PR libstdc++/8318
+	* include/std/std_iostream.h: Tweak.
+	* include/std/std_iosfwd.h: Add _GLIBCPP_USE_WCHAR_T.
+	* include/std/std_iomanip.h: Same.
+	* include/bits/stringfwd.h: Same.
+	* include/bits/basic_string.tcc: Same.
+	* include/bits/sstream.tcc: Same.
+	* include/bits/fstream.tcc: Same.
+	* include/bits/basic_ios.tcc: Same.
+	* include/bits/streambuf.tcc: Same.
+	* include/bits/locale_facets.tcc: Same.
+
+2002-11-01  Benjamin Kosnik  <bkoz@redhat.com>
+
+	PR libstdc++/8348
+	* include/bits/istream.tcc (istream::tellg): Remove sentry bits.
+	(istream::seekg): Same.
+	* testsuite/27_io/istream_seeks.cc (test06): New.
+
+2002-11-01  John Carter  <john.carter@tait.co.nz>
+
+	PR libstdc++/7961
+	* include/bits/basic_string.tcc
+	(compare(const _CharT* __s)): Don't access __s past its length.
+
+2002-11-01  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	PR other/3337
+	PR bootstrap/6763
+	PR bootstrap/8122
+	* testsuite/testsuite_hooks.h (__set_testsuite_memlimit): Use
+	__typeof__ (r.rlim_cur), not rlim_t in declaration of limit.
+
+2002-10-29  Paolo Carlini  <pcarlini@unitus.it>
+
+	PR libstdc++/8347
+	* include/bits/basic_string.tcc
+	(string::_S_construct(_InIter, _InIter, const _Alloc&,
+	forward_iterator_tag)): Do not throw logic error if
+	__beg == NULL && __end == __beg.
+	(string::string(const _CharT*, const _Alloc&)): Tweak.
+	* testsuite/21_strings/ctor_copy_dtor.cc: Add test05 from PR.
+
+2002-10-23  Jakub Jelinek  <jakub@redhat.com>
+
+	* testsuite/22_locale/num_put_members_char.cc (test01): Swap size
+	and decimal_point arguments of find.
+	* testsuite/22_locale/num_put_members_wchar_t.cc (test01): Likewise.
+
+2002-10-22  Jakub Jelinek  <jakub@redhat.com>
+
+	* Makefile.am (check-abi, new-abi-baseline): Use @glibcpp_srcdir@
+	instead of ${top_srcdir}.
+	* Makefile.in: Rebuilt.
+
+2002-10-21  Phil Edwards  <pme@gcc.gnu.org>
+
+	* configure.in:  Use target, not target_alias, when matching triplet
+	patterns.
+	* configure:  Regenerate.
+
+2002-10-16  Benjamin Kosnik  <bkoz@redhat.com>
+
+        * include/bits/locale_facets.h (__timepunct::__timepunct): Allocate
+        _M_name_timepunct.
+        (__timepunct::~__timepunct): Deallocate, remove specialization
+        declarations.
+        (messages::messages): Allocate _M_name_messages.
+        (messages::~messages): Deallocate.
+        (messages_byname): Same.
+        * config/locale/gnu/time_members.cc (__timepunct::~__timepunct):
+        Remove.
+        * config/locale/generic/time_members.cc (__timepunct::~__timepunct):
+        Remove.
+
+        * docs/html/install.html: Add eqs_MX, en_PH to required locales list.
+  
+2002-10-16  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* src/globals.cc (__gnu_cxx::c_locale_impl_compat): Add, alias to
+	c_locale_impl.
+	* testsuite/abi_check.cc (line_to_symbol_info): Collect size info.
+	* docs/html/abi.txt: Update.
+
+2002-10-16  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* testsuite/22_locale/static_members.cc (test02): Less provincial.
+
+2002-10-16  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* testsuite/22_locale/static_members.cc (test02): Disable for 
+	systems without named locale support.
+	* testsuite/22_locale/ctor_copy_dtor.cc (test04): Don't assume
+	running the testsuites in "C" environment.
+	Add new tests.
+	* docs/html/22_locale/locale.html: Update.
+
+2002-10-16  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* testsuite/abi_check.cc (hash<string>): Specialize.
+	Simplify. Check compatible symbol versions.
+	* config/linker-map.gnu: Clarify, explicitly export
+	std::codecvt::c* symbols.
+
+	* testsuite/22_locale/static_members.cc (test02): Avoid null strings.
+
+2002-10-16  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* testsuite/22_locale/static_members.cc (test02): Fix.
+
+2002-10-16  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* acconfig.h (_GLIBCPP_SYMVER): Add.
+	(_GLIBCPP_ASM_SYMVER): Add.
+	* acinclude.m4 (GLIBCPP_ENABLE_SYMVERS): Define _GLIBCPP_SYMVER.
+	* aclocal.m4: Regenerate.
+	* config.h.in: Regenerate.
+	* configure: Regenerate.
+	* include/bits/c++config (_GLIBCPP_AT_AT): Define, as an expedient
+	hack around m4 issues with quoting '@'.
+	* src/locale.cc: Use _GLIBCPP_ASM_SYMVER.
+	* src/globals.cc (__gnu_cxx): Same.
+	
+	* testsuite/22_locale/ctor_copy_dtor.cc (test04): Fix for
+
+2002-10-16  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* config/linker-map.gnu (GLIBCPP_3.2.1): Add.
+	(GLIBCPP_3.2): Don't export locale::_S_*. 
+	* src/ios.cc: Move globals into __gnu_cxx. Make old exported
+	symbols match.
+	* src/locale.cc: Same.
+	* src/localename.cc: Same.	
+
+2002-10-16  Benjamin Kosnik  <bkoz@redhat.com>	
+
+	* src/locale.cc: Fix comments, move ctors together.
+	* testsuite/22_locale/static_members.cc (test03): Add.
+
+2002-10-16  Paolo Carlini  <pcarlini@unitus.it>
+	    Benjamin Kosnik  <bkoz@redhat.com>	
+
+	* include/bits/localefwd.h (class locale): Add static member
+	_S_num_extra_categories, encoding the number of additional
+	categories.
+	Change _S_num_categories to _S_categories_size.
+	(class locale::_Impl): Add _M_c_cats.
+	(class locale::_Impl::_M_names): Change to array of chars.
+	(class locale::_Impl::_M_check_same_name): Use
+	_S_extra_categories_size, tweak.
+	(locale::locale(const locale&, _Facet*)): Ditto.
+    	* src/locale.cc (locale::locale(const char* )): Rewrite to deal
+	with the environment in a POSIX-compliant way while being thread
+	safe.
+	(locale::name()): Update to output POSIX environment strings.
+	* src/localename.cc
+	(locale::_Impl::_Impl(const _Impl&, size_t): Use
+	_S_categories_size_*, tweak.
+	(locale::_Impl::_Impl(facet**, size_t, bool)): Ditto.
+	(locale::_Impl::_Impl(const char*, size_t)): Name each category
+	individually.
+	(locale::_Impl::_M_replace_categories): Use strcpy.
+
+	* include/bits/locale_facets.h (numpunct::_M_initialize_numpunct):
+	Change default argument to NULL from _S_c_locale.
+	(timepunct::_M_initialize_timepunct): Same.
+	_S_c_locale cleanups.
+	* src/codecvt.c: _S_c_locale simplification.
+	* src/ctype.c: Same.
+	* src/globals.cc: Add fake_name.
+	* src/locale-inst.cc: Remove extra includes.	
+	* src/locale.cc: Remove extra includes.
+	Add _S_extra_categories_size definition.
+	Correct "C" initialization.
+	(locale::facet::facet): Don't initialize _S_c_locale.
+	(locale::facet::_M_remove_reference): Adjust.
+	* src/localename: Use facet_vec, facet_name.
+	(locale::_Impl::_Impl(facet** __f, size_t __refs, bool)): Set
+	facet ref counts to one. Initialize _S_c_locale.
+	(locale::_Impl::_M_install_facet(id*, facet*)): Adjust facet ref
+	counts when installing unilaterally.
+
+	* config/locale/generic/c_locale.cc: Add _S_categories definition.
+	* config/locale/generic/c_locale.h: Add _GLIBCPP_NUM_CATEGORIES macro.
+	* config/locale/generic/time_members.cc: _S_c_locale cleanup.
+	
+	* config/locale/gnu/c_locale.cc: Add _S_categories definition.
+	(_S_destroy_c_locale): Move checks against _S_c_locale here.
+	* config/locale/gnu/c_locale.h: Add _GLIBCPP_NUM_CATEGORIES macro.
+	* config/locale/gnu/ctype_members.cc: Simplify _S_destroy_c_locale
+	calls, _S_c_locale usage.
+	* config/locale/gnu/monetary_members.cc: Same, tweaks.
+	* config/locale/gnu/monetary_members.cc: Same.
+	* config/locale/gnu/time_members.cc: Same.	
+	* config/os/gnu-linux/ctype_noninline.h: Use locale::classic().
+
+	* docs/html/22_locale/locale.html: Add bits about global locales
+	and "C" setlocale.
+
+	* testsuite/22_locale/facet.cc (test02): Add.
+	* testsuite/22_locale/static_members.cc (test02): Add.
+	* testsuite/22_locale/ctor_copy_dtor.cc (test04): Add.
+
+2002-10-11  Gabriel Dos Reis  <gdr@integrable-solutions.net>
+
+	* include/std/std_limits.h (__glibcpp_char_digits10): Fix Typo.
+	(__glibcpp_char_digits10): Likewise.
+
+2002-10-10  Jonathan Lennox  <lennox@cs.columbia.edu>
+
+        PR libstdc++/8071, libstdc++/8127, c++/6745
+        * streambuf.tcc (__copy_streambufs): Handle cases where
+        __sbin->in_avail() returns 0, or where __sbin doesn't set gptr().
+        * testsuite/27_io/ostream_inserter_other.cc (test05): Add.
+
 2002-10-07  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
 
 	* Makefile.am (all-multi): Fix multilib parallel build.
