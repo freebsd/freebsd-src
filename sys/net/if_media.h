@@ -180,6 +180,8 @@ int	ifmedia_ioctl(struct ifnet *ifp, struct ifreq *ifr,
 #define	IFM_IEEE80211_DS22	9	/* Direct Sequence 22Mbps */
 #define	IFM_IEEE80211_ADHOC	0x00000100	/* Operate in Adhoc mode */
 #define	IFM_IEEE80211_HOSTAP	0x00000200	/* Operate in Host AP mode */
+#define	IFM_IEEE80211_IBSS	0x00000400	/* Operate in IBSS mode */
+#define	IFM_IEEE80211_IBSSMASTER 0x00000800	/* Operate as an IBSS master */
 
 /*
  * Shared media sub-types
@@ -377,6 +379,8 @@ struct ifmedia_description {
 #define	IFM_SUBTYPE_IEEE80211_OPTION_DESCRIPTIONS {			\
 	{ IFM_IEEE80211_ADHOC, "adhoc" },				\
 	{ IFM_IEEE80211_HOSTAP, "hostap" },				\
+	{ IFM_IEEE80211_IBSS, "ibss" },					\
+	{ IFM_IEEE80211_IBSSMASTER, "ibss-master" },			\
 	{ 0, NULL },							\
 }
 
