@@ -64,7 +64,8 @@ static int check_for_user(FILE *fp,const char *name)
     int found = 0;
 
     len = strlen(name);
-    buffer = mymalloc(len+2);
+    if ((buffer = malloc(len+2)) == NULL)
+	errx(EXIT_FAILURE, "virtual memory exhausted");
 
     while(fgets(buffer, len+2, fp) != NULL)
     {
