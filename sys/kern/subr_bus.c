@@ -49,7 +49,7 @@ static int bus_debug = 1;
 SYSCTL_INT(_debug, OID_AUTO, bus_debug, CTLFLAG_RW, &bus_debug, 0,
     "Debug bus code");
 
-#define PDEBUG(a)	if (bus_debug) {printf(__FUNCTION__ ":%d: ", __LINE__), printf a, printf("\n");}
+#define PDEBUG(a)	if (bus_debug) {printf("%s:%d: ", __func__, __LINE__), printf a, printf("\n");}
 #define DEVICENAME(d)	((d)? device_get_name(d): "no device")
 #define DRIVERNAME(d)	((d)? d->name : "no driver")
 #define DEVCLANAME(d)	((d)? d->name : "no devclass")
