@@ -412,10 +412,6 @@ Write_Disk(const struct disk *disk)
 	 * Update and write the in-memory copy of the GPT.
 	 */
 	error = update_gpt(fd, disk, hdr, tbl);
-	if (error)
-		goto bail;
-
-	return (0);
 
 bail:
 	close(fd);
