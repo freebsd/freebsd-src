@@ -574,8 +574,11 @@ nodisks:
 	    dialog_clear();
 	    if (DITEM_STATUS(package_add("rsaref")) != DITEM_SUCCESS) {
 		msgConfirm("Unable to find an rsaref package on the current intallation media.\n"
-		    	   "You may wish to switch media types and try again, perhaps\n"
-			   "from an FTP server which carries this package.");
+		    	   "This is probably because you are installing from a CDROM which\n"
+			   "was produced for world-wide use, in which case the RSA patent\n"
+			   "prevents distribution of RSA code on CD.  Please change your\n"
+			   "media device to point to an International FTP server and install\n"
+			   "the rsaref package manually through the Packages menu.");
 	    }
 	    dialog_clear();
 	}
@@ -586,8 +589,11 @@ nodisks:
 	    "load the rsaintl package from the current media?")) {
 	    if (DITEM_STATUS(package_add("rsaintl")) != DITEM_SUCCESS) {
 		msgConfirm("Unable to find an rsaintl package on the current intallation media.\n"
-		    	   "You may wish to switch media types and try again, perhaps\n"
-			   "from an FTP server which carries this package.");
+		    	   "This is probably because you are installing from a CDROM which\n"
+			   "was produced for use in the USA, in which case the RSA patent\n"
+			   "prevents distribution of RSA code on CD.  Please change your\n"
+			   "media device to point to an International FTP server and install\n"
+			   "the rsaintl package manually through the Packages menu.");
 	    }
 	}
     }
