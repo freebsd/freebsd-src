@@ -1,5 +1,4 @@
 .\"	$OpenBSD: crypto.4,v 1.4 2002/09/12 07:15:03 deraadt Exp $
-.\"	$FreeBSD$
 .\"
 .\" Copyright (c) 2001 Theo de Raadt
 .\" All rights reserved.
@@ -27,6 +26,8 @@
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
+.\" $FreeBSD$
+.\"
 .Dd October 3, 2002
 .Dt CRYPTO 4
 .Os
@@ -34,7 +35,7 @@
 .Nm crypto
 .Nd hardware crypto access driver
 .Sh SYNOPSIS
-.Nm device crypto
+.Cd device crypto
 .Sh DESCRIPTION
 The
 .Nm
@@ -50,15 +51,15 @@ submit transactions, and get results.
 If
 .Ar count
 given in the specification, and is greater than 0, a maximum of one
-.Nm crypto
+.Nm
 device is created.
 .Pp
 The following
 .Xr ioctl 2
 calls apply only to the
-.Nm crypto
+.Nm
 devices:
-.Bl -tag -width CIOCGSESSION
+.Bl -tag -width ".Dv CIOCGSESSION"
 .It Dv CIOCGSESSION
 Setup a new crypto session for a new type of operation.
 .It Dv CIOCFSESSION
@@ -66,36 +67,34 @@ Free a previously established session.
 .It Dv CIOCCRYPT
 Perform a crypto operation against a previously setup session.
 .El
-.Pp
 .Sh FEATURES
 Depending on hardware being present, the following symmetric and
 assymetric cryptographic features are potentially available from
 .Pa /dev/crypto :
 .Pp
-.Bl -tag -compact -width CRYPTO_RIPEMD160_HMAC -offset indent
-.It CRYPTO_DES_CBC
-.It CRYPTO_3DES_CBC
-.It CRYPTO_BLF_CBC
-.It CRYPTO_CAST_CBC
-.It CRYPTO_SKIPJACK_CBC
-.It CRYPTO_MD5_HMAC
-.It CRYPTO_SHA1_HMAC
-.It CRYPTO_RIPEMD160_HMAC
-.It CRYPTO_MD5_KPDK
-.It CRYPTO_SHA1_KPDK
-.It CRYPTO_AES_CBC
-.It CRYPTO_ARC4
-.It CRYPTO_MD5
-.It CRYPTO_SHA1
-.It CRK_MOD_EXP
-.It CRK_MOD_EXP_CRT
-.It CRK_DSA_SIGN
-.It CRK_DSA_VERIFY
-.It CRK_DH_COMPUTE_KEY
+.Bl -tag -width ".Dv CRYPTO_RIPEMD160_HMAC" -offset indent -compact
+.It Dv CRYPTO_DES_CBC
+.It Dv CRYPTO_3DES_CBC
+.It Dv CRYPTO_BLF_CBC
+.It Dv CRYPTO_CAST_CBC
+.It Dv CRYPTO_SKIPJACK_CBC
+.It Dv CRYPTO_MD5_HMAC
+.It Dv CRYPTO_SHA1_HMAC
+.It Dv CRYPTO_RIPEMD160_HMAC
+.It Dv CRYPTO_MD5_KPDK
+.It Dv CRYPTO_SHA1_KPDK
+.It Dv CRYPTO_AES_CBC
+.It Dv CRYPTO_ARC4
+.It Dv CRYPTO_MD5
+.It Dv CRYPTO_SHA1
+.It Dv CRK_MOD_EXP
+.It Dv CRK_MOD_EXP_CRT
+.It Dv CRK_DSA_SIGN
+.It Dv CRK_DSA_VERIFY
+.It Dv CRK_DH_COMPUTE_KEY
 .El
-.Pp
 .Sh FILES
-.Bl -tag -width /dev/crypto -compact
+.Bl -tag -width ".Pa /dev/crypto" -compact
 .It Pa /dev/crypto
 crypto access device
 .El
@@ -107,7 +106,8 @@ crypto access device
 The
 .Nm
 driver first appeared in
-OpenBSD 3.0.
+.Ox 3.0 .
 The
 .Nm
-driver was imported to FreeBSD in 5.0.
+driver was imported to
+.Fx 5.0 .

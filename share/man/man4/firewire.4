@@ -28,7 +28,7 @@
 .\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
-.\" 
+.\"
 .\" $FreeBSD$
 .\"
 .Dd May 23, 2002
@@ -43,8 +43,8 @@
 .In dev/firewire/firewire.h
 .Sh DESCRIPTION
 .Fx
-provides machine-independent bus support and row drivers for
-.Tn firewire
+provides machine-independent bus support and raw drivers for
+.Nm
 interfaces.
 .Pp
 The
@@ -55,29 +55,34 @@ The controller attaches to a physical bus
 (like
 .Xr pci 4 ) .
 The
-.Tn firewire
-bus attaches to the controller. And the additional driver can be
-attached to the bus.
+.Nm
+bus attaches to the controller.
+And the additional driver can be attached to the bus.
 .Pp
 Up to 63 devices, including the host itself, can be attached to
-a firewire bus. The root node is dynamically assigned with PHY
-device function. Also, the other firewire bus specific parameters
-e.g. node id, cycle master, isochronous resource manager and bus
+a
+.Nm
+bus.
+The root node is dynamically assigned with PHY device function.
+Also, the other
+.Nm
+bus specific parameters,
+e.g., node ID, cycle master, isochronous resource manager and bus
 manager, are dynamically assigned, after bus rest is initiated.
-On firewire bus, every device is identified with EUI 64 address.
-
-.Pp
-.El
+On
+.Nm
+bus, every device is identified with EUI 64 address.
 .Sh SEE ALSO
 .Xr fwohci 4 ,
 .Xr pci 4 ,
-.Xr sbp 4 ,
+.Xr sbp 4
 .Sh HISTORY
 The
 .Nm
 driver first appeared in
 .Fx 5.0 .
 .Sh AUTHORS
+.An -nosplit
 The
 .Nm
 driver was written by

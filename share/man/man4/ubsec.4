@@ -1,5 +1,4 @@
 .\"	$OpenBSD: ubsec.4,v 1.18 2002/09/26 07:55:41 miod Exp $
-.\"	$FreeBSD$
 .\"
 .\" Copyright (c) 2000 Jason L. Wright (jason@thought.net)
 .\" All rights reserved.
@@ -30,6 +29,8 @@
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
+.\" $FreeBSD$
+.\"
 .Dd October 3, 2002
 .Dt UBSEC 4
 .Os
@@ -37,14 +38,15 @@
 .Nm ubsec
 .Nd Broadcom and BlueSteel uBsec 5x0x crypto accelerator
 .Sh SYNOPSIS
-.Nm device ubsec
+.Cd device ubsec
 .Sh DESCRIPTION
 The
 .Nm
 driver supports cards containing any of the following chips:
-.Bl -tag -width "Broadcom BCM5821" -offset indent
+.Bl -tag -width "Broadcom BCM5822" -offset indent
 .It Bluesteel 5501
-The original chipset, no longer made.  This extremely rare unit
+The original chipset, no longer made.
+This extremely rare unit
 was not very fast, lacked a RNG, and had a number of other bugs.
 .It Bluesteel 5601
 A faster and fixed version of the original, with a random number
@@ -91,9 +93,10 @@ subsystem.
 The
 .Nm
 device driver appeared in
-OpenBSD 2.8.
+.Ox 2.8 .
 The
 .Nm
-device driver was imported to FreeBSD in 5.0.
+device driver was imported to
+.Fx 5.0 .
 .Sh BUGS
 The BCM5801 and BCM5802 have not actually been tested.

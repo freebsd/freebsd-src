@@ -28,9 +28,8 @@
 .\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
-.\" 
-.\" $FreeBSD$
 .\"
+.\" $FreeBSD$
 .\"
 .Dd May 20, 2002
 .Dt SBP 4
@@ -43,36 +42,40 @@
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for SBP-2 devices that attach to the firewire (IEEE1394)
+driver provides support for SBP-2 devices that attach to the firewire
+(IEEE 1394)
 port.
-Verified are
+Verified are:
 .Pp
-.Bl -tag -compact -width xxxxxx
-.It Apple Macintosh G4 (target mode)
-.It Apple iPod 
+.Bl -item -compact
+.It
+Apple Macintosh G4 (target mode)
+.It
+Apple iPod
 .El
 .Pp
-.Nm firewire
-and 
-.Nm fwohci
+.Xr firewire 4
+and
+.Xr fwohci 4
 must be configured in the kernel as well.
 Last but not least, support for
 SCSI drives,
-.Nm da
+.Xr da 4 .
 .Sh EXAMPLES
-.Dl device sbp
-.Dl device scbus
-.Dl device da
-.Dl device pass
+.Bd -literal -offset indent
+device sbp
+device scbus
+device da
+device pass
+.Ed
 .Pp
 Add the
 .Nm
 driver to the kernel.
 .Pp
-.Dl camcontrol rescan 0
+.Dl "camcontrol rescan 0"
 .Pp
 Rescan a SCSI drive that was added after boot.
-.\".Sh HISTORY
 .Sh AUTHORS
 .An -nosplit
 The
