@@ -1198,6 +1198,7 @@ rsync		873/udp
 accessbuilder	888/tcp
 accessbuilder	888/udp
 swat		901/tcp			# samba web configuration tool
+rndc		953/tcp			# named's rndc control socket
 ftps-data	989/tcp			# ftp protocol, data, over TLS/SSL
 ftps-data	989/udp
 ftps		990/tcp			# ftp protocol, control, over TLS/SSL
@@ -1922,6 +1923,8 @@ ccmail		3264/udp   #cc:mail/lotus
 dec-notes	3333/tcp   #DEC Notes
 dec-notes	3333/udp   #DEC Notes
 rsvp-encap	3455/udp   #RSVP encapsulated in UDP
+nut		3493/tcp   #Network UPS Tools
+nut		3493/udp   #Network UPS Tools
 mapper-nodemgr	3984/tcp   #MAPPER network node manager
 mapper-nodemgr	3984/udp   #MAPPER network node manager
 mapper-mapethd	3985/tcp   #MAPPER TCP/IP server
