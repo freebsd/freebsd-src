@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7870.c,v 1.7 1995/03/17 04:27:15 davidg Exp $
+ *	$Id: aic7870.c,v 1.8 1995/03/31 14:08:33 gibbs Exp $
  */
 
 #include <pci.h>
@@ -27,7 +27,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
-#include <kernel.h>
+#include <sys/kernel.h>
 #include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
 #include <pci/pcireg.h>
