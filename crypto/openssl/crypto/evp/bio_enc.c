@@ -69,6 +69,7 @@ static int enc_read(BIO *h,char *buf,int size);
 static long enc_ctrl(BIO *h,int cmd,long arg1,char *arg2);
 static int enc_new(BIO *h);
 static int enc_free(BIO *data);
+static long enc_callback_ctrl(BIO *h,int cmd,void (*fp)());
 #define ENC_BLOCK_SIZE	(1024*4)
 
 typedef struct enc_struct
@@ -92,6 +93,7 @@ static BIO_METHOD methods_enc=
 	enc_ctrl,
 	enc_new,
 	enc_free,
+	enc_callback_ctrl,
 	};
 
 BIO_METHOD *BIO_f_cipher(void)
@@ -184,9 +186,11 @@ static int enc_read(BIO *b, char *out, int outl)
 				ctx->ok=i;
 				ctx->buf_off=0;
 				}
-			else
+			else 
+				{
 				ret=(ret == 0)?i:ret;
-			break;
+				break;
+				}
 			}
 		else
 			{
@@ -194,13 +198,19 @@ static int enc_read(BIO *b, char *out, int outl)
 				(unsigned char *)ctx->buf,&ctx->buf_len,
 				(unsigned char *)&(ctx->buf[8]),i);
 			ctx->cont=1;
+			/* Note: it is possible for EVP_CipherUpdate to
+			 * decrypt zero bytes because this is or looks like
+			 * the final block: if this happens we should retry
+			 * and either read more data or decrypt the final
+			 * block
+			 */
+			if(ctx->buf_len == 0) continue;
 			}
 
 		if (ctx->buf_len <= outl)
 			i=ctx->buf_len;
 		else
 			i=outl;
-
 		if (i <= 0) break;
 		memcpy(out,ctx->buf,i);
 		ret+=i;
@@ -355,6 +365,20 @@ again:
 		break;
 	default:
 		ret=BIO_ctrl(b->next_bio,cmd,num,ptr);
+		break;
+		}
+	return(ret);
+	}
+
+static long enc_callback_ctrl(BIO *b, int cmd, void (*fp)())
+	{
+	long ret=1;
+
+	if (b->next_bio == NULL) return(0);
+	switch (cmd)
+		{
+	default:
+		ret=BIO_callback_ctrl(b->next_bio,cmd,fp);
 		break;
 		}
 	return(ret);

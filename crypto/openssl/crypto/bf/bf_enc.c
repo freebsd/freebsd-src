@@ -60,7 +60,7 @@
 #include "bf_locl.h"
 
 /* Blowfish as implemented from 'Blowfish: Springer-Verlag paper'
- * (From LECTURE NOTES IN COIMPUTER SCIENCE 809, FAST SOFTWARE ENCRYPTION,
+ * (From LECTURE NOTES IN COMPUTER SCIENCE 809, FAST SOFTWARE ENCRYPTION,
  * CAMBRIDGE SECURITY WORKSHOP, CAMBRIDGE, U.K., DECEMBER 9-11, 1993)
  */
 
@@ -69,10 +69,11 @@
 to modify the code.
 #endif
 
-void BF_encrypt(BF_LONG *data, BF_KEY *key)
+void BF_encrypt(BF_LONG *data, const BF_KEY *key)
 	{
 #ifndef BF_PTR2
-	register BF_LONG l,r,*p,*s;
+	register BF_LONG l,r;
+    const register BF_LONG *p,*s;
 
 	p=key->P;
 	s= &(key->S[0]);
@@ -145,10 +146,11 @@ void BF_encrypt(BF_LONG *data, BF_KEY *key)
 
 #ifndef BF_DEFAULT_OPTIONS
 
-void BF_decrypt(BF_LONG *data, BF_KEY *key)
+void BF_decrypt(BF_LONG *data, const BF_KEY *key)
 	{
 #ifndef BF_PTR2
-	register BF_LONG l,r,*p,*s;
+	register BF_LONG l,r;
+    const register BF_LONG *p,*s;
 
 	p=key->P;
 	s= &(key->S[0]);
@@ -219,8 +221,8 @@ void BF_decrypt(BF_LONG *data, BF_KEY *key)
 #endif
 	}
 
-void BF_cbc_encrypt(unsigned char *in, unsigned char *out, long length,
-	     BF_KEY *ks, unsigned char *iv, int encrypt)
+void BF_cbc_encrypt(const unsigned char *in, unsigned char *out, long length,
+	     const BF_KEY *schedule, unsigned char *ivec, int encrypt)
 	{
 	register BF_LONG tin0,tin1;
 	register BF_LONG tout0,tout1,xor0,xor1;
@@ -229,9 +231,9 @@ void BF_cbc_encrypt(unsigned char *in, unsigned char *out, long length,
 
 	if (encrypt)
 		{
-		n2l(iv,tout0);
-		n2l(iv,tout1);
-		iv-=8;
+		n2l(ivec,tout0);
+		n2l(ivec,tout1);
+		ivec-=8;
 		for (l-=8; l>=0; l-=8)
 			{
 			n2l(in,tin0);
@@ -240,7 +242,7 @@ void BF_cbc_encrypt(unsigned char *in, unsigned char *out, long length,
 			tin1^=tout1;
 			tin[0]=tin0;
 			tin[1]=tin1;
-			BF_encrypt(tin,ks);
+			BF_encrypt(tin,schedule);
 			tout0=tin[0];
 			tout1=tin[1];
 			l2n(tout0,out);
@@ -253,27 +255,27 @@ void BF_cbc_encrypt(unsigned char *in, unsigned char *out, long length,
 			tin1^=tout1;
 			tin[0]=tin0;
 			tin[1]=tin1;
-			BF_encrypt(tin,ks);
+			BF_encrypt(tin,schedule);
 			tout0=tin[0];
 			tout1=tin[1];
 			l2n(tout0,out);
 			l2n(tout1,out);
 			}
-		l2n(tout0,iv);
-		l2n(tout1,iv);
+		l2n(tout0,ivec);
+		l2n(tout1,ivec);
 		}
 	else
 		{
-		n2l(iv,xor0);
-		n2l(iv,xor1);
-		iv-=8;
+		n2l(ivec,xor0);
+		n2l(ivec,xor1);
+		ivec-=8;
 		for (l-=8; l>=0; l-=8)
 			{
 			n2l(in,tin0);
 			n2l(in,tin1);
 			tin[0]=tin0;
 			tin[1]=tin1;
-			BF_decrypt(tin,ks);
+			BF_decrypt(tin,schedule);
 			tout0=tin[0]^xor0;
 			tout1=tin[1]^xor1;
 			l2n(tout0,out);
@@ -287,15 +289,15 @@ void BF_cbc_encrypt(unsigned char *in, unsigned char *out, long length,
 			n2l(in,tin1);
 			tin[0]=tin0;
 			tin[1]=tin1;
-			BF_decrypt(tin,ks);
+			BF_decrypt(tin,schedule);
 			tout0=tin[0]^xor0;
 			tout1=tin[1]^xor1;
 			l2nn(tout0,tout1,out,l+8);
 			xor0=tin0;
 			xor1=tin1;
 			}
-		l2n(xor0,iv);
-		l2n(xor1,iv);
+		l2n(xor0,ivec);
+		l2n(xor1,ivec);
 		}
 	tin0=tin1=tout0=tout1=xor0=xor1=0;
 	tin[0]=tin[1]=0;

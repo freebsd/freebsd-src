@@ -69,7 +69,7 @@ static int ssl23_write(SSL *s, const void *buf, int len);
 static long ssl23_default_timeout(void );
 static int ssl23_put_cipher_by_char(const SSL_CIPHER *c, unsigned char *p);
 static SSL_CIPHER *ssl23_get_cipher_by_char(const unsigned char *p);
-char *SSL23_version_str="SSLv2/3 compatibility" OPENSSL_VERSION_PTEXT;
+const char *SSL23_version_str="SSLv2/3 compatibility" OPENSSL_VERSION_PTEXT;
 
 static SSL_METHOD SSLv23_data= {
 	TLS1_VERSION,
@@ -94,6 +94,9 @@ static SSL_METHOD SSLv23_data= {
 	ssl_bad_method,
 	ssl23_default_timeout,
 	&ssl3_undef_enc_method,
+	ssl_undefined_function,
+	ssl3_callback_ctrl,
+	ssl3_ctx_callback_ctrl,
 	};
 
 static long ssl23_default_timeout(void)
@@ -110,9 +113,9 @@ static int ssl23_num_ciphers(void)
 	{
 	return(ssl3_num_ciphers()
 #ifndef NO_SSL2
-	       +ssl2_num_ciphers()
+	       + ssl2_num_ciphers()
 #endif
-	       );
+	    );
 	}
 
 static SSL_CIPHER *ssl23_get_cipher(unsigned int u)

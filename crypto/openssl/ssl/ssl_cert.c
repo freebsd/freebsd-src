@@ -105,17 +105,26 @@
  */
 
 #include <stdio.h>
-#include <sys/types.h>
-#if !defined(WIN32) && !defined(VSM) && !defined(NeXT)
+
+#include "openssl/e_os.h"
+
+#ifndef NO_SYS_TYPES_H
+# include <sys/types.h>
+#endif
+
+#if !defined(WIN32) && !defined(VSM) && !defined(NeXT) && !defined(MAC_OS_pre_X)
 #include <dirent.h>
 #endif
+
 #ifdef NeXT
 #include <sys/dir.h>
 #define dirent direct
 #endif
+
 #include <openssl/objects.h>
 #include <openssl/bio.h>
 #include <openssl/pem.h>
+#include <openssl/x509v3.h>
 #include "ssl_locl.h"
 
 int SSL_get_ex_data_X509_STORE_CTX_idx(void)
@@ -182,15 +191,32 @@ CERT *ssl_cert_dup(CERT *cert)
 #ifndef NO_DH
 	if (cert->dh_tmp != NULL)
 		{
-		/* DH parameters don't have a reference count (and cannot
-		 * reasonably be shared anyway, as the secret exponent may
-		 * be created just when it is needed -- earlier library
-		 * versions did not pay attention to this) */
+		/* DH parameters don't have a reference count */
 		ret->dh_tmp = DHparams_dup(cert->dh_tmp);
 		if (ret->dh_tmp == NULL)
 			{
-			SSLerr(SSL_F_SSL_CERT_NEW, ERR_R_DH_LIB);
+			SSLerr(SSL_F_SSL_CERT_DUP, ERR_R_DH_LIB);
 			goto err;
+			}
+		if (cert->dh_tmp->priv_key)
+			{
+			BIGNUM *b = BN_dup(cert->dh_tmp->priv_key);
+			if (!b)
+				{
+				SSLerr(SSL_F_SSL_CERT_DUP, ERR_R_BN_LIB);
+				goto err;
+				}
+			ret->dh_tmp->priv_key = b;
+			}
+		if (cert->dh_tmp->pub_key)
+			{
+			BIGNUM *b = BN_dup(cert->dh_tmp->pub_key);
+			if (!b)
+				{
+				SSLerr(SSL_F_SSL_CERT_DUP, ERR_R_BN_LIB);
+				goto err;
+				}
+			ret->dh_tmp->pub_key = b;
 			}
 		}
 	ret->dh_tmp_cb = cert->dh_tmp_cb;
@@ -422,8 +448,16 @@ int ssl_verify_cert_chain(SSL *s,STACK_OF(X509) *sk)
 	X509_STORE_CTX_init(&ctx,s->ctx->cert_store,x,sk);
 	if (SSL_get_verify_depth(s) >= 0)
 		X509_STORE_CTX_set_depth(&ctx, SSL_get_verify_depth(s));
-	X509_STORE_CTX_set_ex_data(&ctx,SSL_get_ex_data_X509_STORE_CTX_idx(),
-		(char *)s);
+	X509_STORE_CTX_set_ex_data(&ctx,SSL_get_ex_data_X509_STORE_CTX_idx(),s);
+	/* We need to set the verify purpose. The purpose can be determined by
+	 * the context: if its a server it will verify SSL client certificates
+	 * or vice versa.
+         */
+
+	if(s->server) i = X509_PURPOSE_SSL_CLIENT;
+	else i = X509_PURPOSE_SSL_SERVER;
+
+	X509_STORE_CTX_purpose_inherit(&ctx, i, s->purpose, s->trust);
 
 	if (s->ctx->app_verify_callback != NULL)
 		i=s->ctx->app_verify_callback(&ctx); /* should pass app_verify_arg */
@@ -534,7 +568,7 @@ int SSL_CTX_add_client_CA(SSL_CTX *ctx,X509 *x)
 	return(add_client_CA(&(ctx->client_CA),x));
 	}
 
-static int name_cmp(X509_NAME **a,X509_NAME **b)
+static int xname_cmp(X509_NAME **a,X509_NAME **b)
 	{
 	return(X509_NAME_cmp(*a,*b));
 	}
@@ -556,7 +590,7 @@ STACK_OF(X509_NAME) *SSL_load_client_CA_file(const char *file)
 	STACK_OF(X509_NAME) *ret,*sk;
 
 	ret=sk_X509_NAME_new(NULL);
-	sk=sk_X509_NAME_new(name_cmp);
+	sk=sk_X509_NAME_new(xname_cmp);
 
 	in=BIO_new(BIO_s_file_internal());
 
@@ -617,7 +651,7 @@ int SSL_add_file_cert_subjects_to_stack(STACK_OF(X509_NAME) *stack,
     int ret=1;
     int (*oldcmp)(X509_NAME **a, X509_NAME **b);
 
-    oldcmp=sk_X509_NAME_set_cmp_func(stack,name_cmp);
+    oldcmp=sk_X509_NAME_set_cmp_func(stack,xname_cmp);
 
     in=BIO_new(BIO_s_file_internal());
 
@@ -671,6 +705,7 @@ err:
 
 #ifndef WIN32
 #ifndef VMS			/* XXXX This may be fixed in the future */
+#ifndef MAC_OS_pre_X
 
 int SSL_add_dir_cert_subjects_to_stack(STACK_OF(X509_NAME) *stack,
 				       const char *dir)
@@ -712,5 +747,6 @@ err:
     return ret;
     }
 
+#endif
 #endif
 #endif

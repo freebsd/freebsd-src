@@ -72,6 +72,10 @@
 #include "../bio/bss_file.c"
 #endif
 
+const int num0 = 100; /* number of tests */
+const int num1 = 50;  /* additional tests for some functions */
+const int num2 = 5;   /* number of tests for slow functions */
+
 int test_add(BIO *bp);
 int test_sub(BIO *bp);
 int test_lshift1(BIO *bp);
@@ -95,14 +99,32 @@ static int results=0;
 #include "bss_file.c"
 #endif
 
-static unsigned char lst1[]="\xC6\x4F\x43\x04\x2A\xEA\xCA\x6E\x58\x36\x80\x5B\xE8\xC9"
+static unsigned char lst[]="\xC6\x4F\x43\x04\x2A\xEA\xCA\x6E\x58\x36\x80\x5B\xE8\xC9"
 "\x9B\x04\x5D\x48\x36\xC2\xFD\x16\xC9\x64\xF0";
+
+static const char rnd_seed[] = "string to make the random number generator think it has entropy";
+
+static void message(BIO *out, char *m)
+	{
+	fprintf(stderr, "test %s\n", m);
+#if defined(linux) || defined(__FreeBSD__) /* can we use GNU bc features? */
+	BIO_puts(out, "print \"test ");
+	BIO_puts(out, m);
+	BIO_puts(out, "\\n\"\n");
+#endif
+	}
 
 int main(int argc, char *argv[])
 	{
 	BN_CTX *ctx;
 	BIO *out;
 	char *outfile=NULL;
+
+	results = 0;
+
+	RAND_seed(rnd_seed, sizeof rnd_seed); /* or BN_rand may fail, and we don't
+	                                       * even check its return value
+	                                       * (which we should) */
 
 	argc--;
 	argv++;
@@ -141,78 +163,82 @@ int main(int argc, char *argv[])
 	if (!results)
 		BIO_puts(out,"obase=16\nibase=16\n");
 
-	fprintf(stderr,"test BN_add\n");
+	message(out,"BN_add");
 	if (!test_add(out)) goto err;
-	fflush(stdout);
+	BIO_flush(out);
 
-	fprintf(stderr,"test BN_sub\n");
+	message(out,"BN_sub");
 	if (!test_sub(out)) goto err;
-	fflush(stdout);
+	BIO_flush(out);
 
-	fprintf(stderr,"test BN_lshift1\n");
+	message(out,"BN_lshift1");
 	if (!test_lshift1(out)) goto err;
-	fflush(stdout);
+	BIO_flush(out);
 
-	fprintf(stderr,"test BN_lshift (fixed)\n");
-	if (!test_lshift(out,ctx,BN_bin2bn(lst1,sizeof(lst1)-1,NULL)))
+	message(out,"BN_lshift (fixed)");
+	if (!test_lshift(out,ctx,BN_bin2bn(lst,sizeof(lst)-1,NULL)))
 	    goto err;
-	fflush(stdout);
+	BIO_flush(out);
 
-	fprintf(stderr,"test BN_lshift\n");
+	message(out,"BN_lshift");
 	if (!test_lshift(out,ctx,NULL)) goto err;
-	fflush(stdout);
+	BIO_flush(out);
 
-	fprintf(stderr,"test BN_rshift1\n");
+	message(out,"BN_rshift1");
 	if (!test_rshift1(out)) goto err;
-	fflush(stdout);
+	BIO_flush(out);
 
-	fprintf(stderr,"test BN_rshift\n");
+	message(out,"BN_rshift");
 	if (!test_rshift(out,ctx)) goto err;
-	fflush(stdout);
+	BIO_flush(out);
 
-	fprintf(stderr,"test BN_sqr\n");
+	message(out,"BN_sqr");
 	if (!test_sqr(out,ctx)) goto err;
-	fflush(stdout);
+	BIO_flush(out);
 
-	fprintf(stderr,"test BN_mul\n");
+	message(out,"BN_mul");
 	if (!test_mul(out)) goto err;
-	fflush(stdout);
+	BIO_flush(out);
 
-	fprintf(stderr,"test BN_div\n");
+	message(out,"BN_div");
 	if (!test_div(out,ctx)) goto err;
-	fflush(stdout);
+	BIO_flush(out);
 
-	fprintf(stderr,"test BN_div_recp\n");
+	message(out,"BN_div_recp");
 	if (!test_div_recp(out,ctx)) goto err;
-	fflush(stdout);
+	BIO_flush(out);
 
-	fprintf(stderr,"test BN_mod\n");
+	message(out,"BN_mod");
 	if (!test_mod(out,ctx)) goto err;
-	fflush(stdout);
+	BIO_flush(out);
 
-	fprintf(stderr,"test BN_mod_mul\n");
+	message(out,"BN_mod_mul");
 	if (!test_mod_mul(out,ctx)) goto err;
-	fflush(stdout);
+	BIO_flush(out);
 
-/*
-	fprintf(stderr,"test BN_mont\n");
+	message(out,"BN_mont");
 	if (!test_mont(out,ctx)) goto err;
-	fflush(stdout);
-*/
-	fprintf(stderr,"test BN_mod_exp\n");
-	if (!test_mod_exp(out,ctx)) goto err;
-	fflush(stdout);
+	BIO_flush(out);
 
-	fprintf(stderr,"test BN_exp\n");
+	message(out,"BN_mod_exp");
+	if (!test_mod_exp(out,ctx)) goto err;
+	BIO_flush(out);
+
+	message(out,"BN_exp");
 	if (!test_exp(out,ctx)) goto err;
-	fflush(stdout);
+	BIO_flush(out);
+
+	BN_CTX_free(ctx);
+	BIO_free(out);
 
 /**/
 	exit(0);
 err:
-	BIO_puts(out,"1\n"); /* make sure bc fails if we are piping to it */
+	BIO_puts(out,"1\n"); /* make sure the Perl script fed by bc notices
+	                      * the failure, see test_bn in test/Makefile.ssl*/
+	BIO_flush(out);
 	ERR_load_crypto_strings();
-	ERR_print_errors(out);
+	ERR_print_errors_fp(stderr);
 	exit(1);
 	return(1);
 	}
@@ -228,7 +254,7 @@ int test_add(BIO *bp)
 	BN_init(&c);
 
 	BN_rand(&a,512,0,0);
-	for (i=0; i<100; i++)
+	for (i=0; i<num0; i++)
 		{
 		BN_rand(&b,450+i,0,0);
 		a.neg=rand_neg();
@@ -255,7 +281,7 @@ int test_add(BIO *bp)
 		BN_add(&c,&c,&a);
 		if(!BN_is_zero(&c))
 		    {
-		    BIO_puts(bp,"Add test failed!\n");
+		    fprintf(stderr,"Add test failed!\n");
 		    return 0;
 		    }
 		}
@@ -275,12 +301,21 @@ int test_sub(BIO *bp)
 	BN_init(&b);
 	BN_init(&c);
 
-	BN_rand(&a,512,0,0);
-	for (i=0; i<100; i++)
+	for (i=0; i<num0+num1; i++)
 		{
-		BN_rand(&b,400+i,0,0);
-		a.neg=rand_neg();
-		b.neg=rand_neg();
+		if (i < num1)
+			{
+			BN_rand(&a,512,0,0);
+			BN_copy(&b,&a);
+			if (BN_set_bit(&a,i)==0) return(0);
+			BN_add_word(&b,i);
+			}
+		else
+			{
+			BN_rand(&b,400+i-num1,0,0);
+			a.neg=rand_neg();
+			b.neg=rand_neg();
+			}
 		if (bp == NULL)
 			for (j=0; j<10000; j++)
 				BN_sub(&c,&a,&b);
@@ -301,7 +336,7 @@ int test_sub(BIO *bp)
 		BN_sub(&c,&c,&a);
 		if(!BN_is_zero(&c))
 		    {
-		    BIO_puts(bp,"Subtract test failed!\n");
+		    fprintf(stderr,"Subtract test failed!\n");
 		    return 0;
 		    }
 		}
@@ -323,10 +358,17 @@ int test_div(BIO *bp, BN_CTX *ctx)
 	BN_init(&d);
 	BN_init(&e);
 
-	BN_rand(&a,400,0,0);
-	for (i=0; i<100; i++)
+	for (i=0; i<num0+num1; i++)
 		{
-		BN_rand(&b,50+i,0,0);
+		if (i < num1)
+			{
+			BN_rand(&a,400,0,0);
+			BN_copy(&b,&a);
+			BN_lshift(&a,&a,i);
+			BN_add_word(&a,i);
+			}
+		else
+			BN_rand(&b,50+3*(i-num1),0,0);
 		a.neg=rand_neg();
 		b.neg=rand_neg();
 		if (bp == NULL)
@@ -360,7 +402,7 @@ int test_div(BIO *bp, BN_CTX *ctx)
 		BN_sub(&d,&d,&a);
 		if(!BN_is_zero(&d))
 		    {
-		    BIO_puts(bp,"Division test failed!\n");
+		    fprintf(stderr,"Division test failed!\n");
 		    return 0;
 		    }
 		}
@@ -386,10 +428,17 @@ int test_div_recp(BIO *bp, BN_CTX *ctx)
 	BN_init(&d);
 	BN_init(&e);
 
-	BN_rand(&a,400,0,0);
-	for (i=0; i<100; i++)
+	for (i=0; i<num0+num1; i++)
 		{
-		BN_rand(&b,50+i,0,0);
+		if (i < num1)
+			{
+			BN_rand(&a,400,0,0);
+			BN_copy(&b,&a);
+			BN_lshift(&a,&a,i);
+			BN_add_word(&a,i);
+			}
+		else
+			BN_rand(&b,50+3*(i-num1),0,0);
 		a.neg=rand_neg();
 		b.neg=rand_neg();
 		BN_RECP_CTX_set(&recp,&b,ctx);
@@ -424,7 +473,12 @@ int test_div_recp(BIO *bp, BN_CTX *ctx)
 		BN_sub(&d,&d,&a);
 		if(!BN_is_zero(&d))
 		    {
-		    BIO_puts(bp,"Reciprocal division test failed!\n");
+		    fprintf(stderr,"Reciprocal division test failed!\n");
+		    fprintf(stderr,"a=");
+		    BN_print_fp(stderr,&a);
+		    fprintf(stderr,"\nb=");
+		    BN_print_fp(stderr,&b);
+		    fprintf(stderr,"\n");
 		    return 0;
 		    }
 		}
@@ -451,11 +505,15 @@ int test_mul(BIO *bp)
 	BN_init(&d);
 	BN_init(&e);
 
-	BN_rand(&a,200,0,0);
-	for (i=0; i<100; i++)
+	for (i=0; i<num0+num1; i++)
 		{
-		BN_rand(&b,250+i,0,0);
-		BN_rand(&b,200,0,0);
+		if (i <= num1)
+			{
+			BN_rand(&a,100,0,0);
+			BN_rand(&b,100,0,0);
+			}
+		else
+			BN_rand(&b,i-num1,0,0);
 		a.neg=rand_neg();
 		b.neg=rand_neg();
 		if (bp == NULL)
@@ -478,7 +536,7 @@ int test_mul(BIO *bp)
 		BN_sub(&d,&d,&b);
 		if(!BN_is_zero(&d) || !BN_is_zero(&e))
 		    {
-		    BIO_puts(bp,"Multiplication test failed!\n");
+		    fprintf(stderr,"Multiplication test failed!\n");
 		    return 0;
 		    }
 		}
@@ -502,7 +560,7 @@ int test_sqr(BIO *bp, BN_CTX *ctx)
 	BN_init(&d);
 	BN_init(&e);
 
-	for (i=0; i<40; i++)
+	for (i=0; i<num0; i++)
 		{
 		BN_rand(&a,40+i*10,0,0);
 		a.neg=rand_neg();
@@ -526,7 +584,7 @@ int test_sqr(BIO *bp, BN_CTX *ctx)
 		BN_sub(&d,&d,&a);
 		if(!BN_is_zero(&d) || !BN_is_zero(&e))
 		    {
-		    BIO_puts(bp,"Square test failed!\n");
+		    fprintf(stderr,"Square test failed!\n");
 		    return 0;
 		    }
 		}
@@ -557,9 +615,13 @@ int test_mont(BIO *bp, BN_CTX *ctx)
 
 	BN_rand(&a,100,0,0); /**/
 	BN_rand(&b,100,0,0); /**/
-	for (i=0; i<10; i++)
+	for (i=0; i<num2; i++)
 		{
-		BN_rand(&n,(100%BN_BITS2+1)*BN_BITS2*i*BN_BITS2,0,1); /**/
+		int bits = (200*(i+1))/num2;
+
+		if (bits == 0)
+			continue;
+		BN_rand(&n,bits,0,1);
 		BN_MONT_CTX_set(mont,&n,ctx);
 
 		BN_to_montgomery(&A,&a,mont,ctx);
@@ -594,7 +656,7 @@ BN_num_bits(mont->N));
 		BN_sub(&d,&d,&A);
 		if(!BN_is_zero(&d))
 		    {
-		    BIO_puts(bp,"Montgomery multiplication test failed!\n");
+		    fprintf(stderr,"Montgomery multiplication test failed!\n");
 		    return 0;
 		    }
 		}
@@ -622,7 +684,7 @@ int test_mod(BIO *bp, BN_CTX *ctx)
 	e=BN_new();
 
 	BN_rand(a,1024,0,0); /**/
-	for (i=0; i<20; i++)
+	for (i=0; i<num0; i++)
 		{
 		BN_rand(b,450+i*10,0,0); /**/
 		a->neg=rand_neg();
@@ -647,7 +709,7 @@ int test_mod(BIO *bp, BN_CTX *ctx)
 		BN_sub(e,e,c);
 		if(!BN_is_zero(e))
 		    {
-		    BIO_puts(bp,"Modulo test failed!\n");
+		    fprintf(stderr,"Modulo test failed!\n");
 		    return 0;
 		    }
 		}
@@ -671,10 +733,10 @@ int test_mod_mul(BIO *bp, BN_CTX *ctx)
 	e=BN_new();
 
 	BN_rand(c,1024,0,0); /**/
-	for (i=0; i<10; i++)
+	for (i=0; i<num0; i++)
 		{
 		BN_rand(a,475+i*10,0,0); /**/
-		BN_rand(b,425+i*10,0,0); /**/
+		BN_rand(b,425+i*11,0,0); /**/
 		a->neg=rand_neg();
 		b->neg=rand_neg();
 	/*	if (bp == NULL)
@@ -709,7 +771,7 @@ int test_mod_mul(BIO *bp, BN_CTX *ctx)
 		BN_div(a,b,d,c,ctx);
 		if(!BN_is_zero(b))
 		    {
-		    BIO_puts(bp,"Modulo multiply test failed!\n");
+		    fprintf(stderr,"Modulo multiply test failed!\n");
 		    return 0;
 		    }
 		}
@@ -733,7 +795,7 @@ int test_mod_exp(BIO *bp, BN_CTX *ctx)
 	e=BN_new();
 
 	BN_rand(c,30,0,1); /* must be odd for montgomery */
-	for (i=0; i<6; i++)
+	for (i=0; i<num2; i++)
 		{
 		BN_rand(a,20+i*5,0,0); /**/
 		BN_rand(b,2+i,0,0); /**/
@@ -760,7 +822,7 @@ int test_mod_exp(BIO *bp, BN_CTX *ctx)
 		BN_div(a,b,e,c,ctx);
 		if(!BN_is_zero(b))
 		    {
-		    BIO_puts(bp,"Modulo exponentiation test failed!\n");
+		    fprintf(stderr,"Modulo exponentiation test failed!\n");
 		    return 0;
 		    }
 		}
@@ -784,7 +846,7 @@ int test_exp(BIO *bp, BN_CTX *ctx)
 	one=BN_new();
 	BN_one(one);
 
-	for (i=0; i<6; i++)
+	for (i=0; i<num2; i++)
 		{
 		BN_rand(a,20+i*5,0,0); /**/
 		BN_rand(b,2+i,0,0); /**/
@@ -810,7 +872,7 @@ int test_exp(BIO *bp, BN_CTX *ctx)
 		BN_sub(e,e,d);
 		if(!BN_is_zero(e))
 		    {
-		    BIO_puts(bp,"Exponentiation test failed!\n");
+		    fprintf(stderr,"Exponentiation test failed!\n");
 		    return 0;
 		    }
 		}
@@ -840,7 +902,7 @@ int test_lshift(BIO *bp,BN_CTX *ctx,BIGNUM *a_)
 	    BN_rand(a,200,0,0); /**/
 	    a->neg=rand_neg();
 	    }
-	for (i=0; i<70; i++)
+	for (i=0; i<num0; i++)
 		{
 		BN_lshift(b,a,i+1);
 		BN_add(c,c,c);
@@ -860,16 +922,16 @@ int test_lshift(BIO *bp,BN_CTX *ctx,BIGNUM *a_)
 		BN_sub(d,d,b);
 		if(!BN_is_zero(d))
 		    {
-		    BIO_puts(bp,"Left shift test failed!\n");
-		    BIO_puts(bp,"a=");
-		    BN_print(bp,a);
-		    BIO_puts(bp,"\nb=");
-		    BN_print(bp,b);
-		    BIO_puts(bp,"\nc=");
-		    BN_print(bp,c);
-		    BIO_puts(bp,"\nd=");
-		    BN_print(bp,d);
-		    BIO_puts(bp,"\n");
+		    fprintf(stderr,"Left shift test failed!\n");
+		    fprintf(stderr,"a=");
+		    BN_print_fp(stderr,a);
+		    fprintf(stderr,"\nb=");
+		    BN_print_fp(stderr,b);
+		    fprintf(stderr,"\nc=");
+		    BN_print_fp(stderr,c);
+		    fprintf(stderr,"\nd=");
+		    BN_print_fp(stderr,d);
+		    fprintf(stderr,"\n");
 		    return 0;
 		    }
 		}
@@ -891,7 +953,7 @@ int test_lshift1(BIO *bp)
 
 	BN_rand(a,200,0,0); /**/
 	a->neg=rand_neg();
-	for (i=0; i<70; i++)
+	for (i=0; i<num0; i++)
 		{
 		BN_lshift1(b,a);
 		if (bp != NULL)
@@ -909,7 +971,7 @@ int test_lshift1(BIO *bp)
 		BN_sub(a,b,c);
 		if(!BN_is_zero(a))
 		    {
-		    BIO_puts(bp,"Left shift one test failed!\n");
+		    fprintf(stderr,"Left shift one test failed!\n");
 		    return 0;
 		    }
 		
@@ -935,7 +997,7 @@ int test_rshift(BIO *bp,BN_CTX *ctx)
 
 	BN_rand(a,200,0,0); /**/
 	a->neg=rand_neg();
-	for (i=0; i<70; i++)
+	for (i=0; i<num0; i++)
 		{
 		BN_rshift(b,a,i+1);
 		BN_add(c,c,c);
@@ -955,7 +1017,7 @@ int test_rshift(BIO *bp,BN_CTX *ctx)
 		BN_sub(d,d,b);
 		if(!BN_is_zero(d))
 		    {
-		    BIO_puts(bp,"Right shift test failed!\n");
+		    fprintf(stderr,"Right shift test failed!\n");
 		    return 0;
 		    }
 		}
@@ -978,7 +1040,7 @@ int test_rshift1(BIO *bp)
 
 	BN_rand(a,200,0,0); /**/
 	a->neg=rand_neg();
-	for (i=0; i<70; i++)
+	for (i=0; i<num0; i++)
 		{
 		BN_rshift1(b,a);
 		if (bp != NULL)
@@ -996,7 +1058,7 @@ int test_rshift1(BIO *bp)
 		BN_sub(c,c,b);
 		if(!BN_is_zero(c) && !BN_is_one(c))
 		    {
-		    BIO_puts(bp,"Right shift one test failed!\n");
+		    fprintf(stderr,"Right shift one test failed!\n");
 		    return 0;
 		    }
 		BN_copy(a,b);

@@ -56,6 +56,7 @@
  * [including the GNU Public Licence.]
  */
 #include <stdio.h>
+#include <string.h>
 #include <openssl/bio.h>
 #include <openssl/x509.h>
 #include <openssl/pem.h>
@@ -76,7 +77,7 @@ char *argv[];
 	const EVP_CIPHER *cipher=NULL;
 	STACK_OF(X509) *recips=NULL;
 
-	SSLeay_add_all_algorithms();
+	OpenSSL_add_all_algorithms();
 
 	data=BIO_new(BIO_s_file());
 	while(argc > 1)
@@ -98,7 +99,8 @@ char *argv[];
 			argc-=2;
 			argv+=2;
 			if (!(in=BIO_new_file(keyfile,"r"))) goto err;
-			if (!(x509=PEM_read_bio_X509(in,NULL,NULL))) goto err;
+			if (!(x509=PEM_read_bio_X509(in,NULL,NULL,NULL)))
+				goto err;
 			if(!recips) recips = sk_X509_new_null();
 			sk_X509_push(recips, x509);
 			BIO_free(in);
@@ -125,7 +127,14 @@ char *argv[];
 #else
 	PKCS7_set_type(p7,NID_pkcs7_enveloped);
 #endif
-	if(!cipher) cipher = EVP_des_ede3_cbc();
+	if(!cipher)	{
+#ifndef NO_DES
+		cipher = EVP_des_ede3_cbc();
+#else
+		fprintf(stderr, "No cipher selected\n");
+		goto err;
+#endif
+	}
 
 	if (!PKCS7_set_cipher(p7,cipher)) goto err;
 	for(i = 0; i < sk_X509_num(recips); i++) {

@@ -28,8 +28,6 @@ OPENSSLDIR=/usr/local/ssl
 # DEVRANDOM - Give this the value of the 'random device' if your OS supports
 #           one.  32 bytes will be read from this when the random
 #           number generator is initalised.
-# SSL_ALLOW_ADH - define if you want the server to be able to use the
-#           SSLv3 anon-DH ciphers.
 # SSL_FORBID_ENULL - define if you want the server to be not able to use the
 #           NULL encryption ciphers.
 #
@@ -56,6 +54,8 @@ EX_LIBS=
 AR=ar r
 RANLIB= ranlib
 PERL= perl
+TAR= tar
+TARFLAGS= --norecurse
 
 # Set BN_ASM to bn_asm.o if you want to use the C version
 BN_ASM= bn_asm.o
@@ -156,6 +156,7 @@ SDIRS=  \
 MAKEFILE= Makefile.ssl
 MAKE=     make -f Makefile.ssl
 
+MANDIR=$(OPENSSLDIR)/man
 MAN1=1
 MAN3=3
 SHELL=/bin/sh
@@ -180,6 +181,7 @@ all: Makefile.ssl
 	(cd $$i && echo "making all in $$i..." && \
 	$(MAKE) CC='${CC}' PLATFORM='${PLATFORM}' CFLAG='${CFLAG}' INSTALLTOP='${INSTALLTOP}' PEX_LIBS='${PEX_LIBS}' EX_LIBS='${EX_LIBS}' BN_ASM='${BN_ASM}' DES_ENC='${DES_ENC}' BF_ENC='${BF_ENC}' CAST_ENC='${CAST_ENC}' RC4_ENC='${RC4_ENC}' RC5_ENC='${RC5_ENC}' SHA1_ASM_OBJ='${SHA1_ASM_OBJ}' MD5_ASM_OBJ='${MD5_ASM_OBJ}' RMD160_ASM_OBJ='${RMD160_ASM_OBJ}' SDIRS='${SDIRS}' AR='${AR}' PROCESSOR='${PROCESSOR}' PERL='${PERL}' RANLIB='${RANLIB}' all ) || exit 1; \
 	done
+	-@# cd crypto; $(MAKE) CC='${CC}' PLATFORM='${PLATFORM}' CFLAG='${CFLAG}' INSTALLTOP='${INSTALLTOP}' PEX_LIBS='${PEX_LIBS}' EX_LIBS='${EX_LIBS}' BN_ASM='${BN_ASM}' DES_ENC='${DES_ENC}' BF_ENC='${BF_ENC}' CAST_ENC='${CAST_ENC}' RC4_ENC='${RC4_ENC}' RC5_ENC='${RC5_ENC}' SHA1_ASM_OBJ='${SHA1_ASM_OBJ}' MD5_ASM_OBJ='${MD5_ASM_OBJ}' RMD160_ASM_OBJ='${RMD160_ASM_OBJ}' SDIRS='${SDIRS}' AR='${AR}' PROCESSOR='${PROCESSOR}' PERL='${PERL}' RANLIB='${RANLIB}' testapps
 	-@# cd perl; $(PERL) Makefile.PL; make
 
 sub_all:
@@ -215,7 +217,7 @@ libclean:
 	rm -f *.a */lib */*/lib
 
 clean:
-	rm -f shlib/*.o *.o core a.out fluff *.map
+	rm -f shlib/*.o *.o core a.out fluff *.map rehash.time testlog make.log cctest cctest.c
 	@for i in $(DIRS) ;\
 	do \
 	(cd $$i && echo "making clean in $$i..." && \
@@ -258,8 +260,10 @@ dclean:
 	$(MAKE) SDIRS='${SDIRS}' PERL='${PERL}' dclean ) || exit 1; \
 	done;
 
-rehash:
+rehash: rehash.time
+rehash.time: certs
 	@(OPENSSL="`pwd`/apps/openssl"; export OPENSSL; sh tools/c_rehash certs)
+	touch rehash.time
 
 test:   tests
 
@@ -267,6 +271,9 @@ tests: rehash
 	@(cd test && echo "testing..." && \
 	$(MAKE) CC='${CC}' CFLAG='${CFLAG}' INSTALLTOP='${INSTALLTOP}' PEX_LIBS='${PEX_LIBS}' EX_LIBS='${EX_LIBS}' BN_ASM='${BN_ASM}' DES_ENC='${DES_ENC}' BF_ENC='${BF_ENC}' CAST_ENC='${CAST_ENC}' RC4_ENC='${RC4_ENC}' RC5_ENC='${RC5_ENC}' SDIRS='${SDIRS}' SHA1_ASM_OBJ='${SHA1_ASM_OBJ}' MD5_ASM_OBJ='${MD5_ASM_OBJ}' RMD160_ASM_OBJ='${RMD160_ASM_OBJ}' AR='${AR}' tests );
 	@apps/openssl version -a
+
+report:
+	@$(PERL) util/selftest.pl
 
 depend:
 	@for i in $(DIRS) ;\
@@ -298,14 +305,17 @@ util/libeay.num::
 util/ssleay.num::
 	perl util/mkdef.pl ssl update
 
+crypto/objects/obj_dat.h: crypto/objects/objects.h crypto/objects/obj_dat.pl
+	perl crypto/objects/obj_dat.pl crypto/objects/objects.h crypto/objects/obj_dat.h
+
 TABLE: Configure
 	(echo 'Output of `Configure TABLE'"':"; \
 	perl Configure TABLE) > TABLE
 
-update: depend errors util/libeay.num util/ssleay.num TABLE
+update: depend errors util/libeay.num util/ssleay.num crypto/objects/obj_dat.h TABLE
 
 tar:
-	@tar --norecurse -cvf - \
+	@$(TAR) $(TARFLAGS) -cvf - \
 		`find * \! -path CVS/\* \! -path \*/CVS/\* \! -name CVS \! -name .cvsignore \! -name STATUS \! -name TABLE | sort` |\
 	tardy --user_number=0  --user_name=openssl \
 	      --group_number=0 --group_name=openssl \
@@ -322,7 +332,7 @@ dist:
 dist_pem_h:
 	(cd crypto/pem; $(MAKE) CC='${CC}' SDIRS='${SDIRS}' CFLAG='${CFLAG}' pem.h; $(MAKE) clean)
 
-install: all
+install: all install_docs
 	@$(PERL) $(TOP)/util/mkdir-p.pl $(INSTALL_PREFIX)$(INSTALLTOP)/bin \
 		$(INSTALL_PREFIX)$(INSTALLTOP)/lib \
 		$(INSTALL_PREFIX)$(INSTALLTOP)/include/openssl \
@@ -338,7 +348,7 @@ install: all
 	@for i in $(DIRS) ;\
 	do \
 	(cd $$i; echo "installing $$i..."; \
-	$(MAKE) CC='${CC}' CFLAG='${CFLAG}' INSTALL_PREFIX='${INSTALL_PREFIX}' INSTALLTOP='${INSTALLTOP}' OPENSSLDIR='${OPENSSLDIR}' EX_LIBS='${EX_LIBS}' SDIRS='${SDIRS}' install ); \
+	$(MAKE) CC='${CC}' CFLAG='${CFLAG}' INSTALL_PREFIX='${INSTALL_PREFIX}' INSTALLTOP='${INSTALLTOP}' OPENSSLDIR='${OPENSSLDIR}' EX_LIBS='${EX_LIBS}' SDIRS='${SDIRS}' RANLIB='${RANLIB}' install ); \
 	done
 	@for i in $(LIBS) ;\
 	do \
@@ -347,5 +357,37 @@ install: all
 		$(RANLIB) $(INSTALL_PREFIX)$(INSTALLTOP)/lib/$$i; \
 		chmod 644 $(INSTALL_PREFIX)$(INSTALLTOP)/lib/$$i ); \
 	done
+
+install_docs:
+	@$(PERL) $(TOP)/util/mkdir-p.pl \
+		$(INSTALL_PREFIX)$(MANDIR)/man1 \
+		$(INSTALL_PREFIX)$(MANDIR)/man3 \
+		$(INSTALL_PREFIX)$(MANDIR)/man5 \
+		$(INSTALL_PREFIX)$(MANDIR)/man7
+	@echo installing man 1 and man 5
+	@for i in doc/apps/*.pod; do \
+		fn=`basename $$i .pod`; \
+		sec=`[ "$$fn" = "config" ] && echo 5 || echo 1`; \
+		(cd `dirname $$i`; \
+		$(PERL) ../../util/pod2man.pl --section=$$sec --center=OpenSSL \
+			 --release=$(VERSION) `basename $$i`) \
+			>  $(INSTALL_PREFIX)$(MANDIR)/man$$sec/`basename $$i .pod`.$$sec; \
+	done
+	@echo installing man 3 and man 7
+	@for i in doc/crypto/*.pod doc/ssl/*.pod; do \
+		fn=`basename $$i .pod`; \
+		sec=`[ "$$fn" = "des_modes" ] && echo 7 || echo 3`; \
+		(cd `dirname $$i`; \
+		$(PERL) ../../util/pod2man.pl --section=$$sec --center=OpenSSL \
+			--release=$(VERSION) `basename $$i`) \
+			>  $(INSTALL_PREFIX)$(MANDIR)/man$$sec/`basename $$i .pod`.$$sec; \
+	done
+
+shlib: all
+	if [ ! -d shlib_dir ] ; then mkdir shlib_dir ; else rm -f shlib_dir/* ; fi
+	cd shlib_dir ; ar -x ../libcrypto.a && $(CC) -shared ./*.o -Wl,-soname -Wl,libcrypto.so.0.9 \
+            -o ./libcrypto.so.0.9.4 && rm *.o
+	cd shlib_dir ; ar -x ../libssl.a && $(CC) -shared ./*.o -Wl,-soname -Wl,libssl.so.0.9 \
+            -o ./libssl.so.0.9.4 && rm *.o
 
 # DO NOT DELETE THIS LINE -- make depend depends on it.

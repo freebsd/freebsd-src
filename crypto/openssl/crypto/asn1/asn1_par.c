@@ -93,55 +93,8 @@ static int asn1_print_info(BIO *bp, int tag, int xclass, int constructed,
 		sprintf(str,"cont [ %d ]",tag);
 	else if ((xclass & V_ASN1_APPLICATION) == V_ASN1_APPLICATION)
 		sprintf(str,"appl [ %d ]",tag);
-	else if ((tag == V_ASN1_EOC) /* && (xclass == V_ASN1_UNIVERSAL) */)
-		p="EOC";
-	else if (tag == V_ASN1_BOOLEAN)
-		p="BOOLEAN";
-	else if (tag == V_ASN1_INTEGER)
-		p="INTEGER";
-	else if (tag == V_ASN1_ENUMERATED)
-		p="ENUMERATED";
-	else if (tag == V_ASN1_BIT_STRING)
-		p="BIT STRING";
-	else if (tag == V_ASN1_OCTET_STRING)
-		p="OCTET STRING";
-	else if (tag == V_ASN1_NULL)
-		p="NULL";
-	else if (tag == V_ASN1_OBJECT)
-		p="OBJECT";
-	else if (tag == V_ASN1_SEQUENCE)
-		p="SEQUENCE";
-	else if (tag == V_ASN1_SET)
-		p="SET";
-	else if (tag == V_ASN1_PRINTABLESTRING)
-		p="PRINTABLESTRING";
-	else if (tag == V_ASN1_T61STRING)
-		p="T61STRING";
-	else if (tag == V_ASN1_IA5STRING)
-		p="IA5STRING";
-	else if (tag == V_ASN1_UTCTIME)
-		p="UTCTIME";
+	else p = ASN1_tag2str(tag);
 
-	/* extras */
-	else if (tag == V_ASN1_NUMERICSTRING)
-		p="NUMERICSTRING";
-	else if (tag == V_ASN1_VIDEOTEXSTRING)
-		p="VIDEOTEXSTRING";
-	else if (tag == V_ASN1_GENERALIZEDTIME)
-		p="GENERALIZEDTIME";
-	else if (tag == V_ASN1_GRAPHICSTRING)
-		p="GRAPHICSTRING";
-	else if (tag == V_ASN1_VISIBLESTRING)
-		p="VISIBLESTRING";
-	else if (tag == V_ASN1_GENERALSTRING)
-		p="GENERALSTRING";
-	else if (tag == V_ASN1_UNIVERSALSTRING)
-		p="UNIVERSALSTRING";
-	else if (tag == V_ASN1_BMPSTRING)
-		p="BMPSTRING";
-	else
-		p2="(unknown)";
-		
 	if (p2 != NULL)
 		{
 		if (BIO_printf(bp,fmt2,tag,p2) <= 0) goto err;
@@ -320,7 +273,7 @@ static int asn1_parse2(BIO *bp, unsigned char **pp, long length, int offset,
 							os->length) <= 0)
 							goto end;
 						}
-					ASN1_OCTET_STRING_free(os);
+					M_ASN1_OCTET_STRING_free(os);
 					os=NULL;
 					}
 				}
@@ -354,7 +307,7 @@ static int asn1_parse2(BIO *bp, unsigned char **pp, long length, int offset,
 					if (BIO_write(bp,"BAD INTEGER",11) <= 0)
 						goto end;
 					}
-				ASN1_INTEGER_free(bs);
+				M_ASN1_INTEGER_free(bs);
 				}
 			else if (tag == V_ASN1_ENUMERATED)
 				{
@@ -386,7 +339,7 @@ static int asn1_parse2(BIO *bp, unsigned char **pp, long length, int offset,
 					if (BIO_write(bp,"BAD ENUMERATED",11) <= 0)
 						goto end;
 					}
-				ASN1_ENUMERATED_free(bs);
+				M_ASN1_ENUMERATED_free(bs);
 				}
 
 			if (!nl) 
@@ -405,7 +358,28 @@ static int asn1_parse2(BIO *bp, unsigned char **pp, long length, int offset,
 	ret=1;
 end:
 	if (o != NULL) ASN1_OBJECT_free(o);
-	if (os != NULL) ASN1_OCTET_STRING_free(os);
+	if (os != NULL) M_ASN1_OCTET_STRING_free(os);
 	*pp=p;
 	return(ret);
 	}
+
+const char *ASN1_tag2str(int tag)
+{
+	const static char *tag2str[] = {
+	 "EOC", "BOOLEAN", "INTEGER", "BIT STRING", "OCTET STRING", /* 0-4 */
+	 "NULL", "OBJECT", "OBJECT DESCRIPTOR", "EXTERNAL", "REAL", /* 5-9 */
+	 "ENUMERATED", "<ASN1 11>", "UTF8STRING", "<ASN1 13>", 	    /* 10-13 */
+	"<ASN1 14>", "<ASN1 15>", "SEQUENCE", "SET", 		    /* 15-17 */
+	"NUMERICSTRING", "PRINTABLESTRING", "T61STRING",	    /* 18-20 */
+	"VIDEOTEXSTRING", "IA5STRING", "UTCTIME","GENERALIZEDTIME", /* 21-24 */
+	"GRAPHICSTRING", "VISIBLESTRING", "GENERALSTRING",	    /* 25-27 */
+	"UNIVERSALSTRING", "<ASN1 29>", "BMPSTRING"		    /* 28-30 */
+	};
+
+	if((tag == V_ASN1_NEG_INTEGER) || (tag == V_ASN1_NEG_ENUMERATED))
+							tag &= ~0x100;
+
+	if(tag < 0 || tag > 30) return "(unknown)";
+	return tag2str[tag];
+}
+

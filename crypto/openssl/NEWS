@@ -5,6 +5,51 @@
   This file gives a brief overview of the major changes between each OpenSSL
   release. For more details please read the CHANGES file.
 
+  Major changes between OpenSSL 0.9.5 and OpenSSL 0.9.5a:
+
+      o Bug fixes for Win32, SuSE Linux, NeXTSTEP and FreeBSD 2.2.8 
+      o Shared library support for HPUX and Solaris-gcc
+      o Support of Linux/IA64
+      o Assembler support for Mingw32
+      o New 'rand' application
+      o New way to check for existence of algorithms from scripts
+
+  Major changes between OpenSSL 0.9.4 and OpenSSL 0.9.5:
+
+      o S/MIME support in new 'smime' command
+      o Documentation for the OpenSSL command line application
+      o Automation of 'req' application
+      o Fixes to make s_client, s_server work under Windows
+      o Support for multiple fieldnames in SPKACs
+      o New SPKAC command line utilty and associated library functions
+      o Options to allow passwords to be obtained from various sources
+      o New public key PEM format and options to handle it
+      o Many other fixes and enhancements to command line utilities
+      o Usable certificate chain verification
+      o Certificate purpose checking
+      o Certificate trust settings
+      o Support of authority information access extension
+      o Extensions in certificate requests
+      o Simplified X509 name and attribute routines
+      o Initial (incomplete) support for international character sets
+      o New DH_METHOD, DSA_METHOD and enhanced RSA_METHOD
+      o Read only memory BIOs and simplified creation function
+      o TLS/SSL protocol bugfixes: Accept TLS 'client hello' in SSL 3.0
+        record; allow fragmentation and interleaving of handshake and other
+        data
+      o TLS/SSL code now "tolerates" MS SGC
+      o Work around for Netscape client certificate hang bug
+      o RSA_NULL option that removes RSA patent code but keeps other
+        RSA functionality
+      o Memory leak detection now allows applications to add extra information
+        via a per-thread stack
+      o PRNG robustness improved
+      o EGD support
+      o BIGNUM library bug fixes
+      o Faster DSA parameter generation
+      o Enhanced support for Alpha Linux
+      o Experimental MacOS support
+
   Major changes between OpenSSL 0.9.3 and OpenSSL 0.9.4:
 
       o Transparent support for PKCS#8 format private keys: these are used

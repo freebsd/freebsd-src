@@ -74,13 +74,41 @@ extern "C" {
 #endif
 
 #include <openssl/bn.h>
+#include <openssl/crypto.h>
 #ifndef NO_DH
 # include <openssl/dh.h>
 #endif
 
 #define DSA_FLAG_CACHE_MONT_P	0x01
 
-typedef struct dsa_st
+typedef struct dsa_st DSA;
+
+typedef struct DSA_SIG_st
+	{
+	BIGNUM *r;
+	BIGNUM *s;
+	} DSA_SIG;
+
+typedef struct dsa_method {
+	const char *name;
+	DSA_SIG * (*dsa_do_sign)(const unsigned char *dgst, int dlen, DSA *dsa);
+	int (*dsa_sign_setup)(DSA *dsa, BN_CTX *ctx_in, BIGNUM **kinvp,
+								BIGNUM **rp);
+	int (*dsa_do_verify)(const unsigned char *dgst, int dgst_len,
+							DSA_SIG *sig, DSA *dsa);
+	int (*dsa_mod_exp)(DSA *dsa, BIGNUM *rr, BIGNUM *a1, BIGNUM *p1,
+			BIGNUM *a2, BIGNUM *p2, BIGNUM *m, BN_CTX *ctx,
+			BN_MONT_CTX *in_mont);
+	int (*bn_mod_exp)(DSA *dsa, BIGNUM *r, BIGNUM *a, const BIGNUM *p,
+				const BIGNUM *m, BN_CTX *ctx,
+				BN_MONT_CTX *m_ctx); /* Can be null */
+	int (*init)(DSA *dsa);
+	int (*finish)(DSA *dsa);
+	int flags;
+	char *app_data;
+} DSA_METHOD;
+
+struct dsa_st
 	{
 	/* This first variable is used to pick up errors where
 	 * a DSA is passed instead of of a EVP_PKEY */
@@ -100,15 +128,10 @@ typedef struct dsa_st
 	int flags;
 	/* Normally used to cache montgomery values */
 	char *method_mont_p;
-
 	int references;
-	} DSA;
-
-typedef struct DSA_SIG_st
-	{
-	BIGNUM *r;
-	BIGNUM *s;
-	} DSA_SIG;
+	CRYPTO_EX_DATA ex_data;
+	DSA_METHOD *meth;
+	};
 
 #define DSAparams_dup(x) (DSA *)ASN1_dup((int (*)())i2d_DSAparams, \
 		(char *(*)())d2i_DSAparams,(char *)(x))
@@ -131,7 +154,14 @@ DSA_SIG * DSA_do_sign(const unsigned char *dgst,int dlen,DSA *dsa);
 int	DSA_do_verify(const unsigned char *dgst,int dgst_len,
 		      DSA_SIG *sig,DSA *dsa);
 
+DSA_METHOD *DSA_OpenSSL(void);
+
+void        DSA_set_default_method(DSA_METHOD *);
+DSA_METHOD *DSA_get_default_method(void);
+DSA_METHOD *DSA_set_method(DSA *dsa, DSA_METHOD *);
+
 DSA *	DSA_new(void);
+DSA *	DSA_new_method(DSA_METHOD *meth);
 int	DSA_size(DSA *);
 	/* next 4 return -1 on error */
 int	DSA_sign_setup( DSA *dsa,BN_CTX *ctx_in,BIGNUM **kinvp,BIGNUM **rp);
@@ -140,6 +170,10 @@ int	DSA_sign(int type,const unsigned char *dgst,int dlen,
 int	DSA_verify(int type,const unsigned char *dgst,int dgst_len,
 		unsigned char *sigbuf, int siglen, DSA *dsa);
 void	DSA_free (DSA *r);
+int DSA_get_ex_new_index(long argl, void *argp, CRYPTO_EX_new *new_func,
+	     CRYPTO_EX_dup *dup_func, CRYPTO_EX_free *free_func);
+int DSA_set_ex_data(DSA *d, int idx, void *arg);
+void *DSA_get_ex_data(DSA *d, int idx);
 
 void	ERR_load_DSA_strings(void );
 
@@ -148,7 +182,7 @@ DSA *	d2i_DSAPrivateKey(DSA **a, unsigned char **pp, long length);
 DSA * 	d2i_DSAparams(DSA **a, unsigned char **pp, long length);
 DSA *	DSA_generate_parameters(int bits, unsigned char *seed,int seed_len,
 		int *counter_ret, unsigned long *h_ret,void
-		(*callback)(),char *cb_arg);
+		(*callback)(int, int, void *),void *cb_arg);
 int	DSA_generate_key(DSA *a);
 int	i2d_DSAPublicKey(DSA *a, unsigned char **pp);
 int 	i2d_DSAPrivateKey(DSA *a, unsigned char **pp);
@@ -163,7 +197,11 @@ int	DSAparams_print_fp(FILE *fp, DSA *x);
 int	DSA_print_fp(FILE *bp, DSA *x, int off);
 #endif
 
-int DSA_is_prime(BIGNUM *q,void (*callback)(),char *cb_arg);
+#define DSS_prime_checks 50
+/* Primality test according to FIPS PUB 186[-1], Appendix 2.1:
+ * 50 rounds of Rabin-Miller */
+#define DSA_is_prime(n, callback, cb_arg) \
+	BN_is_prime(n, DSS_prime_checks, callback, NULL, cb_arg)
 
 #ifndef NO_DH
 /* Convert DSA structure (key or just parameters) into DH structure
@@ -184,7 +222,6 @@ DH *DSA_dup_DH(DSA *r);
 #define DSA_F_DSAPARAMS_PRINT_FP			 101
 #define DSA_F_DSA_DO_SIGN				 112
 #define DSA_F_DSA_DO_VERIFY				 113
-#define DSA_F_DSA_IS_PRIME				 102
 #define DSA_F_DSA_NEW					 103
 #define DSA_F_DSA_PRINT					 104
 #define DSA_F_DSA_PRINT_FP				 105

@@ -188,11 +188,7 @@ int X509_print(BIO *bp, X509 *x)
 		BIO_printf(bp,"%8sX509v3 extensions:\n","");
 		for (i=0; i<n; i++)
 			{
-#if 0
-			int data_type,pack_type;
-#endif
 			ASN1_OBJECT *obj;
-
 			ex=X509_get_ext(x,i);
 			if (BIO_printf(bp,"%12s","") <= 0) goto err;
 			obj=X509_EXTENSION_get_object(ex);
@@ -203,7 +199,7 @@ int X509_print(BIO *bp, X509 *x)
 			if(!X509V3_EXT_print(bp, ex, 0, 16))
 				{
 				BIO_printf(bp, "%16s", "");
-				ASN1_OCTET_STRING_print(bp,ex->value);
+				M_ASN1_OCTET_STRING_print(bp,ex->value);
 				}
 			if (BIO_write(bp,"\n",1) <= 0) goto err;
 			}
@@ -223,10 +219,11 @@ int X509_print(BIO *bp, X509 *x)
 			((i+1) == n)?"":":") <= 0) goto err;
 		}
 	if (BIO_write(bp,"\n",1) != 1) goto err;
+	if (!X509_CERT_AUX_print(bp, x->aux, 0)) goto err;
 	ret=1;
 err:
 	if (str != NULL) ASN1_STRING_free(str);
-	if (m != NULL) Free((char *)m);
+	if (m != NULL) Free(m);
 	return(ret);
 	}
 

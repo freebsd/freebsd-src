@@ -88,9 +88,11 @@ void HMAC_Init(HMAC_CTX *ctx, const void *key, int len,
 		else
 			{
 			memcpy(ctx->key,key,len);
-			memset(&(ctx->key[len]),0,sizeof(ctx->key)-len);
 			ctx->key_length=len;
 			}
+		if(ctx->key_length != HMAC_MAX_MD_CBLOCK)
+			memset(&ctx->key[ctx->key_length], 0,
+				HMAC_MAX_MD_CBLOCK - ctx->key_length);
 		}
 
 	if (reset)	
@@ -109,7 +111,7 @@ void HMAC_Init(HMAC_CTX *ctx, const void *key, int len,
 	memcpy(&ctx->md_ctx,&ctx->i_ctx,sizeof(ctx->i_ctx));
 	}
 
-void HMAC_Update(HMAC_CTX *ctx, unsigned char *data, int len)
+void HMAC_Update(HMAC_CTX *ctx, const unsigned char *data, int len)
 	{
 	EVP_DigestUpdate(&(ctx->md_ctx),data,len);
 	}
@@ -134,7 +136,7 @@ void HMAC_cleanup(HMAC_CTX *ctx)
 	}
 
 unsigned char *HMAC(const EVP_MD *evp_md, const void *key, int key_len,
-		    unsigned char *d, int n, unsigned char *md,
+		    const unsigned char *d, int n, unsigned char *md,
 		    unsigned int *md_len)
 	{
 	HMAC_CTX c;

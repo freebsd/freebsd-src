@@ -1,53 +1,12 @@
 
 This is some preliminary documentation for OpenSSL.
 
-==============================================================================
-                            BUFFER Library
-==============================================================================
+Contents:
 
-The buffer library handles simple character arrays. Buffers are used for
-various purposes in the library, most notably memory BIOs.
+ OpenSSL X509V3 extension configuration
+ X509V3 Extension code: programmers guide
+ PKCS#12 Library
 
-The library uses the BUF_MEM structure defined in buffer.h:
-
-typedef struct buf_mem_st
-{
-        int length;     /* current number of bytes */
-        char *data;
-        int max;        /* size of buffer */
-} BUF_MEM;
-
-'length' is the current size of the buffer in bytes, 'max' is the amount of
-memory allocated to the buffer. There are three functions which handle these
-and one "miscellaneous" function.
-
-BUF_MEM *BUF_MEM_new()
-
-This allocates a new buffer of zero size. Returns the buffer or NULL on error.
-
-void BUF_MEM_free(BUF_MEM *a)
-
-This frees up an already existing buffer. The data is zeroed before freeing
-up in case the buffer contains sensitive data.
-
-int BUF_MEM_grow(BUF_MEM *str, int len)
-
-This changes the size of an already existing buffer. It returns zero on error
-or the new size (i.e. 'len'). Any data already in the buffer is preserved if
-it increases in size.
-
-char * BUF_strdup(char *str)
-
-This is the previously mentioned strdup function: like the standard library
-strdup() it copies a null terminated string into a block of allocated memory
-and returns a pointer to the allocated block.
-
-Unlike the standard C library strdup() this function uses Malloc() and so
-should be used in preference to the standard library strdup() because it can
-be used for memory leak checking or replacing the malloc() function.
-
-The memory allocated from BUF_strdup() should be freed up using the Free()
-function.
 
 ==============================================================================
                OpenSSL X509V3 extension configuration
@@ -188,7 +147,7 @@ email.1=steve@here
 email.2=steve@there
 
 This is because the configuration file code cannot handle the same name
-occurring twice in the same extension.
+occurring twice in the same section.
 
 The syntax of raw extensions is governed by the extension code: it can
 for example contain data in multiple sections. The correct syntax to
@@ -314,6 +273,41 @@ NOTE: for a CA to be considered valid it must have the CA option set to
 TRUE. An end user certificate MUST NOT have the CA value set to true.
 According to PKIX recommendations it should exclude the extension entirely,
 however some software may require CA set to FALSE for end entity certificates.
+
+Extended Key Usage.
+
+This extensions consists of a list of usages.
+
+These can either be object short names of the dotted numerical form of OIDs.
+While any OID can be used only certain values make sense. In particular the
+following PKIX, NS and MS values are meaningful:
+
+Value			Meaning
+-----			-------
+serverAuth		SSL/TLS Web Server Authentication.
+clientAuth		SSL/TLS Web Client Authentication.
+codeSigning		Code signing.
+emailProtection		E-mail Protection (S/MIME).
+timeStamping		Trusted Timestamping
+msCodeInd		Microsoft Individual Code Signing (authenticode)
+msCodeCom		Microsoft Commercial Code Signing (authenticode)
+msCTLSign		Microsoft Trust List Signing
+msSGC			Microsoft Server Gated Crypto
+msEFS			Microsoft Encrypted File System
+nsSGC			Netscape Server Gated Crypto
+
+For example, under IE5 a CA can be used for any purpose: by including a list
+of the above usages the CA can be restricted to only authorised uses.
+
+Note: software packages may place additional interpretations on certificate 
+use, in particular some usages may only work for selected CAs. Don't for example
+expect just including msSGC or nsSGC will automatically mean that a certificate
+can be used for SGC ("step up" encryption) otherwise anyone could use it.
+
+Examples:
+
+extendedKeyUsage=critical,codeSigning,1.2.3.4
+extendedKeyUsage=nsSGC,msSGC
 
 Subject Key Identifier.
 
@@ -459,16 +453,16 @@ extension in a human or machine readable form.
 
 1. Initialisation and cleanup.
 
-X509V3_add_standard_extensions();
-
-This function should be called before any other extension code. It adds support
-for some common PKIX and Netscape extensions. Additional custom extensions can
-be added as well (see later).
+No special initialisation is needed before calling the extension functions.
+You used to have to call X509V3_add_standard_extensions(); but this is no longer
+required and this function no longer does anything.
 
 void X509V3_EXT_cleanup(void);
 
-This function should be called last to cleanup the extension code. After this
-call no other extension calls should be made.
+This function should be called to cleanup the extension code if any custom
+extensions have been added. If no custom extensions have been added then this
+call does nothing. After this call all custom extension code is freed up but
+you can still use the standard extensions.
 
 2. Printing and parsing extensions.
 
@@ -512,7 +506,7 @@ or CRL is due to be signed. Both return 0 on error on non zero for success.
 In each case 'conf' is the LHASH pointer of the configuration file to use
 and 'section' is the section containing the extension details.
 
-See the 'context functions' section for a description of the ctx paramater.
+See the 'context functions' section for a description of the ctx parameter.
 
 
 X509_EXTENSION *X509V3_EXT_conf(LHASH *conf, X509V3_CTX *ctx, char *name,
@@ -531,7 +525,7 @@ takes the NID of the extension rather than its name.
 For example to produce basicConstraints with the CA flag and a path length of
 10:
 
-x = X509V3_EXT_conf_nid(NULL, NULL, NID_basicConstraints, "CA:TRUE,pathlen:10");
+x = X509V3_EXT_conf_nid(NULL, NULL, NID_basic_constraints,"CA:TRUE,pathlen:10");
 
 
 X509_EXTENSION *X509V3_EXT_i2d(int ext_nid, int crit, void *ext_struc);
@@ -659,7 +653,7 @@ The same as above but for an unsigned character value.
 int X509V3_add_value_bool(const char *name, int asn1_bool,
 						STACK_OF(CONF_VALUE) **extlist);
 
-This adds either "TRUE" or "FALSE" depending on the value of 'ans1_bool'
+This adds either "TRUE" or "FALSE" depending on the value of 'asn1_bool'
 
 int X509V3_add_value_bool_nf(char *name, int asn1_bool,
 						STACK_OF(CONF_VALUE) **extlist);
@@ -686,7 +680,7 @@ Multi value extensions are passed a STACK_OF(CONF_VALUE) name and value pairs
 or return a STACK_OF(CONF_VALUE).
 
 Raw extensions are just passed a BIO or a value and it is the extensions
-responsiblity to handle all the necessary printing.
+responsibility to handle all the necessary printing.
 
 There are two ways to add an extension. One is simply as an alias to an already
 existing extension. An alias is an extension that is identical in ASN1 structure
@@ -811,7 +805,7 @@ int i2r(struct v3_ext_method *method, void *ext, BIO *out, int indent);
 
 This function is passed the internal extension structure in the ext parameter
 and sends out a human readable version of the extension to out. The 'indent'
-paremeter should be noted to determine the necessary amount of indentation
+parameter should be noted to determine the necessary amount of indentation
 needed on the output.
 
 void * r2i(struct v3_ext_method *method, struct v3_ext_ctx *ctx, char *str);
@@ -882,7 +876,7 @@ d2i_PKCS12_fp(fp, p12)
 
 This is the same but for a FILE pointer.
 
-3. Parsing and creation functions.
+3. High level functions.
 
 3.1 Parsing with PKCS12_parse().
 
@@ -919,6 +913,14 @@ Typically to create a PKCS#12 file the following could be used:
 p12 = PKCS12_create(pass, "My Certificate", pkey, cert, NULL, 0,0,0,0,0);
 i2d_PKCS12_fp(fp, p12);
 PKCS12_free(p12);
+
+3.3 Changing a PKCS#12 structure password.
+
+int PKCS12_newpass(PKCS12 *p12, char *oldpass, char *newpass);
+
+This changes the password of an already existing PKCS#12 structure. oldpass
+is the old password and newpass is the new one. An error occurs if the old
+password is incorrect.
 
 LOW LEVEL FUNCTIONS.
 

@@ -71,6 +71,7 @@ static int ssl_puts(BIO *h,char *str);
 static long ssl_ctrl(BIO *h,int cmd,long arg1,char *arg2);
 static int ssl_new(BIO *h);
 static int ssl_free(BIO *data);
+static long ssl_callback_ctrl(BIO *h,int cmd,void (*fp)());
 typedef struct bio_ssl_st
 	{
 	SSL *ssl; /* The ssl handle :-) */
@@ -92,6 +93,7 @@ static BIO_METHOD methods_sslp=
 	ssl_ctrl,
 	ssl_new,
 	ssl_free,
+	ssl_callback_ctrl,
 	};
 
 BIO_METHOD *BIO_f_ssl(void)
@@ -444,7 +446,14 @@ static long ssl_ctrl(BIO *b, int cmd, long num, char *ptr)
 		ret=BIO_ctrl(ssl->rbio,cmd,num,ptr);
 		break;
 	case BIO_CTRL_SET_CALLBACK:
-		SSL_set_info_callback(ssl,(void (*)())ptr);
+		{
+#if 0 /* FIXME: Should this be used?  -- Richard Levitte */
+		BIOerr(SSL_F_SSL_CTRL, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
+		ret = -1;
+#else
+		ret=0;
+#endif
+		}
 		break;
 	case BIO_CTRL_GET_CALLBACK:
 		{
@@ -456,6 +465,28 @@ static long ssl_ctrl(BIO *b, int cmd, long num, char *ptr)
 		break;
 	default:
 		ret=BIO_ctrl(ssl->rbio,cmd,num,ptr);
+		break;
+		}
+	return(ret);
+	}
+
+static long ssl_callback_ctrl(BIO *b, int cmd, void (*fp)())
+	{
+	SSL *ssl;
+	BIO_SSL *bs;
+	long ret=1;
+
+	bs=(BIO_SSL *)b->ptr;
+	ssl=bs->ssl;
+	switch (cmd)
+		{
+	case BIO_CTRL_SET_CALLBACK:
+		{
+		SSL_set_info_callback(ssl,fp);
+		}
+		break;
+	default:
+		ret=BIO_callback_ctrl(ssl->rbio,cmd,fp);
 		break;
 		}
 	return(ret);

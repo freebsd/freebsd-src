@@ -163,7 +163,14 @@ int BIO_get_port(const char *str, unsigned short *port_ptr)
 	else
 		{
 		CRYPTO_w_lock(CRYPTO_LOCK_GETSERVBYNAME);
- 		s=getservbyname(str,"tcp");
+		/* Note: under VMS with SOCKETSHR, it seems like the first
+		 * parameter is 'char *', instead of 'const char *'
+		 */
+ 		s=getservbyname(
+#ifndef CONST_STRICT
+		    (char *)
+#endif
+		    str,"tcp");
 		if(s != NULL)
 			*port_ptr=ntohs((unsigned short)s->s_port);
 		CRYPTO_w_unlock(CRYPTO_LOCK_GETSERVBYNAME);
@@ -282,12 +289,12 @@ static struct hostent *ghbn_dup(struct hostent *a)
 
 	j=strlen(a->h_name)+1;
 	if ((ret->h_name=Malloc(j)) == NULL) goto err;
-	memcpy((char *)ret->h_name,a->h_name,j+1);
+	memcpy((char *)ret->h_name,a->h_name,j);
 	for (i=0; a->h_aliases[i] != NULL; i++)
 		{
 		j=strlen(a->h_aliases[i])+1;
 		if ((ret->h_aliases[i]=Malloc(j)) == NULL) goto err;
-		memcpy(ret->h_aliases[i],a->h_aliases[i],j+1);
+		memcpy(ret->h_aliases[i],a->h_aliases[i],j);
 		}
 	ret->h_length=a->h_length;
 	ret->h_addrtype=a->h_addrtype;
@@ -327,7 +334,7 @@ static void ghbn_free(struct hostent *a)
 			Free(a->h_addr_list[i]);
 		Free(a->h_addr_list);
 		}
-	if (a->h_name != NULL) Free((char *)a->h_name);
+	if (a->h_name != NULL) Free(a->h_name);
 	Free(a);
 	}
 
@@ -368,7 +375,14 @@ struct hostent *BIO_gethostbyname(const char *name)
 	if (i == GHBN_NUM) /* no hit*/
 		{
 		BIO_ghbn_miss++;
-		ret=gethostbyname(name);
+		/* Note: under VMS with SOCKETSHR, it seems like the first
+		 * parameter is 'char *', instead of 'const char *'
+		 */
+		ret=gethostbyname(
+#ifndef CONST_STRICT
+		    (char *)
+#endif
+		    name);
 
 		if (ret == NULL)
 			goto end;

@@ -78,6 +78,7 @@
 #include <openssl/x509v3.h>
 #include <openssl/conf.h>
 #include <openssl/pkcs12.h>
+#include <openssl/rand.h>
 #include <openssl/err.h>
 
 void ERR_load_crypto_strings(void)
@@ -110,5 +111,6 @@ void ERR_load_crypto_strings(void)
 	ERR_load_CRYPTO_strings();
 	ERR_load_PKCS7_strings();
 	ERR_load_PKCS12_strings();
+	ERR_load_RAND_strings();
 #endif
 	}

@@ -285,9 +285,21 @@ RSA *d2i_RSAPublicKey_fp(FILE *fp, RSA **rsa)
 		(unsigned char **)(rsa)));
 	}
 
+RSA *d2i_RSA_PUBKEY_fp(FILE *fp, RSA **rsa)
+	{
+	return((RSA *)ASN1_d2i_fp((char *(*)())
+		RSA_new,(char *(*)())d2i_RSA_PUBKEY, (fp),
+		(unsigned char **)(rsa)));
+	}
+
 int i2d_RSAPublicKey_fp(FILE *fp, RSA *rsa)
 	{
 	return(ASN1_i2d_fp(i2d_RSAPublicKey,fp,(unsigned char *)rsa));
+	}
+
+int i2d_RSA_PUBKEY_fp(FILE *fp, RSA *rsa)
+	{
+	return(ASN1_i2d_fp(i2d_RSA_PUBKEY,fp,(unsigned char *)rsa));
 	}
 #endif
 
@@ -310,9 +322,21 @@ RSA *d2i_RSAPublicKey_bio(BIO *bp, RSA **rsa)
 		(unsigned char **)(rsa)));
 	}
 
+RSA *d2i_RSA_PUBKEY_bio(BIO *bp, RSA **rsa)
+	{
+	return((RSA *)ASN1_d2i_bio((char *(*)())
+		RSA_new,(char *(*)())d2i_RSA_PUBKEY, (bp),
+		(unsigned char **)(rsa)));
+	}
+
 int i2d_RSAPublicKey_bio(BIO *bp, RSA *rsa)
 	{
 	return(ASN1_i2d_bio(i2d_RSAPublicKey,bp,(unsigned char *)rsa));
+	}
+
+int i2d_RSA_PUBKEY_bio(BIO *bp, RSA *rsa)
+	{
+	return(ASN1_i2d_bio(i2d_RSA_PUBKEY,bp,(unsigned char *)rsa));
 	}
 #endif
 
@@ -329,6 +353,18 @@ int i2d_DSAPrivateKey_fp(FILE *fp, DSA *dsa)
 	{
 	return(ASN1_i2d_fp(i2d_DSAPrivateKey,fp,(unsigned char *)dsa));
 	}
+
+DSA *d2i_DSA_PUBKEY_fp(FILE *fp, DSA **dsa)
+	{
+	return((DSA *)ASN1_d2i_fp((char *(*)())
+		DSA_new,(char *(*)())d2i_DSA_PUBKEY, (fp),
+		(unsigned char **)(dsa)));
+	}
+
+int i2d_DSA_PUBKEY_fp(FILE *fp, DSA *dsa)
+	{
+	return(ASN1_i2d_fp(i2d_DSA_PUBKEY,fp,(unsigned char *)dsa));
+	}
 #endif
 
 DSA *d2i_DSAPrivateKey_bio(BIO *bp, DSA **dsa)
@@ -342,6 +378,19 @@ int i2d_DSAPrivateKey_bio(BIO *bp, DSA *dsa)
 	{
 	return(ASN1_i2d_bio(i2d_DSAPrivateKey,bp,(unsigned char *)dsa));
 	}
+
+DSA *d2i_DSA_PUBKEY_bio(BIO *bp, DSA **dsa)
+	{
+	return((DSA *)ASN1_d2i_bio((char *(*)())
+		DSA_new,(char *(*)())d2i_DSA_PUBKEY, (bp),
+		(unsigned char **)(dsa)));
+	}
+
+int i2d_DSA_PUBKEY_bio(BIO *bp, DSA *dsa)
+	{
+	return(ASN1_i2d_bio(i2d_DSA_PUBKEY,bp,(unsigned char *)dsa));
+	}
+
 #endif
 
 X509_ALGOR *X509_ALGOR_dup(X509_ALGOR *xn)
@@ -362,19 +411,19 @@ X509_NAME_ENTRY *X509_NAME_ENTRY_dup(X509_NAME_ENTRY *ne)
 		(char *(*)())d2i_X509_NAME_ENTRY,(char *)ne));
 	}
 
-int X509_digest(X509 *data, EVP_MD *type, unsigned char *md,
+int X509_digest(X509 *data, const EVP_MD *type, unsigned char *md,
 	     unsigned int *len)
 	{
 	return(ASN1_digest((int (*)())i2d_X509,type,(char *)data,md,len));
 	}
 
-int X509_NAME_digest(X509_NAME *data, EVP_MD *type, unsigned char *md,
+int X509_NAME_digest(X509_NAME *data, const EVP_MD *type, unsigned char *md,
 	     unsigned int *len)
 	{
 	return(ASN1_digest((int (*)())i2d_X509_NAME,type,(char *)data,md,len));
 	}
 
-int PKCS7_ISSUER_AND_SERIAL_digest(PKCS7_ISSUER_AND_SERIAL *data, EVP_MD *type,
+int PKCS7_ISSUER_AND_SERIAL_digest(PKCS7_ISSUER_AND_SERIAL *data, const EVP_MD *type,
 	     unsigned char *md, unsigned int *len)
 	{
 	return(ASN1_digest((int (*)())i2d_PKCS7_ISSUER_AND_SERIAL,type,
@@ -420,6 +469,29 @@ int i2d_PKCS8_PRIV_KEY_INFO_fp(FILE *fp, PKCS8_PRIV_KEY_INFO *p8inf)
 	{
 	return(ASN1_i2d_fp(i2d_PKCS8_PRIV_KEY_INFO,fp,(unsigned char *)p8inf));
 	}
+
+int i2d_PKCS8PrivateKeyInfo_fp(FILE *fp, EVP_PKEY *key)
+	{
+	PKCS8_PRIV_KEY_INFO *p8inf;
+	int ret;
+	p8inf = EVP_PKEY2PKCS8(key);
+	if(!p8inf) return 0;
+	ret = i2d_PKCS8_PRIV_KEY_INFO_fp(fp, p8inf);
+	PKCS8_PRIV_KEY_INFO_free(p8inf);
+	return ret;
+	}
+
+int i2d_PrivateKey_fp(FILE *fp, EVP_PKEY *pkey)
+	{
+	return(ASN1_i2d_fp(i2d_PrivateKey,fp,(unsigned char *)pkey));
+	}
+
+EVP_PKEY *d2i_PrivateKey_fp(FILE *fp, EVP_PKEY **a)
+{
+	return((EVP_PKEY *)ASN1_d2i_fp((char *(*)())EVP_PKEY_new,
+		(char *(*)())d2i_AutoPrivateKey, (fp),(unsigned char **)(a)));
+}
+
 #endif
 
 PKCS8_PRIV_KEY_INFO *d2i_PKCS8_PRIV_KEY_INFO_bio(BIO *bp,
@@ -434,4 +506,26 @@ PKCS8_PRIV_KEY_INFO *d2i_PKCS8_PRIV_KEY_INFO_bio(BIO *bp,
 int i2d_PKCS8_PRIV_KEY_INFO_bio(BIO *bp, PKCS8_PRIV_KEY_INFO *p8inf)
 	{
 	return(ASN1_i2d_bio(i2d_PKCS8_PRIV_KEY_INFO,bp,(unsigned char *)p8inf));
+	}
+
+int i2d_PKCS8PrivateKeyInfo_bio(BIO *bp, EVP_PKEY *key)
+	{
+	PKCS8_PRIV_KEY_INFO *p8inf;
+	int ret;
+	p8inf = EVP_PKEY2PKCS8(key);
+	if(!p8inf) return 0;
+	ret = i2d_PKCS8_PRIV_KEY_INFO_bio(bp, p8inf);
+	PKCS8_PRIV_KEY_INFO_free(p8inf);
+	return ret;
+	}
+
+int i2d_PrivateKey_bio(BIO *bp, EVP_PKEY *pkey)
+	{
+	return(ASN1_i2d_bio(i2d_PrivateKey,bp,(unsigned char *)pkey));
+	}
+
+EVP_PKEY *d2i_PrivateKey_bio(BIO *bp, EVP_PKEY **a)
+	{
+	return((EVP_PKEY *)ASN1_d2i_bio((char *(*)())EVP_PKEY_new,
+		(char *(*)())d2i_AutoPrivateKey, (bp),(unsigned char **)(a)));
 	}

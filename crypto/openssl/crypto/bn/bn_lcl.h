@@ -73,18 +73,53 @@ extern "C" {
 #define BN_MUL_LOW_RECURSIVE_SIZE_NORMAL	(32) /* 32 */
 #define BN_MONT_CTX_SET_SIZE_WORD		(64) /* 32 */
 
-#if 0
-#ifndef BN_MUL_COMBA
-/* #define bn_mul_comba8(r,a,b)	bn_mul_normal(r,a,8,b,8) */
-/* #define bn_mul_comba4(r,a,b)	bn_mul_normal(r,a,4,b,4) */
-#endif
-
-#ifndef BN_SQR_COMBA
-/* This is probably faster than using the C code - I need to check */
-#define bn_sqr_comba8(r,a)	bn_mul_normal(r,a,8,a,8)
-#define bn_sqr_comba4(r,a)	bn_mul_normal(r,a,4,a,4)
-#endif
-#endif
+#if !defined(NO_ASM) && !defined(NO_INLINE_ASM) && !defined(PEDANTIC)
+/*
+ * BN_UMULT_HIGH section.
+ *
+ * No, I'm not trying to overwhelm you when stating that the
+ * product of N-bit numbers is 2*N bits wide:-) No, I don't expect
+ * you to be impressed when I say that if the compiler doesn't
+ * support 2*N integer type, then you have to replace every N*N
+ * multiplication with 4 (N/2)*(N/2) accompanied by some shifts
+ * and additions which unavoidably results in severe performance
+ * penalties. Of course provided that the hardware is capable of
+ * producing 2*N result... That's when you normally start
+ * considering assembler implementation. However! It should be
+ * pointed out that some CPUs (most notably Alpha, PowerPC and
+ * upcoming IA-64 family:-) provide *separate* instruction
+ * calculating the upper half of the product placing the result
+ * into a general purpose register. Now *if* the compiler supports
+ * inline assembler, then it's not impossible to implement the
+ * "bignum" routines (and have the compiler optimize 'em)
+ * exhibiting "native" performance in C. That's what BN_UMULT_HIGH
+ * macro is about:-)
+ *
+ *					<appro@fy.chalmers.se>
+ */
+# if defined(__alpha) && (defined(SIXTY_FOUR_BIT_LONG) || defined(SIXTY_FOUR_BIT))
+#  if defined(__DECC)
+#   include <c_asm.h>
+#   define BN_UMULT_HIGH(a,b)	(BN_ULONG)asm("umulh %a0,%a1,%v0",(a),(b))
+#  elif defined(__GNUC__)
+#   define BN_UMULT_HIGH(a,b)	({	\
+	register BN_ULONG ret;		\
+	asm ("umulh	%1,%2,%0"	\
+	     : "=r"(ret)		\
+	     : "r"(a), "r"(b));		\
+	ret;			})
+#  endif	/* compiler */
+# elif defined(_ARCH_PPC) && defined(__64BIT__) && defined(SIXTY_FOUR_BIT_LONG)
+#  if defined(__GNUC__)
+#   define BN_UMULT_HIGH(a,b)	({	\
+	register BN_ULONG ret;		\
+	asm ("mulhdu	%0,%1,%2"	\
+	     : "=r"(ret)		\
+	     : "r"(a), "r"(b));		\
+	ret;			})
+#  endif	/* compiler */
+# endif		/* cpu */
+#endif		/* NO_ASM */
 
 /*************************************************************
  * Using the long long type
@@ -92,15 +127,12 @@ extern "C" {
 #define Lw(t)    (((BN_ULONG)(t))&BN_MASK2)
 #define Hw(t)    (((BN_ULONG)((t)>>BN_BITS2))&BN_MASK2)
 
-/* These are used for internal error checking and are not normally used */
+/* This is used for internal error checking and is not normally used */
 #ifdef BN_DEBUG
-#define bn_check_top(a) \
-	{ if (((a)->top < 0) || ((a)->top > (a)->max)) \
-		{ char *nullp=NULL; *nullp='z'; } }
-#define bn_check_num(a) if ((a) < 0) { char *nullp=NULL; *nullp='z'; }
+# include <assert.h>
+# define bn_check_top(a) assert ((a)->top >= 0 && (a)->top <= (a)->max);
 #else
-#define bn_check_top(a)
-#define bn_check_num(a)
+# define bn_check_top(a)
 #endif
 
 /* This macro is to add extra stuff for development checking */
@@ -134,8 +166,6 @@ extern "C" {
 	bn_set_max(r); \
 	}
 
-/* #define bn_expand(n,b) ((((b)/BN_BITS2) <= (n)->max)?(n):bn_expand2((n),(b))) */
-
 #ifdef BN_LLONG
 #define mul_add(r,a,w,c) { \
 	BN_ULLONG t; \
@@ -149,6 +179,43 @@ extern "C" {
 	t=(BN_ULLONG)w * (a) + (c); \
 	(r)= Lw(t); \
 	(c)= Hw(t); \
+	}
+
+#define sqr(r0,r1,a) { \
+	BN_ULLONG t; \
+	t=(BN_ULLONG)(a)*(a); \
+	(r0)=Lw(t); \
+	(r1)=Hw(t); \
+	}
+
+#elif defined(BN_UMULT_HIGH)
+#define mul_add(r,a,w,c) {		\
+	BN_ULONG high,low,ret,tmp=(a);	\
+	ret =  (r);			\
+	high=  BN_UMULT_HIGH(w,tmp);	\
+	ret += (c);			\
+	low =  (w) * tmp;		\
+	(c) =  (ret<(c))?1:0;		\
+	(c) += high;			\
+	ret += low;			\
+	(c) += (ret<low)?1:0;		\
+	(r) =  ret;			\
+	}
+
+#define mul(r,a,w,c)	{		\
+	BN_ULONG high,low,ret,ta=(a);	\
+	low =  (w) * ta;		\
+	high=  BN_UMULT_HIGH(w,ta);	\
+	ret =  low + (c);		\
+	(c) =  high;			\
+	(c) += (ret<low)?1:0;		\
+	(r) =  ret;			\
+	}
+
+#define sqr(r0,r1,a)	{		\
+	BN_ULONG tmp=(a);		\
+	(r0) = tmp * tmp;		\
+	(r1) = BN_UMULT_HIGH(tmp,tmp);	\
 	}
 
 #else
@@ -228,21 +295,7 @@ extern "C" {
 	(c)=h&BN_MASK2; \
 	(r)=l&BN_MASK2; \
 	}
-
-#endif
-
-OPENSSL_EXTERN int bn_limit_bits;
-OPENSSL_EXTERN int bn_limit_num;        /* (1<<bn_limit_bits) */
-/* Recursive 'low' limit */
-OPENSSL_EXTERN int bn_limit_bits_low;
-OPENSSL_EXTERN int bn_limit_num_low;    /* (1<<bn_limit_bits_low) */
-/* Do modified 'high' part calculation' */
-OPENSSL_EXTERN int bn_limit_bits_high;
-OPENSSL_EXTERN int bn_limit_num_high;   /* (1<<bn_limit_bits_high) */
-OPENSSL_EXTERN int bn_limit_bits_mont;
-OPENSSL_EXTERN int bn_limit_num_mont;   /* (1<<bn_limit_bits_mont) */
-
-BIGNUM *bn_expand2(BIGNUM *b, int bits);
+#endif /* !BN_LLONG */
 
 void bn_mul_normal(BN_ULONG *r,BN_ULONG *a,int na,BN_ULONG *b,int nb);
 void bn_mul_comba8(BN_ULONG *r,BN_ULONG *a,BN_ULONG *b);

@@ -69,9 +69,9 @@ const char *MD2_version="MD2" OPENSSL_VERSION_PTEXT;
 
 #define UCHAR	unsigned char
 
-static void md2_block(MD2_CTX *c, unsigned char *d);
+static void md2_block(MD2_CTX *c, const unsigned char *d);
 /* The magic S table - I have converted it to hex since it is
- * basicaly just a random byte string. */
+ * basically just a random byte string. */
 static MD2_INT S[256]={
 	0x29, 0x2E, 0x43, 0xC9, 0xA2, 0xD8, 0x7C, 0x01,
 	0x3D, 0x36, 0x54, 0xA1, 0xEC, 0xF0, 0x06, 0x13,
@@ -123,7 +123,7 @@ void MD2_Init(MD2_CTX *c)
 	memset(c->data,0,MD2_BLOCK);
 	}
 
-void MD2_Update(MD2_CTX *c, register unsigned char *data, unsigned long len)
+void MD2_Update(MD2_CTX *c, const unsigned char *data, unsigned long len)
 	{
 	register UCHAR *p;
 
@@ -161,7 +161,7 @@ void MD2_Update(MD2_CTX *c, register unsigned char *data, unsigned long len)
 	c->num=(int)len;
 	}
 
-static void md2_block(MD2_CTX *c, unsigned char *d)
+static void md2_block(MD2_CTX *c, const unsigned char *d)
 	{
 	register MD2_INT t,*sp1,*sp2;
 	register int i,j;

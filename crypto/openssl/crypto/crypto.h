@@ -63,16 +63,24 @@
 extern "C" {
 #endif
 
+#include <stdlib.h>
+
 #ifndef NO_FP_API
 #include <stdio.h>
 #endif
 
 #include <openssl/stack.h>
+#include <openssl/safestack.h>
 #include <openssl/opensslv.h>
 
 #ifdef CHARSET_EBCDIC
 #include <openssl/ebcdic.h>
 #endif
+
+#if defined(VMS) || defined(__VMS)
+#include "vms_idhacks.h"
+#endif
+
 
 /* Backward compatibility to SSLeay */
 /* This is more to be used to check the correct DLL is being used
@@ -111,7 +119,9 @@ extern "C" {
 #define	CRYPTO_LOCK_GETSERVBYNAME	21
 #define	CRYPTO_LOCK_READDIR		22
 #define	CRYPTO_LOCK_RSA_BLINDING	23
-#define	CRYPTO_NUM_LOCKS		24
+#define	CRYPTO_LOCK_DH			24
+#define	CRYPTO_LOCK_MALLOC2		25
+#define	CRYPTO_NUM_LOCKS		26
 
 #define CRYPTO_LOCK		1
 #define CRYPTO_UNLOCK		2
@@ -147,14 +157,16 @@ extern "C" {
 #define CRYPTO_MEM_CHECK_ENABLE	0x2	/* a bit */
 #define CRYPTO_MEM_CHECK_DISABLE 0x3	/* an enume */
 
-/*
-typedef struct crypto_mem_st
-	{
-	char *(*malloc_func)();
-	char *(*realloc_func)();
-	void (*free_func)();
-	} CRYPTO_MEM_FUNC;
-*/
+/* The following are bit values to turn on or off options connected to the
+ * malloc checking functionality */
+
+/* Adds time to the memory checking information */
+#define V_CRYPTO_MDEBUG_TIME	0x1 /* a bit */
+/* Adds thread number to the memory checking information */
+#define V_CRYPTO_MDEBUG_THREAD	0x2 /* a bit */
+
+#define V_CRYPTO_MDEBUG_ALL (V_CRYPTO_MDEBUG_TIME | V_CRYPTO_MDEBUG_THREAD)
+
 
 /* predec of the BIO type */
 typedef struct bio_st BIO_dummy;
@@ -165,23 +177,29 @@ typedef struct crypto_ex_data_st
 	int dummy; /* gcc is screwing up this data structure :-( */
 	} CRYPTO_EX_DATA;
 
+/* Called when a new object is created */
+typedef int CRYPTO_EX_new(void *parent, void *ptr, CRYPTO_EX_DATA *ad,
+					int idx, long argl, void *argp);
+/* Called when an object is free()ed */
+typedef void CRYPTO_EX_free(void *parent, void *ptr, CRYPTO_EX_DATA *ad,
+					int idx, long argl, void *argp);
+/* Called when we need to dup an object */
+typedef int CRYPTO_EX_dup(CRYPTO_EX_DATA *to, CRYPTO_EX_DATA *from, void *from_d, 
+					int idx, long argl, void *argp);
+
 /* This stuff is basically class callback functions
- * The current classes are SSL_CTX, SSL, SSL_SESION, and a few more */
+ * The current classes are SSL_CTX, SSL, SSL_SESSION, and a few more */
+
 typedef struct crypto_ex_data_func_st
 	{
 	long argl;	/* Arbitary long */
-	char *argp;	/* Arbitary char * */
-	/* Called when a new object is created */
-	int (*new_func)(/*char *obj,
-			char *item,int index,long argl,char *argp*/);
-	/* Called when this object is free()ed */
-	void (*free_func)(/*char *obj,
-			char *item,int index,long argl,char *argp*/);
-
-	/* Called when we need to dup this one */
-	int (*dup_func)(/*char *obj_to,char *obj_from,
-			char **new,int index,long argl,char *argp*/);
+	void *argp;	/* Arbitary void * */
+	CRYPTO_EX_new *new_func;
+	CRYPTO_EX_free *free_func;
+	CRYPTO_EX_dup *dup_func;
 	} CRYPTO_EX_DATA_FUNCS;
+
+DECLARE_STACK_OF(CRYPTO_EX_DATA_FUNCS)
 
 /* Per class, we have a STACK of CRYPTO_EX_DATA_FUNCS for each CRYPTO_EX_DATA
  * entry.
@@ -194,63 +212,54 @@ typedef struct crypto_ex_data_func_st
 #define CRYPTO_EX_INDEX_X509_STORE	4
 #define CRYPTO_EX_INDEX_X509_STORE_CTX	5
 
-/* Use this for win32 DLL's */
+
+/* This is the default callbacks, but we can have others as well:
+ * this is needed in Win32 where the application malloc and the
+ * library malloc may not be the same.
+ */
 #define CRYPTO_malloc_init()	CRYPTO_set_mem_functions(\
-	(char *(*)())malloc,\
-	(char *(*)())realloc,\
-	(void (*)())free)
+	malloc, realloc, free)
 
-#ifdef CRYPTO_MDEBUG_ALL
-# ifndef CRYPTO_MDEBUG_TIME
-#  define CRYPTO_MDEBUG_TIME
-# endif
-# ifndef CRYPTO_MDEBUG_THREAD
-#  define CRYPTO_MDEBUG_THREAD
-# endif
-#endif
-
-#if defined CRYPTO_MDEBUG_TIME || defined CRYPTO_MDEBUG_THREAD
+#if defined CRYPTO_MDEBUG_ALL || defined CRYPTO_MDEBUG_TIME || defined CRYPTO_MDEBUG_THREAD
 # ifndef CRYPTO_MDEBUG /* avoid duplicate #define */
 #  define CRYPTO_MDEBUG
 # endif
 #endif
 
-#ifdef CRYPTO_MDEBUG
+/* Set standard debugging functions (not done by default
+ * unless CRYPTO_MDEBUG is defined) */
+#define CRYPTO_malloc_debug_init()	do {\
+	CRYPTO_set_mem_debug_functions(\
+		(void (*)())CRYPTO_dbg_malloc,\
+		(void (*)())CRYPTO_dbg_realloc,\
+		(void (*)())CRYPTO_dbg_free,\
+		(void (*)())CRYPTO_dbg_set_options,\
+		(long (*)())CRYPTO_dbg_get_options);\
+	} while(0)
+
+int CRYPTO_mem_ctrl(int mode);
+int CRYPTO_is_mem_check_on(void);
+
+/* for applications */
 #define MemCheck_start() CRYPTO_mem_ctrl(CRYPTO_MEM_CHECK_ON)
 #define MemCheck_stop()	CRYPTO_mem_ctrl(CRYPTO_MEM_CHECK_OFF)
+
+/* for library-internal use */
 #define MemCheck_on()	CRYPTO_mem_ctrl(CRYPTO_MEM_CHECK_ENABLE)
 #define MemCheck_off()	CRYPTO_mem_ctrl(CRYPTO_MEM_CHECK_DISABLE)
-#define Malloc(num)	CRYPTO_dbg_malloc((int)num,__FILE__,__LINE__)
+#define is_MemCheck_on() CRYPTO_is_mem_check_on()
+
+#define Malloc(num)	CRYPTO_malloc((int)num,__FILE__,__LINE__)
 #define Realloc(addr,num) \
-	CRYPTO_dbg_realloc((char *)addr,(int)num,__FILE__,__LINE__)
+	CRYPTO_realloc((char *)addr,(int)num,__FILE__,__LINE__)
 #define Remalloc(addr,num) \
-	CRYPTO_dbg_remalloc((char **)addr,(int)num,__FILE__,__LINE__)
-#define FreeFunc	CRYPTO_dbg_free
-#define Free(addr)	CRYPTO_dbg_free(addr)
-#define Malloc_locked(num) CRYPTO_malloc_locked((int)num)
-#define Free_locked(addr) CRYPTO_free_locked(addr)
-#else
-#define MemCheck_start()
-#define MemCheck_stop()
-#define MemCheck_on()
-#define MemCheck_off()
-#define Remalloc	CRYPTO_remalloc
-#if defined(WIN32) || defined(MFUNC)
-#define Malloc		CRYPTO_malloc
-#define Realloc(a,n)	CRYPTO_realloc(a,(n))
+	CRYPTO_remalloc((char **)addr,(int)num,__FILE__,__LINE__)
 #define FreeFunc	CRYPTO_free
 #define Free(addr)	CRYPTO_free(addr)
-#define Malloc_locked	CRYPTO_malloc_locked
+
+#define Malloc_locked(num) CRYPTO_malloc_locked((int)num,__FILE__,__LINE__)
 #define Free_locked(addr) CRYPTO_free_locked(addr)
-#else
-#define Malloc		malloc
-#define Realloc		realloc
-#define FreeFunc	free
-#define Free(addr)	free(addr)
-#define Malloc_locked	malloc
-#define Free_locked(addr) free(addr)
-#endif /* WIN32 || MFUNC */
-#endif /* MDEBUG */
+
 
 /* Case insensiteve linking causes problems.... */
 #if defined(WIN16) || defined(VMS)
@@ -261,15 +270,15 @@ typedef struct crypto_ex_data_func_st
 const char *SSLeay_version(int type);
 unsigned long SSLeay(void);
 
-int CRYPTO_get_ex_new_index(int idx,STACK **sk,long argl,char *argp,
-	int (*new_func)(),int (*dup_func)(),void (*free_func)());
-int CRYPTO_set_ex_data(CRYPTO_EX_DATA *ad,int idx,char *val);
-char *CRYPTO_get_ex_data(CRYPTO_EX_DATA *ad,int idx);
-int CRYPTO_dup_ex_data(STACK *meth,CRYPTO_EX_DATA *from,CRYPTO_EX_DATA *to);
-void CRYPTO_free_ex_data(STACK *meth,char *obj,CRYPTO_EX_DATA *ad);
-void CRYPTO_new_ex_data(STACK *meth, char *obj, CRYPTO_EX_DATA *ad);
+int CRYPTO_get_ex_new_index(int idx, STACK_OF(CRYPTO_EX_DATA_FUNCS) **skp, long argl, void *argp,
+	     CRYPTO_EX_new *new_func, CRYPTO_EX_dup *dup_func, CRYPTO_EX_free *free_func);
+int CRYPTO_set_ex_data(CRYPTO_EX_DATA *ad, int idx, void *val);
+void *CRYPTO_get_ex_data(CRYPTO_EX_DATA *ad,int idx);
+int CRYPTO_dup_ex_data(STACK_OF(CRYPTO_EX_DATA_FUNCS) *meth, CRYPTO_EX_DATA *to,
+	     CRYPTO_EX_DATA *from);
+void CRYPTO_free_ex_data(STACK_OF(CRYPTO_EX_DATA_FUNCS) *meth, void *obj, CRYPTO_EX_DATA *ad);
+void CRYPTO_new_ex_data(STACK_OF(CRYPTO_EX_DATA_FUNCS) *meth, void *obj, CRYPTO_EX_DATA *ad);
 
-int CRYPTO_mem_ctrl(int mode);
 int CRYPTO_get_new_lockid(char *name);
 
 int CRYPTO_num_locks(void); /* return CRYPTO_NUM_LOCKS (shared libs!) */
@@ -289,22 +298,51 @@ const char *CRYPTO_get_lock_name(int type);
 int CRYPTO_add_lock(int *pointer,int amount,int type, const char *file,
 		    int line);
 
-void CRYPTO_set_mem_functions(char *(*m)(),char *(*r)(), void (*free_func)());
-void CRYPTO_get_mem_functions(char *(**m)(),char *(**r)(), void (**f)());
-void CRYPTO_set_locked_mem_functions(char *(*m)(), void (*free_func)());
-void CRYPTO_get_locked_mem_functions(char *(**m)(), void (**f)());
+/* CRYPTO_set_mem_functions includes CRYPTO_set_locked_mem_functions --
+ * call the latter last if you need different functions */
+int CRYPTO_set_mem_functions(void *(*m)(size_t),void *(*r)(void *,size_t), void (*f)(void *));
+int CRYPTO_set_locked_mem_functions(void *(*m)(size_t), void (*free_func)(void *));
+int CRYPTO_set_mem_debug_functions(void (*m)(),void (*r)(),void (*f)(),void (*so)(),long (*go)());
+void CRYPTO_get_mem_functions(void *(**m)(size_t),void *(**r)(void *, size_t), void (**f)(void *));
+void CRYPTO_get_locked_mem_functions(void *(**m)(size_t), void (**f)(void *));
+void CRYPTO_get_mem_debug_functions(void (**m)(),void (**r)(),void (**f)(),void (**so)(),long (**go)());
 
-void *CRYPTO_malloc_locked(int num);
+void *CRYPTO_malloc_locked(int num, const char *file, int line);
 void CRYPTO_free_locked(void *);
-void *CRYPTO_malloc(int num);
+void *CRYPTO_malloc(int num, const char *file, int line);
 void CRYPTO_free(void *);
-void *CRYPTO_realloc(void *addr,int num);
-void *CRYPTO_remalloc(void *addr,int num);
+void *CRYPTO_realloc(void *addr,int num, const char *file, int line);
+void *CRYPTO_remalloc(void *addr,int num, const char *file, int line);
 
-void *CRYPTO_dbg_malloc(int num,const char *file,int line);
-void *CRYPTO_dbg_realloc(void *addr,int num,const char *file,int line);
-void CRYPTO_dbg_free(void *);
-void *CRYPTO_dbg_remalloc(void *addr,int num,const char *file,int line);
+void CRYPTO_set_mem_debug_options(long bits);
+long CRYPTO_get_mem_debug_options(void);
+
+#define CRYPTO_push_info(info) \
+        CRYPTO_push_info_(info, __FILE__, __LINE__);
+int CRYPTO_push_info_(const char *info, const char *file, int line);
+int CRYPTO_pop_info(void);
+int CRYPTO_remove_all_info(void);
+
+/* The last argument has the following significance:
+ *
+ * 0:	called before the actual memory allocation has taken place
+ * 1:	called after the actual memory allocation has taken place
+ */
+void CRYPTO_dbg_malloc(void *addr,int num,const char *file,int line,int before_p);
+void CRYPTO_dbg_realloc(void *addr1,void *addr2,int num,const char *file,int line,int before_p);
+void CRYPTO_dbg_free(void *addr,int before_p);
+
+/* Tell the debugging code about options.  By default, the following values
+ * apply:
+ *
+ * 0:	Clear all options.
+ * 1:	Set the "Show Time" option.
+ * 2:	Set the "Show Thread Number" option.
+ * 3:	1 + 2
+ */
+void CRYPTO_dbg_set_options(long bits);
+long CRYPTO_dbg_get_options(void);
+
 #ifndef NO_FP_API
 void CRYPTO_mem_leaks_fp(FILE *);
 #endif
@@ -312,7 +350,7 @@ void CRYPTO_mem_leaks(struct bio_st *bio);
 /* unsigned long order, char *file, int line, int num_bytes, char *addr */
 void CRYPTO_mem_leaks_cb(void (*cb)());
 
-void ERR_load_CRYPTO_strings(void );
+void ERR_load_CRYPTO_strings(void);
 
 /* BEGIN ERROR CODES */
 /* The following lines are auto generated by the script mkerr.pl. Any changes

@@ -56,31 +56,38 @@
  * [including the GNU Public Licence.]
  */
 
+#ifndef BN_DEBUG
+# undef NDEBUG /* avoid conflicting definitions */
+# define NDEBUG
+#endif
+
 #include <stdio.h>
+#include <assert.h>
 #include "cryptlib.h"
 #include "bn_lcl.h"
 
-#ifdef BN_LLONG 
+#if defined(BN_LLONG) || defined(BN_UMULT_HIGH)
 
 BN_ULONG bn_mul_add_words(BN_ULONG *rp, BN_ULONG *ap, int num, BN_ULONG w)
 	{
 	BN_ULONG c1=0;
 
-	bn_check_num(num);
+	assert(num >= 0);
 	if (num <= 0) return(c1);
 
-	for (;;)
+	while (num&~3)
 		{
 		mul_add(rp[0],ap[0],w,c1);
-		if (--num == 0) break;
 		mul_add(rp[1],ap[1],w,c1);
-		if (--num == 0) break;
 		mul_add(rp[2],ap[2],w,c1);
-		if (--num == 0) break;
 		mul_add(rp[3],ap[3],w,c1);
-		if (--num == 0) break;
-		ap+=4;
-		rp+=4;
+		ap+=4; rp+=4; num-=4;
+		}
+	if (num)
+		{
+		mul_add(rp[0],ap[0],w,c1); if (--num==0) return c1;
+		mul_add(rp[1],ap[1],w,c1); if (--num==0) return c1;
+		mul_add(rp[2],ap[2],w,c1); return c1;
 		}
 	
 	return(c1);
@@ -90,63 +97,54 @@ BN_ULONG bn_mul_words(BN_ULONG *rp, BN_ULONG *ap, int num, BN_ULONG w)
 	{
 	BN_ULONG c1=0;
 
-	bn_check_num(num);
+	assert(num >= 0);
 	if (num <= 0) return(c1);
 
-	/* for (;;) */
-	while (1) /* circumvent egcs-1.1.2 bug */
+	while (num&~3)
 		{
 		mul(rp[0],ap[0],w,c1);
-		if (--num == 0) break;
 		mul(rp[1],ap[1],w,c1);
-		if (--num == 0) break;
 		mul(rp[2],ap[2],w,c1);
-		if (--num == 0) break;
 		mul(rp[3],ap[3],w,c1);
-		if (--num == 0) break;
-		ap+=4;
-		rp+=4;
+		ap+=4; rp+=4; num-=4;
+		}
+	if (num)
+		{
+		mul(rp[0],ap[0],w,c1); if (--num == 0) return c1;
+		mul(rp[1],ap[1],w,c1); if (--num == 0) return c1;
+		mul(rp[2],ap[2],w,c1);
 		}
 	return(c1);
 	} 
 
 void bn_sqr_words(BN_ULONG *r, BN_ULONG *a, int n)
         {
-	bn_check_num(n);
+	assert(n >= 0);
 	if (n <= 0) return;
-	for (;;)
+	while (n&~3)
 		{
-		BN_ULLONG t;
-
-		t=(BN_ULLONG)(a[0])*(a[0]);
-		r[0]=Lw(t); r[1]=Hw(t);
-		if (--n == 0) break;
-
-		t=(BN_ULLONG)(a[1])*(a[1]);
-		r[2]=Lw(t); r[3]=Hw(t);
-		if (--n == 0) break;
-
-		t=(BN_ULLONG)(a[2])*(a[2]);
-		r[4]=Lw(t); r[5]=Hw(t);
-		if (--n == 0) break;
-
-		t=(BN_ULLONG)(a[3])*(a[3]);
-		r[6]=Lw(t); r[7]=Hw(t);
-		if (--n == 0) break;
-
-		a+=4;
-		r+=8;
+		sqr(r[0],r[1],a[0]);
+		sqr(r[2],r[3],a[1]);
+		sqr(r[4],r[5],a[2]);
+		sqr(r[6],r[7],a[3]);
+		a+=4; r+=8; n-=4;
+		}
+	if (n)
+		{
+		sqr(r[0],r[1],a[0]); if (--n == 0) return;
+		sqr(r[2],r[3],a[1]); if (--n == 0) return;
+		sqr(r[4],r[5],a[2]);
 		}
 	}
 
-#else
+#else /* !(defined(BN_LLONG) || defined(BN_UMULT_HIGH)) */
 
 BN_ULONG bn_mul_add_words(BN_ULONG *rp, BN_ULONG *ap, int num, BN_ULONG w)
 	{
 	BN_ULONG c=0;
 	BN_ULONG bl,bh;
 
-	bn_check_num(num);
+	assert(num >= 0);
 	if (num <= 0) return((BN_ULONG)0);
 
 	bl=LBITS(w);
@@ -173,7 +171,7 @@ BN_ULONG bn_mul_words(BN_ULONG *rp, BN_ULONG *ap, int num, BN_ULONG w)
 	BN_ULONG carry=0;
 	BN_ULONG bl,bh;
 
-	bn_check_num(num);
+	assert(num >= 0);
 	if (num <= 0) return((BN_ULONG)0);
 
 	bl=LBITS(w);
@@ -197,7 +195,7 @@ BN_ULONG bn_mul_words(BN_ULONG *rp, BN_ULONG *ap, int num, BN_ULONG w)
 
 void bn_sqr_words(BN_ULONG *r, BN_ULONG *a, int n)
         {
-	bn_check_num(n);
+	assert(n >= 0);
 	if (n <= 0) return;
 	for (;;)
 		{
@@ -218,7 +216,7 @@ void bn_sqr_words(BN_ULONG *r, BN_ULONG *a, int n)
 		}
 	}
 
-#endif
+#endif /* !(defined(BN_LLONG) || defined(BN_UMULT_HIGH)) */
 
 #if defined(BN_LLONG) && defined(BN_DIV2W)
 
@@ -300,14 +298,14 @@ BN_ULONG bn_div_words(BN_ULONG h, BN_ULONG l, BN_ULONG d)
 	ret|=q;
 	return(ret);
 	}
-#endif
+#endif /* !defined(BN_LLONG) && defined(BN_DIV2W) */
 
 #ifdef BN_LLONG
 BN_ULONG bn_add_words(BN_ULONG *r, BN_ULONG *a, BN_ULONG *b, int n)
         {
 	BN_ULLONG ll=0;
 
-	bn_check_num(n);
+	assert(n >= 0);
 	if (n <= 0) return((BN_ULONG)0);
 
 	for (;;)
@@ -338,12 +336,12 @@ BN_ULONG bn_add_words(BN_ULONG *r, BN_ULONG *a, BN_ULONG *b, int n)
 		}
 	return((BN_ULONG)ll);
 	}
-#else
+#else /* !BN_LLONG */
 BN_ULONG bn_add_words(BN_ULONG *r, BN_ULONG *a, BN_ULONG *b, int n)
         {
 	BN_ULONG c,l,t;
 
-	bn_check_num(n);
+	assert(n >= 0);
 	if (n <= 0) return((BN_ULONG)0);
 
 	c=0;
@@ -387,14 +385,14 @@ BN_ULONG bn_add_words(BN_ULONG *r, BN_ULONG *a, BN_ULONG *b, int n)
 		}
 	return((BN_ULONG)c);
 	}
-#endif
+#endif /* !BN_LLONG */
 
 BN_ULONG bn_sub_words(BN_ULONG *r, BN_ULONG *a, BN_ULONG *b, int n)
         {
 	BN_ULONG t1,t2;
 	int c=0;
 
-	bn_check_num(n);
+	assert(n >= 0);
 	if (n <= 0) return((BN_ULONG)0);
 
 	for (;;)
@@ -433,6 +431,11 @@ BN_ULONG bn_sub_words(BN_ULONG *r, BN_ULONG *a, BN_ULONG *b, int n)
 #undef bn_sqr_comba8
 #undef bn_sqr_comba4
 
+/* mul_add_c(a,b,c0,c1,c2)  -- c+=a*b for three word number c=(c2,c1,c0) */
+/* mul_add_c2(a,b,c0,c1,c2) -- c+=2*a*b for three word number c=(c2,c1,c0) */
+/* sqr_add_c(a,i,c0,c1,c2)  -- c+=a[i]^2 for three word number c=(c2,c1,c0) */
+/* sqr_add_c2(a,i,c0,c1,c2) -- c+=2*a[i]*a[j] for three word number c=(c2,c1,c0) */
+
 #ifdef BN_LLONG
 #define mul_add_c(a,b,c0,c1,c2) \
 	t=(BN_ULLONG)a*b; \
@@ -460,7 +463,39 @@ BN_ULONG bn_sub_words(BN_ULONG *r, BN_ULONG *a, BN_ULONG *b, int n)
 
 #define sqr_add_c2(a,i,j,c0,c1,c2) \
 	mul_add_c2((a)[i],(a)[j],c0,c1,c2)
-#else
+
+#elif defined(BN_UMULT_HIGH)
+
+#define mul_add_c(a,b,c0,c1,c2)	{	\
+	BN_ULONG ta=(a),tb=(b);		\
+	t1 = ta * tb;			\
+	t2 = BN_UMULT_HIGH(ta,tb);	\
+	c0 += t1; t2 += (c0<t1)?1:0;	\
+	c1 += t2; c2 += (c1<t2)?1:0;	\
+	}
+
+#define mul_add_c2(a,b,c0,c1,c2) {	\
+	BN_ULONG ta=(a),tb=(b),t0;	\
+	t1 = BN_UMULT_HIGH(ta,tb);	\
+	t0 = ta * tb;			\
+	t2 = t1+t1; c2 += (t2<t1)?1:0;	\
+	t1 = t0+t0; t2 += (t1<t0)?1:0;	\
+	c0 += t1; t2 += (c0<t1)?1:0;	\
+	c1 += t2; c2 += (c1<t2)?1:0;	\
+	}
+
+#define sqr_add_c(a,i,c0,c1,c2)	{	\
+	BN_ULONG ta=(a)[i];		\
+	t1 = ta * ta;			\
+	t2 = BN_UMULT_HIGH(ta,ta);	\
+	c0 += t1; t2 += (c0<t1)?1:0;	\
+	c1 += t2; c2 += (c1<t2)?1:0;	\
+	}
+
+#define sqr_add_c2(a,i,j,c0,c1,c2)	\
+	mul_add_c2((a)[i],(a)[j],c0,c1,c2)
+
+#else /* !BN_LLONG */
 #define mul_add_c(a,b,c0,c1,c2) \
 	t1=LBITS(a); t2=HBITS(a); \
 	bl=LBITS(b); bh=HBITS(b); \
@@ -487,7 +522,7 @@ BN_ULONG bn_sub_words(BN_ULONG *r, BN_ULONG *a, BN_ULONG *b, int n)
 
 #define sqr_add_c2(a,i,j,c0,c1,c2) \
 	mul_add_c2((a)[i],(a)[j],c0,c1,c2)
-#endif
+#endif /* !BN_LLONG */
 
 void bn_mul_comba8(BN_ULONG *r, BN_ULONG *a, BN_ULONG *b)
 	{
@@ -762,7 +797,7 @@ void bn_sqr_comba4(BN_ULONG *r, BN_ULONG *a)
 	r[6]=c1;
 	r[7]=c2;
 	}
-#else
+#else /* !BN_MUL_COMBA */
 
 /* hmm... is it faster just to do a multiply? */
 #undef bn_sqr_comba4
@@ -799,4 +834,4 @@ void bn_mul_comba8(BN_ULONG *r, BN_ULONG *a, BN_ULONG *b)
 	r[15]=bn_mul_add_words(&(r[7]),a,8,b[7]);
 	}
 
-#endif /* BN_COMBA */
+#endif /* !BN_MUL_COMBA */

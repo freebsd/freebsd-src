@@ -130,9 +130,9 @@ int i2d_X509_CRL_INFO(X509_CRL_INFO *a, unsigned char **pp)
 		}
 	M_ASN1_I2D_put(a->sig_alg,i2d_X509_ALGOR);
 	M_ASN1_I2D_put(a->issuer,i2d_X509_NAME);
-	M_ASN1_I2D_put(a->lastUpdate,i2d_ASN1_UTCTIME);
+	M_ASN1_I2D_put(a->lastUpdate,i2d_ASN1_TIME);
 	if (a->nextUpdate != NULL)
-		{ M_ASN1_I2D_put(a->nextUpdate,i2d_ASN1_UTCTIME); }
+		{ M_ASN1_I2D_put(a->nextUpdate,i2d_ASN1_TIME); }
 	M_ASN1_I2D_put_SEQUENCE_opt_type(X509_REVOKED,a->revoked,
 					 i2d_X509_REVOKED);
 	M_ASN1_I2D_put_EXP_SEQUENCE_opt_type(X509_EXTENSION,a->extensions,
@@ -157,20 +157,16 @@ X509_CRL_INFO *d2i_X509_CRL_INFO(X509_CRL_INFO **a, unsigned char **pp,
 	
 	if ((ver == 0) && (ret->version != NULL))
 		{
-		ASN1_INTEGER_free(ret->version);
+		M_ASN1_INTEGER_free(ret->version);
 		ret->version=NULL;
 		}
 	M_ASN1_D2I_get(ret->sig_alg,d2i_X509_ALGOR);
 	M_ASN1_D2I_get(ret->issuer,d2i_X509_NAME);
 	M_ASN1_D2I_get(ret->lastUpdate,d2i_ASN1_TIME);
 	/* Manually handle the OPTIONAL ASN1_TIME stuff */
-	if(c.slen != 0
-	   && ( (M_ASN1_next & ~V_ASN1_CONSTRUCTED) ==
-		    (V_ASN1_UNIVERSAL|V_ASN1_UTCTIME)
-		|| (M_ASN1_next & ~V_ASN1_CONSTRUCTED) ==
-		    (V_ASN1_UNIVERSAL|V_ASN1_GENERALIZEDTIME) ) ) {
-		M_ASN1_D2I_get(ret->nextUpdate,d2i_ASN1_TIME);
-	}
+	/* First try UTCTime */
+	M_ASN1_D2I_get_opt(ret->nextUpdate,d2i_ASN1_UTCTIME, V_ASN1_UTCTIME);
+	/* If that doesn't work try GeneralizedTime */
 	if(!ret->nextUpdate) 
 		M_ASN1_D2I_get_opt(ret->nextUpdate,d2i_ASN1_GENERALIZEDTIME,
 							V_ASN1_GENERALIZEDTIME);
@@ -190,20 +186,17 @@ X509_CRL_INFO *d2i_X509_CRL_INFO(X509_CRL_INFO **a, unsigned char **pp,
 			}
 		}
 
-	if (ver >= 1)
+	if (ret->extensions != NULL)
 		{
-		if (ret->extensions != NULL)
-			{
-			while (sk_X509_EXTENSION_num(ret->extensions))
-				X509_EXTENSION_free(
-				sk_X509_EXTENSION_pop(ret->extensions));
-			}
-			
-		M_ASN1_D2I_get_EXP_set_opt_type(X509_EXTENSION,ret->extensions,
-						d2i_X509_EXTENSION,
-						X509_EXTENSION_free,0,
-						V_ASN1_SEQUENCE);
+		while (sk_X509_EXTENSION_num(ret->extensions))
+			X509_EXTENSION_free(
+			sk_X509_EXTENSION_pop(ret->extensions));
 		}
+		
+	M_ASN1_D2I_get_EXP_set_opt_type(X509_EXTENSION,ret->extensions,
+					d2i_X509_EXTENSION,
+					X509_EXTENSION_free,0,
+					V_ASN1_SEQUENCE);
 
 	M_ASN1_D2I_Finish(a,X509_CRL_INFO_free,ASN1_F_D2I_X509_CRL_INFO);
 	}
@@ -245,8 +238,8 @@ X509_REVOKED *X509_REVOKED_new(void)
 	ASN1_CTX c;
 
 	M_ASN1_New_Malloc(ret,X509_REVOKED);
-	M_ASN1_New(ret->serialNumber,ASN1_INTEGER_new);
-	M_ASN1_New(ret->revocationDate,ASN1_UTCTIME_new);
+	M_ASN1_New(ret->serialNumber,M_ASN1_INTEGER_new);
+	M_ASN1_New(ret->revocationDate,M_ASN1_UTCTIME_new);
 	ret->extensions=NULL;
 	return(ret);
 	M_ASN1_New_Error(ASN1_F_X509_REVOKED_NEW);
@@ -261,7 +254,7 @@ X509_CRL_INFO *X509_CRL_INFO_new(void)
 	ret->version=NULL;
 	M_ASN1_New(ret->sig_alg,X509_ALGOR_new);
 	M_ASN1_New(ret->issuer,X509_NAME_new);
-	M_ASN1_New(ret->lastUpdate,ASN1_UTCTIME_new);
+	M_ASN1_New(ret->lastUpdate,M_ASN1_UTCTIME_new);
 	ret->nextUpdate=NULL;
 	M_ASN1_New(ret->revoked,sk_X509_REVOKED_new_null);
 	M_ASN1_New(ret->extensions,sk_X509_EXTENSION_new_null);
@@ -279,7 +272,7 @@ X509_CRL *X509_CRL_new(void)
 	ret->references=1;
 	M_ASN1_New(ret->crl,X509_CRL_INFO_new);
 	M_ASN1_New(ret->sig_alg,X509_ALGOR_new);
-	M_ASN1_New(ret->signature,ASN1_BIT_STRING_new);
+	M_ASN1_New(ret->signature,M_ASN1_BIT_STRING_new);
 	return(ret);
 	M_ASN1_New_Error(ASN1_F_X509_CRL_NEW);
 	}
@@ -287,8 +280,8 @@ X509_CRL *X509_CRL_new(void)
 void X509_REVOKED_free(X509_REVOKED *a)
 	{
 	if (a == NULL) return;
-	ASN1_INTEGER_free(a->serialNumber);
-	ASN1_UTCTIME_free(a->revocationDate);
+	M_ASN1_INTEGER_free(a->serialNumber);
+	M_ASN1_UTCTIME_free(a->revocationDate);
 	sk_X509_EXTENSION_pop_free(a->extensions,X509_EXTENSION_free);
 	Free(a);
 	}
@@ -296,12 +289,12 @@ void X509_REVOKED_free(X509_REVOKED *a)
 void X509_CRL_INFO_free(X509_CRL_INFO *a)
 	{
 	if (a == NULL) return;
-	ASN1_INTEGER_free(a->version);
+	M_ASN1_INTEGER_free(a->version);
 	X509_ALGOR_free(a->sig_alg);
 	X509_NAME_free(a->issuer);
-	ASN1_UTCTIME_free(a->lastUpdate);
+	M_ASN1_UTCTIME_free(a->lastUpdate);
 	if (a->nextUpdate)
-		ASN1_UTCTIME_free(a->nextUpdate);
+		M_ASN1_UTCTIME_free(a->nextUpdate);
 	sk_X509_REVOKED_pop_free(a->revoked,X509_REVOKED_free);
 	sk_X509_EXTENSION_pop_free(a->extensions,X509_EXTENSION_free);
 	Free(a);
@@ -328,7 +321,7 @@ void X509_CRL_free(X509_CRL *a)
 
 	X509_CRL_INFO_free(a->crl);
 	X509_ALGOR_free(a->sig_alg);
-	ASN1_BIT_STRING_free(a->signature);
+	M_ASN1_BIT_STRING_free(a->signature);
 	Free(a);
 	}
 

@@ -59,7 +59,7 @@
 /* Code for stacks
  * Author - Eric Young v 1.0
  * 1.2 eay 12-Mar-97 -	Modified sk_find so that it _DOES_ return the
- *			lowest index for the seached item.
+ *			lowest index for the searched item.
  *
  * 1.1 eay - Take from netdb and added to SSLeay
  *
@@ -126,7 +126,7 @@ STACK *sk_new(int (*c)())
 	ret->sorted=0;
 	return(ret);
 err1:
-	Free((char *)ret);
+	Free(ret);
 err0:
 	return(NULL);
 	}
@@ -276,8 +276,8 @@ void sk_pop_free(STACK *st, void (*func)())
 void sk_free(STACK *st)
 	{
 	if (st == NULL) return;
-	if (st->data != NULL) Free((char *)st->data);
-	Free((char *)st);
+	if (st->data != NULL) Free(st->data);
+	Free(st);
 	}
 
 int sk_num(STACK *st)
