@@ -53,7 +53,7 @@ struct ad1816_info {
 	int drq2_rid;
 	void *ih;
 	bus_dma_tag_t parent_dmat;
-	void *lock;
+	struct mtx *lock;
 
 	unsigned int bufsize;
 	struct ad1816_chinfo pch, rch;
@@ -372,7 +372,7 @@ ad1816chan_setformat(kobj_t obj, void *data, u_int32_t format)
     	return format;
 #else
     	return 0;
-#endif    	
+#endif
 }
 
 static int

@@ -55,7 +55,7 @@ struct ac97_info {
 	u_int32_t flags;
 	struct ac97mixtable_entry mix[32];
 	char name[AC97_NAMELEN];
-	void *lock;
+	struct mtx *lock;
 };
 
 struct ac97_codecid {
@@ -207,7 +207,7 @@ ac97_reset(struct ac97_info *codec)
 	wrcd(codec, AC97_REG_RESET, 0);
 	for (i = 0; i < 500; i++) {
 		ps = rdcd(codec, AC97_REG_POWER) & AC97_POWER_STATUS;
-		if (ps == AC97_POWER_STATUS) 
+		if (ps == AC97_POWER_STATUS)
 			return;
 		DELAY(1000);
 	}
@@ -220,10 +220,10 @@ ac97_setrate(struct ac97_info *codec, int which, int rate)
 	u_int16_t v;
 
 	switch(which) {
-	case AC97_REGEXT_FDACRATE: 
+	case AC97_REGEXT_FDACRATE:
 	case AC97_REGEXT_SDACRATE:
 	case AC97_REGEXT_LDACRATE:
-	case AC97_REGEXT_LADCRATE: 
+	case AC97_REGEXT_LADCRATE:
 	case AC97_REGEXT_MADCRATE:
 		break;
 
@@ -250,7 +250,7 @@ ac97_setextmode(struct ac97_info *codec, u_int16_t mode)
 {
 	mode &= AC97_EXTCAPS;
 	if ((mode & ~codec->extcaps) != 0) {
-		device_printf(codec->dev, "ac97 invalid mode set 0x%04x\n", 
+		device_printf(codec->dev, "ac97 invalid mode set 0x%04x\n",
 			      mode);
 		return -1;
 	}
@@ -371,7 +371,7 @@ ac97_getmixer(struct ac97_info *codec, int channel)
 static void
 ac97_fix_auxout(struct ac97_info *codec)
 {
-	/* Determine what AUXOUT really means, it can be: 
+	/* Determine what AUXOUT really means, it can be:
 	 *
 	 * 1. Headphone out.
 	 * 2. 4-Channel Out
@@ -380,7 +380,7 @@ ac97_fix_auxout(struct ac97_info *codec)
 	 * See Sections 5.2.1 and 5.27 for AUX_OUT Options in AC97r2.{2,3}.
 	 */
 	if (codec->caps & AC97_CAP_HEADPHONE) {
-		/* XXX We should probably check the AUX_OUT initial value. 
+		/* XXX We should probably check the AUX_OUT initial value.
 		 * Leave AC97_MIX_AUXOUT - SOUND_MIXER_MONITOR relationship */
 		return;
 	} else if (codec->extcaps & AC97_EXTCAP_SDAC &&
@@ -388,12 +388,12 @@ ac97_fix_auxout(struct ac97_info *codec)
 		/* 4-Channel Out, add an additional gain setting. */
 		codec->mix[SOUND_MIXER_OGAIN] = codec->mix[SOUND_MIXER_MONITOR];
 	} else {
-		/* Master volume is/maybe fixed in h/w, not sufficiently 
+		/* Master volume is/maybe fixed in h/w, not sufficiently
 		 * clear in spec to blat SOUND_MIXER_MASTER. */
 		codec->mix[SOUND_MIXER_OGAIN] = codec->mix[SOUND_MIXER_MONITOR];
 	}
 	/* Blat monitor, inappropriate label if we get here */
-	bzero(&codec->mix[SOUND_MIXER_MONITOR], 
+	bzero(&codec->mix[SOUND_MIXER_MONITOR],
 	      sizeof(codec->mix[SOUND_MIXER_MONITOR]));
 }
 

@@ -110,7 +110,7 @@ struct agg_info {
 	bus_addr_t		baseaddr;
 
 	struct ac97_info	*codec;
-	void			*lock;
+	struct mtx		*lock;
 
 	unsigned int		bufsz;
 	u_int			playchns, active;
