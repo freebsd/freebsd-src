@@ -38,8 +38,6 @@ Please volunteer to do any of the following:
 
 - random nfs rhost:={srv1, srv2, srv3}
 
-- after cutting next release dist, check that all files are there
-
 - nfslx, same as nfsl, but using linkx
 
 - find out why this sometimes works and sometimes not:
@@ -89,3 +87,18 @@ amd.conf file (right now amd.conf overrides cmd-line options).
   obvious way to check if the server supports NQNFS."
 
 - browsable 'auto' style maps.
+
+- amq man page: amq -f also reloads maps that are not updated
+
+- mention signals in amd man page
+
+- ALLOWED_MOUNT_TIME of 40 seconds is way too long!
+- need option to turn off pings of portmapper before trying a mount
+
+- type:=program should not require umount command. can use defult
+  umount(). it works for smbmount/umount.
+
+- document var[0-7] variables/selectors
+
+- need a way to export a nfs-mount point after it is being mounted (jukebox
+  mounts).  can do this with type:=program.

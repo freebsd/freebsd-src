@@ -56,6 +56,7 @@ i486-pc-linux-gnuoldld		ezk       ezk        ezk      ezk
 i586-pc-linux-gnu		ezk       ezk        ezk      ezk
 i586-pc-linux-gnu-rh5.2		ezk       ezk        ezk      ezk
 i586-pc-linux-gnu-rh6.0		ezk       ezk        ezk      ezk
+i586-pc-linux-gnu-rh6.1		ezk       ezk        ezk      ezk
 i586-pc-linux-gnulibc1		ezk       ezk        ezk      ezk
 i586-pc-linux-gnulibc1-rh4.2	ezk       ezk        ezk      ezk
 i686-pc-linux-gnu		ezk       ezk        ezk      ezk
