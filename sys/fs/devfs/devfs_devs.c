@@ -114,6 +114,8 @@ struct devfs_dirent **
 devfs_itode (struct devfs_mount *dm, int inode)
 {
 
+	if (inode < 0)
+		return (NULL);
 	if (inode < NDEVFSINO)
 		return (&dm->dm_dirent[inode]);
 	if (devfs_overflow == NULL)
@@ -127,6 +129,8 @@ struct cdev **
 devfs_itod (int inode)
 {
 
+	if (inode < 0)
+		return (NULL);
 	if (inode < NDEVFSINO)
 		return (&devfs_inot[inode]);
 	if (devfs_overflow == NULL)
@@ -270,10 +274,7 @@ devfs_populate(struct devfs_mount *dm)
 			if (dev == NULL && de != NULL) {
 				dd = de->de_dir;
 				*dep = NULL;
-				TAILQ_REMOVE(&dd->de_dlist, de, de_list);
-				if (de->de_vnode)
-					de->de_vnode->v_data = NULL;
-				FREE(de, M_DEVFS);
+				devfs_delete(dd, de);
 				devfs_dropref(i);
 				continue;
 			}
