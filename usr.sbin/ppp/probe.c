@@ -56,7 +56,7 @@ ipv6_available(void)
 {
   int s;
 
-  if ((s = ID0socket(AF_INET6, SOCK_DGRAM, 0)) == -1)
+  if ((s = ID0socket(PF_INET6, SOCK_DGRAM, 0)) == -1)
     return 0;
 
   close(s);
