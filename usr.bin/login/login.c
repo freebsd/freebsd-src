@@ -101,6 +101,7 @@ u_int	timeout = 300;
 
 #ifdef KERBEROS
 int	notickets = 1;
+int	noticketsdontcomplain = 1;
 char	*instance;
 char	*krbtkfile_env;
 int	authok;
@@ -421,7 +422,7 @@ main(argc, argv)
 			syslog(LOG_NOTICE, "ROOT LOGIN (%s) ON %s", username, tty);
 
 #ifdef KERBEROS
-	if (!quietlog && notickets == 1)
+	if (!quietlog && notickets == 1 && !noticketsdontcomplain)
 		(void)printf("Warning: no Kerberos tickets issued.\n");
 #endif
 
