@@ -1,4 +1,4 @@
-<!-- $Id: firewalls.sgml,v 1.8 1996/08/12 11:48:44 peter Exp $ -->
+<!-- $Id: firewalls.sgml,v 1.9 1996/09/07 00:34:08 adam Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>Firewalls<label id="firewalls"></heading>
@@ -221,7 +221,8 @@ system console if the kernel was compiled with <bf>IPFIREWALL_VERBOSE</bf>.
 <tag/reject/Drop the packet, and send an ICMP host or port
 unreachable (as appropriate) packet to the source.
 
-<tag/allow/Pass the packet on as normal.
+<tag/allow/Pass the packet on as normal. (aliases: <bf>pass</bf> and
+<bf>accept</bf>)
 
 <tag/deny/Drop the packet.  The source is not notified via an ICMP
 message (thus it appears that the packet never arrived at the
