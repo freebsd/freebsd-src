@@ -1,13 +1,16 @@
                           Mirror Sites
                     For FreeBSD 2.0 and later
 
-$Id: MIRROR.SITES,v 1.8 1994/11/29 22:31:03 jkh Exp $
+$Id: MIRROR.SITES,v 1.9 1994/11/29 22:43:15 jkh Exp $
 
 The FreeBSD 2.0 distribution (or later) is being mirrored at the following
 locations:
 
 Country		Site and Maintainer
 =======		=========================================================
+Australia	ftp://ftp.physics.usyd.edu.au/FreeBSD/2.0-RELEASE
+		<dawes@xfree86.org>
+
 Finland		ftp://nic.funet.fi:/pub/unix/FreeBSD/2.0-RELEASE
 		<ftp@nic.funet.fi>
 
