@@ -436,6 +436,10 @@ _sound=		sound
 SUBDIR=${MODULES_OVERRIDE}
 .endif
 
+.for reject in ${WITHOUT_MODULES}
+SUBDIR:= ${SUBDIR:N${reject}}
+.endfor
+
 # Calling kldxref(8) for each module is expensive.
 .if !defined(NO_XREF)
 .MAKEFLAGS+=	-DNO_XREF
