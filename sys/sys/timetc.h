@@ -292,8 +292,10 @@ void	update_timecounter __P((struct timecounter *tc));
 
 __BEGIN_DECLS
 int	adjtime __P((const struct timeval *, struct timeval *));
+int	futimes __P((int, const struct timeval *));
 int	getitimer __P((int, struct itimerval *));
 int	gettimeofday __P((struct timeval *, struct timezone *));
+int	lutimes __P((const char *, const struct timeval *));
 int	setitimer __P((int, const struct itimerval *, struct itimerval *));
 int	settimeofday __P((const struct timeval *, const struct timezone *));
 int	utimes __P((const char *, const struct timeval *));
