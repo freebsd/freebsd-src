@@ -149,12 +149,78 @@ Note that because
 .Xr strlcpy 3
 is not defined in any standards, it should
 only be used when portability is not a concern.
+.Sh SECURITY CONSIDERATIONS
+The
+.Fn strcpy
+function is easily misused in a manner which enables malicious users
+to arbitrarily change a running program's functionality through a
+buffer overflow attack.
+(See
+the FSA.)
+.Pp
+Avoid using
+.Fn strcpy .
+Instead, use
+.Fn strncpy 
+or
+.Fn strlcpy
+and ensure that no more characters are copied to the destination buffer
+than it can hold.
+Don't forget to NUL-terminate the destination buffer,
+as
+.Fn strncpy
+will not terminate the destination string if it is truncated.
+.Pp
+Note that
+.Fn strncpy
+can also be problematic.
+It may be a security concern for a string to be
+truncated at all.
+Since the truncated string will not be as long as the original,
+it may refer to a completely different resource
+and usage of the truncated resource
+could result in very incorrect behavior.
+Example:
+.Pp
+.Bd -literal
+void
+foo(const char *arbitrary_string)
+{
+        char onstack[8];
+
+#if defined(BAD)
+        /*
+         * This first strcpy is bad behavior.  Don't use strcpy()!
+         */
+        (void)strcpy(onstack, arbitrary_string);     /* BAD! */
+#elif defined(BETTER)
+        /*
+         * The following two lines demonstrate better use of
+         * strncpy().
+         */
+        (void)strncpy(onstack, arbitrary_string, sizeof(onstack) - 1);
+        onstack[sizeof(onstack - 1)] = '\\0';
+#elif defined(BEST)
+        /*
+         * These lines are even more robust due to testing for
+         * truncation.
+         */
+        if (strlen(arbitrary_string) + 1 > sizeof(onstack))
+                err(1, "onstack would be truncated");
+        (void)strncpy(onstack, arbitrary_string, sizeof(onstack));
+#endif
+}
+.Ed
 .Sh SEE ALSO
 .Xr bcopy 3 ,
 .Xr memccpy 3 ,
 .Xr memcpy 3 ,
 .Xr memmove 3 ,
 .Xr strlcpy 3
+.Rs
+.%T "The FreeBSD Security Architecture"
+.%J "/usr/share/doc/{to be decided}"
+.Re
 .Sh STANDARDS
 The
 .Fn strcpy
