@@ -1322,6 +1322,13 @@ static const char* vga_match(device_t dev)
 
 	vendor = chip = type = 0;
 	switch (id & 0xffff) {
+	case 0x003d:
+		vendor = "Real 3D";
+		switch (id >> 16) {
+		case 0x00d1:
+			chip = "i740"; break;
+		}
+		break;
 	case 0x10c8:
 		vendor = "NeoMagic";
 		switch (id >> 16) {
@@ -1339,7 +1346,11 @@ static const char* vga_match(device_t dev)
 		vendor = "3Dfx";
 		type = "graphics accelerator";
 		switch (id >> 16) {
-		case 0x0003:
+		case 0x0001:
+			chip = "Voodoo"; break;
+		case 0x0002:
+			chip = "Voodoo 2"; break;
+  		case 0x0003:
 			chip = "Voodoo Banshee"; break;
 		case 0x0005:
 			chip = "Voodoo 3"; break;
@@ -1352,32 +1363,83 @@ static const char* vga_match(device_t dev)
 		case 0x0518:
 			chip = "MGA 2085PX"; break;
 		case 0x0519:
-			chip = "MGA 2064W"; break;
+			chip = "MGA Millennium 2064W"; break;
 		case 0x051a:
 			chip = "MGA 1024SG/1064SG/1164SG"; break;
 		case 0x051b:
-			chip = "MGA 2164W"; break;
+			chip = "MGA Millennium II 2164W"; break;
+		case 0x051f:
+			chip = "MGA Millennium II 2164WA-B AG"; break;
+		case 0x0520:
+			chip = "MGA G200"; break;
+		case 0x0521:
+			chip = "MGA G200 AGP"; break;
+		case 0x0525:
+			chip = "MGA G400 AGP"; break;
+		case 0x0d10:
+			chip = "MGA Impression"; break;
+		case 0x1000:
+			chip = "MGA G100"; break;
+		case 0x1001:
+			chip = "MGA G100 AGP"; break;
+
 		}
 		break;
-
 	case 0x1002:
 		vendor = "ATI";
 		type = "graphics accelerator";
 		switch (id >> 16) {
 		case 0x4158:
 			chip = "Mach32"; break;
-		case 0x4758:
-			chip = "Mach64-GX"; break;
-		case 0x4358:
-			chip = "Mach64-CX"; break;
 		case 0x4354:
 			chip = "Mach64-CT"; break;
+		case 0x4358:
+			chip = "Mach64-CX"; break;
 		case 0x4554:
 			chip = "Mach64-ET"; break;
+		case 0x4654:
 		case 0x5654:
 			chip = "Mach64-VT"; break;
+		case 0x4742:
+			chip = "Mach64-GB"; break;
+		case 0x4744:
+			chip = "Mach64-GD"; break;
+		case 0x4749:
+			chip = "Mach64-GI"; break;
+		case 0x474d:
+			chip = "Mach64-GM"; break;
+		case 0x474e:
+			chip = "Mach64-GN"; break;
+		case 0x474f:
+			chip = "Mach64-GO"; break;
+		case 0x4750:
+			chip = "Mach64-GP"; break;
+		case 0x4751:
+			chip = "Mach64-GQ"; break;
+		case 0x4752:
+			chip = "Mach64-GR"; break;
+		case 0x4753:
+			chip = "Mach64-GS"; break;
 		case 0x4754:
 			chip = "Mach64-GT"; break;
+		case 0x4755:
+			chip = "Mach64-GU"; break;
+		case 0x4756:
+			chip = "Mach64-GV"; break;
+		case 0x4757:
+			chip = "Mach64-GW"; break;
+		case 0x4758:
+			chip = "Mach64-GX"; break;
+		case 0x475a:
+			chip = "Mach64-GZ"; break;
+		case 0x5245:
+			chip = "Rage128-RE"; break;
+		case 0x5246:
+			chip = "Rage128-RF"; break;
+		case 0x524b:
+			chip = "Rage128-RK"; break;
+		case 0x524c:
+			chip = "Rage128-RL"; break;
 		}
 		break;
 	case 0x1005:
@@ -1385,6 +1447,8 @@ static const char* vga_match(device_t dev)
 		switch (id >> 16) {
 		case 0x2301:
 			chip = "ALG2301"; break;
+		case 0x2302:
+			chip = "ALG2302"; break;
 		}
 		break;
 	case 0x100c:
@@ -1397,7 +1461,7 @@ static const char* vga_match(device_t dev)
 		case 0x3207:
 			chip = "ET4000 W32P"; break;
 		case 0x3208:
-			chip = "ET6000"; break;
+			chip = "ET6000/ET6100"; break;
 		case 0x4702:
 			chip = "ET6300"; break;
 		}
@@ -1417,6 +1481,10 @@ static const char* vga_match(device_t dev)
 		switch (id >> 16) {
 		case 0x0038:
 			chip = "GD7548"; break;
+		case 0x0040:
+			chip = "GD7555"; break;
+		case 0x004c:
+			chip = "GD7556"; break;
 		case 0x00a0:
 			chip = "GD5430"; break;
 		case 0x00a4:
@@ -1426,10 +1494,15 @@ static const char* vga_match(device_t dev)
 			chip = "GD5436"; break;
 		case 0x00b8:
 			chip = "GD5446"; break;
+		case 0x00bc:
+			chip = "GD5480"; break;
 		case 0x00d0:
 			chip = "GD5462"; break;
 		case 0x00d4:
+		case 0x00d5:
 			chip = "GD5464"; break;
+		case 0x00d6:
+			chip = "GD5465"; break;
 		case 0x1200:
 			chip = "GD7542"; break;
 		case 0x1202:
@@ -1443,8 +1516,24 @@ static const char* vga_match(device_t dev)
 		break;		/* let default deal with it */
 	case 0x102c:
 		vendor = "Chips & Technologies";
-		if ((id >> 16) == 0x00d8)
-			chip = "65545";
+		switch (id >> 16) {
+		case 0x00b8:
+			chip = "64310"; break;
+		case 0x00d8:
+			chip = "65545"; break;
+		case 0x00dc:
+			chip = "65548"; break;
+		case 0x00c0:
+			chip = "69000"; break;
+		case 0x00e0:
+			chip = "65550"; break;
+		case 0x00e4:
+			chip = "65554"; break;
+		case 0x00e5:
+			chip = "65555"; break;
+		case 0x00f4:
+			chip = "68554"; break;
+                }
 		break;
 	case 0x1033:
 		vendor = "NEC";
@@ -1463,6 +1552,16 @@ static const char* vga_match(device_t dev)
 			chip = "86c202"; break;
 		case 0x0205:
 			chip = "86c205"; break;
+		case 0x0215:
+			chip = "86c215"; break;
+		case 0x0225:
+			chip = "86c225"; break;
+		case 0x0200:
+			chip = "5597/98"; break;
+		case 0x6326:
+			chip = "6326"; break;
+		case 0x6306:
+			chip = "530/620"; break;
 		}
 		break;
 	case 0x105d:
@@ -1470,8 +1569,9 @@ static const char* vga_match(device_t dev)
 		type = "graphics accelerator";
 		switch (id >> 16) {
 		case 0x2309:
-		case 0x2339:
 			chip = "Imagine 128"; break;
+		case 0x2339:
+			chip = "Imagine 128 II"; break;
 		}
 		break;
 	case 0x1142:
@@ -1497,7 +1597,7 @@ static const char* vga_match(device_t dev)
 	case 0x1236:
 		vendor = "Sigma Designs";
 		if ((id >> 16) == 0x6401)
-			chip = "64GX";
+			chip = "REALmagic64/GX";
 		break;
 	case 0x5333:
 		vendor = "S3";
@@ -1508,10 +1608,13 @@ static const char* vga_match(device_t dev)
 		case 0x8812:
 			chip = "Aurora 64"; break;
 		case 0x8814:
+			chip = "Trio 64UV+"; break;
 		case 0x8901:
-			chip = "Trio 64"; break;
+			chip = "Trio 64V2/DX/GX"; break;
 		case 0x8902:
 			chip = "Plato"; break;
+		case 0x8904:
+			chip = "Trio3D"; break;
 		case 0x8880:
 			chip = "868"; break;
 		case 0x88b0:
@@ -1530,6 +1633,19 @@ static const char* vga_match(device_t dev)
 			chip = "ViRGE VX"; break;
 		case 0x8a01:
 			chip = "ViRGE DX/GX"; break;
+		case 0x8a10:
+			chip = "ViRGE GX2"; break;
+		case 0x8a13:
+			chip = "Trio3D/2X"; break;
+		case 0x8a20:
+		case 0x8a21:
+			chip = "Savage3D"; break;
+		case 0x8a22:
+			chip = "Savage 4"; break;
+		case 0x8c01:
+			chip = "ViRGE MX"; break;
+		case 0x8c03:
+			chip = "ViRGE MX+"; break;
 		}
 		break;
 	case 0xedd8:
@@ -1563,18 +1679,49 @@ static const char* vga_match(device_t dev)
 		vendor = "NVidia";
 		type = "graphics accelerator";
 		switch (id >> 16) {
+		case 0x0008:
+			chip = "NV1"; break;
 		case 0x0020:
 			chip = "Riva TNT"; break;	
 		case 0x0028:
 			chip = "Riva TNT2"; break;
+		case 0x0029:
+			chip = "Riva Ultra TNT2"; break;
+		case 0x002c:
+			chip = "Riva Vanta TNT2"; break;
+		case 0x002d:
+			chip = "Riva Ultra Vanta TNT2"; break;
+		case 0x00a0:
+			chip = "Riva Integrated TNT2"; break;
 		}
 		break;
 	case 0x12d2:
-		vendor = "NVidia";
+		vendor = "NVidia/SGS-Thomson";
 		type = "graphics accelerator";
 		switch (id >> 16) {
 		case 0x0018:
 			chip = "Riva128"; break;	
+		}
+		break;
+	case 0x104a:
+		vendor = "SGS-Thomson";
+		switch (id >> 16) {
+		case 0x0008:
+			chip = "STG2000"; break;
+		}
+		break;
+	case 0x8086:
+		vendor = "Intel";
+		if ((id >> 16) == 0x7800)
+			chip = "i740 AGP";
+		break;
+	case 0x10ea:
+		vendor = "Intergraphics";
+		switch (id >> 16) {
+		case 0x1680:
+			chip = "IGA-1680"; break;
+		case 0x1682:
+			chip = "IGA-1682"; break;
 		}
 		break;
 	}
