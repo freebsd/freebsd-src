@@ -82,7 +82,7 @@ extern	void ieee80211_set11gbasicrates(struct ieee80211_rateset *,
 /*
  * Return the size of the 802.11 header for a management or data frame.
  */
-static inline int
+static __inline int
 ieee80211_hdrsize(const void *data)
 {
 	const struct ieee80211_frame *wh = data;
@@ -101,7 +101,7 @@ ieee80211_hdrsize(const void *data)
 /*
  * Return the size of the 802.11 header; handles any type of frame.
  */
-static inline int
+static __inline int
 ieee80211_anyhdrsize(const void *data)
 {
 	const struct ieee80211_frame *wh = data;
