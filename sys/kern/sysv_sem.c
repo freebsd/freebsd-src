@@ -275,7 +275,7 @@ semsys(td, uap)
 	struct thread *td;
 	/* XXX actually varargs. */
 	struct semsys_args /* {
-		u_int	which;
+		int	which;
 		int	a2;
 		int	a3;
 		int	a4;
@@ -286,7 +286,8 @@ semsys(td, uap)
 
 	if (!jail_sysvipc_allowed && jailed(td->td_ucred))
 		return (ENOSYS);
-	if (uap->which >= sizeof(semcalls)/sizeof(semcalls[0]))
+	if (uap->which < 0 ||
+	    uap->which >= sizeof(semcalls)/sizeof(semcalls[0]))
 		return (EINVAL);
 	error = (*semcalls[uap->which])(td, &uap->a2);
 	return (error);

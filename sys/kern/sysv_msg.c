@@ -285,7 +285,7 @@ msgsys(td, uap)
 	struct thread *td;
 	/* XXX actually varargs. */
 	struct msgsys_args /* {
-		u_int	which;
+		int	which;
 		int	a2;
 		int	a3;
 		int	a4;
@@ -297,7 +297,8 @@ msgsys(td, uap)
 
 	if (!jail_sysvipc_allowed && jailed(td->td_ucred))
 		return (ENOSYS);
-	if (uap->which >= sizeof(msgcalls)/sizeof(msgcalls[0]))
+	if (uap->which < 0 ||
+	    uap->which >= sizeof(msgcalls)/sizeof(msgcalls[0]))
 		return (EINVAL);
 	error = (*msgcalls[uap->which])(td, &uap->a2);
 	return (error);
