@@ -155,13 +155,11 @@ static void
 g_mbr_print(int i __unused, struct dos_partition *dp __unused)
 {
 
-#if 0
 	g_hexdump(dp, sizeof(dp[0]));
 	printf("[%d] f:%02x typ:%d", i, dp->dp_flag, dp->dp_typ);
 	printf(" s(CHS):%d/%d/%d", dp->dp_scyl, dp->dp_shd, dp->dp_ssect);
 	printf(" e(CHS):%d/%d/%d", dp->dp_ecyl, dp->dp_ehd, dp->dp_esect);
 	printf(" s:%d l:%d\n", dp->dp_start, dp->dp_size);
-#endif
 }
 
 static struct g_geom *
@@ -235,7 +233,10 @@ g_mbr_taste(struct g_class *mp, struct g_provider *pp, int insist)
 				continue;
 			if (dp[i].dp_size == 0)
 				continue;
-			g_mbr_print(i, dp + i);
+			if (bootverbose) {
+				printf("Slice %d:\n", i + 1);
+				g_mbr_print(i, dp + i);
+			}
 			npart++;
 			ms->type[i] = dp[i].dp_typ;
 			g_topology_lock();

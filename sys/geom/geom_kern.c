@@ -149,8 +149,6 @@ void
 g_init(void)
 {
 	printf("Initializing GEOMetry subsystem\n");
-	if (bootverbose)
-		g_debugflags |= G_T_TOPOLOGY;
 	sx_init(&topology_lock, "GEOM topology");
 	g_io_init();
 	g_event_init();
