@@ -158,7 +158,8 @@ typedef __mpq_struct *mpq_ptr;
 #if defined (__STDC__) || defined (__cplusplus)
 #define __MPN(x) __mpn_##x
 #else
-#define __MPN(x) __mpn_/**/x
+#include <sys/cdefs.h>
+#define __MPN(x) __CONCAT(__mpn_,x)
 #endif
 #endif
 
