@@ -41,6 +41,7 @@
 #include <sys/kernel.h>
 #include <sys/poll.h>
 #include <sys/vnode.h>
+#include <machine/bus.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
