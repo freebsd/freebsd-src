@@ -39,7 +39,7 @@ static volatile int print_tci = 1;
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.78 1998/08/05 18:06:40 bde Exp $
+ * $Id: kern_clock.c,v 1.79 1998/09/15 10:05:18 gibbs Exp $
  */
 
 #include <sys/param.h>
@@ -269,7 +269,7 @@ tvtohz(tv)
 		ticks = LONG_MAX;
 	if (ticks > INT_MAX)
 		ticks = INT_MAX;
-	return (ticks);
+	return ((int)ticks);
 }
 
 /*
