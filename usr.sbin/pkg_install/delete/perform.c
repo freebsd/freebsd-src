@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.9 1996/06/20 18:33:44 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.10 1996/07/30 10:48:16 jkh Exp $";
 #endif
 
 /*
@@ -93,8 +93,12 @@ pkg_do(char *pkg)
 	add_plist(&Plist, PLIST_CWD, Prefix);
     read_plist(&Plist, cfile);
     fclose(cfile);
-    setenv(PKG_PREFIX_VNAME,
-	   (p = find_plist(&Plist, PLIST_CWD)) ? p->name : NULL, 1);
+    p = find_plist(&Plist, PLIST_CWD);
+    if (!p) {
+	whinge("Package '%s' doesn't have a prefix.", pkg);
+	return 1;
+    }
+    setenv(PKG_PREFIX_VNAME, p->name, 1);
     if (fexists(REQUIRE_FNAME)) {
 	if (Verbose)
 	    printf("Executing 'require' script.\n");
