@@ -488,7 +488,6 @@ static int compute_sb_data(devvp, es, fs)
 	    printf("EXT2-fs: unable to read group descriptors (%d)\n", error);
 	    return EIO;
 	}
-	/* Set the B_LOCKED flag on the buffer, then brelse() it */
 	LCK_BUF(fs->s_group_desc[i])
     }
     if(!ext2_check_descriptors(fs)) {
