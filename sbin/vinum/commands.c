@@ -153,21 +153,21 @@ vinum_read(int argc, char *argv[], char *arg0[])
     int i;
 
     reply = (struct _ioctl_reply *) &buffer;
-    if (argc < 1) {					    /* wrong arg count */
-	fprintf(stderr, "usage: read drive [drive ...]\n");
-	return;
-    }
-    strcpy(buffer, "read ");
-    for (i = 0; i < argc; i++) {			    /* each drive name */
-	strcat(buffer, argv[i]);
-	strcat(buffer, " ");
+  buffer [0] = '\0';					    /* make sure we don't pass anything*/
+  if (argc > 0)						    /* args specified, */
+    {
+    for (i = 0; i < argc; i++)				    /* each drive name */
+      {
+      strcat (buffer, argv [i]);
+      strcat (buffer, " ");
+      }
     }
 
     if (ioctl(superdev, VINUM_STARTCONFIG, &force)) {	    /* can't get config? */
 	fprintf(stderr, "Can't configure: %s (%d)\n", strerror(errno), errno);
 	return;
     }
-    ioctl(superdev, VINUM_CREATE, &buffer);
+    ioctl(superdev, VINUM_READCONFIG, &buffer);
     if (reply->error != 0) {				    /* error in config */
 	fprintf(stdout, "** %s: %s\n", reply->msg, strerror(reply->error));
 	error = ioctl(superdev, VINUM_RELEASECONFIG, NULL); /* save the config to disk */
@@ -494,53 +494,10 @@ vinum_start(int argc, char *argv[], char *arg0[])
     struct _ioctl_reply reply;
     struct vinum_ioctl_msg *message = (struct vinum_ioctl_msg *) &reply;
 
-    if (argc == 0) {					    /* start everything */
-	int devs = devstat_getnumdevs(NULL);
-	struct statinfo statinfo;
-	char *namelist;
-	char *enamelist;				    /* end of name list */
-	int i;
-	char **token;					    /* list of tokens */
-	int tokens;					    /* and their number */
-
-	bzero(&statinfo, sizeof(struct statinfo));
-	statinfo.dinfo = malloc(devs * sizeof(struct statinfo));
-	namelist = malloc(devs * (DEVSTAT_NAME_LEN + 8));
-	token = malloc((devs + 1) * sizeof(char *));
-	if ((statinfo.dinfo == NULL) || (namelist == NULL) || (token == NULL)) {
-	    fprintf(stderr, "Can't allocate memory for drive list\n");
-	    return;
-	}
-	bzero(statinfo.dinfo, sizeof(struct devinfo));
-
-	tokens = 0;					    /* no tokens yet */
-	if (devstat_getdevs(NULL, &statinfo) < 0) {	    /* find out what devices we have */
-	    perror("Can't get device list");
-	    return;
-	}
-	namelist[0] = '\0';				    /* start with empty namelist */
-	enamelist = namelist;				    /* point to the end of the list */
-
-	for (i = 0; i < devs; i++) {
-	    struct devstat *stat = &statinfo.dinfo->devices[i];
-
-	    /* Submitted by Pete Carah <pete@ns.altadena.net> */
-	    if ((((stat->device_type & DEVSTAT_TYPE_MASK) == DEVSTAT_TYPE_DIRECT) /* disk device */
-	    ||((stat->device_type & DEVSTAT_TYPE_MASK) == DEVSTAT_TYPE_STORARRAY)) /* storage array */
-	    &&((stat->device_type & DEVSTAT_TYPE_PASS) == 0) /* and not passthrough */
-	    &&((stat->device_name[0] != '\0'))) {	    /* and it has a name */
-		sprintf(enamelist, _PATH_DEV "%s%d", stat->device_name, stat->unit_number);
-		token[tokens] = enamelist;		    /* point to it */
-		tokens++;				    /* one more token */
-		enamelist = &enamelist[strlen(enamelist) + 1]; /* and start beyond the end */
-	    }
-	}
-	free(statinfo.dinfo);				    /* don't need the list any more */
-	vinum_read(tokens, token, &token[0]);		    /* start the system */
-	free(namelist);
-	free(token);
-	list_defective_objects();			    /* and list anything that's down */
-    } else {						    /* start specified objects */
+    if (argc == 0)					    /* start everything */
+	/* XXX how should we do this right? */
+	vinum_read(1, NULL, NULL);			    /* that's what vinum_read does now */
+    else {						    /* start specified objects */
 	int index;
 	enum objecttype type;
 
