@@ -162,3 +162,6 @@ void bswap(int8_t *, int32_t);
 void btrim(int8_t *, int32_t);
 void bpack(int8_t *, int8_t *, int32_t);
 
+void ad_transfer(struct ad_request *);
+int32_t ad_interrupt(struct ad_request *);
+

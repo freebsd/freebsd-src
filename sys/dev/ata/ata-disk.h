@@ -122,7 +122,6 @@ struct ata_params {
 struct ad_softc {  
     struct ata_softc		*controller;	/* ptr to parent ctrl */
     struct ata_params		*ata_parm;	/* ata device params */
-    struct diskslices 		*slices;
     int32_t			unit;		/* ATA_MASTER or ATA_SLAVE */
     int32_t			lun;		/* logical unit number */
     u_int16_t			cylinders;	/* disk geometry (probed) */
@@ -140,6 +139,7 @@ struct ad_softc {
 
     struct buf_queue_head 	queue;		/* head of request queue */
     struct devstat 		stats;		/* devstat entry */
+    struct disk			disk;		/* disklabel/slice stuff */
 };
 
 struct ad_request {
@@ -159,7 +159,3 @@ struct ad_request {
     u_int8_t			tag;		/* tag ID of this request */
     TAILQ_ENTRY(ad_request)	chain;		/* list management */
 };
-
-void ad_transfer(struct ad_request *);
-int32_t ad_interrupt(struct ad_request *);
-
