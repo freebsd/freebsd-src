@@ -980,8 +980,9 @@ pci_probe_nomatch(device_t dev, device_t child)
 			}
 		}
 		device_printf(dev, "<%s%s%s>", 
-		    cp ? : "", ((cp != NULL) && (scp != NULL)) ? ", " : "",
-		    scp ? : "");
+		    cp ? cp : "",
+		    ((cp != NULL) && (scp != NULL)) ? ", " : "",
+		    scp ? scp : "");
 	}
 	printf(" at device %d.%d (no driver attached)\n",
 	    pci_get_slot(child), pci_get_function(child));
