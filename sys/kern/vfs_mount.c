@@ -145,10 +145,24 @@ char		*rootdevnames[2] = {NULL, NULL};
 static int	setrootbyname(char *name);
 dev_t		rootdev = NODEV;
 
-/*
- * Release all resources related to the
- * mount options.
- */
+/* Remove one mount option. */
+static void
+vfs_freeopt(struct vfsoptlist *opts, struct vfsopt *opt)
+{
+
+	TAILQ_REMOVE(opts, opt, link);
+	free(opt->name, M_MOUNT);
+	if (opt->value != NULL)
+		free(opt->value, M_MOUNT);
+#ifdef INVARIANTS
+	else if (opt->len != 0)
+		panic("%s: mount option with NULL value but length != 0",
+		    __func__);
+#endif
+	free(opt, M_MOUNT);
+}
+
+/* Release all resources related to the mount options. */
 static void
 vfs_freeopts(struct vfsoptlist *opts)
 {
@@ -156,12 +170,41 @@ vfs_freeopts(struct vfsoptlist *opts)
 
 	while (!TAILQ_EMPTY(opts)) {
 		opt = TAILQ_FIRST(opts);
-		TAILQ_REMOVE(opts, opt, link);
-		free(opt->name, M_MOUNT);
-		free(opt->value, M_MOUNT);
-		free(opt, M_MOUNT);
+		vfs_freeopt(opts, opt);
 	}
 	free(opts, M_MOUNT);
+}
+
+/*
+ * If a mount option is specified several times,
+ * (with or without the "no" prefix) only keep
+ * the last occurence of it.
+ */
+static void
+vfs_sanitizeopts(struct vfsoptlist *opts)
+{
+	struct vfsopt *opt, *opt2, *tmp;
+	int noopt;
+
+	TAILQ_FOREACH_REVERSE(opt, opts, vfsoptlist, link) {
+		if (strncmp(opt->name, "no", 2) == 0)
+			noopt = 1;
+		else
+			noopt = 0;
+		opt2 = TAILQ_PREV(opt, vfsoptlist, link);
+		while (opt2 != NULL) {
+			if (strcmp(opt2->name, opt->name) == 0 ||
+			    (noopt && strcmp(opt->name + 2, opt2->name) == 0) ||
+			    (!noopt && strncmp(opt2->name, "no", 2) == 0 &&
+			    strcmp(opt2->name + 2, opt->name) == 0)) {
+				tmp = TAILQ_PREV(opt2, vfsoptlist, link);
+				vfs_freeopt(opts, opt2);
+				opt2 = tmp;
+			} else {
+				opt2 = TAILQ_PREV(opt2, vfsoptlist, link);
+			}
+		}
+	}
 }
 
 /*
@@ -183,28 +226,77 @@ vfs_buildopts(struct uio *auio, struct vfsoptlist **options)
 		namelen = auio->uio_iov[i].iov_len;
 		optlen = auio->uio_iov[i + 1].iov_len;
 		opt->name = malloc(namelen, M_MOUNT, M_WAITOK);
-		opt->value = malloc(optlen, M_MOUNT, M_WAITOK);
 		opt->len = optlen;
-		if (auio->uio_segflg == UIO_SYSSPACE) {
-			bcopy(auio->uio_iov[i].iov_base, opt->name, namelen);
-			bcopy(auio->uio_iov[i + 1].iov_base, opt->value,
-			    optlen);
+		if (optlen == 0) {
+			opt->value = NULL;
 		} else {
-			error = copyin(auio->uio_iov[i].iov_base, opt->name,
-			    namelen);
-			if (!error)
+			opt->value = malloc(optlen, M_MOUNT, M_WAITOK);
+			if (auio->uio_segflg == UIO_SYSSPACE) {
+				bcopy(auio->uio_iov[i].iov_base, opt->name,
+				    namelen);
+				bcopy(auio->uio_iov[i + 1].iov_base, opt->value,
+				    optlen);
+			} else {
+				error = copyin(auio->uio_iov[i].iov_base,
+				    opt->name, namelen);
+				if (error)
+					goto bad;
 				error = copyin(auio->uio_iov[i + 1].iov_base,
 				    opt->value, optlen);
-			if (error)
-				goto bad;
+				if (error)
+					goto bad;
+			}
 		}
 		TAILQ_INSERT_TAIL(opts, opt, link);
 	}
+	vfs_sanitizeopts(opts);
 	*options = opts;
 	return (0);
 bad:
 	vfs_freeopts(opts);
 	return (error);
+}
+
+/*
+ * Merge the old mount options with the new ones passed
+ * in the MNT_UPDATE case.
+ */
+static void
+vfs_mergeopts(struct vfsoptlist *toopts, struct vfsoptlist *opts)
+{
+	struct vfsopt *opt, *opt2, *new;
+
+	TAILQ_FOREACH(opt, opts, link) {
+		/*
+		 * Check that this option hasn't been redefined
+		 * nor cancelled with a "no" mount option.
+		 */
+		opt2 = TAILQ_FIRST(toopts);
+		while (opt2 != NULL) {
+			if (strcmp(opt2->name, opt->name) == 0)
+				goto next;
+			if (strncmp(opt2->name, "no", 2) == 0 &&
+			    strcmp(opt2->name + 2, opt->name) == 0) {
+				vfs_freeopt(toopts, opt2);
+				goto next;
+			}
+			opt2 = TAILQ_NEXT(opt2, link);
+		}
+		/* We want this option, duplicate it. */
+		new = malloc(sizeof(struct vfsopt), M_MOUNT, M_WAITOK);
+		new->name = malloc(strlen(opt->name) + 1, M_MOUNT, M_WAITOK);
+		strcpy(new->name, opt->name);
+		if (opt->len != 0) {
+			new->value = malloc(opt->len, M_MOUNT, M_WAITOK);
+			bcopy(opt->value, new->value, opt->len);
+		} else {
+			new->value = NULL;
+		}
+		new->len = opt->len;
+		TAILQ_INSERT_TAIL(toopts, new, link);
+next:
+		continue;
+	}
 }
 
 /*
@@ -457,6 +549,8 @@ vfs_nmount(td, fsflags, fsoptions)
 		mp->mnt_flag |= fsflags &
 		    (MNT_RELOAD | MNT_FORCE | MNT_UPDATE | MNT_SNAPSHOT);
 		VOP_UNLOCK(vp, 0, td);
+		mp->mnt_optnew = optlist;
+		vfs_mergeopts(mp->mnt_optnew, mp->mnt_opt);
 		goto update;
 	}
 	/*
@@ -549,9 +643,9 @@ vfs_nmount(td, fsflags, fsoptions)
 	strncpy(mp->mnt_stat.f_mntonname, fspath, MNAMELEN);
 	mp->mnt_iosize_max = DFLTPHYS;
 	VOP_UNLOCK(vp, 0, td);
+	mp->mnt_optnew = optlist;
 
 update:
-	mp->mnt_optnew = optlist;
 	/*
 	 * Check if the fs implements the new VFS_NMOUNT()
 	 * function, since the new system call was used.
