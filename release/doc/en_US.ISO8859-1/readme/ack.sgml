@@ -13,15 +13,11 @@ This file is the Acknowledgments section of the old RELNOTES.TXT.
 
   <para>&os; represents the cumulative work of many hundreds, if not
   thousands, of individuals from around the world who have worked
-  countless hours to bring about this &release.type;.</para>
-
-  <para>For a complete list of &os; developers and their roles, please see
-  <ulink url="http://www.FreeBSD.org/handbook/staff.html"></ulink> (or
-  the corresponding page on any of the &os; Web site mirrors).
-  This list can also be found at
-  <filename>/usr/share/doc/handbook/staff.html</filename>
-  on machines with &os;'s <filename>doc</filename> distribution
-  installed.</para>
+  countless hours to bring about this &release.type;.
+  For a complete list of &os; developers and contributors, please see 
+  <ulink
+  url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/articles/contributors/">Contributors
+  to FreeBSD</ulink> on the &os; Web site or any of its mirrors.</para>
 
   <para>Special thanks also go to the many thousands of &os; users and
   testers all over the world, without whom this &release.type; simply would
