@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- *	$Id: cons.c,v 1.9 1994/01/23 17:50:11 davidg Exp $
+ *	$Id: cons.c,v 1.10 1994/01/23 19:17:17 davidg Exp $
  */
 
 
@@ -166,7 +166,7 @@ cnwrite(dev, uio, flag)
 {
 	if (cn_tab == NULL)
 		return (0);
-	if (constty)					/* 16 Aug 92*/
+	if (constty)
 		dev = constty->t_dev;
 	else
 		dev = cn_tab->cn_dev;
