@@ -32,28 +32,32 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1983, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)logger.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
-#include <errno.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <stdio.h>
 #include <ctype.h>
+#include <err.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #define	SYSLOG_NAMES
 #include <syslog.h>
 
 int	decode __P((char *, CODE *));
 int	pencode __P((char *));
-void	usage __P((void));
+static void	usage __P((void));
 
 /*
  * logger -- read and log utility
@@ -76,11 +80,8 @@ main(argc, argv)
 	while ((ch = getopt(argc, argv, "f:ip:st:")) != EOF)
 		switch((char)ch) {
 		case 'f':		/* file to log */
-			if (freopen(optarg, "r", stdin) == NULL) {
-				(void)fprintf(stderr, "logger: %s: %s.\n",
-				    optarg, strerror(errno));
-				exit(1);
-			}
+			if (freopen(optarg, "r", stdin) == NULL)
+				err(1, "%s", optarg);
 			break;
 		case 'i':		/* log process id also */
 			logflags |= LOG_PID;
@@ -147,11 +148,8 @@ pencode(s)
 	if (*s) {
 		*s = '\0';
 		fac = decode(save, facilitynames);
-		if (fac < 0) {
-			(void)fprintf(stderr,
-			    "logger: unknown facility name: %s.\n", save);
-			exit(1);
-		}
+		if (fac < 0)
+			errx(1, "unknown facility name: %s", save);
 		*s++ = '.';
 	}
 	else {
@@ -159,11 +157,8 @@ pencode(s)
 		s = save;
 	}
 	lev = decode(s, prioritynames);
-	if (lev < 0) {
-		(void)fprintf(stderr,
-		    "logger: unknown priority name: %s.\n", save);
-		exit(1);
-	}
+	if (lev < 0)
+		errx(1, "unknown priority name: %s", save);
 	return ((lev & LOG_PRIMASK) | (fac & LOG_FACMASK));
 }
 
@@ -184,10 +179,10 @@ decode(name, codetab)
 	return (-1);
 }
 
-void
+static void
 usage()
 {
 	(void)fprintf(stderr,
-	    "logger: [-is] [-f file] [-p pri] [-t tag] [ message ... ]\n");
+	    "usage: logger [-is] [-f file] [-p pri] [-t tag] [message ...]\n");
 	exit(1);
 }
