@@ -1,4 +1,4 @@
-#	$Id: options.i386,v 1.26.2.3 1996/11/12 09:07:35 phk Exp $
+#	$Id: options.i386,v 1.26.2.4 1996/12/14 14:32:30 joerg Exp $
 BOUNCEPAGES		opt_bounce.h
 USER_LDT
 MATH_EMULATE		opt_math_emulate.h
@@ -45,6 +45,15 @@ I686_CPU		opt_cpu.h
 SC_SPLASH_SCREEN	opt_syscons.h
 MAXCONS			opt_syscons.h
 SLOW_VGA		opt_syscons.h
+
+PSM_ACCEL		opt_psm.h
+PSM_EMULATION		opt_psm.h
+PSM_CHECKSYNC		opt_psm.h
+PSM_DEBUG		opt_psm.h
+
+KBD_RESETDELAY		opt_kbdio.h
+KBD_MAXWAIT		opt_kbdio.h
+KBDIO_DEBUG		opt_kbdio.h
 
 ATAPI			opt_atapi.h
 ATAPI_STATIC		opt_atapi.h
