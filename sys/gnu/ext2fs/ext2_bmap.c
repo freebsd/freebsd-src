@@ -111,7 +111,7 @@ ufs_bmaparray(vp, bn, bnp, runp, runb)
 	int *runp;
 	int *runb;
 {
-	register struct inode *ip;
+	struct inode *ip;
 	struct buf *bp;
 	struct ufsmount *ump;
 	struct mount *mp;
