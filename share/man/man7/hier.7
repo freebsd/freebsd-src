@@ -102,10 +102,6 @@ see
 ppp configuration files;
 see 
 .Xr ppp 8
-.It Li skel/
-local example . (dot) files for new accounts;
-see
-.Xr adduser 8
 .It Li uucp/
 uucp configuration files;
 see
@@ -155,7 +151,7 @@ C include files for Internet service protocols
 .It Li g++/
 GNU C++ include files
 .Bl -tag -width "kerberosIV/" -compact
-.It Li std
+.It Li std/
 GNU C++ libstdc++ include files
 .El
 .It Li isofs/
@@ -175,6 +171,10 @@ MS-DOS file system
 misc network C include files
 .It Li netatalk/
 Appletalk protocol
+.It Li netatm/
+ATM include files;
+see
+.Xr atm 8
 .It Li netinet/
 C include files for Internet standard protocols;
 see
@@ -191,6 +191,10 @@ C include files for NFS (Network File System)
 Objective C include files
 .It Li pccard/
 PC-CARD controllers
+.It Li posix4/
+POSIX real-time extensions includes;
+see
+.Xr p1003_1b 9
 .It Li protocols/
 C include files for Berkeley service protocols
 .It Li readline/
@@ -202,9 +206,15 @@ remote procedure calls;
 see
 .Xr rpc 3
 .It Li rpcsvc/
-???
+defintion of RPC service structures; see
+.Xr rpc 3 .
+.It Li security/
+PAM; see
+.Xr pam 8
 .It Li ss/
-libss ???
+MIT SIPB
+.Sq subsystem
+library, part of Kerberos IV.
 .It Li sys/
 system C include files (kernel data structures)
 .\" .It Li tcl/
@@ -222,10 +232,6 @@ C include files for UFS (The U-word File System)
 .Bl -tag -width "kerberosIV/" -compact
 .It Li ffs/
 Fast filesystem
-.It Li lfs/
-log filesystem;
-see
-.Xr mount_lfs 8
 .It Li mfs/
 memory file system;
 see
@@ -244,6 +250,10 @@ archive libraries
 .Bl -tag -width Fl -compact
 .It Li compat/
 shared libraries for compatibility
+.Bl -tag -width Fl -compact
+.It Li aout/
+a.out backward compatibility libraries
+.El
 .El
 .Pp
 .It Li libdata/
@@ -255,6 +265,8 @@ misc. utility data files
 various prebuilt lint libraries;
 see 
 .Xr lint 1
+.It Li msdosfs/
+Chatacter set conversion tables
 .It Li perl/
 .Bl -tag -width Fl -compact
 .It Li 5.00503/
@@ -273,8 +285,12 @@ see
 .It Li libexec/
 system daemons & system utilities (executed by other programs)
 .Bl -tag -width Fl -compact
+.It Li aout/
+utilities to manipulate a.out executables.
+.It Li elf/
+utilities to manipulate ELF executables.
 .It Li lpr/
-???
+utilities and filters for LP print system;
 see
 .Xr lpr 1
 .It Li sm.bin/
@@ -341,7 +357,7 @@ see
 .It Li doc/
 misc documentation;
 src for most of the printed
-.Bx BSD
+.Bx
 manuals (available
 from the
 .Tn USENIX
@@ -404,22 +420,40 @@ see
 templates for make;
 see
 .Xr make 1
-.It Li ms/
-macros for use with the ms macro package
 .It Li nls/
 national language support files;
 see 
 .Xr mklocale 1
+.It Li pcvt/
+pcvt documentation and etc examples;
+see
+.Xr pcvt 4
 .It Li perl/
 perl library files;
 see
 .Xr perl 1
-.It Li sgml/
-SGML tools files;
-see
-.Xr instant 1 
 .It Li skel/
 example . (dot) files for new accounts
+.It Li syscons/
+console staff;
+see
+.Xr syscons 4
+.Bl -tag -width "scrnmaps/xx" -compact
+.It Li fonts/
+console fonts;
+see
+.Xr vidcontrol 1
+and
+.Xr vidfont 1
+.It Li keymaps/
+console keyboard maps;
+see
+.Xr kbdcontrol 1
+and
+.Xr kbdmap 1
+.It Li scrnmaps/
+console screen maps
+.El
 .It Li tabset/
 tab description files for a variety of terminals; used in 
 the termcap file;
@@ -431,6 +465,9 @@ see
 .Xr nroff 1
 and 
 .Xr troff 1
+.It Li vi/
+localization support and utilities for
+.Xr vi 8 .
 .It Li zoneinfo/
 timezone configuration information;
 see
@@ -444,8 +481,8 @@ BSD and/or local source files
 src for files in /bin 
 .It Li contrib/
 src for file from contributed software
-.It Li eBones
-Kerberos and DES
+.It Li crypto
+DES
 .It Li etc/
 src for files in /etc
 .It Li games/
@@ -461,17 +498,19 @@ src for files in /usr/lib
 .It Li libexec/
 src for files in /usr/libexec
 .It Li release/
-Files required to produce a
+files required to produce a
 .Tn FreeBSD 
 release
 .It Li sbin/
 src for files in /sbin
 .It Li secure
-DES Sources
+FreeSec sources
 .It Li share/
 src for files in /usr/share
 .It Li sys/
 kernel src files
+.It Li tools/
+tools used for maintaince and testing of FreeBSD
 .It Li usr.bin/
 src for files in /usr/bin
 .It Li usr.sbin/
@@ -514,25 +553,26 @@ timed command scheduling files;
 see
 .Xr \&at 1
 .Bl -tag -width "preserve/" -compact
-.It Li jobs
+.It Li jobs/
 directory containing job files
-.It Li spool
+.It Li spool/
 directory containing output spool files 
 .El
 .Pp
 .It Li backups/
 misc. backup files
-.It Li crash
-???;
-see
+.It Li crash/
+default drectory to store kernel crash dumps; see
 .Xr crash 8
+and
+.Xr savecore 8 .
 .It Li cron/
 .Bl -tag -width "preserve/" -compact
 .It Li log
 cron log files;
 see
 .Xr cron 8
-.It Li tabs
+.It Li tabs/
 crontab files;
 see
 .Xr crontab 5
@@ -541,9 +581,7 @@ see
 .It Li db/ 
 misc. automatically generated system-specific database files
 .It Li games/ 
-misc. game status and log files
-.It Li games/
-games score files
+misc. game status and score files
 .It Li log/ 
 misc. system log files
 .Pp
@@ -610,7 +648,7 @@ commonly ~uucp; public uucp temporary directory
 .It Li tmp/ 
 temporary files that are kept between system reboots
 .Bl -tag -width Fl -compact
-.It Li vi.recover
+.It Li vi.recover/
 the directory where recovery files are stored
 .El
 .It Li yp
