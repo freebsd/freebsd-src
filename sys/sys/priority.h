@@ -120,7 +120,7 @@
 #define	PRI_MIN_IDLE		(224)
 #define	PRI_MAX_IDLE		(PRI_MAX)
 
-struct	priority {
+struct priority {
 	u_char	pri_class;	/* Scheduling class. */
 	u_char	pri_level;	/* Normal priority level. */
 	u_char	pri_native;	/* Priority before propogation. */

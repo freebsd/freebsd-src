@@ -38,7 +38,7 @@
  * Multiple interrupt handlers for a specific vector can be chained
  * together.
  */
-struct	intrhand {
+struct intrhand {
 	driver_intr_t	*ih_handler;	/* Handler function. */
 	void		*ih_argument;	/* Argument to pass to handler. */
 	int		 ih_flags;
@@ -61,7 +61,7 @@ struct	intrhand {
  * Note that this actually describes an interrupt source.  There may or may
  * not be an actual kernel thread attached to a given source.
  */
-struct	ithd {
+struct ithd {
 	struct	mtx it_lock;
 	struct	proc *it_proc;		/* Interrupt process. */
 	LIST_ENTRY(ithd) it_list;	/* All interrupt threads. */

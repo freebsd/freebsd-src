@@ -41,7 +41,7 @@
 #define	MAX_SLICES		32
 #define	WHOLE_DISK_SLICE	1
 
-struct	diskslice {
+struct diskslice {
 	u_long	ds_offset;		/* starting sector */
 	u_long	ds_size;		/* number of sectors */
 	int	ds_type;		/* (foreign) slice type */

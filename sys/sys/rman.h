@@ -91,7 +91,7 @@ struct u_rman {
  * addresses on IA32 hardware.
  */
 TAILQ_HEAD(resource_head, resource);
-struct	resource {
+struct resource {
 	TAILQ_ENTRY(resource)	r_link;
 	LIST_ENTRY(resource)	r_sharelink;
 	LIST_HEAD(, resource) 	*r_sharehead;
@@ -105,7 +105,7 @@ struct	resource {
 	struct	rman *r_rm;	/* resource manager from whence this came */
 };
 
-struct	rman {
+struct rman {
 	struct	resource_head 	rm_list;
 	struct	mtx *rm_mtx;	/* mutex used to protect rm_list */
 	TAILQ_ENTRY(rman)	rm_link; /* link in list of all rmans */
@@ -123,7 +123,7 @@ int	rman_fini(struct rman *rm);
 int	rman_init(struct rman *rm);
 int	rman_manage_region(struct rman *rm, u_long start, u_long end);
 int	rman_release_resource(struct resource *r);
-struct	resource *rman_reserve_resource(struct rman *rm, u_long start,
+struct resource *rman_reserve_resource(struct rman *rm, u_long start,
 					u_long end, u_long count,
 					u_int flags, struct device *dev);
 uint32_t rman_make_alignment_flags(uint32_t size);

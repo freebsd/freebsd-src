@@ -108,7 +108,7 @@ struct filedesc0 {
  * to the proc or pgrp so that the entire list may be revoked when the
  * process exits or the process group disappears.
  */
-struct	sigio {
+struct sigio {
 	union {
 		struct	proc *siu_proc; /* process to receive SIGIO/SIGURG */
 		struct	pgrp *siu_pgrp; /* process group to receive ... */

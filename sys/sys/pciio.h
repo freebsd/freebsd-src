@@ -60,7 +60,7 @@ struct pcisel {
 	u_int8_t	pc_func;	/* function on this device */
 };
 
-struct	pci_conf {
+struct pci_conf {
 	struct pcisel	pc_sel;		/* bus+slot+function */
 	u_int8_t	pc_hdr;		/* PCI header type */
 	u_int16_t	pc_subvendor;	/* card vendor ID */
@@ -87,7 +87,7 @@ struct pci_match_conf {
 	pci_getconf_flags	flags;		/* Matching expression */
 };
 
-struct	pci_conf_io {
+struct pci_conf_io {
 	u_int32_t		pat_buf_len;	/* pattern buffer length */
 	u_int32_t		num_patterns;	/* number of patterns */
 	struct pci_match_conf	*patterns;	/* pattern buffer */
