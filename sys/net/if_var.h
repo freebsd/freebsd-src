@@ -410,6 +410,13 @@ struct ifmultiaddr {
 		IFA_UNLOCK(ifa);			\
 	} while (0)
 
+extern	struct mtx ifnet_lock;
+#define	IFNET_LOCK_INIT()	mtx_init(&ifnet_lock, "ifnet", NULL, MTX_DEF)
+#define	IFNET_WLOCK()		mtx_lock(&ifnet_lock)
+#define	IFNET_WUNLOCK()		mtx_unlock(&ifnet_lock)
+#define	IFNET_RLOCK()		IFNET_WLOCK()
+#define	IFNET_RUNLOCK()		IFNET_WUNLOCK()
+
 struct ifindex_entry {
 	struct	ifnet *ife_ifnet;
 	struct	ifaddr *ife_ifnet_addr;

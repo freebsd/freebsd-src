@@ -728,11 +728,13 @@ ng_ether_mod_event(module_t mod, int event, void *data)
 		ng_ether_input_orphan_p = ng_ether_input_orphan;
 
 		/* Create nodes for any already-existing Ethernet interfaces */
+		IFNET_RLOCK();
 		TAILQ_FOREACH(ifp, &ifnet, if_link) {
 			if (ifp->if_type == IFT_ETHER
 			    || ifp->if_type == IFT_L2VLAN)
 				ng_ether_attach(ifp);
 		}
+		IFNET_RUNLOCK();
 		break;
 
 	case MOD_UNLOAD:

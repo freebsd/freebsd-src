@@ -564,10 +564,12 @@ ng_gif_mod_event(module_t mod, int event, void *data)
 		ng_gif_input_orphan_p = ng_gif_input_orphan;
 
 		/* Create nodes for any already-existing gif interfaces */
+		IFNET_RLOCK();
 		TAILQ_FOREACH(ifp, &ifnet, if_link) {
 			if (ifp->if_type == IFT_GIF)
 				ng_gif_attach(ifp);
 		}
+		IFNET_RUNLOCK();
 		break;
 
 	case MOD_UNLOAD:

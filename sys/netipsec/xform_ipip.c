@@ -309,6 +309,7 @@ _ipip_input(struct mbuf *m, int iphlen, struct ifnet *gifp)
 	if ((m->m_pkthdr.rcvif == NULL ||
 	    !(m->m_pkthdr.rcvif->if_flags & IFF_LOOPBACK)) &&
 	    ipip_allow != 2) {
+	    	IFNET_RLOCK();
 		for (ifp = ifnet.tqh_first; ifp != 0;
 		     ifp = ifp->if_list.tqe_next) {
 			for (ifa = ifp->if_addrlist.tqh_first; ifa != 0;
@@ -325,6 +326,7 @@ _ipip_input(struct mbuf *m, int iphlen, struct ifnet *gifp)
 					    ipo->ip_src.s_addr)	{
 						ipipstat.ipips_spoof++;
 						m_freem(m);
+						IFNET_RUNLOCK();
 						return;
 					}
 				}
@@ -341,6 +343,7 @@ _ipip_input(struct mbuf *m, int iphlen, struct ifnet *gifp)
 					if (IN6_ARE_ADDR_EQUAL(&sin6->sin6_addr, &ip6->ip6_src)) {
 						ipipstat.ipips_spoof++;
 						m_freem(m);
+						IFNET_RUNLOCK();
 						return;
 					}
 
@@ -348,6 +351,7 @@ _ipip_input(struct mbuf *m, int iphlen, struct ifnet *gifp)
 #endif /* INET6 */
 			}
 		}
+		IFNET_RUNLOCK();
 	}
 
 	/* Statistics */

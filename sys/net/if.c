@@ -102,6 +102,7 @@ int	if_index = 0;
 struct	ifindex_entry *ifindex_table = NULL;
 int	ifqmaxlen = IFQ_MAXLEN;
 struct	ifnethead ifnet;	/* depend on static init XXX */
+struct	mtx ifnet_lock;
 int	if_cloners_count;
 LIST_HEAD(, if_clone) if_cloners = LIST_HEAD_INITIALIZER(if_cloners);
 
@@ -263,6 +264,7 @@ if_init(dummy)
 	void *dummy;
 {
 
+	IFNET_LOCK_INIT();
 	TAILQ_INIT(&ifnet);
 	SLIST_INIT(&ifklist);
 	if_grow();				/* create initial table */
@@ -295,6 +297,7 @@ if_check(dummy)
 	int s;
 
 	s = splimp();
+	IFNET_RLOCK();	/* could sleep on rare error; mostly okay XXX */
 	TAILQ_FOREACH(ifp, &ifnet, if_link) {
 		if (ifp->if_snd.ifq_maxlen == 0) {
 			printf("%s%d XXX: driver didn't set ifq_maxlen\n",
@@ -308,6 +311,7 @@ if_check(dummy)
 			    MTX_NETWORK_LOCK, MTX_DEF);
 		}
 	}
+	IFNET_RUNLOCK();
 	splx(s);
 	if_slowtimo(0);
 }
@@ -376,7 +380,9 @@ if_attach(ifp)
 	register struct sockaddr_dl *sdl;
 	register struct ifaddr *ifa;
 
+	IFNET_WLOCK();
 	TAILQ_INSERT_TAIL(&ifnet, ifp, if_link);
+	IFNET_WUNLOCK();
 	/*
 	 * XXX -
 	 * The old code would work if the interface passed a pre-existing
@@ -537,7 +543,9 @@ if_detach(ifp)
 	mac_destroy_ifnet(ifp);
 #endif /* MAC */
 	KNOTE(&ifp->if_klist, NOTE_EXIT);
+	IFNET_WLOCK();
 	TAILQ_REMOVE(&ifnet, ifp, if_link);
+	IFNET_WUNLOCK();
 	mtx_destroy(&ifp->if_snd.ifq_mtx);
 	splx(s);
 }
@@ -846,6 +854,7 @@ ifa_ifwithaddr(addr)
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
 
+	IFNET_RLOCK();
 	TAILQ_FOREACH(ifp, &ifnet, if_link)
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != addr->sa_family)
@@ -861,6 +870,7 @@ ifa_ifwithaddr(addr)
 		}
 	ifa = NULL;
 done:
+	IFNET_RUNLOCK();
 	return (ifa);
 }
 
@@ -875,6 +885,7 @@ ifa_ifwithdstaddr(addr)
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
 
+	IFNET_RLOCK();
 	TAILQ_FOREACH(ifp, &ifnet, if_link) {
 		if ((ifp->if_flags & IFF_POINTOPOINT) == 0)
 			continue;
@@ -887,6 +898,7 @@ ifa_ifwithdstaddr(addr)
 	}
 	ifa = NULL;
 done:
+	IFNET_RUNLOCK();
 	return (ifa);
 }
 
@@ -918,6 +930,7 @@ ifa_ifwithnet(addr)
 	 * Scan though each interface, looking for ones that have
 	 * addresses in this address family.
 	 */
+	IFNET_RLOCK();
 	TAILQ_FOREACH(ifp, &ifnet, if_link) {
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			register char *cp, *cp2, *cp3;
@@ -980,6 +993,7 @@ next:				continue;
 	}
 	ifa = ifa_maybe;
 done:
+	IFNET_RUNLOCK();
 	return (ifa);
 }
 
@@ -1162,12 +1176,14 @@ if_slowtimo(arg)
 	register struct ifnet *ifp;
 	int s = splimp();
 
+	IFNET_RLOCK();
 	TAILQ_FOREACH(ifp, &ifnet, if_link) {
 		if (ifp->if_timer == 0 || --ifp->if_timer)
 			continue;
 		if (ifp->if_watchdog)
 			(*ifp->if_watchdog)(ifp);
 	}
+	IFNET_RUNLOCK();
 	splx(s);
 	timeout(if_slowtimo, (void *)0, hz / IFNET_SLOWHZ);
 }
@@ -1192,6 +1208,7 @@ ifunit(const char *name)
 	 * Devices should really be known as /dev/fooN, not /dev/net/fooN.
 	 */
 	snprintf(namebuf, IFNAMSIZ, "%s/%s", net_cdevsw.d_name, name);
+	IFNET_RLOCK();
 	TAILQ_FOREACH(ifp, &ifnet, if_link) {
 		dev = ifdev_byindex(ifp->if_index);
 		if (strcmp(devtoname(dev), namebuf) == 0)
@@ -1199,6 +1216,7 @@ ifunit(const char *name)
 		if (dev_named(dev, name))
 			break;
 	}
+	IFNET_RUNLOCK();
 	return (ifp);
 }
 
@@ -1625,6 +1643,7 @@ ifconf(cmd, data)
 	int space = ifc->ifc_len, error = 0;
 
 	ifrp = ifc->ifc_req;
+	IFNET_RLOCK();		/* could sleep XXX */
 	TAILQ_FOREACH(ifp, &ifnet, if_link) {
 		char workbuf[64];
 		int ifnlen, addrs;
@@ -1695,6 +1714,7 @@ ifconf(cmd, data)
 			ifrp++;
 		}
 	}
+	IFNET_RUNLOCK();
 	ifc->ifc_len -= space;
 	return (error);
 }

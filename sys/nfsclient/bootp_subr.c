@@ -401,6 +401,7 @@ bootpboot_p_iflist(void)
 	struct ifaddr *ifa;
 
 	printf("Interface list:\n");
+	IFNET_RLOCK(); /* could sleep, but okay for debugging XXX */
 	for (ifp = TAILQ_FIRST(&ifnet);
 	     ifp != NULL;
 	     ifp = TAILQ_NEXT(ifp, if_link)) {
@@ -410,6 +411,7 @@ bootpboot_p_iflist(void)
 			if (ifa->ifa_addr->sa_family == AF_INET)
 				bootpboot_p_if(ifp, ifa);
 	}
+	IFNET_RUNLOCK();
 }
 #endif /* defined(BOOTP_DEBUG) */
 
@@ -1689,6 +1691,7 @@ bootpc_init(void)
 	       __XSTRING(BOOTP_WIRED_TO));
 #endif
 	bzero(&ifctx->ireq, sizeof(ifctx->ireq));
+	IFNET_RLOCK();
 	for (ifp = TAILQ_FIRST(&ifnet);
 	     ifp != NULL;
 	     ifp = TAILQ_NEXT(ifp, if_link)) {
@@ -1712,6 +1715,7 @@ bootpc_init(void)
 		gctx->lastinterface = ifctx;
 		ifctx = allocifctx(gctx);
 	}
+	IFNET_RUNLOCK();
 	free(ifctx, M_TEMP);
 
 	if (gctx->interfaces == NULL) {
