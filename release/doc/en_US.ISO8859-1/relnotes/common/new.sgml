@@ -169,6 +169,8 @@
     <sect3 id="net-proto">
       <title>Network Protocols</title>
 
+      <para>&man.ipfw.4; rules now support C++-style comment.</para>
+
       <para>To reduce information leakage, IPv4 packets no longer have
 	a <varname>ip_id</varname> field set unless fragmentation is
 	being done.</para>
@@ -226,6 +228,9 @@
     <para>The dev_db utility is unnecessary due to the mandatory
       presence of devfs, and has been removed.</para>
 
+    <para>&man.ipfw.8; <literal>list</literal> and <literal>show</literal>
+      command now support ranges of rule numbers.</para>
+
     <para>The <filename>libcipher</filename> DES cryptography library
       has been removed.  All of its functionality is provided by the
       <filename>libcrypto</filename> library, and all base systems
@@ -247,6 +252,9 @@
 
     <para>&man.ps.1; now supports a <option>-H</option> to display all
       kernel-visible threads in each process.</para>
+
+    <para>A bug that &man.rarpd.8; does not recognize removable Ethernet NICs
+      is fixed.</para>
 
     <para>A number of utilities available in <filename>/bin</filename>
       and <filename>/sbin</filename> are now available as a
@@ -275,6 +283,9 @@
     <para><application>BIND</application> has been updated from 8.3.4
       to 8.3.6.</para>
 
+    <para><application>GCC</application> has been updated from 3.2.2 to
+      3.3.1-prerelease (a 11 July 2003 snapshot).</para>
+
     <para><application>lukemftp</application> has been updated from
       1.6beta2 to a 30 June 2003 snapshot from NetBSD.</para>
 
@@ -290,7 +301,13 @@
   <sect2 id="ports">
     <title>Ports/Packages Collection Infrastructure</title>
 
-    <para></para>
+    <para>If <makevar>GNU_CONFIGURE</makevar> is defined,
+      all instances of config.guess and config.sub found
+      under <filename><makevar>WRKDIR</makevar></filename>
+      are replaced with the master versions from
+      <filename><makevar>PORTSDIR</makevar>/Template</filename>.
+      This allows old ports (which contain old versions
+      of these scripts) to build on newer architectures like ia64 and amd64.</para>
 
   </sect2>
 
