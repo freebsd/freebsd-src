@@ -220,7 +220,7 @@ notify(utp, file, offset, folder)
 		syslog(LOG_AUTH | LOG_NOTICE, "'/' in \"%s\"", tty);
 		return;
 	}
-	if (stat(tty, &stb) || !(stb.st_mode & S_IEXEC)) {
+	if (stat(tty, &stb) || !(stb.st_mode & (S_IXUSR | S_IXGRP))) {
 		dsyslog(LOG_DEBUG, "%s: wrong mode on %s", utp->ut_name, tty);
 		return;
 	}
@@ -237,11 +237,25 @@ notify(utp, file, offset, folder)
 	cr = ((tio.c_oflag & (OPOST|ONLCR)) == (OPOST|ONLCR)) ?  "\n" : "\n\r";
 	(void)strncpy(name, utp->ut_name, sizeof(utp->ut_name));
 	name[sizeof(name) - 1] = '\0';
-	(void)fprintf(tp, "%s\007New mail for %s@%.*s\007 has arrived%s%s%s:%s----%s",
-	    cr, name, (int)sizeof(hostname), hostname,
-	    folder ? cr : "", folder ? "to " : "", folder ? file : "",
-	    cr, cr);
-	jkfprintf(tp, name, file, offset);
+	switch (stb.st_mode & (S_IXUSR | S_IXGRP)) {
+	case S_IXUSR:
+	case (S_IXUSR | S_IXGRP):
+		(void)fprintf(tp, 
+		    "%s\007New mail for %s@%.*s\007 has arrived%s%s%s:%s----%s",
+		    cr, name, (int)sizeof(hostname), hostname,
+		    folder ? cr : "", folder ? "to " : "", folder ? file : "",
+		    cr, cr);
+		jkfprintf(tp, name, file, offset);
+		break;
+	case S_IXGRP:
+		(void)fprintf(tp, "\007");
+		(void)fflush(tp);      
+		(void)sleep(1);
+		(void)fprintf(tp, "\007");
+		break;
+	default:
+		break;
+	}	
 	(void)fclose(tp);
 	_exit(0);
 }
