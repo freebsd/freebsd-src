@@ -149,6 +149,7 @@ struct nfsnode {
 #define	NCHG		0x0400	/* Special file times changed */
 #define	NCREATED	0x0800	/* Opened by nfs_create() */
 #define	NTRUNCATE	0x1000	/* Opened by nfs_setattr() */
+#define	NSIZECHANGED	0x2000  /* File size has changed: need cache inval */
 
 /*
  * Convert between nfsnode pointers and vnode pointers

@@ -601,12 +601,19 @@ nfs_loadattrcache(struct vnode **vpp, struct mbuf **mdp, caddr_t *dposp,
 				vap->va_size = np->n_size;
 				np->n_attrstamp = 0;
 			} else if (np->n_flag & NMODIFIED) {
-				if (vap->va_size < np->n_size)
+				/*
+				 * We've modified the file: Use the larger
+				 * of our size, and the server's size.
+				 */
+				if (vap->va_size < np->n_size) {
 					vap->va_size = np->n_size;
-				else
+				} else {
 					np->n_size = vap->va_size;
+					np->n_flag |= NSIZECHANGED;
+				}
 			} else {
 				np->n_size = vap->va_size;
+				np->n_flag |= NSIZECHANGED;
 			}
 			vnode_pager_setsize(vp, np->n_size);
 		} else {
