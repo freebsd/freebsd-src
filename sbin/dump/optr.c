@@ -58,8 +58,8 @@ static const char rcsid[] =
 #include "dump.h"
 #include "pathnames.h"
 
-void	alarmcatch __P((/* int, int */));
-int	datesort __P((const void *, const void *));
+void	alarmcatch(int);
+int	datesort(const void *, const void *);
 
 /*
  *	Query the operator; This previously-fascist piece of code
@@ -73,11 +73,10 @@ int	datesort __P((const void *, const void *));
  *	that dump needs attention.
  */
 static	int timeout;
-static	char *attnmessage;		/* attention message */
+static	const char *attnmessage;		/* attention message */
 
 int
-query(question)
-	char	*question;
+query(const char *question)
 {
 	char	replybuffer[64];
 	int	back, errcount;
@@ -87,7 +86,7 @@ query(question)
 		quit("fopen on %s fails: %s\n", _PATH_TTY, strerror(errno));
 	attnmessage = question;
 	timeout = 0;
-	alarmcatch();
+	alarmcatch(0);
 	back = -1;
 	errcount = 0;
 	do {
@@ -124,7 +123,7 @@ char lastmsg[BUFSIZ];
  *	sleep for 2 minutes in case nobody comes to satisfy dump
  */
 void
-alarmcatch()
+alarmcatch(int sig __unused)
 {
 	if (notify == 0) {
 		if (timeout == 0)
@@ -150,8 +149,7 @@ alarmcatch()
  *	Here if an inquisitive operator interrupts the dump program
  */
 void
-interrupt(signo)
-	int signo;
+interrupt(int signo __unused)
 {
 	msg("Interrupt received.\n");
 	if (query("Do you want to abort dump?"))
@@ -162,8 +160,7 @@ interrupt(signo)
  *	We now use wall(1) to do the actual broadcasting.
  */
 void
-broadcast(message)
-	char	*message;
+broadcast(const char *message)
 {
 	FILE *fp;
 	char buf[sizeof(_PATH_WALL) + sizeof(OPGRENT) + 3];
@@ -191,7 +188,7 @@ broadcast(message)
 time_t	tschedule = 0;
 
 void
-timeest()
+timeest(void)
 {
 	double percent;
 	time_t	tnow;
@@ -219,20 +216,13 @@ timeest()
  * Schedule a printout of the estimate in the next call to timeest().
  */
 void
-infosch(signal)
-	int signal;
+infosch(int signal __unused)
 {
 	tschedule = 0;
 }
 
 void
-#if __STDC__
 msg(const char *fmt, ...)
-#else
-msg(fmt, va_alist)
-	char *fmt;
-	va_dcl
-#endif
 {
 	va_list ap;
 
@@ -240,11 +230,7 @@ msg(fmt, va_alist)
 #ifdef TDEBUG
 	(void) fprintf(stderr, "pid=%d ", getpid());
 #endif
-#if __STDC__
 	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
 	(void) vfprintf(stderr, fmt, ap);
 	(void) fflush(stdout);
 	(void) fflush(stderr);
@@ -253,32 +239,16 @@ msg(fmt, va_alist)
 }
 
 void
-#if __STDC__
 msgtail(const char *fmt, ...)
-#else
-msgtail(fmt, va_alist)
-	char *fmt;
-	va_dcl
-#endif
 {
 	va_list ap;
-#if __STDC__
 	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
 	(void) vfprintf(stderr, fmt, ap);
 	va_end(ap);
 }
 
 void
-#if __STDC__
 quit(const char *fmt, ...)
-#else
-quit(fmt, va_alist)
-	char *fmt;
-	va_dcl
-#endif
 {
 	va_list ap;
 
@@ -286,11 +256,7 @@ quit(fmt, va_alist)
 #ifdef TDEBUG
 	(void) fprintf(stderr, "pid=%d ", getpid());
 #endif
-#if __STDC__
 	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
 	(void) vfprintf(stderr, fmt, ap);
 	va_end(ap);
 	(void) fflush(stdout);
@@ -304,8 +270,7 @@ quit(fmt, va_alist)
  */
 
 struct fstab *
-allocfsent(fs)
-	struct fstab *fs;
+allocfsent(const struct fstab *fs)
 {
 	struct fstab *new;
 
@@ -328,7 +293,7 @@ struct	pfstab {
 static	SLIST_HEAD(, pfstab) table;
 
 void
-getfstab()
+getfstab(void)
 {
 	struct fstab *fs;
 	struct pfstab *pf;
@@ -359,8 +324,7 @@ getfstab()
  * The file name can omit the leading '/'.
  */
 struct fstab *
-fstabsearch(key)
-	char *key;
+fstabsearch(const char *key)
 {
 	struct pfstab *pf;
 	struct fstab *fs;
@@ -390,8 +354,7 @@ fstabsearch(key)
  *	Tell the operator what to do
  */
 void
-lastdump(arg)
-	char	arg;	/* w ==> just what to do; W ==> most recent dumps */
+lastdump(int arg)	/* w ==> just what to do; W ==> most recent dumps */
 {
 	int i;
 	struct fstab *dt;
@@ -438,8 +401,7 @@ lastdump(arg)
 }
 
 int
-datesort(a1, a2)
-	const void *a1, *a2;
+datesort(const void *a1, const void *a2)
 {
 	struct dumpdates *d1 = *(struct dumpdates **)a1;
 	struct dumpdates *d2 = *(struct dumpdates **)a2;
