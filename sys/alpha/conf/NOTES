@@ -41,7 +41,7 @@ options 	INET			#InterNETworking
 options 	FFS			#Berkeley Fast Filesystem
 options 	FFS_ROOT		#FFS usable as root device [keep this!]
 options 	MFS			#Memory Filesystem
-options 	MFS_ROOT		#Memory Filesystem as rootfs
+options 	MD_ROOT			#MD is a potential root device
 options 	NFS			#Network Filesystem
 options 	NFS_ROOT		#NFS usable as root device
 options 	MSDOSFS			#MSDOS Filesystem
@@ -137,6 +137,7 @@ pseudo-device	sl	1	# Kernel SLIP
 pseudo-device	ppp	1	# Kernel PPP
 pseudo-device	tun		# Packet tunnel.
 pseudo-device	pty		# Pseudo-ttys (telnet etc)
+pseudo-device	md		# Memory "disks"
 
 # The `bpf' pseudo-device enables the Berkeley Packet Filter.
 # Be aware of the administrative consequences of enabling this!
