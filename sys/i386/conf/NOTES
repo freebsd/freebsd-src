@@ -884,6 +884,9 @@ options 	_KPOSIX_VERSION=199309L
 
 options 	HZ=100
 
+# The following options are used for debugging clock behavior only, and
+# should not be used for production systems.
+#
 # CLK_CALIBRATION_LOOP will run the clock calibration loop at startup
 # until the user presses a key.
 
