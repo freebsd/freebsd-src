@@ -3,10 +3,10 @@
                       Frequently Asked Questions
                            For Version 2.0 
 
-Please mail all suggestions and additions to <FreeBSD-FAQ@FreeBSD.ORG>
+Please mail all suggestions and additions to <FAQ@FreeBSD.ORG>
 
 
-Revision: $Id: FreeBSD.FAQ,v 1.11 1994/11/25 19:40:25 gclarkii Exp $
+Revision: $Id: FreeBSD.FAQ,v 1.12 1994/12/05 08:02:14 gclarkii Exp $
 
 All entries are assumed to be relevant to FreeBSD 2.0. 
 Any entries with a <XXX> are under construction.
@@ -607,6 +607,60 @@ may ftp to ftp.gbdata.com and grab them from ~/pub/perl/libs.tar.gz.
 
 6 Kernel Configuration
 ----------------------
+
+6.0:  Ok, so how DO I compile my own kernel, anyway?
+
+Before you can compile a kernel, you need either the complete srcdist
+or, at the minimum, the kerndist loaded on your system.  This provides
+the necessary sources for building the kernel, as we have a policy of
+NOT shipping our kernels in linkable object form as most commercial
+UNIX vendors do.  Shipping the source takes a bit more space, but it also
+means that you can refer to the actual kernel sources in case of difficulty
+or to further your understanding of what's *actually* happening.
+
+Anyway, to answer the question, once you have the kerndist or srcdist
+loaded, do this:
+
+	6.0.1:		cd /usr/src/sys/i386/conf
+	6.0.2:		cp GENERIC MYKERNEL
+	6.0.3:		vi MYKERNEL
+	6.0.4:		config MYKERNEL
+	6.0.5:		cd ../../compile/MYKERNEL
+	6.0.6:		make all
+	6.0.7:		make install
+	6.0.8:		reboot
+
+Step 6.0.2 may not be necessary if you already have a kernel configuration
+file from a previous release of FreeBSD 2.x. - simply bring your old one
+over and check it carefully for any drivers that may have changed boot
+syntax or been rendered obsolete.
+
+A good kernel config file to look into is LINT, which contains entries for
+*all* possible kernel options and documents them fairly well.  The GENERIC
+kernel config file is used to build the initial release you probably loaded
+(unless you upgraded in-place) and contains entries for the most common
+configurations.  It's a pretty good place to start from.
+
+If you don't need to make any changes to GENERIC, you can also skip step
+6.0.3, where you customize the kernel for your configuration.  Step 6.0.7
+should only be undertaken if step 6.0.6 succeeds.  This will copy
+the new kernel image to /kernel and BACK UP YOUR OLD ONE IN /kernel.old!
+It's very important to remember this in case the new kernel fails to work
+for some reason - you can still select /kernel.old at the boot prompt to
+boot the old one.  When you reboot, the new kernel will boot by default.
+
+If the compile in 6.0.6 falls over for some reason, then it's recommended
+that you start from step 6.0.4 but substitute GENERIC for MYKERNEL.  If you
+can generate a GENERIC kernel, then it's likely something in your special
+configuration file that's bad (or you've uncovered a bug!).  If the build
+of the GENERIC kernel does NOT succeed, then it's very likely that your
+sources are somehow corrupted.
+
+Finally, if you need to see your original boot messages again to compile
+a new kernel that's better tailored to your hardware, try the `dmesg' command.
+It should print out all the boot-time messages printed by your old kernel,
+some of which may be quite helpful in configuring the new one.
+
 
 6.1:  When I compile a kernel with multi-port serial code, it tells me
       that only the first port is probed and the rest skipped due to
