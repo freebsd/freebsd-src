@@ -113,6 +113,7 @@ struct fxp_softc {
 	device_t dev;
 	int eeprom_size;		/* size of serial EEPROM */
 	int suspended;			/* 0 = normal  1 = suspended (APM) */
+	int chip;
 	int flags;
 	u_int32_t saved_maps[5];	/* pci data */
 	u_int32_t saved_biosaddr;
@@ -120,6 +121,8 @@ struct fxp_softc {
 	u_int8_t saved_cachelnsz;
 	u_int8_t saved_lattimer;
 };
+
+#define FXP_CHIP_82557		1	/* 82557 chip type */
 
 #define FXP_FLAG_MWI_ENABLE	0x0001	/* MWI enable */
 #define FXP_FLAG_READ_ALIGN	0x0002	/* align read access with cacheline */
