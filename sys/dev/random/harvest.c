@@ -45,6 +45,9 @@
 
 static u_int read_random_phony(void *, u_int);
 
+/* Structure holding the desired entropy sources */
+struct harvest_select harvest = { 0, 0, 0 };
+
 /* hold the address of the routine which is actually called if
  * the randomdev is loaded
  */
