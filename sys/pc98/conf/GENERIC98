@@ -95,6 +95,9 @@ device		amd		# AMD 53C974 (Teckram DC-390(T))
 device		isp		# Qlogic family
 device		ncr		# NCR/Symbios Logic
 device		sym		# NCR/Symbios Logic (newer chipsets)
+options		SYM_SETUP_LP_PROBE_MAP=0x40
+				# Allow ncr to attach legacy NCR devices when 
+				# both sym and ncr are configured
 
 #
 # WD33C93 SCSI card (55/92 like board)
