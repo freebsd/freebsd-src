@@ -93,6 +93,7 @@ after login prompt
 .It "ct	num	10	chat timeout for ac/ic scripts"
 .It "dc	num	0	chat debug bitmask"
 .It "de	num	0	delay secs and flush input before writing first prompt"
+.It "df	str	%+	the" Xr strftime 3 "format used for \&%d in the banner message"
 .It "ds	str" Ta So Li ^Y Sc Ta
 .No "delayed suspend character"
 .It "dx	bool	false	set"
@@ -282,11 +283,11 @@ is running.
 .Pp
 .Bl -tag -offset indent -width \&%xxxxxxxxxxxxxx
 .It \&%d
-The current date and time in the locale's representation as of the
+The current date and time formatted according to the
 .Em \&Lo
-string
-(the \&%+ format of
-.Xr strftime 3 ) .
+and
+.Em \&df
+strings.
 .It \&%h
 The hostname of the machine, which is normally obtained from the
 system using
