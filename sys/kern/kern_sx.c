@@ -322,6 +322,8 @@ void
 _sx_assert(struct sx *sx, int what, const char *file, int line)
 {
 
+	if (panicstr != NULL)
+		return;
 	switch (what) {
 	case SX_LOCKED:
 	case SX_SLOCKED:
@@ -331,7 +333,7 @@ _sx_assert(struct sx *sx, int what, const char *file, int line)
 		mtx_lock(sx->sx_lock);
 		if (sx->sx_cnt <= 0 &&
 		    (what == SX_SLOCKED || sx->sx_xholder != curthread))
-			printf("Lock %s not %slocked @ %s:%d\n",
+			panic("Lock %s not %slocked @ %s:%d\n",
 			    sx->sx_object.lo_name, (what == SX_SLOCKED) ?
 			    "share " : "", file, line);
 		mtx_unlock(sx->sx_lock);
@@ -340,7 +342,7 @@ _sx_assert(struct sx *sx, int what, const char *file, int line)
 	case SX_XLOCKED:
 		mtx_lock(sx->sx_lock);
 		if (sx->sx_xholder != curthread)
-			printf("Lock %s not exclusively locked @ %s:%d\n",
+			panic("Lock %s not exclusively locked @ %s:%d\n",
 			    sx->sx_object.lo_name, file, line);
 		mtx_unlock(sx->sx_lock);
 		break;
@@ -354,7 +356,7 @@ _sx_assert(struct sx *sx, int what, const char *file, int line)
 		 */
 		mtx_lock(sx->sx_lock);
 		if (sx->sx_xholder == curthread)
-			printf("Lock %s locked @ %s:%d\n",
+			panic("Lock %s exclusively locked @ %s:%d\n",
 			    sx->sx_object.lo_name, file, line);
 		mtx_unlock(sx->sx_lock);
 #endif
