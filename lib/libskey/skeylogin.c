@@ -17,6 +17,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <utmp.h>
 
 #include "skey.h"
 #include "pathnames.h"
@@ -123,7 +124,8 @@ const char *name;
 
 	/* Look up user name in database */
 	len = strlen(name);
-	if( len > 8 ) len = 8;		/*  Added 8/2/91  -  nmh */
+	if(len > UT_NAMESIZE)
+		len = UT_NAMESIZE;
 	found = 0;
 	while(!feof(mp->keyfile)){
 		recstart = ftell(mp->keyfile);
