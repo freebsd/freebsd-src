@@ -151,7 +151,7 @@ SYSCTL_INT(_net_graph, OID_AUTO, maxdgram, CTLFLAG_RW,
     &ngpdg_sendspace , 0, "Maximum outgoing Netgraph datagram size");
 static u_long ngpdg_recvspace = 20 * 1024;
 SYSCTL_INT(_net_graph, OID_AUTO, recvspace, CTLFLAG_RW,
-    &ngpdg_recvspace , 0, "Maximum incoming Netgraph datagram size");
+    &ngpdg_recvspace , 0, "Maximum space for incoming Netgraph datagrams");
 
 /* List of all sockets */
 static LIST_HEAD(, ngpcb) ngsocklist;
