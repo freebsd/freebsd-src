@@ -84,7 +84,7 @@
 #include <vm/vm_param.h>
 #include <vm/vm_map.h>
 #if defined(__FreeBSD__)
-#include <vm/vm_zone.h>
+#include <vm/uma.h>
 #endif
 
 #if defined(NetBSD)
@@ -1368,7 +1368,7 @@ loop:
 #endif
 #ifdef __FreeBSD__
 			mtx_destroy(&q->p_mtx);
-			zfree(proc_zone, q);
+			uma_zfree(proc_zone, q);
 #endif
 			nprocs--;
 			return 0;
