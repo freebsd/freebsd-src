@@ -50,6 +50,7 @@
  * These aren't as bad as they look: most of them are soft limits.
  */
 
+#define VINUMROOT
 enum constants {
     VINUM_HEADER = 512,					    /* size of header on disk */
     MAXCONFIGLINE = 1024,				    /* maximum size of a single config line */
@@ -167,7 +168,7 @@ enum constants {
     PLEX_REGION_TABLE_SIZE = 8,				    /* number of entries in plex region tables */
     INITIAL_LOCKS = 64,					    /* number of locks to allocate to a plex */
     MAX_REVIVE_BLOCKSIZE = 65536,			    /* maximum revive block size */
-    DEFAULT_REVIVE_BLOCKSIZE = 16384,			    /* default revive block size */
+    DEFAULT_REVIVE_BLOCKSIZE = 65536,			    /* default revive block size */
     VINUMHOSTNAMELEN = 32,				    /* host name field in label */
 };
 
