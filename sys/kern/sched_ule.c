@@ -1584,7 +1584,8 @@ sched_pctcpu(struct thread *td)
 		 * this causes the cpu usage to decay away too quickly due to
 		 * rounding errors.
 		 */
-		if (ke->ke_ltick < (ticks - (hz / 2)))
+		if (ke->ke_ftick + SCHED_CPU_TICKS < ke->ke_ltick ||
+		    ke->ke_ltick < (ticks - (hz / 2)))
 			sched_pctcpu_update(ke);
 		/* How many rtick per second ? */
 		rtick = min(ke->ke_ticks / SCHED_CPU_TIME, SCHED_CPU_TICKS);
