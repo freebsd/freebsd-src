@@ -85,22 +85,6 @@ parse_option(void)
 	}
 }
 
-static struct apm_eqv_event eqv_event[APM_MAX_EQUIV_EVENTS];
-static int eqv_num = 0;
-
-static apm_eqv_event_t
-get_eqv_event(int id)
-{
-	int	i;
-
-	for (i = 0; i < eqv_num; i++) {
-		if (id == eqv_event[i].aee_event) {
-			return &eqv_event[i];
-		}
-	}
-	return NULL;
-}
-
 static void
 enable_apm(int dh)
 {
