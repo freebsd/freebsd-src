@@ -8,7 +8,7 @@ SHLIB_NAME=	pam_ssh.so
 SRCS=		log-client.c pam_ssh.c
 CFLAGS+=	-Wall -I${SSHSRC}
 DPADD+=		${LIBCRYPTO} ${LIBCRYPT} ${LIBUTIL} ${LIBZ} ${LIBGCC_PIC}
-LDADD+=		-lcrypto -lcrypt -lutil -lz -lgcc_pic
+LDADD+=		-L${.OBJDIR}/../../../../secure/lib/libssh -lssh -lcrypto -lcrypt -lutil -lz -lgcc_pic
 INTERNALLIB=	yes
 INTERNALSTATICLIB=yes
 
