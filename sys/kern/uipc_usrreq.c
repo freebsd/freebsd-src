@@ -171,10 +171,12 @@ uipc_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	struct unpcb *unp = sotounpcb(so);
 	int error;
 
+	KASSERT(td == curthread, ("uipc_connect: td != curthread"));
+
 	if (unp == NULL)
 		return (EINVAL);
 	UNP_LOCK();
-	error = unp_connect(so, nam, curthread);
+	error = unp_connect(so, nam, td);
 	UNP_UNLOCK();
 	return (error);
 }
