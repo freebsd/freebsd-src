@@ -165,7 +165,11 @@ _LIBS+=lib${LIB}_pic.a
 .endif
 
 .if !defined(PICFLAG)
+.if ${MACHINE_ARCH} == "sparc64"
+PICFLAG=-fPIC
+.else
 PICFLAG=-fpic
+.endif
 .endif
 
 .if !defined(NOMAN)
