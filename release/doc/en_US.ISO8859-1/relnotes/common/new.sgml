@@ -319,12 +319,13 @@
     <sect3 id="net-proto">
       <title>Network Protocols</title>
 
-      <para>An <literal>IP_ONESBCAST</literal> option has been added
+      <para>The <literal>IP_ONESBCAST</literal> option has been added
 	to enable undirected &man.ip.4; broadcasts to be sent to
 	specific network interfaces.</para>
 
       <para>A bug in &man.ipfw.4; limit rule processing that could
-        cause various panics has been fixed.</para>
+        cause various panics has been fixed.
+        &merged;</para>
 
       <para>&man.ipfw.4; rules now support comma-separated address lists
         (such as <literal>1.2.3.4, 5.6.7.8/30, 9.10.11.12/22</literal>),
