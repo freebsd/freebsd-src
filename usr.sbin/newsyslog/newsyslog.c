@@ -73,6 +73,7 @@ static const char rcsid[] =
 #define CE_GLOB		0x0040	/* name of the log is file name pattern. */
 #define CE_SIGNALGROUP	0x0080	/* Signal a process-group instead of a single */
 				/*    process when trimming this file. */
+#define CE_CREATE	0x0100	/* Create the log file if it does not exist. */
 
 #define MIN_PID         5	/* Don't touch pids lower than this */
 #define MAX_PID		99999	/* was lower, see /usr/include/sys/proc.h */
@@ -83,6 +84,7 @@ struct conf_entry {
 	char *log;		/* Name of the log */
 	char *pid_file;		/* PID file */
 	char *r_reason;		/* The reason this file is being rotated */
+	int firstcreate;	/* Creating log for the first time (-C). */
 	int rotate;		/* Non-zero if this file should be rotated */
 	uid_t uid;		/* Owner of log */
 	gid_t gid;		/* Group of log */
@@ -100,6 +102,9 @@ struct conf_entry {
 #define DEFAULT_MARKER "<default>"
 
 int archtodir = 0;		/* Archive old logfiles to other directory */
+int createlogs;			/* Create (non-GLOB) logfiles which do not */
+				/*    already exist.  1=='for entries with */
+				/*    C flag', 2=='for all entries'. */
 int verbose = 0;		/* Print out what's going on */
 int needroot = 1;		/* Root privs are necessary */
 int noaction = 0;		/* Don't do anything, just show it */
@@ -143,7 +148,8 @@ static int send_signal(const struct conf_entry *ent);
 static time_t parse8601(char *s, char *errline);
 static void movefile(char *from, char *to, int perm, uid_t owner_uid,
 		gid_t group_gid);
-static void createdir(char *dirpart);
+static void createdir(const struct conf_entry *ent, char *dirpart);
+static void createlog(const struct conf_entry *ent);
 static time_t parseDWM(char *s, char *errline);
 
 /*
@@ -200,6 +206,7 @@ init_entry(const char *fname, struct conf_entry *src_entry)
 		if (src_entry->pid_file)
 			tempwork->pid_file = strdup(src_entry->pid_file);
 		tempwork->r_reason = NULL;
+		tempwork->firstcreate = 0;
 		tempwork->rotate = 0;
 		tempwork->uid = src_entry->uid;
 		tempwork->gid = src_entry->gid;
@@ -215,6 +222,7 @@ init_entry(const char *fname, struct conf_entry *src_entry)
 		/* Initialize as a "do-nothing" entry */
 		tempwork->pid_file = NULL;
 		tempwork->r_reason = NULL;
+		tempwork->firstcreate = 0;
 		tempwork->rotate = 0;
 		tempwork->uid = (uid_t)-1;
 		tempwork->gid = (gid_t)-1;
@@ -295,9 +303,31 @@ do_entry(struct conf_entry * ent)
 	size = sizefile(ent->log);
 	modtime = age_old_log(ent->log);
 	ent->rotate = 0;
+	ent->firstcreate = 0;
 	if (size < 0) {
-		if (verbose)
-			printf("does not exist.\n");
+		/*
+		 * If either the C flag or the -C option was specified,
+		 * and if we won't be creating the file, then have the
+		 * verbose message include a hint as to why the file
+		 * will not be created.
+		 */
+		temp_reason[0] = '\0';
+		if (createlogs > 1)
+			ent->firstcreate = 1;
+		else if ((ent->flags & CE_CREATE) && createlogs)
+			ent->firstcreate = 1;
+		else if (ent->flags & CE_CREATE)
+			strncpy(temp_reason, " (no -C option)", REASON_MAX);
+		else if (createlogs)
+			strncpy(temp_reason, " (no C flag)", REASON_MAX);
+
+		if (ent->firstcreate) {
+			if (verbose)
+				printf("does not exist -> will create.\n");
+			createlog(ent);
+		} else if (verbose) {
+			printf("does not exist, skipped%s.\n", temp_reason);
+		}
 	} else {
 		if (ent->flags & CE_TRIMAT && !force && !rotatereq) {
 			if (timenow < ent->trim_at
@@ -479,7 +509,7 @@ parse_args(int argc, char **argv)
 		*p = '\0';
 
 	/* Parse command line options. */
-	while ((ch = getopt(argc, argv, "a:f:nrsvFR:")) != -1)
+	while ((ch = getopt(argc, argv, "a:f:nrsvCFR:")) != -1)
 		switch (ch) {
 		case 'a':
 			archtodir++;
@@ -499,6 +529,10 @@ parse_args(int argc, char **argv)
 			break;
 		case 'v':
 			verbose++;
+			break;
+		case 'C':
+			/* Useful for things like rc.diskless... */
+			createlogs++;
 			break;
 		case 'F':
 			force++;
@@ -532,7 +566,7 @@ usage(void)
 {
 
 	fprintf(stderr,
-	    "usage: newsyslog [-Fnrsv] [-a directory] [-f config-file]\n"
+	    "usage: newsyslog [-CFnrsv] [-a directory] [-f config-file]\n"
 	    "                 [ [-R requestor] filename ... ]\n");
 	exit(1);
 }
@@ -972,16 +1006,23 @@ parse_file(FILE *cf, const char *cfname, struct conf_entry **work_p,
 			case 'b':
 				working->flags |= CE_BINARY;
 				break;
-			case 'c':	/* Used by NetBSD  for "CE_CREATE" */
+			case 'c':
 				/*
-				 * netbsd uses 'c' for "create".  We will
-				 * temporarily accept it for 'g', because
-				 * earlier freebsd versions had a typo
-				 * of ('G' || 'c')...
+				 * XXX - 	Ick! Ugly! Remove ASAP!
+				 * We want `c' and `C' for "create".  But we
+				 * will temporarily treat `c' as `g', because
+				 * FreeBSD releases <= 4.8 have a typo of
+				 * checking  ('G' || 'c')  for CE_GLOB.
 				 */
-				warnx("Assuming 'g' for 'c' in flags for line:\n%s",
-				    errline);
-				/* FALLTHROUGH */
+				if (*q == 'c') {
+					warnx("Assuming 'g' for 'c' in flags for line:\n%s",
+					    errline);
+					warnx("The 'c' flag will eventually mean 'CREATE'");
+					working->flags |= CE_GLOB;
+					break;
+				}
+				working->flags |= CE_CREATE;
+				break;
 			case 'g':
 				working->flags |= CE_GLOB;
 				break;
@@ -1151,7 +1192,7 @@ dotrim(const struct conf_entry *ent, char *log, int numdays, int flags)
 
 		/* check if archive directory exists, if not, create it */
 		if (lstat(dirpart, &st))
-			createdir(dirpart);
+			createdir(ent, dirpart);
 
 		/* get filename part of logfile */
 		if ((p = rindex(log, '/')) == NULL)
@@ -1254,6 +1295,8 @@ dotrim(const struct conf_entry *ent, char *log, int numdays, int flags)
 	}
 
 	/* Now move the new log file into place */
+	/* XXX - We should replace the above 'rename' with 'link(log, file1)'
+	 *	then replace the following with 'createfile(ent)' */
 	strlcpy(tfile, log, sizeof(tfile));
 	strlcat(tfile, ".XXXXXX", sizeof(tfile));
 	if (noaction) {
@@ -1353,7 +1396,10 @@ log_trim(const char *log, const struct conf_entry *log_ent)
 	xtra = "";
 	if (log_ent->def_cfg)
 		xtra = " using <default> rule";
-	if (log_ent->r_reason != NULL)
+	if (log_ent->firstcreate)
+		fprintf(f, "%s %s newsyslog[%d]: logfile first created%s\n",
+		    daytime, hostname, (int) getpid(), xtra);
+	else if (log_ent->r_reason != NULL)
 		fprintf(f, "%s %s newsyslog[%d]: logfile turned over%s%s\n",
 		    daytime, hostname, (int) getpid(), log_ent->r_reason, xtra);
 	else
@@ -1591,7 +1637,7 @@ movefile(char *from, char *to, int perm, uid_t owner_uid, gid_t group_gid)
 
 /* create one or more directory components of a path */
 static void
-createdir(char *dirpart)
+createdir(const struct conf_entry *ent, char *dirpart)
 {
 	int res;
 	char *s, *d;
@@ -1620,8 +1666,113 @@ createdir(char *dirpart)
 		if (*s == '\0')
 			break;
 	}
-	if (verbose)
-		printf("created directory '%s' for -a\n", dirpart);
+	if (verbose) {
+		if (ent->firstcreate)
+			printf("Created directory '%s' for new %s\n",
+			    dirpart, ent->log);
+		else
+			printf("Created directory '%s' for -a\n", dirpart);
+	}
+}
+
+/*
+ * Create a new log file, destroying any currently-existing version
+ * of the log file in the process.  If the caller wants a backup copy
+ * of the file to exist, they should call 'link(logfile,logbackup)'
+ * before calling this routine.
+ */
+void
+createlog(const struct conf_entry *ent)
+{
+	int fd, failed;
+	struct stat st;
+	char *realfile, *slash, tempfile[MAXPATHLEN];
+
+	fd = -1;
+	realfile = ent->log;
+
+	/*
+	 * If this log file is being created for the first time (-C option),
+	 * then it may also be true that the parent directory does not exist
+	 * yet.  Check, and create that directory if it is missing.
+	 */
+	if (ent->firstcreate) {
+		strlcpy(tempfile, realfile, sizeof(tempfile));
+		slash = strrchr(tempfile, '/');
+		if (slash != NULL) {
+			*slash = '\0';
+			failed = lstat(tempfile, &st);
+			if (failed && errno != ENOENT)
+				err(1, "Error on lstat(%s)", tempfile);
+			if (failed)
+				createdir(ent, tempfile);
+			else if (!S_ISDIR(st.st_mode))
+				errx(1, "%s exists but is not a directory",
+				    tempfile);
+		}
+	}
+
+	/*
+	 * First create an unused filename, so it can be chown'ed and
+	 * chmod'ed before it is moved into the real location.  mkstemp
+	 * will create the file mode=600 & owned by us.  Note that all
+	 * temp files will have a suffix of '.z<something>'.
+	 */
+	strlcpy(tempfile, realfile, sizeof(tempfile));
+	strlcat(tempfile, ".zXXXXXX", sizeof(tempfile));
+	if (noaction)
+		printf("\tmktemp %s\n", tempfile);
+	else {
+		fd = mkstemp(tempfile);
+		if (fd < 0)
+			err(1, "can't mkstemp logfile %s", tempfile);
+
+		/*
+		 * Add status message to what will become the new log file.
+		 */
+		if (!(ent->flags & CE_BINARY)) {
+			if (log_trim(tempfile, ent))
+				err(1, "can't add status message to log");
+		}
+	}
+
+	/* Change the owner/group, if we are supposed to */
+	if (ent->uid != (uid_t)-1 || ent->gid != (gid_t)-1) {
+		if (noaction)
+			printf("\tchown %u:%u %s\n", ent->uid, ent->gid,
+			    tempfile);
+		else {
+			failed = fchown(fd, ent->uid, ent->gid);
+			if (failed)
+				err(1, "can't fchown temp file %s", tempfile);
+			(void) close(fd);
+		}
+	}
+
+	/*
+	 * Note that if the real logfile still exists, and if the call
+	 * to rename() fails, then "neither the old file nor the new
+	 * file shall be changed or created" (to quote the standard).
+	 * If the call succeeds, then the file will be replaced without
+	 * any window where some other process might find that the file
+	 * did not exist.
+	 * XXX - ? It may be that for some error conditions, we could
+	 *	retry by first removing the realfile and then renaming.
+	 */
+	if (noaction) {
+		printf("\tchmod %o %s\n", ent->permissions, tempfile);
+		printf("\tmv %s %s\n", tempfile, realfile);
+	} else {
+		failed = fchmod(fd, ent->permissions);
+		if (failed)
+			err(1, "can't fchmod temp file '%s'", tempfile);
+		failed = rename(tempfile, realfile);
+		if (failed)
+			err(1, "can't mv %s to %s", tempfile, realfile);
+	}
+
+	if (fd >= 0)
+		close(fd);
 }
 
 /*-

@@ -17,7 +17,7 @@
 .\" the suitability of this software for any purpose.  It is
 .\" provided "as is" without express or implied warranty.
 .\"
-.Dd March 08, 2003
+.Dd April 27, 2003
 .Dt NEWSYSLOG 8
 .Os
 .Sh NAME
@@ -25,7 +25,7 @@
 .Nd maintain system log files to manageable sizes
 .Sh SYNOPSIS
 .Nm
-.Op Fl Fnrsv
+.Op Fl CFnrsv
 .Op Fl R Ar tagname
 .Op Fl a Ar directory
 .Op Fl f Ar config_file
@@ -293,6 +293,11 @@ If
 .Sy B
 is specified, then that informational message will not be
 inserted into the log file.
+.It Sy C
+indicates that the log file should be created if it does not
+already exist, and if the
+.Fl C
+option was also specified on the command line.
 .It Sy G
 indicates that the specified
 .Ar logfile_name
@@ -429,6 +434,20 @@ However, this option is most likely to be useful when specified
 with the
 .Fl R
 option, and in that case the compression will be done.
+.It Fl C
+If specified once, then
+.Nm
+will create any log files which do not exist, and which have the
+.Sy C
+flag specified in their config file entry.
+If specified multiple times, then
+.Nm
+will create all log files which do not already exist.
+If log files are given on the command-line, then the
+.Fl C
+or
+.Fl CC
+will only apply to those specific log files.
 .It Fl F
 Force
 .Nm
