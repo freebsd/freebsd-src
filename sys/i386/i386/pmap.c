@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.198 1998/05/17 17:43:13 tegge Exp $
+ *	$Id: pmap.c,v 1.199 1998/05/17 18:53:14 tegge Exp $
  */
 
 /*
@@ -983,11 +983,8 @@ pmap_new_proc(p)
 		/*
 		 * Get a kernel stack page
 		 */
-		m = vm_page_grab(upobj, i, VM_ALLOC_ZERO | VM_ALLOC_RETRY);
+		m = vm_page_grab(upobj, i, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
 
-		if ((m->flags & PG_ZERO) == 0)
-			vm_page_zero_fill(m);
-		
 		/*
 		 * Wire the page
 		 */
