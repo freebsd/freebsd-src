@@ -94,14 +94,6 @@ dlsym(void *handle, const char *name)
 	return NULL;
 }
 
-#pragma weak dlversion
-int
-dlversion(void)
-{
-	_rtld_error(sorry);
-	return 0;
-}
-
 #else /* a.out format */
 
 #include <sys/types.h>
@@ -171,13 +163,6 @@ dlsym(void *handle, const char *name)
 		return (__ldso_entry->dlsym3)(handle, name, retaddr);
 	} else
 		return (__ldso_entry->dlsym)(handle, name);
-}
-
-/* We don't support dlversion() on a.out systems. */
-int
-dlversion(void)
-{
-	return 0;
 }
 
 #endif /* __ELF__ */

@@ -34,7 +34,7 @@
 .Os FreeBSD
 .Dt DLOPEN 3
 .Sh NAME
-.Nm dlopen, dlsym, dlerror, dlclose, dlversion
+.Nm dlopen, dlsym, dlerror, dlclose
 .Nd programmatic interface to the dynamic linker
 .Sh SYNOPSIS
 .Fd #include <dlfcn.h>
@@ -46,8 +46,6 @@
 .Fn dlerror "void"
 .Ft int
 .Fn dlclose "void *handle"
-.Ft int
-.Fn dlversion "void"
 .Sh DESCRIPTION
 These functions provide a simple programmatic interface to the services of the
 dynamic linker.
@@ -221,19 +219,6 @@ The object-intrinsic functions
 and
 .Fn _fini
 are called with no arguments, and are not expected to return values.
-.Pp
-.Fn dlversion
-returns the version number of the dynamic linker.  Interpreted
-as a decimal number, the version number has the form
-.Em rrrsss .
-.Em rrr
-corresponds to the base operating system release version, e.g., 400
-for release 4.0.0.
-.Em sss
-is a serial number that increases monotonically within each release
-version.  If the installed dynamic linker is too old to support
-.Fn dlversion ,
-0 is returned.
 .Sh NOTES
 ELF executables need to be linked
 using the
@@ -249,8 +234,6 @@ and
 return the null pointer in the event of errors.
 .Fn dlclose
 returns 0 on success, or -1 if an error occurred.
-.Fn dlversion
-returns 0 if the dynamic linker is too old to support it.
 Whenever an error has been detected, a message detailing it can be
 retrieved via a call to
 .Fn dlerror .
