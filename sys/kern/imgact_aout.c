@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: imgact_aout.c,v 1.48 1999/03/10 07:07:42 alc Exp $
+ *	$Id: imgact_aout.c,v 1.49 1999/04/03 22:20:01 jdp Exp $
  */
 
 #include <sys/param.h>
@@ -309,8 +309,6 @@ out:
 
 /*
  * Tell kern_execve.c about it, with a little help from the linker.
- * Since `const' objects end up in the text segment, TEXT_SET is the
- * correct directive to use.
  */
 static struct execsw aout_execsw = { exec_aout_imgact, "a.out" };
 EXEC_SET(aout, aout_execsw);

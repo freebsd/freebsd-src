@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: imgact_gzip.c,v 1.35 1998/10/16 03:55:00 peter Exp $
+ * $Id: imgact_gzip.c,v 1.36 1999/01/29 22:59:43 dillon Exp $
  *
  * This module handles execution of a.out files which have been run through
  * "gzip".  This saves diskspace, but wastes cpu-cycles and VM.
@@ -370,9 +370,6 @@ Flush(void *vp, u_char * ptr, u_long siz)
 
 /*
  * Tell kern_execve.c about it, with a little help from the linker.
- * Since `const' objects end up in the text segment, TEXT_SET is the
- * correct directive to use.
  */
-
 static struct execsw gzip_execsw = {exec_gzip_imgact, "gzip"};
 EXEC_SET(execgzip, gzip_execsw);
