@@ -142,7 +142,7 @@ ${mfile:T:S/.m$/.h/}: ${mfile}
 .endfor
 
 clean:
-	rm -f *.o *.so *.So *.ko *.s eddep errs genassym \
+	rm -f *.o *.so *.So *.ko *.s eddep errs \
 	      ${FULLKERNEL} ${KERNEL} linterrs makelinks param.c \
 	      setdef[01].c setdefs.h tags \
 	      vers.c vnode_if.c vnode_if.h \
@@ -183,8 +183,8 @@ setdef0.c setdef1.c setdefs.h: ${OBJS} param.o
 # this rule stops ./assym.s in .depend from causing problems
 ./assym.s: assym.s
 
-assym.s: genassym.o
-	genassym genassym.o >assym.s
+assym.s: $S/kern/genassym.sh genassym.o
+	sh $S/kern/genassym.sh genassym.o > ${.TARGET}
 
 genassym.o: $S/$M/$M/genassym.c
 	rm -f ./machine ; ln -s $S/$M/include ./machine

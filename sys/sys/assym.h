@@ -31,17 +31,13 @@
 #ifndef _SYS_ASSYM_H_
 #define	_SYS_ASSYM_H_
 
-#ifndef offsetof
-#define	offsetof(t, m)		(&((t *)0)->m)
-#endif
+#define	ASSYM_ABS(value)	((value) < 0 ? -((value) + 1) + 1ULL : (value))
 
-#ifndef __assym
-#define	__assym(sym, v)		unsigned long sym = (unsigned long)v
-#endif
-
-#define	ASSYM(sym, v)		__assym(assym_##sym, v)
-
-#define	ASSYM_SELF(sym)		ASSYM(sym, sym)
-#define ASSYM_OFFSET(sym, s, m)	ASSYM(sym, offsetof(s, m))
+#define	ASSYM(name, value)					\
+char name ## sign[(value) < 0 ? 1 : 0];				\
+char name ## w0[ASSYM_ABS(value) & 0xFFFFU];			\
+char name ## w1[(ASSYM_ABS(value) & 0xFFFF0000UL) >> 16];	\
+char name ## w2[(ASSYM_ABS(value) & 0xFFFF00000000ULL) >> 32];	\
+char name ## w3[(ASSYM_ABS(value) & 0xFFFF000000000000ULL) >> 48]
 
 #endif /* !_SYS_ASSYM_H_ */
