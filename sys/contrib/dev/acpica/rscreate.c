@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: rscreate - Create resource lists/tables
- *              $Revision: 64 $
+ *              $Revision: 65 $
  *
  ******************************************************************************/
 
@@ -420,7 +420,7 @@ AcpiRsCreatePciRoutingTable (
 
         /* Now align the current length */
 
-        UserPrt->Length = ACPI_ROUND_UP_TO_64BITS (UserPrt->Length);
+        UserPrt->Length = (UINT32) ACPI_ROUND_UP_TO_64BITS (UserPrt->Length);
 
         /*
          * 4) Fourth subobject: Dereference the PRT.SourceIndex
