@@ -8,29 +8,29 @@ SRCS=	rc_parse.y rc_scan.l main.c rc_config.c log.c curses.c	\
 	y.tab.h holiday.c
 
 # compile debug support
-COPTS+=	-DDEBUG
+CFLAGS+= -DDEBUG
 
 # avoid wacky merging of string constants from
 # source code with compile-time timestamp
-COPTS+= -fno-merge-constants
+CFLAGS+= -fno-merge-constants
 
 # enable rtprio usage
-COPTS+=	-DUSE_RTPRIO
+CFLAGS+= -DUSE_RTPRIO
 
-COPTS+= -I. -I${.CURDIR}/../isdnmonitor -I${.CURDIR}/../isdntel -I${.CURDIR}
+CFLAGS+= -I. -I${.CURDIR}/../isdnmonitor -I${.CURDIR}/../isdntel -I${.CURDIR}
 
 .include "${.CURDIR}/../Makefile.inc"
 
 .if !defined(I4B_WITHOUT_CURSES)
-COPTS+=	-DUSE_CURSES
+CFLAGS+= -DUSE_CURSES
 DPADD=	${LIBCURSES}
 LDADD=	-lcurses
 .endif
 
 .if defined(I4B_EXTERNAL_MONITOR)
-COPTS+=	-DI4B_EXTERNAL_MONITOR
+CFLAGS+= -DI4B_EXTERNAL_MONITOR
 .if defined(I4B_NOTCPIP_MONITOR)
-COPTS+=	-DI4B_NOTCPIP_MONITOR
+CFLAGS+= -DI4B_NOTCPIP_MONITOR
 .endif
 .endif
 
