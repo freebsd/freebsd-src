@@ -74,6 +74,7 @@
 #ifdef INET6
 #include <netinet6/ah6.h>
 #endif
+#include <netinet6/ah_aesxcbcmac.h>
 #ifdef IPSEC_ESP
 #include <netinet6/esp.h>
 #ifdef INET6
@@ -188,6 +189,10 @@ ah_algorithm_lookup(idx)
 			"hmac-ripemd160",
 			ah_hmac_ripemd160_init, ah_hmac_ripemd160_loop,
 			ah_hmac_ripemd160_result, },
+		{ ah_sumsiz_1216, ah_common_mature, 128, 128,
+			"aes-xcbc-mac",
+			ah_aes_xcbc_mac_init, ah_aes_xcbc_mac_loop,
+			ah_aes_xcbc_mac_result, },
 	};
 
 	switch (idx) {
@@ -209,6 +214,8 @@ ah_algorithm_lookup(idx)
 		return &ah_algorithms[7];
 	case SADB_X_AALG_RIPEMD160HMAC:
 		return &ah_algorithms[8];
+	case SADB_X_AALG_AES_XCBC_MAC:
+		return &ah_algorithms[9];
 	default:
 		return NULL;
 	}
