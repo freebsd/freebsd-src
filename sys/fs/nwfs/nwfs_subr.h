@@ -40,6 +40,18 @@ extern int nwfs_debuglevel;
 MALLOC_DECLARE(M_NWFSDATA);
 #endif
 
+struct ncp_conn;
+struct ncp_nlstables;
+struct ncp_open_info;
+struct nw_entry_info;
+struct nw_search_info;
+struct nwmount;
+struct proc;
+struct timespec;
+struct ucred;
+struct vattr;
+struct vnode;
+
 int  ncp_initsearch(struct vnode *dvp,struct proc *p,struct ucred *cred);
 int  ncp_search_for_file_or_subdir(struct nwmount *nmp,struct nw_search_seq *seq,
 		struct nw_entry_info *target,
