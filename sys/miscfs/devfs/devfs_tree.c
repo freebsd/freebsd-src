@@ -2,7 +2,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.32.2.1 1996/11/23 08:32:08 phk Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.32.2.2 1997/08/27 01:32:26 julian Exp $
  */
 
 #include "opt_devfs.h"
@@ -60,6 +60,7 @@ devfs_sinit(void *junk)
 	dev_root->dnp->dvm = (struct devfsmount *)devfs_hidden_mount->mnt_data;
 	devfs_up_and_going = 1;
 	printf("DEVFS: ready for devices\n");
+	/* part 2 of this is done later */
 }
 SYSINIT(devfs, SI_SUB_DEVFS, SI_ORDER_FIRST, devfs_sinit, NULL)
 
@@ -334,16 +335,18 @@ dev_add_name(char *name, dn_p dirnode, devnm_p back, dn_p dnp,
 
 
 /***********************************************************************\
-* Add a new element to the devfs backing structure. 			*
+* Add a new element to the devfs plane. 				*
 *									*
-* Creates a new dev_node to go with it					*
-* 'by' gives us info to make our node					*
+* Creates a new dev_node to go with it if the prototype should not be	*
+* reused. (Is a DIR, or we select SPLIT_DEVS at compile time)		*
+* 'by' gives us info to make our node if we don't have a prototype.	*
 * If 'by is null and proto exists, then the 'by' field of		*
-* the proto is used intead 						*
+* the proto is used intead in the CREATE case.				*
 * note the 'links' count is 0 (except if a dir)				*
 * but it is only cleared on a transition				*
 * so this is ok till we link it to something				*
-* If the node already exists on the wanted plane, just return it	*
+* Even in SPLIT_DEVS mode,						*
+* if the node already exists on the wanted plane, just return it	*
 \***********************************************************************/
 /*proto*/
 int
@@ -353,6 +356,7 @@ dev_add_node(int entrytype, union typeinfo *by, dn_p proto,
 	dn_p	dnp;
 
 	DBPRINT(("dev_add_node\n"));
+#if defined SPLIT_DEVS
 	/*
 	 * If we have a prototype, then check if there is already a sibling
 	 * on the mount plane we are looking at, if so, just return it.
@@ -369,6 +373,17 @@ dev_add_node(int entrytype, union typeinfo *by, dn_p proto,
 		if (by == NULL)
 			by = &(proto->by);
 	}
+#else	/* SPLIT_DEVS */
+	if ( proto ) {
+		switch (proto->type) {
+			case DEV_BDEV:
+			case DEV_CDEV:
+			case DEV_DDEV:
+				*dn_pp = proto;
+				return 0;
+		}
+	}
+#endif	/* SPLIT_DEVS */
 	if(!(dnp = (dn_p)malloc(sizeof(devnode_t),
 			M_DEVFSNODE, M_NOWAIT)))
 	{
@@ -597,8 +612,13 @@ devfs_remove_dev(void *devnmp)
 
 	/*
 	 * then free the main node
+	 * If we are not running in SPLIT_DEVS mode, then
+	 * THIS is what gets rid of the propogated nodes.
 	 */
-	dev_free_name((devnm_p)devnmp);
+	while(dnp->linklist)
+	{
+		dev_free_name(dnp->linklist);
+	}
 	return ;
 }
 
@@ -668,14 +688,14 @@ dev_dup_entry(dn_p parent, devnm_p back, devnm_p *dnm_pp,
 	devnm_p	newfront;
 	int	error;
 	dn_p	dnp = back->dnp;
-	int type = back->dnp->type;
+	int type = dnp->type;
 
 	DBPRINT(("	dev_dup_entry\n"));
 	/*
 	 * go get the node made (if we need to)
 	 * use the back one as a prototype
 	 */
-	if ( error = dev_add_entry(back->name, parent, dnp->type,
+	if ( error = dev_add_entry(back->name, parent, type,
 				NULL, dnp,
 				parent?parent->dvm:dvm, &newnmp)) {
 		printf("duplicating %s failed\n",back->name);
@@ -694,7 +714,7 @@ dev_dup_entry(dn_p parent, devnm_p back, devnm_p *dnm_pp,
 	 * subnodes in it....
 	 * note that this time we don't pass on the mount info..
 	 */
-	if ( newnmp->dnp->type == DEV_DIR)
+	if (type == DEV_DIR)
 	{
 		for(newback = back->dnp->by.Dir.dirlist;
 				newback; newback = newback->next)
@@ -839,9 +859,11 @@ DBPRINT(("	vntodn "));
 	case VBAD:
 		printf("bad-type2 (VBAD)");
 		return(EINVAL);
+#if 0
 	case VNON:
 		printf("bad-type2 (VNON)");
 		return(EINVAL);
+#endif
 	}
 	*dn_pp = (dn_p)vn_p->v_data;
 
@@ -870,10 +892,8 @@ findbdev(dev_t dev, dn_p dir)
 
 /* 
  * Create a vnode for a block device.
- * Used for root filesystem, argdev, and swap areas.
- * Also used for memory file system special devices.
+ * Used for mounting the root file system.
  */
-
 int
 bdevvp(dev_t dev, struct vnode **vpp)
 {
