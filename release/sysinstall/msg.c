@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: msg.c,v 1.11 1995/05/16 11:37:23 jkh Exp $
+ * $Id: msg.c,v 1.12 1995/05/18 12:57:54 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -189,7 +189,7 @@ msgNotify(char *fmt, ...)
     va_end(args);
     use_helpline(NULL);
     use_helpfile(NULL);
-    msgDebug("%s\n", errstr);
+    msgDebug("[%s]\n", errstr);
     w = dupwin(newscr);
     dialog_msgbox("Information Dialog", errstr, -1, -1, 0);
     touchwin(w);
@@ -218,7 +218,7 @@ msgYesNo(char *fmt, ...)
     touchwin(w);
     wrefresh(w);
     delwin(w);
-    msgDebug("User answers %s to \"%s\"\n", ret ? "no" : "yes", errstr);
+    msgDebug("[User answers %s to \"%s\"]\n", ret ? "no" : "yes", errstr);
     free(errstr);
     return ret;
 }
@@ -248,7 +248,7 @@ msgGetInput(char *buf, char *fmt, ...)
     touchwin(w);
     wrefresh(w);
     delwin(w);
-    msgDebug("input request \"%s\" returns %d status", errstr, rval);
+    msgDebug("[input request \"%s\" returns %d status]\n", errstr, rval);
     free(errstr);
     if (!rval)
 	return input_buffer;
