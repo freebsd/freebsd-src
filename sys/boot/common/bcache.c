@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bcache.c,v 1.3 1998/11/04 00:29:01 msmith Exp $
+ *	$Id: bcache.c,v 1.4 1998/11/19 18:12:03 paul Exp $
  */
 
 /*
@@ -252,7 +252,7 @@ command_bcache(int argc, char *argv[])
     int		i;
     
     for (i = 0; i < bcache_nblks; i++) {
-	printf("%08x %04x %04x|", bcache_ctl[i].bc_blkno, bcache_ctl[i].bc_stamp & 0xffff, bcache_ctl[i].bc_count & 0xffff);
+	printf("%08x %04x %04x|", bcache_ctl[i].bc_blkno, (unsigned int)bcache_ctl[i].bc_stamp & 0xffff, bcache_ctl[i].bc_count & 0xffff);
 	if (((i + 1) % 4) == 0)
 	    printf("\n");
     }
