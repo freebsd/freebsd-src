@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pcaudio.c,v 1.10 1994/10/27 08:03:12 sos Exp $ 
+ *	$Id: pcaudio.c,v 1.11 1994/11/06 00:46:21 bde Exp $ 
  */
 
 #include "pca.h"
@@ -249,7 +249,7 @@ pca_registerdev(struct isa_device *id)
 int
 pcaattach(struct isa_device *dvp)
 {
-	printf(" PC speaker audio driver\n");
+	printf("pca%d: PC speaker audio driver\n", dvp->id_unit);
 	pca_init();
 	pca_registerdev(dvp);
 	return 1;
