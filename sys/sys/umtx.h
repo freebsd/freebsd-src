@@ -81,8 +81,7 @@ umtx_lock(struct umtx *umtx, long id)
 {
 	if (atomic_cmpset_acq_ptr(&umtx->u_owner, (void *)UMTX_UNOWNED,
 	    (void *)id) == 0)
-		if (_umtx_op(umtx, UMTX_OP_LOCK, id, 0, 0) == -1)
-			return (errno);
+		return (- _umtx_op(umtx, UMTX_OP_LOCK, id, 0, 0));
 	return (0);
 }
 
@@ -100,8 +99,7 @@ umtx_timedlock(struct umtx *umtx, long id, const struct timespec *abstime)
 {
 	if (atomic_cmpset_acq_ptr(&umtx->u_owner, (void *)UMTX_UNOWNED,
 	    (void *)id) == 0)
-		if (_umtx_op(umtx, UMTX_OP_LOCK, id, 0, (void *)abstime) == -1)
-			return (errno);
+		return (- _umtx_op(umtx, UMTX_OP_LOCK, id, 0, (void *)abstime));
 	return (0);
 }
 
@@ -110,35 +108,27 @@ umtx_unlock(struct umtx *umtx, long id)
 {
 	if (atomic_cmpset_rel_ptr(&umtx->u_owner, (void *)id,
 	    (void *)UMTX_UNOWNED) == 0)
-		if (_umtx_op(umtx, UMTX_OP_UNLOCK, id, 0, 0) == -1)
-			return (errno);
+		return (- _umtx_op(umtx, UMTX_OP_UNLOCK, id, 0, 0));
 	return (0);
 }
-
-/* Unlock umtx and wait on a user address. */
 
 static __inline int
 umtx_wait(struct umtx *umtx, long id)
 {
-	if (_umtx_op(umtx, UMTX_OP_WAIT, id, 0, 0) == -1)
-		return (errno);
-	return (0);
+	return (- _umtx_op(umtx, UMTX_OP_WAIT, id, 0, 0));
 }
 
 static __inline int
 umtx_timedwait(struct umtx *umtx, long id, const struct timespec *abstime)
 {
-	if (_umtx_op(umtx, UMTX_OP_WAIT, id, 0, (void *)abstime) == -1)
-		return (errno);
-	return (0);
+	return (- _umtx_op(umtx, UMTX_OP_WAIT, id, 0, (void *)abstime));
 }
 
 /* Wake threads waiting on a user address. */
 static __inline int
 umtx_wake(struct umtx *umtx, int nr_wakeup)
 {
-	/* return how many threads were woke up, -1 if error */
-	return _umtx_op(umtx, UMTX_OP_WAKE, nr_wakeup, 0, 0);
+	return (- _umtx_op(umtx, UMTX_OP_WAKE, nr_wakeup, 0, 0));
 }
 
 #endif /* !_KERNEL */
