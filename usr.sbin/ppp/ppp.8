@@ -3244,6 +3244,13 @@ value.
 See the
 .Dq set authname
 command below.
+.It Li COMPILATIONDATE
+This is replaced with the date on which
+.Nm
+was compiled.
+.It Li DNS0 No " & " Li DNS1
+These are replaced with the primary and secondary nameserver IP numbers.
+If nameservers are negotiated by IPCP, the values of these macros will change.
 .It Li ENDDISC
 This is replaced with the local endpoint discriminator value.
 See the
@@ -3270,14 +3277,14 @@ This is replaced with the IP number assigned to the local interface.
 This is replaced with the value of the peers endpoint discriminator.
 .It Li PROCESSID
 This is replaced with the current process id.
+.It Li VERSION
+This is replaced with the current version number of
+.Nm ppp .
 .It Li USER
 This is replaced with the username that has been authenticated with PAP or
 CHAP.
 Normally, this variable is assigned only in -direct mode.
 This value is available irrespective of whether utmp logging is enabled.
-.It Li DNS0 No " & " Li DNS1
-These are replaced with the primary and secondary nameserver IP numbers.
-If nameservers are negotiated by IPCP, the values of these macros will change.
 .El
 .Pp
 These substitutions are also done by the
@@ -3409,7 +3416,11 @@ Identify the link to the peer using
 .Ar text .
 If
 .Ar text
-is empty, link identification is disabled.  Refer to the
+is empty, link identification is disabled.
+It is possible to use any of the words described for the
+.Ic bg
+command above.
+Refer to the
 .Ic sendident
 command for details of when
 .Nm
