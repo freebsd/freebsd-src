@@ -65,9 +65,6 @@
 
 #include "faith.h"
 
-#ifdef vax
-#include <machine/mtpr.h>
-#endif
 #include <machine/in_cksum.h>
 
 static MALLOC_DEFINE(M_IPMOPTS, "ip_moptions", "internet multicast options");
