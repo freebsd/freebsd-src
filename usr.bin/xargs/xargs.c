@@ -36,19 +36,10 @@
  * $xMach: xargs.c,v 1.6 2002/02/23 05:27:47 tim Exp $
  */
 
-#ifndef lint
-static const char copyright[] =
-"@(#) Copyright (c) 1990, 1993\n\
-	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
-
-#if 0
-#ifndef lint
-static char sccsid[] = "@(#)xargs.c	8.1 (Berkeley) 6/6/93";
-#endif /* not lint */
-#endif
-
 #include <sys/cdefs.h>
+__COPYRIGHT("@(#) Copyright (c) 1990, 1993\n\
+	The Regents of the University of California.  All rights reserved.\n");
+__SCCSID("@(#)xargs.c	8.1 (Berkeley) 6/6/93");
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
