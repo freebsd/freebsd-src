@@ -74,12 +74,12 @@ crypto/des/des_ecb.c		optional	netsmbcrypto
 crypto/des/des_setkey.c		optional	netsmbcrypto
 #dev/advansys/adv_isa.c		optional	adv isa
 dev/aic/aic_cbus.c		optional	aic isa
-dev/ata/ata-all.c		optional	ata 
-dev/ata/ata-dma.c		optional	ata 
+dev/ata/ata-all.c		optional	ata
+dev/ata/ata-dma.c		optional	ata
 dev/ata/ata-disk.c		optional	atadisk
 dev/ata/ata-raid.c		optional	atadisk
-dev/ata/atapi-all.c		optional	atapicd 
-dev/ata/atapi-all.c		optional	atapifd 
+dev/ata/atapi-all.c		optional	atapicd
+dev/ata/atapi-all.c		optional	atapifd
 dev/ata/atapi-all.c		optional	atapist
 dev/ata/atapi-cd.c		optional	atapicd
 dev/ata/atapi-fd.c		optional	atapifd
