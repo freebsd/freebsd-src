@@ -88,9 +88,9 @@ which is an ideal way of detaching from a controlling terminal and
 forking into the background.
 .Pp
 In particular, doing a
-.Fn "ioctl" "ttyfd" "TIOCNOTTY" "..."
+.Fn ioctl ttyfd TIOCNOTTY ...
 or
-.Fn "setpgrp" "..."
+.Fn setpgrp ...
 is
 .Em NOT
 sufficient.
