@@ -573,7 +573,7 @@ threads associated with the KSE group blocked in the kernel.
 .It Bq Er ESRCH
 The current KSE has no associated mailbox, i.e., the process is operating
 in traditional, unthreaded mode (in this case use
-.Xr exit 2
+.Xr _exit 2
 to exit the process).
 .El
 .Pp
