@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kvm.h	8.1 (Berkeley) 6/2/93
- *	$Id$
+ *	$Id: kvm.h,v 1.6 1998/12/16 18:59:47 bde Exp $
  */
 
 #ifndef _KVM_H_
@@ -59,12 +59,25 @@ typedef struct __kvm kvm_t;
 struct kinfo_proc;
 struct proc;
 
+typedef struct kvm_swap {
+	char	ksw_devname[32];
+	int	ksw_used;
+	int	ksw_total;
+	int	ksw_flags;
+	int	ksw_reserved1;
+	int	ksw_reserved2;
+} *kvm_swap_t;
+
+#define SWIF_DUMP_TREE	0x0001
+#define SWIF_DEV_PREFIX	0x0002
+
 __BEGIN_DECLS
 int	  kvm_close __P((kvm_t *));
 char	**kvm_getargv __P((kvm_t *, const struct kinfo_proc *, int));
 char	**kvm_getenvv __P((kvm_t *, const struct kinfo_proc *, int));
 char	 *kvm_geterr __P((kvm_t *));
 int	  kvm_getloadavg __P((kvm_t *, double [], int));
+int	  kvm_getswapinfo __P((kvm_t *, struct kvm_swap *, int, int));
 char	 *kvm_getfiles __P((kvm_t *, int, int, int *));
 struct kinfo_proc *
 	  kvm_getprocs __P((kvm_t *, int, int, int *));
