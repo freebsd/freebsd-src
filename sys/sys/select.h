@@ -43,23 +43,61 @@
 #include <sys/timespec.h>
 
 /*
+ * XXX
  * Other things required for this header which we do not presently implement:
  *
  * struct timeval (with suseconds_t)
- * fd_set
- * FD_* macros
- *
- * Temporarily get all of these things from <sys/types.h>, which has too
- * much pollution to be used here but will do for now.  (Eventually, the
- * latter two will move to this file and be included *from* <sys/types.h>
- * in the BSD namespace.)
  */
-#include <sys/types.h>	/* XXX dependency reversed */
+
+typedef	unsigned long	__fd_mask;
+#if __BSD_VISIBLE
+typedef	__fd_mask	fd_mask;
+#endif
+
+/*
+ * Select uses bit masks of file descriptors in longs.  These macros
+ * manipulate such bit fields (the filesystem macros use chars).
+ * FD_SETSIZE may be defined by the user, but the default here should
+ * be enough for most uses.
+ */
+#ifndef	FD_SETSIZE
+#define	FD_SETSIZE	1024U
+#endif
+
+#define	_NFDBITS	(sizeof(__fd_mask) * 8)	/* bits per mask */
+#if __BSD_VISIBLE
+#define	NFDBITS		_NFDBITS
+#endif
+
+#ifndef _howmany
+#define	_howmany(x, y)	(((x) + ((y) - 1)) / (y))
+#endif
+
+typedef	struct fd_set {
+	__fd_mask	fds_bits[_howmany(FD_SETSIZE, _NFDBITS)];
+} fd_set;
+
+#define	__fdset_mask(n)	((fd_mask)1 << ((n) % _NFDBITS))
+#define	FD_CLR(n, p)	((p)->fds_bits[(n)/_NFDBITS] &= ~__fdset_mask(n))
+#if __BSD_VISIBLE
+/* XXX bcopy() not in scope, so <strings.h> is required; see also FD_ZERO(). */
+#define	FD_COPY(f, t)	bcopy(f, t, sizeof(*(f)))
+#endif
+#define	FD_ISSET(n, p)	((p)->fds_bits[(n)/_NFDBITS] & __fdset_mask(n))
+#define	FD_SET(n, p)	((p)->fds_bits[(n)/_NFDBITS] |= __fdset_mask(n))
+#define	FD_ZERO(p)	bzero(p, sizeof(*(p)))
 
 #ifndef _KERNEL
+struct timeval;
+
 __BEGIN_DECLS
 int pselect(int, fd_set *__restrict, fd_set *__restrict, fd_set *__restrict,
 	const struct timespec *__restrict, const sigset_t *__restrict);
+#ifndef _SELECT_DECLARED
+#define	_SELECT_DECLARED
+/* XXX missing restrict type-qualifier */
+int	select(int, fd_set *, fd_set *, fd_set *, struct timeval *);
+#endif
 __END_DECLS
 #endif /* !_KERNEL */
 
