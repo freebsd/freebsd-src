@@ -49,7 +49,7 @@
 /* Node type name. This should be unique among all netgraph node types */
 #define NG_PPPOE_NODE_TYPE	"pppoe"
 
-#define NGM_PPPOE_COOKIE		939032003
+#define NGM_PPPOE_COOKIE		939032004
 
 /* Number of active sessions we can handle */
 #define	PPPOE_NUM_SESSIONS		16 /* for now */
@@ -86,6 +86,15 @@ struct ngpppoestat {
 	u_int   packets_out;	/* packets out towards ethernet */
 };
 
+/* Keep this in sync with the above structure definition */
+#define NG_PPPOESTAT_TYPE_INFO	{				\
+	{							\
+	  { "packets_in",	&ng_parse_uint_type	},	\
+	  { "packets_out",	&ng_parse_uint_type	},	\
+	  { NULL }						\
+	}							\
+}
+
 /*
  * When this structure is accepted by the NGM_PPPOE_CONNECT command :
  * The data field is MANDATORY.
@@ -106,9 +115,17 @@ struct ngpppoestat {
  */
 struct ngpppoe_init_data {
 	char	hook[NG_HOOKLEN + 1];	/* hook to monitor on */
-	u_int16_t	data_len;		/* Length of the service name */
-	char	data[0];		/* init data goes here */
+	char	data[1];		/* init data goes here */
 };
+
+/* Keep this in sync with the above structure definition */
+#define NG_PPPOE_INIT_DATA_TYPE_INFO	{		\
+	{						\
+	  { "hook",	&ng_parse_hookbuf_type	},	\
+	  { "data",	&ng_parse_string_type	},	\
+	  { NULL }					\
+	}						\
+}
 
 /*
  * This structure is used by the asychronous success and failure messages.
@@ -118,6 +135,14 @@ struct ngpppoe_init_data {
 struct ngpppoe_sts {
 	char	hook[NG_HOOKLEN + 1]; /* hook associated with event session */
 };
+
+/* Keep this in sync with the above structure definition */
+#define NG_PPPOE_STS_TYPE_INFO		{		\
+	{						\
+	  { "hook",	&ng_parse_hookbuf_type	},	\
+	  { NULL }					\
+	}						\
+}
 
 
 /********************************************************************
