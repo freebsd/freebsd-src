@@ -1597,7 +1597,6 @@ rl_init(xsc)
 	struct rl_softc		*sc = xsc;
 	struct ifnet		*ifp = &sc->arpcom.ac_if;
 	struct mii_data		*mii;
-	int			i;
 	u_int32_t		rxcfg = 0;
 
 	RL_LOCK(sc);
@@ -1608,10 +1607,15 @@ rl_init(xsc)
 	 */
 	rl_stop(sc);
 
-	/* Init our MAC address */
-	for (i = 0; i < ETHER_ADDR_LEN; i++) {
-		CSR_WRITE_1(sc, RL_IDR0 + i, sc->arpcom.ac_enaddr[i]);
-	}
+	/*
+	 * Init our MAC address.  Even though the chipset
+	 * documentation doesn't mention it, we need to enter "Config
+	 * register write enable" mode to modify the ID registers.
+	 */
+	CSR_WRITE_1(sc, RL_EECMD, RL_EEMODE_WRITECFG);
+	CSR_WRITE_4(sc, RL_IDR0, *(u_int32_t *)(&sc->arpcom.ac_enaddr[0]));
+	CSR_WRITE_4(sc, RL_IDR4, *(u_int32_t *)(&sc->arpcom.ac_enaddr[4]));
+	CSR_WRITE_1(sc, RL_EECMD, RL_EEMODE_OFF);
 
 	/* Init the RX buffer pointer register. */
 	bus_dmamap_load(sc->rl_tag, sc->rl_cdata.rl_rx_dmamap,
