@@ -401,8 +401,8 @@ aac_add_container(struct aac_softc *sc, struct aac_mntinforesp *mir, int f)
 	 * the possible types may never show up.
 	 */
 	if ((mir->Status == ST_OK) && (mir->MntTable[0].VolType != CT_NONE)) {
-		MALLOC(co, struct aac_container *, sizeof *co, M_AACBUF,
-		       M_NOWAIT);
+		co = (struct aac_container *)malloc(sizeof *co, M_AACBUF,
+		       M_NOWAIT | M_ZERO);
 		if (co == NULL)
 			panic("Out of memory?!\n");
 		debug(1, "id %x  name '%.16s'  size %u  type %d", 
@@ -495,17 +495,21 @@ aac_detach(device_t dev)
 		return(EBUSY);
 
 	/* Remove the child containers */
-	TAILQ_FOREACH(co, &sc->aac_container_tqh, co_link) {
+	while ((co = TAILQ_FIRST(&sc->aac_container_tqh)) != NULL) {
+		TAILQ_REMOVE(&sc->aac_container_tqh, co, co_link);
 		error = device_delete_child(dev, co->co_disk);
 		if (error)
 			return (error);
+		free(co, M_AACBUF);
 	}
 
 	/* Remove the CAM SIMs */
-	TAILQ_FOREACH(sim, &sc->aac_sim_tqh, sim_link) {
+	while ((sim = TAILQ_FIRST(&sc->aac_sim_tqh)) != NULL) {
+		TAILQ_REMOVE(&sc->aac_sim_tqh, sim, sim_link);
 		error = device_delete_child(dev, sim->sim_dev);
 		if (error)
 			return (error);
+		free(sim, M_AACBUF);
 	}
 
 	if (sc->aifflags & AAC_AIFFLAGS_RUNNING) {
@@ -2779,8 +2783,8 @@ aac_get_bus_info(struct aac_softc *sc)
 		if (businfo.BusValid[i] != AAC_BUS_VALID)
 			continue;
 
-		MALLOC(caminf, struct aac_sim *,
-		    sizeof(struct aac_sim), M_AACBUF, M_NOWAIT | M_ZERO);
+		caminf = (struct aac_sim *)malloc( sizeof(struct aac_sim),
+		    M_AACBUF, M_NOWAIT | M_ZERO);
 		if (caminf == NULL)
 			continue;
 
