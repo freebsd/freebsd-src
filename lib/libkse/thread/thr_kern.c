@@ -1597,7 +1597,7 @@ kse_switchout_thread(struct kse *kse, struct pthread *thread)
 			if (SIGISMEMBER(thread->sigmask, i))
 				continue;
 			if (SIGISMEMBER(thread->sigpend, i))
-				_thr_sig_add(thread, i, &thread->siginfo[i]);
+				_thr_sig_add(thread, i, &thread->siginfo[i-1]);
 			else if (SIGISMEMBER(_thr_proc_sigpending, i) &&
 				_thr_getprocsig_unlocked(i, &siginfo)) {
 				_thr_sig_add(thread, i, &siginfo);
