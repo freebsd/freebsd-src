@@ -41,7 +41,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.57 1995/02/05 11:29:38 jkh Exp $
+ *	$Id: conf.c,v 1.58 1995/02/06 23:20:03 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -769,6 +769,55 @@ d_mmap_t        spigot_mmap;
 #define spigot_mmap     nommap
 #endif
 
+/*
+ * This stuff from Heikki is kind of bizarre, and I'm not sure how I feel
+ * about it yet (I think I like it about as much as I can like anything in
+ * here), but I'm intrigued enough for now to enable it by default. -jkh
+ *
+ * If you want to use the Cyclades driver, you MUST have this on for now
+ * (or convert Heikki's syntax to the old one).
+ */
+#define NEW_CONF_C_SYNTAX	yes
+
+#if defined(NEW_CONF_C_SYNTAX)
+#ifndef __CONCAT
+#define	__CONCAT(x,y)	x ## y
+#endif
+
+#ifndef dev_decl
+#define	dev_decl(n,t)	__CONCAT(__CONCAT(d_,t),_t)__CONCAT(n,t)
+#endif
+#ifndef dev_init
+#define	dev_init(c,n,t) \
+	((c) > 0 ? __CONCAT(n,t) : (__CONCAT(__CONCAT(d_,t),_t)((*))) enxio)
+#endif
+
+#ifndef cdev_decl
+#define	cdev_decl(n) \
+	dev_decl(n,open); dev_decl(n,close); dev_decl(n,read); \
+	dev_decl(n,write); dev_decl(n,ioctl); dev_decl(n,stop); \
+	dev_decl(n,reset); dev_decl(n,select); dev_decl(n,mmap); \
+	dev_decl(n,strategy); extern struct tty __CONCAT(n,_tty)[]
+#endif
+
+/* open, close, read, write, ioctl, stop, tty */
+#ifndef dev_tty_init
+#define	dev_tty_init(c,n)	(c > 0 ? __CONCAT(n,_tty) : 0)
+#endif
+#ifndef cdev_tty_init
+#define	cdev_tty_init(c,n) { \
+	dev_init(c,n,open), dev_init(c,n,close), dev_init(c,n,read), \
+	dev_init(c,n,write), dev_init(c,n,ioctl), dev_init(c,n,stop), \
+	(d_reset_t((*))) nullop, dev_tty_init(c,n), ttselect, \
+	(d_mmap_t((*))) enodev, 0 }
+#endif
+
+#include "cy.h"
+cdev_decl(cy);
+
+#endif	/* NEW_CONF_C_SYNTAX */
+
+
 /* open, close, read, write, ioctl, stop, reset, ttys, select, mmap, strat */
 struct cdevsw	cdevsw[] =
 {
@@ -925,10 +974,9 @@ struct cdevsw	cdevsw[] =
 	{ gscopen,      gscclose,       gscread,        nowrite,	/*47*/
 	  gscioctl,     nostop,         nullreset,      NULL,	/* gsc */
 	  seltrue,      nommap,         NULL },
-	{ (d_open_t *)enxio, (d_close_t *)enxio, (d_rdwr_t *)enxio,	/*48*/
-	  (d_rdwr_t *)enxio, (d_ioctl_t *)enxio, (d_stop_t *)enxio,/* cyclades */
-	  (d_reset_t *)enxio, NULL, (d_select_t *)enxio,
-	  (d_mmap_t *)enxio, NULL },
+#if defined(NEW_CONF_C_SYNTAX)
+	cdev_tty_init(NCY,cy),					/* cyclades */
+#endif
 	{ sscopen,	sscclose,	sscread,	sscwrite,	/*49*/
 	  sscioctl,	nostop,		nullreset,	NULL,	/* scsi super */
 	  sscselect,	sscmmap,		sscstrategy },
