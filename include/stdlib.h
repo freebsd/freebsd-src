@@ -107,10 +107,10 @@ int	 rand(void);
 void	*realloc(void *, size_t);
 void	 srand(unsigned);
 double	 strtod(const char * __restrict, char ** __restrict);
-/* float strtof(const char * __restrict, char ** __restrict); */
+float	 strtof(const char * __restrict, char ** __restrict);
 long	 strtol(const char * __restrict, char ** __restrict, int);
-/* long double
-	 strtold(const char * __restrict, char ** __restrict); */
+long double
+	 strtold(const char * __restrict, char ** __restrict);
 unsigned long
 	 strtoul(const char * __restrict, char ** __restrict, int);
 int	 system(const char *);
