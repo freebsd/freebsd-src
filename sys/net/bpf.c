@@ -288,8 +288,7 @@ bpf_detachd(d)
 			 * the driver into promiscuous mode, but can't
 			 * take it out.
 			 */
-			printf("%s%d: ifpromisc failed %d\n",
-			    bp->bif_ifp->if_name, bp->bif_ifp->if_unit, error);
+			if_printf(bp->bif_ifp, "ifpromisc failed %d\n", error);
 		}
 	}
 	/* Remove d from the interface's descriptor list. */

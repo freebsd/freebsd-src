@@ -335,8 +335,7 @@ iso88025_output(ifp, m, dst, rt0)
 		break;
 	}
 	default:
-		printf("%s%d: can't handle af%d\n", ifp->if_name, ifp->if_unit,
-			dst->sa_family);
+		if_printf(ifp, "can't handle af%d\n", dst->sa_family);
 		senderr(EAFNOSUPPORT);
 		break;
 	}

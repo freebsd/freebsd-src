@@ -2753,8 +2753,7 @@ mac_check_ifnet_transmit(struct ifnet *ifnet, struct mbuf *mbuf)
 
 	KASSERT(mbuf->m_flags & M_PKTHDR, ("packet has no pkthdr"));
 	if (!(mbuf->m_pkthdr.label.l_flags & MAC_FLAG_INITIALIZED))
-		printf("%s%d: not initialized\n", ifnet->if_name,
-		    ifnet->if_unit);
+		if_printf(ifnet, "not initialized\n");
 
 	MAC_CHECK(check_ifnet_transmit, ifnet, &ifnet->if_label, mbuf,
 	    &mbuf->m_pkthdr.label);
