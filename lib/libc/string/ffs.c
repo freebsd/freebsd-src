@@ -37,14 +37,13 @@ static char sccsid[] = "@(#)ffs.c	8.1 (Berkeley) 6/4/93";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <string.h>
+#include <strings.h>
 
 /*
  * ffs -- vax ffs instruction
  */
 int
-ffs(mask)
-	int mask;
+ffs(int mask)
 {
 	int bit;
 
