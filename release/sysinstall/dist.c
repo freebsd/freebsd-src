@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.79 1996/11/09 19:47:24 jkh Exp $
+ * $Id: dist.c,v 1.80 1996/12/08 12:27:54 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -342,9 +342,10 @@ static Boolean
 distExtract(char *parent, Distribution *me)
 {
     int i, status, total;
-    int cpid, zpid, fd, fd2, chunk, numchunks;
+    int cpid, zpid, fd2, chunk, numchunks;
     char *path, *dist, buf[BUFSIZ];
     const char *tmp;
+    FILE *fp;
     Attribs *dist_attr;
     WINDOW *w = savescr();
     struct timeval start, stop;
@@ -384,12 +385,12 @@ distExtract(char *parent, Distribution *me)
 	numchunks = 0;
 
 	snprintf(buf, sizeof buf, "%s/%s.inf", path, dist);
-	fd = mediaDevice->get(mediaDevice, buf, TRUE);
-	if (fd >= 0) {
+	fp = mediaDevice->get(mediaDevice, buf, TRUE);
+	if (fp > 0) {
 	    if (isDebug())
 		msgDebug("Parsing attributes file for distribution %s\n", dist);
 	    dist_attr = safe_malloc(sizeof(Attribs) * MAX_ATTRIBS);
-	    if (DITEM_STATUS(attr_parse(dist_attr, fd)) == DITEM_FAILURE)
+	    if (DITEM_STATUS(attr_parse(dist_attr, fp)) == DITEM_FAILURE)
 		msgConfirm("Cannot parse information file for the %s distribution!\n"
 			   "Please verify that your media is valid and try again.", dist);
 	    else {
@@ -400,11 +401,11 @@ distExtract(char *parent, Distribution *me)
 		    numchunks = strtol(tmp, 0, 0);
 	    }
 	    safe_free(dist_attr);
-	    mediaDevice->close(mediaDevice, fd);
+	    fclose(fp);
 	    if (!numchunks)
 		continue;
 	}
-	else if (fd == IO_ERROR) {	/* Hard error, can't continue */
+	else if (fp == (FILE *)IO_ERROR) {	/* Hard error, can't continue */
 	    mediaDevice->shutdown(mediaDevice);
 	    status = FALSE;
 	    goto done;
@@ -416,16 +417,16 @@ distExtract(char *parent, Distribution *me)
 	     * Passing TRUE as 3rd parm to get routine makes this a "probing" get, for which errors
 	     * are not considered too significant.
 	     */
-	    fd = mediaDevice->get(mediaDevice, buf, TRUE);
-	    if (fd >= 0) {
+	    fp = mediaDevice->get(mediaDevice, buf, TRUE);
+	    if (fp > 0) {
 		char *dir = root_bias(me[i].my_dir);
 
 		msgNotify("Extracting %s into %s directory...", dist, dir);
-		status = mediaExtractDist(dir, fd);
-		mediaDevice->close(mediaDevice, fd);
+		status = mediaExtractDist(dir, fp);
+		fclose(fp);
 		goto done;
 	    }
-	    else if (fd == IO_ERROR) {	/* Hard error, can't continue */
+	    else if (fp == (FILE *)IO_ERROR) {	/* Hard error, can't continue */
 		mediaDevice->shutdown(mediaDevice);
 		status = FALSE;
 		goto done;
@@ -455,8 +456,8 @@ distExtract(char *parent, Distribution *me)
 	    snprintf(buf, 512, "%s/%s.%c%c", path, dist, (chunk / 26) + 'a', (chunk % 26) + 'a');
 	    if (isDebug())
 		msgDebug("trying for piece %d of %d: %s\n", chunk + 1, numchunks, buf);
-	    fd = mediaDevice->get(mediaDevice, buf, FALSE);
-	    if (fd < 0) {
+	    fp = mediaDevice->get(mediaDevice, buf, FALSE);
+	    if (fp <= (FILE *)0) {
 		msgConfirm("failed to retreive piece file %s!\n"
 			   "Aborting the transfer", buf);
 		goto punt;
@@ -466,7 +467,7 @@ distExtract(char *parent, Distribution *me)
 	    while (1) {
 		int seconds;
 
-		n = read(fd, buf, BUFSIZ);
+		n = fread(buf, 1, BUFSIZ, fp);
 		if (n <= 0)
 		    break;
 		total += n;
@@ -488,13 +489,13 @@ distExtract(char *parent, Distribution *me)
 		}
 		retval = write(fd2, buf, n);
 		if (retval != n) {
-		    mediaDevice->close(mediaDevice, fd);
+		    fclose(fp);
 		    dialog_clear_norefresh();
 		    msgConfirm("Write failure on transfer! (wrote %d bytes of %d bytes)", retval, n);
 		    goto punt;
 		}
 	    }
-	    mediaDevice->close(mediaDevice, fd);
+	    fclose(fp);
 	}
 	close(fd2);
 	status = mediaExtractDistEnd(zpid, cpid);
@@ -595,4 +596,3 @@ distExtractAll(dialogMenuItem *self)
     }
     return DITEM_SUCCESS;
 }
-
