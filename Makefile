@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.36 1995/01/20 20:28:31 wollman Exp $
+#	$Id: Makefile,v 1.37 1995/01/21 23:01:19 wollman Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include and MOST of /usr/lib 
@@ -224,6 +224,7 @@ includes:
 	cd ${.CURDIR}/lib/libtermcap &&		${MAKE}	beforeinstall
 	cd ${.CURDIR}/lib/libcom_err &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libss &&		${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/libforms &&		${MAKE}	beforeinstall
 
 lib-tools:
 	@echo "--------------------------------------------------------------"
