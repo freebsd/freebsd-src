@@ -10,6 +10,7 @@ SRCS=	fmt.c keyword.c nlist.c print.c ps.c lomac.c
 # on large systems.
 #
 CFLAGS+=-DLAZY_PS
+WARNS=	0
 DPADD=	${LIBM} ${LIBKVM}
 LDADD=	-lm -lkvm
 #BINGRP=	kmem

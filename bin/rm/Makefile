@@ -2,7 +2,6 @@
 # $FreeBSD$
 
 PROG=	rm
-WARNS?=	2
 SRCS=	rm.c
 
 LINKS=	${BINDIR}/rm ${BINDIR}/unlink
