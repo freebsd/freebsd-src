@@ -13,7 +13,7 @@
 .undef INSTALL_PIC_ARCHIVE
 .else
 .if ${OBJFORMAT} == elf
-.if !defined(SHLIB_NAME) && defined(SHLIB_MAJOR)
+.if !defined(SHLIB_NAME) && defined(LIB) && defined(SHLIB_MAJOR)
 SHLIB_NAME=	lib${LIB}.so.${SHLIB_MAJOR}
 SHLIB_LINK?=	lib${LIB}.so
 .endif
@@ -154,19 +154,23 @@ PICFLAG=-fpic
 
 all: objwarn
 
+.if defined(LIB) && !empty(LIB) || defined(SHLIB_NAME)
+OBJS+=		${SRCS:N*.h:R:S/$/.o/}
+.endif
+
 .if defined(LIB) && !empty(LIB)
 _LIBS=		lib${LIB}.a
-OBJS+=		${SRCS:N*.h:R:S/$/.o/}
 
 lib${LIB}.a: ${OBJS} ${STATICOBJS}
 	@${ECHO} building static ${LIB} library
 	@rm -f ${.TARGET}
 	@${AR} cq ${.TARGET} `lorder ${OBJS} ${STATICOBJS} | tsort -q` ${ARADD}
 	${RANLIB} ${.TARGET}
+.endif
 
 .if !defined(INTERNALLIB)
 
-.if !defined(NOPROFILE)
+.if !defined(NOPROFILE) && defined(LIB) && !empty(LIB)
 _LIBS+=		lib${LIB}_p.a
 POBJS+=		${OBJS:.o=.po} ${STATICOBJS:.o=.po}
 
@@ -177,7 +181,10 @@ lib${LIB}_p.a: ${POBJS}
 	${RANLIB} ${.TARGET}
 .endif
 
+.if defined(SHLIB_NAME) || \
+    defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB)
 SOBJS+=		${OBJS:.o=.So}
+.endif
 
 .if defined(SHLIB_NAME)
 _LIBS+=		${SHLIB_NAME}
@@ -199,7 +206,7 @@ ${SHLIB_NAME}: ${SOBJS}
 .endif
 .endif
 
-.if defined(INSTALL_PIC_ARCHIVE)
+.if defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB)
 _LIBS+=		lib${LIB}_pic.a
 
 lib${LIB}_pic.a: ${SOBJS}
@@ -209,7 +216,7 @@ lib${LIB}_pic.a: ${SOBJS}
 	${RANLIB} ${.TARGET}
 .endif
 
-.if defined(WANT_LINT)
+.if defined(WANT_LINT) && defined(LIB) && !empty(LIB)
 LINTLIB=	llib-l${LIB}.ln
 _LIBS+=		${LINTLIB}
 LINTOBJS+=	${SRCS:M*.c:.c=.ln}
@@ -224,8 +231,6 @@ ${LINTLIB}: ${LINTOBJS}
 
 all: ${_LIBS}
 
-.endif defined(LIB) && !empty(LIB)
-
 .if !defined(NOMAN)
 all: _manpages
 .endif
@@ -237,20 +242,30 @@ clean:
 .endif
 .if defined(LIB) && !empty(LIB)
 	rm -f a.out ${OBJS} ${OBJS:S/$/.tmp/} ${STATICOBJS}
+.endif
 .if !defined(INTERNALLIB)
-.if !defined(NOPROFILE)
+.if !defined(NOPROFILE) && defined(LIB) && !empty(LIB)
 	rm -f ${POBJS} ${POBJS:S/$/.tmp/}
 .endif
+.if defined(SHLIB_NAME) || \
+    defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB)
 	rm -f ${SOBJS} ${SOBJS:.So=.so} ${SOBJS:S/$/.tmp/}
-.if defined(SHLIB_NAME)
-	rm -f ${SHLIB_LINK} lib${LIB}.so.* lib${LIB}.so
 .endif
-.if defined(WANT_LINT)
+.if defined(SHLIB_NAME)
+.if defined(SHLIB_LINK)
+	rm -f ${SHLIB_LINK}
+.endif
+.if defined(LIB) && !empty(LIB)
+	rm -f lib${LIB}.so.* lib${LIB}.so
+.endif
+.endif
+.if defined(WANT_LINT) && defined(LIB) && !empty(LIB)
 	rm -f ${LINTOBJS}
 .endif
 .endif !defined(INTERNALLIB)
+.if defined(_LIBS) && !empty(_LIBS)
 	rm -f ${_LIBS}
-.endif defined(LIB) && !empty(LIB)
+.endif
 .if defined(CLEANDIRS) && !empty(CLEANDIRS)
 	rm -rf ${CLEANDIRS}
 .endif
@@ -288,15 +303,15 @@ _SHLINSTALLFLAGS:=	${SHLINSTALLFLAGS}
 _SHLINSTALLFLAGS:=	${_SHLINSTALLFLAGS${ie}}
 .endfor
 
-.if defined(LIB) && !empty(LIB) && !defined(INTERNALLIB)
+.if !defined(INTERNALLIB)
 realinstall: _libinstall
 .ORDER: beforeinstall _libinstall
 _libinstall:
-.if !defined(NOINSTALLLIB)
+.if defined(LIB) && !empty(LIB) && !defined(NOINSTALLLIB)
 	${INSTALL} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} lib${LIB}.a ${DESTDIR}${LIBDIR}
 .endif
-.if !defined(NOPROFILE)
+.if !defined(NOPROFILE) && defined(LIB) && !empty(LIB)
 	${INSTALL} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} lib${LIB}_p.a ${DESTDIR}${LIBDIR}
 .endif
@@ -308,15 +323,15 @@ _libinstall:
 	ln -fs ${SHLIB_NAME} ${DESTDIR}${SHLIBDIR}/${SHLIB_LINK}
 .endif
 .endif
-.if defined(INSTALL_PIC_ARCHIVE)
+.if defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB)
 	${INSTALL} ${COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} lib${LIB}_pic.a ${DESTDIR}${LIBDIR}
 .endif
-.if defined(WANT_LINT)
+.if defined(WANT_LINT) && defined(LIB) && !empty(LIB)
 	${INSTALL} ${COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} ${LINTLIB} ${DESTDIR}${LINTLIBDIR}
 .endif
-.endif defined(LIB) && !empty(LIB) && !defined(INTERNALLIB)
+.endif !defined(INTERNALLIB)
 
 .include <bsd.files.mk>
 .include <bsd.incs.mk>
@@ -340,9 +355,13 @@ lint: ${SRCS:M*.c}
 
 .include <bsd.dep.mk>
 
-.if defined(LIB) && !empty(LIB)
 .if !exists(${.OBJDIR}/${DEPENDFILE})
-${OBJS} ${STATICOBJS} ${POBJS} ${SOBJS}: ${SRCS:M*.h}
+.if defined(LIB) && !empty(LIB)
+${OBJS} ${STATICOBJS} ${POBJS}: ${SRCS:M*.h}
+.endif
+.if defined(SHLIB_NAME) || \
+    defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB)
+${SOBJS}: ${SRCS:M*.h}
 .endif
 .endif
 
