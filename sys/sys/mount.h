@@ -67,7 +67,12 @@ struct fid {
  */
 
 #define MFSNAMELEN	16	/* length of fs type name, including null */
+#ifdef __i386__
 #define	MNAMELEN	80	/* length of buffer for returned name */
+#endif
+#ifdef __alpha__
+#define	MNAMELEN	72	/* length of buffer for returned name */
+#endif
 
 struct statfs {
 	long	f_spare2;		/* placeholder */
