@@ -73,98 +73,24 @@ See the
 man page for possible options and their meanings.
 .El
 .Pp
-The contents of the mount point are
-.Pa fd ,
-.Pa stderr ,
-.Pa stdin ,
-.Pa stdout 
-and
-.Pa tty .
-.Pp
-.Pa fd
-is a directory whose contents
-appear as a list of numbered files
-which correspond to the open files of the process reading the
-directory.
-The files
-.Pa /dev/fd/0
-through
-.Pa /dev/fd/#
-refer to file descriptors which can be accessed through the file
-system.
-If the file descriptor is open and the mode the file is being opened
-with is a subset of the mode of the existing descriptor, the call:
-.Bd -literal -offset indent
-fd = open("/dev/fd/0", mode);
-.Ed
-.Pp
-and the call:
-.Bd -literal -offset indent
-fd = fcntl(0, F_DUPFD, 0);
-.Ed
-.Pp
-are equivalent.
-.Pp
-The files
-.Pa /dev/stdin ,
-.Pa /dev/stdout
-and
-.Pa /dev/stderr
-appear as symlinks to the relevant entry in the
-.Pa /dev/fd
-sub-directory.
-Opening them is equivalent to the following calls:
-.Bd -literal -offset indent
-fd = fcntl(STDIN_FILENO,  F_DUPFD, 0);
-fd = fcntl(STDOUT_FILENO, F_DUPFD, 0);
-fd = fcntl(STDERR_FILENO, F_DUPFD, 0);
-.Ed
-.Pp
-Flags to the
-.Xr open 2
-call other than
-.Dv O_RDONLY , 
-.Dv O_WRONLY
-and
-.Dv O_RDWR
-are ignored.
-.Pp
-The
-.Pa /dev/tty
-entry is an indirect reference to the current process's controlling terminal.
-It appears as a named pipe (FIFO) but behaves in exactly the same way as
-the real controlling terminal device.
+See 
+.Xr fdesc 5
+for a detailed description of the contents
+of the 
+.Nm fdesc
+filesystem.
 .Sh FILES
 .Bl -tag -width /dev/stderr -compact
-.It Pa /dev/fd/#
-.It Pa /dev/stdin
-.It Pa /dev/stdout
-.It Pa /dev/stderr
-.It Pa /dev/tty
-.El
+.It Pa /dev
+Normal mount point for the
+.Nm fdesc 
+filesystem.
 .Sh SEE ALSO
 .Xr mount 2 ,
 .Xr unmount 2 ,
-.Xr tty 4 ,
+.Xr fdesc 5 ,
 .Xr fstab 5 ,
 .Xr mount 8
-.Sh CAVEATS
-No
-.Pa .
-and
-.Pa ..
-entries appear when listing the contents of the
-.Pa /dev/fd
-directory.
-This makes sense in the context of this filesystem, but is inconsistent
-with usual filesystem conventions.
-However, it is still possible to refer to both
-.Pa .
-and 
-.Pa ..
-in a pathname.
-.Pp
-This filesystem may not be NFS-exported.
 .Sh HISTORY
 The
 .Nm mount_fdesc
