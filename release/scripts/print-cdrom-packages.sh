@@ -149,6 +149,8 @@ CDROM_SET_1="${CDROM_SET_1} misc/compat4x"
 CDROM_SET_3="${CDROM_SET_3} print/teTeX"
 CDROM_SET_3="${CDROM_SET_3} textproc/docproj"
 CDROM_SET_3="${CDROM_SET_3} editors/xemacs21"
+CDROM_SET_3="${CDROM_SET_3} graphics/gimp1"
+CDROM_SET_3="${CDROM_SET_3} lang/gnat"
 
 ## End of set for CDROM #3
 
