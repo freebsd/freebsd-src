@@ -726,10 +726,9 @@ select(td, uap)
 	 * of 256.
 	 */
 	fd_mask s_selbits[howmany(2048, NFDBITS)];
-	fd_mask s_heldbits[howmany(2048, NFDBITS)];
 	fd_mask *ibits[3], *obits[3], *selbits, *sbp;
 	struct timeval atv, rtv, ttv;
-	int ncoll, error, timo, i;
+	int ncoll, error, timo;
 	u_int nbufbytes, ncpbytes, nfdbits;
 
 	if (uap->nd < 0)
