@@ -173,6 +173,18 @@ URL pointing at a file available on an ftp site.  Thus you may
 extract files directly from their anonymous ftp locations (e.g.
 .Nm
 ftp://ftp.freebsd.org/pub/FreeBSD/packages/shells/bash-1.14.4.tgz).
+Note:  If you wish to use
+.B passive mode
+ftp in such transfers, set
+the variable
+.B FTP_PASSIVE_MODE
+to some value in your environment.  Otherwise, the more standard
+ACTIVE mode may be used.  If
+.Nm
+consistently fails to fetch a package from a site known to work,
+it may be because you have a firewall that demands the usage of
+.B passive mode
+ftp.
 .Sh TECHNICAL DETAILS
 .Nm
 is fairly simple.  It extracts each packages' "packing list"
