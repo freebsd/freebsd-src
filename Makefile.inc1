@@ -17,7 +17,6 @@
 #	-DNO_KERNELCONFIG do not run config in ${MAKE} buildkernel
 #	-DNO_KERNELCLEAN do not run ${MAKE} clean in ${MAKE} buildkernel
 #	-DNO_KERNELDEPEND do not run ${MAKE} depend in ${MAKE} buildkernel
-#	-DNO_PERL do not build perl5 and related libraries
 #	-DNO_PORTSUPDATE do not update ports in ${MAKE} update
 #	-DNO_DOCUPDATE do not update doc in ${MAKE} update
 #	LOCAL_DIRS="list of dirs" to add additional dirs to the SUBDIR list
@@ -45,8 +44,6 @@ SUBDIR=
 SUBDIR+= share/info
 .endif
 
-# We must do include and lib early so that the perl *.ph generation
-# works correctly as it uses the header files installed by this.
 .if exists(${.CURDIR}/include)
 SUBDIR+= include
 .endif
@@ -177,7 +174,6 @@ CROSSENV=	MAKEOBJDIRPREFIX=${OBJTREE} \
 		MACHINE_ARCH=${TARGET_ARCH} \
 		MACHINE=${TARGET} \
 		OBJFORMAT_PATH=${WORLDTMP}/usr/libexec \
-		PERL5LIB=${WORLDTMP}/usr/libdata/perl/5.6.1 \
 		GROFF_BIN_PATH=${WORLDTMP}/usr/bin \
 		GROFF_FONT_PATH=${WORLDTMP}/usr/share/groff_font \
 		GROFF_TMAC_PATH=${WORLDTMP}/usr/share/tmac
@@ -362,7 +358,7 @@ installcheck:
 distributeworld installworld: installcheck
 	mkdir -p ${INSTALLTMP}
 	for prog in [ awk cat chflags chmod chown date echo egrep find grep \
-	    ln make makewhatis mkdir mtree mv perl pwd_mkdb rm sed sh sysctl \
+	    ln make makewhatis mkdir mtree mv pwd_mkdb rm sed sh sysctl \
 	    test true uname wc zic; do \
 		cp `which $$prog` ${INSTALLTMP}; \
 	done
@@ -607,10 +603,6 @@ _share=	share/syscons/scrnmaps
 _fortran= gnu/usr.bin/cc/f771
 .endif
 
-.if !defined(NOPERL) && !defined(NO_PERL)
-_perl=	gnu/usr.bin/perl/miniperl
-.endif
-
 .if exists(${.CURDIR}/kerberosIV) && exists(${.CURDIR}/crypto) && \
     !defined(NOCRYPT) && defined(MAKE_KERBEROS4)
 _libroken4= kerberosIV/lib/libroken
@@ -624,7 +616,7 @@ _libkrb5= kerberos5/lib/libroken kerberos5/lib/libvers \
 
 build-tools:
 .for _tool in bin/csh bin/sh ${_games} gnu/usr.bin/cc/cc_tools ${_fortran} \
-    ${_perl} ${_libroken4} ${_libkrb5} lib/libncurses ${_share} \
+    ${_libroken4} ${_libkrb5} lib/libncurses ${_share} \
     usr.bin/awk usr.bin/file usr.sbin/sysinstall
 	cd ${.CURDIR}/${_tool}; ${MAKE} DIRPRFX=${_tool}/ build-tools
 .endfor
@@ -687,10 +679,6 @@ _startup_libs+=	lib/csu/${MACHINE_ARCH}
 _prebuild_libs=
 
 _generic_libs=	gnu/lib
-
-.if !defined(NOPERL) && !defined(NO_PERL)
-_generic_libs+=	gnu/usr.bin/perl/libperl
-.endif
 
 .if !defined(NOCRYPT) && defined(MAKE_KERBEROS5)
 _prebuild_libs+=	kerberos5/lib/libasn1
