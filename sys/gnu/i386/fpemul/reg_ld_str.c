@@ -56,7 +56,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id$
+ *     $Id: reg_ld_str.c,v 1.9 1997/02/22 09:29:23 peter Exp $
  *
  */
 
@@ -70,7 +70,6 @@
 #include <sys/param.h>
 #include <sys/proc.h>
 #include <sys/systm.h>
-#include <machine/cpu.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>
 

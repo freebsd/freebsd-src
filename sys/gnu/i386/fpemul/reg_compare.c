@@ -56,7 +56,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id$
+ *     $Id: reg_compare.c,v 1.8 1997/02/22 09:29:21 peter Exp $
  *
  */
 
@@ -66,7 +66,6 @@
 #include <sys/param.h>
 #include <sys/proc.h>
 #include <sys/systm.h>
-#include <machine/cpu.h>
 #include <machine/pcb.h>
 
 #include <gnu/i386/fpemul/fpu_emu.h>
