@@ -126,7 +126,9 @@ dev/mii/mii_physubr.c	optional miibus
 dev/mii/ukphy.c		optional miibus
 dev/mii/ukphy_subr.c	optional miibus
 dev/mii/exphy.c		optional miibus
+dev/mii/mlphy.c		optional miibus
 dev/mii/nsphy.c		optional miibus
+dev/mii/tlphy.c		optional miibus
 miibus_if.o		optional miibus					\
 	dependency	"miibus_if.c miibus_if.h"			\
 	compile-with	"${NORMAL_C}"					\
