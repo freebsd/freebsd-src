@@ -600,15 +600,6 @@ parse_form(struct form_list *form, FILE *outf)
 			}
 		}
 
-		if (!links) {
-			/* No links for this field */
-			fields->field.up = -1;
-			fields->field.down = -1;
-			fields->field.left = -1;
-			fields->field.right = -1;
-			fields->field.next = -1;
-		}
-
 		for (def = field_list; def; def=def->next)
 			if (!strcmp(fieldname, def->fieldname))
 				break;
@@ -620,7 +611,17 @@ parse_form(struct form_list *form, FILE *outf)
 			fields->field.type = def->field.type;
 			fields->field.width = def->field.width;
 			fields->field.attr = def->field.attr;
+		}
 
+		if (!links) {
+			/* No links for this field */
+			fields->field.up = -1;
+			fields->field.down = -1;
+			fields->field.left = -1;
+			fields->field.right = -1;
+			fields->field.next = -1;
+			fields->defname = fieldname;
+		} else {
 			output_field(def, fields->fieldname, outf);
 
 			if ((fields->field.type == F_TEXT) 
