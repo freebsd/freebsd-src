@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-tape.c,v 1.3 1999/03/05 09:43:30 sos Exp $
+ *	$Id: atapi-tape.c,v 1.4 1999/03/07 21:49:14 sos Exp $
  */
 
 #include "ata.h"
@@ -47,6 +47,7 @@
 #include <sys/devfsext.h>
 #endif
 #include <machine/clock.h>
+#include <pci/pcivar.h>
 #include <dev/ata/ata-all.h>
 #include <dev/ata/atapi-all.h>
 #include <dev/ata/atapi-tape.h>
@@ -58,8 +59,8 @@ static	d_write_t	astwrite;
 static  d_ioctl_t	astioctl;
 static  d_strategy_t	aststrategy;
 
-#define CDEV_MAJOR 90
-#define BDEV_MAJOR 24
+#define BDEV_MAJOR 33
+#define CDEV_MAJOR 119
 
 static struct cdevsw ast_cdevsw = {
     astopen,	astclose,	astread,	astwrite,
@@ -181,7 +182,7 @@ ast_describe(struct ast_softc *stp)
     bpack(stp->atp->atapi_parm->revision, revision_buf, sizeof(revision_buf));
     printf("ast%d: <%s/%s> tape drive at ata%d as %s\n",
 	   stp->lun, model_buf, revision_buf,
-           stp->atp->controller->unit,
+           stp->atp->controller->lun,
 	   (stp->atp->unit == ATA_MASTER) ? "master" : "slave ");
     printf("ast%d: ", stp->lun);
     switch (stp->header.medium_type) {

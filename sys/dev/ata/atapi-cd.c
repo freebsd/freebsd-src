@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-cd.c,v 1.2 1999/03/03 21:10:29 sos Exp $
+ *	$Id: atapi-cd.c,v 1.3 1999/03/05 09:43:30 sos Exp $
  */
 
 #include "ata.h"
@@ -50,6 +50,7 @@
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif
+#include <pci/pcivar.h>
 #include <dev/ata/ata-all.h>
 #include <dev/ata/atapi-all.h>
 #include <dev/ata/atapi-cd.h>
@@ -61,8 +62,8 @@ static d_write_t	acdwrite;
 static d_ioctl_t	acdioctl;
 static d_strategy_t	acdstrategy;
 
-#define CDEV_MAJOR 69
-#define BDEV_MAJOR 19
+#define BDEV_MAJOR 31
+#define CDEV_MAJOR 117
 static struct cdevsw acd_cdevsw = {
     acdopen,	acdclose,	acdread,	acdwrite,	
     acdioctl,	nostop,		nullreset,	nodevtotty,
@@ -260,7 +261,7 @@ acd_describe(struct acd_softc *cdp)
     bpack(cdp->atp->atapi_parm->revision, revision_buf, sizeof(revision_buf));
     printf("acd%d: <%s/%s> CDROM drive at ata%d as %s\n",
            cdp->lun, model_buf, revision_buf,
-           cdp->atp->controller->unit,
+           cdp->atp->controller->lun,
            (cdp->atp->unit == ATA_MASTER) ? "master" : "slave ");
 
     printf("acd%d: drive speed ", cdp->lun);
@@ -268,7 +269,10 @@ acd_describe(struct acd_softc *cdp)
         printf("%d - ", cdp->cap.cur_speed * 1000 / 1024);
     printf("%dKB/sec", cdp->cap.max_speed * 1000 / 1024);
     if (cdp->cap.buf_size)
-        printf(", %dKB cache\n", cdp->cap.buf_size);
+        printf(", %dKB cache", cdp->cap.buf_size);
+    if (cdp->atp->flags & ATAPI_F_DMA_ENABLED)
+	printf(", DMA");
+    printf("\n");
 
     printf("acd%d: supported read types:", cdp->lun);
     comma = 0;
@@ -775,7 +779,6 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
                 frames -= blocks;
                 lba += blocks;
             }
-
             free(buffer, M_TEMP);
 	    if (args->address_format == CD_LBA_FORMAT)
 		args->address.lba = lba;
