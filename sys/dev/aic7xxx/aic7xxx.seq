@@ -41,7 +41,7 @@
 #
 ##-M#########################################################################
 
-VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.15 1995/04/27 17:44:27 gibbs Exp $"
+VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.16 1995/05/17 07:05:49 davidg Exp $"
 
 SCBMASK		= 0x1f
 
@@ -252,8 +252,8 @@ SAVED_TCL	= 0x56				# Temporary storage for the
 # ram since a reconnecting target can request sense and this will create
 # yet another SCB waiting for selection.  The solution used here is to 
 # use byte 31 of the SCB as a psuedo-next pointer and to thread a list
-# of SCBs that are awaiting selection.  Since 0 is a valid SCB offset, 
-# SCB_LIST_NULL is 0x10 which is out of range.  The kernel driver must
+# of SCBs that are awaiting selection.  Since 0-0xfe are valid SCB offsets, 
+# SCB_LIST_NULL is 0xff which is out of range.  The kernel driver must
 # add an entry to this list everytime a request sense occurs.  The sequencer
 # will automatically consume the entries.
 
@@ -261,14 +261,14 @@ WAITING_SCBH	= 0x57				# head of list of SCBs awaiting
 						# selection
 WAITING_SCBT	= 0x58				# tail of list of SCBs awaiting
 						# selection
-SCB_LIST_NULL	= 0x10
+SCB_LIST_NULL	= 0xff
 
 
 #  Poll QINCNT for work - the lower bits contain
 #  the number of entries in the Queue In FIFO.
 #
 start:
-	test	WAITING_SCBH,SCB_LIST_NULL jz start_waiting
+	cmp	WAITING_SCBH,SCB_LIST_NULL jne start_waiting
 poll_for_work:
 	test	FLAGS,TWIN_BUS	jz start2	# Are we a twin channel device?
 # For fairness, we check the other bus first, since we just finished a 
@@ -280,7 +280,7 @@ poll_for_work:
 start2:
 	test	SSTAT0,SELDI	jnz reselect
 	test	SSTAT0,SELDO	jnz select
-	test	WAITING_SCBH,SCB_LIST_NULL jz start_waiting
+	cmp	WAITING_SCBH,SCB_LIST_NULL jne start_waiting
 	test	QINCNT,SCBMASK	jz poll_for_work
 
 # We have at least one queued SCB now and we don't have any 
@@ -328,12 +328,12 @@ test    SCBARRAY+0,NEEDDMA      jz test_busy
 # initialization, board reset, and a target's SELTO.
 
 test_busy:
-	test	SCBARRAY+0,0x20	jnz start_scb
 	and	FUNCTION1,0x70,SCBARRAY+1
 	mov	A,FUNCTION1
 	test	SCBARRAY+1,0x88	jz test_a	# Id < 8 && A channel
 
 	test	ACTIVE_B,A	jnz requeue
+	test	SCBARRAY+0,0x20	jnz start_scb
 	or	ACTIVE_B,A	# Mark the current target as busy
 	jmp	start_scb
 
@@ -349,6 +349,7 @@ start_waiting:
 
 test_a:
 	test	ACTIVE_A,A	jnz requeue
+	test	SCBARRAY+0,0x20	jnz start_scb
 	or	ACTIVE_A,A	# Mark the current target as busy
 
 start_scb:
