@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1 1994/11/08 00:47:02 ache Exp $
+# $FreeBSD$
 #
 all depend lint tags:
 

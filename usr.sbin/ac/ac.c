@@ -14,7 +14,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: ac.c,v 1.2 1994/11/14 20:26:52 ache Exp $";
+static char rcsid[] = "$FreeBSD$";
 #endif
 
 #include <sys/types.h>

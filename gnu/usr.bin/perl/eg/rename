@@ -2,7 +2,7 @@
 'di';
 'ig00';
 #
-# $Header: /pub/FreeBSD/FreeBSD-CVS/src/gnu/usr.bin/perl/eg/rename,v 1.1.1.1 1994/09/10 06:27:47 gclarkii Exp $
+# $FreeBSD$
 #
 # $Log: rename,v $
 # Revision 1.1.1.1  1994/09/10  06:27:47  gclarkii

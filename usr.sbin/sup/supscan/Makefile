@@ -1,4 +1,4 @@
-# $Id$
+# $FreeBSD$
 
 PROG=	supscan
 SRCS=	supscan.c

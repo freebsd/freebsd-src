@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.7.4.4 1996/06/20 14:35:29 jkh Exp $
+# $FreeBSD$
 #	From: @(#)Makefile	8.1 (Berkeley) 6/8/93
 
 FILES=	bsd.README

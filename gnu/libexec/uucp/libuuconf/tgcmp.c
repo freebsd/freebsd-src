@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_tgcmp_rcsid[] = "$Id: tgcmp.c,v 1.3 1995/08/19 21:28:17 ache Exp $";
+const char _uuconf_tgcmp_rcsid[] = "$FreeBSD$";
 #endif
 
 /* A comparison function to pass to _uuconf_itime_parse.  This

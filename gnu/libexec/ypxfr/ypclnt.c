@@ -18,7 +18,7 @@
 
     Modified for use with FreeBSD 2.x by Bill Paul (wpaul@ctr.columbia.edu)
 
-	$Id: ypclnt.c,v 1.3 1995/03/31 05:45:21 wpaul Exp $
+ $FreeBSD$
 */
 
 #include <stdio.h>

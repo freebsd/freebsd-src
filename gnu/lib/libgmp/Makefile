@@ -1,5 +1,5 @@
 # Makefile for libgmp
-# $Id: Makefile,v 1.3.2.2 1996/06/05 02:38:30 jkh Exp $
+# $FreeBSD$
 
 LIB=    gmp
 SRCS=	$(GMP_SRCS)

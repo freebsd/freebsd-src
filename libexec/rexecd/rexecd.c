@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: rexecd.c,v 1.5.4.4 1996/11/22 09:01:35 pst Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint

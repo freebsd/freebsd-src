@@ -3,7 +3,7 @@ package DB;
 # modified Perl debugger, to be run from Emacs in perldb-mode
 # Ray Lischner (uunet!mntgfx!lisch) as of 5 Nov 1990
 
-$header = '$Header: /pub/FreeBSD/FreeBSD-CVS/src/gnu/usr.bin/perl/emacs/perldb.pl,v 1.1.1.1 1994/09/10 06:27:50 gclarkii Exp $';
+$header = '$FreeBSD$';
 #
 # This file is automatically included if you do perl -d.
 # It's probably not useful to include this yourself.

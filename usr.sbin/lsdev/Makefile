@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 PROG=	lsdev
 MAN8=	lsdev.8

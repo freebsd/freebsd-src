@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: options.c,v 1.3.4.3 1995/10/10 01:04:38 davidg Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint

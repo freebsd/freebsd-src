@@ -1,5 +1,5 @@
 /* 
- * $Id: rkinit_private.h,v 1.4 1993/12/23 16:47:39 dglo Exp $
+ * $FreeBSD$
  * $Source: /usr/sww/share/src/kerberosIV.BSD/include/RCS/rkinit_private.h,v $
  * $Author: dglo $
  *
@@ -10,7 +10,7 @@
 #define __RKINIT_PRIVATE_H__
 
 #if !defined(lint) && !defined(SABER)
-static const char *rcsid_rkinit_private_h = "$Id: rkinit_private.h,v 1.4 1993/12/23 16:47:39 dglo Exp $";
+static const char *rcsid_rkinit_private_h = "$FreeBSD$";
 #endif /* lint || SABER */
 
 #include <sys/types.h>

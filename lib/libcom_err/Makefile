@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1.1.1 1995/01/14 22:23:41 wollman Exp $
+# $FreeBSD$
 
 LIB=	com_err
 SRCS=	com_err.c error_message.c et_name.c init_et.c

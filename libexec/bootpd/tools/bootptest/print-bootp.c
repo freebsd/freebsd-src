@@ -24,7 +24,7 @@
  * There is an e-mail list for tcpdump: <tcpdump@ee.lbl.gov>
  */
 #ifndef lint
-static char rcsid[] = "$Id: print-bootp.c,v 1.1.1.1 1994/09/10 14:44:55 csgr Exp $";
+static char rcsid[] = "$FreeBSD$";
 /* 93/10/10 <gwr@mc.com> New data-driven option print routine. */
 #endif
 

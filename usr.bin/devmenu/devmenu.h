@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: devmenu.h,v 1.2 1995/04/14 18:33:44 wollman Exp $
+ * $FreeBSD$
  */
 
 /* NB: must include sys/devconf.h before this file */

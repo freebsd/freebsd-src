@@ -14,7 +14,7 @@
  * Turned inside out. Now returns xfers as new file ids, not as a special
  * `state' of FTP_t
  *
- * $Id: ftpio.c,v 1.4.2.3 1996/07/04 05:47:30 jkh Exp $
+ * $FreeBSD$
  *
  */
 

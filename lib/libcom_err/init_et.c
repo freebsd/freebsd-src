@@ -1,5 +1,5 @@
 /*
- * $Header: /pub/FreeBSD/FreeBSD-CVS/src/lib/libcom_err/init_et.c,v 1.1.1.1 1995/01/14 22:23:41 wollman Exp $
+ * $FreeBSD$
  * $Source: /pub/FreeBSD/FreeBSD-CVS/src/lib/libcom_err/init_et.c,v $
  * $Locker:  $
  *
@@ -19,7 +19,7 @@
 
 #ifndef	lint
 static const char rcsid_init_et_c[] =
-    "$Header: /pub/FreeBSD/FreeBSD-CVS/src/lib/libcom_err/init_et.c,v 1.1.1.1 1995/01/14 22:23:41 wollman Exp $";
+  "$FreeBSD$";
 #endif
 
 extern char *malloc(), *realloc();

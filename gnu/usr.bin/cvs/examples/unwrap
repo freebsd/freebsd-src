@@ -2,7 +2,7 @@
 #
 #	unwrap - extract the combined package (created with wrap)
 #
-#ident	"@(#)cvs/examples:$Name:  $:$Id: unwrap,v 1.1 1995/11/14 23:20:30 woods Exp $"
+#ident	"@(#)cvs/examples:$Name:  $:$FreeBSD$"
 
 # move the file to a new name with an extension
 rm -rf $1.cvswrap

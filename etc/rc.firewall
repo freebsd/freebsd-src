@@ -1,6 +1,6 @@
 ############
 # Setup system for firewall service.
-# $Id: rc.firewall,v 1.1 1996/04/03 17:13:58 phk Exp $
+# $FreeBSD$
 
 ############
 #

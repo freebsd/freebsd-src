@@ -40,7 +40,7 @@
 #
 # Start amd
 #
-# $Id: amd.start.ex,v 5.2.2.1 1992/02/09 15:11:32 jsp beta $
+# $FreeBSD$
 #
 PATH=/usr/sbin:/bin:/usr/bin:$PATH export PATH
 

@@ -1,4 +1,4 @@
-$Id: nslookup.help,v 1.1.1.1 1994/09/22 21:36:02 pst Exp $
+$FreeBSD$
 
 Commands: 	(identifiers are shown in uppercase, [] means optional)
 NAME		- print info about the host/domain NAME using default server

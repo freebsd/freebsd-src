@@ -1,4 +1,4 @@
-/* $Header: /pub/FreeBSD/FreeBSD-CVS/src/gnu/usr.bin/patch/inp.c,v 1.3 1995/05/30 05:02:31 rgrimes Exp $
+/* $FreeBSD$
  *
  * $Log: inp.c,v $
  * Revision 1.3  1995/05/30  05:02:31  rgrimes

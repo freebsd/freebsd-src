@@ -10,7 +10,7 @@
 #if 0
 #ifndef	lint
 static char rcsid_kprop_c[] =
-"$Id$";
+"$FreeBSD$";
 #endif	lint
 #endif
 

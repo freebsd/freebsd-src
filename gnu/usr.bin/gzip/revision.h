@@ -13,4 +13,4 @@
 #  undef LZW
 #endif
 
-/* $Id: revision.h,v 0.25 1993/06/24 08:29:52 jloup Exp $ */
+/* $FreeBSD$ */

@@ -77,7 +77,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: new_rkey.c,v 1.2 1996/02/10 15:54:48 markm Exp $
+ * $FreeBSD$
  */
 
 /* 21-Nov-95 - eay - I've finally put this into libdes, I have made a

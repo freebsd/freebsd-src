@@ -1,5 +1,5 @@
 /*
- * $Id: md5.c,v 1.6 1995/07/12 09:14:46 phk Exp $
+ * $FreeBSD$
  *
  * Derived from:
  */

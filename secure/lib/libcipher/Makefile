@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.7 1996/04/13 08:03:19 markm Exp $
+# $FreeBSD$
 #
 
 LIB=		cipher

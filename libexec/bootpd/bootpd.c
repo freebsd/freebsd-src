@@ -21,7 +21,7 @@ SOFTWARE.
 ************************************************************************/
 
 #ifndef lint
-static char rcsid[] = "$Id: bootpd.c,v 1.1.1.1 1994/09/30 05:45:04 pst Exp $";
+static char rcsid[] = "$FreeBSD$";
 #endif
 
 /*

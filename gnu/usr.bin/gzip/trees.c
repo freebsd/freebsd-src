@@ -59,7 +59,7 @@
 #include "gzip.h"
 
 #ifdef RCSID
-static char rcsid[] = "$Id: trees.c,v 1.3 1993/10/14 00:33:11 nate Exp $";
+static char rcsid[] = "$FreeBSD$";
 #endif
 
 /* ===========================================================================

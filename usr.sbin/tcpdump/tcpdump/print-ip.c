@@ -22,7 +22,7 @@
 #ifndef lint
 /* From: Header: print-ip.c,v 1.28 92/05/25 14:29:02 mccanne Exp $ (LBL) */
 static char rcsid[] =
-    "$Id: print-ip.c,v 1.5 1995/06/13 17:39:23 wollman Exp $";
+  "$FreeBSD$";
 #endif
 
 #include <sys/param.h>

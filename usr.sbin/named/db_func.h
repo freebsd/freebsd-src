@@ -1,6 +1,6 @@
 /* db_proc.h - prototypes for functions in db_*.c
  *
- * $Id: db_func.h,v 1.2 1995/05/30 03:48:36 rgrimes Exp $
+ * $FreeBSD$
  */
 
 /* ++from db_update.c++ */

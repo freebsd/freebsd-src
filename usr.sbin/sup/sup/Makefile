@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.2 1995/12/26 22:33:03 peter Exp $
+# $FreeBSD$
 
 PROG=	sup
 SRCS=	supcmain.c supcvers.c supcparse.c supcname.c supcmisc.c supcmeat.c

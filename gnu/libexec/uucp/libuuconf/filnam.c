@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_filnam_rcsid[] = "$Id: filnam.c,v 1.3 1995/08/19 21:27:02 ache Exp $";
+const char _uuconf_filnam_rcsid[] = "$FreeBSD$";
 #endif
 
 /* Return the saved file name.  */

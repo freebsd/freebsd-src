@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cp.c,v 1.6 1995/05/30 00:06:21 rgrimes Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint

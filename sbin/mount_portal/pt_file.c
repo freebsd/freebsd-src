@@ -36,7 +36,7 @@
  *
  *	@(#)pt_file.c	8.2 (Berkeley) 3/27/94
  *
- * $Id: pt_file.c,v 1.2 1994/09/19 13:52:38 ache Exp $
+ * $FreeBSD$
  */
 
 #include <stdio.h>

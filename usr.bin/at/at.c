@@ -80,7 +80,7 @@
 
 /* File scope variables */
 
-static char rcsid[] = "$Id: at.c,v 1.4 1995/04/27 19:27:41 ache Exp $";
+static char rcsid[] = "$FreeBSD$";
 char *no_export[] =
 {
     "TERM", "TERMCAP", "DISPLAY", "_"

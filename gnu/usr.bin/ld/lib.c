@@ -1,5 +1,5 @@
 /*
- * $Id: lib.c,v 1.16 1995/09/28 19:43:22 bde Exp $	- library routines
+ * $FreeBSD$	- library routines
  */
 
 #include <sys/param.h>

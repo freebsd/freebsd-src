@@ -1,6 +1,6 @@
 #!./perl
 
-# $Header: /pub/FreeBSD/FreeBSD-CVS/src/gnu/usr.bin/perl/perl/t/op/magic.t,v 1.1.1.1 1994/09/10 06:27:42 gclarkii Exp $
+# $FreeBSD$
 
 $| = 1;		# command buffering
 

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: scan.l,v 1.1 1995/01/22 20:37:31 alex Exp alex $
+ * $FreeBSD$
  */
 
 #include <err.h>

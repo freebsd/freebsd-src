@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.3 1996/01/24 00:11:57 wosch Exp $
+# $FreeBSD$
 
 PROG=	tzsetup
 MAN8=	tzsetup.8

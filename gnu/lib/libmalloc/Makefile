@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.4 1993/12/28 07:54:51 smace Exp $
+# $FreeBSD$
 
 
 CFLAGS+= -I${.CURDIR}

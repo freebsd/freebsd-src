@@ -39,7 +39,7 @@
 #if 0
 #ifndef	lint
 static char     rcsid_kpropd_c[] =
-"$Header: /usr/cvs/src/eBones/kpropd/kpropd.c,v 1.1.1.1 1995/08/03 07:37:19 mark Exp $";
+"$FreeBSD$";
 #endif	/* lint */
 #endif
 

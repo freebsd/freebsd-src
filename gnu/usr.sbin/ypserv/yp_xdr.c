@@ -11,7 +11,7 @@
  *    940616 pen@signum.se	Major cleanups.
  *    940713 pen@signum.se	Added SunOS 4 prototypes.
  *
- * 	$Id: yp_xdr.c,v 1.1 1995/01/31 08:58:57 wpaul Exp $
+ * $FreeBSD$
  */
 
 #include "system.h"

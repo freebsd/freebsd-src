@@ -31,7 +31,7 @@
 #
 # [whew!]
 #
-# $Id: which.pl,v 1.4 1995/01/30 22:21:29 jkh Exp $
+# $FreeBSD$
 
 $all = 0;
 $silent = 0;

@@ -2,7 +2,7 @@
 #
 #	wrap - Combine a directory into a single tar package.
 #
-#ident	"@(#)cvs/examples:$Name:  $:$Id: wrap,v 1.1 1995/11/14 23:20:32 woods Exp $"
+#ident	"@(#)cvs/examples:$Name:  $:$FreeBSD$"
 
 # This script is always called with the current directory set to
 # where the file to be combined exists. but i may get called with a

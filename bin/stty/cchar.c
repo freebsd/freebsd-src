@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cchar.c,v 1.3 1995/04/28 19:29:28 ache Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint

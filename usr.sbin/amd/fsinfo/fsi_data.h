@@ -37,7 +37,7 @@
  *
  *	@(#)fsi_data.h	8.1 (Berkeley) 6/6/93
  *
- * $Id: fsi_data.h,v 1.1.1.1 1994/05/26 05:22:18 rgrimes Exp $
+ * $FreeBSD$
  *
  */
 

@@ -20,7 +20,7 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  *
- * $Header: /pub/FreeBSD/FreeBSD-CVS/src/usr.sbin/pcvt/set2061/compiler.h,v 1.2 1995/05/30 03:49:45 rgrimes Exp $
+ * $FreeBSD$
  */
 
 

@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_errno_rcsid[] = "$Id: errno.c,v 1.3 1995/08/19 21:27:00 ache Exp $";
+const char _uuconf_errno_rcsid[] = "$FreeBSD$";
 #endif
 
 #include <errno.h>

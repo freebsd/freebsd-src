@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: prune.c,v 1.11 1996/11/11 03:50:08 fenner Exp $
+ * $FreeBSD$
  */
 
 

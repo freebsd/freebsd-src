@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * 	$Id: tzsetup.h,v 1.1 1995/04/24 21:04:35 wollman Exp $
+ * $FreeBSD$
  */
 
 struct country {

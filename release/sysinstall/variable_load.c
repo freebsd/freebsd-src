@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: variable_load.c,v 1.1.4.1 1997/03/29 06:44:54 jkh Exp $
+ * $FreeBSD$
  *
  * Copyright (c) 1997
  *	Paul Traina.  All rights reserved.

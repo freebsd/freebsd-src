@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: route.c,v 1.7 1996/11/11 03:50:11 fenner Exp $
+ * $FreeBSD$
  */
 
 

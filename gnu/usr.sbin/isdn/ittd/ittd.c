@@ -1,4 +1,4 @@
-static char     rcsid[] = "@(#)$Id: ittd.c,v 1.2 1995/01/25 14:01:28 jkr Exp jkr $";
+static char     rcsid[] = "@(#)$FreeBSD$";
 /*******************************************************************************
  *  II Version 0.1  -  $Revision: 1.2 $   $State: Exp $
  *

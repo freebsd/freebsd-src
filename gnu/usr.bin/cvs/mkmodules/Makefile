@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.6 1995/12/10 23:10:38 peter Exp $
+# $FreeBSD$
 
 PROG = mkmodules
 SRCS = mkmodules.c

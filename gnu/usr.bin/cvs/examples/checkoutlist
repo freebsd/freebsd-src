@@ -1,5 +1,5 @@
 #
-#ident	"@(#)cvs/examples:$Name:  $:$Id: checkoutlist,v 1.2 1995/11/14 23:24:49 woods Exp $"
+#ident	"@(#)cvs/examples:$Name:  $:$FreeBSD$"
 #
 # The "checkoutlist" file is used to support additional version controlled
 # administrative files in $CVSROOT/CVSROOT, such as template files.

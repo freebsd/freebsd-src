@@ -7,7 +7,7 @@
 # this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 # ----------------------------------------------------------------------------
 #
-# $Id$
+# $FreeBSD$
 #
 #######################################################################
 # Generic procedures usable in the process of gnu-to-bmake jobs.

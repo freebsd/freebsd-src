@@ -33,7 +33,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ident "$Header: /pub/FreeBSD/FreeBSD-CVS/src/usr.sbin/pcvt/vgaio/lex.l,v 1.1.1.1 1995/02/05 13:49:23 jkh Exp $"
+#ident "$FreeBSD$"
 
 /*
  * $Log: lex.l,v $

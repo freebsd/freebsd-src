@@ -7,13 +7,13 @@
  * already exists.
  *
  *	from: kdb_init.c,v 4.0 89/01/24 21:50:45 jtkohl Exp $
- *	$Id$
+ * $FreeBSD$
  */
 
 #if 0
 #ifndef	lint
 static char rcsid[] =
-"$Id$";
+"$FreeBSD$";
 #endif	lint
 #endif
 

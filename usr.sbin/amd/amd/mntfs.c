@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: mntfs.c,v 5.2.2.1 1992/02/09 15:08:42 jsp beta $
+ * $FreeBSD$
  */
 
 #ifndef lint

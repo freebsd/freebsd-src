@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *
- * $Id: pathnames.h,v 1.3 1995/02/26 12:17:52 amurai Exp $
+ * $FreeBSD$
  *
  *	@(#)pathnames.h	5.2 (Berkeley) 6/1/90
  */

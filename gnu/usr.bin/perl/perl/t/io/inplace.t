@@ -2,7 +2,7 @@
 
 $^I = '.bak';
 
-# $Header: /pub/FreeBSD/FreeBSD-CVS/src/gnu/usr.bin/perl/perl/t/io/inplace.t,v 1.1.1.1 1994/09/10 06:27:40 gclarkii Exp $
+# $FreeBSD$
 
 print "1..2\n";
 

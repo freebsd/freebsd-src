@@ -1,7 +1,7 @@
 /*
  * Feiertage
  *
- * $Id: calendar.feiertag,v 1.2 1996/02/02 06:05:13 wosch Exp $
+ * $FreeBSD$
  */
 
 #ifndef _de_DE_ISO_8859_1_feiertag_

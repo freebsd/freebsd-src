@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.3 (Berkeley) 4/17/94
-#	$Id: Makefile.inc,v 1.6 1996/05/29 05:00:12 jkh Exp $
+# $FreeBSD$
 
 # stdio sources
 .PATH: ${.CURDIR}/stdio

@@ -36,7 +36,7 @@
  *
  *	@(#)activate.c	8.2 (Berkeley) 3/27/94
  *
- * $Id: activate.c,v 1.2 1992/05/27 07:09:27 jsp Exp jsp $
+ * $FreeBSD$
  */
 
 #include <stdio.h>

@@ -1,7 +1,7 @@
 /*
  *  hrvatski calendar
  *
- * $Id: calendar.croatian,v 1.2 1996/01/30 23:35:08 wosch Exp $
+ * $FreeBSD$
  */
 
 #ifndef _hr_HR_ISO_8859_2_all

@@ -1,5 +1,5 @@
 /* 
- * $Id: rkinit.c,v 1.1 1993/12/10 18:41:00 dglo Exp gibbs $
+ * $FreeBSD$
  * $Source: /usr/src/eBones/rkinit/RCS/rkinit.c,v $
  * $Author: dglo $
  *
@@ -7,7 +7,7 @@
  */
 
 #if !defined(lint) && !defined(SABER) && !defined(LOCORE) && defined(RCS_HDRS)
-static char *rcsid = "$Id: rkinit.c,v 1.1 1993/12/10 18:41:00 dglo Exp gibbs $";
+static char *rcsid = "$FreeBSD$";
 #endif /* lint || SABER || LOCORE || RCS_HDRS */
 
 #include <stdio.h>

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cat.c,v 1.3 1995/10/03 12:46:37 bde Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint

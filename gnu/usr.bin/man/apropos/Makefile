@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.8 1994/08/28 18:33:42 bde Exp $
+# $FreeBSD$
 
 .if exists(${.CURDIR}/obj)
 MAN1=  ${.CURDIR}/obj/apropos.1

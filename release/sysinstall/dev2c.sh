@@ -7,7 +7,7 @@
 # this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 # ----------------------------------------------------------------------------
 #
-# $Id: dev2c.sh,v 1.1 1994/10/26 02:53:08 phk Exp $
+# $FreeBSD$
 #
 # During installation, we suffer badly of we have to run MAKEDEV.  MAKEDEV
 # need sh, ln, chown, mknod, awk, rm, test and probably emacs too when

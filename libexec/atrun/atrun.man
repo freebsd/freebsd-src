@@ -1,4 +1,4 @@
-.\" $Id: atrun.man,v 1.1 1994/05/10 18:23:08 kernel Exp $
+.\" $FreeBSD$
 .Dd April 12, 1995
 .Dt ATRUN 8
 .Os "FreeBSD 2.1"

@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pat_rep.c,v 1.4 1995/05/30 00:06:59 rgrimes Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint

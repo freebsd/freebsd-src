@@ -1,5 +1,5 @@
 /*
- *	$Id$
+ * $FreeBSD$
  */
 
 #if (defined(__sun__) || defined(sun)) && !defined(__svr4__)

@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_bool_rcsid[] = "$Id: bool.c,v 1.4 1995/08/19 21:26:41 ache Exp $";
+const char _uuconf_bool_rcsid[] = "$FreeBSD$";
 #endif
 
 /* Parse a boolean string into a variable.  This is called by

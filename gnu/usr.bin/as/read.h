@@ -18,7 +18,7 @@
    along with GAS; see the file COPYING.  If not, write to
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /*
- * $Id: read.h,v 1.4 1994/12/23 22:36:17 nate Exp $
+ * $FreeBSD$
  */
 
 

@@ -35,7 +35,7 @@
  * Center for Telecommunications Research
  * Columbia University, New York City
  *
- *	$Id: pw_yp.h,v 1.2 1995/09/02 03:56:21 wpaul Exp $
+ * $FreeBSD$
  */
 
 #ifdef YP

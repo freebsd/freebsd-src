@@ -1,5 +1,5 @@
 #
-#ident	"@(#)cvs/examples:$Name:  $:$Id: taginfo,v 1.3 1995/11/14 23:27:52 woods Exp $"
+#ident	"@(#)cvs/examples:$Name:  $:$FreeBSD$"
 #
 # The "taginfo" file is used to control pre-tag checks.
 # The filter on the right is invoked with the following arguments:

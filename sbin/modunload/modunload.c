@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: modunload.c,v 1.6 1994/05/23 05:42:58 cgd Exp $
+ * $FreeBSD$
  */
 
 #include <stdio.h>

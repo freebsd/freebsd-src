@@ -1,5 +1,5 @@
 /*
- * $Header: /pub/FreeBSD/FreeBSD-CVS/src/usr.sbin/tcpdump/tcpdump/nfsfh.h,v 1.1 1995/03/08 12:52:19 olah Exp $
+ * $FreeBSD$
  *
  * nfsfh.h - NFS file handle definitions (for portable use)
  *

@@ -1,5 +1,5 @@
 #
-#ident	"@(#)cvs/examples:$Name:  $:$Id: rcsinfo,v 1.2 1995/12/10 23:08:06 peter Exp $"
+#ident	"@(#)cvs/examples:$Name:  $:$FreeBSD$"
 #
 # The "rcsinfo" file is used to control templates with which the editor
 # is invoked on commit and import.

@@ -1,3 +1,3 @@
 #!/bin/sh
-# $Id$
+# $FreeBSD$
 modload -e linux_init /lkm/linux_mod.o

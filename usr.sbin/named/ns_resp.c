@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)ns_resp.c	4.65 (Berkeley) 3/3/91";
-static char rcsid[] = "$Id: ns_resp.c,v 1.2 1995/05/30 03:48:56 rgrimes Exp $";
+static char rcsid[] = "$FreeBSD$";
 #endif /* not lint */
 
 /*

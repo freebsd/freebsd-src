@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.8 1995/11/16 02:00:38 gpalmer Exp $
+# $FreeBSD$
 
 NOBIN=
 CLEANFILES+=	yearistype

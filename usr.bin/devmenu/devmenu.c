@@ -36,7 +36,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: devmenu.c,v 1.2 1995/04/14 18:33:43 wollman Exp $";
+  "$FreeBSD$";
 #endif
 
 #include <stdlib.h>

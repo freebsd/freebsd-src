@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 6/6/93
-#	$Id: Makefile,v 1.4 1996/03/09 19:22:49 joerg Exp $
+# $FreeBSD$
 
 PROG=	talk
 DPADD=	${LIBCURSES} ${LIBTERMCAP}

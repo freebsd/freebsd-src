@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.3 1995/12/10 23:07:36 peter Exp $
+# $FreeBSD$
 
 CVSFILES= checkoutlist commitinfo cvswrappers editinfo loginfo modules \
 	  rcsinfo rcstemplate taginfo unwrap wrap

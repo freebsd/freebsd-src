@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.10 1995/08/29 19:48:10 wollman Exp $
+# $FreeBSD$
 
 PROG=	tcpdump
 CFLAGS+=-DCSLIP -DPPP -DFDDI

@@ -1,6 +1,6 @@
 /* cre-mparam.c -- Create machine-depedent parameter file.
 
- $Id$
+ $FreeBSD$
 
 Copyright (C) 1991 Free Software Foundation, Inc.
 

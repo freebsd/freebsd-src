@@ -1,4 +1,4 @@
-/* @(#) $Header: /pub/FreeBSD/FreeBSD-CVS/src/usr.sbin/tcpdump/tcpdump/bootp.h,v 1.2 1995/03/08 12:52:09 olah Exp $ (LBL) */
+/* @(#) $FreeBSD$ (LBL) */
 /*
  * Bootstrap Protocol (BOOTP).  RFC951 and RFC1048.
  *

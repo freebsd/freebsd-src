@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: startslip.c,v 1.18 1995/09/27 17:15:37 ache Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint

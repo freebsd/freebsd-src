@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.4 1995/09/28 18:23:34 bde Exp $
+# $FreeBSD$
 
 PROG = colldef
 LFLAGS = -8 -i

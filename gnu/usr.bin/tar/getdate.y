@@ -98,7 +98,7 @@ extern struct tm	*localtime();
 
 #if	!defined(lint) && !defined(SABER)
 static char RCS[] =
-	"$Header: /pub/FreeBSD/FreeBSD-CVS/src/gnu/usr.bin/tar/getdate.y,v 1.2 1994/11/04 02:12:22 jkh Exp $";
+  "$FreeBSD$";
 #endif	/* !defined(lint) && !defined(SABER) */
 
 

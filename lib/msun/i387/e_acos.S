@@ -35,7 +35,7 @@
 
 #include <machine/asmacros.h>
 
-RCSID("$Id: e_acos.S,v 1.1.1.1 1994/08/19 09:40:00 jkh Exp $")
+RCSID("$FreeBSD$")
 
 /* acos = atan (sqrt(1 - x^2) / x) */
 ENTRY(__ieee754_acos)

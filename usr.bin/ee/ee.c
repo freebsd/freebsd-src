@@ -49,7 +49,7 @@
  |	proprietary information which is protected by
  |	copyright.  All rights are reserved.
  |
- |	$Header: /pub/FreeBSD/FreeBSD-CVS/src/usr.bin/ee/ee.c,v 1.3.2.2 1996/05/27 21:07:11 joerg Exp $
+ | $FreeBSD$
  |
  */
 

@@ -18,7 +18,7 @@
  *		(614)451-1883
  */
 
-static char rcsid[] = "$Id: chat.c,v 1.2 1994/12/19 01:02:11 ache Exp $";
+static char rcsid[] = "$FreeBSD$";
 
 #include <stdio.h>
 #include <fcntl.h>

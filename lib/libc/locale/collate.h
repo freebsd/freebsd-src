@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: collate.h,v 1.4 1995/01/27 12:51:06 alex Exp alex $
+ * $FreeBSD$
  */
 
 #ifndef COLLATE_H_INCLUDED

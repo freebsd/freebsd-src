@@ -1,4 +1,4 @@
-#	$Id: dot.profile,v 1.7 1994/09/22 08:32:39 rgrimes Exp $
+# $FreeBSD$
 #
 PATH=/sbin:/usr/sbin:/bin:/usr/bin:/usr/local/bin
 echo 'erase ^H, kill ^U, intr ^C'

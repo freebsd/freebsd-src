@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1 1995/02/22 13:45:29 sos Exp $
+# $FreeBSD$
 
 BINDIR=	/lkm
 KMOD=	blank_saver_mod

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.4 1994/10/27 23:36:57 wollman Exp $
+# $FreeBSD$
 
 .PATH:	${.CURDIR}/../../sys/i386/ibcs2
 KMOD=	ibcs2_mod

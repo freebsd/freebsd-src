@@ -1,4 +1,4 @@
-/* $Header: /pub/FreeBSD/FreeBSD-CVS/src/gnu/usr.bin/patch/util.h,v 1.2 1995/05/30 05:02:38 rgrimes Exp $
+/* $FreeBSD$
  *
  * $Log: util.h,v $
  * Revision 1.2  1995/05/30  05:02:38  rgrimes

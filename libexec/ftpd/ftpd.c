@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ftpd.c,v 1.10.4.5 1997/02/13 19:31:55 guido Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint

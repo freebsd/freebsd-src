@@ -1,4 +1,4 @@
-/* $Header: /pub/FreeBSD/FreeBSD-CVS/src/gnu/usr.bin/patch/common.h,v 1.3 1995/05/30 05:02:30 rgrimes Exp $
+/* $FreeBSD$
  *
  * $Log: common.h,v $
  * Revision 1.3  1995/05/30  05:02:30  rgrimes

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.2 1995/12/11 01:58:51 peter Exp $
+# $FreeBSD$
 
 MAN8=	cvsbug.8
 

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.193.2.73 1997/03/12 02:42:23 jkh Exp $
+# $FreeBSD$
 #
 # How to roll a release:
 #

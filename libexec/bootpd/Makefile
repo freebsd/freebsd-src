@@ -1,5 +1,5 @@
 # bootpd/Makefile
-# $Id: Makefile,v 1.3 1995/07/25 23:38:40 wpaul Exp $
+# $FreeBSD$
 
 PROG=	bootpd
 CFLAGS+= -DETC_ETHERS

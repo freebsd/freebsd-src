@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1 1995/02/22 13:46:32 sos Exp $
+# $FreeBSD$
 
 BINDIR=	/lkm
 KMOD=	fade_saver_mod

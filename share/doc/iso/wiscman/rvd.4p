@@ -3,7 +3,7 @@
 .\" LICENSED MATERIALS - PROPERTY OF IBM
 .\" REFER TO COPYRIGHT INSTRUCTIONS FORM NUMBER G120-2083
 .\"
-.\"$Header: /pub/FreeBSD/FreeBSD-CVS/src/share/doc/iso/wiscman/rvd.4p,v 1.1.1.1 1994/05/30 19:08:12 rgrimes Exp $
+.\"$FreeBSD$
 .\"$ACIS:rvd.4p_ca 11.0$
 .\"$Source: /pub/FreeBSD/FreeBSD-CVS/src/share/doc/iso/wiscman/rvd.4p,v $
 .\"This file contains -man macros.

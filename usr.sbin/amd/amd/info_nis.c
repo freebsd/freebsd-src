@@ -37,7 +37,7 @@
  *
  *	@(#)info_nis.c	8.1 (Berkeley) 6/6/93
  *
- * $Id: info_nis.c,v 5.2.2.1 1992/02/09 15:08:32 jsp beta $
+ * $FreeBSD$
  *
  */
 

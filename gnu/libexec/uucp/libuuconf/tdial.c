@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_tdial_rcsid[] = "$Id: tdial.c,v 1.3 1995/08/19 21:28:13 ache Exp $";
+const char _uuconf_tdial_rcsid[] = "$FreeBSD$";
 #endif
 
 #include <errno.h>

@@ -1,5 +1,5 @@
 # Makefile for xtend (Stark) 10/30/93
-# $Id$
+# $FreeBSD$
 
 BINMODE=	555
 

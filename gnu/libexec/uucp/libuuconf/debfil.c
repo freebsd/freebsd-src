@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_debfil_rcsid[] = "$Id: debfil.c,v 1.3 1995/08/19 21:26:53 ache Exp $";
+const char _uuconf_debfil_rcsid[] = "$FreeBSD$";
 #endif
 
 /* Get the name of the UUCP debugging file.  */

@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ctm_pass1.c,v 1.11 1995/07/12 09:16:08 phk Exp $
+ * $FreeBSD$
  *
  */
 

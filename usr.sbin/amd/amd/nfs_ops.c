@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: nfs_ops.c,v 1.2 1995/02/13 01:56:22 wpaul Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint

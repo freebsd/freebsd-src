@@ -1,5 +1,5 @@
 #ifndef lint
-static char *RCSid = "$Header: /pub/FreeBSD/FreeBSD-CVS/src/usr.sbin/tcpdump/tcpdump/parsenfsfh.c,v 1.1 1995/03/08 12:52:23 olah Exp $";
+static char *RCSid = "$FreeBSD$";
 #endif
 
 /*

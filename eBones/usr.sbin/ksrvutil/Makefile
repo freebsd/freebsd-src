@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.5 1995/09/14 04:11:06 gibbs Exp $
+# $FreeBSD$
 
 PROG=	ksrvutil
 SRCS=	ksrvutil.c

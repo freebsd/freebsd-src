@@ -1,5 +1,5 @@
 /*
- * $Id: warnings.c,v 1.9 1994/12/23 22:30:57 nate Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

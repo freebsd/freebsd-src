@@ -26,7 +26,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-/* $Header: /pub/FreeBSD/FreeBSD-CVS/src/usr.bin/lex/misc.c,v 1.2 1995/05/30 06:31:16 rgrimes Exp $ */
+/* $FreeBSD$ */
 
 #include "flexdef.h"
 

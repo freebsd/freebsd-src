@@ -32,7 +32,7 @@
 #
 #   Email: Wolfram Schneider <wosch@cs.tu-berlin.de>
 #
-# $Id: adduser.perl,v 1.11 1996/05/06 06:15:19 gclarkii Exp $
+# $FreeBSD$
 #
 
 # read variables

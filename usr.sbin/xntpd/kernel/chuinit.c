@@ -1,7 +1,7 @@
 /*
 **	dynamically loadable chu driver
 **
-**	$Header: /pub/FreeBSD/FreeBSD-CVS/src/usr.sbin/xntpd/kernel/chuinit.c,v 1.2 1995/05/30 03:53:30 rgrimes Exp $
+** $FreeBSD$
 **
 **	william robertson <rob@agate.berkeley.edu>
 */

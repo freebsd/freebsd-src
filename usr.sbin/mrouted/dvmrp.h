@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: dvmrp.h,v 1.5 1996/01/06 21:09:43 peter Exp $
+ * $FreeBSD$
  */
 
 /*

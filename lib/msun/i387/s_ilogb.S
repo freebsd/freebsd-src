@@ -35,7 +35,7 @@
 
 #include <machine/asmacros.h>
 
-RCSID("$Id: s_ilogb.S,v 1.2 1994/08/19 11:14:26 jkh Exp $")
+RCSID("$FreeBSD$")
 
 ENTRY(ilogb)
 	pushl	%ebp

@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.3 1995/07/25 00:31:29 bde Exp $
+# $FreeBSD$
 
 FILES=	call.sample config.sample dial.sample dialcode.sample passwd.sample \
 	port.sample sys1.sample sys2.sample

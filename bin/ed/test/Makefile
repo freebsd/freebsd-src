@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 SHELL=	/bin/sh
 ED=	../obj/ed

@@ -1,5 +1,5 @@
 /*
- * $Header: /pub/FreeBSD/FreeBSD-CVS/src/usr.bin/compress/doc/revision.log,v 1.1.1.1 1994/05/27 12:30:59 rgrimes Exp $
+ * $FreeBSD$
  * $Log: revision.log,v $
 # Revision 1.1.1.1  1994/05/27  12:30:59  rgrimes
 # BSD 4.4 Lite Usr.bin Sources
@@ -116,4 +116,4 @@
  */
 
 static char rcs_ident[] =
-	"$Header: /pub/FreeBSD/FreeBSD-CVS/src/usr.bin/compress/doc/revision.log,v 1.1.1.1 1994/05/27 12:30:59 rgrimes Exp $";
+  "$FreeBSD$";

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: modload.c,v 1.7 1995/03/16 17:11:21 wollman Exp $
+ * $FreeBSD$
  */
 
 #include <stdio.h>

@@ -1,5 +1,5 @@
 # Makefile for libmp
-# $Id: Makefile,v 1.3 1995/11/13 18:39:23 markm Exp $
+# $FreeBSD$
 
 LIB=    mp
 SRCS=	$(MP_SRCS)

@@ -1,5 +1,5 @@
 #! /bin/sh
-# $Id: descend.sh,v 1.1 1995/07/10 02:26:32 kfogel Exp $
+# $FreeBSD$
 #
 # descend - walk down a directory tree and execute a command at each node
 

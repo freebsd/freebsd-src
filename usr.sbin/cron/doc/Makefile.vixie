@@ -17,7 +17,7 @@
 
 # Makefile for vixie's cron
 #
-# $Id: Makefile.vixie,v 1.1.1.1 1994/08/27 13:43:03 jkh Exp $
+# $FreeBSD$
 #
 # vix 03mar88 [moved to RCS, rest of log is in there]
 # vix 30mar87 [goodbye, time.c; hello, getopt]

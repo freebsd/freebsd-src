@@ -1,5 +1,5 @@
 # Makefile for uupick
-# $Id: Makefile,v 1.2 1993/08/05 16:15:19 jtc Exp $
+# $FreeBSD$
 
 BINDIR=		$(bindir)
 

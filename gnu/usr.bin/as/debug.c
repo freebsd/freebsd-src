@@ -21,7 +21,7 @@
 /* Routines for debug use only.  */
 
 #ifndef lint
-static char rcsid[] = "$Id: debug.c,v 1.1 1993/11/03 00:51:26 paul Exp $";
+static char rcsid[] = "$FreeBSD$";
 #endif
 
 #include "as.h"

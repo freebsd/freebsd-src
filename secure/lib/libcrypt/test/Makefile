@@ -2,7 +2,7 @@
 #	Hacked Makefile to compile and run the DES-certification program,
 #	but not install anything.
 #
-# $Id: Makefile,v 1.3 1994/08/12 21:55:04 csgr Exp $
+# $FreeBSD$
 #
 .if exists (../obj)
 OBJDIR = obj

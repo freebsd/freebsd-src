@@ -1,4 +1,4 @@
-# $Id$
+# $FreeBSD$
 
 DISTRIBUTION=	compat1x
 

@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.16 (Berkeley) 8/15/94
-#	$Id: Makefile,v 1.1 1995/01/11 03:24:15 wollman Exp $
+# $FreeBSD$
 
 VOLUME=	usd/13.viref
 SRCS=	vi.ref ${.OBJDIR}/index.so

@@ -1,4 +1,4 @@
-#	$Id: dot.cshrc,v 1.11 1994/09/22 08:23:02 rgrimes Exp $
+# $FreeBSD$
 #
 alias mail Mail
 set history=1000

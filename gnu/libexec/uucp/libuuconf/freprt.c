@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_freprt_rcsid[] = "$Id: freprt.c,v 1.3 1995/08/19 21:27:09 ache Exp $";
+const char _uuconf_freprt_rcsid[] = "$FreeBSD$";
 #endif
 
 /* Free the memory allocated for a port.  */

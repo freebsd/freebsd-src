@@ -22,7 +22,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: subsegs.c,v 1.3 1995/03/02 20:29:18 nate Exp $";
+static char rcsid[] = "$FreeBSD$";
 #endif
 
 #include "as.h"

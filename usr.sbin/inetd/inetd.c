@@ -40,7 +40,7 @@ static char copyright[] =
 #ifndef lint
 /* from: @(#)inetd.c	8.4 (Berkeley) 4/13/94"; */
 static char inetd_c_rcsid[] =
-	"$Id: inetd.c,v 1.6.2.2 1996/10/28 23:03:54 joerg Exp $";
+  "$FreeBSD$";
 #endif /* not lint */
 
 /*

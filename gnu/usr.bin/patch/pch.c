@@ -1,4 +1,4 @@
-/* $Header: /pub/FreeBSD/FreeBSD-CVS/src/gnu/usr.bin/patch/pch.c,v 1.5.4.2 1996/04/11 10:33:45 markm Exp $
+/* $FreeBSD$
  *
  * $Log: pch.c,v $
  * Revision 1.5.4.2  1996/04/11  10:33:45  markm

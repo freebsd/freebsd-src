@@ -26,7 +26,7 @@ SOFTWARE.
 ************************************************************************/
 
 #ifndef lint
-static char rcsid[] = "$Id: bootpgw.c,v 1.1.1.1 1994/09/10 14:44:54 csgr Exp $";
+static char rcsid[] = "$FreeBSD$";
 #endif
 
 /*

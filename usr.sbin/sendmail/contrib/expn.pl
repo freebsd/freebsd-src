@@ -13,7 +13,7 @@ $sockaddr = 'S n a4 x8';
 # system requirements:
 # 	must have 'nslookup' and 'hostname' programs.
 
-# $Header: /home/ncvs/src/usr.sbin/sendmail/contrib/expn.pl,v 1.1.1.2 1995/12/02 17:30:09 peter Exp $
+# $FreeBSD$
 
 # TODO:
 #	less magic should apply to command-line addresses

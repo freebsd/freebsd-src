@@ -20,7 +20,7 @@
 */
 
 /*
- * $Id: yp_mkdb.c,v 1.2 1995/03/31 19:45:13 wpaul Exp $
+ * $FreeBSD$
  */
 
 #define BUFFERSIZE 4096

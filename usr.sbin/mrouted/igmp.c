@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: igmp.c,v 1.11 1996/11/11 03:49:57 fenner Exp $
+ * $FreeBSD$
  */
 
 

@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_sinfo_rcsid[] = "$Id: sinfo.c,v 1.3 1995/08/19 21:28:00 ache Exp $";
+const char _uuconf_sinfo_rcsid[] = "$FreeBSD$";
 #endif
 
 /* Get information about a particular system.  We combine the

@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sel_subs.c,v 1.2 1994/09/24 02:56:29 davidg Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint

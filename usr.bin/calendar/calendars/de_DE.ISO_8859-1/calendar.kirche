@@ -1,7 +1,7 @@
 /*
  * Kirche in Deutschland
  *
- * $Id: calendar.kirche,v 1.2 1996/02/02 06:05:16 wosch Exp $
+ * $FreeBSD$
  */
 
 #ifndef _de_DE_ISO_8859_1_kirche_

@@ -8,7 +8,7 @@
 #
 # Written by Jörg Wunsch, 95/03/07, and placed in the public domain.
 #
-# $Id: easy-import.pl,v 1.5.2.2 1996/06/05 02:39:41 jkh Exp $
+# $FreeBSD$
 
 require "complete.pl";
 require "getopts.pl";

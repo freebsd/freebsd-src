@@ -35,7 +35,7 @@
 #
 #   Email: Wolfram Schneider <wosch@cs.tu-berlin.de>
 #
-# $Id: catman.perl,v 1.7 1996/03/21 18:17:41 wosch Exp $
+# $FreeBSD$
 
 
 sub usage {

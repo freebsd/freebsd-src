@@ -18,7 +18,7 @@
 
     Modified for use with FreeBSD 2.x by Bill Paul (wpaul@ctr.columbia.edu)
 
-	$Id: yppush.c,v 1.6.2.1 1995/06/04 17:15:49 davidg Exp $
+ $FreeBSD$
 */
 
 #include <stdio.h>

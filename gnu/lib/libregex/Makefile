@@ -1,4 +1,4 @@
-# $Header: /pub/FreeBSD/FreeBSD-CVS/src/gnu/lib/libregex/Makefile,v 1.14 1995/03/12 23:21:29 ache Exp $
+# $FreeBSD$
 
 
 LIB=	gnuregex

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: var.c,v 1.2 1994/09/24 02:58:22 davidg Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint

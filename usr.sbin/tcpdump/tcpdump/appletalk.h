@@ -20,7 +20,7 @@
  *
  * AppleTalk protocol formats (courtesy Bill Croft of Stanford/SUMEX).
  *
- * @(#) $Header: /pub/FreeBSD/FreeBSD-CVS/src/usr.sbin/tcpdump/tcpdump/appletalk.h,v 1.2 1995/03/08 12:52:09 olah Exp $ (LBL)
+ * @(#) $FreeBSD$ (LBL)
  */
 
 struct LAP {

@@ -140,7 +140,7 @@ Report problems and direct all questions to:
 
 #include "rcsbase.h"
 
-libId(genId, "$Id: rcsgen.c,v 1.4 1995/10/29 22:06:21 peter Exp $")
+libId(genId, "$FreeBSD$")
 
 int interactiveflag;  /* Should we act as if stdin is a tty?  */
 struct buf curlogbuf;  /* buffer for current log message */

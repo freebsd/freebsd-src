@@ -3,7 +3,7 @@
 
 /*
  * Patchlevel file for Ian Darwin's MAGIC command.
- * $Id: patchlevel.h,v 1.1.1.1 1994/09/03 19:16:23 csgr Exp $
+ * $FreeBSD$
  *
  * $Log: patchlevel.h,v $
  * Revision 1.1.1.1  1994/09/03  19:16:23  csgr

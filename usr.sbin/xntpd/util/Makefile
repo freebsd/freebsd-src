@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.2 1993/12/22 11:33:28 rgrimes Exp $
+# $FreeBSD$
 #
 
 CFLAGS+= -I${.CURDIR}/../include

@@ -34,7 +34,7 @@
  * error logging/reporting facilities
  * stolen from /usr/libexec/mail.local via ypserv
  *
- * $Id$
+ * $FreeBSD$
  */
 
 #include <stdio.h>

@@ -27,7 +27,7 @@
  * Mountain View, California  94043
  *
  *	from: @(#)rpc_parse.h 1.3 87/03/09 (C) 1987 SMI
- *	$Id: rpc_parse.h,v 1.1 1994/08/07 18:01:33 wollman Exp $
+ * $FreeBSD$
  */
 
 /*

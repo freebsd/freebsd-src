@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_deblev_rcsid[] = "$Id: deblev.c,v 1.3 1995/08/19 21:26:54 ache Exp $";
+const char _uuconf_deblev_rcsid[] = "$FreeBSD$";
 #endif
 
 /* Get the UUCP debugging level.  */

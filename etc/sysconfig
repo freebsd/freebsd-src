@@ -4,7 +4,7 @@
 # This is sysconfig - a file full of useful variables that you can set 
 # to change the default startup behavior of your system.
 #
-#	$Id: sysconfig,v 1.14.4.10 1996/06/05 02:36:39 jkh Exp $
+# $FreeBSD$
 
 ######################### Start Of Local Configuration Section ###########
 

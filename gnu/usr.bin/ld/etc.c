@@ -1,5 +1,5 @@
 /*
- * $Id: etc.c,v 1.7 1994/02/13 20:41:05 jkh Exp $
+ * $FreeBSD$
  */
 
 #include <err.h>

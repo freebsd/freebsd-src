@@ -1,7 +1,7 @@
 #
 # Bmakefile for GNU info
 #
-# $Id: Makefile,v 1.2 1994/09/15 13:12:23 jkh Exp $
+# $FreeBSD$
 #
 
 PROG= texindex

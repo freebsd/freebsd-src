@@ -1,5 +1,5 @@
 #
-# $Id: editinfo,v 1.1.1.2 1995/03/31 07:44:37 nate Exp $
+# $FreeBSD$
 #
 # The "editinfo" file is used to allow verification of logging
 # information.  It works best when a template (as specified in the

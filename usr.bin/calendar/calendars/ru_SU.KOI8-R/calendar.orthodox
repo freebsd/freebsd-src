@@ -1,7 +1,7 @@
 /*
  * Православные праздники
  *
- * $Id: calendar.usholiday,v 1.4 1996/04/06 01:15:21 mpp Exp $
+ * $FreeBSD$
  */
 
 #ifndef _ru_SU_KOI8_R_orthodox_

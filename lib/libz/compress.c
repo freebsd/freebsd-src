@@ -3,7 +3,7 @@
  * For conditions of distribution and use, see copyright notice in zlib.h 
  */
 
-/* $Id: compress.c,v 1.10 1996/05/23 16:51:12 me Exp $ */
+/* $FreeBSD$ */
 
 #include "zlib.h"
 

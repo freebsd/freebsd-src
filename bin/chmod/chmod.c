@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: chmod.c,v 1.3 1995/02/03 22:21:09 bde Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint

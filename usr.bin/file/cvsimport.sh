@@ -3,7 +3,7 @@
 # This shell script can be used in order to handle future imports
 # of newer versions of file(1)
 #
-# $Id$
+# $FreeBSD$
 if [ $# -ne 2 ] ; then 
 	echo "usage: $0 <major> <minor>" 1>&2
 	exit 1

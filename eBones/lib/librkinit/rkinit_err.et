@@ -1,5 +1,5 @@
 # 
-# $Header: /local/cvsfiles/kerberos/src/appl/rkinit/lib/rkinit_err.et,v 1.1 1991/12/03 23:20:58 eichin Exp $
+# $FreeBSD$
 # $Source: /local/cvsfiles/kerberos/src/appl/rkinit/lib/rkinit_err.et,v $
 # $Author: eichin $
 #
@@ -10,7 +10,7 @@
 
 et rkin
 
-ec RKINIT_RCSID,	"$Header: /local/cvsfiles/kerberos/src/appl/rkinit/lib/rkinit_err.et,v 1.1 1991/12/03 23:20:58 eichin Exp $"
+ec RKINIT_RCSID,	"$FreeBSD$"
 ec RKINIT_VERSION,	"Version mismatch"
 ec RKINIT_HOST,		"Failure getting host information"
 ec RKINIT_SERV,		"Failure getting service information (/etc/services)"

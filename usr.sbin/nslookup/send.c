@@ -55,7 +55,7 @@
 
 #ifndef lint
 static char sccsid[] = "@(#)send.c	5.18 (Berkeley) 3/2/91";
-static char rcsid[] = "$Id: send.c,v 1.2 1994/09/22 21:50:38 pst Exp $";
+static char rcsid[] = "$FreeBSD$";
 #endif /* not lint */
 
 /*

@@ -9,7 +9,7 @@
  * Copyright (C) 1993  Hannu Savolainen
  * Ported to 386bsd by Serge Vakulenko
  * based on tools/build.c by Linus Torvalds
- * $Id: kzip.c,v 1.4 1995/10/06 02:42:15 peter Exp $
+ * $FreeBSD$
  *
  */
 

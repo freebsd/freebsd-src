@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.1 (Berkeley) 6/25/90
-#	$Id$
+# $FreeBSD$
 
 FILES=	kparse.h krb.h krb_db.h
 

@@ -37,7 +37,7 @@
  *
  *	@(#)nfs_prot_svc.c	8.1 (Berkeley) 6/6/93
  *
- * $Id: nfs_prot_svc.c,v 5.2.2.1 1992/02/09 15:09:30 jsp beta $
+ * $FreeBSD$
  *
  */
 

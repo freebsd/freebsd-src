@@ -1,4 +1,4 @@
-$Id$
+$FreeBSD$
 
 The /usr/share/examples/etc directory contains the original
 distribution versions of the files which are shipped in /etc.  This is

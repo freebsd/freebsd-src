@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_port_rcsid[] = "$Id: port.c,v 1.3 1995/08/19 21:27:47 ache Exp $";
+const char _uuconf_port_rcsid[] = "$FreeBSD$";
 #endif
 
 /* Find a port by name, baud rate, and special purpose function.  */

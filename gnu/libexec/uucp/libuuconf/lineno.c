@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_lineno_rcsid[] = "$Id: lineno.c,v 1.3 1995/08/19 21:27:35 ache Exp $";
+const char _uuconf_lineno_rcsid[] = "$FreeBSD$";
 #endif
 
 /* Return the saved line number.  */

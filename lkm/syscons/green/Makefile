@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1 1995/02/22 13:47:10 sos Exp $
+# $FreeBSD$
 
 BINDIR=	/lkm
 KMOD=	green_saver_mod

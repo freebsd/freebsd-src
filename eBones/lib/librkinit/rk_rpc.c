@@ -1,5 +1,5 @@
 /* 
- * $Id$
+ * $FreeBSD$
  * $Source$
  * $Author$
  *
@@ -9,7 +9,7 @@
  */
 
 #if !defined(lint) && !defined(SABER) && !defined(LOCORE) && defined(RCS_HDRS)
-static char *rcsid = "$Id$";
+static char *rcsid = "$FreeBSD$";
 #endif /* lint || SABER || LOCORE || RCS_HDRS */
 
 #include <stdio.h>

@@ -35,7 +35,7 @@
  * Center for Telecommunications Research
  * Columbia University, New York City
  *
- *	$Id: ether_addr.c,v 1.1.4.3 1996/06/05 02:48:19 jkh Exp $
+ * $FreeBSD$
  */
 
 

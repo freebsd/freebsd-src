@@ -1,4 +1,4 @@
-/* $Id: patchlevel.h,v 1.10 1994/06/09 01:51:10 paulus Exp $ */
+/* $FreeBSD$ */
 #define	PATCHLEVEL	2
 
 #define VERSION	"2.1"

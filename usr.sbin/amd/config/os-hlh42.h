@@ -37,7 +37,7 @@
  *
  *	@(#)os-hlh42.h	8.1 (Berkeley) 6/6/93
  *
- * $Id: os-hlh42.h,v 5.2.2.1 1992/02/09 15:10:22 jsp beta $
+ * $FreeBSD$
  *
  * HLH OTS definitions for Amd (automounter)
  */

@@ -18,7 +18,7 @@
  *		Columbus, OH  43221
  *		(614)451-1883
  *
- * $Id: chat.c,v 1.4.4.3 1996/12/15 20:47:21 pst Exp $
+ * $FreeBSD$
  *
  *  TODO:
  *	o Support more UUCP compatible control sequences.

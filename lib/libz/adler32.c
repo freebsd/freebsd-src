@@ -3,7 +3,7 @@
  * For conditions of distribution and use, see copyright notice in zlib.h 
  */
 
-/* $Id: adler32.c,v 1.10 1996/05/22 11:52:18 me Exp $ */
+/* $FreeBSD$ */
 
 #include "zlib.h"
 

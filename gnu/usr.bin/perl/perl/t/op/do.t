@@ -1,6 +1,6 @@
 #!./perl
 
-# $Header: /pub/FreeBSD/FreeBSD-CVS/src/gnu/usr.bin/perl/perl/t/op/do.t,v 1.1.1.1 1994/09/10 06:27:41 gclarkii Exp $
+# $FreeBSD$
 
 sub foo1
 {

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)echo.c	8.1 (Berkeley) 5/31/93
- *	$Id: echo.c,v 1.2 1994/09/24 02:58:29 davidg Exp $
+ * $FreeBSD$
  */
 
 /*

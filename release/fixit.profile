@@ -1,5 +1,5 @@
 :
-# $Id: fixit.profile,v 1.1.4.1 1996/11/10 13:13:51 jkh Exp $
+# $FreeBSD$
 
 export BLOCKSIZE=K
 export PS1="Fixit# "

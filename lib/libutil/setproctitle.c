@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file providing the above
  *    conditions are met.
  *
- * $Id: setproctitle.c,v 1.1 1995/12/26 22:50:08 peter Exp $
+ * $FreeBSD$
  */
 
 #include <sys/types.h>

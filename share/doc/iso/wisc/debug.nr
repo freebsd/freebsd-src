@@ -1,4 +1,4 @@
-.\"$Header: /pub/FreeBSD/FreeBSD-CVS/src/share/doc/iso/wisc/debug.nr,v 1.1.1.1 1994/05/30 19:08:05 rgrimes Exp $
+.\"$FreeBSD$
 .\"$Source: /pub/FreeBSD/FreeBSD-CVS/src/share/doc/iso/wisc/debug.nr,v $
 .\"
 .\"	Program names should be in italics

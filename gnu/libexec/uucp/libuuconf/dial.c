@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_dial_rcsid[] = "$Id: dial.c,v 1.3 1995/08/19 21:26:56 ache Exp $";
+const char _uuconf_dial_rcsid[] = "$FreeBSD$";
 #endif
 
 /* Find a dialer by name.  */

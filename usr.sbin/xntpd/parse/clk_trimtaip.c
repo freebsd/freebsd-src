@@ -1,6 +1,6 @@
 #if defined(REFCLOCK) && (defined(PARSE) || defined(PARSEPPS)) && defined(CLOCK_TRIMTAIP)
 /*
- * $Header: /pub/FreeBSD/FreeBSD-CVS/src/usr.sbin/xntpd/parse/clk_trimtaip.c,v 1.1.1.1 1994/09/29 23:01:31 wollman Exp $
+ * $FreeBSD$
  *
  * Trimble SV6 clock support
  */

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.26.4.7 1996/07/11 20:03:32 mpp Exp $
+# $FreeBSD$
 
 MAN4=   aha.4 ahb.4 ahc.4 aic.4 apm.4 asc.4 bt.4 cx.4 cy.4 dgb.4 \
 	ed.4 eg.4 el.4 ep.4 fdc.4 fe.4 ie.4 io.4 is.4 \

@@ -218,7 +218,7 @@ static struct rcslockers *lockerlist;
 static struct stateattri *statelist;
 
 
-mainProg(rlogId, "rlog", "$Id: rlog.c,v 1.10 1995/10/29 22:06:48 peter Exp $")
+mainProg(rlogId, "rlog", "$FreeBSD$")
 {
 	static char const cmdusage[] =
 		"\nrlog usage: rlog -{bhLNRt} -v[string] -ddates -l[lockers] -r[revs] -sstates -Vn -w[logins] -xsuff -zzone file ...";

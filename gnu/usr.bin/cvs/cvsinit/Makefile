@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.5 1995/12/11 04:24:11 peter Exp $
+# $FreeBSD$
 
 MAN8=	cvsinit.8
 

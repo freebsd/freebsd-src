@@ -37,7 +37,7 @@
  *
  *	@(#)xutil.c	8.1 (Berkeley) 6/6/93
  *
- * $Id: xutil.c,v 5.2.2.3 1992/03/07 10:36:09 jsp Exp $
+ * $FreeBSD$
  *
  */
 

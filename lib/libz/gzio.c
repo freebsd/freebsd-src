@@ -3,7 +3,7 @@
  * For conditions of distribution and use, see copyright notice in zlib.h
  */
 
-/* $Id: gzio.c,v 1.14 1996/07/24 13:41:01 me Exp $ */
+/* $FreeBSD$ */
 
 #include <stdio.h>
 

@@ -23,7 +23,7 @@
 
 #ifndef lint
 static char rcsid[] =
-	"$Id$";
+  "$FreeBSD$";
 /*
     "@(#) Header: /afs/sipb/project/tcpdump/src/tcpdump-3.0.2/RCS/print-krb.c,v 1.3 1995/08/16 05:33:27 jhawk Exp ";
 */

@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_reliab_rcsid[] = "$Id: reliab.c,v 1.3 1995/08/19 21:27:56 ache Exp $";
+const char _uuconf_reliab_rcsid[] = "$FreeBSD$";
 #endif
 
 /* Handle the "seven-bit" command for a port or a dialer.  The pvar

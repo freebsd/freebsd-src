@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: kern.c,v 1.7 1996/11/11 03:49:58 fenner Exp $
+ * $FreeBSD$
  */
 
 

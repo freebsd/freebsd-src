@@ -1,4 +1,4 @@
-/* $Id: lib.h,v 1.22 1996/07/30 10:48:19 jkh Exp $ */
+/* $FreeBSD$ */
 
 /*
  * FreeBSD install - a package for the installation and maintainance

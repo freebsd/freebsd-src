@@ -18,7 +18,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: /pub/FreeBSD/FreeBSD-CVS/src/usr.sbin/tcpdump/tcpdump/ethertype.h,v 1.1 1995/03/08 12:52:12 olah Exp $ (LBL)
+ * @(#) $FreeBSD$ (LBL)
  */
 
 /* Map between Ethernet protocol types and names */

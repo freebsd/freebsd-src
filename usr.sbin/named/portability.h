@@ -1,7 +1,7 @@
 /* defs.h - include or define things that aren't present on all systems
  * vixie@decwrl 26dec92 [new]
  *
- * $Id: portability.h,v 1.2 1995/05/30 03:49:04 rgrimes Exp $
+ * $FreeBSD$
  */
 
 /*

@@ -18,7 +18,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: main.c,v 1.4.4.1 1996/03/01 19:34:53 phk Exp $";
+static char rcsid[] = "$FreeBSD$";
 #endif
 
 #define SETSID

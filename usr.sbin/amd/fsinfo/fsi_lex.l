@@ -38,7 +38,7 @@
  *
  *	@(#)fsi_lex.l	8.2 (Berkeley) 2/17/94
  *
- * $Id: fsi_lex.l,v 1.1.1.1 1994/05/26 05:22:17 rgrimes Exp $
+ * $FreeBSD$
  *
  */
 

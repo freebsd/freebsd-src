@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1 1994/08/07 18:01:27 wollman Exp $
+# $FreeBSD$
 
 PROG=	rpcgen
 SRCS=	rpc_clntout.c rpc_cout.c rpc_hout.c rpc_main.c rpc_parse.c rpc_scan.c \

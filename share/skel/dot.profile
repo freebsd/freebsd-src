@@ -1,4 +1,4 @@
-#	$Id: dot.profile,v 1.6 1996/05/12 14:32:23 wosch Exp $
+# $FreeBSD$
 #
 PATH=/sbin:/usr/sbin:/bin:/usr/bin:/usr/local/bin
 export PATH

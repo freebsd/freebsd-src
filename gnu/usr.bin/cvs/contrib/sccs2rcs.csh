@@ -43,7 +43,7 @@
 #
 # Various hacks made by Brian Berliner before inclusion in CVS contrib area.
 #
-# $Id: sccs2rcs.csh,v 1.1 1995/07/10 02:26:48 kfogel Exp $
+# $FreeBSD$
 
 
 #we'll assume the user set up the path correctly

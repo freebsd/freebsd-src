@@ -1,5 +1,5 @@
 # Makefile for libpcap
-# $Id: Makefile,v 1.3 1995/02/23 18:47:06 ache Exp $
+# $FreeBSD$
 
 LIB=    pcap
 

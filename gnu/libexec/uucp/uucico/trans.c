@@ -26,7 +26,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char trans_rcsid[] = "$Id: trans.c,v 1.5 1995/08/21 11:28:22 ache Exp $";
+const char trans_rcsid[] = "$FreeBSD$";
 #endif
 
 #include <errno.h>

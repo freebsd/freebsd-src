@@ -33,7 +33,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ident "$Header: /pub/FreeBSD/FreeBSD-CVS/src/usr.sbin/pcvt/vgaio/vgaio.y,v 1.1.1.1 1995/02/05 13:49:24 jkh Exp $"
+#ident "$FreeBSD$"
 
 /*
  * $Log: vgaio.y,v $

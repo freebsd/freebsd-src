@@ -1,7 +1,7 @@
 #! /bin/sh
 :
 #
-#ident	"@(#)cvs:$Name:  $:$Id: cvsinit.sh,v 1.5 1996/01/11 05:56:35 peter Exp $"
+#ident	"@(#)cvs:$Name:  $:$FreeBSD$"
 # Copyright (c) 1992, Brian Berliner
 #
 # You may distribute under the terms of the GNU General Public License as

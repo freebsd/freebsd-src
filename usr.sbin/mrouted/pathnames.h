@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: pathnames.h,v 1.3 1996/01/06 21:10:09 peter Exp $
+ * $FreeBSD$
  */
 
 #define _PATH_MROUTED_CONF	"/etc/mrouted.conf"

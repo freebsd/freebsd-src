@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.2 (Berkeley) 3/31/94
-#	$Id: Makefile,v 1.9.4.5 1997/09/11 03:04:33 peter Exp $
+# $FreeBSD$
 
 # XXX missing: chess ching monop [copyright]
 SUBDIR= adventure arithmetic atc backgammon battlestar bcd bs caesar \

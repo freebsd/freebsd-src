@@ -32,7 +32,7 @@ char copyright[] =
  All rights reserved.\n";
 #endif /* not lint */
 
-/* $Header: /pub/FreeBSD/FreeBSD-CVS/src/usr.bin/lex/main.c,v 1.2 1995/05/30 06:31:15 rgrimes Exp $ */
+/* $FreeBSD$ */
 
 
 #include "flexdef.h"

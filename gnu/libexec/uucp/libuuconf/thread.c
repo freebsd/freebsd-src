@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_thread_rcsid[] = "$Id: thread.c,v 1.3 1995/08/19 21:28:18 ache Exp $";
+const char _uuconf_thread_rcsid[] = "$FreeBSD$";
 #endif
 
 #include <errno.h>

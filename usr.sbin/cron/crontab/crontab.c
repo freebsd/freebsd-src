@@ -17,7 +17,7 @@
  */
 
 #if !defined(lint) && !defined(LINT)
-static char rcsid[] = "$Id: crontab.c,v 1.3.4.1 1996/04/09 21:23:11 scrappy Exp $";
+static char rcsid[] = "$FreeBSD$";
 #endif
 
 /* crontab - install and manage per-user crontab files

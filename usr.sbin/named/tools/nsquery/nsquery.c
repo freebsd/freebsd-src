@@ -62,7 +62,7 @@ char copyright[] =
 
 #ifndef lint
 static char sccsid[] = "@(#)nsquery.c	4.8 (Berkeley) 6/1/90";
-static char rcsid[] = "$Id: nsquery.c,v 1.2 1994/09/22 20:45:28 pst Exp $";
+static char rcsid[] = "$FreeBSD$";
 #endif /* not lint */
 
 #include <sys/param.h>

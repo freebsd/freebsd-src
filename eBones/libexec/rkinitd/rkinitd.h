@@ -1,5 +1,5 @@
 /* 
- * $Id: rkinitd.h,v 1.1 1993/12/10 19:02:10 dglo Exp gibbs $
+ * $FreeBSD$
  * $Source: /usr/src/eBones/rkinitd/RCS/rkinitd.h,v $
  * $Author: dglo $
  *
@@ -10,7 +10,7 @@
 #define __RKINITD_H__
 
 #if !defined(lint) && !defined(SABER) && !defined(LOCORE) && defined(RCS_HDRS)
-static char *rcsid_rkinitd_h = "$Id: rkinitd.h,v 1.1 1993/12/10 19:02:10 dglo Exp gibbs $";
+static char *rcsid_rkinitd_h = "$FreeBSD$";
 #endif /* lint || SABER || LOCORE || RCS_HDRS */
 
 #ifdef __STDC__

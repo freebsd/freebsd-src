@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.1 (Berkeley) 6/25/90
-#	$Id: Makefile,v 1.8 1995/09/15 06:20:23 gibbs Exp $
+# $FreeBSD$
 
 LIB=	kadm
 

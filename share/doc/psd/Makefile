@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 6/8/93
-#	$Id: Makefile,v 1.8 1996/06/15 22:17:13 wosch Exp $
+# $FreeBSD$
 
 # The following modules do not build/install:
 # 10.gdb, 13.rcs

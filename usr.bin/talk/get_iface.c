@@ -29,7 +29,7 @@
  * From:
  *  Id: find_interface.c,v 1.1 1995/08/14 16:08:39 wollman Exp
  *
- * $Id: get_iface.c,v 1.1 1996/03/09 19:22:52 joerg Exp $
+ * $FreeBSD$
  */
 
 #include <unistd.h>

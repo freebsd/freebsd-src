@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: ibcs2,v 1.1 1994/10/14 08:45:15 sos Exp $
+# $FreeBSD$
 if [ $# -le 1 ]; then
 	LOADERS="coff" # elf
 fi

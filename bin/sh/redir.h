@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)redir.h	8.1 (Berkeley) 5/31/93
- *	$Id$
+ * $FreeBSD$
  */
 
 /* flags passed to redirect */

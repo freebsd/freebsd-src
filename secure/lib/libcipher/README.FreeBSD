@@ -1,4 +1,4 @@
-$Id: README.FreeBSD,v 1.1 1994/09/07 08:55:25 g89r4222 Exp $
+$FreeBSD$
 
 This is FreeSec package for NetBSD,  unchanged for
 FreeBSD, except for the Makefile.

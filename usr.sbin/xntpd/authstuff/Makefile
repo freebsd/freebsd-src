@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.1 1993/12/21 21:06:20 wollman Exp $
+# $FreeBSD$
 #
 # Most of the programs in this directory are completely useless for the
 # NTP configuration that we provide by default.

@@ -1,6 +1,6 @@
 #!./perl
 
-# $Header: /pub/FreeBSD/FreeBSD-CVS/src/gnu/usr.bin/perl/perl/t/cmd/elsif.t,v 1.1.1.1 1994/09/10 06:27:39 gclarkii Exp $
+# $FreeBSD$
 
 sub foo {
     if ($_[0] == 1) {

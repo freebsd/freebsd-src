@@ -11,7 +11,7 @@
 #if 0
 #ifndef	lint
 static char rcsid[] =
-"$Id: krb_lib.c,v 1.3 1995/07/18 16:37:17 mark Exp $";
+"$FreeBSD$";
 #endif	lint
 #endif
 

@@ -101,7 +101,7 @@
 #	isdn*	ISDN devices
 #	labpc*	National Instrument's Lab-PC and LAB-PC+
 #
-#	$Id: MAKEDEV,v 1.95.4.15 1996/06/25 20:26:40 markm Exp $
+# $FreeBSD$
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:

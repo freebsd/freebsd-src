@@ -40,7 +40,7 @@ static char copyright[] =
 #ifndef lint
 /*static char sccsid[] = "From: @(#)hostname.c	8.1 (Berkeley) 5/31/93"; */
 static const char rcsid[] =
-	"$Id: domainname.c,v 1.4 1994/09/26 02:14:27 wollman Exp $";
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include <sys/param.h>

@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# $Header: /pub/FreeBSD/FreeBSD-CVS/src/gnu/usr.bin/perl/eg/findtar,v 1.1.1.1 1994/09/10 06:27:47 gclarkii Exp $
+# $FreeBSD$
 
 # findtar takes find-style arguments and spits out a tarfile on stdout.
 # It won't work unless your find supports -ls and your tar the I flag.

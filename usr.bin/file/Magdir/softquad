@@ -1,5 +1,5 @@
 # SoftQuad Publishing Software magic numbers
-# $Id: softquad,v 1.8 1993/02/19 14:36:43 ian Exp $
+# $FreeBSD$
 # Author/Editor and RulesBuilder
 #
 # XXX - byte order?

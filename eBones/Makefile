@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.1 (Berkeley) 6/25/90
-#	$Id$
+# $FreeBSD$
 
 SUBDIR=	include lib libexec usr.bin usr.sbin man
 

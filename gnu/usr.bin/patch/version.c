@@ -1,4 +1,4 @@
-/* $Header: /pub/FreeBSD/FreeBSD-CVS/src/gnu/usr.bin/patch/version.c,v 1.2 1995/05/30 05:02:39 rgrimes Exp $
+/* $FreeBSD$
  *
  * $Log: version.c,v $
  * Revision 1.2  1995/05/30  05:02:39  rgrimes

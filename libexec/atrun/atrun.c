@@ -73,7 +73,7 @@
 /* File scope variables */
 
 static char *namep;
-static char rcsid[] = "$Id: atrun.c,v 1.3 1995/04/12 19:21:43 ache Exp $";
+static char rcsid[] = "$FreeBSD$";
 static debug = 0;
 
 /* Local functions */

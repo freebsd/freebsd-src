@@ -4,13 +4,13 @@
  * <Copyright.MIT>.
  *
  *	from: krb_err_txt.c,v 4.7 88/12/01 14:10:14 jtkohl Exp $
- *	$Id$
+ * $FreeBSD$
  */
 
 #if 0
 #ifndef	lint
 static char rcsid[] =
-"$Id$";
+"$FreeBSD$";
 #endif	lint
 #endif
 

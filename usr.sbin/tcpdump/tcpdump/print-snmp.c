@@ -41,7 +41,7 @@
  */
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Id: print-snmp.c,v 3.10 91/01/17 01:18:13 loverso Exp Locker: loverso $ (jlv)";
+    "@(#) $FreeBSD$ (jlv)";
 #endif
 
 #include <sys/param.h>

@@ -1,4 +1,4 @@
-// $Id: csg_vax,v 1.1.1.1 1994/05/26 05:22:19 rgrimes Exp $
+// $FreeBSD$
 // csg vax config - really just for {s,r}vax
 
 #define FSTYPE_UFS	4.2

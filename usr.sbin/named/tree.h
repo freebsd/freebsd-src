@@ -3,7 +3,7 @@
  * vix 22jan93 [revisited; uses RCS, ANSI, POSIX; has bug fixes]
  * vix 27jun86 [broken out of tree.c]
  *
- * $Id: tree.h,v 1.1 1994/04/09 04:05:46 vixie Exp $
+ * $FreeBSD$
  */
 
 

@@ -1,7 +1,7 @@
 /*
  * Русский календарь
  *
- * $Id: calendar.all,v 1.1 1996/02/09 14:35:01 wosch Exp $
+ * $FreeBSD$
  */
 
 #ifndef _ru_SU_KOI8_R_all

@@ -1,7 +1,7 @@
 /*
  *	$Source: /home/ncvs/src/secure/lib/libtelnet/kerberos5.c,v $
  *	$Author: pst $
- *	$Id: kerberos5.c,v 1.3 1995/07/20 11:39:23 pst Exp $
+ * $FreeBSD$
  */
 
 #if !defined(lint) && !defined(SABER)
@@ -9,7 +9,7 @@ static
 #ifdef __STDC__
 const
 #endif
-char rcsid_kerberos5_c[] = "$Id: kerberos5.c,v 1.3 1995/07/20 11:39:23 pst Exp $";
+char rcsid_kerberos5_c[] = "$FreeBSD$";
 #endif /* lint */
 
 /*-

@@ -3,7 +3,7 @@ $ ee.i18n.guide for more information
 $ 
 $ For ee patchlevel 3
 $ 
-$ $Header: /pub/FreeBSD/FreeBSD-CVS/src/usr.bin/ee/nls/en_US.ISO_8859-1/ee.msg,v 1.1.2.1 1996/05/27 21:08:02 joerg Exp $
+$ $FreeBSD$
 $ 
 $set 1
 $quote "

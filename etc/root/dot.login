@@ -1,4 +1,4 @@
-#	$Id: dot.login,v 1.6 1994/09/16 04:20:13 rgrimes Exp $
+# $FreeBSD$
 #
 tset -Q \?$TERM
 stty crt erase ^H

@@ -48,7 +48,7 @@
 
 /* File scope variables */
 
-static char rcsid[] = "$Id: perm.c,v 1.1 1995/04/12 02:42:37 ache Exp $";
+static char rcsid[] = "$FreeBSD$";
 
 /* Function declarations */
 

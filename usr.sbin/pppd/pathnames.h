@@ -1,7 +1,7 @@
 /*
  * define path names
  *
- * $Id: pathnames.h,v 1.4 1994/05/18 06:34:46 paulus Exp $
+ * $FreeBSD$
  */
 
 #if defined(STREAMS) || defined(ultrix)

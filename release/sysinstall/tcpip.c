@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.30.2.34 1997/02/17 22:08:56 jkh Exp $
+ * $FreeBSD$
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.

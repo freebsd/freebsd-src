@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: tst01.c,v 1.15.2.4 1996/07/09 12:19:03 jkh Exp $
+ * $FreeBSD$
  *
  */
 

@@ -1,5 +1,5 @@
 # Makefile
-# $Id: Makefile,v 1.3 1995/09/28 17:33:16 bde Exp $
+# $FreeBSD$
 
 PROG=	bootptest
 MAN8=	bootptest.8

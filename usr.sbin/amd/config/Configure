@@ -38,7 +38,7 @@
 #
 #	@(#)Configure	8.1 (Berkeley) 6/6/93
 #
-# $Id: Configure,v 5.2.1.2 91/05/07 22:20:26 jsp Alpha $
+# $FreeBSD$
 #
 echo "Making ./arch and ./os-type executable ..."
 until chmod +x ./arch ./os-type; do echo "Error: chmod command failed" >&2; exit 1; done

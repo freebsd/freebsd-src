@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/8/93
-#	$Id: Makefile,v 1.7.6.3 1996/06/05 02:36:21 jkh Exp $
+# $FreeBSD$
 
 PROG=	sh
 SRCS=	alias.c builtins.c cd.c echo.c error.c eval.c exec.c expand.c \

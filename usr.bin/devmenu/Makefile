@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1 1995/04/13 21:10:56 wollman Exp $
+# $FreeBSD$
 
 PROG=	devmenu
 SRCS=	devmenu.c devfilter.c ifmenu.c
