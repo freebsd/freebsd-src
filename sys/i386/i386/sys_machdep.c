@@ -411,7 +411,7 @@ i386_set_ldt(td, args)
 	struct i386_ldt_args ua, *uap = &ua;
 	caddr_t old_ldt_base;
 	int old_ldt_len;
-	critical_t savecrit;
+	register_t savecrit;
 
 	if ((error = copyin(args, uap, sizeof(struct i386_ldt_args))) < 0)
 		return(error);
@@ -532,13 +532,13 @@ i386_set_ldt(td, args)
 	}
 
 	/* Fill in range */
-	savecrit = cpu_critical_enter();
+	savecrit = intr_disable();
 	error = copyin(uap->descs, 
 	    &((union descriptor *)(pldt->ldt_base))[uap->start],
 	    uap->num * sizeof(union descriptor));
 	if (!error)
 		td->td_retval[0] = uap->start;
-	cpu_critical_exit(savecrit);
+	intr_restore(savecrit);
 
 	return(error);
 }
