@@ -368,7 +368,8 @@ syscall(struct trapframe *frame)
 		 * code is first argument,
 		 * followed by actual args.
 		 */
-		code = *params++;
+		code = *(u_int *) params;
+		params += sizeof(register_t);
 		n -= 1;
 	} else if (code == SYS___syscall) {
 		/*
@@ -376,8 +377,9 @@ syscall(struct trapframe *frame)
 		 * so as to maintain quad alignment
 		 * for the rest of the args.
 		 */
-		params++;
-		code = *params++;
+		params += sizeof(register_t);
+		code = *(u_int *) params;
+		params += sizeof(register_t);
 		n -= 2;
 	}
 
@@ -391,17 +393,17 @@ syscall(struct trapframe *frame)
 
 	narg = callp->sy_narg & SYF_ARGMASK;
 
-	if (narg > n * sizeof(register_t)) {
+	if (narg > n) {
 		bcopy(params, args, n * sizeof(register_t));
 		error = copyin(MOREARGS(frame->fixreg[1]), args + n,
-			narg - n * sizeof(register_t));
+			       (narg - n) * sizeof(register_t));
 		params = (caddr_t)args;
 	} else
 		error = 0;
 
 #ifdef	KTRACE
 	if (KTRPOINT(td, KTR_SYSCALL))
-		ktrsyscall(code, narg, params);
+		ktrsyscall(code, narg, (register_t *)params);
 #endif
 	/*
 	 * Try to run the syscall without Giant if the syscall is MP safe.
@@ -419,8 +421,17 @@ syscall(struct trapframe *frame)
 	}
 	switch (error) {
 	case 0:
-		frame->fixreg[FIRSTARG] = td->td_retval[0];
-		frame->fixreg[FIRSTARG + 1] = td->td_retval[1];
+		if ((frame->fixreg[0] == SYS___syscall) && 
+		    (code != SYS_lseek)) {
+			/*
+			 * 64-bit return, 32-bit syscall. Fixup byte order
+			 */
+			frame->fixreg[FIRSTARG] = 0;
+			frame->fixreg[FIRSTARG + 1] = td->td_retval[0];
+		} else {
+			frame->fixreg[FIRSTARG] = td->td_retval[0];
+			frame->fixreg[FIRSTARG + 1] = td->td_retval[1];
+		}
 		/* XXX: Magic number */
 		frame->cr &= ~0x10000000;
 		break;
@@ -489,7 +500,7 @@ trap_pfault(struct trapframe *frame, int user)
 	} else {
 		eva = frame->dar;
 		if (frame->dsisr & DSISR_STORE)
-			ftype = VM_PROT_READ | VM_PROT_WRITE;
+			ftype = VM_PROT_WRITE;
 		else
 			ftype = VM_PROT_READ;
 	}
