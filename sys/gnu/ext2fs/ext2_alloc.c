@@ -499,8 +499,8 @@ ext2_vfree(pvp, ino, mode)
 	pip = VTOI(pvp);
 	fs = pip->i_e2fs;
 	if ((u_int)ino > fs->s_inodes_per_group * fs->s_groups_count)
-		panic("ext2_vfree: range: dev = (%d, %d), ino = %d, fs = %s",
-		    major(pip->i_dev), minor(pip->i_dev), ino, fs->fs_fsmnt);
+		panic("ext2_vfree: range: dev = %s, ino = %d, fs = %s",
+		    devtoname(pip->i_dev), ino, fs->fs_fsmnt);
 
 /* ext2_debug("ext2_vfree (%d, %d) called\n", pip->i_number, mode);
  */
