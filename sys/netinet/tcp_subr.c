@@ -39,6 +39,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/callout.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
@@ -74,9 +75,11 @@ int 	tcp_mssdflt = TCP_MSS;
 SYSCTL_INT(_net_inet_tcp, TCPCTL_MSSDFLT, mssdflt, CTLFLAG_RW, 
     &tcp_mssdflt , 0, "Default TCP Maximum Segment Size");
 
+#if 0
 static int 	tcp_rttdflt = TCPTV_SRTTDFLT / PR_SLOWHZ;
 SYSCTL_INT(_net_inet_tcp, TCPCTL_RTTDFLT, rttdflt, CTLFLAG_RW, 
     &tcp_rttdflt , 0, "Default maximum TCP Round Trip Time");
+#endif
 
 static int	tcp_do_rfc1323 = 1;
 SYSCTL_INT(_net_inet_tcp, TCPCTL_DO_RFC1323, rfc1323, CTLFLAG_RW, 
@@ -122,6 +125,8 @@ struct	inp_tp {
 		char	align[(sizeof(struct inpcb) + ALIGNM1) & ~ALIGNM1];
 	} inp_tp_u;
 	struct	tcpcb tcb;
+	struct	callout inp_tp_rexmt, inp_tp_persist, inp_tp_keep, inp_tp_2msl;
+	struct	callout inp_tp_delack;
 };
 #undef ALIGNMENT
 #undef ALIGNM1
@@ -137,6 +142,14 @@ tcp_init()
 	tcp_iss = random();	/* wrong, but better than a constant */
 	tcp_ccgen = 1;
 	tcp_cleartaocache();
+
+	tcp_delacktime = TCPTV_DELACK;
+	tcp_keepinit = TCPTV_KEEP_INIT;
+	tcp_keepidle = TCPTV_KEEP_IDLE;
+	tcp_keepintvl = TCPTV_KEEPINTVL;
+	tcp_maxpersistidle = TCPTV_KEEP_IDLE;
+	tcp_msl = TCPTV_MSL;
+
 	LIST_INIT(&tcb);
 	tcbinfo.listhead = &tcb;
 	TUNABLE_INT_FETCH("net.inet.tcp.tcbhashsize", TCBHASHSIZE, hashsize);
@@ -150,6 +163,7 @@ tcp_init()
 					&tcbinfo.porthashmask);
 	tcbinfo.ipi_zone = zinit("tcpcb", sizeof(struct inp_tp), maxsockets,
 				 ZONE_INTERRUPT, 0);
+
 	if (max_protohdr < sizeof(struct tcpiphdr))
 		max_protohdr = sizeof(struct tcpiphdr);
 	if (max_linkhdr + sizeof(struct tcpiphdr) > MHLEN)
@@ -304,6 +318,13 @@ tcp_newtcpcb(inp)
 	tp->t_segq = NULL;
 	tp->t_maxseg = tp->t_maxopd = tcp_mssdflt;
 
+	/* Set up our timeouts. */
+	callout_init(tp->tt_rexmt = &it->inp_tp_rexmt);
+	callout_init(tp->tt_persist = &it->inp_tp_persist);
+	callout_init(tp->tt_keep = &it->inp_tp_keep);
+	callout_init(tp->tt_2msl = &it->inp_tp_2msl);
+	callout_init(tp->tt_delack = &it->inp_tp_delack);
+
 	if (tcp_do_rfc1323)
 		tp->t_flags = (TF_REQ_SCALE|TF_REQ_TSTMP);
 	if (tcp_do_rfc1644)
@@ -320,6 +341,7 @@ tcp_newtcpcb(inp)
 	tp->t_rxtcur = TCPTV_RTOBASE;
 	tp->snd_cwnd = TCP_MAXWIN << TCP_MAX_WINSHIFT;
 	tp->snd_ssthresh = TCP_MAXWIN << TCP_MAX_WINSHIFT;
+	tp->t_rcvtime = ticks;
 	inp->inp_ip_ttl = ip_defttl;
 	inp->inp_ppcb = (caddr_t)tp;
 	return (tp);		/* XXX */
@@ -367,6 +389,16 @@ tcp_close(tp)
 	int dosavessthresh;
 
 	/*
+	 * Make sure that all of our timers are stopped before we
+	 * delete the PCB.
+	 */
+	callout_stop(tp->tt_rexmt);
+	callout_stop(tp->tt_persist);
+	callout_stop(tp->tt_keep);
+	callout_stop(tp->tt_2msl);
+	callout_stop(tp->tt_delack);
+
+	/*
 	 * If we got enough samples through the srtt filter,
 	 * save the rtt and rttvar in the routing entry.
 	 * 'Enough' is arbitrarily defined as the 16 samples.
@@ -384,7 +416,7 @@ tcp_close(tp)
 
 		if ((rt->rt_rmx.rmx_locks & RTV_RTT) == 0) {
 			i = tp->t_srtt *
-			    (RTM_RTTUNIT / (PR_SLOWHZ * TCP_RTT_SCALE));
+			    (RTM_RTTUNIT / (hz * TCP_RTT_SCALE));
 			if (rt->rt_rmx.rmx_rtt && i)
 				/*
 				 * filter this update to half the old & half
@@ -400,7 +432,7 @@ tcp_close(tp)
 		}
 		if ((rt->rt_rmx.rmx_locks & RTV_RTTVAR) == 0) {
 			i = tp->t_rttvar *
-			    (RTM_RTTUNIT / (PR_SLOWHZ * TCP_RTTVAR_SCALE));
+			    (RTM_RTTUNIT / (hz * TCP_RTTVAR_SCALE));
 			if (rt->rt_rmx.rmx_rttvar && i)
 				rt->rt_rmx.rmx_rttvar =
 				    (rt->rt_rmx.rmx_rttvar + i) / 2;
@@ -734,7 +766,7 @@ tcp_mtudisc(inp, errno)
 		tp->t_maxseg = mss;
 
 		tcpstat.tcps_mturesent++;
-		tp->t_rtt = 0;
+		tp->t_rtttime = 0;
 		tp->snd_nxt = tp->snd_una;
 		tcp_output(tp);
 	}

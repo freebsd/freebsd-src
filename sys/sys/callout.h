@@ -59,8 +59,8 @@ struct callout {
 };
 
 #define	CALLOUT_LOCAL_ALLOC	0x0001 /* was allocated from callfree */
-#define	CALLOUT_PENDING		0x0002 /* callout is currently active */
-#define	CALLOUT_FIRED		0x0004 /* callout has been fired */
+#define	CALLOUT_ACTIVE		0x0002 /* callout is currently active */
+#define	CALLOUT_PENDING		0x0004 /* callout is waiting for timeout */
 
 struct callout_handle {
 	struct callout *callout;
@@ -73,10 +73,10 @@ extern int	ncallout;
 extern struct callout_tailq *callwheel;
 extern int	callwheelsize, callwheelbits, callwheelmask, softticks;
 
-#define	callout_fired(c)	((c)->c_flags & CALLOUT_FIRED)
+#define	callout_active(c)	((c)->c_flags & CALLOUT_ACTIVE)
+#define	callout_deactivate(c)	((c)->c_flags &= ~CALLOUT_ACTIVE)
 void	callout_init __P((struct callout *));
-#define	callout_pending(c)	(((c)->c_flags & CALLOUT_PENDING) ? \
-				 ((c)->c_time - ticks) : 0)
+#define	callout_pending(c)	((c)->c_flags & CALLOUT_PENDING)
 void	callout_reset __P((struct callout *, int, void (*)(void *), void *));
 void	callout_stop __P((struct callout *));
 

@@ -537,7 +537,7 @@ tcp_connect(tp, nam, p)
 	if (oinp) {
 		if (oinp != inp && (otp = intotcpcb(oinp)) != NULL &&
 		otp->t_state == TCPS_TIME_WAIT &&
-		    otp->t_duration < TCPTV_MSL &&
+		    (ticks - otp->t_starttime) < tcp_msl &&
 		    (otp->t_flags & TF_RCVD_CC))
 			otp = tcp_close(otp);
 		else
@@ -563,7 +563,7 @@ tcp_connect(tp, nam, p)
 	soisconnecting(so);
 	tcpstat.tcps_connattempt++;
 	tp->t_state = TCPS_SYN_SENT;
-	tp->t_timer[TCPT_KEEP] = tcp_keepinit;
+	callout_reset(tp->tt_keep, tcp_keepinit, tcp_timer_keep, tp);
 	tp->iss = tcp_iss; tcp_iss += TCP_ISSINCR/2;
 	tcp_sendseqinit(tp);
 
@@ -810,7 +810,8 @@ tcp_usrclosed(tp)
 		soisdisconnected(tp->t_inpcb->inp_socket);
 		/* To prevent the connection hanging in FIN_WAIT_2 forever. */
 		if (tp->t_state == TCPS_FIN_WAIT_2)
-			tp->t_timer[TCPT_2MSL] = tcp_maxidle;
+			callout_reset(tp->tt_2msl, tcp_maxidle,
+				      tcp_timer_2msl, tp);
 	}
 	return (tp);
 }
