@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001 Chris D. Faulhaber
+ * Copyright (c) 2001-2002 Chris D. Faulhaber
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -48,12 +48,12 @@ acl_add_perm(acl_permset_t permset_d, acl_perm_t perm)
 		case ACL_WRITE:
 		case ACL_EXECUTE:
 			*permset_d |= perm;
-			return 0;
+			return (0);
 		}
 	}
 
 	errno = EINVAL;
-	return -1;
+	return (-1);
 }
 
 /*
@@ -64,14 +64,14 @@ int
 acl_clear_perms(acl_permset_t permset_d)
 {
 
-	if (!permset_d) {
+	if (permset_d == NULL) {
 		errno = EINVAL;
-		return -1;
+		return (-1);
 	}
 
 	*permset_d = ACL_PERM_NONE;
 
-	return 0;
+	return (0);
 }
 
 /*
@@ -88,10 +88,10 @@ acl_delete_perm(acl_permset_t permset_d, acl_perm_t perm)
 		case ACL_WRITE:
 		case ACL_EXECUTE:
 			*permset_d &= ~(perm & ACL_PERM_BITS);
-			return 0;
+			return (0);
 		}
 	}
 
 	errno = EINVAL;
-	return -1;
+	return (-1);
 }

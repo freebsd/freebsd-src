@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001 Chris D. Faulhaber
+ * Copyright (c) 2001-2002 Chris D. Faulhaber
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,9 +43,9 @@ acl_delete_entry(acl_t acl, acl_entry_t entry_d)
 	struct acl *acl_int;
 	int i;
 
-	if (!acl || !entry_d) {
+	if (acl == NULL || entry_d == NULL) {
 		errno = EINVAL;
-		return -1;
+		return (-1);
 	}
 
 	acl_int = &acl->ats_acl;
@@ -53,7 +53,7 @@ acl_delete_entry(acl_t acl, acl_entry_t entry_d)
 	if ((acl->ats_acl.acl_cnt < 1) ||
 	    (acl->ats_acl.acl_cnt > ACL_MAX_ENTRIES)) {
 		errno = EINVAL;
-		return -1;
+		return (-1);
 	}
 	for (i = 0; i < acl->ats_acl.acl_cnt; i++) {
 		/* if this is our entry... */
@@ -68,11 +68,11 @@ acl_delete_entry(acl_t acl, acl_entry_t entry_d)
 			bzero(&acl->ats_acl.acl_entry[i],
 			    sizeof(struct acl_entry));
 			acl->ats_cur_entry = 0;
-			return 0;
+			return (0);
 		}
 	}
 
 
 	errno = EINVAL;
-	return -1;
+	return (-1);
 }
