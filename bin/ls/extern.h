@@ -43,13 +43,13 @@ int	 revnamecmp __P((const FTSENT *, const FTSENT *));
 int	 statcmp __P((const FTSENT *, const FTSENT *));
 int	 revstatcmp __P((const FTSENT *, const FTSENT *));
 
-void	 prcopy __P((char *, char *, int));
 void	 printcol __P((DISPLAY *));
 void	 printlong __P((DISPLAY *));
 void	 printscol __P((DISPLAY *));
 void	 usage __P((void));
-int	 len_octal __P((char *, int));
-int	 prn_octal __P((char *));
+int	 len_octal __P((const char *, int));
+int	 prn_octal __P((const char *));
+int	 prn_printable __P((const char *));
 #ifdef COLORLS
 void	 parsecolors __P((char *cs));
 void     colorquit __P((int));
