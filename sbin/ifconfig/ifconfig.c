@@ -596,9 +596,11 @@ main(int argc, char *argv[])
 			addrcount++;
 			next += nextifm->ifm_msglen;
 		}
-		strlcpy(name, sdl->sdl_data,
-		    sizeof(name) <= sdl->sdl_nlen ?
-		    sizeof(name) : sdl->sdl_nlen + 1);
+		memcpy(name, sdl->sdl_data,
+		    sizeof(name) < sdl->sdl_nlen ?
+		    sizeof(name)-1 : sdl->sdl_nlen);
+		name[sizeof(name) < sdl->sdl_nlen ?
+		    sizeof(name)-1 : sdl->sdl_nlen] = '\0';
 
 		if (all || namesonly) {
 			if (uponly)
