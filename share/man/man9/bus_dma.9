@@ -267,6 +267,14 @@ and write operations.
 Client specified lock/mutex manipulation method.
 This will be called from
 within busdma whenever a client lock needs to be manipulated.
+In its current form, the function will be called immediately before
+the callback for a dma load operation that has been deferred with
+.Dv BUS_DMA_LOCK 
+and immediately after with 
+.Dv BUS_DMA_UNLOCK .
+If the load operation does not need to be deferred, then it
+will not be called since the function loading the map should
+be holding the appropriate locks.
 This method is of the format:
 .Bl -tag -width compact
 .It Ft void
