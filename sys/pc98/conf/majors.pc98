@@ -1,4 +1,4 @@
-$Id: majors.pc98,v 1.9 1997/02/22 09:43:23 peter Exp $
+$Id: majors.pc98,v 1.10 1997/03/11 16:18:08 kato Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.
@@ -119,3 +119,4 @@ chrdev	name		comments
 78	gd		Geometry disk
 79	ipl		IP Filter
 80	xdcp		Assigned to Chris Ficklin <chris@serengeti.com>
+81	??		RocketPort/Steve Gericke <steveg@comtrol.com>
