@@ -27,27 +27,17 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_isa.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 
 #include <machine/bus.h>
 #include <machine/bus_private.h>
-#include <machine/resource.h>
 
-#include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/openfirm.h>
 #include <machine/ofw_machdep.h>
 
-#include <isa/isavar.h>
-
 #include <dev/uart/uart.h>
-#include <dev/uart/uart_bus.h>
 #include <dev/uart/uart_cpu.h>
-
-#include <sparc64/pci/ofw_pci.h>
-#include <sparc64/isa/ofw_isa.h>
 
 bus_space_tag_t uart_bus_space_io;
 bus_space_tag_t uart_bus_space_mem;
@@ -252,35 +242,5 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 void
 uart_cpu_identify(driver_t *driver, device_t parent)
 {
-#ifdef DEV_ISA
-	char buf[32];
-	struct isa_regs reg;
-	device_t child;
-	phandle_t node;
-	ofw_isa_intr_t intr;
-#endif
 
-#ifdef DEV_ISA
-	if (strcmp(device_get_name(parent), "isa") == 0) {
-		if ((node = ofw_bus_get_node(device_get_parent(parent))) == 0)
-			return;
-		for (node = OF_child(node); node != 0; node = OF_peer(node)) {
-			if (OF_getprop(node, "name", buf, sizeof(buf)) == -1)
-				continue;
-			if (strcmp(buf, "serial") != 0)
-				continue;
-			if ((OF_getprop(node, "reg", &reg,
-			    sizeof(reg)) == -1) ||
-		    	    (OF_getprop(node, "interrupts", &intr,
-			    sizeof(intr)) == -1))
-				continue;
-			if ((child = BUS_ADD_CHILD(parent, ISA_ORDER_SENSITIVE,
-			    uart_driver_name, -1)) == NULL)
-				return;
-			bus_set_resource(child, SYS_RES_IOPORT, 0,
-			    ISA_REG_PHYS(&reg), reg.size);
-			bus_set_resource(child, SYS_RES_IRQ, 0, intr, 1);
-		}
-	}
-#endif
 }
