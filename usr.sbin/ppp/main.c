@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.22.2.37 1997/09/16 23:20:18 brian Exp $
+ * $Id: main.c,v 1.22.2.38 1997/09/19 09:42:02 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -711,7 +711,6 @@ DoLoop()
     if (OpenModem(mode) < 0)
       return;
     LogPrintf(LogPHASE, "Packet mode enabled\n");
-    close(0);
     PacketMode();
   } else if (mode & MODE_DEDICATED) {
     if (modem < 0)
