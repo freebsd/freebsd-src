@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lqr.c,v 1.7.2.9 1998/01/26 20:04:55 brian Exp $
+ * $Id: lqr.c,v 1.7.2.10 1998/03/13 00:58:09 brian Exp $
  *
  *	o LQR based on RFC1333
  *
@@ -49,7 +49,7 @@ struct lqrsave HisLqrSave;
 
 static struct pppTimer LqrTimer;
 
-static u_long lastpeerin = (u_long) - 1;
+static u_int32_t lastpeerin = (u_int32_t) - 1;
 
 static int lqmmethod;
 static u_int32_t echoseq;
@@ -103,11 +103,11 @@ RecvEchoLqr(struct mbuf * bp)
 void
 LqrChangeOrder(struct lqrdata * src, struct lqrdata * dst)
 {
-  u_long *sp, *dp;
+  u_int32_t *sp, *dp;
   int n;
 
-  sp = (u_long *) src;
-  dp = (u_long *) dst;
+  sp = (u_int32_t *) src;
+  dp = (u_int32_t *) dst;
   for (n = 0; n < sizeof(struct lqrdata) / sizeof(u_int32_t); n++)
     *dp++ = ntohl(*sp++);
 }
