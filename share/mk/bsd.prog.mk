@@ -11,10 +11,6 @@ __initialized__:
 .SUFFIXES: .out .o .c .cc .cpp .cxx .C .m .y .l .s .S
 
 CFLAGS+=${COPTS} ${DEBUG_FLAGS}
-.if defined(DESTDIR) && !defined(BOOTSTRAPPING)
-CFLAGS+= -I${DESTDIR}/usr/include
-CXXINCLUDES+= -I${DESTDIR}/usr/include/g++
-.endif
 
 .if !defined(DEBUG_FLAGS)
 STRIP?=	-s
