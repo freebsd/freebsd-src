@@ -2909,6 +2909,11 @@ vn_isdisk(vp, errp)
 			*errp = ENOTBLK;
 		return (0);
 	}
+	if (vp->v_rdev == NULL) {
+		if (errp != NULL)
+			*errp = ENXIO;
+		return (0);
+	}
 	if (!devsw(vp->v_rdev)) {
 		if (errp != NULL)
 			*errp = ENXIO;
