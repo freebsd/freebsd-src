@@ -107,7 +107,7 @@ nfs_nget(mntp, fhp, fhsize, npp)
 		rsflags = 0;
 
 retry:
-	nhpp = NFSNOHASH(fnv32_hashbuf(fhp->fh_bytes, fhsize));
+	nhpp = NFSNOHASH(fnv_32_buf(fhp->fh_bytes, fhsize, FNV1_32_INIT));
 loop:
 	for (np = nhpp->lh_first; np != 0; np = np->n_hash.le_next) {
 		if (mntp != NFSTOV(np)->v_mount || np->n_fhsize != fhsize ||
