@@ -85,7 +85,7 @@
 #	isdn*	ISDN devices
 #   labpc*  National Instrument's Lab-PC and LAB-PC+
 #
-#	$Id: MAKEDEV,v 1.88 1995/04/30 07:56:45 jkh Exp $
+#	$Id: MAKEDEV,v 1.89 1995/05/01 14:34:45 dufault Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -142,6 +142,9 @@ dkcompatslice=0
 
 # Raw slice for disks
 dkrawslice=1
+
+# Control bit for SCSI
+scsictl=536870912
 
 for i
 do
@@ -393,6 +396,13 @@ sd*|vn*|wd*)
 		do
 			sh MAKEDEV $name$unit$slicepartname
 		done
+		case $name in
+		sd)
+			rm -f r${name}${unit}.ctl
+			mknod r${name}${unit}.ctl c $chr `expr $unit '*' 8 + $scsictl `
+			chmod 600 r${name}${unit}.ctl
+			;;
+		esac
 		;;
 	*)
 		echo bad unit for disk in: $i
@@ -409,16 +419,32 @@ uk*)
 
 worm*)
 	unit=`expr $i : 'worm\(.*\)'`
-	rm -f worm$unit
-	mknod worm$unit c 62 $unit
+	if [ "X${unit}" = "X" ]; then
+		unit=0
+	fi
+	chr=62
+	name=worm
+	rm -f r${name}${unit}
+	mknod r${name}${unit} c $chr ${unit}
+	rm -f r${name}${unit}.ctl
+	mknod r${name}${unit}.ctl c $chr `expr $unit + $scsictl `
+	chmod 600 r${name}${unit}.ctl
 	;;
 
 # SCSI processor type driver
 pt[0-9]*)
+	chr=61
+	name=pt
 	unit=`expr $i : 'pt\([0-9][0-9]*\)'`
+	if [ "X${unit}" = "X" ]; then
+		unit=0
+	fi
 	unit=`expr $unit + 1 - 1`
-	rm -f pt$unit
-	mknod pt$unit c 61 $unit
+	rm -f ${name}${unit}
+	mknod ${name}${unit} c $chr $unit
+	rm -f ${name}${unit}.ctl
+	mknod ${name}${unit}.ctl c $chr `expr $unit + $scsictl `
+	chmod 600 ${name}${unit}.ctl
 	;;
 
 pty*)
@@ -467,6 +493,7 @@ st*)
 	rm -f rst${unit} [en]rst${unit} enrst${unit}
 	rm -f rst${unit}.[0123] nrst${unit}.[0123]\
 		erst${unit}.[0123] st${unit}ctl.[0123]
+	#remove control device
 
 	case $unit in
 	0|1|2|3|4|5|6)
@@ -485,6 +512,10 @@ st*)
 					erst${unit}.${mode}
 			chmod 660	st${unit}ctl.${mode}
 		done
+		rm -f rst${unit}.ctl
+		mknod rst${unit}.ctl c $chr `expr $unit '*' 16 + $scsictl `
+		chmod 600 rst${unit}.ctl
+
 		ln rst${unit}.0 rst${unit}
 		ln nrst${unit}.0 nrst${unit}
 		ln erst${unit}.0 erst${unit}
@@ -507,6 +538,9 @@ ch*)
 		mknod ${name}${unit}	c $chr `expr $unit '*' 16 + 0`
 		chgrp operator ${name}${unit}
 		chmod 640 ${name}${unit}
+		rm -f r${name}${unit}.ctl
+		mknod r${name}${unit}.ctl c $chr `expr $unit '*' 16 + $scsictl `
+		chmod 600 r${name}${unit}.ctl
 		;;
 	*)
 		echo bad unit for media changer in: $i
@@ -531,6 +565,13 @@ cd*|mcd*|scd*)
 		mknod r${name}${unit}c	c $chr `expr $unit '*' 8 + 2`
 		chgrp operator ${name}${unit}[a-h] r${name}${unit}[a-h]
 		chmod 640 ${name}${unit}[a-h] r${name}${unit}[a-h]
+		case $name in
+		cd)
+			rm -f r${name}${unit}.ctl
+			mknod r${name}${unit}.ctl c $chr `expr $unit '*' 8 + $scsictl `
+			chmod 600 r${name}${unit}.ctl
+			;;
+		esac
 		;;
 	*)
 		echo bad unit for disk in: $i
