@@ -21,7 +21,10 @@ SUBDIR=	adjkerntz \
 	ifconfig \
 	init \
 	ipf \
+	ipfstat \
 	ipfw \
+	ipmon \
+	ipnat \
 	kldload \
 	kldstat \
 	kldunload \
