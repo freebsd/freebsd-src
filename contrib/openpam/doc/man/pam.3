@@ -3,9 +3,9 @@
 .\" All rights reserved.
 .\"
 .\" This software was developed for the FreeBSD Project by ThinkSec AS and
-.\" NAI Labs, the Security Research Division of Network Associates, Inc.
-.\" under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the
-.\" DARPA CHATS research program.
+.\" Network Associates Laboratories, the Security Research Division of
+.\" Network Associates, Inc. under DARPA/SPAWAR contract N66001-01-C-8035
+.\" ("CBOSS"), as part of the DARPA CHATS research program.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -31,51 +31,34 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/openpam/doc/man/pam.3#15 $
+.\" $P4$
 .\"
-.Dd May 24, 2002
+.Dd June 30, 2002
 .Dt PAM 3
 .Os
 .Sh NAME
-.Nm openpam_borrow_cred ,
-.Nm openpam_free_data ,
-.Nm openpam_restore_cred ,
 .Nm pam_acct_mgmt ,
 .Nm pam_authenticate ,
 .Nm pam_chauthtok ,
 .Nm pam_close_session ,
 .Nm pam_end ,
-.Nm pam_error ,
-.Nm pam_get_authtok ,
 .Nm pam_get_data ,
 .Nm pam_get_item ,
 .Nm pam_get_user ,
 .Nm pam_getenv ,
 .Nm pam_getenvlist ,
-.Nm pam_info ,
 .Nm pam_open_session ,
-.Nm pam_prompt ,
 .Nm pam_putenv ,
 .Nm pam_set_data ,
 .Nm pam_set_item ,
 .Nm pam_setcred ,
-.Nm pam_setenv ,
 .Nm pam_start ,
-.Nm pam_strerror ,
-.Nm pam_verror ,
-.Nm pam_vinfo ,
-.Nm pam_vprompt
+.Nm pam_strerror
 .Nd Pluggable Authentication Modules Library
 .Sh LIBRARY
 .Lb libpam
 .Sh SYNOPSIS
 .In security/pam_appl.h
-.Ft int
-.Fn openpam_borrow_cred "pam_handle_t *pamh" "const struct passwd *pwd"
-.Ft void
-.Fn openpam_free_data "pam_handle_t *pamh" "void *data" "int status"
-.Ft int
-.Fn openpam_restore_cred "pam_handle_t *pamh"
 .Ft int
 .Fn pam_acct_mgmt "pam_handle_t *pamh" "int flags"
 .Ft int
@@ -87,10 +70,6 @@
 .Ft int
 .Fn pam_end "pam_handle_t *pamh" "int status"
 .Ft int
-.Fn pam_error "pam_handle_t *pamh" "const char *fmt" "..."
-.Ft int
-.Fn pam_get_authtok "pam_handle_t *pamh" "int item" "const char **authtok" "const char *prompt"
-.Ft int
 .Fn pam_get_data "pam_handle_t *pamh" "const char *module_data_name" "const void **data"
 .Ft int
 .Fn pam_get_item "pam_handle_t *pamh" "int item_type" "const void **item"
@@ -101,11 +80,7 @@
 .Ft char **
 .Fn pam_getenvlist "pam_handle_t *pamh"
 .Ft int
-.Fn pam_info "pam_handle_t *pamh" "const char *fmt" "..."
-.Ft int
 .Fn pam_open_session "pam_handle_t *pamh" "int flags"
-.Ft int
-.Fn pam_prompt "pam_handle_t *pamh" "int style" "char **resp" "const char *fmt" "..."
 .Ft int
 .Fn pam_putenv "pam_handle_t *pamh" "const char *namevalue"
 .Ft int
@@ -115,22 +90,110 @@
 .Ft int
 .Fn pam_setcred "pam_handle_t *pamh" "int flags"
 .Ft int
-.Fn pam_setenv "pam_handle_t *pamh" "const char *name" "const char *value" "int overwrite"
-.Ft int
 .Fn pam_start "const char *service" "const char *user" "const struct pam_conv *pam_conv" "pam_handle_t **pamh"
 .Ft const char *
 .Fn pam_strerror "pam_handle_t *pamh" "int error_number"
-.Ft int
-.Fn pam_verror "pam_handle_t *pamh" "const char *fmt" "va_list ap"
-.Ft int
-.Fn pam_vinfo "pam_handle_t *pamh" "const char *fmt" "va_list ap"
-.Ft int
-.Fn pam_vprompt "pam_handle_t *pamh" "int style" "char **resp" "const char *fmt" "va_list ap"
+.\"
+.\" $P4: //depot/projects/openpam/doc/man/pam.man#1 $
+.\"
 .Sh DESCRIPTION
+The Pluggable Authentication Modules (PAM) library abstracts a number
+of common authentication-related operations and provides a framework
+for dynamically loaded modules that implement these operations in
+various ways.
+.Ss Terminology
+In PAM parlance, the application that uses PAM to authenticate a user
+is the server, and is identified for configuration purposes by a
+service name, which is often (but not necessarily) the program name.
+.Pp
+The user requesting authentication is called the applicant, while the
+user (usually, root) charged with verifying his identity and granting
+him the requested credentials is called the arbitrator.  
+.Pp
+The sequence of operations the server goes through to authenticate a
+user and perform whatever task he requested is a PAM transaction; the
+context within which the server performs the requested task is called
+a session.
+.Pp
+The functionality embodied by PAM is divided into six primitives
+grouped into four facilities: authentication, account management,
+session management and password management.
+.Ss Conversation
+The PAM library expects the application to provide a conversation
+callback which it can use to communicate with the user.
+Some modules may use specialized conversation functions to communicate
+with special hardware such as cryptographic dongles or biometric
+devices.
+See
+.Xr pam_conv 3
+for details.
+.Ss Initialization And Cleanup
+The
+.Fn pam_start
+function initializes the PAM library and returns a handle which must
+be provided in all subsequent function calls.
+The transaction state is contained entirely within the structure
+identified by this handle, so it is possible to conduct multiple
+transactions in parallel.
+.Pp
+The
+.Fn pam_end
+function releases all resources associated with the specified context,
+and can be called at any time to terminate a PAM transaction.  
+.Ss Storage
+The
+.Fn pam_set_item
+and
+.Fn pam_get_item
+functions set and retrieve a number of predefined items, including the
+service name, the names of the requesting and target users, the
+conversation function, and prompts.
+.Pp
+The 
+.Fn pam_set_data
+and
+.Fn pam_get_data
+manage named chunks of free-form data, generally used by modules to
+store state from one invocation to another.
+.Ss Authentication
+There are two authentication primitives:
+.Fn pam_authenticate
+and
+.Fn pam_setcred .
+The former authenticates the user, while the latter manages his
+credentials.
+.Ss Account Management
+The
+.Fn pam_acct_mgmt
+function enforces policies such as password expiry, account expiry,
+time-of-day restrictions, and so forth.
+.Ss Session Management
+The
+.Fn pam_open_session
+and
+.Fn pam_close_session
+handle session setup and teardown.
+.Ss Password Management
+The
+.Fn pam_chauthtok
+function allows the server to change the user's password, either at
+the user's request or because the password has expired.
+.Ss Miscellaneous
+The 
+.Fn pam_putenv ,
+.Fn pam_getenv
+and
+.Fn pam_getenvlist
+manage a private environment list in which modules can set environment
+variables they want the server to export during the session.
+.Pp
+The
+.Fn pam_strerror
+function returns a pointer to a string describing a the specified PAM
+error code.
 .Sh RETURN VALUES
-The following return codes are defined in the
-.In security/pam_constants.h
-header:
+The following return codes are defined by
+.Aq Pa security/pam_constants.h :
 .Bl -tag -width 18n
 .It Bq Er PAM_ABORT
 General failure.
@@ -194,35 +257,25 @@ Try again.
 Unknown user.
 .El
 .Sh SEE ALSO
-.Xr openpam_borrow_cred 3 ,
-.Xr openpam_free_data 3 ,
-.Xr openpam_restore_cred 3 ,
+.Xr openpam 3
 .Xr pam_acct_mgmt 3 ,
 .Xr pam_authenticate 3 ,
 .Xr pam_chauthtok 3 ,
 .Xr pam_close_session 3 ,
+.Xr pam_conv 3 ,
 .Xr pam_end 3 ,
-.Xr pam_error 3 ,
-.Xr pam_get_authtok 3 ,
 .Xr pam_get_data 3 ,
 .Xr pam_get_item 3 ,
 .Xr pam_get_user 3 ,
 .Xr pam_getenv 3 ,
 .Xr pam_getenvlist 3 ,
-.Xr pam_info 3 ,
 .Xr pam_open_session 3 ,
-.Xr pam_prompt 3 ,
 .Xr pam_putenv 3 ,
 .Xr pam_set_data 3 ,
 .Xr pam_set_item 3 ,
 .Xr pam_setcred 3 ,
-.Xr pam_setenv 3 ,
 .Xr pam_start 3 ,
-.Xr pam_strerror 3 ,
-.Xr pam_verror 3 ,
-.Xr pam_vinfo 3 ,
-.Xr pam_vprompt 3 ,
-.Xr pam.conf 5
+.Xr pam_strerror 3
 .Sh STANDARDS
 .Rs
 .%T "X/Open Single Sign-On Service (XSSO) - Pluggable Authentication Modules"
@@ -230,8 +283,8 @@ Unknown user.
 .Re
 .Sh AUTHORS
 The OpenPAM library and this manual page were developed for the
-FreeBSD Project by ThinkSec AS and NAI Labs, the Security Research
-Division of Network Associates, Inc.  under DARPA/SPAWAR contract
-N66001-01-C-8035
+FreeBSD Project by ThinkSec AS and Network Associates Laboratories,
+the Security Research Division of Network Associates, Inc.  under
+DARPA/SPAWAR contract N66001-01-C-8035
 .Pq Dq CBOSS ,
 as part of the DARPA CHATS research program.

@@ -3,9 +3,9 @@
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
- * NAI Labs, the Security Research Division of Network Associates, Inc.
- * under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the
- * DARPA CHATS research program.
+ * Network Associates Laboratories, the Security Research Division of
+ * Network Associates, Inc.  under DARPA/SPAWAR contract N66001-01-C-8035
+ * ("CBOSS"), as part of the DARPA CHATS research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_start.c#14 $
+ * $P4: //depot/projects/openpam/lib/pam_start.c#16 $
  */
 
 #include <stdlib.h>
@@ -98,14 +98,7 @@ pam_start(const char *service,
  * It is stored in the =PAM_USER item in the created context.
  *
  * The =pam_conv argument points to a =struct pam_conv describing the
- * conversation function to use.
- * This structure is defined as follows:
- *
- *     struct pam_conv {
- *          int   (*conv)(int, const struct pam_message **,
- *              struct pam_response **, void *);
- *          void   *appdata_ptr;
- *     };
+ * conversation function to use; see =pam_conv for details.
  *
  * >pam_get_item
  * >pam_set_item

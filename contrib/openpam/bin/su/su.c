@@ -3,9 +3,9 @@
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
- * NAI Labs, the Security Research Division of Network Associates, Inc.
- * under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the
- * DARPA CHATS research program.
+ * Network Associates Laboratories, the Security Research Division of
+ * Network Associates, Inc.  under DARPA/SPAWAR contract N66001-01-C-8035
+ * ("CBOSS"), as part of the DARPA CHATS research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/bin/su/su.c#6 $
+ * $P4: //depot/projects/openpam/bin/su/su.c#8 $
  */
 
 #include <sys/param.h>
@@ -41,11 +41,14 @@
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <syslog.h>
 #include <unistd.h>
 
 #include <security/pam_appl.h>
-#include <security/openpam.h>
+#include <security/openpam.h>	/* for openpam_ttyconv() */
+
+extern char **environ;
 
 static pam_handle_t *pamh;
 static struct pam_conv pamc;
@@ -58,24 +61,14 @@ usage(void)
 	exit(1);
 }
 
-static int
-check(const char *func, int pam_err)
-{
-
-	if (pam_err == PAM_SUCCESS || pam_err == PAM_NEW_AUTHTOK_REQD)
-		return pam_err;
-	openlog("su", LOG_CONS, LOG_AUTH);
-	syslog(LOG_ERR, "%s(): %s", func, pam_strerror(pamh, pam_err));
-	errx(1, "Sorry.");
-}
-
 int
 main(int argc, char *argv[])
 {
 	char hostname[MAXHOSTNAMELEN];
 	const char *user, *tty;
+	char **args, **pam_envlist, **pam_env;
 	struct passwd *pwd;
-	int o, status;
+	int o, pam_err, status;
 	pid_t pid;
 
 	while ((o = getopt(argc, argv, "h")) != -1)
@@ -94,52 +87,93 @@ main(int argc, char *argv[])
 
 	/* set some items */
 	gethostname(hostname, sizeof(hostname));
-	check("pam_set_item", pam_set_item(pamh, PAM_RHOST, hostname));
+	if ((pam_err = pam_set_item(pamh, PAM_RHOST, hostname)) != PAM_SUCCESS)
+		goto pamerr;
 	user = getlogin();
-	check("pam_set_item", pam_set_item(pamh, PAM_RUSER, user));
+	if ((pam_err = pam_set_item(pamh, PAM_RUSER, user)) != PAM_SUCCESS)
+		goto pamerr;
 	tty = ttyname(STDERR_FILENO);
-	check("pam_set_item", pam_set_item(pamh, PAM_TTY, tty));
+	if ((pam_err = pam_set_item(pamh, PAM_TTY, tty)) != PAM_SUCCESS)
+		goto pamerr;
 
 	/* authenticate the applicant */
-	check("pam_authenticate", pam_authenticate(pamh, 0));
-	if (check("pam_acct_mgmt", pam_acct_mgmt(pamh, 0)) ==
-	    PAM_NEW_AUTHTOK_REQD)
-		check("pam_chauthtok",
-		    pam_chauthtok(pamh, PAM_CHANGE_EXPIRED_AUTHTOK));
+	if ((pam_err = pam_authenticate(pamh, 0)) != PAM_SUCCESS)
+		goto pamerr;
+	if ((pam_err = pam_acct_mgmt(pamh, 0)) == PAM_NEW_AUTHTOK_REQD)
+		pam_err = pam_chauthtok(pamh, PAM_CHANGE_EXPIRED_AUTHTOK);
+	if (pam_err != PAM_SUCCESS)
+		goto pamerr;
 
 	/* establish the requested credentials */
-	check("pam_setcred", pam_setcred(pamh, PAM_ESTABLISH_CRED));
+	if ((pam_err = pam_setcred(pamh, PAM_ESTABLISH_CRED)) != PAM_SUCCESS)
+		goto pamerr;
 
 	/* authentication succeeded; open a session */
-	check("pam_open_session", pam_open_session(pamh, 0));
+	if ((pam_err = pam_open_session(pamh, 0)) != PAM_SUCCESS)
+		goto pamerr;
 
-	if (initgroups(pwd->pw_name, pwd->pw_gid) == -1)
-		err(1, "initgroups()");
-	if (setuid(pwd->pw_uid) == -1)
-		err(1, "setuid()");
+	/* get mapped user name; PAM may have changed it */
+	pam_err = pam_get_item(pamh, PAM_USER, (const void **)&user);
+	if (pam_err != PAM_SUCCESS || (pwd = getpwnam(user)) == NULL)
+		goto pamerr;
 
-	/* XXX export environment variables */
+	/* set uid and groups */
+	if (initgroups(pwd->pw_name, pwd->pw_gid) == -1) {
+		warn("initgroups()");
+		goto err;
+	}
+	if (setgid(pwd->pw_gid) == -1) {
+		warn("setgid()");
+		goto err;
+	}
+	if (setuid(pwd->pw_uid) == -1) {
+		warn("setuid()");
+		goto err;
+	}
 
+	/* export PAM environment */
+	if ((pam_envlist = pam_getenvlist(pamh)) != NULL) {
+		for (pam_env = pam_envlist; *pam_env != NULL; ++pam_env) {
+			putenv(*pam_env);
+			free(*pam_env);
+		}
+		free(pam_envlist);
+	}
+
+	/* build argument list */
+	if ((args = calloc(argc + 2, sizeof *args)) == NULL) {
+		warn("calloc()");
+		goto err;
+	}
+	*args = pwd->pw_shell;
+	memcpy(args + 1, argv, argc * sizeof *args);
+
+	/* fork and exec */
 	switch ((pid = fork())) {
 	case -1:
-		err(1, "fork()");
+		warn("fork()");
+		goto err;
 	case 0:
 		/* child: start a shell */
-		*argv = pwd->pw_shell;
-		execvp(*argv, argv);
-		err(1, "execvp()");
+		execve(*args, args, environ);
+		warn("execve()");
+		_exit(1);
 	default:
 		/* parent: wait for child to exit */
 		waitpid(pid, &status, 0);
-		if (WIFEXITED(status))
-			status = WEXITSTATUS(status);
-		else
-			status = 1;
+
+		/* close the session and release PAM resources */
+		pam_err = pam_close_session(pamh, 0);
+		pam_end(pamh, pam_err);
+
+		exit(WEXITSTATUS(status));
 	}
 
-	/* close the session and release PAM resources */
-	check("pam_close_session", pam_close_session(pamh, 0));
-	check("pam_end", pam_end(pamh, 0));
-
-	exit(status);
+pamerr:
+	pam_end(pamh, pam_err);
+	fprintf(stderr, "Sorry\n");
+	exit(1);
+err:
+	pam_end(pamh, pam_err);
+	exit(1);
 }

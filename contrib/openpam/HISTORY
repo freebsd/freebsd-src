@@ -1,4 +1,26 @@
 ============================================================================
+OpenPAM Citronella						2002-06-30
+
+ - ENHANCE: Add the "binding" control flag (from Solaris 9).
+
+ - ENHANCE: Define struct pam_repository and PAM_REPOSITORY (from
+   Solaris 9).
+
+ - ENHANCE: Flesh out the pam(3) man page.  
+
+ - ENHANCE: Add an openpam(3) page with cross-references to all the
+   documented OpenPAM API extensions.
+
+ - ENHANCE: Add a pam_conv(3) man page describing the conversation
+   system.
+
+ - ENHANCE: Improved sample application.
+
+ - ENHANCE: Added sample pam_unix module.
+
+ - BUGFIX: Various documentation nits.
+
+============================================================================
 OpenPAM Cinquefoil						2002-05-24
 
  - BUGFIX: Various warnings uncovered by gcc 3.1.
@@ -162,4 +184,4 @@ OpenPAM	Calamite						2002-02-09
 
 First (beta) release.
 ============================================================================
-$P4: //depot/projects/openpam/HISTORY#12 $
+$P4: //depot/projects/openpam/HISTORY#13 $
