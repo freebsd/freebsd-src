@@ -431,7 +431,7 @@ kread(addr, buf, size)
 {
 
 	if (kvm_read(kvmd, addr, buf, size) != size) {
-		warnx("kvm_read: %s", kvm_geterr(kvmd));
+		warnx("%s", kvm_geterr(kvmd));
 		return (-1);
 	}
 	return (0);

@@ -100,16 +100,25 @@ protopr(off, name)
 	prev = (struct inpcb *)off;
 
 	for (next = head.lh_first; next != NULL; next = inpcb.inp_list.le_next) {
-		kread((u_long)next, (char *)&inpcb, sizeof (inpcb));
+		if (kread((u_long)next, (char *)&inpcb, sizeof (inpcb))) {
+			printf("???\n");
+			break;
+		}
 		if (!aflag &&
 		  inet_lnaof(inpcb.inp_laddr) == INADDR_ANY) {
 			prev = next;
 			continue;
 		}
-		kread((u_long)inpcb.inp_socket, (char *)&sockb, sizeof (sockb));
+		if (kread((u_long)inpcb.inp_socket, (char *)&sockb, sizeof (sockb))) {
+			printf("???\n");
+			break;
+		};
 		if (istcp) {
-			kread((u_long)inpcb.inp_ppcb,
-			    (char *)&tcpcb, sizeof (tcpcb));
+			if (kread((u_long)inpcb.inp_ppcb,
+			    (char *)&tcpcb, sizeof (tcpcb))) {
+				printf("???\n");
+				break;
+			};
 		}
 		if (first) {
 			printf("Active Internet connections");
@@ -210,18 +219,23 @@ tcp_stats(off, name)
 	p(tcps_connects, "\t%d connection%s established (including accepts)\n");
 	p2(tcps_closed, tcps_drops,
 		"\t%d connection%s closed (including %d drop%s)\n");
+	p(tcps_cachedrtt, "\t\t%d connection%s updated cached RTT on close\n");
+	p(tcps_cachedrttvar, 
+	  "\t\t%d connection%s updated cached RTT variance on close\n");
+	p(tcps_cachedssthresh,
+	  "\t\t%d connection%s updated cached ssthresh on close\n");
 	p(tcps_conndrops, "\t%d embryonic connection%s dropped\n");
 	p2(tcps_rttupdated, tcps_segstimed,
 		"\t%d segment%s updated rtt (of %d attempt%s)\n");
 	p(tcps_rexmttimeo, "\t%d retransmit timeout%s\n");
 	p(tcps_timeoutdrop, "\t\t%d connection%s dropped by rexmit timeout\n");
 	p(tcps_persisttimeo, "\t%d persist timeout%s\n");
+	p(tcps_persistdrop, "\t\t%d connection%s dropped by persist timeout\n");
 	p(tcps_keeptimeo, "\t%d keepalive timeout%s\n");
 	p(tcps_keepprobe, "\t\t%d keepalive probe%s sent\n");
 	p(tcps_keepdrops, "\t\t%d connection%s dropped by keepalive\n");
 	p(tcps_predack, "\t%d correct ACK header prediction%s\n");
 	p(tcps_preddat, "\t%d correct data packet header prediction%s\n");
-	p3(tcps_pcbcachemiss, "\t%d PCB cache miss%s\n");
 #undef p
 #undef p2
 #undef p3
