@@ -32,7 +32,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: modstat.c,v 1.4.2.2 1997/08/29 05:29:36 imp Exp $";
+	"$Id: modstat.c,v 1.4.2.3 1997/09/15 09:20:51 jkh Exp $";
 #endif /* not lint */
 
 #include <a.out.h>
@@ -101,7 +101,7 @@ dostat(devfd, modnum, modname)
 	    sbuf.id,		/* module id */
 	    sbuf.offset,	/* offset into modtype struct */
 	    sbuf.area,		/* address module loaded at */
-	    sbuf.size,		/* size in pages(K) */
+	    sbuf.size,		/* size in K */
 	    sbuf.private,	/* kernel address of private area */
 	    sbuf.ver,		/* Version; always 1 for now */
 	    sbuf.name		/* name from private area */
