@@ -62,6 +62,7 @@ ibcs2_emul_find(p, sgp, prefix, path, pbuf, cflag)
 	struct nameidata	 ndroot;
 	struct vattr		 vat;
 	struct vattr		 vatroot;
+	struct ucred		*uc;
 	int			 error;
 	char			*ptr, *buf, *cp;
 	size_t			 sz, len;
@@ -140,14 +141,20 @@ ibcs2_emul_find(p, sgp, prefix, path, pbuf, cflag)
 			return error;
 		}
 
-		if ((error = VOP_GETATTR(nd.ni_vp, &vat, p->p_ucred, p)) != 0) {
+		PROC_LOCK(p);
+		uc = p->p_ucred;
+		crhold(uc);
+		PROC_UNLOCK(p);
+		if ((error = VOP_GETATTR(nd.ni_vp, &vat, uc, p)) != 0) {
+			crfree(uc);
 			goto done;
 		}
 
-		if ((error = VOP_GETATTR(ndroot.ni_vp, &vatroot, p->p_ucred, p))
-		    != 0) {
+		if ((error = VOP_GETATTR(ndroot.ni_vp, &vatroot, uc, p)) != 0) {
+			crfree(uc);
 			goto done;
 		}
+		crfree(uc);
 
 		if (vat.va_fsid == vatroot.va_fsid &&
 		    vat.va_fileid == vatroot.va_fileid) {
