@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc1,v 1.23 1998/10/05 08:06:45 msmith Exp $
+#	$Id: Makefile.inc1,v 1.24 1998/10/08 09:40:17 jkh Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -893,9 +893,10 @@ legacy-build:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Building legacy boot"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}/sys/boot && ${XMAKE} -DNOMAN depend; ${XMAKE} -DNOMAN all
+	cd ${.CURDIR}/sys/boot && ${XMAKE} -DNOMAN -B obj depend && \
+		${XMAKE} -DNOMAN all
 	cd ${.CURDIR}/sys/${MACHINE_ARCH}/boot && \
-		${XMAKE} -DNOMAN depend; ${XMAKE} -DNOMAN all;
+		${XMAKE} -DNOMAN -B obj depend && ${XMAKE} -DNOMAN all;
 .endif
 
 #
@@ -937,7 +938,8 @@ legacy-install:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Installing legacy boot"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}/sys/${MACHINE}/boot; ${MAKE} -DNOMAN install
+	cd ${.CURDIR}/sys/boot && ${MAKE} -DNOMAN install
+	cd ${.CURDIR}/sys/${MACHINE}/boot && ${MAKE} -DNOMAN install
 .endif
 
 
