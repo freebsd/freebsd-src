@@ -1253,13 +1253,11 @@ fxp_intr_body(struct fxp_softc *sc, u_int8_t statack, int count)
 			sc->tx_queued--;
 		}
 		sc->cbl_first = txp;
+		ifp->if_timer = 0;
 		if (sc->tx_queued == 0) {
-			ifp->if_timer = 0;
 			if (sc->need_mcsetup)
 				fxp_mc_setup(sc);
-		} else
-			ifp->if_timer = 5;
-
+		}
 		/*
 		 * Try to start more packets transmitting.
 		 */
