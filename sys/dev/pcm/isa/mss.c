@@ -1485,7 +1485,7 @@ cs423x_attach(u_long csn, u_long vend_id, char *name,
 	    tmp_d.bd_id = MD_CS4237 ;
 	    break;
 
-	case 0x3500630e:        /* CS4236 */
+	case 0x3500630e:        /* CS4236B */
 	case 0x3600630e:        /* CS4236 */
 	    tmp_d.bd_id = MD_CS4236 ;
 	    break;
