@@ -506,7 +506,7 @@ DoLoop(struct bundle *bundle)
 
   probe_Init(&probe);
 
-  do {
+  for (; !bundle_IsDead(bundle); bundle_CleanDatalinks(bundle)) {
     nfds = 0;
     FD_ZERO(&rfds);
     FD_ZERO(&wfds);
@@ -619,7 +619,7 @@ DoLoop(struct bundle *bundle)
         t.tv_usec = 100000;
         select(0, NULL, NULL, NULL, &t);
       }
-  } while (bundle_CleanDatalinks(bundle), !bundle_IsDead(bundle));
+  }
 
   log_Printf(LogDEBUG, "DoLoop done.\n");
 }

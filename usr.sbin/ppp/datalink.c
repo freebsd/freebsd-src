@@ -332,9 +332,11 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
           if (dl->script.run) { 
             datalink_NewState(dl, DATALINK_HANGUP);
             chat_Init(&dl->chat, dl->physical, dl->cfg.script.hangup, NULL);
-          } else
+            return datalink_UpdateSet(d, r, w, e, n);
+          } else {
             datalink_HangupDone(dl);
-          return datalink_UpdateSet(d, r, w, e, n);
+            return 0;	/* Maybe bundle_CleanDatalinks() has something to do */
+          }
       }
 
     case DATALINK_HANGUP:
