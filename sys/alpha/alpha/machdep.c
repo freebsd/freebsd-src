@@ -1501,9 +1501,9 @@ osigreturn(struct thread *td,
 	 * sigmask is stored in sc_reserved, sc_mask is only used for
 	 * backward compatibility.
 	 */
-	SIGSETOLD(p->p_sigmask, ksc.sc_mask);
-	SIG_CANTMASK(p->p_sigmask);
-	signotify(p);
+	SIGSETOLD(td->td_sigmask, ksc.sc_mask);
+	SIG_CANTMASK(td->td_sigmask);
+	signotify(td);
 	PROC_UNLOCK(p);
 
 	set_regs(td, (struct reg *)ksc.sc_regs);
@@ -1583,9 +1583,9 @@ freebsd4_sigreturn(struct thread *td,
 		p->p_sigstk.ss_flags &= ~SS_ONSTACK;
 #endif
 
-	p->p_sigmask = uc.uc_sigmask;
-	SIG_CANTMASK(p->p_sigmask);
-	signotify(p);
+	td->td_sigmask = uc.uc_sigmask;
+	SIG_CANTMASK(td->td_sigmask);
+	signotify(td);
 	PROC_UNLOCK(p);
 
 	/* XXX ksc.sc_ownedfp ? */
@@ -1659,9 +1659,9 @@ sigreturn(struct thread *td,
 		p->p_sigstk.ss_flags &= ~SS_ONSTACK;
 #endif
 
-	p->p_sigmask = uc.uc_sigmask;
-	SIG_CANTMASK(p->p_sigmask);
-	signotify(p);
+	td->td_sigmask = uc.uc_sigmask;
+	SIG_CANTMASK(td->td_sigmask);
+	signotify(td);
 	PROC_UNLOCK(p);
 
 	return (EJUSTRETURN);

@@ -356,7 +356,7 @@ smb_iod_recvall(struct smbiod *iod)
 	 */
 	SMB_IOD_RQLOCK(iod);
 	TAILQ_FOREACH(rqp, &iod->iod_rqlist, sr_link) {
-		if (smb_proc_intr(rqp->sr_cred->scr_td->td_proc)) {
+		if (smb_td_intr(rqp->sr_cred->scr_td)) {
 			smb_iod_rqprocessed(rqp, EINTR);
 		}
 	}

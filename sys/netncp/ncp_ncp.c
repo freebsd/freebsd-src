@@ -86,9 +86,10 @@ ncp_chkintr(struct ncp_conn *conn, struct thread *td)
 	p = td->td_proc;
 	PROC_LOCK(p);
 	tmpset = p->p_siglist;
-	SIGSETNAND(tmpset, p->p_sigmask);
+	SIGSETOR(tmpset, td->td_siglist);
+	SIGSETNAND(tmpset, td->td_sigmask);
 	SIGSETNAND(tmpset, p->p_sigignore);
-	if (SIGNOTEMPTY(p->p_siglist) && NCP_SIGMASK(tmpset)) {
+	if (SIGNOTEMPTY(td->td_siglist) && NCP_SIGMASK(tmpset)) {
 		PROC_UNLOCK(p);
                 return EINTR;
 	}

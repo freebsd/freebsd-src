@@ -293,8 +293,8 @@ svr4_setcontext(td, uc)
 #endif
 		svr4_to_bsd_sigset(&uc->uc_sigmask, &mask);
 		SIG_CANTMASK(mask);
-		p->p_sigmask = mask;
-		signotify(p);
+		td->td_sigmask = mask;
+		signotify(td);
 	}
 	PROC_UNLOCK(p);
 

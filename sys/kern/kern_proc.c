@@ -610,11 +610,14 @@ fill_kinfo_proc(p, kp)
 	struct kinfo_proc *kp;
 {
 	struct thread *td;
+	struct thread *td0;
 	struct kse *ke;
 	struct ksegrp *kg;
 	struct tty *tp;
 	struct session *sp;
 	struct timeval tv;
+
+	td = FIRST_THREAD_IN_PROC(p);
 
 	bzero(kp, sizeof(*kp));
 
@@ -657,7 +660,7 @@ fill_kinfo_proc(p, kp)
 		kp->ki_rssize = vmspace_resident_count(vm); /*XXX*/
 		if (p->p_sflag & PS_INMEM)
 			kp->ki_rssize += UAREA_PAGES;
-		FOREACH_THREAD_IN_PROC(p, td) /* XXXKSE: thread swapout check */
+		FOREACH_THREAD_IN_PROC(p, td0)/* XXXKSE: thread swapout check */
 			kp->ki_rssize += KSTACK_PAGES;
 		kp->ki_swrss = vm->vm_swrss;
 		kp->ki_tsize = vm->vm_tsize;
@@ -673,7 +676,6 @@ fill_kinfo_proc(p, kp)
 		    p->p_stats->p_cru.ru_stime.tv_usec;
 	}
 	if (p->p_state != PRS_ZOMBIE) {
-		td = FIRST_THREAD_IN_PROC(p);
 		if (td == NULL) {
 			/* XXXKSE: This should never happen. */
 			printf("fill_kinfo_proc(): pid %d has no threads!\n",
@@ -786,7 +788,8 @@ fill_kinfo_proc(p, kp)
 		strlcpy(kp->ki_ocomm, p->p_comm, sizeof(kp->ki_ocomm));
 	}
 	kp->ki_siglist = p->p_siglist;
-	kp->ki_sigmask = p->p_sigmask;
+        SIGSETOR(kp->ki_siglist, td->td_siglist);
+	kp->ki_sigmask = td->td_sigmask;
 	kp->ki_xstat = p->p_xstat;
 	kp->ki_acflag = p->p_acflag;
 	kp->ki_flag = p->p_flag;

@@ -481,7 +481,7 @@ sighold:
 
 			set = stackgap_alloc(&sg, sizeof(sigset_t));
 			PROC_LOCK(td->td_proc);
-			*set = td->td_proc->p_sigmask;
+			*set = td->td_sigmask;
 			PROC_UNLOCK(td->td_proc);
 			SIGDELSET(*set, signum);
 			sa.sigmask = set;
@@ -507,7 +507,7 @@ svr4_sys_sigprocmask(td, uap)
 	if (uap->oset != NULL) {
 		/* Fix the return value first if needed */
 		PROC_LOCK(td->td_proc);
-		bsd_to_svr4_sigset(&td->td_proc->p_sigmask, &sss);
+		bsd_to_svr4_sigset(&td->td_sigmask, &sss);
 		PROC_UNLOCK(td->td_proc);
 		if ((error = copyout(&sss, uap->oset, sizeof(sss))) != 0)
 			return error;
@@ -525,19 +525,19 @@ svr4_sys_sigprocmask(td, uap)
 	PROC_LOCK(td->td_proc);
 	switch (uap->how) {
 	case SVR4_SIG_BLOCK:
-		SIGSETOR(td->td_proc->p_sigmask, bss);
-		SIG_CANTMASK(td->td_proc->p_sigmask);
+		SIGSETOR(td->td_sigmask, bss);
+		SIG_CANTMASK(td->td_sigmask);
 		break;
 
 	case SVR4_SIG_UNBLOCK:
-		SIGSETNAND(td->td_proc->p_sigmask, bss);
-		signotify(td->td_proc);
+		SIGSETNAND(td->td_sigmask, bss);
+		signotify(td);
 		break;
 
 	case SVR4_SIG_SETMASK:
-		td->td_proc->p_sigmask = bss;
-		SIG_CANTMASK(td->td_proc->p_sigmask);
-		signotify(td->td_proc);
+		td->td_sigmask = bss;
+		SIG_CANTMASK(td->td_sigmask);
+		signotify(td);
 		break;
 
 	default:
@@ -566,7 +566,8 @@ svr4_sys_sigpending(td, uap)
 			return 0;
 		PROC_LOCK(td->td_proc);
 		bss = td->td_proc->p_siglist;
-		SIGSETAND(bss, td->td_proc->p_sigmask);
+		SIGSETOR(bss, td->td_siglist);
+		SIGSETAND(bss, td->td_sigmask);
 		PROC_UNLOCK(td->td_proc);
 		bsd_to_svr4_sigset(&bss, &sss);
 		break;
@@ -636,7 +637,7 @@ svr4_sys_context(td, uap)
 	case 0:
 		PROC_LOCK(td->td_proc);
 		DPRINTF(("getcontext(%p)\n", uap->uc));
-		svr4_getcontext(td, &uc, &td->td_proc->p_sigmask,
+		svr4_getcontext(td, &uc, &td->td_sigmask,
 		    sigonstack(cpu_getstack(td)));
 		PROC_UNLOCK(td->td_proc);
 		return copyout(&uc, uap->uc, sizeof(uc));
@@ -671,6 +672,6 @@ svr4_sys_pause(td, uap)
 {
 	struct sigsuspend_args bsa;
 
-	bsa.sigmask = &td->td_proc->p_sigmask;
+	bsa.sigmask = &td->td_sigmask;
 	return sigsuspend(td, &bsa);
 }

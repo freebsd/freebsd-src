@@ -81,7 +81,7 @@ userret(td, frame, oticks)
 	mtx_lock(&Giant);
 	PROC_LOCK(p);
 	mtx_lock_spin(&sched_lock);
-	if (SIGPENDING(p) && ((p->p_sflag & PS_NEEDSIGCHK) == 0 ||
+	if (SIGPENDING(td) && ((td->td_flags & TDF_NEEDSIGCHK) == 0 ||
 	    (td->td_flags & TDF_ASTPENDING) == 0))
 		printf("failed to set signal flags properly for ast()\n");
 	mtx_unlock_spin(&sched_lock);
@@ -174,11 +174,12 @@ ast(struct trapframe *framep)
 	sticks = td->td_sticks;
 	flags = td->td_flags;
 	sflag = p->p_sflag;
-	p->p_sflag &= ~(PS_ALRMPEND | PS_NEEDSIGCHK | PS_PROFPEND | PS_XCPU);
+	p->p_sflag &= ~(PS_ALRMPEND | PS_PROFPEND | PS_XCPU);
 #ifdef MAC
 	p->p_sflag &= ~PS_MACPEND;
 #endif
-	td->td_flags &= ~(TDF_ASTPENDING | TDF_NEEDRESCHED | TDF_OWEUPC);
+	td->td_flags &= ~(TDF_ASTPENDING | TDF_NEEDSIGCHK |
+	    TDF_NEEDRESCHED | TDF_OWEUPC);
 	cnt.v_soft++;
 	prticks = 0;
 	if (flags & TDF_OWEUPC && sflag & PS_PROFIL) {
@@ -243,7 +244,7 @@ ast(struct trapframe *framep)
 		mi_switch();
 		mtx_unlock_spin(&sched_lock);
 	}
-	if (sflag & PS_NEEDSIGCHK) {
+	if (flags & TDF_NEEDSIGCHK) {
 		int sigs;
 
 		sigs = 0;
