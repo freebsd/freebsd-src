@@ -1,5 +1,6 @@
 # Country Code : City Code : City : Country
 #	@(#)inter.phone	8.1 (Berkeley) 6/9/93
+7:095:Moscow:Russia
 20:2:Cairo:Egypt, Arab Rep. of
 20:3:Alexandria:Egypt, Arab Rep. of
 20:66:Port Said:Egypt, Arab Rep. of
@@ -320,6 +321,7 @@
 358:0:Helsinki:Finland
 358:31:Tampere:Finland
 359:2:Sofia:Bulgaria
+380:44:Kiev:Ukraine
 501:2:Belize City:Belize
 501:8:Belmopan:Belize
 502:2:Guatemala City:Guatemala
