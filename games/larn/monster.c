@@ -713,6 +713,7 @@ omnidirect(spnum,dam,str)
 		for (y=playery-1; y<playery+2; y++)
 			{
 			if (m=mitem[x][y])
+				{
 				if (nospell(spnum,m) == 0)
 					{
 					ifblind(x,y);
@@ -720,6 +721,7 @@ omnidirect(spnum,dam,str)
 					hitm(x,y,dam);  nap(800);
 					}
 				else  { lasthx=x;  lasthy=y; }
+				}
 			}
 	}
 
@@ -1085,7 +1087,9 @@ spattack(x,xx,yy)
 		case 1:	/* rust your armor, j=1 when rusting has occurred */
 				m = k = c[WEAR];
 				if ((i=c[SHIELD]) != -1)
+				  {
 					if (--ivenarg[i] < -1) ivenarg[i]= -1; else j=1;
+				  }
 				if ((j==0) && (k != -1))
 				  {
 				  m = iven[k];
@@ -1226,6 +1230,7 @@ annihilate()
 	for (k=0, i=playerx-1; i<=playerx+1; i++)
 	  for (j=playery-1; j<=playery+1; j++)
 		if (!vxy(&i,&j)) /* if not out of bounds */
+			{
 			if (*(p= &mitem[i][j]))	/* if a monster there */
 				if (*p<DEMONLORD+2)
 					{
@@ -1236,6 +1241,7 @@ annihilate()
 					lprintf("\nThe %s barely escapes being annihilated!",monster[*p].name);
 					hitp[i][j] = (hitp[i][j]>>1) + 1; /* lose half hit points*/
 					}
+			}
 	if (k>0)
 		{
 		lprcat("\nYou hear loud screams of agony!");	raiseexperience((long)k);

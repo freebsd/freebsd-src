@@ -424,6 +424,7 @@ bool	dishonest = FALSE;/* set when merchant is dishonest */
 			    ch = getanswer("NY", FALSE);
 
 			    if (ch == 'Y')
+				{
 				if (Player.p_gold < blessingcost)
 				    ++cheat;
 				else
@@ -435,6 +436,7 @@ bool	dishonest = FALSE;/* set when merchant is dishonest */
 				    else
 					Player.p_blessing = TRUE;
 				    }
+				}
 			    break;
 			}
 	    break;

@@ -391,8 +391,9 @@ register int newlevel;
 	    newlevel = atoi(buf);
 	} else {
 	    newlevel  = 5 + rn2(20);	/* 5 - 24 */
-	    if(dlevel == newlevel)
+	    if(dlevel == newlevel) {
 		if(!xdnstair) newlevel--; else newlevel++;
+	    }
 	}
 	if(newlevel >= 30) {
 	    if(newlevel > MAXLEVEL) newlevel = MAXLEVEL;

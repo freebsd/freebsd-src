@@ -264,7 +264,7 @@ sync_update(type, ship, a, b, c, d)
 		}
 	case W_UNFOUL: {
 		register struct snag *p = &ship->file->foul[a];
-		if (p->sn_count > 0)
+		if (p->sn_count > 0) {
 			if (b) {
 				ship->file->nfoul -= p->sn_count;
 				p->sn_count = 0;
@@ -272,11 +272,12 @@ sync_update(type, ship, a, b, c, d)
 				ship->file->nfoul--;
 				p->sn_count--;
 			}
+		}
 		break;
 		}
 	case W_UNGRAP: {
 		register struct snag *p = &ship->file->grap[a];
-		if (p->sn_count > 0)
+		if (p->sn_count > 0) {
 			if (b) {
 				ship->file->ngrap -= p->sn_count;
 				p->sn_count = 0;
@@ -284,14 +285,16 @@ sync_update(type, ship, a, b, c, d)
 				ship->file->ngrap--;
 				p->sn_count--;
 			}
+		}
 		break;
 		}
 	case W_SIGNAL:
-		if (mode == MODE_PLAYER)
+		if (mode == MODE_PLAYER) {
 			if (nobells)
 				Signal("%s (%c%c): %s", ship, a);
 			else
 				Signal("\7%s (%c%c): %s", ship, a);
+		}
 		break;
 	case W_CREW: {
 		register struct shipspecs *s = ship->specs;
