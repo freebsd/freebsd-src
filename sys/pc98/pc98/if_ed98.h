@@ -36,7 +36,7 @@
 #error Why you include if_ed98.h?
 #endif
 
-static	void pc98_set_register __P((struct isa_device *dev, int type));
+static	int pc98_set_register __P((struct isa_device *dev, int type));
 
 /*
  * Vendor types
@@ -379,11 +379,12 @@ static	unsigned int edp_cnet98[16] = {
 };
 
 
-static void
+static int
 pc98_set_register(struct isa_device *dev, int type)
 {
 	struct	ed_softc *sc = &ed_softc[dev->id_unit];
 	int	adj;
+	int	nports;
 
 	switch (type) {
 	case ED_TYPE98_GENERIC:
@@ -395,6 +396,7 @@ pc98_set_register(struct isa_device *dev, int type)
 		ED_NOVELL_RESET = 0x000f;
 		ED_PC_MISC = 0x18;
 		ED_PC_RESET = 0x1f;
+		nports = 32;
 		break;
 
 	case ED_TYPE98_LGY:
@@ -406,6 +408,7 @@ pc98_set_register(struct isa_device *dev, int type)
 		ED_NOVELL_RESET = 0x0100;
 		ED_PC_MISC = 0x18;
 		ED_PC_RESET = 0x1f;
+		nports = 16;
 		break;
 
 	case ED_TYPE98_EGY:
@@ -417,6 +420,7 @@ pc98_set_register(struct isa_device *dev, int type)
 		ED_NOVELL_RESET = 0x0100;
 		ED_PC_MISC = 0x18;
 		ED_PC_RESET = 0x1f;
+		nports = 16;
 		break;		
 
 	case ED_TYPE98_ICM:
@@ -428,6 +432,7 @@ pc98_set_register(struct isa_device *dev, int type)
 		ED_NOVELL_RESET = 0x000f;
 		ED_PC_MISC = 0x18;
 		ED_PC_RESET = 0x1f;
+		nports = 16;
 		break;
 
 	case ED_TYPE98_BDN:
@@ -439,6 +444,7 @@ pc98_set_register(struct isa_device *dev, int type)
 		ED_NOVELL_RESET = 0xc100;
 		ED_PC_MISC = 0x18;
 		ED_PC_RESET = 0x1f;
+		nports = 1;
 		break;
 
 	case ED_TYPE98_SIC:
@@ -450,6 +456,7 @@ pc98_set_register(struct isa_device *dev, int type)
 		ED_NOVELL_RESET = 0x00;
 		ED_PC_MISC = 0x18;				/* dummy */
 		ED_PC_RESET = 0x1f;				/* dummy */
+		nports = 1;
 		break;
 
 	case ED_TYPE98_LPC:
@@ -461,6 +468,7 @@ pc98_set_register(struct isa_device *dev, int type)
 		ED_NOVELL_RESET = 0x0200;
 		ED_PC_MISC = 0x108;
 		ED_PC_RESET = 0x10f;
+		nports = 16;
 		break;
 
 	case ED_TYPE98_108:
@@ -473,6 +481,7 @@ pc98_set_register(struct isa_device *dev, int type)
 		ED_NOVELL_RESET = 4;
 		ED_PC_MISC = 0x18;
 		ED_PC_RESET = 0x1f;
+		nports = 16;
 		break;
 
 	case ED_TYPE98_LA98:
@@ -484,6 +493,7 @@ pc98_set_register(struct isa_device *dev, int type)
 		ED_NOVELL_RESET = 0xf000;
 		ED_PC_MISC = 0x18;
 		ED_PC_RESET = 0x1f;
+		nports = 1;
 		break;
 
 	case ED_TYPE98_CNET98EL:
@@ -494,6 +504,7 @@ pc98_set_register(struct isa_device *dev, int type)
 		ED_NOVELL_DATA = 0x000e;
 		ED_NOVELL_RESET = 0x0000;	/* dummy */
 		ED_PC_RESET = 0x1f;
+		nports = 16;
 		break;
 
 	case ED_TYPE98_CNET98:
@@ -501,11 +512,13 @@ pc98_set_register(struct isa_device *dev, int type)
 		sc->edreg.ioskip = 2;
 		ED_NOVELL_NIC_OFFSET = 0;
 		ED_NOVELL_ASIC_OFFSET = 0x0400;
-		ED_NOVELL_DATA = 0x000e;
+		ED_NOVELL_DATA = 0x0000;
 		ED_NOVELL_RESET = 0x0000;	/* dummy */
 		ED_PC_RESET = 0x1f;
+		nports = 16;
 		break;
 	}
+	return nports;
 }
 
 #endif /* __PC98_PC98_IF_ED98_H__ */
