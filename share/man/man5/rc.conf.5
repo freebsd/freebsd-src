@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     $Id: rc.conf.5,v 1.1.2.1 1997/09/11 14:31:33 jkh Exp $
+.\"     $Id: rc.conf.5,v 1.1.2.2 1997/10/20 08:40:49 danny Exp $
 .\"
 .Dd April 26, 1997
 .Dt RC.CONF 5
@@ -475,6 +475,12 @@ these are the flags to pass to the routing daemon.
 .Ar YES
 then run the multicast routing daemon,
 .Xr mrouted 8 .
+.It Ar mrouted_flags
+(str) If
+.Ar mrouted_enable
+is set to
+.Ar YES ,
+these are the flags to pass to the multicast routing daemon.
 .It Ar ipxgateway_enable
 (bool) If set to
 .Ar YES
