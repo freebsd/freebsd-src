@@ -627,7 +627,8 @@ sched_slice(struct kse *ke)
 static void
 sched_interact_update(struct ksegrp *kg)
 {
-	if ((kg->kg_runtime + kg->kg_slptime) >  SCHED_SLP_RUN_MAX) {
+	/* XXX Fixme, use a linear algorithm and not a while loop. */
+	while ((kg->kg_runtime + kg->kg_slptime) >  SCHED_SLP_RUN_MAX) {
 		kg->kg_runtime = (kg->kg_runtime / 5) * 4;
 		kg->kg_slptime = (kg->kg_slptime / 5) * 4;
 	}
