@@ -98,7 +98,6 @@ struct buf {
 #define	b_bcount	b_io.bio_bcount
 #define	b_caller1	b_io.bio_caller1
 #define	b_data		b_io.bio_data
-#define	b_dev		b_io.bio_dev
 #define	b_error		b_io.bio_error
 #define	b_iocmd		b_io.bio_cmd
 #define	b_ioflags	b_io.bio_flags
