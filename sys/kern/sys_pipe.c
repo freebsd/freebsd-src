@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: sys_pipe.c,v 1.6 1996/02/04 22:09:05 dyson Exp $
+ * $Id: sys_pipe.c,v 1.8 1996/02/05 05:50:34 dyson Exp $
  */
 
 #ifndef OLD_PIPE
@@ -585,15 +585,25 @@ pipe_direct_write(wpipe, uio)
 	struct uio *uio;
 {
 	int error;
+retry:
 	while (wpipe->pipe_state & PIPE_DIRECTW) {
+		if ( wpipe->pipe_state & PIPE_WANTR) {
+			wpipe->pipe_state &= ~PIPE_WANTR;
+			wakeup(wpipe);
+		}
+			
 		error = tsleep(wpipe,
 				PRIBIO|PCATCH, "pipdww", 0);
 		if (error || (wpipe->pipe_state & PIPE_EOF))
 			goto error1;
 	}
 	wpipe->pipe_map.cnt = 0;	/* transfer not ready yet */
-	wpipe->pipe_state |= PIPE_DIRECTW;
-	while (wpipe->pipe_buffer.cnt > 0) {
+	if (wpipe->pipe_buffer.cnt > 0) {
+		if ( wpipe->pipe_state & PIPE_WANTR) {
+			wpipe->pipe_state &= ~PIPE_WANTR;
+			wakeup(wpipe);
+		}
+			
 		error = tsleep(wpipe,
 				PRIBIO|PCATCH, "pipdwc", 0);
 		if (error || (wpipe->pipe_state & PIPE_EOF)) {
@@ -602,7 +612,10 @@ pipe_direct_write(wpipe, uio)
 				error = EPIPE;
 			goto error1;
 		}
+		goto retry;
 	}
+
+	wpipe->pipe_state |= PIPE_DIRECTW;
 
 	error = pipe_build_write_buffer(wpipe, uio);
 	if (error) {
