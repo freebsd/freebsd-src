@@ -523,19 +523,18 @@ vfs_getopt(opts, name, buf, len)
 
 /*
  * Find and copy a mount option.
+ *
  * The size of the buffer has to be specified
- * in len, if it is not big enough, EINVAL is
- * returned.  Returns ENOENT if the option is
- * not found.  Otherwise, the number of bytes
- * actually copied are put in done if it's
- * non-NULL and 0 is returned.
+ * in len, if it is not the same length as the
+ * mount option, EINVAL is returned.
+ * Returns ENOENT if the option is not found.
  */
 int
-vfs_copyopt(opts, name, dest, len, done)
+vfs_copyopt(opts, name, dest, len)
 	struct vfsoptlist *opts;
 	const char *name;
 	void *dest;
-	int len, *done;
+	int len;
 {
 	struct vfsopt *opt;
 	int i;
@@ -544,11 +543,9 @@ vfs_copyopt(opts, name, dest, len, done)
 	opt = opts->opt;
 	while (i++ < opts->optcnt) {
 		if (strcmp(name, opt->name) == 0) {
-			if (len < opt->len)
+			if (len != opt->len)
 				return (EINVAL);
 			bcopy(opt->value, dest, opt->len);
-			if (done != NULL)
-				*done = opt->len;
 			return (0);
 		}
 		opt++;
