@@ -169,6 +169,7 @@ static int ips_add_waiting_command(ips_softc_t *sc, int (*callback)(ips_command_
 	mask = splbio();
 	if(sc->state & IPS_OFFLINE){
 		splx(mask);
+		free(waiter, M_DEVBUF);
 		return EIO;
 	}
 	command = SLIST_FIRST(&sc->free_cmd_list);
