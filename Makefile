@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.87 1996/06/27 06:00:52 peter Exp $
+#	$Id: Makefile,v 1.88 1996/06/28 05:36:00 phk Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -120,6 +120,7 @@ world:	pre-world hierarchy mk $(WORLD_CLEANDIST) bootstrap include-tools include
 	@echo "make world completed on `date`"
 
 bootstrap:
+	cd ${.CURDIR}/usr.bin/make && ${MAKE} ${MK_FLAGS} all install
 	cd ${.CURDIR}/usr.bin/xlint && ${MAKE} ${MK_FLAGS} lint1 lint2 xlint
 	cd ${.CURDIR}/usr.bin/xlint/lint1 && ${MAKE} ${MK_FLAGS} install
 	cd ${.CURDIR}/usr.bin/xlint/lint2 && ${MAKE} ${MK_FLAGS} install
