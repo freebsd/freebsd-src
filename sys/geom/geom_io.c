@@ -236,10 +236,10 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 {
 	struct g_provider *pp;
 
-	pp = cp->provider;
 	KASSERT(cp != NULL, ("NULL cp in g_io_request"));
 	KASSERT(bp != NULL, ("NULL bp in g_io_request"));
 	KASSERT(bp->bio_data != NULL, ("NULL bp->data in g_io_request"));
+	pp = cp->provider;
 	KASSERT(pp != NULL, ("consumer not attached in g_io_request"));
 
 	bp->bio_from = cp;
@@ -267,9 +267,9 @@ g_io_deliver(struct bio *bp, int error)
 	struct g_consumer *cp;
 	struct g_provider *pp;
 
+	KASSERT(bp != NULL, ("NULL bp in g_io_deliver"));
 	cp = bp->bio_from;
 	pp = bp->bio_to;
-	KASSERT(bp != NULL, ("NULL bp in g_io_deliver"));
 	KASSERT(cp != NULL, ("NULL bio_from in g_io_deliver"));
 	KASSERT(cp->geom != NULL, ("NULL bio_from->geom in g_io_deliver"));
 	KASSERT(pp != NULL, ("NULL bio_to in g_io_deliver"));
