@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.5 1995/07/08 05:09:57 amurai Exp $
+ * $Id: lcp.c,v 1.6 1995/09/17 16:14:47 amurai Exp $
  *
  * TODO:
  *      o Validate magic number received from peer.
@@ -30,10 +30,12 @@
 #include "lcpproto.h"
 #include "os.h"
 #include "hdlc.h"
+#include "ccp.h"
 #include "lqr.h"
 #include "phase.h"
 #include "vars.h"
 #include "auth.h"
+#include <arpa/inet.h>
 
 extern void IpcpUp();
 extern void IpcpOpen();
@@ -152,12 +154,12 @@ ReportLcpStatus()
 
   printf("%s [%s]\n", fp->name, StateNames[fp->state]);
   printf(
-    " his side: MRU %d, ACCMAP %08x, PROTOCOMP %d, ACFCOMP %d MAGIC %08x\n",
+    " his side: MRU %ld, ACCMAP %08lx, PROTOCOMP %d, ACFCOMP %d MAGIC %08lx\n",
     lcp->his_mru, lcp->his_accmap, lcp->his_protocomp, lcp->his_acfcomp, lcp->his_magic);
   printf(
-    " my  side: MRU %d, ACCMAP %08x, PROTOCOMP %d, ACFCOMP %d MAGIC %08x\n",
+    " my  side: MRU %ld, ACCMAP %08lx, PROTOCOMP %d, ACFCOMP %d MAGIC %08lx\n",
     lcp->want_mru, lcp->want_accmap, lcp->want_protocomp, lcp->want_acfcomp, lcp->want_magic);
-  printf("\nDefaults:   MRU = %d, ACCMAP = %08x\t", VarMRU, VarAccmap);
+  printf("\nDefaults:   MRU = %ld, ACCMAP = %08x\t", VarMRU, VarAccmap);
   printf("Open Mode: %s\n", (VarOpenMode == OPEN_ACTIVE)? "active" : "passive");
   return(1);
 }
@@ -173,7 +175,7 @@ GenerateMagic()
 
   time(&tl);
   gettimeofday(&tval, NULL);
-  tl += tval.tv_sec ^ tval.tv_usec + getppid();
+  tl += (tval.tv_sec ^ tval.tv_usec) + getppid();
   tl *= getpid();
   return(tl);
 }
@@ -220,13 +222,15 @@ int len;
 u_long val;
 {
   u_char *cp;
+  struct in_addr ina;
 
   cp = *cpp;
   *cp++ = type; *cp++ = len;
   if (len == 6) {
     if (type == TY_IPADDR) {
+      ina.s_addr = htonl(val);
       LogPrintf(LOG_LCP, " %s [%d] %s\n",
-	types[type], len, inet_ntoa(htonl(val)));
+	types[type], len, inet_ntoa(ina));
     } else {
       LogPrintf(LOG_LCP, " %s [%d] %08x\n", types[type], len, val);
     }

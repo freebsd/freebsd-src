@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.3 1995/05/30 03:50:56 rgrimes Exp $
+ * $Id: route.c,v 1.4 1995/07/08 06:08:52 amurai Exp $
  *
  */
 #include <sys/types.h>
@@ -234,7 +234,7 @@ ShowRoute()
 	  mask <<= 8;
       }
     }
-    printf("%08x  ", mask);
+    printf("%08lx  ", mask);
     p_flags(rtm->rtm_flags & (RTF_UP|RTF_GATEWAY|RTF_HOST), "%-6.6s ");
     printf("(%d)\n", rtm->rtm_index);
   }
