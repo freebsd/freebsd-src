@@ -878,7 +878,7 @@ twe_free_request(struct twe_request *tr)
  *
  * These routines ensure that the data which the controller is going to try to
  * access is actually visible to the controller, in a machine-independant 
- * fasion.  Due to a hardware limitation, I/O buffers must be 512-byte aligned
+ * fashion.  Due to a hardware limitation, I/O buffers must be 512-byte aligned
  * and we take care of that here as well.
  */
 static void
