@@ -305,7 +305,9 @@ static struct vfsops devfs_vfsops = {
 	vfs_stdfhtovp,
 	vfs_stdcheckexp,
 	vfs_stdvptofh,
-	devfs_init
+	devfs_init,
+	vfs_stduninit,
+	vfs_stdextattrctl,
 };
 
 VFS_SET(devfs_vfsops, devfs, 0);

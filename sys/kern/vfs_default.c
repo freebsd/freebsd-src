@@ -80,6 +80,11 @@ static struct vnodeopv_entry_desc default_vnodeop_entries[] = {
 	{ &vop_revoke_desc,		(vop_t *) vop_revoke },
 	{ &vop_strategy_desc,		(vop_t *) vop_nostrategy },
 	{ &vop_unlock_desc,		(vop_t *) vop_nounlock },
+	{ &vop_getacl_desc,		(vop_t *) vop_eopnotsupp },
+	{ &vop_setacl_desc,		(vop_t *) vop_eopnotsupp },
+	{ &vop_aclcheck_desc,		(vop_t *) vop_eopnotsupp },
+	{ &vop_getextattr_desc,		(vop_t *) vop_eopnotsupp },
+	{ &vop_setextattr_desc,		(vop_t *) vop_eopnotsupp },
 	{ NULL, NULL }
 };
 
@@ -613,6 +618,17 @@ vfs_stduninit (vfsp)
 	struct vfsconf *vfsp;
 {
 	return(0);
+}
+
+int
+vfs_stdextattrctl(mp, cmd, attrname, arg, p)
+	struct mount *mp;
+	int cmd;
+	char *attrname;
+	caddr_t arg;
+	struct proc *p;
+{
+	return(EOPNOTSUPP);
 }
 
 /* end of vfs default ops */

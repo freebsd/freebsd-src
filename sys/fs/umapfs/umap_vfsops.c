@@ -75,6 +75,9 @@ static int	umapfs_unmount __P((struct mount *mp, int mntflags,
 static int	umapfs_vget __P((struct mount *mp, ino_t ino,
 				 struct vnode **vpp));
 static int	umapfs_vptofh __P((struct vnode *vp, struct fid *fhp));
+static int	umapfs_extattrctl __P((struct mount *mp, int cmd,
+				       char *attrname, caddr_t arg,
+				       struct proc *p));
 
 /*
  * Mount umap layer
@@ -430,6 +433,19 @@ umapfs_vptofh(vp, fhp)
 	return (VFS_VPTOFH(UMAPVPTOLOWERVP(vp), fhp));
 }
 
+static int
+umapfs_extattrctl(mp, cmd, attrname, arg, p)
+	struct mount *mp;
+	int cmd;
+	char *attrname;
+	caddr_t arg;
+	struct proc *p;
+{
+	return (VFS_EXTATTRCTL(MOUNTTOUMAPMOUNT(mp)->umapm_vfs, cmd, attrname,
+	    arg, p));
+} 
+
+
 static struct vfsops umap_vfsops = {
 	umapfs_mount,
 	umapfs_start,
@@ -443,6 +459,8 @@ static struct vfsops umap_vfsops = {
 	umapfs_checkexp,
 	umapfs_vptofh,
 	umapfs_init,
+	vfs_stduninit,
+	umapfs_extattrctl,
 };
 
 VFS_SET(umap_vfsops, umap, VFCF_LOOPBACK);

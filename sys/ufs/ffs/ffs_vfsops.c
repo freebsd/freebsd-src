@@ -83,6 +83,8 @@ static struct vfsops ufs_vfsops = {
 	ufs_check_export,
 	ffs_vptofh,
 	ffs_init,
+	vfs_stduninit,
+	vfs_stdextattrctl,
 };
 
 VFS_SET(ufs_vfsops, ufs, 0);

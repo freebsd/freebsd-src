@@ -417,6 +417,19 @@ nullfs_vptofh(vp, fhp)
 	return VFS_VPTOFH(NULLVPTOLOWERVP(vp), fhp);
 }
 
+static int                        
+nullfs_extattrctl(mp, cmd, attrname, arg, p)
+	struct mount *mp;
+	int cmd;
+	char *attrname;
+	caddr_t arg;
+	struct proc *p;            
+{
+	return VFS_EXTATTRCTL(MOUNTTONULLMOUNT(mp)->nullm_vfs, cmd, attrname,
+	    arg, p);
+}
+
+
 static struct vfsops null_vfsops = {
 	nullfs_mount,
 	nullfs_start,
@@ -430,6 +443,8 @@ static struct vfsops null_vfsops = {
 	nullfs_checkexp,
 	nullfs_vptofh,
 	nullfs_init,
+	vfs_stduninit,
+	nullfs_extattrctl,
 };
 
 VFS_SET(null_vfsops, null, VFCF_LOOPBACK);

@@ -738,7 +738,8 @@ static struct vfsops hpfs_vfsops = {
 	hpfs_checkexp,
 	hpfs_vptofh,
 	hpfs_init,
-	NULL
+	vfs_stduninit,
+	vfs_stdextattrctl,
 };
 VFS_SET(hpfs_vfsops, hpfs, 0);
 #else /* defined(__NetBSD__) */
