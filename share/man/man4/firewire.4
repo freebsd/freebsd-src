@@ -39,6 +39,7 @@
 .Nd IEEE1394 High-performance Serial Bus
 .Sh SYNOPSIS
 .Cd "device firewire"
+.Cd "device fwohci"
 .Pp
 .In dev/firewire/firewire.h
 .Sh DESCRIPTION
@@ -68,11 +69,13 @@ Also, the other
 .Nm
 bus specific parameters,
 e.g., node ID, cycle master, isochronous resource manager and bus
-manager, are dynamically assigned, after bus rest is initiated.
+manager, are dynamically assigned, after bus reset is initiated.
 On
 .Nm
 bus, every device is identified with EUI 64 address.
 .Sh SEE ALSO
+.Xr fwcontrol 8 ,
+.Xr fwe 4 ,
 .Xr fwohci 4 ,
 .Xr pci 4 ,
 .Xr sbp 4
@@ -90,5 +93,5 @@ driver was written by
 and
 .An Hidetoshi Shimokawa
 for the
-.Nx
+.Fx
 project.
