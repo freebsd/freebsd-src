@@ -1,4 +1,4 @@
-#	$Id: options.i386,v 1.106 1999/03/07 16:11:12 hm Exp $
+#	$Id: options.i386,v 1.107 1999/03/09 20:20:02 phk Exp $
 
 DISABLE_PSE
 IDE_DELAY
@@ -168,6 +168,13 @@ AVM_A1_PCMCIA		opt_i4b.h
 I4B_SMP_WORKAROUND      opt_i4b.h
 # enable VJ compression code for ipr i/f
 IPR_VJ			opt_i4b.h
+# -------------------------------
+# oltr: build options
+# -------------------------------
+# Exclude microcode options
+OLTR_NO_TMS_MAC		opt_oltr.h
+OLTR_NO_HAWKEYE_MAC	opt_oltr.h
+OLTR_NO_BULLSEYE_MAC	opt_oltr.h
 # -------------------------------
 # EOF
 # -------------------------------
