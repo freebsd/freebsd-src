@@ -23,32 +23,22 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vm86.c,v 1.1 1997/08/09 01:38:03 dyson Exp $
+ *	$Id: vm86.c,v 1.2 1997/08/28 14:36:55 jlemon Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/lock.h>
-#include <sys/unistd.h>
-#include <sys/malloc.h>
-#include <sys/kernel.h>
-#include <sys/shm.h>
-#include <sys/sysproto.h>
-#include <sys/filedesc.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/vm_prot.h>
 #include <vm/pmap.h>
-#include <vm/vm_kern.h>
 #include <vm/vm_map.h>
 #include <vm/vm_page.h>
-#include <vm/vm_extern.h>
 
 #include <sys/user.h>
 
-#include <machine/cpu.h>
 #include <machine/psl.h>
 #include <machine/md_var.h>
 #include <machine/specialreg.h>

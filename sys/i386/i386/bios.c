@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: bios.c,v 1.3 1997/08/05 01:38:19 msmith Exp $
+ *      $Id: bios.c,v 1.4 1997/08/06 11:08:01 peter Exp $
  */
 
 /*
@@ -35,7 +35,6 @@
 #include <sys/kernel.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
-#include <machine/pmap.h>
 #include <machine/md_var.h>
 
 #include <machine/pc/bios.h>
