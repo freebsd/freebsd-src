@@ -11,7 +11,6 @@
 .Nm tuning
 .Nd performance tuning under FreeBSD
 .Sh SYSTEM SETUP - DISKLABEL, NEWFS, TUNEFS, SWAP
-.Pp
 When using
 .Xr disklabel 8
 to lay out your filesystems on a hard disk it is important to remember
@@ -240,7 +239,6 @@ raid controller from the list of
 .Fx
 supported controllers.
 .Sh SYSCTL TUNING
-.Pp
 There are several hundred
 .Xr sysctl 8
 variables in the system, including many that appear to be candidates for
@@ -373,7 +371,6 @@ this option will have a detrimental effect but in a large system that is
 already doing moderate paging this option allows the VM system to stage
 whole processes into and out of memory more easily.
 .Sh KERNEL CONFIG TUNING
-.Pp
 There are a number of kernel options that you may have to fiddle with in
 a large scale system.  In order to change these options you need to be
 able to compile a new kernel from source.  The
@@ -513,7 +510,6 @@ services (such as email), or vise versa.  In home installations this could
 be used to give interactive traffic (your browser, ssh logins) priority
 over services you export from your box (web services, email).
 .Sh SEE ALSO
-.Pp
 .Xr netstat 1 ,
 .Xr systat 1 ,
 .Xr ata 4 ,

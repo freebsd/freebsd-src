@@ -43,7 +43,6 @@
 .Ft int
 .Fn VOP_RECLAIM "struct vnode *vp" "struct proc *p"
 .Sh DESCRIPTION
-.Pp
 The arguments are:
 .Bl -tag -width 2n
 .It Ar vp
@@ -60,13 +59,11 @@ is called when a vnode is being reused for a different filesystem.
 Any filesystem specific resources associated with the vnode should be
 freed.
 .Sh LOCKS
-.Pp
 For VOP_INACTIVE, the vp will be locked on entry.  Your VOP_INACTIVE code
 must unlock the vp prior to returning.
 .Pp
 For VOP_RECLAIM, the vp will not be locked on entry and should be left
 unlocked on return.
-.Pp
 .Sh PSEUDOCODE
 .Bd -literal
 int

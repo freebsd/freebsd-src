@@ -72,7 +72,6 @@ is cancelled, then the target thread is not detached.
 .Pp
 A thread that has exited but remains unjoined counts against
 [_POSIX_THREAD_THREADS_MAX].
-.Pp
 .Sh RETURN VALUES
 If successful,  the
 .Fn pthread_join
@@ -96,7 +95,6 @@ A deadlock was detected or the value of
 .Fa thread
 specifies the calling thread.
 .El
-.Pp
 .Sh SEE ALSO
 .Xr wait 2 ,
 .Xr pthread_create 3

@@ -87,7 +87,6 @@ Use separate external clocks for transmit and receive on port 0.
 .It Em 0x40
 Use separate external clocks for transmit and receive on port 1.
 .El
-.Pp
 .Sh NUMBERING
 Only one line for each card is needed in the kernel configuration file.
 The first card's ports will be installed from sr0. The numbering of the
@@ -98,7 +97,6 @@ start at sr2.
 The card only supports IRQ 3, 4, 5, 7, 10, 11, 12 and 15.
 .Pp
 The iomem area is a 16Kb block and must start at a 16Kb boundary.
-.Pp
 .Sh NETGRAPH SUPPORT
 If the kernel is compiled with
 .Dv "options NETGRAPH"

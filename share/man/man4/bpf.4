@@ -641,7 +641,6 @@ array initializers:
 .Fn BPF_STMT opcode operand
 and
 .Fn BPF_JUMP opcode operand true_offset false_offset .
-.Pp
 .Sh EXAMPLES
 The following filter is taken from the Reverse ARP Daemon.  It accepts
 only Reverse ARP requests.
@@ -727,7 +726,6 @@ so desired, must utilize a filter to reject foreign packets.
 .Pp
 Data link protocols with variable length headers are not currently supported.
 .Sh HISTORY
-.Pp
 The Enet packet filter was created in 1980 by Mike Accetta and
 Rick Rashid at Carnegie-Mellon University.  Jeffrey Mogul, at
 Stanford, ported the code to BSD and continued its development from
