@@ -26,10 +26,7 @@
  * $FreeBSD$
  */
 
-#include "sc.h"
 #include "opt_syscons.h"
-
-#if NSC > 0
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -405,5 +402,3 @@ sc_vtb_ins(sc_vtb_t *vtb, int at, int count, int c, int attr)
 		      (void *)sc_vtb_attr_pointer(vtb, at), count);
 	}
 }
-
-#endif /* NSC */

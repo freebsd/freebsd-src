@@ -304,7 +304,7 @@ pc98/pc98/syscons.c		optional	sc
 pc98/pc98/syscons_pc98.c	optional	sc
 dev/syscons/schistory.c		optional	sc
 dev/syscons/scmouse.c		optional	sc
-pc98/pc98/scgdcrndr.c		optional	sc
+pc98/pc98/scgdcrndr.c		optional	sc gdc
 dev/syscons/scterm.c		optional	sc
 dev/syscons/scterm-dumb.c	optional	sc
 pc98/pc98/scterm-sck.c		optional	sc
@@ -314,9 +314,9 @@ dev/syscons/sysmouse.c		optional	sc
 i386/isa/tw.c			optional	tw
 pc98/pc98/wd.c			optional	wdc
 pc98/pc98/wd.c			optional	wd
-i386/isa/wd_cd.c		optional	wcd
-i386/isa/wfd.c			optional	wfd
-i386/isa/wst.c			optional	wst
+i386/isa/wd_cd.c		optional	wcd wdc
+i386/isa/wfd.c			optional	wfd wdc
+i386/isa/wst.c			optional	wst wdc
 i386/isa/wt.c			optional	wt
 i386/linux/imgact_linux.c	optional	compat_linux
 i386/linux/linux_dummy.c	optional	compat_linux
