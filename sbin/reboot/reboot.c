@@ -77,8 +77,11 @@ main(argc, argv)
 	} else
 		howto = 0;
 	lflag = nflag = qflag = 0;
-	while ((ch = getopt(argc, argv, "lnpq")) != -1)
+	while ((ch = getopt(argc, argv, "dlnpq")) != -1)
 		switch(ch) {
+		case 'd':
+			howto |= RB_DUMP;
+			break;
 		case 'l':		/* Undocumented; used by shutdown. */
 			lflag = 1;
 			break;
@@ -100,6 +103,8 @@ main(argc, argv)
 	argc -= optind;
 	argv += optind;
 
+	if ((howto & (RB_DUMP | RB_HALT)) == (RB_DUMP | RB_HALT))
+		errx(1, "cannot dump (-d) when halting; must reboot instead");
 	if (geteuid()) {
 		errno = EPERM;
 		err(1, NULL);
@@ -181,6 +186,7 @@ restart:
 void
 usage()
 {
-	(void)fprintf(stderr, "usage: %s [-npq]\n", dohalt ? "halt" : "reboot");
+	(void)fprintf(stderr, "usage: %s [-dnpq]\n",
+	    dohalt ? "halt" : "reboot");
 	exit(1);
 }
