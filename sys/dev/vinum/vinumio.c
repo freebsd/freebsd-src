@@ -627,66 +627,6 @@ daemon_save_config(void)
 }
 
 /*
- * Disk labels are a mess.  The correct way to
- * access them is with the DIOC[GSW]DINFO ioctls,
- * but some programs, such as newfs, access the
- * disk directly, so we have to write things
- * there.  We do this only on request.  If a user
- * request tries to read it directly, we fake up
- * one on the fly.
- */
-
-/*
- * get_volume_label returns a label structure to
- * lp, which is allocated by the caller.
- */
-void
-get_volume_label(char *name, int plexes, u_int64_t size, struct disklabel *lp)
-{
-    bzero(lp, sizeof(struct disklabel));
-
-    strncpy(lp->d_typename, "vinum", sizeof(lp->d_typename));
-    lp->d_type = DTYPE_VINUM;
-    strncpy(lp->d_packname, name, min(sizeof(lp->d_packname), sizeof(name)));
-    lp->d_rpm = 14400 * plexes;				    /* to keep them guessing */
-    lp->d_interleave = 1;
-    lp->d_flags = 0;
-
-    /*
-     * A Vinum volume has a single track with all
-     * its sectors.
-     */
-    lp->d_secsize = DEV_BSIZE;				    /* bytes per sector */
-    lp->d_nsectors = size;				    /* data sectors per track */
-    lp->d_ntracks = 1;					    /* tracks per cylinder */
-    lp->d_ncylinders = 1;				    /* data cylinders per unit */
-    lp->d_secpercyl = size;				    /* data sectors per cylinder */
-    lp->d_secperunit = size;				    /* data sectors per unit */
-
-    lp->d_bbsize = BBSIZE;
-    lp->d_sbsize = 0;					    /* no longer used?  */
-    lp->d_magic = DISKMAGIC;
-    lp->d_magic2 = DISKMAGIC;
-
-    /*
-     * Set up partitions a, b and c to be identical
-     * and the size of the volume.  a is UFS, b is
-     * swap, c is nothing.
-     */
-    lp->d_partitions[0].p_size = size;
-    lp->d_partitions[0].p_fsize = 1024;
-    lp->d_partitions[0].p_fstype = FS_BSDFFS;		    /* FreeBSD File System :-) */
-    lp->d_partitions[0].p_fsize = 1024;			    /* FS fragment size */
-    lp->d_partitions[0].p_frag = 8;			    /* and fragments per block */
-    lp->d_partitions[SWAP_PART].p_size = size;
-    lp->d_partitions[SWAP_PART].p_fstype = FS_SWAP;	    /* swap partition */
-    lp->d_partitions[LABEL_PART].p_size = size;
-    lp->d_npartitions = LABEL_PART + 1;
-    strncpy(lp->d_packname, name, min(sizeof(lp->d_packname), sizeof(name)));
-    lp->d_checksum = dkcksum(lp);
-}
-
-/*
  * Search disks on system for vinum slices and add
  * them to the configuuration if they're not
  * there already.  devicename is a blank-separate
