@@ -3,7 +3,6 @@
 PROG=		mbr
 NOMAN=
 STRIP=
-BINDIR?=	/boot
 BINMODE=	444
 
 ORG=	0x600
