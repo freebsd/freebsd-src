@@ -37,9 +37,10 @@
 .Sh LIBRARY
 .Lb libutil
 .Sh SYNOPSIS
+.Fd #include <stdio.h>
 .Fd #include <libutil.h>
 .Ft "char *"
-.Fo "fparseln"
+.Fo fparseln
 .Fa "FILE *stream" "size_t *len" "size_t *lineno"
 .Fa "const char delim[3]" "int flags"
 .Fc
