@@ -64,10 +64,10 @@ struct ng_tee_hookstat {
 /* Keep this in sync with the above structure definition */
 #define NG_TEE_HOOKSTAT_INFO	{				\
 	{							\
-	  { "inOctets",		&ng_parse_int64_type	},	\
-	  { "inFrames",		&ng_parse_int64_type	},	\
-	  { "outOctets",	&ng_parse_int64_type	},	\
-	  { "outFrames",	&ng_parse_int64_type	},	\
+	  { "inOctets",		&ng_parse_uint64_type	},	\
+	  { "inFrames",		&ng_parse_uint64_type	},	\
+	  { "outOctets",	&ng_parse_uint64_type	},	\
+	  { "outFrames",	&ng_parse_uint64_type	},	\
 	  { NULL },						\
 	}							\
 }
@@ -95,6 +95,7 @@ struct ng_tee_stats {
 enum {
 	NGM_TEE_GET_STATS = 1,		/* get stats */
 	NGM_TEE_CLR_STATS,		/* clear stats */
+	NGM_TEE_GETCLR_STATS,		/* atomically get and clear stats */
 };
 
 #endif /* _NETGRAPH_TEE_H_ */
