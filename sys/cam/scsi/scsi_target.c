@@ -543,7 +543,6 @@ targwrite(struct cdev *dev, struct uio *uio, int ioflag)
 		  ("write - uio_resid %d\n", uio->uio_resid));
 	while (uio->uio_resid >= sizeof(user_ccb) && error == 0) {
 		union ccb *ccb;
-		int error;
 
 		error = uiomove((caddr_t)&user_ccb, sizeof(user_ccb), uio);
 		if (error != 0) {
