@@ -21,7 +21,7 @@
 /* This thing should be set up to do byteordering correctly.  But... */
 
 #ifndef lint
-static char rcsid[] = "$Id: write.c,v 1.4 1993/12/12 17:01:24 jkh Exp $";
+static char rcsid[] = "$Id: write.c,v 1.5 1994/02/20 16:06:12 rgrimes Exp $";
 #endif
 
 #include "as.h"
@@ -401,7 +401,7 @@ void write_object_file()
 					  lie->add,
 					  lie->sub,
 					  lie->addnum,
-					  0, 0, 2, 0, 0);
+					  0, 0, 2, 0, 0, NO_RELOC);
 #else /* TC_NS32K */
 #ifdef PIC
 			    fix_new(lie->frag, lie->word_goes_here - lie->frag->fr_literal,
@@ -1004,6 +1004,12 @@ segT this_segment_type; /* N_TYPE bits for segment. */
 					as_bad("callj to difference of 2 symbols");
 				}
 #endif	/* TC_I960 */
+#ifdef PIC
+				if (flagseen['k'] &&
+						S_IS_EXTERNAL(add_symbolP)) {
+					as_bad("Can't reduce difference of external symbols in PIC code");
+				}
+#endif
 				add_number += S_GET_VALUE(add_symbolP) - 
 				    S_GET_VALUE(sub_symbolP);
 				
@@ -1075,6 +1081,9 @@ segT this_segment_type; /* N_TYPE bits for segment. */
 					 * even if defined here.
 					 */
 					if (!flagseen['k'] ||
+#ifdef TC_NS32K
+					   fixP->fx_pcrel ||
+#endif
 					   (fixP->fx_r_type != RELOC_GLOB_DAT &&
 #ifdef TC_I386
 /* XXX - This must be rationalized */

@@ -61,8 +61,8 @@
 #define LINE_COMMENT_CHARS "#"
 #endif
 
-char comment_chars[] = "#";
-char line_comment_chars[] = LINE_COMMENT_CHARS;
+const char comment_chars[] = "#";
+const char line_comment_chars[] = LINE_COMMENT_CHARS;
 #if !defined(ABSOLUTE_PREFIX) && !defined(IMMEDIATE_PREFIX)
 #define ABSOLUTE_PREFIX '@'	/* One or the other MUST be defined */
 #endif
@@ -338,8 +338,8 @@ const relax_typeS md_relax_table[] = {
 	{ 1,		1,		0,	0			},
 	{ 1,		1,		0,	0			},
 	
-	{ (63),	(-64),		1,	IND(BRANCH,WORD)	},
-	{ (8192),	(-8192),	2,	IND(BRANCH,DOUBLE)	},
+	{ (63),		(-64),		1,	IND(BRANCH,WORD)	},
+	{ (8191),	(-8192),	2,	IND(BRANCH,DOUBLE)	},
 	{ 0,		0,		4,	0			},
 	{ 1,		1,		0,	0			}
 };
@@ -348,13 +348,23 @@ const relax_typeS md_relax_table[] = {
    Value is true if mode contains displacement. */
 
 char disp_test[] = { 0,0,0,0,0,0,0,0,
-			 1,1,1,1,1,1,1,1,
-			 1,1,1,0,0,1,1,0,
-			 1,1,1,1,1,1,1,1 };
+		     1,1,1,1,1,1,1,1,
+		     1,1,1,0,0,1,1,0,
+		     1,1,1,1,1,1,1,1 };
 
 /* Array used to calculate max size of displacements */
 
 char disp_size[] = { 4,1,2,0,4 };
+
+#ifdef PIC
+/* In pic-mode all external pc-relative references are jmpslot
+   references except references to __GLOBAL_OFFSET_TABLE_. */
+static symbolS *got_symbol;
+
+/* The size of got-offsets. */
+static int got_offset_size = 2;
+#endif
+
 
 
 #if __STDC__ == 1
@@ -821,7 +831,8 @@ char opcode_bit_ptr;
 			pcrel=1;
 			iif.instr_size+=suffixP[i] ? suffixP[i] : 4;
 			IIF(12, 2, suffixP[i], (unsigned long)argv[i], 0,
-			    pcrel, pcrel_adjust, 1, IND(BRANCH,BYTE), NULL,-1,1);break;
+			    pcrel, pcrel_adjust, 1, IND(BRANCH,BYTE), NULL,-1, 1);
+			break;
 		case 'q':					/* quick */
 			opcode_bit_ptr-=4;
 			IIF(11,2,42,(unsigned long)argv[i],0,0,0,0,0,
@@ -1024,10 +1035,10 @@ int recursive_level;
    */
 void convert_iif() {
 	int i;
-	int j;
+	bit_fixS *bit_fixP;
 	fragS *inst_frag;
 	char *inst_offset;
-	char **inst_opcode;
+	char *inst_opcode;
 	char *memP;
 	segT segment;
 	int l;
@@ -1036,39 +1047,50 @@ void convert_iif() {
 	char type;
 	char size = 0;
 	int size_so_far = 0; /* used to calculate pcrel_adjust */
-	int   pcrel_symbols=0;	/* kludge by jkp@hut.fi to make
+	int   pcrel_symbols = 0;/* kludge by jkp@hut.fi to make
  				   movd _foo(pc),_bar(pc) work.
  				   It should be done with two frags
  				   for one insn, but I don't understand
  				   enough to make it work */
-	
-	rem_size=iif.instr_size;
-	memP=frag_more(iif.instr_size); /* make sure we have enough bytes for instruction */
-	inst_opcode=memP;
-	inst_offset=(char*)(memP-frag_now->fr_literal);
-	inst_frag=frag_now;
-	for (i=0;i<IIF_ENTRIES;i++) { /* jkp kludge alert */
+
+	rem_size = iif.instr_size;
+	memP = frag_more(iif.instr_size); /* make sure we have enough bytes for instruction */
+	inst_opcode = memP;
+	inst_offset = (char *)(memP-frag_now->fr_literal);
+	inst_frag = frag_now;
+	for (i=0; i < IIF_ENTRIES; i++) { /* jkp kludge alert */
 	  if (iif.iifP[i].type && iif.iifP[i].size == 0 &&
 	      iif.iifP[i].pcrel) {
-	    evaluate_expr(&exprP,(char*)iif.iifP[i].object);
+	    evaluate_expr(&exprP, (char *)iif.iifP[i].object);
 	    if (exprP.X_add_symbol || exprP.X_subtract_symbol)
 	      pcrel_symbols++;
 	  }	   
 	}
 	for (i=0;i<IIF_ENTRIES;i++) {
 		if (type=iif.iifP[i].type) {			/* the object exist, so handle it */
+#ifdef PIC
+			int reloc_mode;
+			if ((i == 4 || i == 6)
+			    && flagseen['k']
+			    && (iif.iifP[i].addr_mode == 18 || iif.iifP[i].addr_mode == 26))
+				reloc_mode = RELOC_GLOB_DAT;
+			else
+				reloc_mode = NO_RELOC;
+#else
+			int reloc_mode = NO_RELOC;
+#endif
 			switch (size=iif.iifP[i].size) {
 			case 42: size=0; /* it's a bitfix that operates on an existing object*/
 				if (iif.iifP[i].bit_fixP->fx_bit_base) { /* expand fx_bit_base to point at opcode */
-					iif.iifP[i].bit_fixP->fx_bit_base=(long)inst_opcode;
+					iif.iifP[i].bit_fixP->fx_bit_base = (long) inst_opcode;
 				}
 			case 8: /* bignum or doublefloat */
 				memset(memP, '\0', 8);
 			case 1:case 2:case 3:case 4:/* the final size in objectmemory is known */
-				j=(unsigned long)iif.iifP[i].bit_fixP;
+				bit_fixP = iif.iifP[i].bit_fixP;
 				switch (type) {
 				case 1:				/* the object is pure binary */
-					if (j || iif.iifP[i].pcrel) {
+					if (bit_fixP || iif.iifP[i].pcrel) {
 						fix_new_ns32k(frag_now,
 							      (long)(memP-frag_now->fr_literal),
 							      size,
@@ -1078,8 +1100,9 @@ void convert_iif() {
 							      iif.iifP[i].pcrel,
 							      (char)size_so_far, /*iif.iifP[i].pcrel_adjust,*/
 							      iif.iifP[i].im_disp,
-							      j,
-							      iif.iifP[i].bsr); /* sequent hack */
+							      bit_fixP,
+							      iif.iifP[i].bsr, /* sequent hack */
+							      reloc_mode);
 					} else {			/* good, just put them bytes out */
 						switch (iif.iifP[i].im_disp) {
 						case 0:
@@ -1126,7 +1149,7 @@ void convert_iif() {
 						rem_size-=size;
 						break;
 					}
-					if (j ||
+					if (bit_fixP ||
 					    exprP.X_add_symbol ||
 					    exprP.X_subtract_symbol ||
 					    iif.iifP[i].pcrel) {		/* fixit */
@@ -1142,8 +1165,9 @@ void convert_iif() {
 							      iif.iifP[i].pcrel,
 							      (char)size_so_far, /*iif.iifP[i].pcrel_adjust,*/
 							      iif.iifP[i].im_disp,
-							      j,
-							      iif.iifP[i].bsr); /* sequent hack */
+							      bit_fixP,
+							      iif.iifP[i].bsr, /* sequent hack */
+							      reloc_mode);
 						
 					} else {			/* good, just put them bytes out */
 						switch (iif.iifP[i].im_disp) {
@@ -1171,6 +1195,13 @@ void convert_iif() {
 					segment = evaluate_expr(&exprP, (char*)iif.iifP[i].object);
 					if (((exprP.X_add_symbol || exprP.X_subtract_symbol) &&
 					    !iif.iifP[i].pcrel) || pcrel_symbols >= 2 /*jkp*/) { /* OVE: hack, clamp to 4 bytes */
+#ifdef PIC
+						if (reloc_mode == RELOC_GLOB_DAT && got_offset_size == 2) {
+							size = 2;
+							/* rewind the bytes not used */
+							obstack_blank_fast(&frags, -2);
+						} else
+#endif
 						size=4; /* we dont wan't to frag this, use 4 so it reaches */
 						fix_new_ns32k(frag_now,
 							      (long)(memP-frag_now->fr_literal),
@@ -1181,7 +1212,8 @@ void convert_iif() {
 							      pcrel_symbols >= 2 ? iif.iifP[i].pcrel : 0, /*jkp*//* never iif.iifP[i].pcrel, */
 							      (char)size_so_far, /*iif.iifP[i].pcrel_adjust,*/
 							      1, /* always iif.iifP[i].im_disp, */
-							      0,0);
+							      0,0,
+							      reloc_mode);
 						memP+=size;
 						rem_size-=4;
 						break; /* exit this absolute hack */
@@ -1208,7 +1240,7 @@ void convert_iif() {
 									    IND(BRANCH,UNDEF), /* expecting the worst */
 									    exprP.X_add_symbol,
 									    exprP.X_add_number,
-									    (char*)inst_opcode,
+									    inst_opcode,
 									    (char)size_so_far, /*iif.iifP[i].pcrel_adjust);*/
 									    iif.iifP[i].bsr); /* sequent linker hack */
 							rem_size -= 4;
@@ -1305,6 +1337,7 @@ int *sizeP;
 	int	prec;
 	LITTLENUM_TYPE words[MAX_LITTLENUMS];
 	LITTLENUM_TYPE *wordP;
+	extern char *atof_ns32k();
 	char *t;
 	
 	switch (type) {
@@ -1369,7 +1402,10 @@ char n;
 	switch (n) {
 	case 1:
 		if (val < -64 || val > 63)
+{
+fprintf(stderr, "val = %d\n", val);
 		    as_warn("Byte displacement out of range.  line number not valid");
+}
 		val &= 0x7f;
 #ifdef SHOW_NUM
 		printf("%x ",val & 0xff);
@@ -1502,38 +1538,75 @@ struct reloc_info_generic *ri;
 #ifdef OBJ_AOUT
 void tc_aout_fix_to_chars(where, fixP, segment_address_in_file)
 char *where;
-struct fix *fixP;
+fixS *fixP;
 relax_addressT segment_address_in_file;
 {
 	/*
 	 * In: length of relocation (or of address) in chars: 1, 2 or 4.
 	 * Out: GNU LD relocation length code: 0, 1, or 2.
 	 */
-	
+
 	static unsigned char nbytes_r_length[] = { 42, 0, 1, 42, 2 };
 	long r_symbolnum;
-	
+	int r_flags;
+
 	know(fixP->fx_addsy != NULL);
 	
 	md_number_to_chars(where,
 			   fixP->fx_frag->fr_address + fixP->fx_where - segment_address_in_file,
 			   4);
-
+	
 	r_symbolnum = (S_IS_DEFINED(fixP->fx_addsy)
 		       ? S_GET_TYPE(fixP->fx_addsy)
 		       : fixP->fx_addsy->sy_number);
-	
-	md_number_to_chars(where,
-			   ((long)(r_symbolnum)
-			    | (long)(fixP->fx_pcrel << 24)
-			    | (long)(nbytes_r_length[fixP->fx_size] << 25)
-			    | (long)((!S_IS_DEFINED(fixP->fx_addsy)) << 27)
-			    | (long)(fixP->fx_bsr << 28)
-			    | (long)(fixP->fx_im_disp << 29)),
-			   4);
+	r_flags = (fixP->fx_pcrel ? 1 : 0)
+	    | ((nbytes_r_length[fixP->fx_size] & 3) << 1)
+	    | (!S_IS_DEFINED(fixP->fx_addsy) ? 8 : 0)
+#if defined(TE_SEQUENT)
+	    | (fixP->fx_bsr ? 0x10 : 0)
+#elif defined(PIC)
+	    /* Undefined pc-relative relocations are of type jmpslot */
+	    | ((!S_IS_DEFINED(fixP->fx_addsy)
+	       && fixP->fx_pcrel
+	       && fixP->fx_addsy != got_symbol
+	       && flagseen['k']) ? 0x10 : 0)
+#endif
+	    | (fixP->fx_im_disp & 3) << 5;
 
+#ifdef	PIC
+	switch (fixP->fx_r_type) {
+	case NO_RELOC:
+	    break;
+	case RELOC_32:
+	    if (flagseen['k'] && S_IS_EXTERNAL(fixP->fx_addsy)) {
+		r_symbolnum = fixP->fx_addsy->sy_number;
+		r_flags |= 8;	/* set extern bit */
+	    }
+	    break;
+	case RELOC_GLOB_DAT:
+	    if (!fixP->fx_pcrel) {
+		r_flags |= 0x80;	    /* set baserel bit */
+		r_symbolnum = fixP->fx_addsy->sy_number;
+		if (S_IS_EXTERNAL(fixP->fx_addsy))
+		    r_flags |= 8;
+	    }
+	    break;
+	case RELOC_RELATIVE:
+	    /* should never happen */
+	    as_fatal("relocation botch");
+	    break;
+	}
+#endif	/* PIC */
+	
+	where[4] = r_symbolnum & 0x0ff;
+	where[5] = (r_symbolnum >> 8) & 0x0ff;
+	where[6] = (r_symbolnum >> 16) & 0x0ff;
+	where[7] = r_flags;
+	
 	return;
 } /* tc_aout_fix_to_chars() */
+
+
 #endif /* OBJ_AOUT */
 
 /* fast bitfiddling support */
@@ -1690,13 +1763,13 @@ register fragS *fragP;
 	case IND(BRANCH,BYTE):
 	    ext = 1;
 	    break;
-    case IND(BRANCH,WORD):
-	ext = 2;
+	case IND(BRANCH,WORD):
+	    ext = 2;
 	    break;
-    case IND(BRANCH,DOUBLE):
-	ext = 4;
+	case IND(BRANCH,DOUBLE):
+	    ext = 4;
 	    break;
-    }
+	}
 	if (ext) {
 		md_number_to_disp(buffer_address, (long)disp, (int)ext);
 		fragP->fr_fix += ext;
@@ -1733,7 +1806,8 @@ segT segment;
 				  fragP->fr_pcrel_adjust,
 				  1,
 				  0,
-				  fragP->fr_bsr); /*sequent hack */
+				  fragP->fr_bsr, /*sequent hack */
+				  NO_RELOC);
 		    fragP->fr_fix+=4;
 		    /* fragP->fr_opcode[1]=0xff; */
 		    frag_wane(fragP);
@@ -1805,7 +1879,16 @@ char ***vecP;
 		while (**argP)
 		    (*argP)++;
 		break;
-		
+
+#ifdef PIC
+	case 'K':
+		got_offset_size = 4;
+		break;
+	case 'k':
+		got_symbol = symbol_find_or_make("__GLOBAL_OFFSET_TABLE_");
+		break;
+#endif
+
 	default:
 		return 0;
 	}
@@ -1845,7 +1928,7 @@ long	add;		/* Add mask, used for huffman prefix */
 
 void
     fix_new_ns32k(frag, where, size, add_symbol, sub_symbol, offset, pcrel,
-		   pcrel_adjust, im_disp, bit_fixP, bsr)
+		   pcrel_adjust, im_disp, bit_fixP, bsr, r_type)
 fragS *frag;	     /* Which frag? */
 int where;	     /* Where in that frag? */
 int size;	     /* 1, 2  or 4 usually. */
@@ -1857,15 +1940,24 @@ char pcrel_adjust;   /* not zero if adjustment of pcrel offset is needed */
 char im_disp;	     /* true if the value to write is a displacement */
 bit_fixS *bit_fixP;  /* pointer at struct of bit_fix's, ignored if NULL */
 char bsr;	     /* sequent-linker-hack: 1 when relocobject is a bsr */
+int r_type;	     /* Relocation type */
 
 {
+#ifdef	PIC
 	fixS *fixP = fix_new(frag, where, size, add_symbol, sub_symbol,
-			     offset, pcrel, NO_RELOC);
-	
+			     offset, pcrel, r_type, NULL);
+#else
+	fixS *fixP = fix_new(frag, where, size, add_symbol, sub_symbol,
+			     offset, pcrel, r_type);
+#endif	/* PIC */
 	fixP->fx_pcrel_adjust = pcrel_adjust;
 	fixP->fx_im_disp = im_disp;
 	fixP->fx_bit_fixP = bit_fixP;
 	fixP->fx_bsr = bsr;
+#ifdef	PIC
+	if (r_type == RELOC_GLOB_DAT)
+		add_symbol->sy_forceout = 1;
+#endif	/* PIC */
 } /* fix_new_ns32k() */
 
 /* We have no need to default values of symbols.  */
