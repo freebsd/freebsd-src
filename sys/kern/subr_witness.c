@@ -1164,7 +1164,6 @@ depart(struct witness *w)
 	return (rebalancetree(list));
 }
 
-
 /*
  * Prune an entire lock order tree.  We look for cases where a lock
  * is now both a descendant and a direct child of a given lock.  In
