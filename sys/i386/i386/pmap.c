@@ -2241,14 +2241,14 @@ retry:
 }
 
 /*
- * Make temporary mapping for a physical address using CADDR1. This is
- * called during dump.
+ * Make a temporary mapping for a physical address.  This is only intended
+ * to be used for panic dumps.
  */
-vm_offset_t
-pmap_enter_temporary(vm_offset_t pa, vm_prot_t prot)
+void *
+pmap_kenter_temporary(vm_offset_t pa)
 {
-	pmap_enter(kernel_pmap, (vm_offset_t) CADDR1, pa, prot, TRUE);
-	return (vm_offset_t) CADDR1;
+	pmap_kenter((vm_offset_t)CADDR1, pa);
+	return ((void *)CADDR1);
 }
 
 #define MAX_INIT_PT (96)
