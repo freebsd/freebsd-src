@@ -2015,7 +2015,9 @@ static int
 start_all_aps(u_int boot_addr)
 {
 	int     x, i, pg;
+#ifndef PC98
 	u_char  mpbiosreason;
+#endif
 	u_long  mpbioswarmvec;
 	struct pcpu *pc;
 	char *stack;
