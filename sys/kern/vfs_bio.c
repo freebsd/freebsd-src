@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id$
+ * $Id: vfs_bio.c,v 1.112 1997/02/22 09:39:30 peter Exp $
  */
 
 /*
@@ -51,7 +51,6 @@
 #include <vm/vm_page.h>
 #include <vm/vm_object.h>
 #include <vm/vm_extern.h>
-#include <vm/lock.h>
 #include <vm/vm_map.h>
 #include <sys/buf.h>
 #include <sys/mount.h>
