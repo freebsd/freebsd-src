@@ -1,5 +1,5 @@
 /*
- * PC-card support for sysinstall
+ * PC Card support for sysinstall
  *
  * $FreeBSD$
  *
@@ -85,8 +85,8 @@ checkTrue(dialogMenuItem *item)
 
 DMenu MenuPCICMem = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
-    "Please select free address area used by PC-card controller",
-    "PC-card controller uses memory area to get card information.\n"
+    "Please select free address area used by PC Card controller",
+    "PC Card controller uses memory area to get card information.\n"
     "Please specify an address that is not used by other devices.\n"
     "If you're uncertain of detailed specification of your hardware,\n"
 #ifdef PC98
@@ -115,14 +115,14 @@ DMenu MenuPCICMem = {
 
 DMenu MenuCardIRQ = {
     DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS,
-    "Please specify the IRQs that may be used by PC-Cards",
+    "Please specify the IRQs that may be used by PC Cards",
     "(NOTE: remove any cards that will NOT be used for installation).\n"
     "The IRQs that you choose must be free (unshared), or you risk \n"
     "subpar performance and/or a complete system lockup (choose wisely).\n"
     "One way to determine which IRQs are available is to \"cheat\" and\n"
     "use the Windows 9x/2000 Device Manager as a reference prior to the\n"
     "installation.\n",
-    "Select Free IRQ for PC-Cardd",
+    "Select Free IRQ for pccardd",
     NULL,
     { { "X Exit",    "Exit this menu",
 	checkTrue, dmenuExit, NULL, NULL, '<', '<', '<' }, 
@@ -133,7 +133,7 @@ DMenu MenuCardIRQ = {
 	dmenuFlagCheck, dmenuSetFlag, NULL, &CardIrq, '[', 'X', ']', IRQ_03 },
     { "4 IRQ 5",    "(INT 1) is Infrared communication, SCSI I/F, (2nd serial)",
 	dmenuFlagCheck, dmenuSetFlag, NULL, &CardIrq, '[', 'X', ']', IRQ_05 },
-    { "5 IRQ 6",    "(INT 2) is PC-card Controller",
+    { "5 IRQ 6",    "(INT 2) is PC Card Controller",
 	dmenuFlagCheck, dmenuSetFlag, NULL, &CardIrq, '[', 'X', ']', IRQ_06 },
     { "6 IRQ 9",    "(INT 3) is IDE disk Controller",
 	dmenuFlagCheck, dmenuSetFlag, NULL, &CardIrq, '[', 'X', ']', IRQ_09 },
@@ -191,11 +191,11 @@ pccardInitialize(void)
     sprintf(card_device, CARD_DEVICE, 0);
 
     if ((fd = open(card_device, O_RDWR)) < 0) {
-	msgDebug("Can't open PC-card controller %s.\n", card_device);
+	msgDebug("Can't open PC Card controller %s.\n", card_device);
 	return;
     }
-    else if (msgYesNo("Found PC-card slot(s).\n"
-		      "Use PC-card device as installation media?\n")) {
+    else if (msgYesNo("Found PC Card slot(s).\n"
+		      "Use PC Card device as installation media?\n")) {
 	return;
     }
     close(fd);
@@ -244,21 +244,21 @@ pccardInitialize(void)
 
     w = savescr();
     dialog_clear_norefresh();
-    msgConfirm("Now we start initializing PC-card controller and cards.\n"
-	       "If you've executed this installer from a PC-card floppy\n"
+    msgConfirm("Now we start initializing PC Card controller and cards.\n"
+	       "If you've executed this installer from a PC Card floppy\n"
 	       "drive, this is the last chance to replace it with\n"
-	       "installation media (PC-card Ethernet, CD, DVD, etc.).\n"
+	       "installation media (PC Card Ethernet, CD, DVD, etc.).\n"
 	       "Please insert installation media and press [Enter].\n"
-	       "If you've not plugged the PC-card installation media\n"
+	       "If you've not plugged the PC Card installation media\n"
 	       "in yet, please plug it in now and press [Enter].\n"
 	       "Otherwise, just press [Enter] to proceed."); 
 
     dialog_clear();
-    msgNotify("Initializing PC-card controller....");
+    msgNotify("Initializing PC Card controller....");
 
     if (!Fake) {
 	if ((fd = open(card_device, O_RDWR)) < 1) {
-	    msgNotify("Can't open PC-card controller %s.\n", card_device);
+	    msgNotify("Can't open PC Card controller %s.\n", card_device);
 	    restorescr(w);
 	    return;
 	}
