@@ -45,7 +45,7 @@
 #define	_PATH_STDPATH \
 	"/usr/bin:/bin:/usr/sbin:/sbin:"
 
-#define _PATH_AUTHCONF  "/etc/auth.conf"
+#define	_PATH_AUTHCONF	"/etc/auth.conf"
 #define	_PATH_BSHELL	"/bin/sh"
 #define	_PATH_CONSOLE	"/dev/console"
 #define	_PATH_CP	"/bin/cp"
@@ -71,6 +71,7 @@
 #define	_PATH_TTY	"/dev/tty"
 #define	_PATH_UNIX	"don't use _PATH_UNIX"
 #define	_PATH_VI	"/usr/bin/vi"
+#define	_PATH_WALL	"/usr/bin/wall"
 
 /* Provide trailing slash, since mostly used for building pathnames. */
 #define	_PATH_DEV	"/dev/"
@@ -83,7 +84,7 @@
 
 /* How to get the correct name of the kernel. */
 __BEGIN_DECLS
-const char *getbootfile __P((void));
+const char *getbootfile(void);
 __END_DECLS
 
 #endif /* !_PATHS_H_ */
