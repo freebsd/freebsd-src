@@ -1,5 +1,5 @@
 <?xml version='1.0'?>
-<!-- $Id: texinfo.xsl,v 1.1 2001/06/07 18:35:23 karl Exp $ -->
+<!-- $Id: texinfo.xsl,v 1.2 2002/04/01 14:06:15 karl Exp $ -->
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
                 version="1.0">
 
@@ -7,12 +7,12 @@
 
 <!-- root rule -->
 <xsl:template match="/">
-   <HTML>
-    <HEAD><TITLE>
+   <html>
+    <head><title>
      <xsl:apply-templates select="TEXINFO/SETTITLE" mode="head"/>
-    </TITLE></HEAD>
-     <BODY BGCOLOR="#FFFFFF"><xsl:apply-templates/>
-</BODY></HTML>
+    </title></head>
+     <body bgcolor="#FFFFFF"><xsl:apply-templates/>
+</body></html>
 </xsl:template>
 
 
@@ -46,7 +46,8 @@
 
 <!-- The node -->
 <xsl:template match="TEXINFO/NODE">
- <hr><p>
+ <hr/>
+ <p>
  <xsl:apply-templates select="NODENAME" mode="select"/>
  <xsl:apply-templates select="NODEPREV" mode="select"/>
  <xsl:apply-templates select="NODEUP" mode="select"/>
@@ -56,7 +57,7 @@
   <ol>
   <xsl:apply-templates select=".//FOOTNOTE" mode="footnote"/>
    </ol>
- </p></hr>
+ </p>
 </xsl:template>
 
 <xsl:template match="TEXINFO/NODE/NODENAME" mode="select">
@@ -127,7 +128,7 @@
  <xsl:apply-templates select="MENUTITLE"/>
  </a>: 
  <xsl:apply-templates select="MENUCOMMENT"/>
-<br></br>
+ <br/>
 </xsl:template>
 
 <xsl:template match="//MENU/MENUENTRY/MENUNODE">
@@ -239,4 +240,3 @@
 </xsl:template>
 
 </xsl:stylesheet>
-

@@ -1,5 +1,5 @@
 /* display.c -- How to display Info windows.
-   $Id: display.c,v 1.6 1997/07/24 21:13:27 karl Exp $
+   $Id: display.c,v 1.7 2002/03/08 21:41:44 karl Exp $
 
    Copyright (C) 1993, 97 Free Software Foundation, Inc.
 
@@ -103,6 +103,8 @@ display_update_one_window (win)
   char *printed_line;           /* Buffer for a printed line. */
   int pl_index = 0;             /* Index into PRINTED_LINE. */
   int line_index = 0;           /* Number of lines done so far. */
+  int pl_ignore = 0;		/* How many chars use zero width on screen. */
+  int allocated_win_width;
   DISPLAY_LINE **display = the_display;
 
   /* If display is inhibited, that counts as an interrupted display. */
@@ -123,7 +125,8 @@ display_update_one_window (win)
   /* Print each line in the window into our local buffer, and then
      check the contents of that buffer against the display.  If they
      differ, update the display. */
-  printed_line = (char *)xmalloc (1 + win->width);
+  allocated_win_width = win->width + 1;
+  printed_line = (char *)xmalloc (allocated_win_width);
 
   if (!win->node || !win->line_starts)
     goto done_with_node_display;
@@ -147,7 +150,7 @@ display_update_one_window (win)
         {
           if (*nodetext == '\r' || *nodetext == '\n')
             {
-              replen = win->width - pl_index;
+              replen = win->width - pl_index + pl_ignore;
             }
           else
             {
@@ -156,9 +159,26 @@ display_update_one_window (win)
             }
         }
 
+      /* Support ANSI escape sequences under -R.  */
+      if (raw_escapes_p
+	  && *nodetext == '\033'
+	  && nodetext[1] == '['
+	  && isdigit (nodetext[2]))
+	{
+	  if (nodetext[3] == 'm')
+	    pl_ignore += 4;
+	  else if (isdigit (nodetext[3]) && nodetext[4] == 'm')
+	    pl_ignore += 5;
+	}
+      while (pl_index + 2 >= allocated_win_width - 1)
+	{
+	  allocated_win_width *= 2;
+	  printed_line = (char *)xrealloc (printed_line, allocated_win_width);
+	}
+
       /* If this character can be printed without passing the width of
          the line, then stuff it into the line. */
-      if (replen + pl_index < win->width)
+      if (replen + pl_index < win->width + pl_ignore)
         {
           /* Optimize if possible. */
           if (replen == 1)
@@ -189,7 +209,7 @@ display_update_one_window (win)
                  the next line.  Remember the offset of the last character
                  printed out of REP so that we can carry the character over
                  to the next line. */
-              for (i = 0; pl_index < (win->width - 1);)
+              for (i = 0; pl_index < (win->width + pl_ignore - 1);)
                 printed_line[pl_index++] = rep[i++];
               
               rep_carried_over = rep + i;
@@ -214,7 +234,9 @@ display_update_one_window (win)
 
           /* If the screen line is inversed, then we have to clear
              the line from the screen first.  Why, I don't know. */
-          if (entry->inverse)
+          if (entry->inverse
+	      /* Need to erase the line if it has escape sequences.  */
+	      || (raw_escapes_p && strchr (entry->text, '\033') != 0))
             {
               terminal_goto_xy (0, line_index + win->first_row);
               terminal_clear_to_eol ();
@@ -242,13 +264,21 @@ display_update_one_window (win)
               /* If the printed text didn't extend all the way to the edge
                  of the window, and text was appearing between here and the
                  edge of the window, clear from here to the end of the line. */
-              if ((pl_index < win->width && pl_index < entry->textlen) ||
-                  (entry->inverse))
+              if ((pl_index < win->width + pl_ignore
+		   && pl_index < entry->textlen)
+		  || (entry->inverse))
                 terminal_clear_to_eol ();
 
               fflush (stdout);
 
               /* Update the display text buffer. */
+	      if (strlen (printed_line) > screenwidth)
+		/* printed_line[] can include more than screenwidth
+		   characters if we are under -R and there are escape
+		   sequences in it.  However, entry->text was
+		   allocated (in display_initialize_display) for
+		   screenwidth characters only.  */
+		entry->text = xrealloc (entry->text, strlen (printed_line)+1);
               strcpy (entry->text + i, printed_line + i);
               entry->textlen = pl_index;
 
@@ -274,6 +304,7 @@ display_update_one_window (win)
 
           /* Reset PL_INDEX to the start of the line. */
           pl_index = 0;
+	  pl_ignore = 0;	/* this is computed per line */
 
           /* If there are characters from REP left to print, stuff them
              into the buffer now. */

@@ -1,5 +1,5 @@
 /* node.c -- nodes for Texinfo.
-   $Id: node.c,v 1.31 2002/02/23 19:12:15 karl Exp $
+   $Id: node.c,v 1.34 2002/03/26 16:16:29 karl Exp $
 
    Copyright (C) 1998, 99, 2000, 01, 02 Free Software Foundation, Inc.
 
@@ -599,7 +599,7 @@ cm_node ()
   no_indent = 1;
   if (xml)
     {
-      xml_begin_document ();
+      xml_begin_document (current_output_filename);
       xml_begin_node ();
       if (!docbook)
 	{
@@ -928,7 +928,7 @@ cm_node ()
               tem = expansion (next, 0);
 	      add_word (",\n");
 	      add_word (_("Next:"));
-	      add_word ("<a rel=next href=\"");
+	      add_word ("<a rel=next accesskey=n href=\"");
 	      add_anchor_name (tem, 1);
 	      add_word_args ("\">%s</a>", tem);
               free (tem);
@@ -938,7 +938,7 @@ cm_node ()
               tem = expansion (prev, 0);
 	      add_word (",\n");
 	      add_word (_("Previous:"));
-	      add_word ("<a rel=previous href=\"");
+	      add_word ("<a rel=previous accesskey=p href=\"");
 	      add_anchor_name (tem, 1);
 	      add_word_args ("\">%s</a>", tem);
               free (tem);
@@ -948,7 +948,7 @@ cm_node ()
               tem = expansion (up, 0);
 	      add_word (",\n");
 	      add_word (_("Up:"));
-	      add_word ("<a rel=up href=\"");
+	      add_word ("<a rel=up accesskey=u href=\"");
 	      add_anchor_name (tem, 1);
 	      add_word_args ("\">%s</a>", tem);
               free (tem);
@@ -1149,7 +1149,8 @@ cm_anchor (arg)
       xml_insert_element (ANCHOR, END);
     }
   /* Save it in the tag table.  */
-  remember_node (anchor, NULL, NULL, NULL, output_position + output_column,
+  remember_node (anchor, NULL, NULL, NULL,
+                 output_position + output_paragraph_offset,
                  line_number, fname_for_anchor, TAG_FLAG_ANCHOR);
 }
 

@@ -1,3 +1,328 @@
+2002-04-01    <karl@gnu.org>
+
+	* configure.ac: version 4.2.
+	* util/texi2dvi: 4.2
+
+	* makeinfo/toc.c: doc fix.
+	* util/install-info-html:
+	* makeinfo/texinfo.xsl: Fixes From: Ville Skyttä
+		<ville.skytta@iki.fi>.
+
+	* makeinfo/insertion.c (begin_insertion): (copying case) omit
+		cm_insert_copying if no_headers.
+	Bug report from Stephen Gildea.
+
+2002-03-28    <karl@gnu.org>
+
+	* configure.ac: pretest 4.1d.
+
+	* doc/texinfo.txi:
+	* makeinfo/cmds.c: ignore headings commands.  From Stephen Gildea.
+
+	* doc/texinfo.txi: @ifplaintext
+
+2002-03-26    <karl@gnu.org>
+
+	* doc/texinfo.tex (\ifplaintext,\ifnotplaintext): new output
+		format conditional.
+
+	* makeinfo/cmds.c (cm_settitle):
+	* makeinfo/node.c (cm_node): need to pass output filename arg to
+		* xml_begin_document.
+
+	* makeinfo/cmds.c (cm_sp): need close_single_paragraph instead of
+	close_paragraph to avoid an extra blank line.  Bug report from Stephen Gildea.
+
+	* doc/texinfo.tex (\doignore): can't do c kludge for
+		documentdescription.  Bug report from Stephen Gildea.
+
+	* doc/texinfo.txi: missing t in documentdescription example, from
+	Stephen Gildea.
+
+2002-03-24    <karl@gnu.org>
+
+	* doc/texinfo.txi: invar sec
+
+2002-03-23    <karl@gnu.org>
+
+	* configure.ac: pretest 4.1c.
+
+2002-03-23  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* info/search.c (skip_non_whitespace): Don't go beyond the
+	terminating null character.
+
+	* info/filesys.c (filesys_read_info_file) 
+	(filesys_read_compressed): Null-terminate the contents of the file
+	we've read, so it could be used as a C string.
+
+2002-03-23  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* makeinfo/makeinfo.c (insert_toplevel_subdirectory): Fix
+	computation of output_filename's length, to avoid overrunning
+	malloc'ed buffer.  If mkdir returns with EEXIST, assume we can use
+	an existing directory only if the existing file is indeed a
+	directory.  On MS-DOS, allow for EACCES in addition to EEXIST.
+	<max_name_len>: Remove this variable.
+
+	* makeinfo/makeinfo.c (expansion): Protect execute_string from too
+	long strings.
+	(EXECUTE_STRING_MAX): New macro.
+	(execute_string): Use EXECUTE_STRING_MAX, not 4000.
+
+2002-03-23    <karl@gnu.org>
+
+	* doc/texinfo.txi:
+	* makeinfo/insertion.h:
+	* makeinfo/texinfo.dtd:
+	* makeinfo/xml.h:
+	* makeinfo/xml.c:
+	* makeinfo/makeinfo.h:
+	* makeinfo/insertion.c:
+	* makeinfo/html.c:
+	* makeinfo/cmds.c:
+	* doc/info-stnd.texi: @permissions -> @copying.
+	* doc/texinfo.tex: permissions -> copying.
+
+2002-03-22    <karl@gnu.org>
+
+	* configure.ac: pretest 4.1b.
+
+	* info/Makefile.am (BUILT_SOURCES): conditionalize on
+		TEXINFO_MAINT, to appease distcheck.
+
+	* From: Matthew Woodcraft <mattheww@chiark.greenend.org.uk>:
+	* makeinfo/makeinfo.h (next_menu_item_number): New global.
+	* makeinfo/insertion.c (begin_insertion): Initialise it.
+	* makeinfo/makeinfo.c (handle_menu_entry): Emit accesskey attribute
+	in html output, according to next_menu_item_number.
+	* makeinfo/node.c (cm_node): Emit accesskey attributes in html output.
+
+	* doc/texinfo.txi: GNU texts.
+
+	* doc/info-stnd.texi: @syncodeindex, not @synindex.
+
+2002-03-21    <karl@gnu.org>
+
+	* doc/texinfo.txi: @permissions.
+
+2002-03-20    <karl@gnu.org>
+
+	* doc/texinfo.txi: document --no-headers a bit better.
+	* makeinfo/makeinfo.c: better description of --no-headers,
+		suggested by Stephen Gildea.
+
+	* makeinfo/makeinfo.c (insert_toplevel_subdirectory): use
+		command-line specified output name unchanged.
+
+	* makeinfo/makeinfo.c (full_expansion): new routine, separated
+	from expansion, that does not tamper with the formatting parameters.
+	* makeinfo/insertion.c: copying -> permissions.
+	(cm_insert_permissions): insert rather than add.
+	* makeinfo/texinfo.dtd:
+	* makeinfo/xml.h:
+	* makeinfo/xml.c:
+	* makeinfo/cmds.c: copying -> permissions.
+	* makeinfo/makeinfo.h: copying -> permissions.
+	(full_expansion): declare.
+
+	* doc/texinfo.txi: @copying -> @permissions, @include fdl.texi.
+	* doc/info-stnd.texi: @copying -> @permissions, always include the FDL.
+
+	* makeinfo/html.c (html_output_head): copying -> permissions, use
+	insert_string.
+	* makeinfo/insertion.h: copying -> permissions.
+	* doc/texinfo.tex: \copying -> \permissions.
+
+	* doc/Makefile.am (EXTRA_DIST): include fdl.texi.
+
+2002-03-19    <karl@gnu.org>
+
+	* makeinfo/insertion.c (cm_insert_copying): use insert_string in
+		the xml case, sigh.
+
+	* doc/info-stnd.texi: copying
+
+	* dir-example: info standalone.
+
+	* makeinfo/html.c: copyright_text -> copying_text.
+	* makeinfo/texinfo.dtd:
+	* makeinfo/insertion.c:
+	* makeinfo/insertion.h:
+	* makeinfo/makeinfo.h:
+	* makeinfo/xml.c:
+	* makeinfo/xml.h:
+	* makeinfo/cmds.c: copyrighttext -> copying.
+	* doc/info-stnd.texi: copyrighttext -> copying.
+	* doc/texinfo.tex (\copying, \insertcopying): rename from
+		copyrighttext per rms.
+
+	* makeinfo/index.c (index_add_arg): don't emit warning for index
+	entries containing : after all.
+
+	* info/infokey.c: remove non-ansi trailing commas from last items
+	of enums.  From: Albert Chin-A-Young <china@thewrittenword.com>.
+
+2002-03-18    <karl@gnu.org>
+
+	* doc/info-stnd.texi: @include after @setfilename.
+	* doc/texinfo.txi: @insertcopyrighttext, @settitle GNU ...
+
+	* doc/texinfo.txi: mention @setfilename and source filename
+		exceptions at the top.
+
+	* makeinfo/defun.c (scan_group_in_string): handle escaped @{ and @}.
+	Bug report from Werner Lemberg.
+
+	* doc/info-stnd.texi: add version number to title a la Texinfo.
+	* doc/info-stnd.texi: file -> manual.
+	* doc/info-stnd.texi: use @copyrighttext.
+
+	* makeinfo/insertion.c (begin_insertion, end_insertion):
+			copyrighttext case.
+	* makeinfo/makeinfo.h (copyright_text): declare/define.
+	* makeinfo/html.c (html_output_head): output copyrighttext.
+	* makeinfo/texinfo.dtd: Add copyrighttext.
+	* makeinfo/xml.h (xml_element): add COPYRIGHTTEXT.
+	* makeinfo/xml.c (texinfoml_element_list, docbook_element_list):
+			copyrighttext case.
+
+2002-03-17    <karl@gnu.org>
+
+	* makeinfo/insertion.h (insertion_type): include copyrighttext.
+	* makeinfo/cmds.c (command_table): new command copyrighttext.
+
+	* doc/texinfo.tex (\copyrighttext, \insertcopyrighttext): new
+	 Texinfo commands to handle the copyright and permission text cleanly.
+	(\dblarrowbox,\longdblarrowbox,\pushcharbox,\equivbox,\bullbox):
+		remove these definitions that have not been used for ages.
+
+	* configure.ac: call AC_CANONICAL_BUILD before the termcap
+	checking.  Bug report from Eli.
+
+2002-03-16  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* makeinfo/node.c (cm_anchor): When recording the anchor position,
+	account for output_paragraph_offset, since the current paragraph
+	might not be closed yet (happens inside a menu, for example).
+
+	* djgpp/config.sed: Tweak to adapt to the new Automake/Autoconf.
+
+	* djgpp/README: Update.
+
+2002-03-15    <karl@gnu.org>
+
+	* dir-example: GNU organization.
+
+2002-03-14    <karl@gnu.org>
+
+	* makeinfo/cmds.c (cm_titlepage): do not declare nonexistent
+	function.
+
+2002-03-14    <karl@gnu.org>
+
+	* doc/texinfo.txi: don't say specifically html 3.2, since <html
+			lang=...> is not 3.2.
+	Bug reprt from: Matthew Woodcraft <mattheww@chiark.greenend.org.uk>.
+
+2002-03-13    <karl@gnu.org>
+
+	* doc/texinfo.tex (\writetocentry): set \pdfmakepagedesttrue here.
+	(\Etitlepage): instead of here.  In case the document has no
+		@titlepage.  Bug report from Stephen Gildea.
+
+	* util/texi2dvi: be verbose after the definition of cmd, not
+	before.  From Andreas Schwab.
+
+2002-03-12    <karl@gnu.org>
+
+	* pretest 4.1a.
+	* doc/info-stnd.texi: update to FDL.
+
+2002-03-11    <karl@gnu.org>
+
+	* util/texi2dvi:
+	* util/texindex.c:
+	* util/install-info.c:
+	* makeinfo/makeinfo.c:
+	* info/infokey.c:
+	* info/info.c: home page and help message.
+
+	* doc/texinfo.txi (math): document @\ (aka \\) for literal \.
+	regularize index entries.
+	* makeinfo/cmds.c (command_table): \\ -> insert_self.
+
+	* doc/texinfo.tex (\mathbackslash): new definition.
+	(\math): handle \\ too.
+	(\codeunder): handle @code{\} in mmode.
+
+	* makeinfo/html.c: make home page be gnu's.
+
+	* doc/texinfo.txi (Conventions): rewrite description of quotes so
+	as to work in all formats; there was no output for HTML.
+	Report from: David Merrill <david@lupercalia.net>.
+
+2002-03-10    <karl@gnu.org>
+
+	* doc/texinfo.txi (Texinfo Copying Conditions): mention this
+	manual's license specifically.
+
+2002-03-09  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* info/indices.c (add_index_to_index_nodenames): Fix an off-by-one
+	error when computing the number of the last index entry.
+
+2002-03-08    <karl@gnu.org>
+
+	* doc/texinfo.tex: Rewrite unnumbered toc handling to keep track
+	of their sequence, so they can be handled correctly in
+	the PDF toc (= bookmarks).
+	From: Werner LEMBERG <wl@gnu.org>.
+
+	* configure.ac: AC_MSG_WARN if can't find a term library.  From:
+	Marc.Herbert@ens-lyon.fr.
+
+	* info/info.c: alphabetize.
+	* info/info.c: include short option names.
+
+2002-03-08  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* info/display.c (display_update_one_window): Dynamically reallocate
+	printed_line[] as needed.  When under -R, ignore ANSI escapes for
+	the purposes of line wrap display.  Clear the line to EOL if it
+	used escape sequences.  Reallocate entry->text if the new
+	printed_line is longer than screenwidth.
+
+	* info/window.c (string_width): Don't count ANSI escape sequences
+	in string width, when under -R..
+	(calculate_line_starts): Don't count ANSI escape sequences in line
+	width, when under -R.
+	(window_get_cursor_column, window_chars_to_goal): When under -R,
+	ANSI escapes don't affect the horizontal position.
+
+	* info/info-utils.c (printed_representation): If -R is in effect,
+	treat ESC as a normal character.
+
+2002-03-08    <karl@gnu.org>
+
+	* util/Makefile.am:
+	* info/Makefile.am:
+	* makeinfo/Makefile.am:
+	* lib/Makefile.am: doc fix.
+
+	* doc/Makefile.am (install-tex): prefix the install directories
+	with $(DESTDIR), because that is what automake does for all
+	generated install rules.  The file pdfcolor.tex should be
+	installed as such (and not as epsf.tex).
+	From: Peter Breitenlohner <peb@mppmu.mpg.de>.
+
+	* configure.ac (AC_INIT): now pass [GNU Texinfo].
+	(AM_INIT_AUTOMAKE): now no args, for automake 1.6.
+
+2002-03-05    <karl@gnu.org>
+
+	* doc/texinfo.txi: history
+
 2002-03-04    <karl@gnu.org>
 
 	* configure.ac: version 4.1.

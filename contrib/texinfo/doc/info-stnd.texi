@@ -1,14 +1,36 @@
 \input texinfo    @c -*-texinfo-*-
+@comment $Id: info-stnd.texi,v 1.43 2002/03/23 20:38:57 karl Exp $
 @comment %**start of header
 @setfilename info-stnd.info
-@settitle GNU Info
-@synindex vr cp
-@synindex fn cp
-@synindex ky cp
-@comment %**end of header
-@comment $Id: info-stnd.texi,v 1.33 2002/03/02 15:03:54 karl Exp $
-
 @include version-stnd.texi
+@settitle GNU Info @value{VERSION}
+@syncodeindex vr cp
+@syncodeindex fn cp
+@syncodeindex ky cp
+@comment %**end of header
+
+@copying
+This manual is for GNU Info (version @value{VERSION}, @value{UPDATED}),
+a program for viewing documents in Info format (usually created from
+Texinfo source files).
+
+Copyright @copyright{} 1992, 93, 96, 97, 98, 99, 2001, 02
+Free Software Foundation, Inc.
+
+@quotation
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.1 or
+any later version published by the Free Software Foundation; with no
+Invariant Sections, with the Front-Cover texts being ``A GNU Manual,''
+and with the Back-Cover Texts as in (a) below.  A copy of the
+license is included in the section entitled ``GNU Free Documentation
+License.''
+
+(a) The FSF's Back-Cover Text is: ``You have freedom to copy and modify
+this GNU Manual, like GNU software.  Copies published by the Free
+Software Foundation raise funds for GNU development.''
+@end quotation
+@end copying
 
 @dircategory Texinfo documentation system
 @direntry
@@ -16,65 +38,13 @@
 * infokey: (info-stnd)Invoking infokey.    Compile Info customizations.
 @end direntry
 
-@ifinfo
-This file documents GNU Info, a program for viewing the on-line formatted
-versions of Texinfo files.  This documentation is different from the
-documentation for the Info reader that is part of GNU Emacs.  If you do
-not know how to use Info, but have a working Info reader, you should
-read that documentation first.
-
-Copyright @copyright{} 1992, 93, 96, 97, 98, 99, 
-2001, 02 Free Software Foundation, Inc.
-
-Permission is granted to make and distribute verbatim copies of this
-manual provided the copyright notice and this permission notice are
-preserved on all copies.
-
-@ignore
-Permission is granted to process this file through TeX and print the
-results, provided the printed document carries a copying permission
-notice identical to this one except for the removal of this paragraph
-(this paragraph not being relevant to the printed manual).
-@end ignore
-
-Permission is granted to copy and distribute modified versions of this
-manual under the conditions for verbatim copying, provided also that the
-sections entitled ``Copying'' and ``GNU General Public License'' are
-included exactly as in the original, and provided that the entire
-resulting derived work is distributed under the terms of a permission
-notice identical to this one.
-
-Permission is granted to copy and distribute translations of this manual
-into another language, under the above conditions for modified versions,
-except that this permission notice may be stated in a translation
-approved by the Free Software Foundation.
-@end ifinfo
-
 @titlepage
 @title GNU Info
 @subtitle for version @value{VERSION}, @value{UPDATED}
 @author Brian J. Fox (bfox@@gnu.org)
 @page
 @vskip 0pt plus 1filll
-Copyright @copyright{} 1992, 93, 97, 98, 99, 2001, 02 Free Software Foundation
-
-This manual is for GNU Info version @value{VERSION}, @value{UPDATED}.
-
-Permission is granted to make and distribute verbatim copies of this
-manual provided the copyright notice and this permission notice are
-preserved on all copies.
-
-Permission is granted to copy and distribute modified versions of this
-manual under the conditions for verbatim copying, provided also that the
-sections entitled ``Copying'' and ``GNU General Public License'' are
-included exactly as in the original, and provided that the entire
-resulting derived work is distributed under the terms of a permission
-notice identical to this one.
-
-Permission is granted to copy and distribute translations of this manual
-into another language, under the above conditions for modified versions,
-except that this permission notice may be stated in a translation
-approved by the Free Software Foundation.
+@insertcopying
 @end titlepage
 
 @contents
@@ -83,12 +53,12 @@ approved by the Free Software Foundation.
 @node Top
 @top GNU Info
 
-This file documents GNU Info, a program for viewing the on-line
-formatted versions of Texinfo files, version @value{VERSION}.  This
-documentation is different from the documentation for the Info reader
-that is part of GNU Emacs.
+@insertcopying
 
-This manual is for Info version @value{VERSION}, updated @value{UPDATED}.
+This documentation is different from the documentation for the Info
+reader that is part of GNU Emacs.  If you do not know how to use Info,
+but have a working Info reader, you should read the Emacs documentation
+first, as it includes more background information and a thorough tutorial.
 @end ifnottex
 
 @menu
@@ -105,6 +75,7 @@ This manual is for Info version @value{VERSION}, updated @value{UPDATED}.
 * Variables::                   How to change the default behavior of Info.
 * Custom Key Bindings::         How to define your own key-to-command
 				  bindings.
+* Copying This Manual::         The GNU Free Documentation License.
 * Index::                       Global index containing keystrokes,
                                   command names, variable names,
                                   and general concepts.
@@ -2201,6 +2172,16 @@ Building DIR on the fly.
 
 Some common ways to organize Info files.
 @end ignore
+
+
+@node Copying This Manual
+@appendix Copying This Manual
+
+@menu
+* GNU Free Documentation License::  License for copying this manual.
+@end menu
+
+@include fdl.texi
 
 
 @node Index
