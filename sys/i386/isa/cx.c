@@ -981,13 +981,8 @@ void cxtimeout (void *a)
 static int cx_devsw_installed;
 static void 	cx_drvinit(void *unused)
 {
-	dev_t dev;
 
-	if( ! cx_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&dev,&cx_cdevsw,NULL);
-		cx_devsw_installed = 1;
-    	}
+	cdevsw_add(&cx_cdevsw);
 }
 
 SYSINIT(cxdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,cx_drvinit,NULL)

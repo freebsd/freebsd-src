@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vfsops.c	8.18 (Berkeley) 5/22/95
- * $Id: cd9660_vfsops.c,v 1.54 1999/05/07 10:10:46 phk Exp $
+ * $Id: cd9660_vfsops.c,v 1.55 1999/05/08 06:39:32 phk Exp $
  */
 
 #include <sys/param.h>
@@ -225,8 +225,7 @@ cd9660_mount(mp, path, data, ndp, p)
 		vrele(devvp);
 		return ENOTBLK;
 	}
-	if (major(devvp->v_rdev) >= nblkdev ||
-	    bdevsw(devvp->v_rdev) == NULL) {
+	if (bdevsw(devvp->v_rdev) == NULL) {
 		vrele(devvp);
 		return ENXIO;
 	}

@@ -402,6 +402,10 @@ gscprobe (struct isa_device *isdp)
   struct gsc_unit *scu = unittab + unit;
   int stb;
   struct gsc_geom geom = NEW_GEOM;
+  static int once;
+
+  if (!once++)
+	cdevsw_add(&gsc_cdevsw);
 
   scu->flags = FLAG_DEBUG;
 
@@ -848,23 +852,5 @@ gscioctl (dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
   default: return ENOTTY;
   }
 }
-
-
-static int gsc_devsw_installed;
-
-static void
-gsc_drvinit(void *unused)
-{
-	dev_t dev;
-
-	if( ! gsc_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR, 0);
-		cdevsw_add(&dev,&gsc_cdevsw, NULL);
-		gsc_devsw_installed = 1;
-    	}
-}
-
-SYSINIT(gscdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,gsc_drvinit,NULL)
-
 
 #endif /* NGSC > 0 */

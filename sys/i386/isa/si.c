@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.85 1999/05/09 17:07:21 peter Exp $
+ *	$Id: si.c,v 1.86 1999/05/30 16:52:25 phk Exp $
  */
 
 #ifndef lint
@@ -2832,13 +2832,8 @@ static int si_devsw_installed;
 static void 
 si_drvinit(void *unused)
 {
-	dev_t dev;
 
-	if (!si_devsw_installed) {
-		dev = makedev(CDEV_MAJOR, 0);
-		cdevsw_add(&dev,&si_cdevsw, NULL);
-		si_devsw_installed = 1;
-	}
+	cdevsw_add(&si_cdevsw);
 }
 
 SYSINIT(sidev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,si_drvinit,NULL)

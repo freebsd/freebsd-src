@@ -36,7 +36,7 @@
  * future.
  */
 
-#ident "$Id: dpt_control.c,v 1.12 1999/05/13 05:24:53 jkh Exp $"
+#ident "$Id: dpt_control.c,v 1.13 1999/05/30 16:51:20 phk Exp $"
 
 #include "opt_dpt.h"
 
@@ -848,7 +848,6 @@ static          dpt_devsw_installed = 0;
 static void
 dpt_drvinit(void *unused)
 {
-	dev_t           dev;
 
 	if (!dpt_devsw_installed) {
 		if (bootverbose)
@@ -856,11 +855,7 @@ dpt_drvinit(void *unused)
 			       DPT_CTL_RELEASE, DPT_CTL_VERSION, DPT_CTL_PATCH);
 
 		/* Add the I/O (data) channel */
-		dev = makedev(CDEV_MAJOR, 0);
-		cdevsw_add(&dev, &dpt_cdevsw, NULL);
-		/* Add the Control (IOCTL) channel */
-		dev = makedev(CDEV_MAJOR, SCSI_CONTROL_MASK);
-		cdevsw_add(&dev, &dpt_cdevsw, NULL);
+		cdevsw_add(&dpt_cdevsw);
 
 		dpt_devsw_installed = 1;
 	}

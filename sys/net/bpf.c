@@ -37,7 +37,7 @@
  *
  *      @(#)bpf.c	8.2 (Berkeley) 3/28/94
  *
- * $Id: bpf.c,v 1.49 1999/04/28 11:37:30 phk Exp $
+ * $Id: bpf.c,v 1.50 1999/05/30 16:53:04 phk Exp $
  */
 
 #include "bpfilter.h"
@@ -1306,14 +1306,12 @@ static void
 bpf_drvinit(unused)
 	void *unused;
 {
-	dev_t dev;
 #ifdef DEVFS
 	int i;
 #endif
 
 	if( ! bpf_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR, 0);
-		cdevsw_add(&dev,&bpf_cdevsw, NULL);
+		cdevsw_add(&bpf_cdevsw);
 		bpf_devsw_installed = 1;
 #ifdef DEVFS
 

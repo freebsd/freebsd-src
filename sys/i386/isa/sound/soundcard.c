@@ -507,12 +507,7 @@ sndattach(struct isa_device * dev)
 	sequencer_init();
     }
 
-    {
-	dev_t           dev;
-
-	dev = makedev(CDEV_MAJOR, 0);
-	cdevsw_add(&dev, &snd_cdevsw, NULL);
-    }
+    cdevsw_add(&snd_cdevsw);
 #ifdef DEVFS
 #define GID_SND GID_GAMES
 #define UID_SND UID_ROOT

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.14 (Berkeley) 5/21/95
- * $Id: spec_vnops.c,v 1.85 1999/05/08 06:39:55 phk Exp $
+ * $Id: spec_vnops.c,v 1.86 1999/05/11 19:54:38 phk Exp $
  */
 
 #include <sys/param.h>
@@ -176,8 +176,6 @@ spec_open(ap)
 	switch (vp->v_type) {
 
 	case VCHR:
-		if ((u_int)maj >= nchrdev)
-			return (ENXIO);
 		dsw = devsw(dev);
 		if ( (dsw == NULL) || (dsw->d_open == NULL))
 			return ENXIO;
@@ -214,8 +212,6 @@ spec_open(ap)
 		return (error);
 		/* NOT REACHED */
 	case VBLK:
-		if ((u_int)maj >= nblkdev)
-			return (ENXIO);
 		dsw = bdevsw(dev);
 		if ( (dsw == NULL) || (dsw->d_open == NULL))
 			return ENXIO;

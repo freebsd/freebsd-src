@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * $Id: asc.c,v 1.36 1999/05/06 18:12:24 peter Exp $
+ * $Id: asc.c,v 1.37 1999/05/30 16:52:07 phk Exp $
  */
 
 #include "asc.h"
@@ -379,6 +379,10 @@ ascprobe (struct isa_device *isdp)
   int unit = isdp->id_unit;
   struct asc_unit *scu = unittab + unit;
   int stb;
+  static int once;
+
+  if (!once++)
+      cdevsw_add(&asc_cdevsw);
 
   scu->base = isdp->id_iobase; /*** needed by the following macros ***/
   scu->flags = FLAG_DEBUG;
@@ -898,23 +902,5 @@ ascpoll(dev_t dev, int events, struct proc *p)
     splx(sps);
     return 0;
 }
-
-
-static int asc_devsw_installed;
-
-static void 
-asc_drvinit(void *unused)
-{
-	dev_t dev;
-
-	if( ! asc_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&dev,&asc_cdevsw,NULL);
-		asc_devsw_installed = 1;
-    	}
-}
-
-SYSINIT(ascdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,asc_drvinit,NULL)
-
 
 #endif /* NASC > 0 */

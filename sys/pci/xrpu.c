@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: xrpu.c,v 1.10 1999/05/09 17:07:12 peter Exp $
+ * $Id: xrpu.c,v 1.11 1999/05/30 16:53:37 phk Exp $
  *
  * A very simple device driver for PCI cards based on Xilinx 6200 series
  * FPGA/RPU devices.  Current Functionality is to allow you to open and
@@ -220,6 +220,10 @@ xrpu_probe (pcici_t tag, pcidi_t typea)
 {
 	u_int id;
 	const char *vendor, *chip, *type;
+	static int once;
+
+	if (!once++)
+		cdevsw_add(&xrpu_cdevsw);
 
 	(void)pci_conf_read(tag, PCI_CLASS_REG);
 	id = pci_conf_read(tag, PCI_ID_REG);
@@ -236,7 +240,6 @@ static void
 xrpu_attach (pcici_t tag, int unit)
 {
 	struct softc *sc;
-	dev_t cdev = makedev(CDEV_MAJOR, unit);
 
 	sc = (struct softc *)malloc(sizeof *sc, M_XRPU, M_WAITOK);
 	softc[unit] = sc;
@@ -253,8 +256,6 @@ xrpu_attach (pcici_t tag, int unit)
 		printf("Mapped physbase %#lx to virbase %#lx\n",
 		    (u_long)sc->physbase, (u_long)sc->virbase);
 
-	if (!unit)
-		cdevsw_add(&cdev, &xrpu_cdevsw, NULL);
 
 #ifdef DEVFS
 	devfs_add_devswf(&xrpu_cdevsw, 0, DV_CHR, UID_ROOT, GID_WHEEL, 0600,

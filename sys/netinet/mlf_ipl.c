@@ -382,14 +382,12 @@ static int ipl_devsw_installed;
 
 static void ipl_drvinit __P((void *unused))
 {
-	dev_t dev;
 # ifdef	DEVFS
 	void **tp = ipf_devfs;
 # endif
 
 	if (!ipl_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR, 0);
-		cdevsw_add(&dev, &ipl_cdevsw, NULL);
+		cdevsw_add(&ipl_cdevsw);
 		ipl_devsw_installed = 1;
 
 # ifdef	DEVFS

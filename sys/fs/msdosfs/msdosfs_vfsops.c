@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vfsops.c,v 1.43 1999/05/07 10:11:10 phk Exp $ */
+/*	$Id: msdosfs_vfsops.c,v 1.44 1999/05/08 06:40:00 phk Exp $ */
 /*	$NetBSD: msdosfs_vfsops.c,v 1.51 1997/11/17 15:36:58 ws Exp $	*/
 
 /*-
@@ -298,8 +298,7 @@ msdosfs_mount(mp, path, data, ndp, p)
 		vrele(devvp);
 		return (ENOTBLK);
 	}
-	if (major(devvp->v_rdev) >= nblkdev ||
-	    bdevsw(devvp->v_rdev) == NULL) {
+	if (bdevsw(devvp->v_rdev) == NULL) {
 		vrele(devvp);
 		return (ENXIO);
 	}

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_descrip.c	8.6 (Berkeley) 4/19/94
- * $Id: kern_descrip.c,v 1.61 1999/05/11 19:54:28 phk Exp $
+ * $Id: kern_descrip.c,v 1.62 1999/05/30 16:52:54 phk Exp $
  */
 
 #include "opt_compat.h"
@@ -1294,14 +1294,12 @@ static	void *devfs_token_fildesc[NUMFDESC];
 
 static void 	fildesc_drvinit(void *unused)
 {
-	dev_t dev;
 #ifdef DEVFS
 	int fd;
 #endif
 
 	if( ! fildesc_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&dev,&fildesc_cdevsw,NULL);
+		cdevsw_add(&fildesc_cdevsw);
 		fildesc_devsw_installed = 1;
 #ifdef DEVFS
 		for (fd = 0; fd < NUMFDESC; fd++)

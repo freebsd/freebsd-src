@@ -123,7 +123,10 @@ gpprobe(struct isa_device *dvp)
 {
 	int	status;
         struct gpib_softc *sc = &gpib_sc;
+	static int once;
 
+	if (!once++)
+		cdevsw_add(&gp_cdevsw);
 
 	gpib_port = dvp->id_iobase;
         status=1;
@@ -1174,23 +1177,5 @@ outb(CDOR,95); /*untalk*/
 
 
 }
-
-
-static int gp_devsw_installed;
-
-static void
-gp_drvinit(void *unused)
-{
-	dev_t dev;
-
-	if( ! gp_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR, 0);
-		cdevsw_add(&dev,&gp_cdevsw, NULL);
-		gp_devsw_installed = 1;
-    	}
-}
-
-SYSINIT(gpdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,gp_drvinit,NULL)
-
 
 #endif /* NGPIB > 0 */

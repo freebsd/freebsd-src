@@ -340,10 +340,8 @@ pcminit(snddev_info *d, int unit)
 #ifdef DEVFS
     void *cookie;
 #endif
-    dev_t isadev;
 
-    isadev = makedev(CDEV_MAJOR, 0);
-    cdevsw_add(&isadev, &snd_cdevsw, NULL);
+    cdevsw_add(&snd_cdevsw);
 
     /*
      * initialize standard parameters for the device. This can be

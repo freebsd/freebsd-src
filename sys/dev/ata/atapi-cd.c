@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-cd.c,v 1.8 1999/05/17 15:58:46 sos Exp $
+ *	$Id: atapi-cd.c,v 1.9 1999/05/30 16:51:14 phk Exp $
  */
 
 #include "ata.h"
@@ -1426,7 +1426,7 @@ acd_drvinit(void *unused)
     static int32_t acd_devsw_installed = 0;
 
     if (!acd_devsw_installed) {
-        cdevsw_add_generic(BDEV_MAJOR, CDEV_MAJOR, &acd_cdevsw);
+        cdevsw_add(&acd_cdevsw);
         acd_devsw_installed = 1;
     }
 }

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.197 1999/05/08 18:13:15 peter Exp $
+ *	$Id: wd.c,v 1.198 1999/05/30 16:52:29 phk Exp $
  */
 
 /* TODO:
@@ -2386,17 +2386,12 @@ wdwait(struct disk *du, u_char bits_wanted, int timeout)
 	return (-1);
 }
 
-static int wd_devsw_installed;
-
 static void 	wd_drvinit(void *unused)
 {
 
-	if( ! wd_devsw_installed ) {
-		if (wd_cdevsw.d_maxio == 0)
-			wd_cdevsw.d_maxio = 248 * 512;
-		cdevsw_add_generic(BDEV_MAJOR,CDEV_MAJOR, &wd_cdevsw);
-		wd_devsw_installed = 1;
-    	}
+	if (wd_cdevsw.d_maxio == 0)
+		wd_cdevsw.d_maxio = 248 * 512;
+	cdevsw_add(&wd_cdevsw);
 }
 
 SYSINIT(wddev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,wd_drvinit,NULL)

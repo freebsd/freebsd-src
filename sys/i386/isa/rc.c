@@ -213,6 +213,10 @@ rcprobe(dvp)
 {
 	int             irq = ffs(dvp->id_irq) - 1;
 	register int    nec = dvp->id_iobase;
+	static int once;
+
+	if (!once++)
+		cdevsw_add(&rc_cdevsw);
 
 	if (dvp->id_unit > NRC)
 		return 0;
@@ -1509,21 +1513,5 @@ rc_wait0(nec, unit, chan, line)
 		printf("rc%d/%d: channel command timeout, rc.c line: %d\n",
 		      unit, chan, line);
 }
-
-static int rc_devsw_installed;
-
-static void 	rc_drvinit(void *unused)
-{
-	dev_t dev;
-
-	if( ! rc_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR, 0);
-		cdevsw_add(&dev,&rc_cdevsw, NULL);
-		rc_devsw_installed = 1;
-    	}
-}
-
-SYSINIT(rcdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,rc_drvinit,NULL)
-
 
 #endif /* NRC */

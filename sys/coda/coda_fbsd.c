@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  * 	@(#) src/sys/coda/coda_fbsd.cr,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- *  $Id: coda_fbsd.c,v 1.13 1999/01/28 00:57:46 dillon Exp $
+ *  $Id: coda_fbsd.c,v 1.14 1999/05/30 16:51:10 phk Exp $
  * 
  */
 
@@ -101,7 +101,6 @@ int     vcdebug = 1;
 static int
 codadev_modevent(module_t mod, int type, void *data)
 {
-	dev_t dev;
 #ifdef DEVFS
 	int i;
 #endif
@@ -109,8 +108,7 @@ codadev_modevent(module_t mod, int type, void *data)
 
 	switch (type) {
 	case MOD_LOAD:
-		dev = makedev(VC_DEV_NO, 0);
-		cdevsw_add(&dev,&codadevsw, &oldcdevsw);
+		cdevsw_add(&codadevsw);
 #ifdef DEVFS
 		/* tmp */
 #undef	NVCODA
@@ -134,7 +132,7 @@ codadev_modevent(module_t mod, int type, void *data)
 			devfs_remove_dev(coda_devfs_token[i]);
 		}
 #endif
-		cdevsw_add(&dev, oldcdevsw, NULL);
+		cdevsw_add(oldcdevsw);
 		break;
 	default:
 		break;

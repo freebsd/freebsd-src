@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernfs_vfsops.c	8.10 (Berkeley) 5/14/95
- * $Id: kernfs_vfsops.c,v 1.26 1999/05/08 06:39:52 phk Exp $
+ * $Id: kernfs_vfsops.c,v 1.27 1999/05/11 19:54:36 phk Exp $
  */
 
 /*
@@ -80,6 +80,7 @@ kernfs_get_rrootdev()
 {
 	static int tried = 0;
 	int cmaj;
+	struct cdevsw *sw;
 
 	if (tried) {
 		/* Already did it once. */
@@ -87,18 +88,12 @@ kernfs_get_rrootdev()
 	}
 	tried = 1;
 
-	if (!bdevsw(rootdev)) {
-		panic("root dev has no bdevsw");
-	}
+	sw = bdevsw(rootdev);
+	if (!sw)
+		return;
 	if (rootdev == NODEV)
 		return;
-	for (cmaj = 0; cmaj < nchrdev; cmaj++) {
-		rrootdev = makedev(cmaj, minor(rootdev));
-		if (chrtoblk(rrootdev) == rootdev)
-			return;
-	}
-	rrootdev = NODEV;
-	printf("kernfs_get_rrootdev: no raw root device\n");
+	rrootdev = makedev(sw->d_maj, minor(rootdev));
 }
 
 /*

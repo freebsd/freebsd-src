@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: wfd.c,v 1.23 1999/05/07 07:03:31 phk Exp $
+ *      $Id: wfd.c,v 1.24 1999/05/30 16:52:30 phk Exp $
  */
 
 /*
@@ -765,17 +765,11 @@ static int wfd_eject (struct wfd *t, int closeit)
 		0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0);
 }
 
-static int wfd_devsw_installed;
-
 static void 	wfd_drvinit(void *unused)
 {
-	if( ! wfd_devsw_installed ) {
-		cdevsw_add_generic(BDEV_MAJOR, CDEV_MAJOR, &wfd_cdevsw);
-		wfd_devsw_installed = 1;
-    	}
+	cdevsw_add(&wfd_cdevsw);
 }
 
 SYSINIT(wfddev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,wfd_drvinit,NULL)
-
 
 #endif /* NWFD && NWDC */

@@ -8,7 +8,7 @@
  *	of this software, nor does the author assume any responsibility
  *	for damages incurred with its use.
  *
- *	$Id: ctx.c,v 1.30 1999/04/28 10:52:19 dt Exp $
+ *	$Id: ctx.c,v 1.31 1999/05/30 16:52:09 phk Exp $
  */
 
 /*
@@ -192,7 +192,10 @@ static int
 ctxprobe(struct isa_device * devp)
 {
 	int     status;
+	static int once;
 
+	if (!once++)
+		cdevsw_add(&ctx_cdevsw);
 	if (inb(devp->id_iobase) == 0xff)	/* 0xff only if board absent */
 		status = 0;
 	else {
@@ -462,24 +465,5 @@ waitvb(int port)
 
 	return (0);
 }
-
-
-
-static int ctx_devsw_installed;
-
-static void
-ctx_drvinit(void *unused)
-{
-	dev_t dev;
-
-	if( ! ctx_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&dev,&ctx_cdevsw,NULL);
-		ctx_devsw_installed = 1;
-    	}
-}
-
-SYSINIT(ctxdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,ctx_drvinit,NULL)
-
 
 #endif				/* NCTX > 0 */

@@ -11,7 +11,7 @@
  * this software for any purpose.  It is provided "as is"
  * without express or implied warranty.
  *
- * $Id: mse.c,v 1.42 1999/05/06 18:44:02 peter Exp $
+ * $Id: mse.c,v 1.43 1999/05/30 16:52:20 phk Exp $
  */
 /*
  * Driver for the Logitech and ATI Inport Bus mice for use with 386bsd and
@@ -248,7 +248,10 @@ mseprobe(idp)
 {
 	register struct mse_softc *sc = &mse_sc[idp->id_unit];
 	register int i;
+	static int once;
 
+	if (!once++)
+		cdevsw_add(&mse_cdevsw);
 	/*
 	 * Check for each mouse type in the table.
 	 */
@@ -787,21 +790,5 @@ mse_getati(port, dx, dy, but)
 	outb(port + MSE_PORTA, MSE_INPORT_MODE);
 	outb(port + MSE_PORTB, MSE_INPORT_INTREN);
 }
-
-static int mse_devsw_installed;
-
-static void 	mse_drvinit(void *unused)
-{
-	dev_t dev;
-
-	if( ! mse_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR, 0);
-		cdevsw_add(&dev,&mse_cdevsw, NULL);
-		mse_devsw_installed = 1;
-    	}
-}
-
-SYSINIT(msedev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,mse_drvinit,NULL)
-
 
 #endif /* NMSE */

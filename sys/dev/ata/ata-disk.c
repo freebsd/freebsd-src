@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ata-disk.c,v 1.11 1999/05/17 15:58:45 sos Exp $
+ *	$Id: ata-disk.c,v 1.12 1999/05/30 16:51:12 phk Exp $
  */
 
 #include "ata.h"
@@ -88,6 +88,7 @@ static struct cdevsw ad_cdevsw = {
 	/* maxio */	0,
 	/* bmaj */	BDEV_MAJOR,
 };
+static struct cdevsw fakewd_cdevsw;
 
 /* misc defines */
 #define UNIT(dev) (minor(dev)>>3 & 0x1f)		/* assume 8 minor # per unit */
@@ -663,8 +664,11 @@ ad_drvinit(void)
     static int32_t ad_devsw_installed = 0;
 
     if (!ad_devsw_installed) {
-        cdevsw_add_generic(BDEV_MAJOR, CDEV_MAJOR, &ad_cdevsw);
-        cdevsw_add_generic(0, 3, &ad_cdevsw);	/* grap wd entries too */
+        cdevsw_add(&ad_cdevsw);
+	fakewd_cdevsw = ad_cdevsw;
+	fakewd_cdevsw.d_maj = 3;
+	fakewd_cdevsw.d_bmaj = 0;
+        cdevsw_add(&fakewd_cdevsw);	/* grap wd entries too */
         ad_devsw_installed = 1;
     }
     /* register callback for when interrupts are enabled */

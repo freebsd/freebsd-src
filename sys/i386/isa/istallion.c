@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: istallion.c,v 1.27 1999/05/08 07:02:29 phk Exp $
+ * $Id: istallion.c,v 1.28 1999/05/30 16:52:16 phk Exp $
  */
 
 /*****************************************************************************/
@@ -662,21 +662,6 @@ static struct cdevsw stli_cdevsw = {
 	/* bmaj */	-1
 };
 
-static int stli_devsw_installed;
-
-static void stli_drvinit(void *unused)
-{
-	dev_t	dev;
-
-	if (! stli_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR, 0);
-		cdevsw_add(&dev, &stli_cdevsw, NULL);
-		stli_devsw_installed = 1;
-    	}
-}
-
-SYSINIT(sidev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,stli_drvinit,NULL)
-
 #endif
 
 /*****************************************************************************/
@@ -835,6 +820,10 @@ static int stliprobe(struct isa_device *idp)
 {
 	stlibrd_t	*brdp;
 	int		btype, bclass;
+	static int once;
+
+	if (!once++)
+		cdevsw_add(&stli_cdevsw);
 
 #if DEBUG
 	printf("stliprobe(idp=%x): unit=%d iobase=%x flags=%x\n", (int) idp,

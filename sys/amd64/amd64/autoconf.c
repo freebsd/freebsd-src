@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.122 1999/05/12 07:40:50 phk Exp $
+ *	$Id: autoconf.c,v 1.123 1999/05/24 00:30:49 jb Exp $
  */
 
 /*
@@ -156,7 +156,7 @@ find_cdrom_root()
 	orootdev = rootdev;
 	for (i = 0 ; i < 2; i++)
 		for (j = 0 ; try_cdrom[j].name ; j++) {
-			if (try_cdrom[j].major >= nblkdev)
+			if (try_cdrom[j].major >= NUMCDEVSW)
 				continue;
 			rootdev = makedev(try_cdrom[j].major, i * 8);
 			bd = bdevsw(rootdev);
@@ -382,7 +382,7 @@ setdumpdev(dev)
 		return (0);
 	}
 	maj = major(dev);
-	if (maj >= nblkdev || bdevsw(dev) == NULL)
+	if (bdevsw(dev) == NULL)
 		return (ENXIO);		/* XXX is this right? */
 	if (bdevsw(dev)->d_psize == NULL)
 		return (ENXIO);		/* XXX should be ENODEV ? */
@@ -435,7 +435,7 @@ setroot()
 		return;
 	majdev = B_TYPE(bootdev);
 	dev = makedev(majdev, 0);
-	if (majdev >= nblkdev || bdevsw(dev) == NULL)
+	if (bdevsw(dev) == NULL)
 		return;
 	unit = B_UNIT(bootdev);
 	slice = B_SLICE(bootdev);
@@ -523,7 +523,7 @@ setrootbyname(char *name)
 	}
 	unit = *cp - '0';
 	*cp++ = '\0';
-	for (bd = 0; bd < nblkdev; bd++) {
+	for (bd = 0; bd < NUMCDEVSW; bd++) {
 		dev = makedev(bd, 0);
 		if (bdevsw(dev) != NULL &&
 		    strcmp(bdevsw(dev)->d_name, name) == 0)
@@ -566,7 +566,7 @@ setconf()
 			return;
 	
 		printf("use one of:\n");
-		for (i = 0; i < nblkdev; i++) {
+		for (i = 0; i < NUMCDEVSW; i++) {
 			dev = makedev(i, 0);
 			if (bdevsw(dev) != NULL)
 			    printf(" %s", bdevsw(dev)->d_name);
