@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.27 1995/04/14 15:10:37 dufault Exp $
+ *      $Id: scsiconf.c,v 1.28 1995/04/23 07:47:10 bde Exp $
  */
 
 #include <sys/types.h>
@@ -70,13 +70,20 @@ static void *extend_alloc(size_t s)
 
 static void extend_free(void *p) { free(p, M_DEVBUF); }
 
-#define EXTEND_CHUNK 8
+/* EXTEND_CHUNK: Number of extend slots to allocate whenever we need a new
+ * one.
+ */
+#ifndef EXTEND_CHUNK
+	#define EXTEND_CHUNK 8
+#endif
 
 struct extend_array *extend_new(void)
 {
 	struct extend_array *p = extend_alloc(sizeof(*p));
-	p->nelem = 0;
-	p->ps = 0;
+	if (p) {
+		p->nelem = 0;
+		p->ps = 0;
+	}
 
 	return p;
 }
@@ -126,7 +133,7 @@ void extend_release(struct extend_array *ea, int index)
  * This extend_array holds an array of "scsibus_data" pointers.
  * One of these is allocated and filled in for each scsi bus.
  * it holds pointers to allow the scsi bus to get to the driver
- * That is running each LUN on the bus
+ * that is running each LUN on the bus
  * it also has a template entry which is the prototype struct
  * supplied by the adapter driver, this is used to initialise
  * the others, before they have the rest of the fields filled in
@@ -588,8 +595,8 @@ void scsi_configure_finish(void)
 }
 
 /*
- * The routine called by the adapter boards to get all their
- * devices configured in.
+ * scsi_attachdevs is the routine called by the adapter boards
+ * to get all their devices configured in.
  */
 void
 scsi_attachdevs(sc_link_proto)
@@ -971,7 +978,8 @@ scsi_probedev(sc_link, maybe_more, type_p)
 	u_int8  target = sc_link->target;
 	u_int8  lu = sc_link->lun;
 	struct scsidevs *bestmatch = (struct scsidevs *) 0;
-	char   *dtype = (char *) 0, *desc;
+	int    dtype = 0;
+	char   *desc;
 	char   *qtype;
 	struct scsi_inquiry_data *inqbuf;
 	u_int32 len, qualifier, type;
@@ -1053,7 +1061,7 @@ scsi_probedev(sc_link, maybe_more, type_p)
 		return (struct scsidevs *) 0;
 
 	default:
-		dtype = "";
+		dtype = 1;
 		qtype = "Vendor specific peripheral qualifier";
 		*maybe_more = 1;
 		break;
@@ -1064,7 +1072,7 @@ scsi_probedev(sc_link, maybe_more, type_p)
 			*maybe_more = 1;
 			return (struct scsidevs *) 0;
 		}
-		dtype = scsi_type_long_name(type);
+		dtype = 1;
 	}
 	/*
 	 * Then if it's advanced enough, more detailed
@@ -1288,43 +1296,3 @@ scsi_externalize(struct scsi_link *sl, void *userp, size_t *lenp)
 
 	return copyout(sl, userp, sizeof *sl);
 }
-
-/* XXX dufault@hda.com:
- *  having this table of names conflicts with our decision
- *  that all type information be contained in a type driver.
- */
-static struct {char *name; char *long_name; } types[] = {
-	{ "sd", "direct" },
-	{ "st", "sequential" },
-	{ "prn", "printer" },
-	{ "proc", "processor" },
-	{ "worm", "worm" },
-	{ "cd", "readonly" },
-	{ "scan", "scanner" },
-	{ "opmem", "optical" },
-	{ "ch", "changer" },
-	{ "comm", "communication" },
-	{ "asc0", "ASC-0" },
-	{ "asc1", "ASC-1" },
-	{ "uk", "unknown" },
-	{ "inval", "invalid" },
-};
-
-char *
-scsi_type_name(int type)
-{
-	if (type >= 0 && type < (sizeof(types) / sizeof(types[0])))
-		return types[type].name;
-
-	return "inval";
-}
-
-char *
-scsi_type_long_name(int type)
-{
-	if (type >= 0 && type < (sizeof(types) / sizeof(types[0])))
-		return types[type].long_name;
-
-	return "invalid";
-}
-

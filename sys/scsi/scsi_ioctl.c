@@ -1,6 +1,4 @@
 /* 
- *Begin copyright
- *
  * Copyright (C) 1992, 1993, 1994, HD Associates, Inc.
  * PO Box 276
  * Pepperell, MA 01463
@@ -38,7 +36,7 @@
  * SUCH DAMAGE.
  *End copyright
  *
- * $Id: scsi_ioctl.c,v 1.12 1995/03/04 20:50:55 dufault Exp $
+ * $Id: scsi_ioctl.c,v 1.13 1995/04/14 15:10:35 dufault Exp $
  *
  *
  */
@@ -47,8 +45,11 @@
 #include <sys/errno.h>
 #include <sys/malloc.h>
 #include <sys/buf.h>
+
 #define	b_screq b_driver1	/* a patch in buf.h */
 #define	b_sc_link b_driver2	/* a patch in buf.h */
+
+#include <sys/fcntl.h>
 #include <sys/proc.h>
 #include <vm/vm.h>
 
@@ -245,10 +246,16 @@ void scsiminphys(struct buf *bp)
  * If user-level type command, we must still be running
  * in the context of the calling process
  */
-errval	scsi_do_ioctl(dev_t dev, int cmd, caddr_t addr, int f,
+errval	scsi_do_ioctl(dev_t dev, int cmd, caddr_t addr, int flags,
 struct proc *p, struct scsi_link *sc_link)
 {
 	errval ret = 0;
+
+	/* If we can't write the device we can't permit much:
+	 */
+
+	if (cmd != SCIOCIDENTIFY && !(flags & FWRITE))
+		return EACCES;
 
 	SC_DEBUG(sc_link,SDEV_DB2,("scsi_do_ioctl(0x%x)\n",cmd));
 	switch(cmd)
@@ -345,6 +352,7 @@ struct proc *p, struct scsi_link *sc_link)
 		case SCIOCDECONFIG:
 			ret = EINVAL;
 			break;
+
 		case SCIOCIDENTIFY:
 		{
 			struct scsi_addr *sca = (struct scsi_addr *) addr;
