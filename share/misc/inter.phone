@@ -67,11 +67,6 @@
 34:71:Palma de Mallorca:Spain
 34:76:Zaragoza:Spain
 36:1:Budapest:Hungary
-37:2:Berlin:German Democratic Republic
-37:30:Frankfurt:German Democratic Republic
-37:41:Leipzig:German Democratic Republic
-37:51:Dresden:German Democratic Republic
-37:71:Karl-Marx-Stadt:German Democratic Republic
 38:11:Belgrade:Yugoslavia
 38:41:Zagreb:Yugoslavia
 38:50:Dubrovnik:Yugoslavia
@@ -152,10 +147,14 @@
 49:228:Bonn:Germany, Fed. Rep. of
 49:231:Dortmund:Germany, Fed. Rep. of
 49:30:Berlin:Germany, Fed. Rep. of
+49:335:Frankfurt/Oder:Germany, Fed. Rep. of
+49:341:Leipzig:Germany, Fed. Rep. of
+49:351:Dresden:Germany, Fed. Rep. of
+49:371:Chemnitz:Germany, Fed. Rep. of
 49:40:Hamburg:Germany, Fed. Rep. of
 49:421:Bremen:Germany, Fed. Rep. of
 49:511:Hannover:Germany, Fed. Rep. of
-49:69:Frankfurt:Germany, Fed. Rep. of
+49:69:Frankfurt/Main:Germany, Fed. Rep. of
 49:711:Stuttgart:Germany, Fed. Rep. of
 49:89:Munich:Germany, Fed. Rep. of
 49:911:Nuremberg:Germany, Fed. Rep. of
