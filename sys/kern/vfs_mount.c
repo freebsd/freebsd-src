@@ -1110,8 +1110,12 @@ dounmount(mp, flags, td)
 	cache_purgevfs(mp);	/* remove cache entries for this file sys */
 	if (mp->mnt_syncer != NULL)
 		vrele(mp->mnt_syncer);
-	/* Move process cdir/rdir refs on fs root to underlying vnode. */
-	if (VFS_ROOT(mp, &fsrootvp) == 0) {
+	/*
+	 * For forced unmounts, move process cdir/rdir refs on the fs root
+	 * vnode to the covered vnode.  For non-forced unmounts we want
+	 * such references to cause an EBUSY error.
+	 */
+	if ((flags & MNT_FORCE) && VFS_ROOT(mp, &fsrootvp) == 0) {
 		if (mp->mnt_vnodecovered != NULL)
 			checkdirs(fsrootvp, mp->mnt_vnodecovered);
 		if (fsrootvp == rootvnode) {
@@ -1128,7 +1132,7 @@ dounmount(mp, flags, td)
 	vn_finished_write(mp);
 	if (error) {
 		/* Undo cdir/rdir and rootvnode changes made above. */
-		if (VFS_ROOT(mp, &fsrootvp) == 0) {
+		if ((flags & MNT_FORCE) && VFS_ROOT(mp, &fsrootvp) == 0) {
 			if (mp->mnt_vnodecovered != NULL)
 				checkdirs(mp->mnt_vnodecovered, fsrootvp);
 			if (rootvnode == NULL) {
