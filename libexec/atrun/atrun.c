@@ -54,7 +54,7 @@
 /* File scope variables */
 
 static char *namep;
-static char rcsid[] = "$Id: atrun.c,v 1.1 1993/12/05 11:36:38 cgd Exp $";
+static char rcsid[] = "atrun.c,v 1.1 1994/01/05 01:03:00 nate Exp";
 
 /* Local functions */
 static void

@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: extract.sh,v 1.14 1994/11/20 22:55:24 phk Exp $
+# extract.sh,v 1.15 1994/11/21 04:14:33 phk Exp
 PATH=/stand:$PATH
 DDIR=/
 

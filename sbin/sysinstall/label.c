@@ -1,5 +1,5 @@
 /*
- * $Id: label.c,v 1.23.2.1 1994/11/21 03:12:01 phk Exp $
+ * label.c,v 1.23.2.2 1994/11/21 03:53:45 phk Exp
  */
 
 #include <stdlib.h>

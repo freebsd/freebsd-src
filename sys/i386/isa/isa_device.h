@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa_device.h	7.1 (Berkeley) 5/9/91
- *	$Id: isa_device.h,v 1.16 1994/10/25 23:06:16 se Exp $
+ *	isa_device.h,v 1.17 1994/11/03 04:15:04 jkh Exp
  */
 
 #ifndef _I386_ISA_ISA_DEVICE_H_

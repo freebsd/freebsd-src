@@ -1,8 +1,8 @@
 /* main.c
  *
- *  $RCSfile: main.c,v $
- *  $Revision: 14020.15 $
- *  $Date: 93/07/09 11:50:12 $
+ *  main.c,v
+ *  1.5
+ *  1994/11/04 06:11:38
  */
 
 #define _main_c_

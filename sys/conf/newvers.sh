@@ -32,7 +32,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)newvers.sh	8.1 (Berkeley) 4/20/94
-# $Id: newvers.sh,v 1.6.2.2 1994/11/16 06:33:27 phk Exp $
+# newvers.sh,v 1.6.2.2.2.1 1994/11/22 06:32:34 phk Exp
 
 if [ ! -r version ]
 then

@@ -2,7 +2,7 @@
  *
  * Real bummers unite !
  *
- * $Id:$
+ * machines.c,v 1.1.1.3 1994/09/29 23:03:36 wollman Exp
  */
 
 #include "ntp_stdlib.h"

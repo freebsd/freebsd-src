@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_conf.c	8.8 (Berkeley) 3/31/94
- * $Id: vfs_conf.c,v 1.5 1994/09/21 03:46:47 wollman Exp $
+ * vfs_conf.c,v 1.6 1994/11/12 01:47:43 phk Exp
  */
 
 #include <sys/param.h>

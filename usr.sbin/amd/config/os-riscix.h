@@ -37,7 +37,7 @@
  *
  *	@(#)os-riscix.h	8.1 (Berkeley) 6/6/93
  *
- * $Id: os-riscix.h,v 5.2.2.1 1992/02/09 15:10:38 jsp beta $
+ * os-riscix.h,v 1.1.1.1 1994/05/26 05:22:08 rgrimes Exp
  *
  * Acorn Archimedes RISC iX definitions for Amd (automounter)
  * Contributed by Piete Brooks.

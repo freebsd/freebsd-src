@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: spl.h,v 1.4 1994/08/15 03:15:11 wollman Exp $
+ *	spl.h,v 1.5 1994/09/20 05:07:32 bde Exp
  */
 
 #ifndef _MACHINE_IPL_H_

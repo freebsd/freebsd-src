@@ -1,4 +1,4 @@
-/*	$Id: sysv_sem.c,v 1.3 1994/10/02 17:35:27 phk Exp $ */
+/*	sysv_sem.c,v 1.4 1994/10/06 21:06:32 davidg Exp */
 
 /*
  * Implementation of SVID semaphores

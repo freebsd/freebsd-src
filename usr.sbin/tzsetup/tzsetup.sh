@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: tzsetup.sh,v 1.3 1994/11/02 00:00:17 ache Exp $
+# tzsetup.sh,v 1.4 1994/11/02 09:43:38 ache Exp
 #
 # Copyright 1994, Garrett A. Wollman.  All rights reserved.
 # This script is subject to the terms and conditions listed at the

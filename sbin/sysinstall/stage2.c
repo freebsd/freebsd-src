@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: stage2.c,v 1.16 1994/11/18 11:30:04 phk Exp $
+ * stage2.c,v 1.16.2.1 1994/11/21 03:12:16 phk Exp
  *
  */
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)fifo.h	8.2 (Berkeley) 2/2/94
- * $Id: fifo.h,v 1.2 1994/08/02 07:44:54 davidg Exp $
+ * fifo.h,v 1.3 1994/09/22 19:38:05 wollman Exp
  */
 
 /*

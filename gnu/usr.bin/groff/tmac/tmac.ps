@@ -1,0 +1,52 @@
+.nr _C \n(.C
+.cp 0
+.ftr AX ABI
+.ftr KR BMR
+.ftr KI BMI
+.ftr KB BMB
+.ftr KX BMBI
+.ftr CW CR
+.ftr CO CI
+.ftr CX CBI
+.ftr H HR
+.ftr HO HI
+.ftr HX HBI
+.ftr Hr HNR
+.ftr Hi HNI
+.ftr Hb HNB
+.ftr Hx HNBI
+.ftr NX NBI
+.ftr PA PR
+.ftr PX PBI
+.ftr ZI ZCMI
+.ftr C CR
+.cflags 8 \(an
+.char \(rn \h'-\w'\(sr'u'\(rn\h'\w'\(sr'u'
+.char \(mo \h'.08m'\(mo\h'-.08m'
+.char \(nm \h'.08m'\(nm\h'-.08m'
+.char \[parenlefttp] \[parenlefttp]\h'.016m'
+.char \[parenleftbt] \[parenleftbt]\h'.016m'
+.char \[parenleftex] \[parenleftex]\h'.016m'
+.char \[parenrighttp] \[parenrighttp]\h'.016m'
+.char \[parenrightbt] \[parenrightbt]\h'.016m'
+.char \[parenrightex] \[parenrightex]\h'.016m'
+.if !c\[va] .char \[va] \o'\[ua]\[da]'
+.if !c\[ci] \
+.char \[ci] \v'-.25m'\h'.05m'\D'c .5m'\h'.05m'\v'.25m'
+.if !c\[sq] \
+.char \[sq] \h'.05m'\D'l .5m 0'\D'l 0 -.5m'\D'l -.5m 0'\D'l 0 .5m'\h'.55m'
+.if !c\[ru] .char \[ru] \D'l .5m 0'
+.if !c\[ul] .char \[ul] \v'.25m'\D'l .5m 0'\v'-.25m'
+.if !c\[br] .char \[br] \Z'\v'.25m'\D'l 0 -1m''
+.if !c\[or] .char \[or] \h'.1m'\Z'\D'l 0 -.675m''\h'.1m'
+.if !c\[Fi] .char \[Fi] ffi
+.if !c\[Fl] .char \[Fl] ffl
+.if !c\[ff] .char \[ff] ff
+.if !c\[ij] .char \[ij] ij
+.if !c\[IJ] .char \[IJ] IJ
+.if !c\[tm] .char \[tm] \s-3\v'-.3m'TM\v'+.3m'\s+3
+.\" pic tests this register to see whether it should use \X'ps:...'
+.nr 0p 1
+.cp \n(_C
+.if !\n(.C .mso tmac.pspic
+.do mso tmac.psold

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_lookup.c	8.4 (Berkeley) 2/16/94
- * $Id: vfs_lookup.c,v 1.5 1994/09/27 20:33:30 phk Exp $
+ * vfs_lookup.c,v 1.6 1994/10/06 21:06:36 davidg Exp
  */
 
 #include <sys/param.h>

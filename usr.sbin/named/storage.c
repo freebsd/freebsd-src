@@ -81,7 +81,7 @@
  *	All rights reserved.
  */
 #ifndef lint
-static char RCSid[] = "$Id: storage.c,v 1.1.1.1 1994/09/22 19:46:14 pst Exp $";
+static char RCSid[] = "storage.c,v 1.2 1994/09/22 20:45:09 pst Exp";
 #endif
 
 #undef malloc

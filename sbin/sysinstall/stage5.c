@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: stage5.c,v 1.16 1994/11/17 19:44:54 ache Exp $
+ * stage5.c,v 1.16.2.1 1994/11/21 03:12:20 phk Exp
  *
  */
 

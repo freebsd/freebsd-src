@@ -1,7 +1,7 @@
 /*
 **	dynamically loadable chu driver
 **
-**	$Header: /usr/src/etc/xntp3.3ww/kernel/RCS/chuinit.c,v 1.1 1994/06/15 22:14:38 rob Exp $
+**	/home/ncvs/src/usr.sbin/xntpd/kernel/chuinit.c,v 1.1.1.1 1994/09/29 23:02:42 wollman Exp
 **
 **	william robertson <rob@agate.berkeley.edu>  
 */

@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsiconf.h,v 1.13 1994/10/23 21:27:56 wollman Exp $
+ *	scsiconf.h,v 1.14 1994/11/14 23:39:33 ats Exp
  */
 #ifndef	SCSI_SCSICONF_H
 #define SCSI_SCSICONF_H 1

@@ -1,7 +1,7 @@
 #ifndef lint
 /*static char sccsid[] = "from: @(#)rpcinfo.c 1.22 87/08/12 SMI";*/
 /*static char sccsid[] = "from: @(#)rpcinfo.c	2.2 88/08/11 4.0 RPCSRC";*/
-static char rcsid[] = "$Id: rpcinfo.c,v 1.1 1993/09/13 23:22:42 jtc Exp $";
+static char rcsid[] = "rpcinfo.c,v 1.1 1994/08/07 18:23:25 wollman Exp";
 #endif
 
 /*

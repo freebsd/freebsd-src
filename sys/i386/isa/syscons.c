@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.79 1994/11/21 14:36:02 ache Exp $
+ *	syscons.c,v 1.80 1994/11/21 17:59:29 ache Exp
  */
 
 #include "sc.h"

@@ -1,4 +1,4 @@
-#	$Id: kc.profile,v 1.6 1994/02/21 21:52:00 rgrimes Exp $
+#	kc.profile,v 1.7 1994/09/15 04:46:16 rgrimes Exp
 #
 # rc for kernel distribution floppy
 

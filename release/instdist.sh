@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: instdist.sh,v 1.24 1994/11/21 07:25:27 jkh Exp $
+# instdist.sh,v 1.25 1994/11/21 11:18:48 jkh Exp
 
 if [ "$_INSTINST_SH_LOADED_" = "yes" ]; then
 	return 0

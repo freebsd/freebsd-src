@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: gus_card.c,v 1.10 1994/10/14 09:01:20 jkh Exp $
+ * gus_card.c,v 1.11 1994/10/14 09:04:19 jkh Exp
  */
 
 #include "sound_config.h"

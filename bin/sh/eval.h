@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)eval.h	8.1 (Berkeley) 5/31/93
- *	$Id$
+ *	eval.h,v 1.2 1994/09/24 02:57:31 davidg Exp
  */
 
 extern char *commandname;	/* currently executing command */

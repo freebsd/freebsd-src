@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_var.h	8.1 (Berkeley) 6/10/93
- * $Id: ip_var.h,v 1.5 1994/09/06 22:42:25 wollman Exp $
+ * ip_var.h,v 1.6 1994/09/14 03:10:14 wollman Exp
  */
 
 #ifndef _NETINET_IP_VAR_H_

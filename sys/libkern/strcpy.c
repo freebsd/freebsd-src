@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * strcpy.c,v 1.2 1994/08/02 07:44:36 davidg Exp
  */
 
 #include <sys/cdefs.h>

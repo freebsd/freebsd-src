@@ -1,0 +1,27 @@
+.\" -*- nroff -*-
+.TH PFBTOPS 1 "6 August 1992" "Groff Version 1.08"
+.SH NAME
+pfbtops \- translate a PostScript font in .pfb format to ASCII
+.SH SYNOPSIS
+.B pfbtops
+[
+.I pfb_file
+]
+.SH DESCRIPTION
+.B pfbtops
+translates a PostScript font in
+.B .pfb
+format to ASCII.
+If
+.I pfb_file
+is omitted the pfb file will be read from the standard input.
+The ASCII format PostScript font will be written on the standard output.
+PostScript fonts for MS-DOS are normally supplied in
+.B .pfb
+format.
+.LP
+The resulting ASCII format PostScript font can be used with groff.
+It must first be listed in
+.BR /usr/share/groff_font/devps/download .
+.SH "SEE ALSO"
+.BR grops (1)

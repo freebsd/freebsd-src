@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: defs.h,v 1.8 1994/08/24 23:53:23 thyagara Exp $
+ * defs.h,v 1.2 1994/09/08 02:51:13 wollman Exp
  */
 
 

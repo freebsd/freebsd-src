@@ -37,7 +37,7 @@
  *
  *	@(#)procfs_mem.c	8.4 (Berkeley) 1/21/94
  *
- *	$Id: procfs_mem.c,v 1.4 1994/10/18 04:26:53 davidg Exp $
+ *	procfs_mem.c,v 1.5 1994/10/18 04:40:41 davidg Exp
  */
 
 /*

@@ -31,7 +31,10 @@ Report problems and direct all questions to:
 
 
 
-/* $Log: rcsrev.c,v $
+/* rcsrev.c,v
+ * Revision 1.1.1.1  1993/06/18  04:22:13  jkh
+ * Updated GNU utilities
+ *
  * Revision 5.3  1991/08/19  03:13:55  eggert
  * Add `-r$', `-rB.'.  Remove botches like `<now>' from messages.  Tune.
  *
@@ -94,7 +97,7 @@ Report problems and direct all questions to:
 
 #include "rcsbase.h"
 
-libId(revId, "$Id: rcsrev.c,v 5.3 1991/08/19 03:13:55 eggert Exp $")
+libId(revId, "rcsrev.c,v 1.1.1.1 1993/06/18 04:22:13 jkh Exp")
 
 static char const *branchtip P((char const*));
 static struct hshentry *genbranch P((struct hshentry const*,char const*,unsigned,char const*,char const*,char const*,struct hshentries**));

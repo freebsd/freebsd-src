@@ -11,7 +11,7 @@
  *   of this software, nor does the author assume any responsibility
  *   for damages incurred with its use.
  *
- *	$Id: if_isreg.h,v 1.3 1993/10/24 04:27:00 paul Exp $
+ *	if_isreg.h,v 1.4 1994/01/31 16:00:53 paul Exp
  */
 
 /*

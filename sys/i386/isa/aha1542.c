@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: aha1542.c,v 1.37 1994/10/19 01:58:50 wollman Exp $
+ *      aha1542.c,v 1.38 1994/10/23 21:27:04 wollman Exp
  */
 
 /*

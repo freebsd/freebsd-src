@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.3.2.1 1994/08/09 13:47:15 mycroft Exp $
+#	Makefile,v 1.1 1994/09/13 16:52:09 dfr Exp
 
 PROG=	ipcrm
 

@@ -1,5 +1,5 @@
-/* $Header: main.c,v 2.4 88/09/19 12:55:13 nhall Exp $ */
-/* $Source: /var/home/tadl/src/argo/xebec/RCS/main.c,v $ */
+/* /home/ncvs/src/sys/netiso/xebec/main.c,v 1.1.1.1 1994/05/24 10:07:49 rgrimes Exp */
+/* /home/ncvs/src/sys/netiso/xebec/main.c,v */
 /*
  * TODO:
  * rewrite the command line stuff altogether - it's kludged beyond

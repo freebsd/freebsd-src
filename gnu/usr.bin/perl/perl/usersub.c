@@ -1,10 +1,13 @@
-/* $RCSfile: usersub.c,v $$Revision: 1.1.1.1 $$Date: 1993/08/23 21:29:40 $
+/* usersub.c,v1.1.1.11994/09/10 06:27:34
  *
  *  This file contains stubs for routines that the user may define to
  *  set up glue routines for C libraries or to decrypt encrypted scripts
  *  for execution.
  *
- * $Log: usersub.c,v $
+ * usersub.c,v
+ * Revision 1.1.1.1  1994/09/10  06:27:34  gclarkii
+ * Initial import of Perl 4.046 bmaked
+ *
  * Revision 1.1.1.1  1993/08/23  21:29:40  nate
  * PERL!
  *

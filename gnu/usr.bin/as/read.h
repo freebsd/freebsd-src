@@ -18,7 +18,7 @@
    along with GAS; see the file COPYING.  If not, write to
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /*
- * $Id: read.h,v 1.2 1993/11/03 00:52:16 paul Exp $
+ * read.h,v 1.3 1993/11/30 20:55:45 jkh Exp
  */
 
 

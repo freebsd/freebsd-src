@@ -35,7 +35,7 @@
  *
  *	@(#)umap_vfsops.c	8.3 (Berkeley) 1/21/94
  *
- * $Id: umap_vfsops.c,v 1.4 1994/09/22 19:38:19 wollman Exp $
+ * umap_vfsops.c,v 1.5 1994/10/10 07:55:43 phk Exp
  */
 
 /*

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)acct.h	8.2 (Berkeley) 1/21/94
- * $Id: acct.h,v 1.3 1994/08/21 04:41:31 paul Exp $
+ * acct.h,v 1.4 1994/09/26 21:09:15 davidg Exp
  */
 
 #ifndef _SYS_ACCT_H_

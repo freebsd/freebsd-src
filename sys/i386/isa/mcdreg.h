@@ -41,7 +41,7 @@
  * the manufacturer or anyone else might provide better documentation,
  * so this file (and the driver) will then have a better quality.
  *
- *	$Id: mcdreg.h,v 1.4 1994/09/03 16:48:13 ache Exp $
+ *	mcdreg.h,v 1.5 1994/11/12 13:26:13 ache Exp
  */
 
 #ifndef MCD_H

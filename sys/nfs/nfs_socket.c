@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_socket.c	8.3 (Berkeley) 1/12/94
- * $Id: nfs_socket.c,v 1.4 1994/10/02 17:26:59 phk Exp $
+ * nfs_socket.c,v 1.5 1994/10/17 17:47:35 phk Exp
  */
 
 /*

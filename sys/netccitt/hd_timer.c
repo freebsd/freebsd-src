@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)hd_timer.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * hd_timer.c,v 1.2 1994/08/02 07:47:09 davidg Exp
  */
 
 #include <sys/param.h>

@@ -41,7 +41,7 @@
  * rknier 940331 Added fast transfer code 
  * rknier 940407 Added assembler coded data transfers 
  *
- * $Id: seagate.c,v 1.2 1994/10/27 05:23:09 phk Exp $
+ * seagate.c,v 1.3 1994/10/27 08:03:15 sos Exp
  */
 
 /*

@@ -25,7 +25,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:57  rpd
- *	$Id: io.c,v 1.9 1994/09/20 22:24:59 adam Exp $
+ *	io.c,v 1.10 1994/11/07 11:26:29 davidg Exp
  */
 
 #include <machine/cpufunc.h>

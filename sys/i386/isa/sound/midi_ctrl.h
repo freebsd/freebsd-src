@@ -1,5 +1,5 @@
 /*
- * $Id: midi_ctrl.c,v 1.7 1994/09/27 17:58:24 davidg Exp $
+ * midi_ctrl.h,v 1.2 1994/10/01 02:16:45 swallace Exp
  */
 static unsigned char ctrl_def_values[128] =
 {

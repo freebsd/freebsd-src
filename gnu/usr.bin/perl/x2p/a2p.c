@@ -9,14 +9,17 @@ static char yysccsid[] = "@(#)yaccpar	1.9 (Berkeley) 02/21/93";
 #define YYRECOVERING (yyerrflag!=0)
 #define YYPREFIX "yy"
 #line 2 "a2p.y"
-/* $RCSfile: a2p.y,v $$Revision: 1.1.1.1 $$Date: 1993/08/23 21:30:09 $
+/* a2p.c,v1.1.1.11994/09/10 06:27:55
  *
  *    Copyright (c) 1991, Larry Wall
  *
  *    You may distribute under the terms of either the GNU General Public
  *    License or the Artistic License, as specified in the README file.
  *
- * $Log: a2p.y,v $
+ * a2p.c,v
+ * Revision 1.1.1.1  1994/09/10  06:27:55  gclarkii
+ * Initial import of Perl 4.046 bmaked
+ *
  * Revision 1.1.1.1  1993/08/23  21:30:09  nate
  * PERL!
  *

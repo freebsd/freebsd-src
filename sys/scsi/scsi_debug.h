@@ -2,7 +2,7 @@
 /*
  * Written by Julian Elischer (julian@tfs.com)
  *
- *	$Id: scsi_debug.h,v 1.3 93/10/10 09:26:05 julian Exp Locker: julian $
+ *	scsi_debug.h,v 1.1 1993/11/18 05:02:54 rgrimes Exp
  */
 #ifndef	_SCSI_SCSI_DEBUG_H
 #define _SCSI_SCSI_DEBUG_H 1

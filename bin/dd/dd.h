@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)dd.h	8.3 (Berkeley) 4/2/94
- *	$Id$
+ *	dd.h,v 1.2 1994/09/24 02:54:54 davidg Exp
  */
 
 /* Input/output stream state. */

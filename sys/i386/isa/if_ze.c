@@ -47,7 +47,7 @@
  */
 
 /*
- * $Id$
+ * if_ze.c,v 1.8 1994/10/23 21:27:25 wollman Exp
  */
 
 #include "ze.h"

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)radix.c	8.2 (Berkeley) 1/4/94
- * $Id: radix.c,v 1.4 1994/10/08 22:38:23 phk Exp $
+ * radix.c,v 1.5 1994/10/15 21:33:17 phk Exp
  */
 
 /*

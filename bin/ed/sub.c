@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	sub.c,v 1.3 1994/09/24 02:55:31 davidg Exp
  */
 
 #ifndef lint

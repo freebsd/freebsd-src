@@ -18,7 +18,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: etherent.h,v 1.2 90/09/20 23:16:17 mccanne Exp $ (LBL)
+ * @(#) /home/ncvs/src/usr.sbin/tcpdump/tcpdump/etherent.h,v 1.1.1.1 1993/06/12 14:42:13 rgrimes Exp (LBL)
  */
 
 /* File name of ethernet address data base. */

@@ -35,7 +35,10 @@ Report problems and direct all questions to:
 
 
 
-/* $Log: rcskeep.c,v $
+/* rcskeep.c,v
+ * Revision 1.1.1.1  1993/06/18  04:22:13  jkh
+ * Updated GNU utilities
+ *
  * Revision 5.4  1991/08/19  03:13:55  eggert
  * Tune.
  *
@@ -93,7 +96,7 @@ Report problems and direct all questions to:
 
 #include  "rcsbase.h"
 
-libId(keepId, "$Id: rcskeep.c,v 5.4 1991/08/19 03:13:55 eggert Exp $")
+libId(keepId, "rcskeep.c,v 1.1.1.1 1993/06/18 04:22:13 jkh Exp")
 
 static int checknum P((char const*,int));
 static int getval P((RILE*,struct buf*,int));

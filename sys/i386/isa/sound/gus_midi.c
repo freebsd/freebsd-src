@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: gus_midi.c,v 1.5 1994/08/02 07:39:58 davidg Exp $
+ * gus_midi.c,v 1.6 1994/10/01 02:16:39 swallace Exp
  */
 
 #include "sound_config.h"

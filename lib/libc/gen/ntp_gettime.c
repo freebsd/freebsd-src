@@ -33,7 +33,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static const char rcsid[] =
-  "$Id: ntp_gettime.c,v 1.1 1994/09/18 20:29:46 wollman Exp $";
+  "ntp_gettime.c,v 1.2 1994/09/19 22:04:28 ache Exp";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>

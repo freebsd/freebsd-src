@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sys_generic.c	8.5 (Berkeley) 1/21/94
- * $Id: sys_generic.c,v 1.9 1994/10/13 21:01:47 sos Exp $
+ * sys_generic.c,v 1.10 1994/10/13 21:41:36 sos Exp
  */
 
 #include <sys/param.h>

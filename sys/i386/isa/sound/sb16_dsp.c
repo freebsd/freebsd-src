@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: sb16_dsp.c,v 1.7 1994/09/27 17:58:24 davidg Exp $
+ * sb16_dsp.c,v 1.8 1994/10/01 02:17:02 swallace Exp
  */
 
 #define DEB(x)

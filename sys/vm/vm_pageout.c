@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.25 1994/11/14 02:57:40 davidg Exp $
+ * vm_pageout.c,v 1.26 1994/11/17 06:24:25 davidg Exp
  */
 
 /*

@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: k_tan.c,v 1.6 1994/08/18 23:06:16 jtc Exp $";
+static char rcsid[] = "k_tan.c,v 1.1.1.1 1994/08/19 09:39:45 jkh Exp";
 #endif
 
 /* __kernel_tan( x, y, k )

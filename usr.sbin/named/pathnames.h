@@ -1,6 +1,6 @@
 /*
  *	@(#)pathnames.h	5.4 (Berkeley) 6/1/90
- *	$Id: pathnames.h,v 4.9.1.5 1994/04/09 03:43:17 vixie Exp $
+ *	pathnames.h,v 1.1.1.1 1994/09/22 19:46:13 pst Exp
  */
 
 /*

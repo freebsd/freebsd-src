@@ -1,4 +1,4 @@
-/*	$Id$ */
+/*	sysv_ipc.c,v 1.1 1994/09/13 14:46:55 dfr Exp */
 /*	$NetBSD: sysv_ipc.c,v 1.7 1994/06/29 06:33:11 cgd Exp $	*/
 
 /*

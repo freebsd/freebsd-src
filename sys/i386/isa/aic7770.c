@@ -18,7 +18,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aic7770.c,v 1.4 1994/11/18 09:14:14 gibbs Exp $
+ *      aic7770.c,v 1.5 1994/11/18 20:34:30 gibbs Exp
  */
 /*
  * TODO:

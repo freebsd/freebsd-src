@@ -20,7 +20,7 @@
  */
 #ifndef lint
 static  char rcsid[] =
-    "@(#)$Header: pcap-bpf.c,v 1.29 92/06/02 17:57:29 mccanne Exp $ (LBL)";
+    "@(#)/home/ncvs/src/usr.sbin/tcpdump/tcpdump/pcap.c,v 1.1.1.1 1993/06/12 14:42:10 rgrimes Exp (LBL)";
 #endif
 
 #include <stdio.h>

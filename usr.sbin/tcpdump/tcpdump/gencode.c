@@ -20,7 +20,7 @@
  */
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Header: gencode.c,v 1.33 92/05/22 16:38:39 mccanne Exp $ (LBL)";
+    "@(#) /home/ncvs/src/usr.sbin/tcpdump/tcpdump/gencode.c,v 1.1.1.1 1993/06/12 14:42:12 rgrimes Exp (LBL)";
 #endif
 
 #ifdef __STDC__

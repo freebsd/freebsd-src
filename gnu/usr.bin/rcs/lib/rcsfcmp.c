@@ -37,7 +37,10 @@ Report problems and direct all questions to:
 
 
 
-/* $Log: rcsfcmp.c,v $
+/* rcsfcmp.c,v
+ * Revision 1.1.1.1  1993/06/18  04:22:13  jkh
+ * Updated GNU utilities
+ *
  * Revision 5.9  1991/10/07  17:32:46  eggert
  * Count log lines correctly.
  *
@@ -101,7 +104,7 @@ Report problems and direct all questions to:
 
 #include  "rcsbase.h"
 
-libId(fcmpId, "$Id: rcsfcmp.c,v 5.9 1991/10/07 17:32:46 eggert Exp $")
+libId(fcmpId, "rcsfcmp.c,v 1.1.1.1 1993/06/18 04:22:13 jkh Exp")
 
 	static int
 discardkeyval(c, f)

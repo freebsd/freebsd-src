@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_pcb.h	8.1 (Berkeley) 6/10/93
- * $Id: tp_pcb.h,v 1.2 1994/08/02 07:51:21 davidg Exp $
+ * tp_pcb.h,v 1.3 1994/08/21 06:14:27 paul Exp
  */
 
 #ifndef _NETISO_TP_PCB_H_
@@ -66,8 +66,8 @@ SOFTWARE.
 /* 
  * ARGO TP
  *
- * $Header: /home/ncvs/src/sys/netiso/tp_pcb.h,v 1.2 1994/08/02 07:51:21 davidg Exp $
- * $Source: /home/ncvs/src/sys/netiso/tp_pcb.h,v $
+ * /home/ncvs/src/sys/netiso/tp_pcb.h,v 1.3 1994/08/21 06:14:27 paul Exp
+ * /home/ncvs/src/sys/netiso/tp_pcb.h,v
  *
  * 
  * This file defines the transport protocol control block (tpcb).

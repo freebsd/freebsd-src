@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
  *
- *	$Id: db_machdep.h,v 1.5 1994/10/02 19:36:30 phk Exp $
+ *	db_machdep.h,v 1.6 1994/10/19 21:13:51 bde Exp
  */
 
 #ifndef	_I386_DB_MACHDEP_H_

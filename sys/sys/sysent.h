@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sysent.h,v 1.1 1994/08/24 11:47:23 sos Exp $
+ *	sysent.h,v 1.2 1994/10/09 21:53:05 sos Exp
  */
 
 #ifndef _SYS_SYSENT_H_

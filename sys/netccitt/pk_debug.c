@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)pk_debug.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * pk_debug.c,v 1.2 1994/08/02 07:47:31 davidg Exp
  */
 
 #include <sys/param.h>

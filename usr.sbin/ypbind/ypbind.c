@@ -28,7 +28,7 @@
  */
 
 #ifndef LINT
-static char rcsid[] = "$Id: ypbind.c,v 1.1 1994/08/08 01:03:58 wollman Exp $";
+static char rcsid[] = "ypbind.c,v 1.2 1994/09/23 10:25:38 davidg Exp";
 #endif
 
 #include <sys/param.h>

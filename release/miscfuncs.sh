@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: miscfuncs.sh,v 1.9 1994/11/21 07:33:21 jkh Exp $
+# miscfuncs.sh,v 1.10 1994/11/22 09:02:46 jkh Exp
 
 if [ "$_MISCFUNCS_SH_LOADED_" = "yes" ]; then
 	return 0

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_pty.c	8.2 (Berkeley) 9/23/93
- * $Id: tty_pty.c,v 1.5 1994/10/02 17:35:30 phk Exp $
+ * tty_pty.c,v 1.6 1994/10/29 23:59:48 ache Exp
  */
 
 /*

@@ -6,7 +6,7 @@
  *
  * Questions, comments, bug reports and fixes to kimmel@cs.umass.edu.
  * 
- * $Id: if_el.c,v 1.7 1994/10/21 01:19:06 wollman Exp $
+ * if_el.c,v 1.8 1994/10/23 21:27:17 wollman Exp
  */
 /* Except of course for the portions of code lifted from other FreeBSD
  * drivers (mainly elread, elget and el_ioctl)

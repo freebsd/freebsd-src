@@ -1,7 +1,7 @@
 /*
  *	DMA buffer calls
  *
- * $Id: sound_calls.h,v 1.6 1994/09/27 17:58:28 davidg Exp $
+ * sound_calls.h,v 1.7 1994/10/01 02:17:10 swallace Exp
  */
 
 #ifndef _MACHINE_ISA_SOUND_H_

@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_trace.c,v 1.7 1994/08/06 10:25:33 davidg Exp $
+ *	db_trace.c,v 1.8 1994/08/13 03:49:37 wollman Exp
  */
 
 #include <sys/param.h>

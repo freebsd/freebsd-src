@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: mpu401.c,v 1.8 1994/08/02 07:40:12 davidg Exp $
+ * mpu401.c,v 1.9 1994/10/01 02:16:49 swallace Exp
  */
 
 #define USE_SEQ_MACROS

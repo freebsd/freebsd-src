@@ -18,7 +18,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: /a/cvs/386BSD/src/contrib/tcpdump/tcpdump/interface.h,v 1.1.1.1 1993/06/12 14:42:12 rgrimes Exp $ (LBL)
+ * @(#) /home/ncvs/src/usr.sbin/tcpdump/tcpdump/interface.h,v 1.2 1993/08/29 01:59:05 rgrimes Exp (LBL)
  */
 
 #ifdef __GNUC__

@@ -61,7 +61,7 @@
 #define TIMESIZE 50
 
 /* File scope variables */
-static char rcsid[] = "$Id: at.c,v 1.2 1993/12/06 04:10:42 cgd Exp $";
+static char rcsid[] = "at.c,v 1.1 1994/01/05 01:08:59 nate Exp";
 char *no_export[] =
 {
 	"TERM", "TERMCAP", "DISPLAY", "_"

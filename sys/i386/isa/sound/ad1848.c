@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ad1848.c,v 1.2 1994/10/01 02:16:28 swallace Exp $
+ * ad1848.c,v 1.3 1994/10/01 05:46:01 davidg Exp
  */
 
 #define DEB(x)

@@ -1,7 +1,7 @@
 #
 # MINI -- A kernel to get FreeBSD on onto a disk.
 #
-#	$Id: MINI,v 1.4 1994/10/20 00:19:37 phk Exp $
+#	MINI,v 1.5 1994/10/20 00:53:30 phk Exp
 #
 
 machine		"i386"

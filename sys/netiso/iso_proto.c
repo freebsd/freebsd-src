@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)iso_proto.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * iso_proto.c,v 1.2 1994/08/02 07:50:42 davidg Exp
  */
 
 /***********************************************************
@@ -60,8 +60,8 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* $Header: /home/ncvs/src/sys/netiso/iso_proto.c,v 1.1.1.1 1994/05/24 10:07:09 rgrimes Exp $ 
- * $Source: /home/ncvs/src/sys/netiso/iso_proto.c,v $ 
+/* /home/ncvs/src/sys/netiso/iso_proto.c,v 1.2 1994/08/02 07:50:42 davidg Exp 
+ * /home/ncvs/src/sys/netiso/iso_proto.c,v 
  *
  * iso_proto.c : protocol switch tables in the ISO domain
  *

@@ -1,5 +1,5 @@
-/* $Header: llparse.c,v 2.2 88/09/19 12:54:59 nhall Exp $ */
-/* $Source: /var/home/tadl/src/argo/xebec/RCS/llparse.c,v $ */
+/* /home/ncvs/src/sys/netiso/xebec/llparse.c,v 1.1.1.1 1994/05/24 10:07:51 rgrimes Exp */
+/* /home/ncvs/src/sys/netiso/xebec/llparse.c,v */
 /*
  * ************************* NOTICE *******************************
  * This code is in the public domain.  It cannot be copyrighted.

@@ -1,5 +1,5 @@
 #
-# $Id$
+# Makefile,v 1.5 1994/11/15 04:51:26 phk Exp
 #
 
 PROG =	c++

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_timer.h	8.1 (Berkeley) 6/10/93
- * $Id: tp_timer.h,v 1.2 1994/08/02 07:51:28 davidg Exp $
+ * tp_timer.h,v 1.3 1994/08/21 06:14:30 paul Exp
  */
 
 #ifndef _NETISO_TP_TIMER_H_
@@ -66,8 +66,8 @@ SOFTWARE.
 /* 
  * ARGO TP
  *
- * $Header: /home/ncvs/src/sys/netiso/tp_timer.h,v 1.2 1994/08/02 07:51:28 davidg Exp $
- * $Source: /home/ncvs/src/sys/netiso/tp_timer.h,v $
+ * /home/ncvs/src/sys/netiso/tp_timer.h,v 1.3 1994/08/21 06:14:30 paul Exp
+ * /home/ncvs/src/sys/netiso/tp_timer.h,v
  *
  * ARGO TP
  * The callout structures used by the tp timers.

@@ -56,7 +56,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id: reg_mul.c,v 1.2 1994/04/29 21:30:21 gclarkii Exp $
+ *     reg_mul.c,v 1.3 1994/06/10 07:44:53 rich Exp
  *
  */
 

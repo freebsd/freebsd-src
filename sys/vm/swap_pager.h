@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)swap_pager.h	7.1 (Berkeley) 12/5/90
- *	$Id: swap_pager.h,v 1.2 1994/05/25 09:18:39 rgrimes Exp $
+ *	swap_pager.h,v 1.3 1994/10/09 01:52:06 phk Exp
  */
 
 /*

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_trace.h	8.1 (Berkeley) 6/10/93
- * $Id: tp_trace.h,v 1.2 1994/08/02 07:51:31 davidg Exp $
+ * tp_trace.h,v 1.3 1994/08/21 06:14:32 paul Exp
  */
 
 #ifndef _NETISO_TP_TRACE_H_
@@ -66,8 +66,8 @@ SOFTWARE.
 /* 
  * ARGO TP
  *
- * $Header: /home/ncvs/src/sys/netiso/tp_trace.h,v 1.2 1994/08/02 07:51:31 davidg Exp $
- * $Source: /home/ncvs/src/sys/netiso/tp_trace.h,v $
+ * /home/ncvs/src/sys/netiso/tp_trace.h,v 1.3 1994/08/21 06:14:32 paul Exp
+ * /home/ncvs/src/sys/netiso/tp_trace.h,v
  *
  * 
  * Definitions needed for the protocol trace mechanism.

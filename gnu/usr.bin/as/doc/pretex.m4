@@ -2,7 +2,7 @@ divert(-1)				-*-Text-*-
 ` Copyright (c) 1991 Free Software Foundation, Inc.'
 ` This file defines and documents the M4 macros used '
 `      to preprocess some GNU manuals'
-` $Id: pretex.m4,v 1.1 1993/10/02 21:00:25 pk Exp $'
+` pretex.m4,v 1.1 1993/11/03 00:55:40 paul Exp'
 
 I. INTRODUCTION
 

@@ -41,7 +41,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ipc.h	8.3 (Berkeley) 1/21/94
- * $Id: ipc.h,v 1.3 1994/09/13 14:47:33 dfr Exp $
+ * ipc.h,v 1.4 1994/10/02 17:24:47 phk Exp
  */
 
 /*

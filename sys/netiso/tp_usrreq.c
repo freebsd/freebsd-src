@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_usrreq.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * tp_usrreq.c,v 1.2 1994/08/02 07:51:33 davidg Exp
  */
 
 /***********************************************************
@@ -63,8 +63,8 @@ SOFTWARE.
 /* 
  * ARGO TP
  *
- * $Header: /home/ncvs/src/sys/netiso/tp_usrreq.c,v 1.1.1.1 1994/05/24 10:06:40 rgrimes Exp $
- * $Source: /home/ncvs/src/sys/netiso/tp_usrreq.c,v $
+ * /home/ncvs/src/sys/netiso/tp_usrreq.c,v 1.2 1994/08/02 07:51:33 davidg Exp
+ * /home/ncvs/src/sys/netiso/tp_usrreq.c,v
  *
  * tp_usrreq(), the fellow that gets called from most of the socket code.
  * Pretty straighforward.

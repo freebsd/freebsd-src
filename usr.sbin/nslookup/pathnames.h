@@ -55,7 +55,7 @@
 
 /*
  *	@(#)pathnames.h	5.1 (Berkeley) 5/28/90
- *	$Id: pathnames.h,v 4.9.1.3 1993/09/16 09:02:07 vixie Exp $
+ *	pathnames.h,v 1.2 1994/09/22 21:50:37 pst Exp
  */
 
 #define	_PATH_NSLOOKUPRC	"/.nslookuprc"

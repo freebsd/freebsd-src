@@ -34,7 +34,7 @@ divert(-1)
 #
 
 include(`../m4/cf.m4')
-VERSIONID(`@(#)freefall.mc	$Revision: 1.1 $')
+VERSIONID(`@(#)freefall.mc	1.1')
 OSTYPE(bsd4.4)dnl
 MAILER(local)dnl
 MAILER(smtp)dnl

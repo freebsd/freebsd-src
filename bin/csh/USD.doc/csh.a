@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)csh.a	8.1 (Berkeley) 6/8/93
-.\"	$Id$
+.\"	csh.a,v 1.2 1994/09/24 02:54:28 davidg Exp
 .\"
 .SH
 Appendix \- Special characters

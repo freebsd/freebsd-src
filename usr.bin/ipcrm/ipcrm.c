@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ipcrm.c,v 1.3.2.1 1994/08/08 05:51:08 mycroft Exp $
+ * ipcrm.c,v 1.1 1994/09/13 16:52:12 dfr Exp
  */
 
 #include <stdio.h>

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)x25acct.h	8.1 (Berkeley) 6/10/93
- * $Id: x25acct.h,v 1.2 1994/08/02 07:47:52 davidg Exp $
+ * x25acct.h,v 1.3 1994/08/21 05:44:11 paul Exp
  */
 
 #ifndef _NETCCITT_X25ACCT_H_

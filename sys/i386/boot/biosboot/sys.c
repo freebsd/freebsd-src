@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:36:34  rpd
- *	$Id: sys.c,v 1.5 1994/09/20 22:25:00 adam Exp $
+ *	sys.c,v 1.6 1994/11/07 11:26:30 davidg Exp
  */
 
 #include "boot.h"

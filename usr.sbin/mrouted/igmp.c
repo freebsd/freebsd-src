@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: igmp.c,v 1.8 1994/08/24 23:53:32 thyagara Exp $
+ * igmp.c,v 1.2 1994/09/08 02:51:15 wollman Exp
  */
 
 

@@ -37,7 +37,7 @@
  *
  *	@(#)os-pyrOSx.h	8.1 (Berkeley) 6/6/93
  *
- * $Id: os-pyrOSx.h,v 5.2.2.1 1992/02/09 15:10:37 jsp beta $
+ * os-pyrOSx.h,v 1.1.1.1 1994/05/26 05:22:09 rgrimes Exp
  *
  * Pyramid OSx definitions for Amd (automounter)
  *		from Stefan Petri <petri@tubsibr.UUCP>

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)slip.h	8.1 (Berkeley) 2/12/94
- * $Id: slip.h,v 1.2 1994/08/02 07:46:50 davidg Exp $
+ * slip.h,v 1.3 1994/08/21 05:11:48 paul Exp
  */
 
 #ifndef _NET_SLIP_H_

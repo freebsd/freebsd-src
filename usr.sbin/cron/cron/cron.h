@@ -17,7 +17,7 @@
 
 /* cron.h - header for vixie's cron
  *
- * $Id: cron.h,v 2.10 1994/01/15 20:43:43 vixie Exp $
+ * cron.h,v 1.1.1.1 1994/08/27 13:43:04 jkh Exp
  *
  * vix 14nov88 [rest of log is in RCS]
  * vix 14jan87 [0 or 7 can be sunday; thanks, mwm@berkeley]

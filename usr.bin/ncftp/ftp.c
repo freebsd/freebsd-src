@@ -1,8 +1,8 @@
 /* ftp.c */
 
-/*  $RCSfile: ftp.c,v $
- *  $Revision: 14020.12 $
- *  $Date: 93/07/09 11:30:28 $
+/*  ftp.c,v
+ *  1.4
+ *  1994/11/04 06:11:37
  */
 
 #include "sys.h"

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id: kern_exit.c,v 1.11 1994/10/11 20:42:01 sos Exp $
+ * kern_exit.c,v 1.12 1994/10/27 05:21:39 phk Exp
  */
 
 #include <sys/param.h>

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: brk.S,v 1.3 1994/02/21 05:13:26 rgrimes Exp $
+ *	brk.S,v 1.1 1994/08/05 01:18:39 wollman Exp
  */
 
 #if defined(SYSLIBC_SCCS) && !defined(lint)

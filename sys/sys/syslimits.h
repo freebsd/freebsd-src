@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)syslimits.h	8.1 (Berkeley) 6/2/93
- * $Id: syslimits.h,v 1.4 1994/08/08 09:12:43 davidg Exp $
+ * syslimits.h,v 1.5 1994/08/21 04:41:59 paul Exp
  */
 
 #ifndef _SYS_SYSLIMITS_H_

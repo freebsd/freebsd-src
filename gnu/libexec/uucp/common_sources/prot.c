@@ -26,7 +26,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char prot_rcsid[] = "$Id: prot.c,v 1.30 1994/04/14 03:07:56 ian Rel $";
+const char prot_rcsid[] = "prot.c,v 1.2 1994/05/07 18:08:51 ache Exp";
 #endif
 
 #include <errno.h>

@@ -1,6 +1,9 @@
-/* $Header: pch.h,v 2.0.1.1 87/01/30 22:47:16 lwall Exp $
+/* /home/ncvs/src/gnu/usr.bin/patch/pch.h,v 1.1.1.1 1993/06/19 14:21:52 paul Exp
  *
- * $Log:	pch.h,v $
+ * pch.h,v
+ * Revision 1.1.1.1  1993/06/19  14:21:52  paul
+ * b-maked patch-2.10
+ *
  * Revision 2.0.1.1  87/01/30  22:47:16  lwall
  * Added do_ed_script().
  * 

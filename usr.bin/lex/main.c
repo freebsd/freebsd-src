@@ -32,7 +32,7 @@ char copyright[] =
  All rights reserved.\n";
 #endif /* not lint */
 
-/* $Header: main.c,v 1.2 94/01/04 14:33:11 vern Exp $ */
+/* /home/ncvs/src/usr.bin/lex/main.c,v 1.1.1.1 1994/08/24 13:10:32 csgr Exp */
 
 
 #include "flexdef.h"

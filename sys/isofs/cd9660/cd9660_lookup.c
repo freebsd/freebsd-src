@@ -38,7 +38,7 @@
  *	from: @(#)ufs_lookup.c	7.33 (Berkeley) 5/19/91
  *
  *	@(#)cd9660_lookup.c	8.2 (Berkeley) 1/23/94
- * $Id: cd9660_lookup.c,v 1.4 1994/09/15 19:45:58 bde Exp $
+ * cd9660_lookup.c,v 1.5 1994/09/26 00:32:54 gpalmer Exp
  */
 
 #include <sys/param.h>

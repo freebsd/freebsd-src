@@ -5,7 +5,7 @@
  * Berkeley style copyright.  
  *
  *
- * $Id: scsi_ioctl.c,v 1.7 1994/08/02 07:52:33 davidg Exp $
+ * scsi_ioctl.c,v 1.8 1994/10/08 22:26:37 phk Exp
  */
 #include <sys/param.h>
 #include <sys/systm.h>

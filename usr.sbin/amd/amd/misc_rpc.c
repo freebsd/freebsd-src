@@ -37,7 +37,7 @@
  *
  *	@(#)misc_rpc.c	8.1 (Berkeley) 6/6/93
  *
- * $Id: misc_rpc.c,v 5.2.2.1 1992/02/09 15:08:40 jsp beta $
+ * misc_rpc.c,v 1.1.1.1 1994/05/26 05:22:01 rgrimes Exp
  *
  */
 

@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)stdio.h	5.17 (Berkeley) 6/3/91
- *	$Id$
+ *	scsi_generic.h,v 1.2 1993/10/16 17:21:05 rgrimes Exp
  */
 
 /* generic SCSI header file.  We use the same minor number format

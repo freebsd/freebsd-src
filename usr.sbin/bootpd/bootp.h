@@ -23,7 +23,7 @@ SOFTWARE.
 /*
  * Bootstrap Protocol (BOOTP).  RFC951 and RFC1395.
  *
- * $Id: bootp.h,v 1.2 1994/08/22 22:14:40 gwr Exp $
+ * bootp.h,v 1.1.1.1 1994/09/10 14:44:54 csgr Exp
  *
  *
  * This file specifies the "implementation-independent" BOOTP protocol

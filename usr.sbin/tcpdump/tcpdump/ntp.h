@@ -1,4 +1,4 @@
-/* $Header: ntp.h,v 1.1 90/08/07 11:08:27 mogul Exp $ */
+/* /home/ncvs/src/usr.sbin/tcpdump/tcpdump/ntp.h,v 1.1.1.1 1993/06/12 14:42:11 rgrimes Exp */
 
 /*
  * Based on ntp.h from the U of MD implementation

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)iso.c	8.2 (Berkeley) 11/15/93
- * $Id$
+ * iso.c,v 1.2 1994/08/02 07:50:26 davidg Exp
  */
 
 /***********************************************************
@@ -61,8 +61,8 @@ SOFTWARE.
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
 /*
- * $Header: /home/ncvs/src/sys/netiso/iso.c,v 1.1.1.1 1994/05/24 10:07:13 rgrimes Exp $ 
- * $Source: /home/ncvs/src/sys/netiso/iso.c,v $ 
+ * /home/ncvs/src/sys/netiso/iso.c,v 1.2 1994/08/02 07:50:26 davidg Exp 
+ * /home/ncvs/src/sys/netiso/iso.c,v 
  *
  * iso.c: miscellaneous routines to support the iso address family
  */

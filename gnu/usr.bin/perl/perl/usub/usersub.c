@@ -1,6 +1,9 @@
-/* $RCSfile: usersub.c,v $$Revision: 1.1.1.1 $$Date: 1993/08/23 21:30:07 $
+/* usersub.c,v1.1.1.11994/09/10 06:27:37
  *
- * $Log: usersub.c,v $
+ * usersub.c,v
+ * Revision 1.1.1.1  1994/09/10  06:27:37  gclarkii
+ * Initial import of Perl 4.046 bmaked
+ *
  * Revision 1.1.1.1  1993/08/23  21:30:07  nate
  * PERL!
  *

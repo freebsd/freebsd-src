@@ -8,7 +8,7 @@
 
 ******************************************************************************/
 /*
- * $Id: $
+ * pss.h,v 1.2 1994/10/01 02:17:01 swallace Exp
  */
 /* Port offsets from base port for Sound Blaster DSP */
 #define DSP_PORT_CMSD0      0x00  /* C/MS music voice 1-6 data port, write only */

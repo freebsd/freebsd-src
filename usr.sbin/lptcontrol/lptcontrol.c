@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: lptcontrol.c,v 1.1.1.1 1994/09/03 13:10:09 csgr Exp $
+ * lptcontrol.c,v 1.2 1994/09/03 22:46:50 csgr Exp
  */
 
 #include <ctype.h>

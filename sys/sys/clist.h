@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)clist.h	8.1 (Berkeley) 6/4/93
- * $Id: clist.h,v 1.3 1994/08/02 07:52:43 davidg Exp $
+ * clist.h,v 1.4 1994/08/21 04:41:35 paul Exp
  */
 
 #ifndef _SYS_CLIST_H_

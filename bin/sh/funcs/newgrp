@@ -33,6 +33,6 @@
 # SUCH DAMAGE.
 #
 #	@(#)newgrp	8.1 (Berkeley) 5/31/93
-#	$Id$
+#	newgrp,v 1.2 1994/09/24 02:58:40 davidg Exp
 
 newgrp() exec newgrp "$@"

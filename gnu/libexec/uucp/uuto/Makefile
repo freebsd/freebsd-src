@@ -1,5 +1,5 @@
 # Makefile for uuto
-# $Id: Makefile,v 1.1 1993/08/05 18:28:09 conklin Exp $
+# Makefile,v 1.2 1993/08/06 23:28:02 rgrimes Exp
 
 BINDIR=		$(bindir)
 

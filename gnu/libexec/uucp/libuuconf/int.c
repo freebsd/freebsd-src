@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_int_rcsid[] = "$Id: int.c,v 1.4 1994/01/30 21:14:29 ian Rel $";
+const char _uuconf_int_rcsid[] = "int.c,v 1.2 1994/05/07 18:12:33 ache Exp";
 #endif
 
 /* Parse a string into a variable.  This is called by uuconf_cmd_args,

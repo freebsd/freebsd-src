@@ -1,7 +1,7 @@
 /*
 **	dynamically loadable clk driver
 **
-**	$Header: /usr/src/etc/xntp3.3ww/kernel/RCS/clkinit.c,v 1.1 1994/06/15 22:14:38 rob Exp $
+**	/home/ncvs/src/usr.sbin/xntpd/kernel/clkinit.c,v 1.1.1.1 1994/09/29 23:02:47 wollman Exp
 **
 **	william robertson <rob@agate.berkeley.edu>  
 */

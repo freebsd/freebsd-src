@@ -262,4 +262,4 @@ Mountpoint	Filesystem size
 /usr/X11R6	50Mb	If you load the entire XFree86 binary kit.
 
 
-$Id: DISKSPACE.FAQ,v 1.6 1994/11/18 10:32:43 jkh Exp $
+DISKSPACE.FAQ,v 1.7 1994/11/21 01:30:03 jkh Exp

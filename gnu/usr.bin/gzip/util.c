@@ -5,7 +5,7 @@
  */
 
 #ifdef RCSID
-static char rcsid[] = "$Id: util.c,v 0.15 1993/06/15 09:04:13 jloup Exp $";
+static char rcsid[] = "util.c,v 1.3 1993/10/14 00:33:26 nate Exp";
 #endif
 
 #include <ctype.h>

@@ -70,7 +70,7 @@ char copyright[] =
 
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)named-xfer.c	4.18 (Berkeley) 3/7/91";
-static char rcsid[] = "$Id: named-xfer.c,v 4.9.1.23 1994/07/22 08:42:39 vixie Exp $";
+static char rcsid[] = "named-xfer.c,v 1.2 1994/09/22 20:45:34 pst Exp";
 #endif /* not lint */
 
 #include <sys/param.h>

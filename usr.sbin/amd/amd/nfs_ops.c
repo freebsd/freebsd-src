@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: nfs_ops.c,v 5.2.2.2 1992/05/31 16:35:05 jsp Exp $
+ * nfs_ops.c,v 1.1.1.1 1994/05/26 05:22:02 rgrimes Exp
  */
 
 #ifndef lint

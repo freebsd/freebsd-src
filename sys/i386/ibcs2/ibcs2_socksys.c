@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ibcs2_socksys.c,v 1.1 1994/10/14 08:53:08 sos Exp $
+ *	ibcs2_socksys.c,v 1.2 1994/10/17 22:13:08 sos Exp
  */
 
 #include <sys/param.h>

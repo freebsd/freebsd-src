@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: bt742a.c,v 1.29 1994/10/23 21:27:10 wollman Exp $
+ *      bt742a.c,v 1.30 1994/11/08 02:53:42 jkh Exp
  */
 
 /*

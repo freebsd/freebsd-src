@@ -35,7 +35,7 @@
  *
  *	@(#)null_vnops.c	8.1 (Berkeley) 6/10/93
  *
- * $Id: null_vnops.c,v 1.5 1994/09/21 23:22:41 wollman Exp $
+ * null_vnops.c,v 1.6 1994/10/10 07:55:29 phk Exp
  */
 
 /*

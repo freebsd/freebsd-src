@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)clnp_stat.h	8.1 (Berkeley) 6/10/93
- * $Id: clnp_stat.h,v 1.2 1994/08/02 07:49:47 davidg Exp $
+ * clnp_stat.h,v 1.3 1994/08/21 06:14:13 paul Exp
  */
 
 #ifndef _NETISO_CLNP_STAT_H_
@@ -63,8 +63,8 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* $Header: /home/ncvs/src/sys/netiso/clnp_stat.h,v 1.2 1994/08/02 07:49:47 davidg Exp $ */
-/* $Source: /home/ncvs/src/sys/netiso/clnp_stat.h,v $ */
+/* /home/ncvs/src/sys/netiso/clnp_stat.h,v 1.3 1994/08/21 06:14:13 paul Exp */
+/* /home/ncvs/src/sys/netiso/clnp_stat.h,v */
 
 struct clnp_stat {
 	int cns_total;			/* total pkts received */

@@ -1,4 +1,4 @@
-/* $Id: pathnames.h,v 1.1 1994/05/27 07:50:08 pst Exp $ (FreeBSD) */
+/* pathnames.h,v 1.2 1994/10/19 00:03:14 pst Exp (FreeBSD) */
 
 #include <paths.h>
 

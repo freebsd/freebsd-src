@@ -1,7 +1,7 @@
 /* options.h - specify the conditionally-compiled features
  * vix 28mar92 [moved out of the Makefile because they were getting too big]
  *
- * $Id: options.h,v 4.9.1.16 1994/07/22 08:42:30 vixie Exp $
+ * options.h,v 1.1 1994/09/22 20:45:07 pst Exp
  */
 
 /*

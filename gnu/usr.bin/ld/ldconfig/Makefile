@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.6 1994/02/13 20:42:18 jkh Exp $
+#	Makefile,v 1.7 1994/04/13 20:49:42 ats Exp
 
 PROG=	ldconfig
 SRCS=	ldconfig.c shlib.c etc.c

@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_lineno_rcsid[] = "$Id: lineno.c,v 1.3 1994/01/30 21:14:29 ian Rel $";
+const char _uuconf_lineno_rcsid[] = "lineno.c,v 1.2 1994/05/07 18:12:35 ache Exp";
 #endif
 
 /* Return the saved line number.  */

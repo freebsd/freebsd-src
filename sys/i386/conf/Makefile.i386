@@ -1,6 +1,6 @@
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.48 1994/10/25 19:34:57 bde Exp $
+#	Makefile.i386,v 1.49 1994/11/15 14:43:45 bde Exp
 #
 # Makefile for FreeBSD
 #

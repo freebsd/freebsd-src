@@ -1,4 +1,4 @@
-$Id: nslookup.help,v 4.9.1.3 1993/12/06 00:43:17 vixie Exp $
+nslookup.help,v 1.1.1.1 1994/09/22 21:36:02 pst Exp
 
 Commands: 	(identifiers are shown in uppercase, [] means optional)
 NAME		- print info about the host/domain NAME using default server

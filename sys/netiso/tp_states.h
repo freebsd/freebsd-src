@@ -1,5 +1,5 @@
 /*
- * $Id: tp_states.h,v 1.3 1994/08/05 12:33:30 davidg Exp $
+ * tp_states.h,v 1.4 1994/08/21 06:14:29 paul Exp
  */
 
 #ifndef _NETISO_TP_STATES_H_

@@ -11,7 +11,7 @@
  *   of this software, nor does the author assume any responsibility
  *   for damages incurred with its use.
  *
- * $Id: if_is.c,v 1.30 1994/10/26 00:16:19 phk Exp $
+ * if_is.c,v 1.31 1994/10/29 10:19:32 phk Exp
  */
 
 /* TODO

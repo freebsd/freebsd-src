@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)iso_snpac.h	8.1 (Berkeley) 6/10/93
- * $Id: iso_snpac.h,v 1.2 1994/08/02 07:50:47 davidg Exp $
+ * iso_snpac.h,v 1.3 1994/08/21 06:14:21 paul Exp
  */
 
 #ifndef _NETISO_ISO_SNPAC_H_

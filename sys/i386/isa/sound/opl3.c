@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: opl3.c,v 1.6 1994/08/02 07:40:13 davidg Exp $
+ * opl3.c,v 1.7 1994/10/01 02:16:50 swallace Exp
  */
 
 /*

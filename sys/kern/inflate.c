@@ -7,7 +7,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: inflate.c,v 1.3 1994/10/11 11:29:11 csgr Exp $
+ * inflate.c,v 1.4 1994/10/22 11:40:28 phk Exp
  *
  *
  */

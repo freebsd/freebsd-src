@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_vinit_rcsid[] = "$Id: vinit.c,v 1.3 1994/01/30 21:14:29 ian Rel $";
+const char _uuconf_vinit_rcsid[] = "vinit.c,v 1.2 1994/05/07 18:13:21 ache Exp";
 #endif
 
 #include <errno.h>

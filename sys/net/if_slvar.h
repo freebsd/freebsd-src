@@ -32,7 +32,7 @@
  *
  *	@(#)if_slvar.h	8.3 (Berkeley) 2/1/94
  *
- * $Id: if_slvar.h,v 1.3 1994/08/21 05:11:43 paul Exp $
+ * if_slvar.h,v 1.4 1994/10/08 01:40:23 phk Exp
  */
 
 #ifndef _NET_IF_SLVAR_H_

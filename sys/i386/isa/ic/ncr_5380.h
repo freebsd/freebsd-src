@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id$
+ * ncr_5380.h,v 1.2 1994/09/11 20:29:18 phk Exp
  *
  * Definitions for 5380 SCSI-controller chip.
  *

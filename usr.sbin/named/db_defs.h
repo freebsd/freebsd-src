@@ -1,6 +1,6 @@
 /*
  *	from db.h	4.16 (Berkeley) 6/1/90
- *	$Id: db_defs.h,v 1.11 1994/07/22 08:42:39 vixie Exp $
+ *	db_defs.h,v 1.1.1.1 1994/09/22 19:46:14 pst Exp
  */
 
 /*

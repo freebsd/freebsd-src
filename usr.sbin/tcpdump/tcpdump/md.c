@@ -21,7 +21,7 @@
 
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Header: md-vax.c,v 1.3 90/10/03 14:14:33 mccanne Locked $ (LBL)";
+    "@(#) /home/ncvs/src/usr.sbin/tcpdump/tcpdump/md.c,v 1.1.1.1 1993/06/12 14:42:12 rgrimes Exp (LBL)";
 #endif
 
 /* Vaxen appear to have clocks accurate to 1 us,

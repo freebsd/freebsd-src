@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: vector.s,v 1.9 1994/09/20 21:35:49 bde Exp $
+ *	vector.s,v 1.10 1994/11/01 23:29:50 bde Exp
  */
 
 #include <i386/isa/icu.h>

@@ -1,11 +1,14 @@
-/* $RCSfile: doio.c,v $$Revision: 1.2 $$Date: 1994/03/09 22:24:27 $
+/* tdoio.c,v1.1.1.11994/09/10 06:27:36
  *
  *    Copyright (c) 1991, Larry Wall
  *
  *    You may distribute under the terms of either the GNU General Public
  *    License or the Artistic License, as specified in the README file.
  *
- * $Log: doio.c,v $
+ * tdoio.c,v
+ * Revision 1.1.1.1  1994/09/10  06:27:36  gclarkii
+ * Initial import of Perl 4.046 bmaked
+ *
  * Revision 1.2  1994/03/09  22:24:27  ache
  * (cast) added for last argument of semctl
  *

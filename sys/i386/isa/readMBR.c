@@ -15,7 +15,7 @@
  * written by julian elischer (julian@tfs.com)
  *
  *	@(#)readMBR.c	8.5 (tfs) 1/21/94
- * $Id: readMBR.c,v 1.3 1994/11/08 10:35:52 phk Exp $
+ * readMBR.c,v 1.4 1994/11/14 13:22:41 bde Exp
  */
 
 #include <sys/param.h>

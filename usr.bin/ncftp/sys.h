@@ -2,9 +2,9 @@
  * See the README for details.
  */
 
-/*  $RCSfile: sys.h,v $
- *  $Revision: 14020.13 $
- *  $Date: 93/06/21 06:42:11 $
+/*  sys.h,v
+ *  1.5
+ *  1994/11/04 06:59:17
  */
 
 

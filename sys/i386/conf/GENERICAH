@@ -1,7 +1,7 @@
 #
 # GENERICAH -- Generic machine with WD/AHx/NCR family disks
 #
-#	$Id: GENERICAH,v 1.53 1994/10/20 00:53:26 phk Exp $
+#	GENERICAH,v 1.54 1994/11/13 10:17:05 gibbs Exp
 #
 
 machine		"i386"

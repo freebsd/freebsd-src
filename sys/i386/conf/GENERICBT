@@ -1,7 +1,7 @@
 #
 # GENERICBT -- Generic machine with WD/BTx family disks
 #
-#	$Id: GENERICBT,v 1.49 1994/10/20 00:53:28 phk Exp $
+#	GENERICBT,v 1.50 1994/11/13 10:17:06 gibbs Exp
 #
 
 machine		"i386"

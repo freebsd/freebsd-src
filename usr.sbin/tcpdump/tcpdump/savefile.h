@@ -18,7 +18,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Header: savefile.h,v 1.10 90/12/17 13:48:58 mccanne Exp $
+ * /home/ncvs/src/usr.sbin/tcpdump/tcpdump/savefile.h,v 1.1.1.1 1993/06/12 14:42:06 rgrimes Exp
  *
  * Header for offline storage info.
  * Extraction/creation by Jeffrey Mogul, DECWRL.

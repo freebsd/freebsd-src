@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)specdev.h	8.2 (Berkeley) 2/2/94
- * $Id$
+ * specdev.h,v 1.2 1994/08/02 07:45:30 davidg Exp
  */
 
 /*

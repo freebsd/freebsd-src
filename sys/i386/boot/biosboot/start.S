@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:36:29  rpd
- *	$Id: start.S,v 1.4 1994/10/02 05:18:26 rgrimes Exp $
+ *	start.S,v 1.5 1994/10/06 09:41:05 rgrimes Exp
  */
 
 /*

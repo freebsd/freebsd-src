@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_sym.c,v 1.6 1994/08/20 03:48:26 davidg Exp $
+ *	db_sym.c,v 1.7 1994/09/27 03:34:57 phk Exp
  */
 
 /*

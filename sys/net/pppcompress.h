@@ -39,7 +39,7 @@
  *	- added sl_uncompress_tcp_part.
  *
  *	From: 	slcompress.h	7.4	90/06/28
- *	$Id: slcompress.h,v 1.5 1994/01/15 20:13:16 deraadt Exp $
+ *	pppcompress.h,v 1.2 1994/09/23 00:13:22 wollman Exp
  */
 
 #ifndef _NET_PPPCOMPRESS_H_

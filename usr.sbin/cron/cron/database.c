@@ -16,7 +16,7 @@
  */
 
 #if !defined(lint) && !defined(LINT)
-static char rcsid[] = "$Id: database.c,v 2.8 1994/01/15 20:43:43 vixie Exp $";
+static char rcsid[] = "database.c,v 1.1.1.1 1994/08/27 13:43:03 jkh Exp";
 #endif
 
 /* vix 26jan87 [RCS has the log]

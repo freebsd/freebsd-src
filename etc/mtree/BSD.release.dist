@@ -1,4 +1,4 @@
-#	$Id$
+#	BSD.release.dist,v 1.2 1994/09/19 01:40:36 rgrimes Exp
 #
 
 /set type=dir uname=root gname=wheel mode=0755

@@ -3,9 +3,19 @@
 
 /*
  * Patchlevel file for Ian Darwin's MAGIC command.
- * $Id: patchlevel.h,v 1.14 1994/05/03 17:58:23 christos Exp $
+ * patchlevel.h,v 1.1.1.1 1994/09/03 19:16:23 csgr Exp
  *
- * $Log: patchlevel.h,v $
+ * patchlevel.h,v
+ * Revision 1.1.1.1  1994/09/03  19:16:23  csgr
+ * Bring in file 3.14 by Ian Darwin (and Christos Zoulas)
+ *
+ * The following files were moved to different names:
+ * - file.man -> file.1
+ * - magic.man -> magic.5
+ *
+ * The following file was removed:
+ * - Magdir/Makefile
+ *
  * Revision 1.14  1994/05/03  17:58:23  christos
  * changes from mycroft@gnu.ai.mit.edu (Charles Hannum) for unsigned
  *

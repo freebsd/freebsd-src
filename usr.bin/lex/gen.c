@@ -26,7 +26,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-/* $Header: /home/daffy/u0/vern/flex/flex-2.4.7/RCS/gen.c,v 1.3 94/08/03 11:37:45 vern Exp $ */
+/* /home/ncvs/src/usr.bin/lex/gen.c,v 1.1.1.1 1994/08/24 13:10:32 csgr Exp */
 
 #include "flexdef.h"
 

@@ -2,7 +2,7 @@
 /*
  *                     RCS common definitions and data structures
  */
-#define RCSBASE "$Id: rcsbase.h,v 1.1.1.1 1993/06/18 04:22:13 jkh Exp $"
+#define RCSBASE "rcsbase.h,v 1.2 1994/05/14 07:00:20 rgrimes Exp"
 
 /* Copyright (C) 1982, 1988, 1989 Walter Tichy
    Copyright 1990, 1991 by Paul Eggert
@@ -42,7 +42,12 @@ Report problems and direct all questions to:
  */
 
 
-/* $Log: rcsbase.h,v $
+/* rcsbase.h,v
+ * Revision 1.2  1994/05/14  07:00:20  rgrimes
+ * Add new option -K from David Dawes that allows you to turn on and off
+ * specific keyword substitution during a rcs co command.
+ * Add the new keyword FreeBSD that is IDENTICAL in operation to $Id$.
+ *
  * Revision 1.1.1.1  1993/06/18  04:22:13  jkh
  * Updated GNU utilities
  *

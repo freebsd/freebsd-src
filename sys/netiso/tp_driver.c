@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * tp_driver.c,v 1.2 1994/08/02 07:50:59 davidg Exp
  */
 #define _XEBEC_PG static
 

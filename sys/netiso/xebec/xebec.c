@@ -1,5 +1,5 @@
-/* $Header: xebec.c,v 2.2 88/09/19 12:55:37 nhall Exp $ */
-/* $Source: /var/home/tadl/src/argo/xebec/RCS/xebec.c,v $ */
+/* /home/ncvs/src/sys/netiso/xebec/xebec.c,v 1.1.1.1 1994/05/24 10:07:43 rgrimes Exp */
+/* /home/ncvs/src/sys/netiso/xebec/xebec.c,v */
 
 #include "xebec.h"
 #include "llparse.h"

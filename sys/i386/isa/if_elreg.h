@@ -4,7 +4,7 @@
  * of the software, derivative works or modified versions, and any
  * portions thereof.
  *
- * $Id$
+ * if_elreg.h,v 1.2 1994/08/02 07:39:34 davidg Exp
  */
 /* 3COM Etherlink 3C501 Register Definitions */
 

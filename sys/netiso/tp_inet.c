@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_inet.c	8.1 (Berkeley) 6/10/93
- * $Id: tp_inet.c,v 1.2 1994/08/02 07:51:08 davidg Exp $
+ * tp_inet.c,v 1.3 1994/11/15 14:26:16 bde Exp
  */
 
 /***********************************************************
@@ -62,8 +62,8 @@ SOFTWARE.
  */
 /* 
  * ARGO TP
- * $Header: /home/ncvs/src/sys/netiso/tp_inet.c,v 1.2 1994/08/02 07:51:08 davidg Exp $ 
- * $Source: /home/ncvs/src/sys/netiso/tp_inet.c,v $
+ * /home/ncvs/src/sys/netiso/tp_inet.c,v 1.3 1994/11/15 14:26:16 bde Exp 
+ * /home/ncvs/src/sys/netiso/tp_inet.c,v
  *
  * Here is where you find the inet-dependent code.  We've tried
  * keep all net-level and (primarily) address-family-dependent stuff

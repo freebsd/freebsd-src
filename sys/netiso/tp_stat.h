@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_stat.h	8.1 (Berkeley) 6/10/93
- * $Id: tp_stat.h,v 1.2 1994/08/02 07:51:23 davidg Exp $
+ * tp_stat.h,v 1.3 1994/08/21 06:14:28 paul Exp
  */
 
 #ifndef _NETISO_TP_STAT_H_
@@ -66,8 +66,8 @@ SOFTWARE.
 /* 
  * ARGO TP
  *
- * $Header: /home/ncvs/src/sys/netiso/tp_stat.h,v 1.2 1994/08/02 07:51:23 davidg Exp $
- * $Source: /home/ncvs/src/sys/netiso/tp_stat.h,v $
+ * /home/ncvs/src/sys/netiso/tp_stat.h,v 1.3 1994/08/21 06:14:28 paul Exp
+ * /home/ncvs/src/sys/netiso/tp_stat.h,v
  *
  * Here are the data structures in which the global
  * statistics(counters) are gathered.

@@ -8,7 +8,7 @@
  *	of this software, nor does the author assume any responsibility
  *	for damages incurred with its use.
  *
- *	$Id: ctx.c,v 1.3 1994/10/21 01:19:05 wollman Exp $
+ *	ctx.c,v 1.4 1994/10/23 21:27:11 wollman Exp
  */
 
 /*

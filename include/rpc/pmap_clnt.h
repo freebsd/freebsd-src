@@ -28,7 +28,7 @@
  *
  *	from: @(#)pmap_clnt.h 1.11 88/02/08 SMI 
  *	from: @(#)pmap_clnt.h	2.1 88/07/29 4.0 RPCSRC
- *	$Id: pmap_clnt.h,v 1.1 1993/10/27 05:40:33 paul Exp $
+ *	pmap_clnt.h,v 1.2 1994/08/07 18:40:56 wollman Exp
  */
 
 /*

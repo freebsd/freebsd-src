@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * cmpdi2.c,v 1.2 1994/08/02 07:43:53 davidg Exp
  */
 
 #include "quad.h"

@@ -28,7 +28,7 @@
  *
  *	from: @(#)types.h 1.18 87/07/24 SMI
  *	from: @(#)types.h	2.3 88/08/15 4.0 RPCSRC
- *	$Id: types.h,v 1.1 1993/10/27 05:41:04 paul Exp $
+ *	types.h,v 1.2 1994/08/07 18:41:01 wollman Exp
  */
 
 /*

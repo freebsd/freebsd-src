@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.57 1994/11/21 08:15:25 phk Exp $
+#	Makefile,v 1.58 1994/11/22 05:21:06 phk Exp
 #
 
 # Evil floppies are, of course, 1.2MB floppies.

@@ -1,0 +1,6088 @@
+From julian Wed Aug 24 18:55:24 1994
+Return-Path: <julian>
+Received: by tfs.com (smail3.1.28.1) 
+Message-Id: <m0qdU2E-0003wQC@TFS.COM>
+Date: Wed, 24 Aug 94 18:55 PDT
+From: julian (Julian Elischer)
+To: phk
+Subject: patch por rockridge
+Status: RO
+
+
+> From dfr@render.com Mon Aug 22 12:36:15 PDT 1994
+> Article: 2309 of comp.os.386bsd.bugs
+> Path: tfs.com!agate!howland.reston.ans.net!cs.utexas.edu!uunet!news.sprintlink.net!demon!minnow.render.com!minnow.render.com!dfr
+> From: dfr@render.com (Doug Rabson)
+> Newsgroups: comp.os.386bsd.bugs
+> Subject: RockRidge fixes for FreeBSD-1.1.5 (long)
+> Date: 22 Aug 1994 12:31:25 GMT
+> Organization: RenderMorphics Ltd.
+> Lines: 6062
+> Message-ID: <DFR.94Aug22133125@minnow.render.com>
+> NNTP-Posting-Host: minnow.render.com
+> 
+> I have had a couple of requests for this.  These patches are based on
+> a patch set which I had for FreeBSD-1.1 which contained a port of
+> NetBSD's isofs to FreeBSD.
+> 
+> I have minimally tested it and it appears to work for my only
+> RockRidge CD (X11R6) and several ordinary CDs.  There appears to be a
+> problem in exporting CDs over NFS.  Some long directories get
+> truncated.
+Poul, the problem refered to is apparently not fixable under the present
+1.1.5.1 vfs system (so he says)
+so I think this should be added as well
+
+------------------------------cut here------------------------------
+diff -cr sbin/mount_isofs/Makefile src/sbin/mount_isofs/Makefile
+*** sbin/mount_isofs/Makefile	Wed Jul 21 22:57:33 1993
+--- src/sbin/mount_isofs/Makefile	Mon Aug 15 15:17:59 1994
+***************
+*** 1,4 ****
+! #	patch013,v 1.1.1.1 1994/09/01 23:28:29 phk Exp
+  
+  PROG = mount_isofs
+  MAN8 = mount_isofs.8
+--- 1,4 ----
+! #	patch013,v 1.1.1.1 1994/09/01 23:28:29 phk Exp
+  
+  PROG = mount_isofs
+  MAN8 = mount_isofs.8
+diff -cr sbin/mount_isofs/mount_isofs.8 src/sbin/mount_isofs/mount_isofs.8
+*** sbin/mount_isofs/mount_isofs.8	Mon Feb  7 02:47:56 1994
+--- src/sbin/mount_isofs/mount_isofs.8	Mon Aug 15 15:17:59 1994
+***************
+*** 14,20 ****
+  .\"    must display the following acknowledgement:
+  .\"      This product includes software developed by Christopher G. Demetriou.
+  .\" 3. The name of the author may not be used to endorse or promote products
+! .\"    derived from this software withough specific prior written permission
+  .\"
+  .\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+  .\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+--- 14,20 ----
+  .\"    must display the following acknowledgement:
+  .\"      This product includes software developed by Christopher G. Demetriou.
+  .\" 3. The name of the author may not be used to endorse or promote products
+! .\"    derived from this software without specific prior written permission
+  .\"
+  .\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+  .\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+***************
+*** 27,37 ****
+  .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+  .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  .\"
+! .\"	patch013,v 1.1.1.1 1994/09/01 23:28:29 phk Exp
+  .\"
+  .Dd July 19, 1993
+  .Dt MOUNT_ISOFS 8
+! .Os
+  .Sh NAME
+  .Nm mount_isofs
+  .Nd mount an ISO-9660 filesystem
+--- 27,37 ----
+  .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+  .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  .\"
+! .\"	patch013,v 1.1.1.1 1994/09/01 23:28:29 phk Exp
+  .\"
+  .Dd July 19, 1993
+  .Dt MOUNT_ISOFS 8
+! .Os NetBSD 0.9
+  .Sh NAME
+  .Nm mount_isofs
+  .Nd mount an ISO-9660 filesystem
+***************
+*** 39,44 ****
+--- 39,46 ----
+  .Nm mount_isofs
+  .Op Fl F Ar fsoptions
+  .Op Fl norrip
++ .Op Fl gen
++ .Op Fl extattr
+  .Pa special
+  .Pa node
+  .Sh DESCRIPTION
+***************
+*** 51,57 ****
+  indicated by
+  .Pa node .
+  This command is normally executed by
+! .Xr mount 8 .
+  at boot time.
+  .Pp
+  If the filesystem includes Rockridge extensions, they are
+--- 53,59 ----
+  indicated by
+  .Pa node .
+  This command is normally executed by
+! .Xr mount 8
+  at boot time.
+  .Pp
+  If the filesystem includes Rockridge extensions, they are
+***************
+*** 60,71 ****
+  flag is used.  If that option is given to
+  .Nm
+  then the Rockridge extensions will be ignored.
+  .Sh EXAMPLES
+  .Bd -literal -offset indent -compact
+! mount_isofs /dev/cd0a /cdrom
+! mount_isofs \-norrip /dev/cd0a /cdrom
+! mount \-t isofs /dev/cd0a /cdrom
+! mount \-t isofs \-o \-norrip /dev/cd0a /cdrom
+  .Ed
+  .Sh SEE ALSO
+  .Xr mount 2 ,
+--- 62,89 ----
+  flag is used.  If that option is given to
+  .Nm
+  then the Rockridge extensions will be ignored.
++ .Pp
++ Version numbers on files are normally stripped on directory listings.
++ If you want to see those, use the
++ .Fl gen
++ flag.
++ Otherwise, if there are files with different version numbers on the disk,
++ only the last one will be listed.
++ In either case, you may open a file with or without explicitly stating the
++ version number.
++ .Pp
++ If a disk contains extended attributes, they are normally ignored.
++ You can enable the usage of extended attributes with the
++ .Fl extattr
++ flag.
+  .Sh EXAMPLES
+  .Bd -literal -offset indent -compact
+! mount_isofs /dev/cd0d /cdrom
+! mount_isofs \-norrip /dev/cd0d /cdrom
+! mount_isofs \-norrip \-gen /dev/cd0d /cdrom
+! mount \-t isofs /dev/cd0d /cdrom
+! mount \-t isofs \-o \-norrip /dev/cd0d /cdrom
+! mount \-t isofs \-o \-gen,\-extattr /dev/cd0d /cdrom
+  .Ed
+  .Sh SEE ALSO
+  .Xr mount 2 ,
+***************
+*** 76,82 ****
+  ("CDROM001") format;
+  it does not.
+  .Pp
+! POSIX device nodes are currently not supported.
+  .Pp
+  The filesystem name might need some rethinking, and some would
+  say it should run as a user process.
+--- 94,105 ----
+  ("CDROM001") format;
+  it does not.
+  .Pp
+! POSIX device node mapping is currently not supported.
+! .Pp
+! Version numbers are not stripped if Rockridge extensions are in use.
+! In this case, accessing files that don't have Rockridge names without
+! version numbers gets the one with the lowest version number and not
+! the one with the highest.
+  .Pp
+  The filesystem name might need some rethinking, and some would
+  say it should run as a user process.
+diff -cr sbin/mount_isofs/mount_isofs.c src/sbin/mount_isofs/mount_isofs.c
+*** sbin/mount_isofs/mount_isofs.c	Sun Oct 24 04:30:08 1993
+--- src/sbin/mount_isofs/mount_isofs.c	Mon Aug 15 16:02:41 1994
+***************
+*** 1,9 ****
+  #ifndef lint
+! static char rcsid[] = "/home/ncvs/src/CLEAR-1.1.5.1-PATCHES/patch013,v 1.1.1.1 1994/09/01 23:28:29 phk Exp";
+! #endif
+  
+  #include <stdio.h>
+  #include <sys/types.h>
+  #include <sys/mount.h>
+  
+  void
+--- 1,10 ----
+  #ifndef lint
+! static char rcsid[] = "patch013,v 1.1.1.1 1994/09/01 23:28:29 phk Exp";
+! #endif /* not lint */
+  
+  #include <stdio.h>
+  #include <sys/types.h>
++ #define ISOFS
+  #include <sys/mount.h>
+  
+  void
+***************
+*** 20,40 ****
+  {
+  	char *dev;
+  	char *dir;
+! 	struct ufs_args args;
+  	int c;
+! 	int opts;
+! 
+! 	opts = MNT_RDONLY;
+  
+  	argc--;
+  	argv++;
+  	while (argc > 2) {
+  		if (!strcmp("-F", argv[0])) {
+  			argc--; argv++;
+! 			opts |= atoi(argv[0]);
+  			argc--; argv++;
+  		} else if (!strcmp(argv[0], "-norrip")) {
+! 			opts |= MNT_NORRIP;
+  			argc--; argv++;
+  		} else
+  			usage();
+--- 21,45 ----
+  {
+  	char *dev;
+  	char *dir;
+! 	struct iso_args args;
+  	int c;
+! 	int opts = 0, mntflags = 0;
+  
+  	argc--;
+  	argv++;
+  	while (argc > 2) {
+  		if (!strcmp("-F", argv[0])) {
+  			argc--; argv++;
+! 			mntflags |= atoi(argv[0]);
+  			argc--; argv++;
+  		} else if (!strcmp(argv[0], "-norrip")) {
+! 			opts |= ISOFSMNT_NORRIP;
+! 			argc--; argv++;
+! 		} else if (!strcmp(argv[0], "-gen")) {
+! 			opts |= ISOFSMNT_GENS;
+! 			argc--; argv++;
+! 		} else if (!strcmp(argv[0], "-extattr")) {
+! 			opts |= ISOFSMNT_EXTATT;
+  			argc--; argv++;
+  		} else
+  			usage();
+***************
+*** 44,53 ****
+  	dir = argv[1];
+  
+  	args.fspec = dev;
+! 	args.exflags = MNT_EXRDONLY;
+  	args.exroot = 0;
+  
+! 	if (mount (MOUNT_ISOFS, dir, opts, &args) < 0) {
+  		perror ("mount");
+  		exit (1);
+  	}
+--- 49,58 ----
+  	dir = argv[1];
+  
+  	args.fspec = dev;
+! 	args.flags = opts;
+  	args.exroot = 0;
+  
+! 	if (mount (MOUNT_ISOFS, dir, mntflags, &args) < 0) {
+  		perror ("mount");
+  		exit (1);
+  	}
+diff -cr sys/isofs/TODO src/sys/isofs/TODO
+*** sys/isofs/TODO	Tue Jul 20 04:27:21 1993
+--- src/sys/isofs/TODO	Mon Aug 15 15:17:55 1994
+***************
+*** 1,4 ****
+! #	patch013,v 1.1.1.1 1994/09/01 23:28:29 phk Exp
+  
+   1) should understand "older", original High Sierra ("CDROM001") type
+  
+--- 1,4 ----
+! #	patch013,v 1.1.1.1 1994/09/01 23:28:29 phk Exp
+  
+   1) should understand "older", original High Sierra ("CDROM001") type
+  
+***************
+*** 13,34 ****
+         o File Attribute 
+         o Time stamp
+         o uid, gid
+  
+     Except follows:
+  
+!        o POSIX device modes
+  
+!          I have no idea right now, we should check a REAL implementation
+!          for 386BSD.....
+           
+-        o Limitation of 8 level directory( ISO9660 limitation )
+- 
+-          Rock Ridge Extension are defined with the "CL/PL/RE" for getting
+-          rid of this limitation. But as far as I test the cdroms,I'v never 
+-          seen this definition and we can access the over 8 level without
+-          it. (Another word, this limitation is NOT physical ISO9660's
+-          FORMAT limitation for unix stuffs.... I believe... )
+- 
+   3) should be called cdfs, as there are other ISO file system soon possible
+  
+     Not yet. Probably we should make another file system when the ECMA draft 
+--- 13,28 ----
+         o File Attribute 
+         o Time stamp
+         o uid, gid
++        o Devices
++        o Relocated directories
+  
+     Except follows:
+  
+!        o POSIX device number mapping
+  
+!          There is some preliminary stuff in there that (ab-)uses the mknod
+!          system call, but this needs a writable filesystem
+           
+   3) should be called cdfs, as there are other ISO file system soon possible
+  
+     Not yet. Probably we should make another file system when the ECMA draft 
+***************
+*** 48,55 ****
+   6) should run as a user process, and not take up kernel space (cdroms
+      are slow)
+  
+!    Not yet. And addition, we should try to avoid a long seek by a absolute path
+!    with using the PATH TABLE or other method.
+  
+   7) ECMA support.
+  
+--- 42,48 ----
+   6) should run as a user process, and not take up kernel space (cdroms
+      are slow)
+  
+!    Not yet.
+  
+   7) ECMA support.
+  
+***************
+*** 62,66 ****
+--- 55,77 ----
+     clean. As far as I know, if you export the cdrom by NFS, the client
+     can access the 8 bit clean (ie. Solaris Japanese with EUC code )
+  
++  9) Access checks in isofs_access
++ 
++    Not yet.
++ 
++  10) Support for generation numbers
++ 
++    Yes. Default is to list only the last file (the one with the highest
++    generation number). If you mount with -gen, all files are shown with
++    their generation numbers. In both cases you can specify the generation
++    number on opening files (if you happen to know it) or leave it off,
++    when it will again find the last file.
++ 
++  11) Support for extended attributes
++ 
++    Yes. Since this requires an extra block buffer for the attributes
++    this must be enabled on mounting with the option -extattr.
++ 
+  ----------
+  Last update July 19, '93 by Atsushi Murai. (amurai@spec.co.jp)
++ Last update August 19, '93 by Wolfgang Solfrank. (ws@tools.de)
+diff -cr sys/isofs/iso.h src/sys/isofs/iso.h
+*** sys/isofs/iso.h	Sun Dec 19 00:51:02 1993
+--- src/sys/isofs/iso.h	Mon Aug 15 15:17:55 1994
+***************
+*** 1,5 ****
+  /*
+!  *	patch013,v 1.1.1.1 1994/09/01 23:28:29 phk Exp
+   */
+  
+  #ifndef _ISOFS_ISO_H_
+--- 1,5 ----
+  /*
+!  *	patch013,v 1.1.1.1 1994/09/01 23:28:29 phk Exp
+   */
+  
+  #ifndef _ISOFS_ISO_H_
+***************
+*** 70,105 ****
+  	char name_len			[ISODCL (33, 33)]; /* 711 */
+  	char name			[0];
+  };
+  
+! /* CD-ROM Fromat type */
+! enum ISO_FTYPE  { ISO_FTYPE_9660, ISO_FTYPE_RRIP, ISO_FTYPE_ECMA };
+  
+  struct iso_mnt {
+  	int logical_block_size;
+  	int volume_space_size;
+  	struct vnode *im_devvp;
+  	char im_fsmnt[50];
+  	
+- 	int im_ronly;
+- 	int im_fmod;
+  	struct mount *im_mountp;
+  	dev_t im_dev;
+! 
+  	int im_bshift;
+  	int im_bmask;
+! 	int im_bsize;
+! 
+  	char root[ISODCL (157, 190)];
+  	int root_extent;
+  	int root_size;
+  	enum ISO_FTYPE  iso_ftype;
+  };
+  
+  #define VFSTOISOFS(mp)	((struct iso_mnt *)((mp)->mnt_data))
+  
+! #define iso_blkoff(imp, loc) ((loc) & ~(imp)->im_bmask)
+  #define iso_lblkno(imp, loc) ((loc) >> (imp)->im_bshift)
+! #define iso_blksize(imp, ip, lbn) ((imp)->im_bsize)
+  #define iso_lblktosize(imp, blk) ((blk) << (imp)->im_bshift)
+  
+  
+--- 70,133 ----
+  	char name_len			[ISODCL (33, 33)]; /* 711 */
+  	char name			[0];
+  };
++ /* can't take sizeof(iso_directory_record), because of possible alignment
++    of the last entry (34 instead of 33) */
++ #define ISO_DIRECTORY_RECORD_SIZE	33
++ 
++ struct iso_extended_attributes {
++ 	unsigned char owner		[ISODCL (1, 4)]; /* 723 */
++ 	unsigned char group		[ISODCL (5, 8)]; /* 723 */
++ 	unsigned char perm		[ISODCL (9, 10)]; /* 9.5.3 */
++ 	char ctime			[ISODCL (11, 27)]; /* 8.4.26.1 */
++ 	char mtime			[ISODCL (28, 44)]; /* 8.4.26.1 */
++ 	char xtime			[ISODCL (45, 61)]; /* 8.4.26.1 */
++ 	char ftime			[ISODCL (62, 78)]; /* 8.4.26.1 */
++ 	char recfmt			[ISODCL (79, 79)]; /* 711 */
++ 	char recattr			[ISODCL (80, 80)]; /* 711 */
++ 	unsigned char reclen		[ISODCL (81, 84)]; /* 723 */
++ 	char system_id			[ISODCL (85, 116)]; /* achars */
++ 	char system_use			[ISODCL (117, 180)];
++ 	char version			[ISODCL (181, 181)]; /* 711 */
++ 	char len_esc			[ISODCL (182, 182)]; /* 711 */
++ 	char reserved			[ISODCL (183, 246)];
++ 	unsigned char len_au		[ISODCL (247, 250)]; /* 723 */
++ };
++ 
++ /* CD-ROM Format type */
++ enum ISO_FTYPE  { ISO_FTYPE_DEFAULT, ISO_FTYPE_9660, ISO_FTYPE_RRIP, ISO_FTYPE_ECMA };
+  
+! #ifndef	ISOFSMNT_ROOT
+! #define	ISOFSMNT_ROOT	0
+! #endif
+  
+  struct iso_mnt {
++ 	int im_flags;
++ 	
+  	int logical_block_size;
+  	int volume_space_size;
+  	struct vnode *im_devvp;
+  	char im_fsmnt[50];
+  	
+  	struct mount *im_mountp;
+  	dev_t im_dev;
+! 	
+  	int im_bshift;
+  	int im_bmask;
+! 	
+  	char root[ISODCL (157, 190)];
+  	int root_extent;
+  	int root_size;
+  	enum ISO_FTYPE  iso_ftype;
++ 	
++ 	int rr_skip;
++ 	int rr_skip0;
+  };
+  
+  #define VFSTOISOFS(mp)	((struct iso_mnt *)((mp)->mnt_data))
+  
+! #define iso_blkoff(imp, loc) ((loc) & (imp)->im_bmask)
+  #define iso_lblkno(imp, loc) ((loc) >> (imp)->im_bshift)
+! #define iso_blksize(imp, ip, lbn) ((imp)->logical_block_size)
+  #define iso_lblktosize(imp, blk) ((blk) << (imp)->im_bshift)
+  
+  
+***************
+*** 112,129 ****
+  int isofs_sync __P((struct mount *mp, int waitfor));
+  int isofs_fhtovp __P((struct mount *mp, struct fid *fhp, struct vnode **vpp));
+  int isofs_vptofh __P((struct vnode *vp, struct fid *fhp));
+! void isofs_init __P((void));
+  
+! /* From isofs_util.c: */
+! extern int isonum_711(char *);
+! extern int isonum_712(char *);
+! extern int isonum_721(char *);
+! extern int isonum_722(char *);
+! extern int isonum_723(char *);
+! extern int isonum_731(u_char *);
+! extern int isonum_732(u_char *);
+! extern int isonum_733(u_char *);
+! extern int isofncmp(char *, int, char *, int);
+! extern void isofntrans(char *, int, char *, int *);
+  
+  #endif /* _ISOFS_ISO_H_ */
+--- 140,222 ----
+  int isofs_sync __P((struct mount *mp, int waitfor));
+  int isofs_fhtovp __P((struct mount *mp, struct fid *fhp, struct vnode **vpp));
+  int isofs_vptofh __P((struct vnode *vp, struct fid *fhp));
+! void isofs_init __P(());
+  
+! struct iso_node;
+! int iso_bmap __P((struct iso_node *ip, int lblkno, daddr_t *result)); 
+! int iso_blkatoff __P((struct iso_node *ip, off_t offset, struct buf **bpp)); 
+! int iso_iget __P((struct iso_node *xp, ino_t ino, int relocated,
+! 		  struct iso_node **ipp, struct iso_directory_record *isodir));
+! void iso_iput __P((struct iso_node *ip)); 
+! void iso_ilock __P((struct iso_node *ip)); 
+! void iso_iunlock __P((struct iso_node *ip)); 
+! int isofs_mountroot __P((void)); 
+! 
+! extern inline int
+! isonum_711(p)
+! 	unsigned char *p;
+! {
+! 	return *p;
+! }
+! 
+! extern inline int
+! isonum_712(p)
+! 	char *p;
+! {
+! 	return *p;
+! }
+! 
+! extern inline int
+! isonum_721(p)
+! 	unsigned char *p;
+! {
+! 	return *p|((char)p[1] << 8);
+! }
+! 
+! extern inline int
+! isonum_722(p)
+! 	unsigned char *p;
+! {
+! 	return ((char)*p << 8)|p[1];
+! }
+! 
+! extern inline int
+! isonum_723(p)
+! 	unsigned char *p;
+! {
+! 	return isonum_721(p);
+! }
+! 
+! extern inline int
+! isonum_731(p)
+! 	unsigned char *p;
+! {
+! 	return *p|(p[1] << 8)|(p[2] << 16)|(p[3] << 24);
+! }
+! 
+! extern inline int
+! isonum_732(p)
+! 	unsigned char *p;
+! {
+! 	return (*p << 24)|(p[1] << 16)|(p[2] << 8)|p[3];
+! }
+! 
+! extern inline int
+! isonum_733(p)
+! 	unsigned char *p;
+! {
+! 	return isonum_731(p);
+! }
+! 
+! int isofncmp __P((unsigned char *fn, int fnlen,
+! 		  unsigned char *isofn, int isolen));
+! void isofntrans __P((unsigned char *infn, int infnlen,
+! 		     unsigned char *outfn, unsigned short *outfnlen,
+! 		     int original, int assoc));
+! 
+! /*
+!  * Associated files have a leading '='.
+!  */
+! #define	ASSOCCHAR	'='
+  
+  #endif /* _ISOFS_ISO_H_ */
+diff -cr sys/isofs/iso_rrip.h /src/sys/isofs/iso_rrip.h
+*** sys/isofs/iso_rrip.h	Sun Nov  7 17:46:03 1993
+--- src/sys/isofs/iso_rrip.h	Mon Aug 15 15:17:55 1994
+***************
+*** 29,42 ****
+   * SUCH DAMAGE.
+   *
+   *	from: @(#)iso_rrip.h
+!  *	patch013,v 1.1.1.1 1994/09/01 23:28:29 phk Exp
+   */
+  
+  #ifndef _ISOFS_ISO_RRIP_H_
+  #define _ISOFS_ISO_RRIP_H_ 1
+  
+  /*
+!  *	Analyze function flag
+   */
+  #define	ISO_SUSP_ATTR		0x0001
+  #define	ISO_SUSP_DEVICE		0x0002
+--- 29,42 ----
+   * SUCH DAMAGE.
+   *
+   *	from: @(#)iso_rrip.h
+!  *	patch013,v 1.1.1.1 1994/09/01 23:28:29 phk Exp
+   */
+  
+  #ifndef _ISOFS_ISO_RRIP_H_
+  #define _ISOFS_ISO_RRIP_H_ 1
+  
+  /*
+!  *	Analyze function flag (similar to RR field bits)
+   */
+  #define	ISO_SUSP_ATTR		0x0001
+  #define	ISO_SUSP_DEVICE		0x0002
+***************
+*** 47,60 ****
+  #define	ISO_SUSP_RELDIR		0x0040
+  #define	ISO_SUSP_TSTAMP		0x0080
+  #define	ISO_SUSP_IDFLAG		0x0100
+! #define	ISO_SUSP_EXFLAG		0x0200
+! #define	ISO_SUSP_UNKNOWN	0x0400
+  
+  typedef struct {
+! 	ISO_RRIP_INODE	inode;
+! 	u_short		iso_altlen;	/* Alt Name length */
+! 	u_short		iso_symlen;	/* Symbol Name length */
+! 	char		*iso_altname;	/* Alt Name (no Null terminated ) */
+! 	char		*iso_symname;	/* Symbol Name (no NULL termninated )*/
+  } ISO_RRIP_ANALYZE;
+  #endif /* _ISOFS_ISO_RRIP_H_ */
+--- 47,81 ----
+  #define	ISO_SUSP_RELDIR		0x0040
+  #define	ISO_SUSP_TSTAMP		0x0080
+  #define	ISO_SUSP_IDFLAG		0x0100
+! #define	ISO_SUSP_EXTREF		0x0200
+! #define	ISO_SUSP_CONT		0x0400
+! #define	ISO_SUSP_OFFSET		0x0800
+! #define	ISO_SUSP_STOP		0x1000
+! #define	ISO_SUSP_UNKNOWN	0x8000
+  
+  typedef struct {
+! 	struct iso_node	*inop;
+! 	int		fields;		/* interesting fields in this analysis */
+! 	daddr_t		iso_ce_blk;	/* block of continuation area */
+! 	off_t		iso_ce_off;	/* offset of continuation area */
+! 	int		iso_ce_len;	/* length of continuation area */
+! 	struct iso_mnt	*imp;		/* mount structure */
+! 	ino_t		*inump;		/* inode number pointer */
+! 	char		*outbuf;	/* name/symbolic link output area */
+! 	u_short		*outlen;	/* length of above */
+! 	u_short		maxlen;		/* maximum length of above */
+! 	int		cont;		/* continuation of above */
+  } ISO_RRIP_ANALYZE;
++ 
++ int isofs_rrip_analyze __P((struct iso_directory_record *isodir,
++ 			    struct iso_node *inop, struct iso_mnt *imp));
++ int isofs_rrip_getname __P((struct iso_directory_record *isodir,
++ 			    char *outbuf, u_short *outlen,
++ 			    ino_t *inump, struct iso_mnt *imp));
++ int isofs_rrip_getsymname __P((struct iso_directory_record *isodir,
++ 			       char *outbuf, u_short *outlen,
++ 			       struct iso_mnt *imp));
++ int isofs_rrip_offset __P((struct iso_directory_record *isodir,
++ 			   struct iso_mnt *imp));
++ 
+  #endif /* _ISOFS_ISO_RRIP_H_ */
+diff -cr sys/isofs/isofs_bmap.c src/sys/isofs/isofs_bmap.c
+*** sys/isofs/isofs_bmap.c	Sun Dec 19 00:51:03 1993
+--- src/sys/isofs/isofs_bmap.c	Mon Aug 15 15:17:55 1994
+***************
+*** 1,25 ****
+  /*
+!  * 	patch013,v 1.1.1.1 1994/09/01 23:28:29 phk Exp
+   */
+  
+! #include "param.h"
+! #include "systm.h"
+! #include "namei.h"
+! #include "buf.h"
+! #include "file.h"
+! #include "vnode.h"
+! #include "mount.h"
+  
+! #include "iso.h"
+! #include "isofs_node.h"
+  
+  int
+  iso_bmap(ip, lblkno, result)
+! 	struct iso_node *ip;
+! 	int lblkno;
+! 	int *result;
+  {
+! 	*result = (ip->iso_extent + lblkno)
+! 		* (ip->i_mnt->im_bsize / DEV_BSIZE);
+! 	return (0);
+  }
+--- 1,24 ----
+  /*
+!  * 	patch013,v 1.1.1.1 1994/09/01 23:28:29 phk Exp
+   */
+  
+! #include <sys/param.h>
+! #include <sys/namei.h>
+! #include <sys/buf.h>
+! #include <sys/file.h>
+! #include <sys/vnode.h>
+! #include <sys/mount.h>
+  
+! #include <isofs/iso.h>
+! #include <isofs/isofs_node.h>
+  
+  int
+  iso_bmap(ip, lblkno, result)
+! struct iso_node *ip;
+! int lblkno;
+! daddr_t *result;
+  {
+! 	*result = (ip->iso_start + lblkno)
+! 		  * (ip->i_mnt->logical_block_size / DEV_BSIZE);
+! 	return 0;
+  }
+diff -cr sys/isofs/isofs_lookup.c src/sys/isofs/isofs_lookup.c
+*** sys/isofs/isofs_lookup.c	Thu Nov 25 01:32:22 1993
+--- src/sys/isofs/isofs_lookup.c	Mon Aug 15 15:17:56 1994
+***************
+*** 34,56 ****
+   * SUCH DAMAGE.
+   *
+   *	from: @(#)ufs_lookup.c	7.33 (Berkeley) 5/19/91
+!  *	patch013,v 1.1.1.1 1994/09/01 23:28:29 phk Exp
+   */
+  
+! #include "param.h"
+! #include "systm.h"
+! #include "namei.h"
+! #include "buf.h"
+! #include "file.h"
+! #include "vnode.h"
+! #include "mount.h"
+  
+! #include "iso.h"
+! #include "isofs_node.h"
+! #include "iso_rrip.h"
+! #include "isofs_rrip.h"
+! 
+! struct	nchstats nchstats;
+  
+  /*
+   * Convert a component of a pathname into a pointer to a locked inode.
+--- 34,56 ----
+   * SUCH DAMAGE.
+   *
+   *	from: @(#)ufs_lookup.c	7.33 (Berkeley) 5/19/91
+!  *	patch013,v 1.1.1.1 1994/09/01 23:28:29 phk Exp
+   */
+  
+! #include <sys/param.h>
+! #include <sys/systm.h>
+! #include <sys/namei.h>
+! #include <sys/buf.h>
+! #include <sys/file.h>
+! #include <sys/vnode.h>
+! #include <sys/mount.h>
+! 
+! #include <isofs/iso.h>
+! #include <isofs/isofs_node.h>
+! #include <isofs/iso_rrip.h>
+! #include <isofs/isofs_rrip.h>
+  
+! struct	nchstats iso_nchstats;
+  
+  /*
+   * Convert a component of a pathname into a pointer to a locked inode.
+***************
+*** 96,123 ****
+  	register struct iso_node *dp;	/* the directory we are searching */
+  	register struct iso_mnt *imp;	/* file system that directory is in */
+  	struct buf *bp = 0;		/* a buffer of directory entries */
+! 	register struct iso_directory_record *ep;
+! 					/* the current directory entry */
+! 	int entryoffsetinblock = 0;	/* offset of ep in bp's buffer */
+! 	enum {NONE, COMPACT, FOUND} slotstatus;
+! 	int slotoffset = -1;		/* offset of area with free space */
+! 	int slotsize;			/* size of area at slotoffset */
+! 	int slotfreespace;		/* amount of space free in slot */
+! 	int slotneeded;			/* size of the entry we're seeking */
+  	int numdirpasses;		/* strategy for directory search */
+! 	int endsearch;			/* offset to end directory search */
+  	struct iso_node *pdp;		/* saved dp during symlink work */
+  	struct iso_node *tdp;		/* returned by iget */
+  	int flag;			/* LOOKUP, CREATE, RENAME, or DELETE */
+  	int lockparent;			/* 1 => lockparent flag is set */
+  	int wantparent;			/* 1 => wantparent or lockparent flag */
+  	int error;
+! 
+  	int reclen;
+! 	int namelen;
+! 	char altname[251];
+! 	int i;
+! 
+  	ndp->ni_dvp = vdp;
+  	ndp->ni_vp = NULL;
+  	dp = VTOI(vdp);
+--- 96,120 ----
+  	register struct iso_node *dp;	/* the directory we are searching */
+  	register struct iso_mnt *imp;	/* file system that directory is in */
+  	struct buf *bp = 0;		/* a buffer of directory entries */
+! 	struct iso_directory_record *ep;/* the current directory entry */
+! 	off_t entryoffsetinblock = 0;	/* offset of ep in bp's buffer */
+! 	off_t saveoffset = 0;		/* offset of last directory entry in dir */
+  	int numdirpasses;		/* strategy for directory search */
+! 	off_t endsearch;		/* offset to end directory search */
+  	struct iso_node *pdp;		/* saved dp during symlink work */
+  	struct iso_node *tdp;		/* returned by iget */
+  	int flag;			/* LOOKUP, CREATE, RENAME, or DELETE */
+  	int lockparent;			/* 1 => lockparent flag is set */
+  	int wantparent;			/* 1 => wantparent or lockparent flag */
+  	int error;
+! 	ino_t ino = 0;
+  	int reclen;
+! 	u_short namelen;
+! 	char altname[NAME_MAX];
+! 	int res;
+! 	int assoc, len;
+! 	char *name;
+! 	
+  	ndp->ni_dvp = vdp;
+  	ndp->ni_vp = NULL;
+  	dp = VTOI(vdp);
+***************
+*** 125,137 ****
+  	lockparent = ndp->ni_nameiop & LOCKPARENT;
+  	flag = ndp->ni_nameiop & OPMASK;
+  	wantparent = ndp->ni_nameiop & (LOCKPARENT|WANTPARENT);
+! 
+  	/*
+  	 * Check accessiblity of directory.
+  	 */
+! 	if ((dp->iso_flags & 2) == 0)
+! 		return (ENOTDIR);
+! 
+  	/*
+  	 * We now have a segment name to search for, and a directory to search.
+  	 *
+--- 122,136 ----
+  	lockparent = ndp->ni_nameiop & LOCKPARENT;
+  	flag = ndp->ni_nameiop & OPMASK;
+  	wantparent = ndp->ni_nameiop & (LOCKPARENT|WANTPARENT);
+! 	
+  	/*
+  	 * Check accessiblity of directory.
+  	 */
+! 	if (vdp->v_type != VDIR)
+! 		return ENOTDIR;
+! 	if (error = isofs_access(vdp, VEXEC, ndp->ni_cred, p))
+! 		return error;
+! 	
+  	/*
+  	 * We now have a segment name to search for, and a directory to search.
+  	 *
+***************
+*** 141,150 ****
+  	 */
+  	if (error = cache_lookup(ndp)) {
+  		int vpid;	/* capability number of vnode */
+! 
+  		if (error == ENOENT)
+  			return (error);
+! #ifdef PARANOID
+  		if (vdp == ndp->ni_rootdir && ndp->ni_isdotdot)
+  			panic("ufs_lookup: .. through root");
+  #endif
+--- 140,149 ----
+  	 */
+  	if (error = cache_lookup(ndp)) {
+  		int vpid;	/* capability number of vnode */
+! 		
+  		if (error == ENOENT)
+  			return (error);
+! #ifdef DIAGNOSTIC
+  		if (vdp == ndp->ni_rootdir && ndp->ni_isdotdot)
+  			panic("ufs_lookup: .. through root");
+  #endif
+***************
+*** 186,192 ****
+  		vdp = ITOV(dp);
+  		ndp->ni_vp = NULL;
+  	}
+! 
+  	/*
+  	 * If there is cached information on a previous search of
+  	 * this directory, pick up where we last left off.
+--- 185,201 ----
+  		vdp = ITOV(dp);
+  		ndp->ni_vp = NULL;
+  	}
+! 	
+! 	len = ndp->ni_namelen;
+! 	name = ndp->ni_ptr;
+! 	/*
+! 	 * A leading `=' means, we are looking for an associated file
+! 	 */
+! 	if (assoc = (imp->iso_ftype != ISO_FTYPE_RRIP && *name == ASSOCCHAR)) {
+! 		len--;
+! 		name++;
+! 	}
+! 	
+  	/*
+  	 * If there is cached information on a previous search of
+  	 * this directory, pick up where we last left off.
+***************
+*** 205,219 ****
+  		ndp->ni_ufs.ufs_offset = dp->i_diroff;
+  		entryoffsetinblock = iso_blkoff(imp, ndp->ni_ufs.ufs_offset);
+  		if (entryoffsetinblock != 0) {
+! 			if (error = iso_blkatoff(dp, ndp->ni_ufs.ufs_offset,
+! 			    (char **)0, &bp))
+! 				return (error);
+  		}
+  		numdirpasses = 2;
+! 		nchstats.ncs_2passes++;
+  	}
+! 	endsearch = roundup(dp->i_size, imp->logical_block_size);
+! 
+  searchloop:
+  	while (ndp->ni_ufs.ufs_offset < endsearch) {
+  		/*
+--- 214,227 ----
+  		ndp->ni_ufs.ufs_offset = dp->i_diroff;
+  		entryoffsetinblock = iso_blkoff(imp, ndp->ni_ufs.ufs_offset);
+  		if (entryoffsetinblock != 0) {
+! 			if (error = iso_blkatoff(dp,ndp->ni_ufs.ufs_offset,&bp))
+! 				return error;
+  		}
+  		numdirpasses = 2;
+! 		iso_nchstats.ncs_2passes++;
+  	}
+! 	endsearch = roundup(dp->i_size,imp->logical_block_size);
+! 	
+  searchloop:
+  	while (ndp->ni_ufs.ufs_offset < endsearch) {
+  		/*
+***************
+*** 221,307 ****
+  		 * read the next directory block.
+  		 * Release previous if it exists.
+  		 */
+! 		if (iso_blkoff(imp, ndp->ni_ufs.ufs_offset) == 0) {
+  			if (bp != NULL)
+  				brelse(bp);
+! 			if (error = iso_blkatoff(dp, ndp->ni_ufs.ufs_offset,
+! 						 (char **)0, &bp))
+! 				return (error);
+  			entryoffsetinblock = 0;
+  		}
+  		/*
+  		 * Get pointer to next entry.
+  		 */
+! 
+  		ep = (struct iso_directory_record *)
+  			(bp->b_un.b_addr + entryoffsetinblock);
+! 
+  		reclen = isonum_711 (ep->length);
+  		if (reclen == 0) {
+  			/* skip to next block, if any */
+  			ndp->ni_ufs.ufs_offset =
+! 				roundup (ndp->ni_ufs.ufs_offset,
+! 					 imp->logical_block_size);
+  			continue;
+  		}
+! 
+! 		if (reclen < sizeof (struct iso_directory_record))
+  			/* illegal entry, stop */
+  			break;
+! 
+! /* 10 Aug 92*/	if (entryoffsetinblock + reclen -1 >= imp->logical_block_size)
+  			/* entries are not allowed to cross boundaries */
+  			break;
+! 
+  		/*
+  		 * Check for a name match.
+  		 */
+! 		namelen = isonum_711 (ep->name_len);
+! 
+! 		if (reclen < sizeof (struct iso_directory_record) + namelen)
+  			/* illegal entry, stop */
+  			break;
+! 
+! 		if (namelen == 1
+! 		     && ((ndp->ni_namelen == 1
+! 			  && ndp->ni_ptr[0] == '.'
+! 			  && ep->name[0] == 0)
+! 			 || (ndp->ni_isdotdot && ep->name[0] == 1))) {
+! 			/*
+! 			 * Save directory entry's inode number and
+! 			 * reclen in ndp->ni_ufs area, and release
+! 			 * directory buffer.
+! 			 */
+! 			ndp->ni_ufs.ufs_ino = isonum_733 (ep->extent);
+! 			brelse(bp);
+! 			goto found;
+! 		} else {
+! 			switch ( imp->iso_ftype ) {
+! 				case ISO_FTYPE_9660:
+! 				if( ( namelen  >= ndp->ni_namelen ) &&
+! 					    ( isofncmp( ndp->ni_ptr, ndp->ni_namelen, ep->name, namelen ) ) ) {
+! 						ndp->ni_ufs.ufs_ino = isonum_733 (ep->extent);
+! 						brelse(bp);
+! 						goto found;
+! 					}
+! 					break;
+! 				case ISO_FTYPE_RRIP:
+! 					isofs_rrip_getname( ep, altname, &namelen );
+! 					if ( ( namelen == ndp->ni_namelen ) &&
+! 					     ( !bcmp( ndp->ni_ptr, altname, ndp->ni_namelen ) ) ) {
+! 						ndp->ni_ufs.ufs_ino = isonum_733 (ep->extent);
+! 						brelse(bp);
+  						goto found;
+  					}
+! 					break;
+! 				default:
+! 					break;
+  			}
+  		}
+  		ndp->ni_ufs.ufs_offset += reclen;
+  		entryoffsetinblock += reclen;
+  	}
+! /* notfound: */
+  	/*
+  	 * If we started in the middle of the directory and failed
+  	 * to find our target, we must check the beginning as well.
+--- 229,345 ----
+  		 * read the next directory block.
+  		 * Release previous if it exists.
+  		 */
+! 		if (iso_blkoff(imp,ndp->ni_ufs.ufs_offset) == 0) {
+  			if (bp != NULL)
+  				brelse(bp);
+! 			if (error = iso_blkatoff(dp,ndp->ni_ufs.ufs_offset,&bp))
+! 				return error;
+  			entryoffsetinblock = 0;
+  		}
+  		/*
+  		 * Get pointer to next entry.
+  		 */
+! 		
+  		ep = (struct iso_directory_record *)
+  			(bp->b_un.b_addr + entryoffsetinblock);
+! 		
+  		reclen = isonum_711 (ep->length);
+  		if (reclen == 0) {
+  			/* skip to next block, if any */
+  			ndp->ni_ufs.ufs_offset =
+! 				roundup(ndp->ni_ufs.ufs_offset,
+! 					imp->logical_block_size);
+  			continue;
+  		}
+! 		
+! 		if (reclen < ISO_DIRECTORY_RECORD_SIZE)
+  			/* illegal entry, stop */
+  			break;
+! 		
+! 		if (entryoffsetinblock + reclen > imp->logical_block_size)
+  			/* entries are not allowed to cross boundaries */
+  			break;
+! 		
+  		/*
+  		 * Check for a name match.
+  		 */
+! 		namelen = isonum_711(ep->name_len);
+! 		
+! 		if (reclen < ISO_DIRECTORY_RECORD_SIZE + namelen)
+  			/* illegal entry, stop */
+  			break;
+! 		
+! 		switch (imp->iso_ftype) {
+! 		default:
+! 			if ((!(isonum_711(ep->flags)&4)) == !assoc) {
+! 				if ((len == 1
+! 				     && *name == '.')
+! 				    || ndp->ni_isdotdot) {
+! 					if (namelen == 1
+! 					    && ep->name[0] == (ndp->ni_isdotdot ? 1 : 0)) {
+! 						/*
+! 						 * Save directory entry's inode number and
+! 						 * reclen in ndp->ni_ufs area, and release
+! 						 * directory buffer.
+! 						 */
+! 						isodirino(&ndp->ni_ufs.ufs_ino,ep,imp);
+  						goto found;
+  					}
+! 					if (namelen != 1
+! 					    || ep->name[0] != 0)
+! 						goto notfound;
+! 				} else if (!(res = isofncmp(name,len,
+! 							    ep->name,namelen))) {
+! 					if (isonum_711(ep->flags)&2)
+! 						isodirino(&ino,ep,imp);
+! 					else
+! 						ino = (bp->b_blkno << DEV_BSHIFT)
+! 						      + entryoffsetinblock;
+! 					saveoffset = ndp->ni_ufs.ufs_offset;
+! 				} else if (ino)
+! 					goto foundino;
+! #ifdef	NOSORTBUG	/* On some CDs directory entries are not sorted correctly */
+! 				else if (res < 0)
+! 					goto notfound;
+! 				else if (res > 0 && numdirpasses == 2)
+! 					numdirpasses++;
+! #endif
+  			}
++ 			break;
++ 		case ISO_FTYPE_RRIP:
++ 			if (isonum_711(ep->flags)&2)
++ 				isodirino(&ino,ep,imp);
++ 			else
++ 				ino = (bp->b_blkno << DEV_BSHIFT) + entryoffsetinblock;
++ 			ndp->ni_ufs.ufs_ino = ino;
++ 			isofs_rrip_getname(ep,altname,&namelen,&ndp->ni_ufs.ufs_ino,imp);
++ 			if (namelen == ndp->ni_namelen
++ 			    && !bcmp(name,altname,namelen))
++ 				goto found;
++ 			ino = 0;
++ 			break;
+  		}
+  		ndp->ni_ufs.ufs_offset += reclen;
+  		entryoffsetinblock += reclen;
+  	}
+! 	if (ino) {
+! foundino:
+! 		ndp->ni_ufs.ufs_ino = ino;
+! 		if (saveoffset != ndp->ni_ufs.ufs_offset) {
+! 			if (iso_lblkno(imp,ndp->ni_ufs.ufs_offset)
+! 			    != iso_lblkno(imp,saveoffset)) {
+! 				if (bp != NULL)
+! 					brelse(bp);
+! 				if (error = iso_blkatoff(dp,saveoffset,&bp))
+! 					return error;
+! 			}
+! 			ep = (struct iso_directory_record *)(bp->b_un.b_addr
+! 							     + iso_blkoff(imp,saveoffset));
+! 			ndp->ni_ufs.ufs_offset = saveoffset;
+! 		}
+! 		goto found;
+! 	}
+! notfound:
+  	/*
+  	 * If we started in the middle of the directory and failed
+  	 * to find our target, we must check the beginning as well.
+***************
+*** 319,330 ****
+  	 */
+  	if (ndp->ni_makeentry)
+  		cache_enter(ndp);
+  	return (ENOENT);
+! 
+  found:
+! 	if (numdirpasses == 2)
+! 		nchstats.ncs_pass2++;
+! 
+  	/*
+  	 * Found component in pathname.
+  	 * If the final component of path name, save information
+--- 357,370 ----
+  	 */
+  	if (ndp->ni_makeentry)
+  		cache_enter(ndp);
++ 	if (flag == CREATE || flag == RENAME)
++ 		return EJUSTRETURN;
+  	return (ENOENT);
+! 	
+  found:
+! 	if (numdirpasses > 1)
+! 		iso_nchstats.ncs_pass2++;
+! 	
+  	/*
+  	 * Found component in pathname.
+  	 * If the final component of path name, save information
+***************
+*** 332,339 ****
+  	 */
+  	if (*ndp->ni_next == '\0' && flag == LOOKUP)
+  		dp->i_diroff = ndp->ni_ufs.ufs_offset;
+! 			/* &~ (imp->logical_block_size - 1); */
+! 
+  	/*
+  	 * Step through the translation in the name.  We do not `iput' the
+  	 * directory because we may need it again if a symbolic link
+--- 372,378 ----
+  	 */
+  	if (*ndp->ni_next == '\0' && flag == LOOKUP)
+  		dp->i_diroff = ndp->ni_ufs.ufs_offset;
+! 	
+  	/*
+  	 * Step through the translation in the name.  We do not `iput' the
+  	 * directory because we may need it again if a symbolic link
+***************
+*** 354,364 ****
+  	 * that point backwards in the directory structure.
+  	 */
+  	pdp = dp;
+  	if (ndp->ni_isdotdot) {
+  		ISO_IUNLOCK(pdp);	/* race to get the inode */
+! 		if (error = iso_iget(dp, ndp->ni_ufs.ufs_ino, &tdp, ep)) {
+  			ISO_ILOCK(pdp);
+! 			return (error);
+  		}
+  		if (lockparent && *ndp->ni_next == '\0')
+  			ISO_ILOCK(pdp);
+--- 393,410 ----
+  	 * that point backwards in the directory structure.
+  	 */
+  	pdp = dp;
++ 	/*
++ 	 * If ino is different from ndp->ni_ufs.ufs_ino,
++ 	 * it's a relocated directory.
++ 	 */
+  	if (ndp->ni_isdotdot) {
+  		ISO_IUNLOCK(pdp);	/* race to get the inode */
+! 		if (error = iso_iget(dp,ndp->ni_ufs.ufs_ino,
+! 				     ndp->ni_ufs.ufs_ino != ino,
+! 				     &tdp,ep)) {
+! 			brelse(bp);
+  			ISO_ILOCK(pdp);
+! 			return error;
+  		}
+  		if (lockparent && *ndp->ni_next == '\0')
+  			ISO_ILOCK(pdp);
+***************
+*** 367,388 ****
+  		VREF(vdp);	/* we want ourself, ie "." */
+  		ndp->ni_vp = vdp;
+  	} else {
+! 		if (error = iso_iget(dp, ndp->ni_ufs.ufs_ino, &tdp, ep))
+! 			return (error);
+  		if (!lockparent || *ndp->ni_next != '\0')
+  			ISO_IUNLOCK(pdp);
+  		ndp->ni_vp = ITOV(tdp);
+  	}
+! 
+  	/*
+  	 * Insert name into cache if appropriate.
+  	 */
+  	if (ndp->ni_makeentry)
+  		cache_enter(ndp);
+! 	return (0);
+  }
+  
+- 
+  /*
+   * Return buffer with contents of block "offset"
+   * from the beginning of directory "ip".  If "res"
+--- 413,439 ----
+  		VREF(vdp);	/* we want ourself, ie "." */
+  		ndp->ni_vp = vdp;
+  	} else {
+! 		if (error = iso_iget(dp,ndp->ni_ufs.ufs_ino,
+! 				     ndp->ni_ufs.ufs_ino != ino,
+! 				     &tdp,ep)) {
+! 			brelse(bp);
+! 			return error;
+! 		}
+  		if (!lockparent || *ndp->ni_next != '\0')
+  			ISO_IUNLOCK(pdp);
+  		ndp->ni_vp = ITOV(tdp);
+  	}
+! 	
+! 	brelse(bp);
+! 	
+  	/*
+  	 * Insert name into cache if appropriate.
+  	 */
+  	if (ndp->ni_makeentry)
+  		cache_enter(ndp);
+! 	return 0;
+  }
+  
+  /*
+   * Return buffer with contents of block "offset"
+   * from the beginning of directory "ip".  If "res"
+***************
+*** 390,415 ****
+   * remaining space in the directory.
+   */
+  int
+! iso_blkatoff(ip, offset, res, bpp)
+  	struct iso_node *ip;
+  	off_t offset;
+- 	char **res;
+  	struct buf **bpp;
+  {
+  	register struct iso_mnt *imp = ip->i_mnt;
+! 	daddr_t lbn = iso_lblkno (imp, offset);
+! 	int bsize = iso_blksize (imp, ip, lbn);
+  	struct buf *bp;
+  	int error;
+! 
+! 	*bpp = 0;
+! 	if (error = bread(ITOV(ip), lbn, bsize, NOCRED, &bp)) {
+  		brelse(bp);
+! 		return (error);
+  	}
+- 	if (res)
+- 		*res = bp->b_un.b_addr + iso_blkoff(imp, offset);
+  	*bpp = bp;
+! 
+! 	return (0);
+  }
+--- 441,463 ----
+   * remaining space in the directory.
+   */
+  int
+! iso_blkatoff(ip, offset, bpp)
+  	struct iso_node *ip;
+  	off_t offset;
+  	struct buf **bpp;
+  {
+  	register struct iso_mnt *imp = ip->i_mnt;
+! 	daddr_t lbn = iso_lblkno(imp,offset);
+! 	int bsize = iso_blksize(imp,ip,lbn);
+  	struct buf *bp;
+  	int error;
+! 	
+! 	if (error = bread(ITOV(ip),lbn,bsize,NOCRED,&bp)) {
+  		brelse(bp);
+! 		*bpp = 0;
+! 		return error;
+  	}
+  	*bpp = bp;
+! 	
+! 	return 0;
+  }
+diff -cr sys/isofs/isofs_node.c src/sys/isofs/isofs_node.c
+*** sys/isofs/isofs_node.c	Thu Nov 25 01:32:23 1993
+--- src/sys/isofs/isofs_node.c	Mon Aug 15 15:58:28 1994
+***************
+*** 30,58 ****
+   * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+   * SUCH DAMAGE.
+   *
+!  *	from: @(#)isofs_inode.c
+!  *	patch013,v 1.1.1.1 1994/09/01 23:28:29 phk Exp
+   */
+  
+! #include "param.h"
+! #include "systm.h"
+! #include "mount.h"
+! #include "proc.h"
+! #include "file.h"
+! #include "buf.h"
+! #include "vnode.h"
+! #include "kernel.h"
+! #include "malloc.h"
+! 
+! #include "iso.h"
+! #include "isofs_node.h"
+! #include "iso_rrip.h"
+  
+  #define	INOHSZ	512
+  #if	((INOHSZ&(INOHSZ-1)) == 0)
+! #define	INOHASH(dev,ino)	(((dev)+(ino))&(INOHSZ-1))
+  #else
+! #define	INOHASH(dev,ino)	(((unsigned)((dev)+(ino)))%INOHSZ)
+  #endif
+  
+  union iso_ihead {
+--- 30,65 ----
+   * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+   * SUCH DAMAGE.
+   *
+!  *	from: @(#)ufs_inode.c (unknown version)
+!  *	patch013,v 1.1.1.1 1994/09/01 23:28:29 phk Exp
+   */
+  
+! #include <sys/param.h>
+! #include <sys/systm.h>
+! #include <sys/mount.h>
+! #include <sys/proc.h>
+! #include <sys/file.h>
+! #include <sys/buf.h>
+! #include <sys/vnode.h>
+! #include <sys/kernel.h>
+! #include <sys/malloc.h>
+! #include <sys/stat.h>
+! 
+! #include <isofs/iso.h>
+! #include <isofs/isofs_node.h>
+! #include <isofs/iso_rrip.h>
+! 
+! #define	IFTOVT(mode)	(iftovt_tab[((mode) & 0170000) >> 12])
+! static enum vtype iftovt_tab[16] = {
+! 	VNON, VFIFO, VCHR, VNON, VDIR, VNON, VBLK, VNON,
+! 	VREG, VNON, VLNK, VNON, VSOCK, VNON, VNON, VBAD,
+! };
+  
+  #define	INOHSZ	512
+  #if	((INOHSZ&(INOHSZ-1)) == 0)
+! #define	INOHASH(dev,ino)	(((dev)+((ino)>>12))&(INOHSZ-1))
+  #else
+! #define	INOHASH(dev,ino)	(((unsigned)((dev)+((ino)>>12)))%INOHSZ)
+  #endif
+  
+  union iso_ihead {
+***************
+*** 60,75 ****
+  	struct iso_node *ih_chain[2];
+  } iso_ihead[INOHSZ];
+  
+  int prtactive;	/* 1 => print out reclaim of active vnodes */
+  
+  /*
+!  * Initialize hash links for inodes.
+   */
+  void
+  isofs_init()
+  {
+  	register int i;
+  	register union iso_ihead *ih = iso_ihead;
+  
+  #ifndef lint
+  	if (VN_MAXPRIVATE < sizeof(struct iso_node))
+--- 67,99 ----
+  	struct iso_node *ih_chain[2];
+  } iso_ihead[INOHSZ];
+  
++ #ifdef	ISODEVMAP
++ #define	DNOHSZ	64
++ #if	((DNOHSZ&(DNOHSZ-1)) == 0)
++ #define	DNOHASH(dev,ino)	(((dev)+((ino)>>12))&(DNOHSZ-1))
++ #else
++ #define	DNOHASH(dev,ino)	(((unsigned)((dev)+((ino)>>12)))%DNOHSZ)
++ #endif
++ 
++ union iso_dhead {
++ 	union  iso_dhead  *dh_head[2];
++ 	struct iso_dnode *dh_chain[2];
++ } iso_dhead[DNOHSZ];
++ #endif
++ 
+  int prtactive;	/* 1 => print out reclaim of active vnodes */
+  
+  /*
+!  * Initialize hash links for inodes and dnodes.
+   */
+  void
+  isofs_init()
+  {
+  	register int i;
+  	register union iso_ihead *ih = iso_ihead;
++ #ifdef	ISODEVMAP
++ 	register union iso_dhead *dh = iso_dhead;
++ #endif
+  
+  #ifndef lint
+  	if (VN_MAXPRIVATE < sizeof(struct iso_node))
+***************
+*** 79,86 ****
+--- 103,168 ----
+  		ih->ih_head[0] = ih;
+  		ih->ih_head[1] = ih;
+  	}
++ #ifdef	ISODEVMAP
++ 	for (i = DNOHSZ; --i >= 0; dh++) {
++ 		dh->dh_head[0] = dh;
++ 		dh->dh_head[1] = dh;
++ 	}
++ #endif
+  }
+  
++ #ifdef	ISODEVMAP
++ /*
++  * Enter a new node into the device hash list
++  */
++ struct iso_dnode *
++ iso_dmap(dev,ino,create)
++ 	dev_t	dev;
++ 	ino_t	ino;
++ 	int	create;
++ {
++ 	struct iso_dnode *dp;
++ 	union iso_dhead *dh;
++ 	
++ 	dh = &iso_dhead[DNOHASH(dev, ino)];
++ 	for (dp = dh->dh_chain[0];
++ 	     dp != (struct iso_dnode *)dh;
++ 	     dp = dp->d_forw)
++ 		if (ino == dp->i_number && dev == dp->i_dev)
++ 			return dp;
++ 
++ 	if (!create)
++ 		return (struct iso_dnode *)0;
++ 
++ 	MALLOC(dp,struct iso_dnode *,sizeof(struct iso_dnode),M_CACHE,M_WAITOK);
++ 	dp->i_dev = dev;
++ 	dp->i_number = ino;
++ 	insque(dp,dh);
++ 	
++ 	return dp;
++ }
++ 
++ void
++ iso_dunmap(dev)
++ 	dev_t	dev;
++ {
++ 	struct iso_dnode *dp, *dq;
++ 	union iso_dhead *dh;
++ 	
++ 	for (dh = iso_dhead; dh < iso_dhead + DNOHSZ; dh++) {
++ 		for (dp = dh->dh_chain[0];
++ 		     dp != (struct iso_dnode *)dh;
++ 		     dp = dq) {
++ 			dq = dp->d_forw;
++ 			if (dev == dp->i_dev) {
++ 				remque(dp);
++ 				FREE(dp,M_CACHE);
++ 			}
++ 		}
++ 	}
++ }
++ #endif
++ 
+  /*
+   * Look up a ISOFS dinode number to find its incore vnode.
+   * If it is not in core, read it in from the specified device.
+***************
+*** 89,112 ****
+   * points must be done by the calling routine.
+   */
+  int
+! iso_iget(xp, ino, ipp, isodir)
+  	struct iso_node *xp;
+  	ino_t ino;
+  	struct iso_node **ipp;
+  	struct iso_directory_record *isodir;
+  {
+  	dev_t dev = xp->i_dev;
+  	struct mount *mntp = ITOV(xp)->v_mount;
+! 	extern struct vnodeops isofs_vnodeops, spec_inodeops;
+  	register struct iso_node *ip, *iq;
+  	register struct vnode *vp;
+  	struct vnode *nvp;
+! 	struct buf *bp;
+! 	struct dinode *dp;
+  	union iso_ihead *ih;
+! 	int i, error, result = 0;
+  	struct iso_mnt *imp;
+! 
+  	ih = &iso_ihead[INOHASH(dev, ino)];
+  loop:
+  	for (ip = ih->ih_chain[0];
+--- 171,197 ----
+   * points must be done by the calling routine.
+   */
+  int
+! iso_iget(xp, ino, relocated, ipp, isodir)
+  	struct iso_node *xp;
+  	ino_t ino;
++         int relocated;
+  	struct iso_node **ipp;
+  	struct iso_directory_record *isodir;
+  {
+  	dev_t dev = xp->i_dev;
+  	struct mount *mntp = ITOV(xp)->v_mount;
+! 	extern struct vnodeops isofs_vnodeops, isofs_spec_inodeops;
+  	register struct iso_node *ip, *iq;
+  	register struct vnode *vp;
++ 	register struct iso_dnode *dp;
+  	struct vnode *nvp;
+! 	struct buf *bp = NULL, *bp2 = NULL;
+  	union iso_ihead *ih;
+! 	union iso_dhead *dh;
+! 	int i, error, result;
+  	struct iso_mnt *imp;
+! 	ino_t defino;
+! 	
+  	ih = &iso_ihead[INOHASH(dev, ino)];
+  loop:
+  	for (ip = ih->ih_chain[0];
+***************
+*** 116,144 ****
+  			continue;
+  		if ((ip->i_flag&ILOCKED) != 0) {
+  			ip->i_flag |= IWANT;
+! 			tsleep((caddr_t)ip, PINOD, "isoiget", 0);
+  			goto loop;
+  		}
+  		if (vget(ITOV(ip)))
+  			goto loop;
+  		*ipp = ip;
+! 		return(0);
+  	}
+  	/*
+  	 * Allocate a new inode.
+  	 */
+  	if (error = getnewvnode(VT_ISOFS, mntp, &isofs_vnodeops, &nvp)) {
+  		*ipp = 0;
+! 		return (error);
+  	}
+  	ip = VTOI(nvp);
+  	ip->i_vnode = nvp;
+  	ip->i_flag = 0;
+  	ip->i_devvp = 0;
+  	ip->i_diroff = 0;
+- 	ip->iso_parent = xp->i_diroff; /* Parent directory's */
+- 	ip->iso_parent_ext = xp->iso_extent;
+  	ip->i_lockf = 0;
+  	/*
+  	 * Put it onto its hash chain and lock it so that other requests for
+  	 * this inode will block if they arrive while we are sleeping waiting
+--- 201,228 ----
+  			continue;
+  		if ((ip->i_flag&ILOCKED) != 0) {
+  			ip->i_flag |= IWANT;
+! 			tsleep((caddr_t)ip, PINOD, "iget", 0);
+  			goto loop;
+  		}
+  		if (vget(ITOV(ip)))
+  			goto loop;
+  		*ipp = ip;
+! 		return 0;
+  	}
+  	/*
+  	 * Allocate a new inode.
+  	 */
+  	if (error = getnewvnode(VT_ISOFS, mntp, &isofs_vnodeops, &nvp)) {
+  		*ipp = 0;
+! 		return error;
+  	}
+  	ip = VTOI(nvp);
+  	ip->i_vnode = nvp;
+  	ip->i_flag = 0;
+  	ip->i_devvp = 0;
+  	ip->i_diroff = 0;
+  	ip->i_lockf = 0;
++ 	
+  	/*
+  	 * Put it onto its hash chain and lock it so that other requests for
+  	 * this inode will block if they arrive while we are sleeping waiting
+***************
+*** 150,209 ****
+  	insque(ip, ih);
+  	ISO_ILOCK(ip);
+  
+- 	ip->iso_reclen = isonum_711 (isodir->length);
+- 	ip->iso_extlen = isonum_711 (isodir->ext_attr_length);
+- 	ip->iso_extent = isonum_733 (isodir->extent);
+- 	ip->i_size = isonum_733 (isodir->size);
+- 	ip->iso_flags = isonum_711 (isodir->flags);
+- 	ip->iso_unit_size = isonum_711 (isodir->file_unit_size);
+- 	ip->iso_interleave_gap = isonum_711 (isodir->interleave);
+- 	ip->iso_volume_seq = isonum_723 (isodir->volume_sequence_number);
+- 	ip->iso_namelen = isonum_711 (isodir->name_len);
+- 
+  	imp = VFSTOISOFS (mntp);
+  	vp = ITOV(ip);
+  	/*
+! 	 * Setup time stamp, attribute , if CL or PL, set loc but not yet..
+  	 */
+! 	switch ( imp->iso_ftype ) {
+! 		case ISO_FTYPE_9660:
+! 			isofs_rrip_defattr  ( isodir, &(ip->inode) );
+! 			isofs_rrip_deftstamp( isodir, &(ip->inode) );
+! 			goto FlameOff;
+! 			break;  
+! 		case ISO_FTYPE_RRIP:
+! 			result = isofs_rrip_analyze( isodir, &(ip->inode) );
+! 			break;  
+! 		default:
+! 			printf("unknown iso_ftype.. %d\n", imp->iso_ftype );
+! 			break;
+  	}
+  	/*
+  	 * Initialize the associated vnode
+  	 */
+! 	if ( result & ISO_SUSP_SLINK ) {
+! 		vp->v_type = VLNK;	      /* Symbolic Link */
+! 	} else {
+! FlameOff:
+! 		if (ip->iso_flags & 2) {
+! 			vp->v_type = VDIR;
+! 		} else {
+! 			vp->v_type = VREG;
+  		}
+  	}
+! 
+! 	imp = VFSTOISOFS (mntp);
+! 
+! 	if (ino == imp->root_extent)
+  		vp->v_flag |= VROOT;
+! 	/*
+! 	 * Finish inode initialization.
+! 	 */
+! 	ip->i_mnt = imp;
+! 	ip->i_devvp = imp->im_devvp;
+! 	VREF(ip->i_devvp);
+  	*ipp = ip;
+! 	return (0);
+  }
+  
+  /*
+--- 234,343 ----
+  	insque(ip, ih);
+  	ISO_ILOCK(ip);
+  
+  	imp = VFSTOISOFS (mntp);
++ 	ip->i_mnt = imp;
++ 	ip->i_devvp = imp->im_devvp;
++ 	VREF(ip->i_devvp);
++ 	
++ 	if (relocated) {
++ 		/*
++ 		 * On relocated directories we must
++ 		 * read the `.' entry out of a dir.
++ 		 */
++ 		ip->iso_start = ino >> imp->im_bshift;
++ 		if (error = iso_blkatoff(ip,0,&bp)) {
++ 			vrele(ip->i_devvp);
++ 			remque(ip);
++ 			ip->i_forw = ip;
++ 			ip->i_back = ip;
++ 			iso_iput(ip);
++ 			*ipp = 0;
++ 			return error;
++ 		}
++ 		isodir = (struct iso_directory_record *)bp->b_un.b_addr;
++ 	}
++ 	
++ 	ip->iso_extent = isonum_733(isodir->extent);
++ 	ip->i_size = isonum_733(isodir->size);
++ 	ip->iso_start = isonum_711(isodir->ext_attr_length) + ip->iso_extent;
++ 	
+  	vp = ITOV(ip);
++ 	
+  	/*
+! 	 * Setup time stamp, attribute
+  	 */
+! 	vp->v_type = VNON;
+! 	switch (imp->iso_ftype) {
+! 	default:	/* ISO_FTYPE_9660 */
+! 		if ((imp->im_flags&ISOFSMNT_EXTATT)
+! 		    && isonum_711(isodir->ext_attr_length))
+! 			iso_blkatoff(ip,-isonum_711(isodir->ext_attr_length),
+! 				     &bp2);
+! 		isofs_defattr(isodir,ip,bp2 );
+! 		isofs_deftstamp(isodir,ip,bp2 );
+! 		break;
+! 	case ISO_FTYPE_RRIP:
+! 		result = isofs_rrip_analyze(isodir,ip,imp);
+! 		break;
+  	}
++ 	if (bp2)
++ 		brelse(bp2);
++ 	if (bp)
++ 		brelse(bp);
++ 	
+  	/*
+  	 * Initialize the associated vnode
+  	 */
+! 	vp->v_type = IFTOVT(ip->inode.iso_mode);
+! 	
+! 	if ( vp->v_type == VFIFO ) {
+! #ifdef	FIFO
+! 		extern struct vnodeops isofs_fifo_inodeops;
+! 		vp->v_op = &isofs_fifo_inodeops;
+! #else
+! 		iso_iput(ip);
+! 		*ipp = 0;
+! 		return EOPNOTSUPP;
+! #endif	/* FIFO */
+! 	} else if ( vp->v_type == VCHR || vp->v_type == VBLK ) {
+! 		/*
+! 		 * if device, look at device number table for translation
+! 		 */
+! #ifdef	ISODEVMAP
+! 		if (dp = iso_dmap(dev,ino,0))
+! 			ip->inode.iso_rdev = dp->d_dev;
+! #endif
+! 		vp->v_op = &isofs_spec_inodeops;
+! 		if (nvp = checkalias(vp, ip->inode.iso_rdev, mntp)) {
+! 			/*
+! 			 * Reinitialize aliased inode.
+! 			 */
+! 			vp = nvp;
+! 			iq = VTOI(vp);
+! 			iq->i_vnode = vp;
+! 			iq->i_flag = 0;
+! 			ISO_ILOCK(iq);
+! 			iq->i_dev = dev;
+! 			iq->i_number = ino;
+! 			iq->i_mnt = ip->i_mnt;
+! 			bcopy(&ip->iso_extent,&iq->iso_extent,
+! 			      (char *)(ip + 1) - (char *)&ip->iso_extent);
+! 			insque(iq, ih);
+! 			/*
+! 			 * Discard unneeded vnode
+! 			 * (This introduces the need of INACTIVE modification)
+! 			 */
+! 			ip->inode.iso_mode = 0;
+! 			iso_iput(ip);
+! 			ip = iq;
+  		}
+  	}
+! 	
+! 	if (ip->iso_extent == imp->root_extent)
+  		vp->v_flag |= VROOT;
+! 	
+  	*ipp = ip;
+! 	return 0;
+  }
+  
+  /*
+***************
+*** 213,219 ****
+  iso_iput(ip)
+  	register struct iso_node *ip;
+  {
+! 
+  	if ((ip->i_flag & ILOCKED) == 0)
+  		panic("iso_iput");
+  	ISO_IUNLOCK(ip);
+--- 347,353 ----
+  iso_iput(ip)
+  	register struct iso_node *ip;
+  {
+! 	
+  	if ((ip->i_flag & ILOCKED) == 0)
+  		panic("iso_iput");
+  	ISO_IUNLOCK(ip);
+***************
+*** 231,256 ****
+  {
+  	register struct iso_node *ip = VTOI(vp);
+  	int mode, error = 0;
+! 
+  	if (prtactive && vp->v_usecount != 0)
+  		vprint("isofs_inactive: pushing active", vp);
+! 
+  	ip->i_flag = 0;
+  	/*
+  	 * If we are done with the inode, reclaim it
+  	 * so that it can be reused immediately.
+  	 */
+! 
+! 	/*
+! 	 * Purge symlink entries since they cause problems
+! 	 * when cached.  Leave other entries alone since flushing
+! 	 * them every time is a major performance hit.
+! 	 */
+! 	if (vp->v_usecount == 0 && vp->v_type == VLNK) {
+! /*		printf("Flushing symlink entry\n");*/
+  		vgone(vp);
+! 	}
+! 	return (error);
+  }
+  
+  /*
+--- 365,382 ----
+  {
+  	register struct iso_node *ip = VTOI(vp);
+  	int mode, error = 0;
+! 	
+  	if (prtactive && vp->v_usecount != 0)
+  		vprint("isofs_inactive: pushing active", vp);
+! 	
+  	ip->i_flag = 0;
+  	/*
+  	 * If we are done with the inode, reclaim it
+  	 * so that it can be reused immediately.
+  	 */
+! 	if (vp->v_usecount == 0 && ip->inode.iso_mode == 0)
+  		vgone(vp);
+! 	return error;
+  }
+  
+  /*
+***************
+*** 262,268 ****
+  {
+  	register struct iso_node *ip = VTOI(vp);
+  	int i;
+! 
+  	if (prtactive && vp->v_usecount != 0)
+  		vprint("isofs_reclaim: pushing active", vp);
+  	/*
+--- 388,394 ----
+  {
+  	register struct iso_node *ip = VTOI(vp);
+  	int i;
+! 	
+  	if (prtactive && vp->v_usecount != 0)
+  		vprint("isofs_reclaim: pushing active", vp);
+  	/*
+***************
+*** 280,286 ****
+  		ip->i_devvp = 0;
+  	}
+  	ip->i_flag = 0;
+! 	return (0);
+  }
+  
+  /*
+--- 406,412 ----
+  		ip->i_devvp = 0;
+  	}
+  	ip->i_flag = 0;
+! 	return 0;
+  }
+  
+  /*
+***************
+*** 290,302 ****
+  iso_ilock(ip)
+  	register struct iso_node *ip;
+  {
+! 
+  	while (ip->i_flag & ILOCKED) {
+  		ip->i_flag |= IWANT;
+  		if (ip->i_spare0 == curproc->p_pid)
+  			panic("locking against myself");
+  		ip->i_spare1 = curproc->p_pid;
+! 		(void) tsleep((caddr_t)ip, PINOD, "isoilck", 0);
+  	}
+  	ip->i_spare1 = 0;
+  	ip->i_spare0 = curproc->p_pid;
+--- 416,428 ----
+  iso_ilock(ip)
+  	register struct iso_node *ip;
+  {
+! 	
+  	while (ip->i_flag & ILOCKED) {
+  		ip->i_flag |= IWANT;
+  		if (ip->i_spare0 == curproc->p_pid)
+  			panic("locking against myself");
+  		ip->i_spare1 = curproc->p_pid;
+! 		(void) tsleep((caddr_t)ip, PINOD, "ilock", 0);
+  	}
+  	ip->i_spare1 = 0;
+  	ip->i_spare0 = curproc->p_pid;
+***************
+*** 319,322 ****
+--- 445,650 ----
+  		ip->i_flag &= ~IWANT;
+  		wakeup((caddr_t)ip);
+  	}
++ }
++ 
++ /*
++  * File attributes
++  */
++ void
++ isofs_defattr(isodir,inop,bp)
++ 	struct iso_directory_record *isodir;
++ 	struct iso_node *inop;
++ 	struct buf *bp;
++ {
++ 	struct buf *bp2 = NULL;
++ 	struct iso_mnt *imp;
++ 	struct iso_extended_attributes *ap = NULL;
++ 	int off;
++ 	
++ 	if (isonum_711(isodir->flags)&2) {
++ 		inop->inode.iso_mode = S_IFDIR;
++ 		/*
++ 		 * If we return 2, fts() will assume there are no subdirectories
++ 		 * (just links for the path and .), so instead we return 1.
++ 		 */
++ 		inop->inode.iso_links = 1;
++ 	} else {
++ 		inop->inode.iso_mode = S_IFREG;
++ 		inop->inode.iso_links = 1;
++ 	}
++ 	if (!bp
++ 	    && ((imp = inop->i_mnt)->im_flags&ISOFSMNT_EXTATT)
++ 	    && (off = isonum_711(isodir->ext_attr_length))) {
++ 		iso_blkatoff(inop,-off * imp->logical_block_size,&bp2);
++ 		bp = bp2;
++ 	}
++ 	if (bp) {
++ 		ap = (struct iso_extended_attributes *)bp->b_un.b_addr;
++ 		
++ 		if (isonum_711(ap->version) == 1) {
++ 			if (!(ap->perm[0]&0x40))
++ 				inop->inode.iso_mode |= VEXEC >> 6;
++ 			if (!(ap->perm[0]&0x10))
++ 				inop->inode.iso_mode |= VREAD >> 6;
++ 			if (!(ap->perm[0]&4))
++ 				inop->inode.iso_mode |= VEXEC >> 3;
++ 			if (!(ap->perm[0]&1))
++ 				inop->inode.iso_mode |= VREAD >> 3;
++ 			if (!(ap->perm[1]&0x40))
++ 				inop->inode.iso_mode |= VEXEC;
++ 			if (!(ap->perm[1]&0x10))
++ 				inop->inode.iso_mode |= VREAD;
++ 			inop->inode.iso_uid = isonum_723(ap->owner); /* what about 0? */
++ 			inop->inode.iso_gid = isonum_723(ap->group); /* what about 0? */
++ 		} else
++ 			ap = NULL;
++ 	}
++ 	if (!ap) {
++ 		inop->inode.iso_mode |= VREAD|VEXEC|(VREAD|VEXEC)>>3|(VREAD|VEXEC)>>6;
++ 		inop->inode.iso_uid = (uid_t)0;
++ 		inop->inode.iso_gid = (gid_t)0;
++ 	}
++ 	if (bp2)
++ 		brelse(bp2);
++ }
++ 
++ /*
++  * Time stamps
++  */
++ void
++ isofs_deftstamp(isodir,inop,bp)
++ 	struct iso_directory_record *isodir;
++ 	struct iso_node *inop;
++ 	struct buf *bp;
++ {
++ 	struct buf *bp2 = NULL;
++ 	struct iso_mnt *imp;
++ 	struct iso_extended_attributes *ap = NULL;
++ 	int off;
++ 	
++ 	if (!bp
++ 	    && ((imp = inop->i_mnt)->im_flags&ISOFSMNT_EXTATT)
++ 	    && (off = isonum_711(isodir->ext_attr_length))) {
++ 		iso_blkatoff(inop,-off * imp->logical_block_size,&bp2);
++ 		bp = bp2;
++ 	}
++ 	if (bp) {
++ 		ap = (struct iso_extended_attributes *)bp->b_un.b_addr;
++ 		
++ 		if (isonum_711(ap->version) == 1) {
++ 			if (!isofs_tstamp_conv17(ap->ftime,&inop->inode.iso_atime))
++ 				isofs_tstamp_conv17(ap->ctime,&inop->inode.iso_atime);
++ 			if (!isofs_tstamp_conv17(ap->ctime,&inop->inode.iso_ctime))
++ 				inop->inode.iso_ctime = inop->inode.iso_atime;
++ 			if (!isofs_tstamp_conv17(ap->mtime,&inop->inode.iso_mtime))
++ 				inop->inode.iso_mtime = inop->inode.iso_ctime;
++ 		} else
++ 			ap = NULL;
++ 	}
++ 	if (!ap) {
++ 		isofs_tstamp_conv7(isodir->date,&inop->inode.iso_ctime);
++ 		inop->inode.iso_atime = inop->inode.iso_ctime;
++ 		inop->inode.iso_mtime = inop->inode.iso_ctime;
++ 	}
++ 	if (bp2)
++ 		brelse(bp2);
++ }
++ 
++ int
++ isofs_tstamp_conv7(pi,pu)
++ char *pi;
++ struct timeval *pu;
++ {
++ 	int i;
++ 	int crtime, days;
++ 	int y, m, d, hour, minute, second, tz;
++ 	
++ 	y = pi[0] + 1900;
++ 	m = pi[1];
++ 	d = pi[2];
++ 	hour = pi[3];
++ 	minute = pi[4];
++ 	second = pi[5];
++ 	tz = pi[6];
++ 	
++ 	if (y < 1970) {
++ 		pu->tv_sec  = 0;
++ 		pu->tv_usec = 0;
++ 		return 0;
++ 	} else {
++ #ifdef	ORIGINAL
++ 		/* computes day number relative to Sept. 19th,1989 */
++ 		/* don't even *THINK* about changing formula. It works! */
++ 		days = 367*(y-1980)-7*(y+(m+9)/12)/4-3*((y+(m-9)/7)/100+1)/4+275*m/9+d-100;
++ #else
++ 		/*
++ 		 * Changed :-) to make it relative to Jan. 1st, 1970
++ 		 * and to disambiguate negative division
++ 		 */
++ 		days = 367*(y-1960)-7*(y+(m+9)/12)/4-3*((y+(m+9)/12-1)/100+1)/4+275*m/9+d-239;
++ #endif
++ 		crtime = ((((days * 24) + hour) * 60 + minute) * 60) + second;
++ 		
++ 		/* timezone offset is unreliable on some disks */
++ 		if (-48 <= tz && tz <= 52)
++ 			crtime -= tz * 15 * 60;
++ 	}
++ 	pu->tv_sec  = crtime;
++ 	pu->tv_usec = 0;
++ 	return 1;
++ }
++ 
++ static unsigned
++ isofs_chars2ui(begin,len)
++ 	unsigned char *begin;
++ 	int len;
++ {
++ 	unsigned rc;
++ 	
++ 	for (rc = 0; --len >= 0;) {
++ 		rc *= 10;
++ 		rc += *begin++ - '0';
++ 	}
++ 	return rc;
++ }
++ 
++ int
++ isofs_tstamp_conv17(pi,pu)
++ 	unsigned char *pi;
++ 	struct timeval *pu;
++ {
++ 	unsigned char buf[7];
++ 	
++ 	/* year:"0001"-"9999" -> -1900  */
++ 	buf[0] = isofs_chars2ui(pi,4) - 1900;
++ 	
++ 	/* month: " 1"-"12"      -> 1 - 12 */
++ 	buf[1] = isofs_chars2ui(pi + 4,2);
++ 	
++ 	/* day:   " 1"-"31"      -> 1 - 31 */
++ 	buf[2] = isofs_chars2ui(pi + 6,2);
++ 	
++ 	/* hour:  " 0"-"23"      -> 0 - 23 */
++ 	buf[3] = isofs_chars2ui(pi + 8,2);
++ 	
++ 	/* minute:" 0"-"59"      -> 0 - 59 */
++ 	buf[4] = isofs_chars2ui(pi + 10,2);
++ 	
++ 	/* second:" 0"-"59"      -> 0 - 59 */
++ 	buf[5] = isofs_chars2ui(pi + 12,2);
++ 	
++ 	/* difference of GMT */
++ 	buf[6] = pi[16];
++ 	
++ 	return isofs_tstamp_conv7(buf,pu);
++ }
++ 
++ void
++ isodirino(inump,isodir,imp)
++ 	ino_t *inump;
++ 	struct iso_directory_record *isodir;
++ 	struct iso_mnt *imp;
++ {
++ 	*inump = (isonum_733(isodir->extent) + isonum_711(isodir->ext_attr_length))
++ 		 * imp->logical_block_size;
+  }
+diff -cr sys/isofs/isofs_node.h src/sys/isofs/isofs_node.h
+*** sys/isofs/isofs_node.h	Sun Dec 19 00:51:04 1993
+--- src/sys/isofs/isofs_node.h	Mon Aug 15 15:17:56 1994
+***************
+*** 1,22 ****
+  /*
+!  *	patch013,v 1.1.1.1 1994/09/01 23:28:29 phk Exp
+   */
+  
+  #ifndef _ISOFS_ISOFS_NODE_H_
+  #define _ISOFS_ISOFS_NODE_H_ 1
+  
+- 
+  typedef	struct	{
+- 	unsigned	iso_cln;	/* Child link */
+- 	unsigned	iso_pln;	/* Parents link */
+  	struct timeval	iso_atime;	/* time of last access */
+  	struct timeval	iso_mtime;	/* time of last modification */
+  	struct timeval	iso_ctime;	/* time file changed */
+  	u_short		iso_mode;	/* files access mode and type */
+  	uid_t		iso_uid;	/* owner user id */
+  	gid_t		iso_gid;	/* owner group id */
+  } ISO_RRIP_INODE;
+  
+  struct iso_node {
+  	struct	iso_node *i_chain[2]; /* hash chain, MUST be first */
+  	struct	vnode *i_vnode;	/* vnode associated with this inode */
+--- 1,35 ----
+  /*
+!  *	patch013,v 1.1.1.1 1994/09/01 23:28:29 phk Exp
+   */
+  
+  #ifndef _ISOFS_ISOFS_NODE_H_
+  #define _ISOFS_ISOFS_NODE_H_ 1
+  
+  typedef	struct	{
+  	struct timeval	iso_atime;	/* time of last access */
+  	struct timeval	iso_mtime;	/* time of last modification */
+  	struct timeval	iso_ctime;	/* time file changed */
+  	u_short		iso_mode;	/* files access mode and type */
+  	uid_t		iso_uid;	/* owner user id */
+  	gid_t		iso_gid;	/* owner group id */
++ 	short		iso_links;	/* links of file */
++ 	dev_t		iso_rdev;	/* Major/Minor number for special */
+  } ISO_RRIP_INODE;
+  
++ #ifdef	ISODEVMAP
++ /*
++  * FOr device# (major,minor) translation table
++  */
++ struct iso_dnode {
++ 	struct iso_dnode *d_chain[2];	/* hash chain, MUST be first */
++ 	dev_t		i_dev;		/* device where dnode resides */
++ 	ino_t		i_number;	/* the identity of the inode */
++ 	dev_t		d_dev;		/* device # for translation */
++ };
++ #define	d_forw		d_chain[0]
++ #define	d_back		d_chain[1]
++ #endif
++ 
+  struct iso_node {
+  	struct	iso_node *i_chain[2]; /* hash chain, MUST be first */
+  	struct	vnode *i_vnode;	/* vnode associated with this inode */
+***************
+*** 24,29 ****
+--- 37,43 ----
+  	u_long	i_flag;		/* see below */
+  	dev_t	i_dev;		/* device where inode resides */
+  	ino_t	i_number;	/* the identity of the inode */
++ 				/* we use the actual starting block of the file */
+  	struct	iso_mnt *i_mnt;	/* filesystem associated with this inode */
+  	struct	lockf *i_lockf;	/* head of byte-level lock list */
+  	long	i_diroff;	/* offset in dir, where we found last entry */
+***************
+*** 31,48 ****
+  	long	i_spare0;
+  	long	i_spare1;
+  
+! 
+! 	int iso_reclen;
+! 	int iso_extlen;
+! 	int iso_extent;
+! 	int i_size;
+! 	int iso_flags;
+! 	int iso_unit_size;
+! 	int iso_interleave_gap;
+! 	int iso_volume_seq;
+! 	int iso_namelen;	/* ISO9660/RRIP name len */
+! 	int iso_parent;		/* byte offset in beginning of dir record */
+! 	int iso_parent_ext;	/* block number of dir record */
+  	ISO_RRIP_INODE  inode;
+  };
+  
+--- 45,54 ----
+  	long	i_spare0;
+  	long	i_spare1;
+  
+! 	long iso_extent;	/* extent of file */
+! 	long i_size;
+! 	long iso_start;		/* actual start of data of file (may be different */
+! 				/* from iso_extent, if file has extended attributes) */
+  	ISO_RRIP_INODE  inode;
+  };
+  
+***************
+*** 92,108 ****
+  int isofs_strategy __P((struct buf *bp));
+  void isofs_print __P((struct vnode *vp));
+  int isofs_islocked __P((struct vnode *vp));
+! 
+! /* From isofs_node.c: */
+! struct iso_directory_record;
+! extern void isofs_init(void);
+! extern int iso_iget(struct iso_node *, ino_t, struct iso_node **, 
+! 		    struct iso_directory_record *);
+! extern void iso_iput(struct iso_node *);
+! extern void iso_ilock(struct iso_node *);
+! extern void iso_iunlock(struct iso_node *);
+! 
+! 
+! extern int iso_blkatoff(struct iso_node *, off_t, char **, struct buf **);
+  
+  #endif /* _ISOFS_ISOFS_NODE_H_ */
+--- 98,110 ----
+  int isofs_strategy __P((struct buf *bp));
+  void isofs_print __P((struct vnode *vp));
+  int isofs_islocked __P((struct vnode *vp));
+! void isofs_defattr __P((struct iso_directory_record *isodir,
+! 			struct iso_node *inop, struct buf *bp));
+! void isofs_deftstamp __P((struct iso_directory_record *isodir,
+! 			struct iso_node *inop, struct buf *bp));
+! #ifdef	ISODEVMAP
+! struct iso_dnode *iso_dmap __P((dev_t dev, ino_t ino, int create));
+! void iso_dunmap __P((dev_t dev));
+! #endif
+  
+  #endif /* _ISOFS_ISOFS_NODE_H_ */
+diff -cr sys/isofs/isofs_rrip.c src/sys/isofs/isofs_rrip.c
+*** sys/isofs/isofs_rrip.c	Mon Jun 13 21:19:35 1994
+--- src/sys/isofs/isofs_rrip.c	Mon Aug 15 15:38:56 1994
+***************
+*** 28,664 ****
+   * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+   * SUCH DAMAGE.
+   *
+!  *	patch013,v 1.1.1.1 1994/09/01 23:28:29 phk Exp
+   */
+  
+! #include "param.h"
+! #include "systm.h"
+! #include "namei.h"
+! #include "buf.h"
+! #include "file.h"
+! #include "vnode.h"
+! #include "mount.h"
+! #include "kernel.h"
+! 
+! #include "sys/time.h"
+! 
+! #include "iso.h"
+! #include "isofs_node.h"
+! #include "isofs_rrip.h"
+! #include "iso_rrip.h"
+  
+  /*
+   * POSIX file attribute
+   */
+! static int isofs_rrip_attr( p, ana )
+! 	ISO_RRIP_ATTR	 *p;
+  	ISO_RRIP_ANALYZE *ana;
+  {
+! 	ana->inode.iso_mode  = isonum_731(p->mode_l);
+! 	ana->inode.iso_uid   = (uid_t)isonum_731(p->uid_l);
+! 	ana->inode.iso_gid   = (gid_t)isonum_731(p->gid_l);
+! /*	ana->inode.iso_links = isonum_731(p->links_l); */
+! 	return 0;
+! }
+! 
+! int isofs_rrip_defattr(  isodir, ana )
+! 	struct iso_directory_record 	*isodir;
+! 	ISO_RRIP_ANALYZE 		*ana;
+! {
+! 	ana->inode.iso_mode  = (VREAD|VEXEC|(VREAD|VEXEC)>>3|(VREAD|VEXEC)>>6);
+! 	ana->inode.iso_uid   = (uid_t)0;
+! 	ana->inode.iso_gid   = (gid_t)0;
+! 	return 0;
+  }
+  
+! /*
+!  * POSIX device modes
+!  */
+! static int isofs_rrip_device( p, ana )
+! 	ISO_RRIP_DEVICE  *p;
+  	ISO_RRIP_ANALYZE *ana;
+  {
+! 	char   buf[3];
+! 
+! 	buf[0] = p->h.type[0];
+! 	buf[1] = p->h.type[1];
+! 	buf[2]	= 0x00;
+! 
+! 	printf("isofs:%s[%d] high=0x%08x, low=0x%08x\n",
+! 				buf,
+! 				isonum_711(p->h.length),
+! 				isonum_731(p->dev_t_high_l),
+! 				isonum_731(p->dev_t_low_l)
+! 					 );
+! 	return 0;
+  }
+  
+  /*
+   * Symbolic Links
+   */
+! static int isofs_rrip_slink( p, ana )
+  	ISO_RRIP_SLINK  *p;
+  	ISO_RRIP_ANALYZE *ana;
+  {
+  	return 0;
+  }
+  
+  /*
+   * Alternate name
+   */
+! static int isofs_rrip_altname( p, ana )
+  	ISO_RRIP_ALTNAME *p;
+  	ISO_RRIP_ANALYZE *ana;
+  {
+  	return 0;
+  }
+  
+! /*
+!  * Child Link
+!  */
+! static int isofs_rrip_clink( p, ana )
+! 	ISO_RRIP_CLINK  *p;
+  	ISO_RRIP_ANALYZE *ana;
+  {
+! 	char   buf[3];
+! 	buf[0] = p->h.type[0];
+! 	buf[1] = p->h.type[1];
+! 	buf[2]	= 0x00;
+! 	printf("isofs:%s[%d] loc=%d\n",
+! 				buf,
+! 				isonum_711(p->h.length),
+! 				isonum_733(p->dir_loc)
+! 							);
+! 	ana->inode.iso_cln = isonum_733(p->dir_loc);
+! 	return 0;
+  }
+  
+  /*
+!  * Parent Link
+   */
+! static int isofs_rrip_plink( p, ana )
+! ISO_RRIP_PLINK  *p;
+! ISO_RRIP_ANALYZE *ana;
+! {
+! 
+! 	char   buf[3];
+! 	buf[0] = p->h.type[0];
+! 	buf[1] = p->h.type[1];
+! 	buf[2]	= 0x00;
+! 	printf("isofs:%s[%d] loc=%d\n",
+! 				buf,
+! 				isonum_711(p->h.length),
+! 				isonum_733(p->dir_loc)
+! 							);
+! 	ana->inode.iso_pln = isonum_733(p->dir_loc);
+! 	return 0;
+  }
+  
+  /*
+   * Relocated directory
+   */
+! static int isofs_rrip_reldir( p, ana )
+! ISO_RRIP_RELDIR  *p;
+! ISO_RRIP_ANALYZE *ana;
+  {
+! 	char   buf[3];
+! 
+! 	buf[0] = p->h.type[0];
+! 	buf[1] = p->h.type[1];
+! 	buf[2]	= 0x00;
+! 
+! 	printf("isofs:%s[%d]\n",buf, isonum_711(p->h.length) );
+! 	return 0;
+! }
+! 
+! /*
+!  * Time stamp 
+!  */
+! static void isofs_rrip_tstamp_conv7(pi, pu)
+! char	         *pi;
+! struct timeval   *pu;
+! {
+! 	int	 i;
+! 	int	 crtime,days;
+! 	int	 year,month,day,hour,minute,second,tz;
+! 
+! 	year   = pi[0] - 70;
+! 	month  = pi[1];
+! 	day    = pi[2];
+! 	hour   = pi[3];
+! 	minute = pi[4];
+! 	second = pi[5];
+! 	tz     = pi[6];
+! 
+! 	if (year < 0) {
+! 		crtime = 0;
+! 	} else {
+! 		static int monlen[12] = {31,28,31,30,31,30,31,31,30,31,30,31};
+! 
+! 		days = year * 365;
+! 		if (year > 2)
+! 			days += (year+2) / 4;
+! 		for (i = 1; i < month; i++)
+! 			days += monlen[i-1];
+! 		if (((year+2) % 4) == 0 && month > 2)
+! 			days++;
+! 		days += day - 1;
+! 		crtime = ((((days * 24) + hour) * 60 + minute) * 60)
+! 			+ second;
+! 
+! 		/* sign extend */
+! 		if (tz & 0x80)
+! 			tz |= (-1 << 8);
+! 
+! 		/* timezone offset is unreliable on some disks */
+! 		if (-48 <= tz && tz <= 52)
+! 			crtime -= tz * 15 * 60;
+! 	}
+! 	pu->tv_sec  = crtime;
+! 	pu->tv_usec = 0;
+  }
+  
+! 
+! static unsigned isofs_chars2ui( begin, end )
+! unsigned char *begin;
+! unsigned char *end;
+  {
+! 	unsigned rc=0;
+! 	int 	 len; 
+! 	int 	 wlen;
+! 	static   int pow[]={ 1, 10, 100, 1000 };
+! 
+! 	len = end - begin;
+! 	wlen= len;
+! 	for (; len >= 0; len -- ) {
+! 		rc += ( *(begin+len) * pow[wlen - len] ); 
+! 	}
+! 	return( rc );
+! }
+  	
+- static void isofs_rrip_tstamp_conv17(pi, pu)
+- unsigned char *pi;
+- struct timeval   *pu;
+- {
+- 	unsigned char	buf[7];
+- 
+-         /* year:"0001"-"9999" -> -1900  */
+- 	buf[0]  =  (unsigned char)(isofs_chars2ui( &pi[0], &pi[3]) - 1900 );
+- 
+- 	/* month: " 1"-"12"      -> 1 - 12 */
+- 	buf[1]  =  (unsigned char)isofs_chars2ui( &pi[4], &pi[5]);
+- 
+- 	/* day:   " 1"-"31"      -> 1 - 31 */
+- 	buf[2]  =  isofs_chars2ui( &pi[6], &pi[7]);
+- 
+-   	/* hour:  " 0"-"23"      -> 0 - 23 */
+- 	buf[3]  =  isofs_chars2ui( &pi[8], &pi[9]);
+- 
+- 	/* minute:" 0"-"59"      -> 0 - 59 */
+- 	buf[4]  =  isofs_chars2ui( &pi[10], &pi[11] );
+- 
+- 	/* second:" 0"-"59"      -> 0 - 59 */
+- 	buf[5]  =  isofs_chars2ui( &pi[12], &pi[13] );
+- 
+- 	/* difference of GMT */
+- 	buf[6]  =  pi[16];
+- 
+- 	isofs_rrip_tstamp_conv7(buf, pu);
+- }
+- 
+- static int isofs_rrip_tstamp( p, ana )
+- ISO_RRIP_TSTAMP  *p;
+- ISO_RRIP_ANALYZE *ana;
+- {
+- 	unsigned char *ptime;	
+- 
+  	ptime = p->time;
+! 
+  	/* Check a format of time stamp (7bytes/17bytes) */
+! 	if ( !(*p->flags & ISO_SUSP_TSTAMP_FORM17 ) ) {
+!         		isofs_rrip_tstamp_conv7(ptime,    &ana->inode.iso_ctime );
+! 
+! 			if ( *p->flags & ISO_SUSP_TSTAMP_MODIFY )
+!         			isofs_rrip_tstamp_conv7(ptime+7,    &ana->inode.iso_mtime );
+! 			else
+!         			ana->inode.iso_mtime = ana->inode.iso_ctime;
+! 
+! 			if ( *p->flags & ISO_SUSP_TSTAMP_ACCESS )
+!         			isofs_rrip_tstamp_conv7(ptime+14,   &ana->inode.iso_atime );
+! 			else
+!         			ana->inode.iso_atime = ana->inode.iso_ctime;
+  	} else {
+!         		isofs_rrip_tstamp_conv17(ptime,    &ana->inode.iso_ctime );
+! 			
+! 			if ( *p->flags & ISO_SUSP_TSTAMP_MODIFY )
+!         			isofs_rrip_tstamp_conv17(ptime+17, &ana->inode.iso_mtime );
+! 			else
+!         			ana->inode.iso_mtime = ana->inode.iso_ctime;
+! 
+! 			if ( *p->flags & ISO_SUSP_TSTAMP_ACCESS )
+!         			isofs_rrip_tstamp_conv17(ptime+34, &ana->inode.iso_atime );
+! 			else
+!         			ana->inode.iso_atime = ana->inode.iso_ctime;
+  	}
+! 	return 0;
+  }
+  
+! int isofs_rrip_deftstamp( isodir, ana )
+  	struct iso_directory_record  *isodir;
+  	ISO_RRIP_ANALYZE *ana;
+  {
+!        	isofs_rrip_tstamp_conv7(isodir->date, &ana->inode.iso_ctime );
+! 	ana->inode.iso_atime = ana->inode.iso_ctime;
+! 	ana->inode.iso_mtime = ana->inode.iso_ctime;
+! 	return 0;
+  }
+  
+  
+  /*
+   * Flag indicating
+-  *   Nothing to do....
+   */
+! static int isofs_rrip_idflag( p, ana )
+! ISO_RRIP_IDFLAG  *p;
+! ISO_RRIP_ANALYZE *ana;
+! {
+! 	char   buf[3];
+! 
+! 	buf[0] = p->h.type[0];
+! 	buf[1] = p->h.type[1];
+! 	buf[2]	= 0x00;
+! 
+! 	printf("isofs:%s[%d] idflag=0x%x\n",
+! 				buf,
+! 				isonum_711(p->h.length),
+! 				p->flags );
+! 	return 0;
+  }
+  
+  /*
+!  * Extension reference
+!  *   Nothing to do....
+   */
+! static int isofs_rrip_exflag( p, ana )
+! ISO_RRIP_EXFLAG  *p;
+! ISO_RRIP_ANALYZE *ana;
+! {
+! 	char   buf[3];
+! 
+! 	buf[0] = p->h.type[0];
+! 	buf[1] = p->h.type[1];
+! 	buf[2]	= 0x00;
+! 
+! 	printf("isofs:%s[%d] exflag=0x%x",
+! 				buf,
+! 				isonum_711(p->h.length),
+! 				p->flags );
+! 	return 0;
+  }
+  
+  /*
+!  * Unknown ...
+!  *   Nothing to do....
+   */
+! static int isofs_rrip_unknown( p, ana )
+! 	ISO_RRIP_EXFLAG  *p;
+  	ISO_RRIP_ANALYZE *ana;
+  {
+! 	return 0;
+  }
+  
+  typedef struct {
+! 	char	 type[2];
+! 	int	 (*func)();
+! 	int	 (*func2)();
+! 	int	 result;
+  } RRIP_TABLE;
+  
+! static RRIP_TABLE rrip_table [] = {
+!              { 'P', 'X', isofs_rrip_attr,   isofs_rrip_defattr,   ISO_SUSP_ATTR    },
+! 	     { 'T', 'F', isofs_rrip_tstamp, isofs_rrip_deftstamp, ISO_SUSP_TSTAMP  },
+! 	     { 'N', 'M', isofs_rrip_altname,0,                    ISO_SUSP_ALTNAME },
+! 	     { 'C', 'L', isofs_rrip_clink,  0,                    ISO_SUSP_CLINK   },
+! 	     { 'P', 'L', isofs_rrip_plink,  0,                    ISO_SUSP_PLINK   },
+! 	     { 'S', 'L', isofs_rrip_slink,  0,                    ISO_SUSP_SLINK   },
+! 	     { 'R', 'E', isofs_rrip_reldir, 0,                    ISO_SUSP_RELDIR  },
+! 	     { 'P', 'N', isofs_rrip_device, 0,                    ISO_SUSP_DEVICE  },
+! 	     { 'R', 'R', isofs_rrip_idflag, 0,                    ISO_SUSP_IDFLAG  },
+! 	     { 'E', 'R', isofs_rrip_exflag, 0,                    ISO_SUSP_EXFLAG  },
+! 	     { 'S', 'P', isofs_rrip_unknown,0,                    ISO_SUSP_UNKNOWN },
+! 	     { 'C', 'E', isofs_rrip_unknown,0,                    ISO_SUSP_UNKNOWN }
+! };
+! 
+! int isofs_rrip_analyze ( isodir, analyze )
+! struct iso_directory_record 	*isodir;
+! ISO_RRIP_ANALYZE		*analyze;
+! {	
+! 	register RRIP_TABLE	 *ptable;
+  	register ISO_SUSP_HEADER *phead;
+  	register ISO_SUSP_HEADER *pend;
+! 	int	found;
+! 	int	i;
+! 	char	*pwhead;
+! 	int	result;
+! 
+  	/*
+!          * Note: If name length is odd,
+  	 *       it will be padding 1 byte  after the name
+  	 */
+! 	pwhead 	=  isodir->name + isonum_711(isodir->name_len);
+! 	if ( !(isonum_711(isodir->name_len) & 0x0001) )
+! 		pwhead ++;
+! 	phead 	= (ISO_SUSP_HEADER *)pwhead;
+! 	pend 	= (ISO_SUSP_HEADER *)( (char *)isodir + isonum_711(isodir->length) );
+! 
+  	result = 0;
+! 	if ( pend == phead ) {
+! 		goto setdefault;
+! 	}
+! 	/*
+! 	 * Note: "pend" should be more than one SUSP header
+! 	 */ 
+! 	while ( pend >= phead + 1) {
+! 		found   = 0;
+! 		for ( ptable=&rrip_table[0];ptable < &rrip_table[sizeof(rrip_table)/sizeof(RRIP_TABLE)]; ptable ++) {
+! 			if ( bcmp( phead->type, ptable->type, 2 ) == 0 ) {
+! 				found = 1;
+! 				ptable->func( phead, analyze );
+! 				result |= ptable->result;
+! 				break;
+  			}
+! 		}
+! 		if ( found == 0 ) {
+! 			printf("isofs: name '");
+! 			for ( i =0; i < isonum_711(isodir->name_len) ;i++) {
+! 				printf("%c", *(isodir->name + i) );
+  			}
+! 			printf("'");
+! 			printf(" - type %c%c [%08x/%08x]...not found\n",
+! 				phead->type[0], phead->type[1], phead, pend );
+! 			isofs_hexdump( phead, (int)( (char *)pend - (char *)phead ) );
+! 		 	break;
+! 		}
+! 
+! 		/*
+! 		 * move to next SUSP
+! 		 */
+! 		phead  = (ISO_SUSP_HEADER *) ((unsigned)isonum_711(phead->length) + (char *)phead);
+  	}
+! 
+! setdefault:
+  	/*
+  	 * If we don't find the Basic SUSP stuffs, just set default value
+!          *   ( attribute/time stamp )
+  	 */
+! 	for ( ptable=&rrip_table[0];ptable < &rrip_table[2]; ptable ++) {
+! 		if ( ptable->func2 != 0 && !(ptable->result & result) ) {
+! 			ptable->func2( isodir, analyze );
+! 		}
+! 	}
+! 	return ( result );
+  }
+  
+! /* 
+!  * Get Alternate Name from 'AL' record 
+!  * If either no AL record nor 0 lenght, 
+!  *    it will be return the translated ISO9660 name,
+   */
+! int	isofs_rrip_getname( isodir, outbuf, outlen )
+  	struct iso_directory_record *isodir;
+! 	char *outbuf;
+! 	int *outlen;
+  {
+! 	ISO_SUSP_HEADER  *phead, *pend;
+! 	ISO_RRIP_ALTNAME *p;
+! 	char		 *pwhead;
+! 	int		 found;
+! 
+! 	/*
+!          * Note: If name length is odd,
+! 	 *       it will be padding 1 byte  after the name
+! 	 */
+! 	pwhead 	=  isodir->name + isonum_711(isodir->name_len);
+! 	if ( !(isonum_711(isodir->name_len) & 0x0001) )
+! 		pwhead ++;
+! 	phead 	= (ISO_SUSP_HEADER *)pwhead;
+! 	pend 	= (ISO_SUSP_HEADER *)( (char *)isodir + isonum_711(isodir->length) );
+! 
+! 	found   = 0;
+! 	if ( pend != phead ) {
+! 		while ( pend >= phead + 1) {
+! 			if ( bcmp( phead->type, "NM", 2 ) == 0 ) {
+! 				found = 1;
+! 				break;
+! 			}
+! 			phead  = (ISO_SUSP_HEADER *) ((unsigned)isonum_711(phead->length) + (char *)phead);
+! 		}
+! 	}
+! 	if ( found == 1 ) {
+! 		p = (ISO_RRIP_ALTNAME *)phead;
+! 		*outlen = isonum_711( p->h.length ) - sizeof( ISO_RRIP_ALTNAME );
+! 		bcopy( (char *)( &p->flags + 1 ), outbuf, *outlen );
+! 	} else {
+! 		isofntrans(isodir->name, isonum_711(isodir->name_len), outbuf, outlen );
+! 		if ( *outlen == 1) {
+! 			switch ( outbuf[0] ) {
+! 			case 0:
+! 				outbuf[0] = '.';
+! 				break;
+! 			case 1:
+! 				outbuf[0] = '.';
+! 				outbuf[1] = '.';
+! 				*outlen = 2;
+! 			}
+! 		}
+! 	}
+! 	return( found );
+  }
+  
+  /* 
+!  * Get Symbolic Name from 'SL' record 
+!  *
+!  * Note: isodir should contains SL record!
+!  */
+! int	isofs_rrip_getsymname( vp, isodir, outbuf, outlen )
+! struct vnode			*vp;
+! struct iso_directory_record 	*isodir;
+! char				*outbuf;
+! int				*outlen;
+! {
+! 	register ISO_RRIP_SLINK_COMPONENT *pcomp;
+! 	register ISO_SUSP_HEADER  *phead, *pend;
+! 	register ISO_RRIP_SLINK_COMPONENT *pcompe;
+! 	ISO_RRIP_SLINK   *p;
+! 	char		 *pwhead;
+! 	int		 found;
+! 	int		 slash;
+! 	int 	  	 wlen;
+  
+! 	/*
+!          * Note: If name length is odd,
+! 	 *       it will be padding 1 byte  after the name
+! 	 */
+! 	pwhead 	=  isodir->name + isonum_711(isodir->name_len);
+! 	if ( !(isonum_711(isodir->name_len) & 0x0001) )
+! 		pwhead ++;
+! 	phead 	= (ISO_SUSP_HEADER *)pwhead;
+! 	pend 	= (ISO_SUSP_HEADER *)( (char *)isodir + isonum_711(isodir->length) );
+! 
+! 	found   = 0;
+! 	if ( pend != phead ) {
+! 		while ( pend >= phead + 1) {
+! 			if ( bcmp( phead->type, "SL", 2 ) == 0 ) {
+! 				found = 1;
+! 				break;
+! 			}
+! 			phead  = (ISO_SUSP_HEADER *) ((unsigned)isonum_711(phead->length) + (char *)phead);
+! 		}
+  	}
+- 	if ( found == 0 ) {
+- 		*outlen = 0;
+- 		return( found );
+- 	} 
+- 
+- 	p	= (ISO_RRIP_SLINK *)phead;
+- 	pcomp	= (ISO_RRIP_SLINK_COMPONENT *)p->component;
+- 	pcompe  = (ISO_RRIP_SLINK_COMPONENT *)((char *)p + isonum_711(p->h.length));
+  	
+! 	/*
+!          * Gathering a Symbolic name from each component with path
+!          */
+! 	*outlen = 0; 
+! 	slash   = 0;
+! 	while ( pcomp < pcompe ) {
+! 
+! 		/* Inserting Current */
+! 		if ( pcomp->cflag[0] & ISO_SUSP_CFLAG_CURRENT ) {
+! 			bcopy("./",	outbuf+*outlen, 2);
+! 			*outlen += 2;
+! 			slash   = 0;
+! 		}
+  
+! 		/* Inserting Parent */
+! 		if ( pcomp->cflag[0] & ISO_SUSP_CFLAG_PARENT ) {
+! 			bcopy("../",	outbuf+*outlen, 3);
+! 			*outlen += 3;
+! 			slash   = 0;
+! 		}
+  
+! 		/* Inserting slash for ROOT */
+! 		if ( pcomp->cflag[0] & ISO_SUSP_CFLAG_ROOT ) {
+! 			bcopy("/",	outbuf+*outlen, 1);
+! 			*outlen += 1;
+! 			slash   = 0;
+! 		}
+  
+! 		/* Inserting a mount point i.e. "/cdrom" */
+! 		if ( pcomp->cflag[0] & ISO_SUSP_CFLAG_VOLROOT ) {
+!                         wlen = strlen(vp->v_mount->mnt_stat.f_mntonname);
+! 			bcopy(vp->v_mount->mnt_stat.f_mntonname,outbuf+*outlen, wlen);
+! 			*outlen += wlen;
+! 			slash   = 1;
+! 		}
+  
+! 		/* Inserting hostname i.e. "tama:" */
+! 		if ( pcomp->cflag[0] & ISO_SUSP_CFLAG_HOST ) {
+! 			bcopy(hostname, outbuf+*outlen, hostnamelen);
+! 			*(outbuf+hostnamelen) = ':';
+! 			*outlen += (hostnamelen + 1);
+! 			slash   = 0;	/* Uuum Should we insert a slash ? */
+! 		}
+  	
+! 		/* Inserting slash for next component */
+! 		if ( slash == 1 ) {
+! 			outbuf[*outlen] = '/';
+! 			*outlen  += 1;
+! 			slash   =  0;
+! 		}
+! 
+! 		/* Inserting component */
+! 		wlen = isonum_711(pcomp->clen);
+! 		if ( wlen != 0 ) {
+! 			bcopy( pcomp->name, outbuf + *outlen, wlen );
+! 			*outlen += wlen;
+! 			slash   = 1;
+! 		}
+! 			
+! 		/*
+!                  * Move to next component...
+! 		 */	
+! 		pcomp = (ISO_RRIP_SLINK_COMPONENT *)((char *)pcomp
+! 			+ sizeof(ISO_RRIP_SLINK_COMPONENT) - 1 
+! 			+ isonum_711(pcomp->clen));
+! 	}
+! 	return( found );
+! }
+! /* Hexdump routine for debug*/
+! int isofs_hexdump( p, size )
+! 	unsigned char *p;
+! 	int  size;
+! {	
+! 	int i,j,k;
+! 	unsigned char *wp;
+! 
+! 	for ( i = 0; i < size; i += 16 ) {
+! 		printf("isofs: ");
+! 		wp = p;
+! 		k = ( (size - i) > 16 ? 16 : size - i );
+! 		for ( j =0; j < k; j ++ ){
+! 			printf("%02x ", *p );
+! 			p++;
+! 		}
+! 		printf(" : ");
+! 		p = wp;
+! 		for ( j =0; j < k; j ++ ){
+! 			if ( (*p > 0x20) && (*p < 0x7f) ) 
+! 				printf("%c", *p );
+! 			else
+! 				printf(" ");
+! 			p++;
+! 		}
+! 		printf("\n");
+  	}
+! 	printf("\n");
+! 	return 0;
+  }
+--- 28,681 ----
+   * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+   * SUCH DAMAGE.
+   *
+!  *	patch013,v 1.1.1.1 1994/09/01 23:28:29 phk Exp
+   */
+  
+! #include <sys/param.h>
+! #include <sys/systm.h>
+! #include <sys/namei.h>
+! #include <sys/buf.h>
+! #include <sys/file.h>
+! #include <sys/vnode.h>
+! #include <sys/mount.h>
+! #include <sys/kernel.h>
+! #include <sys/stat.h>
+! #include <sys/types.h>
+! #include <sys/time.h>
+! 
+! #include <isofs/iso.h>
+! #include <isofs/isofs_node.h>
+! #include <isofs/isofs_rrip.h>
+! #include <isofs/iso_rrip.h>
+  
+  /*
+   * POSIX file attribute
+   */
+! static int
+! isofs_rrip_attr(p,ana)
+! 	ISO_RRIP_ATTR *p;
+  	ISO_RRIP_ANALYZE *ana;
+  {
+! 	ana->inop->inode.iso_mode = isonum_731(p->mode_l);
+! 	ana->inop->inode.iso_uid = (uid_t)isonum_731(p->uid_l);
+! 	ana->inop->inode.iso_gid = (gid_t)isonum_731(p->gid_l);
+! 	ana->inop->inode.iso_links = isonum_731(p->links_l);
+! 	ana->fields &= ~ISO_SUSP_ATTR;
+! 	return ISO_SUSP_ATTR;
+  }
+  
+! static void
+! isofs_rrip_defattr(isodir,ana)
+! 	struct iso_directory_record *isodir;
+  	ISO_RRIP_ANALYZE *ana;
+  {
+! 	/* But this is a required field! */
+! 	printf("RRIP without PX field?\n");
+! 	isofs_defattr(isodir,ana->inop,NULL);
+  }
+  
+  /*
+   * Symbolic Links
+   */
+! static int
+! isofs_rrip_slink(p,ana)
+  	ISO_RRIP_SLINK  *p;
+  	ISO_RRIP_ANALYZE *ana;
+  {
++ 	register ISO_RRIP_SLINK_COMPONENT *pcomp;
++ 	register ISO_RRIP_SLINK_COMPONENT *pcompe;
++ 	int len, wlen, cont;
++ 	char *outbuf, *inbuf;
++ 	
++ 	pcomp = (ISO_RRIP_SLINK_COMPONENT *)p->component;
++ 	pcompe = (ISO_RRIP_SLINK_COMPONENT *)((char *)p + isonum_711(p->h.length));
++ 	len = *ana->outlen;
++ 	outbuf = ana->outbuf;
++ 	cont = ana->cont;
++ 	
++ 	/*
++ 	 * Gathering a Symbolic name from each component with path
++ 	 */
++ 	for (;
++ 	     pcomp < pcompe;
++ 	     pcomp = (ISO_RRIP_SLINK_COMPONENT *)((char *)pcomp + ISO_RRIP_SLSIZ
++ 						  + isonum_711(pcomp->clen))) {
++ 		
++ 		if (!cont) {
++ 			if (len < ana->maxlen) {
++ 				len++;
++ 				*outbuf++ = '/';
++ 			}
++ 		}
++ 		cont = 0;
++ 		
++ 		inbuf = "..";
++ 		wlen = 0;
++ 		
++ 		switch (*pcomp->cflag) {
++ 			
++ 		case ISO_SUSP_CFLAG_CURRENT:
++ 			/* Inserting Current */
++ 			wlen = 1;
++ 			break;
++ 			
++ 		case ISO_SUSP_CFLAG_PARENT:
++ 			/* Inserting Parent */
++ 			wlen = 2;
++ 			break;
++ 			
++ 		case ISO_SUSP_CFLAG_ROOT:
++ 			/* Inserting slash for ROOT */
++ 			/* start over from beginning(?) */
++ 			outbuf -= len;
++ 			len = 0;
++ 			break;
++ 			
++ 		case ISO_SUSP_CFLAG_VOLROOT:
++ 			/* Inserting a mount point i.e. "/cdrom" */
++ 			/* same as above */
++ 			outbuf -= len;
++ 			len = 0;
++ 			inbuf = ana->imp->im_mountp->mnt_stat.f_mntonname;
++ 			wlen = strlen(inbuf);
++ 			break;
++ 			
++ 		case ISO_SUSP_CFLAG_HOST:
++ 			/* Inserting hostname i.e. "kurt.tools.de" */
++ 			inbuf = hostname;
++ 			wlen = hostnamelen;
++ 			break;
++ 			
++ 		case ISO_SUSP_CFLAG_CONTINUE:
++ 			cont = 1;
++ 			/* fall thru */
++ 		case 0:
++ 			/* Inserting component */
++ 			wlen = isonum_711(pcomp->clen);
++ 			inbuf = pcomp->name;
++ 			break;
++ 		default:
++ 			printf("RRIP with incorrect flags?");
++ 			wlen = ana->maxlen + 1;
++ 			break;
++ 		}
++ 		
++ 		if (len + wlen > ana->maxlen) {
++ 			/* indicate error to caller */
++ 			ana->cont = 1;
++ 			ana->fields = 0;
++ 			ana->outbuf -= *ana->outlen;
++ 			*ana->outlen = 0;
++ 			return 0;
++ 		}
++ 		
++ 		bcopy(inbuf,outbuf,wlen);
++ 		outbuf += wlen;
++ 		len += wlen;
++ 		
++ 	}
++ 	ana->outbuf = outbuf;
++ 	*ana->outlen = len;
++ 	ana->cont = cont;
++ 	
++ 	if (!isonum_711(p->flags)) {
++ 		ana->fields &= ~ISO_SUSP_SLINK;
++ 		return ISO_SUSP_SLINK;
++ 	}
+  	return 0;
+  }
+  
+  /*
+   * Alternate name
+   */
+! static int
+! isofs_rrip_altname(p,ana)
+  	ISO_RRIP_ALTNAME *p;
+  	ISO_RRIP_ANALYZE *ana;
+  {
++ 	char *inbuf;
++ 	int wlen;
++ 	int cont;
++ 	
++ 	inbuf = "..";
++ 	wlen = 0;
++ 	cont = 0;
++ 	
++ 	switch (*p->flags) {
++ 	case ISO_SUSP_CFLAG_CURRENT:
++ 		/* Inserting Current */
++ 		wlen = 1;
++ 		break;
++ 		
++ 	case ISO_SUSP_CFLAG_PARENT:
++ 		/* Inserting Parent */
++ 		wlen = 2;
++ 		break;
++ 		
++ 	case ISO_SUSP_CFLAG_HOST:
++ 		/* Inserting hostname i.e. "kurt.tools.de" */
++ 		inbuf = hostname;
++ 		wlen = hostnamelen;
++ 		break;
++ 		
++ 	case ISO_SUSP_CFLAG_CONTINUE:
++ 		cont = 1;
++ 		/* fall thru */
++ 	case 0:
++ 		/* Inserting component */
++ 		wlen = isonum_711(p->h.length) - 5;
++ 		inbuf = (char *)p + 5;
++ 		break;
++ 		
++ 	default:
++ 		printf("RRIP with incorrect NM flags?\n");
++ 		wlen = ana->maxlen + 1;
++ 		break;
++ 	}
++ 	
++ 	if ((*ana->outlen += wlen) > ana->maxlen) {
++ 		/* treat as no name field */
++ 		ana->fields &= ~ISO_SUSP_ALTNAME;
++ 		ana->outbuf -= *ana->outlen - wlen;
++ 		*ana->outlen = 0;
++ 		return 0;
++ 	}
++ 	
++ 	bcopy(inbuf,ana->outbuf,wlen);
++ 	ana->outbuf += wlen;
++ 	
++ 	if (!cont) {
++ 		ana->fields &= ~ISO_SUSP_ALTNAME;
++ 		return ISO_SUSP_ALTNAME;
++ 	}
+  	return 0;
+  }
+  
+! static void
+! isofs_rrip_defname(isodir,ana)
+! 	struct iso_directory_record *isodir;
+  	ISO_RRIP_ANALYZE *ana;
+  {
+! 	strcpy(ana->outbuf,"..");
+! 	switch (*isodir->name) {
+! 	default:
+! 		isofntrans(isodir->name,isonum_711(isodir->name_len),
+! 			   ana->outbuf,ana->outlen,
+! 			   1,isonum_711(isodir->flags)&4);
+! 		break;
+! 	case 0:
+! 		*ana->outlen = 1;
+! 		break;
+! 	case 1:
+! 		*ana->outlen = 2;
+! 		break;
+! 	}
+  }
+  
+  /*
+!  * Parent or Child Link
+   */
+! static int
+! isofs_rrip_pclink(p,ana)
+! 	ISO_RRIP_CLINK  *p;
+! 	ISO_RRIP_ANALYZE *ana;
+! {
+! 	*ana->inump = isonum_733(p->dir_loc) << ana->imp->im_bshift;
+! 	ana->fields &= ~(ISO_SUSP_CLINK|ISO_SUSP_PLINK);
+! 	return *p->h.type == 'C' ? ISO_SUSP_CLINK : ISO_SUSP_PLINK;
+  }
+  
+  /*
+   * Relocated directory
+   */
+! static int
+! isofs_rrip_reldir(p,ana)
+! 	ISO_RRIP_RELDIR  *p;
+! 	ISO_RRIP_ANALYZE *ana;
+  {
+! 	/* special hack to make caller aware of RE field */
+! 	*ana->outlen = 0;
+! 	ana->fields = 0;
+! 	return ISO_SUSP_RELDIR|ISO_SUSP_ALTNAME|ISO_SUSP_CLINK|ISO_SUSP_PLINK;
+  }
+  
+! static int
+! isofs_rrip_tstamp(p,ana)
+! 	ISO_RRIP_TSTAMP *p;
+! 	ISO_RRIP_ANALYZE *ana;
+  {
+! 	unsigned char *ptime;
+  	
+  	ptime = p->time;
+! 	
+  	/* Check a format of time stamp (7bytes/17bytes) */
+! 	if (!(*p->flags&ISO_SUSP_TSTAMP_FORM17)) {
+! 		if (*p->flags&ISO_SUSP_TSTAMP_CREAT)
+! 			ptime += 7;
+! 		
+! 		if (*p->flags&ISO_SUSP_TSTAMP_MODIFY) {
+! 			isofs_tstamp_conv7(ptime,&ana->inop->inode.iso_mtime);
+! 			ptime += 7;
+! 		} else
+! 			bzero(&ana->inop->inode.iso_mtime,sizeof(struct timeval));
+! 		
+! 		if (*p->flags&ISO_SUSP_TSTAMP_ACCESS) {
+! 			isofs_tstamp_conv7(ptime,&ana->inop->inode.iso_atime);
+! 			ptime += 7;
+! 		} else
+! 			ana->inop->inode.iso_atime = ana->inop->inode.iso_mtime;
+! 		
+! 		if (*p->flags&ISO_SUSP_TSTAMP_ATTR)
+! 			isofs_tstamp_conv7(ptime,&ana->inop->inode.iso_ctime);
+! 		else
+! 			ana->inop->inode.iso_ctime = ana->inop->inode.iso_mtime;
+! 		
+  	} else {
+! 		if (*p->flags&ISO_SUSP_TSTAMP_CREAT)
+! 			ptime += 17;
+! 		
+! 		if (*p->flags&ISO_SUSP_TSTAMP_MODIFY) {
+! 			isofs_tstamp_conv17(ptime,&ana->inop->inode.iso_mtime);
+! 			ptime += 17;
+! 		} else
+! 			bzero(&ana->inop->inode.iso_mtime,sizeof(struct timeval));
+! 		
+! 		if (*p->flags&ISO_SUSP_TSTAMP_ACCESS) {
+! 			isofs_tstamp_conv17(ptime,&ana->inop->inode.iso_atime);
+! 			ptime += 17;
+! 		} else
+! 			ana->inop->inode.iso_atime = ana->inop->inode.iso_mtime;
+! 		
+! 		if (*p->flags&ISO_SUSP_TSTAMP_ATTR)
+! 			isofs_tstamp_conv17(ptime,&ana->inop->inode.iso_ctime);
+! 		else
+! 			ana->inop->inode.iso_ctime = ana->inop->inode.iso_mtime;
+! 		
+  	}
+! 	ana->fields &= ~ISO_SUSP_TSTAMP;
+! 	return ISO_SUSP_TSTAMP;
+  }
+  
+! static void
+! isofs_rrip_deftstamp(isodir,ana)
+  	struct iso_directory_record  *isodir;
+  	ISO_RRIP_ANALYZE *ana;
+  {
+! 	isofs_deftstamp(isodir,ana->inop,NULL);
+  }
+  
++ /*
++  * POSIX device modes
++  */
++ static int
++ isofs_rrip_device(p,ana)
++ 	ISO_RRIP_DEVICE *p;
++ 	ISO_RRIP_ANALYZE *ana;
++ {
++ 	unsigned high, low;
++ 	
++ 	high = isonum_733(p->dev_t_high_l);
++ 	low  = isonum_733(p->dev_t_low_l);
++ 	
++ 	if (high == 0)
++ 		ana->inop->inode.iso_rdev = makedev(major(low),minor(low));
++ 	else
++ 		ana->inop->inode.iso_rdev = makedev(high,minor(low));
++ 	ana->fields &= ~ISO_SUSP_DEVICE;
++ 	return ISO_SUSP_DEVICE;
++ }
+  
+  /*
+   * Flag indicating
+   */
+! static int
+! isofs_rrip_idflag(p,ana)
+! 	ISO_RRIP_IDFLAG *p;
+! 	ISO_RRIP_ANALYZE *ana;
+! {
+! 	ana->fields &= isonum_711(p->flags)|~0xff; /* don't touch high bits */
+! 	/* special handling of RE field */
+! 	if (ana->fields&ISO_SUSP_RELDIR)
+! 		return isofs_rrip_reldir(p,ana);
+! 	
+! 	return ISO_SUSP_IDFLAG;
+  }
+  
+  /*
+!  * Continuation pointer
+   */
+! static int
+! isofs_rrip_cont(p,ana)
+! 	ISO_RRIP_CONT *p;
+! 	ISO_RRIP_ANALYZE *ana;
+! {
+! 	ana->iso_ce_blk = isonum_733(p->location);
+! 	ana->iso_ce_off = isonum_733(p->offset);
+! 	ana->iso_ce_len = isonum_733(p->length);
+! 	return ISO_SUSP_CONT;
+  }
+  
+  /*
+!  * System Use end
+   */
+! static int
+! isofs_rrip_stop(p,ana)
+! 	ISO_SUSP_HEADER *p;
+  	ISO_RRIP_ANALYZE *ana;
+  {
+! 	return ISO_SUSP_STOP;
+! }
+! 
+! /*
+!  * Extension reference
+!  */
+! static int
+! isofs_rrip_extref(p,ana)
+! 	ISO_RRIP_EXTREF *p;
+! 	ISO_RRIP_ANALYZE *ana;
+! {
+! 	if (isonum_711(p->len_id) != 10
+! 	    || bcmp((char *)p + 8,"RRIP_1991A",10)
+! 	    || isonum_711(p->version) != 1)
+! 		return 0;
+! 	ana->fields &= ~ISO_SUSP_EXTREF;
+! 	return ISO_SUSP_EXTREF;
+  }
+  
+  typedef struct {
+! 	char type[2];
+! 	int (*func)();
+! 	void (*func2)();
+! 	int result;
+  } RRIP_TABLE;
+  
+! static int
+! isofs_rrip_loop(isodir,ana,table)
+! 	struct iso_directory_record *isodir;
+! 	ISO_RRIP_ANALYZE *ana;
+! 	RRIP_TABLE *table;
+! {
+! 	register RRIP_TABLE *ptable;
+  	register ISO_SUSP_HEADER *phead;
+  	register ISO_SUSP_HEADER *pend;
+! 	struct buf *bp = NULL;
+! 	int i;
+! 	char *pwhead;
+! 	int result;
+! 	
+  	/*
+! 	 * Note: If name length is odd,
+  	 *       it will be padding 1 byte  after the name
+  	 */
+! 	pwhead = isodir->name + isonum_711(isodir->name_len);
+! 	if (!(isonum_711(isodir->name_len)&1))
+! 		pwhead++;
+! 	
+! 	/* If it's not the '.' entry of the root dir obey SP field */
+! 	if (*isodir->name != 0
+! 	    || isonum_733(isodir->extent) != ana->imp->root_extent)
+! 		pwhead += ana->imp->rr_skip;
+! 	else
+! 		pwhead += ana->imp->rr_skip0;
+! 	
+! 	phead = (ISO_SUSP_HEADER *)pwhead;
+! 	pend = (ISO_SUSP_HEADER *)((char *)isodir + isonum_711(isodir->length));
+! 	
+  	result = 0;
+! 	while (1) {
+! 		ana->iso_ce_len = 0;
+! 		/*
+! 		 * Note: "pend" should be more than one SUSP header
+! 		 */ 
+! 		while (pend >= phead + 1) {
+! 			if (isonum_711(phead->version) == 1) {
+! 				for (ptable = table; ptable->func; ptable++) {
+! 					if (*phead->type == *ptable->type
+! 					    && phead->type[1] == ptable->type[1]) {
+! 						result |= ptable->func(phead,ana);
+! 						break;
+! 					}
+! 				}
+! 				if (!ana->fields)
+! 					break;
+  			}
+! 			if (result&ISO_SUSP_STOP) {
+! 				result &= ~ISO_SUSP_STOP;
+! 				break;
+  			}
+! 			/* plausibility check */
+! 			if (isonum_711(phead->length) < sizeof(*phead))
+! 				break;
+! 			/*
+! 			 * move to next SUSP
+! 			 * Hopefully this works with newer versions, too
+! 			 */
+! 			phead = (ISO_SUSP_HEADER *)((char *)phead + isonum_711(phead->length));
+! 		}
+! 		
+! 		if (ana->fields && ana->iso_ce_len) {
+! 			if (ana->iso_ce_blk >= ana->imp->volume_space_size
+! 			    || ana->iso_ce_off + ana->iso_ce_len > ana->imp->logical_block_size
+! 			    || bread(ana->imp->im_devvp,
+! 				     ana->iso_ce_blk * ana->imp->logical_block_size / DEV_BSIZE,
+! 				     ana->imp->logical_block_size,NOCRED,&bp))
+! 				/* what to do now? */
+! 				break;
+! 			phead = (ISO_SUSP_HEADER *)(bp->b_un.b_addr + ana->iso_ce_off);
+! 			pend = (ISO_SUSP_HEADER *) ((char *)phead + ana->iso_ce_len);
+! 		} else
+! 			break;
+  	}
+! 	if (bp)
+! 		brelse(bp);
+  	/*
+  	 * If we don't find the Basic SUSP stuffs, just set default value
+! 	 *   (attribute/time stamp)
+  	 */
+! 	for (ptable = table; ptable->func2; ptable++)
+! 		if (!(ptable->result&result))
+! 			ptable->func2(isodir,ana);
+! 	
+! 	return result;
+  }
+  
+! /*
+!  * Get Attributes.
+   */
+! static RRIP_TABLE rrip_table_analyze[] = {
+! 	{ "PX", isofs_rrip_attr,	isofs_rrip_defattr,	ISO_SUSP_ATTR },
+! 	{ "TF", isofs_rrip_tstamp,	isofs_rrip_deftstamp,	ISO_SUSP_TSTAMP },
+! 	{ "PN", isofs_rrip_device,	0,			ISO_SUSP_DEVICE },
+! 	{ "RR", isofs_rrip_idflag,	0,			ISO_SUSP_IDFLAG },
+! 	{ "CE", isofs_rrip_cont,	0,			ISO_SUSP_CONT },
+! 	{ "ST", isofs_rrip_stop,	0,			ISO_SUSP_STOP },
+! 	{ "",	0,			0,			0 }
+! };
+! 
+! int
+! isofs_rrip_analyze(isodir,inop,imp)
+  	struct iso_directory_record *isodir;
+! 	struct iso_node *inop;
+! 	struct iso_mnt *imp;
+  {
+! 	ISO_RRIP_ANALYZE analyze;
+! 	
+! 	analyze.inop = inop;
+! 	analyze.imp = imp;
+! 	analyze.fields = ISO_SUSP_ATTR|ISO_SUSP_TSTAMP|ISO_SUSP_DEVICE;
+! 	
+! 	return isofs_rrip_loop(isodir,&analyze,rrip_table_analyze);
+  }
+  
+  /* 
+!  * Get Alternate Name.
+!  */
+! static RRIP_TABLE rrip_table_getname[] = {
+! 	{ "NM", isofs_rrip_altname,	isofs_rrip_defname,	ISO_SUSP_ALTNAME },
+! 	{ "CL", isofs_rrip_pclink,	0,			ISO_SUSP_CLINK|ISO_SUSP_PLINK },
+! 	{ "PL", isofs_rrip_pclink,	0,			ISO_SUSP_CLINK|ISO_SUSP_PLINK },
+! 	{ "RE", isofs_rrip_reldir,	0,			ISO_SUSP_RELDIR },
+! 	{ "RR", isofs_rrip_idflag,	0,			ISO_SUSP_IDFLAG },
+! 	{ "CE", isofs_rrip_cont,	0,			ISO_SUSP_CONT },
+! 	{ "ST", isofs_rrip_stop,	0,			ISO_SUSP_STOP },
+! 	{ "",	0,			0,			0 }
+! };
+  
+! int
+! isofs_rrip_getname(isodir,outbuf,outlen,inump,imp)
+! 	struct iso_directory_record *isodir;
+! 	char *outbuf;
+! 	u_short *outlen;
+! 	ino_t *inump;
+! 	struct iso_mnt *imp;
+! {
+! 	ISO_RRIP_ANALYZE analyze;
+! 	RRIP_TABLE *tab;
+! 	
+! 	analyze.outbuf = outbuf;
+! 	analyze.outlen = outlen;
+! 	analyze.maxlen = NAME_MAX;
+! 	analyze.inump = inump;
+! 	analyze.imp = imp;
+! 	analyze.fields = ISO_SUSP_ALTNAME|ISO_SUSP_RELDIR|ISO_SUSP_CLINK|ISO_SUSP_PLINK;
+! 	*outlen = 0;
+! 	
+! 	tab = rrip_table_getname;
+! 	if (*isodir->name == 0
+! 	    || *isodir->name == 1) {
+! 		isofs_rrip_defname(isodir,&analyze);
+! 		
+! 		analyze.fields &= ~ISO_SUSP_ALTNAME;
+! 		tab++;
+  	}
+  	
+! 	return isofs_rrip_loop(isodir,&analyze,tab);
+! }
+  
+! /* 
+!  * Get Symbolic Link.
+!  */
+! static RRIP_TABLE rrip_table_getsymname[] = {
+! 	{ "SL", isofs_rrip_slink,	0,			ISO_SUSP_SLINK },
+! 	{ "RR", isofs_rrip_idflag,	0,			ISO_SUSP_IDFLAG },
+! 	{ "CE", isofs_rrip_cont,	0,			ISO_SUSP_CONT },
+! 	{ "ST", isofs_rrip_stop,	0,			ISO_SUSP_STOP },
+! 	{ "",	0,			0,			0 }
+! };
+  
+! int
+! isofs_rrip_getsymname(isodir,outbuf,outlen,imp)
+! 	struct iso_directory_record *isodir;
+! 	char *outbuf;
+! 	u_short *outlen;
+! 	struct iso_mnt *imp;
+! {
+! 	ISO_RRIP_ANALYZE analyze;
+! 	
+! 	analyze.outbuf = outbuf;
+! 	analyze.outlen = outlen;
+! 	*outlen = 0;
+! 	analyze.maxlen = MAXPATHLEN;
+! 	analyze.cont = 1;		/* don't start with a slash */
+! 	analyze.imp = imp;
+! 	analyze.fields = ISO_SUSP_SLINK;
+! 	
+! 	return (isofs_rrip_loop(isodir,&analyze,rrip_table_getsymname)&ISO_SUSP_SLINK);
+! }
+  
+! static RRIP_TABLE rrip_table_extref[] = {
+! 	{ "ER", isofs_rrip_extref,	0,			ISO_SUSP_EXTREF },
+! 	{ "CE", isofs_rrip_cont,	0,			ISO_SUSP_CONT },
+! 	{ "ST", isofs_rrip_stop,	0,			ISO_SUSP_STOP },
+! 	{ "",	0,			0,			0 }
+! };
+  
+! /*
+!  * Check for Rock Ridge Extension and Return Offset of its Fields.
+!  * Note: We insist on the ER field.
+!  */
+! int
+! isofs_rrip_offset(isodir,imp)
+! 	struct iso_directory_record *isodir;
+! 	struct iso_mnt *imp;
+! {
+! 	ISO_RRIP_OFFSET *p;
+! 	ISO_RRIP_ANALYZE analyze;
+  	
+! 	imp->rr_skip0 = 0;
+! 	p = (ISO_RRIP_OFFSET *)(isodir->name + 1);
+! 	if (bcmp(p,"SP\7\1\276\357",6)) {
+! 		/* Maybe, it's a CDROM XA disc? */
+! 		imp->rr_skip0 = 15;
+! 		p = (ISO_RRIP_OFFSET *)((char *)p + 15);
+! 		if (bcmp(p,"SP\7\1\276\357",6))
+! 			return -1;
+  	}
+! 	
+! 	analyze.imp = imp;
+! 	analyze.fields = ISO_SUSP_EXTREF;
+! 	if (!(isofs_rrip_loop(isodir,&analyze,rrip_table_extref)&ISO_SUSP_EXTREF))
+! 		return -1;
+! 	
+! 	return isonum_711(p->skip);
+  }
+diff -cr sys/isofs/isofs_rrip.h src/sys/isofs/isofs_rrip.h
+*** sys/isofs/isofs_rrip.h	Sun Nov  7 17:46:05 1993
+--- src/sys/isofs/isofs_rrip.h	Mon Aug 15 15:17:57 1994
+***************
+*** 29,35 ****
+   * SUCH DAMAGE.
+   *
+   *	from: @(#)isofs_rrip.h
+!  *	patch013,v 1.1.1.1 1994/09/01 23:28:29 phk Exp
+   */
+  
+  #ifndef _ISOFS_ISOFS_RRIP_H_
+--- 29,35 ----
+   * SUCH DAMAGE.
+   *
+   *	from: @(#)isofs_rrip.h
+!  *	patch013,v 1.1.1.1 1994/09/01 23:28:29 phk Exp
+   */
+  
+  #ifndef _ISOFS_ISOFS_RRIP_H_
+***************
+*** 71,78 ****
+  typedef struct {
+  	u_char cflag			[ISODCL (  1,    1)];
+  	u_char clen			[ISODCL (  2,    2)];
+! 	u_char name			[ISODCL (  3,    3)];
+  } ISO_RRIP_SLINK_COMPONENT;
+  
+  typedef struct {
+  	ISO_SUSP_HEADER			h;
+--- 71,79 ----
+  typedef struct {
+  	u_char cflag			[ISODCL (  1,    1)];
+  	u_char clen			[ISODCL (  2,    2)];
+! 	u_char name			[0];
+  } ISO_RRIP_SLINK_COMPONENT;
++ #define	ISO_RRIP_SLSIZ	2
+  
+  typedef struct {
+  	ISO_SUSP_HEADER			h;
+***************
+*** 122,128 ****
+  
+  typedef struct {
+  	ISO_SUSP_HEADER			h;
+! 	unsigned char flags		[ISODCL (  4,    4)];
+! } ISO_RRIP_EXFLAG;
+  
+  #endif /* _ISOFS_ISOFS_RRIP_H_ */
+--- 123,145 ----
+  
+  typedef struct {
+  	ISO_SUSP_HEADER			h;
+! 	char len_id			[ISODCL (  4,    4)];
+! 	char len_des			[ISODCL (  5,	 5)];
+! 	char len_src			[ISODCL (  6,	 6)];
+! 	char version			[ISODCL (  7,	 7)];
+! } ISO_RRIP_EXTREF;
+! 
+! typedef struct {
+! 	ISO_SUSP_HEADER			h;
+! 	char check			[ISODCL (  4,	 5)];
+! 	char skip			[ISODCL (  6,	 6)];
+! } ISO_RRIP_OFFSET;
+! 
+! typedef struct {
+! 	ISO_SUSP_HEADER			h;
+! 	char location			[ISODCL (  4,	11)];
+! 	char offset			[ISODCL ( 12,	19)];
+! 	char length			[ISODCL ( 20,	27)];
+! } ISO_RRIP_CONT;
+  
+  #endif /* _ISOFS_ISOFS_RRIP_H_ */
+diff -cr sys/isofs/isofs_util.c src/sys/isofs/isofs_util.c
+*** sys/isofs/isofs_util.c	Sun Dec 19 00:51:06 1993
+--- src/sys/isofs/isofs_util.c	Mon Aug 15 15:17:57 1994
+***************
+*** 1,139 ****
+  /*
+!  *	patch013,v 1.1.1.1 1994/09/01 23:28:29 phk Exp
+   */
+  
+! #include "param.h"
+! #include "systm.h"
+  
+  int
+  isonum_711 (p)
+! char *p;
+  {
+! 	return (*p & 0xff);
+  }
+  
+  int
+  isonum_712 (p)
+! 	char *p;
+  {
+! 	int val;
+! 
+! 	val = *p;
+! 	if (val & 0x80)
+! 		val |= ~0xff;
+! 	return (val);
+  }
+  
+  int
+  isonum_721 (p)
+! 	char *p;
+  {
+! 	return ((p[0] & 0xff) | ((p[1] & 0xff) << 8));
+  }
+  
+  int
+  isonum_722 (p)
+! char *p;
+  {
+! 	return (((p[0] & 0xff) << 8) | (p[1] & 0xff));
+  }
+  
+  int
+  isonum_723 (p)
+! char *p;
+  {
+! #if 0
+! 	if (p[0] != p[3] || p[1] != p[2]) {
+! 		fprintf (stderr, "invalid format 7.2.3 number\n");
+! 		exit (1);
+! 	}
+  #endif
+- 	return (isonum_721 (p));
+  }
+  
+  int
+  isonum_731 (p)
+  unsigned char *p;
+  {
+! 	return ((p[0] & 0xff)
+! 		| ((p[1] & 0xff) << 8)
+! 		| ((p[2] & 0xff) << 16)
+! 		| ((p[3] & 0xff) << 24));
+  }
+  
+  int
+  isonum_732 (p)
+  unsigned char *p;
+  {
+! 	return (((p[0] & 0xff) << 24)
+! 		| ((p[1] & 0xff) << 16)
+! 		| ((p[2] & 0xff) << 8)
+! 		| (p[3] & 0xff));
+  }
+  
+  int
+  isonum_733 (p)
+  unsigned char *p;
+  {
+! 	int i;
+! 
+! #if 0
+! 	for (i = 0; i < 4; i++) {
+! 		if (p[i] != p[7-i]) {
+! 			fprintf (stderr, "bad format 7.3.3 number\n");
+! 			exit (1);
+! 		}
+! 	}
+  #endif
+- 	return (isonum_731 (p));
+  }
+  
+  /*
+   * translate and compare a filename
+   */
+  int
+! isofncmp(char *fn, int fnlen, char *isofn, int isolen) {
+! 	int fnidx;
+! 
+! 	fnidx = 0;
+! 	for (fnidx = 0; fnidx < isolen; fnidx++, fn++) {
+! 		char c = *isofn++;
+! 
+! 		if (fnidx > fnlen)
+! 			return (0);
+! 
+! 		if (c >= 'A' && c <= 'Z') {
+! 			if (c + ('a' - 'A') !=  *fn)
+! 				return(0);
+! 			else
+! 				continue;
+  		}
+- 		if (c == ';')
+- 			return ((fnidx == fnlen));
+- 		if (c != *fn)
+- 			return (0);
+  	}
+! 	return (1);
+  }
+  
+  /*
+   * translate a filename
+   */
+  void
+! isofntrans(char *infn, int infnlen, char *outfn, short *outfnlen) {
+! 	int fnidx;
+! 
+! 	fnidx = 0;
+! 	for (fnidx = 0; fnidx < infnlen; fnidx++) {
+  		char c = *infn++;
+! 
+! 		if (c >= 'A' && c <= 'Z')
+  			*outfn++ = c + ('a' - 'A');
+! 		else if (c == ';') {
+! 			*outfnlen = fnidx;
+! 			return;
+! 		} else
+  			*outfn++ = c;
+  	}
+! 	*outfnlen = infnlen;
+  }
+--- 1,203 ----
+  /*
+!  *	patch013,v 1.1.1.1 1994/09/01 23:28:29 phk Exp
+   */
+  
+! #include <sys/param.h>
+! #include <sys/systm.h>
+! #include <sys/namei.h>
+! #include <sys/resourcevar.h>
+! #include <sys/kernel.h>
+! #include <sys/file.h>
+! #include <sys/stat.h>
+! #include <sys/buf.h>
+! #include <sys/proc.h>
+! #include <sys/conf.h>
+! #include <sys/mount.h>
+! #include <sys/vnode.h>
+! #include <sys/malloc.h>
+! #include <sys/dir.h>
+  
++ #include <sys/specdev.h> /* XXX */
++ #include <sys/fifo.h> /* XXX */
++ 
++ #include <isofs/iso.h>
++ 
++ #include <machine/endian.h>
++ 
++ #ifdef	__notanymore__
+  int
+  isonum_711 (p)
+! unsigned char *p;
+  {
+! 	return (*p);
+  }
+  
+  int
+  isonum_712 (p)
+! signed char *p;
+  {
+! 	return (*p);
+  }
+  
+  int
+  isonum_721 (p)
+! unsigned char *p;
+  {
+! 	/* little endian short */
+! #if BYTE_ORDER != LITTLE_ENDIAN
+! 	printf ("isonum_721 called on non little-endian machine!\n");
+! #endif
+! 
+! 	return *(short *)p;
+  }
+  
+  int
+  isonum_722 (p)
+! unsigned char *p;
+  {
+!         /* big endian short */
+! #if BYTE_ORDER != BIG_ENDIAN
+!         printf ("isonum_722 called on non big-endian machine!\n");
+! #endif
+! 
+! 	return *(short *)p;
+  }
+  
+  int
+  isonum_723 (p)
+! unsigned char *p;
+  {
+! #if BYTE_ORDER == BIG_ENDIAN
+!         return isonum_722 (p + 2);
+! #elif BYTE_ORDER == LITTLE_ENDIAN
+! 	return isonum_721 (p);
+! #else
+! 	printf ("isonum_723 unsupported byte order!\n");
+! 	return 0;
+  #endif
+  }
+  
+  int
+  isonum_731 (p)
+  unsigned char *p;
+  {
+!         /* little endian long */
+! #if BYTE_ORDER != LITTLE_ENDIAN
+!         printf ("isonum_731 called on non little-endian machine!\n");
+! #endif
+! 
+! 	return *(long *)p;
+  }
+  
+  int
+  isonum_732 (p)
+  unsigned char *p;
+  {
+!         /* big endian long */
+! #if BYTE_ORDER != BIG_ENDIAN
+!         printf ("isonum_732 called on non big-endian machine!\n");
+! #endif
+! 
+! 	return *(long *)p;
+  }
+  
+  int
+  isonum_733 (p)
+  unsigned char *p;
+  {
+! #if BYTE_ORDER == BIG_ENDIAN
+!         return isonum_732 (p + 4);
+! #elif BYTE_ORDER == LITTLE_ENDIAN
+! 	return isonum_731 (p);
+! #else
+! 	printf ("isonum_733 unsupported byte order!\n");
+! 	return 0;
+  #endif
+  }
++ #endif	/* __notanymore__ */
+  
+  /*
+   * translate and compare a filename
++  * Note: Version number plus ';' may be omitted.
+   */
+  int
+! isofncmp(unsigned char *fn,int fnlen,unsigned char *isofn,int isolen)
+! {
+! 	int i, j;
+! 	unsigned char c;
+! 	
+! 	while (--fnlen >= 0) {
+! 		if (--isolen < 0)
+! 			return *fn;
+! 		if ((c = *isofn++) == ';') {
+! 			switch (*fn++) {
+! 			default:
+! 				return *--fn;
+! 			case 0:
+! 				return 0;
+! 			case ';':
+! 				break;
+! 			}
+! 			for (i = 0; --fnlen >= 0; i = i * 10 + *fn++ - '0') {
+! 				if (*fn < '0' || *fn > '9') {
+! 					return -1;
+! 				}
+! 			}
+! 			for (j = 0; --isolen >= 0; j = j * 10 + *isofn++ - '0');
+! 			return i - j;
+! 		}
+! 		if (c != *fn) {
+! 			if (c >= 'A' && c <= 'Z') {
+! 				if (c + ('a' - 'A') != *fn) {
+! 					if (*fn >= 'a' && *fn <= 'z')
+! 						return *fn - ('a' - 'A') - c;
+! 					else
+! 						return *fn - c;
+! 				}
+! 			} else
+! 				return *fn - c;
+! 		}
+! 		fn++;
+! 	}
+! 	if (isolen > 0) {
+! 		switch (*isofn) {
+! 		default:
+! 			return -1;
+! 		case '.':
+! 			if (isofn[1] != ';')
+! 				return -1;
+! 		case ';':
+! 			return 0;
+  		}
+  	}
+! 	return 0;
+  }
+  
+  /*
+   * translate a filename
+   */
+  void
+! isofntrans(unsigned char *infn,int infnlen,
+! 	   unsigned char *outfn,unsigned short *outfnlen,
+! 	   int original,int assoc)
+! {
+! 	int fnidx = 0;
+! 	
+! 	if (assoc) {
+! 		*outfn++ = ASSOCCHAR;
+! 		fnidx++;
+! 	}
+! 	for (; fnidx < infnlen; fnidx++) {
+  		char c = *infn++;
+! 		
+! 		if (!original && c >= 'A' && c <= 'Z')
+  			*outfn++ = c + ('a' - 'A');
+! 		else if (!original && c == '.' && *infn == ';')
+! 			break;
+! 		else if (!original && c == ';')
+! 			break;
+! 		else
+  			*outfn++ = c;
+  	}
+! 	*outfnlen = fnidx;
+  }
+diff -cr sys/isofs/isofs_vfsops.c src/sys/isofs/isofs_vfsops.c
+*** sys/isofs/isofs_vfsops.c	Thu Jun  2 07:48:34 1994
+--- src/sys/isofs/isofs_vfsops.c	Tue Aug 16 16:26:34 1994
+***************
+*** 1,25 ****
+  /*
+   *	patch013,v 1.1.1.1 1994/09/01 23:28:29 phk Exp
+   */
+  
+! #include "param.h"
+! #include "systm.h"
+! #include "namei.h"
+! #include "proc.h"
+! #include "kernel.h"
+! #include "vnode.h"
+! #include "specdev.h"
+! #include "mount.h"
+! #include "buf.h"
+! #include "file.h"
+! #include "dkbad.h"
+! #include "disklabel.h"
+! #include "ioctl.h"
+! #include "errno.h"
+! #include "malloc.h"
+! 
+! #include "iso.h"
+! #include "isofs_node.h"
+  
+  extern int enodev ();
+  
+--- 1,25 ----
+  /*
+   *	patch013,v 1.1.1.1 1994/09/01 23:28:29 phk Exp
+   */
++ #include <sys/param.h>
++ #include <sys/systm.h>
++ #include <sys/namei.h>
++ #include <sys/proc.h>
++ #include <sys/kernel.h>
++ #include <sys/vnode.h>
++ #include <sys/mount.h>
++ #include <sys/buf.h>
++ #include <sys/file.h>
++ #include <sys/dkbad.h>
++ #include <sys/disklabel.h>
++ #include <sys/ioctl.h>
++ #include <sys/errno.h>
++ #include <sys/malloc.h>
++   
++ #include <sys/specdev.h> /* XXX */
+  
+! #include <isofs/iso.h>
+! #include <isofs/isofs_node.h>
+  
+  extern int enodev ();
+  
+***************
+*** 37,49 ****
+  };
+  
+  /*
+!  * Called by vfs_mountroot when ufs is going to be mounted as root.
+   *
+   * Name is updated by mount(8) after booting.
+   */
+  #define ROOTNAME	"root_device"
+  
+! static int iso_mountfs(struct vnode *, struct mount *, struct proc *);
+  
+  int
+  isofs_mountroot()
+--- 37,49 ----
+  };
+  
+  /*
+!  * Called by vfs_mountroot when iso is going to be mounted as root.
+   *
+   * Name is updated by mount(8) after booting.
+   */
+  #define ROOTNAME	"root_device"
+  
+! static iso_mountfs();
+  
+  int
+  isofs_mountroot()
+***************
+*** 55,76 ****
+  	register struct fs *fs;
+  	u_int size;
+  	int error;
+! 
+  	mp = (struct mount *)malloc((u_long)sizeof(struct mount),
+  		M_MOUNT, M_WAITOK);
+! 	mp->mnt_op = &isofs_vfsops;
+  	mp->mnt_flag = MNT_RDONLY;
+  	mp->mnt_exroot = 0;
+  	mp->mnt_mounth = NULLVP;
+! 	error = iso_mountfs(rootvp, mp, p);
+  	if (error) {
+  		free((caddr_t)mp, M_MOUNT);
+! 		return (error);
+  	}
+  	if (error = vfs_lock(mp)) {
+  		(void)isofs_unmount(mp, 0, p);
+  		free((caddr_t)mp, M_MOUNT);
+! 		return (error);
+  	}
+  	rootfs = mp;
+  	mp->mnt_next = mp;
+--- 55,78 ----
+  	register struct fs *fs;
+  	u_int size;
+  	int error;
+! 	struct iso_args args;
+! 	
+  	mp = (struct mount *)malloc((u_long)sizeof(struct mount),
+  		M_MOUNT, M_WAITOK);
+! 	mp->mnt_op = (struct vfsops *)&isofs_vfsops;
+  	mp->mnt_flag = MNT_RDONLY;
+  	mp->mnt_exroot = 0;
+  	mp->mnt_mounth = NULLVP;
+! 	args.flags = ISOFSMNT_ROOT;
+! 	error = iso_mountfs(rootvp, mp, p, &args);
+  	if (error) {
+  		free((caddr_t)mp, M_MOUNT);
+! 		return error;
+  	}
+  	if (error = vfs_lock(mp)) {
+  		(void)isofs_unmount(mp, 0, p);
+  		free((caddr_t)mp, M_MOUNT);
+! 		return error;
+  	}
+  	rootfs = mp;
+  	mp->mnt_next = mp;
+***************
+*** 86,101 ****
+  	bzero(mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);
+  	(void) isofs_statfs(mp, &mp->mnt_stat, p);
+  	vfs_unlock(mp);
+! 	return (0);
+  }
+  
+  /*
+!  * Flag to allow forcible unmounting.
+   */
+  int iso_doforce = 1;
+  
+  /*
+!  * VFS Operations.
+   *
+   * mount system call
+   */
+--- 88,104 ----
+  	bzero(mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);
+  	(void) isofs_statfs(mp, &mp->mnt_stat, p);
+  	vfs_unlock(mp);
+! 	return 0;
+  }
+  
++ 
+  /*
+!  * flag to allow forcible unmounting.
+   */
+  int iso_doforce = 1;
+  
+  /*
+!  * vfs operations.
+   *
+   * mount system call
+   */
+***************
+*** 108,133 ****
+  	struct proc *p;
+  {
+  	struct vnode *devvp;
+! 	struct ufs_args args;
+  	u_int size;
+  	int error;
+! 	struct iso_mnt *imp = 0;
+! 
+! 	if (error = copyin(data, (caddr_t)&args, sizeof (struct ufs_args)))
+! 		return (error);
+! 
+  	if ((mp->mnt_flag & MNT_RDONLY) == 0)
+! 		return (EROFS);
+! 
+  	/*
+! 	 * Process export requests.
+  	 */
+! 	if ((args.exflags & MNT_EXPORTED) || (mp->mnt_flag & MNT_EXPORTED)) {
+! 		if (args.exflags & MNT_EXPORTED)
+  			mp->mnt_flag |= MNT_EXPORTED;
+  		else
+  			mp->mnt_flag &= ~MNT_EXPORTED;
+! 		if (args.exflags & MNT_EXRDONLY)
+  			mp->mnt_flag |= MNT_EXRDONLY;
+  		else
+  			mp->mnt_flag &= ~MNT_EXRDONLY;
+--- 111,136 ----
+  	struct proc *p;
+  {
+  	struct vnode *devvp;
+! 	struct iso_args args;
+  	u_int size;
+  	int error;
+! 	struct iso_mnt *imp;
+! 	
+! 	if (error = copyin(data, (caddr_t)&args, sizeof (struct iso_args)))
+! 		return error;
+! 	
+  	if ((mp->mnt_flag & MNT_RDONLY) == 0)
+! 		return EROFS;
+! 	
+  	/*
+!  	 * Process export requests.
+  	 */
+! 	if ((args.flags & MNT_EXPORTED) || (mp->mnt_flag & MNT_EXPORTED)) {
+! 		if (args.flags & MNT_EXPORTED)
+  			mp->mnt_flag |= MNT_EXPORTED;
+  		else
+  			mp->mnt_flag &= ~MNT_EXPORTED;
+! 		if (args.flags & MNT_EXRDONLY)
+  			mp->mnt_flag |= MNT_EXRDONLY;
+  		else
+  			mp->mnt_flag &= ~MNT_EXRDONLY;
+***************
+*** 138,146 ****
+  	 * read/write; if there is no device name, that's all we do.
+  	 */
+  	if (mp->mnt_flag & MNT_UPDATE) {
+- 		imp = VFSTOISOFS(mp);
+  		if (args.fspec == 0)
+! 			return (0);
+  	}
+  	/*
+  	 * Not an update, or updating the name: look up the name
+--- 141,148 ----
+  	 * read/write; if there is no device name, that's all we do.
+  	 */
+  	if (mp->mnt_flag & MNT_UPDATE) {
+  		if (args.fspec == 0)
+! 			return 0;
+  	}
+  	/*
+  	 * Not an update, or updating the name: look up the name
+***************
+*** 150,169 ****
+  	ndp->ni_segflg = UIO_USERSPACE;
+  	ndp->ni_dirp = args.fspec;
+  	if (error = namei(ndp, p))
+! 		return (error);
+  	devvp = ndp->ni_vp;
+  	if (devvp->v_type != VBLK) {
+  		vrele(devvp);
+! 		return (ENOTBLK);
+  	}
+  	if (major(devvp->v_rdev) >= nblkdev) {
+  		vrele(devvp);
+! 		return (ENXIO);
+  	}
+! 
+! 	if ((mp->mnt_flag & MNT_UPDATE) == 0)
+! 		error = iso_mountfs(devvp, mp, p);
+! 	else {
+  		if (devvp != imp->im_devvp)
+  			error = EINVAL;	/* needs translation */
+  		else
+--- 152,172 ----
+  	ndp->ni_segflg = UIO_USERSPACE;
+  	ndp->ni_dirp = args.fspec;
+  	if (error = namei(ndp, p))
+! 		return error;
+  	devvp = ndp->ni_vp;
+  	if (devvp->v_type != VBLK) {
+  		vrele(devvp);
+! 		return ENOTBLK;
+  	}
+  	if (major(devvp->v_rdev) >= nblkdev) {
+  		vrele(devvp);
+! 		return ENXIO;
+  	}
+! 	
+! 	if ((mp->mnt_flag & MNT_UPDATE) == 0) {
+! 		error = iso_mountfs(devvp, mp, p, &args);
+! 	} else {
+! 		imp = VFSTOISOFS(mp);
+  		if (devvp != imp->im_devvp)
+  			error = EINVAL;	/* needs translation */
+  		else
+***************
+*** 171,208 ****
+  	}
+  	if (error) {
+  		vrele(devvp);
+! 		return (error);
+  	}
+  	imp = VFSTOISOFS(mp);
+! 
+! 	/* Check the Rock Ridge Extention support */
+! 	if ( args.exflags & MNT_NORRIP ) {
+! 		imp->iso_ftype = ISO_FTYPE_9660;
+! 		mp->mnt_flag  |= MNT_NORRIP;
+! 	} else {
+! 		imp->iso_ftype = ISO_FTYPE_RRIP;
+! 		mp->mnt_flag  &= ~MNT_NORRIP;
+! 	}
+! 
+  	(void) copyinstr(path, imp->im_fsmnt, sizeof(imp->im_fsmnt)-1, &size);
+  	bzero(imp->im_fsmnt + size, sizeof(imp->im_fsmnt) - size);
+  	bcopy((caddr_t)imp->im_fsmnt, (caddr_t)mp->mnt_stat.f_mntonname,
+  	    MNAMELEN);
+! 	(void) copyinstr(args.fspec, mp->mnt_stat.f_mntfromname, MNAMELEN - 1, 
+  	    &size);
+  	bzero(mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);
+  	(void) isofs_statfs(mp, &mp->mnt_stat, p);
+! 	return (0);
+  }
+  
+  /*
+   * Common code for mount and mountroot
+   */
+! static int
+! iso_mountfs(devvp, mp, p)
+  	register struct vnode *devvp;
+  	struct mount *mp;
+  	struct proc *p;
+  {
+  	register struct iso_mnt *isomp = (struct iso_mnt *)0;
+  	struct buf *bp = NULL;
+--- 174,202 ----
+  	}
+  	if (error) {
+  		vrele(devvp);
+! 		return error;
+  	}
+  	imp = VFSTOISOFS(mp);
+! 	
+  	(void) copyinstr(path, imp->im_fsmnt, sizeof(imp->im_fsmnt)-1, &size);
+  	bzero(imp->im_fsmnt + size, sizeof(imp->im_fsmnt) - size);
+  	bcopy((caddr_t)imp->im_fsmnt, (caddr_t)mp->mnt_stat.f_mntonname,
+  	    MNAMELEN);
+! 	(void) copyinstr(args.fspec, mp->mnt_stat.f_mntfromname, MNAMELEN - 1,
+  	    &size);
+  	bzero(mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);
+  	(void) isofs_statfs(mp, &mp->mnt_stat, p);
+! 	return 0;
+  }
+  
+  /*
+   * Common code for mount and mountroot
+   */
+! static int iso_mountfs(devvp, mp, p, argp)
+  	register struct vnode *devvp;
+  	struct mount *mp;
+  	struct proc *p;
++ 	struct iso_args *argp;
+  {
+  	register struct iso_mnt *isomp = (struct iso_mnt *)0;
+  	struct buf *bp = NULL;
+***************
+*** 220,310 ****
+  	struct iso_primary_descriptor *pri;
+  	struct iso_directory_record *rootp;
+  	int logical_block_size;
+! 
+  	if (!ronly)
+! 		return (EROFS);
+! 
+  	/*
+  	 * Disallow multiple mounts of the same device.
+  	 * Disallow mounting of a device that is currently in use
+  	 * (except for root, which might share swap device for miniroot).
+  	 * Flush out any old buffers remaining from a previous use.
+  	 */
+! 	if (error = iso_mountedon(devvp))
+! 		return (error);
+  	if (vcount(devvp) > 1 && devvp != rootvp)
+! 		return (EBUSY);
+  	vinvalbuf(devvp, 1);
+  	if (error = VOP_OPEN(devvp, ronly ? FREAD : FREAD|FWRITE, NOCRED, p))
+! 		return (error);
+  	needclose = 1;
+! 
+  	/* This is the "logical sector size".  The standard says this
+  	 * should be 2048 or the physical sector size on the device,
+  	 * whichever is greater.  For now, we'll just use a constant.
+  	 */
+  	iso_bsize = 2048;
+! 
+  	for (iso_blknum = 16; iso_blknum < 100; iso_blknum++) {
+  		if (error = bread (devvp, iso_blknum * iso_bsize / DEV_BSIZE,
+  				   iso_bsize, NOCRED, &bp))
+  			goto out;
+! 
+  		vdp = (struct iso_volume_descriptor *)bp->b_un.b_addr;
+  		if (bcmp (vdp->id, ISO_STANDARD_ID, sizeof vdp->id) != 0) {
+  			error = EINVAL;
+  			goto out;
+  		}
+! 
+  		if (isonum_711 (vdp->type) == ISO_VD_END) {
+  			error = EINVAL;
+  			goto out;
+  		}
+! 
+  		if (isonum_711 (vdp->type) == ISO_VD_PRIMARY)
+  			break;
+  		brelse(bp);
+  	}
+! 
+  	if (isonum_711 (vdp->type) != ISO_VD_PRIMARY) {
+  		error = EINVAL;
+  		goto out;
+  	}
+  	
+  	pri = (struct iso_primary_descriptor *)vdp;
+! 
+  	logical_block_size = isonum_723 (pri->logical_block_size);
+! 
+  	if (logical_block_size < DEV_BSIZE
+  	    || logical_block_size >= MAXBSIZE
+  	    || (logical_block_size & (logical_block_size - 1)) != 0) {
+  		error = EINVAL;
+  		goto out;
+  	}
+! 
+  	rootp = (struct iso_directory_record *)pri->root_directory_record;
+! 
+  	isomp = (struct iso_mnt *)malloc(sizeof *isomp,M_ISOFSMNT,M_WAITOK);
+  	isomp->logical_block_size = logical_block_size;
+  	isomp->volume_space_size = isonum_733 (pri->volume_space_size);
+  	bcopy (rootp, isomp->root, sizeof isomp->root);
+  	isomp->root_extent = isonum_733 (rootp->extent);
+  	isomp->root_size = isonum_733 (rootp->size);
+! 
+! 	isomp->im_bsize = logical_block_size;
+! 	isomp->im_bmask = ~(isomp->im_bsize - 1);
+  	isomp->im_bshift = 0;
+! 	while ((1 << isomp->im_bshift) < isomp->im_bsize)
+  		isomp->im_bshift++;
+! 
+! 	bp->b_flags |= B_INVAL;
+  	brelse(bp);
+  	bp = NULL;
+! 
+! 	isomp->im_ronly = ronly;
+! 	if (ronly == 0)
+! 		isomp->im_fmod = 1;
+! 
+  	mp->mnt_data = (qaddr_t)isomp;
+  	mp->mnt_stat.f_fsid.val[0] = (long)dev;
+  	mp->mnt_stat.f_fsid.val[1] = MOUNT_ISOFS;
+--- 214,299 ----
+  	struct iso_primary_descriptor *pri;
+  	struct iso_directory_record *rootp;
+  	int logical_block_size;
+! 	
+  	if (!ronly)
+! 		return EROFS;
+! 	
+  	/*
+  	 * Disallow multiple mounts of the same device.
+  	 * Disallow mounting of a device that is currently in use
+  	 * (except for root, which might share swap device for miniroot).
+  	 * Flush out any old buffers remaining from a previous use.
+  	 */
+! 	if (error = mountedon(devvp))
+! 		return error;
+  	if (vcount(devvp) > 1 && devvp != rootvp)
+! 		return EBUSY;
+  	vinvalbuf(devvp, 1);
+  	if (error = VOP_OPEN(devvp, ronly ? FREAD : FREAD|FWRITE, NOCRED, p))
+! 		return error;
+  	needclose = 1;
+! 	
+  	/* This is the "logical sector size".  The standard says this
+  	 * should be 2048 or the physical sector size on the device,
+  	 * whichever is greater.  For now, we'll just use a constant.
+  	 */
+  	iso_bsize = 2048;
+! 	
+  	for (iso_blknum = 16; iso_blknum < 100; iso_blknum++) {
+  		if (error = bread (devvp, iso_blknum * iso_bsize / DEV_BSIZE,
+  				   iso_bsize, NOCRED, &bp))
+  			goto out;
+! 		
+  		vdp = (struct iso_volume_descriptor *)bp->b_un.b_addr;
+  		if (bcmp (vdp->id, ISO_STANDARD_ID, sizeof vdp->id) != 0) {
+  			error = EINVAL;
+  			goto out;
+  		}
+! 		
+  		if (isonum_711 (vdp->type) == ISO_VD_END) {
+  			error = EINVAL;
+  			goto out;
+  		}
+! 		
+  		if (isonum_711 (vdp->type) == ISO_VD_PRIMARY)
+  			break;
+  		brelse(bp);
+  	}
+! 	
+  	if (isonum_711 (vdp->type) != ISO_VD_PRIMARY) {
+  		error = EINVAL;
+  		goto out;
+  	}
+  	
+  	pri = (struct iso_primary_descriptor *)vdp;
+! 	
+  	logical_block_size = isonum_723 (pri->logical_block_size);
+! 	
+  	if (logical_block_size < DEV_BSIZE
+  	    || logical_block_size >= MAXBSIZE
+  	    || (logical_block_size & (logical_block_size - 1)) != 0) {
+  		error = EINVAL;
+  		goto out;
+  	}
+! 	
+  	rootp = (struct iso_directory_record *)pri->root_directory_record;
+! 	
+  	isomp = (struct iso_mnt *)malloc(sizeof *isomp,M_ISOFSMNT,M_WAITOK);
+  	isomp->logical_block_size = logical_block_size;
+  	isomp->volume_space_size = isonum_733 (pri->volume_space_size);
+  	bcopy (rootp, isomp->root, sizeof isomp->root);
+  	isomp->root_extent = isonum_733 (rootp->extent);
+  	isomp->root_size = isonum_733 (rootp->size);
+! 	
+! 	isomp->im_bmask = logical_block_size - 1;
+  	isomp->im_bshift = 0;
+! 	while ((1 << isomp->im_bshift) < isomp->logical_block_size)
+  		isomp->im_bshift++;
+! 	
+! 	bp->b_flags |= B_AGE;
+  	brelse(bp);
+  	bp = NULL;
+! 	
+  	mp->mnt_data = (qaddr_t)isomp;
+  	mp->mnt_stat.f_fsid.val[0] = (long)dev;
+  	mp->mnt_stat.f_fsid.val[1] = MOUNT_ISOFS;
+***************
+*** 312,321 ****
+  	isomp->im_mountp = mp;
+  	isomp->im_dev = dev;
+  	isomp->im_devvp = devvp;
+! 
+  	devvp->v_specflags |= SI_MOUNTEDON;
+! 
+! 	return (0);
+  out:
+  	if (bp)
+  		brelse(bp);
+--- 301,347 ----
+  	isomp->im_mountp = mp;
+  	isomp->im_dev = dev;
+  	isomp->im_devvp = devvp;
+! 	
+  	devvp->v_specflags |= SI_MOUNTEDON;
+! 	
+! 	/* Check the Rock Ridge Extention support */
+! 	if (!(argp->flags & ISOFSMNT_NORRIP)) {
+! 		if (error = bread (isomp->im_devvp,
+! 				   (isomp->root_extent + isonum_711(rootp->ext_attr_length))
+! 				   * isomp->logical_block_size / DEV_BSIZE,
+! 				   isomp->logical_block_size,NOCRED,&bp))
+! 		    goto out;
+! 		
+! 		rootp = (struct iso_directory_record *)bp->b_un.b_addr;
+! 		
+! 		if ((isomp->rr_skip = isofs_rrip_offset(rootp,isomp)) < 0) {
+! 		    argp->flags  |= ISOFSMNT_NORRIP;
+! 		} else {
+! 		    argp->flags  &= ~ISOFSMNT_GENS;
+! 		}
+! 		
+! 		/*
+! 		 * The contents are valid,
+! 		 * but they will get reread as part of another vnode, so...
+! 		 */
+! 		bp->b_flags |= B_AGE;
+! 		brelse(bp);
+! 		bp = NULL;
+! 	}
+! 	isomp->im_flags = argp->flags&(ISOFSMNT_NORRIP|ISOFSMNT_GENS|ISOFSMNT_EXTATT);
+! 	switch (isomp->im_flags&(ISOFSMNT_NORRIP|ISOFSMNT_GENS)) {
+! 	default:
+! 	    isomp->iso_ftype = ISO_FTYPE_DEFAULT;
+! 	    break;
+! 	case ISOFSMNT_GENS|ISOFSMNT_NORRIP:
+! 	    isomp->iso_ftype = ISO_FTYPE_9660;
+! 	    break;
+! 	case 0:
+! 	    isomp->iso_ftype = ISO_FTYPE_RRIP;
+! 	    break;
+! 	}
+! 	
+! 	return 0;
+  out:
+  	if (bp)
+  		brelse(bp);
+***************
+*** 325,331 ****
+  		free((caddr_t)isomp, M_ISOFSMNT);
+  		mp->mnt_data = (qaddr_t)0;
+  	}
+! 	return (error);
+  }
+  
+  /*
+--- 351,357 ----
+  		free((caddr_t)isomp, M_ISOFSMNT);
+  		mp->mnt_data = (qaddr_t)0;
+  	}
+! 	return error;
+  }
+  
+  /*
+***************
+*** 339,346 ****
+  	int flags;
+  	struct proc *p;
+  {
+! 
+! 	return (0);
+  }
+  
+  /*
+--- 365,371 ----
+  	int flags;
+  	struct proc *p;
+  {
+! 	return 0;
+  }
+  
+  /*
+***************
+*** 354,404 ****
+  {
+  	register struct iso_mnt *isomp;
+  	int i, error, ronly, flags = 0;
+! 
+  	if (mntflags & MNT_FORCE) {
+  		if (!iso_doforce || mp == rootfs)
+! 			return (EINVAL);
+  		flags |= FORCECLOSE;
+  	}
+  	mntflushbuf(mp, 0);
+  	if (mntinvalbuf(mp))
+! 		return (EBUSY);
+  	isomp = VFSTOISOFS(mp);
+! 
+  	if (error = vflush(mp, NULLVP, flags))
+! 		return (error);
+! 	ronly = !isomp->im_ronly;
+  	isomp->im_devvp->v_specflags &= ~SI_MOUNTEDON;
+! 	error = VOP_CLOSE(isomp->im_devvp, ronly ? FREAD : FREAD|FWRITE,
+! 		NOCRED, p);
+  	vrele(isomp->im_devvp);
+  	free((caddr_t)isomp, M_ISOFSMNT);
+  	mp->mnt_data = (qaddr_t)0;
+  	mp->mnt_flag &= ~MNT_LOCAL;
+! 	return (error);
+! }
+! 
+! /*
+!  * Check to see if a filesystem is mounted on a block device.
+!  */
+! int
+! iso_mountedon(vp)
+! 	register struct vnode *vp;
+! {
+! 	register struct vnode *vq;
+! 
+! 	if (vp->v_specflags & SI_MOUNTEDON)
+! 		return (EBUSY);
+! 	if (vp->v_flag & VALIASED) {
+! 		for (vq = *vp->v_hashchain; vq; vq = vq->v_specnext) {
+! 			if (vq->v_rdev != vp->v_rdev ||
+! 			    vq->v_type != vp->v_type)
+! 				continue;
+! 			if (vq->v_specflags & SI_MOUNTEDON)
+! 				return (EBUSY);
+! 		}
+! 	}
+! 	return (0);
+  }
+  
+  /*
+--- 379,409 ----
+  {
+  	register struct iso_mnt *isomp;
+  	int i, error, ronly, flags = 0;
+! 	
+  	if (mntflags & MNT_FORCE) {
+  		if (!iso_doforce || mp == rootfs)
+! 			return EINVAL;
+  		flags |= FORCECLOSE;
+  	}
+  	mntflushbuf(mp, 0);
+  	if (mntinvalbuf(mp))
+! 		return EBUSY;
+  	isomp = VFSTOISOFS(mp);
+! 	
+  	if (error = vflush(mp, NULLVP, flags))
+! 		return error;
+! #ifdef	ISODEVMAP
+! 	if (isomp->iso_ftype == ISO_FTYPE_RRIP)
+! 		iso_dunmap(isomp->im_dev);
+! #endif
+! 	
+  	isomp->im_devvp->v_specflags &= ~SI_MOUNTEDON;
+! 	error = VOP_CLOSE(isomp->im_devvp, FREAD, NOCRED, p);
+  	vrele(isomp->im_devvp);
+  	free((caddr_t)isomp, M_ISOFSMNT);
+  	mp->mnt_data = (qaddr_t)0;
+  	mp->mnt_flag &= ~MNT_LOCAL;
+! 	return error;
+  }
+  
+  /*
+***************
+*** 414,432 ****
+  	struct vnode tvp;
+  	int error;
+  	struct iso_mnt *imp = VFSTOISOFS (mp);
+! 
+  	tvp.v_mount = mp;
+  	ip = VTOI(&tvp);
+  	ip->i_vnode = &tvp;
+  	ip->i_dev = imp->im_dev;
+  	ip->i_diroff = 0;
+! 	ip->iso_extent = imp->root_extent;
+! 	error = iso_iget(ip, imp->root_extent, &nip,
+! 			 (struct iso_directory_record *) imp->root);
+  	if (error)
+! 		return (error);
+  	*vpp = ITOV(nip);
+! 	return (0);
+  }
+  
+  /*
+--- 419,445 ----
+  	struct vnode tvp;
+  	int error;
+  	struct iso_mnt *imp = VFSTOISOFS (mp);
+! 	struct iso_directory_record *dp;
+! 	
+  	tvp.v_mount = mp;
+  	ip = VTOI(&tvp);
+  	ip->i_vnode = &tvp;
+  	ip->i_dev = imp->im_dev;
+  	ip->i_diroff = 0;
+! 	dp = (struct iso_directory_record *)imp->root;
+! 	isodirino(&ip->i_number,dp,imp);
+! 	
+! 	/*
+! 	 * With RRIP we must use the `.' entry of the root directory.
+! 	 * Simply tell iget, that it's a relocated directory.
+! 	 */
+! 	error = iso_iget(ip,ip->i_number,
+! 			 imp->iso_ftype == ISO_FTYPE_RRIP,
+! 			 &nip,dp);
+  	if (error)
+! 		return error;
+  	*vpp = ITOV(nip);
+! 	return 0;
+  }
+  
+  /*
+***************
+*** 457,463 ****
+  		bcopy((caddr_t)mp->mnt_stat.f_mntfromname,
+  			(caddr_t)&sbp->f_mntfromname[0], MNAMELEN);
+  	}
+! 	return (0);
+  }
+  
+  int
+--- 470,480 ----
+  		bcopy((caddr_t)mp->mnt_stat.f_mntfromname,
+  			(caddr_t)&sbp->f_mntfromname[0], MNAMELEN);
+  	}
+! #if 0
+! 	/* Use the first spare for flags: */
+! 	sbp->f_spare[0] = isomp->im_flags;
+! #endif
+! 	return 0;
+  }
+  
+  int
+***************
+*** 465,471 ****
+  	struct mount *mp;
+  	int waitfor;
+  {
+! 	return (0);
+  }
+  
+  /*
+--- 482,488 ----
+  	struct mount *mp;
+  	int waitfor;
+  {
+! 	return 0;
+  }
+  
+  /*
+***************
+*** 478,490 ****
+   * - check that the generation number matches
+   */
+  
+- 
+  struct ifid {
+  	ushort	ifid_len;
+  	ushort	ifid_pad;
+- 	int	ifid_lbn;
+- 	int	ifid_offset;
+  	int	ifid_ino;
+  };
+  
+  int
+--- 495,505 ----
+   * - check that the generation number matches
+   */
+  
+  struct ifid {
+  	ushort	ifid_len;
+  	ushort	ifid_pad;
+  	int	ifid_ino;
++ 	off_t	ifid_start;
+  };
+  
+  int
+***************
+*** 502,563 ****
+  	struct buf			*bp;
+  	struct iso_directory_record	*dirp;
+  	struct iso_node 		*ip, *nip;
+! 	struct proc 			*p;
+! 
+  	ifhp = (struct ifid *)fhp;
+  	imp = VFSTOISOFS (mp);
+! 
+  #ifdef	ISOFS_DBG
+! 	printf("fhtovp: lbn %d, off %d, ino %d\n",
+! 			ifhp->ifid_lbn, ifhp->ifid_offset, ifhp->ifid_ino);
+  #endif
+! 
+! 	lbn = ifhp->ifid_lbn;
+! 	off = ifhp->ifid_offset;
+! 	ifhp->ifid_lbn += (ifhp->ifid_offset >> 11);
+! 	ifhp->ifid_offset &= 0x7ff;
+! 
+! 	if (ifhp->ifid_lbn >= imp->volume_space_size)
+! 		return (EINVAL);
+! 
+! 	if (ifhp->ifid_offset + sizeof (struct iso_directory_record)
+! 	    > imp->im_bsize)
+! 		return (EINVAL);
+! 
+! 	if (error = bread (imp->im_devvp,
+! 		 (ifhp->ifid_lbn * imp->im_bsize / DEV_BSIZE), imp->im_bsize,
+! 								 NOCRED, &bp)) {
+! 		printf("fhtovp: bread error %d\n", error);
+! 		return(EINVAL);
+  	}
+! 
+! 	dirp = (struct iso_directory_record *)
+! 				 (bp->b_un.b_addr + ifhp->ifid_offset);
+! 
+! 	if (ifhp->ifid_offset + isonum_711 (dirp->length) > imp->im_bsize) {
+! 		brelse (bp);
+! 		return (EINVAL);
+  	}
+! 	if (isonum_733(dirp->extent) != ifhp->ifid_ino) {
+  		brelse(bp);
+! 		return(EINVAL);
+  	}
+! 
+  	tvp.v_mount = mp;
+  	ip = VTOI(&tvp);
+  	ip->i_vnode = &tvp;
+  	ip->i_dev = imp->im_dev;
+! 	ip->i_diroff = off;
+! 	ip->iso_extent = lbn;
+! 	if (error = iso_iget(ip, ifhp->ifid_ino, &nip, dirp)) {
+  		*vpp = NULLVP;
+! 		brelse (bp);
+! 		return (error);
+  	}
+  	ip = nip;
+  	*vpp = ITOV(ip);
+! 	brelse (bp);
+! 	return (0);
+  }
+  
+  /*
+--- 517,585 ----
+  	struct buf			*bp;
+  	struct iso_directory_record	*dirp;
+  	struct iso_node 		*ip, *nip;
+! 	
+  	ifhp = (struct ifid *)fhp;
+  	imp = VFSTOISOFS (mp);
+! 	
+  #ifdef	ISOFS_DBG
+! 	printf("fhtovp: ino %d, start %ld\n",ifhp->ifid_ino,ifhp->ifid_start);
+  #endif
+! 	
+! 	lbn = ifhp->ifid_ino >> imp->im_bshift;
+! 	off = ifhp->ifid_ino & imp->im_bmask;
+! 	
+! 	if (lbn >= imp->volume_space_size) {
+! 		printf("fhtovp: lbn exceed volume space %d\n",lbn);
+! 		return EINVAL;
+  	}
+! 	
+! 	if (off + ISO_DIRECTORY_RECORD_SIZE > imp->logical_block_size) {
+! 		printf("fhtovp: across the block boundary %d\n",
+! 		       off + ISO_DIRECTORY_RECORD_SIZE);
+! 		return EINVAL;
+  	}
+! 	
+! 	if (error = bread(imp->im_devvp,
+! 			  lbn * imp->logical_block_size / DEV_BSIZE,
+! 			  imp->logical_block_size,
+! 			  NOCRED,&bp)) {
+! 		printf("fhtovp: bread error %d\n",error);
+  		brelse(bp);
+! 		return EINVAL;
+  	}
+! 	
+! 	dirp = (struct iso_directory_record *)(bp->b_un.b_addr + off);
+! 	
+! 	if (off + isonum_711(dirp->length) > imp->logical_block_size) {
+! 		brelse(bp);
+! 		printf("fhtovp: directory across the block boundary %d[off=%d/len=%d]\n",
+! 		       off + isonum_711(dirp->length),off,isonum_711(dirp->length));
+! 		return EINVAL;
+! 	}
+! 	
+! 	if (isonum_733(dirp->extent) + isonum_711(dirp->ext_attr_length)
+! 	    != ifhp->ifid_start) {
+! 		brelse(bp);
+! 		printf("fhtovp: file start miss %d vs %d\n",
+! 		       isonum_733(dirp->extent) + isonum_711(dirp->ext_attr_length),
+! 		       ifhp->ifid_start);
+! 		return EINVAL;
+! 	}
+! 	
+  	tvp.v_mount = mp;
+  	ip = VTOI(&tvp);
+  	ip->i_vnode = &tvp;
+  	ip->i_dev = imp->im_dev;
+! 	if (error = iso_iget(ip,ifhp->ifid_ino,0,&nip,dirp)) {
+  		*vpp = NULLVP;
+! 		brelse(bp);
+! 		printf("fhtovp: failed to get ino\n");
+! 		return error;
+  	}
+  	ip = nip;
+  	*vpp = ITOV(ip);
+! 	brelse(bp);
+! 	return 0;
+  }
+  
+  /*
+***************
+*** 572,593 ****
+  	register struct iso_node *ip = VTOI(vp);
+  	register struct ifid *ifhp;
+  	register struct iso_mnt *mp = ip->i_mnt;
+! 
+  	ifhp = (struct ifid *)fhp;
+  	ifhp->ifid_len = sizeof(struct ifid);
+! 
+! 	ifhp->ifid_lbn = ip->iso_parent_ext;
+! 	ifhp->ifid_offset = ip->iso_parent;
+  	ifhp->ifid_ino = ip->i_number;
+! 
+! 	if(ip->i_number == mp->root_extent) {
+! 		ifhp->ifid_lbn = ip->i_number;
+! 		ifhp->ifid_offset = 0;
+! 	}
+! 
+  #ifdef	ISOFS_DBG
+! 	printf("vptofh: lbn %d, off %d, ino %d\n",
+! 			ifhp->ifid_lbn, ifhp->ifid_offset, ifhp->ifid_ino);
+  #endif
+! 	return (0);
+  }
+--- 594,609 ----
+  	register struct iso_node *ip = VTOI(vp);
+  	register struct ifid *ifhp;
+  	register struct iso_mnt *mp = ip->i_mnt;
+! 	
+  	ifhp = (struct ifid *)fhp;
+  	ifhp->ifid_len = sizeof(struct ifid);
+! 	
+  	ifhp->ifid_ino = ip->i_number;
+! 	ifhp->ifid_start = ip->iso_start;
+! 	
+  #ifdef	ISOFS_DBG
+! 	printf("vptofh: ino %d, start %ld\n",
+! 	       ifhp->ifid_ino,ifhp->ifid_start);
+  #endif
+! 	return 0;
+  }
+diff -cr sys/isofs/isofs_vnops.c src/sys/isofs/isofs_vnops.c
+*** sys/isofs/isofs_vnops.c	Sun Jun 12 05:05:29 1994
+--- src/sys/isofs/isofs_vnops.c	Mon Aug 15 15:43:52 1994
+***************
+*** 1,26 ****
+  /*
+   *	patch013,v 1.1.1.1 1994/09/01 23:28:29 phk Exp
+   */
+! #include "param.h"
+! #include "systm.h"
+! #include "namei.h"
+! #include "resourcevar.h"
+! #include "kernel.h"
+! #include "file.h"
+! #include "stat.h"
+! #include "buf.h"
+! #include "proc.h"
+! #include "conf.h"
+! #include "mount.h"
+! #include "vnode.h"
+! #include "specdev.h"
+! #include "fifo.h"
+! #include "malloc.h"
+! #include "dir.h"
+! 
+! #include "iso.h"
+! #include "isofs_node.h"
+! #include "iso_rrip.h"
+  
+  /*
+   * Open called.
+--- 1,84 ----
+  /*
+   *	patch013,v 1.1.1.1 1994/09/01 23:28:29 phk Exp
+   */
+! 
+! #include <sys/param.h>
+! #include <sys/systm.h>
+! #include <sys/namei.h>
+! #include <sys/resourcevar.h>
+! #include <sys/kernel.h>
+! #include <sys/file.h>
+! #include <sys/stat.h>
+! #include <sys/buf.h>
+! #include <sys/proc.h>
+! #include <sys/conf.h>
+! #include <sys/mount.h>
+! #include <sys/vnode.h>
+! #include <sys/malloc.h>
+! #include <sys/dir.h>
+! 
+! #include <sys/specdev.h> /* XXX */
+! #include <sys/fifo.h> /* XXX */
+! 
+! #include <isofs/iso.h>
+! #include <isofs/isofs_node.h>
+! #include <isofs/iso_rrip.h>
+! 
+! /*
+!  * Mknod vnode call
+!  *  Actually remap the device number
+!  */
+! /* ARGSUSED */
+! int
+! isofs_mknod(ndp, vap, cred, p)
+! 	struct nameidata *ndp;
+! 	struct ucred *cred;
+! 	struct vattr *vap;
+! 	struct proc *p;
+! {
+! #ifndef	ISODEVMAP
+! 	free(ndp->ni_pnbuf, M_NAMEI);
+! 	vput(ndp->ni_dvp);
+! 	vput(ndp->ni_vp);
+! 	return EINVAL;
+! #else
+! 	register struct vnode *vp;
+! 	struct iso_node *ip;
+! 	struct iso_dnode *dp;
+! 	int error;
+! 	
+! 	vp = ndp->ni_vp;
+! 	ip = VTOI(vp);
+! 	
+! 	if (ip->i_mnt->iso_ftype != ISO_FTYPE_RRIP
+! 	    || vap->va_type != vp->v_type
+! 	    || (vap->va_type != VCHR && vap->va_type != VBLK)) {
+! 		free(ndp->ni_pnbuf, M_NAMEI);
+! 		vput(ndp->ni_dvp);
+! 		vput(ndp->ni_vp);
+! 		return EINVAL;
+! 	}
+! 	
+! 	dp = iso_dmap(ip->i_dev,ip->i_number,1);
+! 	if (ip->inode.iso_rdev == vap->va_rdev || vap->va_rdev == VNOVAL) {
+! 		/* same as the unmapped one, delete the mapping */
+! 		remque(dp);
+! 		FREE(dp,M_CACHE);
+! 	} else
+! 		/* enter new mapping */
+! 		dp->d_dev = vap->va_rdev;
+! 	
+! 	/*
+! 	 * Remove inode so that it will be reloaded by iget and
+! 	 * checked to see if it is an alias of an existing entry
+! 	 * in the inode cache.
+! 	 */
+! 	vput(vp);
+! 	vp->v_type = VNON;
+! 	vgone(vp);
+! 	return (0);
+! #endif
+! }
+  
+  /*
+   * Open called.
+***************
+*** 66,72 ****
+  	struct ucred *cred;
+  	struct proc *p;
+  {
+! 	return (0);
+  }
+  
+  /* ARGSUSED */
+--- 124,146 ----
+  	struct ucred *cred;
+  	struct proc *p;
+  {
+! 	register struct iso_node *ip = VTOI(vp);
+! 	register gid_t *gp;
+! 	int i;
+! 	
+! 	if (cred->cr_uid == 0)
+! 		return 0;
+! 	if (cred->cr_uid != ip->inode.iso_uid) {
+! 		mode >>= 3;
+! 		gp = cred->cr_groups;
+! 		for (i = 0; i < cred->cr_ngroups; i++, gp++)
+! 			if (ip->inode.iso_gid == *gp)
+! 				goto found;
+! 		mode >>= 3;
+! found:
+! 		;
+! 	}
+! 	return (ip->inode.iso_mode & mode) == mode ? 0 : EACCES;
+  }
+  
+  /* ARGSUSED */
+***************
+*** 82,109 ****
+  
+  	vap->va_fsid = ip->i_dev;
+  	vap->va_fileid = ip->i_number;
+- 	/*
+- 	 * This should be set properly if a RR filesystem, but this is
+- 	 * the safest value for now. Note that previously this was conditionally
+- 	 * set to 2 if the file is a directory, but this causes problems
+- 	 * with find.
+- 	 */
+- 	vap->va_nlink = 1;
+  
+! 	vap->va_mode = ip->inode.iso_mode;
+! 	vap->va_uid  = ip->inode.iso_uid;
+! 	vap->va_gid  = ip->inode.iso_gid;
+  	vap->va_atime= ip->inode.iso_atime;
+  	vap->va_mtime= ip->inode.iso_mtime;
+  	vap->va_ctime= ip->inode.iso_ctime;
+  
+! 	vap->va_rdev = 0;
+! 	vap->va_size = ip->i_size;
+  	vap->va_size_rsv = 0;
+! 	vap->va_flags = 0;
+  	vap->va_gen = 1;
+  	vap->va_blocksize = ip->i_mnt->logical_block_size;
+! 	vap->va_bytes = ip->i_size;
+  	vap->va_bytes_rsv = 0;
+  	vap->va_type = vp->v_type;
+  	return (0);
+--- 156,178 ----
+  
+  	vap->va_fsid = ip->i_dev;
+  	vap->va_fileid = ip->i_number;
+  
+! 	vap->va_mode	= ip->inode.iso_mode;
+! 	vap->va_nlink	= ip->inode.iso_links;
+! 	vap->va_uid	= ip->inode.iso_uid;
+! 	vap->va_gid	= ip->inode.iso_gid;
+! 
+  	vap->va_atime= ip->inode.iso_atime;
+  	vap->va_mtime= ip->inode.iso_mtime;
+  	vap->va_ctime= ip->inode.iso_ctime;
+  
+! 	vap->va_rdev	= ip->inode.iso_rdev;
+! 	vap->va_size	= ip->i_size;
+  	vap->va_size_rsv = 0;
+! 	vap->va_flags	= 0;
+  	vap->va_gen = 1;
+  	vap->va_blocksize = ip->i_mnt->logical_block_size;
+! 	vap->va_bytes	= ip->i_size;
+  	vap->va_bytes_rsv = 0;
+  	vap->va_type = vp->v_type;
+  	return (0);
+***************
+*** 126,139 ****
+  	daddr_t lbn, bn, rablock;
+  	int size, diff, error = 0;
+  	long n, on, type;
+! 
+! #ifdef DIAGNOSTICx
+! 	if (uio->uio_rw != UIO_READ)
+! 		panic("isofs_read mode");
+! 	type = ip->i_mode & IFMT;
+! 	if (type != IFDIR && type != IFREG && type != IFLNK)
+! 		panic("isofs_read type");
+! #endif
+  	if (uio->uio_resid == 0)
+  		return (0);
+  	if (uio->uio_offset < 0)
+--- 195,201 ----
+  	daddr_t lbn, bn, rablock;
+  	int size, diff, error = 0;
+  	long n, on, type;
+! 	
+  	if (uio->uio_resid == 0)
+  		return (0);
+  	if (uio->uio_offset < 0)
+***************
+*** 143,149 ****
+  	do {
+  		lbn = iso_lblkno(imp, uio->uio_offset);
+  		on = iso_blkoff(imp, uio->uio_offset);
+! 		n = MIN((unsigned)(imp->im_bsize - on), uio->uio_resid);
+  		diff = ip->i_size - uio->uio_offset;
+  		if (diff <= 0)
+  			return (0);
+--- 205,211 ----
+  	do {
+  		lbn = iso_lblkno(imp, uio->uio_offset);
+  		on = iso_blkoff(imp, uio->uio_offset);
+! 		n = min((unsigned)(imp->logical_block_size - on), uio->uio_resid);
+  		diff = ip->i_size - uio->uio_offset;
+  		if (diff <= 0)
+  			return (0);
+***************
+*** 180,185 ****
+--- 242,248 ----
+  	struct ucred *cred;
+  	struct proc *p;
+  {
++ 	printf("You did ioctl for isofs !!\n");
+  	return (ENOTTY);
+  }
+  
+***************
+*** 232,237 ****
+--- 295,386 ----
+  }
+  
+  /*
++  * Structure for reading directories
++  */
++ struct isoreaddir {
++ 	struct dirent saveent;
++ 	struct dirent assocent;
++ 	struct dirent current;
++ 	off_t saveoff;
++ 	off_t assocoff;
++ 	off_t curroff;
++ 	struct uio *uio;
++ 	off_t uio_off;
++ 	int eof;
++ };
++ 
++ static int
++ iso_uiodir(idp,dp,off)
++ 	struct isoreaddir *idp;
++ 	struct dirent *dp;
++ 	off_t off;
++ {
++ 	int error;
++ 	
++ 	dp->d_name[dp->d_namlen] = 0;
++ 	dp->d_reclen = DIRSIZ(dp);
++ 	
++ 	if (idp->uio->uio_resid < dp->d_reclen) {
++ 		idp->eof = 0;
++ 		return -1;
++ 	}
++ 	
++ 	if (error = uiomove(dp,dp->d_reclen,idp->uio))
++ 		return error;
++ 	idp->uio_off = off;
++ 	return 0;
++ }
++ 
++ static int
++ iso_shipdir(idp)
++ 	struct isoreaddir *idp;
++ {
++ 	struct dirent *dp;
++ 	int cl, sl, assoc;
++ 	int error;
++ 	char *cname, *sname;
++ 	
++ 	cl = idp->current.d_namlen;
++ 	cname = idp->current.d_name;
++ 	if (assoc = cl > 1 && *cname == ASSOCCHAR) {
++ 		cl--;
++ 		cname++;
++ 	}
++ 	
++ 	dp = &idp->saveent;
++ 	sname = dp->d_name;
++ 	if (!(sl = dp->d_namlen)) {
++ 		dp = &idp->assocent;
++ 		sname = dp->d_name + 1;
++ 		sl = dp->d_namlen - 1;
++ 	}
++ 	if (sl > 0) {
++ 		if (sl != cl
++ 		    || bcmp(sname,cname,sl)) {
++ 			if (idp->assocent.d_namlen) {
++ 				if (error = iso_uiodir(idp,&idp->assocent,idp->assocoff))
++ 					return error;
++ 				idp->assocent.d_namlen = 0;
++ 			}
++ 			if (idp->saveent.d_namlen) {
++ 				if (error = iso_uiodir(idp,&idp->saveent,idp->saveoff))
++ 					return error;
++ 				idp->saveent.d_namlen = 0;
++ 			}
++ 		}
++ 	}
++ 	idp->current.d_reclen = DIRSIZ(&idp->current);
++ 	if (assoc) {
++ 		idp->assocoff = idp->curroff;
++ 		bcopy(&idp->current,&idp->assocent,idp->current.d_reclen);
++ 	} else {
++ 		idp->saveoff = idp->curroff;
++ 		bcopy(&idp->current,&idp->saveent,idp->current.d_reclen);
++ 	}
++ 	return 0;
++ }
++ 
++ /*
+   * Vnode op for readdir
+   */
+  int
+***************
+*** 241,248 ****
+  	struct ucred *cred;
+  	int *eofflagp;
+  {
+! 	struct dirent dirent;
+! 	int iso_offset;
+  	int entryoffsetinblock;
+  	int error = 0;
+  	int endsearch;
+--- 390,396 ----
+  	struct ucred *cred;
+  	int *eofflagp;
+  {
+! 	struct isoreaddir *idp;
+  	int entryoffsetinblock;
+  	int error = 0;
+  	int endsearch;
+***************
+*** 251,460 ****
+  	struct iso_mnt *imp;
+  	struct iso_node *ip;
+  	struct buf *bp = NULL;
+! 	int i;
+! 	int end_flag = 0;
+! 	ISO_RRIP_ANALYZE ana;
+! 
+  	ip = VTOI (vp);
+  	imp = ip->i_mnt;
+! 
+! 	iso_offset = uio->uio_offset;
+! 
+! 	entryoffsetinblock = iso_blkoff(imp, iso_offset);
+  	if (entryoffsetinblock != 0) {
+! 		if (error = iso_blkatoff(ip, iso_offset, (char **)0, &bp))
+  			return (error);
+  	}
+! 
+  	endsearch = ip->i_size;
+! 
+! 	while (iso_offset < endsearch && uio->uio_resid > 0) {
+  		/*
+  		 * If offset is on a block boundary,
+  		 * read the next directory block.
+  		 * Release previous if it exists.
+  		 */
+! 
+! 		if (iso_blkoff(imp, iso_offset) == 0) {
+  			if (bp != NULL)
+  				brelse(bp);
+! 			if (error = iso_blkatoff(ip, iso_offset,
+! 						 (char **)0, &bp))
+! 				return (error);
+  			entryoffsetinblock = 0;
+  		}
+  		/*
+  		 * Get pointer to next entry.
+  		 */
+! 
+  		ep = (struct iso_directory_record *)
+  			(bp->b_un.b_addr + entryoffsetinblock);
+! 
+  		reclen = isonum_711 (ep->length);
+  		if (reclen == 0) {
+  			/* skip to next block, if any */
+! 			iso_offset = roundup (iso_offset,
+! 					      imp->logical_block_size);
+  			continue;
+  		}
+! 
+! 		if (reclen < sizeof (struct iso_directory_record))
+  			/* illegal entry, stop */
+  			break;
+! 
+! /* 10 Aug 92*/	if (entryoffsetinblock + reclen -1 >= imp->logical_block_size)
+  			/* illegal directory, so stop looking */
+  			break;
+! 
+! 		dirent.d_fileno = isonum_733 (ep->extent);
+! 		dirent.d_namlen = isonum_711 (ep->name_len);
+! 
+! 		if (reclen < sizeof (struct iso_directory_record)
+! 		    + dirent.d_namlen)
+  			/* illegal entry, stop */
+  			break;
+! 
+  		/*
+  		 *
+  		 */
+! 		switch (ep->name[0]) {
+! 		case 0:
+! 			dirent.d_name[0] = '.';
+! 			dirent.d_namlen = 1;
+! 			break;
+! 		case 1:
+! 			dirent.d_name[0] = '.';
+! 			dirent.d_name[1] = '.';
+! 			dirent.d_namlen = 2;
+  			break;
+! 		default:
+! 			switch ( imp->iso_ftype ) {
+! 			case ISO_FTYPE_RRIP:
+! 				isofs_rrip_getname( ep, dirent.d_name, &dirent.d_namlen );
+  				break;
+! 			case ISO_FTYPE_9660:
+! 			{
+! 				int namelen = dirent.d_namlen;
+! 				isofntrans(ep->name, dirent.d_namlen,
+! 					   dirent.d_name, &namelen);
+! 				dirent.d_namlen = namelen;
+  				break;
+- 			}
+  			default:
+  				break;
+  			}
+- 			break;
+  		}
+! 
+! 		dirent.d_name[dirent.d_namlen] = 0;
+! 		dirent.d_reclen = DIRSIZ (&dirent);
+! 
+! 		if (uio->uio_resid < dirent.d_reclen)
+! 			break;
+! 
+! 		if (error = uiomove (&dirent, dirent.d_reclen, uio))
+  			break;
+! 
+! 		iso_offset += reclen;
+  		entryoffsetinblock += reclen;
+  	}
+! 			
+  	if (bp)
+  		brelse (bp);
+  
+! 	if (end_flag || (VTOI(vp)->i_size - iso_offset) <= 0)
+! 		*eofflagp = 1;
+! 	else
+! 		*eofflagp = 0;
+! 
+! 	uio->uio_offset = iso_offset;
+! 
+  	return (error);
+  }
+  
+  /*
+   * Return target name of a symbolic link
+   */
+  typedef struct iso_directory_record ISODIR;
+  typedef struct iso_node             ISONODE;
+  typedef struct iso_mnt              ISOMNT;
+  int isofs_readlink(vp, uio, cred)
+! struct vnode *vp;
+! struct uio   *uio;
+! struct ucred *cred;
+! {
+!         ISONODE *ip;
+!         ISODIR  *dirp;                   
+!         ISOMNT  *imp;
+!         struct  buf *bp;
+!         int     symlen;
+!         int     error;
+!         char    symname[NAME_MAX];
+! 
+!         ip  = VTOI( vp );
+!         imp = ip->i_mnt;
+!         /*
+!          * Get parents directory record block that this inode included.
+!          */
+!         error = bread(  imp->im_devvp,
+!                         (daddr_t)(( ip->iso_parent_ext + (ip->iso_parent >> 11 ) )
+!                         * imp->im_bsize / DEV_BSIZE ),
+!                         imp->im_bsize,
+!                         NOCRED,
+!                         &bp );
+!         if ( error ) {
+!                 return( EINVAL );
+!         }
+! 
+!         /*
+!          * Setup the directory pointer for this inode
+!          */
+  
+!         dirp = (ISODIR *)(bp->b_un.b_addr + ( ip->iso_parent & 0x7ff ) );
+  #ifdef DEBUG
+!         printf("lbn=%d[base=%d,off=%d,bsize=%d,DEV_BSIZE=%d], dirp= %08x, b_addr=%08x, offset=%08x(%08x)\n",
+!                                 (daddr_t)(( ip->iso_parent_ext + (ip->iso_parent >> 12 ) ) * imp->im_bsize / DEV_BSIZE ),
+!                                 ip->iso_parent_ext,
+!                                 (ip->iso_parent >> 11 ),
+!                                 imp->im_bsize,
+!                                 DEV_BSIZE,
+!                                 dirp,
+!                                 bp->b_un.b_addr,
+!                                 ip->iso_parent,
+!                                 ip->iso_parent & 0x7ff );
+  #endif
+! 
+!         /*
+!          * Just make sure, we have a right one....
+!          *   1: Check not cross boundary on block
+!          *   2: Check number of inode
+!          */
+!         if ( (ip->iso_parent & 0x7ff) + isonum_711( dirp->length ) >=
+!                                                 imp->im_bsize )         {
+!                 brelse ( bp );
+!                 return( EINVAL );
+!         }
+!         if ( isonum_733(dirp->extent) != ip->i_number ) {
+!                 brelse ( bp );
+!                 return( EINVAL );
+!         }
+! 
+!         /*
+!          * Ok, we just gathering a Symbolick name in SL record.
+!          */
+!         if ( isofs_rrip_getsymname( vp, dirp, symname, &symlen ) == 0 ) {
+!                 brelse ( bp );
+!                 return( EINVAL );
+!         }
+!         /*
+!          * Don't forget before you leave from home ;-)
+!          */
+!         brelse( bp );
+! 
+!         /*
+!          * return with the Symbolick name to caller's.
+!          */
+!         return ( uiomove( symname, symlen, uio ) );
+  }
+  
+  /*
+--- 399,632 ----
+  	struct iso_mnt *imp;
+  	struct iso_node *ip;
+  	struct buf *bp = NULL;
+! 	
+  	ip = VTOI (vp);
+  	imp = ip->i_mnt;
+! 	
+! 	MALLOC(idp,struct isoreaddir *,sizeof(*idp),M_TEMP,M_WAITOK);
+! 	idp->saveent.d_namlen = 0;
+! 	idp->assocent.d_namlen = 0;
+! 	idp->uio = uio;
+! 	idp->curroff = uio->uio_offset;
+! 	idp->eof = 1;
+! 	
+! 	entryoffsetinblock = iso_blkoff(imp, idp->curroff);
+  	if (entryoffsetinblock != 0) {
+! 		if (error = iso_blkatoff(ip, idp->curroff, &bp)) {
+! 			FREE(idp,M_TEMP);
+  			return (error);
++ 		}
+  	}
+! 	
+  	endsearch = ip->i_size;
+! 	
+! 	while (idp->curroff < endsearch) {
+  		/*
+  		 * If offset is on a block boundary,
+  		 * read the next directory block.
+  		 * Release previous if it exists.
+  		 */
+! 		
+! 		if (iso_blkoff(imp, idp->curroff) == 0) {
+  			if (bp != NULL)
+  				brelse(bp);
+! 			if (error = iso_blkatoff(ip, idp->curroff, &bp))
+! 				break;
+  			entryoffsetinblock = 0;
+  		}
+  		/*
+  		 * Get pointer to next entry.
+  		 */
+! 		
+  		ep = (struct iso_directory_record *)
+  			(bp->b_un.b_addr + entryoffsetinblock);
+! 		
+  		reclen = isonum_711 (ep->length);
+  		if (reclen == 0) {
+  			/* skip to next block, if any */
+! 			idp->curroff = roundup (idp->curroff,
+! 						imp->logical_block_size);
+  			continue;
+  		}
+! 		
+! 		if (reclen < ISO_DIRECTORY_RECORD_SIZE) {
+! 			error = EINVAL;
+  			/* illegal entry, stop */
+  			break;
+! 		}
+! 		
+! 		if (entryoffsetinblock + reclen > imp->logical_block_size) {
+! 			error = EINVAL;
+  			/* illegal directory, so stop looking */
+  			break;
+! 		}
+! 		
+! 		idp->current.d_namlen = isonum_711 (ep->name_len);
+! 		if (isonum_711(ep->flags)&2)
+! 			isodirino(&idp->current.d_fileno,ep,imp);
+! 		else
+! 			idp->current.d_fileno = (bp->b_blkno << DEV_BSHIFT) + idp->curroff;
+! 		
+! 		if (reclen < ISO_DIRECTORY_RECORD_SIZE + idp->current.d_namlen) {
+! 			error = EINVAL;
+  			/* illegal entry, stop */
+  			break;
+! 		}
+! 		
+! 		idp->curroff += reclen;
+  		/*
+  		 *
+  		 */
+! 		switch (imp->iso_ftype) {
+! 		case ISO_FTYPE_RRIP:
+! 			isofs_rrip_getname(ep,idp->current.d_name,
+! 					   &idp->current.d_namlen,
+! 					   &idp->current.d_fileno,imp);
+! 			if (idp->current.d_namlen)
+! 				error = iso_uiodir(idp,&idp->current,idp->curroff);
+  			break;
+! 		default:	/* ISO_FTYPE_DEFAULT || ISO_FTYPE_9660 */
+! 			strcpy(idp->current.d_name,"..");
+! 			switch (ep->name[0]) {
+! 			case 0:
+! 				idp->current.d_namlen = 1;
+! 				error = iso_uiodir(idp,&idp->current,idp->curroff);
+  				break;
+! 			case 1:
+! 				idp->current.d_namlen = 2;
+! 				error = iso_uiodir(idp,&idp->current,idp->curroff);
+  				break;
+  			default:
++ 				isofntrans(ep->name,idp->current.d_namlen,
++ 					   idp->current.d_name,&idp->current.d_namlen,
++ 					   imp->iso_ftype == ISO_FTYPE_9660,
++ 					   isonum_711(ep->flags)&4);
++ 				if (imp->iso_ftype == ISO_FTYPE_DEFAULT)
++ 					error = iso_shipdir(idp);
++ 				else
++ 					error = iso_uiodir(idp,&idp->current,idp->curroff);
+  				break;
+  			}
+  		}
+! 		if (error)
+  			break;
+! 		
+  		entryoffsetinblock += reclen;
+  	}
+! 	
+! 	if (!error && imp->iso_ftype == ISO_FTYPE_DEFAULT) {
+! 		idp->current.d_namlen = 0;
+! 		error = iso_shipdir(idp);
+! 	}
+! 	if (error < 0)
+! 		error = 0;
+! 	
+  	if (bp)
+  		brelse (bp);
+  
+! 	uio->uio_offset = idp->uio_off;
+! 	*eofflagp = idp->eof;
+! 	
+! 	FREE(idp,M_TEMP);
+! 	
+  	return (error);
+  }
+  
+  /*
+   * Return target name of a symbolic link
++  * Shouldn't we get the parent vnode and read the data from there?
++  * This could eventually result in deadlocks in isofs_lookup.
++  * But otherwise the block read here is in the block buffer two times.
+   */
+  typedef struct iso_directory_record ISODIR;
+  typedef struct iso_node             ISONODE;
+  typedef struct iso_mnt              ISOMNT;
+  int isofs_readlink(vp, uio, cred)
+! 	struct vnode *vp;
+! 	struct uio   *uio;
+! 	struct ucred *cred;
+! {
+! 	ISONODE	*ip;
+! 	ISODIR	*dirp;                   
+! 	ISOMNT	*imp;
+! 	struct	buf *bp;
+! 	u_short	symlen;
+! 	int	error;
+! 	char	*symname;
+! 	ino_t	ino;
+! 	
+! 	ip  = VTOI(vp);
+! 	imp = ip->i_mnt;
+! 	
+! 	if (imp->iso_ftype != ISO_FTYPE_RRIP)
+! 		return EINVAL;
+! 	
+! 	/*
+! 	 * Get parents directory record block that this inode included.
+! 	 */
+! 	error = bread(imp->im_devvp,
+! 		      (daddr_t)((ip->i_number&~imp->im_bmask) / DEV_BSIZE),
+! 		      imp->logical_block_size,
+! 		      NOCRED,
+! 		      &bp);
+! 	if (error) {
+! 		brelse(bp);
+! 		return EINVAL;
+! 	}
+  
+! 	/*
+! 	 * Setup the directory pointer for this inode
+! 	 */
+! 	dirp = (ISODIR *)(bp->b_un.b_addr + (ip->i_number & imp->im_bmask));
+  #ifdef DEBUG
+! 	printf("lbn=%d,off=%d,bsize=%d,DEV_BSIZE=%d, dirp= %08x, b_addr=%08x, offset=%08x(%08x)\n",
+! 	       (daddr_t)(ip->i_number >> imp->im_bshift),
+! 	       ip->i_number & imp->im_bmask,
+! 	       imp->logical_block_size,
+! 	       DEV_BSIZE,
+! 	       dirp,
+! 	       bp->b_un.b_addr,
+! 	       ip->i_number,
+! 	       ip->i_number & imp->im_bmask );
+  #endif
+! 	
+! 	/*
+! 	 * Just make sure, we have a right one....
+! 	 *   1: Check not cross boundary on block
+! 	 */
+! 	if ((ip->i_number & imp->im_bmask) + isonum_711(dirp->length)
+! 	    > imp->logical_block_size) {
+! 		brelse(bp);
+! 		return EINVAL;
+! 	}
+! 	
+! 	/*
+! 	 * Now get a buffer
+! 	 * Abuse a namei buffer for now.
+! 	 */
+! 	MALLOC(symname,char *,MAXPATHLEN,M_NAMEI,M_WAITOK);
+! 	
+! 	/*
+! 	 * Ok, we just gathering a symbolic name in SL record.
+! 	 */
+! 	if (isofs_rrip_getsymname(dirp,symname,&symlen,imp) == 0) {
+! 		FREE(symname,M_NAMEI);
+! 		brelse(bp);
+! 		return EINVAL;
+! 	}
+! 	/*
+! 	 * Don't forget before you leave from home ;-)
+! 	 */
+! 	brelse(bp);
+! 	
+! 	/*
+! 	 * return with the symbolic name to caller's.
+! 	 */
+! 	error = uiomove(symname,symlen,uio);
+! 	
+! 	FREE(symname,M_NAMEI);
+! 	
+! 	return error;
+  }
+  
+  /*
+***************
+*** 469,475 ****
+  
+  	if ((ndp->ni_nameiop & (HASBUF | SAVESTART)) == HASBUF)
+  		FREE(ndp->ni_pnbuf, M_NAMEI);
+! 	return (0);
+  }
+  
+  /*
+--- 641,647 ----
+  
+  	if ((ndp->ni_nameiop & (HASBUF | SAVESTART)) == HASBUF)
+  		FREE(ndp->ni_pnbuf, M_NAMEI);
+! 	return 0;
+  }
+  
+  /*
+***************
+*** 482,488 ****
+  	register struct iso_node *ip = VTOI(vp);
+  
+  	ISO_ILOCK(ip);
+! 	return (0);
+  }
+  
+  /*
+--- 654,660 ----
+  	register struct iso_node *ip = VTOI(vp);
+  
+  	ISO_ILOCK(ip);
+! 	return 0;
+  }
+  
+  /*
+***************
+*** 497,503 ****
+  	if (!(ip->i_flag & ILOCKED))
+  		panic("isofs_unlock NOT LOCKED");
+  	ISO_IUNLOCK(ip);
+! 	return (0);
+  }
+  
+  /*
+--- 669,675 ----
+  	if (!(ip->i_flag & ILOCKED))
+  		panic("isofs_unlock NOT LOCKED");
+  	ISO_IUNLOCK(ip);
+! 	return 0;
+  }
+  
+  /*
+***************
+*** 509,516 ****
+  {
+  
+  	if (VTOI(vp)->i_flag & ILOCKED)
+! 		return (1);
+! 	return (0);
+  }
+  
+  /*
+--- 681,688 ----
+  {
+  
+  	if (VTOI(vp)->i_flag & ILOCKED)
+! 		return 1;
+! 	return 0;
+  }
+  
+  /*
+***************
+*** 530,547 ****
+  		panic("isofs_strategy: spec");
+  	if (bp->b_blkno == bp->b_lblkno) {
+  		if (error = iso_bmap(ip, bp->b_lblkno, &bp->b_blkno))
+! 			return (error);
+  		if ((long)bp->b_blkno == -1)
+  			clrbuf(bp);
+  	}
+  	if ((long)bp->b_blkno == -1) {
+  		biodone(bp);
+! 		return (0);
+  	}
+  	vp = ip->i_devvp;
+  	bp->b_dev = vp->v_rdev;
+  	(*(vp->v_op->vop_strategy))(bp);
+! 	return (0);
+  }
+  
+  /*
+--- 702,719 ----
+  		panic("isofs_strategy: spec");
+  	if (bp->b_blkno == bp->b_lblkno) {
+  		if (error = iso_bmap(ip, bp->b_lblkno, &bp->b_blkno))
+! 			return error;
+  		if ((long)bp->b_blkno == -1)
+  			clrbuf(bp);
+  	}
+  	if ((long)bp->b_blkno == -1) {
+  		biodone(bp);
+! 		return 0;
+  	}
+  	vp = ip->i_devvp;
+  	bp->b_dev = vp->v_rdev;
+  	(*(vp->v_op->vop_strategy))(bp);
+! 	return 0;
+  }
+  
+  /*
+***************
+*** 551,557 ****
+  isofs_print(vp)
+  	struct vnode *vp;
+  {
+! 	printf ("tag VT_ISOFS, isofs vnode\n");
+  }
+  
+  extern int enodev ();
+--- 723,729 ----
+  isofs_print(vp)
+  	struct vnode *vp;
+  {
+! 	printf("tag VT_ISOFS, isofs vnode\n");
+  }
+  
+  extern int enodev ();
+***************
+*** 594,596 ****
+--- 766,842 ----
+  	isofs_islocked,		/* islocked */
+  	(void *)enodev,		/* advlock */
+  };
++ 
++ struct vnodeops isofs_spec_inodeops = {
++ 	spec_lookup,		/* lookup */
++ 	(void *)enodev,		/* create */
++ 	(void *)enodev,		/* mknod */
++ 	spec_open,		/* open */
++ 	spec_close,		/* close */
++ 	isofs_access,		/* access */
++ 	isofs_getattr,		/* getattr */
++ 	(void *)enodev,		/* setattr */
++ 	spec_read,		/* read */
++ 	spec_write,		/* write */
++ 	spec_ioctl,		/* ioctl */
++ 	spec_select,		/* select */
++ 	spec_mmap,		/* mmap */
++ 	spec_fsync,		/* fsync */
++ 	spec_seek,		/* seek */
++ 	(void *)enodev,		/* remove */
++ 	(void *)enodev,		/* link */
++ 	(void *)enodev,		/* rename */
++ 	(void *)enodev,		/* mkdir */
++ 	(void *)enodev,		/* rmdir */
++ 	(void *)enodev,		/* symlink */
++ 	spec_readdir,		/* readdir */
++ 	spec_readlink,		/* readlink */
++ 	spec_abortop,		/* abortop */
++ 	isofs_inactive,		/* inactive */
++ 	isofs_reclaim,		/* reclaim */
++ 	isofs_lock,		/* lock */
++ 	isofs_unlock,		/* unlock */
++ 	(void *)enodev,		/* bmap */
++ 	spec_strategy,		/* strategy */
++ 	isofs_print,		/* print */
++ 	isofs_islocked,		/* islocked */
++ 	spec_advlock,		/* advlock */
++ };
++ 
++ #ifdef	FIFO
++ struct vnodeops isofs_fifo_inodeops = {
++ 	fifo_lookup,		/* lookup */
++ 	(void *)enodev,		/* create */
++ 	(void *)enodev,		/* mknod */
++ 	fifo_open,		/* open */
++ 	fifo_close,		/* close */
++ 	isofs_access,		/* access */
++ 	isofs_getattr,		/* getattr */
++ 	(void *)enodev,		/* setattr */
++ 	fifo_read,		/* read */
++ 	fifo_write,		/* write */
++ 	fifo_ioctl,		/* ioctl */
++ 	fifo_select,		/* select */
++ 	fifo_mmap,		/* mmap */
++ 	fifo_fsync,		/* fsync */
++ 	fifo_seek,		/* seek */
++ 	(void *)enodev,		/* remove */
++ 	(void *)enodev,		/* link */
++ 	(void *)enodev,		/* rename */
++ 	(void *)enodev,		/* mkdir */
++ 	(void *)enodev,		/* rmdir */
++ 	(void *)enodev,		/* symlink */
++ 	fifo_readdir,		/* readdir */
++ 	fifo_readlink,		/* readlink */
++ 	fifo_abortop,		/* abortop */
++ 	isofs_inactive,		/* inactive */
++ 	isofs_reclaim,		/* reclaim */
++ 	isofs_lock,		/* lock */
++ 	isofs_unlock,		/* unlock */
++ 	(void *)enodev,		/* bmap */
++ 	fifo_strategy,		/* strategy */
++ 	isofs_print,		/* print */
++ 	isofs_islocked,		/* islocked */
++ 	fifo_advlock,		/* advlock */
++ };
++ #endif	/* FIFO */
+diff -cr sys/sys/mount.h src/sys/sys/mount.h
+*** sys/sys/mount.h	Mon Mar  7 11:39:02 1994
+--- src/sys/sys/mount.h	Mon Aug 15 15:47:20 1994
+***************
+*** 286,291 ****
+--- 286,306 ----
+  };
+  #endif /* PCFS */
+  
++ #ifdef ISOFS
++ /*
++  * Arguments to mount ISO 9660 filesystems.
++  */
++ struct iso_args {
++ 	char *fspec;		/* block special holding the fs to mount */
++ 	int flags;		/* mounting flags, see below */
++ 	uid_t exroot;		/* mapping for root uid			*/
++ };
++ #define ISOFSMNT_NORRIP	0x00000001	/* disable Rock Ridge Ext.*/
++ #define	ISOFSMNT_GENS	0x00000002	/* enable usage of generation numbers */
++ #define	ISOFSMNT_EXTATT	0x00000004	/* enable usage of extended attributes */
++ #endif /* ISOFS */
++ 
++ 
+  #ifdef KERNEL
+  /*
+   * exported vnode operations
+--
+Doug Rabson, RenderMorphics Ltd.	Mail:  dfr@render.com
+					Phone: +44 71 251 4411
+					FAX:   +44 71 251 0939

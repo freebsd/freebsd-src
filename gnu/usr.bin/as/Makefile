@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	6.1 (Berkeley) 3/3/91
-#	$Id: Makefile,v 1.4 1994/08/28 17:43:37 bde Exp $
+#	Makefile,v 1.5 1994/08/29 17:38:17 davidg Exp
 
 .include "config/Makefile.$(MACHINE)"
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_segment.c	8.5 (Berkeley) 1/4/94
- * $Id: lfs_segment.c,v 1.4 1994/08/20 03:49:02 davidg Exp $
+ * lfs_segment.c,v 1.5 1994/11/17 01:30:49 gibbs Exp
  */
 
 #include <sys/param.h>

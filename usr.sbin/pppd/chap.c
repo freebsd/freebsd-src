@@ -19,7 +19,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: chap.c,v 1.3 1994/04/18 04:01:07 paulus Exp $";
+static char rcsid[] = "chap.c,v 1.2 1994/09/25 02:31:54 wollman Exp";
 #endif
 
 /*

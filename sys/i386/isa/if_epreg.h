@@ -19,7 +19,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
- * $Id: if_epreg.h,v 1.2 1994/01/10 19:13:50 ats Exp $ Modified by:
+ * if_epreg.h,v 1.4 1994/11/13 10:12:37 gibbs Exp Modified by:
  * 
  October 2, 1994
  

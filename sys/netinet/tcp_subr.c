@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_subr.c	8.1 (Berkeley) 6/10/93
- * $Id: tcp_subr.c,v 1.4 1994/10/02 17:48:44 phk Exp $
+ * tcp_subr.c,v 1.5 1994/10/08 22:39:58 phk Exp
  */
 
 #include <sys/param.h>

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_node.h	8.2 (Berkeley) 1/23/94
- * $Id: cd9660_node.h,v 1.2 1994/08/02 07:41:22 davidg Exp $
+ * cd9660_node.h,v 1.3 1994/09/15 19:46:00 bde Exp
  */
 
 /*

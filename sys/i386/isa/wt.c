@@ -19,7 +19,7 @@
  * the original CMU copyright notice.
  *
  * Version 1.3, Thu Nov 11 12:09:13 MSK 1993
- * $Id: wt.c,v 1.12 1994/10/23 21:27:42 wollman Exp $
+ * wt.c,v 1.13 1994/10/25 08:57:39 swallace Exp
  *
  */
 

@@ -28,7 +28,10 @@ Report problems and direct all questions to:
  *                     RCS identification operation
  */
 
-/* $Log: ident.c,v $
+/* ident.c,v
+ * Revision 1.1.1.1  1993/06/18  04:22:11  jkh
+ * Updated GNU utilities
+ *
  * Revision 5.3  1991/09/10  22:15:46  eggert
  * Open files with FOPEN_R, not FOPEN_R_WORK,
  * because they might be executables, not working files.
@@ -83,7 +86,7 @@ Report problems and direct all questions to:
 static int match P((FILE*));
 static void scanfile P((FILE*,char const*,int));
 
-mainProg(identId, "ident", "$Id: ident.c,v 5.3 1991/09/10 22:15:46 eggert Exp $")
+mainProg(identId, "ident", "ident.c,v 1.1.1.1 1993/06/18 04:22:11 jkh Exp")
 /*  Ident searches the named files for all occurrences
  *  of the pattern $keyword:...$, where the keywords are
  *  Author, Date, Header, Id, Log, RCSfile, Revision, Source, and State.

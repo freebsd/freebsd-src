@@ -37,7 +37,7 @@
  *
  *	@(#)os-aix3.h	8.1 (Berkeley) 6/6/93
  *
- * $Id: os-aix3.h,v 5.2.2.2 1992/05/31 16:38:49 jsp Exp $
+ * os-aix3.h,v 1.1.1.1 1994/05/26 05:22:07 rgrimes Exp
  *
  * AIX 3.1 definitions for Amd (automounter)
  */

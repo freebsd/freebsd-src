@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: sys_timer.c,v 1.7 1994/09/27 17:58:24 davidg Exp $
+ * sys_timer.c,v 1.2 1994/10/01 02:17:16 swallace Exp
  */
 
 #define SEQUENCER_C

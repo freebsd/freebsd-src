@@ -20,8 +20,8 @@ file named COPYING.  Among other things, the copyright notice
 and this notice must be preserved on all copies.  */
 
 
-/* RCS Info: $Revision: 1.2 $ on $Date: 86/11/26 12:10:38 $
- *           $Source: /users/faustus/xchess/RCS/popup.c,v $
+/* RCS Info: 1.1.1.1 on 1993/06/12 14:41:13
+ *           /home/ncvs/src/gnu/games/chess/Xchess/popup.c,v
  * Copyright (c) 1986 Wayne A. Christopher, U. C. Berkeley CAD Group 
  *	 faustus@cad.berkeley.edu, ucbvax!faustus
  * Permission is granted to modify and re-distribute this code in any manner

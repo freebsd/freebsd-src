@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	ln.c,v 1.4 1994/09/24 02:55:48 davidg Exp
  */
 
 #ifndef lint

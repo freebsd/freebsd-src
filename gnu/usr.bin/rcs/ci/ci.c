@@ -34,7 +34,10 @@ Report problems and direct all questions to:
 
 
 
-/* $Log: ci.c,v $
+/* ci.c,v
+ * Revision 1.1.1.1  1993/06/18  04:22:10  jkh
+ * Updated GNU utilities
+ *
  * Revision 5.21  1991/11/20  17:58:07  eggert
  * Don't read the delta tree from a nonexistent RCS file.
  *
@@ -238,7 +241,7 @@ static struct hshentry newdelta;	/* new delta to be inserted	*/
 static struct stat workstat;
 static struct Symrev *assoclst, *lastassoc;
 
-mainProg(ciId, "ci", "$Id: ci.c,v 5.21 1991/11/20 17:58:07 eggert Exp $")
+mainProg(ciId, "ci", "ci.c,v 1.1.1.1 1993/06/18 04:22:10 jkh Exp")
 {
 	static char const cmdusage[] =
 		"\nci usage: ci -{fklqru}[rev] -mmsg -{nN}name -sstate -t[textfile] -Vn file ...";

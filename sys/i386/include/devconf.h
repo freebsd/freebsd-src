@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: devconf.h,v 1.5 1994/10/23 21:26:53 wollman Exp $
+ *	devconf.h,v 1.6 1994/11/02 23:44:11 se Exp
  */
 /*
  * devconf.h - machine-dependent device configuration table

@@ -35,7 +35,7 @@
  *
  *	from: @(#)SYS.h	5.5 (Berkeley) 5/7/91
  *
- *	$Id: SYS.h,v 1.3 1993/11/04 00:01:17 paul Exp $
+ *	SYS.h,v 1.2 1994/08/05 01:17:57 wollman Exp
  */
 
 #include <sys/syscall.h>

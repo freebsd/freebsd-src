@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.5 (Berkeley) 1/4/94
- * $Id: nfs_bio.c,v 1.6 1994/10/02 17:26:55 phk Exp $
+ * nfs_bio.c,v 1.7 1994/10/17 17:47:32 phk Exp
  */
 
 #include <sys/param.h>

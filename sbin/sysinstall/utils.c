@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: utils.c,v 1.30 1994/11/17 23:36:49 ache Exp $
+ * utils.c,v 1.30.2.1 1994/11/21 03:12:24 phk Exp
  *
  */
 

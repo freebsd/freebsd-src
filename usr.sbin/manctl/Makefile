@@ -1,5 +1,5 @@
 # Makefile
-# $Id: Makefile,v 1.3 1994/05/26 07:52:23 csgr Exp $
+# Makefile,v 1.4 1994/05/26 20:16:49 csgr Exp
 
 all:
 	@echo -n

@@ -4,7 +4,7 @@
  * You may copy this file verbatim until I find the official 
  * Institute boilerplate.
  *
- * $Id: in_rmx.c,v 1.1 1994/11/02 04:42:14 wollman Exp $
+ * in_rmx.c,v 1.2 1994/11/03 01:05:34 wollman Exp
  */
 
 /*

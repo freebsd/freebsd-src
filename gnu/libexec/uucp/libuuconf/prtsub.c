@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_prtsub_rcsid[] = "$Id: prtsub.c,v 1.5 1994/01/30 21:14:29 ian Rel $";
+const char _uuconf_prtsub_rcsid[] = "prtsub.c,v 1.2 1994/05/07 18:12:44 ache Exp";
 #endif
 
 /* Clear the information in a port.  This can only clear the type

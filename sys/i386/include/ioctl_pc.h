@@ -54,7 +54,7 @@
  *	22-04-93	-hv-	unified most CODRV1/CODRV2 codes
  *	24-04-93	-hv-	revised parts of keymap structures
  *
- *	$Id$
+ *	ioctl_pc.h,v 1.1 1993/09/08 19:29:54 rgrimes Exp
  */
 
 #ifndef	_IOCTL_PC_H_

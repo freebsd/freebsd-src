@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)udp_var.h	8.1 (Berkeley) 6/10/93
- * $Id: udp_var.h,v 1.2 1994/08/02 07:49:26 davidg Exp $
+ * udp_var.h,v 1.3 1994/08/21 05:27:42 paul Exp
  */
 
 #ifndef _NETINET_UDP_VAR_H_

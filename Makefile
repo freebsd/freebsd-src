@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.29 1994/11/08 00:55:08 ache Exp $
+#	Makefile,v 1.30 1994/11/14 20:52:54 phk Exp
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include and MOST of /usr/lib 

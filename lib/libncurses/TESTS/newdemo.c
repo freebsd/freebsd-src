@@ -1,4 +1,4 @@
-/* $Header: c:/curses/demos/RCS/newdemo.c%v 2.0 1992/11/15 03:32:03 MH Rel $
+/* /home/ncvs/src/lib/libncurses/TESTS/newdemo.c,v 1.1.1.1 1994/10/07 08:58:56 ache Exp
  *
  *  newdemo.c	-	A demo program using PDCurses. The program illustrate
  *  	 		the use of colours for text output.

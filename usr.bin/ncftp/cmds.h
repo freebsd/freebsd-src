@@ -3,9 +3,9 @@
 #ifndef _cmd_h_
 #define _cmd_h_
 
-/*  $RCSfile: cmds.h,v $
- *  $Revision: 14020.11 $
- *  $Date: 93/07/09 10:58:19 $
+/*  cmds.h,v
+ *  1.4
+ *  1994/10/07 07:48:14
  */
 
 /* Verbosity levels. */

@@ -1,5 +1,5 @@
 _divert__(-1)
-<$Id: all.m4,v 1.1 1993/10/02 21:00:13 pk Exp $>
+<all.m4,v 1.1 1993/11/03 00:55:21 paul Exp>
 _define__(<_ALL_ARCH__>,<1>)
 _define__(<_GENERIC__>,<1>)	In case none.m4 changes its mind abt default
 

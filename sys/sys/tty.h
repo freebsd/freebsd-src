@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.h	8.6 (Berkeley) 1/21/94
- * $Id: tty.h,v 1.5 1994/09/13 16:03:35 davidg Exp $
+ * tty.h,v 1.6 1994/10/02 17:25:02 phk Exp
  */
 
 #ifndef _SYS_TTY_H_

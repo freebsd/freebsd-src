@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)times.h	8.4 (Berkeley) 1/21/94
- * $Id$
+ * times.h,v 1.2 1994/08/02 07:53:50 davidg Exp
  */
 
 #ifndef	_SYS_TIMES_H_

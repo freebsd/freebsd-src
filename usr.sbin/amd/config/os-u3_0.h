@@ -37,7 +37,7 @@
  *
  *	@(#)os-u3_0.h	8.1 (Berkeley) 6/6/93
  *
- * $Id: os-u3_0.h,v 5.2.2.1 1992/02/09 15:10:52 jsp beta $
+ * os-u3_0.h,v 1.1.1.1 1994/05/26 05:22:08 rgrimes Exp
  *
  * Ultrix 3.0 definitions for Amd (automounter)
  */

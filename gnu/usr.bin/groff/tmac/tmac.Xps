@@ -1,0 +1,44 @@
+.do mso tmac.ps
+.nr _C \n(.C
+.cp 0
+.de Xps-char
+.char \\$1 \Z"\X'ps: invis'\\$2\X'ps: endinvis'"\\$1
+..
+.Xps-char \(bu \fS\(bu\fP
+.Xps-char \(em "\v'-.25m'\h'.05m'\D'l .9m 0'\h'.05m'"
+.Xps-char \(aq '
+.Xps-char \(bq ,
+.Xps-char \(Bq ,,
+.Xps-char \(lq ``
+.Xps-char \(rq ''
+.Xps-char \(OE OE
+.Xps-char \(oe oe
+.Xps-char \(Fn \fS\(Fn\fP
+.Xps-char \(vS \o'\(ahS'
+.Xps-char \(vs \o'\(ahs'
+.Xps-char \(vZ \o'\(ahZ'
+.Xps-char \(vz \o'\(ahz'
+.Xps-char \(/L \o'/L'
+.Xps-char \(/l \o'/l'
+.Xps-char \(:Y \o'\(adY'
+.Xps-char \(a" \(sd
+.Xps-char \(a. \v'-.6m'.
+.Xps-char \(ga "\Z'\v'-.7m'\D'l .22m .18m''\h'.33m'"
+.Xps-char \(ab \v'-.55m'\s'\\\\n(.s*6u/10u'u\s0
+.Xps-char \(ah \v'-.55m'\s[\En[.s]/2u]v\s0\v'.55m'
+.Xps-char \(ao "\v'-.55m'\s[\En[.s]*6u/10u]\D'c .25m'\s0\v'.55m'"
+.Xps-char \(ho \s[\En[.s]/2u]\v'.4m'c\v'-.4m'\s0
+.Xps-char \(.i i
+.Xps-char \(fo <
+.Xps-char \(fc >
+.Xps-char \(OK \s'\\\\n(.s*6u/10u'\e\s0/
+.Xps-char \(tm \v'-.3m'\s'\\\\n(.s*6u/10u'TM\s0\v'.3m'
+.Xps-char \(dd "\Z'\h'.25m'\v'.15m'\D'l 0 -.8m'\v'.2m'\h'-.195m'\
+\D'l .39m 0'\v'.4m'\D'l -.39m 0''\h'.5m'"
+.Xps-char \(dg "\Z'\h'.25m'\v'.15m'\D'l 0 -.8m'\v'.2m'\h'-.195m'\
+\D'l .39m 0''\h'.5m'"
+.Xps-char \(en \-
+.Xps-char \(%0 %\s'\\\\n(.s*6u/10u'\fI0\fP\s0
+.Xps-char \(lh \(->
+.Xps-char \(rh \(<-
+.cp \n(_C

@@ -1,5 +1,5 @@
 # Makefile for libdialog
-# $Id: Makefile,v 1.5 1994/10/28 03:08:14 ache Exp $
+# Makefile,v 1.6 1994/10/28 05:36:38 jkh Exp
 
 LIB=    dialog
 SRCS=   kernel.c rc.c checklist.c inputbox.c menubox.c msgbox.c \

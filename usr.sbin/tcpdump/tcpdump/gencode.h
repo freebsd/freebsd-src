@@ -18,7 +18,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: gencode.h,v 1.14 92/02/14 15:18:55 mccanne Exp $ (LBL)
+ * @(#) /home/ncvs/src/usr.sbin/tcpdump/tcpdump/gencode.h,v 1.1.1.1 1993/06/12 14:42:12 rgrimes Exp (LBL)
  */
 
 /*

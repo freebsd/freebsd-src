@@ -36,7 +36,7 @@
  *
  *	@(#)pt_tcp.c	8.3 (Berkeley) 3/27/94
  *
- * $Id: pt_tcp.c,v 1.1 1992/05/25 21:43:09 jsp Exp jsp $
+ * pt_tcp.c,v 1.1.1.1 1994/05/26 06:34:34 rgrimes Exp
  */
 
 #include <stdio.h>

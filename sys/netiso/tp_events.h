@@ -1,5 +1,5 @@
 /*
- * $Id: tp_events.h,v 1.2 1994/08/02 07:51:05 davidg Exp $
+ * tp_events.h,v 1.3 1994/08/21 06:14:24 paul Exp
  */
 
 #ifndef _NETISO_TP_EVENTS_H_

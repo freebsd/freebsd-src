@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)signalvar.h	8.3 (Berkeley) 1/4/94
- * $Id: signalvar.h,v 1.3 1994/09/25 19:34:01 phk Exp $
+ * signalvar.h,v 1.4 1994/10/02 17:24:55 phk Exp
  */
 
 #ifndef	_SYS_SIGNALVAR_H_		/* tmp for user.h */

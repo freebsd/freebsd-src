@@ -36,7 +36,7 @@
 
 #ifndef	lint
 static char *moduleid = 
-	"@(#)$Id: ascmagic.c,v 1.17 1994/01/21 01:25:30 christos Exp $";
+	"@(#)ascmagic.c,v 1.1.1.1 1994/09/03 19:16:22 csgr Exp";
 #endif	/* lint */
 
 			/* an optimisation over plain strcmp() */

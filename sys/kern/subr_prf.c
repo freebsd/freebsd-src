@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prf.c	8.3 (Berkeley) 1/21/94
- * $Id: subr_prf.c,v 1.6 1994/09/28 19:22:32 phk Exp $
+ * subr_prf.c,v 1.7 1994/10/02 17:35:23 phk Exp
  */
 
 #include <sys/param.h>

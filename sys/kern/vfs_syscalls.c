@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.15 1994/10/21 01:19:15 wollman Exp $
+ * vfs_syscalls.c,v 1.16 1994/11/04 14:41:34 davidg Exp
  */
 
 #include <sys/param.h>

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: modload.c,v 1.4 1994/09/22 22:35:53 wollman Exp $
+ *	modload.c,v 1.5 1994/09/24 03:18:32 wollman Exp
  */
 
 #include <stdio.h>

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)un.h	8.1 (Berkeley) 6/2/93
- * $Id: un.h,v 1.4 1994/08/21 04:42:09 paul Exp $
+ * un.h,v 1.5 1994/10/02 17:25:03 phk Exp
  */
 
 #ifndef _SYS_UN_H_

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)myhistedit.h	8.1 (Berkeley) 5/31/93
- *	$Id$
+ *	myhistedit.h,v 1.2 1994/09/24 02:57:59 davidg Exp
  */
 
 #include <histedit.h>

@@ -1,5 +1,5 @@
-/* $Header: putdriver.c,v 2.2 88/09/19 12:55:27 nhall Exp $ */
-/* $Source: /var/home/tadl/src/argo/xebec/RCS/putdriver.c,v $ */
+/* /home/ncvs/src/sys/netiso/xebec/putdriver.c,v 1.1.1.1 1994/05/24 10:07:46 rgrimes Exp */
+/* /home/ncvs/src/sys/netiso/xebec/putdriver.c,v */
 
 /*
  * This code is such a kludge that I don't want to put my name on it.

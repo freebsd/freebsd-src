@@ -46,7 +46,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsi_disk.h,v 1.4 93/08/26 21:09:23 julian Exp Locker: julian $
+ *	scsi_disk.h,v 1.6 1993/11/18 05:02:55 rgrimes Exp
  */
 
 /*

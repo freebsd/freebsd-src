@@ -37,7 +37,7 @@
  *
  *	@(#)umount_fs.c	8.1 (Berkeley) 6/6/93
  *
- * $Id: umount_fs.c,v 5.2.2.1 1992/02/09 15:09:10 jsp beta $
+ * umount_fs.c,v 1.1.1.1 1994/05/26 05:22:03 rgrimes Exp
  *
  */
 

@@ -36,7 +36,10 @@ Report problems and direct all questions to:
 */
 
 
-/* $Log: rcssyn.c,v $
+/* rcssyn.c,v
+ * Revision 1.1.1.1  1993/06/18  04:22:12  jkh
+ * Updated GNU utilities
+ *
  * Revision 5.8  1991/08/19  03:13:55  eggert
  * Tune.
  *
@@ -133,7 +136,7 @@ Report problems and direct all questions to:
 
 #include "rcsbase.h"
 
-libId(synId, "$Id: rcssyn.c,v 5.8 1991/08/19 03:13:55 eggert Exp $")
+libId(synId, "rcssyn.c,v 1.1.1.1 1993/06/18 04:22:12 jkh Exp")
 
 /* forward */
 static char const *getkeyval P((char const*,enum tokens,int));

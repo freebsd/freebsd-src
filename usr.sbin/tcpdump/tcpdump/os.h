@@ -18,7 +18,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: os-bsd.h,v 1.15 91/05/05 23:59:11 mccanne Exp $ (LBL)
+ * @(#) /home/ncvs/src/usr.sbin/tcpdump/tcpdump/os.h,v 1.1.1.1 1993/06/12 14:42:10 rgrimes Exp (LBL)
  */
 
 #include <sys/param.h>

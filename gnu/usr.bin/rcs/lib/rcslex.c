@@ -38,7 +38,11 @@ Report problems and direct all questions to:
 
 
 
-/* $Log: rcslex.c,v $
+/* rcslex.c,v
+ * Revision 1.2  1993/06/28  19:13:10  nate
+ * Added Chris Demetriou's FSYNC_ALL option which causes all writes to be
+ * flushed immediately.  (In case of a crash in the middle of CVS/RCS commits
+ *
  * Revision 1.1.1.1  1993/06/18  04:22:12  jkh
  * Updated GNU utilities
  *
@@ -135,7 +139,7 @@ Report problems and direct all questions to:
 
 #include "rcsbase.h"
 
-libId(lexId, "$Id: rcslex.c,v 1.1.1.1 1993/06/18 04:22:12 jkh Exp $")
+libId(lexId, "rcslex.c,v 1.2 1993/06/28 19:13:10 nate Exp")
 
 static struct hshentry *nexthsh;  /*pointer to next hash entry, set by lookup*/
 

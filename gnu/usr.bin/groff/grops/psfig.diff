@@ -1,0 +1,106 @@
+These are patches to makes psfig work with groff.  They apply to the
+version of psfig in comp.sources.unix/Volume11.  After applying them,
+psfig should be recompiled with -DGROFF.  The resulting psfig will
+work only with groff, so you might want to install it under a
+different name.  The output of this psfig must be processed using the
+macros in the file ../macros/tmac.psfig.  These will automatically add
+the necessary PostScript code to the prologue output by grops.  Use of
+the `global' feature in psfig will result in non-conformant PostScript
+which will fail if processed by a page reversal program.  Note that
+psfig is unsupported by me (I'm not interested in hearing about psfig
+problems.)  For new documents, I recommend using the PostScript
+inclusion features provided by grops.
+
+James Clark
+jjc@jclark.com
+
+*** cmds.c.~1~	Thu Feb 14 16:09:45 1991
+--- cmds.c	Mon Mar  4 12:49:26 1991
+***************
+*** 245,253 ****
+--- 245,261 ----
+  		(void) sprintf(x, "%.2fp", fx);
+  		(void) sprintf(y, "%.2fp", fy);
+  	} else if (!*x) {
++ #ifndef GROFF
+  		(void) sprintf(x,"(%.2fp*%s/%.2fp)", fx, y, fy);
++ #else /* GROFF */
++ 		(void) sprintf(x,"(%.0fu*%s/%.0fu)", fx, y, fy);
++ #endif /* GROFF */
+  	} else if (!*y) {
++ #ifndef GROFF
+  		(void) sprintf(y,"(%.2fp*%s/%.2fp)", fy, x, fx);
++ #else /* GROFF */
++ 		(void) sprintf(y,"(%.0fu*%s/%.0fu)", fy, x, fx);
++ #endif /* GROFF */
+  	}
+  
+  	/* 
+*** troff.c.~1~	Thu Feb 14 16:09:48 1991
+--- troff.c	Mon Mar  4 12:48:46 1991
+***************
+*** 26,32 ****
+--- 26,36 ----
+  }
+  
+  
++ #ifndef GROFF
+  char incl_file_s[] = "\\X'f%s'";
++ #else /* GROFF */
++ char incl_file_s[] = "\\X'ps: file %s'";
++ #endif /* GROFF */
+  includeFile(filenm)
+  char *filenm; {
+  	printf(incl_file_s, filenm);
+***************
+*** 40,52 ****
+--- 44,64 ----
+  		error("buffer overflow");
+  }
+  
++ #ifndef GROFF
+  char endfig_s[] = "\\X'pendFig'";
++ #else /* GROFF */
++ char endfig_s[] = "\\X'ps: exec psfigend'";
++ #endif /* GROFF */
+  endfig() {
+  	printf(endfig_s);
+  }
+  
+  char startfig_s[] =
++ #ifndef GROFF
+  "\\X'p\\w@\\h@%s@@'\\X'p\\w@\\h@%s@@'\\X'p%.2f'\\X'p%.2f'\\X'p%.2f'\\X'p%.2f'\\X'pstartFig'";
++ #else /* GROFF */
++ "\\X'ps: exec \\w@\\h@%s@@ \\w@\\h@%s@@ %.2f %.2f %.2f %.2f psfigstart'";
++ #endif /* GROFF */
+  
+  startfig(x, y, llx, lly, urx, ury)
+  char	*x, *y;
+***************
+*** 57,63 ****
+--- 69,79 ----
+  }
+  
+  emitDoClip() {
++ #ifndef GROFF
+  	printf("\\X'pdoclip'");
++ #else /* GROFF */
++ 	printf("\\X'ps: exec psfigclip'");
++ #endif /* GROFF */
+  }
+  
+  flushX()
+***************
+*** 116,122 ****
+--- 132,142 ----
+  
+  #define isWhite(ch) ((ch) == ' ' || (ch) == '\t' || (ch) == '\n')
+  
++ #ifndef GROFF
+  char literal_s[] = "\\X'p%s'";
++ #else /* GROFF */
++ char literal_s[] = "\\X'ps: exec %s'";
++ #endif /* GROFF */
+  emitLiteral(text)
+  char *text; {
+  	static char litbuf[BUFSZ];

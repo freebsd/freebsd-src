@@ -27,7 +27,7 @@
 /* note that we do need config info.  xoxorich. */
 
 #ifndef lint
-static char rcsid[] = "$Id: output-file.c,v 1.3 1993/10/02 20:57:49 pk Exp $";
+static char rcsid[] = "output-file.c,v 1.2 1993/11/03 00:52:08 paul Exp";
 #endif
 
 #include <stdio.h>

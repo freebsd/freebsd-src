@@ -38,7 +38,7 @@
 #
 # First written May 16, 1992 by Van Jacobson, Lawrence Berkeley Laboratory.
 #
-# $Id$
+# systags.sh,v 1.2 1994/08/02 07:38:32 davidg Exp
 
 rm -f tags tags.tmp tags.cfiles tags.sfiles tags.hfiles
 MACHINE=`machine`

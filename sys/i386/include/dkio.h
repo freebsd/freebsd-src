@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)dkio.h	5.2 (Berkeley) 1/18/91
- *	$Id: dkio.h,v 1.3 1993/11/07 17:42:51 wollman Exp $
+ *	dkio.h,v 1.4 1994/09/08 12:26:07 bde Exp
  */
 
 #ifndef _MACHINE_DKIO_H_

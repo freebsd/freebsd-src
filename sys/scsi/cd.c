@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.28 1994/10/27 20:45:00 jkh Exp $
+ *      cd.c,v 1.29 1994/11/15 14:49:12 bde Exp
  */
 
 #define SPLCD splbio

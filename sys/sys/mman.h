@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mman.h	8.1 (Berkeley) 6/2/93
- * $Id: mman.h,v 1.3 1994/08/02 15:06:58 davidg Exp $
+ * mman.h,v 1.4 1994/08/21 04:41:52 paul Exp
  */
 
 #ifndef _SYS_MMAN_H_

@@ -1,5 +1,5 @@
-/* $Header: main.h,v 2.1 88/09/19 12:56:24 nhall Exp $ */
-/* $Source: /var/home/tadl/src/argo/xebec/RCS/main.h,v $ */
+/* /home/ncvs/src/sys/netiso/xebec/main.h,v 1.1.1.1 1994/05/24 10:07:49 rgrimes Exp */
+/* /home/ncvs/src/sys/netiso/xebec/main.h,v */
 
 #define TRUE 1
 #define FALSE 0

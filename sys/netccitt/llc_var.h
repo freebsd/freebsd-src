@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)llc_var.h	8.1 (Berkeley) 6/10/93
- * $Id: llc_var.h,v 1.2 1994/08/02 07:47:25 davidg Exp $
+ * llc_var.h,v 1.3 1994/08/21 05:44:08 paul Exp
  */
 
 #ifndef _NETCCITT_LLC_VAR_H_

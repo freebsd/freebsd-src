@@ -40,7 +40,7 @@
 #
 # Start amd
 #
-# $Id: amd.start.ex,v 5.2.2.1 1992/02/09 15:11:32 jsp beta $
+# amd.start.ex,v 1.1.1.1 1994/05/26 05:22:16 rgrimes Exp
 #
 PATH=/usr/sbin:/bin:/usr/bin:$PATH export PATH
 

@@ -37,7 +37,10 @@ Report problems and direct all questions to:
 
 
 
-/* $Log: rcsfnms.c,v $
+/* rcsfnms.c,v
+ * Revision 1.1.1.1  1993/06/18  04:22:13  jkh
+ * Updated GNU utilities
+ *
  * Revision 5.8  1991/09/24  00:28:40  eggert
  * Don't export bindex().
  *
@@ -140,7 +143,7 @@ Report problems and direct all questions to:
 
 #include "rcsbase.h"
 
-libId(fnmsId, "$Id: rcsfnms.c,v 5.8 1991/09/24 00:28:40 eggert Exp $")
+libId(fnmsId, "rcsfnms.c,v 1.1.1.1 1993/06/18 04:22:13 jkh Exp")
 
 char const *RCSfilename;
 char *workfilename;

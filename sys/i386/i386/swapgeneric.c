@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)swapgeneric.c	5.5 (Berkeley) 5/9/91
- *	$Id: swapgeneric.c,v 1.3 1993/11/03 18:05:42 nate Exp $
+ *	swapgeneric.c,v 1.4 1994/08/13 03:49:45 wollman Exp
  */
 
 #include <machine/pte.h>

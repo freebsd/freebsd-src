@@ -1,5 +1,5 @@
-/* $Header: xebec.h,v 2.1 88/09/19 12:56:35 nhall Exp $ */
-/* $Source: /var/home/tadl/src/argo/xebec/RCS/xebec.h,v $ */
+/* /home/ncvs/src/sys/netiso/xebec/xebec.h,v 1.1.1.1 1994/05/24 10:07:40 rgrimes Exp */
+/* /home/ncvs/src/sys/netiso/xebec/xebec.h,v */
 
 union llattrib {
 	struct {

@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * gus_linearvol.h,v 1.2 1994/08/02 07:39:57 davidg Exp
  */
 static unsigned short gus_linearvol[128] = {
  0x0000, 0x08ff, 0x09ff, 0x0a80, 0x0aff, 0x0b40, 0x0b80, 0x0bc0,

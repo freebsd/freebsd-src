@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_bio.c	8.4 (Berkeley) 12/30/93
- * $Id: lfs_bio.c,v 1.4 1994/08/20 03:49:01 davidg Exp $
+ * lfs_bio.c,v 1.5 1994/10/10 01:04:49 phk Exp
  */
 
 #include <sys/param.h>

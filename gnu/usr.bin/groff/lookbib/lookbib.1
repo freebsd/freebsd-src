@@ -1,0 +1,58 @@
+.\" -*- nroff -*-
+.TH LOOKBIB 1 "6 August 1992" "Groff Version 1.08"
+.SH NAME
+lookbib \- search bibliographic databases
+.SH SYNOPSIS
+.B lookbib
+[
+.B \-v
+]
+[
+.BI \-i string
+]
+[
+.BI \-t n
+]
+.IR filename \|.\|.\|.
+.SH DESCRIPTION
+lookbib prints a prompt on the standard error (unless the standard input is not a terminal),
+reads from the standard input a line containing a set of keywords,
+searches the bibliographic databases
+.IR filename \|.\|.\|.
+for references containing those keywords,
+prints any references found on the standard output,
+and repeats this process until the end of input.
+For each database
+.I filename
+to be searched,
+if an index
+.IB filename .i
+created by
+.BR indxbib (1)
+exists, then it will be searched instead;
+each index can cover multiple databases.
+.SH OPTIONS
+.TP
+.B \-v
+Print the version number.
+.TP
+.BI \-i string
+When searching files for which no index exists,
+ignore the contents of fields whose names are in
+.IR string .
+.TP
+.BI \-t n
+Only require the first
+.I n
+characters of keys to be given.
+Initially
+.I n
+is 6.
+.SH FILES
+.TP \w'\fIfilename\fB.i'u+2n
+.IB filename .i
+Index files.
+.SH "SEE ALSO"
+.BR refer (1),
+.BR lkbib (1),
+.BR indxbib (1)

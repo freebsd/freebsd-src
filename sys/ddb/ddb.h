@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ddb.h,v 1.3 1994/09/27 12:11:09 davidg Exp $
+ *	ddb.h,v 1.4 1994/09/27 12:15:56 davidg Exp
  */
 
 /*

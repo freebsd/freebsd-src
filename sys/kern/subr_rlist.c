@@ -45,7 +45,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_rlist.c,v 1.6 1994/08/13 03:50:24 wollman Exp $
+ *	subr_rlist.c,v 1.7 1994/10/02 17:35:23 phk Exp
  */
 
 #include <sys/param.h>

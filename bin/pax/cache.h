@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *      @(#)cache.h	8.1 (Berkeley) 5/31/93
- *	$Id$
+ *	cache.h,v 1.2 1994/09/24 02:56:15 davidg Exp
  */
 
 /*

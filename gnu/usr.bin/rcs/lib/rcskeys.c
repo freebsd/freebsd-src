@@ -30,7 +30,11 @@ Report problems and direct all questions to:
 
 
 
-/* $Log: rcskeys.c,v $
+/* rcskeys.c,v
+ * Revision 1.4  1994/06/22  00:51:42  rgrimes
+ * Fix serious off by one error for FreeBSD keyword, this has been driving
+ * me nuts as it was on by default and that is NOT what I wanted.
+ *
  * Revision 1.3  1994/05/15  22:15:14  rgrimes
  * To truely have the OLD behavior of RCS by default make the expansion
  * of $FreeBSD$ false by default.  This should keep them out
@@ -39,7 +43,7 @@ Report problems and direct all questions to:
  * Revision 1.2  1994/05/14  07:00:23  rgrimes
  * Add new option -K from David Dawes that allows you to turn on and off
  * specific keyword substitution during a rcs co command.
- * Add the new keyword FreeBSD that is IDENTICAL in operation to $Id: rcskeys.c,v 1.3 1994/05/15 22:15:14 rgrimes Exp $.
+ * Add the new keyword FreeBSD that is IDENTICAL in operation to rcskeys.c,v 1.4 1994/06/22 00:51:42 rgrimes Exp.
  *
  * Revision 1.1.1.1  1993/06/18  04:22:12  jkh
  * Updated GNU utilities
@@ -73,7 +77,7 @@ Report problems and direct all questions to:
 
 #include "rcsbase.h"
 
-libId(keysId, "$Id: rcskeys.c,v 1.3 1994/05/15 22:15:14 rgrimes Exp $")
+libId(keysId, "rcskeys.c,v 1.4 1994/06/22 00:51:42 rgrimes Exp")
 
 
 char const *const Keyword[] = {

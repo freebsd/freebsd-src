@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.11 1994/10/18 14:59:19 davidg Exp $
+ *	vm_page.c,v 1.12 1994/10/23 06:15:04 davidg Exp
  */
 
 /*

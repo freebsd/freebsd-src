@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_ip.h	8.1 (Berkeley) 6/10/93
- * $Id: tp_ip.h,v 1.2 1994/08/02 07:51:13 davidg Exp $
+ * tp_ip.h,v 1.3 1994/08/21 06:14:24 paul Exp
  */
 
 #ifndef _NETISO_TP_IP_H_
@@ -66,8 +66,8 @@ SOFTWARE.
 /* 
  * ARGO TP
  *
- * $Header: /home/ncvs/src/sys/netiso/tp_ip.h,v 1.2 1994/08/02 07:51:13 davidg Exp $
- * $Source: /home/ncvs/src/sys/netiso/tp_ip.h,v $
+ * /home/ncvs/src/sys/netiso/tp_ip.h,v 1.3 1994/08/21 06:14:24 paul Exp
+ * /home/ncvs/src/sys/netiso/tp_ip.h,v
  *
  * internet IP-dependent structures and include files
  *

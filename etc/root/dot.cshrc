@@ -1,4 +1,4 @@
-#	$Id: dot.cshrc,v 1.11 1994/09/22 08:23:02 rgrimes Exp $
+#	dot.cshrc,v 1.12 1994/10/27 05:26:59 phk Exp
 #
 alias mail Mail
 set history=1000

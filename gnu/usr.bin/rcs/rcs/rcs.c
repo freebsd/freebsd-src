@@ -30,7 +30,10 @@ Report problems and direct all questions to:
 
 
 
-/* $Log: rcs.c,v $
+/* rcs.c,v
+ * Revision 1.1.1.1  1993/06/18  04:22:14  jkh
+ * Updated GNU utilities
+ *
  * Revision 5.12  1991/11/20  17:58:08  eggert
  * Don't read the delta tree from a nonexistent RCS file.
  *
@@ -238,7 +241,7 @@ static struct delrevpair delrev;
 static struct hshentry *cuthead, *cuttail, *delstrt;
 static struct hshentries *gendeltas;
 
-mainProg(rcsId, "rcs", "$Id: rcs.c,v 5.12 1991/11/20 17:58:08 eggert Exp $")
+mainProg(rcsId, "rcs", "rcs.c,v 1.1.1.1 1993/06/18 04:22:14 jkh Exp")
 {
 	static char const cmdusage[] =
 		"\nrcs usage: rcs -{ae}logins -Afile -{blu}[rev] -cstring -{iLU} -{nNs}name[:rev] -orange -t[file] -Vn file ...";

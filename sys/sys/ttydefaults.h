@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ttydefaults.h	8.4 (Berkeley) 1/21/94
- * $Id: ttydefaults.h,v 1.5 1994/09/22 19:51:43 ache Exp $
+ * ttydefaults.h,v 1.6 1994/10/11 00:16:28 wollman Exp
  */
 
 /*

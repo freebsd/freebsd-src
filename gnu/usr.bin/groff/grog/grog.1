@@ -1,0 +1,54 @@
+.TH GROG 1 "6 August 1992" "Groff Version 1.08"
+.SH NAME
+grog \- guess options for groff command
+.SH SYNOPSIS
+.B grog
+[
+.BI \- option
+\|.\|.\|.
+]
+[
+.IR files \|.\|.\|.
+]
+.SH DESCRIPTION
+.B grog
+reads
+.I files
+and guesses which of the
+.BR groff  (1)
+options
+.BR \-e ,
+.BR \-man ,
+.BR \-me ,
+.BR \-mm ,
+.BR \-ms ,
+.BR \-p ,
+.BR \-s ,
+and
+.BR \-t
+are required for printing
+.IR files ,
+and prints the groff command including those options on the standard output.
+A filename of
+.B \-
+is taken to refer to the standard input.
+If no files are specified the standard input will be read.
+Any specified options will be included in the printed command.
+No space is allowed between options and their arguments.
+For example,
+.IP
+.B `grog \-Tdvi paper.ms`
+.LP
+will guess the approriate command to print
+.B paper.ms
+and then run it after adding the
+.B \-Tdvi
+option.
+.SH "SEE ALSO"
+.BR doctype (1),
+.BR groff (1),
+.BR troff (1),
+.BR tbl (1),
+.BR pic (1),
+.BR eqn (1),
+.BR soelim (1)

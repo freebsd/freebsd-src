@@ -1,7 +1,10 @@
 #!/usr/local/bin/wish -f
-#$Id: pkg,v 1.1 1993/09/04 17:06:09 jkh Exp $
+#tkpkg,v 1.1 1994/01/06 08:16:20 jkh Exp
 #
-#$Log: pkg,v $
+#tkpkg,v
+# Revision 1.1  1994/01/06  08:16:20  jkh
+# Cleaning house.
+#
 # Revision 1.1  1993/09/04  17:06:09  jkh
 # Added Rich's wish front-end.
 #

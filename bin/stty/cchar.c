@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	cchar.c,v 1.2 1994/09/24 02:58:55 davidg Exp
  */
 
 #ifndef lint

@@ -21,7 +21,7 @@
 
 #ifndef lint
 static char rcsid[] =
-	"@(#) $Header: bpf_image.c,v 1.10 92/01/26 21:01:16 mccanne Exp $ (LBL)";
+	"@(#) /home/ncvs/src/usr.sbin/tcpdump/tcpdump/bpf_image.c,v 1.1.1.1 1993/06/12 14:42:13 rgrimes Exp (LBL)";
 #endif
 
 #include <stdio.h>

@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ics2101.c,v 1.3 1994/08/02 07:40:05 davidg Exp $
+ * ics2101.c,v 1.4 1994/10/01 02:16:43 swallace Exp
  */
 
 #include "sound_config.h"

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_extern.h	8.3 (Berkeley) 4/16/94
- * $Id: ffs_extern.h,v 1.4 1994/08/18 22:35:53 wollman Exp $
+ * ffs_extern.h,v 1.5 1994/09/22 19:38:32 wollman Exp
  */
 
 struct buf;

@@ -21,9 +21,14 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: dc21040.h,v 1.2 1994/08/15 20:42:25 thomas Exp thomas $
+ * dc21040.h,v 1.1 1994/10/01 20:16:45 wollman Exp
  *
- * $Log: dc21040.h,v $
+ * dc21040.h,v
+ * Revision 1.1  1994/10/01  20:16:45  wollman
+ * Add Matt Thomas's DC21040 PCI Ethernet driver.  (This is turning out
+ * to be quite a popular chip, so expect to see a number of products
+ * based on it.)
+ *
  * Revision 1.2  1994/08/15  20:42:25  thomas
  * misc additions
  *

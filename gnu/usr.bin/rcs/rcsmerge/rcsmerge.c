@@ -34,7 +34,10 @@ Report problems and direct all questions to:
 
 
 
-/* $Log: rcsmerge.c,v $
+/* rcsmerge.c,v
+ * Revision 1.1.1.1  1993/06/18  04:22:16  jkh
+ * Updated GNU utilities
+ *
  * Revision 5.7  1991/11/20  17:58:09  eggert
  * Don't Iopen(f, "r+"); it's not portable.
  *
@@ -98,7 +101,7 @@ Report problems and direct all questions to:
 
 static char const co[] = CO;
 
-mainProg(rcsmergeId, "rcsmerge", "$Id: rcsmerge.c,v 5.7 1991/11/20 17:58:09 eggert Exp $")
+mainProg(rcsmergeId, "rcsmerge", "rcsmerge.c,v 1.1.1.1 1993/06/18 04:22:16 jkh Exp")
 {
 	static char const cmdusage[] =
 		"\nrcsmerge usage: rcsmerge -rrev1 [-rrev2] [-p] [-Vn] file";

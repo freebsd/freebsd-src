@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: pas2_card.c,v 1.10 1994/10/01 02:16:55 swallace Exp $
+ * pas2_card.c,v 1.11 1994/10/01 12:42:17 ache Exp
  */
 
 #include "sound_config.h"

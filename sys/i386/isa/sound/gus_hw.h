@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * gus_hw.h,v 1.3 1994/08/02 07:39:54 davidg Exp
  */
 /*
  * I/O addresses

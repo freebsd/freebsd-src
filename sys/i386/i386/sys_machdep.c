@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)sys_machdep.c	5.5 (Berkeley) 1/19/91
- *	$Id: sys_machdep.c,v 1.5 1994/08/13 03:49:46 wollman Exp $
+ *	sys_machdep.c,v 1.6 1994/10/30 20:23:23 bde Exp
  */
 
 #include <sys/param.h>

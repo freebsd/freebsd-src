@@ -1,7 +1,7 @@
 #
 # IPFIREWALL -- Sample Generic kernel suitable for building an IP firewall.
 #
-#	$Id: IPFIREWALL,v 1.1 1994/10/28 15:09:36 jkh Exp $
+#	IPFIREWALL,v 1.2 1994/11/13 10:17:07 gibbs Exp
 #
 
 machine		"i386"

@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * ashldi3.c,v 1.2 1994/08/02 07:43:46 davidg Exp
  */
 
 #include "quad.h"

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vfsops.c	8.4 (Berkeley) 4/16/94
- * $Id: mfs_vfsops.c,v 1.4 1994/08/18 22:35:55 wollman Exp $
+ * mfs_vfsops.c,v 1.5 1994/09/21 03:47:42 wollman Exp
  */
 
 #include <sys/param.h>

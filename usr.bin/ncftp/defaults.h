@@ -7,9 +7,9 @@
 #ifndef _DEFAULTS_H_
 #define _DEFAULTS_H_
 
-/*  $RCSfile: defaults.h,v $
- *  $Revision: 14020.13 $
- *  $Date: 93/07/09 10:58:27 $
+/*  defaults.h,v
+ *  1.2
+ *  1994/10/06 23:57:18
  */
 
 #ifndef NEWMAILMESSAGE			/* For english speakers, "You have new mail." */

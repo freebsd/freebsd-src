@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.2 1994/02/07 08:40:16 rgrimes Exp $
+#	Makefile,v 1.3 1994/06/22 04:49:02 jkh Exp
 
 PROG=	ft
 MAN8=	ft.8

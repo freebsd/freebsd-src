@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: setlogin.S,v 1.2 1994/02/21 05:19:17 rgrimes Exp $
+ *	setlogin.S,v 1.1 1994/08/05 01:18:50 wollman Exp
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)

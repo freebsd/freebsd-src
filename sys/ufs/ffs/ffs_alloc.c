@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_alloc.c	8.8 (Berkeley) 2/21/94
- * $Id: ffs_alloc.c,v 1.4 1994/09/20 05:53:24 bde Exp $
+ * ffs_alloc.c,v 1.5 1994/10/10 01:04:34 phk Exp
  */
 
 #include <sys/param.h>

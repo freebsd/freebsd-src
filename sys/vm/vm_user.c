@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_user.c,v 1.3 1994/08/02 07:55:42 davidg Exp $
+ * vm_user.c,v 1.4 1994/10/15 10:28:47 davidg Exp
  */
 
 /*

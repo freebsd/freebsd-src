@@ -1,7 +1,7 @@
 /* defs.h - include or define things that aren't present on all systems
  * vixie@decwrl 26dec92 [new]
  *
- * $Id: portability.h,v 4.9.1.24 1994/07/22 08:42:30 vixie Exp $
+ * portability.h,v 1.1 1994/09/22 20:45:08 pst Exp
  */
 
 /*

@@ -1,5 +1,5 @@
 /*
- * $Id: pas.h,v 1.5 1994/10/01 02:16:54 swallace Exp $
+ * pas.h,v 1.6 1994/10/01 12:42:17 ache Exp
  */
 /* 																*/
 /*	Port addresses and bit fields for the Media Vision Pro AudioSpectrum second generation sound cards.			*/

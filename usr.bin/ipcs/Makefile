@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.6 1994/06/18 21:09:40 cgd Exp $
+#	Makefile,v 1.2 1994/09/13 16:59:27 dfr Exp
 
 PROG=	ipcs
 BINGRP=	kmem

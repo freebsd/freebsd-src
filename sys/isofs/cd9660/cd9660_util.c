@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_util.c	8.1 (Berkeley) 1/21/94
- * $Id$
+ * cd9660_util.c,v 1.3 1994/08/02 07:41:31 davidg Exp
  */
 
 #include <sys/param.h>

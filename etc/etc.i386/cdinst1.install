@@ -1,7 +1,7 @@
 #!/bin/sh
 #	cd install floppy disk /install script
 #
-#	$Id: cdinst1.install,v 1.6 1994/06/29 06:46:01 rgrimes Exp $
+#	cdinst1.install,v 1.7 1994/09/15 04:46:10 rgrimes Exp
 
 # ${OPSYSTEM}, the mounting of the cdrom drive, and the path are all
 # setup by .profile

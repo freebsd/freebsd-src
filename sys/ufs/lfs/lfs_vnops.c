@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_vnops.c	8.5 (Berkeley) 12/30/93
- * $Id: lfs_vnops.c,v 1.4 1994/09/21 03:47:40 wollman Exp $
+ * lfs_vnops.c,v 1.5 1994/09/22 19:38:39 wollman Exp
  */
 
 #include <sys/param.h>

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_compat.c	8.1 (Berkeley) 6/10/93
- * $Id: tty_compat.c,v 1.6 1994/10/11 20:04:49 ache Exp $
+ * tty_compat.c,v 1.7 1994/10/11 20:29:42 ache Exp
  */
 
 /* 

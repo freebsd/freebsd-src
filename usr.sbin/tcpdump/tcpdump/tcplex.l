@@ -22,7 +22,7 @@
 
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Header: /home/ncvs/src/usr.sbin/tcpdump/tcpdump/tcplex.l,v 1.1.1.1 1993/06/12 14:42:05 rgrimes Exp $ (LBL)";
+    "@(#) /home/ncvs/src/usr.sbin/tcpdump/tcpdump/tcplex.l,v 1.2 1994/08/28 16:35:58 bde Exp (LBL)";
 #endif
 
 /*

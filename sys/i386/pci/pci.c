@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 1.8 1994/10/25 23:09:08 se Exp $
+**  pci.c,v 1.9 1994/11/02 23:47:13 se Exp
 **
 **  General subroutines for the PCI bus on 80*86 systems.
 **  pci_configure ()

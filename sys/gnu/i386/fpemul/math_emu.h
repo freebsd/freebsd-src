@@ -1,6 +1,6 @@
 /*
  *
- *    $Id:$
+ *    math_emu.h,v 1.2 1994/04/29 21:23:24 gclarkii Exp
  *
  */
 

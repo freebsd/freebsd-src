@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)dkstat.h	8.2 (Berkeley) 1/21/94
- * $Id: dkstat.h,v 1.3 1994/08/18 22:35:42 wollman Exp $
+ * dkstat.h,v 1.5 1994/10/16 05:03:05 wollman Exp
  */
 
 #ifndef _SYS_DKSTAT_H_

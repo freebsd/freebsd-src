@@ -1,0 +1,89 @@
+>From newsserv!kralizec.zeta.org.au!bde Sat Aug 20 01:50:59 1994
+From: Bruce Evans <newsserv!kralizec.zeta.org.au!bde>
+Newsgroups: stark.freebsd-bugs
+Subject: Re:  uucp command fails with permission problems
+Date: Mon, 20 Jun 1994 15:13:31 +1000
+Organization: Gene Stark's home system
+Distribution: stark
+NNTP-Posting-Host: home.stark.cs.sunysb.edu
+To: FreeBSD-bugfiler@freefall.cdrom.com, gordon@sneaky.lonestar.org
+Precedence: bulk
+
+>	The problem stems from the change the setreuid().  It
+>	doesn't change the real uid any more, so uucp changes ids
+>	back to the wrong id after opening the input file and 
+>	then tries to open a file in the spool directory with
+>	the invoking user's permissions.
+>
+>	The promised POSIX saved-setuid features don't work either,
+
+I fixed setuid() and setgid() to support saved ids.  This fixes
+uucp (when it is configured with HAVE_BROKEN_SETREUID=1 and
+HAVE_SAVED_SETUID=1).  I don't know if the change is really safe.
+
+Bruce
+
+*** sys1/kern/kern_prot.c	Wed May  4 17:54:23 1994
+--- src/sys/kern/kern_prot.c	Sun Jun 12 06:47:11 1994
+***************
+*** 270,274 ****
+  
+  	uid = uap->uid;
+! 	if (uid != pc->p_ruid &&
+  	    (error = suser(pc->pc_ucred, &p->p_acflag)))
+  		return (error);
+--- 270,274 ----
+  
+  	uid = uap->uid;
+! 	if (uid != pc->p_ruid && uid != pc->p_svuid &&
+  	    (error = suser(pc->pc_ucred, &p->p_acflag)))
+  		return (error);
+***************
+*** 277,284 ****
+  	 * not see our changes.
+  	 */
+  	pc->pc_ucred = crcopy(pc->pc_ucred);
+  	pc->pc_ucred->cr_uid = uid;
+- 	pc->p_ruid = uid;
+- 	pc->p_svuid = uid;
+  	p->p_flag |= SUGID;
+  	return (0);
+--- 277,286 ----
+  	 * not see our changes.
+  	 */
++ 	if (pc->pc_ucred->cr_uid == 0) {
++ 		pc->p_ruid = uid;
++ 		pc->p_svuid = uid;
++ 	}
+  	pc->pc_ucred = crcopy(pc->pc_ucred);
+  	pc->pc_ucred->cr_uid = uid;
+  	p->p_flag |= SUGID;
+  	return (0);
+***************
+*** 330,339 ****
+  
+  	gid = uap->gid;
+! 	if (gid != pc->p_rgid && (error = suser(pc->pc_ucred, &p->p_acflag)))
+  		return (error);
+  	pc->pc_ucred = crcopy(pc->pc_ucred);
+  	pc->pc_ucred->cr_groups[0] = gid;
+! 	pc->p_rgid = gid;
+! 	pc->p_svgid = gid;
+  	p->p_flag |= SUGID;
+  	return (0);
+--- 332,344 ----
+  
+  	gid = uap->gid;
+! 	if (gid != pc->p_rgid && gid != pc->p_svgid &&
+! 	    (error = suser(pc->pc_ucred, &p->p_acflag)))
+  		return (error);
+  	pc->pc_ucred = crcopy(pc->pc_ucred);
+  	pc->pc_ucred->cr_groups[0] = gid;
+! 	if (pc->pc_ucred->cr_uid == 0) {
+! 		pc->p_rgid = gid;
+! 		pc->p_svgid = gid;
+! 	}
+  	p->p_flag |= SUGID;
+  	return (0);
+
+

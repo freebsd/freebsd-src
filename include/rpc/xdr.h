@@ -28,7 +28,7 @@
  *
  *	from: @(#)xdr.h 1.19 87/04/22 SMI
  *	from: @(#)xdr.h	2.2 88/07/29 4.0 RPCSRC
- *	$Id: xdr.h,v 1.1 1993/10/27 05:41:07 paul Exp $
+ *	xdr.h,v 1.2 1994/08/07 18:41:02 wollman Exp
  */
 
 /*

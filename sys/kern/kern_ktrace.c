@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_ktrace.c	8.2 (Berkeley) 9/23/93
- * $Id: kern_ktrace.c,v 1.4 1994/08/18 22:35:01 wollman Exp $
+ * kern_ktrace.c,v 1.5 1994/10/02 17:35:15 phk Exp
  */
 
 #ifdef KTRACE

@@ -1,6 +1,9 @@
-/* $RCSfile: malloc.c,v $$Revision: 1.1.1.1 $$Date: 1993/08/23 21:29:37 $
+/* malloc.c,v1.1.1.11994/09/10 06:27:33
  *
- * $Log: malloc.c,v $
+ * malloc.c,v
+ * Revision 1.1.1.1  1994/09/10  06:27:33  gclarkii
+ * Initial import of Perl 4.046 bmaked
+ *
  * Revision 1.1.1.1  1993/08/23  21:29:37  nate
  * PERL!
  *

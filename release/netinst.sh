@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: netinst.sh,v 1.10 1994/11/21 08:33:56 jkh Exp $
+# netinst.sh,v 1.11 1994/11/22 06:50:13 jkh Exp
 
 if [ "$_NETINST_SH_LOADED_" = "yes" ]; then
 	return 0

@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_lookup.c,v 1.1 1994/09/19 15:41:44 dfr Exp $ */
+/*	msdosfs_lookup.c,v 1.2 1994/09/27 20:42:51 phk Exp */
 /*	$NetBSD: msdosfs_lookup.c,v 1.14 1994/08/21 18:44:07 ws Exp $	*/
 
 /*-

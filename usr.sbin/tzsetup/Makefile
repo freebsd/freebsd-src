@@ -1,4 +1,4 @@
-#	$Id$
+#	Makefile,v 1.1 1994/09/13 23:01:57 wollman Exp
 
 NOPROG=	tzsetup
 NOMAN=

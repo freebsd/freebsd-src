@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)pcb.h	5.10 (Berkeley) 5/12/91
- *	$Id: pcb.h,v 1.6 1994/08/13 03:49:50 wollman Exp $
+ *	pcb.h,v 1.7 1994/10/08 22:21:33 phk Exp
  */
 
 #ifndef _I386_PCB_H_

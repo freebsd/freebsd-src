@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1 1994/09/16 20:24:28 wollman Exp $
+#	Makefile,v 1.1 1994/09/21 23:27:13 wollman Exp
 
 .PATH:	${.CURDIR}/../../sys/miscfs/procfs \
 	${.CURDIR}/../../sys/${MACHINE}/${MACHINE}

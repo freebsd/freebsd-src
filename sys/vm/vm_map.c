@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.5 1994/08/18 22:36:04 wollman Exp $
+ * vm_map.c,v 1.6 1994/10/09 01:52:10 phk Exp
  */
 
 /*

@@ -1,4 +1,4 @@
-#	$Id: BSD.root.dist,v 1.18 1994/09/19 01:40:37 rgrimes Exp $
+#	BSD.root.dist,v 1.19 1994/09/25 02:55:21 wollman Exp
 #
 
 /set type=dir uname=root gname=wheel mode=0755

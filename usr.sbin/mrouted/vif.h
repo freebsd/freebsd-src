@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: vif.h,v 1.6 1994/08/24 23:54:47 thyagara Exp $
+ * vif.h,v 1.2 1994/09/08 02:51:28 wollman Exp
  */
 
 /*

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)termios.h	8.3 (Berkeley) 3/28/94
- * $Id$
+ * termios.h,v 1.3 1994/08/02 07:53:46 davidg Exp
  */
 
 #ifndef _SYS_TERMIOS_H_

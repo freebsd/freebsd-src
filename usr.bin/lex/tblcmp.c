@@ -26,7 +26,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-/* $Header: /home/daffy/u0/vern/flex/RCS/tblcmp.c,v 2.10 93/12/07 10:18:30 vern Exp $ */
+/* /home/ncvs/src/usr.bin/lex/tblcmp.c,v 1.1.1.1 1994/08/24 13:10:31 csgr Exp */
 
 #include "flexdef.h"
 

@@ -1,5 +1,5 @@
 #	@(#)Makefile	7.9 (Berkeley) 6/1/93
-# $Id: Makefile,v 1.4 1994/10/25 14:57:56 jkh Exp $
+# Makefile,v 1.5 1994/10/26 11:14:21 jkh Exp
 
 LIB=	kern
 CFLAGS+= -I${.CURDIR} -I${.CURDIR}/.. -DKERNEL

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)trace.h	8.1 (Berkeley) 6/2/93
- * $Id: trace.h,v 1.2 1994/08/02 07:53:52 davidg Exp $
+ * trace.h,v 1.3 1994/08/21 04:42:04 paul Exp
  */
 
 #ifndef _SYS_TRACE_H_

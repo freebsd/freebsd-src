@@ -71,7 +71,7 @@
 #	socksys iBCS2 socket system driver
 #	vat	VAT compatibility audio driver (requires snd*)
 #
-#	$Id: MAKEDEV,v 1.48 1994/11/10 02:32:29 phk Exp $
+#	MAKEDEV,v 1.49 1994/11/12 15:48:54 ache Exp
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:

@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: dmabuf.c,v 1.9 1994/10/01 02:16:35 swallace Exp $
+ * dmabuf.c,v 1.10 1994/11/01 17:26:49 ache Exp
  */
 
 #include "sound_config.h"

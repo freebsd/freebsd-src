@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsi_cd.h,v 1.6 93/08/26 21:09:19 julian Exp Locker: julian $
+ *	scsi_cd.h,v 1.6 1993/11/18 05:02:52 rgrimes Exp
  */
 #ifndef	_SCSI_SCSI_CD_H
 #define _SCSI_SCSI_CD_H 1

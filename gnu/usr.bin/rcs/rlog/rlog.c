@@ -35,7 +35,10 @@ Report problems and direct all questions to:
 
 
 
-/* $Log: rlog.c,v $
+/* rlog.c,v
+ * Revision 1.5  1994/05/12  00:42:59  phk
+ * typo.
+ *
  * Revision 1.4  1994/05/12  00:37:59  phk
  * made -v produce tip-revision, which was what I wanted in the first place...
  *
@@ -204,7 +207,7 @@ static struct lockers *lockerlist;
 static struct stateattri *statelist;
 
 
-mainProg(rlogId, "rlog", "$Id: rlog.c,v 1.4 1994/05/12 00:37:59 phk Exp $")
+mainProg(rlogId, "rlog", "rlog.c,v 1.5 1994/05/12 00:42:59 phk Exp")
 {
 	static char const cmdusage[] =
 		"\nrlog usage: rlog -{bhLRt} [-v[string]] -ddates -l[lockers] -rrevs -sstates -w[logins] -Vn file ...";

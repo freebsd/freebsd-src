@@ -17,7 +17,7 @@
    License along with GAS; see the file COPYING.  If not, write
    to the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. */
 /*
- * $Id: obj-aout.h,v 1.1 1993/11/03 00:53:50 paul Exp $
+ * obj-aout.h,v 1.2 1993/11/30 20:57:40 jkh Exp
  */
 
 

@@ -1,5 +1,5 @@
 /*
- * $Id: warnings.c,v 1.7 1994/06/14 12:45:41 csgr Exp $
+ * warnings.c,v 1.8 1994/06/15 22:40:00 rich Exp
  */
 
 #include <sys/param.h>

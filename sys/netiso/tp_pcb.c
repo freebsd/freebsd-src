@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_pcb.c	8.1 (Berkeley) 6/10/93
- * $Id: tp_pcb.c,v 1.2 1994/08/02 07:51:20 davidg Exp $
+ * tp_pcb.c,v 1.3 1994/11/15 14:23:06 bde Exp
  */
 
 /***********************************************************
@@ -63,8 +63,8 @@ SOFTWARE.
 /* 
  * ARGO TP
  *
- * $Header: /home/ncvs/src/sys/netiso/tp_pcb.c,v 1.2 1994/08/02 07:51:20 davidg Exp $
- * $Source: /home/ncvs/src/sys/netiso/tp_pcb.c,v $
+ * /home/ncvs/src/sys/netiso/tp_pcb.c,v 1.3 1994/11/15 14:23:06 bde Exp
+ * /home/ncvs/src/sys/netiso/tp_pcb.c,v
  *
  *
  * This is the initialization and cleanup stuff - 

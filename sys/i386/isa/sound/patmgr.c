@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: patmgr.c,v 1.6 1994/09/27 17:58:22 davidg Exp $
+ * patmgr.c,v 1.7 1994/10/01 02:16:58 swallace Exp
  */
 
 #define PATMGR_C

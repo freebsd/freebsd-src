@@ -26,7 +26,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-/* $Header: /home/daffy/u0/vern/flex/RCS/yylex.c,v 2.10 93/09/16 20:31:48 vern Exp $ */
+/* /home/ncvs/src/usr.bin/lex/yylex.c,v 1.1.1.1 1994/08/24 13:10:34 csgr Exp */
 
 #include <ctype.h>
 #include "flexdef.h"

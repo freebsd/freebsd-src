@@ -31,7 +31,10 @@ Report problems and direct all questions to:
 
 
 
-/* $Log: rcsutil.c,v $
+/* rcsutil.c,v
+ * Revision 1.1.1.1  1993/06/18  04:22:13  jkh
+ * Updated GNU utilities
+ *
  * Revision 5.10  1991/10/07  17:32:46  eggert
  * Support piece tables even if !has_mmap.
  *
@@ -136,7 +139,7 @@ Report problems and direct all questions to:
 
 #include "rcsbase.h"
 
-libId(utilId, "$Id: rcsutil.c,v 5.10 1991/10/07 17:32:46 eggert Exp $")
+libId(utilId, "rcsutil.c,v 1.1.1.1 1993/06/18 04:22:13 jkh Exp")
 
 #if !has_memcmp
 	int

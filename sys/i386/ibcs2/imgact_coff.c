@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_coff.c,v 1.11 1994/10/12 19:38:03 sos Exp $
+ *	imgact_coff.c,v 1.1 1994/10/14 08:53:13 sos Exp
  */
 
 #include <sys/param.h>

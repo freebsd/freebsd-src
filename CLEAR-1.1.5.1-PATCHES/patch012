@@ -1,0 +1,91 @@
+From julian Wed Aug 24 20:05:58 1994
+Return-Path: <julian>
+Received: by tfs.com (smail3.1.28.1) 
+Message-Id: <m0qdV8X-0003ykC@TFS.COM>
+Date: Wed, 24 Aug 94 20:05 PDT
+From: julian (Julian Elischer)
+To: phk
+Subject: a patch to st.c and to related files...
+Status: RO
+
+There have been several people asking for this patch.
+
+> 
+> From pressco.com!ljo Mon Aug  8 05:30:52 1994
+> Return-Path: <ljo@pressco.com>
+> Received: from dialup.oar.net by tfs.com (smail3.1.28.1) with SMTP
+> 	id m0qXTqt-0003wNC; Mon, 8 Aug 94 05:30 PDT
+> Received: from pressco.com  for ljo@pressco.com
+> 	by dialup.oar.net (PIPE/8.6.8.1/931123.1402) id IAA15392; Mon, 8 Aug 1994 08:30:47 -0400
+> Received: from holiday.pressco.com (holiday-2) by pressco.com (4.1/SMI-4.1)
+> 	id AA09605; Mon, 8 Aug 94 08:20:22 EDT
+> Received: from localhost (ljo@localhost) by holiday.pressco.com (8.6.5/8.6.6) id IAA00562; Mon, 8 Aug 1994 08:21:15 -0400
+> Date: Mon, 8 Aug 1994 08:21:15 -0400
+> From: L Jonas Olsson <ljo@pressco.com>
+> Message-Id: <199408081221.IAA00562@holiday.pressco.com>
+> To: julian@tfs.com
+> Subject: st eom support
+> Status: RO
+
+Hi Julian,
+ Here's some basic patches to implement st eom.
+ I also looked at how Sun is doing this. They have the file(s)
+/sys/sundev/ st_conf.c (older versions have st_reg.h). This has records
+for setting up each device, e.g.:
+{
+  "ArchiveST 4mm DAT/DAT-DC", 14, "ARCHIVE python", 0x30, 512,
+  (ST_KNOWS_EOD | ST_BSF | ST_BSR | ST_VARIABLE), 5000, 5000,
+  {0, 0, 0, 0, }, {0, 0, 0, 0}
+}
+
+ The interesting part is the capabilities field. I guess we could
+infer capabilities from the density perhaps? All drives supporting DAT
+density does probably have ST_KNOWS_EOD | ST_BSF | ST_BSR |
+ST_VARIABLE.
+ The Sun driver uses several st/mt fsf if ST_KNOWS_EOD is not present.
+
+Jonas
+
+*** src/sys/sys/mtio.h~	Thu Nov 18 04:07:52 1993
+--- src/sys/sys/mtio.h	Fri Aug  5 11:12:14 1994
+***************
+*** 74,79 ****
+--- 74,82 ----
+  #define MTSETDNSTY	11
+  #endif
+  
++ #define MTEOM		12	/* space to end of media */
++ #define MTERASE		13	/* erase the whole tape */
++ 
+  /* structure for MTIOCGET - mag tape get status command */
+  
+  struct mtget {
+*** src/sys/scsi/st.c.orig	Fri Aug  5 11:01:26 1994
+--- src/sys/scsi/st.c	Fri Aug  5 11:13:00 1994
+***************
+*** 1152,1157 ****
+--- 1152,1163 ----
+  					errcode = st_space(unit, number - nmarks,
+  					    SP_FILEMARKS, flags);
+  				break;
++ 			case MTEOM:	/* space to end of media */
++ 				errcode = st_chkeod(unit, FALSE, &nmarks, flags);
++ 				if (errcode == ESUCCESS)
++ 					errcode = st_space(unit, 1,
++ 					    SP_EOM, flags);
++ 				break;
+  			case MTBSR:	/* backward space record */
+  				number = -number;
+  			case MTFSR:	/* forward space record */
+*** src/sbin/st/st.c~	Thu Nov 18 00:05:24 1993
+--- src/sbin/st/st.c	Fri Aug  5 11:14:41 1994
+***************
+*** 62,67 ****
+--- 62,68 ----
+  	{ "weof",	MTWEOF,	0 },
+  	{ "eof",	MTWEOF,	0 },
+  	{ "fsf",	MTFSF,	1 },
++ 	{ "eom",	MTEOM,	1 },
+  	{ "bsf",	MTBSF,	1 },
+  	{ "fsr",	MTFSR,	1 },
+  	{ "bsr",	MTBSR,	1 },

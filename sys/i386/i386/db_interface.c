@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_interface.c,v 1.9 1994/09/02 04:12:02 davidg Exp $
+ *	db_interface.c,v 1.10 1994/09/15 11:38:59 davidg Exp
  */
 
 /*

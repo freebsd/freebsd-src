@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cache.c	8.1 (Berkeley) 6/10/93
- * $Id: vfs_cache.c,v 1.3 1994/08/02 07:43:15 davidg Exp $
+ * vfs_cache.c,v 1.4 1994/10/02 17:35:37 phk Exp
  */
 
 #include <sys/param.h>

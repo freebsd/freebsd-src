@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.19 1994/11/01 09:19:50 pst Exp $
+#	Makefile,v 1.1 1994/11/08 00:47:02 ache Exp
 #
 all depend lint tags:
 

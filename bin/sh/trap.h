@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)trap.h	8.1 (Berkeley) 5/31/93
- *	$Id$
+ *	trap.h,v 1.2 1994/09/24 02:58:20 davidg Exp
  */
 
 extern int pendingsigs;

@@ -1,6 +1,9 @@
-/* $RCSfile: bsdcurses.mus,v $$Revision: 1.1.1.1 $$Date: 1993/08/23 21:30:07 $
+/* bsdcurses.mus,v1.1.1.11994/09/10 06:27:37
  *
- * $Log: bsdcurses.mus,v $
+ * bsdcurses.mus,v
+# Revision 1.1.1.1  1994/09/10  06:27:37  gclarkii
+# Initial import of Perl 4.046 bmaked
+#
 # Revision 1.1.1.1  1993/08/23  21:30:07  nate
 # PERL!
 #

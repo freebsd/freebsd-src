@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_bmap.c	8.6 (Berkeley) 1/21/94
- * $Id: ufs_bmap.c,v 1.3 1994/08/02 07:54:52 davidg Exp $
+ * ufs_bmap.c,v 1.4 1994/10/08 06:57:21 phk Exp
  */
 
 #include <sys/param.h>

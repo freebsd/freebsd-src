@@ -28,7 +28,7 @@
  *
  *	from: @(#)rpc_msg.h 1.7 86/07/16 SMI
  *	from: @(#)rpc_msg.h	2.1 88/07/29 4.0 RPCSRC
- *	$Id: rpc_msg.h,v 1.1 1993/10/27 05:40:49 paul Exp $
+ *	rpc_msg.h,v 1.2 1994/08/07 18:40:59 wollman Exp
  */
 
 /*

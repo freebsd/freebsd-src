@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cerror.S,v 1.1 1994/08/05 01:18:40 wollman Exp $
+ *	cerror.S,v 1.2 1994/08/13 14:00:26 davidg Exp
  */
 
 #if defined(SYSLIBC_SCCS) && !defined(lint)

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)stty.h	8.1 (Berkeley) 5/31/93
- *	$Id$
+ *	stty.h,v 1.2 1994/09/24 02:59:03 davidg Exp
  */
 
 #include <sys/ioctl.h>

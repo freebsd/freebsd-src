@@ -18,7 +18,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: etherproto.h,v 1.7 90/10/10 15:04:04 mccanne Exp $ (LBL)
+ * @(#) /home/ncvs/src/usr.sbin/tcpdump/tcpdump/etherproto.h,v 1.1.1.1 1993/06/12 14:42:13 rgrimes Exp (LBL)
  */
 
 /* Map between Ethernet protocol types and names */

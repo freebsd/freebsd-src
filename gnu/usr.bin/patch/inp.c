@@ -1,6 +1,9 @@
-/* $Header: inp.c,v 2.0.1.1 88/06/03 15:06:13 lwall Locked $
+/* /home/ncvs/src/gnu/usr.bin/patch/inp.c,v 1.1.1.1 1993/06/19 14:21:52 paul Exp
  *
- * $Log:	inp.c,v $
+ * inp.c,v
+ * Revision 1.1.1.1  1993/06/19  14:21:52  paul
+ * b-maked patch-2.10
+ *
  * Revision 2.0.1.1  88/06/03  15:06:13  lwall
  * patch10: made a little smarter about sccs files
  * 

@@ -33,7 +33,7 @@
 
 #ifndef	lint
 static char *moduleid = 
-	"@(#)$Id: apprentice.c,v 1.19 1994/05/03 17:58:23 christos Exp $";
+	"@(#)apprentice.c,v 1.1.1.1 1994/09/03 19:16:22 csgr Exp";
 #endif	/* lint */
 
 #define	EATAB {while (isascii((unsigned char) *l) && \

@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_ctl.c	8.3 (Berkeley) 1/21/94
  *
- *	$Id: procfs_ctl.c,v 1.1.1.1 1994/05/24 10:05:10 rgrimes Exp $
+ *	procfs_ctl.c,v 1.2 1994/08/02 07:45:10 davidg Exp
  */
 
 #include <sys/param.h>

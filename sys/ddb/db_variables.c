@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_variables.c,v 1.5 1994/08/18 22:34:27 wollman Exp $
+ *	db_variables.c,v 1.6 1994/09/27 03:34:58 phk Exp
  */
 
 /*

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs.h	8.1 (Berkeley) 6/10/93
- * $Id: nfs.h,v 1.7 1994/10/23 23:26:15 wollman Exp $
+ * nfs.h,v 1.8 1994/11/02 00:11:00 wollman Exp
  */
 
 #ifndef _NFS_NFS_H_

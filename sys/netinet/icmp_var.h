@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)icmp_var.h	8.1 (Berkeley) 6/10/93
- * $Id: icmp_var.h,v 1.2 1994/08/02 07:47:56 davidg Exp $
+ * icmp_var.h,v 1.3 1994/08/21 05:27:23 paul Exp
  */
 
 #ifndef _NETINET_ICMP_VAR_H_

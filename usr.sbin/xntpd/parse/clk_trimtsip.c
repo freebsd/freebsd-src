@@ -1,6 +1,6 @@
 #if defined(REFCLOCK) && (defined(PARSE) || defined(PARSEPPS)) && defined(CLOCK_TRIMTSIP)
 /*
- * $Header: /src/NTP/REPOSITORY/v3/parse/clk_trimble.c,v 3.9 1994/02/02 17:45:27 kardel Exp $
+ * /home/ncvs/src/usr.sbin/xntpd/parse/clk_trimtsip.c,v 1.1.1.1 1994/09/29 23:01:31 wollman Exp
  *
  * Trimble TSIP support - CURRENTLY VERY MUCH UNDER CONSTRUCTION
  */
@@ -467,5 +467,8 @@ getint(bp)
 /*
  * History:
  *
- * $Log: clk_trimble.c,v $
+ * clk_trimtsip.c,v
+ * Revision 1.1.1.1  1994/09/29  23:01:31  wollman
+ * xntp 3.4e from Dave Mills @ UDel
+ *
  */

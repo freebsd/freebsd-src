@@ -1,5 +1,5 @@
 # Makefile for uucp
-# $Id: Makefile,v 1.2 1994/05/31 05:37:12 ache Exp $
+# Makefile,v 1.3 1994/05/31 07:37:14 ache Exp
 
 BINDIR=		$(bindir)
 BINOWN=		$(owner)

@@ -39,7 +39,7 @@
 
 /*
  * from arp.c	8.2 (Berkeley) 1/2/94
- * $Id$
+ * rtmsg.c,v 1.2 1994/09/10 15:13:28 csgr Exp
  */
 
 #include <sys/param.h>

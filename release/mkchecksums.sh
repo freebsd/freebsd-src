@@ -8,7 +8,7 @@
 # wouldn't be much point).
 #
 #                                       Jordan
-# $Id$
+# mkchecksums.sh,v 1.1 1994/11/17 15:20:04 jkh Exp
 #
 
 # First generate the CKSUMS file for the benefit of those who wish to

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)char.h	8.1 (Berkeley) 5/31/93
- *	$Id$
+ *	char.h,v 1.2 1994/09/24 02:53:47 davidg Exp
  */
 
 #include <ctype.h>

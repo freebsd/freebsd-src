@@ -1,6 +1,6 @@
 /* for FreeBSD */
 /*
- * $Id: local.h,v 1.10 1994/10/01 02:16:44 swallace Exp $
+ * local.h,v 1.11 1994/11/01 17:26:50 ache Exp
  */
 #include "snd.h"
 

@@ -6,12 +6,12 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id$
+ * config.c,v 1.1 1994/11/13 20:47:43 phk Exp
  *
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char rcsid[] = "$Id: config.c,v 1.1 1994/01/14 12:24:39 jkh Exp $";
+static char rcsid[] = "config.c,v 1.1 1994/11/13 20:47:43 phk Exp";
 #endif				/* LIBC_SCCS and not lint */
 
 /*

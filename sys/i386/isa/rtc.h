@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)rtc.h	7.1 (Berkeley) 5/12/91
- *	$Id: rtc.h,v 1.5 1994/08/15 03:15:20 wollman Exp $
+ *	rtc.h,v 1.6 1994/09/20 00:31:07 ache Exp
  */
 
 #ifndef _I386_ISA_RTC_H_

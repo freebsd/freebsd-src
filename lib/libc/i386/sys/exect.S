@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exect.S,v 1.2 1994/02/21 05:19:10 rgrimes Exp $
+ *	exect.S,v 1.1 1994/08/05 01:18:42 wollman Exp
  */
 
 #if defined(SYSLIBC_SCCS) && !defined(lint)

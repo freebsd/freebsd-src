@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_examine.c,v 1.5 1994/08/13 03:49:17 wollman Exp $
+ *	db_examine.c,v 1.6 1994/08/18 22:34:22 wollman Exp
  */
 
 /*

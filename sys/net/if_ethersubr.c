@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ethersubr.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ethersubr.c,v 1.2 1994/08/02 07:46:14 davidg Exp $
+ * if_ethersubr.c,v 1.3 1994/10/11 23:16:24 wollman Exp
  */
 
 #include <sys/param.h>

@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: e_lgamma.c,v 1.4 1994/08/10 20:31:05 jtc Exp $";
+static char rcsid[] = "e_lgamma.c,v 1.1.1.1 1994/08/19 09:39:44 jkh Exp";
 #endif
 
 /* __ieee754_lgamma(x)

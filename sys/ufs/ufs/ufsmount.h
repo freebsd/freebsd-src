@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufsmount.h	8.2 (Berkeley) 1/12/94
- * $Id: ufsmount.h,v 1.2 1994/08/02 07:55:04 davidg Exp $
+ * ufsmount.h,v 1.3 1994/08/21 07:16:18 paul Exp
  */
 
 #ifndef _UFS_UFS_UFSMOUNT_H_

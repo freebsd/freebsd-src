@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_mbuf.c	8.2 (Berkeley) 1/4/94
- * $Id: uipc_mbuf.c,v 1.5 1994/10/04 06:50:01 phk Exp $
+ * uipc_mbuf.c,v 1.6 1994/10/09 07:34:59 davidg Exp
  */
 
 #include <sys/param.h>

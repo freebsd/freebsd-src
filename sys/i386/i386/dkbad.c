@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)dkbad.c	5.4 (Berkeley) 1/19/91
- *	$Id: dkbad.c,v 1.3 1993/12/19 00:50:01 wollman Exp $
+ *	dkbad.c,v 1.4 1994/08/13 03:49:38 wollman Exp
  */
 
 

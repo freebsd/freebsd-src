@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_extern.h	8.3 (Berkeley) 4/16/94
- * $Id: ufs_extern.h,v 1.5 1994/10/27 20:45:13 jkh Exp $
+ * ufs_extern.h,v 1.6 1994/11/14 13:50:15 bde Exp
  */
 
 #ifndef _UFS_UFS_EXTERN_H_

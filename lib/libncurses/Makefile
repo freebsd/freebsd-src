@@ -1,5 +1,5 @@
 # Makefile for ncurses
-# $Id: Makefile,v 1.5 1994/10/12 01:59:06 ache Exp $
+# Makefile,v 1.6 1994/10/28 06:56:55 ache Exp
 
 LIB=    ncurses
 SRCS=   lib_kernel.c lib_pad.c\

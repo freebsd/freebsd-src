@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: pas2_pcm.c,v 1.6 1994/08/02 07:40:28 davidg Exp $
+ * pas2_pcm.c,v 1.7 1994/10/01 02:16:57 swallace Exp
  */
 
 #include "sound_config.h"

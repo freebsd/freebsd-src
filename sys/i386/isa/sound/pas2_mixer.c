@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: pas2_mixer.c,v 1.6 1994/08/02 07:40:24 davidg Exp $
+ * pas2_mixer.c,v 1.7 1994/10/01 02:16:56 swallace Exp
  */
 
 #include "sound_config.h"

@@ -20,7 +20,7 @@
  */
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Header: /home/ncvs/src/usr.sbin/tcpdump/tcpdump/print-ether.c,v 1.1.1.1 1993/06/12 14:42:09 rgrimes Exp $ (LBL)";
+    "@(#) /home/ncvs/src/usr.sbin/tcpdump/tcpdump/print-ether.c,v 1.2 1994/10/04 22:31:44 wollman Exp (LBL)";
 #endif
 
 #include <sys/param.h>

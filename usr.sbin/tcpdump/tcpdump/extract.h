@@ -18,7 +18,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: extract.h,v 1.4 92/05/25 14:28:36 mccanne Exp $ (LBL)
+ * @(#) /home/ncvs/src/usr.sbin/tcpdump/tcpdump/extract.h,v 1.1.1.1 1993/06/12 14:42:13 rgrimes Exp (LBL)
  */
 
 #ifdef TCPDUMP_ALIGN

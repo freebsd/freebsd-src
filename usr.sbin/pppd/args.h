@@ -1,6 +1,6 @@
 /*
  * neat macro from ka9q to "do the right thing" with ansi prototypes
- * $Id: args.h,v 1.1 1993/11/11 03:54:25 paulus Exp $
+ * args.h,v 1.2 1994/09/25 02:31:51 wollman Exp
  */
 
 #ifndef __ARGS

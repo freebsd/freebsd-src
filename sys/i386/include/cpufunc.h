@@ -61,7 +61,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *
- *	$Id: cpufunc.h,v 1.27 1994/09/25 21:31:55 davidg Exp $
+ *	cpufunc.h,v 1.27.2.1 1994/11/19 19:07:38 phk Exp
  */
 
 

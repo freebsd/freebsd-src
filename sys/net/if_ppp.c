@@ -69,7 +69,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: if_ppp.c,v 1.5 1994/11/01 09:03:16 pst Exp $ */
+/* if_ppp.c,v 1.6 1994/11/01 22:18:34 wollman Exp */
 /* from if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp */
 
 #include "ppp.h"

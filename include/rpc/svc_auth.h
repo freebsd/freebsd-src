@@ -28,7 +28,7 @@
  *
  *	from: @(#)svc_auth.h 1.6 86/07/16 SMI
  *	from: @(#)svc_auth.h	2.1 88/07/29 4.0 RPCSRC
- *	$Id: svc_auth.h,v 1.1 1993/10/27 05:40:57 paul Exp $
+ *	svc_auth.h,v 1.2 1994/08/07 18:41:01 wollman Exp
  */
 
 /*

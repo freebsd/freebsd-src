@@ -40,7 +40,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)device.h	8.2 (Berkeley) 2/17/94
- * $Id$
+ * device.h,v 1.2 1994/08/02 07:52:45 davidg Exp
  */
 
 #ifndef _SYS_DEVICE_H_

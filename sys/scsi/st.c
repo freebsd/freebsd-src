@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.21 1994/10/23 21:27:59 wollman Exp $
+ * st.c,v 1.22 1994/10/28 13:19:36 jkh Exp
  */
 
 /*

@@ -1,5 +1,5 @@
 /*
- * $Id: lib.c,v 1.9 1994/02/13 20:41:37 jkh Exp $	- library routines
+ * lib.c,v 1.10 1994/06/15 22:39:49 rich Exp	- library routines
  */
 
 #include <sys/param.h>

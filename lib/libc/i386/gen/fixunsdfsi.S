@@ -34,12 +34,12 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)fixunsdfsi.s	5.1	12/17/90
- *	$Id: fixunsdfsi.S,v 1.1 1993/12/05 13:01:03 ats Exp $
+ *	fixunsdfsi.S,v 1.1 1994/08/05 01:18:05 wollman Exp
  */
 
 #if defined(LIBC_SCCS)
 	.text
-	.asciz "$Id: fixunsdfsi.S,v 1.1 1993/12/05 13:01:03 ats Exp $"
+	.asciz "fixunsdfsi.S,v 1.1 1994/08/05 01:18:05 wollman Exp"
 #endif
 
 #include "DEFS.h"

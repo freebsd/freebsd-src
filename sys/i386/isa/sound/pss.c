@@ -44,7 +44,7 @@
 
                marc.hoffman@analog.com
 
- * $Id: $
+ * pss.c,v 1.2 1994/10/01 02:17:00 swallace Exp
  */
 #include "sound_config.h"
 

@@ -1,0 +1,15 @@
+button "show" push-to-file %S
+button "back" pop-file
+button "break in" break %S
+button "break at" break %l
+button delete delete %b%e
+button backtrace
+button up
+button down
+button print print %E
+button print* print *(%E)
+button next
+button step
+button "do upto" until %l%e
+button finish
+button continue cont%e

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	ipl.h,v 1.2 1994/08/02 07:38:49 davidg Exp
  */
 
 #ifndef _ISA_IPL_H_

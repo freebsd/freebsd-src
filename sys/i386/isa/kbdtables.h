@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: kbdtables.h,v 1.17 1994/11/19 22:58:56 ache Exp $
+ *	kbdtables.h,v 1.18 1994/11/19 23:17:46 ache Exp
  */
 
 #define SET8 0x80       	/* eight bit for emacs SET8-key */

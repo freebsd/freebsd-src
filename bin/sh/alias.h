@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)alias.h	8.1 (Berkeley) 5/31/93
- *	$Id$
+ *	alias.h,v 1.2 1994/09/24 02:57:20 davidg Exp
  */
 
 #define ALIASINUSE	1

@@ -18,7 +18,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: nametoaddr.h,v 1.6 90/09/24 12:50:41 mccanne Exp $ (LBL)
+ * @(#) /home/ncvs/src/usr.sbin/tcpdump/tcpdump/nametoaddr.h,v 1.1.1.1 1993/06/12 14:42:11 rgrimes Exp (LBL)
  *
  * Address to name translation routines.
  */

@@ -2,7 +2,7 @@
  * Dummy driver for a device we can't identify.
  * by Julian Elischer (julian@tfs.com)
  *
- *      $Id: uk.c,v 1.3 1993/12/19 00:55:01 wollman Exp $
+ *      uk.c,v 1.4 1994/08/13 03:50:31 wollman Exp
  */
 
 #include <sys/param.h>

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_synch.c	8.6 (Berkeley) 1/21/94
- * $Id: kern_synch.c,v 1.7 1994/10/02 17:35:18 phk Exp $
+ * kern_synch.c,v 1.8 1994/10/18 06:55:39 davidg Exp
  */
 
 #include <sys/param.h>

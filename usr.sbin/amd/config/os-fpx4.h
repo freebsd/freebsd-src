@@ -37,7 +37,7 @@
  *
  *	@(#)os-fpx4.h	8.1 (Berkeley) 6/6/93
  *
- * $Id: os-fpx4.h,v 5.2.2.2 1992/05/31 16:39:34 jsp Exp $
+ * os-fpx4.h,v 1.1.1.1 1994/05/26 05:22:08 rgrimes Exp
  *
  * Celerity FPX 4.1/2 definitions for Amd (automounter)
  *      from Stephen Pope <scp@grizzly.acl.lanl.gov>

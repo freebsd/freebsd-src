@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)x25.h	8.1 (Berkeley) 6/10/93
- * $Id: x25.h,v 1.2 1994/08/02 07:47:50 davidg Exp $
+ * x25.h,v 1.3 1994/08/21 05:44:11 paul Exp
  */
 
 #ifndef _NETCCITT_X25_H_

@@ -83,4 +83,4 @@ directory pub/misc/386bsd-counter, file "short", is given below.
 
 For all questions, contact Harald.T.Alvestrand@uninett.no!
 
-$Id: REGISTER.FreeBSD,v 1.2 1994/06/04 10:39:57 jkh Exp $
+REGISTER.FreeBSD,v 1.1 1994/11/18 12:03:29 jkh Exp

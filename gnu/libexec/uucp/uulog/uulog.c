@@ -26,7 +26,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char uulog_rcsid[] = "$Id: uulog.c,v 1.21 1994/01/30 20:59:40 ian Rel $";
+const char uulog_rcsid[] = "uulog.c,v 1.2 1994/05/07 18:14:12 ache Exp";
 #endif
 
 #include <ctype.h>

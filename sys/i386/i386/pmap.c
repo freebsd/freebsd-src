@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.36 1994/09/16 13:33:26 davidg Exp $
+ *	pmap.c,v 1.37 1994/10/08 22:19:49 phk Exp
  */
 
 /*

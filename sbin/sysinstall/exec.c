@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: exec.c,v 1.8 1994/11/18 11:30:02 phk Exp $
+ * exec.c,v 1.8.2.1 1994/11/21 03:11:59 phk Exp
  *
  */
 

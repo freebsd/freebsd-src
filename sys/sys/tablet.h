@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tablet.h	8.3 (Berkeley) 1/4/94
- * $Id$
+ * tablet.h,v 1.2 1994/08/02 07:53:45 davidg Exp
  */
 
 #ifndef _SYS_TABLET_H_

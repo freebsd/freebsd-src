@@ -1,5 +1,5 @@
 char rcsid[] =
-	"$Header: /home/cvs/386BSD/src/gnu/usr.bin/patch/patch.c,v 1.3 1994/02/17 22:20:34 jkh Exp $";
+	"/home/ncvs/src/gnu/usr.bin/patch/patch.c,v 1.4 1994/02/25 21:46:04 phk Exp";
 
 /* patch - a program to apply diffs to original files
  *
@@ -8,7 +8,10 @@ char rcsid[] =
  * This program may be copied as long as you don't try to make any
  * money off of it, or pretend that you wrote it.
  *
- * $Log: patch.c,v $
+ * patch.c,v
+ * Revision 1.4  1994/02/25  21:46:04  phk
+ * added the -C/-check again.
+ *
  * Revision 1.3  1994/02/17  22:20:34  jkh
  * Put this back - I was somehow under the erroneous impression that patch was in
  * ports, until I saw the the commit messages, that is! :-)  All changed backed out.

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- *	$Id: cons.c,v 1.16 1994/10/20 00:07:45 phk Exp $
+ *	cons.c,v 1.17 1994/10/31 17:20:14 joerg Exp
  */
 
 

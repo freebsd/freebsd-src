@@ -1,5 +1,5 @@
 # Makefile for uulog
-# $Id: Makefile,v 1.2 1993/08/05 16:15:14 jtc Exp $
+# Makefile,v 1.1 1993/08/05 18:27:39 conklin Exp
 
 BINDIR=		$(bindir)
 

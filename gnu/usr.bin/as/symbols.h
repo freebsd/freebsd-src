@@ -18,7 +18,7 @@
    along with GAS; see the file COPYING.  If not, write to
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /*
- * $Id: symbols.h,v 1.3 1993/10/02 20:57:57 pk Exp $
+ * symbols.h,v 1.2 1993/11/03 00:52:23 paul Exp
  */
 
 

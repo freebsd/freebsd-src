@@ -56,7 +56,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *    $Id: errors.c,v 1.2 1994/04/29 21:07:12 gclarkii Exp $
+ *    errors.c,v 1.3 1994/06/10 07:44:10 rich Exp
  *
  */
 

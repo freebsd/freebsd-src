@@ -3,9 +3,9 @@
 #ifndef _main_h_
 #define _main_h_
 
-/*  $RCSfile: main.h,v $
- *  $Revision: 14020.12 $
- *  $Date: 93/05/21 05:45:33 $
+/*  main.h,v
+ *  1.2
+ *  1994/09/28 14:53:17
  */
 
 struct userinfo {

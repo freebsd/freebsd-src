@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 5.2 90/06/23 22:21:25 jsp Rel $
+# Makefile,v 1.1.1.1 1994/05/26 05:22:14 rgrimes Exp
 #
 # Copyright (c) 1990 Jan-Simon Pendry
 # Copyright (c) 1990 Imperial College of Science, Technology & Medicine

@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.4 1994/10/17 21:11:31 phk Exp $
+**  pcisupport.c,v 1.5 1994/10/25 18:45:19 se Exp
 **
 **  Device driver for INTEL PCI chipsets.
 **

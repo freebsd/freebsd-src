@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cons.h	8.1 (Berkeley) 6/10/93
- * $Id: cons.h,v 1.2 1994/08/02 07:50:00 davidg Exp $
+ * cons.h,v 1.3 1994/08/21 06:14:15 paul Exp
  */
 
 #ifndef _NETISO_CONS_H_
@@ -64,8 +64,8 @@ SOFTWARE.
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
 /*
- * $Header: /home/ncvs/src/sys/netiso/cons.h,v 1.2 1994/08/02 07:50:00 davidg Exp $
- * $Source: /home/ncvs/src/sys/netiso/cons.h,v $
+ * /home/ncvs/src/sys/netiso/cons.h,v 1.3 1994/08/21 06:14:15 paul Exp
+ * /home/ncvs/src/sys/netiso/cons.h,v
  *
  * interface between TP and CONS
  */

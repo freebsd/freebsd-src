@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * sb.h,v 1.2 1994/08/02 07:40:34 davidg Exp
  */
 #define DSP_RESET	(sbc_base + 0x6)
 #define DSP_READ	(sbc_base + 0xA)

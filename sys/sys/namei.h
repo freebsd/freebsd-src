@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)namei.h	8.2 (Berkeley) 1/4/94
- * $Id: namei.h,v 1.2 1994/08/02 07:53:18 davidg Exp $
+ * namei.h,v 1.3 1994/09/27 20:33:41 phk Exp
  */
 
 #ifndef _SYS_NAMEI_H_

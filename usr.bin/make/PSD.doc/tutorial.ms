@@ -43,7 +43,7 @@
 .\" is numeric, it is taken as the depth for numbering (as for .NH), else
 .\" the default (1) is assumed.
 .\"
-.\" $Id: tutorial.ms,v 1.4 89/01/08 20:20:22 adam Exp Locker: adam $
+.\" tutorial.ms,v 1.1.1.1 1994/05/27 12:32:16 rgrimes Exp
 .\"
 .\" @P The initial paragraph distance.
 .\" @Q The piece of section number to increment (or 0 if none given)

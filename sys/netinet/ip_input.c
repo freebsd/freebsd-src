@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.10 1994/11/08 12:47:29 jkh Exp $
+ * ip_input.c,v 1.11 1994/11/16 10:17:08 jkh Exp
  */
 
 #include <sys/param.h>

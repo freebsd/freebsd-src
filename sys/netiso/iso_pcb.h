@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)iso_pcb.h	8.1 (Berkeley) 6/10/93
- * $Id: iso_pcb.h,v 1.2 1994/08/02 07:50:40 davidg Exp $
+ * iso_pcb.h,v 1.3 1994/08/21 06:14:20 paul Exp
  */
 
 #ifndef _NETISO_ISO_PCB_H_
@@ -63,8 +63,8 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* $Header: /home/ncvs/src/sys/netiso/iso_pcb.h,v 1.2 1994/08/02 07:50:40 davidg Exp $ */
-/* $Source: /home/ncvs/src/sys/netiso/iso_pcb.h,v $ */
+/* /home/ncvs/src/sys/netiso/iso_pcb.h,v 1.3 1994/08/21 06:14:20 paul Exp */
+/* /home/ncvs/src/sys/netiso/iso_pcb.h,v */
 
 #define	MAXX25CRUDLEN	16	/* 16 bytes of call request user data */
 

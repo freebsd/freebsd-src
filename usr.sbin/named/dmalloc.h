@@ -1,7 +1,7 @@
 /* dmalloc - debugging layer on top of malloc
  * vix 22mar92 [written]
  *
- * $Id: dmalloc.h,v 4.9.1.2 1993/09/08 00:01:17 vixie Exp $
+ * dmalloc.h,v 1.1.1.1 1994/09/22 19:46:14 pst Exp
  */
 
 /*

@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:34:26  rpd
- *	$Id: bios.S,v 1.3 1994/10/02 05:18:25 rgrimes Exp $
+ *	bios.S,v 1.4 1994/11/18 05:02:12 phk Exp
  */
 
 /*

@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)db_dump.c	4.33 (Berkeley) 3/3/91";
-static char rcsid[] = "$Id: db_dump.c,v 1.1.1.1 1994/09/22 19:46:10 pst Exp $";
+static char rcsid[] = "db_dump.c,v 1.2 1994/09/22 20:45:00 pst Exp";
 #endif /* not lint */
 
 /*

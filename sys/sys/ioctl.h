@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ioctl.h	8.6 (Berkeley) 3/28/94
- * $Id$
+ * ioctl.h,v 1.2 1994/08/02 07:53:04 davidg Exp
  */
 
 #ifndef	_SYS_IOCTL_H_

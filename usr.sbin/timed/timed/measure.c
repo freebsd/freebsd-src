@@ -36,7 +36,7 @@ static char sccsid[] = "@(#)measure.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
 #ifdef sgi
-#ident "$Revision: 1.8 $"
+#ident "1.1.1.1"
 #endif
 
 #include "globals.h"

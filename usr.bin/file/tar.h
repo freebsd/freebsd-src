@@ -5,7 +5,7 @@
  *
  * Created 25 August 1985 by John Gilmore, ihnp4!hoptoad!gnu.
  *
- * $Id: tar.h,v 1.3 1992/09/08 15:32:41 ian Exp $ # checkin only
+ * tar.h,v 1.1.1.1 1994/09/03 19:16:23 csgr Exp # checkin only
  */
 
 /*

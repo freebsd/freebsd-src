@@ -1,6 +1,9 @@
-/* $Header: /home/cvs/386BSD/src/gnu/usr.bin/patch/pch.c,v 1.3 1994/02/17 22:20:36 jkh Exp $
+/* /home/ncvs/src/gnu/usr.bin/patch/pch.c,v 1.4 1994/02/25 21:46:07 phk Exp
  *
- * $Log: pch.c,v $
+ * pch.c,v
+ * Revision 1.4  1994/02/25  21:46:07  phk
+ * added the -C/-check again.
+ *
  * Revision 1.3  1994/02/17  22:20:36  jkh
  * Put this back - I was somehow under the erroneous impression that patch was in
  * ports, until I saw the the commit messages, that is! :-)  All changed backed out.

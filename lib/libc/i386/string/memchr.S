@@ -27,11 +27,11 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: memchr.S,v 1.1 1994/08/05 01:18:28 wollman Exp $
+ *	memchr.S,v 1.2 1994/10/27 11:36:11 bde Exp
  */
 
 #if defined(LIBC_RCS) && !defined(lint)
-        .asciz "$Id: memchr.S,v 1.1 1994/08/05 01:18:28 wollman Exp $"
+        .asciz "memchr.S,v 1.2 1994/10/27 11:36:11 bde Exp"
 #endif /* LIBC_RCS and not lint */
 
 #include "DEFS.h"

@@ -1,6 +1,10 @@
-/* $Header: /a/cvs/386BSD/src/gnu/patch/common.h,v 1.1.1.1 1993/06/19 14:21:52 paul Exp $
+/* /home/ncvs/src/gnu/usr.bin/patch/common.h,v 1.2 1993/09/22 16:51:03 rich Exp
  *
- * $Log: common.h,v $
+ * common.h,v
+ * Revision 1.2  1993/09/22  16:51:03  rich
+ * Increaed the fixed static buffer sizes and maximum hunk size that
+ * otherwise causes the XFree86 1.3 patch set to fail.
+ *
  * Revision 1.1.1.1  1993/06/19  14:21:52  paul
  * b-maked patch-2.10
  *

@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_disasm.c,v 1.6 1994/08/13 03:49:35 wollman Exp $
+ *	db_disasm.c,v 1.7 1994/10/08 22:19:47 phk Exp
  */
 
 /*

@@ -21,7 +21,7 @@
 
 #ifndef lint
 static  char rcsid[] =
-	"@(#)$Header: print-fddi.c,v 1.4 92/02/03 16:04:02 van Exp $ (LBL)";
+	"@(#)/home/ncvs/src/usr.sbin/tcpdump/tcpdump/print-fddi.c,v 1.1.1.1 1993/06/12 14:42:09 rgrimes Exp (LBL)";
 #endif
 
 #ifdef FDDI

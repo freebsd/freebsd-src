@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sigprocmask.S,v 1.2 1994/02/21 05:19:20 rgrimes Exp $
+ *	sigprocmask.S,v 1.1 1994/08/05 01:18:52 wollman Exp
  */
 
 #if defined(SYSLIBC_SCCS) && !defined(lint)

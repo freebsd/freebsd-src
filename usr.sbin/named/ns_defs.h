@@ -1,6 +1,6 @@
 /*
  *	from ns.h	4.33 (Berkeley) 8/23/90
- *	$Id: ns_defs.h,v 1.12 1994/07/23 23:23:56 vixie Exp $
+ *	ns_defs.h,v 1.1.1.1 1994/09/22 19:46:13 pst Exp
  */
 
 /*

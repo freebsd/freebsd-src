@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id$
+ * vm_vmio.c,v 1.1 1994/10/04 07:32:08 davidg Exp
  */
 /*
  * THIS IS PRELIMINARY, BUGGY AND NON-WORKING CODE

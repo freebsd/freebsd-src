@@ -3,9 +3,9 @@
 #ifndef _getpass_h_
 #define _getpass_h_
 
-/*  $RCSfile: getpass.h,v $
- *  $Revision: 14020.11 $
- *  $Date: 93/05/21 05:45:36 $
+/*  getpass.h,v
+ *  1.1.1.1
+ *  1994/09/22 23:45:35
  */
 
 #define kMaxPassLen 127

@@ -1,5 +1,5 @@
-/* $Header: llscan.c,v 2.2 88/09/19 12:55:06 nhall Exp $ */
-/* $Source: /var/home/tadl/src/argo/xebec/RCS/llscan.c,v $ */
+/* /home/ncvs/src/sys/netiso/xebec/llscan.c,v 1.1.1.1 1994/05/24 10:07:50 rgrimes Exp */
+/* /home/ncvs/src/sys/netiso/xebec/llscan.c,v */
 /*
  * ************************* NOTICE *******************************
  * This code is in the public domain.  It cannot be copyrighted.

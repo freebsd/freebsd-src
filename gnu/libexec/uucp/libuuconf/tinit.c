@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_tinit_rcsid[] = "$Id: tinit.c,v 1.10 1994/01/30 21:14:29 ian Rel $";
+const char _uuconf_tinit_rcsid[] = "tinit.c,v 1.2 1994/05/07 18:13:07 ache Exp";
 #endif
 
 #include <errno.h>

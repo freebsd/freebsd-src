@@ -18,7 +18,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: md-vax.h,v 1.2 90/09/21 02:23:16 mccanne Exp $ (LBL)
+ * @(#) /home/ncvs/src/usr.sbin/tcpdump/tcpdump/md.h,v 1.1.1.1 1993/06/12 14:42:12 rgrimes Exp (LBL)
  */
 
 #ifndef BYTE_ORDER

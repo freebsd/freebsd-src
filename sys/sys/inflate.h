@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id$
+ * inflate.h,v 1.4 1994/10/22 11:40:38 phk Exp
  *
  */
 #ifndef	_SYS_INFLATE_H_

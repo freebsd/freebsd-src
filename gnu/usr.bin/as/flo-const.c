@@ -18,7 +18,7 @@
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #ifndef lint
-static char rcsid[] = "$Id: flo-const.c,v 1.1 1993/10/02 20:57:28 pk Exp $";
+static char rcsid[] = "flo-const.c,v 1.1 1993/11/03 00:51:32 paul Exp";
 #endif
 
 #include "flonum.h"

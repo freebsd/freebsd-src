@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_inode.c	8.4 (Berkeley) 1/21/94
- * $Id: ufs_inode.c,v 1.4 1994/10/08 06:57:24 phk Exp $
+ * ufs_inode.c,v 1.5 1994/10/15 04:08:44 ache Exp
  */
 
 #include <sys/param.h>

@@ -37,7 +37,7 @@
  *
  *      @(#)bpf_filter.c	8.1 (Berkeley) 6/10/93
  *
- * $Id$
+ * bpf_filter.c,v 1.3 1994/08/02 07:45:58 davidg Exp
  */
 
 #include <sys/param.h>

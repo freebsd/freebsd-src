@@ -123,7 +123,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: hash.c,v 1.3 1993/10/02 20:57:34 pk Exp $";
+static char rcsid[] = "hash.c,v 1.2 1993/11/03 00:51:44 paul Exp";
 #endif
 
 #include <stdio.h>

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_subr.c	8.2 (Berkeley) 9/21/93
- * $Id: lfs_subr.c,v 1.3 1994/08/02 07:54:37 davidg Exp $
+ * lfs_subr.c,v 1.4 1994/11/17 01:30:51 gibbs Exp
  */
 
 #include <sys/param.h>

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.13 1994/10/21 01:19:23 wollman Exp $
+ * vnode.h,v 1.14 1994/11/14 13:51:53 bde Exp
  */
 
 #ifndef _SYS_VNODE_H_

@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * scsiio.h,v 1.2 1994/08/02 07:53:30 davidg Exp
  */
 #ifndef _SYS_SCSIIO_H_
 #define _SYS_SCSIIO_H_

@@ -20,7 +20,10 @@
  * 	Copyright 1981 by Ken Harrenstien, SRI International.
  *	(ARPANET: KLH @ SRI)
  */
-/* $Log: maketime.c,v $
+/* maketime.c,v
+ * Revision 1.1.1.1  1993/06/18  04:22:13  jkh
+ * Updated GNU utilities
+ *
  * Revision 5.3  1991/08/19  03:13:55  eggert
  * Add setfiledate, str2time, TZ_must_be_set.
  *
@@ -71,7 +74,7 @@
 
 #include "rcsbase.h"
 
-libId(maketId, "$Id: maketime.c,v 5.3 1991/08/19 03:13:55 eggert Exp $")
+libId(maketId, "maketime.c,v 1.1.1.1 1993/06/18 04:22:13 jkh Exp")
 
 static struct tm const *time2tm P((time_t));
 

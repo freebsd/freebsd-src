@@ -42,7 +42,7 @@ static char sccsid[] = "@(#)timed.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
 #ifdef sgi
-#ident "$Revision: 1.25 $"
+#ident "1.1.1.1"
 #endif /* sgi */
 
 #define TSPTYPES

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs.h	8.3 (Berkeley) 9/23/93
- * $Id: lfs.h,v 1.4 1994/10/10 01:04:47 phk Exp $
+ * lfs.h,v 1.5 1994/11/17 01:30:47 gibbs Exp
  */
 
 #ifndef _UFS_LFS_LFS_H_

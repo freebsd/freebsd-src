@@ -1,11 +1,15 @@
-/* $RCSfile: doio.c,v $$Revision: 1.1.1.1 $$Date: 1994/09/10 06:27:32 $
+/* doio.c,v1.21994/09/11 03:17:32
  *
  *    Copyright (c) 1991, Larry Wall
  *
  *    You may distribute under the terms of either the GNU General Public
  *    License or the Artistic License, as specified in the README file.
  *
- * $Log: doio.c,v $
+ * doio.c,v
+ * Revision 1.2  1994/09/11  03:17:32  gclarkii
+ * Changed AF_LOCAL to AF_LOCAL_XX so as not to conflict with 4.4 socket.h
+ * Added casts to shutup warnings in doio.c
+ *
  * Revision 1.1.1.1  1994/09/10  06:27:32  gclarkii
  * Initial import of Perl 4.046 bmaked
  *

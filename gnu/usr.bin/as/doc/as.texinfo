@@ -1,6 +1,6 @@
 _dnl__                                          -*-Texinfo-*-
 _dnl__ Copyright (c) 1991 1992 Free Software Foundation, Inc.
-_dnl__ $Id: as.texinfo,v 1.1 1993/10/02 21:00:15 pk Exp $
+_dnl__ as.texinfo,v 1.1 1993/11/03 00:55:23 paul Exp
 \input texinfo @c                               -*-Texinfo-*-
 @c  Copyright (c) 1991 1992 Free Software Foundation, Inc.
 @c %**start of header 
@@ -86,7 +86,7 @@ done.
 @page
 @tex
 \def\$#1${{#1}}  % Kluge: collect RCS revision info without $...$
-\xdef\manvers{\$Revision: 1.1 $}  % For use in headers, footers too
+\xdef\manvers{\1.1}  % For use in headers, footers too
 {\parskip=0pt
 \hfill \manvers\par
 \hfill \TeX{}info \texinfoversion\par

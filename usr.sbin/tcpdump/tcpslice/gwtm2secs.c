@@ -20,7 +20,7 @@
  */
 #ifndef lint
 static char rcsid[] =
-    "@(#)$Header: gwtm2secs.c,v 1.1 92/06/02 11:35:19 mccanne Exp $ (LBL)";
+    "@(#)/home/ncvs/src/usr.sbin/tcpdump/tcpslice/gwtm2secs.c,v 1.1.1.1 1993/06/12 14:42:17 rgrimes Exp (LBL)";
 #endif
 
 /*

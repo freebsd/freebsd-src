@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vnops.c	8.7 (Berkeley) 2/3/94
- * $Id: ffs_vnops.c,v 1.6 1994/10/06 21:06:59 davidg Exp $
+ * ffs_vnops.c,v 1.7 1994/10/10 01:04:40 phk Exp
  */
 
 #include <sys/param.h>
