@@ -242,6 +242,11 @@ allocate_driver(struct slot *slt, struct dev_desc *desc)
 	bcopy(desc->misc, devi->misc, sizeof(desc->misc));
 	resource_list_init(&devi->resources);
 	child = device_add_child(pccarddev, devi->name, desc->unit);
+	if (child == NULL) {
+		device_printf(pccardd,
+		    "device_add_child shouldn't have failed, but did\n"");
+		return (EIO);
+	}
 	device_set_flags(child, desc->flags);
 	device_set_ivars(child, devi);
 	if (bootverbose) {
