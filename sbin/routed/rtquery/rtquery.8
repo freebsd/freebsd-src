@@ -1,5 +1,5 @@
-.\" $Revision: 2.17 $
-.\"	$Id$
+.\" $Revision: 1.9 $
+.\"	$Id: rtquery.8,v 1.9 1999/05/02 13:14:16 markm Exp $
 .\"
 .Dd June 1, 1996
 .Dt RTQUERY 8
@@ -115,9 +115,13 @@ turns off tracing.
 dumps the daemon's routing table to the current tracefile.
 .El
 .Sh SEE ALSO
-.Xr routed 8 ,
-.Xr gated 8
-.br
-RFC\ 1058 - Routing Information Protocol, RIPv1
-.br
-RFC\ 1723 - Routing Information Protocol, RIPv2
+.Xr gated 8 ,
+.Xr routed 8
+.Rs
+.%T Routing Information Protocol, RIPv1
+.%O RFC1058
+.Re
+.Rs
+.%T Routing Information Protocol, RIPv2
+.%O RFC1723
+.Re
