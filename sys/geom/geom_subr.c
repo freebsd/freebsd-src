@@ -290,13 +290,12 @@ redo_rank(struct g_geom *gp)
 			continue;
 
 		/* no rank to original geom means loop */
-		if (gp == gp1) {
+		if (gp == gp1) 
 			return (ELOOP);
 
 		/* no rank, put it at the end move on */
 		TAILQ_REMOVE(&geoms, gp1, geoms);
 		TAILQ_INSERT_TAIL(&geoms, gp1, geoms);
-		}
 	}
 	return (0);
 }
