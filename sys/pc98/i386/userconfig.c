@@ -430,7 +430,9 @@ static DEV_INFO device_info[] = {
 {"si",          "Specialix SI/XIO async adapter",	0,		CLS_COMMS},
 {"stl",         "Stallion EasyIO/Easy Connection 8/32 async adapter",0,	CLS_COMMS},
 {"stli",        "Stallion intelligent async adapter"	,0,		CLS_COMMS},
-{"lpt",         "Parallel printer port",		0,		CLS_COMMS},
+#ifdef PC98
+{"olpt",        "Parallel printer port",		0,		CLS_COMMS},
+#endif
 {"ppc",         "Parallel Port chipset",		0,		CLS_COMMS},
 {"ppi",		"Generic Parallel Port I/O device",	FLG_FIXED,	CLS_COMMS},
 {"lpt",         "Line Printer driver",			FLG_FIXED,	CLS_COMMS},
@@ -460,7 +462,9 @@ static DEV_INFO device_info[] = {
 {"gusxvi",      "Gravis Ultrasound 16-bit PCM",		0,		CLS_MMEDIA},
 {"gusmax",      "Gravis Ultrasound MAX",		0,		CLS_MMEDIA},
 {"mss",         "Microsoft Sound System",		0,		CLS_MMEDIA},
+#ifdef PC98
 {"nss",         "PC-9801-86 Sound Board",		0,		CLS_MMEDIA},
+#endif
 {"opl",         "OPL-2/3 FM, Soundblaster, SBPro, SB16, ProAudio Spectrum",0,CLS_MMEDIA},
 {"mpu",         "Roland MPU401 MIDI",			0,		CLS_MMEDIA},
 {"sscape",      "Ensoniq Soundscape MIDI interface",	0,		CLS_MMEDIA},
@@ -478,6 +482,9 @@ static DEV_INFO device_info[] = {
 {"labpc",       "National Instruments Lab-PC/Lab-PC+",	0,		CLS_MISC},
 {"npx",	        "Math coprocessor",			FLG_IMMUTABLE,	CLS_MISC},
 {"lkm",		"Loadable PCI driver support",		FLG_INVISIBLE,	CLS_MISC},
+#ifdef PC98
+{"gdc",	        "Graphic Display Controller",		FLG_INVISIBLE,	CLS_MISC},
+#endif
 {"vga",	        "Catchall PCI VGA driver",		FLG_INVISIBLE,	CLS_MISC},
 {"chip",        "PCI chipset support",			FLG_INVISIBLE,	CLS_MISC},
 {"piix",        "Intel 82371 Bus-master IDE controller", FLG_INVISIBLE, CLS_MISC},
