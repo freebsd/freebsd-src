@@ -173,7 +173,7 @@ ast(framep)
 		}
 #if defined(DEV_NPX) && !defined(SMP)
 		if (PCPU_GET(curpcb)->pcb_flags & PCB_NPXTRAP) {
-			atomic_clear_char(&PCPU_GET(curpcb)->pcb_flags,
+			atomic_clear_int(&PCPU_GET(curpcb)->pcb_flags,
 			    PCB_NPXTRAP);
 			ucode = npxtrap();
 			if (ucode != -1) {
