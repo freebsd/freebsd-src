@@ -155,7 +155,7 @@ DAT and 8mm Exabyte) and CD ROM drives.
 The following CD-ROM type systems are supported at this time:
 (cd)    SCSI interface (also includes ProAudio Spectrum and
         SoundBlaster SCSI)
-(mcd)   Mitsumi proprietary interface (all models)
+(mcd)   Mitsumi proprietary interface (all models, driver is rather stale)
 (matcd) Matsushita/Panasonic (Creative SoundBlaster) proprietary
         interface (562/563 models)
 (scd)   Sony proprietary interface (all models)
@@ -244,7 +244,7 @@ Creative Labs Video Spigot frame grabber
 Cortex1 frame grabber
 Various Frame grabbers based on Brooktree Bt848 chip.
 
-HP4020i, Philips CDD2000 and PLASMON WORM (CDR) drives.
+HP4020, HP6020, Philips CDD2000/CDD2660 and Plasmon CD-R drives.
 
 PS/2 mice
 
@@ -255,6 +255,8 @@ X-10 power controllers
 GPIB and Transputer drivers.
 
 Genius and Mustek hand scanners.
+
+Floppy tape drives (some rather old models only, driver rather stale)
 
 
 FreeBSD currently does NOT support IBM's microchannel (MCA) bus.
