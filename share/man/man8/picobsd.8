@@ -8,7 +8,7 @@
 .Nd floppy disk based FreeBSD system
 .Sh SYNOPSIS
 .Nm
-.Op options
+.Op Ar options
 .Op Ar floppy-type Op Ar site-name
 .Sh DESCRIPTION
 .Nm
@@ -20,7 +20,7 @@ which typically fits on one floppy disk, or can be downloaded as a
 single image file from some media such as CDROM, flash memory, or through
 .Xr etherboot .
 .Pp
-.Nm picobsd
+.Nm
 was originally created to build simple standalone systems
 such as firewalls or bridges, but because of the ability to
 cross-build images with different source trees than the one
@@ -39,84 +39,83 @@ It then updates the memory
 filesystem with files from the boot media (if present),
 and executes a specialized version of
 .Pa /etc/rc .
-he boot media (floppy, etc.) is
-required for loading only, and typically used readonly.
-After the boot phase, the system runs entirely from ram.
+The boot media (floppy, etc.) is
+required for loading only, and typically used read-only.
+After the boot phase, the system runs entirely from RAM.
 .Pp
 The following options are available (but also check the
 .Nm
 script for more details):
 .Pp
-.Bl -tag -width "xxxxxx" -compact
+.Bl -tag -width indent
 .It Fl -src Ar SRC_PATH
 Use the source tree at
 .Ar SRC_PATH
 instead the one at
-.Ar /usr/src .
+.Pa /usr/src .
 This can be useful for cross-building floppy images.
 When using this option, you must also create and initialize the subtree at
-.Ar SRC_PATH/../usr
-with the correct include files, libraries, and tools (such as the
+.Ao Ar SRC_PATH Ac Ns Pa /../usr
+with the correct header files, libraries, and tools (such as the
 .Xr config 8
 program) that are necessary for the cross-build (see the
 .Fl -init
 option below).
 The source files are unmodified by the
-.Nm picobsd
-script. However the source tree is not completely readonly,
+.Nm
+script.
+However the source tree is not completely read-only,
 because
 .Xr config 8
 expects the kernel configuration file to be in one of
 its subdirectories, and also the process of initializing the
-.Ar usr
+.Pa usr
 subtree touches some parts of the source tree (this is a bug
 in the release build scripts which might go away with time).
-.Pp
 .It Fl -init
 When used together with the
 .Fl -src
 option, this initializes the
-.Ar SRC_PATH/../usr
-subtree as necessary to subsequently build picobsd images.
-.Pp
+.Ao Ar SRC_PATH Ac Ns Pa /../usr
+subtree as necessary to subsequently build
+.Nm
+images.
 .It Fl -modules
-Also build kernel modules. These are not stored on the floppy
+Also build kernel modules.
+These are not stored on the floppy
 image but are left available in the build directory.
-.Pp
 .It Fl n
-Make the script non-interactive. Do not show the initial menu, and
+Make the script non-interactive.
+Do not show the initial menu, and
 proceed to the build process without requiring user input.
-.Pp
 .It Fl v
 Make the script verbose, showing
 commands to be executed and waiting for user
-input before executing each of them. Useful when debugging.
-.Pp
+input before executing each of them.
+Useful for debugging.
 .It Fl -all_in_mfs
-Puts the entire content of the filesystem in the
+Put the entire contents of the filesystem in the
 memory filesystem image which is contained in the
-kernel. This is the default behaviour, and is
+kernel.
+This is the default behaviour, and is
 extremely useful as the kernel itself can be loaded,
 using
 .Xr etherboot
 or
-.Xr pxeboot ,
-as a fully functional system
-.Pp
+.Xr pxeboot 8 ,
+as a fully functional system.
 .It Fl -no_all_in_mfs
 Leaves files contained in the
-.Ar floppy.tree
+.Pa floppy.tree
 on the floppy image, so they can be loaded separately
 from the kernel (and updated individually to
 customize the floppy image).
-.Pp
 .It Fl -floppy_size Ar size
-Set the size of the floppy image. Values other
+Set the size of the floppy image.
+Values other
 than 1440 can be used for images that are burned
 into a CDROM.
-.Pp
-.It Fl c
-.It Fl clean
+.It Fl c , clean
 Clean the product of previous builds.
 .El
 .Sh ENVIRONMENT
@@ -144,13 +143,14 @@ and
 a cut-down version of
 .Xr vmstat 8 .
 .El
-.Sh BUILDING picobsd
+.Sh BUILDING PicoBSD
 The
 .Nm
 sources reside in the hierarchy
 .Pa /usr/src/release/picobsd .
 In the following discussion, all relative path names are relative to this
-directory.  The
+directory.
+The
 .Nm
 build process has changed slightly over time, in order to cope
 with the unavoidable increase of code size, which requires more and more
@@ -167,54 +167,65 @@ used to build the floppy image.
 The following kinds of floppy are envisaged, and we try to keep them
 functional and fitting in the 1.44MB floppy despite the unavoidable
 increases in the size of the kernel and its applications:
-.Bl -hang -width "install  "
-.It bridge
+.Bl -hang -width ".Pa bridge"
+.It Pa bridge
 configuration suitable for bridges, routers and firewalls.
 .El
 .Pp
 The following configurations are also present but for reference
-only. Many of them are irrimediably out of date and no effort
+only.
+Many of them are irrimediably out of date and no effort
 is done to keep them in good shape:
-.Bl -hang -width "install  "
-.It dial
-configuration suitable for dial-out (ppp) networking.
-.It isp
-configuration suitable for dial-in (ppp) networking.
-.It net
+.Bl -hang -width ".Pa bridge"
+.It Pa dial
+configuration suitable for dial-out
+.Pq Xr ppp 8
+networking.
+.It Pa isp
+configuration suitable for dial-in
+.Pq Xr ppp 8
+networking.
+.It Pa net
 configuration suitable for general networking.
-.It router
-configuration suitable for use as a router.  This particular configuration
+.It Pa router
+configuration suitable for use as a router.
+This particular configuration
 aims to work on minimal hardware.
 .El
 .Pp
 These configurations serve only as examples for
-your own modification. Not all of them have been tested,
+your own modification.
+Not all of them have been tested,
 and you might need small tweaks to the configuration
 files to make them work or even fit into the
 available disk space as code size increases.
 .Pp
 You can define your own floppy type, by creating a directory
-with a name of your choice (e.g. FOO) which contains
-some of the following files and directories. For more
+with a name of your choice (e.g.\&
+.Pa FOO )
+which contains
+some of the following files and directories.
+For more
 information on how to construct these files, look at one
 of the standard
-.Nm picobsd
+.Nm
 configurations as a reference.
-.Pp
-.Bl -tag -width "xxxxx" -compact
+.Bl -tag -width indent
 .It Pa PICOBSD
-The kernel configuration file (required). This is a mostly standard
+The kernel configuration file (required).
+This is a mostly standard
 kernel configuration file, possibly stripped down by removing
 unnecessary drivers and options to reduce the kernel's size.
 .Pp
 To be recognised as a
 .Nm
 kernel config file, the file must also contain the line
-beginning with #PicoBSD below, and a matching MD_ROOT_SIZE
+beginning with
+.Dq Li #PicoBSD
+below, and a matching
+.Dv MD_ROOT_SIZE
 option:
-.Pp
 .Bd -literal -offset indent
-
 #marker    def_sz  init   MFS_inodes    floppy_inodes
 #PicoBSD   4200    init   8192          32768
 options MD_ROOT_SIZE=4200      # same as def_sz
@@ -222,55 +233,117 @@ options MD_ROOT_SIZE=4200      # same as def_sz
 .Pp
 This informs the script of the size of the memory filesystem and
 provides a few other details on how to build the image.
-.Pp
 .It Pa crunch.conf
-crunchgen configuration (required). See the
 .Xr crunchgen 1
-manpage for the syntax.
+configuration (required).
+It contains the list of directories containing program sources,
+the list of binaries to be built, and the list of libraries that
+these programs use.
+See the
+.Xr crunchgen 1
+manpage for the exact details on the syntax of this file.
 .Pp
+The following issues are particularly important when dealing
+with
+.Nm
+configurations:
+.Bl -bullet
+.It
+we can pass build options to those Makefile's which understand
+that, in order to reduce the size of the programs.
+This is achieved with a line of the form
+.Bd -literal -offset indent
+buildopts -DNOPAM -DRELEASE_CRUNCH ...
+.Ed
+.It
+When providing the list of directories where source files are, it
+is convenient to list the following entry first:
+.Bd -literal
+srcdirs /usr/src/release/picobsd/tinyware
+.Ed
+so that
+.Nm
+-specific versions of the programs will be found there.
+.It
+The string
+.Pa @__CWD__@
+is replaced with the full pathname of the directory where the
+.Nm
+configuration resides (i.e. the one where we find
+.Pa PICOBSD , crunch.conf ,
+and so on).
+This can be useful to refer source code that resides within a
+configuration, e.g.
+.Bd -literal -offset indent
+srcdirs @__CWD__@/src
+.Ed
+.El
 .It Pa config
-shell variables, sourced by the
-.Pa picobsd
-script (optional). The most important variables here are
-.Pa MY_DEVS ,
-(not used in CURRENT where we have DEVFS),
-which should be set to the list of devices to be created in the
+Shell variables, sourced by the
+.Nm
+script (optional).
+The most important variables here are:
+.Bl -tag -width MY_DEVS
+.It Va MY_DEVS
+(not used in -CURRENT where we have DEVFS).
+Should be set to the list of devices to be created in the
 .Pa /dev
 directory of the image (it is really the argument passed to
-.Pa MAKEDEV ,
-so refer to that manpage for the names), and the
-.Pa fd_size
-which can override the default size (in kilobytes) of the image.
+.Xr MAKEDEV 8 ,
+so refer to that manpage for the names).
+.It Va fd_size
+Size (in kilobytes) of the
+.Nm
+image.
 By default,
-.Pa fd_size=1440
+.Va fd_size
+is set to 1440
 which produces an image suitable for a standard floppy.
 .Pp
 If you plan to store the image on a CDROM (e.g. using
-the El Torito floppy emulation), you can set
-.Pa fd_size=2880 .
+the
+.Dq "El Torito"
+floppy emulation), you can set
+.Va fd_size
+equal to 2880.
 If you are planning to dump the image onto a hard disk
 (either in a partition or on the whole disk), you
 are not restricted to one of the standard floppy sizes.
 Using a large image size per se does not waste RAM at runtime,
 because only the files that are actually loaded from the image
 contribute to the memory usage.
+.It Va import_files
+Contains a list of files to be imported in the floppy_tree.
+Absolute names refer to the standard filesystem, relative
+names refer to the root of the source tree being used
+(i.e.
+.Va SRC_PATH/..
+).
+You can normally use this option if you want to import
+files such as shared libraries, or databases, without
+having to replicate them first in your configuration
+under the
+.Pa floppy.tree/
+directory.
+.El
 .Pp
 .It Pa floppy.tree.exclude
-files from the standard floppy tree which are not needed (optional).
-.Pp
+List of files from the standard floppy tree which
+we do not want to be copied (optional).
 .It Pa floppy.tree/
-local additions to the standard floppy tree (optional).
-.Pp
-.It Pa floppy.tree. Ns ${site}
-same as above, site-specific (optional).
+Local additions to the standard floppy tree (optional).
+The content of this subtree will be copied as-is into the
+floppy image.
+.It Pa floppy.tree. Ns Aq Ar site-name
+Same as above, but site-specific (optional).
 .El
 .Pp
 More information on the build process can be found in the
 comments in the
-.Pa picobsd
+.Nm
 script.
 Sample configurations can be found in
-.Pa /usr/src/release/picobsd/ Ns ${type} Ns /
+.Pa /usr/src/release/picobsd/ Ns Ao Ar floppy-type Ac Ns Pa /
 .Sh USING ALTERNATE SOURCE TREES
 The build script can be instructed to use an alternate source tree
 using the
@@ -278,59 +351,55 @@ using the
 option.
 The tree that you specify must contain full sources for the kernel
 and for all programs that you want to include in your image.
-As an example, to cross-build the "bridge" floppy
+As an example, to cross-build the
+.Pa bridge
+floppy
 using RELENG_4 sources, you can do the following:
 .Bd -literal -offset indent
-  cd <some_empty_directory>
-  mkdir FOO
-  (cd FOO; cvs -d <my_repository> co -r RELENG_4 src )
-  picobsd --src FOO/src --init	# this is needed only once
-  picobsd --src FOO/src -n -v bridge
+cd <some_empty_directory>
+mkdir FOO
+(cd FOO; cvs -d<my_repository> co -rRELENG_4 src)
+picobsd --src FOO/src --init	# this is needed only once
+picobsd --src FOO/src -n -v bridge
 .Ed
 .Pp
 If the build is successful, the directory
-.Ar build_dir-bridge/
+.Pa build_dir-bridge/
 will contain a
-.Ar kernel
+.Pa kernel
 that can be downloaded with
-.Xr etherboot 8 ,
+.Xr etherboot ,
 a floppy image called
-.Ar picobsd.bin ,
+.Pa picobsd.bin ,
 plus the products of the compilation in other directories.
 If you want to modify the source tree in
-.Ar FOO/src ,
+.Pa FOO/src ,
 a new image can be produced by simply running
-.Bd -literal -offset indent
-  picobsd --src FOO/src -n -v bridge
-.Ed
+.Pp
+.Dl "picobsd --src FOO/src -n -v bridge"
 .Pp
 whereas if the change affects include files or libraries
 you first need to update them, e.g. by running first
-.Bd -literal -offset indent
-  picobsd --src FOO/src --init  # this is needed only once
-.Ed
+.Pp
+.Dl "picobsd --src FOO/src --init  # this is needed only once"
 .Pp
 as you would normally do for any change of this kind.
-.Pp
 .Sh INSTALLING PicoBSD
-.Pp
-.Ss Floppy install
+.Ss Floppy Install
 Historically,
 .Nm
 is run from a floppy disk, where it can be installed with a simple
-.Bd -literal -offset indent
-  dd if=picobsd.bin of=/dev/rfd0
-.Ed
+.Pp
+.Dl "dd if=picobsd.bin of=/dev/rfd0"
 .Pp
 and the floppy is ready to boot.
-.Pp
-.Ss Hard disk install
+.Ss Hard Disk Install
 The same process can be used to store the image on a hard disk
 (entire volume or one of the slices):
 .Bd -literal -offset indent
-  dd if=picobsd.bin of=/dev/ad2
-  dd if=picobsd.bin of=/dev/ad2s3
-  dd if=picobsd.bin of=/dev/ad2 oseek=NN
+dd if=picobsd.bin of=/dev/ad2
+dd if=picobsd.bin of=/dev/ad2s3
+dd if=picobsd.bin of=/dev/ad2 oseek=NN
 .Ed
 .Pp
 The first form will install the image on the entire disk, and it
@@ -338,41 +407,47 @@ should work in the same way as for a floppy.
 .Pp
 The second form will install the image
 on slice number 3 (which should be large enough to store the
-content of the image). However, the process will only have success if the
+contents of the image).
+However, the process will only have success if the
 partition does not contain a valid disklabel, otherwise the kernel will
-likely prevent overwriting the label. In this case you can use the
-third form, replacing NN with the actual start of the partition
+likely prevent overwriting the label.
+In this case you can use the
+third form, replacing
+.Ar NN
+with the actual start of the partition
 (which you can determine using
-.Nm fdisk
-).
+.Xr fdisk 8 ) .
 Note that after saving the image to the slice, it will not yet be
-recognised. You have to use the
-.Nm disklabel
-command to properly initialize the label (don't ask why!).
+recognised.
+You have to use the
+.Xr disklabel 8
+command to properly initialize the label (do not ask why!).
 One way to do this is
 .Bd -literal -offset indent
-  disklabel -w ad0s2 auto
-  disklabel -e ad0s2
+disklabel -w ad0s2 auto
+disklabel -e ad0s2
 .Ed
 .Pp
-and from the editor enter a line corresponding to the actual partition, e.g.
+and from the editor enter a line corresponding to the actual partition, e.g.\&
 if the image has 2.88MB (5760 sectors) you need to enter the following
 line for the partition:
-.Bd -literal -offset indent
-  a: 5760   0    4.2BSD   512   4096
-.Ed
+.Pp
+.Dl "a: 5760   0    4.2BSD   512   4096"
 .Pp
 At this point the partition is bootable.
 Note that the image size can be smaller than the slice size
-(indicated as partition c:).
-.Pp
-.Ss CDROM install
-Another option is to put the image on a CDROM. Assuming your image
+(indicated as partition
+.Dq Li c: ) .
+.Ss CDROM Install
+Another option is to put the image on a CDROM.
+Assuming your image
 for disk type
 .Pa foo
 is in the directory
 .Pa build_dir-foo
-then you can produce a bootable El Torito image (and burn it) with the
+then you can produce a bootable
+.Dq "El Torito"
+image (and burn it) with the
 following command:
 .Bd -literal -offset indent
 mkisofs -b picobsd.bin -c boot.catalog -d -N -D -R -T \\
@@ -382,23 +457,23 @@ burncd -f /dev/acd0c -s 4 data cd.img fixate
 .Pp
 Note that the image size is restricted to 1.44MB or 2.88MB, other sizes
 most likely will not work.
-.Pp
-.Ss Booting from the network
+.Ss Booting From The Network
 Yet another way to use
 .Nm
 is to boot the image off the network.
 For this purpose you should use the uncompressed kernel which is
-available as a byproduct of the compilation. Refer to the documentation
+available as a byproduct of the compilation.
+Refer to the documentation
 for network booting for more details, the
 .Nm
 kernel is bootable as a standard
 .Fx
 kernel.
-.Pp
 .Sh BOOTING PicoBSD
 To boot
 .Nm ,
-insert the floppy and reset the machine.  The boot procedure is similar to the
+insert the floppy and reset the machine.
+The boot procedure is similar to the
 standard
 .Fx
 boot.
@@ -427,7 +502,7 @@ The latter populates the
 and
 .Pa /root
 directories with the default files, then tries to identify the boot
-device (floppy, hard disk partition) and possibly override the content
+device (floppy, hard disk partition) and possibly override the contents
 of the root filesystem with files read from the boot device.
 This allows you to store local configuration on the same media.
 After this phase the boot device is no longer used, unless the
@@ -446,7 +521,7 @@ which is supposed to override the value of a number of configuration
 variables which have been pre-set in
 .Pa /etc/rc.conf.defaults .
 You can use the
-.Pa $hostname
+.Va hostname
 variable to create different configurations from the same file.
 After taking control back,
 .Pa /etc/rc1
@@ -463,24 +538,23 @@ explicitly request it.
 The boot device is also not used anymore after
 .Pa /etc/rc1
 takes control, again, unless you explicitly request it.
-.Pp
-.Pp
 .Sh CONFIGURING a PicoBSD system
 The operation of a
 .Nm
 system can be configured through a few files which are read at boot
 time, very much like a standard
 .Fx
-system. There are, however, some minor differences to reduce the
+system.
+There are, however, some minor differences to reduce the
 number of files to store and/or customize, thus saving space.
 Among the files to configure we have the following:
-.Pp
-.Bl -tag -width "xxxxx" -compact
+.Bl -tag -width indent
 .It Pa /etc/hosts
 Traditionally, this file contains the IP-to-hostname mappings.
-In addition to this, the PicoBSD version of this file also contains
+In addition to this, the
+.Nm
+version of this file also contains
 a mapping between Ethernet (MAC) addresses and hostnames, as follows:
-.Pp
 .Bd -literal -offset indent
 #ethertable     start of the ethernet->hostname mapping
 # mac_address           hostname
@@ -489,7 +563,9 @@ a mapping between Ethernet (MAC) addresses and hostnames, as follows:
 # *                     this-matches-all
 .Ed
 .Pp
-where the line containing "#ethertable" marks the start of the table.
+where the line containing
+.Dq Li #ethertable
+marks the start of the table.
 .Pp
 If the MAC address is not found, the script will prompt you to
 enter a hostname and IP address for the system, and this
@@ -500,8 +576,6 @@ file (in memory) so you can simply store them on disk later.
 Note that you can use wildcards in the address part, so a line
 like the last one in the example will match any MAC address and
 avoid the request.
-.Et
-.Pp
 .It Pa /etc/rc.conf
 This file contains a number of variables which control the
 operation of the system, such as interface configuration,
@@ -510,17 +584,16 @@ For the exact list and meaning of these variables see
 .Pa /etc/rc.conf.defaults .
 .Pp
 It is worth mentioning that some of the variables let you
-overwrite the content of some files in
+overwrite the contents of some files in
 .Pa /etc .
 This option is available at the moment for
 .Pa /etc/host.conf
 and
 .Pa /etc/resolv.conf ,
-whose content is generally very short and suitable for this
+whose contents is generally very short and suitable for this
 type of updating.
 In case you use these variables, remember to use newlines
-as appropriate, e.g.
-.Pp
+as appropriate, e.g.\&
 .Bd -literal -offset indent
 host_conf="# this goes into /etc/host.conf
 hosts
@@ -532,26 +605,24 @@ variables indicated in
 .Pa /etc/rc.conf.defaults ,
 and avoid starting services which depend on having the network running.
 This can be done at a later time: if you set
-.Pa firewall_enable="YES" ,
+.Va firewall_enable Ns = Ns Qq Li YES ,
 the
 .Pa /etc/rc.firewall
 script will be run after configuring the network interfaces,
 so you can set up your firewall and safely start network services or enable
 things such as routing and bridging.
-.Et
-.Pp
 .It Pa /etc/rc.firewall
 This script can be used to configure the
-.Nm ipfw
+.Xr ipfw 4
 firewall.
 On entry, the
-.Pa $fwcmd
+.Va fwcmd
 variable is set to the pathname of the firewall command,
-.Pa $firewall_type
+.Va firewall_type
 contains the value set in
 .Pa /etc/rc.conf ,
 and
-.Pa $hostname
+.Va hostname
 contains the name assigned to the host.
 .El
 .Pp
@@ -567,8 +638,7 @@ unmounting the latter around the operation).
 If invoked without arguments,
 .Nm update
 edits and saves
-.Pa rc.conf ,
-.Pa rc.firewall ,
+.Pa rc.conf , rc.firewall ,
 and
 .Pa master.passwd .
 .Pp
@@ -578,12 +648,11 @@ If one of the arguments is
 then the command saves to disk (without editing)
 all the files in the directory for which a copy
 already exists on disk (e.g. as a result of a previous update).
-.Pp
 .Sh SEE ALSO
 .Xr crunchgen 1 ,
+.Xr mdconfig 8 ,
 .Xr swapon 8 ,
-.Xr vnconfig 8 ,
-.Xr mdconfig 8 .
+.Xr vnconfig 8
 .Sh AUTHORS
 .An -nosplit
 .An Andrzej Bialecki Aq abial@FreeBSD.org ,
@@ -604,11 +673,13 @@ driver installed.
 The build process must be run as
 .Dq root
 because of the need of running
+.Xr mdconfig 8 /
 .Xr vnconfig 8
 and
 .Xr mount 8 .
 .Pp
 Building
 .Nm
-is still a black art.  The biggest problem is determining what will fit on the
+is still a black art.
+The biggest problem is determining what will fit on the
 floppies, and the only practical method is trial and error.
