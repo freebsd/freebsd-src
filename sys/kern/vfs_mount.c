@@ -641,11 +641,11 @@ vfs_nmount(td, fsflags, fsoptions)
 	vfsp->vfc_refcount++;
 	mp->mnt_stat.f_type = vfsp->vfc_typenum;
 	mp->mnt_flag |= vfsp->vfc_flags & MNT_VISFLAGMASK;
-	strncpy(mp->mnt_stat.f_fstypename, fstype, MFSNAMELEN);
+	strlcpy(mp->mnt_stat.f_fstypename, fstype, MFSNAMELEN);
 	mp->mnt_vnodecovered = vp;
 	mp->mnt_cred = crdup(td->td_ucred);
 	mp->mnt_stat.f_owner = td->td_ucred->cr_uid;
-	strncpy(mp->mnt_stat.f_mntonname, fspath, MNAMELEN);
+	strlcpy(mp->mnt_stat.f_mntonname, fspath, MNAMELEN);
 	mp->mnt_iosize_max = DFLTPHYS;
 #ifdef MAC
 	mac_init_mount(mp);
@@ -1009,11 +1009,11 @@ vfs_mount(td, fstype, fspath, fsflags, fsdata)
 	vfsp->vfc_refcount++;
 	mp->mnt_stat.f_type = vfsp->vfc_typenum;
 	mp->mnt_flag |= vfsp->vfc_flags & MNT_VISFLAGMASK;
-	strncpy(mp->mnt_stat.f_fstypename, fstype, MFSNAMELEN);
+	strlcpy(mp->mnt_stat.f_fstypename, fstype, MFSNAMELEN);
 	mp->mnt_vnodecovered = vp;
 	mp->mnt_cred = crdup(td->td_ucred);
 	mp->mnt_stat.f_owner = td->td_ucred->cr_uid;
-	strncpy(mp->mnt_stat.f_mntonname, fspath, MNAMELEN);
+	strlcpy(mp->mnt_stat.f_mntonname, fspath, MNAMELEN);
 	mp->mnt_iosize_max = DFLTPHYS;
 #ifdef MAC
 	mac_init_mount(mp);
@@ -1378,10 +1378,10 @@ vfs_rootmountalloc(fstypename, devname, mpp)
 	mp->mnt_iosize_max = DFLTPHYS;
 	mp->mnt_stat.f_type = vfsp->vfc_typenum;
 	mp->mnt_flag |= vfsp->vfc_flags & MNT_VISFLAGMASK;
-	strncpy(mp->mnt_stat.f_fstypename, vfsp->vfc_name, MFSNAMELEN);
+	strlcpy(mp->mnt_stat.f_fstypename, vfsp->vfc_name, MFSNAMELEN);
 	mp->mnt_stat.f_mntonname[0] = '/';
 	mp->mnt_stat.f_mntonname[1] = 0;
-	(void) copystr(devname, mp->mnt_stat.f_mntfromname, MNAMELEN - 1, 0);
+	strlcpy(mp->mnt_stat.f_mntfromname, devname, MNAMELEN);
 #ifdef MAC
 	mac_init_mount(mp);
 	mac_create_mount(td->td_ucred, mp);
@@ -1526,7 +1526,7 @@ vfs_mountroot_try(char *mountfrom)
 	 * f_mntonname unless they want to override the default
 	 * (which is `path'.)
 	 */
-	strncpy(mp->mnt_stat.f_mntonname, "/", MNAMELEN);
+	strlcpy(mp->mnt_stat.f_mntonname, "/", MNAMELEN);
 
 	error = VFS_MOUNT(mp, NULL, NULL, NULL, curthread);
 
