@@ -190,31 +190,4 @@ void timeout(timeout_func_t, void *, int);
 void untimeout(timeout_func_t, void *);
 void	logwakeup __P((void));
 
-/* Syscalls that are called internally. */
-struct close_args {
-	int	fd;
-};
-int	close __P((struct proc *, struct close_args *uap, int *retval));
-struct execve_args {
-	char	*fname;
-	char	**argv;
-	char	**envv;
-};
-int	execve __P((struct proc *, struct execve_args *, int *retval));
-struct fork_args {
-	int	dummy;
-};
-int	fork __P((struct proc *, struct fork_args *, int retval[]));
-struct sync_args {
-	int	dummy;
-};
-int	sync __P((struct proc *, struct sync_args *, int *retval));
-struct wait_args {
-	int	pid;
-	int	*status;
-	int	options;
-	struct	rusage *rusage;
-};
-int	wait1 __P((struct proc *, struct wait_args *, int retval[]));
-
 #endif /* !_SYS_SYSTM_H_ */
