@@ -935,7 +935,7 @@ vinvalbuf(vp, flags, cred, td, slpflag, slptimeo)
 		}
 		if (bo->bo_dirty.bv_cnt > 0) {
 			BO_UNLOCK(bo);
-			if ((error = VOP_FSYNC(vp, MNT_WAIT, td)) != 0)
+			if ((error = BO_SYNC(bo, MNT_WAIT, td)) != 0)
 				return (error);
 			/*
 			 * XXX We could save a lock/unlock if this was only
