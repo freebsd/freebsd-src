@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: commands.c,v 1.7 1998/10/31 02:53:09 msmith Exp $
+ *	$Id: commands.c,v 1.8 1999/01/09 02:34:48 msmith Exp $
  */
 
 #include <stand.h>
@@ -299,6 +299,7 @@ command_echo(int argc, char *argv[])
     
     nl = 0;
     optind = 1;
+    optreset = 1;
     while ((ch = getopt(argc, argv, "n")) != -1) {
 	switch(ch) {
 	case 'n':
@@ -343,6 +344,7 @@ command_read(int argc, char *argv[])
     timeout = -1;
     prompt = NULL;
     optind = 1;
+    optreset = 1;
     while ((c = getopt(argc, argv, "p:t:")) != -1) {
 	switch(c) {
 	    
@@ -394,6 +396,7 @@ command_lsdev(int argc, char *argv[])
     
     verbose = 0;
     optind = 1;
+    optreset = 1;
     while ((ch = getopt(argc, argv, "v")) != -1) {
 	switch(ch) {
 	case 'v':
