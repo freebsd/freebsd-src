@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.91 1998/10/29 10:38:57 obrien Exp $
+ * $Id: media.c,v 1.92 1998/11/02 10:42:18 obrien Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -464,7 +464,7 @@ mediaSetNFS(dialogMenuItem *self)
     static Device nfsDevice;
     static Device *networkDev = NULL;
     char *cp, *idx;
-    char hostname[MAXHOSTNAMELEN];
+    char hostname[MAXPATHLEN];
     mediaClose();
     dialog_clear_norefresh();
     cp = variable_get_value(VAR_NFS_PATH, "Please enter the full NFS file specification for the remote\n"
