@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.40 1997/05/12 12:56:50 kato Exp $
+ *	$Id: machdep.c,v 1.41 1997/05/23 10:17:05 kato Exp $
  */
 
 #include "npx.h"
@@ -110,6 +110,7 @@
 #include <machine/md_var.h>
 #ifdef SMP
 #include <machine/smp.h>
+#include <machine/smptests.h>	/** LATE_START */
 #endif
 #ifdef PERFMON
 #include <machine/perfmon.h>
@@ -224,8 +225,11 @@ cpu_startup(dummy)
 	 */
 	printf(version);
 #ifdef SMP
+#if defined(LATE_START)
+	mp_start();			/* fire up the APs and APICs */
+#endif  /* LATE_START */
 	mp_announce();
-#endif
+#endif  /* SMP */
 	earlysetcpuclass();
 	startrtclock();
 	printcpuinfo();
@@ -1284,11 +1288,6 @@ init386(first)
 	/* call pmap initialization to make new kernel address space */
 	pmap_bootstrap (first, 0);
 
-#ifdef SMP
-	/* fire up the APs and APICs */
-	mp_start();
-#endif
-
 	/*
 	 * Size up each available chunk of physical memory.
 	 */
@@ -1422,13 +1421,24 @@ init386(first)
 	msgbufmapped = 1;
 
 #ifdef SMP
+	/* look for the MP hardware */
+	mp_probe();
+
+	/* make the initial tss so cpu can get interrupt stack on syscall! */
 	for(x = 0; x < NCPU; x++) {
-	/* make an initial tss so cpu can get interrupt stack on syscall! */
 		SMPcommon_tss[x].tss_esp0 = (int) proc0.p_addr + UPAGES*PAGE_SIZE;
 		SMPcommon_tss[x].tss_ss0 = GSEL(GDATA_SEL, SEL_KPL) ;
 		SMPcommon_tss[x].tss_ioopt = (sizeof SMPcommon_tss[x]) << 16;
 	}
+#if 0
+	/** XXX FIXME:
+	 *   We can't access the LOCAL APIC till mp_enable() runs.  Since
+	 *   this is run by the BSP, cpunumber() should always equal 0 anyway.
+	 */
 	gsel_tss = GSEL(NGDT + cpunumber(), SEL_KPL);
+#else
+	gsel_tss = GSEL(NGDT /** + 0 */, SEL_KPL);
+#endif  /** 0 */
 	ltr(gsel_tss);
 #else
 	/* make an initial tss so cpu can get interrupt stack on syscall! */
@@ -1437,7 +1447,7 @@ init386(first)
 	common_tss.tss_ioopt = (sizeof common_tss) << 16;
 	gsel_tss = GSEL(GPROC0_SEL, SEL_KPL);
 	ltr(gsel_tss);
-#endif
+#endif  /* SMP */
 
 	dblfault_tss.tss_esp = dblfault_tss.tss_esp0 = dblfault_tss.tss_esp1 =
 	    dblfault_tss.tss_esp2 = (int) &dblfault_stack[sizeof(dblfault_stack)];
@@ -1479,6 +1489,12 @@ init386(first)
 	proc0.p_addr->u_pcb.pcb_flags = 0;
 	proc0.p_addr->u_pcb.pcb_cr3 = IdlePTD;
 	proc0.p_addr->u_pcb.pcb_mpnest = 1;
+
+#ifdef SMP
+#if !defined(LATE_START)
+	mp_start();			/* fire up the APs and APICs */
+#endif  /* LATE_START */
+#endif  /* SMP */
 }
 
 int
