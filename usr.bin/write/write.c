@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)write.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: write.c,v 1.7 1997/08/26 11:23:37 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -55,6 +55,7 @@ static const char rcsid[] =
 #include <sys/time.h>
 #include <ctype.h>
 #include <err.h>
+#include <locale.h>
 #include <paths.h>
 #include <pwd.h>
 #include <stdio.h>
@@ -62,7 +63,7 @@ static const char rcsid[] =
 #include <unistd.h>
 #include <utmp.h>
 
-void done __P((void));
+void done __P((int));
 void do_write __P((char *, char *, uid_t));
 static void usage __P((void));
 int term_chk __P((char *, int *, time_t *, int));
@@ -80,6 +81,8 @@ main(argc, argv)
 	uid_t myuid;
 	int msgsok, myttyfd;
 	char tty[MAXPATHLEN], *mytty;
+
+	(void)setlocale(LC_CTYPE, "");
 
 	/* check that sender has write enabled */
 	if (isatty(fileno(stdin)))
@@ -121,7 +124,7 @@ main(argc, argv)
 	default:
 		usage();
 	}
-	done();
+	done(0);
 	return (0);
 }
 
@@ -286,7 +289,8 @@ do_write(tty, mytty, myuid)
  * done - cleanup and exit
  */
 void
-done()
+done(n)
+int n;  /* signal number */
 {
 	(void)printf("EOF\r\n");
 	exit(0);
@@ -306,7 +310,9 @@ wr_fputs(s)
 	for (; *s != '\0'; ++s) {
 		if (*s == '\n') {
 			PUTC('\r');
-		} else if (!isprint(*s) && !isspace(*s) && *s != '\007') {
+		} else if (*s <= 0xA0 || /* disable upper controls */
+			   (!isprint(*s) && !isspace(*s) && *s != '\007')
+			  ) {
 			if (*s & 0x80) {
 				*s &= ~0x80;
 				PUTC('M');
