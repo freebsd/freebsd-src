@@ -32,6 +32,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -62,7 +64,7 @@ ns_addr(name)
 	 * First, figure out what he intends as a field separtor.
 	 * Despite the way this routine is written, the prefered
 	 * form  2-272.AA001234H.01777, i.e. XDE standard.
-	 * Great efforts are made to insure backward compatability.
+	 * Great efforts are made to insure backward compatibility.
 	 */
 	if ((hostname = strchr(buf, '#')) != NULL)
 		separator = '#';
