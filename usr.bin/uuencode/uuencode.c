@@ -117,6 +117,12 @@ encode()
 		if (putchar(ch) == EOF)
 			break;
 		for (p = buf; n > 0; n -= 3, p += 3) {
+			/* Pad with nulls if not a multiple of 3. */
+			if (n < 3) {
+				p[2] = '\0';
+				if (n < 2)
+					p[1] = '\0';
+			}
 			ch = *p >> 2;
 			ch = ENC(ch);
 			if (putchar(ch) == EOF)
