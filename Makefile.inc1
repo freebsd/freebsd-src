@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc1,v 1.33 1998/10/13 08:13:32 jkh Exp $
+#	$Id: Makefile.inc1,v 1.34 1998/10/13 10:01:32 rnordier Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -642,10 +642,11 @@ lib-tools:
 # To satisfy shared library linkage when only the libraries being built
 # are visible:
 #
+# csu must be built before all shared libaries for ELF.
 # libcom_err must be built before libss.
-# libcrypt and libmd must be built before libskey.
-# libm must be built before libf2c, libg++ and libstdc++
-# libmd must be built before libatm and libopie
+# libcrypt must be built before libskey.
+# libm must be built before libf2c, libg++ and libstdc++.
+# libmd must be built before libatm, libopie and libskey.
 # libmytinfo must be built before libdialog and libncurses.
 # libncurses must be built before libdialog.
 # libtermcap must be built before libcurses, libedit and libreadline.
@@ -714,8 +715,8 @@ bootstrap-libraries:
 # alphabetical order.
 #
 libraries:
-.for _lib in lib/libcom_err ${_libcrypt} ${_libm} lib/libmytinfo \
-    lib/libncurses lib/libtermcap \
+.for _lib in ${_csu} lib/libcom_err ${_libcrypt} ${_libm} lib/libmd \
+    lib/libmytinfo lib/libncurses lib/libtermcap \
     gnu/lib gnu/usr.bin/cc/libgcc ${_libperl} lib usr.bin/lex/lib \
     usr.sbin/pcvt/keycap
 .if exists(${.CURDIR}/${_lib})
