@@ -398,3 +398,14 @@
 
 # From "Simon Hosie
 0       string  TFMX-SONG       TFMX module sound data
+
+# From danny.milo@gmx.net (Danny Milosavljevic)
+# monkeysaudio for magic.mime
+0	string	MAC\	X/Monkey audio,
+>4	leshort >0	version %d,
+>6	leshort >0	compression level %d,
+>8	leshort >0	flags %x,
+>10	leshort >0	channels %d,
+>12	lelong	>0	samplerate %d,
+>24	lelong	>0	frames %d
+
