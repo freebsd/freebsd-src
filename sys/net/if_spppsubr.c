@@ -713,6 +713,7 @@ sppp_output(struct ifnet *ifp, struct mbuf *m,
 		s = splimp();
 	}
 
+	ifq = &ifp->if_snd;
 #ifdef INET
 	if (dst->sa_family == AF_INET) {
 		/* XXX Check mbuf length here? */
