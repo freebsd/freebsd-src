@@ -1,0 +1,100 @@
+#!/bin/sh
+
+sysname=$1
+
+uname=`uname -s`
+machine=`uname -m`
+
+if [ "$sysname" = "" ]; then
+  case $uname in
+    AIX)
+      sysname=aix;;
+    Rhapsody)
+      sysname=rhapsody;;
+    ULTRIX)
+      sysname=ultrix;;
+    BSD/OS)
+      sysname=bsdos;;
+    OSF1)
+      if [ $machine = 'alpha' ]; then
+        sysname=alphaosf
+      fi;;
+    Linux)
+      release=`uname -r`
+      minor=`echo $release |sed -e 's/[0-9]*\.\([0-9][0-9]*\)\(\..*\)*$/\1/'`
+      major=`echo $release |sed -e 's/\([0-9][0-9]*\)\..*$/\1/'`
+      
+      case $major in
+	1) sysname=linux-1 ;;
+	2) case $minor in
+	     0) sysname=linux-2.0 ;;
+	     1) sysname=linux-2.1 ;;
+	     2) sysname=linux-2.2 ;;
+	     *) sysname=linux-2.2 ;;
+	   esac;;
+      esac;;
+    SunOS)
+      case `uname -r` in
+        4*) sysname=sunos4;;
+        5*)
+	  set `which gcc`
+	  if [ $# = 1 ]; then
+	    sysname=sunos5-gcc
+	  else
+	    sysname=sunos5-cc
+	  fi;;
+      esac;;
+    NetBSD)
+      sysname=netbsd;;
+    FreeBSD)
+      sysname=freebsd;;
+    hpux)
+      sysname=hpux;;
+    HP-UX)
+      sysname=hpux;;
+    QNX)
+      sysname=qnx;;
+    NEXTSTEP)
+      sysname=nextstep;;
+  esac
+fi
+
+if [ "$sysname" = "" ]; then
+  echo "UNIX name: $uname    machine: $machine"
+  echo
+  echo "Unknown system.   If this is an SCO system running ODT 3.0 or"
+  echo "higher, type \`\`./configure sco''.   Otherwise, this is a"
+  echo "configuration that isn't supported or hasn't been tested."
+  echo
+  echo "Supported configurations are:"
+  echo "   aix		AIX 4.1.5.0"
+  echo "   ultrix	ULTRIX 4.2A or higher"
+  echo "   bsdos	BSDI BSD/OS 2.1"
+  echo "   alphaosf	DEC Alpha OSF/1"
+  echo "   linux	Linux"
+  echo "   sunos4	Sunos 4.1.4 (earlier releases may work)"
+  echo "   sunos5-cc	Solaris 2.4 or higher with Sun cc"
+  echo "   sunos5-gcc	Solaris 2.4 or higher with gcc"
+  echo "   netbsd	NetBSD 1.1 or higher"
+  echo "   freebsd	FreeBSD"
+  echo "   hpux		HP-UX"
+  echo "   qnx		QNX 4.2 or higher"
+  echo "   NEXTSTEP     NeXTSTEP"
+  exit 1;
+fi
+
+echo "System Type: $sysname"
+
+if [ x$major != x ] && [ x$minor != x ]; then
+  majversubst="-e /^##--majver--/,/^##--majver--/s/MajorVersion/$major/"
+  minversubst="-e /^##--minver--/,/^##--minver--/s/MinorVersion/$minor/"
+fi
+
+for foo in . client server relay common; do
+	 (sed $majversubst $minversubst \
+	      -e "/^##--${sysname}--/,/^##--${sysname}--/s/^#//" \
+		<Makefile.conf; cat $foo/Makefile.dist)	\
+				>$foo/Makefile
+done
+
+exit 0
