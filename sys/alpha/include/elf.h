@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: elf.h,v 1.4 1998/08/17 08:05:55 dfr Exp $
+ *      $Id: elf.h,v 1.5 1998/09/14 20:30:08 jdp Exp $
  */
 
 #ifndef _MACHINE_ELF_H_
@@ -135,4 +135,16 @@ __ElfType(Auxinfo);
 #define ELF_TARG_MACH	EM_ALPHA
 #define ELF_TARG_VER	1
 
+#ifdef KERNEL
+
+/*
+ * On the Alpha we load the dynamic linker where a userland call
+ * to mmap(0, ...) would put it.  The rationale behind this
+ * calculation is that it leaves room for the heap can grow to
+ * its maximum allowed size.
+ */
+#define ELF_RTLD_ADDR(vmspace) \
+    (round_page((vm_offset_t)(vmspace)->vm_daddr + MAXDSIZ))
+
+#endif /* KERNEL */
 #endif /* !_MACHINE_ELF_H_ */
