@@ -57,6 +57,7 @@ static KEY keylist[] = {
 	{"gname",	F_GNAME,	NEEDVALUE},
 	{"ignore",	F_IGN,		0},
 	{"link",	F_SLINK,	NEEDVALUE},
+	{"md5digest",	F_MD5,		NEEDVALUE},
 	{"mode",	F_MODE,		NEEDVALUE},
 	{"nlink",	F_NLINK,	NEEDVALUE},
 	{"size",	F_SIZE,		NEEDVALUE},
