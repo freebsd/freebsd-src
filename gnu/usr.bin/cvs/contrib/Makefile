@@ -7,8 +7,6 @@ MAINTAINER=	peter@FreeBSD.org
 .PATH:	${CVSDIR}/contrib
 .PATH:	${CVSDIR}/man
 
-#pvcs_to_rcs left out, it needs perl5
-
 SCRIPTS= clmerge cln_hist commit_prep cvs2vendor cvs_acls cvscheck \
 	 log log_accum mfpipe rcs-to-cvs rcs2log rcslock sccs2rcs \
 	 easy-import
@@ -20,16 +18,16 @@ SCRIPTSDIR=	${EXAMPDIR}/contrib
 PERLPATH=	/usr/bin/perl
 CLEANFILES+=	$(SCRIPTS)
 
-.SUFFIXES: .sh .csh .pl
+.SUFFIXES: .sh .pl .in
 
 .sh:
 	cp $< $@
 
-.csh:
-	sed -e 's,xCSH_PATHx,/bin/csh,' $< > $@
-
 .pl:
 	sed -e 's,xPERL_PATHx,$(PERLPATH),' $< > $@
+
+.in:
+	sed -e 's,@CSH@,/bin/csh,' -e 's,@PERL@,$(PERLPATH),' $< > $@
 
 
 beforeinstall:
