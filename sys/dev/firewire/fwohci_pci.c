@@ -45,16 +45,27 @@
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <sys/malloc.h>
-#if __FreeBSD_version >= 501102
+#if defined(__FreeBSD__) && __FreeBSD_version >= 501102
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #endif
 #include <machine/resource.h>
 
-#if __FreeBSD_version < 500000
+#if defined(__DragonFly__) || __FreeBSD_version < 500000
 #include <machine/clock.h>		/* for DELAY() */
 #endif
 
+#ifdef __DragonFly__
+#include <bus/pci/pcivar.h>
+#include <bus/pci/pcireg.h>
+
+#include "firewire.h"
+#include "firewirereg.h"
+
+#include "fwdma.h"
+#include "fwohcireg.h"
+#include "fwohcivar.h"
+#else
 #if __FreeBSD_version < 500000
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
@@ -69,6 +80,7 @@
 #include <dev/firewire/fwdma.h>
 #include <dev/firewire/fwohcireg.h>
 #include <dev/firewire/fwohcivar.h>
+#endif
 
 static int fwohci_pci_attach(device_t self);
 static int fwohci_pci_detach(device_t self);
@@ -184,7 +196,7 @@ fwohci_pci_probe( device_t dev )
 	return ENXIO;
 }
 
-#if __FreeBSD_version < 500000
+#if defined(__DragonFly__) || __FreeBSD_version < 500000
 static void
 fwohci_dummy_intr(void *arg)
 {
@@ -236,7 +248,7 @@ fwohci_pci_attach(device_t self)
 	fwohci_softc_t *sc = device_get_softc(self);
 	int err;
 	int rid;
-#if __FreeBSD_version < 500000
+#if defined(__DragonFly__) || __FreeBSD_version < 500000
 	int intr;
 	/* For the moment, put in a message stating what is wrong */
 	intr = pci_read_config(self, PCIR_INTLINE, 1);
@@ -254,7 +266,12 @@ fwohci_pci_attach(device_t self)
 	fwohci_pci_init(self);
 
 	rid = PCI_CBMEM;
+#if __FreeBSD_version >= 502109
 	sc->bsr = bus_alloc_resource_any(self, SYS_RES_MEMORY, &rid, RF_ACTIVE);
+#else
+	sc->bsr = bus_alloc_resource(self, SYS_RES_MEMORY, &rid,
+	    0, ~0, 1, RF_ACTIVE);
+#endif
 	if (!sc->bsr) {
 		device_printf(self, "Could not map memory\n");
 		return ENXIO;
@@ -264,8 +281,13 @@ fwohci_pci_attach(device_t self)
 	sc->bsh = rman_get_bushandle(sc->bsr);
 
 	rid = 0;
+#if __FreeBSD_version >= 502109
 	sc->irq_res = bus_alloc_resource_any(self, SYS_RES_IRQ, &rid,
 				     RF_SHAREABLE | RF_ACTIVE);
+#else
+	sc->irq_res = bus_alloc_resource(self, SYS_RES_IRQ, &rid, 0, ~0, 1,
+				     RF_SHAREABLE | RF_ACTIVE);
+#endif
 	if (sc->irq_res == NULL) {
 		device_printf(self, "Could not allocate irq\n");
 		fwohci_pci_detach(self);
@@ -280,7 +302,7 @@ fwohci_pci_attach(device_t self)
 			INTR_TYPE_NET,
 #endif
 		     (driver_intr_t *) fwohci_intr, sc, &sc->ih);
-#if __FreeBSD_version < 500000
+#if defined(__DragonFly__) || __FreeBSD_version < 500000
 	/* XXX splcam() should mask this irq for sbp.c*/
 	err = bus_setup_intr(self, sc->irq_res, INTR_TYPE_CAM,
 		     (driver_intr_t *) fwohci_dummy_intr, sc, &sc->ih_cam);
@@ -307,7 +329,7 @@ fwohci_pci_attach(device_t self)
 				/*nsegments*/0x20,
 				/*maxsegsz*/0x8000,
 				/*flags*/BUS_DMA_ALLOCNOW,
-#if __FreeBSD_version >= 501102
+#if defined(__FreeBSD__) && __FreeBSD_version >= 501102
 				/*lockfunc*/busdma_lock_mutex,
 				/*lockarg*/&Giant,
 #endif
@@ -362,7 +384,7 @@ fwohci_pci_detach(device_t self)
 			/* XXX or should we panic? */
 			device_printf(self, "Could not tear down irq, %d\n",
 				      err);
-#if __FreeBSD_version < 500000
+#if defined(__DragonFly__) || __FreeBSD_version < 500000
 		bus_teardown_intr(self, sc->irq_res, sc->ih_cam);
 		bus_teardown_intr(self, sc->irq_res, sc->ih_bio);
 #endif
@@ -486,7 +508,7 @@ static driver_t fwohci_driver = {
 
 static devclass_t fwohci_devclass;
 
-#ifdef FWOHCI_MODULE 
+#ifdef FWOHCI_MODULE
 MODULE_DEPEND(fwohci, firewire, 1, 1, 1);
 #endif
 DRIVER_MODULE(fwohci, pci, fwohci_driver, fwohci_devclass, 0, 0);
