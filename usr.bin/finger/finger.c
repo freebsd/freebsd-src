@@ -73,6 +73,8 @@ __FBSDID("$FreeBSD$");
  * well as home directory, shell, mail info, and .plan/.project files.
  */
 
+#include <sys/types.h>
+#include <sys/socket.h>
 #include <db.h>
 #include <err.h>
 #include <pwd.h>
@@ -90,6 +92,7 @@ __FBSDID("$FreeBSD$");
 DB *db;
 time_t now;
 int entries, gflag, lflag, mflag, pplan, sflag, oflag, Tflag;
+sa_family_t family = PF_UNSPEC;
 int d_first = -1;
 char tbuf[1024];
 
@@ -107,8 +110,14 @@ option(argc, argv)
 
 	optind = 1;		/* reset getopt */
 
-	while ((ch = getopt(argc, argv, "glmpshoT")) != -1)
+	while ((ch = getopt(argc, argv, "46glmpshoT")) != -1)
 		switch(ch) {
+		case '4':
+			family = AF_INET;
+			break;
+		case '6':
+			family = AF_INET6;
+			break;
 		case 'g':
 			gflag = 1;
 			break;
@@ -144,7 +153,7 @@ option(argc, argv)
 static void
 usage()
 {
-	(void)fprintf(stderr, "usage: finger [-lmpshoT] [login ...]\n");
+	(void)fprintf(stderr, "usage: finger [-46lmpshoT] [login ...]\n");
 	exit(1);
 }
 
