@@ -137,7 +137,6 @@ tm.h:
 	echo '#include "${GCC_ARCH}/${GCC_ARCH}.h"'	> ${.TARGET}
 .if ${GCC_ARCH} == "i386"
 	echo '#include "${GCC_ARCH}/att.h"'		>> ${.TARGET}
-	echo '#include "svr4.h"'			>> ${.TARGET}
 .endif
 	echo '#include <freebsd.h>'			>> ${.TARGET}
 	echo '#include "${GCC_ARCH}/freebsd.h"'		>> ${.TARGET}
