@@ -57,6 +57,7 @@ friendly(uuid_t *t)
 	uuid_t swap = GPT_ENT_TYPE_FREEBSD_SWAP;
 	uuid_t ufs = GPT_ENT_TYPE_FREEBSD_UFS;
 	uuid_t vinum = GPT_ENT_TYPE_FREEBSD_VINUM;
+	uuid_t ext = GPT_ENT_TYPE_MS_BASIC_DATA;
 	static char buf[80];
 	char *s;
 
@@ -70,6 +71,8 @@ friendly(uuid_t *t)
 		return "FreeBSD ufs partition";
 	else if (memcmp(t, &vinum, sizeof(uuid_t)) == 0)
 		return "FreeBSD vinum partition";
+	else if (memcmp(t, &ext, sizeof(uuid_t)) == 0)
+		return "Linux/Windows";
 	uuid_to_string(t, &s, NULL);
 	strlcpy(buf, s, sizeof buf);
 	free(s);
