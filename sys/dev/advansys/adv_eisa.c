@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: adv_eisa.c,v 1.3 1999/04/18 15:50:33 peter Exp $
+ *	$Id: adv_eisa.c,v 1.4 1999/05/08 21:59:16 dfr Exp $
  */
 
 #include "eisa.h"
@@ -130,7 +130,7 @@ adveisaprobe(device_t dev)
 		   irq);
 	    return ENXIO;
 	}
-	eisa_add_intr(dev, irq + 10);
+	eisa_add_intr(dev, irq + 10, EISA_TRIGGER_LEVEL);
 
 	return 0;
 }

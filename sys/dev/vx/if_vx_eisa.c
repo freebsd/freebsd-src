@@ -106,7 +106,8 @@ vx_eisa_probe(device_t dev)
     eisa_add_iospace(dev, port, VX_IOSIZE, RESVADDR_NONE);
 
     /* Set irq */
-    eisa_add_intr(dev, inw(iobase + VX_RESOURCE_CONFIG) >> 12);
+    eisa_add_intr(dev, inw(iobase + VX_RESOURCE_CONFIG) >> 12,
+		  EISA_TRIGGER_EDGE);
 
     return (0);
 }
@@ -119,7 +120,6 @@ vx_eisa_attach(device_t dev)
     struct resource *io = 0;
     struct resource *eisa_io = 0;
     struct resource *irq = 0;
-    u_char          level_intr;
     int		    rid;
     void	    *ih;
 
@@ -148,8 +148,6 @@ vx_eisa_attach(device_t dev)
 	goto bad;
 
     sc->vx_io_addr = rman_get_start(io);
-
-    level_intr = FALSE;
 
     rid = 0;
     irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,

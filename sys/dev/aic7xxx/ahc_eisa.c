@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ahc_eisa.c,v 1.9 1999/05/17 21:51:41 gibbs Exp $
+ *	$Id: ahc_eisa.c,v 1.10 1999/05/17 21:56:00 gibbs Exp $
  */
 
 #include "eisa.h"
@@ -97,6 +97,7 @@ aic7770_probe(device_t dev)
 	u_int32_t irq;
 	u_int8_t intdef;
 	u_int8_t hcntrl;
+	int shared;
 
 	desc = aic7770_match(eisa_get_id(dev));
 	if (!desc)
@@ -113,6 +114,7 @@ aic7770_probe(device_t dev)
 
 	eisa_add_iospace(dev, iobase, AHC_EISA_IOSIZE, RESVADDR_NONE);
 	intdef = inb(INTDEF + iobase);
+	shared = (intdef & 0x80) ? EISA_TRIGGER_EDGE : EISA_TRIGGER_LEVEL;
 	irq = intdef & 0xf;
 	switch (irq) {
 	case 9: 
@@ -132,7 +134,7 @@ aic7770_probe(device_t dev)
 	if (irq == 0)
 	    return ENXIO;
 
-	eisa_add_intr(dev, irq);
+	eisa_add_intr(dev, irq, shared);
 
 	return 0;
 }
@@ -145,7 +147,6 @@ aic7770_attach(device_t dev)
 	struct ahc_softc *ahc;
 	struct resource *io;
 	int error, rid;
-	int shared;
 
 	rid = 0;
 	io = NULL;
@@ -205,10 +206,9 @@ aic7770_attach(device_t dev)
 	 * The IRQMS bit enables level sensitive interrupts. Only allow
 	 * IRQ sharing if it's set.
 	 */
-	shared = (ahc->pause & IRQMS) ? RF_SHAREABLE : 0;
 	rid = 0;
 	ahc->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
-				      0, ~0, 1, shared  | RF_ACTIVE);
+				      0, ~0, 1, RF_ACTIVE);
 	if (ahc->irq == NULL) {
 		device_printf(dev, "Can't allocate interrupt\n");
 		goto bad;

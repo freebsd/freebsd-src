@@ -32,11 +32,13 @@
  */
 
 /*
- * $Id: dpt_eisa.h,v 1.1 1998/03/11 00:30:14 julian Exp $
+ * $Id: dpt_eisa.h,v 1.2 1998/09/15 08:33:35 gibbs Exp $
  */
 
 #define DPT_EISA_SLOT_OFFSET		0xc00
 #define DPT_EISA_IOSIZE			0x100
+
+#define DPT_EISA_CFENABLE		0x8f
 
 #define DPT_EISA_INTDEF			0x90
 #define		DPT_EISA_INT_LEVEL	0x04
@@ -62,4 +64,3 @@
 #define	DPT_EISA_DPTBC01		0x1214BC01
 #define	DPT_EISA_NEC8200		0x12148200
 #define	DPT_EISA_ATT2408		0x12142408
-
