@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.366 1997/09/16 07:45:31 joerg Exp $
+#	$Id: LINT,v 1.367 1997/09/19 15:25:48 jmg Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -763,8 +763,23 @@ controller	wds0	at isa? port 0x350 bio irq 15 drq 6 vector wdsintr
 # allowed to probe for 32 bit transfers, but will allow multi-sector
 # transfers up to the maximum that the drive supports.
 #
-
+# If you are using a PCI controller that is not running in compatibility
+# mode (for example, it is a 2nd IDE PCI interface), then use config line(s)
+# such as:
 #
+#controller	wdc2	at isa? port "0" bio irq ? flags 0xa0ffa0ff vector wdintr
+#disk		wd4	at wdc2 drive 0
+#disk		wd5	at wdc2 drive 1
+#
+#controller	wdc3	at isa? port "0" bio irq ? flags 0xa0ffa0ff vector wdintr
+#disk		wd6	at wdc3 drive 0
+#disk		wd7	at wdc3 drive 1
+#
+# Note that the above config would be useful for a Promise card, when used
+# on a MB that already has a PIIX controller.  Note the bogus irq and port
+# entries.  These are automatically filled in by the IDE/PCI support.
+#
+
 controller	wdc0	at isa? port "IO_WD1" bio irq 14 vector wdintr
 disk		wd0	at wdc0 drive 0
 disk		wd1	at wdc0 drive 1
