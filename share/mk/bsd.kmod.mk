@@ -1,5 +1,5 @@
 #	From: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.kmod.mk,v 1.7 1995/01/14 07:51:06 jkh Exp $
+#	$Id: bsd.kmod.mk,v 1.8 1995/01/30 07:22:00 jkh Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -154,4 +154,5 @@ vnode_if.h:	${KERN}/vnode_if.sh ${KERN}/vnode_if.src
 
 ./vnode_if.h:	vnode_if.h
 
+_DEPSUBDIR=	_PROGSUBDIR
 .include <bsd.dep.mk>
