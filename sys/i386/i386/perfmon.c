@@ -58,6 +58,16 @@ static d_close_t perfmon_close;
 static d_open_t	perfmon_open;
 static d_ioctl_t perfmon_ioctl;
 
+/*
+ * XXX perfmon_init_dev(void *) is a split from the perfmon_init() funtion. 
+ * This solves a problem for DEVFS users.  It loads the "perfmon" driver after
+ * the DEVFS subsystem has been kicked into action.  The SI_ORDER_ANY is to
+ * assure that it is the most lowest priority task which, guarantees the
+ * above.
+ */
+static void perfmon_init_dev __P((void *));
+SYSINIT(cpu, SI_SUB_DRIVERS, SI_ORDER_ANY, perfmon_init_dev, NULL);
+
 #define CDEV_MAJOR 2	/* We're really a minor of mem.c */
 static struct cdevsw perfmon_cdevsw = {
 	/* open */      perfmon_open,
@@ -105,6 +115,12 @@ perfmon_init(void)
 		break;
 	}
 #endif /* SMP */
+}
+
+static void
+perfmon_init_dev(dummy)
+	void *dummy;
+{
 	make_dev(&perfmon_cdevsw, 32, UID_ROOT, GID_KMEM, 0640, "perfmon");
 }
 
