@@ -235,15 +235,6 @@ softdep_update_inodeblock(ip, bp, waitfor)
 	panic("softdep_update_inodeblock called");
 }
 
-int
-softdep_fsync(vp)
-	struct vnode *vp;
-{
-
-	panic("softdep_fsync called");
-	return (EIO);
-}
-
 void
 softdep_fsync_mountdev(vp)
 	struct vnode *vp;
