@@ -170,7 +170,7 @@
 
 /*
  * For the Address Window Enable Register (PCIC_ADDRWINE)
- * The lower 6 bits contain enable bits for the memory
+ * The lower 5 bits contain enable bits for the memory
  * windows (LSB = memory window 0).
  */
 #define PCIC_MEMCS16	0x20	/* ~MEMCS16 Decode A23-A12 */
