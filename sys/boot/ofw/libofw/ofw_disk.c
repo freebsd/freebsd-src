@@ -75,7 +75,6 @@ ofwd_init(void)
 	int ret;
 	char devpath[255];
 	ihandle_t instance;
-	int i;
 
 	ofw_devsearch_init();
 	while ((ret = ofw_devsearch("block", devpath)) != 0) {
@@ -96,7 +95,6 @@ ofwd_init(void)
 			printf("disk%d is %s\n", nofwdinfo, ofwdinfo[nofwdinfo].ofwd_path);
 			nofwdinfo++;
 			OF_close(instance);
-			break;
 		}
 
 		if (nofwdinfo > MAXDEV) {
