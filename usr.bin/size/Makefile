@@ -4,6 +4,5 @@
 PROG=	size
 MAN=	size.1aout
 BINDIR= /usr/libexec/aout
-WARNS?=	2
 
 .include <bsd.prog.mk>
