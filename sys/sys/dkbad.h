@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)dkbad.h	8.2 (Berkeley) 7/10/94
- * $Id: dkbad.h,v 1.6 1996/02/24 05:25:02 hsu Exp $
+ * $Id: dkbad.h,v 1.6 1996/03/11 02:07:37 hsu Exp $
  */
 
 #ifndef _SYS_DKBAD_H_
@@ -78,8 +78,6 @@ struct dkbad {
 #define	CONT	3
 
 #ifdef KERNEL
-#include <sys/conf.h>
-
 #define	DKBAD_NOSECT	(-1)		/* sector to mark end of core table */
 
 struct dkbad_intern {
@@ -92,7 +90,7 @@ struct disklabel;
 
 struct dkbad_intern *internbad144 __P((struct dkbad *btp,
 				       struct disklabel *lp));
-char	*readbad144 __P((dev_t dev, d_strategy_t *strat,
+char	*readbad144 __P((dev_t dev, void (*strat)(struct buf *bp),
 			 struct disklabel *lp, struct dkbad *btp));
 daddr_t	transbad144 __P((struct dkbad_intern *bip, daddr_t blkno));
 #endif
