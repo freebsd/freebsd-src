@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.14 (Berkeley) 5/21/95
- * $Id: spec_vnops.c,v 1.55 1998/02/05 03:32:23 dyson Exp $
+ * $Id: spec_vnops.c,v 1.56 1998/02/06 12:13:43 eivind Exp $
  */
 
 #include <sys/param.h>
@@ -393,15 +393,10 @@ spec_write(ap)
 				brelse(bp);
 				return (error);
 			}
-			if (vp->v_flag & VOBJBUF)
-				bp->b_flags |= B_CLUSTEROK;
 			error = uiomove((char *)bp->b_data + on, n, uio);
-			if (n + on == bsize) {
-				if ((vp->v_flag & VOBJBUF) && (on == 0))
-					vfs_bio_awrite(bp);
-				else
-					bawrite(bp);
-			} else
+			if (n + on == bsize)
+				bawrite(bp);
+			else
 				bdwrite(bp);
 		} while (error == 0 && uio->uio_resid > 0 && n != 0);
 		return (error);
