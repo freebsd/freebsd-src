@@ -7,6 +7,7 @@ longint pow_qq(longint *ap, longint *bp)
 #endif
 {
 	longint pow, x, n;
+	unsigned long long u;	/* system-dependent */
 
 	x = *ap;
 	n = *bp;
@@ -18,11 +19,12 @@ longint pow_qq(longint *ap, longint *bp)
 			return x == 0 ? 1/x : 0;
 		n = -n;
 		}
+	u = n;
 	for(pow = 1; ; )
 		{
-		if(n & 01)
+		if(u & 01)
 			pow *= x;
-		if(n >>= 1)
+		if(u >>= 1)
 			x *= x;
 		else
 			break;

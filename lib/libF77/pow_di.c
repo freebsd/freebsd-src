@@ -8,6 +8,7 @@ double pow_di(doublereal *ap, integer *bp)
 {
 double pow, x;
 integer n;
+unsigned long u;
 
 pow = 1;
 x = *ap;
@@ -20,11 +21,11 @@ if(n != 0)
 		n = -n;
 		x = 1/x;
 		}
-	for( ; ; )
+	for(u = n; ; )
 		{
-		if(n & 01)
+		if(u & 01)
 			pow *= x;
-		if(n >>= 1)
+		if(u >>= 1)
 			x *= x;
 		else
 			break;
