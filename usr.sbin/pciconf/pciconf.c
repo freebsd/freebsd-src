@@ -43,8 +43,10 @@ static const char rcsid[] =
 #include <sys/pciio.h>
 
 #include "pathnames.h"
+#include "vendors.h"
 
-static void list_devs(void);
+static void list_devs(int vendors);
+static void list_vendor(int vendor, int device);
 static void readit(const char *, const char *, int);
 static void writeit(const char *, const char *, const char *, int);
 static void chkattached(const char *, int);
@@ -55,7 +57,7 @@ static void
 usage()
 {
 	fprintf(stderr, "%s\n%s\n%s\n%s\n",
-		"usage: pciconf -l",
+		"usage: pciconf -l [-v]",
 		"       pciconf -a sel",
 		"       pciconf -r [-b | -h] sel addr",
 		"       pciconf -w [-b | -h] sel addr [value]");
@@ -66,12 +68,12 @@ int
 main(int argc, char **argv)
 {
 	int c;
-	int listmode, readmode, writemode, attachedmode;
+	int listmode, readmode, writemode, attachedmode, vendors;
 	int byte, isshort;
 
-	listmode = readmode = writemode = attachedmode = byte = isshort = 0;
+	listmode = readmode = writemode = attachedmode = vendors = byte = isshort = 0;
 
-	while ((c = getopt(argc, argv, "alrwbh")) != -1) {
+	while ((c = getopt(argc, argv, "alrwbhv")) != -1) {
 		switch(c) {
 		case 'a':
 			attachedmode = 1;
@@ -97,6 +99,10 @@ main(int argc, char **argv)
 			isshort = 1;
 			break;
 
+		case 'v':
+			vendors = 1;
+			break;
+
 		default:
 			usage();
 		}
@@ -109,7 +115,7 @@ main(int argc, char **argv)
 		usage();
 
 	if (listmode) {
-		list_devs();
+		list_devs(vendors);
 	} else if(attachedmode) {
 		chkattached(argv[optind], 
 		       byte ? 1 : isshort ? 2 : 4);
@@ -127,7 +133,7 @@ main(int argc, char **argv)
 }
 
 static void
-list_devs(void)
+list_devs(int vendors)
 {
 	int fd;
 	struct pci_conf_io pc;
@@ -179,10 +185,36 @@ list_devs(void)
 			       (p->pc_subdevice << 16) | p->pc_subvendor,
 			       (p->pc_device << 16) | p->pc_vendor,
 			       p->pc_revid, p->pc_hdr);
+			if (vendors)
+				list_vendor(p->pc_vendor, p->pc_device);
 		}
 	} while (pc.status == PCI_GETCONF_MORE_DEVS);
 
 	close(fd);
+}
+
+static void
+list_vendor(int vendor, int device)
+{
+	struct pci_vendor_information *pv;
+	struct pci_device_information *pd;
+
+	for (pv = pci_vendor_information; pv->desc != NULL; pv++)
+		if (pv->id == vendor)
+			break;
+	if (pv->desc != NULL) {
+	    printf("    <%s>,", pv->desc);
+	} else {
+	    printf("    <unknown vendor 0x%04x>,", vendor);
+	}
+	for (pd = pv->devices; (pd != NULL) && (pd->desc != NULL); pd++)
+		if (pd->id == device)
+			break;
+	if ((pd != NULL) && (pd->desc != NULL)) {
+		printf("<%s>\n", pd->desc);
+	} else {
+		printf("<unknown device 0x%04x>\n", device);
+	}
 }
 
 static struct pcisel
