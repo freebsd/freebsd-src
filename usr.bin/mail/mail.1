@@ -860,10 +860,13 @@ you have changed the escape character, then you should double
 that character in order to send it.
 .El
 .Ss "Mail Options"
-Options are controlled via
+Options can be set with the
 .Ic set
-and
+command
+and can be disabled with the
 .Ic unset
+or
+.Ic set Cm no Ns Ar name
 commands.
 Options may be either binary, in which case it is only
 significant to see whether they are set or not; or string, in which
@@ -880,28 +883,38 @@ to be appended to the end rather than prepended.
 This should always be set (preferably in one of the system-wide
 .Pa mail.rc
 files).
+Default is
+.Va noappend .
 .It Va ask , asksub
 Causes
 .Nm
 to prompt you for the subject of each message you send.
 If
 you respond with simply a newline, no subject field will be sent.
+Default is
+.Va asksub .
 .It Va askbcc
 Causes you to be prompted for additional blind carbon copy recipients at the
 end of each message.
 Responding with a newline indicates your
 satisfaction with the current list.
+Default is
+.Va noaskbcc .
 .It Va askcc
 Causes you to be prompted for additional carbon copy recipients at the
 end of each message.
 Responding with a newline indicates your
 satisfaction with the current list.
+Default is
+.Va noaskcc .
 .It Va autoinc
 Causes new mail to be automatically incorporated when it arrives.
 Setting this is similar to issuing the
 .Ic inc
 command at each prompt, except that the current message is not
 reset when new mail arrives.
+Default is
+.Va noautoinc .
 .It Va autoprint
 Causes the
 .Ic delete
@@ -909,6 +922,23 @@ command to behave like
 .Ic dp ;
 thus, after deleting a message, the next one will be typed
 automatically.
+Default is
+.Va noautoprint .
+.It Va crt
+The valued option
+.Va crt
+is used as a threshold to determine how long a message must
+be before
+.Ev PAGER
+is used to read it.
+If
+.Va crt
+is set without a value,
+then the height of the terminal screen stored in the system
+is used to compute the threshold (see
+.Xr stty 1 ) .
+Default is
+.Va nocrt .
 .It Va debug
 Setting the binary option
 .Va debug
@@ -918,6 +948,8 @@ on the command line and causes
 .Nm
 to output all sorts of information useful for debugging
 .Nm .
+Default is
+.Va nodebug .
 .It Va dot
 The binary option
 .Va dot
@@ -925,12 +957,47 @@ causes
 .Nm
 to interpret a period alone on a line as the terminator
 of a message you are sending.
+Default is
+.Va nodot .
+.It Va escape
+If defined, the first character of this option gives the character to
+use in place of
+.Ql ~
+to denote escapes.
+.It Va flipr
+Reverses the sense of
+.Ic reply
+and
+.Ic Reply
+commands.
+Default is
+.Va noflipr .
+.It Va folder
+The name of the directory to use for storing folders of
+messages.
+If this name begins with a
+.Ql / ,
+.Nm
+considers it to be an absolute pathname; otherwise, the
+folder directory is found relative to your home directory.
+.It Va header
+If defined, initially display message headers when reading mail or
+editing a mail folder.
+Default is
+.Va header .
+This option can be disabled by giving the
+.Fl N
+flag on the command line.
 .It Va hold
 This option is used to hold messages in the system mailbox
 by default.
+Default is
+.Va nohold .
 .It Va ignore
 Causes interrupt signals from your terminal to be ignored and echoed as
 .Li @ Ns 's.
+Default is
+.Va noignore .
 .It Va ignoreeof
 An option related to
 .Va dot
@@ -945,36 +1012,51 @@ as the end of a message.
 also applies to
 .Nm
 command mode.
+Default is
+.Va noignoreeof .
+.It Va indentprefix
+String used by the
+.Ic ~m
+tilde escape for indenting messages, in place of
+the normal tab character
+.Pq Li ^I .
+Be sure to quote the value if it contains
+spaces or tabs.
 .It Va metoo
 Usually, when a group is expanded that contains the sender, the sender
 is removed from the expansion.
 Setting this option causes the sender
 to be included in the group.
-.It Va noheader
-Setting the option
-.Va noheader
-is the same as giving the
-.Fl N
-flag on the command line.
-.It Va nosave
-Normally, when you abort a message with two
-.Tn RUBOUT
-(erase or delete),
-.Nm
-copies the partial letter to the file
-.Pa dead.letter
-in your home directory.
-Setting the binary option
-.Va nosave
-prevents this.
+Default is
+.Va nometoo .
+.It Va quiet
+Suppresses the printing of the version when first invoked.
+Default is
+.Va noquiet .
+.It Va record
+If defined, gives the pathname of the file used to record all outgoing
+mail.
+If not defined, outgoing mail is not saved.
+Default is
+.Va norecord .
 .It Va Replyall
 Reverses the sense of
 .Ic reply
 and
 .Ic Reply
 commands.
-.It Va quiet
-Suppresses the printing of the version when first invoked.
+Default is
+.Va noReplyall .
+.It Va save
+If this option is set, and you abort a message with two
+.Tn RUBOUT
+(erase or delete),
+.Nm
+will copy the partial letter to the file
+.Pa dead.letter
+in your home directory.
+Default is
+.Va save .
 .It Va searchheaders
 If this option is set, then a message-list specifier in the form
 .Dq Li / Ns Ar x Ns Li : Ns Ar y
@@ -1002,12 +1084,19 @@ header fields.
 The check for
 .Qq Li "to"
 is case sensitive, so that
-.Dq Li /to: Ns Ar y
+.Dq Li /To: Ns Ar y
 can be used to limit the search for
 .Ar y
 to just the
 .Dq Li To:
 field.
+Default is
+.Va nosearchheaders .
+.It Va toplines
+If defined, gives the number of lines of a message to be printed out
+with the
+.Ic top
+command; normally, the first five lines are printed.
 .It Va verbose
 Setting the option
 .Va verbose
@@ -1019,9 +1108,16 @@ When
 runs in verbose mode,
 the actual delivery of messages is displayed on the user's
 terminal.
+Default is
+.Va noverbose .
 .El
-.Ss "Option String Values"
-.Bl -tag -width indent
+.Sh ENVIRONMENT
+.Bl -tag -width ".Ev REPLYTO"
+.It Ev DEAD
+Pathname of the file to save partial messages to in case of interrupts
+or delivery errors.
+Default is
+.Pa ~/dead.letter .
 .It Ev EDITOR
 Pathname of the text editor to use in the
 .Ic edit
@@ -1029,12 +1125,30 @@ command and
 .Ic ~e
 escape.
 If not defined, then a default editor is used.
+.It Ev HOME
+Pathname of the user's home directory.
 .It Ev LISTER
 Pathname of the directory lister to use in the
 .Ic folders
 command.
 Default is
 .Pa /bin/ls .
+.It Ev MAIL
+Location of the user's mailbox.
+Default is
+.Pa /var/mail .
+.It Ev MAILRC
+Pathname of file containing initial
+.Nm
+commands.
+Default is
+.Pa ~/.mailrc .
+.It Ev MBOX
+The name of the mailbox file.
+It can be the name of a folder.
+The default is
+.Pa mbox
+in the user's home directory.
 .It Ev PAGER
 Pathname of the program to use in the
 .Ic more
@@ -1061,70 +1175,9 @@ Pathname of the text editor to use in the
 command and
 .Ic ~v
 escape.
-.It Va crt
-The valued option
-.Va crt
-is used as a threshold to determine how long a message must
-be before
-.Ev PAGER
-is used to read it.
-If
-.Va crt
-is set without a value,
-then the height of the terminal screen stored in the system
-is used to compute the threshold (see
-.Xr stty 1 ) .
-.It Va escape
-If defined, the first character of this option gives the character to
-use in the place of
-.Ql ~
-to denote escapes.
-.It Va folder
-The name of the directory to use for storing folders of
-messages.
-If this name begins with a
-.Ql / ,
-.Nm
-considers it to be an absolute pathname; otherwise, the
-folder directory is found relative to your home directory.
-.It Ev MBOX
-The name of the mailbox file.
-It can be the name of a folder.
-The default is
-.Pa mbox
-in the user's home directory.
-.It Va record
-If defined, gives the pathname of the file used to record all outgoing
-mail.
-If not defined, then outgoing mail is not so saved.
-.It Va indentprefix
-String used by the
-.Ic ~m
-tilde escape for indenting messages, in place of
-the normal tab character
-.Pq Li ^I .
-Be sure to quote the value if it contains
-spaces or tabs.
-.It Va toplines
-If defined, gives the number of lines of a message to be printed out
-with the
-.Ic top
-command; normally, the first five lines are printed.
+.It Ev USER
+Login name of the user executing mail.
 .El
-.Sh ENVIRONMENT
-The
-.Nm
-utility utilizes the
-.Ev HOME
-and
-.Ev USER
-environment variables.
-Also, if the
-.Ev MAIL
-environment variable is set, it is used as the
-location of the user's mailbox instead of the
-default in
-.Pa /var/mail .
 .Sh FILES
 .Bl -tag -width ".Pa /usr/share/misc/mail.*help" -compact
 .It Pa /var/mail/*

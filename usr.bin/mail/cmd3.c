@@ -35,9 +35,9 @@
 #if 0
 static char sccsid[] = "@(#)cmd3.c	8.2 (Berkeley) 4/20/95";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "rcv.h"
 #include "extern.h"
@@ -194,7 +194,7 @@ int
 respond(msgvec)
 	int *msgvec;
 {
-	if (value("Replyall") == NULL)
+	if (value("Replyall") == NULL && value("flipr") == NULL)
 		return (dorespond(msgvec));
 	else
 		return (doRespond(msgvec));
@@ -588,7 +588,7 @@ int
 Respond(msgvec)
 	int *msgvec;
 {
-	if (value("Replyall") == NULL)
+	if (value("Replyall") == NULL && value("flipr") == NULL)
 		return (doRespond(msgvec));
 	else
 		return (dorespond(msgvec));

@@ -35,9 +35,9 @@
 #if 0
 static char sccsid[] = "@(#)aux.c	8.1 (Berkeley) 6/6/93";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/time.h>
 
@@ -50,7 +50,7 @@ static const char rcsid[] =
  * Auxiliary functions.
  */
 
-static char *save2str __P((char *, char *));
+static char *save2str(char *, char *);
 
 /*
  * Return a pointer to a dynamic copy of the argument.
@@ -488,7 +488,7 @@ skin(name)
 				lastsp = 0;
 				break;
 			}
-			/* Fall into . . . */
+			/* FALLTHROUGH */
 
 		default:
 			if (lastsp) {
