@@ -64,7 +64,7 @@
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
  *
- * $Id: swap_pager.c,v 1.108 1999/01/21 08:29:09 dillon Exp $
+ * $Id: swap_pager.c,v 1.109 1999/01/21 09:33:07 dillon Exp $
  */
 
 #include <sys/param.h>
@@ -974,7 +974,7 @@ swap_pager_getpages(object, m, count, reqpage)
  *	We need to unbusy the rest on I/O completion.
  */
 
-int
+void
 swap_pager_putpages(object, m, count, sync, rtvals)
 	vm_object_t object;
 	vm_page_t *m;
@@ -984,7 +984,6 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 {
 	int i;
 	int n = 0;
-	int grv = VM_PAGER_OK;
 
 #if !defined(MAX_PERF)
 	if (count && m[0]->object != object) {
@@ -1046,7 +1045,6 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 			for (j = 0; j < n; ++j) {
 				rtvals[i+j] = VM_PAGER_FAIL;
 			}
-			grv = VM_PAGER_FAIL;
 			continue;
 		}
 
@@ -1129,7 +1127,6 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 				rtvals[i+j] = VM_PAGER_PEND;
 
 			splx(s);
-			grv = VM_PAGER_PEND;
 			continue;
 		}
 
@@ -1152,16 +1149,20 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 			tsleep(bp, PVM, "swwrt", 0);
 		}
 
+#if 0
 		if (bp->b_flags & B_ERROR) {
 			grv = VM_PAGER_ERROR;
 		}
+#endif
 
 		for (j = 0; j < n; ++j)
 			rtvals[i+j] = VM_PAGER_PEND;
 
+#if 0
 		if (bp->b_flags & B_ERROR) {
 			grv = VM_PAGER_ERROR;
 		}
+#endif
 
 		/*
 		 * Now that we are through with the bp, we can call the
@@ -1172,8 +1173,6 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 
 		splx(s);
 	}
-
-	return(grv);
 }
 
 /*
