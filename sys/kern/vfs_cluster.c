@@ -236,10 +236,8 @@ cluster_read(vp, filesize, lblkno, size, cred, totread, seqcount, bpp)
 		if ((bp->b_flags & B_ASYNC) || bp->b_iodone != NULL)
 			BUF_KERNPROC(bp);
 		bp->b_iooffset = dbtob(bp->b_blkno);
-		error = VOP_STRATEGY(vp, bp);
+		bstrategy(bp);
 		curproc->p_stats->p_ru.ru_inblock++;
-		if (error)
-			return (error);
 	}
 
 	/*
@@ -291,7 +289,7 @@ cluster_read(vp, filesize, lblkno, size, cred, totread, seqcount, bpp)
 		if ((rbp->b_flags & B_ASYNC) || rbp->b_iodone != NULL)
 			BUF_KERNPROC(rbp);
 		rbp->b_iooffset = dbtob(rbp->b_blkno);
-		(void) VOP_STRATEGY(vp, rbp);
+		bstrategy(rbp);
 		curproc->p_stats->p_ru.ru_inblock++;
 	}
 
@@ -824,7 +822,6 @@ cluster_wbuild(vp, size, start_lbn, len)
 		TAILQ_INIT(&bp->b_cluster.cluster_head);
 		bp->b_bcount = 0;
 		bp->b_magic = tbp->b_magic;
-		bp->b_op = tbp->b_op;
 		bp->b_bufobj = tbp->b_bufobj;
 		bp->b_bufsize = 0;
 		bp->b_npages = 0;

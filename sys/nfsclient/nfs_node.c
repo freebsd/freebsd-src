@@ -247,6 +247,10 @@ loop:
 		return (error);
 	}
 	vp = nvp;
+	if (nmp->nm_flag & NFSMNT_NFSV4)
+		vp->v_bufobj.bo_ops = &buf_ops_nfs4;
+	else
+		vp->v_bufobj.bo_ops = &buf_ops_nfs;
 	bzero((caddr_t)np, sizeof *np);
 	vp->v_data = np;
 	np->n_vnode = vp;

@@ -2930,7 +2930,7 @@ nfs_writebp(struct buf *bp, int force __unused, struct thread *td)
 
 	BUF_KERNPROC(bp);
 	bp->b_iooffset = dbtob(bp->b_blkno);
-	VOP_STRATEGY(bp->b_vp, bp);
+	bstrategy(bp);
 
 	if( (oldflags & B_ASYNC) == 0) {
 		int rtval = bufwait(bp);
@@ -3053,3 +3053,20 @@ nfsfifo_close(struct vop_close_args *ap)
 	return (VOCALL(fifo_vnodeop_p, VOFFSET(vop_close), ap));
 }
 
+/*
+ * Just call nfs_writebp() with the force argument set to 1.
+ *
+ * NOTE: B_DONE may or may not be set in a_bp on call.
+ */
+static int
+nfs_bwrite(struct buf *bp)
+{
+
+	return (nfs_writebp(bp, 1, curthread));
+}
+
+struct buf_ops buf_ops_nfs = {
+	.bop_name	=	"buf_ops_nfs",
+	.bop_write	=	nfs_bwrite,
+	.bop_strategy	=	bufstrategy,
+};
