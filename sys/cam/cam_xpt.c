@@ -5790,6 +5790,15 @@ xpt_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_ed *device,
 			cts->sync_offset = 0;
 		}
 
+		/*
+		 * Don't allow DT transmission rates if the
+		 * device does not support it.
+		 */
+		if ((device->flags & CAM_DEV_INQUIRY_DATA_VALID) != 0
+		 && (inq_data->spi3data & SID_SPI_CLOCK_DT) == 0
+		 && cts->sync_period <= 0x9)
+			cts->sync_period = 0xa;
+
 		switch (cts->bus_width) {
 		case MSG_EXT_WDTR_BUS_32_BIT:
 			if (((device->flags & CAM_DEV_INQUIRY_DATA_VALID) == 0
