@@ -715,9 +715,6 @@ imalloc(size_t size)
     else
 	result =  malloc_pages(size);
 
-    if (malloc_abort && !result)
-	wrterror("allocation failed.\n");
-
     if (malloc_zero && result)
 	memset(result, 0, size);
 
@@ -1067,6 +1064,7 @@ malloc(size_t size)
     if (malloc_active++) {
 	wrtwarning("recursive call.\n");
         malloc_active--;
+        THREAD_UNLOCK();
 	return (0);
     }
     if (!malloc_started)
