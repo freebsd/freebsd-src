@@ -121,7 +121,7 @@ supports a number of socket options which can be set with
 .Xr setsockopt 2
 and tested with
 .Xr getsockopt 2 :
-.Bl -tag -width ".Dv TCP_NODELAY"
+.Bl -tag -width ".Dv TCP_SIGNATURE_ENABLE"
 .It Dv TCP_NODELAY
 Under most circumstances,
 .Tn TCP
@@ -175,6 +175,31 @@ When this option is set to a non-zero value,
 .Tn TCP
 will delay sending any data at all until either the socket is closed,
 or the internal send buffer is filled.
+.It Dv TCP_SIGNATURE_ENABLE
+This option enables the use of MD5 digests (also known as TCP-MD5)
+on writes to the specified socket.
+In the current release, only outgoing traffic is digested;
+digests on incoming traffic are not verified.
+The current default behavior for the system is to respond to a system
+advertising this option with TCP-MD5; this may change.
+.Pp
+One common use for this in a FreeBSD router deployment is to enable
+based routers to interwork with Cisco equipment at peering points.
+Support for this feature conforms to RFC 2385.
+Only IPv4 (AF_INET) sessions are supported.
+.Pp
+In order for this option to function correctly, it is necessary for the
+administrator to add a tcp-md5 key entry to the system's security
+associations database (SADB) using the
+.Xr setkey 8
+utility.
+This entry must have an SPI of 0x1000 and can therefore only be specified
+on a per-host basis at this time.
+.Pp
+If an SADB entry cannot be found for the destination, the outgoing traffic
+will have an invalid digest option prepended, and the following error message
+will be visible on the system console:
+.Em "tcpsignature_compute: SADB lookup failed for %d.%d.%d.%d" .
 .El
 .Pp
 The option level for the
@@ -489,7 +514,8 @@ address.
 .Xr intro 4 ,
 .Xr ip 4 ,
 .Xr syncache 4 ,
-.Xr ttcp 4
+.Xr ttcp 4 ,
+.Xr setkey 8
 .Rs
 .%A "V. Jacobson"
 .%A "R. Braden"
@@ -501,6 +527,11 @@ address.
 .%A "R. Braden"
 .%T "T/TCP \- TCP Extensions for Transactions"
 .%O "RFC 1644"
+.Re
+.Rs
+.%A "A. Heffernan"
+.%T "Protection of BGP Sessions via the TCP MD5 Signature Option"
+.%O "RFC 2385"
 .Re
 .Sh HISTORY
 The
