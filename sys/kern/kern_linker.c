@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1997 Doug Rabson
+ * Copyright (c) 1997-2000 Doug Rabson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -46,6 +46,8 @@
 
 #include <vm/vm_zone.h>
 
+#include "linker_if.h"
+
 #ifdef KLD_DEBUG
 int kld_debug = 0;
 #endif
@@ -59,6 +61,16 @@ static linker_class_list_t classes;
 static linker_file_list_t linker_files;
 static int next_file_id = 1;
 
+static char *
+linker_strdup(const char *str)
+{
+    char	*result;
+
+    if ((result = malloc((strlen(str) + 1), M_LINKER, M_WAITOK)) != NULL)
+	strcpy(result, str);
+    return(result);
+}
+
 static void
 linker_init(void* arg)
 {
@@ -70,21 +82,10 @@ linker_init(void* arg)
 SYSINIT(linker, SI_SUB_KLD, SI_ORDER_FIRST, linker_init, 0);
 
 int
-linker_add_class(const char* desc, void* priv,
-		 struct linker_class_ops* ops)
+linker_add_class(linker_class_t lc)
 {
-    linker_class_t lc;
-
-    lc = malloc(sizeof(struct linker_class), M_LINKER, M_NOWAIT);
-    if (!lc)
-	return ENOMEM;
-    bzero(lc, sizeof(*lc));
-
-    lc->desc = desc;
-    lc->priv = priv;
-    lc->ops = ops;
+    kobj_class_compile((kobj_class_t) lc);
     TAILQ_INSERT_HEAD(&classes, lc, link);
-
     return 0;
 }
 
@@ -267,9 +268,9 @@ linker_load_file(const char* filename, linker_file_t* result)
 	KLD_DPF(FILE, ("linker_load_file: trying to load %s as %s\n",
 		       filename, lc->desc));
 
-	error = lc->ops->load_file(koname, &lf);	/* First with .ko */
+	error = LINKER_LOAD_FILE(lc, koname, &lf);	/* First with .ko */
 	if (lf == NULL && error == ENOENT)
-	    error = lc->ops->load_file(filename, &lf);	/* Then try without */
+	    error = LINKER_LOAD_FILE(lc, filename, &lf); /* Then try without */
 	/*
 	 * If we got something other than ENOENT, then it exists but we cannot
 	 * load it for some other reason.
@@ -341,10 +342,9 @@ linker_find_file_by_id(int fileid)
 }
 
 linker_file_t
-linker_make_file(const char* pathname, void* priv, struct linker_file_ops* ops)
+linker_make_file(const char* pathname, linker_class_t lc)
 {
     linker_file_t lf = 0;
-    int namelen;
     const char *filename;
 
     filename = rindex(pathname, '/');
@@ -355,25 +355,20 @@ linker_make_file(const char* pathname, void* priv, struct linker_file_ops* ops)
 
     KLD_DPF(FILE, ("linker_make_file: new file, filename=%s\n", filename));
     lockmgr(&lock, LK_EXCLUSIVE, 0, curproc);
-    namelen = strlen(filename) + 1;
-    lf = malloc(sizeof(struct linker_file) + namelen, M_LINKER, M_WAITOK);
+    lf = (linker_file_t) kobj_create((kobj_class_t) lc, M_LINKER, M_WAITOK);
     if (!lf)
 	goto out;
-    bzero(lf, sizeof(*lf));
 
     lf->refs = 1;
     lf->userrefs = 0;
     lf->flags = 0;
-    lf->filename = (char*) (lf + 1);
-    strcpy(lf->filename, filename);
+    lf->filename = linker_strdup(filename);
     lf->id = next_file_id++;
     lf->ndeps = 0;
     lf->deps = NULL;
     STAILQ_INIT(&lf->common);
     TAILQ_INIT(&lf->modules);
 
-    lf->priv = priv;
-    lf->ops = ops;
     TAILQ_INSERT_TAIL(&linker_files, lf, link);
 
 out:
@@ -438,8 +433,9 @@ linker_file_unload(linker_file_t file)
 	free(cp, M_LINKER);
     }
 
-    file->ops->unload(file);
-    free(file, M_LINKER);
+    LINKER_UNLOAD(file);
+    free(file->filename, M_LINKER);
+    kobj_delete((kobj_t) file, M_LINKER);
 
 out:
     return error;
@@ -480,8 +476,8 @@ linker_file_lookup_symbol(linker_file_t file, const char* name, int deps)
     KLD_DPF(SYM, ("linker_file_lookup_symbol: file=%x, name=%s, deps=%d\n",
 		  file, name, deps));
 
-    if (file->ops->lookup_symbol(file, name, &sym) == 0) {
-	file->ops->symbol_values(file, sym, &symval);
+    if (LINKER_LOOKUP_SYMBOL(file, name, &sym) == 0) {
+	LINKER_SYMBOL_VALUES(file, sym, &symval);
 	if (symval.value == 0)
 	    /*
 	     * For commons, first look them up in the dependancies and
@@ -581,7 +577,7 @@ linker_ddb_lookup(const char *symstr, c_linker_sym_t *sym)
     linker_file_t lf;
 
     for (lf = TAILQ_FIRST(&linker_files); lf; lf = TAILQ_NEXT(lf, link)) {
-	if (lf->ops->lookup_symbol(lf, symstr, sym) == 0)
+	if (LINKER_LOOKUP_SYMBOL(lf, symstr, sym) == 0)
 	    return 0;
     }
     return ENOENT;
@@ -599,7 +595,7 @@ linker_ddb_search_symbol(caddr_t value, c_linker_sym_t *sym, long *diffp)
     best = 0;
     bestdiff = off;
     for (lf = TAILQ_FIRST(&linker_files); lf; lf = TAILQ_NEXT(lf, link)) {
-	if (lf->ops->search_symbol(lf, value, &es, &diff) != 0)
+	if (LINKER_SEARCH_SYMBOL(lf, value, &es, &diff) != 0)
 	    continue;
 	if (es != 0 && diff < bestdiff) {
 	    best = es;
@@ -625,7 +621,7 @@ linker_ddb_symbol_values(c_linker_sym_t sym, linker_symval_t *symval)
     linker_file_t lf;
 
     for (lf = TAILQ_FIRST(&linker_files); lf; lf = TAILQ_NEXT(lf, link)) {
-	if (lf->ops->symbol_values(lf, sym, symval) == 0)
+	if (LINKER_SYMBOL_VALUES(lf, sym, symval) == 0)
 	    return 0;
     }
     return ENOENT;
@@ -857,8 +853,8 @@ kldsym(struct proc *p, struct kldsym_args *uap)
 	    error = ENOENT;
 	    goto out;
 	}
-	if (lf->ops->lookup_symbol(lf, symstr, &sym) == 0 &&
-	    lf->ops->symbol_values(lf, sym, &symval) == 0) {
+	if (LINKER_LOOKUP_SYMBOL(lf, symstr, &sym) == 0 &&
+	    LINKER_SYMBOL_VALUES(lf, sym, &symval) == 0) {
 	    lookup.symvalue = (uintptr_t)symval.value;
 	    lookup.symsize = symval.size;
 	    error = copyout(&lookup, SCARG(uap, data), sizeof(lookup));
@@ -866,8 +862,8 @@ kldsym(struct proc *p, struct kldsym_args *uap)
 	    error = ENOENT;
     } else {
 	for (lf = TAILQ_FIRST(&linker_files); lf; lf = TAILQ_NEXT(lf, link)) {
-	    if (lf->ops->lookup_symbol(lf, symstr, &sym) == 0 &&
-		lf->ops->symbol_values(lf, sym, &symval) == 0) {
+	    if (LINKER_LOOKUP_SYMBOL(lf, symstr, &sym) == 0 &&
+		LINKER_SYMBOL_VALUES(lf, sym, &symval) == 0) {
 		lookup.symvalue = (uintptr_t)symval.value;
 		lookup.symsize = symval.size;
 		error = copyout(&lookup, SCARG(uap, data), sizeof(lookup));
@@ -920,7 +916,7 @@ linker_preload(void* arg)
 	}
 	lf = NULL;
 	for (lc = TAILQ_FIRST(&classes); lc; lc = TAILQ_NEXT(lc, link)) {
-	    error = lc->ops->load_file(modname, &lf);
+	    error = LINKER_LOAD_FILE(lc, modname, &lf);
 	    if (error) {
 		lf = NULL;
 		break;
@@ -974,16 +970,6 @@ static char linker_path[MAXPATHLEN] = "/;/boot/;/modules/";
 
 SYSCTL_STRING(_kern, OID_AUTO, module_path, CTLFLAG_RW, linker_path,
 	      sizeof(linker_path), "module load search path");
-
-static char *
-linker_strdup(const char *str)
-{
-    char	*result;
-
-    if ((result = malloc((strlen(str) + 1), M_LINKER, M_WAITOK)) != NULL)
-	strcpy(result, str);
-    return(result);
-}
 
 char *
 linker_search_path(const char *name)
