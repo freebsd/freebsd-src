@@ -69,7 +69,7 @@ CPIO_CPIO+=	usr/bin/awk usr/bin/chgrp usr/bin/ftp
 CPIO_CPIO+=	usr/bin/more usr/bin/tar usr/bin/tip
 CPIO_CPIO+=	usr/bin/elvis usr/bin/ex usr/bin/vi usr/bin/view
 CPIO_CPIO+=	usr/sbin/update usr/sbin/chown
-CPIO_CPIO_DIRS=	var var/tmp var/spool var/spool/lock
+CPIO_CPIO_DIRS=	var var/tmp var/run var/spool var/spool/lock
 
 CRYPT_LIB=	lib/libcrypt
 CRYPT_SRCS=	bin/ed bin/rcp
