@@ -92,6 +92,11 @@ struct clockframe {
 
 #ifdef _KERNEL
 
+#ifdef GPROF
+extern char btext[];
+extern char etext[];
+#endif
+
 #define	cpu_getstack(td)	(alpha_pal_rdusp())
 #define	cpu_spinwait()		/* nothing */
 #define	get_cyclecount		alpha_rpcc
