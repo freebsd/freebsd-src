@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)device_pager.c	8.1 (Berkeley) 6/11/93
- * $Id: device_pager.c,v 1.8 1995/04/16 12:56:11 davidg Exp $
+ * $Id: device_pager.c,v 1.9 1995/05/10 18:56:01 davidg Exp $
  */
 
 /*
@@ -175,7 +175,7 @@ top:
 		/*
 		 * Allocate object and associate it with the pager.
 		 */
-		object = devp->devp_object = vm_object_allocate(0);
+		object = devp->devp_object = vm_object_allocate(foff + size);
 		object->flags &= ~OBJ_INTERNAL;
 		vm_object_enter(object, pager);
 		object->pager = pager;
@@ -203,6 +203,8 @@ top:
 		 * Gain a reference to the object.
 		 */
 		object = vm_object_lookup(pager);
+		if (foff + size > object->size)
+			object->size = foff + size;
 #ifdef DIAGNOSTIC
 		devp = (dev_pager_t) pager->pg_data;
 		if (object != devp->devp_object)
@@ -293,8 +295,6 @@ dev_pager_getpage(pager, m, sync)
 	s = splhigh();
 	vm_page_insert(page, object, offset);
 	splx(s);
-	if (offset + PAGE_SIZE > object->size)
-		object->size = offset + PAGE_SIZE;	/* XXX anal */
 	vm_object_unlock(object);
 
 	return (VM_PAGER_OK);
