@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  * from: @(#)nfsswapvmunix.c	8.1 (Berkeley) 6/10/93
- * $Id: nfsswapkernel.c,v 1.3 1997/02/22 09:28:14 peter Exp $
+ * $Id: nfsswapkernel.c,v 1.4 1997/09/07 12:56:37 bde Exp $
  */
 
 /*
@@ -56,7 +56,6 @@ extern int nfs_mountroot();
 int (*mountroot)() = nfs_mountroot;
 
 dev_t	rootdev = NODEV;
-dev_t	argdev  = NODEV;
 dev_t	dumpdev = NODEV;
 
 struct nfs_diskless nfs_diskless = {

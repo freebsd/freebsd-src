@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.98 1997/09/03 09:18:48 phk Exp $
+ * $Id: vfs_subr.c,v 1.99 1997/09/03 13:29:41 phk Exp $
  */
 
 /*
@@ -703,7 +703,7 @@ reassignbuf(bp, newvp)
 #ifndef DEVFS_ROOT
 /*
  * Create a vnode for a block device.
- * Used for root filesystem, argdev, and swap areas.
+ * Used for root filesystem and swap areas.
  * Also used for memory file system special devices.
  */
 int
