@@ -346,13 +346,10 @@ wtmp()
 							    86400, ct);
 					}
 				}
-				LIST_REMOVE(tt, list);
-				free(tt);
 				if (maxrec != -1 && !--maxrec)
 					return;
-			} else {
-				tt->logout = bp->ut_time;
 			}
+			tt->logout = bp->ut_time;
 		}
 	}
 	tm = localtime(&buf[0].ut_time);
