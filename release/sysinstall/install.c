@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.70 1995/05/30 08:28:41 rgrimes Exp $
+ * $Id: install.c,v 1.70.2.1 1995/05/31 09:05:38 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -145,7 +145,8 @@ installInitial(void)
 	return FALSE;
 
     /* Figure out what kind of MBR the user wants */
-    dmenuOpenSimple(&MenuMBRType);
+    if (!dmenuOpenSimple(&MenuMBRType))
+	return FALSE;
     mbrContents = NULL;
     cp = getenv("bootManager");
     if (cp) {
@@ -230,9 +231,6 @@ installInitial(void)
 int
 installCommit(char *str)
 {
-    FILE *fp;
-    static Boolean hostsModified = FALSE;
-
     if (!Dists) {
 	msgConfirm("You haven't told me what distributions to load yet!\nPlease select a distribution from the Distributions menu.");
 	return 0;
@@ -248,14 +246,6 @@ installCommit(char *str)
     }
     distExtractAll();
 
-    /* Tack ourselves at the end of /etc/hosts */
-    if (RunningAsInit && getenv(VAR_IPADDR) && !hostsModified) {
-	fp = fopen("/etc/hosts", "a");
-	fprintf(fp, "%s\t\t%s\n", getenv(VAR_IPADDR), getenv(VAR_HOSTNAME));
-	fclose(fp);
-	hostsModified = TRUE;
-    }
-    /* If there's no kernel but there is a kernel.GENERIC, link it over */
     if (access("/kernel", R_OK))
 	vsystem("ln -f /kernel.GENERIC /kernel");
 

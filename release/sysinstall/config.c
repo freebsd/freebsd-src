@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.15.2.1 1995/05/30 19:24:44 jkh Exp $
+ * $Id: config.c,v 1.15.2.2 1995/05/31 00:44:36 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -294,10 +294,12 @@ void
 configResolv(void)
 {
     FILE *fp;
+    static Boolean hostsModified = FALSE;
 
     if (!getenv(VAR_DOMAINNAME) || !getenv(VAR_NAMESERVER)) {
-	msgConfirm("Warning: You haven't set a domain name or nameserver.  You will need\nto configure your /etc/resolv.conf file manually to fully use network services.");
-	return;
+	if (mediaDevice && (mediaDevice->type == DEVICE_TYPE_NFS || mediaDevice->type == DEVICE_TYPE_FTP))
+	    msgConfirm("Warning:  Missing domain name or name server value - this installation\nmethod may or may not work properly!");
+	goto skip;
     }
     Mkdir("/etc", NULL);
     fp = fopen("/etc/resolv.conf", "w");
@@ -308,6 +310,16 @@ configResolv(void)
     fprintf(fp, "domain\t%s\n", getenv(VAR_DOMAINNAME));
     fprintf(fp, "nameserver\t%s\n", getenv(VAR_NAMESERVER));
     fclose(fp);
+
+skip:
+    /* Tack ourselves at the end of /etc/hosts */
+    if (getenv(VAR_IPADDR) && !hostsModified) {
+	fp = fopen("/etc/hosts", "a");
+	fprintf(fp, "%s\t\t%s\n", getenv(VAR_IPADDR), getenv(VAR_HOSTNAME));
+	fclose(fp);
+	hostsModified = TRUE;
+    }
+    /* If there's no kernel but there is a kernel.GENERIC, link it over */
 }
 
 int

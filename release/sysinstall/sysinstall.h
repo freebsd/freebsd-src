@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.40 1995/05/29 11:01:37 jkh Exp $
+ * $Id: sysinstall.h,v 1.41 1995/05/30 08:28:55 rgrimes Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -317,9 +317,8 @@ extern int	distSetSrc(char *str);
 extern void	distExtractAll(void);
 
 /* dmenu.c */
-extern void	dmenuOpen(DMenu *menu, int *choice, int *scroll,
-			  int *curr, int *max);
-extern void	dmenuOpenSimple(DMenu *menu);
+extern Boolean	dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max);
+extern Boolean	dmenuOpenSimple(DMenu *menu);
 
 /* dos.c */
 extern Boolean	mediaInitDOS(Device *dev);
@@ -451,7 +450,8 @@ extern void	mediaShutdownTape(Device *dev);
 
 /* tcpip.c */
 extern int	tcpOpenDialog(Device *dev);
-extern int	tcpDeviceSelect(char *str);
+extern int	tcpMenuSelect(char *str);
+extern Boolean	tcpDeviceSelect(void);
 
 /* termcap.c */
 extern int	set_termcap(void);

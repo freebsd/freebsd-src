@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: dmenu.c,v 1.10 1995/05/24 17:49:13 jkh Exp $
+ * $Id: dmenu.c,v 1.11 1995/05/30 08:28:33 rgrimes Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -48,17 +48,17 @@
 static DMenuItem shellAction = { NULL, NULL, DMENU_SHELL_ESCAPE, NULL, 0 };
 
 /* Traverse menu but give user no control over positioning */
-void
+Boolean
 dmenuOpenSimple(DMenu *menu)
 {
     int choice, scroll, curr, max;
 
     choice = scroll = curr = max = 0;
-    dmenuOpen(menu, &choice, &scroll, &curr, &max);
+    return dmenuOpen(menu, &choice, &scroll, &curr, &max);
 }
 
 /* Traverse over an internal menu */
-void
+Boolean
 dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max)
 {
     char result[FILENAME_MAX];
@@ -137,7 +137,7 @@ dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max)
 		    if (decode_and_dispatch_multiple(menu, result) ||
 			menu->options & DMENU_SELECTION_RETURNS) {
 			items_free(nitems, curr, max);
-			return;
+			return TRUE;
 		    }
 		}
 	    }
@@ -150,12 +150,12 @@ dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max)
 	    tmp = &shellAction;
 	else {
 	    items_free(nitems, curr, max);
-	    return;
+	    return FALSE;
 	}
 	if (dispatch(tmp, result) ||
 	    menu->options & DMENU_SELECTION_RETURNS) {
 	    items_free(nitems, curr, max);
-	    return;
+	    return TRUE;
 	}
     }
 }

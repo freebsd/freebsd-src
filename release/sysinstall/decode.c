@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: decode.c,v 1.4 1995/05/17 14:39:35 jkh Exp $
+ * $Id: decode.c,v 1.5 1995/05/30 08:28:24 rgrimes Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -74,7 +74,7 @@ dispatch(DMenuItem *tmp, char *name)
 
 	/* It's a sub-menu; recurse on it */
     case DMENU_SUBMENU:
-	dmenuOpenSimple((DMenu *)tmp->ptr);
+	(void)dmenuOpenSimple((DMenu *)tmp->ptr);
 	break;
 
 	/* Execute it as a system command */
