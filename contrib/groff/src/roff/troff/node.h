@@ -106,11 +106,11 @@ struct node {
   virtual const char *type() = 0;
 };
 
-inline node::node() : next(0)
+inline node::node() : next(0), last(0)
 {
 }
 
-inline node::node(node *n) : next(n)
+inline node::node(node *n) : next(n), last(0)
 {
 }
 
