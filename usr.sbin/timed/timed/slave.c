@@ -36,7 +36,7 @@ static char sccsid[] = "@(#)slave.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
 #ifdef sgi
-#ident "$Revision: 1.20 $"
+#ident "$Revision: 1.1.1.1 $"
 #endif
 
 #include "globals.h"
@@ -294,7 +294,7 @@ loop:
 #else
 				logwtmp("|", "date", "");
 				(void)settimeofday(&msg->tsp_time, 0);
-				logwtmp("}", "date", "");
+				logwtmp("{", "date", "");
 #endif /* sgi */
 				syslog(LOG_NOTICE,
 				       "date changed by %s from %s",
