@@ -727,7 +727,7 @@ if [ -r /etc/mail/submit.cf ]; then
 	case ${sendmail_msp_queue_enable} in
 	[Yy][Ee][Ss])
 		echo -n ' sendmail-clientmqueue'
-		/usr/sbin/sendmail ${sendmail_msp_queue_flags} &
+		/usr/sbin/sendmail ${sendmail_msp_queue_flags}
 		;;
 	esac
 fi
