@@ -18,7 +18,7 @@
 #
 # Otherwise, the SUBDIR list should be in alphabetical order.
 
-SUBDIR=	${_csu} libcom_err ${_libcrypt} msun libmd \
+SUBDIR=	${_csu} libcom_err libcrypt msun libmd \
 	libncurses libradius libskey libtacplus libutil \
 	${_compat} libalias libatm ${_libbind} libc ${_libc_r} libcalendar \
 	libcam libcompat libdevstat libdisk libedit libfetch libform \
@@ -40,13 +40,6 @@ _libc_r=	libc_r
 
 .if !defined(NO_BIND)
 _libbind=	libbind
-.endif
-
-_libcrypt=	libcrypt
-.if exists(${.CURDIR}/../secure) && !defined(NOSECURE) && !defined(NOCRYPT) && !defined(NO_DESCRYPT)
-# Build both libraries. They have different names, so no harm,
-# and this avoids having stale libscrypt.*
-_libcrypt+=	../secure/lib/libcrypt
 .endif
 
 .if ${MACHINE_ARCH} == "i386"
