@@ -69,7 +69,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: if_ppp.c,v 1.54 1998/03/22 06:51:54 peter Exp $ */
+/* $Id: if_ppp.c,v 1.55 1998/03/30 09:51:52 phk Exp $ */
 /* from if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp */
 /* from NetBSD: if_ppp.c,v 1.15.2.2 1994/07/28 05:17:58 cgd Exp */
 
@@ -291,7 +291,7 @@ pppdealloc(sc)
 
     if_down(&sc->sc_if);
     sc->sc_if.if_flags &= ~(IFF_UP|IFF_RUNNING);
-    microtime(&sc->sc_if.if_lastchange);
+    getmicrotime(&sc->sc_if.if_lastchange);
     sc->sc_devp = NULL;
     sc->sc_xfer = 0;
     for (;;) {
