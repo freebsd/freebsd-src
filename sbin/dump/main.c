@@ -321,8 +321,8 @@ main(int argc, char *argv[])
 
 			snprintf(snapname, sizeof snapname,
 			    "%s/.snap/dump_snapshot", mntpt);
-			snprintf(snapcmd, sizeof snapcmd,
-			    "mksnap_ffs %s %s", mntpt, snapname);
+			snprintf(snapcmd, sizeof snapcmd, "%s %s %s",
+			    _PATH_MKSNAP_FFS, mntpt, snapname);
 			unlink(snapname);
 			if (system(snapcmd) != 0)
 				errx(X_STARTUP, "Cannot create %s: %s\n",
