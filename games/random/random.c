@@ -42,42 +42,72 @@ static const char copyright[] =
 
 #ifndef lint
 #if 0
-static char sccsid[] = "@(#)random.c	8.5 (Berkeley) 4/5/94";
+static const char sccsid[] = "@(#)random.c	8.5 (Berkeley) 4/5/94";
 #endif
-static const char rcsid[] =
- "$FreeBSD$";
 #endif /* not lint */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 
 #include <err.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 #include <unistd.h>
 
-void usage __P((void));
+#include "randomize_fd.h"
+
+static void usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	double denom;
-	int ch, random_exit, selected, unbuffer_output;
-	char *ep;
+	int ch, fd, random_exit, randomize_lines, random_type, ret,
+		selected, unique_output, unbuffer_output;
+	char *ep, *filename;
 
-	random_exit = unbuffer_output = 0;
 	denom = 0;
-	while ((ch = getopt(argc, argv, "er")) != -1)
+	filename = NULL;
+	random_type = RANDOM_TYPE_UNSET;
+	random_exit = randomize_lines = random_type = unbuffer_output = 0;
+	unique_output = 1;
+	while ((ch = getopt(argc, argv, "ef:hlruUw")) != -1)
 		switch (ch) {
 		case 'e':
 			random_exit = 1;
 			break;
+		case 'f':
+			randomize_lines = 1;
+			if (!strcmp(optarg, "-"))
+				filename = strdup("/dev/fd/0");
+			else
+				filename = optarg;
+			break;
+		case 'l':
+			randomize_lines = 1;
+			random_type = RANDOM_TYPE_LINES;
+			break;
 		case 'r':
 			unbuffer_output = 1;
+			break;
+		case 'u':
+			randomize_lines = 1;
+			unique_output = 1;
+			break;
+		case 'U':
+			randomize_lines = 1;
+			unique_output = 0;
+			break;
+		case 'w':
+			randomize_lines = 1;
+			random_type = RANDOM_TYPE_WORDS;
 			break;
 		default:
 		case '?':
@@ -90,7 +120,7 @@ main(argc, argv)
 
 	switch (argc) {
 	case 0:
-		denom = 2;
+		denom = (randomize_lines ? 1 : 2);
 		break;
 	case 1:
 		errno = 0;
@@ -109,16 +139,28 @@ main(argc, argv)
 
 	srandomdev();
 
-	/* Compute a random exit status between 0 and denom - 1. */
-	if (random_exit)
-		return ((denom * random()) / LONG_MAX);
-
 	/*
 	 * Act as a filter, randomly choosing lines of the standard input
 	 * to write to the standard output.
 	 */
 	if (unbuffer_output)
 		setbuf(stdout, NULL);
+
+	/*
+	 * Act as a filter, randomizing lines read in from a given file
+	 * descriptor and write the output to standard output.
+	 */
+	if (randomize_lines) {
+		if ((fd = open(filename, O_RDONLY, 0)) < 0)
+			err(1, "%s", filename);
+		ret = randomize_fd(fd, random_type, unique_output, denom);
+		if (!random_exit)
+			return(ret);
+	}
+
+	/* Compute a random exit status between 0 and denom - 1. */
+	if (random_exit)
+		return (int)((denom * random()) / LONG_MAX);
 
 	/*
 	 * Select whether to print the first line.  (Prime the pump.)
@@ -144,10 +186,10 @@ main(argc, argv)
 	exit (0);
 }
 
-void
-usage()
+static void
+usage(void)
 {
 
-	(void)fprintf(stderr, "usage: random [-er] [denominator]\n");
+	fprintf(stderr, "usage: random [-elruUw] [-f filename] [denominator]\n");
 	exit(1);
 }
