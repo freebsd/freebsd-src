@@ -50,6 +50,7 @@
 #include <resolv.h>
 
 static Boolean got_intr = FALSE;
+static Boolean ftp_skip_resolve = FALSE;
 
 /* timeout handler */
 static void
@@ -392,7 +393,7 @@ mediaSetFTP(dialogMenuItem *self)
 	msgDebug("dir = `%s'\n", dir ? dir : "/");
 	msgDebug("port # = `%d'\n", FtpPort);
     }
-    if (variable_get(VAR_NAMESERVER)) {
+    if (!ftp_skip_resolve && variable_get(VAR_NAMESERVER)) {
 	msgNotify("Looking up host %s.", hostname);
     	if (isDebug())
 	    msgDebug("Starting DNS.\n");
@@ -452,22 +453,22 @@ mediaSetFTPPassive(dialogMenuItem *self)
 
 int mediaSetHTTP(dialogMenuItem *self)
 {
+    Boolean tmp;
     int result;
-    char *cp, *idx, hbuf[MAXHOSTNAMELEN], *hostname, *var_hostname;
+    char *cp, *idx, hbuf[MAXHOSTNAMELEN], *hostname;
     int HttpPort;
     int what = DITEM_RESTORE;
 
 
-    var_hostname = variable_get(VAR_NAMESERVER);
-    variable_unset(VAR_NAMESERVER);
+    tmp = ftp_skip_resolve;
+    ftp_skip_resolve = TRUE;
     result = mediaSetFTP(self);
-    if (var_hostname)
-	variable_set2(VAR_NAMESERVER, var_hostname, 0);
+    ftp_skip_resolve = tmp;
 
     if (DITEM_STATUS(result) != DITEM_SUCCESS)
 	return result;
  
-    cp = variable_get_value(VAR_HTTP_PATH,
+    cp = variable_get_value(VAR_HTTP_PROXY,
 	"Please enter the address of the HTTP proxy in this format:\n"
 	" hostname:port (the ':port' is optional, default is 3128)",0);
     if (!cp)
