@@ -477,7 +477,7 @@ pr_header(nowp, nusers)
 	else {
 		(void)printf(", load averages:");
 		for (i = 0; i < (sizeof(avenrun) / sizeof(avenrun[0])); i++)
-			(void)printf("%s %.2f", i > 0 ? "," : "", avenrun[i]);
+			(void)printf("  %.2f", avenrun[i]);
 		(void)printf("\n");
 	}
 }
