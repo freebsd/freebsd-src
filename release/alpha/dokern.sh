@@ -6,7 +6,7 @@
 #	XXX sort by order in GENERIC, not alphabetical
 
 sed	\
-	-e 's/ident.*GENERIC/ident		BOOTMFS/g'
+	-e 's/ident.*GENERIC/ident		BOOTMFS/g' \
 	-e '/DEBUG/d' \
 	-e '/DEC_KN8AE/d' \
 	-e '/SOFTUPDATES/d' \
@@ -62,6 +62,9 @@ sed	\
 	-e '/	firewire	/d' \
 	-e '/	sbp	/d' \
 	-e '/	fwe	/d' \
+
+#	XXX: blank line above intentional so lines may be added below the last
+#	entry with ease.
 
 echo "options  SCSI_NO_OP_STRINGS" 
 echo "options  SCSI_NO_SENSE_STRINGS"
