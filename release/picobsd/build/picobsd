@@ -144,6 +144,15 @@ set_defaults() {
     free_vnode			# cleanup old vnodes
 }
 
+create_includes_and_libraries2() {
+    log "create_includes_and_libraries2() for ${SRC}"
+    MAKEOBJDIRPREFIX=${l_objtree}
+    export MAKEOBJDIRPREFIX
+    ( cd ${SRC};
+    make -DNOCLEAN -DNOPROFILE -DNOGAMES -DNOLIBC_R -DPICOBSD buildworld
+    )
+}
+
 create_includes_and_libraries() {
     log "create_includes_and_libraries() for ${SRC}"
     # Optionally creates include directory and libraries.
@@ -263,6 +272,12 @@ build_image() {
     PICO_OBJ=${l_objtree}/picobsd/${THETYPE}
     log "PICO_OBJ is ${PICO_OBJ}"
 
+    if [ ${OSVERSION} -ge 500035 ] ; then
+	MAKEOBJDIRPREFIX=${l_objtree}
+	export MAKEOBJDIRPREFIX
+	log `cd ${SRC}; make -f Makefile.inc1 -V WMAKEENV`
+	eval export `cd ${SRC}; make -f Makefile.inc1 -V WMAKEENV`
+    fi
     # create build directory and subtree
     mkdir -p ${BUILDDIR}/crunch
     # remove any old stuff
@@ -435,7 +450,8 @@ Your options:\n\
 # invoke the Makefile to compile the kernel.
 do_kernel() {		# OK
     log "do_kernel() Preparing kernel \"$name\" in $MY_TREE"
-    (cd $MY_TREE; export name SRC CONFIG BUILDDIR # used in this makefile ;
+    (cd $MY_TREE; export name SRC BUILDDIR # used in this makefile ;
+	# export CONFIG
 	if [ "${o_do_modules}" = "yes" ] ; then
 		MODULES=""
 		export MODULES
@@ -572,7 +588,8 @@ populate_mfs_tree() {
 	make -m ${SRC}/share/mk \
 		-v -f ${PICO_TREE}/build/Makefile.conf ${BUILDDIR}/crunch.mk )
     log "Libs are ${LIBS} "
-    export SRC LIBS CFLAGS # used by crunch.mk
+    export SRC # used by crunch.mk
+    # export LIBS CFLAGS
     log "Now make -f crunch.mk"
     make -m ${SRC}/share/mk ${o_makeopts} -f ${BUILDDIR}/crunch.mk
     strip --remove-section=.note --remove-section=.comment crunch1
@@ -793,22 +810,12 @@ fill_floppy_image() {
 
     (
     cd ${BUILDDIR}
-    log "Preload kernel with file ${c_fs}"
-if [ true ] ; then
-    if [ -f ${PICO_TREE}/build/write_mfs_in_kernel.c ] ; then
-	cc -o wmk ${PICO_TREE}/build/write_mfs_in_kernel.c
-    else
-	cc -o wmk ${PICO_TREE}/../write_mfs_in_kernel.c
-    fi
-    ./wmk kernel ${c_fs} || fail $? no_mfs
-    rm wmk
-else	# not working yet, just a reminder
-    objdump -h kernel
-    objcopy --remove-section=md_root kernel
-    objcopy --add-section md_root=${c_fs} kernel
-    objcopy --set-section-flags md_root=contents,alloc,load,data kernel
-    objdump -h kernel
-fi
+    # $1 takes the offset of the MFS filesystem
+    set `strings -at d kernel | grep "MFS Filesystem goes here"`
+    mfs_ofs=$(($1 + 8192))
+    log "Preload kernel with file ${c_fs} at ${mfs_ofs}"
+    dd if=${c_fs} ibs=8192 iseek=1 of=kernel obs=${mfs_ofs} \
+	oseek=1 conv=notrunc
     log "Compress with kgzip and copy to floppy image"
     kgzip -o kernel.gz kernel
     cp -p kernel.gz ${dst}/kernel || fail $? no_space "copying kernel"
@@ -830,7 +837,7 @@ fi
 }
 
 # This function creates variables which depend on the source tree in use:
-# SRC, l_usrtree, l_objtree LIBS, CFLAGS
+# SRC, l_usrtree, l_objtree
 # Optionally creates libraries, includes and the like (for cross compiles,
 # needs to be done once).
 
@@ -843,16 +850,25 @@ set_build_parameters() {
     fi
     l_objtree=${l_usrtree}/obj-pico
     PICO_TREE=${PICO_TREE:-${SRC}/release/picobsd}
-
+    set `grep "#define[\t ]__FreeBSD_version" ${SRC}/sys/sys/param.h`
+    OSVERSION=$3
+    logverbose "OSVERSION is ${OSVERSION}"
     if [ "${o_init_src}" != "" ] ; then
-	create_includes_and_libraries
+	if [ ${OSVERSION} -lt 500035 ] ; then
+	    create_includes_and_libraries
+	else
+	    create_includes_and_libraries2
+	fi
     fi
-    # Create the right LIBS and CFLAGS for further builds.
-    # and build the config program
-    LIBS="-L${l_usrtree}/lib"
-    CFLAGS="-nostdinc -I${l_usrtree}/include"
-    export LIBS CFLAGS
-    CONFIG=${l_usrtree}/sbin/config
+    if [ ${OSVERSION} -lt 500035 ] ; then
+	# Create the right LIBS and CFLAGS for further builds.
+	# and build the config program
+	LIBS="-L${l_usrtree}/lib"
+	CFLAGS="-nostdinc -I${l_usrtree}/include"
+	export LIBS CFLAGS
+	CONFIG=${l_usrtree}/sbin/config
+	export CONFIG
+    fi
 }
 
 #-------------------------------------------------------------------
