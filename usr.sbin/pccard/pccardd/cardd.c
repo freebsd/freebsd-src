@@ -358,16 +358,18 @@ escape:
 		bzero(sp->eaddr, sizeof(sp->eaddr));
 	}
 	if (sp->cis->manufacturer && sp->cis->product) {
-		sp->manufacturer=sp->cis->manufacturer;
-		sp->product=sp->cis->product;
-		if(sp->cis->prodext) {
-			sp->prodext=sp->cis->prodext; /* For xe driver */
-		}
+		sp->manufacturer = sp->cis->manufacturer;
+		sp->product = sp->cis->product;
+		sp->prodext = sp->cis->prodext; /* For xe driver */
 	} else {
-		sp->manufacturer=0;
-		sp->product=0;
-		sp->prodext=0;
+		sp->manufacturer = 0;
+		sp->product = 0;
+		sp->prodext = 0;
 	}
+	if (sp->cis->manuf)
+		strlcpy(sp->manufstr, sp->cis->manuf, sizeof(sp->manufstr));
+	if (sp->cis->vers)
+		strlcpy(sp->versstr, sp->cis->vers, sizeof(sp->versstr));
 
 	if (cp->ether) {
 		struct ether *e = 0;
@@ -639,7 +641,7 @@ assign_card_index(struct slot *sp, struct cis * cis)
 					goto next;
 		}
 		return cp;	/* found */
-	next:
+	next:;
 	}
 	return cis->def_config;
 }
@@ -990,6 +992,8 @@ setup_slot(struct slot *sp)
 	drv.manufacturer = sp->manufacturer;
 	drv.product = sp->product;
 	drv.prodext = sp->prodext;
+	strlcpy(drv.manufstr, sp->manufstr, sizeof(drv.manufstr));
+	strlcpy(drv.versstr, sp->versstr, sizeof(drv.versstr));
 	/*
 	 * If the driver fails to be connected to the device,
 	 * then it may mean that the driver did not recognise it.
