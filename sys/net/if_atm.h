@@ -261,6 +261,38 @@ struct atmllc {
 	(X)->type[1] = ((V) & 0xff);		\
     } while (0)
 
+/*
+ * Events that are emitted by the driver. Currently the only consumer
+ * of this is the netgraph node.
+ */
+#define	ATMEV_FLOW_CONTROL	0x0001	/* channel busy state changed */
+#define	ATMEV_IFSTATE_CHANGED	0x0002	/* up/down or carrier */
+#define	ATMEV_VCC_CHANGED	0x0003	/* PVC deleted/create */
+#define	ATMEV_ACR_CHANGED	0x0004	/* ABR ACR has changed */
+
+struct atmev_flow_control {
+	uint16_t	vpi;		/* channel that is changed */
+	uint16_t	vci;
+	u_int		busy : 1;	/* != 0 -> ATM layer busy */
+};
+
+struct atmev_ifstate_changed {
+	u_int		running : 1;	/* interface is running now */
+	u_int		carrier : 1;	/* carrier detected (or not) */
+};
+
+struct atmev_vcc_changed {
+	uint16_t	vpi;		/* channel that is changed */
+	uint16_t	vci;
+	u_int		up : 1;		/* 1 - created, 0 - deleted */
+};
+
+struct atmev_acr_changed {
+	uint16_t	vpi;		/* channel that is changed */
+	uint16_t	vci;
+	uint32_t	acr;		/* new ACR */
+};
+
 #ifdef _KERNEL
 void	atm_ifattach(struct ifnet *);
 void	atm_ifdetach(struct ifnet *);
@@ -270,4 +302,42 @@ int	atm_output(struct ifnet *, struct mbuf *, struct sockaddr *,
 	    struct rtentry *);
 struct atmio_vcctable *atm_getvccs(struct atmio_vcc **, u_int, u_int,
 	    struct mtx *, int);
+
+void	atm_event(struct ifnet *, u_int, void *);
+
+#define	ATMEV_SEND_FLOW_CONTROL(ATMIF, VPI, VCI, BUSY)			\
+	do {								\
+		struct atmev_flow_control _arg;				\
+		_arg.vpi = (VPI);					\
+		_arg.vci = (VCI);					\
+		_arg.busy = (BUSY);					\
+		atm_event(&(ATMIF)->ifnet, ATMEV_FLOW_CONTROL, &_arg);	\
+	} while (0)
+
+#define	ATMEV_SEND_VCC_CHANGED(ATMIF, VPI, VCI, UP)			\
+	do {								\
+		struct atmev_vcc_changed _arg;				\
+		_arg.vpi = (VPI);					\
+		_arg.vci = (VCI);					\
+		_arg.up = (UP);						\
+		atm_event(&(ATMIF)->ifnet, ATMEV_VCC_CHANGED, &_arg);	\
+	} while (0)
+
+#define	ATMEV_SEND_IFSTATE_CHANGED(ATMIF, CARRIER)			\
+	do {								\
+		struct atmev_ifstate_changed _arg;			\
+		_arg.running = (((ATMIF)->ifnet.if_flags &		\
+		    IFF_RUNNING) != 0);					\
+		_arg.carrier = ((CARRIER) != 0);			\
+		atm_event(&(ATMIF)->ifnet, ATMEV_IFSTATE_CHANGED, &_arg); \
+	} while (0)
+
+#define	ATMEV_SEND_ACR_CHANGED(ATMIF, VPI, VCI, ACR)			\
+	do {								\
+		struct atmev_acr_changed _arg;				\
+		_arg.vpi = (VPI);					\
+		_arg.vci = (VCI);					\
+		_arg.acr= (ACR);					\
+		atm_event(&(ATMIF)->ifnet, ATMEV_ACR_CHANGED, &_arg);	\
+	} while (0)
 #endif
