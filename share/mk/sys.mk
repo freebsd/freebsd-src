@@ -1,5 +1,5 @@
 #	from: @(#)sys.mk	8.2 (Berkeley) 3/21/94
-#	$Id: sys.mk,v 1.6 1994/09/07 06:52:25 rgrimes Exp $
+#	$Id: sys.mk,v 1.7 1994/10/02 05:12:46 rgrimes Exp $
 
 unix		?=	We run FreeBSD, not UNIX.
 
@@ -7,9 +7,7 @@ unix		?=	We run FreeBSD, not UNIX.
 
 .LIBS:		.a
 
-# A few things need X11 so we might as well centralize it so that the
-# transition to X11R6 is easier.
-X11BASE		?=	/usr/X386
+X11BASE		?=	/usr/X11R6
 
 AR		?=	ar
 ARFLAGS		?=	rl
@@ -23,7 +21,7 @@ CC		?=	cc
 .if ${MACHINE} == "sparc"
 CFLAGS		?=	-O4
 .else
-CFLAGS		?=	-O
+CFLAGS		?=	-O2
 .endif
 
 CXX		?=	c++
