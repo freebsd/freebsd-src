@@ -527,6 +527,8 @@
             ..
             zh_CN.eucCN
             ..
+            zh_HK.Big5HKSCS
+            ..
             zh_TW.Big5
             ..
         ..
@@ -860,6 +862,8 @@
             zh_CN.GBK
             ..
             zh_CN.eucCN
+            ..
+            zh_HK.Big5HKSCS
             ..
             zh_TW.Big5
             ..
