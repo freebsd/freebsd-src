@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.46 1998/04/14 23:17:24 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.47 1998/04/16 00:25:49 brian Exp $
  */
 
 #include <sys/types.h>
@@ -267,7 +267,8 @@ bundle_LayerFinish(void *v, struct fsm *fp)
   struct datalink *dl;
 
   if (fp->proto == PROTO_IPCP) {
-    bundle_NewPhase(bundle, PHASE_TERMINATE);
+    if (bundle_Phase(bundle) != PHASE_DEAD)
+      bundle_NewPhase(bundle, PHASE_TERMINATE);
     for (dl = bundle->links; dl; dl = dl->next)
       datalink_Close(dl, 0);
     FsmDown(fp);
@@ -786,6 +787,11 @@ bundle_LinkClosed(struct bundle *bundle, struct datalink *dl)
   if (!other_links) {
     if (dl->physical->type != PHYS_DEMAND)
       bundle_DownInterface(bundle);
+    if (bundle->ncp.ipcp.fsm.state > ST_CLOSED ||
+        bundle->ncp.ipcp.fsm.state == ST_STARTING) {
+      FsmDown(&bundle->ncp.ipcp.fsm);
+      FsmClose(&bundle->ncp.ipcp.fsm);		/* ST_INITIAL please */
+    }
     bundle_NewPhase(bundle, PHASE_DEAD);
     bundle_DisplayPrompt(bundle);
   }
