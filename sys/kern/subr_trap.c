@@ -131,7 +131,6 @@ ast(framep)
 #endif
 
 	KASSERT(TRAPF_USERMODE(framep), ("ast in kernel mode"));
-	KASSERT(td->td_ucred == NULL, ("leaked ucred"));
 #ifdef WITNESS
 	if (witness_list(td))
 		panic("Returning to user mode with mutex(s) held");
@@ -161,6 +160,30 @@ ast(framep)
 			p->p_stats->p_prof.pr_ticks = 0;
 		}
 		mtx_unlock_spin(&sched_lock);
+
+#ifdef DIAGNOSTIC
+		/*
+		 * As a diagnostic tool we make sure that td->td_ucred
+		 * is NULL while we are in user space. This is
+		 * because theoreticaly this field is only defined
+		 * while the thread is in the kernel. Making it NULL
+		 * will immediatly trap invalid usage of this field.
+		 * In practice however we keep the reference to the ucred
+		 * because it's almost always going to be the same cred we will
+		 * need at the next syscall, and it can be expensive
+		 * to keep dropping and reacquiring the reference.
+		 * We thus stash it away elsewhere until we return
+		 * to the kernel, where we bring it back. If 
+		 * DIAGNOSTIC is not defined we don't bother with
+		 * making it NULL, and just leave it in place.
+		 * (don't remove this comment without removing the pointers
+		 * to it in sys/proc.h, */*/trap.c, kern/kern_fork.c and here.)
+		 */
+		if (td->td_ucred)
+			panic("ast:thread got a cred before reaching AST");
+		td->td_ucred = td->td_ucred_cache;
+		td->td_ucred_cache = NULL;
+#endif /* DIAGNOSTIC */
 		if (td->td_ucred != p->p_ucred) 
 			cred_update_thread(td);
 		if (flags & KEF_OWEUPC && sflag & PS_PROFIL)
@@ -187,12 +210,13 @@ ast(framep)
 		}
 
 		userret(td, framep, sticks);
-#ifdef	INVARIANTS
-		mtx_lock(&Giant);
-		crfree(td->td_ucred);
-		mtx_unlock(&Giant);
+#ifdef DIAGNOSTIC			/* see comment above */
+		if (td->td_ucred_cache)
+			panic("ast:thread already has cached ucred");
+		td->td_ucred_cache = td->td_ucred;
 		td->td_ucred = NULL;
-#endif
+#endif /* DIAGNOSTIC */
+
 		s = cpu_critical_enter();
 	}
 	mtx_assert(&Giant, MA_NOTOWNED);

@@ -175,7 +175,12 @@ trap(struct trapframe *tf)
 	if ((type & T_KERNEL) == 0) {
 		sticks = td->td_kse->ke_sticks;
 		td->td_frame = tf;
-		KASSERT(td->td_ucred == NULL, ("already have a ucred"));
+#ifdef DIAGNOSTIC 			/* see the comment in ast() */
+		if (td->td_ucred)
+			panic("trap:thread got a cred while userspace");
+		td->td_ucred = td->td_ucred_cache;
+		td->td_ucred_cache = NULL;
+#endif /* DIAGNOSTIC */
 		if (td->td_ucred != p->p_ucred)
 			cred_update_thread(td);
  	} else {
@@ -379,12 +384,12 @@ trapsig:
 user:
 	userret(td, tf, sticks);
 	mtx_assert(&Giant, MA_NOTOWNED);
-#ifdef	INVARIANTS
-	mtx_lock(&Giant);
-	crfree(td->td_ucred);
-	mtx_unlock(&Giant);
-	td->td_ucred = NULL;
-#endif
+#ifdef DIAGNOSTIC 			/* see the comment in ast() */
+	if (td->td_ucred_cache)
+		panic("trap:thread already has cached ucred");
+	td->td_ucred_cache = td->td_ucred;
+       	td->td_ucred = NULL;
+#endif /* DIAGNOSTIC */
 out:
 	CTR1(KTR_TRAP, "trap: td=%p return", td);
 	return;
@@ -540,7 +545,12 @@ syscall(struct trapframe *tf)
 
 	sticks = td->td_kse->ke_sticks;
 	td->td_frame = tf;
-	KASSERT(td->td_ucred == NULL, ("already have a ucred"));
+#ifdef DIAGNOSTIC 			/* see the comment in ast() */
+	if (td->td_ucred)
+		panic("syscall:thread got a cred while userspace");
+	td->td_ucred = td->td_ucred_cache;
+	td->td_ucred_cache = NULL;
+#endif /* DIAGNOSTIC */
 	if (td->td_ucred != p->p_ucred)
 		cred_update_thread(td);
 	code = tf->tf_global[1];
@@ -677,12 +687,12 @@ bad:
 	 */
 	STOPEVENT(p, S_SCX, code);
 
-#ifdef	INVARIANTS
-	mtx_lock(&Giant);
-	crfree(td->td_ucred);
-	mtx_unlock(&Giant);
-	td->td_ucred = NULL;
-#endif
+#ifdef DIAGNOSTIC 			/* see the comment in ast() */
+	if (td->td_ucred_cache)
+		panic("syscall:thread already has cached ucred");
+	td->td_ucred_cache = td->td_ucred;
+       	td->td_ucred = NULL;
+#endif /* DIAGNOSTIC */
 #ifdef WITNESS
 	if (witness_list(td)) {
 		panic("system call %s returning with mutex(s) held\n",
