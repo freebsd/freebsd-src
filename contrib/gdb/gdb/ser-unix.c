@@ -1,5 +1,5 @@
 /* Serial interface for local (hardwired) serial ports on Un*x like systems
-   Copyright 1992, 1993, 1994 Free Software Foundation, Inc.
+   Copyright 1992, 1993, 1994, 1998 Free Software Foundation, Inc.
 
 This file is part of GDB.
 
@@ -69,12 +69,25 @@ static int hardwire_readchar PARAMS ((serial_t scb, int timeout));
 static int rate_to_code PARAMS ((int rate));
 static int hardwire_setbaudrate PARAMS ((serial_t scb, int rate));
 static int hardwire_write PARAMS ((serial_t scb, const char *str, int len));
-/* FIXME: static void hardwire_restore PARAMS ((serial_t scb)); */
 static void hardwire_close PARAMS ((serial_t scb));
 static int get_tty_state PARAMS ((serial_t scb, struct hardwire_ttystate *state));
 static int set_tty_state PARAMS ((serial_t scb, struct hardwire_ttystate *state));
 static serial_ttystate hardwire_get_tty_state PARAMS ((serial_t scb));
 static int hardwire_set_tty_state PARAMS ((serial_t scb, serial_ttystate state));
+static int hardwire_noflush_set_tty_state PARAMS ((serial_t, serial_ttystate,
+						   serial_ttystate));
+static void hardwire_print_tty_state PARAMS ((serial_t, serial_ttystate));
+static int hardwire_drain_output PARAMS ((serial_t));
+static int hardwire_flush_output PARAMS ((serial_t));
+static int hardwire_flush_input PARAMS ((serial_t));
+static int hardwire_send_break PARAMS ((serial_t));
+static int hardwire_setstopbits PARAMS ((serial_t, int));
+
+void _initialize_ser_hardwire PARAMS ((void));
+
+#ifdef __CYGWIN32__
+extern void (*ui_loop_hook) PARAMS ((int));
+#endif
 
 /* Open up a real live device for serial I/O */
 
@@ -91,13 +104,11 @@ hardwire_open(scb, name)
 }
 
 static int
-get_tty_state(scb, state)
+get_tty_state (scb, state)
      serial_t scb;
      struct hardwire_ttystate *state;
 {
 #ifdef HAVE_TERMIOS
-  extern int errno;
-
   if (tcgetattr(scb->fd, &state->termios) < 0)
     return -1;
 
@@ -269,6 +280,38 @@ hardwire_print_tty_state (scb, ttystate)
 #endif
 }
 
+/* Wait for the output to drain away, as opposed to flushing (discarding) it */
+
+static int
+hardwire_drain_output (scb)
+     serial_t scb;
+{
+#ifdef HAVE_TERMIOS
+  return tcdrain (scb->fd);
+#endif
+
+#ifdef HAVE_TERMIO
+  return ioctl (scb->fd, TCSBRK, 1);
+#endif
+
+#ifdef HAVE_SGTTY
+  /* Get the current state and then restore it using TIOCSETP,
+     which should cause the output to drain and pending input
+     to be discarded. */
+  {
+    struct hardwire_ttystate state;
+    if (get_tty_state (scb, &state))
+      {
+	return (-1);
+      }
+    else
+      {
+	return (ioctl (scb->fd, TIOCSETP, &state.sgttyb));
+      }
+  }
+#endif  
+}
+
 static int
 hardwire_flush_output (scb)
      serial_t scb;
@@ -391,7 +434,9 @@ wait_for(scb, timeout)
      serial_t scb;
      int timeout;
 {
+#ifndef __CYGWIN32__
   scb->timeout_remaining = 0;
+#endif
 
 #ifdef HAVE_SGTTY
   {
@@ -500,21 +545,37 @@ wait_for(scb, timeout)
    to wait, or -1 to wait forever.  Use timeout of 0 to effect a poll.  Returns
    char if successful.  Returns SERIAL_TIMEOUT if timeout expired, EOF if line
    dropped dead, or SERIAL_ERROR for any other error (see errno in that case).  */
-
 static int
-hardwire_readchar(scb, timeout)
+hardwire_readchar (scb, timeout)
      serial_t scb;
      int timeout;
 {
   int status;
+#ifdef __CYGWIN32__
+  int t;
+#endif
 
   if (scb->bufcnt-- > 0)
     return *scb->bufp++;
 
+#ifdef __CYGWIN32__
+  if (timeout > 0)
+    timeout++;
+#endif
+
   while (1)
     {
-      status = wait_for (scb, timeout);
+#ifdef __CYGWIN32__
+      t = timeout == 0 ? 0 : 1;
+      scb->timeout_remaining = timeout < 0 ? timeout : timeout - t;
+      status = wait_for (scb, t);
 
+      /* -2 means disable timer */
+      if (ui_loop_hook)
+        ui_loop_hook (-2);
+#else
+      status = wait_for (scb, timeout);
+#endif
       if (status < 0)
 	return status;
 
@@ -531,6 +592,10 @@ hardwire_readchar(scb, timeout)
 		  timeout = scb->timeout_remaining;
 		  continue;
 		}
+#ifdef __CYGWIN32__
+          else if (scb->timeout_remaining < 0)
+            continue;
+#endif
 	      else
 		return SERIAL_TIMEOUT;
 	    }
@@ -590,6 +655,9 @@ baudtab[] =
 #endif
 #ifdef B230400
   {230400, B230400},
+#endif
+#ifdef B460800
+  {460800, B460800},
 #endif
   {-1, -1},
 };
@@ -733,6 +801,7 @@ static struct serial_ops hardwire_ops =
   hardwire_noflush_set_tty_state,
   hardwire_setbaudrate,
   hardwire_setstopbits,
+  hardwire_drain_output,	/* wait for output to drain */
 };
 
 void

@@ -795,7 +795,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 	case N_LBRAC:
 	case N_NSYMS:		/* Ultrix 4.0: symbol count */
 	case N_DEFD:		/* GNU Modula-2 */
+#if 0	/* XXX remove when binutils 2.9.2 is imported */
 	case N_ALIAS:		/* SunPro F77: alias name, ignore for now.  */
+#endif
 
 	case N_OBJ:		/* useless types from Solaris */
 	case N_OPT:
