@@ -16,6 +16,7 @@ $FreeBSD$
 #include "opie_cfg.h"
 #include "opie.h"
 
+#include <sha.h>
 #include <md4.h>
 #include <md5.h>
 
@@ -23,20 +24,18 @@ VOIDRET opiehashlen FUNCTION((algorithm, in, out, n), int algorithm AND VOIDPTR 
 {
   UINT4 *results = (UINT4 *)out;
   UINT4 mdx_tmp[4];
-#if 0
-  SHA_INFO sha;
-#endif /* 0 */
 
   switch(algorithm) {
-#if 0
-    case 3:
-      sha_init(&sha);
-      sha_update(&sha, (BYTE *)in, n);
-      sha_final(&sha);
-      results[0] = sha.digest[0] ^ sha.digest[2] ^ sha.digest[4];
-      results[1] = sha.digest[1] ^ sha.digest[3] ^ sha.digest[5];
+    case 3: {
+      SHA_CTX sha;
+      UINT4 digest[5];
+      SHA1_Init(&sha);
+      SHA1_Update(&sha, (unsigned char *)in, n);
+      SHA1_Final((unsigned char *)digest, &sha);
+      results[0] = digest[0] ^ digest[2] ^ digest[4];
+      results[1] = digest[1] ^ digest[3];
       break;
-#endif /* 0 */
+    }
     case 4: {
       MD4_CTX mdx;
       MD4Init(&mdx);
