@@ -710,8 +710,6 @@ fts_build(sp, type)
 			cur->fts_flags |= FTS_DONTCHDIR;
 			descend = 0;
 			cderrno = errno;
-			(void)closedir(dirp);
-			dirp = NULL;
 		} else
 			descend = 1;
 	} else
