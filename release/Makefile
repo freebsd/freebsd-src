@@ -889,9 +889,6 @@ fixit.flp:
 	@rm -f release.4 release.9
 	@cd ${.CURDIR} && ${MAKE} release.4 release.9 CRUNCH_TARGETS=fixit
 
-write_mfs_in_kernel:	${.CURDIR}/write_mfs_in_kernel.c
-	${CC} ${CFLAGS} -o write_mfs_in_kernel ${.CURDIR}/write_mfs_in_kernel.c
-
 installCRUNCH:
 .if !defined(CRUNCH)
 	@echo "CRUNCH undefined in installCRUNCH" && exit 1
