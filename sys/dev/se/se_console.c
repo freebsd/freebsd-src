@@ -66,7 +66,7 @@
 
 #define	KTR_SE	KTR_CT4
 
-#define	CDEV_MAJOR	200
+#define	CDEV_MAJOR	168
 
 static	cn_probe_t	se_cnprobe;
 static	cn_init_t	se_cninit;
