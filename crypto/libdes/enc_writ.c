@@ -1,9 +1,9 @@
 /* crypto/des/enc_writ.c */
-/* Copyright (C) 1995-1997 Eric Young (eay@mincom.oz.au)
+/* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
  * This package is an SSL implementation written
- * by Eric Young (eay@mincom.oz.au).
+ * by Eric Young (eay@cryptsoft.com).
  * The implementation was written so as to conform with Netscapes SSL.
  * 
  * This library is free for commercial and non-commercial use as long as
@@ -11,7 +11,7 @@
  * apply to all code found in this distribution, be it the RC4, RSA,
  * lhash, DES, etc., code; not just the SSL code.  The SSL documentation
  * included with this distribution is covered by the same copyright terms
- * except that the holder is Tim Hudson (tjh@mincom.oz.au).
+ * except that the holder is Tim Hudson (tjh@cryptsoft.com).
  * 
  * Copyright remains Eric Young's, and as such any Copyright notices in
  * the code are not to be removed.
@@ -31,12 +31,12 @@
  * 3. All advertising materials mentioning features or use of this software
  *    must display the following acknowledgement:
  *    "This product includes cryptographic software written by
- *     Eric Young (eay@mincom.oz.au)"
+ *     Eric Young (eay@cryptsoft.com)"
  *    The word 'cryptographic' can be left out if the rouines from the library
  *    being used are not cryptographic related :-).
  * 4. If you include any Windows specific code (or a derivative thereof) from 
  *    the apps directory (application code) you must include an acknowledgement:
- *    "This product includes software written by Tim Hudson (tjh@mincom.oz.au)"
+ *    "This product includes software written by Tim Hudson (tjh@cryptsoft.com)"
  * 
  * THIS SOFTWARE IS PROVIDED BY ERIC YOUNG ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -54,40 +54,52 @@
  * derivative of this code cannot be changed.  i.e. this code cannot simply be
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
+ * 
+ * $FreeBSD$
  */
 
 #include <sys/types.h>
 #include <sys/uio.h>
 #include <errno.h>
+#include <stdio.h>
 #include <time.h>
 #include <unistd.h>
 
 #include "des_locl.h"
 
-int des_enc_write(fd, buf, len, sched, iv)
-int fd;
-char *buf;
-int len;
-des_key_schedule sched;
-des_cblock (*iv);
+/*
+ * WARNINGS:
+ *
+ *  -  The data format used by des_enc_write() and des_enc_read()
+ *     has a cryptographic weakness: When asked to write more
+ *     than MAXWRITE bytes, des_enc_write will split the data
+ *     into several chunks that are all encrypted
+ *     using the same IV.  So don't use these functions unless you
+ *     are sure you know what you do (in which case you might
+ *     not want to use them anyway).
+ *
+ *  -  This code cannot handle non-blocking sockets.
+ */
+
+int des_enc_write(int fd, const void *_buf, int len,
+		  des_key_schedule sched, des_cblock *iv)
 	{
 #ifdef _LIBC
-	extern int srandom();
 	extern unsigned long time();
-	extern int random();
 	extern int write();
 #endif
-
+	const unsigned char *buf=_buf;
 	long rnum;
 	int i,j,k,outnum;
-	char *outbuf=NULL;
-	char shortbuf[8];
-	char *p;
+	static unsigned char *outbuf=NULL;
+	unsigned char shortbuf[8];
+	unsigned char *p;
+	const unsigned char *cp;
 	static int start=1;
 
 	if (outbuf == NULL)
 		{
-		outbuf=(char *)malloc(BSIZE+HDRSIZE);
+		outbuf=malloc(BSIZE+HDRSIZE);
 		if (outbuf == NULL) return(-1);
 		}
 	/* If we are sending less than 8 bytes, the same char will look
@@ -95,7 +107,6 @@ des_cblock (*iv);
 	if (start)
 		{
 		start=0;
-		srandom((unsigned int)time(NULL));
 		}
 
 	/* lets recurse if we want to send the data in small chunks */
@@ -121,35 +132,32 @@ des_cblock (*iv);
 	/* pad short strings */
 	if (len < 8)
 		{
-		p=shortbuf;
-		memcpy(shortbuf,buf,(unsigned int)len);
-		for (i=len; i<8; i++)
-			shortbuf[i]=random();
+		cp=shortbuf;
+		memcpy(shortbuf,buf,len);
+		des_rand_data(shortbuf+len, 8-len);
 		rnum=8;
 		}
 	else
 		{
-		p=buf;
+		cp=(unsigned char*)buf;
 		rnum=((len+7)/8*8); /* round up to nearest eight */
 		}
 
 	if (des_rw_mode & DES_PCBC_MODE)
-		des_pcbc_encrypt((des_cblock *)p,
-			(des_cblock *)&(outbuf[HDRSIZE]),
-			(long)((len<8)?8:len),sched,iv,DES_ENCRYPT); 
+		des_pcbc_encrypt(cp,&(outbuf[HDRSIZE]),(len<8)?8:len,sched,iv,
+				 DES_ENCRYPT); 
 	else
-		des_cbc_encrypt((des_cblock *)p,
-			(des_cblock *)&(outbuf[HDRSIZE]),
-			(long)((len<8)?8:len),sched,iv,DES_ENCRYPT); 
+		des_cbc_encrypt(cp,&(outbuf[HDRSIZE]),(len<8)?8:len,sched,iv,
+				DES_ENCRYPT); 
 
 	/* output */
-	outnum=(int)rnum+HDRSIZE;
+	outnum=rnum+HDRSIZE;
 
 	for (j=0; j<outnum; j+=i)
 		{
 		/* eay 26/08/92 I was not doing writing from where we
 		 * got upto. */
-		i=write(fd,&(outbuf[j]),(unsigned int)(outnum-j));
+		i=write(fd,&(outbuf[j]),outnum-j);
 		if (i == -1)
 			{
 			if (errno == EINTR)

@@ -1,9 +1,9 @@
 /* lib/des/version.h */
-/* Copyright (C) 1995 Eric Young (eay@mincom.oz.au)
+/* Copyright (C) 1995 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  * 
  * This file is part of an SSL implementation written
- * by Eric Young (eay@mincom.oz.au).
+ * by Eric Young (eay@cryptsoft.com).
  * The implementation was written so as to conform with Netscapes SSL
  * specification.  This library and applications are
  * FREE FOR COMMERCIAL AND NON-COMMERCIAL USE
@@ -25,7 +25,7 @@
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
  *    must display the following acknowledgement:
- *    This product includes software developed by Eric Young (eay@mincom.oz.au)
+ *    This product includes software developed by Eric Young (eay@cryptsoft.com)
  * 
  * THIS SOFTWARE IS PROVIDED BY ERIC YOUNG ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -43,6 +43,8 @@
  * derivative of this code cannot be changed.  i.e. this code cannot simply be
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
+ * 
+ * $FreeBSD$
  */
 
 extern char *DES_version;

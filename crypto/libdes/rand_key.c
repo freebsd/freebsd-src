@@ -54,10 +54,13 @@
  * derivative of this code cannot be changed.  i.e. this code cannot simply be
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
+ * 
+ * $FreeBSD$
  */
 
 #include "des_locl.h"
 #include <time.h>
+#include <unistd.h>
 
 static int seed=0;
 static des_cblock init;
