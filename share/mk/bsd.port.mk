@@ -19,6 +19,9 @@
 # MASTER_SITES	- Primary location(s) for distribution files if not found
 #				  locally (default:
 #				   ftp://ftp.freebsd.org/pub/FreeBSD/ports/distfiles)
+# PATCH_SITES	- Primary location(s) for distributed patch files
+#				  (see PATCHFILES below) if not found locally (default:
+#				   ftp://ftp.freebsd.org/pub/FreeBSD/ports/distfiles)
 #
 # MASTER_SITE_OVERRIDE - If set, override the MASTER_SITES setting with this
 #				  value.
@@ -28,6 +31,8 @@
 #				  going locally to each port). (default: ${PORTSDIR}/packages).
 # GMAKE			- Set to path of GNU make if not in $PATH (default: gmake).
 # XMKMF			- Set to path of `xmkmf' if not in $PATH (default: xmkmf -a ).
+# MAINTAINER	- The e-mail address of the contact person for this port
+#				  (default: ports@FreeBSD.ORG).
 #
 # Variables that typically apply to an individual port.  Non-Boolean
 # variables without defaults are *mandatory*.
@@ -41,13 +46,19 @@
 # DISTNAME		- Name of port or distribution.
 # DISTFILES		- Name(s) of archive file(s) containing distribution
 #				  (default: ${DISTDIR}/${DISTNAME}${EXTRACT_SUFX}).
+# PATCHFILES	- Name(s) of additional files that contain distributed
+#				  patches (default: none).  make will look for them at
+#				  PATCH_SITES (see above).  They will automatically be
+#				  uncompressed before patching if the names end with
+#				  ".gz" or ".Z".
 # PKGNAME		- Name of the package file to create if the DISTNAME 
 #				  isn't really relevant for the port/package
 #				  (default: ${DISTNAME}).
 # EXTRACT_ONLY	- If defined, a subset of ${DISTFILES} you want to
 #			  	  actually extract.
-# PATCHDIR 		- A directory containing any required patches
-#				  (default: ${.CURDIR}/patches)
+# PATCHDIR 		- A directory containing any additional patches you made
+#				  to port this software to FreeBSD (default:
+#				  ${.CURDIR}/patches)
 # SCRIPTDIR 	- A directory containing any auxiliary scripts
 #				  (default: ${.CURDIR}/scripts)
 # FILESDIR 		- A directory containing any miscellaneous additional files.
@@ -105,13 +116,13 @@
 #
 # Default targets and their behaviors:
 #
-# fetch			- Retrieves ${DISTFILES} into ${DISTDIR} as necessary.
+# fetch			- Retrieves ${DISTFILES} (and ${PATCHFILES} if defined)
+#				  into ${DISTDIR} as necessary.
 # fetch-list	- Show list of files that would be retrieved by fetch
 # extract		- Unpacks ${DISTFILES} into ${WRKDIR}.
-# configure		- Applies patches, if any, and runs either GNU configure, one
-#				  or more local configure scripts or nothing, depending on
-#				  what's available.
 # patch			- Apply any provided patches to the source.
+# configure		- Runs either GNU configure, one or more local configure
+#				  scripts or nothing, depending on what's available.
 # build			- Actually compile the sources.
 # install		- Install the results of a build.
 # reinstall		- Install the results of a build, ignoring "already installed"
@@ -122,7 +133,7 @@
 # checksum		- Use files/md5 to ensure that your distfiles are valid
 # makesum		- Generate files/md5 (only do this for your own ports!)
 #
-# Default sequence for "all" is:  fetch extract configure build
+# Default sequence for "all" is:  fetch extract patch configure build
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -190,10 +201,13 @@ TOUCH_FLAGS?=	-f
 
 PATCH?=			patch
 PATCH_STRIP?=	-p0
+PATCH_DIST_STRIP?=	-p0
 .if defined(PATCH_DEBUG)
 PATCH_ARGS?=	-d ${WRKSRC} -E ${PATCH_STRIP}
+PATCH_DIST_ARGS?=	-d ${WRKSRC} -E ${PATCH_DIST_STRIP}
 .else
 PATCH_ARGS?=	-d ${WRKSRC} --forward --quiet -E ${PATCH_STRIP}
+PATCH_DIST_ARGS?=	-d ${WRKSRC} --forward --quiet -E ${PATCH_DIST_STRIP}
 .endif
 
 EXTRACT_CMD?=	tar
@@ -232,9 +246,11 @@ MASTER_SITE_OVERRIDE=  ftp://freebsd.cdrom.com/pub/FreeBSD/FreeBSD-current/ports
 # I guess we're in the master distribution business! :)  As we gain mirror
 # sites for distfiles, add them to this list.
 .if !defined(MASTER_SITE_OVERRIDE)
-MASTER_SITES+=	ftp://freebsd.cdrom.com/pub/FreeBSD/FreeBSD-current/ports/distfiles/
+MASTER_SITES+=	ftp://ftp.freebsd.org/pub/FreeBSD/FreeBSD-current/ports/distfiles/
+PATCH_SITES+=	ftp://ftp.freebsd.org/pub/FreeBSD/FreeBSD-current/ports/distfiles/
 .else
 MASTER_SITES=	${MASTER_SITE_OVERRIDE}
+PATCH_SITES=	${MASTER_SITE_OVERRIDE}
 .endif
 
 # Derived names so that they're easily overridable.
@@ -525,18 +541,47 @@ patch: extract ${PATCH_COOKIE}
 
 ${PATCH_COOKIE}:
 	@${MAKE} ${.MAKEFLAGS} pre-patch
+.if defined(PATCHFILES)
+	@${ECHO_MSG} "===>  Applying distributed patches for ${DISTNAME}"
+.if defined(PATCH_DEBUG)
+	@(cd ${DISTDIR}; \
+	  for i in ${PATCHFILES}; do \
+		${ECHO_MSG} "===>   Applying distributed patch $$i" ; \
+		case $$i in \
+			*.Z|*.gz) \
+				zcat $$i | ${PATCH} ${PATCH_DIST_ARGS}; \
+				;; \
+			*) \
+				${PATCH} ${PATCH_DIST_ARGS} < $$i; \
+				;; \
+		esac; \
+	  done)
+.else
+	@(cd ${DISTDIR}; \
+	  for i in ${PATCHFILES}; do \
+		case $$i in \
+			*.Z|*.gz) \
+				zcat $$i | ${PATCH} ${PATCH_DIST_ARGS}; \
+				;; \
+			*) \
+				${PATCH} ${PATCH_DIST_ARGS} < $$i; \
+				;; \
+		esac; \
+	  done)
+.endif
+.endif
 .if defined(PATCH_DEBUG)
 	@if [ -d ${PATCHDIR} ]; then \
-		${ECHO_MSG} "===>  Applying patches for ${DISTNAME}" ; \
+		${ECHO_MSG} "===>  Applying FreeBSD patches for ${DISTNAME}" ; \
 		for i in ${PATCHDIR}/patch-*; do \
-			${ECHO_MSG} "===>   Applying patch $$i" ; \
+			${ECHO_MSG} "===>   Applying FreeBSD patch $$i" ; \
 			${PATCH} ${PATCH_ARGS} < $$i; \
 		done; \
 	fi
 	@${TOUCH} ${TOUCH_FLAGS} ${PATCH_COOKIE}
 .else
 	@if [ -d ${PATCHDIR} ]; then \
-		${ECHO_MSG} "===>  Applying patches for ${DISTNAME}" ; \
+		${ECHO_MSG} "===>  Applying FreeBSD patches for ${DISTNAME}" ; \
 		for i in ${PATCHDIR}/patch-*; \
 			do ${PATCH} ${PATCH_ARGS} < $$i; \
 		done;\
@@ -618,6 +663,25 @@ fetch: pre-fetch
 			fi; \
 	    fi \
 	 done)
+.if defined(PATCHFILES)
+	@(cd ${DISTDIR}; \
+	 for file in ${PATCHFILES}; do \
+		if [ ! -f $$file -a ! -f `basename $$file` ]; then \
+			${ECHO_MSG} ">> $$file doesn't seem to exist on this system."; \
+			for site in ${PATCH_SITES}; do \
+			    ${ECHO_MSG} ">> Attempting to fetch from $${site}."; \
+				if ${NCFTP} ${NCFTPFLAGS} $${site}$${file}; then \
+					break; \
+				fi \
+			done; \
+			if [ ! -f $$file -a ! -f `basename $$file` ]; then \
+				${ECHO_MSG} ">> Couldn't fetch it - please try to retreive this";\
+				${ECHO_MSG} ">> port manually into ${DISTDIR} and try again."; \
+				exit 1; \
+			fi; \
+	    fi \
+	 done)
+.endif
 .endif
 
 .if !target(fetch-list)
@@ -633,6 +697,18 @@ fetch-list:
 			echo "echo $${file} not fetched" ; \
 		fi \
 	done)
+.if defined(PATCHFILES)
+	@(cd ${DISTDIR}; \
+	 for file in ${PATCHFILES}; do \
+		if [ ! -f $$file -a ! -f `basename $$file` ]; then \
+			for site in ${PATCH_SITES}; do \
+				echo -n ${NCFTP} ${NCFTPFLAGS} $${site}$${file} '||' ; \
+					break; \
+			done; \
+			echo "echo $${file} not fetched" ; \
+		fi \
+	done)
+.endif
 .endif
 
 .if !target(makesum)
@@ -640,7 +716,7 @@ makesum: fetch
 	@if [ ! -d ${FILESDIR} ]; then mkdir -p ${FILESDIR}; fi
 	@if [ -f ${MD5_FILE} ]; then rm -f ${MD5_FILE}; fi
 	@(cd ${DISTDIR}; \
-	for file in ${DISTFILES}; do \
+	for file in ${DISTFILES} ${PATCHFILES}; do \
 		${MD5} $$file >> ${MD5_FILE}; \
 	done)
 .endif
@@ -651,7 +727,7 @@ checksum: fetch
 		${ECHO_MSG} ">> No MD5 checksum file."; \
 	else \
 		(cd ${DISTDIR}; OK=""; \
-		for file in ${DISTFILES}; do \
+		for file in ${DISTFILES} ${PATCHFILES}; do \
 			CKSUM=`${MD5} $$file | awk '{print $$4}'`; \
 			CKSUM2=`grep "($$file)" ${MD5_FILE} | awk '{print $$4}'`; \
 			if [ "$$CKSUM2" = "" ]; then \
