@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.21 1996/03/27 22:58:21 ache Exp $
+ * $Id: modem.c,v 1.22 1996/03/28 13:38:59 ache Exp $
  *
  *  TODO:
  */
@@ -369,6 +369,8 @@ char *host, *port;
   return(sock);
 }
 
+static struct termios modemios;
+
 int
 OpenModem(mode)
 int mode;
@@ -439,6 +441,7 @@ int mode;
     sleep(1);
   if (dev_is_modem && !DEV_IS_SYNC) {
     tcgetattr(modem, &rstio);
+    modemios = rstio;
 #ifdef DEBUG
     logprintf("## modem = %d\n", modem);
     logprintf("modem (get): iflag = %x, oflag = %x, cflag = %x\n",
@@ -491,8 +494,6 @@ ModemSpeed()
   return(SpeedToInt(cfgetispeed(&rstio)));
 }
 
-static struct termios modemios;
-
 /*
  * Put modem tty line into raw mode which is necessary in packet mode operation
  */
@@ -514,7 +515,6 @@ int modem;
 #endif
   }
   tcgetattr(modem, &rstio);
-  modemios = rstio;
   cfmakeraw(&rstio);
 #ifdef USE_CTSRTS
     rstio.c_cflag |= CLOCAL | CCTS_OFLOW|CRTS_IFLOW;
@@ -541,8 +541,8 @@ int modem;
 {
   int oldflag;
 
-  if (isatty(modem)) {
-    tcsetattr(modem, TCSADRAIN, &modemios);
+  if (isatty(modem) && !DEV_IS_SYNC) {
+    tcsetattr(modem, TCSAFLUSH, &modemios);
     oldflag = fcntl(modem, F_GETFL, 0);
     fcntl(modem, F_SETFL, oldflag & ~O_NONBLOCK);
   }
