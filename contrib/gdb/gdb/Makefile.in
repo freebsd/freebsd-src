@@ -624,7 +624,7 @@ language_h =	language.h
 linespec_h =	linespec.h
 memattr_h =     memattr.h
 monitor_h =	monitor.h
-objfiles_h =	objfiles.h
+objfiles_h =	objfiles.h $(bcache_h)
 parser_defs_h =	parser-defs.h $(doublest_h)
 regcache_h =	regcache.h
 remote_h =	remote.h
@@ -635,7 +635,7 @@ solist_h =	solist.h
 source_h =	source.h
 stabsread_h =	stabsread.h
 symfile_h =	symfile.h
-symtab_h =	symtab.h $(bcache_h)
+symtab_h =	symtab.h
 target_h =      target.h $(bfd_h) $(symtab_h) $(dcache_h) $(memattr_h)
 terminal_h =	terminal.h
 top_h =		top.h
@@ -2135,9 +2135,9 @@ vax-tdep.o: vax-tdep.c $(OP_INCLUDE)/vax.h $(defs_h) $(symtab_h)
 x86-64-linux-tdep.o : x86-64-linux-tdep.c $(defs_h) $(inferior_h) \
 	$(gdbcore_h) $(regcache_h) x86-64-tdep.h i386-tdep.h $(dwarf2cfi_h)
 
-x86-64-tdep.o : x86-64-tdep.c $(defs_h) $(inferior_h) $(gdbcore_h) $(gdbcmd_h) \
-	$(arch_utils_h) $(regcache_h) $(symfile_h) x86-64-tdep.h i386-tdep.h \
-	$(dwarf2cfi_h) gdb_assert.h
+x86-64-tdep.o : x86-64-tdep.c $(defs_h) $(inferior_h) $(gdbcore_h) \
+	$(gdbcmd_h) $(arch_utils_h) $(regcache_h) $(symfile_h) x86-64-tdep.h \
+	i386-tdep.h $(dwarf2cfi_h) gdb_assert.h $(objfiles_h)
 
 x86-64-linux-nat.o : x86-64-linux-nat.c $(defs_h) $(inferior_h) \
 	$(gdbcore_h) $(regcache_h) i387-nat.h gdb_assert.h x86-64-tdep.h \
