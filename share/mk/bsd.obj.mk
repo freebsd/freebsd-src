@@ -50,13 +50,28 @@ CANONICALOBJDIR:=/usr/obj${.CURDIR}
 .endif
 
 #
-# Warn of unorthodox object directory
+# Warn of unorthodox object directory.
+#
+# The following directories are tried in order for ${.OBJDIR}:
+#
+# 1.  ${MAKEOBJDIRPREFIX}/`pwd`
+# 2.  ${MAKEOBJDIR}
+# 3.  obj.${MACHINE}
+# 4.  obj
+# 5.  /usr/obj/`pwd`
+# 6.  ${.CURDIR}
+#
+# If ${.OBJDIR} is constructed using canonical cases 1 or 5, or
+# case 2 (using MAKEOBJDIR), don't issue a warning.  Otherwise,
+# issue a warning differentiating between cases 6 and (3 or 4).
 #
 objwarn:
-.if !defined(NOOBJ) && ${.OBJDIR} != ${CANONICALOBJDIR}
+.if !defined(NOOBJ) && ${.OBJDIR} != ${CANONICALOBJDIR} && \
+    !(defined(MAKEOBJDIRPREFIX) && exists(${CANONICALOBJDIR}/)) && \
+    !(defined(MAKEOBJDIR) && exists(${MAKEOBJDIR}/))
 .if ${.OBJDIR} == ${.CURDIR}
 	@${ECHO} "Warning: Object directory not changed from original ${.CURDIR}"
-.elif !defined(MAKEOBJDIR) && !defined(MAKEOBJDIRPREFIX)
+.elif exists(${.CURDIR}/obj.${MACHINE}/) || exists(${.CURDIR}/obj/)
 	@${ECHO} "Warning: Using ${.OBJDIR} as object directory instead of\
 		canonical ${CANONICALOBJDIR}"
 .endif
