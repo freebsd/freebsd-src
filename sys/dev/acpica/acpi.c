@@ -123,10 +123,9 @@ static ACPI_STATUS acpi_probe_child(ACPI_HANDLE handle, UINT32 level,
 static BOOLEAN	acpi_MatchHid(ACPI_HANDLE h, const char *hid);
 static void	acpi_shutdown_final(void *arg, int howto);
 static void	acpi_enable_fixed_events(struct acpi_softc *sc);
-static int	acpi_parse_prw(ACPI_HANDLE h, struct acpi_prw_data *prw);
-static ACPI_STATUS acpi_wake_limit(ACPI_HANDLE h, UINT32 level, void *context,
-		    void **status);
-static int	acpi_wake_limit_walk(int sstate);
+static int	acpi_wake_sleep_prep(ACPI_HANDLE handle, int sstate);
+static int	acpi_wake_run_prep(ACPI_HANDLE handle, int sstate);
+static int	acpi_wake_prep_walk(int sstate);
 static int	acpi_wake_sysctl_walk(device_t dev);
 static int	acpi_wake_set_sysctl(SYSCTL_HANDLER_ARGS);
 static void	acpi_system_eventhandler_sleep(void *arg, int state);
@@ -633,8 +632,9 @@ acpi_shutdown(device_t dev)
     /* Allow children to shutdown first. */
     bus_generic_shutdown(dev);
 
-    /* Disable all wake GPEs not appropriate for reboot/poweroff. */
-    acpi_wake_limit_walk(ACPI_STATE_S5);
+    /* Enable any GPEs that are able to power-on the system (i.e., RTC). */
+    acpi_wake_prep_walk(ACPI_STATE_S5);
+
     return (0);
 }
 
@@ -742,6 +742,9 @@ acpi_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
     case ACPI_IVAR_PRIVATE:
 	*(void **)result = ad->ad_private;
 	break;
+    case ACPI_IVAR_FLAGS:
+	*(int *)result = ad->ad_flags;
+	break;
     case ISA_IVAR_VENDORID:
     case ISA_IVAR_SERIAL:
     case ISA_IVAR_COMPATID:
@@ -776,6 +779,9 @@ acpi_write_ivar(device_t dev, device_t child, int index, uintptr_t value)
 	break;
     case ACPI_IVAR_PRIVATE:
 	ad->ad_private = (void *)value;
+	break;
+    case ACPI_IVAR_FLAGS:
+	ad->ad_flags = (int)value;
 	break;
     default:
 	panic("bad ivar write request (%d)", index);
@@ -1215,10 +1221,6 @@ acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
 	    /* Associate the handle with the device_t and vice versa. */
 	    acpi_set_handle(child, handle);
 	    AcpiAttachData(handle, acpi_fake_objhandler, child);
-
-	    /* Check if the device can generate wake events. */
-	    if (ACPI_SUCCESS(AcpiEvaluateObject(handle, "_PRW", NULL, NULL)))
-		device_set_flags(child, ACPI_FLAG_WAKE_CAPABLE);
 
 	    /*
 	     * Check that the device is present.  If it's not present,
@@ -1766,8 +1768,8 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
 	sc->acpi_sstate = state;
 	sc->acpi_sleep_disabled = 1;
 
-	/* Disable all wake GPEs not appropriate for this state. */
-	acpi_wake_limit_walk(state);
+	/* Enable any GPEs as appropriate and requested by the user. */
+	acpi_wake_prep_walk(state);
 
 	/* Inform all devices that we are going to sleep. */
 	if (DEVICE_SUSPEND(root_bus) != 0) {
@@ -1813,6 +1815,9 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
 		break;
 	    }
 	}
+
+	/* Resume devices, re-enable GPEs and fixed events. */
+	acpi_wake_prep_walk(state);
 	AcpiLeaveSleepState((UINT8)state);
 	DEVICE_RESUME(root_bus);
 	sc->acpi_sstate = ACPI_STATE_S0;
@@ -1844,10 +1849,6 @@ acpi_wake_init(device_t dev, int type)
 {
     struct acpi_prw_data prw;
 
-    /* Check that the device can wake the system. */
-    if ((device_get_flags(dev) & ACPI_FLAG_WAKE_CAPABLE) == 0)
-	return (ENXIO);
-
     /* Evaluate _PRW to find the GPE. */
     if (acpi_parse_prw(acpi_get_handle(dev), &prw) != 0)
 	return (ENXIO);
@@ -1870,149 +1871,124 @@ acpi_wake_set_enable(device_t dev, int enable)
     ACPI_STATUS status;
     int flags;
 
-    /* Make sure the device supports waking the system. */
-    flags = device_get_flags(dev);
+    /* Make sure the device supports waking the system and get the GPE. */
     handle = acpi_get_handle(dev);
-    if ((flags & ACPI_FLAG_WAKE_CAPABLE) == 0 || handle == NULL)
-	return (ENXIO);
-
-    /* Evaluate _PRW to find the GPE. */
     if (acpi_parse_prw(handle, &prw) != 0)
 	return (ENXIO);
 
+    flags = acpi_get_flags(dev);
     if (enable) {
 	status = AcpiEnableGpe(prw.gpe_handle, prw.gpe_bit, ACPI_NOT_ISR);
 	if (ACPI_FAILURE(status)) {
 	    device_printf(dev, "enable wake failed\n");
 	    return (ENXIO);
 	}
-	device_set_flags(dev, flags | ACPI_FLAG_WAKE_ENABLED);
+	acpi_set_flags(dev, flags | ACPI_FLAG_WAKE_ENABLED);
     } else {
 	status = AcpiDisableGpe(prw.gpe_handle, prw.gpe_bit, ACPI_NOT_ISR);
 	if (ACPI_FAILURE(status)) {
 	    device_printf(dev, "disable wake failed\n");
 	    return (ENXIO);
 	}
-	device_set_flags(dev, flags & ~ACPI_FLAG_WAKE_ENABLED);
+	acpi_set_flags(dev, flags & ~ACPI_FLAG_WAKE_ENABLED);
     }
 
     return (0);
 }
 
-/* Configure a device's GPE appropriately for the new sleep state. */
-int
-acpi_wake_sleep_prep(device_t dev, int sstate)
+static int
+acpi_wake_sleep_prep(ACPI_HANDLE handle, int sstate)
 {
     struct acpi_prw_data prw;
-    ACPI_HANDLE handle;
-    int flags;
+    device_t dev;
 
-    /* Check that this is an ACPI device and get its GPE. */
-    flags = device_get_flags(dev);
-    handle = acpi_get_handle(dev);
-    if ((flags & ACPI_FLAG_WAKE_CAPABLE) == 0 || handle == NULL)
-	return (ENXIO);
-
-    /* Evaluate _PRW to find the GPE. */
+    /* Check that this is a wake-capable device and get its GPE. */
     if (acpi_parse_prw(handle, &prw) != 0)
 	return (ENXIO);
+    dev = acpi_get_device(handle);
 
     /*
-     * TBD: All Power Resources referenced by elements 2 through N
-     *      of the _PRW object are put into the ON state.
+     * The destination sleep state must be less than (i.e., higher power)
+     * or equal to the value specified by _PRW.  If this GPE cannot be
+     * enabled for the next sleep state, then disable it.  If it can and
+     * the user requested it be enabled, turn on any required power resources
+     * and set _PSW.
      */
-
-    /*
-     * If the user requested that this device wake the system and the next
-     * sleep state is valid for this GPE, enable it and the device's wake
-     * capability.  The sleep state must be less than (i.e., higher power)
-     * or equal to the value specified by _PRW.  Return early, leaving
-     * the appropriate power resources enabled.
-     */
-    if ((flags & ACPI_FLAG_WAKE_ENABLED) != 0 &&
-	sstate <= prw.lowest_wake) {
+    if (sstate > prw.lowest_wake) {
+	AcpiDisableGpe(prw.gpe_handle, prw.gpe_bit, ACPI_NOT_ISR);
 	if (bootverbose)
-	    device_printf(dev, "wake_prep enabled gpe %#x for state %d\n",
-		prw.gpe_bit, sstate);
-	AcpiEnableGpe(prw.gpe_handle, prw.gpe_bit, ACPI_NOT_ISR);
+	    device_printf(dev, "wake_prep disabled wake for %s (S%d)\n",
+		acpi_name(handle), sstate);
+    } else if (dev && (acpi_get_flags(dev) & ACPI_FLAG_WAKE_ENABLED) != 0) {
+	acpi_pwr_wake_enable(handle, 1);
 	acpi_SetInteger(handle, "_PSW", 1);
-	return (0);
+	if (bootverbose)
+	    device_printf(dev, "wake_prep enabled for %s (S%d)\n",
+		acpi_name(handle), sstate);
     }
-
-    /*
-     * If the device wake was disabled or this sleep state is too low for
-     * this device, disable its wake capability and GPE.
-     */
-    AcpiDisableGpe(prw.gpe_handle, prw.gpe_bit, ACPI_NOT_ISR);
-    acpi_SetInteger(handle, "_PSW", 0);
-    if (bootverbose)
-	device_printf(dev, "wake_prep disabled gpe %#x for state %d\n",
-	    prw.gpe_bit, sstate);
-
-    /*
-     * TBD: All Power Resources referenced by elements 2 through N
-     *      of the _PRW object are put into the OFF state.
-     */
 
     return (0);
 }
 
-/* Re-enable GPEs after wake. */
-int
-acpi_wake_run_prep(device_t dev)
+static int
+acpi_wake_run_prep(ACPI_HANDLE handle, int sstate)
 {
     struct acpi_prw_data prw;
-    ACPI_HANDLE handle;
-    int flags;
-
-    /* Check that this is an ACPI device and get its GPE. */
-    flags = device_get_flags(dev);
-    handle = acpi_get_handle(dev);
-    if ((flags & ACPI_FLAG_WAKE_CAPABLE) == 0 || handle == NULL)
-	return (ENXIO);
-
-    /* Evaluate _PRW to find the GPE. */
-    if (acpi_parse_prw(handle, &prw) != 0)
-	return (ENXIO);
+    device_t dev;
 
     /*
-     * TBD: Be sure all Power Resources referenced by elements 2 through N
-     *      of the _PRW object are in the ON state.
+     * Check that this is a wake-capable device and get its GPE.  Return
+     * now if the user didn't enable this device for wake.
      */
+    if (acpi_parse_prw(handle, &prw) != 0)
+	return (ENXIO);
+    dev = acpi_get_device(handle);
+    if (dev == NULL || (acpi_get_flags(dev) & ACPI_FLAG_WAKE_ENABLED) == 0)
+	return (0);
 
-    /* Disable wake capability and if the user requested, enable the GPE. */
-    acpi_SetInteger(handle, "_PSW", 0);
-    if ((flags & ACPI_FLAG_WAKE_ENABLED) != 0)
+    /*
+     * If this GPE couldn't be enabled for the previous sleep state, it was
+     * disabled before going to sleep so re-enable it.  If it was enabled,
+     * clear _PSW and turn off any power resources it used.
+     */
+    if (sstate > prw.lowest_wake) {
 	AcpiEnableGpe(prw.gpe_handle, prw.gpe_bit, ACPI_NOT_ISR);
+	if (bootverbose)
+	    device_printf(dev, "run_prep re-enabled %s\n", acpi_name(handle));
+    } else {
+	acpi_SetInteger(handle, "_PSW", 0);
+	acpi_pwr_wake_enable(handle, 0);
+	if (bootverbose)
+	    device_printf(dev, "run_prep cleaned up for %s\n",
+		acpi_name(handle));
+    }
+
     return (0);
 }
 
 static ACPI_STATUS
-acpi_wake_limit(ACPI_HANDLE h, UINT32 level, void *context, void **status)
+acpi_wake_prep(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
 {
-    struct acpi_prw_data prw;
-    int *sstate;
+    int sstate;
 
-    /* It's ok not to have _PRW if the device can't wake the system. */
-    if (acpi_parse_prw(h, &prw) != 0)
-	return (AE_OK);
-
-    sstate = (int *)context;
-    if (*sstate > prw.lowest_wake)
-	AcpiDisableGpe(prw.gpe_handle, prw.gpe_bit, ACPI_NOT_ISR);
-
+    /* If suspending, run the sleep prep function, otherwise wake. */
+    sstate = *(int *)context;
+    if (AcpiGbl_SystemAwakeAndRunning)
+	acpi_wake_sleep_prep(handle, sstate);
+    else
+	acpi_wake_run_prep(handle, sstate);
     return (AE_OK);
 }
 
-/* Walk all system devices, disabling them if necessary for sstate. */
+/* Walk the tree rooted at acpi0 to prep devices for suspend/resume. */
 static int
-acpi_wake_limit_walk(int sstate)
+acpi_wake_prep_walk(int sstate)
 {
     ACPI_HANDLE sb_handle;
 
     if (ACPI_SUCCESS(AcpiGetHandle(ACPI_ROOT_OBJECT, "\\_SB_", &sb_handle)))
-	AcpiWalkNamespace(ACPI_TYPE_ANY, sb_handle, 100,
-	    acpi_wake_limit, &sstate, NULL);
+	AcpiWalkNamespace(ACPI_TYPE_DEVICE, sb_handle, 100,
+	    acpi_wake_prep, &sstate, NULL);
     return (0);
 }
 
@@ -2023,21 +1999,23 @@ acpi_wake_sysctl_walk(device_t dev)
     int error, i, numdevs;
     device_t *devlist;
     device_t child;
+    ACPI_STATUS status;
 
     error = device_get_children(dev, &devlist, &numdevs);
     if (error != 0 || numdevs == 0)
 	return (error);
     for (i = 0; i < numdevs; i++) {
 	child = devlist[i];
+	acpi_wake_sysctl_walk(child);
 	if (!device_is_attached(child))
 	    continue;
-	if (device_get_flags(child) & ACPI_FLAG_WAKE_CAPABLE) {
+	status = AcpiEvaluateObject(acpi_get_handle(child), "_PRW", NULL, NULL);
+	if (ACPI_SUCCESS(status)) {
 	    SYSCTL_ADD_PROC(device_get_sysctl_ctx(child),
 		SYSCTL_CHILDREN(device_get_sysctl_tree(child)), OID_AUTO,
 		"wake", CTLTYPE_INT | CTLFLAG_RW, child, 0,
 		acpi_wake_set_sysctl, "I", "Device set to wake the system");
 	}
-	acpi_wake_sysctl_walk(child);
     }
     free(devlist, M_TEMP);
 
@@ -2052,7 +2030,7 @@ acpi_wake_set_sysctl(SYSCTL_HANDLER_ARGS)
     device_t dev;
 
     dev = (device_t)arg1;
-    enable = (device_get_flags(dev) & ACPI_FLAG_WAKE_ENABLED) ? 1 : 0;
+    enable = (acpi_get_flags(dev) & ACPI_FLAG_WAKE_ENABLED) ? 1 : 0;
 
     error = sysctl_handle_int(oidp, &enable, 0, req);
     if (error != 0 || req->newptr == NULL)
@@ -2064,13 +2042,13 @@ acpi_wake_set_sysctl(SYSCTL_HANDLER_ARGS)
 }
 
 /* Parse a device's _PRW into a structure. */
-static int
+int
 acpi_parse_prw(ACPI_HANDLE h, struct acpi_prw_data *prw)
 {
     ACPI_STATUS			status;
     ACPI_BUFFER			prw_buffer;
     ACPI_OBJECT			*res, *res2;
-    int error;
+    int				error, i, power_count;
 
     if (h == NULL || prw == NULL)
 	return (EINVAL);
@@ -2143,8 +2121,15 @@ acpi_parse_prw(ACPI_HANDLE h, struct acpi_prw_data *prw)
 	goto out;
     }
 
-    /* XXX No power resource handling yet. */
-    prw->power_res = NULL;
+    /* Elements 2 to N of the _PRW object are power resources. */
+    power_count = res->Package.Count - 2;
+    if (power_count > ACPI_PRW_MAX_POWERRES) {
+	printf("ACPI device %s has too many power resources\n", acpi_name(h));
+	power_count = 0;
+    }
+    prw->power_res_count = power_count;
+    for (i = 0; i < power_count; i++)
+	prw->power_res[i] = res->Package.Elements[i];
 
 out:
     if (prw_buffer.Pointer != NULL)

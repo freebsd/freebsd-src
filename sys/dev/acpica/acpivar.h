@@ -84,21 +84,24 @@ struct acpi_device {
     ACPI_HANDLE			ad_handle;
     int				ad_magic;
     void			*ad_private;
+    int				ad_flags;
 
     /* Resources */
     struct resource_list	ad_rl;
 };
 
+#define ACPI_PRW_MAX_POWERRES	8
+
 struct acpi_prw_data {
     ACPI_HANDLE		gpe_handle;
     int			gpe_bit;
     int			lowest_wake;
-    void		*power_res;
+    ACPI_OBJECT		power_res[ACPI_PRW_MAX_POWERRES];
+    int			power_res_count;
 };
 
 /* Flags for each device defined in the AML namespace. */
-#define ACPI_FLAG_WAKE_CAPABLE	0x1
-#define ACPI_FLAG_WAKE_ENABLED	0x2
+#define ACPI_FLAG_WAKE_ENABLED	0x1
 
 #if __FreeBSD_version < 500000
 /*
@@ -153,6 +156,7 @@ struct acpi_prw_data {
 #define ACPI_IVAR_HANDLE	0x100
 #define ACPI_IVAR_MAGIC		0x101
 #define ACPI_IVAR_PRIVATE	0x102
+#define ACPI_IVAR_FLAGS		0x103
 
 /*
  * Accessor functions for our ivars.  Default value for BUS_READ_IVAR is
@@ -178,6 +182,7 @@ static __inline void varp ## _set_ ## var(device_t dev, type t)	\
 __ACPI_BUS_ACCESSOR(acpi, handle, ACPI, HANDLE, ACPI_HANDLE)
 __ACPI_BUS_ACCESSOR(acpi, magic, ACPI, MAGIC, int)
 __ACPI_BUS_ACCESSOR(acpi, private, ACPI, PRIVATE, void *)
+__ACPI_BUS_ACCESSOR(acpi, flags, ACPI, FLAGS, int)
 
 void acpi_fake_objhandler(ACPI_HANDLE h, UINT32 fn, void *data);
 static __inline device_t
@@ -241,8 +246,7 @@ ACPI_STATUS	acpi_SetIntrModel(int model);
 ACPI_STATUS	acpi_SetSleepState(struct acpi_softc *sc, int state);
 int		acpi_wake_init(device_t dev, int type);
 int		acpi_wake_set_enable(device_t dev, int enable);
-int		acpi_wake_sleep_prep(device_t dev, int sstate);
-int		acpi_wake_run_prep(device_t dev);
+int		acpi_parse_prw(ACPI_HANDLE h, struct acpi_prw_data *prw);
 ACPI_STATUS	acpi_Startup(void);
 ACPI_STATUS	acpi_Enable(struct acpi_softc *sc);
 ACPI_STATUS	acpi_Disable(struct acpi_softc *sc);
@@ -297,6 +301,7 @@ EVENTHANDLER_DECLARE(acpi_sleep_event, acpi_event_handler_t);
 EVENTHANDLER_DECLARE(acpi_wakeup_event, acpi_event_handler_t);
 
 /* Device power control. */
+ACPI_STATUS	acpi_pwr_wake_enable(ACPI_HANDLE consumer, int enable);
 ACPI_STATUS	acpi_pwr_switch_consumer(ACPI_HANDLE consumer, int state);
 
 /* Misc. */
