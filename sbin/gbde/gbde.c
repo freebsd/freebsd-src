@@ -541,7 +541,6 @@ cmd_init(struct g_bde_key *gl, int dfd, const char *f_opt, int i_opt, const char
 		if (!*p || *q)
 			errx(1, "first_sector not a proper number");
 	}
-	gl->sector0 = first_sector * gl->sectorsize;
 
 	/* <last_sector> */
 	p = property_find(params, "last_sector");
@@ -571,6 +570,7 @@ cmd_init(struct g_bde_key *gl, int dfd, const char *f_opt, int i_opt, const char
 		total_sectors--;
 		gl->flags |= 1;
 	}
+	gl->sector0 = first_sector * gl->sectorsize;
 
 	if (total_sectors != (last_sector - first_sector) + 1)
 		errx(1, "total_sectors disagree with first_sector and last_sector");

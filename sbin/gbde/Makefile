@@ -8,7 +8,13 @@ SRCS+=	rijndael-api-fst.c
 SRCS+=	sha2.c
 SRCS+=	g_bde_lock.c
 
+# rijndael-fst.c does evil casting things which results in warnings on
+# 64 bit machines, the test-vectors check out however, so it works right.
+.if ${MACHINE_ARCH} == "i386"
 WARNS?=	5
+.else
+WARNS?=	3
+.endif
 
 CFLAGS+= -I${.CURDIR}/../../sys
 .PATH:	${.CURDIR}/../../sys/geom \

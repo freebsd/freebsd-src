@@ -280,7 +280,7 @@ g_bde_map_sector(struct g_bde_key *kp,
 
 	/* Compensate for lock sectors */
 	for (u = 0; u < G_BDE_MAXKEYS; u++)
-		if (os >= kp->lsector[u])
+		if (os >= (kp->lsector[u] & ~(kp->sectorsize - 1)))
 			os += kp->sectorsize;
 
 	*osector = os;
@@ -292,7 +292,7 @@ g_bde_map_sector(struct g_bde_key *kp,
 	os += kp->sector0; 
 
 	for (u = 0; u < G_BDE_MAXKEYS; u++)
-		if (os >= kp->lsector[u])
+		if (os >= (kp->lsector[u] & ~(kp->sectorsize - 1)))
 			os += kp->sectorsize;
 	*ksector = os;
 
