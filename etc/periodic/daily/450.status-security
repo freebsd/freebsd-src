@@ -30,13 +30,20 @@ case "$daily_status_security_enable" in
 
 	case "$daily_status_security_inline" in
 	    [Yy][Ee][Ss])
-		    sh /etc/security -s $args
-		    rc=$?;;
+		sh /etc/security -s $args
+		rc=$?;;
 
 	    *)
-		    echo "    (output mailed separately)"
-		    sh /etc/security $args 2>&1 |
-			sendmail root && rc=0 || rc=3;;
+		case "${daily_status_security_output:=root}" in
+		    /*)
+			echo "    (output logged separately)"
+			sh /etc/security -s $args \
+			    >$daily_status_security_output 2>&1;;
+		    *)
+			echo "    (output mailed separately)"
+			sh /etc/security $args 2>&1 |
+			    sendmail $daily_status_security_output;;
+		esac;;
 	esac;;
 
     *)  rc=0;;
