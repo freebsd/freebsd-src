@@ -385,11 +385,25 @@ The locale to use.
 See
 .Xr environ 7
 for more information.
+.It Ev TAPE
+The default tape device.
+The
+.Fl f
+option overrides this.
 .It Ev TZ
 The timezone to use when displaying dates.
 See
 .Xr environ 7
 for more information.
+.El
+.Sh FILES
+.Bl -tag -width ".Ev BLOCKSIZE"
+.It Pa /dev/rsa0
+The default tape device, if not overridden by the
+.Ev TAPE
+environment variable or the
+.Fl f
+option.
 .El
 .Sh COMPATIBILITY
 The bundled-arguments format is supported for compatibility
@@ -467,7 +481,7 @@ By default,
 .Nm
 removes the leading
 .Pa /
-character from filenames before restoring them to gaurd against this problem.
+character from filenames before restoring them to guard against this problem.
 .It
 Archive entries can have pathnames that include
 .Pa ..
@@ -482,7 +496,7 @@ Archive entries can exploit symbolic links to restore
 files to other directories.
 An archive can restore a symbolic link to another directory,
 then use that link to restore a file into that directory.
-To gaurd against this,
+To guard against this,
 .Nm
 checks each extracted path for symlinks.
 If the final path element is a symlink, it will be removed
