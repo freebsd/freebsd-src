@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.165 1998/07/04 20:45:31 julian Exp $
+ * $Id: vfs_bio.c,v 1.166 1998/07/08 01:04:27 julian Exp $
  */
 
 /*
@@ -2417,7 +2417,8 @@ DB_SHOW_COMMAND(buffer, db_show_buffer)
 	}
 
 	db_printf("b_proc = %p,\nb_flags = 0x%b\n", (void *)bp->b_proc,
-		  bp->b_flags, "\20\40bounce\37cluster\36vmio\35ram\34ordered"
+		  (u_int)bp->b_flags,
+		  "\20\40bounce\37cluster\36vmio\35ram\34ordered"
 		  "\33paging\32xxx\31writeinprog\30wanted\27relbuf\26tape"
 		  "\25read\24raw\23phys\22clusterok\21malloc\20nocache"
 		  "\17locked\16inval\15gathered\14error\13eintr\12done\11dirty"
@@ -2433,8 +2434,8 @@ DB_SHOW_COMMAND(buffer, db_show_buffer)
 		for (i = 0; i < bp->b_npages; i++) {
 			vm_page_t m;
 			m = bp->b_pages[i];
-			db_printf("(0x%x, 0x%x, 0x%x)", m->object, m->pindex,
-				VM_PAGE_TO_PHYS(m));
+			db_printf("(%p, 0x%lx, 0x%lx)", (void *)m->object,
+			    (u_long)m->pindex, (u_long)VM_PAGE_TO_PHYS(m));
 			if ((i + 1) < bp->b_npages)
 				db_printf(",");
 		}
