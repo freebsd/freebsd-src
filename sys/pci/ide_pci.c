@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ide_pci.c,v 1.20 1999/01/11 22:14:23 julian Exp $
+ *	$Id: ide_pci.c,v 1.21 1999/01/11 22:49:16 julian Exp $
  */
 
 #include "pci.h"
@@ -548,9 +548,9 @@ cyrix_5530_status(struct ide_pci_cookie *cookie)
 	DMA_config = inl(iobase_bm + (unit * 0x10) + 0x24);
 
 
-	printf("cyrix_5530_status: %s:%u IDE PIO cfg: 0x%08x\n",
+	printf("cyrix_5530_status: %s:%u IDE PIO cfg: 0x%08lx\n",
 	       (ctlr ? "Secondary" : "Primary"), unit, PIO_config);
-	printf("cyrix_5530_status: %s:%u IDE DMA cfg: 0x%08x\n",
+	printf("cyrix_5530_status: %s:%u IDE DMA cfg: 0x%08lx\n",
 	       (ctlr ? "Secondary" : "Primary"), unit, DMA_config);
 }
 
@@ -589,7 +589,7 @@ cyrix_5530_dmainit(struct ide_pci_cookie *cookie,
 	 * depending on what the drive can do,
 	 * set the correct modes,
 	 */
-	printf("wd%d: mw=0x%x, pio=0x%x, pcirev=0x%x, udma=0x%x\n",
+	printf("wd%d: mw=0x%x, pio=0x%x, pcirev=0x%lx, udma=0x%x\n",
 		unitno,
 		mwdma_mode(wp), pio_mode(wp),
 		pci_revision, udma_mode(wp));
