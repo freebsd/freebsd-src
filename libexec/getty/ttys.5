@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     from: @(#)ttys.5	8.1 (Berkeley) 6/4/93
-.\"	$Id$
+.\"	$Id: ttys.5,v 1.6 1997/02/22 14:21:40 peter Exp $
 .\" "
 .Dd November 17, 1996
 .Dt TTYS 5
@@ -89,7 +89,9 @@ entry (see
 .Xr getttyent 3 ),
 specify a window system process that
 .Xr init 8
-will maintain for the terminal line, or specify a tty group
+will maintain for the terminal line, optionally determine the
+type of tty (whether dialin, network or otherwise),
+or specify a tty group
 name that allows the login class database (see
 .Xr login.conf 5 )
 to refer to many ttys as a group, to selectively allow or
@@ -102,20 +104,11 @@ should (should not) execute the command given in the second field,
 while ``secure'' (if ``on'' is also specified) allows users with a
 uid of 0 to login on
 this line.
-The flags ``local'', ``rtscts'', ``mdmbuf'', and ``softcar''
-modify the default behaviour of the terminal line, and their actions
-are driver dependent.
-The ``local'' flag causes the driver to
-treat the line as if it locally connected.
-The ``rtscts'' flag
-instructs the driver to use RTS/CTS hardware flow control, if
-possible.
-The ``mdmbuf'' flag instructs the driver to use
-DTR/DCD flow control, if possible.
-The ``softcar'' flag causes the driver to ignore
-hardware carrier on the line.
-These flag fields should not be quoted.
-.Pp
+The flag ``dialin'' indicates that a tty entry describes a dialin
+line, and ``network'' indicates that a tty entry provides a
+network connection.
+Either of these strings may also be specified in the terminal type
+field.
 The string ``window='' may be followed by a quoted command
 string which
 .Xr init
