@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.361 1998/07/16 10:09:55 jkh Exp $
+#	$Id: Makefile,v 1.362 1998/07/16 10:15:53 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -70,9 +70,9 @@ ZIPNSPLIT=		gzip --no-name -9 -c | split -b 240640 -
 # Upper size for the mfs in the boot.flp kernel.
 # These are adjusted down to the minimum needed by doFS.sh.
 BOOTMFSSIZE=		1440
-MFSINODE=		7000
+MFSINODE=		8000
 FIXITINODE=		2000
-BOOTINODE=		100000
+BOOTINODE=		120000
 
 VNDEVICE?=		vn0
 
@@ -673,6 +673,7 @@ doMFSKERN:
 	  sed	-e '/pty/d' \
 		-e '/PROCFS/d' \
 		-e '/KTRACE/d' \
+		-e '/MATH_EMULATE/d' \
 		-e 's/GENERIC/BOOTMFS/g' \
 		-e '/maxusers/s/10/4/' < GENERIC > BOOTMFS && \
 	  echo "options  MFS" >> BOOTMFS && \
