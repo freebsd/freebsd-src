@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: dialup.en,v 1.3 1998/08/07 19:29:57 abial Exp $
+# $Id: dialup.en,v 1.1.1.1 1998/08/27 17:38:42 abial Exp $
 set_resolv() {
 	echo "[H[J"
 	echo "[1m                       Default Domain Name[m"
@@ -163,7 +163,19 @@ do
 	echo "floppy!!! If you don't like it... well, you must dial in manually."
 	echo "In that case abort this script (Ctrl-C). Otherwise, continue.[37m"
 	echo ""
+	stty -echo
 	read -p "Please enter your password: " pass
+	echo ""
+	read -p "Enter again your password: " pass1
+	stty echo
+	echo ""
+	if [ "X${pass}" != "X${pass1}" ]
+	then
+		echo "Passwords didn't match! Press Enter to continue..."
+		read junk
+		pass=""
+		set_password
+	fi
 done
 }
 
@@ -178,22 +190,21 @@ do
 	echo "1)	[32m......login:[37m ${user}"
 	echo "	[32m...password:[37m ********"
 	echo "		[36m(terminal server starts PPP here)[37m"
-	echo ""
 	echo "2)	[32m......login:[37m ${user}"
 	echo "	[32m...password:[37m ********"
 	echo "	[32m...protocol:[37m ppp"
 	echo "		[36m(terminal server starts PPP here)[37m"
-	echo ""
 	echo "3)	[32m......username:[37m ${user}"
 	echo "	[32m......password:[37m ********"
 	echo "		[36m(terminal server starts PPP here)[37m"
-	echo ""
 	echo "4)	[32m......username:[37m ${user}"
 	echo "	[32m......password:[37m ********"
 	echo "	[32mportX/..xxx...:[37m ppp"
 	echo "		[36m(terminal server starts PPP here)[37m"
+	echo "5)	[32mUse CHAP to log in.[37m"
+	echo "6)	[32mUse PAP to log in.[37m"
 	echo ""
-	read -p "Choose 1,2,3 or 4: " chat
+	read -p "Choose 1,2,3,4,5 or 6: " chat
 	case ${chat} in
 	1)
 		chat1="TIMEOUT 10 ogin:--ogin: ${user} word: \\\\P"
@@ -210,6 +221,12 @@ do
 	4)
 		chat1="TIMEOUT 10 ername:--ername: ${user} word: \\\\P port ppp"
 		chat2="username/password/port"
+		;;
+	5)	chat1="-"
+		chat2="CHAP"
+		;;
+	6)	chat1="-"
+		chat2="PAP"
 		;;
 	*)	echo "Bad value! Please choose 1,2,3 or 4."
 		echo ""
@@ -321,7 +338,12 @@ echo " set speed ${speed}" >>/etc/ppp/ppp.conf
 echo " set phone ${phone}" >>/etc/ppp/ppp.conf
 echo " set authkey ${pass}" >>/etc/ppp/ppp.conf
 echo " set timeout ${timo}" >>/etc/ppp/ppp.conf
-echo " set login \"${chat1}\"" >>/etc/ppp/ppp.conf
+if [ "X${chat1}" = "-" ]
+then
+	echo " set authname ${user}" >>/etc/ppp/ppp.conf
+else
+	echo " set login \"${chat1}\"" >>/etc/ppp/ppp.conf
+fi
 echo " set ifaddr 10.0.0.1/0 10.0.0.2/0 255.255.255.0 0.0.0.0" >>/etc/ppp/ppp.conf
 
 echo " Done."
@@ -344,12 +366,30 @@ echo ""
 echo "Now, if you're sure that your /etc/ppp/ppp.conf file is ok (which is"
 echo -n "probable :-) would you like to start the dialup connection now? (y/n) "
 read ans
+opts=""
 while [ "X${ans}" = "Xy" ]
 do
 	echo "[H[J"
+	if [ "X${opts}" = "X" ]
+	then
+		echo "We'll use the following arguments to 'ppp':"
+		echo ""
+		echo "		ppp -background dialup"
+		echo "
+		echo -n "Would you like to change them? (y/n) "
+		read oo
+		if [ "X${oo}" = "Xy" ]
+		then
+			read -p "Enter ppp arguments here: " opts
+		else
+			opts="-background dialup"
+		fi
+		echo ""
+		echo ""
+	fi
 	echo "Starting dialup connection. Wait until you see a 'PPP Enabled' message..."
 	echo ""
-	ppp -background dialup
+	ppp ${opts}
 	if [ "X$?" != "X0" ]
 	then
 		echo ""
