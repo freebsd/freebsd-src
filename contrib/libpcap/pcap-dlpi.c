@@ -21,10 +21,6 @@
  * This code contributed by Atanu Ghosh (atanu@cs.ucl.ac.uk),
  * University College London.
  */
-#ifndef lint
-static  char rcsid[] =
-    "@(#)$Header: pcap-dlpi.c,v 1.42 96/07/23 14:20:32 leres Exp $ (LBL)";
-#endif
 
 /*
  * Packet capture routine for dlpi under SunOS 5
@@ -39,6 +35,11 @@ static  char rcsid[] =
  *    - It might be desirable to use pfmod(7) to filter packets in the
  *      kernel.
  */
+
+#ifndef lint
+static const char rcsid[] =
+    "@(#) $Header: pcap-dlpi.c,v 1.47 96/12/10 23:15:00 leres Exp $ (LBL)";
+#endif
 
 #include <sys/types.h>
 #include <sys/time.h>
@@ -541,9 +542,16 @@ recv_ack(int fd, int size, const char *what, char *bufp, char *ebuf)
 			    what);
 			break;
 
+
 		case DL_SYSERR:
 			sprintf(ebuf, "recv_ack: %s: %s",
 			    what, pcap_strerror(dlp->error_ack.dl_unix_errno));
+			break;
+
+		case DL_UNSUPPORTED:
+			sprintf(ebuf,
+			    "recv_ack: %s: Service not supplied by provider",
+			    what);
 			break;
 
 		default:
@@ -593,6 +601,9 @@ dlbindreq(int fd, bpf_u_int32 sap, char *ebuf)
 	req.dl_service_mode = DL_HP_RAWDLS;
 #else
 	req.dl_sap = sap;
+#ifdef DL_CLDLS
+	req.dl_service_mode = DL_CLDLS;
+#endif
 #endif
 
 	return (send_request(fd, (char *)&req, sizeof(req), "bind", ebuf));

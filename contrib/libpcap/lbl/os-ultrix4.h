@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 1995, 1996
+ * Copyright (c) 1990, 1993, 1994, 1995, 1996
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -17,57 +17,23 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+ *
+ * @(#) $Header: os-ultrix4.h,v 1.19 96/11/29 15:33:19 leres Exp $ (LBL)
  */
-#ifndef lint
-static const char rcsid[] =
-    "@(#) $Header: pcap-null.c,v 1.7 96/12/10 23:15:01 leres Exp $ (LBL)";
+
+/* Prototypes missing in Ultrix 4 */
+int	bcmp(const char *, const char *, u_int);
+void	bcopy(const void *, void *, u_int);
+void	bzero(void *, u_int);
+void	endservent(void);
+int	getopt(int, char * const *, const char *);
+#ifdef __STDC__
+struct timeval;
+struct timezone;
 #endif
-
-#include <sys/param.h>			/* optionally get BSD define */
-
-#include <string.h>
-
-#include "gnuc.h"
-#ifdef HAVE_OS_PROTO_H
-#include "os-proto.h"
-#endif
-
-#include "pcap-int.h"
-
-static char nosup[] = "live packet capture not supported on this system";
-
-int
-pcap_stats(pcap_t *p, struct pcap_stat *ps)
-{
-
-	(void)sprintf(p->errbuf, "pcap_stats: %s", nosup);
-	return (-1);
-}
-
-int
-pcap_read(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
-{
-
-	(void)sprintf(p->errbuf, "pcap_read: %s", nosup);
-	return (-1);
-}
-
-pcap_t *
-pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
-{
-
-	(void)strcpy(ebuf, nosup);
-	return (NULL);
-}
-
-int
-pcap_setfilter(pcap_t *p, struct bpf_program *fp)
-{
-
-	if (p->sf.rfile == NULL) {
-		(void)sprintf(p->errbuf, "pcap_setfilter: %s", nosup);
-		return (-1);
-	}
-	p->fcode = *fp;
-	return (0);
-}
+int	gettimeofday(struct timeval *, struct timezone *);
+int	ioctl(int, int, caddr_t);
+int	pfopen(char *, int);
+int	setlinebuf(FILE *);
+int	socket(int, int, int);
+int	strcasecmp(const char *, const char *);
