@@ -1852,6 +1852,9 @@ options 	AHD_REG_PRETTY_PRINT
 # based on the Level 1 LXT1001 NetCellerator chipset. This includes the
 # D-Link DGE-500SX, SMC TigerCard 1000 (SMC9462SX), and some Addtron cards.
 #
+# The 'my' device provides support for the Myson MTD80X and MTD89X PCI
+# Fast Ethernet adapters.
+#
 # The 'nge' device provides support for PCI gigabit ethernet adapters
 # based on the National Semiconductor DP83820 and DP83821 chipset. This
 # includes the SMC EZ Card 1000 (SMC9462TX), D-Link DGE-500T, Asante
@@ -2029,6 +2032,7 @@ device		miibus
 # PCI Ethernet NICs that use the common MII bus controller code.
 device		dc		# DEC/Intel 21143 and various workalikes
 device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
+device		my		# Myson Fast Ethernet (MTD80X, MTD89X)
 device		pcn		# AMD Am79C97x PCI 10/100 NICs
 device		rl		# RealTek 8129/8139
 device		sf		# Adaptec AIC-6915 (``Starfire'')
