@@ -443,7 +443,17 @@ If the kernel was compiled with
 .Dv IPFIREWALL_VERBOSE ,
 then when a packet matches a rule with the
 .Cm log
-keyword a message will be printed on the console.
+keyword a message will be
+logged to
+.Xr syslogd 8
+with a
+.Dv LOG_SECURITY
+facility.
+.Em Note :
+by default, they are appended to the
+.Pa /var/log/security
+file (see
+.Xr syslog.conf 5 ) .
 If the kernel was compiled with the
 .Dv IPFIREWALL_VERBOSE_LIMIT
 option, then by default logging will cease after the number
