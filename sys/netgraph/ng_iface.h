@@ -46,7 +46,7 @@
 
 /* Node type name and magic cookie */
 #define NG_IFACE_NODE_TYPE		"iface"
-#define NGM_IFACE_COOKIE		858821773
+#define NGM_IFACE_COOKIE		1108312559
 
 /* Interface base name */
 #define NG_IFACE_IFACE_NAME		"ng"
@@ -66,7 +66,7 @@
 
 /* Netgraph commands */
 enum {
-	NGM_IFACE_GET_IFNAME = 1,	/* returns struct ng_iface_ifname */
+	NGM_IFACE_GET_IFNAME = 1,
 	NGM_IFACE_POINT2POINT,
 	NGM_IFACE_BROADCAST,
 	NGM_IFACE_GET_IFINDEX,
