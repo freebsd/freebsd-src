@@ -1138,6 +1138,20 @@ crget()
 }
 
 /*
+ * Claim another referernce to a ucred structure
+ */
+void
+crhold(cr)
+	struct ucred *cr;
+{
+
+	mtx_enter(&cr->cr_mtx, MTX_DEF);
+	cr->cr_ref++;
+	mtx_exit(&(cr)->cr_mtx, MTX_DEF);
+}
+
+
+/*
  * Free a cred structure.
  * Throws away space when ref count gets to 0.
  */
