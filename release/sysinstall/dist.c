@@ -40,7 +40,7 @@
 #include <libutil.h>
 
 unsigned int Dists;
-unsigned int DESDists;
+unsigned int CRYPTODists;
 unsigned int SrcDists;
 unsigned int XF86Dists;
 unsigned int XF86ServerDists;
@@ -55,7 +55,7 @@ typedef struct _dist {
 } Distribution;
 
 extern Distribution DistTable[];
-extern Distribution DESDistTable[];
+extern Distribution CRYPTODistTable[];
 extern Distribution SrcDistTable[];
 extern Distribution XF86DistTable[];
 extern Distribution XF86FontDistTable[];
@@ -72,15 +72,13 @@ static Distribution DistTable[] = {
 { "dict",	"/",			&Dists,		DIST_DICT,		NULL		},
 { "info",	"/",			&Dists,		DIST_INFO,		NULL		},
 { "src",	"/",			&Dists,		DIST_SRC,		SrcDistTable	},
-{ "des",	"/",			&Dists,		DIST_DES,		DESDistTable	},
+{ "des",	"/",			&Dists,		DIST_CRYPTO,		CRYPTODistTable	},
 #ifdef __i386__
 { "compat1x",	"/",			&Dists,		DIST_COMPAT1X,		NULL		},
 { "compat20",	"/",			&Dists,		DIST_COMPAT20,		NULL		},
 { "compat21",	"/",			&Dists,		DIST_COMPAT21,		NULL		},
 { "compat22",	"/",			&Dists,		DIST_COMPAT22,		NULL		},
-#if __FreeBSD__ > 3
 { "compat3x",	"/",			&Dists,		DIST_COMPAT3X,		NULL		},
-#endif
 #endif
 { "ports",	"/usr",			&Dists,		DIST_PORTS,		NULL		},
 { "local",	"/",			&Dists,		DIST_LOCAL,		NULL		},
@@ -88,17 +86,15 @@ static Distribution DistTable[] = {
 { NULL },
 };
 
-/* The DES distribution (not for export!) */
-static Distribution DESDistTable[] = {
-{ "des",        "/",                    &DESDists,	DIST_DES_DES,		NULL		},
-#if __FreeBSD__ > 3
-{ "krb4",	"/",			&DESDists,	DIST_DES_KERBEROS4,	NULL		},
-#else
-{ "krb",	"/",			&DESDists,	DIST_DES_KERBEROS,	NULL		},
-#endif
-{ "ssecure",	"/usr/src",		&DESDists,	DIST_DES_SSECURE,	NULL		},
-{ "scrypto",	"/usr/src",		&DESDists,	DIST_DES_SCRYPTO,	NULL		},
-{ "skerbero",	"/usr/src",		&DESDists,	DIST_DES_SKERBEROS,	NULL		},
+/* The CRYPTO distribution */
+static Distribution CRYPTODistTable[] = {
+{ "crypto",     "/",                    &CRYPTODists,	DIST_CRYPTO_CRYPTO,		NULL		},
+{ "krb4",	"/",			&CRYPTODists,	DIST_CRYPTO_KERBEROS4,	NULL		},
+{ "krb5",	"/",			&CRYPTODists,	DIST_CRYPTO_KERBEROS5,	NULL		},
+{ "ssecure",	"/usr/src",		&CRYPTODists,	DIST_CRYPTO_SSECURE,	NULL		},
+{ "scrypto",	"/usr/src",		&CRYPTODists,	DIST_CRYPTO_SCRYPTO,	NULL		},
+{ "skrb4",	"/usr/src",		&CRYPTODists,	DIST_CRYPTO_SKERBEROS4,	NULL		},
+{ "skrb5",	"/usr/src",		&CRYPTODists,	DIST_CRYPTO_SKERBEROS5,	NULL		},
 { NULL },
 };
 
@@ -191,19 +187,18 @@ static Distribution XF86FontDistTable[] = {
 { NULL },
 };
 
-static int	distMaybeSetDES(dialogMenuItem *self);
+static int	distMaybeSetCRYPTO(dialogMenuItem *self);
 static int	distMaybeSetPorts(dialogMenuItem *self);
-
 
 static void
 distVerifyFlags(void)
 {
     if (SrcDists)
 	Dists |= DIST_SRC;
-    if (DESDists) {
-	if (DESDists & DIST_DES_KERBEROS4)
-	    DESDists |= DIST_DES_DES;
-	Dists |= DIST_DES;
+    if (CRYPTODists) {
+	if (CRYPTODists & (DIST_CRYPTO_KERBEROS4 | DIST_CRYPTO_KERBEROS5))
+	    CRYPTODists |= DIST_CRYPTO_CRYPTO;
+	Dists |= DIST_CRYPTO;
     }
     if (XF86Dists & DIST_XF86_SET)
 	XF86ServerDists |= DIST_XF86_SERVER_VGA16;
@@ -221,15 +216,15 @@ distVerifyFlags(void)
 #endif
     }
     if (isDebug())
-	msgDebug("Dist Masks: Dists: %0x, DES: %0x, Srcs: %0x\nXServer: %0x, XFonts: %0x, XDists: %0x\n",
-		 Dists, DESDists, SrcDists, XF86ServerDists, XF86FontDists, XF86Dists);
+	msgDebug("Dist Masks: Dists: %0x, CRYPTO: %0x, Srcs: %0x\nXServer: %0x, XFonts: %0x, XDists: %0x\n",
+		 Dists, CRYPTODists, SrcDists, XF86ServerDists, XF86FontDists, XF86Dists);
 }
 
 int
 distReset(dialogMenuItem *self)
 {
     Dists = 0;
-    DESDists = 0;
+    CRYPTODists = 0;
     SrcDists = 0;
     XF86Dists = 0;
     XF86ServerDists = 0;
@@ -247,8 +242,8 @@ distConfig(dialogMenuItem *self)
     if ((cp = variable_get(VAR_DIST_MAIN)) != NULL)
 	Dists = atoi(cp);
 
-    if ((cp = variable_get(VAR_DIST_DES)) != NULL)
-	DESDists = atoi(cp);
+    if ((cp = variable_get(VAR_DIST_CRYPTO)) != NULL)
+	CRYPTODists = atoi(cp);
 
     if ((cp = variable_get(VAR_DIST_SRC)) != NULL)
 	SrcDists = atoi(cp);
@@ -286,7 +281,7 @@ distSetDeveloper(dialogMenuItem *self)
     distReset(NULL);
     Dists = _DIST_DEVELOPER;
     SrcDists = DIST_SRC_ALL;
-    i = distMaybeSetDES(self) | distMaybeSetPorts(self);
+    i = distMaybeSetCRYPTO(self) | distMaybeSetPorts(self);
     distVerifyFlags();
     return i;
 }
@@ -310,7 +305,7 @@ distSetKernDeveloper(dialogMenuItem *self)
     distReset(NULL);
     Dists = _DIST_DEVELOPER;
     SrcDists = DIST_SRC_SYS;
-    i = distMaybeSetDES(self) | distMaybeSetPorts(self);
+    i = distMaybeSetCRYPTO(self) | distMaybeSetPorts(self);
     distVerifyFlags();
     return i;
 }
@@ -333,7 +328,7 @@ distSetUser(dialogMenuItem *self)
 
     distReset(NULL);
     Dists = _DIST_USER;
-    i = distMaybeSetDES(self) | distMaybeSetPorts(self);
+    i = distMaybeSetCRYPTO(self) | distMaybeSetPorts(self);
     distVerifyFlags();
     return i;
 }
@@ -367,18 +362,18 @@ distSetEverything(dialogMenuItem *self)
     XF86Dists = DIST_XF86_ALL;
     XF86ServerDists = DIST_XF86_SERVER_ALL;
     XF86FontDists = DIST_XF86_FONTS_ALL;
-    i = distMaybeSetDES(self) | distMaybeSetPorts(self);
+    i = distMaybeSetCRYPTO(self) | distMaybeSetPorts(self);
     distVerifyFlags();
     return i;
 }
 
 int
-distSetDES(dialogMenuItem *self)
+distSetCRYPTO(dialogMenuItem *self)
 {
     int i;
 
     dialog_clear_norefresh();
-    if (!dmenuOpenSimple(&MenuDESDistributions, FALSE))
+    if (!dmenuOpenSimple(&MenuCRYPTODistributions, FALSE))
 	i = DITEM_FAILURE;
     else
 	i = DITEM_SUCCESS;
@@ -387,7 +382,7 @@ distSetDES(dialogMenuItem *self)
 }
 
 static int
-distMaybeSetDES(dialogMenuItem *self)
+distMaybeSetCRYPTO(dialogMenuItem *self)
 {
     int i = DITEM_SUCCESS | DITEM_REDRAW;
 
@@ -395,14 +390,14 @@ distMaybeSetDES(dialogMenuItem *self)
     if (!msgYesNo("Do you wish to install cryptographic software?\n\n"
 		  "If you choose No, FreeBSD will use an MD5 based password scheme which,\n"
 		  "while perhaps more secure, is not interoperable with the traditional\n"
-		  "UNIX DES passwords on other Unix systems.  There will also be some\n"
+		  "DES-based passwords on other Unix systems.  There will also be some\n"
 		  "differences in the type of RSA code you use.\n\n"
 		  "Please do NOT choose Yes at this point if you are outside the\n"
-		  "United States and Canada yet are installing from a U.S. FTP server.\n"
-		  "Instead, install everything BUT the crypto bits from the U.S. site\n"
-		  "and then switch to an international FTP server to install them on\n"
-		  "a second pass using the Custom Installation option.")) {
-	if (!dmenuOpenSimple(&MenuDESDistributions, FALSE))
+		  "United States and Canada and are installing from a U.S. FTP server.\n"
+		  "Instead, install everything but the crypto bits from the U.S. site\n"
+		  "and then switch to an international FTP server to install crypto on\n"
+		  "a second pass with the Custom Installation option.")) {
+	if (!dmenuOpenSimple(&MenuCRYPTODistributions, FALSE))
 	    i = DITEM_FAILURE;
 	else
 	    USAResident = TRUE;
@@ -803,7 +798,7 @@ distExtract(char *parent, Distribution *me)
 		    goto punt;
 		}
 	    } else {
-		for(j = 0; j < realsize; j++) {
+		for (j = 0; j < realsize; j++) {
 		    /* On finding CRLF, skip the CR; don't exceed end of buffer. */
 		    if ((buf[j] != 0x0d) || (j == total - 1) || (buf[j + 1] != 0x0a)) {
 			retval = write(fd2, buf + j, 1);
@@ -831,9 +826,7 @@ distExtract(char *parent, Distribution *me)
 	    dialog_clear_norefresh();
 	    if (me[i].my_dist) {
 		msgConfirm("Unable to transfer all components of the %s distribution.\n"
-			   "If this is a CDROM install, it may be because export restrictions prohibit\n"
-			   "DES code from being shipped from the U.S.  Try to get this code from a\n"
-			   "local FTP site instead!", me[i].my_name);
+		           "You may wish to switch media types and try again.\n", me[i].my_name);
 	    }
 	    else {
 		status = msgYesNo("Unable to transfer the %s distribution from\n%s.\n\n"

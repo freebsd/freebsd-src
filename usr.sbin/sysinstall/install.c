@@ -201,10 +201,10 @@ installInitial(void)
     if (!variable_get(VAR_NO_WARN))
 	if (msgYesNo(
 	    "Last Chance!  Are you SURE you want continue the installation?\n\n"
-	     "If you're running this on a disk with data you wish to save\n"
-	     "then WE STRONGLY ENCOURAGE YOU TO MAKE PROPER BACKUPS before\n"
-	     "proceeding!\n\n"
-	     "We can take no responsibility for lost disk contents!") != 0)
+	    "If you're running this on a disk with data you wish to save\n"
+	    "then WE STRONGLY ENCOURAGE YOU TO MAKE PROPER BACKUPS before\n"
+	    "proceeding!\n\n"
+	    "We can take no responsibility for lost disk contents!") != 0)
 	return DITEM_FAILURE;
 
     if (DITEM_STATUS(diskLabelCommit(NULL)) != DITEM_SUCCESS) {
@@ -538,11 +538,11 @@ nodisks:
     }
 
     if (msgYesNo("Will this machine be a leaf node (e.g. will not forward packets)\n"
-		  "between interfaces)?"))
+		 "between interfaces)?"))
 	variable_set2("gateway_enable", "YES", 1);
 
     if (msgYesNo("Do you want to grant only normal users FTP access to this\n"
-	           "host (e.g. no anonymous FTP connections)?"))
+	         "host (e.g. no anonymous FTP connections)?"))
 	configAnonFTP(self);
 
     if (!msgYesNo("Do you want to configure this machine as an NFS server?"))
@@ -630,7 +630,7 @@ installCustomCommit(dialogMenuItem *self)
  * installation but come back here again to load more distributions,
  * perhaps from a different media type.  This would allow, for
  * example, the user to load the majority of the system from CDROM and
- * then use ftp to load just the DES dist.
+ * then use ftp to load just the CRYPTO dist.
  */
 int
 installCommit(dialogMenuItem *self)
@@ -757,7 +757,7 @@ installFixupBin(dialogMenuItem *self)
 	for (i = 0; devs[i]; i++) {
 	    Disk *disk = (Disk *)devs[i]->private;
 	    Chunk *c1;
-	    
+
 	    if (!devs[i]->enabled)
 		continue;
 	    if (!disk->chunks)
