@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,11 @@
  *	i4b_l4mgmt.c - layer 4 calldescriptor management utilites
  *	-----------------------------------------------------------
  *
- *	$Id: i4b_l4mgmt.c,v 1.26 1999/12/13 21:25:28 hm Exp $ 
+ *	$Id: i4b_l4mgmt.c,v 1.34 2000/09/01 14:11:51 hm Exp $ 
  *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 22:06:32 1999]
+ *      last edit-date: [Fri Oct 13 15:58:34 2000]
  *
  *---------------------------------------------------------------------------*/
 
@@ -40,19 +40,12 @@
 #if NI4B > 0
 
 #include <sys/param.h>
-
-#if defined(__FreeBSD__)
-#include <sys/ioccom.h>
-#include <sys/random.h>
-#else
-#include <sys/ioctl.h>
-#endif
-
-#include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
-#include <sys/socket.h>
-#include <net/if.h>
+
+#if defined(__NetBSD__) && __NetBSD_Version__ >= 104230000
+#include <sys/callout.h>
+#endif
 
 #ifdef __FreeBSD__
 #include <machine/i4b_debug.h>
@@ -62,10 +55,7 @@
 #include <i4b/i4b_ioctl.h>
 #endif
 
-#include <i4b/include/i4b_l2l3.h>
 #include <i4b/include/i4b_l3l4.h>
-#include <i4b/include/i4b_mbuf.h>
-#include <i4b/include/i4b_isdnq931.h>
 #include <i4b/include/i4b_global.h>
 
 #include <i4b/layer4/i4b_l4.h>
@@ -76,8 +66,8 @@ static unsigned int get_cdid(void);
 
 int nctrl;				/* number of attached controllers */
 
-#if defined(__FreeBSD__)
-void init_callout(call_desc_t *);
+#if (defined(__NetBSD__) && __NetBSD_Version__ >= 104230000) || defined(__FreeBSD__)
+void i4b_init_callout(call_desc_t *);
 #endif
 
 /*---------------------------------------------------------------------------*
@@ -148,8 +138,8 @@ reserve_cd(void)
 			bzero(&call_desc[i], sizeof(call_desc_t)); /* clear it */
 			call_desc[i].cdid = get_cdid();	/* fill in new cdid */
 			cd = &(call_desc[i]);	/* get pointer to descriptor */
-			DBGL4(L4_MSG, "reserve_cd", ("found free cd - index=%d cdid=%u\n",
-				 i, call_desc[i].cdid));
+			NDBGL4(L4_MSG, "found free cd - index=%d cdid=%u",
+				 i, call_desc[i].cdid);
 			break;
 		}
 	}
@@ -159,8 +149,8 @@ reserve_cd(void)
 	if(cd == NULL)
 		panic("reserve_cd: no free call descriptor available!");
 
-#if defined(__FreeBSD__)
-	init_callout(cd);
+#if (defined(__NetBSD__) && __NetBSD_Version__ >= 104230000) || defined(__FreeBSD__)
+	i4b_init_callout(cd);
 #endif
 
 	return(cd);
@@ -183,8 +173,8 @@ freecd_by_cd(call_desc_t *cd)
 		if( (call_desc[i].cdid != CDID_UNUSED) &&
 		    (&(call_desc[i]) == cd) )
 		{
-			DBGL4(L4_MSG, "freecd_by_cd", ("releasing cd - index=%d cdid=%u cr=%d\n",
-				i, call_desc[i].cdid, cd->cr));
+			NDBGL4(L4_MSG, "releasing cd - index=%d cdid=%u cr=%d",
+				i, call_desc[i].cdid, cd->cr);
 			call_desc[i].cdid = CDID_UNUSED;
 			break;
 		}
@@ -212,10 +202,10 @@ cd_by_cdid(unsigned int cdid)
 	{
 		if(call_desc[i].cdid == cdid)
 		{
-			DBGL4(L4_MSG, "cd_by_cdid", ("found cdid - index=%d cdid=%u cr=%d\n",
-					i, call_desc[i].cdid, call_desc[i].cr));
-#if defined(__FreeBSD__)
-			init_callout(&call_desc[i]);
+			NDBGL4(L4_MSG, "found cdid - index=%d cdid=%u cr=%d",
+					i, call_desc[i].cdid, call_desc[i].cr);
+#if (defined(__NetBSD__) && __NetBSD_Version__ >= 104230000) || defined(__FreeBSD__)
+			i4b_init_callout(&call_desc[i]);
 #endif
 			return(&(call_desc[i]));
 		}
@@ -243,10 +233,10 @@ cd_by_unitcr(int unit, int cr, int crf)
 	     (call_desc[i].cr == cr)                                        &&
 	     (call_desc[i].crflag == crf) )
 	  {
-	    DBGL4(L4_MSG, "cd_by_unitcr", ("found cd, index=%d cdid=%u cr=%d\n",
-				i, call_desc[i].cdid, call_desc[i].cr));
-#if defined(__FreeBSD__)
-	    init_callout(&call_desc[i]);
+	    NDBGL4(L4_MSG, "found cd, index=%d cdid=%u cr=%d",
+			i, call_desc[i].cdid, call_desc[i].cr);
+#if (defined(__NetBSD__) && __NetBSD_Version__ >= 104230000) || defined(__FreeBSD__)
+	    i4b_init_callout(&call_desc[i]);
 #endif
 	    return(&(call_desc[i]));
 	  }
@@ -271,7 +261,13 @@ get_rand_cr(int unit)
 		int found = 1;
 		
 #if defined(__FreeBSD__)
+
+#ifdef RANDOMDEV
 		read_random((char *)&val, sizeof(val));
+#else
+		val = (u_char)random();
+#endif /* RANDOMDEV */
+
 #else
 		val |= unit+i;
 		val <<= i;
@@ -304,12 +300,13 @@ get_rand_cr(int unit)
 /*---------------------------------------------------------------------------*
  *	initialize the callout handles for FreeBSD
  *---------------------------------------------------------------------------*/
-#if defined(__FreeBSD__)
+#if (defined(__NetBSD__) && __NetBSD_Version__ >= 104230000) || defined(__FreeBSD__)
 void
-init_callout(call_desc_t *cd)
+i4b_init_callout(call_desc_t *cd)
 {
 	if(cd->callouts_inited == 0)
 	{
+#ifdef __FreeBSD__
 		callout_handle_init(&cd->idle_timeout_handle);
 		callout_handle_init(&cd->T303_callout);
 		callout_handle_init(&cd->T305_callout);
@@ -318,6 +315,16 @@ init_callout(call_desc_t *cd)
 		callout_handle_init(&cd->T310_callout);
 		callout_handle_init(&cd->T313_callout);
 		callout_handle_init(&cd->T400_callout);
+#else
+		callout_init(&cd->idle_timeout_handle);
+		callout_init(&cd->T303_callout);
+		callout_init(&cd->T305_callout);
+		callout_init(&cd->T308_callout);
+		callout_init(&cd->T309_callout);
+		callout_init(&cd->T310_callout);
+		callout_init(&cd->T313_callout);
+		callout_init(&cd->T400_callout);
+#endif
 		cd->callouts_inited = 1;
 	}
 }
@@ -337,8 +344,7 @@ i4b_l4_daemon_attached(void)
 	{
 /*XXX*/		if(ctrl_desc[i].ctrl_type == CTRL_PASSIVE)
 		{
-			DBGL4(L4_MSG, "i4b_l4_daemon_attached", ("CMR_DOPEN sent to unit %d\n",	ctrl_desc[i].unit));
-
+			NDBGL4(L4_MSG, "CMR_DOPEN sent to unit %d", ctrl_desc[i].unit);
 			(*ctrl_desc[i].N_MGMT_COMMAND)(ctrl_desc[i].unit, CMR_DOPEN, 0);
 		}
 	}
@@ -359,8 +365,7 @@ i4b_l4_daemon_detached(void)
 	{
 /*XXX*/		if(ctrl_desc[i].ctrl_type == CTRL_PASSIVE)
 		{
-			DBGL4(L4_MSG, "i4b_l4_daemon_detached", ("CMR_DCLOSE sent to unit %d\n", ctrl_desc[i].unit));
-
+			NDBGL4(L4_MSG, "CMR_DCLOSE sent to unit %d", ctrl_desc[i].unit);
 			(*ctrl_desc[i].N_MGMT_COMMAND)(ctrl_desc[i].unit, CMR_DCLOSE, 0);
 		}
 	}

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,9 @@
  *      i4b_l2.c - ISDN layer 2 (Q.921)
  *	-------------------------------
  *
- *	$Id: i4b_l2.c,v 1.30 1999/12/13 21:25:27 hm Exp $ 
- *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 22:03:23 1999]
+ *      last edit-date: [Fri Jan 12 16:43:31 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -43,22 +41,17 @@
 #if NI4BQ921 > 0
 
 #include <sys/param.h>
-
-#if defined(__FreeBSD__)
-#include <sys/ioccom.h>
-#else
-#include <sys/ioctl.h>
-#endif
-
-#include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <net/if.h>
 
+#if defined(__NetBSD__) && __NetBSD_Version__ >= 104230000
+#include <sys/callout.h>
+#endif
+
 #ifdef __FreeBSD__
 #include <machine/i4b_debug.h>
-#include <machine/i4b_ioctl.h>
 #else
 #include <i4b/i4b_debug.h>
 #include <i4b/i4b_ioctl.h>
@@ -66,7 +59,6 @@
 
 #include <i4b/include/i4b_l1l2.h>
 #include <i4b/include/i4b_l2l3.h>
-#include <i4b/include/i4b_isdnq931.h>
 #include <i4b/include/i4b_mbuf.h>
 #include <i4b/include/i4b_global.h>
 
@@ -80,11 +72,10 @@ int i4b_dl_release_cnf(int);
 int i4b_dl_data_ind(int, struct mbuf *);
 int i4b_dl_unit_data_ind(int, struct mbuf *);
 
-static int i4b_mdl_command_req(int, int, int);
+static int i4b_mdl_command_req(int, int, void *);
 
 /* from layer 2 */
 
-extern int i4b_mdl_attach_ind(int, int);
 extern int i4b_mdl_status_ind(int, int, int);
 
 /* this layers debug level */
@@ -115,7 +106,7 @@ struct i4b_l2l3_func i4b_l2l3_func = {
 
 	/* Layer 3  --> Layer 2 management */
 	
-	(int (*)(int, int, int))		i4b_mdl_command_req	
+	(int (*)(int, int, void *))		i4b_mdl_command_req	
 };
 
 /*---------------------------------------------------------------------------*
@@ -125,7 +116,7 @@ int i4b_dl_establish_req(int unit)
 {
 	l2_softc_t *l2sc = &l2_softc[unit];
 	
-	DBGL2(L2_PRIM, "DL-ESTABLISH-REQ", ("unit %d\n",unit));
+	NDBGL2(L2_PRIM, "unit %d",unit);
 	i4b_l1_activate(l2sc);
 	i4b_next_l2state(l2sc, EV_DLESTRQ);
 	return(0);
@@ -138,7 +129,7 @@ int i4b_dl_release_req(int unit)
 {
 	l2_softc_t *l2sc = &l2_softc[unit];
 
-	DBGL2(L2_PRIM, "DL-RELEASE-REQ", ("unit %d\n",unit));	
+	NDBGL2(L2_PRIM, "unit %d",unit);	
 	i4b_next_l2state(l2sc, EV_DLRELRQ);
 	return(0);	
 }
@@ -149,7 +140,7 @@ int i4b_dl_release_req(int unit)
 int i4b_dl_unit_data_req(int unit, struct mbuf *m)
 {
 #ifdef NOTDEF
-	DBGL2(L2_PRIM, "DL-UNIT-DATA-REQ", ("unit %d\n",unit));
+	NDBGL2(L2_PRIM, "unit %d",unit);
 #endif
 	return(0);
 }
@@ -162,7 +153,7 @@ int i4b_dl_data_req(int unit, struct mbuf *m)
 	l2_softc_t *l2sc = &l2_softc[unit];
 
 #ifdef NOTDEF
-	DBGL2(L2_PRIM, "DL-DATA-REQ", ("unit %d\n",unit));
+	NDBGL2(L2_PRIM, "unit %d",unit);
 #endif
 	switch(l2sc->Q921_state)
 	{
@@ -170,9 +161,9 @@ int i4b_dl_data_req(int unit, struct mbuf *m)
 		case ST_MULTIFR:
 		case ST_TIMREC:
 		
-		        if(IF_QFULL(&l2sc->i_queue))
+		        if(_IF_QFULL(&l2sc->i_queue))
 		        {
-		        	DBGL2(L2_ERROR, "i4b_dl_data_req", ("i_queue full!!\n"));
+		        	NDBGL2(L2_ERROR, "i_queue full!!");
 		        	i4b_Dfreembuf(m);
 		        }
 		        else
@@ -188,7 +179,7 @@ int i4b_dl_data_req(int unit, struct mbuf *m)
 			break;
 			
 		default:
-			DBGL2(L2_ERROR, "i4b_dl_data_req", ("unit %d ERROR in state [%s], freeing mbuf\n", unit, i4b_print_l2state(l2sc)));
+			NDBGL2(L2_ERROR, "unit %d ERROR in state [%s], freeing mbuf", unit, i4b_print_l2state(l2sc));
 			i4b_Dfreembuf(m);
 			break;
 	}		
@@ -203,7 +194,7 @@ i4b_ph_activate_ind(int unit)
 {
 	l2_softc_t *l2sc = &l2_softc[unit];
 
-	DBGL1(L1_PRIM, "PH-ACTIVATE-IND", ("unit %d\n",unit));
+	NDBGL1(L1_PRIM, "unit %d",unit);
 	l2sc->ph_active = PH_ACTIVE;
 	return(0);
 }
@@ -216,7 +207,7 @@ i4b_ph_deactivate_ind(int unit)
 {
 	l2_softc_t *l2sc = &l2_softc[unit];
 
-	DBGL1(L1_PRIM, "PH-DEACTIVATE-IND", ("unit %d\n",unit));
+	NDBGL1(L1_PRIM, "unit %d",unit);
 	l2sc->ph_active = PH_INACTIVE;
 	return(0);
 }
@@ -277,13 +268,17 @@ i4b_mph_status_ind(int unit, int status, int parm)
 	
 	CRIT_BEG;
 
-	DBGL1(L1_PRIM, "MPH-STATUS-IND", ("unit %d, status=%d, parm=%d\n", unit, status, parm));
+	NDBGL1(L1_PRIM, "unit %d, status=%d, parm=%d", unit, status, parm);
 
 	switch(status)
 	{
 		case STI_ATTACH:
 			l2sc->unit = unit;
 			l2sc->i_queue.ifq_maxlen = IQUEUE_MAXLEN;
+
+#if defined(__FreeBSD__) && __FreeBSD__ > 4
+			mtx_init(&l2sc->i_queue.ifq_mtx, "i4b_l2sc", MTX_DEF);
+#endif
 			l2sc->ua_frame = NULL;
 			bzero(&l2sc->stat, sizeof(lapdstat_t));			
 			i4b_l2_unit_init(unit);
@@ -295,6 +290,14 @@ i4b_mph_status_ind(int unit, int status, int parm)
 			callout_handle_init(&l2sc->T203_callout);
 			callout_handle_init(&l2sc->IFQU_callout);
 #endif
+#if defined(__NetBSD__) && __NetBSD_Version__ >= 104230000
+			/* initialize the callout handles for timeout routines */
+			callout_init(&l2sc->T200_callout);
+			callout_init(&l2sc->T202_callout);
+			callout_init(&l2sc->T203_callout);
+			callout_init(&l2sc->IFQU_callout);
+#endif
+
 			break;
 
 		case STI_L1STAT:	/* state of layer 1 */
@@ -304,7 +307,7 @@ i4b_mph_status_ind(int unit, int status, int parm)
 /*XXX*/			if((l2sc->Q921_state >= ST_AW_EST) &&
 			   (l2sc->Q921_state <= ST_TIMREC))
 			{
-				DBGL2(L2_ERROR, "i4b_mph_status_ind", ("unit %d, persistent deactivation!\n", unit));
+				NDBGL2(L2_ERROR, "unit %d, persistent deactivation!", unit);
 				i4b_l2_unit_init(unit);
 			}
 			else
@@ -315,11 +318,11 @@ i4b_mph_status_ind(int unit, int status, int parm)
 
 		case STI_NOL1ACC:
 			i4b_l2_unit_init(unit);
-			DBGL2(L2_ERROR, "i4b_mph_status_ind", ("unit %d, cannot access S0 bus!\n", unit));
+			NDBGL2(L2_ERROR, "unit %d, cannot access S0 bus!", unit);
 			break;
 			
 		default:
-			DBGL2(L2_ERROR, "i4b_mph_status_ind", ("ERROR, unit %d, unknown status message!\n", unit));
+			NDBGL2(L2_ERROR, "ERROR, unit %d, unknown status message!", unit);
 			break;
 	}
 	
@@ -334,9 +337,9 @@ i4b_mph_status_ind(int unit, int status, int parm)
 /*---------------------------------------------------------------------------*
  *	MDL_COMMAND_REQ from layer 3
  *---------------------------------------------------------------------------*/
-int i4b_mdl_command_req(int unit, int command, int parm)
+int i4b_mdl_command_req(int unit, int command, void * parm)
 {
-	DBGL2(L2_PRIM, "MDL-COMMAND-REQ", ("unit %d, command=%d, parm=%d\n", unit, command, parm));
+	NDBGL2(L2_PRIM, "unit %d, command=%d, parm=%d", unit, command, (unsigned int)parm);
 
 	switch(command)
 	{
@@ -358,7 +361,7 @@ i4b_ph_data_ind(int unit, struct mbuf *m)
 {
 	l2_softc_t *l2sc = &l2_softc[unit];
 #ifdef NOTDEF
-	DBGL1(L1_PRIM, "PH-DATA-IND", ("unit %d\n", unit));
+	NDBGL1(L1_PRIM, "unit %d", unit);
 #endif
 	u_char *ptr = m->m_data;
 
@@ -367,7 +370,7 @@ i4b_ph_data_ind(int unit, struct mbuf *m)
 		if(m->m_len < 4)	/* 6 oct - 2 chksum oct */
 		{
 			l2sc->stat.err_rx_len++;
-			DBGL2(L2_ERROR, "i4b_ph_data_ind", ("ERROR, I-frame < 6 octetts!\n"));
+			NDBGL2(L2_ERROR, "ERROR, I-frame < 6 octetts!");
 			i4b_Dfreembuf(m);
 			return(0);
 		}
@@ -378,7 +381,7 @@ i4b_ph_data_ind(int unit, struct mbuf *m)
 		if(m->m_len < 4)	/* 6 oct - 2 chksum oct */
 		{
 			l2sc->stat.err_rx_len++;
-			DBGL2(L2_ERROR, "i4b_ph_data_ind", ("ERROR, S-frame < 6 octetts!\n"));
+			NDBGL2(L2_ERROR, "ERROR, S-frame < 6 octetts!");
 			i4b_Dfreembuf(m);
 			return(0);
 		}
@@ -389,7 +392,7 @@ i4b_ph_data_ind(int unit, struct mbuf *m)
 		if(m->m_len < 3)	/* 5 oct - 2 chksum oct */
 		{
 			l2sc->stat.err_rx_len++;
-			DBGL2(L2_ERROR, "i4b_ph_data_ind", ("ERROR, U-frame < 5 octetts!\n"));
+			NDBGL2(L2_ERROR, "ERROR, U-frame < 5 octetts!");
 			i4b_Dfreembuf(m);
 			return(0);
 		}
@@ -398,7 +401,7 @@ i4b_ph_data_ind(int unit, struct mbuf *m)
 	else
 	{
 		l2sc->stat.err_rx_badf++;
-		DBGL2(L2_ERROR, "i4b_ph_data_ind", ("ERROR, bad frame rx'd - "));
+		NDBGL2(L2_ERROR, "ERROR, bad frame rx'd - ");
 		i4b_print_frame(m->m_len, m->m_data);
 		i4b_Dfreembuf(m);
 	}

@@ -27,11 +27,11 @@
  *	i4b_l2l3.h - i4b layer 2 / layer 3 interactions
  *	-----------------------------------------------
  *
- *	$Id: i4b_l2l3.h,v 1.7 1999/12/13 21:25:24 hm Exp $
+ *	$Id: i4b_l2l3.h,v 1.8 2000/06/02 16:14:35 hm Exp $
  *
  * $FreeBSD$
  *
- *	last edit-date: [Mon Dec 13 21:44:47 1999]
+ *	last edit-date: [Fri Jun  2 14:33:34 2000]
  *
  *---------------------------------------------------------------------------*/
 
@@ -108,7 +108,7 @@ struct i4b_l2l3_func
 	/* Layer 3 --> Layer 2 management */
 	/* ============================== */
 
-	int	(*MDL_COMMAND_REQ) (int, int, int);	/* L3 --> L2 command */
+	int	(*MDL_COMMAND_REQ) (int, int, void *);	/* L3 --> L2 command */
 
 #define MDL_Command_Req(unit, command, parm)		\
 	((*i4b_l2l3_func.MDL_COMMAND_REQ)(unit, command, parm))

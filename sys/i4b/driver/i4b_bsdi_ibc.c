@@ -30,11 +30,11 @@
  *	i4b_bsdi_ibc.c - isdn4bsd kernel BSD/OS point to point driver
  *	-------------------------------------------------------------
  *
- *	$Id: i4b_bsdi_ibc.c,v 1.1 1999/04/23 08:35:07 hm Exp $
+ *	$Id: i4b_bsdi_ibc.c,v 1.3 2000/08/21 07:21:07 hm Exp $
  *
  * $FreeBSD$
  *
- *	last edit-date: [Tue Dec 14 21:55:37 1999]
+ *	last edit-date: [Tue Dec 14 21:55:24 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -184,7 +184,11 @@ ibcattach(void *dummy)
 		sc->sc_loutb = 0;
 		sc->sc_fn = 1;
 #endif
+#if defined(__FreeBSD_version) && ((__FreeBSD_version >= 500009) || (410000 <= __FreeBSD_version && __FreeBSD_version < 500000))
+		ether_ifattach(ifp, 0);
+#else
 		if_attach(ifp);
+#endif
 		p2p_attach(&sc->sc_p2pcom);
 	}
 }
@@ -192,18 +196,11 @@ ibcattach(void *dummy)
 static struct mbuf *
 p2p_dequeue(struct p2pcom *pp)
 {
-	struct ifqueue *ifq;
 	struct mbuf *m;
 
-	ifq = &pp->p2p_isnd;
-	m = ifq->ifq_head;
-	if (m == 0) {
-		ifq = &pp->p2p_if.if_snd;
-		m = ifq->ifq_head;
-	}
+	IF_DEQUEUE(&pp->p2p_isnd, m);
 	if (m == 0)
-		return 0;
-	IF_DEQUEUE(ifq, m);
+		IF_DEQUEUE(&pp->p2p_if.if_snd, m);
 	return m;
 }
 
@@ -227,13 +224,16 @@ ibc_start(struct ifnet *ifp)
 
 	s = SPLI4B();
 
-	if (IF_QFULL(isdn_ibc_lt[unit]->tx_queue)) {
+	IF_LOCK(isdn_ibc_lt[unit]->tx_queue);
+	if (_IF_QFULL(isdn_ibc_lt[unit]->tx_queue)) {
+		IF_UNLOCK(isdn_ibc_lt[unit]->tx_queue);
 		splx(s);
 		return 0;
 	}
 
 	m = p2p_dequeue(pp);
 	if (m == NULL) {
+		IF_UNLOCK(isdn_ibc_lt[unit]->tx_queue);
 		splx(s);
 		return 0;
 	}
@@ -241,13 +241,14 @@ ibc_start(struct ifnet *ifp)
 	do {
 		microtime(&ifp->if_lastchange);
 
-		IF_ENQUEUE(isdn_ibc_lt[unit]->tx_queue, m);
-
 		ifp->if_obytes += m->m_pkthdr.len;
 		sc->sc_outb += m->m_pkthdr.len;
+		_IF_ENQUEUE(isdn_ibc_lt[unit]->tx_queue, m);
+
 		ifp->if_opackets++;
-	} while (!IF_QFULL(isdn_ibc_lt[unit]->tx_queue) &&
+	} while (!_IF_QFULL(isdn_ibc_lt[unit]->tx_queue) &&
 					(m = p2p_dequeue(pp)) != NULL);
+	IF_UNLOCK(isdn_ibc_lt[unit]->tx_queue);
 	isdn_ibc_lt[unit]->bch_tx_start(isdn_ibc_lt[unit]->unit,
 					 isdn_ibc_lt[unit]->channel);
 	splx(s);

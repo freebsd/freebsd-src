@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,33 +27,19 @@
  *	i4b - mbuf handling support routines
  *	------------------------------------
  *
- *	$Id: i4b_mbuf.c,v 1.13 1999/12/13 21:25:27 hm Exp $ 
- *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 22:04:10 1999]
+ *      last edit-date: [Sat Jan 13 13:15:45 2001]
  *
  *---------------------------------------------------------------------------*/
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
-
-#if defined(__FreeBSD__)
-#include <sys/ioccom.h>
-#else
-#include <sys/ioctl.h>
-#endif
-
-#include <sys/tty.h>
-#include <sys/proc.h>
-#include <sys/uio.h>
-#include <sys/kernel.h>
 #include <sys/socket.h>
 #include <net/if.h>
 
 #include <i4b/include/i4b_mbuf.h>
-#include <i4b/include/i4b_global.h>
 
 #define I4B_MBUF_DEBUG
 #undef I4B_MBUF_TYPE_DEBUG
@@ -152,15 +138,18 @@ i4b_Dfreembuf(struct mbuf *m)
 void
 i4b_Dcleanifq(struct ifqueue *ifq)
 {
-	struct mbuf *m;
 	int x = splimp();
-	
+
+#if defined (__FreeBSD__) && __FreeBSD__ > 4
+	IF_DRAIN(ifq);
+#else
+	struct mbuf *m;
 	while(!IF_QEMPTY(ifq))
 	{
 		IF_DEQUEUE(ifq, m);
 		i4b_Dfreembuf(m);
 	}
-
+#endif
 	splx(x);
 }
 
@@ -234,15 +223,18 @@ i4b_Bfreembuf(struct mbuf *m)
 void
 i4b_Bcleanifq(struct ifqueue *ifq)
 {
-	struct mbuf *m;
 	int x = splimp();
 	
+#if defined (__FreeBSD__) && __FreeBSD__ > 4
+	IF_DRAIN(ifq);
+#else
+	struct mbuf *m;
 	while(!IF_QEMPTY(ifq))
 	{
 		IF_DEQUEUE(ifq, m);
 		i4b_Bfreembuf(m);
 	}
-
+#endif
 	splx(x);
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,9 @@
  *	i4b_rbch.c - device driver for raw B channel data
  *	---------------------------------------------------
  *
- *	$Id: i4b_rbch.c,v 1.48 1999/12/13 21:25:24 hm Exp $
- *
  * $FreeBSD$
  *
- *	last edit-date: [Mon Dec 13 21:39:15 1999]
+ *	last edit-date: [Fri Jan 12 14:32:16 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -48,17 +46,27 @@
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <net/if.h>
-#include <sys/proc.h>
 #include <sys/tty.h>
+
+#if defined(__NetBSD__) && __NetBSD_Version__ >= 104230000
+#include <sys/callout.h>
+#endif
 
 #if defined (__NetBSD__) || defined (__OpenBSD__)
 extern cc_t ttydefchars;
 #define termioschars(t) memcpy((t)->c_cc, &ttydefchars, sizeof((t)->c_cc))
 #endif
 
+#ifdef __FreeBSD__
+
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif
+
+#endif /* __FreeBSD__ */
+
 #ifdef __NetBSD__
 #include <sys/filio.h>
-#define bootverbose 0
 #endif
 
 #ifdef __FreeBSD__
@@ -79,8 +87,6 @@ extern cc_t ttydefchars;
 
 #ifdef __bsdi__
 #include <sys/device.h>
-/* XXX FIXME */
-int bootverbose = 0;
 #endif
 
 #ifdef OS_USES_POLL
@@ -91,7 +97,7 @@ int bootverbose = 0;
 #include <sys/ioctl.h>
 #endif
 
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
+#if defined(__FreeBSD__)
 #include <sys/filio.h>
 #endif
 
@@ -128,6 +134,10 @@ static struct rbch_softc {
 #if defined(__FreeBSD__)
 	struct callout_handle sc_callout;
 #endif	
+#if defined(__NetBSD__) && __NetBSD_Version__ >= 104230000
+	struct callout	sc_callout;
+#endif
+
 	int		sc_iinb;	/* isdn driver # of inbytes	*/
 	int		sc_ioutb;	/* isdn driver # of outbytes	*/
 	int		sc_linb;	/* last # of bytes rx'd		*/
@@ -179,7 +189,6 @@ PDEVSTATIC d_select_t i4brbchselect;
 
 #define CDEV_MAJOR 57
 
-#if defined(__FreeBSD__) && __FreeBSD__ >= 4
 static struct cdevsw i4brbch_cdevsw = {
 	/* open */      i4brbchopen,
 	/* close */     i4brbchclose,
@@ -194,15 +203,7 @@ static struct cdevsw i4brbch_cdevsw = {
 	/* dump */      nodump,
 	/* psize */     nopsize,
 	/* flags */     0,
-	/* bmaj */      -1
 };
-#else
-static struct cdevsw i4brbch_cdevsw = {
-	i4brbchopen,	i4brbchclose,	i4brbchread,	i4brbchwrite,
-  	i4brbchioctl,	nostop,		noreset,	nodevtotty,
-	POLLFIELD,	nommap, 	NULL, "i4brbch", NULL, -1
-};
-#endif
 
 static void i4brbchattach(void *);
 PSEUDO_SET(i4brbchattach, i4b_rbch);
@@ -217,12 +218,7 @@ PSEUDO_SET(i4brbchattach, i4b_rbch);
 static void
 i4brbchinit(void *unused)
 {
-#if defined(__FreeBSD__) && __FreeBSD__ >= 4
 	cdevsw_add(&i4brbch_cdevsw);
-#else
-	dev_t dev = makedev(CDEV_MAJOR, 0);
-	cdevsw_add(&dev, &i4brbch_cdevsw, NULL);
-#endif
 }
 
 SYSINIT(i4brbchdev, SI_SUB_DRIVERS,
@@ -286,11 +282,17 @@ i4brbchattach()
 #if defined(__FreeBSD__)
 		callout_handle_init(&rbch_softc[i].sc_callout);
 #endif
+#if defined(__NetBSD__) && __NetBSD_Version__ >= 104230000
+		callout_init(&rbch_softc[i].sc_callout);
+#endif
 		rbch_softc[i].sc_fn = 1;
 #endif
 		rbch_softc[i].sc_unit = i;
 		rbch_softc[i].sc_devstate = ST_IDLE;
 		rbch_softc[i].sc_hdlcq.ifq_maxlen = I4BRBCHMAXQLEN;
+#if defined(__FreeBSD__) && __FreeBSD__ > 4
+		mtx_init(&rbch_softc[i].sc_hdlcq.ifq_mtx, "i4b_rbch", MTX_DEF);
+#endif		
 		rbch_softc[i].it_in.c_ispeed = rbch_softc[i].it_in.c_ospeed = 64000;
 		termioschars(&rbch_softc[i].it_in);
 		rbch_init_linktab(i);
@@ -305,7 +307,7 @@ i4brbchopen(dev_t dev, int flag, int fmt, struct proc *p)
 {
 	int unit = minor(dev);
 	
-	if(unit > NI4BRBCH)
+	if(unit >= NI4BRBCH)
 		return(ENXIO);
 
 	if(rbch_softc[unit].sc_devstate & ST_ISOPEN)
@@ -317,7 +319,7 @@ i4brbchopen(dev_t dev, int flag, int fmt, struct proc *p)
 	
 	rbch_softc[unit].sc_devstate |= ST_ISOPEN;		
 
-	DBGL4(L4_RBCHDBG, "i4brbchopen", ("unit %d, open\n", unit));	
+	NDBGL4(L4_RBCHDBG, "unit %d, open", unit);	
 
 	return(0);
 }
@@ -338,7 +340,7 @@ i4brbchclose(dev_t dev, int flag, int fmt, struct proc *p)
 
 	rbch_clrq(unit);
 	
-	DBGL4(L4_RBCHDBG, "i4brbclose", ("unit %d, closed\n", unit));
+	NDBGL4(L4_RBCHDBG, "unit %d, closed", unit);
 	
 	return(0);
 }
@@ -357,38 +359,45 @@ i4brbchread(dev_t dev, struct uio *uio, int ioflag)
 
 	CRIT_VAR;
 	
-	DBGL4(L4_RBCHDBG, "i4brbchread", ("unit %d, enter read\n", unit));
+	NDBGL4(L4_RBCHDBG, "unit %d, enter read", unit);
 	
+	CRIT_BEG;
 	if(!(sc->sc_devstate & ST_ISOPEN))
 	{
-		DBGL4(L4_RBCHDBG, "i4brbchread", ("unit %d, read while not open\n", unit));
+		CRIT_END;
+		NDBGL4(L4_RBCHDBG, "unit %d, read while not open", unit);
 		return(EIO);
 	}
 
 	if((sc->sc_devstate & ST_NOBLOCK))
 	{
-		if(!(sc->sc_devstate & ST_CONNECTED))
+		if(!(sc->sc_devstate & ST_CONNECTED)) {
+			CRIT_END;
 			return(EWOULDBLOCK);
+		}
 
 		if(sc->sc_bprot == BPROT_RHDLC)
 			iqp = &sc->sc_hdlcq;
 		else
 			iqp = isdn_linktab[unit]->rx_queue;	
 
-		if(IF_QEMPTY(iqp) && (sc->sc_devstate & ST_ISOPEN))
+		if(IF_QEMPTY(iqp) && (sc->sc_devstate & ST_ISOPEN)) {
+			CRIT_END;
 			return(EWOULDBLOCK);
+	}
 	}
 	else
 	{
 		while(!(sc->sc_devstate & ST_CONNECTED))
 		{
-			DBGL4(L4_RBCHDBG, "i4brbchread", ("unit %d, wait read init\n", unit));
+			NDBGL4(L4_RBCHDBG, "unit %d, wait read init", unit);
 		
 			if((error = tsleep((caddr_t) &rbch_softc[unit],
 					   TTIPRI | PCATCH,
 					   "rrrbch", 0 )) != 0)
 			{
-				DBGL4(L4_RBCHDBG, "i4brbchread", ("unit %d, error %d tsleep\n", unit, error));
+				CRIT_END;
+				NDBGL4(L4_RBCHDBG, "unit %d, error %d tsleep", unit, error);
 				return(error);
 			}
 		}
@@ -400,28 +409,25 @@ i4brbchread(dev_t dev, struct uio *uio, int ioflag)
 
 		while(IF_QEMPTY(iqp) && (sc->sc_devstate & ST_ISOPEN))
 		{
-			CRIT_BEG;
 			sc->sc_devstate |= ST_RDWAITDATA;
-			CRIT_END;
 		
-			DBGL4(L4_RBCHDBG, "i4brbchread", ("unit %d, wait read data\n", unit));
+			NDBGL4(L4_RBCHDBG, "unit %d, wait read data", unit);
 		
 			if((error = tsleep((caddr_t) &isdn_linktab[unit]->rx_queue,
 					   TTIPRI | PCATCH,
 					   "rrbch", 0 )) != 0)
 			{
-				DBGL4(L4_RBCHDBG, "i4brbchread", ("unit %d, error %d tsleep read\n", unit, error));
+				CRIT_END;
+				NDBGL4(L4_RBCHDBG, "unit %d, error %d tsleep read", unit, error);
 				sc->sc_devstate &= ~ST_RDWAITDATA;
 				return(error);
 			}
 		}
 	}
 
-	CRIT_BEG;
-
 	IF_DEQUEUE(iqp, m);
 
-	DBGL4(L4_RBCHDBG, "i4brbchread", ("unit %d, read %d bytes\n", unit, m->m_len));
+	NDBGL4(L4_RBCHDBG, "unit %d, read %d bytes", unit, m->m_len);
 	
 	if(m && m->m_len)
 	{
@@ -429,7 +435,7 @@ i4brbchread(dev_t dev, struct uio *uio, int ioflag)
 	}
 	else
 	{
-		DBGL4(L4_RBCHDBG, "i4brbchread", ("unit %d, error %d uiomove\n", unit, error));
+		NDBGL4(L4_RBCHDBG, "unit %d, error %d uiomove", unit, error);
 		error = EIO;
 	}
 		
@@ -454,52 +460,60 @@ i4brbchwrite(dev_t dev, struct uio * uio, int ioflag)
 
 	CRIT_VAR;
 	
-	DBGL4(L4_RBCHDBG, "i4brbchwrite", ("unit %d, write\n", unit));	
+	NDBGL4(L4_RBCHDBG, "unit %d, write", unit);	
 
+	CRIT_BEG;
 	if(!(sc->sc_devstate & ST_ISOPEN))
 	{
-		DBGL4(L4_RBCHDBG, "i4brbchwrite", ("unit %d, write while not open\n", unit));
+		NDBGL4(L4_RBCHDBG, "unit %d, write while not open", unit);
+		CRIT_END;
 		return(EIO);
 	}
 
 	if((sc->sc_devstate & ST_NOBLOCK))
 	{
-		if(!(sc->sc_devstate & ST_CONNECTED))
+		if(!(sc->sc_devstate & ST_CONNECTED)) {
+			CRIT_END;
 			return(EWOULDBLOCK);
-		if(IF_QFULL(isdn_linktab[unit]->tx_queue) && (sc->sc_devstate & ST_ISOPEN))
+		}
+		if(_IF_QFULL(isdn_linktab[unit]->tx_queue) && (sc->sc_devstate & ST_ISOPEN)) {
+			CRIT_END;
 			return(EWOULDBLOCK);
+	}
 	}
 	else
 	{
 		while(!(sc->sc_devstate & ST_CONNECTED))
 		{
-			DBGL4(L4_RBCHDBG, "i4brbchwrite", ("unit %d, write wait init\n", unit));
+			NDBGL4(L4_RBCHDBG, "unit %d, write wait init", unit);
 		
 			error = tsleep((caddr_t) &rbch_softc[unit],
 						   TTIPRI | PCATCH,
 						   "wrrbch", 0 );
-			if(error == ERESTART)
+			if(error == ERESTART) {
+				CRIT_END;
 				return (ERESTART);
+			}
 			else if(error == EINTR)
 			{
-				DBGL4(L4_RBCHDBG, "i4brbchwrite", ("unit %d, EINTR during wait init\n", unit));
+				CRIT_END;
+				NDBGL4(L4_RBCHDBG, "unit %d, EINTR during wait init", unit);
 				return(EINTR);
 			}
 			else if(error)
 			{
-				DBGL4(L4_RBCHDBG, "i4brbchwrite", ("unit %d, error %d tsleep init\n", unit, error));
+				CRIT_END;
+				NDBGL4(L4_RBCHDBG, "unit %d, error %d tsleep init", unit, error);
 				return(error);
 			}
 			tsleep((caddr_t) &rbch_softc[unit], TTIPRI | PCATCH, "xrbch", (hz*1));
 		}
 
-		while(IF_QFULL(isdn_linktab[unit]->tx_queue) && (sc->sc_devstate & ST_ISOPEN))
+		while(_IF_QFULL(isdn_linktab[unit]->tx_queue) && (sc->sc_devstate & ST_ISOPEN))
 		{
-			CRIT_BEG;
 			sc->sc_devstate |= ST_WRWAITEMPTY;
-			CRIT_END;
 
-			DBGL4(L4_RBCHDBG, "i4brbchwrite", ("unit %d, write queue full\n", unit));
+			NDBGL4(L4_RBCHDBG, "unit %d, write queue full", unit);
 		
 			if ((error = tsleep((caddr_t) &isdn_linktab[unit]->tx_queue,
 					    TTIPRI | PCATCH,
@@ -507,27 +521,28 @@ i4brbchwrite(dev_t dev, struct uio * uio, int ioflag)
 				sc->sc_devstate &= ~ST_WRWAITEMPTY;
 				if(error == ERESTART)
 				{
+					CRIT_END;
 					return(ERESTART);
 				}
 				else if(error == EINTR)
 				{
-					DBGL4(L4_RBCHDBG, "i4brbchwrite", ("unit %d, EINTR during wait write\n", unit));
+					CRIT_END;
+					NDBGL4(L4_RBCHDBG, "unit %d, EINTR during wait write", unit);
 					return(error);
 				}
 				else if(error)
 				{
-					DBGL4(L4_RBCHDBG, "i4brbchwrite", ("unit %d, error %d tsleep write\n", unit, error));
+					CRIT_END;
+					NDBGL4(L4_RBCHDBG, "unit %d, error %d tsleep write", unit, error);
 					return(error);
 				}
 			}
 		}
 	}
 
-	CRIT_BEG;
-
 	if(!(sc->sc_devstate & ST_ISOPEN))
 	{
-		DBGL4(L4_RBCHDBG, "i4brbchwrite", ("unit %d, not open anymore\n", unit));
+		NDBGL4(L4_RBCHDBG, "unit %d, not open anymore", unit);
 		CRIT_END;
 		return(EIO);
 	}
@@ -536,19 +551,18 @@ i4brbchwrite(dev_t dev, struct uio * uio, int ioflag)
 	{
 		m->m_len = min(BCH_MAX_DATALEN, uio->uio_resid);
 
-		DBGL4(L4_RBCHDBG, "i4brbchwrite", ("unit %d, write %d bytes\n", unit, m->m_len));
+		NDBGL4(L4_RBCHDBG, "unit %d, write %d bytes", unit, m->m_len);
 		
 		error = uiomove(m->m_data, m->m_len, uio);
 
+#if defined (__FreeBSD__) && __FreeBSD__ > 4		
+		(void) IF_HANDOFF(isdn_linktab[unit]->tx_queue, m, NULL);
+#else
 		if(IF_QFULL(isdn_linktab[unit]->tx_queue))
-		{
-			m_freem(m);			
-		}
+			m_freem(m);
 		else
-		{
 			IF_ENQUEUE(isdn_linktab[unit]->tx_queue, m);
-		}
-
+#endif
 		(*isdn_linktab[unit]->bch_tx_start)(isdn_linktab[unit]->unit, isdn_linktab[unit]->channel);
 	}
 
@@ -572,23 +586,23 @@ i4brbchioctl(dev_t dev, IOCTL_CMD_T cmd, caddr_t data, int flag, struct proc *p)
 		case FIOASYNC:	/* Set async mode */
 			if (*(int *)data)
 			{
-				DBGL4(L4_RBCHDBG, "i4brbchioctl", ("unit %d, setting async mode\n", unit));
+				NDBGL4(L4_RBCHDBG, "unit %d, setting async mode", unit);
 			}
 			else
 			{
-				DBGL4(L4_RBCHDBG, "i4brbchioctl", ("unit %d, clearing async mode\n", unit));
+				NDBGL4(L4_RBCHDBG, "unit %d, clearing async mode", unit);
 			}
 			break;
 
 		case FIONBIO:
 			if (*(int *)data)
 			{
-				DBGL4(L4_RBCHDBG, "i4brbchioctl", ("unit %d, setting non-blocking mode\n", unit));
+				NDBGL4(L4_RBCHDBG, "unit %d, setting non-blocking mode", unit);
 				sc->sc_devstate |= ST_NOBLOCK;
 			}
 			else
 			{
-				DBGL4(L4_RBCHDBG, "i4brbchioctl", ("unit %d, clearing non-blocking mode\n", unit));
+				NDBGL4(L4_RBCHDBG, "unit %d, clearing non-blocking mode", unit);
 				sc->sc_devstate &= ~ST_NOBLOCK;
 			}
 			break;
@@ -596,7 +610,7 @@ i4brbchioctl(dev_t dev, IOCTL_CMD_T cmd, caddr_t data, int flag, struct proc *p)
 		case TIOCCDTR:	/* Clear DTR */
 			if(sc->sc_devstate & ST_CONNECTED)
 			{
-				DBGL4(L4_RBCHDBG, "i4brbchioctl", ("unit %d, disconnecting for DTR down\n", unit));
+				NDBGL4(L4_RBCHDBG, "unit %d, disconnecting for DTR down", unit);
 				i4b_l4_drvrdisc(BDRV_RBCH, unit);
 			}
 			break;
@@ -609,7 +623,7 @@ i4brbchioctl(dev_t dev, IOCTL_CMD_T cmd, caddr_t data, int flag, struct proc *p)
 				;
 			if (l)
 			{
-				DBGL4(L4_RBCHDBG, "i4brbchioctl", ("unit %d, attempting dialout to %s\n", unit, (char *)data));
+				NDBGL4(L4_RBCHDBG, "unit %d, attempting dialout to %s", unit, (char *)data);
 				i4b_l4_dialoutnumber(BDRV_RBCH, unit, l, (char *)data);
 				break;
 			}
@@ -617,7 +631,7 @@ i4brbchioctl(dev_t dev, IOCTL_CMD_T cmd, caddr_t data, int flag, struct proc *p)
 		}
 
 		case TIOCSDTR:	/* Set DTR */
-			DBGL4(L4_RBCHDBG, "i4brbchioctl", ("unit %d, attempting dialout (DTR)\n", unit));
+			NDBGL4(L4_RBCHDBG, "unit %d, attempting dialout (DTR)", unit);
 			i4b_l4_dialout(BDRV_RBCH, unit);
 			break;
 
@@ -647,7 +661,7 @@ i4brbchioctl(dev_t dev, IOCTL_CMD_T cmd, caddr_t data, int flag, struct proc *p)
 		}
 
 		default:	/* Unknown stuff */
-			DBGL4(L4_RBCHDBG, "i4brbchioctl", ("unit %d, ioctl, unknown cmd %lx\n", unit, (u_long)cmd));
+			NDBGL4(L4_RBCHDBG, "unit %d, ioctl, unknown cmd %lx", unit, (u_long)cmd);
 			error = EINVAL;
 			break;
 	}
@@ -684,7 +698,7 @@ i4brbchpoll(dev_t dev, int events, struct proc *p)
 	 
 	if((events & (POLLOUT|POLLWRNORM)) &&
 	   (sc->sc_devstate & ST_CONNECTED) &&
-	   !IF_QFULL(isdn_linktab[unit]->tx_queue))
+	   !_IF_QFULL(isdn_linktab[unit]->tx_queue))
 	{
 		revents |= (events & (POLLOUT|POLLWRNORM));
 	}
@@ -729,7 +743,7 @@ i4brbchselect(dev_t dev, int rw, struct proc *p)
 	if(!(sc->sc_devstate & ST_ISOPEN))
 	{
 		splx(s);
-		DBGL4(L4_RBCHDBG, "i4brbchselect", ("unit %d, not open anymore\n", unit));
+		NDBGL4(L4_RBCHDBG, "unit %d, not open anymore", unit);
 		return(1);
 	}
 	
@@ -753,7 +767,7 @@ i4brbchselect(dev_t dev, int rw, struct proc *p)
 				break;
 
 			case FWRITE:
-				if(!IF_QFULL(isdn_linktab[unit]->rx_queue))
+				if(!_IF_QFULL(isdn_linktab[unit]->rx_queue))
 				{
 					splx(s);
 					return(1);
@@ -806,11 +820,7 @@ rbch_timeout(struct rbch_softc *sc)
 		i4b_l4_accounting(BDRV_RBCH, unit, ACCT_DURING,
 			 sc->sc_ioutb, sc->sc_iinb, ro, ri, sc->sc_ioutb, sc->sc_iinb);
  	}
-#if defined(__FreeBSD__)
-	sc->sc_callout =
-#endif	
-		timeout((TIMEOUT_FUNC_T)rbch_timeout,
-			(void *)sc, I4BRBCHACCTINTVL*hz);
+	START_TIMER(sc->sc_callout, rbch_timeout, sc, I4BRBCHACCTINTVL*hz);
 }
 #endif /* I4BRBCHACCT */
 
@@ -837,16 +847,12 @@ rbch_connect(int unit, void *cdp)
 		sc->sc_linb = 0;
 		sc->sc_loutb = 0;
 
-#if defined(__FreeBSD__)
-		sc->sc_callout =
-#endif
-			timeout((TIMEOUT_FUNC_T)rbch_timeout,
-				(void *)sc, I4BRBCHACCTINTVL*hz);
+		START_TIMER(sc->sc_callout, rbch_timeout, sc, I4BRBCHACCTINTVL*hz);
 	}
 #endif		
 	if(!(sc->sc_devstate & ST_CONNECTED))
 	{
-		DBGL4(L4_RBCHDBG, "rbch_connect", ("unit %d, wakeup\n", unit));
+		NDBGL4(L4_RBCHDBG, "unit %d, wakeup", unit);
 		sc->sc_devstate |= ST_CONNECTED;
 		sc->sc_cd = cdp;
 		wakeup((caddr_t)sc);
@@ -866,14 +872,14 @@ rbch_disconnect(int unit, void *cdp)
 	
         if(cd != sc->sc_cd)
 	{
-		DBGL4(L4_RBCHDBG, "rbch_disconnect", ("rbch%d: channel %d not active\n",
-			cd->driver_unit, cd->channelid));
+		NDBGL4(L4_RBCHDBG, "rbch%d: channel %d not active",
+			cd->driver_unit, cd->channelid);
 		return;
 	}
 
 	CRIT_BEG;
 	
-	DBGL4(L4_RBCHDBG, "rbch_disconnect", ("unit %d, disconnect\n", unit));
+	NDBGL4(L4_RBCHDBG, "unit %d, disconnect", unit);
 
 	sc->sc_devstate &= ~ST_CONNECTED;
 
@@ -883,13 +889,7 @@ rbch_disconnect(int unit, void *cdp)
 	i4b_l4_accounting(BDRV_RBCH, unit, ACCT_FINAL,
 		 sc->sc_ioutb, sc->sc_iinb, 0, 0, sc->sc_ioutb, sc->sc_iinb);
 
-#if defined(__FreeBSD__)
-	untimeout((TIMEOUT_FUNC_T)rbch_timeout,
-		(void *)sc, sc->sc_callout);
-#else
-	untimeout((TIMEOUT_FUNC_T)rbch_timeout,	(void *)sc);
-#endif
-
+	STOP_TIMER(sc->sc_callout, rbch_timeout, sc);
 #endif		
 	CRIT_END;
 }
@@ -927,26 +927,33 @@ rbch_rx_data_rdy(int unit)
 
 		m->m_pkthdr.len = m->m_len;
 
-		if(IF_QFULL(&(rbch_softc[unit].sc_hdlcq)))
+#if defined (__FreeBSD__) && __FreeBSD__ > 4
+		if (! IF_HANDOFF(&(rbch_softc[unit].sc_hdlcq), m, NULL))
 		{
-			DBGL4(L4_RBCHDBG, "rbch_rx_data_rdy", ("unit %d: hdlc rx queue full!\n", unit));
-			m_freem(m);
+			NDBGL4(L4_RBCHDBG, "unit %d: hdlc rx queue full!", unit);
 		}
+#else
+                if(IF_QFULL(&(rbch_softc[unit].sc_hdlcq)))
+		{
+			NDBGL4(L4_RBCHDBG, "unit %d: hdlc rx queue full!", unit);
+			m_freem(m);
+		}			
 		else
 		{
 			IF_ENQUEUE(&(rbch_softc[unit].sc_hdlcq), m);
 		}
-	}				
+#endif		
+	}
 
 	if(rbch_softc[unit].sc_devstate & ST_RDWAITDATA)
 	{
-		DBGL4(L4_RBCHDBG, "rbch_rx_data_rdy", ("unit %d, wakeup\n", unit));
+		NDBGL4(L4_RBCHDBG, "unit %d, wakeup", unit);
 		rbch_softc[unit].sc_devstate &= ~ST_RDWAITDATA;
 		wakeup((caddr_t) &isdn_linktab[unit]->rx_queue);
 	}
 	else
 	{
-		DBGL4(L4_RBCHDBG, "rbch_rx_data_rdy", ("unit %d, NO wakeup\n", unit));
+		NDBGL4(L4_RBCHDBG, "unit %d, NO wakeup", unit);
 	}
 	selwakeup(&rbch_softc[unit].selp);
 }
@@ -961,13 +968,13 @@ rbch_tx_queue_empty(int unit)
 {
 	if(rbch_softc[unit].sc_devstate & ST_WRWAITEMPTY)
 	{
-		DBGL4(L4_RBCHDBG, "rbch_tx_queue_empty", ("unit %d, wakeup\n", unit));
+		NDBGL4(L4_RBCHDBG, "unit %d, wakeup", unit);
 		rbch_softc[unit].sc_devstate &= ~ST_WRWAITEMPTY;
 		wakeup((caddr_t) &isdn_linktab[unit]->tx_queue);
 	}
 	else
 	{
-		DBGL4(L4_RBCHDBG, "rbch_tx_queue_empty", ("unit %d, NO wakeup\n", unit));
+		NDBGL4(L4_RBCHDBG, "unit %d, NO wakeup", unit);
 	}
 	selwakeup(&rbch_softc[unit].selp);
 }
@@ -990,20 +997,26 @@ rbch_activity(int unit, int rxtx)
 static void
 rbch_clrq(int unit)
 {
-	struct mbuf *m;
 	CRIT_VAR;
-	
-	for(;;)
-	{
-		CRIT_BEG;
-		IF_DEQUEUE(&rbch_softc[unit].sc_hdlcq, m);
-		CRIT_END;
-		
-		if(m)
-			m_freem(m);
-		else
-			break;
-	}
+
+#if defined (__FreeBSD__) && __FreeBSD__ > 4
+	CRIT_BEG;
+	IF_DRAIN(&rbch_softc[unit].sc_hdlcq);
+	CRIT_END;
+#else
+	struct mbuf *m;
+        for(;;)
+        {
+                CRIT_BEG;
+                IF_DEQUEUE(&rbch_softc[unit].sc_hdlcq, m);
+                CRIT_END;
+
+                if(m)
+                        m_freem(m);
+                else
+                        break;
+        }
+#endif	
 }
 				
 /*---------------------------------------------------------------------------*

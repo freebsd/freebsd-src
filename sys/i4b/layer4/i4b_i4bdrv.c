@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,23 +27,15 @@
  *	i4b_i4bdrv.c - i4b userland interface driver
  *	--------------------------------------------
  *
- *	$Id: i4b_i4bdrv.c,v 1.52 1999/12/13 21:25:28 hm Exp $ 
- *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 22:06:11 1999]
+ *      last edit-date: [Fri Jan 12 16:49:34 2001]
  *
  *---------------------------------------------------------------------------*/
 
 #include "i4b.h"
 #include "i4bipr.h"
 #include "i4btel.h"
-
-#ifdef __bsdi__
-#include "ibc.h"
-#else
-#include "i4bisppp.h"
-#endif
 
 #if NI4B > 1
 #error "only 1 (one) i4b device possible!"
@@ -65,11 +57,43 @@
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/mbuf.h>
-#include <sys/proc.h>
-#include <sys/fcntl.h>
 #include <sys/socket.h>
+#if __FreeBSD_version >= 500014
+#include <sys/selinfo.h>
+#else
 #include <sys/select.h>
+#endif
 #include <net/if.h>
+
+#ifdef __NetBSD__
+#include <sys/types.h>
+#endif
+
+#if defined(__FreeBSD__)
+#include "i4bing.h"
+#endif
+
+#ifdef __bsdi__
+#include "ibc.h"
+#else
+#ifdef __FreeBSD__
+#include "i4bisppp.h"
+#else
+#include <net/if_sppp.h>
+#endif
+#endif
+
+#ifdef __FreeBSD__
+
+#if defined(__FreeBSD__) && __FreeBSD__ == 3
+#include "opt_devfs.h"
+#endif
+
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif
+
+#endif /* __FreeBSD__*/
 
 #ifdef __FreeBSD__
 #include <machine/i4b_debug.h>
@@ -97,6 +121,12 @@ static struct ifqueue i4b_rdqueue;
 static int openflag = 0;
 static int selflag = 0;
 static int readflag = 0;
+
+#if defined(__FreeBSD__) && __FreeBSD__ == 3
+#ifdef DEVFS
+static void *devfs_token;
+#endif
+#endif
 
 #ifndef __FreeBSD__
 
@@ -154,7 +184,6 @@ static struct cdevsw i4b_cdevsw = {
 	/* dump */      nodump,
 	/* psize */     nopsize,
 	/* flags */     0,
-	/* bmaj */      -1
 };
 #else
 static struct cdevsw i4b_cdevsw = {
@@ -229,10 +258,13 @@ i4battach(void *dummy)
 i4battach()
 #endif
 {
-#ifndef HACK_NO_PSEUDO_ATTACH_MSG
 	printf("i4b: ISDN call control device attached\n");
-#endif
+
 	i4b_rdqueue.ifq_maxlen = IFQ_MAXLEN;
+
+#if defined(__FreeBSD__) && __FreeBSD__ > 4	
+	mtx_init(&i4b_rdqueue.ifq_mtx, "i4b_rdqueue", MTX_DEF);
+#endif
 
 #if defined(__FreeBSD__)
 	make_dev(&i4b_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "i4b");
@@ -288,17 +320,27 @@ i4bread(dev_t dev, struct uio *uio, int ioflag)
 	if(minor(dev))
 		return(ENODEV);
 
+	x = splimp();
+	IF_LOCK(&i4b_rdqueue);
 	while(IF_QEMPTY(&i4b_rdqueue))
 	{
-		x = splimp();
 		readflag = 1;
-		splx(x);
-		tsleep((caddr_t) &i4b_rdqueue, (PZERO + 1) | PCATCH, "bird", 0);
+#if defined (__FreeBSD__) && __FreeBSD__ > 4		
+		error = msleep((caddr_t) &i4b_rdqueue, &i4b_rdqueue.ifq_mtx,
+			(PZERO + 1) | PCATCH, "bird", 0);
+#else
+		error = tsleep((caddr_t) &i4b_rdqueue, (PZERO + 1) | PCATCH,
+			"bird", 0);
+#endif
+		if (error != 0) {
+			IF_UNLOCK(&i4b_rdqueue);
+			splx(x);
+			return error;
+		}
 	}
 
-	x = splimp();
-
-	IF_DEQUEUE(&i4b_rdqueue, m);
+	_IF_DEQUEUE(&i4b_rdqueue, m);
+	IF_UNLOCK(&i4b_rdqueue);
 
 	splx(x);
 		
@@ -353,7 +395,7 @@ i4bioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 
 			if((cd = cd_by_cdid(mcr->cdid)) == NULL)/* get cd */
 			{
-				DBGL4(L4_ERR, "i4bioctl", ("I4B_CONNECT_REQ ioctl, cdid not found!\n")); 
+				NDBGL4(L4_ERR, "I4B_CONNECT_REQ ioctl, cdid not found!"); 
 				error = EINVAL;
 				break;
 			}
@@ -391,9 +433,9 @@ i4bioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 
 			cd->dir = DIR_OUTGOING;
 			
-			DBGL4(L4_TIMO, "i4bioctl", ("I4B_CONNECT_REQ times, algorithm=%ld unitlen=%ld idle=%ld earlyhup=%ld\n",
+			NDBGL4(L4_TIMO, "I4B_CONNECT_REQ times, algorithm=%ld unitlen=%ld idle=%ld earlyhup=%ld",
 					(long)cd->shorthold_data.shorthold_algorithm, (long)cd->shorthold_data.unitlen_time,
-					(long)cd->shorthold_data.idle_time, (long)cd->shorthold_data.earlyhup_time));
+					(long)cd->shorthold_data.idle_time, (long)cd->shorthold_data.earlyhup_time);
 
 			strcpy(cd->dst_telno, mcr->dst_telno);
 			strcpy(cd->src_telno, mcr->src_telno);
@@ -411,9 +453,16 @@ i4bioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 					break;
 
 				case CHAN_ANY:
-					if((ctrl_desc[mcr->controller].bch_state[CHAN_B1] != BCH_ST_FREE) &&
-					   (ctrl_desc[mcr->controller].bch_state[CHAN_B2] != BCH_ST_FREE))
+				{
+				    int i;
+				    for (i = 0;
+					 i < ctrl_desc[mcr->controller].nbch &&
+					 ctrl_desc[mcr->controller].bch_state[i] != BCH_ST_FREE;
+					 i++);
+				    if (i == ctrl_desc[mcr->controller].nbch)
 						SET_CAUSE_VAL(cd->cause_in, CAUSE_I4B_NOCHAN);
+				    /* else mcr->channel = i; XXX */
+				}
 					break;
 
 				default:
@@ -452,7 +501,7 @@ i4bioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 
 			if((cd = cd_by_cdid(mcrsp->cdid)) == NULL)/* get cd */
 			{
-				DBGL4(L4_ERR, "i4bioctl", ("I4B_CONNECT_RESP ioctl, cdid not found!\n")); 
+				NDBGL4(L4_ERR, "I4B_CONNECT_RESP ioctl, cdid not found!"); 
 				error = EINVAL;
 				break;
 			}
@@ -470,7 +519,7 @@ i4bioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 
 			cd->isdntxdelay = mcrsp->txdelay;			
 			
-			DBGL4(L4_TIMO, "i4bioctl", ("I4B_CONNECT_RESP max_idle_time set to %ld seconds\n", (long)cd->max_idle_time));
+			NDBGL4(L4_TIMO, "I4B_CONNECT_RESP max_idle_time set to %ld seconds", (long)cd->max_idle_time);
 
 			(*ctrl_desc[cd->controller].N_CONNECT_RESPONSE)(mcrsp->cdid, mcrsp->response, mcrsp->cause);
 			break;
@@ -486,7 +535,7 @@ i4bioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 
 			if((cd = cd_by_cdid(mdr->cdid)) == NULL)/* get cd */
 			{
-				DBGL4(L4_ERR, "i4bioctl", ("I4B_DISCONNECT_REQ ioctl, cdid not found!\n")); 
+				NDBGL4(L4_ERR, "I4B_DISCONNECT_REQ ioctl, cdid not found!"); 
 				error = EINVAL;
 				break;
 			}
@@ -518,6 +567,8 @@ i4bioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 					ctrl_desc[mcir->controller].ctrl_type;
 				mcir->card_type = 
 					ctrl_desc[mcir->controller].card_type;
+				mcir->nbch =
+					ctrl_desc[mcir->controller].nbch;
 
 				if(ctrl_desc[mcir->controller].ctrl_type == CTRL_PASSIVE)
 					mcir->tei = ctrl_desc[mcir->controller].tei;
@@ -561,6 +612,12 @@ i4bioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 					dlt = ibc_ret_linktab(mdrsp->driver_unit);
 					break;
 #endif
+
+#if NI4BING > 0
+				case BDRV_ING:
+					dlt = ing_ret_linktab(mdrsp->driver_unit);
+					break;
+#endif					
 			}
 
 			if(dlt != NULL)		
@@ -577,13 +634,13 @@ i4bioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 			
 			mtu = (msg_timeout_upd_t *)data;
 
-			DBGL4(L4_TIMO, "i4bioctl", ("I4B_TIMEOUT_UPD ioctl, alg %d, unit %d, idle %d, early %d!\n",
+			NDBGL4(L4_TIMO, "I4B_TIMEOUT_UPD ioctl, alg %d, unit %d, idle %d, early %d!",
 					mtu->shorthold_data.shorthold_algorithm, mtu->shorthold_data.unitlen_time,
-					mtu->shorthold_data.idle_time, mtu->shorthold_data.earlyhup_time )); 
+					mtu->shorthold_data.idle_time, mtu->shorthold_data.earlyhup_time); 
 
 			if((cd = cd_by_cdid(mtu->cdid)) == NULL)/* get cd */
 			{
-				DBGL4(L4_ERR, "i4bioctl", ("I4B_TIMEOUT_UPD ioctl, cdid not found!\n")); 
+				NDBGL4(L4_ERR, "I4B_TIMEOUT_UPD ioctl, cdid not found!"); 
 				error = EINVAL;
 				break;
 			}
@@ -600,7 +657,7 @@ i4bioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 					     mtu->shorthold_data.idle_time >= 0    &&
 					     mtu->shorthold_data.earlyhup_time >= 0))
 					{
-						DBGL4(L4_ERR, "i4bioctl", ("I4B_TIMEOUT_UPD ioctl, invalid args for fix unit algorithm!\n")); 
+						NDBGL4(L4_ERR, "I4B_TIMEOUT_UPD ioctl, invalid args for fix unit algorithm!"); 
 						error = EINVAL;
 					}
 					break;
@@ -617,13 +674,13 @@ i4bioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 					     mtu->shorthold_data.idle_time >= 0   &&
 					     mtu->shorthold_data.earlyhup_time == 0))
 					{
-						DBGL4(L4_ERR, "i4bioctl", ("I4B_TIMEOUT_UPD ioctl, invalid args for var unit algorithm!\n")); 
+						NDBGL4(L4_ERR, "I4B_TIMEOUT_UPD ioctl, invalid args for var unit algorithm!"); 
 						error = EINVAL;
 					}
 					break;
 	
 				default:
-					DBGL4(L4_ERR, "i4bioctl", ("I4B_TIMEOUT_UPD ioctl, invalid algorithm!\n")); 
+					NDBGL4(L4_ERR, "I4B_TIMEOUT_UPD ioctl, invalid algorithm!"); 
 					error = EINVAL;
 					break;
 			}
@@ -673,7 +730,7 @@ i4bioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 
 			if((cd = cd_by_cdid(mar->cdid)) == NULL)
 			{
-				DBGL4(L4_ERR, "i4bioctl", ("I4B_ALERT_REQ ioctl, cdid not found!\n")); 
+				NDBGL4(L4_ERR, "I4B_ALERT_REQ ioctl, cdid not found!"); 
 				error = EINVAL;
 				break;
 			}
@@ -932,15 +989,17 @@ i4bputqueue(struct mbuf *m)
 
 	x = splimp();
 	
-	if(IF_QFULL(&i4b_rdqueue))
+	IF_LOCK(&i4b_rdqueue);
+	if(_IF_QFULL(&i4b_rdqueue))
 	{
 		struct mbuf *m1;
-		IF_DEQUEUE(&i4b_rdqueue, m1);
+		_IF_DEQUEUE(&i4b_rdqueue, m1);
 		i4b_Dfreembuf(m1);
-		DBGL4(L4_ERR, "i4bputqueue", ("ERROR, queue full, removing entry!\n"));
+		NDBGL4(L4_ERR, "ERROR, queue full, removing entry!");
 	}
 
-	IF_ENQUEUE(&i4b_rdqueue, m);
+	_IF_ENQUEUE(&i4b_rdqueue, m);
+	IF_UNLOCK(&i4b_rdqueue);
 
 	splx(x);	
 
@@ -973,15 +1032,17 @@ i4bputqueue_hipri(struct mbuf *m)
 
 	x = splimp();
 	
-	if(IF_QFULL(&i4b_rdqueue))
+	IF_LOCK(&i4b_rdqueue);
+	if(_IF_QFULL(&i4b_rdqueue))
 	{
 		struct mbuf *m1;
-		IF_DEQUEUE(&i4b_rdqueue, m1);
+		_IF_DEQUEUE(&i4b_rdqueue, m1);
 		i4b_Dfreembuf(m1);
-		DBGL4(L4_ERR, "i4bputqueue", ("ERROR, queue full, removing entry!\n"));
+		NDBGL4(L4_ERR, "ERROR, queue full, removing entry!");
 	}
 
-	IF_PREPEND(&i4b_rdqueue, m);
+	_IF_PREPEND(&i4b_rdqueue, m);
+	IF_UNLOCK(&i4b_rdqueue);
 
 	splx(x);	
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,11 @@
  *	i4b_iframe.c - i frame handling routines
  *	------------------------------------------
  *
- *	$Id: i4b_iframe.c,v 1.22 1999/12/13 21:25:27 hm Exp $ 
+ *	$Id: i4b_iframe.c,v 1.25 2000/08/24 11:48:57 hm Exp $ 
  *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 22:03:16 1999]
+ *      last edit-date: [Thu Aug 24 12:49:18 2000]
  *
  *---------------------------------------------------------------------------*/
 
@@ -43,22 +43,18 @@
 #if NI4BQ921 > 0
 
 #include <sys/param.h>
-
-#if defined(__FreeBSD__)
-#include <sys/ioccom.h>
-#else
-#include <sys/ioctl.h>
-#endif
-
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <net/if.h>
 
+#if defined(__NetBSD__) && __NetBSD_Version__ >= 104230000
+#include <sys/callout.h>
+#endif
+
 #ifdef __FreeBSD__
 #include <machine/i4b_debug.h>
-#include <machine/i4b_ioctl.h>
 #include <machine/i4b_trace.h>
 #else
 #include <i4b/i4b_debug.h>
@@ -69,7 +65,6 @@
 #include <i4b/include/i4b_global.h>
 #include <i4b/include/i4b_l1l2.h>
 #include <i4b/include/i4b_l2l3.h>
-#include <i4b/include/i4b_isdnq931.h>
 #include <i4b/include/i4b_mbuf.h>
 
 #include <i4b/layer2/i4b_l2.h>
@@ -99,7 +94,7 @@ i4b_rxd_i_frame(int unit, struct mbuf *m)
 	if((l2sc->Q921_state != ST_MULTIFR) && (l2sc->Q921_state != ST_TIMREC))
 	{
 		i4b_Dfreembuf(m);
-		DBGL2(L2_I_ERR, "i4b_rxd_i_frame", ("ERROR, state != (MF || TR)!\n"));
+		NDBGL2(L2_I_ERR, "ERROR, state != (MF || TR)!");
 		return;
 	}
 
@@ -224,12 +219,12 @@ i4b_i_frame_queued_up(l2_softc_t *l2sc)
 	{
 		if(l2sc->peer_busy)
 		{
-			DBGL2(L2_I_MSG, "i4b_i_frame_queued_up", ("regen IFQUP, cause: peer busy!\n"));
+			NDBGL2(L2_I_MSG, "regen IFQUP, cause: peer busy!");
 		}
 
 		if(l2sc->vs == ((l2sc->va + MAX_K_VALUE) & 127))
 		{
-			DBGL2(L2_I_MSG, "i4b_i_frame_queued_up", ("regen IFQUP, cause: vs=va+k!\n"));
+			NDBGL2(L2_I_MSG, "regen IFQUP, cause: vs=va+k!");
 		}	
 
 		/*
@@ -239,13 +234,8 @@ i4b_i_frame_queued_up(l2_softc_t *l2sc)
 
 		if(!(IF_QEMPTY(&l2sc->i_queue)))
 		{
-			DBGL2(L2_I_MSG, "i4b_i_frame_queued_up", ("re-scheduling IFQU call!\n"));
-
-#if defined(__FreeBSD__)
-			l2sc->IFQU_callout = timeout((TIMEOUT_FUNC_T)i4b_i_frame_queued_up, (void *)l2sc, IFQU_DLY);
-#else
-			timeout((TIMEOUT_FUNC_T)i4b_i_frame_queued_up, (void *)l2sc, IFQU_DLY);
-#endif			
+			NDBGL2(L2_I_MSG, "re-scheduling IFQU call!");
+			START_TIMER(l2sc->IFQU_callout, i4b_i_frame_queued_up, l2sc, IFQU_DLY);
 		}
 		CRIT_END;
 		return;
@@ -255,7 +245,7 @@ i4b_i_frame_queued_up(l2_softc_t *l2sc)
 
 	if(!m)
 	{
-		DBGL2(L2_I_ERR, "i4b_i_frame_queued_up", ("ERROR, mbuf NULL after IF_DEQUEUE\n"));
+		NDBGL2(L2_I_ERR, "ERROR, mbuf NULL after IF_DEQUEUE");
 		CRIT_END;
 		return;
 	}
@@ -276,7 +266,7 @@ i4b_i_frame_queued_up(l2_softc_t *l2sc)
 	
 	if(l2sc->ua_num != UA_EMPTY)	/* failsafe */
 	{
-		DBGL2(L2_I_ERR, "i4b_i_frame_queued_up", ("ERROR, l2sc->ua_num: %d != UA_EMPTY\n", l2sc->ua_num));
+		NDBGL2(L2_I_ERR, "ERROR, l2sc->ua_num: %d != UA_EMPTY", l2sc->ua_num);
 		i4b_print_l2var(l2sc);
 		i4b_Dfreembuf(l2sc->ua_frame);
 	}

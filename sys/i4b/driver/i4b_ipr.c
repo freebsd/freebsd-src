@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,9 @@
  *	i4b_ipr.c - isdn4bsd IP over raw HDLC ISDN network driver
  *	---------------------------------------------------------
  *
- *	$Id: i4b_ipr.c,v 1.55 1999/12/13 21:25:24 hm Exp $
- *
  * $FreeBSD$
  *
- *	last edit-date: [Mon Dec 13 21:38:51 1999]
+ *	last edit-date: [Fri Jan 12 15:43:51 2001]
  *
  *---------------------------------------------------------------------------*
  *
@@ -71,7 +69,8 @@
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/errno.h>
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
+
+#if defined(__FreeBSD__)
 #include <sys/ioccom.h>
 #include <sys/sockio.h>
 #ifdef IPR_VJ
@@ -80,13 +79,16 @@
 #else
 #include <sys/ioctl.h>
 #endif
+
+#if defined(__NetBSD__) && __NetBSD_Version__ >= 104230000
+#include <sys/callout.h>
+#endif
+
 #include <sys/kernel.h>
-#include <sys/protosw.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
 #include <net/netisr.h>
-#include <net/route.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -117,6 +119,7 @@
 #else
 #include "bpfilter.h"
 #endif
+
 #if NBPFILTER > 0 || NBPF > 0
 #include <sys/time.h>
 #include <net/bpf.h>
@@ -131,7 +134,6 @@
 #endif
 
 #include <i4b/include/i4b_global.h>
-#include <i4b/include/i4b_mbuf.h>
 #include <i4b/include/i4b_l3l4.h>
 
 #include <i4b/layer4/i4b_l4.h>
@@ -193,6 +195,13 @@ struct ipr_softc {
 	int		sc_fn;		/* flag, first null acct	*/
 #endif	
 
+#if defined(__NetBSD__) && __NetBSD_Version__ >= 104230000
+	struct callout	sc_callout;
+#endif
+#if defined(__FreeBSD__)
+	struct callout_handle	sc_callout;
+#endif
+
 #ifdef I4BIPRADJFRXP
 	int		sc_first_pkt;	/* flag, first rxd packet	*/
 #endif
@@ -222,16 +231,13 @@ enum ipr_states {
 #define	THE_UNIT	sc->sc_unit
 #endif
 
-#ifdef __FreeBSD__
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
-#  define IOCTL_CMD_T u_long
-#else
-#ifdef __NetBSD__
+#if defined __FreeBSD__ || defined __NetBSD__
 #  define IOCTL_CMD_T u_long
 #else
 #  define IOCTL_CMD_T int
 #endif
-#endif
+
+#ifdef __FreeBSD__
 PDEVSTATIC void i4biprattach(void *);
 PSEUDO_SET(i4biprattach, i4b_ipr);
 static int i4biprioctl(struct ifnet *ifp, IOCTL_CMD_T cmd, caddr_t data);
@@ -267,27 +273,22 @@ i4biprattach()
 	struct ipr_softc *sc = ipr_softc;
 	int i;
 
-#ifndef HACK_NO_PSEUDO_ATTACH_MSG
 #ifdef IPR_VJ
 	printf("i4bipr: %d IP over raw HDLC ISDN device(s) attached (VJ header compression)\n", NI4BIPR);
 #else
 	printf("i4bipr: %d IP over raw HDLC ISDN device(s) attached\n", NI4BIPR);
-#endif
 #endif
 	
 	for(i=0; i < NI4BIPR; sc++, i++)
 	{
 		ipr_init_linktab(i);
 
-		DBGL4(L4_DIALST, "i4biprattach", ("setting dial state to ST_IDLE\n"));
+		NDBGL4(L4_DIALST, "setting dial state to ST_IDLE");
 
 		sc->sc_state = ST_IDLE;
 		
 #ifdef __FreeBSD__		
 		sc->sc_if.if_name = "ipr";
-#if __FreeBSD__ < 3
-		sc->sc_if.if_next = NULL;
-#endif
 		sc->sc_if.if_unit = i;
 #elif defined(__bsdi__)
 		sc->sc_if.if_name = "ipr";
@@ -304,6 +305,10 @@ i4biprattach()
 		sc->sc_if.if_flags = IFF_POINTOPOINT | IFF_SIMPLEX;
 #endif
 
+#if defined(__NetBSD__) && __NetBSD_Version__ >= 104230000
+		callout_init(&sc->sc_callout);
+#endif
+
 		sc->sc_if.if_mtu = I4BIPRMTU;
 		sc->sc_if.if_type = IFT_ISDNBASIC;
 		sc->sc_if.if_ioctl = i4biprioctl;
@@ -311,7 +316,10 @@ i4biprattach()
 
 		sc->sc_if.if_snd.ifq_maxlen = I4BIPRMAXQLEN;
 		sc->sc_fastq.ifq_maxlen = I4BIPRMAXQLEN;
-		
+
+#if defined (__FreeBSD__) && __FreeBSD__ > 4
+		mtx_init(&sc->sc_fastq.ifq_mtx, "i4b_ipr_fastq", MTX_DEF);
+#endif		
 		sc->sc_if.if_ipackets = 0;
 		sc->sc_if.if_ierrors = 0;
 		sc->sc_if.if_opackets = 0;
@@ -354,13 +362,16 @@ i4biprattach()
 		}
 #endif
 #endif
-
 		sc->sc_updown = SOFT_ENA;	/* soft enabled */
-
 		sc->sc_dialresp = DSTAT_NONE;	/* no response */
 		sc->sc_lastdialresp = DSTAT_NONE;
 		
+#if defined(__FreeBSD_version) && ((__FreeBSD_version >= 500009) || (410000 <= __FreeBSD_version && __FreeBSD_version < 500000))
+		/* do not call bpfattach in ether_ifattach */
+		ether_ifattach(&sc->sc_if, 0);
+#else
 		if_attach(&sc->sc_if);
+#endif
 
 #if NBPFILTER > 0 || NBPF > 0
 #ifdef __FreeBSD__
@@ -411,7 +422,7 @@ i4biproutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	
 	if(!(ifp->if_flags & IFF_UP))
 	{
-		DBGL4(L4_IPRDBG, "i4biproutput", ("ipr%d: interface is DOWN!\n", unit));
+		NDBGL4(L4_IPRDBG, "ipr%d: interface is DOWN!", unit);
 		m_freem(m);
 		splx(s);
 		sc->sc_if.if_oerrors++;
@@ -427,7 +438,7 @@ i4biproutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 		switch(sc->sc_dialresp)
 		{
 			case DSTAT_TFAIL:	/* transient failure */
-				DBGL4(L4_IPRDBG, "i4biproutput", ("ipr%d: transient dial failure!\n", unit));
+				NDBGL4(L4_IPRDBG, "ipr%d: transient dial failure!", unit);
 				m_freem(m);
 				iprclearqueues(sc);
 				sc->sc_dialresp = DSTAT_NONE;
@@ -437,7 +448,7 @@ i4biproutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 				break;
 
 			case DSTAT_PFAIL:	/* permanent failure */
-				DBGL4(L4_IPRDBG, "i4biproutput", ("ipr%d: permanent dial failure!\n", unit));
+				NDBGL4(L4_IPRDBG, "ipr%d: permanent dial failure!", unit);
 				m_freem(m);
 				iprclearqueues(sc);
 				sc->sc_dialresp = DSTAT_NONE;
@@ -447,7 +458,7 @@ i4biproutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 				break;
 
 			case DSTAT_INONLY:	/* no dialout allowed*/
-				DBGL4(L4_IPRDBG, "i4biproutput", ("ipr%d: dialout not allowed failure!\n", unit));
+				NDBGL4(L4_IPRDBG, "ipr%d: dialout not allowed failure!", unit);
 				m_freem(m);
 				iprclearqueues(sc);
 				sc->sc_dialresp = DSTAT_NONE;
@@ -458,8 +469,8 @@ i4biproutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 		}
 #endif
 
-		DBGL4(L4_IPRDBG, "i4biproutput", ("ipr%d: send dial request message!\n", unit));
-		DBGL4(L4_DIALST, "i4biproutput", ("ipr%d: setting dial state to ST_DIALING\n", unit));
+		NDBGL4(L4_IPRDBG, "ipr%d: send dial request message!", unit);
+		NDBGL4(L4_DIALST, "ipr%d: setting dial state to ST_DIALING", unit);
 		i4b_l4_dialout(BDRV_IPR, unit);
 		sc->sc_state = ST_DIALING;
 	}
@@ -491,20 +502,28 @@ i4biproutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 
 	/* check for space in choosen send queue */
 	
-	if(IF_QFULL(ifq))
+#if defined (__FreeBSD__) && __FreeBSD__ > 4
+	if(! IF_HANDOFF(ifq, m, NULL))
 	{
-		DBGL4(L4_IPRDBG, "i4biproutput", ("ipr%d: send queue full!\n", unit));
-		IF_DROP(ifq);
-		m_freem(m);
+		NDBGL4(L4_IPRDBG, "ipr%d: send queue full!", unit);
 		splx(s);
 		sc->sc_if.if_oerrors++;
 		return(ENOBUFS);
 	}
+#else
+        if(IF_QFULL(ifq))
+        {
+		NDBGL4(L4_IPRDBG, "ipr%d: send queue full!", unit);
+                IF_DROP(ifq);
+                m_freem(m);
+                splx(s);
+                sc->sc_if.if_oerrors++;
+                return(ENOBUFS);
+        }	
+#endif
 	
-	DBGL4(L4_IPRDBG, "i4biproutput", ("ipr%d: add packet to send queue!\n", unit));
+	NDBGL4(L4_IPRDBG, "ipr%d: add packet to send queue!", unit);
 	
-	IF_ENQUEUE(ifq, m);
-
 	ipr_tx_queue_empty(unit);
 
 	splx(s);
@@ -630,14 +649,20 @@ static void
 iprclearqueues(struct ipr_softc *sc)
 {
 	int x;
-	struct mbuf *m;
-	
+
+#if defined (__FreeBSD__) && __FreeBSD__ > 4
+	x = splimp();
+	IF_DRAIN(&sc->sc_fastq);
+	IF_DRAIN(&sc->sc_if.if_snd);
+	splx(x);
+#else
+        struct mbuf *m;
+
 	for(;;)
 	{
 		x = splimp();
 		IF_DEQUEUE(&sc->sc_fastq, m);
 		splx(x);
-
 		if(m)
 			m_freem(m);
 		else
@@ -645,16 +670,16 @@ iprclearqueues(struct ipr_softc *sc)
 	}
 
 	for(;;)
-	{
+        {
 		x = splimp();
 		IF_DEQUEUE(&sc->sc_if.if_snd, m);
 		splx(x);
-
 		if(m)
 			m_freem(m);
 		else
 			break;
 	}
+#endif
 }
         
 #if I4BIPRACCT
@@ -747,7 +772,7 @@ ipr_connect(int unit, void *cdp)
 
 	s = SPLI4B();
 
-	DBGL4(L4_DIALST, "ipr_connect", ("ipr%d: setting dial state to ST_CONNECTED\n", unit));
+	NDBGL4(L4_DIALST, "ipr%d: setting dial state to ST_CONNECTED", unit);
 
 	sc->sc_if.if_flags |= IFF_RUNNING;
 	sc->sc_state = ST_CONNECTED_W;
@@ -782,7 +807,16 @@ ipr_connect(int unit, void *cdp)
 
 	if(sc->sc_cdp->isdntxdelay > 0)
 	{
-		timeout((TIMEOUT_FUNC_T)i4bipr_connect_startio, (void *)sc, sc->sc_cdp->isdntxdelay /* hz*1 */);
+		int delay;
+
+		if (hz == 100) {
+			delay = sc->sc_cdp->isdntxdelay;	/* avoid any rounding */
+		} else {
+			delay = sc->sc_cdp->isdntxdelay*hz;
+			delay /= 100;
+		}
+
+		START_TIMER(sc->sc_callout, (TIMEOUT_FUNC_T)i4bipr_connect_startio, (void *)sc,  delay);
 	}
 	else
 	{
@@ -809,8 +843,8 @@ ipr_disconnect(int unit, void *cdp)
 
 	if (cd != sc->sc_cdp)
 	{
-		DBGL4(L4_IPRDBG, "ipr_disconnect", ("ipr%d: channel %d not active\n",
-				cd->driver_unit, cd->channelid));
+		NDBGL4(L4_IPRDBG, "ipr%d: channel %d not active",
+				cd->driver_unit, cd->channelid);
 		return;
 	}
 
@@ -827,7 +861,7 @@ ipr_disconnect(int unit, void *cdp)
 	
 	sc->sc_cdp = (call_desc_t *)0;	
 
-	DBGL4(L4_DIALST, "ipr_disconnect", ("setting dial state to ST_IDLE\n"));
+	NDBGL4(L4_DIALST, "setting dial state to ST_IDLE");
 
 	sc->sc_dialresp = DSTAT_NONE;
 	sc->sc_lastdialresp = DSTAT_NONE;	
@@ -846,12 +880,12 @@ ipr_dialresponse(int unit, int status, cause_t cause)
 	struct ipr_softc *sc = &ipr_softc[unit];
 	sc->sc_dialresp = status;
 
-	DBGL4(L4_IPRDBG, "ipr_dialresponse", ("ipr%d: last=%d, this=%d\n",
-		unit, sc->sc_lastdialresp, sc->sc_dialresp));
+	NDBGL4(L4_IPRDBG, "ipr%d: last=%d, this=%d",
+		unit, sc->sc_lastdialresp, sc->sc_dialresp);
 
 	if(status != DSTAT_NONE)
 	{
-		DBGL4(L4_IPRDBG, "ipr_dialresponse", ("ipr%d: clearing queues\n", unit));
+		NDBGL4(L4_IPRDBG, "ipr%d: clearing queues", unit);
 		iprclearqueues(sc);
 	}
 }
@@ -1043,20 +1077,32 @@ error:
 	}
 #endif /* NBPFILTER > 0  || NBPF > 0 */
 
-	if(IF_QFULL(&ipintrq))
+#if defined (__FreeBSD__) && __FreeBSD__ > 4
+	if(! IF_HANDOFF(&ipintrq, m, NULL))
 	{
-		DBGL4(L4_IPRDBG, "ipr_rx_data_rdy", ("ipr%d: ipintrq full!\n", unit));
-
-		IF_DROP(&ipintrq);
+		NDBGL4(L4_IPRDBG, "ipr%d: ipintrq full!", unit);
 		sc->sc_if.if_ierrors++;
 		sc->sc_if.if_iqdrops++;		
-		m_freem(m);
 	}
 	else
 	{
-		IF_ENQUEUE(&ipintrq, m);
 		schednetisr(NETISR_IP);
 	}
+#else
+        if(IF_QFULL(&ipintrq))
+        {
+		NDBGL4(L4_IPRDBG, "ipr%d: ipintrq full!", unit);
+                IF_DROP(&ipintrq);
+                sc->sc_if.if_ierrors++;
+                sc->sc_if.if_iqdrops++;
+                m_freem(m);
+        }
+        else
+        {
+                IF_ENQUEUE(&ipintrq, m);
+                schednetisr(NETISR_IP);
+        }
+#endif	
 }
 
 /*---------------------------------------------------------------------------*
@@ -1128,19 +1174,22 @@ ipr_tx_queue_empty(int unit)
 #endif
 		x = 1;
 
-		if(IF_QFULL(isdn_linktab[unit]->tx_queue))
+		IF_LOCK(isdn_linktab[unit]->tx_queue);
+		if(_IF_QFULL(isdn_linktab[unit]->tx_queue))
 		{
-			DBGL4(L4_IPRDBG, "ipr_rx_data_rdy", ("ipr%d: tx queue full!\n", unit));
+			NDBGL4(L4_IPRDBG, "ipr%d: tx queue full!", unit);
 			m_freem(m);
 		}
 		else
 		{
-			IF_ENQUEUE(isdn_linktab[unit]->tx_queue, m);
-
 			sc->sc_if.if_obytes += m->m_pkthdr.len;
 
 			sc->sc_if.if_opackets++;
+
+			_IF_ENQUEUE(isdn_linktab[unit]->tx_queue, m);
+
 		}
+		IF_UNLOCK(isdn_linktab[unit]->tx_queue);
 	}
 
 	if(x)

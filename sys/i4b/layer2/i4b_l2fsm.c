@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,11 @@
  *	i4b_l2fsm.c - layer 2 FSM
  *	-------------------------
  *
- *	$Id: i4b_l2fsm.c,v 1.17 1999/12/13 21:25:27 hm Exp $ 
+ *	$Id: i4b_l2fsm.c,v 1.22 2000/08/24 11:48:58 hm Exp $ 
  *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 22:03:36 1999]
+ *      last edit-date: [Tue May 30 15:48:20 2000]
  *
  *---------------------------------------------------------------------------*/
 
@@ -43,18 +43,13 @@
 #if NI4BQ921 > 0
 
 #include <sys/param.h>
-
-#if defined(__FreeBSD__)
-#include <sys/ioccom.h>
-#else
-#include <sys/ioctl.h>
-#endif
-
-#include <sys/kernel.h>
 #include <sys/systm.h>
-#include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <net/if.h>
+
+#if defined(__NetBSD__) && __NetBSD_Version__ >= 104230000
+#include <sys/callout.h>
+#endif
 
 #ifdef __FreeBSD__
 #include <machine/i4b_debug.h>
@@ -65,16 +60,15 @@
 #endif
 
 #include <i4b/include/i4b_global.h>
-#include <i4b/include/i4b_l1l2.h>
 #include <i4b/include/i4b_l2l3.h>
-#include <i4b/include/i4b_isdnq931.h>
 #include <i4b/include/i4b_mbuf.h>
 
 #include <i4b/layer2/i4b_l2.h>
 #include <i4b/layer2/i4b_l2fsm.h>
 
-l2_softc_t l2_softc[ISIC_MAXUNIT];
+l2_softc_t l2_softc[MAXL1UNITS];
 
+#if DO_I4B_DEBUG
 static char *l2state_text[N_STATES] = {
 	"ST_TEI_UNAS",
 	"ST_ASG_AW_TEI",
@@ -113,6 +107,7 @@ static char *l2event_text[N_EVENTS] = {
 	"EV_RXFRMR",
 	"Illegal Event"
 };
+#endif
 
 static void F_TU01 __P((l2_softc_t *));
 static void F_TU03 __P((l2_softc_t *));
@@ -195,7 +190,7 @@ static void F_NCNA __P((l2_softc_t *));
 static void
 F_ILL(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_ERR, "F_ILL", ("FSM function F_ILL executing\n"));
+	NDBGL2(L2_F_ERR, "FSM function F_ILL executing");
 }
 
 /*---------------------------------------------------------------------------*
@@ -204,7 +199,7 @@ F_ILL(l2_softc_t *l2sc)
 static void
 F_NCNA(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_NCNA", ("FSM function F_NCNA executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_NCNA executing");
 }
 
 /*---------------------------------------------------------------------------*
@@ -263,10 +258,10 @@ void i4b_next_l2state(l2_softc_t *l2sc, int event)
 	
 	if(newstate != ST_SUBSET)
 	{	/* state function does NOT set new state */
-		DBGL2(L2_F_MSG, "i4b_next_l2state", ("FSM event [%s]: [%s/%d => %s/%d]\n",
+		NDBGL2(L2_F_MSG, "FSM event [%s]: [%s/%d => %s/%d]",
 				l2event_text[event],
                                 l2state_text[currstate], currstate,
-                                l2state_text[newstate], newstate));
+                                l2state_text[newstate], newstate);
         }
 
 	/* execute state transition function */
@@ -274,9 +269,9 @@ void i4b_next_l2state(l2_softc_t *l2sc, int event)
 
 	if(newstate == ST_SUBSET)
 	{	/* state function DOES set new state */
-		DBGL2(L2_F_MSG, "i4b_next_l2state", ("FSM S-event [%s]: [%s => %s]\n", l2event_text[event],
+		NDBGL2(L2_F_MSG, "FSM S-event [%s]: [%s => %s]", l2event_text[event],
                                            l2state_text[currstate],
-                                           l2state_text[l2sc->Q921_state]));
+                                           l2state_text[l2sc->Q921_state]);
         }
         
 	/* check for illegal new state */
@@ -284,9 +279,9 @@ void i4b_next_l2state(l2_softc_t *l2sc, int event)
 	if(newstate == ST_ILL)
 	{
 		newstate = currstate;
-		DBGL2(L2_F_ERR, "i4b_next_l2state", ("FSM illegal state, state = %s, event = %s!\n",
+		NDBGL2(L2_F_ERR, "FSM illegal state, state = %s, event = %s!",
                                 l2state_text[currstate],
-				l2event_text[event]));
+				l2event_text[event]);
 	}
 
 	/* check if state machine function has to set new state */
@@ -296,7 +291,7 @@ void i4b_next_l2state(l2_softc_t *l2sc, int event)
 
 	if(l2sc->postfsmfunc != NULL)
 	{
-		DBGL2(L2_F_MSG, "i4b_next_l2state", ("FSM executing postfsmfunc!\n"));
+		NDBGL2(L2_F_MSG, "FSM executing postfsmfunc!");
 		/* try to avoid an endless loop */
 		savpostfsmfunc = l2sc->postfsmfunc;
 		l2sc->postfsmfunc = NULL;
@@ -304,6 +299,7 @@ void i4b_next_l2state(l2_softc_t *l2sc, int event)
         }
 }
 
+#if DO_I4B_DEBUG
 /*---------------------------------------------------------------------------*
  *	return pointer to current state description
  *---------------------------------------------------------------------------*/	
@@ -311,6 +307,7 @@ char *i4b_print_l2state(l2_softc_t *l2sc)
 {
 	return((char *) l2state_text[l2sc->Q921_state]);
 }
+#endif
 
 /*---------------------------------------------------------------------------*
  *	FSM state ST_TEI_UNAS event dl establish request
@@ -318,7 +315,7 @@ char *i4b_print_l2state(l2_softc_t *l2sc)
 static void
 F_TU01(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_TU01", ("FSM function F_TU01 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_TU01 executing");
 	i4b_mdl_assign_ind(l2sc);
 }
 
@@ -328,7 +325,7 @@ F_TU01(l2_softc_t *l2sc)
 static void
 F_TU03(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_TU03", ("FSM function F_TU03 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_TU03 executing");
 }
 
 /*---------------------------------------------------------------------------*
@@ -337,7 +334,7 @@ F_TU03(l2_softc_t *l2sc)
 static void
 F_TA03(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_TA03", ("FSM function F_TA03 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_TA03 executing");
 }
 
 /*---------------------------------------------------------------------------*
@@ -346,7 +343,7 @@ F_TA03(l2_softc_t *l2sc)
 static void
 F_TA04(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_TA04", ("FSM function F_TA04 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_TA04 executing");
 }
 
 /*---------------------------------------------------------------------------*
@@ -355,7 +352,7 @@ F_TA04(l2_softc_t *l2sc)
 static void
 F_TA05(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_TA05", ("FSM function F_TA05 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_TA05 executing");
 }
 
 /*---------------------------------------------------------------------------*
@@ -364,7 +361,7 @@ F_TA05(l2_softc_t *l2sc)
 static void
 F_TE03(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_TE03", ("FSM function F_TE03 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_TE03 executing");
 	i4b_establish_data_link(l2sc);
 	l2sc->l3initiated = 1;
 }
@@ -375,7 +372,7 @@ F_TE03(l2_softc_t *l2sc)
 static void
 F_TE04(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_TE04", ("FSM function F_TE04 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_TE04 executing");
 	l2sc->postfsmarg = l2sc->unit;
 	l2sc->postfsmfunc = DL_Rel_Ind_A;
 }
@@ -386,7 +383,7 @@ F_TE04(l2_softc_t *l2sc)
 static void
 F_TE05(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_TE05", ("FSM function F_TE05 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_TE05 executing");
 	l2sc->postfsmarg = l2sc->unit;
 	l2sc->postfsmfunc = DL_Rel_Ind_A;
 }
@@ -397,7 +394,7 @@ F_TE05(l2_softc_t *l2sc)
 static void
 F_T01(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_T01", ("FSM function F_T01 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_T01 executing");
 	i4b_establish_data_link(l2sc);
 	l2sc->l3initiated = 1;
 }
@@ -408,7 +405,7 @@ F_T01(l2_softc_t *l2sc)
 static void
 F_T05(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_T05", ("FSM function F_T05 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_T05 executing");
 }
 
 /*---------------------------------------------------------------------------*
@@ -417,7 +414,7 @@ F_T05(l2_softc_t *l2sc)
 static void
 F_T06(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_T06", ("FSM function F_T06 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_T06 executing");
 /*XXX*/	i4b_mdl_assign_ind(l2sc);
 }
 
@@ -427,7 +424,7 @@ F_T06(l2_softc_t *l2sc)
 static void
 F_T07(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_T07", ("FSM function F_T07 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_T07 executing");
 
 /* XXX */
 #ifdef NOTDEF
@@ -463,7 +460,7 @@ F_T07(l2_softc_t *l2sc)
 static void
 F_T08(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_T08", ("FSM function F_T08 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_T08 executing");
 	MDL_Status_Ind(l2sc->unit, STI_L2STAT, LAYER_IDLE);
 	i4b_tx_ua(l2sc, l2sc->rxd_PF);
 }
@@ -474,7 +471,7 @@ F_T08(l2_softc_t *l2sc)
 static void
 F_T09(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_T09", ("FSM function F_T09 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_T09 executing");
 	i4b_mdl_error_ind(l2sc, "F_T09", MDL_ERR_C);
 	i4b_mdl_error_ind(l2sc, "F_T09", MDL_ERR_D);	
 }
@@ -485,7 +482,7 @@ F_T09(l2_softc_t *l2sc)
 static void
 F_T10(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_T10", ("FSM function F_T10 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_T10 executing");
 
 	if(l2sc->rxd_PF)
 	{
@@ -514,7 +511,7 @@ F_T10(l2_softc_t *l2sc)
 static void
 F_T13(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_T13", ("FSM function F_T13 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_T13 executing");
 	l2sc->postfsmarg = l2sc->unit;
 	l2sc->postfsmfunc = DL_Rel_Cnf_A;
 }
@@ -525,7 +522,7 @@ F_T13(l2_softc_t *l2sc)
 static void
 F_AE01(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_AE01", ("FSM function F_AE01 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_AE01 executing");
 
 	i4b_Dcleanifq(&l2sc->i_queue);
 	
@@ -538,7 +535,7 @@ F_AE01(l2_softc_t *l2sc)
 static void
 F_AE05(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_AE05", ("FSM function F_AE05 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_AE05 executing");
 
 	i4b_Dcleanifq(&l2sc->i_queue);	
 
@@ -554,7 +551,7 @@ F_AE05(l2_softc_t *l2sc)
 static void
 F_AE06(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_AE06", ("FSM function F_AE06 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_AE06 executing");
 
 	i4b_Dcleanifq(&l2sc->i_queue);	
 
@@ -572,7 +569,7 @@ F_AE06(l2_softc_t *l2sc)
 static void
 F_AE07(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_AE07", ("FSM function F_AE07 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_AE07 executing");
 	MDL_Status_Ind(l2sc->unit, STI_L2STAT, LAYER_ACTIVE);
 	i4b_tx_ua(l2sc, l2sc->rxd_PF);
 }
@@ -583,7 +580,7 @@ F_AE07(l2_softc_t *l2sc)
 static void
 F_AE08(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_AE08", ("FSM function F_AE08 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_AE08 executing");
 	i4b_tx_dm(l2sc, l2sc->rxd_PF);
 }
 
@@ -593,7 +590,7 @@ F_AE08(l2_softc_t *l2sc)
 static void
 F_AE09(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_AE09", ("FSM function F_AE09 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_AE09 executing");
 
 	if(l2sc->rxd_PF == 0)
 	{
@@ -637,7 +634,7 @@ F_AE09(l2_softc_t *l2sc)
 static void
 F_AE10(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_AE10", ("FSM function F_AE10 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_AE10 executing");
 
 	if(l2sc->rxd_PF == 0)
 	{
@@ -662,7 +659,7 @@ F_AE10(l2_softc_t *l2sc)
 static void
 F_AE11(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_AE11", ("FSM function F_AE11 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_AE11 executing");
 
 	if(l2sc->RC >= N200)
 	{
@@ -693,7 +690,7 @@ F_AE11(l2_softc_t *l2sc)
 static void
 F_AE12(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_AE12", ("FSM function F_AE12 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_AE12 executing");
 
 	if(l2sc->l3initiated == 0)
 	{
@@ -707,7 +704,7 @@ F_AE12(l2_softc_t *l2sc)
 static void
 F_AR05(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_AR05", ("FSM function F_AR05 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_AR05 executing");
 
 	l2sc->postfsmarg = l2sc->unit;
 	l2sc->postfsmfunc = DL_Rel_Cnf_A;
@@ -721,7 +718,7 @@ F_AR05(l2_softc_t *l2sc)
 static void
 F_AR06(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_AR06", ("FSM function F_AR06 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_AR06 executing");
 
 	l2sc->postfsmarg = l2sc->unit;
 	l2sc->postfsmfunc = DL_Rel_Cnf_A;
@@ -737,7 +734,7 @@ F_AR06(l2_softc_t *l2sc)
 static void
 F_AR07(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_AR07", ("FSM function F_AR07 executing\n"));	
+	NDBGL2(L2_F_MSG, "FSM function F_AR07 executing");	
 	i4b_tx_dm(l2sc, l2sc->rxd_PF);
 }
 
@@ -747,7 +744,7 @@ F_AR07(l2_softc_t *l2sc)
 static void
 F_AR08(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_AR08", ("FSM function F_AR08 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_AR08 executing");
 	MDL_Status_Ind(l2sc->unit, STI_L2STAT, LAYER_IDLE);
 	i4b_tx_ua(l2sc, l2sc->rxd_PF);	
 }
@@ -758,7 +755,7 @@ F_AR08(l2_softc_t *l2sc)
 static void
 F_AR09(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_AR09", ("FSM function F_AR09 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_AR09 executing");
 
 	if(l2sc->rxd_PF)
 	{
@@ -783,7 +780,7 @@ F_AR09(l2_softc_t *l2sc)
 static void
 F_AR10(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_AR10", ("FSM function F_AR10 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_AR10 executing");
 
 	if(l2sc->rxd_PF)
 	{
@@ -806,7 +803,7 @@ F_AR10(l2_softc_t *l2sc)
 static void
 F_AR11(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_AR11", ("FSM function F_AR11 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_AR11 executing");
 
 	if(l2sc->RC >= N200)
 	{
@@ -835,7 +832,7 @@ F_AR11(l2_softc_t *l2sc)
 static void
 F_MF01(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_MF01", ("FSM function F_MF01 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_MF01 executing");
 
 	i4b_Dcleanifq(&l2sc->i_queue);
 
@@ -850,7 +847,7 @@ F_MF01(l2_softc_t *l2sc)
 static void
 F_MF05(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_MF05", ("FSM function F_MF05 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_MF05 executing");
 
 	i4b_Dcleanifq(&l2sc->i_queue);
 	
@@ -867,7 +864,7 @@ F_MF05(l2_softc_t *l2sc)
 static void
 F_MF06(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_MF06", ("FSM function F_MF06 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_MF06 executing");
 
 	i4b_Dcleanifq(&l2sc->i_queue);
 	
@@ -886,7 +883,7 @@ F_MF06(l2_softc_t *l2sc)
 static void
 F_MF07(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_MF07", ("FSM function F_MF07 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_MF07 executing");
 
 	i4b_clear_exception_conditions(l2sc);
 
@@ -918,7 +915,7 @@ F_MF07(l2_softc_t *l2sc)
 static void
 F_MF08(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_MF08", ("FSM function F_MF08 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_MF08 executing");
 
 	i4b_Dcleanifq(&l2sc->i_queue);
 	MDL_Status_Ind(l2sc->unit, STI_L2STAT, LAYER_IDLE);
@@ -937,7 +934,7 @@ F_MF08(l2_softc_t *l2sc)
 static void
 F_MF09(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_MF09", ("FSM function F_MF09 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_MF09 executing");
 	if(l2sc->rxd_PF)
 		i4b_mdl_error_ind(l2sc, "F_MF09", MDL_ERR_C);
 	else
@@ -950,7 +947,7 @@ F_MF09(l2_softc_t *l2sc)
 static void
 F_MF10(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_MF10", ("FSM function F_MF10 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_MF10 executing");
 
 	if(l2sc->rxd_PF)
 	{
@@ -976,7 +973,7 @@ F_MF10(l2_softc_t *l2sc)
 static void
 F_MF11(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_MF11", ("FSM function F_MF11 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_MF11 executing");
 
 	l2sc->RC = 0;
 
@@ -991,7 +988,7 @@ F_MF11(l2_softc_t *l2sc)
 static void
 F_MF12(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_MF12", ("FSM function F_MF12 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_MF12 executing");
 
 	i4b_i_frame_queued_up(l2sc);
 }
@@ -1002,7 +999,7 @@ F_MF12(l2_softc_t *l2sc)
 static void
 F_MF13(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_MF13", ("FSM function F_MF13 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_MF13 executing");
 
 	i4b_Dcleanifq(&l2sc->i_queue);
 
@@ -1020,7 +1017,7 @@ F_MF13(l2_softc_t *l2sc)
 static void
 F_MF14(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_MF14", ("FSM function F_MF14 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_MF14 executing");
 
 	i4b_transmit_enquire(l2sc);
 
@@ -1033,7 +1030,7 @@ F_MF14(l2_softc_t *l2sc)
 static void
 F_MF15(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_MF15", ("FSM function F_MF15 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_MF15 executing");
 
 	if(l2sc->own_busy == 0)
 	{
@@ -1051,7 +1048,7 @@ F_MF15(l2_softc_t *l2sc)
 static void
 F_MF16(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_MF16", ("FSM function F_MF16 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_MF16 executing");
 
 	if(l2sc->own_busy != 0)
 	{
@@ -1069,7 +1066,7 @@ F_MF16(l2_softc_t *l2sc)
 static void
 F_MF17(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_MF17", ("FSM function F_MF17 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_MF17 executing");
 
 	l2sc->peer_busy = 0;
 
@@ -1116,7 +1113,7 @@ F_MF17(l2_softc_t *l2sc)
 static void
 F_MF18(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_MF18", ("FSM function F_MF18 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_MF18 executing");
 
 	l2sc->peer_busy = 0;
 
@@ -1156,7 +1153,7 @@ F_MF18(l2_softc_t *l2sc)
 static void
 F_MF19(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_MF19", ("FSM function F_MF19 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_MF19 executing");
 
 	l2sc->peer_busy = 1;
 
@@ -1195,7 +1192,7 @@ F_MF19(l2_softc_t *l2sc)
 static void
 F_MF20(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_MF20", ("FSM function F_MF20 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_MF20 executing");
 
 	i4b_mdl_error_ind(l2sc, "F_MF20", MDL_ERR_K);
 
@@ -1210,7 +1207,7 @@ F_MF20(l2_softc_t *l2sc)
 static void
 F_TR01(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_TR01", ("FSM function F_TR01 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_TR01 executing");
 
 	i4b_Dcleanifq(&l2sc->i_queue);
 
@@ -1225,7 +1222,7 @@ F_TR01(l2_softc_t *l2sc)
 static void
 F_TR05(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_TR05", ("FSM function F_TR05 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_TR05 executing");
 
 	i4b_Dcleanifq(&l2sc->i_queue);	
 
@@ -1241,7 +1238,7 @@ F_TR05(l2_softc_t *l2sc)
 static void
 F_TR06(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_TR06", ("FSM function F_TR06 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_TR06 executing");
 
 	i4b_Dcleanifq(&l2sc->i_queue);
 
@@ -1259,7 +1256,7 @@ F_TR06(l2_softc_t *l2sc)
 static void
 F_TR07(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_TR07", ("FSM function F_TR07 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_TR07 executing");
 
 	i4b_clear_exception_conditions(l2sc);
 
@@ -1291,7 +1288,7 @@ F_TR07(l2_softc_t *l2sc)
 static void
 F_TR08(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_TR08", ("FSM function F_TR08 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_TR08 executing");
 
 	i4b_Dcleanifq(&l2sc->i_queue);		
 	MDL_Status_Ind(l2sc->unit, STI_L2STAT, LAYER_IDLE);
@@ -1309,7 +1306,7 @@ F_TR08(l2_softc_t *l2sc)
 static void
 F_TR09(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_TR09", ("FSM function F_TR09 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_TR09 executing");
 	if(l2sc->rxd_PF)
 		i4b_mdl_error_ind(l2sc, "F_TR09", MDL_ERR_C);
 	else
@@ -1322,7 +1319,7 @@ F_TR09(l2_softc_t *l2sc)
 static void
 F_TR10(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_TR10", ("FSM function F_TR10 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_TR10 executing");
 
 	if(l2sc->rxd_PF)
 	{
@@ -1344,7 +1341,7 @@ F_TR10(l2_softc_t *l2sc)
 static void
 F_TR11(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_TR11", ("FSM function F_TR11 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_TR11 executing");
 
 	if(l2sc->RC >= N200)
 	{
@@ -1372,7 +1369,7 @@ F_TR11(l2_softc_t *l2sc)
 static void
 F_TR12(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_TR12", ("FSM function F_TR12 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_TR12 executing");
 
 	i4b_i_frame_queued_up(l2sc);
 }
@@ -1383,7 +1380,7 @@ F_TR12(l2_softc_t *l2sc)
 static void
 F_TR13(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_TR13", ("FSM function F_TR13 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_TR13 executing");
 
 	i4b_Dcleanifq(&l2sc->i_queue);			
 
@@ -1400,7 +1397,7 @@ F_TR13(l2_softc_t *l2sc)
 static void
 F_TR15(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_TR15", ("FSM function F_TR15 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_TR15 executing");
 
 	if(l2sc->own_busy == 0)
 	{
@@ -1418,7 +1415,7 @@ F_TR15(l2_softc_t *l2sc)
 static void
 F_TR16(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_TR16", ("FSM function F_TR16 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_TR16 executing");
 
 	if(l2sc->own_busy != 0)
 	{
@@ -1436,7 +1433,7 @@ F_TR16(l2_softc_t *l2sc)
 static void
 F_TR17(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_TR17", ("FSM function F_TR17 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_TR17 executing");
 
 	l2sc->peer_busy = 0;
 
@@ -1487,7 +1484,7 @@ F_TR17(l2_softc_t *l2sc)
 static void
 F_TR18(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_TR18", ("FSM function F_TR18 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_TR18 executing");
 
 	l2sc->peer_busy = 0;
 
@@ -1538,7 +1535,7 @@ F_TR18(l2_softc_t *l2sc)
 static void
 F_TR19(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_TR19", ("FSM function F_TR19 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_TR19 executing");
 
 	l2sc->peer_busy = 0;
 
@@ -1588,7 +1585,7 @@ F_TR19(l2_softc_t *l2sc)
 static void
 F_TR20(l2_softc_t *l2sc)
 {
-	DBGL2(L2_F_MSG, "F_TR20", ("FSM function F_TR20 executing\n"));
+	NDBGL2(L2_F_MSG, "FSM function F_TR20 executing");
 
 	i4b_mdl_error_ind(l2sc, "F_TR20", MDL_ERR_K);
 
