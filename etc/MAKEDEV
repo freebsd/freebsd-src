@@ -1020,6 +1020,13 @@ ucom*)
 	umask 77
 	;;
 
+ufm*)
+	umask 7
+	unit=`expr $i : 'ufm\(.*\)'`
+	mknod ufm$unit c 200 `unit2minor $unit` root:operator
+	umask 77
+	;;
+
 uhid*)
 	umask 7
 	unit=`expr $i : 'uhid\(.*\)'`
