@@ -284,6 +284,13 @@ gld${EMULATION_NAME}_try_needed (name, force)
       return false;
     }
 
+  /* For DT_NEEDED, they have to match.  */
+  if (abfd->xvec != output_bfd->xvec)
+    {
+      bfd_close (abfd);
+      return false;
+    }
+
   /* Check whether this object would include any conflicting library
      versions.  If FORCE is set, then we skip this check; we use this
      the second time around, if we couldn't find any compatible
@@ -1178,7 +1185,7 @@ gld${EMULATION_NAME}_place_orphan (file, s)
 #define HAVE_SECTION(hold, name) \
 (hold.os != NULL || (hold.os = lang_output_section_find (name)) != NULL)
 
-  if (s->flags & SEC_EXCLUDE)
+  if ((s->flags & SEC_EXCLUDE) != 0 && !link_info.relocateable)
     {
       if (s->output_section == NULL)
 	s->output_section = bfd_abs_section_ptr;
@@ -1293,7 +1300,7 @@ gld${EMULATION_NAME}_place_orphan (file, s)
 
   lang_leave_output_section_statement
     ((bfd_vma) 0, "*default*",
-     (struct lang_output_section_phdr_list *) NULL, "*default*");
+     (struct lang_output_section_phdr_list *) NULL, NULL);
 
   if (config.build_constructors && *ps == '\0')
     {
@@ -1313,7 +1320,7 @@ gld${EMULATION_NAME}_place_orphan (file, s)
   /* Restore the global list pointer.  */
   stat_ptr = old;
 
-  if (place != NULL)
+  if (place != NULL && os->bfd_section != NULL)
     {
       asection *snew, **pps;
 
@@ -1409,7 +1416,7 @@ gld${EMULATION_NAME}_finish ()
 
       /* Do the assignments again.  */
       lang_do_assignments (stat_ptr->head, abs_output_section,
-			   (fill_type) 0, (bfd_vma) 0);
+			   (fill_type *) 0, (bfd_vma) 0);
     }
 }
 EOF
@@ -1447,13 +1454,17 @@ echo '  ; else if (!config.magic_demand_paged) return'     >> e${EMULATION_NAME}
 sed $sc ldscripts/${EMULATION_NAME}.xn                     >> e${EMULATION_NAME}.c
 fi
 if test -n "$GENERATE_SHLIB_SCRIPT" ; then
+if test -n "$GENERATE_COMBRELOC_SCRIPT" ; then
 echo '  ; else if (link_info.shared && link_info.combreloc) return' >> e${EMULATION_NAME}.c
 sed $sc ldscripts/${EMULATION_NAME}.xsc                    >> e${EMULATION_NAME}.c
+fi
 echo '  ; else if (link_info.shared) return'		   >> e${EMULATION_NAME}.c
 sed $sc ldscripts/${EMULATION_NAME}.xs                     >> e${EMULATION_NAME}.c
 fi
+if test -n "$GENERATE_COMBRELOC_SCRIPT" ; then
 echo '  ; else if (link_info.combreloc) return'            >> e${EMULATION_NAME}.c
 sed $sc ldscripts/${EMULATION_NAME}.xc                     >> e${EMULATION_NAME}.c
+fi
 echo '  ; else return'                                     >> e${EMULATION_NAME}.c
 sed $sc ldscripts/${EMULATION_NAME}.x                      >> e${EMULATION_NAME}.c
 echo '; }'                                                 >> e${EMULATION_NAME}.c
@@ -1612,6 +1623,8 @@ cat >>e${EMULATION_NAME}.c <<EOF
 	}
       else if (strcmp (optarg, "defs") == 0)
 	link_info.no_undefined = true;
+      else if (strcmp (optarg, "muldefs") == 0)
+	link_info.allow_multiple_definition = true;
       else if (strcmp (optarg, "combreloc") == 0)
 	link_info.combreloc = true;
       else if (strcmp (optarg, "nocombreloc") == 0)
@@ -1660,6 +1673,7 @@ cat >>e${EMULATION_NAME}.c <<EOF
   fprintf (file, _("  -z initfirst\t\tMark DSO to be initialized first at runtime\n"));
   fprintf (file, _("  -z interpose\t\tMark object to interpose all DSOs but executable\n"));
   fprintf (file, _("  -z loadfltr\t\tMark object requiring immediate process\n"));
+  fprintf (file, _("  -z muldefs\t\tAllow multiple definitions\n"));
   fprintf (file, _("  -z nocombreloc\tDon't merge dynamic relocs into one section\n"));
   fprintf (file, _("  -z nocopyreloc\tDon't create copy relocs\n"));
   fprintf (file, _("  -z nodefaultlib\tMark object not to use default search paths\n"));
@@ -1727,5 +1741,6 @@ struct ld_emulation_xfer_struct ld_${EMULATION_NAME}_emulation =
   ${LDEMUL_LIST_OPTIONS-gld${EMULATION_NAME}_list_options},
   ${LDEMUL_RECOGNIZED_FILE-NULL},
   ${LDEMUL_FIND_POTENTIAL_LIBRARIES-NULL},
+  ${LDEMUL_NEW_VERS_PATTERN-NULL}
 };
 EOF
