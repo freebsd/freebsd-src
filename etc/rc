@@ -133,11 +133,32 @@ if [ -n "${diskless_mount}" -a -r "${diskless_mount}" ]; then
 fi
 
 adjkerntz -i
+ 
+purgedir() {
+	local dir file
+
+	if [ $# -eq 0 ]; then
+		purgedir .
+	else
+		for dir
+		do
+		(
+			cd "$dir" && for file in .* *
+			do
+				[ ."$file" = .. -o ."$file" = ... ] && continue
+				[ -d "$file" -a ! -L "$file" ] &&
+					purgedir "$file"
+				[ -f "$file" ] && rm -f -- "$file"
+			done
+		)
+		done
+	fi
+}
 
 clean_var() {
 	if [ ! -f /var/run/clean_var ]; then
 		rm -rf /var/run/*
-		find /var/spool/lock ! -type d -delete
+		purgedir /var/spool/lock
 		rm -rf /var/spool/uucp/.Temp/*
 		# Keep a copy of the boot messages around
 		dmesg >/var/run/dmesg.boot
