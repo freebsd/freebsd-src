@@ -67,6 +67,7 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 #include <ufs/ufs/dinode.h>
 #include <ufs/ffs/fs.h>
