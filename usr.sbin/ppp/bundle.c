@@ -130,7 +130,9 @@ bundle_NewPhase(struct bundle *bundle, u_int new)
   switch (new) {
   case PHASE_DEAD:
     bundle->phase = new;
+#ifdef HAVE_DES
     MPPE_MasterKeyValid = 0;
+#endif
     log_DisplayPrompts();
     break;
 
