@@ -54,8 +54,9 @@ struct tseg_qent {
 	struct	mbuf	*tqe_m;		/* mbuf contains packet */
 };
 LIST_HEAD(tsegqe_head, tseg_qent);
-#ifdef MALLOC_DECLARE
-MALLOC_DECLARE(M_TSEGQ);
+extern int	tcp_reass_qsize;
+#ifdef VM_UMA_H
+extern uma_zone_t tcp_reass_zone;
 #endif
 
 struct tcptemp {
@@ -70,7 +71,8 @@ struct tcptemp {
  * Organized for 16 byte cacheline efficiency.
  */
 struct tcpcb {
-	struct	tsegqe_head t_segq;
+	struct	tsegqe_head t_segq;	/* segment reassembly queue */
+	int	t_segqlen;		/* segment reassembly queue length */
 	int	t_dupacks;		/* consecutive dup acks recd */
 	struct	tcptemp	*unused;	/* unused */
 
@@ -519,6 +521,7 @@ struct tcpcb *
 void	 tcp_drain(void);
 void	 tcp_fasttimo(void);
 void	 tcp_init(void);
+void	 tcp_reass_init(void);
 void	 tcp_input(struct mbuf *, int);
 u_long	 tcp_maxmtu(struct in_conninfo *);
 u_long	 tcp_maxmtu6(struct in_conninfo *);
