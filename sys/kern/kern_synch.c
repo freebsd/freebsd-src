@@ -165,7 +165,6 @@ msleep(ident, mtx, priority, wmesg, timo)
 	 * and queue it as ready to run. Note that there is danger here
 	 * because we need to make sure that we don't sleep allocating
 	 * the thread (recursion here might be bad).
-	 * Hence the TDF_INMSLEEP flag.
 	 */
 	mtx_lock_spin(&sched_lock);
 	if (p->p_flag & P_THREADED || p->p_numthreads > 1) {
