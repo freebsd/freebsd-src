@@ -3,8 +3,10 @@
  * Garrett A. Wollman, September 1994
  * This file is in the public domain.
  *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #define _NEW_VFSCONF
 
