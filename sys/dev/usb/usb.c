@@ -254,7 +254,7 @@ USB_ATTACH(usb)
 		USB_ATTACH_ERROR_RETURN;
 	}
 #else
-	callout_init(&sc->sc_bus->softi);
+	usb_callout_init(sc->sc_bus->softi);
 #endif
 #endif
 
