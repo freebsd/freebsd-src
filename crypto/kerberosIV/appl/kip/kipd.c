@@ -1,3 +1,5 @@
+/* $FreeBSD$ */
+
 /*
  * Copyright (c) 1995, 1996, 1997, 1998, 1999 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
@@ -42,7 +44,7 @@ fatal (int fd, char *s)
 
      write (fd, &err, sizeof(err));
      write (fd, s, strlen(s)+1);
-     syslog(LOG_ERR, s);
+     syslog(LOG_ERR, "%s", s);
      return err;
 }
 
