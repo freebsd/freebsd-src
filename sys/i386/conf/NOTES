@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.264 1996/06/14 09:42:52 asami Exp $
+#	$Id: LINT,v 1.265 1996/06/16 20:04:47 joerg Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -173,6 +173,8 @@ options		IPXIP			#IPX in IP encapsulation (not available)
 options		IPTUNNEL		#IP in IPX encapsulation (not available)
 options		IPXPRINTFS=0		#IPX/SPX Console Debugging Information
 options		IPX_ERRPRINTFS=0	#IPX/SPX Console Debugging Information
+
+options		NETATALK		#Appletalk communications protocols
 
 # These are currently broken and are no longer shipped due to lack
 # of interest.
