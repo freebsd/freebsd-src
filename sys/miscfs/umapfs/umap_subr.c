@@ -35,7 +35,7 @@
  *
  *	@(#)umap_subr.c	8.6 (Berkeley) 1/26/94
  *
- * $Id: umap_subr.c,v 1.3 1994/10/10 07:55:43 phk Exp $
+ * $Id: umap_subr.c,v 1.4 1995/05/30 08:07:17 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -228,7 +228,7 @@ umap_node_alloc(mp, lowervp, vpp)
 	 * check to see if someone else has beaten us to it.
 	 * (We could have slept in MALLOC.)
 	 */
-	othervp = umap_node_find(lowervp);
+	othervp = umap_node_find(mp, lowervp);
 	if (othervp) {
 		FREE(xp, M_TEMP);
 		vp->v_type = VBAD;	/* node is discarded */
