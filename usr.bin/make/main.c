@@ -811,7 +811,7 @@ main(argc, argv)
 		path1 = vpath;
 		do {
 			/* skip to end of directory */
-			for (cp1 = path1; *cp != ':' && *cp != '\0'; cp++)
+			for (cp1 = path1; *cp1 != ':' && *cp1 != '\0'; cp1++)
 				continue;
 			/* Save terminator character so know when to stop */
 			savec = *cp1;
