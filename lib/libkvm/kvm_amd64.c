@@ -151,6 +151,19 @@ _kvm_vatop(kvm_t *kd, u_long va, u_long *pa)
 	if (((u_long)pde & PG_V) == 0)
 		goto invalid;
 
+	if ((u_long)pde & PG_PS) {
+	      /*
+	       * No second-level page table; ptd describes one 4MB page.
+	       * (We assume that the kernel wouldn't set PG_PS without enabling
+	       * it cr0, and that the kernel doesn't support 36-bit physical
+	       * addresses).
+	       */
+#define	PAGE4M_MASK	(NBPDR - 1)
+#define	PG_FRAME4M	(~PAGE4M_MASK)
+		*pa = ((u_long)pde & PG_FRAME4M) + (va & PAGE4M_MASK);
+		return (NBPDR - (va & PAGE4M_MASK));
+	}
+
 	pteindex = (va >> PAGE_SHIFT) & (NPTEPG-1);
 	pte_pa = ((u_long)pde & PG_FRAME) + (pteindex * sizeof(pt_entry_t));
 
