@@ -4,6 +4,9 @@ zdump \- time zone dumper
 .SH SYNOPSIS
 .B zdump
 [
+.B \-\-version
+]
+[
 .B \-v
 ] [
 .B \-c
@@ -15,6 +18,9 @@ prints the current time in each
 named on the command line.
 .PP
 These options are available:
+.TP
+.BI "\-\-version"
+Output version information and exit.
 .TP
 .B \-v
 For each
@@ -36,4 +42,4 @@ otherwise.
 Cut off the verbose output near the start of the given year.
 .SH "SEE ALSO"
 newctime(3), tzfile(5), zic(8)
-.\" @(#)zdump.8	7.3
+.\" @(#)zdump.8	7.4
