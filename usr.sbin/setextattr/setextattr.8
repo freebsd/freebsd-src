@@ -1,0 +1,75 @@
+.\"-
+.\" Copyright (c) 2000 Robert N. M. Watson
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"       $FreeBSD$
+.\"
+.Dd March 30, 2000
+.Dt SETEXTATTR 8
+.Os FreeBSD 5.0
+.Sh NAME
+.Nm setextattr
+.Nd set a named extended attribute
+.Sh SYNOPSIS
+.Nm setextattr
+.Ar attrname
+.Ar filename
+.Ar attrvalue
+.Sh DESCRIPTION
+.Nm
+is a user tool to set a named extended attribute on a file or directory to
+the provided string.
+The
+.Ar attrname
+argument should be the name of the attribute,
+.Ar filename
+the name of the file or directory to set the attribute for, and
+.Ar attrvalue
+a string to store in the attribute.
+.Nm
+will store the string in the file's attribute.
+In order for
+.Nm
+to succeed, the attribute service must be available on the file system,
+and appropriate privilege may be required.
+.Sh EXAMPLES
+.Pp
+.Dl # setextattr md5 /kernel `md5 -q /kernel`
+.Pp
+Set the ``md5'' extended attribute on the file /kernel to the string
+containing the output of ``md5 -q /kernel''.
+.Sh SEE ALSO
+.Xr extattrctl 8 ,
+.Xr getextattr 8 ,
+.Xr extattr 9
+.Sh HISTORY
+Extended attribute support was developed as part of the TrustedBSD Project,
+and introduced in FreeBSD 5.0.
+It was developed to support security extensions requiring additional labels
+to be associated with each file or directory.
+.Sh AUTHORS
+Robert N M Watson
+.Sh BUGS
+.Nm
+can only be used to set attributes to strings.
