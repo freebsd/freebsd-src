@@ -170,7 +170,7 @@ filter(f)
 {
 	register c;
 
-	while ((c = getc(f)) != EOF) switch(c) {
+	while ((c = getc(f)) != EOF && col < MAXBUF) switch(c) {
 
 	case '\b':
 		if (col > 0)
