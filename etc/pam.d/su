@@ -5,37 +5,37 @@
 #
 
 # auth
-su	auth	sufficient	pam_rootok.so	no_warn
-su	auth	requisite	pam_wheel.so	no_warn auth_as_self noroot_ok
-#su	auth	sufficient	pam_kerberosIV.so	no_warn
-#su	auth	sufficient	pam_krb5.so	no_warn try_first_pass auth_as_self
-#su	auth	required	pam_opie.so	no_warn
-#su	auth	required	pam_ssh.so	no_warn try_first_pass
-su	auth	required	pam_unix.so	no_warn try_first_pass nullok
-#su	auth	sufficient	pam_rootok.so	no_warn
-##su	auth	sufficient	pam_kerberosIV.so	no_warn
-##su	auth	sufficient	pam_krb5.so	no_warn
-#su	auth	required	pam_opie.so	no_warn auth_as_self
-#su	auth	required	pam_unix.so	no_warn try_first_pass auth_as_self
+auth		sufficient	pam_rootok.so	no_warn
+auth		requisite	pam_wheel.so	no_warn auth_as_self noroot_ok
+#auth		sufficient	pam_kerberosIV.so	no_warn
+#auth		sufficient	pam_krb5.so	no_warn try_first_pass auth_as_self
+#auth		required	pam_opie.so	no_warn
+#auth		required	pam_ssh.so	no_warn try_first_pass
+auth		required	pam_unix.so	no_warn try_first_pass nullok
+#auth		sufficient	pam_rootok.so	no_warn
+##auth		sufficient	pam_kerberosIV.so	no_warn
+##auth		sufficient	pam_krb5.so	no_warn
+#auth		required	pam_opie.so	no_warn auth_as_self
+#auth		required	pam_unix.so	no_warn try_first_pass auth_as_self
 
 # account
-#su	account	required	pam_kerberosIV.so
-#su	account	required	pam_krb5.so
-su	account	required	pam_unix.so
-##su	account	required	pam_kerberosIV.so
-##su	account	required	pam_krb5.so
-#su	account	required	pam_unix.so
+#account	required	pam_kerberosIV.so
+#account	required	pam_krb5.so
+account		required	pam_unix.so
+##account	required	pam_kerberosIV.so
+##account	required	pam_krb5.so
+#account	required	pam_unix.so
 
 # session
-#su	session	required	pam_kerberosIV.so
-#su	session	required	pam_krb5.so
-#su	session	required	pam_ssh.so
-su	session	required	pam_unix.so
-##su	session	required	pam_kerberosIV.so
-##su	session	required	pam_krb5.so
-##su	session	required	pam_ssh.so
-#su	session	required	pam_unix.so
+#session	required	pam_kerberosIV.so
+#session	required	pam_krb5.so
+#session	required	pam_ssh.so
+session		required	pam_unix.so
+##session	required	pam_kerberosIV.so
+##session	required	pam_krb5.so
+##session	required	pam_ssh.so
+#session	required	pam_unix.so
 
 # password
-su	password required	pam_permit.so
-#su	password required	pam_permit.so
+password	required	pam_permit.so
+#password	required	pam_permit.so

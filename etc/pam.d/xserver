@@ -5,4 +5,4 @@
 #
 
 # auth
-xserver	auth	required	pam_permit.so	no_warn
+auth		required	pam_permit.so	no_warn
