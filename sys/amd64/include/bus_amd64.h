@@ -92,15 +92,23 @@
 /*
  * Bus address and size types
  */
-typedef u_int bus_addr_t;
-typedef u_int bus_size_t;
+#ifdef PAE
+typedef uint64_t bus_addr_t;
+#else
+typedef uint32_t bus_addr_t;
+#endif
+typedef uint32_t bus_size_t;
 
 #define BUS_SPACE_MAXSIZE_24BIT	0xFFFFFF
 #define BUS_SPACE_MAXSIZE_32BIT 0xFFFFFFFF
 #define BUS_SPACE_MAXSIZE	0xFFFFFFFF
 #define BUS_SPACE_MAXADDR_24BIT	0xFFFFFF
 #define BUS_SPACE_MAXADDR_32BIT 0xFFFFFFFF
+#ifdef PAE
+#define BUS_SPACE_MAXADDR	0xFFFFFFFFFFFFFFFFULL
+#else
 #define BUS_SPACE_MAXADDR	0xFFFFFFFF
+#endif
 
 #define BUS_SPACE_UNRESTRICTED	(~0)
 

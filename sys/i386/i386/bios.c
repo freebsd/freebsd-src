@@ -384,12 +384,16 @@ bios16(struct bios_args *args, char *fmt, ...)
     args->seg.code32.limit = 0xffff;	
 
     ptd = (pd_entry_t *)rcr3();
-    if (ptd == (u_int *)IdlePTD) {
+#ifdef PAE
+    if (ptd == IdlePDPT) {
+#else
+    if (ptd == IdlePTD) {
+#endif
 	/*
 	 * no page table, so create one and install it.
 	 */
 	pte = (pt_entry_t *)malloc(PAGE_SIZE, M_TEMP, M_WAITOK);
-	ptd = (pd_entry_t *)((u_int)ptd + KERNBASE);
+	ptd = (pd_entry_t *)((u_int)IdlePTD + KERNBASE);
 	*ptd = vtophys(pte) | PG_RW | PG_V;
     } else {
 	/*

@@ -40,6 +40,8 @@
 
 #include "assym.s"
 
+#define	R(x)	((x)-KERNBASE)
+
 /*
  * this code MUST be enabled here and in mp_machdep.c
  * it follows the very early stages of AP boot by placing values in CMOS ram.
@@ -74,8 +76,16 @@
 NON_GPROF_ENTRY(MPentry)
 	CHECKPOINT(0x36, 3)
 	/* Now enable paging mode */
-	movl	IdlePTD-KERNBASE, %eax
+#ifdef PAE
+	movl	R(IdlePDPT), %eax
+	movl	%eax, %cr3
+	movl	%cr4, %eax
+	orl	$CR4_PAE, %eax
+	movl	%eax, %cr4
+#else
+	movl	R(IdlePTD), %eax
 	movl	%eax,%cr3	
+#endif
 	movl	%cr0,%eax
 	orl	$CR0_PE|CR0_PG,%eax		/* enable paging */
 	movl	%eax,%cr0			/* let the games begin! */
