@@ -32,13 +32,18 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: rusersd.c,v 1.2 1994/11/18 22:40:11 ats Exp $";
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <rpc/rpc.h>
+#include <rpc/pmap_clnt.h>
 #include <signal.h>
 #include <syslog.h>
+#include <sys/types.h>
+#include <sys/socket.h>
 #define utmp rutmp
 #include <rpcsvc/rnusers.h>
 #undef utmp
@@ -55,6 +60,7 @@ cleanup()
         exit(0);
 }
 
+int
 main(argc, argv)
         int argc;
         char *argv[];
@@ -90,16 +96,16 @@ main(argc, argv)
 
 	transp = svcudp_create(sock);
 	if (transp == NULL) {
-		syslog(LOG_ERR, "cannot create udp service.");
+		syslog(LOG_ERR, "cannot create udp service");
 		exit(1);
 	}
 	if (!svc_register(transp, RUSERSPROG, RUSERSVERS_IDLE, rusers_service, proto)) {
-		syslog(LOG_ERR, "unable to register (RUSERSPROG, RUSERSVERS_IDLE, %s).", proto?"udp":"(inetd)");
+		syslog(LOG_ERR, "unable to register (RUSERSPROG, RUSERSVERS_IDLE, %s)", proto?"udp":"(inetd)");
 		exit(1);
 	}
 
 	if (!svc_register(transp, RUSERSPROG, RUSERSVERS_ORIG, rusers_service, proto)) {
-		syslog(LOG_ERR, "unable to register (RUSERSPROG, RUSERSVERS_ORIG, %s).", proto?"udp":"(inetd)");
+		syslog(LOG_ERR, "unable to register (RUSERSPROG, RUSERSVERS_ORIG, %s)", proto?"udp":"(inetd)");
 		exit(1);
 	}
 
