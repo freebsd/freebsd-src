@@ -84,6 +84,7 @@ typedef struct fwohci_softc {
 
 void fwohci_intr __P((void *arg));
 int fwohci_init __P((struct fwohci_softc *, device_t));
+void fwohci_poll __P((struct firewire_comm *, int, int));
 void fwohci_reset __P((struct fwohci_softc *, device_t));
 int fwohci_detach __P((struct fwohci_softc *, device_t));
 int fwohci_resume __P((struct fwohci_softc *, device_t));
