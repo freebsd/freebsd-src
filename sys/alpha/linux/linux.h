@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: linux.h,v 1.6 1996/03/03 19:07:49 peter Exp $
+ *	$Id: linux.h,v 1.7 1996/03/10 08:42:47 sos Exp $
  */
 
 #ifndef _I386_LINUX_LINUX_H_
@@ -214,6 +214,11 @@ struct trapframe;
 #define LINUX_TIOCSERSWILD	0x5455
 #define LINUX_TIOCGLCKTRMIOS	0x5456
 #define LINUX_TIOCSLCKTRMIOS	0x5457
+
+/* arguments for tcflush() and LINUX_TCFLSH */
+#define LINUX_TCIFLUSH        0
+#define LINUX_TCOFLUSH        1
+#define LINUX_TCIOFLUSH       2
 
 /* line disciplines */
 #define LINUX_N_TTY		0
@@ -487,5 +492,34 @@ struct trapframe;
 #define LINUX_SIOCGIFNETMASK		0x891b
 #define LINUX_SIOCADDMULTI		0x8931
 #define LINUX_SIOCDELMULTI		0x8932
+
+/* serial_struct values for TIOC[GS]SERIAL ioctls */
+#define LINUX_ASYNC_CLOSING_WAIT_INF  0
+#define LINUX_ASYNC_CLOSING_WAIT_NONE 65535
+
+#define LINUX_PORT_UNKNOWN    0
+#define LINUX_PORT_8250       1
+#define LINUX_PORT_16450      2
+#define LINUX_PORT_16550      3
+#define LINUX_PORT_16550A     4
+#define LINUX_PORT_CIRRUS     5
+#define LINUX_PORT_16650      6
+#define LINUX_PORT_MAX        6
+
+#define LINUX_ASYNC_HUP_NOTIFY		0x0001
+#define LINUX_ASYNC_FOURPORT  		0x0002
+#define LINUX_ASYNC_SAK       		0x0004
+#define LINUX_ASYNC_SPLIT_TERMIOS 	0x0008
+#define LINUX_ASYNC_SPD_MASK  		0x0030
+#define LINUX_ASYNC_SPD_HI    		0x0010
+#define LINUX_ASYNC_SPD_VHI   		0x0020
+#define LINUX_ASYNC_SPD_CUST  		0x0030
+#define LINUX_ASYNC_SKIP_TEST 		0x0040
+#define LINUX_ASYNC_AUTO_IRQ  		0x0080
+#define LINUX_ASYNC_SESSION_LOCKOUT 	0x0100
+#define LINUX_ASYNC_PGRP_LOCKOUT    	0x0200
+#define LINUX_ASYNC_CALLOUT_NOHUP   	0x0400
+#define LINUX_ASYNC_FLAGS     		0x0FFF
+
 
 #endif /* !_I386_LINUX_LINUX_H_ */
