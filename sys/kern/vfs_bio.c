@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.106 1996/11/28 04:26:04 dyson Exp $
+ * $Id: vfs_bio.c,v 1.107 1996/11/30 22:41:40 dyson Exp $
  */
 
 /*
@@ -954,15 +954,23 @@ fillbuf:
 	bp->b_usecount = 4;
 
 	maxsize = (maxsize + PAGE_MASK) & ~PAGE_MASK;
-	bfreekva(bp);
-		
+
 	/*
-	 * See if we have buffer kva space
+	 * we assume that buffer_map is not at address 0
 	 */
-	if (vm_map_findspace(buffer_map, 0, maxsize, &addr)) {
-		bp->b_flags |= B_INVAL;
-		brelse(bp);
-		goto trytofreespace;
+	addr = 0;
+	if (maxsize != bp->b_kvasize) {
+		bfreekva(bp);
+		
+		/*
+		 * See if we have buffer kva space
+		 */
+		if (vm_map_findspace(buffer_map,
+			vm_map_min(buffer_map), maxsize, &addr)) {
+			bp->b_flags |= B_INVAL;
+			brelse(bp);
+			goto trytofreespace;
+		}
 	}
 
 	/*
@@ -978,13 +986,15 @@ fillbuf:
 	 * create a map entry for the buffer -- in essence
 	 * reserving the kva space.
 	 */
-	vm_map_insert(buffer_map, NULL, 0,
-		addr, addr + maxsize,
-		VM_PROT_ALL, VM_PROT_ALL, MAP_NOFAULT);
+	if (addr) {
+		vm_map_insert(buffer_map, NULL, 0,
+			addr, addr + maxsize,
+			VM_PROT_ALL, VM_PROT_ALL, MAP_NOFAULT);
 
-	bp->b_data = (caddr_t) addr;
-	bp->b_kvabase = (caddr_t) addr;
-	bp->b_kvasize = maxsize;
+		bp->b_kvabase = (caddr_t) addr;
+		bp->b_kvasize = maxsize;
+	}
+	bp->b_data = bp->b_kvabase;
 	
 	return (bp);
 }

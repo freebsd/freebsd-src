@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.213 1996/11/29 13:12:14 bde Exp $
+ *	$Id: machdep.c,v 1.214 1996/11/29 13:19:26 bde Exp $
  */
 
 #include "npx.h"
@@ -322,7 +322,7 @@ again:
 
 #ifdef BOUNCE_BUFFERS
 	clean_map = kmem_suballoc(kernel_map, &clean_sva, &clean_eva,
-			(nbuf*MAXBSIZE) + (nswbuf*MAXPHYS) +
+			(3*nbuf*DFLTBSIZE/2) + (nswbuf*MAXPHYS) +
 				maxbkva + pager_map_size, TRUE);
 	io_map = kmem_suballoc(clean_map, &minaddr, &maxaddr, maxbkva, FALSE);
 #else
@@ -330,7 +330,7 @@ again:
 			(nbuf*MAXBSIZE) + (nswbuf*MAXPHYS) + pager_map_size, TRUE);
 #endif
 	buffer_map = kmem_suballoc(clean_map, &buffer_sva, &buffer_eva,
-				(nbuf*MAXBSIZE), TRUE);
+				(3*nbuf*DFLTBSIZE/2), TRUE);
 	pager_map = kmem_suballoc(clean_map, &pager_sva, &pager_eva,
 				(nswbuf*MAXPHYS) + pager_map_size, TRUE);
 	exec_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr,
