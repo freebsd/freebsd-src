@@ -1,6 +1,6 @@
 
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: db_sec.c,v 8.31 2000/04/21 06:54:04 vixie Exp $";
+static const char rcsid[] = "$Id: db_sec.c,v 8.32 2000/12/23 08:14:36 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -572,7 +572,7 @@ verify_set(struct db_rrset *rrset) {
 		    namefield == NS_KEY_NAME_RESERVED)
 			continue;
 		if (namefield == NS_KEY_NAME_ENTITY &&
-		    (key->dk_flags & NS_KEY_SIGNATORYMASK == 0))
+		    (key->dk_flags & NS_KEY_SIGNATORYMASK) == 0)
 			continue;
 
 		/*

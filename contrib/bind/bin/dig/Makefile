@@ -13,16 +13,16 @@
 ## ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 ## SOFTWARE.
 
-# $Id: Makefile,v 8.26 2000/07/11 06:41:27 vixie Exp $
+# $Id: Makefile,v 8.27 2000/12/23 08:02:50 vixie Exp $
 
 DESTDIR=
 CC= cc
 SHELL= /bin/sh
 
-CDEBUG= -g
+CDEBUG= -g -Wall
 
 #(net2 and its descendents)
-SYSTYPE = bsdos
+SYSTYPE = freebsd
 TOP = ../..
 INCL =  ${TOP}/include
 PORTINCL = ${TOP}/port/${SYSTYPE}/include

@@ -13,7 +13,7 @@
 # ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 # SOFTWARE.
 
-# $Id: Makefile,v 8.15 1999/08/08 17:13:24 vixie Exp $
+# $Id: Makefile,v 8.16 2000/11/21 12:54:42 marka Exp $
 
 # these are only appropriate for BSD 4.4 or derivatives, and are used in
 # development.  normal builds will be done in the top level directory and
@@ -54,7 +54,7 @@ all depend install::
 
 distclean:: clean
 	@set -e; for x in ${SUBDIRS}; do \
-		(cd $$x; pwd; ${MAKE} ${MARGS} $@); \
+		(cd $$x; pwd; ${MAKE} ${MARGS} $@) || exit 1; \
 	done
 
 clean::

@@ -13,14 +13,14 @@
 # ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 # SOFTWARE.
 
-# $Id: Makefile,v 8.23 2000/07/11 06:41:36 vixie Exp $
+# $Id: Makefile,v 8.25 2000/12/23 08:02:56 vixie Exp $
 
 SUBDIRS = resolv irs isc bsd inet nameser dst cylink dnssafe
 
-# these are only appropriate for BSD 4.4 or derivatives, and are used in
+# these are only appropriate for FreeBSD or similar, and are used in
 # development.  normal builds will be done in the top level directory and
 # this Makefile will be invoked with a lot of overrides for the following:
-SYSTYPE= bsdos
+SYSTYPE= freebsd
 SHELL= /bin/sh
 O=o
 A=a
@@ -62,7 +62,7 @@ LIBRTS = ${TOP}/lib/libbindr.ts
 
 all depend clean install distclean::
 	@for x in ${SUBDIRS}; do \
-		(cd $$x; pwd; ${MAKE} ${MARGS} $@); \
+		(cd $$x; pwd; ${MAKE} ${MARGS} $@) || exit 1; \
 	done
 
 all:: ${LIBTS} ${LIBRTS}
@@ -103,7 +103,7 @@ links:: FRC
 		( mkdir $$x; cd $$x; pwd; ln -s ../SRC/$$x SRC; \
 		  cp SRC/Makefile Makefile; chmod +w Makefile; \
 		  ${MAKE} ${MARGS} links; \
-		); \
+		) || exit 1; \
 	done
 
 FRC:

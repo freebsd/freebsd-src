@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)ns_forw.c	4.32 (Berkeley) 3/3/91";
-static const char rcsid[] = "$Id: ns_forw.c,v 8.75 2000/05/09 07:12:58 vixie Exp $";
+static const char rcsid[] = "$Id: ns_forw.c,v 8.78 2000/12/23 08:14:37 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -375,6 +375,8 @@ nslookupComplain(const char *sysloginfo, const char *queryname,
 	ns_debug(ns_log_default, 2, "NS '%s' %s", dname, complaint);
 	if (sysloginfo && queryname && !haveComplained((u_long)queryname,
 						       (u_long)complaint)) {
+		char nsbuf[20], abuf[20];
+
 		a = ns = (char *)NULL;
 		print_a = (a_rr->d_type == T_A);
 		a_type = p_type(a_rr->d_type);
@@ -389,24 +391,20 @@ nslookupComplain(const char *sysloginfo, const char *queryname,
 				break;
 			}
 		}
-		if (NS_OPTION_P(OPTION_HOSTSTATS)) {
-			char nsbuf[20], abuf[20];
-
-			if (nsdp != NULL) {
-				if (nsdp->d_ns != NULL) {
-					strcpy(nsbuf,
-					       inet_ntoa(nsdp->d_ns->addr));
-					ns = nsbuf;
-				} else {
-					ns = zones[nsdp->d_zone].z_origin;
-				}
-			}
-			if (a_rr->d_ns != NULL) {
-				strcpy(abuf, inet_ntoa(a_rr->d_ns->addr));
-				a = abuf;
+		if (nsdp != NULL) {
+			if (nsdp->d_addr.s_addr != htonl(0)) {
+				strcpy(nsbuf,
+				       inet_ntoa(nsdp->d_addr));
+				ns = nsbuf;
 			} else {
-				a = zones[a_rr->d_zone].z_origin;
+				ns = zones[nsdp->d_zone].z_origin;
 			}
+		}
+		if (a_rr->d_addr.s_addr != htonl(0)) {
+			strcpy(abuf, inet_ntoa(a_rr->d_addr));
+			a = abuf;
+		} else {
+			a = zones[a_rr->d_zone].z_origin;
 		}
 		if (a != NULL || ns != NULL)
 			ns_info(ns_log_default, 
@@ -677,7 +675,6 @@ nslookup(struct databuf *nsp[], struct qinfo *qp,
  skipserver:
 		(void)NULL;
 	}
- out:
 	ns_debug(ns_log_default, 3, "nslookup: %d ns addrs total", n);
 	qp->q_naddr = n;
 	if (n == 0 && potential_ns == 0 && !NS_ZFWDTAB(qp->q_fzone)) {
@@ -766,14 +763,17 @@ int
 qcomp(struct qserv *qs1, struct qserv *qs2) {
 	u_int rtt1, rtt2, rttr1, rttr2;
 
-	if (qs1->nsdata == NULL || qs2->nsdata == NULL) {
+	if (qs1->nsdata == NULL) {
 		rtt1 = 0;
 		rttr1 = 0;
-		rtt2 = 0;
-		rttr2 = 0;
 	} else {
 		rtt1 = qs1->nsdata->d_nstime;
 		rttr1 = RTTROUND(rtt1);
+	}
+	if (qs2->nsdata == NULL) {
+		rtt2 = 0;
+		rttr2 = 0;
+	} else {
 		rtt2 = qs2->nsdata->d_nstime;
 		rttr2 = RTTROUND(rtt2);
 	}
@@ -979,7 +979,7 @@ retry(struct qinfo *qp) {
 #ifdef DEBUG
 		if (debug >= 10)
 			res_pquery(&res, qp->q_msg, n,
-				   log_get_stream(packet_channel));
+				    log_get_stream(packet_channel));
 #endif
 		if (send_msg((u_char *)hp, n, qp)) {
 			ns_debug(ns_log_default, 1,
@@ -1013,7 +1013,7 @@ retry(struct qinfo *qp) {
 #ifdef DEBUG
 	if (debug >= 10)
 		res_pquery(&res, qp->q_msg, qp->q_msglen,
-			  log_get_stream(packet_channel));
+			    log_get_stream(packet_channel));
 #endif
 	key = tsig_key_from_addr(nsa->sin_addr);
 	if (key != NULL) {
@@ -1258,13 +1258,13 @@ nsfwdadd(struct qinfo *qp, struct fwdinfo *fwd) {
  nextfwd:
 		fwd = fwd->next;
 	}
-	qp->q_naddr = n;
 
 	/* Update the refcounts before the sort. */
-	for (i = 0; i < (u_int)n; i++) {
+	for (i = qp->q_naddr; i < (u_int)n; i++) {
 		DRCNTINC(qp->q_addr[i].nsdata);
 		DRCNTINC(qp->q_addr[i].ns);
 	}
+	qp->q_naddr = n;
 	if (n > 1) {
 		qsort((char *)qp->q_addr, n, sizeof(struct qserv),
 		      (int (*)(const void *, const void *))qcomp);

@@ -16,7 +16,7 @@
  */
 
 #if !defined(LINT) && !defined(CODECENTER)
-static const char rcsid[] = "$Id: logging.c,v 8.26 2000/04/23 02:19:02 vixie Exp $";
+static const char rcsid[] = "$Id: logging.c,v 8.28 2000/12/23 08:14:54 vixie Exp $";
 #endif /* not lint */
 
 #include "port_before.h"
@@ -39,6 +39,7 @@ static const char rcsid[] = "$Id: logging.c,v 8.26 2000/04/23 02:19:02 vixie Exp
 #include <isc/assertions.h>
 #include <isc/logging.h>
 #include <isc/memcluster.h>
+#include <isc/misc.h>
 
 #include "port_after.h"
 
@@ -78,10 +79,10 @@ version_rename(log_channel chan) {
 	for (ver--; ver > 0; ver--) {
 		sprintf(old_name, "%s.%d", chan->out.file.name, ver-1);
 		sprintf(new_name, "%s.%d", chan->out.file.name, ver);
-		(void)rename(old_name, new_name);
+		(void)isc_movefile(old_name, new_name);
 	}
 	sprintf(new_name, "%s.0", chan->out.file.name);
-	(void)rename(chan->out.file.name, new_name);
+	(void)isc_movefile(chan->out.file.name, new_name);
 }
 
 FILE *

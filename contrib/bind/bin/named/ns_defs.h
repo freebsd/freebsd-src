@@ -1,6 +1,6 @@
 /*
  *	from ns.h	4.33 (Berkeley) 8/23/90
- *	$Id: ns_defs.h,v 8.96 2000/04/21 06:54:06 vixie Exp $
+ *	$Id: ns_defs.h,v 8.102 2000/12/01 05:35:48 vixie Exp $
  */
 
 /*
@@ -143,6 +143,9 @@
 #define DEFAULT_XFERS_RUNNING 10  /* default value of transfers_in */
 #define DEFAULT_XFERS_PER_NS 2	  /* default # of xfers per peer nameserver */
 #define	XFER_BUFSIZE	(16*1024) /* arbitrary but bigger than most MTU's */
+#define	MAX_SYNCDELAY	3	/* Presumed timeout in use by our clients. */
+#define	MAX_SYNCDRAIN	100000	/* How long we'll spin in drain_all_rcvbuf. */
+#define	MAX_SYNCSTORE	500
 
 				  /* maximum time to cache negative answers */
 #define DEFAULT_MAX_NCACHE_TTL (3*60*60)
@@ -160,6 +163,7 @@ typedef enum need {
 	main_need_zoneload,	/* loadxfer() needed. */
 	main_need_dump,		/* doadump() needed. */
 	main_need_statsdump,	/* ns_stats() needed. */
+	main_need_statsdumpandclear, /* ns_stats() needed. */
 	main_need_exit,		/* exit() needed. */
 	main_need_qrylog,	/* toggle_qrylog() needed. */
 	main_need_debug,	/* use_desired_debug() needed. */
@@ -190,6 +194,8 @@ typedef enum need {
 #define	OPTION_TREAT_CR_AS_SPACE 0x1000 /* Treat CR in zone files as space */
 #define OPTION_USE_IXFR		0x2000	/* Use by delault ixfr in zone transfer */
 #define OPTION_MAINTAIN_IXFR_BASE 0x4000 /* Part of IXFR file name logic. */
+#define OPTION_HITCOUNT		0x8000	/* Keep track of each time an RR gets
+					 * hit in the database */
 
 #define	DEFAULT_OPTION_FLAGS	(OPTION_NODIALUP|OPTION_NONAUTH_NXDOMAIN|\
 				 OPTION_USE_ID_POOL|OPTION_NORFC2308_TYPE1)
@@ -671,8 +677,8 @@ struct nameser {
 	u_int32_t	rtt;		/* round trip time */
 	/* XXX - need to add more stuff from "struct qserv", and use our rtt */
 	u_int16_t	flags;		/* see below */
-#endif
 	u_int8_t	xfers;		/* #/xfers running right now */
+#endif
 };
 		
 enum transport { primary_trans, secondary_trans, response_trans, update_trans,
@@ -764,6 +770,7 @@ typedef struct options {
 	rrset_order_list ordering;
 	int heartbeat_interval;
 	u_int max_ncache_ttl;
+	u_int max_host_stats;
 	u_int lame_ttl;
 	int minroots;
 } *options;
