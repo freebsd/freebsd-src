@@ -2350,15 +2350,15 @@ ata_sis_chipinit(device_t dev)
 	break;
     case SIS66:
     case SIS100OLD:
-	pci_write_config(dev, 0x52, pci_read_config(dev, 0x52, 1) | 0x04, 1);
+	pci_write_config(dev, 0x52, pci_read_config(dev, 0x52, 1) & ~0x04, 1);
 	break;
     case SIS100NEW:
     case SIS133OLD:
-	pci_write_config(dev, 0x49, pci_read_config(dev, 0x49, 1) | 0x01, 1);
+	pci_write_config(dev, 0x49, pci_read_config(dev, 0x49, 1) & ~0x01, 1);
 	break;
     case SIS133NEW:
-	pci_write_config(dev, 0x50, pci_read_config(dev, 0x50, 2) & 0xfff7, 2);
-	pci_write_config(dev, 0x52, pci_read_config(dev, 0x52, 2) & 0xfff7, 2);
+	pci_write_config(dev, 0x50, pci_read_config(dev, 0x50, 2) | 0x0008, 2);
+	pci_write_config(dev, 0x52, pci_read_config(dev, 0x52, 2) | 0x0008, 2);
 	break;
     case SISSATA:
 	pci_write_config(dev, 0x04, pci_read_config(dev, 0x04, 2) & ~0x0400, 2);
