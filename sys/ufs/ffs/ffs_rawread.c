@@ -436,8 +436,8 @@ ffs_rawread(struct vnode *vp,
 	    uio->uio_iovcnt == 1 && 
 	    uio->uio_segflg == UIO_USERSPACE &&
 	    uio->uio_resid == uio->uio_iov->iov_len &&
-	    (((uio->uio_td != NULL) ? uio->uio_td : curthread)->td_flags &
-	     TDF_DEADLKTREAT) == 0) {
+	    (((uio->uio_td != NULL) ? uio->uio_td : curthread)->td_pflags &
+	     TDP_DEADLKTREAT) == 0) {
 		int secsize;		/* Media sector size */
 		off_t filebytes;	/* Bytes left of file */
 		int blockbytes;		/* Bytes left of file in full blocks */

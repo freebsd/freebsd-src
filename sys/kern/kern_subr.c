@@ -140,10 +140,8 @@ uiomove(void *cp, int n, struct uio *uio)
 	    ("uiomove proc"));
 
 	if (td) {
-		mtx_lock_spin(&sched_lock);
-		save = td->td_flags & TDF_DEADLKTREAT;
-		td->td_flags |= TDF_DEADLKTREAT;
-		mtx_unlock_spin(&sched_lock);
+		save = td->td_pflags & TDP_DEADLKTREAT;
+		td->td_pflags |= TDP_DEADLKTREAT;
 	}
 
 	while (n > 0 && uio->uio_resid) {
@@ -187,11 +185,8 @@ uiomove(void *cp, int n, struct uio *uio)
 		n -= cnt;
 	}
 out:
-	if (td && save == 0) {
-		mtx_lock_spin(&sched_lock);
-		td->td_flags &= ~TDF_DEADLKTREAT;
-		mtx_unlock_spin(&sched_lock);
-	}
+	if (td && save == 0)
+		td->td_pflags &= ~TDP_DEADLKTREAT;
 	return (error);
 }
 

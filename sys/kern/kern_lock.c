@@ -251,16 +251,14 @@ debuglockmgr(lkp, flags, interlkp, td, name, file, line)
 		 * while there is an exclusive lock holder or while an
 		 * exclusive lock request or upgrade request is in progress.
 		 *
-		 * However, if TDF_DEADLKTREAT is set, we override exclusive
+		 * However, if TDP_DEADLKTREAT is set, we override exclusive
 		 * lock requests or upgrade requests ( but not the exclusive
 		 * lock itself ).
 		 */
 		if (lkp->lk_lockholder != thr) {
 			lockflags = LK_HAVE_EXCL;
-			mtx_lock_spin(&sched_lock);
-			if (td != NULL && !(td->td_flags & TDF_DEADLKTREAT))
+			if (td != NULL && !(td->td_pflags & TDP_DEADLKTREAT))
 				lockflags |= LK_WANT_EXCL | LK_WANT_UPGRADE;
-			mtx_unlock_spin(&sched_lock);
 			error = acquire(&lkp, extflags, lockflags);
 			if (error)
 				break;
