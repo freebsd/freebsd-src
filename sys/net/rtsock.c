@@ -1008,7 +1008,7 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 	if (req->newptr)
 		return (EPERM);
 	if (namelen != 3)
-		return (EINVAL);
+		return ((namelen < 3) ? EISDIR : ENOTDIR);
 	af = name[0];
 	Bzero(&w, sizeof(w));
 	w.w_op = name[1];
