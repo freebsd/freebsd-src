@@ -97,7 +97,7 @@ whereobj:
 .endif
 
 cleanobj:
-	@if [ -z "${MAKEOBJDIRPREFIX}" -a -d ${CANONICALOBJDIR}/ ]; then \
+	@if [ "${CANONICALOBJDIR}" != "${.CURDIR}" -a -d ${CANONICALOBJDIR}/ ]; then \
 		rm -rf ${CANONICALOBJDIR}; \
 	else \
 		cd ${.CURDIR} && ${MAKE} clean cleandepend; \
