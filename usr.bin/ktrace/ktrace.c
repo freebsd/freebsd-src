@@ -42,7 +42,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)ktrace.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: ktrace.c,v 1.6.2.2 1997/07/18 06:37:20 charnier Exp $";
+	"$Id: ktrace.c,v 1.6.2.3 1997/08/29 05:29:25 imp Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -78,7 +78,7 @@ main(argc, argv)
 	append = ops = pidset = inherit = 0;
 	trpoints = DEF_POINTS;
 	tracefile = DEF_TRACEFILE;
-	while ((ch = getopt(argc,argv,"aCcdf:g:ip:t:")) !=  -1)
+	while ((ch = getopt(argc,argv,"aCcdf:g:ip:t:")) != -1)
 		switch((char)ch) {
 		case 'a':
 			append = 1;

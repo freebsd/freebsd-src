@@ -27,7 +27,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: ipcs.c,v 1.6.2.1 1997/07/16 06:44:27 charnier Exp $";
+	"$Id: ipcs.c,v 1.6.2.2 1997/08/29 05:29:23 imp Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -138,7 +138,7 @@ main(argc, argv)
 	char   *core = NULL, *namelist = NULL;
 	int     i;
 
-	while ((i = getopt(argc, argv, "MmQqSsabC:cN:optT")) !=  -1)
+	while ((i = getopt(argc, argv, "MmQqSsabC:cN:optT")) != -1)
 		switch (i) {
 		case 'M':
 			display = SHMTOTAL;

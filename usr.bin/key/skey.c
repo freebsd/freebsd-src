@@ -39,7 +39,7 @@ char *argv[];
 	char *slash;
 
 	cnt = 1;
-	while((i = getopt(argc,argv,"n:")) !=  -1){
+	while((i = getopt(argc,argv,"n:")) != -1){
 		switch(i){
 		case 'n':
 			cnt = atoi(optarg);

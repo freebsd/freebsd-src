@@ -8,6 +8,7 @@ BEGIN {
 	print "#include <sys/queue.h>"
 	print "#include <sys/socket.h>"
 	print "#include <sys/socketvar.h>"
+	print "#include <sys/time.h>"
 	print "#include <net/route.h>"
 	print "#include <net/if.h>"
 	print "#include <netinet/in.h>"

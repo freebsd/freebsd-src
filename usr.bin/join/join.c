@@ -43,10 +43,10 @@ static const char copyright[] =
 
 #ifndef lint
 #if 0
-static char sccsid[] = "@(#)join.c	8.3 (Berkeley) 4/16/94";
+static char sccsid[] = "@(#)join.c	8.6 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-	"$Id: join.c,v 1.3.2.4 1997/08/21 15:04:29 jlemon Exp $";
+	"$Id: join.c,v 1.3.2.5 1997/08/29 05:29:23 imp Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -57,6 +57,7 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 /*
  * There's a structure per input file which encapsulates the state of the
@@ -125,7 +126,7 @@ main(argc, argv)
 
 	aflag = vflag = 0;
 	obsolete(argv);
-	while ((ch = getopt(argc, argv, "\01a:e:j:1:2:o:t:v:")) !=  -1) {
+	while ((ch = getopt(argc, argv, "\01a:e:j:1:2:o:t:v:")) != -1) {
 		switch (ch) {
 		case '\01':		/* See comment in obsolete(). */
 			aflag = 1;
@@ -292,6 +293,10 @@ slurp(F)
 			    F->setalloc * sizeof(LINE))) == NULL)
 				err(1, NULL);
 			memset(F->set + cnt, 0, 50 * sizeof(LINE));
+
+			/* re-set lastlp in case it moved */
+			if (lastlp != NULL)
+				lastlp = &F->set[F->setcnt - 1];
 		}
 
 		/*
@@ -314,7 +319,7 @@ slurp(F)
 		if ((bp = fgetln(F->fp, &len)) == NULL)
 			return;
 		if (lp->linealloc <= len + 1) {
-			lp->linealloc += MAX(100, len + 1);
+			lp->linealloc += MAX(100, len + 1 - lp->linealloc);
 			if ((lp->line =
 			    realloc(lp->line, lp->linealloc)) == NULL)
 				err(1, NULL);
@@ -357,7 +362,7 @@ cmp(lp1, fieldno1, lp2, fieldno2)
 	u_long fieldno1, fieldno2;
 {
 	if (lp1->fieldcnt <= fieldno1)
-		return (lp2->fieldcnt < fieldno2 ? 0 : 1);
+		return (lp2->fieldcnt <= fieldno2 ? 0 : 1);
 	if (lp2->fieldcnt <= fieldno2)
 		return (-1);
 	return (strcmp(lp1->fields[fieldno1], lp2->fields[fieldno2]));
@@ -477,7 +482,7 @@ fieldarg(option)
 	u_long fieldno;
 	char *end, *token;
 
-	while ((token = strsep(&option, " \t")) != NULL) {
+	while ((token = strsep(&option, ", \t")) != NULL) {
 		if (*token == '\0')
 			continue;
 		if (token[0] != '1' && token[0] != '2' || token[1] != '.')
@@ -584,8 +589,8 @@ void
 usage()
 {
 	(void)fprintf(stderr, "%s %s\n%s\n",
-		"usage: join [-a fileno | -v fileno ] [-e string] [-1 field]",
-		"[-2 field]",
+	    "usage: join [-a fileno | -v fileno ] [-e string] [-1 field]",
+	    "[-2 field]",
 		"            [-o list] [-t char] file1 file2");
 	exit(1);
 }

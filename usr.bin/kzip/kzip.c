@@ -13,7 +13,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: kzip.c,v 1.5.2.1 1997/07/21 11:56:35 charnier Exp $";
+	"$Id: kzip.c,v 1.5.2.2 1997/08/29 05:29:26 imp Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -55,7 +55,7 @@ main(int argc, char **argv)
 	char out[BUFSIZ];
 	char base[32];
 	
-	while ((c = getopt(argc, argv, "l:v")) !=  -1) {
+	while ((c = getopt(argc, argv, "l:v")) != -1) {
 		switch (c) {
 		case 'l':
 			forceaddr = strtoul(optarg, NULL, 0);
@@ -92,7 +92,7 @@ main(int argc, char **argv)
 		err(2, argv[1]);
 
 	size = hdr.a_text + hdr.a_data + hdr.a_bss;
-	entry = hdr.a_entry - 0xf0000000;	/* replace KZBASE */
+	entry = hdr.a_entry & 0x00FFFFFF;
 
 	lseek (fdi, 0, SEEK_SET);
 
