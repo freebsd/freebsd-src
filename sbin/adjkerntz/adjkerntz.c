@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1993, 1994 by Andrew A. Chernov, Moscow, Russia.
+ * Copyright (C) 1993, 1994, 1995 by Andrey A. Chernov, Moscow, Russia.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,12 +26,12 @@
 
 #ifndef lint
 char copyright[] =
-"@(#)Copyright (C) 1993 by Andrew A. Chernov, Moscow, Russia.\n\
+"@(#)Copyright (C) 1993, 1994, 1995 by Andrey A. Chernov, Moscow, Russia.\n\
  All rights reserved.\n";
 #endif /* not lint */
 
 /*
- * Andrew A. Chernov   <ache@astral.msk.su>    Dec 20 1993
+ * Andrey A. Chernov   <ache@astral.msk.su>    Dec 20 1993
  *
  * Fix kernel time value if machine run wall CMOS clock
  * (and /etc/wall_cmos_clock file present)
@@ -72,6 +72,7 @@ int main(argc, argv)
 	long offset, utcsec, localsec, diff;
 	time_t initial_sec, final_sec;
 	int ch, init = -1;
+	int initial_isdst = -1, final_isdst, looping;
 	int disrtcset, need_restore = 0;
 	sigset_t mask, emask;
 
@@ -118,6 +119,19 @@ again:
 	(void) sigprocmask(SIG_BLOCK, &mask, NULL);
 	(void) signal(SIGTERM, fake);
 
+	diff = 0;
+	stv = NULL;
+	stz = NULL;
+	looping = 0;
+
+	mib[0] = CTL_MACHDEP;
+	mib[1] = CPU_ADJKERNTZ;
+	len = sizeof(kern_offset);
+	if (sysctl(mib, 2, &kern_offset, &len, NULL, 0) == -1) {
+		syslog(LOG_ERR, "sysctl(get_offset): %m");
+		return 1;
+	}
+
 /****** Critical section, do all things as fast as possible ******/
 
 	/* get local CMOS clock and possible kernel offset */
@@ -128,13 +142,18 @@ again:
 
 	/* get the actual local timezone difference */
 	initial_sec = tv.tv_sec;
+
+recalculate:
 	local = *localtime(&initial_sec);
+	if (diff == 0)
+		initial_isdst = local.tm_isdst;
 	utc = *gmtime(&initial_sec);
+	local.tm_isdst = utc.tm_isdst = initial_isdst;
 
 	/* calculate local CMOS diff from GMT */
 
-	utcsec = timelocal(&utc);
-	localsec = timelocal(&local);
+	utcsec = mktime(&utc);
+	localsec = mktime(&local);
 	if (utcsec == -1 || localsec == -1) {
 		/*
 		 * XXX user can only control local time, and it is
@@ -153,17 +172,6 @@ again:
 	fprintf(stderr, "Initial offset: %ld secs\n", offset);
 #endif
 
-	mib[0] = CTL_MACHDEP;
-	mib[1] = CPU_ADJKERNTZ;
-	len = sizeof(kern_offset);
-	if (sysctl(mib, 2, &kern_offset, &len, NULL, 0) == -1) {
-		syslog(LOG_ERR, "sysctl(get_offset): %m");
-		return 1;
-	}
-
-	stv = NULL;
-	stz = NULL;
-
 	/* correct the kerneltime for this diffs */
 	/* subtract kernel offset, if present, old offset too */
 
@@ -175,15 +183,25 @@ again:
 #endif
 		/* Yet one step for final time */
 
-		final_sec = tv.tv_sec + diff;
+		final_sec = initial_sec + diff;
 
 		/* get the actual local timezone difference */
 		local = *localtime(&final_sec);
+		final_isdst = diff < 0 ? initial_isdst : local.tm_isdst;
+		if (diff > 0 && initial_isdst != final_isdst) {
+			if (looping)
+				goto bad_final;
+			looping++;
+			initial_isdst = final_isdst;
+			goto recalculate;
+		}
 		utc = *gmtime(&final_sec);
+		local.tm_isdst = utc.tm_isdst = final_isdst;
 
-		utcsec = timelocal(&utc);
-		localsec = timelocal(&local);
+		utcsec = mktime(&utc);
+		localsec = mktime(&local);
 		if (utcsec == -1 || localsec == -1) {
+		bad_final:
 			/*
 			 * XXX as above.  The user has even less control,
 			 * but perhaps we never get here.
