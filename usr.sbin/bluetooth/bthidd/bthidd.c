@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: bthidd.c,v 1.4 2004/02/26 21:48:44 max Exp $
+ * $Id: bthidd.c,v 1.7 2004/11/17 21:59:42 max Exp $
  * $FreeBSD$
  */
 
@@ -62,14 +62,16 @@ main(int argc, char *argv[])
 {
 	struct bthid_server	 srv;
 	struct sigaction	 sa;
-	char const		*pid_file = BTHIDD_PIDFILE;
+	char const		*pid_file = BTHIDD_PIDFILE, *ep = NULL;
 	int			 opt, detach, tval;
 
+	memset(&srv, 0, sizeof(srv));
 	memcpy(&srv.bdaddr, NG_HCI_BDADDR_ANY, sizeof(srv.bdaddr));
+	srv.windex = -1;
 	detach = 1;
 	tval = 10; /* sec */
 
-	while ((opt = getopt(argc, argv, "a:c:dH:hp:t:")) != -1) {
+	while ((opt = getopt(argc, argv, "a:c:dH:hp:s:t:")) != -1) {
 		switch (opt) {
 		case 'a': /* BDADDR */
 			if (!bt_aton(optarg, &srv.bdaddr)) {
@@ -98,13 +100,21 @@ main(int argc, char *argv[])
 			pid_file = optarg;
 			break;
 
-		case 't': { /* rescan interval */
-			char	*ep = NULL;
+		case 's': /* switch script */
+			srv.script = optarg;
+			break;
 
-			tval = strtol(optarg, &ep, 10);
+		case 't': /* rescan interval */
+			tval = strtol(optarg, (char **) &ep, 10);
 			if (*ep != '\0' || tval <= 0)
 				usage();
-			} break;
+			break;
+
+		case 'u': /* wired keyboard index */
+			srv.windex = strtol(optarg, (char **) &ep, 10);
+			if (*ep != '\0' || srv.windex < 0)
+				usage();
+			break;
 
 		case 'h':
 		default:
@@ -136,6 +146,14 @@ main(int argc, char *argv[])
 
 	sa.sa_handler = SIG_IGN;
 	if (sigaction(SIGPIPE, &sa, NULL) < 0) {
+		syslog(LOG_CRIT, "Could not install signal handlers. %s (%d)",
+			strerror(errno), errno);
+		exit(1);
+	}
+
+	sa.sa_handler = SIG_IGN;
+	sa.sa_flags = SA_NOCLDSTOP|SA_NOCLDWAIT;
+	if (sigaction(SIGCHLD, &sa, NULL) < 0) {
 		syslog(LOG_CRIT, "Could not install signal handlers. %s (%d)",
 			strerror(errno), errno);
 		exit(1);
@@ -249,7 +267,9 @@ usage(void)
 "	-H file		specify known HIDs file name\n" \
 "	-h		display this message\n" \
 "	-p file		specify PID file name\n" \
-"	-t tval		client rescan interval (sec)\n" \
+"	-s script	specify keyboard switching script\n" \
+"	-t tval		specify client rescan interval (sec)\n" \
+"	-u unit		specify wired keyboard unit\n" \
 "", BTHIDD_IDENT);
 	exit(255);
 }
