@@ -163,7 +163,7 @@ struct snd_size {
 #define AFMT_MPEG	0x00000200	/* MPEG MP2/MP3 audio */
 #define AFMT_AC3	0x00000400	/* Dolby Digital AC3 */
 
-#if BYTE_ORDER == LITTLE_ENDIAN
+#if _BYTE_ORDER == _LITTLE_ENDIAN
 #define AFMT_S16_NE	AFMT_S16_LE	/* native endian signed 16 */
 #else
 #define AFMT_S16_NE	AFMT_S16_BE
