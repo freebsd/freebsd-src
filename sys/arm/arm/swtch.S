@@ -204,7 +204,7 @@ ENTRY(cpu_throw)
 	/* Set the new tp */
 	ldr	r6, [r5, #(TD_MD + MD_TP)]
 	mov	r5, #ARM_TP_ADDRESS
-	str	r6, [r5]
+	strt	r6, [r5]
 
 	/* Hook in a new pcb */
 	ldr	r6, .Lcurpcb
@@ -260,13 +260,12 @@ ENTRY(cpu_switch)
 	 */
 	/* Store the old tp */
 	mov	r3, #ARM_TP_ADDRESS
-	ldr	r9, [r3]
+	ldrt	r9, [r3]
 	str	r9, [r0, #(TD_MD + MD_TP)]
 
 	/* Set the new tp */
 	ldr	r9, [r1, #(TD_MD + MD_TP)]
-	mov	r3, #ARM_TP_ADDRESS
-	str	r9, [r3]
+	strt	r9, [r3]
 
 	/* Get the user structure for the new process in r9 */
 	ldr	r9, [r1, #(TD_PCB)]
