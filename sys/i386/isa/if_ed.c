@@ -13,7 +13,7 @@
  *   the SMC Elite Ultra (8216), the 3Com 3c503, the NE1000 and NE2000,
  *   and a variety of similar clones.
  *
- * $Id: if_ed.c,v 1.63 1995/01/04 21:10:17 davidg Exp $
+ * $Id: if_ed.c,v 1.64 1995/01/15 00:18:17 wollman Exp $
  */
 
 #include "ed.h"
@@ -401,18 +401,32 @@ ed_probe_WD80x3(isa_dev)
 		sc->is790 = 1;
 		break;
 	case ED_TYPE_SMC8216T:
-		(unsigned int) *(isa_dev->id_maddr+8192) = (unsigned int)0;
-		if ((unsigned int) *(isa_dev->id_maddr+8192)) {
+		sc->type_str = "SMC8216T";
+		sc->kdc.kdc_description = 
+			"Ethernet adapter: SMC 8216T";
+
+		outb(sc->asic_addr + ED_WD790_HWR,
+		    inb(sc->asic_addr + ED_WD790_HWR) | ED_WD790_HWR_SWH);
+		switch (inb(sc->asic_addr + ED_WD790_RAR) & ED_WD790_RAR_SZ64) {
+		case ED_WD790_RAR_SZ64:
+			memsize = 65536;
+			break;
+		case ED_WD790_RAR_SZ32:
+			memsize = 32768;
+			break;
+		case ED_WD790_RAR_SZ16:
+			memsize = 16384;
+			break;
+		case ED_WD790_RAR_SZ8:
 			sc->type_str = "SMC8416T";
 			sc->kdc.kdc_description =
 				"Ethernet adapter: SMC 8416T";
 			memsize = 8192;
-		} else {
-			sc->type_str = "SMC8216T";
-			sc->kdc.kdc_description = 
-				"Ethernet adapter: SMC 8216T";
-			memsize = 16384;
+			break;
 		}
+		outb(sc->asic_addr + ED_WD790_HWR,
+		    inb(sc->asic_addr + ED_WD790_HWR) & ~ED_WD790_HWR_SWH);
+
 		isa16bit = 1;
 		sc->is790 = 1;
 		break;
@@ -447,6 +461,30 @@ ed_probe_WD80x3(isa_dev)
 		isa16bit = 0;
 		memsize = 8192;
 	}
+
+
+	if (sc->is790) {
+		outb(sc->asic_addr + ED_WD790_HWR,
+		 inb(sc->asic_addr + ED_WD790_HWR) | ED_WD790_HWR_SWH);
+
+		switch (inb(sc->asic_addr + ED_WD790_RAR) & ED_WD790_RAR_SZ64) {
+		case ED_WD790_RAR_SZ64:
+			memsize = 65536;
+			break;
+		case ED_WD790_RAR_SZ32:
+			memsize = 32768;
+			break;
+		case ED_WD790_RAR_SZ16:
+			memsize = 16384;
+			break;
+		case ED_WD790_RAR_SZ8:
+			memsize = 8192;
+			break;
+		}
+		outb(sc->asic_addr + ED_WD790_HWR,
+		 inb(sc->asic_addr + ED_WD790_HWR) & ~ED_WD790_HWR_SWH);
+	}
+
 #if ED_DEBUG
 	printf("type = %x type_str=%s isa16bit=%d memsize=%d id_msize=%d\n",
 	       sc->type, sc->type_str, isa16bit, memsize, isa_dev->id_msize);
@@ -585,11 +623,11 @@ ed_probe_WD80x3(isa_dev)
 		sc->cr_proto = ED_CR_RD2;
 	} else {
 		outb(sc->asic_addr + ED_WD_MSR, ED_WD_MSR_MENB);
-		outb(sc->asic_addr + 0x04, (inb(sc->asic_addr + 0x04) | 0x80));
-		outb(sc->asic_addr + 0x0b, ((kvtop(sc->mem_start) >> 13) & 0x0f) |
+		outb(sc->asic_addr + ED_WD790_HWR, (inb(sc->asic_addr + ED_WD790_HWR) | ED_WD790_HWR_SWH));
+		outb(sc->asic_addr + ED_WD790_RAR, ((kvtop(sc->mem_start) >> 13) & 0x0f) |
 		     ((kvtop(sc->mem_start) >> 11) & 0x40) |
-		     (inb(sc->asic_addr + 0x0b) & 0xb0));
-		outb(sc->asic_addr + 0x04, (inb(sc->asic_addr + 0x04) & ~0x80));
+		     (inb(sc->asic_addr + ED_WD790_RAR) & 0xb0));
+		outb(sc->asic_addr + ED_WD790_HWR, (inb(sc->asic_addr + ED_WD790_HWR) & ~ED_WD790_HWR_SWH));
 		sc->cr_proto = 0;
 	}
 
