@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: Steve McCanne's microtime code
- *	$Id: microtime.s,v 1.13 1997/07/21 13:12:45 kato Exp $
+ *	$Id: microtime.s,v 1.14 1997/08/24 11:09:36 kato Exp $
  */
 
 #include "opt_cpu.h"
@@ -48,6 +48,10 @@
 #endif
 #include <i386/isa/timerreg.h>
 
+#ifdef SMP
+#include <machine/smptests.h>			/** USE_CLOCKLOCK */
+#endif
+
 ENTRY(microtime)
 
 #if (defined(I586_CPU) || defined(I686_CPU)) && !defined(SMP)
@@ -62,7 +66,15 @@ ENTRY(microtime)
 
 	pushfl
 	cli			/* disable interrupts */
-
+#ifdef USE_CLOCKLOCK
+	pushl	%eax			/* s_lock destroys %eax, %ecx */
+	pushl	%ecx
+	pushl	$_clock_lock
+ 	call	_s_lock
+	addl	$4, %esp
+	popl	%ecx
+	popl	%eax
+#endif /* USE_CLOCKLOCK */
 	outb	%al, $TIMER_MODE	/* latch timer 0's counter */
 	inb	$TIMER_CNTR0, %al	/* read counter value, LSB first */
 	movb	%al, %cl
@@ -256,6 +268,13 @@ common_microtime:
 	addl	_time+4, %eax	/* usec += time.tv_sec */
 	movl	_time, %edx	/* sec = time.tv_sec */
 
+#ifdef USE_CLOCKLOCK
+	pushl	%eax		/* s_lock destroys %eax, %ecx */
+	pushl	$_clock_lock
+ 	call	_s_unlock
+	addl	$4, %esp
+	popl	%eax
+#endif /* USE_CLOCKLOCK */
 	popfl			/* restore interrupt mask */
 
 	cmpl	$1000000, %eax	/* usec valid? */
