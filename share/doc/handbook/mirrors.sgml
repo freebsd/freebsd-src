@@ -1,4 +1,4 @@
-<!-- $Id: mirrors.sgml,v 1.26 1996/02/16 12:18:30 jkh Exp $ -->
+<!-- $Id: mirrors.sgml,v 1.27 1996/02/27 03:42:12 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -149,6 +149,9 @@ for this domain.
 <item>
 <htmlurl url="ftp://ftp6.de.freebsd.org/pub/FreeBSD"
 	name="ftp://ftp6.de.freebsd.org/pub/FreeBSD"><newline>
+<item>
+<htmlurl url="ftp://ftp7.de.freebsd.org/pub/FreeBSD"
+	name="ftp://ftp7.de.freebsd.org/pub/FreeBSD"><newline>
 
 </itemize>
 
@@ -306,6 +309,12 @@ for this domain.
 <tag>Taiwan</tag>
 
 <itemize>
+
+<item>
+<htmlurl url="ftp://ftp.tw.freebsd.org/pub/FreeBSD"
+	name="ftp://ftp.tw.freebsd.org/pub/FreeBSD"><newline>
+	Contact: <htmlurl url="mailto:ftpadmin@ftp.tw.freebsd.org"
+	name="ftpadmin@ftp.tw.freebsd.org">.
 
 <item>
 <htmlurl url="ftp://NCTUCCCA.edu.tw/Operating-Systems/FreeBSD"
