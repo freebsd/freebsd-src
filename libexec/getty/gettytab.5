@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     from: @(#)gettytab.5	8.4 (Berkeley) 4/19/94
-.\"	$Id: gettytab.5,v 1.7.2.5 1997/12/15 07:10:52 charnier Exp $
+.\"	$Id: gettytab.5,v 1.7.2.6 1998/02/20 17:32:24 jkh Exp $
 .\" "
 .Dd April 19, 1994
 .Dt GETTYTAB 5
@@ -126,7 +126,7 @@ hangup line on last close
 .It "i1	num	unused	tty input flags to read login name"
 .It "i2	num	unused	tty input flags to leave terminal as"
 .It "ic	str	unused	expect-send chat script for modem initialization"
-.It "if	str	unused	display named file before prompt"
+.It "if	str	unused	display named file before prompt, like /etc/issue"
 .It "ig	bool	false	ignore garbage characters in login name"
 .It "im	str" Ta Dv NULL Ta
 .No "initial (banner) message"
@@ -270,10 +270,11 @@ of milliseconds of delay required (a la termcap).
 This delay is simulated by repeated use of the pad character
 .Em \&pc .
 .Pp
-The initial message, and login message,
-.Em \&im
-and
+The initial message, login message, and initial file;
+.Em \&im ,
 .Em \&lm
+and
+.Em \&if
 may include any of the following character sequences, which expand to
 information about the environment in which
 .Xr getty 8
