@@ -437,9 +437,13 @@ to preserve
 the backslash.
 .Sh THE ANATOMY OF A MAN PAGE
 The body of a man page is easily constructed from a basic
-template found in the file:
+template found in the file
+.Pa /usr/share/misc/mdoc.template .
+Several example man pages can also be found
+in 
+.Pa /usr/share/examples/mdoc .
+.Pp
 .Bd -literal -offset indent
-\&.\e" /usr/share/misc/man.template:
 \&.\e" The following requests are required for all man pages.
 \&.Dd "Month day, year"
 \&.Os OPERATING_SYSTEM [version/release]
@@ -2783,6 +2787,8 @@ to restore the old style behavior.
 manual macro package
 .It Pa /usr/share/misc/mdoc.template
 template for writing a man page
+.It Pa /usr/share/examples/mdoc/*
+several example man pages
 .El
 .Sh SEE ALSO
 .Xr man 1 ,
