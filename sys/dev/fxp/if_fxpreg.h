@@ -111,13 +111,11 @@
  * Command block definitions
  */
 struct fxp_cb_nop {
-	void *fill[2];
 	volatile u_int16_t cb_status;
 	volatile u_int16_t cb_command;
 	volatile u_int32_t link_addr;
 };
 struct fxp_cb_ias {
-	void *fill[2];
 	volatile u_int16_t cb_status;
 	volatile u_int16_t cb_command;
 	volatile u_int32_t link_addr;
@@ -125,7 +123,6 @@ struct fxp_cb_ias {
 };
 /* I hate bit-fields :-( */
 struct fxp_cb_config {
-	void *fill[2];
 	volatile u_int16_t	cb_status;
 	volatile u_int16_t	cb_command;
 	volatile u_int32_t	link_addr;
@@ -215,8 +212,6 @@ struct fxp_cb_config {
 
 #define MAXMCADDR 80
 struct fxp_cb_mcs {
-	struct fxp_cb_tx *next;
-	struct mbuf *mb_head;
 	volatile u_int16_t cb_status;
 	volatile u_int16_t cb_command;
 	volatile u_int32_t link_addr;
@@ -226,7 +221,6 @@ struct fxp_cb_mcs {
 
 #define MAXUCODESIZE 192
 struct fxp_cb_ucode {
-	void *fill[2];
 	u_int16_t cb_status;
 	u_int16_t cb_command;
 	u_int32_t link_addr;
@@ -234,13 +228,9 @@ struct fxp_cb_ucode {
 };
 
 /*
- * Number of DMA segments in a TxCB. Note that this is carefully
- * chosen to make the total struct size an even power of two. It's
- * critical that no TxCB be split across a page boundry since
- * no attempt is made to allocate physically contiguous memory.
+ * Number of DMA segments in a TxCB.
  */
-#define FXP_TXCB_FIXED  16              /* cb_status .. tbd_number */
-#define FXP_NTXSEG      ((256 - (sizeof(void *) * 2) - FXP_TXCB_FIXED) / 8)
+#define FXP_NTXSEG	32
 
 struct fxp_tbd {
 	volatile u_int32_t tb_addr;
@@ -268,8 +258,6 @@ struct fxp_ipcb {
 };
 
 struct fxp_cb_tx {
-	struct fxp_cb_tx *next;
-	struct mbuf *mb_head;
 	volatile u_int16_t cb_status;
 	volatile u_int16_t cb_command;
 	volatile u_int32_t link_addr;

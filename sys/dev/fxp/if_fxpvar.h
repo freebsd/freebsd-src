@@ -40,6 +40,19 @@
 #define FXP_NTXCB       128
 
 /*
+ * Size of the TxCB list.
+ */
+#define FXP_TXCB_SZ	(FXP_NTXCB * sizeof(struct fxp_cb_tx))
+
+/*
+ * Macro to obtain the DMA address of a virtual address in the
+ * TxCB list based on the base DMA address of the TxCB list.
+ */
+#define FXP_TXCB_DMA_ADDR(sc, addr)					\
+	(sc->fxp_desc.cbl_addr + (uintptr_t)addr -			\
+	(uintptr_t)sc->fxp_desc.cbl_list)
+
+/*
  * Number of completed TX commands at which point an interrupt
  * will be generated to garbage collect the attached buffers.
  * Must be at least one less than FXP_NTXCB, and should be
@@ -99,10 +112,36 @@ struct mtx { int dummy; };
 #define	FXP_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
 #endif
 
-#ifdef __alpha__
-#undef vtophys
-#define vtophys(va)	alpha_XXX_dmamap((vm_offset_t)(va))
-#endif /* __alpha__ */
+/*
+ * Structures to handle TX and RX descriptors.
+ */
+struct fxp_rx {
+	struct fxp_rx *rx_next;
+	struct mbuf *rx_mbuf;
+	bus_dmamap_t rx_map;
+	u_int32_t rx_addr;
+};
+
+struct fxp_tx {
+	struct fxp_tx *tx_next;
+	struct fxp_cb_tx *tx_cb;
+	struct mbuf *tx_mbuf;
+	bus_dmamap_t tx_map;
+};
+
+struct fxp_desc_list {
+	struct fxp_rx rx_list[FXP_NRFABUFS];
+	struct fxp_tx tx_list[FXP_NTXCB];
+	struct fxp_tx mcs_tx;
+	struct fxp_rx *rx_head;
+	struct fxp_rx *rx_tail;
+	struct fxp_tx *tx_first;
+	struct fxp_tx *tx_last;
+	struct fxp_rfa *rfa_list;
+	struct fxp_cb_tx *cbl_list;
+	u_int32_t cbl_addr;
+	bus_dma_tag_t rx_tag;
+};
 
 /*
  * NOTE: Elements are ordered for optimal cacheline behavior, and NOT
@@ -118,17 +157,23 @@ struct fxp_softc {
 	struct mtx sc_mtx;
 	bus_space_tag_t sc_st;		/* bus space tag */
 	bus_space_handle_t sc_sh;	/* bus space handle */
-	struct mbuf *rfa_headm;		/* first mbuf in receive frame area */
-	struct mbuf *rfa_tailm;		/* last mbuf in receive frame area */
-	struct fxp_cb_tx *cbl_first;	/* first active TxCB in list */
+	bus_dma_tag_t fxp_mtag;		/* bus DMA tag for mbufs */
+	bus_dma_tag_t fxp_stag;		/* bus DMA tag for stats */
+	bus_dmamap_t fxp_smap;		/* bus DMA map for stats */
+	bus_dma_tag_t cbl_tag;		/* DMA tag for the TxCB list */
+	bus_dmamap_t cbl_map;		/* DMA map for the TxCB list */
+	bus_dma_tag_t mcs_tag;		/* DMA tag for the multicast setup */
+	bus_dmamap_t mcs_map;		/* DMA map for the multicast setup */
+	bus_dmamap_t spare_map;		/* spare DMA map */
+	struct fxp_desc_list fxp_desc;	/* descriptors management struct */
 	int tx_queued;			/* # of active TxCB's */
 	int need_mcsetup;		/* multicast filter needs programming */
-	struct fxp_cb_tx *cbl_last;	/* last active TxCB in list */
 	struct fxp_stats *fxp_stats;	/* Pointer to interface stats */
+	u_int32_t stats_addr;		/* DMA address of the stats structure */
 	int rx_idle_secs;		/* # of seconds RX has been idle */
 	struct callout_handle stat_ch;	/* Handle for canceling our stat timeout */
-	struct fxp_cb_tx *cbl_base;	/* base of TxCB list */
 	struct fxp_cb_mcs *mcsp;	/* Pointer to mcast setup descriptor */
+	u_int32_t mcs_addr;		/* DMA address of the multicast cmd */
 	struct ifmedia sc_media;	/* media information */
 	device_t miibus;
 	device_t dev;
