@@ -812,9 +812,11 @@ Static void cue_txeof(xfer, priv, status)
 	ifp->if_flags &= ~IFF_OACTIVE;
 	usbd_get_xfer_status(c->cue_xfer, NULL, NULL, NULL, &err);
 
-	c->cue_mbuf->m_pkthdr.rcvif = ifp;
-	usb_tx_done(c->cue_mbuf);
-	c->cue_mbuf = NULL;
+	if (c->cue_mbuf != NULL) {
+		c->cue_mbuf->m_pkthdr.rcvif = ifp;
+		usb_tx_done(c->cue_mbuf);
+		c->cue_mbuf = NULL;
+	}
 
 	if (err)
 		ifp->if_oerrors++;
@@ -1094,13 +1096,17 @@ Static void cue_watchdog(ifp)
 	struct ifnet		*ifp;
 {
 	struct cue_softc	*sc;
+	struct cue_chain	*c;
 
+	usbd_status		stat;
 	sc = ifp->if_softc;
 
 	ifp->if_oerrors++;
 	printf("cue%d: watchdog timeout\n", sc->cue_unit);
 
-	cue_init(sc);
+	c = &sc->cue_cdata.cue_tx_chain[0];
+	usbd_get_xfer_status(c->cue_xfer, NULL, NULL, NULL, &stat);
+	cue_txeof(c->cue_xfer, c, stat);
 
 	if (ifp->if_snd.ifq_head != NULL)
 		cue_start(ifp);
