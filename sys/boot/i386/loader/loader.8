@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: loader.8,v 1.3 1999/04/25 21:41:09 dcs Exp $
+.\"	$Id: loader.8,v 1.4 1999/05/03 08:32:45 jkoshy Exp $
 .\"
 .\" Note: The date here should be updated whenever a non-trivial
 .\" change is made to the manual page.
@@ -320,7 +320,7 @@ Selects the default device.  Syntax for devices is odd.
 .It Va init_path
 Sets the list of binaries which the kernel will try to run as initial
 process. The default is
-.Li Dq /sbin/init;/sbin/oinit;/sbin/init.bak;/stand/sysinstall .
+.Li Dq /sbin/init:/sbin/oinit:/sbin/init.bak:/stand/sysinstall .
 .It Va interpret
 Has the value 
 .Li Dq ok
