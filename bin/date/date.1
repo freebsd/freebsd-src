@@ -78,7 +78,11 @@ Otherwise, depending on the options specified,
 .Nm
 will set the date and time or print it in a user-defined way.
 .Pp
-Only the superuser may set the date.
+Only the superuser may set the date,
+and if the system securelevel (see
+.Xr securelevel 8 )
+is greater than 1,
+the time may not be changed by more than 1 second.
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
