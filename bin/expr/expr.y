@@ -270,14 +270,17 @@ main(int argc, char *argv[])
 	int c;
 
 	setlocale (LC_ALL, "");
-	while ((c = getopt(argc, argv, "")) != -1)
-		switch (c) {
-		default:
-			fprintf(stderr, "usage: expr [--] expression\n");
-			exit(ERR_EXIT);
-		}
-
-	av = argv + optind;
+	if (getenv("EXPR_COMPAT") != NULL) {
+		av = argv + 1;
+	} else {
+		while ((c = getopt(argc, argv, "")) != -1)
+			switch (c) {
+			default:
+				fprintf(stderr,"usage: expr [--] expression\n");
+				exit(ERR_EXIT);
+			}
+		av = argv + optind;
+	}
 
 	yyparse();
 
