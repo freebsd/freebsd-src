@@ -130,7 +130,7 @@ OBJS+=	dp-bit.o fp-bit.o
 #	from config/sparc/t-elf
 # We want fine grained libraries, so use the new code to build the
 # floating point emulation libraries.
-LIB1ASMSRC = lb1spc.asm
+LIB1ASMSRC = sparc/lb1spc.asm
 LIB1ASMFUNCS = _mulsi3 _divsi3 _modsi3
 OBJS+=	dp-bit.o fp-bit.o
 .endif
@@ -227,7 +227,7 @@ ${ASM_S}: ${LIB1ASMSRC}
 
 .if !defined(NOPROFILE)
 ${ASM_P}: ${LIB1ASMSRC}
-	${XCC} -x assembler-with-cpp -c -p ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${GCCDIR}/config/${TARGET_ARCH}/${LIB1ASMSRC}
+	${XCC} -x assembler-with-cpp -c -p ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${GCCDIR}/config/${LIB1ASMSRC}
 	@${LD} -o ${.TARGET}.tmp -X -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
 .endif
