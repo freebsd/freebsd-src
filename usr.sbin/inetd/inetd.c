@@ -561,7 +561,7 @@ main(argc, argv, envp)
 					(struct sockaddr *)&peermax,
 					&i) >= 0) {
 				      getnameinfo((struct sockaddr *)&peermax,
-						  sizeof(peermax),
+						  peer.sa_len,
 						  pname, sizeof(pname),
 						  NULL, 0, 
 						  NI_NUMERICHOST|
@@ -570,7 +570,7 @@ main(argc, argv, envp)
 				    }
 			    } else {
 			            getnameinfo((struct sockaddr *)&peermax,
-						sizeof(peermax),
+						peer.sa_len,
 						pname, sizeof(pname),
 						NULL, 0, 
 						NI_NUMERICHOST|
