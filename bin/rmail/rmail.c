@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: rmail.c,v 1.9 1997/02/22 14:05:31 peter Exp $
+ *	$Id: rmail.c,v 1.10 1997/03/28 15:24:35 imp Exp $
  */
 
 #ifndef lint
@@ -80,7 +80,9 @@ static char const sccsid[] = "@(#)rmail.c	8.1 (Berkeley) 5/31/93";
 #include <sysexits.h>
 #include <unistd.h>
 
+#ifdef 0
 void err __P((int, const char *, ...));
+#endif
 void usage __P((void));
 
 int
@@ -350,6 +352,7 @@ usage()
 	exit(EX_USAGE);
 }
 
+#ifdef 0
 #ifdef __STDC__
 #include <stdarg.h>
 #else
@@ -378,3 +381,4 @@ err(eval, fmt, va_alist)
 	(void)fprintf(stderr, "\n");
 	exit(eval);
 }
+#endif
