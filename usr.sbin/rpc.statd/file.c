@@ -137,7 +137,7 @@ HostInfo *find_host(char *hostname, int create)
 		the state number to the next even value.
 */
 
-void init_file(char *filename)
+void init_file(const char *filename)
 {
   int new_file = FALSE;
   char buf[HEADER_LEN];

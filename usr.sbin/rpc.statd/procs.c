@@ -240,7 +240,7 @@ static int do_unmon(HostInfo *hp, my_id *idp)
 		earlier call to sm_mon_1
 */
 
-struct sm_stat *sm_unmon_1_svc(mon_id *arg, struct svc_req *req)
+struct sm_stat *sm_unmon_1_svc(mon_id *arg, struct svc_req *req __unused)
 {
   static sm_stat res;
   HostInfo *hp;
@@ -278,7 +278,7 @@ struct sm_stat *sm_unmon_1_svc(mon_id *arg, struct svc_req *req)
 		host and program number.
 */
 
-struct sm_stat *sm_unmon_all_1_svc(my_id *arg, struct svc_req *req)
+struct sm_stat *sm_unmon_all_1_svc(my_id *arg, struct svc_req *req __unused)
 {
   static sm_stat res;
   HostInfo *hp;
@@ -315,7 +315,7 @@ struct sm_stat *sm_unmon_all_1_svc(my_id *arg, struct svc_req *req)
 		and inform all hosts on the monitor list.
 */
 
-void *sm_simu_crash_1_svc(void *v, struct svc_req *req)
+void *sm_simu_crash_1_svc(void *v, struct svc_req *req __unused)
 {
   static char dummy;
   int work_to_do;
@@ -359,7 +359,7 @@ void *sm_simu_crash_1_svc(void *v, struct svc_req *req)
 		that modify the list.
 */
 
-void *sm_notify_1_svc(stat_chge *arg, struct svc_req *req)
+void *sm_notify_1_svc(stat_chge *arg, struct svc_req *req __unused)
 {
   struct timeval timeout = { 20, 0 };	/* 20 secs timeout		*/
   CLIENT *cli;

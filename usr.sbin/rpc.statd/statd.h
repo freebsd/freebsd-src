@@ -105,7 +105,7 @@ extern int debug;		/* =1 to enable diagnostics to syslog	*/
 /* Function prototypes		*/
 
 extern HostInfo *find_host(char * /*hostname*/, int /*create*/);
-extern void init_file(char * /*filename*/);
+extern void init_file(const char * /*filename*/);
 extern void notify_hosts(void);
 extern void sync_file(void);
 extern int sm_check_hostname(struct svc_req *req, char *arg);
