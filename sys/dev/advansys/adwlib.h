@@ -31,7 +31,7 @@
  *
  * $FreeBSD$
  */
-/*
+/*-
  * Ported from:
  * advansys.c - Linux Host Driver for AdvanSys SCSI Adapters
  *     
