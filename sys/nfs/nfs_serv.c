@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_serv.c	8.3 (Berkeley) 1/12/94
- * $Id: nfs_serv.c,v 1.11 1995/03/17 07:45:19 davidg Exp $
+ * $Id: nfs_serv.c,v 1.12 1995/03/19 12:04:11 davidg Exp $
  */
 
 /*
@@ -748,6 +748,7 @@ nfsrv_create(nfsd, mrep, md, dpos, cred, nam, mrq)
 			error=VOP_CREATE(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, vap);
 			if (error)
 				nfsm_reply(0);
+			nfsrv_vmio(nd.ni_vp);
 			FREE(nd.ni_cnd.cn_pnbuf, M_NAMEI);
 		} else if (vap->va_type == VCHR || vap->va_type == VBLK ||
 			vap->va_type == VFIFO) {
@@ -778,6 +779,7 @@ nfsrv_create(nfsd, mrep, md, dpos, cred, nam, mrq)
 				free(nd.ni_cnd.cn_pnbuf, M_NAMEI);
 				nfsm_reply(0);
 			}
+			nfsrv_vmio(nd.ni_vp);
 			FREE(nd.ni_cnd.cn_pnbuf, M_NAMEI);
 			if (nd.ni_cnd.cn_flags & ISSYMLINK) {
 				nfsrv_vrele(nd.ni_dvp);
@@ -905,9 +907,15 @@ nfsrv_remove(nfsd, mrep, md, dpos, cred, nam, mrq)
 	(void) vnode_pager_uncache(vp);
 out:
 	if (!error) {
+		int deallocobj = 0;
 		nqsrv_getl(nd.ni_dvp, NQL_WRITE);
 		nqsrv_getl(vp, NQL_WRITE);
+
+		if ((vp->v_flag & VVMIO) && vp->v_vmdata)
+			deallocobj = 1;
 		error = VOP_REMOVE(nd.ni_dvp, nd.ni_vp, &nd.ni_cnd);
+		if (error == 0 && deallocobj)
+			vm_object_deallocate((vm_object_t) vp->v_vmdata);
 	} else {
 		VOP_ABORTOP(nd.ni_dvp, &nd.ni_cnd);
 		if (nd.ni_dvp == vp)
@@ -1014,12 +1022,23 @@ nfsrv_rename(nfsd, mrep, md, dpos, cred, nam, mrq)
 		error = -1;
 out:
 	if (!error) {
+		int deallocobjfrom = 0, deallocobjto = 0;
 		nqsrv_getl(fromnd.ni_dvp, NQL_WRITE);
 		nqsrv_getl(tdvp, NQL_WRITE);
-		if (tvp)
+		if (tvp) {
 			nqsrv_getl(tvp, NQL_WRITE);
+			if ((tvp->v_flag & VVMIO) && tvp->v_vmdata)
+				deallocobjto = 1;
+		}
+		if ((fvp->v_flag & VVMIO) && fvp->v_vmdata)
+			deallocobjfrom = 1;
 		error = VOP_RENAME(fromnd.ni_dvp, fromnd.ni_vp, &fromnd.ni_cnd,
 				   tond.ni_dvp, tond.ni_vp, &tond.ni_cnd);
+		if (deallocobjfrom)
+			vm_object_deallocate((vm_object_t) fvp->v_vmdata);
+		if (deallocobjto)
+			vm_object_deallocate((vm_object_t) tvp->v_vmdata);
+		
 	} else {
 		VOP_ABORTOP(tond.ni_dvp, &tond.ni_cnd);
 		if (tdvp == tvp)
@@ -1105,9 +1124,14 @@ nfsrv_link(nfsd, mrep, md, dpos, cred, nam, mrq)
 		error = EXDEV;
 out:
 	if (!error) {
+		int deallocobj = 0;
 		nqsrv_getl(vp, NQL_WRITE);
 		nqsrv_getl(xp, NQL_WRITE);
+		if ((vp->v_flag & VVMIO) && vp->v_vmdata)
+			deallocobj = 1;
 		error = VOP_LINK(nd.ni_dvp, vp, &nd.ni_cnd);
+		if (error == 0 && deallocobj)
+			vm_object_deallocate((vm_object_t) vp->v_vmdata);
 	} else {
 		VOP_ABORTOP(nd.ni_dvp, &nd.ni_cnd);
 		if (nd.ni_dvp == nd.ni_vp)
@@ -1134,6 +1158,7 @@ nfsrv_symlink(nfsd, mrep, md, dpos, cred, nam, mrq)
 	struct ucred *cred;
 	struct mbuf *nam, **mrq;
 {
+	struct vnode *ovp;
 	struct vattr va;
 	struct nameidata nd;
 	register struct vattr *vap = &va;
@@ -1149,6 +1174,7 @@ nfsrv_symlink(nfsd, mrep, md, dpos, cred, nam, mrq)
 	nfsv2fh_t nfh;
 	fhandle_t *fhp;
 	u_quad_t frev;
+	int deallocobj = 0;
 
 	pathcp = (char *)0;
 	fhp = &nfh.fh_generic;
@@ -1188,7 +1214,11 @@ nfsrv_symlink(nfsd, mrep, md, dpos, cred, nam, mrq)
 	VATTR_NULL(vap);
 	vap->va_mode = fxdr_unsigned(u_short, sp->sa_mode);
 	nqsrv_getl(nd.ni_dvp, NQL_WRITE);
+	if ((ovp = nd.ni_vp) && (ovp->v_flag & VVMIO) && ovp->v_vmdata)
+		deallocobj = 1;
 	error = VOP_SYMLINK(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, vap, pathcp);
+	if (error == 0 && deallocobj)
+		vm_object_deallocate( (vm_object_t) ovp->v_vmdata);
 out:
 	if (pathcp)
 		FREE(pathcp, M_TEMP);
