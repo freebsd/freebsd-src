@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7xxx.seq,v 1.75 1997/08/13 17:02:28 gibbs Exp $
+ *	$Id: aic7xxx.seq,v 1.76 1997/09/27 19:37:27 gibbs Exp $
  */
 
 #include <dev/aic7xxx/aic7xxx.reg>
@@ -944,7 +944,15 @@ dma_fifoempty:
 dma_dmadone:
 	and	DFCNTRL, ~(SCSIEN|SDMAEN|HDMAEN);
 dma_halt:
-	test	DFCNTRL, (SCSIEN|SDMAEN|HDMAEN)	jnz dma_halt; 
+	/*
+	 * Some revisions of the aic7880 have a problem where, if the
+	 * data fifo is full, but the PCI input latch is not empty, 
+	 * HDMAEN cannot be cleared.  The fix used here is to attempt
+	 * to drain the data fifo until there is space for the input
+	 * latch to drain and HDMAEN de-asserts.
+	 */
+	mov	NONE, DFDAT;
+	test	DFCNTRL, HDMAEN jnz dma_halt;
 return:
 	ret;
 
