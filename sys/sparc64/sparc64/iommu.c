@@ -992,7 +992,7 @@ iommu_dvmamap_unload(bus_dma_tag_t pt, bus_dma_tag_t dt, struct iommu_state *is,
 
 void
 iommu_dvmamap_sync(bus_dma_tag_t pt, bus_dma_tag_t dt, struct iommu_state *is,
-    bus_dmamap_t map, int op)
+    bus_dmamap_t map, bus_dmasync_op_t op)
 {
 	struct bus_dmamap_res *r;
 	vm_offset_t va;

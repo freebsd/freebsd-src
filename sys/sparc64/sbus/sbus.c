@@ -242,7 +242,8 @@ static int sbus_dmamap_load_mbuf(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t,
 static int sbus_dmamap_load_uio(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t,
     struct uio *, bus_dmamap_callback2_t *, void *, int);
 static void sbus_dmamap_unload(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t);
-static void sbus_dmamap_sync(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t, int);
+static void sbus_dmamap_sync(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t,
+    bus_dmasync_op_t);
 static int sbus_dmamem_alloc(bus_dma_tag_t, bus_dma_tag_t, void **, int,
     bus_dmamap_t *);
 static void sbus_dmamem_free(bus_dma_tag_t, bus_dma_tag_t, void *,
@@ -979,7 +980,7 @@ sbus_dmamap_unload(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, bus_dmamap_t map)
 
 static void
 sbus_dmamap_sync(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, bus_dmamap_t map,
-    int op)
+    bus_dmasync_op_t op)
 {
 	struct sbus_softc *sc = (struct sbus_softc *)pdmat->dt_cookie;
 
