@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_segment.c	8.5 (Berkeley) 1/4/94
- * $Id: lfs_segment.c,v 1.16 1995/12/17 21:09:49 phk Exp $
+ * $Id: lfs_segment.c,v 1.17 1996/06/12 05:11:41 gpalmer Exp $
  */
 
 #include <sys/param.h>
@@ -773,7 +773,7 @@ lfs_initseg(fs)
 	ssp->ss_nfinfo = ssp->ss_ninos = 0;
 
 	/* Set pointer to first FINFO, initialize it. */
-	sp->fip = (struct finfo *)(sp->segsum + sizeof(SEGSUM));
+	sp->fip = (struct finfo *)((char *)sp->segsum + sizeof(SEGSUM));
 	sp->fip->fi_nblocks = 0;
 	sp->start_lbp = &sp->fip->fi_blocks[0];
 

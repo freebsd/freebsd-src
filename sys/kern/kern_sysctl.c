@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.63 1996/06/06 17:17:54 phk Exp $
+ * $Id: kern_sysctl.c,v 1.64 1996/06/10 16:23:30 nate Exp $
  */
 
 #include <sys/param.h>
@@ -568,7 +568,7 @@ sysctl_old_kernel(struct sysctl_req *req, const void *p, int l)
 	if (req->oldptr) {
 		i = min(req->oldlen - req->oldidx, l);
 		if (i > 0)
-			bcopy(p, req->oldptr + req->oldidx, i);
+			bcopy(p, (char *)req->oldptr + req->oldidx, i);
 	}
 	req->oldidx += l;
 	if (req->oldptr && i != l)
@@ -583,7 +583,7 @@ sysctl_new_kernel(struct sysctl_req *req, void *p, int l)
 		return 0;
 	if (req->newlen - req->newidx < l)
 		return (EINVAL);
-	bcopy(req->newptr + req->newidx, p, l);
+	bcopy((char *)req->newptr + req->newidx, p, l);
 	req->newidx += l;
 	return (0);
 }
@@ -662,7 +662,8 @@ sysctl_old_user(struct sysctl_req *req, const void *p, int l)
 	if (req->oldptr) {
 		i = min(req->oldlen - req->oldidx, l);
 		if (i > 0)
-			error  = copyout(p, req->oldptr + req->oldidx, i);
+			error = copyout(p, (char *)req->oldptr + req->oldidx,
+					i);
 	}
 	req->oldidx += l;
 	if (error)
@@ -681,7 +682,7 @@ sysctl_new_user(struct sysctl_req *req, void *p, int l)
 		return 0;
 	if (req->newlen - req->newidx < l)
 		return (EINVAL);
-	error = copyin(req->newptr + req->newidx, p, l);
+	error = copyin((char *)req->newptr + req->newidx, p, l);
 	req->newidx += l;
 	return (error);
 }
