@@ -216,11 +216,11 @@ main(argc, argv)
 	openlog("rwhod", LOG_PID, LOG_DAEMON);
 	sp = getservbyname("who", "udp");
 	if (sp == NULL) {
-		syslog(LOG_ERR, "rwhod: udp/who: unknown service\n");
+		syslog(LOG_ERR, "udp/who: unknown service");
 		exit(1);
 	}
 	if (chdir(_PATH_RWHODIR) < 0) {
-		syslog(LOG_ERR, "rwhod: %s: %m\n", _PATH_RWHODIR);
+		syslog(LOG_ERR, "%s: %m", _PATH_RWHODIR);
 		exit(1);
 	}
 	/*
