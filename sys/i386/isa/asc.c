@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * $Id: asc.c,v 1.13 1995/12/16 21:32:19 bde Exp $
+ * $Id: asc.c,v 1.14 1995/12/22 15:39:41 bde Exp $
  */
 
 #include "asc.h"
@@ -96,7 +96,7 @@
 #define DMA1_READY  0x08
 #define ASCDEBUG
 #ifdef ASCDEBUG
-#	define lprintf if(scu->flags & DEBUG) printf
+#	define lprintf if(scu->flags & FLAG_DEBUG) printf
 #else
 #	define lprintf (void)
 #endif
