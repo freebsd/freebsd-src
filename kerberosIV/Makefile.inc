@@ -1,8 +1,6 @@
 # $FreeBSD$
 
-.if !defined(DISTRIBUTION)
-
-DISTRIBUTION=	krb4
+DISTRIBUTION?=	krb4
 
 .if !defined(INCLUDEOBJDIR)
 
@@ -104,7 +102,5 @@ beforeinstall: ${INCLUDES}
 .else
 
 KRB4DIR=	${.CURDIR}/../../crypto/kerberosIV
-
-.endif
 
 .endif

@@ -64,7 +64,9 @@ distribute:
 .if defined(OBJFORMAT)
 	echo OBJFORMAT=${OBJFORMAT} > ${DISTDIR}/${DISTRIBUTION}/etc/objformat
 .endif
-	@echo
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 \
+	    ${.CURDIR}/../sys/${MACHINE}/conf/GENERIC.hints \
+	    ${DISTDIR}/${DISTRIBUTION}/boot/device.hints
 
 distribution:
 	(cd ${.CURDIR}; \
