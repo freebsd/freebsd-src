@@ -3,7 +3,22 @@ Known problems:
 * The diffutils 2.7 documentation for `patch' is obsolete; this should be
   fixed in diffutils 2.8.  Until then, see `patch --help' or `man patch'.
 
-Change in version 2.4:
+Changes in version 2.5:
+
+* Version control is now independent of whether backups are made.
+  The -V or --version-control option and the VERSION_CONTROL and
+  PATCH_VERSION_CONTROL environment variables no longer affect whether
+  backups are made; they affect only the names of the backup files.
+
+* When asking the user whether to reverse a patch,
+  the default answer is now `no' instead of `yes'.
+
+* `patch' can now recognize context diffs that have been encapsulated
+  by prepending "- " to lines beginning with "-" (as per Internet RFC 934).
+
+* `patch' now reports an error if the input contains garbage and no patches.
+
+Changes in version 2.4:
 
 * New options:
   -Z or --set-utc sets times of patched files, assuming diff uses UTC (GMT).
@@ -90,7 +105,7 @@ Changes in version 2.2:
   --help
   --verbose
   -i FILE or --input=FILE
-  -y PREF or --basename-prefix=PREF
+  -Y PREF or --basename-prefix=PREF
 
 * patch is now quieter by default; use --verbose for the old chatty behavior.
 
