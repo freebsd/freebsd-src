@@ -40,7 +40,7 @@ static char copyright[] =
 #ifndef lint
 /* from: @(#)inetd.c	8.4 (Berkeley) 4/13/94"; */
 static char inetd_c_rcsid[] =
-	"$Id: inetd.c,v 1.4 1994/12/21 19:08:45 wollman Exp $";
+	"$Id: inetd.c,v 1.5 1995/05/30 03:47:41 rgrimes Exp $";
 #endif /* not lint */
 
 /*
@@ -372,11 +372,14 @@ main(argc, argv, envp)
 			     */
 			    if (sep->se_bi &&
 				sep->se_bi->bi_fn == (void (*)()) tcpmux) {
-				    sep = tcpmux(ctrl);
-				    if (sep == NULL) {
+				    struct servtab *tsep;
+
+				    tsep = tcpmux(ctrl);
+				    if (tsep == NULL) {
 					    close(ctrl);
 					    continue;
 				    }
+				    sep = tsep;
 			    }
 		    } else
 			    ctrl = sep->se_fd;
