@@ -1,7 +1,7 @@
 /*
  * Miscellaneous support routines..
  *
- * $Id: misc.c,v 1.2 1995/04/29 19:33:04 jkh Exp $
+ * $Id: misc.c,v 1.3 1995/05/01 21:56:27 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -104,7 +104,23 @@ safe_malloc(size_t size)
 {
     void *ptr;
 
+    if (size <= 0)
+	msgFatal("Invalid malloc size of %d!", size);
     ptr = malloc(size);
+    if (!ptr)
+	msgFatal("Out of memory!");
+    return ptr;
+}
+
+/* A realloc that checks errors */
+void *
+safe_realloc(void *orig, size_t size)
+{
+    void *ptr;
+
+    if (size <= 0)
+	msgFatal("Invalid realloc size of %d!", size);
+    ptr = realloc(orig, size);
     if (!ptr)
 	msgFatal("Out of memory!");
     return ptr;
