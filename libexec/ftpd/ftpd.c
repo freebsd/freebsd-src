@@ -110,11 +110,6 @@ static const char rcsid[] =
 static char version[] = "Version 6.00LS";
 #undef main
 
-/* wrapper for KAME-special getnameinfo() */
-#ifndef NI_WITHSCOPEID
-#define	NI_WITHSCOPEID	0
-#endif
-
 extern	off_t restart_point;
 extern	char cbuf[];
 
@@ -1294,7 +1289,7 @@ skip:
 
 		getnameinfo((struct sockaddr *)&his_addr, his_addr.su_len,
 			remote_ip, sizeof(remote_ip) - 1, NULL, 0,
-			NI_NUMERICHOST|NI_WITHSCOPEID);
+			NI_NUMERICHOST);
 		remote_ip[sizeof(remote_ip) - 1] = 0;
 		if (!auth_hostok(lc, remotehost, remote_ip)) {
 			syslog(LOG_INFO|LOG_AUTH,
@@ -1721,7 +1716,7 @@ pdata_err:
 		getnameinfo((struct sockaddr *)&data_source,
 			data_source.su_len, hostbuf, sizeof(hostbuf) - 1,
 			portbuf, sizeof(portbuf),
-			NI_NUMERICHOST|NI_NUMERICSERV|NI_WITHSCOPEID);
+			NI_NUMERICHOST|NI_NUMERICSERV);
 		reply(425, "Can't create data socket (%s,%s): %s.",
 			hostbuf, portbuf, strerror(errno));
 		return (NULL);
@@ -2000,15 +1995,14 @@ statcmd()
 {
 	union sockunion *su;
 	u_char *a, *p;
-	char hname[INET6_ADDRSTRLEN];
+	char hname[NI_MAXHOST];
 	int ispassive;
 
 	lreply(211, "%s FTP server status:", hostname, version);
 	printf("     %s\r\n", version);
 	printf("     Connected to %s", remotehost);
 	if (!getnameinfo((struct sockaddr *)&his_addr, his_addr.su_len,
-			 hname, sizeof(hname) - 1, NULL, 0,
-			 NI_NUMERICHOST|NI_WITHSCOPEID)) {
+			 hname, sizeof(hname) - 1, NULL, 0, NI_NUMERICHOST)) {
 		if (strcmp(hname, remotehost) != 0)
 			printf(" (%s)", hname);
 	}
@@ -2106,12 +2100,17 @@ epsvonly:;
 			break;
 		}
 		if (af) {
-			if (!getnameinfo((struct sockaddr *)su, su->su_len,
+			union sockunion tmp;
+
+			tmp = *su;
+			if (tmp.su_family == AF_INET6)
+				tmp.su_sin6.sin6_scope_id = 0;
+			if (!getnameinfo((struct sockaddr *)&tmp, tmp.su_len,
 					hname, sizeof(hname) - 1, NULL, 0,
 					NI_NUMERICHOST)) {
 				printf("     %s |%d|%s|%d|\r\n",
 					ispassive ? "EPSV" : "EPRT",
-					af, hname, htons(su->su_port));
+					af, hname, htons(tmp.su_port));
 			}
 		}
 	    }
@@ -2349,8 +2348,7 @@ dolog(who)
 
 			error = getnameinfo(who, who->sa_len,
 					    who_name, sizeof(who_name) - 1,
-					    NULL, 0,
-					    NI_NUMERICHOST|NI_WITHSCOPEID);
+					    NULL, 0, NI_NUMERICHOST);
 			syslog(LOG_INFO, "connection from %s (%s)", remotehost,
 			       error == 0 ? who_name : "");
 		}
