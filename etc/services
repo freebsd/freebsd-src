@@ -9,7 +9,7 @@
 # Kerberos services are for Kerberos v4, and are unofficial.  Sites running
 # v5 should uncomment v5 entries and comment v4 entries.
 #
-#	$Id: services,v 1.27.2.5 1997/06/25 04:30:17 dima Exp $
+#	$Id: services,v 1.27.2.6 1997/07/07 02:05:44 peter Exp $
 #	From: @(#)services	5.8 (Berkeley) 5/9/91
 #
 # WELL KNOWN PORT NUMBERS
@@ -204,7 +204,7 @@ acr-nema	104/tcp	   #ACR-NEMA Digital Imag. & Comm. 300
 acr-nema	104/udp	   #ACR-NEMA Digital Imag. & Comm. 300
 csnet-ns	105/tcp	   cso-ns	#Mailbox Name Nameserver
 csnet-ns	105/udp	   cso-ns	#Mailbox Name Nameserver
-pop3pw		106/tcp    3com-tsmux	#Eudroa compatible PW changer
+pop3pw		106/tcp    3com-tsmux	#Eudora compatible PW changer
 3com-tsmux	106/udp
 rtelnet		107/tcp	   #Remote Telnet Service
 rtelnet		107/udp	   #Remote Telnet Service
