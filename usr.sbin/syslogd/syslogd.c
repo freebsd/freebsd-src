@@ -261,6 +261,7 @@ static int	Debug;		/* debug flag */
 static int	resolve = 1;	/* resolve hostname */
 static char	LocalHostName[MAXHOSTNAMELEN];	/* our hostname */
 static char	*LocalDomain;	/* our local domain name */
+static int	LocalDomainLen;	/* length of LocalDomain */
 static int	*finet;		/* Internet datagram socket */
 static int	fklog = -1;	/* /dev/klog */
 static int	Initialized;	/* set when we have initialized ourselves */
@@ -834,15 +835,16 @@ logmsg(int pri, const char *msg, const char *from, int flags)
 		     )
 		    || f->f_pmask[fac] == INTERNAL_NOPRI)
 			continue;
+
 		/* skip messages with the incorrect hostname */
 		if (f->f_host)
 			switch (f->f_host[0]) {
 			case '+':
-				if (strcmp(from, f->f_host + 1) != 0)
+				if (strcasecmp(from, f->f_host + 1) != 0)
 					continue;
 				break;
 			case '-':
-				if (strcmp(from, f->f_host + 1) == 0)
+				if (strcasecmp(from, f->f_host + 1) == 0)
 					continue;
 				break;
 			}
@@ -864,6 +866,7 @@ logmsg(int pri, const char *msg, const char *from, int flags)
 				break;
 			}
 
+		/* skip message to console if it has already been printed */
 		if (f->f_type == F_CONSOLE && (flags & IGN_CONS))
 			continue;
 
@@ -1244,9 +1247,8 @@ reapchild(int signo __unused)
 static const char *
 cvthname(struct sockaddr *f)
 {
-	int error;
+	int error, hl;
 	sigset_t omask, nmask;
-	char *p;
 	static char hname[NI_MAXHOST], ip[NI_MAXHOST];
 
 	error = getnameinfo((struct sockaddr *)f,
@@ -1274,9 +1276,12 @@ cvthname(struct sockaddr *f)
 		dprintf("Host name for your address (%s) unknown\n", ip);
 		return (ip);
 	}
-	/* XXX Not quite correct, but close enough for government work. */
-	if ((p = strchr(hname, '.')) && strcasecmp(p + 1, LocalDomain) == 0)
-		*p = '\0';
+	hl = strlen(hname);
+	if (hl > 0 && hname[hl-1] == '.')
+		hname[--hl] = '\0';
+	if (hl > LocalDomainLen && hname[hl-LocalDomainLen] == '.' &&
+	    strcasecmp(hname + hl - LocalDomainLen + 1, LocalDomain) == 0)
+		hname[hl-LocalDomainLen] = '\0';
 	return (hname);
 }
 
@@ -1374,6 +1379,7 @@ init(int signo)
 	} else {
 		LocalDomain = "";
 	}
+	LocalDomainLen = strlen(LocalDomain);
 
 	/*
 	 *  Close all open log files.
@@ -1574,7 +1580,7 @@ cfline(const char *line, struct filed *f, const char *prog, const char *host)
 	if (host && *host == '*')
 		host = NULL;
 	if (host) {
-		int hl, dl;
+		int hl;
 
 		f->f_host = strdup(host);
 		if (f->f_host == NULL) {
@@ -1582,12 +1588,13 @@ cfline(const char *line, struct filed *f, const char *prog, const char *host)
 			exit(1);
 		}
 		hl = strlen(f->f_host);
-		if (f->f_host[hl-1] == '.')
+		if (hl > 0 && f->f_host[hl-1] == '.')
 			f->f_host[--hl] = '\0';
-		dl = strlen(LocalDomain) + 1;
-		if (hl > dl && f->f_host[hl-dl] == '.' &&
-		    strcasecmp(f->f_host + hl - dl + 1, LocalDomain) == 0)
-			f->f_host[hl-dl] = '\0';
+		if (hl > LocalDomainLen &&
+		    f->f_host[hl-LocalDomainLen] == '.' &&
+		    strcasecmp(f->f_host + hl - LocalDomainLen + 1,
+			LocalDomain) == 0)
+			f->f_host[hl-LocalDomainLen] = '\0';
 	}
 
 	/* save program name if any */
@@ -2237,7 +2244,6 @@ p_open(const char *prog, pid_t *pid)
 		return (-1);
 
 	case 0:
-		/* XXX should check for NULL return */
 		argv[0] = strdup("sh");
 		argv[1] = strdup("-c");
 		argv[2] = strdup(prog);
