@@ -587,7 +587,11 @@ static int
 bmp_Draw(video_adapter_t *adp)
 {
     int		line;
+#if 0
+#ifndef PC98
     int		i;
+#endif
+#endif
 
     if (bmp_info.data == NULL) {	/* init failed, do nothing */
 	return(1);
