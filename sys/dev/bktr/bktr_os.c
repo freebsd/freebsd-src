@@ -494,19 +494,11 @@ bktr_detach( device_t dev )
 	/* The memory is retained by the bktr_mem module so we can unload and */
 	/* then reload the main bktr driver module */
 
-	/* Unregister the /dev/bktrN, tunerN and vbiN devices */
+	/* Unregister the /dev/bktrN, tunerN and vbiN devices,
+	 * the aliases for unit 0 are automatically destroyed */
 	destroy_dev(bktr->vbidev);
 	destroy_dev(bktr->tunerdev);
 	destroy_dev(bktr->bktrdev);
-
-	/* If this is unit 0, then destroy the alias entries too */
-#if (__FreeBSD_version >=500000)
-	if (unit == 0) {
-	    destroy_dev(bktr->vbidev_alias);
-	    destroy_dev(bktr->tunerdev_alias);
-	    destroy_dev(bktr->bktrdev_alias);
-	}
-#endif
 
 	/*
 	 * Deallocate resources.
