@@ -1,0 +1,54 @@
+Mon Aug  7 15:23:00 2000  Arnold D. Robbins  <arnold@skeeve.com>
+
+	* Release 3.0.6: Release tar file made.
+
+Sun Jun 25 15:08:19 2000  Arnold D. Robbins  <arnold@skeeve.com>
+
+	* Release 3.0.5: Release tar file made.
+
+Wed Jun 30 16:14:36 1999  Arnold D. Robbins  <arnold@gnu.org>
+
+	* Release 3.0.4: Release tar file made.  This time for sure.
+
+Thu May 15 12:49:08 1997  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>
+
+	* Release 3.0.3: Release tar file made.
+
+Fri Apr 18 07:55:47 1997  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>
+
+	* BETA Release 3.0.34: Release tar file made.
+
+Sun Apr 13 15:40:55 1997  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>
+
+	* Makefile.in (install): fix second for loop to use $$i. Sigh.
+
+Wed Dec 25 11:25:22 1996  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>
+
+	* Release 3.0.2: Release tar file made.
+
+Wed Dec 25 11:17:32 1996  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>
+
+	* Makefile.in (install): remove chmod command; let
+	  $(INSTALL_PROGRAM) use -m.
+
+Tue Dec 17 22:29:49 1996  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>
+
+	* Makefile.in (install): fix installation of files in eg/lib.
+
+Tue Dec 10 23:09:26 1996  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>
+
+	* Release 3.0.1: Release tar file made.
+
+Sun Oct 20 12:30:41 1996  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>
+
+	* Makefile.in (install): minor tweaks for portability.
+
+Fri Mar 15 06:33:38 1996  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>
+
+	* Makefile.in (pwcat, grcat): Add $(LDFLAGS).
+	  (clean): add `*~' to list of files to be removed.
+
+Wed Jan 24 10:06:16 1996  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>
+
+	* Makefile.in (clean): Remove $(AUXAWK).
+	  (maintainer-clean): Depend on distclean, not the other way around.
