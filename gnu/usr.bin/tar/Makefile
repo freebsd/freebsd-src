@@ -10,6 +10,7 @@ CFLAGS+= -DHAVE_VPRINTF=1 -DNEEDPAD -I${.CURDIR}
 CFLAGS+= -DDEF_AR_FILE=\"/dev/rst0\" -DDEFBLOCKING=20
 CLEANFILES+=y.tab.h
 NOMAN=noman
+NOSHARED=yes
 
 .include <bsd.prog.mk>
 .include "../../usr.bin/Makefile.inc"
