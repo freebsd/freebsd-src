@@ -97,4 +97,4 @@ extern void	l_entries __P((void));
 extern void	y_entries __P((void));
 extern int	PF_funcs __P((void));
 extern void	c_entries __P((void));
-extern void	skip_comment __P((void));
+extern void	skip_comment __P((int));

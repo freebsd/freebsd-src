@@ -122,8 +122,8 @@ c_entries()
 		 *	"foo() XX comment XX { int bar; }"
 		 */
 		case '/':
-			if (GETC(==, '*')) {
-				skip_comment();
+			if (GETC(==, '*') || c == '/') {
+				skip_comment(c);
 				continue;
 			}
 			(void)ungetc(c, inf);
@@ -273,8 +273,8 @@ func_entry()
 			break;
 		case '/':
 			/* skip comments */
-			if (GETC(==, '*'))
-				skip_comment();
+			if (GETC(==, '*') || c == '/')
+				skip_comment(c);
 			break;
 		case '(':
 			level++;
@@ -301,8 +301,8 @@ fnd:
 				SETLINE;
 		if (intoken(c) || c == '{')
 			break;
-		if (c == '/' && GETC(==, '*'))
-			skip_comment();
+		if (c == '/' && (GETC(==, '*') || c == '/'))
+			skip_comment(c);
 		else {				/* don't ever "read" '/' */
 			(void)ungetc(c, inf);
 			return (NO);
@@ -422,7 +422,8 @@ str_entry(c)
  *	skip over comment
  */
 void
-skip_comment()
+skip_comment(t)
+	int	t;			/* comment character */
 {
 	int	c;			/* character read */
 	int	star;			/* '*' flag */
@@ -434,10 +435,12 @@ skip_comment()
 			star = YES;
 			break;
 		case '/':
-			if (star)
+			if (star && t == '*')
 				return;
 			break;
 		case '\n':
+			if (t == '/')
+				return;
 			SETLINE;
 			/*FALLTHROUGH*/
 		default:
@@ -500,8 +503,8 @@ skip_key(key)
 			break;
 		case '/':
 			/* skip comments */
-			if (GETC(==, '*')) {
-				skip_comment();
+			if (GETC(==, '*') || c == '/') {
+				skip_comment(c);
 				break;
 			}
 			(void)ungetc(c, inf);
