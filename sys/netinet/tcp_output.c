@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_output.c	8.3 (Berkeley) 12/30/93
- * $Id: tcp_output.c,v 1.11 1995/05/30 08:09:56 rgrimes Exp $
+ * $Id: tcp_output.c,v 1.12 1995/09/13 17:36:31 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -661,16 +661,28 @@ send:
 	else
 #endif
     {
+#ifdef MTUDISC
+	struct rtentry *rt;
+#endif
 	((struct ip *)ti)->ip_len = m->m_pkthdr.len;
 	((struct ip *)ti)->ip_ttl = tp->t_inpcb->inp_ip.ip_ttl;	/* XXX */
 	((struct ip *)ti)->ip_tos = tp->t_inpcb->inp_ip.ip_tos;	/* XXX */
-#if BSD >= 43
+#ifdef MTUDISC
+	/*
+	 * See if we should do MTU discovery.  We do it only if the following
+	 * are true:
+	 *	1) we have a valid route to the destination
+	 *	2) the MTU is not locked (if it is, then discovery has been
+	 *	   disabled)
+	 */
+	if ((rt = tp->t_inpcb->inp_route.ro_rt)
+	    && rt->rt_flags & RTF_UP
+	    && !(rt->rt_rmx.rmx_locks & RTV_MTU)) {
+		((struct ip *)ti)->ip_off |= IP_DF;
+	}
+#endif /* MTUDISC */
 	error = ip_output(m, tp->t_inpcb->inp_options, &tp->t_inpcb->inp_route,
 	    so->so_options & SO_DONTROUTE, 0);
-#else
-	error = ip_output(m, (struct mbuf *)0, &tp->t_inpcb->inp_route,
-	    so->so_options & SO_DONTROUTE);
-#endif
     }
 	if (error) {
 out:
