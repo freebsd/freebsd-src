@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_prot.c	8.6 (Berkeley) 1/21/94
- * $Id: kern_prot.c,v 1.24 1997/03/03 10:15:48 ache Exp $
+ * $Id: kern_prot.c,v 1.25 1997/03/03 22:46:16 ache Exp $
  */
 
 /*
@@ -662,7 +662,7 @@ getlogin(p, uap, retval)
 {
 
 	if (uap->namelen > MAXLOGNAME)
-		uap->namelen = MAXLOGNAME);
+		uap->namelen = MAXLOGNAME;
 	return (copyout((caddr_t) p->p_pgrp->pg_session->s_login,
 	    (caddr_t) uap->namebuf, uap->namelen));
 }
