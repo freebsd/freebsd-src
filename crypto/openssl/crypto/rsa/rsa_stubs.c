@@ -29,6 +29,8 @@
 #ifndef NO_RSA
 
 #include <stdio.h>
+#include <syslog.h>
+#include <unistd.h>
 #include "cryptlib.h"
 #include <openssl/rsa.h>
 
@@ -54,12 +56,20 @@ getsym(const char *sym)
     if (rsalib)
 	ret = dlsym(rsalib, sym);
 #ifdef VERBOSE_STUBS
-     if (!ret && !whined) {
-	fprintf(stderr, "** %s: Unable to find an RSA implementation shared library.\n", sym);
-	fprintf(stderr, "** Install either the USA (%s) or International (%s)\n", RSAUSA_SHLIB, RSAINTL_SHLIB);
-	fprintf(stderr, "** RSA library on your system and run this program again.\n");
-	fprintf(stderr, "** See the OpenSSL chapter in the FreeBSD Handbook, located at\n");
-	fprintf(stderr, "** http://www.freebsd.org/handbook/openssl.html, for more information.\n");
+    if (!ret && !whined) {
+	if (isatty(STDERR_FILENO)) {
+	    fprintf(stderr, "** %s: Unable to find an RSA implementation shared library.\n", sym);
+	    fprintf(stderr, "** Install either the USA (%s) or International (%s)\n", RSAUSA_SHLIB, RSAINTL_SHLIB);
+	    fprintf(stderr, "** RSA library on your system and run this program again.\n");
+	    fprintf(stderr, "** See the OpenSSL chapter in the FreeBSD Handbook, located at\n");
+	    fprintf(stderr, "** http://www.freebsd.org/handbook/openssl.html, for more information.\n");
+	} else {
+	    syslog(LOG_ERR, "%s: Unable to find an RSA implementation shared \
+library. Install either the USA (%s) or International (%s) RSA library on \
+your system and run this program again. See the OpenSSL chapter in the \
+FreeBSD Handbook, located at http://www.freebsd.org/handbook/openssl.html, \
+for more information.", sym, RSAUSA_SHLIB, RSAINTL_SHLIB);
+	}
 	whined = 1;
      }
 #endif
