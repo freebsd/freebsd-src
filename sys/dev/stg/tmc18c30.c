@@ -116,11 +116,11 @@
  * DEBUG
  ***************************************************/
 #ifdef	STG_DEBUG
-int stg_debug;
+static int stg_debug;
 #endif	/* STG_DEBUG */
 
 #ifdef	STG_STATICS
-struct stg_statics {
+static struct stg_statics {
 	int arbit_fail_0;
 	int arbit_fail_1;
 	int disconnect;

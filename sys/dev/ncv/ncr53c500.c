@@ -110,11 +110,11 @@ int ncv_data_write_bytes = 4096;
  * DEBUG
  ***************************************************/
 #ifdef	NCV_DEBUG
-int ncv_debug;
+static int ncv_debug;
 #endif	/* NCV_DEBUG */
 
 #ifdef	NCV_STATICS
-struct ncv_statics {
+static struct ncv_statics {
 	int disconnect;
 	int reselect;
 } ncv_statics;
