@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\" 
-.\" $Id$
+.\" $Id: logwtmp.3,v 1.4 1997/02/22 15:08:30 peter Exp $
 .\" "
 .Dd December 29, 1996
 .Os
@@ -32,6 +32,7 @@
 .Nm logwtmp
 .Nd append a new record to the wtmp file
 .Sh SYNOPSIS
+.Fd #include <sys/types.h>
 .Fd #include <libutil.h>
 .Ft void
 .Fn logwtmp "char *line" "char *name" "char *host"
