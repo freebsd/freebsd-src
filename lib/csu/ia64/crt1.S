@@ -108,7 +108,7 @@ _start:
 		;;
 }
 {		.mfb
-		nop		0
+		mov		gp=GP
 		nop		0
 		br.call.sptk	b0=_init_tls
 }
