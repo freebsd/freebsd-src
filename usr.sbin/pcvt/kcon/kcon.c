@@ -51,6 +51,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <machine/pcvt_ioctl.h>
@@ -75,9 +76,6 @@ main(argc, argv)
 int argc;
 char *argv[];
 {
-	extern char *optarg;
-	extern int optind;
-
 	int c = 0;
 
 	int errf = 0;
