@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: kernbb.c,v 1.1 1995/03/10 08:53:55 phk Exp $
+ * $Id: kernbb.c,v 1.2 1995/04/28 04:58:19 phk Exp $
  *
  */
 
@@ -16,6 +16,7 @@
 #include <string.h>
 #include <fcntl.h>
 #include <kvm.h>
+#include <err.h>
 
 #define MAXBB 32768
 
@@ -46,6 +47,8 @@ char	*fn[MAXBB];
 char	*pn[MAXBB];
 
 kvm_t	*kv;
+
+int
 main()
 {
 	int i,j;
@@ -54,9 +57,11 @@ main()
 	char buf[128];
 
 	kv = kvm_open(NULL,NULL,NULL,O_RDWR,"dnc");
-	if (!kv) {perror("kvm_open"); exit(1); }
+	if (!kv) 
+		err(1,"kvm_open");
 	i = kvm_nlist(kv,namelist);
-	if (i) {perror("kvm_nlist"); exit(1); }
+	if (i)
+		err(1,"kvm_nlist");
 
 	l1 = namelist[0].n_value;
 	kvm_read(kv,l1,&l2,sizeof l2);
@@ -67,7 +72,7 @@ main()
 		if (!bb.ncounts)
 			continue;
 		if (bb.ncounts > MAXBB) {
-			fprintf(stderr,"found %u counts above limit of %u\n",
+			fprintf(stderr,"found %lu counts above limit of %u\n",
 				bb.ncounts, MAXBB);
 			exit (1);
 		}
@@ -76,17 +81,13 @@ main()
 		kvm_read(kv,bb.addr,  addr,   bb.ncounts * sizeof addr[0]);
 		kvm_read(kv,bb.file,  file,   bb.ncounts * sizeof file[0]);
 		kvm_read(kv,bb.func,  func,   bb.ncounts * sizeof func[0]);
-		for (i=0; i < bb.ncounts; i++)
-			if (counts[i])
-				goto doit;
-		continue;
-	doit:
+			if (!counts[i])
+				continue;
 		for (i=0; i < bb.ncounts; i++) {
 			if (!pn[i] && func[i]) {
 				kvm_read(kv,func[i], buf, sizeof buf);
 				buf[sizeof buf -1] = 0;
-				pn[i] = malloc(strlen(buf)+1);
-				strcpy(pn[i],buf);
+				pn[i] = strdup(buf);
 				for(j=i+1;j<bb.ncounts;j++)
 					if (func[j] == func[i]) {
 						pn[j] = pn[i];
@@ -98,8 +99,7 @@ main()
 			if (!fn[i] && file[i]) {
 				kvm_read(kv,file[i], buf, sizeof buf);
 				buf[sizeof buf -1] = 0;
-				fn[i] = malloc(strlen(buf)+1);
-				strcpy(fn[i],buf);
+				fn[i] = strdup(buf);
 				for(j=i+1;j<bb.ncounts;j++)
 					if (file[j] == file[i]) {
 						fn[j] = fn[i];
@@ -108,13 +108,13 @@ main()
 			}
 			if (!fn[i])
 				fn[i] = "-";
-			printf("%s %5u %s %u %u\n",
+			printf("%s %5lu %s %lu %lu\n",
 				fn[i],lineno[i],pn[i],addr[i],counts[i]);
 		}
 		for(i=0;i<bb.ncounts;i++) {
-			if (!func[i])
+			if (func[i] && pn[i]) 
 				free(pn[i]);
-			if (!file[i])
+			if (file[i] && fn[i])
 				free(fn[i]);
 			pn[i] = 0;
 			fn[i] = 0;
