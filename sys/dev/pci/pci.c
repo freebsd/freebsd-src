@@ -1121,6 +1121,13 @@ pci_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 	cfg = &dinfo->cfg;
 
 	switch (which) {
+	case PCI_IVAR_ETHADDR:
+		/*
+		 * The generic accessor doesn't deal with failure, so
+		 * we set the return value, then return an error.
+		 */
+		*((u_int8_t **) result) = NULL;
+		return (EINVAL);
 	case PCI_IVAR_SUBVENDOR:
 		*result = cfg->subvendor;
 		break;
@@ -1179,6 +1186,7 @@ pci_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 	cfg = &dinfo->cfg;
 
 	switch (which) {
+	case PCI_IVAR_ETHADDR:
 	case PCI_IVAR_SUBVENDOR:
 	case PCI_IVAR_SUBDEVICE:
 	case PCI_IVAR_VENDOR:

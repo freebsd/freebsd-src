@@ -177,6 +177,7 @@ enum pci_device_ivars {
     PCI_IVAR_BUS,
     PCI_IVAR_SLOT,
     PCI_IVAR_FUNCTION,
+    PCI_IVAR_ETHADDR,
 };
 
 /*
@@ -199,6 +200,7 @@ PCI_ACCESSOR(irq,		IRQ,		u_int8_t)
 PCI_ACCESSOR(bus,		BUS,		u_int8_t)
 PCI_ACCESSOR(slot,		SLOT,		u_int8_t)
 PCI_ACCESSOR(function,		FUNCTION,	u_int8_t)
+PCI_ACCESSOR(ether,		ETHADDR,	u_int8_t *)
 
 #undef PCI_ACCESSOR
 
