@@ -621,7 +621,7 @@ _libkrb5= kerberos5/lib/libroken kerberos5/lib/libvers \
 .endif
 
 build-tools:
-.for _tool in bin/csh bin/sh ${_games} gnu/usr.bin/cc/cc_tools ${_fortran} \
+.for _tool in bin/csh bin/sh gnu/usr.bin/cc/cc_tools ${_fortran} \
     ${_libroken4} ${_libkrb5} lib/libncurses ${_share} \
     usr.bin/awk usr.bin/file usr.sbin/sysinstall
 	${ECHODIR} "===> ${_tool}"; \
