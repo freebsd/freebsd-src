@@ -33,10 +33,12 @@
 #include <sys/systm.h>
 #include <sys/file.h>
 #include <sys/filio.h>
+#include <sys/lock.h>
 #include <sys/signal.h>
 #include <sys/filedesc.h>
 #include <sys/poll.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
 
 #include <sys/sysproto.h>
 
