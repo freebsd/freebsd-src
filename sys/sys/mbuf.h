@@ -270,7 +270,7 @@ struct mbstat {
  */
 #define	M_DONTWAIT	0x4		/* don't conflict with M_NOWAIT */
 #define	M_TRYWAIT	0x8		/* or M_WAITOK */
-#define	M_WAIT		M_TRYWAIT	/* XXX: Deprecated. */
+#define	M_WAIT		M_TRYWAIT	/* XXX: deprecated */
 #define	MBTOM(how)	((how) & M_TRYWAIT ? M_WAITOK : M_NOWAIT)
 
 #ifdef _KERNEL
@@ -298,7 +298,7 @@ struct mbstat {
  * mbuf, cluster, and external object allocation macros
  * (for compatibility purposes).
  */
-/* NB: M_COPY_PKTHDR is deprecated, use M_MOVE_PKTHDR or m_dup_pktdr */
+/* NB: M_COPY_PKTHDR is deprecated.  Use M_MOVE_PKTHDR or m_dup_pktdr. */
 #define	M_MOVE_PKTHDR(to, from)	m_move_pkthdr((to), (from))
 #define	m_getclr(how, type)	m_get_clrd((how), (type))
 #define	MGET(m, how, type)	((m) = m_get((how), (type)))
@@ -476,10 +476,10 @@ struct	mbuf	*m_split(struct mbuf *, int, int);
  * The cookie is a 32-bit unique unsigned value used to identify
  * a module or ABI.  By convention this value is chose as the
  * date+time that the module is created, expressed as the number of
- * seconds since the epoch (e.g. using date -u +'%s').  The type value
+ * seconds since the epoch (e.g., using date -u +'%s').  The type value
  * is an ABI/module-specific value that identifies a particular annotation
  * and is private to the module.  For compatibility with systems
- * like openbsd that define packet tags w/o an ABI/module cookie,
+ * like OpenBSD that define packet tags w/o an ABI/module cookie,
  * the value PACKET_ABI_COMPAT is used to implement m_tag_get and
  * m_tag_find compatibility shim functions and several tag types are
  * defined below.  Users that do not require compatibility should use
@@ -495,7 +495,7 @@ struct	mbuf	*m_split(struct mbuf *, int, int);
  *
  * if the alignment of struct m_tag is sufficient for referencing members
  * of struct foo.  Otherwise it is necessary to embed struct m_tag within
- * the private data structure to insure proper alignment; e.g.
+ * the private data structure to insure proper alignment; e.g.,
  *
  *	struct foo {
  *		struct m_tag	tag;
@@ -512,7 +512,7 @@ struct	mbuf	*m_split(struct mbuf *, int, int);
  * as the tags are reclaimed when the mbuf is free'd.  However in
  * some special cases reclaiming must be done manually.  An example
  * is packets that pass through the loopback interface.  Also, one
- * must be careful to do this when ``turning around'' packets (e.g.
+ * must be careful to do this when ``turning around'' packets (e.g.,
  * icmp_reflect).
  *
  * To mark a tag persistent bit-or this flag in when defining the
@@ -522,7 +522,7 @@ struct	mbuf	*m_split(struct mbuf *, int, int);
 
 #define	PACKET_TAG_NONE				0  /* Nadda */
 
-/* Packet tag for use with PACKET_ABI_COMPAT */
+/* Packet tag for use with PACKET_ABI_COMPAT. */
 #define	PACKET_TAG_IPSEC_IN_DONE		1  /* IPsec applied, in */
 #define	PACKET_TAG_IPSEC_OUT_DONE		2  /* IPsec applied, out */
 #define	PACKET_TAG_IPSEC_IN_CRYPTO_DONE		3  /* NIC IPsec crypto done */
@@ -552,7 +552,7 @@ struct	mbuf	*m_split(struct mbuf *, int, int);
  */
 #define	_m_tag_id	m_hdr.mh_flags
 
-/* Packet tags used in the FreeBSD network stack */
+/* Packet tags used in the FreeBSD network stack. */
 #define	PACKET_TAG_DUMMYNET			15 /* dummynet info */
 #define	PACKET_TAG_IPFW				16 /* ipfw classification */
 #define	PACKET_TAG_DIVERT			17 /* divert info */
@@ -560,7 +560,7 @@ struct	mbuf	*m_split(struct mbuf *, int, int);
 #define	PACKET_TAG_MACLABEL	(19 | MTAG_PERSISTENT) /* MAC label */
 #define	PACKET_TAG_IPFASTFWD_OURS		20 /* IP fastforward dropback */
 
-/* Packet tag routines */
+/* Packet tag routines. */
 struct	m_tag 	*m_tag_alloc(u_int32_t, int, int, int);
 void		 m_tag_free(struct m_tag *);
 void		 m_tag_prepend(struct mbuf *, struct m_tag *);
@@ -575,7 +575,7 @@ struct	m_tag	*m_tag_first(struct mbuf *);
 struct	m_tag	*m_tag_next(struct mbuf *, struct m_tag *);
 void		 m_tag_delete_nonpersistent(struct mbuf *);
 
-/* these are for openbsd compatibility */
+/* These are for OpenBSD compatibility. */
 #define	MTAG_ABI_COMPAT		0		/* compatibility ABI */
 
 static __inline struct m_tag *
