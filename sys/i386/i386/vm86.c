@@ -701,10 +701,11 @@ vm86_sysarch(p, args)
 		}
 		break;
 
-#if 0
 	case VM86_INTCALL: {
 		struct vm86_intcall_args sa;
 
+		if (error = suser(p))
+			return (error);
 		if (error = copyin(ua.sub_args, &sa, sizeof(sa)))
 			return (error);
 		if (error = vm86_intcall(sa.intnum, &sa.vmf))
@@ -712,7 +713,6 @@ vm86_sysarch(p, args)
 		error = copyout(&sa, ua.sub_args, sizeof(sa));
 		}
 		break;
-#endif
 
 	default:
 		error = EINVAL;
