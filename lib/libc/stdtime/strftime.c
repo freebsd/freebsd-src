@@ -509,7 +509,7 @@ __time_load_locale(const char *name)
 
 	if (!_PathLocale)
 		goto no_locale;
-	/* Range checking already done at upper level caller */
+	/* Range checking not needed, name has fixed size */
 	strcpy(filename, _PathLocale);
 	strcat(filename, "/");
 	strcat(filename, name);
