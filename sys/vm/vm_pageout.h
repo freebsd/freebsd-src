@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.h,v 1.6 1994/10/09 01:52:16 phk Exp $
+ * $Id: vm_pageout.h,v 1.7 1995/01/09 16:05:54 davidg Exp $
  */
 
 #ifndef _VM_VM_PAGEOUT_H_
@@ -101,11 +101,11 @@ vm_wait()
 	s = splhigh();
 	if (curproc == pageproc) {
 		vm_pageout_pages_needed = 1;
-		tsleep((caddr_t) & vm_pageout_pages_needed, PSWP, "vmwait", 0);
+		tsleep((caddr_t) &vm_pageout_pages_needed, PSWP, "vmwait", 0);
 		vm_pageout_pages_needed = 0;
 	} else {
-		wakeup((caddr_t) & vm_pages_needed);
-		tsleep((caddr_t) & cnt.v_free_count, PVM, "vmwait", 0);
+		wakeup((caddr_t) &vm_pages_needed);
+		tsleep((caddr_t) &cnt.v_free_count, PVM, "vmwait", 0);
 	}
 	splx(s);
 }

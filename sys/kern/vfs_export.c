@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.13 (Berkeley) 4/18/94
- * $Id: vfs_subr.c,v 1.13 1994/12/23 04:52:55 davidg Exp $
+ * $Id: vfs_subr.c,v 1.14 1995/01/09 16:04:54 davidg Exp $
  */
 
 /*
@@ -148,7 +148,7 @@ vfs_busy(mp)
 
 	while (mp->mnt_flag & MNT_MPBUSY) {
 		mp->mnt_flag |= MNT_MPWANT;
-		(void) tsleep((caddr_t) & mp->mnt_flag, PVFS, "vfsbsy", 0);
+		(void) tsleep((caddr_t) &mp->mnt_flag, PVFS, "vfsbsy", 0);
 	}
 	if (mp->mnt_flag & MNT_UNMOUNT)
 		return (1);
@@ -170,7 +170,7 @@ vfs_unbusy(mp)
 	mp->mnt_flag &= ~MNT_MPBUSY;
 	if (mp->mnt_flag & MNT_MPWANT) {
 		mp->mnt_flag &= ~MNT_MPWANT;
-		wakeup((caddr_t) & mp->mnt_flag);
+		wakeup((caddr_t) &mp->mnt_flag);
 	}
 }
 
@@ -419,7 +419,7 @@ vwakeup(bp)
 			panic("vwakeup: neg numoutput");
 		if (vp->v_flag & VBWAIT) {
 			vp->v_flag &= ~VBWAIT;
-			wakeup((caddr_t) & vp->v_numoutput);
+			wakeup((caddr_t) &vp->v_numoutput);
 		}
 	}
 }
@@ -1304,7 +1304,7 @@ again:
 				*sizep = bp - where;
 				return (ENOMEM);
 			}
-			if ((error = copyout((caddr_t) & vp, bp, VPTRSZ)) ||
+			if ((error = copyout((caddr_t) &vp, bp, VPTRSZ)) ||
 			    (error = copyout((caddr_t) vp, bp + VPTRSZ, VNODESZ)))
 				return (error);
 			bp += VPTRSZ + VNODESZ;
