@@ -474,6 +474,11 @@ match any pattern contained in
 .TP
 .B \-y
 Use the side by side output format.
+.SH RETURN VALUE
+.I diff
+returns 0 if the files are identical or 1 if the files differ.
+If one or both of the files cannot be opened,
+then the return value is set to 2.
 .SH ENVIRONMENT
 The environment variable
 .B DIFF_OPTIONS
