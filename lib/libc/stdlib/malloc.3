@@ -395,7 +395,10 @@ The allocation functions were compiled with
 .Dq EXTRA_SANITY
 defined, and an error was found during the additional error checking.
 Consult the source code for further information.
-.It "mmap(2) failed, check limits
+.It Xo
+.Xr mmap 2
+failed, check limits
+.Xc
 This most likely means that the system is dangerously overloaded or that
 the process' limits are incorrectly specified.
 .It "freelist is destroyed
