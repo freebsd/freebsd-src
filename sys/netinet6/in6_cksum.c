@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: in6_cksum.c,v 1.6 2000/03/25 07:23:43 sumikawa Exp $	*/
+/*	$KAME: in6_cksum.c,v 1.9 2000/09/09 15:33:31 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -83,15 +83,6 @@
 #define ADDCARRY(x)  (x > 65535 ? x -= 65535 : x)
 #define REDUCE {l_util.l = sum; sum = l_util.s[0] + l_util.s[1]; ADDCARRY(sum);}
 
-static union {
-	u_int16_t phs[4];
-	struct {
-		u_int32_t	ph_len;
-		u_int8_t	ph_zero[3];
-		u_int8_t	ph_nxt;
-	} ph;
-} uph;
-
 /*
  * m MUST contain a continuous IP6 header.
  * off is a offset where TCP/UDP/ICMP6 header starts.
@@ -113,7 +104,14 @@ in6_cksum(m, nxt, off, len)
 	int srcifid = 0, dstifid = 0;
 #endif
 	struct ip6_hdr *ip6;	
-	
+	union {
+		u_int16_t phs[4];
+		struct {
+			u_int32_t	ph_len;
+			u_int8_t	ph_zero[3];
+			u_int8_t	ph_nxt;
+		} ph __attribute__((__packed__));
+	} uph;
 	union {
 		u_int8_t	c[2];
 		u_int16_t	s;
@@ -128,6 +126,8 @@ in6_cksum(m, nxt, off, len)
 		panic("in6_cksum: mbuf len (%d) < off+len (%d+%d)\n",
 			m->m_pkthdr.len, off, len);
 	}
+
+	bzero(&uph, sizeof(uph));
 
 	/*
 	 * First create IP6 pseudo header and calculate a summary.
