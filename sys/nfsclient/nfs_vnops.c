@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.83 1998/03/30 09:54:32 phk Exp $
+ * $Id: nfs_vnops.c,v 1.84 1998/05/07 04:58:53 msmith Exp $
  */
 
 
@@ -780,10 +780,10 @@ nfs_lookup(ap)
 	int v3 = NFS_ISV3(dvp);
 	struct proc *p = cnp->cn_proc;
 
+	*vpp = NULLVP;
 	if ((flags & ISLASTCN) && (dvp->v_mount->mnt_flag & MNT_RDONLY) &&
 	    (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME))
 		return (EROFS);
-	*vpp = NULLVP;
 	if (dvp->v_type != VDIR)
 		return (ENOTDIR);
 	lockparent = flags & LOCKPARENT;
