@@ -235,7 +235,6 @@ struct iso_mnt {
 	int im_bmask;
 
 	int volume_space_size;
-	struct netexport im_export;
 
 	char root[ISODCL (157, 190)];
 	int root_extent;

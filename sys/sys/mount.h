@@ -43,6 +43,9 @@
 #include <sys/lock.h>
 #endif
 
+struct netcred;
+struct netexport;
+
 typedef struct fsid { int32_t val[2]; } fsid_t;	/* file system id type */
 
 /*
@@ -118,6 +121,7 @@ struct mount {
 	qaddr_t		mnt_data;		/* private data */
 	time_t		mnt_time;		/* last time written*/
 	u_int		mnt_iosize_max;		/* max IO request size */
+	struct netexport *mnt_export;		/* export list */
 };
 #endif /* _KERNEL */
 
@@ -378,27 +382,6 @@ struct vfsops {
 	};							\
 	DECLARE_MODULE(fsname, fsname ## _mod, SI_SUB_VFS, SI_ORDER_MIDDLE)
 
-#include <net/radix.h>
-
-#define	AF_MAX		35	/* XXX */
-
-/*
- * Network address lookup element
- */
-struct netcred {
-	struct	radix_node netc_rnodes[2];
-	int	netc_exflags;
-	struct	ucred netc_anon;
-};
-
-/*
- * Network export information
- */
-struct netexport {
-	struct	netcred ne_defexported;		      /* Default export */
-	struct	radix_node_head *ne_rtable[AF_MAX+1]; /* Individual exports */
-};
-
 extern	char *mountrootfsname;
 
 /*
@@ -413,10 +396,10 @@ int	vfs_lock __P((struct mount *));         /* lock a vfs */
 void	vfs_msync __P((struct mount *, int));
 void	vfs_unlock __P((struct mount *));       /* unlock a vfs */
 int	vfs_busy __P((struct mount *, int, struct mtx *, struct proc *));
-int	vfs_export			    /* process mount export info */
-	  __P((struct mount *, struct netexport *, struct export_args *));
+int	vfs_export			 /* process mount export info */
+	  __P((struct mount *, struct export_args *));
 struct	netcred *vfs_export_lookup	    /* lookup host in fs export list */
-	  __P((struct mount *, struct netexport *, struct sockaddr *));
+	  __P((struct mount *, struct sockaddr *));
 int	vfs_allocate_syncvnode __P((struct mount *));
 void	vfs_getnewfsid __P((struct mount *));
 dev_t	vfs_getrootfsid __P((struct mount *));

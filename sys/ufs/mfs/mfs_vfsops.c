@@ -109,7 +109,7 @@ static struct vfsops mfs_vfsops = {
 	ffs_sync,
 	ffs_vget,
 	ffs_fhtovp,
-	ufs_check_export,
+	vfs_stdcheckexp,
 	ffs_vptofh,
 	mfs_init,
 	vfs_stduninit,
@@ -230,7 +230,7 @@ mfs_mount(mp, path, data, ndp, p)
 			 * Process export requests.  Jumping to "success"
 			 * will return the vfs_export() error code. 
 			 */
-			err = vfs_export(mp, &ump->um_export, &args.export);
+			err = vfs_export(mp, &args.export);
 			goto success;
 		}
 
