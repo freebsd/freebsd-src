@@ -58,7 +58,7 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
-static int	Aflag, aflag, bflag, Nflag, nflag, wflag, Xflag;
+static int	aflag, bflag, Nflag, nflag, oflag, xflag;
 
 static int	oidfmt(int *, int, char *, u_int *);
 static void	parse(char *);
@@ -70,12 +70,9 @@ static void
 usage(void)
 {
 
-	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n",
-		"usage: sysctl [-bNn] variable ...",
-		"       sysctl [-bNn] -w variable=value ...",
-		"       sysctl [-bNn] -a",
-		"       sysctl [-bNn] -A",
-		"       sysctl [-bNn] -X");
+	(void)fprintf(stderr, "%s\n%s\n",
+	    "usage: sysctl [-bNnox] variable[=value] ...",
+	    "       sysctl [-bNnox] -a");
 	exit(1);
 }
 
@@ -86,10 +83,11 @@ main(int argc, char **argv)
 	setbuf(stdout,0);
 	setbuf(stderr,0);
 
-	while ((ch = getopt(argc, argv, "AabNnwX")) != -1) {
+	while ((ch = getopt(argc, argv, "AabNnowxX")) != -1) {
 		switch (ch) {
 		case 'A':
-			Aflag = 1;
+			/* compatibility */
+			aflag = oflag = 1;
 			break;
 		case 'a':
 			aflag = 1;
@@ -103,11 +101,19 @@ main(int argc, char **argv)
 		case 'n':
 			nflag = 1;
 			break;
+		case 'o':
+			oflag = 1;
+			break;
 		case 'w':
-			wflag = 1;
+			/* compatibility */
+			/* ignored */
 			break;
 		case 'X':
-			Xflag = Aflag = 1;
+			/* compatibility */
+			aflag = xflag = 1;
+			break;
+		case 'x':
+			xflag = 1;
 			break;
 		default:
 			usage();
@@ -116,10 +122,10 @@ main(int argc, char **argv)
 	argc -= optind;
 	argv += optind;
 
-	if ((wflag && (Aflag || aflag)) || (Nflag && nflag))
+	if (Nflag && nflag)
 		usage();
-	if (Aflag || aflag)
-		exit (sysctl_all(0, 0));
+	if (aflag && argc == 0)
+		exit(sysctl_all(0, 0));
 	if (argc == 0)
 		usage();
 	while (argc-- > 0)
@@ -146,17 +152,12 @@ parse(char *string)
 	bufp = buf;
 	snprintf(buf, BUFSIZ, "%s", string);
 	if ((cp = strchr(string, '=')) != NULL) {
-		if (!wflag)
-			errx(2, "must specify -w to set variables");
 		*strchr(buf, '=') = '\0';
 		*cp++ = '\0';
 		while (isspace(*cp))
 			cp++;
 		newval = cp;
 		newsize = strlen(cp);
-	} else {
-		if (wflag)
-			usage();
 	}
 	len = name2oid(bufp, mib);
 
@@ -166,7 +167,7 @@ parse(char *string)
 	if (oidfmt(mib, len, 0, &kind))
 		err(1, "couldn't find format of oid '%s'", bufp);
 
-	if (!wflag) {
+	if (newval == NULL) {
 		if ((kind & CTLTYPE) == CTLTYPE_NODE) {
 			sysctl_all(mib, len);
 		} else {
@@ -468,15 +469,17 @@ show_var(int *oid, int nlen)
 		}
 		/* FALL THROUGH */
 	default:
-		if (!Aflag)
+		if (!oflag && !xflag)
 			return (1);
 		if (!nflag)
 			printf("%s: ", name);
 		printf("Format:%s Length:%d Dump:0x", fmt, len);
 		while (len--) {
 			printf("%02x", *p++);
-			if (Xflag || p < val+16)
+			if (xflag || p < val+16)
 				continue;
+			if (len == 16)
+				break;
 			printf("...");
 			break;
 		}
