@@ -326,7 +326,7 @@ Edit number code marking begins here - earlier edits were during development.
 
 <27>	Incorporated changes needed to move the cdevsw and bdevsw
 	entries into the drivers (including this one). Also
-	include a quick first pass cut at DEVFS suppport.
+	include a quick first pass cut at DEVFS suppport. (removed later)
 
 ---------------------------------------------------------------------------*/
 

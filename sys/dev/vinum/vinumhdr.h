@@ -43,10 +43,6 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #endif
-#ifdef DEVFS
-#error "DEVFS code not complete yet"
-#include <sys/devfsext.h>
-#endif /*DEVFS */
 #include <sys/proc.h>
 #include <sys/errno.h>
 #include <sys/dkstat.h>
