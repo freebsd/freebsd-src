@@ -134,6 +134,7 @@ static char sccsid[] = "@(#)strtod.c	8.1 (Berkeley) 6/4/93";
 #define Bug(x) {fprintf(stderr, "%s\n", x); exit(1);}
 #endif
 
+#include <locale.h>
 #ifdef __cplusplus
 #include "malloc.h"
 #include "memory.h"
@@ -1193,6 +1194,8 @@ strtod
 	long L;
 	unsigned long y, z;
 	Bigint *bb, *bb1, *bd, *bd0, *bs, *delta;
+	char decimal_point = localeconv()->decimal_point[0];
+
 	sign = nz0 = nz = 0;
 	rv = 0.;
 	for (s = s00;;s++) switch(*s) {
@@ -1226,7 +1229,7 @@ strtod
 		else if (nd < 16)
 			z = 10*z + c - '0';
 	nd0 = nd;
-	if (c == '.') {
+	if ((char)c == decimal_point) {
 		c = *++s;
 		if (!nd) {
 			for (; c == '0'; c = *++s)
