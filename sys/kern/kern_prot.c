@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 1982, 1986, 1989, 1990, 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 2000, 2001 Robert N. M. Watson.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
  * All or some portions of this file are derived from material licensed
  * to the University of California by American Telephone and Telegraph
@@ -1028,15 +1029,24 @@ groupmember(gid, cred)
 	return (0);
 }
 
-static int suser_permitted = 1;
-
+/*
+ * The suser_permitted MIB entry allows the determination of whether or
+ * not the system 'super-user' policy is in effect.  If true, an effective
+ * uid of 0 connotes special privilege, overriding many mandatory and
+ * discretionary system protections.  If false, uid 0 is offered no
+ * special privilege in the kernel security policy.  Setting this value
+ * to 0 may seriously impact the functionality of many existing userland
+ * programs, and should not be changed without careful consideration of
+ * the consequences.
+ */
+static int	suser_permitted = 1;
 SYSCTL_INT(_kern_security, OID_AUTO, suser_permitted, CTLFLAG_RW,
     &suser_permitted, 0, "processes with uid 0 have privilege");
 
 /*
  * Test whether the specified credentials imply "super-user"
- * privilege; if so, and we have accounting info, set the flag
- * indicating use of super-powers.
+ * privilege.
+ *
  * Returns 0 or error.
  */
 int
@@ -1089,6 +1099,15 @@ u_cansee(struct ucred *u1, struct ucred *u2)
 	return (0);
 }
 
+/*
+ * p_cansee(p1, p2): determine of p1 "can see" the subject specified by p2
+ * Arguments: processes p1 and p2
+ * Returns: 0 for permitted, an errno value otherwise
+ * Locks: Sufficient locks to protection p1->p_ucred and p2->p_cured must
+ *        be held.  Normally, p1 will be curproc, and a lock must be held
+ *        for p2.
+ * References: p1 and p2 must be valid for the lifetime of the call
+ */
 int
 p_cansee(struct proc *p1, struct proc *p2)
 {
@@ -1098,7 +1117,14 @@ p_cansee(struct proc *p1, struct proc *p2)
 }
 
 /*
- * Can process p1 send the signal signum to process p2?
+ * p_cansignal(p1, p2, signum): determine whether p1 may deliver the
+ *                              specified signal to p2
+ * Arguments: processes p1 and p2, signal number 'signum'
+ * Returns: 0 on success, an errno value otherwise
+ * Locks: Sufficient locks to protect various components of p1 and p2 must
+ *        be held.  Normally, p1 will be curproc, and a lock must be held
+ *        for p2.
+ * References: p1 and p2 must be valid for the lifetime of the call
  */
 int
 p_cansignal(struct proc *p1, struct proc *p2, int signum)
@@ -1124,12 +1150,13 @@ p_cansignal(struct proc *p1, struct proc *p2, int signum)
 		return (0);
 
 	/*
-	 * UNIX uid semantics depend on the status of the P_SUGID
-	 * bit on the target process.  If the bit is set, then more
-	 * restricted signal sets are permitted.
+	 * UNIX signal semantics depend on the status of the P_SUGID
+	 * bit on the target process.  If the bit is set, then additional
+	 * restrictions are placed on the set of available signals.
 	 */
 	if (p2->p_flag & P_SUGID) {
 		switch (signum) {
+		/* Generally permit job and terminal control signals. */
 		case 0:
 		case SIGKILL:
 		case SIGINT:
@@ -1143,7 +1170,7 @@ p_cansignal(struct proc *p1, struct proc *p2, int signum)
 		case SIGUSR2:
 			break;
 		default:
-			/* Not permitted, try privilege. */
+		/* Not permitted, privilege is required. */
 			error = suser_xxx(NULL, p1, PRISON_ROOT);
 			if (error)
 				return (error);
@@ -1151,7 +1178,7 @@ p_cansignal(struct proc *p1, struct proc *p2, int signum)
 	}
 
 	/*
-	 * Generally, the object credential's ruid or svuid must match the
+	 * Generally, the target credential's ruid or svuid must match the
 	 * subject credential's ruid or euid.
 	 */
 	if (p1->p_ucred->cr_ruid != p2->p_ucred->cr_ruid &&
@@ -1167,6 +1194,15 @@ p_cansignal(struct proc *p1, struct proc *p2, int signum)
         return (0);
 }
 
+/*
+ * p_cansched(p1, p2): determine whether p1 may reschedule p2
+ * Arguments: processes p1 and p2
+ * Returns: 0 on success, an errno value otherwise
+ * Locks: Sufficient locks to protect various components of p1 and p2
+ *        must be held.  Normally, p1 will be curproc, and a lock must
+ *        be held on p2.
+ * References: p1 and p2 must be valid for the lifetime of the call
+ */
 int
 p_cansched(struct proc *p1, struct proc *p2)
 {
@@ -1194,11 +1230,30 @@ p_cansched(struct proc *p1, struct proc *p2)
 	return (EPERM);
 }
 
+/*
+ * The kern.unprivileged_procdebug_permitted flag may be used to disable
+ * a variety of unprivileged inter-process debugging services, including
+ * some procfs functionality, ptrace(), and ktrace().  In the past,
+ * inter-process debugging has been involved in a variety of security
+ * problems, and sites not requiring the service might choose to disable it
+ * when hardening systems.
+ *
+ * XXX: Should modifying and reading this variable require locking?
+ */
 static int	kern_unprivileged_procdebug_permitted = 1;
 SYSCTL_INT(_kern_security, OID_AUTO, unprivileged_procdebug_permitted,
     CTLFLAG_RW, &kern_unprivileged_procdebug_permitted, 0,
     "Unprivileged processes may use process debugging facilities");
 
+/*
+ * p_candebug(p1, p2): determine whether p1 may debug p2
+ * Arguments: processes p1 and p2
+ * Returns: 0 on success, an errno value otherwise
+ * Locks: Sufficient locks to protect the various components of p1 and p2
+ *        must be held.  Normally, p1 will be curproc, and a lock must be
+ *        held for p2.
+ * References: p1 and p2 must be valid for the lifetime of the call
+ */
 int
 p_candebug(struct proc *p1, struct proc *p2)
 {
