@@ -92,6 +92,7 @@ struct ngvcc {
 
 	LIST_ENTRY(ngvcc) link;
 };
+#define	VCC_OPEN	0x0001	/* open */
 
 /*
  * Node private data
@@ -623,6 +624,7 @@ ng_atm_cpcs_init(node_p node, const struct ngm_atm_cpcs_init *arg)
 
 	switch (data.param.aal = arg->aal) {
 
+	  case ATMIO_AAL_34:
 	  case ATMIO_AAL_5:
 	  case ATMIO_AAL_0:
 	  case ATMIO_AAL_RAW:
@@ -636,7 +638,10 @@ ng_atm_cpcs_init(node_p node, const struct ngm_atm_cpcs_init *arg)
 		return (EINVAL);
 	data.param.vpi = arg->vpi;
 
-	if (arg->vci == 0 || arg->vci > 0xffff)
+	if (arg->vci > 0xffff)
+		return (EINVAL);
+	/* allow 0.0 as catch all receive channel */
+	if (arg->vci == 0 && (arg->vpi != 0 || !(arg->flags & ATMIO_FLAG_NOTX)))
 		return (EINVAL);
 	data.param.vci = arg->vci;
 
@@ -647,14 +652,22 @@ ng_atm_cpcs_init(node_p node, const struct ngm_atm_cpcs_init *arg)
 	data.param.tparam.mcr = arg->mcr;
 
 	if (!(arg->flags & ATMIO_FLAG_NOTX)) {
-		if (arg->tmtu > (1 << 16) || arg->tmtu == 0)
-			return (EINVAL);
-		data.param.tmtu = arg->tmtu;
+		if (arg->tmtu == 0)
+			data.param.tmtu = priv->ifp->if_mtu;
+		else {
+			if (arg->tmtu > (1 << 16))
+				return (EINVAL);
+			data.param.tmtu = arg->tmtu;
+		}
 	}
 	if (!(arg->flags & ATMIO_FLAG_NORX)) {
-		if (arg->rmtu > (1 << 16) || arg->rmtu == 0)
-			return (EINVAL);
-		data.param.rmtu = arg->rmtu;
+		if (arg->rmtu == 0)
+			data.param.rmtu = priv->ifp->if_mtu;
+		else {
+			if (arg->rmtu > (1 << 16))
+				return (EINVAL);
+			data.param.rmtu = arg->rmtu;
+		}
 	}
 
 	switch (data.param.traffic = arg->traffic) {
@@ -723,7 +736,7 @@ ng_atm_cpcs_init(node_p node, const struct ngm_atm_cpcs_init *arg)
 	if (err == 0) {
 		vcc->vci = data.param.vci;
 		vcc->vpi = data.param.vpi;
-		vcc->flags = arg->flags;
+		vcc->flags = VCC_OPEN;
 	}
 
 	return (err);
@@ -1169,7 +1182,7 @@ ng_atm_disconnect(hook_p hook)
 	}
 
 	/* don't terminate if we are detaching from the interface */
-	if (vcc->vci != 0 && priv->ifp != NULL)
+	if ((vcc->flags & VCC_OPEN) && priv->ifp != NULL)
 		(void)cpcs_term(priv, vcc->vpi, vcc->vci);
 
 	NG_HOOK_SET_PRIVATE(hook, NULL);
