@@ -961,10 +961,12 @@ sendorfree:
 		/* clean ipsec history once it goes out of the node */
 		ipsec_delaux(m);
 #endif
-		if (error == 0 && ia) {
+		if (error == 0) {
 			/* Record statistics for this interface address. */
-			ia->ia_ifa.if_opackets++;
-			ia->ia_ifa.if_obytes += m->m_pkthdr.len;
+			if (ia != NULL) {
+				ia->ia_ifa.if_opackets++;
+				ia->ia_ifa.if_obytes += m->m_pkthdr.len;
+			}
 			
 			error = (*ifp->if_output)(ifp, m,
 			    (struct sockaddr *)dst, ro->ro_rt);
