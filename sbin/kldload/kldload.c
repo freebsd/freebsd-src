@@ -26,12 +26,11 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: kldload.c,v 1.4 1998/01/05 07:07:44 charnier Exp $";
 #endif /* not lint */
 
 #include <err.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <unistd.h>
 #include <sys/param.h>
 #include <sys/linker.h>
