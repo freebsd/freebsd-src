@@ -186,6 +186,11 @@ chn_dmaupdate(pcm_channel *c)
 	DEB (int b_rl=b->rl; int b_fl=b->fl; int b_rp=b->rp; int b_fp=b->fp);
 
 	hwptr = chn_getptr(c);
+	delta = (b->bufsize + hwptr - b->hp) % b->bufsize;
+	if (delta >= ((b->bufsize * 3) / 4)) {
+		if (!(c->flags & (CHN_F_CLOSING | CHN_F_ABORTING)))
+			device_printf(c->parent->dev, "hwptr went backwards %d -> %d\n", b->hp, hwptr);
+	}
 	if (c->direction == PCMDIR_PLAY) {
 		delta = (b->bufsize + hwptr - b->rp) % b->bufsize;
 		b->rp = hwptr;
@@ -204,6 +209,7 @@ chn_dmaupdate(pcm_channel *c)
 			DEB(printf("OUCH!(%d) fl %d(%d) delta %d bufsize %d hwptr %d fp %d(%d)\n", chn_updatecount++, b->fl, b_fl, delta, b->bufsize, hwptr, b->fp, b_fp));
 		}
 	}
+	b->hp = hwptr;
 	b->total += delta;
 }
 
@@ -234,7 +240,7 @@ chn_checkunderflow(pcm_channel *c)
 		b->fl = b->bufsize - b->rl;
 	  	b->underflow = 0;
 	} else {
-		/* chn_dmaupdate(c); */
+		chn_dmaupdate(c);
 	}
 }
 
