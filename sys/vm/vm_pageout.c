@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.33 1995/02/02 09:09:15 davidg Exp $
+ * $Id: vm_pageout.c,v 1.34 1995/02/09 07:41:42 davidg Exp $
  */
 
 /*
@@ -78,6 +78,7 @@
 #include <sys/resourcevar.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
+#include <sys/signalvar.h>
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
@@ -501,9 +502,6 @@ vm_pageout_scan()
 	vm_offset_t size, bigsize;
 	vm_object_t object;
 	int force_wakeup = 0;
-	int cache_size, orig_cache_size;
-	int minscan;
-	int mintofree;
 
 	/* calculate the total cached size */
 
@@ -816,9 +814,8 @@ vm_pageout()
 }
 
 void
-vm_daemon()
+vm_daemon __P((void))
 {
-	int cache_size;
 	vm_object_t object;
 	struct proc *p;
 
