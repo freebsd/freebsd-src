@@ -234,14 +234,17 @@ file using the
 .Va crypt_default
 property.
 .Sh RETURN VALUES
+The
 .Fn crypt
-returns a pointer to the encrypted value on success, and NULL on failure.
+function returns a pointer to the encrypted value on success, and NULL on
+failure.
 Note: this is not a standard behaviour, AT&T
 .Fn crypt
 will always return a pointer to a string.
 .Pp
+The
 .Fn crypt_set_format
-will return 1 if the supplied encoding format was valid.
+function will return 1 if the supplied encoding format was valid.
 Otherwise, a value of 0 is returned.
 .Sh SEE ALSO
 .Xr login 1 ,
