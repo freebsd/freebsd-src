@@ -43,11 +43,16 @@
 .Nd manipulate signal sets
 .Sh SYNOPSIS
 .Fd #include <signal.h>
+.Ft int
 .Fn sigemptyset "sigset_t *set"
+.Ft int
 .Fn sigfillset "sigset_t *set"
+.Ft int
 .Fn sigaddset "sigset_t *set" "int signo"
+.Ft int
 .Fn sigdelset "sigset_t *set" "int signo"
-.Fn sigismember "sigset_t *set" "int signo"
+.Ft int
+.Fn sigismember "const sigset_t *set" "int signo"
 .Sh DESCRIPTION
 These functions manipulate signal sets stored in a
 .Fa sigset_t .

@@ -39,7 +39,10 @@
 .Nm monstartup
 .Nd control execution profile
 .Sh SYNOPSIS
+.Fd #include <sys/types.h>
+.Ft int
 .Fn moncontrol "int mode"
+.Ft int
 .Fn monstartup "u_long *lowpc" "u_long *highpc"
 .Sh DESCRIPTION
 An executable program compiled using the

@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     From: @(#)vis.3	8.1 (Berkeley) 6/9/93
-.\"	$Id$
+.\"	$Id: vis.3,v 1.6 1997/02/22 14:58:21 peter Exp $
 .\"
 .Dd July 25, 1996
 .Dt VIS 3
@@ -41,11 +41,11 @@
 .Sh SYNOPSIS
 .Fd #include <vis.h>
 .Ft char *
-.Fn vis "char *dst" "char c" "int flag" "char nextc"
+.Fn vis "char *dst" "int c" "int flag" "int nextc"
 .Ft int 
-.Fn strvis "char *dst" "char *src" "int flag"
+.Fn strvis "char *dst" "const char *src" "int flag"
 .Ft int 
-.Fn strvisx "char *dst" "char *src" "int len" "int flag"
+.Fn strvisx "char *dst" "const char *src" "size_t len" "int flag"
 .Sh DESCRIPTION
 The
 .Fn vis
