@@ -174,7 +174,6 @@ idle_loop:
 
 	/* enable intrs for a halt */
 	movl	$0, lapic_tpr			/* 1st candidate for an INT */
-	sti
 	call	*_hlt_vector			/* wait for interrupt */
 	cli
 	jmp	idle_loop
@@ -243,7 +242,6 @@ idle_loop:
 	call	_vm_page_zero_idle
 	testl	%eax, %eax
 	jnz	idle_loop
-	sti
 	call	*_hlt_vector			/* wait for interrupt */
 	jmp	idle_loop
 
@@ -252,6 +250,7 @@ idle_loop:
 CROSSJUMPTARGET(_idle)
 
 ENTRY(default_halt)
+	sti
 #ifndef SMP
 	hlt					/* XXX:	 until a wakeup IPI */
 #endif
