@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.96 1995/01/03 12:02:05 ache Exp $
+#	$Id: Makefile,v 1.97 1995/01/14 12:29:38 jkh Exp $
 
 # disktab may be wrong -- hcx9 is a tahoe, but gets its own.
 # -rw-r--r--
@@ -396,109 +396,102 @@ bin-tarball:
 		tar cf - . | \
 		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/bin/bin.)
 
-src-clean:
-	#(cd ${DESTDIR}/usr/src; make cleandist)
-	find ${DESTDIR}/usr/src -name obj | xargs -n30 rm -rf
-	rm -rf ${DESTDIR}/usr/src/sys/compile/*
-	chown -R bin:bin ${DESTDIR}/usr/src
-	chmod -R og-w ${DESTDIR}/usr/src
-
 srcbase-tarball:
-	(cd ${DESTDIR}; \
+	(cd ${RELEASEDIR}/filesys/usr/src; \
 		tar --exclude CVS -cf - usr/src/[A-Z]* | \
 		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/base.)
 
 srcbin-tarball:
-	(cd ${DESTDIR}; \
+	(cd ${RELEASEDIR}/filesys/usr/src; \
 		tar --exclude CVS -cf - usr/src/bin | \
 		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/srcbin.)
 
 srcetc-tarball:
-	(cd ${DESTDIR}; \
+	(cd ${RELEASEDIR}/filesys/usr/src; \
 		tar --exclude CVS -cf - usr/src/etc | \
 		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/etc.)
 
 srcgames-tarball:
-	(cd ${DESTDIR}; \
+	(cd ${RELEASEDIR}/filesys/usr/src; \
 		tar --exclude CVS -cf - usr/src/games | \
 		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/games.)
 
 srcgnu-tarball:
-	(cd ${DESTDIR}; \
+	(cd ${RELEASEDIR}/filesys/usr/src; \
 		tar --exclude CVS -cf - usr/src/gnu | \
 		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/gnu.)
 
 srcinclude-tarball:
-	(cd ${DESTDIR}; \
+	(cd ${RELEASEDIR}/filesys/usr/src; \
 		tar --exclude CVS -cf - usr/src/include | \
 		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/include.)
 
 srclib-tarball:
-	(cd ${DESTDIR}; \
+	(cd ${RELEASEDIR}/filesys/usr/src; \
 		tar --exclude CVS -cf - \
 		usr/src/lib | \
 		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/lib.)
 
 srclibexec-tarball:
-	(cd ${DESTDIR}; \
+	(cd ${RELEASEDIR}/filesys/usr/src; \
 		tar --exclude CVS -cf - usr/src/libexec | \
 		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/libexec.)
 
 srcrelease-tarball:
-	(cd ${DESTDIR}; \
+	(cd ${RELEASEDIR}/filesys/usr/src; \
 		tar --exclude CVS -cf - usr/src/release | \
 		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/release.)
 
 srcsbin-tarball:
-	(cd ${DESTDIR}; \
+	(cd ${RELEASEDIR}/filesys/usr/src; \
 		tar --exclude CVS -cf - usr/src/sbin | \
 		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/sbin.)
 
 srcsecure-tarball:
-	(cd ${DESTDIR}; \
+	(cd ${RELEASEDIR}/filesys/usr/src; \
 		tar --exclude CVS -cf - usr/src/secure | \
 		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/secure/secure.)
 
 srcelkm-tarball:
-	(cd ${DESTDIR}; \
+	(cd ${RELEASEDIR}/filesys/usr/src; \
 		tar --exclude CVS -cf - usr/src/lkm | \
 		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/lkm.)
 
 srcerelease-tarball:
-	(cd ${DESTDIR}; \
+	(cd ${RELEASEDIR}/filesys/usr/src; \
 		tar --exclude CVS -cf - usr/src/release | \
 		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/release.)
 
 srcebones-tarball:
-	(cd ${DESTDIR}; \
+	(cd ${RELEASEDIR}/filesys/usr/src; \
 		tar --exclude CVS -cf - usr/src/eBones | \
 		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/secure/ebones.)
 
 srcshare-tarball:
-	(cd ${DESTDIR}; \
+	(cd ${RELEASEDIR}/filesys/usr/src; \
 		tar --exclude CVS -cf - usr/src/share | \
 		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/share.)
 
 srcsys-tarball:
-	(cd ${DESTDIR}; \
+	(cd ${RELEASEDIR}/filesys/usr/src; \
 		tar --exclude CVS -cf - usr/src/sys usr/src/lkm | \
 		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/sys.)
 
 srcusrbin-tarball:
-	(cd ${DESTDIR}; \
+	(cd ${RELEASEDIR}/filesys/usr/src; \
 		tar --exclude CVS -cf - usr/src/usr.bin | \
 		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/usrbin.)
 
 srcusrsbin-tarball:
-	(cd ${DESTDIR}; \
+	(cd ${RELEASEDIR}/filesys/usr/src; \
 		tar --exclude CVS -cf - usr/src/usr.sbin | \
 		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/src/usrsbin.)
 
-src-tarball: src-clean srcbase-tarball srcbin-tarball \
-	srcetc-tarball srcgames-tarball srcgnu-tarball srcinclude-tarball \
-	srclib-tarball srcsecure-tarball srclibexec-tarball srcsbin-tarball \
-	srcshare-tarball srcsys-tarball srcusrbin-tarball srcusrsbin-tarball \
-	srcrelease-tarball srcebones-tarball srclkm-tarball srcrelease-tarball
+src-tarball: srcbase-tarball srcbin-tarball srcetc-tarball srcgames-tarball \
+	srcgnu-tarball srcinclude-tarball srclib-tarball srcsecure-tarball \
+	srclibexec-tarball srcsbin-tarball srcshare-tarball srcsys-tarball \
+	srcusrbin-tarball srcusrsbin-tarball srcrelease-tarball \
+	srcebones-tarball srclkm-tarball srcrelease-tarball
 
 des-tarball:
 	rm -rf ${RELEASEDIR}/tmpdes
