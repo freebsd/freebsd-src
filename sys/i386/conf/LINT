@@ -406,6 +406,8 @@ options			NETGRAPH_TTY
 options			NETGRAPH_UI
 options			NETGRAPH_VJC
 
+device			mn0	# Munich32x/Falc54 Nx64kbit/sec cards.
+
 #
 # Network interfaces:
 #  The `loop' pseudo-device is MANDATORY when networking is enabled.
