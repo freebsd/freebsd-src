@@ -10,14 +10,11 @@ PMAP_SHPGPERPROC	opt_pmap.h
 # Options for emulators.  These should only be used at config time, so
 # they are handled like options for static filesystems
 # (see src/sys/conf/options), except for broken debugging options.
-IBCS2			opt_dontuse.h
-COMPAT_LINUX		opt_dontuse.h
-COMPAT_SVR4		opt_dontuse.h
-DEBUG_SVR4		opt_svr4.h
-NDISAPI			opt_dontuse.h
-
-# Change KVM size.  Changes things all over the kernel.
-KVA_PAGES		opt_global.h
+#IBCS2			opt_dontuse.h
+#COMPAT_LINUX		opt_dontuse.h
+#COMPAT_SVR4		opt_dontuse.h
+#DEBUG_SVR4		opt_svr4.h
+#NDISAPI		opt_dontuse.h
 
 CLK_CALIBRATION_LOOP		opt_clock.h
 CLK_USE_I8254_CALIBRATION	opt_clock.h
