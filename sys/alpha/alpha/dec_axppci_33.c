@@ -55,7 +55,7 @@ static int comcnrate = CONSPEED;
 
 void dec_axppci_33_init(void);
 static void dec_axppci_33_cons_init(void);
-static void dec_axppci_33_intr_map(void *);
+static int dec_axppci_33_intr_route (device_t, device_t, int);
 
 extern int siocnattach(int, int);
 extern int siogdbattach(int, int);
@@ -93,7 +93,8 @@ dec_axppci_33_init()
 
 	platform.iobus = "lca";
 	platform.cons_init = dec_axppci_33_cons_init;
-	platform.pci_intr_map = dec_axppci_33_intr_map;
+	platform.pci_intr_route = dec_axppci_33_intr_route;
+	platform.pci_intr_map = NULL;
 
 	lca_init();
 
@@ -167,15 +168,12 @@ dec_axppci_33_cons_init()
 
 #define	SIO_PCIREG_PIRQ_RTCTRL	0x60	/* PIRQ0 Route Control */
 
-void
-dec_axppci_33_intr_map(void *arg)
+static int
+dec_axppci_33_intr_route(device_t pcib, device_t dev, int pin)
 {
-	pcicfgregs *cfg;
 	int pirq;
 	u_int32_t pirqreg;
 	u_int8_t pirqline;
-
-	cfg = (pcicfgregs *)arg;
 
 #ifndef DIAGNOSTIC
 	pirq = 0;				/* XXX gcc -Wuninitialized */
@@ -185,23 +183,22 @@ dec_axppci_33_intr_map(void *arg)
 	 * Slot->interrupt translation.  Taken from NetBSD.
 	 */
 
-	if (cfg->intpin == 0) {
+	if (pin == 0) {
 		/* No IRQ used. */
-		return;
+		return -1;
 	}
-	if (cfg->intpin > 4) {
-		printf("dec_axppci_33_intr_map: bad interrupt pin %d\n",
-		    cfg->intpin);
-		return;
+	if (pin > 4) {
+		printf("dec_axppci_33_intr_route: bad interrupt pin %d\n", pin);
+		return -1;
 	}
 
-	switch (cfg->slot) {
+	switch (pci_get_slot(dev)) {
 	case 6:					/* NCR SCSI */
 		pirq = 3;
 		break;
 
 	case 11:				/* slot 1 */
-		switch (cfg->intpin) {
+		switch (pin) {
 		case 1:
 		case 4:
 			pirq = 0;
@@ -214,14 +211,14 @@ dec_axppci_33_intr_map(void *arg)
 			break;
 #ifdef DIAGNOSTIC
 		default:			/* XXX gcc -Wuninitialized */
-			panic("dec_axppci_33_intr_map: bogus PCI pin %d\n",
-			    cfg->intpin);
+			panic("dec_axppci_33_intr_route: bogus PCI pin %d\n",
+			    pin);
 #endif
 		};
 		break;
 
 	case 12:				/* slot 2 */
-		switch (cfg->intpin) {
+		switch (pin) {
 		case 1:
 		case 4:
 			pirq = 1;
@@ -234,14 +231,14 @@ dec_axppci_33_intr_map(void *arg)
 			break;
 #ifdef DIAGNOSTIC
 		default:			/* XXX gcc -Wuninitialized */
-			panic("dec_axppci_33_intr_map: bogus PCI pin %d\n",
-			    cfg->intpin);
+			panic("dec_axppci_33_intr_route: bogus PCI pin %d\n",
+			    pin);
 #endif
 		};
 		break;
 
 	case 8:				/* slot 3 */
-		switch (cfg->intpin) {
+		switch (pin) {
 		case 1:
 		case 4:
 			pirq = 2;
@@ -254,33 +251,24 @@ dec_axppci_33_intr_map(void *arg)
 			break;
 #ifdef DIAGNOSTIC
 		default:			/* XXX gcc -Wuninitialized */
-			panic("dec_axppci_33_intr_map bogus: PCI pin %d\n",
-			    cfg->intpin);
+			panic("dec_axppci_33_intr_route bogus: PCI pin %d\n",
+			    pin);
 #endif
 		};
 		break;
 
 	default:
-		printf("dec_axppci_33_intr_map: weird device number %d\n",
-		    cfg->slot);
+		printf("dec_axppci_33_intr_route: weird device number %d\n",
+		    pci_get_slot(dev));
 		return;
 	}
 
 	pirqreg = lca_pcib_read_config(0, 0, 7, 0,
 				       SIO_PCIREG_PIRQ_RTCTRL, 4);
-#if 0
-	printf("dec_axppci_33_intr_map: device %d pin %c: pirq %d, reg = %x\n",
-		device, '@' + cfg->intpin, pirq, pirqreg);
-#endif
 	pirqline = (pirqreg >> (pirq * 8)) & 0xff;
 	if ((pirqline & 0x80) != 0)
 		panic("bad pirqline %d",pirqline);
 	pirqline &= 0xf;
 
-#if 0
-	printf("dec_axppci_33_intr_map: device %d pin %c: mapped to line %d\n",
-	    device, '@' + cfg->intpin, pirqline);
-#endif
-
-	cfg->intline = pirqline;
+	return(pirqline);
 }
