@@ -144,27 +144,52 @@
 	when the kernel is booted.
 
 ################################################################################
+# Tset Sboot_cdrom DMount root file system from CD-ROM
+
+	set boot_cdrom
+
+	Instructs the kernel to try to mount the root file system from CD-ROM.
+
+################################################################################
 # Tset Sboot_ddb DDrop to the kernel debugger (DDB)
 
 	set boot_ddb
 
 	Instructs the kernel to start in the DDB debugger, rather than
-	proceeding to initialise when booted.
+	proceeding to initialize when booted.
 
 ################################################################################
-# Tset Sboot_gdb DSelect gdb-remote mode
+# Tset Sboot_gdb DSelect gdb-remote mode for the kernel debugger
 
 	set boot_gdb
 
 	Selects gdb-remote mode for the kernel debugger by default.
 
 ################################################################################
+# Tset Sboot_multicons DUse multiple consoles
+
+	set boot_multicons
+
+	Enables multiple console support in the kernel early on boot.
+	In a running system, console configuration can be manipulated
+	by the conscontrol(8) utility.
+
+################################################################################
+# Tset Sboot_serial DUse serial console
+
+	set boot_serial
+
+	Force the use of a serial console even when an internal console
+	is present.
+
+################################################################################
 # Tset Sboot_single DStart system in single-user mode
 
 	set boot_single
 
-	Prevents the kernel from initiating a multi-user startup, single-user
-	mode will be entered when the kernel has finished device probes.
+	Prevents the kernel from initiating a multi-user startup; instead,
+	a single-user mode will be entered when the kernel has finished
+	device probes.
 
 ################################################################################
 # Tset Sboot_verbose DVerbose boot messages

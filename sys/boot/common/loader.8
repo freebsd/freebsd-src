@@ -332,17 +332,30 @@ will be processed normally, defaulting to 10 seconds delay.
 .It Va boot_askname
 Instructs the kernel to prompt the user for the name of the root device
 when the kernel is booted.
+.It Va boot_cdrom
+Instructs the kernel to try to mount the root file system from CD-ROM.
 .It Va boot_ddb
 Instructs the kernel to start in the DDB debugger, rather than
 proceeding to initialize when booted.
 .It Va boot_gdb
 Selects gdb-remote mode for the kernel debugger by default.
+.It Va boot_multicons
+Enables multiple console support in the kernel early on boot.
+In a running system, console configuration can be manipulated
+by the
+.Xr conscontrol 8
+utility.
+.It Va boot_serial
+Force the use of a serial console even when an internal console
+is present.
 .It Va boot_single
-Prevents the kernel from initiating a multi-user startup; instead single-user
-mode will be entered when the kernel has finished device probing.
+Prevents the kernel from initiating a multi-user startup; instead,
+a single-user mode will be entered when the kernel has finished
+device probing.
 .It Va boot_userconfig
 Requests that the kernel's interactive device configuration program
 be run when the kernel is booted.
+Currently a no-op.
 .It Va boot_verbose
 Setting this variable causes extra debugging information to be printed
 by the kernel during the boot phase.
