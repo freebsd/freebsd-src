@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.7 1995/05/26 08:41:35 jkh Exp $
+ * $Id: config.c,v 1.8 1995/05/26 19:28:00 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -311,11 +311,6 @@ configResolv(void)
     fprintf(fp, "nameserver\t%s\n", getenv(VAR_NAMESERVER));
     msgNotify("Wrote /etc/resolv.conf");
     fclose(fp);
-    if (getenv(VAR_IPADDR)) {
-	fp = fopen("/etc/hosts", "a");
-	fprintf(fp, "%s\t\t%s\n", getenv(VAR_IPADDR), getenv(VAR_HOSTNAME));
-	fclose(fp);
-    }
     alreadyDone = TRUE;
 }
 

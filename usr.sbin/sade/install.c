@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.58 1995/05/26 10:20:46 jkh Exp $
+ * $Id: install.c,v 1.59 1995/05/26 10:32:28 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -220,12 +220,20 @@ static void
 installFinal(void)
 {
     static Boolean alreadyDone = FALSE;
+    FILE *fp;
 
     if (alreadyDone)
 	return;
     configFstab();
     configSysconfig();
     configResolv();
+
+    /* Tack ourselves at the end of /etc/hosts */
+    if (getenv(VAR_IPADDR)) {
+	fp = fopen("/etc/hosts", "a");
+	fprintf(fp, "%s\t\t%s\n", getenv(VAR_IPADDR), getenv(VAR_HOSTNAME));
+	fclose(fp);
+    }
     alreadyDone = TRUE;
     msgConfirm("Installation completed successfully.\nHit return now to go back to the main menu.");
     SystemWasInstalled = TRUE;
