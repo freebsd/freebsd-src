@@ -1,4 +1,5 @@
 american.iso88591	en_US.ISO_8859-1
+ascii		lt_LN.ASCII
 c-french.iso88591	fr_CA.ISO_8859-1
 Cextend		en_US.ISO_8859-1
 Cextend.en	en_US.ISO_8859-1
@@ -121,3 +122,4 @@ sv_SE.88591	sv_SE.ISO_8859-1
 sv_SE.88591.en	sv_SE.ISO_8859-1
 sv_SE.ISO8859-1	sv_SE.ISO_8859-1
 swedish.iso88591	sv_SE.ISO_8859-1
+us-ascii	lt_LN.ASCII
