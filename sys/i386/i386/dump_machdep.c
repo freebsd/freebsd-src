@@ -77,7 +77,7 @@ dumpsys(struct dumperinfo *di)
 
 	dumplo = di->mediaoffset + di->mediasize - Maxmem * (off_t)PAGE_SIZE;
 	dumplo -= sizeof kdh * 2;
-	i = di->dumper(di->priv, &kdh, NULL, dumplo, sizeof kdh);
+	i = di->dumper(di->priv, &kdh, 0, dumplo, sizeof kdh);
 	if (i)
 		printf("\nDump failed writing header (%d)\n", i);
 	dumplo += sizeof kdh;
@@ -100,7 +100,7 @@ dumpsys(struct dumperinfo *di)
 			printf(" %d", count / (1024 * 1024 / PAGE_SIZE));
 			mb = i;
 		}
-		i = di->dumper(di->priv, va, NULL, dumplo, left * PAGE_SIZE);
+		i = di->dumper(di->priv, va, 0, dumplo, left * PAGE_SIZE);
 		if (i)
 			break;
 		count += left;
@@ -114,10 +114,10 @@ dumpsys(struct dumperinfo *di)
 	}
 	if (i) 
 		printf("\nDump failed writing data (%d)\n", i);
-	i = di->dumper(di->priv, &kdh, NULL, dumplo, sizeof kdh);
+	i = di->dumper(di->priv, &kdh, 0, dumplo, sizeof kdh);
 	if (i)
 		printf("\nDump failed writing trailer (%d)\n", i);
-	di->dumper(di->priv, NULL, NULL, 0, 0);  /* tell them we are done */
+	di->dumper(di->priv, NULL, 0, 0, 0);  /* tell them we are done */
 	printf("\nDump complete\n");
 	return;
 }

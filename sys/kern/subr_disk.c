@@ -271,7 +271,7 @@ sysctl_disks(SYSCTL_HANDLER_ARGS)
 	return error;
 }
  
-SYSCTL_PROC(_kern, OID_AUTO, disks, CTLTYPE_STRING | CTLFLAG_RD, 0, NULL, 
+SYSCTL_PROC(_kern, OID_AUTO, disks, CTLTYPE_STRING | CTLFLAG_RD, 0, 0, 
     sysctl_disks, "A", "names of available disks");
 
 /*

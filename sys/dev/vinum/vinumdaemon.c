@@ -263,7 +263,7 @@ vinum_finddaemon()
     int result;
 
     if (daemonpid != 0) {				    /* we think we have a daemon, */
-	queue_daemon_request(daemonrq_ping, (union daemoninfo) NULL); /* queue a ping */
+	queue_daemon_request(daemonrq_ping, (union daemoninfo) 0); /* queue a ping */
 	result = tsleep(&vinum_finddaemon, PUSER, "reap", 2 * hz);
 	if (result == 0)				    /* yup, the daemon's up and running */
 	    return 0;
