@@ -879,6 +879,8 @@ ar_highpoint_read_conf(struct ad_softc *adp, struct ar_softc **raidp)
 
 	switch (info->type) {
 	case HPT_T_RAID0:
+	    if ((info->order & (HPT_O_RAID0|HPT_O_OK))==(HPT_O_RAID0|HPT_O_OK))
+		goto highpoint_raid1;
 	    if (info->order & (HPT_O_RAID0 | HPT_O_RAID1))
 		goto highpoint_raid01;
 	    if (raid->magic_0 && raid->magic_0 != info->magic_0)
@@ -892,6 +894,7 @@ ar_highpoint_read_conf(struct ad_softc *adp, struct ar_softc **raidp)
 	    break;
 
 	case HPT_T_RAID1:
+highpoint_raid1:
 	    if (raid->magic_0 && raid->magic_0 != info->magic_0)
 		continue;
 	    raid->magic_0 = info->magic_0;
@@ -1006,9 +1009,9 @@ ar_highpoint_write_conf(struct ar_softc *rdp)
 	    break;
 
 	case AR_F_RAID1:
-	    config->type = HPT_T_RAID1;
+	    config->type = HPT_T_RAID0;
 	    strcpy(config->name_2, "RAID 1");
-	    config->disk_number = (disk < rdp->width) ? disk : disk + 9;
+	    config->disk_number = (disk < rdp->width) ? disk : disk + 5;
 	    config->order = HPT_O_RAID0 | HPT_O_OK;
 	    break;
 
