@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,13 +29,15 @@
  *
  * $FreeBSD$ 
  *
- *      last edit-date: [Fri Dec 18 12:00:26 1998]
+ *      last edit-date: [Mon Jul 26 10:59:51 1999]
  *
  *---------------------------------------------------------------------------*/
 
 #ifdef __FreeBSD__
 #include "isic.h"
 #include "opt_i4b.h"
+#elif defined(__bsdi__)
+#include "isic.h"
 #else
 #define NISIC 1
 #endif
@@ -56,6 +58,9 @@
 #ifdef __FreeBSD__
 #include <machine/clock.h>
 #include <i386/isa/isa_device.h>
+#elif defined(__bsdi__)
+#include <sys/device.h>
+#include <i386/isa/isavar.h>
 #else
 #include <sys/device.h>
 #if defined(__NetBSD__) && defined(amiga)
@@ -105,6 +110,8 @@ struct isa_driver isicdriver = {
 int next_isic_unit = 0;
 struct isic_softc isic_sc[ISIC_MAXUNIT];
 
+#elif defined(__bsdi__)
+	/* XXX */
 #else
 
 #ifdef NetBSD1_3
@@ -191,6 +198,82 @@ isicprobe(struct isa_device *dev)
 			break;
 #endif
 
+#ifdef ELSA_PCC16
+		case FLAG_ELSA_PCC16:
+			ret = isic_probe_Eqs1pi(dev, 0);
+			break;
+#endif
+
+		default:
+			break;
+	}
+	return(ret);
+}
+#elif defined(__bsdi__)
+/*---------------------------------------------------------------------------*
+ *	isic - pnp device driver probe routine
+ *---------------------------------------------------------------------------*/
+int
+isapnp_isicmatch(struct device *parent, struct cfdata *cf, struct isa_attach_args *ia)
+{
+#ifdef DYNALINK
+	if (isapnp_match_dynalink(parent, cf, ia))
+		return 1;
+#endif
+	return 0;
+}
+/*---------------------------------------------------------------------------*
+ *	isic - non-pnp device driver probe routine
+ *---------------------------------------------------------------------------*/
+int
+isa_isicmatch(struct device *parent, struct cfdata *cf, struct isa_attach_args *ia)
+{
+	int ret = 0;
+
+	switch(cf->cf_flags)
+	{
+#ifdef TEL_S0_8
+		case FLAG_TELES_S0_8:
+			ret = isic_probe_s08(parent, cf, ia);
+			break;
+#endif
+
+#ifdef TEL_S0_16
+		case FLAG_TELES_S0_16:
+			ret = isic_probe_s016(parent, cf, ia);
+			break;
+#endif
+
+#ifdef TEL_S0_16_3
+		case FLAG_TELES_S0_163:
+			ret = isic_probe_s0163(parent, cf, ia);		
+			break;
+#endif
+
+#ifdef AVM_A1
+		case FLAG_AVM_A1:
+			ret = isic_probe_avma1(parent, cf, ia);
+			break;
+#endif
+
+#ifdef USR_STI
+		case FLAG_USR_ISDN_TA_INT:
+			ret = isic_probe_usrtai(parent, cf, ia);		
+			break;
+#endif
+
+#ifdef ITKIX1
+		case FLAG_ITK_IX1:
+			ret = isic_probe_itkix1(parent, cf, ia);
+			break;
+#endif
+
+#ifdef ELSA_PCC16
+                case FLAG_ELSA_PCC16:
+			ret = isic_probe_Eqs1pi(dev, 0);
+			break;
+#endif
+
 		default:
 			break;
 	}
@@ -227,6 +310,14 @@ isicattach(struct isa_device *dev)
 int
 isic_realattach(struct isa_device *dev, unsigned int iobase2)
 
+#elif defined(__bsdi__)
+
+/*---------------------------------------------------------------------------*
+ *	isic - non-pnp device driver attach routine
+ *---------------------------------------------------------------------------*/
+int
+isa_isicattach(struct device *parent, struct device *self, struct isa_attach_args *ia)
+
 #else /* ! __FreeBSD__ */
 
 int
@@ -238,15 +329,26 @@ isicattach(int flags, struct isic_softc *sc)
 	char *drvid;
 
 #ifdef __FreeBSD__
+
 	struct isic_softc *sc = &isic_sc[dev->id_unit];
 #define	PARM	dev
 #define	PARM2	dev, iobase2
 #define	FLAGS	dev->id_flags
+
+#elif defined(__bsdi__)
+
+	struct isic_softc *sc = (struct isic_softc *)self;
+#define	PARM	parent, self, ia
+#define	PARM2	parent, self, ia
+#define	FLAGS	sc->sc_flags
+
 #else
+
 #define PARM	sc
 #define PARM2	sc
 #define	FLAGS	flags
-#endif
+
+#endif /* __FreeBSD__ */
 
   	static char *ISACversion[] = {
   		"2085 Version A1/A2 or 2086/2186 Version 1.1",
@@ -271,7 +373,7 @@ isicattach(int flags, struct isic_softc *sc)
 #ifdef __FreeBSD__
 	if(dev->id_unit != next_isic_unit)
 	{
-		printf("isicattach: Error: new unit (%d) != next_isic_unit (%d)!\n", dev->id_unit, next_isic_unit);
+/*XXX*/		printf("isicattach: Error: new unit (%d) != next_isic_unit (%d)!\n", dev->id_unit, next_isic_unit);
 		return(0);
 	}
 
@@ -325,25 +427,36 @@ isicattach(int flags, struct isic_softc *sc)
 			break;
 #endif
 
+#ifdef ELSA_PCC16
+		case FLAG_ELSA_PCC16:
+			ret = isic_attach_Eqs1pi(dev, 0);
+			break;
+#endif
+
+#ifdef amiga
+		case FLAG_BLMASTER:
+			ret = 1; /* full detection was done in caller */
+			break;
+#endif
+
 /* ======================================================================
  * Only P&P cards follow below!!!
  */
+
 #ifdef __FreeBSD__		/* we've already splitted all non-ISA stuff
 				   out of this ISA specific part for the other
 				   OS */
 
-#ifdef AVM_PCMCIA
+#ifdef AVM_A1_PCMCIA
 		case FLAG_AVM_A1_PCMCIA:
-			ret = isic_attach_fritzpcmcia(PARM);
+                      ret = isic_attach_fritzpcmcia(PARM);
 			break;
 #endif
 
-#ifndef __FreeBSD__
 #ifdef TEL_S0_16_3_P
 		case FLAG_TELES_S0_163_PnP:
 			ret = isic_attach_s0163P(PARM2);
 			break;
-#endif
 #endif
 
 #ifdef CRTX_S0_P
@@ -370,15 +483,26 @@ isicattach(int flags, struct isic_softc *sc)
 			break;
 #endif
 
-#endif /* __FreeBSD__ / P&P specific part */
-
-/* --- XXX - don't know how to handle this - should be removed!!!! ---- */
-#ifdef amiga
-		case FLAG_BLMASTER:
-			ret = 1; /* full detection was done in caller */
+#ifdef AVM_PNP
+		case FLAG_AVM_PNP:
+			ret = isic_attach_avm_pnp(PARM2);
+			ret = 0;
 			break;
 #endif
-/* ------------------------------------------------------------------- */
+
+#ifdef SIEMENS_ISURF2
+		case FLAG_SIEMENS_ISURF2:
+			ret = isic_attach_siemens_isurf(PARM2);
+			break;
+#endif
+
+#ifdef ASUSCOM_IPAC
+		case FLAG_ASUSCOM_IPAC:
+			ret = isic_attach_asi(PARM2);
+			break;
+#endif
+
+#endif /* __FreeBSD__ / P&P specific part */
 
 		default:
 			break;
@@ -387,40 +511,78 @@ isicattach(int flags, struct isic_softc *sc)
 	if(ret == 0)
 		return(0);
 		
-	sc->sc_isac_version = 0;
-	sc->sc_isac_version = ((ISAC_READ(I_RBCH)) >> 5) & 0x03;
-
-	switch(sc->sc_isac_version)
+	if(sc->sc_ipac)
 	{
-		case ISAC_VA:
-		case ISAC_VB1:
-                case ISAC_VB2:
-		case ISAC_VB3:
-			break;
+		ret = IPAC_READ(IPAC_ID);
 
-		default:
-			printf(ISIC_FMT "Error, ISAC version %d unknown!\n",
-				ISIC_PARM, sc->sc_isac_version);
+		if(ret != IPAC_V11)
+		{
+			printf("isic%d: Error, IPAC version %d unknown!\n",
+					sc->sc_unit, ret);
 			return(0);
-			break;
+		}
 	}
-
-	sc->sc_hscx_version = HSCX_READ(0, H_VSTR) & 0xf;
-
-	switch(sc->sc_hscx_version)
+	else
 	{
-		case HSCX_VA1:
-		case HSCX_VA2:
-		case HSCX_VA3:
-		case HSCX_V21:
-			break;
-			
-		default:
-			printf(ISIC_FMT "Error, HSCX version %d unknown!\n",
-				ISIC_PARM, sc->sc_hscx_version);
-			return(0);
-			break;
-	};
+
+		sc->sc_isac_version = 0;
+	sc->sc_hscx_version = 0;
+
+	if(sc->sc_ipac)
+		{
+		ret = IPAC_READ(IPAC_ID);
+	
+		switch(ret)
+		{
+			case 0x01:
+				printf("isic%d: IPAC PSB2115 Version 1.1\n", sc->sc_unit);
+				break;
+	
+			default:
+				printf("isic%d: Error, IPAC version %d unknown!\n",
+					sc->sc_unit, ret);
+				return(0);
+				break;
+		}
+		}
+	else
+	{
+		sc->sc_isac_version = ((ISAC_READ(I_RBCH)) >> 5) & 0x03;
+	
+		switch(sc->sc_isac_version)
+		{
+			case ISAC_VA:
+			case ISAC_VB1:
+			case ISAC_VB2:
+			case ISAC_VB3:
+				break;
+	
+			default:
+				printf(ISIC_FMT "Error, ISAC version %d unknown!\n",
+				ISIC_PARM, sc->sc_isac_version);
+				return(0);
+				break;
+		}
+
+		sc->sc_hscx_version = HSCX_READ(0, H_VSTR) & 0xf;
+
+		switch(sc->sc_hscx_version)
+		{
+			case HSCX_VA1:
+			case HSCX_VA2:
+			case HSCX_VA3:
+			case HSCX_V21:
+				break;
+				
+			default:
+				printf(ISIC_FMT "Error, HSCX version %d unknown!\n",
+					ISIC_PARM, sc->sc_hscx_version);
+				return(0);
+				break;
+		}
+	}
+	
+	}
 
 	/* ISAC setup */
 	
@@ -524,6 +686,18 @@ isicattach(int flags, struct isic_softc *sc)
 			drvid = "ITK ix1 micro";
 			break;
 
+		case FLAG_ELSA_PCC16:
+			drvid = "ELSA PCC-16";
+			break;
+
+		case FLAG_ASUSCOM_IPAC:
+			drvid = "Asuscom ISDNlink 128K PnP";
+			break;
+
+		case FLAG_SIEMENS_ISURF2:
+			drvid = "Siemens I-Surf 2.0";
+			break;
+
 		default:
 			drvid = "ERROR, unknown flag used";
 			break;
@@ -536,42 +710,52 @@ isicattach(int flags, struct isic_softc *sc)
 
 	/* announce chip versions */
 	
-	if(sc->sc_isac_version >= ISAC_UNKN)
+	if(sc->sc_ipac)
 	{
-		printf(ISIC_FMT "ISAC Version UNKNOWN (VN=0x%x)" TERMFMT,
-				ISIC_PARM,
-				sc->sc_isac_version);
-		sc->sc_isac_version = ISAC_UNKN;
+		printf(ISIC_FMT "IPAC PSB2115 Version 1.1\n", ISIC_PARM);
 	}
 	else
 	{
-		printf(ISIC_FMT "ISAC %s (IOM-%c)" TERMFMT,
-				ISIC_PARM,
-				ISACversion[sc->sc_isac_version],
-				sc->sc_bustyp == BUS_TYPE_IOM1 ? '1' : '2');
-	}
-
+		if(sc->sc_isac_version >= ISAC_UNKN)
+		{
+			printf(ISIC_FMT "ISAC Version UNKNOWN (VN=0x%x)" TERMFMT,
+					ISIC_PARM,
+					sc->sc_isac_version);
+			sc->sc_isac_version = ISAC_UNKN;
+		}
+		else
+		{
+			printf(ISIC_FMT "ISAC %s (IOM-%c)" TERMFMT,
+					ISIC_PARM,
+					ISACversion[sc->sc_isac_version],
+					sc->sc_bustyp == BUS_TYPE_IOM1 ? '1' : '2');
+		}
+	
 #ifdef __FreeBSD__
-	printf("(Addr=0x%lx)\n", (u_long)ISAC_BASE);
+		printf("(Addr=0x%lx)\n", (u_long)ISAC_BASE);
 #endif
 		
-	if(sc->sc_hscx_version >= HSCX_UNKN)
-	{
-		printf(ISIC_FMT "HSCX Version UNKNOWN (VN=0x%x)" TERMFMT,
-				ISIC_PARM,
-				sc->sc_hscx_version);
-		sc->sc_hscx_version = HSCX_UNKN;
-	}
-	else
-	{
-		printf(ISIC_FMT "HSCX %s" TERMFMT,
-				ISIC_PARM,
-				HSCXversion[sc->sc_hscx_version]);
+		if(sc->sc_hscx_version >= HSCX_UNKN)
+		{
+			printf(ISIC_FMT "HSCX Version UNKNOWN (VN=0x%x)" TERMFMT,
+					ISIC_PARM,
+					sc->sc_hscx_version);
+			sc->sc_hscx_version = HSCX_UNKN;
+		}
+		else
+		{
+			printf(ISIC_FMT "HSCX %s" TERMFMT,
+					ISIC_PARM,
+					HSCXversion[sc->sc_hscx_version]);
+		}
+	
+#ifdef __FreeBSD__	
+		printf("(AddrA=0x%lx, AddrB=0x%lx)\n", (u_long)HSCX_A_BASE, (u_long)HSCX_B_BASE);
+
+#endif /* __FreeBSD__ */
 	}
 
 #ifdef __FreeBSD__	
-	printf("(AddrA=0x%lx, AddrB=0x%lx)\n", (u_long)HSCX_A_BASE, (u_long)HSCX_B_BASE);
-
 	next_isic_unit++;
 
 #if defined(__FreeBSD_version) && __FreeBSD_version >= 300003

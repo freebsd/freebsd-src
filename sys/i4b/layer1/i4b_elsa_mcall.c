@@ -35,7 +35,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Tue Dec  1 07:45:53 1998]
+ *      last edit-date: [Sun Feb 14 10:26:29 1999]
  *
  *	-mh	started support for ELSA MC/all
  *

@@ -32,7 +32,7 @@
  *
  * $FreeBSD$ 
  *
- *      last edit-date: [Thu Feb  5 13:38:50 1998]
+ *      last edit-date: [Sun Feb 14 10:26:56 1999]
  *
  *	-hm	added AVM config register defs
  *	-hm	split up for rewrite of Siemens chipset driver

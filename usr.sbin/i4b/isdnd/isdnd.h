@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,7 +29,7 @@
  *
  * $FreeBSD$ 
  *
- *      last edit-date: [Mon Dec 14 10:06:39 1998]
+ *      last edit-date: [Thu May 20 14:44:18 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -94,6 +94,7 @@
 #define DL_PROC		0x0040	/* messages related to process handling	*/
 #define DL_DRVR		0x0080	/* messages related to kernel i4b msg i/o*/
 #define DL_CNST		0x0100	/* messages related to controller state	*/
+#define DL_RCCF		0x0200	/* messages related to isdnd.rc at boot	*/
 
 #ifdef DEBUG
 #define DBGL(cond, dolog) if(cond & debug_flags) dolog
@@ -145,10 +146,8 @@
 /* struct for rates - each day has one or more */
 struct rates
 {
-	int start_hr;	/* hour at which this rate starts, e.g. 12 */
-	int start_min;	/* minute of start ... */
-	int end_hr;	/* hour at which this rate ends, e.g. 19 */
-	int end_min;	/* minute of end ... */
+	int start_time;	/* hour and min at which this rate starts, e.g. 12:20 12*60+20*/
+	int end_time;	/* hour and min at which this rate ends, e.g. 19:10 19*60+10*/
 	int rate;	/* how long can I telephone at this price, seconds */
 	struct rates *next;
 };
@@ -266,10 +265,12 @@ typedef struct cfg_entry {
 	int idle_time_in;		/* max idle time incoming calls */
 	int idle_time_out;		/* max idle time outgoing calls */
 
-	int  unitlength;		/* length of a charging unit	*/
+	int shorthold_algorithm;	/* shorthold algorithm		*/
+
+	int unitlength;			/* length of a charging unit	*/
 #define UNITLENGTH_DEFAULT	60	/* last resort unit length	*/
 
-	int  earlyhangup;		/* time in seconds to hangup 	*/
+	int earlyhangup;		/* time in seconds to hangup 	*/
 					/* before the next expected	*/
 					/* charging unit		*/
 #define EARLYHANGUP_DEFAULT	5
@@ -547,6 +548,10 @@ int accepted = 0;
 
 int isdntime = 0;		/* flag, log time from exchange	*/
 
+char tinainitprog[MAXPATHLEN] = TINA_FILE_DEF;
+
+char rotatesuffix[MAXPATHLEN] = "";
+
 #else /* !MAIN */
 
 int isdnfd;
@@ -618,6 +623,10 @@ int accepted;
 
 int isdntime;
 
+char tinainitprog[MAXPATHLEN];
+
+char rotatesuffix[MAXPATHLEN];
+
 #endif /* MAIN */
 
 char * bdrivername ( int drivertype );
@@ -645,6 +654,7 @@ int exec_answer ( cfg_entry_t *cep );
 int exec_connect_prog ( cfg_entry_t *cep, const char *prog, int link_down );
 pid_t exec_prog ( char *prog, char **arglist );
 cfg_entry_t * find_by_device_for_dialout ( int drivertype, int driverunit );
+cfg_entry_t *find_by_device_for_dialoutnumber(int drivertype, int driverunit, int cmdlen, char *cmd);
 cfg_entry_t * find_matching_entry_incoming ( msg_connect_ind_t *mp );
 cfg_entry_t * find_active_entry_by_driver ( int drivertype, int driverunit );
 void finish_log ( void );
@@ -673,6 +683,7 @@ void msg_negcomplete_ind(msg_negcomplete_ind_t *ind);
 void msg_ifstatechg_ind(msg_ifstatechg_ind_t *ind);
 void msg_drvrdisc_req(msg_drvrdisc_req_t *mp);
 void msg_dialout ( msg_dialout_ind_t *mp );
+void msg_dialoutnumber(msg_dialoutnumber_ind_t *mp);
 void msg_disconnect_ind ( msg_disconnect_ind_t *mp );
 void msg_idle_timeout_ind ( msg_idle_timeout_ind_t *mp );
 void msg_l12stat_ind(msg_l12stat_ind_t *ml);
@@ -736,6 +747,7 @@ void monitor_evnt_log(int prio, const char * what, const char * msg);
 /* controller.c */
 
 int init_controller_state(int controller, int ctrl_type, int card_type, int tei);
+void init_active_controller(void);
 int set_controller_state(int controller, int state);
 int get_controller_state(int controller);
 int decr_free_channels(int controller);

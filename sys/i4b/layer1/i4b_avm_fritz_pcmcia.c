@@ -35,7 +35,7 @@
  *
  * $FreeBSD$ 
  *
- *      last edit-date: [Tue Dec  1 22:03:51 1998]
+ *      last edit-date: [Sun May  2 12:01:16 1999]
  *
  *	-ap	added support for AVM PCMCIA Fritz!Card
  *	-mh	split into separate file
@@ -49,7 +49,7 @@
 #define NISIC 1
 #endif
 
-#if NISIC > 0 && defined(AVM_PCMCIA)
+#if NISIC > 0 && defined(AVM_A1_PCMCIA)
 
 #include <sys/param.h>
 #if defined(__FreeBSD__) && __FreeBSD__ >= 3
@@ -78,7 +78,6 @@
 #else
 #include <i4b/i4b_debug.h>
 #include <i4b/i4b_ioctl.h>
-
 #include <dev/pcmcia/pcmciareg.h>
 #include <dev/pcmcia/pcmciavar.h>
 #endif
@@ -87,9 +86,9 @@
 #include <i4b/layer1/i4b_isac.h>
 #include <i4b/layer1/i4b_hscx.h>
 
+#ifndef __FreeBSD__
 #include <i4b/layer1/pcmcia_isic.h>
 
-#ifndef __FreeBSD__
 /* PCMCIA support routines */
 static u_int8_t avma1_pcmcia_read_reg __P((struct isic_softc *sc, int what, bus_size_t offs));
 static void avma1_pcmcia_write_reg __P((struct isic_softc *sc, int what, bus_size_t offs, u_int8_t data));
@@ -392,10 +391,8 @@ isic_probe_avma1_pcmcia(struct isa_device *dev)
  *---------------------------------------------------------------------------*/
 #ifdef __FreeBSD__
 int
-isic_attach_fritzpcmica(struct isa_device *dev)
+isic_attach_fritzpcmcia(struct isa_device *dev)
 {
-	struct isic_softc *sc = &isic_sc[dev->id_unit];
-
 	/* ResetController again just to make sure... */
 
 	outb(dev->id_iobase + STAT0_OFFSET, 0x00);
@@ -501,4 +498,4 @@ isic_attach_fritzpcmcia(struct pcmcia_isic_softc *psc, struct pcmcia_config_entr
 }
 #endif
 
-#endif /* NISIC > 0 && defined(AVM_PCMCIA) */
+#endif /* NISIC > 0 && defined(AVM_A1_PCMCIA) */

@@ -35,7 +35,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Tue Dec  1 07:45:53 1998]
+ *      last edit-date: [Sun Feb 14 10:26:25 1999]
  *
  *	-mh	added support for elsa ISDN/mc
  *
@@ -94,6 +94,7 @@ static u_int8_t elsa_isdnmc_read_reg __P((struct isic_softc *sc, int what, bus_s
 static void elsa_isdnmc_write_reg __P((struct isic_softc *sc, int what, bus_size_t offs, u_int8_t data));
 static void elsa_isdnmc_read_fifo __P((struct isic_softc *sc, int what, void *buf, size_t size));
 static void elsa_isdnmc_write_fifo __P((struct isic_softc *sc, int what, const void *data, size_t size));
+static void elsa_isdnmc_clrirq __P((struct isic_softc *sc));
 #endif
 
 /*
@@ -106,6 +107,24 @@ static void elsa_isdnmc_write_fifo __P((struct isic_softc *sc, int what, const v
 #define ADDR_LATCH	4	/* address latch at offset 4 */
 
 /* This is very similar to the ELSA QuickStep 1000 (ISA) card */
+
+#ifdef __FreeBSD__
+static void
+elsa_isdnmc_clrirq(void *base)
+{
+}
+#else
+static void
+elsa_isdnmc_clrirq(struct isic_softc *sc)
+{
+	ISAC_WRITE(I_MASK, 0xff);
+	HSCX_WRITE(0, H_MASK, 0xff);
+	HSCX_WRITE(1, H_MASK, 0xff);
+	ISAC_WRITE(I_MASK, ISAC_IMASK);
+	HSCX_WRITE(0, H_MASK, HSCX_A_IMASK);
+	HSCX_WRITE(1, H_MASK, HSCX_B_IMASK);
+}
+#endif
 
 /*---------------------------------------------------------------------------*
  *	read fifo routines
@@ -284,7 +303,8 @@ isic_attach_elsaisdnmc(struct pcmcia_isic_softc *psc, struct pcmcia_config_entry
 	t = sc->sc_maps[0].t;
 	h = sc->sc_maps[0].h;
 
-	sc->clearirq = NULL;
+	sc->clearirq = elsa_isdnmc_clrirq;
+
 	sc->readreg = elsa_isdnmc_read_reg;
 	sc->writereg = elsa_isdnmc_write_reg;
 

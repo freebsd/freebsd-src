@@ -35,7 +35,7 @@
  *
  * $FreeBSD$ 
  *
- *      last edit-date: [Mon Dec 14 10:54:23 1998]
+ *      last edit-date: [Sun May  2 11:57:08 1999]
  *
  *	-mh	original implementation
  *      -hm     NetBSD patches from Martin 
@@ -92,8 +92,12 @@ typedef void (*attach_func)(struct isic_softc *sc);
 
 /* map allocators */
 static void generic_pnp_mapalloc(struct isapnp_attach_args *ipa, struct isic_softc *sc);
+#ifdef DRN_NGO
 static void ngo_pnp_mapalloc(struct isapnp_attach_args *ipa, struct isic_softc *sc);
+#endif
+#if defined(CRTX_S0_P) || defined(TEL_S0_16_3_P)
 static void tls_pnp_mapalloc(struct isapnp_attach_args *ipa, struct isic_softc *sc);
+#endif
 
 /* card attach functions */
 extern void isic_attach_Cs0P __P((struct isic_softc *sc));
@@ -350,6 +354,7 @@ generic_pnp_mapalloc(struct isapnp_attach_args *ipa, struct isic_softc *sc)
 	sc->sc_maps[0].size = 0;	/* foreign mapping, leave it alone */
 }
 
+#ifdef DRN_NGO
 static void
 ngo_pnp_mapalloc(struct isapnp_attach_args *ipa, struct isic_softc *sc)
 {
@@ -362,7 +367,9 @@ ngo_pnp_mapalloc(struct isapnp_attach_args *ipa, struct isic_softc *sc)
 		sc->sc_maps[1].h = ipa->ipa_io[1].h;
 		sc->sc_maps[1].size = 0;
 }
+#endif
 
+#if defined(CRTX_S0_P) || defined(TEL_S0_16_3_P)
 static void
 tls_pnp_mapalloc(struct isapnp_attach_args *ipa, struct isic_softc *sc)
 {
@@ -384,3 +391,4 @@ tls_pnp_mapalloc(struct isapnp_attach_args *ipa, struct isic_softc *sc)
 		sc->sc_maps[3].h = ipa->ipa_io[1].h;
 		sc->sc_maps[3].size = 0;
 }
+#endif

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,7 +29,7 @@
  *
  * $FreeBSD$ 
  *
- *      last edit-date: [Sat Dec  5 18:11:17 1998]
+ *      last edit-date: [Thu Apr 29 09:07:29 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -42,10 +42,16 @@
 #define CONFIG_FILE_DEF	"/etc/isdn/isdnd.rc"
 #define RATES_FILE_DEF	"/etc/isdn/isdnd.rates"
 
+#define TINA_FILE_DEF	"/etc/isdn/tinainitprog"
+
 #define LIBDIR		"/usr/local/lib/isdn"
 
 #define LOG_FILE_DEF	"/var/log/isdnd.log"
+#ifdef __bsdi__
 #define ACCT_FILE_DEF	"/var/log/isdnd.acct"
+#else
+#define ACCT_FILE_DEF	"/var/account/isdnd.acct"
+#endif
 
 #define PIDFILE		"/var/run/isdnd.pid"
 

@@ -35,7 +35,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Fri Jul 17 18:07:00 1998]
+ *      last edit-date: [Sun May 30 10:33:05 1999]
  *
  *	-mh	created
  *
@@ -221,7 +221,7 @@ int monitor_start_rights(const char *clientspec)
 	if (r.local)
 		local_rights = i;
 
-	log(LL_DBG, "system: monitor = %s", clientspec);
+	DBGL(DL_RCCF, (log(LL_DBG, "system: monitor = %s", clientspec)));
 	
 	return I4BMAR_OK;
 }
@@ -235,7 +235,7 @@ void monitor_add_rights(int rights_mask)
 
 	VARA_AT(rights, cur_add_entry).rights |= rights_mask;
 
-	log(LL_DBG, "system: monitor-access = 0x%x", rights_mask);	
+	DBGL(DL_RCCF, (log(LL_DBG, "system: monitor-access = 0x%x", rights_mask)));
 }
 
 /*
@@ -351,10 +351,11 @@ int monitor_create_local_socket()
 	sa.sun_len = sizeof sa;
 	sa.sun_family = AF_LOCAL;
 	strcpy(sa.sun_path, VARA_AT(rights, local_rights).name);
-	if (bind(s, (struct sockaddr *)&sa, sizeof sa)) {
+	if (bind(s, (struct sockaddr *)&sa, SUN_LEN(&sa))) {
 		log(LL_ERR, "could not bind local monitor socket [%s], errno = %d", VARA_AT(rights, local_rights).name, errno);
 		exit(1);
 	}
+	chmod(VARA_AT(rights, local_rights).name, 0500);
 	if (listen(s, 0)) {
 		log(LL_ERR, "could not listen on local monitor socket, errno = %d", errno);
 		exit(1);
@@ -586,23 +587,35 @@ static int monitor_command(int con_index, int fd, int rights)
 	ioctl(fd, FIONREAD, &u);
 	if (u < I4B_MON_CMD_HDR) {
 		if (u == 0) {
+			log(LL_ERR, "monitor #%d, read 0 bytes", con_index);
 			/* socket closed by peer */
 			close(fd);
 			return 1;
 		}
 		return 0;	/* not enough data there yet */
 	}
+
 	bytes = recv(fd, cmd, I4B_MON_CMD_HDR, MSG_PEEK);
+
 	if (bytes < I4B_MON_CMD_HDR)
+	{
+		log(LL_ERR, "monitor #%d, read only %d bytes", con_index, bytes);
 		return 0;	/* errh? something must be wrong... */
+	}
+
 	bytes = I4B_GET_2B(cmd, I4B_MON_CMD_LEN);
-	if (bytes >= sizeof cmd) {
+
+	if (bytes >= sizeof cmd)
+	{
 		close(fd);
-		log(LL_ERR, "garbage on monitor connection #%d, closing it", con_index);
+		log(LL_ERR, "monitor #%d, garbage on connection", con_index);
 		return 1;
 	}
+
 	/* now we know the size, it fits, so lets read it! */
-	if (read(fd, cmd, bytes) <= 0) {
+	if (read(fd, cmd, bytes) <= 0)
+	{
+		log(LL_ERR, "monitor #%d, read <= 0", con_index);
 		close(fd);
 		return 1;
 	}

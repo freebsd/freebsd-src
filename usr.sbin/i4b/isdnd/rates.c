@@ -1,7 +1,7 @@
 /*
  *   Copyright (c) 1997 Gary Jennejohn. All rights reserved.
  * 
- *   Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ *   Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  *   Redistribution and use in source and binary forms, with or without
  *   modification, are permitted provided that the following conditions
@@ -37,11 +37,13 @@
  *
  * $FreeBSD$ 
  *
- *      last edit-date: [Sat Dec  5 18:11:55 1998]
+ *      last edit-date: [Sun Feb 14 10:12:01 1999]
  *
  *---------------------------------------------------------------------------*/
 
 static char error[256];
+
+static int getrate(int rate_type);
 
 #ifdef PARSE_DEBUG_MAIN
 
@@ -51,22 +53,35 @@ static char error[256];
 
 #define ERROR (-1)
 
-int main()
+extern int got_rate;
+
+int main( int argc, char **argv )
 {
 	int ret;
 	ret = readrates("/etc/isdn/isdnd.rates");
 	if(ret == ERROR)
 		fprintf(stderr, "readrates returns [%d], [%s]\n", ret, error);
 	else
+		{
+		int type = 0;
+
+		got_rate = 1;
+
 		fprintf(stderr, "readrates returns [%d]\n", ret);
+
+		for( type=0; type<4; type++ )
+			{
+			int unit = getrate( type );
+			fprintf(stderr, "getrate(%d) => %d\n", type, unit );
+			}
+		}
+
 	return(ret);
 }
 
 #endif
 
 #include "isdnd.h"
-
-static int getrate(cfg_entry_t *cep);
 
 /*---------------------------------------------------------------------------*
  *	parse rates file
@@ -171,6 +186,9 @@ readrates(char *filename)
 		
 		while(*bp && isdigit(*bp))
 		{
+			int hour = 0;
+			int min = 0;
+
 			if(first)
 			{
 				first = 0;
@@ -193,7 +211,7 @@ readrates(char *filename)
 			
 			if(isdigit(*bp) && isdigit(*(bp+1)))
 			{
-				rt->start_hr = atoi(bp);
+				hour = atoi(bp);
 				bp += 2;
 			}
 		  	else
@@ -218,7 +236,7 @@ readrates(char *filename)
 			
 			if(isdigit(*bp) && isdigit(*(bp+1)))
 			{
-				rt->start_min = atoi(bp);
+				min = atoi(bp);
 				bp += 2;
 			}
 		  	else
@@ -226,6 +244,8 @@ readrates(char *filename)
 				sprintf(error, "rates: start_min error in line %d", line);
 				goto rate_error;
 		  	}
+
+			rt->start_time = hour*60 + min;
 
 			/* minus */
 			
@@ -243,7 +263,7 @@ readrates(char *filename)
 			
 			if(isdigit(*bp) && isdigit(*(bp+1)))
 			{
-				rt->end_hr = atoi(bp);
+				hour = atoi(bp);
 				bp += 2;
 			}
 		  	else
@@ -268,7 +288,7 @@ readrates(char *filename)
 			
 			if(isdigit(*bp) && isdigit(*(bp+1)))
 			{
-				rt->end_min = atoi(bp);
+				min = atoi(bp);
 				bp += 2;
 			}
 		  	else
@@ -276,6 +296,17 @@ readrates(char *filename)
 				sprintf(error, "rates: end_min error in line %d", line);
 				goto rate_error;
 		  	}
+
+			/* if hour is 0 assume it means midnight */
+			if( hour == 0 )
+				hour = 24;
+			rt->end_time = hour * 60 + min;
+
+			if( rt->end_time <= rt->start_time )
+				{
+				sprintf(error, "rates: end_time must be greater then start_time %d", line);
+				goto rate_error;
+				}
 
 			/* colon */
 			
@@ -322,9 +353,9 @@ readrates(char *filename)
 					rt = rates [j][i];
 					for (; rt; rt = rt->next)
 					{
-						log(LL_DBG, "rates: index %d day %d = %d.%d-%d.%d:%d",
-							j, i, rt->start_hr, rt->start_min,
-							rt->end_hr,rt->end_min,rt->rate);
+						log(LL_DBG, "rates: index %d day %d = %d.%2.2d-%d.%2.2d:%d",
+							j, i, rt->start_time/60, rt->start_time%60,
+							rt->end_time/60,rt->end_time%60,rt->rate);
 					}
 				}
 				else
@@ -386,7 +417,7 @@ get_current_rate(cfg_entry_t *cep, int logit)
 				return(UNITLENGTH_DEFAULT);
 			}
 			
-			if((rt = getrate(cep)) != -1)
+			if((rt = getrate(cep->ratetype)) != -1)
 			{
 				if(logit)
 					log(LL_CHD, "%05d %s rate %d sec/unit (rate)",
@@ -402,7 +433,7 @@ get_current_rate(cfg_entry_t *cep, int logit)
 			break;
 
 		case ULSRC_DYN:	/* dynamically calculated from AOC */
-			if((rt = getrate(cep)) != -1)
+			if((rt = getrate(cep->ratetype)) != -1)
 			{
 				if(logit)
 					log(LL_CHD, "%05d %s rate %d sec/unit (aocd, rate)",
@@ -425,49 +456,52 @@ get_current_rate(cfg_entry_t *cep, int logit)
 			break;
 	}
 }
+#endif /* PARSE_DEBUG_MAIN */
+
 
 /*---------------------------------------------------------------------------*
  *	get the currently active rate
  *---------------------------------------------------------------------------*/
 static int
-getrate(cfg_entry_t *cep)
+getrate(int rate_type )
 {
 	struct tm *ptr;
 	time_t now;
 	register struct rates *hd;
+	int time_now;
 
 	if((!got_rate) ||
-	   (cep->ratetype >= NRATES) ||
-	   (cep->ratetype == INVALID_RATE))
+	   (rate_type >= NRATES) ||
+	   (rate_type == INVALID_RATE))
 	{
-		return(-1);
+		return -1;
 	}
 
 	time(&now);			/* get current time */
 
 	ptr = localtime(&now);
 
+	time_now = ptr->tm_hour*60 + ptr->tm_min;
+
 	/* walk thru the rates for weekday until rate for current time found */
 
-	for (hd = rates[cep->ratetype][ptr->tm_wday]; hd; hd = hd->next)
+	for (hd = rates[rate_type][ptr->tm_wday]; hd; hd = hd->next)
 	{
 		/* current time within window ? */
-		if((hd->start_hr <= ptr->tm_hour) &&
-		   (hd->end_hr   >  ptr->tm_hour))
+		if((time_now >= hd->start_time ) &&
+		   (time_now < hd->end_time ))
 		{
-			DBGL(DL_RATES, (log(LL_DBG, "rate=%d sec/unit (day=%d, beg=%d, end=%d, current=%d)",
+			DBGL(DL_RATES, (log(LL_DBG, "rate=%d sec/unit (day=%d, beg=%d:%2.2d, end=%d:2.2d, current=%d:%2.2d)",
 				hd->rate,
 				ptr->tm_wday,
-				hd->start_hr,
-				hd->end_hr,
-				ptr->tm_hour)));
+				hd->start_time/60, hd->start_time%60,
+				hd->end_time/60, hd->end_time%60,
+				time_now/60, time_now%60)));
 				
-			return (hd->rate);
+			return hd->rate;
 		}
 	}
-	return(-1);
+	return -1;
 }
-
-#endif /* PARSE_DEBUG_MAIN */
 
 /* EOF */

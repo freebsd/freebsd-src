@@ -1,7 +1,7 @@
 /*
  *   Copyright (c) 1997 Joerg Wunsch. All rights reserved.
  *
- *   Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ *   Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  *   Redistribution and use in source and binary forms, with or without
  *   modification, are permitted provided that the following conditions
@@ -36,7 +36,7 @@
  *
  * $FreeBSD$
  *
- *	last edit-date: [Fri Dec 18 11:47:58 1998]
+ *	last edit-date: [Sat Jul 24 15:23:04 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -63,19 +63,27 @@
 #include <net/if_types.h>
 #include <net/netisr.h>
 #include <net/route.h>
-#ifdef __FreeBSD__
-#include <net/if_sppp.h>
-#else
-#include <i4b/sppp/if_sppp.h>
-#endif
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
 
+#include <net/slcompress.h>
+
+#if defined(__FreeBSD__) || defined(__OpenBSD__)
+#include <net/if_sppp.h>
+#else
+#include <i4b/sppp/if_sppp.h>
+#endif
+
+
+#if defined(__FreeBSD_version) &&  __FreeBSD_version >= 400008                
+#include "bpf.h"     
+#else
 #include "bpfilter.h"
-#if NBPFILTER > 0
+#endif
+#if NBPFILTER > 0 || NBPF > 0
 #include <sys/time.h>
 #include <net/bpf.h>
 #endif
@@ -83,9 +91,11 @@
 #ifdef __FreeBSD__
 #include <machine/i4b_ioctl.h>
 #include <machine/i4b_cause.h>
+#include <machine/i4b_debug.h>
 #else
 #include <i4b/i4b_ioctl.h>
 #include <i4b/i4b_cause.h>
+#include <i4b/i4b_debug.h>
 #endif
 
 #include <i4b/include/i4b_global.h>
@@ -220,8 +230,11 @@ i4bispppattach(void)
 	int i;
 
 #ifndef HACK_NO_PSEUDO_ATTACH_MSG
-	printf("i4bisppp: %d ISDN SyncPPP device(s) attached\n",
-	       NI4BISPPP);
+#ifdef SPPP_VJ
+	printf("i4bisppp: %d ISDN SyncPPP device(s) attached (VJ header compression)\n", NI4BISPPP);
+#else
+	printf("i4bisppp: %d ISDN SyncPPP device(s) attached\n", NI4BISPPP);
+#endif
 #endif
 
 	for(i = 0; i < NI4BISPPP; sc++, i++) {
@@ -288,7 +301,7 @@ i4bispppattach(void)
 		sppp_attach(&sc->sc_if);
 		if_attach(&sc->sc_if);
 
-#if NBPFILTER > 0
+#if NBPFILTER > 0 || NBPF > 0
 #ifdef __FreeBSD__
 		bpfattach(&sc->sc_if, DLT_PPP, PPP_HDRLEN);
 		CALLOUT_INIT(&sc->sc_ch);
@@ -341,7 +354,7 @@ i4bisppp_start(struct ifnet *ifp)
 {
 	struct i4bisppp_softc *sc = ifp->if_softc;
 	struct mbuf *m;
-	int s;
+	/* int s; */
 	int unit = IFP2UNIT(ifp);
 
 	if (sppp_isempty(ifp))
@@ -350,14 +363,16 @@ i4bisppp_start(struct ifnet *ifp)
 	if(sc->sc_state != ST_CONNECTED)
 		return;
 
-	s = splimp();
-	/*ifp->if_flags |= IFF_OACTIVE; - need to clear this somewhere */
-	splx(s);
+	/*
+	 * s = splimp();
+	 * ifp->if_flags |= IFF_OACTIVE; // - need to clear this somewhere
+	 * splx(s);
+	 */
 
 	while ((m = sppp_dequeue(&sc->sc_if)) != NULL)
 	{
 
-#if NBPFILTER > 0
+#if NBPFILTER > 0 || NBPF > 0
 #ifdef __FreeBSD__
 		if (ifp->if_bpf)
 			bpf_mtap(ifp, m);
@@ -367,15 +382,23 @@ i4bisppp_start(struct ifnet *ifp)
 		if (ifp->if_bpf)
 			bpf_mtap(ifp->if_bpf, m);
 #endif
-#endif /* NBPFILTER > 0 */
+#endif /* NBPFILTER > 0 || NBPF > 0 */
 
 		microtime(&ifp->if_lastchange);
 
-		IF_ENQUEUE(isdn_linktab[unit]->tx_queue, m);
+		if(IF_QFULL(isdn_linktab[unit]->tx_queue))
+		{
+			DBGL4(L4_ISPDBG, "i4bisppp_start", ("isp%d, tx queue full!\n", unit));
+			m_freem(m);
+		}
+		else
+		{
+			IF_ENQUEUE(isdn_linktab[unit]->tx_queue, m);
 
-		sc->sc_if.if_obytes += m->m_pkthdr.len;
-		sc->sc_outb += m->m_pkthdr.len;
-		sc->sc_if.if_opackets++;
+			sc->sc_if.if_obytes += m->m_pkthdr.len;
+			sc->sc_outb += m->m_pkthdr.len;
+			sc->sc_if.if_opackets++;
+		}
 	}
 	isdn_linktab[unit]->bch_tx_start(isdn_linktab[unit]->unit,
 					 isdn_linktab[unit]->channel);
@@ -551,10 +574,7 @@ i4bisppp_disconnect(int unit, void *cdp)
 	/* new stuff to check that the active channel is being closed */
 	if (cd != sc->sc_cdp)
 	{
-#ifdef I4BISPPPDISCDEBUG		
-		printf("i4bisppp_disconnect: isppp%d channel%d not active\n",
-			cd->driver_unit, cd->channelid);
-#endif
+		DBGL4(L4_ISPDBG, "i4bisppp_disconnect", ("isp%d, channel%d not active!\n", unit, cd->channelid));
 		splx(s);
 		return;
 	}
@@ -585,9 +605,24 @@ i4bisppp_disconnect(int unit, void *cdp)
  *	in case of dial problems
  *---------------------------------------------------------------------------*/
 static void
-i4bisppp_dialresponse(int unit, int status)
+i4bisppp_dialresponse(int unit, int status, cause_t cause)
 {
-/*	struct i4bisppp_softc *sc = &i4bisppp_softc[unit];	*/
+	struct i4bisppp_softc *sc = &i4bisppp_softc[unit];
+
+	DBGL4(L4_ISPDBG, "i4bisppp_dialresponse", ("isp%d: status=%d, cause=%d\n", unit, status, cause));
+
+	if(status != DSTAT_NONE)
+	{
+		struct mbuf *m;
+		
+		DBGL4(L4_ISPDBG, "i4bisppp_dialresponse", ("isp%d: clearing queues\n", unit));
+
+		if(!(sppp_isempty(&sc->sc_if)))
+		{
+			while((m = sppp_dequeue(&sc->sc_if)) != NULL)
+				m_freem(m);
+		}
+	}
 }
 	
 /*---------------------------------------------------------------------------*
@@ -630,7 +665,7 @@ i4bisppp_rx_data_rdy(int unit)
 	printf("i4bisppp_rx_data_ready: received packet!\n");
 #endif
 
-#if NBPFILTER > 0
+#if NBPFILTER > 0 || NBPF > 0
 
 #ifdef __FreeBSD__	
 	if(sc->sc_if.if_bpf)
@@ -642,7 +677,7 @@ i4bisppp_rx_data_rdy(int unit)
 		bpf_mtap(sc->sc_if.if_bpf, m);
 #endif
 
-#endif /* NBPFILTER > 0 */
+#endif /* NBPFILTER > 0  || NBPF > 0 */
 
 	s = splimp();
 

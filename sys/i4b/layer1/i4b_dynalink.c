@@ -35,7 +35,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Thu Dec 17 05:50:39 1998]
+ *      last edit-date: [Sun Feb 14 10:26:21 1999]
  *
  *	written by Martijn Plak <tigrfhur@xs4all.nl>
  *
@@ -107,6 +107,8 @@
 #endif
 #include <machine/clock.h>
 #include <i386/isa/isa_device.h>
+/* #include <i386/isa/pnp.h> */
+#elif defined(__bsdi__)
 #include <i386/isa/pnp.h>
 #else
 #include <machine/bus.h>
@@ -129,15 +131,21 @@
 #include <i4b/layer1/i4b_isac.h>
 #include <i4b/layer1/i4b_hscx.h>
 
-#ifdef __FreeBSD__
+#if defined(__FreeBSD__) || defined(__bsdi__)
 static void dynalink_read_fifo(void *buf, const void *base, size_t len);
 static void dynalink_write_fifo(void *base, const void *buf, size_t len);
 static void dynalink_write_reg(u_char *base, u_int offset, u_int v);
 static u_char dynalink_read_reg(u_char *base, u_int offset);
+#endif
 
+#ifdef __FreeBSD__
 extern struct isa_driver isicdriver;
+#endif
+#ifdef __bsdi__
+extern struct cfdriver isiccd;
+#endif
 
-#else
+#if !defined(__FreeBSD__) && !defined(__bsdi__)
 static void dynalink_read_fifo(struct isic_softc *sc, int what, void *buf, size_t size);
 static void dynalink_write_fifo(struct isic_softc *sc, int what, const void *buf, size_t size);
 static void dynalink_write_reg(struct isic_softc *sc, int what, bus_size_t offs, u_int8_t data);
@@ -158,13 +166,15 @@ void isic_attach_Dyn(struct isic_softc *sc);
 #define HSCXA		0x00
 #define HSCXB		0x40
 
-#ifdef __FreeBSD__
+#if defined(__FreeBSD__) || defined(__bsdi__)
 /* base address juggling */
 #define HSCXB_HACK		0x400
 #define IOBASE(addr)		(((int)addr)&0x3FC)
 #define IOADDR(addr)		(((int)addr)&0x3FF)
 #define IS_HSCXB_HACK(addr)	((((int)addr)&HSCXB_HACK)?HSCXB:HSCXA)
+#endif
 
+#ifdef __FreeBSD__
 /* ISIC probe and attach
 */
 
@@ -271,6 +281,136 @@ isic_attach_Dyn(struct isa_device *dev, unsigned int iobase2)
 	return(1);
 }
 
+#elif defined(__bsdi__)
+
+/* ISIC probe and attach
+*/
+
+static int
+set_softc(struct isic_softc *sc, struct isa_attach_args *ia, int unit)
+{
+	if (unit >= NISIC)
+		return 0;
+	sc->sc_unit = unit;
+	switch(ffs(ia->ia_irq) - 1)
+	{
+		case 3:
+		case 4:
+		case 5:
+		case 9:
+		case 10:
+		case 11:
+		case 12:
+		case 15:
+			break;
+			
+		default:
+			printf("isic%d: Error, invalid IRQ [%d] specified for Dynalink IS64PH.\n",
+				unit, ffs(ia->ia_irq)-1);
+			return(0);
+			break;
+	}
+	sc->sc_irq = ia->ia_irq;
+
+	/* check if memory addr specified */
+
+	if(ia->ia_maddr)
+	{
+		printf("isic%d: Error, mem addr 0x%lx specified for Dynalink IS64PH.\n",
+			unit, (u_long)ia->ia_maddr);
+		return (0);
+	}
+	
+	/* check if we got an iobase */
+	if ( (ia->ia_iobase < 0x100) || 
+	     (ia->ia_iobase > 0x3f8) || 
+	     (ia->ia_iobase & 3) ) 
+	{
+			printf("isic%d: Error, invalid iobase 0x%x specified for Dynalink!\n", unit, ia->ia_iobase);
+			return(0);
+	}
+	sc->sc_port = ia->ia_iobase;
+
+	/* setup access routines */
+	sc->clearirq = NULL;
+	sc->readreg = dynalink_read_reg;
+	sc->writereg = dynalink_write_reg;
+	sc->readfifo = dynalink_read_fifo;
+	sc->writefifo = dynalink_write_fifo;
+
+	/* setup card type */	
+	sc->sc_cardtyp = CARD_TYPEP_DYNALINK;
+
+	/* setup IOM bus type */
+	sc->sc_bustyp = BUS_TYPE_IOM2;
+
+	sc->sc_ipac = 0;
+	sc->sc_bfifolen = HSCX_FIFO_LEN;
+
+	/* setup ISAC and HSCX base addr */
+	ISAC_BASE = (caddr_t) sc->sc_port;
+	HSCX_A_BASE = (caddr_t) sc->sc_port + 1;
+	HSCX_B_BASE = (caddr_t) sc->sc_port + 1 + HSCXB_HACK;
+	return 1;
+}
+
+int
+isapnp_match_dynalink(struct device *parent, struct cfdata *cf,
+		struct isa_attach_args *ia)
+{
+	struct isic_softc dummysc, *sc = &dummysc;
+	pnp_resource_t res;
+	char *ids[] = {"ASU1688", NULL};
+	bzero(&res, sizeof res);
+	res.res_irq[0].irq_level = ia->ia_irq;
+	res.res_port[0].prt_base = ia->ia_iobase;
+	res.res_port[0].prt_length = 4;
+
+	if (!pnp_assigndev(ids, isiccd.cd_name, &res))
+		return (0);
+
+	ia->ia_irq = res.res_irq[0].irq_level;
+	ia->ia_iobase = res.res_port[0].prt_base;
+	ia->ia_iosize = res.res_port[0].prt_length;
+
+	if (set_softc(sc, ia, cf->cf_unit) == 0)
+		return 0;
+
+	/* Read HSCX A/B VSTR.  Expected value is 0x05 (V2.1). */
+	if( ((HSCX_READ(0, H_VSTR) & 0xf) != 0x5) || 
+	    ((HSCX_READ(1, H_VSTR) & 0xf) != 0x5) )
+	{
+		printf("isic%d: HSCX VSTR test failed for Dynalink\n",
+			cf->cf_unit);
+		printf("isic%d: HSC0: VSTR: %#x\n",
+			cf->cf_unit, HSCX_READ(0, H_VSTR));
+		printf("isic%d: HSC1: VSTR: %#x\n",
+			cf->cf_unit, HSCX_READ(1, H_VSTR));
+		return (0);
+	}
+
+	cf->cf_flags = FLAG_DYNALINK;
+	return (1);
+}
+
+int
+isic_attach_Dyn(struct device *parent, struct device *self,
+		struct isa_attach_args *ia)
+{
+	struct isic_softc *sc = (struct isic_softc *)self;
+	int unit = sc->sc_dev.dv_unit;
+
+	/* Commit the probed attachment values */
+	if (set_softc(sc, ia, unit) == 0)
+		panic("isic_attach_Dyn: set_softc");
+
+	outb((ia->ia_iobase)+ADDR, RESET);
+	DELAY(SEC_DELAY / 10);
+	outb((ia->ia_iobase)+ADDR, 0);
+	DELAY(SEC_DELAY / 10);
+	return(1);
+}
+
 #else
 
 void isic_attach_Dyn(struct isic_softc *sc)
@@ -320,7 +460,7 @@ void isic_attach_Dyn(struct isic_softc *sc)
 	REM: this is only true for the FreeBSD version of I4B!
 */
 
-#ifdef __FreeBSD__
+#if defined(__FreeBSD__) || defined(__bsdi__)
 static void             
 dynalink_read_fifo(void *buf, const void *base, size_t len)
 {
@@ -350,7 +490,7 @@ dynalink_read_fifo(struct isic_softc *sc, int what, void *buf, size_t size)
 }
 #endif
 
-#ifdef __FreeBSD__
+#if defined(__FreeBSD__) || defined(__bsdi__)
 static void
 dynalink_write_fifo(void *base, const void *buf, size_t len)
 {
@@ -379,7 +519,7 @@ static void dynalink_write_fifo(struct isic_softc *sc, int what, const void *buf
 }
 #endif
 
-#ifdef __FreeBSD__
+#if defined(__FreeBSD__) || defined(__bsdi__)
 static void
 dynalink_write_reg(u_char *base, u_int offset, u_int v)
 {
@@ -408,7 +548,7 @@ static void dynalink_write_reg(struct isic_softc *sc, int what, bus_size_t offs,
 }
 #endif
 
-#ifdef __FreeBSD__
+#if defined(__FreeBSD__) || defined(__bsdi__)
 static u_char
 dynalink_read_reg(u_char *base, u_int offset)
 {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,13 +29,18 @@
  *
  * $FreeBSD$ 
  *
- *      last edit-date: [Sat Dec  5 18:35:16 1998]
+ *      last edit-date: [Thu Apr  8 17:31:52 1999]
  *
  *---------------------------------------------------------------------------*/
 
 #include "i4b.h"
 #include "i4bipr.h"
+#ifdef __bsdi__
+#define NI4BISPPP 0
+#include "ibc.h"
+#else
 #include "i4bisppp.h"
+#endif
 #include "i4brbch.h"
 #include "i4btel.h"
 
@@ -79,6 +84,10 @@ struct ctrl_type_desc ctrl_types[CTRL_NUMTYPES] = { { NULL, NULL} };
 static int i4b_link_bchandrvr(call_desc_t *cd);
 static void i4b_unlink_bchandrvr(call_desc_t *cd);
 static void i4b_l4_setup_timeout(call_desc_t *cd);
+static void i4b_idle_check_fix_unit(call_desc_t *cd);
+static void i4b_idle_check_var_unit(call_desc_t *cd);
+static void i4b_l4_setup_timeout_fix_unit(call_desc_t *cd);
+static void i4b_l4_setup_timeout_var_unit(call_desc_t *cd);
 
 /*---------------------------------------------------------------------------*
  *	send MSG_PDEACT_IND message to userland
@@ -199,6 +208,33 @@ i4b_l4_dialout(int driver, int driver_unit)
 		md->driver = driver;
 		md->driver_unit = driver_unit;	
 
+		i4bputqueue(m);
+	}
+}
+
+/*---------------------------------------------------------------------------*
+ *	send MSG_DIALOUTNUMBER_IND message to userland
+ *---------------------------------------------------------------------------*/
+void
+i4b_l4_dialoutnumber(int driver, int driver_unit, int cmdlen, char *cmd)
+{
+	struct mbuf *m;
+
+	if((m = i4b_Dgetmbuf(sizeof(msg_dialoutnumber_ind_t))) != NULL)
+	{
+		msg_dialoutnumber_ind_t *md = (msg_dialoutnumber_ind_t *)m->m_data;
+
+		md->header.type = MSG_DIALOUTNUMBER_IND;
+		md->header.cdid = -1;
+
+		md->driver = driver;
+		md->driver_unit = driver_unit;
+
+		if(cmdlen > TELNO_MAX)
+			cmdlen = TELNO_MAX;
+
+		md->cmdlen = cmdlen;
+		bcopy(cmd, md->cmd, cmdlen);
 		i4bputqueue(m);
 	}
 }
@@ -562,6 +598,12 @@ i4b_link_bchandrvr(call_desc_t *cd)
 			break;
 #endif
 
+#if defined(__bsdi__) && NIBC > 0
+		case BDRV_IBC:
+			cd->dlt = ibc_ret_linktab(cd->driver_unit);
+			break;
+#endif
+
 		default:
 			cd->dlt = NULL;
 			break;
@@ -601,6 +643,12 @@ i4b_link_bchandrvr(call_desc_t *cd)
 #if NI4BISPPP > 0
 		case BDRV_ISPPP:
 			i4bisppp_set_linktab(cd->driver_unit, cd->ilt);
+			break;
+#endif
+
+#if defined(__bsdi__) && NIBC > 0
+		case BDRV_IBC:
+			ibc_set_linktab(cd->driver_unit, cd->ilt);
 			break;
 #endif
 		default:
@@ -686,10 +734,13 @@ idletime_state:      IST_NONCHK             IST_CHECK       IST_SAFE
 
 /*---------------------------------------------------------------------------*
  *	B channel idle check timeout setup
- *---------------------------------------------------------------------------*/
+ *---------------------------------------------------------------------------*/ 
 static void
 i4b_l4_setup_timeout(call_desc_t *cd)
 {
+	DBGL4(L4_TIMO, "i4b_l4_setup_timeout", ("%ld: direction %d, shorthold algorithm %d\n",
+		(long)SECOND, cd->dir, cd->shorthold_data.shorthold_algorithm ));
+	
 	cd->timeout_active = 0;
 	cd->idletime_state = IST_IDLE;
 	
@@ -704,47 +755,18 @@ i4b_l4_setup_timeout(call_desc_t *cd)
 		cd->timeout_active = 1;
 		DBGL4(L4_TIMO, "i4b_l4_setup_timeout", ("%ld: incoming-call, setup max_idle_time to %ld\n", (long)SECOND, (long)cd->max_idle_time));
 	}
-	else if((cd->dir == DIR_OUTGOING) && (cd->idle_time > 0))
+	else if((cd->dir == DIR_OUTGOING) && (cd->shorthold_data.idle_time > 0))
 	{
-		/* outgoing call */
-		
-		if((cd->idle_time > 0) && (cd->unitlen_time == 0))
+		switch( cd->shorthold_data.shorthold_algorithm )
 		{
-			/* outgoing call: simple max idletime check */
-			
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
-			cd->idle_timeout_handle =
-#endif
-			timeout((TIMEOUT_FUNC_T)i4b_idle_check,(void *)cd, hz/2);
-			cd->timeout_active = 1;
-			DBGL4(L4_TIMO, "i4b_l4_setup_timeout", ("%ld: outgoing-call, setup idle_time to %ld\n", (long)SECOND, (long)cd->idle_time));
-		}
-		else if((cd->unitlen_time > 0) && (cd->unitlen_time > (cd->idle_time + cd->earlyhup_time)))
-		{
-			/* outgoing call: full shorthold mode check */
-			
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
-			cd->idle_timeout_handle =
-#endif
-			timeout((TIMEOUT_FUNC_T)i4b_idle_check,(void *)cd, hz*(cd->unitlen_time - (cd->idle_time + cd->earlyhup_time)));
-			cd->timeout_active = 1;
-			cd->idletime_state = IST_NONCHK;
-			DBGL4(L4_TIMO, "i4b_l4_setup_timeout", ("%ld: outgoing-call, start %ld sec nocheck window\n", 
-				(long)SECOND, (long)(cd->unitlen_time - (cd->idle_time + cd->earlyhup_time))));
-
-			if(cd->aocd_flag == 0)
-			{
-				cd->units_type = CHARGE_CALC;
-				cd->cunits++;
-				i4b_l4_charging_ind(cd);
-			}
-		}
-		else
-		{
-			/* parms somehow got wrong .. */
-			
-			DBGL4(L4_ERR, "i4b_l4_setup_timeout", ("%ld: ERROR: idletime[%ld]+earlyhup[%ld] > unitlength[%ld]!\n",
-				(long)SECOND, (long)cd->idle_time, (long)cd->earlyhup_time, (long)cd->unitlen_time));
+			default:	/* fall into the old fix algorithm */
+			case SHA_FIXU:
+				i4b_l4_setup_timeout_fix_unit( cd );
+				break;
+				
+			case SHA_VARU:
+				i4b_l4_setup_timeout_var_unit( cd );
+				break;
 		}
 	}
 	else
@@ -754,8 +776,82 @@ i4b_l4_setup_timeout(call_desc_t *cd)
 }
 
 /*---------------------------------------------------------------------------*
- *	B channel idle check timeout function
+ *	fixed unit algorithm B channel idle check timeout setup
  *---------------------------------------------------------------------------*/
+static void
+i4b_l4_setup_timeout_fix_unit(call_desc_t *cd)
+{
+	/* outgoing call */
+	
+	if((cd->shorthold_data.idle_time > 0) && (cd->shorthold_data.unitlen_time == 0))
+	{
+		/* outgoing call: simple max idletime check */
+		
+#if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
+		cd->idle_timeout_handle =
+#endif
+		timeout((TIMEOUT_FUNC_T)i4b_idle_check,(void *)cd, hz/2);
+		cd->timeout_active = 1;
+		DBGL4(L4_TIMO, "i4b_l4_setup_timeout", ("%ld: outgoing-call, setup idle_time to %ld\n",
+			(long)SECOND, (long)cd->shorthold_data.idle_time));
+	}
+	else if((cd->shorthold_data.unitlen_time > 0) && (cd->shorthold_data.unitlen_time > (cd->shorthold_data.idle_time + cd->shorthold_data.earlyhup_time)))
+	{
+		/* outgoing call: full shorthold mode check */
+		
+#if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
+		cd->idle_timeout_handle =
+#endif
+		timeout((TIMEOUT_FUNC_T)i4b_idle_check,(void *)cd, hz*(cd->shorthold_data.unitlen_time - (cd->shorthold_data.idle_time + cd->shorthold_data.earlyhup_time)));
+		cd->timeout_active = 1;
+		cd->idletime_state = IST_NONCHK;
+		DBGL4(L4_TIMO, "i4b_l4_setup_timeout", ("%ld: outgoing-call, start %ld sec nocheck window\n", 
+			(long)SECOND, (long)(cd->shorthold_data.unitlen_time - (cd->shorthold_data.idle_time + cd->shorthold_data.earlyhup_time))));
+
+		if(cd->aocd_flag == 0)
+		{
+			cd->units_type = CHARGE_CALC;
+			cd->cunits++;
+			i4b_l4_charging_ind(cd);
+		}
+	}
+	else
+	{
+		/* parms somehow got wrong .. */
+		
+		DBGL4(L4_ERR, "i4b_l4_setup_timeout", ("%ld: ERROR: idletime[%ld]+earlyhup[%ld] > unitlength[%ld]!\n",
+			(long)SECOND, (long)cd->shorthold_data.idle_time, (long)cd->shorthold_data.earlyhup_time, (long)cd->shorthold_data.unitlen_time));
+	}
+}
+
+/*---------------------------------------------------------------------------*
+ *	variable unit algorithm B channel idle check timeout setup
+ *---------------------------------------------------------------------------*/
+static void
+i4b_l4_setup_timeout_var_unit(call_desc_t *cd)
+{
+	/* outgoing call: variable unit idletime check */
+		
+	/*
+	 * start checking for an idle connect one second before the end of the unit.
+	 * The one second takes into account of rounding due to the driver only
+	 * using the seconds and not the uSeconds of the current time
+	 */
+	cd->idletime_state = IST_CHECK;	/* move directly to the checking state */
+
+#if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
+	cd->idle_timeout_handle =
+#endif
+		timeout((TIMEOUT_FUNC_T)i4b_idle_check,(void *)cd, hz * (cd->shorthold_data.unitlen_time - 1) );
+	cd->timeout_active = 1;
+	DBGL4(L4_TIMO, "i4b_l4_setup_timeout", ("%ld: outgoing-call, var idle time - setup to %ld\n",
+		(long)SECOND, (long)cd->shorthold_data.unitlen_time));
+}
+
+
+/*---------------------------------------------------------------------------*
+ *	B channel idle check timeout function
+ *---------------------------------------------------------------------------*/ 
 void
 i4b_idle_check(call_desc_t *cd)
 {
@@ -791,6 +887,7 @@ i4b_idle_check(call_desc_t *cd)
 		else
 		{
 			DBGL4(L4_TIMO, "i4b_idle_check", ("%ld: incoming-call, activity, last_active=%ld, max_idle=%ld\n", (long)SECOND, (long)cd->last_active_time, (long)cd->max_idle_time));
+
 #if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
 			cd->idle_timeout_handle =
 #endif
@@ -803,95 +900,157 @@ i4b_idle_check(call_desc_t *cd)
 
 	else if(cd->dir == DIR_OUTGOING)
 	{
-
-		/* simple idletime calculation */
-
-		if((cd->idle_time > 0) && (cd->unitlen_time == 0))
+		switch( cd->shorthold_data.shorthold_algorithm )
 		{
-			if((cd->last_active_time + cd->idle_time) <= SECOND)
-			{
-				DBGL4(L4_TIMO, "i4b_idle_check", ("%ld: outgoing-call-st, idle timeout, disconnecting!\n", (long)SECOND));
-				(*ctrl_desc[cd->controller].N_DISCONNECT_REQUEST)(cd->cdid,
-					(CAUSET_I4B << 8) | CAUSE_I4B_NORMAL);
-				i4b_l4_idle_timeout_ind(cd);
-			}
-			else
-			{
-				DBGL4(L4_TIMO, "i4b_idle_check", ("%ld: outgoing-call-st, activity, last_active=%ld, max_idle=%ld\n",
-								(long)SECOND, (long)cd->last_active_time, (long)cd->idle_time));
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
-			cd->idle_timeout_handle =
-#endif
-				timeout((TIMEOUT_FUNC_T)i4b_idle_check,(void *)cd, hz/2);
-				cd->timeout_active = 1;
-			}
-		}
-
-		/* full shorthold mode calculation */
-
-		else if((cd->unitlen_time > 0) && (cd->unitlen_time > (cd->idle_time + cd->earlyhup_time)))
-		{
-			switch(cd->idletime_state)
-			{
-			case IST_NONCHK:	/* end of non-check time */
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
-				cd->idle_timeout_handle =
-#endif
-				timeout((TIMEOUT_FUNC_T)i4b_idle_check,(void *)cd, hz*(cd->idle_time));
-				cd->idletimechk_start = SECOND;
-				cd->idletime_state = IST_CHECK;
-				cd->timeout_active = 1;
-				DBGL4(L4_TIMO, "i4b_idle_check", ("%ld: outgoing-call, idletime check window reached!\n", (long)SECOND));
+			case SHA_FIXU:
+				i4b_idle_check_fix_unit( cd );
 				break;
-
-			case IST_CHECK:		/* end of idletime chk */
-				if((cd->last_active_time > cd->idletimechk_start) &&
-				   (cd->last_active_time <= SECOND))
-				{	/* activity detected */
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
-					cd->idle_timeout_handle =
-#endif
-					timeout((TIMEOUT_FUNC_T)i4b_idle_check,(void *)cd, hz*(cd->earlyhup_time));
-					cd->timeout_active = 1;
-					cd->idletime_state = IST_SAFE;
-					DBGL4(L4_TIMO, "i4b_idle_check", ("%ld: outgoing-call, activity at %ld, wait earlyhup-end\n", (long)SECOND, (long)cd->last_active_time));
-				}
-				else
-				{	/* no activity, hangup */
-					DBGL4(L4_TIMO, "i4b_idle_check", ("%ld: outgoing-call, idle timeout, last activity at %ld\n", (long)SECOND, (long)cd->last_active_time));
-					(*ctrl_desc[cd->controller].N_DISCONNECT_REQUEST)(cd->cdid,
-						(CAUSET_I4B << 8) | CAUSE_I4B_NORMAL);
-					i4b_l4_idle_timeout_ind(cd);
-					cd->idletime_state = IST_IDLE;
-				}
+			case SHA_VARU:
+				i4b_idle_check_var_unit( cd );
 				break;
-
-			case IST_SAFE:	/* end of earlyhup time */
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
-				cd->idle_timeout_handle =
-#endif
-				timeout((TIMEOUT_FUNC_T)i4b_idle_check,(void *)cd, hz*(cd->unitlen_time - (cd->idle_time+cd->earlyhup_time)));
-				cd->timeout_active = 1;
-				cd->idletime_state = IST_NONCHK;
-
-				if(cd->aocd_flag == 0)
-				{
-					cd->units_type = CHARGE_CALC;
-					cd->cunits++;
-					i4b_l4_charging_ind(cd);
-				}
-				
-				DBGL4(L4_TIMO, "i4b_idle_check", ("%ld: outgoing-call, earlyhup end, wait for idletime start\n", (long)SECOND));
-				break;
-
 			default:
-				DBGL4(L4_ERR, "i4b_idle_check", ("outgoing-call: invalid idletime_state value!\n"));
-				cd->idletime_state = IST_IDLE;
+				DBGL4(L4_TIMO, "i4b_idle_check", ("%ld: bad value for shorthold_algorithm of %d\n",
+					(long)SECOND, cd->shorthold_data.shorthold_algorithm ));
+				i4b_idle_check_fix_unit( cd );
 				break;
-			}
 		}
 	}
 	splx(s);
+}
+
+/*---------------------------------------------------------------------------*
+ *	fixed unit algorithm B channel idle check timeout function
+ *---------------------------------------------------------------------------*/
+static void
+i4b_idle_check_fix_unit(call_desc_t *cd)
+{
+
+	/* simple idletime calculation */
+
+	if((cd->shorthold_data.idle_time > 0) && (cd->shorthold_data.unitlen_time == 0))
+	{
+		if((cd->last_active_time + cd->shorthold_data.idle_time) <= SECOND)
+		{
+			DBGL4(L4_TIMO, "i4b_idle_check", ("%ld: outgoing-call-st, idle timeout, disconnecting!\n", (long)SECOND));
+			(*ctrl_desc[cd->controller].N_DISCONNECT_REQUEST)(cd->cdid, (CAUSET_I4B << 8) | CAUSE_I4B_NORMAL);
+			i4b_l4_idle_timeout_ind(cd);
+		}
+		else
+		{
+			DBGL4(L4_TIMO, "i4b_idle_check", ("%ld: outgoing-call-st, activity, last_active=%ld, max_idle=%ld\n",
+					(long)SECOND, (long)cd->last_active_time, (long)cd->shorthold_data.idle_time));
+#if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
+		cd->idle_timeout_handle =
+#endif
+			timeout((TIMEOUT_FUNC_T)i4b_idle_check,(void *)cd, hz/2);
+			cd->timeout_active = 1;
+		}
+	}
+
+	/* full shorthold mode calculation */
+
+	else if((cd->shorthold_data.unitlen_time > 0)
+	         && (cd->shorthold_data.unitlen_time > (cd->shorthold_data.idle_time + cd->shorthold_data.earlyhup_time)))
+	{
+		switch(cd->idletime_state)
+		{
+
+		case IST_NONCHK:	/* end of non-check time */
+
+#if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
+			cd->idle_timeout_handle =
+#endif
+			timeout((TIMEOUT_FUNC_T)i4b_idle_check,(void *)cd, hz*(cd->shorthold_data.idle_time));
+			cd->idletimechk_start = SECOND;
+			cd->idletime_state = IST_CHECK;
+			cd->timeout_active = 1;
+			DBGL4(L4_TIMO, "i4b_idle_check", ("%ld: outgoing-call, idletime check window reached!\n", (long)SECOND));
+			break;
+
+		case IST_CHECK:		/* end of idletime chk */
+			if((cd->last_active_time > cd->idletimechk_start) &&
+			   (cd->last_active_time <= SECOND))
+			{	/* activity detected */
+#if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
+				cd->idle_timeout_handle =
+#endif
+				timeout((TIMEOUT_FUNC_T)i4b_idle_check,(void *)cd, hz*(cd->shorthold_data.earlyhup_time));
+				cd->timeout_active = 1;
+				cd->idletime_state = IST_SAFE;
+				DBGL4(L4_TIMO, "i4b_idle_check", ("%ld: outgoing-call, activity at %ld, wait earlyhup-end\n", (long)SECOND, (long)cd->last_active_time));
+			}
+			else
+			{	/* no activity, hangup */
+				DBGL4(L4_TIMO, "i4b_idle_check", ("%ld: outgoing-call, idle timeout, last activity at %ld\n", (long)SECOND, (long)cd->last_active_time));
+				(*ctrl_desc[cd->controller].N_DISCONNECT_REQUEST)(cd->cdid, (CAUSET_I4B << 8) | CAUSE_I4B_NORMAL);
+				i4b_l4_idle_timeout_ind(cd);
+				cd->idletime_state = IST_IDLE;
+			}
+			break;
+
+		case IST_SAFE:	/* end of earlyhup time */
+
+#if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
+			cd->idle_timeout_handle =
+#endif
+			timeout((TIMEOUT_FUNC_T)i4b_idle_check,(void *)cd, hz*(cd->shorthold_data.unitlen_time - (cd->shorthold_data.idle_time+cd->shorthold_data.earlyhup_time)));
+			cd->timeout_active = 1;
+			cd->idletime_state = IST_NONCHK;
+
+			if(cd->aocd_flag == 0)
+			{
+				cd->units_type = CHARGE_CALC;
+				cd->cunits++;
+				i4b_l4_charging_ind(cd);
+			}
+			
+			DBGL4(L4_TIMO, "i4b_idle_check", ("%ld: outgoing-call, earlyhup end, wait for idletime start\n", (long)SECOND));
+			break;
+
+		default:
+			DBGL4(L4_ERR, "i4b_idle_check", ("outgoing-call: invalid idletime_state value!\n"));
+			cd->idletime_state = IST_IDLE;
+			break;
+		}
+	}
+}
+
+/*---------------------------------------------------------------------------*
+ *	variable unit algorithm B channel idle check timeout function
+ *---------------------------------------------------------------------------*/
+static void
+i4b_idle_check_var_unit(call_desc_t *cd)
+{
+	switch(cd->idletime_state)
+	{
+
+	/* see if there has been any activity within the last idle_time seconds */
+	case IST_CHECK:
+		if( cd->last_active_time > (SECOND - cd->shorthold_data.idle_time))
+		{	/* activity detected */
+#if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
+			cd->idle_timeout_handle =
+#endif
+			/* check again in one second */
+			timeout((TIMEOUT_FUNC_T)i4b_idle_check,(void *)cd, hz );
+			cd->timeout_active = 1;
+			cd->idletime_state = IST_CHECK;
+			DBGL4(L4_TIMO, "i4b_idle_check", ("%ld: outgoing-call, var idle timeout - activity at %ld, continuing\n", (long)SECOND, (long)cd->last_active_time));
+		}
+		else
+		{	/* no activity, hangup */
+			DBGL4(L4_TIMO, "i4b_idle_check", ("%ld: outgoing-call, var idle timeout - last activity at %ld\n", (long)SECOND, (long)cd->last_active_time));
+			(*ctrl_desc[cd->controller].N_DISCONNECT_REQUEST)(cd->cdid, (CAUSET_I4B << 8) | CAUSE_I4B_NORMAL);
+			i4b_l4_idle_timeout_ind(cd);
+			cd->idletime_state = IST_IDLE;
+		}
+		break;
+
+	default:
+		DBGL4(L4_ERR, "i4b_idle_check", ("outgoing-call: var idle timeout invalid idletime_state value!\n"));
+		cd->idletime_state = IST_IDLE;
+		break;
+	}
 }
 
 #endif /* NI4B > 0 */

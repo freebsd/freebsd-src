@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *	last edit-date: [Sat Dec  5 18:01:53 1998]
+ *	last edit-date: [Tue Jun  1 12:15:40 1999]
  *
  *	NOTE: the code assumes that SPLI4B >= splimp !
  *
@@ -112,7 +112,11 @@ void i4btrcattach __P((void));
 int i4btrcopen __P((dev_t dev, int flag, int fmt, struct proc *p));
 int i4btrcclose __P((dev_t dev, int flag, int fmt, struct proc *p));
 int i4btrcread __P((dev_t dev, struct uio * uio, int ioflag));
+#ifdef __bsdi__
+int i4btrcioctl __P((dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p));
+#else
 int i4btrcioctl __P((dev_t dev, int cmd, caddr_t data, int flag, struct proc *p));
+#endif
 #endif
 
 #if BSD > 199306 && defined(__FreeBSD__)
@@ -121,20 +125,40 @@ static d_open_t	i4btrcopen;
 static d_close_t i4btrcclose;
 static d_read_t i4btrcread;
 static d_ioctl_t i4btrcioctl;
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
+
+#ifdef OS_USES_POLL
 static d_poll_t i4btrcpoll;
+#define POLLFIELD i4btrcpoll
+#else
+#define POLLFIELD noselect
 #endif
 
 #define CDEV_MAJOR 59
+
+#if defined (__FreeBSD_version) && __FreeBSD_version >= 400006
+static struct cdevsw i4btrc_cdevsw = {
+	/* open */	i4btrcopen,
+	/* close */	i4btrcclose,
+	/* read */	i4btrcread,
+	/* write */	nowrite,
+	/* ioctl */	i4btrcioctl,
+	/* poll */	POLLFIELD,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	"i4btrc",
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* bmaj */	-1
+};
+#else
 static struct cdevsw i4btrc_cdevsw = {
 	i4btrcopen,	i4btrcclose,	i4btrcread,	nowrite,
   	i4btrcioctl,	nostop,		noreset,	nodevtotty,
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
-	i4btrcpoll,	nommap, 	NULL, "i4btrc", NULL, -1
-#else
-	noselect,	nommap, 	NULL, "i4btrc", NULL, -1
-#endif
+	POLLFIELD,	nommap, 	NULL, "i4btrc", NULL, -1
 };
+#endif
 
 /*---------------------------------------------------------------------------*
  *	interface init routine
@@ -142,11 +166,12 @@ static struct cdevsw i4btrc_cdevsw = {
 static
 void i4btrcinit(void *unused)
 {
-    dev_t dev;
-    
-    dev = makedev(CDEV_MAJOR, 0);
-
-    cdevsw_add(&dev, &i4btrc_cdevsw, NULL);
+#if defined (__FreeBSD_version) && __FreeBSD_version >= 400006
+	cdevsw_add(&i4btrc_cdevsw);
+#else
+	dev_t dev = makedev(CDEV_MAJOR, 0);
+	cdevsw_add(&dev, &i4btrc_cdevsw, NULL);
+#endif
 }
 
 SYSINIT(i4btrcdev, SI_SUB_DRIVERS,
@@ -156,6 +181,36 @@ static void i4btrcattach(void *);
 PSEUDO_SET(i4btrcattach, i4b_trace);
 
 #endif /* BSD > 199306 && defined(__FreeBSD__) */
+
+#ifdef __bsdi__
+#include <sys/device.h>
+int i4btrcmatch(struct device *parent, struct cfdata *cf, void *aux);
+void dummy_i4btrcattach(struct device*, struct device *, void *);
+
+#define CDEV_MAJOR 60
+
+static struct cfdriver i4btrccd =
+	{ NULL, "i4btrc", i4btrcmatch, dummy_i4btrcattach, DV_DULL,
+	  sizeof(struct cfdriver) };
+struct devsw i4btrcsw = 
+	{ &i4btrccd,
+	  i4btrcopen,	i4btrcclose,	i4btrcread,	nowrite,
+	  i4btrcioctl,	seltrue,	nommap,		nostrat,
+	  nodump,	nopsize,	0,		nostop
+};
+
+int
+i4btrcmatch(struct device *parent, struct cfdata *cf, void *aux)
+{
+	printf("i4btrcmatch: aux=0x%x\n", aux);
+	return 1;
+}
+void
+dummy_i4btrcattach(struct device *parent, struct device *self, void *aux)
+{
+	printf("dummy_i4btrcattach: aux=0x%x\n", aux);
+}
+#endif /* __bsdi__ */
 
 int get_trace_data_from_l1(i4b_trace_hdr_t *hdr, int len, char *buf);
 
@@ -407,10 +462,10 @@ i4btrcread(dev_t dev, struct uio * uio, int ioflag)
 	return(error);
 }
 
+#if defined(__FreeBSD__) && defined(OS_USES_POLL)
 /*---------------------------------------------------------------------------*
  *	poll device
  *---------------------------------------------------------------------------*/
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
 PDEVSTATIC int
 i4btrcpoll(dev_t dev, int events, struct proc *p)
 {
@@ -423,6 +478,8 @@ i4btrcpoll(dev_t dev, int events, struct proc *p)
  *---------------------------------------------------------------------------*/
 PDEVSTATIC int
 #if defined (__FreeBSD_version) && __FreeBSD_version >= 300003
+i4btrcioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
+#elif defined(__bsdi__)
 i4btrcioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 #else
 i4btrcioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)

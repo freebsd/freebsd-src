@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,7 +29,7 @@
  *
  * $FreeBSD$ 
  *
- *      last edit-date: [Sat Dec  5 18:27:00 1998]
+ *      last edit-date: [Fri May 28 16:15:39 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -156,7 +156,7 @@ int i4b_dl_unit_data_req(int unit, struct mbuf *m)
 int i4b_dl_data_req(int unit, struct mbuf *m)
 {
 	l2_softc_t *l2sc = &l2_softc[unit];
-	int x;
+
 #ifdef NOTDEF
 	DBGL2(L2_PRIM, "DL-DATA-REQ", ("unit %d\n",unit));
 #endif
@@ -173,9 +173,12 @@ int i4b_dl_data_req(int unit, struct mbuf *m)
 		        }
 		        else
 		        {
-			        x = splimp();		        	
+		        	CRIT_VAR;
+
+		        	CRIT_BEG;
 				IF_ENQUEUE(&l2sc->i_queue, m);
-				splx(x);
+				CRIT_END;
+
 				i4b_i_frame_queued_up(l2sc);
 			}
 			break;
@@ -222,7 +225,9 @@ static void
 i4b_l2_unit_init(int unit)
 {
 	l2_softc_t *l2sc = &l2_softc[unit];
+	CRIT_VAR;
 
+	CRIT_BEG;
 	l2sc->Q921_state = ST_TEI_UNAS;
 	l2sc->tei_valid = TEI_INVALID;
 	l2sc->vr = 0;
@@ -251,7 +256,9 @@ i4b_l2_unit_init(int unit)
 
 	i4b_T200_stop(l2sc);
 	i4b_T202_stop(l2sc);
-	i4b_T203_stop(l2sc);	
+	i4b_T203_stop(l2sc);
+
+	CRIT_END;	
 }
 
 /*---------------------------------------------------------------------------*
@@ -261,9 +268,10 @@ int
 i4b_mph_status_ind(int unit, int status, int parm)
 {
 	l2_softc_t *l2sc = &l2_softc[unit];
+	CRIT_VAR;
 	int sendup = 1;
-
-	int x = SPLI4B();
+	
+	CRIT_BEG;
 
 	DBGL1(L1_PRIM, "MPH-STATUS-IND", ("unit %d, status=%d, parm=%d\n", unit, status, parm));
 
@@ -273,6 +281,7 @@ i4b_mph_status_ind(int unit, int status, int parm)
 			l2sc->unit = unit;
 			l2sc->i_queue.ifq_maxlen = IQUEUE_MAXLEN;
 			l2sc->ua_frame = NULL;
+			bzero(&l2sc->stat, sizeof(lapdstat_t));			
 			i4b_l2_unit_init(unit);
 			
 #if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
@@ -280,6 +289,7 @@ i4b_mph_status_ind(int unit, int status, int parm)
 			callout_handle_init(&l2sc->T200_callout);
 			callout_handle_init(&l2sc->T202_callout);
 			callout_handle_init(&l2sc->T203_callout);
+			callout_handle_init(&l2sc->IFQU_callout);
 #endif
 			break;
 
@@ -312,7 +322,7 @@ i4b_mph_status_ind(int unit, int status, int parm)
 	if(sendup)
 		MDL_Status_Ind(unit, status, parm);  /* send up to layer 3 */
 
-	splx(x);
+	CRIT_END;
 	
 	return(0);
 }
@@ -342,6 +352,7 @@ int i4b_mdl_command_req(int unit, int command, int parm)
 int
 i4b_ph_data_ind(int unit, struct mbuf *m)
 {
+	l2_softc_t *l2sc = &l2_softc[unit];
 #ifdef NOTDEF
 	DBGL1(L1_PRIM, "PH-DATA-IND", ("unit %d\n", unit));
 #endif
@@ -351,6 +362,7 @@ i4b_ph_data_ind(int unit, struct mbuf *m)
 	{
 		if(m->m_len < 4)	/* 6 oct - 2 chksum oct */
 		{
+			l2sc->stat.err_rx_len++;
 			DBGL2(L2_ERROR, "i4b_ph_data_ind", ("ERROR, I-frame < 6 octetts!\n"));
 			i4b_Dfreembuf(m);
 			return(0);
@@ -361,6 +373,7 @@ i4b_ph_data_ind(int unit, struct mbuf *m)
 	{
 		if(m->m_len < 4)	/* 6 oct - 2 chksum oct */
 		{
+			l2sc->stat.err_rx_len++;
 			DBGL2(L2_ERROR, "i4b_ph_data_ind", ("ERROR, S-frame < 6 octetts!\n"));
 			i4b_Dfreembuf(m);
 			return(0);
@@ -371,6 +384,7 @@ i4b_ph_data_ind(int unit, struct mbuf *m)
 	{
 		if(m->m_len < 3)	/* 5 oct - 2 chksum oct */
 		{
+			l2sc->stat.err_rx_len++;
 			DBGL2(L2_ERROR, "i4b_ph_data_ind", ("ERROR, U-frame < 5 octetts!\n"));
 			i4b_Dfreembuf(m);
 			return(0);
@@ -379,6 +393,7 @@ i4b_ph_data_ind(int unit, struct mbuf *m)
 	}
 	else
 	{
+		l2sc->stat.err_rx_badf++;
 		DBGL2(L2_ERROR, "i4b_ph_data_ind", ("ERROR, bad frame rx'd - "));
 		i4b_print_frame(m->m_len, m->m_data);
 		i4b_Dfreembuf(m);
@@ -387,4 +402,3 @@ i4b_ph_data_ind(int unit, struct mbuf *m)
 }
 
 #endif /* NI4BQ921 > 0 */
-

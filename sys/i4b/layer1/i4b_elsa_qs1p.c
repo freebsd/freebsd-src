@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Sat Dec  5 18:22:41 1998]
+ *      last edit-date: [Wed Mar 10 07:24:32 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -86,8 +86,7 @@
 #include <i4b/layer1/i4b_ipac.h>
 
 #ifndef __FreeBSD__
-/* we don't have the function prototypes in the global i4b_l1.h any more */
-void isic_attach_Eqs1pp __P((struct isic_softc *sc, struct pci_attach_args *pa));
+#include <i4b/layer1/pci_isic.h>
 #endif
 
 /* masks for register encoded in base addr */
@@ -400,10 +399,12 @@ isic_attach_Eqs1pp(int unit, unsigned int iobase1, unsigned int iobase2)
 #else	/* !FreeBSD */
 
 void
-isic_attach_Eqs1pp(sc, pa)
-	struct isic_softc *sc;
+isic_attach_Eqs1pp(psc, pa)
+	struct pci_isic_softc *psc;
 	struct pci_attach_args *pa;
 {
+	struct isic_softc *sc = &psc->sc_isic;
+
 	/* setup io mappings */
 	sc->sc_num_mappings = 2;
 	MALLOC_MAPS(sc);

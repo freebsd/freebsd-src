@@ -32,7 +32,7 @@
  *
  * $FreeBSD$ 
  *
- *      last edit-date: [Fri Mar 27 15:52:40 1998]
+ *      last edit-date: [Sun Feb 14 10:27:13 1999]
  *
  *	-hm	split up for rewrite of Siemens chipset driver
  *

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,7 +29,7 @@
  *
  * $FreeBSD$ 
  *
- *      last edit-date: [Sat Dec  5 18:18:17 1998]
+ *      last edit-date: [Fri Jul 30 08:16:37 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -101,7 +101,7 @@ main(int argc, char **argv)
 	incomingnumber[0] = '\0';
 	outgoingnumber[0] = '\0';	
 	
-	while ((c = getopt(argc, argv, "c:d:hi:o:t:w?")) != EOF)
+	while ((c = getopt(argc, argv, "c:d:hi:o:t:w")) != -1)
 	{
 		switch(c)
 		{
@@ -307,7 +307,7 @@ static void
 usage(void)
 {
 	fprintf(stderr, "\n");
-	fprintf(stderr, "isdntest - i4b selftest, compiled %s %s\n",__DATE__, __TIME__);
+	fprintf(stderr, "isdntest - i4b selftest, version %d.%d.%d, compiled %s %s\n",VERSION, REL, STEP, __DATE__, __TIME__);
 	fprintf(stderr, "usage: isdntest -c <ctrl> -h -i <telno> -o <telno>\n");
 	fprintf(stderr, "       -c <ctrl>     specify controller to use\n");		
 	fprintf(stderr, "       -h            use HDLC as Bchannel protocol\n");

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,7 +29,7 @@
  *
  * $FreeBSD$ 
  *
- *      last edit-date: [Sat Dec  5 18:32:17 1998]
+ *      last edit-date: [Wed Apr 21 09:42:26 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -889,6 +889,13 @@ static void F_DISC(call_desc_t *cd)
 static void F_DCRQ(call_desc_t *cd)
 {
 	DBGL3(L3_F_MSG, "F_DCRQ", ("FSM function F_DCRQ executing\n"));
+
+	/* stop T310 in case this is the result of an incoming call for a */
+	/* calledback connection */
+
+	if(cd->T310 == TIMER_ACTIVE)
+		T310_stop(cd);
+		
 	/* cause from L4 */
 	i4b_l3_tx_disconnect(cd);
 	T305_start(cd);

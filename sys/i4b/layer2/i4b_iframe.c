@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,7 +29,7 @@
  *
  * $FreeBSD$ 
  *
- *      last edit-date: [Sat Dec  5 18:26:16 1998]
+ *      last edit-date: [Fri May 28 15:52:41 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -73,7 +73,7 @@
 
 /*---------------------------------------------------------------------------*
  *	process i frame
- *	implements the routine "I COMMAND" Q.921 03/93 pp 77
+ *	implements the routine "I COMMAND" Q.921 03/93 pp 68 and pp 77
  *---------------------------------------------------------------------------*/
 void
 i4b_rxd_i_frame(int unit, struct mbuf *m)
@@ -83,7 +83,7 @@ i4b_rxd_i_frame(int unit, struct mbuf *m)
 	int nr;
 	int ns;
 	int p;
-	int x;
+	CRIT_VAR;
 	
 	if(!((l2sc->tei_valid == TEI_VALID) &&
 	     (l2sc->tei == GETTEI(*(ptr+OFF_TEI)))))
@@ -99,7 +99,9 @@ i4b_rxd_i_frame(int unit, struct mbuf *m)
 		return;
 	}
 
-	x = SPLI4B();
+	CRIT_BEG;
+
+	l2sc->stat.rx_i++;		/* update frame count */
 	
 	nr = GETINR(*(ptr + OFF_INR));
 	ns = GETINS(*(ptr + OFF_INS));
@@ -165,7 +167,9 @@ i4b_rxd_i_frame(int unit, struct mbuf *m)
 		if(l2sc->Q921_state == ST_TIMREC)
 		{
 			l2sc->va = nr;
-			splx(x);
+
+			CRIT_END;
+
 			return;
 		}
 
@@ -196,7 +200,8 @@ i4b_rxd_i_frame(int unit, struct mbuf *m)
 		i4b_nr_error_recovery(l2sc);	/* sequence error */
 		l2sc->Q921_state = ST_AW_EST; 
 	}
-	splx(x);	
+
+	CRIT_END;
 }
 
 /*---------------------------------------------------------------------------*
@@ -205,26 +210,39 @@ i4b_rxd_i_frame(int unit, struct mbuf *m)
 void
 i4b_i_frame_queued_up(l2_softc_t *l2sc)
 {
-	int x;
 	struct mbuf *m;
 	u_char *ptr;
+	CRIT_VAR;
 
-	x = SPLI4B();
-
-	if(l2sc->peer_busy)
+	CRIT_BEG;
+	
+	if((l2sc->peer_busy) || (l2sc->vs == ((l2sc->va + MAX_K_VALUE) & 127)))
 	{
-		DBGL2(L2_I_MSG, "i4b_i_frame_queued_up", ("peer busy!\n"));
-		i4b_print_l2var(l2sc);
-		splx(x);
-		return;
-	}
+		if(l2sc->peer_busy)
+		{
+			DBGL2(L2_I_MSG, "i4b_i_frame_queued_up", ("regen IFQUP, cause: peer busy!\n"));
+		}
 
-	if(l2sc->vs == ((l2sc->va + MAX_K_VALUE) & 127))
-	{
-		DBGL2(L2_I_ERR, "i4b_i_frame_queued_up", ("V(S) == ((V(A) + k) & 127)!\n"));
-		DBGL2(L2_I_ERR, "i4b_i_frame_queued_up", ("state = %s\n", i4b_print_l2state(l2sc)));
-		i4b_print_l2var(l2sc);
-		splx(x);
+		if(l2sc->vs == ((l2sc->va + MAX_K_VALUE) & 127))
+		{
+			DBGL2(L2_I_MSG, "i4b_i_frame_queued_up", ("regen IFQUP, cause: vs=va+k!\n"));
+		}	
+
+		/*
+		 * XXX see: Q.921, page 36, 5.6.1 ".. may retransmit an I
+		 * frame ...", shall we retransmit the last i frame ?
+		 */
+
+		if(!(IF_QEMPTY(&l2sc->i_queue)))
+		{
+			DBGL2(L2_I_MSG, "i4b_i_frame_queued_up", ("re-scheduling IFQU call!\n"));
+#if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
+			l2sc->IFQU_callout = timeout((TIMEOUT_FUNC_T)i4b_i_frame_queued_up, (void *)l2sc, IFQU_DLY);
+#else
+			timeout((TIMEOUT_FUNC_T)i4b_i_frame_queued_up, (void *)l2sc, IFQU_DLY);
+#endif			
+		}
+		CRIT_END;
 		return;
 	}
 
@@ -233,7 +251,7 @@ i4b_i_frame_queued_up(l2_softc_t *l2sc)
 	if(!m)
 	{
 		DBGL2(L2_I_ERR, "i4b_i_frame_queued_up", ("ERROR, mbuf NULL after IF_DEQUEUE\n"));
-		splx(x);
+		CRIT_END;
 		return;
 	}
 
@@ -245,6 +263,8 @@ i4b_i_frame_queued_up(l2_softc_t *l2sc)
 	*(ptr + OFF_INS) = (l2sc->vs << 1) & 0xfe; /* bit 0 = 0 */
 	*(ptr + OFF_INR) = (l2sc->vr << 1) & 0xfe; /* P bit = 0 */
 
+	l2sc->stat.tx_i++;	/* update frame counter */
+	
 	PH_Data_Req(l2sc->unit, m, MBUF_DONTFREE); /* free'd when ack'd ! */
 
 	l2sc->iframe_sent = 1;		/* in case we ack an I frame with another I frame */
@@ -263,7 +283,7 @@ i4b_i_frame_queued_up(l2_softc_t *l2sc)
 	
 	l2sc->ack_pend = 0;
 
-	splx(x);
+	CRIT_END;
 
 	if(l2sc->T200 == TIMER_IDLE)
 	{

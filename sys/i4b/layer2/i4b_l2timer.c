@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,7 +29,7 @@
  *
  * $FreeBSD$ 
  *
- *      last edit-date: [Sat Dec  5 18:29:13 1998]
+ *      last edit-date: [Wed Apr 21 09:17:58 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -85,8 +85,12 @@ i4b_T200_timeout(l2_softc_t *l2sc)
 void
 i4b_T200_start(l2_softc_t *l2sc)
 {
+	if(l2sc->T200 == TIMER_ACTIVE)
+		return;
+		
 	DBGL2(L2_T_MSG, "i4b_T200_start", ("unit %d\n", l2sc->unit));
 	l2sc->T200 = TIMER_ACTIVE;
+
 #if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
 	l2sc->T200_callout = timeout((TIMEOUT_FUNC_T)i4b_T200_timeout, (void *)l2sc, T200DEF);
 #else
@@ -100,6 +104,8 @@ i4b_T200_start(l2_softc_t *l2sc)
 void
 i4b_T200_stop(l2_softc_t *l2sc)
 {
+	CRIT_VAR;
+	CRIT_BEG;
 	if(l2sc->T200 != TIMER_IDLE)
 	{
 #if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
@@ -109,6 +115,7 @@ i4b_T200_stop(l2_softc_t *l2sc)
 #endif
 		l2sc->T200 = TIMER_IDLE;
 	}
+	CRIT_END;
 	DBGL2(L2_T_MSG, "i4b_T200_stop", ("unit %d\n", l2sc->unit));
 }
 
@@ -118,21 +125,27 @@ i4b_T200_stop(l2_softc_t *l2sc)
 void
 i4b_T200_restart(l2_softc_t *l2sc)
 {
+	CRIT_VAR;
+	CRIT_BEG;
 	if(l2sc->T200 != TIMER_IDLE)
+	{
 #if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
 		untimeout((TIMEOUT_FUNC_T)i4b_T200_timeout, (void *)l2sc, l2sc->T200_callout);
 #else
 		untimeout((TIMEOUT_FUNC_T)i4b_T200_timeout, (void *)l2sc);
 #endif
+	}
 	else
+	{
 		l2sc->T200 = TIMER_ACTIVE;
-	
+	}
+
 #if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
 	l2sc->T200_callout = timeout((TIMEOUT_FUNC_T)i4b_T200_timeout, (void *)l2sc, T200DEF);
 #else
 	timeout((TIMEOUT_FUNC_T)i4b_T200_timeout, (void *)l2sc, T200DEF);
 #endif
-
+	CRIT_END;
 	DBGL2(L2_T_MSG, "i4b_T200_restart", ("unit %d\n", l2sc->unit));
 }
 
@@ -156,9 +169,13 @@ i4b_T202_timeout(l2_softc_t *l2sc)
 void
 i4b_T202_start(l2_softc_t *l2sc)
 {
+	if (l2sc->N202 == TIMER_ACTIVE)
+		return;
+
 	DBGL2(L2_T_MSG, "i4b_T202_start", ("unit %d\n", l2sc->unit));
 	l2sc->N202 = N202DEF;	
 	l2sc->T202 = TIMER_ACTIVE;
+
 #if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
 	l2sc->T202_callout = timeout((TIMEOUT_FUNC_T)i4b_T202_timeout, (void *)l2sc, T202DEF);
 #else
@@ -172,6 +189,8 @@ i4b_T202_start(l2_softc_t *l2sc)
 void
 i4b_T202_stop(l2_softc_t *l2sc)
 {
+	CRIT_VAR;
+	CRIT_BEG;
 	if(l2sc->T202 != TIMER_IDLE)
 	{
 #if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
@@ -181,6 +200,7 @@ i4b_T202_stop(l2_softc_t *l2sc)
 #endif
 		l2sc->T202 = TIMER_IDLE;
 	}
+	CRIT_END;
 	DBGL2(L2_T_MSG, "i4b_T202_stop", ("unit %d\n", l2sc->unit));
 }
 
@@ -203,8 +223,12 @@ void
 i4b_T203_start(l2_softc_t *l2sc)
 {
 #if I4B_T203_ACTIVE
+	if (l2sc->T203 == TIMER_ACTIVE)
+		return;
+		
 	DBGL2(L2_T_MSG, "i4b_T203_start", ("unit %d\n", l2sc->unit));
 	l2sc->T203 = TIMER_ACTIVE;
+
 #if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
 	l2sc->T203_callout = timeout((TIMEOUT_FUNC_T)i4b_T203_timeout, (void *)l2sc, T203DEF);
 #else
@@ -220,6 +244,8 @@ void
 i4b_T203_stop(l2_softc_t *l2sc)
 {
 #if I4B_T203_ACTIVE
+	CRIT_VAR;
+	CRIT_BEG;
 	if(l2sc->T203 != TIMER_IDLE)
 	{
 #if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
@@ -229,6 +255,7 @@ i4b_T203_stop(l2_softc_t *l2sc)
 #endif
 		l2sc->T203 = TIMER_IDLE;
 	}
+	CRIT_END;
 	DBGL2(L2_T_MSG, "i4b_T203_stop", ("unit %d\n", l2sc->unit));
 #endif
 }
@@ -240,24 +267,30 @@ void
 i4b_T203_restart(l2_softc_t *l2sc)
 {
 #if I4B_T203_ACTIVE
+	CRIT_VAR;
+	CRIT_BEG;
+
 	if(l2sc->T203 != TIMER_IDLE)
+	{
 #if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
 		untimeout((TIMEOUT_FUNC_T)i4b_T203_timeout, (void *)l2sc, l2sc->T203_callout);
 #else
 		untimeout((TIMEOUT_FUNC_T)i4b_T203_timeout, (void *)l2sc);
 #endif
+	}
 	else
+	{
 		l2sc->T203 = TIMER_ACTIVE;
+	}
 	
 #if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
 	l2sc->T203_callout = timeout((TIMEOUT_FUNC_T)i4b_T203_timeout, (void *)l2sc, T203DEF);
 #else
 	timeout((TIMEOUT_FUNC_T)i4b_T203_timeout, (void *)l2sc, T203DEF);
 #endif
-
+	CRIT_END;
 	DBGL2(L2_T_MSG, "i4b_T203_restart", ("unit %d\n", l2sc->unit));
 #endif
 }
 
 #endif /* NI4BQ921 > 0 */
-

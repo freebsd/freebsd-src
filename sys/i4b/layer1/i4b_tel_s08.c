@@ -3,7 +3,7 @@
  *
  *   Copyright (c) 1996 Gary Jennejohn. All rights reserved. 
  *
- *   Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ *   Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  *   Redistribution and use in source and binary forms, with or without
  *   modification, are permitted provided that the following conditions
@@ -39,7 +39,7 @@
  *
  * $FreeBSD$ 
  *
- *      last edit-date: [Fri Dec  4 10:39:12 1998]
+ *      last edit-date: [Sun Feb 14 10:28:53 1999]
  *
  *	-hm	clean up
  *	-hm	more cleanup

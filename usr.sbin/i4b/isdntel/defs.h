@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,7 +29,7 @@
  *
  * $FreeBSD$ 
  *
- *      last edit-date: [Sat Dec  5 18:15:26 1998]
+ *      last edit-date: [Mon Apr 26 13:55:35 1999]
  *
  *----------------------------------------------------------------------------*/
 
@@ -51,15 +51,14 @@
 #endif
 #include <sys/param.h>
 
-#define VERSION	"1"		/* version number	*/
-#define REL	"11"		/* release number	*/
+#include <machine/i4b_ioctl.h>
 
 #define GOOD	0
 #define	ERROR	(-1)
 #define WARNING (-2)
 
 #define	SPOOLDIR	"/var/isdn"
-#define PLAYCMD		"cat %s | alaw2ulaw >/dev/audio"
+#define PLAYCMD		"cat %s | g711conv -a >/dev/audio"
 
 /* reread timeout in seconds */
 

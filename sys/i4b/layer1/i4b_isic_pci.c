@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Sat Dec  5 18:24:36 1998]
+ *      last edit-date: [Wed Apr 21 09:57:37 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -82,12 +82,13 @@
 #include <i4b/layer1/i4b_hscx.h>
 
 #define PCI_QS1000_ID	0x10001048
+#define PCI_AVMA1_ID	0x0a001244
 
 #define MEM0_MAPOFF	0
 #define PORT0_MAPOFF	4
 #define PORT1_MAPOFF	12
 
-static const char* i4b_pci_probe(pcici_t tag, pcidi_t type);
+static const char *i4b_pci_probe(pcici_t tag, pcidi_t type);
 static void i4b_pci_attach(pcici_t config_id, int unit);
 static int isic_pciattach(int unit, u_long type, u_int iobase1, u_int iobase2);
 
@@ -101,9 +102,21 @@ static struct pci_device i4b_pci_driver = {
 	NULL
 };
 
+#if defined(__FreeBSD_version) && __FreeBSD_version >= 400004
+#ifndef COMPAT_PCI_DRIVER
 DATA_SET (pcidevice_set, i4b_pci_driver);
+#else
+COMPAT_PCI_DRIVER (isic_pci, i4b_pci_driver);
+#endif /* COMPAT_PCI_DRIVER */
+#else /* __FreeBSD_version >= 400004 */
+DATA_SET (pcidevice_set, i4b_pci_driver);
+#endif /* __FreeBSD_version >= 400004 */
 
 static void isic_pci_intr_sc(struct isic_softc *sc);
+
+#ifdef AVM_A1_PCI
+extern void avma1pp_map_int(pcici_t, void *, unsigned *);
+#endif
 
 
 /*---------------------------------------------------------------------------*
@@ -115,8 +128,10 @@ i4b_pci_probe(pcici_t tag, pcidi_t type)
 	switch(type)
 	{
 		case PCI_QS1000_ID:
-			return("ELSA QuickStep 1000pro PCI ISDN adaptor");
-			break;
+			return("ELSA QuickStep 1000pro PCI ISDN adapter");
+
+		case PCI_AVMA1_ID:
+			return("AVM Fritz!Card PCI ISDN adapter");
 			
 		default:
 			if(bootverbose)
@@ -136,6 +151,7 @@ i4b_pci_attach(pcici_t config_id, int unit)
 	unsigned short iobase2;	
 	unsigned long type;
 	struct isic_softc *sc = &isic_sc[unit];
+	u_long reg1, reg2;
 	
 	if(unit != next_isic_unit)
 	{
@@ -143,13 +159,35 @@ i4b_pci_attach(pcici_t config_id, int unit)
 		return;
 	}
 
-	if(!(pci_map_port(config_id, PCI_MAP_REG_START+PORT0_MAPOFF, &iobase1)))
+	/* IMHO all the following should be done in the low-level driver - GJ */
+	type = pci_conf_read(config_id, PCI_ID_REG);
+		
+	/* not all cards have their ports at the same location !!! */
+	switch(type)
+	{
+		case PCI_QS1000_ID:
+			reg1 = PCI_MAP_REG_START+PORT0_MAPOFF;
+			reg2 = PCI_MAP_REG_START+PORT1_MAPOFF;
+			break;
+
+		case PCI_AVMA1_ID:
+			reg1 = PCI_MAP_REG_START+PORT0_MAPOFF;
+			reg2 = 0;
+			break;
+			
+		default:
+			reg1 = PCI_MAP_REG_START+PORT0_MAPOFF;
+			reg2 = PCI_MAP_REG_START+PORT1_MAPOFF;
+			break;
+	}
+
+	if(reg1 && !(pci_map_port(config_id, reg1, &iobase1)))
 	{
 		printf("i4b_pci_attach: pci_map_port 1 failed!\n");
 		return;
 	}
 
-	if(!(pci_map_port(config_id, PCI_MAP_REG_START+PORT1_MAPOFF, &iobase2)))
+	if(reg2 && !(pci_map_port(config_id, reg2, &iobase2)))
 	{
 		printf("i4b_pci_attach: pci_map_port 2 failed!\n");
 		return;
@@ -158,11 +196,19 @@ i4b_pci_attach(pcici_t config_id, int unit)
 	if(bootverbose)
 		printf("i4b_pci_attach: unit %d, port0 0x%x, port1 0x%x\n", unit, iobase1, iobase2);
 
-	type = pci_conf_read(config_id, PCI_ID_REG);
-		
 	if((isic_pciattach(unit, type, iobase1, iobase2)) == 0)
 		return;
 
+#ifdef AVM_A1_PCI
+	/* the AVM FRTIZ!PCI needs to handle its own interrupts */
+	if (type == PCI_AVMA1_ID)
+	{
+		avma1pp_map_int(config_id, (void *)sc, &net_imask);
+		return;
+	}
+#endif
+
+	/* seems like this should be done before the attach in case it fails */
 	if(!(pci_map_int(config_id, (void *)isic_pci_intr_sc, (void *)sc, &net_imask)))
 		return;
 }
@@ -200,6 +246,13 @@ isic_pciattach(int unit, u_long type, u_int iobase1, u_int iobase2)
 		case PCI_QS1000_ID:
 			ret = isic_attach_Eqs1pp(unit, iobase1, iobase2);
 			break;
+#endif
+#ifdef AVM_A1_PCI
+		case PCI_AVMA1_ID:
+			ret = isic_attach_avma1pp(unit, iobase1, iobase2);
+	   		if (ret)
+	     			next_isic_unit++;
+			return(ret);
 #endif
 		default:
 			break;

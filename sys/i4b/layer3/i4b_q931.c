@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,7 +29,7 @@
  *
  * $FreeBSD$ 
  *
- *      last edit-date: [Sat Dec  5 18:33:36 1998]
+ *      last edit-date: [Tue Apr 27 12:04:35 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -270,7 +270,7 @@ i4b_decode_q931_cs0_ie(int unit, call_desc_t *cd, int msg_len, u_char *msg_ptr)
 		/* single byte IE's */
 		
 		case IEI_SENDCOMPL:
-			DBGL3(L3_P_MSG, "i4b_decode_q931_codeset0", ("IEI_SENDCOMPL\n"));
+			DBGL3(L3_P_MSG, "i4b_decode_q931_cs0_ie", ("IEI_SENDCOMPL\n"));
 			return(1);
 			break;
 
@@ -283,17 +283,17 @@ i4b_decode_q931_cs0_ie(int unit, call_desc_t *cd, int msg_len, u_char *msg_ptr)
 				case 0x89:	/* restricted digital info */
 				case 0x90:	/* 3.1KHz audio */
 /* XXX */				cd->bprot = BPROT_NONE;
-					DBGL3(L3_P_MSG, "i4b_decode_q931_codeset0", ("IEI_BEARERCAP - Telephony\n"));
+					DBGL3(L3_P_MSG, "i4b_decode_q931_cs0_ie", ("IEI_BEARERCAP - Telephony\n"));
 					break;
 
 				case 0x88:	/* unrestricted digital info */
 /* XXX */				cd->bprot = BPROT_RHDLC;
-					DBGL3(L3_P_MSG, "i4b_decode_q931_codeset0", ("IEI_BEARERCAP - Raw HDLC\n"));
+					DBGL3(L3_P_MSG, "i4b_decode_q931_cs0_ie", ("IEI_BEARERCAP - Raw HDLC\n"));
 					break;
 
 				default:
 /* XXX */				cd->bprot = BPROT_NONE;
-					DBGL3(L3_P_MSG, "i4b_decode_q931_codeset0", ("IEI_BEARERCAP - No Protocol\n"));
+					DBGL3(L3_P_MSG, "i4b_decode_q931_cs0_ie", ("IEI_BEARERCAP - No Protocol\n"));
 					break;
 			}
 			break;
@@ -302,12 +302,12 @@ i4b_decode_q931_cs0_ie(int unit, call_desc_t *cd, int msg_len, u_char *msg_ptr)
 			if(msg_ptr[2] & 0x80)
 			{
 				cd->cause_in = msg_ptr[3] & 0x7f;
-				DBGL3(L3_P_MSG, "i4b_decode_q931_codeset0", ("IEI_CAUSE = %d\n", msg_ptr[3] & 0x7f));
+				DBGL3(L3_P_MSG, "i4b_decode_q931_cs0_ie", ("IEI_CAUSE = %d\n", msg_ptr[3] & 0x7f));
 			}
 			else
 			{
 				cd->cause_in = msg_ptr[4] & 0x7f;
-				DBGL3(L3_P_MSG, "i4b_decode_q931_codeset0", ("IEI_CAUSE = %d\n", msg_ptr[4] & 0x7f));
+				DBGL3(L3_P_MSG, "i4b_decode_q931_cs0_ie", ("IEI_CAUSE = %d\n", msg_ptr[4] & 0x7f));
 			}
 			break;
 	
@@ -315,7 +315,7 @@ i4b_decode_q931_cs0_ie(int unit, call_desc_t *cd, int msg_len, u_char *msg_ptr)
 			if((msg_ptr[2] & 0xf4) != 0x80)
 			{
 				cd->channelid = CHAN_NO;
-				DBGL3(L3_P_ERR, "i4b_decode_q931_codeset0", ("IEI_CHANNELID, unsupported value 0x%x\n", msg_ptr[2]));
+				DBGL3(L3_P_ERR, "i4b_decode_q931_cs0_ie", ("IEI_CHANNELID, unsupported value 0x%x\n", msg_ptr[2]));
 			}
 			else
 			{
@@ -336,7 +336,7 @@ i4b_decode_q931_cs0_ie(int unit, call_desc_t *cd, int msg_len, u_char *msg_ptr)
 				}
 				cd->channelexcl = (msg_ptr[2] & 0x08) >> 3;
 
-				DBGL3(L3_P_MSG, "i4b_decode_q931_codeset0", ("IEI_CHANNELID - channel %d, exclusive = %d\n", cd->channelid, cd->channelexcl));
+				DBGL3(L3_P_MSG, "i4b_decode_q931_cs0_ie", ("IEI_CHANNELID - channel %d, exclusive = %d\n", cd->channelid, cd->channelexcl));
 
 				/* if this is a setup message, reserve channel */
 				
@@ -347,15 +347,15 @@ i4b_decode_q931_cs0_ie(int unit, call_desc_t *cd, int msg_len, u_char *msg_ptr)
 						if(ctrl_desc[cd->controller].bch_state[cd->channelid] == BCH_ST_FREE)
 							ctrl_desc[cd->controller].bch_state[cd->channelid] = BCH_ST_RSVD;
 						else
-							DBGL3(L3_P_ERR, "i4b_decode_q931_codeset0", ("IE ChannelID, Channel NOT free!!\n"));
+							DBGL3(L3_P_ERR, "i4b_decode_q931_cs0_ie", ("IE ChannelID, Channel NOT free!!\n"));
 					}
 					else if(cd->channelid == CHAN_NO)
 					{
-						DBGL3(L3_P_MSG, "i4b_decode_q931_codeset0", ("IE ChannelID, SETUP with channel = No channel (CW)\n"));
+						DBGL3(L3_P_MSG, "i4b_decode_q931_cs0_ie", ("IE ChannelID, SETUP with channel = No channel (CW)\n"));
 					}
 					else /* cd->channelid == CHAN_ANY */
 					{
-						DBGL3(L3_P_ERR, "i4b_decode_q931_codeset0", ("ERROR: IE ChannelID, SETUP with channel = Any channel!\n"));
+						DBGL3(L3_P_ERR, "i4b_decode_q931_cs0_ie", ("ERROR: IE ChannelID, SETUP with channel = Any channel!\n"));
 					}
 				}
 			}
@@ -374,29 +374,29 @@ i4b_decode_q931_cs0_ie(int unit, call_desc_t *cd, int msg_len, u_char *msg_ptr)
 				cd->src_telno[min(TELNO_MAX, msg_ptr[1] - 2)] = '\0';
 				cd->scr_ind = (msg_ptr[3] & 0x03) + SCR_USR_NOSC;
 			}
-			DBGL3(L3_P_MSG, "i4b_decode_q931_codeset0", ("IEI_CALLINGPN = %s\n", cd->src_telno));
+			DBGL3(L3_P_MSG, "i4b_decode_q931_cs0_ie", ("IEI_CALLINGPN = %s\n", cd->src_telno));
 			break;
 	
 		case IEI_CALLEDPN:	/* called party number */
 			memcpy(cd->dst_telno, &msg_ptr[3], min(TELNO_MAX, msg_ptr[1]-1));
 			cd->dst_telno[min(TELNO_MAX, msg_ptr [1] - 1)] = '\0';
-			DBGL3(L3_P_MSG, "i4b_decode_q931_codeset0", ("IEI_CALLED = %s\n", cd->dst_telno)); 
+			DBGL3(L3_P_MSG, "i4b_decode_q931_cs0_ie", ("IEI_CALLED = %s\n", cd->dst_telno)); 
 			break;
 	
 		case IEI_CALLSTATE:	/* call state		*/
 			cd->call_state = msg_ptr[2] & 0x3f;		
-			DBGL3(L3_P_MSG, "i4b_decode_q931_codeset0", ("IEI_CALLSTATE = %d\n", cd->call_state));
+			DBGL3(L3_P_MSG, "i4b_decode_q931_cs0_ie", ("IEI_CALLSTATE = %d\n", cd->call_state));
 			break;
 			
 		case IEI_PROGRESSI:	/* progress indicator	*/
-			DBGL3(L3_P_MSG, "i4b_decode_q931_codeset0", ("IEI_PROGRESSINDICATOR\n"));
+			DBGL3(L3_P_MSG, "i4b_decode_q931_cs0_ie", ("IEI_PROGRESSINDICATOR\n"));
 			break;
 			
 		case IEI_DISPLAY:	/* display		*/
 			/* CHANGED BY <chris@medis.de> */
 			memcpy(cd->display, &msg_ptr[2], min(DISPLAY_MAX, msg_ptr[1]));
 			cd->display[min(DISPLAY_MAX, msg_ptr[1])] = '\0';
-			DBGL3(L3_P_MSG, "i4b_decode_q931_codeset0", ("IEI_DISPLAY = %s\n", cd->display));
+			DBGL3(L3_P_MSG, "i4b_decode_q931_cs0_ie", ("IEI_DISPLAY = %s\n", cd->display));
   			break;
 			
 		case IEI_DATETIME:	/* date/time		*/
@@ -408,33 +408,41 @@ i4b_decode_q931_cs0_ie(int unit, call_desc_t *cd, int msg_len, u_char *msg_ptr)
 			for(j = msg_ptr[1]; j > 0; j--, i++)
 				sprintf(p+strlen(p), "%02d", msg_ptr[i]);
 			
-			DBGL3(L3_P_MSG, "i4b_decode_q931_codeset0", ("IEI_DATETIME = %s\n", cd->datetime));
+			DBGL3(L3_P_MSG, "i4b_decode_q931_cs0_ie", ("IEI_DATETIME = %s\n", cd->datetime));
 			break;
 			
 		case IEI_FACILITY:	/* facility		*/
-			DBGL3(L3_P_MSG, "i4b_decode_q931_codeset0", ("IEI_FACILITY\n"));
+			DBGL3(L3_P_MSG, "i4b_decode_q931_cs0_ie", ("IEI_FACILITY\n"));
 			if(i4b_aoc(msg_ptr, cd) > -1)
 				i4b_l4_charging_ind(cd);
 			break;
 			
 		case IEI_CONCTDNO:	/* connected number	*/
-			DBGL3(L3_P_MSG, "i4b_decode_q931_codeset0", ("IEI_CONCTDNO\n"));
+			DBGL3(L3_P_MSG, "i4b_decode_q931_cs0_ie", ("IEI_CONCTDNO\n"));
 			break;
 			
 		case IEI_NETSPCFAC:	/* network specific fac */
-			DBGL3(L3_P_MSG, "i4b_decode_q931_codeset0", ("IEI_NETSPCFAC\n"));
+			DBGL3(L3_P_MSG, "i4b_decode_q931_cs0_ie", ("IEI_NETSPCFAC\n"));
 			break;
 			
 		case IEI_LLCOMPAT:	/* low layer compat	*/
-			DBGL3(L3_P_MSG, "i4b_decode_q931_codeset0", ("IEI_LLCOMPAT\n"));
+			DBGL3(L3_P_MSG, "i4b_decode_q931_cs0_ie", ("IEI_LLCOMPAT\n"));
 			break;
 			
 		case IEI_HLCOMPAT:	/* high layer compat	*/
-			DBGL3(L3_P_MSG, "i4b_decode_q931_codeset0", ("IEI_HLCOMPAT\n"));
+			DBGL3(L3_P_MSG, "i4b_decode_q931_cs0_ie", ("IEI_HLCOMPAT\n"));
+			break;
+			
+		case IEI_CALLINGPS:	/* calling party subaddress */
+			DBGL3(L3_P_MSG, "i4b_decode_q931_cs0_ie", ("IEI_CALLINGPS\n"));
+			break;
+			
+		case IEI_CALLEDPS:	/* called party subaddress */
+			DBGL3(L3_P_MSG, "i4b_decode_q931_cs0_ie", ("IEI_CALLEDPS\n"));
 			break;
 			
 		default:
-			DBGL3(L3_P_ERR, "i4b_decode_q931_codeset0", ("Unknown IE %d - ", *msg_ptr));
+			DBGL3(L3_P_ERR, "i4b_decode_q931_cs0_ie", ("Unknown IE %d - ", *msg_ptr));
 			i4b_print_frame(msg_ptr[1]+2, msg_ptr);
 			break;
 	}

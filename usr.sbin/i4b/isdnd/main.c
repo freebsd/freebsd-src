@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,7 +29,7 @@
  *
  * $FreeBSD$ 
  *
- *      last edit-date: [Sat Dec  5 18:10:38 1998]
+ *      last edit-date: [Fri Jul 30 08:14:10 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -74,19 +74,18 @@ usage(void)
 	fprintf(stderr, "\n");
 	fprintf(stderr, "isdnd - i4b ISDN manager daemon, version %02d.%02d.%d, %s %s\n", VERSION, REL, STEP, __DATE__, __TIME__);
 #ifdef DEBUG
-	fprintf(stderr, "  usage: isdnd [-b] [-c file] [-d level] [-F]\n");
+	fprintf(stderr, "  usage: isdnd [-c file] [-d level] [-F] [-f [-r dev] [-t termtype]]\n");
 #else
-	fprintf(stderr, "  usage: isdnd [-b] [-c file] [-F]\n");
+	fprintf(stderr, "  usage: isdnd [-c file] [-F] [-f [-r dev] [-t termtype]]\n");
 #endif	
-	fprintf(stderr, "               [-f [-r dev] [-t termtype]] [-u time]\n");
-	fprintf(stderr, "               [-l] [-L file] [-s facility] [-m]\n");
-	fprintf(stderr, "    -b            audible bell in fullscreen mode at connect/disconnect\n");
+	fprintf(stderr, "               [-l] [-L file] [-m] [-s facility] [-u time]\n");
 	fprintf(stderr, "    -c <filename> configuration file name (def: %s)\n", CONFIG_FILE_DEF);
 #ifdef DEBUG
 	fprintf(stderr, "    -d <level>    set debug flag bits:\n");
 	fprintf(stderr, "                  general = 0x%04x, rates  = 0x%04x, timing   = 0x%04x\n", DL_MSG,   DL_RATES, DL_TIME);
 	fprintf(stderr, "                  state   = 0x%04x, retry  = 0x%04x, dial     = 0x%04x\n", DL_STATE, DL_RCVRY, DL_DIAL);
-	fprintf(stderr, "                  process = 0x%04x, kernio = 0x%04x  ctrlstat = 0x%04x\n", DL_PROC,  DL_DRVR,  DL_CNST);	
+	fprintf(stderr, "                  process = 0x%04x, kernio = 0x%04x  ctrlstat = 0x%04x\n", DL_PROC,  DL_DRVR,  DL_CNST);
+	fprintf(stderr, "                  rc-file = 0x%04x\n", DL_RCCF);
 	fprintf(stderr, "    -dn           no debug output on fullscreen display\n");
 #endif
 	fprintf(stderr, "    -f            fullscreen status display\n");
@@ -119,7 +118,7 @@ main(int argc, char **argv)
 #endif
 #endif
 	
-	while ((i = getopt(argc, argv, "bmc:d:fFlL:Pr:s:t:u:?")) != EOF)
+	while ((i = getopt(argc, argv, "bmc:d:fFlL:Pr:s:t:u:")) != -1)
 	{
 		switch (i)
 		{
@@ -307,6 +306,14 @@ main(int argc, char **argv)
 		exit(1);
 	}
 
+	/* init active controllers, if any */
+	
+	signal(SIGCHLD, SIG_IGN);		/*XXX*/
+
+	init_active_controller();
+
+	signal(SIGCHLD, sigchild_handler);	/*XXX*/
+	
 	/* handle the rates stuff */
 	
 	if((i = readrates(ratesfile)) == ERROR)
@@ -319,7 +326,7 @@ main(int argc, char **argv)
 	if(i == GOOD)
 	{
 		got_rate = 1;	/* flag, ratesfile read and ok */
-		DBGL(DL_MSG, (log(LL_DBG, "ratesfile %s read successfully", ratesfile)));
+		DBGL(DL_RCCF, (log(LL_DBG, "ratesfile %s read successfully", ratesfile)));
 	}
 	else
 	{
@@ -442,7 +449,7 @@ mloop(
 
  	/* go into loop */
 	
- 	log(LL_DMN, "daemon started (pid = %d)", getpid());
+ 	log(LL_DMN, "i4b isdn daemon started (pid = %d)", getpid());
  
 	for(;;)
 	{
@@ -516,7 +523,10 @@ mloop(
 		else if(ret == -1)
 		{
 			if(errno != EINTR)
-				log(LL_WRN, "ERROR, select error on isdn device, errno = %d!", errno);
+			{
+				log(LL_ERR, "ERROR, select error on isdn device, errno = %d!", errno);
+				do_exit(1);
+			}
 		}			
 
 		/* handle timeout and recovery */		
@@ -623,6 +633,10 @@ isdnrdhdl(void)
 				msg_ifstatechg_ind((msg_ifstatechg_ind_t *)msg_rd_buf);
 				break;
 
+			case MSG_DIALOUTNUMBER_IND:
+				msg_dialoutnumber((msg_dialoutnumber_ind_t *)msg_rd_buf);
+				break;
+
 			default:
 				log(LL_WRN, "ERROR, unknown message received from /dev/isdn (0x%x)", msg_rd_buf[0]);
 				break;
@@ -655,9 +669,8 @@ rereadconfig(int dummy)
 
 	if(config_error_flag)
 	{
-		log(LL_ERR, "there were %d error(s) in the configuration file, terminating!", config_error_flag);
-		unlink(PIDFILE);		
-		exit(1);
+		log(LL_ERR, "rereadconfig: there were %d error(s) in the configuration file, terminating!", config_error_flag);
+		do_exit(1);
 	}
 
 	if(aliasing)
@@ -676,13 +689,30 @@ reopenfiles(int dummy)
 {
         if(useacctfile)
 	{
+		/* close file */
+		
 	        fflush(acctfp);
 	        fclose(acctfp);
+
+	        /* if user specified a suffix, rename the old file */
+	        
+	        if(rotatesuffix[0] != '\0')
+	        {
+	        	char filename[MAXPATHLEN];
+
+	        	sprintf(filename, "%s%s", acctfile, rotatesuffix);
+
+			if((rename(acctfile, filename)) != 0)
+			{
+				log(LL_ERR, "reopenfiles: acct rename failed, cause = %s", strerror(errno));
+				do_exit(1);
+			}
+		}
 
 		if((acctfp = fopen(acctfile, "a")) == NULL)
 		{
 			log(LL_ERR, "ERROR, can't open acctfile %s for writing, terminating!", acctfile);
-			exit(1);
+			do_exit(1);
 		}
 		setvbuf(acctfp, (char *)NULL, _IONBF, 0);
 	}
@@ -690,6 +720,21 @@ reopenfiles(int dummy)
 	if(uselogfile)
 	{
 	        finish_log();
+
+	        /* if user specified a suffix, rename the old file */
+	        
+	        if(rotatesuffix[0] != '\0')
+	        {
+	        	char filename[MAXPATHLEN];
+
+	        	sprintf(filename, "%s%s", logfile, rotatesuffix);
+
+			if((rename(logfile, filename)) != 0)
+			{
+				log(LL_ERR, "reopenfiles: log rename failed, cause = %s", strerror(errno));
+				do_exit(1);
+			}
+		}
 
 	        if((logfp = fopen(logfile, "a")) == NULL)
 		{

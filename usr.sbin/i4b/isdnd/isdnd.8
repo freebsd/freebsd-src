@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+.\" Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -24,16 +24,16 @@
 .\"
 .\" $FreeBSD$ 
 .\"
-.\"	last edit-date: [Sat Dec 12 21:13:59 1998]
+.\"	last edit-date: [Thu May 20 14:37:42 1999]
 .\"
-.Dd November 3, 1998
-.Dt isdnd 8
+.Dd February 23, 1999
+.Dt ISDND 8
+.Os
 .Sh NAME
 .Nm isdnd
 .Nd isdn4bsd ISDN connection management daemon
 .Sh SYNOPSIS
 .Nm isdnd
-.Op Fl b
 .Op Fl c Ar configfile
 .Op Fl d Ar debuglevel
 .Op Fl f
@@ -53,9 +53,6 @@ and disconnection of ISDN devices supported by the package.
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
-.It Fl b
-Bell: in full-screen mode, ring the bell when connecting 
-or disconnecting a call.
 .It Fl c
 Use 
 .Ar configfile
@@ -89,6 +86,8 @@ process handling.
 isdn4bsd kernel i/o calls.
 .It Ar 0x100
 controller and channel busy/free messages.
+.It Ar 0x200
+isdnd.rc configuration file processing.
 .El
 .Pp
 The value can be specified in any number base supported by the
@@ -132,7 +131,10 @@ facility but instead is appended to a file.
 .It Fl L
 Specifies the name of the logfile which is used when the option
 .Em -l
-is set.
+is set. See also the keyword
+.Em rotatesuffix
+in the system section of
+.Xr isdnd.rc 5 .
 .It Fl P
 This option prints out the parsed and verified isdnd configuration in the same
 format as the isdnd.rc file. This output can be used as an isdnd.rc file. This 
@@ -277,11 +279,11 @@ to the daemon.
 .Pp
 The call is terminated by either the local site timing out or the remote
 side hanging up the connection or the local side actively sending a
-.Em DISCONNECT_REQ
+.Em I4B_DISCONNECT_REQ
 ioctl message, both events are signaled to the
 .Nm
 by the kernel sending the
-.Em DISCONNECT_IND
+.Em I4B_DISCONNECT_IND
 message and the CDID corresponding to the call is no longer valid.
 .Pp
 .Ss INCOMING CALLS
@@ -294,23 +296,23 @@ message to the daemon.
 With the information contained in this message, the
 .Nm
 searches the entry section of its configuration database and if a match is
-found, it accepts or rejects the call or, of no match is found, it ignores the
+found, it accepts or rejects the call or, if no match is found, it ignores the
 call - all by issuing a
 .Em I4B_CONNECT_RESP
 ioctl message with the appropriate parameters to the kernel.
 .Pp
-In case the daemon decided to accept the message, the kernel signal the then 
-active connection by sending a
+In case the daemon decided to accept the call, the kernel signals this
+by sending a
 .Em MSG_CONNECT_ACTIVE_IND
 message to the daemon.
 .Pp
 The call is terminated by either the local site timing out or the remote
 side hanging up the connection or the local side actively sending a
-.Em DISCONNECT_REQ
+.Em I4B_DISCONNECT_REQ
 ioctl message, both events are signaled to the
 .Nm
 by the kernel sending the
-.Em DISCONNECT_IND
+.Em I4B_DISCONNECT_IND
 message and the CDID corresponding to the call is no longer valid.
 .Pp
 
