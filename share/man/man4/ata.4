@@ -81,7 +81,7 @@ To support ATAPI floppy drives:
 To support ATAPI tape drives:
 .Cd device atapist
 .Pp
-The following tunables are setable from the loader:
+The following tunables are settable from the loader:
 .Bl -ohang
 .It Va hw.ata.ata_dma
 set to 1 for DMA access, 0 for PIO (default is DMA).
@@ -202,7 +202,7 @@ Static device numbering
 kernel option)
 reserves a number for each possibly connected disk,
 even when not present.
-This is usefull in hotswap senarios
+This is useful in hotswap senarios
 where disks should always show up as the same numbered device,
 and not depend on attach order.
 .Pp
