@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: ed.4,v 1.12 1998/06/08 06:11:59 jkoshy Exp $
+.\"	$Id: ed.4,v 1.14 1999/05/04 21:04:01 obrien Exp $
 .\"
 .Dd October 28, 1995
 .Dt ED 4 i386
@@ -37,9 +37,8 @@
 .Nm ed
 .Nd high performance ethernet device driver
 .Sh SYNOPSIS
-.Cd "device ed0 at isa? port 0x280 net irq 5 iomem 0xd8000"
-.Cd "device ed1 at isa? port 0x300 net irq 5 iomem 0xd8000"
-.Cd "device ed2 at isa? port 0x320 net irq 10 flags 0x4 iosiz 16384 iomem 0xd8000"
+.Cd "device ed0 at isa? port 0x280 net irq 10 iomem 0xd8000"
+.Cd "device ed1 at isa? port 0x300 net irq 5 flags 0x4 iosiz 16384 iomem 0xd8000"
 .Sh DESCRIPTION
 The
 .Nm ed
