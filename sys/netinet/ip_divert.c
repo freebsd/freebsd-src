@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ip_divert.c,v 1.32 1998/07/02 05:49:07 julian Exp $
+ *	$Id: ip_divert.c,v 1.33 1998/07/02 06:31:25 julian Exp $
  */
 
 #include "opt_inet.h"
@@ -156,7 +156,7 @@ div_input(struct mbuf *m, int hlen)
 	}
 	ip = mtod(m, struct ip *);
 
-	/* Record divert port */
+	/* Record divert cookie */
 	divsrc.sin_port = ip_divert_cookie;
 	ip_divert_cookie = 0;
 
@@ -165,7 +165,10 @@ div_input(struct mbuf *m, int hlen)
 	HTONS(ip->ip_len);
 	HTONS(ip->ip_off);
 
-	/* Record receive interface address, if any */
+	/*
+	 * Record receive interface address, if any
+	 * But only for incoming packets.
+	 */
 	divsrc.sin_addr.s_addr = 0;
 	if (hlen) {
 		struct ifaddr *ifa;
@@ -191,6 +194,9 @@ div_input(struct mbuf *m, int hlen)
 			break;
 		}
 	}
+	/*
+	 * Record the incoming interface name whenever we have one.
+	 */
 	if (m->m_pkthdr.rcvif) {
 		char	name[32];
 		/*
@@ -222,6 +228,7 @@ div_input(struct mbuf *m, int hlen)
 		if (inp->inp_lport == htons(ip_divert_port))
 			sa = inp->inp_socket;
 	}
+	ip_divert_port = 0;
 	if (sa) {
 		if (sbappendaddr(&sa->so_rcv, (struct sockaddr *)&divsrc,
 				m, (struct mbuf *)0) == 0)
@@ -261,6 +268,7 @@ div_output(so, m, addr, control)
 	if (sin) {
 		int	len = 0;
 		char	*c = sin->sin_zero;
+
 		ip_divert_cookie = sin->sin_port;
 
 		/*
