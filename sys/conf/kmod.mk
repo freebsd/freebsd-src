@@ -278,7 +278,7 @@ distribute:
 
 .if !target(load)
 load:	${PROG}
-	${KMODLOAD} -v ${.CURDIR}/${KMOD}.ko
+	${KMODLOAD} -v ${.OBJDIR}/${KMOD}.ko
 .endif
 
 .if !target(unload)
