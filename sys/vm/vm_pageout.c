@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.139 1999/03/12 00:44:02 julian Exp $
+ * $Id: vm_pageout.c,v 1.140 1999/04/06 03:14:56 peter Exp $
  */
 
 /*
@@ -203,7 +203,6 @@ static freeer_fcn_t vm_pageout_object_deactivate_pages;
 static void vm_req_vmdaemon __P((void));
 #endif
 static void vm_pageout_page_stats(void);
-void pmap_collect(void);
 
 /*
  * vm_pageout_clean:
