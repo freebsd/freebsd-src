@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_fat.c,v 1.18 1998/02/20 13:11:49 bde Exp $ */
+/*	$Id: msdosfs_fat.c,v 1.19 1998/03/28 07:22:03 ache Exp $ */
 /*	$NetBSD: msdosfs_fat.c,v 1.28 1997/11/17 15:36:49 ws Exp $	*/
 
 /*-
@@ -787,22 +787,14 @@ clusteralloc(pmp, start, count, fillwith, retcluster, got)
 	if (start) {
 		if ((len = chainlength(pmp, start, count)) >= count)
 			return (chainalloc(pmp, start, count, fillwith, retcluster, got));
-	} else {
-		/*
-		 * This is a new file, initialize start
-		 */
-		struct timeval tv;
-
-		microtime(&tv);
-		start = (tv.tv_usec >> 10) | tv.tv_usec;
+	} else 
 		len = 0;
-	}
 
 	/*
 	 * Start at a (pseudo) random place to maximize cluster runs
 	 * under multiple writers.
 	 */
-	newst = (start * 1103515245 + 12345) % (pmp->pm_maxcluster + 1);
+	newst = random() % (pmp->pm_maxcluster + 1);
 	foundl = 0;
 
 	for (cn = newst; cn <= pmp->pm_maxcluster;) {
