@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_ioctl.c,v 1.32 1999/05/06 18:44:22 peter Exp $
+ *  $Id: linux_ioctl.c,v 1.33 1999/05/09 16:04:04 peter Exp $
  */
 
 #include <sys/param.h>
@@ -595,6 +595,22 @@ linux_ioctl(struct proc *p, struct linux_ioctl_args *args)
 
     case LINUX_TIOCSWINSZ:
 	args->cmd = TIOCSWINSZ;
+	return ioctl(p, (struct ioctl_args *)args);
+
+    case LINUX_TIOCMGET:
+	args->cmd = TIOCMGET;
+	return ioctl(p, (struct ioctl_args *)args);
+
+    case LINUX_TIOCMBIS:
+	args->cmd = TIOCMBIS;
+	return ioctl(p, (struct ioctl_args *)args);
+
+    case LINUX_TIOCMBIC:
+	args->cmd = TIOCMBIC;
+	return ioctl(p, (struct ioctl_args *)args);
+
+    case LINUX_TIOCMSET:
+	args->cmd = TIOCMSET;
 	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_FIONREAD:
