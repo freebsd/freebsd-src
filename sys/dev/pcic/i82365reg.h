@@ -42,6 +42,11 @@
 #define	PCIC_REG_DATA		1
 
 /*
+ * I/o ports
+ */
+#define PCIC_INDEX0		0x3e0
+
+/*
  * The PCIC allows two chips to share the same address.  In order not to run
  * afoul of the netbsd device model, this driver will treat those chips as
  * the same device.
@@ -336,3 +341,9 @@
 #define PCIC_CIRRUS_EXTENDED_DATA		0x2F
 #define PCIC_CIRRUS_EXT_CONTROL_1		0x03
 #define PCIC_CIRRUS_EXT_CONTROL_1_PCI_INTR_MASK	0x18
+
+/* Plug and play */
+#define PCIC_PNP_82365		0x000ED040	/* PNP0E00 */
+#define PCIC_PNP_CL_PD6720	0x010ED040	/* PNP0E01 */
+#define PCIC_PNP_VLSI_82C146	0x020ED040	/* PNP0E02 */
+#define PCIC_PNP_82365_CARDBUS	0x030ED040	/* PNP0E03 */

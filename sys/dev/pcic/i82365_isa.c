@@ -43,15 +43,7 @@
 #include <sys/rman.h>
 #include <machine/resource.h>
 
-#ifdef __FreeBSD__
-#include <i386/isa/isa_device.h>
-typedef int isa_chipset_tag_t;
-#define ia_msize ia_memsize
-#define delay(x) DELAY(x)
-#else
-#include <dev/isa/isareg.h>
-#include <dev/isa/isavar.h>
-#endif
+#include <isa/isavar.h>
 
 #include <dev/pccard/pccardreg.h>
 #include <dev/pccard/pccardvar.h>
@@ -67,6 +59,14 @@ int	pcicisa_debug = 0 /* XXX */ ;
 #else
 #define	DPRINTF(arg)
 #endif
+
+static struct isa_pnp_id pcic_ids[] = {
+	{PCIC_PNP_82365,		NULL},		/* PNP0E00 */
+	{PCIC_PNP_CL_PD6720,		NULL},		/* PNP0E01 */
+	{PCIC_PNP_VLSI_82C146,		NULL},		/* PNP0E02 */
+	{PCIC_PNP_82365_CARDBUS,	NULL},		/* PNP0E03 */
+	{0}
+};
 
 int	pcic_isa_probe(device_t dev);
 int	pcic_isa_attach(device_t dev);
@@ -92,81 +92,62 @@ static struct pccard_chip_functions pcic_isa_functions = {
 int
 pcic_isa_probe(device_t dev)
 {
-#if XXX
-	struct isa_attach_args *ia = aux;
-	bus_space_tag_t iot = ia->ia_iot;
-	bus_space_handle_t ioh, memh;
+	bus_space_tag_t iot;
+	bus_space_handle_t ioh;
 	int val, found;
+	int rid;
+	struct resource *res;
+	u_long port, portlen;
 
-	/* Disallow wildcarded i/o address. */
-#ifdef __FreeBSD__
-	if (ia->ia_iobase == ISACF_IOBASE_DEFAULT)
-#else
-	if (ia->ia_iobase == ISACF_PORT_DEFAULT)
-#endif
-		return (0);
+	/* Check isapnp ids */
+	if (ISA_PNP_PROBE(device_get_parent(dev), dev, pcic_ids) == ENXIO)
+		return (ENXIO);
 
-	if (bus_space_map(iot, ia->ia_iobase, PCIC_IOSIZE, 0, &ioh))
-		return (0);
-
-	if (ia->ia_msize == -1)
-		ia->ia_msize = PCIC_MEMSIZE;
-#ifdef __FreeBSD__
-	if (bus_space_map(ia->ia_memt, kvtop(ia->ia_membase), ia->ia_msize, 0, &memh))
-#else
-	if (bus_space_map(ia->ia_memt, ia->ia_maddr, ia->ia_msize, 0, &memh))
-#endif
-		return (0);
-
+	if (bus_get_resource(dev, SYS_RES_IOPORT, 0, &port, &portlen)) {
+		bus_set_resource(dev, SYS_RES_IOPORT, 0, PCIC_INDEX0, 
+		    PCIC_IOSIZE);
+	}
+	rid = 0;
+	res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, PCIC_IOSIZE,
+	    RF_ACTIVE);
+	if (!res)
+		return(ENXIO);
+	iot = rman_get_bustag(res);
+	ioh = rman_get_bushandle(res);
 	found = 0;
 
 	/*
 	 * this could be done with a loop, but it would violate the
 	 * abstraction
 	 */
-
 	bus_space_write_1(iot, ioh, PCIC_REG_INDEX, C0SA + PCIC_IDENT);
-
 	val = bus_space_read_1(iot, ioh, PCIC_REG_DATA);
-
 	if (pcic_ident_ok(val))
 		found++;
-
 
 	bus_space_write_1(iot, ioh, PCIC_REG_INDEX, C0SB + PCIC_IDENT);
-
 	val = bus_space_read_1(iot, ioh, PCIC_REG_DATA);
-
 	if (pcic_ident_ok(val))
 		found++;
-
 
 	bus_space_write_1(iot, ioh, PCIC_REG_INDEX, C1SA + PCIC_IDENT);
-
 	val = bus_space_read_1(iot, ioh, PCIC_REG_DATA);
-
 	if (pcic_ident_ok(val))
 		found++;
-
 
 	bus_space_write_1(iot, ioh, PCIC_REG_INDEX, C1SB + PCIC_IDENT);
-
 	val = bus_space_read_1(iot, ioh, PCIC_REG_DATA);
-
 	if (pcic_ident_ok(val))
 		found++;
 
+	bus_release_resource(dev, SYS_RES_IOPORT, rid, res);
 
-	bus_space_unmap(iot, ioh, PCIC_IOSIZE);
-
-	bus_space_unmap(ia->ia_memt, memh, ia->ia_msize);
+	/* XXX DO I NEED TO WORRY ABOUT IRQ? XXX */
 
 	if (!found)
-		return (0);
+		return (ENXIO);
 
-	ia->ia_iosize = PCIC_IOSIZE;
-#endif
-	return (1);
+	return (0);
 }
 
 int
