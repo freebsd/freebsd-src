@@ -177,7 +177,7 @@ Report problems and direct all questions to:
 
 #include "rcsbase.h"
 
-libId(fnmsId, "$Id$")
+libId(fnmsId, "$Id: rcsfnms.c,v 1.6 1997/02/22 15:47:36 peter Exp $")
 
 static char const *bindex P((char const*,int));
 static int fin2open P((char const*, size_t, char const*, size_t, char const*, size_t, RILE*(*)P((struct buf*,struct stat*,int)), int));
@@ -865,6 +865,39 @@ getfullRCSname()
 #	    endif
 	    return rcsbuf.string;
         }
+}
+
+	char const *
+getfullCVSname()
+/*
+ * Return a pointer to the fill pathname of the RCS file, but trim $CVSROOT.
+ */
+{
+	char const *CVSname;
+	char const *cvsroot;
+	int rootlen;
+
+	CVSname = getfullRCSname();
+	cvsroot = getenv("CVSROOT");
+
+	if (cvsroot) {
+		rootlen = strlen(cvsroot);
+		/* ignore trailing '/' chars from $CVSROOT */
+		while (rootlen > 0) {
+			if (cvsroot[rootlen - 1] == '/')
+				rootlen--;
+			else
+				break;
+		}
+		if (strncmp(CVSname, cvsroot, rootlen) == 0) {
+			CVSname += rootlen;
+			/* skip any leading '/' chars */
+			while (*CVSname == '/')
+				CVSname++;
+			return CVSname;
+		}
+	}
+	return CVSname;
 }
 
 	static size_t

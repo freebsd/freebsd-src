@@ -201,7 +201,7 @@ Report problems and direct all questions to:
 
 #include "rcsbase.h"
 
-libId(editId, "$Id$")
+libId(editId, "$Id: rcsedit.c,v 1.8 1997/02/22 15:47:35 peter Exp $")
 
 static void editEndsPrematurely P((void)) exiting;
 static void editLineNumberOverflow P((void)) exiting;
@@ -1048,14 +1048,17 @@ keyreplace(marker, delta, delimstuffed, infile, out, dolog)
 	    case Date:
 		aputs(date2str(date,datebuf), out);
                 break;
-	    case FreeBSD:
 	    case Id:
+	    case LocalId:
 	    case Header:
-		escape_string(out,
-			marker==Id || marker==FreeBSD || RCSv<VERSION(4)
-			? basefilename(RCSname)
-			: getfullRCSname()
-		);
+		if (marker == Id || RCSv < VERSION(4) ||
+		    (marker == LocalId && LocalIdMode == Id))
+			escape_string(out, basefilename(RCSname));
+		else if (marker == CVSHeader ||
+		    (marker == LocalId && LocalIdMode == CVSHeader))
+			escape_string(out, getfullCVSname());
+		else
+			escape_string(out, getfullRCSname());
 		aprintf(out, " %s %s %s %s",
 			delta->num,
 			date2str(date, datebuf),
