@@ -1,7 +1,7 @@
 		     Internet Software Consortium
 	   Dynamic Host Configuration Protocol Distribution
-		   Version 2, Beta 1, Patchlevel 11
-			  February 8, 1998
+		   Version 2, Beta 1, Patchlevel 18
+			    March 5, 1998
 
 This is the first Beta release of Version 2 of the Internet Software
 Consortium DHCP Distribution.  In version 2.0, this distribution
@@ -47,9 +47,9 @@ information.   On Digital Unix, type ``man pfilt''.
 To build the DHCP Distribution, unpack the compressed tar file using
 the tar utility and the gzip command - type something like:
 
-	zcat dhcp-2.0b1pl11.tar.gz |tar xvf -
+	zcat dhcp-2.0b1pl18.tar.gz |tar xvf -
 
-Now, cd to the dhcp-2.0b1pl11 subdirectory that you've just created and
+Now, cd to the dhcp-2.0b1pl18 subdirectory that you've just created and
 configure the source tree by typing:
 
 		./configure
@@ -232,14 +232,36 @@ must install this extension in order to get dhcpd or dhclient to work.
 
 			       SOLARIS
 
-One problem which has been observed and is not fixed in this patchlevel
-has to do with using DLPI on Solaris 2.6 machines, probably only on Intel,
-but possibly also on SPARC.   The symptom of this problem is that you never
-receive any DHCP packets.   If you are running Solaris 2.6, and you
-encounter this symptom, and you are running the DHCP server on a machine
-with a single broadcast network interface, you may wish to edit the
-includes/site.h file and uncomment the #define USE_SOCKETS line.   Then
-type ``make clean; make''.
+One problem which has been observed and is not fixed in this
+patchlevel has to do with using DLPI on Solaris machines.  The symptom
+of this problem is that the DHCP server never receives any requests.
+If you are using Solaris 2.6, and you encounter this symptom, and
+you are running the DHCP server on a machine with a single broadcast
+network interface, you may wish to edit the includes/site.h file and
+uncomment the #define USE_SOCKETS line.  Then type ``make clean;
+make''.
+
+The DHCP client on Solaris will only work with DLPI.  If you run it
+and it just keeps saying it's sending DHCPREQUEST packets, but never
+gets a response, you may be having DLPI trouble as described above.
+If so, you are SOL.  Also, because Solaris requires you to "plumb" an
+interface before it can be detected by the DHCP client, you must
+either specify the name(s) of the interface(s) you want to configure
+on the command line, or must plumb the interfaces prior to invoking
+the DHCP client.   This can be done with ``ifconfig iface plumb'',
+where iface is the name of the interface (e.g., ``ifconfig hme0
+plumb'').
+
+It should be noted that Solaris versions from 2.6 onward include a
+DHCP client that you can run with ``/sbin/ifconfig iface dhcp start''
+rather than using the ISC DHCP client.  The feature set of the Solaris
+client is different (not necessarily better or worse) than that of the
+ISC client, but in most cases it will be a lot easier for you to just
+use that.  Please do not ask for help in using the Solaris DHCP client
+on Internet Software Consortium mailing lists - that's why you're
+paying Sun the big bucks.   If you're having a problem with the
+Solaris client interoperating with the ISC dhcp server, that's another
+matter, but please check with Sun first.
 
 			       SUPPORT
 

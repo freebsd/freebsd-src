@@ -3,8 +3,8 @@
    Network input dispatcher... */
 
 /*
- * Copyright (c) 1995, 1996, 1997, 1998, 1999 The Internet Software Consortium.
- * All rights reserved.
+ * Copyright (c) 1995, 1996, 1997, 1998, 1999
+ * The Internet Software Consortium.   All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -42,7 +42,7 @@
 
 #ifndef lint
 static char copyright[] =
-"$Id: dispatch.c,v 1.47.2.9 1999/02/05 20:23:50 mellon Exp $ Copyright (c) 1995, 1996, 1997, 1998, 1999 The Internet Software Consortium.  All rights reserved.\n";
+"$Id: dispatch.c,v 1.47.2.12 1999/02/23 17:37:00 mellon Exp $ Copyright (c) 1995, 1996, 1997, 1998, 1999 The Internet Software Consortium.  All rights reserved.\n";
 #endif /* not lint */
 
 #include "dhcpd.h"
@@ -79,6 +79,7 @@ void discover_interfaces (state)
 	struct shared_network *share;
 	struct sockaddr_in foo;
 	int ir;
+	struct ifreq *tif;
 #ifdef ALIAS_NAMES_PERMUTED
 	char *s;
 #endif
@@ -110,7 +111,7 @@ void discover_interfaces (state)
 	for (i = 0; i < ic.ifc_len;) {
 		struct ifreq *ifp = (struct ifreq *)((caddr_t)ic.ifc_req + i);
 #ifdef HAVE_SA_LEN
-		if (ifp -> ifr_addr.sa_len)
+		if (ifp -> ifr_addr.sa_len > sizeof (struct sockaddr))
 			i += (sizeof ifp -> ifr_name) + ifp -> ifr_addr.sa_len;
 		else
 #endif
@@ -139,7 +140,7 @@ void discover_interfaces (state)
 		   except don't skip down interfaces if we're trying to
 		   get a list of configurable interfaces. */
 		if ((ifr.ifr_flags & IFF_LOOPBACK) ||
-#ifdef IFF_POINTOPOINT
+#ifdef HAVE_IFF_POINTOPOINT
 		    (ifr.ifr_flags & IFF_POINTOPOINT) ||
 #endif
 		    (!(ifr.ifr_flags & IFF_UP) &&
@@ -167,7 +168,7 @@ void discover_interfaces (state)
 
 		/* If we have the capability, extract link information
 		   and record it in a linked list. */
-#ifdef AF_LINK
+#ifdef HAVE_AF_LINK
 		if (ifp -> ifr_addr.sa_family == AF_LINK) {
 			struct sockaddr_dl *foo = ((struct sockaddr_dl *)
 						   (&ifp -> ifr_addr));
@@ -194,7 +195,6 @@ void discover_interfaces (state)
 			   found, keep a pointer to ifreq structure in
 			   which we found it. */
 			if (!tmp -> ifp) {
-				struct ifreq *tif;
 #ifdef HAVE_SA_LEN
 				int len = ((sizeof ifp -> ifr_name) +
 					   ifp -> ifr_addr.sa_len);
@@ -276,7 +276,6 @@ void discover_interfaces (state)
 	if (state == DISCOVER_UNCONFIGURED) {
 		FILE *proc_dev;
 		char buffer [256];
-		struct ifreq *tif;
 		int skip = 2;
 
 		proc_dev = fopen (PROCDEV_DEVICE, "r");
@@ -306,24 +305,9 @@ void discover_interfaces (state)
 				if (!strcmp (tmp -> name, name))
 					break;
 
-			/* If we found one, and it already has an ifreq
-			   structure, nothing more to do.. */
-			if (tmp && tmp -> ifp)
+			/* If we found one, nothing more to do.. */
+			if (tmp)
 				continue;
-
-			/* Make up an ifreq structure. */
-			tif = (struct ifreq *)malloc (sizeof (struct ifreq));
-			if (!tif)
-				error ("no space to remember ifp.");
-			memset (tif, 0, sizeof (struct ifreq));
-			strcpy (tif -> ifr_name, name);
-
-			/* Now, if we just needed the ifreq structure, hook
-			   it in and move on. */
-			if (tmp) {
-				tmp -> ifp = tif;
-				continue;
-			}
 
 			/* Otherwise, allocate one. */
 			tmp = ((struct interface_info *)
@@ -334,7 +318,6 @@ void discover_interfaces (state)
 			memset (tmp, 0, sizeof *tmp);
 			strcpy (tmp -> name, name);
 
-			tmp -> ifp = tif;
 			tmp -> flags = ir;
 			tmp -> next = interfaces;
 			interfaces = tmp;
@@ -345,12 +328,22 @@ void discover_interfaces (state)
 
 	/* Now cycle through all the interfaces we found, looking for
 	   hardware addresses. */
-#if defined (SIOCGIFHWADDR) && !defined (AF_LINK)
+#if defined (HAVE_SIOCGIFHWADDR) && !defined (HAVE_AF_LINK)
 	for (tmp = interfaces; tmp; tmp = tmp -> next) {
 		struct ifreq ifr;
 		struct sockaddr sa;
 		int b, sk;
 		
+		if (!tmp -> ifp) {
+			/* Make up an ifreq structure. */
+			tif = (struct ifreq *)malloc (sizeof (struct ifreq));
+			if (!tif)
+				error ("no space to remember ifp.");
+			memset (tif, 0, sizeof (struct ifreq));
+			strcpy (tif -> ifr_name, tmp -> name);
+			tmp -> ifp = tif;
+		}
+
 		/* Read the hardware address from this interface. */
 		ifr = *tmp -> ifp;
 		if (ioctl (sock, SIOCGIFHWADDR, &ifr) < 0)
@@ -359,7 +352,11 @@ void discover_interfaces (state)
 		sa = *(struct sockaddr *)&ifr.ifr_hwaddr;
 		
 		switch (sa.sa_family) {
-#ifdef ARPHRD_LOOPBACK
+#ifdef HAVE_ARPHRD_TUNNEL
+		      case ARPHRD_TUNNEL:
+			/* ignore tunnel interfaces. */
+#endif
+#ifdef HAVE_ARPHRD_LOOPBACK
 		      case ARPHRD_LOOPBACK:
 			/* ignore loopback interface */
 			break;
@@ -389,7 +386,7 @@ void discover_interfaces (state)
 			memcpy (tmp -> hw_address.haddr, sa.sa_data, 16);
 			break;
 
-#ifdef ARPHRD_METRICOM
+#ifdef HAVE_ARPHRD_METRICOM
 		      case ARPHRD_METRICOM:
 			tmp -> hw_address.hlen = 6;
 			tmp -> hw_address.htype = ARPHRD_METRICOM;
@@ -402,7 +399,7 @@ void discover_interfaces (state)
 			       ifr.ifr_name, sa.sa_family);
 		}
 	}
-#endif /* defined (SIOCGIFHWADDR) && !defined (AF_LINK) */
+#endif /* defined (HAVE_SIOCGIFHWADDR) && !defined (HAVE_AF_LINK) */
 
 	/* If we're just trying to get a list of interfaces that we might
 	   be able to configure, we can quit now. */
@@ -437,9 +434,13 @@ void discover_interfaces (state)
 			sizeof tmp -> ifp -> ifr_addr);
 
 		/* We must have a subnet declaration for each interface. */
-		if (!tmp -> shared_network && (state == DISCOVER_SERVER))
-			error ("No subnet declaration for %s (%s).",
-			       tmp -> name, inet_ntoa (foo.sin_addr));
+		if (!tmp -> shared_network && (state == DISCOVER_SERVER)) {
+			warn ("No subnet declaration for %s (%s).",
+			      tmp -> name, inet_ntoa (foo.sin_addr));
+			warn ("Please write a subnet declaration for the %s",
+			      "network segment to");
+			error ("which interface %s is attached.", tmp -> name);
+		}
 
 		/* Find subnets that don't have valid interface
 		   addresses... */

@@ -4,7 +4,7 @@
    with one crucial tidbit of help from Stu Grossmen. */
 
 /*
- * Copyright (c) 1996 The Internet Software Consortium.
+ * Copyright (c) 1996, 1998, 1999 The Internet Software Consortium.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,7 +42,7 @@
 
 #ifndef lint
 static char copyright[] =
-"$Id: nit.c,v 1.15.2.1 1998/12/20 18:27:44 mellon Exp $ Copyright (c) 1996 The Internet Software Consortium.  All rights reserved.\n";
+"$Id: nit.c,v 1.15.2.3 1999/02/23 22:09:54 mellon Exp $ Copyright (c) 1996 The Internet Software Consortium.  All rights reserved.\n";
 #endif /* not lint */
 
 #include "dhcpd.h"
@@ -155,12 +155,13 @@ void if_register_send (info)
 	info -> wfdesc = info -> rfdesc;
 #endif
         if (!quiet_interface_discovery)
-		note ("Sending on   NIT/%s/%s",
+		note ("Sending on   NIT/%s%s%s",
 		      print_hw_addr (info -> hw_address.htype,
 				     info -> hw_address.hlen,
 				     info -> hw_address.haddr),
+		      (info -> shared_network ? "/" : ""),
 		      (info -> shared_network ?
-		       info -> shared_network -> name : "unattached"));
+		       info -> shared_network -> name : ""));
 }
 #endif /* USE_NIT_SEND */
 
@@ -238,12 +239,13 @@ void if_register_receive (info)
 		error ("Can't set NIT filter on %s: %m", info -> name);
 
         if (!quiet_interface_discovery)
-		note ("Listening on NIT/%s/%s",
+		note ("Listening on NIT/%s%s%s",
 		      print_hw_addr (info -> hw_address.htype,
 				     info -> hw_address.hlen,
 				     info -> hw_address.haddr),
+		      (info -> shared_network ? "/" : ""),
 		      (info -> shared_network ?
-		       info -> shared_network -> name : "unattached"));
+		       info -> shared_network -> name : ""));
 }
 #endif /* USE_NIT_RECEIVE */
 
@@ -263,6 +265,7 @@ ssize_t send_packet (interface, packet, raw, len, from, to, hto)
 	struct strbuf ctl, data;
 	int hw_end;
 	struct sockaddr_in foo;
+	int result;
 
 	if (!strcmp (interface -> name, "fallback"))
 		return send_fallback (interface, packet, raw,
@@ -298,7 +301,10 @@ ssize_t send_packet (interface, packet, raw, len, from, to, hto)
 	data.buf = (char *)&buf [hw_end];
 	data.maxlen = data.len = bufp + len - hw_end;
 
-	return putmsg (interface -> wfdesc, &ctl, &data, 0);
+	result = putmsg (interface -> wfdesc, &ctl, &data, 0);
+	if (result < 0)
+		warn ("send_packet: %m");
+	return result;
 }
 #endif /* USE_NIT_SEND */
 

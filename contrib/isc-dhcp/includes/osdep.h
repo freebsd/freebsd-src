@@ -3,7 +3,7 @@
    Operating system dependencies... */
 
 /*
- * Copyright (c) 1996, 1997, 1998 The Internet Software Consortium.
+ * Copyright (c) 1996, 1997, 1998, 1999 The Internet Software Consortium.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -123,6 +123,10 @@
 # endif
 #endif
 
+#if !defined (TIME_MAX)
+# define TIME_MAX 2147483647
+#endif
+
 /* Porting::
 
    If you add a new network API, and have it set up so that it can be
@@ -226,3 +230,36 @@
 #ifndef BPF_FORMAT
 # define BPF_FORMAT "/dev/bpf%d"
 #endif
+
+#if defined (IFF_POINTOPOINT) && !defined (HAVE_IFF_POINTOPOINT)
+# define HAVE_IFF_POINTOPOINT
+#endif
+
+#if defined (AF_LINK) && !defined (HAVE_AF_LINK)
+# define HAVE_AF_LINK
+#endif
+
+#if defined (ARPHRD_TUNNEL) && !defined (HAVE_ARPHRD_TUNNEL)
+# define HAVE_ARPHRD_TUNNEL
+#endif
+
+#if defined (ARPHRD_LOOPBACK) && !defined (HAVE_ARPHRD_LOOPBACK)
+# define HAVE_ARPHRD_LOOPBACK
+#endif
+
+#if defined (ARPHRD_METRICOM) && !defined (HAVE_ARPHRD_METRICOM)
+# define HAVE_ARPHRD_METRICOM
+#endif
+
+#if defined (SO_BINDTODEVICE) && !defined (HAVE_SO_BINDTODEVICE)
+# define HAVE_SO_BINDTODEVICE
+#endif
+
+#if defined (SIOCGIFHWADDR) && !defined (HAVE_SIOCGIFHWADDR)
+# define HAVE_SIOCGIFHWADDR
+#endif
+
+#if defined (AF_LINK) && !defined (HAVE_AF_LINK)
+# define HAVE_AF_LINK
+#endif
+
