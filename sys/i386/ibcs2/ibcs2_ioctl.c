@@ -499,8 +499,11 @@ ibcs2_ioctl(p, uap)
 		return ioctl(p, (struct ioctl_args *)uap);
 
 	case IBCS2_TIOCGPGRP:
-		return copyout((caddr_t)&p->p_pgrp->pg_id, SCARG(uap, data),
+		PROC_LOCK(p);
+		error = copyout((caddr_t)&p->p_pgrp->pg_id, SCARG(uap, data),
 				sizeof(p->p_pgrp->pg_id));
+		PROC_UNLOCK(p);
+		return error;
 
 	case IBCS2_TIOCSPGRP:	/* XXX - is uap->data a pointer to pgid? */
 	    {
@@ -526,6 +529,7 @@ ibcs2_ioctl(p, uap)
 		  short bitx, bity;
 	        } ibcs2_jwinsize;
 
+		PROC_LOCK(p);
                 ibcs2_jwinsize.bytex = 80;
 	          /* p->p_session->s_ttyp->t_winsize.ws_col; XXX */
 	        ibcs2_jwinsize.bytey = 25;
@@ -534,6 +538,7 @@ ibcs2_ioctl(p, uap)
 		  p->p_session->s_ttyp->t_winsize.ws_xpixel;
 	        ibcs2_jwinsize.bity =
 		  p->p_session->s_ttyp->t_winsize.ws_ypixel;
+		PROC_UNLOCK(p);
 	        return copyout((caddr_t)&ibcs2_jwinsize, SCARG(uap, data),
 			       sizeof(ibcs2_jwinsize));
 	     }
