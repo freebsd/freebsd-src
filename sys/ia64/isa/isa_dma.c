@@ -228,7 +228,9 @@ struct isa_dmastart_arg {
 static void isa_dmastart_cb(void *arg, bus_dma_segment_t *segs, int nseg,
 			    int error)
 {
+#if 0
 	caddr_t addr = ((struct isa_dmastart_arg *) arg)->addr;
+#endif
 	int chan = ((struct isa_dmastart_arg *) arg)->chan;
 	int flags = ((struct isa_dmastart_arg *) arg)->flags;
 	bus_addr_t phys = segs->ds_addr;
