@@ -1,5 +1,5 @@
 /*	$NetBSD: uhci.c,v 1.22 1999/01/08 11:58:25 augustss Exp $	*/
-/*	FreeBSD $Id: uhci.c,v 1.6 1999/01/07 23:31:33 n_hibma Exp $ */
+/*	$FreeBSD$	*/
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -935,16 +935,18 @@ uhci_run(sc, run)
 {
 	int s, n, running;
 
-	run = run != 0;
 	s = splusb();
-	running = !(UREAD2(sc, UHCI_STS) & UHCI_STS_HCH);
+	running = ((UREAD2(sc, UHCI_STS) & UHCI_STS_HCH) == 0);
+	DPRINTF(("sc->sc_iobase=0x%x run=0x%x, running=0x%x\n",
+		 sc->sc_iobase, run,running));
 	if (run == running) {
 		splx(s);
 		return (USBD_NORMAL_COMPLETION);
 	}
 	UWRITE2(sc, UHCI_CMD, run ? UHCI_CMD_RS : 0);
 	for(n = 0; n < 10; n++) {
-		running = !(UREAD2(sc, UHCI_STS) & UHCI_STS_HCH);
+		running = ((UREAD2(sc, UHCI_STS) & UHCI_STS_HCH) == 0);
+		DPRINTF(("run=0x%x, running=0x%x\n", run,running));
 		/* return when we've entered the state we want */
 		if (run == running) {
 			splx(s);
@@ -955,6 +957,9 @@ uhci_run(sc, run)
 	splx(s);
 	printf("%s: cannot %s\n", USBDEVNAME(sc->sc_bus.bdev),
 	       run ? "start" : "stop");
+#ifdef USB_DEBUG
+	uhci_dumpregs(sc);
+#endif
 	return (USBD_IOERROR);
 }
 
