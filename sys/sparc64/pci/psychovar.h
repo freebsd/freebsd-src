@@ -71,6 +71,10 @@ struct psycho_softc {
 	struct resource			*sc_irq_res[6];
 	void				*sc_ihand[6];
 
+#ifdef OFW_NEWPCI
+	struct ofw_bus_iinfo		sc_iinfo;
+#endif
+
 	/*
 	 * note that the sabre really only has one ranges property,
 	 * used for both simba a and simba b (but the ranges for
@@ -87,7 +91,8 @@ struct psycho_softc {
 
 	bus_space_handle_t		sc_bh[4];
 
-	int				sc_busno;
+	u_int				sc_secbus;
+	u_int				sc_subbus;
 
 	struct rman			sc_mem_rman;
 	struct rman			sc_io_rman;

@@ -6,6 +6,7 @@ EBUS_DEBUG		opt_ebus.h
 PSYCHO_DEBUG		opt_psycho.h
 DEBUGGER_ON_POWERFAIL	opt_psycho.h
 OFW_PCI_DEBUG		opt_ofw_pci.h
+OFW_NEWPCI		opt_ofw_pci.h
 # Normal IOMMU debugging
 IOMMU_DEBUG		opt_iommu.h
 # Debug IOMMU inserts/removes using diagnostic accesses. Very loud.

@@ -48,6 +48,8 @@
  * there are machines with both ISA and EBus.
  */
 
+#include "opt_ofw_pci.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -101,6 +103,10 @@ struct ebus_softc {
 
 	int			sc_nrange;
 	int			sc_nimap;
+
+#ifdef OFW_NEWPCI
+	struct ofw_bus_iinfo	sc_iinfo;
+#endif
 };
 
 static int ebus_probe(device_t);
@@ -159,12 +165,12 @@ ebus_probe(device_t dev)
 	phandle_t node;
 	char *cname;
 
-	/*
-	 * XXX: PCI specific! There should be a common cookie IVAR value for all
-	 * buses! Does not really matter much here though...
-	 */
+#ifdef OFW_NEWPCI
+	node = ofw_pci_get_node(dev);
+#else
 	node = ofw_pci_find_node(pci_get_bus(dev), pci_get_slot(dev),
 	    pci_get_function(dev));
+#endif
 	if (node == 0)
 		return (ENXIO);
 
@@ -192,8 +198,12 @@ ebus_probe(device_t dev)
 	if (sc->sc_nrange == -1)
 		panic("ebus_attach: could not get ranges property");
 
+#ifdef OFW_NEWPCI
+	ofw_bus_setup_iinfo(node, &sc->sc_iinfo, sizeof(ofw_isa_intr_t));
+#endif
+
 	/*
-	 * now attach all our children
+	 * Now attach our children.
 	 */
 	DPRINTF(EDB_CHILD, ("ebus node %08x, searching children...\n", node));
 	for (node = OF_child(node); node > 0; node = OF_peer(node)) {
@@ -368,7 +378,8 @@ ebus_setup_dinfo(device_t dev, struct ebus_softc *sc, phandle_t node,
 {
 	struct ebus_devinfo *edi;
 	struct isa_regs *reg;
-	u_int32_t *intrs, intr;
+	ofw_isa_intr_t *intrs;
+	ofw_pci_intr_t rintr;
 	u_int64_t start;
 	int nreg, nintr, i;
 
@@ -395,20 +406,26 @@ ebus_setup_dinfo(device_t dev, struct ebus_softc *sc, phandle_t node,
 		resource_list_add(&edi->edi_rl, SYS_RES_IOPORT, i,
 		    start, start + reg[i].size - 1, reg[i].size);
 	}
+	free(reg, M_OFWPROP);
 
 	nintr = OF_getprop_alloc(node, "interrupts",  sizeof(*intrs),
 	    (void **)&intrs);
 	for (i = 0; i < nintr; i++) {
-		intr = ofw_bus_route_intr(node, intrs[i], ofw_pci_orb_callback,
+#ifdef OFW_NEWPCI
+		rintr = ofw_isa_route_intr(dev, node, &sc->sc_iinfo, intrs[i]);
+		if (rintr == PCI_INVALID_IRQ) {
+#else
+		rintr = ofw_bus_route_intr(node, intrs[i], ofw_pci_orb_callback,
 		    dev);
-		if (intr == ORIR_NOTFOUND) {
+		if (rintr == ORIR_NOTFOUND) {
+#endif
 			panic("ebus_setup_dinfo: could not map ebus "
 			    "interrupt %d", intrs[i]);
 		}
 		resource_list_add(&edi->edi_rl, SYS_RES_IRQ, i,
-		    intr, intr, 1);
+		    rintr, rintr, 1);
 	}
-	free(reg, M_OFWPROP);
+	free(intrs, M_OFWPROP);
 
 	return (edi);
 }
