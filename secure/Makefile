@@ -3,10 +3,10 @@
 SUBDIR= lib libexec usr.bin usr.sbin
 
 # These are the programs which depend on crypto, but not Kerberos.
-SPROGS=	bin/ed usr.sbin/ppp usr.sbin/pppd usr.sbin/tcpdump/tcpdump \
-	lib/libfetch usr.bin/fetch usr.sbin/pkg_install \
-	lib/libpam \
-	lib/libtelnet libexec/telnetd usr.bin/telnet
+SPROGS=	lib/libfetch lib/libpam lib/libradius lib/libtelnet	\
+	bin/ed libexec/telnetd usr.bin/fetch usr.bin/telnet	\
+	usr.sbin/pkg_install usr.sbin/ppp usr.sbin/pppd		\
+	usr.sbin/tcpdump/tcpdump
 .if !defined(NO_SENDMAIL)
 SPROGS+=usr.sbin/sendmail
 .endif
