@@ -207,11 +207,11 @@ printcpuinfo(void)
 					cpu = CPU_PII;
 					break;
 				case 0x60:
-				        strcat(cpu_model, "Celeron");
+				        strcat(cpu_model, "Pentium II/Celeron");
 					cpu = CPU_PII;
 					break;
 				case 0x70:
-				        strcat(cpu_model, "Pentium III");
+				        strcat(cpu_model, "Pentium III/Xeon");
 					cpu = CPU_PIII;
 					break;
 				default:
