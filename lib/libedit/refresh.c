@@ -97,6 +97,7 @@ re_addc(el, c)
     EditLine *el;
     int c;
 {
+    c &= 0xFF;
     if (isprint(c)) {
 	re_putc(el, c);
 	return;
@@ -863,7 +864,8 @@ protected void
 re_refresh_cursor(el)
     EditLine *el;
 {
-    char *cp, c;
+    char *cp;
+    int c;
     int h, v, th;
 
     /* first we must find where the cursor is... */
@@ -873,7 +875,7 @@ re_refresh_cursor(el)
 
     /* do input buffer to el->el_line.cursor */
     for (cp = el->el_line.buffer; cp < el->el_line.cursor; cp++) {	
-	c = *cp;
+	c = *cp & 0xFF;
 	h++;			/* all chars at least this long */
 
 	if (c == '\n') {	/* handle newline in data part too */
@@ -944,9 +946,9 @@ protected void
 re_fastaddc(el)
     EditLine *el;
 {
-    char c;
+    int c;
 
-    c = el->el_line.cursor[-1];
+    c = el->el_line.cursor[-1] & 0xFF;
 
     if (c == '\t' || el->el_line.cursor != el->el_line.lastchar) {
 	re_refresh(el);		/* too hard to handle */
