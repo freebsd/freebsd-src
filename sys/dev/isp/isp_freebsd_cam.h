@@ -1,5 +1,5 @@
-/* $Id: isp_freebsd_cam.h,v 1.12 1999/01/10 11:15:23 mjacob Exp $ */
-/* release_01_29_99 */
+/* $Id: isp_freebsd_cam.h,v 1.13 1999/01/30 07:29:00 mjacob Exp $ */
+/* release_02_05_99 */
 /*
  * Qlogic ISP SCSI Host Adapter FreeBSD Wrapper Definitions (CAM version)
  *---------------------------------------
@@ -78,7 +78,7 @@ struct isposinfo {
 #define	isp_name	isp_osinfo.name
 
 
-#define	MAXISPREQUEST	64
+#define	MAXISPREQUEST		64
 
 #define	PVS			"Qlogic ISP Driver, FreeBSD CAM"
 
@@ -175,6 +175,10 @@ extern void isp_done(struct ccb_scsiio *);
 
 #define	SYS_DELAY(x)	DELAY(x)
 #define	STOP_WATCHDOG(f, s)
+
+#define	ISP_NO_FASTPOST_SCSI	1
+#define	ISP_NO_FASTPOST_FC	1
+
 extern void isp_attach __P((struct ispsoftc *));
 extern void isp_uninit __P((struct ispsoftc *));
 
