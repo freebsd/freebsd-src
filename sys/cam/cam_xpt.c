@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.33 1998/12/24 06:01:15 mjacob Exp $
+ *      $Id: cam_xpt.c,v 1.34 1999/01/05 21:37:07 ken Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -264,6 +264,27 @@ static struct xpt_quirk_entry xpt_quirk_table[] =
 		/* Broken tagged queuing drive */
 		{ T_DIRECT, SIP_MEDIA_FIXED, "MICROP", "3391*", "x43h" },
 		/*quirks*/0, /*mintags*/0, /*maxtags*/0
+	},
+	{
+		/*
+		 * Unfortunately, the Quantum Atlas III has the same
+		 * problem as the Atlas II drives above.
+		 * Reported by: "Johan Granlund" <johan@granlund.nu>
+		 *
+		 * For future reference, the drive with the problem was:
+		 * QUANTUM QM39100TD-SW N1B0
+		 * 
+		 * It's possible that Quantum will fix the problem in later
+		 * firmware revisions.  If that happens, the quirk entry
+		 * will need to be made specific to the firmware revisions
+		 * with the problem.
+		 * 
+		 * XXX need to add a quirk for the 18G version of this
+		 * drive, once inquiry information is known.
+		 */
+		/* Reports QUEUE FULL for temporary resource shortages */
+		{ T_DIRECT, SIP_MEDIA_FIXED, quantum, "QM39100*", "*" },
+		/*quirks*/0, /*mintags*/24, /*maxtags*/32
 	},
 	{
 		/*
