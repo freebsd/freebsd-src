@@ -145,6 +145,7 @@
 #define VAR_UFS_PATH			"ufs"
 #define VAR_USR_SIZE			"usrSize"
 #define VAR_VAR_SIZE			"varSize"
+#define VAR_XF86_CONFIG			"xf86config"
 
 #define DEFAULT_TAPE_BLOCKSIZE	"20"
 
@@ -366,6 +367,7 @@ extern DMenu		MenuDiskDevices;	/* Disk devices menu				*/
 extern DMenu		MenuHTMLDoc;		/* HTML Documentation menu			*/
 extern DMenu		MenuUsermgmt;		/* User management menu				*/
 extern DMenu		MenuFixit;		/* Fixit floppy/CDROM/shell menu		*/
+extern DMenu		MenuXF86Config;		/* Select XFree86 configuration type		*/
 
 /* Stuff from libdialog which isn't properly declared outside */
 extern void display_helpfile(void);
