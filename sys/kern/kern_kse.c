@@ -422,21 +422,36 @@ kse_exit(struct thread *td, struct kse_exit_args *uap)
 	struct proc *p;
 	struct ksegrp *kg;
 	struct kse *ke;
+	struct kse_upcall *ku, *ku2;
+	int    error, count;
 
 	p = td->td_proc;
-	if (td->td_upcall == NULL || TD_CAN_UNBIND(td))
+	if ((ku = td->td_upcall) == NULL || TD_CAN_UNBIND(td))
 		return (EINVAL);
 	kg = td->td_ksegrp;
-	/* Serialize removing upcall */
+	count = 0;
 	PROC_LOCK(p);
 	mtx_lock_spin(&sched_lock);
-	if ((kg->kg_numupcalls == 1) && (kg->kg_numthreads > 1)) {
+	FOREACH_UPCALL_IN_GROUP(kg, ku2) {
+		if (ku2->ku_flags & KUF_EXITING)
+			count++;
+	}
+	if ((kg->kg_numupcalls - count) == 1 &&
+	    (kg->kg_numthreads > 1)) {
 		mtx_unlock_spin(&sched_lock);
 		PROC_UNLOCK(p);
 		return (EDEADLK);
 	}
-	ke = td->td_kse;
+	ku->ku_flags |= KUF_EXITING;
+	mtx_unlock_spin(&sched_lock);
+	PROC_UNLOCK(p);
+	error = suword(&ku->ku_mailbox->km_flags, ku->ku_mflags|KMF_DONE);
+	PROC_LOCK(p);
+	if (error)
+		psignal(p, SIGSEGV);
+	mtx_lock_spin(&sched_lock);
 	upcall_remove(td);
+	ke = td->td_kse;
 	if (p->p_numthreads == 1) {
 		kse_purge(p, td);
 		p->p_flag &= ~P_THREADED;
@@ -721,41 +736,6 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 }
 
 /*
- * Fill a ucontext_t with a thread's context information.
- *
- * This is an analogue to getcontext(3).
- */
-void
-thread_getcontext(struct thread *td, ucontext_t *uc)
-{
-
-	get_mcontext(td, &uc->uc_mcontext, 0);
-	PROC_LOCK(td->td_proc);
-	uc->uc_sigmask = td->td_sigmask;
-	PROC_UNLOCK(td->td_proc);
-}
-
-/*
- * Set a thread's context from a ucontext_t.
- *
- * This is an analogue to setcontext(3).
- */
-int
-thread_setcontext(struct thread *td, ucontext_t *uc)
-{
-	int ret;
-
-	ret = set_mcontext(td, &uc->uc_mcontext);
-	if (ret == 0) {
-		SIG_CANTMASK(uc->uc_sigmask);
-		PROC_LOCK(td->td_proc);
-		td->td_sigmask = uc->uc_sigmask;
-		PROC_UNLOCK(td->td_proc);
-	}
-	return (ret);
-}
-
-/*
  * Initialize global thread allocation resources.
  */
 void
@@ -948,27 +928,25 @@ thread_export_context(struct thread *td)
 	uintptr_t mbx;
 	void *addr;
 	int error,temp;
-	ucontext_t uc;
+	mcontext_t mc;
 
 	p = td->td_proc;
 	kg = td->td_ksegrp;
 
 	/* Export the user/machine context. */
-	addr = (void *)(&td->td_mailbox->tm_context);
-	error = copyin(addr, &uc, sizeof(ucontext_t));
-	if (error) 
-		goto bad;
-
-	thread_getcontext(td, &uc);
-	error = copyout(&uc, addr, sizeof(ucontext_t));
-	if (error) 
+	get_mcontext(td, &mc, 0);
+	addr = (void *)(&td->td_mailbox->tm_context.uc_mcontext);
+	error = copyout(&mc, addr, sizeof(mcontext_t));
+	if (error)
 		goto bad;
 
 	/* Exports clock ticks in kernel mode */
 	addr = (caddr_t)(&td->td_mailbox->tm_sticks);
 	temp = fuword(addr) + td->td_usticks;
-	if (suword(addr, temp))
+	if (suword(addr, temp)) {
+		error = EFAULT;
 		goto bad;
+	}
 
 	/* Get address in latest mbox of list pointer */
 	addr = (void *)(&td->td_mailbox->tm_next);
