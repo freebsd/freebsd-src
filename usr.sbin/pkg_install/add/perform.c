@@ -363,9 +363,9 @@ pkg_do(char *pkg)
 	    printf("Running mtree for %s..\n", PkgName);
 	p = find_plist(&Plist, PLIST_CWD);
 	if (Verbose)
-	    printf("mtree -U -f %s -d -e -p %s\n", MTREE_FNAME, p ? p->name : "/");
+	    printf("mtree -U -f %s -d -e -p %s >/dev/null\n", MTREE_FNAME, p ? p->name : "/");
 	if (!Fake) {
-	    if (vsystem("/usr/sbin/mtree -U -f %s -d -e -p %s", MTREE_FNAME, p ? p->name : "/"))
+	    if (vsystem("/usr/sbin/mtree -U -f %s -d -e -p %s >/dev/null", MTREE_FNAME, p ? p->name : "/"))
 		warnx("mtree returned a non-zero status - continuing");
 	}
 	unlink(MTREE_FNAME);
