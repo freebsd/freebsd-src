@@ -52,7 +52,7 @@
 
 #include <machine/limits.h>
 
-#include <vm/vm_zone.h>
+#include <vm/uma.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
@@ -144,7 +144,7 @@ in_pcballoc(so, pcbinfo, td)
 	int error;
 #endif
 
-	inp = zalloc(pcbinfo->ipi_zone);
+	inp = uma_zalloc(pcbinfo->ipi_zone, M_WAITOK);
 	if (inp == NULL)
 		return (ENOBUFS);
 	bzero((caddr_t)inp, sizeof(*inp));
@@ -154,7 +154,7 @@ in_pcballoc(so, pcbinfo, td)
 #ifdef IPSEC
 	error = ipsec_init_policy(so, &inp->inp_sp);
 	if (error != 0) {
-		zfree(pcbinfo->ipi_zone, inp);
+		uma_zfree(pcbinfo->ipi_zone, inp);
 		return error;
 	}
 #endif /*IPSEC*/
@@ -573,7 +573,7 @@ in_pcbdetach(inp)
 		rtfree(inp->inp_route.ro_rt);
 	ip_freemoptions(inp->inp_moptions);
 	inp->inp_vflag = 0;
-	zfree(ipi->ipi_zone, inp);
+	uma_zfree(ipi->ipi_zone, inp);
 }
 
 /*

@@ -83,7 +83,7 @@
 #endif /*IPSEC*/
 
 #include <machine/in_cksum.h>
-#include <vm/vm_zone.h>
+#include <vm/uma.h>
 
 static int tcp_syncookies = 1;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, syncookies, CTLFLAG_RW,
@@ -114,7 +114,7 @@ static struct syncache *syncookie_lookup(struct in_conninfo *,
 
 struct tcp_syncache {
 	struct	syncache_head *hashbase;
-	vm_zone_t zone;
+	uma_zone_t zone;
 	u_int	hashsize;
 	u_int	hashmask;
 	u_int	bucket_limit;
@@ -204,7 +204,7 @@ syncache_free(struct syncache *sc)
 			    rt->rt_flags, NULL);
 		RTFREE(rt);
 	}
-	zfree(tcp_syncache.zone, sc);
+	uma_zfree(tcp_syncache.zone, sc);
 }
 
 void
@@ -256,8 +256,9 @@ syncache_init(void)
 	 * older one.
 	 */
 	tcp_syncache.cache_limit -= 1;
-	tcp_syncache.zone = zinit("syncache", sizeof(struct syncache),
-	    tcp_syncache.cache_limit, ZONE_INTERRUPT, 0);
+	tcp_syncache.zone = uma_zcreate("syncache", sizeof(struct syncache),
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	uma_zone_set_max(tcp_syncache.zone, tcp_syncache.cache_limit);
 }
 
 static void
@@ -858,7 +859,7 @@ syncache_add(inc, to, th, sop, m)
 		return (1);
 	}
 
-	sc = zalloc(tcp_syncache.zone);
+	sc = uma_zalloc(tcp_syncache.zone, M_NOWAIT);
 	if (sc == NULL) {
 		/*
 		 * The zone allocator couldn't provide more entries.
@@ -875,7 +876,7 @@ syncache_add(inc, to, th, sop, m)
 		syncache_drop(sc, NULL);
 		splx(s);
 		tcpstat.tcps_sc_zonefail++;
-		sc = zalloc(tcp_syncache.zone);
+		sc = uma_zalloc(tcp_syncache.zone, M_NOWAIT);
 		if (sc == NULL) {
 			if (ipopts)
 				(void) m_free(ipopts);
@@ -1313,7 +1314,7 @@ syncookie_lookup(inc, th, so)
 		return (NULL);
 	data = data >> SYNCOOKIE_WNDBITS;
 
-	sc = zalloc(tcp_syncache.zone);
+	sc = uma_zalloc(tcp_syncache.zone, M_NOWAIT);
 	if (sc == NULL)
 		return (NULL);
 	/*

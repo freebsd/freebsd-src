@@ -41,7 +41,7 @@
 
 #include <net/route.h>
 #include <netinet6/ipsec.h> /* for IPSEC */
-#include <vm/vm_zone.h>
+#include <vm/uma.h>
 
 #define	in6pcb		inpcb	/* for KAME src sync over BSD*'s */
 #define	in6p_sp		inp_sp	/* for KAME src sync over BSD*'s */
@@ -119,12 +119,6 @@ struct in_conninfo {
 #define	inc6_laddr	inc_ie.ie6_laddr
 #define	inc6_route	inc_dependroute.inc6_route
 
-/*
- * NB: the zone allocator is type-stable EXCEPT FOR THE FIRST TWO LONGS
- * of the structure.  Therefore, it is important that the members in
- * that position not contain any information which is required to be
- * stable.
- */
 struct	icmp6_filter;
 
 struct inpcb {
@@ -242,7 +236,7 @@ struct inpcbinfo {		/* XXX documentation, prefixes */
 	u_short	lastport;
 	u_short	lastlow;
 	u_short	lasthi;
-	vm_zone_t ipi_zone; /* zone to allocate pcbs from */
+	uma_zone_t ipi_zone; /* zone to allocate pcbs from */
 	u_int	ipi_count;	/* number of pcbs in this list */
 	u_quad_t ipi_gencnt;	/* current generation count */
 };
