@@ -45,11 +45,13 @@
 #include "opt_compat.h"
 #include "opt_cpu.h"
 #include "opt_ddb.h"
+#include "opt_directio.h"
 #include "opt_inet.h"
 #include "opt_ipx.h"
 #include "opt_maxmem.h"
 #include "opt_msgbuf.h"
 #include "opt_perfmon.h"
+#include "opt_swap.h"
 #include "opt_user_ldt.h"
 #include "opt_userconfig.h"
 
@@ -129,6 +131,10 @@ static void cpu_startup __P((void *));
 static void set_fpregs_xmm __P((struct save87 *, struct savexmm *));
 static void fill_fpregs_xmm __P((struct savexmm *, struct save87 *));
 #endif /* CPU_ENABLE_SSE */
+#ifdef DIRECTIO
+extern void ffs_rawread_setup(void);
+#endif /* DIRECTIO */
+
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL)
 
 static MALLOC_DEFINE(M_MBUF, "mbuf", "mbuf");
@@ -353,6 +359,13 @@ again:
 	}
 
 	nswbuf = max(min(nbuf/4, 256), 16);
+#ifdef NSWBUF_MIN
+	if (nswbuf < NSWBUF_MIN)
+		nswbuf = NSWBUF_MIN;
+#endif
+#ifdef DIRECTIO
+	ffs_rawread_setup();
+#endif
 
 	valloc(swbuf, struct buf, nswbuf);
 	valloc(buf, struct buf, nbuf);
