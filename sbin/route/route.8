@@ -32,9 +32,9 @@
 .\"     @(#)route.8	8.3 (Berkeley) 3/19/94
 .\" $FreeBSD$
 .\"
-.Dd March 19, 1994
+.Dd June 8, 2001
 .Dt ROUTE 8
-.Os BSD 4.4
+.Os
 .Sh NAME
 .Nm route
 .Nd manually manipulate the routing tables
@@ -168,7 +168,7 @@ route to a host.
 Optionally, the
 .Ar destination
 could also be specified in the
-.Ar host Ns / Ns Ar bits
+.Ar net Ns / Ns Ar bits
 format.
 .Pp
 For example,
@@ -185,9 +185,9 @@ is interpreted as
 is interpreted as
 .Li 128.32.130.0;
 and
-.Li 192.168.0.0/16
+.Li 192.168.64/20
 is interpreted as
-.Li 192.168.0.0 Fl netmask Li 255.255.0.0 .
+.Fl net Li 192.168.64 Fl netmask Li 255.255.240.0 .
 .Pp
 A
 .Ar destination
@@ -313,6 +313,16 @@ or
 .Fl ifa
 modifiers may be used to determine the interface or interface address.
 .Pp
+The optional
+.Fl proxy
+modifier specifies that the
+.Dv RTF_LLINFO
+routing table entry is the
+.Dq published (proxy-only)
+.Tn ARP
+entry, as reported by
+.Xr arp 8 .
+.Pp
 All symbolic names specified for a
 .Ar destination
 or
@@ -325,11 +335,9 @@ is then used to interpret the name as that of a network.
 .Pp
 .Nm Route
 uses a routing socket and the new message types
-RTM_ADD,
-RTM_DELETE,
-RTM_GET,
+.Dv RTM_ADD , RTM_DELETE , RTM_GET ,
 and
-RTM_CHANGE.
+.Dv RTM_CHANGE .
 As such, only the super-user may modify
 the routing tables.
 .Sh DIAGNOSTICS
@@ -362,14 +370,23 @@ wasn't present in the tables.
 An add operation was attempted, but the system was
 low on resources and was unable to allocate memory
 to create the new entry.
+.It "gateway uses the same route"
+A
+.Cm change
+operation resulted in a route whose gateway uses the
+same route as the one being changed.
+The next-hop gateway should be reachable through a different route.
 .El
+.Pp
+.Ex -std
 .Sh SEE ALSO
+.\".Xr esis 4 ,
 .Xr netintro 4 ,
 .Xr route 4 ,
+.Xr arp 8 ,
 .Xr IPXrouted 8 ,
 .Xr routed 8
-.\" .Xr XNSrouted 8
-.\" Xr esis 4 ,
+.\".Xr XNSrouted 8
 .Sh HISTORY
 The
 .Nm

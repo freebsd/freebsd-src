@@ -36,6 +36,7 @@ osi
 prefixlen
 proto1
 proto2
+proxy
 recvpipe
 reject
 rtt
