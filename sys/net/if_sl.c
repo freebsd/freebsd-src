@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.10 1994/11/26 19:24:00 bde Exp $
+ * $Id: if_sl.c,v 1.11 1994/11/27 15:29:57 bde Exp $
  */
 
 /*
@@ -307,7 +307,8 @@ slclose(tp,flag)
 	register struct sl_softc *sc;
 	int s;
 
-	ttywflush(tp);
+	if (ttywflush(tp))
+		ttyflush(tp, FREAD | FWRITE);
 	/*
 	 * XXX the placement of the following spl is misleading.  tty
 	 * interrupts must be blocked across line discipline switches
