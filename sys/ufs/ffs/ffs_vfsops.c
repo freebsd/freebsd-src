@@ -703,6 +703,20 @@ ffs_mountfs(devvp, mp, p, malloctype)
 		fs->fs_clean = 0;
 		(void) ffs_sbupdate(ump, MNT_WAIT);
 	}
+#ifdef FFS_EXTATTR
+	/*
+	 * XXX Auto-starting of EAs would go here.
+	 *
+	 * Auto-starting would:
+	 *	- check for /.attribute in the fs, and extattr_start if so
+	 *	- for each file in .attribute, enable that file with
+	 * 	  an attribute of the same name.
+	 * Not clear how to report errors -- probably eat them.
+	 * This would all happen while the file system was busy/not
+	 * available, so would effectively be "atomic".
+	 */
+	/* ufs_extattr_autostart(mp, ump); */
+#endif
 	return (0);
 out:
 	devvp->v_specmountpoint = NULL;
@@ -771,6 +785,7 @@ ffs_unmount(mp, mntflags, p)
 		if (error != EOPNOTSUPP)
 			printf("ffs_unmount: ufs_extattr_stop returned %d\n",
 			    error);
+	ufs_extattr_uepm_destroy(&ump->um_extattr);
 #endif
 	if (mp->mnt_flag & MNT_SOFTDEP) {
 		if ((error = softdep_flushfiles(mp, flags, p)) != 0)
