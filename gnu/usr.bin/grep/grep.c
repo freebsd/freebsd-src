@@ -1045,6 +1045,65 @@ setmatcher (name)
   return 0;
 }
 
+/* Find the white-space-separated options specified by OPTIONS, and
+   using BUF to store copies of these options, set ARGV[0], ARGV[1],
+   etc. to the option copies.  Return the number N of options found.
+   Do not set ARGV[N] to NULL.  If ARGV is NULL, do not store ARGV[0]
+   etc.  Backslash can be used to escape whitespace (and backslashes).  */
+static int
+prepend_args (options, buf, argv)
+     char const *options;
+     char *buf;
+     char **argv;
+{
+  char const *o = options;
+  char *b = buf;
+  int n = 0;
+
+  for (;;)
+    {
+      while (ISSPACE ((unsigned char) *o))
+	o++;
+      if (!*o)
+	return n;
+      if (argv)
+	argv[n] = b;
+      n++;
+
+      do
+	if ((*b++ = *o++) == '\\' && *o)
+	  b[-1] = *o++;
+      while (*o && ! ISSPACE ((unsigned char) *o));
+
+      *b++ = '\0';
+    }
+}
+
+/* Prepend the whitespace-separated options in OPTIONS to the argument
+   vector of a main program with argument count *PARGC and argument
+   vector *PARGV.  */
+static void
+prepend_default_options (options, pargc, pargv)
+     char const *options;
+     int *pargc;
+     char ***pargv;
+{
+  if (options)
+    {
+      char *buf = xmalloc (strlen (options) + 1);
+      int prepended = prepend_args (options, buf, (char **) NULL);
+      int argc = *pargc;
+      char * const *argv = *pargv;
+      char **pp = (char **) xmalloc ((prepended + argc + 1) * sizeof *pp);
+      *pargc = prepended + argc;
+      *pargv = pp;
+      *pp++ = *argv++;
+      pp += prepend_args (options, buf, pp);
+      while ((*pp++ = *argv++))
+	continue;
+    }
+}
+
 int
 main (argc, argv)
      int argc;
@@ -1117,6 +1176,8 @@ main (argc, argv)
   bindtextdomain (PACKAGE, LOCALEDIR);
   textdomain (PACKAGE);
 #endif
+
+  prepend_default_options (getenv ("GREP_OPTIONS"), &argc, &argv);
 
   while ((opt = getopt_long (argc, argv,
 #if O_BINARY

@@ -462,6 +462,14 @@ the metacharacter
 .B {
 loses its special meaning; instead use
 .BR \e{ .
+.SH ENVIRONMENT
+The environment variable
+.B GREP_OPTIONS
+can hold a set of default
+options for
+.I grep.
+These options are interpreted first and can be overwritten by explicit command
+line parameters.
 .SH DIAGNOSTICS
 .PP
 Normally, exit status is 0 if matches were found,
