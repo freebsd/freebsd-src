@@ -27,7 +27,7 @@
 .\" $FreeBSD$
 .\"
 .Dd February 9, 1999
-.Dt ATKBDC 4
+.Dt ATKBDC 4 i386
 .Os FreeBSD
 .Sh NAME
 .Nm atkbdc
@@ -37,7 +37,7 @@ the AT keyboard controller interface
 .Cd "options" \&"KBD_RESETDELAY=N\&"
 .Cd "options" \&"KBD_MAXWAIT=N\&"
 .Cd "options" \&"KBDIO_DEBUG=N\&"
-.Cd "controller atkbdc0 at isa? port IO_KBD"
+.Cd "controller atkbdc0 at isa? port IO_KBD tty"
 .Sh DESCRIPTION
 The keyboard controller
 .Nm

@@ -1,3 +1,4 @@
+.\" t
 .\"
 .\" Copyright (c) 1999
 .\" Kazutaka YOKOTA <yokota@zodiac.mech.utsunomiya-u.ac.jp>
@@ -27,16 +28,17 @@
 .\" $FreeBSD$
 .\"
 .Dd May 21, 1999
-.Dt ATKBD 4
+.Dt ATKBD 4 i386
 .Os FreeBSD
 .Sh NAME
 .Nm atkbd
-.Nd the AT keyboard interface
+.Nd
+the AT keyboard interface
 .Sh SYNOPSIS
 .Cd "options ATKBD_DFLT_KEYMAP"
 .Cd "makeoptions ATKBD_DFLT_KEYMAP"=\&"_keymap_name_\&"
 .Cd "options KBD_DISABLE_KEYMAP_LOAD"
-.Cd "device atkbd0 at atkbdc? irq 1"
+.Cd "device atkbd0 at isa? tty irq 1"
 .Sh DESCRIPTION
 The
 .Nm
@@ -66,50 +68,33 @@ by the
 .Xr kbdcontrol 1
 command.
 .Pp
-.Bl -tag -width "Function Key Number" -compact -offset
-.It "Function Key number"
-Function Key
-.It "1, 2,...12"
-F1, F2,... F12
-.It "13, 14,...24"
-Shift+F1, Shift+F2,... Shift+F12
-.It "25, 26,...36"
-Ctl+F1, Ctl+F2,... Ctl+F12
-.It "37, 38,...48"
-Shift+Ctl+F1, Shift+Ctl+F2,... Shift+Ctl+F12
-.It 49
-Home and Numpad 7 (without NumLock)
-.It 50
-Up Arrow and Numpad 8 (without NumLock)
-.It 51
-Page Up and Numpad 9 (without NumLock)
-.It 52
-Numpad -
-.It 53
-Left Arrow and Numpad 4 (without NumLock)
-.It 54
-Numpad 5 (without NumLock)
-.It 55
-Right Arrow and Numpad 6 (without NumLock)
-.It 56
-Numpad + 
-.It 57
-End and Numpad 1 (without NumLock)
-.It 58
-Down Arrow and Numpad 2 (without NumLock)
-.It 59
-Page Down and Numpad 3 (without NumLock)
-.It 60
-Ins and Numpad 0 (without NumLock)
-.It 61
-Del
-.It 62
-Left GUI Key
-.It 63
-Right GUI Key
-.It 64
-Menu
-.El
+.TS
+c c
+c c
+r l.
+Function Key Number	Function Key
+-------------------	-----------------------------------------------
+1, 2,...12	F1, F2,... F12
+13, 14,...24	Shift+F1, Shift+F2,... Shift+F12
+25, 26,...36	Ctl+F1, Ctl+F2,... Ctl+F12
+37, 38,...48	Shift+Ctl+F1, Shift+Ctl+F2,... Shift+Ctl+F12
+49	Home and Numpad 7 (without NumLock)
+50	Up Arrow and Numpad 8 (without NumLock)
+51	Page Up and Numpad 9 (without NumLock)
+52	Numpad -
+53	Left Arrow and Numpad 4 (without NumLock)
+54	Numpad 5 (without NumLock)
+55	Right Arrow and Numpad 6 (without NumLock)
+56	Numpad + 
+57	End and Numpad 1 (without NumLock)
+58	Down Arrow and Numpad 2 (without NumLock)
+59	Page Down and Numpad 3 (without NumLock)
+60	Ins and Numpad 0 (without NumLock)
+61	Del
+62	Left GUI Key
+63	Right GUI Key
+64	Menu
+.TE
 .Pp
 See the man page for the
 .Xr kbdcontrol 1

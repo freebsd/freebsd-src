@@ -26,13 +26,13 @@
 .\" $FreeBSD$
 .\"
 .Dd June 3, 1998
-.Dt PCM 4
+.Dt PCM 4 i386
 .Os FreeBSD
 .Sh NAME
 .Nm pcm
 .Nd FreeBSD audio device driver
 .Sh SYNOPSIS
-.Cd "device pcm0 at isa? port? irq 5 drq 1 flags 0x15"
+.Cd "device pcm0 at isa? port? tty irq 5 drq 1 flags 0x15"
 .Sh DESCRIPTION
 The
 .Nm pcm
@@ -48,9 +48,7 @@ channel, or to 0x10 + C to specify channel C.
 .Pp
 PnP audio cards are also supported using the
 .Nm pnp
-support which is available in
-.Fx
-starting from release 2.2.6.
+support which is available in FreeBSD starting from release 2.2.6.
 See the
 .Xr pnp 4
 manpage for more information. In particular, remember that unit
@@ -62,15 +60,18 @@ So, if you have the following line in your kernel config file:
 .Pp
 .Cd "device pcm0 ..."
 .Pp
-your first PnP audio card will be unit #1, i.e. it will be accessible as
-.Pa /dev/audio1 ,
-.Pa /dev/dsp1 ,
-etc.
-Many applications default to using /dev/audio, but appropriate
-symlinks will be created as a side-effect of the the following command:
+your first PnP audio card will be unit #1, i.e. it will be accessible
+as /dev/audio1, /dev/dsp1, etc.
+Many application default to using /dev/audio, so you can create
+symlinks from /dev/audio etc to the correct device entries as follows:
 .Pp
 .Cd cd /dev
+.Cd rm audio dsp dspW mixer
 .Cd ./MAKEDEV snd1
+.Cd ln -s audio1 audio
+.Cd ln -s dsp1 dsp
+.Cd ln -s dspW1 dspW
+.Cd ln -s mixer1 mixer
 .Pp
 The driver works best with WSS/MSS cards, which have a very clean
 architecture and an orthogonal set of features. They also happen to be

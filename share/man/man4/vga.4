@@ -26,21 +26,21 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 30, 1999
-.Dt VGA 4
+.Dd February 9, 1999
+.Dt VGA 4 i386
 .Os FreeBSD
 .Sh NAME
 .Nm vga
 .Nd
 generic video card interface
 .Sh SYNOPSIS
-.Cd "options VESA"
-.Cd "options VESA_DEBUG=N"
-.Cd "options VGA_ALT_SEQACCESS"
-.Cd "options VGA_NO_FONT_LOADING"
-.Cd "options VGA_NO_MODE_CHANGE"
-.Cd "options VGA_SLOW_IOACCESS"
-.Cd "options VGA_WIDTH90"
+.Cd "options" \&"VESA\&"
+.Cd "options" \&"VESA_DEBUG=N\&"
+.Cd "options" \&"VGA_ALT_SEQACCESS\&"
+.Cd "options" \&"VGA_NO_FONT_LOADING\&"
+.Cd "options" \&"VGA_NO_MODE_CHANGE\&"
+.Cd "options" \&"VGA_SLOW_IOACCESS\&"
+.Cd "options" \&"VM86\&"
 .Cd "device vga0 at isa? port ? conflicts"
 .Sh DESCRIPTION
 The
@@ -64,14 +64,19 @@ addition, the driver can utilize VESA BIOS extensions if the video card
 supports them. VESA support can either be statically included in the kernel
 or can be loaded as a separate module.
 .Pp
-In order to statically link the VESA support to the kernel, the
+In order to statically link the support to the kernel, the
 .Em VESA
-option (see below) must be defined in the kernel configuration file.
+option (see below) and the
+.Em VM86
+option must be defined in the kernel configuration file.
 .Pp
 The
 .Nm vesa
 module can be dynamically loaded into the kernel using 
 .Xr kldload 8 .
+This requires the
+.Em VM86
+option to be defined in the kernel configuration file.
 .Sh DRIVER CONFIGURATION
 .Ss Kernel Configuration Options
 The following kernel configuration options 
@@ -89,10 +94,6 @@ However, it may cause flicker on some systems.
 Older VGA cards may require this option for proper operation.
 It makes the driver perform byte-wide I/O to VGA registers and
 slow down a little.
-.It Em VGA_WIDTH90
-This option enables 90 column modes: 90x25, 90x30, 90x43, 90x50, 90x60.  
-These modes are not always supported by the video card and the display.
-It is highly likely that LCD display cannot work with these modes.
 .El
 .Pp
 The following options add optional features to the driver.
@@ -102,6 +103,9 @@ Add VESA BIOS support to the driver.
 If the VGA card has the VESA BIOS extension 1.2 or later, 
 this option will utilize the VESA BIOS service to switch to high
 resolution modes.
+This option requires the 
+.Em VM86
+option.
 .It Em VESA_DEBUG=N
 Set the VESA support debug level to
 .Fa N .
@@ -129,13 +133,18 @@ Your kernel configuration should normally have:
 The following lines should be included in the kernel configuration file
 in order to enable the VESA BIOS Extension support.
 .Pp
-.Dl "options VESA"
+.Dl "options" \&"VM86\&"
+.Dl "options" \&"VESA\&"
 .Dl "device vga0 at isa? port ? conflicts"
 .Pp
 If you do not want VESA support included in the kernel, but
-want to use occasionally, do not add the
-.Em VESA
-option.  And load the
+want to use occasionally, add the following lines to the kernel configuration
+file:
+.Pp
+.Dl "options" \&"VM86\&"
+.Dl "device vga0 at isa? port ? conflicts"
+.Pp
+Then load the
 .Nm vesa
 module as desired:
 .Pp
