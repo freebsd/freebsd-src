@@ -18,22 +18,19 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: magic.c,v 1.5 1995/06/06 01:52:25 paulus Exp $";
+static char rcsid[] = "$Id: magic.c,v 1.6 1996/04/04 03:58:41 paulus Exp $";
 #endif
 
 #include <stdio.h>
+#include <unistd.h>
 #include <sys/types.h>
 #include <sys/time.h>
 
 #include "pppd.h"
 #include "magic.h"
 
-static u_int32_t next;		/* Next value to return */
-
-extern int gethostid __P((void));
 extern long mrand48 __P((void));
 extern void srand48 __P((long));
-
 
 /*
  * magic_init - Initialize the magic number generator.
