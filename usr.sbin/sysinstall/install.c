@@ -1157,6 +1157,7 @@ installVarDefaults(dialogMenuItem *self)
     variable_set2(VAR_TAPE_BLOCKSIZE,		DEFAULT_TAPE_BLOCKSIZE, 0);
     variable_set2(VAR_INSTALL_ROOT,		"/", 0);
     variable_set2(VAR_INSTALL_CFG,		"install.cfg", 0);
+    variable_set2(VAR_SKIP_PCCARD,		"NO", 0);
     cp = getenv("EDITOR");
     if (!cp)
 	cp = "/usr/bin/ee";

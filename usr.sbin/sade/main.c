@@ -112,7 +112,9 @@ main(int argc, char **argv)
 
     /* Initialize PC-card, if we haven't already done so. */
 #ifdef PCCARD_ARCH
-    if (!pvariable_get("pccardInitialize")) {
+    if (!variable_cmp(VAR_SKIP_PCCARD, "YES") &&
+      variable_get(VAR_SKIP_PCCARD)!=1 &&
+       !pvariable_get("pccardInitialize")) {
 	pccardInitialize();
 	pvariable_set("pccardInitialize=1");
     }

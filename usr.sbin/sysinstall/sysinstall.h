@@ -194,6 +194,7 @@
 #define VAR_TAPE_BLOCKSIZE		"tapeBlocksize"
 #define VAR_TRY_DHCP			"tryDHCP"
 #define VAR_TRY_RTSOL			"tryRTSOL"
+#define VAR_SKIP_PCCARD			"skipPCCARD"
 #define VAR_UFS_PATH			"ufs"
 #define VAR_USR_SIZE			"usrSize"
 #define VAR_VAR_SIZE			"varSize"
