@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.9 (Berkeley) 3/30/95
- * $Id: nfs_bio.c,v 1.61 1998/09/29 21:46:54 mckusick Exp $
+ * $Id: nfs_bio.c,v 1.62 1998/09/29 22:01:10 mckusick Exp $
  */
 
 
@@ -756,7 +756,7 @@ again:
 		if (uio->uio_offset + n > np->n_size) {
 			np->n_size = uio->uio_offset + n;
 			np->n_flag |= NMODIFIED;
-			vnode_pager_setsize(vp, (u_long)np->n_size);
+			vnode_pager_setsize(vp, np->n_size);
 		}
 		bufsize = biosize;
 		if ((lbn + 1) * biosize > np->n_size) {
