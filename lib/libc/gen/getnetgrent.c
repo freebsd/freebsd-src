@@ -32,13 +32,13 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)getnetgrent.c	8.2 (Berkeley) 4/27/95";
 #endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <stdio.h>
 #include <strings.h>
@@ -242,8 +242,8 @@ getnetgrent(hostp, userp, domp)
 void
 endnetgrent()
 {
-	register struct linelist *lp, *olp;
-	register struct netgrp *gp, *ogp;
+	struct linelist *lp, *olp;
+	struct netgrp *gp, *ogp;
 
 	lp = linehead;
 	while (lp) {
@@ -411,10 +411,10 @@ static int
 parse_netgrp(group)
 	char *group;
 {
-	register char *spos, *epos;
-	register int len, strpos;
+	char *spos, *epos;
+	int len, strpos;
 #ifdef DEBUG
-	register int fields;
+	int fields;
 #endif
 	char *pos, *gpos;
 	struct netgrp *grp;
@@ -522,8 +522,8 @@ static struct linelist *
 read_for_group(group)
 	char *group;
 {
-	register char *pos, *spos, *linep, *olinep;
-	register int len, olen;
+	char *pos, *spos, *linep, *olinep;
+	int len, olen;
 	int cont;
 	struct linelist *lp;
 	char line[LINSIZ + 2];

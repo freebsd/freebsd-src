@@ -29,13 +29,13 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)unvis.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <vis.h>
@@ -241,10 +241,10 @@ unvis(cp, c, astate, flag)
 
 int
 strunvis(dst, src)
-	register char *dst;
-	register const char *src;
+	char *dst;
+	const char *src;
 {
-	register char c;
+	char c;
 	char *start = dst;
 	int state = 0;
 
@@ -272,10 +272,10 @@ strunvis(dst, src)
 
 int
 strunvisx(dst, src, flag)
-	register char *dst;
-	register const char *src;
+	char *dst;
+	const char *src;
 {
-	register char c;
+	char c;
 	char *start = dst;
 	int state = 0;
     

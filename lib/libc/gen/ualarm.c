@@ -34,6 +34,8 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)ualarm.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/time.h>
 #include <unistd.h>
@@ -47,8 +49,8 @@ static char sccsid[] = "@(#)ualarm.c	8.1 (Berkeley) 6/4/93";
  */
 unsigned
 ualarm(usecs, reload)
-	register unsigned usecs;
-	register unsigned reload;
+	unsigned usecs;
+	unsigned reload;
 {
 	struct itimerval new, old;
 
