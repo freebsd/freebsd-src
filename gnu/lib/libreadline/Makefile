@@ -1,9 +1,11 @@
-#       $Id: Makefile,v 1.18 1995/01/16 17:56:20 ache Exp $
+#       $Id: Makefile,v 1.19 1995/02/15 20:59:13 ache Exp $
 
 
 CFLAGS+= -I${.CURDIR} -DVOID_SIGHANDLER -DHAVE_CONFIG_H
 
 LIB=    readline
+SHLIB_MAJOR= 3
+SHLIB_MINOR= 0
 SRCS+=  readline.c funmap.c keymaps.c vi_mode.c parens.c \
 	   rltty.c complete.c bind.c isearch.c display.c signals.c \
 	   history.c search.c tilde.c xmalloc.c
