@@ -411,7 +411,8 @@ struct ifmultiaddr {
 	} while (0)
 
 extern	struct mtx ifnet_lock;
-#define	IFNET_LOCK_INIT()	mtx_init(&ifnet_lock, "ifnet", NULL, MTX_DEF)
+#define	IFNET_LOCK_INIT() \
+    mtx_init(&ifnet_lock, "ifnet", NULL, MTX_DEF | MTX_RECURSE)
 #define	IFNET_WLOCK()		mtx_lock(&ifnet_lock)
 #define	IFNET_WUNLOCK()		mtx_unlock(&ifnet_lock)
 #define	IFNET_RLOCK()		IFNET_WLOCK()
