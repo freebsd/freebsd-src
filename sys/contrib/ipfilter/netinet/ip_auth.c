@@ -3,6 +3,9 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  */
+#ifdef __sgi
+# include <sys/ptimers.h>
+#endif
 #include <sys/errno.h>
 #include <sys/types.h>
 #include <sys/param.h>
@@ -19,7 +22,6 @@
 #else
 # include <sys/ioctl.h>
 #endif
-#include <sys/uio.h>
 #ifndef linux
 # include <sys/protosw.h>
 #endif
@@ -102,7 +104,7 @@ extern struct ifqueue   ipintrq;		/* ip packet input queue */
 #endif
 
 #if !defined(lint)
-static const char rcsid[] = "@(#)$Id: ip_auth.c,v 2.11.2.12 2001/07/18 14:57:08 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_auth.c,v 2.11.2.17 2002/03/06 09:44:10 darrenr Exp $";
 #endif
 
 
@@ -305,7 +307,7 @@ ip_t *ip;
 int fr_auth_ioctl(data, mode, cmd, fr, frptr)
 caddr_t data;
 int mode;
-#if defined(__NetBSD__) || defined(__OpenBSD__) || (FreeBSD_version >= 300003)
+#if defined(__NetBSD__) || defined(__OpenBSD__) || (__FreeBSD_version >= 300003)
 u_long cmd;
 #else
 int cmd;
@@ -377,9 +379,7 @@ frentry_t *fr, **frptr;
 			error = EINVAL;
 		break;
 	case SIOCATHST:
-		READ_ENTER(&ipf_auth);
 		fr_authstats.fas_faelist = fae_list;
-		RWLOCK_EXIT(&ipf_auth);
 		error = IWCOPYPTR((char *)&fr_authstats, data,
 				   sizeof(fr_authstats));
 		break;
@@ -453,7 +453,7 @@ fr_authioctlloop:
 
 			bzero((char *)&ro, sizeof(ro));
 #  if ((_BSDI_VERSION >= 199802) && (_BSDI_VERSION < 200005)) || \
-       defined(__OpenBSD__)
+       defined(__OpenBSD__) || (defined(IRIX) && (IRIX >= 605))
 			error = ip_output(m, NULL, &ro, IP_FORWARDING, NULL,
 					  NULL);
 #  else
@@ -478,7 +478,9 @@ fr_authioctlloop:
 				error = ENOBUFS;
 			} else {
 				IF_ENQUEUE(ifq, m);
+#  if IRIX < 605
 				schednetisr(NETISR_IP);
+#  endif
 			}
 # endif /* SOLARIS */
 			if (error)
@@ -526,7 +528,6 @@ fr_authioctlloop:
 }
 
 
-#ifdef	_KERNEL
 /*
  * Free all network buffer memory used to keep saved packets.
  */
@@ -587,7 +588,7 @@ void fr_authexpire()
 	register frauthent_t *fae, **faep;
 	register frentry_t *fr, **frp;
 	mb_t *m;
-#if !SOLARIS
+#if !SOLARIS && defined(_KERNEL)
 	int s;
 #endif
 
@@ -626,4 +627,3 @@ void fr_authexpire()
 	RWLOCK_EXIT(&ipf_auth);
 	SPL_X(s);
 }
-#endif
