@@ -203,7 +203,7 @@ intpr(int interval, u_long ifnetaddr, void (*pfunc)(char *))
 		return;
 
 	if (!pfunc) {
-		printf("%-5.5s %5.5s %-11.11s %-17.17s %8.8s %5.5s",
+		printf("%-5.5s %5.5s %-13.13s %-17.17s %8.8s %5.5s",
 		       "Name", "Mtu", "Network", "Address", "Ipkts", "Ierrs");
 		if (bflag)
 			printf(" %10.10s","Ibytes");
@@ -269,7 +269,7 @@ intpr(int interval, u_long ifnetaddr, void (*pfunc)(char *))
 
 		if (ifaddraddr == 0) {
 			printf("%-5.5s %5lu ", name, ifnet.if_mtu);
-			printf("%-11.11s ", "none");
+			printf("%-13.13s ", "none");
 			printf("%-17.17s ", "none");
 		} else {
 			if (kread(ifaddraddr, (char *)&ifaddr, sizeof ifaddr)) {
@@ -302,7 +302,7 @@ intpr(int interval, u_long ifnetaddr, void (*pfunc)(char *))
 				printf("%-13.13s ", netname(in.s_addr,
 				    ifaddr.in.ia_subnetmask));
 #else
-				printf("%-11.11s ",
+				printf("%-13.13s ",
 				    netname(htonl(ifaddr.in.ia_subnet),
 				    ifaddr.in.ia_subnetmask));
 #endif
@@ -314,7 +314,7 @@ intpr(int interval, u_long ifnetaddr, void (*pfunc)(char *))
 #ifdef INET6
 			case AF_INET6:
 				sin6 = (struct sockaddr_in6 *)sa;
-				printf("%-11.11s ",
+				printf("%-13.13s ",
 				       netname6(&ifaddr.in6.ia_addr,
 						&ifaddr.in6.ia_prefixmask.sin6_addr));
 				printf("%-17.17s ",
@@ -336,14 +336,14 @@ intpr(int interval, u_long ifnetaddr, void (*pfunc)(char *))
 				sprintf(netnum, "%lx", (u_long)ntohl(net));
 				printf("ipx:%-8s  ", netnum);
 /*				printf("ipx:%-8s ", netname(net, 0L)); */
-				printf("%-15s ",
+				printf("%-17s ",
 				    ipx_phost((struct sockaddr *)sipx));
 				}
 				break;
 
 			case AF_APPLETALK:
 				printf("atalk:%-12.12s ",atalk_print(sa,0x10) );
-				printf("%-9.9s  ",atalk_print(sa,0x0b) );
+				printf("%-11.11s  ",atalk_print(sa,0x0b) );
 				break;
 #ifdef NS
 			case AF_NS:
@@ -356,8 +356,8 @@ intpr(int interval, u_long ifnetaddr, void (*pfunc)(char *))
 				*(union ns_net *) &net = sns->sns_addr.x_net;
 				sprintf(netnum, "%lxH", ntohl(net));
 				upHex(netnum);
-				printf("ns:%-8s ", netnum);
-				printf("%-15s ",
+				printf("ns:%-10s ", netnum);
+				printf("%-17s ",
 				    ns_phost((struct sockaddr *)sns));
 				}
 				break;
@@ -370,7 +370,7 @@ intpr(int interval, u_long ifnetaddr, void (*pfunc)(char *))
 				cp = (char *)LLADDR(sdl);
 				n = sdl->sdl_alen;
 				sprintf(linknum, "<Link#%d>", sdl->sdl_index);
-				m = printf("%-11.11s ", linknum);
+				m = printf("%-13.13s ", linknum);
 				}
 				goto hexprint;
 			default:
@@ -383,7 +383,7 @@ intpr(int interval, u_long ifnetaddr, void (*pfunc)(char *))
 				while (--n >= 0)
 					m += printf("%02x%c", *cp++ & 0xff,
 						    n > 0 ? ':' : ' ');
-				m = 30 - m;
+				m = 32 - m;
 				while (m-- > 0)
 					putchar(' ');
 
