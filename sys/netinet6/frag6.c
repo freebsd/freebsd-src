@@ -68,50 +68,19 @@ static void frag6_insque __P((struct ip6q *, struct ip6q *));
 static void frag6_remque __P((struct ip6q *));
 static void frag6_freef __P((struct ip6q *));
 
-static int ip6q_locked;
-u_int frag6_nfragpackets;
-u_int frag6_nfrags;
-struct	ip6q ip6q;	/* ip6 reassemble queue */
+static struct mtx ip6qlock;
+/*
+ * These fields all protected by ip6qlock.
+ */
+static u_int frag6_nfragpackets;
+static u_int frag6_nfrags;
+static struct	ip6q ip6q;	/* ip6 reassemble queue */
 
-static __inline int ip6q_lock_try __P((void));
-static __inline void ip6q_unlock __P((void));
-
-static __inline int
-ip6q_lock_try()
-{
-	if (ip6q_locked)
-		return (0);
-	ip6q_locked = 1;
-	return (1);
-}
-
-static __inline void
-ip6q_unlock()
-{
-	ip6q_locked = 0;
-}
-
-#ifdef DIAGNOSTIC
-#define	IP6Q_LOCK()							\
-do {									\
-	if (ip6q_lock_try() == 0) {					\
-		printf("%s:%d: ip6q already locked\n", __FILE__, __LINE__); \
-		panic("ip6q_lock");					\
-	}								\
-} while (/*CONSTCOND*/ 0)
-#define	IP6Q_LOCK_CHECK()						\
-do {									\
-	if (ip6q_locked == 0) {						\
-		printf("%s:%d: ip6q lock not held\n", __FILE__, __LINE__); \
-		panic("ip6q lock check");				\
-	}								\
-} while (/*CONSTCOND*/ 0)
-#else
-#define	IP6Q_LOCK()		(void) ip6q_lock_try()
-#define	IP6Q_LOCK_CHECK()	/* nothing */
-#endif
-
-#define	IP6Q_UNLOCK()		ip6q_unlock()
+#define	IP6Q_LOCK_INIT()	mtx_init(&ip6qlock, "ip6qlock", NULL, MTX_DEF);
+#define	IP6Q_LOCK()		mtx_lock(&ip6qlock)
+#define	IP6Q_TRYLOCK()		mtx_trylock(&ip6qlock)
+#define	IP6Q_LOCK_CHECK()	mtx_assert(&ip6qlock, MA_OWNED)
+#define	IP6Q_UNLOCK()		mtx_unlock(&ip6qlock)
 
 static MALLOC_DEFINE(M_FTABLE, "fragment", "fragment reassembly header");
 
@@ -124,6 +93,8 @@ frag6_init()
 
 	ip6_maxfragpackets = nmbclusters / 4;
 	ip6_maxfrags = nmbclusters / 4;
+
+	IP6Q_LOCK_INIT();
 
 #ifndef RANDOM_IP_ID
 	ip6_id = arc4random();
@@ -587,10 +558,10 @@ insert:
 	return nxt;
 
  dropfrag:
+	IP6Q_UNLOCK();
 	in6_ifstat_inc(dstifp, ifs6_reass_fail);
 	ip6stat.ip6s_fragdropped++;
 	m_freem(m);
-	IP6Q_UNLOCK();
 	return IPPROTO_DONE;
 }
 
@@ -756,7 +727,7 @@ void
 frag6_drain()
 {
 
-	if (ip6q_lock_try() == 0)
+	if (IP6Q_TRYLOCK() == 0)
 		return;
 	while (ip6q.ip6q_next != &ip6q) {
 		ip6stat.ip6s_fragdropped++;
