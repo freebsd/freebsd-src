@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)tftp.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /* Many bug fixes are from Jim Guyton <guyton@rand-unix> */
@@ -48,6 +52,7 @@ static char sccsid[] = "@(#)tftp.c	8.1 (Berkeley) 6/6/93";
 
 #include <arpa/tftp.h>
 
+#include <err.h>
 #include <errno.h>
 #include <setjmp.h>
 #include <signal.h>
@@ -56,8 +61,6 @@ static char sccsid[] = "@(#)tftp.c	8.1 (Berkeley) 6/6/93";
 
 #include "extern.h"
 #include "tftpsubs.h"
-
-extern	int errno;
 
 extern  struct sockaddr_in peeraddr;	/* filled in by main */
 extern  int     f;			/* the opened socket */
@@ -128,7 +131,7 @@ send_data:
 		n = sendto(f, dp, size + 4, 0,
 		    (struct sockaddr *)&peeraddr, sizeof(peeraddr));
 		if (n != size + 4) {
-			perror("tftp: sendto");
+			warn("sendto");
 			goto abort;
 		}
 		read_ahead(file, convert);
@@ -141,7 +144,7 @@ send_data:
 			} while (n <= 0);
 			alarm(0);
 			if (n < 0) {
-				perror("tftp: recvfrom");
+				warn("recvfrom");
 				goto abort;
 			}
 			peeraddr.sin_port = from.sin_port;	/* added */
@@ -232,7 +235,7 @@ send_ack:
 		if (sendto(f, ackbuf, size, 0, (struct sockaddr *)&peeraddr,
 		    sizeof(peeraddr)) != size) {
 			alarm(0);
-			perror("tftp: sendto");
+			warn("sendto");
 			goto abort;
 		}
 		write_behind(file, convert);
@@ -245,7 +248,7 @@ send_ack:
 			} while (n <= 0);
 			alarm(0);
 			if (n < 0) {
-				perror("tftp: recvfrom");
+				warn("recvfrom");
 				goto abort;
 			}
 			peeraddr.sin_port = from.sin_port;	/* added */
@@ -363,7 +366,7 @@ nak(error)
 		tpacket("sent", tp, length);
 	if (sendto(f, ackbuf, length, 0, (struct sockaddr *)&peeraddr,
 	    sizeof(peeraddr)) != length)
-		perror("nak");
+		warn("nak");
 }
 
 static void
