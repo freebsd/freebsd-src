@@ -225,6 +225,11 @@ COMMAND_SET(reboot, "reboot", "reboot the system", command_reboot);
 static int
 command_reboot(int argc, char *argv[])
 {
+    int i;
+
+    for (i = 0; devsw[i] != NULL; ++i)
+	if (devsw[i]->dv_cleanup != NULL)
+	    (devsw[i]->dv_cleanup)();
 
     printf("Rebooting...\n");
     delay(1000000);
