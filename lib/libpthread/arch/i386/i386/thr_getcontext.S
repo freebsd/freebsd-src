@@ -88,9 +88,9 @@ ENTRY(__thr_setcontext)
 	cmpl	$MC_OWNEDFP_PCB, MC_OWNEDFP_OFFSET(%edx)
 	jne	5f
 3:	cmpl	$MC_FPFMT_387, MC_FPFMT_OFFSET(%edx)
-	jne	5f
+	jne	4f
 	frstor	MC_FPREGS_OFFSET(%edx)	/* restore 387 FP regs */
-	jmp	5f
+	jmp	6f
 4:	cmpl	$MC_FPFMT_XMM, MC_FPFMT_OFFSET(%edx)
 	jne	5f
 	fxrstor	MC_FPREGS_OFFSET(%edx)	/* restore XMM FP regs */
