@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: esp.h,v 1.3 1997/02/22 09:38:00 peter Exp $
+ *	$Id: esp.h,v 1.4 1999/01/03 05:03:46 kato Exp $
  */
 
 #ifndef _IC_ESP_H_
@@ -39,13 +39,8 @@
 /*
  * CMD1 and CMD2 are the command ports, offsets from <esp_iobase>.
  */
-#ifdef PC98
-#define	ESP_CMD1	0x400
-#define	ESP_CMD2	0x500
-#else
 #define	ESP_CMD1	4
 #define	ESP_CMD2	5
-#endif
 
 /*
  * STAT1 and STAT2 are to get return values and status bytes;
