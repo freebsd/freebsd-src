@@ -1,16 +1,17 @@
-# $Id: Makefile,v 1.2.2.3 1996/12/10 21:59:41 joerg Exp $
+# $Id: Makefile,v 1.2.2.4 1996/12/14 13:46:49 joerg Exp $
 
 NOMAN=YES
 CLEANFILES+= ${LOCALES:S/$/.out/g}
 
 LOCALES=        da_DK.ISO_8859-1 de_DE.ISO_8859-1 en_GB.ISO_8859-1 \
-		fr_FR.ISO_8859-1 is_IS.ISO_8859-1 it_IT.ISO_8859-1 \
-		pt_PT.ISO_8859-1 ru_SU.KOI8-R ru_SU.CP866
+		en_US.ISO_8859-1 fr_FR.ISO_8859-1 is_IS.ISO_8859-1 \
+		it_IT.ISO_8859-1 pt_PT.ISO_8859-1 ru_SU.KOI8-R ru_SU.CP866
 LOCALEDIR=      ${DESTDIR}/usr/share/locale
 
 DE_LINKS =      de_AT de_CH
 FR_LINKS =      fr_BE fr_CA fr_CH
 IT_LINKS =      it_CH
+US_LINKS =      en_AU en_CA
 
 .SUFFIXES: .src .out
 
@@ -34,6 +35,10 @@ afterinstall:
 	done
 	for l in ${IT_LINKS}; do \
 		ln -fs ../it_IT.ISO_8859-1/LC_TIME \
+		       ${LOCALEDIR}/$$l.ISO_8859-1/LC_TIME; \
+	done
+	for l in ${US_LINKS}; do \
+		ln -fs ../en_US.ISO_8859-1/LC_TIME \
 		       ${LOCALEDIR}/$$l.ISO_8859-1/LC_TIME; \
 	done
 
