@@ -29,9 +29,9 @@ LATIN1XLINKS=	af_ZA da_DK de_AT de_CH de_DE en_AU en_CA en_GB en_NZ en_US \
 		nl_NL no_NO pt_PT sv_SE
 LATIN1LINKS=	${LATIN1XLINKS} pt_BR
 LATIN15LINKS=	${LATIN1XLINKS} et_EE
-LATIN2LINKS=	cs_CZ hr_HR hu_HU pl_PL sl_SI ro_RO sk_SK
+LATIN2LINKS=	cs_CZ hr_HR hu_HU pl_PL sl_SI sr_YU ro_RO sk_SK
 LATIN4LINKS=	lt_LT
-LATIN5LINKS=	uk_UA
+LATIN5LINKS=	sr_YU uk_UA
 
 .SUFFIXES: .src .out
 
