@@ -174,5 +174,11 @@ int		atm_stack_enq(int, void (*)(int, void *, intptr_t, intptr_t),
 			void *, Atm_connvc *, intptr_t, intptr_t);
 void		atm_stack_drain(void);
 void		atm_pdu_print(const KBuffer *, const char *);
+
+#ifdef SYSCTL_DECL
+SYSCTL_DECL(_net_harp);
+SYSCTL_DECL(_net_harp_atm);
+#endif
+
 #endif	/* _KERNEL */
 #endif	/* _NETATM_ATM_VAR_H */

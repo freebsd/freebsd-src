@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
+#include <sys/sysctl.h>
 #include <net/if.h>
 #include <net/netisr.h>
 #include <netatm/port.h>
@@ -64,14 +65,32 @@ Atm_endpoint		*atm_endpoints[ENDPT_MAX+1] = {NULL};
 struct stackq_entry	*atm_stackq_head = NULL, *atm_stackq_tail;
 struct atm_sock_stat	atm_sock_stat = { { 0 } };
 int			atm_init = 0;
-int			atm_debug = 0;
-int			atm_dev_print = 0;
-int			atm_print_data = 0;
 int			atm_version = ATM_VERSION;
 struct timeval		atm_debugtime = {0, 0};
 struct ifqueue		atm_intrq;
 
 uma_zone_t atm_attributes_zone;
+
+/*
+ * net.harp.atm.atm_debug
+ */
+int atm_debug;
+SYSCTL_INT(_net_harp_atm, OID_AUTO, atm_debug, CTLFLAG_RW,
+    &atm_debug, 0, "HARP ATM layer debugging flag");
+
+/*
+ * net.harp.atm.atm_dev_print
+ */
+int atm_dev_print;
+SYSCTL_INT(_net_harp_atm, OID_AUTO, atm_dev_print, CTLFLAG_RW,
+    &atm_dev_print, 0, "display ATM CPCS headers");
+
+/*
+ * net.harp.atm.atm_print_data
+ */
+int atm_print_data;
+SYSCTL_INT(_net_harp_atm, OID_AUTO, atm_print_data, CTLFLAG_RW,
+    &atm_print_data, 0, "display ATM CPCS payloads");
 
 /*
  * Local functions
