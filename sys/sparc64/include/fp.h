@@ -41,9 +41,6 @@ struct fpstate {
 struct pcb;
 struct thread;
 
-void	fp_init_thread(struct thread *);
-int	fp_enable_thread(struct thread *, struct trapframe *);
-int	fp_exception(struct thread *, struct trapframe *, int *);
 /*
  * Note: The pointers passed to the next two functions must be aligned on
  * 64 byte boundaries.
