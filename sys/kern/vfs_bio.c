@@ -1079,6 +1079,7 @@ bwillwrite(void)
 	if (numdirtybuffers >= hidirtybuffers) {
 		int s;
 
+		mtx_lock(&Giant);
 		s = splbio();
 		while (numdirtybuffers >= hidirtybuffers) {
 			bd_wakeup(1);
@@ -1086,6 +1087,7 @@ bwillwrite(void)
 			tsleep(&needsbuffer, (PRIBIO + 4), "flswai", 0);
 		}
 		splx(s);
+		mtx_unlock(&Giant);
 	}
 }
 

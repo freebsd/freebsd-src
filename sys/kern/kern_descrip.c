@@ -1716,6 +1716,7 @@ fdrop_locked(fp, td)
 		FILE_UNLOCK(fp);
 		return (0);
 	}
+	mtx_lock(&Giant);
 	if (fp->f_count < 0)
 		panic("fdrop: count < 0");
 	if ((fp->f_flag & FHASLOCK) && fp->f_type == DTYPE_VNODE) {
@@ -1733,6 +1734,7 @@ fdrop_locked(fp, td)
 	else
 		error = 0;
 	ffree(fp);
+	mtx_unlock(&Giant);
 	return (error);
 }
 
