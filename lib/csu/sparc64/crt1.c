@@ -46,6 +46,7 @@ extern int _DYNAMIC;
 extern void _init(void);
 extern void _fini(void);
 extern int main(int, char **, char **);
+extern void __sparc64_sigtramp_setup(void);
 extern void __sparc64_utrap_setup(void);
 
 #ifdef GCRT
@@ -99,6 +100,7 @@ _start(char **ap,
 				__progname = s + 1;
 	}
 
+	__sparc_sigtramp_setup();
 	__sparc_utrap_setup();
 #if 0
 	/*
