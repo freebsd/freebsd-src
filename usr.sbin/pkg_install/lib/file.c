@@ -40,7 +40,7 @@ fexists(char *fname)
     return FALSE;
 }
 
-/* Quick check to see if something is a directory */
+/* Quick check to see if something is a directory or symlink to a directory */
 Boolean
 isdir(char *fname)
 {
@@ -54,7 +54,7 @@ isdir(char *fname)
 	return FALSE;
 }
 
-/* Check to see if file is a dir, and is empty */
+/* Check to see if file is a dir or symlink to a dir, and is empty */
 Boolean
 isemptydir(char *fname)
 {
@@ -77,6 +77,10 @@ isemptydir(char *fname)
     return FALSE;
 }
 
+/*
+ * Returns TRUE if file is a regular file or symlink pointing to a regular
+ * file
+ */
 Boolean
 isfile(char *fname)
 {
@@ -86,8 +90,11 @@ isfile(char *fname)
     return FALSE;
 }
 
-/* Check to see if file is a file and is empty. If nonexistent or not
-   a file, say "it's empty", otherwise return TRUE if zero sized. */
+/* 
+ * Check to see if file is a file or symlink pointing to a file and is empty.
+ * If nonexistent or not a file, say "it's empty", otherwise return TRUE if
+ * zero sized.
+ */
 Boolean
 isemptyfile(char *fname)
 {
@@ -97,6 +104,16 @@ isemptyfile(char *fname)
 	    return FALSE;
     }
     return TRUE;
+}
+
+/* Returns TRUE if file is a symbolic link. */
+Boolean
+issymlink(char *fname)
+{
+    struct stat sb;
+    if (lstat(fname, &sb) != FAIL && S_ISLNK(sb.st_mode))
+	return TRUE;
+    return FALSE;
 }
 
 /* Returns TRUE if file is a URL specification */
