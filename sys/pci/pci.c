@@ -64,10 +64,6 @@ static STAILQ_HEAD(devlist, pci_devinfo) pci_devq;
 u_int32_t pci_numdevs = 0;
 static u_int32_t pci_generation = 0;
 
-#define PCI_MFCTR_CHAR0(ID) (char)(((ID>>10) & 0x1F) | '@')  /* Bits 10-14 */
-#define PCI_MFCTR_CHAR1(ID) (char)(((ID>>5 ) & 0x1F) | '@')  /* Bits 5-9   */
-#define PCI_MFCTR_CHAR2(ID) (char)(( ID      & 0x1F) | '@')  /* Bits 0-4   */
-
 /* return base address of memory or port map */
 
 static int
@@ -1127,11 +1123,7 @@ pci_probe_nomatch(device_t dev, device_t child)
 	dinfo = device_get_ivars(child);
 	cfg = &dinfo->cfg;
 
-	device_printf(dev, "unknown card %c%c%c%04x (vendor=0x%04x, dev=0x%04x) at %d.%d",
-		PCI_MFCTR_CHAR0(cfg->vendor),
-		PCI_MFCTR_CHAR1(cfg->vendor),
-		PCI_MFCTR_CHAR2(cfg->vendor),
-		cfg->device,
+	device_printf(dev, "unknown card (vendor=0x%04x, dev=0x%04x) at %d.%d",
 		cfg->vendor,
 		cfg->device,
 		pci_get_slot(child),
