@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_conf.c,v 1.8 1995/12/21 20:09:39 julian Exp $
+ * $Id: kern_conf.c,v 1.9 1995/12/22 15:56:33 phk Exp $
  */
 
 #include <sys/param.h>
@@ -157,3 +157,37 @@ int TTYPE##_add(dev_t *descrip,						\
 
 ADDENTRY(bdevsw, nblkdev)
 ADDENTRY(cdevsw, nchrdev)
+
+void
+cdevsw_make(struct bdevsw *from)
+{
+	struct cdevsw *to = from->d_cdev;
+
+	if (!to) 
+		panic("No target cdevsw in bdevsw");
+	to->d_open = from->d_open;
+	to->d_close = from->d_close;
+	to->d_read = rawread;
+	to->d_write = rawwrite;
+	to->d_ioctl = from->d_ioctl;
+	to->d_stop = nostop;
+	to->d_reset = nullreset;
+	to->d_devtotty = nodevtotty;
+	to->d_select = seltrue;
+	to->d_mmap = nommap;
+	to->d_strategy = from->d_strategy;
+	to->d_name = from->d_name;
+	to->d_bdev = from;
+	to->d_maj = -1;
+}
+
+void
+bdevsw_add_generic(int bdev, int cdev, struct bdevsw *bdevsw)
+{
+	dev_t dev;
+	cdevsw_make(bdevsw);
+	dev = makedev(cdev, 0);
+	cdevsw_add(&dev, bdevsw->d_cdev, NULL);
+	dev = makedev(bdev, 0);
+	bdevsw_add(&dev, bdevsw        , NULL);
+}

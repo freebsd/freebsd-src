@@ -20,7 +20,7 @@
  * the original CMU copyright notice.
  *
  * Version 1.3, Thu Nov 11 12:09:13 MSK 1993
- * $Id: wt.c,v 1.31 1996/03/28 14:28:55 scrappy Exp $
+ * $Id: wt.c,v 1.32 1996/04/08 19:40:57 smpatel Exp $
  *
  */
 
@@ -208,17 +208,10 @@ static	d_strategy_t	wtstrategy;
 #define CDEV_MAJOR 10
 #define BDEV_MAJOR 3
 
-extern struct cdevsw wt_cdevsw; 
+static struct cdevsw wt_cdevsw;
 static struct bdevsw wt_bdevsw = 
 	{ wtopen,	wtclose,	wtstrategy,	wtioctl,	/*3*/
 	  wtdump,	wtsize,		B_TAPE,	"wt",	&wt_cdevsw,	-1 };
-
-static struct cdevsw wt_cdevsw = 
-	{ wtopen,	wtclose,	rawread,	rawwrite,	/*10*/
-	  wtioctl,	nostop,		nullreset,	nodevtotty,/* wt */
-	  seltrue,	nommap,		wtstrategy,	"wt",
-	  &wt_bdevsw,	-1 };
-
 
 static inline void
 wt_registerdev(struct isa_device *id)
@@ -1017,13 +1010,9 @@ static wt_devsw_installed = 0;
 static void 
 wt_drvinit(void *unused)
 {
-	dev_t dev;
 
 	if( ! wt_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR, 0);
-		cdevsw_add(&dev,&wt_cdevsw, NULL);
-		dev = makedev(BDEV_MAJOR, 0);
-		bdevsw_add(&dev,&wt_bdevsw, NULL);
+		bdevsw_add_generic(BDEV_MAJOR,CDEV_MAJOR, &wt_bdevsw);
 		wt_devsw_installed = 1;
     	}
 }
