@@ -1250,7 +1250,7 @@ devfs_open_device(char *path, int type)
 		return (NULL);
 
 #if 0
-	if ( VOP_OPEN(vn, FREAD, proc0.p_cred->pc_ucred, &proc0)) {
+	if ( VOP_OPEN(vn, FREAD, proc0.p_ucred, &proc0)) {
 	 	vput(vn);
 		return (NULL);
 	}
@@ -1268,7 +1268,7 @@ void
 devfs_close_device(struct vnode *vn)
 {
 #if 0
-	VOP_CLOSE(vn, 0, proc0.p_cred->pc_ucred, &proc0) ;
+	VOP_CLOSE(vn, 0, proc0.p_ucred, &proc0) ;
 #endif
 	vput(vn);
 }

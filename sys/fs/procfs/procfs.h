@@ -97,7 +97,7 @@ struct pfsnode {
 #define CHECKIO(p1, p2) \
      ((p1) == (p2) || \
        (PRISON_CHECK(p1, p2) && \
-       ((((p1)->p_cred->pc_ucred->cr_uid == (p2)->p_cred->p_ruid) && \
+       ((((p1)->p_ucred->cr_uid == (p2)->p_cred->p_ruid) && \
        ((p1)->p_cred->p_ruid == (p2)->p_cred->p_ruid) && \
        ((p1)->p_cred->p_svuid == (p2)->p_cred->p_ruid) && \
        ((p2)->p_flag & P_SUGID) == 0) || \

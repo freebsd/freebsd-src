@@ -1231,7 +1231,7 @@ loop:
 			 * Free up credentials.
 			 */
 			if (--q->p_cred->p_refcnt == 0) {
-				crfree(q->p_cred->pc_ucred);
+				crfree(q->p_ucred);
 				FREE(q->p_cred, M_SUBPROC);
 			}
 

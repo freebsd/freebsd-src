@@ -688,7 +688,7 @@ elf_coredump(p, vp, limit)
 	register struct vnode *vp;
 	off_t limit;
 {
-	register struct ucred *cred = p->p_cred->pc_ucred;
+	register struct ucred *cred = p->p_ucred;
 	int error = 0;
 	struct sseg_closure seginfo;
 	void *hdr;
