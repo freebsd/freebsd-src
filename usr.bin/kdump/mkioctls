@@ -57,8 +57,8 @@ BEGIN {
 	print "#include <netinet6/in6_var.h>"
 	print "#include <netinet6/nd6.h>"
 	print "#include <netinet6/ip6_mroute.h>"
-	print "#include <cam/cam.h>"
 	print "#include <stdio.h>"
+	print "#include <cam/cam.h>"
 	print ""
 	print ioctl_includes
 	print ""

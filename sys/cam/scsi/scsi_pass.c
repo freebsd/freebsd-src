@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Justin T. Gibbs.
+ * Copyright (c) 1997, 1998, 2000 Justin T. Gibbs.
  * Copyright (c) 1997, 1998, 1999 Kenneth D. Merry.
  * All rights reserved.
  *
@@ -42,6 +42,7 @@
 #include <cam/cam_ccb.h>
 #include <cam/cam_extend.h>
 #include <cam/cam_periph.h>
+#include <cam/cam_queue.h>
 #include <cam/cam_xpt_periph.h>
 #include <cam/cam_debug.h>
 
@@ -67,13 +68,12 @@ typedef enum {
 #define ccb_bp		ppriv_ptr1
 
 struct pass_softc {
-	pass_state	state;
-	pass_flags	flags;
-	u_int8_t	pd_type;
-	struct		bio_queue_head bio_queue;
-	union ccb	saved_ccb;
-	struct devstat	device_stats;
-	dev_t		dev;
+	pass_state		state;
+	pass_flags		flags;
+	u_int8_t		pd_type;
+	union ccb		saved_ccb;
+	struct devstat		device_stats;
+	dev_t			dev;
 };
 
 #ifndef MIN
@@ -85,7 +85,6 @@ struct pass_softc {
 static	d_open_t	passopen;
 static	d_close_t	passclose;
 static	d_ioctl_t	passioctl;
-static	d_strategy_t	passstrategy;
 
 static	periph_init_t	passinit;
 static	periph_ctor_t	passregister;
@@ -112,12 +111,12 @@ PERIPHDRIVER_DECLARE(pass, passdriver);
 static struct cdevsw pass_cdevsw = {
 	/* open */	passopen,
 	/* close */	passclose,
-	/* read */	physread,
-	/* write */	physwrite,
+	/* read */	noread,
+	/* write */	nowrite,
 	/* ioctl */	passioctl,
 	/* poll */	nopoll,
 	/* mmap */	nommap,
-	/* strategy */	passstrategy,
+	/* strategy */	nostrategy,
 	/* name */	"pass",
 	/* maj */	PASS_CDEV_MAJOR,
 	/* dump */	nodump,
@@ -172,9 +171,7 @@ passinit(void)
 static void
 passoninvalidate(struct cam_periph *periph)
 {
-	int s;
 	struct pass_softc *softc;
-	struct bio *q_bp;
 	struct ccb_setasync csa;
 
 	softc = (struct pass_softc *)periph->softc;
@@ -193,25 +190,10 @@ passoninvalidate(struct cam_periph *periph)
 	softc->flags |= PASS_FLAG_INVALID;
 
 	/*
-	 * Although the oninvalidate() routines are always called at
-	 * splsoftcam, we need to be at splbio() here to keep the buffer
-	 * queue from being modified while we traverse it.
-	 */
-	s = splbio();
-
-	/*
-	 * Return all queued I/O with ENXIO.
+	 * XXX Return all queued I/O with ENXIO.
 	 * XXX Handle any transactions queued to the card
 	 *     with XPT_ABORT_CCB.
 	 */
-	while ((q_bp = bioq_first(&softc->bio_queue)) != NULL){
-		bioq_remove(&softc->bio_queue, q_bp);
-		q_bp->bio_resid = q_bp->bio_bcount;
-		q_bp->bio_error = ENXIO;
-		q_bp->bio_flags |= BIO_ERROR;
-		biodone(q_bp);
-	}
-	splx(s);
 
 	if (bootverbose) {
 		xpt_print_path(periph->path);
@@ -267,9 +249,15 @@ passasync(void *callback_arg, u_int32_t code,
 					  passasync, AC_FOUND_DEVICE, cgd);
 
 		if (status != CAM_REQ_CMP
-		 && status != CAM_REQ_INPROG)
+		 && status != CAM_REQ_INPROG) {
+			const struct cam_status_entry *entry;
+
+			entry = cam_fetch_status_entry(status);
+
 			printf("passasync: Unable to attach new device "
-				"due to status 0x%x\n", status);
+			       "due to status %#x: %s\n", status, entry ?
+			       entry->status_text : "Unknown");
+		}
 
 		break;
 	}
@@ -285,6 +273,7 @@ passregister(struct cam_periph *periph, void *arg)
 	struct pass_softc *softc;
 	struct ccb_setasync csa;
 	struct ccb_getdev *cgd;
+	int    no_tags;
 
 	cgd = (struct ccb_getdev *)arg;
 	if (periph == NULL) {
@@ -309,18 +298,19 @@ passregister(struct cam_periph *periph, void *arg)
 	bzero(softc, sizeof(*softc));
 	softc->state = PASS_STATE_NORMAL;
 	softc->pd_type = SID_TYPE(&cgd->inq_data);
-	bioq_init(&softc->bio_queue);
 
 	periph->softc = softc;
-
 	cam_extend_set(passperiphs, periph->unit_number, periph);
+
 	/*
 	 * We pass in 0 for a blocksize, since we don't 
 	 * know what the blocksize of this device is, if 
 	 * it even has a blocksize.
 	 */
-	devstat_add_entry(&softc->device_stats, "pass", periph->unit_number,
-			  0, DEVSTAT_NO_BLOCKSIZE | DEVSTAT_NO_ORDERED_TAGS,
+	no_tags = (cgd->inq_data.flags & SID_CmdQue) == 0;
+	devstat_add_entry(&softc->device_stats, "pass", periph->unit_number, 0,
+			  DEVSTAT_NO_BLOCKSIZE
+			  | (no_tags ? DEVSTAT_NO_ORDERED_TAGS : 0),
 			  softc->pd_type |
 			  DEVSTAT_TYPE_IF_SCSI |
 			  DEVSTAT_TYPE_PASS,
@@ -447,75 +437,6 @@ passclose(dev_t dev, int flag, int fmt, struct proc *p)
 	return (0);
 }
 
-/*
- * Actually translate the requested transfer into one the physical driver
- * can understand.  The transfer is described by a buf and will include
- * only one physical transfer.
- */
-static void
-passstrategy(struct bio *bp)
-{
-	struct cam_periph *periph;
-	struct pass_softc *softc;
-	u_int  unit;
-	int    s;
-
-	/*
-	 * The read/write interface for the passthrough driver doesn't
-	 * really work right now.  So, we just pass back EINVAL to tell the
-	 * user to go away.
-	 */
-	bp->bio_error = EINVAL;
-	goto bad;
-
-	/* unit = dkunit(bp->bio_dev); */
-	/* XXX KDM fix this */
-	unit = minor(bp->bio_dev) & 0xff;
-
-	periph = cam_extend_get(passperiphs, unit);
-	if (periph == NULL) {
-		bp->bio_error = ENXIO;
-		goto bad;
-	}
-	softc = (struct pass_softc *)periph->softc;
-
-	/*
-	 * Odd number of bytes or negative offset
-	 */
-	/* valid request?  */
-	if (bp->bio_blkno < 0) {
-		bp->bio_error = EINVAL;
-		goto bad;
-        }
-	
-	/*
-	 * Mask interrupts so that the pack cannot be invalidated until
-	 * after we are in the queue.  Otherwise, we might not properly
-	 * clean up one of the buffers.
-	 */
-	s = splbio();
-	
-	bioq_insert_tail(&softc->bio_queue, bp);
-
-	splx(s);
-	
-	/*
-	 * Schedule ourselves for performing the work.
-	 */
-	xpt_schedule(periph, /* XXX priority */1);
-
-	return;
-bad:
-	bp->bio_flags |= BIO_ERROR;
-
-	/*
-	 * Correctly set the buf to indicate a completed xfer
-	 */
-	bp->bio_resid = bp->bio_bcount;
-	biodone(bp);
-	return;
-}
-
 static void
 passstart(struct cam_periph *periph, union ccb *start_ccb)
 {
@@ -526,53 +447,17 @@ passstart(struct cam_periph *periph, union ccb *start_ccb)
 
 	switch (softc->state) {
 	case PASS_STATE_NORMAL:
-	{
-		struct bio *bp;
-
 		s = splbio();
-		bp = bioq_first(&softc->bio_queue);
-		if (periph->immediate_priority <= periph->pinfo.priority) {
-			start_ccb->ccb_h.ccb_type = PASS_CCB_WAITING;			
-			SLIST_INSERT_HEAD(&periph->ccb_list, &start_ccb->ccb_h,
-					  periph_links.sle);
-			periph->immediate_priority = CAM_PRIORITY_NONE;
-			splx(s);
-			wakeup(&periph->ccb_list);
-		} else if (bp == NULL) {
-			splx(s);
-			xpt_release_ccb(start_ccb);
-		} else {
-
-			bioq_remove(&softc->bio_queue, bp);
-
-			devstat_start_transaction(&softc->device_stats);
-
-			/*
-			 * XXX JGibbs -
-			 * Interpret the contents of the bp as a CCB
-			 * and pass it to a routine shared by our ioctl
-			 * code and passtart.
-			 * For now, just biodone it with EIO so we don't
-			 * hang.
-			 */
-			bp->bio_error = EIO;
-			bp->bio_flags |= BIO_ERROR;
-			bp->bio_resid = bp->bio_bcount;
-			biodone(bp);
-			bp = bioq_first(&softc->bio_queue);
-			splx(s);
-  
-			xpt_action(start_ccb);
-
-		}
-		if (bp != NULL) {
-			/* Have more work to do, so ensure we stay scheduled */
-			xpt_schedule(periph, /* XXX priority */1);
-		}
+		start_ccb->ccb_h.ccb_type = PASS_CCB_WAITING;			
+		SLIST_INSERT_HEAD(&periph->ccb_list, &start_ccb->ccb_h,
+				  periph_links.sle);
+		periph->immediate_priority = CAM_PRIORITY_NONE;
+		splx(s);
+		wakeup(&periph->ccb_list);
 		break;
 	}
-	}
 }
+
 static void
 passdone(struct cam_periph *periph, union ccb *done_ccb)
 { 
@@ -582,54 +467,10 @@ passdone(struct cam_periph *periph, union ccb *done_ccb)
 	softc = (struct pass_softc *)periph->softc;
 	csio = &done_ccb->csio;
 	switch (csio->ccb_h.ccb_type) {
-	case PASS_CCB_BUFFER_IO:
-	{
-		struct bio		*bp;
-		cam_status		status;
-		u_int8_t		scsi_status;
-		devstat_trans_flags	ds_flags;
-
-		status = done_ccb->ccb_h.status;
-		scsi_status = done_ccb->csio.scsi_status;
-		bp = (struct bio *)done_ccb->ccb_h.ccb_bp;
-		/* XXX handle errors */
-		if (!(((status & CAM_STATUS_MASK) == CAM_REQ_CMP)
-		  && (scsi_status == SCSI_STATUS_OK))) {
-			int error;
-			
-			if ((error = passerror(done_ccb, 0, 0)) == ERESTART) {
-				/*
-				 * A retry was scheuled, so
-				 * just return.
-				 */
-				return;
-			}
-
-			/*
-			 * XXX unfreeze the queue after we complete
-			 * the abort process
-			 */
-			bp->bio_error = error;
-			bp->bio_flags |= BIO_ERROR;
-		}
-
-		if ((done_ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN)
-			ds_flags = DEVSTAT_READ;
-		else if ((done_ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_OUT)
-			ds_flags = DEVSTAT_WRITE;
-		else
-			ds_flags = DEVSTAT_NO_DATA;
-
-		devstat_end_transaction_bio(&softc->device_stats, bp);
-		biodone(bp);
-		break;
-	}
 	case PASS_CCB_WAITING:
-	{
 		/* Caller will release the CCB */
 		wakeup(&done_ccb->ccb_h.cbfcnp);
 		return;
-	}
 	}
 	xpt_release_ccb(done_ccb);
 }
@@ -791,8 +632,8 @@ passsendccb(struct cam_periph *periph, union ccb *ccb, union ccb *inccb)
 	error = cam_periph_runccb(ccb,
 				  (ccb->ccb_h.flags & CAM_PASS_ERR_RECOVER) ?
 				  passerror : NULL,
-				  /* cam_flags */ 0,
-				  /* sense_flags */SF_RETRY_UA | SF_RETRY_SELTO,
+				  /* cam_flags */ CAM_RETRY_SELTO,
+				  /* sense_flags */SF_RETRY_UA,
 				  &softc->device_stats);
 
 	if (need_unmap != 0)

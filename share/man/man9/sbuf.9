@@ -52,9 +52,9 @@
 .Ft int
 .Fn sbuf_setpos "struct sbuf *s" "int pos"
 .Ft int
-.Fn sbuf_cat "struct sbuf *s" "char *str"
+.Fn sbuf_cat "struct sbuf *s" "const char *str"
 .Ft int
-.Fn sbuf_cpy "struct sbuf *s" "char *str"
+.Fn sbuf_cpy "struct sbuf *s" "const char *str"
 .Ft int
 .Fn sbuf_printf "struct sbuf *s" "char *fmt" "..."
 .Ft int
@@ -177,7 +177,7 @@ and marks it as finished, which means that it may no longer be
 modified using
 .Fn sbuf_setpos ,
 .Fn sbuf_cat ,
-.Fn sbuf_cpu ,
+.Fn sbuf_cpy ,
 .Fn sbuf_printf
 or
 .Fn sbuf_putc .

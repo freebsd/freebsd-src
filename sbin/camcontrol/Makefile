@@ -7,7 +7,7 @@ MAN=   camcontrol.8
 SDIR=	${.CURDIR}/../../sys
 
 CFLAGS+= -I${SDIR}
-DPADD=   ${LIBCAM}
-LDADD+=  -lcam
+DPADD=   ${LIBCAM} ${LIBSBUF}
+LDADD+=  -lcam -lsbuf
 
 .include <bsd.prog.mk>
