@@ -48,7 +48,8 @@ It uses DMA and interrupts.
 Up to 50 lines of scanned input data are buffered in the driver.
 .Pp
 The device can operate at four different resolutions: 100, 200, 300
-and 400 dots per inch. It produces a simple bitmap with the most
+and 400 dots per inch.
+It produces a simple bitmap with the most
 significant bit at the left side.  The driver can optionally output
 the simple portable bitmap file format
 .Xr pbm 5 ;
@@ -100,7 +101,8 @@ Get the current height of the bitmap.
 .It Dv ASC_SBLEN
 .Pq Li int
 Set the length of the buffer used internally to do the DMA transfer.
-The buffer length is supplied in lines of the bitmap. Since the buffer
+The buffer length is supplied in lines of the bitmap.
+Since the buffer
 size limit is (currently) 0x3000 bytes, the maximum number of lines
 allowed will vary with the width of each line.  An
 .Er ENOMEM
@@ -110,7 +112,8 @@ error is returned if the requested length would exceed this limit.
 Get the current buffer length in lines.
 .It Dv ASC_SBTIME
 .Pq Li int
-Set the timeout for the completion of reading one buffer. Since a
+Set the timeout for the completion of reading one buffer.
+Since a
 handy scanner is a human/computer interface timeout values are usually
 higher than those of a flat scanner; the default is 15 seconds.  After
 timeout is reached the read operation will fail with 

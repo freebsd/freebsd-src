@@ -116,7 +116,8 @@ returns a few flags:
 .It Dv EX_DYNAMIC
 indicates that the executable requires the services of the run-time link editor.
 .It Dv EX_PIC
-indicates that the object contains position independent code. This flag is
+indicates that the object contains position independent code.
+This flag is
 set by
 .Xr as 1
 when given the
@@ -280,7 +281,8 @@ If set, the symbol, as identified by the
 field, is to be relocated to an offset into the Procedure Linkage Table.
 .It Fa r_relative
 If set, this relocation is relative to the (run-time) load address of the
-image this object file is going to be a part of. This type of relocation
+image this object file is going to be a part of.
+This type of relocation
 only occurs in shared objects.
 .It Fa r_copy
 If set, this relocation record identifies a symbol whose contents should
@@ -392,7 +394,8 @@ the values are described in
 This field provides information on the nature of the symbol independent of
 the symbol's location in terms of segments as determined by the
 .Fa n_type
-field. Currently, the lower 4 bits of the
+field.
+Currently, the lower 4 bits of the
 .Fa n_other
 field hold one of two values:
 .Dv AUX_FUNC

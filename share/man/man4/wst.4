@@ -64,12 +64,14 @@ driver is based around the concept of a
 which is defined as the period between the time that a tape is
 mounted, and the time when it is unmounted.  Any parameters set during
 a mount session remain in effect for the remainder of the session or
-until replaced. The tape can be unmounted, bringing the session to a
+until replaced.
+The tape can be unmounted, bringing the session to a
 close in several ways.  These include:
 .Bl -enum
 .It
 Closing an `unmount device',
-referred to as sub-mode 00 below. An example is 
+referred to as sub-mode 00 below.
+An example is 
 .Pa /dev/rwst0 .
 .It
 Using the MTOFFL
@@ -103,7 +105,8 @@ is the mode number.
 .Sh MODES AND SUB-MODES
 There are four 
 .Sq operation
-modes. These are controlled by bits 2 and 3 of the minor number and
+modes.
+These are controlled by bits 2 and 3 of the minor number and
 are designed to allow users to easily read and write different formats
 of tape on devices that allow multiple formats.  The parameters for
 each mode can be set individually by hand with the
@@ -132,7 +135,8 @@ No other head positioning takes place.
 Any further reads or writes will occur directly after the
 last read, or the written file mark.
 .It 10
-A close will rewind the device. If the tape has been 
+A close will rewind the device.
+If the tape has been 
 written, then a file mark will be written before the rewind is requested.
 On completion of the rewind an unload command will be issued.
 The device is unmounted.
@@ -167,7 +171,8 @@ written to the tape.  One can never read or write
 .Em part
 of a record from tape (though you may request a larger block and read
 a smaller record); nor can one read multiple blocks.  Data from a
-single write is therefore read by a single read. The block size used
+single write is therefore read by a single read.
+The block size used
 may be any value supported by the device, the
 .Tn IDE
 controller and the system (usually between 1 byte and 64 Kbytes,
@@ -175,13 +180,15 @@ sometimes more).
 .Pp
 When reading a variable record/block from the tape, the head is
 logically considered to be immediately after the last item read,
-and before the next item after that. If the next item is a file mark,
+and before the next item after that.
+If the next item is a file mark,
 but it was never read, then the next
 process to read will immediately hit the file mark and receive an end-of-file notification.
 .It Fixed block-size
 Data written by the user is passed to the tape as a succession of
 fixed size blocks.  It may be contiguous in memory, but it is
-considered to be a series of independent blocks. One may never write
+considered to be a series of independent blocks.
+One may never write
 an amount of data that is not an exact multiple of the blocksize.  One
 may read and write the same data as a different set of records, In
 other words, blocks that were written together may be read separately,
@@ -194,7 +201,8 @@ returning that data.  The next read will return immediately with an
 EOF.  (As above, if the file mark is never read, it remains for the next process to read if in no-rewind mode.)
 .El
 .Sh FILE MARK HANDLING
-The handling of file marks on write is automatic. If the user has
+The handling of file marks on write is automatic.
+If the user has
 written to the tape, and has not done a read since the last write,
 then a file mark will be written to the tape when the device is
 closed.  If a rewind is requested after a write, then the driver

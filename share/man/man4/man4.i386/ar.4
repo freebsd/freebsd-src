@@ -43,12 +43,15 @@ synchronous Digi/Arnet device driver.
 The
 .Nm ar
 driver supports the Digi/Arnet SYNC/570i ISA and PCI cards that is based on the
-HD64570 chip. Both the 2 and 4 port cards are supported and auto detected.
+HD64570 chip.
+Both the 2 and 4 port cards are supported and auto detected.
 .Pp
 The standard
 .Tn FreeBSD
-sppp code is used for the link level layer. The
-default protocol used is PPP. The Cisco HDLC protocol can be used by
+sppp code is used for the link level layer.
+The
+default protocol used is PPP.
+The Cisco HDLC protocol can be used by
 adding
 .Ar link2
 to
@@ -83,7 +86,8 @@ prepended, e.g.,
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "ar%d: Warning illegal interrupt %d."
-The card cannot use the specified interrupt. Choose a different one.
+The card cannot use the specified interrupt.
+Choose a different one.
 .El
 .Sh FILES
 .Bl -tag -width /sys/i386/isa/ic/hd64570.h -compact
@@ -94,7 +98,8 @@ The card cannot use the specified interrupt. Choose a different one.
 .It Pa /sys/pci/if_ar_p.c
 .El
 .Sh BUGS
-At the moment only the V.35 and X.21 interfaces are tested. The others
+At the moment only the V.35 and X.21 interfaces are tested.
+The others
 may need tweaks to the clock selection code.
 .Pp
 The code can probably stand some optimizing.
