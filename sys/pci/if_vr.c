@@ -592,8 +592,15 @@ static void vr_reset(sc)
 		if (!(CSR_READ_2(sc, VR_COMMAND) & VR_CMD_RESET))
 			break;
 	}
-	if (i == VR_TIMEOUT)
-		printf("vr%d: reset never completed!\n", sc->vr_unit);
+	if (i == VR_TIMEOUT) {
+		if (sc->vr_revid < REV_ID_VT3065_A)
+			printf("vr%d: reset never completed!\n", sc->vr_unit);
+		else {
+			/* Use newer force reset command */
+			printf("vr%d: Using force reset command.\n", sc->vr_unit);
+			VR_SETBIT(sc, VR_MISC_CR1, VR_MISCCR1_FORSRST);
+		}
+	}
 
 	/* Wait a little while for the chip to get its brains in order. */
 	DELAY(1000);
@@ -680,6 +687,7 @@ static int vr_attach(dev)
 	command |= (PCIM_CMD_PORTEN|PCIM_CMD_MEMEN|PCIM_CMD_BUSMASTEREN);
 	pci_write_config(dev, PCIR_COMMAND, command, 4);
 	command = pci_read_config(dev, PCIR_COMMAND, 4);
+	sc->vr_revid = pci_read_config(dev, VR_PCI_REVID, 4) & 0x000000FF;
 
 #ifdef VR_USEIOSPACE
 	if (!(command & PCIM_CMD_PORTEN)) {
