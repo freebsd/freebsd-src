@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkmakefile.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: mkmakefile.c,v 1.32 1998/07/12 08:10:33 bde Exp $";
+	"$Id: mkmakefile.c,v 1.33 1998/09/03 21:03:43 nsouch Exp $";
 #endif /* not lint */
 
 /*
@@ -220,6 +220,10 @@ makefile()
 				fprintf(stderr, "Make sure that /usr/src/usr.sbin/config is in sync\n");
 				fprintf(stderr, "with your /usr/src/sys and install a new config binary\n");
 				fprintf(stderr, "before trying this again.\n\n");
+				fprintf(stderr, "If running the new config fails check your config\n");
+				fprintf(stderr, "file against the GENERIC or LINT config files for\n");
+				fprintf(stderr, "changes in config syntax, or option/device naming\n");
+				fprintf(stderr, "conventions\n\n");
 			}
 		} else
 			fprintf(stderr,
