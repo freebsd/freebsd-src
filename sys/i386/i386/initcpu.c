@@ -62,8 +62,8 @@ static void init_6x86(void);
 static void	init_6x86MX(void);
 static void	init_ppro(void);
 static void	init_mendocino(void);
-void	enable_sse(void);
 #endif
+void	enable_sse(void);
 
 int	hw_instruction_sse = 0;
 SYSCTL_INT(_hw, OID_AUTO, instruction_sse, CTLFLAG_RD,
@@ -507,7 +507,9 @@ init_mendocino(void)
 	write_eflags(eflags);
 #endif /* CPU_PPRO2CELERON */
 }
-	
+
+#endif /* I686_CPU */
+
 /*
  * Initialize CR4 (Control register 4) to enable SSE instructions.
  */
@@ -521,8 +523,6 @@ enable_sse(void)
 	}
 #endif
 }
-
-#endif /* I686_CPU */
 
 void
 initializecpu(void)
@@ -571,9 +571,7 @@ initializecpu(void)
 	default:
 		break;
 	}
-#ifdef I686_CPU
 	enable_sse();
-#endif
 
 #if defined(PC98) && !defined(CPU_UPGRADE_HW_CACHE)
 	/*
