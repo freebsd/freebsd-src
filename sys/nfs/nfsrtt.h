@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsrtt.h	8.1 (Berkeley) 6/10/93
- * $Id: nfsrtt.h,v 1.2 1994/08/02 07:52:24 davidg Exp $
+ * $Id: nfsrtt.h,v 1.3 1994/08/21 06:50:12 paul Exp $
  */
 
 #ifndef _NFS_NFSRTT_H_
@@ -82,6 +82,7 @@ struct nfsrtt {
 #define	DRT_TCP		0x02	/* Client used TCP transport */
 #define	DRT_CACHEREPLY	0x04	/* Reply was from recent request cache */
 #define	DRT_CACHEDROP	0x08	/* Rpc request dropped, due to recent reply */
+#define DRT_NFSV3	0x10	/* Rpc used NFS Version 3 */
 
 /*
  * Server log structure

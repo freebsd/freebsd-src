@@ -37,7 +37,7 @@
  *
  *	@(#)os-bsd44.h	8.1 (Berkeley) 6/6/93
  *
- * $Id: os-bsd44.h,v 1.1.1.1 1994/05/26 05:22:07 rgrimes Exp $
+ * $Id: os-bsd44.h,v 1.2 1995/01/20 20:58:54 wollman Exp $
  *
  * 4.4 BSD definitions for Amd (automounter)
  */
@@ -61,6 +61,7 @@
  */
 #define	NFS_44
 #define HAS_TCP_NFS
+#define NFSv3
 
 /*
  * Does this OS have NDBM support?
@@ -170,7 +171,11 @@ struct mntent {
  * Type of a file handle
  */
 #undef NFS_FH_TYPE
+#ifdef NFSv3
+#define NFS_FH_TYPE	fhandle_t *
+#else
 #define	NFS_FH_TYPE	nfsv2fh_t *
+#endif
 
 /*
  * How to get a mount list

@@ -90,6 +90,7 @@ int xdr_mntdump(), xdr_exports();
  * This command queries the NFS mount daemon for it's mount list and/or
  * it's exports list and prints them out.
  * See "NFS: Network File System Protocol Specification, RFC1094, Appendix A"
+ * and the "Network File System Protocol XXX.."
  * for detailed information on the protocol.
  */
 main(argc, argv)
@@ -101,12 +102,12 @@ main(argc, argv)
 	register struct grouplist *grp;
 	extern char *optarg;
 	extern int optind;
-	register int rpcs = 0;
+	register int rpcs = 0, mntvers = 1;
 	char ch;
 	char *host;
 	int estat;
 
-	while ((ch = getopt(argc, argv, "ade")) != EOF)
+	while ((ch = getopt(argc, argv, "ade3")) != EOF)
 		switch((char)ch) {
 		case 'a':
 			if (type == 0) {
@@ -125,6 +126,9 @@ main(argc, argv)
 		case 'e':
 			rpcs |= DOEXPORTS;
 			break;
+		case '3':
+			mntvers = 3;
+			break;
 		case '?':
 		default:
 			usage();
@@ -141,7 +145,7 @@ main(argc, argv)
 		rpcs = DODUMP;
 
 	if (rpcs & DODUMP)
-		if ((estat = callrpc(host, RPCPROG_MNT, RPCMNT_VER1,
+		if ((estat = callrpc(host, RPCPROG_MNT, mntvers,
 			RPCMNT_DUMP, xdr_void, (char *)0,
 			xdr_mntdump, (char *)&mntdump)) != 0) {
 			clnt_perrno(estat);
@@ -149,7 +153,7 @@ main(argc, argv)
 			exit(1);
 		}
 	if (rpcs & DOEXPORTS)
-		if ((estat = callrpc(host, RPCPROG_MNT, RPCMNT_VER1,
+		if ((estat = callrpc(host, RPCPROG_MNT, mntvers,
 			RPCMNT_EXPORT, xdr_void, (char *)0,
 			xdr_exports, (char *)&exports)) != 0) {
 			clnt_perrno(estat);

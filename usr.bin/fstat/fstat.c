@@ -62,7 +62,7 @@ static char sccsid[] = "@(#)fstat.c	8.1 (Berkeley) 6/6/93";
 #undef KERNEL
 #define NFS
 #include <sys/mount.h>
-#include <nfs/nfsv2.h>
+#include <nfs/nfsproto.h>
 #include <nfs/rpcv2.h>
 #include <nfs/nfs.h>
 #include <nfs/nfsnode.h>

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)rpcv2.h	8.1 (Berkeley) 6/10/93
- * $Id: rpcv2.h,v 1.2 1994/08/02 07:52:29 davidg Exp $
+ * $Id: rpcv2.h,v 1.3 1994/08/21 06:50:15 paul Exp $
  */
 
 #ifndef _NFS_RPCV2_H_
@@ -52,9 +52,17 @@
 #define	RPCAUTH_NULL	0
 #define	RPCAUTH_UNIX	1
 #define	RPCAUTH_SHORT	2
+#define RPCAUTH_KERB4	4
 #define	RPCAUTH_NQNFS	300000
 #define	RPCAUTH_MAXSIZ	400
+#define	RPCVERF_MAXSIZ	12	/* For Kerb, can actually be 400 */
 #define	RPCAUTH_UNIXGIDS 16
+
+/*
+ * Constants associated with authentication flavours.
+ */
+#define RPCAKN_FULLNAME	0
+#define RPCAKN_NICKNAME	1
 
 /* Rpc Constants */
 #define	RPC_CALL	0
@@ -91,4 +99,43 @@
 #define	RPCMNT_PATHLEN	1024
 #define	RPCPROG_NFS	100003
 
+/*
+ * Structures used for RPCAUTH_KERB4.
+ */
+struct nfsrpc_fullverf {
+	u_long		t1;
+	u_long		t2;
+	u_long		w2;
+};
+
+struct nfsrpc_fullblock {
+	u_long		t1;
+	u_long		t2;
+	u_long		w1;
+	u_long		w2;
+};
+
+struct nfsrpc_nickverf {
+	u_long			kind;
+	struct nfsrpc_fullverf	verf;
+};
+
+/*
+ * and their sizes in bytes.. If sizeof (struct nfsrpc_xx) != these
+ * constants, well then things will break in mount_nfs and nfsd.
+ */
+#define RPCX_FULLVERF	12
+#define RPCX_FULLBLOCK	16
+#define RPCX_NICKVERF	16
+
+#ifdef NFSKERB
+XXX
+#else
+typedef u_char			NFSKERBKEY_T[2];
+typedef u_char			NFSKERBKEYSCHED_T[2];
+#endif
+#define NFS_KERBSRV	"rcmd"		/* Kerberos Service for NFS */
+#define NFS_KERBTTL	(30 * 60)	/* Credential ttl (sec) */
+#define NFS_KERBCLOCKSKEW (5 * 60)	/* Clock skew (sec) */
+#define NFS_KERBW1(t)	(*((u_long *)(&((t).dat[((t).length + 3) & ~0x3]))))
 #endif

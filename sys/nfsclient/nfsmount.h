@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsmount.h	8.1 (Berkeley) 6/10/93
- * $Id: nfsmount.h,v 1.3 1994/08/21 06:50:10 paul Exp $
+ * $Id: nfsmount.h,v 1.4 1994/10/17 17:47:43 phk Exp $
  */
 
 #ifndef _NFS_NFSMOUNT_H_
@@ -49,7 +49,8 @@ struct	nfsmount {
 	int	nm_flag;		/* Flags for soft/hard... */
 	struct	mount *nm_mountp;	/* Vfs structure for this filesystem */
 	int	nm_numgrps;		/* Max. size of groupslist */
-	nfsv2fh_t nm_fh;		/* File handle of root dir */
+	u_char	nm_fh[NFSX_V3FHMAX];	/* File handle of root dir */
+	int	nm_fhsize;		/* Size of root file handle */
 	struct	socket *nm_so;		/* Rpc socket */
 	int	nm_sotype;		/* Type of socket */
 	int	nm_soproto;		/* and protocol */
@@ -65,6 +66,7 @@ struct	nfsmount {
 	int	nm_deadthresh;		/* Threshold of timeouts-->dead server*/
 	int	nm_rsize;		/* Max size of read rpc */
 	int	nm_wsize;		/* Max size of write rpc */
+	int	nm_readdirsize;		/* Size of a readdir rpc */
 	int	nm_readahead;		/* Num. of blocks to readahead */
 	int	nm_leaseterm;		/* Term (sec) for NQNFS lease */
 	CIRCLEQ_HEAD(, nfsnode) nm_timerhead; /* Head of lease timer queue */
@@ -73,9 +75,16 @@ struct	nfsmount {
 	int	nm_authtype;		/* Authenticator type */
 	int	nm_authlen;		/* and length */
 	char	*nm_authstr;		/* Authenticator string */
+	char	*nm_verfstr;		/* and the verifier */
+	int	nm_verflen;
+	u_char	nm_verf[NFSX_V3WRITEVERF]; /* V3 write verifier */
+	NFSKERBKEY_T nm_key;		/* and the session key */
+	int	nm_numuids;		/* Number of nfsuid mappings */
+	TAILQ_HEAD(, nfsuid) nm_uidlruhead; /* Lists of nfsuid mappings */
+	LIST_HEAD(, nfsuid) nm_uidhashtbl[NFS_MUIDHASHSIZ];
 };
 
-#ifdef KERNEL
+#if defined(KERNEL) || defined(_KERNEL)
 /*
  * Convert mount ptr to nfsmount ptr.
  */

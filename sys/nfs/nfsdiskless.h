@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsdiskless.h	8.1 (Berkeley) 6/10/93
- * $Id: nfsdiskless.h,v 1.3 1994/08/05 09:28:49 davidg Exp $
+ * $Id: nfsdiskless.h,v 1.4 1994/08/21 06:50:09 paul Exp $
  */
 
 #ifndef _NFS_NFSDISKLESS_H_
@@ -52,17 +52,45 @@
  * NB: All fields are stored in net byte order to avoid hassles with
  * client/server byte ordering differences.
  */
-struct nfs_diskless {
+
+/*
+ * I have defined a new structure that can handle an NFS Version 3 file handle
+ * but the kernel still expects the old Version 2 one to be provided. The
+ * changes required in nfs_vfsops.c for using the new are documented there in
+ * comments. (I felt that breaking network booting code by changing this
+ * structure would not be prudent at this time, since almost all servers are
+ * still Version 2 anyhow.)
+ */
+struct nfsv3_diskless {
 	struct ifaliasreq myif;			/* Default interface */
 	struct sockaddr_in mygateway;		/* Default gateway */
 	struct nfs_args	swap_args;		/* Mount args for swap file */
-	u_char		swap_fh[NFS_FHSIZE];	/* Swap file's file handle */
+	int		swap_fhsize;		/* Size of file handle */
+	u_char		swap_fh[NFSX_V3FHMAX];	/* Swap file's file handle */
 	struct sockaddr_in swap_saddr;		/* Address of swap server */
 	char		swap_hostnam[MNAMELEN];	/* Host name for mount pt */
 	int		swap_nblks;		/* Size of server swap file */
 	struct ucred	swap_ucred;		/* Swap credentials */
 	struct nfs_args	root_args;		/* Mount args for root fs */
-	u_char		root_fh[NFS_FHSIZE];	/* File handle of root dir */
+	int		root_fhsize;		/* Size of root file handle */
+	u_char		root_fh[NFSX_V3FHMAX];	/* File handle of root dir */
+	struct sockaddr_in root_saddr;		/* Address of root server */
+	char		root_hostnam[MNAMELEN];	/* Host name for mount pt */
+	long		root_time;		/* Timestamp of root fs */
+	char		my_hostnam[MAXHOSTNAMELEN]; /* Client host name */
+};
+
+struct nfs_diskless {
+	struct ifaliasreq myif;			/* Default interface */
+	struct sockaddr_in mygateway;		/* Default gateway */
+	struct nfs_args	swap_args;		/* Mount args for swap file */
+	u_char		swap_fh[NFSX_V2FH];	/* Swap file's file handle */
+	struct sockaddr_in swap_saddr;		/* Address of swap server */
+	char		swap_hostnam[MNAMELEN];	/* Host name for mount pt */
+	int		swap_nblks;		/* Size of server swap file */
+	struct ucred	swap_ucred;		/* Swap credentials */
+	struct nfs_args	root_args;		/* Mount args for root fs */
+	u_char		root_fh[NFSX_V2FH];	/* File handle of root dir */
 	struct sockaddr_in root_saddr;		/* Address of root server */
 	char		root_hostnam[MNAMELEN];	/* Host name for mount pt */
 	long		root_time;		/* Timestamp of root fs */
