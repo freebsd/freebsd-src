@@ -1630,7 +1630,7 @@ mlx_startio(struct mlx_softc *sc)
 	 */
 	mlx_make_type5(mc, cmd, 
 		       blkcount & 0xff, 				/* xfer length low byte */
-		       (driveno << 4) | ((blkcount >> 8) & 0x0f),	/* target and length high nybble */
+		       (driveno << 3) | ((blkcount >> 8) & 0x07),	/* target and length high 3 bits */
 		       bp->b_blkno,					/* physical block number */
 		       mc->mc_sgphys,					/* location of SG list */
 		       mc->mc_nsgent & 0x3f);				/* size of SG list (top 2 bits clear) */
@@ -1662,7 +1662,6 @@ mlx_completeio(struct mlx_command *mc)
 	switch(mc->mc_status) {
 	case MLX_STATUS_RDWROFFLINE:		/* system drive has gone offline */
 	    device_printf(mlxd->mlxd_dev, "drive offline\n");
-	    device_printf(sc->mlx_dev, "drive offline\n");
 	    /* should signal this with a return code */
 	    mlxd->mlxd_drive->ms_state = MLX_SYSD_OFFLINE;
 	    break;
