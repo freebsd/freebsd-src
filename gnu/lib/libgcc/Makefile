@@ -59,12 +59,12 @@ NEW2FUNCS= _op_vnew _op_vnewnt _op_delete _op_delnt _op_vdel _op_vdelnt
 
 SRCS=	frame.c tinfo.cc tinfo2.cc new.cc exception.cc
 
-CFLAGS+=	-I${GCCDIR}/config -I${GCCDIR} -I.
 CFLAGS+=	-fexceptions
 CFLAGS+=	-DIN_GCC
 .if ${OBJFORMAT} != aout
 CFLAGS+=	-D_PTHREADS -DGTHREAD_USE_WEAK
 .endif
+CFLAGS+=	-I${GCCDIR}/config -I${GCCDIR} -I.
 CXXFLAGS+=	-I${GCCDIR}/cp/inc
 CXXFLAGS+=	-nostdinc++
 
