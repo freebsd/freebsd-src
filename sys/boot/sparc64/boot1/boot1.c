@@ -60,8 +60,8 @@ static int dskread(void *, u_int64_t, int);
 static int printf(const char *, ...);
 static int putchar(int);
 
-static void *memcpy(void *, const void *, size_t);
-static void *memset(void *, int, size_t);
+static void bcopy(const void *src, void *dst, size_t len);
+static void bzero(void *b, size_t len);
 
 /*
  * Open Firmware interface functions
@@ -244,25 +244,31 @@ ofw_seek(ofwh_t devh, u_int64_t off)
 	return (0);
 }
 
+static void
+bcopy(const void *dst, void *src, size_t len)
+{
+	const char *d = dst;
+	char *s = src;
+
+	while (len-- != 0)
+		*s++ = *d++;
+}
+
+static void
+bzero(void *b, size_t len)
+{
+	char *p = b;
+
+	while (len-- != 0)
+		*p++ = 0;
+}
+
 static int
 strcmp(const char *s1, const char *s2)
 {
 	for (; *s1 == *s2 && *s1; s1++, s2++)
 		;
 	return ((u_char)*s1 - (u_char)*s2);
-}
-
-static void *
-memset(void *dst, int val, size_t len)
-{
-	void *ret;
-
-	ret = dst;
-	while (len) {
-		*((char *)dst)++ = val;
-		len--;
-	}
-	return (ret);
 }
 
 static int
@@ -300,7 +306,7 @@ int
 main(void)
 {
 	if (bname[0] == '\0')
-		memcpy(bname, _PATH_LOADER, sizeof(_PATH_LOADER));
+		bcopy(_PATH_LOADER, bname, sizeof(_PATH_LOADER));
 
 	printf(" \n>> FreeBSD/sparc64 boot block\n"
 	"   Boot path:   %s\n"
@@ -345,7 +351,7 @@ load(const char *fname)
 			return;
 		}
 		if (ph.p_filesz != ph.p_memsz)
-			memset(p + ph.p_filesz, 0, ph.p_memsz - ph.p_filesz);
+			bzero(p + ph.p_filesz, ph.p_memsz - ph.p_filesz);
 	}
 	ofw_close(bootdevh);
 	(*(void (*)(int, int, int, int, ofwfp_t))eh.e_entry)(0, 0, 0, 0, ofw);
@@ -373,7 +379,7 @@ lookup(const char *path)
 			;
 		if ((n = s - path) > MAXNAMLEN)
 			return (0);
-		memcpy(name, path, n);
+		bcopy(path, name, n);
 		name[n] = 0;
 		if (dt != DT_DIR) {
 			printf("%s: not a directory.\n", name);
@@ -404,7 +410,7 @@ fsread(ino_t inode, void *buf, size_t nbyte)
 		inomap = 0;
 		if (dskread(blkbuf, SBOFF / DEV_BSIZE, SBSIZE / DEV_BSIZE))
 			return (-1);
-		memcpy(&fs, blkbuf, sizeof(fs));
+		bcopy(blkbuf, &fs, sizeof(fs));
 		if (fs.fs_magic != FS_MAGIC) {
 			printf("Not ufs\n");
 			return (-1);
@@ -418,7 +424,8 @@ fsread(ino_t inode, void *buf, size_t nbyte)
 		if (dskread(blkbuf, fsbtodb(&fs, ino_to_fsba(&fs, inode)),
 		    fsblks))
 			return (-1);
-		din = ((struct dinode *)blkbuf)[inode % INOPB(&fs)];
+		bcopy(blkbuf + ((inode % INOPB(&fs)) * sizeof(din)), &din,
+		    sizeof(din));
 		inomap = inode;
 		fs_off = 0;
 		blkmap = indmap = 0;
@@ -452,7 +459,7 @@ fsread(ino_t inode, void *buf, size_t nbyte)
 		n -= off;
 		if (n > nb)
 			n = nb;
-		memcpy(s, blkbuf + off, n);
+		bcopy(blkbuf + off, s, n);
 		s += n;
 		fs_off += n;
 		nb -= n;
@@ -543,15 +550,4 @@ putchar(int c)
 		putc('\r');
 	putc(c);
 	return (c);
-}
-
-static void *
-memcpy(void *dst, const void *src, size_t size)
-{
-	const char *s;
-	char *d;
-
-	for (d = dst, s = src; size; size--)
-		*d++ = *s++;
-	return (dst);
 }
