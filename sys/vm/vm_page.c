@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.117 1999/01/21 08:29:12 dillon Exp $
+ *	$Id: vm_page.c,v 1.118 1999/01/21 10:01:49 dillon Exp $
  */
 
 /*
@@ -1039,7 +1039,6 @@ loop:
 #if !defined(MAX_PERF)
 		if (m->dirty)
 			panic("found dirty cache page %p", m);
-			
 #endif
 		vm_page_busy(m);
 		vm_page_protect(m, VM_PROT_NONE);
@@ -1541,7 +1540,13 @@ vm_page_cache(m)
 	if ((m->queue - m->pc) == PQ_CACHE)
 		return;
 
+	/*
+	 * Remove all pmaps and indicate that the page is not
+	 * writeable.
+	 */
+
 	vm_page_protect(m, VM_PROT_NONE);
+	vm_page_flag_clear(m, PG_WRITEABLE);
 #if !defined(MAX_PERF)
 	if (m->dirty != 0) {
 		panic("vm_page_cache: caching a dirty page, pindex: %d", m->pindex);
