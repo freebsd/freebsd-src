@@ -86,6 +86,7 @@ extern void
 
 /* Buffer state query routines */
 extern int
+	ring_at_mark P((Ring *)),
 	ring_empty_count P((Ring *ring)),
 	ring_empty_consecutive P((Ring *ring)),
 	ring_full_count P((Ring *ring)),
@@ -93,5 +94,5 @@ extern int
 
 
 extern void
-    ring_clear_mark P((Ring *)),
-    ring_mark P((Ring *));
+	ring_clear_mark P((Ring *)),
+	ring_mark P((Ring *));
