@@ -1,6 +1,6 @@
 // List implementation (out of line) -*- C++ -*-
 
-// Copyright (C) 2001, 2002 Free Software Foundation, Inc.
+// Copyright (C) 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -58,57 +58,47 @@
  *  You should not attempt to use it directly.
  */
 
-#ifndef __GLIBCPP_INTERNAL_LIST_TCC
-#define __GLIBCPP_INTERNAL_LIST_TCC
+#ifndef _LIST_TCC
+#define _LIST_TCC 1
 
-namespace std
+namespace _GLIBCXX_STD
 {
   template<typename _Tp, typename _Alloc>
     void
     _List_base<_Tp,_Alloc>::
-    __clear()
+    _M_clear()
     {
       typedef _List_node<_Tp>  _Node;
-      _Node* __cur = static_cast<_Node*>(_M_node->_M_next);
-      while (__cur != _M_node)
+      _Node* __cur = static_cast<_Node*>(this->_M_impl._M_node._M_next);
+      while (__cur != &this->_M_impl._M_node)
       {
         _Node* __tmp = __cur;
         __cur = static_cast<_Node*>(__cur->_M_next);
-        _Destroy(&__tmp->_M_data);
+        std::_Destroy(&__tmp->_M_data);
         _M_put_node(__tmp);
       }
-      _M_node->_M_next = _M_node;
-      _M_node->_M_prev = _M_node;
     }
-  
+
   template<typename _Tp, typename _Alloc>
     typename list<_Tp,_Alloc>::iterator
     list<_Tp,_Alloc>::
     insert(iterator __position, const value_type& __x)
     {
       _Node* __tmp = _M_create_node(__x);
-      __tmp->_M_next = __position._M_node;
-      __tmp->_M_prev = __position._M_node->_M_prev;
-      __position._M_node->_M_prev->_M_next = __tmp;
-      __position._M_node->_M_prev = __tmp;
+      __tmp->hook(__position._M_node);
       return __tmp;
     }
-  
+
   template<typename _Tp, typename _Alloc>
     typename list<_Tp,_Alloc>::iterator
     list<_Tp,_Alloc>::
     erase(iterator __position)
     {
-      _List_node_base* __next_node = __position._M_node->_M_next;
-      _List_node_base* __prev_node = __position._M_node->_M_prev;
-      _Node* __n = static_cast<_Node*>(__position._M_node);
-      __prev_node->_M_next = __next_node;
-      __next_node->_M_prev = __prev_node;
-      _Destroy(&__n->_M_data);
-      _M_put_node(__n);
-      return iterator(static_cast<_Node*>(__next_node));
+      iterator __ret = __position._M_node->_M_next;
+      _M_erase(__position);
+      return __ret;
     }
-  
+
   template<typename _Tp, typename _Alloc>
     void
     list<_Tp,_Alloc>::
@@ -123,28 +113,28 @@ namespace std
       else                          // __i == end()
         insert(end(), __new_size - __len, __x);
     }
-  
+
   template<typename _Tp, typename _Alloc>
     list<_Tp,_Alloc>&
     list<_Tp,_Alloc>::
     operator=(const list& __x)
     {
       if (this != &__x)
-      {
-        iterator __first1 = begin();
-        iterator __last1 = end();
-        const_iterator __first2 = __x.begin();
-        const_iterator __last2 = __x.end();
-        while (__first1 != __last1 && __first2 != __last2)
-          *__first1++ = *__first2++;
-        if (__first2 == __last2)
-          erase(__first1, __last1);
-        else
-          insert(__last1, __first2, __last2);
-      }
+	{
+	  iterator __first1 = begin();
+	  iterator __last1 = end();
+	  const_iterator __first2 = __x.begin();
+	  const_iterator __last2 = __x.end();
+	  while (__first1 != __last1 && __first2 != __last2)
+	    *__first1++ = *__first2++;
+	  if (__first2 == __last2)
+	    erase(__first1, __last1);
+	  else
+	    insert(__last1, __first2, __last2);
+	}
       return *this;
     }
-  
+
   template<typename _Tp, typename _Alloc>
     void
     list<_Tp,_Alloc>::
@@ -158,23 +148,25 @@ namespace std
       else
         erase(__i, end());
     }
-  
+
   template<typename _Tp, typename _Alloc>
-    template <typename _InputIter>
+    template <typename _InputIterator>
       void
       list<_Tp,_Alloc>::
-      _M_assign_dispatch(_InputIter __first2, _InputIter __last2, __false_type)
+      _M_assign_dispatch(_InputIterator __first2, _InputIterator __last2,
+			 __false_type)
       {
         iterator __first1 = begin();
         iterator __last1 = end();
-        for (; __first1 != __last1 && __first2 != __last2; ++__first1, ++__first2)
+        for (; __first1 != __last1 && __first2 != __last2;
+	     ++__first1, ++__first2)
           *__first1 = *__first2;
         if (__first2 == __last2)
           erase(__first1, __last1);
         else
           insert(__last1, __first2, __last2);
       }
-  
+
   template<typename _Tp, typename _Alloc>
     void
     list<_Tp,_Alloc>::
@@ -187,11 +179,11 @@ namespace std
         iterator __next = __first;
         ++__next;
         if (*__first == __value)
-          erase(__first);
+          _M_erase(__first);
         __first = __next;
       }
     }
-  
+
   template<typename _Tp, typename _Alloc>
     void
     list<_Tp,_Alloc>::
@@ -199,81 +191,83 @@ namespace std
     {
       iterator __first = begin();
       iterator __last = end();
-      if (__first == __last) return;
+      if (__first == __last)
+	return;
       iterator __next = __first;
       while (++__next != __last)
       {
         if (*__first == *__next)
-          erase(__next);
+          _M_erase(__next);
         else
           __first = __next;
         __next = __first;
       }
     }
-  
+
   template<typename _Tp, typename _Alloc>
     void
     list<_Tp,_Alloc>::
     merge(list& __x)
     {
-      iterator __first1 = begin();
-      iterator __last1 = end();
-      iterator __first2 = __x.begin();
-      iterator __last2 = __x.end();
-      while (__first1 != __last1 && __first2 != __last2)
-        if (*__first2 < *__first1)
-        {
-          iterator __next = __first2;
-          _M_transfer(__first1, __first2, ++__next);
-          __first2 = __next;
-        }
-        else
-          ++__first1;
-      if (__first2 != __last2)
-        _M_transfer(__last1, __first2, __last2);
+      // _GLIBCXX_RESOLVE_LIB_DEFECTS
+      // 300. list::merge() specification incomplete
+      if (this != &__x)
+	{
+	  iterator __first1 = begin();
+	  iterator __last1 = end();
+	  iterator __first2 = __x.begin();
+	  iterator __last2 = __x.end();
+	  while (__first1 != __last1 && __first2 != __last2)
+	    if (*__first2 < *__first1)
+	      {
+		iterator __next = __first2;
+		_M_transfer(__first1, __first2, ++__next);
+		__first2 = __next;
+	      }
+	    else
+	      ++__first1;
+	  if (__first2 != __last2)
+	    _M_transfer(__last1, __first2, __last2);
+	}
     }
-  
-  // FIXME put this somewhere else
-  inline void
-  __List_base_reverse(_List_node_base* __p)
-  {
-    _List_node_base* __tmp = __p;
-    do {
-      std::swap(__tmp->_M_next, __tmp->_M_prev);
-      __tmp = __tmp->_M_prev;     // Old next node is now prev.
-    } while (__tmp != __p);
-  }
-  
+
   template<typename _Tp, typename _Alloc>
     void
     list<_Tp,_Alloc>::
     sort()
     {
       // Do nothing if the list has length 0 or 1.
-      if (_M_node->_M_next != _M_node && _M_node->_M_next->_M_next != _M_node)
+      if (this->_M_impl._M_node._M_next != &this->_M_impl._M_node
+	  && this->_M_impl._M_node._M_next->_M_next != &this->_M_impl._M_node)
       {
         list __carry;
-        list __counter[64];
-        int __fill = 0;
-        while (!empty())
-        {
-          __carry.splice(__carry.begin(), *this, begin());
-          int __i = 0;
-          while(__i < __fill && !__counter[__i].empty())
-          {
-            __counter[__i].merge(__carry);
-            __carry.swap(__counter[__i++]);
-          }
-          __carry.swap(__counter[__i]);
-          if (__i == __fill) ++__fill;
-        }
-  
-        for (int __i = 1; __i < __fill; ++__i)
-          __counter[__i].merge(__counter[__i-1]);
-        swap(__counter[__fill-1]);
+        list __tmp[64];
+        list * __fill = &__tmp[0];
+        list * __counter;
+
+        do
+	  {
+	    __carry.splice(__carry.begin(), *this, begin());
+
+	    for(__counter = &__tmp[0];
+		(__counter != __fill) && !__counter->empty();
+		++__counter)
+	      {
+		__counter->merge(__carry);
+		__carry.swap(*__counter);
+	      }
+	    __carry.swap(*__counter);
+	    if (__counter == __fill)
+	      ++__fill;
+	  }
+	while ( !empty() );
+
+        for (__counter =  &__tmp[1]; __counter != __fill; ++__counter)
+          __counter->merge( *(__counter-1) );
+        swap( *(__fill-1) );
       }
     }
-  
+
   template<typename _Tp, typename _Alloc>
     template <typename _Predicate>
       void
@@ -286,11 +280,12 @@ namespace std
         {
           iterator __next = __first;
           ++__next;
-          if (__pred(*__first)) erase(__first);
+          if (__pred(*__first))
+	    _M_erase(__first);
           __first = __next;
         }
       }
-  
+
   template<typename _Tp, typename _Alloc>
     template <typename _BinaryPredicate>
       void
@@ -304,65 +299,79 @@ namespace std
         while (++__next != __last)
         {
           if (__binary_pred(*__first, *__next))
-            erase(__next);
+            _M_erase(__next);
           else
             __first = __next;
           __next = __first;
         }
       }
-  
+
   template<typename _Tp, typename _Alloc>
     template <typename _StrictWeakOrdering>
       void
       list<_Tp,_Alloc>::
       merge(list& __x, _StrictWeakOrdering __comp)
       {
-        iterator __first1 = begin();
-        iterator __last1 = end();
-        iterator __first2 = __x.begin();
-        iterator __last2 = __x.end();
-        while (__first1 != __last1 && __first2 != __last2)
-          if (__comp(*__first2, *__first1))
-          {
-            iterator __next = __first2;
-            _M_transfer(__first1, __first2, ++__next);
-            __first2 = __next;
-          }
-          else
-            ++__first1;
-        if (__first2 != __last2) _M_transfer(__last1, __first2, __last2);
+	// _GLIBCXX_RESOLVE_LIB_DEFECTS
+	// 300. list::merge() specification incomplete
+	if (this != &__x)
+	  {
+	    iterator __first1 = begin();
+	    iterator __last1 = end();
+	    iterator __first2 = __x.begin();
+	    iterator __last2 = __x.end();
+	    while (__first1 != __last1 && __first2 != __last2)
+	      if (__comp(*__first2, *__first1))
+		{
+		  iterator __next = __first2;
+		  _M_transfer(__first1, __first2, ++__next);
+		  __first2 = __next;
+		}
+	      else
+		++__first1;
+	    if (__first2 != __last2)
+	      _M_transfer(__last1, __first2, __last2);
+	  }
       }
-  
+
   template<typename _Tp, typename _Alloc>
     template <typename _StrictWeakOrdering>
-    void
-    list<_Tp,_Alloc>::
-    sort(_StrictWeakOrdering __comp)
-    {
-      // Do nothing if the list has length 0 or 1.
-      if (_M_node->_M_next != _M_node && _M_node->_M_next->_M_next != _M_node)
+      void
+      list<_Tp,_Alloc>::
+      sort(_StrictWeakOrdering __comp)
       {
-        list __carry;
-        list __counter[64];
-        int __fill = 0;
-        while (!empty())
-        {
-          __carry.splice(__carry.begin(), *this, begin());
-          int __i = 0;
-          while(__i < __fill && !__counter[__i].empty())
-          {
-            __counter[__i].merge(__carry, __comp);
-            __carry.swap(__counter[__i++]);
-          }
-          __carry.swap(__counter[__i]);
-          if (__i == __fill) ++__fill;
-        }
-  
-        for (int __i = 1; __i < __fill; ++__i)
-          __counter[__i].merge(__counter[__i-1], __comp);
-        swap(__counter[__fill-1]);
+	// Do nothing if the list has length 0 or 1.
+	if (this->_M_impl._M_node._M_next != &this->_M_impl._M_node
+	    && this->_M_impl._M_node._M_next->_M_next != &this->_M_impl._M_node)
+	  {
+	    list __carry;
+	    list __tmp[64];
+	    list * __fill = &__tmp[0];
+	    list * __counter;
+
+	    do
+	      {
+		__carry.splice(__carry.begin(), *this, begin());
+
+		for(__counter = &__tmp[0];
+		    (__counter != __fill) && !__counter->empty();
+		    ++__counter)
+		  {
+		    __counter->merge(__carry, __comp);
+		    __carry.swap(*__counter);
+		  }
+		__carry.swap(*__counter);
+		if (__counter == __fill)
+		  ++__fill;
+	      }
+	    while ( !empty() );
+
+	    for (__counter =  &__tmp[1]; __counter != __fill; ++__counter)
+	      __counter->merge( *(__counter-1), __comp );
+	    swap( *(__fill-1) );
+	  }
       }
-    }
 } // namespace std
 
-#endif /* __GLIBCPP_INTERNAL_LIST_TCC */
+#endif /* _LIST_TCC */
+

@@ -58,10 +58,11 @@
  *  in your programs, rather than any of the "st[dl]_*.h" implementation files.
  */
 
-#ifndef _CPP_ITERATOR
-#define _CPP_ITERATOR 1
+#ifndef _GLIBCXX_ITERATOR
+#define _GLIBCXX_ITERATOR 1
 
 #pragma GCC system_header
+
 #include <bits/c++config.h>
 #include <cstddef>
 #include <bits/stl_iterator_base_types.h>
@@ -72,8 +73,4 @@
 #include <bits/stream_iterator.h>
 #include <bits/streambuf_iterator.h>
 
-#endif /* _CPP_ITERATOR */
-
-// Local Variables:
-// mode:C++
-// End:
+#endif /* _GLIBCXX_ITERATOR */

@@ -41,15 +41,15 @@
  *
  */
 
-#ifndef _CPP_EXT_TREE
-#define _CPP_EXT_TREE 1
+#ifndef _BACKWARD_TREE
+#define _BACKWARD_TREE 1
 
 #include "backward_warning.h"
 #include <ext/rb_tree>
 
 using __gnu_cxx::rb_tree;
 
-#endif 
+#endif
 // Local Variables:
 // mode:C++
 // End:

@@ -1,6 +1,6 @@
 // Output streams -*- C++ -*-
 
-// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002
+// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003
 // Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
@@ -37,8 +37,8 @@
  *  in your programs, rather than any of the "st[dl]_*.h" implementation files.
  */
 
-#ifndef _CPP_OSTREAM
-#define _CPP_OSTREAM	1
+#ifndef _GLIBCXX_OSTREAM
+#define _GLIBCXX_OSTREAM 1
 
 #pragma GCC system_header
 
@@ -69,8 +69,8 @@ namespace std
       typedef basic_streambuf<_CharT, _Traits> 		__streambuf_type;
       typedef basic_ios<_CharT, _Traits>		__ios_type;
       typedef basic_ostream<_CharT, _Traits>		__ostream_type;
-      typedef ostreambuf_iterator<_CharT, _Traits>	__ostreambuf_iter;
-      typedef num_put<_CharT, __ostreambuf_iter>        __numput_type;
+      typedef num_put<_CharT, ostreambuf_iterator<_CharT, _Traits> >        
+      							__num_put_type;
       typedef ctype<_CharT>           			__ctype_type;
 
       template<typename _CharT2, typename _Traits2>
@@ -127,13 +127,13 @@ namespace std
        *  functions in constructs like "std::cout << std::endl".  For more
        *  information, see the iomanip header.
       */
-      __ostream_type&
+      inline __ostream_type&
       operator<<(__ostream_type& (*__pf)(__ostream_type&));
       
-      __ostream_type&
+      inline __ostream_type&
       operator<<(__ios_type& (*__pf)(__ios_type&));
       
-      __ostream_type&
+      inline __ostream_type&
       operator<<(ios_base& (*__pf) (ios_base&));
       //@}
 
@@ -203,7 +203,7 @@ namespace std
       operator<<(unsigned int __n)
       { return this->operator<<(static_cast<unsigned long>(__n)); }
 
-#ifdef _GLIBCPP_USE_LONG_LONG
+#ifdef _GLIBCXX_USE_LONG_LONG
       __ostream_type& 
       operator<<(long long __n);
 
@@ -229,7 +229,7 @@ namespace std
        *  @param  sb  A pointer to a streambuf
        *
        *  This function behaves like one of the basic arithmetic extractors,
-       *  in that it also constructs a sentry onject and has the same error
+       *  in that it also constructs a sentry object and has the same error
        *  handling behavior.
        *
        *  If @a sb is NULL, the stream will set failbit in its error state.
@@ -280,6 +280,15 @@ namespace std
       */
       __ostream_type& 
       put(char_type __c);
+
+      // Core write functionality, without sentry.
+      void
+      _M_write(const char_type* __s, streamsize __n)
+      {
+	streamsize __put = this->rdbuf()->sputn(__s, __n);
+	if (__put != __n)
+	  this->setstate(ios_base::badbit);
+      }
 
       /**
        *  @brief  Character string insertion.
@@ -346,6 +355,10 @@ namespace std
       */
        __ostream_type& 
       seekp(off_type, ios_base::seekdir);
+      
+    protected:
+      explicit 
+      basic_ostream() { }
     };
 
   /**
@@ -405,7 +418,7 @@ namespace std
        *  For ease of use, sentries may be converted to booleans.  The
        *  return value is that of the sentry state (true == okay).
       */
-      operator bool() 
+      operator bool() const
       { return _M_ok; }
     };
 
@@ -528,11 +541,8 @@ namespace std
 
 } // namespace std
 
-#ifdef _GLIBCPP_NO_TEMPLATE_EXPORT
-# define export
-#endif
-#ifdef  _GLIBCPP_FULLY_COMPLIANT_HEADERS
+#ifndef _GLIBCXX_EXPORT_TEMPLATE
 # include <bits/ostream.tcc>
 #endif
 
-#endif	/* _CPP_OSTREAM */
+#endif	/* _GLIBCXX_OSTREAM */

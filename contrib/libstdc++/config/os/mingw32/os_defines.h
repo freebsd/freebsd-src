@@ -1,6 +1,6 @@
 // Specific definitions for generic platforms  -*- C++ -*-
 
-// Copyright (C) 2000 Free Software Foundation, Inc.
+// Copyright (C) 2000, 2001, 2002, 2003 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -28,10 +28,21 @@
 // the GNU General Public License.
 
 
-#ifndef _GLIBCPP_OS_DEFINES
-#  define _GLIBCPP_OS_DEFINES
+#ifndef _GLIBCXX_OS_DEFINES
+#  define _GLIBCXX_OS_DEFINES
 
 // System-specific #define, typedefs, corrections, etc, go here.  This
 // file will come before all others.
+
+//  Define as 0, if you want, to enable inlining of gthread functions.
+//  By default, don't pollute libstdc++ with win32api names.
+#if !defined (__GTHREAD_HIDE_WIN32API)
+# define __GTHREAD_HIDE_WIN32API 1
+#endif
+
+// Don't let win32api windef.h define min and max as macros
+// if included after stl_algobase.h. 
+#undef NOMINMAX
+#define NOMINMAX 1
 
 #endif
