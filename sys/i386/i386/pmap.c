@@ -1219,7 +1219,6 @@ pmap_pinit2(pmap_t pmap)
 static vm_page_t
 _pmap_allocpte(pmap_t pmap, unsigned ptepindex)
 {
-	vm_offset_t pteva;
 	vm_paddr_t ptepa;
 	vm_page_t m;
 
@@ -1227,7 +1226,17 @@ _pmap_allocpte(pmap_t pmap, unsigned ptepindex)
 	 * Find or fabricate a new pagetable page
 	 */
 	m = vm_page_grab(pmap->pm_pteobj, ptepindex,
-			VM_ALLOC_ZERO | VM_ALLOC_RETRY);
+			VM_ALLOC_ZERO);
+	if (m == NULL) {
+		VM_WAIT;
+		/*
+		 * Indicate the need to retry.  While waiting, the page table
+		 * page may have been allocated.
+		 */
+                return (NULL);
+	}
+	if ((m->flags & PG_ZERO) == 0)
+		pmap_zero_page(VM_PAGE_TO_PHYS(m));
 
 	KASSERT(m->queue == PQ_NONE,
 		("_pmap_allocpte: %p->queue != PQ_NONE", m));
@@ -1257,19 +1266,6 @@ _pmap_allocpte(pmap_t pmap, unsigned ptepindex)
 	 */
 	pmap->pm_ptphint = m;
 
-	/*
-	 * Try to use the new mapping, but if we cannot, then
-	 * do it with the routine that maps the page explicitly.
-	 */
-	if ((m->flags & PG_ZERO) == 0) {
-		if (pmap_is_current(pmap)) {
-			pteva = UPT_MIN_ADDRESS + i386_ptob(ptepindex);
-			bzero((caddr_t) pteva, PAGE_SIZE);
-		} else {
-			pmap_zero_page(ptepa);
-		}
-	}
-
 	m->valid = VM_PAGE_BITS_ALL;
 	vm_page_flag_clear(m, PG_ZERO);
 	vm_page_flag_set(m, PG_MAPPED);
@@ -1290,6 +1286,7 @@ pmap_allocpte(pmap_t pmap, vm_offset_t va)
 	 */
 	ptepindex = va >> PDRSHIFT;
 
+retry:
 	/*
 	 * Get the page directory entry
 	 */
@@ -1321,12 +1318,16 @@ pmap_allocpte(pmap_t pmap, vm_offset_t va)
 			pmap->pm_ptphint = m;
 		}
 		m->hold_count++;
-		return m;
+	} else {
+		/*
+		 * Here if the pte page isn't mapped, or if it has
+		 * been deallocated.
+		 */
+		m = _pmap_allocpte(pmap, ptepindex);
+		if (m == NULL)
+			goto retry;
 	}
-	/*
-	 * Here if the pte page isn't mapped, or if it has been deallocated.
-	 */
-	return _pmap_allocpte(pmap, ptepindex);
+	return (m);
 }
 
 
