@@ -91,7 +91,7 @@ _pthread_barrier_wait(pthread_barrier_t *barrier)
 		/* Current thread is lastest thread */
 		bar->b_waiters = 0;
 		bar->b_cycle++;
-		_thr_umtx_wake(&bar->b_cycle, bar->b_count);
+		_thr_umtx_wake(&bar->b_cycle, bar->b_count - 1);
 		THR_UMTX_UNLOCK(curthread, &bar->b_lock);
 		ret = PTHREAD_BARRIER_SERIAL_THREAD;
 	} else {
