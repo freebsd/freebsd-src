@@ -327,7 +327,7 @@ minimum.
 Name Server Addresses and NetBIOS Name Server Addresses can be negotiated
 with clients using the Microsoft
 .Em PPP
-stack (ie. Win95, WinNT)
+stack (i.e., Win95, WinNT)
 .It Supports Multi-link PPP (rfc 1990)
 It is possible to configure
 .Nm
@@ -394,7 +394,7 @@ Make sure that your system has a group named
 .Dq network
 in the
 .Pa /etc/group
-file and that that group contains the names of all users expected to use
+file and that the group contains the names of all users expected to use
 .Nm ppp .
 Refer to the
 .Xr group 5
@@ -1558,7 +1558,7 @@ and represent the TH_ACK, TH_SYN and TH_FIN or TH_RST TCP flags respectively.
 .It
 Each filter can hold up to 40 rules, starting from rule 0.
 The entire rule set is not effective until rule 0 is defined,
-ie. the default is to allow everything through.
+i.e., the default is to allow everything through.
 .It
 If no rule is matched to a packet, that packet will be discarded
 (blocked).
@@ -2070,7 +2070,7 @@ should immediately follow
 .Dq set log .
 The default is
 .Dq set log local
-(ie. only the un-maskable warning, error and alert output).
+(i.e., only the un-maskable warning, error and alert output).
 .Pp
 If The first argument to
 .Dq set log Op local
