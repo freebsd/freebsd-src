@@ -172,8 +172,8 @@ makemsg(fname)
 		    whom, hostname);
 		(void)fprintf(fp, "%-79.79s\007\007\r\n", lbuf);
 		(void)snprintf(lbuf, sizeof(lbuf), 
-		    "        (%s) at %d:%02d ...", ttyname(2),
-		    lt->tm_hour, lt->tm_min);
+		    "        (%s) at %d:%02d %s...", ttyname(2),
+		    lt->tm_hour, lt->tm_min, lt->tm_zone);
 		(void)fprintf(fp, "%-79.79s\r\n", lbuf);
 	}
 	(void)fprintf(fp, "%79s\r\n", " ");
