@@ -201,11 +201,7 @@ static const ns_src default_dns_files[] = {
 	{ 0 }
 };
 
-#if PACKETSZ > 1024
-#define MAXPACKET	PACKETSZ
-#else
-#define MAXPACKET	1024
-#endif
+#define MAXPACKET	65536
 
 typedef union {
 	HEADER hdr;

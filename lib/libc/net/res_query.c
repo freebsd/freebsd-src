@@ -90,11 +90,7 @@ __FBSDID("$FreeBSD$");
 
 #include "res_config.h"
 
-#if PACKETSZ > 1024
-#define MAXPACKET	PACKETSZ
-#else
-#define MAXPACKET	1024
-#endif
+#define MAXPACKET	65536
 
 /*
  * Formulate a normal query, send, and await answer.
