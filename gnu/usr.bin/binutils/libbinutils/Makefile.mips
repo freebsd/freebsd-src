@@ -2,4 +2,4 @@
 # $FreeBSD$
 #
 
-TARGET=		${MACHINE_ARCH}-unknown-freebsdelf
+TARGET=		${MACHINE_ARCH}-unknown-freebsd

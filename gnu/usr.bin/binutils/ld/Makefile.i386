@@ -3,9 +3,9 @@
 #
 
 .if	${TARGET_ARCH} == "i386"
-HOST=		i386-unknown-freebsdelf
+HOST=		i386-unknown-freebsd
 CFLAGS+=	-DDEFAULT_EMULATION=\"elf_i386\"
-CFLAGS+=	-DTARGET=\"i386-unknown-freebsdelf\"
+CFLAGS+=	-DTARGET=\"i386-unknown-freebsd\"
 _i386_path=	\"/usr/lib\"
 .else
 _i386_path=	\"/usr/cross/i386-freebsd/usr/lib\"
@@ -19,8 +19,8 @@ CLEANFILES+=	eelf_i386.c
 eelf_i386.c:	emulparams/elf_i386.sh emultempl/elf32.em \
 		scripttempl/elf.sc genscripts.sh stringify.sed
 	sh ${.CURDIR}/genscripts.sh ${SRCDIR}/ld ${_i386_path} \
-	    ${HOST} i386-unknown-freebsdelf i386-unknown-freebsdelf \
-	    elf_i386 "" elf_i386 i386-unknown-freebsdelf
+	    ${HOST} i386-unknown-freebsd i386-unknown-freebsd \
+	    elf_i386 "" elf_i386 i386-unknown-freebsd
 
 .if	defined(BINUTILSDISTDIR) && exists(${BINUTILSDISTDIR})
 EMS+=		ld_i386pe_emulation

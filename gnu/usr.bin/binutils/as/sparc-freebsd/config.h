@@ -44,10 +44,10 @@
 /* #undef CROSS_COMPILE */
 
 /* Some gas code wants to know these parameters.  */
-#define TARGET_ALIAS "i386-unknown-freebsdelf"
+#define TARGET_ALIAS "i386-unknown-freebsd"
 #define TARGET_CPU "i386"
-#define TARGET_CANONICAL "i386-unknown-freebsdelf"
-#define TARGET_OS "freebsdelf"
+#define TARGET_CANONICAL "i386-unknown-freebsd"
+#define TARGET_OS "freebsd"
 #define TARGET_VENDOR "unknown"
 
 /* Sometimes the system header files don't declare strstr.  */

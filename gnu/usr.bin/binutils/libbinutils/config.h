@@ -188,5 +188,5 @@
 /* #undef USE_BINARY_FOPEN */
 
 /* Configured target name. */
-/* #define TARGET "alpha-unknown-freebsdelf5.0" */
+/* #define TARGET "alpha-unknown-freebsd5.0" */
 

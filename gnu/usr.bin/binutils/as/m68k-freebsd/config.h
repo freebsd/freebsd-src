@@ -49,9 +49,9 @@
 #define CROSS_COMPILE 1
 
 /* Some gas code wants to know these parameters.  */
-#define TARGET_ALIAS "m68k-unknown-freebsdelf"
+#define TARGET_ALIAS "m68k-unknown-freebsd"
 #define TARGET_CPU "m68k"
-#define TARGET_CANONICAL "m68k-unknown-freebsdelf"
+#define TARGET_CANONICAL "m68k-unknown-freebsd"
 #define TARGET_OS "freebsd"
 #define TARGET_VENDOR "unknown"
 

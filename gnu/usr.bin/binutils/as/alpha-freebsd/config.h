@@ -224,10 +224,10 @@
 #define BFD_ASSEMBLER 1
 
 /* Target alias. */
-#define TARGET_ALIAS "alpha-unknown-freebsdelf5.0"
+#define TARGET_ALIAS "alpha-unknown-freebsd5.0"
 
 /* Canonical target. */
-#define TARGET_CANONICAL "alpha-unknown-freebsdelf5.0"
+#define TARGET_CANONICAL "alpha-unknown-freebsd5.0"
 
 /* Target CPU. */
 #define TARGET_CPU "alpha"
@@ -236,7 +236,7 @@
 #define TARGET_VENDOR "unknown"
 
 /* Target OS. */
-#define TARGET_OS "freebsdelf5.0"
+#define TARGET_OS "freebsd5.0"
 
 /* Define if you have the stpcpy function */
 /* #undef HAVE_STPCPY */
