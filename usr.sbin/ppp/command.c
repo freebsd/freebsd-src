@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.118 1997/12/24 09:28:54 brian Exp $
+ * $Id: command.c,v 1.119 1997/12/27 07:22:12 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -834,7 +834,7 @@ static int
 QuitCommand(struct cmdargs const *arg)
 {
   if (VarTerm) {
-    DropClient();
+    DropClient(1);
     if (mode & MODE_INTER)
       Cleanup(EX_NORMAL);
     else if (arg->argc > 0 && !strcasecmp(*arg->argv, "all") && VarLocalAuth&LOCAL_AUTH)
