@@ -1432,6 +1432,23 @@ DMenu MenuSyscons = {
       { NULL } },
 };
 
+#ifdef PC98
+DMenu MenuSysconsKeymap = {
+    DMENU_RADIO_TYPE | DMENU_SELECTION_RETURNS,
+    "System Console Keymap",
+    "The default system console driver for FreeBSD (syscons) defaults\n"
+    "to a standard \"PC-98x1\" keyboard map.  Users may wish to choose\n"
+    "one of the other keymaps below.\n"
+    "Note that sysinstall itself only uses the part of the keyboard map\n"
+    "which is required to generate the ANSI character subset, but your\n"
+    "choice of keymap will also be saved for later (fuller) use.",
+    "Choose a keyboard map",
+    NULL,
+    { { "Japanese PC-98x1",		"Japanese PC-98x1 keymap",  dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=jp.pc98" },
+      { " Japanese PC-98x1 (ISO)",	"Japanese PC-98x1 (ISO) keymap",  dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=jp.pc98.iso" },
+      { NULL } },
+};
+#else
 DMenu MenuSysconsKeymap = {
     DMENU_RADIO_TYPE | DMENU_SELECTION_RETURNS,
     "System Console Keymap",
@@ -1496,6 +1513,7 @@ DMenu MenuSysconsKeymap = {
       { " USA UNIX",	"US traditional UNIX-workstation",	dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=us.unix" },
       { NULL } },
 };
+#endif
 
 DMenu MenuSysconsKeyrate = {
     DMENU_RADIO_TYPE | DMENU_SELECTION_RETURNS,
