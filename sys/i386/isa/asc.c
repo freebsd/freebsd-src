@@ -2,10 +2,10 @@
  *
  * Current version supports:
  *
- * 	- Trust AmiScan BW (GI1904 chipset)
+ * 	- AmiScan (Mustek) Color and BW hand scanners (GI1904 chipset)
  *
  * Copyright (c) 1995 Gunther Schadow.  All rights reserved.
- * Copyright (c) 1995 Luigi Rizzo.  All rights reserved.
+ * Copyright (c) 1995,1996,1997 Luigi Rizzo.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * $Id: asc.c,v 1.24 1997/02/22 09:35:56 peter Exp $
+ * $Id: asc.c,v 1.25 1997/03/24 11:23:39 bde Exp $
  */
 
 #include "asc.h"
@@ -105,7 +105,7 @@
 #define DBUG_MASK 0x20
 #define FRMT_MASK 0x18    /* output format */
 #define FRMT_RAW  0x00    /* output bits as read from scanner */
-#define FRMT_GRAY 0x10    /* output graymap (not implemented yet) */
+#define FRMT_GRAY 0x1     /* output gray mode for color scanner */
 #define FRMT_PBM  0x08    /* output pbm format */
 #define FRMT_PGM  0x18
 
@@ -113,6 +113,7 @@
  *** THE GEMOMETRY TABLE
  ***/
 
+#define GREY_LINE 826 /* 825, or 826 , or 550 ??? */
 static const struct asc_geom {
   int dpi;     /* dots per inch */
   int dpl;     /* dots per line */
@@ -127,6 +128,8 @@ static const struct asc_geom {
   { 300, 1240, 155, ASC_RES_300},
   { 200, 832, 104, ASC_RES_200},
   { 100, 416, 52, ASC_RES_100},
+  { 200, 3*GREY_LINE, 3*GREY_LINE, 0 /* returned by color scanner */},
+  { 200, GREY_LINE, GREY_LINE, 0 /* color scanner, grey mode */},
   { INVALID, 416, 52, INVALID } /* terminator */
 };
 
@@ -143,12 +146,14 @@ struct _sbuf {
 };
 
 struct asc_unit {
+  long thedev;	/* XXX */
   int base;		/* base address */
   int dma_num;		/* dma number */
   char    dma_byte;       /* mask of byte for setting DMA value */
   char    int_byte;       /* mask of byte for setting int value */
   char    cfg_byte;       /* mirror of byte written to config reg (ASC_CFG). */
   char    cmd_byte;       /* mirror of byte written to cmd port (ASC_CMD)*/
+  char   portf_byte;
   int flags;
 #define ATTACHED 	0x01
 #define OPEN     	0x02
@@ -185,9 +190,11 @@ static struct asc_unit unittab[NASC];
  *** experiments. MAXPHYS is obviously too much, while DEV_BSIZE and
  *** PAGE_SIZE are really too small. There must be something wrong
  *** with isa_dmastart/isa_dmarangecheck HELP!!!
+ ***
+ *** Note, must be DEFAULT_BLEN * samples_per_line <= MAX_BUFSIZE
  ***/
-#define MAX_BUFSIZE 0x3000 
-#define DEFAULT_BLEN 20
+#define MAX_BUFSIZE 0xb000 /* XXX was 0x3000 */
+#define DEFAULT_BLEN 16
 
 /***
  *** THE PER-DRIVER RECORD FOR ISA.C
@@ -258,6 +265,12 @@ get_resolution(struct asc_unit *scu)
 	lprintf("asc.get_resolution: %d dpi\n",geomtab[i].dpi);
 	scu->geometry = i;
     }
+    scu->portf_byte=0; /* default */
+    if (geomtab[scu->geometry].g_res==0 && !(scu->thedev&FRMT_GRAY)) {
+	/* color scanner seems to require this */
+	scu->portf_byte=2;
+	/* scu->geometry++; */
+    }
     scu->linesize = geomtab[scu->geometry].bpl;
     scu->height = geomtab[scu->geometry].dpl; /* default... */
 }
@@ -301,6 +314,22 @@ buffer_allocate(struct asc_unit *scu)
 static void
 dma_restart(struct asc_unit *scu)
 {
+    unsigned char al=scu->cmd_byte;
+
+    if (geomtab[scu->geometry].g_res==0) {/* color */
+	isa_dmastart(B_READ, scu->sbuf.base+scu->sbuf.wptr,
+	    scu->linesize + 90 /* XXX */ , scu->dma_num);
+	/*
+	 * looks like we have to set and then clear this
+	 * bit to enable the scanner to send interrupts
+	 */
+	outb( ASC_CMD, al |= 4 ); /* seems to disable interrupts */
+#if 0
+	outb( ASC_CMD, al |= 8 ); /* ??? seems useless */
+#endif
+	outb( ASC_CMD, al &= 0xfb );
+	scu->cmd_byte = al;
+    } else {					/* normal */
     isa_dmastart(B_READ, scu->sbuf.base+scu->sbuf.wptr,
 	scu->linesize, scu->dma_num);
     /*** this is done in sub_20, after dmastart ? ***/  
@@ -312,6 +341,7 @@ dma_restart(struct asc_unit *scu)
 #else
     outb( ASC_CMD, ASC_OPERATE); 
 #endif
+    }
     scu->flags |= DMA_ACTIVE;
 }
 
@@ -364,14 +394,34 @@ ascprobe (struct isa_device *isdp)
       return PROBE_FAIL;
   }
 
+/*
+ * NOTE NOTE NOTE
+ * the new AmiScan Color board uses int 10,11,12 instead of 3,5,10
+ * respectively. This means that the driver must act accordingly.
+ * Unfortunately there is no easy way of telling which board one has,
+ * other than trying to get an interrupt and noticing that it is
+ * missing. use "option ASC_NEW_BOARD" if you have a new board.
+ *
+ */
+
+#if ASC_NEW_BOARD
+#define	ASC_IRQ_A	10
+#define	ASC_IRQ_B	11
+#define	ASC_IRQ_C	12
+#else
+#define	ASC_IRQ_A	3
+#define	ASC_IRQ_B	5
+#define	ASC_IRQ_C	10
+#endif
+
   switch(ffs(isdp->id_irq) - 1) {
-    case 3:
+    case ASC_IRQ_A :
       scu->int_byte = ASC_CNF_IRQ3;
       break;
-    case 5:
+    case ASC_IRQ_B :
       scu->int_byte = ASC_CNF_IRQ5;
       break;
-    case 10:
+    case ASC_IRQ_C :
       scu->int_byte = ASC_CNF_IRQ10;
       break;
 #if 0
@@ -382,7 +432,7 @@ ascprobe (struct isa_device *isdp)
 #endif
     default:
       lprintf("asc%d.probe: unsupported INT %d (only 3, 5, 10)\n",
-		unit, isdp->id_irq);
+		unit, ffs(isdp->id_irq) - 1 );
       return PROBE_FAIL;
   }
   scu->dma_num = isdp->id_drq;
@@ -419,7 +469,7 @@ ascattach(struct isa_device *isdp)
   struct asc_unit *scu = unittab + unit;
 
   scu->flags |= FLAG_DEBUG;
-  printf("asc%d: [GI1904/Trust Ami-Scan Grey, type S2]\n", unit);
+  printf("asc%d: [GI1904/Trust Ami-Scan Grey/Color]\n", unit);
 
   /*
    * Initialize buffer structure.
@@ -551,7 +601,7 @@ ascopen(dev_t dev, int flags, int fmt, struct proc *p)
   scu = unittab + unit;
   if ( !( scu->flags & ATTACHED ) )
     {
-      lprintf("asc%d.open: unit was not attached successfully 0x04x\n",
+      lprintf("asc%d.open: unit was not attached successfully 0x%04x\n",
 	     unit, scu->flags);
       return ENXIO;
     }
@@ -599,8 +649,12 @@ asc_startread(struct asc_unit *scu)
   scu->cfg_byte= scu->cmd_byte=0;	/* init scanner */
   outb(ASC_CMD, scu->cmd_byte);
     /*** this was done in sub_16, set scan len... ***/
-  outb(ASC_BOH, 0 );
+  outb(ASC_BOH, scu->portf_byte );
+  if (geomtab[scu->geometry].g_res==0) {		/* color */
+	scu->cmd_byte = 0x00 ;
+  } else {
   scu->cmd_byte = 0x90 ;
+  }
   outb(ASC_CMD, scu->cmd_byte);
   outb(ASC_LEN_L, scu->linesize & 0xff /* len_low */);
   outb(ASC_LEN_H, (scu->linesize >>8) & 0xff /* len_high */);
@@ -672,8 +726,10 @@ pbm_init(struct asc_unit *scu)
     scu->sbuf.rptr=scu->sbuf.size-l;
     bcopy(scu->sbuf.base, scu->sbuf.base+scu->sbuf.rptr,l);
     scu->sbuf.count = l;
+    if (geomtab[scu->geometry].g_res!=0) { /* BW scanner */
     for(p = scu->sbuf.base + scu->sbuf.rptr; l; p++, l--)
 	*p = ~*p;
+}
 }
 /**************************************************************************
  ***
@@ -738,10 +794,11 @@ ascread(dev_t dev, struct uio *uio, int ioflag)
   if ( (scu->flags & PBM_MODE) )
       nbytes = min( nbytes, scu->bcount );
   lprintf("asc%d.read: transferring 0x%x bytes\n", unit, nbytes);
-  
+  if (geomtab[scu->geometry].g_res!=0) { /* BW scanner */
   lprintf("asc%d.read: invert buffer\n",unit);
   for(p = scu->sbuf.base + scu->sbuf.rptr, res=nbytes; res; p++, res--)
 	*p = ~*p;
+  }
   res = uiomove(scu->sbuf.base + scu->sbuf.rptr, nbytes, uio);
   if ( res != SUCCESS ) {
       lprintf("asc%d.read: uiomove failed %d", unit, res);
@@ -778,7 +835,7 @@ ascioctl(dev_t dev, int cmd, caddr_t data, int flags, struct proc *p)
 	 unit, minor(dev));
 
   if ( unit >= NASC || !( scu->flags & ATTACHED ) ) {
-      lprintf("asc%d.ioctl: unit was not attached successfully %0x04x\n",
+      lprintf("asc%d.ioctl: unit was not attached successfully 0x%04x\n",
 	     unit, scu->flags);
       return ENXIO;
   }
