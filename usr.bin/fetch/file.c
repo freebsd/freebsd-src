@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: file.c,v 1.3 1997/11/12 04:39:33 obrien Exp $
+ *	$Id: file.c,v 1.4 1998/09/17 00:15:15 des Exp $
  */
 
 #include <sys/types.h>
@@ -109,7 +109,7 @@ file_retrieve(struct fetch_state *fs)
 	if (fs->fs_linkfile) {
 		fs->fs_status = "checking path";
 		if (stat(fs->fs_proto, &sb) == -1) {
-			warn("non-unexistent");
+			warn("%s", (char *)fs->fs_proto);
 			return EX_NOINPUT;
 		}
 		fs->fs_status = "symlink";
