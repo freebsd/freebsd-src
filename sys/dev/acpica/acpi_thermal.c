@@ -38,6 +38,7 @@
 #include <sys/reboot.h>
 #include <sys/sysctl.h>
 #include <sys/unistd.h>
+#include <sys/power.h>
 
 #include "acpi.h"
 
@@ -87,7 +88,7 @@ struct acpi_tz_softc {
 #define TZ_THFLAG_CRT		(1<<3)    
     int				tz_flags;
 #define TZ_FLAG_NO_SCP		(1<<0)			/* no _SCP method */
-#define TZ_FLAG_GETPROFILE	(1<<1)			/* fetch powerprofile in timeout */
+#define TZ_FLAG_GETPROFILE	(1<<1)			/* fetch power_profile in timeout */
     struct timespec		tz_cooling_started;	/* current cooling starting time */
 
     struct sysctl_ctx_list	tz_sysctl_ctx;		/* sysctl tree */
@@ -109,7 +110,7 @@ static void	acpi_tz_sanity(struct acpi_tz_softc *sc, int *val, char *what);
 static int	acpi_tz_active_sysctl(SYSCTL_HANDLER_ARGS);
 static void	acpi_tz_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context);
 static void	acpi_tz_timeout(struct acpi_tz_softc *sc);
-static void	acpi_tz_powerprofile(void *arg);
+static void	acpi_tz_power_profile(void *arg);
 
 static void	acpi_tz_thread(void *arg);
 static struct proc *acpi_tz_proc;
@@ -248,7 +249,7 @@ acpi_tz_attach(device_t dev)
      * invocation by our timeout.  We defer it like this so that the rest
      * of the subsystem has time to come up.
      */
-    EVENTHANDLER_REGISTER(powerprofile_change, acpi_tz_powerprofile, sc, 0);
+    EVENTHANDLER_REGISTER(power_profile_change, acpi_tz_power_profile, sc, 0);
     sc->tz_flags |= TZ_FLAG_GETPROFILE;
 
     /*
@@ -713,7 +714,7 @@ acpi_tz_timeout(struct acpi_tz_softc *sc)
 
     /* do we need to get the power profile settings? */
     if (sc->tz_flags & TZ_FLAG_GETPROFILE) {
-	acpi_tz_powerprofile((void *)sc);
+	acpi_tz_power_profile((void *)sc);
 	sc->tz_flags &= ~TZ_FLAG_GETPROFILE;
     }
 
@@ -733,12 +734,19 @@ acpi_tz_timeout(struct acpi_tz_softc *sc)
  * to get the ACPI lock itself.
  */
 static void
-acpi_tz_powerprofile(void *arg)
+acpi_tz_power_profile(void *arg)
 {
     ACPI_OBJECT_LIST		args;
     ACPI_OBJECT			obj;
     ACPI_STATUS			status;
     struct acpi_tz_softc	*sc = (struct acpi_tz_softc *)arg;
+    int				state;
+
+    state = power_profile_get_state();
+    if (state != POWER_PROFILE_PERFORMANCE &&
+        state != POWER_PROFILE_ECONOMY) {
+        return;
+    }
 
     ACPI_LOCK;
 
@@ -747,7 +755,7 @@ acpi_tz_powerprofile(void *arg)
 
 	/* call _SCP to set the new profile */
 	obj.Type = ACPI_TYPE_INTEGER;
-	obj.Integer.Value = (powerprofile_get_state() == POWERPROFILE_PERFORMANCE) ? 0 : 1;
+	obj.Integer.Value = (state == POWER_PROFILE_PERFORMANCE) ? 0 : 1;
 	args.Count = 1;
 	args.Pointer = &obj;
 	if (ACPI_FAILURE(status = AcpiEvaluateObject(sc->tz_handle, "_SCP", &args, NULL))) {

@@ -28,6 +28,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/proc.h>
 
 #include <sys/power.h>
 
@@ -72,5 +73,35 @@ power_pm_suspend(int state)
 		return;
 
 	power_pm_fn(POWER_CMD_SUSPEND, power_pm_arg, state);
+}
+
+/*
+ * Power profile.
+ */
+
+static int	power_profile_state = POWER_PROFILE_PERFORMANCE;
+
+int
+power_profile_get_state(void)
+{
+	return (power_profile_state);
+}
+
+void
+power_profile_set_state(int state) 
+{
+	int		changed;
+    
+	if (state != power_profile_state) {
+		power_profile_state = state;
+		changed = 1;
+		printf("system power profile changed to '%s'\n",
+		       (state == POWER_PROFILE_PERFORMANCE) ? "performance" : "economy");
+	} else {
+		changed = 0;
+	}
+
+	if (changed)
+		EVENTHANDLER_INVOKE(power_profile_change);
 }
 

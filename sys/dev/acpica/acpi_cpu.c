@@ -30,6 +30,7 @@
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
+#include <sys/power.h>
 
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
@@ -99,7 +100,7 @@ static int	acpi_cpu_probe(device_t dev);
 static int	acpi_cpu_attach(device_t dev);
 static void	acpi_cpu_init_throttling(void *arg);
 static void	acpi_cpu_set_speed(u_int32_t speed);
-static void	acpi_cpu_powerprofile(void *arg);
+static void	acpi_cpu_power_profile(void *arg);
 static int	acpi_cpu_speed_sysctl(SYSCTL_HANDLER_ARGS);
 
 static device_method_t acpi_cpu_methods[] = {
@@ -280,7 +281,7 @@ acpi_cpu_init_throttling(void *arg)
 	cpu_economy_state = cpu_temp_speed;
 
     /* register performance profile change handler */
-    EVENTHANDLER_REGISTER(powerprofile_change, acpi_cpu_powerprofile, NULL, 0);
+    EVENTHANDLER_REGISTER(power_profile_change, acpi_cpu_power_profile, NULL, 0);
 
     /* if ACPI 2.0+, signal platform that we are taking over throttling */
     if (cpu_pstate_cnt != 0) {
@@ -291,7 +292,7 @@ acpi_cpu_init_throttling(void *arg)
     ACPI_UNLOCK;
 
     /* set initial speed */
-    acpi_cpu_powerprofile(NULL);
+    acpi_cpu_power_profile(NULL);
     
     printf("acpi_cpu: CPU throttling enabled, %d steps from 100%% to %d.%d%%\n", 
 	   CPU_MAX_SPEED, CPU_SPEED_PRINTABLE(1));
@@ -347,13 +348,31 @@ acpi_cpu_set_speed(u_int32_t speed)
  * Uses the ACPI lock to avoid reentrancy.
  */
 static void
-acpi_cpu_powerprofile(void *arg)
+acpi_cpu_power_profile(void *arg)
 {
+    int		state;
     u_int32_t	new;
+
+    state = power_profile_get_state();
+    if (state != POWER_PROFILE_PERFORMANCE &&
+        state != POWER_PROFILE_ECONOMY) {
+	return;
+    }
 
     ACPI_LOCK;
     
-    new = (powerprofile_get_state() == POWERPROFILE_PERFORMANCE) ? cpu_performance_state : cpu_economy_state;
+    switch (state) {
+    case POWER_PROFILE_PERFORMANCE:
+	new = cpu_performance_state;
+	break;
+    case POWER_PROFILE_ECONOMY:
+	new = cpu_economy_state;
+	break;
+    default:
+	new = cpu_current_state;
+	break;
+    }
+
     if (cpu_current_state != new)
 	acpi_cpu_set_speed(new);
 
@@ -387,7 +406,7 @@ acpi_cpu_speed_sysctl(SYSCTL_HANDLER_ARGS)
 
     /* set new value and possibly switch */
     *argp = arg;
-    acpi_cpu_powerprofile(NULL);
+    acpi_cpu_power_profile(NULL);
 
     return(0);
 }
