@@ -40,7 +40,7 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define ALI_PCI_ID	0x545110b9
 #define SPA_PCI_ID	0x70181039
 
-#define TR_BUFFSIZE 	0x1000
+#define TR_DEFAULT_BUFSZ 	0x1000
 #define TR_TIMEOUT_CDC	0xffff
 #define TR_MAXPLAYCH	4
 
@@ -75,12 +75,14 @@ struct tr_info {
 	bus_dma_tag_t parent_dmat;
 
 	struct resource *reg, *irq;
-	int		regtype, regid, irqid;
-	void		*ih;
+	int regtype, regid, irqid;
+	void *ih;
 
 	void *lock;
 
 	u_int32_t playchns;
+	unsigned int bufsz;
+
 	struct tr_chinfo chinfo[TR_MAXPLAYCH];
 	struct tr_rchinfo recchinfo;
 };
@@ -435,7 +437,7 @@ trpchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *
 	ch->buffer = b;
 	ch->parent = tr;
 	ch->channel = c;
-	if (sndbuf_alloc(ch->buffer, tr->parent_dmat, TR_BUFFSIZE) == -1)
+	if (sndbuf_alloc(ch->buffer, tr->parent_dmat, tr->bufsz) == -1)
 		return NULL;
 
 	return ch;
@@ -540,7 +542,7 @@ trrchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *
 	ch->buffer = b;
 	ch->parent = tr;
 	ch->channel = c;
-	if (sndbuf_alloc(ch->buffer, tr->parent_dmat, TR_BUFFSIZE) == -1)
+	if (sndbuf_alloc(ch->buffer, tr->parent_dmat, tr->bufsz) == -1)
 		return NULL;
 
 	return ch;
@@ -774,6 +776,8 @@ tr_pci_attach(device_t dev)
 		goto bad;
 	}
 
+	tr->bufsz = pcm_getbuffersize(dev, 4096, TR_DEFAULT_BUFSZ, 65536);
+
 	if (tr_init(tr) == -1) {
 		device_printf(dev, "unable to initialize the card\n");
 		goto bad;
@@ -795,7 +799,7 @@ tr_pci_attach(device_t dev)
 		/*lowaddr*/BUS_SPACE_MAXADDR_32BIT,
 		/*highaddr*/BUS_SPACE_MAXADDR,
 		/*filter*/NULL, /*filterarg*/NULL,
-		/*maxsize*/TR_BUFFSIZE, /*nsegments*/1, /*maxsegz*/0x3ffff,
+		/*maxsize*/tr->bufsz, /*nsegments*/1, /*maxsegz*/0x3ffff,
 		/*flags*/0, &tr->parent_dmat) != 0) {
 		device_printf(dev, "unable to create dma tag\n");
 		goto bad;
