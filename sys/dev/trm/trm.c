@@ -1048,7 +1048,7 @@ trm_action(struct cam_sim *psim, union ccb *pccb)
 static void 
 trm_poll(struct cam_sim *psim)
 {       
-  
+	trm_Interrupt(cam_sim_softc(psim)); 
 }
 
 static void
