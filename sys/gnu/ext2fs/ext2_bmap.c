@@ -46,7 +46,6 @@
 #include <sys/vnode.h>
 #include <sys/mount.h>
 #include <sys/resourcevar.h>
-#include <sys/conf.h>
 
 #include <ufs/ufs/extattr.h>
 #include <ufs/ufs/quota.h>

@@ -37,8 +37,6 @@
 #include <sys/uio.h>
 #include <sys/module.h>
 #include <sys/bus.h>
-#include <sys/conf.h>
-#include <sys/malloc.h>
 #include <sys/rman.h>
 #include <machine/resource.h>
 #include <dev/smbus/smbconf.h>

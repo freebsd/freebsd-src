@@ -43,7 +43,6 @@
 #include <sys/malloc.h>
 #include <sys/sysproto.h>
 #include <sys/mman.h>
-#include <sys/conf.h>
 
 #include <ufs/mfs/mfsnode.h>
 #include <ufs/mfs/mfs_extern.h>

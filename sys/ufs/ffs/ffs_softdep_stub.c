@@ -47,7 +47,6 @@
 #if (SOFTUPDATES == 0 ) /* SOFTUPDATES not configured in, use these stubs. */
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/malloc.h>
 #include <sys/vnode.h>
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
