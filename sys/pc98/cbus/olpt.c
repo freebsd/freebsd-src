@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.27 1999/05/30 16:53:17 phk Exp $
+ *	$Id$
  */
 
 /*
@@ -101,9 +101,12 @@
  * Poul-Henning Kamp <phk@freebsd.org>
  */
 
-#include "lpt.h"
+#include "olpt.h"
 #include "opt_devfs.h"
 #include "opt_inet.h"
+#ifdef PC98
+#undef INET	/* PLIP is not supported for old PC-98 */
+#endif
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -239,7 +242,7 @@ static struct lpt_softc {
 	void	*devfs_token;
 	void	*devfs_token_ctl;
 #endif
-} lpt_sc[NLPT] ;
+} lpt_sc[NOLPT] ;
 
 /* bits for state */
 #define	OPEN		(1<<0)	/* device is open */
@@ -298,8 +301,8 @@ static int lpoutput(struct ifnet *, struct mbuf *, struct sockaddr *,
 static void lpintr(int);
 #endif /* INET */
 
-struct	isa_driver lptdriver = {
-	lptprobe, lptattach, "lpt"
+struct	isa_driver olptdriver = {
+	lptprobe, lptattach, "olpt"
 };
 
 static	d_open_t	lptopen;
@@ -402,6 +405,22 @@ int
 lptprobe(struct isa_device *dvp)
 {
 #ifdef PC98
+#define PC98_OLD_LPT 0x40
+#define PC98_IEEE_1284_FUNCTION 0x149
+	unsigned int pc98_ieee_mode, tmp;
+
+	if (dvp->id_iobase == PC98_OLD_LPT) {
+		tmp = inb(PC98_IEEE_1284_FUNCTION);
+		pc98_ieee_mode = tmp;
+		if ((tmp & 0x10) == 0x10) {
+			outb(PC98_IEEE_1284_FUNCTION, tmp & ~0x10);
+			tmp = inb(PC98_IEEE_1284_FUNCTION);
+			if ((tmp & 0x10) != 0x10) {
+				outb(PC98_IEEE_1284_FUNCTION, pc98_ieee_mode);
+				return 0;
+			}
+		}
+	}
 	return 8;
 #else
 	int		port;
@@ -521,7 +540,7 @@ lptopen (dev_t dev, int flags, int fmt, struct proc *p)
 	u_int unit = LPTUNIT(minor(dev));
 
 	sc = lpt_sc + unit;
-	if ((unit >= NLPT) || (sc->sc_port == 0))
+	if ((unit >= NOLPT) || (sc->sc_port == 0))
 		return (ENXIO);
 
 #ifdef INET

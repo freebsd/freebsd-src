@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC98,v 1.75 1999/05/10 09:00:28 kato Exp $
+#	$Id: GENERIC98,v 1.76 1999/06/15 13:14:50 des Exp $
 
 # GENERIC98 -- Generic PC98 machine with WD/SCSI disks
 
@@ -170,8 +170,17 @@ device		sio1	at isa? port 0x238 irq 5 flags 0x12000000
 #options	COM_ESP
 #device		sio1	at isa? port 0x18b0 irq 5 flags 0x19000000
 
-#device		lpt0	at isa? port IO_LPT
 device		mse0	at isa? port IO_MSE irq 13
+# NEW Parallel port
+device		ppc0	at isa? port? tty irq 14
+controller	ppbus0
+device		lpt0	at ppbus?
+device		plip0	at ppbus?
+device		ppi0	at ppbus?
+#controller	vpo0	at ppbus?
+# OLD Parallel port
+# Please stay olpt driver after ppc driver
+device		olpt0	at isa? port IO_LPT  tty
 
 #
 # The following Ethernet NICs are all PCI devices.
