@@ -1,18 +1,8 @@
 /*
  * ntpq - query an NTP server using mode 6 commands
  */
+
 #include <stdio.h>
-#include <ctype.h>
-#include <signal.h>
-#include <setjmp.h>
-#include <sys/types.h>
-#include <sys/time.h>
-#include <netdb.h>
-#ifdef SYS_WINNT
-# include <io.h>
-#else
-#define closesocket close
-#endif /* SYS_WINNT */
 
 #include "ntpq.h"
 #include "ntp_unixtime.h"
@@ -20,6 +10,16 @@
 #include "ntp_io.h"
 #include "ntp_select.h"
 #include "ntp_stdlib.h"
+
+#include <ctype.h>
+#include <signal.h>
+#include <setjmp.h>
+#include <netdb.h>
+#ifdef SYS_WINNT
+# include <io.h>
+#else
+#define closesocket close
+#endif /* SYS_WINNT */
 
 #ifdef SYS_VXWORKS
 /* vxWorks needs mode flag -casey*/
@@ -107,13 +107,15 @@ struct ctl_var sys_var[] = {
 	{ CS_POLL,	UI,	"poll" },	/* 8 */
 	{ CS_PEERID,	UI,	"peer" },	/* 9 */
 	{ CS_STATE,	UI,	"state" },	/* 10 */
-	{ CS_OFFSET,	FL,	"phase" },	/* 11 */
+	{ CS_OFFSET,	FL,	"offset" },	/* 11 */
 	{ CS_DRIFT,	FS,	"frequency" },	/* 12 */
-	{ CS_COMPLIANCE, FU,	"jitter" },	/* 13 */
+	{ CS_JITTER,	FU,	"jitter" },	/* 13 */
 	{ CS_CLOCK,	TS,	"clock" },	/* 14 */
 	{ CS_PROCESSOR,	ST,	"processor" },	/* 15 */
 	{ CS_SYSTEM,	ST,	"system" },	/* 16 */
-	{ CS_STABIL,	FS,	"stability" },	/* 17 */
+	{ CS_VERSION,	ST,	"version" },	/* 17 */
+	{ CS_STABIL,	FS,	"stability" },	/* 18 */
+	{ CS_VARLIST,	ST,	"sys_var_list" }, /* 19 */
 	{ 0,		EOV,	""	}
 };
 
@@ -158,7 +160,8 @@ struct ctl_var peer_var[] = {
 	{ CP_SENT,	UI,	"sent" },	/* 33 */
 	{ CP_FILTERROR,	AR,	"filtdisp" },	/* 34 */
 	{ CP_FLASH,     FX,	"flash" },	/* 35 */ 
-	{ CP_DISP,      FU,	"disp" },	/* 36 */
+	{ CP_TTL,	UI,	"ttl" },	/* 36 */
+	{ CP_TTLMAX,	UI,	"ttlmax" },	/* 37 */
 	/*
 	 * These are duplicate entries so that we can
 	 * process deviant version of the ntp protocol.
@@ -199,14 +202,15 @@ struct ctl_var clock_var[] = {
 static const char *tstflagnames[] = {
 	"dup_pkt",		/* TEST1 */
 	"bogus_pkt",		/* TEST2 */
-	"proto_sync",		/* TEST3 */
-	"peer_bounds",		/* TEST4 */
-	"auth",			/* TEST5 */
-	"peer_sync",		/* TEST6 */
+	"proto_unsync",		/* TEST3 */
+	"no_access",		/* TEST4 */
+	"bad_auth",			/* TEST5 */
+	"peer_unsync",		/* TEST6 */
 	"peer_stratum",		/* TEST7 */
 	"root_bounds",		/* TEST8 */
-	"peer_auth",		/* TEST9 */
-	"access"		/* TEST10 */
+	"peer_bounds",		/* TEST9 */
+	"bad_autokey",		/* TEST10 */
+	"not_proventic"		/* TEST11*/
 };
 
 
@@ -667,7 +671,7 @@ sendpkt(
 	    printf("Sending %d octets\n", xdatalen);
 
 
-	if (send(sockfd, xdata, xdatalen, 0) == -1) {
+	if (send(sockfd, xdata, (size_t)xdatalen, 0) == -1) {
 		warning("write to %s failed", currenthost, "");
 		return -1;
 	}
@@ -1904,9 +1908,9 @@ help(
 		    cmdsort[n++] = xcp->keyword;
 
 #ifdef QSORT_USES_VOID_P
-		qsort(cmdsort, (unsigned)n, sizeof(char *), helpsort);
+		qsort(cmdsort, (size_t)n, sizeof(char *), helpsort);
 #else
-		qsort((char *)cmdsort, n, sizeof(char *), helpsort);
+		qsort((char *)cmdsort, (size_t)n, sizeof(char *), helpsort);
 #endif
 
 		maxlength = 0;
@@ -2837,7 +2841,7 @@ tstflags(
 		cb += strlen(cb);
 	} else {
 		*cb++ = ' ';
-		for (i = 0; i < 10; i++) {
+		for (i = 0; i < 11; i++) {
 			if (val & 0x1) {
 				sprintf(cb, "%s%s", sep, tstflagnames[i]);
 				sep = ", ";
@@ -3055,7 +3059,7 @@ sortassoc(void)
 #else
 		    (char *)
 #endif
-		    assoc_cache, (unsigned)numassoc,
+		    assoc_cache, (size_t)numassoc,
 		    sizeof(struct association), assoccmp);
 }
 

@@ -8,15 +8,14 @@
 
 #if defined(REFCLOCK) && defined(CLOCK_AS2201)
 
-#include <stdio.h>
-#include <ctype.h>
-#include <sys/time.h>
-
 #include "ntpd.h"
 #include "ntp_io.h"
 #include "ntp_refclock.h"
 #include "ntp_unixtime.h"
 #include "ntp_stdlib.h"
+
+#include <stdio.h>
+#include <ctype.h>
 
 /*
  * This driver supports the Austron 2200A/2201A GPS Receiver with

@@ -8,16 +8,15 @@
 
 #if defined(REFCLOCK) && defined(CLOCK_TPRO)
 
-#include <stdio.h>
-#include <ctype.h>
-#include <sys/time.h>
-
 #include "ntpd.h"
 #include "ntp_io.h"
 #include "ntp_refclock.h"
 #include "ntp_unixtime.h"
 #include "sys/tpro.h"
 #include "ntp_stdlib.h"
+
+#include <stdio.h>
+#include <ctype.h>
 
 /*
  * This driver supports the KSI/Odetecs TPRO-S IRIG-B reader and TPRO-

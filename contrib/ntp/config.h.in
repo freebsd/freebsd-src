@@ -1,67 +1,4 @@
 /* config.h.in.  Generated automatically from configure.in by autoheader.  */
-
-/* Define if on AIX 3.
-   System headers sometimes define this.
-   We just want to avoid a redefinition error message.  */
-#ifndef _ALL_SOURCE
-#undef _ALL_SOURCE
-#endif
-
-/* Define if type char is unsigned and you are not using gcc.  */
-#ifndef __CHAR_UNSIGNED__
-#undef __CHAR_UNSIGNED__
-#endif
-
-/* Define to empty if the keyword does not work.  */
-#undef const
-
-/* Define to `int' if <sys/types.h> doesn't define.  */
-#undef gid_t
-
-/* Define as __inline if that's what the C compiler calls it.  */
-#undef inline
-
-/* Define if on MINIX.  */
-#undef _MINIX
-
-/* Define if your struct nlist has an n_un member.  */
-#undef NLIST_NAME_UNION
-
-/* Define if you have <nlist.h>.  */
-#undef NLIST_STRUCT
-
-/* Define to `long' if <sys/types.h> doesn't define.  */
-#undef off_t
-
-/* Define if the system does not provide POSIX.1 features except
-   with this defined.  */
-#undef _POSIX_1_SOURCE
-
-/* Define if you need to in order for stat and other things to work.  */
-#undef _POSIX_SOURCE
-
-/* Define as the return type of signal handlers (int or void).  */
-#undef RETSIGTYPE
-
-/* Define to `unsigned' if <sys/types.h> doesn't define.  */
-#undef size_t
-
-/* Define if you have the ANSI C header files.  */
-#undef STDC_HEADERS
-
-/* Define if you can safely include both <sys/time.h> and <time.h>.  */
-#undef TIME_WITH_SYS_TIME
-
-/* Define if your <sys/time.h> declares struct tm.  */
-#undef TM_IN_SYS_TIME
-
-/* Define to `int' if <sys/types.h> doesn't define.  */
-#undef uid_t
-
-/* Define if your processor stores words with the most significant
-   byte first (like Motorola and SPARC, unlike Intel and VAX).  */
-#undef WORDS_BIGENDIAN
-
 /* debugging code */
 #undef DEBUG
 
@@ -133,6 +70,12 @@
 
 /* HOPF 6021 clock */
 #undef CLOCK_HOPF6021
+
+/* HOPF PCI clock device */
+#undef CLOCK_HOPF_PCI
+
+/* HOPF serial clock device*/
+#undef CLOCK_HOPF_SERIAL
 
 /* HP 58503A GPS receiver */
 #undef CLOCK_HPGPS
@@ -326,6 +269,9 @@
 /* can we use SIGPOLL for tty IO? */
 #undef USE_TTY_SIGPOLL
 
+/* should we use clock_settime()? */
+#undef USE_CLOCK_SETTIME
+
 /* do we want the CHU driver? */
 #undef CLOCK_CHU
 
@@ -352,6 +298,9 @@
 
 /* do we need an s_char typedef? */
 #undef NEED_S_CHAR_TYPEDEF
+
+/* include the GDT Surveying code? */
+#undef GDT_SURVEYING
 
 /* does SIOCGIFCONF return size in the buffer? */
 #undef SIZE_RETURNED_IN_BUFFER
@@ -426,9 +375,6 @@
 /* Define if you have the TIOCGSERIAL, TIOCSSERIAL, ASYNC_PPS_CD_POS, and ASYNC_PPS_CD_NEG ioctls (linux) */
 #undef HAVE_TIO_SERIAL_STUFF
 
-/* Define if you use struct timespec rather than struct timeval (time in ns rather than us) */
-#undef HAVE_TIMESPEC
-
 /* Define if you have the interface in the Draft RFC */
 #undef HAVE_PPSAPI
 
@@ -437,6 +383,10 @@
 
 /* Do we have support for SHMEM_STATUS? */
 #undef ONCORE_SHMEM_STATUS
+
+/***/
+
+/* Which way should we declare... */
 
 /* adjtime()? */
 #undef DECL_ADJTIME_0
@@ -450,6 +400,9 @@
 /* cfset[io]speed()? */
 #undef DECL_CFSETISPEED_0
 
+/* hstrerror()? */
+#undef DECL_HSTRERROR_0
+
 /* ioctl()? */
 #undef DECL_IOCTL_0
 
@@ -458,6 +411,9 @@
 
 /* memmove()? */
 #undef DECL_MEMMOVE_0
+
+/* memset()? */
+#undef DECL_MEMSET_0
 
 /* mkstemp()? */
 #undef DECL_MKSTEMP_0
@@ -518,387 +474,511 @@
 /* toupper()? */
 #undef DECL_TOUPPER_0
 
-/* The number of bytes in a int.  */
-#undef SIZEOF_INT
+/* strerror()? */
+#undef DECL_STRERROR_0
 
-/* The number of bytes in a long.  */
-#undef SIZEOF_LONG
+#undef ULONG_CONST
 
-/* The number of bytes in a signed char.  */
-#undef SIZEOF_SIGNED_CHAR
+/* Autokey? */
+#undef AUTOKEY
 
-/* Define if you have the K_open function.  */
-#undef HAVE_K_OPEN
-
-/* Define if you have the __adjtimex function.  */
-#undef HAVE___ADJTIMEX
-
-/* Define if you have the __ntp_gettime function.  */
-#undef HAVE___NTP_GETTIME
-
-/* Define if you have the clock_settime function.  */
-#undef HAVE_CLOCK_SETTIME
-
-/* Define if you have the daemon function.  */
-#undef HAVE_DAEMON
-
-/* Define if you have the getbootfile function.  */
-#undef HAVE_GETBOOTFILE
-
-/* Define if you have the getdtablesize function.  */
-#undef HAVE_GETDTABLESIZE
-
-/* Define if you have the getrusage function.  */
-#undef HAVE_GETRUSAGE
-
-/* Define if you have the gettimeofday function.  */
-#undef HAVE_GETTIMEOFDAY
-
-/* Define if you have the getuid function.  */
-#undef HAVE_GETUID
-
-/* Define if you have the kvm_open function.  */
-#undef HAVE_KVM_OPEN
-
-/* Define if you have the memcpy function.  */
-#undef HAVE_MEMCPY
-
-/* Define if you have the memlk function.  */
-#undef HAVE_MEMLK
-
-/* Define if you have the memmove function.  */
-#undef HAVE_MEMMOVE
-
-/* Define if you have the memset function.  */
-#undef HAVE_MEMSET
-
-/* Define if you have the mkstemp function.  */
-#undef HAVE_MKSTEMP
-
-/* Define if you have the mktime function.  */
-#undef HAVE_MKTIME
-
-/* Define if you have the mlockall function.  */
-#undef HAVE_MLOCKALL
-
-/* Define if you have the mrand48 function.  */
-#undef HAVE_MRAND48
-
-/* Define if you have the nice function.  */
-#undef HAVE_NICE
-
-/* Define if you have the nlist function.  */
-#undef HAVE_NLIST
-
-/* Define if you have the ntp_adjtime function.  */
-#undef HAVE_NTP_ADJTIME
-
-/* Define if you have the ntp_gettime function.  */
-#undef HAVE_NTP_GETTIME
-
-/* Define if you have the plock function.  */
-#undef HAVE_PLOCK
-
-/* Define if you have the pututline function.  */
-#undef HAVE_PUTUTLINE
-
-/* Define if you have the pututxline function.  */
-#undef HAVE_PUTUTXLINE
-
-/* Define if you have the random function.  */
-#undef HAVE_RANDOM
-
-/* Define if you have the rtprio function.  */
-#undef HAVE_RTPRIO
-
-/* Define if you have the sched_setscheduler function.  */
-#undef HAVE_SCHED_SETSCHEDULER
-
-/* Define if you have the setlinebuf function.  */
-#undef HAVE_SETLINEBUF
-
-/* Define if you have the setpgid function.  */
-#undef HAVE_SETPGID
-
-/* Define if you have the setpriority function.  */
-#undef HAVE_SETPRIORITY
-
-/* Define if you have the setsid function.  */
-#undef HAVE_SETSID
-
-/* Define if you have the settimeofday function.  */
-#undef HAVE_SETTIMEOFDAY
-
-/* Define if you have the setvbuf function.  */
-#undef HAVE_SETVBUF
-
-/* Define if you have the sigaction function.  */
-#undef HAVE_SIGACTION
-
-/* Define if you have the sigset function.  */
-#undef HAVE_SIGSET
-
-/* Define if you have the sigsuspend function.  */
-#undef HAVE_SIGSUSPEND
-
-/* Define if you have the sigvec function.  */
-#undef HAVE_SIGVEC
-
-/* Define if you have the srand48 function.  */
-#undef HAVE_SRAND48
-
-/* Define if you have the srandom function.  */
-#undef HAVE_SRANDOM
-
-/* Define if you have the stime function.  */
-#undef HAVE_STIME
-
-/* Define if you have the strchr function.  */
-#undef HAVE_STRCHR
-
-/* Define if you have the strerror function.  */
-#undef HAVE_STRERROR
-
-/* Define if you have the sysconf function.  */
-#undef HAVE_SYSCONF
-
-/* Define if you have the sysctl function.  */
-#undef HAVE_SYSCTL
-
-/* Define if you have the timer_create function.  */
-#undef HAVE_TIMER_CREATE
-
-/* Define if you have the timer_settime function.  */
-#undef HAVE_TIMER_SETTIME
-
-/* Define if you have the umask function.  */
-#undef HAVE_UMASK
-
-/* Define if you have the uname function.  */
-#undef HAVE_UNAME
-
-/* Define if you have the updwtmp function.  */
-#undef HAVE_UPDWTMP
-
-/* Define if you have the updwtmpx function.  */
-#undef HAVE_UPDWTMPX
-
-/* Define if you have the vsprintf function.  */
-#undef HAVE_VSPRINTF
-
-/* Define if you have the </sys/sync/queue.h> header file.  */
-#undef HAVE__SYS_SYNC_QUEUE_H
-
-/* Define if you have the </sys/sync/sema.h> header file.  */
-#undef HAVE__SYS_SYNC_SEMA_H
-
-/* Define if you have the <arpa/nameser.h> header file.  */
+/* Define if you have the <arpa/nameser.h> header file. */
 #undef HAVE_ARPA_NAMESER_H
 
-/* Define if you have the <bstring.h> header file.  */
+/* Do we have audio support? */
+#undef HAVE_AUDIO
+
+/* Define if you have the <bstring.h> header file. */
 #undef HAVE_BSTRING_H
 
-/* Define if you have the <errno.h> header file.  */
+/* Define if you have the `clock_settime' function. */
+#undef HAVE_CLOCK_SETTIME
+
+/* Define if you have the `daemon' function. */
+#undef HAVE_DAEMON
+
+/* Define if you have the <errno.h> header file. */
 #undef HAVE_ERRNO_H
 
-/* Define if you have the <fcntl.h> header file.  */
+/* Define if you have the <fcntl.h> header file. */
 #undef HAVE_FCNTL_H
 
-/* Define if you have the <machine/inline.h> header file.  */
-#undef HAVE_MACHINE_INLINE_H
+/* Define if you have the `finite' function. */
+#undef HAVE_FINITE
 
-/* Define if you have the <memory.h> header file.  */
-#undef HAVE_MEMORY_H
+/* Define if you have the `getbootfile' function. */
+#undef HAVE_GETBOOTFILE
 
-/* Define if you have the <net/if.h> header file.  */
-#undef HAVE_NET_IF_H
+/* Define if you have the `getclock' function. */
+#undef HAVE_GETCLOCK
 
-/* Define if you have the <netdb.h> header file.  */
-#undef HAVE_NETDB_H
+/* Define if you have the `getdtablesize' function. */
+#undef HAVE_GETDTABLESIZE
 
-/* Define if you have the <netinet/in.h> header file.  */
-#undef HAVE_NETINET_IN_H
+/* Define if you have the `getrusage' function. */
+#undef HAVE_GETRUSAGE
 
-/* Define if you have the <netinet/in_systm.h> header file.  */
-#undef HAVE_NETINET_IN_SYSTM_H
+/* Define if you have the `gettimeofday' function. */
+#undef HAVE_GETTIMEOFDAY
 
-/* Define if you have the <netinfo/ni.h> header file.  */
-#undef HAVE_NETINFO_NI_H
+/* Define if you have the `getuid' function. */
+#undef HAVE_GETUID
 
-/* Define if you have the <poll.h> header file.  */
-#undef HAVE_POLL_H
+/* Define if you have the `hstrerror' function. */
+#undef HAVE_HSTRERROR
 
-/* Define if you have the <resolv.h> header file.  */
-#undef HAVE_RESOLV_H
+/* Define if you have the <ieeefp.h> header file. */
+#undef HAVE_IEEEFP_H
 
-/* Define if you have the <sched.h> header file.  */
-#undef HAVE_SCHED_H
+/* Define if you have the <inttypes.h> header file. */
+#undef HAVE_INTTYPES_H
 
-/* Define if you have the <sgtty.h> header file.  */
-#undef HAVE_SGTTY_H
+/* Define if you have the `isfinite' function. */
+#undef HAVE_ISFINITE
 
-/* Define if you have the <stdlib.h> header file.  */
-#undef HAVE_STDLIB_H
+/* Define if you have the `kvm_open' function. */
+#undef HAVE_KVM_OPEN
 
-/* Define if you have the <string.h> header file.  */
-#undef HAVE_STRING_H
+/* Define if you have the `K_open' function. */
+#undef HAVE_K_OPEN
 
-/* Define if you have the <sun/audioio.h> header file.  */
-#undef HAVE_SUN_AUDIOIO_H
-
-/* Define if you have the <sys/audioio.h> header file.  */
-#undef HAVE_SYS_AUDIOIO_H
-
-/* Define if you have the <sys/clkdefs.h> header file.  */
-#undef HAVE_SYS_CLKDEFS_H
-
-/* Define if you have the <sys/file.h> header file.  */
-#undef HAVE_SYS_FILE_H
-
-/* Define if you have the <sys/i8253.h> header file.  */
-#undef HAVE_SYS_I8253_H
-
-/* Define if you have the <sys/ioctl.h> header file.  */
-#undef HAVE_SYS_IOCTL_H
-
-/* Define if you have the <sys/lock.h> header file.  */
-#undef HAVE_SYS_LOCK_H
-
-/* Define if you have the <sys/mman.h> header file.  */
-#undef HAVE_SYS_MMAN_H
-
-/* Define if you have the <sys/modem.h> header file.  */
-#undef HAVE_SYS_MODEM_H
-
-/* Define if you have the <sys/param.h> header file.  */
-#undef HAVE_SYS_PARAM_H
-
-/* Define if you have the <sys/pcl720.h> header file.  */
-#undef HAVE_SYS_PCL720_H
-
-/* Define if you have the <sys/ppsclock.h> header file.  */
-#undef HAVE_SYS_PPSCLOCK_H
-
-/* Define if you have the <sys/ppstime.h> header file.  */
-#undef HAVE_SYS_PPSTIME_H
-
-/* Define if you have the <sys/proc.h> header file.  */
-#undef HAVE_SYS_PROC_H
-
-/* Define if you have the <sys/resource.h> header file.  */
-#undef HAVE_SYS_RESOURCE_H
-
-/* Define if you have the <sys/sched.h> header file.  */
-#undef HAVE_SYS_SCHED_H
-
-/* Define if you have the <sys/select.h> header file.  */
-#undef HAVE_SYS_SELECT_H
-
-/* Define if you have the <sys/sio.h> header file.  */
-#undef HAVE_SYS_SIO_H
-
-/* Define if you have the <sys/sockio.h> header file.  */
-#undef HAVE_SYS_SOCKIO_H
-
-/* Define if you have the <sys/stat.h> header file.  */
-#undef HAVE_SYS_STAT_H
-
-/* Define if you have the <sys/stream.h> header file.  */
-#undef HAVE_SYS_STREAM_H
-
-/* Define if you have the <sys/stropts.h> header file.  */
-#undef HAVE_SYS_STROPTS_H
-
-/* Define if you have the <sys/sysctl.h> header file.  */
-#undef HAVE_SYS_SYSCTL_H
-
-/* Define if you have the <sys/syssgi.h> header file.  */
-#undef HAVE_SYS_SYSSGI_H
-
-/* Define if you have the <sys/termios.h> header file.  */
-#undef HAVE_SYS_TERMIOS_H
-
-/* Define if you have the <sys/time.h> header file.  */
-#undef HAVE_SYS_TIME_H
-
-/* Define if you have the <sys/timepps.h> header file.  */
-#undef HAVE_SYS_TIMEPPS_H
-
-/* Define if you have the <sys/timers.h> header file.  */
-#undef HAVE_SYS_TIMERS_H
-
-/* Define if you have the <sys/timex.h> header file.  */
-#undef HAVE_SYS_TIMEX_H
-
-/* Define if you have the <sys/tpro.h> header file.  */
-#undef HAVE_SYS_TPRO_H
-
-/* Define if you have the <sys/types.h> header file.  */
-#undef HAVE_SYS_TYPES_H
-
-/* Define if you have the <sys/wait.h> header file.  */
-#undef HAVE_SYS_WAIT_H
-
-/* Define if you have the <termio.h> header file.  */
-#undef HAVE_TERMIO_H
-
-/* Define if you have the <termios.h> header file.  */
-#undef HAVE_TERMIOS_H
-
-/* Define if you have the <timepps.h> header file.  */
-#undef HAVE_TIMEPPS_H
-
-/* Define if you have the <timex.h> header file.  */
-#undef HAVE_TIMEX_H
-
-/* Define if you have the <unistd.h> header file.  */
-#undef HAVE_UNISTD_H
-
-/* Define if you have the <utmp.h> header file.  */
-#undef HAVE_UTMP_H
-
-/* Define if you have the <utmpx.h> header file.  */
-#undef HAVE_UTMPX_H
-
-/* Define if you have the advapi32 library (-ladvapi32).  */
+/* Define if you have the `advapi32' library (-ladvapi32). */
 #undef HAVE_LIBADVAPI32
 
-/* Define if you have the elf library (-lelf).  */
+/* Define if you have the `elf' library (-lelf). */
 #undef HAVE_LIBELF
 
-/* Define if you have the gen library (-lgen).  */
+/* Define if you have the `gen' library (-lgen). */
 #undef HAVE_LIBGEN
 
-/* Define if you have the kvm library (-lkvm).  */
+/* Define if you have the `kvm' library (-lkvm). */
 #undef HAVE_LIBKVM
 
-/* Define if you have the ld library (-lld).  */
+/* Define if you have the `ld' library (-lld). */
 #undef HAVE_LIBLD
 
-/* Define if you have the mld library (-lmld).  */
+/* Define if you have the `mld' library (-lmld). */
 #undef HAVE_LIBMLD
 
-/* Define if you have the nsl library (-lnsl).  */
+/* Define if you have the `nsl' library (-lnsl). */
 #undef HAVE_LIBNSL
 
-/* Define if you have the rt library (-lrt).  */
+/* Define if you have the `posix4' library (-lposix4). */
+#undef HAVE_LIBPOSIX4
+
+/* Define if you have the `readline' library (-lreadline). */
+#undef HAVE_LIBREADLINE
+
+/* Define if you have the `rt' library (-lrt). */
 #undef HAVE_LIBRT
 
-/* Define if you have the socket library (-lsocket).  */
+/* Define if you have the `socket' library (-lsocket). */
 #undef HAVE_LIBSOCKET
 
-/* Name of package */
-#undef PACKAGE
+/* Define if you have the <machine/inline.h> header file. */
+#undef HAVE_MACHINE_INLINE_H
 
-/* Version number of package */
-#undef VERSION
+/* Define if you have the <math.h> header file. */
+#undef HAVE_MATH_H
 
-/* Define if compiler has function prototypes */
-#undef PROTOTYPES
+/* Define if you have the `memcpy' function. */
+#undef HAVE_MEMCPY
+
+/* Define if you have the `memlk' function. */
+#undef HAVE_MEMLK
+
+/* Define if you have the `memmove' function. */
+#undef HAVE_MEMMOVE
+
+/* Define if you have the <memory.h> header file. */
+#undef HAVE_MEMORY_H
+
+/* Define if you have the `memset' function. */
+#undef HAVE_MEMSET
+
+/* Define if you have the `mkstemp' function. */
+#undef HAVE_MKSTEMP
+
+/* Define if you have the `mktime' function. */
+#undef HAVE_MKTIME
+
+/* Define if you have the `mlockall' function. */
+#undef HAVE_MLOCKALL
+
+/* Define if you have the `mrand48' function. */
+#undef HAVE_MRAND48
+
+/* Define if you have the <netdb.h> header file. */
+#undef HAVE_NETDB_H
+
+/* Define if you have the <netinet/in.h> header file. */
+#undef HAVE_NETINET_IN_H
+
+/* Define if you have the <netinet/in_systm.h> header file. */
+#undef HAVE_NETINET_IN_SYSTM_H
+
+/* Define if you have the <netinfo/ni.h> header file. */
+#undef HAVE_NETINFO_NI_H
+
+/* Define if you have the <net/if.h> header file. */
+#undef HAVE_NET_IF_H
+
+/* Define if you have the `nice' function. */
+#undef HAVE_NICE
+
+/* Define if you have the `nlist' function. */
+#undef HAVE_NLIST
+
+/* Define if you have the `ntp_adjtime' function. */
+#undef HAVE_NTP_ADJTIME
+
+/* Define if you have the `ntp_gettime' function. */
+#undef HAVE_NTP_GETTIME
+
+/* Define if you have the `plock' function. */
+#undef HAVE_PLOCK
+
+/* Define if you have the <poll.h> header file. */
+#undef HAVE_POLL_H
+
+/* Define if you have the `pututline' function. */
+#undef HAVE_PUTUTLINE
+
+/* Define if you have the `pututxline' function. */
+#undef HAVE_PUTUTXLINE
+
+/* Define if you have the `random' function. */
+#undef HAVE_RANDOM
+
+/* Define if you have the `readlink' function. */
+#undef HAVE_READLINK
+
+/* Define if you have the <resolv.h> header file. */
+#undef HAVE_RESOLV_H
+
+/* Define if you have the `rtprio' function. */
+#undef HAVE_RTPRIO
+
+/* Define if you have the <sched.h> header file. */
+#undef HAVE_SCHED_H
+
+/* Define if you have the `sched_setscheduler' function. */
+#undef HAVE_SCHED_SETSCHEDULER
+
+/* Define if you have the `setlinebuf' function. */
+#undef HAVE_SETLINEBUF
+
+/* Define if you have the `setpgid' function. */
+#undef HAVE_SETPGID
+
+/* Define if you have the `setpriority' function. */
+#undef HAVE_SETPRIORITY
+
+/* Define if you have the `setsid' function. */
+#undef HAVE_SETSID
+
+/* Define if you have the `settimeofday' function. */
+#undef HAVE_SETTIMEOFDAY
+
+/* Define if you have the `setvbuf' function. */
+#undef HAVE_SETVBUF
+
+/* Define if you have the <sgtty.h> header file. */
+#undef HAVE_SGTTY_H
+
+/* Define if you have the `sigaction' function. */
+#undef HAVE_SIGACTION
+
+/* Define if you have the `sigset' function. */
+#undef HAVE_SIGSET
+
+/* Define if you have the `sigsuspend' function. */
+#undef HAVE_SIGSUSPEND
+
+/* Define if you have the `sigvec' function. */
+#undef HAVE_SIGVEC
+
+/* Define if you have the `snprintf' function. */
+#undef HAVE_SNPRINTF
+
+/* Define if you have the `srand48' function. */
+#undef HAVE_SRAND48
+
+/* Define if you have the <stdlib.h> header file. */
+#undef HAVE_STDLIB_H
+
+/* Define if you have the `stime' function. */
+#undef HAVE_STIME
+
+/* Define if you have the `strchr' function. */
+#undef HAVE_STRCHR
+
+/* Define if you have the `strdup' function. */
+#undef HAVE_STRDUP
+
+/* Define if you have the `strerror' function. */
+#undef HAVE_STRERROR
+
+/* Define if you have the <strings.h> header file. */
+#undef HAVE_STRINGS_H
+
+/* Define if you have the <string.h> header file. */
+#undef HAVE_STRING_H
 
 /* Do we have struct ntptimeval? */
 #undef HAVE_STRUCT_NTPTIMEVAL
 
-/* Does ntptimeval use struct timespec? */
-#undef TIMESPEC_IN_NTPTIMEVAL
+/* Define if `time.tv_nsec' is member of `struct ntptimeval'. */
+#undef HAVE_STRUCT_NTPTIMEVAL_TIME_TV_NSEC
 
+/* Do we have struct timespec? */
+#undef HAVE_STRUCT_TIMESPEC
+
+/* Define if you have the <sun/audioio.h> header file. */
+#undef HAVE_SUN_AUDIOIO_H
+
+/* Define if you have the `sysconf' function. */
+#undef HAVE_SYSCONF
+
+/* Define if you have the `sysctl' function. */
+#undef HAVE_SYSCTL
+
+/* Define if you have the <sys/audioio.h> header file. */
+#undef HAVE_SYS_AUDIOIO_H
+
+/* Define if you have the <sys/clkdefs.h> header file. */
+#undef HAVE_SYS_CLKDEFS_H
+
+/* Define if you have the <sys/file.h> header file. */
+#undef HAVE_SYS_FILE_H
+
+/* Define if you have the <sys/i8253.h> header file. */
+#undef HAVE_SYS_I8253_H
+
+/* Define if you have the <sys/ioctl.h> header file. */
+#undef HAVE_SYS_IOCTL_H
+
+/* Define if you have the <sys/lock.h> header file. */
+#undef HAVE_SYS_LOCK_H
+
+/* Define if you have the <sys/mman.h> header file. */
+#undef HAVE_SYS_MMAN_H
+
+/* Define if you have the <sys/modem.h> header file. */
+#undef HAVE_SYS_MODEM_H
+
+/* Define if you have the <sys/param.h> header file. */
+#undef HAVE_SYS_PARAM_H
+
+/* Define if you have the <sys/pcl720.h> header file. */
+#undef HAVE_SYS_PCL720_H
+
+/* Define if you have the <sys/ppsclock.h> header file. */
+#undef HAVE_SYS_PPSCLOCK_H
+
+/* Define if you have the <sys/ppstime.h> header file. */
+#undef HAVE_SYS_PPSTIME_H
+
+/* Define if you have the <sys/proc.h> header file. */
+#undef HAVE_SYS_PROC_H
+
+/* Define if you have the <sys/resource.h> header file. */
+#undef HAVE_SYS_RESOURCE_H
+
+/* Define if you have the <sys/sched.h> header file. */
+#undef HAVE_SYS_SCHED_H
+
+/* Define if you have the <sys/select.h> header file. */
+#undef HAVE_SYS_SELECT_H
+
+/* Define if you have the <sys/sio.h> header file. */
+#undef HAVE_SYS_SIO_H
+
+/* Define if you have the <sys/sockio.h> header file. */
+#undef HAVE_SYS_SOCKIO_H
+
+/* Define if you have the <sys/stat.h> header file. */
+#undef HAVE_SYS_STAT_H
+
+/* Define if you have the <sys/stream.h> header file. */
+#undef HAVE_SYS_STREAM_H
+
+/* Define if you have the <sys/stropts.h> header file. */
+#undef HAVE_SYS_STROPTS_H
+
+/* Define if you have the <sys/sysctl.h> header file. */
+#undef HAVE_SYS_SYSCTL_H
+
+/* Define if you have the <sys/syssgi.h> header file. */
+#undef HAVE_SYS_SYSSGI_H
+
+/* Define if you have the <sys/termios.h> header file. */
+#undef HAVE_SYS_TERMIOS_H
+
+/* Define if you have the <sys/timepps.h> header file. */
+#undef HAVE_SYS_TIMEPPS_H
+
+/* Define if you have the <sys/timers.h> header file. */
+#undef HAVE_SYS_TIMERS_H
+
+/* Define if you have the <sys/timex.h> header file. */
+#undef HAVE_SYS_TIMEX_H
+
+/* Define if you have the <sys/time.h> header file. */
+#undef HAVE_SYS_TIME_H
+
+/* Define if you have the <sys/tpro.h> header file. */
+#undef HAVE_SYS_TPRO_H
+
+/* Define if you have the <sys/types.h> header file. */
+#undef HAVE_SYS_TYPES_H
+
+/* Define if you have the <sys/wait.h> header file. */
+#undef HAVE_SYS_WAIT_H
+
+/* Define if the system has the type `s_char'. */
+#undef HAVE_S_CHAR
+
+/* Define if you have the <termios.h> header file. */
+#undef HAVE_TERMIOS_H
+
+/* Define if you have the <termio.h> header file. */
+#undef HAVE_TERMIO_H
+
+/* Define if you have the <timepps.h> header file. */
+#undef HAVE_TIMEPPS_H
+
+/* Define if you have the `timer_create' function. */
+#undef HAVE_TIMER_CREATE
+
+/* Define if you have the `timer_settime' function. */
+#undef HAVE_TIMER_SETTIME
+
+/* Define if you have the <timex.h> header file. */
+#undef HAVE_TIMEX_H
+
+/* Define if you have the `umask' function. */
+#undef HAVE_UMASK
+
+/* Define if you have the `uname' function. */
+#undef HAVE_UNAME
+
+/* Define if you have the <unistd.h> header file. */
+#undef HAVE_UNISTD_H
+
+/* Define if you have the `updwtmp' function. */
+#undef HAVE_UPDWTMP
+
+/* Define if you have the `updwtmpx' function. */
+#undef HAVE_UPDWTMPX
+
+/* Define if you have the <utmpx.h> header file. */
+#undef HAVE_UTMPX_H
+
+/* Define if you have the <utmp.h> header file. */
+#undef HAVE_UTMP_H
+
+/* Define if you have the `vsprintf' function. */
+#undef HAVE_VSPRINTF
+
+/* Define if you have the </sys/sync/queue.h> header file. */
+#undef HAVE__SYS_SYNC_QUEUE_H
+
+/* Define if you have the </sys/sync/sema.h> header file. */
+#undef HAVE__SYS_SYNC_SEMA_H
+
+/* Define if you have the `__adjtimex' function. */
+#undef HAVE___ADJTIMEX
+
+/* Define if you have the `__ntp_gettime' function. */
+#undef HAVE___NTP_GETTIME
+
+/* Default location of crypto key info */
+#undef NTP_KEYSDIR
+
+/* Use OpenSSL? */
+#undef OPENSSL
+
+/* Name of package */
+#undef PACKAGE
+
+/* Define if compiler has function prototypes */
+#undef PROTOTYPES
+
+/* Public key? */
+#undef PUBKEY
+
+/* Define as the return type of signal handlers (`int' or `void'). */
+#undef RETSIGTYPE
+
+/* Use RSAREF? */
+#undef RSAREF
+
+/* The size of a `int', as computed by sizeof. */
+#undef SIZEOF_INT
+
+/* The size of a `long', as computed by sizeof. */
+#undef SIZEOF_LONG
+
+/* The size of a `signed char', as computed by sizeof. */
+#undef SIZEOF_SIGNED_CHAR
+
+/* Define if you have the ANSI C header files. */
+#undef STDC_HEADERS
+
+/* Define if you can safely include both <sys/time.h> and <time.h>. */
+#undef TIME_WITH_SYS_TIME
+
+/* Define if your <sys/time.h> declares `struct tm'. */
+#undef TM_IN_SYS_TIME
+
+/* Version number of package */
+#undef VERSION
+
+/* Define if your processor stores words with the most significant byte first
+   (like Motorola and SPARC, unlike Intel and VAX). */
+#undef WORDS_BIGENDIAN
+
+/* Define if on AIX 3.
+   System headers sometimes define this.
+   We just want to avoid a redefinition error message.  */
+#ifndef _ALL_SOURCE
+# undef _ALL_SOURCE
+#endif
+
+/* Define if on MINIX. */
+#undef _MINIX
+
+/* Define if the system does not provide POSIX.1 features except with this
+   defined. */
+#undef _POSIX_1_SOURCE
+
+/* Define if you need to in order for stat and other things to work. */
+#undef _POSIX_SOURCE
+
+/* Define if type `char' is unsigned and you are not using gcc.  */
+#ifndef __CHAR_UNSIGNED__
+# undef __CHAR_UNSIGNED__
+#endif
+
+/* Define to empty if `const' does not conform to ANSI C. */
+#undef const
+
+/* Define to `int' if <sys/types.h> doesn't define. */
+#undef gid_t
+
+/* Define as `__inline' if that's what the C compiler calls it, or to nothing
+   if it is not supported. */
+#undef inline
+
+/* Define to `long' if <sys/types.h> does not define. */
+#undef off_t
+
+/* Define to `unsigned' if <sys/types.h> does not define. */
+#undef size_t
+
+/* Define to `long' if <sys/types.h> does not define. */
+#undef time_t
+
+/* Define to `int' if <sys/types.h> doesn't define. */
+#undef uid_t

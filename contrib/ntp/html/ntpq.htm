@@ -1,747 +1,658 @@
-<HTML>
-<HEAD>
-   <META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1">
-   <META NAME="GENERATOR" CONTENT="Mozilla/4.01 [en] (Win95; I) [Netscape]">
-   <TITLE>ntpq - standard NTP query program
-</TITLE>
-</HEAD>
-<BODY>
-
-<H3>
-<TT>pq</TT> - standard NTP query program</H3>
-
-<HR>
-<H4>
-Synopsis</H4>
-<TT>ntpq [-inp] [-c <I>command</I>] [<I>host</I>] [...]</TT>
-<H4>
-Description</H4>
-<TT>ntpq</TT> is used to query NTP servers which implement the recommended
-NTP mode 6 control message format about current state and to request changes
-in that state. The program may be run either in interactive mode or controlled
-using command line arguments. Requests to read and write arbitrary variables
-can be assembled, with raw and pretty-printed output options being available.
-<TT>ntpq</TT> can also obtain and print a list of peers in a common format
-by sending multiple queries to the server.
-
-<P>If one or more request options is included on the command line when
-<TT>ntpq</TT> is executed, each of the requests will be sent to the NTP
-servers running on each of the hosts given as command line arguments, or
-on localhost by default. If no request options are given, <TT>ntpq</TT>
-will attempt to read commands from the standard input and execute these
-on the NTP server running on the first host given on the command line,
-again defaulting to localhost when no other host is specified. <TT>ntpq</TT>
-will prompt for commands if the standard input is a terminal device.
-
-<P><TT>ntpq</TT> uses NTP mode 6 packets to communicate with the NTP server,
-and hence can be used to query any compatable server on the network which
-permits it. Note that since NTP is a UDP protocol this communication will
-be somewhat unreliable, especially over large distances in terms of network
-topology. <TT>ntpq</TT> makes one attempt to retransmit requests, and will
-time requests out if the remote host is not heard from within a suitable
-timeout time.
-
-<P>Command line options are described following. Specifying a command line
-option other than -i or -n will cause the specified query (queries) to
-be sent to the indicated host(s) immediately. Otherwise, <TT>ntpq</TT>
-will attempt to read interactive format commands from the standard input.
-<DL>
-<DT>
-<TT>-c</TT></DT>
-
-<DD>
-The following argument is interpreted as an interactive format command
-and is added to the list of commands to be executed on the specified host(s).
-Multiple -c options may be given.</DD>
-
-<DT>
-<TT>-i</TT></DT>
-
-<DD>
-Force <TT>ntpq</TT> to operate in interactive mode. Prompts will be written
-to the standard output and commands read from the standard input.</DD>
-
-<DT>
-<TT>-n</TT></DT>
-
-<DD>
-Output all host addresses in dotted-quad numeric format rather than converting
-to the canonical host names.</DD>
-
-<DT>
-<TT>-p</TT></DT>
-
-<DD>
-Print a list of the peers known to the server as well as a summary of their
-state. This is equivalent to the <TT>peers</TT> interactive command.</DD>
-</DL>
-
-<H4>
-Internal Commands</H4>
-Interactive format commands consist of a keyword followed by zero to four
-arguments. Only enough characters of the full keyword to uniquely identify
-the command need be typed. The output of a command is normally sent to
-the standard output, but optionally the output of individual commands may
-be sent to a file by appending a "&lt;", followed by a file name, to the
-command line. A number of interactive format commands are executed entirely
-within the <TT>ntpq</TT> program itself and do not result in NTP mode 6
-requests being sent to a server. These are described following.
-<DL>
-<DT>
-<TT>? [<I>command_keyword</I>]</TT></DT>
-
-<BR><TT>helpl [ <I>command_keyword</I> ]</TT>
-<DD>
-A <TT>"?"</TT> by itself will print a list of all the command keywords
-known to this incarnation of <TT>ntpq</TT>. A <TT>"?"</TT> followed by
-a command keyword will print funcation and usage information about the
-command. This command is probably a better source of information about
-<TT>ntpq</TT> than this manual page.</DD>
-
-<DD>
-&nbsp;</DD>
-
-<DT>
-<TT>addvars <I>variable_name</I> [ = <I>value</I>] [...]</TT></DT>
-
-<BR><TT>rmvars <I>variable_name</I> [...]</TT>
-<BR><TT>clearvars</TT>
-<DD>
-The data carried by NTP mode 6 messages consists of a list of items of
-the form <TT><I>variable_name</I> = <I>value</I></TT>, where the <TT>"
-= <I>value</I>"</TT> is ignored, and can be omitted, in requests to the
-server to read variables. <TT>ntpq</TT> maintains an internal list in which
-data to be included in control messages can be assembled, and sent using
-the readlist and writelist commands described below. The addvars command
-allows variables and their optional values to be added to the list. If
-more than one variable is to be added, the list should be comma-separated
-and not contain white space. The rmvars command can be used to remove individual
-variables from the list, while the clearlist command removes all variables
-from the list.</DD>
-
-<DD>
-&nbsp;</DD>
-
-<DT>
-<TT>authenticate yes | no</TT></DT>
-
-<DD>
-Normally <TT>ntpq</TT> does not authenticate requests unless they are write
-requests. The command authenticate yes causes <TT>ntpq</TT> to send authentication
-with all requests it makes. Authenticated requests causes some servers
-to handle requests slightly differently, and can occasionally melt the
-CPU in fuzzballs if you turn authentication on before doing a peer display.</DD>
-
-<DD>
-&nbsp;</DD>
-
-<DT>
-<TT>cooked</TT></DT>
-
-<DD>
-Causes output from query commands to be <TT>"cooked"</TT>. Variables which
-are recognized by the server will have their values reformatted for human
-consumption. Variables which <TT>ntpq</TT> thinks should have a decodeable
-value but didn't are marked with a trailing <TT>"?"</TT>.</DD>
-
-<DD>
-&nbsp;</DD>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<html>
+<head>
+<meta name="generator" content="HTML Tidy, see www.w3.org">
+<title>ntpq - standard NTP query program</title>
+</head>
+<body>
+<h3><tt>ntpq</tt> - standard NTP query program</h3>
+
+<img align="left" src="pic/bustardfly.gif" alt="gif"><a href=
+"http://www.eecis.udel.edu/~mills/pictures.htm">from <i>Pogo</i>,
+Walt Kelly</a> 
+
+<p>A typical NTP monitoring packet.<br clear="left">
+</p>
+
+<hr>
+<h4>Synopsis</h4>
+
+<tt>ntpq [-inp] [-c <i>command</i>] [<i>host</i>] [...]</tt> 
+
+<h4>Description</h4>
+
+The <tt>ntpq</tt> utility program is used to query NTP servers
+which implement the recommended NTP mode 6 control message format
+about current state and to request changes in that state. The
+program may be run either in interactive mode or controlled using
+command line arguments. Requests to read and write arbitrary
+variables can be assembled, with raw and pretty-printed output
+options being available. <tt>ntpq</tt> can also obtain and print a
+list of peers in a common format by sending multiple queries to the
+server. 
+
+<p>If one or more request options is included on the command line
+when <tt>ntpq</tt> is executed, each of the requests will be sent
+to the NTP servers running on each of the hosts given as command
+line arguments, or on localhost by default. If no request options
+are given, <tt>ntpq</tt> will attempt to read commands from the
+standard input and execute these on the NTP server running on the
+first host given on the command line, again defaulting to localhost
+when no other host is specified. <tt>ntpq</tt>will prompt for
+commands if the standard input is a terminal device.</p>
+
+<p><tt>ntpq</tt> uses NTP mode 6 packets to communicate with the
+NTP server, and hence can be used to query any compatible server on
+the network which permits it. Note that since NTP is a UDP protocol
+this communication will be somewhat unreliable, especially over
+large distances in terms of network topology. <tt>ntpq</tt> makes
+one attempt to retransmit requests, and will time requests out if
+the remote host is not heard from within a suitable timeout
+time.</p>
+
+<p>For examples and usage, see the <a href="debug.htm">NTP
+Debugging Techniques</a> page.</p>
+
+<p>Command line options are described following. Specifying a
+command line option other than <tt>-i</tt> or <tt>-n</tt> will
+cause the specified query (queries) to be sent to the indicated
+host(s) immediately. Otherwise, <tt>ntpq</tt> will attempt to read
+interactive format commands from the standard input.</p>
+
+<dl>
+<dt><tt>-c</tt></dt>
+
+<dd>The following argument is interpreted as an interactive format
+command and is added to the list of commands to be executed on the
+specified host(s). Multiple <tt>-c</tt> options may be given.</dd>
+
+<dt><tt>-i</tt></dt>
+
+<dd>Force <tt>ntpq</tt> to operate in interactive mode. Prompts
+will be written to the standard output and commands read from the
+standard input.</dd>
+
+<dt><tt>-n</tt></dt>
+
+<dd>Output all host addresses in dotted-quad numeric format rather
+than converting to the canonical host names.</dd>
+
+<dt><tt>-p</tt></dt>
+
+<dd>Print a list of the peers known to the server as well as a
+summary of their state. This is equivalent to the <tt>peers</tt>
+interactive command.</dd>
+</dl>
+
+<h4>Internal Commands</h4>
+
+Interactive format commands consist of a keyword followed by zero
+to four arguments. Only enough characters of the full keyword to
+uniquely identify the command need be typed. The output of a
+command is normally sent to the standard output, but optionally the
+output of individual commands may be sent to a file by appending a
+<tt>&lt;</tt>, followed by a file name, to the command line. A
+number of interactive format commands are executed entirely within
+the <tt>ntpq</tt> program itself and do not result in NTP mode 6
+requests being sent to a server. These are described following. 
+
+<dl>
+<dt><tt>? [<i>command_keyword</i>]</tt><br>
+<tt>helpl [<i>command_keyword</i>]</tt></dt>
+
+<dd>A <tt>?</tt> by itself will print a list of all the command
+keywords known to this incarnation of <tt>ntpq</tt>. A <tt>?</tt>
+followed by a command keyword will print function and usage
+information about the command. This command is probably a better
+source of information about <tt>ntpq</tt> than this manual
+page.</dd>
 
-<DT>
-<TT>debug more | less | off</TT></DT>
+<dt><tt>addvars <i>variable_name</i> [ = <i>value</i>]
+[...]</tt><br>
+<tt>rmvars <i>variable_name</i> [...]</tt><br>
+<tt>clearvars</tt></dt>
+
+<dd>The data carried by NTP mode 6 messages consists of a list of
+items of the form <tt><i>variable_name</i> = <i>value</i></tt>,
+where the <tt>= <i>value</i></tt> is ignored, and can be omitted,
+in requests to the server to read variables. <tt>ntpq</tt>
+maintains an internal list in which data to be included in control
+messages can be assembled, and sent using the <tt>readlist</tt> and
+<tt>writelist</tt> commands described below. The <tt>addvars</tt>
+command allows variables and their optional values to be added to
+the list. If more than one variable is to be added, the list should
+be comma-separated and not contain white space. The <tt>rmvars</tt>
+command can be used to remove individual variables from the list,
+while the <tt>clearlist</tt> command removes all variables from the
+list.</dd>
+
+<dt><tt>authenticate yes | no</tt></dt>
+
+<dd>Normally <tt>ntpq</tt> does not authenticate requests unless
+they are write requests. The command <tt>authenticate yes</tt>
+causes <tt>ntpq</tt> to send authentication with all requests it
+makes. Authenticated requests causes some servers to handle
+requests slightly differently, and can occasionally melt the CPU in
+fuzzballs if you turn authentication on before doing a <tt>
+peer</tt> display. [I didn't know that - Ed.]</dd>
+
+<dt><tt>cooked</tt></dt>
+
+<dd>Causes output from query commands to be "cooked", so that
+variables which are recognized by <tt>ntpq</tt> will have their
+values reformatted for human consumption. Variables which <tt>
+ntpq</tt> thinks should have a decodable value but didn't are
+marked with a trailing <tt>?</tt>.</dd>
+
+<dt><tt>debug more | less | off</tt></dt>
+
+<dd>Turns internal query program debugging on and off.</dd>
+
+<dt><tt>delay <i>milliseconds</i></tt></dt>
+
+<dd>Specify a time interval to be added to timestamps included in
+requests which require authentication. This is used to enable
+(unreliable) server reconfiguration over long delay network paths
+or between machines whose clocks are unsynchronized. Actually the
+server does not now require timestamps in authenticated requests,
+so this command may be obsolete.</dd>
+
+<dt><tt>host <i>hostname</i></tt></dt>
+
+<dd>Set the host to which future queries will be sent. Hostname may
+be either a host name or a numeric address.</dd>
+
+<dt><tt>hostnames [yes | no]</tt></dt>
+
+<dd>If <tt>yes</tt> is specified, host names are printed in
+information displays. If <tt>no</tt> is specified, numeric
+addresses are printed instead. The default is <tt>yes</tt>, unless
+modified using the command line <tt>-n</tt> switch.</dd>
+
+<dt><tt>keyid <i>keyid</i></tt></dt>
+
+<dd>This command allows the specification of a key number to be
+used to authenticate configuration requests. This must correspond
+to a key number the server has been configured to use for this
+purpose.</dd>
+
+<dt><tt>ntpversion 1 | 2 | 3 | 4</tt></dt>
+
+<dd>Sets the NTP version number which <tt>ntpq</tt> claims in
+packets. Defaults to 3, Note that mode 6 control messages (and
+modes, for that matter) didn't exist in NTP version 1. There appear
+to be no servers left which demand version 1.</dd>
+
+<dt><tt>quit</tt></dt>
+
+<dd>Exit <tt>ntpq</tt>.</dd>
+
+<dt><tt>passwd</tt></dt>
+
+<dd>This command prompts you to type in a password (which will not
+be echoed) which will be used to authenticate configuration
+requests. The password must correspond to the key configured for
+use by the NTP server for this purpose if such requests are to be
+successful.</dd>
+
+<dt><tt>raw</tt></dt>
+
+<dd>Causes all output from query commands is printed as received
+from the remote server. The only formating/interpretation done on
+the data is to transform nonascii data into a printable (but barely
+understandable) form.</dd>
+
+<dt><tt>timeout <i>millseconds</i></tt></dt>
+
+<dd>Specify a timeout period for responses to server queries. The
+default is about 5000 milliseconds. Note that since <tt>ntpq</tt>
+retries each query once after a timeout, the total waiting time for
+a timeout will be twice the timeout value set.</dd>
+</dl>
+
+<h4>Control Message Commands</h4>
+
+Each peer known to an NTP server has a 16 bit integer association
+identifier assigned to it. NTP control messages which carry peer
+variables must identify the peer the values correspond to by
+including its association ID. An association ID of 0 is special,
+and indicates the variables are system variables, whose names are
+drawn from a separate name space. 
+
+<p>Control message commands result in one or more NTP mode 6
+messages being sent to the server, and cause the data returned to
+be printed in some format. Most commands currently implemented send
+a single message and expect a single response. The current
+exceptions are the peers command, which will send a preprogrammed
+series of messages to obtain the data it needs, and the mreadlist
+and mreadvar commands, which will iterate over a range of
+associations.</p>
+
+<dl>
+<dt><tt>associations</tt></dt>
+
+<dd>Obtains and prints a list of association identifiers and peer
+statuses for in-spec peers of the server being queried. The list is
+printed in columns. The first of these is an index numbering the
+associations from 1 for internal use, the second the actual
+association identifier returned by the server and the third the
+status word for the peer. This is followed by a number of columns
+containing data decoded from the status word See the peers command
+for a decode of the <tt>condition</tt> field. Note that the data
+returned by the <tt>associations"</tt> command is cached internally
+in <tt>ntpq</tt>. The index is then of use when dealing with stupid
+servers which use association identifiers which are hard for humans
+to type, in that for any subsequent commands which require an
+association identifier as an argument, the form and index may be
+used as an alternative.</dd>
+
+<dt><tt>clockvar [<i>assocID</i>] [<i>variable_name</i> [ = <i>
+value</i> [...]] [...]</tt></dt>
+
+<dt><tt>cv [<i>assocID</i>] [<i>variable_name</i> [ = <i>value</i>
+[...] ][...]</tt></dt>
+
+<dd>Requests that a list of the server's clock variables be sent.
+Servers which have a radio clock or other external synchronization
+will respond positively to this. If the association identifier is
+omitted or zero the request is for the variables of the <tt>system
+clock</tt> and will generally get a positive response from all
+servers with a clock. If the server treats clocks as pseudo-peers,
+and hence can possibly have more than one clock connected at once,
+referencing the appropriate peer association ID will show the
+variables of a particular clock. Omitting the variable list will
+cause the server to return a default variable display.</dd>
+
+<dt><tt>lassocations</tt></dt>
+
+<dd>Obtains and prints a list of association identifiers and peer
+statuses for all associations for which the server is maintaining
+state. This command differs from the <tt>associations</tt> command
+only for servers which retain state for out-of-spec client
+associations (i.e., fuzzballs). Such associations are normally
+omitted from the display when the <tt>associations</tt> command is
+used, but are included in the output of <tt>
+lassociations</tt>.</dd>
+
+<dt><tt>lpassociations</tt></dt>
+
+<dd>Print data for all associations, including out-of-spec client
+associations, from the internally cached list of associations. This
+command differs from <tt>passociations</tt> only when dealing with
+fuzzballs.</dd>
+
+<dt><tt>lpeers</tt></dt>
+
+<dd>Like R peers, except a summary of all associations for which
+the server is maintaining state is printed. This can produce a much
+longer list of peers from fuzzball servers.</dd>
+
+<dt><tt>mreadlist <i>assocID</i> <i>assocID</i></tt><br>
+<tt>mrl <i>assocID</i> <i>assocID</i></tt></dt>
+
+<dd>Like the <tt>readlist</tt> command, except the query is done
+for each of a range of (nonzero) association IDs. This range is
+determined from the association list cached by the most recent <tt>
+associations</tt> command.</dd>
+
+<dt><tt>mreadvar <i>assocID</i> <i>assocID</i> [ <i>
+variable_name</i> [ = <i>value</i>[ ... ]</tt><br>
+<tt>mrv <i>assocID</i> <i>assocID</i> [ <i>variable_name</i> [ =
+<i>value</i>[ ... ]</tt></dt>
+
+<dd>Like the <tt>readvar</tt> command, except the query is done for
+each of a range of (nonzero) association IDs. This range is
+determined from the association list cached by the most recent <tt>
+associations</tt> command.</dd>
+
+<dt><tt>opeers</tt></dt>
+
+<dd>An old form of the <tt>peers</tt> command with the reference ID
+replaced by the local interface address.</dd>
+
+<dt><tt>passociations</tt></dt>
+
+<dd>Displays association data concerning in-spec peers from the
+internally cached list of associations. This command performs
+identically to the <tt>associations</tt> except that it displays
+the internally stored data rather than making a new query.</dd>
+
+<dt><tt>peers</tt></dt>
+
+<dd>Obtains a current list peers of the server, along with a
+summary of each peer's state. Summary information includes the
+address of the remote peer, the reference ID (0.0.0.0 if this is
+unknown), the stratum of the remote peer, the type of the peer
+(local, unicast, multicast or broadcast), when the last packet was
+received, the polling interval, in seconds, the reachability
+register, in octal, and the current estimated delay, offset and
+dispersion of the peer, all in milliseconds.</dd>
+
+<dd>The character in the left margin indicates the fate of this
+peer in the clock selection process. Following is a list of these
+characters, the pigeon used in the <tt>rv</tt> command, and a short
+explanation of the condition revealed.</dd>
+
+<dd>
+<dl>
+<dt><tt>space reject</tt></dt>
+
+<dd>The peer is discarded as unreachable, synchronized to this
+server (synch loop) or outrageous synchronization distance.</dd>
+
+<dt><tt>x&nbsp;&nbsp;falsetick</tt></dt>
+
+<dd>The peer is discarded by the intersection algorithm as a
+falseticker.</dd>
+
+<dt><tt>.&nbsp;&nbsp;excess</tt></dt>
+
+<dd>The peer is discarded as not among the first ten peers sorted
+by synchronization distance and so is probably a poor candidate for
+further consideration.</dd>
+
+<dt><tt>-&nbsp;&nbsp;outlyer</tt></dt>
+
+<dd>The peer is discarded by the clustering algorithm as an
+outlyer.</dd>
+
+<dt><tt>+&nbsp;&nbsp;candidat</tt></dt>
+
+<dd>The peer is a survivor and a candidate for the combining
+algorithm.</dd>
+
+<dt><tt>#&nbsp;&nbsp;selected</tt></dt>
+
+<dd>The peer is a survivor, but not among the first six peers
+sorted by synchronization distance. If the assocation is ephemeral,
+it may be demobilized to conserve resources.</dd>
+
+<dt><tt>*&nbsp;&nbsp;sys.peer</tt></dt>
+
+<dd>The peer has been declared the system peer and lends its
+variables to the system variables.</dd>
+
+<dt><tt>o&nbsp;&nbsp;pps.peer</tt></dt>
+
+<dd>The peer has been declared the system peer and lends its
+variables to thesystem variables. However, the actual system
+synchronization is derived from a pulse-per-second (PPS) signal,
+either indirectly via the PPS reference clock driver or directly
+via kernel interface.</dd>
+</dl>
+</dd>
 
-<DD>
-Turns internal query program debugging on and off.</DD>
-
-<DD>
-&nbsp;</DD>
-
-<DT>
-<TT>delay <I>milliseconds</I></TT></DT>
-
-<DD>
-Specify a time interval to be added to timestamps included in requests
-which require authentication. This is used to enable (unreliable) server
-reconfiguration over long delay network paths or between machines whose
-clocks are unsynchronized. Actually the server does not now require timestamps
-in authenticated requests, so this command may be obsolete.</DD>
-
-<DD>
-&nbsp;</DD>
-
-<DT>
-<TT>host <I>hostname</I></TT></DT>
-
-<DD>
-Set the host to which future queries will be sent. Hostname may be either
-a host name or a numeric address.</DD>
-
-<DD>
-&nbsp;</DD>
-
-<DT>
-<TT>hostnames [yes | no]</TT></DT>
-
-<DD>
-If <TT>"yes"</TT> is specified, host names are printed in information displays.
-If <TT>"no"</TT> is specified, numeric addresses are printed instead. The
-default is <TT>"yes"</TT>, unless modified using the command line <TT>-n</TT>
-switch.</DD>
-
-<DD>
-&nbsp;</DD>
-
-<DT>
-<TT>keyid <I>keyid</I></TT></DT>
-
-<DD>
-This command allows the specification of a key number to be used to authenticate
-configuration requests. This must correspond to a key number the server
-has been configured to use for this purpose.</DD>
-
-<DD>
-&nbsp;</DD>
-
-<DT>
-<TT>ntpversion 1 | 2 | 3 | 4</TT></DT>
-
-<DD>
-Sets the NTP version number which <TT>ntpq</TT> claims in packets. Defaults
-to 3, Note that mode 6 control messages (and modes, for that matter) didn't
-exist in NTP version 1. There appear to be no servers left which demand
-version 1.</DD>
-
-<DD>
-&nbsp;</DD>
-
-<DT>
-<TT>quit</TT></DT>
-
-<DD>
-Exit <TT>ntpq</TT>.</DD>
-
-<DD>
-&nbsp;</DD>
-
-<DT>
-<TT>passwd</TT></DT>
-
-<DD>
-This command prompts you to type in a password (which will not be echoed)
-which will be used to authenticate configuration requests. The password
-must correspond to the key configured for use by the NTP server for this
-purpose if such requests are to be successful.</DD>
-
-<DD>
-&nbsp;</DD>
-
-<DT>
-<TT>raw</TT></DT>
-
-<DD>
-Causes all output from query commands is printed as received from the remote
-server. The only formating/intepretation done on the data is to transform
-nonascii data into a printable (but barely understandable) form.</DD>
-
-<DD>
-&nbsp;</DD>
-
-<DT>
-<TT>timeout <I>millseconds</I></TT></DT>
-
-<DD>
-Specify a timeout period for responses to server queries. The default is
-about 5000 milliseconds. Note that since <TT>ntpq</TT> retries each query
-once after a timeout, the total waiting time for a timeout will be twice
-the timeout value set.</DD>
-</DL>
-
-<H4>
-Control Message Commands</H4>
-Each peer known to an NTP server has a 16 bit integer association identifier
-assigned to it. NTP control messages which carry peer variables must identify
-the peer the values correspond to by including its association ID. An association
-ID of 0 is special, and indicates the variables are system variables, whose
-names are drawn from a separate name space.
-
-<P>Control message commands result in one or more NTP mode 6 messages being
-sent to the server, and cause the data returned to be printed in some format.
-Most commands currently implemented send a single message and expect a
-single response. The current exceptions are the peers command, which will
-send a preprogrammed series of messages to obtain the data it needs, and
-the mreadlist and mreadvar commands, which will iterate over a range of
-associations.
-<DL>
-<DT>
-<TT>associations</TT></DT>
-
-<DD>
-Obtains and prints a list of association identifiers and peer statuses
-for in-spec peers of the server being queried. The list is printed in columns.
-The first of these is an index numbering the associations from 1 for internal
-use, the second the actual association identifier returned by the server
-and the third the status word for the peer. This is followed by a number
-of columns containing data decoded from the status word See the peers command
-for a decode of the <TT>condition</TT> field. Note that the data returned
-by the <TT>"associations"</TT> command is cached internally in <TT>ntpq</TT>.
-The index is then of use when dealing with stupid servers which use association
-identifiers which are hard for humans to type, in that for any subsequent
-commands which require an association identifier as an argument, the form
-and index may be used as an alternative.</DD>
-
-<DD>
-&nbsp;</DD>
-
-<DT>
-<TT>clockvar [<I>assocID</I>] [<I>variable_name</I> [ = <I>value</I> [...]
-] [...]</TT></DT>
-
-<DT>
-<TT>cv [<I>assocID</I>] [<I>variable_name</I> [ = <I>value</I> [...] ]
-[...]</TT></DT>
-
-<DD>
-Requests that a list of the server's clock variables be sent. Servers which
-have a radio clock or other external synchronization will respond positively
-to this. If the association identifier is omitted or zero the request is
-for the variables of the <TT>"system clock"</TT> and will generally get
-a positive response from all servers with a clock. If the server treats
-clocks as pseudo-peers, and hence can possibly have more than one clock
-connected at once, referencing the appropriate peer association ID will
-show the variables of a particular clock. Omitting the variable list will
-cause the server to return a default variable display.</DD>
-
-<DD>
-&nbsp;</DD>
-
-<DT>
-<TT>lassocations</TT></DT>
-
-<DD>
-Obtains and prints a list of association identifiers and peer statuses
-for all associations for which the server is maintaining state. This command
-differs from the <TT>"associations"</TT> command only for servers which
-retain state for out-of-spec client associations (i.e., fuzzballs). Such
-associations are normally omitted from the display when the <TT>"associations"</TT>
-command is used, but are included in the output of <TT>"lassociations"</TT>.</DD>
-
-<DD>
-&nbsp;</DD>
-
-<DT>
-<TT>lpassociations</TT></DT>
-
-<DD>
-Print data for all associations, including out-of-spec client associations,
-from the internally cached list of associations. This command differs from
-<TT>"passociations"</TT> only when dealing with fuzzballs.</DD>
-
-<DD>
-&nbsp;</DD>
-
-<DT>
-<TT>lpeers</TT></DT>
-
-<DD>
-Like R peers, except a summary of all associations for which the server
-is maintaining state is printed. This can produce a much longer list of
-peers from fuzzball servers.</DD>
-
-<DD>
-&nbsp;</DD>
-
-<DT>
-<TT>mreadlist <I>assocID</I> <I>assocID</I></TT></DT>
-
-<BR><TT>mrl <I>assocID</I> <I>assocID</I></TT>
-<DD>
-Like the <TT>readlist</TT> command, except the query is done for each of
-a range of (nonzero) association IDs. This range is determined from the
-association list cached by the most recent <TT>associations</TT> command.</DD>
-
-<DD>
-&nbsp;</DD>
-
-<DT>
-<TT>mreadvar <I>assocID</I> <I>assocID</I> [ <I>variable_name</I> [ = <I>value</I>
-[ ... ]</TT></DT>
-
-<BR><TT>mrv <I>assocID</I> <I>assocID</I> [ <I>variable_name</I> [ = <I>value</I>
-[ ... ]</TT>
-<DD>
-Like the <TT>readvar</TT> command, except the query is done for each of
-a range of (nonzero) association IDs. This range is determined from the
-association list cached by the most recent <TT>associations</TT> command.</DD>
-
-<DD>
-&nbsp;</DD>
-
-<DT>
-<TT>opeers</TT></DT>
-
-<DD>
-An old form of the <TT>peers</TT> command with the reference ID replaced
-by the local interface address.</DD>
-
-<DD>
-&nbsp;</DD>
-
-<DT>
-<TT>passociations</TT></DT>
-
-<DD>
-Prints association data concerning in-spec peers from the internally cached
-list of associations. This command performs identically to the <TT>"associations"</TT>
-except that it displays the internally stored data rather than making a
-new query.</DD>
-
-<DD>
-&nbsp;</DD>
-
-<DT>
-<TT>peers</TT></DT>
-
-<DD>
-Obtains a current list peers of the server, along with a summary of each
-peer's state. Summary information includes the address of the remote peer,
-the reference ID (0.0.0.0 if this is unknown), the stratum of the remote
-peer, the type of the peer (local, unicast, multicast or broadcast), when
-the last packet was received, the polling interval, in seconds, the reachability
-register, in octal, and the current estimated delay, offset and dispersion
-of the peer, all in milliseconds.</DD>
-
-<DD>
-&nbsp;</DD>
-
-<DD>
-The character in the left margin indicates the fate of this peer in the
-clock selection process. Folowing is a list of these characters, the pidgeon
-used in the <TT>rv</TT> command, and a short explanation of the condition
-revealed.</DD>
-
-<DD>
-&nbsp;</DD>
-
-<DD>
-<TT>space reject</TT></DD>
-
-<DL>
-<DD>
-The peer is discarded as unreachable, synchronized to this server (synch
-loop) or outrageous synchronization distance.</DD>
-
-<DD>
-&nbsp;</DD>
-</DL>
-
-<DD>
-<TT>x&nbsp;&nbsp;&nbsp;&nbsp; falsetick</TT></DD>
-
-<DL>
-<DD>
-The peer is discarded by the intersection algorithm as a falseticker.</DD>
-
-<DD>
-&nbsp;</DD>
-</DL>
-
-<DD>
-<TT>.&nbsp;&nbsp;&nbsp;&nbsp; excess</TT></DD>
-
-<DL>
-<DD>
-The peer is discarded as not among the first ten peers sorted by synchronization
-distance and so is probably a poor candidate for further consideration.</DD>
-
-<DD>
-&nbsp;</DD>
-</DL>
-
-<DD>
-<TT>-&nbsp;&nbsp;&nbsp;&nbsp; outlyer</TT></DD>
-
-<DL>
-<DD>
-The peer is discarded by the clustering algorithm as an outlyer.</DD>
-
-<DD>
-&nbsp;</DD>
-</DL>
-
-<DD>
-<TT>+&nbsp;&nbsp;&nbsp;&nbsp; candidat</TT></DD>
-
-<DL>
-<DD>
-The peer is a survivor and a candidate for the combining algorithm.</DD>
-
-<DD>
-&nbsp;</DD>
-</DL>
-
-<DD>
-<TT>#&nbsp;&nbsp;&nbsp;&nbsp; selected</TT></DD>
-
-<DL>
-<DD>
-The peer is a survivor, but not among the first six peers sorted by synchronization
-distance. If the assocation is ephemeral, it may be demobilized to conserve
-resources.</DD>
-
-<DD>
-&nbsp;</DD>
-</DL>
-
-<DD>
-<TT>*&nbsp;&nbsp;&nbsp;&nbsp; sys.peer</TT></DD>
-
-<DL>
-<DD>
-The peer has been declared the system peer and lends its variables to the
-system variables.</DD>
-</DL>
-
-<DD>
-<TT>&nbsp;</TT></DD>
-
-<DD>
-<TT>o&nbsp;&nbsp;&nbsp;&nbsp; pps.peer</TT></DD>
-
-<DL>
-<DD>
-The peer has been declared the system peer and lends its variables to the
-system variables. However, the actual system synchronization is derived
-from a pulse-per-second (PPS) signal, either indirectly via the PPS reference
-clock driver or directly via kernel interface.</DD>
-
-<DD>
-&nbsp;</DD>
-</DL>
-
-<DD>
-The <TT>flash</TT> variable is not defined in the NTP specification, but
-is included as a valuable debugging aid. It displays the results of the
-packet sanity checks defined in the NTP specification <TT>TEST1</TT> through
-<TT>TEST9</TT>. The bits for each test read in increasing sequency from
-the least significant bit and are defined as follows.</DD>
-
-<DD>
-&nbsp;</DD>
-
-<DD>
-The following <TT>TEST1</TT> through <TT>TEST4</TT> enumerate procedure
-errors. The packet timestamps may or may not be believed, but the remaining
-header data are ignored.</DD>
-
-<DL>
-<DD>
-&nbsp;</DD>
-</DL>
-
-<DD>
-<TT>TEST1</TT></DD>
-
-<DL>
-<DD>
-Duplicate packet. A copy from somewhere.</DD>
-</DL>
-
-<DL>
-<DD>
-&nbsp;</DD>
-</DL>
-
-<DD>
-<TT>TEST2</TT></DD>
-
-<DL>
-<DD>
-Bogus packet. It is not a reply to a message previously sent. This can
-happen when the NTP daemon is restarted and before a peer notices.</DD>
-
-<DD>
-&nbsp;</DD>
-</DL>
-
-<DD>
-<TT>TEST3</TT></DD>
-
-<DL>
-<DD>
-Unsynchronized. One or more timestamp fields are missing. This normally
-happens when the first packet from a peer is received.</DD>
-
-<DD>
-&nbsp;</DD>
-</DL>
-
-<DD>
-<TT>TEST4</TT></DD>
-
-<DL>
-<DD>
-Either peer delay or peer dispersion is greater than one second. Ya gotta
-be kidding.</DD>
-
-<DD>
-&nbsp;</DD>
-</DL>
-
-<DD>
-The following <TT>TEST5</TT> through <TT>TEST10</TT> ennumerate errors
-in the packet header. The packet is discarded without inspecting its contents.</DD>
-
-<DL>
-<DD>
-&nbsp;</DD>
-</DL>
-
-<DD>
-<TT>TEST5</TT></DD>
-
-<DL>
-<DD>
-Cryptographic authentication fails. See the <A HREF="authopt.htm">Authentication
-Options</A> page.</DD>
-
-<DD>
-&nbsp;</DD>
-</DL>
-
-<DD>
-<TT>TEST6</TT></DD>
-
-<DL>
-<DD>
-Peer is unsynchronized. Wind up its clock first.</DD>
-
-<DD>
-&nbsp;</DD>
-</DL>
-
-<DD>
-<TT>TEST7</TT></DD>
-
-<DL>
-<DD>
-Peer stratum is greater than 15. The peer is probably unsynchronized.</DD>
-
-<DD>
-&nbsp;</DD>
-</DL>
-
-<DD>
-<TT>TEST8</TT></DD>
-
-<DL>
-<DD>
-Either root delay or root dispersion is greater than one second. Too far
-from home.</DD>
-</DL>
-
-<DL>
-<DD>
-&nbsp;</DD>
-</DL>
-
-<DD>
-<TT>TEST9</TT></DD>
-
-<DL>
-<DD>
-Peer cryptographic authentication fails. Either the key identifier or key
-is wrong or somebody trashed our packet.</DD>
-
-<DD>
-&nbsp;</DD>
-</DL>
-
-<DD>
-<TT>TEST10</TT></DD>
-
-<DL>
-<DD>
-Access is denied. See the <A HREF="accopt.htm">Access Control Options</A>
-page.</DD>
-
-<DD>
-&nbsp;</DD>
-</DL>
-
-<DT>
-<TT>pstatus <I>assocID</I></TT></DT>
-
-<DD>
-Sends a read status request to the server for the given association. The
-names and values of the peer variables returned will be printed. Note that
-the status word from the header is displayed preceding the variables, both
-in hexidecimal and in pidgeon English.</DD>
-
-<DD>
-&nbsp;</DD>
-
-<DT>
-<TT>readlist [ <I>assocID</I> ]</TT></DT>
-
-<BR><TT>rl [ <I>assocID</I> ]</TT>
-<DD>
-Requests that the values of the variables in the internal variable list
-be returned by the server. If the association ID is omitted or is 0 the
-variables are assumed to be system variables. Otherwise they are treated
-as peer variables. If the internal variable list is empty a request is
-sent without data, which should induce the remote server to return a default
-display.</DD>
-
-<DD>
-&nbsp;</DD>
-
-<DT>
-<TT>readvar <I>assocID</I> <I>variable_name</I> [ = <I>value</I> ] [ ...
-]</TT></DT>
-
-<BR><TT>rv <I>assocID</I> [ <I>variable_name</I> [ = <I>value</I> ] [ ...
-]</TT>
-<DD>
-Requests that the values of the specified variables be returned by the
-server by sending a read variables request. If the association ID is omitted
-or is given as zero the variables are system variables, otherwise they
-are peer variables and the values returned will be those of the corresponding
-peer. Omitting the variable list will send a request with no data which
-should induce the server to return a default display.</DD>
-
-<DD>
-&nbsp;</DD>
-
-<DT>
-<TT>writevar <I>assocID</I> <I>variable_name</I> [ = <I>value</I> [ ...
-]</TT></DT>
-
-<DD>
-Like the readvar request, except the specified variables are written instead
-of read.</DD>
-
-<DD>
-&nbsp;</DD>
-
-<DT>
-<TT>writelist [ <I>assocID</I> ]</TT></DT>
-
-<DD>
-Like the readlist request, except the internal list variables are written
-instead of read.</DD>
-</DL>
-
-<H4>
-Bugs</H4>
-The peers command is non-atomic and may occasionally result in spurious
-error messages about invalid associations occurring and terminating the
-command. The timeout time is a fixed constant, which means you wait a long
-time for timeouts since it assumes sort of a worst case. The program should
-improve the timeout estimate as it sends queries to a particular host,
-but doesn't.&nbsp;
-<HR>
-<ADDRESS>
-David L. Mills (mills@udel.edu)</ADDRESS>
-
-</BODY>
-</HTML>
+<dd>The <tt>flash</tt> variable is a valuable debugging aid. It
+displays the results of the original sanity checks defined in the
+NTP specification RFC-1305 and additional ones added in NTP Version
+4. There are eleven tests called <tt>TEST1</tt> through <tt>
+TEST11</tt>. The tests are performed in a certain order designed to
+gain maximum diagnostic information while protecting against
+accidental or malicious errors. The <tt>flash</tt> variable is
+first initialized to zero. If after each set of tests one or more
+bits are set, the packet is discarded. 
+
+<p>Tests <tt>TEST4</tt> and <tt>TEST5</tt> check the access
+permissions and cryptographic message digest. If any bits are set
+after that, the packet is discarded. Tests <tt>TEST10</tt> and <tt>
+TEST11</tt> check the authentication state using Autokey public-key
+cryptography, as described in the <a href="authopt.htm">
+Authentication Options</a> page. If any bits are set and the
+association has previously been marked reachable, the packet is
+discarded; otherwise, the originate and receive timestamps are
+saved, as required by the NTP protocol, and processing
+continues.</p>
+
+<p>Tests <tt>TEST1</tt> through <tt>TEST3</tt> check the packet
+timestamps from which the offset and delay are calculated. If any
+bits are set, the packet is discarded; otherwise, the packet header
+variables are saved. Tests <tt>TEST6</tt> through <tt>TEST8</tt>
+check the health of the server. If any bits are set, the packet is
+discarded; otherwise, the offset and delay relative to the server
+are calculated and saved. Test <tt>TEST9</tt> checks the health of
+the association itself. If any bits are set, the packet is
+discarded; otherwise, the saved variables are passed to the clock
+filter and mitigation algorithms.</p>
+
+<p>The <tt>flash</tt> bits for each test read in increasing order
+from the least significant bit are defined as follows.</p>
+</dd>
+
+<dd>
+<dl>
+<dt><tt>TEST1</tt></dt>
+
+<dd>Duplicate packet. The packet is at best a casual retransmission
+and at worst a malicious replay.</dd>
+
+<dt><tt>TEST2</tt></dt>
+
+<dd>Bogus packet. The packet is not a reply to a message previously
+sent. This can happen when the NTP daemon is restarted and before
+somebody else notices.</dd>
+
+<dt><tt>TEST3</tt></dt>
+
+<dd>Unsynchronized. One or more timestamp fields are invalid. This
+normally happens when the first packet from a peer is
+received.</dd>
+
+<dt><tt>TEST4</tt></dt>
+
+<dd>Access is denied. See the <a href="accopt.htm">Access Control
+Options</a> page.</dd>
+
+<dt><tt>TEST5</tt></dt>
+
+<dd>Cryptographic authentication fails. See the <a href=
+"authopt.htm">Authentication Options</a> page.</dd>
+
+<dt><tt>TEST6</tt></dt>
+
+<dd>The server is unsynchronized. Wind up its clock first.</dd>
+
+<dt><tt>TEST7</tt></dt>
+
+<dd>The server stratum is at the maximum than 15. It is probably
+unsynchronized and its clock needs to be wound up.</dd>
+
+<dt><tt>TEST8</tt></dt>
+
+<dd>Either the root delay or dispersion is greater than one second,
+which is highly unlikely unless the peer is synchronized to
+Mars.</dd>
+
+<dt><tt>TEST9</tt></dt>
+
+<dd>Either the peer delay or dispersion is greater than one second,
+which is higly unlikely unless the peer is on Mars.</dd>
+
+<dt><tt>TEST10</tt></dt>
+
+<dd>The autokey protocol has detected an authentication failure.
+See the <a href="authopt.htm">Authentication Options</a> page.</dd>
+
+<dt><tt>TEST11</tt></dt>
+
+<dd>The autokey protocol has not verified the server or peer is
+authentic and has valid public key credentials. See the <a href=
+"authopt.htm">Authentication Options</a> page.</dd>
+
+<dt>Additional system variables used by the NTP Version 4 Autokey
+support include the following:</dt>
+
+<dd>
+<dl>
+<dt><tt>certificate <i>filestamp</i></tt></dt>
+
+<dd>Shows the NTP seconds when the certificate file was
+created.</dd>
+
+<dt><tt>hostname <i>host</i></tt></dt>
+
+<dd>Shows the name of the host as returned by the Unix <tt>
+gethostname()</tt> library function.</dd>
+
+<dt><tt>flags <i>hex</i></tt></dt>
+
+<dd>Shows the current flag bits, where the <tt><i>hex</i></tt> bits
+are interpreted as follows:</dd>
+
+<dd>
+<dl>
+<dt><tt>0x01</tt></dt>
+
+<dd>autokey enabled</dd>
+
+<dt><tt>0x02</tt></dt>
+
+<dd>RSA public/private key files present</dd>
+
+<dt><tt>0x04</tt></dt>
+
+<dd>PKI certificate file present</dd>
+
+<dt><tt>0x08</tt></dt>
+
+<dd>Diffie-Hellman parameters file present</dd>
+
+<dt><tt>0x10</tt></dt>
+
+<dd>NIST leapseconds table file present</dd>
+</dl>
+</dd>
+
+<dt><tt>leapseconds <i>filestamp</i></tt></dt>
+
+<dd>Shows the NTP seconds when the NIST leapseconds table file was
+created.</dd>
+
+<dt><tt>params <i>filestamp</i></tt></dt>
+
+<dd>Shows the NTP seconds when the Diffie-Hellman agreement
+parameter file was created.</dd>
+
+<dt><tt>publickey <i>filestamp</i></tt></dt>
+
+<dd>Shows the NTP seconds when the RSA public/private key files
+were created.</dd>
+
+<dt><tt>refresh <i>timestamp</i></tt></dt>
+
+<dd>Shows the NTP seconds when the public cryptographic values were
+refreshed and signed.</dd>
+
+<dt><tt>tai <i>offset</i></tt></dt>
+
+<dd>Shows the TAI-UTC offset in seconds obtained from the NIST
+leapseconds table.</dd>
+</dl>
+</dd>
+
+<dt>Additional peer variables used by the NTP Version 4 Autokey
+support include the following:</dt>
+
+<dd>
+<dl>
+<dt><tt>certificate <i>filestamp</i></tt></dt>
+
+<dd>Shows the NTP seconds when the certificate file was
+created.</dd>
+
+<dt><tt>flags <i>hex</i></tt></dt>
+
+<dd>Shows the current flag bits, where the <i>hex</i> bits are
+interpreted as in the system variable of the same name. The bits
+are set in the first autokey message received from the server and
+then reset as the associated data are obtained from the server and
+stored.</dd>
+
+<dt><tt>hcookie <i>hex</i></tt></dt>
+
+<dd>Shows the host cookie used in the key agreement algorithm.</dd>
+
+<dt><tt>initkey <i>key</i></tt></dt>
+
+<dd>Shows the initial key used by the key list generator in the
+autokey protocol.</dd>
+
+<dt><tt>initsequence <i>index</i></tt></dt>
+
+<dd>Shows the initial index used by the key list generator in the
+autokey protocol.</dd>
+
+<dt><tt>pcookie <i>hex</i></tt></dt>
+
+<dd>Specifies the peer cookie used in the key agreement
+algorithm.</dd>
+
+<dt><tt>timestamp <i>time</i></tt></dt>
+
+<dd>Shows the NTP seconds when the last autokey key list was
+generated and signed.</dd>
+</dl>
+</dd>
+</dl>
+</dd>
+
+<dt><tt>pstatus <i>assocID</i></tt></dt>
+
+<dd>Sends a read status request to the server for the given
+association. The names and values of the peer variables returned
+will be printed. Note that the status word from the header is
+displayed preceding the variables, both in hexidecimal and in
+pidgeon English.</dd>
+
+<dt><tt>readlist [ <i>assocID</i> ]</tt><br>
+<tt>rl [ <i>assocID</i> ]</tt></dt>
+
+<dd>Requests that the values of the variables in the internal
+variable list be returned by the server. If the association ID is
+omitted or is 0 the variables are assumed to be system variables.
+Otherwise they are treated as peer variables. If the internal
+variable list is empty a request is sent without data, which should
+induce the remote server to return a default display.</dd>
+
+<dt><tt>readvar <i>assocID</i> <i>variable_name</i> [ = <i>
+value</i> ] [ ...]</tt><br>
+<tt>rv <i>assocID</i> [ <i>variable_name</i> [ = <i>value</i> ] [
+...]</tt></dt>
+
+<dd>Requests that the values of the specified variables be returned
+by the server by sending a read variables request. If the
+association ID is omitted or is given as zero the variables are
+system variables, otherwise they are peer variables and the values
+returned will be those of the corresponding peer. Omitting the
+variable list will send a request with no data which should induce
+the server to return a default display.</dd>
+
+<dt><tt>writevar <i>assocID</i> <i>variable_name</i> [ = <i>
+value</i> [ ...]</tt></dt>
+
+<dd>Like the readvar request, except the specified variables are
+written instead of read.</dd>
+
+<dt><tt>writelist [ <i>assocID</i> ]</tt></dt>
+
+<dd>Like the readlist request, except the internal list variables
+are written instead of read.</dd>
+</dl>
+
+<h4>Bugs</h4>
+
+<p>The peers command is non-atomic and may occasionally result in
+spurious error messages about invalid associations occurring and
+terminating the command. The timeout time is a fixed constant,
+which means you wait a long time for timeouts since it assumes sort
+of a worst case. The program should improve the timeout estimate as
+it sends queries to a particular host, but doesn't.</p>
+
+<hr>
+<a href="index.htm"><img align="left" src="pic/home.gif" alt=
+"gif"></a> 
+
+<address><a href="mailto:mills@udel.edu">David L. Mills
+&lt;mills@udel.edu&gt;</a></address>
+</body>
+</html>
+

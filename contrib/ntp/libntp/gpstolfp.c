@@ -7,7 +7,7 @@
  */
 #include "ntp_fp.h"
 
-#define GPSORIGIN	(unsigned)(2524953600L)  /* NTP origin - GPS origin in seconds */
+#define GPSORIGIN	ULONG_CONST(2524953600)	/* NTP origin - GPS origin in seconds */
 #define SECSPERWEEK	(unsigned)(604800)	/* seconds per week - GPS tells us about weeks */
 #define GPSWRAP		990	/* assume week count less than this in the previous epoch */
 

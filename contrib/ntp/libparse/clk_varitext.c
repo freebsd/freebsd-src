@@ -19,9 +19,6 @@
  * 
  */
 
-#include <sys/types.h>
-#include <sys/time.h>
-
 #include "ntp_fp.h"
 #include "ntp_unixtime.h"
 #include "ntp_calendar.h"
@@ -29,10 +26,10 @@
 #include "parse.h"
 
 #ifndef PARSESTREAM
-#include "ntp_stdlib.h"
-#include <stdio.h>
+# include "ntp_stdlib.h"
+# include <stdio.h>
 #else
-#include "sys/parsestreams.h"
+# include "sys/parsestreams.h"
 extern void printf P((const char *, ...));
 #endif
 
@@ -172,7 +169,7 @@ inp_varitext(
   struct varitext *t = (struct varitext *)parseio->parse_pdata;
   int    rtc;
 
-  parseprintf(DD_PARSE, ("inp_varitext(0x%x, 0x%x, ...)\n", (int)parseio, (int)ch));
+  parseprintf(DD_PARSE, ("inp_varitext(0x%lx, 0x%x, ...)\n", (long)parseio, ch));
 
   if (!t) 
     return PARSE_INP_SKIP;	/* local data not allocated - sigh! */
