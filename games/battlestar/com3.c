@@ -41,7 +41,7 @@ dig()
 {
 	if (testbit(inven,SHOVEL)){
 		puts("OK");
-		time++;
+		gtime++;
 		switch(position){
 			case 144:		/* copse near beach */
 				if (!notes[DUG]){
@@ -176,7 +176,7 @@ drink()
 		CUMBER = MAXCUMBER;
 		for (n=0; n < NUMOFINJURIES; n++)
 			injuries[n] = 0;
-		time++;
+		gtime++;
 		zzz();
 	}
 	else
@@ -199,7 +199,7 @@ shoot()
 			for (n=0; objsht[value][n]; n++);
 			if (testbit(location[position].objects,value)){
 				clearbit(location[position].objects,value);
-				time++;
+				gtime++;
 				printf("The %s explode%s\n",objsht[value],(objsht[value][n-1]=='s' ? (objsht[value][n-2]=='s' ? "s." : ".") : "s."));
 				if (value == BOMB)
 					die();
@@ -214,7 +214,7 @@ shoot()
 			    /* special cases with their own return()'s */
 
 		if (wordnumber <= wordcount && wordtype[wordnumber] == NOUNS){
-			time++;
+			gtime++;
 			switch(wordvalue[wordnumber]){
 
 				case DOOR:
@@ -278,7 +278,7 @@ shoot()
 						clearbit(location[position].objects,TIMER);
 						setbit(location[position].objects,DEADTIME);
 					}
-					else puts("What old timer?");
+					else puts("What old gtimer?");
 					break;
 				case MAN:
 					if (testbit(location[position].objects,MAN)){
