@@ -138,8 +138,21 @@
     <sect3 id="net-proto">
       <title>Network Protocols</title>
 
-      <para></para>
+      <para>&man.ipfw.4; rules now support comma-separated address lists
+        (like <literal>1.2.3.4, 5.6.7.8/30, 9.10.11.12/22</literal>),
+        and allows spaces after commas to make lists of addresses more readable.</para>
 
+      <para>&man.ipfw.4; rules now support C++-style comment.
+        The comment is stored together with the rule and appears using
+        &man.ipfw.8; <literal>show</literal> command.</para>
+
+      <para>&man.ipfw.8; now allows to modify &man.ipfw.4; rules in set 31,
+        which was read-only and used for the default rules.
+        They can be deleted by <command>ipfw delete set 31</command>
+        command but are not deleted
+        by <command>ipfw flush</command> command.
+        So this implements a flexible form of <quote>persistent
+          rules</quote>.  More details can be found in &man.ipfw.8;.</para>
     </sect3>
 
     <sect3 id="disks">
@@ -184,6 +197,12 @@
       primary group, or group list to use inside the chroot
       environment via the <option>-u</option>, <option>-g</option>,
       and <option>-G</option> options respectively.</para>
+
+    <para>&man.ipfw.8; <literal>list</literal> and <literal>show</literal>
+      command now support ranges of rule numbers.</para>
+
+    <para>&man.ipfw.8; now supports <option>-n</option> flag
+      to test the syntax of commands without actually changing anything.</para>
 
     <para>&man.uudecode.1; and &man.b64decode.1; now support a
       <option>-r</option> flag for decoding raw (or broken) files that
