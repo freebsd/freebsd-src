@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: ibcs2_isc.c,v 1.8 1997/02/22 09:33:21 peter Exp $
  */
 
 #include <sys/param.h>
@@ -50,7 +50,7 @@ extern struct sysent isc_sysent[];
 int
 ibcs2_isc(struct proc *p, struct ibcs2_isc_args *uap, int *retval)
 {
-	struct trapframe *tf = (struct trapframe *)p->p_md.md_regs;
+	struct trapframe *tf = p->p_md.md_regs;
         struct sysent *callp;
         u_int code;             
 
