@@ -211,6 +211,7 @@ malloc(size, type, flags)
 		atomic_add_int(&malloc_nowait_count, 1);
 		if ((malloc_nowait_count % malloc_failure_rate) == 0) {
 			atomic_add_int(&malloc_failure_count, 1);
+			t_malloc_fail = time_uptime;
 			return (NULL);
 		}
 	}
