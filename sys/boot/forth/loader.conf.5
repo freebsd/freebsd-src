@@ -43,7 +43,7 @@ described in
 .Pp
 The file
 .Pa /boot/loader.rc
-must have the follow two lines for
+must contain the following two lines for
 .Nm
 to be automatically processed:
 .Pp
@@ -155,7 +155,13 @@ Name of the bitmap to be loaded. Any other name can be used.
 .Pq Dq NO
 If set to
 .Dq YES ,
-will load the splash screen module, making possible to display a bitmap
+will load the splash screen module, making possible to display a bmp image
+on the screen while booting.
+.It Va splash_pcx_load
+.Pq Dq NO
+If set to
+.Dq YES ,
+will load the splash screen module, making possible to display a pcx image
 on the screen while booting.
 .It Va userconfig_script_load
 .Pq Dq NO
