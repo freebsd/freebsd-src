@@ -239,6 +239,9 @@ if_clone_list(struct if_clonereq *ifcr)
 	struct if_clone *ifc;
 	int buf_count, count, err = 0;
 
+	if (ifcr->ifcr_count < 0)
+		return (EINVAL);
+
 	IF_CLONERS_LOCK();
 	/*
 	 * Set our internal output buffer size.  We could end up not
@@ -261,12 +264,6 @@ if_clone_list(struct if_clonereq *ifcr)
 		/* Just asking how many there are. */
 		goto done;
 	}
-
-	if (ifcr->ifcr_count < 0) {
-		err = EINVAL;
-		goto done;
-	}
-
 	count = (if_cloners_count < buf_count) ?
 	    if_cloners_count : buf_count;
 
