@@ -113,18 +113,19 @@ struct sym_pci_chip {
 #define FE_RAM		(1<<14)   /* On chip RAM present */
 #define FE_CLK80	(1<<15)   /* Board clock is 80 MHz */
 #define FE_RAM8K	(1<<16)   /* On chip RAM sized 8Kb */
-#define FE_64BIT	(1<<17)   /* Supports 64-bit addressing */
+#define FE_64BIT	(1<<17)   /* 64-bit PCI BUS interface */
 #define FE_IO256	(1<<18)   /* Requires full 256 bytes in PCI space */
 #define FE_NOPM		(1<<19)   /* Scripts handles phase mismatch */
 #define FE_LEDC		(1<<20)   /* Hardware control of LED */
 #define FE_ULTRA3	(1<<21)	  /* Ultra 3 - 80 Mtrans/sec DT */
-#define FE_PCI66	(1<<22)	  /* 66MHz PCI support */
+#define FE_66MHZ	(1<<22)	  /* 66MHz PCI support */
 #define FE_CRC		(1<<23)	  /* CRC support */
 #define FE_DIFF		(1<<24)	  /* SCSI HVD support */
 #define FE_DFBC		(1<<25)	  /* Have DFBC register */
 #define FE_LCKFRQ	(1<<26)	  /* Have LCKFRQ */
 #define FE_C10		(1<<27)	  /* Various C10 core (mis)features */
 #define FE_U3EN		(1<<28)	  /* U3EN bit usable */
+#define FE_DAC		(1<<29)	  /* Support PCI DAC (64 bit addressing) */
 
 #define FE_CACHE_SET	(FE_ERL|FE_CLSE|FE_WRIE|FE_ERMP)
 #define FE_CACHE0_SET	(FE_CACHE_SET & ~FE_ERL)
