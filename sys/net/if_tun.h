@@ -38,8 +38,11 @@ struct tun_softc {
 	struct	selinfo	tun_wsel;	/* write select (not used) */
 };
 
-/* Default maximum packet size */
+/* Maximum transmit packet size (default) */
 #define	TUNMTU		1500
+
+/* Maximum receive packet size (hard limit) */
+#define	TUNMRU		16384
 
 struct tuninfo {
 	int	baudrate;		/* linespeed */
