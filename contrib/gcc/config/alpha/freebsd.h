@@ -36,12 +36,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #undef WCHAR_UNSIGNED
 #define WCHAR_UNSIGNED 0
 
-/* Provide a CPP_SPEC appropriate for FreeBSD.  Current we just deal with
-   the GCC option `-posix'.  */
-
-#undef CPP_SPEC
-#define CPP_SPEC "%{posix:-D_POSIX_SOURCE}"
-
 /* Provide an ASM_SPEC appropriate for a FreeBSD/Alpha target.  This differs
    from the generic FreeBSD ASM_SPEC in that no special handling of PIC is
    necessary on the Alpha.  */
@@ -76,7 +70,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #undef CPP_PREDEFINES
 #define CPP_PREDEFINES							\
-  "-D__alpha__ -D__alpha -D__ELF__ -Acpu(alpha) -Amachine(alpha)"	\
+  "-D__alpha__ -D__alpha -Acpu(alpha) -Amachine(alpha)"			\
   CPP_FBSD_PREDEFINES
 
 #undef LINK_SPEC
