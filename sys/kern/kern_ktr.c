@@ -125,7 +125,6 @@ ktr_tracepoint(u_int mask, char *format, u_long arg1, u_long arg2, u_long arg3,
 #ifdef KTR_EXTEND
 	strncpy(entry->ktr_filename, filename, KTRFILENAMESIZE - 1);
 	entry->ktr_filename[KTRFILENAMESIZE - 1] = '\0';
-	snprintf(entry->ktr_filename, KTRFILENAMESIZE, "%s", __FILE__);
 	entry->ktr_line = line;
 	entry->ktr_cpu = KTR_CPU;
 	va_start(ap, format);
