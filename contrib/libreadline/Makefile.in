@@ -14,7 +14,7 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111 USA.
 RL_LIBRARY_VERSION = @LIBVERSION@
 RL_LIBRARY_NAME = readline
 
@@ -60,6 +60,8 @@ CPPFLAGS = @CPPFLAGS@
 DEFS = @DEFS@
 LOCAL_DEFS = @LOCAL_DEFS@
 
+TERMCAP_LIB = @TERMCAP_LIB@
+
 # For libraries which include headers from other libraries.
 INCLUDES = -I. -I$(srcdir) -I$(includedir)
 
@@ -88,7 +90,7 @@ CSOURCES = $(srcdir)/readline.c $(srcdir)/funmap.c $(srcdir)/keymaps.c \
 # The header files for this library.
 HSOURCES = readline.h rldefs.h chardefs.h keymaps.h history.h histlib.h \
 	   posixstat.h posixdir.h posixjmp.h tilde.h rlconf.h rltty.h \
-	   ansi_stdlib.h tcap.h rlstdc.h
+	   ansi_stdlib.h tcap.h rlstdc.h xmalloc.h rlprivate.h rlshell.h
 
 HISTOBJ = history.o histexpand.o histfile.o histsearch.o shell.o 
 TILDEOBJ = tilde.o
@@ -115,6 +117,8 @@ INSTALLED_HEADERS = readline.h chardefs.h keymaps.h history.h tilde.h \
 
 all: static
 
+everything: static shared examples
+
 static: $(STATIC_LIBS)
 
 libreadline.a: $(OBJECTS)
@@ -127,8 +131,8 @@ libhistory.a: $(HISTOBJ) xmalloc.o
 	$(AR) $(ARFLAGS) $@ $(HISTOBJ) xmalloc.o
 	-test -n "$(RANLIB)" && $(RANLIB) $@
 
-readline: $(OBJECTS) readline.h rldefs.h chardefs.h
-	$(CC) $(CCFLAGS) -o $@ ./examples/rl.c ./libreadline.a -ltermcap
+readline: $(OBJECTS) readline.h rldefs.h chardefs.h ./libreadline.a
+	$(CC) $(CCFLAGS) -o $@ ./examples/rl.c ./libreadline.a ${TERMCAP_LIB}
 
 Makefile makefile: config.status $(srcdir)/Makefile.in
 	CONFIG_FILES=Makefile CONFIG_HEADERS= $(SHELL) ./config.status
@@ -147,8 +151,8 @@ stamp-h: config.status $(srcdir)/config.h.in
 	CONFIG_FILES= CONFIG_HEADERS=config.h ./config.status
 	echo > $@
 
-$(srcdir)/configure: $(srcdir)/configure.in	## Comment-me-out in distribution
-	cd $(srcdir) && autoconf	## Comment-me-out in distribution
+#$(srcdir)/configure: $(srcdir)/configure.in	## Comment-me-out in distribution
+#	cd $(srcdir) && autoconf	## Comment-me-out in distribution
 
 
 shared:	force
@@ -165,10 +169,18 @@ examples: force
 
 force:
 
-install: installdirs $(STATIC_LIBS)
+install-headers: installdirs ${INSTALLED_HEADERS}
 	for f in ${INSTALLED_HEADERS}; do \
 		$(INSTALL_DATA) $(srcdir)/$$f $(includedir)/readline ; \
 	done
+
+uninstall-headers:
+	-test -n "$(includedir)" && cd $(includedir)/readline && \
+		${RM} ${INSTALLED_HEADERS}
+
+maybe-uninstall-headers: uninstall-headers
+
+install: installdirs $(STATIC_LIBS) install-headers
 	-$(MV) $(libdir)/libreadline.a $(libdir)/libreadline.old
 	$(INSTALL_DATA) libreadline.a $(libdir)/libreadline.a
 	-test -n "$(RANLIB)" && $(RANLIB) -t $(libdir)/libreadline.a
@@ -184,16 +196,14 @@ installdirs: $(srcdir)/support/mkdirs
 	-$(SHELL) $(srcdir)/support/mkdirs $(includedir) \
 		$(includedir)/readline $(libdir) $(infodir) $(man3dir)
 
-uninstall:
-	-test -n "$(includedir)" && cd $(includedir)/readline && \
-		${RM} ${INSTALLED_HEADERS}
+uninstall: uninstall-headers
 	-test -n "$(libdir)" && cd $(libdir) && \
 		${RM} libreadline.a libreadline.old libhistory.a libhistory.old $(SHARED_LIBS)
 
-install-shared: installdirs shared
+install-shared: installdirs install-headers shared
 	-( cd shlib ; ${MAKE} ${MFLAGS} install )
 
-uninstall-shared:
+uninstall-shared: maybe-uninstall-headers
 	-( cd shlib; ${MAKE} ${MFLAGS} uninstall )
 
 TAGS:	force
@@ -204,6 +214,7 @@ tags:	force
 
 clean:	force
 	$(RM) $(OBJECTS) $(STATIC_LIBS)
+	$(RM) readline readline.exe
 	-( cd shlib && $(MAKE) $(MFLAGS) $@ )
 	-( cd doc && $(MAKE) $(MFLAGS) $@ )
 	-( cd examples && $(MAKE) $(MFLAGS) $@ )
@@ -231,7 +242,7 @@ installcheck:
 dist:   force
 	@echo Readline distributions are created using $(srcdir)/support/mkdist.
 	@echo Here is a sample of the necessary commands:
-	@echo bash $(srcdir)/support/mkdist -m $(srcdir)/MANIFEST -s $(srcdir) -r $(RL_LIBRARY_NAME)-$(RL_LIBRARY_VERSION)
+	@echo bash $(srcdir)/support/mkdist -m $(srcdir)/MANIFEST -s $(srcdir) -r $(RL_LIBRARY_NAME) $(RL_LIBRARY_VERSION)
 	@echo tar cf $(RL_LIBRARY_NAME)-${RL_LIBRARY_VERSION}.tar ${RL_LIBRARY_NAME}-$(RL_LIBRARY_VERSION)
 	@echo gzip $(RL_LIBRARY_NAME)-$(RL_LIBRARY_VERSION).tar
 
@@ -290,6 +301,8 @@ macro.o: readline.h keymaps.h chardefs.h tilde.h
 macro.o: history.h rlstdc.h
 nls.o: ansi_stdlib.h
 nls.o: rldefs.h ${BUILD_DIR}/config.h rlconf.h
+nls.o: readline.h keymaps.h chardefs.h tilde.h  
+nls.o: history.h rlstdc.h  
 parens.o: rlconf.h
 parens.o: ${BUILD_DIR}/config.h
 parens.o: readline.h keymaps.h chardefs.h tilde.h rlstdc.h
@@ -327,6 +340,54 @@ vi_mode.o: readline.h keymaps.h chardefs.h tilde.h
 vi_mode.o: history.h ansi_stdlib.h rlstdc.h
 xmalloc.o: ${BUILD_DIR}/config.h
 xmalloc.o: ansi_stdlib.h
+
+bind.o: rlshell.h
+histfile.o: rlshell.h
+nls.o: rlshell.h
+readline.o: rlshell.h
+shell.o: rlshell.h
+terminal.o: rlshell.h
+histexpand.o: rlshell.h
+
+bind.o: rlprivate.h
+callback.o: rlprivate.h
+complete.o: rlprivate.h
+display.o: rlprivate.h
+input.o: rlprivate.h
+isearch.o: rlprivate.h
+kill.o: rlprivate.h
+macro.o: rlprivate.h
+nls.o: rlprivate.h   
+parens.o: rlprivate.h
+readline.o: rlprivate.h
+rltty.o: rlprivate.h 
+search.o: rlprivate.h
+signals.o: rlprivate.h
+terminal.o: rlprivate.h
+undo.o: rlprivate.h
+util.o: rlprivate.h
+vi_mode.o: rlprivate.h
+
+bind.o: xmalloc.h
+complete.o: xmalloc.h
+display.o: xmalloc.h
+funmap.o: xmalloc.h
+histexpand.o: xmalloc.h
+histfile.o: xmalloc.h
+history.o: xmalloc.h
+input.o: xmalloc.h
+isearch.o: xmalloc.h
+keymaps.o: xmalloc.h
+kill.o: xmalloc.h
+macro.o: xmalloc.h
+readline.o: xmalloc.h
+savestring.o: xmalloc.h
+search.o: xmalloc.h
+shell.o: xmalloc.h
+tilde.o: xmalloc.h
+tilde.o: xmalloc.h
+util.o: xmalloc.h
+vi_mode.o: xmalloc.h
 
 readline.o: $(srcdir)/readline.c
 vi_mode.o: $(srcdir)/vi_mode.c

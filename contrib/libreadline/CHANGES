@@ -1,3 +1,111 @@
+This document details the changes between this version, readline-4.1,
+and the previous version, readline-4.0.
+
+1.  Changes to Readline
+
+a.  Changed the HTML documents so that the table-of-contents is no longer
+    a separate file.
+
+b.  Changes to the shared object configuration for: Irix 5.x, Irix 6.x,
+    OSF/1.
+
+c.  The shared library major and minor versions are now constructed
+    automatically by configure and substituted into the makefiles.
+
+d.  It's now possible to install the shared libraries separately from the
+    static libraries.
+
+e.  The history library tries to truncate the history file only if it is a
+    regular file.
+
+f.  A bug that caused _rl_dispatch to address negative array indices on
+    systems with signed chars was fixed.
+
+g.  rl-yank-nth-arg now leaves the history position the same as when it was
+    called.
+
+h.  Changes to the completion code to handle MS-DOS drive-letter:pathname
+    filenames.
+
+i.  Completion is now case-insensitive by default on MS-DOS.
+
+j.  Fixes to the history file manipulation code for MS-DOS.
+
+k.  Readline attempts to bind the arrow keys to appropriate defaults on MS-DOS.
+
+l.  Some fixes were made to the redisplay code for better operation on MS-DOS.
+
+m.  The quoted-insert code will now insert tty special chars like ^C.
+
+n.  A bug was fixed that caused the display code to reference memory before
+    the start of the prompt string.
+
+o.  More support for __EMX__ (OS/2).
+
+p.  A bug was fixed in readline's signal handling that could cause infinite
+    recursion in signal handlers.
+
+q.  A bug was fixed that caused the point to be less than zero when rl_forward
+    was given a very large numeric argument.
+
+r.  The vi-mode code now gets characters via the application-settable value
+    of rl_getc_function rather than calling rl_getc directly.
+
+s.  The history file code now uses O_BINARY mode when reading and writing
+    the history file on cygwin32.
+
+t.  Fixed a bug in the redisplay code for lines with more than 256 line
+    breaks.
+
+u.  A bug was fixed which caused invisible character markers to not be
+    stripped from the prompt string if the terminal was in no-echo mode.
+    
+v.  Readline no longer tries to get the variables it needs for redisplay 
+    from the termcap entry if the calling application has specified its
+    own redisplay function.  Readline treats the terminal as `dumb' in
+    this case.
+
+w.  Fixes to the SIGWINCH code so that a multiple-line prompt with escape
+    sequences is redrawn correctly.
+
+x.  Changes to the install and install-shared targets so that the libraries
+    and header files are installed separately.
+
+2.  New Features in Readline
+
+a.  A new Readline `user manual' is in doc/rluserman.texinfo.
+
+b.  Parentheses matching is now always compiled into readline, and enabled
+    or disabled when the value of the `blink-matching-paren' variable is
+    changed.
+
+c.  MS-DOS systems now use ~/_inputrc as the last-ditch inputrc filename.
+
+d.  MS-DOS systems now use ~/_history as the default history file.
+
+e.  history-search-{forward,backward} now leave the point at the end of the
+    line when the string to search for is empty, like
+    {reverse,forward}-search-history.
+
+f.  history-search-{forward,backward} now leave the last history line found
+    in the readline buffer if the second or subsequent search fails.
+
+g.  New function for use by applications:  rl_on_new_line_with_prompt, used
+    when an application displays the prompt itself before calling readline().
+
+h.  New variable for use by applications:  rl_already_prompted.  An application
+    that displays the prompt itself before calling readline() must set this to
+    a non-zero value.
+
+i.  A new variable, rl_gnu_readline_p, always 1.  The intent is that an
+    application can verify whether or not it is linked with the `real'
+    readline library or some substitute.
+
+j.  Per Bothner's `rlfe' (pronounced `Ralphie') readline front-end program
+    is included in the examples subdirectory, though it is not built
+    by default.
+
+-------------------------------------------------------------------------------
 This document details the changes between this version, readline-4.0,
 and the previous version, readline-2.2.
 

@@ -7,7 +7,7 @@
 
    Readline is free software; you can redistribute it and/or modify it
    under the terms of the GNU General Public License as published by the
-   Free Software Foundation; either version 1, or (at your option) any
+   Free Software Foundation; either version 2, or (at your option) any
    later version.
 
    Readline is distributed in the hope that it will be useful, but
@@ -17,7 +17,8 @@
 
    You should have received a copy of the GNU General Public License
    along with Readline; see the file COPYING.  If not, write to the Free
-   Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. */
+   Software Foundation, 59 Temple Place, Suite 330, Boston, MA 02111 USA. */
+#define READLINE_LIBRARY
 
 #if defined (HAVE_CONFIG_H)
 #include <config.h>
@@ -31,13 +32,21 @@
 #  include "ansi_stdlib.h"
 #endif /* HAVE_STDLIB_H */
 
-static void memory_error_and_abort ();
+#include "xmalloc.h"
 
 /* **************************************************************** */
 /*								    */
 /*		   Memory Allocation and Deallocation.		    */
 /*								    */
 /* **************************************************************** */
+
+static void
+memory_error_and_abort (fname)
+     char *fname;
+{
+  fprintf (stderr, "%s: out of virtual memory\n", fname);
+  exit (2);
+}
 
 /* Return a pointer to free()able block of memory large enough
    to hold BYTES number of bytes.  If the memory cannot be allocated,
@@ -56,7 +65,7 @@ xmalloc (bytes)
 
 char *
 xrealloc (pointer, bytes)
-     char *pointer;
+     PTR_T pointer;
      int bytes;
 {
   char *temp;
@@ -68,19 +77,11 @@ xrealloc (pointer, bytes)
   return (temp);
 }
 
-static void
-memory_error_and_abort (fname)
-     char *fname;
-{
-  fprintf (stderr, "%s: out of virtual memory\n", fname);
-  exit (2);
-}
-
 /* Use this as the function to call when adding unwind protects so we
    don't need to know what free() returns. */
 void
 xfree (string)
-     char *string;
+     PTR_T string;
 {
   if (string)
     free (string);

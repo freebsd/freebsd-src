@@ -11,8 +11,8 @@ MANIFEST	f
 INSTALL		f
 CHANGELOG	f
 CHANGES		f
+USAGE		f
 aclocal.m4	f
-acconfig.h	f
 config.h.in	f
 configure	f
 configure.in	f
@@ -28,11 +28,14 @@ posixstat.h	f
 readline.h	f
 rlconf.h	f
 rldefs.h	f
+rlprivate.h	f
+rlshell.h	f
 rlstdc.h	f
 rltty.h		f
 rlwinsize.h	f
 tcap.h		f
 tilde.h		f
+xmalloc.h	f
 bind.c		f
 complete.c	f
 display.c	f
@@ -77,6 +80,7 @@ doc/manvers.texinfo	f
 doc/rlman.texinfo	f
 doc/rltech.texinfo	f
 doc/rluser.texinfo	f
+doc/rluserman.texinfo	f
 doc/hist.texinfo	f
 doc/hstech.texinfo	f
 doc/hsuser.texinfo	f
@@ -84,8 +88,10 @@ doc/readline.3		f
 doc/texi2dvi		f
 doc/texi2html		f
 examples/Makefile.in	f
+examples/excallback.c	f
 examples/fileman.c	f
 examples/manexamp.c	f
+examples/rlfe.c		f
 examples/rltest.c	f
 examples/rl.c		f
 examples/rlversion.c	f
@@ -94,10 +100,14 @@ examples/Inputrc	f
 # formatted documentation, from MANIFEST.doc
 doc/readline.ps		f
 doc/history.ps		f
+doc/rluserman.ps	f
 doc/readline.dvi	f
 doc/history.dvi		f
+doc/rluserman.dvi	f
 doc/readline.info	f
 doc/history.info	f
+doc/rluserman.info	f
 doc/readline.html	f
 doc/history.html	f
+doc/rluserman.html	f
 doc/readline.0		f
