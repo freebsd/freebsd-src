@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_elf.c,v 1.37 1998/10/11 19:22:07 jdp Exp $
+ *	$Id: imgact_elf.c,v 1.38 1998/10/13 08:24:40 dg Exp $
  */
 
 #include "opt_rlimit.h"
@@ -663,7 +663,7 @@ elf_freebsd_fixup(long **stack_base, struct image_params *imgp)
 	imgp->auxargs = NULL;
 
 	(*stack_base)--;
-	**stack_base = (long)imgp->argc;
+	suword(*stack_base, (long) imgp->argc);
 	return 0;
 } 
 
