@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.56 1995/07/29 11:40:18 bde Exp $
+ * $Id: vfs_bio.c,v 1.57 1995/08/06 12:10:39 davidg Exp $
  */
 
 /*
@@ -541,11 +541,12 @@ vfs_bio_awrite(struct buf * bp)
 	struct buf *bpa;
 
 	s = splbio();
-	if( vp->v_mount && (vp->v_flag & VVMIO) &&
-	    	(bp->b_flags & (B_CLUSTEROK | B_INVAL)) == B_CLUSTEROK) {
+	if (vp->v_mount && (vp->v_flag & VVMIO) &&
+	    (bp->b_flags & (B_CLUSTEROK | B_INVAL)) == B_CLUSTEROK) {
 		int size = vp->v_mount->mnt_stat.f_iosize;
+		int maxcl = MAXPHYS / size;
 
-		for (i = 1; i < MAXPHYS / size; i++) {
+		for (i = 1; i < maxcl; i++) {
 			if ((bpa = incore(vp, lblkno + i)) &&
 			    ((bpa->b_flags & (B_BUSY | B_DELWRI | B_CLUSTEROK | B_INVAL)) ==
 			    (B_DELWRI | B_CLUSTEROK)) &&
@@ -924,7 +925,7 @@ allocbuf(struct buf * bp, int size)
 {
 
 	int s;
-	int newbsize, mbsize;
+	int newbsize;
 	int i;
 
 	if (!(bp->b_flags & B_BUSY))
@@ -934,7 +935,6 @@ allocbuf(struct buf * bp, int size)
 		/*
 		 * Just get anonymous memory from the kernel
 		 */
-		mbsize = ((size + DEV_BSIZE - 1) / DEV_BSIZE) * DEV_BSIZE;
 		newbsize = round_page(size);
 
 		if (newbsize < bp->b_bufsize) {
