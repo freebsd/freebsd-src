@@ -65,6 +65,24 @@ __FBSDID("$FreeBSD$");
 
 #define SDL(s) ((struct sockaddr_dl *)s)
 
+#define	GET3BYTE(V, A, L)	do {				\
+	(V) = ((A)[0] << 16) | ((A)[1] << 8) | (A)[2];		\
+	(A) += 3;						\
+	(L) -= 3;						\
+    } while (0)
+
+#define GET2BYTE(V, A, L)	do {				\
+	(V) = ((A)[0] << 8) | (A)[1];				\
+	(A) += 2;						\
+	(L) -= 2;						\
+    } while (0)
+
+#define GET1BYTE(V, A, L)	do {				\
+	(V) = *(A)++;						\
+	(L)--;							\
+    } while (0)
+
+
 /*
  * atm_rtrequest: handle ATM rt request (in support of generic code)
  *   inputs: "req" = request code
@@ -136,96 +154,59 @@ atm_rtrequest(int req, struct rtentry *rt, struct rt_addrinfo *info)
 
 		if (alen == 4) {
 			/* old type address */
-			op.param.flags = *addr++;
-			op.param.vpi = *addr++;
-			op.param.vci = *addr++ << 8;
-			op.param.vci |= *addr++;
+			GET1BYTE(op.param.flags, addr, alen);
+			GET1BYTE(op.param.vpi, addr, alen);
+			GET2BYTE(op.param.vci, addr, alen);
 			op.param.traffic = ATMIO_TRAFFIC_UBR;
 			op.param.aal = (op.param.flags & ATM_PH_AAL5) ?
 			    ATMIO_AAL_5 : ATMIO_AAL_0;
 		} else {
 			/* new address */
 			op.param.aal = ATMIO_AAL_5;
-			/* 1. byte LLC/SNAP flag */
-			op.param.flags = *addr++ & ATM_PH_LLCSNAP;
-			alen--;
-			/* 2.-4. byte VPI/VCI */
-			op.param.vpi = *addr++;
-			op.param.vci = *addr++ << 8;
-			op.param.vci |= *addr++;
-			alen -= 3;
-			/* 5. byte: traffic */
-			op.param.traffic = *addr++;
-			alen--;
+
+			GET1BYTE(op.param.flags, addr, alen);
+			op.param.flags &= ATM_PH_LLCSNAP;
+
+			GET1BYTE(op.param.vpi, addr, alen);
+			GET2BYTE(op.param.vci, addr, alen);
+
+			GET1BYTE(op.param.traffic, addr, alen);
+
 			switch (op.param.traffic) {
 
 			  case ATMIO_TRAFFIC_UBR:
-				if (alen >= 3) {
-					op.param.tparam.pcr = *addr++ << 16;
-					op.param.tparam.pcr = *addr++ <<  8;
-					op.param.tparam.pcr = *addr++ <<  0;
-					alen -= 3;
-				}
+				if (alen >= 3)
+					GET3BYTE(op.param.tparam.pcr,
+					    addr, alen);
 				break;
 
 			  case ATMIO_TRAFFIC_CBR:
 				if (alen < 3)
 					goto bad_param;
-				op.param.tparam.pcr = *addr++ << 16;
-				op.param.tparam.pcr = *addr++ <<  8;
-				op.param.tparam.pcr = *addr++ <<  0;
-				alen -= 3;
+				GET3BYTE(op.param.tparam.pcr, addr, alen);
 				break;
 
 			  case ATMIO_TRAFFIC_VBR:
 				if (alen < 3 * 3)
 					goto bad_param;
-				op.param.tparam.pcr = *addr++ << 16;
-				op.param.tparam.pcr = *addr++ <<  8;
-				op.param.tparam.pcr = *addr++ <<  0;
-				alen -= 3;
-				op.param.tparam.scr = *addr++ << 16;
-				op.param.tparam.scr = *addr++ <<  8;
-				op.param.tparam.scr = *addr++ <<  0;
-				alen -= 3;
-				op.param.tparam.mbs = *addr++ << 16;
-				op.param.tparam.mbs = *addr++ <<  8;
-				op.param.tparam.mbs = *addr++ <<  0;
-				alen -= 3;
+				GET3BYTE(op.param.tparam.pcr, addr, alen);
+				GET3BYTE(op.param.tparam.scr, addr, alen);
+				GET3BYTE(op.param.tparam.mbs, addr, alen);
 				break;
 
 			  case ATMIO_TRAFFIC_ABR:
-				if (alen < 4 * 3 + 1 * 2 + 5 + 1)
+				if (alen < 4 * 3 + 2 + 1 * 2 + 3)
 					goto bad_param;
-				op.param.tparam.pcr = *addr++ << 16;
-				op.param.tparam.pcr = *addr++ <<  8;
-				op.param.tparam.pcr = *addr++ <<  0;
-				alen -= 3;
-				op.param.tparam.mcr = *addr++ << 16;
-				op.param.tparam.mcr = *addr++ <<  8;
-				op.param.tparam.mcr = *addr++ <<  0;
-				alen -= 3;
-				op.param.tparam.icr = *addr++ << 16;
-				op.param.tparam.icr = *addr++ <<  8;
-				op.param.tparam.icr = *addr++ <<  0;
-				alen -= 3;
-				op.param.tparam.tbe = *addr++ << 16;
-				op.param.tparam.tbe = *addr++ <<  8;
-				op.param.tparam.tbe = *addr++ <<  0;
-				alen -= 3;
-				op.param.tparam.nrm = *addr++;
-				alen--;
-				op.param.tparam.trm = *addr++;
-				alen--;
-				op.param.tparam.adtf = *addr++ <<  8;
-				op.param.tparam.adtf = *addr++ <<  0;
-				alen -= 2;
-				op.param.tparam.rif = *addr++;
-				alen--;
-				op.param.tparam.rdf = *addr++;
-				alen--;
-				op.param.tparam.cdf = *addr++;
-				alen--;
+				GET3BYTE(op.param.tparam.pcr, addr, alen);
+				GET3BYTE(op.param.tparam.mcr, addr, alen);
+				GET3BYTE(op.param.tparam.icr, addr, alen);
+				GET3BYTE(op.param.tparam.tbe, addr, alen);
+				GET1BYTE(op.param.tparam.nrm, addr, alen);
+				GET1BYTE(op.param.tparam.trm, addr, alen);
+				GET2BYTE(op.param.tparam.adtf, addr, alen);
+				GET1BYTE(op.param.tparam.rif, addr, alen);
+				GET1BYTE(op.param.tparam.rdf, addr, alen);
+				GET1BYTE(op.param.tparam.cdf, addr, alen);
 				break;
 
 			  default:
