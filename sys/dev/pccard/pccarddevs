@@ -286,8 +286,9 @@ product INTEL PRO100LAN56	0x110a Intel EtherExpress PRO/100 LAN Modem
 
 /* Intersil */
 /* OEMs sell these things under different marketing names */
-product INTERSIL DWL650		0x7110 Dlink DWL650
-product INTERSIL MA401RA	0x7300 Netgear MA401RA
+product INTERSIL ISL37100P	0x7100 ISL37100P
+product INTERSIL ISL37110P	0x7110 ISL37110P
+product INTERSIL ISL37300P	0x7300 ISL37300P
 
 /* I-O DATA */
 product IODATA2 WNB11PCM	0x0002 I-O DATA WN-B11/PCM
