@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: machdep.c,v 1.40 1999/04/26 08:57:51 peter Exp $
+ *	$Id: machdep.c,v 1.41 1999/05/11 18:55:18 dt Exp $
  */
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -1076,8 +1076,10 @@ alpha_init(pfn, ptb, bim, bip, biv)
 	 */
 #ifdef DDB
 	kdb_init();
-	if (boothowto & RB_KDB)
-		Debugger("Boot flags requested debugger");
+	if (boothowto & RB_KDB) {
+		printf("Boot flags requested debugger\n");
+		breakpoint();
+	}
 #endif
 
 	/*
