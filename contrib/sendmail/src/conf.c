@@ -285,6 +285,8 @@ setdefaults(e)
 	DontLockReadFiles = TRUE;
 	DoubleBounceAddr = "postmaster";
 	MaxHeadersLength = MAXHDRSLEN;
+	MaxMimeHeaderLength = MAXLINE;
+	MaxMimeFieldLength = MaxMimeHeaderLength / 2;
 	snprintf(buf, sizeof buf, "%s%sdead.letter",
 		_PATH_VARTMP,
 		_PATH_VARTMP[sizeof _PATH_VARTMP - 2] == '/' ? "" : "/");
