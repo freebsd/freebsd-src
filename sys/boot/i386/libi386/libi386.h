@@ -62,6 +62,8 @@ extern struct devdesc	currdev;	/* our current device */
 
 /* exported devices XXX rename? */
 extern struct devsw biosdisk;
+extern struct devsw pxedisk;
+extern struct fs_ops pxe_fsops;
 
 u_int32_t		bd_getbigeom(int bunit);		/* return geometry in bootinfo format */
 extern int		bd_bios2unit(int biosdev);		/* xlate BIOS device -> biosdisk unit */
@@ -85,4 +87,4 @@ extern int		bi_getboothowto(char *kargs);
 extern vm_offset_t	bi_copyenv(vm_offset_t addr);
 extern int		bi_load(char *args, int *howtop, int *bootdevp, vm_offset_t *bip);
 
-
+extern void		pxe_enable(void *pxeinfo);
