@@ -202,17 +202,31 @@ ncp_sock_rselect(struct socket *so,struct proc *p, struct timeval *tv, int event
 	}
 	timo = 0;
 	PROC_LOCK(p);
-retry:
 	p->p_flag |= P_SELECT;
+	PROC_UNLOCK(p);
 	error = ncp_poll(so, events);
+	PROC_LOCK(p);
 	if (error) {
 		error = 0;
 		goto done;
 	}
 	if (tv) {
 		getmicrouptime(&rtv);
-		if (timevalcmp(&rtv, &atv, >=))
+		if (timevalcmp(&rtv, &atv, >=)) {
+			/*
+			 * An event of our interest may occur during locking a process.
+			 * In order to avoid missing the event that occured during locking
+			 * the process, test P_SELECT and rescan file descriptors if
+			 * necessary.
+			 */
+			if ((p->p_flag & P_SELECT) == 0) {
+				p->p_flag |= P_SELECT;
+				PROC_UNLOCK(p);
+				error = ncp_poll(so, events);
+				PROC_LOCK(p);
+			}
 			goto done;
+		}
 		ttv=atv;
 		timevalsub(&ttv, &rtv);
 		timo = tvtohz(&ttv);
