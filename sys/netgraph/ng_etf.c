@@ -122,6 +122,7 @@ static struct ng_type typestruct = {
 	NULL,
 	ng_etf_connect,
 	ng_etf_rcvdata,
+	ng_etf_rcvdata,
 	ng_etf_disconnect,
 	ng_etf_cmdlist
 };
@@ -176,10 +177,10 @@ ng_etf_findentry(etf_p etfp, u_int16_t ethertype)
  * i.e. the reference count is incremented for us already.
  */
 static int
-ng_etf_constructor(node_p node)
+ng_etf_constructor(node_p *nodep)
 {
 	etf_p privdata;
-	int i;
+	int error, i;
 
 	/* Initialize private descriptor */
 	MALLOC(privdata, etf_p, sizeof(*privdata), M_NETGRAPH_ETF,
@@ -190,9 +191,14 @@ ng_etf_constructor(node_p node)
 		LIST_INIT((privdata->hashtable + i));
 	}
 
+	/* Call the 'generic' (ie, superclass) node constructor */
+	if ((error = ng_make_node_common(&typestruct, nodep))) {
+		FREE(privdata, M_NETGRAPH);
+		return (error);
+	}
 	/* Link structs together; this counts as our one reference to node */
-	NG_NODE_SET_PRIVATE(node, privdata);
-	privdata->node = node;
+	NG_NODE_SET_PRIVATE((*nodep), privdata);
+	privdata->node = *nodep;
 	return (0);
 }
 
@@ -249,14 +255,13 @@ ng_etf_newhook(node_p node, hook_p hook, const char *name)
  * (so that old userland programs could continue to work).
  */
 static int
-ng_etf_rcvmsg(node_p node, item_p item, hook_p lasthook)
+ng_etf_rcvmsg(node_p node, struct ng_mesg *msg,
+    const char *retaddr, struct ng_mesg **rptr)
 {
 	const etf_p etfp = NG_NODE_PRIVATE(node);
 	struct ng_mesg *resp = NULL;
 	int error = 0;
-	struct ng_mesg *msg;
 
-	NGI_GET_MSG(item, msg);
 	/* Deal with message according to cookie and command */
 	switch (msg->header.typecookie) {
 	case NGM_ETF_COOKIE: 
@@ -343,7 +348,7 @@ ng_etf_rcvmsg(node_p node, item_p item, hook_p lasthook)
 	}
 
 	/* Take care of synchronous response, if any */
-	NG_RESPOND_MSG(error, node, item, resp);
+	NG_RESPOND_MSG(error, node, retaddr, resp, rptr);
 	/* Free the message and return */
 	NG_FREE_MSG(msg);
 	return(error);
@@ -365,17 +370,16 @@ ng_etf_rcvmsg(node_p node, item_p item, hook_p lasthook)
  * in the connect() method. 
  */
 static int
-ng_etf_rcvdata(hook_p hook, item_p item )
+ng_etf_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 {
 	const etf_p etfp = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 	struct ether_header *eh;
 	int error = 0;
-	struct mbuf *m;
 	u_int16_t ethertype;
 	struct filter *fil;
 
 	if (NG_HOOK_PRIVATE(hook) == NULL) { /* Shouldn't happen but.. */
-		NG_FREE_ITEM(item);
+		NG_FREE_DATA(m, meta);
 	}
 
 	/* 
@@ -385,11 +389,10 @@ ng_etf_rcvdata(hook_p hook, item_p item )
 	 */
 
 	/* Make sure we have an entire header */
-	NGI_GET_M(item, m);
 	if (m->m_len < sizeof(*eh) ) {
 		m = m_pullup(m, sizeof(*eh));
 		if (m == NULL) {
-			NG_FREE_ITEM(item);
+			NG_FREE_META(meta);
 			return(EINVAL);
 		}
 	}
@@ -405,9 +408,9 @@ ng_etf_rcvdata(hook_p hook, item_p item )
 	if (hook == etfp->downstream_hook.hook) {
 		etfp->packets_in++;
 		if (fil && fil->match_hook) {
-			NG_FWD_NEW_DATA(error, item, fil->match_hook, m);
+			NG_SEND_DATA(error, fil->match_hook, m, meta);
 		} else {
-			NG_FWD_NEW_DATA(error, item,etfp->nomatch_hook.hook, m);
+			NG_SEND_DATA(error, etfp->nomatch_hook.hook, m, meta);
 		}
 	} else {
 		/* 
@@ -418,11 +421,10 @@ ng_etf_rcvdata(hook_p hook, item_p item )
 		 */
 		if ((fil && (fil->match_hook != hook))
 		|| ((fil == NULL) && (hook != etfp->nomatch_hook.hook))) {
-			NG_FREE_ITEM(item);
-			NG_FREE_M(m);
+			NG_FREE_DATA(m, meta);
 			return (EPROTOTYPE);
 		}
-		NG_FWD_NEW_DATA( error, item, etfp->downstream_hook.hook, m);
+		NG_SEND_DATA( error, etfp->downstream_hook.hook, m, meta);
 		if (error == 0) {
 			etfp->packets_out++;
 		}
@@ -490,7 +492,7 @@ ng_etf_disconnect(hook_p hook)
 
 	if ((NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0)
 	&& (NG_NODE_IS_VALID(NG_HOOK_NODE(hook)))) /* already shutting down? */
-		ng_rmnode_self(NG_HOOK_NODE(hook));
+		ng_rmnode(NG_HOOK_NODE(hook));
 	return (0);
 }
 
