@@ -51,7 +51,7 @@ int semop(struct thread *td, struct semop_args *uap);
 #endif
 
 static struct sem_undo *semu_alloc(struct thread *td);
-static int semundo_adjust(struct thread *td, struct sem_undo **supptr, 
+static int semundo_adjust(struct thread *td, struct sem_undo **supptr,
 		int semid, int semnum, int adjval);
 static void semundo_clear(int semid, int semnum);
 
@@ -527,7 +527,7 @@ __semctl(td, uap)
 		semaptr = &sema[semid];
 		sema_mtxp = &sema_mtx[semid];
 		mtx_lock(sema_mtxp);
-		if ((semaptr->sem_perm.mode & SEM_ALLOC) == 0 ) {
+		if ((semaptr->sem_perm.mode & SEM_ALLOC) == 0) {
 			error = EINVAL;
 			goto done2;
 		}

@@ -395,7 +395,7 @@ done2:
 	return (error);
 }
 
-int 
+int
 shmat(td, uap)
 	struct thread *td;
 	struct shmat_args *uap;
