@@ -41,15 +41,30 @@ extern const union __nan_un {
 #define	NAN		(__nan.__uf)
 
 /* Symbolic constants to classify floating point numbers. */
-#define	FP_INFINITE	1
-#define	FP_NAN		2
-#define	FP_NORMAL	3
-#define	FP_SUBNORMAL	4
-#define	FP_ZERO		5
+#define	FP_INFINITE	0x01
+#define	FP_NAN		0x02
+#define	FP_NORMAL	0x04
+#define	FP_SUBNORMAL	0x08
+#define	FP_ZERO		0x10
 #define	fpclassify(x) \
     ((sizeof (x) == sizeof (float)) ? __fpclassifyf(x) \
     : (sizeof (x) == sizeof (double)) ? __fpclassifyd(x) \
     : __fpclassifyl(x))
+
+#define	isfinite(x)	(fpclassify(x) & (FP_INFINITE|FP_NAN) == 0)
+#define	isinf(x)	(fpclassify(x) == FP_INFINITE)
+#define	isnan(x)	(fpclassify(x) == FP_NAN)
+#define	isnanf(x)      	isnan(x)
+#define	isnormal(x)	(fpclassify(x) == FP_NORMAL)
+
+#define	isgreater(x, y)		(!isunordered((x), (y)) && (x) > (y))
+#define	isgreaterequal(x, y)	(!isunordered((x), (y)) && (x) >= (y))
+#define	isless(x, y)		(!isunordered((x), (y)) && (x) < (y))
+#define	islessequal(x, y)	(!isunordered((x), (y)) && (x) <= (y))
+#define	islessgreater(x, y)	(!isunordered((x), (y)) && \
+					((x) > (y) || (y) > (x)))
+#define	isunordered(x, y)	(isnan(x) || isnan(y))
+
 #define	signbit(x)	__signbit(x)
 
 typedef	__double_t	double_t;
@@ -145,10 +160,10 @@ __BEGIN_DECLS
 /*
  * ANSI/POSIX
  */
-int	__fpclassifyd(double);
-int	__fpclassifyf(float);
-int	__fpclassifyl(long double);
-int	__signbit(double);
+int	__fpclassifyd(double) __pure2;
+int	__fpclassifyf(float) __pure2;
+int	__fpclassifyl(long double) __pure2;
+int	__signbit(double) __pure2;
 
 double	acos(double);
 double	asin(double);
@@ -187,8 +202,6 @@ double	erfc(double) __pure2;
 int	finite(double) __pure2;
 double	gamma(double);
 double	hypot(double, double);
-int	isinf(double) __pure2;
-int	isnan(double) __pure2;
 double	j0(double);
 double	j1(double);
 double	jn(int, double);
@@ -274,7 +287,6 @@ float	erfcf(float) __pure2;
 int	finitef(float) __pure2;
 float	gammaf(float);
 float	hypotf(float, float) __pure2;
-int	isnanf(float) __pure2;
 float	j0f(float);
 float	j1f(float);
 float	jnf(int, float);

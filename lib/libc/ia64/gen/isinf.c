@@ -27,12 +27,17 @@
  * rights to redistribute these changes.
  */
 
+/* For binary compat; to be removed in FreeBSD 6.0. */
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <machine/ieee.h>
 #include <math.h>
+
+#undef isnan
+#undef isinf
 
 int
 isnan(d)
