@@ -55,7 +55,7 @@ static const char rcsid[] =
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 
-#include <errno.h>
+#include <dirent.h>
 #include <fcntl.h>
 #include <nlist.h>
 #include <paths.h>
@@ -106,15 +106,15 @@ off_t	dumplo;				/* where dump starts on dumpdev */
 int	dumpmag;			/* magic number in dump */
 int	dumpsize;			/* amount of memory dumped */
 
-char	*kernel;
+char	*kernel;			/* user-specified kernel */
 char	*savedir;			/* directory to save dumps in */
-char	*ddname;			/* name of dump device */
+char	ddname[MAXPATHLEN];		/* name of dump device */
 dev_t	dumpdev;			/* dump device */
 int	dumpfd;				/* read/write descriptor on char dev */
 time_t	now;				/* current date */
-char	panic_mesg[1024];
-int	panicstr;
-char	vers[1024];
+char	panic_mesg[1024];		/* panic message */
+int	panicstr;		        /* flag: dump was caused by panic */
+char	vers[1024];			/* version of kernel that crashed */
 
 int	clear, compress, force, verbose;	/* flags */
 
@@ -124,7 +124,7 @@ void	 clear_dump __P((void));
 void	 DumpRead __P((int fd, void *bp, int size, off_t off, int flag));
 void	 DumpWrite __P((int fd, void *bp, int size, off_t off, int flag));
 int	 dump_exists __P((void));
-char    *find_dev __P((dev_t));
+void     find_dev __P((dev_t));
 int	 get_crashtime __P((void));
 void	 get_dumpsize __P((void));
 void	 kmem_setup __P((void));
@@ -226,8 +226,7 @@ kmem_setup()
 	 * the same!)
 	 */
 	if ((nlist(getbootfile(), current_nl)) == -1)
-		syslog(LOG_ERR, "%s: nlist: %s", getbootfile(),
-		       strerror(errno));
+		syslog(LOG_ERR, "%s: nlist: %m", getbootfile());
 	for (i = 0; cursyms[i] != -1; i++)
 		if (current_nl[cursyms[i]].n_value == 0) {
 			syslog(LOG_ERR, "%s: %s not in namelist",
@@ -237,7 +236,7 @@ kmem_setup()
 
 	dump_sys = kernel ? kernel : getbootfile();
 	if ((nlist(dump_sys, dump_nl)) == -1)
-		syslog(LOG_ERR, "%s: nlist: %s", dump_sys, strerror(errno));
+		syslog(LOG_ERR, "%s: nlist: %m", dump_sys);
 	for (i = 0; dumpsyms[i] != -1; i++)
 		if (dump_nl[dumpsyms[i]].n_value == 0) {
 			syslog(LOG_ERR, "%s: %s not in namelist",
@@ -266,7 +265,7 @@ kmem_setup()
 		    (long long)dumplo, kdumplo, DEV_BSIZE);
 	Lseek(kmem, (off_t)current_nl[X_DUMPMAG].n_value, L_SET);
 	(void)Read(kmem, &dumpmag, sizeof(dumpmag));
-	ddname = find_dev(dumpdev);
+	find_dev(dumpdev);
 	dumpfd = Open(ddname, O_RDWR);
 	fp = fdopen(kmem, "r");
 	if (fp == NULL) {
@@ -304,17 +303,24 @@ check_kmem()
 	}
 }
 
+/*
+ * Clear the magic number in the dump header.
+ */
 void
 clear_dump()
 {
-	long newdumplo;
+	int newdumpmag;
 
-	newdumplo = 0;
-	DumpWrite(dumpfd, &newdumplo, sizeof(newdumplo),
+	newdumpmag = 0;
+	DumpWrite(dumpfd, &newdumpmag, sizeof(newdumpmag),
 	    (off_t)(dumplo + ok(dump_nl[X_DUMPMAG].n_value)), L_SET);
 	close(dumpfd);
 }
 
+/*
+ * Check if a dump exists by looking for a magic number in the dump
+ * header.
+ */
 int
 dump_exists()
 {
@@ -334,6 +340,9 @@ dump_exists()
 
 char buf[1024 * 1024];
 
+/*
+ * Save the core dump.
+ */
 void
 save_core()
 {
@@ -351,7 +360,7 @@ save_core()
 		goto err1;
 	if (fgets(buf, sizeof(buf), fp) == NULL) {
 		if (ferror(fp))
-err1:			syslog(LOG_WARNING, "%s: %s", path, strerror(errno));
+err1:			syslog(LOG_WARNING, "%s: %m", path);
 		bounds = 0;
 	} else
 		bounds = atoi(buf);
@@ -373,7 +382,7 @@ err1:			syslog(LOG_WARNING, "%s: %s", path, strerror(errno));
 	else
 		fp = fopen(path, "w");
 	if (fp == NULL) {
-		syslog(LOG_ERR, "%s: %s", path, strerror(errno));
+		syslog(LOG_ERR, "%s: %m", path);
 		exit(1);
 	}
 	(void)umask(oumask);
@@ -398,8 +407,7 @@ err1:			syslog(LOG_WARNING, "%s: %s", path, strerror(errno));
 		}
 		nw = fwrite(buf, 1, nr, fp);
 		if (nw != nr) {
-			syslog(LOG_ERR, "%s: %s",
-			    path, strerror(nw == 0 ? EIO : errno));
+			syslog(LOG_ERR, "%s: %m", path);
 err2:			syslog(LOG_WARNING,
 			    "WARNING: vmcore may be incomplete");
 			(void)printf("\n");
@@ -418,7 +426,7 @@ err2:			syslog(LOG_WARNING,
 	else
 		fp = fopen(path, "w");
 	if (fp == NULL) {
-		syslog(LOG_ERR, "%s: %s", path, strerror(errno));
+		syslog(LOG_ERR, "%s: %m", path);
 		exit(1);
 	}
 	syslog(LOG_NOTICE, "writing %skernel to %s",
@@ -426,16 +434,14 @@ err2:			syslog(LOG_WARNING,
 	while ((nr = read(ifd, buf, sizeof(buf))) > 0) {
 		nw = fwrite(buf, 1, nr, fp);
 		if (nw != nr) {
-			syslog(LOG_ERR, "%s: %s",
-			    path, strerror(nw == 0 ? EIO : errno));
+			syslog(LOG_ERR, "%s: %m", path);
 			syslog(LOG_WARNING,
 			    "WARNING: kernel may be incomplete");
 			exit(1);
 		}
 	}
 	if (nr < 0) {
-		syslog(LOG_ERR, "%s: %s",
-		    kernel ? kernel : getbootfile(), strerror(errno));
+		syslog(LOG_ERR, "%s: %m", kernel ? kernel : getbootfile());
 		syslog(LOG_WARNING,
 		    "WARNING: kernel may be incomplete");
 		exit(1);
@@ -444,22 +450,67 @@ err2:			syslog(LOG_WARNING,
 	close(ifd);
 }
 
-char *
+/*
+ * Verify that the specified device node exists and matches the
+ * specified device.
+ */
+int
+verify_dev(name, dev)
+	char *name;
+	register dev_t dev;
+{
+	struct stat sb;
+
+	if (lstat(name, &sb) == -1)
+		return (-1);
+	if (!S_ISCHR(sb.st_mode) || sb.st_rdev != dev)
+		return (-1);
+	return (0);
+}
+
+/*
+ * Find the dump device.
+ *
+ *  1) try devname(3); see if it returns something sensible
+ *  2) scan /dev for the desired node
+ *  3) as a last resort, try to create the node we need
+ */
+void
 find_dev(dev)
 	register dev_t dev;
 {
-	char *dn;
+	struct dirent *ent;
+	char *dn, *dnp;
+	DIR *d;
 
+	strcpy(ddname, _PATH_DEV);
+	dnp = ddname + sizeof _PATH_DEV - 1;
 	if ((dn = devname(dev, S_IFCHR)) != NULL) {
-		if (asprintf(&dn, "/dev/%s", dn) != -1)
-			return dn;
-		syslog(LOG_ERR, "insufficient memory");
-	} else {
-		syslog(LOG_ERR, "can't find device %d/%d", major(dev), minor(dev));
+		strcpy(dnp, dn);
+		if (verify_dev(ddname, dev) == 0)
+			return;
 	}
+	if ((d = opendir(_PATH_DEV)) != NULL) {
+		while ((ent = readdir(d))) {
+			strcpy(dnp, ent->d_name);
+			if (verify_dev(ddname, dev) == 0) {
+				closedir(d);
+				return;
+			}
+		}
+		closedir(d);
+	}
+	strcpy(dnp, "dump");
+	if (mknod(ddname, S_IFCHR|S_IRUSR|S_IWUSR, dev) == 0)
+		return;
+	syslog(LOG_ERR, "can't find device %d/%#x", major(dev), minor(dev));
 	exit(1);
 }
 
+/*
+ * Extract the date and time of the crash from the dump header, and
+ * make sure it looks sane (within one week of current date and time).
+ */
 int
 get_crashtime()
 {
@@ -481,6 +532,9 @@ get_crashtime()
 	return (1);
 }
 
+/*
+ * Extract the size of the dump from the dump header.
+ */
 void
 get_dumpsize()
 {
@@ -490,6 +544,10 @@ get_dumpsize()
 	dumpsize *= getpagesize();
 }
 
+/*
+ * Check that sufficient space is available on the disk that holds the
+ * save directory.
+ */
 int
 check_space()
 {
@@ -658,7 +716,7 @@ Write(fd, bp, size)
 	int n;
 
 	if ((n = write(fd, bp, size)) < size) {
-		syslog(LOG_ERR, "write: %s", strerror(n == -1 ? errno : EIO));
+		syslog(LOG_ERR, "write: %m");
 		exit(1);
 	}
 }
