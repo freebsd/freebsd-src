@@ -238,13 +238,6 @@ Create_Chunk_DWIM(struct disk *d, const struct chunk *parent , u_long size,
  * enough is used.
  */
 
-int
-MakeDev(struct chunk *c, const char *path);
-
-int
-MakeDevDisk(struct disk *d, const char *path);
-/* Make device nodes for all chunks on this disk */
-
 char *
 ShowChunkFlags(struct chunk *c);
 /* Return string to show flags. */
