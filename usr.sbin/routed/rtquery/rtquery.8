@@ -1,0 +1,79 @@
+.Dd April 9, 1996
+.Dt RTQUERY 8
+.Os BSD 4.4
+.Sh NAME
+.Nm rtquery
+.Nd query routing daemons for their routing tables
+.Sh SYNOPSIS
+.Nm
+.Op Fl np1
+.Op Fl 1 Ar timeout
+.Op Fl r Ar addr
+.Ar host ...
+.Sh DESCRIPTION
+.Nm Rtquery
+is used to query a network routing daemon,
+.Xr routed 8
+or
+.Xr gated 8 ,
+for its routing table by sending a
+.Em request
+or
+.Em poll
+command.  The routing information in any routing
+.Em response
+packets returned is displayed numerically and symbolically.
+.Pp
+.Em Rtquery
+by default uses the
+.Em request
+command.
+When the
+.B \-p
+option is specified,
+.Nm rtquery
+uses the
+.Em poll
+command, which is an
+undocumented extension to the RIP specification supported by
+.IR gated (1M).
+When querying
+.IR gated (1M),
+the
+.I poll
+command is preferred over the
+.I request
+command because the response is not subject to Split Horizon and/or
+Poisioned Reverse.
+.Pp
+Options supported by
+.Nm rtquery :
+.Bl -tag -width Ds
+.It Fl n
+Normally network and host numbers are displayed both symbolically
+and numerically.
+The
+.Fl n
+option displays only the numeric network and host numbers.
+.It Fl p
+Uses the
+.Em poll
+command to request full routing information from
+.Xr gated 8 ,
+This is an undocumented extension supported only by
+.Xr gated 8 .
+.It Fl 1
+query using RIP version 1 instead of RIP version 2.
+.It Fl w Ar timeout
+changes the delay for an answer from each host.
+By default, each host is given 15 seconds to respond.
+.It Fl r Ar addr
+ask about the route to destination
+.Em parms
+.Sh SEE ALSO
+.Xr routed 8,
+.Xr gated 8,
+.br
+RFC\ 1058 - Routing Information Protocol, RIPv1
+.br
+RFC\ 1723 - Routing Information Protocol, RIPv2
