@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.17 1995/02/21 12:06:06 davidg Exp $
+ * $Id: vm_glue.c,v 1.18 1995/03/28 07:58:53 bde Exp $
  */
 
 #include <sys/param.h>
@@ -82,8 +82,6 @@
 #include <machine/cpu.h>
 
 extern char kstack[];
-int avefree = 0;		/* XXX */
-int readbuffers = 0;		/* XXX allow kgdb to read kernel buffer pool */
 
 /* vm_map_t upages_map; */
 
@@ -289,15 +287,6 @@ vm_init_limits(p)
 	p->p_rlimit[RLIMIT_RSS].rlim_cur = ptoa(rss_limit);
 	p->p_rlimit[RLIMIT_RSS].rlim_max = RLIM_INFINITY;
 }
-
-#ifdef DEBUG
-int enableswap = 1;
-int swapdebug = 0;
-
-#define	SDB_FOLLOW	1
-#define SDB_SWAPIN	2
-#define SDB_SWAPOUT	4
-#endif
 
 void
 faultin(p)
@@ -564,11 +553,13 @@ thread_wakeup(event)
 }
 #endif
 
+#ifdef DDB
+
 /*
  * DEBUG stuff
  */
 
-int indent = 0;
+int indent;
 
 #include <machine/stdarg.h>	/* see subr_prf.c */
 
@@ -594,3 +585,4 @@ iprintf(fmt /* , va_alist */ )
 	printf("%r", fmt, ap);
 	va_end(ap);
 }
+#endif /* DDB */

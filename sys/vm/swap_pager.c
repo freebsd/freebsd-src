@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.31 1995/03/19 14:29:24 davidg Exp $
+ * $Id: swap_pager.c,v 1.32 1995/03/22 05:12:18 davidg Exp $
  */
 
 /*
@@ -885,8 +885,6 @@ swap_pager_ridpages(m, count, reqpage)
 		if (i != reqpage)
 			swap_pager_freepage(m[i]);
 }
-
-int swapwritecount = 0;
 
 /*
  * swap_pager_iodone1 is the completion routine for both reads and async writes
