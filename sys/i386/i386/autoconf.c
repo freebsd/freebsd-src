@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.88 1998/03/09 08:35:33 msmith Exp $
+ *	$Id: autoconf.c,v 1.89 1998/03/15 04:42:23 msmith Exp $
  */
 
 /*
@@ -457,8 +457,8 @@ setroot()
 	adaptor = B_ADAPTOR(bootdev);
 	unit    = B_UNIT(bootdev);
 	slice   = B_SLICE(bootdev);
-	if ((slice < BASE_SLICE) || (slice > MAX_SLICES))
-		slice = BASE_SLICE;
+	if ((slice < BASE_SLICE) || (slice >= MAX_SLICES))
+		slice = COMPATABILITY_SLICE;
 	if (majdev > sizeof(devname) / sizeof(devname[0]))
 		return;
 	if (majdev == FDMAJOR) {
@@ -467,7 +467,7 @@ setroot()
 	}
 	else {
 		part = (bootdev >> B_PARTITIONSHIFT) & B_PARTITIONMASK;
-		mindev = (slice << 16) + (unit << PARTITIONSHIFT) + part;
+		mindev = dkmakeminor(unit, slice, part);
 	}
 	orootdev = rootdev;
 	rootdev = makedev(majdev, mindev);
