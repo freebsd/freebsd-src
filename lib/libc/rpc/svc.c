@@ -88,8 +88,8 @@ static struct svc_callout {
 extern rwlock_t svc_lock;
 extern rwlock_t svc_fd_lock;
 
-static struct svc_callout *svc_find __P((rpcprog_t, rpcvers_t,
-					 struct svc_callout **, char *));
+static struct svc_callout *svc_find(rpcprog_t, rpcvers_t,
+    struct svc_callout **, char *);
 
 /* ***************  SVCXPRT related stuff **************** */
 

@@ -976,8 +976,8 @@ typedef union {
 	u_char buf[MAXPACKET];
 } querybuf;
 
-static struct hostent *getanswer __P((const querybuf *, int, const char *,
-	int, struct hostent *, int *));
+static struct hostent *getanswer(const querybuf *, int, const char *, int,
+	    struct hostent *, int *);
 
 /*
  * we don't need to take care about sorting, nor IPv4 mapped address here.

@@ -81,8 +81,8 @@ struct sockinet {
 };
 
 #ifdef INET6
-static int ip6_parsenumeric __P((const struct sockaddr *, const char *, char *,
-				 size_t, int));
+static int ip6_parsenumeric(const struct sockaddr *, const char *, char *,
+	    size_t, int);
 static int ip6_sa2str(const struct sockaddr_in6 *, char *, size_t, int);
 #endif
 

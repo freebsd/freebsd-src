@@ -66,8 +66,8 @@ typedef struct {
 static inline void simplesort
 (const u_char **, int, int, const u_char *, u_int);
 static void r_sort_a(const u_char **, int, int, const u_char *, u_int);
-static void r_sort_b __P((const u_char **,
-	    const u_char **, int, int, const u_char *, u_int));
+static void r_sort_b(const u_char **, const u_char **, int, int,
+    const u_char *, u_int);
 
 #define	THRESHOLD	20		/* Divert to simplesort(). */
 #define	SIZE		512		/* Default stack size. */

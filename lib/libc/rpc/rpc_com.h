@@ -73,9 +73,8 @@ int __rpc_socktype2seman(int);
 void *rpc_nullproc(CLIENT *);
 int __rpc_sockisbound(int);
 
-struct netbuf *__rpcb_findaddr __P((rpcprog_t, rpcvers_t,
-				    const struct netconfig *,
-				    const char *, CLIENT **));
+struct netbuf *__rpcb_findaddr(rpcprog_t, rpcvers_t, const struct netconfig *,
+    const char *, CLIENT **);
 bool_t __rpc_control(int,void *);
 
 char *_get_next_token(char *, int);
