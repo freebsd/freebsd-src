@@ -725,14 +725,6 @@ devfs_setattr(ap)
 		c = 1;
 	}
 
-	if (vap->va_atime.tv_sec != VNOVAL || vap->va_mtime.tv_sec != VNOVAL) {
-		/* see comment in ufs_vnops::ufs_setattr() */
-		if ((error = VOP_ACCESS(vp, VADMIN, ap->a_cred, ap->a_td)) &&
-		    ((vap->va_vaflags & VA_UTIMES_NULL) == 0 ||
-		    (error = VOP_ACCESS(vp, VWRITE, ap->a_cred, ap->a_td))))
-			return (error);
-	}
-
 	if (vap->va_mode != (mode_t)VNOVAL) {
 		if ((ap->a_cred->cr_uid != de->de_uid) &&
 		    (error = suser_cred(ap->a_td->td_ucred, PRISON_ROOT)))
@@ -740,23 +732,34 @@ devfs_setattr(ap)
 		de->de_mode = vap->va_mode;
 		c = 1;
 	}
-	if (vap->va_atime.tv_sec != VNOVAL) {
-		if ((ap->a_cred->cr_uid != de->de_uid) &&
-		    (error = suser_cred(ap->a_td->td_ucred, PRISON_ROOT)))
+
+	if (vap->va_atime.tv_sec != VNOVAL || vap->va_mtime.tv_sec != VNOVAL) {
+		/* See the comment in ufs_vnops::ufs_setattr(). */
+		if ((error = VOP_ACCESS(vp, VADMIN, ap->a_cred, ap->a_td)) &&
+		    ((vap->va_vaflags & VA_UTIMES_NULL) == 0 ||
+		    (error = VOP_ACCESS(vp, VWRITE, ap->a_cred, ap->a_td))))
 			return (error);
-		de->de_atime = vap->va_atime;
-		c = 1;
-	}
-	if (vap->va_mtime.tv_sec != VNOVAL) {
-		if ((ap->a_cred->cr_uid != de->de_uid) &&
-		    (error = suser_cred(ap->a_td->td_ucred, PRISON_ROOT)))
-			return (error);
-		de->de_mtime = vap->va_mtime;
+		if (vap->va_atime.tv_sec != VNOVAL) {
+			if (vp->v_type == VCHR)
+				vp->v_rdev->si_atime = vap->va_atime;
+			else
+				de->de_atime = vap->va_atime;
+		}
+		if (vap->va_mtime.tv_sec != VNOVAL) {
+			if (vp->v_type == VCHR)
+				vp->v_rdev->si_mtime = vap->va_mtime;
+			else
+				de->de_mtime = vap->va_mtime;
+		}
 		c = 1;
 	}
 
-	if (c)
-		vfs_timestamp(&de->de_ctime);
+	if (c) {
+		if (vp->v_type == VCHR)
+			vfs_timestamp(&vp->v_rdev->si_ctime);
+		else
+			vfs_timestamp(&de->de_mtime);
+	}
 	return (0);
 }
 
