@@ -475,7 +475,7 @@
 334	MNOPROTO POSIX	{ int sched_rr_get_interval (pid_t pid, struct timespec *interval); }
 335	NOPROTO	BSD	{ int utrace(const void *addr, size_t len); }
 ; XXX note - bigendian is different
-336	MCOMPAT4 BSD	{ int ia32_osendfile(int fd, int s, u_int32_t offsetlo,\
+336	MCOMPAT4 BSD	{ int ia32_sendfile(int fd, int s, u_int32_t offsetlo,\
 			    u_int32_t offsethi, size_t nbytes, \
 			    struct sf_hdtr *hdtr, off_t *sbytes, int flags); }
 337	NOPROTO	BSD	{ int kldsym(int fileid, int cmd, void *data); }
