@@ -208,7 +208,7 @@ int an_probe(dev)
 	if (an_read_record(sc, (struct an_ltv_gen *)&ssid))
 		return(0);
 
-	/* See if the ssid matches what we expect. */
+	/* See if the ssid matches what we expect ... but doesn't have to */
 	if (strcmp(ssid.an_ssid1, AN_DEF_SSID))
 		return(0);
 	
@@ -483,6 +483,10 @@ static void an_txeof(sc, status)
 	struct ifnet		*ifp;
 	int			id;
 
+	/* TX DONE enable lan monitor DJA
+	   an_enable_sniff();
+	 */
+
 	ifp = &sc->arpcom.ac_if;
 
 	ifp->if_timer = 0;
@@ -726,7 +730,7 @@ static int an_read_record(sc, ltv)
 
 	/* Now read the data. */
 	ptr = &ltv->an_val;
-	for (i = 0; i < (ltv->an_len - 1) >> 1; i++)
+	for (i = 0; i < (ltv->an_len - 2) >> 1; i++)
 		ptr[i] = CSR_READ_2(sc, AN_DATA1);
 
 	return(0);
@@ -748,10 +752,10 @@ static int an_write_record(sc, ltv)
 	if (an_seek(sc, ltv->an_type, 0, AN_BAP1))
 		return(EIO);
 
-	CSR_WRITE_2(sc, AN_DATA1, ltv->an_len);
-
+	CSR_WRITE_2(sc, AN_DATA1, ltv->an_len-2);
+	
 	ptr = &ltv->an_val;
-	for (i = 0; i < (ltv->an_len - 1) >> 1; i++)
+	for (i = 0; i < (ltv->an_len - 4) >> 1; i++)
 		CSR_WRITE_2(sc, AN_DATA1, ptr[i]);
 
 	if (an_cmd(sc, AN_CMD_ACCESS|AN_ACCESS_WRITE, ltv->an_type))
@@ -927,6 +931,29 @@ static void an_setdef(sc, areq)
 		sp = (struct an_ltv_gen *)areq;
 		sc->an_tx_rate = sp->an_val;
 		break;
+	case AN_RID_WEP_TEMP:
+		/* Disable the MAC. */
+		an_cmd(sc, AN_CMD_DISABLE, 0);
+		
+		/* Just write the Key, we don't want to save it */
+		an_write_record(sc, (struct an_ltv_gen *)areq);
+		
+		/* Turn the MAC back on. */   
+		an_cmd(sc, AN_CMD_ENABLE, 0);
+	
+		break;
+	case AN_RID_WEP_PERM:
+
+		/* Disable the MAC. */
+		an_cmd(sc, AN_CMD_DISABLE, 0);
+	
+		/* Just write the Key, the card will save it in this mode */
+		an_write_record(sc, (struct an_ltv_gen *)areq);
+		
+		/* Turn the MAC back on. */   
+		an_cmd(sc, AN_CMD_ENABLE, 0);
+		
+		break;
 	default:
 		printf("an%d: unknown RID: %x\n", sc->an_unit, areq->an_type);
 		return;
@@ -958,8 +985,10 @@ static void an_promisc(sc, promisc)
 	    !(sc->an_config.an_rxmode & AN_RXMODE_LAN_MONITOR_CURBSS)
 	    ) {
 		sc->an_rxmode = sc->an_config.an_rxmode;
+		/* kills card DJA, if in sniff mode can't TX packets
 		sc->an_config.an_rxmode |=
 		    AN_RXMODE_LAN_MONITOR_CURBSS;
+		*/
 	} else {
 		sc->an_config.an_rxmode = sc->an_rxmode;
 	}
@@ -1136,8 +1165,10 @@ static void an_init(xsc)
 		sc->an_config.an_rxmode = AN_RXMODE_BC_MC_ADDR;
 
 	/* Initialize promisc mode. */
-	if (ifp->if_flags & IFF_PROMISC)
+	/* Kills card DJA can't TX packet in sniff mode
+ 	if (ifp->if_flags & IFF_PROMISC)
 		sc->an_config.an_rxmode |= AN_RXMODE_LAN_MONITOR_CURBSS;
+	*/
 
 	sc->an_rxmode = sc->an_config.an_rxmode;
 
@@ -1255,6 +1286,9 @@ static void an_start(ifp)
 		m_freem(m0);
 		m0 = NULL;
 
+		/* TX START disable lan monitor ? DJA 
+		   an_disable_sniff():
+		 */
 		sc->an_rdata.an_tx_ring[idx] = id;
 		if (an_cmd(sc, AN_CMD_TX, id))
 			printf("an%d: xmit failed\n", sc->an_unit);
