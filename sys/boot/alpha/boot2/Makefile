@@ -46,6 +46,18 @@ ${BASE}.sym: ${OBJS} ${LIBSTAND} ${LIBALPHA} ${CRT} vers.o setdef0.o setdef1.o
 	${CRT} setdef0.o ${OBJS} setdef1.o \
 	vers.o ${LIBSTAND} ${LIBALPHA} ${LIBSTAND} >${.OBJDIR}/${BASE}.list
 
+${BASE}.help: help.common help.alpha
+	perl ${.CURDIR}/../../common/merge_help.pl ${.ALLSRC} > ${.TARGET}
+
+beforeinstall:
+.if exists(${.OBJDIR}/loader.help)
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
+		${.OBJDIR}/${BASE}.help ${DESTDIR}/boot
+.else
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
+		${.CURDIR}/${BASE}.help ${DESTDIR}/boot
+.endif
+
 # Other fragments still to be brought in from ../Makfile.booters?
 start.o:	${.CURDIR}/../libalpha/start.S
 	${CC} -c ${CFLAGS} $<
