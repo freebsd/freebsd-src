@@ -984,11 +984,12 @@ kern/vfs_vnops.c	standard
 # of the files in libkern/ are only needed on some architectures, e.g.,
 # libkern/divdi3.c is needed by i386 but not alpha.  Also, some of these
 # routines may be optimized for a particular platform.  In either case,
-# the file should be moved to <arch>/conf/files.<arch> from here.
+# the file should be moved to conf/files.<arch> from here.
 #
 libkern/arc4random.c	standard
 libkern/bcd.c		standard
 libkern/bsearch.c	standard
+libkern/crc32.c		standard
 libkern/iconv.c		optional libiconv
 libkern/iconv_converter_if.m	optional libiconv
 libkern/iconv_xlat.c	optional libiconv
@@ -1011,7 +1012,6 @@ libkern/strtoq.c	standard
 libkern/strtoul.c	standard
 libkern/strtouq.c	standard
 libkern/strvalid.c	standard
-libkern/crc32.c		standard
 net/bpf.c		standard
 net/bpf_filter.c	optional bpf
 bpf.h			standard			\
