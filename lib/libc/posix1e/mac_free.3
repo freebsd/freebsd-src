@@ -1,0 +1,73 @@
+.\" Copyright (c) 2001 Networks Associates Technology, Inc.
+.\" All rights reserved.
+.\" 
+.\" This software was developed for the FreeBSD Project by Chris
+.\" Costello at Safeport Network Services and NAI Labs, the Security
+.\" Research Division of Network Associates, Inc. under DARPA/SPAWAR
+.\" contract N66001-01-C-8035 ("CBOSS"), as part of the DARPA CHATS
+.\" research program.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote
+.\"    products derived from this software without specific prior written
+.\"    permission.
+.\" 
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\" 
+.\" $FreeBSD$
+.Dd December 21, 2001
+.Dt MAC_FREE 3
+.Os
+.Sh NAME
+.Nm mac_free
+.Nd free MAC label
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/mac.h
+.Ft int
+.Fn mac_free "void *buf_p"
+.Sh DESCRIPTION
+The
+.Fn mac_free
+function frees the storage allocated to contain either a
+.Vt mac_t
+or a
+.Vt char * ,
+as allocated by the
+.Fn mac_to_text
+function.
+.Sh RETURN VALUES
+The
+.Fn mac_free
+function always returns 0.
+.Sh SEE ALSO
+.Xr mac 3 ,
+.Xr mac_get 3 ,
+.Xr mac_set 3 ,
+.Xr mac_text 3
+.Sh STANDARDS
+POSIX.1e is described in IEEE POSIX.1e draft 17.
+Discussion of the draft
+continues on the cross-platform POSIX.1e implementation mailing list.
+To join this list, see the
+.Fx
+POSIX.1e implementation page
+for more information.

@@ -1,0 +1,140 @@
+.\" Copyright (c) 2001 Networks Associates Technology, Inc.
+.\" All rights reserved.
+.\" 
+.\" This software was developed for the FreeBSD Project by Chris
+.\" Costello at Safeport Network Services and NAI Labs, the Security
+.\" Research Division of Network Associates, Inc. under DARPA/SPAWAR
+.\" contract N66001-01-C-8035 ("CBOSS"), as part of the DARPA CHATS
+.\" research program.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote
+.\"    products derived from this software without specific prior written
+.\"    permission.
+.\" 
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\" 
+.\" $FreeBSD$
+.Dd December 21, 2001
+.Dt MAC 3
+.Sh NAME
+.Nm mac
+.Nd introduction to the POSIX.1e MAC security API
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/mac.h
+.Pp
+In the kernel configuration file:
+.Cd "options MAC"
+.Sh DESCRIPTION
+.Fx
+permits administrators to define Mandatory Access Control labels
+defining levels for the privacy and integrity of data,
+overriding discretionary policies
+for those objects.
+Not all objects currently provide support for MAC labels,
+and MAC support must be explicitly enabled by the administrator.
+The library calls include routines to retrieve, duplicate,
+and set MAC labels associated with files and processes.
+.Pp
+POSIX.1e describes a set of MAC manipulation routines
+to manage the contents of MAC labels,
+as well as their relationships with
+files and processes;
+almost all of these support routines
+are implemented in
+.Fx .
+.Pp
+Available functions, sorted by behavior, include:
+.Bl -tag -width indent
+.It Fn mac_get_fd
+This function is described in
+.Xr mac_get 3 ,
+and may be used to retrieve the
+MAC label associated with
+a specific file descriptor.
+.It Fn mac_get_file
+This function is described in
+.Xr mac_get 3 ,
+and may be used to retrieve the
+MAC label associated with
+a named file.
+.It Fn mac_get_proc
+This function is described in
+.Xr mac_get 3 ,
+and may be used to retrieve the
+MAC label associated with
+the calling process.
+.It Fn mac_set_fd
+This function is described in
+.Xr mac_set 3 ,
+and may be used to set the
+MAC label associated with
+a specific file descriptor.
+.It Fn mac_set_file
+This function is described in
+.Xr mac_set 3 ,
+and may be used to set the
+MAC label associated with
+a named file.
+.It Fn mac_set_proc
+This function is described in
+.Xr mac_set 3 ,
+and may be used to set the
+MAC label associated with
+the calling process.
+.It Fn mac_free
+This function is described in
+.Xr mac_free 3 ,
+and may be used to free
+userland working MAC label storage.
+.It Fn mac_from_text
+This function is described in
+.Xr mac_text 3 ,
+and may be used to convert
+a text-form MAC label
+into a working
+.Vt mac_t .
+.It Fn mac_to_text
+This function is described in
+.Xr mac_text 3 ,
+and may be used to convert a
+.Vt mac_t
+into a text-form MAC label.
+.El
+.Sh IMPLEMENTATION NOTES
+.Fx Ns 's
+support for POSIX.1e interfaces and features
+is still under development
+at this time.
+.Sh SEE ALSO
+.Xr mac_free 3 ,
+.Xr mac_get 3 ,
+.Xr mac_set 3 ,
+.Xr mac_text 3
+.Sh STANDARDS
+POSIX.1e is described in IEEE POSIX.1e draft 17.
+Discussion of the draft
+continues on the cross-platform POSIX.1e implementation mailing list.
+To join this list, see the
+.Fx
+POSIX.1e implementation page
+for more information.
