@@ -12,7 +12,7 @@ GCCDIR=	${.CURDIR}/../../../../contrib/gcc
 
 # Machine description.
 MD_FILE=	${GCCDIR}/config/${GCC_CPU}/${GCC_CPU}.md
-target=		${TARGET_ARCH}-obrien-freebsd
+target=		${TARGET_ARCH}-obrien-freebsd5.0
 
 CFLAGS+=	-DIN_GCC -DHAVE_CONFIG_H
 CFLAGS+=	-DPREFIX=\"${TOOLS_PREFIX}/usr\"
