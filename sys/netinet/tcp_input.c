@@ -120,11 +120,6 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, delayed_ack, CTLFLAG_RW,
     &tcp_delack_enabled, 0, 
     "Delay ACK to try and piggyback it onto a data packet");
 
-int tcp_lq_overflow = 1;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, tcp_lq_overflow, CTLFLAG_RW,
-    &tcp_lq_overflow, 0, 
-    "Listen Queue Overflow");
-
 #ifdef TCP_DROP_SYNFIN
 static int drop_synfin = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, drop_synfin, CTLFLAG_RW,
@@ -135,10 +130,9 @@ struct inpcbhead tcb;
 #define	tcb6	tcb  /* for KAME src sync over BSD*'s */
 struct inpcbinfo tcbinfo;
 
-static void	 tcp_dooptions __P((struct tcpcb *,
-	    u_char *, int, struct tcphdr *, struct tcpopt *));
+static void	 tcp_dooptions __P((struct tcpopt *, u_char *, int, int));
 static void	 tcp_pulloutofband __P((struct socket *,
-	    struct tcphdr *, struct mbuf *, int));
+		     struct tcphdr *, struct mbuf *, int));
 static int	 tcp_reass __P((struct tcpcb *, struct tcphdr *, int *,
 				struct mbuf *));
 static void	 tcp_xmit_timer __P((struct tcpcb *, int));
@@ -344,11 +338,6 @@ tcp_input(m, off0)
 	register int thflags;
 	struct socket *so = 0;
 	int todrop, acked, ourfinisacked, needoutput = 0;
-	struct in_addr laddr;
-#ifdef INET6
-	struct in6_addr laddr6;
-#endif
-	int dropsocket = 0;
 	int iss = 0;
 	u_long tiwin;
 	struct tcpopt to;		/* options in this segment */
@@ -643,6 +632,7 @@ findpcb:
 
 	so = inp->inp_socket;
 	if (so->so_options & (SO_DEBUG|SO_ACCEPTCONN)) {
+		struct in_conninfo inc;
 #ifdef TCPDEBUG
 		if (so->so_options & SO_DEBUG) {
 			ostate = tp->t_state;
@@ -656,212 +646,232 @@ findpcb:
 			tcp_savetcp = *th;
 		}
 #endif
-		if (so->so_options & SO_ACCEPTCONN) {
-			register struct tcpcb *tp0 = tp;
-			struct socket *so2;
-#ifdef IPSEC
-			struct socket *oso;
-#endif
+		/* skip if this isn't a listen socket */
+		if ((so->so_options & SO_ACCEPTCONN) == 0)
+			goto after_listen;
 #ifdef INET6
-			struct inpcb *oinp = sotoinpcb(so);
-#endif /* INET6 */
+		inc.inc_isipv6 = isipv6;
+		if (isipv6) {
+			inc.inc6_faddr = ip6->ip6_src;
+			inc.inc6_laddr = ip6->ip6_dst;
+			inc.inc6_route.ro_rt = NULL;		/* XXX */
 
-#ifndef IPSEC
-			/*
-			 * Current IPsec implementation makes incorrect IPsec
-			 * cache if this check is done here.
-			 * So delay this until duplicated socket is created.
-			 */
-			if ((thflags & (TH_RST|TH_ACK|TH_SYN)) != TH_SYN) {
-				/*
-				 * Note: dropwithreset makes sure we don't
-				 * send a RST in response to a RST.
-				 */
-				if (thflags & TH_ACK) {
+		} else
+#endif /* INET6 */
+		{
+			inc.inc_faddr = ip->ip_src;
+			inc.inc_laddr = ip->ip_dst;
+			inc.inc_route.ro_rt = NULL;		/* XXX */
+		}
+		inc.inc_fport = th->th_sport;
+		inc.inc_lport = th->th_dport;
+
+	        /*
+	         * If the state is LISTEN then ignore segment if it contains
+		 * a RST.  If the segment contains an ACK then it is bad and
+		 * send a RST.  If it does not contain a SYN then it is not
+		 * interesting; drop it.
+		 *
+		 * If the state is SYN_RECEIVED (syncache) and seg contains
+		 * an ACK, but not for our SYN/ACK, send a RST.  If the seg
+		 * contains a RST, check the sequence number to see if it
+		 * is a valid reset segment.
+		 */
+		if ((thflags & (TH_RST|TH_ACK|TH_SYN)) != TH_SYN) {
+			if ((thflags & (TH_RST|TH_ACK|TH_SYN)) == TH_ACK) {
+				if (!syncache_expand(&inc, th, &so, m)) {
+					/*
+					 * No syncache entry, or ACK was not
+					 * for our SYN/ACK.  Send a RST.
+					 */
 					tcpstat.tcps_badsyn++;
 					rstreason = BANDLIM_RST_OPENPORT;
 					goto dropwithreset;
 				}
+				if (so == NULL)
+					/*
+					 * Could not complete 3-way handshake,
+					 * connection is being closed down, and
+					 * syncache will free mbuf.
+					 */
+					return;
+				/*
+				 * Socket is created in state SYN_RECEIVED.
+				 * Continue processing segment.
+				 */
+				inp = sotoinpcb(so);
+				tp = intotcpcb(inp);
+				/*
+				 * This is what would have happened in
+				 * tcp_ouput() when the SYN,ACK was sent.
+				 */
+				tp->snd_up = tp->snd_una;
+				tp->snd_max = tp->snd_nxt = tp->iss + 1;
+				tp->last_ack_sent = tp->rcv_nxt;
+/*
+ * XXX possible bug - it doesn't appear that tp->snd_wnd is unscaled
+ * until the _second_ ACK is received:
+ *    rcv SYN (set wscale opts)	 --> send SYN/ACK, set snd_wnd = window.
+ *    rcv ACK, calculate tiwin --> process SYN_RECEIVED, determine wscale,
+ *        move to ESTAB, set snd_wnd to tiwin.
+ */        
+				tp->snd_wnd = tiwin;	/* unscaled */
+				goto after_listen;
+			}
+			if (thflags & TH_RST) {
+				syncache_chkrst(&inc, th);
 				goto drop;
 			}
-#endif
+			if (thflags & TH_ACK) {
+				syncache_badack(&inc);
+				tcpstat.tcps_badsyn++;
+				rstreason = BANDLIM_RST_OPENPORT;
+				goto dropwithreset;
+			}
+			goto drop;
+		}
 
+		/*
+		 * Segment's flags are (SYN) or (SYN|FIN).
+		 */
 #ifdef INET6
-			/*
-			 * If deprecated address is forbidden,
-			 * we do not accept SYN to deprecated interface
-			 * address to prevent any new inbound connection from
-			 * getting established.
-			 * When we do not accept SYN, we send a TCP RST,
-			 * with deprecated source address (instead of dropping
-			 * it).  We compromise it as it is much better for peer
-			 * to send a RST, and RST will be the final packet
-			 * for the exchange.
-			 *
-			 * If we do not forbid deprecated addresses, we accept
-			 * the SYN packet.  RFC2462 does not suggest dropping
-			 * SYN in this case.
-			 * If we decipher RFC2462 5.5.4, it says like this:
-			 * 1. use of deprecated addr with existing
-			 *    communication is okay - "SHOULD continue to be
-			 *    used"
-			 * 2. use of it with new communication:
-			 *   (2a) "SHOULD NOT be used if alternate address
-			 *        with sufficient scope is available"
-			 *   (2b) nothing mentioned otherwise.
-			 * Here we fall into (2b) case as we have no choice in
-			 * our source address selection - we must obey the peer.
-			 *
-			 * The wording in RFC2462 is confusing, and there are
-			 * multiple description text for deprecated address
-			 * handling - worse, they are not exactly the same.
-			 * I believe 5.5.4 is the best one, so we follow 5.5.4.
-			 */
-			if (isipv6 && !ip6_use_deprecated) {
-				struct in6_ifaddr *ia6;
+		/*
+		 * If deprecated address is forbidden,
+		 * we do not accept SYN to deprecated interface
+		 * address to prevent any new inbound connection from
+		 * getting established.
+		 * When we do not accept SYN, we send a TCP RST,
+		 * with deprecated source address (instead of dropping
+		 * it).  We compromise it as it is much better for peer
+		 * to send a RST, and RST will be the final packet
+		 * for the exchange.
+		 *
+		 * If we do not forbid deprecated addresses, we accept
+		 * the SYN packet.  RFC2462 does not suggest dropping
+		 * SYN in this case.
+		 * If we decipher RFC2462 5.5.4, it says like this:
+		 * 1. use of deprecated addr with existing
+		 *    communication is okay - "SHOULD continue to be
+		 *    used"
+		 * 2. use of it with new communication:
+		 *   (2a) "SHOULD NOT be used if alternate address
+		 *        with sufficient scope is available"
+		 *   (2b) nothing mentioned otherwise.
+		 * Here we fall into (2b) case as we have no choice in
+		 * our source address selection - we must obey the peer.
+		 *
+		 * The wording in RFC2462 is confusing, and there are
+		 * multiple description text for deprecated address
+		 * handling - worse, they are not exactly the same.
+		 * I believe 5.5.4 is the best one, so we follow 5.5.4.
+		 */
+		if (isipv6 && !ip6_use_deprecated) {
+			struct in6_ifaddr *ia6;
 
-				if ((ia6 = ip6_getdstifaddr(m)) &&
-				    (ia6->ia6_flags & IN6_IFF_DEPRECATED)) {
-					tp = NULL;
-					rstreason = BANDLIM_RST_OPENPORT;
-					goto dropwithreset;
-				}
+			if ((ia6 = ip6_getdstifaddr(m)) &&
+			    (ia6->ia6_flags & IN6_IFF_DEPRECATED)) {
+				tp = NULL;
+				rstreason = BANDLIM_RST_OPENPORT;
+				goto dropwithreset;
 			}
+		}
 #endif
-
-			so2 = sonewconn(so, 0);
-			if (so2 == 0) {
-				/*
-				 * If we were unable to create a new socket
-				 * for this SYN, we call sodropablereq to
-				 * see if there are any other sockets we
-				 * can kick out of the listen queue.  If
-				 * so, we'll silently drop the socket
-				 * sodropablereq told us to drop and
-				 * create a new one.
-				 *
-				 * If sodropablereq returns 0, we'll
-				 * simply drop the incoming SYN, as we
-				 * can not allocate a socket for it.
-				 */
-				tcpstat.tcps_listendrop++;
-				so2 = sodropablereq(so);
-				if (so2) {
-					if (tcp_lq_overflow)
-						sototcpcb(so2)->t_flags |= 
-						    TF_LQ_OVERFLOW;
-					tcp_close(sototcpcb(so2));
-					so2 = sonewconn(so, 0);
-				}
-				if (!so2)
-					goto drop;
-			}
-#ifdef IPSEC
-			oso = so;
-#endif
-			so = so2;
-			/*
-			 * This is ugly, but ....
-			 *
-			 * Mark socket as temporary until we're
-			 * committed to keeping it.  The code at
-			 * ``drop'' and ``dropwithreset'' check the
-			 * flag dropsocket to see if the temporary
-			 * socket created here should be discarded.
-			 * We mark the socket as discardable until
-			 * we're committed to it below in TCPS_LISTEN.
-			 */
-			dropsocket++;
-			inp = (struct inpcb *)so->so_pcb;
-#ifdef INET6
-			if (isipv6)
-				inp->in6p_laddr = ip6->ip6_dst;
-			else {
-				inp->inp_vflag &= ~INP_IPV6;
-				inp->inp_vflag |= INP_IPV4;
-#endif /* INET6 */
-			inp->inp_laddr = ip->ip_dst;
-#ifdef INET6
-			}
-#endif /* INET6 */
-			inp->inp_lport = th->th_dport;
-			if (in_pcbinshash(inp) != 0) {
-				/*
-				 * Undo the assignments above if we failed to
-				 * put the PCB on the hash lists.
-				 */
-#ifdef INET6
-				if (isipv6)
-					inp->in6p_laddr = in6addr_any;
-				else
-#endif /* INET6 */
-				inp->inp_laddr.s_addr = INADDR_ANY;
-				inp->inp_lport = 0;
-				goto drop;
-			}
-#ifdef IPSEC
-			/*
-			 * To avoid creating incorrectly cached IPsec
-			 * association, this is need to be done here.
-			 *
-			 * Subject: (KAME-snap 748)
-			 * From: Wayne Knowles <w.knowles@niwa.cri.nz>
-			 * ftp://ftp.kame.net/pub/mail-list/snap-users/748
-			 */
-			if ((thflags & (TH_RST|TH_ACK|TH_SYN)) != TH_SYN) {
-				/*
-				 * Note: dropwithreset makes sure we don't
-				 * send a RST in response to a RST.
-				 */
-				if (thflags & TH_ACK) {
-					tcpstat.tcps_badsyn++;
-					rstreason = BANDLIM_RST_OPENPORT;
-					goto dropwithreset;
-				}
-				goto drop;
-			}
-#endif
+		/*
+		 * If it is from this socket, drop it, it must be forged.
+		 * Don't bother responding if the destination was a broadcast.
+		 */
+		if (th->th_dport == th->th_sport) {
 #ifdef INET6
 			if (isipv6) {
-  				/*
- 				 * Inherit socket options from the listening
-  				 * socket.
- 				 * Note that in6p_inputopts are not (even
- 				 * should not be) copied, since it stores
-				 * previously received options and is used to
- 				 * detect if each new option is different than
- 				 * the previous one and hence should be passed
- 				 * to a user.
- 				 * If we copied in6p_inputopts, a user would
- 				 * not be able to receive options just after
- 				 * calling the accept system call.
- 				 */
-				inp->inp_flags |=
-					oinp->inp_flags & INP_CONTROLOPTS;
- 				if (oinp->in6p_outputopts)
- 					inp->in6p_outputopts =
- 						ip6_copypktopts(oinp->in6p_outputopts,
- 								M_NOWAIT);
+				if (IN6_ARE_ADDR_EQUAL(&ip6->ip6_dst,
+						       &ip6->ip6_src))
+					goto drop;
 			} else
 #endif /* INET6 */
-			inp->inp_options = ip_srcroute();
-#ifdef IPSEC
-			/* copy old policy into new socket's */
-			if (ipsec_copy_policy(sotoinpcb(oso)->inp_sp,
-			                      inp->inp_sp))
-				printf("tcp_input: could not copy policy\n");
-#endif
-			tp = intotcpcb(inp);
-			tp->t_state = TCPS_LISTEN;
-			tp->t_flags |= tp0->t_flags & (TF_NOPUSH|TF_NOOPT);
-
-			/* Compute proper scaling value from buffer space */
-			while (tp->request_r_scale < TCP_MAX_WINSHIFT &&
-			   TCP_MAXWIN << tp->request_r_scale <
-			   so->so_rcv.sb_hiwat)
-				tp->request_r_scale++;
+			if (ip->ip_dst.s_addr == ip->ip_src.s_addr)
+				goto drop;
 		}
+		/*
+		 * RFC1122 4.2.3.10, p. 104: discard bcast/mcast SYN
+		 * in_broadcast() should never return true on a received
+		 * packet with M_BCAST not set.
+ 		 *
+ 		 * Packets with a multicast source address should also
+ 		 * be discarded.
+		 */
+		if (m->m_flags & (M_BCAST|M_MCAST))
+			goto drop;
+#ifdef INET6
+		if (isipv6) {
+			if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst) ||
+			    IN6_IS_ADDR_MULTICAST(&ip6->ip6_src))
+				goto drop;
+		} else
+#endif
+		if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr)) ||
+		    IN_MULTICAST(ntohl(ip->ip_src.s_addr)) ||
+		    ip->ip_src.s_addr == htonl(INADDR_BROADCAST))
+			goto drop;
+		/*
+		 * SYN appears to be valid; create compressed TCP state
+		 * for syncache, or perform t/tcp connection.
+		 */
+		if (so->so_qlen <= so->so_qlimit) {
+			tcp_dooptions(&to, optp, optlen, 1);
+			if (!syncache_add(&inc, &to, th, &so, m))
+				goto drop;
+			if (so == NULL)
+				/*
+				 * Entry added to syncache, mbuf used to
+				 * send SYN,ACK packet.
+				 */
+				return;
+			/*
+			 * Segment passed TAO tests.
+			 */
+			inp = sotoinpcb(so);
+			tp = intotcpcb(inp);
+			tp->snd_wnd = tiwin;
+			tp->t_starttime = ticks;
+			tp->t_state = TCPS_ESTABLISHED;
+
+			/*
+			 * If there is a FIN, or if there is data and the
+			 * connection is local, then delay SYN,ACK(SYN) in
+			 * the hope of piggy-backing it on a response
+			 * segment.  Otherwise must send ACK now in case
+			 * the other side is slow starting.
+			 */
+			if (DELAY_ACK(tp) && ((thflags & TH_FIN) ||
+			    (tlen != 0 &&
+#ifdef INET6
+			      ((isipv6 && in6_localaddr(&inp->in6p_faddr))
+			      ||
+			      (!isipv6 &&
+#endif
+			    in_localaddr(inp->inp_faddr)
+#ifdef INET6
+			       ))
+#endif
+			     ))) {
+                                callout_reset(tp->tt_delack, tcp_delacktime,  
+                                    tcp_timer_delack, tp);  
+				tp->t_flags |= TF_NEEDSYN;
+			} else 
+				tp->t_flags |= (TF_ACKNOW | TF_NEEDSYN);
+
+			tcpstat.tcps_connects++;
+			soisconnected(so);
+			goto trimthenstep6;
+		}
+		goto drop;
 	}
+after_listen:
+
+/* XXX temp debugging */
+	/* should not happen - syncache should pick up these connections */
+	if (tp->t_state == TCPS_LISTEN)
+		panic("tcp_input: TCPS_LISTEN");
 
 	/*
 	 * Segment received on connection.
@@ -872,11 +882,25 @@ findpcb:
 		callout_reset(tp->tt_keep, tcp_keepidle, tcp_timer_keep, tp);
 
 	/*
-	 * Process options if not in LISTEN state,
-	 * else do it below (after getting remote address).
+	 * Process options.
+	 * XXX this is tradtitional behavior, may need to be cleaned up.
 	 */
-	if (tp->t_state != TCPS_LISTEN)
-		tcp_dooptions(tp, optp, optlen, th, &to);
+	tcp_dooptions(&to, optp, optlen, thflags & TH_SYN);
+	if (thflags & TH_SYN) {
+		if (to.to_flags & TOF_SCALE) {
+			tp->t_flags |= TF_RCVD_SCALE;
+			tp->requested_s_scale = to.to_requested_s_scale;
+		}
+		if (to.to_flags & TOF_TS) {
+			tp->t_flags |= TF_RCVD_TSTMP;
+			tp->ts_recent = to.to_tsval;
+			tp->ts_recent_age = ticks;
+		}
+		if (to.to_flags & (TOF_CC|TOF_CCNEW))
+			tp->t_flags |= TF_RCVD_CC;
+		if (to.to_flags & TOF_MSS)
+			tcp_mss(tp, to.to_mss);
+	}
 
 	/*
 	 * Header prediction: check for the two common cases
@@ -898,7 +922,7 @@ findpcb:
 	if (tp->t_state == TCPS_ESTABLISHED &&
 	    (thflags & (TH_SYN|TH_FIN|TH_RST|TH_URG|TH_ACK)) == TH_ACK &&
 	    ((tp->t_flags & (TF_NEEDSYN|TF_NEEDFIN)) == 0) &&
-	    ((to.to_flag & TOF_TS) == 0 ||
+	    ((to.to_flags & TOF_TS) == 0 ||
 	     TSTMP_GEQ(to.to_tsval, tp->ts_recent)) &&
 	    /*
 	     * Using the CC option is compulsory if once started:
@@ -906,7 +930,7 @@ findpcb:
 	     *   if the segment has a CC option equal to CCrecv
 	     */
 	    ((tp->t_flags & (TF_REQ_CC|TF_RCVD_CC)) != (TF_REQ_CC|TF_RCVD_CC) ||
-	     ((to.to_flag & TOF_CC) != 0 && to.to_cc == tp->cc_recv)) &&
+	     ((to.to_flags & TOF_CC) != 0 && to.to_cc == tp->cc_recv)) &&
 	    th->th_seq == tp->rcv_nxt &&
 	    tiwin && tiwin == tp->snd_wnd &&
 	    tp->snd_nxt == tp->snd_max) {
@@ -917,7 +941,7 @@ findpcb:
 		 * NOTE that the test is modified according to the latest
 		 * proposal of the tcplw@cray.com list (Braden 1993/04/26).
 		 */
-		if ((to.to_flag & TOF_TS) != 0 &&
+		if ((to.to_flags & TOF_TS) != 0 &&
 		   SEQ_LEQ(th->th_seq, tp->last_ack_sent)) {
 			tp->ts_recent_age = ticks;
 			tp->ts_recent = to.to_tsval;
@@ -943,7 +967,7 @@ findpcb:
 					tp->snd_nxt = tp->snd_max;
 					tp->t_badrxtwin = 0;
 				}
-				if ((to.to_flag & TOF_TS) != 0)
+				if ((to.to_flags & TOF_TS) != 0)
 					tcp_xmit_timer(tp,
 					    ticks - to.to_tsecr + 1);
 				else if (tp->t_rtttime &&
@@ -1025,209 +1049,6 @@ findpcb:
 	switch (tp->t_state) {
 
 	/*
-	 * If the state is LISTEN then ignore segment if it contains an RST.
-	 * If the segment contains an ACK then it is bad and send a RST.
-	 * If it does not contain a SYN then it is not interesting; drop it.
-	 * If it is from this socket, drop it, it must be forged.
-	 * Don't bother responding if the destination was a broadcast.
-	 * Otherwise initialize tp->rcv_nxt, and tp->irs, select an initial
-	 * tp->iss, and send a segment:
-	 *     <SEQ=ISS><ACK=RCV_NXT><CTL=SYN,ACK>
-	 * Also initialize tp->snd_nxt to tp->iss+1 and tp->snd_una to tp->iss.
-	 * Fill in remote peer address fields if not previously specified.
-	 * Enter SYN_RECEIVED state, and process any other fields of this
-	 * segment in this state.
-	 */
-	case TCPS_LISTEN: {
-		register struct sockaddr_in *sin;
-#ifdef INET6
-		register struct sockaddr_in6 *sin6;
-#endif
-
-		if (thflags & TH_RST)
-			goto drop;
-		if (thflags & TH_ACK) {
-			rstreason = BANDLIM_RST_OPENPORT;
-			goto dropwithreset;
-		}
-		if ((thflags & TH_SYN) == 0)
-			goto drop;
-		if (th->th_dport == th->th_sport) {
-#ifdef INET6
-			if (isipv6) {
-				if (IN6_ARE_ADDR_EQUAL(&ip6->ip6_dst,
-						       &ip6->ip6_src))
-					goto drop;
-			} else
-#endif /* INET6 */
-			if (ip->ip_dst.s_addr == ip->ip_src.s_addr)
-				goto drop;
-		}
-		/*
-		 * RFC1122 4.2.3.10, p. 104: discard bcast/mcast SYN
-		 * in_broadcast() should never return true on a received
-		 * packet with M_BCAST not set.
- 		 *
- 		 * Packets with a multicast source address should also
- 		 * be discarded.
-		 */
-		if (m->m_flags & (M_BCAST|M_MCAST))
-			goto drop;
-#ifdef INET6
-		if (isipv6) {
-			if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst) ||
-			    IN6_IS_ADDR_MULTICAST(&ip6->ip6_src))
-				goto drop;
-		} else
-#endif
-		if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr)) ||
-		    IN_MULTICAST(ntohl(ip->ip_src.s_addr)) ||
-		    ip->ip_src.s_addr == htonl(INADDR_BROADCAST))
-			goto drop;
-#ifdef INET6
-		if (isipv6) {
-			MALLOC(sin6, struct sockaddr_in6 *, sizeof *sin6,
-			       M_SONAME, M_NOWAIT | M_ZERO);
-			if (sin6 == NULL)
-				goto drop;
-			sin6->sin6_family = AF_INET6;
-			sin6->sin6_len = sizeof(*sin6);
-			sin6->sin6_addr = ip6->ip6_src;
-			sin6->sin6_port = th->th_sport;
-			laddr6 = inp->in6p_laddr;
-			if (IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr))
-				inp->in6p_laddr = ip6->ip6_dst;
-			if (in6_pcbconnect(inp, (struct sockaddr *)sin6,
-					   thread0)) {
-				inp->in6p_laddr = laddr6;
-				FREE(sin6, M_SONAME);
-				goto drop;
-			}
-			FREE(sin6, M_SONAME);
-		} else
-#endif
-	      {
-		MALLOC(sin, struct sockaddr_in *, sizeof *sin, M_SONAME,
-		       M_NOWAIT);
-		if (sin == NULL)
-			goto drop;
-		sin->sin_family = AF_INET;
-		sin->sin_len = sizeof(*sin);
-		sin->sin_addr = ip->ip_src;
-		sin->sin_port = th->th_sport;
-		bzero((caddr_t)sin->sin_zero, sizeof(sin->sin_zero));
-		laddr = inp->inp_laddr;
-		if (inp->inp_laddr.s_addr == INADDR_ANY)
-			inp->inp_laddr = ip->ip_dst;
-		if (in_pcbconnect(inp, (struct sockaddr *)sin, thread0)) {
-			inp->inp_laddr = laddr;
-			FREE(sin, M_SONAME);
-			goto drop;
-		}
-		FREE(sin, M_SONAME);
-	      }
-		if ((taop = tcp_gettaocache(inp)) == NULL) {
-			taop = &tao_noncached;
-			bzero(taop, sizeof(*taop));
-		}
-		tcp_dooptions(tp, optp, optlen, th, &to);
-		if (iss)
-			tp->iss = iss;
-		else {
-			tp->iss = tcp_new_isn(tp);
- 		}
-		tp->irs = th->th_seq;
-		tcp_sendseqinit(tp);
-		tcp_rcvseqinit(tp);
-		/*
-		 * Initialization of the tcpcb for transaction;
-		 *   set SND.WND = SEG.WND,
-		 *   initialize CCsend and CCrecv.
-		 */
-		tp->snd_wnd = tiwin;	/* initial send-window */
-		tp->cc_send = CC_INC(tcp_ccgen);
-		tp->cc_recv = to.to_cc;
-		/*
-		 * Perform TAO test on incoming CC (SEG.CC) option, if any.
-		 * - compare SEG.CC against cached CC from the same host,
-		 *	if any.
-		 * - if SEG.CC > chached value, SYN must be new and is accepted
-		 *	immediately: save new CC in the cache, mark the socket
-		 *	connected, enter ESTABLISHED state, turn on flag to
-		 *	send a SYN in the next segment.
-		 *	A virtual advertised window is set in rcv_adv to
-		 *	initialize SWS prevention.  Then enter normal segment
-		 *	processing: drop SYN, process data and FIN.
-		 * - otherwise do a normal 3-way handshake.
-		 */
-		if ((to.to_flag & TOF_CC) != 0) {
-		    if (((tp->t_flags & TF_NOPUSH) != 0) &&
-			taop->tao_cc != 0 && CC_GT(to.to_cc, taop->tao_cc)) {
-
-			taop->tao_cc = to.to_cc;
-			tp->t_starttime = ticks;
-			tp->t_state = TCPS_ESTABLISHED;
-
-			/*
-			 * If there is a FIN, or if there is data and the
-			 * connection is local, then delay SYN,ACK(SYN) in
-			 * the hope of piggy-backing it on a response
-			 * segment.  Otherwise must send ACK now in case
-			 * the other side is slow starting.
-			 */
-			if (DELAY_ACK(tp) && ((thflags & TH_FIN) ||
-			    (tlen != 0 &&
-#ifdef INET6
-			      ((isipv6 && in6_localaddr(&inp->in6p_faddr))
-			      ||
-			      (!isipv6 &&
-#endif
-			    in_localaddr(inp->inp_faddr)
-#ifdef INET6
-			       ))
-#endif
-			     ))) {
-                                callout_reset(tp->tt_delack, tcp_delacktime,  
-                                    tcp_timer_delack, tp);  
-				tp->t_flags |= TF_NEEDSYN;
-			} else 
-				tp->t_flags |= (TF_ACKNOW | TF_NEEDSYN);
-
-			/*
-			 * Limit the `virtual advertised window' to TCP_MAXWIN
-			 * here.  Even if we requested window scaling, it will
-			 * become effective only later when our SYN is acked.
-			 */
-			tp->rcv_adv += min(tp->rcv_wnd, TCP_MAXWIN);
-			tcpstat.tcps_connects++;
-			soisconnected(so);
-			callout_reset(tp->tt_keep, tcp_keepinit,
-				      tcp_timer_keep, tp);
-			dropsocket = 0;		/* committed to socket */
-			tcpstat.tcps_accepts++;
-			goto trimthenstep6;
-		    }
-		/* else do standard 3-way handshake */
-		} else {
-		    /*
-		     * No CC option, but maybe CC.NEW:
-		     *   invalidate cached value.
-		     */
-		     taop->tao_cc = 0;
-		}
-		/*
-		 * TAO test failed or there was no CC option,
-		 *    do a standard 3-way handshake.
-		 */
-		tp->t_flags |= TF_ACKNOW;
-		tp->t_state = TCPS_SYN_RECEIVED;
-		callout_reset(tp->tt_keep, tcp_keepinit, tcp_timer_keep, tp);
-		dropsocket = 0;		/* committed to socket */
-		tcpstat.tcps_accepts++;
-		goto trimthenstep6;
-		}
-
-	/*
 	 * If the state is SYN_RECEIVED:
 	 *	if seg contains an ACK, but not for our SYN/ACK, send a RST.
 	 */
@@ -1253,7 +1074,7 @@ findpcb:
 	 *	continue processing rest of data/controls, beginning with URG
 	 */
 	case TCPS_SYN_SENT:
-		if ((taop = tcp_gettaocache(inp)) == NULL) {
+		if ((taop = tcp_gettaocache(&inp->inp_inc)) == NULL) {
 			taop = &tao_noncached;
 			bzero(taop, sizeof(*taop));
 		}
@@ -1297,7 +1118,7 @@ findpcb:
 			 * by the old rules.  If no CC.ECHO option, make sure
 			 * we don't get fooled into using T/TCP.
 			 */
-			if (to.to_flag & TOF_CCECHO) {
+			if (to.to_flags & TOF_CCECHO) {
 				if (tp->cc_send != to.to_ccecho) {
 					if (taop->tao_ccsent != 0)
 						goto drop;
@@ -1359,7 +1180,7 @@ findpcb:
 		 */
 			tp->t_flags |= TF_ACKNOW;
 			callout_stop(tp->tt_rexmt);
-			if (to.to_flag & TOF_CC) {
+			if (to.to_flags & TOF_CC) {
 				if (taop->tao_cc != 0 &&
 				    CC_GT(to.to_cc, taop->tao_cc)) {
 					/*
@@ -1434,7 +1255,7 @@ trimthenstep6:
 	case TCPS_CLOSING:
 	case TCPS_TIME_WAIT:
 		if ((thflags & TH_SYN) &&
-		    (to.to_flag & TOF_CC) && tp->cc_recv != 0) {
+		    (to.to_flags & TOF_CC) && tp->cc_recv != 0) {
 			if (tp->t_state == TCPS_TIME_WAIT &&
 					(ticks - tp->t_starttime) > tcp_msl) {
 				rstreason = BANDLIM_UNLIMITED;
@@ -1542,7 +1363,7 @@ trimthenstep6:
 	 * RFC 1323 PAWS: If we have a timestamp reply on this segment
 	 * and it's less than ts_recent, drop it.
 	 */
-	if ((to.to_flag & TOF_TS) != 0 && tp->ts_recent &&
+	if ((to.to_flags & TOF_TS) != 0 && tp->ts_recent &&
 	    TSTMP_LT(to.to_tsval, tp->ts_recent)) {
 
 		/* Check to see if ts_recent is over 24 days old.  */
@@ -1574,7 +1395,7 @@ trimthenstep6:
 	 *   RST segments do not have to comply with this.
 	 */
 	if ((tp->t_flags & (TF_REQ_CC|TF_RCVD_CC)) == (TF_REQ_CC|TF_RCVD_CC) &&
-	    ((to.to_flag & TOF_CC) == 0 || tp->cc_recv != to.to_cc))
+	    ((to.to_flags & TOF_CC) == 0 || tp->cc_recv != to.to_cc))
  		goto dropafterack;
 
 	/*
@@ -1694,7 +1515,7 @@ trimthenstep6:
 	 * NOTE that the test is modified according to the latest
 	 * proposal of the tcplw@cray.com list (Braden 1993/04/26).
 	 */
-	if ((to.to_flag & TOF_TS) != 0 &&
+	if ((to.to_flags & TOF_TS) != 0 &&
 	    SEQ_LEQ(th->th_seq, tp->last_ack_sent)) {
 		tp->ts_recent_age = ticks;
 		tp->ts_recent = to.to_tsval;
@@ -1748,7 +1569,7 @@ trimthenstep6:
 		 * update cache.CC if it was undefined, pass any queued
 		 * data to the user, and advance state appropriately.
 		 */
-		if ((taop = tcp_gettaocache(inp)) != NULL &&
+		if ((taop = tcp_gettaocache(&inp->inp_inc)) != NULL &&
 		    taop->tao_cc == 0)
 			taop->tao_cc = tp->cc_recv;
 
@@ -1940,7 +1761,7 @@ process_ACK:
 		 * timer backoff (cf., Phil Karn's retransmit alg.).
 		 * Recompute the initial retransmit timer.
 		 */
-		if (to.to_flag & TOF_TS)
+		if (to.to_flags & TOF_TS)
 			tcp_xmit_timer(tp, ticks - to.to_tsecr + 1);
 		else if (tp->t_rtttime && SEQ_GT(th->th_ack, tp->t_rtseq))
 			tcp_xmit_timer(tp, ticks - tp->t_rtttime);
@@ -2371,9 +2192,6 @@ dropwithreset:
 		tcp_respond(tp, mtod(m, void *), th, m, th->th_seq+tlen,
 			    (tcp_seq)0, TH_RST|TH_ACK);
 	}
-	/* destroy temporarily created socket */
-	if (dropsocket)
-		(void) soabort(so);
 	return;
 
 drop:
@@ -2386,23 +2204,21 @@ drop:
 			  &tcp_savetcp, 0);
 #endif
 	m_freem(m);
-	/* destroy temporarily created socket */
-	if (dropsocket)
-		(void) soabort(so);
 	return;
 }
 
+/*
+ * Parse TCP options and place in tcpopt.
+ */
 static void
-tcp_dooptions(tp, cp, cnt, th, to)
-	struct tcpcb *tp;
+tcp_dooptions(to, cp, cnt, is_syn)
+	struct tcpopt *to;
 	u_char *cp;
 	int cnt;
-	struct tcphdr *th;
-	struct tcpopt *to;
 {
-	u_short mss = 0;
 	int opt, optlen;
 
+	to->to_flags = 0;
 	for (; cnt > 0; cnt -= optlen, cp += optlen) {
 		opt = cp[0];
 		if (opt == TCPOPT_EOL)
@@ -2417,92 +2233,67 @@ tcp_dooptions(tp, cp, cnt, th, to)
 				break;
 		}
 		switch (opt) {
-
-		default:
-			continue;
-
 		case TCPOPT_MAXSEG:
 			if (optlen != TCPOLEN_MAXSEG)
 				continue;
-			if (!(th->th_flags & TH_SYN))
+			if (!is_syn)
 				continue;
-			bcopy((char *) cp + 2, (char *) &mss, sizeof(mss));
-			NTOHS(mss);
+			to->to_flags |= TOF_MSS;
+			bcopy((char *)cp + 2,
+			    (char *)&to->to_mss, sizeof(to->to_mss));
+			NTOHS(to->to_mss);
 			break;
-
 		case TCPOPT_WINDOW:
 			if (optlen != TCPOLEN_WINDOW)
 				continue;
-			if (!(th->th_flags & TH_SYN))
+			if (! is_syn)
 				continue;
-			tp->t_flags |= TF_RCVD_SCALE;
-			tp->requested_s_scale = min(cp[2], TCP_MAX_WINSHIFT);
+			to->to_flags |= TOF_SCALE;
+			to->to_requested_s_scale = min(cp[2], TCP_MAX_WINSHIFT);
 			break;
-
 		case TCPOPT_TIMESTAMP:
 			if (optlen != TCPOLEN_TIMESTAMP)
 				continue;
-			to->to_flag |= TOF_TS;
+			to->to_flags |= TOF_TS;
 			bcopy((char *)cp + 2,
 			    (char *)&to->to_tsval, sizeof(to->to_tsval));
 			NTOHL(to->to_tsval);
 			bcopy((char *)cp + 6,
 			    (char *)&to->to_tsecr, sizeof(to->to_tsecr));
 			NTOHL(to->to_tsecr);
-
-			/*
-			 * A timestamp received in a SYN makes
-			 * it ok to send timestamp requests and replies.
-			 */
-			if (th->th_flags & TH_SYN) {
-				tp->t_flags |= TF_RCVD_TSTMP;
-				tp->ts_recent = to->to_tsval;
-				tp->ts_recent_age = ticks;
-			}
 			break;
 		case TCPOPT_CC:
 			if (optlen != TCPOLEN_CC)
 				continue;
-			to->to_flag |= TOF_CC;
+			to->to_flags |= TOF_CC;
 			bcopy((char *)cp + 2,
 			    (char *)&to->to_cc, sizeof(to->to_cc));
 			NTOHL(to->to_cc);
-			/*
-			 * A CC or CC.new option received in a SYN makes
-			 * it ok to send CC in subsequent segments.
-			 */
-			if (th->th_flags & TH_SYN)
-				tp->t_flags |= TF_RCVD_CC;
 			break;
 		case TCPOPT_CCNEW:
 			if (optlen != TCPOLEN_CC)
 				continue;
-			if (!(th->th_flags & TH_SYN))
+			if (!is_syn)
 				continue;
-			to->to_flag |= TOF_CCNEW;
+			to->to_flags |= TOF_CCNEW;
 			bcopy((char *)cp + 2,
 			    (char *)&to->to_cc, sizeof(to->to_cc));
 			NTOHL(to->to_cc);
-			/*
-			 * A CC or CC.new option received in a SYN makes
-			 * it ok to send CC in subsequent segments.
-			 */
-			tp->t_flags |= TF_RCVD_CC;
 			break;
 		case TCPOPT_CCECHO:
 			if (optlen != TCPOLEN_CC)
 				continue;
-			if (!(th->th_flags & TH_SYN))
+			if (!is_syn)
 				continue;
-			to->to_flag |= TOF_CCECHO;
+			to->to_flags |= TOF_CCECHO;
 			bcopy((char *)cp + 2,
 			    (char *)&to->to_ccecho, sizeof(to->to_ccecho));
 			NTOHL(to->to_ccecho);
 			break;
+		default:
+			continue;
 		}
 	}
-	if (th->th_flags & TH_SYN)
-		tcp_mss(tp, mss);	/* sets t_maxseg */
 }
 
 /*
@@ -2675,10 +2466,10 @@ tcp_mss(tp, offer)
 #endif
 #ifdef INET6
 	if (isipv6)
-		rt = tcp_rtlookup6(inp);
+		rt = tcp_rtlookup6(&inp->inp_inc);
 	else
 #endif
-	rt = tcp_rtlookup(inp);
+	rt = tcp_rtlookup(&inp->inp_inc);
 	if (rt == NULL) {
 		tp->t_maxopd = tp->t_maxseg =
 #ifdef INET6
@@ -2884,10 +2675,10 @@ tcp_mssopt(tp)
 #endif
 #ifdef INET6
 	if (isipv6)
-		rt = tcp_rtlookup6(tp->t_inpcb);
+		rt = tcp_rtlookup6(&tp->t_inpcb->inp_inc);
 	else
 #endif /* INET6 */
-	rt = tcp_rtlookup(tp->t_inpcb);
+	rt = tcp_rtlookup(&tp->t_inpcb->inp_inc);
 	if (rt == NULL)
 		return
 #ifdef INET6

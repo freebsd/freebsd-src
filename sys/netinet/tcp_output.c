@@ -216,7 +216,7 @@ again:
 
 	len = (long)ulmin(so->so_snd.sb_cc, win) - off;
 
-	if ((taop = tcp_gettaocache(tp->t_inpcb)) == NULL) {
+	if ((taop = tcp_gettaocache(&tp->t_inpcb->inp_inc)) == NULL) {
 		taop = &tao_noncached;
 		bzero(taop, sizeof(*taop));
 	}
