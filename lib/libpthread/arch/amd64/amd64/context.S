@@ -72,22 +72,13 @@ __FBSDID("$FreeBSD$");
  *   translations from i386 but with the register names updated, etc. 
  *   The main gotcha is that FPU save/restore is in SSE format, which
  *   means a sparse 512 byte FPU context.
- *
- * Note that the FPU is suppose to be 512 bytes but that the
- * definition for the FPU bits in struct mcontext does not
- * agree:
- *
- *	long	mc_fpstate[128] __aligned(16);
- *
- * This would actually use 1024 bytes, not 512, since long is
- * 8 bytes on amd64.
  */
 
 
 /*
  * Where do we define these?
  */
-#define	MC_SIZE			1312	/* sizeof mcontext_t */
+#define	MC_SIZE			800	/* sizeof mcontext_t */
 #define	MC_LEN_OFFSET		(24*8)	/* offset to mc_len from mcontext */
 #define	MC_FPFMT_OFFSET		(25*8)	/* offset to mc_fpformat from mcontext */
 #define MC_FPFMT_NODEV		0x10000
