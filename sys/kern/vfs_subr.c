@@ -2378,6 +2378,9 @@ loop:
 		if (vp->v_flag & VXLOCK)	/* XXX: what if MNT_WAIT? */
 			continue;
 
+		if (vp->v_flag & VNOSYNC)	/* unlinked, skip it */
+			continue;
+
 		if (flags != MNT_WAIT) {
 			if (VOP_GETVOBJECT(vp, &obj) != 0 ||
 			    (obj->flags & OBJ_MIGHTBEDIRTY) == 0)
