@@ -11,8 +11,14 @@
  * ditto for my modifications (John-Mark Gurney, 1997)
  */
 
-#include <stdio.h>
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
+#include <err.h>
 #include <fcntl.h>
+#include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -33,7 +39,7 @@ usage(int devmask, int recmask)
 {
 	int i, n;
 
-	printf("usage:\tmixer [[dev [voll[:volr]] | recsrc | {^|+|-|=}rec recdev] ... ]\n");
+	printf("usage: mixer [[dev [voll[:volr]] | recsrc | {^|+|-|=}rec recdev] ... ]\n");
 	printf(" devices: ");
 	for (i = 0, n = 0; i < SOUND_MIXER_NRDEVICES; i++)
 		if ((1 << i) & devmask)  {
@@ -104,23 +110,15 @@ main(int argc, char *argv[])
 		argc -= 2; argv += 2;
 	}
 
-	if ((baz = open(name, O_RDWR)) < 0) {
-		perror(name);
-		exit(1);
-	}
+	if ((baz = open(name, O_RDWR)) < 0)
+		err(1, "%s", name);
 	free(name);
-	if (ioctl(baz, SOUND_MIXER_READ_DEVMASK, &devmask) == -1) {
-		perror("SOUND_MIXER_READ_DEVMASK");
-		exit(-1);
-	}
-	if (ioctl(baz, SOUND_MIXER_READ_RECMASK, &recmask) == -1) {
-		perror("SOUND_MIXER_READ_RECMASK");
-		exit(-1);
-	}
-	if (ioctl(baz, SOUND_MIXER_READ_RECSRC, &recsrc) == -1) {
-		perror("SOUND_MIXER_READ_RECSRC");
-		exit(-1);
-	}
+	if (ioctl(baz, SOUND_MIXER_READ_DEVMASK, &devmask) == -1)
+		err(-1, "SOUND_MIXER_READ_DEVMASK");
+	if (ioctl(baz, SOUND_MIXER_READ_RECMASK, &recmask) == -1)
+		err(-1, "SOUND_MIXER_READ_RECMASK");
+	if (ioctl(baz, SOUND_MIXER_READ_RECSRC, &recsrc) == -1)
+		err(-1, "SOUND_MIXER_READ_RECSRC");
 	orecsrc = recsrc;
 
 	if (argc == 1) {
@@ -128,7 +126,7 @@ main(int argc, char *argv[])
 			if (!((1 << foo) & devmask)) 
 				continue;
 			if (ioctl(baz, MIXER_READ(foo),&bar)== -1) {
-			   	perror("MIXER_READ");
+			   	warn("MIXER_READ");
 				continue;
 			}
 			printf("Mixer %-8s is currently set to %3d:%d\n", names[foo], bar & 0x7f, (bar >> 8) & 0x7f);
@@ -183,7 +181,7 @@ main(int argc, char *argv[])
 		switch(argc > 1 ? sscanf(argv[1], "%d:%d", &l, &r) : 0) {
 		case 0:
 			if (ioctl(baz, MIXER_READ(dev),&bar)== -1) {
-				perror("MIXER_READ");
+				warn("MIXER_READ");
 				argc--; argv++;
 				continue;
 			}
@@ -209,7 +207,7 @@ main(int argc, char *argv[])
 
 			l |= r << 8;
 			if (ioctl(baz, MIXER_WRITE(dev), &l) == -1)
-				perror("WRITE_MIXER");
+				warn("WRITE_MIXER");
 
 			argc -= 2; argv += 2;
  			break;
@@ -217,16 +215,12 @@ main(int argc, char *argv[])
 	}
 
 	if (orecsrc != recsrc)
-		if (ioctl(baz, SOUND_MIXER_WRITE_RECSRC, &recsrc) == -1) {
-			perror("SOUND_MIXER_WRITE_RECSRC");
-			exit(-1);
-		}
+		if (ioctl(baz, SOUND_MIXER_WRITE_RECSRC, &recsrc) == -1)
+			err(-1, "SOUND_MIXER_WRITE_RECSRC");
  
 	if (drecsrc) {
-		if (ioctl(baz, SOUND_MIXER_READ_RECSRC, &recsrc) == -1) {
-			perror("SOUND_MIXER_READ_RECSRC");
-			exit(-1);
-		}
+		if (ioctl(baz, SOUND_MIXER_READ_RECSRC, &recsrc) == -1)
+			err(-1, "SOUND_MIXER_READ_RECSRC");
 		print_recsrc(recsrc);
 	}
 
