@@ -84,13 +84,15 @@ typedef struct mse_softc {
 
 /* and Mouse Types */
 #define	MSE_NONE	0	/* don't move this! */
-#ifdef PC98
+
+/* pc98 bus mouse types */
 #define	MSE_98BUSMOUSE	0x1
-#else
+
+/* isa bus mouse types */
 #define	MSE_LOGITECH	0x1
 #define	MSE_ATIINPORT	0x2
+
 #define	MSE_LOGI_SIG	0xA5
-#endif
 
 /* XXX msereg.h? */
 #define	MSE_PORTA	0
