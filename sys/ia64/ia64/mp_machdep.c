@@ -63,8 +63,6 @@ extern vm_offset_t vhpt_base, vhpt_size;
 #define	LID_SAPIC_SET(id,eid)	(((id & 0xff) << 8 | (eid & 0xff)) << 16);
 #define	LID_SAPIC_MASK		0xffff0000UL
 
-int	mp_hardware = 0;
-int	mp_ipi_vector[IPI_COUNT];
 int	mp_ipi_test = 0;
 
 /* Variables used by os_boot_rendez */
@@ -124,15 +122,26 @@ int
 cpu_mp_probe()
 {
 	/*
-	 * We've already discovered any APs when they're present.
-	 * Just return the result here.
+	 * Count the number of processors in the system by walking the ACPI
+	 * tables. Note that we record the actual number of processors, even
+	 * if this is larger than MAXCPU. We only activate MAXCPU processors.
 	 */
-	if (mp_hardware) {
-		mp_maxid = ia64_count_aps();
-		return (mp_maxid > 0);
-	} else {
-		return (0);
-	}
+	mp_ncpus = ia64_count_cpus();
+
+	/*
+	 * Set the largest cpuid we're going to use. This is necessary for
+	 * VM initialization.
+	 */
+	mp_maxid = min(mp_ncpus, MAXCPU) - 1;
+
+	/*
+	 * If there's only 1 processor, or we don't have a wake-up vector,
+	 * we're not going to enable SMP. Note that no wake-up vector can
+	 * also mean that the wake-up mechanism is not supported. In this
+	 * case we can have multiple processors, but we simply can't wake
+	 * them up...
+	 */
+	return (mp_ncpus > 1 && ipi_vector[IPI_AP_WAKEUP] != 0);
 }
 
 void
@@ -141,14 +150,9 @@ cpu_mp_add(uint acpiid, uint apicid, uint apiceid)
 	struct pcpu *pc;
 	u_int64_t lid;
 
-	/* Count all CPUs, even the ones we cannot use */
-	mp_ncpus++;
-
 	/* Ignore any processor numbers outside our range */
-	if (acpiid >= MAXCPU) {
-		printf("SMP: cpu%d skipped; increase MAXCPU\n", acpiid);
+	if (acpiid > mp_maxid)
 		return;
-	}
 
 	KASSERT((all_cpus & (1UL << acpiid)) == 0,
 	    ("%s: cpu%d already in CPU map", __func__, acpiid));
@@ -176,7 +180,7 @@ cpu_mp_announce()
 	struct pcpu *pc;
 	int i;
 
-	for (i = 0; i < MAXCPU; i++) {
+	for (i = 0; i <= mp_maxid; i++) {
 		pc = pcpu_find(i);
 		if (pc != NULL) {
 			printf("cpu%d: SAPIC Id=%x, SAPIC Eid=%x", i,
@@ -247,7 +251,7 @@ cpu_mp_unleash(void *dummy)
 	struct pcpu *pc;
 	int cpus;
 
-	if (!mp_hardware)
+	if (mp_ncpus <= 1)
 		return;
 
 	if (mp_ipi_test != 1)
@@ -340,8 +344,9 @@ ipi_send(u_int64_t lid, int ipi)
 
 	pipi = ia64_memory_address(PAL_PIB_DEFAULT_ADDR |
 	    ((lid & LID_SAPIC_MASK) >> 12));
-	vector = (u_int64_t)(mp_ipi_vector[ipi] & 0xff);
-	CTR3(KTR_SMP, "ipi_send(%p, %ld), cpuid=%d", pipi, vector, PCPU_GET(cpuid));
+	vector = (u_int64_t)(ipi_vector[ipi] & 0xff);
+	CTR3(KTR_SMP, "ipi_send(%p, %ld), cpuid=%d", pipi, vector,
+	    PCPU_GET(cpuid));
 	*pipi = vector;
 	ia64_mf_a();
 }

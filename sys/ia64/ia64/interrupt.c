@@ -122,12 +122,12 @@ interrupt(u_int64_t vector, struct trapframe *framep)
 			statclock((struct clockframe *)framep);
 		critical_exit();
 #ifdef SMP
-	} else if (vector == mp_ipi_vector[IPI_AST]) {
+	} else if (vector == ipi_vector[IPI_AST]) {
 		CTR1(KTR_SMP, "IPI_AST, cpuid=%d", PCPU_GET(cpuid));
-	} else if (vector == mp_ipi_vector[IPI_RENDEZVOUS]) {
+	} else if (vector == ipi_vector[IPI_RENDEZVOUS]) {
 		CTR1(KTR_SMP, "IPI_RENDEZVOUS, cpuid=%d", PCPU_GET(cpuid));
 		smp_rendezvous_action();
-	} else if (vector == mp_ipi_vector[IPI_STOP]) {
+	} else if (vector == ipi_vector[IPI_STOP]) {
 		u_int32_t mybit = PCPU_GET(cpumask);
 
 		CTR1(KTR_SMP, "IPI_STOP, cpuid=%d", PCPU_GET(cpuid));
@@ -142,7 +142,7 @@ interrupt(u_int64_t vector, struct trapframe *framep)
 			cpustop_restartfunc = NULL;
 			(*f)();
 		}
-	} else if (vector == mp_ipi_vector[IPI_TEST]) {
+	} else if (vector == ipi_vector[IPI_TEST]) {
 		CTR1(KTR_SMP, "IPI_TEST, cpuid=%d", PCPU_GET(cpuid));
 		mp_ipi_test++;
 #endif
