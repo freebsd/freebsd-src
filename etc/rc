@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.20 1994/02/27 15:32:09 phk Exp $
+#	$Id: rc,v 1.21 1994/03/25 04:58:58 rich Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -156,7 +156,7 @@ fi
 # If $routedflags == NO, routed isn't run.
 if [ X${gated} = X"YES" -a -r /etc/gated.conf ]; then
 	echo -n ' gated';	gated $gatedflags
-elif [ X${routedflags} != X"NO" ]; then
+elif [ X"${routedflags}" != X"NO" ]; then
 	echo -n ' routed';	routed $routedflags
 fi
 
