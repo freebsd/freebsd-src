@@ -2089,7 +2089,6 @@ vm_map_delete(vm_map_t map, vm_offset_t start, vm_offset_t end)
 		offidxend = offidxstart + count;
 
 		if ((object == kernel_object) || (object == kmem_object)) {
-			GIANT_REQUIRED;
 			vm_object_page_remove(object, offidxstart, offidxend, FALSE);
 		} else {
 			mtx_lock(&Giant);
@@ -2868,13 +2867,13 @@ RetryLookup:;
 			 */
 			if (vm_map_lock_upgrade(map))
 				goto RetryLookup;
-			mtx_lock(&Giant);
+
 			vm_object_shadow(
 			    &entry->object.vm_object,
 			    &entry->offset,
 			    atop(entry->end - entry->start));
-			mtx_unlock(&Giant);
 			entry->eflags &= ~MAP_ENTRY_NEEDS_COPY;
+
 			vm_map_lock_downgrade(map);
 		} else {
 			/*
