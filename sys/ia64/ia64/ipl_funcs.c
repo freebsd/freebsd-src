@@ -52,7 +52,7 @@ static void swi_net(void);
 void	(*netisrs[32]) __P((void));
 swihand_t *shandlers[32] = {	/* software interrupts */
 	swi_null,	swi_net,	swi_null,	swi_null,
-	swi_null,	softclock,	swi_null,	swi_null,
+	swi_null,	swi_null,	softclock,	swi_null,
 	swi_null,	swi_null,	swi_null,	swi_null,
 	swi_null,	swi_null,	swi_null,	swi_null,
 	swi_null,	swi_null,	swi_null,	swi_null,
