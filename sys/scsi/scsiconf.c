@@ -293,16 +293,8 @@ static struct scsidevs knowndevs[] =
 		"cd", SC_MORE_LUS, CD_Q_NO_TOUCH
 	},
 	{
- 		T_READONLY, T_REMOV, "NRC",	"MBR-7", "*",
- 		"cd", SC_MORE_LUS
- 	},
- 	{
 		T_READONLY, T_READONLY, T_REMOV, "CHINON",  "CD-ROM CDS-535","*",
 		"cd", SC_ONE_LU
-	},
-	{
-		T_READONLY, T_READONLY, T_REMOV, "NRC",  "MBR-7","*",
-		"cd", SC_MORE_LUS
 	},
 	/*
 	 * Note: My drive with v1.0 firmware "forgets" to generate scsi parity
