@@ -1,7 +1,5 @@
-/* $FreeBSD$ */
-/* From: NetBSD: stdarg.h,v 1.7 1997/04/06 08:47:44 cgd Exp */
-
 /*-
+ * Copyright (c) 2002 David E. O'Brien.  All rights reserved.
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -34,6 +32,8 @@
  * SUCH DAMAGE.
  *
  *	@(#)stdarg.h	8.1 (Berkeley) 6/10/93
+ *	$NetBSD: stdarg.h,v 1.7 1997/04/06 08:47:44 cgd Exp $
+ * $FreeBSD$
  */
 
 #ifndef _ALPHA_STDARG_H_
@@ -41,12 +41,25 @@
 
 #include <machine/ansi.h>
 
+typedef _BSD_VA_LIST_	va_list;
+
+#if defined(__GNUC__) && (__GNUC__ == 2 && __GNUC_MINOR__ > 95 || __GNUC__ >= 3)
+
+#define	va_start(ap, last) \
+	__builtin_stdarg_start((ap), (last))
+
+#define	va_arg(ap, type) \
+	__builtin_va_arg((ap), type)
+
+#define	va_end(ap) \
+	__builtin_va_end(ap)
+
+#else	/* ! __GNUC__ post GCC 2.95 */
+
 #ifdef __lint__
 #define	__builtin_saveregs()		(0)
 #define	__builtin_classify_type(t)	(0)
 #endif
-
-typedef _BSD_VA_LIST_	va_list;
 
 #define	__va_size(type) \
 	(((sizeof(type) + sizeof(long) - 1) / sizeof(long)) * sizeof(long))
@@ -64,5 +77,7 @@ typedef _BSD_VA_LIST_	va_list;
 		   (ap).__base + (ap).__offset + __va_arg_offset(ap, type)))
 
 #define	va_end(ap)	((void)0)
+
+#endif /* __GNUC__ post GCC 2.95 */
 
 #endif /* !_ALPHA_STDARG_H_ */
