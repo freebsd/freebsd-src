@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)svc.c 1.44 88/02/08 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)svc.c	2.4 88/08/11 4.0 RPCSRC";*/
-static char *rcsid = "$Id: svc.c,v 1.6 1996/08/12 14:00:24 peter Exp $";
+static char *rcsid = "$Id: svc.c,v 1.7 1996/12/30 15:07:33 peter Exp $";
 #endif
 
 /*
@@ -400,8 +400,6 @@ svc_getreq(rdfds)
 	readfds.fds_bits[0] = rdfds;
 	svc_getreqset(&readfds);
 }
-
-void	svc_getreqset2 __P((fd_set *, int));
 
 void
 svc_getreqset(readfds)
