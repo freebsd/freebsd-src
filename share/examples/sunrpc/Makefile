@@ -5,7 +5,7 @@
 #   Build all demo services
 #
 MAKE = make
-LIB=-lrpclib
+LIB=
 
 SUBDIR= dir msg sort
 
