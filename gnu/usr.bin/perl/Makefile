@@ -4,7 +4,11 @@
 # Note: I'm not sure what to do with c2ph located in misc...
 #
 
-SUBDIR= perl tperl sperl usub lib x2p
+SUBDIR= perl tperl usub lib x2p
+
+.if !defined(NOSUIDPERL) && exists(${.CURDIR}/sperl)
+SUBDIR+=sperl
+.endif
 
 .include <bsd.subdir.mk>
 
