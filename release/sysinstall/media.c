@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.25.2.6 1995/10/04 12:08:15 jkh Exp $
+ * $Id: media.c,v 1.25.2.7 1995/10/07 11:55:28 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -313,7 +313,7 @@ mediaSetNFS(char *str)
     static Device nfsDevice;
     char *val;
 
-    val = msgGetInput(NULL, "Please enter the full NFS file specification for the remote\nhost and directory containing the FreeBSD distribution files.\nThis should be in the format:  hostname:/some/freebsd/dir");
+    val = msgGetInput(nfsDevice.name, "Please enter the full NFS file specification for the remote\nhost and directory containing the FreeBSD distribution files.\nThis should be in the format:  hostname:/some/freebsd/dir");
     if (!val)
 	return RET_FAIL;
     strncpy(nfsDevice.name, val, DEV_NAME_MAX);
