@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa_device.h	7.1 (Berkeley) 5/9/91
- *	$Id: isa_device.h,v 1.41 1997/05/31 09:07:36 peter Exp $
+ *	$Id: isa_device.h,v 1.42 1997/06/02 08:19:05 dfr Exp $
  */
 
 #ifndef _I386_ISA_ISA_DEVICE_H_
@@ -94,8 +94,6 @@ struct isa_driver {
 	char	*name;			/* device name */
 	int	sensitive_hw;		/* true if other probes confuse us */
 };
-
-#define ISA_EXTERNALLEN (sizeof(struct isa_device))
 
 #ifdef KERNEL
 
