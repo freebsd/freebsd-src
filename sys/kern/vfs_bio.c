@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.191 1999/01/10 01:58:25 eivind Exp $
+ * $Id: vfs_bio.c,v 1.192 1999/01/12 11:59:34 eivind Exp $
  */
 
 /*
@@ -2171,7 +2171,8 @@ vfs_page_set_valid(struct buf *bp, vm_ooffset_t off, int pageno, vm_page_t m)
 		    (vm_offset_t) (soff & PAGE_MASK),
 		    (vm_offset_t) (eoff - soff));
 		sv = (bp->b_offset + bp->b_validoff + DEV_BSIZE - 1) & ~(DEV_BSIZE - 1);
-		ev = (bp->b_offset + bp->b_validend) & ~(DEV_BSIZE - 1);
+		ev = (bp->b_offset + bp->b_validend + (DEV_BSIZE - 1)) & 
+		    ~(DEV_BSIZE - 1);
 		soff = qmax(sv, soff);
 		eoff = qmin(ev, eoff);
 	}
