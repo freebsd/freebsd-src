@@ -79,7 +79,9 @@
  * EEProm stuff
  */
 struct eeProm {
-	u_char bytes[ 256 ];
+	short	offset;
+	short	count;
+	u_char	bytes[ 256 ];
 };
 
 
@@ -112,11 +114,15 @@ struct eeProm {
 #define	BT848_SCBARS	_IOR('x', 43, int)		/* set colorbar */
 #define	BT848_CCBARS	_IOR('x', 44, int)		/* clear colorbar */
 
-#define	BT848_EEPROM	_IOR('x', 45, struct eeProm)
 
 #define	BT848_SAUDIO	_IOW('x', 46, int)		/* set audio channel */
 #define BT848_GAUDIO	_IOR('x', 47, int)		/* get audio channel */
 #define	BT848_SBTSC	_IOW('x', 48, int)		/* set audio channel */
+
+#define	BT848_GSTATUS	_IOR('x', 49, unsigned int)	/* reap status */
+
+#define	BT848_WEEPROM	_IOWR('x', 50, struct eeProm)
+#define	BT848_REEPROM	_IOWR('x', 51, struct eeProm)
 
 /*
  * XXX: more bad magic,
