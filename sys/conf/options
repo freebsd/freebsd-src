@@ -298,6 +298,11 @@ NETGRAPH_TTY		opt_netgraph.h
 NETGRAPH_UI		opt_netgraph.h
 NETGRAPH_VJC		opt_netgraph.h
 
+
+ZERO_COPY_SOCKETS	opt_zero.h
+PRIVATE_JUMBOS		opt_alteon.h
+TI_JUMBO_HDRSPLIT	opt_alteon.h
+
 # ATM (HARP version)
 ATM_CORE		opt_atm.h
 ATM_IP			opt_atm.h
@@ -357,6 +362,8 @@ INVARIANT_SUPPORT	opt_global.h
 INVARIANTS		opt_global.h
 SIMPLELOCK_DEBUG	opt_global.h
 VFS_BIO_DEBUG		opt_global.h
+MSIZE			opt_global.h
+MCLSHIFT		opt_global.h
 
 # These are VM related options
 VM_KMEM_SIZE		opt_vm.h
