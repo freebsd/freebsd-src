@@ -740,7 +740,7 @@ trap(int vector, int imm, struct trapframe *framep)
 #ifdef DEBUG
 	printtrap(vector, imm, framep, 1, user);
 #endif
-	trapsignal(p, i, ucode);
+	trapsignal(td, i, ucode);
 out:
 	if (user) {
 		userret(td, framep, sticks);
@@ -1048,7 +1048,7 @@ ia32_syscall(struct trapframe *framep)
 	 */
 	if ((orig_eflags & PSL_T) && !(orig_eflags & PSL_VM)) {
 		ia64_set_eflag(ia64_get_eflag() & ~PSL_T);
-		trapsignal(p, SIGTRAP, 0);
+		trapsignal(td, SIGTRAP, 0);
 	}
 
 	/*

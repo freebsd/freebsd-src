@@ -258,7 +258,7 @@ trap(struct trapframe *frame)
 	if (sig != 0) {
 		if (p->p_sysent->sv_transtrap != NULL)
 			sig = (p->p_sysent->sv_transtrap)(sig, type);
-		trapsignal(p, sig, ucode);
+		trapsignal(td, sig, ucode);
 	}
 
 	userret(td, frame, sticks);

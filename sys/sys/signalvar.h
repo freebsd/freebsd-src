@@ -247,7 +247,7 @@ void	psignal(struct proc *p, int sig);
 void	sigexit(struct thread *td, int signum) __dead2;
 void	siginit(struct proc *p);
 void	signotify(struct proc *p);
-void	trapsignal(struct proc *p, int sig, u_long code);
+void	trapsignal(struct thread *td, int sig, u_long code);
 
 /*
  * Machine-dependent functions:

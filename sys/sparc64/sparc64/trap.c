@@ -284,7 +284,7 @@ trap(struct trapframe *tf)
 			if (debugger_on_signal &&
 			    (sig == 4 || sig == 10 || sig == 11))
 				Debugger("trapsig");
-			trapsignal(p, sig, tf->tf_type);
+			trapsignal(td, sig, tf->tf_type);
 		}
 
 		userret(td, tf, sticks);
