@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: http.c,v 1.15 1997/11/18 03:27:34 jdp Exp $
+ *	$Id: http.c,v 1.16 1997/11/22 01:00:42 fenner Exp $
  */
 
 #include <sys/types.h>
@@ -382,7 +382,7 @@ static void
 html_display(FILE *remote)
 {
 	char *line;
-	int linelen;
+	size_t linelen;
 	int inbracket = 0;
 
 
@@ -559,7 +559,7 @@ retry:
 			addstr(iov, n, format_http_date(stab.st_mtime));
 			addstr(iov, n, "\r\n");
 			sprintf(rangebuf, "Range: bytes=%qd-\r\n", 
-				(quad_t)stab.st_size);
+				(long long)stab.st_size);
 			addstr(iov, n, rangebuf);
 		} else if (errno != 0 || !S_ISREG(stab.st_mode)) {
 			if (errno != 0)
