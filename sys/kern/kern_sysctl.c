@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.25.4.6 1996/06/04 02:46:09 davidg Exp $
+ * $Id: kern_sysctl.c,v 1.25.4.7 1996/09/19 08:18:03 pst Exp $
  */
 
 /*
@@ -249,7 +249,7 @@ kern_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
 		if ((error = sysctl_int(oldp, oldlenp, newp, newlen, &level)) ||
 		    newp == NULL)
 			return (error);
-		if (level < securelevel && p->p_pid != 1)
+		if (level < securelevel)
 			return (EPERM);
 		securelevel = level;
 		return (0);
