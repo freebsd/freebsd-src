@@ -968,10 +968,8 @@ pmap_new_proc(struct proc *p)
 	if ((up = p->p_addr) == NULL) {
 		up = (struct user *) kmem_alloc_nofault(kernel_map,
 				UPAGES * PAGE_SIZE);
-#if !defined(MAX_PERF)
 		if (up == NULL)
 			panic("pmap_new_proc: u_map allocation failed");
-#endif
 		p->p_addr = up;
 	}
 
@@ -1088,10 +1086,8 @@ pmap_swapin_proc(p)
 
 		if (m->valid != VM_PAGE_BITS_ALL) {
 			rv = vm_pager_get_pages(upobj, &m, 1, 0);
-#if !defined(MAX_PERF)
 			if (rv != VM_PAGER_OK)
 				panic("pmap_swapin_proc: cannot get upages for proc: %d\n", p->p_pid);
-#endif
 			m = vm_page_lookup(upobj, i);
 			m->valid = VM_PAGE_BITS_ALL;
 		}
@@ -1581,10 +1577,8 @@ pmap_growkernel(vm_offset_t addr)
 			int pindex = NKLEV3MAPS + pmap_lev1_index(kernel_vm_end) - K1SEGLEV1I;
 
 			nkpg = vm_page_alloc(kptobj, pindex, VM_ALLOC_SYSTEM);
-#if !defined(MAX_PERF)
 			if (!nkpg)
 				panic("pmap_growkernel: no memory to grow kernel");
-#endif
 			printf("pmap_growkernel: growing to %lx\n", addr);
 			printf("pmap_growkernel: adding new level2 page table\n");
 
@@ -1619,10 +1613,8 @@ pmap_growkernel(vm_offset_t addr)
 		 * This index is bogus, but out of the way
 		 */
 		nkpg = vm_page_alloc(kptobj, nklev3, VM_ALLOC_SYSTEM);
-#if !defined(MAX_PERF)
 		if (!nkpg)
 			panic("pmap_growkernel: no memory to grow kernel");
-#endif
 
 		nklev3++;
 
@@ -1653,9 +1645,7 @@ pmap_destroy(pmap_t pmap)
 	count = --pmap->pm_count;
 	if (count == 0) {
 		pmap_release(pmap);
-#if !defined(MAX_PERF)
 		panic("destroying a pmap is not yet implemented");
-#endif
 	}
 }
 
@@ -2078,14 +2068,12 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_offset_t pa, vm_prot_t prot,
 
 	pte = pmap_lev3pte(pmap, va);
 
-#if !defined(MAX_PERF)
 	/*
 	 * Page Directory table entry not valid, we need a new PT page
 	 */
 	if (pte == NULL) {
 		panic("pmap_enter: invalid kernel page tables pmap=%p, va=0x%lx\n", pmap, va);
 	}
-#endif
 
 	origpte = *pte;
 	pa &= ~PAGE_MASK;
@@ -2123,10 +2111,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_offset_t pa, vm_prot_t prot,
 	if (opa) {
 		int err;
 		err = pmap_remove_pte(pmap, pte, va);
-#if !defined(MAX_PERF)
 		if (err)
 			panic("pmap_enter: pte vanished, va: 0x%lx", va);
-#endif
 	}
 
 	/*

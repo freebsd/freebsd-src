@@ -249,9 +249,7 @@ vm_object_reference(object)
 	object->ref_count++;
 	if (object->type == OBJT_VNODE) {
 		while (vget((struct vnode *) object->handle, LK_RETRY|LK_NOOBJ, curproc)) {
-#if !defined(MAX_PERF)
 			printf("vm_object_reference: delay in getting object\n");
-#endif
 		}
 	}
 }
@@ -440,10 +438,8 @@ vm_object_terminate(object)
 	 */
 	s = splvm();
 	while ((p = TAILQ_FIRST(&object->memq)) != NULL) {
-#if !defined(MAX_PERF)
 		if (p->busy || (p->flags & PG_BUSY))
 			panic("vm_object_terminate: freeing busy page %p\n", p);
-#endif
 		if (p->wire_count == 0) {
 			vm_page_busy(p);
 			vm_page_free(p);
