@@ -107,7 +107,7 @@ unw_alloc(size_t sz)
 		return (void*)(hdr + 1);
 	}
 #endif
-	return (malloc(sz, M_UNWIND, M_WAITOK));
+	return (malloc(sz, M_UNWIND, M_NOWAIT));
 }
 
 static void
