@@ -274,6 +274,7 @@ lookup(ndp)
 	int rdonly;			/* lookup read-only flag bit */
 	int trailing_slash;
 	int error = 0;
+	int dpunlocked = 0;		/* dp has already been unlocked */
 	struct componentname *cnp = &ndp->ni_cnd;
 	struct proc *p = cnp->cn_proc;
 
@@ -487,11 +488,14 @@ unionlookup:
 	       (cnp->cn_flags & NOCROSSMOUNT) == 0) {
 		if (vfs_busy(mp, 0, 0, p))
 			continue;
+		VOP_UNLOCK(dp, 0, p);
 		error = VFS_ROOT(mp, &tdp);
 		vfs_unbusy(mp, p);
-		if (error)
+		if (error) {
+			dpunlocked = 1;
 			goto bad2;
-		vput(dp);
+		}
+		vrele(dp);
 		ndp->ni_vp = dp = tdp;
 	}
 
@@ -557,7 +561,10 @@ bad2:
 		VOP_UNLOCK(ndp->ni_dvp, 0, p);
 	vrele(ndp->ni_dvp);
 bad:
-	vput(dp);
+	if (dpunlocked)
+		vrele(dp);
+	else
+		vput(dp);
 	ndp->ni_vp = NULL;
 	return (error);
 }
