@@ -2191,8 +2191,9 @@ dc_attach(device_t dev)
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	/* XXX: bleah, MTU gets overwritten in ether_ifattach() */
 	ifp->if_mtu = ETHERMTU;
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST |
-	    IFF_NEEDSGIANT;
+	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
+	if (!IS_MPSAFE)
+		ifp->if_flags |= IFF_NEEDSGIANT;
 	ifp->if_ioctl = dc_ioctl;
 	ifp->if_start = dc_start;
 	ifp->if_watchdog = dc_watchdog;
