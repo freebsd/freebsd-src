@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)auth_unix.c 1.19 87/08/11 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)auth_unix.c	2.2 88/08/01 4.0 RPCSRC";*/
-static char *rcsid = "$Id: auth_unix.c,v 1.5 1995/10/22 14:51:08 phk Exp $";
+static char *rcsid = "$Id: auth_unix.c,v 1.6 1996/06/10 20:13:00 jraynard Exp $";
 #endif
 
 /*
@@ -55,8 +55,6 @@ static char *rcsid = "$Id: auth_unix.c,v 1.5 1995/10/22 14:51:08 phk Exp $";
 #include <rpc/xdr.h>
 #include <rpc/auth.h>
 #include <rpc/auth_unix.h>
-
-bool_t xdr_opaque_auth(XDR *xdrs, struct opaque_auth *ap);
 
 /*
  * Unix authenticator operations vector
@@ -176,7 +174,7 @@ authunix_create(machname, uid, gid, len, aup_gids)
 		return (NULL);
 	}
 #endif
-	bcopy(mymem, au->au_origcred.oa_base, (u_int)len);
+	memcpy(au->au_origcred.oa_base, mymem, (u_int)len);
 
 	/*
 	 * set auth handle to reflect new cred.
