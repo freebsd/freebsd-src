@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.8 1998/01/31 01:20:56 yokota Exp $
+#	$Id: Makefile,v 1.9 1998/02/15 21:38:19 eivind Exp $
 #
 
 PROG=	boot
@@ -18,12 +18,6 @@ CFLAGS=		-O2 -malign-functions=0 -malign-jumps=0 -malign-loops=0 \
 CFLAGS+=	-DBOOTSEG=${BOOTSEG} -DBOOTSTACK=${BOOTSTACK}
 CFLAGS+=	-I${.CURDIR}/../../..
 CFLAGS+=	${CWARNFLAGS}
-
-.if exists(${.CURDIR}/../../../../include)
-CFLAGS+= -nostdinc
-CFLAGS+= -I${.OBJDIR} -I${.CURDIR}/../../../
-CFLAGS+= -I${.CURDIR}/../../../../include
-.endif
 
 # By default, if a serial port is going to be used as console, use COM1
 # (aka /dev/ttyd0).
@@ -51,7 +45,7 @@ CFLAGS+=	-DCONSPEED=${BOOT_COMCONSOLE_SPEED}
 # SCSI and have BIOS drive number (sd_unit_number + BOOT_HD_BIAS).  E.g.,
 # BOOT_HD_BIAS=1 makes sd(0,a) correspond to 1:sd(0,a) instead of 0:sd(0,a).
 
-CLEANFILES+=	boot.nohdr boot.strip machine rawboot sizetest
+CLEANFILES+=	boot.nohdr boot.strip rawboot sizetest
 LDFLAGS+=	-N -T 0 -nostdlib
 NOSHARED=	YES
 NOMAN=
@@ -80,12 +74,7 @@ boot.nohdr:	boot.strip
 rawboot:	boot.nohdr
 	dd if=boot.nohdr of=rawboot bs=8k count=1 conv=sync
 
-pre-compile:
-.if !exists(${.OBJDIR}/machine)
-	ln -s ${.CURDIR}/../../include ${.OBJDIR}/machine
-.endif
-
-all:		pre-compile rawboot
+all:		rawboot
 
 install:
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE}\
