@@ -68,6 +68,7 @@
 #include <sys/callout.h>
 #include <sys/mbuf.h>
 #include <sys/msgbuf.h>
+#include <sys/random.h>
 #include <sys/sysent.h>
 #include <sys/sysctl.h>
 #include <sys/vmmeter.h>
@@ -126,7 +127,6 @@
 #include <isa/rtc.h>
 #endif
 #include <machine/vm86.h>
-#include <machine/random.h>
 #include <sys/ptrace.h>
 #include <machine/sigframe.h>
 
