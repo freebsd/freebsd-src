@@ -34,10 +34,29 @@
  *
  * Documentation sources:
  *
- * V8233C specs. from VIA, gratefully received under NDA.
- * AC97 R2.2 specs.
- * ALSA driver (very useful comments)
+ * o V8233C specs. from VIA, gratefully received under NDA.
+ * o AC97 R2.2 specs.
+ * o ALSA driver (very useful comments)
  */
+
+#define	VIA_PCI_SPDIF		0x49
+#define		VIA_SPDIF_EN		0x08
+
+#define VIA_DXS0_BASE		0x00
+#define VIA_DXS1_BASE		0x10
+#define VIA_DXS2_BASE		0x20
+#define VIA_DXS3_BASE		0x30
+#define VIA_DXS_BASE(n)		(0x10 * (n))
+#define BASE_IS_VIA_DXS_REG(x)	((x) <= VIA_DXS3_BASE)
+
+#define VIA8233_RP_DXS_LVOL	      0x02
+#define VIA8233_RP_DXS_RVOL	      0x03
+#define 	VIA8233_DXS_MUTE		0x3f
+#define VIA8233_RP_DXS_RATEFMT	      0x08
+#define		VIA8233_DXS_STOP_INDEX		0xff000000
+#define 	VIA8233_DXS_RATEFMT_48K		0x000fffff
+#define		VIA8233_DXS_RATEFMT_STEREO	0x00100000
+#define		VIA8233_DXS_RATEFMT_16BIT	0x00200000
 
 #define VIA_PCI_ACLINK_STAT	0x40
 #	define VIA_PCI_ACLINK_C11_READY	0x20
@@ -65,6 +84,8 @@
 #	define SGD_STATUS_FLAG		0x01
 #	define SGD_STATUS_INTR		(SGD_STATUS_EOL | SGD_STATUS_FLAG)
 
+#define VIA_WR_BASE(n)			(0x60 + (n) * 0x10)
+
 #define VIA_MC_SGD_CONTROL	0x41
 #define VIA_WR0_SGD_CONTROL	0x61
 #define VIA_WR1_SGD_CONTROL	0x71
@@ -83,6 +104,7 @@
 
 #define VIA_WR0_SGD_FORMAT	0x62
 #define VIA_WR1_SGD_FORMAT	0x72
+#define VIA_WR_RP_SGD_FORMAT		0x02
 #	define WR_FIFO_ENABLE		0x40
 
 #define VIA_WR0_SGD_INPUT	0x63
@@ -132,7 +154,6 @@
 #	define VIA_AC97_READ		0x00800000
 #	define VIA_AC97_INDEX(x)	((x) << 16)
 #	define VIA_AC97_DATA(x)		((x) & 0xffff)
-
 
 #define         VIA_CODEC_BUSY                0x01000000
 #define         VIA_CODEC_PRIVALID            0x02000000
