@@ -81,7 +81,11 @@ Ethernet controller.  Curently, this driver is only used on the PC-98
 architecture.
 
 The ich(4) driver for the Intel 82801AA (ICH) SMBus controller and
-compatibles has been added. [MERGED]
+compatibles has been added.
+
+The bktr(4) driver has been updated to 2.17.  This fixes bugs in devfs
+when unloading and reloading, and syncs with some NetBSD
+changes.
 
 
 1.2. SECURITY FIXES
