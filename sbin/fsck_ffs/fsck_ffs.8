@@ -40,6 +40,7 @@
 .Sh SYNOPSIS
 .Nm fsck
 .Fl p
+.Op Fl f
 .Op Fl m Ar mode
 .Nm fsck
 .Op Fl b Ar block#
@@ -71,6 +72,12 @@ running one process per disk drive.
 The disk drive containing each filesystem is inferred from the longest prefix
 of the device name that ends in a digit; the remaining characters are assumed
 to be the partition designator.
+.Pp
+The clean flag of each filesystem's superblock is examined and only those filesystems that
+are not marked clean are checked. If the
+.Fl f
+option is specified, the filesystems
+will be checked regardless of the state of their clean flag.
 .Pp
 The kernel takes care that only a restricted class of innocuous filesystem
 inconsistencies can happen unless hardware or software failures intervene.
