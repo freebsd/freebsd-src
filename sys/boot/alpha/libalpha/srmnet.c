@@ -173,12 +173,14 @@ prom_init(desc, machdep_hint)
     if (netbbinfovalid)
 	netbbinfovalid = netbbinfo.set;
 
+#if 0
     printf("netbbinfo ");
     if (!netbbinfovalid)
 	printf("invalid\n");
     else
 	printf("valid: force = %d, ea = %s\n", netbbinfo.force,
 	       ether_sprintf(netbbinfo.ether_addr));
+#endif
 
     ret.bits = prom_getenv(PROM_E_BOOTED_DEV, devname, sizeof(devname));
     devlen = ret.u.retval;
