@@ -126,7 +126,7 @@ cam_periph_alloc(periph_ctor_t *periph_ctor,
 	 * of our type assigned to this path, we are likely waiting for
 	 * final close on an old, invalidated, peripheral.  If this is
 	 * the case, queue up a deferred call to the peripheral's async
-	 * handler.  If it looks like a mistaken re-alloation, complain.
+	 * handler.  If it looks like a mistaken re-allocation, complain.
 	 */
 	if ((periph = cam_periph_find(path, name)) != NULL) {
 
