@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)malloc.h	8.3 (Berkeley) 1/12/94
- * $Id: malloc.h,v 1.6 1995/02/02 08:49:45 davidg Exp $
+ * $Id: malloc.h,v 1.7 1995/03/12 13:25:01 ugen Exp $
  */
 
 #ifndef _SYS_MALLOC_H_
@@ -111,6 +111,10 @@
 #define M_MSDOSFSMNT	59	/* MSDOSFS mount structure */
 #define M_MSDOSFSNODE	60	/* MSDOSFS vnode private part */
 #define M_MSDOSFSFAT	61	/* MSDOSFS file allocation table */
+#define M_DEVFSMNT	62	/* DEVFS mount structure */
+#define M_DEVFSBACK	63	/* DEVFS Back node */
+#define M_DEVFSFRONT	64	/* DEVFS Front node */
+#define M_DEVFSNODE	65	/* DEVFS node */
 #define	M_TEMP		74	/* misc temporary data buffers */
 #define M_TTYS		75	/* tty data structures */
 #define M_GZIP		76	/* Gzip trees */
@@ -181,7 +185,11 @@
 	"MSDOSFS mount",/* 59 M_MSDOSFSMNT */ \
 	"MSDOSFS node",	/* 60 M_MSDOSFSNODE */ \
 	"MSDOSFS FAT",  /* 61 M_MSDOSFSFAR */ \
-	NULL, NULL, NULL, NULL, NULL, \
+	"DEVFS mount",	/* 62 M_DEVFSMNT */ \
+	"DEVFS back",	/* 63 M_DEVFSBACK */ \
+	"DEVFS front",	/* 64 M_DEVFSFRONT */ \
+	"DEVFS node",	/* 65 M_DEVFSNODE */ \
+	NULL, \
 	NULL, NULL, NULL, NULL, NULL, \
 	NULL, NULL, \
 	"temp",		/* 74 M_TEMP */ \
