@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.16.2.68 1997/02/14 21:29:20 jkh Exp $
+ * $Id: config.c,v 1.16.2.69 1997/02/15 13:20:11 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -301,9 +301,9 @@ readConfig(char *config, char **lines, int max)
 
 #define MAX_LINES  2000 /* Some big number we're not likely to ever reach - I'm being really lazy here, I know */
 
-/* Load the environment from /etc/sysconfig, if it exists */
+/* Load the environment from a sysconfig file */
 void
-configEnvironment(char *config)
+configEnvironmentSysconfig(char *config)
 {
     char *lines[MAX_LINES], *cp, *cp2;
     int i, j, nlines;
@@ -332,6 +332,30 @@ configEnvironment(char *config)
     }
 }
     
+/* Load the environment from a resolv.conf file */
+void
+configEnvironmentResolv(char *config)
+{
+    char *lines[MAX_LINES];
+    int i, nlines;
+
+    nlines = readConfig(config, lines, MAX_LINES);
+    if (nlines == -1)
+	return;
+    for (i = 0; i < nlines; i++) {
+	Boolean name_set = FALSE;
+
+	if (!strncmp(lines[i], "domain", 6))
+	    variable_set2(VAR_DOMAINNAME, string_skipwhite(lines[i] + 6));
+	else if (!strncmp(lines[i], "nameserver", 10) && !name_set) {
+	    /* Only take the first nameserver setting - we're lame */
+	    variable_set2(VAR_NAMESERVER, string_skipwhite(lines[i] + 10));
+	    name_set = TRUE;
+	}
+	free(lines[i]);
+    }
+}
+
 /*
  * This sucks in /etc/sysconfig, substitutes anything needing substitution, then
  * writes it all back out.  It's pretty gross and needs re-writing at some point.
@@ -360,17 +384,15 @@ configSysconfig(char *config)
 		free(lines[i]);
 		lines[i] = (char *)malloc(strlen(v->name) + strlen(v->value) + 5);
 		sprintf(lines[i], "%s=\"%s\"\n", v->name, v->value);
-		msgDebug("Variable substitution on: %s\n", lines[i]);
 	    }
 	}
     }
 
     /* Now write it all back out again */
-    msgNotify("Writing configuration changes to %s file..", config);
-    if (Fake) {
-	msgDebug("Writing %s out to debugging screen..\n", config);
+    if (isDebug())
+	msgDebug("Writing configuration changes to %s file..", config);
+    if (Fake)
 	fp = fdopen(DebugFD, "w");
-    }
     else {
 	(void)vsystem("cp %s %s.previous", config, config);
     	fp = fopen(config, "w");
