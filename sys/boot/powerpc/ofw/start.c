@@ -38,15 +38,6 @@ __FBSDID("$FreeBSD$");
 
 void startup(void *, int, int (*)(void *), char *, int);
 
-#ifdef XCOFF_GLUE
-asm("				\n\
-	.text			\n\
-	.globl	_entry		\n\
-_entry:				\n\
-	.long	_start,0,0	\n\
-");
-#endif
-
 __asm("				\n\
 	.data			\n\
 stack:				\n\
@@ -55,45 +46,9 @@ stack:				\n\
 	.text			\n\
 	.globl	_start		\n\
 _start:				\n\
-	li	%r8,0		\n\
-	li	%r9,0x100	\n\
-	mtctr	%r9		\n\
-1:				\n\
-	dcbf	%r0,%r8		\n\
-	icbi	%r0,%r8		\n\
-	addi	%r8,%r8,0x20	\n\
-	bdnz	1b		\n\
-	sync			\n\
-	isync			\n\
-				\n\
 	lis	%r1,stack@ha	\n\
 	addi	%r1,%r1,stack@l	\n\
 	addi	%r1,%r1,8192	\n\
-				\n\
-	mfmsr	%r8		\n\
-	li	%r0,0		\n\
-	mtmsr	%r0		\n\
-	isync			\n\
-				\n\
-	mtibatu	0,%r0		\n\
-	mtibatu	1,%r0		\n\
-	mtibatu	2,%r0		\n\
-	mtibatu	3,%r0		\n\
-	mtdbatu	0,%r0		\n\
-	mtdbatu	1,%r0		\n\
-	mtdbatu	2,%r0		\n\
-	mtdbatu	3,%r0		\n\
-				\n\
-	li	%r9,0x12     /* BATL(0, BAT_M, BAT_PP_RW) */ \n\
-	mtibatl	0,%r9		\n\
-	mtdbatl	0,%r9		\n\
-	li	%r9,0x1ffe   /* BATU(0, BAT_BL_256M, BAT_Vs) */ \n\
-	mtibatu	0,%r9		\n\
-	mtdbatu	0,%r9		\n\
-	isync			\n\
-				\n\
-	mtmsr	%r8		\n\
-	isync			\n\
 				\n\
 	b	startup		\n\
 ");
