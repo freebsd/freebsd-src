@@ -50,7 +50,7 @@ MAN=	BUF_LOCK.9 BUF_LOCKFREE.9 BUF_LOCKINIT.9 BUF_REFCNT.9 \
 	mi_switch.9 microseq.9 microtime.9 microuptime.9 \
 	module.9 mutex.9 \
 	namei.9 \
-	panic.9 pfil.9 physio.9 posix4.9 printf.9 psignal.9 \
+	panic.9 pfil.9 pfind.9 physio.9 posix4.9 printf.9 psignal.9 \
 	random.9 resettodr.9 resource_int_value.9 resource_query_string.9 \
 	rtalloc.9 rtentry.9 runqueue.9 \
 	sbuf.9 scheduler.9 sleep.9 sleepqueue.9 spl.9 store.9 \
@@ -128,6 +128,7 @@ MLINKS+=mi_switch.9 cpu_switch.9 mi_switch.9 cpu_throw.9
 MLINKS+=namei.9 NDINIT.9
 MLINKS+=namei.9 NDFREE.9
 MLINKS+=pfil.9 pfil_hook_get.9 pfil.9 pfil_add_hook.9 pfil.9 pfil_remove_hook.9
+MLINKS+=pfind.9 zpfind.9
 MLINKS+=posix4.9 p1003_1b.9
 MLINKS+=psignal.9 gsignal.9 psignal.9 pgsignal.9
 MLINKS+=random.9 srandom.9 random.9 arc4random.9 random.9 read_random.9
