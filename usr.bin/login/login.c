@@ -509,10 +509,10 @@ main(argc, argv)
 	/* Nothing else left to fail -- really log in. */
 	memset((void *)&utmp, 0, sizeof(utmp));
 	(void)time(&utmp.ut_time);
-	(void)strlcpy(utmp.ut_name, username, sizeof(utmp.ut_name));
+	(void)strncpy(utmp.ut_name, username, sizeof(utmp.ut_name));
 	if (hostname)
-		(void)strlcpy(utmp.ut_host, hostname, sizeof(utmp.ut_host));
-	(void)strlcpy(utmp.ut_line, tty, sizeof(utmp.ut_line));
+		(void)strncpy(utmp.ut_host, hostname, sizeof(utmp.ut_host));
+	(void)strncpy(utmp.ut_line, tty, sizeof(utmp.ut_line));
 	login(&utmp);
 
 	dolastlog(quietlog);
@@ -1011,9 +1011,9 @@ dolastlog(quiet)
 		}
 		memset((void *)&ll, 0, sizeof(ll));
 		(void)time(&ll.ll_time);
-		(void)strlcpy(ll.ll_line, tty, sizeof(ll.ll_line));
+		(void)strncpy(ll.ll_line, tty, sizeof(ll.ll_line));
 		if (hostname)
-			(void)strlcpy(ll.ll_host, hostname, sizeof(ll.ll_host));
+			(void)strncpy(ll.ll_host, hostname, sizeof(ll.ll_host));
 		(void)write(fd, (char *)&ll, sizeof(ll));
 		(void)close(fd);
 	} else {
@@ -1058,7 +1058,7 @@ stypeof(ttyid)
 		if (t != NULL && t->ty_type != NULL)
 			return (t->ty_type);
 	}
-	return ("UNKNOWN");
+	return (UNKNOWN);
 }
 
 void
