@@ -362,7 +362,7 @@ struct fxp_rfa {
 	u_int8_t rfax_csum_sts;
 	u_int8_t rfax_zerocopy_sts;
 	u_int8_t rfax_pad[8];
-};
+} __packed;
 #define FXP_RFAX_LEN 16
 
 #define FXP_RFA_STATUS_RCOL	0x0001	/* receive collision */
