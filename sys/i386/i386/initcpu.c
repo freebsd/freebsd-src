@@ -477,7 +477,7 @@ init_ppro(void)
 	u_int64_t	apicbase;
 
 	/*
-	 * Local APIC should be disabled in UP kernel.
+	 * Local APIC should be disabled if it is not going to be used.
 	 */
 	apicbase = rdmsr(MSR_APICBASE);
 	apicbase &= ~APICBASE_ENABLED;
