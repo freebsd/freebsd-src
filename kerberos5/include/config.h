@@ -566,7 +566,7 @@
 #define HAVE_NETINET_TCP_H 1
 
 /* Define if you have the <netinet6/in6.h> header file.  */
-#define HAVE_NETINET6_IN6_H 1
+/* #undef HAVE_NETINET6_IN6_H */
 
 /* Define if you have the <netinfo/ni.h> header file.  */
 /* #undef HAVE_NETINFO_NI_H */
