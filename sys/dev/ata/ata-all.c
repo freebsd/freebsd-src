@@ -591,11 +591,11 @@ ata_boot_attach(void)
 	    atapi_attach(&ch->device[MASTER]);
 	if (ch->devices & ATA_ATAPI_SLAVE)
 	    atapi_attach(&ch->device[SLAVE]);
-#endif
 #if NATAPICAM > 0
 	atapi_cam_attach_bus(ch);
 #endif
     }
+#endif
     splx(s);
 }
 
