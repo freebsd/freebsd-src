@@ -299,6 +299,13 @@ pnp_parse_resources(device_t dev, u_char *resources, int len)
 				break;
 
 			case PNP_TAG_MEMORY32_RANGE:
+				if (I32(resinfo + 13) == 0) {
+					if (bootverbose) {
+						printf("%s: skipping empty range\n",
+						       pnp_eisaformat(id));
+					}
+					continue;
+				}
 				if (bootverbose) {
 					printf("%s: adding memory32 range "
 					       "%#x-%#x, size=%#x, "
