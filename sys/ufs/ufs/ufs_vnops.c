@@ -936,6 +936,7 @@ ufs_rename(ap)
 	struct direct newdir;
 	int doingdirectory = 0, oldparent = 0, newparent = 0;
 	int error = 0, ioflag;
+	int in_rename_flag = 0;
 
 #ifdef DIAGNOSTIC
 	if ((tcnp->cn_flags & HASBUF) == 0 ||
@@ -1049,6 +1050,8 @@ abortit:
 			goto abortit;
 		}
 		ip->i_flag |= IN_RENAME;
+		/* note: only the routine that sets IN_RENAME can clear it */
+		in_rename_flag = 1;
 		oldparent = dp->i_number;
 		doingdirectory = 1;
 	}
@@ -1293,7 +1296,8 @@ abortit:
 			cache_purge(fdvp);
 		}
 		error = ufs_dirremove(fdvp, xp, fcnp->cn_flags, 0);
-		xp->i_flag &= ~IN_RENAME;
+		if (in_rename_flag)
+			xp->i_flag &= ~IN_RENAME;
 	}
 	VN_KNOTE(fvp, NOTE_RENAME);
 	if (dp)
@@ -1308,13 +1312,14 @@ bad:
 		vput(ITOV(xp));
 	vput(ITOV(dp));
 out:
-	if (doingdirectory)
+	if (doingdirectory && in_rename_flag)
 		ip->i_flag &= ~IN_RENAME;
 	if (vn_lock(fvp, LK_EXCLUSIVE, td) == 0) {
 		ip->i_effnlink--;
 		ip->i_nlink--;
 		ip->i_flag |= IN_CHANGE;
-		ip->i_flag &= ~IN_RENAME;
+		if (in_rename_flag)
+			ip->i_flag &= ~IN_RENAME; /* XXX huh?  Why again? */
 		if (DOINGSOFTDEP(fvp))
 			softdep_change_linkcnt(ip);
 		vput(fvp);
