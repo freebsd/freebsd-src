@@ -34,6 +34,8 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
+.\"	$Id$
+.\"
 .Dd September 10, 1996
 .Dt TIMEOUT 9
 .Os FreeBSD
@@ -41,16 +43,18 @@
 .Nm timeout
 .Nd execute a function after a specified length of time
 .Sh SYNOPSIS
-typedef void timeout_t \*(lpvoid *\*(rp;
+.Fd #include <sys/types.h>
+.Fd #include <sys/systm.h>
+.Ft typedef void timeout_t \*(lpvoid *\*(rp;
 
 .Ft struct callout_handle
-.Fn "timeout" "void (*func)(void *)" "void *arg" "int ticks"
+.Fn timeout "timeout_t *func" "void *arg" "int ticks"
 .Ft void
 .Fn callout_handle_init "struct callout_handle *"
 
-struct callout_handle handle = CALLOUT_HANDLE_INITIALIZER(&handle)
+.Li struct callout_handle handle = CALLOUT_HANDLE_INITIALIZER(&handle)
 .Ft void
-.Fn "untimeout" "void (*func)(void *)" "void *arg" "struct callout_handle handle"
+.Fn untimeout "timeout_t *func" "void *arg" "struct callout_handle handle"
 .Sh DESCRIPTION
 The function
 .Fn timeout
