@@ -67,7 +67,11 @@ char *banner[] =
     "#define yyclearin (yychar=(YYEMPTY))",
     "#define yyerrok (yyerrflag=0)",
     "#define YYRECOVERING() (yyerrflag!=0)",
+    "#if defined(__cplusplus) || __STDC__",
+    "static int yygrowstack(void);",
+    "#else",
     "static int yygrowstack();",
+    "#endif",
     0
 };
 
