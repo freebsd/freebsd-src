@@ -133,7 +133,7 @@ i386/isa/sound/sound_timer.c	optional	gus	device-driver
 i386/isa/sound/midi_synth.c	optional	gus	device-driver
 i386/isa/sound/midibuf.c	optional	gus	device-driver
 i386/isa/sound/ad1848.c		optional	gusxvi	device-driver
-i386/isa/sound/ad1848.c		optional	gus	device-driver
+i386/isa/sound/ad1848.c		optional	gusmax	device-driver
 i386/isa/sound/ad1848.c		optional	mss	device-driver
 i386/isa/sound/midi_synth.c	optional	mss	device-driver
 i386/isa/sound/midibuf.c	optional	mss	device-driver
