@@ -938,7 +938,7 @@ pipe_write(fp, uio, active_cred, flags, td)
 	/*
 	 * detect loss of pipe read side, issue SIGPIPE if lost.
 	 */
-	if ((wpipe == NULL) || (wpipe->pipe_state & PIPE_EOF)) {
+	if ((!wpipe->pipe_present) || (wpipe->pipe_state & PIPE_EOF)) {
 		PIPE_UNLOCK(rpipe);
 		return (EPIPE);
 	}
@@ -1316,13 +1316,13 @@ pipe_poll(fp, events, active_cred, td)
 			revents |= events & (POLLIN | POLLRDNORM);
 
 	if (events & (POLLOUT | POLLWRNORM))
-		if (wpipe == NULL || (wpipe->pipe_state & PIPE_EOF) ||
+		if (!wpipe->pipe_present || (wpipe->pipe_state & PIPE_EOF) ||
 		    (((wpipe->pipe_state & PIPE_DIRECTW) == 0) &&
 		     (wpipe->pipe_buffer.size - wpipe->pipe_buffer.cnt) >= PIPE_BUF))
 			revents |= events & (POLLOUT | POLLWRNORM);
 
 	if ((rpipe->pipe_state & PIPE_EOF) ||
-	    (wpipe == NULL) ||
+	    (!wpipe->pipe_present) ||
 	    (wpipe->pipe_state & PIPE_EOF))
 		revents |= POLLHUP;
 
@@ -1513,7 +1513,7 @@ pipe_kqfilter(struct file *fp, struct knote *kn)
 	case EVFILT_WRITE:
 		kn->kn_fop = &pipe_wfiltops;
 		cpipe = cpipe->pipe_peer;
-		if (cpipe == NULL)
+		if (!cpipe->pipe_present)
 			/* other end of pipe has been closed */
 			return (EPIPE);
 		break;
@@ -1556,7 +1556,7 @@ filt_piperead(struct knote *kn, long hint)
 		kn->kn_data = rpipe->pipe_map.cnt;
 
 	if ((rpipe->pipe_state & PIPE_EOF) ||
-	    (wpipe == NULL) || (wpipe->pipe_state & PIPE_EOF)) {
+	    (!wpipe->pipe_present) || (wpipe->pipe_state & PIPE_EOF)) {
 		kn->kn_flags |= EV_EOF;
 		PIPE_UNLOCK(rpipe);
 		return (1);
@@ -1573,7 +1573,7 @@ filt_pipewrite(struct knote *kn, long hint)
 	struct pipe *wpipe = rpipe->pipe_peer;
 
 	PIPE_LOCK(rpipe);
-	if ((wpipe == NULL) || (wpipe->pipe_state & PIPE_EOF)) {
+	if ((!wpipe->pipe_present) || (wpipe->pipe_state & PIPE_EOF)) {
 		kn->kn_data = 0;
 		kn->kn_flags |= EV_EOF;
 		PIPE_UNLOCK(rpipe);
