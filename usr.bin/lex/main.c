@@ -32,6 +32,7 @@ char copyright[] =
  All rights reserved.\n";
 #endif /* not lint */
 
+/* $Header: /home/daffy/u0/vern/flex/RCS/main.c,v 2.64 96/05/25 20:42:42 vern Exp $ */
 /* $FreeBSD$ */
 
 
