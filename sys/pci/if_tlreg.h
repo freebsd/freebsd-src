@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_tlreg.h,v 1.12 1998/09/17 21:16:31 wpaul Exp $
+ *	$Id: if_tlreg.h,v 1.11 1998/09/17 21:16:47 wpaul Exp $
  */
 
 
@@ -135,7 +135,6 @@ struct tl_softc {
 #ifdef TL_DEBUG
 	u_int8_t		tl_event[20];
 #endif
-	struct callout_handle	tl_stat_ch;
 };
 
 /*
