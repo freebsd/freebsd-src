@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.272
+    Original revision: 1.275
 -->
 
 <articleinfo>
@@ -182,6 +182,9 @@
     <para>Linux エミュレーションは
       <port>emulators/linux_base-7</port> (RedHat 7.X emulation)
       で必要とされるカーネル機能に対応しました. &merged;</para>
+
+    <para>Linux エミュレーションは, カーネル設定に
+      <literal>options SYSVSEM</literal> が必要になりました. &merged;</para>
 
     <para>Low-Watermark Mandatory Access Control 用
       セキュリティ機構 &man.lomac.4; がカーネルモジュールとして
@@ -412,7 +415,7 @@
       <varname>dumpdev</varname> で設定できるようになりました.
       その結果, カーネル初期化の遅い段階 (システムがシングルユーザモードに
       入る前) のパニックからも, クラッシュダンプを取れるようになりました.
-    </para>
+      &merged;</para>
 
     <sect3>
       <title>プロセッサ・マザーボードの対応状況</title>
@@ -2181,6 +2184,9 @@ hw.pcic.irq="0"</programlisting>
       オプションを用いることで抑制できます.
       &merged;</para>
 
+    <para>&man.ldd.1; が実行ファイルだけでなく共有ライブラリにも
+      使えるようになりました.</para>
+
     <para><filename>libc</filename> が標準でスレッドセーフになりました.
       <filename>libc_r</filename> にはスレッド関数のみが含まれています.</para>
 
@@ -2432,6 +2438,9 @@ hw.pcic.irq="0"</programlisting>
 
     <para><application>NFS</application> が IPv6 に対応しました.</para>
 
+    <para>&man.ngctl.8; が与えられたフックにデータパケットを送る
+      <option>write</option> コマンドに対応しました. &merged;</para>
+
     <para>行番号を付加するフィルタプログラム &man.nl.1;
       が新たに追加されました.
       &merged;</para>
@@ -2503,6 +2512,10 @@ hw.pcic.irq="0"</programlisting>
       に変更されました (つまり, 実行できるユーザが制限されました).
       &man.pppd.8; を利用している場合は, グループ設定を変更する必要があります.
       &merged;</para>
+
+    <para>&man.ps.1; の <option>-W</option> オプション (指定された
+      スワップデバイスから情報を取得する) がいつからか
+      使えなくなっていました.  このオプションは削除されました. &merged;</para>
 
     <para>&man.pwd.1; に, 与えられたパス名を物理ファイルシステムのパス名に正規化する
       &man.realpath.1; プログラムの機能が統合されました.
@@ -2930,8 +2943,7 @@ hw.pcic.irq="0"</programlisting>
         &merged;</para>
 
       <para><application>BIND</application> がバージョン
-        8.2.4-REL に更新されました.
-        &merged;</para>
+        8.3.1-REL に更新されました.</para>
 
       <para><application>Binutils</application> が
 	FSF 2.12 ブランチの 2002/01/27 版スナップショットに
