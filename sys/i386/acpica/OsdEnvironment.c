@@ -38,12 +38,6 @@
 ACPI_STATUS
 AcpiOsInitialize(void)
 {
-    /*
-     * Prevent the PnP BIOS code from interfering with our own scan of
-     * ISA devices.
-     */
-    PnPBIOStable = NULL;
-
     return(0);
 }
 
