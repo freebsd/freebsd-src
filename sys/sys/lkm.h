@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: lkm.h,v 1.8 1995/11/13 07:18:12 bde Exp $
+ * $Id: lkm.h,v 1.9 1995/11/14 07:35:57 bde Exp $
  */
 
 #ifndef _SYS_LKM_H_
@@ -198,7 +198,8 @@ struct lkm_table {
 	int	depcnt;		/* dependency count (INIT) */
 	int	id;		/* identifier (INIT) */
 
-	int	(*entry)();	/* entry function */
+	int	(*entry) __P((struct lkm_table *, int, int));
+				/* entry function */
 	union lkm_generic	private;	/* module private data */
 };
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_extern.h	8.3 (Berkeley) 4/16/94
- * $Id: ufs_extern.h,v 1.7 1995/03/28 07:58:17 bde Exp $
+ * $Id: ufs_extern.h,v 1.8 1995/09/04 01:13:42 dyson Exp $
  */
 
 #ifndef _UFS_UFS_EXTERN_H_
@@ -59,7 +59,6 @@ int	 ufs_advlock __P((struct vop_advlock_args *));
 int	 ufs_bmap __P((struct vop_bmap_args *));
 int	 ufs_bmaparray __P((struct vnode *, daddr_t, daddr_t *, struct indir *,
 		int *, int *, int *));
-
 int	 ufs_check_export __P((struct mount *, struct ufid *, struct mbuf *,
 		struct vnode **, int *exflagsp, struct ucred **));
 int	 ufs_checkpath __P((struct inode *, struct inode *, struct ucred *));
@@ -109,8 +108,7 @@ int	 ufs_start __P((struct mount *, int, struct proc *));
 int	 ufs_strategy __P((struct vop_strategy_args *));
 int	 ufs_symlink __P((struct vop_symlink_args *));
 int	 ufs_unlock __P((struct vop_unlock_args *));
-int	 ufs_vinit __P((struct mount *,
-	    int (**)(), int (**)(), struct vnode **));
+int	 ufs_vinit __P((struct mount *, vop_t **, vop_t **, struct vnode **));
 int	 ufsspec_close __P((struct vop_close_args *));
 int	 ufsspec_read __P((struct vop_read_args *));
 int	 ufsspec_write __P((struct vop_write_args *));

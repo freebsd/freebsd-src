@@ -31,11 +31,16 @@
  * SUCH DAMAGE.
  *
  *	@(#)protosw.h	8.1 (Berkeley) 6/2/93
- * $Id: protosw.h,v 1.6 1995/02/07 02:01:57 wollman Exp $
+ * $Id: protosw.h,v 1.7 1995/11/20 12:27:00 phk Exp $
  */
 
 #ifndef _SYS_PROTOSW_H_
 #define _SYS_PROTOSW_H_
+
+struct mbuf;
+struct sockaddr;
+struct socket;
+struct sockproto;
 
 /*
  * Protocol switch table.
@@ -64,39 +69,28 @@ struct protosw {
 	struct	domain *pr_domain;	/* domain protocol a member of */
 	short	pr_protocol;		/* protocol number */
 	short	pr_flags;		/* see below */
-
 /* protocol-protocol hooks */
-
-	/* input to protocol (from below) */
-	void	(*pr_input)();
-
-	/* output to protocol (from above) */
-	int	(*pr_output)();
-
-	/* control input (from below) */
-	void	(*pr_ctlinput)();
-
-	/* control output (from above) */
-	int	(*pr_ctloutput)();
-
+	void	(*pr_input) __P((struct mbuf *, int len));
+					/* input to protocol (from below) */
+	int	(*pr_output)	__P((struct mbuf *m, struct socket *so));
+					/* output to protocol (from above) */
+	void	(*pr_ctlinput)__P((int, struct sockaddr *, caddr_t));
+					/* control input (from below) */
+	int	(*pr_ctloutput)__P((int, struct socket *, int, int,
+				    struct mbuf **));
+					/* control output (from above) */
 /* user-protocol hook */
-
-	/* user request: see list below */
-	int	(*pr_usrreq)();
-
+	int	(*pr_usrreq) __P((struct socket *, int, struct mbuf *,
+				  struct mbuf *, struct mbuf *));
+					/* user request: see list below */
 /* utility hooks */
-
-	/* initialization hook */
-	void	(*pr_init)(void);
-
-	/* fast timeout (200ms) */
-	void	(*pr_fasttimo)(void);
-
-	/* slow timeout (500ms) */
-	void	(*pr_slowtimo)(void);
-
-	/* flush any excess space possible */
-	void	(*pr_drain)(void);
+	void	(*pr_init) __P((void));	/* initialization hook */
+	void	(*pr_fasttimo) __P((void));
+					/* fast timeout (200ms) */
+	void	(*pr_slowtimo) __P((void));
+					/* slow timeout (500ms) */
+	void	(*pr_drain) __P((void));
+					/* flush any excess space possible */
 };
 
 #define	PR_SLOWHZ	2		/* 2 slow timeouts per second */
@@ -236,8 +230,8 @@ char	*prcorequests[] = {
 #endif
 
 #ifdef KERNEL
-struct protosw *pffindproto(int family, int protocol, int type);
-struct protosw *pffindtype(int family, int type);
+struct protosw *pffindproto __P((int family, int protocol, int type));
+struct protosw *pffindtype __P((int family, int type));
 #endif
 
 #endif

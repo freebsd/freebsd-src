@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsiconf.h,v 1.29 1995/10/21 23:13:07 phk Exp $
+ *	$Id: scsiconf.h,v 1.30 1995/11/20 12:42:31 phk Exp $
  */
 #ifndef	SCSI_SCSICONF_H
 #define SCSI_SCSICONF_H 1
@@ -60,6 +60,8 @@ typedef	unsigned char 		u_int8;
  * scsi system to find the associated other parts.
  */
 
+struct buf;
+struct scsi_xfer;
 
 /*
  * These entrypoints are called by the high-end drivers to get services from
@@ -68,11 +70,11 @@ typedef	unsigned char 		u_int8;
  */
 struct scsi_adapter
 {
-/* 04*/	int32		(*scsi_cmd)();
-/* 08*/	void		(*scsi_minphys)();
-/* 12*/	int32		(*open_target_lu)();
-/* 16*/	int32		(*close_target_lu)();
-/* 20*/	u_int32		(*adapter_info)(); /* see definitions below */
+/* 04*/	int32		(*scsi_cmd) __P((struct scsi_xfer *xs));
+/* 08*/	void		(*scsi_minphys) __P((struct buf *bp));
+/* 12*/	int32		(*open_target_lu) __P((void));
+/* 16*/	int32		(*close_target_lu) __P((void));
+/* 20*/	u_int32		(*adapter_info) __P((int unit)); /* see definitions below */
 /* 24*/	char		*name; /* name of scsi bus controller */
 /* 32*/	u_long	spare[2];
 };
@@ -104,10 +106,8 @@ struct scsi_adapter
  */
 struct scsi_data;
 struct scsi_link;	/* scsi_link refers to scsi_device and vice-versa */
-struct scsi_xfer;
 
 struct proc;
-struct buf;
 
 /*
  * These entry points are called by the low-end drivers to get services from
@@ -120,13 +120,18 @@ struct buf;
  *     instance down in the adapter drivers is removed.
  */
 
+/*
+ * XXX <devconf.h> already includes too much; avoid including <conf.h>.
+ */
+typedef int yet_another_d_open_t __P((dev_t, int, int, struct proc *));
+
 struct scsi_device
 {
 /*  4*/	errval (*err_handler)(struct scsi_xfer *xs);	/* return -1 to say
 							 * err processing complete */
 /*  8*/	void	(*start)(u_int32 unit, u_int32 flags);
-/* 12*/	int32	(*async)();
-/* 16*/	int32	(*done)();	/* returns -1 to say done processing complete */
+/* 12*/	int32	(*async) __P((void));
+/* 16*/	int32	(*done) __P((struct scsi_xfer *xs));	/* returns -1 to say done processing complete */
 /* 20*/	char	*name;		/* name of device type */
 /* 24*/	u_int32 flags;		/* device type dependent flags */
 /* 32*/	int32	spare[2];
@@ -134,7 +139,7 @@ struct scsi_device
 /* 36*/ int32	link_flags;	/* Flags OR'd into sc_link at attach time */
 /* 40*/ errval  (*attach)(struct scsi_link *sc_link);
 /* 44*/ char	*desc;		/* Description of device */
-/* 48*/ int (*open)(dev_t dev, int flags, int fmt, struct proc *p);
+/* 48*/ yet_another_d_open_t *open;
 /* 52*/ int sizeof_scsi_data;
 /* 56*/ int type;		/* Type of device this supports */
 /* 60*/ int	(*getunit)(dev_t dev);
@@ -168,6 +173,8 @@ struct scsi_device
 
 /* SCSI_DEVICE_ENTRIES: A macro to generate all the entry points from the
  * name.
+ * XXX as usual, the extern prototypes belong in a header so that they are
+ * visible to callers.
  */
 #define SCSI_DEVICE_ENTRIES(NAME) \
 static errval NAME##attach(struct scsi_link *sc_link); \
@@ -424,7 +431,7 @@ errval scsi_change_def( struct scsi_link *sc_link, u_int32 flags);
 errval scsi_inquire( struct scsi_link *sc_link,
 			struct scsi_inquiry_data *inqbuf, u_int32 flags);
 errval scsi_prevent( struct scsi_link *sc_link, u_int32 type,u_int32 flags);
-struct scsibus_data *scsi_alloc_bus ();
+struct scsibus_data *scsi_alloc_bus __P((void));
 errval scsi_probe_bus __P((int, int, int));
 errval scsi_probe_busses __P(( int, int, int));
 errval scsi_start_unit( struct scsi_link *sc_link, u_int32 flags);
@@ -473,6 +480,8 @@ extern struct kern_devconf kdc_scbus0; /* XXX should go away */
 
 void scsi_configure_start __P((void));
 void scsi_configure_finish __P((void));
+
+void ukinit __P((void));
 
 #endif	/* KERNEL */
 

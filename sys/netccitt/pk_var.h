@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)pk_var.h	8.1 (Berkeley) 6/10/93
- * $Id: pk_var.h,v 1.5 1995/05/30 08:09:11 rgrimes Exp $
+ * $Id: pk_var.h,v 1.6 1995/07/29 11:41:27 bde Exp $
  */
 
 #ifndef _NETCCITT_PK_VAR_H_
@@ -56,9 +56,11 @@ struct pklcd {
 		struct	pklcd_q *q_forw;	/* debugging chain */
 		struct	pklcd_q *q_back;	/* debugging chain */
 	} lcd_q;
-	int	(*lcd_upper)();		/* switch to socket vs datagram vs ...*/
+	int	(*lcd_upper) __P((struct pklcd *lcp, struct mbuf *m));
+					/* switch to socket vs datagram vs ...*/
 	caddr_t	lcd_upnext;		/* reference for lcd_upper() */
-	int	(*lcd_send)();		/* if X.25 front end, direct connect */
+	int	(*lcd_send) __P((struct pklcd *lcp));
+					/* if X.25 front end, direct connect */
 	caddr_t lcd_downnext;		/* reference for lcd_send() */
 	short   lcd_lcn;		/* Logical channel number */
 	short   lcd_state;		/* Logical Channel state */
@@ -98,6 +100,8 @@ struct pklcd {
 	struct	sockbuf lcd_sb;		/* alternate for datagram service */
 };
 
+struct dll_ctlinfo;
+
 /*
  * Per network information, allocated dynamically
  * when a new network is configured.
@@ -110,8 +114,10 @@ struct	pkcb {
 	} pk_q;
 	short	pk_state;		/* packet level status */
 	short	pk_maxlcn;		/* local copy of xc_maxlcn */
-	int	(*pk_lloutput) ();	/* link level output procedure */
-	caddr_t (*pk_llctlinput) ();    /* link level ctloutput procedure */
+	int	(*pk_lloutput) __P((caddr_t, struct mbuf *, struct rtentry *));
+					/* link level output procedure */
+	caddr_t (*pk_llctlinput) __P((int, int, struct dll_ctlinfo *));
+					/* link level ctloutput procedure */
 	caddr_t pk_llnext;		/* handle for next level down */
 	struct	x25config *pk_xcp;	/* network specific configuration */
 	struct	x25_ifaddr *pk_ia;	/* backpointer to ifaddr */
@@ -143,7 +149,8 @@ struct x25_ifaddr {
 	struct	x25config ia_xc;	/* network specific configuration */
 	struct  pkcb *ia_pkcb;
 #define ia_maxlcn ia_xc.xc_maxlcn
-	int	(*ia_start) ();		/* connect, confirm method */
+	int	(*ia_start) __P((struct pklcd *lcp));
+					/* connect, confirm method */
 	struct	sockaddr_x25 ia_dstaddr; /* reserve space for route dst */
 };
 
@@ -229,7 +236,7 @@ struct mbuf_cache {
 extern struct pkcb_q pkcb_q;
 extern struct	pklcd *pk_listenhead;
 void	ccittintr __P((void));
-struct	pklcd *pk_attach();
+struct pklcd *pk_attach __P((struct socket *so));
 
 extern char	*pk_name[], *pk_state[];
 extern int	pk_t20, pk_t21, pk_t22, pk_t23;
