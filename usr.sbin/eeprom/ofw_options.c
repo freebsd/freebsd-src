@@ -71,9 +71,15 @@ static struct ofwo_extabent ofwo_extab[] = {
 };
 
 static int		ofwo_setpass(int);
-static __inline void	ofwo_printprop(const char *, const char*, int);
 static int		ofwo_setstr(int, const void *, int, const char *,
 			    const char *);
+
+static __inline void
+ofwo_printprop(const char *prop, const char* buf, int buflen)
+{
+
+	printf("%s: %.*s\n", prop, buflen, buf);
+}
 
 static int
 ofwo_oemlogo(struct ofwo_extabent *exent, int fd, const void *buf, int buflen,
@@ -190,13 +196,6 @@ ofwo_setpass(int fd)
 	ofw_setprop(fd, ofw_optnode(fd), "security-password", pwd1,
 	    strlen(pwd1) + 1);
 	return (EX_OK);
-}
-
-static void
-ofwo_printprop(const char *prop, const char* buf, int buflen)
-{
-
-	printf("%s: %.*s\n", prop, buflen, buf);
 }
 
 static int
