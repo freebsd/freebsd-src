@@ -63,9 +63,6 @@ struct ata_pci_controller {
     void		 *driver;
 };
 
-#define ATA_MASTERDEV(dev)	((pci_get_progif(dev) & 0x80) && \
-				 (pci_get_progif(dev) & 0x05) != 0x05)
-
 /* defines for known chipset PCI id's */
 #define ATA_ACARD_ID		0x1191
 #define ATA_ATP850		0x00021191
@@ -295,6 +292,8 @@ struct ata_pci_controller {
 #define VIABUG		0x10
 
 /* global prototypes */
+int ata_legacy(device_t);
+
 void ata_dmainit(struct ata_channel *);
 int ata_dmastart(struct ata_channel *, caddr_t, int32_t, int);
 int ata_dmastop(struct ata_channel *);
