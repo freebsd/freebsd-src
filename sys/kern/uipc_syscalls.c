@@ -71,9 +71,9 @@
 
 static void sf_buf_init(void *arg);
 SYSINIT(sock_sf, SI_SUB_MBUF, SI_ORDER_ANY, sf_buf_init, NULL)
-static struct sf_buf *sf_buf_alloc(void);
-static void sf_buf_ref(caddr_t addr, u_int size);
-static void sf_buf_free(caddr_t addr, u_int size);
+struct sf_buf *sf_buf_alloc(void);
+void sf_buf_ref(caddr_t addr, u_int size);
+void sf_buf_free(caddr_t addr, u_int size);
 
 static int sendit __P((struct proc *p, int s, struct msghdr *mp, int flags));
 static int recvit __P((struct proc *p, int s, struct msghdr *mp,
@@ -1426,9 +1426,6 @@ holdsock(fdp, fdes, fpp)
 
 /*
  * Allocate a pool of sf_bufs (sendfile(2) or "super-fast" if you prefer. :-))
- * XXX - The sf_buf functions are currently private to sendfile(2), so have
- * been made static, but may be useful in the future for doing zero-copy in
- * other parts of the networking code. 
  */
 static void
 sf_buf_init(void *arg)
@@ -1448,7 +1445,7 @@ sf_buf_init(void *arg)
 /*
  * Get an sf_buf from the freelist. Will block if none are available.
  */
-static struct sf_buf *
+struct sf_buf *
 sf_buf_alloc()
 {
 	struct sf_buf *sf;
@@ -1471,7 +1468,7 @@ sf_buf_alloc()
 }
 
 #define dtosf(x)	(&sf_bufs[((uintptr_t)(x) - (uintptr_t)sf_base) >> PAGE_SHIFT])
-static void
+void
 sf_buf_ref(caddr_t addr, u_int size)
 {
 	struct sf_buf *sf;
@@ -1488,7 +1485,7 @@ sf_buf_ref(caddr_t addr, u_int size)
  *
  * Must be called at splimp.
  */
-static void
+void
 sf_buf_free(caddr_t addr, u_int size)
 {
 	struct sf_buf *sf;
