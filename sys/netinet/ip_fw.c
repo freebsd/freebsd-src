@@ -11,7 +11,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.31 1996/02/24 00:17:32 phk Exp $
+ *	$Id: ip_fw.c,v 1.32 1996/02/24 13:38:26 phk Exp $
  */
 
 /*
@@ -331,7 +331,7 @@ ip_fw_chk(m, ip, rif, dir)
 		}
 
 		/* If a i/f addr was specified, check it */
-		if ((f->fw_flg & IP_FW_F_IFNAME) && f->fw_via_ip.s_addr) {
+		if (!(f->fw_flg & IP_FW_F_IFNAME) && f->fw_via_ip.s_addr) {
 			int match = 0;
 
 			for (ia_p = ia; ia_p != NULL; ia_p = ia_p->ifa_next) {
