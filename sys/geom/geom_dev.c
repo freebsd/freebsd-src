@@ -86,7 +86,7 @@ static struct g_class g_dev_class	= {
 };
 
 static void
-g_dev_clone(void *arg, char *name, int namelen, dev_t *dev)
+g_dev_clone(void *arg, char *name, int namelen __unused, dev_t *dev)
 {
 	struct g_geom *gp;
 
