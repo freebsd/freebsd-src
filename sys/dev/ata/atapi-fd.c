@@ -304,8 +304,8 @@ afd_start(struct afd_softc *fdp)
 	return;
     }
 
-    lba = bp->b_pblkno / (fdp->cap.sector_size / DEV_BSIZE);
-    count = bp->b_bcount;
+    lba = bp->b_pblkno;
+    count = bp->b_bcount / fdp->cap.sector_size;
     data_ptr = bp->b_data;
     bp->b_resid = 0; 
 
