@@ -57,6 +57,7 @@ static const char rcsid[] =
 #include <fcntl.h>
 #include <fts.h>
 #include <locale.h>
+#include <regex.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -73,6 +74,7 @@ int isoutput;			/* user specified output operator */
 int issort;         		/* do hierarchies in lexicographical order */
 int isxargs;			/* don't permit xargs delimiting chars */
 int mindepth = -1, maxdepth = -1; /* minimum and maximum depth */
+int regexp_flags = REG_BASIC;	/* use the "basic" regexp by default*/
 
 static void usage __P((void));
 
@@ -91,8 +93,11 @@ main(argc, argv)
 	p = start = argv;
 	Hflag = Lflag = 0;
 	ftsoptions = FTS_NOSTAT | FTS_PHYSICAL;
-	while ((ch = getopt(argc, argv, "HLPXdf:sx")) != -1)
+	while ((ch = getopt(argc, argv, "EHLPXdf:sx")) != -1)
 		switch (ch) {
+		case 'E':
+			regexp_flags |= REG_EXTENDED;
+			break;
 		case 'H':
 			Hflag = 1;
 			Lflag = 0;
@@ -161,6 +166,6 @@ static void
 usage()
 {
 	(void)fprintf(stderr,
-"usage: find [-H | -L | -P] [-Xdsx] [-f file] [file ...] [expression]\n");
+"usage: find [-H | -L | -P] [-EXdsx] [-f file] [file ...] [expression]\n");
 	exit(1);
 }
