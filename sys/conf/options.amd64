@@ -1,5 +1,5 @@
 # $FreeBSD$
-# Options specific to the AMD x86-64 platform kernels
+# Options specific to AMD64 platform kernels
 
 MAXMEM
 PERFMON			opt_perfmon.h
