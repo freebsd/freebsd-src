@@ -3622,8 +3622,11 @@ fhopen(td, uap)
 	 * end of vn_open code 
 	 */
 
-	if ((error = falloc(td, &nfp, &indx)) != 0)
+	if ((error = falloc(td, &nfp, &indx)) != 0) {
+		if (fmode & FWRITE)
+			vp->v_writecount--;
 		goto bad;
+	}
 	fp = nfp;	
 
 	/*
