@@ -22,8 +22,9 @@ MAKEINFOFLAGS+= -I ${GDBDIR}/gdb/doc
 MAKEINFOFLAGS+= -I ${GDBDIR}/gdb/mi
 MAKEINFOFLAGS+= -I ${CONTRIBDIR}/libreadline/doc
 
-CLEANFILES=	gdb-cfg.texi GDBvn.texi inc-hist.texinfo inc-hist.texinfo.orig \
-		gasver.texi ldver.texi
+CLEANFILES=	configdoc.texi gdb-cfg.texi GDBvn.texi \
+		inc-hist.texinfo inc-hist.texinfo.orig \
+		config.texi gasver.texi ldver.texi
 
 as.info:	as.texinfo asconfig.texi c-i386.texi gasver.texi
 ld.info:	ld.texinfo bfdsumm.texi ldver.texi configdoc.texi
