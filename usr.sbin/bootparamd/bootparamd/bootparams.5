@@ -25,7 +25,7 @@
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
 .\"	from: Id: bootparams.5,v 1.2 1994/10/03 19:26:13 gwr Exp
-.\"	$Id: bootparams.5,v 1.1 1996/03/28 20:49:31 joerg Exp $
+.\"	$Id: bootparams.5,v 1.2 1996/04/07 23:28:25 mpp Exp $
 .\"
 .Dd October 2, 1994
 .Dt BOOTPARAMS 5
@@ -58,17 +58,17 @@ and may be continued onto multiple lines with a backslash.
 .Pp
 For example:
 .Bd -literal -offset indent
-dummy	root=/export/dummy/root \\
-	swap=/export/dummy/swap \\
-	dump=/export/dummy/swap
+dummy	root=host:/export/dummy/root \\
+	swap=host:/export/dummy/swap \\
+	dump=host:/export/dummy/swap
 .Ed
 .Pp
 When the client named "dummy" requests the pathname for
 its logical "root" it will be given the pathname
-.Dq Pa "/export/dummy/root"
+.Dq Pa "host:/export/dummy/root"
 as the response to its
 .Tn RPC
-request.
+request.  The "host:" component must be supplied.
 .Sh FILES
 .Bl -tag -width /etc/bootparams -compact
 .It Pa /etc/bootparams
