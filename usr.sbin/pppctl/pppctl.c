@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pppctl.c,v 1.16 1998/03/22 00:43:04 brian Exp $
+ *	$Id: pppctl.c,v 1.17 1999/01/31 12:24:29 brian Exp $
  */
 
 #include <sys/types.h>
@@ -365,8 +365,11 @@ main(int argc, char **argv)
                       size = 20;
                 } else
                     size = 20;
+#ifdef __NetBSD__
+                history(hist, NULL, H_SETSIZE, size);
+#else
                 history(hist, H_EVENT, size);
-
+#endif
                 edit = el_init("pppctl", stdin, stdout);
                 el_source(edit, NULL);
                 el_set(edit, EL_PROMPT, GetPrompt);
@@ -380,7 +383,11 @@ main(int argc, char **argv)
                 el_set(edit, EL_HIST, history, (const char *)hist);
                 while ((l = smartgets(edit, &len, fd))) {
                     if (len > 1)
+#ifdef __NetBSD__
+                        history(hist, NULL, H_ENTER, l);
+#else
                         history(hist, H_ENTER, l);
+#endif
                     write(fd, l, len);
                     if (Receive(fd, REC_SHOW) != 0)
                         break;
