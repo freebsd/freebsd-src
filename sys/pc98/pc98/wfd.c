@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: wfd.c,v 1.3 1998/01/27 16:49:35 msmith Exp $
+ *      $Id: wfd.c,v 1.4 1998/01/29 06:42:12 msmith Exp $
  */
 
 /*
@@ -433,10 +433,6 @@ void wfdstrategy (struct buf *bp)
 		return;
 	}
 
-	/* Process transfer request. */
-	bp->b_pblkno = bp->b_blkno;
-	bp->b_resid = bp->b_bcount;
-
 	/*
 	 * Do bounds checking, adjust transfer, and set b_pblkno.
          */
@@ -444,7 +440,6 @@ void wfdstrategy (struct buf *bp)
 		biodone(bp);
 		return;
 	}
-	bp->b_blkno = bp->b_pblkno;
 
 	x = splbio();
 
@@ -484,9 +479,8 @@ static void wfd_start (struct wfd *t)
 
 	/* We have a buf, now we should make a command
 	 * First, translate the block to absolute and put it in terms of the
-	 * logical blocksize of the device.
-	 * What if something asks for 512 bytes not on a 2k boundary? */
-	blkno = bp->b_blkno / (t->cap.sector_size / 512);
+	 * logical blocksize of the device. */
+	blkno = bp->b_pblkno / (t->cap.sector_size / 512);
 	nblk = (bp->b_bcount + (t->cap.sector_size - 1)) / t->cap.sector_size;
 
 	if ((t->maxblks == 0) || (nblk <= t->maxblks)) {
