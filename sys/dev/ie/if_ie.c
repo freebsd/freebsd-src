@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ie.c,v 1.35 1996/06/25 20:30:13 bde Exp $
+ *	$Id: if_ie.c,v 1.36 1996/09/06 23:07:36 phk Exp $
  */
 
 /*
@@ -1932,15 +1932,9 @@ ieioctl(ifp, command, data)
     /*
      * Update multicast listeners
      */
-    error = ((command == SIOCADDMULTI)
-	     ? ether_addmulti(ifr, &ie->arpcom)
-	     : ether_delmulti(ifr, &ie->arpcom));
-
-    if(error == ENETRESET) {
-      /* reset multicast filtering */
-      ie_mc_reset(ifp->if_unit);
-      error = 0;
-    }
+    /* reset multicast filtering */
+    ie_mc_reset(ifp->if_unit);
+    error = 0;
     break;
 
   case SIOCSIFMTU:
@@ -1964,25 +1958,27 @@ ieioctl(ifp, command, data)
 
 static void ie_mc_reset(int unit) {
   struct ie_softc *ie = &ie_softc[unit];
-  struct ether_multi *enm;
-  struct ether_multistep step;
+  struct ifmultiaddr *ifma;
 
   /*
    * Step through the list of addresses.
    */
   ie->mcast_count = 0;
-  ETHER_FIRST_MULTI(step, &ie->arpcom, enm);
-  while(enm) {
-    if(ie->mcast_count >= MAXMCAST
-       || bcmp(enm->enm_addrlo, enm->enm_addrhi, 6) != 0) {
-      ie->arpcom.ac_if.if_flags |= IFF_ALLMULTI;
-      ieioctl(&ie->arpcom.ac_if, SIOCSIFFLAGS, (void *)0);
-      goto setflag;
-    }
+  for (ifma = ie->arpcom.ac_if.if_multiaddrs.lh_first; ifma;
+       ifma = ifma->ifma_link.le_next) {
+	  if (ifma->ifma_addr->sa_family != AF_LINK)
+		  continue;
 
-    bcopy(enm->enm_addrlo, &(ie->mcast_addrs[ie->mcast_count]), 6);
-    ie->mcast_count++;
-    ETHER_NEXT_MULTI(step, enm);
+	  /* XXX - this is broken... */
+	  if(ie->mcast_count >= MAXMCAST) {
+		  ie->arpcom.ac_if.if_flags |= IFF_ALLMULTI;
+		  ieioctl(&ie->arpcom.ac_if, SIOCSIFFLAGS, (void *)0);
+		  goto setflag;
+	  }
+
+	  bcopy(LLADDR((struct sockaddr_dl *)ifma->ifma_addr), 
+		&(ie->mcast_addrs[ie->mcast_count]), 6);
+	  ie->mcast_count++;
   }
 
 setflag:

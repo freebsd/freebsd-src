@@ -576,12 +576,24 @@ ifioctl(so, cmd, data, p)
 		error = suser(p->p_ucred, &p->p_acflag);
 		if (error)
 			return (error);
-		if (ifp->if_ioctl == NULL)
-			return (EOPNOTSUPP);
-		error = (*ifp->if_ioctl)(ifp, cmd, data);
-		if (error == 0 )
-		    	microtime(&ifp->if_lastchange);
-		return(error);
+
+		/* Don't allow group membership on non-multicast interfaces. */
+		if ((ifp->if_flags & IFF_MULTICAST) == 0)
+			return EOPNOTSUPP;
+
+		/* Don't let users screw up protocols' entries. */
+		if (ifr->ifr_addr.sa_family != AF_LINK)
+			return EINVAL;
+
+		if (cmd == SIOCADDMULTI) {
+			struct ifmultiaddr *ifma;
+			error = if_addmulti(ifp, &ifr->ifr_addr, &ifma);
+		} else {
+			error = if_delmulti(ifp, &ifr->ifr_addr);
+		}
+		if (error == 0)
+			microtime(&ifp->if_lastchange);
+		return error;
 
 	default:
 		if (so->so_proto == 0)
@@ -835,6 +847,7 @@ if_addmulti(ifp, sa, retifma)
 	ifma->ifma_ifp = ifp;
 	ifma->ifma_refcount = 1;
 	ifma->ifma_protospec = 0;
+	rt_newmaddrmsg(RTM_NEWMADDR, ifma);
 
 	/*
 	 * Some network interfaces can scan the address list at
@@ -856,7 +869,10 @@ if_addmulti(ifp, sa, retifma)
 		} else {
 			MALLOC(ifma, struct ifmultiaddr *, sizeof *ifma,
 			       M_IFMADDR, M_WAITOK);
-			ifma->ifma_addr = llsa;
+			MALLOC(dupsa, struct sockaddr *, llsa->sa_len,
+			       M_IFMADDR, M_WAITOK);
+			bcopy(llsa, dupsa, llsa->sa_len);
+			ifma->ifma_addr = dupsa;
 			ifma->ifma_ifp = ifp;
 			ifma->ifma_refcount = 1;
 		}
@@ -899,6 +915,7 @@ if_delmulti(ifp, sa)
 		return 0;
 	}
 
+	rt_newmaddrmsg(RTM_DELMADDR, ifma);
 	sa = ifma->ifma_lladdr;
 	s = splimp();
 	LIST_REMOVE(ifma, ifma_link);
