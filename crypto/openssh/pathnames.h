@@ -117,9 +117,6 @@
 /* UNIX domain socket for X11 server; displaynum will replace %u */
 #define _PATH_UNIX_X "/tmp/.X11-unix/X%u"
 
-/* for scp */
-#define _PATH_CP			"cp"
-
 /* for sftp */
 #define _PATH_SFTP_SERVER		"/usr/libexec/sftp-server"
 #define _PATH_LS			"ls"
