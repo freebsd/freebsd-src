@@ -1,4 +1,4 @@
-	Filtering out SPAM from your site
+		Filtering out SPAM from your site
 
 Introduction:
 	The FreeBSD Project filters spam, unsolicited commerical
@@ -11,6 +11,14 @@ spamsites, a list of domains, and fakenames, a list of bogus
 usernames (such as investor and success).  We do not accept mail
 from any machine that matches a entry in either database, or users
 in the fakenames database.
+
+	WARNING: We do not maintain the database source files.
+		 Read domain.txt and ips.txt.
+		 (Make will fetch them for you)
+		 Domains that you want to allow, should be added
+		 to the file /etc/mail/allowed_domains.txt.
+		 IP addresses that you want to allow, should be added
+		 to the file /etc/mail/allowed_ips.txt.
 
 Filtering at your site:
 	To filter spam at your site you need to:
@@ -26,14 +34,21 @@ not use m4 to generate your /etc/sendmail.cf, add the database
 declarations to your /etc/sendmail.cf.
 
 2. Fetching the database source files:
+
 	The database source files are available from Gulf Coast
 Internet via anonymous FTP.  The Makefile in /etc/mail will retreive
 the source files for you: as root, type "cd /etc/mail; make" at
 the command line.  The previous version of the database source
-files is moved to <filename>.0.  Local additions should be kept in
-separate files.  We use spamsites.local and denyip.local.  You may
-want to diff the new versions of the files against the previous
-versions to see what has changed.
+files is moved to <filename>.0.  
+
+	Local additions should be kept in separate files.  We use
+spamsites.local and denyip.local.  You may want to diff the new
+versions of the files against the previous versions to see what
+has changed.  
+
+	Local deletions should be kept in separate files.  We use
+allowed_domain.txt and allowed_ips.txt.  (This feature was added
+after netcom.com was added to the spam block list.)
 
 3. Make the databases:
 	As root, type "cd /etc/mail; make install" will build the
