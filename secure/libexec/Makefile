@@ -4,7 +4,7 @@
 SUBDIR= telnetd
 .endif
 .if !defined(NO_OPENSSL) && !defined(NO_OPENSSH)
-SUBDIR+=sftp-server
+SUBDIR+=sftp-server ssh-keysign
 .endif
 
 .include <bsd.subdir.mk>
