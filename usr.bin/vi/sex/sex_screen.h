@@ -52,7 +52,7 @@
 
 typedef struct _sex_private {
 /* INITIALIZED AT SCREEN CREATE. */
-	int	 __unused;		/* Make sure it's not empty. */
+	int	 __sex_unused;		/* Make sure it's not empty. */
 
 /* PARTIALLY OR COMPLETELY COPIED FROM PREVIOUS SCREEN. */
 #ifndef SYSV_CURSES
