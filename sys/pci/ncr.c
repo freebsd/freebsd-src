@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.95 1997/02/22 09:44:08 peter Exp $
+**  $Id: ncr.c,v 1.96 1997/03/22 06:53:19 bde Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -410,11 +410,6 @@
 **==========================================================
 */
 
-#ifdef __NetBSD__
-	#define TIMEOUT   (void*)
-#else  /*__NetBSD__*/
-	#define TIMEOUT   (timeout_func_t)
-#endif /*__NetBSD__*/
 #define PRINT_ADDR(xp) sc_print_addr(xp->sc_link)
 
 /*==========================================================
@@ -1238,7 +1233,7 @@ static	void	ncr_setwide	(ncb_p np, ccb_p cp, u_char wide);
 static	int	ncr_show_msg	(u_char * msg);
 static	int	ncr_snooptest	(ncb_p np);
 static	int32_t	ncr_start       (struct scsi_xfer *xp);
-static	void	ncr_timeout	(ncb_p np);
+static	void	ncr_timeout	(void *arg);
 static	void	ncr_usercmd	(ncb_p np);
 static  void    ncr_wakeup      (ncb_p np, u_long code);
 
@@ -1263,7 +1258,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.95 1997/02/22 09:44:08 peter Exp $\n";
+	"\n$Id: ncr.c,v 1.96 1997/03/22 06:53:19 bde Exp $\n";
 
 static const u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -4841,8 +4836,9 @@ static void ncr_usercmd (ncb_p np)
 **----------------------------------------------------------
 */
 
-static void ncr_timeout (ncb_p np)
+static void ncr_timeout (void *arg)
 {
+	ncb_p	np = arg;
 	u_long	thistime = time.tv_sec;
 	u_long	step  = np->ticks;
 	u_long	count = 0;
@@ -4936,7 +4932,7 @@ static void ncr_timeout (ncb_p np)
 		splx (oldspl);
 	}
 
-	timeout (TIMEOUT ncr_timeout, (caddr_t) np, step ? step : 1);
+	timeout (ncr_timeout, (caddr_t) np, step ? step : 1);
 
 	if (INB(nc_istat) & (INTF|SIP|DIP)) {
 
@@ -5264,7 +5260,7 @@ void ncr_exception (ncb_p np)
 			if (i%16==15) printf (".\n");
 		};
 
-		untimeout (TIMEOUT ncr_timeout, (caddr_t) np);
+		untimeout (ncr_timeout, (caddr_t) np);
 
 		printf ("%s: halted!\n", ncr_name(np));
 		/*
