@@ -20,7 +20,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mouse.h,v 1.11 1998/08/06 09:15:52 dfr Exp $
+ *	$Id: mouse.h,v 1.12 1998/11/22 11:57:59 yokota Exp $
  *	from: i386/include mouse.h,v 1.10
  */
 
@@ -96,6 +96,7 @@ typedef struct mousehw {
 #define MOUSE_IF_INPORT		2
 #define MOUSE_IF_PS2		3
 #define MOUSE_IF_SYSMOUSE	4
+#define MOUSE_IF_USB		5
 
 /* type */
 #define MOUSE_UNKNOWN		(-1)	/* should be treated as a mouse */
@@ -115,6 +116,7 @@ typedef struct mousehw {
 #define MOUSE_MODEL_EASYSCROLL		6
 #define MOUSE_MODEL_MOUSEMANPLUS	7
 #define MOUSE_MODEL_KIDSPAD		8
+#define MOUSE_MODEL_VERSAPAD		9
 
 typedef struct mousemode {
 	int protocol;		/* MOUSE_PROTO_XXX */
@@ -143,6 +145,7 @@ typedef struct mousemode {
 #define MOUSE_PROTO_SYSMOUSE	12	/* /dev/sysmouse */
 #define MOUSE_PROTO_X10MOUSEREM	13	/* X10 MouseRemote, 3 bytes */
 #define MOUSE_PROTO_KIDSPAD	14	/* Genius Kidspad */
+#define MOUSE_PROTO_VERSAPAD	15	/* Interlink VersaPad, 6 bytes */
 
 #define MOUSE_RES_UNKNOWN	(-1)
 #define MOUSE_RES_DEFAULT	0
@@ -201,6 +204,7 @@ typedef struct mousevar {
 #define MOUSE_MSC_BUTTON1UP	0x04	/* left */
 #define MOUSE_MSC_BUTTON2UP	0x02	/* middle */
 #define MOUSE_MSC_BUTTON3UP	0x01	/* right */
+#define MOUSE_MSC_MAXBUTTON	3
 
 /* MM series mouse data packet */
 #define MOUSE_MM_PACKETSIZE	3
@@ -226,12 +230,37 @@ typedef struct mousevar {
 						* as SYNC!
 					 	*/
 #define MOUSE_PS2PLUS_BUTTON4DOWN 0x10	/* 4th button on MouseMan+ */
+#define MOUSE_PS2PLUS_BUTTON5DOWN 0x20
 
 #define MOUSE_PS2_XNEG		0x10
 #define MOUSE_PS2_YNEG		0x20
 #define MOUSE_PS2_XOVERFLOW	0x40
 #define MOUSE_PS2_YOVERFLOW	0x80
 #define MOUSE_PS2PLUS_ZNEG	0x08	/* MouseMan+ negative wheel movement */
+#define MOUSE_PS2PLUS_SYNCMASK	0x48
+#define MOUSE_PS2PLUS_SYNC	0x48
+
+/* Interlink VersaPad (serial I/F) data packet */
+#define MOUSE_VERSA_PACKETSIZE	6
+#define MOUSE_VERSA_IN_USE	0x04
+#define MOUSE_VERSA_SYNCMASK	0xc3
+#define MOUSE_VERSA_SYNC	0xc0
+#define MOUSE_VERSA_BUTTONS	0x30
+#define MOUSE_VERSA_BUTTON1DOWN	0x20	/* left */
+#define MOUSE_VERSA_BUTTON2DOWN	0x00	/* middle */
+#define MOUSE_VERSA_BUTTON3DOWN	0x10	/* right */
+#define MOUSE_VERSA_TAP		0x08
+
+/* Interlink VersaPad (PS/2 I/F) data packet */
+#define MOUSE_PS2VERSA_PACKETSIZE	6
+#define MOUSE_PS2VERSA_IN_USE		0x10
+#define MOUSE_PS2VERSA_SYNCMASK		0xe8
+#define MOUSE_PS2VERSA_SYNC		0xc8
+#define MOUSE_PS2VERSA_BUTTONS		0x05
+#define MOUSE_PS2VERSA_BUTTON1DOWN	0x04	/* left */
+#define MOUSE_PS2VERSA_BUTTON2DOWN	0x00	/* middle */
+#define MOUSE_PS2VERSA_BUTTON3DOWN	0x01	/* right */
+#define MOUSE_PS2VERSA_TAP		0x02
 
 /* sysmouse extended data packet */
 /*
