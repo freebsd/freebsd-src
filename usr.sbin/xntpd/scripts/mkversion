@@ -8,7 +8,7 @@ RUN="`cat .version`"
 RUN="`expr $RUN + 1`"
 echo $RUN > .version
 
-DATE="`date`"
+DATE="`LC_TIME=C date`"
 TOPDIR=`echo $0 | sed -e 's;mkversion;..;'`
 
 if [ -r VERSION ]; then
