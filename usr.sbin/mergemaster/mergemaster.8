@@ -1,4 +1,4 @@
-.\" Copyright (c) 1998-2001 Douglas Barton
+.\" Copyright (c) 1998-2002 Douglas Barton
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -148,6 +148,8 @@ The options are as follows:
 .Bl -tag -width Fl
 .It Fl s
 Perform a strict comparison, diff'ing every pair of files.
+This comparison is performed line by line,
+without regard to CVS $Id's.
 .It Fl c
 Use context diffs instead of unified diffs.
 .It Fl r
