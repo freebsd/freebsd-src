@@ -177,7 +177,7 @@ cv_waitq_add(struct cv *cvp, struct thread *td)
 	td->td_wmesg = cvp->cv_description;
 	td->td_kse->ke_slptime = 0; /* XXXKSE */
 	td->td_ksegrp->kg_slptime = 0; /* XXXKSE */
-	td->td_ksegrp->kg_pri.pri_native = td->td_ksegrp->kg_pri.pri_level;
+	td->td_base_pri = td->td_priority;
 	CTR3(KTR_PROC, "cv_waitq_add: thread %p (pid %d, %s)", td,
 	    td->td_proc->p_pid, td->td_proc->p_comm);
 	TAILQ_INSERT_TAIL(&cvp->cv_waitq, td, td_slpq);
@@ -487,7 +487,7 @@ cv_wakeup(struct cv *cvp)
 		td->td_proc->p_stat = SRUN;
 		if (td->td_proc->p_sflag & PS_INMEM) {
 			setrunqueue(td);
-			maybe_resched(td->td_ksegrp);
+			maybe_resched(td);
 		} else {
 			td->td_proc->p_sflag |= PS_SWAPINREQ;
 			wakeup(&proc0); /* XXXKSE */

@@ -75,8 +75,9 @@ struct rtprio {
 };
 
 #ifdef _KERNEL
-int	rtp_to_pri(struct rtprio *, struct priority *);
-void	pri_to_rtp(struct priority *, struct rtprio *);
+struct ksegrp;
+int	rtp_to_pri(struct rtprio *, struct ksegrp *);
+void	pri_to_rtp(struct ksegrp *, struct rtprio *);
 #endif
 #endif
 

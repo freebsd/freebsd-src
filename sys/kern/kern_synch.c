@@ -120,12 +120,11 @@ SYSCTL_PROC(_kern, OID_AUTO, quantum, CTLTYPE_INT|CTLFLAG_RW,
  * schedulers into account.
  */
 void
-maybe_resched(kg)
-	struct ksegrp *kg;
+maybe_resched(struct thread *td)
 {
 
 	mtx_assert(&sched_lock, MA_OWNED);
-	if (kg->kg_pri.pri_level < curthread->td_ksegrp->kg_pri.pri_level)
+	if (td->td_priority < curthread->td_priority)
 		curthread->td_kse->ke_flags |= KEF_NEEDRESCHED;
 }
 
@@ -257,10 +256,11 @@ schedcpu(arg)
 	void *arg;
 {
 	register fixpt_t loadfac = loadfactor(averunnable.ldavg[0]);
-	register struct proc *p;
-	register struct kse *ke;
-	register struct ksegrp *kg;
-	register int realstathz;
+	struct thread *td;
+	struct proc *p;
+	struct kse *ke;
+	struct ksegrp *kg;
+	int realstathz;
 	int awake;
 
 	realstathz = stathz ? stathz : hz;
@@ -321,15 +321,16 @@ schedcpu(arg)
 			}
 			kg->kg_estcpu = decay_cpu(loadfac, kg->kg_estcpu);
 		      	resetpriority(kg);
-		      	if (kg->kg_pri.pri_level >= PUSER &&
+			td = FIRST_THREAD_IN_PROC(p);
+		      	if (td->td_priority >= PUSER &&
 			    (p->p_sflag & PS_INMEM)) {
 				int changedqueue =
-				    ((kg->kg_pri.pri_level / RQ_PPQ) !=
-				     (kg->kg_pri.pri_user / RQ_PPQ));
+				    ((td->td_priority / RQ_PPQ) !=
+				     (kg->kg_user_pri / RQ_PPQ));
 
-				kg->kg_pri.pri_level = kg->kg_pri.pri_user;
+				td->td_priority = kg->kg_user_pri;
 				FOREACH_KSE_IN_GROUP(kg, ke) {
-					if ((ke->ke_oncpu == NOCPU) && 	/* idle */
+					if ((ke->ke_oncpu == NOCPU) &&
 					    (p->p_stat == SRUN) && /* XXXKSE */
 					    changedqueue) {
 						remrunqueue(ke->ke_thread);
@@ -459,7 +460,7 @@ msleep(ident, mtx, priority, wmesg, timo)
 	td->td_wmesg = wmesg;
 	td->td_kse->ke_slptime = 0;	/* XXXKSE */
 	td->td_ksegrp->kg_slptime = 0;
-	td->td_ksegrp->kg_pri.pri_level = priority & PRIMASK;
+	td->td_priority = priority & PRIMASK;
 	CTR5(KTR_PROC, "msleep: thread %p (pid %d, %s) on %s (%p)",
 	    td, p->p_pid, p->p_comm, wmesg, ident);
 	TAILQ_INSERT_TAIL(&slpque[LOOKUP(ident)], td, td_slpq);
@@ -628,7 +629,7 @@ restart:
 				td->td_proc->p_stat = SRUN;
 				if (p->p_sflag & PS_INMEM) {
 					setrunqueue(td);
-					maybe_resched(td->td_ksegrp);
+					maybe_resched(td);
 				} else {
 					p->p_sflag |= PS_SWAPINREQ;
 					wakeup((caddr_t)&proc0);
@@ -673,7 +674,7 @@ wakeup_one(ident)
 				td->td_proc->p_stat = SRUN;
 				if (p->p_sflag & PS_INMEM) {
 					setrunqueue(td);
-					maybe_resched(td->td_ksegrp);
+					maybe_resched(td);
 					break;
 				} else {
 					p->p_sflag |= PS_SWAPINREQ;
@@ -829,7 +830,7 @@ setrunnable(struct thread *td)
 		wakeup((caddr_t)&proc0);
 	} else {
 		setrunqueue(td);
-		maybe_resched(td->td_ksegrp);
+		maybe_resched(td);
 	}
 	mtx_unlock_spin(&sched_lock);
 }
@@ -844,16 +845,19 @@ resetpriority(kg)
 	register struct ksegrp *kg;
 {
 	register unsigned int newpriority;
+	struct thread *td;
 
 	mtx_lock_spin(&sched_lock);
-	if (kg->kg_pri.pri_class == PRI_TIMESHARE) {
+	if (kg->kg_pri_class == PRI_TIMESHARE) {
 		newpriority = PUSER + kg->kg_estcpu / INVERSE_ESTCPU_WEIGHT +
 		    NICE_WEIGHT * (kg->kg_nice - PRIO_MIN);
 		newpriority = min(max(newpriority, PRI_MIN_TIMESHARE),
 		    PRI_MAX_TIMESHARE);
-		kg->kg_pri.pri_user = newpriority;
+		kg->kg_user_pri = newpriority;
 	}
-	maybe_resched(kg);
+	FOREACH_THREAD_IN_GROUP(kg, td) {
+		maybe_resched(td);
+	}
 	mtx_unlock_spin(&sched_lock);
 }
 
@@ -943,8 +947,8 @@ schedclock(td)
 		kg->kg_estcpu = ESTCPULIM(kg->kg_estcpu + 1);
 		if ((kg->kg_estcpu % INVERSE_ESTCPU_WEIGHT) == 0) {
 			resetpriority(td->td_ksegrp);
-			if (kg->kg_pri.pri_level >= PUSER)
-				kg->kg_pri.pri_level = kg->kg_pri.pri_user;
+			if (td->td_priority >= PUSER)
+				td->td_priority = kg->kg_user_pri;
 		}
 	} else {
 		panic("schedclock");
@@ -961,7 +965,7 @@ yield(struct thread *td, struct yield_args *uap)
 
 	mtx_assert(&Giant, MA_NOTOWNED);
 	mtx_lock_spin(&sched_lock);
-	kg->kg_pri.pri_level = PRI_MAX_TIMESHARE;
+	td->td_priority = PRI_MAX_TIMESHARE;
 	setrunqueue(td);
 	kg->kg_proc->p_stats->p_ru.ru_nvcsw++;
 	mi_switch();

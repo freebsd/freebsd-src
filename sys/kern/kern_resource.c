@@ -289,7 +289,7 @@ rtprio(td, uap)
 		if ((error = p_cansee(curp, p)))
 			break;
 		mtx_lock_spin(&sched_lock);
-		pri_to_rtp(&p->p_ksegrp.kg_pri /* XXXKSE */ , &rtp);
+		pri_to_rtp(&p->p_ksegrp /* XXXKSE */ , &rtp);
 		mtx_unlock_spin(&sched_lock);
 		error = copyout(&rtp, uap->rtp, sizeof(struct rtprio));
 		break;
@@ -321,7 +321,7 @@ rtprio(td, uap)
 			}
 		}
 		mtx_lock_spin(&sched_lock);
-		error = rtp_to_pri(&rtp, &p->p_ksegrp.kg_pri);
+		error = rtp_to_pri(&rtp, &p->p_ksegrp);
 		mtx_unlock_spin(&sched_lock);
 		break;
 	default:
@@ -335,48 +335,50 @@ done2:
 }
 
 int
-rtp_to_pri(struct rtprio *rtp, struct priority *pri)
+rtp_to_pri(struct rtprio *rtp, struct ksegrp *kg)
 {
 
 	if (rtp->prio > RTP_PRIO_MAX)
 		return (EINVAL);
 	switch (RTP_PRIO_BASE(rtp->type)) {
 	case RTP_PRIO_REALTIME:
-		pri->pri_level = PRI_MIN_REALTIME + rtp->prio;
+		kg->kg_user_pri = PRI_MIN_REALTIME + rtp->prio;
 		break;
 	case RTP_PRIO_NORMAL:
-		pri->pri_level = PRI_MIN_TIMESHARE + rtp->prio;
+		kg->kg_user_pri = PRI_MIN_TIMESHARE + rtp->prio;
 		break;
 	case RTP_PRIO_IDLE:
-		pri->pri_level = PRI_MIN_IDLE + rtp->prio;
+		kg->kg_user_pri = PRI_MIN_IDLE + rtp->prio;
 		break;
 	default:
 		return (EINVAL);
 	}
-	pri->pri_class = rtp->type;
-	pri->pri_native = pri->pri_level;
-	pri->pri_user = pri->pri_level;
+	kg->kg_pri_class = rtp->type;
+	if (curthread->td_ksegrp == kg) {
+		curthread->td_base_pri = kg->kg_user_pri;
+		curthread->td_priority = kg->kg_user_pri; /* XXX dubious */
+	}
 	return (0);
 }
 
 void
-pri_to_rtp(struct priority *pri, struct rtprio *rtp)
+pri_to_rtp(struct ksegrp *kg, struct rtprio *rtp)
 {
 
-	switch (PRI_BASE(pri->pri_class)) {
+	switch (PRI_BASE(kg->kg_pri_class)) {
 	case PRI_REALTIME:
-		rtp->prio = pri->pri_level - PRI_MIN_REALTIME;
+		rtp->prio = kg->kg_user_pri - PRI_MIN_REALTIME;
 		break;
 	case PRI_TIMESHARE:
-		rtp->prio = pri->pri_level - PRI_MIN_TIMESHARE;
+		rtp->prio = kg->kg_user_pri - PRI_MIN_TIMESHARE;
 		break;
 	case PRI_IDLE:
-		rtp->prio = pri->pri_level - PRI_MIN_IDLE;
+		rtp->prio = kg->kg_user_pri - PRI_MIN_IDLE;
 		break;
 	default:
 		break;
 	}
-	rtp->type = pri->pri_class;
+	rtp->type = kg->kg_pri_class;
 }
 
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
