@@ -1,5 +1,5 @@
 int midi_synth_ioctl (int dev,
-	    unsigned int cmd, unsigned int arg);
+	    unsigned int cmd, ioctl_arg arg);
 int midi_synth_kill_note (int dev, int channel, int note, int velocity);
 int midi_synth_set_instr (int dev, int channel, int instr_no);
 int midi_synth_start_note (int dev, int channel, int note, int volume);
@@ -15,7 +15,7 @@ void midi_synth_controller (int dev, int channel, int ctrl_num, int value);
 int midi_synth_patchmgr (int dev, struct patmgr_info *rec);
 void midi_synth_bender (int dev, int chn, int value);
 void midi_synth_setup_voice (int dev, int voice, int chn);
-
+int midi_synth_send_sysex(int dev, unsigned char *bytes,int len);
 
 #ifndef _MIDI_SYNTH_C_
 static struct synth_info std_synth_info =
@@ -43,6 +43,7 @@ static struct synth_operations std_midi_synth =
   midi_synth_patchmgr,
   midi_synth_bender,
   NULL,	/* alloc_voice */
-  midi_synth_setup_voice
+  midi_synth_setup_voice,
+  midi_synth_send_sysex
 };
 #endif
