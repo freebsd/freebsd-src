@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_le.c,v 1.33 1996/06/18 01:22:23 bde Exp $
+ * $Id: if_le.c,v 1.34 1996/09/06 23:07:40 phk Exp $
  */
 
 /*
@@ -590,22 +590,13 @@ le_ioctl(
 	}
 
 	case SIOCADDMULTI:
-	case SIOCDELMULTI: {
+	case SIOCDELMULTI:
 	    /*
 	     * Update multicast listeners
 	     */
-	    if (cmd == SIOCADDMULTI)
-		error = ether_addmulti((struct ifreq *)data, &sc->le_ac);
-	    else
-		error = ether_delmulti((struct ifreq *)data, &sc->le_ac);
-
-	    if (error == ENETRESET) {
-		/* reset multicast filtering */
 		(*sc->if_init)(ifp->if_unit);
 		error = 0;
-	    }
-	    break;
-	}
+		break;
 
 	default: {
 	    error = EINVAL;
@@ -682,11 +673,7 @@ static void
 le_multi_filter(
     le_softc_t *sc)
 {
-    struct ether_multistep step;
-    struct ether_multi *enm;
-#ifdef ISO
-    extern char all_es_snpa[];
-#endif
+    struct ifmultiaddr *ifma;
 
     MEMSET(sc->le_mctbl, 0, (sc->le_mcmask + 1) / 8);
 
@@ -699,23 +686,17 @@ le_multi_filter(
 	le_multi_op(sc, etherbroadcastaddr, TRUE);
 	sc->le_flags |= LE_BRDCSTONLY|IFF_MULTICAST;
     /* } */
-#ifdef ISO
-    le_multi_op(sc, all_es_snpa, TRUE);
-#endif
 
-    ETHER_FIRST_MULTI(step, &sc->le_ac, enm);
-    if (enm != NULL)
-	sc->le_flags |= IFF_MULTICAST;
-    while (enm != NULL) {
-	if (MEMCMP(enm->enm_addrlo, enm->enm_addrhi, 6) != 0) {
-	    sc->le_flags |= IFF_ALLMULTI;
-	    return;
-	}
-	le_multi_op(sc, enm->enm_addrlo, TRUE);
-	ETHER_NEXT_MULTI(step, enm);
-	sc->le_flags &= ~LE_BRDCSTONLY;
+    sc->le_flags |= IFF_MULTICAST;
+
+    for (ifma = sc->le_ac.ac_if.if_multiaddrs.lh_first; ifma;
+	 ifma = ifma->ifma_link.le_next) {
+	    if (ifma->ifma_addr->sa_family != AF_LINK)
+		    continue;
+
+	    le_multi_op(sc, LLADDR((struct sockaddr_dl *)ifma->ifma_addr), 1);
+	    sc->le_flags &= ~LE_BRDCSTONLY;
     }
-    sc->le_flags &= ~IFF_ALLMULTI;
 }
 
 static void

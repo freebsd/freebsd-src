@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.22 1996/11/18 02:45:46 davidg Exp $
+ *	$Id: if_fxp.c,v 1.23 1996/12/10 07:29:50 davidg Exp $
  */
 
 /*
@@ -1055,21 +1055,11 @@ fxp_ioctl(ifp, command, data)
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		/*
-		 * Update out multicast list.
+		 * Multicast list has changed; set the hardware filter
+		 * accordingly.
 		 */
-		error = (command == SIOCADDMULTI) ?
-		    ether_addmulti(ifr, &sc->arpcom) :
-		    ether_delmulti(ifr, &sc->arpcom);
-
-		if (error == ENETRESET) {
-			/*
-			 * Multicast list has changed; set the hardware filter
-			 * accordingly.
-			 */
-			fxp_init(sc);
-
-			error = 0;
-		}
+		fxp_init(sc);
+		error = 0;
 		break;
 
 	default:

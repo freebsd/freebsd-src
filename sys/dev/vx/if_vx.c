@@ -311,11 +311,11 @@ vxsetfilter(sc)
     struct vx_softc *sc;
 {
     register struct ifnet *ifp = &sc->arpcom.ac_if;  
-        
+    
     GO_WINDOW(1);           /* Window 1 is operating window */
     outw(BASE + VX_COMMAND, SET_RX_FILTER | FIL_INDIVIDUAL | FIL_BRDCST |
-	((sc->arpcom.ac_multicnt > 0) ? FIL_MULTICAST : 0 ) |
-	((ifp->if_flags & IFF_PROMISC) ? FIL_PROMISC : 0 ));
+	 FIL_MULTICAST |
+	 ((ifp->if_flags & IFF_PROMISC) ? FIL_PROMISC : 0 ));
 }               
 
 static void            
@@ -967,18 +967,12 @@ vxioctl(ifp, cmd, data)
 
     case SIOCADDMULTI:
     case SIOCDELMULTI:
-        error = ((u_int) cmd == SIOCADDMULTI) ?
-            ether_addmulti(ifr, &sc->arpcom) :
-            ether_delmulti(ifr, &sc->arpcom);
-
-        if (error == ENETRESET) {
-            /*
-             * Multicast list has changed; set the hardware filter
-             * accordingly.
-             */
-            vxreset(sc);
-            error = 0;
-        }
+	/*
+	 * Multicast list has changed; set the hardware filter
+	 * accordingly.
+	 */
+	vxreset(sc);
+	error = 0;
         break;
 
 

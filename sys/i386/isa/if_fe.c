@@ -21,7 +21,7 @@
  */
 
 /*
- * $Id: if_fe.c,v 1.21 1996/11/15 16:15:56 wollman Exp $
+ * $Id: if_fe.c,v 1.22 1996/12/13 21:28:22 wollman Exp $
  *
  * Device driver for Fujitsu MB86960A/MB86965A based Ethernet cards.
  * To be used with FreeBSD 2.x
@@ -2623,27 +2623,13 @@ fe_ioctl ( struct ifnet * ifp, int command, caddr_t data )
 #ifdef SIOCADDMULTI
 	  case SIOCADDMULTI:
 	  case SIOCDELMULTI:
-	    {
-		/*
-		 * Update out multicast list.
-		 */
-		struct ifreq * ifr = ( struct ifreq * )data;
-
-		error = ( command == SIOCADDMULTI )
-		      ? ether_addmulti( ifr, &sc->arpcom )
-		      : ether_delmulti( ifr, &sc->arpcom );
-
-		if ( error == ENETRESET ) {
-			/*
-			 * Multicast list has changed; set the hardware filter
-			 * accordingly.
-			 */
-			fe_setmode( sc );
-			error = 0;
-		}
-
-		break;
-	    }
+	    /*
+	     * Multicast list has changed; set the hardware filter
+	     * accordingly.
+	     */
+	    fe_setmode( sc );
+	    error = 0;
+	    break;
 #endif
 
 #ifdef SIOCSIFMTU
@@ -2955,23 +2941,20 @@ fe_mcaf ( struct fe_softc *sc )
 {
 	int index;
 	struct fe_filter filter;
-	struct ether_multi *enm;
-	struct ether_multistep step;
+	struct ifmultiaddr *ifma;
 
 	filter = fe_filter_nothing;
-	ETHER_FIRST_MULTI(step, &sc->arpcom, enm);
-	while ( enm != NULL) {
-		if ( bcmp(enm->enm_addrlo, enm->enm_addrhi, ETHER_ADDR_LEN) ) {
-			return ( fe_filter_all );
-		}
-		index = fe_hash( enm->enm_addrlo );
+	for (ifma = sc->arpcom.ac_if.if_multiaddrs.lh_first; ifma;
+	     ifma = ifma->ifma_link.le_next) {
+		if (ifma->ifma_addr->sa_family != AF_LINK)
+			continue;
+		index = fe_hash(LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
 #if FE_DEBUG >= 4
 		log( LOG_INFO, "fe%d: hash(%6D) == %d\n",
 			sc->sc_unit, enm->enm_addrlo , ":", index );
 #endif
 
 		filter.data[index >> 3] |= 1 << (index & 7);
-		ETHER_NEXT_MULTI(step, enm);
 	}
 	return ( filter );
 }

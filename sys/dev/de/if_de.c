@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_de.c,v 1.55 1996/11/10 13:36:46 davidg Exp $
+ * $Id: if_de.c,v 1.56 1996/12/01 06:01:00 rgrimes Exp $
  *
  */
 
@@ -3287,62 +3287,63 @@ tulip_addr_filter(
     tulip_softc_t * const sc)
 {
     u_int32_t *sp = sc->tulip_setupdata;
-    struct ether_multistep step;
-    struct ether_multi *enm;
+    struct ifmultiaddr *ifma;
     int i = 0;
+    u_char *addrp;
+    unsigned hash;
+
+    ifma = sc->tulip_if.if_multiaddrs.lh_first;
 
     sc->tulip_flags &= ~TULIP_WANTHASH;
     sc->tulip_flags |= TULIP_WANTSETUP;
     sc->tulip_cmdmode &= ~TULIP_CMD_RXRUN;
     sc->tulip_intrmask &= ~TULIP_STS_RXSTOPPED;
-    if (sc->tulip_ac.ac_multicnt > 14) {
-	unsigned hash;
-	/*
-	 * If we have more than 14 multicasts, we have
-	 * go into hash perfect mode (512 bit multicast
-	 * hash and one perfect hardware).
-	 */
 
-	bzero(sc->tulip_setupdata, sizeof(sc->tulip_setupdata));
-	hash = tulip_mchash(etherbroadcastaddr);
-	sp[hash >> 4] |= 1 << (hash & 0xF);
-	ETHER_FIRST_MULTI(step, &sc->tulip_ac, enm);
-	while (enm != NULL) {
-	    hash = tulip_mchash(enm->enm_addrlo);
-	    sp[hash >> 4] |= 1 << (hash & 0xF);
-	    ETHER_NEXT_MULTI(step, enm);
-	}
-	sc->tulip_flags |= TULIP_WANTHASH;
-	sp[39] = ((u_int16_t *) sc->tulip_ac.ac_enaddr)[0]; 
-	sp[40] = ((u_int16_t *) sc->tulip_ac.ac_enaddr)[1]; 
-	sp[41] = ((u_int16_t *) sc->tulip_ac.ac_enaddr)[2];
-    } else {
-	/*
-	 * Else can get perfect filtering for 16 addresses.
-	 */
-	ETHER_FIRST_MULTI(step, &sc->tulip_ac, enm);
-	for (; enm != NULL; i++) {
-	    *sp++ = ((u_int16_t *) enm->enm_addrlo)[0]; 
-	    *sp++ = ((u_int16_t *) enm->enm_addrlo)[1]; 
-	    *sp++ = ((u_int16_t *) enm->enm_addrlo)[2];
-	    ETHER_NEXT_MULTI(step, enm);
-	}
-	/*
-	 * Add the broadcast address.
-	 */
-	i++;
-	*sp++ = 0xFFFF;
-	*sp++ = 0xFFFF;
-	*sp++ = 0xFFFF;
-	/*
-	 * Pad the rest with our hardware address
-	 */
-	for (; i < 16; i++) {
+    for (ifma = sc->tulip_if.if_multiaddrs.lh_first; ifma;
+	 ifma = ifma->ifma_link.le_next) {
+	    if (ifma->ifma_addr->sa_family != AF_LINK)
+		    continue;
+	    if (i > 14)
+		    goto musthash;
+	    addrp = LLADDR((struct sockaddr_dl *)ifma->ifma_addr);
+	    *sp++ = ((u_int16_t *) addrp)[0]; 
+	    *sp++ = ((u_int16_t *) addrp)[1]; 
+	    *sp++ = ((u_int16_t *) addrp)[2];
+	    i++;
+    }
+    /*
+     * Add the broadcast address.
+     */
+    i++;
+    *sp++ = 0xFFFF;
+    *sp++ = 0xFFFF;
+    *sp++ = 0xFFFF;
+    /*
+     * Pad the rest with our hardware address
+     */
+    for (; i < 16; i++) {
 	    *sp++ = ((u_int16_t *) sc->tulip_ac.ac_enaddr)[0]; 
 	    *sp++ = ((u_int16_t *) sc->tulip_ac.ac_enaddr)[1]; 
 	    *sp++ = ((u_int16_t *) sc->tulip_ac.ac_enaddr)[2];
-	}
     }
+    return;
+
+musthash:
+    bzero(sc->tulip_setupdata, sizeof(sc->tulip_setupdata));
+    hash = tulip_mchash(etherbroadcastaddr);
+    sp[hash >> 4] |= 1 << (hash & 0xF);
+    for (ifma = sc->tulip_if.if_multiaddrs.lh_first; ifma;
+	 ifma = ifma->ifma_link.le_next) {
+	    if (ifma->ifma_addr->sa_family != AF_LINK)
+		    continue;
+
+	    hash = tulip_mchash(LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
+	    sp[hash >> 4] |= 1 << (hash & 0xF);
+    }
+    sc->tulip_flags |= TULIP_WANTHASH;
+    sp[39] = ((u_int16_t *) sc->tulip_ac.ac_enaddr)[0]; 
+    sp[40] = ((u_int16_t *) sc->tulip_ac.ac_enaddr)[1]; 
+    sp[41] = ((u_int16_t *) sc->tulip_ac.ac_enaddr)[2];
 }
 
 /*
@@ -3395,22 +3396,15 @@ tulip_ifioctl(
 	}
 
 	case SIOCADDMULTI:
-	case SIOCDELMULTI: {
+	case SIOCDELMULTI:
 	    /*
 	     * Update multicast listeners
 	     */
-	    if (cmd == SIOCADDMULTI)
-		error = ether_addmulti(ifr, &sc->tulip_ac);
-	    else
-		error = ether_delmulti(ifr, &sc->tulip_ac);
-
-	    if (error == ENETRESET) {
-		tulip_addr_filter(sc);		/* reset multicast filtering */
-		tulip_init(sc);
-		error = 0;
-	    }
+	    tulip_addr_filter(sc);		/* reset multicast filtering */
+	    tulip_init(sc);
+	    error = 0;
 	    break;
-	}
+
 #if defined(SIOCSIFMTU)
 #if !defined(ifr_mtu)
 #define ifr_mtu ifr_metric

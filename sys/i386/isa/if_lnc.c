@@ -226,8 +226,7 @@ static void
 lnc_setladrf(struct lnc_softc *sc)
 {
 	struct ifnet *ifp = &sc->arpcom.ac_if;
-	struct ether_multistep step;
-	struct ether_multi *enm;
+	struct ifmultiaddr *ifma;
 	u_long index;
 	int i;
 
@@ -247,24 +246,12 @@ lnc_setladrf(struct lnc_softc *sc)
  */
 
 	bzero(sc->init_block->ladrf, MULTICAST_FILTER_LEN);
-	ETHER_FIRST_MULTI(step, &sc->arpcom, enm);
-	while (enm != NULL) {
-		if (bcmp(enm->enm_addrlo, enm->enm_addrhi, ETHER_ADDR_LEN) != 0) {
-			/*
-			 * A range of multicast addresses should be accepted but
-			 * but for now just accept all multicasts. Only currently
-			 * used by multicast routing where the range would require
-			 * all bits to be set anyway.
-			 */
-			ifp->if_flags |= IFF_ALLMULTI;
-			for (i = 0; i < MULTICAST_FILTER_LEN; i++)
-				sc->init_block->ladrf[i] = 0xff;
-			return;
-		}
-
+	for (ifma = ifp->if_multiaddrs.lh_first; ifma;
+	     ifma = ifma->ifma_link.le_next) {
+		if (ifma->ifma_addr->sa_family != AF_LINK)
+			continue;
 		index = ether_crc(enm->enm_addrlo) >> 26;
 		sc->init_block->ladrf[index >> 3] |= 1 << (index & 7);
-		ETHER_NEXT_MULTI(step, enm);
 	}
 }
 #endif /* LNC_MULTICAST */
@@ -1735,14 +1722,8 @@ lnc_ioctl(struct ifnet * ifp, int command, caddr_t data)
 #ifdef LNC_MULTICAST
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
-		error = (command == SIOCADDMULTI) ?
-					ether_addmulti(ifr, &sc->arpcom) :
-					ether_delmulti(ifr, &sc->arpcom);
-
-		if (error == ENETRESET) {
-			lnc_setladrf(sc);
-			error = 0;
-		}
+		lnc_setladrf(sc);
+		error = 0;
 		break;
 #endif
 	case SIOCSIFMTU:
