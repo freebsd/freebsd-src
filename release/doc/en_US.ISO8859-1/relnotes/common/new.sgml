@@ -318,8 +318,13 @@
     <sect3>
       <title>Filesystems</title>
 
-      <para>The directory layout preference algorithm for FFS has been
-      changed to improve its speed on large filesystems.</para>
+      <para>The directory layout preference algorithm for FFS
+      (<literal>dirprefs</literal>) has been changed.  Rather than
+      scattering directory blocks across a disk, it attempts to group
+      related directory blocks together.  Operations traversing large
+      directory hierarchies, such as the &os; Ports tree, have shown
+      marked speedups.  This change is transparent and automatic for
+      new directories. &merged;</para>
 
       <para>The virtual memory subsystem now backs UFS directory
       memory requirements by default (this behavior is controlled via
