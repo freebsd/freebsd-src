@@ -1062,7 +1062,6 @@ pmap_pinit0(pmap_t pm)
 	pm->pm_count = 1;
 	pm->pm_tsb = NULL;
 	pm->pm_tsb_obj = NULL;
-	pm->pm_tsb_tte = NULL;
 	TAILQ_INIT(&pm->pm_pvlist);
 	bzero(&pm->pm_stats, sizeof(pm->pm_stats));
 }
@@ -1082,7 +1081,6 @@ pmap_pinit(pmap_t pm)
 	if (pm->pm_tsb == NULL) {
 		pm->pm_tsb = (struct tte *)kmem_alloc_pageable(kernel_map,
 		    PAGE_SIZE_8K);
-		pm->pm_tsb_tte = tsb_kvtotte((vm_offset_t)pm->pm_tsb);
 	}
 
 	/*
@@ -1725,7 +1723,6 @@ pmap_activate(struct thread *td)
 {
 	vm_offset_t tsb;
 	u_long context;
-	u_long data;
 	pmap_t pm;
 
 	/*
@@ -1734,24 +1731,16 @@ pmap_activate(struct thread *td)
 	 */
 	pm = &td->td_proc->p_vmspace->vm_pmap;
 	context = pm->pm_context;
-	data = pm->pm_tsb_tte->tte_data;
 	tsb = (vm_offset_t)pm->pm_tsb;
 
 	KASSERT(context != 0, ("pmap_activate: activating nucleus context"));
 	KASSERT(context != -1, ("pmap_activate: steal context"));
 	KASSERT(pm->pm_active == 0, ("pmap_activate: pmap already active?"));
 
-	pm->pm_active |= PCPU_GET(cpumask);
-
 	wrpr(pstate, 0, PSTATE_MMU);
-	__asm __volatile("mov %0, %%g7" : : "r" (tsb));
+	mov(tsb, TSB_REG);
 	wrpr(pstate, 0, PSTATE_NORMAL);
-	stxa(TLB_DEMAP_VA(tsb) | TLB_DEMAP_NUCLEUS | TLB_DEMAP_PAGE,
-	    ASI_DMMU_DEMAP, 0);
-	membar(Sync);
-	stxa(AA_DMMU_TAR, ASI_DMMU, tsb);
-	stxa(0, ASI_DTLB_DATA_IN_REG, data | TD_L);
-	membar(Sync);
+	pm->pm_active |= 1 << PCPU_GET(cpuid);
 	stxa(AA_DMMU_PCXR, ASI_DMMU, context);
 	membar(Sync);
 	wrpr(pstate, 0, PSTATE_KERNEL);
