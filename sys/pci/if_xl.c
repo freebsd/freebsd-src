@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_xl.c,v 1.48 1999/07/23 02:06:57 wpaul Exp $
+ *	$Id: if_xl.c,v 1.49 1999/08/02 21:06:16 wpaul Exp $
  */
 
 /*
@@ -163,7 +163,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id: if_xl.c,v 1.48 1999/07/23 02:06:57 wpaul Exp $";
+	"$Id: if_xl.c,v 1.49 1999/08/02 21:06:16 wpaul Exp $";
 #endif
 
 /*
@@ -1260,6 +1260,8 @@ static void xl_reset(sc)
 
 	if (i == XL_TIMEOUT)
 		printf("xl%d: reset didn't complete\n", sc->xl_unit);
+
+	DELAY(100000);
 
 	/* Reset TX and RX. */
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RX_RESET);
