@@ -86,6 +86,12 @@ extern void dec_eb164_init __P((int));
 #define	dec_eb164_init		platform_not_configured
 #endif
 
+#ifdef DEC_KN300
+extern void dec_kn300_init __P((int));
+#else
+#define	dec_kn300_init		platform_not_configured
+#endif
+
 #ifdef AVALON_A12
 extern void avalon_a12_init __P((int));
 #else
@@ -133,7 +139,7 @@ struct cpuinit cpuinit[] = {
 	cpu_notsupp("ST_EB66"),			     /* 19: ST_EB66 */
 	cpu_init(dec_eb64plus_init,"DEC_EB64PLUS"),  /* 20: ST_EB64P */
 	cpu_notsupp("ST_ALPHABOOK1"),		     /* 21: ST_ALPHABOOK1 */
-	cpu_notsupp("ST_DEC_4100"),		     /* 22: ST_DEC_4100 */
+	cpu_init(dec_kn300_init,"DEC_KN300"),	     /* 22: ST_DEC_4100 */
 	cpu_notsupp("ST_DEC_EV45_PBP"),		     /* 23: ST_DEC_EV45_PBP */
 	cpu_notsupp("ST_DEC_2100A_A500"),	     /* 24: ST_DEC_2100A_A500 */
 	cpu_notsupp("???"),			     /* 25: ??? */
