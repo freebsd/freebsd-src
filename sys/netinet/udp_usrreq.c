@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)udp_usrreq.c	8.4 (Berkeley) 1/21/94
- * $Id: udp_usrreq.c,v 1.8 1995/03/16 18:15:09 bde Exp $
+ * $Id: udp_usrreq.c,v 1.9 1995/04/09 01:29:30 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -256,10 +256,17 @@ udp_input(m, iphlen)
 		return;
 	}
 	/*
-	 * Locate pcb for datagram.
+	 * Locate pcb for datagram. First look for an exact match.
 	 */
 	inp = in_pcblookuphash(&udbinfo, ip->ip_src, uh->uh_sport,
 	    ip->ip_dst, uh->uh_dport);
+	/*
+	 * ...and if that fails, do a wildcard search.
+	 */
+	if (inp == NULL) {
+		inp = in_pcblookup(&udb, ip->ip_src, uh->uh_sport, ip->ip_dst,
+		    uh->uh_dport, INPLOOKUP_WILDCARD);
+	}
 	if (inp == NULL) {
 		udpstat.udps_noport++;
 		if (m->m_flags & (M_BCAST | M_MCAST)) {
