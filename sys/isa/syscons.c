@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.254 1998/02/12 22:05:05 phk Exp $
+ *  $Id: syscons.c,v 1.255 1998/02/13 11:31:34 phk Exp $
  */
 
 #include "sc.h"
@@ -507,8 +507,12 @@ scvidprobe(int unit, int flags)
 	    /* Get the BIOS video mode pointer */
 	    segoff = *(u_long *)pa_to_va(0x4a8);
 	    pa = (((segoff & 0xffff0000) >> 12) + (segoff & 0xffff));
-	    if (ISMAPPED(pa, MODE_PARAM_SIZE))
-		video_mode_ptr = (char *)pa_to_va(pa);
+	    if (ISMAPPED(pa, sizeof(u_long))) {
+		segoff = *(u_long *)pa_to_va(pa);
+		pa = (((segoff & 0xffff0000) >> 12) + (segoff & 0xffff));       
+		if (ISMAPPED(pa, MODE_PARAM_SIZE))
+		    video_mode_ptr = (char *)pa_to_va(pa);
+	    }
 	}
     }
 
