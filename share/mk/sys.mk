@@ -44,7 +44,7 @@ CXXFLAGS	?=	${CFLAGS:C/-std=[a-z:0-9]+//}
 
 CPP		?=	cpp
 
-.if ${.MAKEFLAGS:M-s} == ""
+.if empty(.MAKEFLAGS:M-s)
 ECHO		?=	echo
 ECHODIR		?=	echo
 .else
