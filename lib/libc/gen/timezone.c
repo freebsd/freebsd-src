@@ -129,6 +129,7 @@ _tztab(zone,dst)
 	}
 	else
 		sign = '-';
-	(void)sprintf(czone,"GMT%c%d:%02d",sign,zone / 60,zone % 60);
+	(void)snprintf(czone, sizeof(czone),
+	    "GMT%c%d:%02d",sign,zone / 60,zone % 60);
 	return(czone);
 }
