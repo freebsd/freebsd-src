@@ -34,6 +34,8 @@
 # From @(#)vnode_if.sh	8.1 (Berkeley) 6/10/93
 # From @(#)makedevops.sh 1.1 1998/06/14 13:53:12 dfr Exp $
 # From @(#)makedevops.sh ?.? 1998/10/05
+#
+# $Id: makedevops.pl,v 1.6 1999/05/02 08:55:27 markm Exp $
 
 #
 # Script to produce device front-end sugar.
@@ -46,8 +48,6 @@ $hfile = 0;
 $keepcurrentdir = 1;
 
 $line_width = 80;
-
-use File::Basename;
 
 # Process the command line
 #
@@ -391,4 +391,32 @@ sub format_line {
    }
 
    return $rline . $line;
+}
+
+# This routine is a crude replacement for one in File::Basename. We
+# cannot use any library code because it fouls up the Perl bootstrap
+# when we update a perl version. MarkM
+
+sub fileparse {
+   my ($filename, @suffix) = @_;
+   my ($dir, $name, $type, $i);
+
+   $type = '';
+   foreach $i (@suffix) {
+      if ($filename =~ m|$i$|) {
+         $filename =~ s|$i$||;
+         $type = $i;
+      }
+   }
+   if ($filename =~ m|/|) {
+      $filename =~ m|([^/]*)$|;
+      $name = $1;
+      $dir = $filename;
+      $dir =~ s|$name$||;
+   }
+   else {
+      $dir = '';
+      $name = $filename;
+   }
+   ($name, $dir, $type);
 }
