@@ -830,6 +830,14 @@ in6_control(so, cmd, data, ifp, p)
 			ia->ia6_lifetime.ia6t_preferred = 0;
 
 		/*
+		 * make sure to initialize ND6 information.  this is to
+		 * workaround issues with interfaces with IPv6 addresses,
+		 * which have never brought # up.  we are assuming that it is
+		 * safe to nd6_ifattach multiple times.
+		 */
+		nd6_ifattach(ifp);
+
+		/*
 		 * Perform DAD, if needed.
 		 * XXX It may be of use, if we can administratively
 		 * disable DAD.
