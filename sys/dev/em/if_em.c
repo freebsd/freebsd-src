@@ -51,7 +51,7 @@ struct adapter *em_adapter_list = NULL;
  *  Driver version
  *********************************************************************/
 
-char em_driver_version[] = "1.7.35";
+char em_driver_version[] = "1.7.42";
 
 
 /*********************************************************************
@@ -80,6 +80,7 @@ static em_vendor_info_t em_vendor_info_array[] =
         { 0x8086, 0x1011, PCI_ANY_ID, PCI_ANY_ID, 0},
         { 0x8086, 0x1012, PCI_ANY_ID, PCI_ANY_ID, 0},
         { 0x8086, 0x1013, PCI_ANY_ID, PCI_ANY_ID, 0},
+        { 0x8086, 0x1014, PCI_ANY_ID, PCI_ANY_ID, 0},
         { 0x8086, 0x1015, PCI_ANY_ID, PCI_ANY_ID, 0},
         { 0x8086, 0x1016, PCI_ANY_ID, PCI_ANY_ID, 0},
         { 0x8086, 0x1017, PCI_ANY_ID, PCI_ANY_ID, 0},
@@ -99,6 +100,7 @@ static em_vendor_info_t em_vendor_info_array[] =
         { 0x8086, 0x107A, PCI_ANY_ID, PCI_ANY_ID, 0},
         { 0x8086, 0x107B, PCI_ANY_ID, PCI_ANY_ID, 0},
         { 0x8086, 0x107C, PCI_ANY_ID, PCI_ANY_ID, 0},
+        { 0x8086, 0x108A, PCI_ANY_ID, PCI_ANY_ID, 0},
         /* required last entry */
         { 0, 0, 0, 0, 0}
 };
@@ -2712,8 +2714,20 @@ em_enable_intr(struct adapter * adapter)
 static void
 em_disable_intr(struct adapter *adapter)
 {
-	E1000_WRITE_REG(&adapter->hw, IMC, 
-			(0xffffffff & ~E1000_IMC_RXSEQ));
+	/*
+	 * The first version of 82542 had an errata where when link was forced it
+	 * would stay up even up even if the cable was disconnected.  Sequence errors
+	 * were used to detect the disconnect and then the driver would unforce the link.
+	 * This code in the in the ISR.  For this to work correctly the Sequence error 
+	 * interrupt had to be enabled all the time.
+	 */
+
+	if (adapter->hw.mac_type == em_82542_rev2_0)
+	    E1000_WRITE_REG(&adapter->hw, IMC, 
+	        (0xffffffff & ~E1000_IMC_RXSEQ));
+	else
+	    E1000_WRITE_REG(&adapter->hw, IMC, 
+	        0xffffffff);
 	return;
 }
 
