@@ -4,7 +4,12 @@
 # limitations in config: backslash-newline doesn't work in strings, and
 # dependency lines other than the first are silently ignored.
 #
-aicasm				optional ahc ahd			   \
+aicasm				optional ahc				   \
+	dependency 	"$S/dev/aic7xxx/aicasm/*.[chyl]"		   \
+	compile-with	"${MAKE} -f $S/dev/aic7xxx/aicasm/Makefile MAKESRCPATH=$S/dev/aic7xxx/aicasm" \
+	no-obj no-implicit-rule						   \
+	clean		"aicasm* y.tab.h"
+aicasm				optional ahd				   \
 	dependency 	"$S/dev/aic7xxx/aicasm/*.[chyl]"		   \
 	compile-with	"${MAKE} -f $S/dev/aic7xxx/aicasm/Makefile MAKESRCPATH=$S/dev/aic7xxx/aicasm" \
 	no-obj no-implicit-rule						   \
