@@ -48,6 +48,10 @@ struct mntopt {
 #define MOPT_SYNC		{ "sync",	0, MNT_SYNCHRONOUS }
 #define MOPT_UNION		{ "union",	0, MNT_UNION }
 
+/* Skip	this options without any action	(needed	for checkquota/quotaon)	*/
+#define	MOPT_UQUOTA		{ "userquota",	0, 0 }
+#define	MOPT_GQUOTA		{ "groupquota",	0, 0 }
+
 /* Control flags. */
 #define MOPT_FORCE		{ "force",	1, MNT_FORCE }
 #define MOPT_UPDATE		{ "update",	0, MNT_UPDATE }

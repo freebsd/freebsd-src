@@ -53,7 +53,7 @@ getmntopts(options, m0, flagp)
 	int *flagp;
 {
 	const struct mntopt *m;
-	int negative;
+	int negative, len;
 	char *opt, *optbuf;
 
 	/* Copy option string, since it is about to be torn asunder... */
@@ -69,9 +69,14 @@ getmntopts(options, m0, flagp)
 			negative = 0;
 
 		/* Scan option table. */
-		for (m = m0; m->m_option != NULL; ++m)
-			if (strcasecmp(opt, m->m_option) == 0)
+		for (m = m0; m->m_option != NULL; ++m) {
+			len = strlen(m->m_option);
+			if (strncasecmp(opt, m->m_option, len) == 0)
+				if (   m->m_option[len]	== '\0'
+				    || m->m_option[len]	== '='
+				   )
 				break;
+		}
 
 		/* Save flag, or fail if option is not recognised. */
 		if (m->m_option) {
