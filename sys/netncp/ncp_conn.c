@@ -93,7 +93,8 @@ int
 ncp_conn_access(struct ncp_conn *conn, struct ucred *cred, mode_t mode) {
 	int error;
 
-	if (ncp_suser(cred) == 0 || cred->cr_uid == conn->nc_owner->cr_uid)
+	if (cred == NOCRED || ncp_suser(cred) == 0 ||
+	    cred->cr_uid == conn->nc_owner->cr_uid)
 		return 0;
 	mode >>= 3;
 	if (!groupmember(conn->nc_group, cred))
