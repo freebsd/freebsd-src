@@ -28,7 +28,7 @@
  *
  * from: svr4_util.h,v 1.5 1994/11/18 02:54:31 christos Exp
  * from: linux_util.h,v 1.2 1995/03/05 23:23:50 fvdl Exp
- * $Id$
+ * $Id: linux_util.h,v 1.1 1996/03/02 19:38:02 peter Exp $
  */
 
 /*
@@ -77,8 +77,6 @@ stackgap_alloc(sgp, sz)
 #else
 #define DPRINTF(a)
 #endif
-
-extern const char linux_emul_path[];
 
 int linux_emul_find __P((struct proc *, caddr_t *, const char *, char *,
 			char **, int));

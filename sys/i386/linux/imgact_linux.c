@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1994-1995 Søren Schmidt
+ * Copyright (c) 1994-1996 Søren Schmidt
  * All rights reserved.
  *
  * Based heavily on /sys/kern/imgact_aout.c which is:
@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_linux.c,v 1.8 1996/02/16 18:40:48 peter Exp $
+ *	$Id: imgact_linux.c,v 1.9 1996/03/02 19:37:47 peter Exp $
  */
 
 #include <sys/param.h>
@@ -227,6 +227,6 @@ exec_linux_imgact(imgp)
  * Since `const' objects end up in the text segment, TEXT_SET is the
  * correct directive to use.
  */
-const struct execsw linux_execsw = { exec_linux_imgact, "linux" };
+const struct execsw linux_execsw = { exec_linux_imgact, "linux a.out" };
 TEXT_SET(execsw_set, linux_execsw);
 
