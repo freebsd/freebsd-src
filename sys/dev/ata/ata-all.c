@@ -347,8 +347,8 @@ ata_suspend(device_t dev)
 	    ch->state = ATA_ACTIVE;
 	    gotit = 1;
 	}
-	tsleep(&gotit, PRIBIO, "atasusp", hz/10);
 	mtx_unlock(&ch->state_mtx);
+	tsleep(&gotit, PRIBIO, "atasusp", hz/10);
     }
     ch->locking(ch, ATA_LF_UNLOCK);
     return 0;
