@@ -58,48 +58,59 @@ typedef	__size_t	size_t;
 #endif
 
 __BEGIN_DECLS
+#if __POSIX_VISIBLE >= 200112 || __XSI_VISIBLE
+void	*memccpy(void * __restrict, const void * __restrict, int, size_t);
+#endif
 void	*memchr(const void *, int, size_t);
 int	 memcmp(const void *, const void *, size_t);
 void	*memcpy(void * __restrict, const void * __restrict, size_t);
 void	*memmove(void *, const void *, size_t);
 void	*memset(void *, int, size_t);
+#if __BSD_VISIBLE
+char	*stpcpy(char *, const char *);
+char	*strcasestr(const char *, const char *);
+#endif
 char	*strcat(char * __restrict, const char * __restrict);
 char	*strchr(const char *, int);
 int	 strcmp(const char *, const char *);
 int	 strcoll(const char *, const char *);
 char	*strcpy(char * __restrict, const char * __restrict);
 size_t	 strcspn(const char *, const char *);
-char	*strerror(int);
-size_t	 strlen(const char *);
-char	*strncat(char * __restrict, const char * __restrict, size_t);
-int	 strncmp(const char *, const char *, size_t);
-char	*strncpy(char * __restrict, const char * __restrict, size_t);
-char	*strpbrk(const char *, const char *);
-char	*strrchr(const char *, int);
-size_t	 strspn(const char *, const char *);
-char	*strstr(const char *, const char *);
-char	*strtok(char * __restrict, const char * __restrict);
-size_t	 strxfrm(char * __restrict, const char * __restrict, size_t);
-
-#if __POSIX_VISIBLE >= 200112 || __XSI_VISIBLE >= 500
-void	*memccpy(void * __restrict, const void * __restrict, int, size_t);
+#if __POSIX_VISIBLE >= 200112 || __XSI_VISIBLE
 char	*strdup(const char *);
-char	*strtok_r(char *, const char *, char **);
 #endif
-
+char	*strerror(int);
 #if __POSIX_VISIBLE >= 200112
 int	 strerror_r(int, char *, size_t);
 #endif
-
 #if __BSD_VISIBLE
-char	*stpcpy(char *, const char *);
-char	*strcasestr(const char *, const char *);
 size_t	 strlcat(char *, const char *, size_t);
 size_t	 strlcpy(char *, const char *, size_t);
+#endif
+size_t	 strlen(const char *);
+#if __BSD_VISIBLE
 void	 strmode(int, char *);
+#endif
+char	*strncat(char * __restrict, const char * __restrict, size_t);
+int	 strncmp(const char *, const char *, size_t);
+char	*strncpy(char * __restrict, const char * __restrict, size_t);
+#if __BSD_VISIBLE
 char	*strnstr(const char *, const char *, size_t);
+#endif
+char	*strpbrk(const char *, const char *);
+char	*strrchr(const char *, int);
+#if __BSD_VISIBLE
 char	*strsep(char **, const char *);
 char	*strsignal(int);
+#endif
+size_t	 strspn(const char *, const char *);
+char	*strstr(const char *, const char *);
+char	*strtok(char * __restrict, const char * __restrict);
+#if __POSIX_VISIBLE >= 199506 || __XSI_VISIBLE >= 500
+char	*strtok_r(char *, const char *, char **);
+#endif
+size_t	 strxfrm(char * __restrict, const char * __restrict, size_t);
+#if __BSD_VISIBLE
 void	 swab(const void *, void *, size_t);
 #endif
 __END_DECLS
