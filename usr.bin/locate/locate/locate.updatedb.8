@@ -42,9 +42,15 @@ updates the database used by
 .Xr locate 1 .
 It is typically run once a week by the
 .Nm /etc/weekly script.
+.Pp
+The contents of the newly built database can be controlled by the
+.Nm /etc/locate.rc file.
 .Sh FILES
 .Bl -tag -width /var/db/locate.database -compact
-.It Pa /var/db/locate.database the actual database
+.It Pa /var/db/locate.database
+the actual database
+.It Pa /etc/locate.rc
+the configuration file
 .El
 .Sh SEE ALSO
 .Xr locate 1
