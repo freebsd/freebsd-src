@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_socket.c	8.5 (Berkeley) 3/30/95
- * $Id: nfs_socket.c,v 1.41 1998/06/07 17:12:28 dfr Exp $
+ * $Id: nfs_socket.c,v 1.42 1998/07/15 02:32:24 bde Exp $
  */
 
 /*
@@ -432,6 +432,16 @@ nfs_send(so, nam, top, rep)
 
 	error = so->so_proto->pr_usrreqs->pru_sosend(so, sendnam, 0, top, 0,
 						     flags, curproc /*XXX*/);
+	/*
+	 * ENOBUFS for dgram sockets is transient and non fatal.
+	 * No need to log, and no need to break a soft mount.
+	 */
+	if (error == ENOBUFS && so->so_type == SOCK_DGRAM) {
+		error = 0;
+		if (rep)		/* do backoff retransmit on client */
+			rep->r_flags |= R_MUSTRESEND;
+	}
+
 	if (error) {
 		if (rep) {
 			log(LOG_INFO, "nfs send error %d for server %s\n",error,
