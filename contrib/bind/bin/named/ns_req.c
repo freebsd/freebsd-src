@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)ns_req.c	4.47 (Berkeley) 7/1/91";
-static const char rcsid[] = "$Id: ns_req.c,v 8.138.2.1 2001/04/27 07:44:05 marka Exp $";
+static const char rcsid[] = "$Id: ns_req.c,v 8.138.2.4 2001/08/10 03:00:14 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -202,8 +202,7 @@ ns_req(u_char *msg, int msglen, int buflen, struct qstream *qsp,
 		n = dn_expand(msg, msg + msglen, tsigstart, buf, sizeof buf);
 		if (n < 0) {
 			ns_debug(ns_log_default, 1,
-				 "ns_req: bad TSIG key name",
-				 buf);
+				 "ns_req: bad TSIG key name");
 			error = ns_r_formerr;
 			hp->rcode = ns_r_formerr;
 			key = NULL;

@@ -1,5 +1,5 @@
 #ifndef lint
-static const char rcsid[] = "$Id: host.c,v 8.43.2.1 2001/04/26 02:56:07 marka Exp $";
+static const char rcsid[] = "$Id: host.c,v 8.43.2.2 2001/08/09 14:04:45 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -755,12 +755,12 @@ void print_hex_field (u_int8_t field[], int length, int width, char *pref)
 	do
 	{
 		stop=(start+width)<length?(start+width):length;
-		printf (pref);
+		printf ("%s", pref);
  		for (i = start; i < stop; i++)
 			printf ("%02x ", (u_char) field[i]);
 		printf ("\n");
 
-		printf (pref);
+		printf ("%s", pref);
 		for (i = start; i < stop; i++)
 			if (isprint(field[i]))
 				printf (" %c ", (u_char) field[i]);
