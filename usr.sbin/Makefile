@@ -145,7 +145,6 @@ SUBDIR=	ac \
 	setfmac \
 	setkey \
 	setpmac \
-	${_sgsc} \
 	${_sicontrol} \
 	sliplogin \
 	slstat \
@@ -269,7 +268,6 @@ _pnpinfo=	pnpinfo
 .if !defined(NOLIBPTHREAD)
 _pppctl=	pppctl
 .endif
-_sgsc=		sgsc
 _sicontrol=	sicontrol
 _spkrtest=	spkrtest
 _wlconfig=	wlconfig
