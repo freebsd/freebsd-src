@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.220 1998/09/29 22:03:12 jkh Exp $
+#	$Id: Makefile,v 1.221 1998/10/17 15:25:26 bde Exp $
 #
 # The user-driven targets are:
 #
@@ -52,8 +52,8 @@
 # this overrides /etc/objformat.
 #
 # Unless -DNOAOUT is specified, a `make world' with OBJFORMAT=elf will
-# update the legacy support for aout. This includes all libraries, ld.so,
-# lkms and boot objects. This part of build should be regarded as
+# update the legacy support for aout. This includes all libraries, ld.so
+# and boot objects. This part of build should be regarded as
 # deprecated and you should _not_ expect to be able to do this past the
 # release of 3.1. You have exactly one major release to move entirely
 # to elf.
