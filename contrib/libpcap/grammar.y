@@ -112,6 +112,7 @@ pcap_parse()
 %token	ID EID HID
 %token	LSH RSH
 %token  LEN
+%token  ISO ESIS ISIS
 
 %type	<s> ID
 %type	<e> EID
@@ -235,6 +236,9 @@ pname:	  LINK			{ $$ = Q_LINK; }
 	| SCA			{ $$ = Q_SCA; }
 	| MOPDL			{ $$ = Q_MOPDL; }
 	| MOPRC			{ $$ = Q_MOPRC; }
+	| ISO			{ $$ = Q_ISO; }
+	| ESIS			{ $$ = Q_ESIS; }
+	| ISIS			{ $$ = Q_ISIS; }
 	;
 other:	  pqual TK_BROADCAST	{ $$ = gen_broadcast($1); }
 	| pqual TK_MULTICAST	{ $$ = gen_multicast($1); }

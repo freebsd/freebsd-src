@@ -40,6 +40,7 @@ struct rtentry;
 #include <stdlib.h>
 #include <memory.h>
 #include <setjmp.h>
+#include <net/if_llc.h>
 #if __STDC__
 #include <stdarg.h>
 #else
@@ -49,6 +50,7 @@ struct rtentry;
 #include "pcap-int.h"
 
 #include "ethertype.h"
+#include "nlpid.h"
 #include "gencode.h"
 #include <pcap-namedb.h>
 
@@ -565,6 +567,24 @@ gen_linktype(proto)
 			return (gen_cmp(0, BPF_W, (bpf_int32)AF_INET));
 		else
 			return gen_false();
+	case DLT_EN10MB:
+		/*
+	 	 * Having to look at SAP's here is quite disgusting,
+		 * but given an internal architecture that _knows_ that
+		 * it's looking at IP on Ethernet...
+		 */
+		if (proto == LLC_ISO_LSAP) {
+			struct block *b0, *b1;
+
+			b0 = gen_cmp(off_linktype, BPF_H, (long)ETHERMTU);
+			b0->s.code = JMP(BPF_JGT);
+			gen_not(b0);
+			b1 = gen_cmp(off_linktype + 2, BPF_H, (long)
+				     ((LLC_ISO_LSAP << 8) | LLC_ISO_LSAP));
+			gen_and(b0, b1);
+			return b1;
+		}
+		break;
 	}
 	return gen_cmp(off_linktype, BPF_H, (bpf_int32)proto);
 }
@@ -836,6 +856,9 @@ gen_host(addr, mask, proto, dir)
 	case Q_MOPRC:
 		bpf_error("MOPRC host filtering not implemented");
 
+	case Q_ISO:
+	        bpf_error("ISO host filtering not implemented");
+		
 	default:
 		abort();
 	}
@@ -917,7 +940,7 @@ gen_proto_abbrev(proto)
 #define	IPPROTO_IGRP	9
 #endif
 	case Q_IGRP:
-		b0 =  gen_linktype(ETHERTYPE_IP);
+		b0 = gen_linktype(ETHERTYPE_IP);
 		b1 = gen_cmp(off_nl + 9, BPF_B, (long)IPPROTO_IGRP);
 		gen_and(b0, b1);
 		break;
@@ -959,6 +982,18 @@ gen_proto_abbrev(proto)
 
 	case Q_MOPRC:
 		b1 =  gen_linktype(ETHERTYPE_MOPRC);
+		break;
+
+	case Q_ISO:
+	        b1 = gen_linktype(LLC_ISO_LSAP);
+		break;
+
+	case Q_ESIS:
+	        b1 = gen_proto(ISO9542_ESIS, Q_ISO, Q_DEFAULT);
+		break;
+
+	case Q_ISIS:
+	        b1 = gen_proto(ISO10589_ISIS, Q_ISO, Q_DEFAULT);
 		break;
 
 	default:
@@ -1122,6 +1157,12 @@ gen_proto(v, proto, dir)
 	case Q_IP:
 		b0 = gen_linktype(ETHERTYPE_IP);
 		b1 = gen_cmp(off_nl + 9, BPF_B, (bpf_int32)v);
+		gen_and(b0, b1);
+		return b1;
+
+	case Q_ISO:
+		b0 = gen_linktype(LLC_ISO_LSAP);
+		b1 = gen_cmp(off_nl + 3, BPF_B, (long)v);
 		gen_and(b0, b1);
 		return b1;
 
@@ -1510,7 +1551,7 @@ gen_load(proto, index, size)
 	case Q_LAT:
 	case Q_MOPRC:
 	case Q_MOPDL:
-		/* XXX Note that we assume a fixed link link header here. */
+		/* XXX Note that we assume a fixed link header here. */
 		s = xfer_to_x(index);
 		tmp = new_stmt(BPF_LD|BPF_IND|size);
 		tmp->s.k = off_nl;
@@ -1737,6 +1778,10 @@ gen_greater(n)
 {
 	return gen_len(BPF_JGE, n);
 }
+
+/*
+ * Actually, this is less than or equal.
+ */
 
 struct block *
 gen_less(n)
