@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.7 (Berkeley) 3/29/95
- * $Id: systm.h,v 1.88 1999/04/21 07:26:30 peter Exp $
+ * $Id: systm.h,v 1.89 1999/05/11 19:54:59 phk Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
@@ -53,8 +53,6 @@ extern int safepri;		/* safe ipl when cold or panicing */
 extern char version[];		/* system version */
 extern char copyright[];	/* system copyright */
 
-extern int nblkdev;		/* number of entries in bdevsw */
-extern int nchrdev;		/* number of entries in cdevsw */
 extern int nswap;		/* size of swap space */
 
 extern int selwait;		/* select timeout address */
