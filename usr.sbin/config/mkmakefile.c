@@ -68,8 +68,6 @@ static const char rcsid[] =
 		wd = word; \
 	}
 
-#define ns(s) strdup(s)
-
 static struct file_list *fcur;
 
 static char *tail __P((char *));
@@ -260,7 +258,7 @@ openit:
 	fp = fopen(fname, "r");
 	if (fp == 0)
 		err(1, "%s", fname);
-	if(ident == NULL) {
+	if (ident == NULL) {
 		printf("no ident line specified\n");
 		exit(1);
 	}
@@ -291,13 +289,10 @@ next:
 	}
 	if (wd == 0)
 		goto next;
-	/*************************************************\
-	* If it's a comment ignore to the end of the line *
-	\*************************************************/
-	if(wd[0] == '#')
+	if (wd[0] == '#')
 	{
-		while( ((wd = get_word(fp)) != (char *)EOF) && wd)
-		;
+		while (((wd = get_word(fp)) != (char *)EOF) && wd)
+			;
 		goto next;
 	}
 	this = ns(wd);
@@ -422,8 +417,8 @@ nextparam:
 	for (dp = dtab; dp != 0; save_dp = dp, dp = dp->d_next)
 		if (eq(dp->d_name, wd)) {
 			if (std && dp->d_type == PSEUDO_DEVICE &&
-			    dp->d_slave <= 0)
-				dp->d_slave = 1;
+			    dp->d_count <= 0)
+				dp->d_count = 1;
 			goto nextparam;
 		}
 	if (mandatory) {
@@ -437,7 +432,7 @@ nextparam:
 		init_dev(dp);
 		dp->d_name = ns(wd);
 		dp->d_type = PSEUDO_DEVICE;
-		dp->d_slave = 1;
+		dp->d_count = 1;
 		save_dp->d_next = dp;
 		goto nextparam;
 	}
@@ -690,9 +685,9 @@ do_rules(f)
 		och = *cp;
 		if (ftp->f_flags & NO_IMPLCT_RULE) {
 			if (ftp->f_depends)
-				fprintf(f, "%s: %s\n", np, ftp->f_depends );
+				fprintf(f, "%s: %s\n", np, ftp->f_depends);
 			else
-				fprintf(f, "%s: \n", np );
+				fprintf(f, "%s: \n", np);
 		}
 		else {
 			*cp = '\0';
@@ -775,4 +770,3 @@ raisestr(str)
 	}
 	return (cp);
 }
-

@@ -42,8 +42,6 @@
 
 #define YY_NO_UNPUT
 
-#define tprintf if (do_trace) printf
-
 /*
  * Key word table
  */
@@ -52,11 +50,8 @@ struct kt {
 	char *kt_name;
 	int kt_val;
 } key_words[] = {
-	{ "and",	AND },
 	{ "at",		AT },
-	{ "bio",	BIO },		/* XXX going away */
 	{ "bus",	BUS },
-	{ "cam",	CAM },		/* XXX going away */
 	{ "conflicts",	CONFLICTS },
 	{ "config",	CONFIG },
 	{ "controller",	CONTROLLER },
@@ -73,25 +68,14 @@ struct kt {
 	{ "irq",	IRQ },
 	{ "machine",	MACHINE },
 	{ "makeoptions", MAKEOPTIONS },
-	{ "master",	MASTER },
 	{ "maxusers",	MAXUSERS },
-	{ "minor",	MINOR },
-	{ "net",	NET },		/* XXX going away */
 	{ "nexus",	NEXUS },
 	{ "option",	OPTIONS },
 	{ "options",	OPTIONS },
 	{ "port",	PORT },
-	{ "priority",	PRIORITY },
 	{ "pseudo-device",PSEUDO_DEVICE },
-	{ "sequential",	SEQUENTIAL },
-	{ "size",	SIZE },
-	{ "slave",	SLAVE },
-	{ "tape",	DEVICE },
 	{ "target",	TARGET },
-	{ "tty",	TTY },		/* XXX going away */
-	{ "trace",	TRACE },
 	{ "unit",	UNIT },
-	{ "vector",	VECTOR },
 	{ 0, 0 },
 };
 
@@ -112,10 +96,8 @@ ID	[A-Za-z_][-A-Za-z_0-9]*
 			if ((i = kw_lookup(yytext)) == -1)
 			{
 				yylval.str = strdup(yytext);
-				tprintf("id(%s) ", yytext);
 				return ID;
 			}
-			tprintf("(%s) ", yytext);
 			return i;
 		}
 <INITIAL>{WORD}/[0-9]* {
@@ -126,13 +108,11 @@ ID	[A-Za-z_][-A-Za-z_0-9]*
 			if (i == CONTROLLER || i == DEVICE || i == DISK ||
 			    i == PSEUDO_DEVICE || i == AT)
 				BEGIN NONUM;
-			tprintf("(%s) ", yytext);
 			return i;
 		}
 <INITIAL>{ID}	{
 			BEGIN 0;
 			yylval.str = strdup(yytext);
-			tprintf("id(%s) ", yytext);
 			return ID;
 		}
 \\\"[^"]+\\\"	{
@@ -140,54 +120,44 @@ ID	[A-Za-z_][-A-Za-z_0-9]*
 			yytext[yyleng-2] = '"';
 			yytext[yyleng-1] = '\0';
 			yylval.str = strdup(yytext + 1);
-			tprintf("id(%s) ", yytext+1);
 			return ID;
 		}
 \"[^"]+\"	{
 			BEGIN 0;
 			yytext[yyleng-1] = '\0';
 			yylval.str = strdup(yytext + 1);
-			tprintf("id(%s) ", yytext+1);
 			return ID;
 		}
 <TOEOL>[^# \t\n]*	{
 			BEGIN 0;
 			yylval.str = strdup(yytext);
-			tprintf("id(%s) ", yytext);
 			return ID;
 		}
 0[0-7]*		{
 			yylval.val = octal(yytext);
-			tprintf("#O:%o ", yylval.val);
 			return NUMBER;
 		}
 0x[0-9a-fA-F]+	{
 			yylval.val = hex(yytext);
-			tprintf("#X:%x ", yylval.val);
 			return NUMBER;
 		}
 -?[1-9][0-9]*	{
 			yylval.val = atoi(yytext);
-			tprintf("#D:%d ", yylval.val);
 			return NUMBER;
 		}
 [0-9]"."[0-9]*	{
 			yylval.val = (int) (60 * atof(yytext) + 0.5);
-			tprintf("#F:%d ", yylval.val);
 			return FPNUMBER;
 		}
 "?"		{
 			yylval.val = -1;
-			tprintf("? ");
 			return NUMBER;
 		}
 \n/[ \t]	{
 			yyline++;
-			tprintf("\n... ");
 		}
 \n		{
 			yyline++;
-			tprintf("\n");
 			return SEMICOLON;
 		}
 #.*		{	/* Ignored (comment) */;	}

@@ -50,8 +50,6 @@ static const char rcsid[] =
 #include "config.h"
 #include "y.tab.h"
 
-#define ns(s) strdup(s)
-
 static void do_header __P((char *, char *, int));
 static void do_count __P((char *, char *, int));
 static char *toheader __P((char *));
@@ -105,7 +103,7 @@ do_count(dev, hname, search)
 		if (dp->d_unit != -1 && eq(dp->d_name, dev)) {
 			if ((dp->d_type & TYPEMASK) == PSEUDO_DEVICE) {
 				count =
-				    dp->d_slave != UNKNOWN ? dp->d_slave : 1;
+				    dp->d_count != UNKNOWN ? dp->d_count : 1;
 				dp->d_type |= DEVDONE;
 				break;
 			}
