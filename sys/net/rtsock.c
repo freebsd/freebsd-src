@@ -356,8 +356,7 @@ route_output(m, so)
 	case RTM_DELETE:
 		error = rtrequest1(RTM_DELETE, &info, &saved_nrt);
 		if (error == 0) {
-			if ((rt = saved_nrt))
-				rt->rt_refcnt++;
+			rt = saved_nrt;
 			goto report;
 		}
 		break;
