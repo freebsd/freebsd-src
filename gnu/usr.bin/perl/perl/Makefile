@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.12 1998/09/16 17:25:52 markm Exp $
+# $Id: Makefile,v 1.13 1998/09/22 12:00:58 markm Exp $
 #
 
 PROG=	perl
@@ -30,8 +30,6 @@ DYNAMIC_EXT=	B/B DB_File/DB_File Data/Dumper/Dumper Fcntl/Fcntl IO/IO \
 ${PROG}: Config.pm lib/auto/DynaLoader/DynaLoader.a
 
 lib/auto/DynaLoader/DynaLoader.a: Config.pm autosplit
-
-.ORDER: ${STATIC_EXT} ${DYNAMIC_EXT} ${NONXS_EXT}
 
 config.h: config_h.sh config.sh
 	sh config_h.sh
