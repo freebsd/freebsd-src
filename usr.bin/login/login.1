@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)login.1	8.2 (Berkeley) 5/5/94
-.\"	$Id: login.1,v 1.9 1997/07/22 07:39:42 charnier Exp $
+.\"	$Id: login.1,v 1.10 1998/01/07 10:42:57 obrien Exp $
 .\"
 .Dd May 5, 1994
 .Dt LOGIN 1
@@ -176,6 +176,8 @@ login account records
 system mailboxes
 .It Pa \&.hushlogin
 makes login quieter
+.It Pa /etc/auth.conf
+configure authentication services
 .El
 .Sh SEE ALSO
 .Xr chpass 1 ,
