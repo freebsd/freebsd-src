@@ -53,8 +53,8 @@
  * --Copyright--
  */
 
-#ifndef _NAMESER_H_
-#define	_NAMESER_H_
+#ifndef _ARPA_NAMESER_H_
+#define	_ARPA_NAMESER_H_
 
 #include <sys/types.h>
 

@@ -33,8 +33,8 @@
  *	@(#)rwhod.h	8.1 (Berkeley) 6/2/93
  */
 
-#ifndef _RWHOD_H_
-#define	_RWHOD_H_
+#ifndef _PROTOCOLS_RWHOD_H_
+#define	_PROTOCOLS_RWHOD_H_
 
 /*
  * rwho protocol packet format.

@@ -33,8 +33,8 @@
  *	@(#)ftp.h	8.1 (Berkeley) 6/2/93
  */
 
-#ifndef _FTP_H_
-#define	_FTP_H_
+#ifndef _ARPA_FTP_H_
+#define	_ARPA_FTP_H_
 
 /* Definitions for FTP; see RFC-765. */
 

@@ -33,8 +33,8 @@
  *	@(#)routed.h	8.1 (Berkeley) 6/2/93
  */
 
-#ifndef _ROUTED_H_
-#define	_ROUTED_H_
+#ifndef _PROTOCOLS_ROUTED_H_
+#define	_PROTOCOLS_ROUTED_H_
 
 /*
  * Routing Information Protocol
