@@ -76,6 +76,7 @@ SYSCTL_PROC(_debug_kdb, OID_AUTO, enter, CTLTYPE_INT | CTLFLAG_RW, 0, 0,
 static int kdb_stop_cpus = 1;
 SYSCTL_INT(_debug_kdb, OID_AUTO, stop_cpus, CTLTYPE_INT | CTLFLAG_RW,
     &kdb_stop_cpus, 0, "");
+TUNABLE_INT("debug.kdb.stop_cpus", &kdb_stop_cpus);
 #endif
 
 static int
