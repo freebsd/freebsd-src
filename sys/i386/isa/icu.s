@@ -36,7 +36,7 @@
  *
  *	@(#)icu.s	7.2 (Berkeley) 5/21/91
  *
- *	$Id: icu.s,v 1.23 1995/07/05 14:35:34 bde Exp $
+ *	$Id: icu.s,v 1.24 1996/03/12 05:44:25 nate Exp $
  */
 
 /*
@@ -290,7 +290,7 @@ vec8:
 
 #define BUILD_VEC(irq_num) \
 	ALIGN_TEXT ; \
-vec/**/irq_num: ; \
+__CONCAT(vec,irq_num): ; \
 	int	$ICU_OFFSET + (irq_num) ; \
 	ret
 

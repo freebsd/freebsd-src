@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exception.s,v 1.16 1996/04/12 12:22:14 phk Exp $
+ *	$Id: exception.s,v 1.17 1996/05/02 09:34:20 phk Exp $
  */
 
 #include "npx.h"				/* NNPX */
@@ -41,6 +41,7 @@
 #include <machine/trap.h>			/* trap codes */
 #include <sys/syscall.h>			/* syscall numbers */
 #include <machine/asmacros.h>			/* miscellaneous macros */
+#include <sys/cdefs.h>				/* CPP macros */
 
 #define	KDSEL		0x10			/* kernel data selector */
 #define	SEL_RPL_MASK	0x0003
@@ -54,7 +55,7 @@
 /*
  * Trap and fault vector routines
  */
-#define	IDTVEC(name)	ALIGN_TEXT ; .globl _X/**/name ; _X/**/name:
+#define	IDTVEC(name)	ALIGN_TEXT; .globl __CONCAT(_X,name); __CONCAT(_X,name):
 #define	TRAP(a)		pushl $(a) ; jmp _alltraps
 
 /*
@@ -69,8 +70,8 @@
 	testb	$SEL_RPL_MASK,4(%esp) ; \
 	jne	1f ; \
 	ss ; \
-	.globl	bdb_/**/name/**/_ljmp ; \
-bdb_/**/name/**/_ljmp: ; \
+	.globl	__CONCAT(__CONCAT(bdb_,name),_ljmp); \
+__CONCAT(__CONCAT(bdb_,name),_ljmp): \
 	ljmp	$0,$0 ; \
 1:
 #else
@@ -123,8 +124,8 @@ IDTVEC(fpu)
 	 * interrupts, but now it is fairly easy - mask nested ones the
 	 * same as SWI_AST's.
 	 */
-	pushl	$0				/* dumby error code */
-	pushl	$0				/* dumby trap type */
+	pushl	$0				/* dummy error code */
+	pushl	$0				/* dummy trap type */
 	pushal
 	pushl	%ds
 	pushl	%es				/* now the stack frame is a trap frame */
