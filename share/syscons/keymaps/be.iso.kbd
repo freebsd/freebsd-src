@@ -42,7 +42,7 @@
   036   'j'    'J'    nl     nl     'j'    'J'    nl     nl      C
   037   'k'    'K'    vt     vt     'k'    'K'    vt     vt      C
   038   'l'    'L'    ff     ff     'l'    'L'    ff     ff      C
-  039   'm'    'M'    cr     cr     'm'    'M'    cr     cr      O
+  039   'm'    'M'    cr     cr     'm'    'M'    cr     cr      C
   040   249    '%'    nop    nop    '''    '''    nop    nop     O
   041   178    179    nop    nop    178    179    nop    nop     O
   042   lshift lshift lshift lshift lshift lshift lshift lshift  O
@@ -53,7 +53,7 @@
   047   'v'    'V'    syn    syn    'v'    'V'    syn    syn     C
   048   'b'    'B'    stx    stx    'b'    'B'    stx    stx     C
   049   'n'    'N'    so     so     'n'    'N'    so     so      C
-  050   ','    '?'    nop    nop    ','    '?'    nop    nop     C
+  050   ','    '?'    nop    nop    ','    '?'    nop    nop     O
   051   ';'    '.'    nop    nop    ';'    '.'    nop    nop     O
   052   ':'    '/'    nop    nop    ':'    '/'    nop    nop     O
   053   '='    '+'    nop    nop    '~'    '~'    nop    nop     O
