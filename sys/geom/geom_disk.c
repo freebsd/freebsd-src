@@ -307,7 +307,6 @@ g_disk_create(void *arg, int flag __unused)
 	gp->access = g_disk_access;
 	gp->softc = dp;
 	gp->dumpconf = g_disk_dumpconf;
-	dp->d_geom = gp;
 	pp = g_new_providerf(gp, "%s", gp->name);
 	pp->mediasize = dp->d_mediasize;
 	pp->sectorsize = dp->d_sectorsize;
@@ -315,9 +314,10 @@ g_disk_create(void *arg, int flag __unused)
 		pp->flags |= G_PF_CANDELETE;
 	pp->stripeoffset = dp->d_stripeoffset;
 	pp->stripesize = dp->d_stripesize;
-	g_error_provider(pp, 0);
 	if (bootverbose)
 		printf("GEOM: new disk %s\n", gp->name);
+	dp->d_geom = gp;
+	g_error_provider(pp, 0);
 }
 
 
@@ -335,15 +335,28 @@ disk_create(int unit, struct disk *dp, int flags, void *unused __unused, void * 
 	dp->d_devstat = devstat_new_entry(dp->d_name, dp->d_unit,
 	    dp->d_sectorsize, DEVSTAT_ALL_SUPPORTED,
 	    DEVSTAT_TYPE_DIRECT, DEVSTAT_PRIORITY_MAX);
+	dp->d_geom = NULL;
 	g_call_me(g_disk_create, dp, dp, NULL);
 }
 
+/*
+ * XXX: There is a race if disk_destroy() is called while the g_disk_create()
+ * XXX: event is running.  I belive the current result is that disk_destroy()
+ * XXX: actually doesn't do anything.  Considering that the driver owns the
+ * XXX: struct disk and is likely to free it in a few moments, this can
+ * XXX: hardly be said to be optimal.  To what extent we can sleep in
+ * XXX: disk_create() and disk_destroy() is currently undefined (but generally
+ * XXX: undesirable) so any solution seems to involve an intrusive decision.
+ */
 void
 disk_destroy(struct disk *dp)
 {
 	struct g_geom *gp;
 
+	g_cancel_event(dp);
 	gp = dp->d_geom;
+	if (gp == NULL)
+		return;
 	gp->flags |= G_GEOM_WITHER;
 	gp->softc = NULL;
 	g_orphan_provider(LIST_FIRST(&gp->provider), ENXIO);

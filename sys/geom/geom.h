@@ -221,7 +221,9 @@ void g_trace(int level, const char *, ...);
 
 /* geom_event.c */
 typedef void g_call_me_t(void *, int flag);
+#define EV_CANCEL	1
 int g_call_me(g_call_me_t *func, void *arg, ...);
+void g_cancel_event(void *ref);
 void g_orphan_provider(struct g_provider *pp, int error);
 void g_waitidle(void);
 

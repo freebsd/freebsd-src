@@ -160,7 +160,7 @@ g_pc98_modify(struct g_geom *gp, struct g_pc98_softc *ms, u_char *sec)
 }
 
 static void
-g_pc98_ioctl(void *arg, int flag __unused)
+g_pc98_ioctl(void *arg, int flag)
 {
 	struct bio *bp;
 	struct g_geom *gp;
@@ -171,8 +171,11 @@ g_pc98_ioctl(void *arg, int flag __unused)
 	u_char *sec;
 	int error;
 
-	/* Get hold of the interesting bits from the bio. */
 	bp = arg;
+	if (flag == EV_CANCEL) {
+		g_io_deliver(bp, ENXIO);
+		return;
+	}
 	gp = bp->bio_to->geom;
 	gsp = gp->softc;
 	ms = gsp->softc;
