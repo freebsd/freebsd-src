@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)gprof.h	8.1 (Berkeley) 6/6/93
+ * $FreeBSD$
  */
 
 #include <sys/types.h>
@@ -40,6 +41,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#if __ia64__
+#   include "ia64.h"
+#endif
 #if __alpha__
 #   include "alpha.h"
 #endif
