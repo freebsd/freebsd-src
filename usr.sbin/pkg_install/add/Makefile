@@ -3,7 +3,7 @@
 PROG=	pkg_add
 SRCS=	main.c perform.c futil.c extract.c
 
-CFLAGS+= ${DEBUG} -I${.CURDIR}/../lib
+CFLAGS+= -I${.CURDIR}/../lib
 
 WARNS?=	3
 WFORMAT?=	1
