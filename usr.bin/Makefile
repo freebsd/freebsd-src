@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.3 (Berkeley) 1/7/94
-#	$Id: Makefile,v 1.123 1999/02/16 17:57:25 luoqi Exp $
+#	$Id: Makefile,v 1.124 1999/04/14 16:17:52 des Exp $
 
 # XXX MISSING:		deroff diction graph learn plot
 #			spell spline struct xsend
@@ -92,7 +92,6 @@ SUBDIR=	apply \
 	logname \
 	look \
 	lorder \
-	lsock \
 	lsvfs \
 	m4 \
 	mail \
@@ -142,6 +141,7 @@ SUBDIR=	apply \
 	sed \
 	shar \
 	showmount \
+	sockstat \
 	soelim \
 	split \
 	su \
