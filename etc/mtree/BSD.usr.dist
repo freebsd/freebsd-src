@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.60 1996/06/22 06:02:47 phk Exp $
+#	$Id: BSD.usr.dist,v 1.61 1996/06/25 08:37:54 jkh Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -14,13 +14,13 @@
     include
     ..
     lib
-	tcl
-	..
     ..
     libdata
 	lint
 	..
 	stallion
+	..
+	tcl
 	..
     ..
     libexec
