@@ -373,7 +373,7 @@ release.3:
 .for kernel in ${KERNELS}
 	rm -f ${RD}/kernels/${kernel}
 	rm -rf ${.CURDIR}/../sys/compile/${kernel}
-	cd ${.CURDIR} && ${MAKE} doKERNEL KERNEL=${kernel}
+	cd ${.CURDIR} && ${MAKE} doKERNEL KERNEL=${kernel} KERNEL_KO=${kernel} KODIR=""
 	rm -rf ${.CURDIR}/../sys/compile/${kernel}
 	cp ${RD}/kernels/${kernel} ${RD}/trees/bin/kernel.${kernel}
 .endfor
@@ -779,8 +779,8 @@ doKERNEL:
 	@cd ${.CURDIR}/../sys/${MACHINE}/conf && config ${KERNEL}
 	@cd ${.CURDIR}/../sys/compile/${KERNEL} && \
 			make kernel-depend && \
-			make ${KERNEL_FLAGS} ${KERNEL} && \
-			make kernel-reinstall DESTDIR=${RD}/kernels && \
+			make ${KERNEL_FLAGS} && \
+			make kernel-install DESTDIR=${RD}/kernels && \
 			[ -r ${.CURDIR}/../sys/${MACHINE}/conf/${KERNEL}.hints ] && \
 			cp ${.CURDIR}/../sys/${MACHINE}/conf/${KERNEL}.hints ${RD}/kernels
 
@@ -801,7 +801,7 @@ doMFSKERN:
 	@echo "options MD_ROOT_SIZE=`cat mfsroot.size`" >> \
 	  ${.CURDIR}/../sys/${MACHINE}/conf/BOOTMFS
 .endif
-	@cd ${.CURDIR} && ${MAKE} doKERNEL KERNEL=BOOTMFS
+	@cd ${.CURDIR} && ${MAKE} doKERNEL KERNEL=BOOTMFS KERNEL_KO=BOOTMFS KODIR=""
 	@rm -rf ${RD}/image.${FSIMAGE}
 	@mkdir  ${RD}/image.${FSIMAGE}
 	@cd ${RD}/kernels && \
