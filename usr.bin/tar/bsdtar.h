@@ -63,6 +63,7 @@ struct bsdtar {
 	char		  option_stdout; /* -p */
 	char		  option_unlink_first; /* -U */
 	char		  option_warn_links; /* -l */
+	char		  day_first; /* show day before month in -tv output */
 
 	/* If >= 0, then close this when done. */
 	int		  fd;

@@ -43,6 +43,9 @@
 #define	HAVE_CHFLAGS		1
 #define	ARCHIVE_STAT_MTIME_NANOS(st)	(st)->st_mtimespec.tv_nsec
 
+/* nl_langinfo supports D_MD_ORDER (FreeBSD extension) */
+#define HAVE_NL_LANGINFO_D_MD_ORDER	1
+
 #if __FreeBSD__ > 4
 #define	HAVE_GETOPT_LONG	1
 #define	HAVE_POSIX_ACL		1
