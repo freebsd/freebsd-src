@@ -46,23 +46,23 @@
 #include <dev/lnc/if_lncvar.h>
 #include <dev/lnc/if_lncreg.h>
 
-int ne2100_probe __P((struct lnc_softc *, unsigned));
-int bicc_probe __P((struct lnc_softc *, unsigned));
-int depca_probe __P((struct lnc_softc *, unsigned));
-int lance_probe __P((struct lnc_softc *));
-int pcnet_probe __P((struct lnc_softc *));
+int ne2100_probe __P((lnc_softc_t *, unsigned));
+int bicc_probe __P((lnc_softc_t *, unsigned));
+int depca_probe __P((lnc_softc_t *, unsigned));
+int lance_probe __P((lnc_softc_t *));
+int pcnet_probe __P((lnc_softc_t *));
 int lnc_probe __P((struct isa_device *));
 int lnc_attach __P((struct isa_device *));
 
-static int dec_macaddr_extract __P((u_char[], struct lnc_softc *));
+static int dec_macaddr_extract __P((u_char[], lnc_softc_t *));
 static ointhand2_t lncintr;
 
-extern struct lnc_softc lnc_softc[];
-extern int lnc_attach_sc __P((struct lnc_softc *, int));
-extern void lncintr_sc __P((struct lnc_softc *));
+extern lnc_softc_t lnc_softc[];
+extern int lnc_attach_sc __P((lnc_softc_t *, int));
+extern void lncintr_sc __P((lnc_softc_t *));
 
 int
-ne2100_probe(struct lnc_softc *sc, unsigned iobase)
+ne2100_probe(lnc_softc_t *sc, unsigned iobase)
 {
 	int i;
 
@@ -88,7 +88,7 @@ ne2100_probe(struct lnc_softc *sc, unsigned iobase)
 }
 
 int
-bicc_probe(struct lnc_softc *sc, unsigned iobase)
+bicc_probe(lnc_softc_t *sc, unsigned iobase)
 {
 	int i;
 
@@ -129,7 +129,7 @@ bicc_probe(struct lnc_softc *sc, unsigned iobase)
  * signature so keep searching for the signature first.
  */
 static int
-dec_macaddr_extract(u_char ring[], struct lnc_softc * sc)
+dec_macaddr_extract(u_char ring[], lnc_softc_t * sc)
 {
 	const unsigned char signature[] = {0xff, 0x00, 0x55, 0xaa, 0xff, 0x00, 0x55, 0xaa};
 
@@ -155,7 +155,7 @@ dec_macaddr_extract(u_char ring[], struct lnc_softc * sc)
 }
 
 int
-depca_probe(struct lnc_softc *sc, unsigned iobase)
+depca_probe(lnc_softc_t *sc, unsigned iobase)
 {
 	int i;
 	unsigned char maddr_ring[DEPCA_ADDR_ROM_SIZE];
@@ -178,7 +178,7 @@ depca_probe(struct lnc_softc *sc, unsigned iobase)
 }
 
 int
-lance_probe(struct lnc_softc *sc)
+lance_probe(lnc_softc_t *sc)
 {
 	write_csr(sc, CSR0, STOP);
 
@@ -198,7 +198,7 @@ lance_probe(struct lnc_softc *sc)
 }
 
 int
-pcnet_probe(struct lnc_softc *sc)
+pcnet_probe(lnc_softc_t *sc)
 {
 	u_long chip_id;
 	int type;
@@ -247,7 +247,7 @@ lnc_probe(struct isa_device * isa_dev)
 {
 	int nports;
 	int unit = isa_dev->id_unit;
-	struct lnc_softc *sc = &lnc_softc[unit];
+	lnc_softc_t *sc = &lnc_softc[unit];
 	unsigned iobase = isa_dev->id_iobase;
 
 #ifdef DIAGNOSTIC
@@ -272,7 +272,7 @@ int
 lnc_attach(struct isa_device * isa_dev)
 {
 	int unit = isa_dev->id_unit;
-	struct lnc_softc *sc = &lnc_softc[unit];
+	lnc_softc_t *sc = &lnc_softc[unit];
 	int result;
 
 	isa_dev->id_ointr = lncintr;
@@ -296,6 +296,6 @@ lnc_attach(struct isa_device * isa_dev)
 static void
 lncintr(int unit)
 {
-	struct lnc_softc *sc = &lnc_softc[unit];
+	lnc_softc_t *sc = &lnc_softc[unit];
 	lncintr_sc (sc);
 }
