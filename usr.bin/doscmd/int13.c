@@ -29,7 +29,7 @@
  *
  *	BSDI int13.c,v 2.3 1996/04/08 19:32:43 bostic Exp
  *
- * $Id: int13.c,v 1.3 1996/09/22 15:42:53 miff Exp $
+ * $Id: int13.c,v 1.1 1997/08/09 01:42:46 dyson Exp $
  */
 
 #include "doscmd.h"
@@ -200,8 +200,8 @@ init_hdisk(int drive, int cyl, int head, int tracksize, char *file, char *fake_p
     di = &diskinfo[drive];
 
     if (di->path) {
-	fprintf(stderr, "Drive %c: already assigned to %s\n",
-			 drive + 'A', di->path);
+	fprintf(stderr, "Drive %c: already assigned to %s\n", drntol(drive),
+			 di->path);
 	return(-1);
     }
     di->fd = -1;
@@ -377,20 +377,19 @@ init_floppy(int drive, int type, char *file)
     di = &diskinfo[drive];
 
     if (stat(file, &sb) < 0) {
-	fprintf(stderr, "Drive %c: Could not stat %s\n",
-			 drive + 'A', file);
+	fprintf(stderr, "Drive %c: Could not stat %s\n", drntol(drive), file);
 	return(-1);
     }
 
     if (drive < 2 && (S_ISCHR(sb.st_mode) || S_ISBLK(sb.st_mode))) {
 	if (di->path && !di->removeable) {
-	    fprintf(stderr, "Drive %c: is not removeable and hence can only have one assignment\n", drive + 'A');
+	    fprintf(stderr, "Drive %c: is not removeable and hence can only have one assignment\n", drntol(drive));
 	    return(-1);
 	}
 	di->removeable = 1;
     } else if (di->removeable) {
-	fprintf(stderr, "Drive %c: already assigned to %s\n",
-			 drive + 'A', di->path);
+	fprintf(stderr, "Drive %c: already assigned to %s\n", drntol(drive),
+			 di->path);
 	return(-1);
     }
 
@@ -398,7 +397,7 @@ init_floppy(int drive, int type, char *file)
 #if 0 /*XXXXX*/
 	if (di->multi == 4) {
 	    fprintf(stderr, "Drive %c: already assigned 4 devices\n",
-			     drive + 'A');
+			     drntol(drive));
 	    return(-1);
 	}
 #endif
@@ -406,7 +405,7 @@ init_floppy(int drive, int type, char *file)
     } else {
 	if (di->path) {
 	    fprintf(stderr, "Drive %c: already assigned to %s\n",
-			     drive + 'A', di->path);
+			     drntol(drive), di->path);
 	    return(-1);
 	}
 
