@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.219.2.1 1999/03/05 19:49:42 jkh Exp $
+ *	$Id: pmap.c,v 1.219.2.2 1999/04/07 02:50:14 alc Exp $
  */
 
 /*
@@ -2737,7 +2737,7 @@ pmap_copy(dst_pmap, src_pmap, dst_addr, len, src_addr)
 		if (srcptepaddr & PG_PS) {
 			if (dst_pmap->pm_pdir[ptepindex] == 0) {
 				dst_pmap->pm_pdir[ptepindex] = (pd_entry_t) srcptepaddr;
-				dst_pmap->pm_stats.resident_count += NBPDR;
+				dst_pmap->pm_stats.resident_count += NBPDR / PAGE_SIZE;
 			}
 			continue;
 		}
