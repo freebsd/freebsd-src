@@ -52,6 +52,7 @@ static const char rcsid[] =
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/conf.h>
+#include <sys/disklabel.h>
 #include <sys/filio.h>
 
 #include <ctype.h>
@@ -69,6 +70,7 @@ static const char rcsid[] =
 
 static void dd_close __P((void));
 static void dd_in __P((void));
+int main __P((int, char *[]));
 static void getfdtype __P((IO *));
 static void setup __P((void));
 
@@ -167,11 +169,13 @@ setup()
 		pos_out();
 
 	/*
-	 * Truncate the output file; ignore errors because it fails on some
-	 * kinds of output files, tapes, for example.
+	 * Truncate the output file.  If it fails on a type of output file
+	 * that it should _not_ fail on, error out.
 	 */
-	if ((ddflags & (C_OF | C_SEEK | C_NOTRUNC)) == (C_OF | C_SEEK))
-		(void)ftruncate(out.fd, out.offset * out.dbsz);
+	if ((ddflags & (C_OF | C_SEEK | C_NOTRUNC)) == (C_OF | C_SEEK) &&
+	    out.flags & ISTRUNC)
+		if (ftruncate(out.fd, out.offset * out.dbsz) == -1)
+			err(1, "truncating %s", out.name);
 
 	/*
 	 * If converting case at the same time as another conversion, build a
@@ -190,10 +194,10 @@ setup()
 		} else {
 			if (ddflags & C_LCASE) {
 				for (cnt = 0; cnt <= 0377; ++cnt)
-					casetab[cnt] = tolower(cnt);
+					casetab[cnt] = tolower((int)cnt);
 			} else {
 				for (cnt = 0; cnt <= 0377; ++cnt)
-					casetab[cnt] = toupper(cnt);
+					casetab[cnt] = toupper((int)cnt);
 			}
 		}
 		ctab = casetab;
@@ -212,14 +216,22 @@ getfdtype(io)
 
 	if (fstat(io->fd, &sb) == -1)
 		err(1, "%s", io->name);
+	if (S_ISREG(sb.st_mode))
+		io->flags |= ISTRUNC;
 	if (S_ISCHR(sb.st_mode) || S_ISBLK(sb.st_mode)) { 
 		if (ioctl(io->fd, FIODTYPE, &type) == -1) {
 			err(1, "%s", io->name);
 		} else {
 			if (type & D_TAPE)
 				io->flags |= ISTAPE;
-			else if (type & (D_DISK | D_MEM))
+			else if (type & (D_DISK | D_MEM)) {
+				if (type & D_DISK) {
+					const int one = 1;
+
+					(void)ioctl(io->fd, DIOCWLABEL, &one);
+				}
 				io->flags |= ISSEEK;
+			}
 			if (S_ISCHR(sb.st_mode) && (type & D_TAPE) == 0)
 				io->flags |= ISCHR;
 		}
@@ -244,7 +256,7 @@ dd_in()
 		case 0:
 			break;
 		default:
-			if (st.in_full + st.in_part >= cpy_cnt)
+			if (st.in_full + st.in_part >= (u_quad_t)cpy_cnt)
 				return;
 			break;
 		}
@@ -296,7 +308,7 @@ dd_in()
 			++st.in_full;
 
 		/* Handle full input blocks. */
-		} else if (n == in.dbsz) {
+		} else if ((size_t)n == in.dbsz) {
 			in.dbcnt += in.dbrcnt = n;
 			++st.in_full;
 
@@ -327,7 +339,7 @@ dd_in()
 				++st.swab;
 				--n;
 			}
-			swab(in.dbp, in.dbp, n);
+			swab(in.dbp, in.dbp, (size_t)n);
 		}
 
 		in.dbp += in.dbrcnt;
@@ -427,7 +439,7 @@ dd_out(force)
 			}
 			outp += nw;
 			st.bytes += nw;
-			if (nw == n) {
+			if ((size_t)nw == n) {
 				if (n != out.dbsz)
 					++st.out_part;
 				else
@@ -435,7 +447,7 @@ dd_out(force)
 				break;
 			}
 			++st.out_part;
-			if (nw == cnt)
+			if ((size_t)nw == cnt)
 				break;
 			if (out.flags & ISTAPE)
 				errx(1, "%s: short write on tape device",
