@@ -1,5 +1,5 @@
 /*-
- *  dgb.c $Id: dgb.c,v 1.45 1999/04/27 11:14:22 phk Exp $
+ *  dgb.c $Id: dgb.c,v 1.46 1999/04/28 10:51:55 dt Exp $
  *
  *  Digiboard driver.
  *
@@ -2097,11 +2097,11 @@ dgbstart(tp)
 		if(tail>head) {
 			size=tail-head-LEAVE_FREE_CHARS;
 			if (size <0)
-			        size==0;
+			        size=0;
 		        } else {
 			        size=port->txbufsize-head;
 			        if(tail+port->txbufsize < head)
-				        size==0;
+				        size=0;
 		        }
 		}
 #else
