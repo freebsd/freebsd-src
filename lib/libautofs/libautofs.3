@@ -63,6 +63,8 @@
 .Ft void
 .Fn autoreq_getoffset "autoreq_t req" "off_t *offp"
 .Ft void
+.Fn autoreq_getxid "autoreq_t req" "int *xidp"
+.Ft void
 .Fn autoreq_setino "autoreq_t req" "autoino_t ino"
 .Ft void
 .Fn autoreq_seterrno "autoreq_t req" "int errno"
@@ -176,6 +178,10 @@ return the auxilliray data associated with the request
 return the offset request associated with the request
 .Fa req .
 (used for readdir request)
+.It Fn autoreq_getxid
+return the transaction id associated with an autofs request, these
+are unique per mount point, but not system wide.  They can be used
+for debugging to ensure requests are being accepted by the kernel.
 .El
 .Pp
 The following functions allow one to set the response sent to
