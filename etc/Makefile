@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.101 1995/01/17 20:00:01 jkh Exp $
+#	$Id: Makefile,v 1.102 1995/01/27 02:20:42 jkh Exp $
 
 # disktab may be wrong -- hcx9 is a tahoe, but gets its own.
 # -rw-r--r--
@@ -36,6 +36,8 @@ ZIPNSPLIT=	gzip --no-name -9 -c | split -b 240640 -
 
 MTREE=	BSD.local.dist BSD.root.dist BSD.usr.dist BSD.var.dist
 NAMEDB=	localhost.rev named.boot root.cache
+PPPCNF= ppp.conf.filter.sample ppp.conf.iij ppp.conf.sample \
+	ppp.linkup.sample ppp.secret.sample
 PCS=	pcs750.bin
 WCS1=	wcs fppwcs poc poc1 poc2 fppoc
 WCS2=	fpevent fppwcs fppwcs_dual hdcwcs load_diags start_fpp wcs wcs_dual
@@ -180,6 +182,8 @@ distribution:
 	    ${MTREE} ${DESTDIR}/etc/mtree
 	cd ${.CURDIR}/namedb; install -c -o ${BINOWN} -g ${BINGRP} -m 644 \
 	    ${NAMEDB} ${DESTDIR}/etc/namedb
+	cd ${.CURDIR}/ppp; install -c -o ${BINOWN} -g ${BINGRP} -m 644 \
+	    ${PPPCNF} ${DESTDIR}/etc/ppp
 	install -c -o ${BINOWN} -g operator -m 664 /dev/null \
 	    ${DESTDIR}/etc/dumpdates
 	install -c -o nobody -g ${BINGRP} -m 664 /dev/null \
