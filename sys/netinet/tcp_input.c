@@ -985,6 +985,8 @@ findpcb:
 		goto drop;
 	}
 after_listen:
+	KASSERT(headlocked, ("tcp_input(): after_listen head is not locked"));
+	INP_LOCK_ASSERT(inp);
 
 	/* XXX temp debugging */
 	/* should not happen - syncache should pick up these connections */
@@ -1472,6 +1474,10 @@ after_listen:
 		}
 
 trimthenstep6:
+		KASSERT(headlocked,
+		    ("tcp_input(): trimthenstep6 head is not locked"));
+		INP_LOCK_ASSERT(inp);
+
 		/*
 		 * Advance th->th_seq to correspond to first data byte.
 		 * If data, trim to stay within window,
@@ -2081,6 +2087,10 @@ trimthenstep6:
 		}
 
 process_ACK:
+		KASSERT(headlocked,
+		    ("tcp_input(): process_ACK head is not locked"));
+		INP_LOCK_ASSERT(inp);
+
 		acked = th->th_ack - tp->snd_una;
 		tcpstat.tcps_rcvackpack++;
 		tcpstat.tcps_rcvackbyte += acked;
@@ -2261,6 +2271,9 @@ process_ACK:
 	}
 
 step6:
+	KASSERT(headlocked, ("tcp_input(): step6 head is not locked"));
+	INP_LOCK_ASSERT(inp);
+
 	/*
 	 * Update window information.
 	 * Don't look at window if no ACK: TAC's send garbage on first SYN.
@@ -2343,7 +2356,9 @@ step6:
 			tp->rcv_up = tp->rcv_nxt;
 	}
 dodata:							/* XXX */
-	KASSERT(headlocked, ("headlocked"));
+	KASSERT(headlocked, ("tcp_input(): dodata head is not locked"));
+	INP_LOCK_ASSERT(inp);
+
 	/*
 	 * Process the segment text, merging it into the TCP sequencing queue,
 	 * and arranging for acknowledgment of receipt if necessary.
@@ -2479,6 +2494,7 @@ dodata:							/* XXX */
 		(void) tcp_output(tp);
 
 check_delack:
+	INP_LOCK_ASSERT(inp);
 	if (tp->t_flags & TF_DELACK) {
 		tp->t_flags &= ~TF_DELACK;
 		callout_reset(tp->tt_delack, tcp_delacktime,  
