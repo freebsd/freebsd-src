@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)if_loop.c	8.1 (Berkeley) 6/10/93
- *	$Id: if_disc.c,v 1.19 1998/01/08 23:41:21 eivind Exp $
+ *	$Id: if_disc.c,v 1.20 1998/06/07 17:12:03 dfr Exp $
  */
 
 /*
@@ -63,24 +63,24 @@
 static void discattach __P((void *dummy));
 PSEUDO_SET(discattach, if_disc);
 
-static struct	ifnet dsif;
-static int dsoutput(struct ifnet *, struct mbuf *, struct sockaddr *,
+static struct	ifnet discif;
+static int discoutput(struct ifnet *, struct mbuf *, struct sockaddr *,
 		    struct rtentry *);
-static void dsrtrequest(int cmd, struct rtentry *rt, struct sockaddr *sa);
-static int dsioctl(struct ifnet *, u_long, caddr_t);
+static void discrtrequest(int cmd, struct rtentry *rt, struct sockaddr *sa);
+static int discioctl(struct ifnet *, u_long, caddr_t);
 
 /* ARGSUSED */
 static void
 discattach(dummy)
 	void *dummy;
 {
-	register struct ifnet *ifp = &dsif;
+	register struct ifnet *ifp = &discif;
 
 	ifp->if_name = "ds";
 	ifp->if_mtu = DSMTU;
 	ifp->if_flags = IFF_LOOPBACK | IFF_MULTICAST;
-	ifp->if_ioctl = dsioctl;
-	ifp->if_output = dsoutput;
+	ifp->if_ioctl = discioctl;
+	ifp->if_output = discoutput;
 	ifp->if_type = IFT_LOOP;
 	ifp->if_hdrlen = 0;
 	ifp->if_addrlen = 0;
@@ -91,14 +91,14 @@ discattach(dummy)
 }
 
 static int
-dsoutput(ifp, m, dst, rt)
+discoutput(ifp, m, dst, rt)
 	struct ifnet *ifp;
 	register struct mbuf *m;
 	struct sockaddr *dst;
 	register struct rtentry *rt;
 {
 	if ((m->m_flags & M_PKTHDR) == 0)
-		panic("dsoutput no HDR");
+		panic("discoutput no HDR");
 #if NBPFILTER > 0
 	/* BPF write needs to be handled specially */
 	if (dst->sa_family == AF_UNSPEC) {
@@ -108,7 +108,7 @@ dsoutput(ifp, m, dst, rt)
 		m->m_data += sizeof(int);
 	}
 
-	if (dsif.if_bpf) {
+	if (discif.if_bpf) {
 		/*
 		 * We need to prepend the address family as
 		 * a four byte field.  Cons up a dummy header
@@ -123,7 +123,7 @@ dsoutput(ifp, m, dst, rt)
 		m0.m_len = 4;
 		m0.m_data = (char *)&af;
 
-		bpf_mtap(&dsif, &m0);
+		bpf_mtap(&discif, &m0);
 	}
 #endif
 	m->m_pkthdr.rcvif = ifp;
@@ -137,7 +137,7 @@ dsoutput(ifp, m, dst, rt)
 
 /* ARGSUSED */
 static void
-dsrtrequest(cmd, rt, sa)
+discrtrequest(cmd, rt, sa)
 	int cmd;
 	struct rtentry *rt;
 	struct sockaddr *sa;
@@ -151,7 +151,7 @@ dsrtrequest(cmd, rt, sa)
  */
 /* ARGSUSED */
 static int
-dsioctl(ifp, cmd, data)
+discioctl(ifp, cmd, data)
 	register struct ifnet *ifp;
 	u_long cmd;
 	caddr_t data;
@@ -166,7 +166,7 @@ dsioctl(ifp, cmd, data)
 		ifp->if_flags |= IFF_UP;
 		ifa = (struct ifaddr *)data;
 		if (ifa != 0)
-			ifa->ifa_rtrequest = dsrtrequest;
+			ifa->ifa_rtrequest = discrtrequest;
 		/*
 		 * Everything else is done at a higher level.
 		 */
