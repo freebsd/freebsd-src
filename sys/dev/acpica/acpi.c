@@ -111,15 +111,16 @@ static char	*acpi_device_id_probe(device_t bus, device_t dev, char **ids);
 static ACPI_STATUS acpi_device_eval_obj(device_t bus, device_t dev,
 		    ACPI_STRING pathname, ACPI_OBJECT_LIST *parameters,
 		    ACPI_BUFFER *ret);
-static ACPI_STATUS acpi_device_walk_ns(device_t bus, device_t dev,
-		    ACPI_OBJECT_TYPE type, UINT32 max_depth,
-		    ACPI_WALK_CALLBACK user_fn, void *context, void **ret);
+static ACPI_STATUS acpi_device_scan_cb(ACPI_HANDLE h, UINT32 level,
+		    void *context, void **retval);
+static ACPI_STATUS acpi_device_scan_children(device_t bus, device_t dev,
+		    int max_depth, acpi_scan_cb_t user_fn, void *arg);
 static int	acpi_isa_pnp_probe(device_t bus, device_t child,
-			struct isa_pnp_id *ids);
+		    struct isa_pnp_id *ids);
 static void	acpi_probe_children(device_t bus);
 static int	acpi_probe_order(ACPI_HANDLE handle, int *order);
 static ACPI_STATUS acpi_probe_child(ACPI_HANDLE handle, UINT32 level,
-			void *context, void **status);
+		    void *context, void **status);
 static BOOLEAN	acpi_MatchHid(ACPI_HANDLE h, const char *hid);
 static void	acpi_shutdown_final(void *arg, int howto);
 static void	acpi_enable_fixed_events(struct acpi_softc *sc);
@@ -169,7 +170,7 @@ static device_method_t acpi_methods[] = {
     /* ACPI bus */
     DEVMETHOD(acpi_id_probe,		acpi_device_id_probe),
     DEVMETHOD(acpi_evaluate_object,	acpi_device_eval_obj),
-    DEVMETHOD(acpi_walk_namespace,	acpi_device_walk_ns),
+    DEVMETHOD(acpi_scan_children,	acpi_device_scan_children),
 
     /* ISA emulation */
     DEVMETHOD(isa_pnp_probe,		acpi_isa_pnp_probe),
@@ -1036,20 +1037,85 @@ acpi_device_eval_obj(device_t bus, device_t dev, ACPI_STRING pathname,
 {
     ACPI_HANDLE h;
 
-    if ((h = acpi_get_handle(dev)) == NULL)
+    if (dev == NULL)
+	h = ACPI_ROOT_OBJECT;
+    else if ((h = acpi_get_handle(dev)) == NULL)
 	return (AE_BAD_PARAMETER);
     return (AcpiEvaluateObject(h, pathname, parameters, ret));
 }
 
+/* Callback arg for our implementation of walking the namespace. */
+struct acpi_device_scan_ctx {
+    acpi_scan_cb_t	user_fn;
+    void		*arg;
+    ACPI_HANDLE		parent;
+};
+
 static ACPI_STATUS
-acpi_device_walk_ns(device_t bus, device_t dev, ACPI_OBJECT_TYPE type,
-    UINT32 max_depth, ACPI_WALK_CALLBACK user_fn, void *context, void **ret)
+acpi_device_scan_cb(ACPI_HANDLE h, UINT32 level, void *arg, void **retval)
+{
+    struct acpi_device_scan_ctx *ctx;
+    device_t dev, old_dev;
+    ACPI_STATUS status;
+    ACPI_OBJECT_TYPE type;
+
+    /*
+     * Skip this device if we think we'll have trouble with it or it is
+     * the parent where the scan began.
+     */
+    ctx = (struct acpi_device_scan_ctx *)arg;
+    if (acpi_avoid(h) || h == ctx->parent)
+	return (AE_OK);
+
+    /* If this is not a valid device type (e.g., a method), skip it. */
+    if (ACPI_FAILURE(AcpiGetType(h, &type)))
+	return (AE_OK);
+    if (type != ACPI_TYPE_DEVICE && type != ACPI_TYPE_PROCESSOR &&
+	type != ACPI_TYPE_THERMAL && type != ACPI_TYPE_POWER)
+	return (AE_OK);
+
+    /*
+     * Call the user function with the current device.  If it is unchanged
+     * afterwards, return.  Otherwise, we update the handle to the new dev.
+     */
+    old_dev = acpi_get_device(h);
+    dev = old_dev;
+    status = ctx->user_fn(h, &dev, level, ctx->arg);
+    if (ACPI_FAILURE(status) || old_dev == dev)
+	return (status);
+
+    /* Remove the old child and its connection to the handle. */
+    if (old_dev != NULL) {
+	device_delete_child(device_get_parent(old_dev), old_dev);
+	AcpiDetachData(h, acpi_fake_objhandler);
+    }
+
+    /* Recreate the handle association if the user created a device. */
+    if (dev != NULL)
+	AcpiAttachData(h, acpi_fake_objhandler, dev);
+
+    return (AE_OK);
+}
+
+static ACPI_STATUS
+acpi_device_scan_children(device_t bus, device_t dev, int max_depth,
+    acpi_scan_cb_t user_fn, void *arg)
 {
     ACPI_HANDLE h;
+    struct acpi_device_scan_ctx ctx;
 
-    if ((h = acpi_get_handle(dev)) == NULL)
+    if (acpi_disabled("children"))
+	return (AE_OK);
+
+    if (dev == NULL)
+	h = ACPI_ROOT_OBJECT;
+    else if ((h = acpi_get_handle(dev)) == NULL)
 	return (AE_BAD_PARAMETER);
-    return (AcpiWalkNamespace(type, h, max_depth, user_fn, context, ret));
+    ctx.user_fn = user_fn;
+    ctx.arg = arg;
+    ctx.parent = h;
+    return (AcpiWalkNamespace(ACPI_TYPE_ANY, h, max_depth,
+	acpi_device_scan_cb, &ctx, NULL));
 }
 
 static int
