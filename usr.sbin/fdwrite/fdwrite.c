@@ -6,18 +6,18 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id$
+ * $Id: fdwrite.c,v 1.6 1997/02/22 16:05:49 peter Exp $
  *
  */
 
+#include <ctype.h>
+#include <err.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <fcntl.h>
 #include <strings.h>
-#include <ctype.h>
+#include <unistd.h>
 
-#include <errno.h>
 #include <machine/ioctl_fd.h>
 
 int
@@ -54,9 +54,9 @@ format_track(int fd, int cyl, int secs, int head, int rate,
 }
 
 static void
-usage ()
+usage()
 {
-	printf("Usage:\n\tfdwrite [-v] [-y] [-f inputfile] [-d device]\n");
+	fprintf(stderr, "usage: fdwrite [-v] [-y] [-f inputfile] [-d device]\n");
 	exit(2);
 }
 
@@ -71,7 +71,7 @@ main(int argc, char **argv)
     FILE *tty;
 
     setbuf(stdout,0);
-    while((c = getopt(argc, argv, "d:s:f:vy")) != -1)
+    while((c = getopt(argc, argv, "d:f:vy")) != -1)
 	    switch(c) {
 	    case 'd':	/* Which drive */
 		    device = optarg;
@@ -81,10 +81,8 @@ main(int argc, char **argv)
 		    if (inputfd >= 0)
 			    close(inputfd);
 		    inputfd = open(optarg,O_RDONLY);
-		    if (inputfd < 0) {
-			    perror(optarg);
-			    exit(1);
-		    }
+		    if (inputfd < 0)
+			    err(1, "%s", optarg);
 		    break;
 
 	    case 'v':  /* Toggle verbosity */
@@ -109,10 +107,8 @@ main(int argc, char **argv)
 	    usage();
 
     tty = fopen("/dev/tty","r+");
-    if(!tty) {
-	    perror("/dev/tty");
-	    exit(1);
-    }
+    if(!tty)
+	    err(1, "/dev/tty");
     setbuf(tty,0);
 
     for(j=1;j > 0;) {
@@ -127,24 +123,20 @@ main(int argc, char **argv)
 	    }
 	}
 
-	if((fd = open(device, O_RDWR)) < 0) {
-	    perror(device);
-	    exit(1);
-	}
+	if((fd = open(device, O_RDWR)) < 0)
+	    err(1, "%s", device);
 
-	if(ioctl(fd, FD_GTYPE, &fdt) < 0) {
-	    fprintf(stderr, "fdformat: not a floppy disk: %s\n", device);
-	    exit(1);
-	}
+	if(ioctl(fd, FD_GTYPE, &fdt) < 0)
+	    errx(1, "not a floppy disk: %s", device);
 
 	bpt = fdt.sectrac * (1<<fdt.secsize) * 128;
 	if(!trackbuf) {
 	    trackbuf = malloc(bpt);
-	    if(!trackbuf) { perror("malloc"); exit(1); }
+	    if(!trackbuf) errx(1, "malloc");
 	}
 	if(!vrfybuf) {
 	    vrfybuf = malloc(bpt);
-	    if(!vrfybuf) { perror("malloc"); exit(1); }
+	    if(!vrfybuf) errx(1, "malloc");
 	}
 
 	if(fdn == 1) {
@@ -172,30 +164,15 @@ main(int argc, char **argv)
 		    fdt.f_inter);
 	    if(verbose) putc('F',stdout);
 
-	    if (lseek (fd, (long) track*bpt, 0) < 0) {
-		perror("lseek");
-		exit (1);
-	    }
-	    if (write (fd, trackbuf, bpt) != bpt) {
-		perror("write");
-		exit (1);
-	    }
+	    if (lseek (fd, (long) track*bpt, 0) < 0) err(1, "lseek");
+	    if (write (fd, trackbuf, bpt) != bpt) err(1, "write");
 	    if(verbose) putc('W',stdout);
 
-	    if (lseek (fd, (long) track*bpt, 0) < 0) {
-		perror("lseek");
-		exit (1);
-	    }
-	    if (read (fd, vrfybuf, bpt) != bpt) {
-		perror("read");
-		exit (1);
-	    }
+	    if (lseek (fd, (long) track*bpt, 0) < 0) err(1, "lseek");
+	    if (read (fd, vrfybuf, bpt) != bpt) err(1, "read");
 	    if(verbose) putc('R',stdout);
 
-	    if (memcmp(trackbuf,vrfybuf,bpt)) {
-		perror("compare");
-		exit (1);
-	    }
+	    if (memcmp(trackbuf,vrfybuf,bpt)) err(1, "compare");
 	    if(verbose) putc('C',stdout);
 
 	    memset(trackbuf,0,bpt);
