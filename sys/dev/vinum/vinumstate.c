@@ -37,7 +37,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumstate.c,v 2.17 2000/04/02 05:41:29 grog Exp grog $
+ * $Id: vinumstate.c,v 2.18 2000/05/10 07:30:50 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -870,11 +870,11 @@ start_object(struct vinum_ioctl_msg *data)
 	    strcpy(ioctl_reply->msg, "Drive is down");
 	    return;
 	}
+	if (data->blocksize)
+	    SD[objindex].revive_blocksize = data->blocksize;
 	if ((SD[objindex].state == sd_reviving)		    /* reviving, */
 	||(SD[objindex].state == sd_stale)) {		    /* or stale, will revive */
 	    SD[objindex].state = sd_reviving;		    /* make sure we're reviving */
-	    if (data->blocksize)
-		SD[objindex].revive_blocksize = data->blocksize;
 	    ioctl_reply->error = revive_block(objindex);    /* revive another block */
 	    ioctl_reply->msg[0] = '\0';			    /* no comment */
 	    return;
