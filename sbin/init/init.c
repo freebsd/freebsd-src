@@ -116,6 +116,9 @@ state_func_t catatonia __P((void));
 state_func_t death __P((void));
 
 enum { AUTOBOOT, FASTBOOT } runcom_mode = AUTOBOOT;
+#define FALSE	0
+#define TRUE	1
+
 int Reboot = FALSE;
 
 void transition __P((state_t));
