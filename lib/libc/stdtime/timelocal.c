@@ -106,7 +106,7 @@ __time_load_locale(const char *name) {
 	int	ret;
 
 	ret = __part_load_locale(name, &_time_using_locale,
-			time_locale_buf, "LC_TIME", LCTIME_SIZE,
+			time_locale_buf, "LC_TIME", LCTIME_SIZE, LCTIME_SIZE,
 			(const char **)&_time_locale);
 
 	/* XXX: always overwrite for ctime format parsing compatibility */
