@@ -1265,7 +1265,7 @@ sb_dsp_init (long mem_start, struct address_info *hw_config)
 #endif
     sprintf (sb_dsp_operations.name, "SoundBlaster %d.%d", major, minor);
 
-  printk (" <%s>", sb_dsp_operations.name);
+  printk ("snd2: <%s>", sb_dsp_operations.name);
 
   if (!verify_irq ())
     return mem_start;

@@ -261,7 +261,7 @@ attach_mpu401 (long mem_start, struct address_info *hw_config)
 
   RESTORE_INTR (flags);
 
-  printk (" <Roland MPU-401>");
+  printk ("snd5: <Roland MPU-401>");
 
   my_dev = num_midis;
   mpu401_dev = num_midis;

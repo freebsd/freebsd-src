@@ -300,7 +300,7 @@ attach_pas_card (long mem_start, struct address_info *hw_config)
 
       if ((pas_model = O_M_1_to_card[pas_read (OPERATION_MODE_1) & 0x0f]))
 	{
-	  printk (" <%s rev %d>", pas_model_names[(int) pas_model], pas_read (BOARD_REV_ID));
+	  printk ("snd3: <%s rev %d>", pas_model_names[(int) pas_model], pas_read (BOARD_REV_ID));
 	}
 
       if (config_pas_hw (hw_config))
