@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)profile.h	8.1 (Berkeley) 6/11/93
- * $Id: profile.h,v 1.16 1998/07/10 09:26:41 bde Exp $
+ * $Id: profile.h,v 1.17 1998/07/14 05:09:43 bde Exp $
  */
 
 #ifndef _MACHINE_PROFILE_H_
@@ -135,7 +135,11 @@ void	stopguprof __P((struct gmonparam *p));
 
 __BEGIN_DECLS
 #ifdef __GNUC__
+#ifdef __ELF__
+void	mcount __P((void)) __asm(".mcount");
+#else
 void	mcount __P((void)) __asm("mcount");
+#endif
 #endif
 static void	_mcount __P((uintfptr_t frompc, uintfptr_t selfpc));
 __END_DECLS

@@ -37,7 +37,6 @@
 #include <sys/stat.h>
 #include <sys/gmon.h>
 
-#include <a.out.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -121,7 +120,7 @@ typedef struct arcstruct	arctype;
      * its address, the number of calls and compute its share of cpu time.
      */
 struct nl {
-    char		*name;		/* the name */
+    const char		*name;		/* the name */
     unsigned long	value;		/* the pc entry point */
     unsigned long	svalue;		/* entry point aligned to histograms */
     double		time;		/* ticks in this routine */
@@ -217,9 +216,6 @@ double	totime;			/* total time for all routines */
 double	printtime;		/* total of time being printed */
 double	scale;			/* scale factor converting samples to pc
 				   values: each sample covers scale bytes */
-char	*strtab;		/* string table in core */
-long	ssiz;			/* size of the string table */
-struct	exec xbuf;		/* exec header of a.out */
 unsigned char	*textspace;	/* text space of a.out in core */
 int	cyclethreshold;		/* with -C, minimum cycle size to ignore */
 
@@ -237,6 +233,7 @@ bool	fflag;				/* specific functions requested */
 bool	Fflag;				/* functions requested with time */
 bool	kflag;				/* arcs to be deleted */
 bool	sflag;				/* sum multiple gmon.out files */
+bool	uflag;				/* suppress symbols hidden from C */
 bool	zflag;				/* zero time/called functions, too */
 
     /*
@@ -259,6 +256,7 @@ struct stringlist	*ktolist;
 /*
 		addarc();
 */
+int		aout_getnfile(const char *, char ***);
 int		arccmp();
 arctype		*arclookup();
 /*
@@ -280,17 +278,15 @@ bool		dfn_numbered();
 nltype		**doarcs();
 /*
 		done();
+*/
+int		elf_getnfile(const char *, char ***);
+/*
 		findcalls();
 		flatprofheader();
 		flatprofline();
 */
-bool		funcsymbol();
 /*
-		getnfile();
 		getpfile();
-		getstrtab();
-		getsymtab();
-		gettextspace();
 		gprofheader();
 		gprofline();
 		main();
