@@ -761,7 +761,7 @@ g_getattr__(const char *attr, struct g_consumer *cp, void *var, int len)
  */
 
 void
-g_sanity(void *ptr)
+g_sanity(void const *ptr)
 {
 	struct g_class *mp;
 	struct g_geom *gp;
