@@ -2,31 +2,23 @@
 
 PROG=		telnet
 
+SRCS=		authenc.c commands.c main.c network.c ring.c sys_bsd.c \
+		telnet.c terminal.c utilities.c
+
 CFLAGS+=	-DKLUDGELINEMODE -DUSE_TERMIO -DENV_HACK -DOPIE \
 		-DENCRYPTION -DAUTHENTICATION -DIPSEC -DINET6 \
-		-I${TELNETDIR}
+		-I${TELNETDIR} -I${TELNETDIR}/libtelnet/
 
-.if defined(MAKE_KERBEROS4)
-CFLAGS+=	-DKRB4
-.endif
+CFLAGS+=	-DKRB5
 
-#CFLAGS+=	-DKRB5
+WARNS?=		2
 
-SRCS=		authenc.c commands.c main.c network.c ring.c sys_bsd.c \
-		telnet.c terminal.c tn3270.c utilities.c
-
-DPADD=
-LDADD=
-
-.if defined(MAKE_KERBEROS4)
-DPADD+=		${LIBKRB} ${LIBCOM_ERR}
-LDADD+=		-lkrb -lcom_err
-.endif
-
-DPADD+=		${LIBTERMCAP} ${LIBTELNET} ${LIBMP} ${LIBCRYPTO} ${LIBCRYPT} \
-		${LIBIPSEC} ${LIBPAM}
-LDADD+=		-ltermcap ${LIBTELNET} -lmp -lcrypto -lcrypt \
-		-lipsec ${MINUSLPAM}
+DPADD=		${LIBTERMCAP} ${LIBTELNET} ${LIBMP} \
+		${LIBKRB5} ${LIBASN1} ${LIBCOM_ERR} ${LIBROKEN} \
+		${LIBCRYPTO} ${LIBCRYPT} ${LIBIPSEC} ${LIBPAM}
+LDADD=		-ltermcap ${LIBTELNET} -lmp \
+		-lkrb5 -lasn1 -lcom_err -lroken \
+		-lcrypto -lcrypt -lipsec ${MINUSLPAM}
 
 .include <bsd.prog.mk>
 
