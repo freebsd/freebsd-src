@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.93 1999/08/08 18:43:00 phk Exp $
+ * $Id: vnode.h,v 1.94 1999/08/13 10:10:11 phk Exp $
  */
 
 #ifndef _SYS_VNODE_H_
@@ -544,6 +544,7 @@ dev_t	vn_todev __P((struct vnode *vp));
 int	vfs_cache_lookup __P((struct vop_lookup_args *ap));
 int	vfs_object_create __P((struct vnode *vp, struct proc *p,
                 struct ucred *cred));
+void	vfs_timestamp __P((struct timespec *));
 int 	vn_writechk __P((struct vnode *vp));
 int	vop_stdbwrite __P((struct vop_bwrite_args *ap));
 int	vop_stdislocked __P((struct vop_islocked_args *));
