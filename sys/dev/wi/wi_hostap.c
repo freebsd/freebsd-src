@@ -40,7 +40,9 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#if __FreeBSD_version >= 500033
 #include <sys/endian.h>
+#endif
 #include <sys/sockio.h>
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
@@ -429,7 +431,6 @@ wihap_sta_alloc(struct wi_softc *sc, u_int8_t *addr)
 	sta->sc = sc;
 	whi->n_stations++;
 	bcopy(addr, &sta->addr, ETHER_ADDR_LEN);
-	sta->inactivity_timer = whi->inactivity_time;
 
 	return(sta);
 }
@@ -553,7 +554,6 @@ wihap_auth_req(struct wi_softc *sc, struct wi_frame *rxfrm,
 			goto fail;
 		}
 	}
-	sta->inactivity_timer = whi->inactivity_time;
 
 	/* Note: it's okay to leave the station info structure around
 	 * if the authen fails.  It'll be timed out eventually.
@@ -987,7 +987,7 @@ wihap_sta_is_assoc(struct wihap_info *whi, u_int8_t addr[])
 	sta = wihap_sta_find(whi, addr);
 	if (sta != NULL && (sta->flags & WI_SIFLAGS_ASSOC)) {
 		/* Keep it active. */
-		sta->inactivity_timer = whi->inactivity_time;
+		untimeout(wihap_sta_timeout, sta, sta->tmo);
 		sta->tmo = timeout(wihap_sta_timeout, sta,
 		    hz * whi->inactivity_time);
 		return(1);
@@ -1016,6 +1016,7 @@ wihap_check_tx(struct wihap_info *whi, u_int8_t addr[], u_int8_t *txrate)
 	sta = wihap_sta_find(whi, addr);
 	if (sta != NULL && (sta->flags & WI_SIFLAGS_ASSOC)) {
 		/* Keep it active. */
+		untimeout(wihap_sta_timeout, sta, sta->tmo);
 		sta->tmo = timeout(wihap_sta_timeout, sta,
 		    hz * whi->inactivity_time);
 		*txrate = txratetable[ sta->tx_curr_rate ];
@@ -1078,6 +1079,7 @@ wihap_data_input(struct wi_softc *sc, struct wi_frame *rxfrm, struct mbuf *m)
 		return(1);
 	}
 
+	untimeout(wihap_sta_timeout, sta, sta->tmo);
 	sta->tmo = timeout(wihap_sta_timeout, sta,
 	    hz * whi->inactivity_time);
 	sta->sig_info = le16toh(rxfrm->wi_q_info);
