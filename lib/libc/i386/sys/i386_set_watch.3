@@ -44,11 +44,15 @@
 .Ft int
 .Fn i386_set_watch "int watchnum" "unsigned int watchaddr" "int size" "int access" "struct dbreg *d"
 .Sh DESCRIPTION
+The
 .Fn i386_clr_watch
+function
 will disable the indicated watch point within the specified debug
 register set.
 .Pp
+The
 .Fn i386_set_watch
+function
 will set up the specified debug registers as indicated by the
 parameters.  The
 .Fa watchnum
@@ -76,12 +80,16 @@ they manipulate the indicated debug register set.  You must use
 .Xr ptrace 2
 to retrieve and install the debug register values for a process.
 .Sh RETURN VALUES
+The
 .Fn i386_clr_watch
+function
 returns 0 on success, or -1 if
 .Fa watchnum
 is invalid (not in the range of 0-3).
 .Pp
+The
 .Fn i386_set_watch
+function
 will return the
 .Fa watchnum
 argument, or the watchnum actually used in the case that

@@ -88,9 +88,13 @@ A period following an odd number of bytes has the
 effect of causing the byte of address being translated
 to have its higher order bits filled with zeros.
 .Sh RETURN VALUES
+The
 .Fn iso_ntoa
+function
 always returns a null terminated string.
+The
 .Fn iso_addr
+function
 always returns a pointer to a struct iso_addr.
 (See
 .Sx BUGS . )

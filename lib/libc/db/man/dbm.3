@@ -73,7 +73,9 @@ typedef struct {
 } datum;
 .Ed
 .Pp
+The
 .Fn dbm_open base flags mode
+function
 opens or creates a database.
 .Fa base
 is the basename of the file containing
@@ -105,19 +107,27 @@ The pointer returned by
 identifies the database and is the
 .Fa db
 argument to the other functions.
+The
 .Fn dbm_open
+function
 returns
 .Dv NULL
 and sets
 .Va errno
 if there were any errors.
 .Pp
+The
 .Fn dbm_close db
+function
 closes the database.
+The
 .Fn dbm_close
+function
 normally returns zero.
 .Pp
+The
 .Fn dbm_store db key data flags
+function
 inserts or replaces an entry in the database.
 .Fa flags
 is either
@@ -132,7 +142,9 @@ and the database already contains an entry for
 .Fa key ,
 that entry is not replaced.
 Otherwise the entry is replaced or inserted.
+The
 .Fn dbm_store
+function
 normally returns zero but returns 1 if the entry could not be
 inserted (because
 .Fa flags
@@ -144,7 +156,9 @@ already exists) or returns -1 and sets
 .Va errno
 if there were any errors.
 .Pp
+The
 .Fn dbm_fetch db key
+function
 returns
 .Dv NULL
 or the
@@ -152,38 +166,56 @@ or the
 corresponding to
 .Fa key .
 .Pp
+The
 .Fn dbm_delete db key
+function
 deletes the entry for
 .Fa key .
+The
 .Fn dbm_delete
+function
 normally returns zero but returns 1 if there was no entry with
 .Fa key
 in the database or returns -1 and sets
 .Va errno
 if there were any errors.
 .Pp
+The
 .Fn dbm_firstkey db
+function
 returns the first key in the database.
+The
 .Fn dbm_nextkey db
+function
 returns subsequent keys.
+The
 .Fn db_firstkey
+function
 must be called before
 .Fn dbm_nextkey .
 The order in which keys are returned is unspecified and may appear
 random.
+The
 .Fn dbm_nextkey
+function
 returns
 .Dv NULL
 after all keys have been returned.
 .Pp
+The
 .Fn dbm_error db
+function
 returns the
 .Va errno
 value of the most recent error.
+The
 .Fn dbm_clearerr db
+function
 resets this value to 0 and returns 0.
 .Pp
+The
 .Fn dbm_dirfno db
+function
 returns the file descriptor to the database.
 .Sh SEE ALSO
 .Xr open 2 ,

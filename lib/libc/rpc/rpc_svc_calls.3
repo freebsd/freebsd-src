@@ -103,7 +103,9 @@ either through one of the
 .Xr rpc_svc_create 3
 functions, or using
 .Fn xprt_register .
+The
 .Fn svc_exit
+function
 has global scope and ends all RPC server activity.
 .It Xo
 .Vt fd_set Va svc_fdset

@@ -267,25 +267,33 @@ Note: Addresses are indexed starting at 1, and flags starting at 0,
 to maintain consistency with the terminology and figures in RFC2460.
 .\"
 .Sh DIAGNOSTICS
+The
 .Fn inet6_rthdr_space
+function
 returns 0 on errors.
 .Pp
+The
 .Fn inet6_rthdr_add ,
 .Fn inet6_rthdr_lasthop
 and
 .Fn inet6_rthdr_reverse
+functions
 return 0 on success, and returns -1 on error.
 .Pp
+The
 .Fn inet6_rthdr_init
 and
 .Fn inet6_rthdr_getaddr
+functions
 return
 .Dv NULL
 on error.
 .Pp
+The
 .Fn inet6_rthdr_segments
 and
 .Fn inet6_rthdr_getflags
+functions
 return -1 on error.
 .\"
 .Sh EXAMPLES
@@ -319,5 +327,7 @@ are documented in
 .Sh BUGS
 The text was shamelessly copied from RFC2292.
 .Pp
+The
 .Fn inet6_rthdr_reverse
+function
 is not implemented yet.

@@ -1,4 +1,3 @@
-.\"	$FreeBSD$
 .\"	$KAME: getaddrinfo.3,v 1.31 2001/08/05 18:19:38 itojun Exp $
 .\"
 .\" Copyright (c) 1983, 1987, 1991, 1993
@@ -33,6 +32,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     From: @(#)gethostbyname.3	8.4 (Berkeley) 5/25/95
+.\" $FreeBSD$
 .\"
 .Dd May 25, 1995
 .Dt GETADDRINFO 3
@@ -274,7 +274,9 @@ must be sufficiently consistent and unambiguous.
 Here are some problem cases you may encounter:
 .Bl -bullet
 .It
+The
 .Fn getaddrinfo
+function
 will fail if the members in the
 .Fa hints
 structure are not consistent.

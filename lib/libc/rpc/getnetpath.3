@@ -42,7 +42,9 @@ The
 .Ev NETPATH
 variable is a list of colon-separated network identifiers.
 .Pp
+The
 .Fn getnetpath
+function
 returns a pointer to the
 netconfig database entry corresponding to the first valid
 .Ev NETPATH
@@ -55,7 +57,9 @@ returns a pointer to the netconfig entry that corresponds to the next
 valid
 .Ev NETPATH
 component.
+The
 .Fn getnetpath
+function
 can thus be used to search the netconfig database for all networks
 included in the
 .Ev NETPATH
@@ -73,14 +77,18 @@ A call to
 to or
 .Dq rewinds
 .Ev NETPATH .
+The
 .Fn setnetpath
+function
 must be called before the first call to
 .Fn getnetpath
 and may be called at any other time.
 It returns a handle that is used by
 .Fn getnetpath .
 .Pp
+The
 .Fn getnetpath
+function
 silently ignores invalid
 .Ev NETPATH
 components.
@@ -104,7 +112,9 @@ order in which they are listed.
 .\"This proviso holds also for this
 .\"whole manpage.
 .Pp
+The
 .Fn endnetpath
+function
 may be called to
 .Dq unbind
 from
@@ -116,7 +126,9 @@ frees all memory allocated by
 .Fn getnetpath
 for the struct netconfig data structure.
 .Sh RETURN VALUES
+The
 .Fn setnetpath
+function
 returns a handle that is used by
 .Fn getnetpath .
 In case of an error,
@@ -124,14 +136,18 @@ In case of an error,
 returns
 .Dv NULL .
 .Pp
+The
 .Fn endnetpath
+function
 returns 0 on success and \-1 on failure
 (for example, if
 .Fn setnetpath
 was not called previously).
+The
 .Fn nc_perror
 or
 .Fn nc_sperror
+function
 can be used to print out the reason for failure.
 See
 .Xr getnetconfig 3 .
