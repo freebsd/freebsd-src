@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)date.1	8.3 (Berkeley) 4/28/95
-.\"	$Id: date.1,v 1.8.2.4 1997/09/14 13:07:03 jkh Exp $
+.\"	$Id: date.1,v 1.20 1997/10/03 12:49:28 danny Exp $
 .\"
 .Dd November 17, 1993
 .Dt DATE 1
@@ -183,12 +183,12 @@ and years are handled automatically.
 .Sh EXAMPLES
 The command:
 .Bd -literal -offset indent
-date ``+DATE: %m/%d/%y%nTIME: %H:%M:%S''
+date "+DATE: 19%y-%m-%d%nTIME: %H:%M:%S"
 .Ed
 .Pp
 will display:
 .Bd -literal -offset indent
-DATE: 11/21/87
+DATE: 1987-11-21
 TIME: 13:36:16
 .Ed
 .Pp
