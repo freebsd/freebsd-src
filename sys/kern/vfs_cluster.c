@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.20 1995/09/04 00:20:15 dyson Exp $
+ * $Id: vfs_cluster.c,v 1.21 1995/09/23 21:12:45 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -624,7 +624,8 @@ redo:
 	 * potentially pull it back up if the cluster was terminated
 	 * prematurely--too much hassle.
 	 */
-	if (tbp->b_bcount != tbp->b_bufsize) {
+	if (((tbp->b_flags & B_VMIO) == 0) ||
+		(tbp->b_bcount != tbp->b_bufsize)) {
 		relpbuf(pb);
 		++start_lbn;
 		--len;
