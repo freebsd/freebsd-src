@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7xxx.h,v 1.31.2.3 1997/01/30 01:14:08 jkh Exp $
+ *	$FreeBSD$
  */
 
 #ifndef _AIC7XXX_H_
@@ -209,6 +209,7 @@ struct scb {
 	scb_flag		flags;
 	struct	ahc_dma_seg 	*ahc_dma;/* Pointer to SG segments */
 	struct	scsi_sense	sense_cmd;
+	u_int8_t		sg_count;/* How full ahc_dma_seg is */
 	u_int8_t		position;/* Position in card's scbarray */
 };
 

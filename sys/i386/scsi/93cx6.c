@@ -18,7 +18,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *      $Id: 93cx6.c,v 1.6 1996/10/25 06:42:49 gibbs Exp $
+ *      $FreeBSD$
  */
 
 /*
@@ -78,7 +78,7 @@ static struct seeprom_cmd {
  * Wait for the SEERDY to go high; about 800 ns.
  */
 #define CLOCK_PULSE(sd, rdy)			\
-	while ((SEEPROM_INB(sd) & rdy) == 0) {		\
+	while ((SEEPROM_INB(sd) & rdy) == 0) {	\
 		;  /* Do nothing */		\
 	}
 
