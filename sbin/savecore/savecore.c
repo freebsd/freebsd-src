@@ -117,6 +117,7 @@ int	 Create __P((char *, int));
 int	 dump_exists __P((void));
 char	*find_dev __P((dev_t, int));
 int	 get_crashtime __P((void));
+void	 get_dumpsize __P((void));
 void	 kmem_setup __P((void));
 void	 log __P((int, char *, ...));
 void	 Lseek __P((int, off_t, int));
@@ -186,6 +187,8 @@ main(argc, argv)
 		syslog(LOG_ALERT, "reboot after panic: %s", panic_mesg);
 	else
 		syslog(LOG_ALERT, "reboot");
+
+	get_dumpsize();
 
 	if ((!get_crashtime() || !check_space()) && !force)
 		exit(1);
@@ -327,6 +330,7 @@ save_core()
 	register FILE *fp;
 	register int bounds, ifd, nr, nw, ofd;
 	char *rawp, path[MAXPATHLEN];
+	mode_t oumask;
 
 	/*
 	 * Get the current number and update the bounds file.  Do the update
@@ -351,6 +355,7 @@ err1:			syslog(LOG_WARNING, "%s: %s", path, strerror(errno));
 	}
 
 	/* Create the core file. */
+	oumask = umask(S_IRWXG|S_IRWXO); /* Restrict access to the core file.*/
 	(void)snprintf(path, sizeof(path), "%s/vmcore.%d%s",
 	    dirname, bounds, compress ? ".Z" : "");
 	if (compress) {
@@ -360,6 +365,7 @@ err1:			syslog(LOG_WARNING, "%s: %s", path, strerror(errno));
 		}
 	} else
 		ofd = Create(path, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+	(void)umask(oumask);
 
 	/* Open the raw device. */
 	rawp = rawname(ddname);
@@ -368,15 +374,10 @@ err1:			syslog(LOG_WARNING, "%s: %s", path, strerror(errno));
 		ifd = dumpfd;
 	}
 
-	/* Read the dump size. */
-	Lseek(dumpfd, (off_t)(dumplo + ok(dump_nl[X_DUMPSIZE].n_value)), L_SET);
-	(void)Read(dumpfd, &dumpsize, sizeof(dumpsize));
-
 	/* Seek to the start of the core. */
 	Lseek(ifd, (off_t)dumplo, L_SET);
 
 	/* Copy the core file. */
-	dumpsize *= NBPG;
 	syslog(LOG_NOTICE, "writing %score to %s",
 	    compress ? "compressed " : "", path);
 	for (; dumpsize > 0; dumpsize -= nr) {
@@ -526,12 +527,21 @@ get_crashtime()
 	return (1);
 }
 
+void
+get_dumpsize()
+{
+	/* Read the dump size. */
+	Lseek(dumpfd, (off_t)(dumplo + ok(dump_nl[X_DUMPSIZE].n_value)), L_SET);
+	(void)Read(dumpfd, &dumpsize, sizeof(dumpsize));
+	dumpsize *= getpagesize();
+}
+
 int
 check_space()
 {
 	register FILE *fp;
 	const char *tkernel;
-	off_t minfree, spacefree, kernelsize, needed;
+	off_t minfree, spacefree, totfree, kernelsize, needed;
 	struct stat st;
 	struct statfs fsbuf;
 	char buf[100], path[MAXPATHLEN];
@@ -541,12 +551,14 @@ check_space()
 		syslog(LOG_ERR, "%s: %m", tkernel);
 		exit(1);
 	}
-	kernelsize = st.st_blocks * S_BLKSIZE;
+	kernelsize = (st.st_blocks * S_BLKSIZE) / 1024;
+
 	if (statfs(dirname, &fsbuf) < 0) {
 		syslog(LOG_ERR, "%s: %m", dirname);
 		exit(1);
 	}
- 	spacefree = (fsbuf.f_bavail * fsbuf.f_bsize) / 1024;
+ 	spacefree = ((off_t) fsbuf.f_bavail * fsbuf.f_bsize) / 1024;
+	totfree = ((off_t) fsbuf.f_bfree * fsbuf.f_bsize) / 1024;
 
 	(void)snprintf(path, sizeof(path), "%s/minfree", dirname);
 	if ((fp = fopen(path, "r")) == NULL)
@@ -560,12 +572,12 @@ check_space()
 	}
 
 	needed = (dumpsize + kernelsize) / 1024;
- 	if (minfree > 0 && spacefree - needed < minfree) {
+ 	if (((minfree > 0) ? spacefree : totfree) - needed < minfree) {
 		syslog(LOG_WARNING,
 		    "no dump, not enough free space on device");
 		return (0);
 	}
-	if (spacefree - needed < minfree)
+	if (spacefree - needed < 0)
 		syslog(LOG_WARNING,
 		    "dump performed, but free space threshold crossed");
 	return (1);
