@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.h,v 1.27 1997/09/17 23:17:57 brian Exp $
+ * $Id: vars.h,v 1.28 1997/09/22 23:59:16 brian Exp $
  *
  *	TODO:
  */
@@ -85,7 +85,9 @@ struct pppvars {
   char login_script[200];	/* Login script */
   char auth_key[50];		/* PAP/CHAP key */
   char auth_name[50];		/* PAP/CHAP system name */
-  int enc_MD4;			/* Use MD4 for CHAP encryption */
+#ifdef HAVE_DES
+  int use_MSChap;		/* Use MSCHAP encryption */
+#endif
   char phone_numbers[200];	/* Telephone Numbers */
   char phone_copy[200];		/* copy for strsep() */
   char *next_phone;		/* Next phone from the list */
@@ -113,11 +115,13 @@ struct pppvars {
 #define	VarRetryTimeout	pppVars.retry_timeout
 #define	VarAuthKey	pppVars.auth_key
 #define	VarAuthName	pppVars.auth_name
-#define	VarEncMD4	pppVars.enc_MD4
+#ifdef HAVE_DES
+#define	VarMSChap	pppVars.use_MSChap
+#endif
 #define VarPhoneList    pppVars.phone_numbers
 #define VarPhoneCopy    pppVars.phone_copy
 #define VarNextPhone    pppVars.next_phone
-#define VarAltPhone    pppVars.alt_phone
+#define VarAltPhone     pppVars.alt_phone
 #define	VarShortHost	pppVars.shostname
 #define VarReconnectTimer pppVars.reconnect_timer
 #define VarReconnectTries pppVars.reconnect_tries

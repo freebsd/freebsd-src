@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.h,v 1.5 1997/08/25 00:29:09 brian Exp $
+ * $Id: command.h,v 1.6 1997/09/22 00:46:53 brian Exp $
  *
  *	TODO:
  */
@@ -38,6 +38,7 @@ struct cmdtab {
 #define	VAR_ACCMAP	5
 #define	VAR_PHONE	6
 #define	VAR_HANGUP	7
+#ifdef HAVE_DES
 #define	VAR_ENC		8
-
+#endif
 extern int SetVariable(struct cmdtab const *, int, char **, int var_param);

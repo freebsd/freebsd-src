@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.66 1997/09/21 13:06:43 brian Exp $
+.\" $Id: ppp.8,v 1.67 1997/09/22 23:59:15 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -1438,7 +1438,7 @@ in
 .Pa ppp.conf .
 CHAP is accepted by default.
 
-Some ppp implementations use MD4 rather than MD5 when encrypting the
+Some ppp implementations use "MS-CHAP" rather than MD5 when encrypting the
 challenge.  Refer to the description of the
 .Dq set encrypt
 command for further details.
@@ -1689,12 +1689,24 @@ This specifies the chat script that will be used to reset the modem
 before it is closed.  It should not normally be necessary, but can
 be used for devices that fail to reset themselves properly on close.
 
-.It set encrypt MD4|MD5
-This specifies the encryption algorithm to use when encrypting the
-CHAP challenge string and defaults to MD5.
-Normally, CHAP authentication is done using MD5, but some ppp
-implementations (notably the RAS on Windows NT 3 & 4) use MD4
-instead.
+.It set encrypt MSChap|MD5
+This specifies the encryption algorithm to request and use when issuing
+the CHAP challenge, and defaults to MD5.  If this is set to MSChap,
+.Nm
+will behave like a Microsoft RAS when sending the CHAP challenge (assuming
+CHAP is enabled).  When responding to a challenge,
+.Nm
+determines how to encrypt the response based on the challenge, so this
+setting is ignored.
+
+.Bl -tag -width NOTE:
+.It NOTE:
+Because the Microsoft encryption algorithm uses a combination of MD4 and DES,
+if you have not installed DES encryption software on your machine
+before building
+.Nm ppp ,
+this option will not be available - only MD5 will be used.
+.El
 
 .It set escape value...
 This option is similar to the

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.83 1997/09/21 13:07:57 brian Exp $
+ * $Id: command.c,v 1.84 1997/09/22 00:46:51 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -467,7 +467,9 @@ ShowAuthKey()
     return 0;
   fprintf(VarTerm, "AuthName = %s\n", VarAuthName);
   fprintf(VarTerm, "AuthKey  = %s\n", VarAuthKey);
-  fprintf(VarTerm, "Encrypt  = %s\n", VarEncMD4 ? "MD4" : "MD5" );
+#ifdef HAVE_DES
+  fprintf(VarTerm, "Encrypt  = %s\n", VarMSChap ? "MSChap" : "MD5" );
+#endif
   return 1;
 }
 
@@ -1245,9 +1247,11 @@ SetVariable(struct cmdtab const * list, int argc, char **argv, int param)
     strncpy(VarHangupScript, arg, sizeof(VarHangupScript) - 1);
     VarHangupScript[sizeof(VarHangupScript) - 1] = '\0';
     break;
+#ifdef HAVE_DES
   case VAR_ENC:
-    VarEncMD4 = !strcasecmp(arg, "md4");
+    VarMSChap = !strcasecmp(arg, "mschap");
     break;
+#endif
   }
   return 0;
 }
@@ -1302,8 +1306,10 @@ struct cmdtab const SetCommands[] = {
   "Set demand filter", "set dfilter ..."},
   {"dial", NULL, SetVariable, LOCAL_AUTH,
   "Set dialing script", "set dial chat-script", (void *) VAR_DIAL},
+#ifdef HAVE_DES
   {"encrypt", NULL, SetVariable, LOCAL_AUTH,
-  "Set CHAP encryption algorithm", "set encrypt MD4|MD5", (void *) VAR_ENC},
+  "Set CHAP encryption algorithm", "set encrypt MSChap|MD5", (void *) VAR_ENC},
+#endif
   {"escape", NULL, SetEscape, LOCAL_AUTH,
   "Set escape characters", "set escape hex-digit ..."},
   {"hangup", NULL, SetVariable, LOCAL_AUTH,
