@@ -674,7 +674,7 @@ hpfs_strategy(ap)
 	}
 	bp->b_iooffset = dbtob(bp->b_blkno);
 	bo = hp->h_hpmp->hpm_bo;
-	bo->bo_ops->bop_strategy(bo, bp);
+	BO_STRATEGY(bo, bp);
 	return (0);
 }
 

@@ -76,6 +76,9 @@ struct buf_ops {
 	b_strategy_t	*bop_strategy;
 };
 
+#define BO_STRATEGY(bo, bp)	((bo)->bo_ops->bop_strategy((bo), (bp)))
+#define BO_WRITE(bo, bp)	((bo)->bo_ops->bop_write((bp)))
+
 struct bufobj {
 	struct mtx	*bo_mtx;	/* Mutex which protects "i" things */
 	struct bufv	bo_clean;	/* i Clean buffers */

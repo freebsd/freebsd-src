@@ -1432,7 +1432,7 @@ ext2_strategy(ap)
 	}
 	bp->b_iooffset = dbtob(bp->b_blkno);
 	bo = VFSTOEXT2(vp->v_mount)->um_bo;
-	bo->bo_ops->bop_strategy(bo, bp);
+	BO_STRATEGY(bo, bp);
 	return (0);
 }
 
