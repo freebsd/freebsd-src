@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: advansys.c,v 1.6 1998/12/04 22:54:44 archie Exp $
+ *      $Id: advansys.c,v 1.7 1998/12/22 18:12:09 gibbs Exp $
  */
 /*
  * Ported from:
@@ -1029,6 +1029,9 @@ adv_done(struct adv_softc *adv, union ccb *ccb, u_int done_stat,
 	 * ccb to be completed twice.
 	 */
 	ccb->ccb_h.ccb_cinfo_ptr = NULL;
+
+	LIST_REMOVE(&ccb->ccb_h, sim_links.le);
+	untimeout(adv_timeout, ccb, ccb->ccb_h.timeout_ch);
 	if ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
 		bus_dmasync_op_t op;
 
@@ -1042,25 +1045,42 @@ adv_done(struct adv_softc *adv, union ccb *ccb, u_int done_stat,
 
 	switch (done_stat) {
 	case QD_NO_ERROR:
-		switch (host_stat) {
-		case QHSTA_NO_ERROR:
+		if (host_stat == QHSTA_NO_ERROR) {
 			ccb->ccb_h.status = CAM_REQ_CMP;
 			break;
-		case QHSTA_M_SEL_TIMEOUT:
-			ccb->ccb_h.status = CAM_SEL_TIMEOUT;
-			break;
-		default:
-			xpt_print_path(ccb->ccb_h.path);
-			printf("adv_done - queue done without error, "
-			       "unknown host status %x\n", host_stat);
-			/* XXX Can I get more explicit information here? */
-			ccb->ccb_h.status = CAM_REQ_CMP_ERR;
-			break;
 		}
-		break;
-
+		xpt_print_path(ccb->ccb_h.path);
+		printf("adv_done - queue done without error, "
+		       "but host status non-zero(%x)\n", host_stat);
+		/*FALLTHROUGH*/
 	case QD_WITH_ERROR:
 		switch (host_stat) {
+		case QHSTA_M_TARGET_STATUS_BUSY:
+		case QHSTA_M_BAD_QUEUE_FULL_OR_BUSY:
+			/*
+			 * Assume that if we were a tagged transaction
+			 * the target reported queue full.  Otherwise,
+			 * report busy.  The firmware really should just
+			 * pass the original status back up to us even
+			 * if it thinks the target was in error for
+			 * returning this status as no other transactions
+			 * from this initiator are in effect, but this
+			 * ignores multi-initiator setups and there is
+			 * evidence that the firmware gets its per-device
+			 * transaction counts screwed up occassionally.
+			 */
+			ccb->ccb_h.status |= CAM_SCSI_STATUS_ERROR;
+			if ((ccb->ccb_h.flags & CAM_TAG_ACTION_VALID) != 0
+			 && host_stat != QHSTA_M_TARGET_STATUS_BUSY)
+				scsi_status = SCSI_STATUS_QUEUE_FULL;
+			else
+				scsi_status = SCSI_STATUS_BUSY;
+			adv_abort_ccb(adv, ccb->ccb_h.target_id,
+				      ccb->ccb_h.target_lun,
+				      /*ccb*/NULL, CAM_REQUEUE_REQ,
+				      /*queued_only*/TRUE);
+			/*FALLTHROUGH*/
+		case QHSTA_M_NO_AUTO_REQ_SENSE:
 		case QHSTA_NO_ERROR:
 			ccb->csio.scsi_status = scsi_status;
 			switch (scsi_status) {
@@ -1087,13 +1107,39 @@ adv_done(struct adv_softc *adv, union ccb *ccb, u_int done_stat,
 		case QHSTA_M_SEL_TIMEOUT:
 			ccb->ccb_h.status = CAM_SEL_TIMEOUT;
 			break;
-		default:
-			xpt_print_path(ccb->ccb_h.path);
-			printf("adv_done - queue done with error, "
-			       "unknown host status %x\n", host_stat);
-			/* XXX Can I get more explicit information here? */
-			ccb->ccb_h.status = CAM_REQ_CMP_ERR;
+		case QHSTA_M_DATA_OVER_RUN:
+			ccb->ccb_h.status = CAM_DATA_RUN_ERR;
 			break;
+		case QHSTA_M_UNEXPECTED_BUS_FREE:
+			ccb->ccb_h.status = CAM_UNEXP_BUSFREE;
+			break;
+		case QHSTA_M_BAD_BUS_PHASE_SEQ:
+			ccb->ccb_h.status = CAM_SEQUENCE_FAIL;
+			break;
+		case QHSTA_M_BAD_CMPL_STATUS_IN:
+			/* No command complete after a status message */
+			ccb->ccb_h.status = CAM_SEQUENCE_FAIL;
+			break;
+		case QHSTA_D_EXE_SCSI_Q_BUSY_TIMEOUT:
+		case QHSTA_M_WTM_TIMEOUT:
+		case QHSTA_M_HUNG_REQ_SCSI_BUS_RESET:
+			/* The SCSI bus hung in a phase */
+			ccb->ccb_h.status = CAM_SEQUENCE_FAIL;
+			adv_reset_bus(adv);
+			break;
+		case QHSTA_D_QDONE_SG_LIST_CORRUPTED:
+		case QHSTA_D_ASC_DVC_ERROR_CODE_SET:
+		case QHSTA_D_HOST_ABORT_FAILED:
+		case QHSTA_D_EXE_SCSI_Q_FAILED:
+		case QHSTA_D_ASPI_NO_BUF_POOL:
+		case QHSTA_M_AUTO_REQ_SENSE_FAIL:
+		case QHSTA_M_BAD_TAG_CODE:
+		case QHSTA_D_LRAM_CMP_ERROR:
+		case QHSTA_M_MICRO_CODE_ERROR_HALT:
+		default:
+			panic("%s: Unhandled Host status error %x",
+			      adv_name(adv), host_stat);
+			/* NOTREACHED */
 		}
 		break;
 
@@ -1121,10 +1167,6 @@ adv_done(struct adv_softc *adv, union ccb *ccb, u_int done_stat,
 			adv->openings_needed = 0;
 		}
 	}
-	/* Remove from the pending list */
-	LIST_REMOVE(&ccb->ccb_h, sim_links.le);
-	
-	untimeout(adv_timeout, ccb, ccb->ccb_h.timeout_ch);
 	if ((cinfo->state & ACCB_RECOVERY_CCB) != 0) {
 		/*
 		 * We now traverse our list of pending CCBs and reinstate
