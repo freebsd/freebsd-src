@@ -131,10 +131,6 @@ ata_pccard_probe(device_t dev)
 			     start + ATA_ALTOFFSET, ATA_ALTIOSIZE);
 	}
     }
-    else {
-	bus_release_resource(dev, SYS_RES_IOPORT, rid, io);
-	return ENXIO;
-    }
 
     /* allocate the altport range */
     rid = ATA_ALTADDR_RID;
