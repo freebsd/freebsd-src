@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vfsops.c	8.7 (Berkeley) 5/10/95
  *
- *	$Id: procfs_vfsops.c,v 1.22 1998/06/07 17:11:58 dfr Exp $
+ *	$Id: procfs_vfsops.c,v 1.23 1998/07/25 15:52:44 alex Exp $
  */
 
 /*
@@ -76,6 +76,7 @@ procfs_mount(mp, path, data, ndp, p)
 	struct proc *p;
 {
 	size_t size;
+	int error;
 
 	if (UIO_MX & (UIO_MX-1)) {
 		log(LOG_ERR, "procfs: invalid directory entry size\n");
@@ -84,6 +85,11 @@ procfs_mount(mp, path, data, ndp, p)
 
 	if (mp->mnt_flag & MNT_UPDATE)
 		return (EOPNOTSUPP);
+
+	if (mp->mnt_vfc->vfc_refcount == 1 && (error = at_exit(procfs_exit))) {
+		printf("procfs:  cannot register procfs_exit with at_exit -- error %d\n", error);
+		return(error);
+	}
 
 	mp->mnt_flag |= MNT_LOCAL;
 	mp->mnt_data = 0;
@@ -111,6 +117,9 @@ procfs_unmount(mp, mntflags, p)
 {
 	int error;
 	int flags = 0;
+
+	if (mp->mnt_vfc->vfc_refcount == 1)
+		rm_at_exit(procfs_exit);
 
 	if (mntflags & MNT_FORCE)
 		flags |= FORCECLOSE;
@@ -173,11 +182,6 @@ static int
 procfs_init(vfsp)
 	struct vfsconf *vfsp;
 {
-	int error;
-
-	if (error = at_exit(procfs_exit))
-		printf("procfs:  cannot register procfs_exit with at_exit -- error %d\n", error);
-
 	return (0);
 }
 
@@ -208,20 +212,3 @@ static struct vfsops procfs_vfsops = {
 };
 
 VFS_SET(procfs_vfsops, procfs, MOUNT_PROCFS, VFCF_SYNTHETIC);
-
-#ifdef VFS_LKM
-static int
-procfs_unload ()
-{
-	rm_at_exit(procfs_exit);
-	return(0);
-}
-
-int
-procfs_mod(struct lkm_table *lkmtp, int cmd, int ver)
-{
-	MOD_DISPATCH(procfs, lkmtp, cmd, ver, lkm_nullcmd,
-			procfs_unload, lkm_nullcmd);
-}
-#endif
-
