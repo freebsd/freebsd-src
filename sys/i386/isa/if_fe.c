@@ -1125,8 +1125,8 @@ fe_attach ( struct isa_device *isa_dev )
 	fe_setlinkaddr( sc );
 
 	/* Print additional info when attached.  */
-	printf( "fe%d: address %s, type %s\n", sc->sc_unit,
-		ether_sprintf( sc->sc_enaddr ), sc->typestr );
+	printf( "fe%d: address %6D, type %s\n", sc->sc_unit,
+		sc->sc_enaddr, ":" , sc->typestr );
 #if FE_DEBUG >= 3
 	{
 		int buf, txb, bbw, sbw, ram;
@@ -1301,8 +1301,8 @@ fe_init ( int unit )
 	  || ( sc->sc_enaddr[ 0 ] == 0x00
 	    && sc->sc_enaddr[ 1 ] == 0x00
 	    && sc->sc_enaddr[ 2 ] == 0x00 ) ) {
-		log( LOG_ERR, "fe%d: invalid station address (%s)\n",
-			sc->sc_unit, ether_sprintf( sc->sc_enaddr ) );
+		log( LOG_ERR, "fe%d: invalid station address (%6D)\n",
+			sc->sc_unit, sc->sc_enaddr, ":" );
 		return;
 	}
 #endif
@@ -2314,9 +2314,9 @@ fe_get_packet ( struct fe_softc * sc, u_short len )
 		 * We found an error (of this driver.)
 		 */
 		log( LOG_WARNING,
-			"fe%d: got an unwanted packet, dst = %s\n",
+			"fe%d: got an unwanted packet, dst = %6D\n",
 			sc->sc_unit,
-			ether_sprintf( eh->ether_dhost ) );
+			eh->ether_dhost , ":" );
 		m_freem( m );
 		return 0;
 	}
@@ -2526,8 +2526,8 @@ fe_mcaf ( struct fe_softc *sc )
 		}
 		index = fe_hash( enm->enm_addrlo );
 #if FE_DEBUG >= 4
-		log( LOG_INFO, "fe%d: hash(%s) == %d\n",
-			sc->sc_unit, ether_sprintf( enm->enm_addrlo ), index );
+		log( LOG_INFO, "fe%d: hash(%6D) == %d\n",
+			sc->sc_unit, enm->enm_addrlo , ":", index );
 #endif
 
 		filter.data[index >> 3] |= 1 << (index & 7);

@@ -6,7 +6,7 @@
  *
  * Questions, comments, bug reports and fixes to kimmel@cs.umass.edu.
  *
- * $Id: if_el.c,v 1.20 1995/12/10 13:38:39 phk Exp $
+ * $Id: if_el.c,v 1.21 1995/12/15 00:54:10 bde Exp $
  */
 /* Except of course for the portions of code lifted from other FreeBSD
  * drivers (mainly elread, elget and el_ioctl)
@@ -166,7 +166,7 @@ el_probe(struct isa_device *idev)
 		outb(base+EL_GPBL,i);
 		station_addr[i] = inb(base+EL_EAW);
 	}
-	dprintf(("Address is %s\n",ether_sprintf(station_addr)));
+	dprintf(("Address is %6D\n",station_addr, ":"));
 
 	/* If the vendor code is ok, return a 1.  We'll assume that
 	 * whoever configured this system is right about the IRQ.
@@ -238,8 +238,8 @@ el_attach(struct isa_device *idev)
 	}
 
 	/* Print out some information for the user */
-	printf("el%d: 3c501 address %s\n",idev->id_unit,
-	  ether_sprintf(sc->arpcom.ac_enaddr));
+	printf("el%d: 3c501 address %6D\n",idev->id_unit,
+	  sc->arpcom.ac_enaddr, ":");
 
 	/* Finally, attach to bpf filter if it is present. */
 #if NBPFILTER > 0
@@ -553,8 +553,8 @@ void elintr(int unit)
 		insb(base+EL_BUF,sc->el_pktbuf,len);
 		outb(base+EL_RBC,0);
 		outb(base+EL_AC,EL_AC_RX);
-		dprintf(("%s-->",ether_sprintf(sc->el_pktbuf+6)));
-		dprintf(("%s\n",ether_sprintf(sc->el_pktbuf)));
+		dprintf(("%6D-->",sc->el_pktbuf+6,":"));
+		dprintf(("%6D\n",sc->el_pktbuf,":"));
 
 		/* Pass data up to upper levels */
 		len -= sizeof(struct ether_header);

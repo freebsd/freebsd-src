@@ -38,7 +38,7 @@
  */
 
 /*
- *  $Id: if_ep.c,v 1.36 1995/12/10 13:38:41 phk Exp $
+ *  $Id: if_ep.c,v 1.37 1995/12/15 00:54:11 bde Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -408,7 +408,7 @@ epattach(is)
 	GO_WINDOW(2);
 	outw(BASE + EP_W2_ADDR_0 + (i * 2), ntohs(p[i]));
     }
-    printf(" address %s", ether_sprintf(sc->arpcom.ac_enaddr));
+    printf(" address %6D", sc->arpcom.ac_enaddr, ":");
 
     /*
      * Write IRQ value to board

@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ie.c,v 1.30 1995/12/05 02:01:08 davidg Exp $
+ *	$Id: if_ie.c,v 1.31 1995/12/10 13:38:45 phk Exp $
  */
 
 /*
@@ -582,10 +582,10 @@ ieattach(dvp)
   ifp->if_unit = unit;
   ifp->if_name = iedriver.name;
   ifp->if_mtu = ETHERMTU;
-  printf(" <%s R%d> ethernet address %s\n",
+  printf(" <%s R%d> ethernet address %6D\n",
 	 ie_hardware_names[ie_softc[unit].hard_type],
 	 ie_softc[unit].hard_vers + 1,
-	 ether_sprintf(ie->arpcom.ac_enaddr));
+	 ie->arpcom.ac_enaddr, ":");
 
   ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
   ifp->if_output = ether_output;
@@ -1190,8 +1190,8 @@ static void ie_readframe(unit, ie, num)
 
 #ifdef DEBUG
   if(ie_debug & IED_READFRAME) {
-    printf("ie%d: frame from ether %s type %x\n", unit,
-	   ether_sprintf(eh.ether_shost), (unsigned)eh.ether_type);
+    printf("ie%d: frame from ether %6D type %x\n", unit,
+	   eh.ether_shost, ":", (unsigned)eh.ether_type);
   }
   if(ntohs(eh.ether_type) > ETHERTYPE_TRAIL
      && ntohs(eh.ether_type) < (ETHERTYPE_TRAIL + ETHERTYPE_NTRAILER))
