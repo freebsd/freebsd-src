@@ -162,6 +162,11 @@ chkdq(ip, change, cred, flags)
 			dq->dq_flags |= DQ_WANT;
 			(void) tsleep((caddr_t)dq, PINOD+1, "chkdq2", 0);
 		}
+		/* Reset timer when crossing soft limit */
+		if (dq->dq_curblocks + change >= dq->dq_bsoftlimit &&
+		    dq->dq_curblocks < dq->dq_bsoftlimit)
+			dq->dq_btime = time_second +
+			    VFSTOUFS(ITOV(ip)->v_mount)->um_btime[i];
 		dq->dq_curblocks += change;
 		dq->dq_flags |= DQ_MOD;
 	}
@@ -278,6 +283,11 @@ chkiq(ip, change, cred, flags)
 			dq->dq_flags |= DQ_WANT;
 			(void) tsleep((caddr_t)dq, PINOD+1, "chkiq2", 0);
 		}
+		/* Reset timer when crossing soft limit */
+		if (dq->dq_curinodes + change >= dq->dq_isoftlimit &&
+		    dq->dq_curinodes < dq->dq_isoftlimit)
+			dq->dq_itime = time_second +
+			    VFSTOUFS(ITOV(ip)->v_mount)->um_itime[i];
 		dq->dq_curinodes += change;
 		dq->dq_flags |= DQ_MOD;
 	}
