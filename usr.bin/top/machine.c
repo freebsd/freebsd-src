@@ -17,7 +17,7 @@
  *          Steven Wallace  <swallace@freebsd.org>
  *          Wolfram Schneider <wosch@FreeBSD.org>
  *
- * $Id: machine.c,v 1.9 1998/02/14 13:34:59 peter Exp $
+ * $Id: machine.c,v 1.10 1998/05/28 09:29:48 phk Exp $
  */
 
 
@@ -81,7 +81,7 @@ struct handle
 			 ((pct) / (1.0 - exp(PP((pp), p_swtime) * logcpu))))
 
 /* what we consider to be process size: */
-#define PROCSIZE(pp) (VP((pp), vm_tsize) + VP((pp), vm_dsize) + VP((pp), vm_ssize))
+#define PROCSIZE(pp) (VP((pp), vm_map.size) / 1024)
 
 /* definitions for indices in the nlist array */
 
@@ -607,7 +607,7 @@ char *(*get_userid)();
 	    	(PP(pp, p_rtprio.type) ==  RTP_PRIO_REALTIME ?
 		    (PRIO_MIN - 1 - RTP_PRIO_MAX + PP(pp, p_rtprio.prio)) : 
 		    (PRIO_MAX + 1 + PP(pp, p_rtprio.prio)))), 
-	    format_k2(pagetok(PROCSIZE(pp))),
+	    format_k2(PROCSIZE(pp)),
 	    format_k2(pagetok(VP(pp, vm_rssize))),
 	    status,
 	    smpmode ? PP(pp, p_lastcpu) : 0,
