@@ -689,7 +689,7 @@ fchdir(td, uap)
 		if (vfs_busy(mp, 0, 0, td))
 			continue;
 		tvfslocked = VFS_LOCK_GIANT(mp);
-		error = VFS_ROOT(mp, &tdp, td);
+		error = VFS_ROOT(mp, LK_EXCLUSIVE, &tdp, td);
 		vfs_unbusy(mp, td);
 		if (error) {
 			VFS_UNLOCK_GIANT(tvfslocked);
