@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)unexpand.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: unexpand.c,v 1.2 1997/08/20 11:05:28 charnier Exp $";
+	"$Id: unexpand.c,v 1.3 1997/08/26 11:02:36 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -50,6 +50,7 @@ static const char rcsid[] =
  */
 #include <err.h>
 #include <stdio.h>
+#include <string.h>
 
 char	genbuf[BUFSIZ];
 char	linebuf[BUFSIZ];

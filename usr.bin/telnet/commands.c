@@ -50,6 +50,7 @@ static char sccsid[] = "@(#)commands.c	8.2 (Berkeley) 12/15/93";
 #include <fcntl.h>
 #endif	/* CRAY */
 
+#include <string.h>
 #include <signal.h>
 #include <netdb.h>
 #include <ctype.h>
