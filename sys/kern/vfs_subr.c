@@ -1919,7 +1919,6 @@ vget(vp, flags, td)
 	if (vp->v_iflag & VI_XLOCK && vp->v_vxproc != curthread) {
 		vp->v_iflag |= VI_XWANT;
 		msleep(vp, VI_MTX(vp), PINOD | PDROP, "vget", 0);
-		VI_UNLOCK(vp);
 		return (ENOENT);
 	}
 
@@ -2412,7 +2411,6 @@ vop_revoke(ap)
 		vp->v_iflag |= VI_XWANT;
 		msleep(vp, VI_MTX(vp), PINOD | PDROP,
 		    "vop_revokeall", 0);
-		VI_UNLOCK(vp);
 		return (0);
 	}
 	VI_UNLOCK(vp);
@@ -2482,8 +2480,7 @@ vgonel(vp, td)
 	ASSERT_VI_LOCKED(vp);
 	if (vp->v_iflag & VI_XLOCK) {
 		vp->v_iflag |= VI_XWANT;
-		VI_UNLOCK(vp);
-		tsleep(vp, PINOD | PDROP, "vgone", 0);
+		msleep(vp, VI_MTX(vp), PINOD | PDROP, "vgone", 0);
 		return;
 	}
 
