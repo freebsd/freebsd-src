@@ -1329,26 +1329,20 @@ getvirginlabel(void)
 	if (dkname[0] == '/') {
 		fprintf(stderr,
 		"\"auto\" requires the usage of a canonical disk name.\n");
-		return 0;
+		return (NULL);
 	}
 	(void)snprintf(namebuf, BBSIZE, "%sr%s", _PATH_DEV, dkname);
 	if ((f = open(namebuf, O_RDONLY, 0)) == -1) {
 		Perror("open()");
-		return 0;
+		return (NULL);
 	}
 	if (ioctl(f, DIOCGDINFO, &lab) < 0) {
 		Perror("ioctl DIOCGDINFO");
 		close(f);
-		return 0;
+		return (NULL);
 	}
 	close(f);
-	/* insert reasonable defaults where necessary */
-	if (lab.d_npartitions < 8) lab.d_npartitions = 8;
-	if (lab.d_bbsize == 0) lab.d_bbsize = BBSIZE;
-	if (lab.d_sbsize == 0) lab.d_sbsize = SBSIZE;
-	if (lab.d_rpm == 0) lab.d_rpm = 3600;
-	if (lab.d_interleave == 0) lab.d_interleave = 1;
-	return &lab;
+	return (&lab);
 }
 
 
