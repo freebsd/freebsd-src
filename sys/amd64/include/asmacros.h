@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: asmacros.h,v 1.5 1994/09/08 12:25:18 bde Exp $
+ *	$Id: asmacros.h,v 1.6 1995/12/29 15:28:53 bde Exp $
  */
 
 #ifndef _MACHINE_ASMACROS_H_
@@ -113,15 +113,6 @@
 #define MCOUNT_LABEL(name)
 #define MEXITCOUNT
 #endif /* GPROF */
-
-/* XXX NOP and FASTER_NOP are misleadingly named */
-#ifdef DUMMY_NOPS			/* this will break some older machines */
-#define FASTER_NOP
-#define NOP
-#else
-#define FASTER_NOP	pushl %eax ; inb $0x84,%al ; popl %eax
-#define NOP		pushl %eax ; inb $0x84,%al ; inb $0x84,%al ; popl %eax
-#endif
 
 #else /* !KERNEL */
 
