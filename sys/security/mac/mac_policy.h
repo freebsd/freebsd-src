@@ -95,6 +95,8 @@ struct mac_policy_ops {
 	void	(*mpo_destroy_pipe_label)(struct label *label);
 	void	(*mpo_destroy_proc_label)(struct label *label);
 	void	(*mpo_destroy_vnode_label)(struct label *label);
+	void	(*mpo_copy_mbuf_label)(struct label *src,
+		    struct label *dest);
 	void	(*mpo_copy_pipe_label)(struct label *src,
 		    struct label *dest);
 	void	(*mpo_copy_vnode_label)(struct label *src,
@@ -431,6 +433,7 @@ struct mac_policy_conf {
 /* Flags for the mpc_loadtime_flags field. */
 #define	MPC_LOADTIME_FLAG_NOTLATE	0x00000001
 #define	MPC_LOADTIME_FLAG_UNLOADOK	0x00000002
+#define	MPC_LOADTIME_FLAG_LABELMBUFS	0x00000004
 
 /* Flags for the mpc_runtime_flags field. */
 #define	MPC_RUNTIME_FLAG_REGISTERED	0x00000001

@@ -120,6 +120,21 @@ static int	mac_late = 0;
  */
 static int	ea_warn_once = 0;
 
+#ifndef MAC_ALWAYS_LABEL_MBUF
+/*
+ * Flag to indicate whether or not we should allocate label storage for
+ * new mbufs.  Since most dynamic policies we currently work with don't
+ * rely on mbuf labeling, try to avoid paying the cost of mtag allocation
+ * unless specifically notified of interest.  One result of this is
+ * that if a dynamically loaded policy requests mbuf labels, it must
+ * be able to deal with a NULL label being returned on any mbufs that
+ * were already in flight when the policy was loaded.  Since the policy
+ * already has to deal with uninitialized labels, this probably won't
+ * be a problem.  Note: currently no locking.  Will this be a problem?
+ */
+static int	mac_labelmbufs = 0;
+#endif
+
 static int	mac_enforce_fs = 1;
 SYSCTL_INT(_security_mac, OID_AUTO, enforce_fs, CTLFLAG_RW,
     &mac_enforce_fs, 0, "Enforce MAC policy on file system objects");
@@ -279,6 +294,12 @@ static int mac_policy_list_busy;
 	while (mac_policy_list_busy != 0)				\
 		cv_wait(&mac_policy_list_not_busy,			\
 		    &mac_policy_list_lock);				\
+} while (0)
+
+#define	MAC_POLICY_LIST_ASSERT_EXCLUSIVE() do {				\
+	mtx_assert(&mac_policy_list_lock, MA_OWNED);			\
+	KASSERT(mac_policy_list_busy == 0,				\
+	    ("MAC_POLICY_LIST_ASSERT_EXCLUSIVE()"));			\
 } while (0)
 
 #define	MAC_POLICY_LIST_BUSY() do {					\
@@ -464,6 +485,35 @@ mac_late_init(void)
 }
 
 /*
+ * After the policy list has changed, walk the list to update any global
+ * flags.
+ */
+static void
+mac_policy_updateflags(void)
+{
+	struct mac_policy_conf *tmpc;
+#ifndef MAC_ALWAYS_LABEL_MBUF
+	int labelmbufs;
+#endif
+
+	MAC_POLICY_LIST_ASSERT_EXCLUSIVE();
+
+#ifndef MAC_ALWAYS_LABEL_MBUF
+	labelmbufs = 0;
+#endif
+	LIST_FOREACH(tmpc, &mac_policy_list, mpc_list) {
+#ifndef MAC_ALWAYS_LABEL_MBUF
+		if (tmpc->mpc_loadtime_flags & MPC_LOADTIME_FLAG_LABELMBUFS)
+			labelmbufs++;
+#endif
+	}
+
+#ifndef MAC_ALWAYS_LABEL_MBUF
+	mac_labelmbufs = (labelmbufs != 0);
+#endif
+}
+
+/*
  * Allow MAC policy modules to register during boot, etc.
  */
 int
@@ -530,6 +580,7 @@ mac_policy_register(struct mac_policy_conf *mpc)
 	/* Per-policy initialization. */
 	if (mpc->mpc_ops->mpo_init != NULL)
 		(*(mpc->mpc_ops->mpo_init))(mpc);
+	mac_policy_updateflags();
 	MAC_POLICY_LIST_UNLOCK();
 
 	printf("Security policy loaded: %s (%s)\n", mpc->mpc_fullname,
@@ -574,7 +625,7 @@ mac_policy_unregister(struct mac_policy_conf *mpc)
 
 	LIST_REMOVE(mpc, mpc_list);
 	mpc->mpc_runtime_flags &= ~MPC_RUNTIME_FLAG_REGISTERED;
-
+	mac_policy_updateflags();
 	MAC_POLICY_LIST_UNLOCK();
 
 	printf("Security policy unload: %s (%s)\n", mpc->mpc_fullname,
@@ -623,9 +674,11 @@ error_select(int error1, int error2)
 static struct label *
 mbuf_to_label(struct mbuf *mbuf)
 {
+	struct m_tag *tag;
 	struct label *label;
 
-	label = &mbuf->m_pkthdr.label;
+	tag = m_tag_find(mbuf, PACKET_TAG_MACLABEL, NULL);
+	label = (struct label *)(tag+1);
 
 	return (label);
 }
@@ -727,25 +780,56 @@ mac_init_ipq(struct ipq *ipq, int flag)
 }
 
 int
-mac_init_mbuf(struct mbuf *m, int flag)
+mac_init_mbuf_tag(struct m_tag *tag, int flag)
 {
-	int error;
+	struct label *label;
+	int error, trflag;
 
-	M_ASSERTPKTHDR(m);
+	label = (struct label *) (tag + 1);
+	mac_init_label(label);
 
-	mac_init_label(&m->m_pkthdr.label);
-
-	MAC_CHECK(init_mbuf_label, &m->m_pkthdr.label, flag);
+	trflag = (flag == M_DONTWAIT ? M_NOWAIT : M_WAITOK);
+	MAC_CHECK(init_mbuf_label, label, trflag);
 	if (error) {
-		MAC_PERFORM(destroy_mbuf_label, &m->m_pkthdr.label);
-		mac_destroy_label(&m->m_pkthdr.label);
+		MAC_PERFORM(destroy_mbuf_label, label);
+		mac_destroy_label(label);
 	}
-
 #ifdef MAC_DEBUG
 	if (error == 0)
 		atomic_add_int(&nmacmbufs, 1);
 #endif
 	return (error);
+}
+
+int
+mac_init_mbuf(struct mbuf *m, int flag)
+{
+	struct m_tag *tag;
+	int error;
+
+	M_ASSERTPKTHDR(m);
+
+#ifndef MAC_ALWAYS_LABEL_MBUF
+	/*
+	 * Don't reserve space for labels on mbufs unless we have a policy
+	 * that uses the labels.
+	 */
+	if (mac_labelmbufs) {
+#endif
+		tag = m_tag_get(PACKET_TAG_MACLABEL, sizeof(struct label),
+		    flag);
+		if (tag == NULL)
+			return (ENOMEM);
+		error = mac_init_mbuf_tag(tag, flag);
+		if (error) {
+			m_tag_free(tag);
+			return (error);
+		}
+		m_tag_prepend(m, tag);
+#ifndef MAC_ALWAYS_LABEL_MBUF
+	}
+#endif
+	return (0);
 }
 
 void
@@ -935,11 +1019,14 @@ mac_destroy_ipq(struct ipq *ipq)
 }
 
 void
-mac_destroy_mbuf(struct mbuf *m)
+mac_destroy_mbuf_tag(struct m_tag *tag)
 {
+	struct label *label;
 
-	MAC_PERFORM(destroy_mbuf_label, &m->m_pkthdr.label);
-	mac_destroy_label(&m->m_pkthdr.label);
+	label = (struct label *)(tag+1);
+
+	MAC_PERFORM(destroy_mbuf_label, label);
+	mac_destroy_label(label);
 #ifdef MAC_DEBUG
 	atomic_subtract_int(&nmacmbufs, 1);
 #endif
@@ -1031,6 +1118,21 @@ mac_destroy_vnode(struct vnode *vp)
 {
 
 	mac_destroy_vnode_label(&vp->v_label);
+}
+
+void
+mac_copy_mbuf_tag(struct m_tag *src, struct m_tag *dest)
+{
+	struct label *src_label, *dest_label;
+
+	src_label = (struct label *)(src+1);
+	dest_label = (struct label *)(dest+1);
+
+	/*
+	 * mac_init_mbuf_tag() is called on the target tag in
+	 * m_tag_copy(), so we don't need to call it here.
+	 */
+	MAC_PERFORM(copy_mbuf_label, src_label, dest_label);
 }
 
 static void
@@ -2318,13 +2420,12 @@ mac_check_ifnet_transmit(struct ifnet *ifnet, struct mbuf *mbuf)
 	struct label *label;
 	int error;
 
+	M_ASSERTPKTHDR(mbuf);
+
 	if (!mac_enforce_network)
 		return (0);
 
-	M_ASSERTPKTHDR(mbuf);
 	label = mbuf_to_label(mbuf);
-	if (!(label->l_flags & MAC_FLAG_INITIALIZED))
-		if_printf(ifnet, "not initialized\n");
 
 	MAC_CHECK(check_ifnet_transmit, ifnet, &ifnet->if_label, mbuf,
 	    label);

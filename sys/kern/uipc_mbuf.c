@@ -88,21 +88,21 @@ m_move_pkthdr(struct mbuf *to, struct mbuf *from)
 #if 0
 	/* see below for why these are not enabled */
 	M_ASSERTPKTHDR(to);
+	/* Note: with MAC, this may not be a good assertion. */
 	KASSERT(SLIST_EMPTY(&to->m_pkthdr.tags),
 	    ("m_move_pkthdr: to has tags"));
 #endif
 	KASSERT((to->m_flags & M_EXT) == 0, ("m_move_pkthdr: to has cluster"));
 #ifdef MAC
+	/*
+	 * XXXMAC: It could be this should also occur for non-MAC?
+	 */
 	if (to->m_flags & M_PKTHDR)
-		mac_destroy_mbuf(to);
+		m_tag_delete_chain(to, NULL);
 #endif
 	to->m_flags = from->m_flags & M_COPYFLAGS;
 	to->m_data = to->m_pktdat;
 	to->m_pkthdr = from->m_pkthdr;		/* especially tags */
-#ifdef MAC
-	mac_init_mbuf(to, 1);			/* XXXMAC no way to fail */
-	mac_create_mbuf_from_mbuf(from, to);
-#endif
 	SLIST_INIT(&from->m_pkthdr.tags);	/* purge tags from src */
 	from->m_flags &= ~M_PKTHDR;
 }
@@ -125,20 +125,17 @@ m_dup_pkthdr(struct mbuf *to, struct mbuf *from, int how)
 	 * assertions to trip.  For now just disable them.
 	 */
 	M_ASSERTPKTHDR(to);
+	/* Note: with MAC, this may not be a good assertion. */
 	KASSERT(SLIST_EMPTY(&to->m_pkthdr.tags), ("m_dup_pkthdr: to has tags"));
 #endif
 #ifdef MAC
 	if (to->m_flags & M_PKTHDR)
-		mac_destroy_mbuf(to);
+		m_tag_delete_chain(to, NULL);
 #endif
 	to->m_flags = (from->m_flags & M_COPYFLAGS) | (to->m_flags & M_EXT);
 	if ((to->m_flags & M_EXT) == 0)
 		to->m_data = to->m_pktdat;
 	to->m_pkthdr = from->m_pkthdr;
-#ifdef MAC
-	mac_init_mbuf(to, 1);			/* XXXMAC no way to fail */
-	mac_create_mbuf_from_mbuf(from, to);
-#endif
 	SLIST_INIT(&to->m_pkthdr.tags);
 	return (m_tag_copy_chain(to, from, MBTOM(how)));
 }
@@ -158,12 +155,8 @@ m_prepend(struct mbuf *m, int len, int how)
 		m_freem(m);
 		return (NULL);
 	}
-	if (m->m_flags & M_PKTHDR) {
+	if (m->m_flags & M_PKTHDR)
 		M_MOVE_PKTHDR(mn, m);
-#ifdef MAC
-		mac_destroy_mbuf(m);
-#endif
-	}
 	mn->m_next = m;
 	m = mn;
 	if (len < MHLEN)
