@@ -287,7 +287,7 @@ __hashpw(key)
 	/* Increase buffer size for long lines if necessary. */
 	if (data.size > max) {
 		max = data.size + 1024;
-		if (!(line = realloc(line, max)))
+		if (!(line = reallocf(line, max)))
 			return(0);
 	}
 

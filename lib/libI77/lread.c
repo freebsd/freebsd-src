@@ -408,7 +408,7 @@ l_CHAR(Void)
 			*p++ = ch;
 			f__lcount = 10*f__lcount + ch - '0';
 			if (++i == size) {
-				f__lchar = (char *)realloc(f__lchar,
+				f__lchar = (char *)reallocf(f__lchar,
 					(unsigned int)(size += BUFSIZE));
 				if(f__lchar == NULL)
 					errfl(f__elist->cierr,113,rafail);

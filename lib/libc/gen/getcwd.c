@@ -182,7 +182,7 @@ getcwd(pt, size)
 		 * possible component name, plus a trailing NULL.
 		 */
 		if (bup + 3  + MAXNAMLEN + 1 >= eup) {
-			if ((up = realloc(up, upsize *= 2)) == NULL)
+			if ((up = reallocf(up, upsize *= 2)) == NULL)
 				goto err;
 			bup = up;
 			eup = up + upsize;

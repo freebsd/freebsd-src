@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: collate.c,v 1.15 1997/02/22 14:59:52 peter Exp $
  */
 
 #include <rune.h>
@@ -114,7 +114,7 @@ __collate_substitute(s)
 			if(!dest_str)
 				dest_str = calloc(dest_len = delta, 1);
 			else
-				dest_str = realloc(dest_str, dest_len += delta);
+				dest_str = reallocf(dest_str, dest_len += delta);
 			if(dest_str == NULL)
 				__collate_err(EX_OSERR, __FUNCTION__);
 		}
