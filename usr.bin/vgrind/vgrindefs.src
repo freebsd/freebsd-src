@@ -157,3 +157,17 @@ Perl|perl|pl:\
 	:sb=":se=(\e"|$):lb=':le=(\e'|$):\
 	:kw=do if unless while until else elsif for foreach continue\
 	next redo sub last goto return die exit require:
+
+# I can't seem to get the strings really work, so i left them out.
+Tcl|tcl|tk:\
+	:pb=proc\d\p\d:cb=#:ce=$:\
+	:kw=after append array auto_execok auto_load auto_mkindex \
+	auto_reset break case catch cd clock close concat continue \
+	eof error eval exec exit expr fblocked fconfigure file \
+	fileevent flush for foreach format gets glob global history \
+	if incr info interp join lappend lindex linsert list llength \
+	load lrange lreplace lsearch lsort open package pid \
+	pkg_mkIndex proc puts pwd read regexp regsub rename \
+	return scan seek set socket source split string subst \
+	switch tell time trace unknown unset unsupported0 \
+	update uplevel upvar vwait while
