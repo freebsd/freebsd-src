@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.94 1998/08/07 11:51:05 kato Exp $
+ *  $Id: syscons.c,v 1.95 1998/08/07 18:04:24 kato Exp $
  */
 
 #include "sc.h"
@@ -5693,18 +5693,26 @@ set_font_mode(u_char *buf)
     outb(ATC, 0x20);            		/* enable palette */
 
 #if SLOW_VGA
+#ifndef SC_BAD_FLICKER
     outb(TSIDX, 0x00); outb(TSREG, 0x01);
+#endif
     outb(TSIDX, 0x02); outb(TSREG, 0x04);
     outb(TSIDX, 0x04); outb(TSREG, 0x07);
+#ifndef SC_BAD_FLICKER
     outb(TSIDX, 0x00); outb(TSREG, 0x03);
+#endif
     outb(GDCIDX, 0x04); outb(GDCREG, 0x02);
     outb(GDCIDX, 0x05); outb(GDCREG, 0x00);
     outb(GDCIDX, 0x06); outb(GDCREG, 0x04);
 #else
+#ifndef SC_BAD_FLICKER
     outw(TSIDX, 0x0100);
+#endif
     outw(TSIDX, 0x0402);
     outw(TSIDX, 0x0704);
+#ifndef SC_BAD_FLICKER
     outw(TSIDX, 0x0300);
+#endif
     outw(GDCIDX, 0x0204);
     outw(GDCIDX, 0x0005);
     outw(GDCIDX, 0x0406);               /* addr = a0000, 64kb */
@@ -5725,10 +5733,14 @@ set_normal_mode(u_char *buf)
     outb(ATC, 0x20);            		/* enable palette */
 
 #if SLOW_VGA
+#ifndef SC_BAD_FLICKER
     outb(TSIDX, 0x00); outb(TSREG, 0x01);
+#endif
     outb(TSIDX, 0x02); outb(TSREG, buf[0]);
     outb(TSIDX, 0x04); outb(TSREG, buf[1]);
+#ifndef SC_BAD_FLICKER
     outb(TSIDX, 0x00); outb(TSREG, 0x03);
+#endif
     outb(GDCIDX, 0x04); outb(GDCREG, buf[2]);
     outb(GDCIDX, 0x05); outb(GDCREG, buf[3]);
     if (crtc_addr == MONO_BASE) {
@@ -5737,10 +5749,14 @@ set_normal_mode(u_char *buf)
 	outb(GDCIDX, 0x06); outb(GDCREG,(buf[4] & 0x03) | 0x0c);
     }
 #else
+#ifndef SC_BAD_FLICKER
     outw(TSIDX, 0x0100);
+#endif
     outw(TSIDX, 0x0002 | (buf[0] << 8));
     outw(TSIDX, 0x0004 | (buf[1] << 8));
+#ifndef SC_BAD_FLICKER
     outw(TSIDX, 0x0300);
+#endif
     outw(GDCIDX, 0x0004 | (buf[2] << 8));
     outw(GDCIDX, 0x0005 | (buf[3] << 8));
     if (crtc_addr == MONO_BASE)
