@@ -58,8 +58,8 @@ __FBSDID("$FreeBSD$");
 #include <alpha/mcbus/mcpciareg.h>
 #include <alpha/mcbus/mcpciavar.h>
 #include <alpha/pci/pcibus.h>
-#include <pci/pcireg.h>
-#include <pci/pcivar.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
 
 #include "alphapci_if.h"
 #include "pcib_if.h"

@@ -191,9 +191,9 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #endif
 
-#include <pci/pcivar.h>
-#include <pci/pcireg.h>
-#include <pci/ncrreg.h>
+#include <dev/pci/pcivar.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/ncrreg.h>
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>

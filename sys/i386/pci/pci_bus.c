@@ -36,9 +36,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/malloc.h>
 
-#include <pci/pcivar.h>
-#include <pci/pcireg.h>
-#include <pci/pcib_private.h>
+#include <dev/pci/pcivar.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcib_private.h>
 #include <isa/isavar.h>
 #include <machine/legacyvar.h>
 #include <machine/pci_cfgreg.h>
