@@ -1,5 +1,4 @@
 /*
- *
  * ===================================
  * HARP  |  Host ATM Research Platform
  * ===================================
@@ -22,9 +21,6 @@
  *
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
- *
- *	@(#) $FreeBSD$
- *
  */
 
 /*
@@ -32,8 +28,10 @@
  * ---------------------------
  *
  * SPANS Connectionless Datagram Service (CLS) module
- *
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/types.h>
@@ -66,11 +64,6 @@
 #include <netatm/spans/spans_cls.h>
 
 #include <vm/uma.h>
-
-#ifndef lint
-__RCSID("@(#) $FreeBSD$");
-#endif
-
 
 /*
  * Global variables
