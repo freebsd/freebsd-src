@@ -36,6 +36,7 @@
  */
 
 #include <netatm/kern_include.h>
+#include <net/bpf.h>
 
 #ifndef lint
 __RCSID("@(#) $FreeBSD$");
@@ -351,6 +352,17 @@ atm_dev_lower(cmd, tok, arg1, arg2)
 				tok, state );
 			KB_FREEALL((KBuffer *)arg1);
 			break;
+		}
+
+		/*
+		 * Send the packet to the interface's bpf if this vc has one.
+		 */
+		if (cvcp->cvc_vcc != NULL && cvcp->cvc_vcc->vc_nif != NULL) {
+			struct ifnet *ifp =
+			    (struct ifnet *)cvcp->cvc_vcc->vc_nif;
+
+			if (ifp->if_bpf)
+				bpf_mtap(ifp, (KBuffer *)arg1);
 		}
 
 		/*
