@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: spl.h,v 1.13 1996/02/07 21:52:57 wollman Exp $
+ *	$Id: spl.h,v 1.14 1996/05/18 03:36:42 dyson Exp $
  */
 
 #ifndef _MACHINE_IPL_H_
@@ -76,6 +76,11 @@
 
 #ifndef	LOCORE
 
+/*
+ * cpl is preserved by interrupt handlers so it is effectively nonvolatile.
+ * ipending and idelayed are changed by interrupt handlers so they are
+ * volatile.
+ */
 extern	unsigned bio_imask;	/* group of interrupts masked with splbio() */
 extern	unsigned cpl;		/* current priority level mask */
 extern	volatile unsigned idelayed;	/* interrupts to become pending */
@@ -85,19 +90,17 @@ extern	unsigned stat_imask;	/* interrupts masked with splstatclock() */
 extern	unsigned tty_imask;	/* group of interrupts masked with spltty() */
 
 /*
- * ipending has to be volatile so that it is read every time it is accessed
- * in splx() and spl0(), but we don't want it to be read nonatomically when
- * it is changed.  Pretending that ipending is a plain int happens to give
- * suitable atomic code for "ipending |= constant;".
+ * The volatile bitmap variables must be set atomically.  This normally
+ * involves using a machine-dependent bit-set or `or' instruction.
  */
-#define	setdelayed()	(*(unsigned *)&ipending |= loadandclear(&idelayed))
-#define	setsoftast()	(*(unsigned *)&ipending |= SWI_AST_PENDING)
-#define	setsoftclock()	(*(unsigned *)&ipending |= SWI_CLOCK_PENDING)
-#define	setsoftnet()	(*(unsigned *)&ipending |= SWI_NET_PENDING)
-#define	setsofttty()	(*(unsigned *)&ipending |= SWI_TTY_PENDING)
+#define	setdelayed()	setbits(&ipending, loadandclear(&idelayed))
+#define	setsoftast()	setbits(&ipending, SWI_AST_PENDING)
+#define	setsoftclock()	setbits(&ipending, SWI_CLOCK_PENDING)
+#define	setsoftnet()	setbits(&ipending, SWI_NET_PENDING)
+#define	setsofttty()	setbits(&ipending, SWI_TTY_PENDING)
 
-#define	schedsofttty()	(*(unsigned *)&idelayed |= SWI_TTY_PENDING)
-#define	schedsoftnet()	(*(unsigned *)&idelayed |= SWI_NET_PENDING)
+#define	schedsofttty()	setbits(&idelayed, SWI_TTY_PENDING)
+#define	schedsoftnet()	setbits(&idelayed, SWI_NET_PENDING)
 
 #define	softclockpending()	(ipending & SWI_CLOCK_PENDING)
 

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.50 1996/06/14 11:01:01 asami Exp $
+ *	$Id: cpufunc.h,v 1.51 1996/07/01 18:12:23 bde Exp $
  */
 
 /*
@@ -42,8 +42,6 @@
 
 #include <sys/cdefs.h>
 #include <sys/types.h>
-
-#include <machine/spl.h>	/* XXX belongs elsewhere */
 
 #ifdef	__GNUC__
 
@@ -358,6 +356,12 @@ rdtsc(void)
 }
 
 static __inline void
+setbits(volatile unsigned *addr, u_int bits)
+{
+	__asm __volatile("orl %1,%0" : "=m" (*addr) : "ir" (bits));
+}
+
+static __inline void
 write_eflags(u_long ef)
 {
 	__asm __volatile("pushl %0; popfl" : : "r" (ef));
@@ -393,6 +397,7 @@ quad_t	rdmsr		__P((u_int msr));
 quad_t	rdpmc		__P((u_int pmc));
 quad_t	rdtsc		__P((void));
 u_long	read_eflags	__P((void));
+void	setbits		__P((volatile unsigned *addr, u_int bits));
 void	write_eflags	__P((u_long ef));
 void	wrmsr		__P((u_int msr, quad_t newval));
 
@@ -403,5 +408,7 @@ void	load_cr3	__P((u_long cr3));
 void	ltr		__P((u_short sel));
 u_int	rcr0		__P((void));
 u_long	rcr3		__P((void));
+
+#include <machine/spl.h>	/* XXX belongs elsewhere */
 
 #endif /* !_MACHINE_CPUFUNC_H_ */
