@@ -40,9 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 
 char *
-strcpy(to, from)
-	char *to;
-	const char *from;
+strcpy(char *__restrict to, const char *__restrict from)
 {
 	char *save = to;
 

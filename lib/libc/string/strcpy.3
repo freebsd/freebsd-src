@@ -47,9 +47,9 @@
 .Sh SYNOPSIS
 .In string.h
 .Ft char *
-.Fn strcpy "char *dst" "const char *src"
+.Fn strcpy "char *restrict dst" "const char *restrict src"
 .Ft char *
-.Fn strncpy "char *dst" "const char *src" "size_t len"
+.Fn strncpy "char *restrict dst" "const char *restrict src" "size_t len"
 .Sh DESCRIPTION
 The
 .Fn strcpy

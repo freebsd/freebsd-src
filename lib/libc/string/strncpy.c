@@ -47,10 +47,7 @@ __FBSDID("$FreeBSD$");
  * Return dst.
  */
 char *
-strncpy(dst, src, n)
-	char *dst;
-	const char *src;
-	size_t n;
+strncpy(char *__restrict dst, const char *__restrict src, size_t n)
 {
 	if (n != 0) {
 		char *d = dst;
