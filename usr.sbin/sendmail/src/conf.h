@@ -765,7 +765,6 @@ typedef int		pid_t;
 #    define SPT_TYPE	SPT_BUILTIN
 #   endif
 #   if __FreeBSD_version >= 222000	/* 2.2.2-release and later */
-#    include <login_cap.h>
 #    define HASSETUSERCONTEXT	1	/* BSDI-style login classes */
 #   endif
 #  endif
