@@ -208,7 +208,6 @@ i386/isa/if_cx.c		optional	cx
 i386/isa/if_el.c		optional	el
 i386/isa/if_fe.c		optional	fe
 i386/isa/if_le.c		optional	le
-i386/isa/if_lnc.c		optional	lnc
 i386/isa/if_rdp.c		optional	rdp
 i386/isa/if_sr.c		optional	sr
 i386/isa/if_wi.c		optional	wi card
