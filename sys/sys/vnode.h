@@ -610,6 +610,8 @@ int	cache_lookup(struct vnode *dvp, struct vnode **vpp,
 void	cache_purge(struct vnode *vp);
 void	cache_purgevfs(struct mount *mp);
 int	cache_leaf_test(struct vnode *vp);
+int	change_dir(struct vnode *vp, struct thread *td);
+int	change_root(struct vnode *vp, struct thread *td);
 void	cvtstat(struct stat *st, struct ostat *ost);
 void	cvtnstat(struct stat *sb, struct nstat *nsb);
 int	getnewvnode(const char *tag, struct mount *mp, vop_t **vops,
