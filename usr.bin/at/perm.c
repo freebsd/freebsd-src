@@ -48,7 +48,7 @@
 
 /* File scope variables */
 
-static char rcsid[] = "$FreeBSD$";
+static char rcsid[] = "$Id$";
 
 /* Function declarations */
 

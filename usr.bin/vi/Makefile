@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $Id$
 #
 # This has most of the glue needed to compile tknvi and the perl hooks,
 # but not all.

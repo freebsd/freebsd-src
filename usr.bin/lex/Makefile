@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $Id$
 #
 # By default, flex will be configured to generate 8-bit scanners only if the
 # -8 flag is given.  If you want it to always generate 8-bit scanners, add

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
+/* $Id$ */
 
 #ifndef lint
 static char copyright[] =
