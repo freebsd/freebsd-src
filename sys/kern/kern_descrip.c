@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_descrip.c	8.6 (Berkeley) 4/19/94
- * $Id: kern_descrip.c,v 1.5 1994/09/25 19:33:35 phk Exp $
+ * $Id: kern_descrip.c,v 1.6 1994/10/02 17:35:11 phk Exp $
  */
 
 #include <sys/param.h>
@@ -143,10 +143,13 @@ dup(p, uap, retval)
 	int new, error;
 
 	old = uap->fd;
+
+#if 0
 	/*
 	 * XXX Compatibility
 	 */
 	if (old &~ 077) { uap->fd &= 077; return (dup2(p, uap, retval)); }
+#endif
 
 	fdp = p->p_fd;
 	if (old >= fdp->fd_nfiles || fdp->fd_ofiles[old] == NULL)
