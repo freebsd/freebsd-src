@@ -1,6 +1,6 @@
 ardware Documentation Guide:  $FreeBSD$
 
-Contents last changed:  July 4th, 1996
+Contents last changed:  Jan 14th, 1997
 
 Table of Contents
 -----------------
@@ -67,6 +67,7 @@ ahb0    dyn     dyn     dyn     dyn     Adaptec 174x SCSI controller
 ahc0    dyn     dyn     dyn     dyn     Adaptec 274x/284x/294x SCSI controller
 aic0    340     11      dyn     dyn     Adaptec 152x/AIC-6360 SCSI
                                         controller
+amd0    n/a     n/a     n/a     n/a     Tekram DC-390(T) / AMD 53c974 PCI SCSI
 nca0    1f88    10      dyn     dyn     ProAudioSpectrum cards
 sea0    dyn     5       dyn     c8000   Seagate ST01/02 8 bit controller
 
@@ -266,7 +267,6 @@ meteor:	Matrox Meteor frame-grabber card
 mpu:    Roland MPU-401 stand-alone card
 mse:    Logitech & ATI InPort bus mouse ports
 mss:    Microsoft Sound System
-nic:    Dr Neuhaus NICCY 3008, 3009 & 5000 ISDN cards
 opl:    Yamaha OPL-2 and OPL-3 FM - SB, SB Pro, SB 16, ProAudioSpectrum
 pas:    ProAudioSpectrum PCM and MIDI
 pca:    PCM audio ("/dev/audio") through your PC speaker
