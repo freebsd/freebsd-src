@@ -55,97 +55,14 @@
 
 static void	mca_reg_print	(device_t, char *, char *, int *);
 
-struct resvaddr {
-	u_long  addr;			/* start address */
-	u_long  size;			/* size of reserved area */
-	int     flags;
-	struct resource *res;		/* resource manager handle */
-	LIST_ENTRY(resvaddr) links;	/* List links */
-};
-
-LIST_HEAD(resvlist, resvaddr); 
-
-struct res_node {
-	int	num;
-	void	*desc;
-	TAILQ_ENTRY(res_node) links;
-};
-
-TAILQ_HEAD(nodelist, res_node);
-
 struct mca_device {
 	mca_id_t	id;
 	u_int8_t	slot;
 	u_int8_t	enabled;
 	u_int8_t	pos[8];		/* Programable Option Select Regs. */
 
-	struct nodelist irqs;		/* list of reserved IRQs */
-	struct nodelist drqs;		/* list of reserved DRQs */
-	struct resvlist ioaddrs;	/* list of reserved I/O ranges */
-	struct resvlist maddrs;		/* list of reserved memory ranges */
+	struct resource_list rl;	/* Resources */
 };
-
-static struct res_node *
-mca_find_irq (struct mca_device * m_dev, int rid)
-{
-	int			i;
-	struct res_node *	irq;
-
-	for (i = 0, irq = TAILQ_FIRST(&m_dev->irqs);
-	     i < rid && irq;
-	     i++, irq = TAILQ_NEXT(irq, links))
-		;
-
-	if (irq)
-		return (irq);
-	else
-		return (NULL);
-}
-
-static struct res_node *
-mca_find_drq (struct mca_device * m_dev, int rid)
-{
-	int			i;
-	struct res_node *	drq;
-
-	for (i = 0, drq = TAILQ_FIRST(&m_dev->drqs);
-	     i < rid && drq;
-	     i++, drq = TAILQ_NEXT(drq, links))
-		;
-
-	if (drq)
-		return (drq);
-	else
-		return (NULL);
-}
-
-static struct resvaddr *
-mca_find_ioaddr (struct mca_device *m_dev, int rid)
-{
-	int			i;
-	struct resvaddr *	resv;
-
-	for (i = 0, resv = LIST_FIRST(&m_dev->ioaddrs);
-	     i < rid && resv;
-	     i++, resv = LIST_NEXT(resv, links))
-		;
-
-	return (resv);
-}
-
-static struct resvaddr *
-mca_find_maddr (struct mca_device * m_dev, int rid)
-{
-	int			i;
-	struct resvaddr *	resv;
-
-	for (i = 0, resv = LIST_FIRST(&m_dev->maddrs);
-	     i < rid && resv;
-	     i++, resv = LIST_NEXT(resv, links))
-		;
-
-	return (resv);
-}
 
 /* Not supposed to use this function! */
 void
@@ -265,118 +182,64 @@ mca_pos_read (dev, reg)
 	return (m_dev->pos[reg]);
 }
 
-int
+void
 mca_add_irq (dev, irq)
 	device_t		dev;
 	int			irq;
 {
 	struct mca_device *	m_dev = device_get_ivars(dev);
-	struct res_node *	irq_info;
+	int			rid = 0;
 
-	irq_info = (struct res_node *)malloc(sizeof(*irq_info),
-					M_DEVBUF, M_NOWAIT);
-	if (irq_info == NULL)
-		return (1);
+	while (resource_list_find(&(m_dev->rl), SYS_RES_IRQ, rid)) rid++;
+	resource_list_add(&(m_dev->rl), SYS_RES_IRQ, rid, irq, irq, 1);
 
-	irq_info->num = irq;
-	irq_info->desc = NULL;
-	TAILQ_INSERT_TAIL(&m_dev->irqs, irq_info, links);
-
-	return (0);
+	return;
 }
 
-int
+void
 mca_add_drq (dev, drq)
-	device_t	dev;
-	int		drq;
+	device_t		dev;
+	int			drq;
 {
 	struct mca_device *	m_dev = device_get_ivars(dev);
-	struct res_node *	drq_info;
+	int			rid = 0;
 
-	drq_info = (struct res_node *)malloc(sizeof(*drq_info),
-					M_DEVBUF, M_NOWAIT);
-	if (drq_info == NULL)
-		return (1);
+	while (resource_list_find(&(m_dev->rl), SYS_RES_DRQ, rid)) rid++;
+	resource_list_add(&(m_dev->rl), SYS_RES_DRQ, rid, drq, drq, 1);
 
-	drq_info->num = drq;
-	drq_info->desc = NULL;
-	TAILQ_INSERT_TAIL(&m_dev->drqs, drq_info, links);
-
-	return (0);
+	return;
 }
 
-static int
-mca_add_resvaddr (struct mca_device * m_dev, struct resvlist * head,
-		  u_long base, u_long size, int flags)
-{
-	struct resvaddr *	reservation;
-
-	reservation = (struct resvaddr *)malloc(sizeof(struct resvaddr),
-					   M_DEVBUF, M_NOWAIT);
-	if(!reservation)
-		return (ENOMEM);
-
-	reservation->addr = base;
-	reservation->size = size;
-	reservation->flags = flags;
-
-	if (!head->lh_first) {
-		LIST_INSERT_HEAD(head, reservation, links);
-	} else {
-		struct resvaddr *	node;
-		for(node = head->lh_first; node; node = node->links.le_next) {
-			if (node->addr > reservation->addr) {
-				/*
-				 * List is sorted in increasing
-				 * address order.
-				 */
-				LIST_INSERT_BEFORE(node, reservation, links);
-				break;
-			}
-
-			if (node->addr == reservation->addr) {
-				/*
-				 * If the entry we want to add
-				 * matches any already in here,
-				 * fail.
-				 */
-				free(reservation, M_DEVBUF);
-				return (EEXIST);
-			}
-
-			if (!node->links.le_next) {
-				LIST_INSERT_AFTER(node, reservation, links);
-				break;
-			}
-		}
-	}
-	return (0);
-}
-
-int
-mca_add_mspace (dev, mbase, msize, flags) 
+void
+mca_add_mspace (dev, mbase, msize) 
 	device_t		dev;
 	u_long			mbase;
 	u_long			msize;
-	int			flags;
 {
-	struct mca_device *m_dev = device_get_ivars(dev);
+	struct mca_device *	m_dev = device_get_ivars(dev);
+	int			rid = 0;
 
-	return (mca_add_resvaddr(m_dev, &(m_dev->maddrs),
-				 mbase, msize, flags));
+	while (resource_list_find(&(m_dev->rl), SYS_RES_MEMORY, rid)) rid++;
+	resource_list_add(&(m_dev->rl), SYS_RES_MEMORY, rid,
+		mbase, (mbase + msize), msize);
+
+	return;
 }
 
-int
-mca_add_iospace (dev, iobase, iosize, flags) 
+void
+mca_add_iospace (dev, iobase, iosize) 
 	device_t		dev;
 	u_long			iobase;
 	u_long			iosize;
-	int			flags;
 {
 	struct mca_device *	m_dev = device_get_ivars(dev);
+	int			rid = 0;
 
-	return (mca_add_resvaddr(m_dev, &(m_dev->ioaddrs),
-				 iobase, iosize, flags));
+	while (resource_list_find(&(m_dev->rl), SYS_RES_IOPORT, rid)) rid++;
+	resource_list_add(&(m_dev->rl), SYS_RES_IOPORT, rid,
+		iobase, (iobase + iosize), iosize);
+
+	return;
 }
 
 static int
@@ -442,13 +305,10 @@ mca_probe (device_t dev)
 		m_dev->enabled = (m_dev->pos[MCA_POS2] & MCA_POS2_ENABLE);
 		m_dev->slot = slot;
 
-		/* Initialize our lists of reserved addresses */
-		LIST_INIT(&(m_dev->ioaddrs));
-		LIST_INIT(&(m_dev->maddrs));
-		TAILQ_INIT(&(m_dev->irqs));
-		TAILQ_INIT(&(m_dev->drqs));
+		resource_list_init(&(m_dev->rl));
 
 		device_add_child(dev, NULL, -1, m_dev);
+
 		m_dev = NULL;
 	}
 
@@ -494,14 +354,13 @@ mca_reg_print (dev, string, separator, column)
 static int
 mca_print_child (device_t dev, device_t child)
 {
-	char			buf[81];
-	struct mca_device *	m_dev = device_get_ivars(child);
-	int			rid;
-	struct res_node *	node;
-	struct resvaddr *	resv;
-	char			separator = ',';
-	int			column = 0;
-	int			retval = 0;
+	char				buf[MAX_COL+1];
+	struct mca_device *		m_dev = device_get_ivars(child);
+	int				rid;
+	struct resource_list_entry *	rle;
+	char				separator = ',';
+	int				column = 0;
+	int				retval = 0;
 
 	if (device_get_desc(child)) {
 		snprintf(buf, sizeof(buf), "<%s>", device_get_desc(child));
@@ -509,47 +368,47 @@ mca_print_child (device_t dev, device_t child)
 	}
 
 	rid = 0;
-	while ((resv = mca_find_ioaddr(m_dev, rid++))) {
-		if (resv->size == 1) {
+	while ((rle = resource_list_find(&(m_dev->rl), SYS_RES_IOPORT, rid++))) {
+		if (rle->count == 1) {
 			snprintf(buf, sizeof(buf), "%s%lx",
 				((rid == 1) ? "io 0x" : "0x"),
-				resv->addr);
+				rle->start);
 		} else {
 			snprintf(buf, sizeof(buf), "%s%lx-0x%lx",
 				((rid == 1) ? "io 0x" : "0x"),
-				resv->addr,
-				(resv->addr + resv->size));
+				rle->start,
+				(rle->start + rle->count));
 		}
 		mca_reg_print(child, buf,
 			((rid == 2) ? &separator : NULL), &column);
 	}
 
 	rid = 0;
-	while ((resv = mca_find_maddr(m_dev, rid++))) {
-		if (resv->size == 1) {
+	while ((rle = resource_list_find(&(m_dev->rl), SYS_RES_MEMORY, rid++))) {
+		if (rle->count == 1) {
 			snprintf(buf, sizeof(buf), "%s%lx",
 				((rid == 1) ? "mem 0x" : "0x"),
-				resv->addr);
+				rle->start);
 		} else {
 			snprintf(buf, sizeof(buf), "%s%lx-0x%lx",
 				((rid == 1) ? "mem 0x" : "0x"),
-				resv->addr,
-				(resv->addr + resv->size));
+				rle->start,
+				(rle->start + rle->count));
 		}
 		mca_reg_print(child, buf,
 			((rid == 2) ? &separator : NULL), &column);
 	}
 
 	rid = 0;
-	while ((node = mca_find_irq(m_dev, rid++)) != NULL) {
-		snprintf(buf, sizeof(buf), "irq %d", node->num);
+	while ((rle = resource_list_find(&(m_dev->rl), SYS_RES_IRQ, rid++))) {
+		snprintf(buf, sizeof(buf), "irq %ld", rle->start);
 		mca_reg_print(child, buf,
 			((rid == 1) ? &separator : NULL), &column);
 	}
 
 	rid = 0;
-	while ((node = mca_find_drq(m_dev, rid++)) != NULL) {
-		snprintf(buf, sizeof(buf), "drq %x", node->num);
+	while ((rle = resource_list_find(&(m_dev->rl), SYS_RES_DRQ, rid++))) {
+		snprintf(buf, sizeof(buf), "drq %lx", rle->start);
 		mca_reg_print(child, buf,
 			((rid == 1) ? &separator : NULL), &column);
 	}
@@ -580,8 +439,8 @@ mca_probe_nomatch (device_t dev, device_t child)
 static int
 mca_read_ivar (device_t dev, device_t child, int which, u_long * result)
 {
-	struct mca_device *	m_dev = device_get_ivars(child);
-	struct res_node *	node;
+	struct mca_device *		m_dev = device_get_ivars(child);
+	struct resource_list_entry *	rle;
 
 	switch (which) {
 		case MCA_IVAR_SLOT:
@@ -592,18 +451,6 @@ mca_read_ivar (device_t dev, device_t child, int which, u_long * result)
 			break;
 		case MCA_IVAR_ENABLED:
 			*result = m_dev->enabled;
-			break;
-		case MCA_IVAR_IRQ:
-			if ((node = mca_find_irq(m_dev, 0)))
-				*result = node->num;
-			else 
-				*result = -1;
-			break;
-		case MCA_IVAR_DRQ:
-			if ((node = mca_find_drq(m_dev, 0)))
-				*result = node->num;
-			else 
-				*result = -1;
 			break;
 		default:
 			return (ENOENT);
@@ -623,119 +470,32 @@ static struct resource *
 mca_alloc_resource (device_t dev, device_t child, int type, int *rid,
 		    u_long start, u_long end, u_long count, u_int flags)
 {
-	struct mca_device *	m_dev = device_get_ivars(child);
-	struct resource *	rv;
-	struct resource **	rvp = NULL;
-	struct resvaddr *	resv;
-	struct res_node *	node;
-	int			isdefault;
+	struct mca_device *		m_dev = device_get_ivars(child);
+	struct resource_list_entry *	rle;
+	int				isdefault;
+	int				passthrough;
 
-	isdefault = ((device_get_parent(child) == dev) 
-			&& (start == 0UL)
-			&& (end == ~0UL));
+	m_dev = device_get_ivars(child);
+	isdefault = (start == 0UL && end == ~0UL);
+	passthrough = (device_get_parent(child) != dev);
 
-	switch (type) {
-		case SYS_RES_IRQ:
-			if (isdefault) {
-				node = mca_find_irq(m_dev, *rid);
-				if (!node)
-					return (0);
-
-				start = end = node->num;
-				count = 1;
-				flags |= RF_SHAREABLE;
-			}
-			break;
-		case SYS_RES_DRQ:
-			if (isdefault) {
-				node = mca_find_drq(m_dev, *rid);
-				if (!node)
-					return (0);
-
-				start = end = node->num;
-				count = 1;
-			}
-			break;
-		case SYS_RES_MEMORY:
-			if (isdefault) {
-				resv = mca_find_maddr(m_dev, *rid);
-				if (!resv)
-					return (0);
-
-				start = resv->addr;
-				end = resv->addr + resv->size;
-				count = resv->size;
-				rvp = &resv->res;
-			}
-			break;
-		case SYS_RES_IOPORT:
-			if (isdefault) {
-				resv = mca_find_ioaddr(m_dev, *rid);
-				if (!resv)
-					return (0);
-
-				start = resv->addr;
-				end = resv->addr + resv->size;
-				count = resv->size;
-				rvp = &resv->res;
-			}
-			break;
-		default:
-			return (0);
-			break;
+	if (!passthrough && !isdefault) {
+		rle = resource_list_find(&(m_dev->rl), type, *rid);
+		if (!rle) {
+			resource_list_add(&(m_dev->rl), type, *rid,
+					  start, end, count);
+		}
 	}
 
-	rv = BUS_ALLOC_RESOURCE(device_get_parent(dev), child,
-				type, rid, start, end, count, flags);
-
-	if (rvp)
-		*rvp = rv;
-
-	return (rv);
+	return (resource_list_alloc(dev, child, type, rid,
+				    start, end, count, flags));
 }
 
 static int
 mca_release_resource (device_t dev, device_t child, int type, int rid,
 		      struct resource * r)
 {
-	struct mca_device *	m_dev = device_get_ivars(child);
-	struct resvaddr *	resv = NULL;
-	int			rv;
-	int			isdefault;
-
-	isdefault = (device_get_parent(child) == dev);
-
-	switch (type) {
-		case SYS_RES_IRQ:
-			if (mca_find_irq(m_dev, rid) == NULL)
-				return (EINVAL);
-			break;
-		case SYS_RES_DRQ:
-			if (mca_find_drq(m_dev, rid) == NULL)
-				return (EINVAL);
-			break;
-		case SYS_RES_MEMORY:
-			if (isdefault) {
-				resv = mca_find_maddr(m_dev, rid);
-			}
-			break;
-		case SYS_RES_IOPORT:
-			if (isdefault) {
-				resv = mca_find_ioaddr(m_dev, rid);
-			}
-			break;
-		default:
-			break;
-	}
-
-	rv = BUS_RELEASE_RESOURCE(device_get_parent(dev), child, type, rid, r);
-
-	if (rv == 0) {
-		if (resv)
-			resv->res = 0;
-	}
-
-	return (rv);
+        return (resource_list_release(dev, child, type, rid, r));
 }
 
 static device_method_t mca_methods[] = {
