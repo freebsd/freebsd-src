@@ -1,0 +1,184 @@
+.\" $Id: tmac.mse,v 1.27 1995/04/24 05:37:46 jh Exp $
+.\"
+.\" swedish version of mm
+.\" See tmac.m for version-information.
+.mso tmac.m
+.ds @language se
+.\"
+.ds Lf Figurer
+.ds Lt Tabeller
+.ds Lx Uppställningar
+.ds Le Ekvationer
+.\"	Page length
+.if !r L .nr @pl 28.5c
+.\"	page width
+.if !r W .nr @ll 13c
+.\"	page offset
+.if !r O .nr @po 3.5c
+.\"	set the above parameters
+.ll \n[@ll]u
+.po \n[@po]u
+.pl \n[@pl]u
+.ds Lifg Figur
+.ds Litb Tabell
+.ds Liex Uppställning
+.ds Liec Ekvation
+.ds Licon Innehållsförteckning
+.ds Qrf Se kapitel \\*[Qrfh], sidan \\*[Qrfp].
+.ds Rp Referenser
+.ds Letfc Vänliga hälsningar
+.ds Letapp Godkänd av:
+.ds Letdate datum
+.ds Letconf KONFIDENTIELLT
+.ds Letsal Till vederbörande:
+.ds Letatt ATTENTION:
+.ds Letsubj Innehåll:
+.ds Letref Refererande till:
+.\"
+.ds Letns!copy Kopia \" space!
+.ds Letns!to " till
+.ds Letns!0 Kopia till
+.ds Letns!1 Kopia (med att.) till
+.ds Letns!2 Kopia (utan att.) till
+.ds Letns!3 Att.
+.ds Letns!4 Atts.
+.ds Letns!5 Enc.
+.ds Letns!6 Encs.
+.ds Letns!7 Under separate cover
+.ds Letns!8 Brev till
+.ds Letns!9 Dokument till
+.ds Letns!10 Kopia (med atts.) till
+.ds Letns!11 Kopia (utan atts.) till
+.ds Letns!12 Endast abstract till
+.ds Letns!13 Hela dokumentet till
+.ds Letns!14 CC:
+.\"
+.ds MO1 januari
+.ds MO2 februari
+.ds MO3 mars
+.ds MO4 april
+.ds MO5 maj
+.ds MO6 juni
+.ds MO7 juli
+.ds MO8 augusti
+.ds MO9 september
+.ds MO10 oktober
+.ds MO11 november
+.ds MO12 december
+.ie \\n[yr]<50 .ds cov*new-date \\n[dy] \\*[MO\\n[mo]] 20\\n[yr]
+.el .ds cov*new-date \\n[dy] \\*[MO\\n[mo]] 19\\n[yr]
+.nr pg*footer-size 4\"                  1v+footer+even/odd footer+1v
+.\"------------------------------------------------
+.\" Dokumentnamn
+.ds LetDNAMN
+.\" Mottagarens datum
+.ds LetMDAT Ert datum:
+.\" Bilaga
+.ds LetBIL Bilaga \"
+.\" Kompletteringsuppgift
+.ds LetKOMP
+.\" Dokumentbeteckning eller dokumentnummer
+.ds LetDBET
+.\" Beteckning (ärendebeteckning i form av diarienummer e.d.
+.ds LetBET Beteckning:
+.\" Mottagarens beteckning.
+.ds LetMBET Er beteckning:
+.\" Antal sidor
+.ds LetSIDOR
+.\" Svensk standard med högerställd löptext. ---------------------
+.de let@init_SVH
+.in 4.57c
+.ll 17.57c
+..
+.de let@head_SVH
+.rm let@header
+.let@print_SV H
+..
+.de let@sg_SVH
+..
+.de let@fc_SVH
+..
+.\" Svensk standard med vänsterställd löptext. ---------------------
+.de let@init_SVV
+..
+.de let@head_SVV
+.rm let@header
+.let@print_SV V
+..
+.de let@sg_SVV
+..
+.de let@fc_SVV
+..
+.\"--------------------------------
+.de let@print_SV
+.nf
+.\" pos T0 -----------------------------------
+.in 0
+.sp |3
+.if d let@wa-div .let@wa-div
+.\"----- addressat
+.if '\\$1'V' .if d let@ia-div \{\
+.	sp |10
+.	let@ia-div
+.\}
+.\" pos T4 -----------------------------------
+.in 9.14c
+.\"----- kompletteringsuppgift
+.if d let*lo-KOMP \{\
+.	sp |2
+\\*[let*lo-KOMP]
+.\}
+.\"----- dokumentnamn
+.if d let*lo-DNAMN \{\
+.	sp |3
+\\*[let*lo-DNAMN]
+.\}
+.\"----- datum
+.if d cov*new-date \{\
+.	sp |5
+Datum:
+\\*[cov*new-date]
+.\}
+.\"----- mottagarens datum
+.if d let*lo-MDAT \{\
+.	sp |7
+\\*[LetMDAT]
+\\*[let*lo-MDAT]
+.\}
+.\"----- addressat
+.if '\\$1'H' .if d let@ia-div \{\
+.	sp |10
+.	let@ia-div
+.\}
+.\" pos T6 -----------------------------------
+.in 13.72c
+.\"----- mottagarens beteck.
+.if d let*lo-MBET \{\
+.	sp |7
+\\*[LetMBET]
+\\*[let*lo-MBET]
+.\}
+.\"----- dokumentbeteck.
+.if d let*lo-BET \{\
+.	sp |3
+\\*[LetBET]
+\\*[let*lo-BET]
+.\}
+.\" pos T7 -----------------------------------
+.in 16c
+.\"----- bilaga
+.if d let*lo-BIL \{\
+.	sp |2
+\\*[LetBIL]\\*[let*lo-BIL]
+.\}
+.\"
+.\"----- sidnummer
+.sp |3
+.ie d let*lo-SIDOR \\n[%] (\\*[let*lo-SIDOR])
+.el \\n[%]
+.\"
+.\" Ta hand om special
+.if d TP .TP
+.sp |17
+..
+.\"  -----------------------------------

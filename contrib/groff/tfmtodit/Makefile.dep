@@ -1,0 +1,2 @@
+tfmtodit.o: tfmtodit.cc ../include/lib.h ../include/errarg.h \
+ ../include/error.h ../include/assert.h ../include/cset.h

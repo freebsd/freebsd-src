@@ -1,0 +1,9 @@
+styles R I B BI
+fonts 6 0 0 0 0 0 S
+sizes 8 10 12 14 18 24 0
+res 100
+X11
+hor 1
+vert 1
+unitwidth 10
+postpro gxditview
