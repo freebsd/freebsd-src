@@ -31,7 +31,6 @@ struct apm_softc {
 	int	initialized, active, bios_busy;
 	int	always_halt_cpu, slow_idle_cpu;
 	int	disabled, disengaged;
-	int	suspending;
 	int	standby_countdown, suspend_countdown;
 	u_int	minorversion, majorversion;
 	u_int	intversion, connectmode;

@@ -26,9 +26,10 @@
 #include <sys/time.h>
 #include <sys/reboot.h>
 #include <sys/bus.h>
-#include <sys/selinfo.h>
+#include <sys/select.h>
 #include <sys/poll.h>
 #include <sys/fcntl.h>
+#include <sys/proc.h>
 #include <sys/uio.h>
 #include <sys/signalvar.h>
 #include <sys/sysctl.h>
@@ -120,17 +121,9 @@ static struct cdevsw apm_cdevsw = {
 
 static int apm_suspend_delay = 1;
 static int apm_standby_delay = 1;
-static int apm_debug = 0;
-
-#define APM_DPRINT(args...) do	{					\
-	if (apm_debug) {						\
-		printf(args);						\
-	}								\
-} while (0)
 
 SYSCTL_INT(_machdep, OID_AUTO, apm_suspend_delay, CTLFLAG_RW, &apm_suspend_delay, 1, "");
 SYSCTL_INT(_machdep, OID_AUTO, apm_standby_delay, CTLFLAG_RW, &apm_standby_delay, 1, "");
-SYSCTL_INT(_debug, OID_AUTO, apm_debug, CTLFLAG_RW, &apm_debug, 0, "");
 
 #ifdef PC98
 static __inline void
@@ -169,8 +162,10 @@ apm_bioscall(void)
 	u_int apm_func = sc->bios.r.eax & 0xff;
 
 	if (!apm_check_function_supported(sc->intversion, apm_func)) {
-		APM_DPRINT("apm_bioscall: function 0x%x is not supported in v%d.%d\n",
-		    apm_func, sc->majorversion, sc->minorversion);
+#ifdef APM_DEBUG
+		printf("apm_bioscall: function 0x%x is not supported in v%d.%d\n",
+			apm_func, sc->majorversion, sc->minorversion);
+#endif
 		return (-1);
 	}
 
@@ -334,21 +329,12 @@ apm_display(int newstate)
 	sc->bios.r.ebx = PMDV_DISP0;
 	sc->bios.r.ecx = newstate ? PMST_APMENABLED:PMST_SUSPEND;
 	sc->bios.r.edx = 0;
-	if (apm_bioscall() == 0) {
-		return 0;
+	if (apm_bioscall()) {
+ 		printf("Display off failure: errcode = %d\n",
+		       0xff & (sc->bios.r.eax >> 8));
+ 		return 1;
  	}
-
-	/* If failed, then try to blank all display devices instead. */
-	sc->bios.r.eax = (APM_BIOS << 8) | APM_SETPWSTATE;
-	sc->bios.r.ebx = PMDV_DISPALL;	/* all display devices */
-	sc->bios.r.ecx = newstate ? PMST_APMENABLED:PMST_SUSPEND;
-	sc->bios.r.edx = 0;
-	if (apm_bioscall() == 0) {
-		return 0;
- 	}
- 	printf("Display off failure: errcode = %d\n",
-	       0xff & (sc->bios.r.eax >> 8));
- 	return 1;
+ 	return 0;
 }
 
 /*
@@ -383,7 +369,9 @@ apm_add_hook(struct apmhook **list, struct apmhook *ah)
 	int s;
 	struct apmhook *p, *prev;
 
-	APM_DPRINT("Add hook \"%s\"\n", ah->ah_name);
+#ifdef APM_DEBUG
+	printf("Add hook \"%s\"\n", ah->ah_name);
+#endif
 
 	s = splhigh();
 	if (ah == NULL)
@@ -434,7 +422,9 @@ apm_execute_hook(struct apmhook *list)
 	struct apmhook *p;
 
 	for (p = list; p != NULL; p = p->ah_next) {
-		APM_DPRINT("Execute APM hook \"%s.\"\n", p->ah_name);
+#ifdef APM_DEBUG
+		printf("Execute APM hook \"%s.\"\n", p->ah_name);
+#endif
 		if ((*(p->ah_fun))(p->ah_arg))
 			printf("Warning: APM hook \"%s\" failed", p->ah_name);
 	}
@@ -461,6 +451,69 @@ apm_hook_disestablish(int apmh, struct apmhook *ah)
 	apm_del_hook(&hook[apmh], ah);
 }
 
+
+static struct timeval suspend_time;
+static struct timeval diff_time;
+
+static int
+apm_default_resume(void *arg)
+{
+	int pl;
+	u_int second, minute, hour;
+	struct timeval resume_time, tmp_time;
+
+	/* modified for adjkerntz */
+	pl = splsoftclock();
+	i8254_restore();		/* restore timer_freq and hz */
+	inittodr(0);			/* adjust time to RTC */
+	microtime(&resume_time);
+	getmicrotime(&tmp_time);
+	timevaladd(&tmp_time, &diff_time);
+
+#ifdef FIXME
+	/* XXX THIS DOESN'T WORK!!! */
+	time = tmp_time;
+#endif
+
+#ifdef APM_FIXUP_CALLTODO
+	/* Calculate the delta time suspended */
+	timevalsub(&resume_time, &suspend_time);
+	/* Fixup the calltodo list with the delta time. */
+	adjust_timeout_calltodo(&resume_time);
+#endif /* APM_FIXUP_CALLTODOK */
+	splx(pl);
+#ifndef APM_FIXUP_CALLTODO
+	second = resume_time.tv_sec - suspend_time.tv_sec; 
+#else /* APM_FIXUP_CALLTODO */
+	/* 
+	 * We've already calculated resume_time to be the delta between 
+	 * the suspend and the resume. 
+	 */
+	second = resume_time.tv_sec; 
+#endif /* APM_FIXUP_CALLTODO */
+	hour = second / 3600;
+	second %= 3600;
+	minute = second / 60;
+	second %= 60;
+	log(LOG_NOTICE, "resumed from suspended mode (slept %02d:%02d:%02d)\n",
+		hour, minute, second);
+	return 0;
+}
+
+static int
+apm_default_suspend(void *arg)
+{
+	int	pl;
+
+	pl = splsoftclock();
+	microtime(&diff_time);
+	inittodr(0);
+	microtime(&suspend_time);
+	timevalsub(&diff_time, &suspend_time);
+	splx(pl);
+	return 0;
+}
+
 static int apm_record_event __P((struct apm_softc *, u_int));
 static void apm_processevent(void);
 
@@ -485,7 +538,6 @@ apm_do_suspend(void)
 		} else {
 			apm_execute_hook(hook[APM_HOOK_SUSPEND]);
 			if (apm_suspend_system(PMST_SUSPEND) == 0) {
-				sc->suspending = 1;
 				apm_processevent();
 			} else {
 				/* Failure, 'resume' the system again */
@@ -512,6 +564,7 @@ apm_do_standby(void)
 		 * As far as standby, we don't need to execute 
 		 * all of suspend hooks.
 		 */
+		apm_default_suspend(&apm_softc);
 		if (apm_suspend_system(PMST_STANDBY) == 0)
 			apm_processevent();
 	}
@@ -544,7 +597,9 @@ apm_lastreq_rejected(void)
 	sc->bios.r.edx = 0;
 
 	if (apm_bioscall()) {
-		APM_DPRINT("apm_lastreq_rejected: failed\n");
+#ifdef APM_DEBUG
+		printf("apm_lastreq_rejected: failed\n");
+#endif
 		return 1;
 	}
 	apm_op_inprog = 0;
@@ -596,10 +651,6 @@ apm_resume(void)
 	if (!sc)
 		return;
 
-	if (sc->suspending == 0)
-		return;
-
-	sc->suspending = 0;
 	if (sc->initialized) {
 		apm_execute_hook(hook[APM_HOOK_RESUME]);
 		DEVICE_RESUME(root_bus);
@@ -760,7 +811,9 @@ apm_event_enable(void)
 {
 	struct apm_softc *sc = &apm_softc;
 
-	APM_DPRINT("called apm_event_enable()\n");
+#ifdef APM_DEBUG
+	printf("called apm_event_enable()\n");
+#endif
 	if (sc->initialized) {
 		sc->active = 1;
 		apm_timeout(sc);
@@ -773,7 +826,9 @@ apm_event_disable(void)
 {
 	struct apm_softc *sc = &apm_softc;
 
-	APM_DPRINT("called apm_event_disable()\n");
+#ifdef APM_DEBUG
+	printf("called apm_event_disable()\n");
+#endif
 	if (sc->initialized) {
 		untimeout(apm_timeout, NULL, apm_timeout_ch);
 		sc->active = 0;
@@ -881,7 +936,6 @@ apm_probe(device_t dev)
 		return ENXIO;
 	}
 	bus_release_resource(dev, SYS_RES_IOPORT, rid, sc->sc_res);
-
 	vmf.vmf_ah = APM_BIOS;
 	vmf.vmf_al = APM_PROT32CONNECT;
 	vmf.vmf_bx = 0;
@@ -889,7 +943,6 @@ apm_probe(device_t dev)
 		printf("apm: 32-bit connection error.\n");
 		return (ENXIO);
  	}
-
 	sc->bios.seg.code32.base = (vmf.vmf_ax << 4) + APM_KERNBASE;
 	sc->bios.seg.code32.limit = 0xffff;
 	sc->bios.seg.code16.base = (vmf.vmf_cx << 4) + APM_KERNBASE;
@@ -968,9 +1021,12 @@ apm_processevent(void)
 	int apm_event;
 	struct apm_softc *sc = &apm_softc;
 
-#define OPMEV_DEBUGMESSAGE(symbol) case symbol:				\
-	APM_DPRINT("Received APM Event: " #symbol "\n");
-
+#ifdef APM_DEBUG
+#  define OPMEV_DEBUGMESSAGE(symbol) case symbol: \
+	printf("Received APM Event: " #symbol "\n");
+#else
+#  define OPMEV_DEBUGMESSAGE(symbol) case symbol:
+#endif
 	do {
 		apm_event = apm_getevent();
 		switch (apm_event) {
@@ -1021,6 +1077,7 @@ apm_processevent(void)
 			break;
 		    OPMEV_DEBUGMESSAGE(PMEV_STANDBYRESUME);
 			apm_record_event(sc, apm_event);
+			apm_resume();
 			break;
 		    OPMEV_DEBUGMESSAGE(PMEV_BATTERYLOW);
 			if (apm_record_event(sc, apm_event)) {
@@ -1080,17 +1137,17 @@ apm_attach(device_t dev)
 	/* Always call HLT in idle loop */
 	sc->always_halt_cpu = 1;
 
-	getenv_int("debug.apm_debug", &apm_debug);
-
 	/* print bootstrap messages */
-	APM_DPRINT("apm: APM BIOS version %04lx\n",  apm_version);
-	APM_DPRINT("apm: Code16 0x%08x, Data 0x%08x\n",
-	    sc->bios.seg.code16.base, sc->bios.seg.data.base);
-	APM_DPRINT("apm: Code entry 0x%08x, Idling CPU %s, Management %s\n",
-	    sc->bios.entry, is_enabled(sc->slow_idle_cpu),
-	    is_enabled(!sc->disabled));
-	APM_DPRINT("apm: CS_limit=0x%x, DS_limit=0x%x\n",
-	    sc->bios.seg.code16.limit, sc->bios.seg.data.limit);
+#ifdef APM_DEBUG
+	printf("apm: APM BIOS version %04x\n",  apm_version);
+	printf("apm: Code16 0x%08x, Data 0x%08x\n",
+               sc->bios.seg.code16.base, sc->bios.seg.data.base);
+	printf("apm: Code entry 0x%08x, Idling CPU %s, Management %s\n",
+               sc->bios.entry, is_enabled(sc->slow_idle_cpu),
+	       is_enabled(!sc->disabled));
+	printf("apm: CS_limit=0x%x, DS_limit=0x%x\n",
+	      sc->bios.seg.code16.limit, sc->bios.seg.data.limit);
+#endif /* APM_DEBUG */
 
 #ifdef PC98
 	rid = 0;
@@ -1100,14 +1157,12 @@ apm_attach(device_t dev)
 		panic("%s: counldn't map I/O ports", device_get_name(dev));
 	sc->sc_iot = rman_get_bustag(sc->sc_res);
 	sc->sc_ioh = rman_get_bushandle(sc->sc_res);
-
 	if (apm_version==0x112 || apm_version==0x111 || apm_version==0x110)
 		apm_necsmm_addr = APM_NECSMM_PORT;
 	else
 		apm_necsmm_addr = 0;
 	apm_necsmm_mask = ~APM_NECSMM_EN;
 #endif /* PC98 */
-
 	/*
          * In one test, apm bios version was 1.02; an attempt to register
          * a 1.04 driver resulted in a 1.00 connection!  Registering a
@@ -1124,38 +1179,61 @@ apm_attach(device_t dev)
 
 	sc->intversion = INTVERSION(sc->majorversion, sc->minorversion);
 
+#ifdef APM_DEBUG
 	if (sc->intversion >= INTVERSION(1, 1))
-		APM_DPRINT("apm: Engaged control %s\n", is_enabled(!sc->disengaged));
-	device_printf(dev, "found APM BIOS v%ld.%ld, connected at v%d.%d\n",
+		printf("apm: Engaged control %s\n", is_enabled(!sc->disengaged));
+#endif
+
+	printf("apm: found APM BIOS v%ld.%ld, connected at v%d.%d\n",
 	       ((apm_version & 0xf000) >> 12) * 10 + ((apm_version & 0x0f00) >> 8),
 	       ((apm_version & 0x00f0) >> 4) * 10 + ((apm_version & 0x000f) >> 0),
 	       sc->majorversion, sc->minorversion);
 
+#ifdef APM_DEBUG
+	printf("apm: Slow Idling CPU %s\n", is_enabled(sc->slow_idle_cpu));
+#endif
 
-	APM_DPRINT("apm: Slow Idling CPU %s\n", is_enabled(sc->slow_idle_cpu));
 	/* enable power management */
 	if (sc->disabled) {
 		if (apm_enable_disable_pm(1)) {
-			APM_DPRINT("apm: *Warning* enable function failed! [%x]\n",
-			    (sc->bios.r.eax >> 8) & 0xff);
+#ifdef APM_DEBUG
+			printf("apm: *Warning* enable function failed! [%x]\n",
+				(sc->bios.r.eax >> 8) & 0xff);
+#endif
 		}
 	}
 
 	/* engage power managment (APM 1.1 or later) */
 	if (sc->intversion >= INTVERSION(1, 1) && sc->disengaged) {
 		if (apm_engage_disengage_pm(1)) {
-			APM_DPRINT("apm: *Warning* engage function failed err=[%x]",
-			    (sc->bios.r.eax >> 8) & 0xff);
-			APM_DPRINT(" (Docked or using external power?).\n");
+#ifdef APM_DEBUG
+			printf("apm: *Warning* engage function failed err=[%x]",
+				(sc->bios.r.eax >> 8) & 0xff);
+			printf(" (Docked or using external power?).\n");
+#endif
 		}
 	}
+
+        /* default suspend hook */
+        sc->sc_suspend.ah_fun = apm_default_suspend;
+        sc->sc_suspend.ah_arg = sc;
+        sc->sc_suspend.ah_name = "default suspend";
+        sc->sc_suspend.ah_order = APM_MAX_ORDER;
+
+        /* default resume hook */
+        sc->sc_resume.ah_fun = apm_default_resume;
+        sc->sc_resume.ah_arg = sc;
+        sc->sc_resume.ah_name = "default resume";
+        sc->sc_resume.ah_order = APM_MIN_ORDER;
+
+        apm_hook_establish(APM_HOOK_SUSPEND, &sc->sc_suspend);
+        apm_hook_establish(APM_HOOK_RESUME , &sc->sc_resume);
 
 	/* Power the system off using APM */
 	EVENTHANDLER_REGISTER(shutdown_final, apm_power_off, NULL, 
 			      SHUTDOWN_PRI_LAST);
 
 	sc->initialized = 1;
-	sc->suspending = 0;
 
 	make_dev(&apm_cdevsw, 0, 0, 5, 0660, "apm");
 	make_dev(&apm_cdevsw, 8, 0, 5, 0660, "apmctl");
@@ -1224,7 +1302,9 @@ apmioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 
 	if (!sc->initialized)
 		return (ENXIO);
-	APM_DPRINT("APM ioctl: cmd = 0x%lx\n", cmd);
+#ifdef APM_DEBUG
+	printf("APM ioctl: cmd = 0x%x\n", cmd);
+#endif
 	switch (cmd) {
 	case APMIO_SUSPEND:
 		if (!(flag & FWRITE))
@@ -1392,7 +1472,9 @@ apmwrite(dev_t dev, struct uio *uio, int ioflag)
 		enabled = 0;
 	}
 	sc->event_filter[event_type] = enabled;
-	APM_DPRINT("apmwrite: event 0x%x %s\n", event_type, is_enabled(enabled));
+#ifdef APM_DEBUG
+	printf("apmwrite: event 0x%x %s\n", event_type, is_enabled(enabled));
+#endif
 
 	return uio->uio_resid;
 }
