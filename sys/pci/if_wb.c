@@ -147,7 +147,7 @@ static int wb_probe		__P((device_t));
 static int wb_attach		__P((device_t));
 static int wb_detach		__P((device_t));
 
-static void wb_bfree		__P((caddr_t, u_int));
+static void wb_bfree		__P((caddr_t, void *args));
 static int wb_newbuf		__P((struct wb_softc *,
 					struct wb_chain_onefrag *,
 					struct mbuf *));
@@ -1078,9 +1078,9 @@ static int wb_list_rx_init(sc)
 	return(0);
 }
 
-static void wb_bfree(buf, size)
+static void wb_bfree(buf, args)
 	caddr_t			buf;
-	u_int			size;
+	void			*args;
 {
 	return;
 }
@@ -1102,13 +1102,9 @@ static int wb_newbuf(sc, c, m)
 			    "list -- packet dropped!\n", sc->wb_unit);
 			return(ENOBUFS);
 		}
-
-		m_new->m_data = m_new->m_ext.ext_buf = c->wb_buf;
-		m_new->m_flags |= M_EXT;
-		m_new->m_ext.ext_size = m_new->m_pkthdr.len =
-		    m_new->m_len = WB_BUFBYTES;
-		m_new->m_ext.ext_free = wb_bfree;
-		m_new->m_ext.ext_ref = wb_bfree;
+		m_new->m_data = c->wb_buf;
+		m_new->m_pkthdr.len = m_new->m_len = WB_BUFBYTES;
+		MEXTADD(m_new, c->wb_buf, WB_BUFBYTES, wb_bfree, NULL);
 	} else {
 		m_new = m;
 		m_new->m_len = m_new->m_pkthdr.len = WB_BUFBYTES;

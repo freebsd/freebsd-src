@@ -1046,7 +1046,6 @@ struct ti_event_desc {
 
 struct ti_jslot {
 	caddr_t			ti_buf;
-	int			ti_inuse;
 };
 
 /*

@@ -148,8 +148,7 @@ static int sk_newbuf		__P((struct sk_if_softc *,
 					struct sk_chain *, struct mbuf *));
 static int sk_alloc_jumbo_mem	__P((struct sk_if_softc *));
 static void *sk_jalloc		__P((struct sk_if_softc *));
-static void sk_jfree		__P((caddr_t, u_int));
-static void sk_jref		__P((caddr_t, u_int));
+static void sk_jfree		__P((caddr_t, void *));
 static int sk_init_rx_ring	__P((struct sk_if_softc *));
 static void sk_init_tx_ring	__P((struct sk_if_softc *));
 static u_int32_t sk_win_read_4	__P((struct sk_softc *, int));
@@ -690,12 +689,9 @@ static int sk_newbuf(sc_if, c, m)
 		}
 
 		/* Attach the buffer to the mbuf */
-		m_new->m_data = m_new->m_ext.ext_buf = (void *)buf;
-		m_new->m_flags |= M_EXT;
-		m_new->m_ext.ext_size = m_new->m_pkthdr.len =
-		    m_new->m_len = SK_MCLBYTES;
-		m_new->m_ext.ext_free = sk_jfree;
-		m_new->m_ext.ext_ref = sk_jref;
+		MEXTADD(m_new, buf, SK_MCLBYTES, sk_jfree, NULL);
+		m_new->m_data = (void *)buf;
+		m_new->m_pkthdr.len = m_new->m_len = SK_MCLBYTES;
 	} else {
 		/*
 	 	 * We're re-using a previously allocated mbuf;
@@ -765,7 +761,6 @@ static int sk_alloc_jumbo_mem(sc_if)
 		aptr[0] = (u_int64_t *)sc_if;
 		ptr += sizeof(u_int64_t);
 		sc_if->sk_cdata.sk_jslots[i].sk_buf = ptr;
-		sc_if->sk_cdata.sk_jslots[i].sk_inuse = 0;
 		ptr += SK_MCLBYTES;
 		entry = malloc(sizeof(struct sk_jpool_entry), 
 		    M_DEVBUF, M_NOWAIT);
@@ -803,55 +798,15 @@ static void *sk_jalloc(sc_if)
 
 	SLIST_REMOVE_HEAD(&sc_if->sk_jfree_listhead, jpool_entries);
 	SLIST_INSERT_HEAD(&sc_if->sk_jinuse_listhead, entry, jpool_entries);
-	sc_if->sk_cdata.sk_jslots[entry->slot].sk_inuse = 1;
 	return(sc_if->sk_cdata.sk_jslots[entry->slot].sk_buf);
-}
-
-/*
- * Adjust usage count on a jumbo buffer. In general this doesn't
- * get used much because our jumbo buffers don't get passed around
- * a lot, but it's implemented for correctness.
- */
-static void sk_jref(buf, size)
-	caddr_t			buf;
-	u_int			size;
-{
-	struct sk_if_softc	*sc_if;
-	u_int64_t		**aptr;
-	register int		i;
-
-	/* Extract the softc struct pointer. */
-	aptr = (u_int64_t **)(buf - sizeof(u_int64_t));
-	sc_if = (struct sk_if_softc *)(aptr[0]);
-
-	if (sc_if == NULL)
-		panic("sk_jref: can't find softc pointer!");
-
-	if (size != SK_MCLBYTES)
-		panic("sk_jref: adjusting refcount of buf of wrong size!");
-
-	/* calculate the slot this buffer belongs to */
-
-	i = ((vm_offset_t)aptr 
-	     - (vm_offset_t)sc_if->sk_cdata.sk_jumbo_buf) / SK_JLEN;
-
-	if ((i < 0) || (i >= SK_JSLOTS))
-		panic("sk_jref: asked to reference buffer "
-		    "that we don't manage!");
-	else if (sc_if->sk_cdata.sk_jslots[i].sk_inuse == 0)
-		panic("sk_jref: buffer already free!");
-	else
-		sc_if->sk_cdata.sk_jslots[i].sk_inuse++;
-
-	return;
 }
 
 /*
  * Release a jumbo buffer.
  */
-static void sk_jfree(buf, size)
+static void sk_jfree(buf, args)
 	caddr_t			buf;
-	u_int			size;
+	void			*args;
 {
 	struct sk_if_softc	*sc_if;
 	u_int64_t		**aptr;
@@ -865,31 +820,19 @@ static void sk_jfree(buf, size)
 	if (sc_if == NULL)
 		panic("sk_jfree: can't find softc pointer!");
 
-	if (size != SK_MCLBYTES)
-		panic("sk_jfree: freeing buffer of wrong size!");
-
 	/* calculate the slot this buffer belongs to */
-
 	i = ((vm_offset_t)aptr 
 	     - (vm_offset_t)sc_if->sk_cdata.sk_jumbo_buf) / SK_JLEN;
 
 	if ((i < 0) || (i >= SK_JSLOTS))
 		panic("sk_jfree: asked to free buffer that we don't manage!");
-	else if (sc_if->sk_cdata.sk_jslots[i].sk_inuse == 0)
-		panic("sk_jfree: buffer already free!");
-	else {
-		sc_if->sk_cdata.sk_jslots[i].sk_inuse--;
-		if(sc_if->sk_cdata.sk_jslots[i].sk_inuse == 0) {
-			entry = SLIST_FIRST(&sc_if->sk_jinuse_listhead);
-			if (entry == NULL)
-				panic("sk_jfree: buffer not in use!");
-			entry->slot = i;
-			SLIST_REMOVE_HEAD(&sc_if->sk_jinuse_listhead, 
-					  jpool_entries);
-			SLIST_INSERT_HEAD(&sc_if->sk_jfree_listhead, 
-					  entry, jpool_entries);
-		}
-	}
+
+	entry = SLIST_FIRST(&sc_if->sk_jinuse_listhead);
+	if (entry == NULL)
+		panic("sk_jfree: buffer not in use!");
+	entry->slot = i;
+	SLIST_REMOVE_HEAD(&sc_if->sk_jinuse_listhead, jpool_entries);
+	SLIST_INSERT_HEAD(&sc_if->sk_jfree_listhead, entry, jpool_entries);
 
 	return;
 }

@@ -190,8 +190,7 @@ static void ti_cmd_ext		__P((struct ti_softc *, struct ti_cmd_desc *,
 static void ti_handle_events	__P((struct ti_softc *));
 static int ti_alloc_jumbo_mem	__P((struct ti_softc *));
 static void *ti_jalloc		__P((struct ti_softc *));
-static void ti_jfree		__P((caddr_t, u_int));
-static void ti_jref		__P((caddr_t, u_int));
+static void ti_jfree		__P((caddr_t, void *));
 static int ti_newbuf_std	__P((struct ti_softc *, int, struct mbuf *));
 static int ti_newbuf_mini	__P((struct ti_softc *, int, struct mbuf *));
 static int ti_newbuf_jumbo	__P((struct ti_softc *, int, struct mbuf *));
@@ -629,7 +628,6 @@ static int ti_alloc_jumbo_mem(sc)
 		aptr[0] = (u_int64_t *)sc;
 		ptr += sizeof(u_int64_t);
 		sc->ti_cdata.ti_jslots[i].ti_buf = ptr;
-		sc->ti_cdata.ti_jslots[i].ti_inuse = 0;
 		ptr += (TI_JLEN - sizeof(u_int64_t));
 		entry = malloc(sizeof(struct ti_jpool_entry), 
 			       M_DEVBUF, M_NOWAIT);
@@ -665,55 +663,15 @@ static void *ti_jalloc(sc)
 
 	SLIST_REMOVE_HEAD(&sc->ti_jfree_listhead, jpool_entries);
 	SLIST_INSERT_HEAD(&sc->ti_jinuse_listhead, entry, jpool_entries);
-	sc->ti_cdata.ti_jslots[entry->slot].ti_inuse = 1;
 	return(sc->ti_cdata.ti_jslots[entry->slot].ti_buf);
-}
-
-/*
- * Adjust usage count on a jumbo buffer. In general this doesn't
- * get used much because our jumbo buffers don't get passed around
- * too much, but it's implemented for correctness.
- */
-static void ti_jref(buf, size)
-	caddr_t			buf;
-	u_int			size;
-{
-	struct ti_softc		*sc;
-	u_int64_t		**aptr;
-	register int		i;
-
-	/* Extract the softc struct pointer. */
-	aptr = (u_int64_t **)(buf - sizeof(u_int64_t));
-	sc = (struct ti_softc *)(aptr[0]);
-
-	if (sc == NULL)
-		panic("ti_jref: can't find softc pointer!");
-
-	if (size != TI_JUMBO_FRAMELEN)
-		panic("ti_jref: adjusting refcount of buf of wrong size!");
-
-	/* calculate the slot this buffer belongs to */
-
-	i = ((vm_offset_t)aptr 
-	     - (vm_offset_t)sc->ti_cdata.ti_jumbo_buf) / TI_JLEN;
-
-	if ((i < 0) || (i >= TI_JSLOTS))
-		panic("ti_jref: asked to reference buffer "
-		    "that we don't manage!");
-	else if (sc->ti_cdata.ti_jslots[i].ti_inuse == 0)
-		panic("ti_jref: buffer already free!");
-	else
-		sc->ti_cdata.ti_jslots[i].ti_inuse++;
-
-	return;
 }
 
 /*
  * Release a jumbo buffer.
  */
-static void ti_jfree(buf, size)
+static void ti_jfree(buf, args)
 	caddr_t			buf;
-	u_int			size;
+	void			*args;
 {
 	struct ti_softc		*sc;
 	u_int64_t		**aptr;
@@ -727,31 +685,19 @@ static void ti_jfree(buf, size)
 	if (sc == NULL)
 		panic("ti_jfree: can't find softc pointer!");
 
-	if (size != TI_JUMBO_FRAMELEN)
-		panic("ti_jfree: freeing buffer of wrong size!");
-
 	/* calculate the slot this buffer belongs to */
-
 	i = ((vm_offset_t)aptr 
 	     - (vm_offset_t)sc->ti_cdata.ti_jumbo_buf) / TI_JLEN;
 
 	if ((i < 0) || (i >= TI_JSLOTS))
 		panic("ti_jfree: asked to free buffer that we don't manage!");
-	else if (sc->ti_cdata.ti_jslots[i].ti_inuse == 0)
-		panic("ti_jfree: buffer already free!");
-	else {
-		sc->ti_cdata.ti_jslots[i].ti_inuse--;
-		if(sc->ti_cdata.ti_jslots[i].ti_inuse == 0) {
-			entry = SLIST_FIRST(&sc->ti_jinuse_listhead);
-			if (entry == NULL)
-				panic("ti_jfree: buffer not in use!");
-			entry->slot = i;
-			SLIST_REMOVE_HEAD(&sc->ti_jinuse_listhead, 
-					  jpool_entries);
-			SLIST_INSERT_HEAD(&sc->ti_jfree_listhead, 
-					  entry, jpool_entries);
-		}
-	}
+
+	entry = SLIST_FIRST(&sc->ti_jinuse_listhead);
+	if (entry == NULL)
+		panic("ti_jfree: buffer not in use!");
+	entry->slot = i;
+	SLIST_REMOVE_HEAD(&sc->ti_jinuse_listhead, jpool_entries);
+	SLIST_INSERT_HEAD(&sc->ti_jfree_listhead, entry, jpool_entries);
 
 	return;
 }
@@ -877,12 +823,9 @@ static int ti_newbuf_jumbo(sc, i, m)
 		}
 
 		/* Attach the buffer to the mbuf. */
-		m_new->m_data = m_new->m_ext.ext_buf = (void *)buf;
-		m_new->m_flags |= M_EXT;
-		m_new->m_len = m_new->m_pkthdr.len =
-		    m_new->m_ext.ext_size = TI_JUMBO_FRAMELEN;
-		m_new->m_ext.ext_free = ti_jfree;
-		m_new->m_ext.ext_ref = ti_jref;
+		m_new->m_data = (void *) buf;
+		m_new->m_len = m_new->m_pkthdr.len = TI_JUMBO_FRAMELEN;
+		MEXTADD(m_new, buf, TI_JUMBO_FRAMELEN, ti_jfree, NULL);
 	} else {
 		m_new = m;
 		m_new->m_data = m_new->m_ext.ext_buf;
