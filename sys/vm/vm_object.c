@@ -1171,7 +1171,9 @@ vm_object_split(vm_map_entry_t entry)
 		vm_object_reference(source);	/* Referenced by new_object */
 		TAILQ_INSERT_TAIL(&source->shadow_head,
 				  new_object, shadow_list);
+		VM_OBJECT_LOCK(source);
 		vm_object_clear_flag(source, OBJ_ONEMAPPING);
+		VM_OBJECT_UNLOCK(source);
 		new_object->backing_object_offset = 
 			orig_object->backing_object_offset + offset;
 		new_object->backing_object = source;
