@@ -1,4 +1,4 @@
-<!-- $Id: install.sgml,v 1.31 1996/07/01 16:32:09 bde Exp $ -->
+<!-- $Id: install.sgml,v 1.32 1996/07/25 13:12:25 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -41,7 +41,7 @@
 	  (IRQ) and IO port addresses. </item>
 
       <item>Download the <url
-	  url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/2.1.5-RELEASE/floppies/boot.flp"
+	  url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/&rel.current;-RELEASE/floppies/boot.flp"
 	  name="installation boot disk image"> file to your hard
 	  drive, and be sure to tell your browser to
 	  <em>save</em> rather than <em>display</em>.
@@ -615,7 +615,7 @@ tar cvf /dev/rwt0 (or /dev/rst0) dist1 .. dist2
 
 	    In order for NFS installation to work, the server
 	    must support subdir mounts, e.g., if your FreeBSD
-	    2.1 distribution directory lives on:
+	    &rel.current; distribution directory lives on:
 	    <bf>ziggy:/usr/archive/stuff/FreeBSD</bf> Then ziggy will have
 	    to allow the direct mounting of
 	    <bf>/usr/archive/stuff/FreeBSD</bf>, not just <bf>/usr</bf> or
@@ -632,7 +632,7 @@ tar cvf /dev/rwt0 (or /dev/rst0) dist1 .. dist2
 
 	  <p>FTP installation may be done from any mirror site
 	    containing a reasonably up-to-date version of FreeBSD
-	    2.1.  A full menu of reasonable choices from almost
+	    &rel.current;.  A full menu of reasonable choices from almost
 	    anywhere in the world is provided by the FTP site
 	    menu.
 
@@ -645,7 +645,7 @@ tar cvf /dev/rwt0 (or /dev/rst0) dist1 .. dist2
 	    of a name server:
 
 <tscreen><verb>
-ftp://192.216.222.4/pub/FreeBSD/2.1.5-RELEASE
+ftp://192.216.222.4/pub/FreeBSD/&rel.current;-RELEASE
 </verb></tscreen>
         
 	    There are two FTP installation modes you can use:
