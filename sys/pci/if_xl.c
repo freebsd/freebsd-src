@@ -55,6 +55,8 @@
  * 3Com 3c980C-TX	10/100Mbps server adapter (Tornado ASIC)
  * 3Com 3cSOHO100-TX	10/100Mbps/RJ-45 (Hurricane ASIC)
  * 3Com 3c450-TX	10/100Mbps/RJ-45 (Tornado ASIC)
+ * 3Com 3c556		10/100Mbps/RJ-45 (MiniPCI, Hurricane ASIC)
+ * 3Com 3c556B		10/100Mbps/RJ-45 (MiniPCI, Hurricane ASIC)
  * Dell Optiplex GX1 on-board 3c918 10/100Mbps/RJ-45
  * Dell on-board 3c920 10/100Mbps/RJ-45
  * Dell Precision on-board 3c905B 10/100Mbps/RJ-45
@@ -184,6 +186,10 @@ static struct xl_type xl_devs[] = {
 		"3Com 3cSOHO100-TX OfficeConnect" },
 	{ TC_VENDORID, TC_DEVICEID_TORNADO_HOMECONNECT,
 		"3Com 3c450-TX HomeConnect" },
+	{ TC_VENDORID, TC_DEVICEID_HURRICANE_556,
+		"3Com 3c556 Fast Etherlink XL" },
+	{ TC_VENDORID, TC_DEVICEID_HURRICANE_556B,
+		"3Com 3c556B Fast Etherlink XL" },
 	{ 0, 0, NULL }
 };
 
@@ -530,6 +536,8 @@ static int xl_miibus_readreg(dev, phy, reg)
 	struct xl_softc		*sc;
 	struct xl_mii_frame	frame;
 
+	sc = device_get_softc(dev);
+
 	/*
 	 * Pretend that PHYs are only available at MII address 24.
 	 * This is to guard against problems with certain 3Com ASIC
@@ -537,10 +545,8 @@ static int xl_miibus_readreg(dev, phy, reg)
 	 * control registers at all MII addresses. This can cause
 	 * the miibus code to attach the same PHY several times over.
 	 */
-	if (phy != 24)
+	if ((!(sc->xl_flags & XL_FLAG_PHYOK)) && phy != 24)
 		return(0);
-
-	sc = device_get_softc(dev);
 
 	bzero((char *)&frame, sizeof(frame));
 
@@ -558,10 +564,10 @@ static int xl_miibus_writereg(dev, phy, reg, data)
 	struct xl_softc		*sc;
 	struct xl_mii_frame	frame;
 
-	if (phy != 24)
-		return(0);
-
 	sc = device_get_softc(dev);
+
+	if ((!(sc->xl_flags & XL_FLAG_PHYOK)) && phy != 24)
+		return(0);
 
 	bzero((char *)&frame, sizeof(frame));
 
@@ -684,14 +690,25 @@ static int xl_read_eeprom(sc, dest, off, cnt, swap)
 {
 	int			err = 0, i;
 	u_int16_t		word = 0, *ptr;
-
+#define EEPROM_5BIT_OFFSET(A) ((((A) << 2) & 0x7F00) | ((A) & 0x003F))
+	/* WARNING! DANGER!
+	 * It's easy to accidentally overwrite the rom content!
+	 * Note: the 3c575 uses 8bit EEPROM offsets.
+	 */
 	XL_SEL_WIN(0);
 
 	if (xl_eeprom_wait(sc))
 		return(1);
 
+	if (sc->xl_flags & XL_FLAG_EEPROM_OFFSET_30)
+		off += 0x30;
+
 	for (i = 0; i < cnt; i++) {
-		CSR_WRITE_2(sc, XL_W0_EE_CMD, XL_EE_READ | (off + i));
+		if (sc->xl_flags & XL_FLAG_8BITROM)
+			CSR_WRITE_2(sc, XL_W0_EE_CMD, (2<<8) | (off + i));
+		else
+			CSR_WRITE_2(sc, XL_W0_EE_CMD,
+			    XL_EE_READ | EEPROM_5BIT_OFFSET(off + i));
 		err = xl_eeprom_wait(sc);
 		if (err)
 			break;
@@ -982,7 +999,8 @@ static void xl_reset(sc)
 	register int		i;
 
 	XL_SEL_WIN(0);
-	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RESET);
+	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RESET | 
+		    ((sc->xl_flags & XL_FLAG_WEIRDRESET)?0xFF:0));
 
 	for (i = 0; i < XL_TIMEOUT; i++) {
 		DELAY(10);
@@ -1000,6 +1018,12 @@ static void xl_reset(sc)
 	xl_wait(sc);
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_TX_RESET);
 	xl_wait(sc);
+
+	if (sc->xl_flags & XL_FLAG_WEIRDRESET) {
+		XL_SEL_WIN(2);
+		CSR_WRITE_2(sc, XL_W2_RESET_OPTIONS, CSR_READ_2(sc,
+		    XL_W2_RESET_OPTIONS) | 0x4010);
+	}
 
 	/* Wait a little while for the chip to get its brains in order. */
 	DELAY(100000);
@@ -1124,6 +1148,8 @@ static void xl_choose_xcvr(sc, verbose)
 			printf("xl%d: guessing 10baseFL\n", sc->xl_unit);
 		break;
 	case TC_DEVICEID_BOOMERANG_10_100BT:	/* 3c905-TX */
+	case TC_DEVICEID_HURRICANE_556:		/* 3c556 */
+	case TC_DEVICEID_HURRICANE_556B:	/* 3c556B */
 		sc->xl_media = XL_MEDIAOPT_MII;
 		sc->xl_xcvr = XL_XCVR_MII;
 		if (verbose)
@@ -1183,6 +1209,14 @@ static int xl_attach(dev)
 
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
+
+	sc->xl_flags = 0;
+	if (pci_get_device(dev) == TC_DEVICEID_HURRICANE_556 ||
+	    pci_get_device(dev) == TC_DEVICEID_HURRICANE_556B)
+		sc->xl_flags |= XL_FLAG_FUNCREG | XL_FLAG_PHYOK |
+		    XL_FLAG_EEPROM_OFFSET_30 | XL_FLAG_WEIRDRESET;
+	if (pci_get_device(dev) == TC_DEVICEID_HURRICANE_556)
+		sc->xl_flags |= XL_FLAG_8BITROM;
 
 	/*
 	 * If this is a 3c905B, we have to check one extra thing.
@@ -1262,12 +1296,31 @@ static int xl_attach(dev)
 	sc->xl_btag = rman_get_bustag(sc->xl_res);
 	sc->xl_bhandle = rman_get_bushandle(sc->xl_res);
 
+	if (sc->xl_flags & XL_FLAG_FUNCREG) {
+		rid = XL_PCI_FUNCMEM;
+		sc->xl_fres = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
+		    0, ~0, 1, RF_ACTIVE);
+
+		if (sc->xl_fres == NULL) {
+			printf ("xl%d: couldn't map ports/memory\n", unit);
+			bus_release_resource(dev, XL_RES, XL_RID, sc->xl_res);
+			error = ENXIO;
+			goto fail;
+		}
+
+		sc->xl_ftag = rman_get_bustag(sc->xl_fres);
+		sc->xl_fhandle = rman_get_bushandle(sc->xl_fres);
+	}
+
 	rid = 0;
 	sc->xl_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
 	    RF_SHAREABLE | RF_ACTIVE);
 
 	if (sc->xl_irq == NULL) {
 		printf("xl%d: couldn't map interrupt\n", unit);
+		if (sc->xl_fres != NULL)
+			bus_release_resource(dev, SYS_RES_MEMORY,
+			    XL_PCI_FUNCMEM, sc->xl_fres);
 		bus_release_resource(dev, XL_RES, XL_RID, sc->xl_res);
 		error = ENXIO;
 		goto fail;
@@ -1278,6 +1331,9 @@ static int xl_attach(dev)
 
 	if (error) {
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->xl_irq);
+		if (sc->xl_fres != NULL)
+			bus_release_resource(dev, SYS_RES_MEMORY,
+			    XL_PCI_FUNCMEM, sc->xl_fres);
 		bus_release_resource(dev, XL_RES, XL_RID, sc->xl_res);
 		printf("xl%d: couldn't set up irq\n", unit);
 		goto fail;
@@ -1293,6 +1349,9 @@ static int xl_attach(dev)
 		printf("xl%d: failed to read station address\n", sc->xl_unit);
 		bus_teardown_intr(dev, sc->xl_irq, sc->xl_intrhand);
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->xl_irq);
+		if (sc->xl_fres != NULL)
+			bus_release_resource(dev, SYS_RES_MEMORY,
+			    XL_PCI_FUNCMEM, sc->xl_fres);
 		bus_release_resource(dev, XL_RES, XL_RID, sc->xl_res);
 		error = ENXIO;
 		goto fail;
@@ -1314,6 +1373,9 @@ static int xl_attach(dev)
 		printf("xl%d: no memory for list buffers!\n", unit);
 		bus_teardown_intr(dev, sc->xl_irq, sc->xl_intrhand);
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->xl_irq);
+		if (sc->xl_fres != NULL)
+			bus_release_resource(dev, SYS_RES_MEMORY,
+			    XL_PCI_FUNCMEM, sc->xl_fres);
 		bus_release_resource(dev, XL_RES, XL_RID, sc->xl_res);
 		error = ENXIO;
 		goto fail;
@@ -1522,6 +1584,9 @@ static int xl_detach(dev)
 
 	bus_teardown_intr(dev, sc->xl_irq, sc->xl_intrhand);
 	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->xl_irq);
+	if (sc->xl_fres != NULL)
+		bus_release_resource(dev, SYS_RES_MEMORY,
+		    XL_PCI_FUNCMEM, sc->xl_fres);
 	bus_release_resource(dev, XL_RES, XL_RID, sc->xl_res);
 
 	ifmedia_removeall(&sc->ifmedia);
@@ -2543,6 +2608,7 @@ static void xl_init(xsc)
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_INTR_ACK|0xFF);
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_STAT_ENB|XL_INTRS);
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_INTR_ENB|XL_INTRS);
+	if (sc->xl_flags & XL_FLAG_FUNCREG) bus_space_write_4 (sc->xl_ftag, sc->xl_fhandle, 4, 0x8000);
 
 	/* Set the RX early threshold */
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RX_SET_THRESH|(XL_PACKET_SIZE >>2));
@@ -2812,6 +2878,7 @@ static void xl_stop(sc)
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_INTR_ACK|XL_STAT_INTLATCH);
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_STAT_ENB|0);
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_INTR_ENB|0);
+	if (sc->xl_flags & XL_FLAG_FUNCREG) bus_space_write_4 (sc->xl_ftag, sc->xl_fhandle, 4, 0x8000);
 
 	/* Stop the stats updater. */
 	untimeout(xl_stats_update, sc, sc->xl_stat_ch);
