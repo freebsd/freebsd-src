@@ -787,6 +787,7 @@ product IODATA USBETTX		0x0904	USB ETTX
 product IODATA USBETTXS		0x0913	USB ETTX
 product	IODATA USBRSAQ		0x0a03	USB serial adapter USB-RSAQ1
 product	IODATA IU_CD2		0x0204	DVD Multi-plus unit iU-CD2
+product	IODATA DVR_UEH8		0x0206	DVD Multi-plus unit DVR-UEH8
 
 /* Iomega products */
 product IOMEGA ZIP100		0x0001	Zip 100
@@ -888,6 +889,7 @@ product LOGITECH MX700		0xc506	Cordless optical mouse
 product LOGITECH QUICKCAMPRO2	0xd001	QuickCam Pro
 
 /* Logitec Corp. products */
+product	LOGITEC LDR_H443SU2	0x0033	DVD Multi-plus unit LDR-H443SU2
 product	LOGITEC LDR_H443U2	0x00b3	DVD Multi-plus unit LDR-H443U2
 
 /* Lucent products */
