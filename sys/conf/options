@@ -1,4 +1,4 @@
-#	$Id: options,v 1.89 1998/08/05 00:54:36 eivind Exp $
+#	$Id: options,v 1.90 1998/08/08 19:24:38 jkh Exp $
 #
 #        On the handling of kernel options   
 # 
@@ -257,6 +257,7 @@ NFS_NOSERVER		opt_nfs.h
 NFS_DEBUG		opt_nfs.h
 
 # give bktr an opt_bktr.h file
+OVERRIDE_CARD		opt_bktr.h
 OVERRIDE_TUNER		opt_bktr.h
 
 # meteor opt_meteor.h
