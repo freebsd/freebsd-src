@@ -146,7 +146,7 @@
 /* XXX: These symbols are in the WRONG namespace (should be _PC_*). */
 #define	_POSIX_ACL_EXTENDED	59
 #define	_POSIX_ACL_PATH_MAX	60
-#define	_POSIX_ACL_CAP_PRESENT	61
+#define	_POSIX_CAP_PRESENT	61
 #define	_POSIX_INF_PRESENT	62
 #define	_POSIX_MAC_PRESENT	63
 #endif
