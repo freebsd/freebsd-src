@@ -991,11 +991,11 @@ fe_watchdog ( struct ifnet *ifp )
 	struct fe_softc *sc = (struct fe_softc *)ifp;
 
 	/* A "debug" message.  */
-	printf("fe%d: transmission timeout (%d+%d)%s\n",
-	       ifp->if_unit, sc->txb_sched, sc->txb_count,
+	if_printf(ifp, "transmission timeout (%d+%d)%s\n",
+	       sc->txb_sched, sc->txb_count,
 	       (ifp->if_flags & IFF_UP) ? "" : " when down");
 	if (sc->sc_if.if_opackets == 0 && sc->sc_if.if_ipackets == 0)
-		printf("fe%d: wrong IRQ setting in config?\n", ifp->if_unit);
+		if_printf(ifp, "wrong IRQ setting in config?\n");
 	fe_reset(sc);
 }
 
@@ -1179,8 +1179,8 @@ fe_start (struct ifnet *ifp)
 		 * txb_count is zero if and only if txb_free is same
 		 * as txb_size (which represents whole buffer.)
 		 */
-		printf("fe%d: inconsistent txb variables (%d, %d)\n",
-			sc->sc_unit, sc->txb_count, sc->txb_free);
+		if_printf(ifp, "inconsistent txb variables (%d, %d)\n",
+			sc->txb_count, sc->txb_free);
 		/*
 		 * So, what should I do, then?
 		 *
@@ -1205,8 +1205,8 @@ fe_start (struct ifnet *ifp)
 	 * transmitter - should never happen at this point.
 	 */
 	if ((sc->txb_count > 0) && (sc->txb_sched == 0)) {
-		printf("fe%d: transmitter idle with %d buffered packets\n",
-		       sc->sc_unit, sc->txb_count);
+		if_printf(ifp, "transmitter idle with %d buffered packets\n",
+		       sc->txb_count);
 		fe_xmit(sc);
 	}
 
