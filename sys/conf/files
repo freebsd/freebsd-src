@@ -300,6 +300,7 @@ dev/ata/ata-cbus.c	optional ata pc98
 dev/ata/ata-card.c	optional ata card
 dev/ata/ata-card.c	optional ata pccard
 dev/ata/ata-pci.c	optional ata pci
+dev/ata/ata-chipset.c	optional ata pci
 dev/ata/ata-dma.c	optional ata pci
 dev/ata/ata-disk.c	optional atadisk
 dev/ata/ata-raid.c	optional atadisk

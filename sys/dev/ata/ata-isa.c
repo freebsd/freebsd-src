@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998,1999,2000,2001,2002 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2003 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -49,15 +49,11 @@ static struct isa_pnp_id ata_ids[] = {
     {0x0106d041,	"Plus Hardcard II"},			/* PNP0601 */
     {0x0206d041,	"Plus Hardcard IIXL/EZ"},		/* PNP0602 */
     {0x0306d041,	"Generic ATA"},				/* PNP0603 */
+								/* PNP0680 */
+    {0x8006d041,	"Standard bus mastering IDE hard disk controller"},
     {0}
 };
 
-static int
-ata_isa_intrnoop(struct ata_channel *ch)
-{
-    return 1;
-
-}
 static void
 ata_isa_lock(struct ata_channel *ch, int type)
 {
@@ -91,8 +87,7 @@ ata_isa_probe(device_t dev)
     bus_release_resource(dev, SYS_RES_IOPORT, rid, io);
     ch->unit = 0;
     ch->flags |= ATA_USE_16BIT;
-    ch->intr_func = ata_isa_intrnoop;
-    ch->lock_func = ata_isa_lock;
+    ch->locking = ata_isa_lock;
     return ata_probe(dev);
 }
 

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 2002, 2003 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/ata.h>
 #include <sys/bus.h>
 #include <sys/malloc.h>
 #include <machine/resource.h>
@@ -50,8 +51,20 @@ struct ata_cbus_controller {
     struct resource *altio;
     struct resource *bankio;
     struct resource *irq;
+    void *ih;
+    void (*setmode)(struct ata_device *, int);
+    void (*locking)(struct ata_channel *, int);
     int current_bank;
+    struct {
+    void (*function)(void *);
+    void *argument;
+    } interrupt[2];
 };
+
+/* local prototypes */
+static void ata_cbus_intr(void *);
+static void ata_cbus_banking(struct ata_channel *, int);
+static void ata_cbus_setmode(struct ata_device *, int);
 
 static int
 ata_cbus_probe(device_t dev)
@@ -93,37 +106,49 @@ ata_cbus_probe(device_t dev)
 static int
 ata_cbus_attach(device_t dev)
 {
-    struct ata_cbus_controller *scp = device_get_softc(dev);
+    struct ata_cbus_controller *ctlr = device_get_softc(dev);
     int rid;
 
     /* allocate resources */
     rid = ATA_IOADDR_RID;
-    scp->io = isa_alloc_resourcev(dev, SYS_RES_IOPORT, &rid, ata_pc98_ports,
+    ctlr->io = isa_alloc_resourcev(dev, SYS_RES_IOPORT, &rid, ata_pc98_ports,
 				  ATA_IOSIZE, RF_ACTIVE);
-    if (!scp->io)
+    if (!ctlr->io)
        return ENOMEM;
 
-    isa_load_resourcev(scp->io, ata_pc98_ports, ATA_IOSIZE);
+    isa_load_resourcev(ctlr->io, ata_pc98_ports, ATA_IOSIZE);
 
     rid = ATA_PC98_ALTADDR_RID;
-    scp->altio = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-				    rman_get_start(scp->io)+ATA_PC98_ALTOFFSET,
+    ctlr->altio = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
+				    rman_get_start(ctlr->io)+ATA_PC98_ALTOFFSET,
 				    ~0, ATA_ALTIOSIZE, RF_ACTIVE);
-    if (!scp->altio)
+    if (!ctlr->altio)
 	return ENOMEM;
 
     rid = ATA_PC98_BANKADDR_RID;
-    scp->bankio = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
+    ctlr->bankio = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
 				     ATA_PC98_BANK, ~0,
 				     ATA_PC98_BANKIOSIZE, RF_ACTIVE);
-    if (!scp->bankio)
+    if (!ctlr->bankio)
 	return ENOMEM;
 
     rid = 0;
-    scp->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
-				  0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
+    if (!(ctlr->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
+					0, ~0, 1, RF_ACTIVE | RF_SHAREABLE))) {
+	device_printf(dev, "unable to alloc interrupt\n");
+	return ENXIO;
+    }
 
-    scp->current_bank = -1;
+    if ((bus_setup_intr(dev, ctlr->irq, INTR_TYPE_BIO | INTR_ENTROPY,
+			ata_cbus_intr, ctlr, &ctlr->ih))) {
+	device_printf(dev, "unable to setup interrupt\n");
+	return ENXIO;
+    }
+
+    ctlr->locking = ata_cbus_banking;
+    ctlr->current_bank = -1;
+    ctlr->setmode = ata_cbus_setmode;;
+
     if (!device_add_child(dev, "ata", 0))
 	return ENOMEM;
     if (!device_add_child(dev, "ata", 1))
@@ -136,18 +161,18 @@ static struct resource *
 ata_cbus_alloc_resource(device_t dev, device_t child, int type, int *rid,
 			u_long start, u_long end, u_long count, u_int flags)
 {
-    struct ata_cbus_controller *scp = device_get_softc(dev);
+    struct ata_cbus_controller *ctlr = device_get_softc(dev);
 
     if (type == SYS_RES_IOPORT) {
 	switch (*rid) {
 	case ATA_IOADDR_RID:
-	    return scp->io;
+	    return ctlr->io;
 	case ATA_ALTADDR_RID:
-	    return scp->altio;
+	    return ctlr->altio;
 	}
     }
     if (type == SYS_RES_IRQ) {
-	return scp->irq;
+	return ctlr->irq;
     }
     return 0;
 }
@@ -157,8 +182,14 @@ ata_cbus_setup_intr(device_t dev, device_t child, struct resource *irq,
 	       int flags, driver_intr_t *intr, void *arg,
 	       void **cookiep)
 {
-    return BUS_SETUP_INTR(device_get_parent(dev), dev, irq,
-			  flags, intr, arg, cookiep);
+    struct ata_cbus_controller *controller = device_get_softc(dev);
+    int unit = ((struct ata_channel *)device_get_softc(child))->unit;
+
+    controller->interrupt[unit].function = intr;
+    controller->interrupt[unit].argument = arg;
+    *cookiep = controller;
+
+    return 0;
 }
 
 static int
@@ -173,38 +204,46 @@ ata_cbus_print_child(device_t dev, device_t child)
     return retval;
 }
 
-static int
-ata_cbus_intr(struct ata_channel *ch)
+static void
+ata_cbus_intr(void *data)
 {  
-    struct ata_cbus_controller *scp =
-	device_get_softc(device_get_parent(ch->dev));
+    struct ata_cbus_controller *ctlr = data;
 
-    return (ch->unit == scp->current_bank);
+    if (ctlr->current_bank != -1 &&
+	ctlr->interrupt[ctlr->current_bank].argument)
+	ctlr->interrupt[ctlr->current_bank].
+	    function(ctlr->interrupt[ctlr->current_bank].argument);
 }
 
 static void
 ata_cbus_banking(struct ata_channel *ch, int flags)
 {
-    struct ata_cbus_controller *scp =
+    struct ata_cbus_controller *ctlr =
 	device_get_softc(device_get_parent(ch->dev));
 
     switch (flags) {
     case ATA_LF_LOCK:
-	if (scp->current_bank == ch->unit)
+	if (ctlr->current_bank == ch->unit)
 	    break;
-	while (!atomic_cmpset_acq_int(&scp->current_bank, -1, ch->unit))
-	    tsleep((caddr_t)ch->lock_func, PRIBIO, "atalck", 1);
-	bus_space_write_1(rman_get_bustag(scp->bankio),
-			  rman_get_bushandle(scp->bankio), 0, ch->unit);
+	while (!atomic_cmpset_acq_int(&ctlr->current_bank, -1, ch->unit))
+	    tsleep((caddr_t)ch->locking, PRIBIO, "atalck", 1);
+	bus_space_write_1(rman_get_bustag(ctlr->bankio),
+			  rman_get_bushandle(ctlr->bankio), 0, ch->unit);
 	break;
 
     case ATA_LF_UNLOCK:
-	if (scp->current_bank == -1 || scp->current_bank != ch->unit)
+	if (ctlr->current_bank == -1 || ctlr->current_bank != ch->unit)
 	    break;
-	atomic_store_rel_int(&scp->current_bank, -1);
+	atomic_store_rel_int(&ctlr->current_bank, -1);
 	break;
     }
     return;
+}
+
+static void
+ata_cbus_setmode(struct ata_device *atadev, int mode)
+{
+    atadev->mode = ata_limit_mode(atadev, mode, ATA_PIO_MAX);
 }
 
 static device_method_t ata_cbus_methods[] = {
@@ -232,6 +271,7 @@ DRIVER_MODULE(atacbus, isa, ata_cbus_driver, ata_cbus_devclass, 0, 0);
 static int
 ata_cbussub_probe(device_t dev)
 {
+    struct ata_cbus_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
     device_t *children;
     int count, i;
@@ -244,8 +284,9 @@ ata_cbussub_probe(device_t dev)
     }
     free(children, M_TEMP);
     ch->flags |= ATA_USE_16BIT | ATA_USE_PC98GEOM;
-    ch->intr_func = ata_cbus_intr;
-    ch->lock_func = ata_cbus_banking;
+    ch->device[MASTER].setmode = ctlr->setmode;
+    ch->device[SLAVE].setmode = ctlr->setmode;
+    ch->locking = ctlr->locking;
     return ata_probe(dev);
 }
 
