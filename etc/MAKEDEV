@@ -726,19 +726,29 @@ sa*)
 
 	case $unit in
 	[0-9]|[1-9][0-9]|[1-9][0-9][0-9]|[1-9][0-9][0-9][0-9])
-		mknod rsa${unit}.ctl c $chr `saminor 1 ${unit} 0 0`
+		mknod sa${unit}.ctl c $chr `saminor 1 ${unit} 0 0`
+		ln -f sa${unit}.ctl rsa${unit}.ctl
 		for m in 0 1 2 3
 		do
-			mknod rsa${unit}.${m} c $chr \
+			mknod sa${unit}.${m} c $chr \
 			    `saminor 0 ${unit} ${m} 0`  root:operator
-			mknod nrsa${unit}.${m} c $chr \
+			ln -f sa${unit}.${m} c rsa${unit}.${m}
+			mknod nsa${unit}.${m} c $chr \
 			    `saminor 0 ${unit} ${m} 1` root:operator
+			ln -f nsa${unit}.${m} c nrsa${unit}.${m}
 			mknod ersa${unit}.${m} c $chr \
 			    `saminor 0 ${unit} ${m} 2` root:operator
+			ln -f esa${unit}.${m} ersa${unit}.${m}
 		done
-		ln -f rsa${unit}.0 rsa${unit}
-		ln -f nrsa${unit}.0 nrsa${unit}
-		ln -f ersa${unit}.0 ersa${unit}
+		ln -f sa${unit}.0 sa${unit}
+		ln -f sa${unit}.0 rsa${unit}.0
+		ln -f sa${unit}.0 rsa${unit}
+		ln -f nsa${unit}.0 nsa${unit}
+		ln -f nsa${unit}.0 nrsa${unit}.0
+		ln -f nsa${unit}.0 nrsa${unit}
+		ln -f esa${unit}.0 esa${unit}
+		ln -f esa${unit}.0 ersa${unit}.0
+		ln -f esa${unit}.0 ersa${unit}
 		;;
 	*)
 		echo bad unit for tape in: $i
