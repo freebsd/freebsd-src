@@ -1954,6 +1954,17 @@ bdevvp(dev, vpp)
 	return (0);
 }
 
+static void
+v_incr_usecount(struct vnode *vp, int delta)
+{
+	vp->v_usecount += delta;
+	if (vp->v_type == VCHR) {
+		mtx_lock(&spechash_mtx);
+		vp->v_rdev->si_usecount += delta;
+		mtx_unlock(&spechash_mtx);
+	}
+}
+
 /*
  * Add vnode to the alias list hung off the dev_t.
  *
@@ -2022,9 +2033,12 @@ addalias(nvp, dev)
 
 	KASSERT(nvp->v_type == VCHR, ("addalias on non-special vnode"));
 	nvp->v_rdev = dev;
+	VI_LOCK(nvp);
 	mtx_lock(&spechash_mtx);
 	SLIST_INSERT_HEAD(&dev->si_hlist, nvp, v_specnext);
+	dev->si_usecount += nvp->v_usecount;
 	mtx_unlock(&spechash_mtx);
+	VI_UNLOCK(nvp);
 }
 
 /*
@@ -2057,7 +2071,7 @@ vget(vp, flags, td)
 		return (ENOENT);
 	}
 
-	vp->v_usecount++;
+	v_incr_usecount(vp, 1);
 
 	if (VSHOULDBUSY(vp))
 		vbusy(vp);
@@ -2072,7 +2086,7 @@ vget(vp, flags, td)
 			 * not try to recycle it.
 			 */
 			VI_LOCK(vp);
-			vp->v_usecount--;
+			v_incr_usecount(vp, -1);
 			if (VSHOULDFREE(vp))
 				vfree(vp);
 			else
@@ -2092,7 +2106,7 @@ void
 vref(struct vnode *vp)
 {
 	VI_LOCK(vp);
-	vp->v_usecount++;
+	v_incr_usecount(vp, 1);
 	VI_UNLOCK(vp);
 }
 
@@ -2138,14 +2152,14 @@ vrele(vp)
 
 	if (vp->v_usecount > 1) {
 
-		vp->v_usecount--;
+		v_incr_usecount(vp, -1);
 		VI_UNLOCK(vp);
 
 		return;
 	}
 
 	if (vp->v_usecount == 1) {
-		vp->v_usecount--;
+		v_incr_usecount(vp, -1);
 		/*
 		 * We must call VOP_INACTIVE with the node locked.
 		 * If we are doing a vput, the node is already locked,
@@ -2190,13 +2204,13 @@ vput(vp)
 	    ("vput: missed vn_close"));
 
 	if (vp->v_usecount > 1) {
-		vp->v_usecount--;
+		v_incr_usecount(vp, -1);
 		VOP_UNLOCK(vp, LK_INTERLOCK, td);
 		return;
 	}
 
 	if (vp->v_usecount == 1) {
-		vp->v_usecount--;
+		v_incr_usecount(vp, -1);
 		/*
 		 * We must call VOP_INACTIVE with the node locked.
 		 * If we are doing a vput, the node is already locked,
@@ -2459,7 +2473,7 @@ vclean(vp, flags, td)
 	 * generate a race against ourselves to recycle it.
 	 */
 	if ((active = vp->v_usecount))
-		vp->v_usecount++;
+		v_incr_usecount(vp, 1);
 
 	/*
 	 * Prevent the vnode from being recycled or brought into use while we
@@ -2526,7 +2540,8 @@ vclean(vp, flags, td)
 		 * has already been called.
 		 */
 		VI_LOCK(vp);
-		if (--vp->v_usecount <= 0) {
+		v_incr_usecount(vp, -1);
+		if (vp->v_usecount <= 0) {
 #ifdef DIAGNOSTIC
 			if (vp->v_usecount < 0 || vp->v_writecount != 0) {
 				vprint("vclean: bad ref count", vp);
@@ -2675,10 +2690,12 @@ vgonel(vp, td)
 	 * if it is on one.
 	 */
 	if (vp->v_type == VCHR && vp->v_rdev != NULL && vp->v_rdev != NODEV) {
+		VI_LOCK(vp);
 		mtx_lock(&spechash_mtx);
 		SLIST_REMOVE(&vp->v_rdev->si_hlist, vp, vnode, v_specnext);
-		freedev(vp->v_rdev);
+		vp->v_rdev->si_usecount -= vp->v_usecount;
 		mtx_unlock(&spechash_mtx);
+		VI_UNLOCK(vp);
 		vp->v_rdev = NULL;
 	}
 
@@ -2741,18 +2758,10 @@ int
 vcount(vp)
 	struct vnode *vp;
 {
-	struct vnode *vq;
 	int count;
 
-	count = 0;
 	mtx_lock(&spechash_mtx);
-	SLIST_FOREACH(vq, &vp->v_rdev->si_hlist, v_specnext) {
-		if (vq != vp)
-			VI_LOCK(vq);
-		count += vq->v_usecount;
-		if (vq != vp)
-			VI_UNLOCK(vq);
-	}
+	count = vp->v_rdev->si_usecount;
 	mtx_unlock(&spechash_mtx);
 	return (count);
 }
