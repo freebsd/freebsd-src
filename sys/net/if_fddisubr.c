@@ -100,6 +100,7 @@ static int fddi_resolvemulti(struct ifnet *, struct sockaddr **,
 			      struct sockaddr *);
 static int fddi_output(struct ifnet *, struct mbuf *, struct sockaddr *,
 		       struct rtentry *); 
+static void fddi_input(struct ifnet *ifp, struct mbuf *m);
 
 
 #define	IFP2AC(IFP)	((struct arpcom *)IFP)
@@ -356,14 +357,22 @@ bad:
  * the packet is in the mbuf chain m without
  * the fddi header, which is provided separately.
  */
-void
-fddi_input(ifp, fh, m)
+static void
+fddi_input(ifp, m)
 	struct ifnet *ifp;
-	struct fddi_header *fh;
 	struct mbuf *m;
 {
 	struct ifqueue *inq;
 	struct llc *l;
+	struct fddi_header *fh;
+
+	fh = mtod(m, struct fddi_header *);
+
+	/*
+	 * Update interface statistics.
+	 */
+	ifp->if_ibytes += m->m_pkthdr.len;
+	getmicrotime(&ifp->if_lastchange);
 
 	/*
 	 * Discard packet if interface is not up.
@@ -396,12 +405,6 @@ fddi_input(ifp, fh, m)
 		ifp->if_imcasts++;
 	}
 
-	/*
-	 * Update interface statistics.
-	 */
-	getmicrotime(&ifp->if_lastchange);
-	ifp->if_ibytes += (m->m_pkthdr.len + FDDI_HDR_LEN);
-
 #ifdef M_LINK0
 	/*
 	 * If this has a LLC priority of 0, then mark it so upper
@@ -411,6 +414,9 @@ fddi_input(ifp, fh, m)
 	if ((fh->fddi_fc & FDDIFC_LLC_PRIO7) == FDDIFC_LLC_PRIO0)
 		m->m_flags |= M_LINK0;
 #endif
+
+	/* Strip off FDDI header. */
+	m_adj(m, sizeof(struct fddi_header));
 
 	m = m_pullup(m, sizeof(struct llc));
 	if (m == 0) {
@@ -548,6 +554,7 @@ fddi_ifattach(ifp, bpf)
 
 	ifp->if_mtu = FDDIMTU;
 	ifp->if_output = fddi_output;
+	ifp->if_input = fddi_input;
 	ifp->if_resolvemulti = fddi_resolvemulti;
 	ifp->if_broadcastaddr = fddibroadcastaddr;
 	ifp->if_baudrate = 100000000;

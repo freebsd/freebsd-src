@@ -876,7 +876,7 @@ error:
 		mm.m_next = m;
 		mm.m_len = 4;
 		mm.m_data = (char *)&af;
-		bpf_mtap(&sc->sc_if, &mm);
+		BPF_MTAP(&sc->sc_if, &mm);
 	}
 
 	if(! IF_HANDOFF(&ipintrq, m, NULL))
@@ -934,7 +934,7 @@ ipr_tx_queue_empty(int unit)
 			mm.m_next = m;
 			mm.m_len = 4;
 			mm.m_data = (char *)&af;
-			bpf_mtap(&sc->sc_if, &mm);
+			BPF_MTAP(&sc->sc_if, &mm);
 		}
 	
 #if I4BIPRACCT

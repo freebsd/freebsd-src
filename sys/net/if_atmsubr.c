@@ -321,6 +321,9 @@ atm_ifattach(ifp)
 	ifp->if_hdrlen = 0;
 	ifp->if_mtu = ATMMTU;
 	ifp->if_output = atm_output;
+#if 0
+	ifp->if_input = atm_input;
+#endif
 	ifp->if_snd.ifq_maxlen = 50;	/* dummy */
 
 #if defined(__NetBSD__) || defined(__OpenBSD__)

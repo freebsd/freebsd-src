@@ -351,13 +351,12 @@ le_attach(
 	sc->le_ac.ac_enaddr, ":");
 
     ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-    ifp->if_output = ether_output;
     ifp->if_ioctl = le_ioctl;
     ifp->if_type = IFT_ETHER;
     ifp->if_addrlen = 6;
     ifp->if_hdrlen = 14;
 
-    ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+    ether_ifattach(ifp, sc->le_ac.ac_enaddr);
 
     return 1;
 }
@@ -384,37 +383,28 @@ le_input(
     size_t len1,
     caddr_t seg2)
 {
-    struct ether_header eh;
+    struct ifnet *ifp = &sc->le_if;
     struct mbuf *m;
-
-    if (total_len - sizeof(eh) > ETHERMTU
-	    || total_len - sizeof(eh) < ETHERMIN) {
-	sc->le_if.if_ierrors++;
-	return;
-    }
-    MEMCPY(&eh, seg1, sizeof(eh));
-
-    seg1 += sizeof(eh); total_len -= sizeof(eh); len1 -= sizeof(eh);
 
     MGETHDR(m, M_DONTWAIT, MT_DATA);
     if (m == NULL) {
-	sc->le_if.if_ierrors++;
+	ifp->if_ierrors++;
 	return;
     }
     m->m_pkthdr.len = total_len;
-    m->m_pkthdr.rcvif = &sc->le_if;
+    m->m_pkthdr.rcvif = ifp;
     if (total_len + LE_XTRA > MHLEN /* >= MINCLSIZE */) {
 	MCLGET(m, M_DONTWAIT);
 	if ((m->m_flags & M_EXT) == 0) {
 	    m_free(m);
-	    sc->le_if.if_ierrors++;
+	    ifp->if_ierrors++;
 	    return;
 	}
     } else if (total_len + LE_XTRA > MHLEN && MINCLSIZE == (MHLEN+MLEN)) {
 	MGET(m->m_next, M_DONTWAIT, MT_DATA);
 	if (m->m_next == NULL) {
 	    m_free(m);
-	    sc->le_if.if_ierrors++;
+	    ifp->if_ierrors++;
 	    return;
 	}
 	m->m_next->m_len = total_len - MHLEN - LE_XTRA;
@@ -428,7 +418,8 @@ le_input(
     MEMCPY(mtod(m, caddr_t), seg1, len1);
     if (seg2 != NULL)
 	MEMCPY(mtod(m, caddr_t) + len1, seg2, total_len - len1);
-    ether_input(&sc->le_if, &eh, m);
+
+    (*ifp->if_input)(ifp, m);
 }
 
 static int
@@ -446,12 +437,6 @@ le_ioctl(
     s = splimp();
 
     switch (cmd) {
-        case SIOCSIFADDR:
-        case SIOCGIFADDR:
-        case SIOCSIFMTU:
-                error = ether_ioctl(ifp, cmd, data);
-                break;
-
 	case SIOCSIFFLAGS: {
 	    sc->if_init(sc);
 	    break;
@@ -467,7 +452,8 @@ le_ioctl(
 		break;
 
 	default: {
-	    error = EINVAL;
+	    error = ether_ioctl(ifp, cmd, data);
+	    break;
 	}
     }
 
@@ -1016,8 +1002,7 @@ lemac_start(
 
 	LE_OUTB(sc, LEMAC_REG_TQ, tx_pg);	/* tell chip to transmit this packet */
 
-	if (sc->le_if.if_bpf)
-		bpf_mtap(&sc->le_if, m);
+	BPF_MTAP(&sc->le_if, m);
 
 	m_freem(m);			/* free the mbuf */
     }
