@@ -96,11 +96,19 @@ CLEANFILES+= ${PROG}
 CLEANFILES+= ${OBJS}
 .endif
 
+.include <bsd.libnames.mk>
+
 .if defined(PROG)
 _EXTRADEPEND:
+.if defined(LDFLAGS) && !empty(LDFLAGS:M-nostdlib)
+.if defined(DPADD) && !empty(DPADD)
+	echo ${PROG}: ${DPADD} >> ${DEPENDFILE}
+.endif
+.else
 	echo ${PROG}: ${LIBC} ${DPADD} >> ${DEPENDFILE}
 .if defined(PROG_CXX)
 	echo ${PROG}: ${LIBSTDCPLUSPLUS} >> ${DEPENDFILE}
+.endif
 .endif
 .endif
 
@@ -111,7 +119,7 @@ _INSTALLFLAGS:=	${INSTALLFLAGS}
 _INSTALLFLAGS:=	${_INSTALLFLAGS${ie}}
 .endfor
 
-.if !target(realinstall)
+.if !target(realinstall) && !defined(INTERNALPROG)
 realinstall: _proginstall
 .ORDER: beforeinstall _proginstall
 _proginstall:
@@ -178,8 +186,6 @@ lint: ${SRCS:M*.c}
 .if !defined(NOMAN)
 .include <bsd.man.mk>
 .endif
-
-.include <bsd.libnames.mk>
 
 .include <bsd.dep.mk>
 
