@@ -91,6 +91,8 @@ struct md_coredump {
 	int	md_empty;
 };
 
+void	makectx(struct trapframe *tf, struct pcb *pcb);
+
 #ifdef _KERNEL
 extern struct pcb *curpcb;
 void    savectx(struct pcb *);
