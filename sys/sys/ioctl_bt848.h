@@ -150,7 +150,9 @@ struct eeProm {
  */
 
 typedef enum { METEOR_PIXTYPE_RGB, METEOR_PIXTYPE_YUV,
-	       METEOR_PIXTYPE_YUV_PACKED  } METEOR_PIXTYPE;
+	       METEOR_PIXTYPE_YUV_PACKED,
+	       METEOR_PIXTYPE_YUV_12 } METEOR_PIXTYPE;
+
 
 struct meteor_pixfmt {
 	u_int          index;         /* Index in supported pixfmt list     */
