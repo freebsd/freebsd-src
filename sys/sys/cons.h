@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.h	7.2 (Berkeley) 5/9/91
- *	$Id: cons.h,v 1.7 1995/04/08 21:31:53 joerg Exp $
+ *	$Id: cons.h,v 1.8 1995/04/23 12:55:55 bde Exp $
  */
 
 #ifndef _MACHINE_CONS_H_
@@ -49,28 +49,23 @@ typedef	int	cn_getc_t __P((dev_t));
 typedef	int	cn_checkc_t __P((dev_t));
 typedef	void	cn_putc_t __P((dev_t, int));
 
+#ifdef KERNEL
 /*
  * XXX public functions in drivers should be declared in headers produced
  * by `config', not here.
  */
-#include "sc.h"
-#include "vt.h"
-#if NSC > 0 || NVT > 0
 cn_probe_t	pccnprobe;
 cn_init_t	pccninit;
 cn_getc_t	pccngetc;
 cn_checkc_t	pccncheckc;
 cn_putc_t	pccnputc;
-#endif
 
-#include "sio.h"
-#if NSIO > 0
 cn_probe_t	siocnprobe;
 cn_init_t	siocninit;
 cn_getc_t	siocngetc;
 cn_checkc_t	siocncheckc;
 cn_putc_t	siocnputc;
-#endif
+#endif /* KERNEL */
 
 struct consdev {
 	cn_probe_t	*cn_probe;
