@@ -241,6 +241,8 @@
  * require it.
  */
 #define	__offsetof(type, field)	((size_t)(&((type *)0)->field))
+#define	__rangeof(type, start, end) \
+	(__offsetof(type, end) - __offsetof(type, start))
 
 /*
  * Compiler-dependent macros to declare that functions take printf-like
