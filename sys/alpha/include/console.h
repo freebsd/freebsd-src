@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: console.h,v 1.35 1998/02/03 19:57:45 bde Exp $
+ *	$Id: console.h,v 1.36 1998/02/12 20:47:39 phk Exp $
  */
 
 #ifndef	_MACHINE_CONSOLE_H_
@@ -312,6 +312,8 @@ typedef struct ssaver ssaver_t;
 #define DOGO		0x96		/* ogonek			*/
 #define DCAR		0x97		/* caron			*/
 #define L_ACC		DCAR		/* last accent key		*/
+
+#define STBY		0x98		/* Go into standby mode (apm)   */
 
 #define F(x)		((x)+F_FN-1)
 #define	S(x)		((x)+F_SCR-1)

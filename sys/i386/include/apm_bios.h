@@ -12,7 +12,7 @@
  *
  * Aug, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm_bios.h,v 1.18 1997/06/15 02:02:53 wollman Exp $
+ *	$Id: apm_bios.h,v 1.19 1997/11/12 04:12:51 jdp Exp $
  */
 
 #ifndef	_MACHINE_APM_BIOS_H_
@@ -22,8 +22,6 @@
 #include <sys/types.h>
 #endif
 #include <sys/ioccom.h>
-
-#ifdef KERNEL
 
 /* BIOS id */
 #ifdef PC98
@@ -74,6 +72,10 @@
 #define APM_DRVVERSION		0x0e
 #endif
 #define APM_ENGAGEDISENGAGEPM	0x0f
+#define APM_GETCAPABILITIES	0x10
+#define APM_RESUMETIMER		0x11
+#define APM_RESUMEONRING	0x12
+#define APM_TIMERREQUESTS	0x13
 #define APM_OEMFUNC		0x80
 
 /* error code */
@@ -151,20 +153,22 @@ struct apmhook {
 #define APM_HOOK_RESUME         1
 #define NAPM_HOOK               2
 
-void apm_suspend(void);
+#ifdef KERNEL
+
+void apm_suspend(int state);
 struct apmhook *apm_hook_establish (int apmh, struct apmhook *);
 void apm_hook_disestablish (int apmh, struct apmhook *);
 void apm_cpu_idle(void);
 void apm_cpu_busy(void);
 void apm_power_off(void);
 
+#endif /* KERNEL */
+
 #endif /* !ASSEMBLER && !INITIALIZER */
 
 #define APM_MIN_ORDER		0x00
 #define APM_MID_ORDER		0x80
 #define APM_MAX_ORDER		0xff
-
-#endif /* KERNEL */
 
 /* power management event code */
 #define PMEV_NOEVENT		0x0000
@@ -179,7 +183,8 @@ void apm_power_off(void);
 #define PMEV_USERSTANDBYREQ	0x0009
 #define PMEV_USERSUSPENDREQ	0x000a
 #define PMEV_STANDBYRESUME	0x000b
-/* 0x000c - 0x00ff	Reserved system events	*/
+#define PMEV_CAPABILITIESCHANGE 0x000c
+/* 0x000d - 0x00ff	Reserved system events	*/
 /* 0x0100 - 0x01ff	Reserved device events	*/
 /* 0x0200 - 0x02ff	OEM-defined APM events	*/
 /* 0x0300 - 0xffff	Reserved		*/
@@ -215,7 +220,9 @@ typedef struct apm_info {
 	u_int	ai_batt_life;	/* Remaining battery life in percent (0) */
 	int	ai_batt_time;	/* Remaining battery time in seconds (0) */
 	u_int	ai_status;	/* True if enabled (0) */
-	u_int	ai_spare[8];	/* For future expansion */
+	u_int	ai_batteries;	/* Number of batteries (1) */
+	u_int	ai_capabilities;/* APM Capabilities (1) */
+	u_int	ai_spare[6];	/* For future expansion */
 } *apm_info_t;
 
 struct apm_bios_arg {
@@ -236,6 +243,7 @@ struct apm_bios_arg {
 #define APMIO_DISPLAY		_IOW('P', 9, int)
 #define APMIO_BIOS		_IOWR('P', 10, struct apm_bios_arg)
 #define APMIO_GETINFO		_IOR('P', 11, struct apm_info)
+#define APMIO_STANDBY		_IO('P', 12)
 
 #endif /* !ASSEMBLER && !INITIALIZER */
 
