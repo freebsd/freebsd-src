@@ -1,6 +1,8 @@
 # DISKLESS RC.CONF.LOCAL
 #
 # Override system standard /etc/rc.conf
+#
+# $FreeBSD$
 
 ldconfig_paths="$ldconfig_paths /usr/krb5/lib"
 ldconfig_paths_aout="$ldconfig_paths_aout /usr/krb5/lib/aout"
@@ -23,7 +25,7 @@ sendmail_enable="NO"
 nfs_client_enable="YES"
 lpd_enable="YES"
 ntpdate_enable="YES"
-ntpdate_flags="apollo.backplane.com"
+ntpdate_flags="apollo"
 xntpd_enable="YES"
 
 if [ -f /etc/ipfw.conf ]; then
