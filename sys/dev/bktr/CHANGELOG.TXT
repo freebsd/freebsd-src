@@ -487,3 +487,7 @@
 2.13  26 Jun 2000 Merge in more changes from Thomas Klausner <wiz@netbsd.org>
                   syncing this driver with the NetBSD source at 25th June.
 
+2.14  28 Jun 2000 Add new Hauppauge Tuner Types, supplied by Hauppauge and
+                  required for Josef Karthauser <joe@pavilion.net>
+                  Change the structure of some of the #include files and
+                  merge in more NetBSD changes.
