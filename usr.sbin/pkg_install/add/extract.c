@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: extract.c,v 1.7.6.4 1997/06/29 10:42:13 jkh Exp $";
+static const char *rcsid = "$Id: extract.c,v 1.7.6.5 1997/06/30 02:57:49 jkh Exp $";
 #endif
 
 /*
@@ -55,8 +55,7 @@ rollback(char *name, char *home, PackingList start, PackingList stop)
     for (q = start; q != stop; q = q->next) {
 	if (q->type == PLIST_FILE) {
 	    snprintf(try, FILENAME_MAX, "%s/%s", dir, q->name);
-	    snprintf(bup, FILENAME_MAX, "%s.%s", try, name);
-	    if (fexists(bup)) {
+	    if (make_preserve_name(bup, FILENAME_MAX, name, try) && fexists(bup)) {
 		(void)chflags(try, 0);
 		(void)unlink(try);
 		if (rename(bup, try))
@@ -122,20 +121,19 @@ extract_plist(char *home, Package *pkg)
 		char try[FILENAME_MAX];
 
 		/* first try to rename it into place */
-		sprintf(try, "%s/%s", Directory, p->name);
-		if (preserve && fexists(try)) {
-		    char pf[FILENAME_MAX];
-
-		    if (!PkgName) {
-			whinge("Package set preserve option but has no name - bailing out.");
-			return;
-		    }
-		    snprintf(pf, FILENAME_MAX, "%s.%s", try, PkgName);
+		snprintf(try, FILENAME_MAX, "%s/%s", Directory, p->name);
+		if (fexists(try)) {
 		    (void)chflags(try, 0);	/* XXX hack - if truly immutable, rename fails */
-		    if (rename(try, pf)) {
-			whinge("Unable to back up %s to %s, aborting pkg_add", try, pf);
-			rollback(PkgName, home, pkg->head, p);
-			return;
+		    if (preserve && PkgName) {
+			char pf[FILENAME_MAX];
+
+			if (make_preserve_name(pf, FILENAME_MAX, PkgName, try)) {
+			    if (rename(try, pf)) {
+				whinge("Unable to back up %s to %s, aborting pkg_add", try, pf);
+				rollback(PkgName, home, pkg->head, p);
+				return;
+			    }
+			}
 		    }
 		}
 		if (rename(p->name, try) == 0) {
@@ -143,9 +141,7 @@ extract_plist(char *home, Package *pkg)
 		    if (p->name[0] == '/' || TOOBIG(p->name)) {
 			PUSHOUT(Directory);
 		    }
-		    add_count = snprintf(&perm_args[perm_count],
-					 maxargs - perm_count,
-					 "%s ", p->name);
+		    add_count = snprintf(&perm_args[perm_count], maxargs - perm_count, "%s ", p->name);
 		    if (add_count > maxargs - perm_count)
 			barf("oops, miscounted strings!");
 		    perm_count += add_count;
@@ -159,9 +155,7 @@ extract_plist(char *home, Package *pkg)
 		    else if (p->name[0] == '/' || TOOBIG(p->name)) {
 			PUSHOUT(Directory);
 		    }
-		    add_count = snprintf(&where_args[where_count],
-					 maxargs - where_count,
-					 " %s", p->name);
+		    add_count = snprintf(&where_args[where_count], maxargs - where_count, " %s", p->name);
 		    if (add_count > maxargs - where_count)
 			barf("oops, miscounted strings!");
 		    where_count += add_count;
