@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -36,6 +38,7 @@ static char sccsid[] = "@(#)devname.c	8.2 (Berkeley) 4/29/95";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
+#include <sys/sysctl.h>
 
 #include <db.h>
 #include <err.h>
@@ -85,21 +88,33 @@ devname(dev, type)
 	dev_t dev;
 	mode_t type;
 {
-	static char buf[20];
+	static char buf[30];	 /* XXX: pick up from <sys/conf.h> */
+	int i, j;
 	char *r;
 
+	/* First check the DB file. */
 	r = xdevname(dev, type);
-	if (!r) {
-		r = buf;
-		if (minor(dev) > 255) {
-			sprintf(buf, "#%c%d:0x%x", 
-			    (type & S_IFMT) == S_IFCHR ? 'C' : 'B',
-			    major(dev), minor(dev));
-		} else {
-			sprintf(buf, "#%c%d:%d", 
-			    (type & S_IFMT) == S_IFCHR ? 'C' : 'B',
-			    major(dev), minor(dev));
-		}
+	if (r != NULL)
+		return (r);
+
+	/* Then ask the kernel. */
+	if ((type & S_IFMT) == S_IFCHR) {
+		j = sizeof(buf);
+		i = sysctlbyname("kern.devname", buf, &j, &dev, sizeof (dev));
+		if (i == 0)
+		    return (buf);
+	}
+
+	/* Finally just format it */
+	r = buf;
+	if (minor(dev) > 255) {
+		sprintf(buf, "#%c%d:0x%x", 
+		    (type & S_IFMT) == S_IFCHR ? 'C' : 'B',
+		    major(dev), minor(dev));
+	} else {
+		sprintf(buf, "#%c%d:%d", 
+		    (type & S_IFMT) == S_IFCHR ? 'C' : 'B',
+		    major(dev), minor(dev));
 	}
 	return (r);
 }
