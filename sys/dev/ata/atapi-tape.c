@@ -482,7 +482,8 @@ ast_start(struct atapi_softc *atp)
     devstat_start_transaction(&stp->stats);
 
     atapi_queue_cmd(stp->atp, ccb, bp->b_data, blkcount * stp->blksize, 
-		    (bp->b_flags & B_READ) ? ATPR_F_READ : 0, 60, ast_done, bp);
+		    (bp->b_flags & B_READ) ? ATPR_F_READ : 0,
+		    120, ast_done, bp);
 }
 
 static int 
@@ -603,7 +604,7 @@ ast_prevent_allow(struct ast_softc *stp, int lock)
     int8_t ccb[16] = { ATAPI_PREVENT_ALLOW, 0, 0, 0, lock,
 		       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
-    return atapi_queue_cmd(stp->atp, ccb, NULL, 0, 0,30, NULL, NULL);
+    return atapi_queue_cmd(stp->atp, ccb, NULL, 0, 0, 30, NULL, NULL);
 }
 
 static int
@@ -640,12 +641,15 @@ ast_rewind(struct ast_softc *stp)
 static int
 ast_erase(struct ast_softc *stp)
 {
-    int8_t ccb[16] = { ATAPI_ERASE, 3, 0, 0, 0, 0, 0, 0,
+    int8_t ccb[16] = { ATAPI_ERASE, 0x03, 0, 0, 0, 0, 0, 0,
 		       0, 0, 0, 0, 0, 0, 0, 0 };
     int error;
 
     if ((error = ast_rewind(stp)))
 	return error;
 
-    return atapi_queue_cmd(stp->atp, ccb, NULL, 0, 0, 60*60, NULL, NULL);
+    error = atapi_queue_cmd(stp->atp, ccb, NULL, 0, 0, 10, NULL, NULL);
+    if (error)
+	return error;
+    return atapi_wait_ready(stp->atp, 60*60);
 }
