@@ -21,15 +21,51 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: dc21040.h,v 1.4.4.1 1995/10/01 06:03:59 davidg Exp $
+ * $Id: dc21040.h,v 1.7 1996/06/14 05:25:31 davidg Exp $
  *
  */
 
 #if !defined(_DC21040_H)
 #define _DC21040_H
 
+typedef unsigned char  tulip_uint8_t;
 typedef	unsigned short tulip_uint16_t;
 typedef	unsigned int   tulip_uint32_t;
+
+/*
+ * The various controllers support.  Technically the DE425 is just
+ * a 21040 on EISA.  But since it remarkably difference from normal
+ * 21040s, we give it its own chip id.
+ */
+
+typedef enum {
+    TULIP_DC21040, TULIP_DE425,
+    TULIP_DC21041,
+    TULIP_DC21140, TULIP_DC21140A, TULIP_DC21142,
+    TULIP_DC21143,
+    TULIP_CHIPID_UNKNOWN
+} tulip_chipid_t;
+
+/*
+ * Various physical media types supported.
+ * BNCAUI is BNC or AUI since on the 21040 you can't really tell
+ * which is in use.
+ */
+typedef enum {
+    TULIP_MEDIA_UNKNOWN,
+    TULIP_MEDIA_10BASET,
+    TULIP_MEDIA_BNC,
+    TULIP_MEDIA_AUI,
+    TULIP_MEDIA_BNCAUI,
+    TULIP_MEDIA_10BASET_FD,
+    TULIP_MEDIA_100BASETX,
+    TULIP_MEDIA_100BASETX_FD,
+    TULIP_MEDIA_100BASET4,
+    TULIP_MEDIA_100BASEFX,
+    TULIP_MEDIA_100BASEFX_FD,
+    TULIP_MEDIA_MAX
+} tulip_media_t;
+
 
 #if defined(BYTE_ORDER) && BYTE_ORDER == BIG_ENDIAN
 #define	TULIP_BITFIELD2(a, b)		      b, a
@@ -416,5 +452,63 @@ typedef struct {
 #define	DC21041_CHIPID		0x0014
 #define	PCI_VENDORID(x)		((x) & 0xFFFF)
 #define	PCI_CHIPID(x)		(((x) >> 16) & 0xFFFF)
+
+/*
+ * Generic SROM Format
+ *
+ *
+ */
+
+typedef struct {
+    tulip_uint8_t sh_idbuf[18];
+    tulip_uint8_t sh_version;
+    tulip_uint8_t sh_adapter_count;
+    tulip_uint8_t sh_ieee802_address[6];
+} tulip_srom_header_t;
+
+typedef enum {
+    TULIP_SROM_CONNTYPE_10BASET			=0x0000,
+    TULIP_SROM_CONNTYPE_BNC			=0x0001,
+    TULIP_SROM_CONNTYPE_AUI			=0x0002,
+    TULIP_SROM_CONNTYPE_100BASETX		=0x0003,
+    TULIP_SROM_CONNTYPE_100BASET4		=0x0006,
+    TULIP_SROM_CONNTYPE_100BASEFX		=0x0007,
+    TULIP_SROM_CONNTYPE_MII_10BASET		=0x0009,
+    TULIP_SROM_CONNTYPE_MII_100BASETX		=0x000D,
+    TULIP_SROM_CONNTYPE_MII_100BASET4		=0x000F,
+    TULIP_SROM_CONNTYPE_MII_100BASEFX		=0x0010,
+    TULIP_SROM_CONNTYPE_10BASET_NWAY		=0x0100,
+    TULIP_SROM_CONNTYPE_10BASET_FD		=0x0204,
+    TULIP_SROM_CONNTYPE_MII_10BASET_FD		=0x020A,
+    TULIP_SROM_CONNTYPE_100BASETX_FD		=0x020E,
+    TULIP_SROM_CONNTYPE_MII_100BASETX_FD	=0x0211,
+    TULIP_SROM_CONNTYPE_10BASET_NOLINKPASS	=0x0400,
+    TULIP_SROM_CONNTYPE_AUTOSENSE		=0x0800,
+    TULIP_SROM_CONNTYPE_AUTOSENSE_POWERUP	=0x8800,
+    TULIP_SROM_CONNTYPE_AUTOSENSE_NWAY		=0x9000,
+    TULIP_SROM_CONNTYPE_NOT_USED		=0xFFFF
+} tulip_srom_connection_t;
+
+typedef enum {
+    TULIP_SROM_MEDIA_10BASET			=0x0000,
+    TULIP_SROM_MEDIA_BNC			=0x0001,
+    TULIP_SROM_MEDIA_AUI			=0x0002,
+    TULIP_SROM_MEDIA_100BASETX			=0x0003,
+    TULIP_SROM_MEDIA_10BASET_FD			=0x0004,
+    TULIP_SROM_MEDIA_100BASETX_FD		=0x0005,
+    TULIP_SROM_MEDIA_100BASET4			=0x0006,
+    TULIP_SROM_MEDIA_100BASEFX			=0x0007,
+    TULIP_SROM_MEDIA_100BASEFX_FD		=0x0008
+} tulip_srom_media_t;
+
+#define	TULIP_SROM_DC21041_EXTENDED	0x40
+
+#define	TULIP_SROM_DC2114X_NOINDICATOR		0x8000
+#define	TULIP_SROM_DC2114X_DEFAULT		0x4000
+#define	TULIP_SROM_DC2114X_POLARITY		0x0080
+#define	TULIP_SROM_DC2114X_CMDBITS(n)		(((n) & 0x0071) << 18)
+#define	TULIP_SROM_DC2114X_BITPOS(b)		(1 << (((b) & 0x0E) >> 1))
+
+
 
 #endif /* !defined(_DC21040_H) */
