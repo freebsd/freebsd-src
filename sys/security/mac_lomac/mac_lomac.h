@@ -59,7 +59,6 @@
 #define	MAC_LOMAC_TYPE_EQUAL	4	/* Equivilent to any
 					 * MAC_LOMAC_TYPE_LABEL. */
 
-/* XXXMAC: temporarily disabled because we still need struct oldmac. */
 /*
  * Structures and constants associated with a LOMAC Integrity policy.
  * mac_lomac represents a LOMAC label, with mb_type determining its properties,
