@@ -493,7 +493,7 @@ maybe_demote(struct mac_lomac *subjlabel, struct mac_lomac *objlabel,
     const char *actionname, const char *objname, struct vnode *vpq)
 {
 	struct vattr va;
-	static const char xxx[] = "<<XXX>>";
+	static char xxx[] = "<<XXX>>";
 	struct mac_lomac_proc *subj = PSLOT(&curthread->td_proc->p_label);
 	char *subjlabeltext, *objlabeltext, *subjtext, *text;
 	struct proc *p;
