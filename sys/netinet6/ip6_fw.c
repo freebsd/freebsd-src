@@ -417,7 +417,7 @@ ip6fw_report(struct ip6_fw *f, struct ip6_hdr *ip6,
 			    icmp6->icmp6_type, icmp6->icmp6_code);
 		else
 			len = snprintf(SNPARGS(proto, 0), "IPV6-ICMP ");
-		len = snprintf(SNPARGS(proto, len), "[%s]",
+		len += snprintf(SNPARGS(proto, len), "[%s]",
 		    ip6_sprintf(&ip6->ip6_src));
 		snprintf(SNPARGS(proto, len), " [%s]",
 		    ip6_sprintf(&ip6->ip6_dst));
