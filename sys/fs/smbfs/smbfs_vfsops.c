@@ -375,7 +375,6 @@ smbfs_statfs(struct mount *mp, struct statfs *sbp, struct thread *td)
 		return EINVAL;
 	
 	sbp->f_iosize = SSTOVC(ssp)->vc_txmax;		/* optimal transfer block size */
-	sbp->f_spare2 = 0;			/* placeholder */
 	smb_makescred(&scred, td, td->td_ucred);
 
 	if (SMB_DIALECT(SSTOVC(ssp)) >= SMB_DIALECT_LANMAN2_0)
