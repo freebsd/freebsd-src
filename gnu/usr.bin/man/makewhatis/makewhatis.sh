@@ -28,7 +28,7 @@ do
     do
         if [ -d $subdir ]
         then
-            for f in `find $subdir -name '*' -print`
+            for f in `find $subdir -type f -print`
             do
                 sed -n '/^\.TH.*$/p
                 	/^\.Dt.*$/p
@@ -41,7 +41,9 @@ do
                 awk 'BEGIN {insh = 0; inSh = 0; Nd = 0} {
                      if ($1 == ".TH" || $1 == ".Dt")
                        sect = $3
-                     else if (($1 == ".br" && insh == 1) ||  ($1 == ".SH" && insh == 1) || ($1 == ".Sh" && inSh == 1)) {
+                     else if (($1 == ".br" && insh == 1)\
+                      ||  ($1 == ".SH" && insh == 1)\
+                      || ($1 == ".Sh" && inSh == 1)) {
                        if (i > 0 && nc > 0) {
                          for (k= 1; k <= nc; k++) {
 				 namesect = sprintf("%s (%s)", name[k], sect)
