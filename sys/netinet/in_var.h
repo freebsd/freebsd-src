@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_var.h	8.2 (Berkeley) 1/9/95
- *	$Id: in_var.h,v 1.13 1995/12/19 20:46:14 wollman Exp $
+ *	$Id: in_var.h,v 1.14 1996/01/03 20:24:33 wollman Exp $
  */
 
 #ifndef _NETINET_IN_VAR_H_
@@ -111,7 +111,7 @@ extern	int rtq_toomany;	/* XXX */
 		ia != NULL; \
 		ia = ia->ia_next) \
 		    if (ia->ia_ifp->if_flags & IFF_POINTOPOINT && \
-			IA_SIN(ia)->sin_addr.s_addr != (addr).s_addr) \
+			IA_SIN(ia)->sin_addr.s_addr == (addr).s_addr) \
 			    break; \
 	(ifp) = (ia == NULL) ? NULL : ia->ia_ifp; \
 }
