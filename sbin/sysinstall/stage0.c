@@ -33,11 +33,9 @@ static unsigned char *welcome[] = {
     "Proceed with installation.",
     "4. Fixit",
     "Repair existing installation (`fixit' mode).",
-    "5. Exit",
-    "Exit to shell.",
+    "5. Quit",
+    "Don't do anything, just reboot.",
 };
-
-void bailout(void);
 
 void 
 stage0()
@@ -46,7 +44,9 @@ evil_goto:
     if (dialog_menu("Welcome to FreeBSD!",
 		    "Please select one of the following options:",
 		    15, 75, 6, 5, welcome, selection)) {
-	bailout();
+	dialog_clear();
+	end_dialog();
+	reboot(RB_AUTOBOOT);
     }
     switch (atoi(selection)) {
     case 1:	/* View readme */
@@ -77,15 +77,10 @@ evil_goto:
 	break;
 
     case 5:
-	bailout();
+	/* Be neat.. */
+	dialog_clear();
+	end_dialog();
+	reboot(RB_AUTOBOOT);
 	break;	/* hope not! :) */
     }
-}
-
-void
-bailout()
-{
-    dialog_clear();
-    end_dialog();
-    exit(0);
 }
