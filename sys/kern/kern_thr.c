@@ -47,6 +47,15 @@ __FBSDID("$FreeBSD$");
 extern int max_threads_per_proc;
 extern int max_groups_per_proc;
 
+SYSCTL_DECL(_kern_threads);
+static int thr_scope_sys = 0;
+SYSCTL_INT(_kern_threads, OID_AUTO, thr_scope_sys, CTLFLAG_RW,
+	&thr_scope_sys, 0, "sys or proc scope scheduling");
+
+static int thr_concurrency = 0;
+SYSCTL_INT(_kern_threads, OID_AUTO, thr_concurrency, CTLFLAG_RW,
+	&thr_concurrency, 0, "a concurrency value if not default");
+
 /*
  * Back end support functions.
  */
