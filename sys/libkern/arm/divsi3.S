@@ -22,7 +22,7 @@ __FBSDID("$FreeBSD$");
  * which makes a C call
  */
 
-ENTRY(__umodsi3)
+ENTRY_NP(__umodsi3)
 	stmfd	sp!, {lr}
 	sub	sp, sp, #4	/* align stack */
 	bl	.L_udivide
@@ -30,7 +30,7 @@ ENTRY(__umodsi3)
 	mov	r0, r1
 	ldmfd	sp!, {pc}
 
-ENTRY(__modsi3)
+ENTRY_NP(__modsi3)
 	stmfd	sp!, {lr}
 	sub	sp, sp, #4	/* align stack */
 	bl	.L_divide
@@ -49,7 +49,7 @@ ENTRY(__modsi3)
 #endif
 	mov	pc, lr
 
-ENTRY(__udivsi3)
+ENTRY_NP(__udivsi3)
 .L_udivide:				/* r0 = r0 / r1; r1 = r0 % r1 */
 	eor     r0, r1, r0 
 	eor     r1, r0, r1 
@@ -71,7 +71,7 @@ ENTRY(__udivsi3)
 	mov	r1, #0
 	mov	pc, lr
 
-ENTRY(__divsi3)
+ENTRY_NP(__divsi3)
 .L_divide:				/* r0 = r0 / r1; r1 = r0 % r1 */
 	eor     r0, r1, r0 
 	eor     r1, r0, r1 
