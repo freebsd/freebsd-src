@@ -38,6 +38,7 @@
 #define AMR_SIGNATURE	0x3344
 
 #define AMR_MAXCMD	255		/* ident = 0 not allowed */
+#define AMR_LIMITCMD	120		/* maximum count of outstanding commands */
 #define AMR_MAXLD      	40
 
 #define AMR_BLKSIZE	512
@@ -75,6 +76,7 @@ struct amr_command
     int				ac_status;
 #define AMR_STATUS_BUSY		0xffff
 #define AMR_STATUS_WEDGED	0xdead
+#define AMR_STATUS_LATE		0xdeed
     struct amr_mailbox		ac_mailbox;
     u_int32_t			ac_sgphys;
     int				ac_nsgent;
@@ -106,8 +108,8 @@ struct amr_softc
     void			*amr_intr;
 
     /* mailbox */
-    struct amr_mailbox		*amr_mailbox;
-    struct amr_mailbox64	*amr_mailbox64;
+    volatile struct amr_mailbox		*amr_mailbox;
+    volatile struct amr_mailbox64	*amr_mailbox64;
     u_int32_t			amr_mailboxphys;
     bus_dma_tag_t		amr_mailbox_dmat;
     bus_dmamap_t		amr_mailbox_dmamap;
@@ -131,6 +133,7 @@ struct amr_softc
 #define AMR_STATE_SUSPEND	(1<<1)
 #define AMR_STATE_INTEN		(1<<2)
 #define AMR_STATE_SHUTDOWN	(1<<3)
+    struct callout_handle	amr_timeout;		/* periodic status check */
 
     /* per-controller queues */
     struct buf_queue_head 	amr_bufq;		/* pending I/O */
@@ -141,6 +144,8 @@ struct amr_softc
     int				amr_workcount;
     TAILQ_HEAD(,amr_command)	amr_freecmds;
 
+    int				amr_locks;		/* reentrancy avoidance */
+
     /* controller type-specific support */
     int				amr_type;
 #define AMR_TYPE_STD		0
@@ -149,6 +154,30 @@ struct amr_softc
     int				(* amr_get_work)(struct amr_softc *sc, struct amr_mailbox *mbsave);
     void			(* amr_attach_mailbox)(struct amr_softc *sc);
 };
+
+/*
+ * Simple (stupid) locks.
+ *
+ * Note that these are designed to avoid reentrancy, not concurrency, and will
+ * need to be replaced with something better.
+ */
+#define AMR_LOCK_COMPLETING     (1<<0)
+#define AMR_LOCK_STARTING       (1<<1)
+
+static __inline int
+amr_lock_tas(struct amr_softc *sc, int lock)
+{
+    if ((sc)->amr_locks & (lock))
+        return(1);
+    atomic_set_int(&sc->amr_locks, lock);
+    return(0);
+}
+
+static __inline void
+amr_lock_clr(struct amr_softc *sc, int lock)
+{
+    atomic_clear_int(&sc->amr_locks, lock);
+}
 
 /*
  * I/O primitives
@@ -196,6 +225,7 @@ extern devclass_t       amr_devclass;
 struct amrd_softc 
 {
     device_t		amrd_dev;
+    dev_t		amrd_dev_t;
     struct amr_softc	*amrd_controller;
     struct amr_logdrive	*amrd_drive;
     struct disk		amrd_disk;
@@ -214,3 +244,4 @@ extern int	amr_submit_ioctl(struct amr_softc *sc, struct amr_logdrive *drive, u_
 				 caddr_t addr, int32_t flag, struct proc *p);
 extern void	amrd_intr(void *data);
 
+extern void	amr_report(void);
