@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.128 1996/09/01 14:35:41 alex Exp $ -->
+<!-- $Id: contrib.sgml,v 1.129 1996/09/03 09:35:05 peter Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
@@ -81,7 +81,7 @@
 	<item>&a.joerg
       </itemize>
 
-  <sect><heading>The FreeBSD Developers</heading>
+  <sect><heading>The FreeBSD Developers<label id="contrib:committers"></heading>
 
     <p>These are the people who have commit privileges and do the work on
        the FreeBSD source tree.  All core team members are also developers.
@@ -156,7 +156,8 @@
         <tag/XFree86 Project, Inc. Liason/ &a.rich 
       </descrip>
 
-    <sect><heading>Additional FreeBSD contributors</heading>
+    <sect><heading>Additional FreeBSD contributors<label
+	id="contrib:additional"></heading>
 
       <p>(in alphabetical order by first name):
 

@@ -1,4 +1,4 @@
-<!-- $Id: handbook.sgml,v 1.55 1996/08/28 00:43:57 asami Exp $ -->
+<!-- $Id: handbook.sgml,v 1.56 1996/09/08 21:12:54 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN" [
@@ -71,6 +71,7 @@ name="FreeBSD FTP server"> or one of the numerous
       &nutshell;
       &history;
       &goals;
+      &development;
       &relnotes;
 
     &install;
