@@ -1382,22 +1382,9 @@ ahc_print_scb(struct scb *scb)
 	       hscb->scsiid,
 	       hscb->lun,
 	       hscb->cdb_len);
-	i = 0;
-	printf("Shared Data: %#02x %#02x %#02x %#02x\n",
-	       hscb->shared_data.cdb[i++],
-	       hscb->shared_data.cdb[i++],
-	       hscb->shared_data.cdb[i++],
-	       hscb->shared_data.cdb[i++]);
-	printf("             %#02x %#02x %#02x %#02x\n",
-	       hscb->shared_data.cdb[i++],
-	       hscb->shared_data.cdb[i++],
-	       hscb->shared_data.cdb[i++],
-	       hscb->shared_data.cdb[i++]);
-	printf("             %#02x %#02x %#02x %#02x\n",
-	       hscb->shared_data.cdb[i++],
-	       hscb->shared_data.cdb[i++],
-	       hscb->shared_data.cdb[i++],
-	       hscb->shared_data.cdb[i++]);
+	printf("Shared Data: ");
+	for (i = 0; i < sizeof(hscb->shared_data.cdb); i++)
+		printf("%#02x", hscb->shared_data.cdb[i]);
 	printf("        dataptr:%#x datacnt:%#x sgptr:%#x tag:%#x\n",
 		ahc_le32toh(hscb->dataptr),
 		ahc_le32toh(hscb->datacnt),
