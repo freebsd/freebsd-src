@@ -129,6 +129,9 @@ extr_init (void)
     {
       umask (newdir_umask);	/* restore the kernel umask */
       current_umask = newdir_umask;
+#ifdef __FreeBSD__
+      same_permissions_option++;
+#endif
     }
 }
 
@@ -184,7 +187,7 @@ set_mode (char const *file_name, struct stat const *stat_info,
       mode = current_stat_info->st_mode ^ invert_permissions;
     }
 
-  if (chmod (file_name, mode) != 0)
+  if (chmod (file_name, mode & ~ current_umask) != 0)
     chmod_error_details (file_name, mode);
 }
 
