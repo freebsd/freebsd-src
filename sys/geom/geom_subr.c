@@ -126,6 +126,7 @@ g_destroy_geom(struct g_geom *gp)
 	KASSERT(LIST_EMPTY(&gp->provider),
 	    ("g_destroy_geom(%s) with provider(s) [%p]",
 	    gp->name, LIST_FIRST(&gp->consumer)));
+	g_cancel_event(NULL, gp, NULL, NULL);
 	LIST_REMOVE(gp, geom);
 	TAILQ_REMOVE(&geoms, gp, geoms);
 	g_free(gp->name);
@@ -162,6 +163,7 @@ g_destroy_consumer(struct g_consumer *cp)
 	KASSERT (cp->acr == 0, ("g_destroy_consumer with acr"));
 	KASSERT (cp->acw == 0, ("g_destroy_consumer with acw"));
 	KASSERT (cp->ace == 0, ("g_destroy_consumer with ace"));
+	g_cancel_event(NULL, NULL, NULL, cp);
 	LIST_REMOVE(cp, consumer);
 	devstat_remove_entry(cp->stat);
 	g_free(cp);
@@ -216,6 +218,7 @@ g_destroy_provider(struct g_provider *pp)
 	KASSERT (pp->acr == 0, ("g_destroy_provider with acr"));
 	KASSERT (pp->acw == 0, ("g_destroy_provider with acw"));
 	KASSERT (pp->acw == 0, ("g_destroy_provider with ace"));
+	g_cancel_event(NULL, NULL, pp, NULL);
 	g_nproviders--;
 	LIST_REMOVE(pp, provider);
 	gp = pp->geom;
