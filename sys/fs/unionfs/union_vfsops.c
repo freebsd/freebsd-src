@@ -45,6 +45,8 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
@@ -330,9 +332,11 @@ union_unmount(mp, mntflags, p)
 		int n;
 
 		/* count #vnodes held on mount list */
+		mtx_lock(&mntvnode_mtx);
 		n = 0;
 		LIST_FOREACH(vp, &mp->mnt_vnodelist, v_mntvnodes)
 			n++;
+		mtx_unlock(&mntvnode_mtx);
 
 		/* if this is unchanged then stop */
 		if (n == freeing)
