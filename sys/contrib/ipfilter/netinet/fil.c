@@ -213,9 +213,7 @@ fr_info_t *fin;
 	fin->fin_data[1] = 0;
 	fin->fin_rule = -1;
 	fin->fin_group = -1;
-#ifdef	_KERNEL
 	fin->fin_icode = ipl_unreach;
-#endif
 	v = fin->fin_v;
 	fi->fi_v = v;
 	fin->fin_hlen = hlen;
@@ -265,6 +263,7 @@ fr_info_t *fin;
 	fin->fin_off = off;
 	fin->fin_plen = plen;
 	fin->fin_dp = (char *)tcp;
+	fin->fin_misc = 0;
 	off <<= 3;
 
 	switch (p)
@@ -297,7 +296,7 @@ fr_info_t *fin;
 			}
 		}
 
-		if (!(plen >= hlen + minicmpsz))
+		if (!(plen >= minicmpsz))
 			fi->fi_fl |= FI_SHORT;
 
 		break;
@@ -1512,7 +1511,7 @@ nodata:
  * SUCH DAMAGE.
  *
  *	@(#)uipc_mbuf.c	8.2 (Berkeley) 1/4/94
- * $Id: fil.c,v 2.35.2.58 2002/03/13 02:23:13 darrenr Exp $
+ * $Id: fil.c,v 2.35.2.59 2002/03/25 11:07:37 darrenr Exp $
  */
 /*
  * Copy data from an mbuf chain starting "off" bytes from the beginning,

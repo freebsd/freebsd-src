@@ -90,6 +90,7 @@
 # include <net/route.h>
 # include <netinet/in.h>
 # ifdef __sgi
+#  define _KMEMUSER
 #  include <sys/ddi.h>
 #  ifdef IFF_DRVRLOCK /* IRIX6 */
 #   include <sys/hashing.h>
