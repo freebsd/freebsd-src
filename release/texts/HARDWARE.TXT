@@ -77,6 +77,8 @@ isp0    dyn     dyn     dyn     dyn     QLogic 10X0, 1240 Ultra SCSI, 1080/1280
 					Ultra2 SCSI, 12160 Ultra3 SCSI, 2X00
 					Fibre Channel SCSI controller
 dpt0    dyn    	dyn     n/a     n/a     DPT RAID SCSI controllers
+asr0	dyn	dyn	dyn	dyn	DPT SmartRaid V, VI, and 
+					Adaptec SCSI RAID
 amr0    dyn	dyn	n/a	n/a	AMI MegaRAID controllers
 mlx0    dyn	dyn	n/a	dyn	Mylex DAC960 RAID controllers
 twe0	dyn	dyn	n/a	n/a	3ware Escalade RAID controllers
@@ -395,8 +397,9 @@ supported.
 DPT SmartCACHE Plus, SmartCACHE III, SmartRAID III, SmartCACHE IV and
 SmartRAID IV SCSI/RAID controllers are supported.
 
-DPT SmartRAID V and VI SCSI RAID controllers:
-    PM1554, PM2554, PM2654, PM2865, PM2754, PM3755, PM3757
+DPT SmartRAID V and VI SCSI RAID, and Adaptec SCSI RAID  controllers:
+    PM1554, PM2554, PM2654, PM2865, PM2754, PM3755, PM3757,
+    2100S, 3200S, 3400S
 
 AMI MegaRAID Express and Enterprise family RAID controllers:
     MegaRAID 418
