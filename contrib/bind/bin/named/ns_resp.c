@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)ns_resp.c	4.65 (Berkeley) 3/3/91";
-static const char rcsid[] = "$Id: ns_resp.c,v 8.172 2002/01/31 00:06:41 marka Exp $";
+static const char rcsid[] = "$Id: ns_resp.c,v 8.176 2002/04/17 07:10:10 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -182,7 +182,8 @@ static int		rrsetcmp(char *, struct db_list *, struct hashbuf *),
 				  struct sockaddr_in, char **);
 static void		mark_bad(struct qinfo *qp, struct sockaddr_in from);
 static void		mark_lame(struct qinfo *qp, struct sockaddr_in from);
-static int		mark_noedns(struct qinfo *qp, struct sockaddr_in from);
+static int		mark_noedns(struct qinfo *qp, struct sockaddr_in from,
+				    int cache);
 static void		fast_retry(struct qinfo *qp, struct sockaddr_in from,
 				   int samehost);
 static void		add_related_additional(char *);
@@ -417,15 +418,15 @@ ns_resp(u_char *msg, int msglen, struct sockaddr_in from, struct qstream *qsp)
 		switch (hp->rcode) {
 		case SERVFAIL:
 			nameserIncr(from.sin_addr, nssRcvdFail);
-			noedns = mark_noedns(qp, from);
+			noedns = mark_noedns(qp, from, 0);
 			break;
 		case FORMERR:
 			nameserIncr(from.sin_addr, nssRcvdFErr);
-			noedns = mark_noedns(qp, from);
+			noedns = mark_noedns(qp, from, 1);
 			break;
 		case NOTIMP:
 			nameserIncr(from.sin_addr, nssRcvdErr);
-			noedns = mark_noedns(qp, from);
+			noedns = mark_noedns(qp, from, 1);
 			break;
 		default:
 			nameserIncr(from.sin_addr, nssRcvdErr);
@@ -1059,6 +1060,7 @@ tcp_retry:
 				/* Additional section. */
 				switch (type) {
 				case T_A:
+				case ns_t_a6:
 				case T_AAAA:
 				case T_SRV:
 					if (externalcname ||
@@ -1778,6 +1780,7 @@ rrextract(u_char *msg, int msglen, u_char *rrp, struct databuf **dpp,
 	case T_LOC:
 	case T_KEY:
 	case ns_t_cert:
+	case ns_t_opt:
 		cp1 = cp;
 		n = dlen;
 		cp += n;
@@ -1859,6 +1862,8 @@ rrextract(u_char *msg, int msglen, u_char *rrp, struct databuf **dpp,
 		}
 		n = cp1 - data;
 		cp1 = data;
+		if (tnamep != NULL && type == T_SOA)
+			*tnamep = savestr((char *)cp1, 1);
 		break;
 
 	case T_NAPTR:
@@ -3933,14 +3938,14 @@ trunc_adjust(u_char *msg, int msglen, int outlen) {
  * mark the server "from" bad in the qp structure so it won't be retried.
  */
 static int
-mark_noedns(struct qinfo *qp, struct sockaddr_in from) {
+mark_noedns(struct qinfo *qp, struct sockaddr_in from, int cache) {
 	int i;
 
 	for (i = 0; i < (int)qp->q_naddr; i++)
 		if (ina_equal(qp->q_addr[i].ns_addr.sin_addr, from.sin_addr)) {
 			if (qp->q_addr[i].noedns)
 				return (1);
-			if (qp->q_addr[i].nsdata)
+			if (qp->q_addr[i].nsdata && cache)
 				qp->q_addr[i].nsdata->d_noedns = 1;
 			qp->q_addr[i].noedns = 1;
 			break;

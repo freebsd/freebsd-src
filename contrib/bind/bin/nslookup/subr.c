@@ -53,7 +53,7 @@
 
 #ifndef lint
 static const char sccsid[] = "@(#)subr.c	5.24 (Berkeley) 3/2/91";
-static const char rcsid[] = "$Id: subr.c,v 8.15 2001/06/18 14:43:45 marka Exp $";
+static const char rcsid[] = "$Id: subr.c,v 8.16 2002/04/09 05:55:24 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -238,10 +238,12 @@ PrintHostInfo(file, title, hp)
 	const char	*title;
 	register HostInfo *hp;
 {
+	register AddrInfo	**ap;
 	register char		**cp;
 	register ServerInfo	**sp;
 	char			comma;
 	int			i;
+	char buf[80];
 
 	fprintf(file, "%-7s  %s", title, hp->name);
 
@@ -253,14 +255,18 @@ PrintHostInfo(file, title, hp)
 	    }
 	    comma = ' ';
 	    i = 0;
-	    for (cp = hp->addrList; cp && *cp; cp++) {
+	    for (ap = hp->addrList; ap && *ap; ap++) {
 		i++;
 		if (i > 4) {
 		    fprintf(file, "\n\t");
 		    comma = ' ';
 		    i = 0;
 		}
-		fprintf(file,"%c %s", comma, inet_ntoa(*(struct in_addr *)*cp));
+		if (inet_ntop((*ap)->addrType, (*ap)->addr,
+			      buf, sizeof(buf)) != NULL) {
+			fprintf(file,"%c %s", comma, buf);
+		} else
+			fprintf(file,"%c <UNKNOWN>", comma);
 		comma = ',';
 	    }
 	}
@@ -289,15 +295,18 @@ PrintHostInfo(file, title, hp)
 
 		comma = ' ';
 		i = 0;
-		for (cp = (*sp)->addrList; cp && *cp && **cp; cp++) {
+		for (ap = (*sp)->addrList; ap && *ap; ap++) {
 		    i++;
 		    if (i > 4) {
 			fprintf(file, "\n\t");
 			comma = ' ';
 			i = 0;
 		    }
-		    fprintf(file,
-			"%c %s", comma, inet_ntoa(*(struct in_addr *)*cp));
+		    if (inet_ntop((*ap)->addrType, (*ap)->addr,
+			      buf, sizeof(buf)) != NULL)
+			fprintf(file,"%c %s", comma, buf);
+		    else
+			fprintf(file,"%c <UNKNOWN>", comma);
 		    comma = ',';
 		}
 		fprintf(file, "\n\t");
