@@ -90,7 +90,7 @@ The following is a complete list of the errors and their
 names as given in
 .Aq Pa sys/errno.h .
 .Bl -hang -width Ds
-.It Er 0 Em "Error 0" .
+.It Er 0 Em "Undefined error: 0" .
 Not used.
 .It Er 1 EPERM Em "Operation not permitted" .
 An attempt was made to perform an operation limited to processes
@@ -115,14 +115,14 @@ interrupted system call will seem to have returned the error condition.
 Some physical input or output error occurred.
 This error will not be reported until a subsequent operation on the same file
 descriptor and may be lost (over written) by any subsequent errors.
-.It Er 6 ENXIO Em "\&No such device or address" .
+.It Er 6 ENXIO Em "Device not configured" .
 Input or output on a special file referred to a device that did not
 exist, or
 made a request beyond the limits of the device.
 This error may also occur when, for example,
 a tape drive is not online or no disk pack is
 loaded on a drive.
-.It Er 7 E2BIG Em "Arg list too long" .
+.It Er 7 E2BIG Em "Argument list too long" .
 The number of bytes used for the argument and environment
 list of the new process exceeded the current limit
 of 65536 bytes
@@ -161,9 +161,9 @@ by its file access permissions.
 .It Er 14 EFAULT Em "Bad address" .
 The system detected an invalid address in attempting to
 use an argument of a call.
-.It Er 15 ENOTBLK Em "Not a block device" .
+.It Er 15 ENOTBLK Em "Block device required" .
 A block device operation was attempted on a non-block device or file.
-.It Er 16 EBUSY Em "Resource busy" .
+.It Er 16 EBUSY Em "Device busy" .
 An attempt to use a system resource which was in use at the time
 in a manner which would have conflicted with the request.
 .It Er 17 EEXIST Em "File exists" .
@@ -171,7 +171,7 @@ An existing file was mentioned in an inappropriate context,
 for instance, as the new link name in a
 .Xr link 2
 system call.
-.It Er 18 EXDEV Em "Improper link" .
+.It Er 18 EXDEV Em "Cross-device link" .
 A hard link to a file on another file system
 was attempted.
 .It Er 19 ENODEV Em "Operation not supported by device" .
@@ -219,7 +219,7 @@ The size of a file exceeded the maximum (about
 .if t 2\u\s-231\s+2\d
 .if n 2.1E9
 bytes).
-.It Er 28 ENOSPC Em "Device out of space" .
+.It Er 28 ENOSPC Em "No space left on device" .
 A
 .Xr write 2
 to an ordinary file, the creation of a
@@ -247,7 +247,7 @@ to read the data.
 .It Er 33 EDOM Em "Numerical argument out of domain" .
 A numerical input argument was outside the defined domain of the mathematical
 function.
-.It Er 34 ERANGE Em "Numerical result out of range" .
+.It Er 34 ERANGE Em "Result too large" .
 A numerical result of the function was too large to fit in the
 available space (perhaps exceeded precision).
 .It Er 35 EAGAIN Em "Resource temporarily unavailable" .
