@@ -6,6 +6,7 @@ SUBDIR= cat \
 	chio \
 	chmod \
 	cp \
+	${_csh} \
 	date \
 	dd \
 	df \
@@ -24,8 +25,10 @@ SUBDIR= cat \
 	pax \
 	ps \
 	pwd \
+	${_rcp} \
 	realpath \
 	rm \
+	${_rmail} \
 	rmdir \
 	setfacl \
 	sh \
@@ -35,15 +38,15 @@ SUBDIR= cat \
 	test
 
 .if !defined(NO_RCMNDS)
-SUBDIR+=rcp
-.endif
-
-.if !defined(NO_TCSH)
-SUBDIR+=csh
+_rcp=	rcp
 .endif
 
 .if !defined(NO_SENDMAIL)
-SUBDIR+=rmail
+_rmail=	rmail
+.endif
+
+.if !defined(NO_TCSH)
+_csh=	csh
 .endif
 
 .include <bsd.subdir.mk>

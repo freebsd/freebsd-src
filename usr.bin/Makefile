@@ -7,25 +7,6 @@
 # Moved to secure: bdes
 #
 
-.if ${MACHINE_ARCH} != "powerpc" && ${MACHINE_ARCH} != "amd64"
-.if !defined(NO_TOOLCHAIN)
-_gprof=	gprof
-.endif
-_truss=	truss
-.endif
-
-.if !defined(NO_TOOLCHAIN)
-_c89=	c89
-_c99=	c99
-_lex=	lex
-_xlint=	xlint
-_yacc=	yacc
-.endif
-
-.if !defined(NOATM)
-_atm=	atm
-.endif
-
 SUBDIR=	alias \
 	apply \
 	asa \
@@ -35,6 +16,7 @@ SUBDIR=	alias \
 	banner \
 	basename \
 	biff \
+	${_bluetooth} \
 	brandelf \
 	bzip2 \
 	bzip2recover \
@@ -45,6 +27,7 @@ SUBDIR=	alias \
 	catman \
 	chat \
 	checknr \
+	${_chkey} \
 	chpass \
 	cksum \
 	cmp \
@@ -59,7 +42,11 @@ SUBDIR=	alias \
 	csplit \
 	ctags \
 	cut \
+	${_dig} \
 	dirname \
+	${_dnskeygen} \
+	${_dnsquery} \
+	${_doscmd} \
 	du \
 	ee \
 	elf2aout \
@@ -87,6 +74,7 @@ SUBDIR=	alias \
 	head \
 	hesinfo \
 	hexdump \
+	${_host} \
 	id \
 	indent \
 	ipcrm \
@@ -133,8 +121,11 @@ SUBDIR=	alias \
 	msgs \
 	mt \
 	ncal \
+	${_ncplist} \
+	${_ncplogin} \
 	netstat \
 	newgrp \
+	${_newkey} \
 	nfsstat \
 	nice \
 	nl \
@@ -163,10 +154,12 @@ SUBDIR=	alias \
 	rusers \
 	rwall \
 	rwho \
+	${_sasc} \
 	script \
 	sed \
 	shar \
 	showmount \
+	${_smbutil} \
 	sockstat \
 	split \
 	stat \
@@ -191,6 +184,7 @@ SUBDIR=	alias \
 	tset \
 	tsort \
 	tty \
+	${_uac} \
 	ul \
 	uname \
 	unexpand \
@@ -198,10 +192,13 @@ SUBDIR=	alias \
 	uniq \
 	units \
 	unvis \
+	${_usbhidaction} \
+	${_usbhidctl} \
 	users \
 	uudecode \
 	uuencode \
 	uuidgen \
+	${_vacation} \
 	vgrind \
 	vi \
 	vis \
@@ -226,44 +223,63 @@ SUBDIR=	alias \
 	ypmatch \
 	ypwhich
 
+.if ${MACHINE_ARCH} != "amd64" && ${MACHINE_ARCH} != "powerpc"
+_truss=		truss
+.endif
+
+.if !defined(NOATM)
+_atm=		atm
+.endif
+
 .if !defined(NO_BIND)
-SUBDIR+=dig \
-	dnskeygen \
-	dnsquery \
-	host
-.endif
-
-.if !defined(NO_SENDMAIL)
-SUBDIR+=vacation
-.endif
-
-.if !defined(NO_USB)
-SUBDIR+=usbhidaction \
-	usbhidctl
-.endif
-
-.if ${MACHINE_ARCH} == "i386"
-# Things that don't compile on alpha or are aout specific:
-SUBDIR+=bluetooth \
-	doscmd \
-	ncplist \
-	ncplogin \
-	sasc \
-	smbutil
-.endif
-
-.if ${MACHINE_ARCH} == "alpha"
-SUBDIR+=uac
-.endif
-
-.if ${MACHINE_ARCH} == "amd64"
-SUBDIR+=ncplist \
-	ncplogin \
-	smbutil
+_dig=		dig
+_dnskeygen=	dnskeygen
+_dnsquery=	dnsquery
+_host=		host
 .endif
 
 .if !defined(NOCRYPT) && !defined(NO_OPENSSL)
-SUBDIR+=chkey newkey
+_chkey=		chkey
+_newkey=	newkey
+.endif
+
+.if !defined(NO_SENDMAIL)
+_vacation=	vacation
+.endif
+
+.if !defined(NO_TOOLCHAIN)
+_c89=		c89
+_c99=		c99
+.if ${MACHINE_ARCH} != "amd64" && ${MACHINE_ARCH} != "powerpc"
+_gprof=		gprof
+.endif
+_lex=		lex
+_xlint=		xlint
+_yacc=		yacc
+.endif
+
+.if !defined(NO_USB)
+_usbhidaction=	usbhidaction
+_usbhidctl=	usbhidctl
+.endif
+
+.if ${MACHINE_ARCH} == "i386"
+_bluetooth=	bluetooth
+_doscmd=	doscmd
+_ncplist=	ncplist
+_ncplogin=	ncplogin
+_sasc=		sasc
+_smbutil=	smbutil
+.endif
+
+.if ${MACHINE_ARCH} == "alpha"
+_uac=		uac
+.endif
+
+.if ${MACHINE_ARCH} == "amd64"
+_ncplist=	ncplist
+_ncplogin=	ncplogin
+_smbutil=	smbutil
 .endif
 
 .include <bsd.subdir.mk>

@@ -8,8 +8,11 @@ SUBDIR=	atrun \
 	ftpd \
 	getNAME \
 	getty \
+	${_lukemftpd} \
+	${_mail.local} \
 	makekey \
 	mknetid \
+	${_named-xfer} \
 	pppoed \
 	pt_chown \
 	rbootd \
@@ -22,27 +25,30 @@ SUBDIR=	atrun \
 	rpc.rwalld \
 	rpc.sprayd \
 	rshd \
+	${_rtld-elf} \
 	save-entropy \
+	${_smrsh} \
 	talkd \
 	tcpd \
 	telnetd \
 	tftpd \
 	ypxfr
 
-.if !defined(NOPIC)
-SUBDIR+=rtld-elf
+.if !defined(NO_BIND)
+_named-xfer=	named-xfer
 .endif
 
-.if !defined(NO_BIND)
-SUBDIR+=named-xfer
+.if !defined(NOPIC)
+_rtld-elf=	rtld-elf
 .endif
 
 .if !defined(NO_SENDMAIL)
-SUBDIR+=mail.local smrsh
+_mail.local=	mail.local
+_smrsh=	smrsh
 .endif
 
 .if defined(WANT_LUKEMFTPD)
-SUBDIR+=lukemftpd
+_lukemftpd=	lukemftpd
 .endif
 
 .include <bsd.subdir.mk>
