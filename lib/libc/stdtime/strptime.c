@@ -281,17 +281,19 @@ label:
 		case 'A':
 		case 'a':
 			for (i = 0; i < asizeof(Locale->weekday); i++) {
-				len = strlen(Locale->weekday[i]);
-				if (strncasecmp(buf,
-						Locale->weekday[i],
-						len) == 0)
-					break;
-
-				len = strlen(Locale->wday[i]);
-				if (strncasecmp(buf,
-						Locale->wday[i],
-						len) == 0)
-					break;
+				if (c == 'A') {
+					len = strlen(Locale->weekday[i]);
+					if (strncasecmp(buf,
+							Locale->weekday[i],
+							len) == 0)
+						break;
+				} else {
+					len = strlen(Locale->wday[i]);
+					if (strncasecmp(buf,
+							Locale->wday[i],
+							len) == 0)
+						break;
+				}
 			}
 			if (i == asizeof(Locale->weekday))
 				return 0;
