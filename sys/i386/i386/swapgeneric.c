@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)swapgeneric.c	5.5 (Berkeley) 5/9/91
- *	$Id: swapgeneric.c,v 1.10.4.1 1995/09/30 13:50:10 davidg Exp $
+ *	$Id: swapgeneric.c,v 1.10.4.2 1996/06/22 13:03:56 joerg Exp $
  */
 
 #include <sys/param.h>
@@ -63,17 +63,6 @@
  */
 dev_t	rootdev = NODEV;
 dev_t	dumpdev = NODEV;
-
-int	nswap;
-struct	swdevt swdevt[] = {
-	{ makedev (0xFF, 0x00000001),	0,	0 },
-#if NVN > 0
-	{ makedev (15, 0x00000001),	0,	0 },
-#endif
-	{ NODEV,	0,	0 }, /* For NFS diskless */
-	{ NODEV,	0,	0 },
-};
-int	dmmin, dmmax, dmtext;
 
 #ifdef NFS
 extern int (*mountroot)  __P((void));
@@ -121,7 +110,7 @@ void setconf(void)
 	int unit, swaponroot = 0;
 
 	if (rootdev != NODEV)
-		goto doswap;
+		return;
 	if (boothowto & RB_ASKNAME) {
 		char name[128];
 retry:
@@ -176,12 +165,6 @@ bad:
 found:
 	gc->gc_root = makedev(major(gc->gc_root), unit * MAXPARTITIONS);
 	rootdev = gc->gc_root;
-doswap:
-	swdevt[0].sw_dev = dumpdev =
-	    makedev(major(rootdev), minor(rootdev)+1);
-	/* swap size and dumplo set during autoconfigure */
-	if (swaponroot)
-		rootdev = dumpdev;
 }
 
 void gets(cp)
