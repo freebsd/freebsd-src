@@ -147,7 +147,7 @@ device		npx
 #device		sbc		# Sound Blaster 16
 
 # PCMCIA support
-device		card	1	# pccard bus
+device		card		# pccard bus
 device		pcic		# PCMCIA bridge
 
 # Serial (COM) ports
