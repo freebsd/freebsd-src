@@ -509,6 +509,29 @@ is set to
 these are the flags to pass to the
 .Xr xtend 8
 daemon.
+.It Ar pppoed_enable
+(bool) If set to
+.Ar YES
+then run the
+.Xr pppoed 8 
+daemon at boot time to provide PPP over Ethernet services.
+.It Ar pppoed_provider
+.Xr pppoed 8
+listens to requests to this
+.Ar provider
+and ultimately runs
+.Xr ppp 8
+with a
+.Ar system
+argument of the same name.
+.It Ar pppoed_flags
+Additional flags to pass to
+.Xr pppoed 8 .
+.It Ar pppoed_interface
+The network interface to run pppoed on.  This is mandatory when
+.Ar pppoed_enable
+is set to
+.Dq YES .
 .It Ar timed_enable
 (boot) if
 .Ar YES
