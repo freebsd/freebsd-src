@@ -140,9 +140,9 @@ pid_t	fgetown __P((struct sigio *sigio));
 int	fsetown __P((pid_t pgid, struct sigio **sigiop));
 void	funsetown __P((struct sigio *sigio));
 void	funsetownlst __P((struct sigiolst *sigiolst));
+struct	file *getfp __P((struct filedesc* fdp, int fd, int flag));
 int	getvnode __P((struct filedesc *fdp, int fd, struct file **fpp));
 void	setugidsafety __P((struct proc *p));
-struct file	*getfp __P((struct filedesc* fdp, int fd, int flag));
 
 #endif /* _KERNEL */
 
