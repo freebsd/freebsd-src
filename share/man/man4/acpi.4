@@ -1,0 +1,283 @@
+.\"
+.\" Copyright (c) 2001 Michael Smith
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 2, 2001
+.Dt ACPI 4
+.Os
+.Sh NAME
+.Nm acpi
+.Nd Advanced Configuration and Power Management support
+.Sh SYNOPSIS
+.Cd device acpica
+.Pp
+.Cd options ACPI_DEBUG
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the Intel/Microsoft/Compaq/Toshiba ACPI
+standard.
+This support includes platform hardware discovery (superseding the
+PnP and PCI BIOS), as well as power management (superseding APM) and
+other features.
+ACPI core support is provided by the ACPI CA reference implementation
+from Intel.
+.Sh ENVIRONMENT
+This support is still experimental, and thus there are many debugging
+and tuning options which are managed via the kernel environment
+space, and set in the loader before booting the kernel.
+.Pp
+Debugging is separated between layers and levels, where a layer is
+a portion of the ACPI subsystem, and a level is a particular kind
+of debugging output.
+.Pp
+Both layers and levels are specified as a whitespace-separated list of
+tokens, with layers listed in
+.Va debug.acpi.layer
+and levels in
+.Va debug.acpi.level .
+The supported layers are:
+.Bl -bullet -offset indent -compact
+.It
+ACPI_UTILITIES
+.It
+ACPI_HARDWARE
+.It
+ACPI_EVENTS
+.It
+ACPI_TABLES
+.It
+ACPI_NAMESPACE
+.It
+ACPI_PARSER
+.It
+ACPI_DISPATCHER
+.It
+ACPI_EXECUTER
+.It
+ACPI_RESOURCES
+.It
+ACPI_POWER
+.It
+ACPI_BUS
+.It
+ACPI_POWER
+.It
+ACPI_EC
+.It
+ACPI_PROCESSOR
+.It
+ACPI_AC_ADAPTER
+.It
+ACPI_BATTERY
+.It
+ACPI_BUTTON
+.It
+ACPI_SYSTEM
+.It
+ACPI_THERMAL
+.It
+ACPI_DEBUGGER
+.It
+ACPI_OS_SERVICES
+.It
+ACPI_ALL_COMPONENTS
+.El
+The supported levels are:
+.Bl -bullet -offset indent -compact
+.It
+ACPI_OK
+.It
+ACPI_INFO
+.It
+ACPI_WARN
+.It
+ACPI_ERROR
+.It
+ACPI_FATAL
+.It
+ACPI_DEBUG_OBJECT
+.It
+ACPI_ALL
+.It
+TRACE_THREADS
+.It
+TRACE_PARSE
+.It
+TRACE_DISPATCH
+.It
+TRACE_LOAD
+.It
+TRACE_EXEC
+.It
+TRACE_NAMES
+.It
+TRACE_OPREGION
+.It
+TRACE_BFIELD
+.It
+TRACE_TRASH
+.It
+TRACE_TABLES
+.It
+TRACE_FUNCTIONS
+.It
+TRACE_VALUES
+.It
+TRACE_OBJECTS
+.It
+TRACE_ALLOCATIONS
+.It
+TRACE_RESOURCES
+.It
+TRACE_IO
+.It
+TRACE_INTERRUPTS
+.It
+TRACE_USER_REQUESTS
+.It
+TRACE_PACKAGE
+.It
+TRACE_MUTEX
+.It
+TRACE_INIT
+.It
+TRACE_ALL
+.It
+VERBOSE_AML_DISASSEMBLE
+.It
+VERBOSE_INFO
+.It
+VERBOSE_TABLES
+.It
+VERBOSE_EVENTS
+.It
+VERBOSE_ALL
+.El
+.Pp
+Selection of the appropriate layer and level values is important
+to avoid massive amounts of debugging output.
+Check the code to see which you need.
+.Pp
+Debugging output by the ACPI CA subsystem is prefixed with the
+module name in lowercase, followed by a source line number.
+Output from the FreeBSD-local code follows the same format, but
+the module name is uppercased.
+.Pp
+The
+.Nm
+driver comprises a set of drivers, which may be selectively disabled
+in case of problems.
+To disable a sub-driver, list it in the kernel
+environment variable
+.Va debug.acpi.disable .
+.Pp
+ACPI sub-devices and features that can be disabled:
+.Bl -tag -width processor
+.It bus
+.Pq Vt feature
+Probes and attaches subdevices.
+Disabling will avoid scanning the ACPI namespace entirely.
+.It children
+.Pq Vt feature
+Attaches standard ACPI sub-drivers and devices enumerated in the
+ACPI namespace.
+Disabling this has a similar effect to disabling
+.Dq bus ,
+except that the
+ACPI namespace will still be scanned.
+.It button
+.Pq Vt device
+Supports ACPI button devices (typically power and sleep buttons).
+.It ec
+.Pq Vt device
+Supports the ACPI Embedded Controller interface, used to
+communicate with embedded platform controllers.
+.It isa
+.Pq Vt device
+Supports an ISA bus bridge defined in the ACPI namespace,
+typically as a child of a PCI bus.
+.It lid
+.Pq Vt device
+Supports an ACPI laptop lid switch, which typically puts a
+system to sleep.
+.It pci
+.Pq Vt device
+Supports Host to PCI bridges.
+.It processor
+.Pq Vt device
+Supports CPU power-saving and speed-setting functions.
+.It thermal
+.Pq Vt device
+Supports system cooling and heat management.
+.It timer
+.Pq Vt device
+Implements a timecounter using the ACPI fixed-frequency timer.
+.El
+.Pp
+It is also possible to avoid portions of the ACPI namespace which
+may be causing problems, by listing the full path of the root of
+the region to be avoided in the kernel environment variable
+.Va debug.acpi.avoid .
+The object and all of its children will be ignored during the
+bus/children scan of the namespace.  The ACPI CA code will still
+know about the avoided region.
+.Sh COMPATIBILITY
+ACPI is only found/supported on Intel platforms (i386/IA32 and IA64).
+.Sh SEE ALSO
+.Xr config 8 ,
+.Xr acpi 9
+.Sh AUTHOR
+The ACPI CA subsystem is developed and maintained by
+Intel Architecture Labs.
+.Pp
+The following people made notable contributions to the ACPI subsystem
+in
+.Fx :
+.Bl -bullet -offset indent -compact
+.It
+.An Michael Smith Aq msmith@freebsd.org ,
+.It
+.An Takanori Watanabe Aq takawata@jp.freebsd.org ,
+.It
+.An Mitsuru IWASAKI Aq iwasaki@jp.freebsd.org ,
+.It
+.An Munehiro Matsuda ,
+.It
+the ACPI-jp mailing list at
+.Aq acpi-jp@jp.freebsd.org ,
+.It
+and many other contributors.
+.El
+.Pp
+This manual page was written by
+.An Michael Smith Aq msmith@freebsd.org .
+.Sh BUGS
+The kernel device is
+.Cd device acpica
+for historical reasons.  It will change to
+.Cd device acpi
+at some time in the future.

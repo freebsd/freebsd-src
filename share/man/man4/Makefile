@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 MAN=	aac.4 \
+	acpi.4 \
 	adv.4 \
 	adw.4 \
 	aha.4 \
