@@ -37,6 +37,8 @@
 #ifndef _SYS_DISKMBR_H_
 #define	_SYS_DISKMBR_H_
 
+#include <sys/ioccom.h>
+
 #define	DOSBBSECTOR	0	/* DOS boot block relative sector number */
 #define	DOSPARTOFF	446
 #define	NDOSPART	4
@@ -64,5 +66,9 @@ CTASSERT(sizeof (struct dos_partition) == 16);
 
 #define	DPSECT(s) ((s) & 0x3f)		/* isolate relevant bits of sector */
 #define	DPCYL(c, s) ((c) + (((s) & 0xc0)<<2)) /* and those that are cylinder */
+
+#define DIOCGMBR 	_IOR('M', 128, u_char[512])
+#define DIOCSMBR 	_IOW('M', 129, u_char[512])
+
 
 #endif /* !_SYS_DISKMBR_H_ */
