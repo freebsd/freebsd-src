@@ -1,4 +1,4 @@
-/*	$Id: fat.h,v 1.2 1994/09/27 20:42:41 phk Exp $ */
+/*	$Id: fat.h,v 1.3 1995/05/30 08:07:34 rgrimes Exp $ */
 /*	$NetBSD: fat.h,v 1.4 1994/08/21 18:43:57 ws Exp $	*/
 
 /*-
@@ -95,7 +95,6 @@ int fatentry __P((int function, struct msdosfsmount *pmp, u_long cluster, u_long
 int freeclusterchain __P((struct msdosfsmount *pmp, u_long startchain));
 int extendfile __P((struct denode *dep, u_long count, struct buf **bpp, u_long *ncp, int flags));
 void fc_purge __P((struct denode *dep, u_int frcn));
-void fc_lookup __P((struct denode *dep, u_long findcn, u_long *frcnp, u_long *fsrcnp));
 
 int readep __P((struct msdosfsmount *pmp, u_long dirclu, u_long dirofs,  struct buf **bpp, struct direntry **epp));
 int readde __P((struct denode *dep, struct buf **bpp, struct direntry **epp));
