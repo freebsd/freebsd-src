@@ -46,13 +46,15 @@ cpu_ptrace(struct thread *td, int req, void *addr, int data)
 	switch (req) {
 	case PT_GETKSTACK:
 		if (data >= 0 && data < (tf->tf_special.ndirty >> 3)) {
-			kstack = (uint64_t*)td->td_kstack;
+			kstack = (uint64_t*)(td->td_kstack +
+			    (tf->tf_special.bspstore & 0x1ffUL));
 			error = copyout(kstack + data, addr, 8);
 		}
 		break;
 	case PT_SETKSTACK:
 		if (data >= 0 && data < (tf->tf_special.ndirty >> 3)) {
-			kstack = (uint64_t*)td->td_kstack;
+			kstack = (uint64_t*)(td->td_kstack +
+			    (tf->tf_special.bspstore & 0x1ffUL));
 			error = copyin(addr, kstack + data, 8);
 		}
 		break;

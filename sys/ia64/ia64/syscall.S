@@ -259,27 +259,34 @@ ENTRY(epc_syscall, 8)
 }
 {	.mmi
 	mov		r18=ar.bspstore
+	;;
 	mov		r19=ar.rnat
-	add		r30=-SIZEOF_TRAPFRAME,r14
+	dep		r15=r18,r15,0,9
 	;;
 }
 {	.mmi
 	mov		ar.bspstore=r15
-	mov		r13=ar.k4
-	dep		r30=0,r30,0,10
+	add		r30=-SIZEOF_TRAPFRAME,r14
+	mov		r20=sp
 	;;
 }
 {	.mii
-	mov		r20=sp
-	add		r31=8,r30
+	mov		r13=ar.k4
+	dep		r30=0,r30,0,10
+	;;
 	add		sp=-16,r30
 	;;
 }
-{	.mmi
+{	.mib
 	mov		r21=ar.unat
+	add		r31=8,r30
+	nop		0
+	;;
+}
+{	.mib
 	mov		r22=ar.fpsr
 	sub		r29=r14,r30
-	;;
+	nop		0
 }
 {	.mmi
 	mov		r23=ar.bsp
