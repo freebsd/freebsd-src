@@ -1,5 +1,4 @@
-#	$Id: options.i386,v 1.42 1997/04/28 00:24:28 fsmp Exp $
-XXXCreateMe		opt_global.h
+#	$Id: options.i386,v 1.43 1997/04/28 19:26:17 se Exp $
 
 BOUNCEPAGES		opt_bounce.h
 USER_LDT
@@ -30,8 +29,11 @@ PCVT_FREEBSD		opt_pcvt.h
 PCVT_SCANSET		opt_pcvt.h
 XSERVER			opt_pcvt.h
 
-SMP			opt_smp.h
-APIC_IO			opt_smp.h
+# These two SMP options have dramatic implications all over the kernel
+SMP			opt_global.h
+APIC_IO			opt_global.h
+
+# Standard SMP options
 NCPU			opt_smp.h
 NBUS			opt_smp.h
 NAPIC			opt_smp.h
