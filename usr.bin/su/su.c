@@ -122,8 +122,7 @@ main(int argc, char *argv[])
 	gid_t		gid;
 	int		asme, ch, asthem, fastlogin, prio, i, setwhat, retcode,
 			statusp, child_pid, child_pgrp, ret_pid;
-	char		*username, *cleanenv, *class, shellbuf[MAXPATHLEN],
-			myhost[MAXHOSTNAMELEN + 1];
+	char		*username, *cleanenv, *class, shellbuf[MAXPATHLEN];
 	const char	*p, *user, *shell, *mytty, **nargv;
 
 	shell = class = cleanenv = NULL;
@@ -216,9 +215,6 @@ main(int argc, char *argv[])
 	}
 
 	PAM_SET_ITEM(PAM_RUSER, getlogin());
-
-	gethostname(myhost, sizeof(myhost));
-	PAM_SET_ITEM(PAM_RHOST, myhost);
 
 	mytty = ttyname(STDERR_FILENO);
 	if (!mytty)
