@@ -43,10 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <ttyent.h>
 #include <string.h>
 
-#define PAM_SM_AUTH
 #define PAM_SM_ACCOUNT
-#define PAM_SM_SESSION
-#define PAM_SM_PASSWORD
 
 #include <security/pam_appl.h>
 #include <security/pam_modules.h>
@@ -54,59 +51,30 @@ __FBSDID("$FreeBSD$");
 
 #define TTY_PREFIX	"/dev/"
 
-PAM_EXTERN int 
-pam_sm_authenticate(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
-{
-	struct options options;
-
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_IGNORE);
-}
-
-PAM_EXTERN
-int 
-pam_sm_setcred(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
-{
-	struct options options;
-
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_SUCCESS);
-}
-
 PAM_EXTERN int
-pam_sm_acct_mgmt(pam_handle_t *pamh __unused, int flags __unused, int argc ,const char **argv)
+pam_sm_acct_mgmt(pam_handle_t *pamh __unused, int flags __unused,
+    int argc __unused, const char *argv[] __unused)
 {
-	struct options options;
 	struct passwd *pwd;
 	struct ttyent *ty;
 	const char *user, *tty;
 	int pam_err;
 
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
 	pam_err = pam_get_user(pamh, &user, NULL);
 	if (pam_err != PAM_SUCCESS)
-		PAM_RETURN(pam_err);
+		return (pam_err);
 	if (user == NULL || (pwd = getpwnam(user)) == NULL)
-		PAM_RETURN(PAM_SERVICE_ERR);
+		return (PAM_SERVICE_ERR);
 
 	PAM_LOG("Got user: %s", user);
 
 	/* If the user is not root, secure ttys do not apply */
 	if (pwd->pw_uid != 0)
-		PAM_RETURN(PAM_SUCCESS);
+		return (PAM_SUCCESS);
 
 	pam_err = pam_get_item(pamh, PAM_TTY, (const void **)&tty);
 	if (pam_err != PAM_SUCCESS)
-		PAM_RETURN(pam_err);
+		return (pam_err);
 
 	PAM_LOG("Got TTY: %s", tty);
 
@@ -118,46 +86,10 @@ pam_sm_acct_mgmt(pam_handle_t *pamh __unused, int flags __unused, int argc ,cons
 
 	if (tty != NULL && (ty = getttynam(tty)) != NULL &&
 	    (ty->ty_status & TTY_SECURE) != 0)
-		PAM_RETURN(PAM_SUCCESS);
-	
+		return (PAM_SUCCESS);
+
 	PAM_VERBOSE_ERROR("Not on secure TTY");
-	PAM_RETURN(PAM_AUTH_ERR);
-}
-
-PAM_EXTERN int
-pam_sm_chauthtok(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
-{
-	struct options options;
-
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_IGNORE);
-}
-
-PAM_EXTERN int
-pam_sm_open_session(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
-{
-	struct options options;
-
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_IGNORE);
-}
-
-PAM_EXTERN int
-pam_sm_close_session(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
-{
-	struct options options;
-
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_IGNORE);
+	return (PAM_AUTH_ERR);
 }
 
 PAM_MODULE_ENTRY("pam_securetty");

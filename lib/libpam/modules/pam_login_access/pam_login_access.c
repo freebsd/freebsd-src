@@ -44,10 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <syslog.h>
 #include <unistd.h>
 
-#define PAM_SM_AUTH
 #define PAM_SM_ACCOUNT
-#define PAM_SM_SESSION
-#define PAM_SM_PASSWORD
 
 #include <security/pam_appl.h>
 #include <security/pam_modules.h>
@@ -56,57 +53,29 @@ __FBSDID("$FreeBSD$");
 #include "pam_login_access.h"
 
 PAM_EXTERN int
-pam_sm_authenticate(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
+pam_sm_acct_mgmt(pam_handle_t *pamh, int flags __unused,
+    int argc __unused, const char *argv[] __unused)
 {
-	struct options options;
-
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_IGNORE);
-}
-
-PAM_EXTERN int
-pam_sm_setcred(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
-{
-	struct options options;
-
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_IGNORE);
-}
-
-PAM_EXTERN int
-pam_sm_acct_mgmt(pam_handle_t *pamh, int flags __unused, int argc ,const char **argv)
-{
-	struct options options;
 	const char *rhost, *tty, *user;
 	char hostname[MAXHOSTNAMELEN];
 	int pam_err;
 
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
 	pam_err = pam_get_item(pamh, PAM_USER, (const void **)&user);
 	if (pam_err != PAM_SUCCESS)
-		PAM_RETURN(pam_err);
+		return (pam_err);
 
 	if (user == NULL)
-		PAM_RETURN(PAM_SERVICE_ERR);
+		return (PAM_SERVICE_ERR);
 
 	PAM_LOG("Got user: %s", user);
 
 	pam_err = pam_get_item(pamh, PAM_RHOST, (const void **)&rhost);
 	if (pam_err != PAM_SUCCESS)
-		PAM_RETURN(pam_err);
+		return (pam_err);
 
 	pam_err = pam_get_item(pamh, PAM_TTY, (const void **)&tty);
 	if (pam_err != PAM_SUCCESS)
-		PAM_RETURN(pam_err);
+		return (pam_err);
 
 	gethostname(hostname, sizeof hostname);
 
@@ -114,55 +83,19 @@ pam_sm_acct_mgmt(pam_handle_t *pamh, int flags __unused, int argc ,const char **
 		PAM_LOG("Checking login.access for user %s on tty %s",
 		    user, tty);
 		if (login_access(user, tty) != 0)
-			PAM_RETURN(PAM_SUCCESS);
+			return (PAM_SUCCESS);
 		PAM_VERBOSE_ERROR("%s is not allowed to log in on %s",
 		    user, tty);
 	} else {
 		PAM_LOG("Checking login.access for user %s from host %s",
 		    user, rhost);
 		if (login_access(user, rhost) != 0)
-			PAM_RETURN(PAM_SUCCESS);
+			return (PAM_SUCCESS);
 		PAM_VERBOSE_ERROR("%s is not allowed to log in from %s",
 		    user, rhost);
 	}
-	
-	PAM_RETURN(PAM_AUTH_ERR);
-}
 
-PAM_EXTERN int
-pam_sm_chauthtok(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
-{
-	struct options options;
-
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_IGNORE);
-}
-
-PAM_EXTERN int
-pam_sm_open_session(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
-{
-	struct options options;
-
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_IGNORE);
-}
-
-PAM_EXTERN int
-pam_sm_close_session(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
-{
-	struct options options;
-
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_IGNORE);
+	return (PAM_AUTH_ERR);
 }
 
 PAM_MODULE_ENTRY("pam_login_access");

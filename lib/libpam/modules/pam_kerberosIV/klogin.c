@@ -52,6 +52,8 @@ static const char sccsid[] = "@(#)klogin.c	8.3 (Berkeley) 4/2/94";
 #include <string.h>
 #include <unistd.h>
 
+#include "klogin.h"
+
 #define	INITIAL_TICKET	"krbtgt"
 #define	VERIFY_SERVICE	"rcmd"
 
@@ -65,14 +67,11 @@ extern char *krbtkfile_env;
  *	  1 if Kerberos failed (try local password in login)
  */
 int
-klogin(pw, instance, localhost, password)
-	struct passwd *pw;
-	char *instance, *localhost, *password;
+klogin(struct passwd *pw, char *instance, char *localhost, const char *password)
 {
 	int kerror;
 	char realm[REALM_SZ], savehost[MAXHOSTNAMELEN];
 	char tkt_location[MAXPATHLEN];
-	char *krb_get_phost();
 	extern int noticketsdontcomplain;
 
 #ifdef	KLOGIN_PARANOID

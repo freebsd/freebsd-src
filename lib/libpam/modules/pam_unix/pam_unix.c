@@ -69,7 +69,6 @@ __FBSDID("$FreeBSD$");
 
 #define PAM_SM_AUTH
 #define PAM_SM_ACCOUNT
-#define	PAM_SM_SESSION
 #define	PAM_SM_PASSWORD
 
 #include <security/pam_appl.h>
@@ -115,7 +114,8 @@ static int yp_passwd(const char *user, const char *pass);
  * authentication management
  */
 PAM_EXTERN int
-pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc, const char **argv)
+pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
+    int argc, const char *argv[])
 {
 	login_cap_t *lc;
 	struct options options;
@@ -132,7 +132,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc, const char
 	} else {
 		retval = pam_get_user(pamh, &user, NULL);
 		if (retval != PAM_SUCCESS)
-			PAM_RETURN(retval);
+			return (retval);
 		pwd = getpwnam(user);
 	}
 
@@ -144,7 +144,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc, const char
 		if (realpw[0] == '\0') {
 			if (!(flags & PAM_DISALLOW_NULL_AUTHTOK) &&
 			    pam_test_option(&options, PAM_OPT_NULLOK, NULL))
-				PAM_RETURN(PAM_SUCCESS);
+				return (PAM_SUCCESS);
 			realpw = "*";
 		}
 		lc = login_getpwclass(pwd);
@@ -157,32 +157,29 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc, const char
 	retval = pam_get_authtok(pamh, PAM_AUTHTOK, &pass, prompt);
 	login_close(lc);
 	if (retval != PAM_SUCCESS)
-		PAM_RETURN(retval);
+		return (retval);
 	PAM_LOG("Got password");
 	if (strcmp(crypt(pass, realpw), realpw) == 0)
-		PAM_RETURN(PAM_SUCCESS);
+		return (PAM_SUCCESS);
 
 	PAM_VERBOSE_ERROR("UNIX authentication refused");
-	PAM_RETURN(PAM_AUTH_ERR);
+	return (PAM_AUTH_ERR);
 }
 
 PAM_EXTERN int
-pam_sm_setcred(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
+pam_sm_setcred(pam_handle_t *pamh __unused, int flags __unused,
+    int argc __unused, const char *argv[] __unused)
 {
-	struct options options;
 
-	pam_std_option(&options, other_options, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_SUCCESS);
+	return (PAM_SUCCESS);
 }
 
-/* 
+/*
  * account management
  */
 PAM_EXTERN int
-pam_sm_acct_mgmt(pam_handle_t *pamh, int flags __unused, int argc, const char **argv)
+pam_sm_acct_mgmt(pam_handle_t *pamh, int flags __unused,
+    int argc, const char *argv[])
 {
 	struct addrinfo hints, *res;
 	struct options options;
@@ -200,25 +197,25 @@ pam_sm_acct_mgmt(pam_handle_t *pamh, int flags __unused, int argc, const char **
 
 	retval = pam_get_user(pamh, &user, NULL);
 	if (retval != PAM_SUCCESS)
-		PAM_RETURN(retval);
+		return (retval);
 
 	if (user == NULL || (pwd = getpwnam(user)) == NULL)
-		PAM_RETURN(PAM_SERVICE_ERR);
+		return (PAM_SERVICE_ERR);
 
 	PAM_LOG("Got user: %s", user);
 
 	retval = pam_get_item(pamh, PAM_RHOST, (const void **)&rhost);
 	if (retval != PAM_SUCCESS)
-		PAM_RETURN(retval);
+		return (retval);
 
 	retval = pam_get_item(pamh, PAM_TTY, (const void **)&tty);
 	if (retval != PAM_SUCCESS)
-		PAM_RETURN(retval);
+		return (retval);
 
 	if (*pwd->pw_passwd == '\0' &&
 	    (flags & PAM_DISALLOW_NULL_AUTHTOK) != 0)
 		return (PAM_NEW_AUTHTOK_REQD);
-	    
+
 	lc = login_getpwclass(pwd);
 	if (lc == NULL) {
 		PAM_LOG("Unable to get login class for user %s", user);
@@ -234,13 +231,13 @@ pam_sm_acct_mgmt(pam_handle_t *pamh, int flags __unused, int argc, const char **
 	 * Check pw_expire before pw_change - no point in letting the
 	 * user change the password on an expired account.
 	 */
-	
+
 	if (pwd->pw_expire) {
 		warntime = login_getcaptime(lc, "warnexpire",
 		    DEFAULT_WARN, DEFAULT_WARN);
 		if (tp.tv_sec >= pwd->pw_expire) {
 			login_close(lc);
-			PAM_RETURN(PAM_ACCT_EXPIRED);
+			return (PAM_ACCT_EXPIRED);
 		} else if (pwd->pw_expire - tp.tv_sec < warntime &&
 		    (flags & PAM_SILENT) == 0) {
 			pam_error(pamh, "Warning: your account expires on %s",
@@ -283,53 +280,25 @@ pam_sm_acct_mgmt(pam_handle_t *pamh, int flags __unused, int argc, const char **
 	/*
 	 * Check host / tty / time-of-day restrictions
 	 */
-	
+
 	if (!auth_hostok(lc, rhost, rhostip) ||
 	    !auth_ttyok(lc, tty) ||
 	    !auth_timeok(lc, time(NULL)))
 		retval = PAM_AUTH_ERR;
-	
+
 	login_close(lc);
 
-	PAM_RETURN(retval);
+	return (retval);
 }
 
-/* 
- * session management
- *
- * logging only
- */
-PAM_EXTERN int
-pam_sm_open_session(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
-{
-	struct options options;
-
-	pam_std_option(&options, other_options, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_SUCCESS);
-}
-
-PAM_EXTERN int
-pam_sm_close_session(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
-{
-	struct options options;
-
-	pam_std_option(&options, other_options, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_SUCCESS);
-}
-
-/* 
+/*
  * password management
  *
  * standard Unix and NIS password changing
  */
 PAM_EXTERN int
-pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv)
+pam_sm_chauthtok(pam_handle_t *pamh, int flags,
+    int argc, const char *argv[])
 {
 	struct options options;
 	struct passwd *pwd;
@@ -346,7 +315,7 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv)
 	else {
 		retval = pam_get_user(pamh, &user, NULL);
 		if (retval != PAM_SUCCESS)
-			PAM_RETURN(retval);
+			return (retval);
 		pwd = getpwnam(user);
 	}
 
@@ -364,13 +333,13 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv)
 			 * XXX check PAM_DISALLOW_NULL_AUTHTOK
 			 */
 			PAM_LOG("Got password");
-			PAM_RETURN(PAM_SUCCESS);
+			return (PAM_SUCCESS);
 		}
 		else {
 			retval = pam_get_authtok(pamh,
 			    PAM_OLDAUTHTOK, &pass, NULL);
 			if (retval != PAM_SUCCESS)
-				PAM_RETURN(retval);
+				return (retval);
 			PAM_LOG("Got password");
 		}
 		encrypted = crypt(pass, pwd->pw_passwd);
@@ -379,17 +348,17 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv)
 
 		if (strcmp(encrypted, pwd->pw_passwd) != 0) {
 			pam_set_item(pamh, PAM_OLDAUTHTOK, NULL);
-			PAM_RETURN(PAM_AUTH_ERR);
+			return (PAM_AUTH_ERR);
 		}
 
-		PAM_RETURN(PAM_SUCCESS);
+		return (PAM_SUCCESS);
 	}
 	else if (flags & PAM_UPDATE_AUTHTOK) {
 		PAM_LOG("UPDATE round; checking user password");
 
 		retval = pam_get_authtok(pamh, PAM_OLDAUTHTOK, &pass, NULL);
 		if (retval != PAM_SUCCESS)
-			PAM_RETURN(retval);
+			return (retval);
 
 		PAM_LOG("Got old password");
 
@@ -403,7 +372,7 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv)
 
 		if (retval != PAM_SUCCESS) {
 			PAM_VERBOSE_ERROR("Unable to get new password");
-			PAM_RETURN(PAM_PERM_DENIED);
+			return (PAM_PERM_DENIED);
 		}
 
 		PAM_LOG("Got new password: %s", new_pass);
@@ -411,7 +380,7 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv)
 #ifdef YP
 		/* If NIS is set in the passwd database, use it */
 		if ((usrdup = strdup(user)) == NULL)
-			PAM_RETURN(PAM_BUF_ERR);
+			return (PAM_BUF_ERR);
 		res = use_yp(usrdup, 0, 0);
 		free(usrdup);
 		if (res == USER_YP_ONLY) {
@@ -453,7 +422,7 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv)
 		PAM_LOG("Illegal 'flags'");
 	}
 
-	PAM_RETURN(retval);
+	return (retval);
 }
 
 /* Mostly stolen from passwd(1)'s local_passwd.c - markm */
@@ -606,7 +575,7 @@ yp_passwd(const char *user __unused, const char *pass)
 	 * The yppasswd.x file said `unix authentication required',
 	 * so I added it. This is the only reason it is in here.
 	 * My yppasswdd doesn't use it, but maybe some others out there
-	 * do. 					--okir
+	 * do.					--okir
 	 */
 	clnt->cl_auth = authunix_create_default();
 

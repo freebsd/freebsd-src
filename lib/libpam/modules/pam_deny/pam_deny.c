@@ -36,90 +36,58 @@ __FBSDID("$FreeBSD$");
 
 #include <security/pam_appl.h>
 #include <security/pam_modules.h>
-#include <security/pam_mod_misc.h>
 
 PAM_EXTERN int
-pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc, const char **argv)
+pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
+    int argc __unused, const char *argv[] __unused)
 {
-	struct options options;
+	const char *user;
+	int r;
 
-	pam_std_option(&options, NULL, argc, argv);
+	if ((r = pam_get_user(pamh, &user, NULL)) != PAM_SUCCESS)
+		return (r);
 
-	PAM_LOG("Options processed");
-
-	PAM_VERBOSE_ERROR("Unconditional deny");
-
-	PAM_RETURN(PAM_AUTH_ERR);
+	return (PAM_AUTH_ERR);
 }
 
 PAM_EXTERN int
-pam_sm_setcred(pam_handle_t *pamh, int flags __unused, int argc, const char **argv)
+pam_sm_setcred(pam_handle_t *pamh __unused, int flags __unused,
+    int argc __unused, const char *argv[] __unused)
 {
-	struct options options;
 
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_VERBOSE_ERROR("Unconditional deny");
-
-	PAM_RETURN(PAM_CRED_UNAVAIL);
+	return (PAM_AUTH_ERR);
 }
 
 PAM_EXTERN int
-pam_sm_acct_mgmt(pam_handle_t *pamh, int flags __unused, int argc ,const char **argv)
+pam_sm_acct_mgmt(pam_handle_t *pamh __unused, int flags __unused,
+    int argc __unused, const char *argv[] __unused)
 {
-	struct options options;
 
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_VERBOSE_ERROR("Unconditional deny");
-
-	PAM_RETURN(PAM_ACCT_EXPIRED);
+	return (PAM_AUTH_ERR);
 }
 
 PAM_EXTERN int
-pam_sm_chauthtok(pam_handle_t *pamh, int flags __unused, int argc, const char **argv)
+pam_sm_chauthtok(pam_handle_t *pamh __unused, int flags __unused,
+    int argc __unused, const char *argv[] __unused)
 {
-	struct options options;
 
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_VERBOSE_ERROR("Unconditional deny");
-
-	PAM_RETURN(PAM_PERM_DENIED);
+	return (PAM_AUTH_ERR);
 }
 
 PAM_EXTERN int
-pam_sm_open_session(pam_handle_t *pamh, int flags __unused, int argc, const char **argv)
+pam_sm_open_session(pam_handle_t *pamh __unused, int flags __unused,
+    int argc __unused, const char *argv[] __unused)
 {
-	struct options options;
 
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_VERBOSE_ERROR("Unconditional deny");
-
-	PAM_RETURN(PAM_SESSION_ERR);
+	return (PAM_AUTH_ERR);
 }
 
 PAM_EXTERN int
-pam_sm_close_session(pam_handle_t *pamh, int flags __unused, int argc, const char **argv)
+pam_sm_close_session(pam_handle_t *pamh __unused, int flags __unused,
+    int argc __unused, const char *argv[] __unused)
 {
-	struct options options;
 
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_VERBOSE_ERROR("Unconditional deny");
-
-	PAM_RETURN(PAM_SESSION_ERR);
+	return (PAM_AUTH_ERR);
 }
 
 PAM_MODULE_ENTRY("pam_deny");

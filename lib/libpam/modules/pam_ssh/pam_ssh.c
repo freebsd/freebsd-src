@@ -52,13 +52,10 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 #define PAM_SM_AUTH
-#define PAM_SM_ACCOUNT
 #define PAM_SM_SESSION
-#define PAM_SM_PASSWORD
 
 #include <security/pam_appl.h>
 #include <security/pam_modules.h>
-#include <security/pam_mod_misc.h>
 #include <security/openpam.h>
 
 #include <openssl/dsa.h>
@@ -119,8 +116,8 @@ auth_via_key(pam_handle_t *pamh, const char *file, const char *dir,
 	/* locate the user's private key file */
 
 	if (!asprintf(&path, "%s/%s", dir, file)) {
-		openpam_log(PAM_LOG_ERROR, "%s: %m", MODULE_NAME);
-		return PAM_SERVICE_ERR;
+		openpam_log(PAM_LOG_ERROR, "%m");
+		return (PAM_SERVICE_ERR);
 	}
 
 	/* Try to decrypt the private key with the passphrase provided.  If
@@ -128,7 +125,7 @@ auth_via_key(pam_handle_t *pamh, const char *file, const char *dir,
 
 	comment = NULL;
 	if ((retval = openpam_borrow_cred(pamh, user)) != PAM_SUCCESS)
-		return retval;
+		return (retval);
 	key = key_load_private(path, pass, &comment);
 	openpam_restore_cred(pamh);
 	free(path);
@@ -136,38 +133,38 @@ auth_via_key(pam_handle_t *pamh, const char *file, const char *dir,
 		comment = strdup(file);
 	if (!key) {
 		free(comment);
-		return PAM_AUTH_ERR;
+		return (PAM_AUTH_ERR);
 	}
 
 	/* save the key and comment to pass to ssh-agent in the session
 	   phase */
 
 	if (!asprintf(&data_name, "ssh_private_key_%d", key_idx)) {
-		openpam_log(PAM_LOG_ERROR, "%s: %m", MODULE_NAME);
+		openpam_log(PAM_LOG_ERROR, "%m");
 		free(comment);
-		return PAM_SERVICE_ERR;
+		return (PAM_SERVICE_ERR);
 	}
 	retval = pam_set_data(pamh, data_name, key, key_cleanup);
 	free(data_name);
 	if (retval != PAM_SUCCESS) {
 		key_free(key);
 		free(comment);
-		return retval;
+		return (retval);
 	}
 	if (!asprintf(&data_name, "ssh_key_comment_%d", key_idx)) {
-		openpam_log(PAM_LOG_ERROR, "%s: %m", MODULE_NAME);
+		openpam_log(PAM_LOG_ERROR, "%m");
 		free(comment);
-		return PAM_SERVICE_ERR;
+		return (PAM_SERVICE_ERR);
 	}
 	retval = pam_set_data(pamh, data_name, comment, ssh_cleanup);
 	free(data_name);
 	if (retval != PAM_SUCCESS) {
 		free(comment);
-		return retval;
+		return (retval);
 	}
 
 	++key_idx;
-	return PAM_SUCCESS;
+	return (PAM_SUCCESS);
 }
 
 
@@ -202,7 +199,7 @@ add_keys(pam_handle_t *pamh)
 		saved = environ;
 		if ((environ = pam_getenvlist(pamh)) == NULL) {
 			environ = saved;
-			openpam_log(PAM_LOG_ERROR, "%s: %m", MODULE_NAME);
+			openpam_log(PAM_LOG_ERROR, "%m");
 			return (PAM_BUF_ERR);
 		}
 		ac = ssh_get_authentication_connection();
@@ -212,8 +209,8 @@ add_keys(pam_handle_t *pamh)
 		environ = saved;
 	}
 	if (!ac) {
-		openpam_log(PAM_LOG_ERROR, "%s: %s: %m", MODULE_NAME, socket);
-		return PAM_SESSION_ERR;
+		openpam_log(PAM_LOG_ERROR, "%m");
+		return (PAM_SESSION_ERR);
 	}
 
 	/* hand off each private key to the agent */
@@ -221,18 +218,18 @@ add_keys(pam_handle_t *pamh)
 	final = 0;
 	for (key_idx = 0; ; key_idx++) {
 		if (!asprintf(&data_name, "ssh_private_key_%d", key_idx)) {
-			openpam_log(PAM_LOG_ERROR, "%s: %m", MODULE_NAME);
+			openpam_log(PAM_LOG_ERROR, "%m");
 			ssh_close_authentication_connection(ac);
-			return PAM_SERVICE_ERR;
+			return (PAM_SERVICE_ERR);
 		}
 		retval = pam_get_data(pamh, data_name, (const void **)&key);
 		free(data_name);
 		if (retval != PAM_SUCCESS)
 			break;
 		if (!asprintf(&data_name, "ssh_key_comment_%d", key_idx)) {
-			openpam_log(PAM_LOG_ERROR, "%s: %m", MODULE_NAME);
+			openpam_log(PAM_LOG_ERROR, "%m");
 			ssh_close_authentication_connection(ac);
-			return PAM_SERVICE_ERR;
+			return (PAM_SERVICE_ERR);
 		}
 		retval = pam_get_data(pamh, data_name,
 		    (const void **)&comment);
@@ -245,19 +242,19 @@ add_keys(pam_handle_t *pamh)
 	}
 	ssh_close_authentication_connection(ac);
 
-	return final ? PAM_SUCCESS : PAM_SESSION_ERR;
+	return (final ? PAM_SUCCESS : PAM_SESSION_ERR);
 }
 
 
 PAM_EXTERN int
 pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
-    int argc, const char **argv)
+    int argc __unused, const char *argv[] __unused)
 {
 	int authenticated;		/* user authenticated? */
 	char *dotdir;			/* .ssh dir name */
 	char *file;			/* current key file */
-	char *keyfiles;			/* list of key files to add */
-	int options;			/* options for pam_get_pass() */
+	const char *kfspec;		/* list of key files to add */
+	char *keyfiles;
 	const char *pass;		/* passphrase */
 	const struct passwd *pwent;	/* user's passwd entry */
 	struct passwd *pwent_keep;	/* our own copy */
@@ -265,28 +262,27 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 	const char *user;		/* username */
 
 	keyfiles = NULL;
-	options = 0;
-	for (; argc; argc--, argv++)
-		if (strncmp(*argv, OPT_KEYFILES "=", sizeof OPT_KEYFILES)
-		    == 0) {
-			if (!(keyfiles = strchr(*argv, '=') + 1))
-				return PAM_AUTH_ERR;
-		} else if (strcmp(*argv, OPT_TRY_FIRST_PASS) == 0)
-			options |= PAM_OPT_TRY_FIRST_PASS;
-		else if (strcmp(*argv, OPT_USE_FIRST_PASS) == 0)
-			options |= PAM_OPT_USE_FIRST_PASS;
-
+	if ((kfspec = openpam_get_option(pamh, OPT_KEYFILES)) != NULL) {
+		if ((kfspec = strchr(kfspec, '=')) == NULL) {
+			openpam_log(PAM_LOG_ERROR, "invalid keyfile list");
+			return (PAM_SERVICE_ERR);
+		}
+		++kfspec;
+	} else {
+		kfspec = DEF_KEYFILES;
+	}
 
 	if ((retval = pam_get_user(pamh, &user, NULL)) != PAM_SUCCESS)
-		return retval;
-	if (!((pwent = getpwnam(user)) && pwent->pw_dir))
-		return PAM_AUTH_ERR;
+		return (retval);
+	if (user == NULL || (pwent = getpwnam(user)) == NULL ||
+	    pwent->pw_dir == NULL || pwent->pw_dir[0] == '\0')
+		return (PAM_AUTH_ERR);
 
 	/* pass prompt message to application and receive passphrase */
 
 	retval = pam_get_authtok(pamh, PAM_AUTHTOK, &pass, NEED_PASSPHRASE);
 	if (retval != PAM_SUCCESS)
-		return retval;
+		return (retval);
 
 	OpenSSL_add_all_algorithms(); /* required for DSA */
 
@@ -295,50 +291,51 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 	   session phase */
 
 	if (!asprintf(&dotdir, "%s/%s", pwent->pw_dir, SSH_CLIENT_DIR)) {
-		openpam_log(PAM_LOG_ERROR, "%s: %m", MODULE_NAME);
-		return PAM_SERVICE_ERR;
+		openpam_log(PAM_LOG_ERROR, "%m");
+		return (PAM_SERVICE_ERR);
 	}
 	authenticated = 0;
-	keyfiles = strdup(keyfiles ? keyfiles : DEF_KEYFILES);
+	keyfiles = strdup(kfspec);
 	for (file = strtok(keyfiles, SEP_KEYFILES); file;
 	     file = strtok(NULL, SEP_KEYFILES))
 		if (auth_via_key(pamh, file, dotdir, pwent, pass) ==
 		    PAM_SUCCESS)
 			authenticated++;
-	free(dotdir);
 	free(keyfiles);
+	free(dotdir);
 	if (!authenticated)
-		return PAM_AUTH_ERR;
+		return (PAM_AUTH_ERR);
 
 	/* copy the passwd entry (in case successive calls are made) and
 	   save it for the session phase */
 
 	if (!(pwent_keep = malloc(sizeof *pwent))) {
 		openpam_log(PAM_LOG_ERROR, "%m");
-		return PAM_SERVICE_ERR;
+		return (PAM_SERVICE_ERR);
 	}
 	(void) memcpy(pwent_keep, pwent, sizeof *pwent_keep);
 	if ((retval = pam_set_data(pamh, "ssh_passwd_entry", pwent_keep,
 	    ssh_cleanup)) != PAM_SUCCESS) {
 		free(pwent_keep);
-		return retval;
+		return (retval);
 	}
 
-	return PAM_SUCCESS;
+	return (PAM_SUCCESS);
 }
 
 
 PAM_EXTERN int
 pam_sm_setcred(pam_handle_t *pamh __unused, int flags __unused,
-    int argc __unused, const char **argv __unused)
+    int argc __unused, const char *argv[] __unused)
 {
-	return PAM_SUCCESS;
+
+	return (PAM_SUCCESS);
 }
 
 
 PAM_EXTERN int
 pam_sm_open_session(pam_handle_t *pamh, int flags __unused,
-    int argc __unused, const char **argv __unused)
+    int argc __unused, const char *argv[] __unused)
 {
 	char *agent_socket;		/* agent socket */
 	char *env_end;			/* end of env */
@@ -359,7 +356,7 @@ pam_sm_open_session(pam_handle_t *pamh, int flags __unused,
 	/* dump output of ssh-agent in ~/.ssh */
 	if ((retval = pam_get_data(pamh, "ssh_passwd_entry",
 	    (const void **)&pwent)) != PAM_SUCCESS)
-		return retval;
+		return (retval);
 
 	/*
 	 * Use reference counts to limit agents to one per user per host.
@@ -379,8 +376,8 @@ pam_sm_open_session(pam_handle_t *pamh, int flags __unused,
 	(void) gethostname(hname, sizeof hname);
 	if (asprintf(&per_agent, "%s/.ssh/agent-%s", pwent->pw_dir, hname)
 	    == -1) {
-		openpam_log(PAM_LOG_ERROR, "%s: %m", MODULE_NAME);
-		return PAM_SERVICE_ERR;
+		openpam_log(PAM_LOG_ERROR, "%m");
+		return (PAM_SERVICE_ERR);
 	}
 
 	/* save the per-agent filename in case we want to delete it on
@@ -389,14 +386,14 @@ pam_sm_open_session(pam_handle_t *pamh, int flags __unused,
 	if ((retval = pam_set_data(pamh, "ssh_agent_env_agent", per_agent,
 	    ssh_cleanup)) != PAM_SUCCESS) {
 		free(per_agent);
-		return retval;
+		return (retval);
 	}
 
 	/* take on the user's privileges for writing files and starting the
 	   agent */
 
 	if ((retval = openpam_borrow_cred(pamh, pwent)) != PAM_SUCCESS)
-		return retval;
+		return (retval);
 
 	/* Try to create the per-agent file or open it for reading if it
 	   exists.  If we can't do either, we won't try to link a
@@ -416,11 +413,10 @@ pam_sm_open_session(pam_handle_t *pamh, int flags __unused,
 		env_read = popen(SSH_AGENT, "r");
 		openpam_restore_cred(pamh);
 		if (!env_read) {
-			openpam_log(PAM_LOG_ERROR, "%s: %s: %m", MODULE_NAME,
-			    SSH_AGENT);
+			openpam_log(PAM_LOG_ERROR, "%s: %m", SSH_AGENT);
 			if (env_write >= 0)
 				(void) close(env_write);
-			return PAM_SESSION_ERR;
+			return (PAM_SESSION_ERR);
 		}
 	}
 
@@ -451,7 +447,7 @@ pam_sm_open_session(pam_handle_t *pamh, int flags __unused,
 				(void) close(env_write);
 			if (agent_socket)
 				free(agent_socket);
-			return PAM_SERVICE_ERR;
+			return (PAM_SERVICE_ERR);
 		}
 
 		*env_value++ = '\0';
@@ -463,7 +459,7 @@ pam_sm_open_session(pam_handle_t *pamh, int flags __unused,
 		if (strcmp(&env_string[strlen(env_string) -
 		    strlen(ENV_SOCKET_SUFFIX)], ENV_SOCKET_SUFFIX) == 0 &&
 		    !(agent_socket = strdup(env_value))) {
-			openpam_log(PAM_LOG_ERROR, "%s: %m", MODULE_NAME);
+			openpam_log(PAM_LOG_ERROR, "%m");
 			if (start_agent)
 				(void) pclose(env_read);
 			else
@@ -472,7 +468,7 @@ pam_sm_open_session(pam_handle_t *pamh, int flags __unused,
 				(void) close(env_write);
 			if (agent_socket)
 				free(agent_socket);
-			return PAM_SERVICE_ERR;
+			return (PAM_SERVICE_ERR);
 		} else if (strcmp(&env_string[strlen(env_string) -
 		    strlen(ENV_PID_SUFFIX)], ENV_PID_SUFFIX) == 0 &&
 		    ((agent_pid = strdup(env_value)) == NULL ||
@@ -488,7 +484,7 @@ pam_sm_open_session(pam_handle_t *pamh, int flags __unused,
 				free(agent_socket);
 			if (agent_pid)
 				free(agent_pid);
-			return retval;
+			return (retval);
 		}
 
 	}
@@ -498,56 +494,54 @@ pam_sm_open_session(pam_handle_t *pamh, int flags __unused,
 	if (start_agent) {
 		switch (retval = pclose(env_read)) {
 		case -1:
-			openpam_log(PAM_LOG_ERROR, "%s: %s: %m", MODULE_NAME,
-			    SSH_AGENT);
+			openpam_log(PAM_LOG_ERROR, "%s: %m", SSH_AGENT);
 			if (agent_socket)
 				free(agent_socket);
-			return PAM_SESSION_ERR;
+			return (PAM_SESSION_ERR);
 		case 0:
 			break;
 		case 127:
-			openpam_log(PAM_LOG_ERROR, "%s: cannot execute %s",
-			    MODULE_NAME, SSH_AGENT);
+			openpam_log(PAM_LOG_ERROR, "cannot execute %s",
+			    SSH_AGENT);
 			if (agent_socket)
 				free(agent_socket);
-			return PAM_SESSION_ERR;
+			return (PAM_SESSION_ERR);
 		default:
-			openpam_log(PAM_LOG_ERROR, "%s: %s exited %s %d",
-			    MODULE_NAME,
+			openpam_log(PAM_LOG_ERROR, "%s exited %s %d",
 			    SSH_AGENT, WIFSIGNALED(retval) ? "on signal" :
 			    "with status", WIFSIGNALED(retval) ?
 			    WTERMSIG(retval) : WEXITSTATUS(retval));
 			if (agent_socket)
 				free(agent_socket);
-			return PAM_SESSION_ERR;
+			return (PAM_SESSION_ERR);
 		}
 	} else
 		(void) fclose(env_read);
 
 	if (!agent_socket)
-		return PAM_SESSION_ERR;
+		return (PAM_SESSION_ERR);
 
 	if (start_agent && (retval = add_keys(pamh))
 	    != PAM_SUCCESS)
-		return retval;
+		return (retval);
 	free(agent_socket);
 
 	/* if we couldn't access the per-agent file, don't link a
 	   per-session filename to it */
 
 	if (no_link)
-		return PAM_SUCCESS;
+		return (PAM_SUCCESS);
 
 	/* the per-session file contains the display name or tty name as
 	   well as the hostname */
 
 	if ((retval = pam_get_item(pamh, PAM_TTY, (const void **)&tty))
 	    != PAM_SUCCESS)
-		return retval;
+		return (retval);
 	if (asprintf(&per_session, "%s/.ssh/agent-%s-%s", pwent->pw_dir,
 	    hname, tty) == -1) {
-		openpam_log(PAM_LOG_ERROR, "%s: %m", MODULE_NAME);
-		return PAM_SERVICE_ERR;
+		openpam_log(PAM_LOG_ERROR, "%m");
+		return (PAM_SERVICE_ERR);
 	}
 
 	/* save the per-session filename so we can delete it on session
@@ -556,19 +550,19 @@ pam_sm_open_session(pam_handle_t *pamh, int flags __unused,
 	if ((retval = pam_set_data(pamh, "ssh_agent_env_session",
 	    per_session, ssh_cleanup)) != PAM_SUCCESS) {
 		free(per_session);
-		return retval;
+		return (retval);
 	}
 
 	(void) unlink(per_session);		/* remove cruft */
 	(void) link(per_agent, per_session);
 
-	return PAM_SUCCESS;
+	return (PAM_SUCCESS);
 }
 
 
 PAM_EXTERN int
 pam_sm_close_session(pam_handle_t *pamh, int flags __unused,
-    int argc __unused, const char **argv __unused)
+    int argc __unused, const char *argv[] __unused)
 {
 	const char *env_file;		/* ssh-agent environment */
 	pid_t pid;			/* ssh-agent process id */
@@ -588,7 +582,7 @@ pam_sm_close_session(pam_handle_t *pamh, int flags __unused,
 	    (const void **)&env_file)) == PAM_SUCCESS && env_file &&
 	    stat(env_file, &sb) == 0) {
 		if (sb.st_nlink > 1)
-			return PAM_SUCCESS;
+			return (PAM_SUCCESS);
 		(void) unlink(env_file);
 	}
 
@@ -596,35 +590,20 @@ pam_sm_close_session(pam_handle_t *pamh, int flags __unused,
 
 	if ((retval = pam_get_data(pamh, "ssh_agent_pid",
 	    (const void **)&ssh_agent_pid)) != PAM_SUCCESS)
-		return retval;
+		return (retval);
 
 	/* Kill the agent.  SSH's ssh-agent does not have a -k option, so
 	   just call kill(). */
 
 	pid = atoi(ssh_agent_pid);
 	if (pid <= 0)
-		return PAM_SESSION_ERR;
+		return (PAM_SESSION_ERR);
 	if (kill(pid, SIGTERM) != 0) {
-		openpam_log(PAM_LOG_ERROR, "%s: %s: %m", MODULE_NAME,
-		    ssh_agent_pid);
-		return PAM_SESSION_ERR;
+		openpam_log(PAM_LOG_ERROR, "%s: %m", ssh_agent_pid);
+		return (PAM_SESSION_ERR);
 	}
 
-	return PAM_SUCCESS;
-}
-
-PAM_EXTERN int
-pam_sm_acct_mgmt(pam_handle_t *pamh __unused, int flags __unused,
-    int argc __unused, const char **argv __unused)
-{
-	return (PAM_IGNORE);
-}
-
-PAM_EXTERN int
-pam_sm_chauthtok(pam_handle_t *pamh __unused, int flags __unused,
-    int argc __unused, const char **argv __unused)
-{
-	return (PAM_IGNORE);
+	return (PAM_SUCCESS);
 }
 
 PAM_MODULE_ENTRY(MODULE_NAME);

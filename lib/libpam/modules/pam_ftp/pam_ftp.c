@@ -48,9 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 
 #define PAM_SM_AUTH
-#define PAM_SM_ACCOUNT
-#define PAM_SM_SESSION
-#define PAM_SM_PASSWORD
 
 #include <security/pam_appl.h>
 #include <security/pam_modules.h>
@@ -75,7 +72,7 @@ static const char *anonusers[] = {"ftp", "anonymous", NULL};
  * Place username in *userret
  * Return 1 if listed 0 otherwise
  */
-static int 
+static int
 lookup(const char *user, char *list, const char **userret)
 {
 	int anon, i;
@@ -112,8 +109,9 @@ lookup(const char *user, char *list, const char **userret)
  * If this is the case, set the PAM_RUSER to the entered email address
  * and succeed, otherwise fail.
  */
-PAM_EXTERN int 
-pam_sm_authenticate(pam_handle_t * pamh, int flags __unused, int argc, const char **argv)
+PAM_EXTERN int
+pam_sm_authenticate(pam_handle_t * pamh, int flags __unused,
+    int argc, const char *argv[])
 {
 	struct options options;
 	int retval, anon;
@@ -126,7 +124,7 @@ pam_sm_authenticate(pam_handle_t * pamh, int flags __unused, int argc, const cha
 
 	retval = pam_get_user(pamh, &user, NULL);
 	if (retval != PAM_SUCCESS || user == NULL)
-		PAM_RETURN(PAM_USER_UNKNOWN);
+		return (PAM_USER_UNKNOWN);
 
 	PAM_LOG("Got user: %s", user);
 
@@ -143,7 +141,7 @@ pam_sm_authenticate(pam_handle_t * pamh, int flags __unused, int argc, const cha
 	if (anon) {
 		retval = pam_set_item(pamh, PAM_USER, (const void *)user);
 		if (retval != PAM_SUCCESS)
-			PAM_RETURN(retval);
+			return (retval);
 		prompt = GUEST_PROMPT;
 		PAM_LOG("Doing anonymous");
 	}
@@ -154,7 +152,7 @@ pam_sm_authenticate(pam_handle_t * pamh, int flags __unused, int argc, const cha
 
 	retval = pam_prompt(pamh, PAM_PROMPT_ECHO_OFF, &token, "%s", prompt);
 	if (retval != PAM_SUCCESS)
-		PAM_RETURN(PAM_AUTHINFO_UNAVAIL);
+		return (PAM_AUTHINFO_UNAVAIL);
 
 	PAM_LOG("Got password");
 
@@ -192,67 +190,15 @@ pam_sm_authenticate(pam_handle_t * pamh, int flags __unused, int argc, const cha
 		retval = PAM_AUTH_ERR;
 	}
 
-	PAM_RETURN(retval);
-}
-
-PAM_EXTERN int 
-pam_sm_setcred(pam_handle_t * pamh __unused, int flags __unused, int argc, const char **argv)
-{
-	struct options options;
-
-	pam_std_option(&options, other_options, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_SUCCESS);
+	return (retval);
 }
 
 PAM_EXTERN int
-pam_sm_acct_mgmt(pam_handle_t *pamh __unused, int flags __unused, int argc ,const char **argv)
+pam_sm_setcred(pam_handle_t * pamh __unused, int flags __unused,
+    int argc __unused, const char *argv[] __unused)
 {
-	struct options options;
 
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_IGNORE);
-}
-
-PAM_EXTERN int
-pam_sm_chauthtok(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
-{
-	struct options options;
-
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_IGNORE);
-}
-
-PAM_EXTERN int
-pam_sm_open_session(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
-{
-	struct options options;
-
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_IGNORE);
-}
-
-PAM_EXTERN int
-pam_sm_close_session(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
-{
-	struct options options;
-
-	pam_std_option(&options, NULL, argc, argv);
-
-	PAM_LOG("Options processed");
-
-	PAM_RETURN(PAM_IGNORE);
+	return (PAM_SUCCESS);
 }
 
 PAM_MODULE_ENTRY("pam_ftp");
