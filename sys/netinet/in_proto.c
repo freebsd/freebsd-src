@@ -78,16 +78,6 @@
 #include <netinet6/ipcomp.h>
 #endif /* IPSEC */
 
-#include "gif.h"
-#if NGIF > 0
-#include <netinet/in_gif.h>
-#endif
-
-#include "stf.h"
-#if NSTF > 0
-#include <net/if_stf.h>
-#endif
-
 #ifdef IPXIP
 #include <netipx/ipx_ip.h>
 #endif
@@ -212,26 +202,6 @@ struct ipprotosw inetsw[] = {
   &rip_usrreqs
 },
 };
-
-#if NGIF > 0
-struct ipprotosw in_gif_protosw =
-{ SOCK_RAW,	&inetdomain,	0/*IPPROTO_IPV[46]*/,	PR_ATOMIC|PR_ADDR,
-  in_gif_input, rip_output,	0,		rip_ctloutput,
-  0,
-  0,            0,              0,              0,
-  &rip_usrreqs
-};
-#endif /*NGIF*/
-
-#if NSTF > 0
-struct ipprotosw in_stf_protosw =
-{ SOCK_RAW,	&inetdomain,	IPPROTO_IPV6,	PR_ATOMIC|PR_ADDR,
-  in_stf_input, rip_output,	0,		rip_ctloutput,
-  0,
-  0,            0,              0,              0,
-  &rip_usrreqs
-};
-#endif /*NSTF*/
 
 extern int in_inithead __P((void **, int));
 

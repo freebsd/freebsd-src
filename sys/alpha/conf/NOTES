@@ -165,7 +165,7 @@ device		ppp	1	# Kernel PPP
 device		tun		# Packet tunnel.
 device		pty		# Pseudo-ttys (telnet etc)
 device		md		# Memory "disks"
-device		gif	4	# IPv6 and IPv4 tunneling
+device		gif		# IPv6 and IPv4 tunneling
 device		faith	1	# IPv6-to-IPv4 relaying/(translation)
 
 # The `bpf' device enables the Berkeley Packet Filter.
