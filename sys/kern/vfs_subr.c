@@ -845,7 +845,6 @@ getnewvnode(tag, mp, vops, vpp)
 	/*
 	 * Initialize namecache.
 	 */
-	vp->v_dd = vp;
 	LIST_INIT(&vp->v_cache_src);
 	TAILQ_INIT(&vp->v_cache_dst);
 	cache_purge(vp);		/* Sets up v_id. */
