@@ -2827,7 +2827,9 @@ static void dc_start(ifp)
 		if (m_head == NULL)
 			break;
 
-		if (sc->dc_flags & DC_TX_COALESCE) {
+		if (sc->dc_flags & DC_TX_COALESCE &&
+		    m_head->m_next != NULL) {
+			/* only coalesce if have >1 mbufs */
 			if (dc_coal(sc, &m_head)) {
 				IF_PREPEND(&ifp->if_snd, m_head);
 				ifp->if_flags |= IFF_OACTIVE;
