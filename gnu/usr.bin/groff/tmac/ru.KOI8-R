@@ -69,7 +69,7 @@
 .\" локализация .Lb (XXX)
 .ds doc-str-Lb-libarm32    Библиотека архитектуры ARM32 (libarm32, \-larm32)
 .ds doc-str-Lb-libc        Стандартная библиотека\~C (libc, \-lc)
-.ds doc-str-Lb-libc_r      Реентерабельная библиотека\~C (libc_r, \-pthread)
+.ds doc-str-Lb-libc_r      Реентерабельная библиотека\~C (libc_r, \-lc_r)
 .ds doc-str-Lb-libcalendar Библиотека календарной арифметики (libcalendar, \-lcalendar)
 .ds doc-str-Lb-libcam      Пользовательская библиотека CAM (libcam, \-lcam)
 .ds doc-str-Lb-libcipher   Библиотека криптографии FreeSec (libcipher, \-lcipher)
