@@ -1,5 +1,5 @@
 /*
- * $Id: lib.c,v 1.3 1993/11/01 16:26:17 pk Exp $	- library routines
+ * $Id: lib.c,v 1.4 1993/11/05 12:43:11 pk Exp $	- library routines
  */
 
 #include <sys/param.h>
@@ -228,7 +228,8 @@ symdef_library(desc, entry, member_length)
 			 * global common 'utime' linked to a function).
 			 */
 			if (!(link_mode & FORCEARCHIVE) &&
-					(!sp || !sp->referenced || sp->defined))
+					(!sp || sp->defined ||
+					(!sp->referenced && !sp->sorefs)) )
 				continue;
 
 			/*
@@ -478,14 +479,16 @@ subfile_wanted_p(entry)
 				if (	(type & N_EXT) &&
 					(type & N_STAB) == 0 &&
 					type != (N_UNDF | N_EXT))
-					goto xxx;
+					break; /* We need it */
 			}
+			if (lsp != NULL)
+				continue; /* We don't need it */
+
 			if (write_map) {
 				print_file_name(entry, stdout);
 				fprintf(stdout, " needed due to shared lib ref %s\n", sp->name);
 			}
 			return 1;
-			xxx: ;
 		}
 	}
 

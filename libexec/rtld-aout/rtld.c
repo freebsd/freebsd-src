@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: rtld.c,v 1.7 1993/11/03 21:35:54 pk Exp $
+ *	$Id: rtld.c,v 1.8 1993/11/08 13:20:40 pk Exp $
  */
 
 #include <sys/param.h>
@@ -888,10 +888,11 @@ int	*usehints;
 
 	if (ld_path != NULL) {
 		/* Prefer paths from LD_LIBRARY_PATH */
-		while ((cp = strtok(ld_path, ":")) != NULL) {
+		while ((cp = strsep(&ld_path, ":")) != NULL) {
 
-			ld_path = NULL;
 			hint = findhint(name, major, minor, cp);
+			if (ld_path)
+				*(ld_path-1) = ':';
 			if (hint)
 				return hint;
 		}

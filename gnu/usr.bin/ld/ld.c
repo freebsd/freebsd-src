@@ -29,13 +29,10 @@ static char sccsid[] = "@(#)ld.c	6.10 (Berkeley) 5/22/91";
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /* Written by Richard Stallman with some help from Eric Albert.
-   Set, indirect, and warning symbol features added by Randy Smith.
-
-   NOTE: Set and indirect symbols are no longer supported by this
-   version. (pk) */
+   Set, indirect, and warning symbol features added by Randy Smith. */
 
 /*
- *	$Id: ld.c,v 1.10 1993/11/01 16:26:13 pk Exp $
+ *	$Id: ld.c,v 1.11 1993/11/05 12:47:11 pk Exp $
  */
    
 /* Define how to initialize system-dependent header fields.  */
@@ -1597,7 +1594,7 @@ digest_pass2()
 			/*
 			 * It's data from shared object with size info.
 			 */
-			if (sp->so_defined != (N_DATA + N_EXT))
+			if (!sp->so_defined)
 				fatal("%s: Bogus N_SIZE item", sp->name);
 
 		} else
@@ -1761,14 +1758,24 @@ consider_relocation (entry, dataseg)
 				continue;
 			}
 
-			if (force_alias_definition &&
+			/*
+			 * Only allocate an alias for function calls. Use
+			 * sp->size here as a heuristic to discriminate
+			 * between function definitions and data residing
+			 * in the text segment.
+			 * NOTE THAT THE COMPILER MUST NOT GENERATE ".size"
+			 * DIRECTIVES FOR FUNCTIONS.
+			 * In the future we might go for ".type" directives.
+			 */
+			if (force_alias_definition && sp->size == 0 &&
 					sp->so_defined == N_TEXT + N_EXT) {
 
 				/* Call to shared library procedure */
 				alloc_rrs_jmpslot(sp);
 
 			} else if (sp->size &&
-					sp->so_defined == N_DATA + N_EXT) {
+					(sp->so_defined == N_DATA + N_EXT ||
+					sp->so_defined == N_TEXT + N_EXT)) {
 
 				/* Reference to shared library data */
 				alloc_rrs_cpy_reloc(sp);
