@@ -5,9 +5,9 @@
 # - programs without man pages.
 # - programs with man pages in sections other than section 1.
 
-MAN1=	${SHPROG:S/$/.1/g}
+MAN=	${SHPROG:S/$/.1/g}
 
-CLEANFILES+=	${SHPROG} ${MAN1}
+CLEANFILES+=	${SHPROG} ${MAN}
 
 all:	${SHPROG}
 

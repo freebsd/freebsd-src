@@ -4,7 +4,6 @@
 SUBDIR=	TESTS
 
 PROG=   dialog
-MAN1=   dialog.1
 
 CFLAGS+= -Wall -Wstrict-prototypes
 

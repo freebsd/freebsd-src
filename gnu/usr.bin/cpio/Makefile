@@ -8,7 +8,6 @@
 SUBDIR=	doc
 
 PROG=	cpio
-MAN1=	cpio.1
 
 CFLAGS+= -I${.CURDIR} -I${.CURDIR}/../../../contrib/cpio 
 CFLAGS+= -DRETSIGTYPE=void -DHAVE_SYS_MTIO_H=1 -DSTDC_HEADERS=1 \

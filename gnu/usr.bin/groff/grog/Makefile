@@ -1,7 +1,7 @@
 # $FreeBSD$
 
-MAN1=	grog.1
-CLEANFILES= grog ${MAN1}
+MAN=	grog.1
+CLEANFILES= grog ${MAN}
 
 all: grog
 

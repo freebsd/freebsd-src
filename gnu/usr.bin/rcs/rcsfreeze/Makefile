@@ -1,4 +1,6 @@
-MAN1=	rcsfreeze.1
+# $FreeBSD$
+
+MAN=	rcsfreeze.1
 
 afterinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \

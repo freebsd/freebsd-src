@@ -21,16 +21,16 @@ CFLAGS+=-DHAVE_LIBZ=1
 
 CFLAGS+= -I${.CURDIR}/../lib -DSTDC_HEADERS -DPOSIX -DHAS_TROFF
 CFLAGS+= -DDO_COMPRESS -DALT_SYSTEMS -DSETREUID -DCATMODE=0644
-CLEANFILES+=	${MAN1}
+CLEANFILES+=	man.1
 
 .PATH:	${.CURDIR}/../manpath
 
-.include <bsd.prog.mk>
-
-${MAN1}: ${.CURDIR}/man.man
+man.1: ${.CURDIR}/man.man
 	@${ECHO} echo Making ${.TARGET:T} from ${.ALLSRC:T}; \
 	sed -e 's,%libdir%,${libdir},' -e 's,%bindir%,${bindir},' \
 	    -e 's,%pager%,${pager},' -e 's,%troff%,${troff},' \
 	    -e 's,%manpath_config_file%,${manpath_config_file},' \
 	    -e 's,%compress%,${compress},' \
-	${.CURDIR}/man.man > ${MAN1}
+	${.ALLSRC} > ${.TARGET}
+
+.include <bsd.prog.mk>

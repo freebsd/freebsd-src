@@ -6,8 +6,8 @@ SRCS=		eqn.cc eqn_tab.h main.cc lex.cc \
 		script.cc mark.cc other.cc delim.cc sqrt.cc pile.cc special.cc
 DPADD=		${LIBGROFF}
 LDADD=		${LIBGROFF}
-MAN1=		eqn.1 neqn.1
-CLEANFILES=	eqn.cc eqn_tab.h ${MAN1} neqn y.tab.c y.tab.h
+MAN=		eqn.1 neqn.1
+CLEANFILES=	eqn.cc eqn_tab.h ${MAN} neqn y.tab.c y.tab.h
 
 all: neqn
 
