@@ -113,13 +113,13 @@ If
 is named
 .Sq Pa /blah/blah/file ,
 the backup file is named
-.Pa file.BAK .
+.Sq Pa file.BAK .
 .Pp
 If
 .Ar output-file
 is specified,
 .Nm
-checks to make sure it is different from
+checks to make sure that it is different from
 .Ar input-file .
 .Pp
 The options listed below control the formatting style imposed by
@@ -257,7 +257,7 @@ The default is
 Enables (disables) special
 .Ic else-if
 processing.
-If it's enabled, an
+If it is enabled, an
 .Ic if
 following an
 .Ic else
@@ -388,15 +388,15 @@ You need to specify all the typenames that
 appear in your program that are defined by
 .Ic typedef
 \- nothing will be
-harmed if you miss a few, but the program won't be formatted as nicely as
+harmed if you miss a few, but the program will not be formatted as nicely as
 it should.
-This sounds like a painful thing to have to do, but it's really
+This sounds like a painful thing to have to do, but it is really
 a symptom of a problem in C:
 .Ic typedef
 causes a syntactic change in the
 language and
 .Nm
-can't find all
+cannot find all
 instances of
 .Ic typedef .
 .It Fl troff
@@ -530,11 +530,10 @@ The
 utility has even more switches than
 .Xr ls 1 .
 .Pp
-A common mistake that often causes grief is typing:
+A common mistake is to try to indent all the
+.Em C
+programs in a directory by typing:
 .Pp
 .Dl indent *.c
 .Pp
-to the shell in an attempt to indent all the
-.Em C
-programs in a directory.
 This is probably a bug, not a feature.
