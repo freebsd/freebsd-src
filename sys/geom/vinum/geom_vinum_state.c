@@ -238,10 +238,16 @@ gv_update_vol_state(struct gv_volume *v)
 	struct gv_plex *p;
 
 	KASSERT(v != NULL, ("gv_update_vol_state: NULL v"));
-	
+
 	LIST_FOREACH(p, &v->plexes, in_volume) {
 		/* One of our plexes is accessible, and so are we. */
 		if (p->state > GV_PLEX_DEGRADED) {
+			v->state = GV_VOL_UP;
+			return;
+
+		/* We can handle a RAID5 plex with one dead subdisk as well. */
+		} else if ((p->org == GV_PLEX_RAID5) &&
+		    (p->state == GV_PLEX_DEGRADED)) {
 			v->state = GV_VOL_UP;
 			return;
 		}
