@@ -39,7 +39,8 @@ static char copyright[] =
 
 #ifndef lint
 /* from: @(#)inetd.c	8.4 (Berkeley) 4/13/94"; */
-static char RCSid[] = "$Id";
+static char inetd_c_rcsid[] = 
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -1084,6 +1085,28 @@ echo_stream(s, sep)		/* Echo service -- echo data back */
 	exit(0);
 }
 
+int check_loop(sin, sep)
+	struct sockaddr_in *sin;
+	struct servtab *sep;
+{
+	struct servtab *se2;
+
+	for (se2 = servtab; se2; se2 = se2->se_next) {
+		if (!se2->se_bi || se2->se_socktype != SOCK_DGRAM)
+			continue;
+
+		if (sin->sin_port == se2->se_ctrladdr.sin_port) {
+			syslog(LOG_WARNING,
+			       "%s/%s:%s/%s loop request REFUSED from %s",
+			       sep->se_service, sep->se_proto, 
+			       se2->se_service, se2->se_proto,
+			       inet_ntoa(sin->sin_addr));
+			return 1;
+		}
+	}
+	return 0;
+}
+
 /* ARGSUSED */
 void
 echo_dg(s, sep)			/* Echo service -- echo data back */
@@ -1092,12 +1115,18 @@ echo_dg(s, sep)			/* Echo service -- echo data back */
 {
 	char buffer[BUFSIZE];
 	int i, size;
-	struct sockaddr sa;
+	struct sockaddr_in sin;
 
-	size = sizeof(sa);
-	if ((i = recvfrom(s, buffer, sizeof(buffer), 0, &sa, &size)) < 0)
+	size = sizeof(sin);
+	if ((i = recvfrom(s, buffer, sizeof(buffer), 0, 
+			  (struct sockaddr *)&sin, &size)) < 0)
 		return;
-	(void) sendto(s, buffer, i, 0, &sa, sizeof(sa));
+
+	if (check_loop(&sin, sep))
+		return;
+
+	(void) sendto(s, buffer, i, 0, (struct sockaddr *)&sin,
+		      sizeof(sin));
 }
 
 /* ARGSUSED */
@@ -1186,7 +1215,7 @@ chargen_dg(s, sep)		/* Character generator */
 	int s;
 	struct servtab *sep;
 {
-	struct sockaddr sa;
+	struct sockaddr_in sin;
 	static char *rs;
 	int len, size;
 	char text[LINESIZ+2];
@@ -1196,8 +1225,12 @@ chargen_dg(s, sep)		/* Character generator */
 		rs = ring;
 	}
 
-	size = sizeof(sa);
-	if (recvfrom(s, text, sizeof(text), 0, &sa, &size) < 0)
+	size = sizeof(sin);
+	if (recvfrom(s, text, sizeof(text), 0, 
+		     (struct sockaddr *)&sin, &size) < 0)
+		return;
+
+	if (check_loop(&sin, sep))
 		return;
 
 	if ((len = endring - rs) >= LINESIZ)
@@ -1210,7 +1243,8 @@ chargen_dg(s, sep)		/* Character generator */
 		rs = ring;
 	text[LINESIZ] = '\r';
 	text[LINESIZ + 1] = '\n';
-	(void) sendto(s, text, sizeof(text), 0, &sa, sizeof(sa));
+	(void) sendto(s, text, sizeof(text), 0, 
+		      (struct sockaddr *)&sin, sizeof(sin));
 }
 
 /*
@@ -1255,14 +1289,20 @@ machtime_dg(s, sep)
 	struct servtab *sep;
 {
 	long result;
-	struct sockaddr sa;
+	struct sockaddr_in sin;
 	int size;
 
-	size = sizeof(sa);
-	if (recvfrom(s, (char *)&result, sizeof(result), 0, &sa, &size) < 0)
+	size = sizeof(sin);
+	if (recvfrom(s, (char *)&result, sizeof(result), 0, 
+		     (struct sockaddr *)&sin, &size) < 0)
 		return;
+
+	if (check_loop(&sin, sep))
+		return;
+
 	result = machtime();
-	(void) sendto(s, (char *) &result, sizeof(result), 0, &sa, sizeof(sa));
+	(void) sendto(s, (char *) &result, sizeof(result), 0, 
+		      (struct sockaddr *)&sin, sizeof(sin));
 }
 
 /* ARGSUSED */
@@ -1288,16 +1328,22 @@ daytime_dg(s, sep)		/* Return human-readable time of day */
 {
 	char buffer[256];
 	time_t clock;
-	struct sockaddr sa;
+	struct sockaddr_in sin;
 	int size;
 
 	clock = time((time_t *) 0);
 
-	size = sizeof(sa);
-	if (recvfrom(s, buffer, sizeof(buffer), 0, &sa, &size) < 0)
+	size = sizeof(sin);
+	if (recvfrom(s, buffer, sizeof(buffer), 0, 
+		     (struct sockaddr *)&sin, &size) < 0)
 		return;
+
+	if (check_loop(&sin, sep))
+		return;
+
 	(void) sprintf(buffer, "%.24s\r\n", ctime(&clock));
-	(void) sendto(s, buffer, strlen(buffer), 0, &sa, sizeof(sa));
+	(void) sendto(s, buffer, strlen(buffer), 0, 
+		      (struct sockaddr *)&sin, sizeof(sin));
 }
 
 /*
