@@ -643,7 +643,7 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 #endif
 
 	if (cow & (MAP_PREFAULT|MAP_PREFAULT_PARTIAL)) {
-		pmap_object_init_pt(map->pmap, start,
+		pmap_object_init_pt(map->pmap, start, prot,
 				    object, OFF_TO_IDX(offset), end - start,
 				    cow & MAP_PREFAULT_PARTIAL);
 	}
@@ -1454,6 +1454,7 @@ vm_map_madvise(map, start, end, behav)
 				pmap_object_init_pt(
 				    map->pmap, 
 				    useStart,
+				    current->protection,
 				    current->object.vm_object,
 				    pindex, 
 				    (count << PAGE_SHIFT),
@@ -3253,7 +3254,7 @@ vm_uiomove(mapa, srcobject, cp, cnta, uaddra, npages)
 /*
  * Map the window directly, if it is already in memory
  */
-		pmap_object_init_pt(map->pmap, uaddr,
+		pmap_object_init_pt(map->pmap, uaddr, entry->protection,
 			srcobject, oindex, tcnt, 0);
 
 		map->timestamp++;
