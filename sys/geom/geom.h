@@ -148,6 +148,10 @@ struct g_consumer {
 	int			spoiled;
 	struct devstat		*stat;
 	u_int			nstart, nend;
+
+	/* Two fields for the implementing class to use */
+	void			*private;
+	u_int			index;
 };
 
 /*
@@ -161,7 +165,6 @@ struct g_provider {
 	int			acr, acw, ace;
 	int			error;
 	TAILQ_ENTRY(g_provider)	orphan;
-	u_int			index;
 	off_t			mediasize;
 	u_int			sectorsize;
 	u_int			stripesize;
@@ -172,6 +175,10 @@ struct g_provider {
 #define G_PF_CANDELETE		0x1
 #define G_PF_WITHER		0x2
 #define G_PF_ORPHAN		0x4
+
+	/* Two fields for the implementing class to use */
+	void			*private;
+	u_int			index;
 };
 
 /* geom_dev.c */
