@@ -1056,7 +1056,13 @@ fdalloc(td, want, result)
 		while (nfiles < want)
 			nfiles <<= 1;
 		FILEDESC_UNLOCK(fdp);
+		/*
+		 * XXX malloc() calls uma_large_malloc() for sizes larger
+		 * than KMEM_ZMAX bytes. uma_large_malloc() requires Giant.
+		 */
+		mtx_lock(&Giant);
 		newofile = malloc(nfiles * OFILESIZE, M_FILEDESC, M_WAITOK);
+		mtx_unlock(&Giant);
 
 		/*
 		 * Deal with file-table extend race that might have
@@ -1064,7 +1070,12 @@ fdalloc(td, want, result)
 		 */
 		FILEDESC_LOCK(fdp);
 		if (fdp->fd_nfiles >= nfiles) {
+			/* XXX uma_large_free() needs Giant. */
+			FILEDESC_UNLOCK(fdp);
+			mtx_lock(&Giant);
 			free(newofile, M_FILEDESC);
+			mtx_unlock(&Giant);
+			FILEDESC_LOCK(fdp);
 			continue;
 		}
 		newofileflags = (char *) &newofile[nfiles];
@@ -1087,8 +1098,14 @@ fdalloc(td, want, result)
 		fdp->fd_ofileflags = newofileflags;
 		fdp->fd_nfiles = nfiles;
 		fdexpand++;
-		if (oldofile != NULL)
+		if (oldofile != NULL) {
+			/* XXX uma_large_free() needs Giant. */
+			FILEDESC_UNLOCK(fdp);
+			mtx_lock(&Giant);
 			free(oldofile, M_FILEDESC);
+			mtx_unlock(&Giant);
+			FILEDESC_LOCK(fdp);
+		}
 	}
 	return (0);
 }
