@@ -91,6 +91,16 @@ rtalloc(ro)
 	ro->ro_rt = rtalloc1(&ro->ro_dst, 1, 0UL);
 }
 
+void
+rtalloc_ign(ro, ignore)
+	register struct route *ro;
+	u_long ignore;
+{
+	if (ro->ro_rt && ro->ro_rt->rt_ifp && (ro->ro_rt->rt_flags & RTF_UP))
+		return;				 /* XXX */
+	ro->ro_rt = rtalloc1(&ro->ro_dst, 1, ignore);
+}
+
 struct rtentry *
 rtalloc1(dst, report, ignflags)
 	register struct sockaddr *dst;
