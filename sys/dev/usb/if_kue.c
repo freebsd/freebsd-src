@@ -114,6 +114,7 @@ static struct kue_type kue_devs[] = {
 	{ USB_VENDOR_COREGA, USB_PRODUCT_COREGA_ETHER_USB_T },
 	{ USB_VENDOR_DLINK, USB_PRODUCT_DLINK_DSB650C },
 	{ USB_VENDOR_SMC, USB_PRODUCT_SMC_2102USB },
+	{ USB_VENDOR_LINKSYS, USB_PRODUCT_LINKSYS_USB10T },
 	{ 0, 0 }
 };
 
@@ -523,8 +524,10 @@ static int kue_detach(dev)
 
 	sc->kue_gone = 1;
 
-	if (ifp != NULL)
+	if (ifp != NULL) {
+		bpfdetach(ifp);
 		if_detach(ifp);
+	}
 
 	if (sc->kue_ep[KUE_ENDPT_TX] != NULL)
 		usbd_abort_pipe(sc->kue_ep[KUE_ENDPT_TX]);
