@@ -1717,12 +1717,17 @@ these are the flags to pass to the
 .Xr lpd 8
 daemon.
 .It Va sendmail_enable
-.Pq Vt bool
+.Pq Vt str
 If set to
 .Dq Li YES ,
 run the
 .Xr sendmail 8
 daemon at system boot time.
+If set to
+.Dq Li NONE ,
+do not run any
+.Xr sendmail 8
+daemons at system boot time.
 .It Va sendmail_flags
 .Pq Vt str
 If
@@ -1754,9 +1759,11 @@ as a non-set-user-ID binary.
 .Pq Vt bool
 If set to
 .Dq Li YES
-and
+and both
 .Va sendmail_enable
-is set to
+and
+.Va sendmail_submit_enable
+are set to
 .Dq Li NO ,
 run
 .Xr sendmail 8
@@ -1768,9 +1775,11 @@ This is intended to allow local mail queue management
 for systems that do not offer a listening SMTP service.
 .It Va sendmail_outbound_flags
 .Pq Vt str
-If
+If both
 .Va sendmail_enable
-is set to
+and
+.Va sendmail_submit_enable
+are set to
 .Dq Li NO
 and
 .Va sendmail_outbound_enable
