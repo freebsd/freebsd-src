@@ -415,7 +415,7 @@ mss_init(struct mss_info *mss, device_t dev)
 		mss->opti_offset =
 			(rman_get_start(mss->conf_base) & ~3) + 2
 			- rman_get_start(mss->conf_base);
-		printf("mss_init: opti_offset=%d\n", mss->opti_offset);
+		BVDDB(printf("mss_init: opti_offset=%d\n", mss->opti_offset));
     		opti_wr(mss, 4, 0xd6); /* fifo empty, OPL3, audio enable, SB3.2 */
     		ad_write(mss, 10, 2); /* enable interrupts */
     		opti_wr(mss, 6, 2);  /* MCIR6: mss enable, sb disable */
@@ -1012,9 +1012,10 @@ mss_intr(void *arg)
 		if (FULL_DUPLEX(mss)) ad_write(mss, 24, ~c); /* ack selectively */
 		else io_wr(mss, MSS_STATUS, 0);	/* Clear interrupt status */
     	}
-    	if (i == 10) printf("mss_intr: irq, but not from mss\n");
-    	else if (served == 0) {
-		printf("mss_intr: unexpected irq with reason %x\n", c);
+    	if (i == 10) {
+		BVDDB(printf("mss_intr: irq, but not from mss\n"));
+	} else if (served == 0) {
+		BVDDB(printf("mss_intr: unexpected irq with reason %x\n", c));
 		/*
 	 	* this should not happen... I have no idea what to do now.
 	 	* maybe should do a sanity check and restart dmas ?
@@ -1137,7 +1138,7 @@ ad_leave_MCE(struct mss_info *mss)
     	u_char   prev;
 
     	if ((mss->bd_flags & BD_F_MCE_BIT) == 0) {
-		printf("--- hey, leave_MCE: MCE bit was not set!\n");
+		DEB(printf("--- hey, leave_MCE: MCE bit was not set!\n"));
 		return;
     	}
 
@@ -1339,8 +1340,8 @@ mss_trigger(struct mss_chinfo *ch, int go)
         	ad_write(mss, 9, m);
         	if (ad_read(mss, 9) == m) break;
     	}
-    	if (retry == 0) printf("start dma, failed to set bit 0x%02x 0x%02x\n",
-			       m, ad_read(mss, 9));
+    	if (retry == 0) BVDDB(printf("stop dma, failed to set bit 0x%02x 0x%02x\n", \
+			       m, ad_read(mss, 9)));
     	return 0;
 }
 
@@ -1505,7 +1506,7 @@ opti931_intr(void *arg)
 #if 0
     	reason = io_rd(mss, MSS_STATUS);
     	if (!(reason & 1)) {/* no int, maybe a shared line ? */
-		printf("intr: flag 0, mcir11 0x%02x\n", ad_read(mss, 11));
+		DEB(printf("intr: flag 0, mcir11 0x%02x\n", ad_read(mss, 11)));
 		return;
     	}
 #endif
@@ -1522,8 +1523,8 @@ opti931_intr(void *arg)
 		DEB(printf("Warning: MPU interrupt\n");)
 		mc11 |= 0x20;
     	}
-    	if (mc11 & masked) printf("irq reset failed, mc11 0x%02x, 0x%02x\n",
-                              	  mc11, masked);
+    	if (mc11 & masked) BVDDB(printf("irq reset failed, mc11 0x%02x, 0x%02x\n",\
+                              	  mc11, masked));
     	masked |= mc11;
     	/*
      	* the nice OPTi931 sets the IRQ line before setting the bits in
@@ -1536,7 +1537,7 @@ opti931_intr(void *arg)
 	    		if (--loops) goto again;
 	    		else DDB(printf("intr, but mc11 not set\n");)
 		}
-		if (loops == 0) printf("intr, nothing in mcir11 0x%02x\n", mc11);
+		if (loops == 0) BVDDB(printf("intr, nothing in mcir11 0x%02x\n", mc11));
 		return;
     	}
 
