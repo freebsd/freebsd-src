@@ -170,12 +170,44 @@ minutes.
 .It Ic -anewer Ar file
 Same as
 .Ic -neweram .
-.It Ic -atime Ar n
-True if the difference between the file last access time and the time
+.It Ic -atime Ar n Ns Op Cm smhdw
+If no units are specified, this primary evaluates to
+true if the difference between the file last access time and the time
 .Nm
 was started, rounded up to the next full 24\-hour period, is
 .Ar n
 24\-hour periods.
+.Pp
+If units are specified, this primary evaluates to
+true if the difference between the file last access time and the time
+.Nm
+was started is exactly
+.Ar n
+units.
+Possible time units are as follows:
+.Pp
+.Bl -tag -width indent -compact
+.It Cm s
+second
+.It Cm m
+minute (60 seconds)
+.It Cm h
+hour (60 minutes)
+.It Cm d
+day (24 hours)
+.It Cm w
+week (7 days)
+.El
+.Pp
+Any number of units may be combined in one
+.Ic -atime
+argument, for example,
+.Dq Li "-atime -1h30m" .
+Units are probably only useful when used in conjunction with the
+.Cm +
+or
+.Cm -
+modifier.
 .It Ic -cmin Ar n
 True if the difference between the time of last change of file status
 information and the time
@@ -186,13 +218,25 @@ minutes.
 .It Ic -cnewer Ar file
 Same as
 .Ic -newercm .
-.It Ic -ctime Ar n
-True if the difference between the time of last change of file status
+.It Ic -ctime Ar n Ns Op Cm smhdw
+If no units are specified, this primary evaluates to
+true if the difference between the time of last change of file status
 information and the time
 .Nm
 was started, rounded up to the next full 24\-hour period, is
 .Ar n
 24\-hour periods.
+.Pp
+If units are specified, this primary evaluates to
+true if the difference between the time of last change of file status
+information and the time
+.Nm
+was started is exactly
+.Ar n
+units.
+Please refer to the
+.Ic -atime
+primary description for information on supported time units.
 .It Ic -delete
 Delete found files and/or directories.
 Always returns true.
@@ -362,12 +406,23 @@ minutes.
 .It Ic -mnewer Ar file
 Same as
 .Ic -newer .
-.It Ic -mtime Ar n
-True if the difference between the file last modification time and the time
+.It Ic -mtime Ar n Ns Op Cm smhdw
+If no units are specified, this primary evaluates to
+true if the difference between the file last modification time and the time
 .Nm
 was started, rounded up to the next full 24\-hour period, is
 .Ar n
 24\-hour periods.
+.Pp
+If units are specified, this primary evaluates to
+true if the difference between the file last modification time and the time
+.Nm
+was started is exactly
+.Ar n
+units.
+Please refer to the
+.Ic -atime
+primary description for information on supported time units.
 .It Ic -name Ar pattern
 True if the last component of the pathname being examined matches
 .Ar pattern .
