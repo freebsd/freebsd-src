@@ -35,13 +35,17 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1989, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -51,12 +55,12 @@ static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/6/93";
  */
 
 #include <sys/types.h>
-#include <signal.h>
-#include <errno.h>
-#include <unistd.h>
-#include <stdio.h>
 #include <ctype.h>
+#include <err.h>
+#include <signal.h>
+#include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 #include "mdef.h"
 #include "stdd.h"
 #include "extern.h"
@@ -82,7 +86,6 @@ int ilevel = 0; 		/* input file stack pointer    */
 int oindex = 0; 		/* diversion index..	       */
 char *null = "";                /* as it says.. just a null..  */
 char *m4wraps = "";             /* m4wrap string default..     */
-char *progname;			/* name of this program        */
 char lquote = LQUOTE;		/* left quote character  (`)   */
 char rquote = RQUOTE;		/* right quote character (')   */
 char scommt = SCOMMT;		/* start character for comment */
@@ -153,8 +156,6 @@ main(argc,argv)
 	char *p;
 	register FILE *ifp;
 
-	progname = basename(argv[0]);
-
 	if (signal(SIGINT, SIG_IGN) != SIG_IGN)
 		signal(SIGINT, onintr);
 
@@ -198,7 +199,7 @@ main(argc,argv)
 			if (p[0] == '-' && p[1] == '\0')
 				ifp = stdin;
 			else if ((ifp = fopen(p, "r")) == NULL)
-				oops("%s: %s", p, strerror(errno));
+				err(1, "%s", p);
 			sp = -1;
 			fp = 0;
 			infile[0] = ifp;
@@ -282,7 +283,7 @@ macro() {
 		}
 		else if (t == EOF) {
 			if (sp > -1)
-				oops("unexpected end of input", "");
+				errx(1, "unexpected end of input");
 			if (ilevel <= 0)
 				break;			/* all done thanks.. */
 			--ilevel;
@@ -302,7 +303,7 @@ macro() {
 				else if (l == lquote)
 					nlpar++;
 				else if (l == EOF)
-					oops("missing right quote", "");
+					errx(1, "missing right quote");
 				if (nlpar > 0) {
 					if (sp < 0)
 						putc(l, active);
@@ -340,7 +341,7 @@ macro() {
 				chrsave(EOS);
 
 				if (sp == STACKMAX)
-					oops("internal stack overflow", "");
+					errx(1, "internal stack overflow");
 
 				if (CALTYP == MACRTYPE)
 					expand((char **) mstack+fp+1, sp-fp);
@@ -390,7 +391,7 @@ register char *tp;
 		h = (h << 5) + h + (*tp++ = c);
 	putback(c);
 	if (tp == etp)
-		oops("token too long", "");
+		errx(1, "token too long");
 
 	*tp = EOS;
 
