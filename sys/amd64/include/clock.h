@@ -3,7 +3,7 @@
  * Garrett Wollman, September 1994.
  * This file is in the public domain.
  *
- *	$Id: clock.h,v 1.20 1996/10/25 13:01:08 bde Exp $
+ *	$Id: clock.h,v 1.21 1996/10/30 22:38:34 asami Exp $
  */
 
 #ifndef _MACHINE_CLOCK_H_
@@ -57,9 +57,6 @@ int	rtcin __P((int val));
 #else
 int	acquire_timer1 __P((int mode));
 int	release_timer1 __P((void));
-void	rtc_serialcombit __P((int i));
-void	rtc_serialcom __P((int i));
-void	rtc_outb __P((int val));
 #endif
 int	sysbeep __P((int pitch, int period));
 
