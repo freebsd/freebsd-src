@@ -1,5 +1,5 @@
 #	from: @(#)bsd.doc.mk	5.3 (Berkeley) 1/2/91
-#	$Id: bsd.doc.mk,v 1.15 1995/01/17 21:27:30 ache Exp $
+#	$Id: bsd.doc.mk,v 1.16 1995/01/17 21:36:06 ache Exp $
 
 PRINTER?=	ps
 
@@ -11,7 +11,7 @@ INDXBIB?=	indxbib
 PIC?=		pic
 REFER?=		refer
 .if ${PRINTER} == "ascii"
-ROFF?=          groff -Wall -mtty-char ${TRFLAGS} ${MACROS} -o${PAGES}
+ROFF?=          groff -mtty-char ${TRFLAGS} ${MACROS} -o${PAGES}
 .else
 ROFF?=		groff ${TRFLAGS} ${MACROS} -o${PAGES}
 .endif
