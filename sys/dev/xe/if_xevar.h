@@ -39,8 +39,8 @@ struct xe_softc {
   struct callout_handle chand;
   struct ifnet *ifp;
   struct ifmedia *ifm;
-  char *card_type;	/* Card model name */
-  char *vendor;		/* Card manufacturer */
+  const char *card_type;/* Card model name */
+  const char *vendor;	/* Card manufacturer */
   device_t dev;		/* Device */
   bus_space_tag_t bst;	/* Bus space tag for card */
   bus_space_handle_t bsh; /* Bus space handle for card */
