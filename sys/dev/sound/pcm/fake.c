@@ -119,7 +119,7 @@ fkchan_setup(device_t dev)
 
 	c = malloc(sizeof(*c), M_DEVBUF, M_WAITOK);
 	c->methods = kobj_create(&fkchan_class, M_DEVBUF, M_WAITOK);
-	c->parent = d;
+	c->parentsnddev = d;
 	snprintf(c->name, CHN_NAMELEN, "%s:fake", device_get_nameunit(dev));
 
 	return c;
