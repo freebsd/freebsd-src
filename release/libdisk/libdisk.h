@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: libdisk.h,v 1.15 1995/05/10 05:57:03 phk Exp $
+ * $Id: libdisk.h,v 1.16 1995/05/12 18:49:58 phk Exp $
  *
  */
 
@@ -44,6 +44,7 @@ struct disk {
 struct chunk {
 	struct chunk	*next;
 	struct chunk	*part;
+	struct disk	*disk;
 	long		offset;
 	u_long		size;
 	u_long		end;
