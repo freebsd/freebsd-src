@@ -48,8 +48,6 @@ static char sccsid[] = "@(#)termcap.c	8.1 (Berkeley) 6/4/93";
 #include "termcap.h"
 #include "pathnames.h"
 
-extern void __set_ospeed(speed_t speed);
-
 /*
  * termcap - routines for dealing with the terminal capability data base
  *
