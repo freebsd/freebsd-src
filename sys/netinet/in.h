@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.h	8.3 (Berkeley) 1/3/94
- * $Id: in.h,v 1.29 1998/02/25 02:14:03 julian Exp $
+ * $Id: in.h,v 1.30 1998/02/25 02:35:35 julian Exp $
  */
 
 #ifndef _NETINET_IN_H_
@@ -180,6 +180,17 @@
  * Such a firewall configuration will generally depend on the use of these
  * default values.  If you change them, you may find your Security
  * Administrator looking for you with a heavy object.
+ *
+ * For a slightly more orthodox text view on this:
+ *
+ *            ftp://ftp.isi.edu/in-notes/iana/assignments/port-numbers
+ *
+ *    port numbers are divided into three ranges:
+ *
+ *                0 -  1023 Well Known Ports
+ *             1024 - 49151 Registered Ports
+ *            49152 - 65535 Dynamic and/or Private Ports
+ *
  */
 
 /*
@@ -194,8 +205,8 @@
 /*
  * Default local port range to use by setting IP_PORTRANGE_HIGH
  */
-#define	IPPORT_HIFIRSTAUTO	40000
-#define	IPPORT_HILASTAUTO	44999
+#define	IPPORT_HIFIRSTAUTO	49152
+#define	IPPORT_HILASTAUTO	65535
 
 /*
  * Scanning for a free reserved port return a value below IPPORT_RESERVED,
