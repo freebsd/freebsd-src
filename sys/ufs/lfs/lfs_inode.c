@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_inode.c	8.5 (Berkeley) 12/30/93
- * $Id: lfs_inode.c,v 1.3 1994/08/29 06:09:15 davidg Exp $
+ * $Id: lfs_inode.c,v 1.4 1994/10/10 01:04:50 phk Exp $
  */
 
 #include <sys/param.h>
@@ -89,13 +89,26 @@ lfs_update(ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct inode *ip;
+	int error;
 
-	if (vp->v_mount->mnt_flag & MNT_RDONLY)
+	if (vp->v_mount->mnt_flag & MNT_RDONLY){
 		return (0);
+	 }
 	ip = VTOI(vp);
-	if ((ip->i_flag &
-	    (IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE)) == 0)
-		return (0);
+	/* XXX
+	 * We used to just return here.  Now we make sure to check if
+	 * we were called by lfs_fsync, since in this case, the inode
+	 * may have been written to disk without all buffers connected
+	 * with the vnode being flushed.  It seems really suspicious
+	 * that this could happen since from what I understand of the
+	 * intended semantics, one of these flags should be set if there
+	 * are still dirty buffers.  Compare to how ffs_fsync/ffs_update
+	 * work together and you'll see what I mean.
+	 */
+	if (((ip->i_flag & (IN_ACCESS|IN_CHANGE|IN_MODIFIED|IN_UPDATE)) == 0)
+	    && (vp->v_dirtyblkhd.lh_first == NULL))
+		return(0);
+
 	if (ip->i_flag & IN_ACCESS)
 		ip->i_atime.ts_sec = ap->a_access->tv_sec;
 	if (ip->i_flag & IN_UPDATE) {
@@ -111,7 +124,11 @@ lfs_update(ap)
 	ip->i_flag |= IN_MODIFIED;
 
 	/* If sync, push back the vnode and any dirty blocks it may have. */
-	return (ap->a_waitfor & LFS_SYNC ? lfs_vflush(vp) : 0);
+	error = (ap->a_waitfor & LFS_SYNC ? lfs_vflush(vp) : 0);
+	if(ap->a_waitfor &  LFS_SYNC && vp->v_dirtyblkhd.lh_first != NULL)
+	       panic("lfs_update: dirty bufs");
+	return( error );
+	
 }
 
 /* Update segment usage information when removing a block. */
