@@ -1,7 +1,11 @@
 # $FreeBSD$
 
+PROG=	${BOOT}.out
+INTERNALPROG=
 FILES=	${BOOT}
-CLEANFILES= ${BOOT} ${BOOT}.out ${BOOT}.o
+NOMAN=
+SRCS=	${BOOT}.s
+CLEANFILES= ${BOOT}
 
 BOOT=	boot0
 
@@ -9,10 +13,9 @@ BOOT=	boot0
 # unless you are glutton for punishment.
 BOOT_BOOT0_ORG?=	0x0000
 
+LDFLAGS=-N -e start -Ttext ${BOOT_BOOT0_ORG}
+
 ${BOOT}: ${BOOT}.out
 	objcopy -S -O binary ${BOOT}.out ${.TARGET}
-
-${BOOT}.out: ${BOOT}.o
-	${LD} -N -e start -Ttext ${BOOT_BOOT0_ORG} -o ${.TARGET} ${BOOT}.o
 
 .include <bsd.prog.mk>

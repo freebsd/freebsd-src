@@ -1,5 +1,11 @@
 # $FreeBSD$
 
+PROG=	btxldr.out
+INTERNALPROG=
+NOMAN=
+SRCS=	btxldr.s
+CLEANFILES= btxldr
+
 M4?=	m4
 M4FLAGS+=	-DLOADER_ADDRESS=${LOADER_ADDRESS} -DPC98
 
@@ -9,14 +15,13 @@ M4FLAGS+=	-DBTXLDR_VERBOSE
 
 all: btxldr
 
-btxldr: btxldr.o
-	${LD} -N -e start -Ttext ${LOADER_ADDRESS} -o btxldr.out btxldr.o
+LDFLAGS=-N -e start -Ttext ${LOADER_ADDRESS}
+
+btxldr: btxldr.out
 	objcopy -S -O binary btxldr.out ${.TARGET}
 
 btxldr.o: btxldr.s
 	(cd ${.CURDIR}; ${M4} ${M4FLAGS} btxldr.s ) | \
 		${AS} ${AFLAGS} -o ${.TARGET}
-
-CLEANFILES+= btxldr btxldr.out btxldr.o
 
 .include <bsd.prog.mk>
