@@ -34,8 +34,6 @@ options 	DDB
 options 	FFS			#Berkeley Fast Filesystem
 options 	INET			#InterNETworking
 options 	INET6			#IPv6 communications protocols
-options 	INVARIANTS
-options 	INVARIANT_SUPPORT
 options 	KTRACE			#ktrace(1) syscall trace support
 options 	MD_ROOT			#MD is a potential root device
 options 	PROCFS			#Process filesystem (requires PSEUDOFS)
@@ -47,7 +45,6 @@ options 	SOFTUPDATES		#Enable FFS soft updates support
 options 	SYSVMSG			#SYSV-style message queues
 options 	SYSVSEM			#SYSV-style semaphores
 options 	SYSVSHM			#SYSV-style shared memory
-options 	WITNESS
 options 	_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
 
 device		acpi
