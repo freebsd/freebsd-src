@@ -9,6 +9,23 @@
 #
 #
 
+font.h                          optional        sc            \
+        compile-with    "uudecode < /usr/share/syscons/fonts/${SC_DFLT_FONT}-8x16.fnt && file2c 'u_char dflt_font_16[16*256] = {' '};' < ${SC_DFLT_FONT}-8x16 > font.h && uudecode < /usr/share/syscons/fonts/${SC_DFLT_FONT}-8x14.fnt && file2c 'u_char dflt_font_14[14*256] = {' '};' < ${SC_DFLT_FONT}-8x14 >> font.h && uudecode < /usr/share/syscons/fonts/${SC_DFLT_FONT}-8x8.fnt && file2c 'u_char dflt_font_8[8*256] = {' '};' < ${SC_DFLT_FONT}-8x8 >> font.h" \
+	no-obj no-implicit-rule before-depend				\
+	clean	"font.h ${SC_DFLT_FONT}-8x14 ${SC_DFLT_FONT}-8x16 ${SC_DFLT_FONT}-8x8"
+
+dev/fb/fb.c			optional	sc
+dev/kbd/kbd.c			optional	sc
+dev/syscons/scgfbrndr.c		optional	sc
+dev/syscons/schistory.c		optional	sc
+dev/syscons/scmouse.c		optional	sc
+dev/syscons/scterm.c		optional	sc
+dev/syscons/scterm-dumb.c	optional	sc
+dev/syscons/scterm-sc.c		optional	sc
+dev/syscons/scvidctl.c		optional	sc
+dev/syscons/scvtb.c		optional	sc
+dev/syscons/syscons.c		optional	sc
+dev/syscons/sysmouse.c		optional	sc
 geom/geom_apple.c		standard
 powerpc/powerpc/atomic.S	standard
 powerpc/powerpc/autoconf.c	standard
@@ -33,6 +50,7 @@ powerpc/powerpc/ofw_machdep.c	standard
 powerpc/powerpc/openpic.c	standard
 powerpc/powerpc/pic_if.m	standard
 powerpc/powerpc/pmap.c		standard
+powerpc/powerpc/sc_machdep.c	optional	sc
 powerpc/powerpc/setjmp.S	standard
 powerpc/powerpc/sigcode.S	standard
 powerpc/powerpc/suswintr.c	standard
@@ -74,6 +92,7 @@ powerpc/powerpc/mp_machdep.c	optional smp
 
 powerpc/ofw/ofw_pci.c		optional	pci
 powerpc/ofw/ofw_pcib_pci.c	optional	pci
+powerpc/ofw/ofw_syscons.c	optional	sc
 
 powerpc/powermac/ata_macio.c	optional	powermac ata
 powerpc/powermac/grackle.c	optional	powermac pci
