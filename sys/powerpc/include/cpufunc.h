@@ -47,15 +47,15 @@ powerpc_mb(void)
 
 struct thread;
 
-#ifdef DDB
-void ddb_trap(void);
+#ifdef KDB
+void ppc_db_trap(void);
 #endif
 
 static __inline void
 breakpoint(void)
 {
-#ifdef DDB
-	ddb_trap();
+#ifdef KDB
+	ppc_db_trap();
 #endif
 }
 
