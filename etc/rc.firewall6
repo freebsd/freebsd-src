@@ -55,6 +55,8 @@ setup_local () {
 	# Only in rare cases do you want to change these rules
 	#
 	${fw6cmd} add 100 pass all from any to any via lo0
+	${fw6cmd} add 200 deny all from any to ::1
+	${fw6cmd} add 300 deny all from ::1 to any
 	#
 	# ND
 	#
