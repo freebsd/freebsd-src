@@ -372,6 +372,15 @@ AcpiInstallGpeHandler (
     void                    *Context);
 
 ACPI_STATUS
+AcpiInstallExceptionHandler (
+    ACPI_EXCEPTION_HANDLER  Handler);
+
+
+/*
+ * Event interfaces
+ */
+
+ACPI_STATUS
 AcpiAcquireGlobalLock (
     UINT16                  Timeout,
     UINT32                  *Handle);
