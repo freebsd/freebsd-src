@@ -1,4 +1,4 @@
-.\" $Id: pppctl.8,v 1.5 1997/11/07 02:54:46 brian Exp $
+.\" $Id: pppctl.8,v 1.6 1997/11/07 20:20:14 brian Exp $
 .Dd 26 June 1997
 .Os FreeBSD
 .Dt PPPCTL 8
@@ -49,7 +49,9 @@ daemon.  If any semi-colon characters are found, they are treated as
 .Ar command
 delimiters, allowing more than one
 .Ar command
-in a given "session".  For example:
+in a given
+.Sq session .
+For example:
 
   pppctl 3000 set timeout 300\\; show timeout
 
@@ -75,14 +77,14 @@ The following command line options are available:
 Display all data sent to and received from the
 .Nm ppp
 daemon.  Normally,
-.Nm pppctl
+.Nm
 displays only non-prompt lines received.  This option is ignored in
 interactive mode.
 .It Fl t Ar n
 Use a timeout of
 .Ar n
-instead of the default 2 seconds.  This may be required if you
-wish to control a daemon over a slow (or even a dialup) link.
+instead of the default 2 seconds when connecting.  This may be required
+if you wish to control a daemon over a slow (or even a dialup) link.
 .It Fl p Ar passwd
 Specify the password required by the
 .Nm ppp
@@ -93,49 +95,37 @@ will prompt for a password once it has successfully connected to
 .El
 
 .Sh EXAMPLES
-Assuming you want to run
+If you run
 .Nm ppp
 in
 .Fl auto
-mode, 
+mode,
 .Nm
-can be used to automate many frequent tasks.  Use of the
+can be used to automate many frequent tasks (you can actually control
+.Nm ppp
+in any mode except interactive mode).  Use of the
 .Fl p
-option is discouraged (even in scripts that aren't readably by others)
+option is discouraged (even in scripts that aren't readable by others)
 as a
 .Xr ps 1
 listing may reveal your secret.
 .Pp
-In order to have
-.Nm ppp
-create a socket for use with
-.Nm pppctl ,
-you will need to define a password for your local system:
-.Bd -literal -offset indent
-# touch /etc/ppp/ppp.secret
-# chown root.wheel /etc/ppp/ppp.secret
-# chmod 400 /etc/ppp/ppp.secret
-# echo "`hostname -s` MyPassword" >>/etc/ppp/ppp.secret
-.Ed
-
-.Pp
-The most secure way to allow easy, secure
+The best way to allow easy, secure
 .Nm
-access, and to make sure you can distinguish between multiple invocations
-of
-.Nm ppp
-is to create a local server socket in
+access is to create a local server socket in
 .Pa /etc/ppp/ppp.conf
-(in the correct section):
+(in the correct section) like this:
 
 .Bd -literal -offset indent
-set server /var/run/internet 0666
+set server /var/run/internet "" 0177
 .Ed
 
 This will instruct
 .Nm ppp
-to create a local domain socket rather than the tcp socket that's created
-by default.  Refer to the
+to create a local domain socket, with srw------- permissions and no
+password, allowing access only to the user that invoked
+.Nm ppp .
+Refer to the
 .Xr ppp 8
 man page for further details.
 
@@ -145,7 +135,7 @@ You can now create some easy-access scripts.  To connect to the internet:
 .Bd -literal -offset indent
 #! /bin/sh
 test $# -eq 0 && time=300 || time=$1
-exec pppctl -t 60 /var/run/internet set timeout $time\\; dial
+exec pppctl /var/run/internet set timeout $time\\; dial
 .Ed
 
 .Pp
@@ -176,7 +166,7 @@ exec pppctl /var/run/internet "$@"
 
 .Sh ENVIRONMENT VARIABLES
 The following environment variables are understood by
-.Nm pppctl
+.Nm
 when in interactive mode:
 .Bl -tag -width XXXXXXXXXX
 .It Dv EL_SIZE
@@ -195,6 +185,7 @@ commands in
 .Xr editline 3 ,
 .Xr editrc 5 ,
 .Xr ppp 8 ,
+.Xr ps 1 ,
 .Xr services 5
 
 .Sh HISTORY
