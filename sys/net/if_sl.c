@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.61 1997/10/07 09:13:06 ache Exp $
+ * $Id: if_sl.c,v 1.62 1997/12/06 13:24:31 bde Exp $
  */
 
 /*
@@ -379,14 +379,18 @@ sltioctl(tp, cmd, data, flag, p)
 				if (   nc->sc_if.if_unit == *(u_int *)data
 				    && nc->sc_ttyp == NULL
 				   ) {
-					tmpnc = malloc(sizeof *tmpnc, M_TEMP,
-						       M_WAITOK);
+					MALLOC(tmpnc, sizeof *tmpnc, M_TEMP,
+						M_NOWAIT);
+					if (tmpnc == NULL) {
+						splx(s);
+						return (ENOMEM);
+					}
 					*tmpnc = *nc;
 					*nc = *sc;
 					nc->sc_if = tmpnc->sc_if;
 					tmpnc->sc_if = sc->sc_if;
 					*sc = *tmpnc;
-					free(tmpnc, M_TEMP);
+					FREE(tmpnc, M_TEMP);
 					if (sc->sc_if.if_flags & IFF_UP) {
 						if_down(&sc->sc_if);
 						if (!(nc->sc_if.if_flags & IFF_UP))
