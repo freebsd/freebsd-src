@@ -1,37 +1,27 @@
 #	From: @(#)Makefile	5.20 (Berkeley) 6/12/93
-#	$Id: Makefile,v 1.114 1997/12/07 02:27:48 peter Exp $
+#	$Id: Makefile,v 1.115 1998/02/18 13:48:37 msmith Exp $
 
 # XXX MISSING:		mkproto
 SUBDIR= ac accton adduser amd arp bootparamd cdcontrol chown chroot ckdist \
 	cron crunch ctm dev_mkdb diskpart edquota inetd kernbb keyadmin \
-	keyserv kgmon kvm_mkdb lpr manctl mkdosfs mrouted mtest mtree \
-	named named.reload named.restart natd  ndc newsyslog nslookup \
-	pccard pciconf pcvt periodic pkg_install pnpinfo portmap \
-	ppp pppctl pppd pppstats procctl pstat pw pwd_mkdb quot quotaon rarpd \
-	repquota rmt rndcontrol rpc.lockd rpc.statd rpc.yppasswdd rpc.ypxfrd \
+	keyserv kgmon lpr manctl mkdosfs mrouted mtest mtree \
+	named named.reload named.restart ndc newsyslog nslookup \
+	pccard pciconf periodic pkg_install portmap \
+	ppp pppctl pppd pppstats procctl pw pwd_mkdb quot quotaon rarpd \
+	repquota rmt rpc.lockd rpc.statd rpc.yppasswdd rpc.ypxfrd \
 	rpc.ypupdated rwhod sa sendmail sliplogin slstat \
 	spray sysctl syslogd tcpdump timed traceroute trpt tzsetup vipw \
-	vnconfig watch wlconfig wormcontrol xntpd xten ypbind yp_mkdb \
+	vnconfig watch wormcontrol xntpd xten ypbind yp_mkdb \
 	yppoll yppush ypset ypserv zic
 
 SUBDIR+=IPXrouted
 
-.if   make(clean) || make(cleandir)
+.if ${MACHINE_ARCH} == "i386"
+SUBDIR+=kvm_mkdb natd pcvt pnpinfo pstat rndcontrol wlconfig
+
 SUBDIR+=apm apmconf bad144 config fdformat fdwrite fdcontrol iostat \
 	kbdcontrol kbdmap lptcontrol mixer moused mptable ncrcontrol \
 	rtprio sgsc sicontrol spkrtest stallion vidcontrol
-.elif ${MACHINE} == "hp300"
-SUBDIR+=config iostat
-.elif ${MACHINE} == "i386"
-SUBDIR+=apm apmconf bad144 config fdformat fdwrite fdcontrol iostat \
-	kbdcontrol kbdmap lptcontrol mixer moused mptable ncrcontrol \
-	rtprio sgsc sicontrol spkrtest stallion vidcontrol
-.elif ${MACHINE} == "luna68k"
-SUBDIR+=config iostat
-.elif ${MACHINE} == "mips"
-SUBDIR+=config iostat
-.elif ${MACHINE} == "tahoe"
-SUBDIR+=config iostat
 .endif
 
 .include <bsd.subdir.mk>
