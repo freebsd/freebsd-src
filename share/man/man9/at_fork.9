@@ -36,6 +36,7 @@
 .Fd #include <sys/types.h>
 .Fd #include <sys/systm.h>
 .Ft typedef void \*(lp*forklist_fn\*(rp \*(lpstruct proc*, struct proc*, int\*(rp;
+.Pp
 .Ft int
 .Fn at_fork "forklist_fn func"
 .Ft int
