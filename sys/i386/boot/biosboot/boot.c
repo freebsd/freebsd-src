@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.27 1994/11/26 09:08:48 phk Exp $
+ *	$Id: boot.c,v 1.28 1994/12/18 19:14:13 bde Exp $
  */
 
 
@@ -65,12 +65,20 @@ char *names[] = {
 };
 #define NUMNAMES	(sizeof(names)/sizeof(char *))
 
+#ifdef COMCONSOLE
+extern void init_serial(void);
+#endif
+
 extern int end;
 boot(drive)
 int drive;
 {
 	int loadflags, currname = 0, ret;
 	char *t;
+#ifdef COMCONSOLE
+	init_serial();
+#endif
+
 		
 	/* Pick up the story from the Bios on geometry of disks */
 
