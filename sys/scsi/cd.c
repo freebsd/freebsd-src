@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.21 1994/08/29 21:25:11 ache Exp $
+ *      $Id: cd.c,v 1.22 1994/08/31 06:17:43 davidg Exp $
  */
 
 #define SPLCD splbio
@@ -52,12 +52,12 @@ int32   cdstrats, cdqueues;
 
 #ifdef	DDB
 #else	/* DDB */
-#define Debugger()
+#define Debugger(x)
 #endif	/* DDB */
 
 #define PAGESIZ 	4096
 #define SECSIZE 2048	/* XXX */	/* default only */
-#define	CDOUTSTANDING	2
+#define	CDOUTSTANDING	1
 #define	CDRETRIES	1
 
 #define	UNITSHIFT	3
@@ -83,6 +83,7 @@ struct cd_data {
 	u_int32 flags;
 #define	CDINIT		0x04	/* device has been init'd */
 	struct scsi_link *sc_link;	/* address of scsi low level switch */
+	u_int32 ad_info;	/* info about the adapter */
 	u_int32 cmdscount;	/* cmds allowed outstanding by board */
 	struct cd_parms {
 		u_int32 blksize;
@@ -179,9 +180,19 @@ cdattach(sc_link)
 	 * Store information needed to contact our base driver
 	 */
 	cd->sc_link = sc_link;
-	/* only allow 1 outstanding command on tapes */
-	sc_link->opennings = cd->cmdscount = CDOUTSTANDING;
+	sc_link->device = &cd_switch;
+	sc_link->dev_unit = unit;
 
+	if (cd->sc_link->adapter->adapter_info) {
+		cd->ad_info = ((*(cd->sc_link->adapter->adapter_info)) (sc_link->adapter_unit));
+		cd->cmdscount = cd->ad_info & AD_INF_MAX_CMDS;
+		if (cd->cmdscount > CDOUTSTANDING)
+			cd->cmdscount = CDOUTSTANDING;
+	} else {
+		cd->ad_info = 1;
+		cd->cmdscount = 1;
+	} 
+	sc_link->opennings = cd->cmdscount;
 	/*
 	 * Use the subdriver to request information regarding
 	 * the drive. We cannot use interrupts yet, so the
