@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.93 1998/06/07 17:12:45 dfr Exp $
+ *      $Id: cd.c,v 1.94 1998/06/17 14:13:13 bde Exp $
  */
 
 #include "opt_bounce.h"
@@ -65,17 +65,19 @@ static errval cd_read_subchannel __P((u_int32_t, u_int32_t, u_int32_t, int, stru
 static errval cd_getdisklabel __P((u_int8_t));
 
 static	d_open_t	cdopen;
+static	d_read_t	cdread;
 static	d_close_t	cdclose;
 static	d_ioctl_t	cdioctl;
 static	d_strategy_t	cdstrategy;
 
 #define CDEV_MAJOR 15
 #define BDEV_MAJOR 6
-static struct cdevsw cd_cdevsw;
-static struct bdevsw cd_bdevsw = 
-	{ cdopen,	cdclose,	cdstrategy,	cdioctl,	/*6*/
-	  nodump,	nopsize,	D_DISK,	"cd",	&cd_cdevsw,	-1 };
-
+static struct cdevsw cd_cdevsw = {
+	  cdopen,	cdclose,	cdread,		nowrite,
+	  cdioctl,	nostop,		nullreset,	nodevtotty,
+	  seltrue,	nommap,		cdstrategy,	"cd",
+	  NULL,		-1,		nodump,		nopsize,
+	  D_DISK,	0,		-1 };
 
 static int32_t cdstrats, cdqueues;
 
@@ -221,10 +223,10 @@ cdattach(struct scsi_link *sc_link)
 		devfs_add_devswf(&cd_cdevsw, (unit * 8 ) + RAW_PART, DV_CHR,
 				CD_UID, CD_GID, 0640, "rcd%dc", unit);
 	cd->a_devfs_token = 
-		devfs_add_devswf(&cd_bdevsw, unit * 8, DV_BLK, CD_UID, 
+		devfs_add_devswf(&cd_cdevsw, unit * 8, DV_BLK, CD_UID, 
 				CD_GID, 0640, "cd%da", unit);
 	cd->c_devfs_token = 
-		devfs_add_devswf(&cd_bdevsw, (unit * 8 ) + RAW_PART, DV_BLK,
+		devfs_add_devswf(&cd_cdevsw, (unit * 8 ) + RAW_PART, DV_BLK,
 				CD_UID, CD_GID, 0640, "cd%dc", unit);
 	cd->ctl_devfs_token =
 		devfs_add_devswf(&cd_cdevsw, (unit * 8) | SCSI_CONTROL_MASK,
@@ -390,6 +392,12 @@ cd_close(dev_t dev, int flag, int fmt, struct proc *p,
 	return (0);
 }
 
+
+static int
+cdread(dev_t dev, struct uio *uio, int ioflag)
+{
+	return (physio(cdstrategy, NULL, dev, 1, minphys, uio));
+}
 
 /*
  * Actually translate the requested transfer into one the physical driver can
@@ -1491,7 +1499,7 @@ static void 	cd_drvinit(void *unused)
 {
 
 	if( ! cd_devsw_installed ) {
-		bdevsw_add_generic(BDEV_MAJOR, CDEV_MAJOR, &cd_bdevsw);
+		cdevsw_add_generic(BDEV_MAJOR, CDEV_MAJOR, &cd_cdevsw);
 		cd_devsw_installed = 1;
     	}
 }

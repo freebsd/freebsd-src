@@ -1,3 +1,4 @@
+
 /*
  * Copyright (c) 1990 The Regents of the University of California.
  * All rights reserved.
@@ -43,7 +44,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.113 1998/06/07 17:10:20 dfr Exp $
+ *	$Id: fd.c,v 1.114 1998/06/07 19:40:39 dfr Exp $
  *
  */
 
@@ -299,6 +300,8 @@ struct	isa_driver fdcdriver = {
 };
 
 static	d_open_t	Fdopen;	/* NOTE, not fdopen */
+static	d_read_t	fdread;
+static	d_write_t	fdwrite;
 static	d_close_t	fdclose;
 static	d_ioctl_t	fdioctl;
 static	d_strategy_t	fdstrategy;
@@ -306,10 +309,14 @@ static	d_strategy_t	fdstrategy;
 /* even if SLICE defined, these are needed for the ft support. */
 #define CDEV_MAJOR 9
 #define BDEV_MAJOR 2
-static struct cdevsw fd_cdevsw;
-static struct bdevsw fd_bdevsw = 
-	{ Fdopen,	fdclose,	fdstrategy,	fdioctl,	/*2*/
-	  nodump,	nopsize,	D_DISK,	"fd",	&fd_cdevsw,	-1 };
+
+
+static struct cdevsw fd_cdevsw = {
+	  Fdopen,	fdclose,	fdread,	fdwrite,
+	  fdioctl,	nostop,		nullreset,	nodevtotty,
+	  seltrue,	nommap,		fdstrategy,	"fd",
+	  NULL,		-1,		nodump,		nopsize,
+	  D_DISK,	0,		-1 };
 
 
 static struct isa_device *fdcdevs[NFDC];
@@ -798,7 +805,7 @@ fdattach(struct isa_device *dev)
 		config_intrhook_establish(&fd->ich);
 #else	/* SLICE */
 		mynor = fdu << 6;
-		fd->bdevs[0] = devfs_add_devswf(&fd_bdevsw, mynor, DV_BLK,
+		fd->bdevs[0] = devfs_add_devswf(&fd_cdevsw, mynor, DV_BLK,
 						UID_ROOT, GID_OPERATOR, 0640,
 						"fd%d", fdu);
 		fd->cdevs[0] = devfs_add_devswf(&fd_cdevsw, mynor, DV_CHR,
@@ -863,7 +870,7 @@ fdattach(struct isa_device *dev)
 #else	/* SLICE */
 			typemynor = mynor | i;
 			fd->bdevs[i] =
-				devfs_add_devswf(&fd_bdevsw, typemynor, DV_BLK,
+				devfs_add_devswf(&fd_cdevsw, typemynor, DV_BLK,
 						 UID_ROOT, GID_OPERATOR, 0640,
 						 "fd%d.%d", fdu, typesize);
 			fd->cdevs[i] =
@@ -1208,6 +1215,18 @@ fdclose(dev_t dev, int flags, int mode, struct proc *p)
 	fd_data[fdu].options &= ~FDOPT_NORETRY;
 
 	return(0);
+}
+
+static int
+fdread(dev_t dev, struct uio *uio, int ioflag)
+{
+	return (physio(fdstrategy, NULL, dev, 1, minphys, uio));
+}
+
+static int
+fdwrite(dev_t dev, struct uio *uio, int ioflag)
+{
+	return (physio(fdstrategy, NULL, dev, 0, minphys, uio));
 }
 
 
@@ -2180,7 +2199,7 @@ static void 	fd_drvinit(void *notused )
 {
 
 	if( ! fd_devsw_installed ) {
-		bdevsw_add_generic(BDEV_MAJOR,CDEV_MAJOR, &fd_bdevsw);
+		cdevsw_add_generic(BDEV_MAJOR,CDEV_MAJOR, &fd_cdevsw);
 		fd_devsw_installed = 1;
 	}
 }

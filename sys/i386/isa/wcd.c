@@ -13,7 +13,7 @@
  * all derivative works or modified versions.
  *
  * From: Version 1.9, Mon Oct  9 20:27:42 MSK 1995
- * $Id: wcd.c,v 1.55 1998/06/25 11:27:20 phk Exp $
+ * $Id: wcd.c,v 1.56 1998/06/26 18:13:57 phk Exp $
  */
 
 #include "wdc.h"
@@ -40,16 +40,19 @@
 #include <i386/isa/atapi.h>
 
 static	d_open_t	wcdopen;
+static	d_read_t	wcdread;
 static	d_close_t	wcdclose;
 static	d_ioctl_t	wcdioctl;
 static	d_strategy_t	wcdstrategy;
 
 #define CDEV_MAJOR 69
 #define BDEV_MAJOR 19
-static struct cdevsw wcd_cdevsw;
-static struct bdevsw wcd_bdevsw = 
-	{ wcdopen,	wcdclose,	wcdstrategy,	wcdioctl,	/*19*/
-	  nodump,	nopsize,	D_DISK,	"wcd",	&wcd_cdevsw,	-1 };
+static struct cdevsw wcd_cdevsw = 
+	{ wcdopen,	wcdclose,	wcdread,	nowrite,	/*69*/
+	  wcdioctl,	nostop,		nullreset,	nodevtotty,/* atapi */
+	  seltrue,	nommap,		wcdstrategy,	"wcd",
+	  NULL,		-1,		nodump,		nopsize,
+	  D_DISK,	0,		-1 };
 
 #ifndef ATAPI_STATIC
 static
@@ -317,11 +320,11 @@ wcd_init_lun(struct atapi *ata, int unit, struct atapi_params *ap, int lun)
 				 DV_CHR, UID_ROOT, GID_OPERATOR, 0640,
 				 "rwcd%dc", lun);
 	ptr->a_devfs_token = 
-		devfs_add_devswf(&wcd_bdevsw, dkmakeminor(lun, 0, 0),
+		devfs_add_devswf(&wcd_cdevsw, dkmakeminor(lun, 0, 0),
 				 DV_BLK, UID_ROOT, GID_OPERATOR, 0640,
 				 "wcd%da", lun);
 	ptr->c_devfs_token = 
-		devfs_add_devswf(&wcd_bdevsw, dkmakeminor(lun, 0, RAW_PART),
+		devfs_add_devswf(&wcd_cdevsw, dkmakeminor(lun, 0, RAW_PART),
 				 DV_BLK, UID_ROOT, GID_OPERATOR, 0640,
 				 "wcd%dc", lun);
 #endif
@@ -558,6 +561,12 @@ wcdclose (dev_t dev, int flags, int fmt, struct proc *p)
 		--t->refcnt;
 	}
 	return (0);
+}
+
+static int
+wcdread(dev_t dev, struct uio *uio, int ioflag)
+{
+	return (physio(wcdstrategy, NULL, dev, 1, minphys, uio));
 }
 
 /*
@@ -1271,7 +1280,7 @@ wcd_select_slot(struct wcd *cdp)
  */
 
 
-MOD_DEV(wcd, LM_DT_BLOCK, BDEV_MAJOR, &wcd_bdevsw);
+MOD_DEV(wcd, LM_DT_BLOCK, BDEV_MAJOR, &wcd_cdevsw);
 MOD_DEV(rwcd, LM_DT_CHAR, CDEV_MAJOR, &wcd_cdevsw);
 
 /*
@@ -1361,7 +1370,7 @@ static void 	wcd_drvinit(void *unused)
 {
 
 	if( ! wcd_devsw_installed ) {
-		bdevsw_add_generic(BDEV_MAJOR, CDEV_MAJOR, &wcd_bdevsw);
+		cdevsw_add_generic(BDEV_MAJOR, CDEV_MAJOR, &wcd_cdevsw);
 		wcd_devsw_installed = 1;
     	}
 }

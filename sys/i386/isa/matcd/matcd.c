@@ -337,7 +337,7 @@ static char	MATCDVERSION[]="Version  1(26) 18-Oct-95";
 static char	MATCDCOPYRIGHT[] = "Matsushita CD-ROM driver, Copr. 1994,1995 Frank Durda IV";
 /*	The proceeding strings may not be changed*/
 
-/* $Id: matcd.c,v 1.33 1998/06/07 17:11:16 dfr Exp $ */
+/* $Id: matcd.c,v 1.34 1998/06/17 13:54:58 bde Exp $ */
 
 /*---------------------------------------------------------------------------
 	Include declarations
@@ -515,6 +515,7 @@ struct	isa_driver	matcddriver={matcd_probe, matcd_attach,
 
 
 static d_open_t		matcdopen;
+static d_read_t		matcdread;
 static d_close_t	matcdclose;
 static d_ioctl_t	matcdioctl;
 static d_psize_t	matcdsize;
@@ -523,11 +524,12 @@ static d_strategy_t	matcdstrategy;
 #define CDEV_MAJOR 46
 #define BDEV_MAJOR 17
 
-static struct cdevsw matcd_cdevsw;
-static struct bdevsw matcd_bdevsw = 
-	{ matcdopen,	matcdclose,	matcdstrategy,	matcdioctl,	/*17*/
-	  nodump,	matcdsize,	D_DISK,		"matcd",
-	  &matcd_cdevsw,	-1 };
+static struct cdevsw matcd_cdevsw = {
+	  matcdopen,	matcdclose,	matcdread,	nowrite,
+	  matcdioctl,	nostop,		nullreset,	nodevtotty,
+	  seltrue,	nommap,		matcdstrategy,	"matcd",
+	  NULL,		-1,	nodump,		nopsize,
+	  D_DISK,	0,		-1 };
 
 /*---------------------------------------------------------------------------
 	Internal function declarations
@@ -838,6 +840,12 @@ int matcdclose(dev_t dev, int flags, int fmt,
 	return(0);
 }
 
+
+static int
+matcdread(dev_t dev, struct uio *uio, int ioflag)
+{
+	return (physio(matcdstrategy, NULL, dev, 1, minphys, uio));
+}
 
 /*---------------------------------------------------------------------------
 	matcdstrategy - Accepts I/O requests from kernel for processing
@@ -1404,10 +1412,10 @@ matcd_attach(struct isa_device *dev)
 			cd->rc_devfs_token = devfs_add_devswf(&matcd_cdevsw,
 				dkmakeminor(i, 0, RAW_PART), DV_CHR,
 				UID_ROOT, GID_OPERATOR, 0640, "rmatcd%dc", i);
-			cd->a_devfs_token = devfs_add_devswf(&matcd_bdevsw,
+			cd->a_devfs_token = devfs_add_devswf(&matcd_cdevsw,
 				dkmakeminor(i, 0, 0), DV_BLK,
 				UID_ROOT, GID_OPERATOR, 0640, "matcd%da", i);
-			cd->c_devfs_token = devfs_add_devswf(&matcd_bdevsw,
+			cd->c_devfs_token = devfs_add_devswf(&matcd_cdevsw,
 				dkmakeminor(i, 0, RAW_PART), DV_BLK,
 				UID_ROOT, GID_OPERATOR, 0640, "matcd%dc", i);
 			cd->rla_devfs_token = devfs_add_devswf(&matcd_cdevsw,
@@ -1416,10 +1424,10 @@ matcd_attach(struct isa_device *dev)
 			cd->rlc_devfs_token = devfs_add_devswf(&matcd_cdevsw,
 				0x80 | dkmakeminor(i, 0, RAW_PART), DV_CHR,
 				UID_ROOT, GID_OPERATOR, 0640, "rmatcd%dc", i);
-			cd->la_devfs_token = devfs_add_devswf(&matcd_bdevsw,
+			cd->la_devfs_token = devfs_add_devswf(&matcd_cdevsw,
 				0x80 | dkmakeminor(i, 0, 0), DV_BLK,
 				UID_ROOT, GID_OPERATOR, 0640, "matcd%dla", i);
-			cd->lc_devfs_token = devfs_add_devswf(&matcd_bdevsw,
+			cd->lc_devfs_token = devfs_add_devswf(&matcd_cdevsw,
 				0x80 | dkmakeminor(i, 0, RAW_PART), DV_BLK,
 				UID_ROOT, GID_OPERATOR, 0640, "matcd%dlc", i);
 #endif
@@ -2730,7 +2738,7 @@ matcd_drvinit(void *unused)
 {
 
 	if( ! matcd_devsw_installed ) {
-		bdevsw_add_generic(BDEV_MAJOR,CDEV_MAJOR, &matcd_bdevsw);
+		cdevsw_add_generic(BDEV_MAJOR,CDEV_MAJOR, &matcd_cdevsw);
 		matcd_devsw_installed = 1;
     	}
 }

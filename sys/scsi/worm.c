@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: worm.c,v 1.56 1998/06/07 17:12:54 dfr Exp $
+ *      $Id: worm.c,v 1.57 1998/06/17 14:13:15 bde Exp $
  */
 
 #include "opt_bounce.h"
@@ -166,17 +166,21 @@ static errval hp4020i_read_first_writable_address (struct scsi_link *sc_link,
 static worm_devsw_installed = 0;
 
 static	d_open_t	wormopen;
+static	d_read_t	wormread;
+static	d_write_t	wormwrite;
 static	d_close_t	wormclose;
 static	d_ioctl_t	wormioctl;
 static	d_strategy_t	wormstrategy;
 
 #define CDEV_MAJOR 62
 #define BDEV_MAJOR 23
-static struct cdevsw worm_cdevsw;
-static struct bdevsw worm_bdevsw = 
-	{ wormopen,	wormclose,	wormstrategy,	wormioctl,	/*23*/
-	  nodump,	nopsize,	D_DISK,	"worm",	&worm_cdevsw,	-1 };
 
+static struct cdevsw worm_cdevsw = {
+	  wormopen,	wormclose,	wormread,	wormwrite,
+	  wormioctl,	nostop,		nullreset,	nodevtotty,
+	  seltrue,	nommap,		wormstrategy,	"worm",
+	  NULL,		-1,		nodump,		nopsize,
+	  D_DISK,	0,		-1 };
 
 static int
 wormunit(dev_t dev)
@@ -279,7 +283,7 @@ wormattach(struct scsi_link *sc_link)
 #ifdef DEVFS
 	mynor = wormunit(sc_link->dev);
 	worm->b_devfs_token =
-		devfs_add_devswf(&worm_bdevsw, mynor,
+		devfs_add_devswf(&worm_cdevsw, mynor,
 				 DV_BLK, 0, 0, 0444, "worm%d", mynor);
 	worm->c_devfs_token =
 		devfs_add_devswf(&worm_cdevsw, mynor,
@@ -290,6 +294,18 @@ wormattach(struct scsi_link *sc_link)
 #endif
 	worm_registerdev(unit);
 	return 0;
+}
+
+static int
+wormread(dev_t dev, struct uio *uio, int ioflag)
+{
+	return (physio(wormstrategy, NULL, dev, 1, minphys, uio));
+}
+
+static int
+wormwrite(dev_t dev, struct uio *uio, int ioflag)
+{
+	return (physio(wormstrategy, NULL, dev, 0, minphys, uio));
 }
 
 /*
@@ -1075,7 +1091,7 @@ worm_drvinit(void *unused)
 {
 
 	if (!worm_devsw_installed) {
-		bdevsw_add_generic(BDEV_MAJOR, CDEV_MAJOR, &worm_bdevsw);
+		cdevsw_add_generic(BDEV_MAJOR, CDEV_MAJOR, &worm_cdevsw);
 		worm_devsw_installed = 1;
     	}
 }

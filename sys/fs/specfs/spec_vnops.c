@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.14 (Berkeley) 5/21/95
- * $Id: spec_vnops.c,v 1.63 1998/06/07 17:11:59 dfr Exp $
+ * $Id: spec_vnops.c,v 1.64 1998/07/04 20:45:33 julian Exp $
  */
 
 #include <sys/param.h>
@@ -183,9 +183,8 @@ spec_open(ap)
 			 * opens for writing of any disk character devices.
 			 */
 			if (securelevel >= 2
-			    && cdevsw[maj]->d_bdev
-			    && (cdevsw[maj]->d_bdev->d_flags & D_TYPEMASK) == 
-			    D_DISK)
+			    && cdevsw[maj]->d_bmaj != -1
+			    && (cdevsw[maj]->d_flags & D_TYPEMASK) == D_DISK)
 				return (EPERM);
 			/*
 			 * When running in secure mode, do not allow opens

@@ -38,7 +38,7 @@
  * from: Utah Hdr: vn.c 1.13 94/04/02
  *
  *	from: @(#)vn.c	8.6 (Berkeley) 4/1/94
- *	$Id: vn.c,v 1.62 1998/07/04 00:27:48 julian Exp $
+ *	$Id: vn.c,v 1.63 1998/07/04 20:45:29 julian Exp $
  */
 
 /*
@@ -96,6 +96,8 @@
 static	d_ioctl_t	vnioctl;
 #ifndef	SLICE
 static	d_open_t	vnopen;
+static	d_read_t	vnread;
+static	d_write_t	vnwrite;
 static	d_close_t	vnclose;
 static	d_dump_t	vndump;
 static	d_psize_t	vnsize;
@@ -103,10 +105,14 @@ static	d_strategy_t	vnstrategy;
 
 #define CDEV_MAJOR 43
 #define BDEV_MAJOR 15
-static struct cdevsw vn_cdevsw;
-static struct bdevsw vn_bdevsw = 
-	{ vnopen, vnclose, vnstrategy,                      vnioctl,	/*15*/
-	  vndump, vnsize,  D_DISK | D_NOCLUSTERRW, "vn",    &vn_cdevsw, -1 };
+
+
+static struct cdevsw vn_cdevsw = {
+	  vnopen,	vnclose,	vnread,		vnwrite,
+	  vnioctl,	nostop,		nullreset,	nodevtotty,
+	  seltrue,	nommap,		vnstrategy,	"vn",
+	  NULL,		-1,		vndump,		vnsize,
+	  D_DISK|D_NOCLUSTERRW,	0,	-1 };
 
 #else /* SLICE */
 
@@ -227,7 +233,7 @@ vnopen(dev_t dev, int flags, int mode, struct proc *p)
 
 			return (dsopen("vn", dev, mode, &vn->sc_slices, &label,
 				       vnstrategy, (ds_setgeom_t *)NULL,
-				       &vn_bdevsw, &vn_cdevsw));
+				       &vn_cdevsw, &vn_cdevsw));
 		}
 		if (dkslice(dev) != WHOLE_DISK_SLICE ||
 		    dkpart(dev) != RAW_PART ||
@@ -235,6 +241,18 @@ vnopen(dev_t dev, int flags, int mode, struct proc *p)
 			return (ENXIO);
 	}
 	return(0);
+}
+
+static int
+vnread(dev_t dev, struct uio *uio, int ioflag)
+{
+	return (physio(vnstrategy, NULL, dev, 1, minphys, uio));
+}
+
+static int
+vnwrite(dev_t dev, struct uio *uio, int ioflag)
+{
+	return (physio(vnstrategy, NULL, dev, 0, minphys, uio));
 }
 
 /*
@@ -872,7 +890,7 @@ vn_drvinit(void *unused)
 			printf("vn: could not install shutdown hook\n");
 			return;
 		}
-		bdevsw_add_generic(BDEV_MAJOR, CDEV_MAJOR, &vn_bdevsw);
+		cdevsw_add_generic(BDEV_MAJOR, CDEV_MAJOR, &vn_cdevsw);
 		vn_devsw_installed = 1;
 	}
 #else /* SLICE */

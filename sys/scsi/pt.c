@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: pt.c,v 1.27 1998/01/24 02:54:49 eivind Exp $
+ *      $Id: pt.c,v 1.28 1998/06/17 14:13:14 bde Exp $
  */
 
 #include "opt_bounce.h"
@@ -67,13 +67,15 @@ struct scsi_data {
 };
 
 static	d_open_t	ptopen;
+static	d_read_t	ptread;
+static	d_write_t	ptwrite;
 static	d_close_t	ptclose;
 static	d_ioctl_t	ptioctl;
 static	d_strategy_t	ptstrategy;
 
 #define CDEV_MAJOR 61
 static struct cdevsw pt_cdevsw = 
-	{ ptopen,	ptclose,	rawread,	rawwrite,	/*61*/
+	{ ptopen,	ptclose,	ptread,		ptwrite,	/*61*/
 	  ptioctl,	nostop,		nullreset,	nodevtotty,/* pt */
 	  seltrue,	nommap,		ptstrategy,	"pt",	NULL,	-1 };
 
@@ -213,6 +215,18 @@ ptstart(unit, flags)
 			biodone(bp);
 		}
 	} /* go back and see if we can cram more work in.. */
+}
+
+static int
+ptread( dev_t dev, struct uio *uio, int ioflag)
+{
+	return (physio(ptstrategy, NULL, dev, 1, minphys, uio));
+}
+
+static int
+ptwrite ( dev_t dev, struct uio *uio, int ioflag)
+{
+	return (physio(ptstrategy, NULL, dev, 0, minphys, uio));
 }
 
 static void

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_conf.c,v 1.25 1998/06/25 11:27:34 phk Exp $
+ * $Id: kern_conf.c,v 1.26 1998/06/26 18:14:25 phk Exp $
  */
 
 #include <sys/param.h>
@@ -44,12 +44,10 @@
 #define bdevsw_ALLOCSTART	(NUMBDEV/2)
 #define cdevsw_ALLOCSTART	(NUMCDEV/2)
 
-struct bdevsw 	*bdevsw[NUMBDEV];
+struct cdevsw 	*bdevsw[NUMBDEV];
 int	nblkdev = NUMBDEV;
 struct cdevsw 	*cdevsw[NUMCDEV];
 int	nchrdev = NUMCDEV;
-
-static void	cdevsw_make __P((struct bdevsw *from));
 
 /*
  * Routine to convert from character to block device number.
@@ -63,8 +61,8 @@ chrtoblk(dev_t dev)
 	struct cdevsw *cd;
 
 	if(cd = cdevsw[major(dev)]) {
-          if ( (bd = cd->d_bdev) )
-	    return(makedev(bd->d_maj,minor(dev)));
+          if (cd->d_bmaj != -1)
+	    return(makedev(cd->d_bmaj,minor(dev)));
 	}
 	return(NODEV);
 }
@@ -73,91 +71,99 @@ chrtoblk(dev_t dev)
  * (re)place an entry in the bdevsw or cdevsw table
  * return the slot used in major(*descrip)
  */
-#define ADDENTRY(TTYPE,NXXXDEV,ALLOCSTART) \
-int TTYPE##_add(dev_t *descrip,						\
-		struct TTYPE *newentry,					\
-		struct TTYPE **oldentry)				\
-{									\
-	int i ;								\
-	if ( (int)*descrip == NODEV) {	/* auto (0 is valid) */		\
-		/*							\
-		 * Search the table looking for a slot...		\
-		 */							\
-		for (i = ALLOCSTART; i < NXXXDEV; i++)			\
-			if (TTYPE[i] == NULL)				\
-				break;		/* found one! */	\
-		/* out of allocable slots? */				\
-		if (i >= NXXXDEV) {					\
-			return ENFILE;					\
-		}							\
-	} else {				/* assign */		\
-		i = major(*descrip);					\
-		if (i < 0 || i >= NXXXDEV) {				\
-			return EINVAL;					\
-		}							\
-	}								\
-									\
-	/* maybe save old */						\
-        if (oldentry) {							\
-		*oldentry = TTYPE[i];					\
-	}								\
-	if (newentry)							\
-		newentry->d_maj = i;					\
-	/* replace with new */						\
-	TTYPE[i] = newentry;						\
-									\
-	/* done!  let them know where we put it */			\
-	*descrip = makedev(i,0);					\
-	return 0;							\
-} \
+static int
+bdevsw_add(dev_t *descrip,
+		struct cdevsw *newentry,
+		struct cdevsw **oldentry)
+{
+	int i ;
 
-static ADDENTRY(bdevsw, nblkdev,bdevsw_ALLOCSTART)
-ADDENTRY(cdevsw, nchrdev,cdevsw_ALLOCSTART)
+	if ( (int)*descrip == NODEV) {	/* auto (0 is valid) */
+		/*
+		 * Search the table looking for a slot...
+		 */
+		for (i = bdevsw_ALLOCSTART; i < nblkdev; i++)
+			if (bdevsw[i] == NULL)
+				break;		/* found one! */
+		/* out of allocable slots? */
+		if (i >= nblkdev) {
+			return ENFILE;
+		}
+	} else {				/* assign */
+		i = major(*descrip);
+		if (i < 0 || i >= nblkdev) {
+			return EINVAL;
+		}
+	}
+
+	/* maybe save old */
+        if (oldentry) {
+		*oldentry = bdevsw[i];
+	}
+	if (newentry) {
+		newentry->d_bmaj = i;
+	}
+	/* replace with new */
+	bdevsw[i] = newentry;
+
+	/* done!  let them know where we put it */
+	*descrip = makedev(i,0);
+	return 0;
+} 
+
+int
+cdevsw_add(dev_t *descrip,
+		struct cdevsw *newentry,
+		struct cdevsw **oldentry)
+{
+	int i ;
+
+	if ( (int)*descrip == NODEV) {	/* auto (0 is valid) */
+		/*
+		 * Search the table looking for a slot...
+		 */
+		for (i = cdevsw_ALLOCSTART; i < nchrdev; i++)
+			if (cdevsw[i] == NULL)
+				break;		/* found one! */
+		/* out of allocable slots? */
+		if (i >= nchrdev) {
+			return ENFILE;
+		}
+	} else {				/* assign */
+		i = major(*descrip);
+		if (i < 0 || i >= nchrdev) {
+			return EINVAL;
+		}
+	}
+
+	/* maybe save old */
+        if (oldentry) {
+		*oldentry = cdevsw[i];
+	}
+	if (newentry) {
+		newentry->d_bmaj = -1;
+		newentry->d_maj = i;
+	}
+	/* replace with new */
+	cdevsw[i] = newentry;
+
+	/* done!  let them know where we put it */
+	*descrip = makedev(i,0);
+	return 0;
+} 
 
 /*
- * Since the bdevsw struct for a disk contains all the information
- * needed to create a cdevsw entry, these two routines do that, rather
- * than specifying it by hand.
+ * note must call cdevsw_add before bdevsw_add due to d_bmaj hack.
  */
-
-static void
-cdevsw_make(struct bdevsw *from)
-{
-	struct cdevsw *to = from->d_cdev;
-
-	if (!to) 
-		panic("No target cdevsw in bdevsw");
-	to->d_open = from->d_open;
-	to->d_close = from->d_close;
-	to->d_read = rawread;
-	to->d_write = rawwrite;
-	to->d_ioctl = from->d_ioctl;
-	to->d_stop = nostop;
-	to->d_reset = nullreset;
-	to->d_devtotty = nodevtotty;
-	to->d_poll = seltrue;
-	to->d_mmap = nommap;
-	to->d_strategy = from->d_strategy;
-	to->d_name = from->d_name;
-	to->d_bdev = from;
-	to->d_maj = -1;
-	to->d_bmaj = from->d_maj;
-	to->d_maxio = from->d_maxio;
-	to->d_dump = from->d_dump;
-	to->d_psize = from->d_psize;
-	to->d_flags = from->d_flags;
-}
-
 void
-bdevsw_add_generic(int bdev, int cdev, struct bdevsw *bdevsw)
+cdevsw_add_generic(int bdev, int cdev, struct cdevsw *cdevsw)
 {
 	dev_t dev;
 
-	cdevsw_make(bdevsw);
 	dev = makedev(cdev, 0);
-	cdevsw_add(&dev, bdevsw->d_cdev, NULL);
+	cdevsw_add(&dev, cdevsw, NULL);
 	dev = makedev(bdev, 0);
-	bdevsw_add(&dev, bdevsw        , NULL);
+	bdevsw_add(&dev, cdevsw, NULL);
 }
 
 int
@@ -192,17 +198,18 @@ bdevsw_module_handler(module_t mod, modeventtype_t what, void* arg)
 
 	switch (what) {
 	case MOD_LOAD:
-		cdevsw_make(data->bdevsw);
-		if (error = cdevsw_add(&data->cdev, data->bdevsw->d_cdev, NULL))
+		if (error = cdevsw_add(&data->cdev, data->cdevsw, NULL))
 			return error;
-		if (error = bdevsw_add(&data->bdev, data->bdevsw, NULL))
+		if (error = bdevsw_add(&data->bdev, data->cdevsw, NULL)) {
+			cdevsw_add(&data->bdev, NULL, NULL);
 			return error;
+		}
 		break;
 
 	case MOD_UNLOAD:
-		if (error = cdevsw_add(&data->cdev, NULL, NULL))
-			return error;
 		if (error = bdevsw_add(&data->bdev, NULL, NULL))
+			return error;
+		if (error = cdevsw_add(&data->cdev, NULL, NULL))
 			return error;
 		break;
 	}

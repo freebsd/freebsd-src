@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: slice_device.c,v 1.5 1998/05/06 22:14:34 julian Exp $
+ *	$Id: slice_device.c,v 1.6 1998/06/07 18:44:03 sos Exp $
  */
 #define DIAGNOSTIC 1
 #include "opt_hw_wdog.h"
@@ -46,6 +46,8 @@
 
 /* Function prototypes (these should all be static  except for slicenew()) */
 static d_open_t slcdevopen;
+static d_read_t slcdevread;
+static d_write_t slcdevwrite;
 static d_close_t slcdevclose;
 static d_ioctl_t slcdevioctl;
 static d_dump_t slcdevdump;
@@ -55,21 +57,13 @@ static d_strategy_t slcdevstrategy;
 #define BDEV_MAJOR 14
 #define CDEV_MAJOR 20
 
-static struct cdevsw slice_cdevsw;
-static struct bdevsw slice_bdevsw = {
-	slcdevopen,
-	slcdevclose,
-	slcdevstrategy,
-	slcdevioctl,
-	slcdevdump,
-	slcdevsize,
-	D_DISK,
-	"slice",
-	&slice_cdevsw,
-	-1
-};
+static struct cdevsw slice_cdevsw = {
+	  slcdevopen,	slcdevclose,	slcdevread,	slcdevwrite,
+	  slcdevioctl,	nostop,		nullreset,	nodevtotty,
+	  seltrue,	nommap,		slcdevstrategy,	"slice",
+	  NULL,		 -1,		slcdevdump,	slcdevsize,
+	  D_DISK,	0,		-1 };
 
-static dev_t    cdevnum, bdevnum;
 
 #define UNIT_HASH_SIZE 64
 LIST_HEAD(slice_bucket, slice) hash_table[UNIT_HASH_SIZE - 1];
@@ -85,7 +79,7 @@ slice_drvinit(void *unused)
 	/*
 	 * add bdevsw and cdevsw entries
 	 */
-	bdevsw_add_generic(BDEV_MAJOR, CDEV_MAJOR, &slice_bdevsw);
+	cdevsw_add_generic(BDEV_MAJOR, CDEV_MAJOR, &slice_cdevsw);
 
 	/*
 	 * clear out the hash table
@@ -119,7 +113,7 @@ RR;
 	 */
 	slice->devfs_ctoken = devfs_add_devswf(&slice_cdevsw, unit, DV_CHR,
 	    UID_ROOT, GID_OPERATOR, 0600, "r%s", name ? name : "-");
-	slice->devfs_btoken = devfs_add_devswf(&slice_bdevsw, unit, DV_BLK,
+	slice->devfs_btoken = devfs_add_devswf(&slice_cdevsw, unit, DV_BLK,
 	     UID_ROOT, GID_OPERATOR, 0600, "%s", name ? name : "-");
 	/* XXX link this node into upper list of caller */
 }
@@ -259,6 +253,18 @@ RR;
 }
 
 
+static int
+slcdevread(dev_t dev, struct uio *uio, int ioflag)
+{
+	return (physio(slcdevstrategy, NULL, dev, 1, minphys, uio));
+}
+
+static int
+slcdevwrite(dev_t dev, struct uio *uio, int ioflag)
+{
+	return (physio(slcdevstrategy, NULL, dev, 0, minphys, uio));
+}
+static dev_t    cdevnum, bdevnum;
 /*
  * Read/write routine for a buffer.  Finds the proper unit, range checks
  * arguments, and schedules the transfer.  Does not wait for the transfer to
