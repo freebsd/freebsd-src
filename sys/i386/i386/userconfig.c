@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.88 1997/08/16 14:19:43 msmith Exp $
+ **      $Id: userconfig.c,v 1.89 1997/08/21 20:33:32 bde Exp $
  **/
 
 /**
@@ -2360,7 +2360,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.88 1997/08/16 14:19:43 msmith Exp $
+ *      $Id: userconfig.c,v 1.89 1997/08/21 20:33:32 bde Exp $
  */
 
 #include "scbus.h"
@@ -3122,7 +3122,7 @@ lsscsi(void)
 
     for (i = 0; scsi_cinit[i].driver; i++)
     {
-	id_put("controller scbus", scsi_cinit[i].bus);
+	id_put("controller scbus", scsi_cinit[i].scbus);
 
 	if (scsi_cinit[i].unit != -1)
 	{
@@ -3143,7 +3143,7 @@ lsscsi(void)
 		id_put(" lun ", scsi_dinit[i].lun);
 
 		if (scsi_dinit[i].flags)
-	    	printf("flags 0x%x\n", scsi_dinit[i].flags);
+	    	printf(" flags 0x%x\n", scsi_dinit[i].flags);
 
 		printf("\n");
     }
