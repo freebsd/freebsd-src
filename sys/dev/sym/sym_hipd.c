@@ -162,7 +162,7 @@ typedef	u_int32_t u32;
  *  make sense) to be used.
  */
 
-#if	defined	__i386__
+#if	defined	__i386__ || defined __amd64__
 #define MEMORY_BARRIER()	do { ; } while(0)
 #elif	defined	__alpha__
 #define MEMORY_BARRIER()	alpha_mb()
