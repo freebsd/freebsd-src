@@ -35,23 +35,23 @@
 #include "gsc.h"
 #if NGSC > 0
 
-#include "param.h"
-#include "systm.h"
-#include "proc.h"
-#include "user.h"
-#include "buf.h"
-#include "malloc.h"
-#include "kernel.h"
-#include "ioctl.h"
-#include "tty.h"
-#include "uio.h"
-#include "syslog.h"
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/proc.h>
+#include <sys/user.h>
+#include <sys/buf.h>
+#include <sys/malloc.h>
+#include <sys/kernel.h>
+#include <sys/ioctl.h>
+#include <sys/tty.h>
+#include <sys/uio.h>
+#include <sys/syslog.h>
 
-#include "i386/isa/isa.h"
-#include "i386/isa/isa_device.h"
-#include "i386/isa/gscreg.h"
+#include <machine/gsc.h>
 
-#include "i386/include/gsc.h"
+#include <i386/isa/isa.h>
+#include <i386/isa/isa_device.h>
+#include <i386/isa/gscreg.h>
 
 /***********************************************************************
  *
