@@ -154,7 +154,9 @@ SYSCTL_INT(_machdep, OID_AUTO, ispc98, CTLFLAG_RD, &ispc98, 0, "");
 int physmem = 0;
 int cold = 1;
 
+#ifdef COMPAT_43
 static void osendsig __P((sig_t catcher, int sig, sigset_t *mask, u_long code));
+#endif
 
 static int
 sysctl_hw_physmem(SYSCTL_HANDLER_ARGS)
@@ -416,6 +418,7 @@ again:
  * frame pointer, it returns to the user
  * specified pc, psl.
  */
+#ifdef COMPAT_43
 static void
 osendsig(catcher, sig, mask, code)
 	sig_t catcher;
@@ -560,6 +563,7 @@ osendsig(catcher, sig, mask, code)
 	load_gs(_udatasel);
 	regs->tf_ss = _udatasel;
 }
+#endif
 
 void
 sendsig(catcher, sig, mask, code)
@@ -578,11 +582,13 @@ sendsig(catcher, sig, mask, code)
 	p = curproc;
 	PROC_LOCK(p);
 	psp = p->p_sigacts;
+#ifdef COMPAT_43
 	if (SIGISMEMBER(psp->ps_osigset, sig)) {
 		PROC_UNLOCK(p);
 		osendsig(catcher, sig, mask, code);
 		return;
 	}
+#endif
 	regs = p->p_frame;
 	oonstack = sigonstack(regs->tf_esp);
 
@@ -719,6 +725,7 @@ sendsig(catcher, sig, mask, code)
  * make sure that the user has not modified the
  * state to gain improper privileges.
  */
+#ifdef COMPAT_43
 int
 osigreturn(p, uap)
 	struct proc *p;
@@ -828,6 +835,7 @@ osigreturn(p, uap)
 	regs->tf_eflags = eflags;
 	return (EJUSTRETURN);
 }
+#endif
 
 int
 sigreturn(p, uap)
@@ -841,11 +849,11 @@ sigreturn(p, uap)
 	int cs, eflags;
 
 	ucp = uap->sigcntxp;
+#ifdef COMPAT_43
 	if (!useracc((caddr_t)ucp, sizeof(struct osigcontext), VM_PROT_READ))
 		return (EFAULT);
 	if (((struct osigcontext *)ucp)->sc_trapno == 0x01d516)
 		return (osigreturn(p, (struct osigreturn_args *)uap));
-
 	/*
 	 * Since ucp is not an osigcontext but a ucontext_t, we have to
 	 * check again if all of it is accessible.  A ucontext_t is
@@ -853,6 +861,7 @@ sigreturn(p, uap)
 	 * being valid for the size of an osigcontext, now check for
 	 * it being valid for a whole, new-style ucontext_t.
 	 */
+#endif
 	if (!useracc((caddr_t)ucp, sizeof(*ucp), VM_PROT_READ))
 		return (EFAULT);
 

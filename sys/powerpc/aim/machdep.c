@@ -142,7 +142,9 @@ int		restore_ofw_mapping(void);
 
 void		install_extint(void (*)(void));
 
+#ifdef COMPAT_43
 void		osendsig(sig_t, int, sigset_t *, u_long);
+#endif
 
 struct msgbuf	*msgbufp = 0;
 
@@ -789,6 +791,7 @@ delay(unsigned n)
 }
 #endif
 
+#ifdef COMPAT_43
 void
 osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 {
@@ -796,6 +799,7 @@ osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	/* XXX: To be done */
 	return;
 }
+#endif
 
 void
 sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
@@ -805,6 +809,7 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	return;
 }
 
+#ifdef COMPAT_43
 int
 osigreturn(struct proc *p, struct osigreturn_args *uap)
 {
@@ -812,6 +817,7 @@ osigreturn(struct proc *p, struct osigreturn_args *uap)
 	/* XXX: To be done */
 	return(ENOSYS);
 }
+#endif
 
 int
 sigreturn(struct proc *p, struct sigreturn_args *uap)
