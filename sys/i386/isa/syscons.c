@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.90 1995/01/12 20:14:28 ache Exp $
+ *	$Id: syscons.c,v 1.91 1995/01/13 03:19:22 ache Exp $
  */
 
 #include "sc.h"
@@ -2693,7 +2693,7 @@ next_code:
 			case DBG:
 #ifdef DDB			/* try to switch to console 0 */
 				if (cur_console->smode.mode == VT_AUTO &&
-		    		    console[0].smode.mode == VT_AUTO)
+		    		    console[0]->smode.mode == VT_AUTO)
 					switch_scr(cur_console, 0); 
 				Debugger("manual escape to debugger");
 				return(NOKEY);
