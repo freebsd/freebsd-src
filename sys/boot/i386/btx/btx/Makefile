@@ -6,6 +6,14 @@ M4?=	m4
 M4FLAGS+=	-DPAGING
 .endif
 
+.if defined(BOOT_BTX_NOHANG)
+BOOT_BTX_FLAGS=0x1
+.else
+BOOT_BTX_FLAGS=0x0
+.endif
+
+AFLAGS+=	--defsym BTX_FLAGS=${BOOT_BTX_FLAGS}
+
 ORG=	0x9000
 
 all: btx
