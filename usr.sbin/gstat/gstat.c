@@ -141,7 +141,7 @@ main(int argc, char **argv)
 		    dt, flag_I, sizeof(*gsp), i);
 		printw(" L(q)  ops/s   ");
 		printw(" r/s   kBps   ms/r   ");
-		printw(" w/s   kBps   ms/d   ");
+		printw(" w/s   kBps   ms/w   ");
 		if (flag_d)
 			printw(" d/s   kBps   ms/d   ");
 		printw("%%busy Name\n");
