@@ -602,7 +602,7 @@ printcpuinfo(void)
 			"\035HTT"	/* Hyperthreading (see EBX bit 16-23) */
 			"\036TM"	/* Thermal Monitor clock slowdown */
 			"\037IA64"	/* CPU can execute IA64 instructions */
-			"\040<b31>"
+			"\040PBE"	/* Pending Break Enable */
 			);
 		}
 		if (strcmp(cpu_vendor, "AuthenticAMD") == 0 &&
