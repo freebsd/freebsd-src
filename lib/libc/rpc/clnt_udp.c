@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)clnt_udp.c 1.39 87/08/11 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)clnt_udp.c	2.2 88/08/01 4.0 RPCSRC";*/
-static char *rcsid = "$Id: clnt_udp.c,v 1.4 1995/08/02 09:14:23 wpaul Exp $";
+static char *rcsid = "$Id: clnt_udp.c,v 1.5 1995/10/22 14:51:21 phk Exp $";
 #endif
 
 /*
@@ -291,8 +291,8 @@ send_again:
 #endif /* def FD_SETSIZE */
 	for (;;) {
 		readfds = mask;
-		switch (select(_rpc_dtablesize(), &readfds, (int *)NULL,
-			       (int *)NULL, &(cu->cu_wait))) {
+		switch (select(_rpc_dtablesize(), &readfds, (fd_set *)NULL,
+			       (fd_set *)NULL, &(cu->cu_wait))) {
 
 		case 0:
 			time_waited.tv_sec += cu->cu_wait.tv_sec;
