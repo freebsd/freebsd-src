@@ -177,13 +177,26 @@ Version_TS (finfo, options, tag, date, force_tag_match, set_time)
 	 */
 	if (set_time)
 	{
-	    struct utimbuf t;
+#ifdef SERVER_SUPPORT
+	    if (server_active)
+		server_modtime (finfo, vers_ts);
+	    else
+#endif
+	    {
+		struct utimbuf t;
 
-	    memset ((char *) &t, 0, sizeof (t));
-	    if (vers_ts->vn_rcs &&
-		(t.actime = t.modtime = RCS_getrevtime (rcsdata,
-		 vers_ts->vn_rcs, (char *) 0, 0)) != -1)
-		(void) utime (finfo->file, &t);
+		memset (&t, 0, sizeof (t));
+		if (vers_ts->vn_rcs)
+		{
+		    t.modtime =
+			RCS_getrevtime (rcsdata, vers_ts->vn_rcs, 0, 0);
+		    if (t.modtime != (time_t) -1)
+		    {
+			t.actime = t.modtime;
+			(void) utime (finfo->file, &t);
+		    }
+		}
+	    }
 	}
     }
 

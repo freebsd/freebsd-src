@@ -445,6 +445,13 @@ piped_child (command, tofdp, fromfdp)
     if (pipe (from_child_pipe) < 0)
 	error (1, errno, "cannot create pipe");
 
+#ifdef USE_SETMODE_BINARY
+    setmode (to_child_pipe[0], O_BINARY);
+    setmode (to_child_pipe[1], O_BINARY);
+    setmode (from_child_pipe[0], O_BINARY);
+    setmode (from_child_pipe[1], O_BINARY);
+#endif
+
 #ifdef HAVE_VFORK
     pid = vfork ();
 #else
@@ -506,6 +513,11 @@ filter_stream_through_program (oldfd, dir, prog, pidp)
 
     if (pipe (p))
 	error (1, errno, "cannot create pipe");
+#ifdef USE_SETMODE_BINARY
+    setmode (p[0], O_BINARY);
+    setmode (p[1], O_BINARY);
+#endif
+
 #ifdef HAVE_VFORK
     newpid = vfork ();
 #else

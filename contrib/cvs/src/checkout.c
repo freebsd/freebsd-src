@@ -221,8 +221,11 @@ checkout (argc, argv)
     if (shorten == -1)
 	shorten = 0;
 
-    if ((!(cat + status) && argc == 0) || ((cat + status) && argc != 0))
-	usage (valid_usage);
+    if ((cat || status) && argc != 0)
+	error (1, 0, "-c and -s must not get any arguments");
+
+    if (!(cat || status) && argc == 0)
+	error (1, 0, "must specify at least one module or directory");
 
     if (where && pipeout)
 	error (1, 0, "-d and -p are mutually exclusive");
@@ -230,20 +233,10 @@ checkout (argc, argv)
     if (strcmp (command_name, "export") == 0)
     {
 	if (!tag && !date)
-	{
-	    error (0, 0, "must specify a tag or date");
-	    usage (valid_usage);
-	}
+	    error (1, 0, "must specify a tag or date");
+
 	if (tag && isdigit (tag[0]))
 	    error (1, 0, "tag `%s' must be a symbolic tag", tag);
-/*
- * mhy 950615: -kv doesn't work for binaries with RCS keywords.
- * Instead use the default provided in the RCS file (-ko for binaries).
- */
-#if 0
-	if (!options)
-	  options = RCS_check_kflag ("v");/* -kv is default */
-#endif
     }
 
     if (!safe_location()) {
@@ -279,10 +272,14 @@ checkout (argc, argv)
 	    client_expand_modules (argc, argv, local);
 	}
 
-	if (!run_module_prog) send_arg ("-n");
-	if (local) send_arg ("-l");
-	if (pipeout) send_arg ("-p");
-	if (!force_tag_match) send_arg ("-f");
+	if (!run_module_prog)
+	    send_arg ("-n");
+	if (local)
+	    send_arg ("-l");
+	if (pipeout)
+	    send_arg ("-p");
+	if (!force_tag_match)
+	    send_arg ("-f");
 	if (aflag)
 	    send_arg("-A");
 	if (!shorten)
@@ -293,16 +290,10 @@ checkout (argc, argv)
 	if (cat)
 	    send_arg("-c");
 	if (where != NULL)
-	{
 	    option_with_arg ("-d", where);
-	}
 	if (status)
 	    send_arg("-s");
-	/* Why not send -k for export?  This would appear to make
-	   remote export differ from local export.  FIXME.  */
-	if (strcmp (command_name, "export") != 0
-	    && options != NULL
-	    && options[0] != '\0')
+	if (options != NULL && options[0] != '\0')
 	    send_arg (options);
 	option_with_arg ("-r", tag);
 	if (date)
@@ -335,6 +326,8 @@ checkout (argc, argv)
     if (cat || status)
     {
 	cat_module (status);
+	if (options)
+	    free (options);
 	return (0);
     }
     db = open_module ();
@@ -432,6 +425,8 @@ checkout (argc, argv)
 			  where, shorten, local, run_module_prog,
 			  (char *) NULL);
     close_module (db);
+    if (options)
+	free (options);
     return (err);
 }
 

@@ -18,12 +18,11 @@
 
 #include "cvs.h"
 #include "savecwd.h"
+#include <assert.h>
 
 #define	FILE_HOLDER	".#cvsxxx"
 
 static char *get_comment PROTO((char *user));
-static int add_rcs_file PROTO((char *message, char *rcs, char *user, char *vtag,
-		         int targc, char *targv[]));
 static int expand_at_signs PROTO((char *buf, off_t size, FILE *fp));
 static int add_rev PROTO((char *message, RCSNode *rcs, char *vfile,
 			  char *vers));
@@ -475,7 +474,8 @@ process_import_file (message, vfile, vtag, targc, targv)
 	     * repository nor in the Attic -- create it anew.
 	     */
 	    add_log ('N', vfile);
-	    retval = add_rcs_file (message, rcs, vfile, vtag, targc, targv);
+	    retval = add_rcs_file (message, rcs, vfile, vhead, vbranch,
+				   vtag, targc, targv, logfp);
 	    free (rcs);
 	    return retval;
 	}
@@ -876,14 +876,36 @@ get_comment (user)
     return retval;
 }
 
-static int
-add_rcs_file (message, rcs, user, vtag, targc, targv)
+/* Create a new RCS file from scratch.
+
+   This probably should be moved to rcs.c now that it is called from
+   places outside import.c.  */
+int
+add_rcs_file (message, rcs, user, add_vhead, add_vbranch, vtag, targc, targv,
+	      add_logfp)
+    /* Log message for the addition.  */
     char *message;
+    /* Filename of the RCS file to create.  */
     char *rcs;
+    /* Filename of the file to serve as the contents of the initial
+       revision.  */
     char *user;
+
+    /* Revision number of head that we are adding.  Normally 1.1 but
+       could be another revision as long as ADD_VBRANCH is a branch
+       from it.  */
+    char *add_vhead;
+
+    /* Vendor branch to import to, or NULL if none.  If non-NULL, then
+       vtag should also be non-NULL.  */
+    char *add_vbranch;
     char *vtag;
     int targc;
     char *targv[];
+
+    /* Write errors to here as well as via error (), or NULL if we should
+       use only error ().  */
+    FILE *add_logfp;
 {
     FILE *fprcs, *fpuser;
     struct stat sb;
@@ -918,7 +940,7 @@ add_rcs_file (message, rcs, user, vtag, targc, targv)
     if (fpuser == NULL)
     {
 	/* not fatal, continue import */
-	fperror (logfp, 0, errno, "ERROR: cannot read file %s", userfile);
+	fperror (add_logfp, 0, errno, "ERROR: cannot read file %s", userfile);
 	error (0, errno, "ERROR: cannot read file %s", userfile);
 	goto read_error;
     }
@@ -932,20 +954,36 @@ add_rcs_file (message, rcs, user, vtag, targc, targv)
     /*
      * putadmin()
      */
-    if (fprintf (fprcs, "head     %s;\012", vhead) < 0 ||
-	fprintf (fprcs, "branch   %s;\012", vbranch) < 0 ||
-	fprintf (fprcs, "access   ;\012") < 0 ||
+    if (fprintf (fprcs, "head     %s;\012", add_vhead) < 0)
+	goto write_error;
+    if (add_vbranch != NULL)
+    {
+	if (fprintf (fprcs, "branch   %s;\012", add_vbranch) < 0)
+	    goto write_error;
+    }
+    if (fprintf (fprcs, "access   ;\012") < 0 ||
 	fprintf (fprcs, "symbols  ") < 0)
     {
 	goto write_error;
     }
 
-    for (i = targc - 1; i >= 0; i--)	/* RCS writes the symbols backwards */
-	if (fprintf (fprcs, "%s:%s.1 ", targv[i], vbranch) < 0)
+    for (i = targc - 1; i >= 0; i--)
+    {
+	/* RCS writes the symbols backwards */
+	assert (add_vbranch != NULL);
+	if (fprintf (fprcs, "%s:%s.1 ", targv[i], add_vbranch) < 0)
 	    goto write_error;
+    }
 
-    if (fprintf (fprcs, "%s:%s;\012", vtag, vbranch) < 0 ||
-	fprintf (fprcs, "locks    ; strict;\012") < 0 ||
+    if (add_vbranch != NULL)
+    {
+	if (fprintf (fprcs, "%s:%s", vtag, add_vbranch) < 0)
+	    goto write_error;
+    }
+    if (fprintf (fprcs, ";\012") < 0)
+	goto write_error;
+
+    if (fprintf (fprcs, "locks    ; strict;\012") < 0 ||
 	/* XXX - make sure @@ processing works in the RCS file */
 	fprintf (fprcs, "comment  @%s@;\012", get_comment (user)) < 0)
     {
@@ -997,16 +1035,33 @@ add_rcs_file (message, rcs, user, vtag, targc, targv)
 #endif
     author = getcaller ();
 
-    if (fprintf (fprcs, "\012%s\012", vhead) < 0 ||
+    if (fprintf (fprcs, "\012%s\012", add_vhead) < 0 ||
 	fprintf (fprcs, "date     %s;  author %s;  state Exp;\012",
-		 altdate1, author) < 0 ||
-	fprintf (fprcs, "branches %s.1;\012", vbranch) < 0 ||
-	fprintf (fprcs, "next     ;\012") < 0 ||
-	fprintf (fprcs, "\012%s.1\012", vbranch) < 0 ||
-	fprintf (fprcs, "date     %s;  author %s;  state Exp;\012",
-		 altdate2, author) < 0 ||
-	fprintf (fprcs, "branches ;\012") < 0 ||
-	fprintf (fprcs, "next     ;\012\012") < 0 ||
+		 altdate1, author) < 0)
+	goto write_error;
+
+    if (fprintf (fprcs, "branches") < 0)
+	goto write_error;
+    if (add_vbranch != NULL)
+    {
+	if (fprintf (fprcs, " %s.1", add_vbranch) < 0)
+	    goto write_error;
+    }
+    if (fprintf (fprcs, ";\012") < 0)
+	goto write_error;
+
+    if (fprintf (fprcs, "next     ;\012") < 0)
+	goto write_error;
+    if (add_vbranch != NULL)
+    {
+	if (fprintf (fprcs, "\012%s.1\012", add_vbranch) < 0 ||
+	    fprintf (fprcs, "date     %s;  author %s;  state Exp;\012",
+		     altdate2, author) < 0 ||
+	    fprintf (fprcs, "branches ;\012") < 0 ||
+	    fprintf (fprcs, "next     ;\012\012") < 0)
+	    goto write_error;
+    }
+    if (
 	/*
 	 * putdesc()
 	 */
@@ -1015,9 +1070,23 @@ add_rcs_file (message, rcs, user, vtag, targc, targv)
 	/*
 	 * putdelta()
 	 */
-	fprintf (fprcs, "\012%s\012", vhead) < 0 ||
-	fprintf (fprcs, "log\012") < 0 ||
-	fprintf (fprcs, "@Initial revision\012@\012") < 0 ||
+	fprintf (fprcs, "\012%s\012", add_vhead) < 0 ||
+	fprintf (fprcs, "log\012@") < 0)
+	goto write_error;
+    if (add_vbranch != NULL)
+    {
+	/* We are going to put the log message in the revision on the
+	   branch.  So putting it here too seems kind of redundant, I
+	   guess (and that is what CVS has always done, anyway).  */
+	if (fprintf (fprcs, "Initial revision\012") < 0)
+	    goto write_error;
+    }
+    else
+    {
+	if (expand_at_signs (message, (off_t) strlen (message), fprcs) < 0)
+	    goto write_error;
+    }
+    if (fprintf (fprcs, "@\012") < 0 ||
 	fprintf (fprcs, "text\012@") < 0)
     {
 	goto write_error;
@@ -1041,15 +1110,18 @@ add_rcs_file (message, rcs, user, vtag, targc, targv)
 		goto write_error;
 	}
     }
-    if (fprintf (fprcs, "@\012\012") < 0 ||
-	fprintf (fprcs, "\012%s.1\012", vbranch) < 0 ||
-	fprintf (fprcs, "log\012@") < 0 ||
-	expand_at_signs (message, (off_t) strlen (message), fprcs) < 0 ||
-	fprintf (fprcs, "@\012text\012") < 0 ||
-	fprintf (fprcs, "@@\012") < 0)
-    {
+    if (fprintf (fprcs, "@\012\012") < 0)
 	goto write_error;
+    if (add_vbranch != NULL)
+    {
+	if (fprintf (fprcs, "\012%s.1\012", add_vbranch) < 0 ||
+	    fprintf (fprcs, "log\012@") < 0 ||
+	    expand_at_signs (message, (off_t) strlen (message), fprcs) < 0 ||
+	    fprintf (fprcs, "@\012text\012") < 0 ||
+	    fprintf (fprcs, "@@\012") < 0)
+	    goto write_error;
     }
+
     if (fclose (fprcs) == EOF)
     {
 	ierrno = errno;
@@ -1071,7 +1143,7 @@ add_rcs_file (message, rcs, user, vtag, targc, targv)
     if (chmod (rcs, mode) < 0)
     {
 	ierrno = errno;
-	fperror (logfp, 0, ierrno,
+	fperror (add_logfp, 0, ierrno,
 		 "WARNING: cannot change mode of file %s", rcs);
 	error (0, ierrno, "WARNING: cannot change mode of file %s", rcs);
 	err++;
@@ -1088,12 +1160,12 @@ write_error:
     (void) fclose (fprcs);
 write_error_noclose:
     (void) fclose (fpuser);
-    fperror (logfp, 0, ierrno, "ERROR: cannot write file %s", rcs);
+    fperror (add_logfp, 0, ierrno, "ERROR: cannot write file %s", rcs);
     error (0, ierrno, "ERROR: cannot write file %s", rcs);
     if (ierrno == ENOSPC)
     {
 	(void) CVS_UNLINK (rcs);
-	fperror (logfp, 0, 0, "ERROR: out of space - aborting");
+	fperror (add_logfp, 0, 0, "ERROR: out of space - aborting");
 	error (1, 0, "ERROR: out of space - aborting");
     }
 read_error:

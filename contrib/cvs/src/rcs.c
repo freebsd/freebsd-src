@@ -1048,8 +1048,13 @@ getrcsrev (fp, revp)
     do {
 	c = getc (fp);
 	if (c == EOF)
+	{
 	    /* FIXME: should be including filename in error message.  */
-	    error (1, errno, "cannot read rcs file");
+	    if (ferror (fp))
+		error (1, errno, "cannot read rcs file");
+	    else
+		error (1, 0, "unexpected end of file reading rcs file");
+	}
     } while (whitespace (c));
 
     if (!(isdigit (c) || c == '.'))
@@ -1073,7 +1078,10 @@ getrcsrev (fp, revp)
 	if (c == EOF)
 	{
 	    /* FIXME: should be including filename in error message.  */
-	    error (1, errno, "cannot read rcs file");
+	    if (ferror (fp))
+		error (1, errno, "cannot read rcs file");
+	    else
+		error (1, 0, "unexpected end of file reading rcs file");
 	}
     }
 

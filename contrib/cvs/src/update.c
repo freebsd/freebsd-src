@@ -559,10 +559,31 @@ update_fileproc (callerdat, finfo)
 		else
 		{
 		    if (wrap_merge_is_copy (finfo->file))
+#if 0
+			/* Look, we can't clobber the user's file.  We
+			   know it is modified and we're going to
+			   overwrite their mod?  Puh-leeze.  The
+			   correct behavior is probably something like
+			   what merge_file does for -kb, which is to
+			   give the users both files and tell them
+			   what the two filenames are.  Of course, -m
+			   in wrappers needs to be documented *much*
+			   better.  Anyway, until then, make this a
+			   fatal error.  */
+
 			/* Should we be warning the user that we are
 			 * overwriting the user's copy of the file?  */
 			retval =
 			  checkout_file (finfo, vers, 0);
+#else
+		    {
+		        error (0, 0, "A -m 'COPY' wrapper is specified");
+			error (0, 0, "but file %s needs merge",
+			       finfo->fullname);
+			error (1, 0, "\
+You probably want to avoid -m 'COPY' wrappers");
+#endif
+		    }
 		    else
 			retval = merge_file (finfo, vers);
 		}

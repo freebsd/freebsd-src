@@ -980,6 +980,7 @@ user-defined modules.
 * Multiple repositories::       Multiple repositories
 * Creating a repository::       Creating a repository
 * Backing up::                  Backing up a repository
+* Moving a repository::         Moving a repository
 * Remote repositories::         Accessing repositories on remote machines
 * Read-only access::            Granting read-only access to the repository
 * Server temporary directory::  The server creates temporary directories
@@ -1224,6 +1225,18 @@ typical for newly created files, except that sometimes
 @sc{cvs} creates them read-only (see the sections on
 watches, @ref{Setting a watch}; -r, @ref{Global
 options}; or CVSREAD, @ref{Environment variables}).
+@c FIXME: Need more discussion of which users and
+@c groups should own the file in the repository.
+@c Include a somewhat detailed example of the usual
+@c case where CVSUMASK is 007, the developers are all
+@c in a group, and that group owns stuff in the
+@c repository.  Need to talk about group ownership of
+@c newly-created directories/files (on some unices,
+@c such as SunOS4, setting the setgid bit on the
+@c directories will make files inherit the directory's
+@c group.  On other unices, your mileage may vary.  I
+@c can't remember what POSIX says about this, if
+@c anything).
 
 Note that using the client/server @sc{cvs}
 (@pxref{Remote repositories}), there is no good way to
@@ -1291,6 +1304,13 @@ non-@code{dead} state.
 
 @node Working directory storage
 @section How data is stored in the working directory
+
+@c FIXME: Somewhere we should discuss timestamps (test
+@c case "stamps" in sanity.sh).  But not here.  Maybe
+@c in some kind of "working directory" chapter which
+@c would encompass the "Builds" one?  But I'm not sure
+@c whether that is a good organization (is it based on
+@c what the user wants to do?).
 
 While we are discussing @sc{cvs} internals which may
 become visible from time to time, we might as well talk
@@ -1756,6 +1776,41 @@ what has changed, and then when you are ready, commit
 the changes into the repository.
 @end itemize
 
+@node Moving a repository
+@section Moving a repository
+@cindex repository, moving
+@cindex moving a repository
+@cindex copying a repository
+
+Just as backing up the files in the repository is
+pretty much like backing up any other files, if you
+need to move a repository from one place to another it
+is also pretty much like just moving any other
+collection of files.
+
+The main thing to consider is that working directories
+point to the repository.  The simplest way to deal with
+a moved repository is to just get a fresh working
+directory after the move.  Of course, you'll want to
+make sure that the old working directory had been
+checked in before the move, or you figured out some
+other way to make sure that you don't lose any
+changes.  If you really do want to reuse the existing
+working directory, it should be possible with manual
+surgery on the @file{CVS/Repository} files.  You can
+see @ref{Working directory storage}, for information on
+the @file{CVS/Repository} and @file{CVS/Root} files, but
+unless you are sure you want to bother, it probably
+isn't worth it.
+@c FIXME: This should be made unnecessary by:
+@c 1) a new -d should affect CVS/Root files throughout
+@c the tree, not just at the top level.
+@c 2) the RELATIVE_REPOS code should be fixed and made the
+@c default.  I think that CVS already reads
+@c CVS/Repository files which are absolute or
+@c relative.  FIXME: needs more investigation and
+@c documentation in "Working directory storage".
+
 @c - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 @node Remote repositories
 @section Remote repositories
@@ -1993,12 +2048,18 @@ single line in @file{inetd.conf}) should be sufficient:
 
 @example
 2401  stream  tcp  nowait  root  /usr/local/bin/cvs
-cvs -b /usr/local/bin pserver
+cvs -b /usr/local/bin --allow-root=/usr/cvsroot pserver
 @end example
 
 The @samp{-b} option specifies the directory which contains
 the @sc{rcs} binaries on the server.  You could also use the
 @samp{-T} option to specify a temporary directory.
+
+The @samp{--allow-root} option specifies the allowable
+@sc{cvsroot} directory.  Clients which attempt to use a
+different @sc{cvsroot} directory will not be allowed to
+connect.  If there is more than one @sc{cvsroot}
+directory which you want to allow, repeat the option.
 
         If your @code{inetd} wants a symbolic service
 name instead of a raw port number, then put this in
@@ -2108,6 +2169,8 @@ passwd} command.
 @c would open up a can of worms in that the users next
 @c questions are likely to be "where do I get it?" and
 @c "how do I use it?"
+@c Also note that htpasswd, at least the version I had,
+@c likes to clobber the third field.
 
 @node Password authentication client
 @subsubsection Using the client with password authentication
@@ -4938,6 +5001,7 @@ revision.
 * Reverting local changes::     Reverting a module to the latest vendor release
 * Binary files in imports::     Binary files require special handling
 * Keywords in imports::         Keyword substitution might be undesirable
+* Multiple vendor branches::    What if you get sources from several places?
 @end menu
 
 @c - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -4953,7 +5017,7 @@ command to track third-party sources, the @dfn{vendor
 tag} and @dfn{release tags} are useful.  The
 @dfn{vendor tag} is a symbolic name for the branch
 (which is always 1.1.1, unless you use the @samp{-b
-@var{branch}} flag---@xref{import options}.).  The
+@var{branch}} flag---@xref{Multiple vendor branches}.).  The
 @dfn{release tags} are symbolic names for a particular
 release, such as @samp{FSF_0_04}.
 
@@ -5084,6 +5148,58 @@ and use the @samp{-k} option to @code{cvs update} or
 @c Supplying -ko to import if the file already existed
 @c has no effect.  Not clear to me whether it should
 @c or not.
+
+@node Multiple vendor branches
+@section Multiple vendor branches
+
+All the examples so far assume that there is only one
+vendor from which you are getting sources.  In some
+situations you might get sources from a variety of
+places.  For example, suppose that you are dealing with
+a project where many different people and teams are
+modifying the software.  There are a variety of ways to
+handle this, but in some cases you have a bunch of
+source trees lying around and what you want to do more
+than anything else is just to all put them in CVS so
+that you at least have them in one place.
+
+For handling situations in which there may be more than
+one vendor, you may specify the @samp{-b} option to
+@code{cvs import}.  It takes as an argument the vendor
+branch to import to.  The default is @samp{-b 1.1.1}.
+
+For example, suppose that there are two teams, the red
+team and the blue team, that are sending you sources.
+You want to import the red team's efforts to branch
+1.1.1 and use the vendor tag RED.  You want to import
+the blue team's efforts to branch 1.1.3 and use the
+vendor tag BLUE.  So the commands you might use are:
+
+@example
+$ cvs import dir RED RED_1-0
+$ cvs import -b 1.1.3 dir BLUE BLUE_1-5
+@end example
+
+Note that if your vendor tag does not match your
+@samp{-b} option, CVS will not detect this case!  For
+example,
+
+@example
+$ cvs import -b 1.1.3 dir RED RED_1-0
+@end example
+
+@noindent
+Be careful; this kind of mismatch is sure to sow
+confusion or worse.  I can't think of a useful purpose
+for the ability to specify a mismatch here, but if you
+discover such a use, don't.  CVS is likely to make this
+an error in some future release.
+
+@c Probably should say more about the semantics of
+@c multiple branches.  What about the default branch?
+@c What about joining (perhaps not as useful with
+@c multiple branches, or perhaps it is.  Either way
+@c should be mentioned).
 
 @c ---------------------------------------------------------------------
 @node Moving files
@@ -6062,8 +6178,11 @@ is Odin (see
 @c Of course, many non-CVS systems have this kind of
 @c functionality, for example OSF's ODE
 @c (http://www.osf.org/ode/) or mk
-@c (http://www.io.org/~pzi/heading.html;
-@c ftp://ftp.interlog.com/pub/unix/mk is out of date).  But I'm not sure
+@c (http://www.grin.net/~pzi/mk-3.18.4.docs/mk_toc.html
+@c He has changed providers in the past; a search engine search
+@c for "Peter Ziobrzynski" probably won't get too many
+@c spurious hits :-).  A more stable URL might be
+@c ftp://ftp.uu.net/pub/cmvc/mk).  But I'm not sure
 @c there is any point in mentioning them here unless they
 @c can work with CVS.
 
@@ -6380,6 +6499,10 @@ The available @samp{cvs_options} (that are given to the
 left of @samp{cvs_command}) are:
 
 @table @code
+@item --allow-root=@var{rootdir}
+Specify legal @sc{cvsroot} directory.  See
+@ref{Password authentication server}.
+
 @cindex RCSBIN, overriding
 @cindex Overriding RCSBIN
 @item -b @var{bindir}
@@ -6441,6 +6564,12 @@ anyway).  @xref{history}, for information on command history.
 Do not change any files.  Attempt to execute the
 @samp{cvs_command}, but only to issue reports; do not remove,
 update, or merge any existing files, or create any new files.
+
+Note that @sc{cvs} will not necessarily produce exactly
+the same output as without @samp{-n}.  In some cases
+the output will be the same, but in other cases
+@sc{cvs} will skip some of the processing that would
+have been required to produce the exact same output.
 
 @item -Q
 Cause the command to be really quiet; the command will only
@@ -8068,13 +8197,7 @@ There are three additional special options.
 
 @table @code
 @item -b @var{branch}
-Specify a first-level branch other than 1.1.1.  Unless
-the @samp{-b @var{branch}} flag is given, revisions will
-@emph{always} be made to the branch 1.1.1---even if a
-@var{vendortag} that matches another branch is given!
-What happens in that case, is that the tag will be
-reset to 1.1.1.  Warning: This behavior might change
-in the future.
+See @ref{Multiple vendor branches}.
 
 @item -k @var{subst}
 Indicate the RCS keyword expansion mode desired.  This
@@ -9400,7 +9523,7 @@ Import files into CVS, using vendor branches.  See
 @table @code
 @item -b @var{bra}
 Import to vendor branch @var{bra}.  See
-@ref{import options}.
+@ref{Multiple vendor branches}.
 
 @item -d
 Use the file's modification time as the time of
@@ -9957,6 +10080,10 @@ with the @code{-t} flag) and the other when the file is
 checked out of the repository (this is denoted with the
 @code{-f} flag).  The @samp{-t}/@samp{-f} feature does
 not work with client/server @sc{cvs}.
+@c I think maybe -t/-f works client/server if a single
+@c file converts to/from a single file, as opposed to
+@c the file<->directory case.  Could use more
+@c investigation...
 
 The @file{cvswrappers} also has a @samp{-m} option to
 specify the merge methodology that should be used when
@@ -10902,6 +11029,10 @@ try hard to make the files in your working directory
 read-only.  When this is not set, the default behavior
 is to permit modification of your working files.
 
+@item $CVSUMASK
+Controls permissions of files in the repository.  See
+@ref{File permissions}.
+
 @cindex CVSROOT
 @item $CVSROOT
 Should contain the full pathname to the root of the @sc{cvs}
@@ -11057,8 +11188,16 @@ argument lists of most @sc{rcs} commands.
 @node Troubleshooting
 @appendix Troubleshooting
 
+If you are having trouble with @sc{cvs}, this appendix
+may help.  If there is a particular error message which
+you are seeing, then you can look up the message
+alphabetically.  If not, you can look through the
+section on other problems to see if your problem is
+mentioned there.
+
 @menu
 * Error messages::              Partial list of CVS errors
+* Other problems::              Problems not readily listed by error message
 @end menu
 
 @ignore
@@ -11185,6 +11324,16 @@ every place it appears in your @code{modules}
 file.  For more information on the @code{modules} file,
 see @ref{modules}.
 
+@item rcs error: Unknown option: -x,v/
+This message will be followed by a usage message for
+@sc{rcs}.  It means that you have an old version of
+@sc{rcs} (probably supplied with your operating
+system).  CVS only works with @sc{rcs} version 5 and
+later.
+@c For more information on installing @sc{cvs}, see
+@c (FIXME: where?  it depends on whether you are
+@c getting binaries or sources or what).
+
 @item cvs [server aborted]: received broken pipe signal
 This message seems to be caused by a hard-to-track-down
 bug in @sc{cvs} or the systems it runs on (we don't
@@ -11243,6 +11392,23 @@ exit 0
 @c Would be nice to write these up--they are
 @c potentially confusing for the new user.
 @end table
+
+@node Other problems
+@appendixsec Other common problems
+
+Here is a list of problems which cannot be readily
+looked up based on an error message.  They are in no
+particular order.
+
+@itemize @bullet
+@item
+If @code{cvs update} finds a conflict and tries to
+merge, as described in @ref{Conflicts example}, but
+doesn't tell you there were conflicts, then you may
+have an old version of @sc{rcs}.  For more information
+on how to set this up, see the @file{INSTALL} file in
+the @sc{cvs} source distribution.
+@end itemize
 
 @c ---------------------------------------------------------------------
 @node Copying

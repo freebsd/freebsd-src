@@ -1,3 +1,61 @@
+Wed Jun 18 00:03:25 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Password authentication server): Document
+	--allow-root.
+
+Tue Jun 17 09:58:03 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Error messages): Add "unknown option" from RCS.
+
+Fri Jun 13 12:11:09 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Global options): Add note about how -n might affect
+	CVS's output.
+
+Thu Jun 12 09:33:40 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Other problems): New node.  Add discussion of
+	problem with old rcsmerge.
+
+	* cvs.texinfo (Environment variables): Add CVSUMASK.
+
+Mon Jun  2 18:39:57 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Moving a repository): New node.
+
+Tue May 27 18:27:57 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Working directory storage): Add comment about
+	timestamps.
+	* cvsclient.texi (Responses): Add Mod-time.
+
+Mon May 26 10:04:32 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Wrappers): Add comment concerning -t/-f and
+	client/server.
+
+Sun May 25 00:08:39 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Multiple vendor branches): New node.
+	(First import, import options, Invoking CVS): xref to it.
+
+Sat May 24 23:47:47 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (File permissions): Add comment about group
+	ownership in repository and setgid bit on directories.
+
+Fri May 23 17:14:05 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* RCSFILES: Fix typo in dead newphrase description ("an" -> "a").
+
+Fri May 23 16:33:38 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* RCSFILES: Mention dead as a newphrase.
+
+Fri May 23 09:45:39 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.texinfo (Builds): In comment, update URL of mk.
+
 Thu May 22 09:25:56 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
 	* cvs.texinfo (Error messages): Add comment about yet another way

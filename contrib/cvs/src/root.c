@@ -199,6 +199,86 @@ Create_Root (dir, rootdir)
 #endif /* ! DEBUG */
 
 
+/* The root_allow_* stuff maintains a list of legal CVSROOT
+   directories.  Then we can check against them when a remote user
+   hands us a CVSROOT directory.  */
+
+static unsigned int root_allow_count;
+static char **root_allow_vector;
+static unsigned int root_allow_size;
+
+void
+root_allow_add (arg)
+    char *arg;
+{
+    char *p;
+
+    if (root_allow_size <= root_allow_count)
+    {
+	if (root_allow_size == 0)
+	{
+	    root_allow_size = 1;
+	    root_allow_vector =
+		(char **) malloc (root_allow_size * sizeof (char *));
+	}
+	else
+	{
+	    root_allow_size *= 2;
+	    root_allow_vector =
+		(char **) realloc (root_allow_vector,
+				   root_allow_size * sizeof (char *));
+	}
+
+	if (root_allow_vector == NULL)
+	{
+	no_memory:
+	    /* Strictly speaking, we're not supposed to output anything
+	       now.  But we're about to exit(), give it a try.  */
+	    printf ("E Fatal server error, aborting.\n\
+error ENOMEM Virtual memory exhausted.\n");
+
+	    /* I'm doing this manually rather than via error_exit ()
+	       because I'm not sure whether we want to call server_cleanup.
+	       Needs more investigation....  */
+
+#ifdef SYSTEM_CLEANUP
+	    /* Hook for OS-specific behavior, for example socket
+	       subsystems on NT and OS2 or dealing with windows
+	       and arguments on Mac.  */
+	    SYSTEM_CLEANUP ();
+#endif
+
+	    exit (EXIT_FAILURE);
+	}
+    }
+    p = malloc (strlen (arg) + 1);
+    if (p == NULL)
+	goto no_memory;
+    strcpy (p, arg);
+    root_allow_vector[root_allow_count++] = p;
+}
+
+void
+root_allow_free ()
+{
+    if (root_allow_vector != NULL)
+	free (root_allow_vector);
+    root_allow_count = 0;
+    root_allow_size = 0;
+}
+
+int
+root_allow_ok (arg)
+    char *arg;
+{
+    unsigned int i;
+    for (i = 0; i < root_allow_count; ++i)
+	if (strcmp (root_allow_vector[i], arg) == 0)
+	    return 1;
+    return 0;
+}
+
+
 /* Parse a CVSROOT variable into its constituent parts -- method,
  * username, hostname, directory.  The prototypical CVSROOT variable
  * looks like:

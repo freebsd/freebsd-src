@@ -1,3 +1,11 @@
+Mon Jun 16 18:59:50 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* system.h: Add CVS_FNMATCH.
+
+Sun Jun  8 23:41:11 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* system.h (mkfifo): Remove; not used anywhere.
+
 Thu Mar  6 17:14:49 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
 	* regex.c: Partial merge with version from emacs 19.34.  I brought

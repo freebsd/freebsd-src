@@ -89,7 +89,7 @@ static Key_schedule sched;
    the same as the system username the server eventually switches to
    run as.  CVS_Username gets set iff password authentication is
    successful. */
-static char *CVS_Username = NULL;
+char *CVS_Username = NULL;
 
 /* Used to check that same repos is transmitted in pserver auth and in
    later CVS protocol.  Exported because root.c also uses. */
@@ -3073,6 +3073,42 @@ server_copy_file (file, update_dir, repository, newfile)
 /* See server.h for description.  */
 
 void
+server_modtime (finfo, vers_ts)
+    struct file_info *finfo;
+    Vers_TS *vers_ts;
+{
+    char date[MAXDATELEN];
+    int year, month, day, hour, minute, second;
+    /* Note that these strings are specified in RFC822 and do not vary
+       according to locale.  */
+    static const char *const month_names[] =
+      {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
+	 "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+
+    if (!supported_response ("Mod-time"))
+	return;
+
+    /* The only hard part about this routine is converting the date
+       formats.  In terms of functionality it all boils down to the
+       call to RCS_getrevtime.  */
+    if (RCS_getrevtime (finfo->rcs, vers_ts->vn_rcs, date, 0) == (time_t) -1)
+	/* FIXME? should we be printing some kind of warning?  For one
+	   thing I'm not 100% sure whether this happens in non-error
+	   circumstances.  */
+	return;
+
+    sscanf (date, SDATEFORM, &year, &month, &day, &hour, &minute, &second);
+    sprintf (date, "%d %s %d %d:%d:%d -0000", day,
+	     month < 1 || month > 12 ? "???" : month_names[month - 1],
+	     year, hour, minute, second);
+    buf_output0 (protocol, "Mod-time ");
+    buf_output0 (protocol, date);
+    buf_output0 (protocol, "\n");
+}
+
+/* See server.h for description.  */
+
+void
 server_updated (finfo, vers, updated, file_info, checksum)
     struct file_info *finfo;
     Vers_TS *vers;
@@ -4619,6 +4655,14 @@ pserver_authenticate_connection ()
     {
 	error (1, 0, "bad auth protocol end: %s", tmp);
     }
+    if (!root_allow_ok (repository))
+	/* At least for the moment I'm going to do the paranoid
+	   security thing and not tell them how it failed.  I'm not
+	   sure that is a good idea; it is a real pain when one needs
+	   to track down what is going on for legitimate reasons.
+	   The other issue is that the protocol doesn't really have
+	   a good way for anything other than I HATE YOU.  */
+	goto i_hate_you;
 
     /* We need the real cleartext before we hash it. */
     descrambled_password = descramble (password);
@@ -4632,6 +4676,7 @@ pserver_authenticate_connection ()
     }
     else
     {
+    i_hate_you:
 	printf ("I HATE YOU\n");
 	fflush (stdout);
 	/* I'm doing this manually rather than via error_exit ()
