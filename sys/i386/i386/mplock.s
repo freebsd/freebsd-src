@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: mplock.s,v 1.12 1997/07/30 22:51:11 smp Exp smp $
+ * $Id: mplock.s,v 1.14 1997/08/04 17:19:17 smp Exp smp $
  *
  * Functions for locking between CPUs in a SMP system.
  *
@@ -22,7 +22,7 @@
  */
 
 #include <machine/asmacros.h>		/* miscellaneous asm macros */
-#include <machine/smptests.h>		/** TEST_LOPRIO */
+#include <machine/smptests.h>		/** GRAB_LOPRIO */
 #include <machine/apic.h>
 
 #include <i386/isa/intr_machdep.h>
@@ -40,8 +40,52 @@ _tryhits:        9938            2196d           44cc
 #define FREE_FIRST
 #define GLPROFILE
 
-#define	MAYBE_PUSHL_EAX	pushl	%eax
-#define	MAYBE_POPL_EAX	popl	%eax
+#ifdef GRAB_LOPRIO
+/*
+ * Claim LOWest PRIOrity, ie. attempt to grab ALL INTerrupts.
+ */
+
+/* location of saved TPR on stack */
+#define TPR_TARGET		12(%esp)
+
+/* we assumme that the 'reserved bits' can be written with zeros */
+#ifdef CHEAP_TPR
+
+/* after 1st acquire of lock we attempt to grab all hardware INTs */
+#define GRAB_HWI \
+	movl	$ALLHWI_LEVEL, TPR_TARGET	/* task prio to 'all HWI' */
+
+#define GRAB_HWI_2 \
+	movl	$ALLHWI_LEVEL, lapic_tpr	/* task prio to 'all HWI' */
+
+/* after last release of lock give up LOW PRIO (ie, arbitrate INTerrupts) */
+#define ARB_HWI \
+	movl	$LOPRIO_LEVEL, lapic_tpr	/* task prio to 'arbitrate' */
+
+#else /** CHEAP_TPR */
+
+#define GRAB_HWI \
+	andl	$~APIC_TPR_PRIO, TPR_TARGET	/* task prio to 'all HWI' */
+
+#define GRAB_HWI_2 \
+	andl	$~APIC_TPR_PRIO, lapic_tpr	/* task prio to 'all HWI' */
+
+#define ARB_HWI								\
+	movl	lapic_tpr, %eax ;		/* TPR */		\
+	andl	$~APIC_TPR_PRIO, %eax ;		/* clear TPR field */	\
+	orl	$LOPRIO_LEVEL, %eax ;		/* prio to arbitrate */	\
+	movl	%eax, lapic_tpr ;		/* set it */		\
+  	movl	(%edx), %eax			/* reload %eax with lock */
+
+#endif /** CHEAP_TPR */
+
+#else /** GRAB_LOPRIO */
+
+#define GRAB_HWI				/* nop */
+#define GRAB_HWI_2				/* nop */
+#define ARB_HWI					/* nop */
+
+#endif /** GRAB_LOPRIO */
 
 
 	.text
@@ -66,6 +110,7 @@ NON_GPROF_ENTRY(MPgetlock)
 #ifdef GLPROFILE
 	incl	_gethits2
 #endif /* GLPROFILE */
+	GRAB_HWI			/* 1st acquire, grab hw INTs */
 	ret
 2:
   	movl	(%edx), %eax		/* Try to see if we have it already */
@@ -120,6 +165,7 @@ NON_GPROF_ENTRY(MPgetlock)
 #else
 	jne	3f			/* ...do not collect $200 */
 #endif /* GLPROFILE */
+	GRAB_HWI			/* 1st acquire, grab hw INTs */
 	ret
 #ifdef GLPROFILE
 4:
@@ -154,6 +200,7 @@ NON_GPROF_ENTRY(MPtrylock)
 #ifdef GLPROFILE
 	incl	_tryhits2
 #endif /* GLPROFILE */
+	GRAB_HWI_2			/* 1st acquire, grab hw INTs */
 	movl	$1, %eax
 	ret
 1:
@@ -204,6 +251,7 @@ NON_GPROF_ENTRY(MPtrylock)
 #ifdef GLPROFILE
 	incl	_tryhits2
 #endif /* GLPROFILE */
+	GRAB_HWI_2			/* 1st acquire, grab hw INTs */
 	movl	$1, %eax
 	ret
 2:
@@ -230,6 +278,7 @@ NON_GPROF_ENTRY(MPrellock)
 	decl	%ecx			/* - new count is one less */
 	testl	$COUNT_FIELD, %ecx	/* - Unless it's zero... */
 	jnz	2f
+	ARB_HWI				/* last release, arbitrate hw INTs */
 	movl	$FREE_LOCK, %ecx	/* - In which case we release it */
 2:
 	lock
@@ -243,10 +292,20 @@ NON_GPROF_ENTRY(MPrellock)
  *  -----------------
  *  All registers preserved
  *
+ *  Stack (after call to _MPgetlock):
+ *	
+ *	&mp_lock	 4(%esp)
+ *	EFLAGS		 8(%esp)
+ *	local APIC TPR	12(%esp)
+ *	edx		16(%esp)
+ *	ecx		20(%esp)
+ *	eax		24(%esp)
  */
 
 NON_GPROF_ENTRY(get_mplock)
-	MAYBE_PUSHL_EAX
+	pushl	%eax
+	pushl	%ecx
+	pushl	%edx
 
 	/* block all HW INTs via Task Priority Register */
 #ifdef CHEAP_TPR
@@ -267,17 +326,15 @@ NON_GPROF_ENTRY(get_mplock)
 #endif /** CHEAP_TPR */
 	sti				/* allow IPI (and only IPI) INTs */
 1:
-	pushl	%ecx
-	pushl	%edx
 	pushl	$_mp_lock
 	call	_MPgetlock
 	add	$4, %esp
-	popl	%edx
-	popl	%ecx
 
 	popfl				/* restore original EFLAGS */
 	popl	lapic_tpr		/* restore TPR */
-	MAYBE_POPL_EAX
+	popl	%edx
+	popl	%ecx
+	popl	%eax
 	ret
 
 /***********************************************************************
@@ -285,6 +342,11 @@ NON_GPROF_ENTRY(get_mplock)
  *  -----------------
  *  no registers preserved, assummed the calling ISR does!
  *
+ *  Stack (after call to _MPgetlock):
+ *	
+ *	&mp_lock	 4(%esp)
+ *	EFLAGS		 8(%esp)
+ *	local APIC TPR	12(%esp)
  */
 
 NON_GPROF_ENTRY(get_isrlock)
@@ -350,7 +412,7 @@ NON_GPROF_ENTRY(try_isrlock)
  */
 
 NON_GPROF_ENTRY(rel_mplock)
-	MAYBE_PUSHL_EAX
+	pushl	%eax
 	pushl	%ecx
 	pushl	%edx
 	pushl	$_mp_lock
@@ -358,7 +420,7 @@ NON_GPROF_ENTRY(rel_mplock)
 	add	$4, %esp
 	popl	%edx
 	popl	%ecx
-	MAYBE_POPL_EAX
+	popl	%eax
 	ret
 
 /***********************************************************************
@@ -380,7 +442,7 @@ NON_GPROF_ENTRY(rel_isrlock)
 
 	.data
 	.globl _mp_lock
-	.align  4	/* mp_lock aligned on int boundary */
+	.align  2			/* mp_lock aligned on int boundary */
 _mp_lock:	.long	0		
 
 #ifdef GLPROFILE
