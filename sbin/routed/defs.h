@@ -100,6 +100,12 @@
 #define RIPVERSION RIPv2
 #include <protocols/routed.h>
 
+#ifndef __RCSID
+#define __RCSID(_s) static const char rcsid[] UNUSED = _s
+#endif
+#ifndef __COPYRIGHT
+#define __COPYRIGHT(_s) static const char copyright[] UNUSED = _s
+#endif
 
 /* Type of an IP address.
  *	Some systems do not like to pass structures, so do not use in_addr.
@@ -119,11 +125,19 @@
 #define _HAVE_SIN_LEN
 #endif
 
-/* Turn on if IP_DROP_MEMBERSHIP and IP_ADD_MEMBERSHIP do not look at
- * the dstaddr of point-to-point interfaces.
+/* Turn on if IP_{ADD,DROP}_MEMBERSHIP and IP_MULTICAST_IF considers address
+ * within 0.0.0.0/8 as interface index.
  */
 #ifdef __NetBSD__
-#define MCAST_PPP_BUG
+#define MCAST_IFINDEX
+#endif
+
+/* Turn on if IP_DROP_MEMBERSHIP and IP_ADD_MEMBERSHIP do not look at
+ * the dstaddr of point-to-point interfaces.
+ * #define MCAST_PPP_BUG
+ */
+#ifdef MCAST_IFINDEX
+#undef MCAST_PPP_BUG
 #endif
 
 #define DAY (24*60*60)
@@ -290,7 +304,9 @@ struct interface {
 	time_t	int_query_time;
 	u_short	int_transitions;	/* times gone up-down */
 	char	int_metric;
-	char	int_d_metric;		/* for faked default route */
+	u_char	int_d_metric;		/* for faked default route */
+	u_char	int_adj_inmetric;	/* adjust advertised metrics */
+	u_char	int_adj_outmetric;	/*    instead of interface metric */
 	struct int_data {
 		u_int	ipackets;	/* previous network stats */
 		u_int	ierrors;
@@ -399,7 +415,9 @@ extern struct parm {
 	naddr	parm_net;
 	naddr	parm_mask;
 
-	char	parm_d_metric;
+	u_char	parm_d_metric;
+	u_char	parm_adj_inmetric;
+	char	parm_adj_outmetric;
 	u_int	parm_int_state;
 	int	parm_rdisc_pref;	/* signed IRDP preference */
 	int	parm_rdisc_int;		/* IRDP advertising interval */
@@ -645,6 +663,9 @@ extern struct interface *iflookup(naddr);
 extern struct auth *find_auth(struct interface *);
 extern void end_md5_auth(struct ws_buf *, struct auth *);
 
+#if defined(__FreeBSD__) || defined(__NetBSD__)
+#include <md5.h>
+#else
 #define MD5_DIGEST_LEN 16
 typedef struct {
 	u_int32_t state[4];		/* state (ABCD) */
@@ -654,3 +675,4 @@ typedef struct {
 extern void MD5Init(MD5_CTX*);
 extern void MD5Update(MD5_CTX*, u_char*, u_int);
 extern void MD5Final(u_char[MD5_DIGEST_LEN], MD5_CTX*);
+#endif
