@@ -9,6 +9,13 @@ A reverse chronology since 4.0 was released is included, followed by
 the common items quick how-tos, followed by entries for versions of
 -current prior to 4.0 Release.
 
+20020325:
+	sendmail 8.12.2 has been imported.  The sendmail binary is no
+	longer a set-user-ID root binary and the infrastructure to support
+	command line mail submission has changed.  Be sure to run
+	mergemaster (especially for updating /etc/rc, /etc/defaults/rc.conf,
+	and /etc/mail) and read /etc/mail/README for more details.
+
 20020105:
 	The locale names have been renamed in -stable to match
 	-current:
