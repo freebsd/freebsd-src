@@ -1,4 +1,4 @@
-#     $Id: BSD.local.dist,v 1.17.2.3 1996/12/12 10:46:08 asami Exp $
+#     $Id: BSD.local.dist,v 1.26 1997/02/27 12:22:25 wosch Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -150,6 +150,8 @@
 	    fr_CH.ISO_8859-1
             ..
 	    fr_FR.ISO_8859-1
+	    ..
+	    hr_HR.ISO_8859-2
             ..
 	    is_IS.ISO_8859-1
             ..
@@ -158,6 +160,8 @@
 	    it_IT.ISO_8859-1
             ..
             ja_JP.EUC
+            ..
+	    ko_KR.EUC
             ..
 	    lt_LN.ASCII
             ..
