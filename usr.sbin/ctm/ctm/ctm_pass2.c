@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ctm_pass2.c,v 1.10 1995/11/10 12:17:23 phk Exp $
+ * $Id: ctm_pass2.c,v 1.11 1996/02/05 16:06:52 phk Exp $
  *
  */
 
@@ -89,6 +89,12 @@ Pass2(FILE *fd)
 			    ret |= Exit_NotOK;
 			break;
 		    }
+		    if (SetTime && getuid() && (getuid() != st.st_uid)) {
+			    fprintf(stderr,
+				"  %s: %s not mine, cannot set time.\n",
+				sp->Key,name);
+			    ret |= Exit_NotOK;
+		    }
 		    if (j & CTM_Q_Name_Dir) {
 			if((st.st_mode & S_IFMT) != S_IFDIR) {
 			    fprintf(stderr,
@@ -155,14 +161,18 @@ Pass2(FILE *fd)
 			    fprintf(stderr,"  %s: %s edit returned %d.\n",
 				sp->Key,name,j);
 			    ret |= j;
+			    unlink(p);
+			    Free(p);
 			    return ret;
 			} else if(strcmp(md5,MD5File(p,md5_1))) {
 			    fprintf(stderr,"  %s: %s edit fails.\n",
 				sp->Key,name);
 			    ret |= Exit_Mess;
+			    unlink(p);
+			    Free(p);
 			    return ret;
 			}
-			unlink(p);
+		        unlink(p);
 			Free(p);
 		    }
 
