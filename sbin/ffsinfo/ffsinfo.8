@@ -34,7 +34,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $TSHeader: src/sbin/ffsinfo/ffsinfo.8,v 1.2 2000/12/09 15:12:31 tomsoft Exp $
+.\" $TSHeader: src/sbin/ffsinfo/ffsinfo.8,v 1.3 2000/12/12 19:30:55 tomsoft Exp $
 .\" $FreeBSD$
 .\"
 .Dd September 8, 2000
@@ -50,7 +50,7 @@
 .Op Fl i Ar inode
 .Op Fl l Ar level
 .Op Fl o Ar outfile
-.Ar < special | file >
+.Ar special | file
 .Sh DESCRIPTION
 .Nm Ffsinfo
 extends the 
@@ -58,26 +58,27 @@ extends the
 program.
 .Pp
 The output is generated into the file
-.Nm outfile .
-Also expect the output file to be rather large. Up to 2 percent of the size
-of the specified filesystem is not uncommon.
-.Nm Ffsinfo
-has some options to allow the defaults to be overridden.
+.Pa outfile .
+Also expect the output file to be rather large.
+Up to 2 percent of the size of the specified filesystem is not uncommon.
+.Pp
+The following options are available:
 .\".Pp
 .Bl -tag -width indent
 .It Fl L
-Specifying this options skips the tests of the disklabel. This is automatically
-done, if the specified filename to dump is a plain file.
+Specifying this option skips the tests of the disklabel.
+This is done automatically, if the specified filename to dump is a plain file.
 .It Fl g Ar cylinder group
-This restrictes the dump to infomation about this cylinder group only. Here
-0 means the first cylinder group and -1 the last one.
+This restricts the dump to infomation about this cylinder group only.
+Here 0 means the first cylinder group and -1 the last one.
 .It Fl i Ar inode
-This restrictes the dump to infomation about this particular inode only. Here 
-the minimum acceptable inode is 2. If this option is omitted but a cylinder
-group is defined then only inodes within that cylinder group are dumped.
+This restrictes the dump to infomation about this particular inode only.
+Here the minimum acceptable inode is 2.
+If this option is omitted but a cylinder group is defined then only inodes
+within that cylinder group are dumped.
 .It Fl l Ar level
-The level of detail which will be dumped.  This value defaults
-to 255 and is the bitwise and of the following table:
+The level of detail which will be dumped.
+This value defaults to 255 and is the bitwise and of the following table:
 .Bd -literal -offset left
 0x001 - initial superblock
 0x002 - superblock copys in each cylindergroup
@@ -91,25 +92,29 @@ to 255 and is the bitwise and of the following table:
 0x200 - indirect block dump
 .Ed
 .It Fl o Ar outfile
-This allows to change the output filename where the dump is written to. The
-current default is
-.Nm /var/tmp/ffsinfo .
+This allows to change the output filename where the dump is written to.
+The current default is
+.Pa /var/tmp/ffsinfo .
 .El
 .Sh EXAMPLES
 .Pp
 .Dl ffsinfo -l 1023 /dev/vinum/testvol
 .Pp
-will dump /dev/vinum/testvol with all available information.
+will dump
+.Pa /dev/vinum/testvol
+with all available information.
 .Sh BUGS
 Currently
 .Nm 
-can only dump unmounted file systems. Do not try dumping a mounted file system,
-your system may panic and you will not be able to use the file system any
-longer.
+can only dump unmounted file systems.
+Do not try dumping a mounted file system, your system may panic and you will
+not be able to use the file system any longer.
 .Pp
-Also snapshots are handled like plain files. They should get a their own
-level to provide for independent control of the amount of what gets dumped. It
-probably also makes sense to some extend to dump the snapshot as a filesystem.
+Also snapshots are handled like plain files.
+They should get a their own level to provide for independent control of the
+amount of what gets dumped.
+It probably also makes sense to some extend to dump the snapshot as a
+filesystem.
 .Sh SEE ALSO
 .Xr vinum 8 ,
 .Xr disklabel 8 ,
