@@ -231,8 +231,8 @@ invd(void)
  * (this is a bug) and the inlining cost is prohibitive since the call
  * executes into the IPI transmission system.
  */
-void	invlpg		(u_int addr);
-void	invltlb		(void);
+void	invlpg		__P((u_int addr));
+void	invltlb		__P((void));
 
 static __inline void
 cpu_invlpg(void *addr)
@@ -501,52 +501,52 @@ critical_exit(critical_t eflags)
 
 #else /* !__GNUC__ */
 
-int	breakpoint	(void);
-u_int	bsfl		(u_int mask);
-u_int	bsrl		(u_int mask);
-void	disable_intr	(void);
-void	enable_intr	(void);
-u_char	inb		(u_int port);
-u_int	inl		(u_int port);
-void	insb		(u_int port, void *addr, size_t cnt);
-void	insl		(u_int port, void *addr, size_t cnt);
-void	insw		(u_int port, void *addr, size_t cnt);
-void	invd		(void);
-void	invlpg		(u_int addr);
-void	invltlb		(void);
-u_short	inw		(u_int port);
-void	outb		(u_int port, u_char data);
-void	outl		(u_int port, u_int data);
-void	outsb		(u_int port, void *addr, size_t cnt);
-void	outsl		(u_int port, void *addr, size_t cnt);
-void	outsw		(u_int port, void *addr, size_t cnt);
-void	outw		(u_int port, u_short data);
-u_int	rcr2		(void);
-u_int64_t rdmsr		(u_int msr);
-u_int64_t rdpmc		(u_int pmc);
-u_int64_t rdtsc		(void);
-u_int	read_eflags	(void);
-void	wbinvd		(void);
-void	write_eflags	(u_int ef);
-void	wrmsr		(u_int msr, u_int64_t newval);
-u_int	rfs		(void);
-u_int	rgs		(void);
-void	load_fs		(u_int sel);
-void	load_gs		(u_int sel);
-critical_t critical_enter (void);
-void	critical_exit	(critical_t eflags);
+int	breakpoint	__P((void));
+u_int	bsfl		__P((u_int mask));
+u_int	bsrl		__P((u_int mask));
+void	disable_intr	__P((void));
+void	enable_intr	__P((void));
+u_char	inb		__P((u_int port));
+u_int	inl		__P((u_int port));
+void	insb		__P((u_int port, void *addr, size_t cnt));
+void	insl		__P((u_int port, void *addr, size_t cnt));
+void	insw		__P((u_int port, void *addr, size_t cnt));
+void	invd		__P((void));
+void	invlpg		__P((u_int addr));
+void	invltlb		__P((void));
+u_short	inw		__P((u_int port));
+void	outb		__P((u_int port, u_char data));
+void	outl		__P((u_int port, u_int data));
+void	outsb		__P((u_int port, void *addr, size_t cnt));
+void	outsl		__P((u_int port, void *addr, size_t cnt));
+void	outsw		__P((u_int port, void *addr, size_t cnt));
+void	outw		__P((u_int port, u_short data));
+u_int	rcr2		__P((void));
+u_int64_t rdmsr		__P((u_int msr));
+u_int64_t rdpmc		__P((u_int pmc));
+u_int64_t rdtsc		__P((void));
+u_int	read_eflags	__P((void));
+void	wbinvd		__P((void));
+void	write_eflags	__P((u_int ef));
+void	wrmsr		__P((u_int msr, u_int64_t newval));
+u_int	rfs		__P((void));
+u_int	rgs		__P((void));
+void	load_fs		__P((u_int sel));
+void	load_gs		__P((u_int sel));
+critical_t critical_enter __P((void));
+void	critical_exit	__P((critical_t eflags));
 
 #endif	/* __GNUC__ */
 
-void	load_cr0	(u_int cr0);
-void	load_cr3	(u_int cr3);
-void	load_cr4	(u_int cr4);
-void	ltr		(u_short sel);
-u_int	rcr0		(void);
-u_int	rcr3		(void);
-u_int	rcr4		(void);
-void    load_dr6        (u_int dr6);
-void    reset_dbregs    (void);
+void	load_cr0	__P((u_int cr0));
+void	load_cr3	__P((u_int cr3));
+void	load_cr4	__P((u_int cr4));
+void	ltr		__P((u_short sel));
+u_int	rcr0		__P((void));
+u_int	rcr3		__P((void));
+u_int	rcr4		__P((void));
+void    load_dr6        __P((u_int dr6));
+void    reset_dbregs    __P((void));
 __END_DECLS
 
 #endif /* !_MACHINE_CPUFUNC_H_ */
