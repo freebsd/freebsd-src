@@ -73,7 +73,7 @@
 #include <netipx/ipx_if.h>
 int (*ef_inputp)(struct ifnet*, struct ether_header *eh, struct mbuf *m);
 int (*ef_outputp)(struct ifnet *ifp, struct mbuf **mp,
-		struct sockaddr *dst, short *tp);
+		struct sockaddr *dst, short *tp, int *hlen);
 #endif
 
 #ifdef NS
@@ -194,7 +194,7 @@ ether_output(ifp, m, dst, rt0)
 #ifdef IPX
 	case AF_IPX:
 		if (ef_outputp) {
-		    error = ef_outputp(ifp, &m, dst, &type);
+		    error = ef_outputp(ifp, &m, dst, &type, &hlen);
 		    if (error)
 			goto bad;
 		} else
