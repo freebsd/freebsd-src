@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1999 Erez Zadok
+ * Copyright (c) 1997-2001 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: am_defs.h,v 1.11 1999/09/18 08:38:05 ezk Exp $
+ * $Id: am_defs.h,v 1.15.2.9 2001/04/07 00:47:44 ib42 Exp $
  * $FreeBSD$
  *
  */
@@ -332,14 +332,15 @@ extern int errno;
 /* ensure that struct datum is not included again from <rpcsvc/yp_prot.h> */
 #  define DATUM
 # endif /* not DATUM */
-#endif /* HAVE_NDBM_H */
-#ifdef HAVE_DB1_NDBM_H
-# include <db1/ndbm.h>
-# ifndef DATUM
+#else /* not HAVE_NDBM_H */
+# ifdef HAVE_DB1_NDBM_H
+#  include <db1/ndbm.h>
+#  ifndef DATUM
 /* ensure that struct datum is not included again from <rpcsvc/yp_prot.h> */
-#  define DATUM
-# endif /* not DATUM */
-#endif /* HAVE_DB1_NDBM_H */
+#   define DATUM
+#  endif /* not DATUM */
+# endif /* HAVE_DB1_NDBM_H */
+#endif /* HAVE_NDBM_H */
 
 /*
  * Actions to take if <net/errno.h> exists.
@@ -458,32 +459,29 @@ struct ypall_callback;
  * NFS and other definitions included.
  */
 # ifndef NFSCLIENT
-#  define NFSCLIENT
+#  define NFSCLIENT 1
 # endif /* not NFSCLIENT */
 # ifndef NFS
-#  define NFS
+#  define NFS 1
 # endif /* not NFS */
 # ifndef PCFS
-#  define PCFS
+#  define PCFS 1
 # endif /* not PCFS */
 # ifndef LOFS
-#  define LOFS
+#  define LOFS 1
 # endif /* not LOFS */
 # ifndef RFS
-#  define RFS
+#  define RFS 1
 # endif /* not RFS */
 # ifndef MSDOSFS
-#  define MSDOSFS
+#  define MSDOSFS 1
 # endif /* not MSDOSFS */
 # ifndef MFS
-#  define MFS
+#  define MFS 1
 # endif /* not MFS */
 # ifndef CD9660
-#  define CD9660
+#  define CD9660 1
 # endif /* not CD9660 */
-# ifndef NFS
-#  define NFS
-# endif /* not NFS */
 # include <sys/mount.h>
 #endif /* HAVE_SYS_MOUNT_H */
 
@@ -493,8 +491,10 @@ struct ypall_callback;
 
 /*
  * Actions to take if <linux/fs.h> exists.
+ * There is no point in including this on a glibc2 system,
+ * we're only asking for trouble
  */
-#ifdef HAVE_LINUX_FS_H
+#if defined HAVE_LINUX_FS_H && (!defined __GLIBC__ || __GLIBC__ < 2)
 /*
  * There are various conflicts in definitions between RedHat Linux, newer
  * 2.2 kernels, and <netinet/in.h> and <linux/fs.h>.
@@ -560,8 +560,21 @@ struct ypall_callback;
 /* conflicts with <statfsbuf.h> */
 #  define _SYS_STATFS_H
 # endif /* _SYS_MOUNT_H */
+# ifndef _LINUX_STRING_H_
+#  define _LINUX_STRING_H_
+# endif /* not _LINUX_STRING_H_ */
+# ifdef HAVE_LINUX_KDEV_T_H
+#  define __KERNEL__
+#  include <linux/kdev_t.h>
+#  undef __KERNEL__
+# endif /* HAVE_LINUX_KDEV_T_H */
+# ifdef HAVE_LINUX_LIST_H
+#  define __KERNEL__
+#  include <linux/list.h>
+#  undef __KERNEL__
+# endif /* HAVE_LINUX_LIST_H */
 # include <linux/fs.h>
-#endif /* HAVE_LINUX_FS_H */
+#endif /* HAVE_LINUX_FS_H && (!__GLIBC__ || __GLIBC__ < 2) */
 
 #ifdef HAVE_CDFS_CDFS_MOUNT_H
 # include <cdfs/cdfs_mount.h>
@@ -573,7 +586,11 @@ struct ypall_callback;
 
 /*
  * Actions to take if <linux/auto_fs.h> exists.
+ * We really don't want <linux/fs.h> pulled in here
  */
+#ifndef _LINUX_FS_H
+#define _LINUX_FS_H
+#endif /* _LINUX_FS_H */
 #ifdef HAVE_LINUX_AUTO_FS_H
 # include <linux/auto_fs.h>
 #endif /* HAVE_LINUX_AUTO_FS_H */
@@ -587,7 +604,11 @@ struct ypall_callback;
 
 /*
  * Actions to take if <sys/fs/autofs_prot.h> exists.
+ * We really don't want <linux/fs.h> pulled in here
  */
+#ifndef _LINUX_FS_H
+#define _LINUX_FS_H
+#endif /* _LINUX_FS_H */
 #ifdef HAVE_SYS_FS_AUTOFS_PROT_H
 # include <sys/fs/autofs_prot.h>
 #endif /* HAVE_SYS_FS_AUTOFS_PROT_H */
@@ -633,7 +654,7 @@ struct ypall_callback;
 # include <nfs/mount.h>
 #endif /* HAVE_NFS_MOUNT_H */
 #ifdef HAVE_NFS_NFS_MOUNT_H_off
-/* broken on nexttep3 (includes non-existing headers) */
+/* broken on nextstep3 (includes non-existing headers) */
 # include <nfs/nfs_mount.h>
 #endif /* HAVE_NFS_NFS_MOUNT_H */
 #ifdef HAVE_NFS_PATHCONF_H
@@ -649,6 +670,11 @@ struct ypall_callback;
 # include <sys/fs/nfs_clnt.h>
 #endif /* HAVE_SYS_FS_NFS_CLNT_H */
 #ifdef HAVE_LINUX_NFS_MOUNT_H
+# define _LINUX_NFS_H
+# define _LINUX_NFS2_H
+# define _LINUX_NFS3_H
+# define _LINUX_NFS_FS_H
+# define _LINUX_IN_H
 # include <linux/nfs_mount.h>
 #endif /* HAVE_LINUX_NFS_MOUNT_H */
 
@@ -743,11 +769,10 @@ struct sockaddr_dl;
  */
 #ifdef HAVE_MSDOSFS_MSDOSFSMOUNT_H
 # include <msdosfs/msdosfsmount.h>
-#else /* not HAVE_MSDOSFS_MSDOSFSMOUNT_H */
-# ifdef HAVE_FS_MSDOSFS_MSDOSFSMOUNT_H
-#  include <fs/msdosfs/msdosfsmount.h>
-# endif /* HAVE_FS_MSDOSFS_MSDOSFSMOUNT_H */
-#endif /* not HAVE_MSDOSFS_MSDOSFSMOUNT_H */
+#endif /* HAVE_MSDOSFS_MSDOSFSMOUNT_H */
+#ifdef HAVE_FS_MSDOSFS_MSDOSFSMOUNT_H
+# include <fs/msdosfs/msdosfsmount.h>
+#endif /* HAVE_FS_MSDOSFS_MSDOSFSMOUNT_H */
 
 /*
  * Actions to take if <sys/fs/tmp.h> exists.
@@ -1121,8 +1146,11 @@ extern char *nc_sperror(void);
  * Actions to take if <ufs/ufs_mount.h> exists.
  */
 #ifdef HAVE_UFS_UFS_MOUNT_H
-# include <ufs/ufs/ufsmount.h>
+# include <ufs/ufs_mount.h>
 #endif /* HAVE_UFS_UFS_MOUNT_H */
+#ifdef HAVE_UFS_UFS_UFSMOUNT_H
+# include <ufs/ufs/ufsmount.h>
+#endif /* HAVE_UFS_UFS_UFSMOUNT_H */
 
 /*
  * Are S_ISDIR, S_ISREG, et al broken?  If not, include <sys/stat.h>.
@@ -1283,7 +1311,7 @@ typedef struct _am_mntent {
  */
 
 #ifndef HAVE_EXTERN_SYS_ERRLIST
-extern const char * const sys_errlist[];
+extern const char *const sys_errlist[];
 #endif /* not HAVE_EXTERN_SYS_ERRLIST */
 
 #ifndef HAVE_EXTERN_OPTARG
