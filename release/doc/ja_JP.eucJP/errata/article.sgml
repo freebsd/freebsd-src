@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.1.2.106
+    Original revision: 1.1.2.113
 -->
 
 <!-- 
@@ -155,7 +155,106 @@
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:08.realpath.asc">FreeBSD-SA-03:08</ulink>
       をご覧ください。</para>
 
+    <para>カーネルに不正なシグナルの配送を可能にするバグがあり、
+      カーネルパニックを引き起こしたり、特定の状況では
+      カーネルメモリを不正に改変できる可能性があります。
+      このバグは &release.branch; 開発ブランチと
+      &release.prev; セキュリティブランチで修正されました。
+      詳細は、セキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:09.signal.asc">FreeBSD-SA-03:09</ulink>
+      をご覧ください。</para>
+
+    <para>iBCS2 エミュレーションモジュールのバグが原因で、
+      カーネルメモリの内容が漏洩する可能性があります。
+      なお、このモジュールはデフォルトでは有効になっていません。
+      このバグは &release.branch; 開発ブランチと
+      &release.prev; セキュリティブランチで修正されました。
+      詳細は、セキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:10.ibcs2.asc">FreeBSD-SA-03:10</ulink>
+      をご覧ください。</para>
+
+    <para><application>sendmail</application> の
+      <quote>DNS マップ</quote> 機能の実装にプログラミング上の誤りがあり、
+      &man.sendmail.8; の子プロセスがクラッシュしたり
+      意図した挙動をしない可能性があります。
+      この誤りは &release.branch; 開発ブランチでは
+      新しいバージョンの <application>sendmail</application> を統合することで、
+      &release.prev; セキュリティブランチではパッチを適用することで
+      修正されました。
+      ただし、&os; のデフォルトの設定では DNS マップ機能は使用していません。
+      詳細は、セキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:11.sendmail.asc">FreeBSD-SA-03:11</ulink>
+      をご覧ください。</para>
+
+    <para><application>OpenSSH</application> の
+      バッファを管理するコードにバグが原因で、
+      クラッシュを引き起こす可能性があります。
+      このバグは、ベンダ提供のパッチを適用して、
+      &release.branch; 開発ブランチと
+      &release.prev; セキュリティブランチで修正されました。
+      詳細は、セキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:12.openssh.asc">FreeBSD-SA-03:12</ulink>
+      をご覧ください。</para>
+
+    <para><application>sendmail</application> に、
+      リモートから悪用可能なバッファオーバフロー問題が発見されています。
+      このバグは、ベンダ提供のパッチを適用して、
+      &release.branch; 開発ブランチと
+      &release.prev; セキュリティブランチで修正されました。
+      詳細は、セキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:13.sendmail.asc">FreeBSD-SA-03:13</ulink>
+      をご覧ください。</para>
+
+    <para>&os; の ARP 実装には、カーネル資源を枯渇させ、
+      システムパニックを発生させる可能性のあるバグがあります。
+      このバグは &release.branch; 開発ブランチと
+      &release.prev; セキュリティブランチで修正されました。
+      詳細は、セキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:14.arp.asc">FreeBSD-SA-03:14</ulink>
+      をご覧ください。</para>
+
+    <para><application>OpenSSH</application> の
+      PAM 認証のコードには、
+      不正認証やスタック破壊のおそれがあるバグが、複数含まれています。
+      これらのバグはベンダ提供のパッチを適用して修正されました。
+      詳細は、セキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:15.openssh.asc">FreeBSD-SA-03:15</ulink>
+      をご覧ください。</para>
+
+    <para>&man.readv.2; システムコールの実装にバグがあり、
+      システムがクラッシュしたり高い権限を獲得できる可能性があります。
+      このバグは &release.branch; 開発ブランチと
+      &release.prev; セキュリティブランチで修正されました。
+      詳細は、セキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:16.filedesc.asc">FreeBSD-SA-03:16</ulink>
+      をご覧ください。</para>
+
+    <para>&man.procfs.5; と &man.linprocfs.5; の実装にバグがあり、
+      カーネルメモリの内容が漏洩する可能性があります。
+      このバグは &release.branch; 開発ブランチと
+      &release.prev; セキュリティブランチで修正されました。
+      詳細は、セキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:17.procfs.asc">FreeBSD-SA-03:17</ulink>
+      をご覧ください。</para>
+
+    <para><application>OpenSSL</application> には、
+      リモートの攻撃者が <application>OpenSSL</application> を利用する
+      アプリケーションをクラッシュさせたり、
+      そのアプリケーションの権限で任意のコードを実行できる可能性があるバグが
+      複数含まれています。
+      これらのバグは、&release.branch; 開発ブランチでは
+      新しいバージョンの <application>OpenSSL</application> を統合することで、
+      &release.prev; セキュリティブランチではベンダ提供のパッチを適用することで
+      修正されました。
+      ただし、この問題の影響を受けるのは、<application>OpenSSL</application>
+      に含まれる ASN.1 または X.509 の処理コードを利用するアプリケーションに
+      限られます
+      (たとえば、<application>OpenSSH</application> には影響しません)。
+      詳細は、セキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:18.openssl.asc">FreeBSD-SA-03:18</ulink>
+      をご覧ください。</para>
 ]]>
+
   </sect1>
 
   <sect1>
@@ -246,6 +345,12 @@ patch-gst-libs_ext_ffmpeg_ffmpeg_libavcodec_alpha_simple_idct_alpha.c
       この新しいメーリングリストに関する詳細は、
       <ulink url="http://www.FreeBSD.org/mailman/listinfo/">FreeBSD
       Mailman Info Page</ulink> をご覧ください。</para>
+
+    <para>&man.dc.4; ドライバが、Davicom DC9102 カードでは
+      データの送出を適切に行っていませんでした。
+      この問題は &os; 4.5-RELEASE から存在し、
+      &os; &release.current; で修正されました。</para>
+
 ]]>
   </sect1>
 </article>

@@ -3,14 +3,14 @@
 
     $FreeBSD$
 
-    Original revision: 1.22.2.358
+    Original revision: 1.22.2.384
 -->
 
 <articleinfo>
   <title>&os;/&arch; &release.current; リリースノート</title>
 
   <pubdate>$FreeBSD$</pubdate>
-  
+
   <corpauthor>FreeBSD プロジェクト</corpauthor>
 
   <copyright>
@@ -66,7 +66,7 @@
 </sect1>
 
 <!--
-       The "What's New" section of the release notes.  
+       The "What's New" section of the release notes.
 
        Guidelines for new entries:
 
@@ -110,36 +110,156 @@
       &os; &release.current; では、新しい
       <application>sendmail</application>
       を統合することで問題の修正を行なっています。</para>
+
+    <para>&man.realpath.3; 関数の実装にあった
+      1 バイトのバッファオーバフローを引き起こすバグが修正されました。
+      詳細はセキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:08.realpath.asc">FreeBSD-SA-03:08</ulink>
+      をご覧ください。</para>
+
+    <para>カーネルに不正なシグナルの配送を可能にするバグが修正されました。
+      このバグは、カーネルパニックを引き起こす可能性があります。
+      詳細はセキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:09.signal.asc">FreeBSD-SA-03:09</ulink>
+      をご覧ください。</para>
+
+    <para>カーネルメモリの内容が漏洩する可能性がある
+      iBCS2 エミュレーションモジュールのバグが修正されました。
+      なお、このモジュールはデフォルトでは有効になっていません。
+      詳細はセキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:10.ibcs2.asc">FreeBSD-SA-03:10</ulink>
+      をご覧ください。</para>
+
+    <para><application>sendmail</application> の
+      <quote>DNS マップ</quote> 機能の実装にプログラミング上の誤りがあり、
+      新しいバージョンの <application>sendmail</application>
+      を統合して修正されました。
+      ただし、&os; のデフォルトの設定ではこの機能は使用していません。
+      詳細はセキュリティ勧告 <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:11.sendmail.asc">FreeBSD-SA-03:11</ulink>
+      をご覧ください。</para>
+
+    <para><application>OpenSSH</application> のバッファを管理する
+      コードにあったクラッシュを引き起こす可能性があるバグが修正されました。
+      詳細はセキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:12.openssh.asc">FreeBSD-SA-03:12</ulink>
+      をご覧ください。</para>
+
+    <para><application>sendmail</application>
+      のバッファオーバフロー問題が修正されました。
+      詳細はセキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:13.sendmail.asc">FreeBSD-SA-03:13</ulink>
+      をご覧ください。</para>
+
+    <para>ARP キャッシュコードにあった、カーネル資源を枯渇させ、
+      システムパニックを発生させる可能性があるバグが修正されました。
+      詳細はセキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:14.arp.asc">FreeBSD-SA-03:14</ulink>
+      をご覧ください。</para>
+
+    <para><application>OpenSSH</application> の
+      PAM チャレンジ/認証サブシステムにあったいくつかの誤りが修正されました。
+      これらのバグの影響はその誤りによって異なります。
+      詳細はセキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:15.openssh.asc">FreeBSD-SA-03:15</ulink>
+      をご覧ください。</para>
+
+    <para>システムがクラッシュしたり、高い権限を獲得できる可能性がある
+      readv(2) システムコールの実装上のバグが修正されました。
+      詳細はセキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:16.filedesc.asc">FreeBSD-SA-03:16</ulink>
+      をご覧ください。</para>
+
+    <para>カーネルメモリの内容が漏洩する可能性がある
+      &man.procfs.5; と &man.linprocfs.5; の実装上のバグが修正されました。
+      詳細はセキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:17.procfs.asc">FreeBSD-SA-03:17</ulink>
+      をご覧ください。</para>
+
+    <para><application>OpenSSL</application> に
+      独立したセキュリティ上の弱点が四つあり、修正されました。
+      このバグには、リモートの攻撃者が <application>OpenSSL</application>
+      を利用するアプリケーションをクラッシュさせたり、
+      アプリケーションの権限で任意のコードを実行できる可能性があります。
+      詳細はセキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:18.openssl.asc">FreeBSD-SA-03:18</ulink>
+      をご覧ください。</para>
+
   </sect2>
 
   <sect2 id="kernel">
     <title>カーネルの変更点</title>
-      
-    <para></para>
+
+    <para arch="i386">コンソールを初期化する際に、
+      AT キーボードが接続されていない時でも
+      &man.atkbd.4; が AT キーボードを登録してしまうバグが修正されました。
+      これにより、USB キーボードのみが接続されているシステムで
+      <command>kbdcontrol -k /dev/kbd1</command>
+      を実行する必要はなくなっています。</para>
+
+    <para arch="i386,pc98">&man.safe.4; ドライバが追加されました。
+      これは SafeNet 1141、1741 ベースの
+      暗号処理アクセラレータに対応しています。
+
+      <warning>
+	<para>このドライバは試験的なものと考えるべきであり、
+	  使用には注意を払ってください。</para>
+      </warning>
+
+      <note>
+	<para>公開鍵暗号処理には対応していません。</para>
+      </note></para>
 
 <!-- Above this line, kernel changes ordered by manpage/variable name -->
 
     <sect3 id="proc">
-      <title>プロセッサ・マザーボードの対応状況</title>
-      
+      <title>プラットフォーム固有のハードウェアの対応状況</title>
+
       <para arch="i386">Intel 80386
         プロセッサでカーネルが起動しないというバグが修正されました。</para>
 
+      <para arch="i386">Intel Pentium Pro 以降に搭載されている
+	Physical Address Extensions (PAE) 機能に対応しました。
+	これは、一つのマシン上で最大 64GB の
+	RAM を使用することができるようになる機能ですが、
+	一つのプロセス (と FreeBSD カーネル) が使える
+	メモリ量は従来のままです。</para>
     </sect3>
 
     <sect3 id="boot">
-      <title>起動ローダ関連</title>
+      <title>起動ローダの変更</title>
 
       <para></para>
 
 <!-- Above this line, order boot loader changes by manpage/variable name-->
-      
+
     </sect3>
-    
+
     <sect3 id="net-if">
       <title>ネットワークインターフェイスの対応状況</title>
 
-      <para></para>
+      <para>&man.bge.4; が Broadcom 5705 ベースの
+	Gigabit Ethernet NIC に対応しました。</para>
+
+      <para>&man.dc.4; ドライバが Davicom DC9102 カードで再び
+	パケットを適切に送出するようになりました。</para>
+
+      <para>proatm ドライバが新しく追加されました。
+	これは、IDT77252 ベースの ProSum ProATM インタフェースに対応しています。
+	このドライバは &os;-CURRENT の patm ドライバに相当します。</para>
+
+      <para arch="i386">&man.rue.4; ドライバが追加されました。
+	これは RealTek RTL8150 USB to Fast Ethernet
+	コントローラチップをベースにした Ethernet アダプタに対応しています。</para>
+
+      <para arch="i386">&man.sbsh.4; ドライバが追加されました。
+	Granch SBNI16 SHDSL モデムに対応しています。</para>
+
+      <para>&man.sk.4; ドライバが SK-9521 V2.0 と 3COM 3C940 ベースの
+	Gigabit Ethernet NIC に対応しました。</para>
+
+      <para>&man.wi.4; ドライバのサスペンド/レジューム対応が
+	デバイスを非動作状態にした時も正しく動作するようになりました。</para>
 
 <!-- Above this line, order network driver changes by manpage/variable name-->
 
@@ -154,7 +274,7 @@
         カンマの後ろに空白文字を入れることも可能になっています。</para>
 
       <para>&man.ipfw.4; ルールに、C++ 風のコメントが書けるようになりました。
-        このコメントはルールと同じ場所に格納され、
+        各コメントはルールと同じ場所に格納され、
         &man.ipfw.8; <literal>show</literal>
         コマンドでルールと一緒に表示させることができます。</para>
 
@@ -168,10 +288,27 @@
         コマンドでは削除されません。つまり、このルールセットを使うと、
         一種の <quote>永続ルール</quote> を記述することが可能になります。
         詳細については、&man.ipfw.8; に書かれています。</para>
+
+      <para>カーネルが
+	Protocol Independent Multicast ルーティングに対応しました。</para>
+
+    </sect3>
+
+    <sect3 id="disks">
+      <title>ディスク・記憶装置</title>
+
+      <para>&man.da.4; ドライバが、USB デバイスと Firewire デバイスに
+	6 バイトコマンドを送出しないようになりました。
+	USB デバイスを動作させるための
+	quirk は現在は不要であり、無効にされています。
+	従来の挙動に戻すには、<literal>options DA_OLD_QUIRKS</literal> を
+	カーネルコンフィグレーションファイルに追加してください。
+
+      <para>&man.twe.4; ドライバが 3ware 汎用 API に対応しました。</para>
     </sect3>
 
     <sect3 id="fs">
-      <title>ディスク・記憶装置</title>
+      <title>ファイルシステム</title>
 
       <para>新しく <literal>DIRECTIO</literal>
         カーネルオプションが追加されました。
@@ -181,12 +318,6 @@
         <literal>O_DIRECT</literal> フラグをセットすることと、
         読み出し操作時のオフセット・データ長の両方に、
         物理メディアセクタ長の整数倍を指定する必要があります。</para>
-    </sect3>
-
-    <sect3>
-      <title>ファイルシステム</title>
-
-      <para></para>
 
     </sect3>
 
@@ -199,7 +330,7 @@
 
     <sect3 id="mm">
       <title>マルチメディアへの対応状況</title>
-      
+
       <para></para>
 
     </sect3>
@@ -207,6 +338,12 @@
 
   <sect2 id="userland">
     <title>ユーザランドの変更点</title>
+
+    <para>&man.arp.8; に、ARP エントリに対する操作の影響範囲を
+      特定のインタフェースに限定する <option>-i</option>
+      オプションが追加されました。このオプションは、
+      情報を表示させる操作にのみ適用されます。多くのインタフェースを
+      搭載したルータなどに有用なオプションです。</para>
 
     <para>&man.chroot.8; が、chroot 環境で使うユーザとプライマリグループ、
       グループリストの設定に対応しました。
@@ -218,6 +355,13 @@
 
     <para>&man.ipfw.8; に、実際の動作を行なわずにコマンドの文法だけをチェックする
       <option>-n</option> フラグが追加されました。</para>
+
+    <para>&man.mount.msdosfs.8; ユーティリティに、
+      ファイルシステム中のディレクトリの最大ファイルパーミションを指定する
+      <option>-M</option> オプションが追加されました。</para>
+
+    <para>&man.systat.1; が
+      IPv6 および ICMPv6 のトラフィックを表示するようになりました。</para>
 
     <para>&man.uudecode.1; と &man.b64decode.1; に、
       先頭フレーム行、もしくは最終フレーム行が欠けた、
@@ -231,8 +375,28 @@
   <sect2 id="contrib">
     <title>寄贈ソフトウェア</title>
 
+    <para arch="i386">Intel の ACPI 配布物のバージョン 20030228 が
+      (&os; ローカルの変更と対応コードとともに) 統合されました。
+      この機能は試験的なものと考えるべきであり、
+      製品環境への展開には事前に検証を行うべきです。
+
+      <note>
+	<para>&os;-CURRENT とは異なり、カーネルモジュール形式の
+	  ACPI ドライバはありません。
+	  カーネルコンフィグファイルに、明示的に
+	  <literal>device acpica</literal>
+	  を追加して、カーネルに静的に組み込む必要があります。
+	  このドライバは、デフォルトでは <filename>GENERIC</filename>
+	  カーネルに含まれていません。</para>
+      </note></para>
+
     <para><application>groff</application> がバージョン
       1.18.1 からバージョン 1.19 に更新されました。</para>
+
+    <para><application>lukemftpd</application> がバージョン 1.2beta1
+      から、NetBSD CVS リポジトリ由来の 2003 年 1 月 5
+      日時点のスナップショットに更新されました
+      (デフォルトでは構築されません)。</para>
 
     <para><application>sendmail</application> がバージョン
       8.12.9 に更新されました。</para>
@@ -244,21 +408,28 @@
       <filename>tzdata2002d</filename> から
       <filename>tzdata2003a</filename> に更新されました。</para>
   </sect2>
-    
+
   <sect2 id="ports">
     <title>Ports/Packages Collection</title>
 
-    <para></para>
+    <para>&man.pkg.create.1; に新しく
+      <option>-C</option> オプションが追加されました。
+      これは作成する package と機能が衝突する package のリストを登録します。
+      このリストにある package がすでに存在している場合、
+      (&man.pkg.add.1; での) インストールが失敗します。
+      この衝突チェックは、&man.pkg.add.1; に
+      <option>-f</option> フラグを追加して無効にすることができます。</para>
+
   </sect2>
 
   <sect2 id="releng">
     <title>リリースエンジニアリングと統合</title>
 
     <para><application>GNOME</application> 対応リリースが
-      2.2.1 に更新されました。</para>
+      2.2 から 2.4 に更新されました。</para>
 
     <para><application>KDE</application> 対応リリースが
-      3.1.1a に更新されました。</para>
+      3.1 から 3.1.4 に更新されました。</para>
   </sect2>
 </sect1>
 
@@ -275,7 +446,7 @@
         これは &os; のインストール時に
         特別なコンパイルオプションを指定していないことを前提としています。</para>
     </listitem>
-    
+
     <listitem>
       <para>&os; を完全に再インストールする方法。
         技術的にはアップグレード手段の一つとは言えませんし、
@@ -285,7 +456,7 @@
         しかし、ディスクのパーティション分割を変更したい (とか、
         変更しなければならない) 場合などには便利な方法でしょう。</para>
     </listitem>
-    
+
     <listitem>
       <para><filename>/usr/src</filename> のソースコードから構築する方法。
         この手段は非常に柔軟な対応が可能ですが、
@@ -300,7 +471,7 @@
         もしくは完全な再インストールを行なった方が効果的でしょう。</para>
     </listitem>
   </itemizedlist>
-  
+
   <para>なるべくアップグレードを始める前に詳細について
     <filename>INSTALL.TXT</filename> をご覧ください。
     ソースからアップグレードする場合は
