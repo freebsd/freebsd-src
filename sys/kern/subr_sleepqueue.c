@@ -499,17 +499,14 @@ sleepq_wait_sig(void *wchan)
  * or it times out while waiting.
  */
 int
-sleepq_timedwait(void *wchan, int signal_caught)
+sleepq_timedwait(void *wchan)
 {
 	int rval;
 
 	sleepq_switch(wchan);
 	rval = sleepq_check_timeout();
 	mtx_unlock_spin(&sched_lock);
-	if (signal_caught)
-		return (0);
-	else
-		return (rval);
+	return (rval);
 }
 
 /*

@@ -98,7 +98,7 @@ void	sleepq_release(void *);
 void	sleepq_remove(struct thread *, void *);
 void	sleepq_signal(void *, int, int);
 void	sleepq_set_timeout(void *wchan, int timo);
-int	sleepq_timedwait(void *wchan, int signal_caught);
+int	sleepq_timedwait(void *wchan);
 int	sleepq_timedwait_sig(void *wchan, int signal_caught);
 void	sleepq_wait(void *);
 int	sleepq_wait_sig(void *wchan);
