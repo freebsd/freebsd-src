@@ -30,7 +30,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)getrpcent.c 1.14 91/03/11 Copyr 1984 Sun Micro";*/
-static char *rcsid = "$Id: getrpcent.c,v 1.1 1994/08/07 18:35:51 wollman Exp $";
+static char *rcsid = "$Id: getrpcent.c,v 1.2 1995/05/30 05:41:21 rgrimes Exp $";
 #endif
 
 /*
@@ -38,6 +38,7 @@ static char *rcsid = "$Id: getrpcent.c,v 1.1 1994/08/07 18:35:51 wollman Exp $";
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/types.h>
 #include <string.h>
 #include <rpc/rpc.h>
@@ -205,8 +206,8 @@ getrpcent()
 	int reason;
 	register struct rpcdata *d = _rpcdata();
 #ifdef	YP
-	char *key = NULL, *val = NULL;
-	int keylen, vallen;
+	char *val = NULL;
+	int vallen;
 #endif
 
 	if (d == 0)
