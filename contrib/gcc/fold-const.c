@@ -1500,14 +1500,16 @@ associate_trees (t1, t2, code, type)
   if (TREE_CODE (t1) == code || TREE_CODE (t2) == code
       || TREE_CODE (t1) == MINUS_EXPR || TREE_CODE (t2) == MINUS_EXPR)
     {
-      if (TREE_CODE (t1) == NEGATE_EXPR)
-	return build (MINUS_EXPR, type, convert (type, t2),
-		      convert (type, TREE_OPERAND (t1, 0)));
-      else if (TREE_CODE (t2) == NEGATE_EXPR)
-	return build (MINUS_EXPR, type, convert (type, t1),
-		      convert (type, TREE_OPERAND (t2, 0)));
-      else
-	return build (code, type, convert (type, t1), convert (type, t2));
+      if (code == PLUS_EXPR)
+	{
+	  if (TREE_CODE (t1) == NEGATE_EXPR)
+	    return build (MINUS_EXPR, type, convert (type, t2),
+			  convert (type, TREE_OPERAND (t1, 0)));
+	  else if (TREE_CODE (t2) == NEGATE_EXPR)
+	    return build (MINUS_EXPR, type, convert (type, t1),
+			  convert (type, TREE_OPERAND (t2, 0)));
+	}
+      return build (code, type, convert (type, t1), convert (type, t2));
     }
 
   return fold (build (code, type, convert (type, t1), convert (type, t2)));
@@ -4617,10 +4619,10 @@ extract_muldiv (t, c, code, wide_type)
       t2 = extract_muldiv (op1, c, code, wide_type);
       if (t1 != 0 && t2 != 0
 	  && (code == MULT_EXPR
-	      /* If not multiplication, we can only do this if either operand
-		 is divisible by c.  */
-	      || multiple_of_p (ctype, op0, c)
-	      || multiple_of_p (ctype, op1, c)))
+	      /* If not multiplication, we can only do this if both operands
+		 are divisible by c.  */
+	      || (multiple_of_p (ctype, op0, c)
+	          && multiple_of_p (ctype, op1, c))))
 	return fold (build (tcode, ctype, convert (ctype, t1),
 			    convert (ctype, t2)));
 
