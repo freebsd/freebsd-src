@@ -32,14 +32,14 @@
 .Nm llroundf ,
 .Nm lround ,
 .Nm lroundf
-.Nd convert to nearest integral value
+.Nd "convert to nearest integral value"
 .Sh LIBRARY
 .Lb libm
 .Sh SYNOPSIS
 .In math.h
-.Ft long long
+.Ft "long long"
 .Fn llround "double x"
-.Ft long long
+.Ft "long long"
 .Fn llroundf "float x"
 .Ft long
 .Fn lround "double x"
@@ -52,7 +52,7 @@ function returns the integer nearest to its argument
 .Fa x ,
 rounding away from zero in halfway cases.
 If the rounded result is too large to be represented as a
-.Ft long
+.Vt long
 value, an invalid exception is raised and the return value is undefined.
 Otherwise, if
 .Fa x
@@ -60,12 +60,12 @@ is not an integer,
 .Fn lround
 may raise an inexact exception.
 When the rounded result is representable as a
-.Ft long ,
+.Vt long ,
 the expression
-.Li lround(x)
+.Fn lround x
 is equivalent to
-.Li (long)round(x)
-(although the former may be more efficient.)
+.Po Vt long Pc Ns Fn round x
+(although the former may be more efficient).
 .Pp
 The
 .Fn llround ,
