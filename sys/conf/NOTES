@@ -2157,85 +2157,6 @@ options		COMPAT_SVR4	# build emulator statically
 options		DEBUG_SVR4	# enable verbose debugging
 pseudo-device	streams		# STREAMS network driver (required for svr4).
 
-# Debug options
-options 	BUS_DEBUG	# enable newbus debugging
-options 	DEBUG_VFS_LOCKS	# enable vfs lock debugging
-options 	NPX_DEBUG	# enable npx debugging (FPU/math emu)
-
-# More undocumented options for linting.
-# Note that documenting these are not considered an affront.
-
-options 	AHC_DUMP_EEPROM
-options 	AHC_TMODE_ENABLE
-options 	CAM_DEBUG_DELAY
-options 	CLK_CALIBRATION_LOOP
-options 	CLK_USE_I8254_CALIBRATION
-options 	CLK_USE_TSC_CALIBRATION
-options 	CLUSTERDEBUG
-options 	COMPAT_LINUX
-options 	CPU_UPGRADE_HW_CACHE
-options 	DEBUG
-options 	DEBUG_LINUX
-#options 	DISABLE_PSE
-options 	ENABLE_ALART
-options 	ENABLE_VFS_IOOPT
-options 	FB_DEBUG
-options 	FB_INSTALL_CDEV
-options 	FE_8BIT_SUPPORT
-options 	I4B_SMP_WORKAROUND
-options 	I586_PMC_GUPROF=0x70000
-options 	IBCS2
-options 	KBDIO_DEBUG=2
-options 	KBD_MAXRETRY=4
-options 	KBD_MAXWAIT=6
-options 	KBD_RESETDELAY=201
-options 	KEY
-options 	LOCKF_DEBUG
-options 	LOUTB
-options 	MSGMNB=2049
-options 	MSGMNI=41
-options 	MSGSEG=2049
-options 	MSGSSZ=16
-options 	MSGTQL=41
-options 	NBUF=512
-options 	NETATALKDEBUG
-options 	NMBCLUSTERS=1024
-#options 	OLTR_NO_BULLSEYE_MAC
-#options 	OLTR_NO_HAWKEYE_MAC
-#options 	OLTR_NO_TMS_MAC
-options 	PANIC_REBOOT_WAIT_TIME=16
-options 	PNPBIOS
-options 	PSM_DEBUG=1
-options 	SCSI_NCR_DEBUG
-options 	SCSI_NCR_MAX_SYNC=10000
-options 	SCSI_NCR_MAX_WIDE=1
-options 	SCSI_NCR_MYADDR=7
-options 	SC_DEBUG_LEVEL
-options 	SC_RENDER_DEBUG
-options 	SEMMAP=31
-options 	SEMMNI=11
-options 	SEMMNS=61
-options 	SEMMNU=31
-options 	SEMMSL=61
-options 	SEMOPM=101
-options 	SEMUME=11
-options 	SHMALL=1025
-options 	SHMMAX="(SHMMAXPGS*PAGE_SIZE+1)"
-options 	SHMMAXPGS=1025
-options 	SHMMIN=2
-options 	SHMMNI=33
-options 	SHMSEG=9
-options 	SHOW_BUSYBUFS	# List buffers that prevent root unmount
-options 	SIMPLELOCK_DEBUG
-options 	SI_DEBUG
-options 	SLIP_IFF_OPTS
-options 	SPX_HACK
-options 	TIMER_FREQ="((14318182+6)/12)"
-options 	VFS_BIO_DEBUG
-options 	VM_KMEM_SIZE
-options 	VM_KMEM_SIZE_MAX
-options 	VM_KMEM_SIZE_SCALE
-
 # Undocumented options covering presently broken code
 #options 	ASUSCOM_IPAC
 
@@ -2338,3 +2259,82 @@ makeoptions	UKBD_DFLT_KEYMAP=it.iso
 #
 # An embedded system might want to run something other than init.
 options 	INIT_PATH="/sbin/init:/stand/sysinstall"
+
+# Debug options
+options 	BUS_DEBUG	# enable newbus debugging
+options 	DEBUG_VFS_LOCKS	# enable vfs lock debugging
+options 	NPX_DEBUG	# enable npx debugging (FPU/math emu)
+
+# More undocumented options for linting.
+# Note that documenting these are not considered an affront.
+
+options 	AHC_DUMP_EEPROM
+options 	AHC_TMODE_ENABLE
+options 	CAM_DEBUG_DELAY
+options 	CLK_CALIBRATION_LOOP
+options 	CLK_USE_I8254_CALIBRATION
+options 	CLK_USE_TSC_CALIBRATION
+options 	CLUSTERDEBUG
+options 	COMPAT_LINUX
+options 	CPU_UPGRADE_HW_CACHE
+options 	DEBUG
+options 	DEBUG_LINUX
+#options 	DISABLE_PSE
+options 	ENABLE_ALART
+options 	ENABLE_VFS_IOOPT
+options 	FB_DEBUG
+options 	FB_INSTALL_CDEV
+options 	FE_8BIT_SUPPORT
+options 	I4B_SMP_WORKAROUND
+options 	I586_PMC_GUPROF=0x70000
+options 	IBCS2
+options 	KBDIO_DEBUG=2
+options 	KBD_MAXRETRY=4
+options 	KBD_MAXWAIT=6
+options 	KBD_RESETDELAY=201
+options 	KEY
+options 	LOCKF_DEBUG
+options 	LOUTB
+options 	MSGMNB=2049
+options 	MSGMNI=41
+options 	MSGSEG=2049
+options 	MSGSSZ=16
+options 	MSGTQL=41
+options 	NBUF=512
+options 	NETATALKDEBUG
+options 	NMBCLUSTERS=1024
+#options 	OLTR_NO_BULLSEYE_MAC
+#options 	OLTR_NO_HAWKEYE_MAC
+#options 	OLTR_NO_TMS_MAC
+options 	PANIC_REBOOT_WAIT_TIME=16
+options 	PNPBIOS
+options 	PSM_DEBUG=1
+options 	SCSI_NCR_DEBUG
+options 	SCSI_NCR_MAX_SYNC=10000
+options 	SCSI_NCR_MAX_WIDE=1
+options 	SCSI_NCR_MYADDR=7
+options 	SC_DEBUG_LEVEL
+options 	SC_RENDER_DEBUG
+options 	SEMMAP=31
+options 	SEMMNI=11
+options 	SEMMNS=61
+options 	SEMMNU=31
+options 	SEMMSL=61
+options 	SEMOPM=101
+options 	SEMUME=11
+options 	SHMALL=1025
+options 	SHMMAX="(SHMMAXPGS*PAGE_SIZE+1)"
+options 	SHMMAXPGS=1025
+options 	SHMMIN=2
+options 	SHMMNI=33
+options 	SHMSEG=9
+options 	SHOW_BUSYBUFS	# List buffers that prevent root unmount
+options 	SIMPLELOCK_DEBUG
+options 	SI_DEBUG
+options 	SLIP_IFF_OPTS
+options 	SPX_HACK
+options 	TIMER_FREQ="((14318182+6)/12)"
+options 	VFS_BIO_DEBUG
+options 	VM_KMEM_SIZE
+options 	VM_KMEM_SIZE_MAX
+options 	VM_KMEM_SIZE_SCALE
