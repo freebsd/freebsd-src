@@ -100,24 +100,20 @@ static struct nlist namelist[] = {
 	{ "_eintrcnt" },
 #define	X_KMEMSTATISTICS	10
 	{ "_kmemstatistics" },
-#define	X_KMEMBUCKETS	11
-	{ "_bucket" },
-#define	X_ZLIST		12
-	{ "_zlist" },
 #ifdef notyet
-#define	X_DEFICIT	13
+#define	X_DEFICIT	12
 	{ "_deficit" },
-#define	X_FORKSTAT	14
+#define	X_FORKSTAT	13
 	{ "_forkstat" },
-#define X_REC		15
+#define X_REC		14
 	{ "_rectime" },
-#define X_PGIN		16
+#define X_PGIN		15
 	{ "_pgintime" },
-#define	X_XSTATS	17
+#define	X_XSTATS	16
 	{ "_xstats" },
-#define X_END		18
+#define X_END		17
 #else
-#define X_END		13
+#define X_END		18
 #endif
 	{ "" },
 };
@@ -762,17 +758,13 @@ dointr()
 void
 domem()
 {
-	struct kmembuckets *kp;
 	struct malloc_type *ks;
 	int i, j;
-	int len, size, first, nkms;
+	int first, nkms;
 	long totuse = 0, totfree = 0, totreq = 0;
-	const char *name;
 	struct malloc_type kmemstats[MAX_KMSTATS], *kmsp;
 	char buf[1024];
-	struct kmembuckets buckets[MINBUCKET + 16];
 
-	kread(X_KMEMBUCKETS, buckets, sizeof(buckets));
 	kread(X_KMEMSTATISTICS, &kmsp, sizeof(kmsp));
 	for (nkms = 0; nkms < MAX_KMSTATS && kmsp != NULL; nkms++) {
 		if (sizeof(kmemstats[0]) != kvm_read(kd, (u_long)kmsp,
@@ -786,57 +778,6 @@ domem()
 		kmemstats[nkms].ks_shortdesc = strdup(buf);
 		kmsp = kmemstats[nkms].ks_next;
 	}
-	if (kmsp != NULL)
-		warnx("truncated to the first %d memory types", nkms);
-	(void)printf("Memory statistics by bucket size\n");
-	(void)printf(
-	    "Size   In Use   Free   Requests  HighWater  Couldfree\n");
-	for (i = MINBUCKET, kp = &buckets[i]; i < MINBUCKET + 16; i++, kp++) {
-		if (kp->kb_calls == 0)
-			continue;
-		size = 1 << i;
-		if(size < 1024)
-			(void)printf("%4d",size);
-		else
-			(void)printf("%3dK",size>>10);
-		(void)printf(" %8ld %6ld %10lld %7ld %10ld\n",
-			kp->kb_total - kp->kb_totalfree,
-			kp->kb_totalfree, kp->kb_calls,
-			kp->kb_highwat, kp->kb_couldfree);
-		totfree += size * kp->kb_totalfree;
-	}
-
-	(void)printf("\nMemory usage type by bucket size\n");
-	(void)printf("Size  Type(s)\n");
-	kp = &buckets[MINBUCKET];
-	for (j =  1 << MINBUCKET; j < 1 << (MINBUCKET + 16); j <<= 1, kp++) {
-		if (kp->kb_calls == 0)
-			continue;
-		first = 1;
-		len = 8;
-		for (i = 0, ks = &kmemstats[0]; i < nkms; i++, ks++) {
-			if (ks->ks_calls == 0)
-				continue;
-			if ((ks->ks_size & j) == 0)
-				continue;
-			name = ks->ks_shortdesc;
-			len += 2 + strlen(name);
-			if (first && j < 1024)
-				(void)printf("%4d  %s", j, name);
-			else if (first)
-				(void)printf("%3dK  %s", j>>10, name);
-			else
-				(void)printf(",");
-			if (len >= 79) {
-				(void)printf("\n\t ");
-				len = 10 + strlen(name);
-			}
-			if (!first)
-				(void)printf(" %s", name);
-			first = 0;
-		}
-		(void)printf("\n");
-	}
 
 	(void)printf(
 	    "\nMemory statistics by type                          Type  Kern\n");
@@ -849,7 +790,7 @@ domem()
 		    ks->ks_shortdesc,
 		    ks->ks_inuse, (ks->ks_memuse + 1023) / 1024,
 		    (ks->ks_maxused + 1023) / 1024,
-		    (ks->ks_limit + 1023) / 1024, ks->ks_calls,
+		    (ks->ks_limit + 1023) / 1024, (long long)ks->ks_calls,
 		    ks->ks_limblocks, ks->ks_mapblocks);
 		first = 1;
 		for (j =  1 << MINBUCKET; j < 1 << (MINBUCKET + 16); j <<= 1) {
