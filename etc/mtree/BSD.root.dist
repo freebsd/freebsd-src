@@ -28,6 +28,8 @@
             monthly
             ..
         ..
+        ssl
+        ..
         gnats
         ..
         isdn            mode=0700
