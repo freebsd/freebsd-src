@@ -51,7 +51,7 @@
 .Sh DESCRIPTION
 The
 .Nm
-program
+utility
 is the last stage of the boot process.
 It normally runs the automatic reboot sequence as described in
 .Xr rc 8 ,
@@ -62,7 +62,7 @@ commences single-user operation by giving
 the super-user a shell on the console.
 The
 .Nm
-program may be passed parameters
+utility may be passed parameters
 from the boot program to
 prevent the system from going multi-user and to instead execute
 a single-user shell without starting the normal daemons.
@@ -105,7 +105,7 @@ All devices may be read or written subject to their permissions.
 .It Ic 1
 Secure mode \- the system immutable and system append-only flags may not
 be turned off;
-disks for mounted filesystems,
+disks for mounted file systems,
 .Pa /dev/mem ,
 and
 .Pa /dev/kmem
@@ -118,7 +118,7 @@ Highly secure mode \- same as secure mode, plus disks may not be
 opened for writing (except by
 .Xr mount 2 )
 whether mounted or not.
-This level precludes tampering with filesystems by unmounting them,
+This level precludes tampering with file systems by unmounting them,
 but also inhibits running
 .Xr newfs 8
 while the system is multi-user.
@@ -143,7 +143,7 @@ leaves it unchanged.
 Otherwise,
 .Nm
 raises the level to 1 before going multi-user for the first time.
-Since the level can not be reduced, it will be at least 1 for
+Since the level cannot be reduced, it will be at least 1 for
 subsequent operation, even on return to single-user.
 If a level higher than 1 is desired while running multi-user,
 it can be set before going multi-user, e.g., by the startup script
@@ -159,8 +159,9 @@ In multi-user operation,
 maintains
 processes for the terminal ports found in the file
 .Xr ttys 5 .
-.Nm Init
-reads this file and executes the command found in the second field,
+The
+.Nm
+utility reads this file and executes the command found in the second field,
 unless the first field refers to a device in
 .Pa /dev
 which is not configured.
@@ -181,7 +182,7 @@ dies, either because the user logged out
 or an abnormal termination occurred (a signal),
 the
 .Nm
-program wakes up, deletes the user
+utility wakes up, deletes the user
 from the
 .Xr utmp 5
 file of current users and records the logout in the
@@ -194,8 +195,9 @@ executing a new
 .Nm getty
 for the line.
 .Pp
-.Nm Init
-can also be used to keep arbitrary daemons running,
+The
+.Nm
+utility can also be used to keep arbitrary daemons running,
 automatically restarting them if they die.
 In this case, the first field in the
 .Xr ttys 5
@@ -247,8 +249,9 @@ file and records in the
 file is out of sync,
 so this practice is not recommended.
 .Pp
-.Nm Init
-will terminate multi-user operations and resume single-user mode
+The
+.Nm
+utility will terminate multi-user operations and resume single-user mode
 if sent a terminate
 .Pq Dv TERM
 signal, for example,
@@ -259,8 +262,9 @@ hardware or software failure),
 will not wait for them all to die (which might take forever), but
 will time out after 30 seconds and print a warning message.
 .Pp
-.Nm Init
-will cease creating new processes
+The
+.Nm
+utility will cease creating new processes
 and allow the system to slowly die away, if it is sent a terminal stop
 .Pq Dv TSTP
 signal, i.e.\&
@@ -272,8 +276,9 @@ This hook is used by
 and
 .Xr halt 8 .
 .Pp
-.Nm Init
-will terminate all possible processes (again, it will not wait
+The
+.Nm
+utility will terminate all possible processes (again, it will not wait
 for deadlocked processes) and reboot the machine if sent the interrupt
 .Pq Dv INT
 signal, i.e.\&
@@ -281,8 +286,9 @@ signal, i.e.\&
 This is useful for shutting the machine down cleanly from inside the kernel
 or from X when the machine appears to be hung.
 .Pp
-.Nm Init
-will do the same, except it will halt the machine if sent
+The
+.Nm
+utility will do the same, except it will halt the machine if sent
 the user defined signal 1
 .Pq Dv USR1 ,
 or will halt and turn the power off (if hardware permits) if sent
@@ -382,7 +388,7 @@ system shutdown commands
 .Sh HISTORY
 An
 .Nm
-command appeared in
+utility appeared in
 .At v6 .
 .Sh CAVEATS
 Systems without
@@ -392,7 +398,7 @@ behave as though they have security level \-1.
 Setting the security level above 1 too early in the boot sequence can
 prevent
 .Xr fsck 8
-from repairing inconsistent filesystems.  The
+from repairing inconsistent file systems.  The
 preferred location to set the security level is at the end of
 .Pa /etc/rc
 after all multi-user startup actions are complete.
