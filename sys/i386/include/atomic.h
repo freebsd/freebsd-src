@@ -117,7 +117,7 @@ extern void atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v)
 
 #if defined(__GNUC__)
 
-#if defined(I386_CPU)
+#if defined(I386_CPU) || defined(CPU_DISABLE_CMPXCHG)
 
 static __inline int
 atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src)
