@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the Kungliga Tekniska
- *      Högskolan and its contributors.
- * 
- * 4. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -38,7 +33,7 @@
 
 #include "kauth.h"
 
-RCSID("$Id: rkinit.c,v 1.21 1998/06/09 19:24:26 joda Exp $");
+RCSID("$Id: rkinit.c,v 1.22.2.1 1999/12/06 17:27:56 assar Exp $");
 
 static struct in_addr *
 getalladdrs (char *hostname, unsigned *count)
@@ -111,6 +106,15 @@ doit_host (krb_principal *princ, int lifetime, char *locuser,
 	addrlen != sizeof(thataddr)) {
 	warn ("getpeername(%s)", hostname);
 	return 1;
+    }
+
+    if (krb_get_config_bool("nat_in_use")) {
+	struct in_addr natAddr;
+
+	if (krb_get_our_ip_for_realm(krb_realmofhost(hostname),
+				     &natAddr) == KSUCCESS
+	    || krb_get_our_ip_for_realm (NULL, &natAddr) == KSUCCESS)
+	    thisaddr.sin_addr = natAddr;
     }
 
     status = krb_sendauth (KOPT_DO_MUTUAL, s, &text, "rcmd",

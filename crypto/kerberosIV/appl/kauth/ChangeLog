@@ -1,3 +1,9 @@
+1999-08-31  Johan Danielsson  <joda@pdc.kth.se>
+
+	* kauth.c: cleanup usage string; handle `kauth -h' gracefully
+	(print usage); add `-a' flag to get the ticket address (useful for
+	firewall configurations)
+
 Thu Apr 15 15:05:33 1999  Johan Danielsson  <joda@hella.pdc.kth.se>
 
 	* kauth.c: add `-v'

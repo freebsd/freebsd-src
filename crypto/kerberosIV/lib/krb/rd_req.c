@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the Kungliga Tekniska
- *      Högskolan and its contributors.
- * 
- * 4. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -38,7 +33,7 @@
 
 #include "krb_locl.h"
 
-RCSID("$Id: rd_req.c,v 1.25 1998/06/09 19:25:25 joda Exp $");
+RCSID("$Id: rd_req.c,v 1.27.2.1 1999/12/06 22:04:36 assar Exp $");
 
 static struct timeval t_local = { 0, 0 };
 
@@ -210,16 +205,16 @@ krb_rd_req(KTEXT authent,	/* The received message */
      */
     if (fn && (strcmp(st_nam,service) || strcmp(st_inst,instance) ||
                strcmp(st_rlm,realm) || (st_kvno != s_kvno))) {
-        if (*fn == 0) fn = KEYFILE;
+        if (*fn == 0) fn = (char *)KEYFILE;
         st_kvno = s_kvno;
         if (read_service_key(service, instance, realm, s_kvno,
 			     fn, (char *)skey))
             return(RD_AP_UNDEC);
         if ((status = krb_set_key((char*)skey, 0)))
 	    return(status);
-        strcpy_truncate (st_rlm, realm, REALM_SZ);
-        strcpy_truncate (st_nam, service, SNAME_SZ);
-        strcpy_truncate (st_inst, instance, INST_SZ);
+        strlcpy (st_rlm, realm, REALM_SZ);
+        strlcpy (st_nam, service, SNAME_SZ);
+        strlcpy (st_inst, instance, INST_SZ);
     }
 
     tkt->length = *p++;

@@ -85,6 +85,8 @@ Bugfixes and code has been contributed by:
 @code{<toddr@@rpi.edu>}
 @item Åke Sandgren
 @code{<ake@@cs.umu.se>}
+@item Thomas Nyström
+@code{<thn@@stacken.kth.se>}
 @item and we hope that those not mentioned here will forgive us.
 @end table
 

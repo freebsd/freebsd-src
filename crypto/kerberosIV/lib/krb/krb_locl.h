@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the Kungliga Tekniska
- *      Högskolan and its contributors.
- * 
- * 4. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -36,7 +31,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: krb_locl.h,v 1.49 1998/06/13 00:06:59 assar Exp $ */
+/* $Id: krb_locl.h,v 1.50 1999/12/02 16:58:42 joda Exp $ */
 
 #ifndef __krb_locl_h
 #define __krb_locl_h

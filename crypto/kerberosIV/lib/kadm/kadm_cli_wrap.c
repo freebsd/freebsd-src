@@ -29,7 +29,7 @@ or implied warranty.
 
 #include "kadm_locl.h"
 
-RCSID("$Id: kadm_cli_wrap.c,v 1.26 1999/07/05 13:28:58 bg Exp $");
+RCSID("$Id: kadm_cli_wrap.c,v 1.27 1999/09/16 20:41:46 assar Exp $");
 
 static Kadm_Client client_parm;
 
@@ -73,9 +73,9 @@ kadm_init_link(char *n, char *i, char *r)
 
 	init_kadm_err_tbl();
 	init_krb_err_tbl();
-	strcpy_truncate(client_parm.sname, n, ANAME_SZ);
-	strcpy_truncate(client_parm.sinst, i, INST_SZ);
-	strcpy_truncate(client_parm.krbrlm, r, REALM_SZ);
+	strlcpy(client_parm.sname, n, ANAME_SZ);
+	strlcpy(client_parm.sinst, i, INST_SZ);
+	strlcpy(client_parm.krbrlm, r, REALM_SZ);
 	client_parm.admin_fd = -1;
 
 	/* set up the admin_addr - fetch name of admin host */

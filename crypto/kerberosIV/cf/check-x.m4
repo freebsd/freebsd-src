@@ -1,7 +1,7 @@
 dnl 
 dnl See if there is any X11 present
 dnl
-dnl $Id: check-x.m4,v 1.1 1999/06/03 00:22:10 joda Exp $
+dnl $Id: check-x.m4,v 1.2 1999/11/05 04:25:23 assar Exp $
 
 AC_DEFUN(KRB_CHECK_X,[
 AC_PATH_XTRA
@@ -31,7 +31,7 @@ if test "$no_x" != yes; then
 			esac
 			done
 		fi
-		LIBS="$ac_save_libs $foo -lX11"
+		LIBS="$ac_save_libs $foo $X_PRE_LIBS -lX11 $X_EXTRA_LIBS"
 		AC_TRY_RUN([
 		#include <X11/Xlib.h>
 		foo()

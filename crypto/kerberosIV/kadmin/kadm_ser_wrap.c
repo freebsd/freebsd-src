@@ -30,7 +30,7 @@ unwraps wrapped packets and calls the appropriate server subroutine
 
 #include "kadm_locl.h"
 
-RCSID("$Id: kadm_ser_wrap.c,v 1.24 1998/06/13 00:45:52 assar Exp $");
+RCSID("$Id: kadm_ser_wrap.c,v 1.25 1999/09/16 20:41:41 assar Exp $");
 
 /* GLOBAL */
 Kadm_Server server_parm;
@@ -52,13 +52,13 @@ kadm_ser_init(int inter,	/* interactive or from file */
   if (gethostname(hostname, sizeof(hostname)))
       return KADM_NO_HOSTNAME;
 
-  strcpy_truncate(server_parm.sname,
+  strlcpy(server_parm.sname,
 		  PWSERV_NAME,
 		  sizeof(server_parm.sname));
-  strcpy_truncate(server_parm.sinst,
+  strlcpy(server_parm.sinst,
 		  KRB_MASTER,
 		  sizeof(server_parm.sinst));
-  strcpy_truncate(server_parm.krbrlm,
+  strlcpy(server_parm.krbrlm,
 		  realm,
 		  sizeof(server_parm.krbrlm));
 

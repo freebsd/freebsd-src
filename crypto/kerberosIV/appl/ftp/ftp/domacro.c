@@ -32,7 +32,7 @@
  */
 
 #include "ftp_locl.h"
-RCSID("$Id: domacro.c,v 1.6 1998/06/09 19:24:21 joda Exp $");
+RCSID("$Id: domacro.c,v 1.7 1999/09/16 20:37:29 assar Exp $");
 
 void
 domacro(int argc, char **argv)
@@ -56,7 +56,7 @@ domacro(int argc, char **argv)
 		code = -1;
 		return;
 	}
-	strcpy_truncate(line2, line, sizeof(line2));
+	strlcpy(line2, line, sizeof(line2));
 TOP:
 	cp1 = macros[i].mac_start;
 	while (cp1 != macros[i].mac_end) {

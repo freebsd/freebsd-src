@@ -1,4 +1,4 @@
-# $Id: Makefile.in,v 1.58 1999/03/10 19:01:13 joda Exp $
+# $Id: Makefile.in,v 1.59.2.1 1999/12/06 17:23:06 assar Exp $
 
 srcdir		= @srcdir@
 VPATH		= @srcdir@
@@ -31,7 +31,7 @@ libdir		= @libdir@
 HEADERS = \
 	acl.h com_err.h com_right.h des.h kadm.h kafs.h kdc.h \
 	klog.h krb.h krb-protos.h krb-archaeology.h krb_db.h \
-	ktypes.h otp.h prot.h sl.h parse_time.h @EXTRA_HEADERS@
+	ktypes.h otp.h prot.h sl.h @EXTRA_HEADERS@
 
 LOCL_HEADERS = \
 	     base64.h roken-common.h protos.h resolve.h xdbm.h	\
@@ -148,6 +148,9 @@ sl.h:
 
 protos.h:
 	$(LN_S) $(srcdir)/protos.H protos.h
+
+netdb.h:
+	$(LN_S) $(srcdir)/netdb.x netdb.h
 
 bits$(EXECSUFFIX):	$(BITS_OBJECTS)
 	$(LINK) $(LD_FLAGS) $(LDFLAGS) -o $@ $(BITS_OBJECTS)

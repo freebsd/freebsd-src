@@ -30,7 +30,7 @@ or implied warranty.
 
 #include "kadm_locl.h"
 
-RCSID("$Id: admin_server.c,v 1.47 1999/07/07 12:41:07 assar Exp $");
+RCSID("$Id: admin_server.c,v 1.49 1999/11/13 06:32:19 assar Exp $");
 
 /* Almost all procs and such need this, so it is global */
 admin_params prm;		/* The command line parameters struct */
@@ -388,7 +388,7 @@ main(int argc, char **argv)		/* admin_server main routine */
 
     memset(krbrlm, 0, sizeof(krbrlm));
 
-    while ((c = getopt(argc, argv, "f:hmnd:a:r:i:")) != EOF)
+    while ((c = getopt(argc, argv, "f:hmnd:a:r:i:")) != -1)
 	switch(c) {
 	case 'f':			/* Syslog file name change */
 	    prm.sysfile = optarg;
@@ -409,7 +409,7 @@ main(int argc, char **argv)		/* admin_server main routine */
 		      optarg, error_message(errval));
 	    break;
 	case 'r':
-	    strcpy_truncate (krbrlm, optarg, sizeof(krbrlm));
+	    strlcpy (krbrlm, optarg, sizeof(krbrlm));
 	    break;
 	case 'i':
 	    /* Only listen on this address */

@@ -31,7 +31,7 @@ or implied warranty.
 #include "getarg.h"
 #include "parse_time.h"
 
-RCSID("$Id: kadmin.c,v 1.59.2.1 1999/09/02 08:51:59 joda Exp $");
+RCSID("$Id: kadmin.c,v 1.62 1999/11/02 17:02:14 bg Exp $");
 
 static int change_password(int argc, char **argv);
 static int change_key(int argc, char **argv);
@@ -390,7 +390,7 @@ do_init(int argc, char **argv)
     if(ret < 0)
 	errx(1, "Can't figure out default principal");
     if(pr.instance[0] == '\0')
-	strcpy_truncate(pr.instance, "admin", sizeof(pr.instance));
+	strlcpy(pr.instance, "admin", sizeof(pr.instance));
     if(principal) {
 	if(username)
 	    warnx("Ignoring username when principal is given");
@@ -398,19 +398,19 @@ do_init(int argc, char **argv)
 	if(ret)
 	    errx(1, "%s: %s", principal, krb_get_err_text(ret));
 	if(pr.realm[0] != '\0')
-	    strcpy_truncate(default_realm, pr.realm, sizeof(default_realm));
+	    strlcpy(default_realm, pr.realm, sizeof(default_realm));
     } else if(username) {
-	strcpy_truncate(pr.name, username, sizeof(pr.name));
-	strcpy_truncate(pr.instance, "admin", sizeof(pr.instance));
+	strlcpy(pr.name, username, sizeof(pr.name));
+	strlcpy(pr.instance, "admin", sizeof(pr.instance));
     } 
     
     if(realm)
-	strcpy_truncate(default_realm, realm, sizeof(default_realm));
+	strlcpy(default_realm, realm, sizeof(default_realm));
     
-    strcpy_truncate(krbrlm, default_realm, sizeof(krbrlm));
+    strlcpy(krbrlm, default_realm, sizeof(krbrlm));
 
     if(pr.realm[0] == '\0')
-	strcpy_truncate(pr.realm, krbrlm, sizeof(pr.realm));
+	strlcpy(pr.realm, krbrlm, sizeof(pr.realm));
 
     if (kadm_init_link(PWSERV_NAME, KRB_MASTER, krbrlm) != KADM_SUCCESS)
 	*krbrlm = '\0';
@@ -425,8 +425,8 @@ do_init(int argc, char **argv)
 	destroy_timeout = 0; /* disable timeout */
     else{
 	char tktstring[128];
-	snprintf(tktstring, sizeof(tktstring),
-		 TKT_ROOT "_adm_%d",(int)getpid());
+	snprintf(tktstring, sizeof(tktstring), "%s_adm_%d",
+		 TKT_ROOT, (int)getpid());
 	krb_set_tkt_string(tktstring);
     }
     return optind;
@@ -471,9 +471,9 @@ setvals(Kadm_vals *vals, char *string)
 	return status;
     }
     if (!realm[0])
-	strcpy_truncate(realm, default_realm, sizeof(realm));
+	strlcpy(realm, default_realm, sizeof(realm));
     if (strcmp(realm, krbrlm)) {
-	strcpy_truncate(krbrlm, realm, sizeof(krbrlm));
+	strlcpy(krbrlm, realm, sizeof(krbrlm));
 	if ((status = kadm_init_link(PWSERV_NAME, KRB_MASTER, krbrlm)) 
 	    != KADM_SUCCESS)
 	    printf("kadm error for realm %s: %s\n", 

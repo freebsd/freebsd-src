@@ -1,5 +1,5 @@
 #
-# $Id: Makefile.in,v 1.20 1999/03/10 19:01:14 joda Exp $
+# $Id: Makefile.in,v 1.25 1999/11/15 10:20:48 assar Exp $
 #
 
 SHELL = /bin/sh
@@ -27,12 +27,17 @@ PICFLAGS = @REAL_PICFLAGS@
 LDSHARED = @LDSHARED@
 SHLIBEXT = @REAL_SHLIBEXT@
 LD_FLAGS = @REAL_LD_FLAGS@
+
+LIB_res_search = @LIB_res_search@
+LIB_dn_expand = @LIB_dn_expand@
  
-@lib_deps_yes@LIB_DEPS = -L../../kafs -L../../krb -L../../des -L../../roken \
-@lib_deps_yes@	   -lkafs -lkrb -ldes -lroken -lc
+@lib_deps_yes@LIB_DEPS = -L../../kafs -L../../krb -L../../des \
+@lib_deps_yes@	   -lkafs -lkrb -ldes \
+@lib_deps_yes@     $(LIB_res_search) $(LIB_dn_expand) -lpam -lc
 @lib_deps_no@LIB_DEPS =
 
-LIB = pam_krb4.$(SHLIBEXT)
+LIBNAME = pam_krb4
+LIB = $(LIBNAME).$(SHLIBEXT)
 
 SOURCES = pam.c
 

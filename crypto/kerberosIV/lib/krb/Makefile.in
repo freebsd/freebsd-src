@@ -1,5 +1,5 @@
 #
-# $Id: Makefile.in,v 1.110 1999/03/10 19:01:16 joda Exp $
+# $Id: Makefile.in,v 1.113 1999/11/25 05:26:26 assar Exp $
 #
 SHELL = /bin/sh
 
@@ -61,6 +61,7 @@ SOURCES = \
 	create_ticket.c \
 	debug_decl.c \
 	decomp_ticket.c \
+	defaults.c \
 	dest_tkt.c \
 	encrypt_ktext.c \
 	extra.c \
@@ -120,7 +121,8 @@ SOURCES = \
 	time.c \
 	tkt_string.c \
 	unparse_name.c \
-	verify_user.c
+	verify_user.c \
+	krb_ip_realm.c
 
 # these files reside in ../roken or ../com_err/
 EXTRA_SOURCE = \
@@ -133,8 +135,8 @@ EXTRA_SOURCE = \
 	resolve.c \
 	snprintf.c \
 	strcasecmp.c \
-	strcat_truncate.c \
-	strcpy_truncate.c \
+	strlcat.c \
+	strlcpy.c \
 	strdup.c \
 	strncasecmp.c \
 	strnlen.c \
@@ -154,6 +156,7 @@ OBJECTS = \
 	create_ticket.o \
 	debug_decl.o \
 	decomp_ticket.o \
+	defaults.o \
 	dest_tkt.o \
 	encrypt_ktext.o \
 	extra.o \
@@ -214,6 +217,7 @@ OBJECTS = \
 	tkt_string.o \
 	unparse_name.o \
 	verify_user.o \
+	krb_ip_realm.o \
 	$(LIBADD)
 
 LIBADD = \
@@ -228,8 +232,8 @@ LIBADD = \
 	resolve.o \
 	snprintf.o \
 	strcasecmp.o \
-	strcat_truncate.o \
-	strcpy_truncate.o \
+	strlcat.o \
+	strlcpy.o \
 	strdup.o \
 	strncasecmp.o \
 	strnlen.o \
@@ -322,10 +326,10 @@ snprintf.c:
 	$(LN_S) $(srcdir)/../roken/snprintf.c .
 strcasecmp.c:
 	$(LN_S) $(srcdir)/../roken/strcasecmp.c .
-strcat_truncate.c:
-	$(LN_S) $(srcdir)/../roken/strcat_truncate.c .
-strcpy_truncate.c:
-	$(LN_S) $(srcdir)/../roken/strcpy_truncate.c .
+strlcat.c:
+	$(LN_S) $(srcdir)/../roken/strlcat.c .
+strlcpy.c:
+	$(LN_S) $(srcdir)/../roken/strlcpy.c .
 strncasecmp.c:
 	$(LN_S) $(srcdir)/../roken/strncasecmp.c .
 strnlen.c:

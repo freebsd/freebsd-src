@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the Kungliga Tekniska
- *      Högskolan and its contributors.
- * 
- * 4. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -42,7 +37,7 @@
 #include "ftp_locl.h"
 #endif
 
-RCSID("$Id: security.c,v 1.8 1999/04/07 14:16:48 joda Exp $");
+RCSID("$Id: security.c,v 1.15 1999/12/02 16:58:30 joda Exp $");
 
 static enum protection_level command_prot;
 static enum protection_level data_prot;
@@ -127,7 +122,7 @@ sec_getc(FILE *F)
 {
     if(sec_complete && data_prot) {
 	char c;
-	if(sec_read(fileno(F), &c, 1) == 0)
+	if(sec_read(fileno(F), &c, 1) <= 0)
 	    return EOF;
 	return c;
     } else
@@ -141,7 +136,9 @@ block_read(int fd, void *buf, size_t len)
     int b;
     while(len) {
 	b = read(fd, p, len);
-	if(b <= 0)
+	if (b == 0)
+	    return 0;
+	else if (b < 0)
 	    return -1;
 	len -= b;
 	p += b;
@@ -168,12 +165,19 @@ static int
 sec_get_data(int fd, struct buffer *buf, int level)
 {
     int len;
-    
-    if(block_read(fd, &len, sizeof(len)) < 0)
+    int b;
+
+    b = block_read(fd, &len, sizeof(len));
+    if (b == 0)
+	return 0;
+    else if (b < 0)
 	return -1;
     len = ntohl(len);
     buf->data = realloc(buf->data, len);
-    if(block_read(fd, buf->data, len) < 0)
+    b = block_read(fd, buf->data, len);
+    if (b == 0)
+	return 0;
+    else if (b < 0)
 	return -1;
     buf->size = (*mech->decode)(app_data, buf->data, len, data_prot);
     buf->index = 0;
@@ -289,6 +293,32 @@ sec_write(int fd, char *data, int length)
 	tx += len;
     }
     return tx;
+}
+
+int
+sec_vfprintf2(FILE *f, const char *fmt, va_list ap)
+{
+    char *buf;
+    int ret;
+    if(data_prot == prot_clear)
+	return vfprintf(f, fmt, ap);
+    else {
+	vasprintf(&buf, fmt, ap);
+	ret = buffer_write(&out_buffer, buf, strlen(buf));
+	free(buf);
+	return ret;
+    }
+}
+
+int
+sec_fprintf2(FILE *f, const char *fmt, ...)
+{
+    int ret;
+    va_list ap;
+    va_start(ap, fmt);
+    ret = sec_vfprintf2(f, fmt, ap);
+    va_end(ap);
+    return ret;
 }
 
 int
@@ -547,6 +577,12 @@ secure_command(void)
     return ftp_command != NULL;
 }
 
+enum protection_level
+get_command_prot(void)
+{
+    return command_prot;
+}
+
 #else /* FTP_SERVER */
 
 void
@@ -603,30 +639,30 @@ sec_prot_internal(int level)
     return 0;
 }
 
+enum protection_level
+set_command_prot(enum protection_level level)
+{
+    enum protection_level old = command_prot;
+    command_prot = level;
+    return old;
+}
+
 void
 sec_prot(int argc, char **argv)
 {
     int level = -1;
 
-    if(argc != 2){
-	printf("usage: %s (clear | safe | confidential | private)\n",
-	       argv[0]);
-	code = -1;
-	return;
-    }
-    if(!sec_complete){
+    if(argc < 2 || argc > 3)
+	goto usage;
+    if(!sec_complete) {
 	printf("No security data exchange has taken place.\n");
 	code = -1;
 	return;
     }
-    level = name_to_level(argv[1]);
+    level = name_to_level(argv[argc - 1]);
     
-    if(level == -1){
-	printf("usage: %s (clear | safe | confidential | private)\n",
-	       argv[0]);
-	code = -1;
-	return;
-    }
+    if(level == -1)
+	goto usage;
     
     if((*mech->check_prot)(app_data, level)) {
 	printf("%s does not implement %s protection.\n", 
@@ -635,11 +671,21 @@ sec_prot(int argc, char **argv)
 	return;
     }
     
-    if(sec_prot_internal(level) < 0){
-	code = -1;
-	return;
-    }
+    if(argc == 2 || strncasecmp(argv[1], "data", strlen(argv[1])) == 0) {
+	if(sec_prot_internal(level) < 0){
+	    code = -1;
+	    return;
+	}
+    } else if(strncasecmp(argv[1], "command", strlen(argv[1])) == 0)
+	set_command_prot(level);
+    else
+	goto usage;
     code = 0;
+    return;
+ usage:
+    printf("usage: %s [command|data] [clear|safe|confidential|private]\n",
+	   argv[0]);
+    code = -1;
 }
 
 static enum protection_level request_data_prot;
@@ -673,7 +719,15 @@ sec_login(char *host)
 		     are usually not very user friendly) */
     
     for(m = mechs; *m && (*m)->name; m++) {
-	app_data = realloc(app_data, (*m)->size);
+	void *tmp;
+
+	tmp = realloc(app_data, (*m)->size);
+	if (tmp == NULL) {
+	    warnx ("realloc %u failed", (*m)->size);
+	    return -1;
+	}
+	app_data = tmp;
+	    
 	if((*m)->init && (*(*m)->init)(app_data) != 0) {
 	    printf("Skipping %s...\n", (*m)->name);
 	    continue;
@@ -721,6 +775,7 @@ sec_end(void)
 	    (*mech->end)(app_data);
 	memset(app_data, 0, mech->size);
 	free(app_data);
+	app_data = NULL;
     }
     sec_complete = 0;
     data_prot = (enum protection_level)0;

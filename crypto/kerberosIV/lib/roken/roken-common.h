@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the Kungliga Tekniska
- *      Högskolan and its contributors.
- * 
- * 4. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -36,7 +31,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: roken-common.h,v 1.13 1999/03/20 02:46:16 assar Exp $ */
+/* $Id: roken-common.h,v 1.19 1999/12/02 16:58:52 joda Exp $ */
 
 #ifndef __ROKEN_COMMON_H__
 #define __ROKEN_COMMON_H__
@@ -121,6 +116,87 @@
 #define SIG_ERR ((RETSIGTYPE (*)())-1)
 #endif
 
+#ifndef HOST_NOT_FOUND
+#define HOST_NOT_FOUND 1
+#endif
+
+#ifndef TRY_AGAIN
+#define TRY_AGAIN 2
+#endif
+
+#ifndef NO_RECOVERY
+#define NO_RECOVERY 3
+#endif
+
+#ifndef NO_DATA
+#define NO_DATA 4
+#endif
+
+#ifndef NO_ADDRESS
+#define NO_ADDRESS NO_DATA
+#endif
+
+#if 0
+
+struct addrinfo {
+    int    ai_flags;
+    int    ai_family;
+    int    ai_socktype;
+    int    ai_protocol;
+    size_t ai_addrlen;
+    char  *ai_canonname;
+    struct sockaddr *ai_addr;
+    struct addrinfo *ai_next;
+};
+
+#define EAI_ADDRFAMILY	1	/* address family for nodename not supported */
+#define EAI_AGAIN	2	/* temporary failure in name resolution */
+#define EAI_BADFLAGS	3	/* invalid value for ai_flags */
+#define EAI_FAIL	4	/* non-recoverable failure in name resolution */
+#define EAI_FAMILY	5	/* ai_family not supported */
+#define EAI_MEMORY	6	/* memory allocation failure */
+#define EAI_NODATA	7	/* no address associated with nodename */
+#define EAI_NONAME	8	/* nodename nor servname provided, or not known */
+#define EAI_SERVICE	9	/* servname not supported for ai_socktype */
+#define EAI_SOCKTYPE   10	/* ai_socktype not supported */
+#define EAI_SYSTEM     11	/* system error returned in errno */
+
+/* flags for getaddrinfo() */
+
+#define AI_PASSIVE	0x01
+#define AI_CANONNAME	0x02
+#define AI_NUMERICHOST	0x04
+
+#endif
+
+/*
+ * constants for inet_ntop
+ */
+
+#ifndef INET_ADDRSTRLEN
+#define INET_ADDRSTRLEN    16
+#endif
+
+#ifndef INET6_ADDRSTRLEN
+#define INET6_ADDRSTRLEN   46
+#endif
+
+/*
+ * for shutdown(2)
+ */
+
+#ifndef SHUT_RD
+#define SHUT_RD 0
+#endif
+
+#ifndef SHUT_WR
+#define SHUT_WR 1
+#endif
+
+#ifndef SHUT_RDWR
+#define SHUT_RDWR 2
+#endif
+
 #ifndef HAVE___ATTRIBUTE__
 #define __attribute__(x)
 #endif
@@ -132,8 +208,10 @@ SigAction signal(int iSig, SigAction pAction); /* BSD compatible */
 #endif
 #endif
 
+int ROKEN_LIB_FUNCTION simple_execve(const char*, char*const[], char*const[]);
 int ROKEN_LIB_FUNCTION simple_execvp(const char*, char *const[]);
 int ROKEN_LIB_FUNCTION simple_execlp(const char*, ...);
+int ROKEN_LIB_FUNCTION simple_execle(const char*, ...);
 
 void ROKEN_LIB_FUNCTION print_version(const char *);
 
@@ -143,5 +221,35 @@ char *ROKEN_LIB_FUNCTION estrdup (const char *);
 
 ssize_t ROKEN_LIB_FUNCTION eread (int fd, void *buf, size_t nbytes);
 ssize_t ROKEN_LIB_FUNCTION ewrite (int fd, const void *buf, size_t nbytes);
+
+void
+socket_set_address_and_port (struct sockaddr *sa, const void *ptr, int port);
+
+size_t
+socket_addr_size (const struct sockaddr *sa);
+
+void
+socket_set_any (struct sockaddr *sa, int af);
+
+size_t
+socket_sockaddr_size (const struct sockaddr *sa);
+
+void *
+socket_get_address (struct sockaddr *sa);
+
+int
+socket_get_port (const struct sockaddr *sa);
+
+void
+socket_set_port (struct sockaddr *sa, int port);
+
+void
+socket_set_debug (int sock);
+
+void
+socket_set_tos (int sock, int tos);
+
+void
+socket_set_reuseaddr (int sock, int val);
 
 #endif /* __ROKEN_COMMON_H__ */
