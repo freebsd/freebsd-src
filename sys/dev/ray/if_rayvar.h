@@ -28,16 +28,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_ray.c,v 1.25 2000/05/07 15:00:06 dmlb Exp $
+ * $Id: if_rayvar.h,v 1.1 2000/05/07 15:12:18 dmlb Exp $
  *
  */
 
 /*
  * Network parameters, used twice in sotfc to store what we want and what
  * we have.
- *
- * XXX promisc in here too?
- * XXX sc_station_addr in here too (for changing mac address)
  */
 struct ray_nw_param {
     struct ray_cmd_net	p_1;
@@ -69,20 +66,20 @@ struct ray_softc {
     			tx_timerh;	/* Handle for tx timer	*/
     struct callout_handle
     			com_timerh;	/* Handle for command timer	*/
+
     char		*card_type;	/* Card model name		*/
     char		*vendor;	/* Card manufacturer		*/
-
     int			unit;		/* Unit number			*/
-    u_char		gone;		/* 1 = Card bailed out		*/
     caddr_t		maddr;		/* Shared RAM Address		*/
     int			flags;		/* Start up flags		*/
-
-    int			translation;	/* Packet translation types	*/
-
 #if (RAY_NEED_CM_REMAPPING | RAY_NEED_CM_FIXUP)
     int			slotnum;	/* Slot number			*/
     struct mem_desc	md;		/* Map info for common memory	*/
 #endif /* (RAY_NEED_CM_REMAPPING | RAY_NEED_CM_FIXUP) */
+
+    u_char		gone;		/* 1 = Card bailed out		*/
+
+    int			translation;	/* Packet translation types	*/
 
     struct ray_ecf_startup_v5
     			sc_ecf_startup; /* Startup info from card	*/
@@ -136,10 +133,11 @@ struct ray_comq_entry {
 	"\001WOK"		\
 	"\002RUNNING"		\
 	"\003COMPLETED"
-#define RAY_COM_NEEDS_TIMO(cmd)			\
-	(cmd == RAY_CMD_DOWNLOAD_PARAMS) ||	\
-	(cmd == RAY_CMD_UPDATE_PARAMS) ||	\
-	(cmd == RAY_CMD_UPDATE_MCAST)
+#define RAY_COM_NEEDS_TIMO(cmd)	(		\
+	 (cmd == RAY_CMD_DOWNLOAD_PARAMS) ||	\
+	 (cmd == RAY_CMD_UPDATE_PARAMS) ||	\
+	 (cmd == RAY_CMD_UPDATE_MCAST)		\
+	)
 
 /*
  * Translation types
@@ -152,46 +150,62 @@ struct ray_comq_entry {
  */
 static int mib_info[RAY_MIB_MAX+1][3] = RAY_MIB_INFO;
 
-/* Indirections for reading/writing shared memory - from NetBSD/if_ray.c */
+/* Indirections for reading/writing memory - from NetBSD/if_ray.c */
 #ifndef offsetof
 #define offsetof(type, member) \
     ((size_t)(&((type *)0)->member))
 #endif /* offsetof */
 
+#if RAY_NEED_CM_REMAPPING
+
+#define ATTR_READ_1(sc, off) \
+    ray_attr_read_1((sc), (off))
+
+#define ATTR_WRITE_1(sc, off, val) \
+    ray_attr_write_1((sc), (off), (val))
+
+#else
+
+#define ATTR_READ_1(sc, off) \
+    ((u_int8_t)bus_space_read_1((sc)->am_bst, (sc)->am_bsh, (off)))
+
+#define ATTR_WRITE_1(sc, off, val) \
+    bus_space_write_1((sc)->am_bst, (sc)->am_bsh, (off), (val))
+
+#endif /* RAY_NEED_CM_REMAPPING */
+
 #define	SRAM_READ_1(sc, off) \
     (u_int8_t)*((sc)->maddr + (off))
-/* ((u_int8_t)bus_space_read_1((sc)->sc_memt, (sc)->sc_memh, (off))) */
+
+#define SRAM_READ_REGION(sc, off, p, n) \
+    bcopy((sc)->maddr + (off), (p), (n))
 
 #define	SRAM_READ_FIELD_1(sc, off, s, f) \
-    SRAM_READ_1(sc, (off) + offsetof(struct s, f))
+    SRAM_READ_1((sc), (off) + offsetof(struct s, f))
 
 #define	SRAM_READ_FIELD_2(sc, off, s, f)			\
-    ((((u_int16_t)SRAM_READ_1(sc, (off) + offsetof(struct s, f)) << 8) \
-    |(SRAM_READ_1(sc, (off) + 1 + offsetof(struct s, f)))))
+    ((((u_int16_t)SRAM_READ_1((sc), (off) + offsetof(struct s, f)) << 8) \
+    |(SRAM_READ_1((sc), (off) + 1 + offsetof(struct s, f)))))
 
 #define	SRAM_READ_FIELD_N(sc, off, s, f, p, n)	\
-    ray_read_region(sc, (off) + offsetof(struct s, f), (p), (n))
-
-#define ray_read_region(sc, off, vp, n) \
-    bcopy((sc)->maddr + (off), (vp), (n))
+    SRAM_READ_REGION((sc), (off) + offsetof(struct s, f), (p), (n))
 
 #define	SRAM_WRITE_1(sc, off, val)	\
     *((sc)->maddr + (off)) = (val)
-/* bus_space_write_1((sc)->sc_memt, (sc)->sc_memh, (off), (val)) */
+
+#define SRAM_WRITE_REGION(sc, off, p, n) \
+    bcopy((p), (sc)->maddr + (off), (n))
 
 #define	SRAM_WRITE_FIELD_1(sc, off, s, f, v) 	\
-    SRAM_WRITE_1(sc, (off) + offsetof(struct s, f), (v))
+    SRAM_WRITE_1((sc), (off) + offsetof(struct s, f), (v))
 
 #define	SRAM_WRITE_FIELD_2(sc, off, s, f, v) do {	\
-    SRAM_WRITE_1(sc, (off) + offsetof(struct s, f), (((v) >> 8 ) & 0xff)); \
-    SRAM_WRITE_1(sc, (off) + 1 + offsetof(struct s, f), ((v) & 0xff)); \
+    SRAM_WRITE_1((sc), (off) + offsetof(struct s, f), (((v) >> 8 ) & 0xff)); \
+    SRAM_WRITE_1((sc), (off) + 1 + offsetof(struct s, f), ((v) & 0xff)); \
 } while (0)
 
 #define	SRAM_WRITE_FIELD_N(sc, off, s, f, p, n)	\
-    ray_write_region(sc, (off) + offsetof(struct s, f), (p), (n))
-
-#define ray_write_region(sc, off, vp, n) \
-    bcopy((vp), (sc)->maddr + (off), (n))
+    SRAM_WRITE_REGION((sc), (off) + offsetof(struct s, f), (p), (n))
 
 #ifndef RAY_COM_TIMEOUT
 #define RAY_COM_TIMEOUT		(hz / 2)
@@ -204,19 +218,20 @@ static int mib_info[RAY_MIB_MAX+1][3] = RAY_MIB_INFO;
 #endif
 #define RAY_CCS_FREE(sc, ccs) \
     SRAM_WRITE_FIELD_1((sc), (ccs), ray_cmd, c_status, RAY_CCS_STATUS_FREE)
-#define RAY_ECF_READY(sc)	(!(ray_read_reg(sc, RAY_ECFIR) & RAY_ECFIR_IRQ))
-#define	RAY_ECF_START_CMD(sc)	ray_attr_write((sc), RAY_ECFIR, RAY_ECFIR_IRQ)
-#define	RAY_HCS_CLEAR_INTR(sc)	ray_attr_write((sc), RAY_HCSIR, 0)
-#define RAY_HCS_INTR(sc)	(ray_read_reg(sc, RAY_HCSIR) & RAY_HCSIR_IRQ)
+#define RAY_ECF_READY(sc) \
+    (!(ATTR_READ_1((sc), RAY_ECFIR) & RAY_ECFIR_IRQ))
+#define	RAY_ECF_START_CMD(sc)	ATTR_WRITE_1((sc), RAY_ECFIR, RAY_ECFIR_IRQ)
+#define	RAY_HCS_CLEAR_INTR(sc)	ATTR_WRITE_1((sc), RAY_HCSIR, 0)
+#define RAY_HCS_INTR(sc)	(ATTR_READ_1((sc), RAY_HCSIR) & RAY_HCSIR_IRQ)
 
 #define RAY_PANIC(sc, fmt, args...) do {			\
-    panic("ray%d: %s(%d) " fmt "\n",				\
-    	sc->unit, __FUNCTION__ , __LINE__ , ##args);		\
+    panic("ray%d: %s(%d) " fmt "\n", sc->unit,			\
+    	__FUNCTION__ , __LINE__ , ##args);			\
 } while (0)
 
 #define RAY_PRINTF(sc, fmt, args...) do {			\
-    printf("ray%d: %s(%d) " fmt "\n",				\
-    	(sc)->unit, __FUNCTION__ , __LINE__ , ##args);		\
+    printf("ray%d: %s(%d) " fmt "\n", (sc)->unit,		\
+    	__FUNCTION__ , __LINE__ , ##args);			\
 } while (0)
 
 #ifndef RAY_COM_MALLOC
@@ -236,13 +251,15 @@ static int mib_info[RAY_MIB_MAX+1][3] = RAY_MIB_INFO;
 #endif /* RAY_MBUF_DUMP */
 
 /*
- * As described in if_xe.c...
- *
- * Horrid stuff for accessing CIS tuples and remapping common memory...
+ * The driver assumes that the common memory is always mapped in,
+ * for the moment we ensure this with the following macro at the
+ * head of each function and by using functions to access attribute
+ * memory. Hysterical raisins led to the non-"reflexive" approach.
+ * Roll on NEWCARD and it can all die...
  */
 #define CARD_MAJOR		50
-#if (RAY_NEED_CM_REMAPPING | RAY_NEED_CM_FIXUP)
+#if RAY_NEED_CM_REMAPPING 
 #define	RAY_MAP_CM(sc)		ray_attr_mapcm(sc)
 #else
 #define RAY_MAP_CM(sc)
-#endif /* (RAY_NEED_CM_REMAPPING | RAY_NEED_CM_FIXUP) */
+#endif /* RAY_NEED_CM_REMAPPING */
