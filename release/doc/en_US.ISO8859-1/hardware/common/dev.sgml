@@ -738,10 +738,6 @@
           SoundBlaster SCSI) (&man.cd.4;)</para>
 	</listitem>
 	<listitem arch="i386">
-	  <para>Matsushita/Panasonic (Creative SoundBlaster)
-	  proprietary interface (562/563 models) (&man.matcd.4;)</para>
-	</listitem>
-	<listitem arch="i386">
 	  <para>Sony proprietary interface (all models) (&man.scd.4;)</para>
 	</listitem>
 	<listitem>
