@@ -72,24 +72,25 @@
 
 #define KEYCODE_BS		0x0e		/* "<-- Backspace" key, XXX */
 
+typedef struct default_attr {
+	int		std_color;		/* normal hardware color */
+	int		rev_color;		/* reverse hardware color */
+} default_attr;
+
 static default_attr user_default = {
-    SC_NORM_ATTR << 8,
-    SC_NORM_REV_ATTR << 8,
+    SC_NORM_ATTR,
+    SC_NORM_REV_ATTR,
 };
 
 static default_attr kernel_default = {
-    SC_KERNEL_CONS_ATTR << 8,
-    SC_KERNEL_CONS_REV_ATTR << 8,
+    SC_KERNEL_CONS_ATTR,
+    SC_KERNEL_CONS_REV_ATTR,
 };
 
 static	int		sc_console_unit = -1;
 static  scr_stat    	*sc_console;
 static	struct tty	*sc_console_tty;
-#ifndef SC_NO_SYSMOUSE
-static	struct tty	*sc_mouse_tty;
-#endif
-static  term_stat   	kernel_console;
-static  default_attr    *current_default;
+static  void	   	*kernel_console_ts;
 
 static  char        	init_done = COLD;
 static  char		shutdown_in_progress = FALSE;
@@ -98,11 +99,13 @@ static	char		sc_malloc = FALSE;
 static	int		saver_mode = CONS_LKM_SAVER; /* LKM/user saver */
 static	int		run_scrn_saver = FALSE;	/* should run the saver? */
 static	long        	scrn_blank_time = 0;    /* screen saver timeout value */
+#if NSPLASH > 0
 static	int     	scrn_blanked;		/* # of blanked screen */
 static	int		sticky_splash = FALSE;
 
 static	void		none_saver(sc_softc_t *sc, int blank) { }
 static	void		(*current_saver)(sc_softc_t *, int) = none_saver;
+#endif
 
 #if !defined(SC_NO_FONT_LOADING) && defined(SC_DFLT_FONT)
 #include "font.h"
@@ -116,12 +119,7 @@ static	int		enable_panic_key;
 SYSCTL_INT(_machdep, OID_AUTO, enable_panic_key, CTLFLAG_RW, &enable_panic_key,
 	   0, "");
 
-#define SC_MOUSE 	128
 #define SC_CONSOLECTL	255
-
-#ifdef PC98
-static u_char		default_kanji = UJIS;
-#endif
 
 #define VIRTUAL_TTY(sc, x) (SC_DEV((sc), (x))->si_tty)
 
@@ -135,9 +133,10 @@ static int scdevtounit(dev_t dev);
 static kbd_callback_func_t sckbdevent;
 static int scparam(struct tty *tp, struct termios *t);
 static void scstart(struct tty *tp);
-static void scmousestart(struct tty *tp);
 static void scinit(int unit, int flags);
+#if __i386__
 static void scterm(int unit, int flags);
+#endif
 static void scshutdown(void *arg, int howto);
 static u_int scgetc(sc_softc_t *sc, u_int flags);
 #define SCGETC_CN	1
@@ -164,23 +163,15 @@ static int wait_scrn_saver_stop(sc_softc_t *sc);
 #define scsplash_stick(stick)
 #endif /* NSPLASH */
 
-static int switch_scr(sc_softc_t *sc, u_int next_scr);
 static int do_switch_scr(sc_softc_t *sc, int s);
 static int vt_proc_alive(scr_stat *scp);
 static int signal_vt_rel(scr_stat *scp);
 static int signal_vt_acq(scr_stat *scp);
 static void exchange_scr(sc_softc_t *sc);
-static void scan_esc(scr_stat *scp, u_char c);
-static void ansi_put(scr_stat *scp, u_char *buf, int len);
-static void draw_cursor_image(scr_stat *scp);
-static void remove_cursor_image(scr_stat *scp);
 static void update_cursor_image(scr_stat *scp);
-static void move_crsr(scr_stat *scp, int x, int y);
-static int mask2attr(struct term_stat *term);
 static int save_kbd_state(scr_stat *scp);
 static int update_kbd_state(scr_stat *scp, int state, int mask);
 static int update_kbd_leds(scr_stat *scp, int which);
-static void do_bell(scr_stat *scp, int pitch, int duration);
 static timeout_t blink_screen;
 
 #define	CDEV_MAJOR	12
@@ -296,12 +287,33 @@ sc_attach_unit(int unit, int flags)
     int vc;
     dev_t dev;
 
-    scmeminit(NULL);		/* XXX */
-
     flags &= ~SC_KERNEL_CONSOLE;
-    if (sc_console_unit == unit)
+
+    if (sc_console_unit == unit) {
+	/*
+	 * If this unit is being used as the system console, we need to
+	 * adjust some variables and buffers before and after scinit().
+	 */
+	/* assert(sc_console != NULL) */
 	flags |= SC_KERNEL_CONSOLE;
-    scinit(unit, flags);
+	scmeminit(NULL);
+
+	scinit(unit, flags);
+
+	if (sc_console->tsw->te_size > 0) {
+	    /* assert(sc_console->ts != NULL); */
+	    kernel_console_ts = sc_console->ts;
+	    sc_console->ts = malloc(sc_console->tsw->te_size,
+				    M_DEVBUF, M_WAITOK);
+	    bcopy(kernel_console_ts, sc_console->ts, sc_console->tsw->te_size);
+    	    (*sc_console->tsw->te_default_attr)(sc_console,
+						user_default.std_color,
+						user_default.rev_color);
+	}
+    } else {
+	scinit(unit, flags);
+    }
+
     sc = sc_get_softc(unit, flags & SC_KERNEL_CONSOLE);
     sc->config = flags;
     scp = SC_STAT(sc->dev[0]);
@@ -344,7 +356,10 @@ sc_attach_unit(int unit, int flags)
     	if (sc->adapter >= 0)
 	    printf(" fb%d", sc->adapter);
 	if (sc->keyboard >= 0)
-	    printf(" kbd%d", sc->keyboard);
+	    printf(", kbd%d", sc->keyboard);
+	if (scp->tsw)
+	    printf(", terminal emulator: %s (%s)",
+		   scp->tsw->te_name, scp->tsw->te_desc);
 	printf("\n");
     }
 
@@ -364,12 +379,6 @@ sc_attach_unit(int unit, int flags)
 	 */
     }
 
-#ifndef SC_NO_SYSMOUSE
-    dev = make_dev(&sc_cdevsw, SC_MOUSE,
-		   UID_ROOT, GID_WHEEL, 0600, "sysmouse");
-    dev->si_tty = sc_mouse_tty = ttymalloc(sc_mouse_tty);
-    /* sysmouse doesn't have scr_stat */
-#endif /* SC_NO_SYSMOUSE */
     dev = make_dev(&sc_cdevsw, SC_CONSOLECTL,
 		   UID_ROOT, GID_WHEEL, 0600, "consolectl");
     dev->si_tty = sc_console_tty = ttymalloc(sc_console_tty);
@@ -390,7 +399,7 @@ scmeminit(void *arg)
      * various buffers for the kernel console.
      */
 
-    if (sc_console_unit < 0)
+    if (sc_console_unit < 0)	/* sc_console == NULL */
 	return;
 
     /* copy the temporary buffer to the final buffer */
@@ -430,8 +439,6 @@ scdevtounit(dev_t dev)
 
     if (vty == SC_CONSOLECTL)
 	return ((sc_console != NULL) ? sc_console->sc->unit : -1);
-    else if (vty == SC_MOUSE)
-	return -1;
     else if ((vty < 0) || (vty >= MAXCONS*sc_max_unit()))
 	return -1;
     else
@@ -451,17 +458,12 @@ scopen(dev_t dev, int flag, int mode, struct proc *p)
     DPRINTF(5, ("scopen: dev:%d,%d, unit:%d, vty:%d\n",
 		major(dev), minor(dev), unit, SC_VTY(dev)));
 
-    /* sc == NULL, if SC_VTY(dev) == SC_MOUSE */
     sc = sc_get_softc(unit, (sc_console_unit == unit) ? SC_KERNEL_CONSOLE : 0);
-#ifndef SC_NO_SYSMOUSE
-    if ((SC_VTY(dev) != SC_MOUSE) && (sc == NULL))
-#else
     if (sc == NULL)
-#endif
 	return ENXIO;
 
     tp = dev->si_tty = ttymalloc(dev->si_tty);
-    tp->t_oproc = (SC_VTY(dev) == SC_MOUSE) ? scmousestart : scstart;
+    tp->t_oproc = scstart;
     tp->t_param = scparam;
     tp->t_stop = nottystop;
     tp->t_dev = dev;
@@ -481,10 +483,6 @@ scopen(dev_t dev, int flag, int mode, struct proc *p)
 	tp->t_ispeed = tp->t_ospeed = TTYDEF_SPEED;
 	scparam(tp, &tp->t_termios);
 	(*linesw[tp->t_line].l_modem)(tp, 1);
-#ifndef SC_NO_SYSMOUSE
-    	if (SC_VTY(dev) == SC_MOUSE)
-	    sc_mouse_set_level(0);	/* XXX */
-#endif
     }
     else
 	if (tp->t_state & TS_XCLUDE && suser(p))
@@ -492,19 +490,17 @@ scopen(dev_t dev, int flag, int mode, struct proc *p)
 
     error = (*linesw[tp->t_line].l_open)(dev, tp);
 
-    if (SC_VTY(dev) != SC_MOUSE) {
-	/* assert(sc != NULL) */
-	scp = SC_STAT(dev);
-	if (scp == NULL) {
-	    scp = SC_STAT(dev) = alloc_scp(sc, SC_VTY(dev));
-	    if (ISGRAPHSC(scp))
-		sc_set_pixel_mode(scp, NULL, COL, ROW, 16);
-	}
-	if (!tp->t_winsize.ws_col && !tp->t_winsize.ws_row) {
-	    tp->t_winsize.ws_col = scp->xsize;
-	    tp->t_winsize.ws_row = scp->ysize;
-	}
+    scp = SC_STAT(dev);
+    if (scp == NULL) {
+	scp = SC_STAT(dev) = alloc_scp(sc, SC_VTY(dev));
+	if (ISGRAPHSC(scp))
+	    sc_set_pixel_mode(scp, NULL, COL, ROW, 16);
     }
+    if (!tp->t_winsize.ws_col && !tp->t_winsize.ws_row) {
+	tp->t_winsize.ws_col = scp->xsize;
+	tp->t_winsize.ws_row = scp->ysize;
+    }
+
     return error;
 }
 
@@ -512,10 +508,10 @@ int
 scclose(dev_t dev, int flag, int mode, struct proc *p)
 {
     struct tty *tp = dev->si_tty;
-    struct scr_stat *scp;
+    scr_stat *scp;
     int s;
 
-    if ((SC_VTY(dev) != SC_CONSOLECTL) && (SC_VTY(dev) != SC_MOUSE)) {
+    if (SC_VTY(dev) != SC_CONSOLECTL) {
 	scp = SC_STAT(tp->t_dev);
 	/* were we in the middle of the VT switching process? */
 	DPRINTF(5, ("sc%d: scclose(), ", scp->sc->unit));
@@ -544,6 +540,7 @@ scclose(dev_t dev, int flag, int mode, struct proc *p)
 	    sc_vtb_destroy(&scp->vtb);
 	    sc_vtb_destroy(&scp->scr);
 	    sc_free_history_buffer(scp, scp->ysize);
+	    SC_STAT(dev) = NULL;
 	    free(scp, M_DEVBUF);
 	}
 #else
@@ -566,9 +563,8 @@ scclose(dev_t dev, int flag, int mode, struct proc *p)
 int
 scread(dev_t dev, struct uio *uio, int flag)
 {
-
     sc_touch_scrn_saver();
-    return(ttyread(dev, uio, flag));
+    return ttyread(dev, uio, flag);
 }
 
 static int
@@ -588,6 +584,7 @@ sckbdevent(keyboard_t *thiskbd, int event, void *arg)
 	break;
     case KBDIO_UNLOADING:
 	sc->kbd = NULL;
+	sc->keyboard = -1;
 	kbd_release(thiskbd, (void *)&sc->keyboard);
 	return 0;
     default:
@@ -607,6 +604,9 @@ sckbdevent(keyboard_t *thiskbd, int event, void *arg)
 	    if (((cur_tty = sc_console_tty) == NULL)
 	    	|| !(cur_tty->t_state & TS_ISOPEN))
 		continue;
+
+	if ((*sc->cur_scp->tsw->te_input)(sc->cur_scp, c, cur_tty))
+	    continue;
 
 	switch (KEYFLAGS(c)) {
 	case 0x0000: /* normal key */
@@ -683,15 +683,6 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
     error = sc_mouse_ioctl(tp, cmd, data, flag, p);
     if (error != ENOIOCTL)
 	return error;
-    if (SC_VTY(dev) == SC_MOUSE) {
-	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, p);
-	if (error != ENOIOCTL)
-	    return error;
-	error = ttioctl(tp, cmd, data, flag);
-	if (error != ENOIOCTL)
-	    return error;
-	return ENOTTY;
-    }
 #endif
 
     scp = SC_STAT(tp->t_dev);
@@ -699,11 +690,17 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
     /* scp is sc_console, if SC_VTY(dev) == SC_CONSOLECTL. */
     sc = scp->sc;
 
+    if (scp->tsw) {
+	error = (*scp->tsw->te_ioctl)(scp, tp, cmd, data, flag, p);
+	if (error != ENOIOCTL)
+	    return error;
+    }
+
     switch (cmd) {  		/* process console hardware related ioctl's */
 
     case GIO_ATTR:      	/* get current attributes */
-	*(int*)data = (scp->term.cur_attr >> 8) & 0xFF;
-	return 0;
+	/* this ioctl is not processed here, but in the terminal emulator */
+	return ENOTTY;
 
     case GIO_COLOR:     	/* is this a color console ? */
 	*(int *)data = (sc->adp->va_flags & V_ADP_COLOR) ? 1 : 0;
@@ -720,7 +717,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 
     case CONS_CURSORTYPE:   	/* set cursor type blink/noblink */
 	if (!ISGRAPHSC(sc->cur_scp))
-	    remove_cursor_image(sc->cur_scp);
+	    sc_remove_cursor_image(sc->cur_scp);
 	if ((*(int*)data) & 0x01)
 	    sc->flags |= SC_BLINK_CURSOR;
 	else
@@ -736,7 +733,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	if (!ISGRAPHSC(sc->cur_scp)) {
 	    s = spltty();
 	    sc_set_cursor_image(sc->cur_scp);
-	    draw_cursor_image(sc->cur_scp);
+	    sc_draw_cursor_image(sc->cur_scp);
 	    splx(s);
 	}
 	return 0;
@@ -761,10 +758,14 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	    ptr->mv_row = scp->ypos;
 	    ptr->mv_csz = scp->xsize;
 	    ptr->mv_rsz = scp->ysize;
-	    ptr->mv_norm.fore = (scp->term.std_color & 0x0f00)>>8;
-	    ptr->mv_norm.back = (scp->term.std_color & 0xf000)>>12;
-	    ptr->mv_rev.fore = (scp->term.rev_color & 0x0f00)>>8;
-	    ptr->mv_rev.back = (scp->term.rev_color & 0xf000)>>12;
+	    /*
+	     * The following fields are filled by the terminal emulator. XXX
+	     *
+	     * ptr->mv_norm.fore
+	     * ptr->mv_norm.back
+	     * ptr->mv_rev.fore
+	     * ptr->mv_rev.back
+	     */
 	    ptr->mv_grfc.fore = 0;      /* not supported */
 	    ptr->mv_grfc.back = 0;      /* not supported */
 	    ptr->mv_ovscan = scp->border;
@@ -957,7 +958,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	s = spltty();
 	sc_clean_up(sc->cur_scp);
 	splx(s);
-	return switch_scr(sc, *(int *)data - 1);
+	return sc_switch_scr(sc, *(int *)data - 1);
 
     case VT_WAITACTIVE: 	/* wait for switch to occur */
 	if ((*(int *)data >= sc->first_vty + sc->vtys)
@@ -1057,10 +1058,10 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 
     case KDMKTONE:      	/* sound the bell */
 	if (*(int*)data)
-	    do_bell(scp, (*(int*)data)&0xffff,
+	    sc_bell(scp, (*(int*)data)&0xffff,
 		    (((*(int*)data)>>16)&0xffff)*hz/1000);
 	else
-	    do_bell(scp, scp->bell_pitch, scp->bell_duration);
+	    sc_bell(scp, scp->bell_pitch, scp->bell_duration);
 	return 0;
 
     case KIOCSOUND:     	/* make tone (*data) hz */
@@ -1143,6 +1144,37 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	splx(s);
 	return error;
 
+    case CONS_GETTERM:		/* get the current terminal emulator info */
+	{
+	    sc_term_sw_t *sw;
+
+	    if (((term_info_t *)data)->ti_index == 0) {
+		sw = scp->tsw;
+	    } else {
+		sw = sc_term_match_by_number(((term_info_t *)data)->ti_index);
+	    }
+	    if (sw != NULL) {
+		strncpy(((term_info_t *)data)->ti_name, sw->te_name, 
+			sizeof(((term_info_t *)data)->ti_name));
+		strncpy(((term_info_t *)data)->ti_desc, sw->te_desc, 
+			sizeof(((term_info_t *)data)->ti_desc));
+		((term_info_t *)data)->ti_flags = 0;
+		return 0;
+	    } else {
+		((term_info_t *)data)->ti_name[0] = '\0';
+		((term_info_t *)data)->ti_desc[0] = '\0';
+		((term_info_t *)data)->ti_flags = 0;
+		return EINVAL;
+	    }
+	}
+
+    case CONS_SETTERM:		/* set the current terminal emulator */
+	s = spltty();
+	error = sc_init_emulator(scp, ((term_info_t *)data)->ti_name);
+	/* FIXME: what if scp == sc_console! XXX */
+	splx(s);
+	return error;
+
     case GIO_SCRNMAP:   	/* get output translation table */
 	bcopy(&sc->scr_map, data, sizeof(sc->scr_map));
 	return 0;
@@ -1178,7 +1210,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	 * Don't load if the current font size is not 8x8.
 	 */
 	if (ISTEXTSC(sc->cur_scp) && (sc->cur_scp->font_size < 14))
-	    copy_font(sc->cur_scp, LOAD, 8, sc->font_8);
+	    sc_load_font(sc->cur_scp, 0, 8, sc->font_8, 0, 256);
 	return 0;
 
     case GIO_FONT8x8:   	/* get 8x8 dot font */
@@ -1204,7 +1236,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	if (ISTEXTSC(sc->cur_scp)
 	    && (sc->cur_scp->font_size >= 14)
 	    && (sc->cur_scp->font_size < 16))
-	    copy_font(sc->cur_scp, LOAD, 14, sc->font_14);
+	    sc_load_font(sc->cur_scp, 0, 14, sc->font_14, 0, 256);
 	return 0;
 
     case GIO_FONT8x14:  	/* get 8x14 dot font */
@@ -1228,7 +1260,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	 * Don't load if the current font size is not 8x16.
 	 */
 	if (ISTEXTSC(sc->cur_scp) && (sc->cur_scp->font_size >= 16))
-	    copy_font(sc->cur_scp, LOAD, 16, sc->font_16);
+	    sc_load_font(sc->cur_scp, 0, 16, sc->font_16, 0, 256);
 	return 0;
 
     case GIO_FONT8x16:  	/* get 8x16 dot font */
@@ -1279,28 +1311,8 @@ scstart(struct tty *tp)
 	while (rbp->c_cc) {
 	    len = q_to_b(rbp, buf, PCBURST);
 	    splx(s);
-	    ansi_put(scp, buf, len);
+	    sc_puts(scp, buf, len);
 	    s = spltty();
-	}
-	tp->t_state &= ~TS_BUSY;
-	ttwwakeup(tp);
-    }
-    splx(s);
-}
-
-static void
-scmousestart(struct tty *tp)
-{
-    struct clist *rbp;
-    int s;
-    u_char buf[PCBURST];
-
-    s = spltty();
-    if (!(tp->t_state & (TS_TIMEOUT | TS_BUSY | TS_TTSTOP))) {
-	tp->t_state |= TS_BUSY;
-	rbp = &tp->t_outq;
-	while (rbp->c_cc) {
-	    q_to_b(rbp, buf, PCBURST);
 	}
 	tp->t_state &= ~TS_BUSY;
 	ttwwakeup(tp);
@@ -1380,8 +1392,6 @@ sccnterm(struct consdev *cp)
 
 #ifdef __alpha__
 
-extern struct consdev *cn_tab;
-
 void
 sccnattach(void)
 {
@@ -1417,7 +1427,10 @@ sccnputc(dev_t dev, int c)
 {
     u_char buf[1];
     scr_stat *scp = sc_console;
-    term_stat save = scp->term;
+    void *save;
+#ifndef SC_NO_HISTORY
+    struct tty *tp;
+#endif /* !SC_NO_HISTORY */
     int s;
 
     /* assert(sc_console != NULL) */
@@ -1431,19 +1444,20 @@ sccnputc(dev_t dev, int c)
 		sc_remove_cutmarking(scp);
 	    scp->status &= ~BUFFER_SAVED;
 	    scp->status |= CURSOR_ENABLED;
-	    draw_cursor_image(scp);
+	    sc_draw_cursor_image(scp);
 	}
-	scstart(VIRTUAL_TTY(scp->sc, scp->index));
+	tp = VIRTUAL_TTY(scp->sc, scp->index);
+	if (tp->t_state & TS_ISOPEN)
+	    scstart(tp);
     }
 #endif /* !SC_NO_HISTORY */
 
-    scp->term = kernel_console;
-    current_default = &kernel_default;
+    save = scp->ts;
+    if (kernel_console_ts != NULL)
+	scp->ts = kernel_console_ts;
     buf[0] = c;
-    ansi_put(scp, buf, 1);
-    kernel_console = scp->term;
-    current_default = &user_default;
-    scp->term = save;
+    sc_puts(scp, buf, 1);
+    scp->ts = save;
 
     s = spltty();	/* block sckbdevent and scrn_timer */
     sccnupdate(scp);
@@ -1476,7 +1490,7 @@ sccndbctl(dev_t dev, int on)
 	if (!cold
 	    && sc_console->sc->cur_scp->smode.mode == VT_AUTO
 	    && sc_console->smode.mode == VT_AUTO)
-	    switch_scr(sc_console->sc, sc_console->index);
+	    sc_switch_scr(sc_console->sc, sc_console->index);
     }
     if (on)
 	++debugger;
@@ -1779,15 +1793,15 @@ scrn_update(scr_stat *scp, int show_cursor)
             /* do we need to remove old cursor image ? */
             if (scp->cursor_oldpos < scp->start ||
                 scp->cursor_oldpos > scp->end) {
-                remove_cursor_image(scp);
+                sc_remove_cursor_image(scp);
             }
             scp->cursor_oldpos = scp->cursor_pos;
-            draw_cursor_image(scp);
+            sc_draw_cursor_image(scp);
         }
         else {
             /* cursor didn't move, has it been overwritten ? */
             if (scp->cursor_pos >= scp->start && scp->cursor_pos <= scp->end) {
-                draw_cursor_image(scp);
+                sc_draw_cursor_image(scp);
             } else {
                 /* if its a blinking cursor, we may have to update it */
 		if (scp->sc->flags & SC_BLINK_CURSOR)
@@ -1955,7 +1969,7 @@ set_scrn_saver_mode(scr_stat *scp, int mode, u_char *pal, int border)
     /* assert(scp == scp->sc->cur_scp) */
     s = spltty();
     if (!ISGRAPHSC(scp))
-	remove_cursor_image(scp);
+	sc_remove_cursor_image(scp);
     scp->splash_save_mode = scp->mode;
     scp->splash_save_status = scp->status & (GRAPHICS_MODE | PIXEL_MODE);
     scp->status &= ~(GRAPHICS_MODE | PIXEL_MODE);
@@ -1973,7 +1987,7 @@ set_scrn_saver_mode(scr_stat *scp, int mode, u_char *pal, int border)
 	if (pal != NULL)
 	    load_palette(scp->sc->adp, pal);
 #endif
-	set_border(scp, border);
+	sc_set_border(scp, border);
 	return 0;
     } else {
 	s = spltty();
@@ -2002,7 +2016,7 @@ restore_scrn_saver_mode(scr_stat *scp, int changemode)
     scp->sc->flags &= ~SC_SCRN_BLANKED;
     if (!changemode) {
 	if (!ISGRAPHSC(scp))
-	    draw_cursor_image(scp);
+	    sc_draw_cursor_image(scp);
 	--scrn_blanked;
 	splx(s);
 	return 0;
@@ -2033,7 +2047,7 @@ stop_scrn_saver(sc_softc_t *sc, void (*saver)(sc_softc_t *, int))
 
     mark_all(sc->cur_scp);
     if (sc->delayed_next_scr)
-	switch_scr(sc, sc->delayed_next_scr - 1);
+	sc_switch_scr(sc, sc->delayed_next_scr - 1);
     wakeup((caddr_t)&scrn_blanked);
 }
 
@@ -2064,23 +2078,13 @@ sc_touch_scrn_saver(void)
     run_scrn_saver = FALSE;
 }
 
-void
-sc_clear_screen(scr_stat *scp)
-{
-    move_crsr(scp, 0, 0);
-    scp->cursor_oldpos = scp->cursor_pos;
-    sc_vtb_clear(&scp->vtb, scp->sc->scr_map[0x20], scp->term.cur_color);
-    mark_all(scp);
-    sc_remove_cutmarking(scp);
-}
-
-static int
-switch_scr(sc_softc_t *sc, u_int next_scr)
+int
+sc_switch_scr(sc_softc_t *sc, u_int next_scr)
 {
     struct tty *tp;
     int s;
 
-    DPRINTF(5, ("sc0: switch_scr() %d ", next_scr + 1));
+    DPRINTF(5, ("sc0: sc_switch_scr() %d ", next_scr + 1));
 
     /* delay switch if the screen is blanked or being updated */
     if ((sc->flags & SC_SCRN_BLANKED) || sc->write_in_progress
@@ -2188,7 +2192,7 @@ switch_scr(sc_softc_t *sc, u_int next_scr)
     if ((next_scr < sc->first_vty) || (next_scr >= sc->first_vty + sc->vtys)
 	|| sc->switch_in_progress) {
 	splx(s);
-	do_bell(sc->cur_scp, bios_value.bell_pitch, BELL_DURATION);
+	sc_bell(sc->cur_scp, bios_value.bell_pitch, BELL_DURATION);
 	DPRINTF(5, ("error 1\n"));
 	return EINVAL;
     }
@@ -2204,7 +2208,7 @@ switch_scr(sc_softc_t *sc, u_int next_scr)
 	&& (sc->cur_scp->smode.mode == VT_AUTO)
 	&& ISGRAPHSC(sc->cur_scp)) {
 	splx(s);
-	do_bell(sc->cur_scp, bios_value.bell_pitch, BELL_DURATION);
+	sc_bell(sc->cur_scp, bios_value.bell_pitch, BELL_DURATION);
 	DPRINTF(5, ("error, graphics mode\n"));
 	return EINVAL;
     }
@@ -2218,7 +2222,7 @@ switch_scr(sc_softc_t *sc, u_int next_scr)
 	tp = VIRTUAL_TTY(sc, next_scr);
 	if ((tp == NULL) || !(tp->t_state & TS_ISOPEN)) {
 	    splx(s);
-	    do_bell(sc->cur_scp, bios_value.bell_pitch, BELL_DURATION);
+	    sc_bell(sc->cur_scp, bios_value.bell_pitch, BELL_DURATION);
 	    DPRINTF(5, ("error 2, requested vty isn't open!\n"));
 	    return EINVAL;
 	}
@@ -2334,7 +2338,7 @@ exchange_scr(sc_softc_t *sc)
     scr_stat *scp;
 
     /* save the current state of video and keyboard */
-    move_crsr(sc->old_scp, sc->old_scp->xpos, sc->old_scp->ypos);
+    sc_move_cursor(sc->old_scp, sc->old_scp->xpos, sc->old_scp->ypos);
     if (sc->old_scp->kbd_mode == K_XLATE)
 	save_kbd_state(sc->old_scp);
 
@@ -2349,14 +2353,14 @@ exchange_scr(sc_softc_t *sc)
     else
 	sc_vtb_init(&scp->scr, VTB_FRAMEBUFFER, scp->xsize, scp->ysize,
 		    (void *)sc->adp->va_window, FALSE);
-    move_crsr(scp, scp->xpos, scp->ypos);
+    sc_move_cursor(scp, scp->xpos, scp->ypos);
     if (!ISGRAPHSC(scp))
 	sc_set_cursor_image(scp);
 #ifndef SC_NO_PALETTE_LOADING
     if (ISGRAPHSC(sc->old_scp))
 	load_palette(sc->adp, sc->palette);
 #endif
-    set_border(scp, scp->border);
+    sc_set_border(scp, scp->border);
 
     /* set up the keyboard for the new screen */
     if (sc->old_scp->kbd_mode != scp->kbd_mode)
@@ -2366,950 +2370,24 @@ exchange_scr(sc_softc_t *sc)
     mark_all(scp);
 }
 
-static void
-scan_esc(scr_stat *scp, u_char c)
+void
+sc_puts(scr_stat *scp, u_char *buf, int len)
 {
-    static u_char ansi_col[16] =
-	{0, 4, 2, 6, 1, 5, 3, 7, 8, 12, 10, 14, 9, 13, 11, 15};
-    sc_softc_t *sc;
-    int i, n;
-    int count;
-
-    sc = scp->sc; 
-    if (scp->term.esc == 1) {	/* seen ESC */
-#ifdef KANJI
-	switch (scp->md.kanji_type) {
-	case KTYPE_KANIN:	/* Kanji Invoke sequence */
-	    switch (c) {
-	    case 'B':
-	    case '@':
-		scp->md.kanji_type = KTYPE_7JIS;
-		scp->term.esc = 0;
-		scp->md.kanji_1st_char = 0;
-		return;
-	    default:
-		scp->md.kanji_type = KTYPE_ASCII;
-		scp->term.esc = 0;
-		break;
-	    }
-	    break;
-	case KTYPE_ASCIN:	/* Ascii Invoke sequence */
-	    switch (c) {
-	    case 'J':
-	    case 'B':
-	    case 'H':
-		scp->md.kanji_type = KTYPE_ASCII;
-		scp->term.esc = 0;
-		scp->md.kanji_1st_char = 0;
-		return;
-	    case 'I':
-		scp->md.kanji_type = KTYPE_JKANA;
-		scp->term.esc = 0;
-		scp->md.kanji_1st_char = 0;
-		return;
-	    default:
-		scp->md.kanji_type = KTYPE_ASCII;
-		scp->term.esc = 0;
-		break;
-	    }
-	    break;
-	default:
-	    break;
-	}
-#endif /* KANJI */
-	switch (c) {
-
-	case '7':   /* Save cursor position */
-	    scp->saved_xpos = scp->xpos;
-	    scp->saved_ypos = scp->ypos;
-	    break;
-
-	case '8':   /* Restore saved cursor position */
-	    if (scp->saved_xpos >= 0 && scp->saved_ypos >= 0)
-		move_crsr(scp, scp->saved_xpos, scp->saved_ypos);
-	    break;
-
-	case '[':   /* Start ESC [ sequence */
-	    scp->term.esc = 2;
-	    scp->term.last_param = -1;
-	    for (i = scp->term.num_param; i < MAX_ESC_PAR; i++)
-		scp->term.param[i] = 1;
-	    scp->term.num_param = 0;
-	    return;
-
-#ifdef KANJI
-	case '$':	/* Kanji Invoke sequence */
-	    scp->md.kanji_type = KTYPE_KANIN;
-	    return;
-#endif
-
-	case 'M':   /* Move cursor up 1 line, scroll if at top */
-	    if (scp->ypos > 0)
-		move_crsr(scp, scp->xpos, scp->ypos - 1);
-	    else {
-		sc_vtb_ins(&scp->vtb, 0, scp->xsize,
-			   sc->scr_map[0x20], scp->term.cur_color);
-    		mark_all(scp);
-	    }
-	    break;
-#if notyet
-	case 'Q':
-	    scp->term.esc = 4;
-	    return;
-#endif
-	case 'c':   /* Clear screen & home */
-	    sc_clear_screen(scp);
-	    break;
-
-	case '(':   /* iso-2022: designate 94 character set to G0 */
-#ifdef KANJI
-	    scp->md.kanji_type = KTYPE_ASCIN;
-#else
-	    scp->term.esc = 5;
-#endif
-	    return;
-	}
-    }
-    else if (scp->term.esc == 2) {	/* seen ESC [ */
-	if (c >= '0' && c <= '9') {
-	    if (scp->term.num_param < MAX_ESC_PAR) {
-	    if (scp->term.last_param != scp->term.num_param) {
-		scp->term.last_param = scp->term.num_param;
-		scp->term.param[scp->term.num_param] = 0;
-	    }
-	    else
-		scp->term.param[scp->term.num_param] *= 10;
-	    scp->term.param[scp->term.num_param] += c - '0';
-	    return;
-	    }
-	}
-	scp->term.num_param = scp->term.last_param + 1;
-	switch (c) {
-
-	case ';':
-	    if (scp->term.num_param < MAX_ESC_PAR)
-		return;
-	    break;
-
-	case '=':
-	    scp->term.esc = 3;
-	    scp->term.last_param = -1;
-	    for (i = scp->term.num_param; i < MAX_ESC_PAR; i++)
-		scp->term.param[i] = 1;
-	    scp->term.num_param = 0;
-	    return;
-
-	case 'A':   /* up n rows */
-	    n = scp->term.param[0]; if (n < 1) n = 1;
-	    move_crsr(scp, scp->xpos, scp->ypos - n);
-	    break;
-
-	case 'B':   /* down n rows */
-	    n = scp->term.param[0]; if (n < 1) n = 1;
-	    move_crsr(scp, scp->xpos, scp->ypos + n);
-	    break;
-
-	case 'C':   /* right n columns */
-	    n = scp->term.param[0]; if (n < 1) n = 1;
-	    move_crsr(scp, scp->xpos + n, scp->ypos);
-	    break;
-
-	case 'D':   /* left n columns */
-	    n = scp->term.param[0]; if (n < 1) n = 1;
-	    move_crsr(scp, scp->xpos - n, scp->ypos);
-	    break;
-
-	case 'E':   /* cursor to start of line n lines down */
-	    n = scp->term.param[0]; if (n < 1) n = 1;
-	    move_crsr(scp, 0, scp->ypos + n);
-	    break;
-
-	case 'F':   /* cursor to start of line n lines up */
-	    n = scp->term.param[0]; if (n < 1) n = 1;
-	    move_crsr(scp, 0, scp->ypos - n);
-	    break;
-
-	case 'f':   /* Cursor move */
-	case 'H':
-	    if (scp->term.num_param == 0)
-		move_crsr(scp, 0, 0);
-	    else if (scp->term.num_param == 2)
-		move_crsr(scp, scp->term.param[1] - 1, scp->term.param[0] - 1);
-	    break;
-
-	case 'J':   /* Clear all or part of display */
-	    if (scp->term.num_param == 0)
-		n = 0;
-	    else
-		n = scp->term.param[0];
-	    switch (n) {
-	    case 0: /* clear form cursor to end of display */
-		sc_vtb_erase(&scp->vtb, scp->cursor_pos,
-			     scp->xsize * scp->ysize - scp->cursor_pos,
-			     sc->scr_map[0x20], scp->term.cur_color);
-		mark_for_update(scp, scp->cursor_pos);
-    		mark_for_update(scp, scp->xsize * scp->ysize - 1);
-		sc_remove_cutmarking(scp);
-		break;
-	    case 1: /* clear from beginning of display to cursor */
-		sc_vtb_erase(&scp->vtb, 0, scp->cursor_pos,
-			     sc->scr_map[0x20], scp->term.cur_color);
-		mark_for_update(scp, 0);
-		mark_for_update(scp, scp->cursor_pos);
-		sc_remove_cutmarking(scp);
-		break;
-	    case 2: /* clear entire display */
-		sc_vtb_clear(&scp->vtb, sc->scr_map[0x20], scp->term.cur_color);
-		mark_all(scp);
-		sc_remove_cutmarking(scp);
-		break;
-	    }
-	    break;
-
-	case 'K':   /* Clear all or part of line */
-	    if (scp->term.num_param == 0)
-		n = 0;
-	    else
-		n = scp->term.param[0];
-	    switch (n) {
-	    case 0: /* clear form cursor to end of line */
-		sc_vtb_erase(&scp->vtb, scp->cursor_pos,
-			     scp->xsize - scp->xpos,
-			     sc->scr_map[0x20], scp->term.cur_color);
-    		mark_for_update(scp, scp->cursor_pos);
-    		mark_for_update(scp, scp->cursor_pos +
-				scp->xsize - 1 - scp->xpos);
-		break;
-	    case 1: /* clear from beginning of line to cursor */
-		sc_vtb_erase(&scp->vtb, scp->cursor_pos - scp->xpos,
-			     scp->xpos + 1,
-			     sc->scr_map[0x20], scp->term.cur_color);
-    		mark_for_update(scp, scp->ypos * scp->xsize);
-    		mark_for_update(scp, scp->cursor_pos);
-		break;
-	    case 2: /* clear entire line */
-		sc_vtb_erase(&scp->vtb, scp->cursor_pos - scp->xpos,
-			     scp->xsize,
-			     sc->scr_map[0x20], scp->term.cur_color);
-    		mark_for_update(scp, scp->ypos * scp->xsize);
-    		mark_for_update(scp, (scp->ypos + 1) * scp->xsize - 1);
-		break;
-	    }
-	    break;
-
-	case 'L':   /* Insert n lines */
-	    n = scp->term.param[0]; if (n < 1) n = 1;
-	    if (n > scp->ysize - scp->ypos)
-		n = scp->ysize - scp->ypos;
-	    sc_vtb_ins(&scp->vtb, scp->ypos * scp->xsize, n * scp->xsize,
-		       sc->scr_map[0x20], scp->term.cur_color);
-	    mark_for_update(scp, scp->ypos * scp->xsize);
-	    mark_for_update(scp, scp->xsize * scp->ysize - 1);
-	    break;
-
-	case 'M':   /* Delete n lines */
-	    n = scp->term.param[0]; if (n < 1) n = 1;
-	    if (n > scp->ysize - scp->ypos)
-		n = scp->ysize - scp->ypos;
-	    sc_vtb_delete(&scp->vtb, scp->ypos * scp->xsize, n * scp->xsize,
-			  sc->scr_map[0x20], scp->term.cur_color);
-	    mark_for_update(scp, scp->ypos * scp->xsize);
-	    mark_for_update(scp, scp->xsize * scp->ysize - 1);
-	    break;
-
-	case 'P':   /* Delete n chars */
-	    n = scp->term.param[0]; if (n < 1) n = 1;
-	    if (n > scp->xsize - scp->xpos)
-		n = scp->xsize - scp->xpos;
-	    count = scp->xsize - (scp->xpos + n);
-	    sc_vtb_move(&scp->vtb, scp->cursor_pos + n, scp->cursor_pos, count);
-	    sc_vtb_erase(&scp->vtb, scp->cursor_pos + count, n,
-			 sc->scr_map[0x20], scp->term.cur_color);
-	    mark_for_update(scp, scp->cursor_pos);
-	    mark_for_update(scp, scp->cursor_pos + n + count - 1);
-	    break;
-
-	case '@':   /* Insert n chars */
-	    n = scp->term.param[0]; if (n < 1) n = 1;
-	    if (n > scp->xsize - scp->xpos)
-		n = scp->xsize - scp->xpos;
-	    count = scp->xsize - (scp->xpos + n);
-	    sc_vtb_move(&scp->vtb, scp->cursor_pos, scp->cursor_pos + n, count);
-	    sc_vtb_erase(&scp->vtb, scp->cursor_pos, n,
-			 sc->scr_map[0x20], scp->term.cur_color);
-	    mark_for_update(scp, scp->cursor_pos);
-	    mark_for_update(scp, scp->cursor_pos + n + count - 1);
-	    break;
-
-	case 'S':   /* scroll up n lines */
-	    n = scp->term.param[0]; if (n < 1)  n = 1;
-	    if (n > scp->ysize)
-		n = scp->ysize;
-	    sc_vtb_delete(&scp->vtb, 0, n * scp->xsize,
-			  sc->scr_map[0x20], scp->term.cur_color);
-    	    mark_all(scp);
-	    break;
-
-	case 'T':   /* scroll down n lines */
-	    n = scp->term.param[0]; if (n < 1)  n = 1;
-	    if (n > scp->ysize)
-		n = scp->ysize;
-	    sc_vtb_ins(&scp->vtb, 0, n * scp->xsize,
-		       sc->scr_map[0x20], scp->term.cur_color);
-    	    mark_all(scp);
-	    break;
-
-	case 'X':   /* erase n characters in line */
-	    n = scp->term.param[0]; if (n < 1)  n = 1;
-	    if (n > scp->xsize - scp->xpos)
-		n = scp->xsize - scp->xpos;
-	    sc_vtb_erase(&scp->vtb, scp->cursor_pos, n,
-			 sc->scr_map[0x20], scp->term.cur_color);
-	    mark_for_update(scp, scp->cursor_pos);
-	    mark_for_update(scp, scp->cursor_pos + n - 1);
-	    break;
-
-	case 'Z':   /* move n tabs backwards */
-	    n = scp->term.param[0]; if (n < 1)  n = 1;
-	    if ((i = scp->xpos & 0xf8) == scp->xpos)
-		i -= 8*n;
-	    else
-		i -= 8*(n-1);
-	    if (i < 0)
-		i = 0;
-	    move_crsr(scp, i, scp->ypos);
-	    break;
-
-	case '`':   /* move cursor to column n */
-	    n = scp->term.param[0]; if (n < 1)  n = 1;
-	    move_crsr(scp, n - 1, scp->ypos);
-	    break;
-
-	case 'a':   /* move cursor n columns to the right */
-	    n = scp->term.param[0]; if (n < 1)  n = 1;
-	    move_crsr(scp, scp->xpos + n, scp->ypos);
-	    break;
-
-	case 'd':   /* move cursor to row n */
-	    n = scp->term.param[0]; if (n < 1)  n = 1;
-	    move_crsr(scp, scp->xpos, n - 1);
-	    break;
-
-	case 'e':   /* move cursor n rows down */
-	    n = scp->term.param[0]; if (n < 1)  n = 1;
-	    move_crsr(scp, scp->xpos, scp->ypos + n);
-	    break;
-
-	case 'm':   /* change attribute */
-	    if (scp->term.num_param == 0) {
-		scp->term.attr_mask = NORMAL_ATTR;
-		scp->term.cur_attr =
-		    scp->term.cur_color = scp->term.std_color;
-		break;
-	    }
-	    for (i = 0; i < scp->term.num_param; i++) {
-		switch (n = scp->term.param[i]) {
-		case 0: /* back to normal */
-		    scp->term.attr_mask = NORMAL_ATTR;
-		    scp->term.cur_attr =
-			scp->term.cur_color = scp->term.std_color;
-		    break;
-		case 1: /* bold */
-		    scp->term.attr_mask |= BOLD_ATTR;
-		    scp->term.cur_attr = mask2attr(&scp->term);
-		    break;
-		case 4: /* underline */
-		    scp->term.attr_mask |= UNDERLINE_ATTR;
-		    scp->term.cur_attr = mask2attr(&scp->term);
-		    break;
-		case 5: /* blink */
-		    scp->term.attr_mask |= BLINK_ATTR;
-		    scp->term.cur_attr = mask2attr(&scp->term);
-		    break;
-		case 7: /* reverse video */
-		    scp->term.attr_mask |= REVERSE_ATTR;
-		    scp->term.cur_attr = mask2attr(&scp->term);
-		    break;
-		case 30: case 31: /* set fg color */
-		case 32: case 33: case 34:
-		case 35: case 36: case 37:
-		    scp->term.attr_mask |= FOREGROUND_CHANGED;
-		    scp->term.cur_color =
-			(scp->term.cur_color&0xF000) | (ansi_col[(n-30)&7]<<8);
-		    scp->term.cur_attr = mask2attr(&scp->term);
-		    break;
-		case 40: case 41: /* set bg color */
-		case 42: case 43: case 44:
-		case 45: case 46: case 47:
-		    scp->term.attr_mask |= BACKGROUND_CHANGED;
-		    scp->term.cur_color =
-			(scp->term.cur_color&0x0F00) | (ansi_col[(n-40)&7]<<12);
-		    scp->term.cur_attr = mask2attr(&scp->term);
-		    break;
-		}
-	    }
-	    break;
-
-	case 's':   /* Save cursor position */
-	    scp->saved_xpos = scp->xpos;
-	    scp->saved_ypos = scp->ypos;
-	    break;
-
-	case 'u':   /* Restore saved cursor position */
-	    if (scp->saved_xpos >= 0 && scp->saved_ypos >= 0)
-		move_crsr(scp, scp->saved_xpos, scp->saved_ypos);
-	    break;
-
-	case 'x':
-	    if (scp->term.num_param == 0)
-		n = 0;
-	    else
-		n = scp->term.param[0];
-	    switch (n) {
-	    case 0:     /* reset attributes */
-		scp->term.attr_mask = NORMAL_ATTR;
-		scp->term.cur_attr =
-		    scp->term.cur_color = scp->term.std_color =
-		    current_default->std_color;
-		scp->term.rev_color = current_default->rev_color;
-		break;
-	    case 1:     /* set ansi background */
-		scp->term.attr_mask &= ~BACKGROUND_CHANGED;
-		scp->term.cur_color = scp->term.std_color =
-		    (scp->term.std_color & 0x0F00) |
-		    (ansi_col[(scp->term.param[1])&0x0F]<<12);
-		scp->term.cur_attr = mask2attr(&scp->term);
-		break;
-	    case 2:     /* set ansi foreground */
-		scp->term.attr_mask &= ~FOREGROUND_CHANGED;
-		scp->term.cur_color = scp->term.std_color =
-		    (scp->term.std_color & 0xF000) |
-		    (ansi_col[(scp->term.param[1])&0x0F]<<8);
-		scp->term.cur_attr = mask2attr(&scp->term);
-		break;
-	    case 3:     /* set ansi attribute directly */
-		scp->term.attr_mask &= ~(FOREGROUND_CHANGED|BACKGROUND_CHANGED);
-		scp->term.cur_color = scp->term.std_color =
-		    (scp->term.param[1]&0xFF)<<8;
-		scp->term.cur_attr = mask2attr(&scp->term);
-		break;
-	    case 5:     /* set ansi reverse video background */
-		scp->term.rev_color =
-		    (scp->term.rev_color & 0x0F00) |
-		    (ansi_col[(scp->term.param[1])&0x0F]<<12);
-		scp->term.cur_attr = mask2attr(&scp->term);
-		break;
-	    case 6:     /* set ansi reverse video foreground */
-		scp->term.rev_color =
-		    (scp->term.rev_color & 0xF000) |
-		    (ansi_col[(scp->term.param[1])&0x0F]<<8);
-		scp->term.cur_attr = mask2attr(&scp->term);
-		break;
-	    case 7:     /* set ansi reverse video directly */
-		scp->term.rev_color =
-		    (scp->term.param[1]&0xFF)<<8;
-		scp->term.cur_attr = mask2attr(&scp->term);
-		break;
-	    }
-	    break;
-
-	case 'z':   /* switch to (virtual) console n */
-	    if (scp->term.num_param == 1)
-		switch_scr(sc, scp->term.param[0]);
-	    break;
-	}
-    }
-    else if (scp->term.esc == 3) {	/* seen ESC [0-9]+ = */
-	if (c >= '0' && c <= '9') {
-	    if (scp->term.num_param < MAX_ESC_PAR) {
-	    if (scp->term.last_param != scp->term.num_param) {
-		scp->term.last_param = scp->term.num_param;
-		scp->term.param[scp->term.num_param] = 0;
-	    }
-	    else
-		scp->term.param[scp->term.num_param] *= 10;
-	    scp->term.param[scp->term.num_param] += c - '0';
-	    return;
-	    }
-	}
-	scp->term.num_param = scp->term.last_param + 1;
-	switch (c) {
-
-	case ';':
-	    if (scp->term.num_param < MAX_ESC_PAR)
-		return;
-	    break;
-
-	case 'A':   /* set display border color */
-	    if (scp->term.num_param == 1) {
-		scp->border=scp->term.param[0] & 0xff;
-		if (scp == sc->cur_scp)
-		    set_border(scp, scp->border);
-            }
-	    break;
-
-	case 'B':   /* set bell pitch and duration */
-	    if (scp->term.num_param == 2) {
-		scp->bell_pitch = scp->term.param[0];
-		scp->bell_duration = scp->term.param[1];
-	    }
-	    break;
-
-	case 'C':   /* set cursor type & shape */
-	    if (!ISGRAPHSC(sc->cur_scp))
-		remove_cursor_image(sc->cur_scp);
-	    if (scp->term.num_param == 1) {
-		if (scp->term.param[0] & 0x01)
-		    sc->flags |= SC_BLINK_CURSOR;
-		else
-		    sc->flags &= ~SC_BLINK_CURSOR;
-		if (scp->term.param[0] & 0x02) 
-		    sc->flags |= SC_CHAR_CURSOR;
-		else
-		    sc->flags &= ~SC_CHAR_CURSOR;
-	    }
-	    else if (scp->term.num_param == 2) {
-		sc->cursor_base = scp->font_size 
-					- (scp->term.param[1] & 0x1F) - 1;
-		sc->cursor_height = (scp->term.param[1] & 0x1F) 
-					- (scp->term.param[0] & 0x1F) + 1;
-	    }
-	    /* 
-	     * The cursor shape is global property; all virtual consoles
-	     * are affected. Update the cursor in the current console...
-	     */
-	    if (!ISGRAPHSC(sc->cur_scp)) {
-		i = spltty();
-		sc_set_cursor_image(sc->cur_scp);
-		draw_cursor_image(sc->cur_scp);
-		splx(i);
-	    }
-	    break;
-
-	case 'F':   /* set ansi foreground */
-	    if (scp->term.num_param == 1) {
-		scp->term.attr_mask &= ~FOREGROUND_CHANGED;
-		scp->term.cur_color = scp->term.std_color =
-		    (scp->term.std_color & 0xF000)
-		    | ((scp->term.param[0] & 0x0F) << 8);
-		scp->term.cur_attr = mask2attr(&scp->term);
-	    }
-	    break;
-
-	case 'G':   /* set ansi background */
-	    if (scp->term.num_param == 1) {
-		scp->term.attr_mask &= ~BACKGROUND_CHANGED;
-		scp->term.cur_color = scp->term.std_color =
-		    (scp->term.std_color & 0x0F00)
-		    | ((scp->term.param[0] & 0x0F) << 12);
-		scp->term.cur_attr = mask2attr(&scp->term);
-	    }
-	    break;
-
-	case 'H':   /* set ansi reverse video foreground */
-	    if (scp->term.num_param == 1) {
-		scp->term.rev_color =
-		    (scp->term.rev_color & 0xF000)
-		    | ((scp->term.param[0] & 0x0F) << 8);
-		scp->term.cur_attr = mask2attr(&scp->term);
-	    }
-	    break;
-
-	case 'I':   /* set ansi reverse video background */
-	    if (scp->term.num_param == 1) {
-		scp->term.rev_color =
-		    (scp->term.rev_color & 0x0F00)
-		    | ((scp->term.param[0] & 0x0F) << 12);
-		scp->term.cur_attr = mask2attr(&scp->term);
-	    }
-	    break;
-	}
-    }
-#if notyet
-    else if (scp->term.esc == 4) {	/* seen ESC Q */
-	/* to be filled */
-    }
-#endif
-    else if (scp->term.esc == 5) {	/* seen ESC ( */
-	switch (c) {
-	case 'B':   /* iso-2022: desginate ASCII into G0 */
-	    break;
-	/* other items to be filled */
-	default:
-	    break;
-	}
-    }
-    scp->term.esc = 0;
-}
-
-#ifdef KANJI
-static u_char iskanji1(u_char mode, u_char c)
-{
-    if ((mode == KTYPE_7JIS) && (c >= 0x21) && (c <= 0x7e)) {
-	/* JIS */
-	default_kanji = UJIS;
-	return KTYPE_7JIS;
-    }
-
-    if ((mode == KTYPE_JKANA) && (c >= 0x21) && (c <= 0x5f)) {
-	/* JIS HANKAKU */
-	default_kanji = UJIS;
-	return KTYPE_JKANA;
-    }
-
-#if 1
-    if ((c >= 0xa1) && (c <= 0xdf) && (default_kanji == UJIS)) {
-	/* UJIS */
-	return KTYPE_UJIS;
-    }
-#endif
-
-    if ((c >= 0x81) && (c <= 0x9f) && (c != 0x8e)) {
-	/* SJIS */
-	default_kanji = SJIS;
-	return KTYPE_SJIS;
-    }
-
-    if ((c >= 0xa1) && (c <= 0xdf) && (default_kanji == SJIS)) {
-	/* SJIS HANKAKU */
-	return KTYPE_KANA;
-    }
-
-#if 0
-    if ((c >= 0xa1) && (c <= 0xdf) && (default_kanji == UJIS)) {
-	/* UJIS */
-	return KTYPE_UJIS;
-    }
-#endif
-
-    if ((c >= 0xf0) && (c <= 0xfe)) {
-	/* UJIS */
-	default_kanji = UJIS;
-	return KTYPE_UJIS;
-    }
-
-    if ((c >= 0xe0) && (c <= 0xef)) {
-	/* SJIS or UJIS */
-	return KTYPE_SUJIS;
-    }
-
-    if (c == 0x8e) {
-	/* SJIS or UJIS HANKAKU */
-	return KTYPE_SUKANA;
-    }
-
-    return KTYPE_ASCII;
-}
-
-static u_char iskanji2(u_char mode, u_char c)
-{
-    switch (mode) {
-    case KTYPE_7JIS:
-	if ((c >= 0x21) && (c <= 0x7e)) {
-	    /* JIS */
-	    return KTYPE_7JIS;
-	}
-	break;
-    case KTYPE_SJIS:
-	if ((c >= 0x40) && (c <= 0xfc) && (c != 0x7f)) {
-	    /* SJIS */
-	    return KTYPE_SJIS;
-	}
-	break;
-    case KTYPE_UJIS:
-	if ((c >= 0xa1) && (c <= 0xfe)) {
-	    /* UJIS */
-	    return KTYPE_UJIS;
-	}
-	break;
-    case KTYPE_SUKANA:
-	if ((c >= 0xa1) && (c <= 0xdf) && (default_kanji == UJIS)) {
-	    /* UJIS HANKAKU */
-	    return KTYPE_KANA;
-	}
-	if ((c >= 0x40) && (c <= 0xfc) && (c != 0x7f)) {
-	    /* SJIS */
-	    default_kanji = SJIS;
-	    return KTYPE_SJIS;
-	}
-	break;
-    case KTYPE_SUJIS:
-	if ((c >= 0x40) && (c <= 0xa0) && (c != 0x7f)) {
-	    /* SJIS */
-	    default_kanji = SJIS;
-	    return KTYPE_SJIS;
-	}
-	if ((c == 0xfd) || (c == 0xfe)) {
-	    /* UJIS */
-	    default_kanji = UJIS;
-	    return KTYPE_UJIS;
-	}
-	if ((c >= 0xa1) && (c <= 0xfc)) {
-	    if (default_kanji == SJIS)
-		return KTYPE_SJIS;
-	    if (default_kanji == UJIS)
-		return KTYPE_UJIS;
-	}
-	break;
-    }
-    return KTYPE_ASCII;
-}
-
-/*
- * JIS X0208-83 keisen conversion table
- */
-static u_short keiConv[32] = {
-	0x240c, 0x260c, 0x300c, 0x340c, 0x3c0c, 0x380c, 0x400c, 0x500c,
-	0x480c, 0x580c, 0x600c, 0x250c, 0x270c, 0x330c, 0x370c, 0x3f0c,
-	0x3b0c, 0x470c, 0x570c, 0x4f0c, 0x5f0c, 0x6f0c, 0x440c, 0x530c,
-	0x4c0c, 0x5b0c, 0x630c, 0x410c, 0x540c, 0x490c, 0x5c0c, 0x660c
-};
-
-
-static u_short kanji_convert(u_char mode, u_char h, u_char l)
-{
-    u_short tmp, high, low, c;
-    high = (u_short) h;
-    low  = (u_short) l;
-
-    switch (mode) {
-    case KTYPE_SJIS: /* SHIFT JIS */
-	if (low >= 0xe0) {
-	    low -= 0x40;
-	}
-	low = (low - 0x81) * 2 + 0x21;
-	if (high > 0x7f) {
-	    high--;
-	}
-	if (high > 0x9d) {
-	    low++;
-	    high -= 0x9e - 0x21;
-	} else {
-	    high -= 0x40 - 0x21;
-	}
-	high &= 0x7F;
-	low  &= 0x7F;
-	tmp = ((high << 8) | low) - 0x20;
-	break;
-    case KTYPE_7JIS: /* JIS */
-    case KTYPE_UJIS: /* UJIS */
-	high &= 0x7F;
-	low &= 0x7F;
-	tmp = ((high << 8) | low) - 0x20;
-	break;
-    default:
-	tmp = 0;
-	break;
-    }
-
-    /* keisen */
-    c = ((tmp & 0xff) << 8) | (tmp >> 8);
-    /* 0x2821 .. 0x2840 */
-    if (0x0821 <= c && c <= 0x0840)
-    tmp = keiConv[c - 0x0821];
-
-    return (tmp);
-}
-#endif /* KANJI */
-
-static void
-ansi_put(scr_stat *scp, u_char *buf, int len)
-{
-    u_char *ptr = buf;
-#ifdef KANJI
-    u_short kanji_code;
-#endif
-
+#if NSPLASH > 0
     /* make screensaver happy */
     if (!sticky_splash && scp == scp->sc->cur_scp)
 	run_scrn_saver = FALSE;
-
-outloop:
-    scp->sc->write_in_progress++;
-    if (scp->term.esc) {
-	scan_esc(scp, *ptr++);
-	len--;
-    }
-    else if (PRINTABLE(*ptr)) {     /* Print only printables */
-	vm_offset_t p;
-	u_char *map;
-	int attr;
-	int i;
-#ifdef KANJI
-	u_char c;
-#else
- 	int cnt;
 #endif
 
-	p = sc_vtb_pointer(&scp->vtb, scp->cursor_pos);
-	map = scp->sc->scr_map;
-	attr = scp->term.cur_attr;
+    if (scp->tsw)
+	(*scp->tsw->te_puts)(scp, buf, len);
 
-#ifdef KANJI
-	c = *ptr;
-	if (scp->md.kanji_1st_char == 0) {
-	    scp->md.kanji_type = iskanji1(scp->md.kanji_type, c);
-	    if (!IS_KTYPE_ASCII_or_HANKAKU(scp->md.kanji_type)) {
-		/* not Ascii & not HANKAKU */
-		scp->md.kanji_1st_char = c;
-		goto kanji_end;
-	    } else {
-		scp->md.kanji_1st_char = 0;
-	    }
-	} else {
-	    if ((scp->md.kanji_type = iskanji2(scp->md.kanji_type, c)) & 0xee) {
-		/* print kanji on TEXT VRAM */
-		kanji_code = kanji_convert(scp->md.kanji_type, c, scp->md.kanji_1st_char);
-		mark_for_update(scp, scp->cursor_pos);
-		for (i=0; i<2; i++){
-		    /* *cursor_pos = (kanji_code | (i*0x80)); */
-		    p = sc_vtb_putchar(&scp->vtb, p,
-		   		       kanji_code | ((i == 0) ? 0x00 : 0x80),
-				       attr);
-		    ++scp->cursor_pos;
-		    if (++scp->xpos >= scp->xsize) {
-			scp->xpos = 0;
-			scp->ypos++;
-		    }
-		}
-		mark_for_update(scp, scp->cursor_pos - 1);
-		KTYPE_MASK_CTRL(scp->md.kanji_type);
-		scp->md.kanji_1st_char = 0;
-		goto kanji_end;
-	    } else {
-		scp->md.kanji_1st_char = 0;
-	    }
-	}				
-	if (IS_KTYPE_KANA(scp->md.kanji_type))
-		c |= 0x80;
-	KTYPE_MASK_CTRL(scp->md.kanji_type);
-	sc_vtb_putchar(&scp->vtb, p, map[c], attr);
-	mark_for_update(scp, scp->cursor_pos);
-	mark_for_update(scp, scp->cursor_pos);
-	++scp->cursor_pos;
-	++scp->xpos;
-kanji_end:
-	++ptr;
-	--len;
-#else /* !KANJI */
-	cnt = (len <= scp->xsize - scp->xpos) ? len : (scp->xsize - scp->xpos);
-	i = cnt;
-	do {
-	    /*
-	     * gcc-2.6.3 generates poor (un)sign extension code.  Casting the
-	     * pointers in the following to volatile should have no effect,
-	     * but in fact speeds up this inner loop from 26 to 18 cycles
-	     * (+ cache misses) on i486's.
-	     */
-#define	UCVP(ucp)	((u_char volatile *)(ucp))
-	    p = sc_vtb_putchar(&scp->vtb, p, UCVP(map)[*UCVP(ptr)], attr);
-	    ++ptr;
-	    --i;
-	} while (i > 0 && PRINTABLE(*ptr));
-	len -= cnt - i;
-	mark_for_update(scp, scp->cursor_pos);
-	scp->cursor_pos += cnt - i;
-	mark_for_update(scp, scp->cursor_pos - 1);
-	scp->xpos += cnt - i;
-#endif /* KANJI */
-
-	if (scp->xpos >= scp->xsize) {
-	    scp->xpos = 0;
-	    scp->ypos++;
-	}
-    }
-    else  {
-	switch(*ptr) {
-	case 0x07:
-	    do_bell(scp, scp->bell_pitch, scp->bell_duration);
-	    break;
-
-	case 0x08:      /* non-destructive backspace */
-	    if (scp->cursor_pos > 0) {
-		mark_for_update(scp, scp->cursor_pos);
-		scp->cursor_pos--;
-		mark_for_update(scp, scp->cursor_pos);
-		if (scp->xpos > 0)
-		    scp->xpos--;
-		else {
-		    scp->xpos += scp->xsize - 1;
-		    scp->ypos--;
-		}
-	    }
-	    break;
-
-	case 0x09:  /* non-destructive tab */
-	    mark_for_update(scp, scp->cursor_pos);
-	    scp->cursor_pos += (8 - scp->xpos % 8u);
-	    if ((scp->xpos += (8 - scp->xpos % 8u)) >= scp->xsize) {
-	        scp->xpos = 0;
-	        scp->ypos++;
-		scp->cursor_pos = scp->xsize * scp->ypos;
-	    }
-	    mark_for_update(scp, scp->cursor_pos);
-	    break;
-
-	case 0x0a:  /* newline, same pos */
-	    mark_for_update(scp, scp->cursor_pos);
-	    scp->cursor_pos += scp->xsize;
-	    mark_for_update(scp, scp->cursor_pos);
-	    scp->ypos++;
-	    break;
-
-	case 0x0c:  /* form feed, clears screen */
-	    sc_clear_screen(scp);
-	    break;
-
-	case 0x0d:  /* return, return to pos 0 */
-	    mark_for_update(scp, scp->cursor_pos);
-	    scp->cursor_pos -= scp->xpos;
-	    mark_for_update(scp, scp->cursor_pos);
-	    scp->xpos = 0;
-	    break;
-
-#ifdef PC98
-	case 0x0e:		/* ^N */
-	    scp->md.kanji_type = KTYPE_JKANA;
-	    scp->term.esc = 0;
-	    scp->md.kanji_1st_char = 0;
-	    break;
-
-	case 0x0f:		/* ^O */
-	    scp->md.kanji_type = KTYPE_ASCII;
-	    scp->term.esc = 0;
-	    scp->md.kanji_1st_char = 0;
-	    break;
-#endif /* PC98 */
-
-	case 0x1b:  /* start escape sequence */
-	    scp->term.esc = 1;
-	    scp->term.num_param = 0;
-	    break;
-	}
-	ptr++; len--;
-    }
-    /* do we have to scroll ?? */
-    if (scp->cursor_pos >= scp->ysize * scp->xsize) {
-	sc_remove_cutmarking(scp);
-#ifndef SC_NO_HISTORY
-	if (scp->history != NULL)
-	    sc_hist_save_one_line(scp, 0);
-#endif
-	sc_vtb_delete(&scp->vtb, 0, scp->xsize,
-		      scp->sc->scr_map[0x20], scp->term.cur_color);
-	scp->cursor_pos -= scp->xsize;
-	scp->ypos--;
-    	mark_all(scp);
-    }
-    scp->sc->write_in_progress--;
-    if (len)
-	goto outloop;
     if (scp->sc->delayed_next_scr)
-	switch_scr(scp->sc, scp->sc->delayed_next_scr - 1);
+	sc_switch_scr(scp->sc, scp->sc->delayed_next_scr - 1);
 }
 
-static void
-draw_cursor_image(scr_stat *scp)
+void
+sc_draw_cursor_image(scr_stat *scp)
 {
     /* assert(scp == scp->sc->cur_scp); */
     ++scp->sc->videoio_in_progress;
@@ -3319,8 +2397,8 @@ draw_cursor_image(scr_stat *scp)
     --scp->sc->videoio_in_progress;
 }
 
-static void
-remove_cursor_image(scr_stat *scp)
+void
+sc_remove_cursor_image(scr_stat *scp)
 {
     /* assert(scp == scp->sc->cur_scp); */
     ++scp->sc->videoio_in_progress;
@@ -3373,22 +2451,6 @@ sc_set_cursor_image(scr_stat *scp)
 }
 
 static void
-move_crsr(scr_stat *scp, int x, int y)
-{
-    if (x < 0)
-	x = 0;
-    if (y < 0)
-	y = 0;
-    if (x >= scp->xsize)
-	x = scp->xsize-1;
-    if (y >= scp->ysize)
-	y = scp->ysize-1;
-    scp->xpos = x;
-    scp->ypos = y;
-    scp->cursor_pos = scp->ypos * scp->xsize + scp->xpos;
-}
-
-static void
 scinit(int unit, int flags)
 {
     /*
@@ -3420,17 +2482,8 @@ scinit(int unit, int flags)
     int i;
 
     /* one time initialization */
-    if (init_done == COLD) {
+    if (init_done == COLD)
 	sc_get_bios_values(&bios_value);
-	current_default = &user_default;
-	/* kernel console attributes */
-	kernel_console.esc = 0;
-	kernel_console.attr_mask = NORMAL_ATTR;
-	kernel_console.cur_attr =
-	    kernel_console.cur_color = kernel_console.std_color =
-	    kernel_default.std_color;
-	kernel_console.rev_color = kernel_default.rev_color;
-    }
     init_done = WARM;
 
     /*
@@ -3450,8 +2503,8 @@ scinit(int unit, int flags)
 	i = kbd_release(sc->kbd, (void *)&sc->keyboard);
 	DPRINTF(5, ("sc%d: kbd_release returned %d\n", unit, i));
 	if (sc->kbd != NULL) {
-	    DPRINTF(5, ("sc%d: kbd != NULL!, index:%d, minor:%d, flags:0x%x\n",
-		unit, sc->kbd->kb_index, sc->kbd->kb_minor, sc->kbd->kb_flags));
+	    DPRINTF(5, ("sc%d: kbd != NULL!, index:%d, unit:%d, flags:0x%x\n",
+		unit, sc->kbd->kb_index, sc->kbd->kb_unit, sc->kbd->kb_flags));
 	}
 	sc->kbd = NULL;
     }
@@ -3463,8 +2516,8 @@ scinit(int unit, int flags)
     DPRINTF(1, ("sc%d: keyboard %d\n", unit, sc->keyboard));
     sc->kbd = kbd_get_keyboard(sc->keyboard);
     if (sc->kbd != NULL) {
-	DPRINTF(1, ("sc%d: kbd index:%d, minor:%d, flags:0x%x\n",
-		unit, sc->kbd->kb_index, sc->kbd->kb_minor, sc->kbd->kb_flags));
+	DPRINTF(1, ("sc%d: kbd index:%d, unit:%d, flags:0x%x\n",
+		unit, sc->kbd->kb_index, sc->kbd->kb_unit, sc->kbd->kb_flags));
     }
 
     if (!(sc->flags & SC_INIT_DONE) || (adp != sc->adp)) {
@@ -3490,7 +2543,7 @@ scinit(int unit, int flags)
 
 	/* set up the first console */
 	sc->first_vty = unit*MAXCONS;
-	sc->vtys = MAXCONS;
+	sc->vtys = MAXCONS;		/* XXX: should be configurable */
 	if (flags & SC_KERNEL_CONSOLE) {
 	    sc->dev = main_devs;
 	    sc->dev[0] = makedev(CDEV_MAJOR, unit*MAXCONS);
@@ -3500,6 +2553,11 @@ scinit(int unit, int flags)
 	    init_scp(sc, sc->first_vty, scp);
 	    sc_vtb_init(&scp->vtb, VTB_MEMORY, scp->xsize, scp->ysize,
 			(void *)sc_buffer, FALSE);
+	    if (sc_init_emulator(scp, SC_DFLT_TERM))
+		sc_init_emulator(scp, "*");
+	    (*scp->tsw->te_default_attr)(scp,
+					 kernel_default.std_color,
+					 kernel_default.rev_color);
 	} else {
 	    /* assert(sc_malloc) */
 	    sc->dev = malloc(sizeof(dev_t)*sc->vtys, M_DEVBUF, M_WAITOK);
@@ -3534,7 +2592,7 @@ scinit(int unit, int flags)
 	sc->cursor_height = imin(i, scp->font_size);
 	if (!ISGRAPHSC(scp)) {
     	    sc_set_cursor_image(scp);
-    	    draw_cursor_image(scp);
+    	    sc_draw_cursor_image(scp);
 	}
 
 	/* save font and palette */
@@ -3547,29 +2605,26 @@ scinit(int unit, int flags)
 	    bcopy(dflt_font_16, sc->font_16, sizeof(dflt_font_16));
 	    sc->fonts_loaded = FONT_16 | FONT_14 | FONT_8;
 	    if (scp->font_size < 14) {
-		copy_font(scp, LOAD, 8, sc->font_8);
-		sc->fonts_loaded = FONT_8;
+		sc_load_font(scp, 0, 8, sc->font_8, 0, 256);
 	    } else if (scp->font_size >= 16) {
-		copy_font(scp, LOAD, 16, sc->font_16);
-		sc->fonts_loaded = FONT_16;
+		sc_load_font(scp, 0, 16, sc->font_16, 0, 256);
 	    } else {
-		copy_font(scp, LOAD, 14, sc->font_14);
-		sc->fonts_loaded = FONT_14;
+		sc_load_font(scp, 0, 14, sc->font_14, 0, 256);
 	    }
 #else /* !SC_DFLT_FONT */
 	    if (scp->font_size < 14) {
-		copy_font(scp, SAVE, 8, sc->font_8);
+		sc_save_font(scp, 0, 8, sc->font_8, 0, 256);
 		sc->fonts_loaded = FONT_8;
 	    } else if (scp->font_size >= 16) {
-		copy_font(scp, SAVE, 16, sc->font_16);
+		sc_save_font(scp, 0, 16, sc->font_16, 0, 256);
 		sc->fonts_loaded = FONT_16;
 	    } else {
-		copy_font(scp, SAVE, 14, sc->font_14);
+		sc_save_font(scp, 0, 14, sc->font_14, 0, 256);
 		sc->fonts_loaded = FONT_14;
 	    }
 #endif /* SC_DFLT_FONT */
 	    /* FONT KLUDGE: always use the font page #0. XXX */
-	    (*vidsw[sc->adapter]->show_font)(sc->adp, 0);
+	    sc_show_font(scp, 0);
 	}
 #endif /* !SC_NO_FONT_LOADING */
 
@@ -3600,10 +2655,12 @@ scinit(int unit, int flags)
     sc->flags |= SC_INIT_DONE;
 }
 
+#if __i386__
 static void
 scterm(int unit, int flags)
 {
     sc_softc_t *sc;
+    scr_stat *scp;
 
     sc = sc_get_softc(unit, flags & SC_KERNEL_CONSOLE);
     if (sc == NULL)
@@ -3622,6 +2679,13 @@ scterm(int unit, int flags)
 	kbd_release(sc->kbd, &sc->keyboard);
     if (sc->adapter >= 0)
 	vid_release(sc->adp, &sc->adapter);
+
+    /* stop the terminal emulator, if any */
+    scp = SC_STAT(sc->dev[0]);
+    if (scp->tsw)
+	(*scp->tsw->te_term)(scp, &scp->ts);
+    if (scp->ts != NULL)
+	free(scp->ts, M_DEVBUF);
 
     /* clear the structure */
     if (!(flags & SC_KERNEL_CONSOLE)) {
@@ -3642,6 +2706,7 @@ scterm(int unit, int flags)
     sc->keyboard = -1;
     sc->adapter = -1;
 }
+#endif
 
 static void
 scshutdown(void *arg, int howto)
@@ -3652,14 +2717,16 @@ scshutdown(void *arg, int howto)
     if (!cold && sc_console
 	&& sc_console->sc->cur_scp->smode.mode == VT_AUTO 
 	&& sc_console->smode.mode == VT_AUTO)
-	switch_scr(sc_console->sc, sc_console->index);
+	sc_switch_scr(sc_console->sc, sc_console->index);
     shutdown_in_progress = TRUE;
 }
 
 int
 sc_clean_up(scr_stat *scp)
 {
+#if NSPLASH > 0
     int error;
+#endif /* NSPLASH */
 
     sc_touch_scrn_saver();
 #if NSPLASH > 0
@@ -3676,7 +2743,6 @@ sc_alloc_scr_buffer(scr_stat *scp, int wait, int discard)
 {
     sc_vtb_t new;
     sc_vtb_t old;
-    int s;
 
     old = scp->vtb;
     sc_vtb_init(&new, VTB_MEMORY, scp->xsize, scp->ysize, NULL, wait);
@@ -3690,11 +2756,7 @@ sc_alloc_scr_buffer(scr_stat *scp, int wait, int discard)
 	sc_vtb_copy(&old, 0, &new, 0, scp->xsize*scp->ysize);
 	scp->vtb = new;
     } else {
-        /* clear the screen and move the text cursor to the top-left position */
-	s = splhigh();
 	scp->vtb = new;
-	sc_clear_screen(scp);
-	splx(s);
 	sc_vtb_destroy(&old);
     }
 
@@ -3715,6 +2777,8 @@ static scr_stat
     init_scp(sc, vty, scp);
 
     sc_alloc_scr_buffer(scp, TRUE, TRUE);
+    if (sc_init_emulator(scp, SC_DFLT_TERM))
+	sc_init_emulator(scp, "*");
 
 #ifndef SC_NO_SYSMOUSE
     if (ISMOUSEAVAIL(sc->adp->va_flags))
@@ -3725,7 +2789,6 @@ static scr_stat
     sc_alloc_history_buffer(scp, 0, 0, TRUE);
 #endif
 
-    sc_clear_screen(scp);
     return scp;
 }
 
@@ -3733,6 +2796,8 @@ static void
 init_scp(sc_softc_t *sc, int vty, scr_stat *scp)
 {
     video_info_t info;
+
+    bzero(scp, sizeof(*scp));
 
     scp->index = vty;
     scp->sc = sc;
@@ -3745,7 +2810,7 @@ init_scp(sc_softc_t *sc, int vty, scr_stat *scp)
 	scp->ypixel = info.vi_height;
 	scp->xsize = info.vi_width/8;
 	scp->ysize = info.vi_height/info.vi_cheight;
-	scp->font_size = FONT_NONE;
+	scp->font_size = 0;
 	scp->font = NULL;
     } else {
 	scp->xsize = info.vi_width;
@@ -3779,15 +2844,11 @@ init_scp(sc_softc_t *sc, int vty, scr_stat *scp)
     sc_vtb_init(&scp->scr, VTB_FRAMEBUFFER, 0, 0, NULL, FALSE);
     scp->xoff = scp->yoff = 0;
     scp->xpos = scp->ypos = 0;
-    scp->saved_xpos = scp->saved_ypos = -1;
     scp->start = scp->xsize * scp->ysize - 1;
     scp->end = 0;
-    scp->term.esc = 0;
-    scp->term.attr_mask = NORMAL_ATTR;
-    scp->term.cur_attr =
-	scp->term.cur_color = scp->term.std_color =
-	current_default->std_color;
-    scp->term.rev_color = current_default->rev_color;
+    scp->tsw = NULL;
+    scp->ts = NULL;
+    scp->rndr = NULL;
     scp->border = BG_BLACK;
     scp->cursor_base = sc->cursor_base;
     scp->cursor_height = imin(sc->cursor_height, scp->font_size);
@@ -3809,14 +2870,64 @@ init_scp(sc_softc_t *sc, int vty, scr_stat *scp)
     scp->history = NULL;
     scp->history_pos = 0;
     scp->history_size = 0;
-#ifdef KANJI
-    scp->md.kanji_1st_char = 0;
-    scp->md.kanji_type = KTYPE_ASCII;
-#endif
+}
 
-    /* what if the following call fails... XXX */
-    scp->rndr = sc_render_match(scp, scp->sc->adp,
-				scp->status & (GRAPHICS_MODE | PIXEL_MODE));
+int
+sc_init_emulator(scr_stat *scp, char *name)
+{
+    sc_term_sw_t *sw;
+    sc_rndr_sw_t *rndr;
+    void *p;
+    int error;
+
+    if (name == NULL)	/* if no name is given, use the current emulator */
+	sw = scp->tsw;
+    else		/* ...otherwise find the named emulator */
+	sw = sc_term_match(name);
+    if (sw == NULL)
+	return EINVAL;
+
+    rndr = NULL;
+    if (strcmp(sw->te_renderer, "*") != 0) {
+	rndr = sc_render_match(scp, sw->te_renderer,
+			       scp->status & (GRAPHICS_MODE | PIXEL_MODE));
+    }
+    if (rndr == NULL) {
+	rndr = sc_render_match(scp, scp->sc->adp->va_name,
+			       scp->status & (GRAPHICS_MODE | PIXEL_MODE));
+	if (rndr == NULL)
+	    return ENODEV;
+    }
+
+    if (sw == scp->tsw) {
+	error = (*sw->te_init)(scp, &scp->ts, SC_TE_WARM_INIT);
+	scp->rndr = rndr;
+	sc_clear_screen(scp);
+	/* assert(error == 0); */
+	return error;
+    }
+
+    if (sc_malloc && (sw->te_size > 0))
+	p = malloc(sw->te_size, M_DEVBUF, M_NOWAIT);
+    else
+	p = NULL;
+    error = (*sw->te_init)(scp, &p, SC_TE_COLD_INIT);
+    if (error)
+	return error;
+
+    if (scp->tsw)
+	(*scp->tsw->te_term)(scp, &scp->ts);
+    if (scp->ts != NULL)
+	free(scp->ts, M_DEVBUF);
+    scp->tsw = sw;
+    scp->ts = p;
+    scp->rndr = rndr;
+
+    /* XXX */
+    (*sw->te_default_attr)(scp, user_default.std_color, user_default.rev_color);
+    sc_clear_screen(scp);
+
+    return 0;
 }
 
 /*
@@ -3829,6 +2940,9 @@ static u_int
 scgetc(sc_softc_t *sc, u_int flags)
 {
     scr_stat *scp;
+#ifndef SC_NO_HISTORY
+    struct tty *tp;
+#endif
     u_int c;
     int this_scr;
     int f;
@@ -3849,7 +2963,7 @@ next_code:
 	c = kbd_read_char(sc->kbd, !(flags & SCGETC_NONBLOCK));
 	if (c == ERRKEY) {
 	    if (!(flags & SCGETC_CN))
-		do_bell(scp, bios_value.bell_pitch, BELL_DURATION);
+		sc_bell(scp, bios_value.bell_pitch, BELL_DURATION);
 	} else if (c == NOKEY)
 	    return c;
 	else
@@ -3873,7 +2987,7 @@ next_code:
     if (!ISGRAPHSC(scp) && scp->history && scp->status & SLKED) {
 
 	scp->status &= ~CURSOR_ENABLED;
-	remove_cursor_image(scp);
+	sc_remove_cursor_image(scp);
 
 #ifndef SC_NO_HISTORY
 	if (!(scp->status & BUFFER_SAVED)) {
@@ -3896,14 +3010,14 @@ next_code:
 	    sc_remove_cutmarking(scp);
 	    if (sc_hist_up_line(scp))
 		if (!(flags & SCGETC_CN))
-		    do_bell(scp, bios_value.bell_pitch, BELL_DURATION);
+		    sc_bell(scp, bios_value.bell_pitch, BELL_DURATION);
 	    goto next_code;
 
 	case SPCLKEY | FKEY | F(58):  /* down arrow key */
 	    sc_remove_cutmarking(scp);
 	    if (sc_hist_down_line(scp))
 		if (!(flags & SCGETC_CN))
-		    do_bell(scp, bios_value.bell_pitch, BELL_DURATION);
+		    sc_bell(scp, bios_value.bell_pitch, BELL_DURATION);
 	    goto next_code;
 
 	case SPCLKEY | FKEY | F(51):  /* page up key */
@@ -3911,7 +3025,7 @@ next_code:
 	    for (i=0; i<scp->ysize; i++)
 	    if (sc_hist_up_line(scp)) {
 		if (!(flags & SCGETC_CN))
-		    do_bell(scp, bios_value.bell_pitch, BELL_DURATION);
+		    sc_bell(scp, bios_value.bell_pitch, BELL_DURATION);
 		break;
 	    }
 	    goto next_code;
@@ -3921,7 +3035,7 @@ next_code:
 	    for (i=0; i<scp->ysize; i++)
 	    if (sc_hist_down_line(scp)) {
 		if (!(flags & SCGETC_CN))
-		    do_bell(scp, bios_value.bell_pitch, BELL_DURATION);
+		    sc_bell(scp, bios_value.bell_pitch, BELL_DURATION);
 		break;
 	    }
 	    goto next_code;
@@ -3957,10 +3071,12 @@ next_code:
 				sc_remove_cutmarking(scp);
 			    scp->status &= ~BUFFER_SAVED;
 			    scp->status |= CURSOR_ENABLED;
-			    draw_cursor_image(scp);
+			    sc_draw_cursor_image(scp);
 			}
+			tp = VIRTUAL_TTY(sc, scp->index);
+			if (tp->t_state & TS_ISOPEN)
+			    scstart(tp);
 #endif
-			scstart(VIRTUAL_TTY(sc, scp->index));
 		    }
 		}
 		break;
@@ -4044,7 +3160,7 @@ next_code:
 			i = (i + 1)%sc->vtys) {
 		    struct tty *tp = VIRTUAL_TTY(sc, sc->first_vty + i);
 		    if (tp && tp->t_state & TS_ISOPEN) {
-			switch_scr(scp->sc, sc->first_vty + i);
+			sc_switch_scr(scp->sc, sc->first_vty + i);
 			break;
 		    }
 		}
@@ -4057,7 +3173,7 @@ next_code:
 			i = (i + sc->vtys - 1)%sc->vtys) {
 		    struct tty *tp = VIRTUAL_TTY(sc, sc->first_vty + i);
 		    if (tp && tp->t_state & TS_ISOPEN) {
-			switch_scr(scp->sc, sc->first_vty + i);
+			sc_switch_scr(scp->sc, sc->first_vty + i);
 			break;
 		    }
 		}
@@ -4065,7 +3181,7 @@ next_code:
 
 	    default:
 		if (KEYCHAR(c) >= F_SCR && KEYCHAR(c) <= L_SCR) {
-		    switch_scr(scp->sc, sc->first_vty + KEYCHAR(c) - F_SCR);
+		    sc_switch_scr(scp->sc, sc->first_vty + KEYCHAR(c) - F_SCR);
 		    break;
 		}
 		/* assert(c & FKEY) */
@@ -4089,41 +3205,10 @@ scmmap(dev_t dev, vm_offset_t offset, int nprot)
 {
     scr_stat *scp;
 
-    if (SC_VTY(dev) == SC_MOUSE)
-	return -1;
     scp = SC_STAT(dev);
     if (scp != scp->sc->cur_scp)
 	return -1;
     return (*vidsw[scp->sc->adapter]->mmap)(scp->sc->adp, offset, nprot);
-}
-
-/*
- * Calculate hardware attributes word using logical attributes mask and
- * hardware colors
- */
-
-static int
-mask2attr(struct term_stat *term)
-{
-    int attr, mask = term->attr_mask;
-
-    if (mask & REVERSE_ATTR) {
-	attr = ((mask & FOREGROUND_CHANGED) ?
-		((term->cur_color & 0xF000) >> 4) :
-		(term->rev_color & 0x0F00)) |
-	       ((mask & BACKGROUND_CHANGED) ?
-		((term->cur_color & 0x0F00) << 4) :
-		(term->rev_color & 0xF000));
-    } else
-	attr = term->cur_color;
-
-    /* XXX: underline mapping for Hercules adapter can be better */
-    if (mask & (BOLD_ATTR | UNDERLINE_ATTR))
-	attr ^= 0x0800;
-    if (mask & BLINK_ATTR)
-	attr ^= 0x8000;
-
-    return attr;
 }
 
 static int
@@ -4212,13 +3297,13 @@ set_mode(scr_stat *scp)
 	if (!(scp->status & PIXEL_MODE) && ISFONTAVAIL(scp->sc->adp->va_flags)) {
 	    if (scp->font_size < 14) {
 		if (scp->sc->fonts_loaded & FONT_8)
-		    copy_font(scp, LOAD, 8, scp->sc->font_8);
+		    sc_load_font(scp, 0, 8, scp->sc->font_8, 0, 256);
 	    } else if (scp->font_size >= 16) {
 		if (scp->sc->fonts_loaded & FONT_16)
-		    copy_font(scp, LOAD, 16, scp->sc->font_16);
+		    sc_load_font(scp, 0, 16, scp->sc->font_16, 0, 256);
 	    } else {
 		if (scp->sc->fonts_loaded & FONT_14)
-		    copy_font(scp, LOAD, 14, scp->sc->font_14);
+		    sc_load_font(scp, 0, 14, scp->sc->font_14, 0, 256);
 	    }
 	    /*
 	     * FONT KLUDGE:
@@ -4227,20 +3312,20 @@ set_mode(scr_stat *scp)
 	     * Somehow we cannot show the font in other font pages on
 	     * some video cards... XXX
 	     */ 
-	    (*vidsw[scp->sc->adapter]->show_font)(scp->sc->adp, 0);
+	    sc_show_font(scp, 0);
 	}
 	mark_all(scp);
     }
 #endif /* !SC_NO_FONT_LOADING */
 
-    set_border(scp, scp->border);
+    sc_set_border(scp, scp->border);
     sc_set_cursor_image(scp);
 
     return 0;
 }
 
 void
-set_border(scr_stat *scp, int color)
+sc_set_border(scr_stat *scp, int color)
 {
     ++scp->sc->videoio_in_progress;
     (*scp->rndr->draw_border)(scp, color);
@@ -4249,36 +3334,36 @@ set_border(scr_stat *scp, int color)
 
 #ifndef SC_NO_FONT_LOADING
 void
-copy_font(scr_stat *scp, int operation, int font_size, u_char *buf)
+sc_load_font(scr_stat *scp, int page, int size, u_char *buf,
+	     int base, int count)
 {
-    /*
-     * FONT KLUDGE:
-     * This is an interim kludge to display correct font.
-     * Always use the font page #0 on the video plane 2.
-     * Somehow we cannot show the font in other font pages on
-     * some video cards... XXX
-     */ 
-    scp->sc->font_loading_in_progress = TRUE;
-    if (operation == LOAD) {
-	(*vidsw[scp->sc->adapter]->load_font)(scp->sc->adp, 0, font_size,
-					      buf, 0, 256);
-    } else if (operation == SAVE) {
-	(*vidsw[scp->sc->adapter]->save_font)(scp->sc->adp, 0, font_size,
-					      buf, 0, 256);
-    }
-    scp->sc->font_loading_in_progress = FALSE;
+    sc_softc_t *sc;
+
+    sc = scp->sc;
+    sc->font_loading_in_progress = TRUE;
+    (*vidsw[sc->adapter]->load_font)(sc->adp, page, size, buf, base, count);
+    sc->font_loading_in_progress = FALSE;
+}
+
+void
+sc_save_font(scr_stat *scp, int page, int size, u_char *buf,
+	     int base, int count)
+{
+    sc_softc_t *sc;
+
+    sc = scp->sc;
+    sc->font_loading_in_progress = TRUE;
+    (*vidsw[sc->adapter]->save_font)(sc->adp, page, size, buf, base, count);
+    sc->font_loading_in_progress = FALSE;
+}
+
+void
+sc_show_font(scr_stat *scp, int page)
+{
+    (*vidsw[scp->sc->adapter]->show_font)(scp->sc->adp, page);
 }
 #endif /* !SC_NO_FONT_LOADING */
 
-#ifndef SC_NO_SYSMOUSE
-struct tty
-*sc_get_mouse_tty(void)
-{
-    return sc_mouse_tty;
-}
-#endif /* !SC_NO_SYSMOUSE */
-
-#ifndef SC_NO_CUTPASTE
 void
 sc_paste(scr_stat *scp, u_char *p, int count) 
 {
@@ -4294,10 +3379,9 @@ sc_paste(scr_stat *scp, u_char *p, int count)
 	    (*linesw[tp->t_line].l_rint)(rmap[*p++], tp);
     }
 }
-#endif /* SC_NO_CUTPASTE */
 
-static void
-do_bell(scr_stat *scp, int pitch, int duration)
+void
+sc_bell(scr_stat *scp, int pitch, int duration)
 {
     if (cold || shutdown_in_progress)
 	return;
@@ -4323,13 +3407,16 @@ static void
 blink_screen(void *arg)
 {
     scr_stat *scp = arg;
+    struct tty *tp;
 
     if (ISGRAPHSC(scp) || (scp->sc->blink_in_progress <= 1)) {
 	scp->sc->blink_in_progress = 0;
     	mark_all(scp);
-	scstart(VIRTUAL_TTY(scp->sc, scp->index));
+	tp = VIRTUAL_TTY(scp->sc, scp->index);
+	if (tp->t_state & TS_ISOPEN)
+	    scstart(tp);
 	if (scp->sc->delayed_next_scr)
-	    switch_scr(scp->sc, scp->sc->delayed_next_scr - 1);
+	    sc_switch_scr(scp->sc, scp->sc->delayed_next_scr - 1);
     }
     else {
 	(*scp->rndr->draw)(scp, 0, scp->xsize*scp->ysize, 

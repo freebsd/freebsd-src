@@ -37,7 +37,6 @@
 #include <sys/kernel.h>
 
 #include <machine/console.h>
-#include <machine/md_var.h>
 
 #include <dev/fb/fbreg.h>
 #include <dev/syscons/syscons.h>
@@ -63,6 +62,8 @@ static vr_draw_border_t		gdc_grborder;
 
 static void			gdc_nop(scr_stat *scp, ...);
 
+static struct linker_set	gdc_set;
+
 static sc_rndr_sw_t txtrndrsw = {
 	gdc_txtclear,
 	gdc_txtborder,
@@ -73,7 +74,7 @@ static sc_rndr_sw_t txtrndrsw = {
 	(vr_set_mouse_t *)gdc_nop,
 	gdc_txtmouse,
 };
-RENDERER(gdc, 0, txtrndrsw);
+RENDERER(gdc, 0, txtrndrsw, gdc_set);
 
 #ifndef SC_NO_MODE_CHANGE
 static sc_rndr_sw_t grrndrsw = {
@@ -86,8 +87,10 @@ static sc_rndr_sw_t grrndrsw = {
 	(vr_set_mouse_t *)gdc_nop,
 	(vr_draw_mouse_t *)gdc_nop,
 };
-RENDERER(gdc, GRAPHICS_MODE, grrndrsw);
+RENDERER(gdc, GRAPHICS_MODE, grrndrsw, gdc_set);
 #endif /* SC_NO_MODE_CHANGE */
+
+RENDERER_MODULE(gdc, gdc_set);
 
 static void
 gdc_nop(scr_stat *scp, ...)
