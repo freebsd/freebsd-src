@@ -582,7 +582,6 @@ tcp_newtcpcb(inp)
 #ifdef INET6
 	int isipv6 = (inp->inp_vflag & INP_IPV6) != 0;
 #endif /* INET6 */
-	int callout_flag;
 
 	tm = uma_zalloc(tcpcb_zone, M_NOWAIT | M_ZERO);
 	if (tm == NULL)
@@ -596,12 +595,11 @@ tcp_newtcpcb(inp)
 		tcp_mssdflt;
 
 	/* Set up our timeouts. */
-	callout_flag = debug_mpsafenet ? CALLOUT_MPSAFE : 0;
-	callout_init(tp->tt_rexmt = &tm->tcpcb_mem_rexmt, callout_flag);
-	callout_init(tp->tt_persist = &tm->tcpcb_mem_persist, callout_flag);
-	callout_init(tp->tt_keep = &tm->tcpcb_mem_keep, callout_flag);
-	callout_init(tp->tt_2msl = &tm->tcpcb_mem_2msl, callout_flag);
-	callout_init(tp->tt_delack = &tm->tcpcb_mem_delack, callout_flag);
+	callout_init(tp->tt_rexmt = &tm->tcpcb_mem_rexmt, NET_CALLOUT_MPSAFE);
+	callout_init(tp->tt_persist = &tm->tcpcb_mem_persist, NET_CALLOUT_MPSAFE);
+	callout_init(tp->tt_keep = &tm->tcpcb_mem_keep, NET_CALLOUT_MPSAFE);
+	callout_init(tp->tt_2msl = &tm->tcpcb_mem_2msl, NET_CALLOUT_MPSAFE);
+	callout_init(tp->tt_delack = &tm->tcpcb_mem_delack, NET_CALLOUT_MPSAFE);
 
 	if (tcp_do_rfc1323)
 		tp->t_flags = (TF_REQ_SCALE|TF_REQ_TSTMP);

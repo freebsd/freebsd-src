@@ -2034,7 +2034,7 @@ ip_dn_init(void)
     ip_dn_io_ptr = dummynet_io;
     ip_dn_ruledel_ptr = dn_rule_delete;
 
-    callout_init(&dn_timeout, debug_mpsafenet ? CALLOUT_MPSAFE : 0);
+    callout_init(&dn_timeout, NET_CALLOUT_MPSAFE);
     callout_reset(&dn_timeout, 1, dummynet, NULL);
 }
 
