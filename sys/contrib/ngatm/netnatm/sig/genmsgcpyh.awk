@@ -26,7 +26,7 @@
 #
 # Author: Hartmut Brandt <harti@freebsd.org>
 # 
-# $Begemot: libunimsg/atm/sig/genmsgcpyh.awk,v 1.3 2003/09/19 12:03:33 hbb Exp $
+# $Begemot: libunimsg/netnatm/sig/genmsgcpyh.awk,v 1.4 2004/07/08 08:22:19 brandt Exp $
 #
 # Generate copy functions for messages
 #

@@ -26,7 +26,7 @@
 #
 # Author: Hartmut Brandt <harti@freebsd.org>
 #
-# $Begemot: libunimsg/atm/msg/parsemsg.awk,v 1.3 2003/09/19 11:58:15 hbb Exp $
+# $Begemot: libunimsg/netnatm/msg/parsemsg.awk,v 1.3 2003/09/19 11:58:15 hbb Exp $
 #
 # Parse the message definition file
 #

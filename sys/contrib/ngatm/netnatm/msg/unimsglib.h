@@ -26,7 +26,7 @@
  *
  * Author: Hartmut Brandt <harti@freebsd.org>
  *
- * $Begemot: libunimsg/atm/msg/unimsglib.h,v 1.3 2003/09/19 11:58:16 hbb Exp $
+ * $Begemot: libunimsg/netnatm/msg/unimsglib.h,v 1.6 2004/07/08 08:22:07 brandt Exp $
  */
 #ifndef _NETNATM_MSG_UNIMSGLIB_H_
 #define _NETNATM_MSG_UNIMSGLIB_H_

@@ -3,6 +3,8 @@
  *	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
  * 	All rights reserved.
  *
+ * Author: Hartmut Brandt <harti@freebsd.org>
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -24,9 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * Author: Hartmut Brandt <harti@freebsd.org>
- *
- * $Begemot: libunimsg/atm/unimsg.h,v 1.3 2003/09/19 11:52:40 hbb Exp $
+ * $Begemot: libunimsg/netnatm/unimsg.h,v 1.4 2004/07/08 08:21:46 brandt Exp $
  *
  * This defines the structure of messages as handled by this library.
  */
@@ -38,8 +38,10 @@
 #ifdef __FreeBSD__
 #include <sys/systm.h>
 #endif
+#include <sys/stdint.h>
 #else
 #include <string.h>
+#include <stdint.h>
 #endif
 
 struct uni_msg {

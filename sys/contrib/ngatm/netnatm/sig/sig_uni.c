@@ -26,7 +26,7 @@
  *
  * Author: Hartmut Brandt <harti@freebsd.org>
  *
- * $Begemot: libunimsg/atm/sig/sig_uni.c,v 1.4 2003/09/24 10:27:50 hbb Exp $
+ * $Begemot: libunimsg/netnatm/sig/sig_uni.c,v 1.10 2004/07/08 08:22:23 brandt Exp $
  *
  * Instance handling
  */
@@ -363,7 +363,7 @@ static struct {
 };
 
 void
-uni_uni_input(struct uni *uni, enum uni_sig sig, u_int32_t cookie,
+uni_uni_input(struct uni *uni, enum uni_sig sig, uint32_t cookie,
     struct uni_msg *m)
 {
 	u_int i;
@@ -462,7 +462,7 @@ uni_work(struct uni *uni)
  */
 void
 uni_enq_sig(struct uni *uni, u_int type, struct call *call,
-    struct party *party, u_int32_t sig, u_int32_t cookie,
+    struct party *party, uint32_t sig, uint32_t cookie,
     struct uni_msg *msg, struct uni_all *u)
 {
 	struct sig *s;
@@ -484,7 +484,7 @@ uni_enq_sig(struct uni *uni, u_int type, struct call *call,
  */
 void
 uni_delenq_sig(struct uni *uni, u_int type, struct call *call,
-    struct party *party, u_int32_t sig, u_int32_t cookie,
+    struct party *party, uint32_t sig, uint32_t cookie,
     struct uni_msg *msg, struct uni_all *u)
 {
 	struct sig *s;
@@ -504,8 +504,8 @@ uni_delenq_sig(struct uni *uni, u_int type, struct call *call,
 /**************************************************************/
 
 void
-uniapi_uni_error(struct uni *uni, u_int32_t reason, u_int32_t cookie,
-    u_int32_t state)
+uniapi_uni_error(struct uni *uni, uint32_t reason, uint32_t cookie,
+    uint32_t state)
 {
 	struct uni_msg *resp;
 	struct uniapi_error *err;
@@ -524,12 +524,12 @@ uniapi_uni_error(struct uni *uni, u_int32_t reason, u_int32_t cookie,
 }
 
 void
-uniapi_call_error(struct call *c, u_int32_t reason, u_int32_t cookie)
+uniapi_call_error(struct call *c, uint32_t reason, uint32_t cookie)
 {
 	uniapi_uni_error(c->uni, reason, cookie, callstates[c->cstate].ext);
 }
 void
-uniapi_party_error(struct party *p, u_int32_t reason, u_int32_t cookie)
+uniapi_party_error(struct party *p, uint32_t reason, uint32_t cookie)
 {
 	uniapi_uni_error(p->call->uni, reason, cookie,
 	    callstates[p->call->cstate].ext);
@@ -657,7 +657,7 @@ uni_get_config(const struct uni *uni, struct uni_config *config)
 
 void
 uni_set_config(struct uni *uni, const struct uni_config *config,
-    u_int32_t *mask, u_int32_t *popt_mask, u_int32_t *opt_mask)
+    uint32_t *mask, uint32_t *popt_mask, uint32_t *opt_mask)
 {
 	int idle;
 

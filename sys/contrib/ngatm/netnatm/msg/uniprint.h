@@ -26,7 +26,7 @@
  *
  * Author: Hartmut Brandt <harti@freebsd.org>
  *
- * $Begemot: libunimsg/atm/msg/uniprint.h,v 1.3 2003/09/19 11:58:16 hbb Exp $
+ * $Begemot: libunimsg/netnatm/msg/uniprint.h,v 1.4 2004/07/08 08:22:08 brandt Exp $
  *
  * Print utility functions. These are only needed if you want to hook to
  * the format of the uni printing routines.
