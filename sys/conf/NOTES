@@ -1331,6 +1331,11 @@ options 	DPT_ALLOW_MEMIO
 device		mly
 
 #
+# Adaptec FSA RAID controllers, including integrated DELL controllers,
+# the Dell PERC 2/QC and the HP NetRAID-4M
+device		aac
+
+#
 # Compaq Smart RAID, Mylex DAC960 and AMI MegaRAID controllers.  Only
 # one entry is needed; the code will find and configure all supported
 # controllers.
