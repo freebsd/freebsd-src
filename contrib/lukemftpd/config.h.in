@@ -1,0 +1,274 @@
+/* config.h.in.  Generated automatically from configure.in by autoheader.  */
+/* $Id: config.h.in,v 1.15 2001/04/28 07:11:46 lukem Exp $ */
+
+
+/* Define if the closedir function returns void instead of int.  */
+#undef CLOSEDIR_VOID
+
+/* Define to empty if the keyword does not work.  */
+#undef const
+
+/* Define if your C compiler doesn't accept -c and -o together.  */
+#undef NO_MINUS_C_MINUS_O
+
+/* Define if your Fortran 77 compiler doesn't accept -c and -o together. */
+#undef F77_NO_MINUS_C_MINUS_O
+
+/* Define to `long' if <sys/types.h> doesn't define.  */
+#undef off_t
+
+/* Define to the type of arg1 for select(). */
+#undef SELECT_TYPE_ARG1
+
+/* Define to the type of args 2, 3 and 4 for select(). */
+#undef SELECT_TYPE_ARG234
+
+/* Define to the type of arg5 for select(). */
+#undef SELECT_TYPE_ARG5
+
+/* Define if you have the ANSI C header files.  */
+#undef STDC_HEADERS
+
+/* Define if you can safely include both <sys/time.h> and <time.h>.  */
+#undef TIME_WITH_SYS_TIME
+
+/* Define if the closedir function returns void instead of int.  */
+#undef VOID_CLOSEDIR
+
+/* The number of bytes in a off_t.  */
+#undef SIZEOF_OFF_T
+
+/* Define if you have the err function.  */
+#undef HAVE_ERR
+
+/* Define if you have the fgetln function.  */
+#undef HAVE_FGETLN
+
+/* Define if you have the flock function.  */
+#undef HAVE_FLOCK
+
+/* Define if you have the fparseln function.  */
+#undef HAVE_FPARSELN
+
+/* Define if you have the fts_open function.  */
+#undef HAVE_FTS_OPEN
+
+/* Define if you have the getaddrinfo function.  */
+#undef HAVE_GETADDRINFO
+
+/* Define if you have the getgrouplist function.  */
+#undef HAVE_GETGROUPLIST
+
+/* Define if you have the getnameinfo function.  */
+#undef HAVE_GETNAMEINFO
+
+/* Define if you have the getspnam function.  */
+#undef HAVE_GETSPNAM
+
+/* Define if you have the getusershell function.  */
+#undef HAVE_GETUSERSHELL
+
+/* Define if you have the inet_net_pton function.  */
+#undef HAVE_INET_NET_PTON
+
+/* Define if you have the inet_ntop function.  */
+#undef HAVE_INET_NTOP
+
+/* Define if you have the inet_pton function.  */
+#undef HAVE_INET_PTON
+
+/* Define if you have the lockf function.  */
+#undef HAVE_LOCKF
+
+/* Define if you have the mkstemp function.  */
+#undef HAVE_MKSTEMP
+
+/* Define if you have the setlogin function.  */
+#undef HAVE_SETLOGIN
+
+/* Define if you have the setproctitle function.  */
+#undef HAVE_SETPROCTITLE
+
+/* Define if you have the sl_init function.  */
+#undef HAVE_SL_INIT
+
+/* Define if you have the snprintf function.  */
+#undef HAVE_SNPRINTF
+
+/* Define if you have the strdup function.  */
+#undef HAVE_STRDUP
+
+/* Define if you have the strerror function.  */
+#undef HAVE_STRERROR
+
+/* Define if you have the strlcat function.  */
+#undef HAVE_STRLCAT
+
+/* Define if you have the strlcpy function.  */
+#undef HAVE_STRLCPY
+
+/* Define if you have the strmode function.  */
+#undef HAVE_STRMODE
+
+/* Define if you have the strsep function.  */
+#undef HAVE_STRSEP
+
+/* Define if you have the strtoll function.  */
+#undef HAVE_STRTOLL
+
+/* Define if you have the user_from_uid function.  */
+#undef HAVE_USER_FROM_UID
+
+/* Define if you have the usleep function.  */
+#undef HAVE_USLEEP
+
+/* Define if you have the vfork function.  */
+#undef HAVE_VFORK
+
+/* Define if you have the vsyslog function.  */
+#undef HAVE_VSYSLOG
+
+/* Define if you have the <arpa/nameser.h> header file.  */
+#undef HAVE_ARPA_NAMESER_H
+
+/* Define if you have the <dirent.h> header file.  */
+#undef HAVE_DIRENT_H
+
+/* Define if you have the <err.h> header file.  */
+#undef HAVE_ERR_H
+
+/* Define if you have the <fts.h> header file.  */
+#undef HAVE_FTS_H
+
+/* Define if you have the <libutil.h> header file.  */
+#undef HAVE_LIBUTIL_H
+
+/* Define if you have the <ndir.h> header file.  */
+#undef HAVE_NDIR_H
+
+/* Define if you have the <paths.h> header file.  */
+#undef HAVE_PATHS_H
+
+/* Define if you have the <sys/dir.h> header file.  */
+#undef HAVE_SYS_DIR_H
+
+/* Define if you have the <sys/ndir.h> header file.  */
+#undef HAVE_SYS_NDIR_H
+
+/* Define if you have the <sys/sysmacros.h> header file.  */
+#undef HAVE_SYS_SYSMACROS_H
+
+/* Define if you have the <util.h> header file.  */
+#undef HAVE_UTIL_H
+
+/* Define if you have the crypt library (-lcrypt).  */
+#undef HAVE_LIBCRYPT
+
+/* Define if you have the nsl library (-lnsl).  */
+#undef HAVE_LIBNSL
+
+/* Define if you have the skey library (-lskey).  */
+#undef HAVE_LIBSKEY
+
+/* Define if you have the socket library (-lsocket).  */
+#undef HAVE_LIBSOCKET
+
+/* Define if you have the util library (-lutil).  */
+#undef HAVE_LIBUTIL
+
+/* Define if your compiler supports `long long' */
+#undef HAVE_LONG_LONG
+
+/* Define if *printf() uses %qd to print `long long' (otherwise uses %lld) */
+#undef HAVE_PRINTF_QD
+
+/* Define if in_port_t exists */
+#undef HAVE_IN_PORT_T
+
+/* Define if struct sockaddr.sa_len exists (implies sockaddr_in.sin_len, etc) */
+#undef HAVE_SOCKADDR_SA_LEN
+
+/* Define if socklen_t exists */
+#undef HAVE_SOCKLEN_T
+
+/* Define if AF_INET6 exists in <sys/socket.h> */
+#undef HAVE_AF_INET6
+
+/* Define if `struct sockaddr_in6' exists in <netinet/in.h> */
+#undef HAVE_SOCKADDR_IN6
+
+/* Define if `struct addrinfo' exists in <netdb.h> */
+#undef HAVE_ADDRINFO
+
+/*
+ * Define if <netdb.h> contains AI_NUMERICHOST et al.
+ * Systems which only implement RFC2133 will need this.
+ */
+#undef HAVE_RFC2553_NETDB
+
+/* Define if `struct direct' has a d_namlen element */
+#undef HAVE_D_NAMLEN
+
+/* Define if struct passwd.pw_expire exists. */
+#undef HAVE_PW_EXPIRE
+
+/* Define if GLOB_BRACE, gl_path and gl_match exist in <glob.h> */
+#undef HAVE_WORKING_GLOB
+
+/* Define if crypt() is declared in <unistd.h> */
+#undef HAVE_CRYPT_D
+
+/* Define if fclose() is declared in <stdio.h> */
+#undef HAVE_FCLOSE_D
+
+/* Define if optarg is declared in <stdlib.h> or <unistd.h> */
+#undef HAVE_OPTARG_D
+
+/* Define if optind is declared in <stdlib.h> or <unistd.h> */
+#undef HAVE_OPTIND_D
+
+/* Define if optreset exists */
+#undef HAVE_OPTRESET
+
+/* Define if pclose() is declared in <stdio.h> */
+#undef HAVE_PCLOSE_D
+
+/* Define if getusershell() is declared in <unistd.h> */
+#undef HAVE_GETUSERSHELL_D
+
+/* Define if `long long' is supported and sizeof(off_t) >= 8 */
+#undef HAVE_QUAD_SUPPORT
+
+/* Define if not using in-built /bin/ls code */
+#undef NO_INTERNAL_LS
+
+/* Define if using S/Key */
+#undef SKEY
+
+/*
+ * Define this if compiling with SOCKS (the firewall traversal library).
+ * Also, you must define connect, getsockname, bind, accept, listen, and
+ * select to their R-versions.
+ */
+#undef	SOCKS
+#undef	SOCKS4
+#undef	SOCKS5
+#undef	connect
+#undef	getsockname
+#undef	bind
+#undef	accept
+#undef	listen
+#undef	select
+#undef	dup
+#undef	dup2
+#undef	fclose
+#undef	gethostbyname
+#undef	getpeername
+#undef	read
+#undef	recv
+#undef	recvfrom
+#undef	rresvport
+#undef	send
+#undef	sendto
+#undef	shutdown
+#undef	write
