@@ -411,7 +411,7 @@ dirloop:
 	 * 2. If this vnode is the root of a mounted
 	 *    filesystem, then replace it with the
 	 *    vnode which was mounted on so we take the
-	 *    .. in the other file system.
+	 *    .. in the other filesystem.
 	 * 3. If the vnode is the top directory of
 	 *    the jail or chroot, don't let them out.
 	 */
@@ -514,7 +514,7 @@ unionlookup:
 
 	/*
 	 * Check to see if the vnode has been mounted on;
-	 * if so find the root of the mounted file system.
+	 * if so find the root of the mounted filesystem.
 	 */
 	while (dp->v_type == VDIR && (mp = dp->v_mountedhere) &&
 	       (cnp->cn_flags & NOCROSSMOUNT) == 0) {
@@ -576,7 +576,7 @@ nextname:
 		goto dirloop;
 	}
 	/*
-	 * Disallow directory write attempts on read-only file systems.
+	 * Disallow directory write attempts on read-only filesystems.
 	 */
 	if (rdonly &&
 	    (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME)) {
@@ -718,7 +718,7 @@ relookup(dvp, vpp, cnp)
 	    ("relookup: symlink found.\n"));
 
 	/*
-	 * Disallow directory write attempts on read-only file systems.
+	 * Disallow directory write attempts on read-only filesystems.
 	 */
 	if (rdonly &&
 	    (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME)) {

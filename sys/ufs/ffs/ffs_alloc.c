@@ -77,7 +77,7 @@ static ino_t	ffs_nodealloccg(struct inode *, int, ufs_daddr_t, int);
 static ufs_daddr_t ffs_mapsearch(struct fs *, struct cg *, ufs_daddr_t, int);
 
 /*
- * Allocate a block in the file system.
+ * Allocate a block in the filesystem.
  *
  * The size of the requested block is given, which must be some
  * multiple of fs_fsize and <= fs_bsize.
@@ -160,8 +160,8 @@ nospace:
 		softdep_request_cleanup(fs, ITOV(ip));
 		goto retry;
 	}
-	ffs_fserr(fs, ip->i_number, "file system full");
-	uprintf("\n%s: write failed, file system is full\n", fs->fs_fsmnt);
+	ffs_fserr(fs, ip->i_number, "filesystem full");
+	uprintf("\n%s: write failed, filesystem is full\n", fs->fs_fsmnt);
 	return (ENOSPC);
 }
 
@@ -336,8 +336,8 @@ nospace:
 		softdep_request_cleanup(fs, vp);
 		goto retry;
 	}
-	ffs_fserr(fs, ip->i_number, "file system full");
-	uprintf("\n%s: write failed, file system is full\n", fs->fs_fsmnt);
+	ffs_fserr(fs, ip->i_number, "filesystem full");
+	uprintf("\n%s: write failed, filesystem is full\n", fs->fs_fsmnt);
 	return (ENOSPC);
 }
 
@@ -572,7 +572,7 @@ fail:
 }
 
 /*
- * Allocate an inode in the file system.
+ * Allocate an inode in the filesystem.
  *
  * If allocating a directory, use ffs_dirpref to select the inode.
  * If allocating in a directory, the following hierarchy is followed:
@@ -1850,7 +1850,7 @@ ffs_clusteracct(fs, cgp, blkno, cnt)
 }
 
 /*
- * Fserr prints the name of a file system with an error diagnostic.
+ * Fserr prints the name of a filesystem with an error diagnostic.
  *
  * The form of the error message is:
  *	fs: error message

@@ -148,7 +148,7 @@ ffs_mount(mp, path, data, ndp, td)
 	mode_t accessmode;
 
 	/*
-	 * Use NULL path to indicate we are mounting the root file system.
+	 * Use NULL path to indicate we are mounting the root filesystem.
 	 */
 	if (path == NULL) {
 		if ((error = bdevvp(rootdev, &rootvp))) {
@@ -163,7 +163,7 @@ ffs_mount(mp, path, data, ndp, td)
 	}
 
 	/*
-	 * Mounting non-root file system or updating a file system
+	 * Mounting non-root filesystem or updating a filesystem
 	 */
 	if ((error = copyin(data, (caddr_t)&args, sizeof(struct ufs_args)))!= 0)
 		return (error);
@@ -784,7 +784,7 @@ ffs_mountfs(devvp, mp, td, malloctype)
 	 *	- for each file in .attribute, enable that file with
 	 * 	  an attribute of the same name.
 	 * Not clear how to report errors -- probably eat them.
-	 * This would all happen while the file system was busy/not
+	 * This would all happen while the filesystem was busy/not
 	 * available, so would effectively be "atomic".
 	 */
 	(void) ufs_extattr_autostart(mp, td);
@@ -810,7 +810,7 @@ out:
 }
 
 /*
- * Sanity checks for old file systems.
+ * Sanity checks for old filesystems.
  *
  * XXX - goes away some day.
  */
@@ -968,7 +968,7 @@ ffs_flushfiles(mp, flags, td)
 }
 
 /*
- * Get file system statistics.
+ * Get filesystem statistics.
  */
 int
 ffs_statfs(mp, sbp, td)
@@ -1082,7 +1082,7 @@ loop:
 	}
 	mtx_unlock(&mntvnode_mtx);
 	/*
-	 * Force stale file system control information to be flushed.
+	 * Force stale filesystem control information to be flushed.
 	 */
 	if (waitfor == MNT_WAIT) {
 		if ((error = softdep_flushworklist(ump->um_mountp, &count, td)))
@@ -1411,7 +1411,7 @@ ffs_sbupdate(mp, waitfor)
 	fs->fs_fmod = 0;
 	fs->fs_time = time_second;
 	bcopy((caddr_t)fs, bp->b_data, (u_int)fs->fs_sbsize);
-	/* Restore compatibility to old file systems.		   XXX */
+	/* Restore compatibility to old filesystems.		   XXX */
 	dfs = (struct fs *)bp->b_data;				/* XXX */
 	if (fs->fs_postblformat == FS_42POSTBLFMT)		/* XXX */
 		dfs->fs_nrpos = -1;				/* XXX */

@@ -186,7 +186,7 @@ block_map(int file_block)
 #define max(a, b)	((a) > (b) ? (a) : (b))
 
 /*
- * Sanity checks for old file systems.
+ * Sanity checks for old filesystems.
  *
  * XXX - goes away some day.
  */

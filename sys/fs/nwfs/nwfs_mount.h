@@ -55,7 +55,7 @@
 #define	NWFS_VOLNAME_LEN	48
 
 
-/* Layout of the mount control block for a netware file system. */
+/* Layout of the mount control block for a netware filesystem. */
 struct nwfs_args {
 	int		connRef;		/* connection reference */
 	char		mount_point[MAXPATHLEN];

@@ -205,7 +205,7 @@ int  ncp_get_queue_job_ids(NWCONN_HANDLE, u_int32_t, u_int32_t,
 int  ncp_get_queue_job_info(NWCONN_HANDLE, u_int32_t, u_int32_t,
 		struct nw_queue_job_entry *);
 /*
- * file system and volume calls 
+ * filesystem and volume calls 
  */
 int  ncp_read(NWCONN_HANDLE, ncp_fh *, off_t, size_t, char *);
 int  ncp_write(NWCONN_HANDLE, ncp_fh *, off_t, size_t, char *);

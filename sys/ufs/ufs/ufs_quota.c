@@ -383,7 +383,7 @@ chkdquot(ip)
  */
 
 /*
- * Q_QUOTAON - set up a quota file for a particular file system.
+ * Q_QUOTAON - set up a quota file for a particular filesystem.
  */
 int
 quotaon(td, mp, type, fname)

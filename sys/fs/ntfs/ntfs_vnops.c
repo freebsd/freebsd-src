@@ -370,9 +370,9 @@ ntfs_access(ap)
 	dprintf(("ntfs_access: %d\n",ip->i_number));
 
 	/*
-	 * Disallow write attempts on read-only file systems;
+	 * Disallow write attempts on read-only filesystems;
 	 * unless the file is a socket, fifo, or a block or
-	 * character device resident on the file system.
+	 * character device resident on the filesystem.
 	 */
 	if (mode & VWRITE) {
 		switch ((int)vp->v_type) {

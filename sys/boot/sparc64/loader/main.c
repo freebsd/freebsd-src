@@ -396,10 +396,10 @@ main(int (*openfirm)(void *))
 		bootdev.d_dev = &ofwdisk;
 		/*
 		 * Sun compatible bootable CD-ROMs have a disk label placed
-		 * before the cd9660 data, with the actual file system being
+		 * before the cd9660 data, with the actual filesystem being
 		 * in the first partition, while the other partitions contain
 		 * pseudo disk labels with embedded boot blocks for different
-		 * architectures, which may be followed by UFS file systems.
+		 * architectures, which may be followed by UFS filesystems.
 		 * The firmware will set the boot path to the partition it
 		 * boots from ('f' in the sun4u case), but we want the kernel
 		 * to be loaded from the cd9660 fs ('a'), so the boot path

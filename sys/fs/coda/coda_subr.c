@@ -39,7 +39,7 @@
  */
 
 /*
- * This code was written for the Coda file system at Carnegie Mellon
+ * This code was written for the Coda filesystem at Carnegie Mellon
  * University.  Contributers include David Steere, James Kistler, and
  * M. Satyanarayanan.
  */

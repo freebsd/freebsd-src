@@ -246,9 +246,9 @@ msdosfs_access(ap)
 	file_mode &= pmp->pm_mask;
 
 	/*
-	 * Disallow write attempts on read-only file systems;
+	 * Disallow write attempts on read-only filesystems;
 	 * unless the file is a socket, fifo, or a block or
-	 * character device resident on the file system.
+	 * character device resident on the filesystem.
 	 */
 	if (mode & VWRITE) {
 		switch (vp->v_type) {
@@ -388,7 +388,7 @@ msdosfs_setattr(ap)
 		 * users to attempt to set SF_SETTABLE bits or anyone to
 		 * set unsupported bits.  However, we ignore attempts to
 		 * set ATTR_ARCHIVE for directories `cp -pr' from a more
-		 * sensible file system attempts it a lot.
+		 * sensible filesystem attempts it a lot.
 		 */
 		if (suser_cred(cred, PRISON_ROOT)) {
 			if (vap->va_flags & SF_SETTABLE)
@@ -425,9 +425,9 @@ msdosfs_setattr(ap)
 
 	if (vap->va_size != VNOVAL) {
 		/*
-		 * Disallow write attempts on read-only file systems;
+		 * Disallow write attempts on read-only filesystems;
 		 * unless the file is a socket, fifo, or a block or
-		 * character device resident on the file system.
+		 * character device resident on the filesystem.
 		 */
 		switch (vp->v_type) {
 		case VDIR:

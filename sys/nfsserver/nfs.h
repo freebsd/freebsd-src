@@ -77,7 +77,7 @@
 #define	B_INVAFTERWRITE	B_NOCACHE
 
 /*
- * The IO_METASYNC flag should be implemented for local file systems.
+ * The IO_METASYNC flag should be implemented for local filesystems.
  * (Until then, it is nothin at all.)
  */
 #ifndef IO_METASYNC

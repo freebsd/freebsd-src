@@ -170,11 +170,11 @@ smbfs_smb_statfs2(struct smb_share *ssp, struct statfs *sbp,
 	md_get_uint32le(mdp, &units);
 	md_get_uint32le(mdp, &funits);
 	md_get_uint16le(mdp, &bsize);
-	sbp->f_bsize = bpu * bsize;	/* fundamental file system block size */
-	sbp->f_blocks= units;		/* total data blocks in file system */
+	sbp->f_bsize = bpu * bsize;	/* fundamental filesystem block size */
+	sbp->f_blocks= units;		/* total data blocks in filesystem */
 	sbp->f_bfree = funits;		/* free blocks in fs */
 	sbp->f_bavail= funits;		/* free blocks avail to non-superuser */
-	sbp->f_files = 0xffff;		/* total file nodes in file system */
+	sbp->f_files = 0xffff;		/* total file nodes in filesystem */
 	sbp->f_ffree = 0xffff;		/* free file nodes in fs */
 	smb_t2_done(t2p);
 	return 0;
@@ -206,11 +206,11 @@ smbfs_smb_statfs(struct smb_share *ssp, struct statfs *sbp,
 	md_get_uint16le(mdp, &bpu);
 	md_get_uint16le(mdp, &bsize);
 	md_get_uint16le(mdp, &funits);
-	sbp->f_bsize = bpu * bsize;	/* fundamental file system block size */
-	sbp->f_blocks= units;		/* total data blocks in file system */
+	sbp->f_bsize = bpu * bsize;	/* fundamental filesystem block size */
+	sbp->f_blocks= units;		/* total data blocks in filesystem */
 	sbp->f_bfree = funits;		/* free blocks in fs */
 	sbp->f_bavail= funits;		/* free blocks avail to non-superuser */
-	sbp->f_files = 0xffff;		/* total file nodes in file system */
+	sbp->f_files = 0xffff;		/* total file nodes in filesystem */
 	sbp->f_ffree = 0xffff;		/* free file nodes in fs */
 	smb_rq_done(rqp);
 	return 0;

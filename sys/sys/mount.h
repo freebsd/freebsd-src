@@ -54,7 +54,7 @@
 struct netcred;
 struct netexport;
 
-typedef struct fsid { int32_t val[2]; } fsid_t;	/* file system id type */
+typedef struct fsid { int32_t val[2]; } fsid_t;	/* filesystem id type */
 
 /*
  * File identifier.
@@ -69,7 +69,7 @@ struct fid {
 };
 
 /*
- * file system statistics
+ * filesystem statistics
  */
 
 #define MFSNAMELEN	16	/* length of fs type name, including null */
@@ -82,14 +82,14 @@ struct fid {
 
 struct statfs {
 	long	f_spare2;		/* placeholder */
-	long	f_bsize;		/* fundamental file system block size */
+	long	f_bsize;		/* fundamental filesystem block size */
 	long	f_iosize;		/* optimal transfer block size */
-	long	f_blocks;		/* total data blocks in file system */
+	long	f_blocks;		/* total data blocks in filesystem */
 	long	f_bfree;		/* free blocks in fs */
 	long	f_bavail;		/* free blocks avail to non-superuser */
-	long	f_files;		/* total file nodes in file system */
+	long	f_files;		/* total file nodes in filesystem */
 	long	f_ffree;		/* free file nodes in fs */
-	fsid_t	f_fsid;			/* file system id */
+	fsid_t	f_fsid;			/* filesystem id */
 	uid_t	f_owner;		/* user that mounted the filesystem */
 	int	f_type;			/* type of filesystem */
 	int	f_flags;		/* copy of mount exported flags */
@@ -107,8 +107,8 @@ struct statfs {
 
 #ifdef _KERNEL
 /*
- * Structure per mounted file system.  Each mounted file system has an
- * array of operations and an instance record.  The file systems are
+ * Structure per mounted filesystem.  Each mounted filesystem has an
+ * array of operations and an instance record.  The filesystems are
  * put on a doubly linked list.
  *
  * NOTE: mnt_nvnodelist and mnt_reservedvnlist.  At the moment vnodes
@@ -159,12 +159,12 @@ struct mount {
  * User specifiable flags.
  */
 #define	MNT_RDONLY	0x00000001	/* read only filesystem */
-#define	MNT_SYNCHRONOUS	0x00000002	/* file system written synchronously */
+#define	MNT_SYNCHRONOUS	0x00000002	/* filesystem written synchronously */
 #define	MNT_NOEXEC	0x00000004	/* can't exec from filesystem */
 #define	MNT_NOSUID	0x00000008	/* don't honor setuid bits on fs */
 #define	MNT_NODEV	0x00000010	/* don't interpret special files */
 #define	MNT_UNION	0x00000020	/* union with underlying filesystem */
-#define	MNT_ASYNC	0x00000040	/* file system written asynchronously */
+#define	MNT_ASYNC	0x00000040	/* filesystem written asynchronously */
 #define	MNT_SUIDDIR	0x00100000	/* special handling of SUID on dirs */
 #define	MNT_SOFTDEP	0x00200000	/* soft updates being done */
 #define	MNT_NOSYMFOLLOW	0x00400000	/* do not follow symlinks */
@@ -178,7 +178,7 @@ struct mount {
  * NFS export related mount flags.
  */
 #define	MNT_EXRDONLY	0x00000080	/* exported read only */
-#define	MNT_EXPORTED	0x00000100	/* file system is exported */
+#define	MNT_EXPORTED	0x00000100	/* filesystem is exported */
 #define	MNT_DEFEXPORTED	0x00000200	/* exported to the world */
 #define	MNT_EXPORTANON	0x00000400	/* use anon uid mapping for everyone */
 #define	MNT_EXKERB	0x00000800	/* exported with Kerberos uid mapping */
@@ -357,7 +357,7 @@ extern int nfs_mount_type;	/* vfc_typenum for nfs, or -1 */
 extern struct vfsconf *vfsconf;	/* head of list of filesystem types */
 
 /*
- * Operations supported on mounted file system.
+ * Operations supported on mounted filesystem.
  */
 #ifdef __STDC__
 struct nameidata;

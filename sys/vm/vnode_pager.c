@@ -414,7 +414,7 @@ vnode_pager_iodone(bp)
 }
 
 /*
- * small block file system vnode pager input
+ * small block filesystem vnode pager input
  */
 static int
 vnode_pager_input_smlfs(object, m)

@@ -596,7 +596,7 @@ options 	NFS_ROOT		#NFS usable as root device
 # You can find details in src/sys/ufs/ifs/README .
 options 	IFS
 
-# Soft updates is a technique for improving file system speed and
+# Soft updates is a technique for improving filesystem speed and
 # making abrupt shutdown less risky.
 #
 options 	SOFTUPDATES
