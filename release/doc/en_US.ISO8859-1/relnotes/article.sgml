@@ -40,6 +40,16 @@
     It also provides some notes on upgrading
     from previous versions of &os;.</para>
 
+<![ %release.type.current [
+
+  <para>The &release.type; distribution to which these release notes
+    apply represents the latest point along the &release.branch; development
+    branch since &release.branch; is created.  Some pre-built, binary
+    &release.type; distributions along this branch
+    can be found at <ulink url="&release.url;"></ulink>.</para>
+
+]]>
+
 <![ %release.type.snapshot [
 
   <para>The &release.type; distribution to which these release notes
@@ -63,15 +73,6 @@
     Handbook</ulink>.</para>
 
 ]]>
-
-  <para>Users who are new to the &release.branch; series of &os;
-    &release.type;s should also read the <quote>Early Adopters Guide
-    to &os; &release.current;</quote>.  This document can generally be
-    found in the same location as the release notes (either as a part of a
-    &os; distribution or on the &os; Web site).  It contains important
-    information regarding the advantages and disadvantages of using
-    &os; &release.current;, as opposed to releases based on the &os;
-    4-STABLE development branch.</para>
 
   <para>All users are encouraged to consult the release errata before
     installing &os;.  The errata document is updated with
