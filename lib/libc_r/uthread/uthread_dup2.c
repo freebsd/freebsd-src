@@ -71,7 +71,7 @@ _dup2(int fd, int newfd)
 				/* Initialise the file descriptor table entry */
 				if (_thread_fd_table_init(ret) != 0) {
 					/* Quietly close the file: */
-					__sys_close(ret);
+					_thread_sys_close(ret);
 
 					/* Reset the file descriptor: */
 					ret = -1;
