@@ -304,96 +304,6 @@ extern long first_page;			/* first physical page number */
 #define PHYS_TO_VM_PAGE(pa) \
 		(&vm_page_array[atop(pa) - first_page ])
 
-/*
- *	Functions implemented as macros
- */
-
-static __inline void
-vm_page_flag_set(vm_page_t m, unsigned short bits)
-{
-	GIANT_REQUIRED;
-	atomic_set_short(&(m)->flags, bits);
-	/* m->flags |= bits; */
-}
-
-static __inline void
-vm_page_flag_clear(vm_page_t m, unsigned short bits)
-{
-	GIANT_REQUIRED;
-	atomic_clear_short(&(m)->flags, bits);
-	/* m->flags &= ~bits; */
-}
-
-#if 0
-static __inline void
-vm_page_assert_wait(vm_page_t m, int interruptible)
-{
-	vm_page_flag_set(m, PG_WANTED);
-	assert_wait((int) m, interruptible);
-}
-#endif
-
-static __inline void
-vm_page_busy(vm_page_t m)
-{
-
-	KASSERT((m->flags & PG_BUSY) == 0,
-	    ("vm_page_busy: page already busy!!!"));
-	vm_page_flag_set(m, PG_BUSY);
-}
-
-/*
- *	vm_page_flash:
- *
- *	wakeup anyone waiting for the page.
- */
-
-static __inline void
-vm_page_flash(vm_page_t m)
-{
-	if (m->flags & PG_WANTED) {
-		vm_page_flag_clear(m, PG_WANTED);
-		wakeup(m);
-	}
-}
-
-/*
- *	vm_page_wakeup:
- *
- *	clear the PG_BUSY flag and wakeup anyone waiting for the
- *	page.
- *
- */
-
-static __inline void
-vm_page_wakeup(vm_page_t m)
-{
-	KASSERT(m->flags & PG_BUSY, ("vm_page_wakeup: page not busy!!!"));
-	vm_page_flag_clear(m, PG_BUSY);
-	vm_page_flash(m);
-}
-
-/*
- *
- *
- */
-
-static __inline void
-vm_page_io_start(vm_page_t m)
-{
-	GIANT_REQUIRED;
-	atomic_add_char(&(m)->busy, 1);
-}
-
-static __inline void
-vm_page_io_finish(vm_page_t m)
-{
-	GIANT_REQUIRED;
-	atomic_subtract_char(&(m)->busy, 1);
-	if (m->busy == 0)
-		vm_page_flash(m);
-}
-
 
 #if PAGE_SIZE == 4096
 #define VM_PAGE_BITS_ALL 0xff
@@ -409,236 +319,57 @@ vm_page_io_finish(vm_page_t m)
 #define	VM_ALLOC_ZERO		3
 #define	VM_ALLOC_RETRY		0x80
 
-void vm_page_activate __P((vm_page_t));
-vm_page_t vm_page_alloc __P((vm_object_t, vm_pindex_t, int));
-vm_page_t vm_page_grab __P((vm_object_t, vm_pindex_t, int));
-void vm_page_cache __P((register vm_page_t));
-int vm_page_try_to_cache __P((vm_page_t));
-int vm_page_try_to_free __P((vm_page_t));
-void vm_page_dontneed __P((register vm_page_t));
-static __inline void vm_page_copy __P((vm_page_t, vm_page_t));
-static __inline void vm_page_free __P((vm_page_t));
-static __inline void vm_page_free_zero __P((vm_page_t));
-void vm_page_deactivate __P((vm_page_t));
-void vm_page_insert __P((vm_page_t, vm_object_t, vm_pindex_t));
-vm_page_t vm_page_lookup __P((vm_object_t, vm_pindex_t));
-void vm_page_remove __P((vm_page_t));
-void vm_page_rename __P((vm_page_t, vm_object_t, vm_pindex_t));
-vm_offset_t vm_page_startup __P((vm_offset_t, vm_offset_t, vm_offset_t));
-vm_page_t vm_add_new_page __P((vm_offset_t pa));
-void vm_page_unmanage __P((vm_page_t));
-void vm_page_unwire __P((vm_page_t, int));
-void vm_page_wire __P((vm_page_t));
-void vm_page_unqueue __P((vm_page_t));
-void vm_page_unqueue_nowakeup __P((vm_page_t));
-void vm_page_set_validclean __P((vm_page_t, int, int));
-void vm_page_set_dirty __P((vm_page_t, int, int));
-void vm_page_clear_dirty __P((vm_page_t, int, int));
-void vm_page_set_invalid __P((vm_page_t, int, int));
-static __inline boolean_t vm_page_zero_fill __P((vm_page_t));
-int vm_page_is_valid __P((vm_page_t, int, int));
-void vm_page_test_dirty __P((vm_page_t));
-int vm_page_bits __P((int, int));
-vm_page_t _vm_page_list_find __P((int, int));
+void vm_page_flag_set(vm_page_t m, unsigned short bits);
+void vm_page_flag_clear(vm_page_t m, unsigned short bits);
+void vm_page_busy(vm_page_t m);
+void vm_page_flash(vm_page_t m);
+void vm_page_io_start(vm_page_t m);
+void vm_page_io_finish(vm_page_t m);
+void vm_page_hold(vm_page_t mem);
+void vm_page_unhold(vm_page_t mem);
+void vm_page_protect(vm_page_t mem, int prot);
+boolean_t vm_page_zero_fill(vm_page_t m);
+void vm_page_copy(vm_page_t src_m, vm_page_t dest_m);
+void vm_page_free(vm_page_t m);
+void vm_page_free_zero(vm_page_t m);
+int vm_page_sleep_busy(vm_page_t m, int also_m_busy, const char *msg);
+void vm_page_dirty(vm_page_t m);
+void vm_page_undirty(vm_page_t m);
+vm_page_t vm_page_list_find(int basequeue, int index, boolean_t prefer_zero);
+void vm_page_wakeup(vm_page_t m);
+
+void vm_page_activate (vm_page_t);
+vm_page_t vm_page_alloc (vm_object_t, vm_pindex_t, int);
+vm_page_t vm_page_grab (vm_object_t, vm_pindex_t, int);
+void vm_page_cache (register vm_page_t);
+int vm_page_try_to_cache (vm_page_t);
+int vm_page_try_to_free (vm_page_t);
+void vm_page_dontneed (register vm_page_t);
+void vm_page_deactivate (vm_page_t);
+void vm_page_insert (vm_page_t, vm_object_t, vm_pindex_t);
+vm_page_t vm_page_lookup (vm_object_t, vm_pindex_t);
+void vm_page_remove (vm_page_t);
+void vm_page_rename (vm_page_t, vm_object_t, vm_pindex_t);
+vm_offset_t vm_page_startup (vm_offset_t, vm_offset_t, vm_offset_t);
+vm_page_t vm_add_new_page (vm_offset_t pa);
+void vm_page_unmanage (vm_page_t);
+void vm_page_unwire (vm_page_t, int);
+void vm_page_wire (vm_page_t);
+void vm_page_unqueue (vm_page_t);
+void vm_page_unqueue_nowakeup (vm_page_t);
+void vm_page_set_validclean (vm_page_t, int, int);
+void vm_page_set_dirty (vm_page_t, int, int);
+void vm_page_clear_dirty (vm_page_t, int, int);
+void vm_page_set_invalid (vm_page_t, int, int);
+int vm_page_is_valid (vm_page_t, int, int);
+void vm_page_test_dirty (vm_page_t);
+int vm_page_bits (int, int);
 #if 0
 int vm_page_sleep(vm_page_t m, char *msg, char *busy);
 int vm_page_asleep(vm_page_t m, char *msg, char *busy);
 #endif
 void vm_page_zero_invalid(vm_page_t m, boolean_t setvalid);
 void vm_page_free_toq(vm_page_t m);
-
-/*
- * Keep page from being freed by the page daemon
- * much of the same effect as wiring, except much lower
- * overhead and should be used only for *very* temporary
- * holding ("wiring").
- */
-static __inline void
-vm_page_hold(vm_page_t mem)
-{
-	GIANT_REQUIRED;
-	mem->hold_count++;
-}
-
-static __inline void
-vm_page_unhold(vm_page_t mem)
-{
-	GIANT_REQUIRED;
-	--mem->hold_count;
-	KASSERT(mem->hold_count >= 0, ("vm_page_unhold: hold count < 0!!!"));
-}
-
-/*
- * 	vm_page_protect:
- *
- *	Reduce the protection of a page.  This routine never raises the 
- *	protection and therefore can be safely called if the page is already
- *	at VM_PROT_NONE (it will be a NOP effectively ).
- */
-
-static __inline void
-vm_page_protect(vm_page_t mem, int prot)
-{
-	if (prot == VM_PROT_NONE) {
-		if (mem->flags & (PG_WRITEABLE|PG_MAPPED)) {
-			pmap_page_protect(mem, VM_PROT_NONE);
-			vm_page_flag_clear(mem, PG_WRITEABLE|PG_MAPPED);
-		}
-	} else if ((prot == VM_PROT_READ) && (mem->flags & PG_WRITEABLE)) {
-		pmap_page_protect(mem, VM_PROT_READ);
-		vm_page_flag_clear(mem, PG_WRITEABLE);
-	}
-}
-
-/*
- *	vm_page_zero_fill:
- *
- *	Zero-fill the specified page.
- *	Written as a standard pagein routine, to
- *	be used by the zero-fill object.
- */
-static __inline boolean_t
-vm_page_zero_fill(m)
-	vm_page_t m;
-{
-	pmap_zero_page(VM_PAGE_TO_PHYS(m));
-	return (TRUE);
-}
-
-/*
- *	vm_page_copy:
- *
- *	Copy one page to another
- */
-static __inline void
-vm_page_copy(src_m, dest_m)
-	vm_page_t src_m;
-	vm_page_t dest_m;
-{
-	pmap_copy_page(VM_PAGE_TO_PHYS(src_m), VM_PAGE_TO_PHYS(dest_m));
-	dest_m->valid = VM_PAGE_BITS_ALL;
-}
-
-/*
- *	vm_page_free:
- *
- *	Free a page
- *
- *	The clearing of PG_ZERO is a temporary safety until the code can be
- *	reviewed to determine that PG_ZERO is being properly cleared on
- *	write faults or maps.  PG_ZERO was previously cleared in 
- *	vm_page_alloc().
- */
-static __inline void
-vm_page_free(m)
-	vm_page_t m;
-{
-	vm_page_flag_clear(m, PG_ZERO);
-	vm_page_free_toq(m);
-}
-
-/*
- *	vm_page_free_zero:
- *
- *	Free a page to the zerod-pages queue
- */
-static __inline void
-vm_page_free_zero(m)
-	vm_page_t m;
-{
-	vm_page_flag_set(m, PG_ZERO);
-	vm_page_free_toq(m);
-}
-
-/*
- *	vm_page_sleep_busy:
- *
- *	Wait until page is no longer PG_BUSY or (if also_m_busy is TRUE)
- *	m->busy is zero.  Returns TRUE if it had to sleep ( including if 
- *	it almost had to sleep and made temporary spl*() mods), FALSE 
- *	otherwise.
- *
- *	This routine assumes that interrupts can only remove the busy
- *	status from a page, not set the busy status or change it from
- *	PG_BUSY to m->busy or vise versa (which would create a timing
- *	window).
- *
- *	Note that being an inline, this code will be well optimized.
- */
-
-static __inline int
-vm_page_sleep_busy(vm_page_t m, int also_m_busy, const char *msg)
-{
-	GIANT_REQUIRED;
-	if ((m->flags & PG_BUSY) || (also_m_busy && m->busy))  {
-		int s = splvm();
-		if ((m->flags & PG_BUSY) || (also_m_busy && m->busy)) {
-			/*
-			 * Page is busy. Wait and retry.
-			 */
-			vm_page_flag_set(m, PG_WANTED | PG_REFERENCED);
-			tsleep(m, PVM, msg, 0);
-		}
-		splx(s);
-		return(TRUE);
-		/* not reached */
-	}
-	return(FALSE);
-}
-
-/*
- *	vm_page_dirty:
- *
- *	make page all dirty
- */
-
-static __inline void
-vm_page_dirty(vm_page_t m)
-{
-#if !defined(KLD_MODULE)
-	KASSERT(m->queue - m->pc != PQ_CACHE, ("vm_page_dirty: page in cache!"));
-#endif
-	m->dirty = VM_PAGE_BITS_ALL;
-}
-
-/*
- *	vm_page_undirty:
- *
- *	Set page to not be dirty.  Note: does not clear pmap modify bits 
- */
-
-static __inline void
-vm_page_undirty(vm_page_t m)
-{
-	m->dirty = 0;
-}
-
-#if !defined(KLD_MODULE)
-
-static __inline vm_page_t
-vm_page_list_find(int basequeue, int index, boolean_t prefer_zero)
-{
-	vm_page_t m;
-
-#if PQ_L2_SIZE > 1
-	if (prefer_zero) {
-		m = TAILQ_LAST(&vm_page_queues[basequeue+index].pl, pglist);
-	} else {
-		m = TAILQ_FIRST(&vm_page_queues[basequeue+index].pl);
-	}
-	if (m == NULL)
-		m = _vm_page_list_find(basequeue, index);
-#else
-	if (prefer_zero) {
-		m = TAILQ_LAST(&vm_page_queues[basequeue].pl, pglist);
-	} else {
-		m = TAILQ_FIRST(&vm_page_queues[basequeue].pl);
-	}
-#endif
-	return(m);
-}
-
-#endif
 
 #endif				/* _KERNEL */
 #endif				/* !_VM_PAGE_ */
