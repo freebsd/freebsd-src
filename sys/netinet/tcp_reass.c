@@ -1139,7 +1139,6 @@ findpcb:
 		tp->irs = th->th_seq;
 		tcp_sendseqinit(tp);
 		tcp_rcvseqinit(tp);
-		tp->snd_recover = tp->snd_una;
 		/*
 		 * Initialization of the tcpcb for transaction;
 		 *   set SND.WND = SEG.WND,
