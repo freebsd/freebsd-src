@@ -36,7 +36,6 @@
  *
  */
 
-#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/mman.h>
 #include <sys/socket.h>
@@ -169,7 +168,7 @@ int prn;
 	/*
 	 * We need to introduce a delay in here or things tend to hang...
 	 */
-	delay(10);
+	delay(10000);
 
 	if ( lineptr >= sizeof(line) )
 		lineptr = 0;
@@ -242,10 +241,13 @@ int dn;
 	{
 		if ( CP_READ(Uart->mon_xmithost) & UART_VALID )
 			getbyte ( 0 );
-		if ( !dn ) delay ( 1000 );
+		if ( !dn ) delay ( 10000 );
 	}
 	val = ( c | UART_VALID );
 	Uart->mon_xmitmon = CP_WRITE( val );
+	if ( !dn ) delay ( 10000 );
+	if ( CP_READ(Uart->mon_xmithost) & UART_VALID )
+		getbyte ( 0 );
 
 }
 
@@ -756,7 +758,7 @@ u_char *ram;
 
 		xmit_to_i960 ( cmd, strlen ( cmd ), 0 );
 
-		while ( strncmp ( line, cmd, strlen(cmd) - 3 ) != 0 )
+		while ( strncmp ( line, cmd, strlen(cmd) - 3 ) != 0 ) 
 			getline ( verbose );
 
 		if ( verbose )
@@ -1083,7 +1085,7 @@ char *argv[];
 #else
 			ram = (u_char *) mmap(0, air->acp_ramsize,
 #endif
-				PROT_READ | PROT_WRITE, MAP_SHARED,
+				PROT_READ | PROT_WRITE, MAP_SHARED | MAP_HASSEMAPHORE,
 				fd, air->acp_ram);
 			if (ram == (u_char *)-1) {
 				perror ( "mmap ram" );
@@ -1330,14 +1332,20 @@ char *argv[];
 			     */
 			     aap = (Aali *)(ram + CP_READ(Mon->mon_appl));
 			     for (i = 0; i < MAX_CHECK; i++, sleep(1)) {
-				u_long	hb1, hb2;
+				u_long	hb1, hb2, hb3;
 
-				if (CP_READ(Mon->mon_bstat) != BOOT_RUNNING)
+				hb3 = CP_READ(Mon->mon_bstat);
+				if (hb3 != BOOT_RUNNING) {
+					if (verbose)
+						printf("bstat %x\n", hb3);
 					continue;
+				}
 
 				hb1 = CP_READ(aap->aali_heartbeat);
 				delay(1);
 				hb2 = CP_READ(aap->aali_heartbeat);
+				if (verbose)
+					printf("hb %x %x\n", hb1, hb2);
 				if (hb1 < hb2)
 					break;
 			     }
