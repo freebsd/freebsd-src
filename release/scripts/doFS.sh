@@ -58,6 +58,9 @@ dofs_vn () {
 	dd of=${FSIMG} if=/dev/zero count=${FSSIZE} bs=1k 2>/dev/null
 
 	vnconfig -s labels -c /dev/r${VNDEVICE} ${FSIMG}
+
+	trap "umount ${MNT}; vnconfig -u /dev/r${VNDEVICE}" EXIT
+
 	disklabel -w ${BOOT} ${VNDEVICE} ${FSLABEL}
 	newfs -i ${FSINODE} -o space -m 0 /dev/r${VNDEVICE}c
 
@@ -72,9 +75,6 @@ dofs_vn () {
 	df -ki ${MNT}
 
 	set `df -ki ${MNT} | tail -1`
-
-	umount ${MNT}
-	vnconfig -u /dev/r${VNDEVICE} 2>/dev/null || true
 
 	echo "*** Filesystem is ${FSSIZE} K, $4 left"
 	echo "***     ${FSINODE} bytes/inode, $7 left"
@@ -102,6 +102,9 @@ dofs_md () {
 		echo "No /dev/$MDDEVICE" 1>&2
 		exit 1
 	fi
+
+	trap "umount ${MNT}; mdconfig -d -u ${MDDEVICE}" EXIT
+
 	disklabel ${MACHINE} -w ${BOOT} ${MDDEVICE} ${FSLABEL}
 	newfs -i ${FSINODE} -o space -m 0 /dev/${MDDEVICE}c
 
@@ -116,9 +119,6 @@ dofs_md () {
 	df -ki ${MNT}
 
 	set `df -ki ${MNT} | tail -1`
-
-	umount ${MNT}
-	mdconfig -d -u ${MDDEVICE} 2>/dev/null || true
 
 	echo "*** Filesystem is ${FSSIZE} K, $4 left"
 	echo "***     ${FSINODE} bytes/inode, $7 left"
