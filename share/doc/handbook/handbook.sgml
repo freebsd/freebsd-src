@@ -1,4 +1,4 @@
-<!-- $Id: handbook.sgml,v 1.20 1995/07/18 21:33:48 jfieber Exp $ -->
+<!-- $Id: handbook.sgml,v 1.21 1995/07/27 16:15:32 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN" [
@@ -34,6 +34,7 @@
 <!ENTITY submitters SYSTEM "submitters.sgml">
 <!ENTITY sup SYSTEM "sup.sgml">
 <!ENTITY troubleshooting SYSTEM "troubleshooting.sgml">
+<!ENTITY userppp SYSTEM "userppp.sgml">
 
 ]>
 
@@ -61,7 +62,7 @@ OUTLINE:
       <author>
 	<name>The FreeBSD Documentation Project</name>
       </author>
-      <date>July 27, 1995</date>
+      <date>July 28, 1995</date>
 
       <abstract>Welcome to FreeBSD!  This handbook covers the
 	installation and day to day use of <bf>FreeBSD Release
@@ -135,6 +136,17 @@ OUTLINE:
       &dialup;
 
     <chapt><heading>PPP and SLIP</heading>
+
+    <p>If your connection to the internet is through a modem, or
+    you wish to provide other people with dialup connections to
+    the internet using FreeBSD, you have the option of using PPP
+    or SLIP.  Furthermore, two varieties of PPP are provided:
+    <em>user</em> (sometimes referred to as iijppp) and
+    <em>kernel</em>.  The procedures for configuring both types
+    of PPP, and for setting up SLIP are described in this
+    chapter.
+
+      &userppp;
       &ppp;
       &slipc; 
       &slips;
