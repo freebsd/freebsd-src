@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: BSD.var.dist,v 1.9 1994/02/15 10:38:50 rgrimes Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -23,8 +23,6 @@ cron
 db
 ..
 log
-..
-mail
 ..
 msgs
 ..
@@ -63,7 +61,8 @@ spool
 /set type=dir uname=bin gname=bin mode=0755
 tmp	mode=01777
 ..
-
+mail
+..
 /set type=file uname=games gname=bin mode=0755
 games	type=dir
 	hackdir	type=dir
