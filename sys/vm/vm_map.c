@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.162 1999/05/16 05:07:31 alc Exp $
+ * $Id: vm_map.c,v 1.163 1999/05/17 00:53:53 alc Exp $
  */
 
 /*
@@ -431,10 +431,6 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	vm_map_entry_t temp_entry;
 	u_char protoeflags;
 
-	if ((object != NULL) && (cow & MAP_NOFAULT)) {
-		panic("vm_map_insert: paradoxical MAP_NOFAULT request");
-	}
-
 	/*
 	 * Check that the start and end points are not bogus.
 	 */
@@ -466,9 +462,12 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	if (cow & MAP_COPY_ON_WRITE)
 		protoeflags |= MAP_ENTRY_COW|MAP_ENTRY_NEEDS_COPY;
 
-	if (cow & MAP_NOFAULT)
+	if (cow & MAP_NOFAULT) {
 		protoeflags |= MAP_ENTRY_NOFAULT;
 
+		KASSERT(object == NULL,
+			("vm_map_insert: paradoxical MAP_NOFAULT request"));
+	}
 	if (object) {
 		/*
 		 * When object is non-NULL, it could be shared with another
@@ -480,47 +479,39 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 		} else {
 			vm_object_set_flag(object, OBJ_ONEMAPPING);
 		}
-	} else if (
-	    (prev_entry != &map->header) &&
-	    ((prev_entry->eflags & MAP_ENTRY_IS_SUB_MAP) == 0) &&
-		((prev_entry->object.vm_object == NULL) ||
-		 (prev_entry->object.vm_object->type == OBJT_DEFAULT) ||
-		 (prev_entry->object.vm_object->type == OBJT_SWAP)) &&
-	    (prev_entry->end == start) &&
-	    (prev_entry->wired_count == 0)
-	) {
-		if ((protoeflags == prev_entry->eflags) &&
-		    ((cow & MAP_NOFAULT) ||
-		     vm_object_coalesce(prev_entry->object.vm_object,
-					OFF_TO_IDX(prev_entry->offset),
-					(vm_size_t) (prev_entry->end - prev_entry->start),
-					(vm_size_t) (end - prev_entry->end)))) {
-
-			/*
-			 * We were able to extend the object.  Determine if we
-			 * can extend the previous map entry to include the 
-			 * new range as well.
-			 */
-			if ((prev_entry->inheritance == VM_INHERIT_DEFAULT) &&
-			    (prev_entry->protection == prot) &&
-			    (prev_entry->max_protection == max)) {
-
-				map->size += (end - prev_entry->end);
-				prev_entry->end = end;
-				return (KERN_SUCCESS);
-			}
-
-			/*
-			 * If we can extend the object but cannot extend the
-			 * map entry, we have to create a new map entry.  We
-			 * must bump the ref count on the extended object to
-			 * account for it.
-			 */
-			object = prev_entry->object.vm_object;
-			offset = prev_entry->offset +
-			    (prev_entry->end - prev_entry->start);
-			vm_object_reference(object);
+	}
+	else if ((prev_entry != &map->header) &&
+		 (prev_entry->eflags == protoeflags) &&
+		 (prev_entry->end == start) &&
+		 (prev_entry->wired_count == 0) &&
+		 ((prev_entry->object.vm_object == NULL) ||
+		  vm_object_coalesce(prev_entry->object.vm_object,
+				     OFF_TO_IDX(prev_entry->offset),
+				     (vm_size_t)(prev_entry->end - prev_entry->start),
+				     (vm_size_t)(end - prev_entry->end)))) {
+		/*
+		 * We were able to extend the object.  Determine if we
+		 * can extend the previous map entry to include the 
+		 * new range as well.
+		 */
+		if ((prev_entry->inheritance == VM_INHERIT_DEFAULT) &&
+		    (prev_entry->protection == prot) &&
+		    (prev_entry->max_protection == max)) {
+			map->size += (end - prev_entry->end);
+			prev_entry->end = end;
+			return (KERN_SUCCESS);
 		}
+
+		/*
+		 * If we can extend the object but cannot extend the
+		 * map entry, we have to create a new map entry.  We
+		 * must bump the ref count on the extended object to
+		 * account for it.
+		 */
+		object = prev_entry->object.vm_object;
+		offset = prev_entry->offset +
+			(prev_entry->end - prev_entry->start);
+		vm_object_reference(object);
 	}
 
 	/*
@@ -558,7 +549,7 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	 * Update the free space hint
 	 */
 	if ((map->first_free == prev_entry) &&
-		(prev_entry->end >= new_entry->start))
+	    (prev_entry->end >= new_entry->start))
 		map->first_free = new_entry;
 
 	if (cow & (MAP_PREFAULT|MAP_PREFAULT_PARTIAL))
