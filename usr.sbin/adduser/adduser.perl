@@ -319,7 +319,7 @@ sub new_users_name {
 	    warn "Username is longer than 16 chars\a\n";
 	    next;
 	}
-	last if (&new_users_name_valid($name) eq $name);
+	last if (&new_users_name_valid($name));
     }
     return $name;
 }
@@ -334,7 +334,7 @@ sub new_users_name_valid {
     } elsif ($username{$name}) {
 	warn "Username ``$name'' already exists!\a\n"; return 0;
     }
-    return $name;
+    return 1;
 }
 
 # return full name
