@@ -112,7 +112,7 @@ netfinger(name)
 	msg.msg_iovlen = 0;
 	msg.msg_control = 0;
 	msg.msg_controllen = 0;
-	msg.msg_flags = MSG_EOF;
+	msg.msg_flags = 0;
 
 	/* -l flag for remote fingerd  */
 	if (lflag) {
@@ -131,7 +131,7 @@ netfinger(name)
 		return;
 	}
 
-	if (sendmsg(s, &msg, MSG_EOF) < 0) {
+	if (sendmsg(s, &msg, 0) < 0) {
 		perror("finger: sendmsg");
 		close(s);
 		return;
