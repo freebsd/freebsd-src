@@ -126,6 +126,8 @@
 .Fn m_apply "struct mbuf *mbuf" "int off" "int len" "int (*f)(void *arg, void *data, u_int len)" "void *arg"
 .Ft struct mbuf *
 .Fn m_getptr "struct mbuf *mbuf" "int loc" "int *off"
+.Ft struct mbuf *
+.Fn m_defrag "struct mbuf *m0" "int how"
 .\"
 .Sh DESCRIPTION
 An
@@ -806,6 +808,22 @@ bytes from the beginning of the
 .Vt mbuf chain .
 The corresponding offset into the mbuf will be stored in
 .Fa *off .
+.It Fn m_defrag m0 how
+Defragment a mbuf chain, returning the shortest possible
+chain of mbufs and clusters.  If allocation fails and this can
+not be completed, NULL will be returned and the original chain
+will be unchanged.  Upon success, the original chain will be
+freed and the new chain will be returned.
+.Fa how
+should be either
+.Dv M_TRYWAIT
+or
+.Dv M_DONTWAIT ,
+depending on the caller's preference.
+.Pp
+This function is especially useful in network drivers, where
+certain long mbuf chains must be shortened before being added
+to TX descriptor lists.
 .El
 .Sh HARDWARE-ASSISTED CHECKSUM CALCULATION
 This section currently applies to TCP/IP only.
