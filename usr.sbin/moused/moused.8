@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: moused.8,v 1.5 1997/07/27 23:10:33 wosch Exp $
+.\"	$Id: moused.8,v 1.7 1997/12/07 08:11:15 yokota Exp $
 .\"
 .Dd December 3, 1997
 .Dt MOUSED 8
@@ -197,7 +197,14 @@ This option may not be supported by all the device.
 Select a baudrate of 9600 for the serial line.
 Not all serial mice support this option.
 .It Fl t Ar type
-Specify the protocol type of mouse attached to the port.  Valid types are
+Specify the protocol type of the mouse attached to the port.
+You need to use this option only if the 
+.Nm
+command is not able to detect the appropriate protocol automatically for 
+the given mouse
+.Pq see the Sx Configuring Mouse Daemon .
+.Pp
+Valid types for this option are
 listed below.
 .Pp
 For the serial mouse:
@@ -268,7 +275,7 @@ Note that mapping to logical buttons is carried out after mapping
 from the Z axis movement to the virtual buttons is done.
 .El
 .El
-.Ss Configureing Mouse Daemon
+.Ss Configuring Mouse Daemon
 The first thing you need to know is the interface type 
 of the mouse you are going to use.
 It can be determined by looking at the connector of the mouse.
