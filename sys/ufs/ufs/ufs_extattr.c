@@ -870,7 +870,7 @@ ufs_extattr_vnode_inactive(struct vnode *vp, struct proc *p)
 
 	for (uele = ump->um_extattr.uepm_list.lh_first; uele != NULL;
 	    uele = uele->uele_entries.le_next)
-		ufs_extattr_rm(vp, uele->uele_attrname, 0, p);
+		ufs_extattr_rm(vp, uele->uele_attrname, NULL, p);
 
 	ufs_extattr_uepm_unlock(ump, p);
 }
