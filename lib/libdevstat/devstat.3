@@ -762,6 +762,18 @@ and
 .Va current .
 As above, this is not the true number of milliseconds per transaction, but
 rather the average rate of write transaction completion.
+.It DSM_SKIP
+type: N/A
+.Pp
+If you do not need a result from
+.Fn devstat_compute_statistics ,
+just put
+.Va DSM_SKIP
+as first (type) parameter and
+.Va NULL
+as second parameter.
+This can be useful in scenarios where the statistics to be calculated
+are determined at run time.
 .El
 .Pp
 .Fn compute_stats
