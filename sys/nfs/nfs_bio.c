@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.9 (Berkeley) 3/30/95
- * $Id: nfs_bio.c,v 1.34 1997/04/03 07:52:00 dfr Exp $
+ * $Id: nfs_bio.c,v 1.35 1997/04/18 14:11:59 dfr Exp $
  */
 
 
@@ -502,6 +502,7 @@ nfs_write(ap)
 again:
 		if (uio->uio_offset + n > np->n_size) {
 			np->n_size = uio->uio_offset + n;
+			np->n_flag |= NMODIFIED;
 			vnode_pager_setsize(vp, (u_long)np->n_size);
 		}
 		bufsize = biosize;
@@ -747,6 +748,7 @@ again:
 			nmp->nm_bufqiods++;
 			wakeup((caddr_t)&nfs_iodwant[i]);
 			gotiod = TRUE;
+			break;
 		}
 
 	/*
