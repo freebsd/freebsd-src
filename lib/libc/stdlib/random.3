@@ -189,17 +189,6 @@ About 2/3 the speed of
 .Xr rand 3 .
 .Pp
 The historical implementation used to have a very weak seeding; the
-random sequence did not vary much with the seed.  For compatibility
-reasons, this implementation has been made available until the
-next
-.Tn FreeBSD
-release via the functions
-.Fn orandom ,
-.Fn osrandom ,
-.Fn oinitstate
-and
-.Fn osetstate
-from the compatibility library,
-.Em libcompat .
+random sequence did not vary much with the seed.
 The current implementation employs a better pseudo-random number
 generator for the initial state calculation.
