@@ -145,6 +145,7 @@ int dlen;
 	} else
 		return 0;
 	a5 >>= 8;
+	a5 &= 0xff;
 	/*
 	 * Calculate new address parts for PORT command
 	 */
@@ -213,7 +214,7 @@ int dlen;
 		sum2 -= sum1;
 		sum2 = (sum2 & 0xffff) + (sum2 >> 16);
 
-		fix_outcksum(&ip->ip_sum, sum2, 0);
+		fix_outcksum(&ip->ip_sum, sum2);
 #endif
 		ip->ip_len += inc;
 	}
@@ -236,7 +237,7 @@ int dlen;
 	 */
 	dp = htons(fin->fin_data[1] - 1);
 	ipn = nat_outlookup(fin->fin_ifp, IPN_TCP, nat->nat_p, nat->nat_inip,
-			    ip->ip_dst, (dp << 16) | sp);
+			    ip->ip_dst, (dp << 16) | sp, 0);
 	if (ipn == NULL) {
 		int slen;
 
@@ -250,8 +251,11 @@ int dlen;
 		tcp2->th_dport = 0; /* XXX - don't specify remote port */
 		fi.fin_data[0] = ntohs(sp);
 		fi.fin_data[1] = 0;
+		fi.fin_dlen = sizeof(*tcp2);
 		fi.fin_dp = (char *)tcp2;
+		fi.fin_fr = &natfr;
 		swip = ip->ip_src;
+		fi.fin_fi.fi_saddr = nat->nat_inip.s_addr;
 		ip->ip_src = nat->nat_inip;
 		ipn = nat_new(nat->nat_ptr, ip, &fi, IPN_TCP|FI_W_DPORT,
 			      NAT_OUTBOUND);
@@ -262,7 +266,7 @@ int dlen;
 		ip->ip_len = slen;
 		ip->ip_src = swip;
 	}
-	return inc;
+	return APR_INC(inc);
 }
 
 
@@ -440,7 +444,7 @@ int dlen;
 		sum2 -= sum1;
 		sum2 = (sum2 & 0xffff) + (sum2 >> 16);
 
-		fix_outcksum(&ip->ip_sum, sum2, 0);
+		fix_outcksum(&ip->ip_sum, sum2);
 #endif /* SOLARIS || defined(__sgi) */
 		ip->ip_len += inc;
 	}
@@ -453,7 +457,7 @@ int dlen;
 	sp = 0;
 	dp = htons(fin->fin_data[1] - 1);
 	ipn = nat_outlookup(fin->fin_ifp, IPN_TCP, nat->nat_p, nat->nat_inip,
-			    ip->ip_dst, (dp << 16) | sp);
+			    ip->ip_dst, (dp << 16) | sp, 0);
 	if (ipn == NULL) {
 		int slen;
 
@@ -464,12 +468,16 @@ int dlen;
 		tcp2->th_win = htons(8192);
 		tcp2->th_sport = 0;		/* XXX - fake it for nat_new */
 		tcp2->th_off = 5;
-		fi.fin_data[0] = a5 << 8 | a6;
-		tcp2->th_dport = htons(fi.fin_data[0]);
-		fi.fin_data[1] = 0;
+		fi.fin_data[1] = a5 << 8 | a6;
+		fi.fin_dlen = sizeof(*tcp2);
+		tcp2->th_dport = htons(fi.fin_data[1]);
+		fi.fin_data[0] = 0;
 		fi.fin_dp = (char *)tcp2;
+		fi.fin_fr = &natfr;
 		swip = ip->ip_src;
 		swip2 = ip->ip_dst;
+		fi.fin_fi.fi_daddr = ip->ip_src.s_addr;
+		fi.fin_fi.fi_saddr = nat->nat_inip.s_addr;
 		ip->ip_dst = ip->ip_src;
 		ip->ip_src = nat->nat_inip;
 		ipn = nat_new(nat->nat_ptr, ip, &fi, IPN_TCP|FI_W_SPORT,
@@ -610,14 +618,18 @@ int rv;
 #else
 	mlen = mbufchainlen(m) - off;
 #endif
+
 	t = &ftp->ftp_side[1 - rv];
+	f = &ftp->ftp_side[rv];
 	if (!mlen) {
-		t->ftps_seq = ntohl(tcp->th_ack);
+		if (!t->ftps_seq ||
+		    (int)ntohl(tcp->th_ack) - (int)t->ftps_seq > 0)
+			t->ftps_seq = ntohl(tcp->th_ack);
+		f->ftps_len = 0;
 		return 0;
 	}
 
 	inc = 0;
-	f = &ftp->ftp_side[rv];
 	rptr = f->ftps_rptr;
 	wptr = f->ftps_wptr;
 
@@ -631,9 +643,12 @@ int rv;
 	 * that it is out of order (and there is no real danger in doing so
 	 * apart from causing packets to go through here ordered).
 	 */
-	if (ntohl(tcp->th_seq) + i != f->ftps_seq) {
+	if (f->ftps_len + f->ftps_seq == ntohl(tcp->th_seq))
+		f->ftps_seq = ntohl(tcp->th_seq);
+	else if (ntohl(tcp->th_seq) + i != f->ftps_seq) {
 		return APR_ERR(-1);
 	}
+	f->ftps_len = mlen;
 
 	while (mlen > 0) {
 		len = MIN(mlen, FTP_BUFSZ / 2);
@@ -669,15 +684,18 @@ int rv;
 			while ((rptr < wptr) && (*rptr != '\r'))
 				rptr++;
 
-			if ((*rptr == '\r') && (rptr + 1 < wptr)) {
-				if (*(rptr + 1) == '\n') {
-					rptr += 2;
-					f->ftps_junk = 0;
+			if (*rptr == '\r') {
+				if (rptr + 1 < wptr) {
+					if (*(rptr + 1) == '\n') {
+						rptr += 2;
+						f->ftps_junk = 0;
+					} else
+						rptr++;
 				} else
-					rptr++;
+					break;
 			}
-			f->ftps_rptr = rptr;
 		}
+		f->ftps_rptr = rptr;
 
 		if (rptr == wptr) {
 			rptr = wptr = f->ftps_buf;
@@ -702,7 +720,7 @@ int rv;
 	t->ftps_seq = ntohl(tcp->th_ack);
 	f->ftps_rptr = rptr;
 	f->ftps_wptr = wptr;
-	return inc;
+	return APR_INC(inc);
 }
 
 
@@ -761,5 +779,7 @@ char **ptr;
 		j += c - '0';
 	}
 	*ptr = s;
+	i &= 0xff;
+	j &= 0xff;
 	return (i << 8) | j;
 }

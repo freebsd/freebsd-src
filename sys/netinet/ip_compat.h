@@ -127,6 +127,10 @@ typedef	 int	minor_t;
 #endif /* SOLARIS */
 #define	IPMINLEN(i, h)	((i)->ip_len >= ((i)->ip_hl * 4 + sizeof(struct h)))
 
+#if defined(__FreeBSD__) && (__FreeBSD__ >= 5) && defined(_KERNEL)
+# include <machine/in_cksum.h>
+#endif
+
 #ifndef	IP_OFFMASK
 #define	IP_OFFMASK	0x1fff
 #endif
@@ -260,6 +264,12 @@ union	i6addr	{
 
 
 #if defined(__FreeBSD__) && (defined(KERNEL) || defined(_KERNEL))
+# ifdef IPFILTER_LKM
+#  include <osreldate.h>
+#  define       ACTUALLY_LKM_NOT_KERNEL
+# else
+#  include <sys/osreldate.h>
+# endif
 # if __FreeBSD__ < 3
 #  include <machine/spl.h>
 # else
@@ -284,6 +294,19 @@ union	i6addr	{
 # define	ATOMIC_DEC64		ATOMIC_DEC
 # define	ATOMIC_DEC32		ATOMIC_DEC
 # define	ATOMIC_DEC16		ATOMIC_DEC
+#endif
+#ifdef __sgi
+# define  hz HZ
+# include <sys/ksynch.h>
+# define	IPF_LOCK_PL	plhi
+# include <sys/sema.h>
+#undef kmutex_t
+typedef struct {
+	lock_t *l;
+	int pl;
+} kmutex_t;
+# undef	MUTEX_INIT
+# undef	MUTEX_DESTROY
 #endif
 #ifdef KERNEL
 # if SOLARIS
@@ -334,8 +357,8 @@ union	i6addr	{
 #  define	MUTEX_DESTROY(x)	mutex_destroy(x)
 #  define	MUTEX_EXIT(x)	mutex_exit(x)
 #  define	MTOD(m,t)	(t)((m)->b_rptr)
-#  define	IRCOPY(a,b,c)	copyin((a), (b), (c))
-#  define	IWCOPY(a,b,c)	copyout((a), (b), (c))
+#  define	IRCOPY(a,b,c)	copyin((caddr_t)(a), (caddr_t)(b), (c))
+#  define	IWCOPY(a,b,c)	copyout((caddr_t)(a), (caddr_t)(b), (c))
 #  define	IRCOPYPTR	ircopyptr
 #  define	IWCOPYPTR	iwcopyptr
 #  define	FREE_MB_T(m)	freemsg(m)
@@ -380,15 +403,6 @@ extern	ill_t	*get_unit __P((char *, int));
 #  define	IFNAME(x)	((ill_t *)x)->ill_name
 # else /* SOLARIS */
 #  if defined(__sgi)
-#   define  hz HZ
-#   include <sys/ksynch.h>
-#   define	IPF_LOCK_PL	plhi
-#   include <sys/sema.h>
-#undef kmutex_t
-typedef struct {
-	lock_t *l;
-	int pl;
-} kmutex_t;
 #   define	ATOMIC_INC(x)		{ MUTEX_ENTER(&ipf_rw); \
 					  (x)++; MUTEX_EXIT(&ipf_rw); }
 #   define	ATOMIC_DEC(x)		{ MUTEX_ENTER(&ipf_rw); \
@@ -401,8 +415,8 @@ typedef struct {
 #   define	MUTEX_DOWNGRADE(x)	;
 #   define	RWLOCK_EXIT(x)		MUTEX_EXIT(x)
 #   define	MUTEX_EXIT(x)		UNLOCK((x)->l, (x)->pl);
-#   define	MUTEX_INIT(x,y,z)	(x).l = LOCK_ALLOC((uchar_t)-1, IPF_LOCK_PL, (lkinfo_t *)-1, KM_NOSLEEP)
-#   define	MUTEX_DESTROY(x)	LOCK_DEALLOC((x).l)
+#   define	MUTEX_INIT(x,y,z)	(x)->l = LOCK_ALLOC((uchar_t)-1, IPF_LOCK_PL, (lkinfo_t *)-1, KM_NOSLEEP)
+#   define	MUTEX_DESTROY(x)	LOCK_DEALLOC((x)->l)
 #  else /* __sgi */
 #   define	ATOMIC_INC(x)		(x)++
 #   define	ATOMIC_DEC(x)		(x)--
@@ -961,8 +975,6 @@ struct	ether_addr	{
 #define	A_A	&
 #endif
 
-#define	TCPF_ALL	(TH_FIN|TH_SYN|TH_RST|TH_PUSH|TH_ACK|TH_URG)
-
 #ifndef	ICMP_ROUTERADVERT
 # define	ICMP_ROUTERADVERT	9
 #endif
@@ -982,6 +994,20 @@ struct	ether_addr	{
 #define	ICMPERR_IPICMPHLEN	(20 + 8)
 #define	ICMPERR_MINPKTLEN	(20 + 8 + 20)
 #define	ICMPERR_MAXPKTLEN	(20 + 8 + 20 + 8)
-#define	ICMP6ERR_MINPKTLEN	(20 + 8)
+#define	ICMP6ERR_MINPKTLEN	(40 + 8)
+#define	ICMP6ERR_IPICMPHLEN	(40 + 8 + 40)
+
+/*
+ * ECN is a new addition to TCP - RFC 2481
+ */
+#ifndef TH_ECN
+# define	TH_ECN	0x40
+#endif
+#ifndef TH_CWR
+# define	TH_CWR	0x80
+#endif
+#define	TH_ECNALL	(TH_ECN|TH_CWR)
+
+#define	TCPF_ALL (TH_FIN|TH_SYN|TH_RST|TH_PUSH|TH_ACK|TH_URG|TH_ECN|TH_CWR)
 
 #endif	/* __IP_COMPAT_H__ */
