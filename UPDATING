@@ -4,8 +4,8 @@ This file is maintained and copyrighted by M. Warner Losh
 <imp@village.org>.  See end of file for further details.  For commonly
 done items, please see the COMMON ITEMS: section later in the file.
 
-NOTE TO PEOPLE WHO THINK THAT 5.0-CURRENT IS SLOW:
-	FreeBSD 5.0-CURRENT has many debugging features turned on, in
+NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
+	FreeBSD 5.x has many debugging features turned on, in
 	both the kernel and userland.  These features attempt to detect
 	incorrect use of system primitives, and encourage loud failure
 	through extra sanity checking and fail stop semantics.  They
