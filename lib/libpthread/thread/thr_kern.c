@@ -330,6 +330,7 @@ _kse_single_thread(struct pthread *curthread)
 	 */ 
 	sigprocmask(SIG_SETMASK, &curthread->sigmask, NULL);
 	curthread->kse->k_kcb->kcb_kmbx.km_curthread = NULL;
+	curthread->attr.flags |= PTHREAD_SCOPE_SYSTEM;
 	_thr_active_threads = 1;
 #endif
 }
@@ -1642,7 +1643,7 @@ kse_switchout_thread(struct kse *kse, struct pthread *thread)
 			for (i = 1; i <= _SIG_MAXSIG; ++i) {
 				if (SIGISMEMBER(thread->sigpend, i) &&
 				    !SIGISMEMBER(thread->sigmask, i)) {
-					restart = _thread_sigact[1 - 1].sa_flags & SA_RESTART;
+					restart = _thread_sigact[i - 1].sa_flags & SA_RESTART;
 					kse_thr_interrupt(&thread->tcb->tcb_tmbx,
 					    restart ? KSE_INTR_RESTART : KSE_INTR_INTERRUPT, 0);
 					break;
