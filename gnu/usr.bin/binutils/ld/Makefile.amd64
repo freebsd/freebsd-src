@@ -6,7 +6,7 @@ NATIVE_EMULATION=	elf_x86_64_fbsd
 HOST=	${TARGET_TUPLE}
 CFLAGS+= -DDEFAULT_EMULATION=\"${NATIVE_EMULATION}\"
 CFLAGS+= -DTARGET=\"${TARGET_TUPLE}\"
-_x86_64_path=	\"${TOOLS_PREFIX}/usr/lib\"
+_amd64_path=	\"${TOOLS_PREFIX}/usr/lib\"
 EMS+=		${NATIVE_EMULATION}
 LDSCRIPTS+=	${NATIVE_EMULATION}.x ${NATIVE_EMULATION}.xbn ${NATIVE_EMULATION}.xn ${NATIVE_EMULATION}.xr \
 		${NATIVE_EMULATION}.xs ${NATIVE_EMULATION}.xu ${NATIVE_EMULATION}.xc ${NATIVE_EMULATION}.xsc
@@ -15,7 +15,7 @@ CLEANFILES+=	e${NATIVE_EMULATION}.c
 
 e${NATIVE_EMULATION}.c: emulparams/${NATIVE_EMULATION}.sh emultempl/elf32.em scripttempl/elf.sc \
     genscripts.sh stringify.sed
-	sh ${.CURDIR}/genscripts.sh ${SRCDIR}/ld ${_x86_64_path} \
+	sh ${.CURDIR}/genscripts.sh ${SRCDIR}/ld ${_amd64_path} \
 	    ${HOST} ${TARGET_TUPLE} ${TARGET_TUPLE} \
 	    "${NATIVE_EMULATION}" "" ${NATIVE_EMULATION} "${TARGET_TUPLE}"
 
