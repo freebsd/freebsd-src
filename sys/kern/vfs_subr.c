@@ -130,12 +130,6 @@ SYSCTL_INT(_vfs, OID_AUTO, reassignbufcalls, CTLFLAG_RW, &reassignbufcalls, 0, "
 static int nameileafonly;
 SYSCTL_INT(_vfs, OID_AUTO, nameileafonly, CTLFLAG_RW, &nameileafonly, 0, "");
 
-#ifdef ENABLE_VFS_IOOPT
-/* See NOTES for a description of this setting. */
-int vfs_ioopt;
-SYSCTL_INT(_vfs, OID_AUTO, ioopt, CTLFLAG_RW, &vfs_ioopt, 0, "");
-#endif
-
 /*
  * Cache for the mount type id assigned to NFS.  This is used for
  * special checks in nfs/nfs_nqlease.c and vm/vnode_pager.c.
