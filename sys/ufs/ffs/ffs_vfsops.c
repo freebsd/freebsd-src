@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.8 (Berkeley) 4/18/94
- * $Id: ffs_vfsops.c,v 1.20 1995/05/19 03:26:56 davidg Exp $
+ * $Id: ffs_vfsops.c,v 1.21 1995/05/30 08:15:03 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -741,6 +741,8 @@ loop:
  * return the inode locked.  Detection and handling of mount points must be
  * done by the calling routine.
  */
+int ffs_inode_hash_lock;
+
 int
 ffs_vget(mp, ino, vpp)
 	struct mount *mp;
@@ -757,12 +759,30 @@ ffs_vget(mp, ino, vpp)
 
 	ump = VFSTOUFS(mp);
 	dev = ump->um_dev;
+restart:
 	if ((*vpp = ufs_ihashget(dev, ino)) != NULL)
 		return (0);
+
+	/*
+	 * Lock out the creation of new entries in the FFS hash table in
+	 * case getnewvnode() or MALLOC() blocks, otherwise a duplicate
+	 * may occur!
+	 */
+	if (ffs_inode_hash_lock) {
+		while (ffs_inode_hash_lock) {
+			ffs_inode_hash_lock = -1;
+			tsleep(&ffs_inode_hash_lock, PVM, "ffsvgt", 0);
+		}
+		goto restart;
+	}
+	ffs_inode_hash_lock = 1;
 
 	/* Allocate a new vnode/inode. */
 	error = getnewvnode(VT_UFS, mp, ffs_vnodeop_p, &vp);
 	if (error) {
+		if (ffs_inode_hash_lock < 0)
+			wakeup(&ffs_inode_hash_lock);
+		ffs_inode_hash_lock = 0;
 		*vpp = NULL;
 		return (error);
 	}
@@ -776,9 +796,9 @@ ffs_vget(mp, ino, vpp)
 	ip->i_number = ino;
 #ifdef QUOTA
 	{
-	int i;
-	for (i = 0; i < MAXQUOTAS; i++)
-		ip->i_dquot[i] = NODQUOT;
+		int i;
+		for (i = 0; i < MAXQUOTAS; i++)
+			ip->i_dquot[i] = NODQUOT;
 	}
 #endif
 	/*
@@ -788,6 +808,10 @@ ffs_vget(mp, ino, vpp)
 	 * disk portion of this inode to be read.
 	 */
 	ufs_ihashins(ip);
+
+	if (ffs_inode_hash_lock < 0)
+		wakeup(&ffs_inode_hash_lock);
+	ffs_inode_hash_lock = 0;
 
 	/* Read in the disk contents for the inode, copy into the inode. */
 	error = bread(ump->um_devvp, fsbtodb(fs, ino_to_fsba(fs, ino)),
