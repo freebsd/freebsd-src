@@ -60,6 +60,9 @@ static const char rcsid[] =
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#ifdef INET6
+#include <netinet/ip6.h>
+#endif
 #include <netinet/ip_var.h>
 #include <netinet/tcp.h>
 #define TCPSTATES
@@ -97,7 +100,7 @@ void dotrace __P((caddr_t));
 void klseek __P((int, off_t, int));
 int numeric __P((caddr_t *, caddr_t *));
 void tcp_trace __P((short, short, struct tcpcb *, struct tcpcb *,
-			struct tcpiphdr *, int));
+			void *, struct tcphdr *, int));
 static void usage __P((void));
 
 int
@@ -234,7 +237,7 @@ again:	if (--tcp_debx < 0)
 			continue;
 		ntime = ntohl(td->td_time);
 		tcp_trace(td->td_act, td->td_ostate, td->td_tcb, &td->td_cb,
-		    &td->td_ti, td->td_req);
+		    td->td_ipgen, &td->td_th, td->td_req);
 		if (i == tcp_debx)
 			goto done;
 	}
@@ -244,7 +247,7 @@ again:	if (--tcp_debx < 0)
 			continue;
 		ntime = ntohl(td->td_time);
 		tcp_trace(td->td_act, td->td_ostate, td->td_tcb, &td->td_cb,
-		    &td->td_ti, td->td_req);
+		    td->td_ipgen, &td->td_th, td->td_req);
 	}
 done:	if (follow) {
 		prev_debx = tcp_debx + 1;
@@ -270,31 +273,77 @@ done:	if (follow) {
  */
 /*ARGSUSED*/
 void
-tcp_trace(act, ostate, atp, tp, ti, req)
+tcp_trace(act, ostate, atp, tp, ip, th, req)
 	short act, ostate;
 	struct tcpcb *atp, *tp;
-	struct tcpiphdr *ti;
+	void *ip;
+	struct tcphdr *th;
 	int req;
 {
 	tcp_seq seq, ack;
 	int flags, len, win, timer;
+	struct ip *ip4;
+#ifdef INET6
+	int isipv6, nopkt = 1;
+	struct ip6_hdr *ip6;
+	char ntop_buf[INET6_ADDRSTRLEN];
+#endif
 
+#ifdef INET6
+	switch (((struct ip *)ip)->ip_v) {
+	case 4:
+		nopkt = 0;
+		ip4 = (struct ip *)ip;
+		break;
+	case 6:
+		nopkt = 0;
+		isipv6 = 1;
+		ip6 = (struct ip6_hdr *)ip;
+	case 0:
+	default:
+		break;
+	}
+#else
+	ip4 = (struct ip *)ip;
+#endif
 	printf("%03ld %s:%s ",(ntime/10) % 1000, tcpstates[ostate],
 	    tanames[act]);
 	switch (act) {
 	case TA_INPUT:
 	case TA_OUTPUT:
 	case TA_DROP:
+#ifdef INET6
+		if (nopkt != 0)
+			break;
+#endif
 		if (aflag) {
 			printf("(src=%s,%u, ",
-			    inet_ntoa(ti->ti_src), ntohs(ti->ti_sport));
+
+#ifdef INET6
+			       isipv6
+			       ? inet_ntop(AF_INET6, &ip6->ip6_src, ntop_buf,
+					   sizeof(ntop_buf)) :
+#endif
+			       inet_ntoa(ip4->ip_src),
+			       ntohs(th->th_sport));
 			printf("dst=%s,%u)",
-			    inet_ntoa(ti->ti_dst), ntohs(ti->ti_dport));
+#ifdef INET6
+			       isipv6
+			       ? inet_ntop(AF_INET6, &ip6->ip6_dst, ntop_buf,
+					   sizeof(ntop_buf)) :
+#endif
+			       inet_ntoa(ip4->ip_dst),
+			       ntohs(th->th_dport));
 		}
-		seq = ti->ti_seq;
-		ack = ti->ti_ack;
-		len = ti->ti_len;
-		win = ti->ti_win;
+		seq = th->th_seq;
+		ack = th->th_ack;
+
+		len =
+#ifdef INET6
+			isipv6 ? ip6->ip6_plen :
+#endif
+			ip4->ip_len;
+		win = th->th_win;
 		if (act == TA_OUTPUT) {
 			seq = ntohl(seq);
 			ack = ntohl(ack);
@@ -310,11 +359,11 @@ tcp_trace(act, ostate, atp, tp, ti, req)
 		printf("@%lx", ack);
 		if (win)
 			printf("(win=%x)", win);
-		flags = ti->ti_flags;
+		flags = th->th_flags;
 		if (flags) {
 			register char *cp = "<";
 #define	pf(flag, string) { \
-	if (ti->ti_flags&flag) { \
+	if (th->th_flags&flag) { \
 		(void)printf("%s%s", cp, string); \
 		cp = ","; \
 	} \
