@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)cmds.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: cmds.c,v 1.4 1997/08/22 22:14:15 imp Exp $";
+	"$Id: cmds.c,v 1.5 1997/08/25 05:02:09 imp Exp $";
 #endif /* not lint */
 
 #include "tipconf.h"
@@ -46,6 +46,7 @@ static const char rcsid[] =
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <err.h>
+#include <libutil.h>
 #include <stdio.h>
 
 /*
@@ -61,29 +62,31 @@ char	*sep[] = { "second", "minute", "hour" };
 static char *argv[10];		/* argument vector for take and put */
 
 void	timeout();		/* timeout function called on alarm */
-void	stopsnd();		/* SIGINT handler during file transfers */
-void	intcopy();		/* interrupt routine for file transfers */
-int anyof __P((char *, char *));
+static void	stopsnd();		/* SIGINT handler during file transfers */
+static void	intcopy();		/* interrupt routine for file transfers */
+
 void suspend __P((char));
 void genbrk __P((void));
-void tandem __P((char *));
 void variable __P((void));
-void prtime __P((char *, time_t));
-int args __P((char *, char **));
-void execute __P((char *));
 void finish __P((void));
 void tipabort __P((char *));
 void chdirectory __P((void));
 void shell __P((void));
-void send __P((char));
 void cu_put __P((char));
-void transmit __P((FILE *, char *, char *));
 void sendfile __P((char));
 void pipefile __P((void));
-void transfer __P((char *, int, char *));
-void xfer __P((char *, int, char *));
 void cu_take __P((char));
 void getfl __P((char));
+
+static int anyof __P((char *, char *));
+static void tandem __P((char *));
+static void prtime __P((char *, time_t));
+static int args __P((char *, char **, int));
+static void execute __P((char *));
+static void send __P((char));
+static void transmit __P((FILE *, char *, char *));
+static void transfer __P((char *, int, char *));
+static void xfer __P((char *, int, char *));
 
 void
 usedefchars ()
@@ -167,7 +170,7 @@ cu_take(cc)
 
 	if (prompt("[take] ", copyname, sizeof(copyname)))
 		return;
-	if ((argc = args(copyname, argv)) < 1 || argc > 2) {
+	if ((argc = args(copyname, argv, sizeof(argv)/sizeof(argv[0]))) < 1 || argc > 2) {
 		printf("usage: <take> from [to]\r\n");
 		return;
 	}
@@ -182,15 +185,15 @@ cu_take(cc)
 	xfer(line, fd, "\n___tip_end_of_file_marker___\n");
 }
 
-extern jmp_buf intbuf;
+static jmp_buf intbuf;
 
-void
+static void
 xfer(buf, fd, eofchars)
 	char *buf, *eofchars;
 {
-	register int ct;
+	int ct;
 	char c, *match;
-	register int cnt, eof, v;
+	int cnt, eof, v;
 	time_t start;
 	sig_t f;
 	char r;
@@ -266,12 +269,11 @@ xfer(buf, fd, eofchars)
 	(void)fclose(ff);
 }
 
-static	jmp_buf intbuf;
 /*
  * Bulk transfer routine --
  *  used by getfl(), cu_take(), and pipefile()
  */
-void
+static void
 transfer(buf, fd, eofchars)
 	char *buf, *eofchars;
 {
@@ -346,7 +348,6 @@ pipefile()
 	int cpid, pdes[2];
 	char buf[256];
 	int status, p;
-	extern int errno;
 
 	if (prompt("Local command? ", buf, sizeof(buf)))
 		return;
@@ -433,7 +434,7 @@ sendfile(cc)
  * Bulk transfer routine to remote host --
  *   used by sendfile() and cu_put()
  */
-void
+static void
 transmit(fd, eofchars, command)
 	FILE *fd;
 	char *eofchars, *command;
@@ -541,7 +542,7 @@ cu_put(cc)
 
 	if (prompt("[put] ", copyname, sizeof(copyname)))
 		return;
-	if ((argc = args(copyname, argv)) < 1 || argc > 2) {
+	if ((argc = args(copyname, argv, sizeof(argv)/sizeof(argv[0]))) < 1 || argc > 2) {
 		printf("usage: <put> from [to]\r\n");
 		return;
 	}
@@ -563,7 +564,7 @@ cu_put(cc)
  * FTP - send single character
  *  wait for echo & handle timeout
  */
-void
+static void
 send(c)
 	char c;
 {
@@ -840,7 +841,7 @@ intcopy()
 	longjmp(intbuf, 1);
 }
 
-void
+static void
 execute(s)
 	char *s;
 {
@@ -854,15 +855,16 @@ execute(s)
 	execl(value(SHELL), cp, "-c", s, 0);
 }
 
-int
-args(buf, a)
+static int
+args(buf, a, num)
 	char *buf, *a[];
+	int num;
 {
 	register char *p = buf, *start;
 	register char **parg = a;
 	register int n = 0;
 
-	do {
+	while (*p && n < num) {
 		while (*p && (*p == ' ' || *p == '\t'))
 			p++;
 		start = p;
@@ -874,12 +876,11 @@ args(buf, a)
 			parg++, n++;
 		if (*p)
 			*p++ = '\0';
-	} while (*p);
-
+	}
 	return(n);
 }
 
-void
+static void
 prtime(s, a)
 	char *s;
 	time_t a;
@@ -946,7 +947,7 @@ variable()
 /*
  * Turn tandem mode on or off for remote tty.
  */
-void
+static void
 tandem(option)
 	char *option;
 {
@@ -1079,7 +1080,7 @@ expand(name)
  * Are any of the characters in the two strings the same?
  */
 
-int
+static int
 anyof(s1, s2)
 	register char *s1, *s2;
 {
