@@ -36,8 +36,6 @@
  *	$NetBSD: key.c,v 1.11 2001/01/23 15:55:30 jdolecek Exp $
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 #if !defined(lint) && !defined(SCCSID)
 static char sccsid[] = "@(#)key.c	8.1 (Berkeley) 6/4/93";
 #endif /* not lint && not SCCSID */

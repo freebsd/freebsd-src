@@ -36,8 +36,6 @@
  *	$NetBSD: vi.c,v 1.7 1999/07/02 15:21:28 simonb Exp $
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 #if !defined(lint) && !defined(SCCSID)
 static char sccsid[] = "@(#)vi.c	8.1 (Berkeley) 6/4/93";
 #endif /* not lint && not SCCSID */

@@ -36,8 +36,6 @@
  *	$NetBSD: map.c,v 1.13 2001/01/04 15:56:32 christos Exp $
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 #if !defined(lint) && !defined(SCCSID)
 static char sccsid[] = "@(#)map.c	8.1 (Berkeley) 6/4/93";
 #endif /* not lint && not SCCSID */
