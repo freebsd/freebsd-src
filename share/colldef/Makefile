@@ -5,6 +5,8 @@ NOMAN=YES
 CLEANFILES+= ${LOCALES:S/$/.out/g}
 
 LOCALES=	bg_BG.CP1251 \
+		ca_ES.ISO8859-1 \
+		ca_ES.ISO8859-15 \
 		cs_CZ.ISO8859-2 \
 		de_DE.ISO8859-1 \
 		de_DE.ISO8859-15 \
@@ -54,6 +56,8 @@ LATIN2LINKS=	hr_HR hu_HU ro_RO sl_SI sr_YU
 all: ${LOCALES:S/$/.out/g}
 
 bg_BG.CP1251.out:	map.CP1251
+ca_ES.ISO8859-15.out:   map.ISO8859-15
+ca_ES.ISO8859-1.out:    map.ISO8859-1
 cs_CZ.ISO8859-2.out:    map.ISO8859-2
 de_DE.ISO8859-15.out:   map.ISO8859-15
 de_DE.ISO8859-1.out:    map.ISO8859-1

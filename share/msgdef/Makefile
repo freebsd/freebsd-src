@@ -5,6 +5,7 @@ CLEANFILES+= ${LOCALES:S/$/.out/g}
 
 LOCALES=	af_ZA.ISO8859-1 \
 		bg_BG.CP1251 \
+		ca_ES.ISO8859-1 \
 		cs_CZ.ISO8859-2 \
 		da_DK.ISO8859-1 \
 		de_DE.ISO8859-1 \
@@ -48,8 +49,8 @@ LOCALES=	af_ZA.ISO8859-1 \
 LOCALEDIR=	${DESTDIR}/usr/share/locale
 
 ASCIILINKS=	en_CA en_GB en_US
-LATIN15LINKS=	af_ZA da_DK de_DE en_CA en_GB en_US es_ES fi_FI fr_BE fr_CH \
-		fr_FR is_IS it_IT nl_NL no_NO pt_PT sv_SE
+LATIN15LINKS=   af_ZA ca_ES da_DK de_DE en_CA en_GB en_US es_ES fi_FI fr_BE \
+		fr_CH fr_FR is_IS it_IT nl_NL no_NO pt_PT sv_SE
 
 GB_LINKS=	en_AU en_NZ
 FR_LINKS=	fr_CA
