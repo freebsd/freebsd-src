@@ -155,6 +155,10 @@ typedef struct {
 #define	MBOX_TEST_FAILED		0x4003
 #define	MBOX_COMMAND_ERROR		0x4005
 #define	MBOX_COMMAND_PARAM_ERROR	0x4006
+#define	MBOX_PORT_ID_USED		0x4007
+#define	MBOX_LOOP_ID_USED		0x4008
+#define	MBOX_ALL_IDS_USED		0x4009
+#define	MBOX_NOT_LOGGED_IN		0x400A
 
 /*
  * Asynchronous event status codes
@@ -643,5 +647,24 @@ typedef struct {
 } sns_scrsp_t;	/* Subcommand Response Structure */
 #define	SNS_GAN_RESP_SIZE	608	/* Maximum response size (bytes) */
 #define	SNS_GP3_RESP_SIZE	532	/* XXX: For 128 ports */
+
+typedef struct {
+	u_int8_t	snscb_cthdr[16];
+	u_int8_t	snscb_port_type;
+	u_int8_t	snscb_port_id[3];
+	u_int8_t	snscb_portname[8];
+	u_int8_t	snscb_pnlen;		/* symbolic port name length */
+	u_int8_t	snscb_pname[255];	/* symbolic port name */
+	u_int8_t	snscb_nodename[8];
+	u_int8_t	snscb_nnlen;		/* symbolic node name length */
+	u_int8_t	snscb_nname[255];	/* symbolic node name */
+	u_int8_t	snscb_ipassoc[8];
+	u_int8_t	snscb_ipaddr[16];
+	u_int8_t	snscb_svc_class[4];
+	u_int8_t	snscb_fc4_types[32];
+	u_int8_t	snscb_fpname[8];
+	u_int8_t	snscb_reserved;
+	u_int8_t	snscb_hardaddr[3];
+} sns_ganrsp_t;	/* Subcommand Response Structure */
 
 #endif	/* _ISPMBOX_H */
