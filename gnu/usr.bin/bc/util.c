@@ -579,6 +579,8 @@ lookup (name, namekind)
       yyerror ("Too many variables");
       exit (1);
     }
+
+  return (0); /* NOT_REACHED */
 }
 
 
