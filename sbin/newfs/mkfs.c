@@ -460,13 +460,6 @@ mkfs(struct partition *pp, char *fsys)
 	if (Nflag)
 		exit(0);
 	/*
-	 * Zero out the boot area to avoid old superblocks from being
-	 * found by mistake. Skip over the disklabel area.
-	 */
-	bzero(iobuf, sblock.fs_bsize);
-	for (i = 1; i < sblock.fs_sblkno; i += sblock.fs_frag)
-		wtfs(fsbtodb(&sblock, i), sblock.fs_bsize, iobuf);
-	/*
 	 * Now construct the initial filesystem,
 	 * then write out the super-block.
 	 */
