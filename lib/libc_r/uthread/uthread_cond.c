@@ -170,7 +170,6 @@ _pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex)
 	int	rval = 0;
 	int	done = 0;
 	int	interrupted = 0;
-	int	unlock_mutex = 1;
 	int	seqno;
 
 	_thread_enter_cancellation_point();
@@ -238,8 +237,7 @@ _pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex)
 				curthread->wakeup_time.tv_sec = -1;
 
 				/* Unlock the mutex: */
-				if ((unlock_mutex != 0) &&
-				    ((rval = _mutex_cv_unlock(mutex)) != 0)) {
+				if ((rval = _mutex_cv_unlock(mutex)) != 0) {
 					/*
 					 * Cannot unlock the mutex, so remove
 					 * the running thread from the condition
@@ -254,15 +252,7 @@ _pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex)
 
 					/* Unlock the condition variable structure: */
 					_SPINUNLOCK(&(*cond)->lock);
-				}
-				else {
-					/*
-					 * Don't unlock the mutex in the event
-					 * this thread has to be requeued in
-					 * condition variable queue:
-					 */
-					unlock_mutex = 0;
-
+				} else {
 					/*
 					 * Schedule the next thread and unlock
 					 * the condition variable structure:
@@ -272,8 +262,24 @@ _pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex)
 
 					done = (seqno != (*cond)->c_seqno);
 
-					if ((curthread->flags &
-					    PTHREAD_FLAGS_IN_CONDQ) != 0) {
+					interrupted = curthread->interrupted;
+
+					/*
+					 * Check if the wait was interrupted
+					 * (canceled) or needs to be resumed
+					 * after handling a signal.
+					 */
+					if (interrupted != 0) {
+						/*
+						 * Lock the mutex and ignore any
+						 * errors.  Note that even
+						 * though this thread may have
+						 * been canceled, POSIX requires
+						 * that the mutex be reaquired
+						 * prior to cancellation.
+						 */
+						(void)_mutex_cv_lock(mutex);
+					} else {
 						/*
 						 * Lock the condition variable
 						 * while removing the thread.
@@ -288,20 +294,10 @@ _pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex)
 							(*cond)->c_mutex = NULL;
 
 						_SPINUNLOCK(&(*cond)->lock);
+
+						/* Lock the mutex: */
+						rval = _mutex_cv_lock(mutex);
 					}
-
-					/*
-					 * Save the interrupted flag; locking
-					 * the mutex will destroy it.
-					 */
-					interrupted = curthread->interrupted;
-
-					/*
-					 * Note that even though this thread may have
-					 * been canceled, POSIX requires that the mutex
-					 * be reaquired prior to cancellation.
-					 */
-					rval = _mutex_cv_lock(mutex);
 				}
 			}
 			break;
@@ -334,7 +330,6 @@ _pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 	int	rval = 0;
 	int	done = 0;
 	int	interrupted = 0;
-	int	unlock_mutex = 1;
 	int	seqno;
 
 	_thread_enter_cancellation_point();
@@ -404,8 +399,7 @@ _pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 				seqno = (*cond)->c_seqno;
 
 				/* Unlock the mutex: */
-				if ((unlock_mutex != 0) &&
-				   ((rval = _mutex_cv_unlock(mutex)) != 0)) {
+				if ((rval = _mutex_cv_unlock(mutex)) != 0) {
 					/*
 					 * Cannot unlock the mutex, so remove
 					 * the running thread from the condition
@@ -421,13 +415,6 @@ _pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 					_SPINUNLOCK(&(*cond)->lock);
 				} else {
 					/*
-					 * Don't unlock the mutex in the event
-					 * this thread has to be requeued in
-					 * condition variable queue:
-					 */
-					unlock_mutex = 0;
-
-					/*
 					 * Schedule the next thread and unlock
 					 * the condition variable structure:
 					 */
@@ -436,25 +423,30 @@ _pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 
 					done = (seqno != (*cond)->c_seqno);
 
+					interrupted = curthread->interrupted;
+
 					/*
-					 * Check if the wait timedout, was
-					 * interrupted (canceled), or needs to
-					 * be resumed after handling a signal.
+					 * Check if the wait was interrupted
+					 * (canceled) or needs to be resumed
+					 * after handling a signal.
 					 */
-					if ((curthread->timeout == 0) &&
-					    (curthread->interrupted == 0) &&
-					    (done != 0)) {
-						/* Lock the mutex: */
-						rval = _mutex_cv_lock(mutex);
+					if (interrupted != 0) {
+						/*
+						 * Lock the mutex and ignore any
+						 * errors.  Note that even
+						 * though this thread may have
+						 * been canceled, POSIX requires
+						 * that the mutex be reaquired
+						 * prior to cancellation.
+						 */
+						(void)_mutex_cv_lock(mutex);
 					} else {
-						/* Lock the CV structure: */
+						/*
+						 * Lock the condition variable
+						 * while removing the thread.
+						 */
 						_SPINLOCK(&(*cond)->lock);
 
-						/*
-						 * The wait timed out; remove
-						 * the thread from the condition
-						 * variable queue:
-						 */
 						cond_queue_remove(*cond,
 						    curthread);
 
@@ -462,28 +454,20 @@ _pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 						if (TAILQ_FIRST(&(*cond)->c_queue) == NULL)
 							(*cond)->c_mutex = NULL;
 
-						/* Unock the CV structure: */
 						_SPINUNLOCK(&(*cond)->lock);
 
-						/* Return a timeout error: */
-						if (curthread->timeout != 0)
-							rval = ETIMEDOUT;
-						/*
-						 * Save the interrupted flag;
-						 * locking the mutex will
-						 * destroy it.
-						 */
-						interrupted = curthread->interrupted;
+						/* Lock the mutex: */
+						rval = _mutex_cv_lock(mutex);
 
 						/*
-						 * Lock the mutex and ignore any
-						 * errors.  Note that even though
-						 * this thread may have been
-						 * canceled, POSIX requires that
-						 * the mutex be reaquired prior
-						 * to cancellation.
+						 * Return ETIMEDOUT if the wait
+						 * timed out and there wasn't an
+						 * error locking the mutex:
 						 */
-						(void)_mutex_cv_lock(mutex);
+						if ((curthread->timeout != 0)
+						    && rval == 0)
+							rval = ETIMEDOUT;
+
 					}
 				}
 			}
