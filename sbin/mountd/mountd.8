@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)mountd.8	8.4 (Berkeley) 4/28/95
-.\"	$Id: mountd.8,v 1.8 1997/03/11 12:43:44 peter Exp $
+.\"	$Id: mountd.8,v 1.9 1997/04/09 20:25:43 guido Exp $
 .\"
 .Dd April 28, 1995
 .Dt MOUNTD 8
@@ -42,7 +42,7 @@
 mount requests
 .Sh SYNOPSIS
 .Nm /sbin/mountd
-.Op Fl nr
+.Op Fl 2nr
 .Op Ar exportsfile
 .Sh DESCRIPTION
 .Xr Mountd
@@ -61,6 +61,11 @@ Appendix I.
 Options and operands available for
 .Nm mountd :
 .Bl -tag -width Ds
+.It Fl 2
+The
+.Fl 2
+option allows the administrator to force clients to use only the
+version 2 NFS protocol to mount filesystems from this server.
 .It Fl n
 The
 .Fl n
