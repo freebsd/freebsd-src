@@ -349,7 +349,7 @@ main(argc, argv)
 			break;
 #ifdef INET6
 		case 'L':
-			ip6lifetime++;	/* print IPv6 adress lifetime */
+			ip6lifetime++;	/* print IPv6 address lifetime */
 			break;
 #endif
 		case 'l':	/* scan interface names only */
