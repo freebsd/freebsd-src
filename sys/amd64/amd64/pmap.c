@@ -169,6 +169,7 @@ static boolean_t pmap_initialized = FALSE;	/* Has pmap_init completed? */
 
 static int nkpt;
 static int ndmpdp;
+static vm_paddr_t dmaplimit;
 vm_offset_t kernel_vm_end;
 
 static u_int64_t	KPTphys;	/* phys addr of kernel level 1 */
@@ -367,10 +368,11 @@ create_pagetables(void)
 	KPDphys = allocpages(NKPDPE);
 
 	ndmpdp = (ptoa(Maxmem) + NBPDP - 1) >> PDPSHIFT;
-	if (ndmpdp < 1)
-		ndmpdp = 1;
+	if (ndmpdp < 4)		/* Minimum 4GB of dirmap */
+		ndmpdp = 4;
 	DMPDPphys = allocpages(NDMPML4E);
 	DMPDphys = allocpages(ndmpdp);
+	dmaplimit = (vm_paddr_t)ndmpdp << PDPSHIFT;
 
 	/* Fill in the underlying page table pages */
 	/* Read-only from zero to physfree */
@@ -490,7 +492,7 @@ pmap_bootstrap(firstaddr)
 	va = virtual_avail;
 	pte = vtopte(va);
 
-        /*
+	/*
 	 * CMAP1 is only used for the memory test.
 	 */
 	SYSMAP(caddr_t, CMAP1, CADDR1, 1)
@@ -2868,7 +2870,25 @@ pmap_mapdev(pa, size)
 	vm_paddr_t pa;
 	vm_size_t size;
 {
-	return (void *)PHYS_TO_DMAP(pa);
+	vm_offset_t va, tmpva, offset;
+
+	/* If this fits within the direct map window, use it */
+	if (pa < dmaplimit && (pa + size) < dmaplimit)
+		return ((void *)PHYS_TO_DMAP(pa));
+	offset = pa & PAGE_MASK;
+	size = roundup(offset + size, PAGE_SIZE);
+	va = kmem_alloc_pageable(kernel_map, size);
+	if (!va)
+		panic("pmap_mapdev: Couldn't alloc kernel virtual memory");
+	pa = pa & PG_FRAME;
+	for (tmpva = va; size > 0; ) {
+		pmap_kenter(tmpva, pa);
+		size -= PAGE_SIZE;
+		tmpva += PAGE_SIZE;
+		pa += PAGE_SIZE;
+	}
+	pmap_invalidate_range(kernel_pmap, va, tmpva);
+	return ((void *)(va + offset));
 }
 
 void
@@ -2876,6 +2896,21 @@ pmap_unmapdev(va, size)
 	vm_offset_t va;
 	vm_size_t size;
 {
+	vm_offset_t base, offset, tmpva;
+	pt_entry_t *pte;
+
+	/* If we gave a direct map region in pmap_mapdev, do nothing */
+	if (va >= DMAP_MIN_ADDRESS && va < DMAP_MAX_ADDRESS)
+		return;
+	base = va & PG_FRAME;
+	offset = va & PAGE_MASK;
+	size = roundup(offset + size, PAGE_SIZE);
+	for (tmpva = base; tmpva < (base + size); tmpva += PAGE_SIZE) {
+		pte = vtopte(tmpva);
+		pte_clear(pte);
+	}
+	pmap_invalidate_range(kernel_pmap, va, tmpva);
+	kmem_free(kernel_map, base, size);
 }
 
 /*
