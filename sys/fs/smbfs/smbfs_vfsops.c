@@ -268,7 +268,6 @@ smbfs_root(struct mount *mp, struct vnode **vpp, struct thread *td)
 	struct vnode *vp;
 	struct smbnode *np;
 	struct smbfattr fattr;
-	struct thread *td = curthread;
 	struct ucred *cred = td->td_ucred;
 	struct smb_cred scred;
 	int error;
