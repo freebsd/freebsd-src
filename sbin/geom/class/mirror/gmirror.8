@@ -58,7 +58,8 @@
 .Op Ar prov Op Ar ...
 .Nm
 .Cm insert
-.Op Fl hipv
+.Op Fl hiv
+.Op Fl p Ar priority
 .Ar name
 .Ar prov
 .Op Ar prov Op Ar ...
@@ -182,12 +183,12 @@ hopefully will not be used.
 Add the given component(s) to the existing mirror.
 .Pp
 Additional options include:
-.Bl -tag -width ".Fl h"
+.Bl -tag -width ".Fl p Ar priority"
 .It Fl h
 Hardcode providers' names in metadata.
 .It Fl i
 Mark component(s) as inacitve immediatelly after insertion.
-.It Fl p
+.It Fl p Ar priority
 Specifies priority of the given component(s).
 .El
 .It Cm remove
@@ -290,3 +291,5 @@ utility appeared in
 .An Pawel Jakub Dawidek Aq pjd@FreeBSD.org
 .Sh BUGS
 There should be a way to change component's priority inside a running mirror.
+.Pp
+There should be a section with implementation description.
