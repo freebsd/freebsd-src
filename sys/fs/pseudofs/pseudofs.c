@@ -101,7 +101,7 @@ pfs_root(struct mount *mp, struct vnode **vpp)
 	struct pfs_info *pi;
 
 	pi = (struct pfs_info *)mp->mnt_data;
-	return pfs_vncache_alloc(mp, vpp, pi->pi_root);
+	return pfs_vncache_alloc(mp, vpp, pi->pi_root, NO_PID);
 }
 
 /*

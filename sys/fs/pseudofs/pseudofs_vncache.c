@@ -41,7 +41,7 @@
 #include <fs/pseudofs/pseudofs.h>
 #include <fs/pseudofs/pseudofs_internal.h>
 
-static MALLOC_DEFINE(M_PFSVNCACHE, "pseudofs_vncache", "pseudofs vnode cache");
+static MALLOC_DEFINE(M_PFSVNCACHE, "pfs_vncache", "pseudofs vnode cache");
 
 static struct mtx pfs_vncache_mutex;
 
@@ -85,32 +85,40 @@ pfs_vncache_unload(void)
  * Allocate a vnode
  */
 int
-pfs_vncache_alloc(struct mount *mp, struct vnode **vpp, struct pfs_node *pn)
+pfs_vncache_alloc(struct mount *mp, struct vnode **vpp,
+		  struct pfs_node *pn, pid_t pid)
 {
 	struct pfs_vnode *pv;
+	struct pfs_vdata *pvd;
 	int error;
 	
-	mtx_lock(&pfs_vncache_mutex);
-
 	/* see if the vnode is in the cache */
-	for (pv = pfs_vncache; pv; pv = pv->pv_next)
-		if (pv->pv_vnode->v_data == pn)
+	mtx_lock(&pfs_vncache_mutex);
+	for (pv = pfs_vncache; pv; pv = pv->pv_next) {
+		pvd = (struct pfs_vdata *)pv->pv_vnode->v_data;
+		if (pvd->pvd_pn == pn && pvd->pvd_pid == pid) {
 			if (vget(pv->pv_vnode, 0, curproc) == 0) {
 				++pfs_vncache_hits;
 				*vpp = pv->pv_vnode;
 				mtx_unlock(&pfs_vncache_mutex);
 				return (0);
 			}
+			/* XXX if this can happen, we're in trouble */
+			break;
+		}
+	}
+	mtx_unlock(&pfs_vncache_mutex);
 	++pfs_vncache_misses;
 
 	/* nope, get a new one */
 	MALLOC(pv, struct pfs_vnode *, sizeof *pv, M_PFSVNCACHE, M_WAITOK);
+	MALLOC(pvd, struct pfs_vdata *, sizeof *pvd, M_PFSVNCACHE, M_WAITOK);
 	error = getnewvnode(VT_PSEUDOFS, mp, pfs_vnodeop_p, vpp);
-	if (error) {
-		mtx_unlock(&pfs_vncache_mutex);
+	if (error)
 		return (error);
-	}
-	(*vpp)->v_data = pn;
+	pvd->pvd_pn = pn;
+	pvd->pvd_pid = pid;
+	(*vpp)->v_data = pvd;
 	switch (pn->pn_type) {
 	case pfstype_root:
 		(*vpp)->v_flag = VROOT;
@@ -120,6 +128,7 @@ pfs_vncache_alloc(struct mount *mp, struct vnode **vpp, struct pfs_node *pn)
 	case pfstype_dir:
 	case pfstype_this:
 	case pfstype_parent:
+	case pfstype_procdir:
 		(*vpp)->v_type = VDIR;
 		break;
 	case pfstype_file:
@@ -128,10 +137,13 @@ pfs_vncache_alloc(struct mount *mp, struct vnode **vpp, struct pfs_node *pn)
 	case pfstype_symlink:
 		(*vpp)->v_type = VLNK;
 		break;
+	case pfstype_none:
+		KASSERT(0, ("pfs_vncache_alloc called for null node\n"));
 	default:
 		panic("%s has unexpected type: %d", pn->pn_name, pn->pn_type);
 	}
 	pv->pv_vnode = *vpp;
+	mtx_lock(&pfs_vncache_mutex);
 	pv->pv_next = pfs_vncache;
 	pfs_vncache = pv;
 	mtx_unlock(&pfs_vncache_mutex);
@@ -145,25 +157,22 @@ int
 pfs_vncache_free(struct vnode *vp)
 {
 	struct pfs_vnode *prev, *pv;
+	struct pfs_vdata *pvd;
 	
 	mtx_lock(&pfs_vncache_mutex);
 	for (prev = NULL, pv = pfs_vncache; pv; prev = pv, pv = pv->pv_next)
 		if (pv->pv_vnode == vp)
 			break;
-	if (!pv)
-		printf("pfs_vncache_free(): not in cache\n"); /* it should be! */
-#if 0
-	if (vp->v_data == ((struct pfs_info *)vp->v_mount->mnt_data)->pi_root)
-		printf("root vnode reclaimed\n");
-#endif
-	vp->v_data = NULL;
-	if (pv) {
-		if (prev)
-			prev->pv_next = pv->pv_next;
-		else
-			pfs_vncache = pv->pv_next;
-		FREE(pv, M_PFSVNCACHE);
-	}
+	KASSERT(pv != NULL, ("pfs_vncache_free(): not in cache\n"));
+	if (prev)
+		prev->pv_next = pv->pv_next;
+	else
+		pfs_vncache = pv->pv_next;
 	mtx_unlock(&pfs_vncache_mutex);
+	
+	pvd = (struct pfs_vdata *)vp->v_data;
+	FREE(pvd, M_PFSVNCACHE);
+	vp->v_data = NULL;
+	FREE(pv, M_PFSVNCACHE);
 	return (0);
 }
