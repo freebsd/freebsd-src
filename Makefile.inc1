@@ -380,6 +380,10 @@ INSTALLKERNEL= ${_kernel}
 # Builds all kernels defined by BUILDKERNELS.
 #
 buildkernel:
+.if empty(BUILDKERNELS)
+	@echo ">>> ERROR: Missing kernel configuration file(s) (${KERNEL})."
+	@false
+.endif
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Rebuilding kernel(s)"
