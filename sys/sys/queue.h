@@ -196,7 +196,12 @@ struct {								\
 } while (0)
 
 #define STAILQ_FIRST(head)	((head)->stqh_first)
-#define STAILQ_LAST(head)	(*(head)->stqh_last)
+
+#define	STAILQ_LAST(head, type, field)					\
+	(STAILQ_EMPTY(head) ?						\
+		NULL :							\
+	        ((struct type *)					\
+		((char *)((head)->stqh_last) - __offsetof(struct type, field))))
 
 #define STAILQ_FOREACH(var, head, field)				\
 	for((var) = (head)->stqh_first; (var); (var) = (var)->field.stqe_next)
