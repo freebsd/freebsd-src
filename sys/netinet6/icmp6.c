@@ -1170,7 +1170,6 @@ ni6_input(m, off)
 	int addrs;		/* for NI_QTYPE_NODEADDR */
 	struct ifnet *ifp = NULL; /* for NI_QTYPE_NODEADDR */
 	struct sockaddr_in6 sin6_sbj; /* subject address */
-	struct sockaddr_in6 sin6_d;
 	struct ip6_hdr *ip6;
 	int oldfqdn = 0;	/* if 1, return pascal string (03 draft) */
 	char *subj = NULL;
@@ -1186,17 +1185,6 @@ ni6_input(m, off)
 		return (NULL);
 	}
 #endif
-
-	bzero(&sin6_d, sizeof(sin6_d));
-	sin6_d.sin6_family = AF_INET6; /* not used, actually */
-	sin6_d.sin6_len = sizeof(sin6_d); /* ditto */
-	sin6_d.sin6_addr = ip6->ip6_dst;
-	if (in6_addr2zoneid(m->m_pkthdr.rcvif, &ip6->ip6_dst,
-	    &sin6_d.sin6_scope_id)) {
-		goto bad;
-	}
-	if (in6_embedscope(&sin6_d.sin6_addr, &sin6_d, NULL, NULL))
-		goto bad; /* XXX should not happen */
 
 	/*
 	 * Validate IPv6 destination address.
@@ -1286,7 +1274,8 @@ ni6_input(m, off)
 				goto bad; /* XXX should not happen */
 
 			subj = (char *)&sin6_sbj;
-			if (SA6_ARE_ADDR_EQUAL(&sin6_sbj, &sin6_d))
+			if (IN6_ARE_ADDR_EQUAL(&ip6->ip6_dst,
+			    &sin6_sbj.sin6_addr))
 				break;
 
 			/*
