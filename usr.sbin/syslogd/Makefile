@@ -7,7 +7,7 @@ PROG=	syslogd
 MAN=	syslog.conf.5 syslogd.8
 SRCS=	syslogd.c ttymsg.c
 
-COPTS+=	-DINET6 -I${.CURDIR}/../../usr.bin/wall
+CFLAGS+=-DINET6 -I${.CURDIR}/../../usr.bin/wall
 WARNS?=	1
 
 .include <bsd.prog.mk>
