@@ -111,11 +111,7 @@ thr_exit1(void)
 	sched_exit_thread(TAILQ_NEXT(td, td_kglist), td);
 	thread_stash(td);
 
-#if !defined(__powerpc__) 
 	cpu_throw(td, choosethread());
-#else
-	cpu_throw();
-#endif
 }
 
 #define	RANGEOF(type, start, end) (offsetof(type, end) - offsetof(type, start))

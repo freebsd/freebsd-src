@@ -459,9 +459,7 @@ mi_switch(void)
 {
 	struct bintime new_switchtime;
 	struct thread *td;
-#if !defined(__powerpc__)
 	struct thread *newtd;
-#endif
 	struct proc *p;
 	u_int sched_nest;
 
@@ -517,13 +515,9 @@ mi_switch(void)
 		thread_switchout(td);
 	sched_switchout(td);
 
-#if !defined(__powerpc__) 
 	newtd = choosethread();
 	if (td != newtd)
 		cpu_switch(td, newtd);	/* SHAZAM!! */
-#else
-	cpu_switch();		/* SHAZAM!!*/
-#endif
 
 	sched_lock.mtx_recurse = sched_nest;
 	sched_lock.mtx_lock = (uintptr_t)td;
