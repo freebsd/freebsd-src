@@ -104,6 +104,7 @@ static const char rcsid[] =
 #define	MAXICMPLEN	76
 #define	MAXPACKET	(65536 - 60 - 8)/* max packet size */
 #define	MAXWAIT		10		/* max seconds to wait for response */
+#define	MAXALARM	(60 * 60)	/* max seconds for alarm timeout */
 #define	NROUTES		9		/* number of record route slots */
 
 #define	A(bit)		rcvd_tbl[(bit)>>3]	/* identify byte in array */
@@ -217,7 +218,7 @@ main(argc, argv)
 	char *policy_in = NULL;
 	char *policy_out = NULL;
 #endif
-	int alarmtimeout = 0;
+	unsigned long alarmtimeout;
 
 	/*
 	 * Do the stuff that we need root priv's for *first*, and
@@ -230,7 +231,7 @@ main(argc, argv)
 	setuid(getuid());
 	uid = getuid();
 
-	preload = 0;
+	alarmtimeout = preload = 0;
 
 	datap = &outpack[8 + PHDR_LEN];
 #ifndef IPSEC
@@ -342,11 +343,14 @@ main(argc, argv)
 			source = optarg;
 			break;
 		case 't':
-			alarmtimeout = (int)strtoul(optarg, &ep, 0);
-			if (alarmtimeout < 1)
+			alarmtimeout = strtoul(optarg, &ep, 0);
+			if ((alarmtimeout < 1) || (alarmtimeout == ULONG_MAX))
 				errx(EX_USAGE, "invalid timeout: `%s'",
 				    optarg);
-			alarm(alarmtimeout);
+			if (alarmtimeout > MAXALARM)
+				errx(EX_USAGE, "invalid timeout: `%s' > %d",
+				    optarg, MAXALARM);
+			alarm((int)alarmtimeout);
 			break;
 		case 'T':		/* multicast TTL */
 			ultmp = strtoul(optarg, &ep, 0);
@@ -566,9 +570,12 @@ main(argc, argv)
 	if (sigaction(SIGINFO, &si_sa, 0) == -1) {
 		err(EX_OSERR, "sigaction");
 	}
-	si_sa.sa_handler = stopit;
-	if (sigaction(SIGALRM, &si_sa, 0) == -1)
-		err(EX_OSERR, "sigaction SIGALRM");
+
+        if (alarmtimeout > 0) {
+		si_sa.sa_handler = stopit;
+		if (sigaction(SIGALRM, &si_sa, 0) == -1)
+			err(EX_OSERR, "sigaction SIGALRM");
+        }
 
 	bzero(&msg, sizeof(msg));
 	msg.msg_name = (caddr_t)&from;
