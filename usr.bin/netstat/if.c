@@ -125,6 +125,33 @@ bdg_stats(u_long dummy, char *name) /* print bridge statistics */
     }
 }
 
+
+
+
+/*
+ * Display a formatted value, or a '-' in the same space.
+ */
+void
+show_stat(fmt, width, value, showvalue)
+	char *fmt;
+	int width;
+	u_long value;
+	short showvalue;
+{
+	char newfmt[32];
+
+	/* Construct the format string */
+	if (showvalue) {
+		sprintf(newfmt, "%%%d%s", width, fmt);
+		printf(newfmt, value);
+	} else {
+		sprintf(newfmt, "%%%ds", width);
+		printf(newfmt, "-");
+	}
+}
+
+
+
 /*
  * Print a description of the network interfaces.
  */
@@ -164,6 +191,8 @@ intpr(interval, ifnetaddr, pfunc)
 	int drops;
 	struct sockaddr *sa = NULL;
 	char name[32], tname[16];
+	short network_layer;
+	short link_layer;
 
 	if (ifnetaddr == 0) {
 		printf("ifnet: symbol not defined\n");
@@ -202,6 +231,9 @@ intpr(interval, ifnetaddr, pfunc)
 #endif
 		register char *cp;
 		int n, m;
+
+		network_layer = 0;
+		link_layer = 0;
 
 		if (ifaddraddr == 0) {
 			ifnetfound = ifnetaddr;
@@ -276,6 +308,8 @@ intpr(interval, ifnetaddr, pfunc)
 #endif
 				printf("%-15.15s ",
 				    routename(sin->sin_addr.s_addr));
+
+				network_layer = 1;
 				break;
 #ifdef INET6
 			case AF_INET6:
@@ -287,6 +321,8 @@ intpr(interval, ifnetaddr, pfunc)
 				    (char *)inet_ntop(AF_INET6,
 					&sin6->sin6_addr,
 					ntop_buf, sizeof(ntop_buf)));
+
+				network_layer = 1;
 				break;
 #endif /*INET6*/
 			case AF_IPX:
@@ -350,6 +386,8 @@ intpr(interval, ifnetaddr, pfunc)
 				m = 30 - m;
 				while (m-- > 0)
 					putchar(' ');
+
+				link_layer = 1;
 				break;
 			}
 
@@ -357,30 +395,41 @@ intpr(interval, ifnetaddr, pfunc)
 			 * Fixup the statistics for interfaces that
 			 * update stats for their network addresses
 			 */
-			if (sa->sa_family == AF_INET ||
-			    sa->sa_family == AF_INET6) {
+			if (network_layer) {
 				opackets = ifaddr.in.ia_ifa.if_opackets;
 				ipackets = ifaddr.in.ia_ifa.if_ipackets;
 				obytes = ifaddr.in.ia_ifa.if_obytes;
 				ibytes = ifaddr.in.ia_ifa.if_ibytes;
-				oerrors = ierrors = 0;
-				collisions = timer = drops = 0;
 			}
 
 			ifaddraddr = (u_long)TAILQ_NEXT(&ifaddr.ifa, ifa_link);
 		}
 
-		printf("%8lu %5lu ", ipackets, ierrors);
-		if (bflag)
-			printf("%10lu ", ibytes);
-		printf("%8lu %5lu ", opackets, oerrors);
-		if (bflag)
-			printf("%10lu ", obytes);
-		printf("%5lu", collisions);
-		if (tflag)
-			printf(" %3d", timer);
-		if (dflag)
-			printf(" %3d", drops);
+		show_stat("lu", 8, ipackets, link_layer|network_layer);
+		printf(" ");
+		show_stat("lu", 5, ierrors, link_layer);
+		printf(" ");
+		if (bflag) {
+			show_stat("lu", 10, ibytes, link_layer|network_layer);
+			printf(" ");
+		}
+		show_stat("lu", 8, opackets, link_layer|network_layer);
+		printf(" ");
+		show_stat("lu", 5, oerrors, link_layer);
+		printf(" ");
+		if (bflag) {
+			show_stat("lu", 10, obytes, link_layer|network_layer);
+			printf(" ");
+		}
+		show_stat("lu", 5, collisions, link_layer);
+		if (tflag) {
+			printf(" ");
+			show_stat("d", 3, timer, link_layer);
+		}
+		if (dflag) {
+			printf(" ");
+			show_stat("d", 3, drops, link_layer);
+		}
 		putchar('\n');
 		if (aflag && ifaddrfound) {
 			/*
