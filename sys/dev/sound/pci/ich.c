@@ -29,8 +29,8 @@
 #include <dev/sound/pcm/ac97.h>
 #include <dev/sound/pci/ich.h>
 
-#include <pci/pcireg.h>
-#include <pci/pcivar.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
 
 SND_DECLARE_FILE("$FreeBSD$");
 

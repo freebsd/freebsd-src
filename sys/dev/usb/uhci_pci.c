@@ -63,8 +63,8 @@
 #include <sys/rman.h>
 #endif
 
-#include <pci/pcivar.h>
-#include <pci/pcireg.h>
+#include <dev/pci/pcivar.h>
+#include <dev/pci/pcireg.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>

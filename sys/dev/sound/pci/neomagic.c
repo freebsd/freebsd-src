@@ -31,8 +31,8 @@
 #include <dev/sound/pci/neomagic.h>
 #include <dev/sound/pci/neomagic-coeff.h>
 
-#include <pci/pcireg.h>
-#include <pci/pcivar.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
 
 SND_DECLARE_FILE("$FreeBSD$");
 

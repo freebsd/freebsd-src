@@ -60,8 +60,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/md5.h>
 #include <sys/random.h>
 
-#include <pci/pcivar.h>
-#include <pci/pcireg.h>
+#include <dev/pci/pcivar.h>
+#include <dev/pci/pcireg.h>
 
 #ifdef SAFE_RNDTEST
 #include <dev/rndtest/rndtest.h>

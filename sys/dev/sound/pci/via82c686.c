@@ -27,8 +27,8 @@
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/pcm/ac97.h>
 
-#include <pci/pcireg.h>
-#include <pci/pcivar.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
 #include <sys/sysctl.h>
 
 #include <dev/sound/pci/via82c686.h>
