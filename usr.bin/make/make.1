@@ -39,7 +39,7 @@
 .Nm make
 .Nd maintain program dependencies
 .Sh SYNOPSIS
-.Nm make
+.Nm
 .Op Fl BPSXeiknqrstv
 .Op Fl D Ar variable
 .Op Fl d Ar flags
@@ -206,7 +206,7 @@ Rather than re-building a target as specified in the makefile, create it
 or update its modification time to make it appear up-to-date.
 .It Fl V Ar variable
 Print
-.Nm make Ns 's
+.Nm Ns 's
 idea of the value of
 .Ar variable ,
 in the global context.
@@ -369,7 +369,7 @@ are:
 .Bl -tag -width Ds
 .It Environment variables
 Variables defined as part of
-.Nm make Ns 's
+.Nm Ns 's
 environment.
 .It Global variables
 Variables defined in the makefile or in included makefiles.
@@ -506,14 +506,14 @@ The environment variable
 .Ev MAKEFLAGS
 may contain anything that
 may be specified on
-.Nm make Ns 's
+.Nm Ns 's
 command line.
 Its contents are stored in
-.Nm make Ns 's
+.Nm Ns 's
 .Va .MAKEFLAGS
 variable.
 Anything specified on
-.Nm make Ns 's
+.Nm Ns 's
 command line is appended to the
 .Va .MAKEFLAGS
 variable which is then
@@ -649,7 +649,7 @@ the rest of the modifier.
 .It Cm Q
 Quotes every shell meta-character in the variable, so that it can be passed
 safely through recursive invocations of
-.Nm make .
+.Nm .
 .It Cm R
 Replaces each word in the variable with everything but its suffix.
 .Sm off
@@ -725,7 +725,7 @@ Converts variable to upper-case letters.
 .Sh DIRECTIVES, CONDITIONALS, AND FOR LOOPS
 Directives, conditionals, and for loops reminiscent
 of the C programming language are provided in
-.Nm make .
+.Nm .
 All such structures are identified by a line beginning with a single
 dot
 .Pq Ql \&.
@@ -749,7 +749,7 @@ Terminate processing of the makefile immediately.
 The filename of the
 makefile, the line on which the error was encountered and the specified
 message are printed to standard output and
-.Nm make
+.Nm
 terminates with exit code 1.  Variables in the message are expanded.
 .El
 .Pp
@@ -873,7 +873,7 @@ has been defined.
 .It Ic make
 Takes a target name as an argument and evaluates to true if the target
 was specified as part of
-.Nm make Ns 's
+.Nm Ns 's
 command line or was declared the default target (either implicitly or
 explicitly, see
 .Va .MAIN )
@@ -982,7 +982,7 @@ or
 .Fl t
 options were specified.
 Normally used to mark recursive
-.Nm make Ns 's .
+.Nm Ns 's .
 .It Ic .NOTMAIN
 Normally
 .Nm
@@ -1005,7 +1005,7 @@ as if they all were preceded by an at sign
 .Pq Ql @ .
 .It Ic .USE
 Turn the target into
-.Nm make Ns 's
+.Nm Ns 's
 version of a macro.
 When the target is used as a source for another target, the other target
 acquires the commands, sources, and attributes (except for
@@ -1152,7 +1152,7 @@ attribute is applied to every
 command in the file.
 .It Ic .SUFFIXES
 Each source specifies a suffix to
-.Nm make .
+.Nm .
 If no sources are specified, any previous specified suffices are deleted.
 .Sh COMPATIBILITY
 Older versions of

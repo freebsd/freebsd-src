@@ -32,7 +32,7 @@
 .Nm colldef
 .Nd convert collation sequence source definition
 .Sh SYNOPSIS
-.Nm colldef
+.Nm
 .Op Fl I Ar map_dir
 .Op Fl o Ar out_file
 .Op Ar filename
@@ -123,12 +123,11 @@ names are separated from their values by TAB or
 SPACE characters. symbol-value can be specified in
 a hexadecimal (\ex\fI??\fR) or octal (\e\fI???\fR)
 representation, and can be only one character in length.
-.Pp
+.Bd -literal
 .Ar symbol-name1 symbol-value1
-.br
 .Ar symbol-name2 symbol-value2
-.br
 .Ar ...
+.Ed
 .Pp
 The
 .Ar charmap
@@ -240,13 +239,15 @@ The backslash character
 is used for continuation.
 In this case, no characters are permitted
 after the backslash character.
-.Sh EXIT STATUS
+.Sh DIAGNOSTICS
 .Nm Colldef
 exits with the following values:
-.Ar 0
-No  errors  were   found   and   the   output   was successfully created.
-.Ar !=0
+.Bl -tag -width indent
+.It Li 0
+No errors were found and the output was successfully created.
+.It Li !=0
 Errors were found.
+.El
 .Sh FILES
 .Ar /usr/share/locale/<language>/LC_COLLATE
 standard shared location  for  collation  orders

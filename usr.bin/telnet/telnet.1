@@ -67,7 +67,7 @@ is invoked without the
 .Ar host
 argument, it enters command mode,
 indicated by its prompt
-.Pq Nm telnet\&> .
+.Pq Dq Li telnet\&> .
 In this mode, it accepts and executes the commands listed below.
 If it is invoked with arguments, it performs an
 .Ic open
@@ -606,7 +606,7 @@ command prompt.
 Close any open
 .Tn TELNET
 session and exit
-.Nm telnet  .
+.Nm .
 An end of file (in command mode) will also close a session and exit.
 .It Ic send Ar arguments 
 Sends one or more special character sequences to the remote host.
@@ -1084,7 +1084,7 @@ command.
 .El
 .It Ic status
 Show the current status of
-.Nm telnet  .
+.Nm .
 This includes the peer one is connected to, as well
 as the current mode.
 .It Ic toggle Ar arguments ... 
@@ -1351,7 +1351,7 @@ commands.
 .El
 .It Ic z
 Suspend
-.Nm telnet  .
+.Nm .
 This command only works when the user is using the
 .Xr csh  1  .
 .It Ic \&! Op Ar command 

@@ -39,7 +39,7 @@
 .Nm gprof
 .Nd display call graph profile data
 .Sh SYNOPSIS
-.Nm gprof
+.Nm
 .Op options
 .Op Ar a.out Op Ar a.out.gmon ...
 .Sh DESCRIPTION
@@ -69,7 +69,7 @@ of the executable with the suffix
 appended.
 If more than one profile file is specified,
 the
-.Nm gprof
+.Nm
 output shows the sum of the profile information in the given profile files.
 .Pp
 .Nm Gprof
@@ -122,7 +122,7 @@ Find a minimal set of arcs that can be broken to eliminate all cycles with
 or more members.
 Caution: the algorithm used to break cycles is exponential,
 so using this option may cause 
-.Nm gprof
+.Nm
 to run for a very long time.
 .It Fl e Ar name 
 Suppresses the printing of the graph profile entry for routine
@@ -270,7 +270,7 @@ Summarized dynamic call graph and profile.
 .Re
 .Sh HISTORY
 The
-.Nm gprof
+.Nm
 profiler
 appeared in
 .Bx 4.2 .

@@ -11,43 +11,52 @@
 .Nm
 .Op Ar username
 .Sh DESCRIPTION
-.Nm Keyinfo
+.Nm
 takes an optional user name and displays the user\'s current sequence
 number and seed found in the S/Key database
 .Pa /etc/skeykeys .
 .Pp
 The command can be useful when generating a list of passwords for use
 on a field trip, by combining with the command
-.Nm key
+.Xr key 1
 in the form:
-.sp
-    > key \-n  <number of passwords> `keyinfo`|lpr
-.Sh EXAMPLE
+.Bd -literal -offset indent
+key -n  <number of passwords> `keyinfo` | lpr
+.Ed
+.Pp
+The optional
+.Ar username
+argument specifies the S/Key user for whom to display the information.
+The default is to display S/Key information
+on the user who invokes the command.
+Only the superuser can ask for another user's key information.
+.Sh EXAMPLES
 Usage example:
-.sp 0
-    > keyinfo
-.sp 0
-    0098 ws91340
-.Sh ARGUMENTS
-.Bl -tag -width indent
-.It Ar username
-The S/key user to display the information for.  The default is 
-to display S/Key information on the user who invokes the command.
-.El
+.Bd -literal -offset indent
+$ keyinfo
+.Ed
+.Pp
+This would produce the following output:
+.Bd -literal -offset indent
+98 ws91340
+.Ed
 .Sh DIAGNOSTICS
-.Nm Keyinfo
+The
+.Nm
+utility
 exits with status 0 if a key for the requested user has been found,
 else with status 1.
 .Sh SEE ALSO
 .Xr key 1 ,
 .Xr keyinit 1
 .Sh AUTHORS
+.An -nosplit
 Original command by
 .An Phil Karn ,
-.An Neil M. Haller ,
+.An Neil M. Haller
+and
 .An John S. Walden .
 Rewritten in Perl by
-.ie t J\(:org \%Wunsch
-.el Joerg Wunsch
-so it can be made setuid, and the S/Key keys file can be read-protected
+.An J\(:org Wunsch
+so that it could be made setuid, with the S/Key keys file read-protected
 from the users.

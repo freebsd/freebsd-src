@@ -42,7 +42,7 @@
 .Nm window
 .Nd window environment
 .Sh SYNOPSIS
-.Nm window
+.Nm
 .Op Fl t
 .Op Fl f
 .Op Fl d
@@ -66,7 +66,7 @@ input from the keyboard, but all windows can simultaneously send output
 to the display.
 .Pp
 When
-.Nm window
+.Nm
 starts up, the commands (see long commands below)
 contained in the file
 .Pa .windowrc
@@ -158,7 +158,7 @@ uses
 this information to redraw its display.
 .Ss Operation
 During normal execution,
-.Nm window
+.Nm
 can be in one of two states:
 conversation mode and command mode.  In conversation mode, the
 terminal's real cursor is placed at the cursor position of a particular
@@ -168,13 +168,13 @@ on top of all other windows, except those in foreground.  In addition,
 it is set apart by highlighting its identifier and label in reverse video.
 .Pp
 Typing
-.Nm window Ns 's 
+.Nm Ns 's
 escape character (normally
 .Ic ^P )
 in conversation
 mode switches it into command mode.  In command mode, the top line of
 the terminal screen becomes the command prompt window, and
-.Nm window
+.Nm
 interprets input from the keyboard as commands to manipulate windows.
 .Pp
 There are two types of commands: short commands are usually one or two
@@ -224,7 +224,7 @@ current window.  Thus, typing two
 .Ic ^P Ns 's
 in conversation
 mode sends one to the current window.  If the
-.Nm window
+.Nm
 escape is changed to some other character, that
 character takes the place of
 .Ic ^P
@@ -235,11 +235,11 @@ List a short summary of commands.
 Refresh the screen.
 .It Ic q
 Exit
-.Nm window  .
+.Nm .
 Confirmation is requested.
 .It Ic ^Z
 Suspend
-.Nm window  .
+.Nm .
 .It Ic w
 Create a new window.  The user is prompted for the positions
 of the upper left and lower right corners of the window.
@@ -394,7 +394,7 @@ be repeated any number of times.
 must be numeric.
 .Ss Expressions
 Expressions in
-.Nm window
+.Nm
 are similar to those in the
 C language, with most C operators supported on numeric
 operands.  In addition, some are overloaded to operate on strings.
@@ -580,7 +580,7 @@ Function call.
 .Aq Va Expr
 must be a string that is the unique
 prefix of the name of a builtin
-.Nm window
+.Nm
 function
 or the full name of a user defined alias macro.  In the case of a builtin
 function,
@@ -694,7 +694,7 @@ Set the default value of the
 .Ar smooth
 argument
 to the command
-.Nm window
+.Nm
 (see below).  The argument
 is a boolean flag (one of
 .Ar on  ,
@@ -714,7 +714,7 @@ The initial value is 1 (true).
 Write the list of strings,
 .Aq Ar string-list ,
 to
-.Nm window  ,
+.Nm ,
 separated
 by spaces and terminated with a new line.  The strings are only
 displayed in the window, the processes in the window are not
@@ -739,12 +739,12 @@ meaning
 .Bq Ar flag ) 
 .Xc
 Move
-.Nm window
+.Nm
 in or out of foreground.
 .Ar Flag
 is a boolean value.  The old foreground flag
 is returned.  Default for
-.Nm window
+.Nm
 is the current window,
 default for
 .Ar flag
@@ -754,12 +754,12 @@ is no change.
 .Bq Ar label ) 
 .Xc
 Set the label of
-.Nm window
+.Nm
 to
 .Ar label  .
 Returns the old
 label as a string.  Default for
-.Nm window
+.Nm
 is the current
 window, default for
 .Ar label
@@ -770,7 +770,7 @@ No arguments.  List the identifiers and labels of all windows.  No
 value is returned.
 .It Ic select Ns Pq Bq Ar window
 Make
-.Nm window
+.Nm
 the current window.  The previous current window
 is returned.  Default is no change.
 .It Ic source Ns Pq Ar filename
@@ -879,7 +879,7 @@ is returned as a number.
 Send the list of strings,
 .Aq Ar string-list ,
 to
-.Nm window  ,
+.Nm ,
 separated
 by spaces but not terminated with a new line.  The strings are actually
 given to the window as input.  No value is returned.  Default
@@ -888,7 +888,7 @@ is the current window.
 .Ss Predefined Variables
 These variables are for information only.  Redefining them does
 not affect the internal operation of
-.Nm window  .
+.Nm .
 .Bl -tag -width modes
 .It Ar baud
 The baud rate as a number between 50 and 38400.
@@ -941,7 +941,7 @@ pseudo-terminal devices.
 .El
 .Sh HISTORY
 The
-.Nm window
+.Nm
 command appeared in
 .Bx 4.3 .
 .Sh DIAGNOSTICS

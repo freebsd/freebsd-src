@@ -26,24 +26,24 @@
 .Nm limits
 .Nd set or display process resource limits
 .Sh SYNOPSIS
-.Nm limits
+.Nm
 .Op Fl C Ar class
 .Op Fl SHB
 .Op Fl ea
 .Op Fl cdflmnstu Op val
-.Nm limits
+.Nm
 .Op Fl C Ar class
 .Op Fl SHB
 .Op Fl cdflmnstu Op val
 .Op Fl E
 .Op Ar name=value ...
 .Op Ar command
-.Nm limits
+.Nm
 .Op Fl U Ar user
 .Op Fl SHB
 .Op Fl ea
 .Op Fl cdflmnstu Op val
-.Nm limits
+.Nm
 .Op Fl U Ar user
 .Op Fl SHB
 .Op Fl cdflmnstu Op val
@@ -61,7 +61,8 @@ Three uses of the
 command are possible:
 .Pp
 .Bl -hang -width indent
-.It Nm limits Op Ar limitflags
+.It Nm
+.Op Ar limitflags
 .Op Ar name=value
 .Ar command
 .Pp
@@ -70,7 +71,8 @@ This usage sets limits according to
 optionally sets environment variables given as
 .Ar name=value
 pairs, and then runs the specified command.
-.It Nm limits Op Ar limitflags
+.It Nm
+.Op Ar limitflags
 .Pp
 This usage determines values of resource settings according to
 .Ar limitflags ,
@@ -87,7 +89,8 @@ by the the appropriate login class resource limit entries from
 the
 .Xr login.conf 5
 login capabilities database.
-.It Nm limits Fl e Op Ar limitflags
+.It Nm
+.Fl e Op Ar limitflags
 .Pp
 This usage determines values of resource settings according to
 .Ar limitflags ,
