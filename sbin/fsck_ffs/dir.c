@@ -373,7 +373,7 @@ adjust(idesc, lcnt)
 				cmd.value = idesc->id_number;
 				cmd.size = -lcnt;
 				if (debug)
-					printf("adjrefcnt ino %d amt %d\n",
+					printf("adjrefcnt ino %ld amt %ld\n",
 					    (long)cmd.value, cmd.size);
 				if (sysctl(adjrefcnt, MIBSIZE, 0, 0,
 				    &cmd, sizeof cmd) == -1)
@@ -545,7 +545,7 @@ linkup(orphan, parentdir, name)
 		dp->di_nlink++;
 		inodirty();
 		inoinfo(lfdir)->ino_linkcnt++;
-		pwarn("DIR I=%lu CONNECTED. ", orphan);
+		pwarn("DIR I=%lu CONNECTED. ", (u_long)orphan);
 		if (parentdir != (ino_t)-1) {
 			printf("PARENT WAS I=%lu\n", (u_long)parentdir);
 			/*

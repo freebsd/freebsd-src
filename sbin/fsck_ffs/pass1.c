@@ -197,7 +197,8 @@ checkinode(inumber, idesc)
 		    memcmp(dp->di_ib, zino.di_ib,
 			NIADDR * sizeof(ufs_daddr_t)) ||
 		    dp->di_mode || dp->di_size) {
-			pfatal("PARTIALLY ALLOCATED INODE I=%lu", inumber);
+			pfatal("PARTIALLY ALLOCATED INODE I=%lu",
+			    (u_long)inumber);
 			if (reply("CLEAR") == 1) {
 				dp = ginode(inumber);
 				clearinode(dp);
@@ -339,7 +340,8 @@ checkinode(inumber, idesc)
 	idesc->id_entryno *= btodb(sblock.fs_fsize);
 	if (dp->di_blocks != idesc->id_entryno) {
 		pwarn("INCORRECT BLOCK COUNT I=%lu (%ld should be %ld)",
-		    inumber, dp->di_blocks, idesc->id_entryno);
+		    (u_long)inumber, (long)dp->di_blocks,
+		    (long)idesc->id_entryno);
 		if (preen)
 			printf(" (CORRECTED)\n");
 		else if (reply("CORRECT") == 0)
@@ -352,7 +354,7 @@ checkinode(inumber, idesc)
 			cmd.value = idesc->id_number;
 			cmd.size = idesc->id_entryno - dp->di_blocks;
 			if (debug)
-				printf("adjblkcnt ino %d amount %d\n",
+				printf("adjblkcnt ino %ld amount %ld\n",
 				    (long)cmd.value, cmd.size);
 			if (sysctl(adjblkcnt, MIBSIZE, 0, 0,
 			    &cmd, sizeof cmd) == -1)
@@ -361,7 +363,7 @@ checkinode(inumber, idesc)
 	}
 	return;
 unknown:
-	pfatal("UNKNOWN FILE TYPE I=%lu", inumber);
+	pfatal("UNKNOWN FILE TYPE I=%lu", (u_long)inumber);
 	inoinfo(inumber)->ino_state = FCLEAR;
 	if (reply("CLEAR") == 1) {
 		inoinfo(inumber)->ino_state = USTATE;
@@ -400,7 +402,7 @@ pass1check(idesc)
 		blkerror(idesc->id_number, "BAD", blkno);
 		if (badblk++ >= MAXBAD) {
 			pwarn("EXCESSIVE BAD BLKS I=%lu",
-				idesc->id_number);
+			    (u_long)idesc->id_number);
 			if (preen)
 				printf(" (SKIPPING)\n");
 			else if (reply("CONTINUE") == 0) {
@@ -420,7 +422,7 @@ pass1check(idesc)
 			blkerror(idesc->id_number, "DUP", blkno);
 			if (dupblk++ >= MAXDUP) {
 				pwarn("EXCESSIVE DUP BLKS I=%lu",
-					idesc->id_number);
+					(u_long)idesc->id_number);
 				if (preen)
 					printf(" (SKIPPING)\n");
 				else if (reply("CONTINUE") == 0) {

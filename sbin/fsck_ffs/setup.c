@@ -44,6 +44,7 @@ static const char rcsid[] =
 #include <sys/stat.h>
 #include <sys/disklabel.h>
 #include <sys/file.h>
+#include <sys/sysctl.h>
 
 #include <ufs/ufs/dinode.h>
 #include <ufs/ffs/fs.h>
@@ -72,11 +73,12 @@ int
 setup(dev)
 	char *dev;
 {
-	long cg, size, asked, i, j;
+	long cg, asked, i, j;
 	long bmapsize;
 	off_t sizepb;
 	struct stat statb;
 	struct fs proto;
+	size_t size;
 
 	havesb = 0;
 	fswritefd = -1;

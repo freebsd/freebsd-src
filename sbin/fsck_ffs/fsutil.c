@@ -41,6 +41,7 @@ static const char rcsid[] =
 
 #include <sys/param.h>
 #include <sys/types.h>
+#include <sys/sysctl.h>
 #include <sys/stat.h>
 
 #include <ufs/ufs/dinode.h>
@@ -268,7 +269,7 @@ rwerror(mesg, blk)
 		exit(EEXIT);
 	if (preen == 0)
 		printf("\n");
-	pfatal("CANNOT %s: %ld", mesg, blk);
+	pfatal("CANNOT %s: %ld", mesg, (long)blk);
 	if (reply("CONTINUE") == 0)
 		exit(EEXIT);
 }
@@ -561,20 +562,6 @@ catchquit(sig)
 {
 	printf("returning to single-user after filesystem check\n");
 	returntosingle = 1;
-	(void)signal(SIGQUIT, SIG_DFL);
-}
-
-/*
- * Ignore a single quit signal; wait and flush just in case.
- * Used by child processes in preen.
- */
-void
-voidquit(sig)
-	int sig;
-{
-
-	sleep(1);
-	(void)signal(SIGQUIT, SIG_IGN);
 	(void)signal(SIGQUIT, SIG_DFL);
 }
 
