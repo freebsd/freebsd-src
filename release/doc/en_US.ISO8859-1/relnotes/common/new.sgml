@@ -722,13 +722,32 @@
     <sect3>
       <title>Disks and Storage</title>
 
-      <para arch="i386">The &man.asr.4; driver now supports the Adaptec
-      2000S and 2005S Zero-Channel RAID controllers. &merged;</para>
+      <para arch="i386">Support for the Adaptec FSA family of PCI-SCSI
+      RAID controllers has been added, in the form of the &man.aac.4;
+      driver. &merged;</para>
 
       <para arch="i386">The &man.aac.4; driver now supports the Adaptec
       SCSI RAID 5400S controller. &merged;</para>
 
-      <para arch="i386">The &man.twe.4; 3ware ATA RAID driver has added. &merged;</para>
+      <para arch="i386">The &man.aac.4; driver has been updated to
+      include proper handling of commands initiated by the adapter,
+      addition/removal of disk devices, crashdump functionality, and
+      &man.ioctl.2; command necessary for the management
+      CLI. &merged;</para>
+
+      <para>The &man.ahc.4; driver has received numerous updates,
+      bugfixes, and enhancements.  Among various improvements are
+      improved compatibility with chips in <quote>RAID Port</quote> mode
+      and systems with AAA and/or ARO cards installed, as well as
+      performance improvements. Some bugs were also fixed, including a
+      rare hang on Ultra2/U160 controllers. &merged;</para>
+
+      <para arch="i386">The &man.asr.4; driver, which provides support
+      for the Adaptec SCSI RAID controller family, as well as the DPT
+      SmartRAID V and VI families, has been added. &merged;</para>
+
+      <para arch="i386">The &man.asr.4; driver now supports the Adaptec
+      2000S and 2005S Zero-Channel RAID controllers. &merged;</para>
 
       <para>The &man.ata.4; driver now has support for ATA100
       controllers.  In addition, it now supports the ServerWorks ROSB4
@@ -747,38 +766,10 @@
       <quote>pseudo</quote> RAID controllers as the Promise Fasttrak and
       HighPoint HPT370 controllers. &merged;</para>
 
-      <para>The &man.wd.4; compatibility devices were removed from the
-      &man.ata.4; driver. &merged;</para>
+      <para>The BurnProof(TM) feature, for applicable ATAPI CD-ROM burners, is now
+      supported. &merged;</para>
 
-      <para arch="i386">The &man.mly.4; driver, for Mylex PCI to SCSI
-      AccelRAID and eXtremeRAID controllers with firmware 6.X and
-      later, has been added. &merged;</para>
-
-      <para arch="i386">The &man.asr.4; driver, which provides support
-      for the Adaptec SCSI RAID controller family, as well as the DPT
-      SmartRAID V and VI families, has been added. &merged;</para>
-
-      <para arch="i386">Support for the Adaptec FSA family of PCI-SCSI
-      RAID controllers has been added, in the form of the &man.aac.4;
-      driver. &merged;</para>
-
-      <para arch="i386">The &man.aac.4; driver has been updated to
-      include proper handling of commands initiated by the adapter,
-      addition/removal of disk devices, crashdump functionality, and
-      &man.ioctl.2; command necessary for the management
-      CLI. &merged;</para>
-
-      <para>The &man.ahc.4; driver has received numerous updates,
-      bugfixes, and enhancements.  Among various improvements are
-      improved compatibility with chips in <quote>RAID Port</quote> mode
-      and systems with AAA and/or ARO cards installed, as well as
-      performance improvements. Some bugs were also fixed, including a
-      rare hang on Ultra2/U160 controllers. &merged;</para>
-
-      <para arch="i386">The ncv, nsp, and stg drivers have
-      been ported from NetBSD/pc98.  They support the NCR 53C50 /
-      Workbit Ninja SCSI-3 / TMC 18C30, 18C50 based PC-Card/ISA SCSI
-      controllers. &merged;</para>
+      <para>The CAM error recovery code has been updated.</para>
 
       <para>The &man.cd.4; driver now has support for write operations.
       This allows writing to DVD-RAM, PD and similar drives that probe
@@ -787,17 +778,7 @@
       CD-R drives, which are supported by &man.cdrecord.1; (a part of 
       <port>sysutils/cdrtools</port> in the Ports Collection. &merged;</para>
 
-      <para>The &man.vinum.4; volume manager has received some bug fixes and
-      enhancements.</para>
-
-      <para>&man.md.4;, the memory disk device, has had the
-      functionality of &man.vn.4; incorporated into it.  &man.md.4;
-      devices can now be configured by &man.mdconfig.8;.  &man.vn.4; has
-      been removed.  The Memory Filesystem (MFS) has also been
-      removed.</para>
-
-      <para>The BurnProof(TM) feature, for applicable ATAPI CD-ROM burners, is now
-      supported. &merged;</para>
+      <para>The ida disk driver now has crashdump support. &merged;</para>
 
       <para arch="alpha">A bug that made certain CDROM drives fail to
       attach when connected to a SCSI card driven by &man.isp.4; has
@@ -812,14 +793,32 @@
       <para>The &man.isp.4; driver now supports the Qlogic 2300 and
       2312 Optical Fibre Channel PCI cards. &merged;</para>
 
-      <para>The ida disk driver now has crashdump support. &merged;</para>
+      <para>&man.md.4;, the memory disk device, has had the
+      functionality of &man.vn.4; incorporated into it.  &man.md.4;
+      devices can now be configured by &man.mdconfig.8;.  &man.vn.4; has
+      been removed.  The Memory Filesystem (MFS) has also been
+      removed.</para>
 
-      <para>The CAM error recovery code has been updated.</para>
+      <para arch="i386">The &man.mly.4; driver, for Mylex PCI to SCSI
+      AccelRAID and eXtremeRAID controllers with firmware 6.X and
+      later, has been added. &merged;</para>
+
+      <para arch="i386">The ncv, nsp, and stg drivers have
+      been ported from NetBSD/pc98.  They support the NCR 53C50 /
+      Workbit Ninja SCSI-3 / TMC 18C30, 18C50 based PC-Card/ISA SCSI
+      controllers. &merged;</para>
 
       <para>Some problems in &man.sa.4; error handling have been
       fixed, including the <quote>tape drive spinning indefinitely
       upon &man.mt.1; <option>stat</option></quote> problem.</para>
 
+      <para arch="i386">The &man.twe.4; 3ware ATA RAID driver has added. &merged;</para>
+
+      <para>The &man.vinum.4; volume manager has received some bug fixes and
+      enhancements.</para>
+
+      <para>The &man.wd.4; compatibility devices were removed from the
+      &man.ata.4; driver. &merged;</para>
     </sect3>
 
     <sect3>
