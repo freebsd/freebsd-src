@@ -514,7 +514,11 @@ struct ste_softc {
 	struct ste_list_data	*ste_ldata;
 	struct ste_chain_data	ste_cdata;
 	struct callout_handle	ste_stat_ch;
+	struct mtx		ste_mtx;
 };
+
+#define	STE_LOCK(_sc)		mtx_enter(&(_sc)->ste_mtx, MTX_DEF)
+#define	STE_UNLOCK(_sc)		mtx_exit(&(_sc)->ste_mtx, MTX_DEF)
 
 struct ste_mii_frame {
 	u_int8_t		mii_stdelim;

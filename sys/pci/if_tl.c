@@ -1245,7 +1245,7 @@ static int tl_attach(dev)
 	if (t->tl_vid == OLICOM_VENDORID)
 		sc->tl_eeaddr = TL_EEPROM_EADDR_OC;
 
-	mtx_init(&sc->tl_mtx, "tl", MTX_DEF);
+	mtx_init(&sc->tl_mtx, device_get_nameunit(dev), MTX_DEF);
 	TL_LOCK(sc);
 
 	/* Reset the adapter. */

@@ -242,9 +242,9 @@ static int ste_mii_readreg(sc, frame)
 	struct ste_mii_frame	*frame;
 	
 {
-	int			i, ack, s;
+	int			i, ack;
 
-	s = splimp();
+	STE_LOCK(sc);
 
 	/*
 	 * Set up frame for RX.
@@ -319,7 +319,7 @@ fail:
 	MII_SET(STE_PHYCTL_MCLK);
 	DELAY(1);
 
-	splx(s);
+	STE_UNLOCK(sc);
 
 	if (ack)
 		return(1);
@@ -334,9 +334,8 @@ static int ste_mii_writereg(sc, frame)
 	struct ste_mii_frame	*frame;
 	
 {
-	int			s;
+	STE_LOCK(sc);
 
-	s = splimp();
 	/*
 	 * Set up frame for TX.
 	 */
@@ -370,7 +369,7 @@ static int ste_mii_writereg(sc, frame)
 	 */
 	MII_CLR(STE_PHYCTL_MDIR);
 
-	splx(s);
+	STE_UNLOCK(sc);
 
 	return(0);
 }
@@ -419,6 +418,7 @@ static void ste_miibus_statchg(dev)
 	struct mii_data		*mii;
 
 	sc = device_get_softc(dev);
+	STE_LOCK(sc);
 	mii = device_get_softc(sc->ste_miibus);
 
 	if ((mii->mii_media_active & IFM_GMASK) == IFM_FDX) {
@@ -426,6 +426,7 @@ static void ste_miibus_statchg(dev)
 	} else {
 		STE_CLRBIT2(sc, STE_MACCTL0, STE_MACCTL0_FULLDUPLEX);
 	}
+	STE_UNLOCK(sc);
 
 	return;
 }
@@ -615,11 +616,14 @@ static void ste_intr(xsc)
 	u_int16_t		status;
 
 	sc = xsc;
+	STE_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 
 	/* See if this is really our interrupt. */
-	if (!(CSR_READ_2(sc, STE_ISR) & STE_ISR_INTLATCH))
+	if (!(CSR_READ_2(sc, STE_ISR) & STE_ISR_INTLATCH)) {
+		STE_UNLOCK(sc);
 		return;
+	}
 
 	for (;;) {
 		status = CSR_READ_2(sc, STE_ISR_ACK);
@@ -652,6 +656,8 @@ static void ste_intr(xsc)
 
 	if (ifp->if_snd.ifq_head != NULL)
 		ste_start(ifp);
+
+	STE_UNLOCK(sc);
 
 	return;
 }
@@ -837,12 +843,12 @@ static void ste_stats_update(xsc)
 	struct ste_stats	stats;
 	struct ifnet		*ifp;
 	struct mii_data		*mii;
-	int			i, s;
+	int			i;
 	u_int8_t		*p;
 
-	s = splimp();
-
 	sc = xsc;
+	STE_LOCK(sc);
+
 	ifp = &sc->arpcom.ac_if;
 	mii = device_get_softc(sc->ste_miibus);
 
@@ -867,7 +873,7 @@ static void ste_stats_update(xsc)
 	}
 
 	sc->ste_stat_ch = timeout(ste_stats_update, sc, hz);
-	splx(s);
+	STE_UNLOCK(sc);
 
 	return;
 }
@@ -903,13 +909,10 @@ static int ste_probe(dev)
 static int ste_attach(dev)
 	device_t		dev;
 {
-	int			s;
 	u_int32_t		command;
 	struct ste_softc	*sc;
 	struct ifnet		*ifp;
 	int			unit, error = 0, rid;
-
-	s = splimp();
 
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
@@ -1000,6 +1003,8 @@ static int ste_attach(dev)
 	}
 
 	callout_handle_init(&sc->ste_stat_ch);
+	mtx_init(&sc->ste_mtx, device_get_nameunit(dev), MTX_DEF);
+	STE_LOCK(sc);
 
 	/* Reset the adapter. */
 	ste_reset(sc);
@@ -1071,9 +1076,12 @@ static int ste_attach(dev)
 	 * Call MI attach routine.
 	 */
 	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+	STE_UNLOCK(sc);
+	return(0);
 
 fail:
-	splx(s);
+	STE_UNLOCK(sc);
+	mtx_destroy(&sc->ste_mtx);
 	return(error);
 }
 
@@ -1082,11 +1090,9 @@ static int ste_detach(dev)
 {
 	struct ste_softc	*sc;
 	struct ifnet		*ifp;
-	int			s;
-
-	s = splimp();
 
 	sc = device_get_softc(dev);
+	STE_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 
 	ste_stop(sc);
@@ -1101,7 +1107,8 @@ static int ste_detach(dev)
 
 	contigfree(sc->ste_ldata, sizeof(struct ste_list_data), M_DEVBUF);
 
-	splx(s);
+	STE_UNLOCK(sc);
+	mtx_destroy(&sc->ste_mtx);
 
 	return(0);
 }
@@ -1218,13 +1225,12 @@ static void ste_init(xsc)
 	void			*xsc;
 {
 	struct ste_softc	*sc;
-	int			i, s;
+	int			i;
 	struct ifnet		*ifp;
 	struct mii_data		*mii;
 
-	s = splimp();
-
 	sc = xsc;
+	STE_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 	mii = device_get_softc(sc->ste_miibus);
 
@@ -1240,7 +1246,7 @@ static void ste_init(xsc)
 		printf("ste%d: initialization failed: no "
 		    "memory for RX buffers\n", sc->ste_unit);
 		ste_stop(sc);
-		splx(s);
+		STE_UNLOCK(sc);
 		return;
 	}
 
@@ -1312,9 +1318,8 @@ static void ste_init(xsc)
 	ifp->if_flags |= IFF_RUNNING;
 	ifp->if_flags &= ~IFF_OACTIVE;
 
-	splx(s);
-
 	sc->ste_stat_ch = timeout(ste_stats_update, sc, hz);
+	STE_UNLOCK(sc);
 
 	return;
 }
@@ -1325,6 +1330,7 @@ static void ste_stop(sc)
 	int			i;
 	struct ifnet		*ifp;
 
+	STE_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 
 	untimeout(ste_stats_update, sc, sc->ste_stat_ch);
@@ -1354,6 +1360,7 @@ static void ste_stop(sc)
 	}
 
 	ifp->if_flags &= ~(IFF_RUNNING|IFF_OACTIVE);
+	STE_UNLOCK(sc);
 
 	return;
 }
@@ -1391,11 +1398,10 @@ static int ste_ioctl(ifp, command, data)
 	struct ste_softc	*sc;
 	struct ifreq		*ifr;
 	struct mii_data		*mii;
-	int			error = 0, s;
-
-	s = splimp();
+	int			error = 0;
 
 	sc = ifp->if_softc;
+	STE_LOCK(sc);
 	ifr = (struct ifreq *)data;
 
 	switch(command) {
@@ -1442,7 +1448,7 @@ static int ste_ioctl(ifp, command, data)
 		break;
 	}
 
-	splx(s);
+	STE_UNLOCK(sc);
 
 	return(error);
 }
@@ -1490,12 +1496,17 @@ static void ste_start(ifp)
 	int			idx;
 
 	sc = ifp->if_softc;
+	STE_LOCK(sc);
 
-	if (!sc->ste_link)
+	if (!sc->ste_link) {
+		STE_UNLOCK(sc);
 		return;
+	}
 
-	if (ifp->if_flags & IFF_OACTIVE)
+	if (ifp->if_flags & IFF_OACTIVE) {
+		STE_UNLOCK(sc);
 		return;
+	}
 
 	idx = sc->ste_cdata.ste_tx_prod;
 	start_tx = &sc->ste_cdata.ste_tx_chain[idx];
@@ -1530,8 +1541,10 @@ static void ste_start(ifp)
 		sc->ste_cdata.ste_tx_cnt++;
 	}
 
-	if (cur_tx == NULL)
+	if (cur_tx == NULL) {
+		STE_UNLOCK(sc);
 		return;
+	}
 
 	cur_tx->ste_ptr->ste_ctl |= STE_TXCTL_DMAINTR;
 
@@ -1540,6 +1553,7 @@ static void ste_start(ifp)
 	start_tx->ste_prev->ste_ptr->ste_next = start_tx->ste_phys;
 
 	ifp->if_timer = 5;
+	STE_UNLOCK(sc);
 
 	return;
 }
@@ -1550,6 +1564,7 @@ static void ste_watchdog(ifp)
 	struct ste_softc	*sc;
 
 	sc = ifp->if_softc;
+	STE_LOCK(sc);
 
 	ifp->if_oerrors++;
 	printf("ste%d: watchdog timeout\n", sc->ste_unit);
@@ -1562,6 +1577,7 @@ static void ste_watchdog(ifp)
 
 	if (ifp->if_snd.ifq_head != NULL)
 		ste_start(ifp);
+	STE_UNLOCK(sc);
 
 	return;
 }

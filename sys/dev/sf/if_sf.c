@@ -766,7 +766,7 @@ static int sf_attach(dev)
 	}
 
 	callout_handle_init(&sc->sf_stat_ch);
-	mtx_init(&sc->sf_mtx, "sf", MTX_DEF);
+	mtx_init(&sc->sf_mtx, device_get_nameunit(dev), MTX_DEF);
 	SF_LOCK(sc);
 	/* Reset the adapter. */
 	sf_reset(sc);

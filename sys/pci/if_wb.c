@@ -907,7 +907,7 @@ static int wb_attach(dev)
 	/* Save the cache line size. */
 	sc->wb_cachesize = pci_read_config(dev, WB_PCI_CACHELEN, 4) & 0xFF;
 
-	mtx_init(&sc->wb_mtx, "wb", MTX_DEF);
+	mtx_init(&sc->wb_mtx, device_get_nameunit(dev), MTX_DEF);
 	WB_LOCK(sc);
 
 	/* Reset the adapter. */
