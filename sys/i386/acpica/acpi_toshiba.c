@@ -337,7 +337,7 @@ hci_video_output(ACPI_HANDLE h, int op, UINT32 *video_output)
 		if (h == NULL)
 			return (ENXIO);
 		*video_output |= HCI_VIDEO_OUTPUT_FLAG;
-		status = acpi_SetInteger(h, "DSSX", *video_output);
+		status = acpi_SetInteger(h, METHOD_VIDEO, *video_output);
 		if (ACPI_SUCCESS(status))
 			ret = 0;
 		else
