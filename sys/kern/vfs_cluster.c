@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.63 1998/07/04 20:45:32 julian Exp $
+ * $Id: vfs_cluster.c,v 1.64 1998/07/07 04:36:23 bde Exp $
  */
 
 #include "opt_debug_cluster.h"
@@ -437,8 +437,8 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 			bp->b_pages[j] = bogus_page;
 	}
 	if (bp->b_bufsize > bp->b_kvasize)
-		panic("cluster_rbuild: b_bufsize(%d) > b_kvasize(%d)\n",
-			bp->b_bufsize, bp->b_kvasize);
+		panic("cluster_rbuild: b_bufsize(%ld) > b_kvasize(%d)\n",
+		    bp->b_bufsize, bp->b_kvasize);
 	bp->b_kvasize = bp->b_bufsize;
 
 	pmap_qenter(trunc_page((vm_offset_t) bp->b_data),
@@ -806,8 +806,9 @@ cluster_wbuild(vp, size, start_lbn, len)
 		pmap_qenter(trunc_page((vm_offset_t) bp->b_data),
 			(vm_page_t *) bp->b_pages, bp->b_npages);
 		if (bp->b_bufsize > bp->b_kvasize)
-			panic("cluster_wbuild: b_bufsize(%d) > b_kvasize(%d)\n",
-				bp->b_bufsize, bp->b_kvasize);
+			panic(
+			    "cluster_wbuild: b_bufsize(%ld) > b_kvasize(%d)\n",
+			    bp->b_bufsize, bp->b_kvasize);
 		bp->b_kvasize = bp->b_bufsize;
 		totalwritten += bp->b_bufsize;
 		bp->b_dirtyoff = 0;
