@@ -709,7 +709,7 @@ tapioctl(dev, cmd, data, flag, td)
 			return (fsetown(*(int *)data, &tp->tap_sigio));
 
 		case FIOGETOWN:
-			*(int *)data = fgetown(tp->tap_sigio);
+			*(int *)data = fgetown(&tp->tap_sigio);
 			return (0);
 
 		/* this is deprecated, FIOSETOWN should be used instead */
@@ -718,7 +718,7 @@ tapioctl(dev, cmd, data, flag, td)
 
 		/* this is deprecated, FIOGETOWN should be used instead */
 		case TIOCGPGRP:
-			*(int *)data = -fgetown(tp->tap_sigio);
+			*(int *)data = -fgetown(&tp->tap_sigio);
 			return (0);
 
 		/* VMware/VMnet port ioctl's */

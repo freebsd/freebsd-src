@@ -131,14 +131,14 @@ soo_ioctl(fp, cmd, data, active_cred, td)
 		return (fsetown(*(int *)data, &so->so_sigio));
 
 	case FIOGETOWN:
-		*(int *)data = fgetown(so->so_sigio);
+		*(int *)data = fgetown(&so->so_sigio);
 		return (0);
 
 	case SIOCSPGRP:
 		return (fsetown(-(*(int *)data), &so->so_sigio));
 
 	case SIOCGPGRP:
-		*(int *)data = -fgetown(so->so_sigio);
+		*(int *)data = -fgetown(&so->so_sigio);
 		return (0);
 
 	case SIOCATMARK:

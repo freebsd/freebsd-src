@@ -775,10 +775,15 @@ fail:
  * This is common code for FIOGETOWN ioctl called by fcntl(fd, F_GETOWN, arg).
  */
 pid_t
-fgetown(sigio)
-	struct sigio *sigio;
+fgetown(sigiop)
+	struct sigio **sigiop;
 {
-	return (sigio != NULL ? sigio->sio_pgid : 0);
+	pid_t pgid;
+
+	SIGIO_LOCK();
+	pgid = (*sigiop != NULL) ? (*sigiop)->sio_pgid : 0;
+	SIGIO_UNLOCK();
+	return (pgid);
 }
 
 /*
