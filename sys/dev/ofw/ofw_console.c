@@ -28,6 +28,9 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
+#include "opt_ddb.h"
+#include "opt_comconsole.h"
+
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
@@ -38,6 +41,8 @@ static const char rcsid[] =
 #include <sys/tty.h>
 
 #include <dev/ofw/openfirm.h>
+
+#include <ddb/ddb.h>
 
 #define	OFW_POLL_HZ	4
 
@@ -67,6 +72,10 @@ static struct tty		*ofw_tp = NULL;
 static int			polltime;
 static struct callout_handle	ofw_timeouthandle
     = CALLOUT_HANDLE_INITIALIZER(&ofw_timeouthandle);
+
+#if defined(DDB) && defined(ALT_BREAK_TO_DEBUGGER)
+static int			alt_break_state;
+#endif
 
 static void	ofw_tty_start(struct tty *);
 static int	ofw_tty_param(struct tty *, struct termios *);
@@ -296,6 +305,11 @@ ofw_cons_getc(dev_t dev)
 		}
 	}
 
+#if defined(DDB) && defined(ALT_BREAK_TO_DEBUGGER)
+	if (db_alt_break(ch, &alt_break_state))
+		breakpoint();
+#endif
+
 	return (ch);
 }
 
@@ -305,6 +319,10 @@ ofw_cons_checkc(dev_t dev)
 	unsigned char ch;
 
 	if (OF_read(stdin, &ch, 1) > 0) {
+#if defined(DDB) && defined(ALT_BREAK_TO_DEBUGGER)
+		if (db_alt_break(ch, &alt_break_state))
+			breakpoint();
+#endif
 		return (ch);
 	}
 
