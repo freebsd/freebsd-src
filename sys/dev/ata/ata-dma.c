@@ -216,6 +216,7 @@ ata_dmainit(struct ata_device *atadev, int apiomode, int wdmamode, int udmamode)
 #endif
     switch (chiptype) {
 
+    case 0x24cb8086:	/* Intel ICH4 */
     case 0x248a8086:	/* Intel ICH3 mobile */ 
     case 0x248b8086:	/* Intel ICH3 */
     case 0x244a8086:	/* Intel ICH2 mobile */ 
