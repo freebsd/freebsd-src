@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 Networks Associates Technologies, Inc.
+ * Copyright (c) 2002 Networks Associates Technology, Inc.
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/openpam_load.c#10 $
+ * $P4: //depot/projects/openpam/lib/openpam_load.c#12 $
  */
 
 #include <dlfcn.h>
@@ -81,9 +81,14 @@ openpam_load_module(const char *path)
 		    (module == NULL) ? "no" : "using", path);
 	}
 #endif
-	if (module == NULL)
+	if (module == NULL) {
+		openpam_log(PAM_LOG_ERROR, "no %s found", path);
 		return (NULL);
+	}
+	openpam_log(PAM_LOG_DEBUG, "adding %s to cache", module->path);
 	module->next = modules;
+	if (module->next != NULL)
+		module->next->prev = module;
 	module->prev = NULL;
 	modules = module;
  found:
@@ -119,6 +124,9 @@ openpam_release_module(pam_module_t *module)
 		module->prev->next = module->next;
 	if (module->next != NULL)
 		module->next->prev = module->prev;
+	if (module == modules)
+		modules = module->next;
+	openpam_log(PAM_LOG_DEBUG, "releasing %s", module->path);
 	free(module->path);
 	free(module);
 }
