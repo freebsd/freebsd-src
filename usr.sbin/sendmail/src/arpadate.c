@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)arpadate.c	8.4 (Berkeley) 4/21/95";
+static char sccsid[] = "@(#)arpadate.c	8.4.1.1 (Berkeley) 9/16/96";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -208,7 +208,7 @@ arpadate(ud)
 		{
 			*q++ = ' ';
 			*q++ = '(';
-			while (*tz != '\0')
+			while (*tz != '\0' && q < &b[sizeof b - 3])
 				*q++ = *tz++;
 			*q++ = ')';
 		}

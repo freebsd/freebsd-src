@@ -36,9 +36,9 @@
 
 #ifndef lint
 #if NAMED_BIND
-static char sccsid[] = "@(#)domain.c	8.54 (Berkeley) 9/28/95 (with name server)";
+static char sccsid[] = "@(#)domain.c	8.54.1.2 (Berkeley) 9/16/96 (with name server)";
 #else
-static char sccsid[] = "@(#)domain.c	8.54 (Berkeley) 9/28/95 (without name server)";
+static char sccsid[] = "@(#)domain.c	8.54.1.2 (Berkeley) 9/16/96 (without name server)";
 #endif
 #endif /* not lint */
 
@@ -339,7 +339,13 @@ punt:
 				host, MyHostName);
 			return -1;
 		}
-		strcpy(MXHostBuf, host);
+		if (strlen(host) >= (SIZE_T) sizeof MXHostBuf)
+		{
+			*rcode = EX_CONFIG;
+			syserr("Host name %s too long", shortenstring(host, 203));
+			return -1;
+		}
+		snprintf(MXHostBuf, sizeof MXHostBuf, "%s", host);
 		mxhosts[0] = MXHostBuf;
 		if (host[0] == '[')
 		{
@@ -732,7 +738,8 @@ cnameloop:
 					{
 						char ebuf[MAXLINE];
 
-						sprintf(ebuf, "Deferred: DNS failure: CNAME loop for %.100s",
+						snprintf(ebuf, sizeof ebuf,
+							"Deferred: DNS failure: CNAME loop for %.100s",
 							host);
 						CurEnv->e_message = newstr(ebuf);
 					}
@@ -808,7 +815,7 @@ cnameloop:
 	**  Otherwise append the saved domain name.
 	*/
 
-	(void) sprintf(nbuf, "%.*s%s%.*s", MAXDNAME, host,
+	(void) snprintf(nbuf, sizeof nbuf, "%.*s%s%.*s", MAXDNAME, host,
 			*mxmatch == '\0' ? "" : ".",
 			MAXDNAME, mxmatch);
 	strncpy(host, nbuf, hbsize);

@@ -36,7 +36,7 @@
 # include <string.h>
 
 #ifndef lint
-static char sccsid[] = "@(#)mime.c	8.30 (Berkeley) 10/31/95";
+static char sccsid[] = "@(#)mime.c	8.30.1.1 (Berkeley) 9/16/96";
 #endif /* not lint */
 
 /*
@@ -222,7 +222,7 @@ mime8to7(mci, header, e, boundaries, flags)
 	**	just copy it through.
 	*/
 
-	sprintf(buf, "%.100s/%.100s", type, subtype);
+	snprintf(buf, sizeof buf, "%.100s/%.100s", type, subtype);
 	if (wordinclass(buf, 'n') || (cte != NULL && !wordinclass(cte, 'e')))
 		flags |= M87F_NO8BIT;
 
@@ -294,7 +294,7 @@ mime8to7(mci, header, e, boundaries, flags)
 		{
 			auto HDR *hdr = NULL;
 
-			sprintf(buf, "--%s", bbuf);
+			snprintf(buf, sizeof buf, "--%s", bbuf);
 			putline(buf, mci);
 			if (tTd(43, 35))
 				printf("  ...%s\n", buf);
@@ -306,7 +306,7 @@ mime8to7(mci, header, e, boundaries, flags)
 				putline("+++after putheader", mci);
 			bt = mime8to7(mci, hdr, e, boundaries, flags);
 		}
-		sprintf(buf, "--%s--", bbuf);
+		snprintf(buf, sizeof buf, "--%s--", bbuf);
 		putline(buf, mci);
 		if (tTd(43, 35))
 			printf("  ...%s\n", buf);
@@ -435,7 +435,8 @@ mime8to7(mci, header, e, boundaries, flags)
 		/* no encoding necessary */
 		if (cte != NULL)
 		{
-			sprintf(buf, "Content-Transfer-Encoding: %.200s", cte);
+			snprintf(buf, sizeof buf,
+				"Content-Transfer-Encoding: %.200s", cte);
 			putline(buf, mci);
 			if (tTd(43, 36))
 				printf("  ...%s\n", buf);

@@ -36,9 +36,9 @@
 
 #ifndef lint
 #if USERDB
-static char sccsid [] = "@(#)udb.c	8.33 (Berkeley) 11/29/95 (with USERDB)";
+static char sccsid [] = "@(#)udb.c	8.33.1.2 (Berkeley) 9/16/96 (with USERDB)";
 #else
-static char sccsid [] = "@(#)udb.c	8.33 (Berkeley) 11/29/95 (without USERDB)";
+static char sccsid [] = "@(#)udb.c	8.33.1.2 (Berkeley) 9/16/96 (without USERDB)";
 #endif
 #endif
 
@@ -359,7 +359,7 @@ udbexpand(a, sendq, aliaslevel, e)
 							a->q_user, hes_error());
 					continue;
 				}
-				sprintf(info.data, "%s@%s",
+				snprintf(pobuf, sizeof pobuf, "%s@%s",
 					hp->po_name, hp->po_host);
 				info.size = strlen(info.data);
 #else
@@ -438,7 +438,8 @@ udbexpand(a, sendq, aliaslevel, e)
 				user = buf;
 			else
 				user = xalloc(i + 1);
-			(void) sprintf(user, "%s@%s", a->q_user, up->udb_fwdhost);
+			(void) snprintf(user, i, "%s@%s",
+				a->q_user, up->udb_fwdhost);
 			message("expanded to %s", user);
 			a->q_flags &= ~QSELFREF;
 			naddrs = sendtolist(user, a, sendq, aliaslevel + 1, e);
@@ -1044,6 +1045,8 @@ hes_udb_get(key, info)
 	char *p, **hp;
 	char kbuf[MAXKEY + 1];
 
+	if (strlen(key->data) >= (SIZE_T) sizeof kbuf)
+		return 0;
 	strcpy(kbuf, key->data);
 	name = kbuf;
 	type = strrchr(name, ':');
