@@ -19,7 +19,7 @@
 # $FreeBSD$
 
 machine		powerpc
-cpu		MPC750
+cpu		OEA
 ident		GENERIC
 maxusers	0
 

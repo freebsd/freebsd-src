@@ -71,7 +71,7 @@
 #ifdef _KERNEL
 
 /* List of PowerPC architectures that support FPUs. */
-#if defined(MPC750)
+#if defined(OEA)
 #define PPC_HAVE_FPU
 
 void    enable_fpu(struct thread *);

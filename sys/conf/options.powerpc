@@ -1,7 +1,7 @@
 # $FreeBSD$
 # Options specific to the powerpc platform kernels
 
-MPC750			opt_global.h
+OEA			opt_global.h
 IPKDB			opt_ipkdb.h
 
 POWERMAC		opt_platform.h
