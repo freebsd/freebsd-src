@@ -337,8 +337,8 @@ makech(win, wy)
 			}
 
 			/* Enter/exit standout mode as appropriate. */
-			if (SO && (nsp->attr & __STANDOUT) !=
-			    (curscr->flags & __WSTANDOUT)) {
+			if (SO && !(nsp->attr & __STANDOUT) !=
+			    !(curscr->flags & __WSTANDOUT)) {
 				if (nsp->attr & __STANDOUT) {
 					tputs(SO, 0, __cputchar);
 					curscr->flags |= __WSTANDOUT;
