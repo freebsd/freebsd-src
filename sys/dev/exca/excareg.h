@@ -55,6 +55,9 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef _SYS_DEV_EXCA_EXCAREG_H
+#define _SYS_DEV_EXCA_EXCAREG_H
+
 /*
  * All information is from the intel 82365sl PC Card Interface Controller
  * (PCIC) data sheet, marked "preliminary".  Order number 290423-002, January
@@ -419,3 +422,5 @@
 #else
 #define	EXCA_INT_MASK_ALLOWED	0xDEB8		/* AT */
 #endif
+
+#endif /* !_SYS_DEV_EXCA_EXCAREG_H */

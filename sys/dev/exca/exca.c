@@ -82,7 +82,6 @@
 #define DPRINTF(fmt, args...)
 #endif
 
-
 /* memory */
 
 #define	EXCA_MEMINFO(NUM) {						\
@@ -198,6 +197,11 @@ exca_mem_map(struct exca_softc *sc, int kind, struct resource *res)
 	}
 	if (win >= EXCA_MEM_WINS)
 		return (1);
+	if (((rman_get_start(res) >> EXCA_CARDMEM_ADDRX_SHIFT) & 0xff) != 0 &&
+	    (sc->flags & EXCA_HAS_MEMREG_WIN) == 0) {
+		device_printf(sc->dev, "Does not support mapping above 24M.");
+		return (1);
+	}
 
 	sc->mem[win].cardaddr = 0;
 	sc->mem[win].memt = rman_get_bustag(res);
@@ -555,13 +559,10 @@ exca_reset(struct exca_softc *sc, device_t child)
  * Initialize the exca_softc data structure for the first time.
  */
 void
-exca_init(struct exca_softc *sc, device_t dev, exca_write_t *wrfn,
-    exca_read_t *rdfn, bus_space_tag_t bst, bus_space_handle_t bsh,
-    uint32_t offset)
+exca_init(struct exca_softc *sc, device_t dev, 
+    bus_space_tag_t bst, bus_space_handle_t bsh, uint32_t offset)
 {
 	sc->dev = dev;
-	sc->write_exca = wrfn;
-	sc->read_exca = rdfn;
 	sc->memalloc = 0;
 	sc->ioalloc = 0;
 	sc->bst = bst;
@@ -580,8 +581,7 @@ exca_init(struct exca_softc *sc, device_t dev, exca_write_t *wrfn,
  * "exca" parameter.
  */
 int
-exca_probe_slots(device_t dev, struct exca_softc *exca, exca_write_t writefnp,
-    exca_read_t readfnp)
+exca_probe_slots(device_t dev, struct exca_softc *exca)
 {
 	int rid;
 	struct resource *res;
@@ -599,8 +599,7 @@ exca_probe_slots(device_t dev, struct exca_softc *exca, exca_write_t writefnp,
 	iot = rman_get_bustag(res);
 	ioh = rman_get_bushandle(res);
 	for (i = 0; i < EXCA_NSLOTS; i++) {
-		exca_init(&exca[i], dev, writefnp, readfnp, iot, ioh,
-		    i * EXCA_SOCKET_SIZE);
+		exca_init(&exca[i], dev, iot, ioh, i * EXCA_SOCKET_SIZE);
 		if (exca_is_pcic(&exca[i])) {
 			err = 0;
 			exca[i].flags |= EXCA_SOCKET_PRESENT;

@@ -54,18 +54,17 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef _SYS_DEV_EXCA_EXCAVAR_H
+#define _SYS_DEV_EXCA_EXCAVAR_H
+
 /*
  * Structure to manage the ExCA part of the chip.
  */
 struct exca_softc;
-typedef uint8_t (exca_read_t)(struct exca_softc *, int);
-typedef void (exca_write_t)(struct exca_softc *, int, uint8_t);
 
 struct exca_softc 
 {
 	device_t	dev;
-	exca_read_t	*read_exca;
-	exca_write_t	*write_exca;
 	int		memalloc;
 	struct		pccard_mem_handle mem[EXCA_MEM_WINS];
 	int		ioalloc;
@@ -74,11 +73,12 @@ struct exca_softc
 	bus_space_handle_t bsh;
 	uint32_t	flags;
 #define EXCA_SOCKET_PRESENT	0x00000001
+#define EXCA_HAS_MEMREG_WIN	0x00000002
 	uint32_t	offset;
 };
 
-void exca_init(struct exca_softc *sc, device_t dev, exca_write_t *wrfn,
-    exca_read_t *rdfn, bus_space_tag_t, bus_space_handle_t, uint32_t);
+void exca_init(struct exca_softc *sc, device_t dev, 
+    bus_space_tag_t, bus_space_handle_t, uint32_t);
 int exca_io_map(struct exca_softc *sc, int width, struct resource *r);
 int exca_io_unmap_res(struct exca_softc *sc, struct resource *res);
 int exca_is_pcic(struct exca_softc *sc);
@@ -88,20 +88,19 @@ int exca_mem_set_flags(struct exca_softc *sc, struct resource *res,
 int exca_mem_set_offset(struct exca_softc *sc, struct resource *res,
     uint32_t cardaddr, uint32_t *deltap);
 int exca_mem_unmap_res(struct exca_softc *sc, struct resource *res);
-int exca_probe_slots(device_t dev, struct exca_softc *, exca_write_t *,
-    exca_read_t *);
+int exca_probe_slots(device_t dev, struct exca_softc *);
 void exca_reset(struct exca_softc *, device_t child);
 
 static __inline uint8_t
 exca_read(struct exca_softc *sc, int reg)
 {
-	return (sc->read_exca(sc, reg));
+	return (bus_space_read_1(sc->bst, sc->bsh, sc->offset + reg));
 }
 
 static __inline void
 exca_write(struct exca_softc *sc, int reg, uint8_t val)
 {
-	sc->write_exca(sc, reg, val);
+	return (bus_space_write_1(sc->bst, sc->bsh, sc->offset + reg, val));
 }
 
 static __inline void
@@ -115,3 +114,5 @@ exca_clrb(struct exca_softc *sc, int reg, uint8_t mask)
 {
 	exca_write(sc, reg, exca_read(sc, reg) & ~mask);
 }
+
+#endif /* !_SYS_DEV_EXCA_EXCAVAR_H */
