@@ -38,6 +38,8 @@ __FBSDID("$FreeBSD$");
 #include <ieeefp.h>
 #include <machine/sysarch.h>
 
+extern int sysarch(int op, char *parms);
+
 struct params {
         u_int64_t mask;
 };
