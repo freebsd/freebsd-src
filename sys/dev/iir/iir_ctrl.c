@@ -105,12 +105,12 @@ gdt_make_dev(int unit)
 
 #ifdef SDEV_PER_HBA
     dev = make_dev(&iir_cdevsw, hba2minor(unit), UID_ROOT, GID_OPERATOR,
-                   S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH, "iir%d", unit);
+                   S_IRUSR | S_IWUSR | S_IRGRP, "iir%d", unit);
 #else
     if (sdev_made)
         return (0);
     dev = make_dev(&iir_cdevsw, 0, UID_ROOT, GID_OPERATOR,
-                   S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH, "iir");
+                   S_IRUSR | S_IWUSR | S_IRGRP, "iir");
     sdev_made = 1;
 #endif
     return (dev);
