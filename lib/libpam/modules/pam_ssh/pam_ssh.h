@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999, 2000 Andrew J. Korty
+ * Copyright (c) 1999, 2000, 2001 Andrew J. Korty
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,9 +23,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $Id: pam_ssh.h,v 1.4 2002/04/09 01:15:18 akorty Exp $
  * $FreeBSD$
  *
  */
+
 
 #define SSH_CLIENT_DIR		".ssh"
 
