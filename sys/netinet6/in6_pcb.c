@@ -84,7 +84,7 @@
 #include <sys/proc.h>
 #include <sys/jail.h>
 
-#include <vm/vm_zone.h>
+#include <vm/uma.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
@@ -620,7 +620,7 @@ in6_pcbdetach(inp)
 	ip_freemoptions(inp->inp_moptions);
 
 	inp->inp_vflag = 0;
-	zfree(ipi->ipi_zone, inp);
+	uma_zfree(ipi->ipi_zone, inp);
 }
 
 /*
