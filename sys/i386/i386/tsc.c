@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.86 1997/05/31 09:27:30 peter Exp $
+ *	$Id: clock.c,v 1.3 1997/06/25 20:37:29 smp Exp smp $
  */
 
 /*
@@ -64,6 +64,9 @@
 #include <machine/cpu.h>
 #include <machine/frame.h>
 #include <machine/ipl.h>
+#ifdef APIC_IO
+#include <machine/smp.h>
+#endif /* APIC_IO */
 
 #include <i386/isa/icu.h>
 #include <i386/isa/isa.h>
@@ -826,9 +829,9 @@ resettodr()
 	writertc(RTC_STATUSB, rtc_statusb);
 }
 
-#if defined(APIC_IO)
+#ifdef APIC_IO
 
-/* from icu.s: */
+/* XXX FIXME: from icu.s: */
 extern u_int	vec[];
 extern void	vec8254	__P((void));
 extern void	vecRTC	__P((void));
@@ -847,7 +850,7 @@ void
 cpu_initclocks()
 {
 	int diag;
-#if defined(APIC_IO)
+#ifdef APIC_IO
 	int x;
 #endif /* APIC_IO */
 
@@ -867,31 +870,26 @@ cpu_initclocks()
         }
 
 	/* Finish initializing 8253 timer 0. */
-#if defined(APIC_IO)
-	/* 8254 is traditionally on ISA IRQ0 */
-	if ((x = get_isa_apic_irq(0)) < 0) {
-		/*
-		 * bummer, this mb doesn't have the 8254 on ISA irq0,
-		 *  perhaps it's on the EISA bus...
-		 */
-		if ((x = get_eisa_apic_irq(0)) < 0) {
-			/* double bummer, attempt to redirect thru the 8259 */
-			if (bootverbose)
-				printf("APIC missing 8254 connection\n");
-
-			/* allow 8254 timer to INTerrupt 8259 */
-#if !defined(IO_ICU1)
+#ifdef APIC_IO
+#ifndef IO_ICU1
 #define IO_ICU1 0x20
-#endif
-			x = inb(IO_ICU1 + 1);	/* current mask in 8259 */
-			x &= ~1;		/* clear 8254 timer mask */
-			outb(IO_ICU1 + 1, x);	/* write new mask */
+#endif /* IO_ICU1 */
 
-			/* program IO APIC for type 3 INT on INT0 */
-			if (ext_int_setup(0, 0) < 0)
-				panic("8254 redirect impossible!");
-			x = 0;			/* 8259 is on 0 */
-		}
+	/* 8254 is traditionally on ISA IRQ0 */
+	if ((x = isa_apic_pin(0)) < 0) {
+		/* bummer, attempt to redirect thru the 8259 */
+		if (bootverbose)
+			printf("APIC missing 8254 connection\n");
+
+		/* allow 8254 timer to INTerrupt 8259 */
+		x = inb(IO_ICU1 + 1);	/* current mask in 8259 */
+		x &= ~1;		/* clear 8254 timer mask */
+		outb(IO_ICU1 + 1, x);	/* write new mask */
+
+		/* program IO APIC for type 3 INT on INT0 */
+		if (ext_int_setup(0, 0) < 0)
+			panic("8254 redirect impossible!");
+		x = 0;			/* 8259 is on 0 */
 	}
 
 	vec[x] = (u_int)vec8254;
@@ -907,6 +905,7 @@ cpu_initclocks()
 		      /* unit */ 0);
 	INTREN(IRQ0);
 #endif /* APIC_IO */
+
 #if (defined(I586_CPU) || defined(I686_CPU)) && !defined(SMP)
 	/*
 	 * Finish setting up anti-jitter measures.
@@ -925,13 +924,10 @@ cpu_initclocks()
 	diag = rtcin(RTC_DIAG);
 	if (diag != 0)
 		printf("RTC BIOS diagnostic error %b\n", diag, RTCDG_BITS);
-#if defined(APIC_IO)
+#ifdef APIC_IO
 	/* RTC is traditionally on ISA IRQ8 */
-	if ((x = get_isa_apic_irq(8)) < 0) {
-		if ((x = get_eisa_apic_irq(8)) < 0) {
-			panic("APIC missing RTC connection");
-	    }
-	}
+	if ((x = isa_apic_pin(8)) < 0)
+		panic("APIC missing RTC connection");
 
 	vec[x] = (u_int)vecRTC;
 	XintrRTC = (u_int)ivectors[x];	/* XXX might need Xfastintr# */
@@ -948,7 +944,7 @@ cpu_initclocks()
 #endif /* APIC_IO */
 	writertc(RTC_STATUSB, rtc_statusb);
 
-#if defined(APIC_IO)
+#ifdef APIC_IO
 	printf("Enabled INTs: ");
 	for (x = 0; x < 24; ++x)
 		if ((imen & (1 << x)) == 0)
