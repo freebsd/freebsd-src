@@ -41,9 +41,10 @@ static const char copyright[] =
 #if 0
 static char sccsid[] = "@(#)syslogd.c	8.3 (Berkeley) 4/4/94";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  *  syslogd -- log system messages
@@ -89,7 +90,6 @@ static const char rcsid[] =
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/syslimits.h>
-#include <paths.h>
 
 #include <netinet/in.h>
 #include <netdb.h>
@@ -99,6 +99,7 @@ static const char rcsid[] =
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <paths.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -116,7 +117,7 @@ static const char rcsid[] =
 #ifdef NI_WITHSCOPEID
 static const int withscopeid = NI_WITHSCOPEID;
 #else
-static const int withscopeid = 0;
+static const int withscopeid;
 #endif
 
 const char	*ConfFile = _PATH_LOGCONF;
@@ -253,72 +254,71 @@ const char *TypeNames[8] = {
 	"FORW",		"USERS",	"WALL",		"PIPE"
 };
 
-struct	filed *Files;
-struct	filed consfile;
+static struct filed *Files;	/* Log files that we write to */
+static struct filed consfile;	/* Console */
 
-int	Debug;			/* debug flag */
-int	resolve = 1;		/* resolve hostname */
-char	LocalHostName[MAXHOSTNAMELEN];	/* our hostname */
-const char	*LocalDomain;		/* our local domain name */
-int	*finet = NULL;		/* Internet datagram socket */
-int	fklog = -1;		/* /dev/klog */
-int	Initialized = 0;	/* set when we have initialized ourselves */
-int	MarkInterval = 20 * 60;	/* interval between marks in seconds */
-int	MarkSeq = 0;		/* mark sequence number */
-int	SecureMode = 0;		/* when true, receive only unix domain socks */
+static int	Debug;		/* debug flag */
+static int	resolve = 1;	/* resolve hostname */
+static char	LocalHostName[MAXHOSTNAMELEN];	/* our hostname */
+static char	*LocalDomain;	/* our local domain name */
+static int	*finet;		/* Internet datagram socket */
+static int	fklog = -1;	/* /dev/klog */
+static int	Initialized;	/* set when we have initialized ourselves */
+static int	MarkInterval = 20 * 60;	/* interval between marks in seconds */
+static int	MarkSeq;	/* mark sequence number */
+static int	SecureMode;	/* when true, receive only unix domain socks */
 #ifdef INET6
-int	family = PF_UNSPEC;	/* protocol family (IPv4, IPv6 or both) */
+static int	family = PF_UNSPEC; /* protocol family (IPv4, IPv6 or both) */
 #else
-int	family = PF_INET;	/* protocol family (IPv4 only) */
+static int	family = PF_INET; /* protocol family (IPv4 only) */
 #endif
-int	send_to_all = 0;	/* send message to all IPv4/IPv6 addresses */
-int	use_bootfile = 0;	/* log entire bootfile for every kern msg */
-int	no_compress = 0;	/* don't compress messages (1=pipes, 2=all) */
+static int	send_to_all;	/* send message to all IPv4/IPv6 addresses */
+static int	use_bootfile;	/* log entire bootfile for every kern msg */
+static int	no_compress;	/* don't compress messages (1=pipes, 2=all) */
 
-char	bootfile[MAXLINE+1];	/* booted kernel file */
+static char	bootfile[MAXLINE+1]; /* booted kernel file */
 
-struct allowedpeer *AllowedPeers;
-int	NumAllowed = 0;		/* # of AllowedPeer entries */
+struct allowedpeer *AllowedPeers; /* List of allowed peers */
+static int	NumAllowed;	/* Number of entries in AllowedPeers */
 
-int	UniquePriority = 0;	/* Only log specified priority? */
-int	LogFacPri = 0;		/* Put facility and priority in log message: */
+static int	UniquePriority;	/* Only log specified priority? */
+static int	LogFacPri;	/* Put facility and priority in log message: */
 				/* 0=no, 1=numeric, 2=names */
-int	KeepKernFac = 0;	/* Keep remotely logged kernel facility */
+static int	KeepKernFac;	/* Keep remotely logged kernel facility */
 
 volatile sig_atomic_t MarkSet, WantDie;
 
-int	allowaddr(char *);
-void	cfline(const char *, struct filed *, const char *, const char *);
-const char	*cvthname(struct sockaddr *);
-void	deadq_enter(pid_t, const char *);
-int	deadq_remove(pid_t);
-int	decode(const char *, CODE *);
-void	die(int);
-void	dodie(int);
-void	domark(int);
-void	fprintlog(struct filed *, int, const char *);
-int*	socksetup(int, const char *);
-void	init(int);
-void	logerror(const char *);
-void	logmsg(int, const char *, const char *, int);
-void	log_deadchild(pid_t, int, const char *);
-void	markit(void);
-void	printline(const char *, char *);
-void	printsys(char *);
-int	p_open(const char *, pid_t *);
-void	readklog(void);
-void	reapchild(int);
+static int	allowaddr(char *);
+static void	cfline(const char *, struct filed *,
+		    const char *, const char *);
+static const char *cvthname(struct sockaddr *);
+static void	deadq_enter(pid_t, const char *);
+static int	deadq_remove(pid_t);
+static int	decode(const char *, CODE *);
+static void	die(int);
+static void	dodie(int);
+static void	domark(int);
+static void	fprintlog(struct filed *, int, const char *);
+static int	*socksetup(int, const char *);
+static void	init(int);
+static void	logerror(const char *);
+static void	logmsg(int, const char *, const char *, int);
+static void	log_deadchild(pid_t, int, const char *);
+static void	markit(void);
+static void	printline(const char *, char *);
+static void	printsys(char *);
+static int	p_open(const char *, pid_t *);
+static void	readklog(void);
+static void	reapchild(int);
 static void	usage(void);
-int	validate(struct sockaddr *, const char *);
+static int	validate(struct sockaddr *, const char *);
 static void	unmapped(struct sockaddr *);
-void	wallmsg(struct filed *, struct iovec *);
-int	waitdaemon(int, int, int);
-void	timedout(int);
+static void	wallmsg(struct filed *, struct iovec *);
+static int	waitdaemon(int, int, int);
+static void	timedout(int);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	int ch, i, fdsrmax = 0, l;
 	struct sockaddr_un sunx, fromunix;
@@ -596,8 +596,7 @@ main(argc, argv)
 }
 
 static void
-unmapped(sa)
-	struct sockaddr *sa;
+unmapped(struct sockaddr *sa)
 {
 	struct sockaddr_in6 *sin6;
 	struct sockaddr_in sin4;
@@ -622,7 +621,7 @@ unmapped(sa)
 }
 
 static void
-usage()
+usage(void)
 {
 
 	fprintf(stderr, "%s\n%s\n%s\n",
@@ -636,10 +635,8 @@ usage()
  * Take a raw input line, decode the message, and print the message
  * on the appropriate log files.
  */
-void
-printline(hname, msg)
-	const char *hname;
-	char *msg;
+static void
+printline(const char *hname, char *msg)
 {
 	int c, pri;
 	char *p, *q, line[MAXLINE + 1];
@@ -690,8 +687,8 @@ printline(hname, msg)
 /*
  * Read /dev/klog while data are available, split into lines.
  */
-void
-readklog()
+static void
+readklog(void)
 {
 	char *p, *q, line[MAXLINE + 1];
 	int len, i;
@@ -727,9 +724,8 @@ readklog()
 /*
  * Take a raw input line from /dev/klog, format similar to syslog().
  */
-void
-printsys(p)
-	char *p;
+static void
+printsys(char *p)
 {
 	int pri, flags;
 
@@ -752,17 +748,14 @@ printsys(p)
 	logmsg(pri, p, LocalHostName, flags);
 }
 
-time_t	now;
+static time_t	now;
 
 /*
  * Log a message to the appropriate log files, users, etc. based on
  * the priority.
  */
-void
-logmsg(pri, msg, from, flags)
-	int pri;
-	const char *msg, *from;
-	int flags;
+static void
+logmsg(int pri, const char *msg, const char *from, int flags)
 {
 	struct filed *f;
 	int i, fac, msglen, omask, prilev;
@@ -911,11 +904,8 @@ logmsg(pri, msg, from, flags)
 	(void)sigsetmask(omask);
 }
 
-void
-fprintlog(f, flags, msg)
-	struct filed *f;
-	int flags;
-	const char *msg;
+static void
+fprintlog(struct filed *f, int flags, const char *msg)
 {
 	struct iovec iov[7];
 	struct iovec *v;
@@ -1140,10 +1130,8 @@ fprintlog(f, flags, msg)
  *	Write the specified message to either the entire
  *	world, or a list of approved users.
  */
-void
-wallmsg(f, iov)
-	struct filed *f;
-	struct iovec *iov;
+static void
+wallmsg(struct filed *f, struct iovec *iov)
 {
 	static int reenter;			/* avoid calling ourselves */
 	FILE *uf;
@@ -1190,9 +1178,8 @@ wallmsg(f, iov)
 	reenter = 0;
 }
 
-void
-reapchild(signo)
-	int signo __unused;
+static void
+reapchild(int signo __unused)
 {
 	int status;
 	pid_t pid;
@@ -1225,9 +1212,8 @@ reapchild(signo)
 /*
  * Return a printable representation of a host address.
  */
-const char *
-cvthname(f)
-	struct sockaddr *f;
+static const char *
+cvthname(struct sockaddr *f)
 {
 	int error;
 	sigset_t omask, nmask;
@@ -1265,17 +1251,15 @@ cvthname(f)
 	return (hname);
 }
 
-void
-dodie(signo)
-	int signo;
+static void
+dodie(int signo)
 {
 
 	WantDie = signo;
 }
 
-void
-domark(signo)
-	int signo __unused;
+static void
+domark(int signo __unused)
 {
 
 	MarkSet = 1;
@@ -1284,9 +1268,8 @@ domark(signo)
 /*
  * Print syslogd errors some place.
  */
-void
-logerror(type)
-	const char *type;
+static void
+logerror(const char *type)
 {
 	char buf[512];
 
@@ -1300,9 +1283,8 @@ logerror(type)
 	logmsg(LOG_SYSLOG|LOG_ERR, buf, LocalHostName, ADDDATE);
 }
 
-void
-die(signo)
-	int signo;
+static void
+die(int signo)
 {
 	struct filed *f;
 	int was_initialized;
@@ -1334,9 +1316,8 @@ die(signo)
 /*
  *  INIT -- Initialize syslogd from configuration table
  */
-void
-init(signo)
-	int signo;
+static void
+init(int signo)
 {
 	int i;
 	FILE *cf;
@@ -1552,12 +1533,8 @@ init(signo)
 /*
  * Crack a configuration file line
  */
-void
-cfline(line, f, prog, host)
-	const char *line;
-	struct filed *f;
-	const char *prog;
-	const char *host;
+static void
+cfline(const char *line, struct filed *f, const char *prog, const char *host)
 {
 	struct addrinfo hints, *res;
 	int error, i, pri;
@@ -1767,10 +1744,8 @@ cfline(line, f, prog, host)
 /*
  *  Decode a symbolic name to a numeric value
  */
-int
-decode(name, codetab)
-	const char *name;
-	CODE *codetab;
+static int
+decode(const char *name, CODE *codetab)
 {
 	CODE *c;
 	char *p, buf[40];
@@ -1792,7 +1767,7 @@ decode(name, codetab)
 	return (-1);
 }
 
-void
+static void
 markit(void)
 {
 	struct filed *f;
@@ -1850,9 +1825,8 @@ markit(void)
  * before returing to the parent, or we get disk thrashing at boot etc.
  * Set a timer so we don't hang forever if it wedges.
  */
-int
-waitdaemon(nochdir, noclose, maxwait)
-	int nochdir, noclose, maxwait;
+static int
+waitdaemon(int nochdir, int noclose, int maxwait)
 {
 	int fd;
 	int status;
@@ -1904,9 +1878,8 @@ waitdaemon(nochdir, noclose, maxwait)
  * We also get a signal from the kernel if the timer expires, so check to
  * see what happened.
  */
-void
-timedout(sig)
-	int sig __unused;
+static void
+timedout(int sig __unused)
 {
 	int left;
 	left = alarm(0);
@@ -1931,9 +1904,8 @@ timedout(sig)
  *
  * Returns -1 on error, 0 if the argument was valid.
  */
-int
-allowaddr(s)
-	char *s;
+static int
+allowaddr(char *s)
 {
 	char *cp1, *cp2;
 	struct allowedpeer ap;
@@ -2093,10 +2065,8 @@ allowaddr(s)
 /*
  * Validate that the remote peer has permission to log to us.
  */
-int
-validate(sa, hname)
-	struct sockaddr *sa;
-	const char *hname;
+static int
+validate(struct sockaddr *sa, const char *hname)
 {
 	int i, j, reject;
 	size_t l1, l2;
@@ -2209,10 +2179,8 @@ validate(sa, hname)
  * Fairly similar to popen(3), but returns an open descriptor, as
  * opposed to a FILE *.
  */
-int
-p_open(prog, pid)
-	const char *prog;
-	pid_t *pid;
+static int
+p_open(const char *prog, pid_t *pid)
 {
 	int pfd[2], nulldesc, i;
 	sigset_t omask, mask;
@@ -2294,10 +2262,8 @@ p_open(prog, pid)
 	return pfd[1];
 }
 
-void
-deadq_enter(pid, name)
-	pid_t pid;
-	const char *name;
+static void
+deadq_enter(pid_t pid, const char *name)
 {
 	dq_t p;
 	int status;
@@ -2324,9 +2290,8 @@ deadq_enter(pid, name)
 	TAILQ_INSERT_TAIL(&deadq_head, p, dq_entries);
 }
 
-int
-deadq_remove(pid)
-	pid_t pid;
+static int
+deadq_remove(pid_t pid)
 {
 	dq_t q;
 
@@ -2340,11 +2305,8 @@ deadq_remove(pid)
 	return 0;
 }
 
-void
-log_deadchild(pid, status, name)
-	pid_t pid;
-	int status;
-	const char *name;
+static void
+log_deadchild(pid_t pid, int status, const char *name)
 {
 	int code;
 	char buf[256];
@@ -2366,10 +2328,8 @@ log_deadchild(pid, status, name)
 	logerror(buf);
 }
 
-int *
-socksetup(af, bindhostname)
-	int af;
-	const char *bindhostname;
+static int *
+socksetup(int af, const char *bindhostname)
 {
 	struct addrinfo hints, *res, *r;
 	int error, maxs, *s, *socks;
