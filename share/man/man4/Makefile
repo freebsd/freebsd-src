@@ -273,6 +273,7 @@ MAN=	aac.4 \
 	uhid.4 \
 	uhidev.4 \
 	ukbd.4 \
+	ufm.4 \
 	ulpt.4 \
 	umass.4 \
 	umodem.4 \
