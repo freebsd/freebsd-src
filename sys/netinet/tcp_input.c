@@ -2431,10 +2431,10 @@ dropafterack:
 			  &tcp_savetcp, 0);
 #endif
 	KASSERT(headlocked, ("headlocked should be 1"));
+	INP_INFO_WUNLOCK(&tcbinfo);
 	tp->t_flags |= TF_ACKNOW;
 	(void) tcp_output(tp);
 	INP_UNLOCK(inp);
-	INP_INFO_WUNLOCK(&tcbinfo);
 	m_freem(m);
 	return;
 
