@@ -92,13 +92,18 @@ struct fs_ops cd9660_fsops = {
 	cd9660_readdir
 };
 
+#define	F_ISDIR		0x0001		/* Directory */
+#define	F_ROOTDIR	0x0002		/* Root directory */
+#define	F_RR		0x0004		/* Rock Ridge on this volume */
+
 struct file {
-	int 		f_isdir;	/* nonzero if file is directory */
+	int 		f_flags;	/* file flags */
 	off_t 		f_off;		/* Current offset within file */
 	daddr_t 	f_bno;		/* Starting block number */
 	off_t 		f_size;		/* Size of file */
 	daddr_t		f_buf_blkno;	/* block number of data block */	
 	char		*f_buf;		/* buffer for data block */
+	int		f_susp_skip;	/* len_skip for SUSP records */
 };
 
 struct ptable_ent {
@@ -376,7 +381,30 @@ cd9660_open(const char *path, struct open_file *f)
 	bzero(fp, sizeof(struct file));
 	f->f_fsdata = (void *)fp;
 
-	fp->f_isdir = (isonum_711(rec.flags) & 2) != 0;
+	if ((isonum_711(rec.flags) & 2) != 0) {
+		fp->f_flags = F_ISDIR;
+	}
+	if (first) {
+		fp->f_flags |= F_ROOTDIR;
+
+		/* Check for Rock Ridge since we didn't in the loop above. */
+		bno = isonum_733(rec.extent) + isonum_711(rec.ext_attr_length);
+		twiddle();
+		rc = f->f_dev->dv_strategy(f->f_devdata, F_READ, cdb2devb(bno),
+		    ISO_DEFAULT_BLOCK_SIZE, buf, &read);
+		if (rc)
+			goto out;
+		if (read != ISO_DEFAULT_BLOCK_SIZE) {
+			rc = EIO;
+			goto out;
+		}
+		dp = (struct iso_directory_record *)buf;
+		use_rrip = rrip_check(f, dp, &lenskip);
+	}
+	if (use_rrip) {
+		fp->f_flags |= F_RR;
+		fp->f_susp_skip = lenskip;
+	}
 	fp->f_off = 0;
 	fp->f_bno = isonum_733(rec.extent) + isonum_711(rec.ext_attr_length);
 	fp->f_size = isonum_733(rec.size);
@@ -473,7 +501,8 @@ cd9660_readdir(struct open_file *f, struct dirent *d)
 	struct iso_directory_record *ep;
 	size_t buf_size, reclen, namelen;
 	int error = 0;
-	char *buf;
+	int lenskip;
+	char *buf, *name;
 
 again:
 	if (fp->f_off >= fp->f_size)
@@ -492,9 +521,26 @@ again:
 		goto again;
 	}
 
-	namelen = isonum_711(ep->name_len);
-	if (namelen == 1 && ep->name[0] == 1)
-		namelen = 2;
+	if (fp->f_flags & F_RR) {
+		if (fp->f_flags & F_ROOTDIR && fp->f_off == 0)
+			lenskip = 0;
+		else
+			lenskip = fp->f_susp_skip;
+		name = rrip_lookup_name(f, ep, lenskip, &namelen);
+	} else
+		name = NULL;
+	if (name == NULL) {
+		namelen = isonum_711(ep->name_len);
+		name = ep->name;
+		if (namelen == 1) {
+			if (ep->name[0] == 0)
+				name = ".";
+			else if (ep->name[0] == 1) {
+				namelen = 2;
+				name = "..";
+			}
+		}
+	}
 	reclen = sizeof(struct dirent) - (MAXNAMLEN+1) + namelen + 1;
 	reclen = (reclen + 3) & ~3;
 
@@ -506,12 +552,7 @@ again:
 		d->d_type = DT_REG;
 	d->d_namlen = namelen;
 
-	if (isonum_711(ep->name_len) == 1 && ep->name[0] == 0)
-		strcpy(d->d_name, ".");
-	else if (isonum_711(ep->name_len) == 1 && ep->name[0] == 1)
-		strcpy(d->d_name, "..");
-	else
-		bcopy(ep->name, d->d_name, d->d_namlen);
+	bcopy(name, d->d_name, d->d_namlen);
 	d->d_name[d->d_namlen] = 0;
 
 	fp->f_off += isonum_711(ep->length);
@@ -552,7 +593,7 @@ cd9660_stat(struct open_file *f, struct stat *sb)
 
 	/* only important stuff */
 	sb->st_mode = S_IRUSR | S_IRGRP | S_IROTH;
-	if (fp->f_isdir)
+	if (fp->f_flags & F_ISDIR)
 		sb->st_mode |= S_IFDIR;
 	else
 		sb->st_mode |= S_IFREG;
