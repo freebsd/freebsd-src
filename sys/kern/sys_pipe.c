@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: sys_pipe.c,v 1.16 1996/06/12 05:07:32 gpalmer Exp $
+ * $Id: sys_pipe.c,v 1.17 1996/06/17 05:15:01 dyson Exp $
  */
 
 #ifndef OLD_PIPE
@@ -135,7 +135,6 @@ static void pipe_destroy_write_buffer __P((struct pipe *wpipe));
 static int pipe_direct_write __P((struct pipe *wpipe, struct uio *uio));
 static void pipe_clone_write_buffer __P((struct pipe *wpipe));
 #endif
-static int pipewrite __P((struct pipe *wpipe, struct uio *uio, int nbio));
 static void pipespace __P((struct pipe *cpipe));
 
 /*
@@ -189,7 +188,6 @@ free3:
 	fdp->fd_ofiles[retval[0]] = 0;
 free2:
 	(void)pipeclose(wpipe);
-free1:
 	(void)pipeclose(rpipe);
 	return (error);
 }
@@ -409,7 +407,8 @@ pipe_read(fp, uio, cred)
 			}
 			if (nread > 0)
 				break;
-			if (rpipe->pipe_state & PIPE_NBIO) {
+
+			if (fp->f_flag & FNONBLOCK) {
 				error = EAGAIN;
 				break;
 			}
@@ -700,19 +699,24 @@ error1:
 }
 #endif
 	
-static __inline int
-pipewrite(wpipe, uio, nbio)
-	struct pipe *wpipe;
+static int
+pipe_write(fp, uio, cred)
+	struct file *fp;
 	struct uio *uio;
-	int nbio;
+	struct ucred *cred;
 {
 	int error = 0;
 	int orig_resid;
 
+	struct pipe *wpipe, *rpipe;
+
+	rpipe = (struct pipe *) fp->f_data;
+	wpipe = rpipe->pipe_peer;
+
 	/*
 	 * detect loss of pipe read side, issue SIGPIPE if lost.
 	 */
-	if (wpipe == NULL || (wpipe->pipe_state & PIPE_EOF)) {
+	if ((wpipe == NULL) || (wpipe->pipe_state & PIPE_EOF)) {
 		return EPIPE;
 	}
 
@@ -736,7 +740,7 @@ pipewrite(wpipe, uio, nbio)
 		 * If the write is non-blocking, we don't use the
 		 * direct write mechanism.
 		 */
-		if ((wpipe->pipe_state & PIPE_NBIO) == 0 &&
+		if ((fp->f_flag & FNONBLOCK) == 0 &&
 			(amountpipekva < LIMITPIPEKVA) &&
 			(uio->uio_iov->iov_len >= PIPE_MINDIRECT)) {
 			error = pipe_direct_write( wpipe, uio);
@@ -811,7 +815,7 @@ pipewrite(wpipe, uio, nbio)
 			/*
 			 * don't block on non-blocking I/O
 			 */
-			if (nbio) {
+			if (fp->f_flag & FNONBLOCK) {
 				error = EAGAIN;
 				break;
 			}
@@ -876,18 +880,6 @@ pipewrite(wpipe, uio, nbio)
 	return error;
 }
 
-/* ARGSUSED */
-static int
-pipe_write(fp, uio, cred)
-	struct file *fp;
-	struct uio *uio;
-	struct ucred *cred;
-{
-	struct pipe *rpipe = (struct pipe *) fp->f_data;
-	struct pipe *wpipe = rpipe->pipe_peer;
-	return pipewrite(wpipe, uio, (rpipe->pipe_state & PIPE_NBIO)?1:0);
-}
-
 /*
  * we implement a very minimal set of ioctls for compatibility with sockets.
  */
@@ -903,10 +895,6 @@ pipe_ioctl(fp, cmd, data, p)
 	switch (cmd) {
 
 	case FIONBIO:
-		if (*(int *)data)
-			mpipe->pipe_state |= PIPE_NBIO;
-		else
-			mpipe->pipe_state &= ~PIPE_NBIO;
 		return (0);
 
 	case FIOASYNC:
