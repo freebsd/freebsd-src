@@ -28,16 +28,15 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: yp_svc_udp.c,v 1.1 1996/12/22 15:44:09 wpaul Exp $
  */
+
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 #include <rpc/rpc.h>
 #include "yp_extern.h"
-
-#ifndef lint
-static const char rcsid[] = "$Id: yp_svc_udp.c,v 1.1 1996/12/22 15:44:09 wpaul Exp $";
-#endif
 
 /*
  * XXX Must not diverge from what's in src/lib/libc/rpc/svc_udp.c
