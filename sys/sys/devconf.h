@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: devconf.h,v 1.4 1995/03/17 04:18:07 davidg Exp $
+ *	$Id: devconf.h,v 1.5 1995/04/12 20:47:13 wollman Exp $
  */
 
 /*
@@ -67,9 +67,9 @@ enum dc_class {
 
 #define DC_CLASSNAMES \
 	{ \
-	    "unknown", "CPU", "bus", "disk", "tape", "read-only disk", \
-	    "display", "serial", "parallel", "network interface", \
-	    "miscellaneous" \
+	    "unknown", "cpu", "bus", "disk", "tape", "rodisk", \
+	    "display", "serial", "parallel", "netif", \
+	    "misc" \
 	}
 
 struct devconf {
