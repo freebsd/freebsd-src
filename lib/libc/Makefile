@@ -12,7 +12,7 @@ LIB=c
 # If you bump SHLIB_MAJOR, see standards/55112.
 SHLIB_MAJOR= 5
 SHLIBDIR?= /lib
-WARNS?=	1
+WARNS?=	2
 CFLAGS+=-I${.CURDIR}/include -I${.CURDIR}/../../include
 CFLAGS+=-I${.CURDIR}/${MACHINE_ARCH}
 CLEANFILES+=tags
