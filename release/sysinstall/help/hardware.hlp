@@ -488,5 +488,18 @@ A: This is a known problem, and will hopefully be fixed in the future.
    local system in /usr/share/doc/FAQ, provided you have installed the
    `doc' distribution.
 
+
+Q: I have this CMD640 IDE controller that is said to be broken.
+
+A: Yes, it is.  There's a workaround available now, but it's not yet
+   enabled by default in FreeBSD 2.2.  In order to install your system
+   using this controller, you need to make sure that you are only
+   using drives on one of its channels.  Don't forget about your ATAPI
+   CD-ROM drive!  It must be the second drive on the primary channel
+   if you are going to install from it onto an IDE disk.
+
+   Once your system is installed, rebuild your kernel with the option
+   CMD640.  Refer to the FAQ and handbook for more detailed information.
+
 [ Please add more hardware tips to this Q&A section! ]
 
