@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)param.h	5.8 (Berkeley) 6/28/91
- *	$Id: param.h,v 1.30 1997/07/24 23:48:51 fsmp Exp $
+ *	$Id: param.h,v 1.31 1997/08/04 19:14:47 fsmp Exp $
  */
 
 #ifndef _MACHINE_PARAM_H_
@@ -64,6 +64,7 @@
 #define NPDEPG		(PAGE_SIZE/(sizeof (pd_entry_t)))
 #define PDRSHIFT	22		/* LOG2(NBPDR) */
 #define NBPDR		(1<<PDRSHIFT)	/* bytes/page dir */
+#define PDRMASK		(NBPDR-1)
 
 #define DEV_BSHIFT	9		/* log2(DEV_BSIZE) */
 #define DEV_BSIZE	(1<<DEV_BSHIFT)
@@ -121,6 +122,8 @@
  */
 #define trunc_page(x)		((unsigned)(x) & ~PAGE_MASK)
 #define round_page(x)		((((unsigned)(x)) + PAGE_MASK) & ~PAGE_MASK)
+#define trunc_4mpage(x)		((unsigned)(x) & ~PDRMASK)
+#define round_4mpage(x)		((((unsigned)(x)) + PDRMASK) & ~PDRMASK)
 
 #define atop(x)			((unsigned)(x) >> PAGE_SHIFT)
 #define ptoa(x)			((unsigned)(x) << PAGE_SHIFT)
