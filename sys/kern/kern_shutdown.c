@@ -438,6 +438,20 @@ shutdown_reset(void *junk, int howto)
 	/* NOTREACHED */ /* assuming reset worked */
 }
 
+/*
+ * Print a backtrace if we can.
+ */
+
+void
+backtrace(void)
+{
+#ifdef DDB
+	db_print_backtrace();
+#else
+	printf("Sorry, need DDB option to print backtrace");
+#endif
+}
+
 #ifdef SMP
 static u_int panic_cpu = NOCPU;
 #endif
