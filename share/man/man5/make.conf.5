@@ -406,6 +406,11 @@ Set to not build OpenSSH.
 .Pq Vt bool
 Set to not build OpenSSL (implies
 .Va NO_OPENSSH ) .
+.It Va NO_PERL
+.Pq Vt bool
+Set to avoid building
+.Xr perl 1 .
+(Also disables OpenSSL optimizations.)
 .It Va NO_SENDMAIL
 .Pq Vt bool
 Set to not build
@@ -461,6 +466,9 @@ Set to install man pages uncompressed.
 .Pq Vt bool
 Set to avoid building
 .Xr perl 1 .
+This is deprecated in favour of
+.It Va NO_PERL
+(above).
 .It Va NOPROFILE
 .Pq Vt bool
 Set to avoid compiling profiled libraries.
