@@ -70,6 +70,12 @@ dev/kbd/kbd.c			optional	atkbd
 dev/kbd/kbd.c			optional	kbd
 dev/kbd/kbd.c			optional	ukbd
 dev/pccard/if_xe.c		optional	xe
+dev/sound/isa/ad1816.c		optional	pcm isa
+dev/sound/isa/es1888.c		optional	pcm isa
+dev/sound/isa/gusc.c		optional	gusc
+dev/sound/isa/mss.c		optional	pcm isa
+dev/sound/isa/sb.c		optional	pcm isa
+dev/sound/isa/sbc.c		optional	sbc
 dev/syscons/schistory.c		optional	sc
 dev/syscons/scmouse.c		optional	sc
 dev/syscons/scvesactl.c		optional	sc
