@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vfsops.c	8.11 (Berkeley) 6/19/95
- * $Id: mfs_vfsops.c,v 1.40 1998/02/09 06:11:08 eivind Exp $
+ * $Id: mfs_vfsops.c,v 1.41 1998/03/01 22:46:53 msmith Exp $
  */
 
 #include "opt_mfs.h"
@@ -95,7 +95,6 @@ static struct vfsops mfs_vfsops = {
 	mfs_statfs,
 	ffs_sync,
 	ffs_vget,
-	vfs_vrele,
 	ffs_fhtovp,
 	ffs_vptofh,
 	mfs_init,
