@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.36 1995/05/30 08:13:54 rgrimes Exp $
+ * $Id: st.c,v 1.37 1995/07/09 08:14:24 joerg Exp $
  */
 
 /*
@@ -1102,7 +1102,7 @@ ststart(unit, flags)
 			0,	/* can't retry a read on a tape really */
 			100000,
 			bp,
-			flags | SCSI_NOSLEEP) == SUCCESSFULLY_QUEUED) {
+			flags) == SUCCESSFULLY_QUEUED) {
 			stqueues++;
 		} else {
 badnews:
