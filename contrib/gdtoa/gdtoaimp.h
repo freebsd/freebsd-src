@@ -600,6 +600,7 @@ extern void memcpy_D2A ANSI((void*, const void*, size_t));
  extern Bigint *diff ANSI((Bigint*, Bigint*));
  extern char *dtoa ANSI((double d, int mode, int ndigits,
 			int *decpt, int *sign, char **rve));
+ extern void freedtoa ANSI((char*));
  extern char *gdtoa ANSI((FPI *fpi, int be, ULong *bits, int *kindp,
 			  int mode, int ndigits, int *decpt, char **rve));
  extern char *g__fmt ANSI((char*, char*, char*, int, ULong));
@@ -623,8 +624,28 @@ extern void memcpy_D2A ANSI((void*, const void*, size_t));
  extern Bigint *s2b ANSI((CONST char*, int, int, ULong));
  extern Bigint *set_ones ANSI((Bigint*, int));
  extern char *strcp ANSI((char*, const char*));
+ extern int strtodg ANSI((CONST char*, char**, FPI*, Long*, ULong*));
+
+ extern int strtoId ANSI((CONST char *, char **, double *, double *));
+ extern int strtoIdd ANSI((CONST char *, char **, double *, double *));
+ extern int strtoIf ANSI((CONST char *, char **, float *, float *));
  extern int strtoIg ANSI((CONST char*, char**, FPI*, Long*, Bigint**, int*));
+ extern int strtoIQ ANSI((CONST char *, char **, void *, void *));
+ extern int strtoIx ANSI((CONST char *, char **, void *, void *));
+ extern int strtoIxL ANSI((CONST char *, char **, void *, void *));
  extern double strtod ANSI((const char *s00, char **se));
+ extern int strtopQ ANSI((CONST char *, char **, Void *));
+ extern int strtopf ANSI((CONST char *, char **, float *));
+ extern int strtopd ANSI((CONST char *, char **, double *));
+ extern int strtopdd ANSI((CONST char *, char **, double *));
+ extern int strtopx ANSI((CONST char *, char **, Void *));
+ extern int strtopxL ANSI((CONST char *, char **, Void *));
+ extern int strtord ANSI((CONST char *, char **, int, double *));
+ extern int strtordd ANSI((CONST char *, char **, int, double *));
+ extern int strtorf ANSI((CONST char *, char **, int, float *));
+ extern int strtorQ ANSI((CONST char *, char **, int, void *));
+ extern int strtorx ANSI((CONST char *, char **, int, void *));
+ extern int strtorxL ANSI((CONST char *, char **, int, void *));
  extern Bigint *sum ANSI((Bigint*, Bigint*));
  extern int trailz ANSI((Bigint*));
  extern double ulp ANSI((double));
