@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_conf.c	8.4 (Berkeley) 1/21/94
- * $Id: tty_conf.c,v 1.5 1995/03/21 11:23:58 dufault Exp $
+ * $Id: tty_conf.c,v 1.6 1995/05/30 08:06:10 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -62,7 +62,7 @@ int	nullioctl __P((struct tty *tp, int cmd, caddr_t data,
 
 #define NODISC(n) \
 	{ ttynodisc, ttyerrclose, ttyerrio, ttyerrio, nullioctl, \
-	  ttyerrinput, ttyerrstart, nullmodem },
+	  ttyerrinput, ttyerrstart, ttymodem },
 
 struct	linesw linesw[MAXLDISC] =
 {
@@ -70,14 +70,14 @@ struct	linesw linesw[MAXLDISC] =
 	  ttyinput, ttstart, ttymodem },		/* 0- termios */
 
 	{ ttynodisc, ttyerrclose, ttyerrio, ttyerrio, nullioctl,
-	  ttyerrinput, ttyerrstart, nullmodem },	/* 1- defunct */
+	  ttyerrinput, ttyerrstart, ttymodem },		/* 1- defunct */
 
 #ifdef COMPAT_43
 	{ ttyopen, ttylclose, ttread, ttwrite, nullioctl,
 	  ttyinput, ttstart, ttymodem },		/* 2- NTTYDISC */
 #else
 	{ ttynodisc, ttyerrclose, ttyerrio, ttyerrio, nullioctl,
-	  ttyerrinput, ttyerrstart, nullmodem },
+	  ttyerrinput, ttyerrstart, ttymodem },
 #endif
 
 	NODISC(3)		/* TABLDISC */
@@ -98,7 +98,7 @@ static struct linesw nodisc =
 	nullioctl,
 	ttyerrinput,
 	ttyerrstart,
-	nullmodem
+	ttymodem
 };
 
 #define LOADABLE_LDISC 6

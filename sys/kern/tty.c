@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.56 1995/07/22 01:30:31 bde Exp $
+ * $Id: tty.c,v 1.57 1995/07/22 16:45:07 bde Exp $
  */
 
 /*-
@@ -1294,29 +1294,6 @@ ttymodem(tp, flag)
 		 */
 		SET(tp->t_state, TS_CARR_ON);
 		ttwakeup(tp);
-	}
-	return (1);
-}
-
-/*
- * Default modem control routine (for other line disciplines).
- * Return argument flag, to turn off device on carrier drop.
- */
-int
-nullmodem(tp, flag)
-	register struct tty *tp;
-	int flag;
-{
-
-	if (flag)
-		SET(tp->t_state, TS_CARR_ON);
-	else {
-		CLR(tp->t_state, TS_CARR_ON);
-		if (!ISSET(tp->t_cflag, CLOCAL)) {
-			if (tp->t_session && tp->t_session->s_leader)
-				psignal(tp->t_session->s_leader, SIGHUP);
-			return (0);
-		}
 	}
 	return (1);
 }
