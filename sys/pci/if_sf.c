@@ -208,8 +208,8 @@ static driver_t sf_driver = {
 
 static devclass_t sf_devclass;
 
-DRIVER_MODULE(if_sf, pci, sf_driver, sf_devclass, 0, 0);
-DRIVER_MODULE(miibus, if_sf, miibus_driver, miibus_devclass, 0, 0);
+DRIVER_MODULE(sf, pci, sf_driver, sf_devclass, 0, 0);
+DRIVER_MODULE(miibus, sf, miibus_driver, miibus_devclass, 0, 0);
 
 #define SF_SETBIT(sc, reg, x)	\
 	csr_write_4(sc, reg, csr_read_4(sc, reg) | x)

@@ -215,7 +215,7 @@ static driver_t mx_driver = {
 
 static devclass_t mx_devclass;
 
-DRIVER_MODULE(if_mx, pci, mx_driver, mx_devclass, 0, 0);
+DRIVER_MODULE(mx, pci, mx_driver, mx_devclass, 0, 0);
 
 #define MX_SETBIT(sc, reg, x)				\
 	CSR_WRITE_4(sc, reg,				\
