@@ -175,6 +175,18 @@ if ((i) > (n)) { \
 /* NEWLINE_TO_NUL: overwrite newlines with ASCII NULs */
 #define NEWLINE_TO_NUL(s, l) translit_text(s, l, '\n', '\0')
 
+#ifdef ED_DES_INCLUDES
+void des_error(const char *);
+void expand_des_key(char *, char *);
+void set_des_key(DES_cblock *);
+#endif
+
+/* Other DES support stuff */
+void init_des_cipher(void);
+int flush_des_file(FILE *);
+int get_des_char(FILE *);
+int put_des_char(int, FILE *);
+
 /* Local Function Declarations */
 void add_line_node(line_t *);
 int append_lines(long);
@@ -188,21 +200,17 @@ void clear_undo_stack(void);
 int close_sbuf(void);
 int copy_lines(long);
 int delete_lines(long, long);
-void des_error(const char *);
 int display_lines(long, long, int);
 line_t *dup_line_node(line_t *);
 int exec_command(void);
 long exec_global(int, int);
-void expand_des_key(char *, char *);
 int extract_addr_range(void);
 char *extract_pattern(int);
 int extract_subst_tail(int *, long *);
 char *extract_subst_template(void);
 int filter_lines(long, long, char *);
-int flush_des_file(FILE *);
 line_t *get_addressed_line_node(long);
 pattern_t *get_compiled_pattern(void);
-int get_des_char(FILE *);
 char *get_extended_line(int *, int);
 char *get_filename(void);
 int get_keyword(void);
@@ -219,7 +227,6 @@ void handle_winch(int);
 int has_trailing_escape(char *, char *);
 int hex_to_binary(int, int);
 void init_buffers(void);
-void init_des_cipher(void);
 int is_legal_filename(char *);
 int join_lines(long, long);
 int mark_line_node(line_t *, int);
@@ -230,7 +237,6 @@ int open_sbuf(void);
 char *parse_char_class(char *);
 int pop_undo_stack(void);
 undo_t *push_undo_stack(int, long, long);
-int put_des_char(int, FILE *);
 const char *put_sbuf_line(const char *);
 int put_stream_line(FILE *, const char *, int);
 int put_tty_line(const char *, int, long, int);
@@ -239,7 +245,6 @@ long read_file(char *, long);
 long read_stream(FILE *, long);
 int search_and_replace(pattern_t *, int, int);
 int set_active_node(line_t *);
-void set_des_key(char *);
 void signal_hup(int);
 void signal_int(int);
 char *strip_escapes(char *);
