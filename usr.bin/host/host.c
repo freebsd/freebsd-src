@@ -67,7 +67,7 @@ char copyright[] =
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: host.c,v 4.9.1.13 1994/07/19 22:51:24 vixie Exp $";
+static char rcsid[] = "$Id: host.c,v 1.1.1.1 1994/09/22 21:34:21 pst Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -83,7 +83,7 @@ static char rcsid[] = "$Id: host.c,v 4.9.1.13 1994/07/19 22:51:24 vixie Exp $";
 #include <resolv.h>
 #include <ctype.h>
 
-#include "../conf/portability.h"
+#include <string.h>
 
 extern int h_errno;
 
