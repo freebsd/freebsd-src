@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.52 1996/05/02 10:43:04 phk Exp $
+ *	$Id: autoconf.c,v 1.53 1996/05/02 14:19:39 phk Exp $
  */
 
 /*
@@ -57,6 +57,7 @@
 #include <sys/sysctl.h>
 
 #include <machine/cons.h>
+#include <machine/cpu.h>
 #include <machine/md_var.h>
 #include <i386/isa/icu.h> /* For interrupts */
 
@@ -196,18 +197,29 @@ configure(dummy)
 
 	cninit_finish();
 
+	if (bootverbose)
+		printf("Device configuration finished.\n");
+
 #ifdef CD9660
-	if ((boothowto & RB_CDROM) && !mountroot)
+	if ((boothowto & RB_CDROM) && !mountroot) {
+		if (bootverbose)
+			printf("Considering CD-ROM root f/s.\n");
 		mountroot = find_cdrom_root;
+	}
 #endif
 
 #ifdef NFS
-	if (!mountroot && nfs_diskless_valid)
+	if (!mountroot && nfs_diskless_valid) {
+		if (bootverbose)
+			printf("Considering NFS root f/s.\n");
 		mountroot = nfs_mountroot;
+	}
 #endif /* NFS */
 
 #ifdef MFS_ROOT
 	if (!mountroot) {
+		if (bootverbose)
+			printf("Considering MFS root f/s.\n");
 		mountroot = vfs_mountroot;	/* XXX goes away*/
 		mountrootvfsops = &mfs_vfsops;
 		/*
@@ -224,6 +236,8 @@ configure(dummy)
 #endif
 #ifdef FFS
 	if (!mountroot) {
+		if (bootverbose)
+			printf("Considering FFS root f/s.\n");
 		mountroot = vfs_mountroot;	/* XXX goes away*/
 		mountrootvfsops = &ufs_vfsops;
 		/*
@@ -240,6 +254,8 @@ configure(dummy)
 #endif
 #ifdef LFS
 	if (!mountroot) {
+		if (bootverbose)
+			printf("Considering LFS root f/s.\n");
 		mountroot = vfs_mountroot;	/* XXX goes away*/
 		mountrootvfsops = &lfs_vfsops;
 		/*
@@ -261,8 +277,12 @@ configure(dummy)
 	 * Configure swap area and related system
 	 * parameter based on device(s) used.
 	 */
+	if (bootverbose)
+		printf("Configuring root and swap devs.\n");
 	setconf();
 	cold = 0;
+	if (bootverbose)
+		printf("configure() finished.\n");
 }
 
 static int
