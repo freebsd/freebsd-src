@@ -52,6 +52,7 @@
 #define	PCI_DEVICE_ID_TOSHIBA_TOPIC95	0x060a1179ul
 #define	PCI_DEVICE_ID_TOSHIBA_TOPIC97	0x060f1179ul
 #define	PCI_DEVICE_ID_RICOH_RL5C465	0x04651180ul
+#define	PCI_DEVICE_ID_RICOH_RL5C466	0x04661180ul
 #define	PCI_DEVICE_ID_RICOH_RL5C475	0x04751180ul
 #define	PCI_DEVICE_ID_RICOH_RL5C476	0x04761180ul
 #define	PCI_DEVICE_ID_RICOH_RL5C478	0x04781180ul
@@ -119,8 +120,14 @@
 /* sanpei */
 
 /* For Bridge Control register (CB_PCI_BRIDGE_CTRL) */
+#define CB_BCR_MASTER_ABORT	0x0020
 #define CB_BCR_CB_RESET		0x0040
 #define CB_BCR_INT_EXCA		0x0080
+#define CB_BCR_WRITE_POST_EN	0x0400
+  /* additional bits for Ricoh's cardbus products */
+#define CB_BCR_RL_3E0_EN	0x0800
+#define CB_BCR_RL_3E2_EN	0x1000
+
 /* PCI Configuration Registers (common) */
 #define	CB_PCI_VENDOR_ID	0x00	/* vendor ID */
 #define	CB_PCI_DEVICE_ID	0x02	/* device ID */

@@ -316,9 +316,24 @@ pcic_pci_probe(device_t dev)
 }
 
 
+static void
+ricoh_init(device_t dev)
+{
+	u_int16_t       brgcntl;
+	/*
+	 * Ricoh chips have a legacy bridge enable different than most
+	 * Code cribbed from NEWBUS's bridge code since I can't find a
+	 * datasheet for them that has register definitions.
+	 */
+	brgcntl = pci_read_config(dev, CB_PCI_BRIDGE_CTRL, 2);
+	brgcntl |= CB_BCR_RL_3E0_EN;
+	brgcntl &= ~CB_BCR_RL_3E2_EN;
+	pci_write_config(dev, CLPD6832_BRIDGE_CONTROL, brgcntl, 4);
+}
+
 /*
  * General PCI based card dispatch routine.  Right now
- * it only understands the CL-PD6832 and TI parts.  It does
+ * it only understands the Ricoh, CL-PD6832 and TI parts.  It does
  * try to do generic things with other parts.
  */
 static int
@@ -341,6 +356,14 @@ pcic_pci_attach(device_t dev)
         pci_write_config(dev, PCIR_COMMAND, command, 4);
 
 	switch (device_id) {
+	case PCI_DEVICE_ID_RICOH_RL5C465:
+	case PCI_DEVICE_ID_RICOH_RL5C466:
+	case PCI_DEVICE_ID_RICOH_RL5C475:
+	case PCI_DEVICE_ID_RICOH_RL5C476:
+	case PCI_DEVICE_ID_RICOH_RL5C478:
+		ricoh_init(dev);
+		generic_cardbus_attach(dev);
+		break;
 	case PCI_DEVICE_ID_PCIC_TI1130:
 	case PCI_DEVICE_ID_PCIC_TI1131:
 	case PCI_DEVICE_ID_PCIC_TI1211:
@@ -360,9 +383,8 @@ pcic_pci_attach(device_t dev)
                 generic_cardbus_attach(dev);
                 break;
 	case PCI_DEVICE_ID_PCIC_CLPD6832:
-		pd6832_legacy_init(dev);
-		break;
 	case PCI_DEVICE_ID_PCIC_TI1031:
+		pd6832_legacy_init(dev);
 		break;
 	}
 
