@@ -399,8 +399,10 @@ ispioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 		hba->fc_scsi_supported = 1;
 		hba->fc_topology = FCPARAM(isp)->isp_topo + 1;
 		hba->fc_loopid = FCPARAM(isp)->isp_loopid;
-		hba->active_node_wwn = FCPARAM(isp)->isp_nodewwn;
-		hba->active_port_wwn = FCPARAM(isp)->isp_portwwn;
+		hba->nvram_node_wwn = FCPARAM(isp)->isp_nodewwn;
+		hba->nvram_port_wwn = FCPARAM(isp)->isp_portwwn;
+		hba->active_node_wwn = ISP_NODEWWN(isp);
+		hba->active_port_wwn = ISP_PORTWWN(isp);
 		ISP_UNLOCK(isp);
 		retval = 0;
 		break;
