@@ -147,7 +147,7 @@ query_devices()
 }
 
 int
-select_disk()
+configure_disks()
 {
 	char *disk_names[] = {"wd", "sd", 0};
 	char diskname[20];
@@ -203,114 +203,34 @@ select_disk()
 		sprintf(options[(no_disks*2)+1], "    Done");
 
 		dialog_clear_norefresh();
-		if (dialog_menu("FreeBSD Installation", scratch, -1, -1, min(5,no_disks+1), no_disks+1,
-		                     options, selection)) {
-			sprintf(scratch,"You selected cancel.");
+		if (dialog_menu("FreeBSD Installation", scratch, -1, -1,
+							 min(5, no_disks),  no_disks, options, selection)) {
+			dialog_clear_norefresh();
+			sprintf(scratch,"\nYou selected cancel.\n");
 			AskAbort(scratch);
 			valid = 0;
 			continue;
 		}
-
 		choice = atoi(selection);
-		if (choice == no_disks+1)
-			valid = 1;
-		else
-			if (disk_list[choice-1].selected)
-				disk_list[choice-1].selected = 0;
-			else
-				disk_list[choice-1].selected = 1;
-	} while (!valid);
-	dialog_clear();
-	return(0);
-}
-
-void
-configure_disks()
-{
-	int i;
-	int items;
-	int choice;
-	int valid=0;
-	int disks[MAX_NO_DEVICES];
-
-	do {
-		sprintf(scratch, "Select disk to configure");
-
-		items = 0;
-		for (i = 0; i < no_disks; i++) {
-			if (disk_list[i].selected) {
-				sprintf(options[(items*2)], "%d",items+1);
-				sprintf(options[(items*2)+1], "%s%d",
-					  disk_list[i].devconf->dc_name,
-					  disk_list[i].devconf->dc_unit);
-				disks[items] = i;
-				items++;
-			}
-		}
-
-		sprintf(options[items*2], "%d", items+1);
-		sprintf(options[(items*2)+1], "Done");
-		items++;
-
-		dialog_clear_norefresh();
-		if (dialog_menu("FreeBSD Installation", scratch, -1, -1, min(5,items), items,
-							 options, selection)) {
-				sprintf(scratch,"You selected cancel.");
-				AskAbort(scratch);
-				valid = 0;
-				continue;
-		}
-		choice = atoi(selection);
-		if (choice == items)
+		if (choice == no_disks)
 			valid = 1;
 		else {
-			if (edit_mbr(disks[choice-1]) == -1) {
-				sprintf(scratch, "The following error occured while\nediting the master boot record.\n%s", errmsg);
+			if (edit_mbr(choice-1) == -1) {
+				sprintf(scratch, "\nThe following error occured while\nediting the master boot record.\n%s", errmsg);
 				AskAbort(scratch);
 				valid = 0;
 				continue;
 			};
-			disk_list[disks[choice-1]].inst_part = select_partition(disks[choice-1]);
-			if (edit_disklabel(disks[choice-1]) == -1) {
-				sprintf(scratch, "The following error occured while\nediting the disklabel.\n%s", errmsg);
+			if (edit_disklabel(choice-1) == -1) {
+				sprintf(scratch, "\nThe following error occured while\nediting the disklabel.\n%s", errmsg);
 				AskAbort(scratch);
 				valid = 0;
 				continue;
 			}
+			disk_list[choice-1].selected = 1;
 		}
 	} while (!valid);
-	dialog_clear();
 }
-
-int
-select_partition(int disk)
-{
-    int valid;
-    int i;
-    int choice;
-    
-    do {
-   valid = 1;
-   
-   sprintf(scratch,"Select one of the following areas to install to:");
-   for (i=0; i < NDOSPART; i++) {
-       sprintf(options[(i*2)], "%d",i+1);
-       sprintf(options[(i*2)+1], "%s, (%ldMb)",
-          part_type(disk_list[disk].mbr.dospart[i].dp_typ),
-          disk_list[disk].mbr.dospart[i].dp_size * 512 / (1024 * 1024));
-   }
-   dialog_clear_norefresh();
-   if (dialog_menu(TITLE,
-	 scratch, -1, -1, 4, 4, options, selection)) {
-       sprintf(scratch,"You did not select a valid partition");
-       AskAbort(scratch);
-       valid = 0;
-   }
-   dialog_clear();
-   choice = atoi(selection) - 1;
-    } while (!valid);
-    return(choice);
-}   
 
 int
 stage1()
@@ -319,18 +239,6 @@ stage1()
     int ok = 0;
 
 	query_devices();
-
-	while (!ok) {
-		select_disk();
-		for (i=0; i < no_disks; i++)
-			if (disk_list[i].selected)
-				ok = 1;
-		if (!ok) {
-			sprintf(scratch, "You did not select any disks to install to.");
-			AskAbort(scratch);
-		}
-	}
-
 	configure_disks();
 	exit(1);
 }
