@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999 Robert N. M. Watson
+ * Copyright (c) 1999, 2000, 2001 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ * $FreeBSD$
  */
 /*
  * acl_set_file -- set a file/directory ACL by name
@@ -46,8 +46,8 @@ acl_set_file(const char *path_p, acl_type_t type, acl_t acl)
 {
 	int	error;
 
-	if (acl_posix1e(acl, type)) {
-		error = acl_sort(acl);
+	if (_posix1e_acl(acl, type)) {
+		error = _posix1e_acl_sort(acl);
 		if (error) {
 			errno = error;
 			return (-1);
@@ -62,7 +62,7 @@ acl_set_fd(int fd, acl_t acl)
 {
 	int	error;
 
-	error = acl_sort(acl);
+	error = _posix1e_acl_sort(acl);
 	if (error) {
 		errno = error;
 		return(-1);
@@ -76,8 +76,8 @@ acl_set_fd_np(int fd, acl_t acl, acl_type_t type)
 {
 	int	error;
 
-	if (acl_posix1e(acl, type)) {
-		error = acl_sort(acl);
+	if (_posix1e_acl(acl, type)) {
+		error = _posix1e_acl_sort(acl);
 		if (error) {
 			errno = error;
 			return (-1);

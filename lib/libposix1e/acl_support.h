@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999 Robert N. M. Watson
+ * Copyright (c) 1999, 2000, 2001 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ * $FreeBSD$
  */
 /*
  * Support functionality for the POSIX.1e ACL interface
@@ -32,15 +32,18 @@
 #ifndef _ACL_SUPPORT_H
 #define _ACL_SUPPORT_H
 
-#define ACL_STRING_PERM_MAXSIZE 3       /* read, write, exec */
+#define _POSIX1E_ACL_STRING_PERM_MAXSIZE 3       /* read, write, exec */
 
-int	acl_check(struct acl *acl);
-int	acl_sort(acl_t acl);
-int	acl_posix1e(acl_t acl, acl_type_t type);
-int	acl_id_to_name(acl_tag_t tag, uid_t id, ssize_t buf_len, char *buf);
-int	acl_name_to_id(acl_tag_t tag, char *name, uid_t *id);
-int	acl_perm_to_string(acl_perm_t perm, ssize_t buf_len, char *buf);
-int	acl_string_to_perm(char *string, acl_perm_t *perm);
-int	acl_add_entry(acl_t acl, acl_tag_t tag, uid_t id, acl_perm_t perm);
+int	_posix1e_acl_check(struct acl *acl);
+int	_posix1e_acl_sort(acl_t acl);
+int	_posix1e_acl(acl_t acl, acl_type_t type);
+int	_posix1e_acl_id_to_name(acl_tag_t tag, uid_t id, ssize_t buf_len,
+	    char *buf);
+int	_posix1e_acl_name_to_id(acl_tag_t tag, char *name, uid_t *id);
+int	_posix1e_acl_perm_to_string(acl_perm_t perm, ssize_t buf_len,
+	    char *buf);
+int	_posix1e_acl_string_to_perm(char *string, acl_perm_t *perm);
+int	_posix1e_acl_add_entry(acl_t acl, acl_tag_t tag, uid_t id,
+	    acl_perm_t perm);
 
 #endif
