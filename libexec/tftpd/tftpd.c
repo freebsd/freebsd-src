@@ -103,16 +103,19 @@ static void unmappedaddr(struct sockaddr_in6 *);
  */
 #define MAXDIRS	20
 static struct dirlist {
-	char	*name;
+	const char	*name;
 	int	len;
 } dirs[MAXDIRS+1];
 static int	suppress_naks;
 static int	logging;
 static int	ipchroot;
 
-static char *errtomsg(int);
+static const char *errtomsg(int);
 static void  nak(int);
-static void  oack();
+static void  oack(void);
+
+static void  timer(int);
+static void  justquit(int);
 
 int
 main(int argc, char *argv[])
@@ -124,7 +127,7 @@ main(int argc, char *argv[])
 	int len;
 	char *chroot_dir = NULL;
 	struct passwd *nobody;
-	char *chuser = "nobody";
+	const char *chuser = "nobody";
 
 	openlog("tftpd", LOG_PID | LOG_NDELAY, LOG_FTP);
 	while ((ch = getopt(argc, argv, "cClns:u:")) != -1) {
@@ -321,7 +324,7 @@ void	xmitfile(struct formats *);
 void	recvfile(struct formats *);
 
 struct formats {
-	char	*f_mode;
+	const char	*f_mode;
 	int	(*f_validate)(char **, int);
 	void	(*f_send)(struct formats *);
 	void	(*f_recv)(struct formats *);
@@ -332,17 +335,17 @@ struct formats {
 #ifdef notdef
 	{ "mail",	validate_user,		sendmail,	recvmail, 1 },
 #endif
-	{ 0 }
+	{ 0,		NULL,			NULL,		NULL,	  0 }
 };
 
 struct options {
-	char	*o_type;
+	const char	*o_type;
 	char	*o_request;
 	int	o_reply;	/* turn into union if need be */
 } options[] = {
-	{ "tsize" },		/* OPT_TSIZE */
-	{ "timeout" },		/* OPT_TIMEOUT */
-	{ NULL }
+	{ "tsize",	NULL, 0 },		/* OPT_TSIZE */
+	{ "timeout",	NULL, 0 },		/* OPT_TIMEOUT */
+	{ NULL,		NULL, 0 }
 };
 
 enum opt_enum {
@@ -579,7 +582,7 @@ timer(int sig __unused)
 void
 xmitfile(struct formats *pf)
 {
-	struct tftphdr *dp, *r_init();
+	struct tftphdr *dp;
 	struct tftphdr *ap;    /* ack packet */
 	int size, n;
 	volatile unsigned short block;
@@ -658,7 +661,7 @@ justquit(int sig __unused)
 void
 recvfile(struct formats *pf)
 {
-	struct tftphdr *dp, *w_init();
+	struct tftphdr *dp;
 	struct tftphdr *ap;    /* ack buffer */
 	int n, size;
 	volatile unsigned short block;
@@ -731,7 +734,7 @@ abort:
 
 struct errmsg {
 	int	e_code;
-	char	*e_msg;
+	const char	*e_msg;
 } errmsgs[] = {
 	{ EUNDEF,	"Undefined error code" },
 	{ ENOTFOUND,	"File not found" },
@@ -745,18 +748,18 @@ struct errmsg {
 	{ -1,		0 }
 };
 
-static char *
+static const char *
 errtomsg(int error)
 {
-	static char buf[20];
+	static char ebuf[20];
 	struct errmsg *pe;
 	if (error == 0)
 		return "success";
 	for (pe = errmsgs; pe->e_code >= 0; pe++)
 		if (pe->e_code == error)
 			return pe->e_msg;
-	snprintf(buf, sizeof(buf), "error %d", error);
-	return buf;
+	snprintf(ebuf, sizeof(buf), "error %d", error);
+	return ebuf;
 }
 
 /*
