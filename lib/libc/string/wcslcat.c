@@ -57,9 +57,6 @@ wcslcat(dst, src, siz)
 	size_t n = siz;
 	size_t dlen;
 
-	_DIAGASSERT(dst != NULL);
-	_DIAGASSERT(src != NULL);
-
 	/* Find the end of dst and adjust bytes left but don't go past end */
 	while (*d != '\0' && n-- != 0)
 		d++;

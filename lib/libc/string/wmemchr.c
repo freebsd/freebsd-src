@@ -46,8 +46,6 @@ wmemchr(s, c, n)
 {
 	size_t i;
 
-	_DIAGASSERT(s != NULL);
-
 	for (i = 0; i < n; i++) {
 		if (*s == c) {
 			/* LINTED const castaway */

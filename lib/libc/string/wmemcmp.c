@@ -46,9 +46,6 @@ wmemcmp(s1, s2, n)
 {
 	size_t i;
 
-	_DIAGASSERT(s1 != NULL);
-	_DIAGASSERT(s2 != NULL);
-
 	for (i = 0; i < n; i++) {
 		if (*s1 != *s2) {
 			/* wchar might be unsigned */
