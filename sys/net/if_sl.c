@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.16 1995/03/31 11:01:29 ache Exp $
+ * $Id: if_sl.c,v 1.17 1995/04/01 22:11:10 ache Exp $
  */
 
 /*
@@ -79,6 +79,7 @@
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <sys/file.h>
+#include <sys/signalvar.h>
 #include <sys/tty.h>
 #include <sys/clist.h>
 #include <sys/kernel.h>
@@ -182,9 +183,8 @@ struct sl_softc sl_softc[NSL];
 
 static int slinit __P((struct sl_softc *));
 static struct mbuf *sl_btom __P((struct sl_softc *, int));
-static void sl_keepalive __P((struct sl_softc *));
-static void sl_outfill __P((struct sl_softc *));
-
+static timeout_t sl_keepalive;
+static timeout_t sl_outfill;
 
 #define ttyerrio ((int (*) __P((struct tty *, struct uio *, int)))enodev)
 
@@ -325,11 +325,11 @@ slclose(tp,flag)
 	if (sc != NULL) {
 		if (sc->sc_outfill) {
 			sc->sc_outfill = 0;
-			untimeout((timeout_func_t) sl_outfill, (caddr_t) sc);
+			untimeout(sl_outfill, sc);
 		}
 		if (sc->sc_keepalive) {
 			sc->sc_keepalive = 0;
-			untimeout((timeout_func_t) sl_keepalive, (caddr_t) sc);
+			untimeout(sl_keepalive, sc);
 		}
 		if_down(&sc->sc_if);
 		sc->sc_flags = 0;
@@ -370,10 +370,10 @@ sltioctl(tp, cmd, data, flag, p)
 		sc->sc_keepalive = *(u_int *)data * hz;
 		if (sc->sc_keepalive) {
 			sc->sc_flags |= SC_KEEPALIVE;
-			timeout((timeout_func_t) sl_keepalive, (caddr_t) sc, sc->sc_keepalive);
+			timeout(sl_keepalive, sc, sc->sc_keepalive);
 		} else {
 			sc->sc_flags &= ~SC_KEEPALIVE;
-			untimeout((timeout_func_t) sl_keepalive, (caddr_t) sc);
+			untimeout(sl_keepalive, sc);
 		}
 		break;
 
@@ -385,10 +385,10 @@ sltioctl(tp, cmd, data, flag, p)
 		sc->sc_outfill = *(u_int *)data * hz;
 		if (sc->sc_outfill) {
 			sc->sc_flags |= SC_OUTWAIT;
-			timeout((timeout_func_t) sl_outfill, (caddr_t) sc, sc->sc_outfill);
+			timeout(sl_outfill, sc, sc->sc_outfill);
 		} else {
 			sc->sc_flags &= ~SC_OUTWAIT;
-			untimeout((timeout_func_t) sl_outfill, (caddr_t) sc);
+			untimeout(sl_outfill, sc);
 		}
 		break;
 
@@ -398,7 +398,7 @@ sltioctl(tp, cmd, data, flag, p)
 
 	default:
 		splx(s);
-		return (ENOTTY);
+		return (-1);
 	}
 	splx(s);
 	return (0);
@@ -952,24 +952,29 @@ slioctl(ifp, cmd, data)
 	return (error);
 }
 
-static void sl_keepalive (sc)
-	struct sl_softc *sc;
+static void
+sl_keepalive(chan)
+	void *chan;
 {
+	struct sl_softc *sc = chan;
+
 	if (sc->sc_keepalive) {
 		if (sc->sc_flags & SC_KEEPALIVE)
 			pgsignal (sc->sc_ttyp->t_pgrp, SIGURG, 1);
 		else
 			sc->sc_flags |= SC_KEEPALIVE;
-		timeout ((timeout_func_t) sl_keepalive, (caddr_t) sc, sc->sc_keepalive);
+		timeout(sl_keepalive, sc, sc->sc_keepalive);
 	} else {
 		sc->sc_flags &= ~SC_KEEPALIVE;
-		untimeout ((timeout_func_t) sl_keepalive, (caddr_t) sc);
+		untimeout(sl_keepalive, sc);
 	}
 }
 
-static void sl_outfill (sc)
-	struct sl_softc *sc;
+static void
+sl_outfill(chan)
+	void *chan;
 {
+	struct sl_softc *sc = chan;
 	register struct tty *tp = sc->sc_ttyp;
 	int s;
 
@@ -982,10 +987,10 @@ static void sl_outfill (sc)
 			splx (s);
 		} else
 			sc->sc_flags |= SC_OUTWAIT;
-		timeout ((timeout_func_t) sl_outfill, (caddr_t) sc, sc->sc_outfill);
+		timeout(sl_outfill, sc, sc->sc_outfill);
 	} else {
 		sc->sc_flags &= ~SC_OUTWAIT;
-		untimeout ((timeout_func_t) sl_outfill, (caddr_t) sc);
+		untimeout(sl_outfill, sc);
 	}
 }
 
