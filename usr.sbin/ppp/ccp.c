@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.27 1998/01/04 20:25:39 brian Exp $
+ * $Id: ccp.c,v 1.28 1998/01/10 01:55:08 brian Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -59,12 +59,13 @@ struct fsm CcpFsm = {
   "CCP",
   PROTO_CCP,
   CCP_MAXCODE,
-  OPEN_ACTIVE,
+  0,
   ST_INITIAL,
   0, 0, 0,
   0,
-  {0, 0, 0, NULL, NULL, NULL},
-  {0, 0, 0, NULL, NULL, NULL},
+  {0, 0, 0, NULL, NULL, NULL},	/* FSM timer */
+  {0, 0, 0, NULL, NULL, NULL},	/* Open timer */
+  {0, 0, 0, NULL, NULL, NULL},	/* Stopped timer */
   LogCCP,
 
   CcpLayerUp,
@@ -270,7 +271,7 @@ CcpOpen()
 
   for (f = 0; f < NALGORITHMS; f++)
     if (Enabled(algorithm[f]->Conf)) {
-      CcpFsm.open_mode = OPEN_ACTIVE;
+      CcpFsm.open_mode = 0;
       FsmOpen(&CcpFsm);
       break;
     }
