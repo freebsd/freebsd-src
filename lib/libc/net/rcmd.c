@@ -356,6 +356,14 @@ __ivaliduser(hostf, raddr, luser, ruser)
 	register char *user, *p;
 	int ch;
 	char buf[MAXHOSTNAMELEN + 128];		/* host + login */
+	struct hostent *hp;
+	/* Presumed guilty until proven innocent. */
+	int userok = 0, hostok = 0;
+
+	/* We need to get the damn hostname back for netgroup matching. */
+	if ((hp = gethostbyaddr((char *)&raddr, sizeof(u_long),
+							AF_INET)) == NULL)
+		return (-1);
 
 	while (fgets(buf, sizeof(buf), hostf)) {
 		p = buf;
@@ -379,10 +387,68 @@ __ivaliduser(hostf, raddr, luser, ruser)
 		} else
 			user = p;
 		*p = '\0';
-		if (__icheckhost(raddr, buf) &&
-		    strcmp(ruser, *user ? user : luser) == 0) {
-			return (0);
+		/*
+		 * Do +/- and +@/-@ checking. This looks really nasty,
+		 * but it matches SunOS's behavior so far as I can tell.
+		 */
+		switch(buf[0]) {
+		case '+':
+			if (!buf[1]) {     /* '+' matches all hosts */
+				hostok = 1;
+				break;
+			}
+			if (buf[1] == '@')  /* match a host by netgroup */
+				hostok = innetgr((char *)&buf[2], hp->h_name,
+						NULL, NULL);
+			else		/* match a host by addr */
+				hostok = __icheckhost(raddr,(char *)&buf[1]);
+			break;
+		case '-':     /* reject '-' hosts and all their users */
+			if (buf[1] == '@') {
+				if (innetgr((char *)&buf[2],
+					      hp->h_name, NULL, NULL))
+					return(-1);
+			} else {
+				if (__icheckhost(raddr,(char *)&buf[1]))
+					return(-1);
+			}
+			break;
+		default:  /* if no '+' or '-', do a simple match */
+			hostok = __icheckhost(raddr, buf);
+			break;
 		}
+		switch(*user) {
+		case '+':
+			if (!*(user+1)) {      /* '+' matches all users */
+				userok = 1;
+				break;
+			}
+			if (*(user+1) == '@')  /* match a user by netgroup */
+				userok = innetgr(user+2, NULL, ruser, NULL);
+			else	   /* match a user by direct specification */
+				userok = !(strcmp(ruser, user+1));
+			break;
+		case '-': 		/* if we matched a hostname, */
+			if (hostok) {   /* check for user field rejections */
+				if (!*(user+1))
+					return(-1);
+				if (*(user+1) == '@') {
+					if (innetgr(user+2, NULL,
+							ruser, NULL))
+						return(-1);
+				} else {
+					if (!strcmp(ruser, user+1))
+						return(-1);
+				}
+			}
+			break;
+		default:	/* no rejections: try to match the user */
+			if (hostok)
+				userok = !(strcmp(ruser,*user ? user : luser));
+			break;
+		}
+		if (hostok && userok)
+			return(0);
 	}
 	return (-1);
 }
