@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.32 1995/04/14 15:10:44 dufault Exp $
+ * $Id: st.c,v 1.33 1995/04/23 22:07:54 gibbs Exp $
  */
 
 /*
@@ -152,7 +152,7 @@ static struct rogues gallery[] =	/* ends with an all-null entry */
 
 errval	st_space __P((u_int32 unit, int32 number, u_int32 what, u_int32 flags));
 errval	st_rewind __P((u_int32 unit, boolean immed, u_int32 flags));
-errval	st_erase __P((u_int32 unit, boolean immed, u_int32 flags)); /* AKL */
+errval	st_erase __P((u_int32 unit, boolean immed, u_int32 flags));
 static errval st_mode_sense __P((u_int32 unit, u_int32 flags, \
 	struct tape_pages *page, u_int32 pagelen, u_int32 pagecode));
 errval	st_decide_mode __P((u_int32 unit, boolean first_read));
@@ -1190,10 +1190,16 @@ struct proc *p, struct scsi_link *sc_link)
 				if (errcode == ESUCCESS)
 					errcode = st_space(unit, number, SP_BLKS, flags);
 				break;
+			case MTEOD:	/* space to end of recorded medium */
+				errcode = st_chkeod(unit, FALSE, &nmarks, flags);
+				if (errcode == ESUCCESS)
+					errcode = st_space(unit, 0, SP_EOM,
+							   flags);
+				break;
 			case MTREW:	/* rewind */
 				errcode = st_rewind(unit, FALSE, flags);
 				break;
-			case MTERASE:	/* erase - AKL */
+			case MTERASE:	/* erase */
 				errcode = st_erase(unit, FALSE, flags);
 				break;
 			case MTOFFL:	/* rewind and put the drive offline */
@@ -1648,6 +1654,16 @@ st_space(unit, number, what, flags)
 			st->flags &= ~ST_BLANK_READ;
 			number++;	/* dubious */
 		}
+		break;
+	case	SP_EOM:
+		if (st->flags & ST_EIO_PENDING)
+		{
+			/* we are already at EOM */
+			st->flags &= ~ST_EIO_PENDING;
+			return(ESUCCESS);
+		}
+		number = 1;	/* we have only one end-of-medium */
+		break;
 	}
 	if (number == 0) {
 		return (ESUCCESS);
@@ -1818,7 +1834,7 @@ st_rewind(unit, immed, flags)
 }
 
 /*
-**  Erase the device - AKL: Andreas Klemm <andreas@knobel.gun.de>
+**  Erase the device
 */ 
 errval 
 st_erase(unit, immed, flags)
@@ -1835,7 +1851,7 @@ st_erase(unit, immed, flags)
 	if (error != ESUCCESS)
 		return (error);
 	/*
-	** AKL: Archive Viper 2525 technical manual 5.7 (ERASE 19h):
+	**      Archive Viper 2525 technical manual 5.7 (ERASE 19h):
 	**	tape has to be positioned to BOT first before erase command
 	**	is issued or command is rejected. So we rewind the tape first
 	**	and exit with an error, if the tape can't be rewinded.
@@ -1846,7 +1862,7 @@ st_erase(unit, immed, flags)
 	st->flags &= ~ST_PER_ACTION;
 	bzero(&scsi_cmd, sizeof(scsi_cmd));
 	scsi_cmd.op_code = ERASE;
-	scsi_cmd.byte2 = SE_LONG;		/* LONG_ERASE - AKL */
+	scsi_cmd.byte2 = SE_LONG;		/* LONG_ERASE */
 	scsi_cmd.byte2 += immed ? SE_IMMED : 0; /* immed bit is here the 2nd! */
 	return (scsi_scsi_cmd(sc_link,
 		(struct scsi_generic *) &scsi_cmd,
