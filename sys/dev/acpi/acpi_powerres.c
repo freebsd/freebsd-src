@@ -44,11 +44,144 @@
 #include <dev/acpi/aml/aml_parse.h>
 #include <dev/acpi/aml/aml_memman.h>
 
-static void acpi_powerres_init(acpi_softc_t *sc);
-static int  acpi_powerres_register(struct aml_name *name, va_list ap);
-static int  acpi_powerres_add_device(struct aml_name *name, va_list ap);
+static int	 acpi_powerres_register(struct aml_name *name, va_list ap);
+static int	 acpi_powerres_add_device(struct aml_name *name, va_list ap);
 
-static void
+static char	*powerres_statestr[2] = {"_OFF", "_ON"};
+
+/*
+ * 7.3.3 Evaluates to the current device state.
+ */
+u_int8_t
+acpi_get_current_device_state(struct aml_name *name)
+{
+	u_int8_t	dstate;
+	struct		aml_name *method;
+	union		aml_object *ret;
+	struct		aml_environ env;
+
+	dstate = ACPI_D_STATE_D0;
+	method = aml_find_from_namespace(name, "_PSC");
+	if (method == NULL) {
+		return (dstate);
+	}
+
+	bzero(&env, sizeof(env));
+	aml_local_stack_push(aml_local_stack_create());
+	ret = aml_eval_name(&env, method);
+	dstate = ret->num.number;
+	aml_local_stack_delete(aml_local_stack_pop());
+	return (dstate);
+}
+
+/*
+ * 7.2.2-4: For the OS to put the device in the Dx device state.
+ */
+void
+acpi_set_device_state(acpi_softc_t *sc, struct aml_name *name, u_int8_t dstate)
+{
+	char	psx[5];	/* "_PSx" */
+	struct	acpi_powerres_info *powerres;
+	struct	acpi_powerres_device_ref *device_ref;
+	struct	aml_name *method;
+	struct	aml_environ env;
+
+	if (dstate > ACPI_D_STATE_D3) {
+		return;
+	}
+
+	/*
+	 * All Power Resources referenced by elements 1 through N 
+	 * in _PRx of the device must be in the ON state.
+	 * 
+	 */
+	if (dstate < ACPI_PR_MAX) {
+		LIST_FOREACH(powerres, &sc->acpi_powerres_inflist, links) {
+			LIST_FOREACH(device_ref, &powerres->reflist[dstate], links) {
+				if (device_ref->device->name != name) {
+					continue;
+				}
+				if (powerres->state == ACPI_POWER_RESOURCE_ON) {
+					continue;
+				}
+				acpi_set_powerres_state(sc, powerres->name,
+				    ACPI_POWER_RESOURCE_ON);
+				powerres->state = ACPI_POWER_RESOURCE_ON;
+			}
+		}
+	}
+
+	/*
+	 * If present, the _PSx control method is executed to set the
+	 * device into the Dx device state.
+	 */
+	snprintf(psx, sizeof(psx), "_PS%d", dstate);
+	method = aml_find_from_namespace(name, psx);
+	if (method == NULL) {
+		return;
+	}
+
+	bzero(&env, sizeof(env));
+	aml_local_stack_push(aml_local_stack_create());
+	aml_eval_name(&env, method);
+	aml_local_stack_delete(aml_local_stack_pop());
+}
+
+/*
+ * 7.4.1 Returns the current ON or OFF status for the power resource.
+ */
+u_int8_t
+acpi_get_current_powerres_state(struct aml_name *name)
+{
+	u_int8_t	pstate;
+	struct		aml_name *method;
+	union		aml_object *ret;
+	struct		aml_environ env;
+
+	pstate = ACPI_POWER_RESOURCE_ON;
+	method = aml_find_from_namespace(name, "_STA");
+	if (method == NULL) {
+		return (pstate);	/* just in case */
+	}
+
+	bzero(&env, sizeof(env));
+	aml_local_stack_push(aml_local_stack_create());
+	ret = aml_eval_name(&env, method);
+	pstate = ret->num.number;	/* OFF or ON */
+	aml_local_stack_delete(aml_local_stack_pop());
+	return (pstate);
+}
+
+/*
+ * 7.4.2,3 Puts the power resource into the ON/OFF state.
+ */
+void
+acpi_set_powerres_state(acpi_softc_t *sc, struct aml_name *name,
+    u_int8_t pstate)
+{
+	struct	aml_name *method;
+	struct	aml_environ env;
+
+	if (pstate != ACPI_POWER_RESOURCE_ON &&
+	    pstate != ACPI_POWER_RESOURCE_OFF) {
+		return;
+	}
+
+	method = aml_find_from_namespace(name, powerres_statestr[pstate]);
+	if (method == NULL) {
+		return;			/* just in case */
+	}
+
+	bzero(&env, sizeof(env));
+	aml_local_stack_push(aml_local_stack_create());
+	aml_eval_name(&env, method);
+	aml_local_stack_delete(aml_local_stack_pop());
+}
+
+/*
+ * 7.1,2 Initialize the relationship of PowerResources and devices.
+ */
+void
 acpi_powerres_init(acpi_softc_t *sc)
 {
 	struct	acpi_powerres_info *powerres;
@@ -57,27 +190,11 @@ acpi_powerres_init(acpi_softc_t *sc)
 	int	i;
 
 	while ((powerres = LIST_FIRST(&sc->acpi_powerres_inflist))) {
-#ifdef ACPI_DEBUG
-		printf("acpi_powerres_init:");
-		aml_print_curname(powerres->name);
-		printf("[%d]\n", powerres->state);
-#endif
-		for (i = 0; i < 3; i++) {
-#ifdef ACPI_DEBUG
-			printf("\t_PR%d:", i);
-#endif
+		for (i = 0; i < ACPI_PR_MAX; i++) {
 			while ((device_ref = LIST_FIRST(&powerres->reflist[i]))) {
-#ifdef ACPI_DEBUG
-				device = device_ref->device;
-				aml_print_curname(device->name);
-				printf("[%d] ", device->state);
-#endif
 				LIST_REMOVE(device_ref, links);
 				FREE(device_ref, M_TEMP);
 			}
-#ifdef ACPI_DEBUG
-			printf("\n");
-#endif
 			LIST_INIT(&powerres->reflist[i]);
 		}
 		LIST_REMOVE(powerres, links);
@@ -90,17 +207,48 @@ acpi_powerres_init(acpi_softc_t *sc)
 		FREE(device, M_TEMP);
 	}
 	LIST_INIT(&sc->acpi_powerres_devlist);
+
+	aml_apply_foreach_found_objects(NULL, ".",
+	    acpi_powerres_register, sc);
+	aml_apply_foreach_found_objects(NULL, "_PR",
+	    acpi_powerres_add_device, sc);
+}
+
+void
+acpi_powerres_debug(acpi_softc_t *sc)
+{
+	struct	acpi_powerres_info *powerres;
+	struct	acpi_powerres_device_ref *device_ref;
+	struct	acpi_powerres_device *device;
+	int	i;
+
+	LIST_FOREACH(powerres, &sc->acpi_powerres_inflist, links) {
+		printf("acpi_powerres_debug:");
+		aml_print_curname(powerres->name);
+		printf("[%d:%d:%s]\n", powerres->name->property->pres.level, 
+		    powerres->name->property->pres.order, 
+		    powerres_statestr[powerres->state]);
+		for (i = 0; i < ACPI_PR_MAX; i++) {
+			if (LIST_EMPTY(&powerres->reflist[i])) {
+				continue;
+			}
+			printf("\t_PR%d:", i);
+			LIST_FOREACH(device_ref, &powerres->reflist[i], links) {
+				device = device_ref->device;
+				aml_print_curname(device->name);
+				printf("[D%d] ", device->state);
+			}
+			printf("\n");
+		}
+	}
 }
 
 static int
 acpi_powerres_register(struct aml_name *name, va_list ap)
 {
-	int	i;
+	int	i, order;
 	acpi_softc_t *sc;
-	struct	acpi_powerres_info *powerres;
-	struct	aml_name *method;
-	union	aml_object *ret;
-	struct	aml_environ env;
+	struct	acpi_powerres_info *powerres, *other_pr, *last_pr;
 
 	sc = va_arg(ap, acpi_softc_t *);
 
@@ -118,19 +266,28 @@ acpi_powerres_register(struct aml_name *name, va_list ap)
 	powerres->name = name;
 
 	/* get the current ON or OFF status for the power resource */
-	method = aml_find_from_namespace(name, "_STA");
-	if (method != NULL) {
-		bzero(&env, sizeof(env));
-		aml_local_stack_push(aml_local_stack_create());
-		ret = aml_eval_name(&env, method);
-		aml_local_stack_delete(aml_local_stack_pop());
-		powerres->state = ret->num.number;	/* OFF or ON */
+	powerres->state = acpi_get_current_powerres_state(name);
+
+	/* must be sorted by resource order of PowerResource */
+	order = powerres->name->property->pres.order;
+	other_pr = last_pr = NULL;
+	if (LIST_EMPTY(&sc->acpi_powerres_inflist)) {
+		LIST_INSERT_HEAD(&sc->acpi_powerres_inflist, powerres, links);
+	} else {
+		LIST_FOREACH(other_pr, &sc->acpi_powerres_inflist, links) {
+			if (other_pr->name->property->pres.order >= order) {
+				break;		/* found */
+			}
+			last_pr = other_pr;
+		}
+		if (other_pr != NULL) {
+			LIST_INSERT_BEFORE(other_pr, powerres, links);
+		} else {
+			LIST_INSERT_AFTER(last_pr, powerres, links);
+		}
 	}
 
-	/* XXX must be sorted by resource order of PowerResource */
-	LIST_INSERT_HEAD(&sc->acpi_powerres_inflist, powerres, links);
-
-	for (i = 0; i < 3; i++) {
+	for (i = 0; i < ACPI_PR_MAX; i++) {
 		LIST_INIT(&powerres->reflist[i]);
 	}
 
@@ -148,15 +305,13 @@ acpi_powerres_add_device(struct aml_name *name, va_list ap)
 	struct	acpi_powerres_device_ref *device_ref;
 	struct	acpi_powerres_info *powerres;
 	struct	aml_name *powerres_name;
-	struct	aml_name *method;
-	union	aml_object *ret;
 	struct	aml_environ env;
 
 	sc = va_arg(ap, acpi_softc_t *);
 
 	/* should be _PR[0-2] */
 	prnum =  name->name[3] - '0';
-	if (!(prnum >= 0 && prnum <= 2)) {
+	if (!(prnum >= 0 && prnum < ACPI_PR_MAX)) {
 		return (0);
 	}
 
@@ -186,17 +341,10 @@ acpi_powerres_add_device(struct aml_name *name, va_list ap)
 
 		/* this is a _PR[0-2] object, we need get a parent of this. */
 		device->name = name->parent;
-		device->state = 0;	/* assume D0 */
 
-		/* get the current device state */
-		method = aml_find_from_namespace(device->name, "_PSC");
-		if (method != NULL) {
-			bzero(&env, sizeof(env));
-			aml_local_stack_push(aml_local_stack_create());
-			ret = aml_eval_name(&env, method);
-			aml_local_stack_delete(aml_local_stack_pop());
-			device->state = ret->num.number;	/* D0 - D3 */
-		}
+		/* get the current device state.  */
+		device->state = acpi_get_current_device_state(device->name);
+
 		LIST_INSERT_HEAD(&sc->acpi_powerres_devlist, device, links);
 	}
 
@@ -229,9 +377,17 @@ acpi_powerres_add_device(struct aml_name *name, va_list ap)
 		}
 	}
 
+	/*
+	 * force to set the current device state to make
+	 * PowerResource compatible with the device state.
+	 */
+	acpi_set_device_state(sc, device->name, device->state);
 	return (0);
 }
 
+/*
+ * 7.1-5 PowerResource manipulation on the sleeping state transision.
+ */
 void
 acpi_powerres_set_sleeping_state(acpi_softc_t *sc, u_int8_t state)
 {
@@ -239,26 +395,17 @@ acpi_powerres_set_sleeping_state(acpi_softc_t *sc, u_int8_t state)
 	struct	acpi_powerres_info *powerres;
 	struct	acpi_powerres_device *device;
 	struct	acpi_powerres_device_ref *device_ref;
-	struct	aml_name *method;
-	union	aml_object *ret;
-	struct	aml_environ env;
 
-	if (!(state >= 1 && state <= 4)) {
+	if (state > ACPI_S_STATE_S4) {
 		return;
 	}
 
-	acpi_powerres_init(sc);
-	aml_apply_foreach_found_objects(aml_get_rootname(), ".",
-	    acpi_powerres_register, sc);
-	aml_apply_foreach_found_objects(aml_get_rootname(), "_PR",
-	    acpi_powerres_add_device, sc);
-
 	/*
-	 * initialize with D0, then change to D3 later based on
-	 * PowerResource state change.
+	 * initialize the next device state to D0, then change to D3 later
+	 *  based on PowerResource state change.
 	 */
 	LIST_FOREACH(device, &sc->acpi_powerres_devlist, links) {
-		device->next_state = 0;
+		device->next_state = ACPI_D_STATE_D0;
 	}
 
 	/*
@@ -270,43 +417,28 @@ acpi_powerres_set_sleeping_state(acpi_softc_t *sc, u_int8_t state)
 	LIST_FOREACH(powerres, &sc->acpi_powerres_inflist, links) {
 		if (powerres->name->property->pres.level < state) {
 			/* if ON state then put it in the OFF state */
-			if (powerres->state == 1) {
-				method = aml_find_from_namespace(powerres->name,
-				    "_OFF");
-				if (method == NULL) {
-					continue;	/* just in case */
-				}
-
-				bzero(&env, sizeof(env));
-				aml_local_stack_push(aml_local_stack_create());
-				aml_eval_name(&env, method);
-				aml_local_stack_delete(aml_local_stack_pop());
-				powerres->state = 0;
+			if (powerres->state == ACPI_POWER_RESOURCE_ON) {
+				acpi_set_powerres_state(sc, powerres->name,
+				    ACPI_POWER_RESOURCE_OFF);
+				powerres->state = ACPI_POWER_RESOURCE_OFF;
 			}
 			/*
 			 * Device states are compatible with the current
 			 * Power Resource states.
 			 */
-			for (i = 0; i < 3; i++) {
+			for (i = 0; i < ACPI_PR_MAX; i++) {
 				LIST_FOREACH(device_ref, &powerres->reflist[i], links) {
+					device = device_ref->device;
 					/* D3 state */
-					device_ref->device->next_state = 3;
+					device->next_state = ACPI_D_STATE_D3;
 				}
 			}
 		} else {
 			/* if OFF state then put it in the ON state */
-			if (powerres->state == 0) {
-				method = aml_find_from_namespace(powerres->name,
-				    "_ON");
-				if (method == NULL) {
-					continue;	/* just in case */
-				}
-
-				bzero(&env, sizeof(env));
-				aml_local_stack_push(aml_local_stack_create());
-				aml_eval_name(&env, method);
-				aml_local_stack_delete(aml_local_stack_pop());
-				powerres->state = 1;
+			if (powerres->state == ACPI_POWER_RESOURCE_OFF) {
+				acpi_set_powerres_state(sc, powerres->name,
+				    ACPI_POWER_RESOURCE_ON);
+				powerres->state = ACPI_POWER_RESOURCE_ON;
 			}
 		}
 	}
@@ -325,35 +457,15 @@ acpi_powerres_set_sleeping_state(acpi_softc_t *sc, u_int8_t state)
 	 */
 
 	LIST_FOREACH(device, &sc->acpi_powerres_devlist, links) {
-		if (device->next_state == 3 && device->state != 3) {
-			method = aml_find_from_namespace(device->name, "_PS3");
-			if (method != NULL) {
-				bzero(&env, sizeof(env));
-				aml_local_stack_push(aml_local_stack_create());
-				aml_eval_name(&env, method);
-				aml_local_stack_delete(aml_local_stack_pop());
-			}
+		if (device->next_state == ACPI_D_STATE_D3 &&
+		    device->state != ACPI_D_STATE_D3) {
+			acpi_set_device_state(sc, device->name, ACPI_D_STATE_D3);
+			device->state = ACPI_D_STATE_D3;
 		}
-		if (device->next_state == 0 && device->state != 0) {
-			method = aml_find_from_namespace(device->name, "_PS0");
-			if (method != NULL) {
-				bzero(&env, sizeof(env));
-				aml_local_stack_push(aml_local_stack_create());
-				aml_eval_name(&env, method);
-				aml_local_stack_delete(aml_local_stack_pop());
-			}
-		}
-		/* get the current device state */
-		method = aml_find_from_namespace(device->name, "_PSC");
-		if (method != NULL) {
-			bzero(&env, sizeof(env));
-			aml_local_stack_push(aml_local_stack_create());
-			ret = aml_eval_name(&env, method);
-			aml_local_stack_delete(aml_local_stack_pop());
-			device->state = ret->num.number;	/* D0 - D3 */
+		if (device->next_state == ACPI_D_STATE_D0 &&
+		    device->state != ACPI_D_STATE_D0) {
+			acpi_set_device_state(sc, device->name, ACPI_D_STATE_D0);
+			device->state = ACPI_D_STATE_D0;
 		}
 	}
-#if 1
-	acpi_powerres_init(sc);
-#endif
 }
