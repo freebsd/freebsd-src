@@ -154,10 +154,9 @@ lists and tail queues
 .Fn TAILQ_REMOVE "TAILQ_HEAD *head" "TYPE *elm" "TAILQ_ENTRY NAME"
 .\"
 .Sh DESCRIPTION
-These macros define and operate on five types of data structures:
-singly-linked lists, singly-linked tail queues, lists, tail queues,
-and circular queues.
-All five structures support the following functionality:
+These macros define and operate on four types of data structures:
+singly-linked lists, singly-linked tail queues, lists, and tail queues.
+All four structures support the following functionality:
 .Bl -enum -compact -offset indent
 .It
 Insertion of a new entry at the head of the list.
@@ -197,8 +196,8 @@ Singly-linked tailqs are ideal for applications with large datasets and
 few or no removals,
 or for implementing a FIFO queue.
 .Pp
-All doubly linked types of data structures (lists, tail queues, and circle
-queues) additionally allow:
+All doubly linked types of data structures (lists and tail queues)
+additionally allow:
 .Bl -enum -compact -offset indent
 .It
 Insertion of a new entry before any element in the list.
