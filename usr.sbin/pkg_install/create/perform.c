@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.19 1995/04/22 01:20:13 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.21 1995/04/22 14:55:07 jkh Exp $";
 #endif
 
 /*
@@ -26,7 +26,7 @@ static const char *rcsid = "$Id: perform.c,v 1.19 1995/04/22 01:20:13 jkh Exp $"
 #include "create.h"
 
 #include <signal.h>
-#include <limits.h>
+#include <sys/syslimits.h>
 
 static void sanity_check(void);
 static void make_dist(char *, char *, char *, Package *);
@@ -179,7 +179,7 @@ static void
 make_dist(char *home, char *pkg, char *suffix, Package *plist)
 {
     char tball[FILENAME_MAX];
-    char cmd[_POSIX_ARG_MAX];
+    char cmd[ARG_MAX];
     int ret;
     PackingList p;
 
