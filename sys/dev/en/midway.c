@@ -127,6 +127,7 @@ enum {
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kdb.h>
 #include <sys/queue.h>
 #include <sys/sockio.h>
 #include <sys/socket.h>
@@ -2442,9 +2443,7 @@ en_intr(void *arg)
 		if_printf(&sc->ifatm.ifnet, "unexpected interrupt=0x%b, "
 		    "resetting\n", reg, MID_INTBITS);
 #ifdef EN_DEBUG
-#ifdef DDB
-		Debugger("en: unexpected error");
-#endif	/* DDB */
+		kdb_enter("en: unexpected error");
 		sc->ifatm.ifnet.if_flags &= ~IFF_RUNNING; /* FREEZE! */
 #else
 		en_reset_ul(sc);
