@@ -330,25 +330,20 @@ void
 cpu_reset()
 {
 #ifdef SMP
-	if (smp_active == 0) {
-		cpu_reset_real();
-		/* NOTREACHED */
-	} else {
-		u_int map;
+	u_int map;
 
-		printf("cpu_reset called on cpu#%d\n", PCPU_GET(cpuid));
-		map = PCPU_GET(other_cpus) & ~ stopped_cpus;
+	if (smp_active) {
+		map = PCPU_GET(other_cpus) & ~stopped_cpus;
 		if (map != 0) {
 			printf("cpu_reset: Stopping other CPUs\n");
-			stop_cpus(map);		/* Stop all other CPUs */
+			stop_cpus(map);
 		}
+
 		DELAY(1000000);
-		cpu_reset_real();
-		/* NOTREACHED */
 	}
-#else
-	cpu_reset_real();
 #endif
+	cpu_reset_real();
+	/* NOTREACHED */
 }
 
 static void
@@ -357,15 +352,15 @@ cpu_reset_real()
 
 	/*
 	 * Attempt to do a CPU reset via the keyboard controller,
-	 * do not turn of the GateA20, as any machine that fails
+	 * do not turn off GateA20, as any machine that fails
 	 * to do the reset here would then end up in no man's land.
 	 */
-
 	outb(IO_KBD + 4, 0xFE);
 	DELAY(500000);	/* wait 0.5 sec to see if that did it */
 	printf("Keyboard reset did not work, attempting CPU shutdown\n");
 	DELAY(1000000);	/* wait 1 sec for printf to complete */
-	/* force a shutdown by unmapping entire address space ! */
+
+	/* Force a shutdown by unmapping entire address space. */
 	bzero((caddr_t)PML4map, PAGE_SIZE);
 
 	/* "good night, sweet prince .... <THUNK!>" */
