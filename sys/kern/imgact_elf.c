@@ -590,6 +590,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	vm_prot_t prot;
 	u_long text_size = 0, data_size = 0;
 	u_long text_addr = 0, data_addr = 0;
+	u_long seg_size, seg_addr;
 	u_long addr, entry = 0, proghdr = 0;
 	vm_offset_t maxuser, usrstack, pagesize;
 	int error, i;
@@ -689,22 +690,44 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 			    pagesize)) != 0)
   				goto fail;
 
+			seg_addr = trunc_page(phdr[i].p_vaddr);
+			seg_size = round_page(phdr[i].p_memsz +
+					phdr[i].p_vaddr - seg_addr);
+
 			/*
-			 * Is this .text or .data ??
-			 *
-			 * We only handle one each of those yet XXX
+			 * Is this .text or .data?  Use VM_PROT_WRITE
+			 * to distinguish between the two for the purposes
+			 * of limit checking and vmspace fields.
 			 */
+			if (prot & VM_PROT_WRITE) {
+				data_size += seg_size;
+				if (data_addr == 0)
+					data_addr = seg_addr;
+			} else {
+				text_size += seg_size;
+				if (text_addr == 0)
+					text_addr = seg_addr;
+			}
+
+			/*
+			 * Check limits.  It should be safe to check the
+			 * limits after loading the segment since we do
+			 * not actually fault in all the segment's pages.
+			 */
+			if (data_size >
+			    imgp->proc->p_rlimit[RLIMIT_DATA].rlim_cur ||
+			    text_size > maxtsiz ||
+			    data_size + text_size >
+			    imgp->proc->p_rlimit[RLIMIT_VMEM].rlim_cur) {
+				error = ENOMEM;
+				goto fail;
+			}
+
+			/* Does the entry point belongs to this segment? */
 			if (hdr->e_entry >= phdr[i].p_vaddr &&
 			    hdr->e_entry < (phdr[i].p_vaddr +
 			    phdr[i].p_memsz)) {
-  				text_addr = trunc_page(phdr[i].p_vaddr);
-  				text_size = round_page(phdr[i].p_memsz +
-				    phdr[i].p_vaddr - text_addr);
 				entry = (u_long)hdr->e_entry;
-			} else {
-  				data_addr = trunc_page(phdr[i].p_vaddr);
-  				data_size = round_page(phdr[i].p_memsz +
-				    phdr[i].p_vaddr - data_addr);
 			}
 			break;
 	  	case PT_INTERP:	/* Path to interpreter */
