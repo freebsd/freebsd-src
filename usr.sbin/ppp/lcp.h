@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.h,v 1.8 1997/08/25 00:29:15 brian Exp $
+ * $Id: lcp.h,v 1.9 1997/10/26 01:02:58 brian Exp $
  *
  *	TODO:
  */
@@ -80,3 +80,4 @@ extern void LcpClose(void);
 extern void LcpDown(void);
 extern void PutConfValue(u_char **, char **, u_char, int, u_long);
 extern int ReportLcpStatus(void);
+extern void LcpInput(struct mbuf *);

@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: mbuf.h,v 1.6 1997/08/25 00:29:20 brian Exp $
+ * $Id: mbuf.h,v 1.7 1997/10/26 01:03:18 brian Exp $
  *
  *	TODO:
  */
@@ -59,7 +59,5 @@ extern void pfree(struct mbuf *);
 extern void mbwrite(struct mbuf *, u_char *, int);
 extern struct mbuf *mbread(struct mbuf *, u_char *, int);
 extern void DumpBp(struct mbuf *);
-extern void Enqueue(struct mqueue *, struct mbuf *);
-extern struct mbuf *Dequeue(struct mqueue *);
 extern void LogMemory(void);
 extern int ShowMemMap(void);
