@@ -1,4 +1,4 @@
-<!-- 
+<!--
 	FreeBSD errata document.  Unlike some of the other RELNOTESng
 	files, this file should remain as a single SGML file, so that
 	the dollar FreeBSD dollar header has a meaningful modification
@@ -10,7 +10,7 @@
 
 	The FreeBSD Simplified Chinese Project
 
-	Original Revision: 1.69.2.1
+	Original Revision: 1.69.2.16
 -->
 
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
@@ -20,11 +20,12 @@
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
 <!ENTITY release.bugfix "5.3-RELEASE">
+<!ENTITY release.bugfix.next "5.4-RELEASE">
 ]>
 
 <article>
   <articleinfo>
-    <title>&os; &release.current; 发行版勘误</title>
+    <title>&os; &release.bugfix; 发行版勘误</title>
 
     <corpauthor>
     The &os; Project
@@ -50,56 +51,56 @@
   </articleinfo>
 
   <abstract>
-    <para>这份文档列出了 &os; &release.current; 的勘误内容，
-      这包括在发行版发布之后， 或在发行版制作过程后期发现的重大问题，
-      而由于种种原因这样的问题可能无法在发布版本的文档中体现。
-      这些信息包括安全公告， 以及可能影响其操作或可用性的软件或文档变动。
-      在您安装此版本的 &os; 之前， 应首先参考这份文档的最新版本。</para>
+    <para>这份文档列出了 &os; &release.bugfix; 的勘误内容，
+      其中包括在发行版发布之后发现的重大问题，
+      以及在发行版的交付工程后期本应写进发行版文档，
+      而没有来得及加入的重要信息。 这些信息可能包括安全公告，
+      以及关于可能影响软件和文档的操作或可用性的新闻。
+      在安装此版本的 &os; 之前， 应首先阅读此文档的最新版本。</para>
 
-    <para>此 &os; &release.current; 的勘误文档将被持续维护，
-      直到 &os; 的下一个版本 &release.next; 发布为止。</para>
+    <para>这份 &os; &release.bugfix; 的勘误文档将被持续地维护，
+      直到 &os; 的 &release.bugfix.next; 发布为止。</para>
   </abstract>
 
   <sect1 id="intro">
-    <title>Introduction</title>
+    <title>介绍</title>
 
-    <para>这份勘误文档包括了关于 &os; &release.current; 的
-      <quote>重大新闻</quote>。 在安装此版本之前，
-      参考这份文档以了解是否在发布之后发现了什么问题非常重要，
-      因为这里也会指出如何修正它们。</para>
+    <para>这份勘误文档包含了关于 &os; &release.bugfix; 的
+      <quote>最新重大新闻</quote>。 在安装这一版本之前，
+      参考这份文档以了解在发布之后已经发现并修正了哪些问题非常重要。</para>
 
-    <para>随发行版本而发布的这份文档 (例如， 在 CDROM 发行包中附带的)
-      一般来说是过时的， 但在 Internet 上的副本会被随时更新，
-      应作为这一发行版的 <quote>最新勘误</quote> 看待。
-      这些副本可以在 <ulink
+    <para>遂发行版本而发布的这份文档 (例如， 在 CDROM 上附带的)
+      一般来说已经过时了， 但在 Internet 上的其他副本会被持续更新，
+      因此应作为这一发行版的 <quote>最新勘误</quote> 来看待。
+      这些勘误文档的副本， 可以在 <ulink
       url="http://www.FreeBSD.org/releases/"></ulink>，
-      以及所有保持与其同步的镜像上找到。</para>
+      以及所有其他保持与其同步的镜像上找到。</para>
 
-    <para>&os; &release.branch; 的源代码和预编译的快照版本也包含这份文档的最新版本
-      (在制作那份快照时最新的)。</para>
+    <para>&os; &release.branch; 的源代码和预编译形式的快照中，
+      也会包含本文档 (在制作快照时) 的最新版本。</para>
 
-    <para>要了解全部的 &os; CERT 安全公告， 请访问 <ulink
+    <para>全部 &os; CERT 安全公告的列表， 可以在 <ulink
       url="http://www.FreeBSD.org/security/"></ulink> 或 <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/"></ulink>。</para>
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/"></ulink> 找到。</para>
 
   </sect1>
 
   <sect1 id="security">
     <title>安全公告</title>
 
-    <para>目前尚无安全公告。</para>
+    <para>暂时还没有新的安全公告。</para>
   </sect1>
 
   <sect1 id="open-issues">
     <title>存在的问题</title>
 
-    <para>目前尚无问题。</para>
+    <para>暂时还没有新的已知问题。</para>
   </sect1>
 
   <sect1 id="late-news">
     <title>重大新闻</title>
 
-    <para>无新闻。</para>
+    <para>暂时还没有新闻。</para>
   </sect1>
 
 </article>
