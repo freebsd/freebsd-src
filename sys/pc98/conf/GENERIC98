@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC98,v 1.8.2.2 1996/12/04 16:00:25 phk Exp $
+#	$Id: GENERIC98,v 1.8.2.3 1997/01/04 16:29:37 kato Exp $
 
 # GENERIC98 -- Generic PC98 machine with WD/SCSI disks
 
@@ -60,13 +60,6 @@ options		COM_MULTIPORT
 #
 #	IBM-PC HDD support
 #options	COMPAT_ATDISK
-#
-#	FreeBSD(98)-current is a *TEST VERSION*.  
-#	It is highly recomended to compile with following options, and to
-#	record the panic messages and the result of trace command brefore 
-#	reporting a problem.
-options		DDB
-options		DIAGNOSTIC
 
 config		kernel	root on wd0
 
@@ -206,9 +199,3 @@ pseudo-device	sl	2
 pseudo-device	tun	1
 pseudo-device	pty	16
 pseudo-device	gzip		# Exec gzipped a.out's
-
-# KTRACE enables the system-call tracing facility ktrace(2).
-# This adds 4 KB bloat to your kernel, and slightly increases
-# the costs of each syscall.
-options		KTRACE		#kernel tracing
-
