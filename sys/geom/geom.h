@@ -215,8 +215,7 @@ void g_std_spoiled(struct g_consumer *cp);
 /* geom_io.c */
 struct bio * g_clone_bio(struct bio *);
 void g_destroy_bio(struct bio *);
-void g_io_deliver(struct bio *bp);
-void g_io_fail(struct bio *bp, int error);
+void g_io_deliver(struct bio *bp, int error);
 int g_io_getattr(const char *attr, struct g_consumer *cp, int *len, void *ptr);
 void g_io_request(struct bio *bp, struct g_consumer *cp);
 int g_io_setattr(const char *attr, struct g_consumer *cp, int len, void *ptr);
