@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_vfsops.c,v 1.16 1995/06/27 11:06:51 dfr Exp $
+ * $Id: nfs_vfsops.c,v 1.17 1995/07/07 11:01:31 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -417,11 +417,7 @@ nfs_mountroot()
 
 	if (vfs_lock(mp))
 		panic("nfs_mountroot: vfs_lock");
-#if NetBSD >= 1994101
 	CIRCLEQ_INSERT_TAIL(&mountlist, mp, mnt_list);
-#else
-	TAILQ_INSERT_TAIL(&mountlist, mp, mnt_list);
-#endif
 	mp->mnt_flag |= MNT_ROOTFS;
 	mp->mnt_vnodecovered = NULLVP;
 	vfs_unlock(mp);

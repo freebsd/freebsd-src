@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vfsops.c	8.3 (Berkeley) 1/31/94
- * $Id: cd9660_vfsops.c,v 1.12 1995/05/19 03:25:35 davidg Exp $
+ * $Id: cd9660_vfsops.c,v 1.13 1995/05/30 08:05:03 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -113,7 +113,7 @@ cd9660_mountroot()
 		free(mp, M_MOUNT);
 		return (error);
 	}
-	TAILQ_INSERT_TAIL(&mountlist, mp, mnt_list);
+	CIRCLEQ_INSERT_TAIL(&mountlist, mp, mnt_list);
 	mp->mnt_flag |= MNT_ROOTFS;
 	mp->mnt_vnodecovered = NULLVP;
 	imp = VFSTOISOFS(mp);

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mount.h	8.13 (Berkeley) 3/27/94
- *	$Id: mount.h,v 1.19 1995/05/30 08:14:28 rgrimes Exp $
+ *	$Id: mount.h,v 1.20 1995/06/27 11:07:08 dfr Exp $
  */
 
 #ifndef _SYS_MOUNT_H_
@@ -129,15 +129,15 @@ struct statfs {
 LIST_HEAD(vnodelst, vnode);
 
 struct mount {
-	TAILQ_ENTRY(mount) mnt_list;		/* mount list */
+	CIRCLEQ_ENTRY(mount) mnt_list;		/* mount list */
 	struct vfsops	*mnt_op;		/* operations on fs */
+	struct vfsconf	*mnt_vfc;		/* configuration info */
 	struct vnode	*mnt_vnodecovered;	/* vnode we mounted on */
 	struct vnodelst	mnt_vnodelist;		/* list of vnodes this mount */
 	int		mnt_flag;		/* flags */
 	int		mnt_maxsymlinklen;	/* max size of short symlink */
 	struct statfs	mnt_stat;		/* cache of filesystem stats */
 	qaddr_t		mnt_data;		/* private data */
-	struct vfsconf	*mnt_vfc; 		/* configuration info */
 };
 
 /*
@@ -484,7 +484,7 @@ void	vfs_unlock __P((struct mount *));       /* unlock a vfs */
 void	vfs_unmountall __P((void));
 int	vfs_busy __P((struct mount *));         /* mark a vfs  busy */
 void	vfs_unbusy __P((struct mount *));       /* mark a vfs not busy */
-extern	TAILQ_HEAD(mntlist, mount) mountlist;	/* mounted filesystem list */
+extern	CIRCLEQ_HEAD(mntlist, mount) mountlist;	/* mounted filesystem list */
 extern	struct vfsops *vfssw[];			/* filesystem type table */
 
 #else /* KERNEL */

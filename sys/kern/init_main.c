@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.24 1995/05/14 02:59:55 davidg Exp $
+ * $Id: init_main.c,v 1.25 1995/05/19 03:26:43 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -288,7 +288,7 @@ main(framep)
 		panic("cannot mount root");
 
 	/* Get the vnode for '/'.  Set fdp->fd_fd.fd_cdir to reference it. */
-	if (VFS_ROOT(mountlist.tqh_first, &rootvnode))
+	if (VFS_ROOT(mountlist.cqh_first, &rootvnode))
 		panic("cannot find root vnode");
 	fdp->fd_fd.fd_cdir = rootvnode;
 	VREF(fdp->fd_fd.fd_cdir);
