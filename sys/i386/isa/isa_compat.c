@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: isa_compat.c,v 1.10 1999/05/22 15:18:12 dfr Exp $
+ *	$Id: isa_compat.c,v 1.11 1999/05/24 18:50:41 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -150,6 +150,10 @@ isa_compat_probe(device_t dev)
 	struct old_isa_driver *op;
 	u_long start, count;
 
+	/* No pnp support */
+	if (isa_get_vendorid(dev))
+		return (ENXIO);
+
 	bzero(&res, sizeof(res));
 	/*
 	 * Fill in the isa_device fields.
@@ -222,9 +226,9 @@ isa_compat_probe(device_t dev)
 							 kvtop(maddr),
 							 dvp->id_msize);
 				else
-					ISA_SET_RESOURCE(parent, dev,
-							 SYS_RES_MEMORY,
-							 0, 0, 0);
+					ISA_DELETE_RESOURCE(parent, dev,
+							    SYS_RES_MEMORY,
+							    0);
 			}
 			return 0;
 		}
