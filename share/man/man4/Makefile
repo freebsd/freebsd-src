@@ -93,6 +93,7 @@ MAN=	aac.4 \
 	ng_gif.4 \
 	ng_hole.4 \
 	ng_iface.4 \
+	ng_ip_input.4 \
 	ng_ksocket.4 \
 	ng_lmi.4 \
 	ng_mppc.4 \

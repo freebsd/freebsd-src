@@ -13,6 +13,7 @@ SUBDIR=	async \
 	gif_demux \
 	hole \
 	iface \
+	ip_input \
 	ksocket \
 	lmi \
 	netgraph \
