@@ -1163,12 +1163,12 @@ osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	 * will fail if the process has not already allocated
 	 * the space with a `brk'.
 	 */
-	if ((p->p_flag & P_ALTSTACK) && !oonstack &&
+	if ((td->td_pflags & TDP_ALTSTACK) && !oonstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		sip = (osiginfo_t *)((caddr_t)p->p_sigstk.ss_sp +
-		    p->p_sigstk.ss_size - rndfsize);
+		sip = (osiginfo_t *)((caddr_t)td->td_sigstk.ss_sp +
+		    td->td_sigstk.ss_size - rndfsize);
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
-		p->p_sigstk.ss_flags |= SS_ONSTACK;
+		td->td_sigstk.ss_flags |= SS_ONSTACK;
 #endif
 	} else
 		sip = (osiginfo_t *)(alpha_pal_rdusp() - rndfsize);
@@ -1263,8 +1263,8 @@ freebsd4_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	/* save user context */
 	bzero(&sf, sizeof(sf));
 	sf.sf_uc.uc_sigmask = *mask;
-	sf.sf_uc.uc_stack = p->p_sigstk;
-	sf.sf_uc.uc_stack.ss_flags = (p->p_flag & P_ALTSTACK)
+	sf.sf_uc.uc_stack = td->td_sigstk;
+	sf.sf_uc.uc_stack.ss_flags = (td->td_pflags & TDP_ALTSTACK)
 	    ? ((oonstack) ? SS_ONSTACK : 0) : SS_DISABLE;
 	sf.sf_uc.uc_mcontext.mc_onstack = (oonstack) ? 1 : 0;
 
@@ -1287,12 +1287,12 @@ freebsd4_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	 * will fail if the process has not already allocated
 	 * the space with a `brk'.
 	 */
-	if ((p->p_flag & P_ALTSTACK) != 0 && !oonstack &&
+	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !oonstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		sfp = (struct sigframe4 *)((caddr_t)p->p_sigstk.ss_sp +
-		    p->p_sigstk.ss_size - rndfsize);
+		sfp = (struct sigframe4 *)((caddr_t)td->td_sigstk.ss_sp +
+		    td->td_sigstk.ss_size - rndfsize);
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
-		p->p_sigstk.ss_flags |= SS_ONSTACK;
+		td->td_sigstk.ss_flags |= SS_ONSTACK;
 #endif
 	} else
 		sfp = (struct sigframe4 *)(alpha_pal_rdusp() - rndfsize);
@@ -1386,8 +1386,8 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	/* save user context */
 	bzero(&sf, sizeof(struct sigframe));
 	sf.sf_uc.uc_sigmask = *mask;
-	sf.sf_uc.uc_stack = p->p_sigstk;
-	sf.sf_uc.uc_stack.ss_flags = (p->p_flag & P_ALTSTACK)
+	sf.sf_uc.uc_stack = td->td_sigstk;
+	sf.sf_uc.uc_stack.ss_flags = (td->td_pflags & TDP_ALTSTACK)
 	    ? ((oonstack) ? SS_ONSTACK : 0) : SS_DISABLE;
 	sf.sf_uc.uc_mcontext.mc_onstack = (oonstack) ? 1 : 0;
 
@@ -1411,12 +1411,12 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	 * will fail if the process has not already allocated
 	 * the space with a `brk'.
 	 */
-	if ((p->p_flag & P_ALTSTACK) != 0 && !oonstack &&
+	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !oonstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		sfp = (struct sigframe *)((caddr_t)p->p_sigstk.ss_sp +
-		    p->p_sigstk.ss_size - rndfsize);
+		sfp = (struct sigframe *)((caddr_t)td->td_sigstk.ss_sp +
+		    td->td_sigstk.ss_size - rndfsize);
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
-		p->p_sigstk.ss_flags |= SS_ONSTACK;
+		td->td_sigstk.ss_flags |= SS_ONSTACK;
 #endif
 	} else
 		sfp = (struct sigframe *)(alpha_pal_rdusp() - rndfsize);
@@ -1535,9 +1535,9 @@ osigreturn(struct thread *td,
 	 * Restore the user-supplied information
 	 */
 	if (ksc.sc_onstack)
-		p->p_sigstk.ss_flags |= SS_ONSTACK;
+		td->td_sigstk.ss_flags |= SS_ONSTACK;
 	else
-		p->p_sigstk.ss_flags &= ~SS_ONSTACK;
+		td->td_sigstk.ss_flags &= ~SS_ONSTACK;
 #endif
 
 	/*
@@ -1622,9 +1622,9 @@ freebsd4_sigreturn(struct thread *td,
 	PROC_LOCK(p);
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
 	if (uc.uc_mcontext.mc_onstack & 1)
-		p->p_sigstk.ss_flags |= SS_ONSTACK;
+		td->td_sigstk.ss_flags |= SS_ONSTACK;
 	else
-		p->p_sigstk.ss_flags &= ~SS_ONSTACK;
+		td->td_sigstk.ss_flags &= ~SS_ONSTACK;
 #endif
 
 	td->td_sigmask = uc.uc_sigmask;
@@ -1698,9 +1698,9 @@ sigreturn(struct thread *td,
 	PROC_LOCK(p);
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
 	if (uc.uc_mcontext.mc_onstack & 1)
-		p->p_sigstk.ss_flags |= SS_ONSTACK;
+		td->td_sigstk.ss_flags |= SS_ONSTACK;
 	else
-		p->p_sigstk.ss_flags &= ~SS_ONSTACK;
+		td->td_sigstk.ss_flags &= ~SS_ONSTACK;
 #endif
 
 	td->td_sigmask = uc.uc_sigmask;

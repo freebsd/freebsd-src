@@ -302,6 +302,7 @@ struct thread {
 	sigset_t	*td_waitset;	/* (c) Wait set for sigwait. */
 	TAILQ_ENTRY(thread) td_umtx;	/* (c?) Link for when we're blocked. */
 	volatile u_int	td_generation;	/* (k) Enable detection of preemption */
+	stack_t		td_sigstk;	/* (k) Stack ptr and on-stack flag. */
 
 #define	td_endzero td_base_pri
 
@@ -363,6 +364,7 @@ struct thread {
 #define	TDP_INKTRACE	0x0004 /* Thread is currently in KTRACE code. */
 #define	TDP_UPCALLING	0x0008 /* This thread is doing an upcall. */
 #define	TDP_COWINPROGRESS 0x0010 /* Snapshot copy-on-write in progress. */
+#define	TDP_ALTSTACK	0x0020 /* Have alternate signal stack. */
 
 #define	TDI_SUSPENDED	0x0001	/* On suspension queue. */
 #define	TDI_SLEEPING	0x0002	/* Actually asleep! (tricky). */
@@ -586,11 +588,10 @@ struct proc {
 	struct thread	*p_singlethread;/* (c + j) If single threading this is it */
 	int		p_suspcount;	/* (c) # threads in suspended mode */
 /* End area that is zeroed on creation. */
-#define	p_endzero	p_sigstk
+#define	p_endzero	p_magic
 
 /* The following fields are all copied upon creation in fork. */
 #define	p_startcopy	p_endzero
-	stack_t		p_sigstk;	/* (c) Stack ptr and on-stack flag. */
 	u_int		p_magic;	/* (b) Magic number. */
 	char		p_comm[MAXCOMLEN + 1];	/* (b) Process name. */
 	struct pgrp	*p_pgrp;	/* (c + e) Pointer to process group. */
@@ -648,7 +649,6 @@ struct proc {
 #define	P_SIGEVENT	0x200000 /* Process pending signals changed. */
 
 #define	P_JAILED	0x1000000 /* Process is in jail. */
-#define	P_ALTSTACK	0x2000000 /* Have alternate signal stack. */
 #define	P_INEXEC	0x4000000 /* Process is in execve(). */
 
 #define	P_STOPPED		(P_STOPPED_SIG|P_STOPPED_SINGLE|P_STOPPED_TRACE)

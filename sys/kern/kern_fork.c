@@ -483,6 +483,8 @@ again:
 	    (unsigned) RANGEOF(struct ksegrp, kg_startcopy, kg_endcopy));
 #undef RANGEOF
 
+	td2->td_sigstk = td->td_sigstk;
+
 	/* Set up the thread as an active thread (as if runnable). */
 	ke2->ke_state = KES_THREAD;
 	ke2->ke_thread = td2;
@@ -580,7 +582,8 @@ again:
 	 * Preserve some more flags in subprocess.  P_PROFIL has already
 	 * been preserved.
 	 */
-	p2->p_flag |= p1->p_flag & (P_ALTSTACK | P_SUGID);
+	p2->p_flag |= p1->p_flag & P_SUGID;
+	td2->td_pflags |= td->td_pflags & TDP_ALTSTACK;
 	SESS_LOCK(p1->p_session);
 	if (p1->p_session->s_ttyvp != NULL && p1->p_flag & P_CONTROLT)
 		p2->p_flag |= P_CONTROLT;
