@@ -11,7 +11,7 @@
  * this software for any purpose.  It is provided "as is"
  * without express or implied warranty.
  *
- * $Id: mse.c,v 1.10 1997/03/24 12:29:37 bde Exp $
+ * $Id: mse.c,v 1.11 1997/07/21 13:11:06 kato Exp $
  */
 /*
  * Driver for the Logitech and ATI Inport Bus mice for use with 386bsd and
@@ -51,6 +51,7 @@
 #include <sys/conf.h>
 #include <sys/proc.h>
 #include <sys/kernel.h>
+#include <sys/poll.h>
 #include <sys/uio.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
@@ -73,13 +74,13 @@ struct	isa_driver msedriver = {
 static	d_open_t	mseopen;
 static	d_close_t	mseclose;
 static	d_read_t	mseread;
-static	d_select_t	mseselect;
+static	d_poll_t	msepoll;
 
 #define CDEV_MAJOR 27
 static struct cdevsw mse_cdevsw = 
 	{ mseopen,	mseclose,	mseread,	nowrite,	/*27*/
 	  noioc,	nostop,		nullreset,	nodevtotty,/* mse */
-	  mseselect,	nommap,		NULL,	"mse",	NULL,	-1 };
+	  msepoll,	nommap,		NULL,	"mse",	NULL,	-1 };
 
 
 /*
@@ -427,31 +428,34 @@ mseread(dev, uio, ioflag)
 }
 
 /*
- * mseselect: check for mouse input to be processed.
+ * msepoll: check for mouse input to be processed.
  */
 static	int
-mseselect(dev, rw, p)
+msepoll(dev, events, p)
 	dev_t dev;
-	int rw;
+	int events;
 	struct proc *p;
 {
 	register struct mse_softc *sc = &mse_sc[MSE_UNIT(dev)];
 	int s;
+	int revents = 0;
 
 	s = spltty();
-	if (sc->sc_bytesread != PROTOBYTES || sc->sc_deltax != 0 ||
-	    sc->sc_deltay != 0 || (sc->sc_obuttons ^ sc->sc_buttons) != 0) {
-		splx(s);
-		return (1);
-	}
+	if (events & (POLLIN | POLLRDNORM))
+		if (sc->sc_bytesread != PROTOBYTES || sc->sc_deltax != 0 ||
+		    sc->sc_deltay != 0 ||
+		    (sc->sc_obuttons ^ sc->sc_buttons) != 0)
+			revents |= events & (POLLIN | POLLRDNORM);
+		else {
+			/*
+			 * Since this is an exclusive open device, any previous
+			 * proc pointer is trash now, so we can just assign it.
+			 */
+			selrecord(p, &sc->sc_selp);
+		}
 
-	/*
-	 * Since this is an exclusive open device, any previous proc.
-	 * pointer is trash now, so we can just assign it.
-	 */
-	selrecord(p, &sc->sc_selp);
 	splx(s);
-	return (0);
+	return (revents);
 }
 
 /*
