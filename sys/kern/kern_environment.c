@@ -70,6 +70,22 @@ getenv(char *name)
 int
 getenv_int(char *name, int *data)
 {
+    quad_t tmp;
+    int rval;
+
+    rval = getenv_quad(name, &tmp);
+    if (rval) {
+	*data = (int) tmp;
+    }
+    return (rval);
+}
+
+/*
+ * Return a quad_t value from an environment variable.
+ */
+quad_t
+getenv_quad(char *name, quad_t *data)
+{
     const char	*value, *vtp;
     quad_t	iv;
     
@@ -80,7 +96,7 @@ getenv_int(char *name, int *data)
     if ((vtp == value) || (*vtp != 0))
 	return(0);
     
-    *data = (int)iv;
+    *data = iv;
     return(1);
 }
 
