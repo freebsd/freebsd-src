@@ -1,5 +1,5 @@
 /*	$NetBSD: ulpt.c,v 1.10 1999/01/08 11:58:25 augustss Exp $	*/
-/*	FreeBSD $Id: ulpt.c,v 1.5 1999/01/10 18:42:52 n_hibma Exp $ */
+/*	$FreeBSD$	*/
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -70,7 +70,7 @@
 #ifdef USB_DEBUG
 #define DPRINTF(x)	if (ulptdebug) printf x
 #define DPRINTFN(n,x)	if (ulptdebug>(n)) printf x
-int	ulptdebug = 0;
+int	ulptdebug = 1;
 #else
 #define DPRINTF(x)
 #define DPRINTFN(n,x)
@@ -446,5 +446,6 @@ ulpt_detach(device_t self)
 	return 0;
 }
 
-DRIVER_MODULE(ulpt, usb, ulpt_driver, ulpt_devclass, usbd_driver_load, 0);
+CDEV_DRIVER_MODULE(ulpt, usb, ulpt_driver, ulpt_devclass,
+			ULPT_CDEV_MAJOR, ulpt_cdevsw, usbd_driver_load, 0);
 #endif
