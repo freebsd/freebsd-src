@@ -710,7 +710,9 @@ match(name, pat, patend)
 				++pat;
 			while (((c = *pat++) & M_MASK) != M_END)
 				if ((*pat & M_MASK) == M_RNG) {
-					if (   __collate_range_cmp(CHAR(c), CHAR(k)) <= 0
+					if (__collate_load_error ?
+					    CHAR(c) <= CHAR(k) && CHAR(k) <= CHAR(pat[1]) :
+					       __collate_range_cmp(CHAR(c), CHAR(k)) <= 0
 					    && __collate_range_cmp(CHAR(k), CHAR(pat[1])) <= 0
 					   )
 						ok = 1;
