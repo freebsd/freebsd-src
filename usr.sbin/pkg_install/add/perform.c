@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: perform.c,v 1.48 1998/01/21 06:08:35 jkh Exp $";
+	"$Id: perform.c,v 1.49 1998/02/16 17:16:14 jkh Exp $";
 #endif
 
 /*
@@ -33,6 +33,7 @@ static const char rcsid[] =
 static int pkg_do(char *);
 static int sanity_check(char *);
 static char LogDir[FILENAME_MAX];
+static int zapLogDir;		/* Should we delete LogDir? */
 
 int
 pkg_perform(char **pkgs)
@@ -73,6 +74,7 @@ pkg_do(char *pkg)
     int inPlace;
 
     code = 0;
+    zapLogDir = 0;
     LogDir[0] = '\0';
     strcpy(playpen, FirstPen);
     inPlace = 0;
@@ -364,6 +366,7 @@ pkg_do(char *pkg)
 	    goto success;	/* well, partial anyway */
 	}
 	sprintf(LogDir, "%s/%s", (tmp = getenv(PKG_DBDIR)) ? tmp : DEF_LOG_DIR, PkgName);
+	zapLogDir = 1;
 	if (Verbose)
 	    printf("Attempting to record package into %s..\n", LogDir);
 	if (make_hierarchy(LogDir)) {
@@ -476,7 +479,7 @@ cleanup(int signo)
 	in_cleanup = 1;
     	if (signo)
 		printf("Signal %d received, cleaning up..\n", signo);
-    	if (!Fake && LogDir[0])
+    	if (!Fake && zapLogDir && LogDir[0])
 		vsystem("%s -rf %s", REMOVE_CMD, LogDir);
     	leave_playpen();
     }
