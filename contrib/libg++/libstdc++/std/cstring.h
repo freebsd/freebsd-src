@@ -15,7 +15,7 @@
 #define memchr  __hide_memchr
 #endif // 0
 
-#include_next <string.h>
+#include <string.h>
 
 #if 0 // Let's not bother with this just yet.
 #undef strchr
