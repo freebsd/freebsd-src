@@ -171,6 +171,9 @@ isp_find_xs __P((struct ispsoftc *, u_int32_t));
 static INLINE u_int32_t
 isp_find_handle __P((struct ispsoftc *, ISP_SCSI_XFER_T *));
 
+static INLINE int
+isp_handle_index __P((u_int32_t));
+
 static INLINE void
 isp_destroy_handle __P((struct ispsoftc *, u_int32_t));
 
@@ -232,13 +235,20 @@ isp_find_handle(isp, xs)
 	return (0);
 }
 
+static INLINE int
+isp_handle_index(handle)
+	u_int32_t handle;
+{
+	return (handle-1);
+}
+
 static INLINE void
 isp_destroy_handle(isp, handle)
 	struct ispsoftc *isp;
 	u_int32_t handle;
 {
 	if (handle > 0 && handle <= (u_int32_t) isp->isp_maxcmds) {
-		isp->isp_xflist[handle - 1] = NULL;
+		isp->isp_xflist[isp_handle_index(handle)] = NULL;
 	}
 }
 
@@ -269,8 +279,10 @@ isp_getrqentry(isp, iptrp, optrp, resultp)
 	if (iptr == optr) {
 		return (1);
 	}
-	*optrp = optr;
-	*iptrp = iptr;
+	if (optrp)
+		*optrp = optr;
+	if (iptrp)
+		*iptrp = iptr;
 	return (0);
 }
 
