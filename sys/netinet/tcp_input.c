@@ -364,7 +364,6 @@ present:
 		flags = q->tqe_th->th_flags & TH_FIN;
 		nq = LIST_NEXT(q, tqe_q);
 		LIST_REMOVE(q, tqe_q);
-		/* Unlocked read. */
 		if (so->so_rcv.sb_state & SBS_CANTRCVMORE)
 			m_freem(q->tqe_m);
 		else
@@ -1269,7 +1268,6 @@ after_listen:
 #endif
 			 * Add data to socket buffer.
 			 */
-			/* Unlocked read. */
 			SOCKBUF_LOCK(&so->so_rcv);
 			if (so->so_rcv.sb_state & SBS_CANTRCVMORE) {
 				m_freem(m);
@@ -2283,7 +2281,6 @@ dodata:							/* XXX */
 			tcpstat.tcps_rcvpack++;
 			tcpstat.tcps_rcvbyte += tlen;
 			ND6_HINT(tp);
-			/* Unlocked read. */
 			SOCKBUF_LOCK(&so->so_rcv);
 			if (so->so_rcv.sb_state & SBS_CANTRCVMORE)
 				m_freem(m);
