@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.470 1998/09/18 00:46:41 mjacob Exp $
+#	$Id: LINT,v 1.471 1998/09/18 20:17:41 eivind Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -879,8 +879,7 @@ device		npx0	at isa? port "IO_NPX" iosiz 0x0 flags 0x0 irq 13 vector npxintr
 #
 
 controller	bt0	at isa? port "IO_BT0" cam irq ?
-# adv is broken when DIAGNOSTIC is defined
-#controller	adv0	at isa? port ? cam irq ?
+controller	adv0	at isa? port ? cam irq ?
 controller      aha0    at isa? port ? cam irq ?
 #!CAM# controller	uha0	at isa? port "IO_UHA0" bio irq ? drq 5 vector uhaintr
 
