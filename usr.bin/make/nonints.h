@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)nonints.h	8.3 (Berkeley) 3/19/94
- *	$Id$
+ *	$Id: nonints.h,v 1.6 1997/02/22 19:27:17 peter Exp $
  */
 
 /* arch.c */
@@ -73,6 +73,9 @@ int PrintAddr __P((ClientData, ClientData));
 void Finish __P((int));
 char *estrdup __P((const char *));
 void *emalloc __P((size_t));
+/* efree(x) works when x==NULL. STDC behavior, may need some different
+ * definition for cross-builds on deficient systems */
+#define efree	free
 void *erealloc __P((void *, size_t));
 void enomem __P((void));
 int eunlink __P((const char *));

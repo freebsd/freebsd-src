@@ -35,11 +35,16 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: var.c,v 1.12 1999/04/19 07:30:04 imp Exp $
+ *	$Id: var.c,v 1.13 1999/07/31 20:53:02 hoek Exp $
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)var.c	8.3 (Berkeley) 3/19/94";
+#else
+static const char rcsid[] =
+	"$Id";
+#endif
 #endif /* not lint */
 
 /*-
@@ -141,15 +146,17 @@ typedef struct Var {
 				     * modified variables */
 }  Var;
 
+/* Var*Pattern flags */
+#define VAR_SUB_GLOBAL	0x01	/* Apply substitution globally */
+#define VAR_MATCH_START	0x08	/* Match at start of word */
+#define VAR_MATCH_END	0x10	/* Match at end of word */
+
 typedef struct {
     char    	  *lhs;	    /* String to match */
     int	    	  leftLen;  /* Length of string */
     char    	  *rhs;	    /* Replacement string (w/ &'s removed) */
     int	    	  rightLen; /* Length of replacement */
     int	    	  flags;
-#define VAR_SUB_GLOBAL	1   /* Apply substitution globally */
-#define VAR_MATCH_START	2   /* Match at start of word */
-#define VAR_MATCH_END	4   /* Match at end of word */
 } VarPattern;
 
 static int VarCmp __P((ClientData, ClientData));
@@ -266,8 +273,7 @@ VarFind (name, ctxt, flags)
 		  (int (*)(ClientData, ClientData)) strcmp) != NILLNODE)
     {
 	localCheckEnvFirst = TRUE;
-    }
-    else {
+    } else {
 	localCheckEnvFirst = FALSE;
     }
 
@@ -1150,7 +1156,7 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 {
     register char   *tstr;    	/* Pointer into str */
     Var	    	    *v;	    	/* Variable in invocation */
-    register char   *cp;    	/* Secondary pointer into str (place marker
+    char	    *cp;    	/* Secondary pointer into str (place marker
 				 * for tstr) */
     Boolean 	    haveModifier;/* TRUE if have modifiers for the variable */
     register char   endc;    	/* Ending character when variable in parens
@@ -1196,6 +1202,7 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 		 * specially as they are the only four that will be set
 		 * when dynamic sources are expanded.
 		 */
+		/* XXX: It looks like $% and $! are reversed here */
 		switch (str[1]) {
 		    case '@':
 			return("$(.TARGET)");
@@ -1501,6 +1508,7 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 		    pattern.flags = 0;
 		    delim = tstr[1];
 		    tstr += 2;
+
 		    /*
 		     * If pattern begins with '^', it is anchored to the
 		     * start of the word -- skip over it and flag pattern.

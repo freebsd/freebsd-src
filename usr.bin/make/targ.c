@@ -35,11 +35,16 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: targ.c,v 1.7 1997/02/22 19:27:24 peter Exp $
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)targ.c	8.2 (Berkeley) 3/19/94";
+#else
+static const char rcsid[] =
+	"$Id";
+#endif
 #endif /* not lint */
 
 /*-
@@ -210,8 +215,7 @@ TargFreeGN (gnp)
 
 
     free(gn->name);
-    if (gn->path)
-	free(gn->path);
+    efree(gn->path);
 
     Lst_Destroy(gn->iParents, NOFREE);
     Lst_Destroy(gn->cohorts, NOFREE);
@@ -462,17 +466,12 @@ Targ_FmtTime (time)
     time_t    time;
 {
     struct tm	  	*parts;
-    static char	  	buf[40];
-    static char	  	*months[] = {
-	"Jan", "Feb", "Mar", "Apr", "May", "Jun",
-	"Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-    };
+    static char	  	buf[128];
 
     parts = localtime(&time);
 
-    sprintf (buf, "%d:%02d:%02d %s %d, %d",
-	     parts->tm_hour, parts->tm_min, parts->tm_sec,
-	     months[parts->tm_mon], parts->tm_mday, 1900 + parts->tm_year);
+    strftime(buf, sizeof buf, "%k:%M:%S %b %d, %Y", parts);
+    buf[sizeof(buf) - 1] = '\0';
     return(buf);
 }
 

@@ -31,11 +31,21 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)pathnames.h	5.2 (Berkeley) 6/1/90
- *	$Id$
+ *	$Id: pathnames.h,v 1.7 1997/02/22 19:27:20 peter Exp $
  */
 
+#ifndef _PATH_OBJDIR
 #define	_PATH_OBJDIR		"obj"
+#endif /* ! _PATH_OBJDIR */
+#ifndef _PATH_OBJDIRPREFIX
 #define	_PATH_OBJDIRPREFIX	"/usr/obj"
+#endif /* ! _PATH_OBJDIRPREFIX */
+#ifndef _PATH_DEFSHELLDIR
 #define	_PATH_DEFSHELLDIR	"/bin"
+#endif /* ! _PATH_DEFSHELLDIR */
+#ifndef _PATH_DEFSYSMK
 #define	_PATH_DEFSYSMK		"sys.mk"
+#endif /* ! _PATH_DEFSYSMK */
+#ifndef _PATH_DEFSYSPATH
 #define	_PATH_DEFSYSPATH	"/usr/share/mk"
+#endif /* ! _PATH_DEFSYSPATH */

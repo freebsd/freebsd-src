@@ -39,9 +39,10 @@
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)parse.c	8.3 (Berkeley) 3/19/94";
-#endif
+#else
 static const char rcsid[] =
-	"$Id: parse.c,v 1.19 1998/05/25 03:28:37 steve Exp $";
+	"$Id: parse.c,v 1.20 1999/01/08 18:37:34 jkh Exp $";
+#endif
 #endif /* not lint */
 
 /*-
@@ -86,7 +87,7 @@ static const char rcsid[] =
  *	Parse_MainName	    	    Returns a Lst of the main target to create.
  */
 
-#if __STDC__
+#ifdef __STDC__
 #include <stdarg.h>
 #else
 #include <varargs.h>
@@ -313,7 +314,7 @@ ParseFindKeyword (str)
  */
 /* VARARGS */
 void
-#if __STDC__
+#ifdef __STDC__
 Parse_Error(int type, char *fmt, ...)
 #else
 Parse_Error(va_alist)
@@ -321,7 +322,7 @@ Parse_Error(va_alist)
 #endif
 {
 	va_list ap;
-#if __STDC__
+#ifdef __STDC__
 	va_start(ap, fmt);
 #else
 	int type;		/* Error type (PARSE_WARNING, PARSE_FATAL) */
@@ -470,7 +471,7 @@ ParseDoOp (gnp, opp)
  *
  *---------------------------------------------------------------------
  */
-int
+static int
 ParseAddDep(pp, sp)
     ClientData pp;
     ClientData sp;
@@ -2615,18 +2616,18 @@ Parse_End()
 Lst
 Parse_MainName()
 {
-    Lst           main;	/* result list */
+    Lst           listmain;	/* result list */
 
-    main = Lst_Init (FALSE);
+    listmain = Lst_Init (FALSE);
 
     if (mainNode == NILGNODE) {
 	Punt ("no target to make.");
     	/*NOTREACHED*/
     } else if (mainNode->type & OP_DOUBLEDEP) {
-	(void) Lst_AtEnd (main, (ClientData)mainNode);
-	Lst_Concat(main, mainNode->cohorts, LST_CONCNEW);
+	(void) Lst_AtEnd (listmain, (ClientData)mainNode);
+	Lst_Concat(listmain, mainNode->cohorts, LST_CONCNEW);
     }
     else
-	(void) Lst_AtEnd (main, (ClientData)mainNode);
-    return (main);
+	(void) Lst_AtEnd (listmain, (ClientData)mainNode);
+    return (listmain);
 }

@@ -35,11 +35,16 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: buf.c,v 1.8 1997/02/22 19:27:06 peter Exp $
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)buf.c	8.1 (Berkeley) 6/6/93";
+#else
+static const char rcsid[] =
+	"$Id";
+#endif
 #endif /* not lint */
 
 /*-
@@ -126,7 +131,7 @@ void
 Buf_AddBytes (bp, numBytes, bytesPtr)
     register Buffer bp;
     int	    numBytes;
-    Byte    *bytesPtr;
+    const Byte *bytesPtr;
 {
 
     BufExpand (bp, numBytes);
@@ -454,7 +459,7 @@ Buf_Destroy (buf, freeData)
 void
 Buf_ReplaceLastByte (buf, byte)
     Buffer buf;	/* buffer to augment */
-    Byte byte;	/* byte to be written */
+    int byte;	/* byte to be written */
 {
     if (buf->inPtr == buf->outPtr)
         Buf_AddByte(buf, byte);

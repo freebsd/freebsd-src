@@ -35,11 +35,16 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: compat.c,v 1.12 1998/09/09 05:15:38 jkoshy Exp $
+ *	$Id: compat.c,v 1.13 1999/07/31 20:38:22 hoek Exp $
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)compat.c	8.2 (Berkeley) 3/19/94";
+#else
+static const char rcsid[] =
+	"$Id$";
+#endif
 #endif /* not lint */
 
 /*-
@@ -115,8 +120,7 @@ CompatInterrupt (signo)
 	if (!noExecute && eunlink(file) != -1) {
 	    printf ("*** %s removed\n", file);
 	}
-	if (p1)
-	    free(p1);
+	efree(p1);
 
 	/*
 	 * Run .INTERRUPT only if hit with interrupt signal
@@ -214,7 +218,7 @@ CompatRunCommand (cmdp, gnp)
     cmdStart = Var_Subst (NULL, cmd, gn, FALSE);
 
     /*
-     * brk_string will return an argv with a NULL in av[1], thus causing
+     * brk_string will return an argv with a NULL in av[0], thus causing
      * execvp to choke and die horribly. Besides, how can we execute a null
      * command? In any case, we warn the user that the command expanded to
      * nothing (is this the right thing to do?).
@@ -448,8 +452,7 @@ CompatMake (gnp, pgnp)
 	if (Lst_Member (gn->iParents, pgn) != NILLNODE) {
 	    char *p1;
 	    Var_Set (IMPSRC, Var_Value(TARGET, gn, &p1), pgn);
-	    if (p1)
-		free(p1);
+	    efree(p1);
 	}
 
 	/*
@@ -586,7 +589,10 @@ CompatMake (gnp, pgnp)
 	} else if (keepgoing) {
 	    pgn->make = FALSE;
 	} else {
-	    printf ("\n\nStop.\n");
+	    char *p1;
+
+	    printf ("\n\nStop in %s.\n", Var_Value(".CURDIR", gn, &p1));
+	    efree(p1);
 	    exit (1);
 	}
     } else if (gn->made == ERROR) {
@@ -599,8 +605,7 @@ CompatMake (gnp, pgnp)
 	if (Lst_Member (gn->iParents, pgn) != NILLNODE) {
 	    char *p1;
 	    Var_Set (IMPSRC, Var_Value(TARGET, gn, &p1), pgn);
-	    if (p1)
-		free(p1);
+	    efree(p1);
 	}
 	switch(gn->made) {
 	    case BEINGMADE:

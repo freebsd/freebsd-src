@@ -35,11 +35,16 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: arch.c,v 1.9 1998/10/15 13:00:34 jkoshy Exp $
+ *	$Id: arch.c,v 1.10 1998/10/15 16:09:56 jdp Exp $
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)arch.c	8.2 (Berkeley) 1/2/94";
+#else
+static const char rcsid[] =
+	"$Id";
+#endif
 #endif /* not lint */
 
 /*-
@@ -146,13 +151,12 @@ ArchFree(ap)
 
     /* Free memory from hash entries */
     for (entry = Hash_EnumFirst(&a->members, &search);
-	 entry != (Hash_Entry *)NULL;
+	 entry != NULL;
 	 entry = Hash_EnumNext(&search))
 	free((Address) Hash_GetValue (entry));
 
     free(a->name);
-    if (a->fnametab)
-	free(a->fnametab);
+    efree(a->fnametab);
     Hash_DeleteTable(&a->members);
     free((Address) a);
 }
@@ -474,9 +478,8 @@ ArchStatMember (archive, member, hash)
      * the comparisons easier...
      */
     cp = strrchr (member, '/');
-    if (cp != (char *) NULL) {
+    if (cp != NULL)
 	member = cp + 1;
-    }
 
     ln = Lst_Find (archives, (ClientData) archive, ArchFindArchive);
     if (ln != NILLNODE) {
@@ -484,7 +487,7 @@ ArchStatMember (archive, member, hash)
 
 	he = Hash_FindEntry (&ar->members, member);
 
-	if (he != (Hash_Entry *) NULL) {
+	if (he != NULL) {
 	    return ((struct ar_hdr *) Hash_GetValue (he));
 	} else {
 	    /* Try truncated name */
@@ -498,7 +501,7 @@ ArchStatMember (archive, member, hash)
 	    }
 	    if ((he = Hash_FindEntry (&ar->members, copy)) != NULL)
 		return ((struct ar_hdr *) Hash_GetValue (he));
-	    return ((struct ar_hdr *) NULL);
+	    return (NULL);
 	}
     }
 
@@ -514,8 +517,8 @@ ArchStatMember (archive, member, hash)
 
 	 arch = ArchFindMember(archive, member, &sarh, "r");
 
-	 if (arch == (FILE *)NULL) {
-	    return ((struct ar_hdr *)NULL);
+	if (arch == NULL) {
+	    return (NULL);
 	} else {
 	    fclose(arch);
 	    return (&sarh);
@@ -527,8 +530,8 @@ ArchStatMember (archive, member, hash)
      * everything that's in it and cache it so we can get at it quickly.
      */
     arch = fopen (archive, "r");
-    if (arch == (FILE *) NULL) {
-	return ((struct ar_hdr *) NULL);
+    if (arch == NULL) {
+	return (NULL);
     }
 
     /*
@@ -538,7 +541,7 @@ ArchStatMember (archive, member, hash)
     if ((fread (magic, SARMAG, 1, arch) != 1) ||
     	(strncmp (magic, ARMAG, SARMAG) != 0)) {
 	    fclose (arch);
-	    return ((struct ar_hdr *) NULL);
+	    return (NULL);
     }
 
     ar = (Arch *)emalloc (sizeof (Arch));
@@ -609,19 +612,19 @@ ArchStatMember (archive, member, hash)
 		if (fread (memName, elen, 1, arch) != 1)
 			goto badarch;
 		memName[elen] = '\0';
-		fseek (arch, -elen, 1);
+		fseek (arch, -elen, SEEK_CUR);
 		if (DEBUG(ARCH) || DEBUG(MAKE)) {
 		    printf("ArchStat: Extended format entry for %s\n", memName);
 		}
 	    }
 #endif
 
-	    he = Hash_CreateEntry (&ar->members, memName, (Boolean *)NULL);
+	    he = Hash_CreateEntry (&ar->members, memName, NULL);
 	    Hash_SetValue (he, (ClientData)emalloc (sizeof (struct ar_hdr)));
 	    memcpy ((Address)Hash_GetValue (he), (Address)&arh,
 		sizeof (struct ar_hdr));
 	}
-	fseek (arch, (size + 1) & ~1, 1);
+	fseek (arch, (size + 1) & ~1, SEEK_CUR);
     }
 
     fclose (arch);
@@ -634,19 +637,18 @@ ArchStatMember (archive, member, hash)
      */
     he = Hash_FindEntry (&ar->members, member);
 
-    if (he != (Hash_Entry *) NULL) {
+    if (he != NULL) {
 	return ((struct ar_hdr *) Hash_GetValue (he));
     } else {
-	return ((struct ar_hdr *) NULL);
+	return (NULL);
     }
 
 badarch:
     fclose (arch);
     Hash_DeleteTable (&ar->members);
-    if (ar->fnametab)
-	free(ar->fnametab);
+    efree(ar->fnametab);
     free ((Address)ar);
-    return ((struct ar_hdr *) NULL);
+    return (NULL);
 }
 
 #ifdef SVR4ARCHIVES
@@ -786,8 +788,8 @@ ArchFindMember (archive, member, arhPtr, mode)
     int		  len, tlen;
 
     arch = fopen (archive, mode);
-    if (arch == (FILE *) NULL) {
-	return ((FILE *) NULL);
+    if (arch == NULL) {
+	return (NULL);
     }
 
     /*
@@ -797,7 +799,7 @@ ArchFindMember (archive, member, arhPtr, mode)
     if ((fread (magic, SARMAG, 1, arch) != 1) ||
     	(strncmp (magic, ARMAG, SARMAG) != 0)) {
 	    fclose (arch);
-	    return ((FILE *) NULL);
+	    return (NULL);
     }
 
     /*
@@ -822,7 +824,7 @@ ArchFindMember (archive, member, arhPtr, mode)
 	      * and there's no way we can recover...
 	      */
 	     fclose (arch);
-	     return ((FILE *) NULL);
+	     return (NULL);
 	} else if (strncmp (member, arhPtr->ar_name, tlen) == 0) {
 	    /*
 	     * If the member's name doesn't take up the entire 'name' field,
@@ -841,7 +843,7 @@ ArchFindMember (archive, member, arhPtr, mode)
 		 * the file at the actual member, rather than its header, but
 		 * not here...
 		 */
-		fseek (arch, -sizeof(struct ar_hdr), 1);
+		fseek (arch, -sizeof(struct ar_hdr), SEEK_CUR);
 		return (arch);
 	    }
 	} else
@@ -871,10 +873,10 @@ ArchFindMember (archive, member, arhPtr, mode)
 		}
 		if (strncmp(ename, member, len) == 0) {
 			/* Found as extended name */
-			fseek (arch, -sizeof(struct ar_hdr) - elen, 1);
+			fseek (arch, -sizeof(struct ar_hdr) - elen, SEEK_CUR);
 			return (arch);
 		}
-		fseek (arch, -elen, 1);
+		fseek (arch, -elen, SEEK_CUR);
 		goto skip;
 	} else
 #endif
@@ -889,7 +891,7 @@ skip:
 	     */
 	    arhPtr->ar_size[sizeof(arhPtr->ar_size)-1] = '\0';
 	    size = (int) strtol(arhPtr->ar_size, NULL, 10);
-	    fseek (arch, (size + 1) & ~1, 1);
+	    fseek (arch, (size + 1) & ~1, SEEK_CUR);
 	}
     }
 
@@ -898,7 +900,7 @@ skip:
      * archive and return NULL -- an error.
      */
     fclose (arch);
-    return ((FILE *) NULL);
+    return (NULL);
 }
 
 /*-
@@ -927,13 +929,11 @@ Arch_Touch (gn)
     arch = ArchFindMember(Var_Value (ARCHIVE, gn, &p1),
 			  Var_Value (TARGET, gn, &p2),
 			  &arh, "r+");
-    if (p1)
-	free(p1);
-    if (p2)
-	free(p2);
+    efree(p1);
+    efree(p2);
     sprintf(arh.ar_date, "%-12ld", (long) now);
 
-    if (arch != (FILE *) NULL) {
+    if (arch != NULL) {
 	(void)fwrite ((char *)&arh, sizeof (struct ar_hdr), 1, arch);
 	fclose (arch);
     }
@@ -966,7 +966,7 @@ Arch_TouchLib (gn)
     arch = ArchFindMember (gn->path, RANLIBMAG, &arh, "r+");
     sprintf(arh.ar_date, "%-12ld", (long) now);
 
-    if (arch != (FILE *) NULL) {
+    if (arch != NULL) {
 	(void)fwrite ((char *)&arh, sizeof (struct ar_hdr), 1, arch);
 	fclose (arch);
 
@@ -1001,12 +1001,10 @@ Arch_MTime (gn)
     arhPtr = ArchStatMember (Var_Value (ARCHIVE, gn, &p1),
 			     Var_Value (TARGET, gn, &p2),
 			     TRUE);
-    if (p1)
-	free(p1);
-    if (p2)
-	free(p2);
+    efree(p1);
+    efree(p2);
 
-    if (arhPtr != (struct ar_hdr *) NULL) {
+    if (arhPtr != NULL) {
 	modTime = (int) strtol(arhPtr->ar_date, NULL, 10);
     } else {
 	modTime = 0;
@@ -1113,7 +1111,7 @@ Arch_FindLib (gn, path)
 #ifdef LIBRARIES
     Var_Set (TARGET, gn->name, gn);
 #else
-    Var_Set (TARGET, gn->path == (char *) NULL ? gn->name : gn->path, gn);
+    Var_Set (TARGET, gn->path == NULL ? gn->name : gn->path, gn);
 #endif /* LIBRARIES */
 }
 
@@ -1170,7 +1168,7 @@ Arch_LibOODate (gn)
 
 	arhPtr = ArchStatMember (gn->path, RANLIBMAG, FALSE);
 
-	if (arhPtr != (struct ar_hdr *)NULL) {
+	if (arhPtr != NULL) {
 	    modTimeTOC = (int) strtol(arhPtr->ar_date, NULL, 10);
 
 	    if (DEBUG(ARCH) || DEBUG(MAKE)) {

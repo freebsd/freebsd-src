@@ -35,11 +35,16 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: dir.c,v 1.7 1997/02/22 19:27:08 peter Exp $
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)dir.c	8.2 (Berkeley) 1/2/94";
+#else
+static const char rcsid[] =
+	"$Id";
+#endif
 #endif /* not lint */
 
 /*-
