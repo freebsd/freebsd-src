@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.59 1999/05/08 11:06:42 brian Exp $
+ * $Id: ip.c,v 1.60 1999/05/09 20:02:19 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -395,6 +395,12 @@ ip_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
 
   tun_fill_header(tun, AF_INET);
   nb = mbuf_Length(bp);
+  if (nb > sizeof tun.data) {
+    log_Printf(LogWARN, "ip_Input: %s: Packet too large (got %d, max %d)\n",
+               l->name, nb, (int)(sizeof tun.data));
+    mbuf_Free(bp);
+    return NULL;
+  }
   mbuf_Read(bp, tun.data, nb);
 
   if (PacketCheck(bundle, tun.data, nb, &bundle->filter.in) < 0)
@@ -410,9 +416,10 @@ ip_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
   nw = write(bundle->dev.fd, &tun, nb);
   if (nw != nb) {
     if (nw == -1)
-      log_Printf(LogERROR, "ip_Input: wrote %d, got %s\n", nb, strerror(errno));
+      log_Printf(LogERROR, "ip_Input: %s: wrote %d, got %s\n",
+                 l->name, nb, strerror(errno));
     else
-      log_Printf(LogERROR, "ip_Input: wrote %d, got %d\n", nb, nw);
+      log_Printf(LogERROR, "ip_Input: %s: wrote %d, got %d\n", l->name, nb, nw);
   }
 
   return NULL;
