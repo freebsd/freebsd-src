@@ -1,6 +1,7 @@
 # SCSI mode page data base.
 
 # Copyright (c) 1995 HD Associates
+# Copyright (c) 2001 The FreeBSD Project
 # (contact: dufault@hda.com)
 # All rights reserved.
 # 
@@ -86,6 +87,14 @@
 	{Reserved} *i1
 }
 
+0x1a "Power Control" {
+	{Reserved} *i1
+	{Reserved} *t6
+	{Idle} t1
+	{Standby} t1
+	{Idle Condition Timer} i4
+	{Standby Condition Timer} i4
+}
 
 # DIRECT ACCESS DEVICES
 0x08 "Caching Page" {
