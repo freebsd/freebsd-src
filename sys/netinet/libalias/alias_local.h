@@ -12,7 +12,9 @@
 
     Initial version:  August, 1996  (cjm)    
     
-     <updated several times by original author and Eivind Eiklund>
+     <updated several times by original author and Eivind Eklund>
+
+    $FreeBSD$
 */
 #ifndef ALIAS_LOCAL_H
 #define ALIAS_LOCAL_H
