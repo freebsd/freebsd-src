@@ -459,6 +459,23 @@ alpha_pal_rdval(void)
 }
 
 static __inline void
+alpha_pal_wrunique(u_int64_t tp)
+{
+	register u_int64_t a0 __asm__("$16") = tp;
+	__asm__ __volatile__("call_pal 0x9f # PAL_wrunique"
+	    : "+r" (a0) : : "$1", "$22", "$23", "$24", "$25");
+}
+ 
+static __inline u_int64_t
+alpha_pal_rdunique(void)
+{
+	register u_int64_t v0 __asm__("$0");
+	__asm__ __volatile__("call_pal 0x9e # PAL_rdunique"
+	    : "=r" (v0) : : "$1", "$22", "$23", "$24", "$25");
+        return (v0);
+}
+ 
+static __inline void
 alpha_pal_tbi(u_int64_t op, u_int64_t va)
 {
 	register u_int64_t a0 __asm__("$16") = op;
