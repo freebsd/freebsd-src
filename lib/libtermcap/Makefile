@@ -9,7 +9,7 @@ SRCS=   termcap.c tgoto.c tputs.c tparm.c tospeed.c
 MAN3=	termcap.3
 MLINKS=	termcap.3 tgetent.3 termcap.3 tgetflag.3 termcap.3 tgetnum.3 \
 	termcap.3 tgetstr.3 termcap.3 tgoto.3 termcap.3 tputs.3 \
-	termcap.3 tparm.3 termcap.3 _set_ospeed.3
+	termcap.3 tparm.3 termcap.3 __set_ospeed.3
 LINKS=	${LIBDIR}/libtermcap.a ${LIBDIR}/libtermlib.a
 .if !defined(NOPIC)
 LINKS+= ${SHLIBDIR}/libtermcap.so.${SHLIB_MAJOR}.${SHLIB_MINOR} \
