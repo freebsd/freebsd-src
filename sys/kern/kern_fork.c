@@ -214,7 +214,6 @@ fork1(td, flags, pages, procp)
 	struct kse *ke2;
 	struct ksegrp *kg2;
 	struct sigacts *newsigacts;
-	struct procsig *newprocsig;
 	int error;
 
 	/* Can't copy and clear */
@@ -412,15 +411,10 @@ again:
 	/*
 	 * Malloc things while we don't hold any locks.
 	 */
-	if (flags & RFSIGSHARE) {
-		MALLOC(newsigacts, struct sigacts *,
-		    sizeof(struct sigacts), M_SUBPROC, M_WAITOK);
-		newprocsig = NULL;
-	} else {
+	if (flags & RFSIGSHARE)
 		newsigacts = NULL;
-		MALLOC(newprocsig, struct procsig *, sizeof(struct procsig),
-		    M_SUBPROC, M_WAITOK);
-	}
+	else
+		newsigacts = sigacts_alloc();
 
 	/*
 	 * Copy filedesc.
@@ -477,7 +471,7 @@ again:
 	/*
 	 * Duplicate sub-structures as needed.
 	 * Increase reference counts on shared objects.
-	 * The p_stats and p_sigacts substructs are set in vm_forkproc.
+	 * The p_stats substruct is set in vm_forkproc.
 	 */
 	p2->p_flag = 0;
 	if (p1->p_flag & P_PROFIL)
@@ -497,25 +491,10 @@ again:
 	pargs_hold(p2->p_args);
 
 	if (flags & RFSIGSHARE) {
-		p2->p_procsig = p1->p_procsig;
-		p2->p_procsig->ps_refcnt++;
-		if (p1->p_sigacts == &p1->p_uarea->u_sigacts) {
-			/*
-			 * Set p_sigacts to the new shared structure.
-			 * Note that this is updating p1->p_sigacts at the
-			 * same time, since p_sigacts is just a pointer to
-			 * the shared p_procsig->ps_sigacts.
-			 */
-			p2->p_sigacts  = newsigacts;
-			newsigacts = NULL;
-			*p2->p_sigacts = p1->p_uarea->u_sigacts;
-		}
+		p2->p_sigacts = sigacts_hold(p1->p_sigacts);
 	} else {
-		p2->p_procsig = newprocsig;
-		newprocsig = NULL;
-		bcopy(p1->p_procsig, p2->p_procsig, sizeof(*p2->p_procsig));
-		p2->p_procsig->ps_refcnt = 1;
-		p2->p_sigacts = NULL;	/* finished in vm_forkproc() */
+		sigacts_copy(newsigacts, p1->p_sigacts);
+		p2->p_sigacts = newsigacts;
 	}
 	if (flags & RFLINUXTHPN) 
 	        p2->p_sigparent = SIGUSR1;
@@ -647,9 +626,6 @@ again:
 	p2->p_acflag = AFORK;
 	PROC_UNLOCK(p2);
 
-	KASSERT(newprocsig == NULL, ("unused newprocsig"));
-	if (newsigacts != NULL)
-		FREE(newsigacts, M_SUBPROC);
 	/*
 	 * Finish creating the child process.  It will return via a different
 	 * execution path later.  (ie: directly into user mode)

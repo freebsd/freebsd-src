@@ -273,11 +273,14 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 {
 	struct thread *td = curthread;
 	struct proc *p = td->td_proc;
+	struct sigacts *psp;
 	struct trapframe *regs;
 	struct l_rt_sigframe *fp, frame;
 	int oonstack;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
+	psp = p->p_sigacts;
+	mtx_assert(&psp->ps_mtx, MA_OWNED);
 	regs = td->td_frame;
 	oonstack = sigonstack(regs->tf_esp);
 
@@ -290,11 +293,12 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	 * Allocate space for the signal handler context.
 	 */
 	if ((p->p_flag & P_ALTSTACK) && !oonstack &&
-	    SIGISMEMBER(p->p_sigacts->ps_sigonstack, sig)) {
+	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
 		fp = (struct l_rt_sigframe *)(p->p_sigstk.ss_sp +
 		    p->p_sigstk.ss_size - sizeof(struct l_rt_sigframe));
 	} else
 		fp = (struct l_rt_sigframe *)regs->tf_esp - 1;
+	mtx_unlock(&psp->ps_mtx);
 
 	/*
 	 * Build the argument list for the signal handler.
@@ -383,6 +387,7 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	regs->tf_fs = _udatasel;
 	regs->tf_ss = _udatasel;
 	PROC_LOCK(p);
+	mtx_lock(&psp->ps_mtx);
 }
 
 
@@ -401,13 +406,16 @@ linux_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 {
 	struct thread *td = curthread;
 	struct proc *p = td->td_proc;
+	struct sigacts *psp;
 	struct trapframe *regs;
 	struct l_sigframe *fp, frame;
 	l_sigset_t lmask;
 	int oonstack, i;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	if (SIGISMEMBER(p->p_sigacts->ps_siginfo, sig)) {
+	psp = p->p_sigacts;
+	mtx_assert(&psp->ps_mtx, MA_OWNED);
+	if (SIGISMEMBER(psp->ps_siginfo, sig)) {
 		/* Signal handler installed with SA_SIGINFO. */
 		linux_rt_sendsig(catcher, sig, mask, code);
 		return;
@@ -426,11 +434,12 @@ linux_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	 * Allocate space for the signal handler context.
 	 */
 	if ((p->p_flag & P_ALTSTACK) && !oonstack &&
-	    SIGISMEMBER(p->p_sigacts->ps_sigonstack, sig)) {
+	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
 		fp = (struct l_sigframe *)(p->p_sigstk.ss_sp +
 		    p->p_sigstk.ss_size - sizeof(struct l_sigframe));
 	} else
 		fp = (struct l_sigframe *)regs->tf_esp - 1;
+	mtx_unlock(&psp->ps_mtx);
 	PROC_UNLOCK(p);
 
 	/*
@@ -494,6 +503,7 @@ linux_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	regs->tf_fs = _udatasel;
 	regs->tf_ss = _udatasel;
 	PROC_LOCK(p);
+	mtx_lock(&psp->ps_mtx);
 }
 
 /*

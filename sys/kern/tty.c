@@ -776,7 +776,7 @@ ttioctl(struct tty *tp, u_long cmd, void *data, int flag)
 		sx_slock(&proctree_lock);
 		PROC_LOCK(p);
 		while (isbackground(p, tp) && !(p->p_flag & P_PPWAIT) &&
-		    !SIGISMEMBER(p->p_sigignore, SIGTTOU) &&
+		    !SIGISMEMBER(p->p_sigacts->ps_sigignore, SIGTTOU) &&
 		    !SIGISMEMBER(td->td_sigmask, SIGTTOU)) {
 			pgrp = p->p_pgrp;
 			PROC_UNLOCK(p);
@@ -1934,7 +1934,7 @@ loop:
 	PROC_LOCK(p);
 	if (isbackground(p, tp) &&
 	    ISSET(tp->t_lflag, TOSTOP) && !(p->p_flag & P_PPWAIT) &&
-	    !SIGISMEMBER(p->p_sigignore, SIGTTOU) &&
+	    !SIGISMEMBER(p->p_sigacts->ps_sigignore, SIGTTOU) &&
 	    !SIGISMEMBER(td->td_sigmask, SIGTTOU)) {
 		if (p->p_pgrp->pg_jobc == 0) {
 			PROC_UNLOCK(p);

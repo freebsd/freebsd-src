@@ -235,6 +235,7 @@ sendsig(catcher, sig, mask, code)
 	p = td->td_proc;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	psp = p->p_sigacts;
+	mtx_assert(&psp->ps_mtx, MA_OWNED);
 	regs = td->td_frame;
 	oonstack = sigonstack(regs->tf_rsp);
 
@@ -262,7 +263,6 @@ sendsig(catcher, sig, mask, code)
 		sp = (char *)regs->tf_rsp - sizeof(struct sigframe) - 128;
 	/* Align to 16 bytes. */
 	sfp = (struct sigframe *)((unsigned long)sp & ~0xF);
-	PROC_UNLOCK(p);
 
 	/* Translate the signal if appropriate. */
 	if (p->p_sysent->sv_sigtbl && sig <= p->p_sysent->sv_sigsize)
@@ -271,8 +271,7 @@ sendsig(catcher, sig, mask, code)
 	/* Build the argument list for the signal handler. */
 	regs->tf_rdi = sig;			/* arg 1 in %rdi */
 	regs->tf_rdx = (register_t)&sfp->sf_uc;	/* arg 3 in %rdx */
-	PROC_LOCK(p);
-	if (SIGISMEMBER(p->p_sigacts->ps_siginfo, sig)) {
+	if (SIGISMEMBER(psp->ps_siginfo, sig)) {
 		/* Signal handler installed with SA_SIGINFO. */
 		regs->tf_rsi = (register_t)&sfp->sf_si;	/* arg 2 in %rsi */
 		sf.sf_ahu.sf_action = (__siginfohandler_t *)catcher;
@@ -287,6 +286,7 @@ sendsig(catcher, sig, mask, code)
 		regs->tf_rcx = regs->tf_addr;	/* arg 4 in %rcx */
 		sf.sf_ahu.sf_handler = catcher;
 	}
+	mtx_unlock(&psp->ps_mtx);
 	PROC_UNLOCK(p);
 
 	/*
@@ -305,6 +305,7 @@ sendsig(catcher, sig, mask, code)
 	regs->tf_rflags &= ~PSL_T;
 	regs->tf_cs = _ucodesel;
 	PROC_LOCK(p);
+	mtx_lock(&psp->ps_mtx);
 }
 
 /*
