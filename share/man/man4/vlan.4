@@ -32,6 +32,7 @@
 .Nm vlan
 .Nd IEEE 802.1Q VLAN network interface
 .Sh SYNOPSIS
+.Cd device miibus
 .Cd device vlan
 .\"
 .Sh DESCRIPTION
@@ -164,6 +165,7 @@ for
 use and calculates the appropriate frame MTU based on the
 capabilities of the parent interface.
 .Sh SEE ALSO
+.Xr miibus 4 ,
 .Xr ifconfig 8
 .Sh BUGS
 No 802.1Q features except VLAN tagging are implemented.
