@@ -72,25 +72,25 @@ static struct dos_partition historical_bogus_partition_table[NDOSPART] = {
 };
 #endif
 
-static int check_part __P((char *sname, struct dos_partition *dp,
+static int check_part(char *sname, struct dos_partition *dp,
 			   u_long offset, int nsectors, int ntracks,
-			   u_long mbr_offset));
+			   u_long mbr_offset);
 #ifndef PC98
-static void mbr_extended __P((dev_t dev, struct disklabel *lp,
+static void mbr_extended(dev_t dev, struct disklabel *lp,
 			      struct diskslices *ssp, u_long ext_offset,
 			      u_long ext_size, u_long base_ext_offset,
 			      int nsectors, int ntracks, u_long mbr_offset,
-			      int level));
+			      int level);
 #endif
-static int mbr_setslice __P((char *sname, struct disklabel *lp,
+static int mbr_setslice(char *sname, struct disklabel *lp,
 			     struct diskslice *sp, struct dos_partition *dp,
-			     u_long br_offset));
+			     u_long br_offset);
 
 #ifdef PC98
 #define DPBLKNO(cyl,hd,sect) ((cyl)*(lp->d_secpercyl))
 #if	NCOMPAT_ATDISK > 0
-int     atcompat_dsinit __P((dev_t dev,
-		 struct disklabel *lp, struct diskslices **sspp));
+int     atcompat_dsinit(dev_t dev,
+		 struct disklabel *lp, struct diskslices **sspp);
 #endif
 #endif
 
