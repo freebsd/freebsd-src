@@ -28,7 +28,9 @@
  * rights to redistribute these changes.
  */
 
+#define LOCORE
 #include <machine/asm.h>
+#include <machine/setjmp.h>
 
 /*
  * C library -- sigsetjmp, siglongjmp
@@ -43,24 +45,21 @@
  */
 
 ENTRY(sigsetjmp, 2)
-#if 0
-	LDGP(pv)
-	stq	a1, (81 * 8)(a0)		/* save the mask */
-	bne	a1, Lsavesig			/* if !zero, save signals */
-	jmp	zero, _setjmp				/* else don't. */
-Lsavesig:
-	jmp	zero, setjmp
-#endif
+	add	r14=J_SIGMASK,in0		// place to save mask
+	;;
+	st8	[r14]=in1			// save mask value
+	cmp.ne	p6,p7=0,in1			// save signal state?
+(p6)	br.cond.dptk.many setjmp
+(p7)	br.cond.dpnt.many _setjmp		
 END(sigsetjmp)
 
-XENTRY(siglongjmp)
+	WEAK_ALIAS(siglongjmp,__siglongjmp)
 ENTRY(__siglongjmp, 2)
-#if 0
-	LDGP(pv)
-	ldq	t0, (81 * 8)(a0)		/* get the mask */
-	bne	t0, Lrestoresig			/* if !zero, restore signals */
-	jmp	zero, _longjmp
-Lrestoresig:
-	jmp	zero, longjmp
-#endif
+	add	r14=J_SIGMASK,in0		// address of mask value
+	;;
+	ld8	r14=[r14]
+	;;
+	cmp.ne	p6,p7=0,r14			// did we save signals?
+(p6)	br.cond.dptk.many longjmp
+(p7)	br.cond.dpnt.many _longjmp		
 END(__siglongjmp)
