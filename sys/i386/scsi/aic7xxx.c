@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.81.2.18 1997/04/04 04:35:55 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.81.2.19 1997/04/04 19:49:39 gibbs Exp $
  */
 /*
  * TODO:
@@ -1662,6 +1662,57 @@ ahc_handle_scsiint(ahc, intstat)
 		ahc_outb(ahc, CLRSINT1, CLRBUSFREE);
 		restart_sequencer(ahc);
 		ahc_outb(ahc, CLRINT, CLRSCSIINT);
+	} else if ((status & SELTO) != 0) {
+		struct scsi_xfer *xs;
+		u_int8_t scbptr;
+		u_int8_t nextscb;
+
+		scbptr = ahc_inb(ahc, WAITING_SCBH);
+		ahc_outb(ahc, SCBPTR, scbptr);
+		scb_index = ahc_inb(ahc, SCB_TAG);
+
+		if (scb_index < ahc->scb_data->numscbs) {
+			scb = ahc->scb_data->scbarray[scb_index];
+			if ((scb->flags & SCB_ACTIVE) == 0)
+				scb = NULL;
+		} else
+			scb = NULL;
+
+		if (scb == NULL) {
+			printf("%s: ahc_intr - referenced scb not "
+			       "valid during SELTO scb(%d)\n",
+			       ahc_name(ahc), scb_index);
+		} else {
+			/*
+			 * XXX If we queued an abort tag, go clean up the
+			 * disconnected list.
+			 */
+			xs = scb->xs;
+			xs->error = XS_SELTIMEOUT;
+			/*
+			 * Clear any pending messages for the timed out
+			 * target, and mark the target as free
+			 */
+			ahc_outb(ahc, MSG_LEN, 0);
+			ahc_index_busy_target(ahc, xs->sc_link->target,
+				IS_SCSIBUS_B(ahc, xs->sc_link) ? 'B' : 'A',
+				/*unbusy*/TRUE);
+
+			ahc_outb(ahc, SCB_CONTROL, 0);
+			/* Shift the waiting Q forward. */
+			nextscb = ahc_inb(ahc, SCB_NEXT);
+			ahc_outb(ahc, WAITING_SCBH, nextscb);
+
+			ahc_add_curscb_to_free_list(ahc);
+		}
+		/* Stop the selection */
+		ahc_outb(ahc, SCSISEQ, 0);
+
+		ahc_outb(ahc, CLRSINT1, CLRSELTIMEO|CLRBUSFREE);
+
+		ahc_outb(ahc, CLRINT, CLRSCSIINT);
+
+		restart_sequencer(ahc);
 	} else if (scb == NULL) {
 		printf("%s: ahc_intr - referenced scb not "
 		       "valid during scsiint 0x%x scb(%d)\n"
@@ -1740,43 +1791,6 @@ ahc_handle_scsiint(ahc, intstat)
 		ahc_outb(ahc, CLRSINT1, CLRSCSIPERR);
 		unpause_sequencer(ahc, /*unpause_always*/TRUE);
 		ahc_outb(ahc, CLRINT, CLRSCSIINT);
-	} else if ((status & SELTO) != 0) {
-		struct scsi_xfer *xs;
-		u_int8_t scbptr;
-		u_int8_t nextscb;
-
-		/*
-		 * XXX If we queued an abort tag, go clean up the
-		 * disconnected list.
-		 */
-		xs = scb->xs;
-		xs->error = XS_SELTIMEOUT;
-		/*
-		 * Clear any pending messages for the timed out
-		 * target, and mark the target as free
-		 */
-		ahc_outb(ahc, MSG_LEN, 0);
-		ahc_index_busy_target(ahc, xs->sc_link->target,
-				IS_SCSIBUS_B(ahc, xs->sc_link) ? 'B' : 'A',
-				/*unbusy*/TRUE);
-		/* Stop the selection */
-		ahc_outb(ahc, SCSISEQ, 0);
-
-		ahc_outb(ahc, SCB_CONTROL, 0);
-
-		ahc_outb(ahc, CLRSINT1, CLRSELTIMEO|CLRBUSFREE);
-
-		ahc_outb(ahc, CLRINT, CLRSCSIINT);
-
-		/* Shift the waiting Q forward. */
-		scbptr = ahc_inb(ahc, WAITING_SCBH);
-		ahc_outb(ahc, SCBPTR, scbptr);
-		nextscb = ahc_inb(ahc, SCB_NEXT);
-		ahc_outb(ahc, WAITING_SCBH, nextscb);
-
-		ahc_add_curscb_to_free_list(ahc);
-
-		restart_sequencer(ahc);
 	} else {
 		sc_print_addr(scb->xs->sc_link);
 		printf("Unknown SCSIINT. Status = 0x%x\n", status);
