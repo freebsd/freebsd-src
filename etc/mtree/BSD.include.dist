@@ -33,6 +33,8 @@
     ..
     netinet
     ..
+    netinet6
+    ..
     netipx
     ..
     netkey
