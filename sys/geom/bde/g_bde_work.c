@@ -127,7 +127,7 @@ g_bde_delete_work(struct g_bde_work *wp)
 static u_int g_bde_nsect;
 SYSCTL_UINT(_debug, OID_AUTO, gbde_nsect, CTLFLAG_RD, &g_bde_nsect, 0, "");
 
-void
+static void
 g_bde_delete_sector(struct g_bde_softc *sc, struct g_bde_sector *sp)
 {
 
@@ -138,7 +138,7 @@ g_bde_delete_sector(struct g_bde_softc *sc, struct g_bde_sector *sp)
 	g_free(sp);
 }
 
-struct g_bde_sector *
+static struct g_bde_sector *
 g_bde_new_sector(struct g_bde_work *wp, u_int len)
 {
 	struct g_bde_sector *sp;
