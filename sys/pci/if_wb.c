@@ -244,7 +244,8 @@ DRIVER_MODULE(miibus, wb, miibus_driver, miibus_devclass, 0, 0);
 /*
  * Send a read command and address to the EEPROM, check for ACK.
  */
-static void wb_eeprom_putbyte(sc, addr)
+static void
+wb_eeprom_putbyte(sc, addr)
 	struct wb_softc		*sc;
 	int			addr;
 {
@@ -274,7 +275,8 @@ static void wb_eeprom_putbyte(sc, addr)
 /*
  * Read a word of data stored in the EEPROM at address 'addr.'
  */
-static void wb_eeprom_getword(sc, addr, dest)
+static void
+wb_eeprom_getword(sc, addr, dest)
 	struct wb_softc		*sc;
 	int			addr;
 	u_int16_t		*dest;
@@ -315,7 +317,8 @@ static void wb_eeprom_getword(sc, addr, dest)
 /*
  * Read a sequence of words from the EEPROM.
  */
-static void wb_read_eeprom(sc, dest, off, cnt, swap)
+static void
+wb_read_eeprom(sc, dest, off, cnt, swap)
 	struct wb_softc		*sc;
 	caddr_t			dest;
 	int			off;
@@ -340,7 +343,8 @@ static void wb_read_eeprom(sc, dest, off, cnt, swap)
 /*
  * Sync the PHYs by setting data bit and strobing the clock 32 times.
  */
-static void wb_mii_sync(sc)
+static void
+wb_mii_sync(sc)
 	struct wb_softc		*sc;
 {
 	register int		i;
@@ -360,7 +364,8 @@ static void wb_mii_sync(sc)
 /*
  * Clock a series of bits through the MII.
  */
-static void wb_mii_send(sc, bits, cnt)
+static void
+wb_mii_send(sc, bits, cnt)
 	struct wb_softc		*sc;
 	u_int32_t		bits;
 	int			cnt;
@@ -385,7 +390,8 @@ static void wb_mii_send(sc, bits, cnt)
 /*
  * Read an PHY register through the MII.
  */
-static int wb_mii_readreg(sc, frame)
+static int
+wb_mii_readreg(sc, frame)
 	struct wb_softc		*sc;
 	struct wb_mii_frame	*frame;
 	
@@ -481,7 +487,8 @@ fail:
 /*
  * Write to a PHY register through the MII.
  */
-static int wb_mii_writereg(sc, frame)
+static int
+wb_mii_writereg(sc, frame)
 	struct wb_softc		*sc;
 	struct wb_mii_frame	*frame;
 	
@@ -526,7 +533,8 @@ static int wb_mii_writereg(sc, frame)
 	return(0);
 }
 
-static int wb_miibus_readreg(dev, phy, reg)
+static int
+wb_miibus_readreg(dev, phy, reg)
 	device_t		dev;
 	int			phy, reg;
 {
@@ -544,7 +552,8 @@ static int wb_miibus_readreg(dev, phy, reg)
 	return(frame.mii_data);
 }
 
-static int wb_miibus_writereg(dev, phy, reg, data)
+static int
+wb_miibus_writereg(dev, phy, reg, data)
 	device_t		dev;
 	int			phy, reg, data;
 {
@@ -564,7 +573,8 @@ static int wb_miibus_writereg(dev, phy, reg, data)
 	return(0);
 }
 
-static void wb_miibus_statchg(dev)
+static void
+wb_miibus_statchg(dev)
 	device_t		dev;
 {
 	struct wb_softc		*sc;
@@ -613,7 +623,8 @@ static u_int8_t wb_calchash(addr)
 /*
  * Program the 64-bit multicast hash filter.
  */
-static void wb_setmulti(sc)
+static void
+wb_setmulti(sc)
 	struct wb_softc		*sc;
 {
 	struct ifnet		*ifp;
@@ -668,7 +679,8 @@ static void wb_setmulti(sc)
  * 'full-duplex' and '100Mbps' bits in the netconfig register, we
  * first have to put the transmit and/or receive logic in the idle state.
  */
-static void wb_setcfg(sc, media)
+static void
+wb_setcfg(sc, media)
 	struct wb_softc		*sc;
 	u_int32_t		media;
 {
@@ -706,7 +718,8 @@ static void wb_setcfg(sc, media)
 	return;
 }
 
-static void wb_reset(sc)
+static void
+wb_reset(sc)
 	struct wb_softc		*sc;
 {
 	register int		i;
@@ -747,7 +760,8 @@ static void wb_reset(sc)
         return;
 }
 
-static void wb_fixmedia(sc)
+static void
+wb_fixmedia(sc)
 	struct wb_softc		*sc;
 {
 	struct mii_data		*mii = NULL;
@@ -779,7 +793,8 @@ static void wb_fixmedia(sc)
  * Probe for a Winbond chip. Check the PCI vendor and device
  * IDs against our list and return a device name if we find a match.
  */
-static int wb_probe(dev)
+static int
+wb_probe(dev)
 	device_t		dev;
 {
 	struct wb_type		*t;
@@ -802,7 +817,8 @@ static int wb_probe(dev)
  * Attach the interface. Allocate softc structures, do ifmedia
  * setup and ethernet/BPF attach.
  */
-static int wb_attach(dev)
+static int
+wb_attach(dev)
 	device_t		dev;
 {
 	u_char			eaddr[ETHER_ADDR_LEN];
@@ -975,7 +991,8 @@ fail:
 	return(error);
 }
 
-static int wb_detach(dev)
+static int
+wb_detach(dev)
 	device_t		dev;
 {
 	struct wb_softc		*sc;
@@ -1007,7 +1024,8 @@ static int wb_detach(dev)
 /*
  * Initialize the transmit descriptors.
  */
-static int wb_list_tx_init(sc)
+static int
+wb_list_tx_init(sc)
 	struct wb_softc		*sc;
 {
 	struct wb_chain_data	*cd;
@@ -1040,7 +1058,8 @@ static int wb_list_tx_init(sc)
  * we arrange the descriptors in a closed ring, so that the last descriptor
  * points back to the first.
  */
-static int wb_list_rx_init(sc)
+static int
+wb_list_rx_init(sc)
 	struct wb_softc		*sc;
 {
 	struct wb_chain_data	*cd;
@@ -1073,7 +1092,8 @@ static int wb_list_rx_init(sc)
 	return(0);
 }
 
-static void wb_bfree(buf, args)
+static void
+wb_bfree(buf, args)
 	void			*buf;
 	void			*args;
 {
@@ -1083,7 +1103,8 @@ static void wb_bfree(buf, args)
 /*
  * Initialize an RX descriptor and attach an MBUF cluster.
  */
-static int wb_newbuf(sc, c, m)
+static int
+wb_newbuf(sc, c, m)
 	struct wb_softc		*sc;
 	struct wb_chain_onefrag	*c;
 	struct mbuf		*m;
@@ -1118,7 +1139,8 @@ static int wb_newbuf(sc, c, m)
  * A frame has been uploaded: pass the resulting mbuf chain up to
  * the higher level protocols.
  */
-static void wb_rxeof(sc)
+static void
+wb_rxeof(sc)
 	struct wb_softc		*sc;
 {
         struct ether_header	*eh;
@@ -1190,7 +1212,8 @@ static void wb_rxeof(sc)
 	}
 }
 
-void wb_rxeoc(sc)
+void
+wb_rxeoc(sc)
 	struct wb_softc		*sc;
 {
 	wb_rxeof(sc);
@@ -1208,7 +1231,8 @@ void wb_rxeoc(sc)
  * A frame was downloaded to the chip. It's safe for us to clean up
  * the list buffers.
  */
-static void wb_txeof(sc)
+static void
+wb_txeof(sc)
 	struct wb_softc		*sc;
 {
 	struct wb_chain		*cur_tx;
@@ -1264,7 +1288,8 @@ static void wb_txeof(sc)
 /*
  * TX 'end of channel' interrupt handler.
  */
-static void wb_txeoc(sc)
+static void
+wb_txeoc(sc)
 	struct wb_softc		*sc;
 {
 	struct ifnet		*ifp;
@@ -1287,7 +1312,8 @@ static void wb_txeoc(sc)
 	return;
 }
 
-static void wb_intr(arg)
+static void
+wb_intr(arg)
 	void			*arg;
 {
 	struct wb_softc		*sc;
@@ -1374,7 +1400,8 @@ static void wb_intr(arg)
 	return;
 }
 
-static void wb_tick(xsc)
+static void
+wb_tick(xsc)
 	void			*xsc;
 {
 	struct wb_softc		*sc;
@@ -1397,7 +1424,8 @@ static void wb_tick(xsc)
  * Encapsulate an mbuf chain in a descriptor by coupling the mbuf data
  * pointers to the fragment pointers.
  */
-static int wb_encap(sc, c, m_head)
+static int
+wb_encap(sc, c, m_head)
 	struct wb_softc		*sc;
 	struct wb_chain		*c;
 	struct mbuf		*m_head;
@@ -1491,7 +1519,8 @@ static int wb_encap(sc, c, m_head)
  * physical addresses.
  */
 
-static void wb_start(ifp)
+static void
+wb_start(ifp)
 	struct ifnet		*ifp;
 {
 	struct wb_softc		*sc;
@@ -1584,7 +1613,8 @@ static void wb_start(ifp)
 	return;
 }
 
-static void wb_init(xsc)
+static void
+wb_init(xsc)
 	void			*xsc;
 {
 	struct wb_softc		*sc = xsc;
@@ -1705,7 +1735,8 @@ static void wb_init(xsc)
 /*
  * Set media options.
  */
-static int wb_ifmedia_upd(ifp)
+static int
+wb_ifmedia_upd(ifp)
 	struct ifnet		*ifp;
 {
 	struct wb_softc		*sc;
@@ -1721,7 +1752,8 @@ static int wb_ifmedia_upd(ifp)
 /*
  * Report current media status.
  */
-static void wb_ifmedia_sts(ifp, ifmr)
+static void
+wb_ifmedia_sts(ifp, ifmr)
 	struct ifnet		*ifp;
 	struct ifmediareq	*ifmr;
 {
@@ -1739,7 +1771,8 @@ static void wb_ifmedia_sts(ifp, ifmr)
 	return;
 }
 
-static int wb_ioctl(ifp, command, data)
+static int
+wb_ioctl(ifp, command, data)
 	struct ifnet		*ifp;
 	u_long			command;
 	caddr_t			data;
@@ -1786,7 +1819,8 @@ static int wb_ioctl(ifp, command, data)
 	return(error);
 }
 
-static void wb_watchdog(ifp)
+static void
+wb_watchdog(ifp)
 	struct ifnet		*ifp;
 {
 	struct wb_softc		*sc;
@@ -1816,7 +1850,8 @@ static void wb_watchdog(ifp)
  * Stop the adapter and free any mbufs allocated to the
  * RX and TX lists.
  */
-static void wb_stop(sc)
+static void
+wb_stop(sc)
 	struct wb_softc		*sc;
 {
 	register int		i;
@@ -1868,7 +1903,8 @@ static void wb_stop(sc)
  * Stop all chip I/O so that the kernel's probe routines don't
  * get confused by errant DMAs when rebooting.
  */
-static void wb_shutdown(dev)
+static void
+wb_shutdown(dev)
 	device_t		dev;
 {
 	struct wb_softc		*sc;
