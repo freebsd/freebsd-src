@@ -32,9 +32,14 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)arcs.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
+#include <err.h>
 #include "gprof.h"
 
 #ifdef DEBUG
@@ -235,7 +240,7 @@ doarcs()
 	 */
     timesortnlp = (nltype **) calloc( nname + ncycle , sizeof(nltype *) );
     if ( timesortnlp == (nltype **) 0 ) {
-	fprintf( stderr , "%s: ran out of memory for sorting\n" , whoami );
+	warnx("ran out of memory for sorting");
     }
     for ( index = 0 ; index < nname ; index++ ) {
 	timesortnlp[index] = &nl[index];
@@ -374,8 +379,7 @@ cyclelink()
 	 */
     cyclenl = (nltype *) calloc( ncycle + 1 , sizeof( nltype ) );
     if ( cyclenl == 0 ) {
-	fprintf( stderr , "%s: No room for %d bytes of cycle headers\n" ,
-		whoami , ( ncycle + 1 ) * sizeof( nltype ) );
+	warnx("no room for %d bytes of cycle headers", (ncycle+1)*sizeof(nltype) );
 	done();
     }
 	/*
@@ -478,8 +482,7 @@ cycleanalyze()
 	done = FALSE;
         cyclestack = (arctype **) calloc( size + 1 , sizeof( arctype *) );
 	if ( cyclestack == 0 ) {
-	    fprintf( stderr , "%s: No room for %d bytes of cycle stack\n" ,
-		whoami , ( size + 1 ) * sizeof( arctype * ) );
+	    warnx("no room for %d bytes of cycle stack", (size+1)*sizeof(arctype *) );
 	    return;
 	}
 #	ifdef DEBUG
@@ -595,8 +598,8 @@ addcycle( stkstart , stkend )
     clp = (cltype *)
 	calloc( 1 , sizeof ( cltype ) + ( size - 1 ) * sizeof( arctype * ) );
     if ( clp == 0 ) {
-	fprintf( stderr , "%s: No room for %d bytes of subcycle storage\n" ,
-	    whoami , sizeof ( cltype ) + ( size - 1 ) * sizeof( arctype * ) );
+	warnx("no room for %d bytes of subcycle storage",
+	    sizeof ( cltype ) + ( size - 1 ) * sizeof( arctype * ) );
 	return( FALSE );
     }
     stkp = stkloc;
@@ -641,7 +644,6 @@ compresslist()
     int		maxexitcnt;
     int		maxwithparentcnt;
     int		maxnoparentcnt;
-    char	*type;
 
     maxexitcnt = 0;
     maxwithparentcnt = 0;
