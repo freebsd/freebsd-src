@@ -151,7 +151,7 @@ struct vm_object {
 #define IDX_TO_OFF(idx) (((vm_ooffset_t)(idx)) << PAGE_SHIFT)
 #define OFF_TO_IDX(off) ((vm_pindex_t)(((vm_ooffset_t)(off)) >> PAGE_SHIFT))
 
-#ifdef	KERNEL
+#ifdef	_KERNEL
 
 #define OBJPC_SYNC	0x1			/* sync I/O */
 #define OBJPC_INVAL	0x2			/* invalidate */
@@ -166,9 +166,9 @@ extern struct object_q vm_object_list;	/* list of allocated objects */
 extern vm_object_t kernel_object;	/* the single kernel object */
 extern vm_object_t kmem_object;
 
-#endif				/* KERNEL */
+#endif				/* _KERNEL */
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 static __inline void
 vm_object_set_flag(vm_object_t object, u_int bits)
@@ -252,6 +252,6 @@ void vm_object_reference __P((vm_object_t));
 void vm_object_shadow __P((vm_object_t *, vm_ooffset_t *, vm_size_t));
 void vm_object_madvise __P((vm_object_t, vm_pindex_t, int, int));
 void vm_object_init2 __P((void));
-#endif				/* KERNEL */
+#endif				/* _KERNEL */
 
 #endif				/* _VM_OBJECT_ */

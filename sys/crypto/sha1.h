@@ -53,7 +53,7 @@ struct sha1_ctxt {
 	u_int8_t	count;
 };
 
-#if defined(KERNEL) || defined(_KERNEL)
+#ifdef _KERNEL
 extern void sha1_init __P((struct sha1_ctxt *));
 extern void sha1_pad __P((struct sha1_ctxt *));
 extern void sha1_loop __P((struct sha1_ctxt *, caddr_t, size_t));

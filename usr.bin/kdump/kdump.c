@@ -45,10 +45,10 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
-#define KERNEL
+#define _KERNEL
 extern int errno;
 #include <sys/errno.h>
-#undef KERNEL
+#undef _KERNEL
 #include <sys/param.h>
 #include <sys/errno.h>
 #include <sys/time.h>

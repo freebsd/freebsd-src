@@ -104,7 +104,7 @@ extern void pagedaemon_wakeup __P((void));
 extern void vm_wait __P((void));
 extern void vm_await __P((void));
 
-#ifdef KERNEL
+#ifdef _KERNEL
 void vm_pageout_page __P((vm_page_t, vm_object_t));
 void vm_pageout_cluster __P((vm_page_t, vm_object_t));
 int vm_pageout_flush __P((vm_page_t *, int, int));

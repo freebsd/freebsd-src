@@ -97,7 +97,7 @@ static const char rcsid[] =
 #include "yp_ping.h"
 
 #ifndef timeradd
-#ifndef KERNEL		/* use timevaladd/timevalsub in kernel */
+#ifndef _KERNEL		/* use timevaladd/timevalsub in kernel */
 /* NetBSD/OpenBSD compatable interfaces */
 #define timeradd(tvp, uvp, vvp)						\
 	do {								\

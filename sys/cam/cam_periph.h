@@ -33,7 +33,7 @@
 
 #include <sys/queue.h>
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 extern struct linker_set periphdriver_set;
 
@@ -144,5 +144,5 @@ void		cam_periph_freeze_after_event(struct cam_periph *periph,
 int		cam_periph_error(union ccb *ccb, cam_flags camflags,
 				 u_int32_t sense_flags, union ccb *save_ccb);
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 #endif /* _CAM_CAM_PERIPH_H */

@@ -50,9 +50,9 @@ static const char rcsid[] =
 #include <sys/param.h>
 #include <sys/user.h>
 #include <sys/proc.h>
-#define KERNEL
+#define _KERNEL
 #include <sys/file.h>
-#undef KERNEL
+#undef _KERNEL
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <nlist.h>

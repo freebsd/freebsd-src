@@ -55,7 +55,7 @@ struct mfs_args {
 	u_long	size;			/* size of file system */
 };
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_UFSMNT);
@@ -125,6 +125,6 @@ struct ufsmount {
 #define MNINDIR(ump)			((ump)->um_nindir)
 #define	blkptrtodb(ump, b)		((b) << (ump)->um_bptrtodb)
 #define	is_sequential(ump, a, b)	((b) == (a) + ump->um_seqinc)
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 #endif

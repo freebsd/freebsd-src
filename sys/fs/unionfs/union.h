@@ -56,7 +56,7 @@ struct union_mount {
 	int		um_op;		/* Operation mode */
 };
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 #ifndef DIAGNOSTIC
 #define DIAGNOSTIC
@@ -152,4 +152,4 @@ extern vop_t **union_vnodeop_p;
 extern struct vfsops union_vfsops;
 extern int uniondebug;
 
-#endif /* KERNEL */
+#endif /* _KERNEL */

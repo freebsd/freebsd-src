@@ -129,7 +129,7 @@ typedef struct __rpc_xdr {
  * to be decoded.  If this pointer is 0, then the type routines should
  * allocate dynamic storage of the appropriate size and return it.
  */
-#ifdef KERNEL
+#ifdef _KERNEL
 typedef	bool_t (*xdrproc_t) __P((XDR *, void *, u_int));
 #else
 /*

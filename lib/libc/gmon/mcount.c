@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  */
 
-#if !defined(lint) && !defined(KERNEL) && defined(LIBC_SCCS)
+#if !defined(lint) && !defined(_KERNEL) && defined(LIBC_SCCS)
 #if 0
 static char sccsid[] = "@(#)mcount.c	8.1 (Berkeley) 6/4/93";
 #endif
@@ -41,7 +41,7 @@ static const char rcsid[] =
 
 #include <sys/param.h>
 #include <sys/gmon.h>
-#ifdef KERNEL
+#ifdef _KERNEL
 #include <sys/systm.h>
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -78,7 +78,7 @@ _MCOUNT_DECL(frompc, selfpc)	/* _mcount; may be static, inline, etc */
 	register struct tostruct *top, *prevtop;
 	register struct gmonparam *p;
 	register long toindex;
-#ifdef KERNEL
+#ifdef _KERNEL
 	MCOUNT_DECL(s)
 #endif
 
@@ -91,14 +91,14 @@ _MCOUNT_DECL(frompc, selfpc)	/* _mcount; may be static, inline, etc */
 	if (p->state != GMON_PROF_ON)
 		return;
 #endif
-#ifdef KERNEL
+#ifdef _KERNEL
 	MCOUNT_ENTER(s);
 #else
 	p->state = GMON_PROF_BUSY;
 #endif
 	frompci = frompc - p->lowpc;
 
-#ifdef KERNEL
+#ifdef _KERNEL
 	/*
 	 * When we are called from an exception handler, frompci may be
 	 * for a user address.  Convert such frompci's to the index of
@@ -112,7 +112,7 @@ _MCOUNT_DECL(frompc, selfpc)	/* _mcount; may be static, inline, etc */
 		if (frompci >= p->textsize)
 		    goto done;
 	}
-#endif /* KERNEL */
+#endif
 
 #ifdef GUPROF
 	if (p->state != GMON_PROF_HIRES)
@@ -161,7 +161,7 @@ _MCOUNT_DECL(frompc, selfpc)	/* _mcount; may be static, inline, etc */
 skip_guprof_stuff:
 #endif /* GUPROF */
 
-#ifdef KERNEL
+#ifdef _KERNEL
 	/*
 	 * When we are called from an exception handler, frompc is faked
 	 * to be for where the exception occurred.  We've just solidified
@@ -177,7 +177,7 @@ skip_guprof_stuff:
 		else
 			frompci = (uintfptr_t)btrap - p->lowpc;
 	}
-#endif /* KERNEL */
+#endif
 
 	/*
 	 * check that frompc is a reasonable pc value.
@@ -259,7 +259,7 @@ skip_guprof_stuff:
 
 	}
 done:
-#ifdef KERNEL
+#ifdef _KERNEL
 	MCOUNT_EXIT(s);
 #else
 	p->state = GMON_PROF_ON;
@@ -267,7 +267,7 @@ done:
 	return;
 overflow:
 	p->state = GMON_PROF_ERROR;
-#ifdef KERNEL
+#ifdef _KERNEL
 	MCOUNT_EXIT(s);
 #endif
 	return;

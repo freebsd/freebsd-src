@@ -31,7 +31,7 @@
 #ifndef _CAM_CAM_SIM_H
 #define _CAM_CAM_SIM_H 1
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 /*
  * The sim driver creates a sim for each controller.  The sim device
@@ -131,5 +131,5 @@ cam_sim_bus(struct cam_sim *sim)
 	return (sim->bus_id);
 }
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 #endif /* _CAM_CAM_SIM_H */

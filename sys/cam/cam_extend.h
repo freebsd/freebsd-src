@@ -18,7 +18,7 @@
 #ifndef _CAM_CAM_EXTEND_H
 #define _CAM_CAM_EXTEND_H 1
 
-#ifdef KERNEL
+#ifdef _KERNEL
 struct extend_array;
 
 void *cam_extend_get(struct extend_array *ea, int index);	
@@ -26,5 +26,5 @@ struct extend_array *cam_extend_new(void);
 void *cam_extend_set(struct extend_array *ea, int index, void *value);
 void cam_extend_release(struct extend_array *ea, int index);
 
-#endif /* KERNEL */
+#endif
 #endif /* _CAM_CAM_EXTEND_H */

@@ -41,7 +41,7 @@
 #ifndef _NFS_NFSNODE_H_
 #define _NFS_NFSNODE_H_
 
-#if !defined(_NFS_NFS_H_) && !defined(KERNEL)
+#if !defined(_NFS_NFS_H_) && !defined(_KERNEL)
 #include <nfs/nfs.h>
 #endif
 
@@ -157,7 +157,7 @@ extern TAILQ_HEAD(nfs_bufq, buf) nfs_bufq;
 extern struct proc *nfs_iodwant[NFS_MAXASYNCDAEMON];
 extern struct nfsmount *nfs_iodmount[NFS_MAXASYNCDAEMON];
 
-#if defined(KERNEL) || defined(_KERNEL)
+#if defined(_KERNEL)
 
 /*
  *	nfs_rslock -	Attempt to obtain lock on nfsnode
@@ -205,6 +205,6 @@ void nfs_invaldir __P((struct vnode *));
 
 #define nqnfs_lease_updatetime	nfs_lease_updatetime
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 #endif

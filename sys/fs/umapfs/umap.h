@@ -62,7 +62,7 @@ struct umap_mount {
 	    group mapping in ficus */
 };
 
-#ifdef KERNEL
+#ifdef _KERNEL
 /*
  * A cache of vnode references
  */
@@ -88,4 +88,4 @@ extern struct vnode *umap_checkvp __P((struct vnode *vp, char *fil, int lno));
 #endif
 
 extern vop_t **umap_vnodeop_p;
-#endif /* KERNEL */
+#endif /* _KERNEL */

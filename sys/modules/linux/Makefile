@@ -20,11 +20,11 @@ linux_assym.h:	linux_genassym.o
 	genassym -o ${.TARGET} ${.ALLSRC}
 
 linux_locore.o:	linux_locore.s linux_assym.h
-	${CC} -c -x assembler-with-cpp -DLOCORE -DKERNEL ${CFLAGS} \
+	${CC} -c -x assembler-with-cpp -DLOCORE -D_KERNEL ${CFLAGS} \
 		${.IMPSRC} -o ${.TARGET}
 
 linux_genassym.o:	linux_genassym.c linux.h @ machine
-	${CC} -c ${CFLAGS} -UKERNEL ${.IMPSRC}
+	${CC} -c ${CFLAGS} -U_KERNEL ${.IMPSRC}
 
 opt_compat.h:
 	echo "#define COMPAT_43 1" > opt_compat.h

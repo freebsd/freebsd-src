@@ -36,7 +36,7 @@
 #include <cam/cam_xpt.h>
 
 /* Functions accessed by the peripheral drivers */
-#ifdef KERNEL
+#ifdef _KERNEL
 void		xpt_polled_action(union ccb *ccb);
 union ccb	*xpt_alloc_ccb(void);
 void		xpt_free_ccb(union ccb *free_ccb);
@@ -46,6 +46,6 @@ int32_t		xpt_add_periph(struct cam_periph *periph);
 void		xpt_remove_periph(struct cam_periph *periph);
 void		xpt_announce_periph(struct cam_periph *periph,
 				    char *announce_string);
-#endif /* KERNEL */
+#endif
 
 #endif /* _CAM_CAM_XPT_PERIPH_H */

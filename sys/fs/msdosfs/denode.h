@@ -212,7 +212,7 @@ struct denode {
 #define	de_forw		de_chain[0]
 #define	de_back		de_chain[1]
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 #define	VTODE(vp)	((struct denode *)(vp)->v_data)
 #define	DETOV(de)	((de)->de_vnode)
@@ -283,4 +283,4 @@ int deupdat __P((struct denode *dep, int waitfor));
 int removede __P((struct denode *pdep, struct denode *dep));
 int detrunc __P((struct denode *dep, u_long length, int flags, struct ucred *cred, struct proc *p));
 int doscheckpath __P(( struct denode *source, struct denode *target));
-#endif	/* KERNEL */
+#endif	/* _KERNEL */
