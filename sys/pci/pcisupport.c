@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.83 1998/12/19 08:35:30 julian Exp $
+**  $Id: pcisupport.c,v 1.84 1998/12/19 16:05:19 foxfair Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -975,7 +975,7 @@ static const char* vga_probe (pcici_t tag, pcidi_t typea)
 		case 0x0519:
 			chip = "MGA 2064W"; break;
 		case 0x051a:
-			chip = "MGA 1024SG"; break;
+			chip = "MGA 1024SG/1064SG/1164SG"; break;
 		case 0x051b:
 			chip = "MGA 2164W"; break;
 		}
