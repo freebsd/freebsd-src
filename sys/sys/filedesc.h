@@ -74,6 +74,8 @@ struct filedesc {
 	struct	klist *fd_knlist;	/* list of attached knotes */
 	u_long	fd_knhashmask;		/* size of knhash */
 	struct	klist *fd_knhash;	/* hash table for attached knotes */
+	int	fd_holdleaderscount;	/* block fdfree() for shared close() */
+	int	fd_holdleaderswakeup;	/* fdfree() needs wakeup */
 };
 
 /*
@@ -88,6 +90,25 @@ struct filedesc0 {
 	 */
 	struct	file *fd_dfiles[NDFILE];
 	char	fd_dfileflags[NDFILE];
+};
+
+
+
+/*
+ * Structure to keep track of (process leader, struct fildedesc) tuples.
+ * Each process has a pointer to such a structure when detailed tracking
+ * is needed. e.g. when rfork(RFPROC | RFMEM) causes a file descriptor
+ * table to be shared by processes having different "p_leader" pointers
+ * and thus distinct POSIX style locks.
+ */
+struct filedesc_to_leader {
+	int		fdl_refcount;	/* references from struct proc */
+	int		fdl_holdcount;	/* temporary hold during closef */
+	int		fdl_wakeup;	/* fdfree() waits on closef() */
+	struct proc	*fdl_leader;	/* owner of POSIX locks */
+	/* Circular list */
+	struct filedesc_to_leader *fdl_prev;
+	struct filedesc_to_leader *fdl_next;
 };
 
 /*
@@ -152,6 +173,11 @@ int	fsetown __P((pid_t, struct sigio **));
 void	funsetown __P((struct sigio *));
 void	funsetownlst __P((struct sigiolst *));
 void	setugidsafety __P((struct proc *p));
+
+struct filedesc_to_leader *
+filedesc_to_leader_alloc(struct filedesc_to_leader *old,
+			 struct proc *leader);
+
 #endif
 
 #endif

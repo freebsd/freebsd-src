@@ -321,6 +321,7 @@ proc0_init(void *dummy __unused)
 	/* Create the file descriptor table. */
 	fdp = &filedesc0;
 	p->p_fd = &fdp->fd_fd;
+	p->p_fdtol = NULL;
 	fdp->fd_fd.fd_refcnt = 1;
 	fdp->fd_fd.fd_cmask = cmask;
 	fdp->fd_fd.fd_ofiles = fdp->fd_dfiles;

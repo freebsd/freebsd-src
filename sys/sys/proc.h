@@ -129,6 +129,7 @@ struct	proc {
 	/* substructures: */
 	struct	pcred *p_cred;		/* Process owner's identity. */
 	struct	filedesc *p_fd;		/* Ptr to open files structure. */
+	struct filedesc_to_leader *p_fdtol; /* Ptr to tracking node */
 	struct	pstats *p_stats;	/* Accounting/statistics (PROC ONLY). */
 	struct	plimit *p_limit;	/* Process limits. */
 	struct	vm_object *p_upages_obj;/* Upages object */

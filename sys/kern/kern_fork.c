@@ -130,13 +130,6 @@ rfork(p, uap)
 	int error;
 	struct proc *p2;
 
-	/* 
-	 * Don't allow sharing of file descriptor table unless
-	 * RFTHREAD flag is supplied
-	 */
-	if ((uap->flags & (RFPROC | RFTHREAD | RFFDG | RFCFDG)) ==
-	    RFPROC)
-		return(EINVAL);
 	error = fork1(p, uap->flags, &p2);
 	if (error == 0) {
 		p->p_retval[0] = p2 ? p2->p_pid : 0;
@@ -193,6 +186,7 @@ fork1(p1, flags, procp)
 	int ok;
 	static int pidchecked = 0;
 	struct forklist *ep;
+	struct filedesc_to_leader *fdtol;
 
 	if ((flags & (RFFDG|RFCFDG)) == (RFFDG|RFCFDG))
 		return (EINVAL);
@@ -417,12 +411,35 @@ again:
 	if (p2->p_textvp)
 		VREF(p2->p_textvp);
 
-	if (flags & RFCFDG)
+	if (flags & RFCFDG) {
 		p2->p_fd = fdinit(p1);
-	else if (flags & RFFDG)
+		fdtol = NULL;
+	} else if (flags & RFFDG) {
 		p2->p_fd = fdcopy(p1);
-	else
+		fdtol = NULL;
+	} else {
 		p2->p_fd = fdshare(p1);
+		if (p1->p_fdtol == NULL)
+			p1->p_fdtol =
+				filedesc_to_leader_alloc(NULL,
+							 p1->p_leader);
+		if ((flags & RFTHREAD) != 0) {
+			/*
+			 * Shared file descriptor table and
+			 * shared process leaders.
+			 */
+			fdtol = p1->p_fdtol;
+			fdtol->fdl_refcount++;
+		} else {
+			/* 
+			 * Shared file descriptor table, and
+			 * different process leaders 
+			 */
+			fdtol = filedesc_to_leader_alloc(p1->p_fdtol,
+							 p2);
+		}
+	}
+	p2->p_fdtol = fdtol;
 
 	/*
 	 * If p_limit is still copy-on-write, bump refcnt,

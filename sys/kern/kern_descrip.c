@@ -63,6 +63,8 @@
 #include <vm/vm_extern.h>
 
 static MALLOC_DEFINE(M_FILEDESC, "file desc", "Open file descriptor table");
+static MALLOC_DEFINE(M_FILEDESC_TO_LEADER, "file desc to leader",
+		     "file desc to leader structures");
 MALLOC_DEFINE(M_FILE, "file", "Open file structure");
 static MALLOC_DEFINE(M_SIGIO, "sigio", "sigio structures");
 
@@ -393,6 +395,7 @@ do_dup(fdp, old, new, retval, p)
 {
 	struct file *fp;
 	struct file *delfp;
+	int holdleaders;
 
 	/*
 	 * Save info on the descriptor being overwritten.  We have
@@ -400,6 +403,15 @@ do_dup(fdp, old, new, retval, p)
 	 * introducing an ownership race for the slot.
 	 */
 	delfp = fdp->fd_ofiles[new];
+	if (delfp != NULL && p->p_fdtol != NULL) {
+		/*
+		 * Ask fdfree() to sleep to ensure that all relevant
+		 * process leaders can be traversed in closef().
+		 */
+		fdp->fd_holdleaderscount++;
+		holdleaders = 1;
+	} else
+		holdleaders = 0;
 #if 0
 	if (delfp && (fdp->fd_ofileflags[new] & UF_MAPPED))
 		(void) munmapfd(p, new);
@@ -421,8 +433,17 @@ do_dup(fdp, old, new, retval, p)
 	 * and must dispose of it using closef() semantics (as if a
 	 * close() were performed on it).
 	 */
-	if (delfp)
+	if (delfp) {
 		(void) closef(delfp, p);
+		if (holdleaders) {
+			fdp->fd_holdleaderscount--;
+			if (fdp->fd_holdleaderscount == 0 &&
+			    fdp->fd_holdleaderswakeup != 0) {
+				fdp->fd_holdleaderswakeup = 0;
+				wakeup(&fdp->fd_holdleaderscount);
+			}
+		}
+	}
 	return (0);
 }
 
@@ -567,6 +588,8 @@ close(p, uap)
 	register struct filedesc *fdp = p->p_fd;
 	register struct file *fp;
 	register int fd = uap->fd;
+	int error;
+	int holdleaders;
 
 	if ((unsigned)fd >= fdp->fd_nfiles ||
 	    (fp = fdp->fd_ofiles[fd]) == NULL)
@@ -577,6 +600,15 @@ close(p, uap)
 #endif
 	fdp->fd_ofiles[fd] = NULL;
 	fdp->fd_ofileflags[fd] = 0;
+	holdleaders = 0;
+	if (p->p_fdtol != NULL) {
+		/*
+		 * Ask fdfree() to sleep to ensure that all relevant
+		 * process leaders can be traversed in closef().
+		 */
+		fdp->fd_holdleaderscount++;
+		holdleaders = 1;
+	}
 
 	/*
 	 * we now hold the fp reference that used to be owned by the descriptor
@@ -588,7 +620,16 @@ close(p, uap)
 		fdp->fd_freefile = fd;
 	if (fd < fdp->fd_knlistsize)
 		knote_fdclose(p, fd);
-	return (closef(fp, p));
+	error = closef(fp, p);
+	if (holdleaders) {
+		fdp->fd_holdleaderscount--;
+		if (fdp->fd_holdleaderscount == 0 &&
+		    fdp->fd_holdleaderswakeup != 0) {
+			fdp->fd_holdleaderswakeup = 0;
+			wakeup(&fdp->fd_holdleaderscount);
+		}
+	}
+	return (error);
 }
 
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
@@ -1054,11 +1095,81 @@ fdfree(p)
 	register struct filedesc *fdp = p->p_fd;
 	struct file **fpp;
 	register int i;
+	struct filedesc_to_leader *fdtol;
+	struct file *fp;
+	struct vnode *vp;
+	struct flock lf;
 
 	/* Certain daemons might not have file descriptors. */
 	if (fdp == NULL)
 		return;
 
+	/* Check for special need to clear POSIX style locks */
+	fdtol = p->p_fdtol;
+	if (fdtol != NULL) {
+		KASSERT(fdtol->fdl_refcount > 0,
+			("filedesc_to_refcount botch: fdl_refcount=%d",
+			 fdtol->fdl_refcount));
+		if (fdtol->fdl_refcount == 1 &&
+		    (p->p_leader->p_flag & P_ADVLOCK) != 0) {
+			i = 0;
+			fpp = fdp->fd_ofiles;
+			for (i = 0, fpp = fdp->fd_ofiles;
+			     i < fdp->fd_lastfile;
+			     i++, fpp++) {
+				if (*fpp == NULL ||
+				    (*fpp)->f_type != DTYPE_VNODE)
+					continue;
+				fp = *fpp;
+				fhold(fp);
+				lf.l_whence = SEEK_SET;
+				lf.l_start = 0;
+				lf.l_len = 0;
+				lf.l_type = F_UNLCK;
+				vp = (struct vnode *)fp->f_data;
+				(void) VOP_ADVLOCK(vp,
+						   (caddr_t)p->p_leader,
+						   F_UNLCK,
+						   &lf,
+						   F_POSIX);
+				fdrop(fp, p);
+				fpp = fdp->fd_ofiles + i;
+			}
+		}
+	retry:
+		if (fdtol->fdl_refcount == 1) {
+			if (fdp->fd_holdleaderscount > 0 &&
+			    (p->p_leader->p_flag & P_ADVLOCK) != 0) {
+				/*
+				 * close() or do_dup() has cleared a reference
+				 * in a shared file descriptor table.
+				 */
+				fdp->fd_holdleaderswakeup = 1;
+				tsleep(&fdp->fd_holdleaderscount,
+				       PLOCK, "fdlhold", 0);
+				goto retry;
+			}
+			if (fdtol->fdl_holdcount > 0) {
+				/* 
+				 * Ensure that fdtol->fdl_leader
+				 * remains valid in closef().
+				 */
+				fdtol->fdl_wakeup = 1;
+				tsleep(fdtol, PLOCK, "fdlhold", 0);
+				goto retry;
+			}
+		}
+		fdtol->fdl_refcount--;
+		if (fdtol->fdl_refcount == 0 &&
+		    fdtol->fdl_holdcount == 0) {
+			fdtol->fdl_next->fdl_prev = fdtol->fdl_prev;
+			fdtol->fdl_prev->fdl_next = fdtol->fdl_next;
+		} else
+			fdtol = NULL;
+		p->p_fdtol = NULL;
+		if (fdtol != NULL)
+			FREE(fdtol, M_FILEDESC_TO_LEADER);
+	}
 	if (--fdp->fd_refcnt > 0)
 		return;
 	/*
@@ -1267,6 +1378,7 @@ closef(fp, p)
 {
 	struct vnode *vp;
 	struct flock lf;
+	struct filedesc_to_leader *fdtol;
 
 	if (fp == NULL)
 		return (0);
@@ -1278,14 +1390,46 @@ closef(fp, p)
 	 * If the descriptor was in a message, POSIX-style locks
 	 * aren't passed with the descriptor.
 	 */
-	if (p != NULL && (p->p_leader->p_flag & P_ADVLOCK) != 0 &&
+	if (p != NULL && 
 	    fp->f_type == DTYPE_VNODE) {
-		lf.l_whence = SEEK_SET;
-		lf.l_start = 0;
-		lf.l_len = 0;
-		lf.l_type = F_UNLCK;
-		vp = (struct vnode *)fp->f_data;
-		(void) VOP_ADVLOCK(vp, (caddr_t)p->p_leader, F_UNLCK, &lf, F_POSIX);
+		if ((p->p_leader->p_flag & P_ADVLOCK) != 0) {
+			lf.l_whence = SEEK_SET;
+			lf.l_start = 0;
+			lf.l_len = 0;
+			lf.l_type = F_UNLCK;
+			vp = (struct vnode *)fp->f_data;
+			(void) VOP_ADVLOCK(vp, (caddr_t)p->p_leader, F_UNLCK,
+					   &lf, F_POSIX);
+		}
+		fdtol = p->p_fdtol;
+		if (fdtol != NULL) {
+			/*
+			 * Handle special case where file descriptor table
+			 * is shared between multiple process leaders.
+			 */
+			for (fdtol = fdtol->fdl_next;
+			     fdtol != p->p_fdtol;
+			     fdtol = fdtol->fdl_next) {
+				if ((fdtol->fdl_leader->p_flag &
+				     P_ADVLOCK) == 0)
+					continue;
+				fdtol->fdl_holdcount++;
+				lf.l_whence = SEEK_SET;
+				lf.l_start = 0;
+				lf.l_len = 0;
+				lf.l_type = F_UNLCK;
+				vp = (struct vnode *)fp->f_data;
+				(void) VOP_ADVLOCK(vp,
+						   (caddr_t)p->p_leader,
+						   F_UNLCK, &lf, F_POSIX);
+				fdtol->fdl_holdcount--;
+				if (fdtol->fdl_holdcount == 0 &&
+				    fdtol->fdl_wakeup != 0) {
+					fdtol->fdl_wakeup = 0;
+					wakeup(fdtol);
+				}
+			}
+		}
 	}
 	return (fdrop(fp, p));
 }
@@ -1498,6 +1642,33 @@ dupfdopen(p, fdp, indx, dfd, mode, error)
 		return (error);
 	}
 	/* NOTREACHED */
+}
+
+
+struct filedesc_to_leader *
+filedesc_to_leader_alloc(struct filedesc_to_leader *old,
+			 struct proc *leader)
+{
+	struct filedesc_to_leader *fdtol;
+	
+	MALLOC(fdtol, struct filedesc_to_leader *,
+	       sizeof(struct filedesc_to_leader),
+	       M_FILEDESC_TO_LEADER,
+	       M_WAITOK);
+	fdtol->fdl_refcount = 1;
+	fdtol->fdl_holdcount = 0;
+	fdtol->fdl_wakeup = 0;
+	fdtol->fdl_leader = leader;
+	if (old != NULL) {
+		fdtol->fdl_next = old->fdl_next;
+		fdtol->fdl_prev = old;
+		old->fdl_next = fdtol;
+		fdtol->fdl_next->fdl_prev = fdtol;
+	} else {
+		fdtol->fdl_next = fdtol;
+		fdtol->fdl_prev = fdtol;
+	}
+	return fdtol;
 }
 
 /*
