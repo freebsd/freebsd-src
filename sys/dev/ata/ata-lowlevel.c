@@ -645,10 +645,6 @@ ata_reset(struct ata_channel *ch)
 	DELAY(100000);
     }	
 
-    /* enable interrupt */
-    DELAY(10);
-    ATA_IDX_OUTB(ch, ATA_ALTSTAT, ATA_A_4BIT);
-
     if (stat0 & ATA_S_BUSY)
 	mask &= ~0x01;
     if (stat1 & ATA_S_BUSY)
@@ -732,6 +728,9 @@ ata_command(struct ata_device *atadev, u_int8_t command,
 	ata_prtdev(atadev, "timeout sending command=%02x\n", command);
 	return -1;
     }
+
+    /* enable interrupt */
+    ATA_IDX_OUTB(atadev->channel, ATA_ALTSTAT, ATA_A_4BIT);
 
     /* only use 48bit addressing if needed (avoid bugs and overhead) */
     if ((lba > 268435455 || count > 256) && atadev->param && 
