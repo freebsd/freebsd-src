@@ -29,14 +29,6 @@
 #ifndef _T4DWAVE_REG_H
 #define _T4DWAVE_REG_H
 
-#define TDX_PCI_ID 	0x20001023
-#define TNX_PCI_ID 	0x20011023
-
-#define TR_BUFFSIZE 	0x8000
-#define TR_TIMEOUT_CDC	0xffff
-#define TR_INTSAMPLES	0x2000
-#define TR_MAXPLAYCH	64
-
 #define TR_REG_CIR	0xa0
 #define 	TR_CIR_MASK	0x0000003f
 #define		TR_CIR_ADDRENA	0x00001000
