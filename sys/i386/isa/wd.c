@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.188 1999/02/10 00:03:36 ken Exp $
+ *	$Id: wd.c,v 1.189 1999/02/20 22:16:13 dt Exp $
  */
 
 /* TODO:
@@ -328,6 +328,7 @@ wdprobe(struct isa_device *dvp)
 	if (inb(du->dk_port + wd_cyl_lo) == 0xff) {     /* XXX too weak */
 #ifdef ATAPI
 		/* There is no master, try the ATAPI slave. */
+		du->dk_unit = 1;
 		outb(du->dk_port + wd_sdh, WDSD_IBM | 0x10);
 		outb(du->dk_port + wd_cyl_lo, 0xa5);
 		if (inb(du->dk_port + wd_cyl_lo) == 0xff)
@@ -2299,8 +2300,9 @@ wdreset(struct disk *du)
 	outb(du->dk_altport, WDCTL_IDS | WDCTL_RST);
 	DELAY(10 * 1000);
 	outb(du->dk_altport, WDCTL_IDS);
+	outb(du->dk_port + wd_sdh, WDSD_IBM | (du->dk_unit << 4));
 #ifdef ATAPI
-	if (wdwait(du, WDCS_READY | WDCS_SEEKCMPLT, TIMEOUT) != 0)
+	if (wdwait(du, 0, TIMEOUT) != 0)
 		err = 1;                /* no IDE drive found */
 	du->dk_error = inb(du->dk_port + wd_error);
 	if (du->dk_error != 0x01)
