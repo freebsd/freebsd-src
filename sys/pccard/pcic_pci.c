@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id$
+ * $Id: pcic_p.c,v 1.5 1998/02/07 20:41:20 nate Exp $
  */
 
 #include "pci.h"
@@ -108,7 +108,7 @@ pcic_pci_attach(pcici_t config_id, int unit)
 		for (j = 0; j < 0x98; j += 16) {
 			printf("%02x: ", j);
 			for (i = 0; i < 16; i += 4)
-				printf(" %08x", pci_conf_read(config_id, i+j));
+				printf(" %08lx", pci_conf_read(config_id, i+j));
 			printf("\n");
 		}
 		p = (u_char *)pmap_mapdev(pci_conf_read(config_id, 0x10),
@@ -117,10 +117,10 @@ pcic_pci_attach(pcici_t config_id, int unit)
 		printf("Cardbus Socket registers:\n");
 		printf("00: ");
 		for (i = 0; i < 4; i += 1)
-			printf(" %08x:", pl[i]);
+			printf(" %08lx:", pl[i]);
 		printf("\n10: ");
 		for (i = 4; i < 8; i += 1)
-			printf(" %08x:", pl[i]);
+			printf(" %08lx:", pl[i]);
 		printf("\nExCa registers:\n");
 		for (i = 0; i < 0x40; i += 16)
 			printf("%02x: %16D\n", i, p + 0x800 + i, " ");
