@@ -2660,7 +2660,7 @@ send_file_list(whichf)
 
 		memset(&gl, 0, sizeof(gl));
 		gl.gl_matchc = MAXGLOBARGS;
-		flags |= GLOB_MAXPATH;
+		flags |= GLOB_LIMIT;
 		freeglob = 1;
 		if (glob(whichf, flags, 0, &gl)) {
 			reply(550, "not found");

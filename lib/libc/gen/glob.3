@@ -260,14 +260,16 @@ character, avoiding any special interpretation of the character.
 Expand patterns that start with
 .Ql ~
 to user name home directories.
-.It Dv GLOB_MAXPATH
+.It Dv GLOB_LIMIT
 Limit the total number of returned pathnames to the value provided in
-.Fa gl_matchc .
-If
-.Fn glob
-would match more pathnames,
-.Dv GLOB_LIMIT
-will be returned.
+.Fa gl_matchc
+(default
+.Dv ARG_MAX ) .
+This option should be set for programs
+that can be coerced into a denial of service attack
+via patterns that expand to a very large number of matches,
+such as a long string of
+.Ql */../*/.. .
 .El
 .Pp
 If, during the search, a directory is encountered that cannot be opened
@@ -377,21 +379,19 @@ file
 .Aq Pa glob.h :
 .Bl -tag -width GLOB_NOCHECK
 .It Dv GLOB_NOSPACE
-An attempt to allocate memory failed.
+An attempt to allocate memory failed, or if
+.Fa errno
+was 0
+.Dv GLOB_LIMIT
+was specified in the flags and
+.Fa pglob\->gl_matchc
+or more patterns were matched.
 .It Dv GLOB_ABEND
 The scan was stopped because an error was encountered and either
 .Dv GLOB_ERR
 was set or
 .Fa \*(lp*errfunc\*(rp\*(lp\*(rp
 returned non-zero.
-.It Dv GLOB_LIMIT
-The flag
-.Dv GLOB_MAXPATH
-was provided, and the specified limit passed to
-.Fn glob
-in
-.Fa pglob\->gl_matchc
-was reached.
 .El
 .Pp
 The arguments
@@ -427,8 +427,8 @@ compatible with the exception
 that the flags
 .Dv GLOB_ALTDIRFUNC ,
 .Dv GLOB_BRACE ,
+.Dv GLOB_LIMIT ,
 .Dv GLOB_MAGCHAR ,
-.Dv GLOB_MAXPATH ,
 .Dv GLOB_NOMAGIC ,
 .Dv GLOB_QUOTE ,
 and
