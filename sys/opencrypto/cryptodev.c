@@ -309,7 +309,7 @@ cryptodev_op(
 {
 	struct cryptop *crp = NULL;
 	struct cryptodesc *crde = NULL, *crda = NULL;
-	int i, error;
+	int i, error, s;
 
 	if (cop->len > 256*1024-4)
 		return (E2BIG);
@@ -376,7 +376,8 @@ cryptodev_op(
 	}
 
 	crp->crp_ilen = cop->len;
-	crp->crp_flags = CRYPTO_F_IOV;
+	crp->crp_flags = CRYPTO_F_IOV | CRYPTO_F_CBIMM
+		       | (cop->flags & COP_F_BATCH);
 	crp->crp_buf = (caddr_t)&cse->uio;
 	crp->crp_callback = (int (*) (struct cryptop *)) cryptodev_cb;
 	crp->crp_sid = cse->sid;
@@ -412,9 +413,11 @@ cryptodev_op(
 		crp->crp_mac=cse->tmp_mac;
 	}
 
+	s = splcrypto();	/* NB: only needed with CRYPTO_F_CBIMM */
 	error = crypto_dispatch(crp);
 	if (error == 0)
-		error = tsleep(cse, PSOCK, "crydev", 0);
+		error = tsleep(crp, PSOCK, "crydev", 0);
+	splx(s);
 	if (error)
 		goto bail;
 
@@ -454,7 +457,7 @@ cryptodev_cb(void *op)
 	cse->error = crp->crp_etype;
 	if (crp->crp_etype == EAGAIN)
 		return crypto_dispatch(crp);
-	wakeup_one(cse);
+	wakeup_one(crp);
 	return (0);
 }
 
