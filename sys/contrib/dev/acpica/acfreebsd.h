@@ -162,7 +162,9 @@
 #define ACPI_USE_STANDARD_HEADERS
 #define ACPI_FLUSH_CPU_CACHE()
 #include <sys/types.h>
+#if __STDC_HOSTED__
 #include <ctype.h>
+#endif
 
 #define __cli()
 #define __sti()
