@@ -163,9 +163,9 @@ pathname_levels (path)
 }
 
 
-/*
- * Recover the space allocated by line2argv()
- */
+/* Free a vector, where (*ARGV)[0], (*ARGV)[1], ... (*ARGV)[*PARGC - 1]
+   are malloc'd and so is *ARGV itself.  Such a vector is allocated by
+   line2argv or expand_wild, for example.  */
 void
 free_names (pargc, argv)
     int *pargc;

@@ -51,6 +51,13 @@ read_cvsrc (argc, argv, cmdname)
     int max_new_argv;
     char **new_argv;
 
+    /* old_argc and old_argv hold the values returned from the
+       previous invocation of read_cvsrc and are used to free the
+       allocated memory.  The first invocation of read_cvsrc gets argv
+       from the system, this memory must not be free'd.  */
+    static int old_argc = 0;
+    static char **old_argv = NULL;
+
     /* don't do anything if argc is -1, since that implies "help" mode */
     if (*argc == -1)
 	return;
@@ -134,11 +141,18 @@ read_cvsrc (argc, argv, cmdname)
     }
     for (i=1; i < *argc; i++)
     {
-	new_argv [new_argc++] = (*argv)[i];
+	new_argv [new_argc++] = xstrdup ((*argv)[i]);
     }
 
-    *argc = new_argc;
-    *argv = new_argv;
+    if (old_argv != NULL)
+    {
+	/* Free the memory which was allocated in the previous
+           read_cvsrc call.  */
+	free_names (&old_argc, old_argv);
+    }
+
+    old_argc = *argc = new_argc;
+    old_argv = *argv = new_argv;
 
     free (homeinit);
     return;

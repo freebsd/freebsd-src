@@ -135,7 +135,7 @@ checkout (argc, argv)
     ign_setup ();
     wrap_setup ();
 
-    optind = 1;
+    optind = 0;
     while ((c = getopt (argc, argv, valid_options)) != -1)
     {
 	switch (c)

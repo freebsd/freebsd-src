@@ -1,3 +1,10 @@
+17 May 1997  Jim Kingdon
+
+	* listen2.c: Failed attempt at making this do what it was
+	intended to do.  Will need to rethink the approach.
+	* listen2.mak: The usual involuntary tweaks.
+	* .cvsignore: Add listen2.ncb listen2.mdp.
+
 Mon May 12 11:59:23 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
 	* listener.c: Removed; see ../ChangeLog for rationale.

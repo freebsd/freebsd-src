@@ -256,7 +256,7 @@ watch_addremove (argc, argv)
     the_args.commit = 0;
     the_args.edit = 0;
     the_args.unedit = 0;
-    optind = 1;
+    optind = 0;
     while ((c = getopt (argc, argv, "+lRa:")) != -1)
     {
 	switch (c)
@@ -485,7 +485,7 @@ watchers (argc, argv)
     if (argc == -1)
 	usage (watchers_usage);
 
-    optind = 1;
+    optind = 0;
     while ((c = getopt (argc, argv, "+lR")) != -1)
     {
 	switch (c)

@@ -54,6 +54,7 @@ Parse_Info (infofile, repository, callproc, all)
 	/* If no file, don't do anything special.  */
 	if (!existence_error (errno))
 	    error (0, errno, "cannot open %s", infopath);
+	free (infopath);
 	return 0;
     }
 
@@ -105,6 +106,8 @@ Parse_Info (infofile, repository, callproc, all)
 	if ((cp = strrchr (value, '\n')) != NULL)
 	    *cp = '\0';
 
+	if (expanded_value != NULL)
+	    free (expanded_value);
 	expanded_value = expand_path (value, infofile, line_number);
 	if (!expanded_value)
 	{
@@ -121,6 +124,10 @@ Parse_Info (infofile, repository, callproc, all)
 	/* save the default value so we have it later if we need it */
 	if (strcmp (exp, "DEFAULT") == 0)
 	{
+	    /* Is it OK to silently ignore all but the last DEFAULT
+               expression?  */
+	    if (default_value != NULL)
+		free (default_value);
 	    default_value = xstrdup (expanded_value);
 	    continue;
 	}
