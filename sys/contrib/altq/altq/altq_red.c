@@ -1,3 +1,4 @@
+/*	$FreeBSD$	*/
 /*	$KAME: altq_red.c,v 1.18 2003/09/05 22:40:36 itojun Exp $	*/
 
 /*
@@ -210,7 +211,9 @@ static __inline struct fve *flowlist_reclaim(struct flowvalve *,
 					     struct altq_pktattr *);
 static __inline void flowlist_move_to_head(struct flowvalve *, struct fve *);
 static __inline int fv_p2f(struct flowvalve *, int);
+#if 0 /* XXX: make the compiler happy (fv_alloc unused) */
 static struct flowvalve *fv_alloc(struct red *);
+#endif
 static void fv_destroy(struct flowvalve *);
 static int fv_checkflow(struct flowvalve *, struct altq_pktattr *,
 			struct fve **);
@@ -1034,6 +1037,8 @@ red_enqueue(ifq, m, pktattr)
 {
 	red_queue_t *rqp = (red_queue_t *)ifq->altq_disc;
 
+	IFQ_LOCK_ASSERT(ifq);
+
 	if (red_addq(rqp->rq_red, rqp->rq_q, m, pktattr) < 0)
 		return ENOBUFS;
 	ifq->ifq_len++;
@@ -1056,6 +1061,8 @@ red_dequeue(ifq, op)
 	red_queue_t *rqp = (red_queue_t *)ifq->altq_disc;
 	struct mbuf *m;
 
+	IFQ_LOCK_ASSERT(ifq);
+
 	if (op == ALTDQ_POLL)
 		return qhead(rqp->rq_q);
 
@@ -1073,6 +1080,8 @@ red_request(ifq, req, arg)
 	void *arg;
 {
 	red_queue_t *rqp = (red_queue_t *)ifq->altq_disc;
+
+	IFQ_LOCK_ASSERT(ifq);
 
 	switch (req) {
 	case ALTRQ_PURGE:
@@ -1277,6 +1286,7 @@ flowlist_move_to_head(fv, fve)
 	}
 }
 
+#if 0 /* XXX: make the compiler happy (fv_alloc unused) */
 /*
  * allocate flowvalve structure
  */
@@ -1335,6 +1345,7 @@ fv_alloc(rp)
 
 	return (fv);
 }
+#endif
 
 static void fv_destroy(fv)
 	struct flowvalve *fv;

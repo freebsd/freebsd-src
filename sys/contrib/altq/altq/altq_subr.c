@@ -1,3 +1,4 @@
+/*	$FreeBSD$	*/
 /*	$KAME: altq_subr.c,v 1.21 2003/11/06 06:32:53 kjc Exp $	*/
 
 /*
@@ -131,6 +132,7 @@ altq_lookup(name, type)
 	struct ifnet *ifp;
 
 	if ((ifp = ifunit(name)) != NULL) {
+		/* read if_snd unlocked */
 		if (type != ALTQT_NONE && ifp->if_snd.altq_type == type)
 			return (ifp->if_snd.altq_disc);
 	}
@@ -149,8 +151,11 @@ altq_attach(ifq, type, discipline, enqueue, dequeue, request, clfier, classify)
 	void *clfier;
 	void *(*classify)(void *, struct mbuf *, int);
 {
-	if (!ALTQ_IS_READY(ifq))
+	IFQ_LOCK(ifq);
+	if (!ALTQ_IS_READY(ifq)) {
+		IFQ_UNLOCK(ifq);
 		return ENXIO;
+	}
 
 #ifdef ALTQ3_COMPAT
 	/*
@@ -158,10 +163,14 @@ altq_attach(ifq, type, discipline, enqueue, dequeue, request, clfier, classify)
 	 * check these if clfier is not NULL (which implies altq3).
 	 */
 	if (clfier != NULL) {
-		if (ALTQ_IS_ENABLED(ifq))
+		if (ALTQ_IS_ENABLED(ifq)) {
+			IFQ_UNLOCK(ifq);
 			return EBUSY;
-		if (ALTQ_IS_ATTACHED(ifq))
+		}
+		if (ALTQ_IS_ATTACHED(ifq)) {
+			IFQ_UNLOCK(ifq);
 			return EEXIST;
+		}
 	}
 #endif
 	ifq->altq_type     = type;
@@ -177,6 +186,7 @@ altq_attach(ifq, type, discipline, enqueue, dequeue, request, clfier, classify)
 	altq_module_incref(type);
 #endif
 #endif
+	IFQ_UNLOCK(ifq);
 	return 0;
 }
 
@@ -184,12 +194,20 @@ int
 altq_detach(ifq)
 	struct ifaltq *ifq;
 {
-	if (!ALTQ_IS_READY(ifq))
+	IFQ_LOCK(ifq);
+
+	if (!ALTQ_IS_READY(ifq)) {
+		IFQ_UNLOCK(ifq);
 		return ENXIO;
-	if (ALTQ_IS_ENABLED(ifq))
+	}
+	if (ALTQ_IS_ENABLED(ifq)) {
+		IFQ_UNLOCK(ifq);
 		return EBUSY;
-	if (!ALTQ_IS_ATTACHED(ifq))
+	}
+	if (!ALTQ_IS_ATTACHED(ifq)) {
+		IFQ_UNLOCK(ifq);
 		return (0);
+	}
 #ifdef ALTQ3_COMPAT
 #ifdef ALTQ_KLD
 	altq_module_declref(ifq->altq_type);
@@ -204,6 +222,8 @@ altq_detach(ifq)
 	ifq->altq_clfier   = NULL;
 	ifq->altq_classify = NULL;
 	ifq->altq_flags &= ALTQF_CANTCHANGE;
+
+	IFQ_UNLOCK(ifq);
 	return 0;
 }
 
@@ -213,23 +233,30 @@ altq_enable(ifq)
 {
 	int s;
 
-	if (!ALTQ_IS_READY(ifq))
+	IFQ_LOCK(ifq);
+
+	if (!ALTQ_IS_READY(ifq)) {
+		IFQ_UNLOCK(ifq);
 		return ENXIO;
-	if (ALTQ_IS_ENABLED(ifq))
+	}
+	if (ALTQ_IS_ENABLED(ifq)) {
+		IFQ_UNLOCK(ifq);
 		return 0;
+	}
 
 #ifdef __NetBSD__
 	s = splnet();
 #else
 	s = splimp();
 #endif
-	IFQ_PURGE(ifq);
+	IFQ_PURGE_NOLOCK(ifq);
 	ASSERT(ifq->ifq_len == 0);
 	ifq->altq_flags |= ALTQF_ENABLED;
 	if (ifq->altq_clfier != NULL)
 		ifq->altq_flags |= ALTQF_CLASSIFY;
 	splx(s);
 
+	IFQ_UNLOCK(ifq);
 	return 0;
 }
 
@@ -239,18 +266,23 @@ altq_disable(ifq)
 {
 	int s;
 
-	if (!ALTQ_IS_ENABLED(ifq))
+	IFQ_LOCK(ifq);
+	if (!ALTQ_IS_ENABLED(ifq)) {
+		IFQ_UNLOCK(ifq);
 		return 0;
+	}
 
 #ifdef __NetBSD__
 	s = splnet();
 #else
 	s = splimp();
 #endif
-	IFQ_PURGE(ifq);
+	IFQ_PURGE_NOLOCK(ifq);
 	ASSERT(ifq->ifq_len == 0);
 	ifq->altq_flags &= ~(ALTQF_ENABLED|ALTQF_CLASSIFY);
 	splx(s);
+	
+	IFQ_UNLOCK(ifq);
 	return 0;
 }
 
@@ -288,6 +320,7 @@ tbr_dequeue(ifq, op)
 	int64_t interval;
 	u_int64_t now;
 
+	IFQ_LOCK_ASSERT(ifq);
 	tbr = ifq->altq_tbr;
 	if (op == ALTDQ_REMOVE && tbr->tbr_lastop == ALTDQ_POLL) {
 		/* if this is a remove after poll, bypass tbr check */
@@ -314,9 +347,9 @@ tbr_dequeue(ifq, op)
 		m = (*ifq->altq_dequeue)(ifq, op);
 	else {
 		if (op == ALTDQ_POLL)
-			IF_POLL(ifq, m);
+			_IF_POLL(ifq, m);
 		else
-			IF_DEQUEUE(ifq, m);
+			_IF_DEQUEUE(ifq, m);
 	}
 
 	if (m != NULL && op == ALTDQ_REMOVE)
@@ -343,19 +376,26 @@ tbr_set(ifq, profile)
 		return (ENXIO);
 	}
 
+	IFQ_LOCK(ifq);
 	if (profile->rate == 0) {
 		/* delete this tbr */
-		if ((tbr = ifq->altq_tbr) == NULL)
+		if ((tbr = ifq->altq_tbr) == NULL) {
+			IFQ_UNLOCK(ifq);
 			return (ENOENT);
+		}
 		ifq->altq_tbr = NULL;
 		FREE(tbr, M_DEVBUF);
+		IFQ_UNLOCK(ifq);
 		return (0);
 	}
 
+	IFQ_UNLOCK(ifq);
 	MALLOC(tbr, struct tb_regulator *, sizeof(struct tb_regulator),
 	       M_DEVBUF, M_WAITOK);
-	if (tbr == NULL)
+	if (tbr == NULL) {		/* can not happen */
+		IFQ_UNLOCK(ifq);
 		return (ENOMEM);
+	}
 	bzero(tbr, sizeof(struct tb_regulator));
 
 	tbr->tbr_rate = TBR_SCALE(profile->rate / 8) / machclk_freq;
@@ -368,6 +408,7 @@ tbr_set(ifq, profile)
 	tbr->tbr_last = read_machclk();
 	tbr->tbr_lastop = ALTDQ_REMOVE;
 
+	IFQ_LOCK(ifq);
 	otbr = ifq->altq_tbr;
 	ifq->altq_tbr = tbr;	/* set the new tbr */
 
@@ -379,12 +420,15 @@ tbr_set(ifq, profile)
 			tbr_timer = 1;
 		}
 	}
+	IFQ_UNLOCK(ifq);
 	return (0);
 }
 
 /*
  * tbr_timeout goes through the interface list, and kicks the drivers
  * if necessary.
+ *
+ * MPSAFE
  */
 static void
 tbr_timeout(arg)
@@ -399,13 +443,20 @@ tbr_timeout(arg)
 #else
 	s = splimp();
 #endif
+#if defined(__FreeBSD__) && (__FreeBSD_version >= 500000)
+	IFNET_RLOCK();
+#endif
 	for (ifp = TAILQ_FIRST(&ifnet); ifp; ifp = TAILQ_NEXT(ifp, if_list)) {
+		/* read from if_snd unlocked */
 		if (!TBR_IS_ENABLED(&ifp->if_snd))
 			continue;
 		active++;
 		if (!IFQ_IS_EMPTY(&ifp->if_snd) && ifp->if_start != NULL)
 			(*ifp->if_start)(ifp);
 	}
+#if defined(__FreeBSD__) && (__FreeBSD_version >= 500000)
+	IFNET_RUNLOCK();
+#endif
 	splx(s);
 	if (active > 0)
 		CALLOUT_RESET(&tbr_callout, 1, tbr_timeout, (void *)0);
@@ -437,6 +488,7 @@ tbr_get(ifq, profile)
 {
 	struct tb_regulator *tbr;
 
+	IFQ_LOCK(ifq);
 	if ((tbr = ifq->altq_tbr) == NULL) {
 		profile->rate = 0;
 		profile->depth = 0;
@@ -445,12 +497,15 @@ tbr_get(ifq, profile)
 		    (u_int)TBR_UNSCALE(tbr->tbr_rate * 8 * machclk_freq);
 		profile->depth = (u_int)TBR_UNSCALE(tbr->tbr_depth);
 	}
+	IFQ_UNLOCK(ifq);
 	return (0);
 }
 
 /*
  * attach a discipline to the interface.  if one already exists, it is
  * overridden.
+ * Locking is done in the discipline specific attach functions. Basically
+ * they call back to altq_attach which takes care of the attach and locking.
  */
 int
 altq_pfattach(struct pf_altq *a)
@@ -497,6 +552,7 @@ altq_pfdetach(struct pf_altq *a)
 		return (EINVAL);
 
 	/* if this discipline is no longer referenced, just return */
+	/* read unlocked from if_snd */
 	if (a->altq_disc == NULL || a->altq_disc != ifp->if_snd.altq_disc)
 		return (0);
 
@@ -505,6 +561,7 @@ altq_pfdetach(struct pf_altq *a)
 #else
 	s = splimp();
 #endif
+	/* read unlocked from if_snd, _disable and _detach take care */
 	if (ALTQ_IS_ENABLED(&ifp->if_snd))
 		error = altq_disable(&ifp->if_snd);
 	if (error == 0)
@@ -516,6 +573,8 @@ altq_pfdetach(struct pf_altq *a)
 
 /*
  * add a discipline or a queue
+ * Locking is done in the discipline specific functions with regards to
+ * malloc with WAITOK, also it is not yet clear which lock to use.
  */
 int
 altq_add(struct pf_altq *a)
@@ -555,6 +614,8 @@ altq_add(struct pf_altq *a)
 
 /*
  * remove a discipline or a queue
+ * It is yet unclear what lock to use to protect this operation, the
+ * discipline specific functions will determine and grab it
  */
 int
 altq_remove(struct pf_altq *a)
@@ -589,6 +650,8 @@ altq_remove(struct pf_altq *a)
 
 /*
  * add a queue to the discipline
+ * It is yet unclear what lock to use to protect this operation, the
+ * discipline specific functions will determine and grab it
  */
 int
 altq_add_queue(struct pf_altq *a)
@@ -620,6 +683,8 @@ altq_add_queue(struct pf_altq *a)
 
 /*
  * remove a queue from the discipline
+ * It is yet unclear what lock to use to protect this operation, the
+ * discipline specific functions will determine and grab it
  */
 int
 altq_remove_queue(struct pf_altq *a)
@@ -651,6 +716,8 @@ altq_remove_queue(struct pf_altq *a)
 
 /*
  * get queue statistics
+ * Locking is done in the discipline specific functions with regards to
+ * copyout operations, also it is not yet clear which lock to use.
  */
 int
 altq_getqstats(struct pf_altq *a, void *ubuf, int *nbytes)

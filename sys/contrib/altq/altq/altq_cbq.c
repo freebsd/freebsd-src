@@ -1,3 +1,4 @@
+/*	$FreeBSD$	*/
 /*	$KAME: altq_cbq.c,v 1.19 2003/09/17 14:23:25 kjc Exp $	*/
 
 /*
@@ -197,6 +198,8 @@ static int
 cbq_request(struct ifaltq *ifq, int req, void *arg)
 {
 	cbq_state_t	*cbqp = (cbq_state_t *)ifq->altq_disc;
+
+	IFQ_LOCK_ASSERT(ifq);
 
 	switch (req) {
 	case ALTRQ_PURGE:
@@ -500,10 +503,13 @@ cbq_enqueue(struct ifaltq *ifq, struct mbuf *m, struct altq_pktattr *pktattr)
 	struct m_tag	*t;
 	int		 len;
 
+	IFQ_LOCK_ASSERT(ifq);
+
 	/* grab class set by classifier */
 	if ((m->m_flags & M_PKTHDR) == 0) {
 		/* should not happen */
-#if defined(__NetBSD__) || defined(__OpenBSD__)
+#if defined(__NetBSD__) || defined(__OpenBSD__)\
+    || (defined(__FreeBSD__) && __FreeBSD_version >= 501113)
 		printf("altq: packet for %s does not have pkthdr\n",
 		    ifq->altq_ifp->if_xname);
 #else
@@ -552,6 +558,8 @@ cbq_dequeue(struct ifaltq *ifq, int op)
 	cbq_state_t	*cbqp = (cbq_state_t *)ifq->altq_disc;
 	struct mbuf	*m;
 
+	IFQ_LOCK_ASSERT(ifq);
+
 	m = rmc_dequeue_next(&cbqp->ifnp, op);
 
 	if (m && op == ALTDQ_REMOVE) {
@@ -578,6 +586,8 @@ cbqrestart(struct ifaltq *ifq)
 	cbq_state_t	*cbqp;
 	struct ifnet	*ifp;
 
+	IFQ_LOCK_ASSERT(ifq);
+
 	if (!ALTQ_IS_ENABLED(ifq))
 		/* cbq must have been detached */
 		return;
@@ -588,8 +598,11 @@ cbqrestart(struct ifaltq *ifq)
 
 	ifp = ifq->altq_ifp;
 	if (ifp->if_start &&
-	    cbqp->cbq_qlen > 0 && (ifp->if_flags & IFF_OACTIVE) == 0)
+	    cbqp->cbq_qlen > 0 && (ifp->if_flags & IFF_OACTIVE) == 0) {
+	    	IFQ_UNLOCK(ifq);
 		(*ifp->if_start)(ifp);
+		IFQ_LOCK(ifq);
+	}
 }
 
 static void cbq_purge(cbq_state_t *cbqp)
@@ -1014,7 +1027,8 @@ cbqclose(dev, flag, fmt, p)
 
 	while (cbq_list) {
 		ifp = cbq_list->ifnp.ifq_->altq_ifp;
-#if defined(__NetBSD__) || defined(__OpenBSD__)
+#if defined(__NetBSD__) || defined(__OpenBSD__)\
+    || (defined(__FreeBSD__) && __FreeBSD_version >= 501113)
 		sprintf(iface.cbq_ifacename, "%s", ifp->if_xname);
 #else
 		sprintf(iface.cbq_ifacename,
