@@ -1221,7 +1221,7 @@ Cell *split(Node **a, int nnn)	/* split(a[0], a[1], a[2]); a[3] is type */
 	ap->sval = (char *) makesymtab(NSYMTAB);
 
 	n = 0;
-	if ((*s != '\0' && strlen(fs) > 1) || arg3type == REGEXPR) {	/* reg expr */
+	if (*s != '\0' && (strlen(fs) > 1 || arg3type == REGEXPR)) {	/* reg expr */
 		fa *pfa;
 		if (arg3type == REGEXPR) {	/* it's ready already */
 			pfa = (fa *) a[2];
