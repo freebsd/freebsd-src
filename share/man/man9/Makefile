@@ -29,6 +29,7 @@ MAN=	BUF_LOCK.9 BUF_LOCKFREE.9 BUF_LOCKINIT.9 BUF_REFCNT.9 \
 	bus_set_resource.9 \
 	byteorder.9 \
 	cd.9 cdevsw_add.9 cdevsw_remove.9 condvar.9 copy.9 \
+	cr_seeothergids.9 cr_seeotheruids.9 \
 	critical_enter.9 crypto.9 \
 	devclass.9 devclass_add_driver.9 devclass_find.9 \
 	devclass_get_device.9 devclass_get_devices.9 \
@@ -59,7 +60,7 @@ MAN=	BUF_LOCK.9 BUF_LOCKFREE.9 BUF_LOCKINIT.9 BUF_REFCNT.9 \
 	mi_switch.9 microseq.9 microtime.9 microuptime.9 \
 	module.9 mtx_pool.9 mutex.9 \
 	namei.9 \
-	panic.9 pbuf.9 pci.9 pfil.9 pfind.9 pgfind.9 \
+	p_candebug.9 panic.9 pbuf.9 pci.9 pfil.9 pfind.9 pgfind.9 \
 	physio.9 printf.9 pseudofs.9 psignal.9 \
 	pmap.9 pmap_activate.9 pmap_addr_hint.9 pmap_change_wiring.9 \
 	pmap_clear_modify.9 pmap_copy.9 pmap_enter.9 pmap_extract.9 \
@@ -68,6 +69,7 @@ MAN=	BUF_LOCK.9 BUF_LOCKFREE.9 BUF_LOCKINIT.9 BUF_REFCNT.9 \
 	pmap_mincore.9 pmap_object_init_pt.9 pmap_page_exists_quick.9 \
 	pmap_page_protect.9 pmap_pinit.9 pmap_qenter.9 \
 	pmap_release.9 pmap_remove.9 pmap_resident_count.9 pmap_zero_page.9 \
+	prison_check.9 \
 	random.9 resettodr.9 resource_int_value.9 \
 	rtalloc.9 rtentry.9 runqueue.9  random_harvest.9 rijndael.9 \
 	rman.9 \
