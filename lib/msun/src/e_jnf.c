@@ -14,7 +14,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: e_jnf.c,v 1.2 1994/08/18 23:05:39 jtc Exp $";
+static char rcsid[] = "$Id: e_jnf.c,v 1.1.1.1 1994/08/19 09:39:55 jkh Exp $";
 #endif
 
 #include "math.h"
@@ -192,7 +192,7 @@ static float zero  =  0.0000000000e+00;
 	sign = 1;
 	if(n<0){
 		n = -n;
-		sign = 1 - ((n&1)<<2);
+		sign = 1 - ((n&1)<<1);
 	}
 	if(n==0) return(__ieee754_y0f(x));
 	if(n==1) return(sign*__ieee754_y1f(x));
