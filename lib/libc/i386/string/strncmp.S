@@ -33,7 +33,7 @@
         .asciz "$FreeBSD$"
 #endif /* LIBC_RCS and not lint */
 
-#include "DEFS.h"
+#include <machine/asm.h>
 
 /*
  * strncmp(s1, s2, n)
