@@ -3,6 +3,7 @@
 #
 # Make command line options:
 #	-DMAKE_KERBEROS4 to build KerberosIV
+#	-DMAKE_KERBEROS5 to build Kerberos5
 #	-DNOCLEANDIR run ${MAKE} clean, instead of ${MAKE} cleandir
 #	-DNOCLEAN do not clean at all
 #	-DNOCRYPT will prevent building of crypt versions
