@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.51 1997/05/29 02:29:12 brian Exp $
+ * $Id: command.c,v 1.52 1997/05/31 16:37:19 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -372,6 +372,21 @@ static int ShowLogList()
   return(1);
 }
 
+static int ShowInitialMRU()
+{
+  printf(" Initial MRU: %ld\n", VarMRU);
+  return(1);
+}
+
+static int ShowPreferredMTU()
+{
+  if (VarPrefMTU)
+    printf(" Preferred MTU: %ld\n", VarPrefMTU);
+  else
+    printf(" Preferred MTU: unspecified\n");
+  return(1);
+}
+
 static int ShowReconnect()
 {
   printf(" Reconnect Timer:  %d,  %d tries\n",
@@ -451,6 +466,10 @@ struct cmdtab const ShowCommands[] = {
 	"Show memory map", StrNull},
   { "modem",    NULL,     ShowModemStatus,	LOCAL_AUTH,
 	"Show modem setups", StrNull},
+  { "mru",      NULL,     ShowInitialMRU,	LOCAL_AUTH,
+	"Show Initial MRU", StrNull},
+  { "mtu",      NULL,     ShowPreferredMTU,	LOCAL_AUTH,
+	"Show Preferred MTU", StrNull},
   { "ofilter",  NULL,     ShowOfilter,		LOCAL_AUTH,
 	"Show Output filters", StrOption},
   { "proto",    NULL,     ReportProtStatus,	LOCAL_AUTH,
@@ -834,17 +853,43 @@ struct cmdtab *list;
 int argc;
 char **argv;
 {
-  int mru;
+  long mru;
 
   if (argc > 0) {
-    mru = atoi(*argv);
-    if (mru < 100)
-      printf("given value is too small.\n");
+    mru = atol(*argv);
+    if (mru < MIN_MRU)
+      printf("Given MRU value (%ld) is too small.\n", mru);
     else if (mru > MAX_MRU)
-      printf("given value is too big.\n");
+      printf("Given MRU value (%ld) is too big.\n", mru);
     else
       VarMRU = mru;
-  }
+  } else
+    printf("Usage: %s %s\n", list->name, list->syntax);
+
+  return(1);
+}
+
+static int
+SetPreferredMTU(list, argc, argv)
+struct cmdtab *list;
+int argc;
+char **argv;
+{
+  long mtu;
+
+  if (argc > 0) {
+    mtu = atol(*argv);
+    if (mtu == 0)
+      VarPrefMTU = 0;
+    else if (mtu < MIN_MTU)
+      printf("Given MTU value (%ld) is too small.\n", mtu);
+    else if (mtu > MAX_MTU)
+      printf("Given MTU value (%ld) is too big.\n", mtu);
+    else
+      VarPrefMTU = mtu;
+  } else
+    printf("Usage: %s %s\n", list->name, list->syntax);
+
   return(1);
 }
 
@@ -1117,6 +1162,8 @@ struct cmdtab const SetCommands[] = {
 	"Set login script", StrChatStr,	(void *)VAR_LOGIN },
   { "mru",      NULL,     SetInitialMRU,	LOCAL_AUTH,
 	"Set Initial MRU value", StrValue },
+  { "mtu",      NULL,     SetPreferredMTU,	LOCAL_AUTH,
+	"Set Preferred MTU value", StrValue },
   { "ofilter",  NULL,	  SetOfilter,		LOCAL_AUTH,
 	"Set output filter", "..." },
   { "openmode", NULL,	  SetOpenMode,		LOCAL_AUTH,
