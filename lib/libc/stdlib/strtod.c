@@ -222,12 +222,16 @@ extern "C" {
 Only one of IEEE_LITTLE_ENDIAN, IEEE_BIG_ENDIAN, VAX, or IBM should be defined.
 #endif
 
+union doubleasulongs {
+	double x;
+	ULong w[2];
+};
 #ifdef IEEE_LITTLE_ENDIAN
-#define word0(x) ((ULong *)&x)[1]
-#define word1(x) ((ULong *)&x)[0]
+#define word0(x) (((union doubleasulongs *)&x)->w)[1]
+#define word1(x) (((union doubleasulongs *)&x)->w)[0]
 #else
-#define word0(x) ((ULong *)&x)[0]
-#define word1(x) ((ULong *)&x)[1]
+#define word0(x) (((union doubleasulongs *)&x)->w)[0]
+#define word1(x) (((union doubleasulongs *)&x)->w)[1]
 #endif
 
 /* The following definition of Storeinc is appropriate for MIPS processors.
