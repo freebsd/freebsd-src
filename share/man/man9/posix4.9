@@ -68,7 +68,9 @@ appear.
 .Sh PROPERLY HIDING EXTENSIONS
 The following test macros are set up in <sys/_posix.h>.  They should
 used by system header files to avoid the kind of tests you see in
-<sys/_posix.h>.  Source programs should not use these FreeBSD specific
+<sys/_posix.h>.  Source programs should not use these
+.Fx
+specific
 implementation details and should test _POSIX_VERSION, _POSIX_SOURCE
 and _POSIX_C_SOURCE.
 These should not be used in the kernel though - the kernel should be

@@ -33,7 +33,8 @@
 .Nd contributed applications
 .Sh DESCRIPTION
 The
-.Nm FreeBSD Ports Collection
+.Fx
+.Nm Ports Collection
 offers a simple way for users and
 administrators to install applications.
 Each 
@@ -51,7 +52,9 @@ simply type
 .Ic make install
 to install the application.
 .Pp
-It is possible to download and use ports from the FreeBSD repository
+It is possible to download and use ports from the
+.Fx
+repository
 that are newer than the installed system; however it is important to
 install the appropriate "Upgrade Kit" from http://www.FreeBSD.org/ports/
 first!  The
@@ -66,7 +69,9 @@ For information about creating new ports, see
 .Nm Porting applications
 (file:/usr/share/doc/handbook/porting.html --or--
 http://www.FreeBSD.org/handbook/porting.html).
-Both are part of the FreeBSD Handbook.
+Both are part of the
+.Fx
+Handbook.
 .Pp
 .Sh TARGETS
 .Pp
@@ -188,11 +193,9 @@ You can change all of these.
 Location of the ports tree.  This is
 .Pa /usr/ports
 on
-.\" .Fx
-FreeBSD
+.Fx
 and
-.\" .Ox ,
-OpenBSD
+.Ox
 and
 .Pa /usr/pkgsrc
 on
@@ -236,7 +239,9 @@ Primary sites for distribution files if not found locally.
 Primary location(s) for distribution patch files if not found
 locally.
 .It Ev MASTER_SITE_FREEBSD
-If set, go to the master FreeBSD site for all files.
+If set, go to the master
+.Fx
+site for all files.
 .It Ev MASTER_SITE_OVERRIDE
 Try going to this site for all files and patches, first.
 .It Ev NOCLEANDEPENDS
@@ -258,7 +263,12 @@ If defined, only operate on a port if it can be installed 100% automatically.
 .Sh FILES
 .Bl -tag -width /usr/ports/xxxx -compact
 .It Pa /usr/ports
-The default ports directory (FreeBSD and OpenBSD).
+The default ports directory
+.Po
+.Fx
+and
+.Ox
+.Pc .
 .It Pa /usr/pkgsrc
 The default ports directory (NetBSD).
 .It Pa /usr/ports/Mk/bsd.port.mk
@@ -277,7 +287,9 @@ The following are part of the ports collection:
 .Xr portcheckout 1 ,
 .Xr portlint 1
 .Pp
-The FreeBSD handbook
+The
+.Fx
+handbook
 .Pp
 http://www.FreeBSD.org/ports
 .Pq searchable index of all ports

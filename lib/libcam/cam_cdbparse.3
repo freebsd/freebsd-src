@@ -162,7 +162,8 @@ migration path for userland
 .Tn SCSI
 applications written with the similarly-named
 .Va scsireq_ Ns *
-functions from the old FreeBSD
+functions from the old
+.Fx
 .Tn SCSI
 layer.
 .Pp
@@ -503,7 +504,8 @@ return the number of assignments performed.
 .Sh HISTORY
 .Pp
 The CAM versions of these functions are based upon similar functions
-implemented for the old FreeBSD
+implemented for the old
+.Fx
 .Tn SCSI
 layer.  The encoding/decoding functions in the old
 .Tn SCSI
@@ -522,7 +524,8 @@ The new CCB data structures are derived from the CAM-2 and CAM-3
 specifications.
 .Pp
 Peter Dufault implemented a clone of SGI's interface in 386bsd that
-led to the original FreeBSD
+led to the original
+.Fx
 .Tn SCSI
 library and the related kernel ioctl.
 If anyone needs that for compatibility contact dufault@hda.com.

@@ -132,14 +132,14 @@ The NIS maps for a particular NIS domain.
 .Xr ypxfr 8
 .Sh BUGS
 The
-.Bx Free
+.Fx
 .Nm ypxfrd
 protocol is not compatible with that used by SunOS.
 This is unfortunate
 but unavoidable: Sun's protocol is not freely available, and even if it
 were it would probably not be useful since the SunOS NIS v2 implementation
 uses the original ndbm package for its map databases whereas the
-.Bx Free
+.Fx
 implementation uses Berkeley DB.
 These two packages use vastly different
 file formats.

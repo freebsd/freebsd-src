@@ -191,10 +191,14 @@ Many older
 devices may not work properly with this driver yet.
 .Pp
 Additionally, certain 
-tapes (QIC tapes mostly) that were written under FreeBSD 2.X
+tapes (QIC tapes mostly) that were written under
+.Fx
+2.X
 aren't automatically read correctly with this driver: you may need to
 explicitly set variable block mode or set to the blocksize that works best
-for your device in order to read tapes written under FreeBSD 2.X.
+for your device in order to read tapes written under
+.Fx
+2.X.
 .Pp
 Fine grained density and compression mode support that is bound to specific
 device names needs to be added.

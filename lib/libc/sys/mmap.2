@@ -282,14 +282,14 @@ of slightly less than 2G, 4GB, 6GB and 8GB.
 The limit is imposed for a variety of reasons.
 Most of them have to do
 with
-.Tn FreeBSD
+.Fx
 not wanting to use 64 bit offsets in the VM system due to
 the extreme performance penalty.
 So
-.Tn FreeBSD
+.Fx
 uses 32bit page indexes and
 this gives
-.Tn FreeBSD
+.Fx
 a maximum of 8TB filesizes.
 It's actually bugs in
 the filesystem code that causes the limit to be further restricted to
