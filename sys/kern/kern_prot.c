@@ -991,6 +991,16 @@ crget()
 }
 
 /*
+ * Claim another reference to a ucred structure
+ */
+void
+crhold(cr) 
+        struct ucred *cr;
+{
+	cr->cr_ref++;
+}
+
+/*
  * Free a cred structure.
  * Throws away space when ref count gets to 0.
  */
@@ -998,6 +1008,9 @@ void
 crfree(cr)
 	struct ucred *cr;
 {
+	if (cr->cr_ref == 0)
+		panic("Freeing already free credential! %p", cr);
+	
 	if (--cr->cr_ref == 0) {
 		/*
 		 * Some callers of crget(), such as nfs_statfs(),
