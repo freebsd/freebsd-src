@@ -113,6 +113,7 @@ bytes(fp, off)
 		if (len = p - sp)
 			WR(sp, len);
 	}
+	return 0;
 }
 
 /*
@@ -195,4 +196,5 @@ lines(fp, off)
 		for (cnt = 0; cnt < recno; ++cnt)
 			WR(lines[cnt].l, lines[cnt].len);
 	}
+	return 0;
 }
