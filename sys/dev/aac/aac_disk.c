@@ -108,17 +108,17 @@ static driver_t aac_disk_driver = {
 	sizeof(struct aac_disk)
 };
 
+#define AAC_MAXIO	65536
+
 DRIVER_MODULE(aacd, aac, aac_disk_driver, aac_disk_devclass, 0, 0);
 
 /* sysctl tunables */
-static unsigned int aac_iosize_max = 65536;	/* due to limits of the card */
+static unsigned int aac_iosize_max = AAC_MAXIO;	/* due to limits of the card */
 TUNABLE_INT("hw.aac.iosize_max", &aac_iosize_max);
 
 SYSCTL_DECL(_hw_aac);
 SYSCTL_UINT(_hw_aac, OID_AUTO, iosize_max, CTLFLAG_RD, &aac_iosize_max, 0,
 	    "Max I/O size per transfer to an array");
-
-#define AAC_MAXIO	65536
 
 /*
  * Handle open from generic layer.
@@ -213,88 +213,89 @@ aac_disk_strategy(struct bio *bp)
 }
 
 /*
+ * Map the S/G elements for doing a dump.
+ */
+static void
+aac_dump_map_sg(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
+{
+	struct aac_fib *fib;
+	struct aac_blockwrite *bw;
+	struct aac_sg_table *sg;
+	int i;
+
+	fib = (struct aac_fib *)arg;
+	bw = (struct aac_blockwrite *)&fib->data[0];
+	sg = &bw->SgMap;
+
+	if (sg != NULL) {
+		sg->SgCount = nsegs;
+		for (i = 0; i < nsegs; i++) {
+			sg->SgEntry[i].SgAddress = segs[i].ds_addr;
+			sg->SgEntry[i].SgByteCount = segs[i].ds_len;
+		}
+		fib->Header.Size = nsegs * sizeof(struct aac_sg_entry);
+	}
+}
+
+/*
  * Dump memory out to an array
  *
- * This queues blocks of memory of size AAC_MAXIO to the controller and waits
- * for the controller to complete the requests.
+ * Send out one command at a time with up to AAC_MAXIO of data.
  */
 static int
 aac_disk_dump(dev_t dev, void *virtual, vm_offset_t physical, off_t offset, size_t length)
 {
-
-	/* XXX: This needs modified for the new dump API */
-	return (ENXIO);
-#if 0
 	struct aac_disk *ad;
 	struct aac_softc *sc;
-	vm_offset_t addr;
-	long blkcnt;
-	unsigned int count, blkno, secsize;
-	int dumppages;
-	int i, error;
+	struct aac_fib *fib;
+	struct aac_blockwrite *bw;
+	size_t len;
+	int size;
+	static bus_dmamap_t dump_datamap;
+	static int first = 0;
 
 	ad = dev->si_drv1;
-	addr = 0;
-	dumppages = AAC_MAXIO / PAGE_SIZE;
-
-	if ((error = disk_dumpcheck(dev, &count, &blkno, &secsize)))
-		return (error);
 
 	if (ad == NULL)
-		return (ENXIO);
+		return (EINVAL);
 
 	sc= ad->ad_controller;
 
-	blkcnt = howmany(PAGE_SIZE, secsize);
-
-	while (count > 0) {
-		caddr_t va = NULL;
-
-		if ((count / blkcnt) < dumppages)
-			dumppages = count / blkcnt;
-
-		for (i = 0; i < dumppages; ++i) {
-			vm_offset_t a = addr + (i * PAGE_SIZE);
-			if (is_physical_memory(a)) {
-				va = pmap_kenter_temporary(trunc_page(a), i);
-			} else {
-				va = pmap_kenter_temporary(trunc_page(0), i);
-			}
+	if (!first) {
+		first = 1;
+		if (bus_dmamap_create(sc->aac_buffer_dmat, 0, &dump_datamap)) {
+			printf("bus_dmamap_create failed\n");
+			return (ENOMEM);
 		}
+	}
 
-retry:
-		/*
-		 * Queue the block to the controller.  If the queue is full,
-		 * EBUSY will be returned.
-		 */
-		error = aac_dump_enqueue(ad, blkno, va, dumppages);
-		if (error && (error != EBUSY))
-			return (error);
+	aac_get_sync_fib(sc, &fib, AAC_SYNC_LOCK_FORCE);
+	bw = (struct aac_blockwrite *)&fib->data[0];
 
-		if (!error) {
-			if (dumpstatus(addr, (off_t)(count * DEV_BSIZE)) < 0)
-			return (EINTR);
+	while (length > 0) {
+		len = (length > AAC_MAXIO) ? AAC_MAXIO : length;
+		bw->Command = VM_CtBlockWrite;
+		bw->ContainerId = ad->ad_container->co_mntobj.ObjectId;
+		bw->BlockNumber = offset / AAC_BLOCK_SIZE;
+		bw->ByteCount = len;
+		bw->Stable = CUNSTABLE;
+		bus_dmamap_load(sc->aac_buffer_dmat, dump_datamap, virtual,
+		    len, aac_dump_map_sg, fib, 0);
+		bus_dmamap_sync(sc->aac_buffer_dmat, dump_datamap,
+		    BUS_DMASYNC_PREWRITE);
 
-			blkno += blkcnt * dumppages;
-			count -= blkcnt * dumppages;
-			addr += PAGE_SIZE * dumppages;
-			if (count > 0)
-			continue;
+		/* fib->Header.Size is set in aac_dump_map_sg */
+		size = fib->Header.Size + sizeof(struct aac_blockwrite);
+
+		if (aac_sync_fib(sc, ContainerCommand, 0, fib, size)) {
+			printf("Error dumping block 0x%x\n", physical);
+			return (EIO);
 		}
-
-		/*
-		 * Either the queue was full on the last attemp, or we have no
-		 * more data to dump.  Let the queue drain out and retry the
-		 * block if the queue was full.
-		 */
-		aac_dump_complete(sc);
-
-		if (error == EBUSY)
-			goto retry;
+		length -= len;
+		offset += len;
 	}
 
 	return (0);
-#endif
 }
 
 /*

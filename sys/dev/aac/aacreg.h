@@ -986,7 +986,7 @@ struct aac_mntinfo {
 	u_int32_t		MntCount;
 } __attribute__ ((packed));
 
-struct aac_mntinforesponse {
+struct aac_mntinforesp {
 	AAC_FSAStatus		Status;
 	AAC_FType		MntType;
 	u_int32_t		MntRespCount;

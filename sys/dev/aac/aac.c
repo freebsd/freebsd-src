@@ -73,7 +73,7 @@
 
 static void	aac_startup(void *arg);
 static void	aac_add_container(struct aac_softc *sc,
-				  struct aac_mntinforesponse *mir, int f);
+				  struct aac_mntinforesp *mir, int f);
 
 /* Command Processing */
 static void	aac_startio(struct aac_softc *sc);
@@ -105,10 +105,6 @@ static int	aac_init(struct aac_softc *sc);
 static int	aac_sync_command(struct aac_softc *sc, u_int32_t command,
 				 u_int32_t arg0, u_int32_t arg1, u_int32_t arg2,
 				 u_int32_t arg3, u_int32_t *sp);
-static int	aac_sync_fib(struct aac_softc *sc, u_int32_t command,
-			     u_int32_t xferstate, void *data,
-			     u_int16_t datasize, void *result,
-			     u_int16_t *resultsize);
 static int	aac_enqueue_fib(struct aac_softc *sc, int queue,
 				struct aac_command *cm);
 static int	aac_dequeue_fib(struct aac_softc *sc, int queue,
@@ -271,6 +267,9 @@ aac_attach(struct aac_softc *sc)
 	if ((error = aac_alloc_commands(sc)) != 0)
 		return(error);
 
+	/* Init the sync fib lock */
+	AAC_LOCK_INIT(&sc->aac_sync_lock, "AAC sync FIB lock");
+
 	/*
 	 * Initialise the adapter.
 	 */
@@ -338,9 +337,9 @@ static void
 aac_startup(void *arg)
 {
 	struct aac_softc *sc;
-	struct aac_mntinfo mi;
-	struct aac_mntinforesponse mir;
-	u_int16_t rsize;	
+	struct aac_fib *fib;
+	struct aac_mntinfo *mi;
+	struct aac_mntinforesp *mir = NULL;
 	int i = 0;
 
 	debug_called(1);
@@ -350,28 +349,28 @@ aac_startup(void *arg)
 	/* disconnect ourselves from the intrhook chain */
 	config_intrhook_disestablish(&sc->aac_ich);
 
+	aac_get_sync_fib(sc, &fib, 0);
+	mi = (struct aac_mntinfo *)&fib->data[0];
+
 	/* loop over possible containers */
-	mi.Command = VM_NameServe;
-	mi.MntType = FT_FILESYS;
+	mi->Command = VM_NameServe;
+	mi->MntType = FT_FILESYS;
 	do {
 		/* request information on this container */
-		mi.MntCount = i;
-		rsize = sizeof(mir);
-		if (aac_sync_fib(sc, ContainerCommand, 0, &mi,
-				 sizeof(struct aac_mntinfo), &mir, &rsize)) {
+		mi->MntCount = i;
+		if (aac_sync_fib(sc, ContainerCommand, 0, fib,
+				 sizeof(struct aac_mntinfo))) {
 			debug(2, "error probing container %d", i);
 			continue;
 		}
 		/* check response size */
-		if (rsize != sizeof(mir)) {
-			debug(2, "container info response wrong size "
-			      "(%d should be %d)", rsize, sizeof(mir));
-			continue;
-		}
 
-		aac_add_container(sc, &mir, 0);
+		mir = (struct aac_mntinforesp *)&fib->data[0];
+		aac_add_container(sc, mir, 0);
 		i++;
-	} while ((i < mir.MntRespCount) && (i < AAC_MAX_CONTAINERS));
+	} while ((i < mir->MntRespCount) && (i < AAC_MAX_CONTAINERS));
+
+	aac_release_sync_fib(sc);
 
 	/* poke the bus to actually attach the child devices */
 	if (bus_generic_attach(sc->aac_dev))
@@ -391,7 +390,7 @@ aac_startup(void *arg)
  * Create a device to respresent a new container
  */
 static void
-aac_add_container(struct aac_softc *sc, struct aac_mntinforesponse *mir, int f)
+aac_add_container(struct aac_softc *sc, struct aac_mntinforesp *mir, int f)
 {
 	struct aac_container *co;
 	device_t child;
@@ -527,8 +526,9 @@ int
 aac_shutdown(device_t dev)
 {
 	struct aac_softc *sc;
-	struct aac_close_command cc;
-	int s, i;
+	struct aac_fib *fib;
+	struct aac_close_command *cc;
+	int s;
 
 	debug_called(1);
 
@@ -545,20 +545,24 @@ aac_shutdown(device_t dev)
 	 */
 	device_printf(sc->aac_dev, "shutting down controller...");
 
-	cc.Command = VM_CloseAll;
-	cc.ContainerId = 0xffffffff;
-	if (aac_sync_fib(sc, ContainerCommand, 0, &cc, sizeof(cc), NULL, NULL))
+	aac_get_sync_fib(sc, &fib, AAC_SYNC_LOCK_FORCE);
+	cc = (struct aac_close_command *)&fib->data[0];
+
+	cc->Command = VM_CloseAll;
+	cc->ContainerId = 0xffffffff;
+	if (aac_sync_fib(sc, ContainerCommand, 0, fib,
+	    sizeof(struct aac_close_command)))
 		printf("FAILED.\n");
 	else {
-		i = 0;
+		fib->data[0] = 0;
 		/*
 		 * XXX Issuing this command to the controller makes it shut down
 		 * but also keeps it from coming back up without a reset of the
 		 * PCI bus.  This is not desirable if you are just unloading the
 		 * driver module with the intent to reload it later.
 		 */
-		if (aac_sync_fib(sc, FsaHostShutdown, AAC_FIBSTATE_SHUTDOWN, &i,
-				 sizeof(i), NULL, NULL)) {
+		if (aac_sync_fib(sc, FsaHostShutdown, AAC_FIBSTATE_SHUTDOWN,
+		    fib, 1)) {
 			printf("FAILED.\n");
 		} else {
 			printf("done.\n");
@@ -997,102 +1001,6 @@ aac_bio_complete(struct aac_command *cm)
 						    status);
 	}
 	aac_biodone(bp);
-}
-
-/*
- * Dump a block of data to the controller.  If the queue is full, tell the
- * caller to hold off and wait for the queue to drain.
- */
-int
-aac_dump_enqueue(struct aac_disk *ad, u_int32_t lba, void *data, int dumppages)
-{
-	struct aac_softc *sc;
-	struct aac_command *cm;
-	struct aac_fib *fib;
-	struct aac_blockwrite *bw;
-
-	sc = ad->ad_controller;
-	cm = NULL;
-
-	if (aac_alloc_command(sc, &cm))
-		return (EBUSY);
-
-	/* fill out the command */
-	cm->cm_data = data;
-	cm->cm_datalen = dumppages * PAGE_SIZE;
-	cm->cm_complete = NULL;
-	cm->cm_private = NULL;
-	cm->cm_timestamp = time_second;
-	cm->cm_queue = AAC_ADAP_NORM_CMD_QUEUE;
-
-	/* build the FIB */
-	fib = cm->cm_fib;
-	fib->Header.XferState =  
-	AAC_FIBSTATE_HOSTOWNED   | 
-	AAC_FIBSTATE_INITIALISED | 
-	AAC_FIBSTATE_FROMHOST	 |
-	AAC_FIBSTATE_REXPECTED   |
-	AAC_FIBSTATE_NORM;
-	fib->Header.Command = ContainerCommand;
-	fib->Header.Size = sizeof(struct aac_fib_header);
-
-	bw = (struct aac_blockwrite *)&fib->data[0];
-	bw->Command = VM_CtBlockWrite;
-	bw->ContainerId = ad->ad_container->co_mntobj.ObjectId;
-	bw->BlockNumber = lba;
-	bw->ByteCount = dumppages * PAGE_SIZE;
-	bw->Stable = CUNSTABLE;		/* XXX what's appropriate here? */
-	fib->Header.Size += sizeof(struct aac_blockwrite);
-	cm->cm_flags |= AAC_CMD_DATAOUT;
-	cm->cm_sgtable = &bw->SgMap;
-
-	return (aac_start(cm));
-}
-
-/*
- * Wait for the card's queue to drain when dumping.  Also check for monitor
- * printf's
- */
-void
-aac_dump_complete(struct aac_softc *sc)
-{
-	struct aac_fib *fib;
-	struct aac_command *cm;
-	u_int16_t reason;
-	u_int32_t pi, ci, fib_size;
-
-	do {
-		reason = AAC_GET_ISTATUS(sc);
-		if (reason & AAC_DB_RESPONSE_READY) {
-			AAC_CLEAR_ISTATUS(sc, AAC_DB_RESPONSE_READY);
-			for (;;) {
-				if (aac_dequeue_fib(sc,
-						    AAC_HOST_NORM_RESP_QUEUE,
-						    &fib_size, &fib))
-					break;
-				cm = (struct aac_command *)
-					fib->Header.SenderData;
-				if (cm == NULL)
-					AAC_PRINT_FIB(sc, fib);
-				else {
-					aac_remove_busy(cm);
-					aac_unmap_command(cm);
-					aac_enqueue_complete(cm);
-					aac_release_command(cm);
-				}
-			}
-		}
-		if (reason & AAC_DB_PRINTF) {
-			AAC_CLEAR_ISTATUS(sc, AAC_DB_PRINTF);
-			aac_print_printf(sc);
-		}
-		pi = sc->aac_queues->qt_qindex[AAC_ADAP_NORM_CMD_QUEUE][
-			AAC_PRODUCER_INDEX];
-		ci = sc->aac_queues->qt_qindex[AAC_ADAP_NORM_CMD_QUEUE][	
-			AAC_CONSUMER_INDEX];
-	} while (ci != pi);
-
-	return;
 }
 
 /*
@@ -1604,18 +1512,42 @@ aac_sync_command(struct aac_softc *sc, u_int32_t command,
 }
 
 /*
+ * Grab the sync fib area.
+ */
+int
+aac_get_sync_fib(struct aac_softc *sc, struct aac_fib **fib, int flags)
+{
+
+	/*
+	 * If the force flag is set, the system is shutting down, or in
+	 * trouble.  Ignore the mutex.
+	 */
+	if (!(flags & AAC_SYNC_LOCK_FORCE))
+		AAC_LOCK_ACQUIRE(&sc->aac_sync_lock);
+
+	*fib = &sc->aac_common->ac_sync_fib;
+
+	return (1);
+}
+
+/*
+ * Release the sync fib area.
+ */
+void
+aac_release_sync_fib(struct aac_softc *sc)
+{
+
+	AAC_LOCK_RELEASE(&sc->aac_sync_lock);
+}
+
+/*
  * Send a synchronous FIB to the controller and wait for a result.
  */
-static int
+int
 aac_sync_fib(struct aac_softc *sc, u_int32_t command, u_int32_t xferstate, 
-		 void *data, u_int16_t datasize,
-		 void *result, u_int16_t *resultsize)
+		 struct aac_fib *fib, u_int16_t datasize)
 {
-	struct aac_fib *fib;
-
 	debug_called(3);
-
-	fib = &sc->aac_common->ac_sync_fib;
 
 	if (datasize > AAC_FIB_DATASIZE)
 		return(EINVAL);
@@ -1637,17 +1569,6 @@ aac_sync_fib(struct aac_softc *sc, u_int32_t command, u_int32_t xferstate,
 						  ac_sync_fib);
 
 	/*
-	 * Copy in data.
-	 */
-	if (data != NULL) {
-		KASSERT(datasize <= sizeof(fib->data),
-			("aac_sync_fib: datasize to large"));
-		bcopy(data, fib->data, datasize);
-		fib->Header.XferState |= AAC_FIBSTATE_FROMHOST |
-					 AAC_FIBSTATE_NORM;
-	}
-
-	/*
 	 * Give the FIB to the controller, wait for a response.
 	 */
 	if (aac_sync_command(sc, AAC_MONKER_SYNCFIB,
@@ -1656,19 +1577,7 @@ aac_sync_fib(struct aac_softc *sc, u_int32_t command, u_int32_t xferstate,
 		return(EIO);
 	}
 
-	/* 
-	 * Copy out the result
-	 */
-	if (result != NULL) {
-		u_int copysize;
-
-		copysize = fib->Header.Size - sizeof(struct aac_fib_header);
-		if (copysize > *resultsize)
-			copysize = *resultsize;
-		*resultsize = fib->Header.Size - sizeof(struct aac_fib_header);
-		bcopy(fib->data, result, copysize);
-	}
-	return(0);
+	return (0);
 }
 
 /*
@@ -2156,28 +2065,19 @@ aac_fa_set_interrupts(struct aac_softc *sc, int enable)
 static void
 aac_describe_controller(struct aac_softc *sc)
 {
-	u_int8_t buf[AAC_FIB_DATASIZE];	/* XXX really a bit big
-					 * for the stack */
-	u_int16_t bufsize;
+	struct aac_fib *fib;
 	struct aac_adapter_info	*info;
-	u_int8_t arg;
 
 	debug_called(2);
 
-	arg = 0;
-	bufsize = sizeof(buf);
-	if (aac_sync_fib(sc, RequestAdapterInfo, 0, &arg, sizeof(arg), &buf,
-			 &bufsize)) {
+	aac_get_sync_fib(sc, &fib, 0);
+
+	fib->data[0] = 0;
+	if (aac_sync_fib(sc, RequestAdapterInfo, 0, fib, 1)) {
 		device_printf(sc->aac_dev, "RequestAdapterInfo failed\n");
 		return;
 	}
-	if (bufsize != sizeof(*info)) {
-		device_printf(sc->aac_dev,
-			      "RequestAdapterInfo returned wrong data size "
-			      "(%d != %d)\n", bufsize, sizeof(*info));
-		/*return;*/
-	}
-	info = (struct aac_adapter_info *)&buf[0];
+	info = (struct aac_adapter_info *)&fib->data[0];
 
 	device_printf(sc->aac_dev, "%s %dMHz, %dMB cache memory, %s\n", 
 		      aac_describe_code(aac_cpu_variant, info->CpuVariant),
@@ -2444,8 +2344,8 @@ aac_handle_aif(struct aac_softc *sc, struct aac_fib *fib)
 {
 	struct aac_aif_command *aif;
 	struct aac_container *co, *co_next;
-	struct aac_mntinfo mi;
-	struct aac_mntinforesponse mir;
+	struct aac_mntinfo *mi;
+	struct aac_mntinforesp *mir = NULL;
 	u_int16_t rsize;
 	int next, found;
 	int added = 0, i = 0;
@@ -2466,8 +2366,10 @@ aac_handle_aif(struct aac_softc *sc, struct aac_fib *fib)
 			 * doesn't tell us anything else!  Re-enumerate the
 			 * containers and sort things out.
 			 */
-			mi.Command = VM_NameServe;
-			mi.MntType = FT_FILESYS;
+			aac_get_sync_fib(sc, &fib, 0);
+			mi = (struct aac_mntinfo *)&fib->data[0];
+			mi->Command = VM_NameServe;
+			mi->MntType = FT_FILESYS;
 			do {
 				/*
 				 * Ask the controller for its containers one at
@@ -2476,32 +2378,28 @@ aac_handle_aif(struct aac_softc *sc, struct aac_fib *fib)
 				 * midway through this enumaration?
 				 * XXX This should be done async.
 				 */
-				mi.MntCount = i;
+				mi->MntCount = i;
 				rsize = sizeof(mir);
-				if (aac_sync_fib(sc, ContainerCommand, 0, &mi,
-						 sizeof(mi), &mir, &rsize)) {
+				if (aac_sync_fib(sc, ContainerCommand, 0, fib,
+						 sizeof(struct aac_mntinfo))) {
 					debug(2, "Error probing container %d\n",
 					      i);
 					continue;
 				}
-				if (rsize != sizeof(mir)) {
-					debug(2, "Container response size too "
-						 "large\n");
-					continue;
-				}
+				mir = (struct aac_mntinforesp *)&fib->data[0];
 				/*
 				 * Check the container against our list.
 				 * co->co_found was already set to 0 in a
 				 * previous run.
 				 */
-				if ((mir.Status == ST_OK) &&
-				    (mir.MntTable[0].VolType != CT_NONE)) {
+				if ((mir->Status == ST_OK) &&
+				    (mir->MntTable[0].VolType != CT_NONE)) {
 					found = 0;
 					TAILQ_FOREACH(co,
 						      &sc->aac_container_tqh, 
 						      co_link) {
 						if (co->co_mntobj.ObjectId ==
-						    mir.MntTable[0].ObjectId) {
+						    mir->MntTable[0].ObjectId) {
 							co->co_found = 1;
 							found = 1;
 							break;
@@ -2519,12 +2417,13 @@ aac_handle_aif(struct aac_softc *sc, struct aac_fib *fib)
 					/*
 					 * This is a new container.  Do all the
 					 * appropriate things to set it up.						 */
-					aac_add_container(sc, &mir, 1);
+					aac_add_container(sc, mir, 1);
 					added = 1;
 				}
 				i++;
-			} while ((i < mir.MntRespCount) &&
+			} while ((i < mir->MntRespCount) &&
 				 (i < AAC_MAX_CONTAINERS));
+			aac_release_sync_fib(sc);
 
 			/*
 			 * Go through our list of containers and see which ones
