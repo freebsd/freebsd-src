@@ -173,6 +173,8 @@ static void coda_fbsd_drvinit(void *unused);
 static void coda_fbsd_drvuninit(void *unused);
 static void coda_fbsd_clone(void *arg, char *name, int namelen, dev_t *dev);
 
+static eventhandler_tag clonetag;
+
 static void coda_fbsd_clone(arg, name, namelen, dev)
     void *arg;
     char *name;
@@ -196,7 +198,7 @@ static void coda_fbsd_drvinit(unused)
 {
     int i;
 
-    EVENTHANDLER_REGISTER(dev_clone,coda_fbsd_clone,0,1000);
+    clonetag = EVENTHANDLER_REGISTER(dev_clone,coda_fbsd_clone,0,1000);
     for(i=0;i<NVCODA;i++)
 	coda_mnttbl[i].dev = NULL; 
 }
@@ -206,7 +208,7 @@ static void coda_fbsd_drvuninit(unused)
 {
     int i;
 
-    EVENTHANDLER_DEREGISTER(dev_clone,NULL);
+    EVENTHANDLER_DEREGISTER(dev_clone,clonetag);
     for(i=0;i<NVCODA;i++)
 	if(coda_mnttbl[i].dev)
 	    destroy_dev(coda_mnttbl[i].dev);
