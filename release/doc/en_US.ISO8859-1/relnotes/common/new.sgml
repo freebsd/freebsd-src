@@ -1319,7 +1319,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
         configuration file.
 
 	<note>
-	  <para>This feature should be considered experimental.
+	  <para>This feature should be considered experimental.</para>
 	</note>
 
 	</para>
@@ -1385,7 +1385,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
         be configured into a kernel.
 
 	<note>
-	  <para>This feature should be considered experimental.
+	  <para>This feature should be considered experimental.</para>
 	</note>
 
 	</para>
