@@ -399,16 +399,31 @@ _thr_sig_handler(int sig, siginfo_t *info, ucontext_t *ucp)
 	DBG_MSG("<<< _thr_sig_handler(%d)\n", sig);
 }
 
+struct sighandle_info {
+	__siginfohandler_t *sigfunc;
+	int sa_flags;
+	int sig;
+	siginfo_t *info;
+	ucontext_t *ucp;
+};
+
+static void handle_signal(struct pthread *curthread,
+	struct sighandle_info *shi);
+static void handle_signal_altstack(struct pthread *curthread,
+	struct sighandle_info *shi);
+
 /* Must be called with signal lock and schedule lock held in order */
 static void
 thr_sig_invoke_handler(struct pthread *curthread, int sig, siginfo_t *info,
     ucontext_t *ucp)
 {
-	void (*sigfunc)(int, siginfo_t *, void *);
+	__siginfohandler_t *sigfunc;
 	sigset_t sigmask;
 	int sa_flags;
+	int onstack;
 	struct sigaction act;
 	struct kse *curkse;
+	struct sighandle_info shi;
 
 	/*
 	 * Invoke the signal handler without going through the scheduler:
@@ -444,31 +459,29 @@ thr_sig_invoke_handler(struct pthread *curthread, int sig, siginfo_t *info,
 	 */
 	if (curthread->attr.flags & PTHREAD_SCOPE_SYSTEM)
 		__sys_sigprocmask(SIG_SETMASK, &curthread->sigmask, NULL);
-	_kse_critical_leave(&curthread->tcb->tcb_tmbx);
+	onstack = _thr_sigonstack(&sigfunc);
+	ucp->uc_stack = curthread->sigstk;
+	ucp->uc_stack.ss_flags = (curthread->sigstk.ss_flags & SS_DISABLE)
+		? SS_DISABLE : ((onstack) ? SS_ONSTACK : 0);
 	ucp->uc_sigmask = sigmask;
-	if (((__sighandler_t *)sigfunc != SIG_DFL) &&
-	    ((__sighandler_t *)sigfunc != SIG_IGN)) {
-		if ((sa_flags & SA_SIGINFO) != 0 || info == NULL)
-			(*(sigfunc))(sig, info, ucp);
-		else {
-			((ohandler)(*sigfunc))(
-				sig, info->si_code, (struct sigcontext *)ucp,
-				info->si_addr, (__sighandler_t *)sigfunc);
-		}
+	shi.sigfunc = sigfunc;
+	shi.sig = sig;
+	shi.sa_flags = sig;
+	shi.info = info;
+	shi.ucp = ucp;
+	/*
+	 * XXX Not ready for scope system thread, kernel bits
+	 * should involve in
+	 */
+	if ((curthread->attr.flags & PTHREAD_SCOPE_SYSTEM) == 0 &&
+	    (curthread->sigstk.ss_flags & SS_DISABLE) == 0) {
+		/* Deliver signal on alternative stack */
+		if (sa_flags & SA_ONSTACK && !onstack)
+			handle_signal_altstack(curthread, &shi);
+		else
+			handle_signal(curthread, &shi);
 	} else {
-		if ((__sighandler_t *)sigfunc == SIG_DFL) {
-			if (sigprop(sig) & SA_KILL) {
-				if (_kse_isthreaded())
-					kse_thr_interrupt(NULL,
-						 KSE_INTR_SIGEXIT, sig);
-				else
-					kill(getpid(), sig);
-			}
-#ifdef NOTYET
-			else if (sigprop(sig) & SA_STOP)
-				kse_thr_interrupt(NULL, KSE_INTR_JOBSTOP, sig);
-#endif
-		}
+		handle_signal(curthread, &shi);
 	}
 
 	_kse_critical_enter();
@@ -486,6 +499,89 @@ thr_sig_invoke_handler(struct pthread *curthread, int sig, siginfo_t *info,
 	KSE_LOCK_ACQUIRE(curkse, &_thread_signal_lock);
 	
 	DBG_MSG("Got signal %d, handler returned %p\n", sig, curthread);
+}
+
+static void
+handle_signal(struct pthread *curthread, struct sighandle_info *shi)
+{
+	_kse_critical_leave(&curthread->tcb->tcb_tmbx);
+
+	if (((__sighandler_t *)shi->sigfunc != SIG_DFL) &&
+	    ((__sighandler_t *)shi->sigfunc != SIG_IGN)) {
+		if ((shi->sa_flags & SA_SIGINFO) != 0 || shi->info == NULL)
+			(*(shi->sigfunc))(shi->sig, shi->info, shi->ucp);
+		else {
+			((ohandler)(*shi->sigfunc))(
+				shi->sig, shi->info->si_code,
+				(struct sigcontext *)shi->ucp,
+				shi->info->si_addr,
+				(__sighandler_t *)shi->sigfunc);
+		}
+	} else {
+		if ((__sighandler_t *)shi->sigfunc == SIG_DFL) {
+			if (sigprop(shi->sig) & SA_KILL) {
+				if (_kse_isthreaded())
+					kse_thr_interrupt(NULL,
+						 KSE_INTR_SIGEXIT, shi->sig);
+				else
+					kill(getpid(), shi->sig);
+			}
+#ifdef NOTYET
+			else if (sigprop(shi->sig) & SA_STOP)
+				kse_thr_interrupt(NULL, KSE_INTR_JOBSTOP,
+					shi->sig);
+#endif
+		}
+	}
+}
+
+static void
+handle_signal_wrapper(struct pthread *curthread, ucontext_t *ret_uc,
+	struct sighandle_info *shi)
+{
+	shi->ucp->uc_stack.ss_flags = SS_ONSTACK;
+	handle_signal(curthread, shi);
+	if (curthread->attr.flags & PTHREAD_SCOPE_SYSTEM)
+		setcontext(ret_uc);
+	else {
+		/* Work around for ia64, THR_SETCONTEXT does not work */
+		_kse_critical_enter();
+        	curthread->tcb->tcb_tmbx.tm_context = *ret_uc;
+        	_thread_switch(curthread->kse->k_kcb, curthread->tcb, 1);
+		/* THR_SETCONTEXT */
+	}
+}
+
+/*
+ * Jump to stack set by sigaltstack before invoking signal handler
+ */
+static void
+handle_signal_altstack(struct pthread *curthread, struct sighandle_info *shi)
+{
+	volatile int once;
+	ucontext_t uc1, *uc2;
+
+	THR_ASSERT(_kse_in_critical(), "Not in critical");
+
+	once = 0;
+	THR_GETCONTEXT(&uc1);
+	if (once == 0) {
+		once = 1;
+		/* XXX
+		 * We are still in critical region, it is safe to operate thread
+		 * context
+		 */
+		uc2 = &curthread->tcb->tcb_tmbx.tm_context;
+		uc2->uc_stack = curthread->sigstk;
+		makecontext(uc2, (void (*)(void))handle_signal_wrapper,
+			3, curthread, &uc1, shi);
+		if (curthread->attr.flags & PTHREAD_SCOPE_SYSTEM)
+			setcontext(uc2);
+		else {
+			_thread_switch(curthread->kse->k_kcb, curthread->tcb, 1);
+			/* THR_SETCONTEXT(uc2); */
+		}
+	}
 }
 
 int
@@ -1144,12 +1240,14 @@ _thr_signal_init(void)
 		PANIC("Cannot initialize signal handler");
 	}
 	__sys_sigprocmask(SIG_SETMASK, &_thr_initial->sigmask, NULL);
+	__sys_sigaltstack(NULL, &_thr_initial->sigstk);
 }
 
 void
 _thr_signal_deinit(void)
 {
 	int i;
+	struct pthread *curthread = _get_curthread();
 
 	/* Enter a loop to get the existing signal status: */
 	for (i = 1; i <= _SIG_MAXSIG; i++) {
@@ -1167,5 +1265,6 @@ _thr_signal_deinit(void)
 			PANIC("Cannot set signal handler info");
 		}
 	}
+	__sys_sigaltstack(&curthread->sigstk, NULL);
 }
 
