@@ -22,7 +22,7 @@
 \ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 \ SUCH DAMAGE.
 \
-\	$Id: loader.4th,v 1.1 1999/03/09 14:06:55 dcs Exp $
+\	$Id: loader.4th,v 1.2 1999/04/24 17:25:25 dcs Exp $
 
 include /boot/support.4th
 

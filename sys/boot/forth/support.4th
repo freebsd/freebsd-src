@@ -22,7 +22,7 @@
 \ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 \ SUCH DAMAGE.
 \
-\	$Id$
+\	$Id: support.4th,v 1.1 1999/03/09 14:06:55 dcs Exp $
 
 \ Loader.rc support functions:
 \

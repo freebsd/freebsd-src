@@ -1,8 +1,9 @@
-# $Id: Makefile,v 1.28.2.1 1999/02/24 01:37:46 msmith Exp $
+# $Id: Makefile,v 1.28.2.2 1999/03/15 08:57:48 dcs Exp $
 
 BASE=		loader
 PROG=		${BASE}
-MAN8=		loader.8
+MAN5=		../../forth/loader.conf.5
+MAN8=		loader.8 ../../forth/loader.4th.8
 #NOMAN=
 STRIP=
 NEWVERSWHAT=	"bootstrap loader"
@@ -93,6 +94,16 @@ beforeinstall:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${.CURDIR}/${BASE}.help ${DESTDIR}/boot
 .endif
+.if !exists(${DESTDIR}/boot/loader.rc)
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
+		${.CURDIR}/../../forth/loader.rc ${DESTDIR}/boot
+.endif
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
+		${.CURDIR}/../../forth/loader.4th ${DESTDIR}/boot
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
+		${.CURDIR}/../../forth/support.4th ${DESTDIR}/boot
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
+		${.CURDIR}/../../forth/loader.conf ${DESTDIR}/boot/defaults
 
 # Cannot use ${OBJS} above this line
 .include <bsd.prog.mk>
