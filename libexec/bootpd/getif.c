@@ -13,6 +13,9 @@
 #include <sys/stropts.h>
 #endif
 
+#ifdef _AIX32
+#include <sys/time.h>		/* for struct timeval in net/if.h */	
+#endif
 #include <net/if.h>				/* for struct ifreq */
 #include <netinet/in.h>
 

@@ -20,11 +20,6 @@ ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 SOFTWARE.
 ************************************************************************/
 
-#ifndef lint
-static char rcsid[] = "$Id: readfile.c,v 1.1.1.1 1994/09/10 14:44:55 csgr Exp $";
-#endif
-
-
 /*
  * bootpd configuration file reading code.
  *
@@ -446,7 +441,7 @@ readtab(force)
 			if (hash_Insert(hwhashtable, hashcode, hwinscmp, hp, hp) < 0) {
 				report(LOG_NOTICE, "duplicate %s address: %s",
 					   netname(hp->htype),
-					   haddrtoa(hp->haddr, hp->htype));
+					   haddrtoa(hp->haddr, haddrlength(hp->htype)));
 				free_host((hash_datum *) hp);
 				continue;
 			}
@@ -768,8 +763,8 @@ process_entry(host, src)
 	} \
 } while (0)
 
-/* Parse an integer value for MEMBER */
-#define PARSE_INT(MEMBER) do \
+/* Parse an unsigned integer value for MEMBER */
+#define PARSE_UINT(MEMBER) do \
 { \
 	if (optype == OP_BOOLEAN) \
 		return E_SYNTAX_ERROR; \
@@ -796,7 +791,6 @@ eval_symbol(symbol, hp)
 {
 	char tmpstr[MAXSTRINGLEN];
 	byte *tmphaddr;
-	struct shared_string *ss;
 	struct symbolmap *symbolptr;
 	u_int32 value;
 	int32 timeoff;
@@ -820,7 +814,7 @@ eval_symbol(symbol, hp)
 	if ((*symbol)[0] == 'T') {	/* generic symbol */
 		(*symbol)++;
 		value = get_u_long(symbol);
-		sprintf(current_tagname, "T%d", value);
+		sprintf(current_tagname, "T%d", (int)value);
 		eat_whitespace(symbol);
 		if ((*symbol)[0] != '=') {
 			return E_SYNTAX_ERROR;
@@ -985,7 +979,7 @@ eval_symbol(symbol, hp)
 			if (!strncmp(tmpstr, "auto", 4)) {
 				hp->time_offset = secondswest;
 			} else {
-				if (sscanf(tmpstr, "%d", &timeoff) != 1)
+				if (sscanf(tmpstr, "%d", (int*)&timeoff) != 1)
 					return E_BAD_LONGWORD;
 				hp->time_offset = timeoff;
 			}
@@ -1121,16 +1115,14 @@ eval_symbol(symbol, hp)
 #endif
 
 	case SYM_MSG_SIZE:
-		PARSE_INT(msg_size);
+		PARSE_UINT(msg_size);
 		if (hp->msg_size < BP_MINPKTSZ ||
 			hp->msg_size > MAX_MSG_SIZE)
 			return E_BAD_VALUE;
 		break;
 
 	case SYM_MIN_WAIT:
-		PARSE_INT(min_wait);
-		if (hp->min_wait < 0)
-			return E_BAD_VALUE;
+		PARSE_UINT(min_wait);
 		break;
 
 		/* XXX - Add new tags here */
@@ -1682,7 +1674,6 @@ prs_inetaddr(src, result)
 	int n;
 	char *s, *t;
 
-#if 1	/* XXX - experimental */
 	/* Leading alpha char causes IP addr lookup. */
 	if (isalpha(**src)) {
 		/* Lookup IP address. */
@@ -1700,7 +1691,6 @@ prs_inetaddr(src, result)
 			report(LOG_ERR, "can not get IP addr for %s", tmpstr);
 		return n;
 	}
-#endif
 
 	/*
 	 * Parse an address in Internet format:
@@ -1794,7 +1784,6 @@ prs_haddr(src, htype)
 	get_string(src, tmpstr, &tmplen);
 	p = tmpstr;
 
-#if 1	/* XXX - experimental */
 	/* If it's a valid host name, try to lookup the HW address. */
 	if (goodname(p)) {
 		/* Lookup Hardware Address for hostname. */
@@ -1803,11 +1792,10 @@ prs_haddr(src, htype)
 		report(LOG_ERR, "Add 0x prefix if hex value starts with A-F");
 		/* OK, assume it must be numeric. */
 	}
-#endif
 
 	hap = haddr;
 	while (hap < haddr + hal) {
-		if (*p == '.')
+		if ((*p == '.') || (*p == ':'))
 			p++;
 		if (interp_byte(&p, hap++) < 0) {
 			return NULL;

@@ -17,8 +17,19 @@
 #include <fcntl.h>
 #endif
 
+#ifdef _AIX32
+#include <sys/time.h>	/* for struct timeval in net/if.h */
+#include <net/if.h> 	/* for struct ifnet in net/if_arp.h */
+#endif
+
 #include <net/if_arp.h>
 #include <netinet/in.h>
+
+#ifdef WIN_TCP
+#include <netinet/if_ether.h>
+#include <sys/dlpi.h>
+#endif
+
 #include <stdio.h>
 #ifndef	NO_UNISTD
 #include <unistd.h>
@@ -33,11 +44,8 @@
 #define bcmp(a,b,c)     memcmp(a,b,c)
 #endif
 
-/* For BSD 4.4, set arp entry by writing to routing socket */
-#if defined(BSD)
-#if BSD >= 199306
-extern int bsd_arp_set __P((struct in_addr *, char *, int));
-#endif
+#ifndef	ATF_INUSE	/* Not defined on some systems (i.e. Linux) */
+#define	ATF_INUSE 0
 #endif
 
 #include "bptypes.h"
@@ -72,21 +80,43 @@ int hwinfocnt = sizeof(hwinfolist) / sizeof(hwinfolist[0]);
  * bound to hardware address 'ha' of length 'len'.
  */
 void
-setarp(s, ia, ha, len)
+setarp(s, ia, hafamily, haddr, halen)
 	int s;						/* socket fd */
-	struct in_addr *ia;
-	u_char *ha;
-	int len;
+	struct in_addr *ia;			/* protocol address */
+	int hafamily;				/* HW address family */
+	u_char *haddr;				/* HW address data */
+	int halen;
 {
 #ifdef	SIOCSARP
+#ifdef	WIN_TCP
+	/* This is an SVR4 with different networking code from
+	 * Wollongong WIN-TCP.  Not quite like the Lachman code.
+	 * Code from: drew@drewsun.FEITH.COM (Andrew B. Sudell)
+	 */
+#undef	SIOCSARP
+#define	SIOCSARP ARP_ADD
+	struct arptab arpreq;		/* Arp table entry */
+
+	bzero((caddr_t) &arpreq, sizeof(arpreq));
+	arpreq.at_flags = ATF_COM;
+
+	/* Set up IP address */
+	arpreq.at_in = ia->s_addr;
+
+	/* Set up Hardware Address */
+	bcopy(haddr, arpreq.at_enaddr, halen);
+
+	/* Set the Date Link type. */
+	/* XXX - Translate (hafamily) to dltype somehow? */
+	arpreq.at_dltype = DL_ETHER;
+
+#else	/* WIN_TCP */
+	/* Good old Berkeley way. */
 	struct arpreq arpreq;		/* Arp request ioctl block */
 	struct sockaddr_in *si;
-#ifdef	SVR4
-	int fd;
-	struct strioctl iocb;
-#endif	/* SVR4 */
+	char *p;
 
-	bzero((caddr_t) & arpreq, sizeof(arpreq));
+	bzero((caddr_t) &arpreq, sizeof(arpreq));
 	arpreq.arp_flags = ATF_INUSE | ATF_COM;
 
 	/* Set up the protocol address. */
@@ -95,7 +125,18 @@ setarp(s, ia, ha, len)
 	si->sin_addr = *ia;
 
 	/* Set up the hardware address. */
-	bcopy(ha, arpreq.arp_ha.sa_data, len);
+#ifdef	__linux__	/* XXX - Do others need this? -gwr */
+	/*
+	 * Linux requires the sa_family field set.
+	 * longyear@netcom.com (Al Longyear)
+	 */
+	arpreq.arp_ha.sa_family = hafamily;
+#endif	/* linux */
+
+	/* This variable is just to help catch type mismatches. */
+	p = arpreq.arp_ha.sa_data;
+	bcopy(haddr, p, halen);
+#endif	/* WIN_TCP */
 
 #ifdef	SVR4
 	/*
@@ -106,18 +147,22 @@ setarp(s, ia, ha, len)
 	 *   bear@upsys.se (Bj|rn Sj|holm),
 	 *   Michael Kuschke <Michael.Kuschke@Materna.DE>,
 	 */
-	if ((fd=open("/dev/arp", O_RDWR)) < 0) {
-	    report(LOG_ERR, "open /dev/arp: %s\n", get_errmsg());
-	}
-	iocb.ic_cmd = SIOCSARP;
-	iocb.ic_timout = 0;
-	iocb.ic_dp = (char *)&arpreq;
-	iocb.ic_len = sizeof(arpreq);
-	if (ioctl(fd, I_STR, (caddr_t)&iocb) < 0) {
-	    report(LOG_ERR, "ioctl I_STR: %s\n", get_errmsg());
-	}
-	close (fd);
+	{
+		int fd;
+		struct strioctl iocb;
 
+		if ((fd=open("/dev/arp", O_RDWR)) < 0) {
+			report(LOG_ERR, "open /dev/arp: %s\n", get_errmsg());
+		}
+		iocb.ic_cmd = SIOCSARP;
+		iocb.ic_timout = 0;
+		iocb.ic_dp = (char *)&arpreq;
+		iocb.ic_len = sizeof(arpreq);
+		if (ioctl(fd, I_STR, (caddr_t)&iocb) < 0) {
+			report(LOG_ERR, "ioctl I_STR: %s\n", get_errmsg());
+		}
+		close (fd);
+	}
 #else	/* SVR4 */
 	/*
 	 * On SunOS, the ioctl sometimes returns ENXIO, and it
@@ -125,30 +170,30 @@ setarp(s, ia, ha, len)
 	 * to add is already in the cache.  (Sigh...)
 	 * XXX - Should this error simply be ignored? -gwr
 	 */
-	if (ioctl(s, SIOCSARP, (caddr_t) & arpreq) < 0) {
+	if (ioctl(s, SIOCSARP, (caddr_t) &arpreq) < 0) {
 		report(LOG_ERR, "ioctl SIOCSARP: %s", get_errmsg());
 	}
 #endif	/* SVR4 */
 #else	/* SIOCSARP */
-#if defined(BSD) && (BSD >= 199306)
-	bsd_arp_set(ia, ha, len);
-#else	/* Not BSD 4.4, and SIOCSARP not defined */
 	/*
 	 * Oh well, SIOCSARP is not defined.  Just run arp(8).
+	 * Need to delete partial entry first on some systems.
 	 * XXX - Gag!
 	 */
-	char buf[256];
 	int status;
+	char buf[256];
+	char *a;
+	extern char *inet_ntoa();
 
-	sprintf(buf, "arp -s %s %s temp",
-			inet_ntoa(*ia), haddrtoa(ha, len));
+	a = inet_ntoa(*ia);
+	sprintf(buf, "arp -d %s; arp -s %s %s temp",
+			a, a, haddrtoa(haddr, halen));
 	if (debug > 2)
 		report(LOG_INFO, buf);
 	status = system(buf);
 	if (status)
 		report(LOG_ERR, "arp failed, exit code=0x%x", status);
 	return;
-#endif /* ! 4.4 BSD */
 #endif	/* SIOCSARP */
 }
 

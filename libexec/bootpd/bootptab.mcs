@@ -85,8 +85,5 @@ tp885:  tc=.subnet17:ha=08.00.4C.00.2F.74:bf=tp885sys2.cfe:
 #mvme147:tc=.subnet17:ha=08.00.3e.20.da.47:bf=mv147vxw.st:
 
 # These are just for testing
-
-walnut:tc=.subnet16:ha=walnut:
-banana:tc=.subnet17:ha=banana:
-thor:tc=.subnet17:ha=thor:
-classic:tc=.subnet16:ha=classic:
+bach:  tc=.subnet16:ha="08:00:20:04:98:8d":bf=boot.sun4m:
+xanadu:tc=.subnet17:ha="00:80:42:42:04:c7":bf=boot.sun4c:
