@@ -1040,7 +1040,11 @@ usb_start_next(pipe)
 #endif
 
 	/* First remove remove old */
+#if defined(__NetBSD__)
 	SIMPLEQ_REMOVE_HEAD(&pipe->queue, SIMPLEQ_FIRST(&pipe->queue), next);
+#elif defined(__FreeBSD__)
+	SIMPLEQ_REMOVE_HEAD(&pipe->queue, next);
+#endif
 	if (pipe->state != USBD_PIPE_ACTIVE) {
 		pipe->running = 0;
 		return;
