@@ -70,6 +70,7 @@ char	domachelp[] =	"execute macro";
 #ifndef SMALL
 char	edithelp[] =	"toggle command line editing";
 #endif /* !SMALL */
+char	epsv4help[] =	"toggle use of EPSV/EPRT on IPv4 ftp";
 char	formhelp[] =	"set file transfer format";
 char	gatehelp[] =	"toggle gate-ftp; specify host[:port] to change proxy";
 char	globhelp[] =	"toggle metacharacter expansion of local file names";
@@ -160,6 +161,7 @@ struct cmd cmdtab[] = {
 #ifndef SMALL
 	{ "edit",	edithelp,	0, 0, 0, CMPL0		setedit },
 #endif /* !SMALL */
+	{ "epsv4",	epsv4help,	0, 0, 0, CMPL0		setepsv4 },
 	{ "exit",	quithelp,	0, 0, 0, CMPL0		quit },
 	{ "form",	formhelp,	0, 1, 1, CMPL0		setform },
 	{ "ftp",	connecthelp,	0, 0, 1, CMPL0		setpeer },

@@ -120,7 +120,7 @@ setpeer(argc, argv)
 		}
 
 		connected = 1;
-		try_epsv = 1;
+		try_epsv = epsv4;
 		/*
 		 * Set up defaults for FTP.
 		 */
