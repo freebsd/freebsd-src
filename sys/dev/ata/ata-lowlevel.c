@@ -304,10 +304,18 @@ ata_interrupt(void *data)
     /* clear interrupt and get status */
     request->status = ATA_IDX_INB(ch, ATA_STATUS);
 
-    switch (request->flags & (ATA_R_ATAPI | ATA_R_DMA)) {
+    switch (request->flags & (ATA_R_ATAPI | ATA_R_DMA | ATA_R_CONTROL)) {
 
     /* ATA PIO data transfer and control commands */
     default:
+
+	/* on control commands read back registers to the request struct */
+	if (request->flags & ATA_R_CONTROL) {
+	    request->u.ata.count = ATA_IDX_INB(ch, ATA_COUNT);
+	    request->u.ata.lba = ATA_IDX_INB(ch, ATA_SECTOR) |
+				 (ATA_IDX_INB(ch, ATA_CYL_LSB) << 8) |
+				 (ATA_IDX_INB(ch, ATA_CYL_MSB) << 16);
+	}
 
 	/* if we got an error we are done with the HW */
 	if (request->status & ATA_S_ERROR) {
@@ -315,45 +323,45 @@ ata_interrupt(void *data)
 	    break;
 	}
 	
-	/* if read data get it */
-	if (request->flags & ATA_R_READ)
-	    ata_pio_read(request, request->transfersize);
+	/* are we moving data ? */
+	if (request->flags & (ATA_R_READ | ATA_R_WRITE)) {
 
-	/* update how far we've gotten */
-	request->donecount += request->transfersize;
+	    /* if read data get it */
+	    if (request->flags & ATA_R_READ)
+		ata_pio_read(request, request->transfersize);
 
-	/* do we need a scoop more ? */
-	if (request->bytecount > request->donecount) {
+	    /* update how far we've gotten */
+		request->donecount += request->transfersize;
 
-	    /* set this transfer size according to HW capabilities */
-	    request->transfersize = 
-		min((request->bytecount - request->donecount),
-		    request->transfersize);
+	    /* do we need a scoop more ? */
+	    if (request->bytecount > request->donecount) {
 
-	    /* if data write command, output the data */
-	    if (request->flags & ATA_R_WRITE) {
+		/* set this transfer size according to HW capabilities */
+		request->transfersize = 
+		    min((request->bytecount - request->donecount),
+			request->transfersize);
 
-		/* if we get an error here we are done with the HW */
-		if (ata_wait(request->device,
-			     (ATA_S_READY | ATA_S_DSC | ATA_S_DRQ)) < 0) {
-		    ata_prtdev(request->device,"timeout waiting for write DRQ");
-		    request->status = ATA_IDX_INB(ch, ATA_STATUS);
-		    break;
+		/* if data write command, output the data */
+		if (request->flags & ATA_R_WRITE) {
+
+		    /* if we get an error here we are done with the HW */
+		    if (ata_wait(request->device,
+				 (ATA_S_READY | ATA_S_DSC | ATA_S_DRQ)) < 0) {
+			ata_prtdev(request->device,
+				   "timeout waiting for write DRQ");
+			request->status = ATA_IDX_INB(ch, ATA_STATUS);
+			break;
+		    }
+
+		    /* output data and return waiting for new interrupt */
+		    ata_pio_write(request, request->transfersize);
+		    return;
 		}
 
-		/* output data and return waiting for new interrupt */
-		ata_pio_write(request, request->transfersize);
-		return;
+		/* if data read command, return & wait for interrupt */
+		if (request->flags & ATA_R_READ)
+		    return;
 	    }
-
-	    /* if data read command, return & wait for interrupt */
-	    else if (request->flags & ATA_R_READ) {
-		return;
-	    }
-	    else
-		ata_prtdev(request->device,
-			   "FAILURE - %s shouldn't loop on control cmd\n",
-			   ata_cmd2str(request));
 	}
 	/* done with HW */
 	break;
