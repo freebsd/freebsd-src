@@ -61,6 +61,13 @@ If there is no argument or the argument is
 .Ql Fl ,
 the tty line is assumed to be open as file descriptor 0.
 .Pp
+If the argument
+.Ar tty
+matches the first entry in one of the lines in
+.Pa /etc/fbtab
+the userid and groupid of the device list on that line is reset to root and
+wheel respectively.
+.Pp
 The
 .Ar type
 argument can be used to make
@@ -111,9 +118,11 @@ does not exist.
 .El
 .Sh FILES
 .Bl -tag -width /etc/gettytab -compact
+.It Pa /etc/fbtab
 .It Pa /etc/gettytab
 .El
 .Sh SEE ALSO
+.Xr fbtab 5 ,
 .Xr gettytab 5 ,
 .Xr init 8 ,
 .Xr login 1 ,
