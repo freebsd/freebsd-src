@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.10 (Berkeley) 4/1/94
- * $Id: ufs_vnops.c,v 1.33 1995/11/09 08:14:37 bde Exp $
+ * $Id: ufs_vnops.c,v 1.34 1995/11/19 19:46:23 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -468,10 +468,6 @@ ufs_chmod(vp, mode, cred, p)
 	ip->i_mode &= ~ALLPERMS;
 	ip->i_mode |= (mode & ALLPERMS);
 	ip->i_flag |= IN_CHANGE;
-/*
-	if ((vp->v_flag & VTEXT) && (ip->i_mode & S_ISTXT) == 0)
-		(void) vnode_pager_uncache(vp);
-*/
 	return (0);
 }
 
@@ -1720,9 +1716,9 @@ ufs_unlock(ap)
 	} */ *ap;
 {
 	register struct inode *ip = VTOI(ap->a_vp);
-	struct proc *p = curproc;
 
 #ifdef DIAGNOSTIC
+	struct proc *p = curproc;
 
 	if ((ip->i_flag & IN_LOCKED) == 0) {
 		vprint("ufs_unlock: unlocked inode", ap->a_vp);

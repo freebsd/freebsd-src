@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.h,v 1.23 1995/11/05 20:46:01 dyson Exp $
+ * $Id: vm_object.h,v 1.24 1995/12/07 12:48:22 davidg Exp $
  */
 
 /*
@@ -96,15 +96,15 @@ struct vm_object {
 	u_short flags;			/* see below */
 	u_short paging_in_progress;	/* Paging (in or out) so don't collapse or destroy */
 	int resident_page_count;	/* number of resident pages */
-	vm_offset_t paging_offset;	/* Offset into paging space */
+	vm_ooffset_t paging_offset;	/* Offset into paging space */
 	struct vm_object *backing_object; /* object that I'm a shadow of */
-	vm_offset_t backing_object_offset;/* Offset in backing object */
+	vm_ooffset_t backing_object_offset;/* Offset in backing object */
 	vm_offset_t last_read;		/* last read in object -- detect seq behavior */
 	TAILQ_ENTRY(vm_object) pager_object_list; /* list of all objects of this pager type */
 	void *handle;
 	union {
 		struct {
-			vm_size_t vnp_size; /* Current size of file */
+			off_t vnp_size; /* Current size of file */
 		} vnp;
 		struct {
 			TAILQ_HEAD(, vm_page) devp_pglist; /* list of pages allocated */
@@ -129,6 +129,8 @@ struct vm_object {
 #define	OBJ_MIGHTBEDIRTY	0x0100	/* object might be dirty */
 #define OBJ_CLEANING	0x0200
 
+#define IDX_TO_OFF(idx) (((vm_ooffset_t)(idx)) << PAGE_SHIFT)
+#define OFF_TO_IDX(off) ((vm_pindex_t)(((vm_ooffset_t)(off)) >> PAGE_SHIFT))
 
 #ifdef	KERNEL
 extern int vm_object_cache_max;
@@ -162,18 +164,18 @@ vm_object_pip_wakeup(vm_object_t object)
 vm_object_t vm_object_allocate __P((objtype_t, vm_size_t));
 void vm_object_cache_clear __P((void));
 void vm_object_cache_trim __P((void));
-boolean_t vm_object_coalesce __P((vm_object_t, vm_object_t, vm_offset_t, vm_offset_t, vm_offset_t, vm_size_t));
+boolean_t vm_object_coalesce __P((vm_object_t, vm_pindex_t, vm_size_t, vm_size_t));
 void vm_object_collapse __P((vm_object_t));
-void vm_object_copy __P((vm_object_t, vm_offset_t, vm_size_t, vm_object_t *, vm_offset_t *, boolean_t *));
+void vm_object_copy __P((vm_object_t, vm_pindex_t, vm_object_t *, vm_pindex_t *, boolean_t *));
 void vm_object_deactivate_pages __P((vm_object_t));
 void vm_object_deallocate __P((vm_object_t));
-void vm_object_init __P((vm_size_t));
-void vm_object_page_clean __P((vm_object_t, vm_offset_t, vm_offset_t, boolean_t, boolean_t));
-void vm_object_page_remove __P((vm_object_t, vm_offset_t, vm_offset_t, boolean_t));
-void vm_object_pmap_copy __P((vm_object_t, vm_offset_t, vm_offset_t));
-void vm_object_pmap_remove __P((vm_object_t, vm_offset_t, vm_offset_t));
+void vm_object_init __P((void));
+void vm_object_page_clean __P((vm_object_t, vm_pindex_t, vm_pindex_t, boolean_t, boolean_t));
+void vm_object_page_remove __P((vm_object_t, vm_pindex_t, vm_pindex_t, boolean_t));
+void vm_object_pmap_copy __P((vm_object_t, vm_pindex_t, vm_pindex_t));
+void vm_object_pmap_remove __P((vm_object_t, vm_pindex_t, vm_pindex_t));
 void vm_object_reference __P((vm_object_t));
-void vm_object_shadow __P((vm_object_t *, vm_offset_t *, vm_size_t));
+void vm_object_shadow __P((vm_object_t *, vm_ooffset_t *, vm_size_t));
 void vm_object_terminate __P((vm_object_t));
 #endif				/* KERNEL */
 

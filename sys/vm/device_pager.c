@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)device_pager.c	8.1 (Berkeley) 6/11/93
- * $Id: device_pager.c,v 1.15 1995/12/03 18:59:55 bde Exp $
+ * $Id: device_pager.c,v 1.16 1995/12/07 12:48:01 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -86,7 +86,7 @@ dev_pager_alloc(handle, size, prot, foff)
 	void *handle;
 	vm_size_t size;
 	vm_prot_t prot;
-	vm_offset_t foff;
+	vm_ooffset_t foff;
 {
 	dev_t dev;
 	d_mmap_t *mapfunc;
@@ -138,7 +138,8 @@ dev_pager_alloc(handle, size, prot, foff)
 		/*
 		 * Allocate object and associate it with the pager.
 		 */
-		object = vm_object_allocate(OBJT_DEVICE, foff + size);
+		object = vm_object_allocate(OBJT_DEVICE,
+			OFF_TO_IDX(foff + size));
 		object->handle = handle;
 		TAILQ_INIT(&object->un_pager.devp.devp_pglist);
 		TAILQ_INSERT_TAIL(&dev_pager_object_list, object, pager_object_list);
@@ -147,8 +148,8 @@ dev_pager_alloc(handle, size, prot, foff)
 		 * Gain a reference to the object.
 		 */
 		vm_object_reference(object);
-		if (foff + size > object->size)
-			object->size = foff + size;
+		if (OFF_TO_IDX(foff + size) > object->size)
+			object->size = OFF_TO_IDX(foff + size);
 	}
 
 	dev_pager_alloc_lock = 0;
@@ -181,7 +182,8 @@ dev_pager_getpages(object, m, count, reqpage)
 	int count;
 	int reqpage;
 {
-	vm_offset_t offset, paddr;
+	vm_offset_t offset;
+	vm_offset_t paddr;
 	vm_page_t page;
 	dev_t dev;
 	int i, s;
@@ -189,14 +191,14 @@ dev_pager_getpages(object, m, count, reqpage)
 	int prot;
 
 	dev = (dev_t) (u_long) object->handle;
-	offset = m[reqpage]->offset + object->paging_offset;
+	offset = m[reqpage]->pindex + OFF_TO_IDX(object->paging_offset);
 	prot = PROT_READ;	/* XXX should pass in? */
 	mapfunc = cdevsw[major(dev)].d_mmap;
 
 	if (mapfunc == NULL || mapfunc == (d_mmap_t *)nullop)
 		panic("dev_pager_getpage: no map function");
 
-	paddr = pmap_phys_address((*mapfunc) ((dev_t) dev, (int) offset, prot));
+	paddr = pmap_phys_address((*mapfunc) ((dev_t) dev, (int) offset << PAGE_SHIFT, prot));
 #ifdef DIAGNOSTIC
 	if (paddr == -1)
 		panic("dev_pager_getpage: map function returns error");
@@ -230,9 +232,9 @@ dev_pager_putpages(object, m, count, sync, rtvals)
 }
 
 boolean_t
-dev_pager_haspage(object, offset, before, after)
+dev_pager_haspage(object, pindex, before, after)
 	vm_object_t object;
-	vm_offset_t offset;
+	vm_pindex_t pindex;
 	int *before;
 	int *after;
 {

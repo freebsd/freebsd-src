@@ -36,18 +36,18 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode_pager.h	8.1 (Berkeley) 6/11/93
- * $Id: vnode_pager.h,v 1.5 1995/07/13 08:48:48 davidg Exp $
+ * $Id: vnode_pager.h,v 1.6 1995/09/06 05:37:43 dyson Exp $
  */
 
 #ifndef	_VNODE_PAGER_
 #define	_VNODE_PAGER_	1
 
 #ifdef KERNEL
-vm_object_t vnode_pager_alloc __P((void *, vm_size_t, vm_prot_t, vm_offset_t));
+vm_object_t vnode_pager_alloc __P((void *, vm_size_t, vm_prot_t, vm_ooffset_t));
 void vnode_pager_dealloc __P((vm_object_t));
 int vnode_pager_getpages __P((vm_object_t, vm_page_t *, int, int));
 int vnode_pager_putpages __P((vm_object_t, vm_page_t *, int, boolean_t, int *));
-boolean_t vnode_pager_haspage __P((vm_object_t, vm_offset_t, int *, int *));
+boolean_t vnode_pager_haspage __P((vm_object_t, vm_pindex_t, int *, int *));
 struct vnode *vnode_pager_lock __P((vm_object_t));
 void vnode_pager_freepage __P((vm_page_t m));
 #endif

@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.67 1995/12/07 12:45:36 davidg Exp $
+ *	$Id: pmap.c,v 1.68 1995/12/10 13:36:28 phk Exp $
  */
 
 /*
@@ -672,7 +672,8 @@ pmap_alloc_pv_entry()
 		 * allocate a physical page out of the vm system
 		 */
 		m = vm_page_alloc(kernel_object,
-		    pvva - vm_map_min(kernel_map), VM_ALLOC_INTERRUPT);
+		    OFF_TO_IDX(pvva - vm_map_min(kernel_map)),
+		    VM_ALLOC_INTERRUPT);
 		if (m) {
 			int newentries;
 			int i;
@@ -1399,73 +1400,85 @@ pmap_enter_quick(pmap, va, pa)
 	return;
 }
 
-#define MAX_INIT_PT (1024*2048)
+#define MAX_INIT_PT (512 * 4096)
 /*
  * pmap_object_init_pt preloads the ptes for a given object
  * into the specified pmap.  This eliminates the blast of soft
  * faults on process startup and immediately after an mmap.
  */
 void
-pmap_object_init_pt(pmap, addr, object, offset, size)
+pmap_object_init_pt(pmap, addr, object, pindex, size)
 	pmap_t pmap;
 	vm_offset_t addr;
 	vm_object_t object;
-	vm_offset_t offset;
-	vm_offset_t size;
+	vm_pindex_t pindex;
+	vm_size_t size;
 {
-	vm_offset_t tmpoff;
+	vm_offset_t tmpidx;
+	int psize;
 	vm_page_t p;
-	int objbytes;
+	int objpgs;
 
 	if (!pmap || ((size > MAX_INIT_PT) &&
-		(object->resident_page_count > (MAX_INIT_PT / NBPG)))) {
+		(object->resident_page_count > MAX_INIT_PT / PAGE_SIZE))) {
 		return;
 	}
 
+	psize = (size >> PAGE_SHIFT);
 	/*
 	 * if we are processing a major portion of the object, then scan the
 	 * entire thing.
 	 */
-	if (size > (object->size >> 2)) {
-		objbytes = size;
+	if (psize > (object->size >> 2)) {
+		objpgs = psize;
 
 		for (p = object->memq.tqh_first;
-		    ((objbytes > 0) && (p != NULL));
+		    ((objpgs > 0) && (p != NULL));
 		    p = p->listq.tqe_next) {
 
-			tmpoff = p->offset;
-			if (tmpoff < offset) {
+			tmpidx = p->pindex;
+			if (tmpidx < pindex) {
 				continue;
 			}
-			tmpoff -= offset;
-			if (tmpoff >= size) {
+			tmpidx -= pindex;
+			if (tmpidx >= psize) {
 				continue;
 			}
-			if (((p->flags & (PG_ACTIVE | PG_INACTIVE)) != 0) &&
+			if (((p->flags & (PG_ACTIVE | PG_INACTIVE | PG_CACHE)) != 0) &&
 			    ((p->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL) &&
 			    (p->bmapped == 0) &&
-				(p->busy == 0) &&
-			    (p->flags & (PG_BUSY | PG_FICTITIOUS | PG_CACHE)) == 0) {
+			    (p->busy == 0) &&
+			    (p->flags & (PG_BUSY | PG_FICTITIOUS)) == 0) {
+				if (p->flags & PG_CACHE)
+					vm_page_deactivate(p);
 				vm_page_hold(p);
 				p->flags |= PG_MAPPED;
-				pmap_enter_quick(pmap, addr + tmpoff, VM_PAGE_TO_PHYS(p));
+				pmap_enter_quick(pmap,
+					addr + (tmpidx << PAGE_SHIFT),
+					VM_PAGE_TO_PHYS(p));
 				vm_page_unhold(p);
 			}
-			objbytes -= NBPG;
+			objpgs -= 1;
 		}
 	} else {
 		/*
 		 * else lookup the pages one-by-one.
 		 */
-		for (tmpoff = 0; tmpoff < size; tmpoff += NBPG) {
-			p = vm_page_lookup(object, tmpoff + offset);
-			if (p && ((p->flags & (PG_ACTIVE | PG_INACTIVE)) != 0) &&
-			    (p->bmapped == 0) && (p->busy == 0) &&
+		for (tmpidx = 0; tmpidx < psize; tmpidx += 1) {
+			p = vm_page_lookup(object, tmpidx + pindex);
+			if (p &&
+			    ((p->flags & (PG_ACTIVE | PG_INACTIVE | PG_CACHE)) != 0) &&
+			    (p->bmapped == 0) &&
+			    (p->busy == 0) &&
 			    ((p->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL) &&
-			    (p->flags & (PG_BUSY | PG_FICTITIOUS | PG_CACHE)) == 0) {
+			    (p->flags & (PG_BUSY | PG_FICTITIOUS)) == 0) {
+				if (p->flags & PG_CACHE)
+					vm_page_deactivate(p);
 				vm_page_hold(p);
 				p->flags |= PG_MAPPED;
-				pmap_enter_quick(pmap, addr + tmpoff, VM_PAGE_TO_PHYS(p));
+				pmap_enter_quick(pmap,
+					addr + (tmpidx << PAGE_SHIFT),
+					VM_PAGE_TO_PHYS(p));
 				vm_page_unhold(p);
 			}
 		}

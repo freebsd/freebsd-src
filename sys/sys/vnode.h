@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.23 1995/11/08 04:51:15 dyson Exp $
+ * $Id: vnode.h,v 1.24 1995/11/09 08:17:13 bde Exp $
  */
 
 #ifndef _SYS_VNODE_H_
@@ -421,6 +421,8 @@ int	vn_read __P((struct file *fp, struct uio *uio, struct ucred *cred));
 int	vn_select __P((struct file *fp, int which, struct proc *p));
 int	vn_stat __P((struct vnode *vp, struct stat *sb, struct proc *p));
 int	vn_write __P((struct file *fp, struct uio *uio, struct ucred *cred));
+int	vn_vmio_open __P((struct vnode *vp, struct proc *p, struct ucred *cred));
+void	vn_vmio_close __P((struct vnode *vp));
 struct vnode *
 	checkalias __P((struct vnode *vp, dev_t nvp_rdev, struct mount *mp));
 void	vprint __P((char *, struct vnode *));

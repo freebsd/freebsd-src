@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.8 (Berkeley) 4/18/94
- * $Id: ffs_vfsops.c,v 1.29 1995/11/20 12:25:37 phk Exp $
+ * $Id: ffs_vfsops.c,v 1.30 1995/12/07 12:47:51 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -69,7 +69,6 @@
 int	ffs_sbupdate __P((struct ufsmount *, int));
 int	ffs_reload __P((struct mount *,struct ucred *,struct proc *));
 int	ffs_oldfscompat __P((struct fs *));
-void ffs_vmlimits __P((struct fs *));
 
 struct vfsops ufs_vfsops = {
 	ffs_mount,
@@ -392,7 +391,6 @@ ffs_reload(mp, cred, p)
 		bp->b_flags |= B_INVAL;
 	brelse(bp);
 	ffs_oldfscompat(fs);
-	ffs_vmlimits(fs);
 	/*
 	 * Step 3: re-read summary information from disk.
 	 */
@@ -562,7 +560,6 @@ ffs_mountfs(devvp, mp, p)
 		ump->um_quotas[i] = NULLVP;
 	devvp->v_specflags |= SI_MOUNTEDON;
 	ffs_oldfscompat(fs);
-	ffs_vmlimits(fs);
 
 	/*
 	 * Set FS local "last mounted on" information (NULL pad)
@@ -614,30 +611,17 @@ ffs_oldfscompat(fs)
 #if 0
 		int i;						/* XXX */
 		quad_t sizepb = fs->fs_bsize;			/* XXX */
-								/* XXX */
 		fs->fs_maxfilesize = fs->fs_bsize * NDADDR - 1;	/* XXX */
 		for (i = 0; i < NIADDR; i++) {			/* XXX */
 			sizepb *= NINDIR(fs);			/* XXX */
 			fs->fs_maxfilesize += sizepb;		/* XXX */
 		}						/* XXX */
 #endif
-		fs->fs_maxfilesize = (u_quad_t) 1 << 39;
+		fs->fs_maxfilesize = (u_quad_t) 1LL << 39;
 		fs->fs_qbmask = ~fs->fs_bmask;			/* XXX */
 		fs->fs_qfmask = ~fs->fs_fmask;			/* XXX */
 	}							/* XXX */
 	return (0);
-}
-
-/*
- * Sanity check for VM file size limits -- temporary until
- * VM system can support > 32bit offsets
- */
-void
-ffs_vmlimits(fs)
-	struct fs *fs;
-{
-	if( fs->fs_maxfilesize > (((u_quad_t) 1 << 31) - 1))
-		fs->fs_maxfilesize = ((u_quad_t) 1 << 31) - 1;
 }
 
 /*
@@ -670,7 +654,10 @@ ffs_unmount(mp, mntflags, p)
 	ump->um_devvp->v_specflags &= ~SI_MOUNTEDON;
 	error = VOP_CLOSE(ump->um_devvp, ronly ? FREAD : FREAD|FWRITE,
 		NOCRED, p);
+/*
 	vrele(ump->um_devvp);
+*/
+	vn_vmio_close(ump->um_devvp);
 	free(fs->fs_csp[0], M_UFSMNT);
 	free(fs, M_UFSMNT);
 	free(ump, M_UFSMNT);
@@ -764,7 +751,7 @@ ffs_sync(mp, waitfor, cred, p)
 	struct ucred *cred;
 	struct proc *p;
 {
-	register struct vnode *vp;
+	register struct vnode *vp, *nvp;
 	register struct inode *ip;
 	register struct ufsmount *ump = VFSTOUFS(mp);
 	register struct fs *fs;
@@ -790,15 +777,14 @@ ffs_sync(mp, waitfor, cred, p)
 	 * Write back each (modified) inode.
 	 */
 loop:
-	for (vp = mp->mnt_vnodelist.lh_first;
-	     vp != NULL;
-	     vp = vp->v_mntvnodes.le_next) {
+	for (vp = mp->mnt_vnodelist.lh_first; vp != NULL; vp = nvp) {
 		/*
 		 * If the vnode that we are about to sync is no longer
 		 * associated with this mount point, start over.
 		 */
 		if (vp->v_mount != mp)
 			goto loop;
+		nvp = vp->v_mntvnodes.le_next;
 		if (VOP_ISLOCKED(vp))
 			continue;
 		ip = VTOI(vp);
@@ -815,7 +801,8 @@ loop:
 			vput(vp);
 		} else {
 			tv = time;
-			VOP_UPDATE(vp, &tv, &tv, waitfor == MNT_WAIT);
+			/* VOP_UPDATE(vp, &tv, &tv, waitfor == MNT_WAIT); */
+			VOP_UPDATE(vp, &tv, &tv, 0);
 		}
 	}
 	/*

@@ -28,16 +28,16 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: default_pager.h,v 1.1 1995/07/13 10:15:03 davidg Exp $
  */
 
 #ifndef _DEFAULT_PAGER_H_
 #define _DEFAULT_PAGER_H_ 1
 
-vm_object_t default_pager_alloc __P((void *, vm_size_t, vm_prot_t, vm_offset_t));
+vm_object_t default_pager_alloc __P((void *, vm_size_t, vm_prot_t, vm_ooffset_t));
 void default_pager_dealloc __P((vm_object_t));
 int default_pager_getpages __P((vm_object_t, vm_page_t *, int, int));
 int default_pager_putpages __P((vm_object_t, vm_page_t *, int, boolean_t, int *));
-boolean_t default_pager_haspage __P((vm_object_t, vm_offset_t, int *, int *));
+boolean_t default_pager_haspage __P((vm_object_t, vm_pindex_t, int *, int *));
 
 #endif	/* _DEFAULT_PAGER_H_ */

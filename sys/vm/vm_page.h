@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_page.h,v 1.21 1995/10/23 04:29:39 dyson Exp $
+ * $Id: vm_page.h,v 1.22 1995/11/20 12:19:32 phk Exp $
  */
 
 /*
@@ -105,7 +105,7 @@ struct vm_page {
 	TAILQ_ENTRY(vm_page) listq;	/* pages in same object (O) */
 
 	vm_object_t object;		/* which object am I in (O,P) */
-	vm_offset_t offset;		/* offset into object (O,P) */
+	vm_pindex_t pindex;		/* offset into object (O,P) */
 	vm_offset_t phys_addr;		/* physical address of page */
 
 	u_short wire_count;		/* wired down maps refs (P) */
@@ -180,6 +180,8 @@ extern struct pglist vm_page_queue_active;	/* active memory queue */
 extern struct pglist vm_page_queue_inactive;	/* inactive memory queue */
 extern struct pglist vm_page_queue_cache;	/* cache memory queue */
 
+extern int vm_page_zero_count;
+
 extern vm_page_t vm_page_array;		/* First resident page in table */
 extern long first_page;			/* first physical page number */
 
@@ -230,15 +232,15 @@ extern vm_offset_t last_phys_addr;	/* physical address for last_page */
 #define	VM_ALLOC_ZERO	0x80
 
 void vm_page_activate __P((vm_page_t));
-vm_page_t vm_page_alloc __P((vm_object_t, vm_offset_t, int));
+vm_page_t vm_page_alloc __P((vm_object_t, vm_pindex_t, int));
 void vm_page_cache __P((register vm_page_t));
 void vm_page_copy __P((vm_page_t, vm_page_t));
 void vm_page_deactivate __P((vm_page_t));
 void vm_page_free __P((vm_page_t));
-void vm_page_insert __P((vm_page_t, vm_object_t, vm_offset_t));
-vm_page_t vm_page_lookup __P((vm_object_t, vm_offset_t));
+void vm_page_insert __P((vm_page_t, vm_object_t, vm_pindex_t));
+vm_page_t vm_page_lookup __P((vm_object_t, vm_pindex_t));
 void vm_page_remove __P((vm_page_t));
-void vm_page_rename __P((vm_page_t, vm_object_t, vm_offset_t));
+void vm_page_rename __P((vm_page_t, vm_object_t, vm_pindex_t));
 vm_offset_t vm_page_startup __P((vm_offset_t, vm_offset_t, vm_offset_t));
 void vm_page_unwire __P((vm_page_t));
 void vm_page_wire __P((vm_page_t));

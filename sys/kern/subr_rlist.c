@@ -54,7 +54,7 @@
  * functioning of this software, nor does the author assume any responsibility
  * for damages incurred with its use.
  *
- *	$Id: subr_rlist.c,v 1.12 1995/12/02 18:58:53 bde Exp $
+ *	$Id: subr_rlist.c,v 1.13 1995/12/07 12:46:53 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -85,12 +85,12 @@ rlist_malloc()
 	int i;
 	while( rlist_count < RLIST_MIN) {
 		int s = splhigh();
-		rl = (struct rlist *)kmem_malloc(kmem_map, NBPG, M_WAITOK);
+		rl = (struct rlist *)kmem_malloc(kmem_map, PAGE_SIZE, M_WAITOK);
 		splx(s);
 		if( !rl)
 			break;
 
-		for(i=0;i<(NBPG/(sizeof *rl));i++) {
+		for(i=0;i<(PAGE_SIZE/(sizeof *rl));i++) {
 			rl->rl_next = rlfree;
 			rlfree = rl;
 			rlist_count++;

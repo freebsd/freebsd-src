@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: default_pager.c,v 1.2 1995/07/13 10:29:34 davidg Exp $
+ *	$Id: default_pager.c,v 1.3 1995/12/07 12:48:00 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -67,7 +67,7 @@ default_pager_alloc(handle, size, prot, offset)
 	void *handle;
 	register vm_size_t size;
 	vm_prot_t prot;
-	vm_offset_t offset;
+	vm_ooffset_t offset;
 {
 	if (handle != NULL)
 		panic("default_pager_alloc: handle specified");
@@ -127,9 +127,9 @@ default_pager_putpages(object, m, c, sync, rtvals)
 }
 
 boolean_t
-default_pager_haspage(object, offset, before, after)
+default_pager_haspage(object, pindex, before, after)
 	vm_object_t object;
-	vm_offset_t offset;
+	vm_pindex_t pindex;
 	int *before;
 	int *after;
 {

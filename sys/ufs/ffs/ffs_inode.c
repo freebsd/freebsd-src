@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_inode.c	8.5 (Berkeley) 12/30/93
- * $Id: ffs_inode.c,v 1.16 1995/11/05 21:01:15 dyson Exp $
+ * $Id: ffs_inode.c,v 1.17 1995/12/07 12:47:50 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -143,6 +143,7 @@ ffs_update(ap)
 	if (ap->a_waitfor && (ap->a_vp->v_mount->mnt_flag & MNT_ASYNC) == 0)
 		return (bwrite(bp));
 	else {
+		bp->b_flags |= B_CLUSTEROK;
 		bdwrite(bp);
 		return (0);
 	}
@@ -228,7 +229,7 @@ ffs_truncate(ap)
 			bdwrite(bp);
 		else
 			bawrite(bp);
-		vnode_pager_setsize(ovp, (u_long)length);
+		vnode_pager_setsize(ovp, length);
 		oip->i_flag |= IN_CHANGE | IN_UPDATE;
 		return (VOP_UPDATE(ovp, &tv, &tv, 1));
 	}
@@ -287,7 +288,7 @@ ffs_truncate(ap)
 	for (i = NDADDR - 1; i > lastblock; i--)
 		oip->i_db[i] = 0;
 	oip->i_flag |= IN_CHANGE | IN_UPDATE;
-	error = VOP_UPDATE(ovp, &tv, &tv, 1);
+	error = VOP_UPDATE(ovp, &tv, &tv, 0);
 	if (error)
 		allerror = error;
 	/*
@@ -391,7 +392,7 @@ done:
 	if (oip->i_blocks < 0)			/* sanity */
 		oip->i_blocks = 0;
 	oip->i_flag |= IN_CHANGE;
-	vnode_pager_setsize(ovp, (u_long)length);
+	vnode_pager_setsize(ovp, length);
 #ifdef QUOTA
 	(void) chkdq(oip, -blocksreleased, NOCRED, 0);
 #endif
@@ -470,7 +471,12 @@ ffs_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 	  (u_int)(NINDIR(fs) - (last + 1)) * sizeof (daddr_t));
 	if (last == -1)
 		bp->b_flags |= B_INVAL;
-	error = bwrite(bp);
+	if ((vp->v_mount->mnt_flag & MNT_ASYNC) == 0) {
+		error = bwrite(bp);
+	} else {
+		bawrite(bp);
+		error = 0;
+	}
 	if (error)
 		allerror = error;
 	bap = copy;

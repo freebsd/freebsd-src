@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_readwrite.c	8.7 (Berkeley) 1/21/94
- * $Id: ufs_readwrite.c,v 1.15 1995/11/05 21:01:10 dyson Exp $
+ * $Id: ufs_readwrite.c,v 1.16 1995/11/20 12:25:23 phk Exp $
  */
 
 #ifdef LFS_READWRITE
@@ -241,7 +241,7 @@ WRITE(ap)
 			xfersize = uio->uio_resid;
 
 		if (uio->uio_offset + xfersize > ip->i_size)
-			vnode_pager_setsize(vp, (u_long)uio->uio_offset + xfersize);
+			vnode_pager_setsize(vp, uio->uio_offset + xfersize);
 
 #ifdef LFS_READWRITE
 		(void)lfs_check(vp, lbn);
@@ -327,7 +327,7 @@ int
 ffs_getpages(ap)
 	struct vop_getpages_args *ap;
 {
-	vm_offset_t foff, physoffset;
+	off_t foff, physoffset;
 	int i, size, bsize;
 	struct vnode *dp;
 	int bbackwards, bforwards;
@@ -361,7 +361,7 @@ ffs_getpages(ap)
 	 * reqlblkno is the logical block that contains the page
 	 * poff is the index of the page into the logical block
 	 */
-	foff = ap->a_m[ap->a_reqpage]->offset + ap->a_offset;
+	foff = IDX_TO_OFF(ap->a_m[ap->a_reqpage]->pindex) + ap->a_offset;
 	reqlblkno = foff / bsize;
 	poff = (foff % bsize) / PAGE_SIZE;
 
@@ -422,11 +422,11 @@ ffs_getpages(ap)
 	 */
 
 	size = pcount * PAGE_SIZE;
-	if ((ap->a_m[firstpage]->offset + size) >
+	if ((IDX_TO_OFF(ap->a_m[firstpage]->pindex) + size) >
 		((vm_object_t) ap->a_vp->v_object)->un_pager.vnp.vnp_size)
-		size = ((vm_object_t) ap->a_vp->v_object)->un_pager.vnp.vnp_size - ap->a_m[firstpage]->offset;
+		size = ((vm_object_t) ap->a_vp->v_object)->un_pager.vnp.vnp_size - IDX_TO_OFF(ap->a_m[firstpage]->pindex);
 
-	physoffset -= ap->a_m[ap->a_reqpage]->offset;
+	physoffset -= IDX_TO_OFF(ap->a_m[ap->a_reqpage]->pindex);
 	rtval = VOP_GETPAGES(dp, &ap->a_m[firstpage], size,
 		(ap->a_reqpage - firstpage), physoffset);
 

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.57 1995/12/03 12:18:37 bde Exp $
+ * $Id: vm_object.c,v 1.58 1995/12/07 12:48:21 davidg Exp $
  */
 
 /*
@@ -162,9 +162,9 @@ _vm_object_allocate(type, size, object)
 	object->paging_in_progress = 0;
 	object->resident_page_count = 0;
 	object->handle = NULL;
-	object->paging_offset = 0;
+	object->paging_offset = (vm_ooffset_t) 0;
 	object->backing_object = NULL;
-	object->backing_object_offset = (vm_offset_t) 0;
+	object->backing_object_offset = (vm_ooffset_t) 0;
 
 	object->last_read = 0;
 
@@ -178,7 +178,7 @@ _vm_object_allocate(type, size, object)
  *	Initialize the VM objects module.
  */
 void
-vm_object_init(vm_offset_t nothing)
+vm_object_init()
 {
 	TAILQ_INIT(&vm_object_cached_list);
 	TAILQ_INIT(&vm_object_list);
@@ -189,11 +189,11 @@ vm_object_init(vm_offset_t nothing)
 		vm_object_cache_max += (cnt.v_page_count - 1000) / 4;
 
 	kernel_object = &kernel_object_store;
-	_vm_object_allocate(OBJT_DEFAULT, VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS,
+	_vm_object_allocate(OBJT_DEFAULT, OFF_TO_IDX(VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS),
 	    kernel_object);
 
 	kmem_object = &kmem_object_store;
-	_vm_object_allocate(OBJT_DEFAULT, VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS,
+	_vm_object_allocate(OBJT_DEFAULT, OFF_TO_IDX(VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS),
 	    kmem_object);
 }
 
@@ -434,8 +434,8 @@ vm_object_terminate(object)
 void
 vm_object_page_clean(object, start, end, syncio, lockflag)
 	vm_object_t object;
-	vm_offset_t start;
-	vm_offset_t end;
+	vm_pindex_t start;
+	vm_pindex_t end;
 	boolean_t syncio;
 	boolean_t lockflag;
 {
@@ -456,23 +456,18 @@ vm_object_page_clean(object, start, end, syncio, lockflag)
 		VOP_LOCK(vp);
 	object->flags |= OBJ_CLEANING;
 
-	if (start != end) {
-		start = trunc_page(start);
-		end = round_page(end);
-	}
-
 	tstart = start;
 	if (end == 0) {
 		tend = object->size;
 	} else {
 		tend = end;
 	}
-	if (tstart == 0 && tend == object->size) {
+	if ((tstart == 0) && (tend == object->size)) {
 		object->flags &= ~(OBJ_WRITEABLE|OBJ_MIGHTBEDIRTY);
 	}
 
 	runlen = 0;
-	for(;tstart < tend; tstart += PAGE_SIZE) {
+	for(;tstart < tend; tstart += 1) {
 relookup:
 		p = vm_page_lookup(object, tstart);
 		if (!p) {
@@ -482,7 +477,7 @@ relookup:
 			}
 			continue;
 		}
-		if (p->valid == 0 || (p->flags & PG_CACHE)) {
+		if ((p->valid == 0) || (p->flags & PG_CACHE)) {
 			if (runlen > 0) {
 				vm_pageout_flush(ma, runlen, syncio);
 				runlen = 0;
@@ -585,8 +580,8 @@ vm_object_cache_trim()
 void
 vm_object_pmap_copy(object, start, end)
 	register vm_object_t object;
-	register vm_offset_t start;
-	register vm_offset_t end;
+	register vm_pindex_t start;
+	register vm_pindex_t end;
 {
 	register vm_page_t p;
 
@@ -611,11 +606,10 @@ vm_object_pmap_copy(object, start, end)
 void
 vm_object_pmap_remove(object, start, end)
 	register vm_object_t object;
-	register vm_offset_t start;
-	register vm_offset_t end;
+	register vm_pindex_t start;
+	register vm_pindex_t end;
 {
 	register vm_page_t p;
-
 	if (object == NULL)
 		return;
 	for (p = object->memq.tqh_first; p != NULL; p = p->listq.tqe_next) {
@@ -635,13 +629,12 @@ vm_object_pmap_remove(object, start, end)
  *	up by a non-default pager.
  */
 void
-vm_object_copy(src_object, src_offset, size,
+vm_object_copy(src_object, src_offset,
     dst_object, dst_offset, src_needs_copy)
 	register vm_object_t src_object;
-	vm_offset_t src_offset;
-	vm_size_t size;
+	vm_pindex_t src_offset;
 	vm_object_t *dst_object;/* OUT */
-	vm_offset_t *dst_offset;/* OUT */
+	vm_pindex_t *dst_offset;/* OUT */
 	boolean_t *src_needs_copy;	/* OUT */
 {
 	if (src_object == NULL) {
@@ -692,7 +685,7 @@ vm_object_copy(src_object, src_offset, size,
 void
 vm_object_shadow(object, offset, length)
 	vm_object_t *object;	/* IN/OUT */
-	vm_offset_t *offset;	/* IN/OUT */
+	vm_ooffset_t *offset;	/* IN/OUT */
 	vm_size_t length;
 {
 	register vm_object_t source;
@@ -743,7 +736,9 @@ vm_object_qcollapse(object)
 	register vm_object_t object;
 {
 	register vm_object_t backing_object;
-	register vm_offset_t backing_offset, new_offset;
+	register vm_pindex_t backing_offset_index, paging_offset_index;
+	vm_pindex_t backing_object_paging_offset_index;
+	vm_pindex_t new_pindex;
 	register vm_page_t p, pp;
 	register vm_size_t size;
 
@@ -753,7 +748,9 @@ vm_object_qcollapse(object)
 
 	backing_object->ref_count += 2;
 
-	backing_offset = object->backing_object_offset;
+	backing_offset_index = OFF_TO_IDX(object->backing_object_offset);
+	backing_object_paging_offset_index = OFF_TO_IDX(backing_object->paging_offset);
+	paging_offset_index = OFF_TO_IDX(object->paging_offset);
 	size = object->size;
 	p = backing_object->memq.tqh_first;
 	while (p) {
@@ -766,26 +763,27 @@ vm_object_qcollapse(object)
 			continue;
 		}
 		vm_page_protect(p, VM_PROT_NONE);
-		new_offset = (p->offset - backing_offset);
-		if (p->offset < backing_offset ||
-		    new_offset >= size) {
+		new_pindex = p->pindex - backing_offset_index;
+		if (p->pindex < backing_offset_index ||
+		    new_pindex >= size) {
 			if (backing_object->type == OBJT_SWAP)
 				swap_pager_freespace(backing_object,
-				    backing_object->paging_offset + p->offset, PAGE_SIZE);
+				    backing_object_paging_offset_index+p->pindex,
+				    1);
 			vm_page_free(p);
 		} else {
-			pp = vm_page_lookup(object, new_offset);
+			pp = vm_page_lookup(object, new_pindex);
 			if (pp != NULL || (object->type == OBJT_SWAP && vm_pager_has_page(object,
-				    object->paging_offset + new_offset, NULL, NULL))) {
+				    paging_offset_index + new_pindex, NULL, NULL))) {
 				if (backing_object->type == OBJT_SWAP)
 					swap_pager_freespace(backing_object,
-					    backing_object->paging_offset + p->offset, PAGE_SIZE);
+					    backing_object_paging_offset_index + p->pindex, 1);
 				vm_page_free(p);
 			} else {
 				if (backing_object->type == OBJT_SWAP)
 					swap_pager_freespace(backing_object,
-					    backing_object->paging_offset + p->offset, PAGE_SIZE);
-				vm_page_rename(p, object, new_offset);
+					    backing_object_paging_offset_index + p->pindex, 1);
+				vm_page_rename(p, object, new_pindex);
 				p->dirty = VM_PAGE_BITS_ALL;
 			}
 		}
@@ -807,9 +805,9 @@ vm_object_collapse(object)
 
 {
 	vm_object_t backing_object;
-	vm_offset_t backing_offset;
+	vm_ooffset_t backing_offset;
 	vm_size_t size;
-	vm_offset_t new_offset;
+	vm_pindex_t new_pindex, backing_offset_index;
 	vm_page_t p, pp;
 
 	while (TRUE) {
@@ -856,6 +854,7 @@ vm_object_collapse(object)
 		 */
 
 		backing_offset = object->backing_object_offset;
+		backing_offset_index = OFF_TO_IDX(backing_offset);
 		size = object->size;
 
 		/*
@@ -877,7 +876,7 @@ vm_object_collapse(object)
 
 			while ((p = backing_object->memq.tqh_first) != 0) {
 
-				new_offset = (p->offset - backing_offset);
+				new_pindex = p->pindex - backing_offset_index;
 
 				/*
 				 * If the parent has a page here, or if this
@@ -887,20 +886,20 @@ vm_object_collapse(object)
 				 * Otherwise, move it as planned.
 				 */
 
-				if (p->offset < backing_offset ||
-				    new_offset >= size) {
+				if (p->pindex < backing_offset_index ||
+				    new_pindex >= size) {
 					vm_page_protect(p, VM_PROT_NONE);
 					PAGE_WAKEUP(p);
 					vm_page_free(p);
 				} else {
-					pp = vm_page_lookup(object, new_offset);
+					pp = vm_page_lookup(object, new_pindex);
 					if (pp != NULL || (object->type == OBJT_SWAP && vm_pager_has_page(object,
-					    object->paging_offset + new_offset, NULL, NULL))) {
+					    OFF_TO_IDX(object->paging_offset) + new_pindex, NULL, NULL))) {
 						vm_page_protect(p, VM_PROT_NONE);
 						PAGE_WAKEUP(p);
 						vm_page_free(p);
 					} else {
-						vm_page_rename(p, object, new_offset);
+						vm_page_rename(p, object, new_pindex);
 					}
 				}
 			}
@@ -919,9 +918,11 @@ vm_object_collapse(object)
 					 * shadow object.
 					 */
 					swap_pager_copy(
-					    backing_object, backing_object->paging_offset,
-					    object, object->paging_offset,
-					    object->backing_object_offset);
+					    backing_object,
+					    OFF_TO_IDX(backing_object->paging_offset),
+					    object,
+					    OFF_TO_IDX(object->paging_offset),
+					    OFF_TO_IDX(object->backing_object_offset));
 					vm_object_pip_wakeup(object);
 				} else {
 					object->paging_in_progress++;
@@ -951,7 +952,8 @@ vm_object_collapse(object)
 					/*
 					 * free unnecessary blocks
 					 */
-					swap_pager_freespace(object, 0, object->paging_offset);
+					swap_pager_freespace(object, 0,
+						OFF_TO_IDX(object->paging_offset));
 					vm_object_pip_wakeup(object);
 				}
 
@@ -1009,7 +1011,7 @@ vm_object_collapse(object)
 			 */
 
 			for (p = backing_object->memq.tqh_first; p; p = p->listq.tqe_next) {
-				new_offset = (p->offset - backing_offset);
+				new_pindex = p->pindex - backing_offset_index;
 
 				/*
 				 * If the parent has a page here, or if this
@@ -1019,13 +1021,13 @@ vm_object_collapse(object)
 				 * the chain.
 				 */
 
-				if (p->offset >= backing_offset && new_offset <= size) {
+				if (p->pindex >= backing_offset_index &&
+					new_pindex <= size) {
 
-					pp = vm_page_lookup(object, new_offset);
+					pp = vm_page_lookup(object, new_pindex);
 
 					if ((pp == NULL || pp->valid == 0) &&
-				   	    !vm_pager_has_page(object, object->paging_offset + new_offset, NULL, NULL)) {
-
+				   	    !vm_pager_has_page(object, OFF_TO_IDX(object->paging_offset) + new_pindex, NULL, NULL)) {
 						/*
 						 * Page still needed. Can't go any
 						 * further.
@@ -1079,26 +1081,24 @@ vm_object_collapse(object)
 void
 vm_object_page_remove(object, start, end, clean_only)
 	register vm_object_t object;
-	register vm_offset_t start;
-	register vm_offset_t end;
+	register vm_pindex_t start;
+	register vm_pindex_t end;
 	boolean_t clean_only;
 {
 	register vm_page_t p, next;
-	vm_offset_t size;
+	unsigned int size;
 	int s;
 
 	if (object == NULL)
 		return;
 
 	object->paging_in_progress++;
-	start = trunc_page(start);
-	end = round_page(end);
 again:
 	size = end - start;
-	if (size > 4 * PAGE_SIZE || size >= object->size / 4) {
+	if (size > 4 || size >= object->size / 4) {
 		for (p = object->memq.tqh_first; p != NULL; p = next) {
 			next = p->listq.tqe_next;
-			if ((start <= p->offset) && (p->offset < end)) {
+			if ((start <= p->pindex) && (p->pindex < end)) {
 				s = splhigh();
 				if (p->bmapped) {
 					splx(s);
@@ -1145,8 +1145,8 @@ again:
 				PAGE_WAKEUP(p);
 				vm_page_free(p);
 			}
-			start += PAGE_SIZE;
-			size -= PAGE_SIZE;
+			start += 1;
+			size -= 1;
 		}
 	}
 	vm_object_pip_wakeup(object);
@@ -1175,19 +1175,13 @@ again:
  *	The object must *not* be locked.
  */
 boolean_t
-vm_object_coalesce(prev_object, next_object,
-    prev_offset, next_offset,
-    prev_size, next_size)
+vm_object_coalesce(prev_object, prev_pindex, prev_size, next_size)
 	register vm_object_t prev_object;
-	vm_object_t next_object;
-	vm_offset_t prev_offset, next_offset;
+	vm_pindex_t prev_pindex;
 	vm_size_t prev_size, next_size;
 {
 	vm_size_t newsize;
 
-	if (next_object != NULL) {
-		return (FALSE);
-	}
 	if (prev_object == NULL) {
 		return (TRUE);
 	}
@@ -1208,43 +1202,26 @@ vm_object_coalesce(prev_object, next_object,
 	    prev_object->backing_object != NULL) {
 		return (FALSE);
 	}
+
+	prev_size >>= PAGE_SHIFT;
+	next_size >>= PAGE_SHIFT;
 	/*
 	 * Remove any pages that may still be in the object from a previous
 	 * deallocation.
 	 */
 
 	vm_object_page_remove(prev_object,
-	    prev_offset + prev_size,
-	    prev_offset + prev_size + next_size, FALSE);
+	    prev_pindex + prev_size,
+	    prev_pindex + prev_size + next_size, FALSE);
 
 	/*
 	 * Extend the object if necessary.
 	 */
-	newsize = prev_offset + prev_size + next_size;
+	newsize = prev_pindex + prev_size + next_size;
 	if (newsize > prev_object->size)
 		prev_object->size = newsize;
 
 	return (TRUE);
-}
-
-/*
- * returns page after looking up in shadow chain
- */
-
-static vm_page_t
-vm_object_page_lookup(object, offset)
-	vm_object_t object;
-	vm_offset_t offset;
-{
-	vm_page_t m;
-
-	if (!(m = vm_page_lookup(object, offset))) {
-		if (!object->backing_object)
-			return 0;
-		else
-			return vm_object_page_lookup(object->backing_object, offset + object->backing_object_offset);
-	}
-	return m;
 }
 
 #ifdef DDB
@@ -1329,8 +1306,6 @@ vm_object_in_map( object)
 
 void
 vm_object_check() {
-	int i;
-	int maxhash = 0;
 	vm_object_t object;
 
 	/*
@@ -1400,7 +1375,7 @@ vm_object_print(iobject, full, dummy3, dummy4)
 		count++;
 
 		printf("(off=0x%lx,page=0x%lx)",
-		    (u_long) p->offset, (u_long) VM_PAGE_TO_PHYS(p));
+		    (u_long) p->pindex, (u_long) VM_PAGE_TO_PHYS(p));
 	}
 	if (count != 0)
 		printf("\n");

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.7 (Berkeley) 1/21/94
- * $Id: buf.h,v 1.23 1995/11/19 22:22:03 dyson Exp $
+ * $Id: buf.h,v 1.24 1995/11/20 12:35:16 phk Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -69,8 +69,9 @@ struct buf {
 	struct	buf *b_actf, **b_actb;	/* Device driver queue when active. *depricated* XXX */
 	TAILQ_ENTRY(buf) b_act;		/* Device driver queue when active. *new* */
 	struct  proc *b_proc;		/* Associated proc; NULL if kernel. */
-	volatile long	b_flags;	/* B_* flags. */
-	int	b_qindex;		/* buffer queue index */
+	long	b_flags;	/* B_* flags. */
+	unsigned short b_qindex;		/* buffer queue index */
+	unsigned char b_usecount;	/* buffer use count */
 	int	b_error;		/* Errno value. */
 	long	b_bufsize;		/* Allocated buffer size. */
 	long	b_bcount;		/* Valid bytes in buffer. */
@@ -206,9 +207,10 @@ int	bwrite __P((struct buf *));
 void	bdwrite __P((struct buf *));
 void	bawrite __P((struct buf *));
 void	brelse __P((struct buf *));
-void	vfs_bio_awrite __P((struct buf *));
+int	vfs_bio_awrite __P((struct buf *));
 struct buf *     getpbuf __P((void));
 struct buf *incore __P((struct vnode *, daddr_t));
+struct buf *gbincore __P((struct vnode *, daddr_t));
 int	inmem __P((struct vnode *, daddr_t));
 struct buf *getblk __P((struct vnode *, daddr_t, int, int, int));
 struct buf *geteblk __P((int));
@@ -219,7 +221,7 @@ void	biodone __P((struct buf *));
 void	cluster_callback __P((struct buf *));
 int	cluster_read __P((struct vnode *, u_quad_t, daddr_t, long,
 	    struct ucred *, struct buf **));
-void	cluster_wbuild __P((struct vnode *, long, daddr_t, int));
+int	cluster_wbuild __P((struct vnode *, long, daddr_t, int));
 void	cluster_write __P((struct buf *, u_quad_t));
 int	physio __P((void (*)(struct buf *), struct buf *, dev_t, 
 	    int, u_int (*)(struct buf *), struct uio *));
