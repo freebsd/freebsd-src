@@ -529,7 +529,7 @@ getaddrinfo(hostname, servname, hints, res)
 		goto good;
 
 	if (pai->ai_flags & AI_NUMERICHOST)
-		ERR(EAI_NODATA);
+		ERR(EAI_NONAME);
 	if (hostname == NULL)
 		ERR(EAI_NODATA);
 
