@@ -112,7 +112,7 @@ exec_prog(char *prog, char **arglist)
 	pid_t pid;
 	int a;
 
-	sprintf(path, "%s/%s", ETCPATH, prog);
+	snprintf(path, sizeof(path), "%s/%s", ETCPATH, prog);
 
 	arglist[0] = path;
 
@@ -159,7 +159,7 @@ exec_connect_prog(cfg_entry_t *cep, const char *prog, int link_down)
 
 	/* the obvious things */
 	device = bdrivername(cep->usrdevicename);
-	sprintf(devicename, "%s%d", device, cep->usrdeviceunit);
+	snprintf(devicename, sizeof(devicename), "%s%d", device, cep->usrdeviceunit);
 	*av++ = (char*)prog;
 	*av++ = "-d";
 	*av++ = devicename;
@@ -201,7 +201,7 @@ exec_answer(cfg_entry_t *cep)
 	
 	device = bdrivername(cep->usrdevicename);
 
-	sprintf(devicename, "/dev/i4b%s%d", device, cep->usrdeviceunit);
+	snprintf(devicename, sizeof(devicename), "/dev/i4b%s%d", device, cep->usrdeviceunit);
 
 	argv[0] = cep->answerprog;
 	argv[1] = "-D";

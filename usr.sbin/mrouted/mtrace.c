@@ -1263,7 +1263,7 @@ send_recv(dst, type, code, tries, save, callback)
 #ifdef SYSV    
 	    TR_SETQID(query->tr_rttlqid, ((u_int32)lrand48() >> 8));
 #else
-	    TR_SETQID(query->tr_rttlqid, ((u_int32)random() >> 8));
+	    TR_SETQID(query->tr_rttlqid, ((u_int32)arc4random() >> 8));
 #endif
 
 	/*
@@ -2745,8 +2745,6 @@ char *argv[];
     seed = tv.tv_usec ^ lcl_addr;
 #ifdef SYSV    
     srand48(seed);
-#else
-    srandom(seed);
 #endif
 
     /*

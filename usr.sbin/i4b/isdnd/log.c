@@ -104,7 +104,7 @@ init_log(void)
 		char *p;
 		char buf[64];
 
-		sprintf(buf, "%s%d", REGPROG_DEF, i);
+		snprintf(buf, sizeof(buf), "%s%d", REGPROG_DEF, i);
 
 		rarr[i].re_flg = 0;
 

@@ -45,7 +45,7 @@ print_i4b_cause(cause_t code)
 {
 	static char error_message[128];
 
-	sprintf(error_message, "%d: ", GET_CAUSE_VAL(code));
+	snprintf(error_message, sizeof(error_message), "%d: ", GET_CAUSE_VAL(code));
 
 	switch(GET_CAUSE_TYPE(code))
 	{
