@@ -56,7 +56,7 @@ printheader(FILE *f, const struct kerneldumpheader *h, const char *devname, cons
 	fprintf(f, "  Architecture: %s\n", h->architecture);
 	fprintf(f, "  Architecture version: %d\n", h->architectureversion);
 	fprintf(f, "  Dump length: %lldB (%lld MB)\n", 
-	    h->dumplength, h->dumplength / (1024 * 1024));
+	    (long long)h->dumplength, (long long)h->dumplength / (1024 * 1024));
 	fprintf(f, "  Blocksize: %d\n", h->blocksize);
 	t = h->dumptime;
 	fprintf(f, "  Dumptime: %s", ctime(&t));
@@ -91,14 +91,14 @@ DoFile(const char *devname)
 		warn("Couldn't find media and/or sector size of %s)", devname);
 		return;
 	}
-	printf("Mediasize = %lld\n", mediasize);
+	printf("Mediasize = %lld\n", (long long)mediasize);
 	printf("Sectorsize = %u\n", sectorsize);
 	lasthd = mediasize - sectorsize;
 	lseek(fd, lasthd, SEEK_SET);
 	error = read(fd, &kdhl, sizeof kdhl);
 	if (error != sizeof kdhl) {
 		warn("Error Reading last dump header at offset %lld in %s",
-		    lasthd, devname);
+		    (long long)lasthd, devname);
 		return;
 	}
 	if (kerneldump_parity(&kdhl)) {
@@ -119,7 +119,7 @@ DoFile(const char *devname)
 	error = read(fd, &kdhf, sizeof kdhf);
 	if (error != sizeof kdhf) {
 		warn("Error Reading first dump header at offset %lld in %s",
-		    firsthd, devname);
+		    (long long)firsthd, devname);
 		return;
 	}
 	if (memcmp(&kdhl, &kdhf, sizeof kdhl)) {
