@@ -1411,10 +1411,6 @@ fdfree(td)
 	if (fdp == NULL)
 		return;
 
-	mtx_lock(&fdesc_mtx);
-	td->td_proc->p_fd = NULL;
-	mtx_unlock(&fdesc_mtx);
-
 	FILEDESC_LOCK(fdp);
 	if (--fdp->fd_refcnt > 0) {
 		FILEDESC_UNLOCK(fdp);
@@ -1431,6 +1427,12 @@ fdfree(td)
 		if (*fpp)
 			(void) closef(*fpp, td);
 	}
+
+	/* XXX This should happen earlier. */
+	mtx_lock(&fdesc_mtx);
+	td->td_proc->p_fd = NULL;
+	mtx_unlock(&fdesc_mtx);
+
 	if (fdp->fd_nfiles > NDFILE)
 		FREE(fdp->fd_ofiles, M_FILEDESC);
 	if (fdp->fd_cdir)
