@@ -92,13 +92,6 @@ dead_strategy(struct bio *bp)
 
 #define dead_dump	(dumper_t *)enxio
 
-static int
-dead_psize(dev_t dev)
-{
-
-	return (-1);
-}
-
 #define dead_kqfilter	(d_kqfilter_t *)enxio
 
 static struct cdevsw dead_cdevsw = {
@@ -113,7 +106,7 @@ static struct cdevsw dead_cdevsw = {
 	/* name */	"dead",
 	/* maj */	255,
 	/* dump */	dead_dump,
-	/* psize */	dead_psize,
+	/* psize */	nopsize,
 	/* flags */	0,
 	/* kqfilter */	dead_kqfilter
 };
