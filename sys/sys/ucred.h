@@ -51,6 +51,7 @@ struct ucred {
 	short	cr_ngroups;		/* number of groups */
 	gid_t	cr_groups[NGROUPS];	/* groups */
 	struct	uidinfo *cr_uidinfo;	/* per uid resource consumption */
+	struct	prison *cr_prison;	/* jail(4) */
 	struct	mtx cr_mtx;		/* protect refcount */
 };
 #define cr_gid cr_groups[0]

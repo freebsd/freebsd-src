@@ -163,9 +163,9 @@ procfs_dostatus(curp, p, pfs, uio)
 		DOCHECK();
 	}
 
-	if (p->p_prison)
+	if (jailed(p->p_ucred))
 		ps += snprintf(ps, psbuf + sizeof(psbuf) - ps,
-		    " %s", p->p_prison->pr_host);
+		    " %s", p->p_ucred->cr_prison->pr_host);
 	else
 		ps += snprintf(ps, psbuf + sizeof(psbuf) - ps, " -");
 	DOCHECK();

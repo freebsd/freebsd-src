@@ -54,6 +54,7 @@
 #include <sys/un.h>
 #include <sys/unpcb.h>
 #include <sys/vnode.h>
+#include <sys/jail.h>
 
 #include <vm/vm_zone.h>
 
@@ -725,7 +726,7 @@ unp_abort(unp)
 static int
 prison_unpcb(struct proc *p, struct unpcb *unp)
 {
-	if (!p->p_prison)
+	if (!jailed(p->p_ucred))
 		return (0);
 	if (p->p_fd->fd_rdir == unp->unp_rvnode)
 		return (0);

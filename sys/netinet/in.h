@@ -487,9 +487,6 @@ int	 in_localaddr __P((struct in_addr));
 char 	*inet_ntoa __P((struct in_addr)); /* in libkern */
 char	*inet_ntoa_r __P((struct in_addr ina, char *buf)); /* in libkern */
 
-int	prison_ip __P((struct proc *p, int flag, u_int32_t *ip));
-void	prison_remote_ip __P((struct proc *p, int flag, u_int32_t *ip));
-
 #endif
 
 #endif

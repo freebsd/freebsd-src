@@ -255,7 +255,7 @@ semsys(p, uap)
 	} */ *uap;
 {
 
-	if (!jail_sysvipc_allowed && p->p_prison != NULL)
+	if (!jail_sysvipc_allowed && jailed(p->p_ucred))
 		return (ENOSYS);
 
 	if (uap->which >= sizeof(semcalls)/sizeof(semcalls[0]))
@@ -464,7 +464,7 @@ __semctl(p, uap)
 	printf("call to semctl(%d, %d, %d, 0x%x)\n", semid, semnum, cmd, arg);
 #endif
 
-	if (!jail_sysvipc_allowed && p->p_prison != NULL)
+	if (!jail_sysvipc_allowed && jailed(p->p_ucred))
 		return (ENOSYS);
 
 	semid = IPCID_TO_IX(semid);
@@ -627,7 +627,7 @@ semget(p, uap)
 	printf("semget(0x%x, %d, 0%o)\n", key, nsems, semflg);
 #endif
 
-	if (!jail_sysvipc_allowed && p->p_prison != NULL)
+	if (!jail_sysvipc_allowed && jailed(p->p_ucred))
 		return (ENOSYS);
 
 	if (key != IPC_PRIVATE) {
@@ -748,7 +748,7 @@ semop(p, uap)
 	printf("call to semop(%d, 0x%x, %d)\n", semid, sops, nsops);
 #endif
 
-	if (!jail_sysvipc_allowed && p->p_prison != NULL)
+	if (!jail_sysvipc_allowed && jailed(p->p_ucred))
 		return (ENOSYS);
 
 	semid = IPCID_TO_IX(semid);	/* Convert back to zero origin */

@@ -528,15 +528,6 @@ loop:
 			}
 
 			/*
-			 * Destroy empty prisons
-			 */
-			if (p->p_prison && !--p->p_prison->pr_ref) {
-				if (p->p_prison->pr_linux != NULL)
-					FREE(p->p_prison->pr_linux, M_PRISON);
-				FREE(p->p_prison, M_PRISON);
-			}
-
-			/*
 			 * Remove unused arguments
 			 */
 			if (p->p_args && --p->p_args->ar_ref == 0)
