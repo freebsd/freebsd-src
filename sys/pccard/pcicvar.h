@@ -47,7 +47,6 @@ struct pcic_softc
 
 extern devclass_t	pcic_devclass;
 
-int pcic_probe(device_t dev);
 int pcic_attach(device_t dev);
 int pcic_activate_resource(device_t dev, device_t child, int type, int rid,
     struct resource *r);
@@ -65,4 +64,5 @@ int pcic_get_memory_offset(device_t bus, device_t child, int rid,
     u_int32_t *offset);
 int pcic_set_memory_offset(device_t bus, device_t child, int rid,
     u_int32_t offset, u_int32_t *deltap);
-
+void pcic_clrb(struct pcic_slot *sp, int reg, unsigned char mask);
+void pcic_setb(struct pcic_slot *sp, int reg, unsigned char mask);
