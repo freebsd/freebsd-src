@@ -33,6 +33,7 @@ char *base_dir = NULL;		/* The tree to apply deltas to. */
 int delete_after = 0;		/* Delete deltas after ctm applies them. */
 int apply_verbose = 0;		/* Run with '-v' */
 int set_time = 0;		/* Set the time of the files that is changed. */
+int mask = 0;			/* The current umask */
 
 void apply_complete(void);
 int read_piece(char *input_file);
@@ -61,6 +62,9 @@ main(int argc, char **argv)
     char *log_file = NULL;
     int status = 0;
     int fork_ctm = 0;
+
+    mask = umask(0);
+    umask(mask);
 
     err_prog_name(argv[0]);
 
@@ -444,6 +448,7 @@ combine_if_complete(char *delta, int pce, int npieces)
 	mk_piece_name(pname, delta, 1, 1);
 	if (rename(pname, dname) == 0)
 	    {
+	    chmod(dname, 0666 & ~mask);
 	    err("%s complete", delta);
 	    return 1;
 	    }
@@ -555,6 +560,7 @@ combine(char *delta, int npieces, char *dname, char *pname, char *tname)
 	unlink(tname);
 	return 0;
 	}
+    chmod(dname, 0666 & ~mask);
 
     /*
      * Throw the pieces away.
