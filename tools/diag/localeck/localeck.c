@@ -28,14 +28,15 @@
 
 #include <locale.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 /*
- * Try setlocale() for locale with given name
+ * Try setlocale() for locale with given name.
  */
 
 struct locdef {
-	int	catid;
-	char	*catname;
+	int		catid;
+	const char	*catname;
 } locales[_LC_LAST] = {
 	{ LC_ALL,	"LC_ALL" },
 	{ LC_COLLATE,	"LC_COLLATE" },
@@ -49,11 +50,11 @@ struct locdef {
 int
 main(int argc, char **argv) {
 
-	int	i, result;
-	char	*localename;
+	int i, result;
+	const char *localename;
 
 	if (argc != 2) {
-		fprintf(stderr, "Usage: localeck <locale_name>\n");
+		(void)fprintf(stderr, "Usage: localeck <locale_name>\n");
 		exit(1);
 	}
 
@@ -63,7 +64,7 @@ main(int argc, char **argv) {
 	for (i = 0; i < _LC_LAST; i++) {
 		if (setlocale(locales[i].catid, localename) == NULL) {
 			printf("setlocale(%s, %s) failed\n", locales[i].catname,
-					localename);
+			    localename);
 			result++;
 		}
 	}

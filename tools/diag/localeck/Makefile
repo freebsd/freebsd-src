@@ -1,11 +1,12 @@
 # $FreeBSD$
 
 PROG=	localeck
-NOMAN=	YES
+NOMAN=	noman
+WARNS?=	4
 
-LOCALEDIR?=/usr/share/locale
+LOCALEDIR?= /usr/share/locale
 
 test:	${PROG}
-	/bin/sh docheck.sh ${LOCALEDIR}
+	sh docheck.sh ${LOCALEDIR}
 
 .include <bsd.prog.mk>
