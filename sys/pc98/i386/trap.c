@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.48 1998/03/31 07:53:08 kato Exp $
+ *	$Id: trap.c,v 1.49 1998/04/16 16:31:36 kato Exp $
  */
 
 /*
@@ -572,6 +572,10 @@ kernel_trap:
 		trap_fatal(&frame);
 		return;
 	}
+
+	/* Translate fault for emulators (e.g. Linux) */
+	if (*p->p_sysent->sv_transtrap)
+		i = (*p->p_sysent->sv_transtrap)(i, type);
 
 	trapsignal(p, i, ucode);
 
