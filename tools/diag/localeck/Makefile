@@ -6,7 +6,7 @@ WARNS?=	4
 
 LOCALEDIR?= /usr/share/locale
 
-test:	${PROG}
+test: ${PROG}
 	sh docheck.sh ${LOCALEDIR}
 
 .include <bsd.prog.mk>

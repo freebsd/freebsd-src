@@ -48,8 +48,8 @@ struct locdef {
 };
 
 int
-main(int argc, char **argv) {
-
+main(int argc, char *argv[])
+{
 	int i, result;
 	const char *localename;
 
