@@ -160,8 +160,6 @@ __FBSDID("$FreeBSD$");
 
 struct pmap kernel_pmap_store;
 LIST_HEAD(pmaplist, pmap);
-static struct pmaplist allpmaps;
-static struct mtx allpmaps_lock;
 
 vm_paddr_t avail_start;		/* PA of first available physical page */
 vm_paddr_t avail_end;		/* PA of last available physical page */
@@ -491,11 +489,6 @@ pmap_bootstrap(firstaddr)
 	kernel_pmap->pm_pml4 = (pdp_entry_t *) (KERNBASE + KPML4phys);
 	kernel_pmap->pm_active = -1;	/* don't allow deactivation */
 	TAILQ_INIT(&kernel_pmap->pm_pvlist);
-	LIST_INIT(&allpmaps);
-	mtx_init(&allpmaps_lock, "allpmaps", NULL, MTX_SPIN);
-	mtx_lock_spin(&allpmaps_lock);
-	LIST_INSERT_HEAD(&allpmaps, kernel_pmap, pm_list);
-	mtx_unlock_spin(&allpmaps_lock);
 	nkpt = NKPT;
 
 	/*
@@ -1082,9 +1075,6 @@ pmap_pinit0(pmap)
 	pmap->pm_active = 0;
 	TAILQ_INIT(&pmap->pm_pvlist);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
-	mtx_lock_spin(&allpmaps_lock);
-	LIST_INSERT_HEAD(&allpmaps, pmap, pm_list);
-	mtx_unlock_spin(&allpmaps_lock);
 }
 
 /*
@@ -1111,10 +1101,6 @@ pmap_pinit(pmap)
 
 	if ((pml4pg->flags & PG_ZERO) == 0)
 		pagezero(pmap->pm_pml4);
-
-	mtx_lock_spin(&allpmaps_lock);
-	LIST_INSERT_HEAD(&allpmaps, pmap, pm_list);
-	mtx_unlock_spin(&allpmaps_lock);
 
 	/* Wire in kernel global address entries. */
 	pmap->pm_pml4[KPML4I] = KPDPphys | PG_RW | PG_V | PG_U;
@@ -1331,10 +1317,6 @@ pmap_release(pmap_t pmap)
 	KASSERT(pmap->pm_stats.resident_count == 0,
 	    ("pmap_release: pmap resident count %ld != 0",
 	    pmap->pm_stats.resident_count));
-
-	mtx_lock_spin(&allpmaps_lock);
-	LIST_REMOVE(pmap, pm_list);
-	mtx_unlock_spin(&allpmaps_lock);
 
 	m = PHYS_TO_VM_PAGE(pmap->pm_pml4[PML4PML4I] & PG_FRAME);
 
