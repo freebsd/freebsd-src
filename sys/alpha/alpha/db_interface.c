@@ -79,8 +79,6 @@ extern jmp_buf	db_jmpbuf;
 
 extern void	gdb_handle_exception __P((db_regs_t *, int, int));
 
-extern label_t	*db_recover;
-
 #if 0
 extern char *trap_type[];
 extern int trap_types;
