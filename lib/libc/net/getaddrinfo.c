@@ -1493,7 +1493,6 @@ _dns_getaddrinfo(pai, hostname, res)
 {
 	struct addrinfo *ai;
 	querybuf *buf, *buf2;
-	const char *name;
 	struct addrinfo sentinel, *cur;
 	struct res_target q, q2;
 
@@ -1517,27 +1516,27 @@ _dns_getaddrinfo(pai, hostname, res)
 	switch (pai->ai_family) {
 	case AF_UNSPEC:
 		/* prefer IPv6 */
-		q.name = name;
+		q.name = hostname;
 		q.qclass = C_IN;
 		q.qtype = T_AAAA;
 		q.answer = buf->buf;
 		q.anslen = sizeof(buf->buf);
 		q.next = &q2;
-		q2.name = name;
+		q2.name = hostname;
 		q2.qclass = C_IN;
 		q2.qtype = T_A;
 		q2.answer = buf2->buf;
 		q2.anslen = sizeof(buf2->buf);
 		break;
 	case AF_INET:
-		q.name = name;
+		q.name = hostname;
 		q.qclass = C_IN;
 		q.qtype = T_A;
 		q.answer = buf->buf;
 		q.anslen = sizeof(buf->buf);
 		break;
 	case AF_INET6:
-		q.name = name;
+		q.name = hostname;
 		q.qclass = C_IN;
 		q.qtype = T_AAAA;
 		q.answer = buf->buf;
