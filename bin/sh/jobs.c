@@ -740,6 +740,7 @@ forkshell(struct job *jp, union node *n, int mode)
 	TRACE(("forkshell(%%%d, 0x%lx, %d) called\n", jp - jobtab, (long)n,
 	    mode));
 	INTOFF;
+	flushall();
 	pid = fork();
 	if (pid == -1) {
 		TRACE(("Fork failed, errno=%d\n", errno));
