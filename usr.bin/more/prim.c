@@ -47,6 +47,7 @@ static const char rcsid[] =
 
 #include <sys/types.h>
 
+#include <assert.h>
 #include <ctype.h>
 #include <limits.h>
 #include <regex.h>
@@ -64,6 +65,7 @@ extern int sigs;
 extern int top_scroll;
 extern int sc_width, sc_height;
 extern int horiz_off;
+extern int wraplines;
 extern int caseless;
 extern int linenums;
 extern int tagoption;
@@ -508,7 +510,9 @@ jump_loc(pos)
 #define	LASTMARK	(NMARKS-1)	/* For quote */
 static struct mark {
 	int	horiz_off;
+	int	wraplines;
 	off_t	pos;
+	char	*file;
 } marks[NMARKS];
 
 /*
@@ -519,7 +523,7 @@ init_mark()
 	int i;
 
 	for (i = 0;  i < NMARKS;  i++)
-		marks[i].pos = NULL_POSITION;
+		marks[i].pos = NULL_POSITION, marks[i].file = NULL;
 }
 
 /*
@@ -543,16 +547,31 @@ badmark(c)
 setmark(c)
 	int c;
 {
+	extern char *current_file;
+
 	if (badmark(c))
 		return;
 	marks[c-'a'].pos = position(TOP);
 	marks[c-'a'].horiz_off = horiz_off;
+	marks[c-'a'].wraplines = wraplines;
+	if (marks[c-'a'].file) free(marks[c-'a'].file);
+	asprintf(&marks[c-'a'].file, "%s", current_file);
 }
 
+/*
+ * This function should be called whenever the file position we are viewing
+ * is changed by a significant amount.  The function will record the current
+ * position and remember it for the user.
+ */
 lastmark()
 {
+	extern char *current_file;
+
 	marks[LASTMARK].pos = position(TOP);
 	marks[LASTMARK].horiz_off = horiz_off;
+	marks[LASTMARK].wraplines = wraplines;
+	if (marks[LASTMARK].file) free(marks[LASTMARK].file);
+	asprintf(&marks[LASTMARK].file, "%s", current_file);
 }
 
 /*
@@ -562,15 +581,18 @@ gomark(c)
 	int c;
 {
 	off_t pos;
-	int new_horiz_off;
+	char *file;
+	int new_horiz_off, new_wraplines;
+	extern char *current_file;
 
 	if (c == '\'') {
 		pos = marks[LASTMARK].pos;
 		if (pos == NULL_POSITION)
 			pos = 0;
+		file = marks[LASTMARK].file;
 		new_horiz_off = marks[LASTMARK].horiz_off;
-	}
-	else {
+		new_wraplines = marks[LASTMARK].wraplines;
+	} else {
 		if (badmark(c))
 			return;
 		pos = marks[c-'a'].pos;
@@ -578,16 +600,57 @@ gomark(c)
 			error("mark not set");
 			return;
 		}
+		file = marks[c-'a'].file;
 		new_horiz_off = marks[c-'a'].horiz_off;
+		new_wraplines = marks[c-'a'].wraplines;
 	}
 
+	/*
+	 * This can only fail if gomark('\'') is called before lastmark()
+	 * is called, which is in turn impossible since both edit() and
+	 * jump_back() call jump_loc() which calls lastmark() to start
+	 * all files.
+	 */
+	assert (file);
+
+	/*
+	 * This can only fail if gomark() is called before any file has
+	 * been opened.  Calling gomark() before any file has been
+	 * opened would be non-sensical.
+	 */
+	assert (current_file);
+
+	/*
+	 * XXX The edit() needs to return success or failure so that we
+	 *     can abort at this point if edit() fails.
+	 */
+	edit(file, NO_FORCE_OPEN);
+
 	/* Try to be nice about changing the horizontal scroll and wrapping */
-	if (new_horiz_off > sc_width / 3 + horiz_off) {
+	if (new_horiz_off > horiz_off + sc_width / 3 ||
+	    new_horiz_off < horiz_off - sc_width / 3 ||
+	    wraplines != new_wraplines || strcmp(file, current_file)) {
 		/*
 		 * We should change horiz_off: if we don't change horiz_off
 		 * the bookmarked location won't be readily visible.
 		 */
+
+		/*
+		 * A prepaint() doesn't call lastmark() (jump_loc() does),
+		 * but we need to call repaint() somewhere since we've
+		 * changed the horizontal offset.  We don't want to call
+		 * jump_loc() followed by repaint() since that represents
+		 * more unnecessary screen redrawing than I'm comfortable
+		 * with.  Manually calling lastmark() here means, however,
+		 * that lastmark() is always called even if we scroll only
+		 * a few lines --- unlike letting jump_loc() call lastmark()
+		 * where lastmark() is only called for jumps of more than
+		 * a screenful.  A better interface is needed.
+		 */
+		lastmark();
+
 		horiz_off = new_horiz_off;
+		wraplines = new_wraplines;
 		prepaint(pos);
 	} else {
 		/*
