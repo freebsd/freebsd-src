@@ -396,19 +396,6 @@ mac_mls_copy_single(struct mac_mls *labelfrom, struct mac_mls *labelto)
 	labelto->mm_flags |= MAC_MLS_FLAG_SINGLE;
 }
 
-static void
-mac_mls_copy_single_to_range(struct mac_mls *labelfrom,
-    struct mac_mls *labelto)
-{
-
-	KASSERT((labelfrom->mm_flags & MAC_MLS_FLAG_SINGLE) != 0,
-	    ("mac_mls_copy_single_to_range: labelfrom not single"));
-
-	labelto->mm_rangelow = labelfrom->mm_single;
-	labelto->mm_rangehigh = labelfrom->mm_single;
-	labelto->mm_flags |= MAC_MLS_FLAG_RANGE;
-}
-
 /*
  * Policy module operations.
  */
@@ -686,7 +673,6 @@ mac_mls_create_socket(struct ucred *cred, struct socket *socket,
 	dest = SLOT(socketlabel);
 
 	mac_mls_copy_single(source, dest);
-	mac_mls_copy_single_to_range(source, dest);
 }
 
 static void
@@ -712,7 +698,6 @@ mac_mls_create_socket_from_socket(struct socket *oldsocket,
 	dest = SLOT(newsocketlabel);
 
 	mac_mls_copy_single(source, dest);
-	mac_mls_copy_range(source, dest);
 }
 
 static void
@@ -725,7 +710,6 @@ mac_mls_relabel_socket(struct ucred *cred, struct socket *socket,
 	dest = SLOT(socketlabel);
 
 	mac_mls_copy_single(source, dest);
-	mac_mls_copy_range(source, dest);
 }
 
 static void
