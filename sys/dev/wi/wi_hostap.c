@@ -209,7 +209,7 @@ wihap_init(struct wi_softc *sc)
 
 	bzero(whi, sizeof(struct wihap_info));
 
-	if (sc->wi_ptype != WI_PORTTYPE_AP)
+	if (sc->wi_ptype != WI_PORTTYPE_HOSTAP)
 		return;
 
 	whi->apflags = WIHAPFL_ACTIVE;
