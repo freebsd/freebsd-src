@@ -494,21 +494,26 @@ exit1(struct thread *td, int rv)
 	PROC_LOCK(p);
 	PROC_LOCK(p->p_pptr);
 	sx_xunlock(&proctree_lock);
-	mtx_lock_spin(&sched_lock);
 
 	while (mtx_owned(&Giant))
 		mtx_unlock(&Giant);
 
 	/*
 	 * We have to wait until after acquiring all locks before
-	 * changing p_state.  If we block on a mutex then we will be
-	 * back at SRUN when we resume and our parent will never
-	 * harvest us.
+	 * changing p_state.  We need to avoid any possibly context
+	 * switches while marked as a zombie including blocking on
+	 * a mutex.
 	 */
+	mtx_lock_spin(&sched_lock);
 	p->p_state = PRS_ZOMBIE;
+	critical_enter();
+	mtx_unlock_spin(&sched_lock);
 
 	wakeup(p->p_pptr);
 	PROC_UNLOCK(p->p_pptr);
+
+	mtx_lock_spin(&sched_lock);
+	critical_exit();
 	cnt.v_swtch++;
 	binuptime(PCPU_PTR(switchtime));
 	PCPU_SET(switchticks, ticks);
