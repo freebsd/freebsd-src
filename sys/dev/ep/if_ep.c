@@ -296,7 +296,7 @@ ep_attach(sc)
 	ifp->if_ioctl = ep_if_ioctl;
 	ifp->if_watchdog = ep_if_watchdog;
 	ifp->if_init = ep_if_init;
-	ifp->if_snd.ifq_maxlen = 8;
+	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 
 	if (!sc->epb.mii_trans) {
 		ifmedia_init(&sc->ifmedia, 0, ep_ifmedia_upd, ep_ifmedia_sts);
