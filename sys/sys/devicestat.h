@@ -34,6 +34,9 @@
 #include <sys/queue.h>
 #include <sys/time.h>
 
+/*
+ * XXX: Should really be SPECNAMELEN
+ */
 #define DEVSTAT_NAME_LEN  16
 
 /*
@@ -45,7 +48,7 @@
  * userland utilities to determine whether or not they are in sync with the
  * kernel.
  */
-#define DEVSTAT_VERSION	   4
+#define DEVSTAT_VERSION	   5
 
 /*
  * These flags specify which statistics features are supported or not
@@ -121,6 +124,8 @@ typedef enum {
 } devstat_type_flags;
 
 struct devstat {
+	int			sequence0;	     /* Update sequence# */
+	int			allocated;	     /* Allocated entry */
 	STAILQ_ENTRY(devstat) 	dev_links;
 	u_int32_t		device_number;	     /*
 						      * Devstat device
@@ -203,12 +208,20 @@ struct devstat {
 						      */
 	devstat_type_flags	device_type;	     /* Device type */
 	devstat_priority	priority;	     /* Controls list pos. */
+
+	int			sequence1;	     /* Update sequence# */
 };
 
 STAILQ_HEAD(devstatlist, devstat);
 
 #ifdef _KERNEL
 struct bio;
+
+struct devstat *devstat_new_entry(const char *dev_name, 
+		       int unit_number, u_int32_t block_size,
+		       devstat_support_flags flags,
+		       devstat_type_flags device_type,
+		       devstat_priority priority);
 
 void devstat_add_entry(struct devstat *ds, const char *dev_name, 
 		       int unit_number, u_int32_t block_size,
