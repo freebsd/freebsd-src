@@ -47,7 +47,6 @@
 #include <pc98/pc98/pc98.h>
 
 #include <isa/isavar.h>
-#include <machine/lock.h>
 
 #define DRIVER_NAME		"pckbd"
 

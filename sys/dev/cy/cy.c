@@ -80,7 +80,6 @@
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/syslog.h>
-#include <machine/lock.h>
 #include <machine/psl.h>
 
 #include <i386/isa/isa_device.h>
@@ -90,6 +89,27 @@
 #ifndef COMPAT_OLDISA
 #error "The cy device requires the old isa compatibility shims"
 #endif
+
+#ifdef SMP
+
+#include <machine/smptests.h>                   /** xxx_LOCK */
+
+#ifdef USE_COMLOCK
+#define COM_LOCK()	mtx_lock_spin(&com_mtx)
+#define COM_UNLOCK()	mtx_unlock_spin(&com_mtx)
+#else
+#define COM_LOCK()
+#define COM_UNLOCK()
+#endif /* USE_COMLOCK */
+
+#else /* SMP */
+
+#define COM_LOCK()
+#define COM_UNLOCK()
+
+#endif /* SMP */
+
+extern struct mtx	com_mtx;
 
 /*
  * Dictionary so that I can name everything *sio* or *com* to compare with

@@ -63,7 +63,6 @@
 #include <sys/cons.h>
 
 #include <machine/pcb.h>
-#include <machine/lock.h>
 #include <machine/md_var.h>
 #include <machine/smp.h>		/* smp_active, cpuid */
 

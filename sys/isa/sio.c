@@ -80,12 +80,8 @@
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
 #endif
-#include <machine/lock.h>
 
 #include <machine/clock.h>
-#ifndef SMP
-#include <machine/lock.h>
-#endif
 #include <machine/resource.h>
 
 #include <isa/sioreg.h>
