@@ -5,7 +5,7 @@
 .SH NAME
 mrouted \- IP multicast routing daemon
 .SH SYNOPSIS
-.B /etc/mrouted 
+.B mrouted 
 [
 .B \-p
 ] [
@@ -95,7 +95,7 @@ events are printed to stderr.
 all level 2 messages plus notifications of all packet
 arrivals and departures are printed to stderr.
 .PP
-Upon startup, mrouted writes its pid to the file /etc/mrouted.pid .
+Upon startup, mrouted writes its pid to the file /var/run/mrouted.pid .
 .SH CONFIGURATION
 .PP
 .I Mrouted 
@@ -258,9 +258,9 @@ good-bye messages to all neighboring routers).
 .IP TERM
 same as INT
 .IP USR1
-dumps the internal routing tables to /usr/tmp/mrouted.dump.
+dumps the internal routing tables to /var/tmp/mrouted.dump.
 .IP USR2
-dumps the internal cache tables to /usr/tmp/mrouted.cache.
+dumps the internal cache tables to /var/tmp/mrouted.cache.
 .IP QUIT
 dumps the internal routing tables to stderr (only if
 .I mrouted 
@@ -268,7 +268,7 @@ was invoked with a non-zero debug level).
 .PP
 For convenience in sending signals,
 .I mrouted
-writes its pid to /etc/mrouted.pid upon startup.
+writes its pid to /var/run/mrouted.pid upon startup.
 .bp
 .SH EXAMPLE
 .PP
@@ -378,11 +378,11 @@ one subnet.
 .SH FILES
 /etc/mrouted.conf
 .br
-/etc/mrouted.pid
+/var/run/mrouted.pid
 .br
-/usr/tmp/mrouted.dump
+/var/tmp/mrouted.dump
 .br
-/usr/tmp/mrouted.cache
+/var/tmp/mrouted.cache
 .SH SEE ALSO
 .BR mrinfo (8) ,
 .BR mtrace (8) ,
