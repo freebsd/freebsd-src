@@ -25,7 +25,7 @@
 #include "cursesw.h"
 #include "internal.h"
 
-MODULE_ID("$Id: cursesw.cc,v 1.16 1999/11/13 23:42:17 tom Exp $")
+MODULE_ID("$Id: cursesw.cc,v 1.17 2000/09/02 18:55:31 tom Exp $")
 
 #define COLORS_NEED_INITIALIZATION  -1
 #define COLORS_NOT_INITIALIZED       0
@@ -424,7 +424,7 @@ NCursesWindow::setcolor(short pair)
   return OK;
 }
 
-#ifdef HAVE_HAS_KEY
+#if HAVE_HAS_KEY
 extern "C" int _nc_has_mouse(void);
 
 bool NCursesWindow::has_mouse() const {

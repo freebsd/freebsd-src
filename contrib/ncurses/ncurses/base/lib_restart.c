@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -41,50 +41,51 @@
 
 #include <curses.priv.h>
 
-#if defined(SVR4_TERMIO) && !defined(_POSIX_SOURCE)
+#if SVR4_TERMIO && !defined(_POSIX_SOURCE)
 #define _POSIX_SOURCE
 #endif
 
-#include <term.h>	/* lines, columns, cur_term */
+#include <term.h>		/* lines, columns, cur_term */
 
-MODULE_ID("$Id: lib_restart.c,v 1.2 1999/07/24 20:10:04 tom Exp $")
+MODULE_ID("$Id: lib_restart.c,v 1.3 2000/09/02 18:09:44 tom Exp $")
 
-int restartterm(NCURSES_CONST char *termp, int filenum, int *errret)
+int
+restartterm(NCURSES_CONST char *termp, int filenum, int *errret)
 {
-int saveecho = SP->_echo;
-int savecbreak = SP->_cbreak;
-int saveraw = SP->_raw;
-int savenl = SP->_nl;
+    int saveecho = SP->_echo;
+    int savecbreak = SP->_cbreak;
+    int saveraw = SP->_raw;
+    int savenl = SP->_nl;
 
-	T((T_CALLED("restartterm(%s,%d,%p)"), termp, filenum, errret));
+    T((T_CALLED("restartterm(%s,%d,%p)"), termp, filenum, errret));
 
-	setupterm(termp, filenum, errret);
+    setupterm(termp, filenum, errret);
 
-	if (saveecho)
-		echo();
-	else
-		noecho();
+    if (saveecho)
+	echo();
+    else
+	noecho();
 
-	if (savecbreak) {
-		cbreak();
-		noraw();
-	} else if (saveraw) {
-		nocbreak();
-		raw();
-	} else {
-		nocbreak();
-		noraw();
-	}
-	if (savenl)
-		nl();
-	else
-		nonl();
+    if (savecbreak) {
+	cbreak();
+	noraw();
+    } else if (saveraw) {
+	nocbreak();
+	raw();
+    } else {
+	nocbreak();
+	noraw();
+    }
+    if (savenl)
+	nl();
+    else
+	nonl();
 
-	reset_prog_mode();
+    reset_prog_mode();
 
 #if USE_SIZECHANGE
-	_nc_update_screensize();
+    _nc_update_screensize();
 #endif
 
-	returnCode(OK);
+    returnCode(OK);
 }

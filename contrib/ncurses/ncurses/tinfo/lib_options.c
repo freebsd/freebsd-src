@@ -42,7 +42,7 @@
 
 #include <term.h>
 
-MODULE_ID("$Id: lib_options.c,v 1.39 2000/03/12 00:19:11 tom Exp $")
+MODULE_ID("$Id: lib_options.c,v 1.40 2000/09/02 18:02:05 tom Exp $")
 
 int
 idlok(WINDOW *win, bool flag)
@@ -206,7 +206,7 @@ typeahead(int fd)
 **
 */
 
-#ifdef NCURSES_EXT_FUNCS
+#if NCURSES_EXT_FUNCS
 static int
 has_key_internal(int keycode, struct tries *tp)
 {

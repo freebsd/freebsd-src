@@ -30,17 +30,23 @@
  *  Author: Thomas E. Dickey <dickey@clark.net> 1997                        *
  ****************************************************************************/
 /*
- * $Id: ncurses_cfg.hin,v 1.2 1998/02/11 12:13:46 tom Exp $
+ * $Id: ncurses_cfg.hin,v 1.3 2000/09/02 17:13:32 tom Exp $
  *
  * This is a template-file used to generate the "ncurses_cfg.h" file.
  *
- * Rather than list every definition, the configuration script substitutes
- * the definitions that it finds using 'sed'.  You need a patch (971222)
- * to autoconf 2.12 to do this.
+ * Rather than list every definition, the configuration script substitutes the
+ * definitions that it finds using 'sed'.  You need a patch (original date
+ * 971222) to autoconf 2.12 or 2.13 to do this.
+ *
+ * See:
+ *	http://dickey.his.com/autoconf/
+ *	ftp://dickey.his.com/autoconf/
  */
 #ifndef NC_CONFIG_H
 #define NC_CONFIG_H
 @DEFS@
+
+#include <ncurses_def.h>
 
 	/* The C compiler may not treat these properly but C++ has to */
 #ifdef __cplusplus

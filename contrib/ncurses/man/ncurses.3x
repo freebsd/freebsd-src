@@ -27,11 +27,11 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: ncurses.3x,v 1.39 1999/12/19 01:53:04 tom Exp $
+.\" $Id: ncurses.3x,v 1.44 2000/10/08 01:39:26 tom Exp $
 .hy 0
 .TH ncurses 3X ""
 .ds n 5
-.ds d @DATADIR@/terminfo
+.ds d @TERMINFO@
 .SH NAME
 \fBncurses\fR - CRT screen handling and optimization package
 .SH SYNOPSIS
@@ -198,12 +198,23 @@ l l
 l l .
 \fBcurses\fR Routine Name/Manual Page Name
 =
+COLOR_PAIR/\fBcurs_color\fR(3X)
+PAIR_NUMBER/\fBcurs_attr\fR(3X)
+_nc_tracebits/\fBcurs_trace\fR(3X)*
+_traceattr/\fBcurs_trace\fR(3X)*
+_traceattr2/\fBcurs_trace\fR(3X)*
+_tracechar/\fBcurs_trace\fR(3X)*
+_tracechtype/\fBcurs_trace\fR(3X)*
+_tracechtype2/\fBcurs_trace\fR(3X)*
+_tracedump/\fBcurs_trace\fR(3X)*
+_tracef/\fBcurs_trace\fR(3X)*
+_tracemouse/\fBcurs_trace\fR(3X)*
 addch/\fBcurs_addch\fR(3X)
 addchnstr/\fBcurs_addchstr\fR(3X)
 addchstr/\fBcurs_addchstr\fR(3X)
 addnstr/\fBcurs_addstr\fR(3X)
 addstr/\fBcurs_addstr\fR(3X)
-assume_default_colors/\fBdft_fgbg\fR(3X)*
+assume_default_colors/\fBdefault_colors\fR(3X)*
 attr_get/\fBcurs_attr\fR(3X)
 attr_off/\fBcurs_attr\fR(3X)
 attr_on/\fBcurs_attr\fR(3X)
@@ -295,6 +306,7 @@ leaveok/\fBcurs_outopts\fR(3X)
 longname/\fBcurs_termattrs\fR(3X)
 mcprint/\fBcurs_print\fR(3X)*
 meta/\fBcurs_inopts\fR(3X)
+mouse_trafo/\fBcurs_mouse\fR(3X)*
 mouseinterval/\fBcurs_mouse\fR(3X)*
 mousemask/\fBcurs_mouse\fR(3X)*
 move/\fBcurs_move\fR(3X)
@@ -321,6 +333,7 @@ mvinsstr/\fBcurs_insstr\fR(3X)
 mvinstr/\fBcurs_instr\fR(3X)
 mvprintw/\fBcurs_printw\fR(3X)
 mvscanw/\fBcurs_scanw\fR(3X)
+mvvline/\fBcurs_border\fR(3X)
 mvwaddch/\fBcurs_addch\fR(3X)
 mvwaddchnstr/\fBcurs_addchstr\fR(3X)
 mvwaddchstr/\fBcurs_addchstr\fR(3X)
@@ -428,12 +441,13 @@ touchwin/\fBcurs_touch\fR(3X)
 tparm/\fBcurs_terminfo\fR(3X)
 tputs/\fBcurs_termcap\fR(3X)
 tputs/\fBcurs_terminfo\fR(3X)
+trace/\fBcurs_trace\fR(3X)*
 typeahead/\fBcurs_inopts\fR(3X)
 unctrl/\fBcurs_util\fR(3X)
 ungetch/\fBcurs_getch\fR(3X)
 ungetmouse/\fBcurs_mouse\fR(3X)*
 untouchwin/\fBcurs_touch\fR(3X)
-use_default_colors/\fBdft_fgbg\fR(3X)*
+use_default_colors/\fBdefault_colors\fR(3X)*
 use_env/\fBcurs_util\fR(3X)
 use_extended_names/\fBcurs_extend\fR(3X)*
 vidattr/\fBcurs_terminfo\fR(3X)
@@ -680,7 +694,7 @@ directories listed in the TERMINFO_DIRS symbol
 -
 one or more directories whose names are configured and compiled into the
 ncurses library, e.g.,
-@DATADIR@/terminfo
+@TERMINFO@
 .RE
 .TP 5
 TERMINFO_DIRS
@@ -695,11 +709,16 @@ the TERMPATH symbol.
 This is a list of filenames separated by colons (i.e., ":").
 If the TERMPATH symbol is not set, \fBncurses\fR looks in the files
 /etc/termcap, /usr/share/misc/termcap and $HOME/.termcap, in that order.
+.PP
+The library may be configured to disregard the following variables when the
+current user is the superuser (root), or if the application uses setuid or
+setgid permissions:
+$TERMINFO, $TERMINFO_DIRS, $TERMPATH, as well as $HOME.
 .SH FILES
 .TP 5
 @DATADIR@/tabset
 directory containing initialization files for the terminal capability database
-@DATADIR@/terminfo
+@TERMINFO@
 terminal capability database
 .SH SEE ALSO
 \fBterminfo\fR(\*n) and 3X pages whose names begin "curs_" for detailed routine

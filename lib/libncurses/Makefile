@@ -51,6 +51,7 @@ GENHDR= \
 	curses.h \
 	hashsize.h \
 	init_keytry.h \
+	ncurses_def.h \
 	nomacros.h \
 	parametrized.h \
 	term.h \
@@ -164,6 +165,7 @@ SRCS=	${GENHDR} ${GENSRC} \
 	lib_slktouch.c \
 	lib_termcap.c \
 	lib_termname.c \
+	lib_tgoto.c \
 	lib_ti.c \
 	lib_touch.c \
 	lib_tparm.c \
@@ -193,6 +195,7 @@ SRCS=	${GENHDR} ${GENSRC} \
 	safe_sprintf.c \
 	setbuf.c \
 	sigaction.c \
+	strings.c \
 	trace_buf.c \
 	trace_tries.c \
 	trace_xnames.c \
@@ -297,6 +300,10 @@ fallback.c:	MKfallback.sh
 	sh ${NCURSES}/ncurses/tinfo/MKfallback.sh > fallback.c
 
 # Generated headers
+ncurses_def.h:	MKncurses_def.sh ncurses_defs
+	AWK=${AWK} sh ${NCURSES}/include/MKncurses_def.sh \
+	    ${NCURSES}/include/ncurses_defs > ncurses_def.h
+
 nomacros.h:	MKlib_gen.sh curses.h
 	sh ${NCURSES}/ncurses/base/MKlib_gen.sh "${CC} -E ${INCS}" \
 	    "${AWK}" < curses.h | fgrep undef > $@
@@ -319,10 +326,10 @@ term.h:		MKterm.h.awk edit_cfg.sh Caps
 # Build tools
 build-tools: make_hash make_keys
 
-make_keys:	make_keys.c names.c curses.h
+make_keys:	make_keys.c names.c curses.h ncurses_def.h
 	${CC} -o $@ ${CFLAGS} ${NCURSES}/ncurses/tinfo/make_keys.c
 
-make_hash:	comp_hash.c hashsize.h curses.h
+make_hash:	comp_hash.c hashsize.h curses.h ncurses_def.h
 	${CC} -o $@ ${CFLAGS} -DMAIN_PROGRAM \
 		${NCURSES}/ncurses/tinfo/comp_hash.c
 
@@ -379,7 +386,8 @@ MAN3x=	curs_addch.3x curs_addchstr.3x curs_addstr.3x curs_attr.3x \
 	curs_overlay.3x curs_pad.3x curs_print.3x curs_printw.3x \
 	curs_refresh.3x curs_scanw.3x curs_scr_dump.3x curs_scroll.3x \
 	curs_slk.3x curs_termattrs.3x curs_termcap.3x curs_terminfo.3x \
-	curs_touch.3x curs_util.3x curs_window.3x define_key.3x \
+	curs_touch.3x curs_trace.3x curs_util.3x curs_window.3x \
+	default_colors.3x define_key.3x \
 	dft_fgbg.3x keybound.3x keyok.3x ncurses.3x resizeterm.3x wresize.3x
 MAN5=	term.5 terminfo.5
 MAN7=	term.7

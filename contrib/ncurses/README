@@ -1,4 +1,4 @@
--- $Id: README,v 1.19 1999/10/23 20:39:24 tom Exp $
+-- $Id: README,v 1.20 2000/08/12 23:31:21 tom Exp $
 -------------------------------------------------------------------------------
 		README file for the ncurses package
 
@@ -10,7 +10,7 @@ See the file TO-DO for things that still need doing, including known bugs.
 Browse the file misc/ncurses-intro.html for narrative descriptions of how
 to use ncurses and the panel, menu, and form libraries.
  
-Browse the file misc/hackguide.html for a tour of the package internals.
+Browse the file doc/html/hackguide.html for a tour of the package internals.
 
 ROADMAP AND PACKAGE OVERVIEW:
 
@@ -96,10 +96,10 @@ descriptions; the next two (clear and tput) are for use in shell scripts.  The
 last (tset) is provided for 4.4BSD compatibility.  The source code for all of
 these lives in the `progs' directory.
 
-Detailed documentation for all libraries and utilities can be found in
-the `man' directory.  An HTML introduction to ncurses, panels, and
-menus programming lives in the `misc' directory.  Manpages in HTML format
-are under `Ada95/html'.
+Detailed documentation for all libraries and utilities can be found in the
+`man' and `doc' directories.  An HTML introduction to ncurses, panels, and
+menus programming lives in the `doc/html' directory.  Manpages in HTML format
+are under `doc/html/man'.
 
 The `test' directory contains programs that can be used to verify or
 demonstrate the functions of the ncurses libraries.  See test/README for
@@ -171,5 +171,5 @@ suggesting improvements, and generally whining about ncurses :-)
 
 BUGS:
 	See the INSTALL file for bug and developer-list addresses.
-	The Hacker's Guide in the misc directory includes some guidelines
+	The Hacker's Guide in the doc directory includes some guidelines
 	on how to report bugs in ways that will get them fixed most quickly.
