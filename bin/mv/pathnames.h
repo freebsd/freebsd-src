@@ -35,4 +35,3 @@
  */
 
 #define	_PATH_RM	"/bin/rm"
-#define	_PATH_CP	"/bin/cp"
