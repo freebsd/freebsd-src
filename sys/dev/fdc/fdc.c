@@ -47,7 +47,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.144 1999/05/30 11:10:54 dfr Exp $
+ *	$Id: fd.c,v 1.145 1999/05/30 16:52:12 phk Exp $
  *
  */
 
@@ -85,10 +85,10 @@
 #endif	/* DEVFS */
 
 #include <isa/isavar.h>
-#include <i386/isa/isa.h>
-#include <i386/isa/fdreg.h>
-#include <i386/isa/fdc.h>
-#include <i386/isa/rtc.h>
+#include <isa/isareg.h>
+#include <isa/fdreg.h>
+#include <isa/fdc.h>
+#include <isa/rtc.h>
 
 #ifdef FDC_YE
 #undef FDC_YE
@@ -584,6 +584,10 @@ fdc_probe(device_t dev)
 	struct	fdc_data *fdc;
 	char	myname[8];	/* better be long enough */
 
+	/* No pnp support */
+	if (isa_get_vendorid(dev))
+		return (ENXIO);
+
 	fdc = device_get_softc(dev);
 	bzero(fdc, sizeof *fdc);
 	fdc->fdc_dev = dev;
@@ -710,12 +714,13 @@ fdc_add_device(device_t dev, const char *name, int unit)
 	ivar = malloc(sizeof *ivar, M_DEVBUF /* XXX */, M_NOWAIT);
 	if (ivar == 0)
 		return;
-	if (resource_int_value(name, unit, "drive", ivar) == 0)
+	if (resource_int_value(name, unit, "drive", ivar) != 0)
 		*ivar = 0;
 	child = device_add_child(dev, name, unit, ivar);
 	if (child == 0)
 		return;
-	if (resource_int_value(name, unit, "disabled", &disabled) == 0)
+	if (resource_int_value(name, unit, "disabled", &disabled) == 0
+	    && disabled != 0)
 		device_disable(child);
 }
 
@@ -771,10 +776,6 @@ fd_probe(device_t dev)
 	static int fd_fifo = 0;
 #endif
 
-	/* No pnp support */
-	if (isa_get_vendorid(dev))
-		return (ENXIO);
-
 	fdsu = *(int *)device_get_ivars(dev); /* xxx cheat a bit... */
 	fd = device_get_softc(dev);
 	fdc = device_get_softc(device_get_parent(dev));
@@ -785,6 +786,7 @@ fd_probe(device_t dev)
 	fd->fdsu = fdsu;
 	fd->fdu = device_get_unit(dev);
 
+#ifdef __i386__
 	/* look up what bios thinks we have */
 	switch (fd->fdu) {
 	case 0:
@@ -800,6 +802,9 @@ fd_probe(device_t dev)
 		fdt = RTCFDT_NONE;
 		break;
 	}
+#else
+	fdt = RTCFDT_144M;	/* XXX probably */
+#endif
 
 	/* is there a unit? */
 	if (fdt == RTCFDT_NONE)
