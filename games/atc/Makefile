@@ -12,7 +12,7 @@ GAMES=  Game_List Killer crossover default easy game_2
 HIDEGAME=hidegame
 
 beforeinstall:
-	(cd ${.CURDIR}/games; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
-	    ${GAMES} ${DESTDIR}${SHAREDIR}/games/atc)
+	(cd ${.CURDIR}/games; ${INSTALL} -c -o ${SHAREOWN} -g ${SHAREGRP} \
+	    -m ${SHAREMODE} ${GAMES} ${DESTDIR}${SHAREDIR}/games/atc)
 
 .include <bsd.prog.mk>

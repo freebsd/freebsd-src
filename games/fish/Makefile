@@ -6,7 +6,7 @@ MAN=	fish.6
 HIDEGAME=hidegame
 
 beforeinstall:
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
-	  ${.CURDIR}/fish.instr  ${DESTDIR}${SHAREDIR}/games/fish.instr
+	${INSTALL} -c -o ${SHAREOWN} -g ${SHAREGRP} -m ${SHAREMODE} \
+	  ${.CURDIR}/fish.instr ${DESTDIR}${SHAREDIR}/games/fish.instr
 
 .include <bsd.prog.mk>

@@ -9,7 +9,7 @@ MAN=	cribbage.6
 HIDEGAME=hidegame
 
 beforeinstall:
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
+	${INSTALL} -c -o ${SHAREOWN} -g ${SHAREGRP} -m ${SHAREMODE} \
 	  ${.CURDIR}/cribbage.n  ${DESTDIR}${SHAREDIR}/games/cribbage.instr
 .if !exists(${DESTDIR}/var/games/criblog)
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 664 /dev/null \
