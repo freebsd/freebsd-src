@@ -93,7 +93,7 @@ MAIN:{
 
     <table border=\"1\" cellpadding=\"3\">
       <tr>
-        <th>Platform</th>
+	<th>Platform</th>
 ";
     foreach my $branch (sort(keys(%BRANCHES))) {
 	print("        <th>$branch</th>\n");
@@ -103,7 +103,7 @@ MAIN:{
     foreach my $arch (sort(keys(%ARCHES))) {
 	foreach my $machine (sort(keys(%{$ARCHES{$arch}}))) {
 	    my $html =  "      <tr>
-        <td>$arch/$machine</td>
+	<td>$arch / $machine</td>
 ";
 	    foreach my $branch (sort(keys(%BRANCHES))) {
 		my $log = "tinderbox-$branch-$arch-$machine";
@@ -141,11 +141,11 @@ MAIN:{
     <p class=\"update\">Last updated: $date</p>
     <p>
       <a href=\"http://validator.w3.org/check/referer\"><img
-          src=\"valid-xhtml10.png\"
-          alt=\"Valid XHTML 1.0!\" height=\"31\" width=\"88\" /></a>
+	  src=\"valid-xhtml10.png\"
+	  alt=\"Valid XHTML 1.0!\" height=\"31\" width=\"88\" /></a>
       <a href=\"http://jigsaw.w3.org/css-validator/check/referer\"><img
-          src=\"valid-css.png\"
-          alt=\"Valid CSS!\" height=\"31\" width=\"88\" /></a>
+	  src=\"valid-css.png\"
+	  alt=\"Valid CSS!\" height=\"31\" width=\"88\" /></a>
     </p>
   </body>
 </html>
