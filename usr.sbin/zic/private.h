@@ -8,6 +8,15 @@
 */
 
 /*
+ * FreeBSD modifications: separate libc's privates from zic's.
+ * This makes it easier when we need to update one but not the other.
+ * I have removed all of the ifdef spaghetti which is not relevant to
+ * zic from this file.
+ *
+ *	$Id: private.h,v 1.2 1999/01/21 17:12:49 wollman Exp $
+ */
+
+/*
 ** This header is for use ONLY with the time conversion code.
 ** There is no guarantee that it will remain unchanged,
 ** or that it will remain at all.
@@ -30,20 +39,12 @@ static char	privatehid[] = "@(#)private.h	7.48";
 ** You can override these in your C compiler options, e.g. `-DHAVE_ADJTIME=0'.
 */
 
-#ifndef HAVE_ADJTIME
-#define HAVE_ADJTIME		1
-#endif /* !defined HAVE_ADJTIME */
-
 #ifndef HAVE_GETTEXT
 #define HAVE_GETTEXT		0
 #endif /* !defined HAVE_GETTEXT */
 
-#ifndef HAVE_SETTIMEOFDAY
-#define HAVE_SETTIMEOFDAY	3
-#endif /* !defined HAVE_SETTIMEOFDAY */
-
 #ifndef HAVE_STRERROR
-#define HAVE_STRERROR		0
+#define HAVE_STRERROR		1
 #endif /* !defined HAVE_STRERROR */
 
 #ifndef HAVE_SYMLINK
@@ -53,14 +54,6 @@ static char	privatehid[] = "@(#)private.h	7.48";
 #ifndef HAVE_UNISTD_H
 #define HAVE_UNISTD_H		1
 #endif /* !defined HAVE_UNISTD_H */
-
-#ifndef HAVE_UTMPX_H
-#define HAVE_UTMPX_H		0
-#endif /* !defined HAVE_UTMPX_H */
-
-#ifndef LOCALE_HOME
-#define LOCALE_HOME		"/usr/lib/locale"
-#endif /* !defined LOCALE_HOME */
 
 /*
 ** Nested includes
@@ -94,87 +87,7 @@ static char	privatehid[] = "@(#)private.h	7.48";
 /* Unlike <ctype.h>'s isdigit, this also works if c < 0 | c > UCHAR_MAX.  */
 #define is_digit(c) ((unsigned)(c) - '0' <= 9)
 
-/*
-** Workarounds for compilers/systems.
-*/
-
-/*
-** SunOS 4.1.1 cc lacks const.
-*/
-
-#ifndef const
-#ifndef __STDC__
-#define const
-#endif /* !defined __STDC__ */
-#endif /* !defined const */
-
-/*
-** SunOS 4.1.1 cc lacks prototypes.
-*/
-
-#ifndef P
-#ifdef __STDC__
-#define P(x)	x
-#endif /* defined __STDC__ */
-#ifndef __STDC__
-#define P(x)	()
-#endif /* !defined __STDC__ */
-#endif /* !defined P */
-
-/*
-** SunOS 4.1.1 headers lack EXIT_SUCCESS.
-*/
-
-#ifndef EXIT_SUCCESS
-#define EXIT_SUCCESS	0
-#endif /* !defined EXIT_SUCCESS */
-
-/*
-** SunOS 4.1.1 headers lack EXIT_FAILURE.
-*/
-
-#ifndef EXIT_FAILURE
-#define EXIT_FAILURE	1
-#endif /* !defined EXIT_FAILURE */
-
-/*
-** SunOS 4.1.1 headers lack FILENAME_MAX.
-*/
-
-#ifndef FILENAME_MAX
-
-#ifndef MAXPATHLEN
-#ifdef unix
-#include "sys/param.h"
-#endif /* defined unix */
-#endif /* !defined MAXPATHLEN */
-
-#ifdef MAXPATHLEN
-#define FILENAME_MAX	MAXPATHLEN
-#endif /* defined MAXPATHLEN */
-#ifndef MAXPATHLEN
-#define FILENAME_MAX	1024		/* Pure guesswork */
-#endif /* !defined MAXPATHLEN */
-
-#endif /* !defined FILENAME_MAX */
-
-/*
-** SunOS 4.1.1 libraries lack remove.
-*/
-
-#ifndef remove
-extern int	unlink P((const char * filename));
-#define remove	unlink
-#endif /* !defined remove */
-
-/*
-** Some ancient errno.h implementations don't declare errno.
-** But some newer errno.h implementations define it as a macro.
-** Fix the former without affecting the latter.
-*/
-#ifndef errno
-extern int errno;
-#endif /* !defined errno */
+#define P(x) x
 
 /*
 ** Private function declarations.
@@ -187,7 +100,6 @@ void *	irealloc P((void * pointer, int size));
 void	icfree P((char * pointer));
 void	ifree P((char * pointer));
 char *	scheck P((const char *string, const char *format));
-
 
 /*
 ** Finally, some convenience items.
