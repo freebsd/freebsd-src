@@ -470,12 +470,14 @@ gif_ioctl(ifp, cmd, data)
 			    sc2->gif_psrc->sa_family != src->sa_family ||
 			    sc2->gif_psrc->sa_len != src->sa_len)
 				continue;
+#ifndef XBONEHACK
 			/* can't configure same pair of address onto two gifs */
 			if (bcmp(sc2->gif_pdst, dst, dst->sa_len) == 0 &&
 			    bcmp(sc2->gif_psrc, src, src->sa_len) == 0) {
 				error = EADDRNOTAVAIL;
 				goto bad;
 			}
+#endif
 
 			/* can't configure multiple multi-dest interfaces */
 #define multidest(x) \

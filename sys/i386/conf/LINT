@@ -2432,3 +2432,4 @@ options 	VFS_BIO_DEBUG
 options 	VM_KMEM_SIZE
 options 	VM_KMEM_SIZE_MAX
 options 	VM_KMEM_SIZE_SCALE
+options		XBONEHACK
