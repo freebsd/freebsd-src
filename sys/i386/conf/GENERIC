@@ -1,7 +1,7 @@
 #
 # GENERIC -- Generic machine with WD/AHx/NCR/BTx family disks
 #
-#	$Id: GENERIC,v 1.46.2.3 1995/09/14 23:47:06 jkh Exp $
+#	$Id: GENERIC,v 1.46.2.4 1995/09/18 01:02:17 jkh Exp $
 #
 
 machine		"i386"
@@ -22,6 +22,10 @@ options		"COMPAT_43"		#Compatible with BSD 4.3
 options		"SCSI_DELAY=15"		#Be pessimistic about Joe SCSI device
 options		BOUNCE_BUFFERS		#include support for DMA bounce buffers
 options		UCONSOLE		#Allow users to grab the console
+
+options		SYSVSHM
+options		SYSVSEM
+options		SYSVMSG
 
 config		kernel	root on wd0 
 
