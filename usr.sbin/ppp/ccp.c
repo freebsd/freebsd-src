@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.17 1997/10/26 01:02:10 brian Exp $
+ * $Id: ccp.c,v 1.18 1997/11/08 00:28:06 brian Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -80,13 +80,22 @@ struct fsm CcpFsm = {
 };
 
 static char const *cftypes[] = {
-   /*  0 */ "OUI", "PRED1", "PRED2", "PUDDLE",
-   /*  4 */ "???", "???", "???", "???",
-   /*  8 */ "???", "???", "???", "???",
-   /* 12 */ "???", "???", "???", "???",
-   /* 16 */ "HWPPC", "STAC", "MSPPC", "GAND",
-   /* 20 */ "V42BIS", "BSD",
+  /* Check out the latest ``Compression Control Protocol'' rfc (rfc1962.txt) */
+   "OUI",	/* 0: OUI */
+   "PRED1",	/* 1: Predictor type 1 */
+   "PRED2",	/* 2: Predictor type 2 */
+   "PUDDLE",	/* 3: Puddle Jumber */
+   "???", "???", "???", "???", "???", "???",
+   "???", "???", "???", "???", "???", "???",
+   "HWPPC",	/* 16: Hewlett-Packard PPC */
+   "STAC",	/* 17: Stac Electronics LZS */
+   "MSPPC",	/* 18: Microsoft PPC */
+   "GAND",	/* 19: Gandalf FZA */
+   "V42BIS",	/* 20: V.42bis compression */
+   "BSD",	/* BSD LZW Compress */
 };
+
+#define NCFTYPES (sizeof(cftypes)/sizeof(char *))
 
 int
 ReportCcpStatus()
@@ -223,7 +232,7 @@ CcpDecodeConfig(u_char *cp, int plen, int mode_type)
       break;
     type = *cp;
     length = cp[1];
-    if (type <= TY_BSD)
+    if (type < NCFTYPES)
       snprintf(tbuff, sizeof(tbuff), " %s[%d] ", cftypes[type], length);
     else
       snprintf(tbuff, sizeof(tbuff), " ");

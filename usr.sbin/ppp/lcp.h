@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.h,v 1.10 1997/10/26 12:42:12 brian Exp $
+ * $Id: lcp.h,v 1.11 1997/11/08 00:28:08 brian Exp $
  *
  *	TODO:
  */
@@ -55,12 +55,7 @@ struct lcpstate {
 #define	TY_PROTOCOMP	7	/* Protocol-Field-Compression */
 #define	TY_ACFCOMP	8	/* Address-and-Control-Field-Compression */
 #define	TY_FCSALT	9	/* FCS-Alternatives */
-#define	TY_SDP		10	/* Self-Dscribing-Padding */
-#define	TY_NUMMODE	11	/* Numbered-Mode */
-#define	TY_XXXXXX	12
-#define	TY_CALLBACK	13	/* Callback */
-#define	TY_YYYYYY	14
-#define	TY_COMPFRAME	15	/* Compound-Frames */
+#define	TY_SDP		10	/* Self-Describing-Padding */
 
 struct lqrreq {
   u_char type;
@@ -78,6 +73,6 @@ extern void LcpSendProtoRej(u_char *, int);
 extern void LcpOpen(int);
 extern void LcpClose(void);
 extern void LcpDown(void);
-extern void PutConfValue(u_char **, char **, u_char, int, u_long);
+extern void PutConfValue(int, u_char **, char **, u_char, int, u_long);
 extern int ReportLcpStatus(void);
 extern void LcpInput(struct mbuf *);

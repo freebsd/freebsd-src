@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.34 1997/11/08 00:28:07 brian Exp $
+ * $Id: ipcp.c,v 1.35 1997/11/11 22:58:11 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -106,8 +106,25 @@ struct fsm IpcpFsm = {
 };
 
 static char *cftypes[] = {
-  "???", "IPADDRS", "COMPPROTO", "IPADDR",
+  /* Check out the latest ``Assigned numbers'' rfc (rfc1700.txt) */
+  "???",
+  "IPADDRS",	/* 1: IP-Addresses */	/* deprecated */
+  "COMPPROTO",	/* 2: IP-Compression-Protocol */
+  "IPADDR",	/* 3: IP-Address */
 };
+
+#define NCFTYPES (sizeof(cftypes)/sizeof(char *))
+
+static char *cftypes128[] = {
+  /* Check out the latest ``Assigned numbers'' rfc (rfc1700.txt) */
+  "???",
+  "PRIDNS",	/* 129: Primary DNS Server Address */
+  "PRINBNS",	/* 130: Primary NBNS Server Address */
+  "SECDNS",	/* 131: Secondary DNS Server Address */
+  "SECNBNS",	/* 132: Secondary NBNS Server Address */
+};
+
+#define NCFTYPES128 (sizeof(cftypes)/sizeof(char *))
 
 /*
  * Function called every second. Updates connection period and idle period,
@@ -235,12 +252,14 @@ IpcpSendConfigReq(struct fsm * fp)
   cp = ReqBuff;
   LogPrintf(LogIPCP, "IpcpSendConfigReq\n");
   if (!DEV_IS_SYNC || !REJECTED(icp, TY_IPADDR))
-    PutConfValue(&cp, cftypes, TY_IPADDR, 6, ntohl(icp->want_ipaddr.s_addr));
+    PutConfValue(LogIPCP, &cp, cftypes, TY_IPADDR, 6,
+		 ntohl(icp->want_ipaddr.s_addr));
   if (icp->want_compproto && !REJECTED(icp, TY_COMPPROTO)) {
     if (icp->heis1172)
-      PutConfValue(&cp, cftypes, TY_COMPPROTO, 4, icp->want_compproto >> 16);
+      PutConfValue(LogIPCP, &cp, cftypes, TY_COMPPROTO, 4,
+		   icp->want_compproto >> 16);
     else
-      PutConfValue(&cp, cftypes, TY_COMPPROTO, 6, icp->want_compproto);
+      PutConfValue(LogIPCP, &cp, cftypes, TY_COMPPROTO, 6, icp->want_compproto);
   }
   FsmOutput(fp, CODE_CONFIGREQ, fp->reqid++, ReqBuff, cp - ReqBuff);
 }
@@ -373,10 +392,12 @@ IpcpDecodeConfig(u_char * cp, int plen, int mode_type)
   while (plen >= sizeof(struct fsmconfig)) {
     type = *cp;
     length = cp[1];
-    if (type <= TY_IPADDR)
+    if (type < NCFTYPES)
       snprintf(tbuff, sizeof(tbuff), " %s[%d] ", cftypes[type], length);
+    else if (type > 128 && type < 128 + NCFTYPES128)
+      snprintf(tbuff, sizeof(tbuff), " %s[%d] ", cftypes128[type], length);
     else
-      snprintf(tbuff, sizeof(tbuff), " ");
+      snprintf(tbuff, sizeof(tbuff), " ??? ");
 
     switch (type) {
     case TY_IPADDR:		/* RFC1332 */
