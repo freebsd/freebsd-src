@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.17 1996/03/27 20:53:03 ache Exp $
+ * $Id: modem.c,v 1.18 1996/03/27 21:16:32 ache Exp $
  *
  *  TODO:
  */
@@ -39,6 +39,7 @@
 #define O_NONBLOCK O_NDELAY
 #endif
 #endif
+#define USE_CTSRTS
 
 extern int DoChat();
 
@@ -443,11 +444,11 @@ int mode;
     logprintf("modem (get): iflag = %x, oflag = %x, cflag = %x\n",
     rstio.c_iflag, rstio.c_oflag, rstio.c_cflag);
 #endif
-#define USE_CTSRTS
+    cfmakeraw(&rstio);
 #ifdef USE_CTSRTS
-    rstio.c_cflag = (CS8 | CREAD | CLOCAL | CCTS_OFLOW|CRTS_IFLOW);
+    rstio.c_cflag |= CLOCAL | CCTS_OFLOW|CRTS_IFLOW;
 #else
-    rstio.c_cflag = (CS8 | CREAD | CLOCAL);
+    rstio.c_cflag |= CLOCAL;
 #endif
     if (!(mode & MODE_DEDICATED))
       rstio.c_cflag |= HUPCL;
@@ -455,22 +456,9 @@ int mode;
       /*
        * If we are working as direct mode, don't change tty speed.
        */
-      rstio.c_cflag &= ~(CSIZE|PARENB|PARODD);
       rstio.c_cflag |= VarParity;
       cfsetspeed(&rstio, IntToSpeed(VarSpeed));
     }
-    rstio.c_iflag |= IGNBRK|IGNPAR;
-    rstio.c_iflag &= ~(ISTRIP|IXON|IXOFF|ICRNL|INLCR|IGNCR|IMAXBEL);
-    rstio.c_lflag = 0;
-
-    rstio.c_oflag &= ~OPOST;
-#ifdef notdef
-    rstio.c_cc[VMIN] = 10;
-    rstio.c_cc[VTIME] = 1;
-#else
-    rstio.c_cc[VMIN] = 1;
-    rstio.c_cc[VTIME] = 0;
-#endif
     tcsetattr(modem, TCSADRAIN, &rstio);
 #ifdef DEBUG
     logprintf("modem (put): iflag = %x, oflag = %x, cflag = %x\n",
@@ -524,18 +512,14 @@ int modem;
   }
   tcgetattr(modem, &rstio);
   modemios = rstio;
-  rstio.c_cflag &= ~(CSIZE|PARENB|PARODD);
+  cfmakeraw(&rstio);
 #ifdef USE_CTSRTS
-  rstio.c_cflag |= CS8 | CREAD | CCTS_OFLOW|CRTS_IFLOW;
+    rstio.c_cflag |= CLOCAL | CCTS_OFLOW|CRTS_IFLOW;
 #else
-  rstio.c_cflag |= CS8 | CREAD;
+    rstio.c_cflag |= CLOCAL;
 #endif
   if (!(mode & MODE_DEDICATED))
     rstio.c_cflag |= HUPCL;
-  rstio.c_iflag |= IGNBRK|IGNPAR;
-  rstio.c_iflag &= ~(ISTRIP|IXON|IXOFF|ICRNL|INLCR|IGNCR|IMAXBEL);
-  rstio.c_lflag = 0;
-  rstio.c_oflag &= ~OPOST;
   tcsetattr(modem, TCSADRAIN, &rstio);
   oldflag = fcntl(modem, F_GETFL, 0);
   fcntl(modem, F_SETFL, oldflag | O_NONBLOCK);
