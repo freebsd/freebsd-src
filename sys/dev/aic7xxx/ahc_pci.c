@@ -763,7 +763,7 @@ ahc_pci_attach(device_t dev)
 		u_int dscommand0;
 
 		dscommand0 = ahc_inb(ahc, DSCOMMAND0);
-		dscommand0 |= DPARCKEN|MPARCKEN;
+		dscommand0 |= MPARCKEN;
 		if ((ahc->features & AHC_ULTRA2) != 0) {
 
 			/*
