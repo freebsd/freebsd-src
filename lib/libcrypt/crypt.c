@@ -42,11 +42,6 @@ static const struct {
 	char *(*const func)(const char *, const char *);
 	const char *const magic;
 } crypt_types[] = {
-	{
-		"md5",
-		crypt_md5,
-		"$1$"
-	},
 #ifdef HAS_DES
 	{
 		"des",
@@ -54,6 +49,11 @@ static const struct {
 		NULL
 	},
 #endif
+	{
+		"md5",
+		crypt_md5,
+		"$1$"
+	},
 	{
 		NULL,
 		NULL
