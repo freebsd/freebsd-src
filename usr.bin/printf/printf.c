@@ -138,7 +138,7 @@ main(int argc, char *argv[])
 	 * arguments, arguments of zero/null string are provided to use
 	 * up the format string.
 	 */
-	skip1 = "#-+ 0";
+	skip1 = "#'-+ 0";
 	skip2 = "0123456789";
 
 	chopped = escape(fmt = format = *argv, 1);/* backslash interpretation */
