@@ -119,7 +119,7 @@ vfs_hash_insert(struct vnode *vp, u_int hash, int flags, struct thread *td, stru
 				continue;
 			if (vp2->v_mount != vp->v_mount)
 				continue;
-			if (fn != NULL && fn(vp, arg))
+			if (fn != NULL && fn(vp2, arg))
 				continue;
 			VI_LOCK(vp2);
 			mtx_unlock(&vfs_hash_mtx);
