@@ -889,7 +889,7 @@ map_read_write:
 /* install a pde for temporary double map of bottom of VA */
 	movl	R(KPTphys), %eax
 	xorl	%ebx, %ebx
-	movl	$1, %ecx
+	movl	$NKPT, %ecx
 	fillkpt(R(IdlePTD), $PG_RW)
 
 /* install pde's for pt's */
