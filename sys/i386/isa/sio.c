@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.37 1994/03/21 22:19:56 ache Exp $
+ *	$Id: sio.c,v 1.38 1994/03/23 17:28:35 ache Exp $
  */
 
 #include "sio.h"
@@ -818,6 +818,8 @@ comhardclose(com)
 				tsleep((caddr_t)&com->dtr_wait, TTIPRI,
 				       "sioclose", com->dtr_wait);
 		}
+		com->last_modem_status =
+		com->prev_modem_status = inb(com->modem_status_port);
 	}
 
 #ifdef COM_BIDIR
