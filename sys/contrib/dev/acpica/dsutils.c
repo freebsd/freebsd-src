@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dsutils - Dispatcher utilities
- *              $Revision: 99 $
+ *              $Revision: 100 $
  *
  ******************************************************************************/
 
@@ -126,6 +126,7 @@
 
 #define _COMPONENT          ACPI_DISPATCHER
         ACPI_MODULE_NAME    ("dsutils")
+
 
 #ifndef ACPI_NO_METHOD_EXECUTION
 
@@ -277,7 +278,6 @@ ResultNotUsed:
             AcpiPsGetOpcodeName (Op->Common.Parent->Common.AmlOpcode), Op));
 
     return_VALUE (FALSE);
-
 }
 
 
@@ -321,7 +321,6 @@ AcpiDsDeleteResultIfNotUsed (
     {
         return_VOID;
     }
-
 
     if (!AcpiDsIsResultUsed (Op, WalkState))
     {
@@ -479,67 +478,85 @@ AcpiDsCreateOperand (
          * in NameString
          */
 
+
         /*
-         * Differentiate between a namespace "create" operation
-         * versus a "lookup" operation (IMODE_LOAD_PASS2 vs.
-         * IMODE_EXECUTE) in order to support the creation of
-         * namespace objects during the execution of control methods.
+         * Special handling for BufferField declarations.  This is a deferred
+         * opcode that unfortunately defines the field name as the last
+         * parameter instead of the first.  We get here when we are performing
+         * the deferred execution, so the actual name of the field is already
+         * in the namespace.  We don't want to attempt to look it up again
+         * because we may be executing in a different scope than where the
+         * actual opcode exists.
          */
-        ParentOp = Arg->Common.Parent;
-        OpInfo = AcpiPsGetOpcodeInfo (ParentOp->Common.AmlOpcode);
-        if ((OpInfo->Flags & AML_NSNODE) &&
-            (ParentOp->Common.AmlOpcode != AML_INT_METHODCALL_OP) &&
-            (ParentOp->Common.AmlOpcode != AML_REGION_OP) &&
-            (ParentOp->Common.AmlOpcode != AML_INT_NAMEPATH_OP))
+        if ((WalkState->DeferredNode) &&
+            (WalkState->DeferredNode->Type == ACPI_TYPE_BUFFER_FIELD) &&
+            (ArgIndex != 0))
         {
-            /* Enter name into namespace if not found */
-
-            InterpreterMode = ACPI_IMODE_LOAD_PASS2;
+            ObjDesc = ACPI_CAST_PTR (ACPI_OPERAND_OBJECT, WalkState->DeferredNode);
+            Status = AE_OK;
         }
-
-        else
+        else    /* All other opcodes */
         {
-            /* Return a failure if name not found */
-
-            InterpreterMode = ACPI_IMODE_EXECUTE;
-        }
-
-        Status = AcpiNsLookup (WalkState->ScopeInfo, NameString,
-                                ACPI_TYPE_ANY, InterpreterMode,
-                                ACPI_NS_SEARCH_PARENT | ACPI_NS_DONT_OPEN_SCOPE,
-                                WalkState,
-                                ACPI_CAST_INDIRECT_PTR (ACPI_NAMESPACE_NODE, &ObjDesc));
-        /*
-         * The only case where we pass through (ignore) a NOT_FOUND
-         * error is for the CondRefOf opcode.
-         */
-        if (Status == AE_NOT_FOUND)
-        {
-            if (ParentOp->Common.AmlOpcode == AML_COND_REF_OF_OP)
+            /*
+             * Differentiate between a namespace "create" operation
+             * versus a "lookup" operation (IMODE_LOAD_PASS2 vs.
+             * IMODE_EXECUTE) in order to support the creation of
+             * namespace objects during the execution of control methods.
+             */
+            ParentOp = Arg->Common.Parent;
+            OpInfo = AcpiPsGetOpcodeInfo (ParentOp->Common.AmlOpcode);
+            if ((OpInfo->Flags & AML_NSNODE) &&
+                (ParentOp->Common.AmlOpcode != AML_INT_METHODCALL_OP) &&
+                (ParentOp->Common.AmlOpcode != AML_REGION_OP) &&
+                (ParentOp->Common.AmlOpcode != AML_INT_NAMEPATH_OP))
             {
-                /*
-                 * For the Conditional Reference op, it's OK if
-                 * the name is not found;  We just need a way to
-                 * indicate this to the interpreter, set the
-                 * object to the root
-                 */
-                ObjDesc = ACPI_CAST_PTR (ACPI_OPERAND_OBJECT, AcpiGbl_RootNode);
-                Status = AE_OK;
-            }
+                /* Enter name into namespace if not found */
 
+                InterpreterMode = ACPI_IMODE_LOAD_PASS2;
+            }
             else
             {
-                /*
-                 * We just plain didn't find it -- which is a
-                 * very serious error at this point
-                 */
-                Status = AE_AML_NAME_NOT_FOUND;
-            }
-        }
+                /* Return a failure if name not found */
 
-        if (ACPI_FAILURE (Status))
-        {
-            ACPI_REPORT_NSERROR (NameString, Status);
+                InterpreterMode = ACPI_IMODE_EXECUTE;
+            }
+
+            Status = AcpiNsLookup (WalkState->ScopeInfo, NameString,
+                                    ACPI_TYPE_ANY, InterpreterMode,
+                                    ACPI_NS_SEARCH_PARENT | ACPI_NS_DONT_OPEN_SCOPE,
+                                    WalkState,
+                                    ACPI_CAST_INDIRECT_PTR (ACPI_NAMESPACE_NODE, &ObjDesc));
+            /*
+             * The only case where we pass through (ignore) a NOT_FOUND
+             * error is for the CondRefOf opcode.
+             */
+            if (Status == AE_NOT_FOUND)
+            {
+                if (ParentOp->Common.AmlOpcode == AML_COND_REF_OF_OP)
+                {
+                    /*
+                     * For the Conditional Reference op, it's OK if
+                     * the name is not found;  We just need a way to
+                     * indicate this to the interpreter, set the
+                     * object to the root
+                     */
+                    ObjDesc = ACPI_CAST_PTR (ACPI_OPERAND_OBJECT, AcpiGbl_RootNode);
+                    Status = AE_OK;
+                }
+                else
+                {
+                    /*
+                     * We just plain didn't find it -- which is a
+                     * very serious error at this point
+                     */
+                    Status = AE_AML_NAME_NOT_FOUND;
+                }
+            }
+
+            if (ACPI_FAILURE (Status))
+            {
+                ACPI_REPORT_NSERROR (NameString, Status);
+            }
         }
 
         /* Free the namestring created above */
@@ -562,8 +579,6 @@ AcpiDsCreateOperand (
         }
         ACPI_DEBUGGER_EXEC (AcpiDbDisplayArgumentObject (ObjDesc, WalkState));
     }
-
-
     else
     {
         /* Check for null name case */
@@ -580,7 +595,6 @@ AcpiDsCreateOperand (
 
             ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH, "Null namepath: Arg=%p\n", Arg));
         }
-
         else
         {
             Opcode = Arg->Common.AmlOpcode;

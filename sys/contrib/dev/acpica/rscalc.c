@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: rscalc - Calculate stream and list lengths
- *              $Revision: 48 $
+ *              $Revision: 49 $
  *
  ******************************************************************************/
 
@@ -796,7 +796,7 @@ AcpiRsGetListLength (
         default:
             /*
              * If we get here, everything is out of sync,
-             *  so exit with an error
+             * exit with an error
              */
             return_ACPI_STATUS (AE_AML_INVALID_RESOURCE_TYPE);
         }
@@ -804,7 +804,7 @@ AcpiRsGetListLength (
         /*
          * Update the return value and counter
          */
-        BufferSize += ACPI_ALIGN_RESOURCE_SIZE(StructureSize);
+        BufferSize += (UINT32) ACPI_ALIGN_RESOURCE_SIZE (StructureSize);
         BytesParsed += BytesConsumed;
 
         /*

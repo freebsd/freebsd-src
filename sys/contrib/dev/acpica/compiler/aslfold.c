@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: aslfold - Constant folding
- *              $Revision: 7 $
+ *              $Revision: 8 $
  *
  *****************************************************************************/
 
@@ -461,8 +461,7 @@ OpcAmlConstantWalk (
             OpcSetOptimalIntegerSize (Op);
 
             DbgPrint (ASL_PARSE_OUTPUT, "Constant expression reduced to (INTEGER) %8.8X%8.8X\n",
-                ACPI_HIDWORD (ObjDesc->Integer.Value),
-                ACPI_LODWORD (ObjDesc->Integer.Value));
+                ACPI_FORMAT_UINT64 (ObjDesc->Integer.Value));
             break;
 
 

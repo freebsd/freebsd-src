@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dmresrc.c - Resource Descriptor disassembly
- *              $Revision: 8 $
+ *              $Revision: 10 $
  *
  ******************************************************************************/
 
@@ -134,7 +134,7 @@
  *
  * RETURN:      None
  *
- * DESCRIPTION: Dump a bit mask as a list of individual interrupt/dma levels.
+ * DESCRIPTION: Dump a bit mask as a list of individual interrupt/DMA levels.
  *
  ******************************************************************************/
 

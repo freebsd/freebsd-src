@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: adisasm - Application-level disassembler routines
- *              $Revision: 58 $
+ *              $Revision: 63 $
  *
  *****************************************************************************/
 
@@ -521,12 +521,16 @@ AdAmlDisassemble (
         if (!OutFilename)
         {
             fprintf (stderr, "Could not generate output filename\n");
+            Status = AE_ERROR;
+            goto Cleanup;
         }
 
         File = fopen (DisasmFilename, "w+");
         if (!File)
         {
             fprintf (stderr, "Could not open output file\n");
+            Status = AE_ERROR;
+            goto Cleanup;
         }
 
         AcpiOsRedirectOutput (File);
@@ -560,7 +564,7 @@ Cleanup:
     }
 
     AcpiPsDeleteParseTree (AcpiGbl_ParsedNamespaceRoot);
-    return AE_OK;
+    return Status;
 }
 
 
@@ -593,7 +597,7 @@ AdCreateTableHeader (
     AcpiOsPrintf (" *\n * Disassembly of %s, %s */\n", Filename, ctime (&Timer));
 
     AcpiOsPrintf (
-        "DefinitionBlock (\"%4.4s.aml\", \"%4.4s\", %hd, \"%.6s\", \"%.8s\", %d)\n",
+        "DefinitionBlock (\"%4.4s.aml\", \"%4.4s\", %hd, \"%.6s\", \"%.8s\", %u)\n",
         Table->Signature, Table->Signature, Table->Revision,
         Table->OemId, Table->OemTableId, Table->OemRevision);
 }
@@ -869,12 +873,17 @@ AdGetLocalTables (
 
     if (GetAllTables)
     {
-        ACPI_STRNCPY (TableHeader.Signature, "RSDT", 4);
+        ACPI_STRNCPY (TableHeader.Signature, RSDT_SIG, 4);
         AcpiOsTableOverride (&TableHeader, &NewTable);
+        if (!NewTable)
+        {
+            fprintf (stderr, "Could not obtain RSDT\n");
+            return AE_NO_ACPI_TABLES;
+        }
 
 #if ACPI_MACHINE_WIDTH != 64
 
-        if (!ACPI_STRNCMP (NewTable->Signature, "RSDT", 4))
+        if (!ACPI_STRNCMP (NewTable->Signature, RSDT_SIG, 4))
         {
             PointerSize = sizeof (UINT32);
         }
@@ -896,25 +905,25 @@ AdGetLocalTables (
 
         /* Get the FADT */
 
-        ACPI_STRNCPY (TableHeader.Signature, "FADT", 4);
+        ACPI_STRNCPY (TableHeader.Signature, FADT_SIG, 4);
         AcpiOsTableOverride (&TableHeader, &NewTable);
         if (NewTable)
         {
             AcpiGbl_FADT = (void *) NewTable;
             AdWriteTable (NewTable, NewTable->Length,
-                "FADT", NewTable->OemTableId);
+                FADT_SIG, NewTable->OemTableId);
         }
         AcpiOsPrintf ("\n");
 
         /* Get the FACS */
 
-        ACPI_STRNCPY (TableHeader.Signature, "FACS", 4);
+        ACPI_STRNCPY (TableHeader.Signature, FACS_SIG, 4);
         AcpiOsTableOverride (&TableHeader, &NewTable);
         if (NewTable)
         {
             AcpiGbl_FACS = (void *) NewTable;
             AdWriteTable (NewTable, AcpiGbl_FACS->Length,
-                "FACS", AcpiGbl_FADT->Header.OemTableId);
+                FACS_SIG, AcpiGbl_FADT->OemTableId);
         }
         AcpiOsPrintf ("\n");
     }
@@ -933,7 +942,7 @@ AdGetLocalTables (
     else
     {
         fprintf (stderr, "Could not obtain DSDT\n");
-        Status = AE_NO_ACPI_TABLES;
+        return AE_NO_ACPI_TABLES;
     }
 
     AcpiOsPrintf ("\n");

@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exmisc - ACPI AML (p-code) execution - specific opcodes
- *              $Revision: 115 $
+ *              $Revision: 116 $
  *
  *****************************************************************************/
 
@@ -199,8 +199,8 @@ AcpiExGetObjectReference (
 
     default:
 
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Invalid descriptor type %X in %p\n",
-            ACPI_GET_DESCRIPTOR_TYPE (ObjDesc), ObjDesc));
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "%p has invalid descriptor [%s]\n",
+                ObjDesc, AcpiUtGetDescriptorName (ObjDesc)));
         return_ACPI_STATUS (AE_TYPE);
     }
 
@@ -218,7 +218,7 @@ AcpiExGetObjectReference (
     *ReturnDesc = ReferenceObj;
 
     ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Object %p Type [%s], returning Reference %p\n",
-        ObjDesc, AcpiUtGetObjectTypeName (ObjDesc), *ReturnDesc));
+            ObjDesc, AcpiUtGetObjectTypeName (ObjDesc), *ReturnDesc));
 
     return_ACPI_STATUS (AE_OK);
 }

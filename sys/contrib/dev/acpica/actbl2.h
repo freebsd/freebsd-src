@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: actbl2.h - ACPI Specification Revision 2.0 Tables
- *       $Revision: 32 $
+ *       $Revision: 33 $
  *
  *****************************************************************************/
 
@@ -144,7 +144,7 @@
  */
 typedef struct rsdt_descriptor_rev2
 {
-    ACPI_TABLE_HEADER       Header;                 /* ACPI table header */
+    ACPI_TABLE_HEADER_DEF                           /* ACPI common table header */
     UINT32                  TableOffsetEntry [1];   /* Array of pointers to  */
                                                     /* ACPI table headers */
 } RSDT_DESCRIPTOR_REV2;
@@ -155,7 +155,7 @@ typedef struct rsdt_descriptor_rev2
  */
 typedef struct xsdt_descriptor_rev2
 {
-    ACPI_TABLE_HEADER       Header;                 /* ACPI table header */
+    ACPI_TABLE_HEADER_DEF                           /* ACPI common table header */
     UINT64                  TableOffsetEntry [1];   /* Array of pointers to  */
                                                     /* ACPI table headers */
 } XSDT_DESCRIPTOR_REV2;
@@ -199,7 +199,7 @@ typedef struct acpi_generic_address
  */
 typedef struct fadt_descriptor_rev2
 {
-    ACPI_TABLE_HEADER       Header;             /* ACPI table header */
+    ACPI_TABLE_HEADER_DEF                       /* ACPI common table header */
     UINT32                  V1_FirmwareCtrl;    /* 32-bit physical address of FACS */
     UINT32                  V1_Dsdt;            /* 32-bit physical address of DSDT */
     UINT8                   Reserved1;          /* System Interrupt Model isn't used in ACPI 2.0*/
@@ -269,6 +269,21 @@ typedef struct fadt_descriptor_rev2
     ACPI_GENERIC_ADDRESS    XGpe1Blk;           /* Extended General Purpose AcpiEvent 1 Reg Blk address */
 
 } FADT_DESCRIPTOR_REV2;
+
+
+/* Embedded Controller */
+
+typedef struct ec_boot_resources
+{
+    ACPI_TABLE_HEADER_DEF
+    ACPI_GENERIC_ADDRESS    EcControl;          /* Address of EC command/status register */
+    ACPI_GENERIC_ADDRESS    EcData;             /* Address of EC data register */
+    UINT32                  Uid;                /* Unique ID - must be same as the EC _UID method */
+    UINT8                   GpeBit;             /* The GPE for the EC */
+    UINT8                   EcId[1];            /* Full namepath of the EC in the ACPI namespace */
+
+} EC_BOOT_RESOURCES;
+
 
 
 #pragma pack()
