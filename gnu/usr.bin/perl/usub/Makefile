@@ -7,11 +7,11 @@ SRCS+= perl.c perly.c regcomp.c regexec.c
 SRCS+= stab.c str.c toke.c util.c 
 SRCS+=	usersub.c curses.c
 
-CFLAGS+=	-DDEBUGGING -I${.CURDIR}/..
+CFLAGS+=	-DDEBUGGING -I${.CURDIR}/../perl
 LDADD+= 	-lncurses -ltermcap -ltermlib -lcrypt -lm
 DPADD+=		${LIBNCURSES} ${LIBTERMCAP} ${LIBTERMLIB} ${LIBCRYPT} ${LIBM}
 CLEANFILES+=	curses.c
-VPATH+=	${.CURDIR}/..
+VPATH+=	${.CURDIR}/../perl
 NOMAN=	yes
 
 curses.c: curses.mus
