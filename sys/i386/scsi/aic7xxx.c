@@ -24,7 +24,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aic7xxx.c,v 1.29.2.4 1995/08/31 06:36:18 davidg Exp $
+ *      $Id: aic7xxx.c,v 1.29.2.5 1995/09/21 02:11:16 davidg Exp $
  */
 /*
  * TODO:
@@ -62,7 +62,6 @@ void    ahc_loadseq __P((u_long iobase));
 int32   ahc_scsi_cmd();
 timeout_t ahc_timeout;
 void    ahc_done __P((int unit, struct scb *scbp));
-void    ahc_timeout_done __P((int unit, struct scb *scbp));
 struct  scb *ahc_get_scb __P((int unit, int flags));
 void    ahc_free_scb();
 void	ahc_scb_timeout __P((int unit, struct ahc_data *ahc, struct scb *scb));
@@ -149,6 +148,20 @@ struct scsi_device ahc_dev =
 #define		ENAUTOATNI	0x04
 #define		ENAUTOATNP	0x02
 #define		SCSIRSTO	0x01
+
+/*
+ * SCSI Transfer Control 0 Register (pp. 3-13).
+ * Controls the SCSI module data path.
+ */
+#define	SXFRCTL0		0xc01ul
+#define		DFON		0x80
+#define		DFPEXP		0x40
+#define		ULTRAEN		0x20
+#define		CLRSTCNT	0x10
+#define		SPIOEN		0x08
+#define		SCAMEN		0x04
+#define		CLRCHN		0x02
+/*  UNUSED			0x01 */
 
 /*
  * SCSI Transfer Control 1 Register (pp. 3-14,15).
@@ -641,7 +654,8 @@ struct seeprom_config {
 /*
  * Host Adapter Control Bits
  */
-/* UNUSED		0x0003 */
+/* UNUSED		0x0001 */
+#define CFULTRAEN       0x0002          /* Ultra SCSI speed enable (Ultra cards) */
 #define CFSTERM		0x0004		/* SCSI low byte termination (non-wide cards) */
 #define CFWSTERM	0x0008		/* SCSI high byte termination (wide card) */
 #define CFSPARITY	0x0010		/* SCSI parity */
@@ -757,17 +771,23 @@ static struct {
  */
 static struct {
 	short sxfr;
+	/* Rates in Ultra mode have bit 8 of sxfr set */
+#define		ULTRA_SXFR 0x100
 	short period; /* in ns */
 	char *rate;
 } ahc_syncrates[] = {
-	{ 0x00, 100, "10.0"  },
-	{ 0x10, 125,  "8.0"  },
-	{ 0x20, 150,  "6.67" },
-	{ 0x30, 175,  "5.7"  },
-	{ 0x40, 200,  "5.0"  },
-	{ 0x50, 225,  "4.4"  },
-	{ 0x60, 250,  "4.0"  },
-	{ 0x70, 275,  "3.6"  }
+	{ 0x100,  50, "20.0"  },
+	{ 0x110,  62, "16.0"  },
+	{ 0x120,  75, "13.4"  },
+	{ 0x140, 100, "10.0"  },
+	{ 0x000, 100, "10.0"  },
+	{ 0x010, 125,  "8.0"  },
+	{ 0x020, 150,  "6.67" },
+	{ 0x030, 175,  "5.7"  },
+	{ 0x040, 200,  "5.0"  },
+	{ 0x050, 225,  "4.4"  },
+	{ 0x060, 250,  "4.0"  },
+	{ 0x070, 275,  "3.6"  }
 };
 
 static int ahc_num_syncrates =
@@ -842,10 +862,37 @@ void ahc_scsirate(scsirate, period, offset, unit, target )
 	int	unit, target;
 {
         int i;
+	struct ahc_data *ahc = ahcdata[unit];
 
         for (i = 0; i < ahc_num_syncrates; i++) {
 
                 if ((ahc_syncrates[i].period - period) >= 0) {
+			/*
+			 * Watch out for Ultra speeds when ultra is not
+			 * enabled and vice-versa.
+			 */
+			if (ahc->type & AHC_ULTRA) {
+				if (!(ahc_syncrates[i].sxfr & ULTRA_SXFR)) {
+					printf("ahc%d: target %d requests "
+					       "%sMB/s transfers, but adapter "
+					       "in Ultra mode can only sync at "
+					       "10MB/s or above\n", unit, 
+					       target, ahc_syncrates[i].rate);
+					break; /* Use Async */
+				}
+			}
+			else {
+				if (ahc_syncrates[i].sxfr & ULTRA_SXFR) {
+					/*
+					 * This should only happen if the
+					 * drive is the first to negotiate
+					 * and chooses a high rate.  We'll
+					 * just move down the table util
+					 * we hit a non ultra speed.
+					 */
+					continue;
+				}
+			}
                         *scsirate = (ahc_syncrates[i].sxfr) | (offset & 0x0f);
 			if(bootverbose) {
 				printf("ahc%d: target %d synchronous at %sMB/s,"
@@ -1816,7 +1863,10 @@ ahc_init(unit)
 	   }
 	   case AHC_AIC7850:
 	   case AHC_AIC7870:
+	   case AHC_AIC7880:
+	   case AHC_394U:
 	   case AHC_394:
+	   case AHC_294U:
 	   case AHC_294:
 		host_id = 0x07;  /* default to SCSI ID 7 for 7850 */
 		if (ahc->type & AHC_AIC7870) {
@@ -1877,7 +1927,15 @@ ahc_init(unit)
 		break;
 	   default:
 	};
-
+	if(ahc->type & AHC_ULTRA) {
+		printf("Ultra ");
+		if(have_seeprom) {
+			/* Should we enable Ultra mode? */
+			if(!(sc.adapter_control & CFULTRAEN))
+				/* Treat it like a normal card */
+				ahc->type &= ~AHC_ULTRA;
+		}
+	}
         /* Determine channel configuration and who we are on the scsi bus. */
         switch ( (sblkctl = inb(SBLKCTL + iobase) & 0x0a) ) {
             case 0:
@@ -2011,7 +2069,7 @@ ahc_init(unit)
 		}
 	}
 
-	/* Set the SCSI Id, SXFRCTL1, and SIMODE1, for both channels */
+	/* Set the SCSI Id, SXFRCTL0, SXFRCTL1, and SIMODE1, for both channels*/
 	if( ahc->type & AHC_TWIN)
 	{
 		/*
@@ -2022,6 +2080,10 @@ ahc_init(unit)
 		scsi_conf = inb(HA_SCSICONF + 1 + iobase) & (ENSPCHK|STIMESEL);
 		outb(SXFRCTL1 + iobase, scsi_conf|ENSTIMER|ACTNEGEN|STPWEN);
 		outb(SIMODE1 + iobase, ENSELTIMO|ENSCSIPERR);
+		if(ahc->type & AHC_ULTRA)
+			outb(SXFRCTL0 + iobase, DFON|SPIOEN|ULTRAEN);
+		else
+			outb(SXFRCTL0 + iobase, DFON|SPIOEN);
 
 		/* Reset the bus */
 		outb(SCSISEQ + iobase, SCSIRSTO);
@@ -2035,6 +2097,10 @@ ahc_init(unit)
 	scsi_conf = inb(HA_SCSICONF + iobase) & (ENSPCHK|STIMESEL);
 	outb(SXFRCTL1 + iobase, scsi_conf|ENSTIMER|ACTNEGEN|STPWEN);
 	outb(SIMODE1 + iobase, ENSELTIMO|ENSCSIPERR);
+	if(ahc->type & AHC_ULTRA)
+		outb(SXFRCTL0 + iobase, DFON|SPIOEN|ULTRAEN);
+	else
+		outb(SXFRCTL0 + iobase, DFON|SPIOEN);
 
 	/* Reset the bus */
 	outb(SCSISEQ + iobase, SCSIRSTO);
@@ -2629,8 +2695,7 @@ ahc_scb_timeout(unit, ahc, scb)
 			outsb(SCBARRAY+iobase,scb,SCB_DOWN_SIZE);
 			outb(SCBCNT + iobase, 0);
 			ahc_add_waiting_scb(iobase, scb, list_second);
-			timeout(ahc_timeout, (caddr_t)scb, 
-				(2 * hz) / 1000);
+			timeout(ahc_timeout, (caddr_t)scb, (2 * hz));
 #ifdef AHC_DEBUG
 			if(ahc_debug & AHC_SHOWABORTS) {
 				sc_print_addr(scb->xs->sc_link);
@@ -2669,8 +2734,7 @@ ahc_scb_timeout(unit, ahc, scb)
 			active_scbp->flags |= SCB_DEVICE_RESET|SCB_ABORTED;
 			if(active_scbp != scb)
 				untimeout(ahc_timeout, (caddr_t)active_scbp);
-			timeout(ahc_timeout, (caddr_t)active_scbp, 
-					(2 * hz) / 1000);
+			timeout(ahc_timeout, (caddr_t)active_scbp, (2 * hz));
 			outb(HA_FLAGS + iobase, flags | ACTIVE_MSG);
 			outb(HA_MSG_LEN + iobase, 1);
 			outb(HA_MSG_START + iobase, MSG_BUS_DEVICE_RESET);
@@ -2712,8 +2776,14 @@ ahc_timeout(void *arg1)
 	struct scb *scb = (struct scb *)arg1;
 	int     unit;
 	struct ahc_data *ahc;
-	int     s, h;
-	s = splbio();
+	int     s;
+	s = splhigh();
+
+	if (!(scb->flags & SCB_ACTIVE)) {
+		/* Previous timeout took care of me already */
+		splx(s);
+		return;
+	}
 
 	unit = scb->xs->sc_link->adapter_unit;
 	ahc = ahcdata[unit];
@@ -2722,45 +2792,26 @@ ahc_timeout(void *arg1)
 		,scb->xs->sc_link->lun
 		,scb->xs->sc_link->device->name
 		,scb->xs->sc_link->dev_unit);
-	h = splhigh();
-	if(ahc->in_timeout){
-		scb->next = ahc->timedout_scb;
-		ahc->timedout_scb = scb;
-		splx(h);
-		splx(s);
-		return;
-	}
-	else
-		ahc->in_timeout = 1;
-	splx(h);
-	while(scb) {
 #ifdef SCSIDEBUG
-		show_scsi_cmd(scb->xs);
+	show_scsi_cmd(scb->xs);
 #endif
 #ifdef  AHC_DEBUG
-	        if (ahc_debug & AHC_SHOWSCBS)
-			ahc_print_active_scb(ahc);
+	if (ahc_debug & AHC_SHOWSCBS)
+		ahc_print_active_scb(ahc);
 #endif /*AHC_DEBUG */
 
-	        /*
-		 * If it's immediate, don't try to abort it
-		 */
-		if (scb->flags & SCB_IMMED) {
-			scb->xs->retries = 0;   /* I MEAN IT ! */
-	                ahc_timeout_done(unit, scb);
-	        }
-		else {
-			/* abort the operation that has timed out */
-			ahc_scb_timeout( unit, ahc, scb );
-		}
-		h = splhigh();
-		scb = ahc->timedout_scb;
-		if(scb)
-			ahc->timedout_scb = scb->next;
-		splx(h);
+	/*
+	 * If it's immediate, don't try to abort it
+	 */
+	if (scb->flags & SCB_IMMED) {
+		scb->xs->retries = 0;   /* I MEAN IT ! */
+		ahc_done(unit, scb);
 	}
-	ahc->in_timeout = 0;
-        splx(s);
+	else {
+		/* abort the operation that has timed out */
+		ahc_scb_timeout( unit, ahc, scb );
+	}
+	splx(s);
 }
 
 
@@ -2804,7 +2855,7 @@ ahc_reset_device(unit, ahc, target, channel, timedout_scb, xs_error)
 				scbp->xs->error |= xs_error;
 				if(scbp->position != timedout_scb)
 					untimeout(ahc_timeout, (caddr_t)scbp);
-				ahc_timeout_done (unit, scbp);
+				ahc_done (unit, scbp);
 				outb(SCBPTR + iobase, scbp->position);
 				outb(SCBARRAY + iobase, SCB_NEEDDMA);
 				i--;
@@ -2861,7 +2912,7 @@ ahc_reset_device(unit, ahc, target, channel, timedout_scb, xs_error)
 			scbp->xs->error |= xs_error;
 			if(scbp->position != timedout_scb)
 				untimeout(ahc_timeout, (caddr_t)scbp);
-			ahc_timeout_done (unit, scbp);
+			ahc_done (unit, scbp);
 			found++;
 		}
 	}			
@@ -2924,7 +2975,7 @@ ahc_abort_wscb (unit, scbp, prev, iobase, timedout_scb, xs_error)
 	scbp->xs->error |= xs_error;
 	if(scbp->position != timedout_scb)
 		untimeout(ahc_timeout, (caddr_t)scbp);
-	ahc_timeout_done (unit, scbp);
+	ahc_done (unit, scbp);
 	return next;
 }
 
@@ -3052,30 +3103,4 @@ ahc_match_scb (scb, target, channel)
 		return (chan == channel);
 	else
 		return ((chan == channel) && (targ == target));
-}
-
-void
-ahc_timeout_done (unit, scbp)
-	int unit;
-	struct scb *scbp;
-{
-	struct ahc_data *ahc = ahcdata[unit];
-	struct scb **prev_scb;
-	struct scb  *cur_scb;
-	int h;
-
-	h = splhigh();
-	prev_scb = &ahc->timedout_scb;
-	cur_scb = ahc->timedout_scb;
-	
-	while(cur_scb) {
-		if(cur_scb == scbp) {
-			*prev_scb = cur_scb->next;
-			break;
-		}
-		prev_scb = &cur_scb->next;
-		cur_scb = cur_scb->next;
-	}
-	splx(h);
-	ahc_done(unit, scbp);
 }
