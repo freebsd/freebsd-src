@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2000 Andrew Gallatin
  * Copyright (c) 1994-1995 Søren Schmidt
  * All rights reserved.
  *
@@ -32,8 +33,8 @@
 #include <sys/systm.h>
 #include <sys/proc.h>
 
-#include <i386/linux/linux.h>
-#include <i386/linux/linux_proto.h>
+#include <alpha/linux/linux.h>
+#include <alpha/linux/linux_proto.h>
 
 #define DUMMY(s) 							\
 int									\
@@ -51,28 +52,12 @@ unsupported_msg(struct proc *p, const char *fname)
 	return (ENOSYS);
 }
 
-DUMMY(setup);
-DUMMY(break);
-DUMMY(stat);
 DUMMY(mount);
 DUMMY(umount);
-DUMMY(stime);
 DUMMY(ptrace);
-DUMMY(fstat);
-DUMMY(stty);
-DUMMY(gtty);
-DUMMY(ftime);
-DUMMY(prof);
-DUMMY(umount2);
-DUMMY(lock);
-DUMMY(mpx);
-DUMMY(ulimit);
-DUMMY(olduname);
 DUMMY(ksyslog);
-DUMMY(uname);
 DUMMY(vhangup);
 DUMMY(idle);
-DUMMY(vm86old);
 DUMMY(swapoff);
 DUMMY(sysinfo);
 DUMMY(adjtimex);
@@ -88,8 +73,6 @@ DUMMY(setfsuid);
 DUMMY(setfsgid);
 DUMMY(getsid);
 DUMMY(sysctl);
-DUMMY(getresuid);
-DUMMY(vm86);
 DUMMY(query_module);
 DUMMY(nfsservctl);
 DUMMY(getresgid);
@@ -100,12 +83,3 @@ DUMMY(rt_sigqueueinfo);
 DUMMY(capget);
 DUMMY(capset);
 DUMMY(sendfile);
-DUMMY(getpmsg);
-DUMMY(putpmsg);
-DUMMY(ugetrlimit);
-DUMMY(mmap2);
-DUMMY(truncate64);
-DUMMY(ftruncate64);
-DUMMY(stat64);
-DUMMY(lstat64);
-DUMMY(fstat64);
