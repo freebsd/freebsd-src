@@ -36,39 +36,32 @@
 .\"     @(#)ldexp.3	8.2 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd April 19, 1994
+.Dd January 23, 2005
 .Dt LDEXP 3
 .Os
 .Sh NAME
 .Nm ldexp
 .Nd multiply floating-point number by integral power of 2
 .Sh LIBRARY
-.Lb libc
+.Lb libm
 .Sh SYNOPSIS
 .In math.h
 .Ft double
 .Fn ldexp "double x" "int exp"
+.Ft float
+.Fn ldexpf "float x" "int exp"
 .Sh DESCRIPTION
 The
 .Fn ldexp
-function multiplies a floating-point number by an integral
+and
+.Fn ldexpf
+functions multiply a floating-point number by an integral
 power of 2.
 .Sh RETURN VALUES
-The
-.Fn ldexp
-function returns the value of
+These functions return the value of
 .Fa x
 times 2 raised to the power
 .Fa exp .
-.Pp
-If the resultant value would cause an overflow,
-the global variable
-.Va errno
-is set to
-.Er ERANGE
-and the value
-.Dv HUGE
-is returned.
 .Sh SEE ALSO
 .Xr frexp 3 ,
 .Xr math 3 ,
@@ -76,5 +69,7 @@ is returned.
 .Sh STANDARDS
 The
 .Fn ldexp
-function conforms to
-.St -isoC .
+and
+.Fn ldexpf
+functions conform to
+.St -isoC-99 .
