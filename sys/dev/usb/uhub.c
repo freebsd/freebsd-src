@@ -54,7 +54,6 @@ __FBSDID("$FreeBSD$");
 #elif defined(__FreeBSD__)
 #include <sys/module.h>
 #include <sys/bus.h>
-#include "bus_if.h"
 #endif
 #include <sys/sysctl.h>
 
