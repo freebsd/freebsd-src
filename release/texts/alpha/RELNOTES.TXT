@@ -89,6 +89,10 @@ AlphaServer 1200 ("Tincup") has been tested and works OK. Currently it does
 not want to boot from CD or floppy but a transplanted disk that was
 installed on another Alpha works well. [MERGED]
 
+The ti(4) driver now supports the Alteon AceNIC 1000baseT Gigabit
+Ethernet and Netgear GA620T 1000baseT Gigabit cards. [MERGED]
+
+
 1.2. SECURITY FIXES
 -------------------
 
