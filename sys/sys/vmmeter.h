@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vmmeter.h	8.1 (Berkeley) 6/2/93
- * $Id: vmmeter.h,v 1.4 1994/08/21 04:42:14 paul Exp $
+ * $Id: vmmeter.h,v 1.5 1994/10/15 13:33:02 davidg Exp $
  */
 
 #ifndef _SYS_VMMETER_H_
@@ -66,10 +66,11 @@ struct vmmeter {
 	unsigned v_vnodepgsout;	/* vnode pager pages paged out */
 	unsigned v_intrans;	/* intransit blocking page faults */
 	unsigned v_reactivated;	/* number of pages reactivated from free list */
-	unsigned v_rev;		/* revolutions of the hand */
-	unsigned v_scan;	/* scans in page out daemon */
+	unsigned v_pdwakeups;	/* number of times daemon has awaken from sleep */
+	unsigned v_pdpages;	/* number of pages analyzed by daemon */
 	unsigned v_dfree;	/* pages freed by daemon */
 	unsigned v_pfree;	/* pages freed by exiting processes */
+	unsigned v_tfree;	/* total pages freed */
 	unsigned v_zfod;	/* pages zero filled on demand */
 	unsigned v_nzfod;	/* number of zfod's created */
 	/*
