@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.6 1998/11/05 19:48:16 des Exp $
+#	$Id: Makefile,v 1.7 1998/11/06 22:14:08 des Exp $
 
 LIB=		fetch
 CFLAGS+=	-I. -Wall -pedantic
@@ -18,7 +18,7 @@ beforedepend: ${DPSRCS}
 beforeinstall: fetch.h fetch_err.h
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/fetch.h \
 		${DESTDIR}/usr/include
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/fetch_err.h \
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 fetch_err.h \
 		${DESTDIR}/usr/include
 
 ftperr.inc: ftp.errors
