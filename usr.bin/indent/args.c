@@ -72,7 +72,7 @@ static const char rcsid[] =
 
 static void scan_profile(FILE *);
 
-char *option_source = "?";
+const char *option_source = "?";
 
 /*
  * N.B.: because of the way the table here is scanned, options whose names are
@@ -81,7 +81,7 @@ char *option_source = "?";
  * default value is the one actually assigned.
  */
 struct pro {
-    char       *p_name;		/* name, eg -bl, -cli */
+    const char *p_name;		/* name, eg -bl, -cli */
     int         p_type;		/* type (int, bool, special) */
     int         p_default;	/* the default value (if int) */
     int         p_special;	/* depends on type */
@@ -200,10 +200,10 @@ scan_profile(register FILE *f)
     }
 }
 
-char	*param_start;
+const char	*param_start;
 
 static int
-eqin(char *s1, char *s2)
+eqin(const char *s1, const char *s2)
 {
     while (*s1) {
 	if (*s1++ != *s2++)
