@@ -372,7 +372,7 @@ route_output(m, so)
 			if (rtm->rtm_addrs & (RTA_IFP | RTA_IFA)) {
 				ifp = rt->rt_ifp;
 				if (ifp) {
-					ifpaddr = ifp->if_addrhead.tqh_first->ifa_addr;
+					ifpaddr = TAILQ_FIRST(&ifp->if_addrhead)->ifa_addr;
 					ifaaddr = rt->rt_ifa->ifa_addr;
 					if (ifp->if_flags & IFF_POINTOPOINT)
 						brdaddr = rt->rt_ifa->ifa_dstaddr;
@@ -783,7 +783,7 @@ rt_newaddrmsg(cmd, ifa, error, rt)
 			int ncmd = cmd == RTM_ADD ? RTM_NEWADDR : RTM_DELADDR;
 
 			ifaaddr = sa = ifa->ifa_addr;
-			ifpaddr = ifp->if_addrhead.tqh_first->ifa_addr;
+			ifpaddr = TAILQ_FIRST(&ifp->if_addrhead)->ifa_addr;
 			netmask = ifa->ifa_netmask;
 			brdaddr = ifa->ifa_dstaddr;
 			if ((m = rt_msg1(ncmd, &info)) == NULL)
@@ -836,8 +836,8 @@ rt_newmaddrmsg(cmd, ifma)
 
 	bzero((caddr_t)&info, sizeof(info));
 	ifaaddr = ifma->ifma_addr;
-	if (ifp && ifp->if_addrhead.tqh_first)
-		ifpaddr = ifp->if_addrhead.tqh_first->ifa_addr;
+	if (ifp && TAILQ_FIRST(&ifp->if_addrhead))
+		ifpaddr = TAILQ_FIRST(&ifp->if_addrhead)->ifa_addr;
 	else
 		ifpaddr = NULL;
 	/*
@@ -935,10 +935,10 @@ sysctl_iflist(af, w)
 	int	len, error = 0;
 
 	bzero((caddr_t)&info, sizeof(info));
-	for (ifp = ifnet.tqh_first; ifp; ifp = ifp->if_link.tqe_next) {
+	TAILQ_FOREACH(ifp, &ifnet, if_link) {
 		if (w->w_arg && w->w_arg != ifp->if_index)
 			continue;
-		ifa = ifp->if_addrhead.tqh_first;
+		ifa = TAILQ_FIRST(&ifp->if_addrhead);
 		ifpaddr = ifa->ifa_addr;
 		len = rt_msg2(RTM_IFINFO, &info, (caddr_t)0, w);
 		ifpaddr = 0;
@@ -954,7 +954,7 @@ sysctl_iflist(af, w)
 			if (error)
 				return (error);
 		}
-		while ((ifa = ifa->ifa_link.tqe_next) != 0) {
+		while ((ifa = TAILQ_NEXT(ifa, ifa_link)) != 0) {
 			if (af && af != ifa->ifa_addr->sa_family)
 				continue;
 			if (curproc->p_prison && prison_if(curproc, ifa->ifa_addr))
