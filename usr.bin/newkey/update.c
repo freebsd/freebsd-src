@@ -32,7 +32,7 @@
 static	char sccsid[] = "@(#)update.c 1.2 91/03/11 Copyr 1986 Sun Micro";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: update.c,v 1.2 1997/07/29 06:54:16 charnier Exp $";
 #endif
 
 /*
@@ -43,6 +43,7 @@ static const char rcsid[] =
  * Administrative tool to add a new user to the publickey database
  */
 #include <stdio.h>
+#include <stdlib.h>
 #include <rpc/rpc.h>
 #include <rpc/key_prot.h>
 #ifdef YP
@@ -241,7 +242,6 @@ basename(path)
 #define	ERR_WRITE	4
 #define	ERR_DBASE	5
 #define	ERR_KEY		6
-extern char *malloc();
 
 static int match __P(( char * , char * ));
 
