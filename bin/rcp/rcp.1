@@ -79,12 +79,12 @@ Cause
 .Nm
 to attempt to preserve (duplicate) in its copies the modification
 times and modes of the source files, ignoring the
-.Ar umask  .
+.Ar umask .
 By default, the mode and owner of
 .Ar file2
 are preserved if it already existed; otherwise the mode of the source file
 modified by the
-.Xr umask  2
+.Xr umask 2
 on the destination host is used.
 .It Fl r
 If any of the source files are directories,
@@ -108,7 +108,7 @@ is not a full path name, it is interpreted relative to
 the login directory of the specified user
 .Ar ruser
 on
-.Ar rhost  ,
+.Ar rhost ,
 or your current user name if no other remote user name is specified.
 A
 .Ar path
@@ -119,7 +119,7 @@ The
 .Nm
 utility does not prompt for passwords; it performs remote execution
 via
-.Xr rsh  1  ,
+.Xr rsh 1 ,
 and requires the same authorization.
 .Pp
 The
