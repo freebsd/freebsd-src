@@ -88,8 +88,8 @@ g_vol_ffs_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	 * Walk through the standard places that superblocks hide and look
 	 * for UFS magic. If we find magic, then check that the size in the
 	 * superblock corresponds to the size of the underlying provider.
-	 * Finally, look for a volume label and create an appropriate /dev
-	 * entry based on that.
+	 * Finally, look for a volume label and create an appropriate 
+	 * provider based on that.
 	 */
 	for (sb=0; (superblock = superblocks[sb]) != -1; sb++) {
 		fs = (struct fs *) g_read_data(cp, superblock,
