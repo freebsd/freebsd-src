@@ -171,6 +171,7 @@ static void
 pagezero_start(void __unused *arg)
 {
 	int error;
+	struct thread *td;
 
 	error = kthread_create(vm_pagezero, NULL, &pagezero_proc, RFSTOPPED, 0,
 	    "pagezero");
@@ -183,8 +184,11 @@ pagezero_start(void __unused *arg)
 	pagezero_proc->p_flag |= P_NOLOAD;
 	PROC_UNLOCK(pagezero_proc);
 	mtx_lock_spin(&sched_lock);
-	sched_prio(FIRST_THREAD_IN_PROC(pagezero_proc), PRI_MAX_IDLE);
-	setrunqueue(FIRST_THREAD_IN_PROC(pagezero_proc), SRQ_BORING);
+	td = FIRST_THREAD_IN_PROC(pagezero_proc);
+	setrunqueue(td, SRQ_BORING);
+	td->td_ksegrp->kg_user_pri = PRI_MAX_IDLE;
+	sched_class(td->td_ksegrp, PRI_IDLE);
+	sched_prio(td, PRI_MAX_IDLE);
 	mtx_unlock_spin(&sched_lock);
 }
 SYSINIT(pagezero, SI_SUB_KTHREAD_VM, SI_ORDER_ANY, pagezero_start, NULL)
