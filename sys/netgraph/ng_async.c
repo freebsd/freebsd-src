@@ -94,8 +94,8 @@ static ng_newhook_t		nga_newhook;
 static ng_disconnect_t		nga_disconnect;
 
 /* Helper stuff */
-static int	nga_rcv_sync(const sc_p sc, struct mbuf *m, meta_p meta);
-static int	nga_rcv_async(const sc_p sc, struct mbuf *m, meta_p meta);
+static int	nga_rcv_sync(const sc_p sc, item_p item);
+static int	nga_rcv_async(const sc_p sc, item_p item);
 
 /* Parse type for struct ng_async_cfg */
 static const struct ng_parse_struct_info
@@ -174,13 +174,10 @@ static const u_int16_t fcstab[];
  * Initialize a new node
  */
 static int
-nga_constructor(node_p *nodep)
+nga_constructor(node_p node)
 {
 	sc_p sc;
-	int error;
 
-	if ((error = ng_make_node_common(&typestruct, nodep)))
-		return (error);
 	MALLOC(sc, sc_p, sizeof(*sc), M_NETGRAPH, M_NOWAIT | M_ZERO);
 	if (sc == NULL)
 		return (ENOMEM);
@@ -200,8 +197,8 @@ fail:
 		FREE(sc, M_NETGRAPH);
 		return (ENOMEM);
 	}
-	(*nodep)->private = sc;
-	sc->node = *nodep;
+	node->private = sc;
+	sc->node = node;
 	return (0);
 }
 
@@ -214,13 +211,30 @@ nga_newhook(node_p node, hook_p hook, const char *name)
 	const sc_p sc = node->private;
 	hook_p *hookp;
 
-	if (!strcmp(name, NG_ASYNC_HOOK_ASYNC))
+	if (!strcmp(name, NG_ASYNC_HOOK_ASYNC)) {
+		/*
+		 * We use a static buffer here so only one packet
+		 * at a time can be allowed to travel in this direction.
+		 * Force Writer semantics.
+		 */
+		hook->flags |= HK_FORCE_WRITER;
 		hookp = &sc->async;
-	else if (!strcmp(name, NG_ASYNC_HOOK_SYNC))
+	} else if (!strcmp(name, NG_ASYNC_HOOK_SYNC)) {
+		/*
+		 * We use a static state here so only one packet
+		 * at a time can be allowed to travel in this direction.
+		 * Force Writer semantics.
+		 * Since we set this for both directions
+		 * we might as well set it for the whole node
+		 * bit I haven;t done that (yet).
+		 */
+		hook->flags |= HK_FORCE_WRITER;
+		hookp = &sc->async;
 		hookp = &sc->sync;
-	else
+	} else {
 		return (EINVAL);
-	if (*hookp)
+	}
+	if (*hookp) /* actually can't happen I think [JRE] */
 		return (EISCONN);
 	*hookp = hook;
 	return (0);
@@ -230,15 +244,17 @@ nga_newhook(node_p node, hook_p hook, const char *name)
  * Receive incoming data
  */
 static int
-nga_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
-		struct mbuf **ret_m, meta_p *ret_meta, struct ng_mesg **resp)
+nga_rcvdata(hook_p hook, item_p item)
 {
 	const sc_p sc = hook->node->private;
+#ifdef	ITEM_DEBUG
+	meta_p meta = NGI_META(item);
+#endif
 
 	if (hook == sc->sync)
-		return (nga_rcv_sync(sc, m, meta));
+		return (nga_rcv_sync(sc, item));
 	if (hook == sc->async)
-		return (nga_rcv_async(sc, m, meta));
+		return (nga_rcv_async(sc, item));
 	panic(__FUNCTION__);
 }
 
@@ -246,13 +262,15 @@ nga_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
  * Receive incoming control message
  */
 static int
-nga_rcvmsg(node_p node, struct ng_mesg *msg,
-	const char *rtn, struct ng_mesg **rptr, hook_p lasthook)
+nga_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
 	const sc_p sc = (sc_p) node->private;
 	struct ng_mesg *resp = NULL;
 	int error = 0;
+	struct ng_mesg *msg;
+	
 
+	NGI_GET_MSG(item, msg);
 	switch (msg->header.typecookie) {
 	case NGM_ASYNC_COOKIE:
 		switch (msg->header.cmd) {
@@ -317,13 +335,9 @@ nga_rcvmsg(node_p node, struct ng_mesg *msg,
 	default:
 		ERROUT(EINVAL);
 	}
-	if (rptr)
-		*rptr = resp;
-	else if (resp)
-		FREE(resp, M_NETGRAPH);
-
 done:
-	FREE(msg, M_NETGRAPH);
+	NG_RESPOND_MSG(error, node, item, resp);
+	NG_FREE_MSG(msg);
 	return (error);
 }
 
@@ -335,8 +349,6 @@ nga_shutdown(node_p node)
 {
 	const sc_p sc = node->private;
 
-	ng_cutlinks(node);
-	ng_unname(node);
 	FREE(sc->abuf, M_NETGRAPH);
 	FREE(sc->sbuf, M_NETGRAPH);
 	bzero(sc, sizeof(*sc));
@@ -366,8 +378,9 @@ nga_disconnect(hook_p hook)
 	*hookp = NULL;
 	bzero(&sc->stats, sizeof(sc->stats));
 	sc->lasttime = 0;
-	if (hook->node->numhooks == 0)
-		ng_rmnode(hook->node);
+	if ((hook->node->numhooks == 0)
+	&& ((hook->node->flags & NG_INVALID) == 0))
+		ng_rmnode_self(hook->node);
 	return (0);
 }
 
@@ -395,21 +408,26 @@ nga_async_add(const sc_p sc, u_int16_t *fcs, u_int32_t accm, int *len, u_char x)
  * Receive incoming synchronous data.
  */
 static int
-nga_rcv_sync(const sc_p sc, struct mbuf *m, meta_p meta)
+nga_rcv_sync(const sc_p sc, item_p item)
 {
-	struct ifnet *const rcvif = m->m_pkthdr.rcvif;
+	struct ifnet *rcvif;
 	int alen, error = 0;
 	struct timeval time;
 	u_int16_t fcs, fcs0;
 	u_int32_t accm;
+	struct mbuf *m;
+
 
 #define ADD_BYTE(x)	nga_async_add(sc, &fcs, accm, &alen, (x))
 
 	/* Check for bypass mode */
 	if (!sc->cfg.enabled) {
-		NG_SEND_DATA(error, sc->async, m, meta);
+		NG_FWD_DATA(error, item, sc->async );
 		return (error);
 	}
+	NGI_GET_M(item, m);
+
+	rcvif = m->m_pkthdr.rcvif;
 
 	/* Get ACCM; special case LCP frames, which use full ACCM */
 	accm = sc->cfg.accm;
@@ -430,7 +448,8 @@ nga_rcv_sync(const sc_p sc, struct mbuf *m, meta_p meta)
 	/* Check for overflow */
 	if (m->m_pkthdr.len > sc->cfg.smru) {
 		sc->stats.syncOverflows++;
-		NG_FREE_DATA(m, meta);
+		NG_FREE_M(m);
+		NG_FREE_ITEM(item);
 		return (EMSGSIZE);
 	}
 
@@ -470,10 +489,11 @@ nga_rcv_sync(const sc_p sc, struct mbuf *m, meta_p meta)
 
 	/* Put frame in an mbuf and ship it off */
 	if (!(m = m_devget(sc->abuf, alen, 0, rcvif, NULL))) {
-		NG_FREE_META(meta);
+		NG_FREE_ITEM(item);
 		error = ENOBUFS;
-	} else
-		NG_SEND_DATA(error, sc->async, m, meta);
+	} else {
+		NG_FWD_NEW_DATA(error, item, sc->async, m);
+	}
 	return (error);
 }
 
@@ -483,16 +503,18 @@ nga_rcv_sync(const sc_p sc, struct mbuf *m, meta_p meta)
  *     that are in our ACCM. Not sure if this is good or not.
  */
 static int
-nga_rcv_async(const sc_p sc, struct mbuf * m, meta_p meta)
+nga_rcv_async(const sc_p sc, item_p item)
 {
-	struct ifnet *const rcvif = m->m_pkthdr.rcvif;
+	struct ifnet *rcvif;
 	int error;
+	struct mbuf *m;
 
 	if (!sc->cfg.enabled) {
-		NG_SEND_DATA(error, sc->sync, m, meta);
+		NG_FWD_DATA(error, item,  sc->sync);
 		return (error);
 	}
-	NG_FREE_META(meta);
+	NGI_GET_M(item, m);
+	rcvif = m->m_pkthdr.rcvif;
 	while (m) {
 		struct mbuf *n;
 
@@ -531,8 +553,15 @@ nga_rcv_async(const sc_p sc, struct mbuf * m, meta_p meta)
 
 				/* OK, ship it out */
 				if ((n = m_devget(sc->sbuf + skip,
-					   sc->slen - skip, 0, rcvif, NULL)))
-					NG_SEND_DATA(error, sc->sync, n, meta);
+					   sc->slen - skip, 0, rcvif, NULL))) {
+					if (item) { /* sets NULL -> item */
+						NG_FWD_NEW_DATA(error, item,
+							sc->sync, n);
+					} else {
+						NG_SEND_DATA_ONLY(error,
+							sc->sync ,n);
+					}
+				}
 				sc->stats.asyncFrames++;
 reset:
 				sc->amode = MODE_NORMAL;
@@ -569,6 +598,8 @@ reset:
 		MFREE(m, n);
 		m = n;
 	}
+	if (item)
+		NG_FREE_ITEM(item);
 	return (0);
 }
 

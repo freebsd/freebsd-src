@@ -98,7 +98,7 @@ static int	ng_ether_rcv_upper(node_p node, struct mbuf *m, meta_p meta);
 /* Netgraph node methods */
 static ng_constructor_t	ng_ether_constructor;
 static ng_rcvmsg_t	ng_ether_rcvmsg;
-static ng_shutdown_t	ng_ether_rmnode;
+static ng_shutdown_t	ng_ether_shutdown;
 static ng_newhook_t	ng_ether_newhook;
 static ng_connect_t	ng_ether_connect;
 static ng_rcvdata_t	ng_ether_rcvdata;
@@ -185,7 +185,7 @@ static struct ng_type ng_ether_typestruct = {
 	ng_ether_mod_event,
 	ng_ether_constructor,
 	ng_ether_rcvmsg,
-	ng_ether_rmnode,
+	ng_ether_shutdown,
 	ng_ether_newhook,
 	NULL,
 	ng_ether_connect,
@@ -272,7 +272,6 @@ ng_ether_output(struct ifnet *ifp, struct mbuf **mp)
 {
 	const node_p node = IFP2NG(ifp);
 	const priv_p priv = node->private;
-	meta_p meta = NULL;
 	int error = 0;
 
 	/* If "upper" hook not connected, let packet continue */
@@ -280,13 +279,7 @@ ng_ether_output(struct ifnet *ifp, struct mbuf **mp)
 		return (0);
 
 	/* Send it out "upper" hook */
-	NG_SEND_DATA_RET(error, priv->upper, *mp, meta, NULL);
-
-	/* If we got a reflected packet back, handle it */
-	if (error == 0 && *mp != NULL) {
-		error = ng_ether_rcv_upper(node, *mp, meta);
-		*mp = NULL;
-	}
+	NG_SEND_DATA_ONLY(error, priv->upper, *mp);
 	return (error);
 }
 
@@ -342,9 +335,8 @@ ng_ether_detach(struct ifnet *ifp)
 
 	if (node == NULL)		/* no node (why not?), ignore */
 		return;
-	ng_rmnode(node);		/* break all links to other nodes */
+	ng_rmnode_self(node);		/* break all links to other nodes */
 	node->flags |= NG_INVALID;
-	ng_unname(node);		/* free name (and its reference) */
 	IFP2NG(ifp) = NULL;		/* detach node from interface */
 	priv = node->private;		/* free node private info */
 	bzero(priv, sizeof(*priv));
@@ -438,7 +430,7 @@ done:
  * this node type's KLD is loaded).
  */
 static int
-ng_ether_constructor(node_p *nodep)
+ng_ether_constructor(node_p node)
 {
 	return (EINVAL);
 }
@@ -495,13 +487,14 @@ ng_ether_connect(hook_p hook)
  * Receive an incoming control message.
  */
 static int
-ng_ether_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
-		struct ng_mesg **rptr, hook_p lasthook)
+ng_ether_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
 	const priv_p priv = node->private;
 	struct ng_mesg *resp = NULL;
 	int error = 0;
+	struct ng_mesg *msg;
 
+	NGI_GET_MSG(item, msg);
 	switch (msg->header.typecookie) {
 	case NGM_ETHER_COOKIE:
 		switch (msg->header.cmd) {
@@ -589,11 +582,8 @@ ng_ether_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
 		error = EINVAL;
 		break;
 	}
-	if (rptr)
-		*rptr = resp;
-	else if (resp != NULL)
-		FREE(resp, M_NETGRAPH);
-	FREE(msg, M_NETGRAPH);
+	NG_RESPOND_MSG(error, node, item, resp);
+	NG_FREE_MSG(msg);
 	return (error);
 }
 
@@ -601,12 +591,16 @@ ng_ether_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
  * Receive data on a hook.
  */
 static int
-ng_ether_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
-		struct mbuf **ret_m, meta_p *ret_meta, struct ng_mesg **resp)
+ng_ether_rcvdata(hook_p hook, item_p item)
 {
 	const node_p node = hook->node;
 	const priv_p priv = node->private;
+	struct mbuf *m;
+	meta_p meta;
 
+	NGI_GET_M(item, m);
+	NGI_GET_META(item, meta);
+	NG_FREE_ITEM(item);
 	if (hook == priv->lower)
 		return ng_ether_rcv_lower(node, m, meta);
 	if (hook == priv->upper)
@@ -624,7 +618,8 @@ ng_ether_rcv_lower(node_p node, struct mbuf *m, meta_p meta)
 
 	/* Make sure header is fully pulled up */
 	if (m->m_pkthdr.len < sizeof(struct ether_header)) {
-		NG_FREE_DATA(m, meta);
+		NG_FREE_M(m);
+		NG_FREE_META(meta);
 		return (EINVAL);
 	}
 	if (m->m_len < sizeof(struct ether_header)
@@ -656,7 +651,8 @@ ng_ether_rcv_upper(node_p node, struct mbuf *m, meta_p meta)
 
 	/* Check length and pull off header */
 	if (m->m_pkthdr.len < sizeof(*eh)) {
-		NG_FREE_DATA(m, meta);
+		NG_FREE_M(m);
+		NG_FREE_META(meta);
 		return (EINVAL);
 	}
 	if (m->m_len < sizeof(*eh) && (m = m_pullup(m, sizeof(*eh))) == NULL) {
@@ -677,19 +673,38 @@ ng_ether_rcv_upper(node_p node, struct mbuf *m, meta_p meta)
 
 /*
  * Shutdown node. This resets the node but does not remove it.
+ * Actually it produces a new node. XXX The problem  is what to do when 
+ * the node really DOES need to go away,
+ * or if our re-make of the node fails.
  */
 static int
-ng_ether_rmnode(node_p node)
+ng_ether_shutdown(node_p node)
 {
+	char name[IFNAMSIZ + 1];
 	const priv_p priv = node->private;
 
-	ng_cutlinks(node);
-	node->flags &= ~NG_INVALID;	/* bounce back to life */
 	if (priv->promisc) {		/* disable promiscuous mode */
 		(void)ifpromisc(priv->ifp, 0);
 		priv->promisc = 0;
 	}
+	ng_unref(node);
+	snprintf(name, sizeof(name), "%s%d", priv->ifp->if_name, priv->ifp->if_unit);
+	if (ng_make_node_common(&ng_ether_typestruct, &node) != 0) {
+		log(LOG_ERR, "%s: can't %s for %s\n",
+		    __FUNCTION__, "create node", name);
+		return (ENOMEM);
+	}
+
+	/* Allocate private data */
+	node->private = priv;
+	IFP2NG(priv->ifp) = node;
 	priv->autoSrcAddr = 1;		/* reset auto-src-addr flag */
+
+	/* Try to give the node the same name as the interface */
+	if (ng_name_node(node, name) != 0) {
+		log(LOG_WARNING, "%s: can't name node %s\n",
+		    __FUNCTION__, name);
+	}
 	return (0);
 }
 
@@ -708,8 +723,9 @@ ng_ether_disconnect(hook_p hook)
 		priv->lowerOrphan = 0;
 	} else
 		panic("%s: weird hook", __FUNCTION__);
-	if (hook->node->numhooks == 0)
-		ng_rmnode(hook->node);	/* reset node */
+	if ((hook->node->numhooks == 0)
+	&& ((hook->node->flags & NG_INVALID) == 0))
+		ng_rmnode_self(hook->node);	/* reset node */
 	return (0);
 }
 

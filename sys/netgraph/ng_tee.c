@@ -79,7 +79,7 @@ typedef struct privdata *sc_p;
 /* Netgraph methods */
 static ng_constructor_t	ngt_constructor;
 static ng_rcvmsg_t	ngt_rcvmsg;
-static ng_shutdown_t	ngt_rmnode;
+static ng_shutdown_t	ngt_shutdown;
 static ng_newhook_t	ngt_newhook;
 static ng_rcvdata_t	ngt_rcvdata;
 static ng_disconnect_t	ngt_disconnect;
@@ -133,7 +133,7 @@ static struct ng_type ng_tee_typestruct = {
 	NULL,
 	ngt_constructor,
 	ngt_rcvmsg,
-	ngt_rmnode,
+	ngt_shutdown,
 	ngt_newhook,
 	NULL,
 	NULL,
@@ -147,21 +147,16 @@ NETGRAPH_INIT(tee, &ng_tee_typestruct);
  * Node constructor
  */
 static int
-ngt_constructor(node_p *nodep)
+ngt_constructor(node_p node)
 {
 	sc_p privdata;
-	int error = 0;
 
 	MALLOC(privdata, sc_p, sizeof(*privdata), M_NETGRAPH, M_NOWAIT|M_ZERO);
 	if (privdata == NULL)
 		return (ENOMEM);
 
-	if ((error = ng_make_node_common(&ng_tee_typestruct, nodep))) {
-		FREE(privdata, M_NETGRAPH);
-		return (error);
-	}
-	(*nodep)->private = privdata;
-	privdata->node = *nodep;
+	node->private = privdata;
+	privdata->node = node;
 	return (0);
 }
 
@@ -198,13 +193,14 @@ ngt_newhook(node_p node, hook_p hook, const char *name)
  * Receive a control message
  */
 static int
-ngt_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
-	   struct ng_mesg **rptr, hook_p lasthook)
+ngt_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
 	const sc_p sc = node->private;
 	struct ng_mesg *resp = NULL;
 	int error = 0;
+	struct ng_mesg *msg;
 
+	NGI_GET_MSG(item, msg);
 	switch (msg->header.typecookie) {
 	case NGM_TEE_COOKIE:
 		switch (msg->header.cmd) {
@@ -248,17 +244,32 @@ ngt_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
 			break;
 		}
 		break;
+	case NGM_FLOW_COOKIE:
+		if (lasthook)  {
+			if (lasthook == sc->left.hook) {
+				if (sc->right.hook) {
+					NGI_MSG(item) = msg;
+					NG_FWD_MSG_HOOK(error, node, item,
+						sc->right.hook, 0);
+					return (error);
+				}
+			} else {
+				if (sc->left.hook) {
+					NGI_MSG(item) = msg;
+					NG_FWD_MSG_HOOK(error, node, item, 
+						sc->left.hook, 0);
+					return (error);
+				}
+			}
+		}
+		break;
 	default:
 		error = EINVAL;
 		break;
 	}
-	if (rptr)
-		*rptr = resp;
-	else if (resp)
-		FREE(resp, M_NETGRAPH);
-
 done:
-	FREE(msg, M_NETGRAPH);
+	NG_RESPOND_MSG(error, node, item, resp);
+	NG_FREE_MSG(msg);
 	return (error);
 }
 
@@ -273,15 +284,18 @@ done:
  * from the other side.
  */
 static int
-ngt_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
-		struct mbuf **ret_m, meta_p *ret_meta, struct ng_mesg **resp)
+ngt_rcvdata(hook_p hook, item_p item)
 {
 	const sc_p sc = hook->node->private;
 	struct hookinfo *const hinfo = (struct hookinfo *) hook->private;
 	struct hookinfo *dest;
 	struct hookinfo *dup;
 	int error = 0;
+	struct mbuf *m;
+	meta_p meta;
 
+	m = NGI_M(item);
+	meta = NGI_META(item); /* leave these owned by the item */
 	/* Which hook? */
 	if (hinfo == &sc->left) {
 		dup = &sc->left2right;
@@ -302,42 +316,43 @@ ngt_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
 	hinfo->stats.inOctets += m->m_pkthdr.len;
 	hinfo->stats.inFrames++;
 
+	/*
+	 * Don't make a copy if only the dup hook exists.
+	 */
+	if ((dup && dup->hook) && (dest->hook == NULL)) {
+		dest = dup;
+		dup = NULL;
+	}
+
 	/* Duplicate packet and meta info if requried */
 	if (dup != NULL) {
 		struct mbuf *m2;
 		meta_p meta2;
 
-		/* Copy packet */
+		/* Copy packet (failure will not stop the original)*/
 		m2 = m_dup(m, M_NOWAIT);
-		if (m2 == NULL) {
-			NG_FREE_DATA(m, meta);
-			return (ENOBUFS);
+		if (m2) {
+
+			/* Copy meta info */
+			/* If we can't get a copy, tough.. */
+			if (meta != NULL) {
+				meta2 = ng_copy_meta(meta);
+			} else
+				meta2 = NULL;
+
+			/* Deliver duplicate */
+			dup->stats.outOctets += m->m_pkthdr.len;
+			dup->stats.outFrames++;
+			NG_SEND_DATA(error, dup->hook, m2, meta2);
 		}
-
-		/* Copy meta info */
-		if (meta != NULL) {
-			MALLOC(meta2, meta_p,
-			    meta->used_len, M_NETGRAPH, M_NOWAIT);
-			if (meta2 == NULL) {
-				m_freem(m2);
-				NG_FREE_DATA(m, meta);
-				return (ENOMEM);
-			}
-			bcopy(meta, meta2, meta->used_len);
-			meta2->allocated_len = meta->used_len;
-		} else
-			meta2 = NULL;
-
-		/* Deliver duplicate */
-		dup->stats.outOctets += m->m_pkthdr.len;
-		dup->stats.outFrames++;
-		NG_SEND_DATA(error, dup->hook, m2, meta2);
 	}
-
 	/* Deliver frame out destination hook */
 	dest->stats.outOctets += m->m_pkthdr.len;
 	dest->stats.outFrames++;
-	NG_SEND_DATA(error, dest->hook, m, meta);
+	if (dest->hook)
+		NG_FWD_DATA(error, item, dest->hook);
+	else
+		NG_FREE_ITEM(item);
 	return (0);
 }
 
@@ -353,15 +368,15 @@ ngt_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
  * from two links is in ng_base.c.
  */
 static int
-ngt_rmnode(node_p node)
+ngt_shutdown(node_p node)
 {
 	const sc_p privdata = node->private;
 
 	node->flags |= NG_INVALID;
+#if 0 /* can never happen as cutlinks is already called */
 	if (privdata->left.hook && privdata->right.hook)
 		ng_bypass(privdata->left.hook, privdata->right.hook);
-	ng_cutlinks(node);
-	ng_unname(node);
+#endif
 	node->private = NULL;
 	ng_unref(privdata->node);
 	FREE(privdata, M_NETGRAPH);
@@ -378,8 +393,9 @@ ngt_disconnect(hook_p hook)
 
 	KASSERT(hinfo != NULL, ("%s: null info", __FUNCTION__));
 	hinfo->hook = NULL;
-	if (hook->node->numhooks == 0)
-		ng_rmnode(hook->node);
+	if ((hook->node->numhooks == 0)
+	&& ((hook->node->flags & NG_INVALID) == 0))
+		ng_rmnode_self(hook->node);
 	return (0);
 }
 

@@ -229,18 +229,18 @@ ngt_open(dev_t dev, struct tty *tp)
 	}
 	snprintf(name, sizeof(name), "%s%d", typestruct.name, ngt_unit++);
 
-	/* Set back pointers */
-	sc->node->private = sc;
-	tp->t_sc = (caddr_t) sc;
-
 	/* Assign node its name */
 	if ((error = ng_name_node(sc->node, name))) {
 		log(LOG_ERR, "%s: node name exists?\n", name);
 		ngt_nodeop_ok = 1;
-		ng_rmnode(sc->node);
+		ng_unref(sc->node);
 		ngt_nodeop_ok = 0;
 		goto done;
 	}
+
+	/* Set back pointers */
+	sc->node->private = sc;
+	tp->t_sc = (caddr_t) sc;
 
 	/*
 	 * Pre-allocate cblocks to the an appropriate amount.
@@ -279,7 +279,7 @@ ngt_close(struct tty *tp, int flag)
 			sc->flags &= ~FLG_TIMEOUT;
 		}
 		ngt_nodeop_ok = 1;
-		ng_rmnode(sc->node);
+		ng_rmnode_self(sc->node);
 		ngt_nodeop_ok = 0;
 		tp->t_sc = NULL;
 	}
@@ -493,11 +493,9 @@ ngt_timeout(void *arg)
  * the line discipline on a tty, so always return an error if not.
  */
 static int
-ngt_constructor(node_p *nodep)
+ngt_constructor(node_p node)
 {
-	if (!ngt_nodeop_ok)
-		return (EOPNOTSUPP);
-	return (ng_make_node_common(&typestruct, nodep));
+	return (EOPNOTSUPP);
 }
 
 /*
@@ -521,12 +519,13 @@ done:
 }
 
 /*
- * set the hooks into queueing mode (for outgoing packets)
+ * Set the hooks into queueing mode (for outgoing packets)
+ * Force single client at a time.
  */
 static int
 ngt_connect(hook_p hook)
 {
-	hook->peer->flags |= HK_QUEUE;
+	hook->peer->flags |= HK_QUEUE|HK_FORCE_WRITER;
 	return (0);
 }
 
@@ -560,8 +559,6 @@ ngt_shutdown(node_p node)
 
 	if (!ngt_nodeop_ok)
 		return (EOPNOTSUPP);
-	ng_unname(node);
-	ng_cutlinks(node);
 	node->private = NULL;
 	ng_unref(sc->node);
 	m_freem(sc->qhead);
@@ -576,15 +573,17 @@ ngt_shutdown(node_p node)
  * output queue and start output if necessary.
  */
 static int
-ngt_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
-		struct mbuf **ret_m, meta_p *ret_meta, struct ng_mesg **resp)
+ngt_rcvdata(hook_p hook, item_p item)
 {
 	const sc_p sc = hook->node->private;
 	int s, error = 0;
+	struct mbuf *m;
 
 	if (hook != sc->hook)
 		panic(__FUNCTION__);
-	NG_FREE_META(meta);
+
+	NGI_GET_M(item, m);
+	NG_FREE_ITEM(item);
 	s = spltty();
 	if (sc->qlen >= MAX_MBUFQ)
 		ERROUT(ENOBUFS);
@@ -607,13 +606,14 @@ done:
  * Receive control message
  */
 static int
-ngt_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
-	   struct ng_mesg **rptr, hook_p lasthook)
+ngt_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
 	const sc_p sc = (sc_p) node->private;
 	struct ng_mesg *resp = NULL;
 	int error = 0;
+	struct ng_mesg *msg;
 
+	NGI_GET_MSG(item, msg);
 	switch (msg->header.typecookie) {
 	case NGM_TTY_COOKIE:
 		switch (msg->header.cmd) {
@@ -643,13 +643,9 @@ ngt_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
 	default:
 		ERROUT(EINVAL);
 	}
-	if (rptr)
-		*rptr = resp;
-	else if (resp)
-		FREE(resp, M_NETGRAPH);
-
 done:
-	FREE(msg, M_NETGRAPH);
+	NG_RESPOND_MSG(error, node, item, resp);
+	NG_FREE_MSG(msg);
 	return (error);
 }
 

@@ -53,33 +53,42 @@
 #include <netgraph/ng_hole.h>
 
 /* Netgraph methods */
+static ng_constructor_t	ngh_cons;
 static ng_rcvdata_t	ngh_rcvdata;
 static ng_disconnect_t	ngh_disconnect;
 
 static struct ng_type typestruct = {
 	NG_ABI_VERSION,
 	NG_HOLE_NODE_TYPE,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	ngh_rcvdata,
-	ngh_disconnect,
-	NULL
+	NULL,		/* modeventhand_t */
+	ngh_cons,	/* ng_constructor_t */
+	NULL,		/* ng_rcvmsg_t */
+	NULL,		/* ng_shutdown_t */
+	NULL,		/* ng_newhook_t */
+	NULL,		/* ng_findhook_t */
+	NULL,		/* ng_connect_t */
+	ngh_rcvdata,	/* ng_rcvdata_t */
+	ngh_disconnect,	/* ng_disconnect_t */
+	NULL		/* ng_cmdlist */
 };
 NETGRAPH_INIT(hole, &typestruct);
+
+/* 
+ * Be obliging. but no work to do.
+ */
+static int
+ngh_cons(node_p node)
+{
+	return(0);
+}
 
 /*
  * Receive data
  */
 static int
-ngh_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
-		struct mbuf **ret_m, meta_p *ret_meta, struct ng_mesg **resp)
+ngh_rcvdata(hook_p hook, item_p item)
 {
-	NG_FREE_DATA(m, meta);
+	NG_FREE_ITEM(item);
 	return 0;
 }
 
@@ -90,6 +99,6 @@ static int
 ngh_disconnect(hook_p hook)
 {
 	if (hook->node->numhooks == 0)
-		ng_rmnode(hook->node);
+		ng_rmnode_self(hook->node);
 	return (0);
 }
