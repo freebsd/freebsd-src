@@ -12,7 +12,7 @@
  *
  * Aug, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm_bios.h,v 1.19 1997/11/12 04:12:51 jdp Exp $
+ *	$Id: apm_bios.h,v 1.20 1998/07/06 06:29:05 imp Exp $
  */
 
 #ifndef	_MACHINE_APM_BIOS_H_
@@ -160,7 +160,6 @@ struct apmhook *apm_hook_establish (int apmh, struct apmhook *);
 void apm_hook_disestablish (int apmh, struct apmhook *);
 void apm_cpu_idle(void);
 void apm_cpu_busy(void);
-void apm_power_off(void);
 
 #endif /* KERNEL */
 

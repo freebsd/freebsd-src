@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_shutdown.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_shutdown.c,v 1.39 1998/09/15 08:49:52 gibbs Exp $
+ * $Id: kern_shutdown.c,v 1.40 1998/09/20 16:50:31 dt Exp $
  */
 
 #include "opt_ddb.h"
@@ -111,6 +111,7 @@ typedef struct shutdown_list_element {
 	LIST_ENTRY(shutdown_list_element) links;
 	bootlist_fn function;
 	void *arg;
+	int priority;
 } *sle_p;
 
 /*
@@ -275,7 +276,6 @@ boot(howto)
 		(*ep->function)(howto, ep->arg);
 
 	if (howto & RB_HALT) {
-		cpu_power_down();
 		printf("\n");
 		printf("The operating system has halted.\n");
 		printf("Please press any key to reboot.\n\n");
@@ -431,7 +431,7 @@ panic(const char *fmt, ...)
 }
 
 /*
- * Two routines to handle adding/deleting items on the
+ * Three routines to handle adding/deleting items on the
  * shutdown callout lists
  *
  * at_shutdown():
@@ -442,7 +442,19 @@ panic(const char *fmt, ...)
 int
 at_shutdown(bootlist_fn function, void *arg, int queue)
 {
-	sle_p ep;
+	return(at_shutdown_pri(function, arg, queue, SHUTDOWN_PRI_DEFAULT));
+}
+
+/*
+ * at_shutdown_pri():
+ * Take the arguments given and put them onto the shutdown callout list
+ * with the given execution priority.
+ * returns 0 on success.
+ */
+int
+at_shutdown_pri(bootlist_fn function, void *arg, int queue, int pri)
+{
+	sle_p ep, ip;
 
 	if (queue < SHUTDOWN_PRE_SYNC
 	 || queue > SHUTDOWN_FINAL) {
@@ -457,7 +469,23 @@ at_shutdown(bootlist_fn function, void *arg, int queue)
 		return (ENOMEM);
 	ep->function = function;
 	ep->arg = arg;
-	LIST_INSERT_HEAD(&shutdown_lists[queue], ep, links);
+	ep->priority = pri;
+
+	/* Sort into list of items on this queue */
+	ip = LIST_FIRST(&shutdown_lists[queue]);
+	if (ip == NULL) {
+		LIST_INSERT_HEAD(&shutdown_lists[queue], ep, links);
+	} else {
+		for (; LIST_NEXT(ip, links) != NULL; ip = LIST_NEXT(ip, links)) {
+			if (ep->priority < ip->priority) {
+				LIST_INSERT_BEFORE(ip, ep, links);
+				ep = NULL;
+				break;
+			}
+		}
+		if (ep != NULL)
+			LIST_INSERT_AFTER(ip, ep, links);
+	}
 	return (0);
 }
 

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: md_var.h,v 1.25 1998/09/14 22:43:40 jdp Exp $
+ *	$Id: md_var.h,v 1.26 1998/09/25 17:34:49 peter Exp $
  */
 
 #ifndef _MACHINE_MD_VAR_H_
@@ -62,7 +62,6 @@ struct	fpreg;
 void	bcopyb __P((const void *from, void *to, size_t len));
 void	busdma_swi __P((void));
 void	cpu_halt __P((void));
-void	cpu_power_down __P((void));
 void	cpu_reset __P((void));
 void	cpu_switch_load_fs __P((void)) __asm(__STRING(cpu_switch_load_fs));
 void	cpu_switch_load_gs __P((void)) __asm(__STRING(cpu_switch_load_gs));
