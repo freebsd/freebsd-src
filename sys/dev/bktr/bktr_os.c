@@ -107,18 +107,23 @@
 #endif
 
 #ifdef __NetBSD__
-#include <dev/ic/ioctl_meteor.h>	/* NetBSD location for .h files */
-#include <dev/ic/ioctl_bt848.h>
+#include <dev/ic/bt8xx.h>	/* NetBSD location for .h files */
+#include <dev/pci/bktr/bktr_reg.h>
+#include <dev/pci/bktr/bktr_tuner.h>
+#include <dev/pci/bktr/bktr_card.h>
+#include <dev/pci/bktr/bktr_audio.h>
+#include <dev/pci/bktr/bktr_core.h>
+#include <dev/pci/bktr/bktr_os.h>
 #else					/* Traditional location for .h files */
 #include <machine/ioctl_meteor.h>
 #include <machine/ioctl_bt848.h>	/* extensions to ioctl_meteor.h */
-#endif
 #include <dev/bktr/bktr_reg.h>
 #include <dev/bktr/bktr_tuner.h>
 #include <dev/bktr/bktr_card.h>
 #include <dev/bktr/bktr_audio.h>
 #include <dev/bktr/bktr_core.h>
 #include <dev/bktr/bktr_os.h>
+#endif
 
 #if defined(__FreeBSD__)
 #if (NSMBUS > 0)
@@ -160,9 +165,6 @@ SYSCTL_INT(_hw_bt848, OID_AUTO, slow_msp_audio, CTLFLAG_RW, &bt848_slow_msp_audi
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcidevs.h>
-
-static int bootverbose = 1;
-
 
 #define BKTR_DEBUG
 #ifdef BKTR_DEBUG
@@ -282,6 +284,9 @@ bktr_attach( device_t dev )
         struct bktr_softc *bktr = device_get_softc(dev);
 
 	unit = device_get_unit(dev);
+
+	/* build the device name for bktr_name() */
+	snprintf(bktr->bktr_xname, sizeof(bktr->bktr_xname), "bktr%d",unit);
 
 	/*
 	 * Enable bus mastering and Memory Mapped device
@@ -845,6 +850,9 @@ bktr_attach( pcici_t tag, int unit )
 		return;
 	}
 
+	/* build the device name for bktr_name() */
+	snprintf(bktr->bktr_xname, sizeof(bktr->bktr_xname), "bktr%d",unit);
+
 	/* Enable Memory Mapping */
 	fun = pci_conf_read(tag, PCI_COMMAND_STATUS_REG);
 	pci_conf_write(tag, PCI_COMMAND_STATUS_REG, fun | 2);
@@ -1221,7 +1229,6 @@ int bktr_poll( dev_t dev, int events, struct proc *p)
 /*****************************/
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 
-
 #define IPL_VIDEO       IPL_BIO         /* XXX */
 
 static	int		bktr_intr(void *arg) { return common_bktr_intr(arg); }
@@ -1238,12 +1245,12 @@ int bktr_close __P((dev_t, int, int, struct proc *));
 int bktr_read __P((dev_t, struct uio *, int));
 int bktr_write __P((dev_t, struct uio *, int));
 int bktr_ioctl __P((dev_t, ioctl_cmd_t, caddr_t, int, struct proc*));
-int bktr_mmap __P((dev_t, vm_offset_t, int));
+int bktr_mmap __P((dev_t, int, int));
 
 vm_offset_t vm_page_alloc_contig(vm_offset_t, vm_offset_t,
                                  vm_offset_t, vm_offset_t);
 
-#if defined(__BROKEN_INDIRECT_CONFIG) || defined(__OpenBSD__)
+#if defined(__OpenBSD__)
 static int      bktr_probe __P((struct device *, void *, void *));
 #else
 static int      bktr_probe __P((struct device *, struct cfdata *, void *));
@@ -1262,9 +1269,10 @@ struct cfdriver bktr_cd = {
 };
 #endif
 
-int bktr_probe(parent, match, aux)
-        struct device *parent;
-#if defined(__BROKEN_INDIRECT_CONFIG) || defined(__OpenBSD__)
+int
+bktr_probe(parent, match, aux)
+	struct device *parent;
+#if defined(__OpenBSD__)
         void *match;
 #else
         struct cfdata *match;
@@ -1288,7 +1296,7 @@ int bktr_probe(parent, match, aux)
  * the attach routine.
  */
 static void
-bktr_attach __P((struct device *parent, struct device *self, void *aux))
+bktr_attach(struct device *parent, struct device *self, void *aux)
 {
 	bktr_ptr_t	bktr;
 	u_long		latency;
@@ -1367,14 +1375,14 @@ bktr_attach __P((struct device *parent, struct device *self, void *aux))
 	 * map memory
 	 */
 	retval = pci_mapreg_map(pa, PCI_MAPREG_START,
-			PCI_MAPREG_TYPE_MEM | PCI_MAPREG_MEM_TYPE_32BIT, 0,
-			&bktr->memt, &bktr->memh, &bktr->phys_base,
-			&bktr->obmemsz);
-	DPR(("pci_mapreg_map: memt %x, memh %x, base %x, size %x\n",
-		bktr->memt, (u_int)bktr->memh,
-		(u_int)bktr->phys_base, (u_int)bktr->obmemsz));
+				PCI_MAPREG_TYPE_MEM
+				| PCI_MAPREG_MEM_TYPE_32BIT, 0,
+				&bktr->memt, &bktr->memh, NULL,
+				&bktr->obmemsz);
+	DPR(("pci_mapreg_map: memt %x, memh %x, size %x\n",
+	     bktr->memt, (u_int)bktr->memh, (u_int)bktr->obmemsz));
 	if (retval) {
-		printf("%s: couldn't map memory\n", bktr->bktr_dev.dv_xname);
+		printf("%s: couldn't map memory\n", bktr_name(bktr));
 		return;
 	}
 
@@ -1389,7 +1397,8 @@ bktr_attach __P((struct device *parent, struct device *self, void *aux))
 	 */
 	if (pci_intr_map(pa->pa_pc, pa->pa_intrtag, pa->pa_intrpin,
 			 pa->pa_intrline, &ih)) {
-		printf("%s: couldn't map interrupt\n", bktr->bktr_dev.dv_xname);
+		printf("%s: couldn't map interrupt\n",
+		       bktr_name(bktr));
 		return;
 	}
 	intrstr = pci_intr_string(pa->pa_pc, ih);
@@ -1397,14 +1406,14 @@ bktr_attach __P((struct device *parent, struct device *self, void *aux))
 				      bktr_intr, bktr);
 	if (bktr->ih == NULL) {
 		printf("%s: couldn't establish interrupt",
-	       bktr->bktr_dev.dv_xname);
-	       if (intrstr != NULL)
-		       printf(" at %s", intrstr);
-	       printf("\n");
-	       return;
+		       bktr_name(bktr));
+		if (intrstr != NULL)
+			printf(" at %s", intrstr);
+		printf("\n");
+		return;
 	}
 	if (intrstr != NULL)
-		printf("%s: interrupting at %s\n", bktr->bktr_dev.dv_xname,
+		printf("%s: interrupting at %s\n", bktr_name(bktr),
 		       intrstr);
 #endif /* __NetBSD__ */
 	
@@ -1418,11 +1427,10 @@ bktr_attach __P((struct device *parent, struct device *self, void *aux))
 	latency = pci_conf_read(pa->pa_pc, pa->pa_tag, PCI_LATENCY_TIMER);
 	latency = (latency >> 8) & 0xff;
 
-	if ( !latency ) {
-		if ( bootverbose ) {
+	if (!latency) {
+		if (bootverbose) {
 			printf("%s: PCI bus latency was 0 changing to %d",
-			       bktr->bktr_dev.dv_xname, 
-			       BROOKTREE_DEF_LATENCY_VALUE);
+			       bktr_name(bktr), BROOKTREE_DEF_LATENCY_VALUE);
 		}
 		latency = BROOKTREE_DEF_LATENCY_VALUE;
 		pci_conf_write(pa->pa_pc, pa->pa_tag, 
@@ -1430,17 +1438,18 @@ bktr_attach __P((struct device *parent, struct device *self, void *aux))
 	}
 
 
-	/* Enabled Bus Master and Memory Mapping */
+	/* Enabled Bus Master
+	   XXX: check if all old DMA is stopped first (e.g. after warm
+	   boot) */
 	fun = pci_conf_read(pa->pa_pc, pa->pa_tag, PCI_COMMAND_STATUS_REG);
-	pci_conf_write(pa->pa_pc, pa->pa_tag, PCI_COMMAND_STATUS_REG, fun | 2);
-	fun = pci_conf_read(pa->pa_pc, pa->pa_tag, PCI_COMMAND_STATUS_REG);
-	pci_conf_write(pa->pa_pc, pa->pa_tag, PCI_COMMAND_STATUS_REG, fun | 4);
+	pci_conf_write(pa->pa_pc, pa->pa_tag, PCI_COMMAND_STATUS_REG,
+		       fun | PCI_COMMAND_MASTER_ENABLE);
 
 	/* read the pci id and determine the card type */
 	fun = pci_conf_read(pa->pa_pc, pa->pa_tag, PCI_ID_REG);
         rev = pci_conf_read(pa->pa_pc, pa->pa_tag, PCI_CLASS_REG) & 0x000000ff;
 
-	common_bktr_attach( bktr, unit, fun, rev );
+	common_bktr_attach(bktr, unit, fun, rev);
 }
 
 
@@ -1468,15 +1477,15 @@ get_bktr_mem(bktr, dmapp, size)
                 align = PAGE_SIZE;
                 if (bus_dmamem_alloc(dmat, size, align, 0, &seg, 1,
                                      &rseg, BUS_DMA_NOWAIT)) {
-                        printf("bktr%d: Unable to dmamem_alloc of %d bytes\n",
-                                bktr->bktr_dev.dv_unit, size);
+                        printf("%s: Unable to dmamem_alloc of %d bytes\n",
+			       bktr_name(bktr), size);
                         return 0;
                 }
         }
         if (bus_dmamem_map(dmat, &seg, rseg, size,
                            &kva, BUS_DMA_NOWAIT|BUS_DMA_COHERENT)) {
-                printf("bktr%d: Unable to dmamem_map of %d bytes\n",
-                        bktr->bktr_dev.dv_unit, size);
+                printf("%s: Unable to dmamem_map of %d bytes\n",
+                        bktr_name(bktr), size);
                 bus_dmamem_free(dmat, &seg, rseg);
                 return 0;
         }
@@ -1487,15 +1496,15 @@ get_bktr_mem(bktr, dmapp, size)
          * Create and locd the DMA map for the DMA area
          */
         if (bus_dmamap_create(dmat, size, 1, size, 0, BUS_DMA_NOWAIT, dmapp)) {
-                printf("bktr%d: Unable to dmamap_create of %d bytes\n",
-                        bktr->bktr_dev.dv_unit, size);
+                printf("%s: Unable to dmamap_create of %d bytes\n",
+                        bktr_name(bktr), size);
                 bus_dmamem_unmap(dmat, kva, size);
                 bus_dmamem_free(dmat, &seg, rseg);
                 return 0;
         }
         if (bus_dmamap_load(dmat, *dmapp, kva, size, NULL, BUS_DMA_NOWAIT)) {
-                printf("bktr%d: Unable to dmamap_load of %d bytes\n",
-                        bktr->bktr_dev.dv_unit, size);
+                printf("%s: Unable to dmamap_load of %d bytes\n",
+                        bktr_name(bktr), size);
                 bus_dmamem_unmap(dmat, kva, size);
                 bus_dmamem_free(dmat, &seg, rseg);
                 bus_dmamap_destroy(dmat, *dmapp);
@@ -1534,40 +1543,39 @@ free_bktr_mem(bktr, dmap, kva)
 #define TUNER_DEV	0x01
 #define VBI_DEV		0x02
 
-#define UNIT(x)         ((x) & 0x0f)
-#define FUNCTION(x)     ((x >> 4) & 0x0f)
+#define UNIT(x)         (minor((x) & 0x0f))
+#define FUNCTION(x)     (minor((x >> 4) & 0x0f))
 
 /*
  * 
  */
 int
-bktr_open( dev_t dev, int flags, int fmt, struct proc *p )
+bktr_open(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	bktr_ptr_t	bktr;
 	int		unit;
 
-	unit = UNIT( minor(dev) );
+	unit = UNIT(dev);
 
 	/* unit out of range */
 	if ((unit > bktr_cd.cd_ndevs) || (bktr_cd.cd_devs[unit] == NULL))
-		return( ENXIO );
+		return(ENXIO);
 
 	bktr = bktr_cd.cd_devs[unit];
-
 
 	if (!(bktr->flags & METEOR_INITALIZED)) /* device not found */
-		return( ENXIO );	
+		return(ENXIO);	
 
-	switch ( FUNCTION( minor(dev) ) ) {
+	switch (FUNCTION(dev)) {
 	case VIDEO_DEV:
-		return( video_open( bktr ) );
+		return(video_open(bktr));
 	case TUNER_DEV:
-		return( tuner_open( bktr ) );
+		return(tuner_open(bktr));
 	case VBI_DEV:
-		return( vbi_open( bktr ) );
+		return(vbi_open(bktr));
 	}
 
-	return( ENXIO );
+	return(ENXIO);
 }
 
 
@@ -1575,56 +1583,48 @@ bktr_open( dev_t dev, int flags, int fmt, struct proc *p )
  * 
  */
 int
-bktr_close( dev_t dev, int flags, int fmt, struct proc *p )
+bktr_close(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	bktr_ptr_t	bktr;
 	int		unit;
 
-	unit = UNIT( minor(dev) );
-
-	/* unit out of range */
-	if ((unit > bktr_cd.cd_ndevs) || (bktr_cd.cd_devs[unit] == NULL))
-		return( ENXIO );
+	unit = UNIT(dev);
 
 	bktr = bktr_cd.cd_devs[unit];
 
-	switch ( FUNCTION( minor(dev) ) ) {
+	switch (FUNCTION(dev)) {
 	case VIDEO_DEV:
-		return( video_close( bktr ) );
+		return(video_close(bktr));
 	case TUNER_DEV:
-		return( tuner_close( bktr ) );
+		return(tuner_close(bktr));
 	case VBI_DEV:
-		return( vbi_close( bktr ) );
+		return(vbi_close(bktr));
 	}
 
-	return( ENXIO );
+	return(ENXIO);
 }
 
 /*
  * 
  */
 int
-bktr_read( dev_t dev, struct uio *uio, int ioflag )
+bktr_read(dev_t dev, struct uio *uio, int ioflag)
 {
 	bktr_ptr_t	bktr;
 	int		unit;
 	
-	unit = UNIT(minor(dev));
-
-	/* unit out of range */
-	if ((unit > bktr_cd.cd_ndevs) || (bktr_cd.cd_devs[unit] == NULL))
-		return( ENXIO );
+	unit = UNIT(dev);
 
 	bktr = bktr_cd.cd_devs[unit];
 
-	switch ( FUNCTION( minor(dev) ) ) {
+	switch (FUNCTION(dev)) {
 	case VIDEO_DEV:
-		return( video_read( bktr, unit, dev, uio ) );
+		return(video_read(bktr, unit, dev, uio));
 	case VBI_DEV:
-		return( vbi_read( bktr, uio, ioflag ) );
+		return(vbi_read(bktr, uio, ioflag));
 	}
 
-        return( ENXIO );
+        return(ENXIO);
 }
 
 
@@ -1632,72 +1632,65 @@ bktr_read( dev_t dev, struct uio *uio, int ioflag )
  * 
  */
 int
-bktr_write( dev_t dev, struct uio *uio, int ioflag )
+bktr_write(dev_t dev, struct uio *uio, int ioflag)
 {
 	/* operation not supported */
-	return( EOPNOTSUPP );
+	return(EOPNOTSUPP);
 }
 
 /*
  * 
  */
 int
-bktr_ioctl( dev_t dev, ioctl_cmd_t cmd, caddr_t arg, int flag, struct proc* pr )
+bktr_ioctl(dev_t dev, ioctl_cmd_t cmd, caddr_t arg, int flag, struct proc* pr)
 {
 	bktr_ptr_t	bktr;
 	int		unit;
 
-	unit = UNIT(minor(dev));
-
-	/* unit out of range */
-	if ((unit > bktr_cd.cd_ndevs) || (bktr_cd.cd_devs[unit] == NULL))
-		return( ENXIO );
+	unit = UNIT(dev);
 
 	bktr = bktr_cd.cd_devs[unit];
 
 	if (bktr->bigbuf == 0)	/* no frame buffer allocated (ioctl failed) */
-		return( ENOMEM );
+		return(ENOMEM);
 
-	switch ( FUNCTION( minor(dev) ) ) {
+	switch (FUNCTION(dev)) {
 	case VIDEO_DEV:
-		return( video_ioctl( bktr, unit, cmd, arg, pr ) );
+		return(video_ioctl(bktr, unit, cmd, arg, pr));
 	case TUNER_DEV:
-		return( tuner_ioctl( bktr, unit, cmd, arg, pr ) );
+		return(tuner_ioctl(bktr, unit, cmd, arg, pr));
 	}
 
-	return( ENXIO );
+	return(ENXIO);
 }
 
 /*
  * 
  */
 int
-bktr_mmap( dev_t dev, vm_offset_t offset, int nprot )
+bktr_mmap(dev_t dev, int offset, int nprot)
 {
 	int		unit;
 	bktr_ptr_t	bktr;
 
-	unit = UNIT(minor(dev));
+	unit = UNIT(dev);
 
-	/* unit out of range */
-	if ((unit > bktr_cd.cd_ndevs) || (bktr_cd.cd_devs[unit] == NULL))
-		return( -1 );
-	if (FUNCTION(minor(dev)) > 0)
-		return( -1 );
+	if (FUNCTION(dev) > 0)	/* only allow mmap on /dev/bktr[n] */
+		return(-1);
 
 	bktr = bktr_cd.cd_devs[unit];
 
-	if (offset < 0)
-		return( -1 );
+	if ((vaddr_t)offset < 0)
+		return(-1);
 
-	if (offset >= bktr->alloc_pages * PAGE_SIZE)
-		return( -1 );
+	if ((vaddr_t)offset >= bktr->alloc_pages * PAGE_SIZE)
+		return(-1);
 
 #ifdef __NetBSD__
 	return (bus_dmamem_mmap(bktr->dmat, bktr->dm_mem->dm_segs, 1,
-				offset, nprot, BUS_DMA_WAITOK));
+				(vaddr_t)offset, nprot, BUS_DMA_WAITOK));
 #else
-	return( i386_btop(vtophys(bktr->bigbuf) + offset) );
+	return(i386_btop(vtophys(bktr->bigbuf) + offset));
 #endif
 }
 

@@ -49,7 +49,41 @@
 #include <machine/bus.h>		/* struct device */
 #include <sys/device.h>
 #include <sys/select.h>			/* struct selinfo */
+# ifdef DEBUG
+#  define	bootverbose 1
+# else
+#  define	bootverbose 0
+# endif
 #endif
+
+/*
+ * The kernel options for the driver now all begin with BKTR.
+ * Support the older kernel options on FreeBSD and OpenBSD.
+ *
+ */
+#if defined(__FreeBSD__) || defined(__OpenBSD__)
+#if defined(BROOKTREE_SYSTEM_DEFAULT)
+#define BKTR_SYSTEM_DEFAULT BROOKTREE_SYSTEM_DEFAULT
+#endif
+
+#if defined(OVERRIDE_CARD)
+#define BKTR_OVERRIDE_CARD OVERRIDE_CARD
+#endif
+
+#if defined(OVERRIDE_TUNER)
+#define BKTR_OVERRIDE_TUNER OVERRIDE_TUNER
+#endif
+
+#if defined(OVERRIDE_DBX)
+#define BKTR_OVERRIDE_DBX OVERRIDE_DBX
+#endif
+
+#if defined(OVERRIDE_MSP)
+#define BKTR_OVERRIDE_MSP OVERRIDE_MSP
+#endif
+
+#endif
+
 
 #ifndef PCI_LATENCY_TIMER
 #define	PCI_LATENCY_TIMER		0x0c	/* pci timer register */
@@ -440,7 +474,7 @@ typedef struct bktr_clip bktr_clip_t;
  * NetBSD >= 1.3H uses vaddr_t instead of vm_offset_t
  */
 #if defined(__NetBSD__) && __NetBSD_Version__ >= 103080000
-typedef vaddr_t	vm_offset_t;
+typedef void *	vm_offset_t;
 #endif
 
 /*
@@ -467,11 +501,6 @@ struct bktr_softc {
     bus_dmamap_t	dm_mem;
     bus_dmamap_t	dm_vbidata;
     bus_dmamap_t	dm_vbibuffer;
-#if __NetBSD_Version__ >= 103080000
-    paddr_t		phys_base;	/* Bt848 register physical address */
-#else
-    vm_offset_t		phys_base;	/* Bt848 register physical address */
-#endif
 #endif
 
 #if defined(__OpenBSD__)
@@ -510,6 +539,7 @@ struct bktr_softc {
     #if (NSMBUS > 0)
       struct bktr_i2c_softc i2c_sc;	/* bt848_i2c device */
     #endif
+    char	bktr_xname[7];	/* device name and unit number */
 #endif
 
     /* the following definitions are common over all platforms */
