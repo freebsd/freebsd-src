@@ -143,7 +143,7 @@ extern int esp_debug;
 #define ESP_MAX_MSG_LEN 8
 
 struct esp_softc {
-	struct device sc_dev;			/* us as a device */
+	device_t sc_dev;			/* us as a device */
 #ifdef SPARC_DRIVER
 	struct sbusdev sc_sd;			/* sbus device */
 	struct intrhand sc_ih;			/* intr handler */
@@ -313,9 +313,9 @@ ESP_READ_REG(sc, reg)
 #define	ESPCMD(sc, cmd)		ESP_WRITE_REG(sc, ESP_CMD, cmd)
 #endif
 
-#define SAME_ESP(sc, bp, ca) \
+#define SAME_ESP(unit, bp, ca) \
 	((bp->val[0] == ca->ca_slot && bp->val[1] == ca->ca_offset) || \
-	 (bp->val[0] == -1 && bp->val[1] == sc->sc_dev.dv_unit))
+	 (bp->val[0] == -1 && bp->val[1] == unit))
 
 #ifndef SPARC_DRIVER
 /* DMA macros for ESP */
