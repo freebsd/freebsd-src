@@ -1,4 +1,5 @@
 /*
+#define DEBUG
  * Copyright (c) 1994, Paul Richards.
  *
  * All rights reserved.
@@ -19,6 +20,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdarg.h>
+#include <ncurses.h>
 
 #include <sys/types.h>
 #include <sys/errno.h>
@@ -28,15 +30,14 @@
 #include <sys/mount.h>
 #include <sys/reboot.h>
 #include <sys/stat.h>
+#include <sys/utsname.h>
 #include <sys/wait.h>
 #include <ufs/ffs/fs.h>
 #include <machine/console.h>
 
+#include "mbr.h"
 #include "bootarea.h"
 #include "sysinstall.h"
-
-char xxboot[] = "/usr/mdec/sdboot";
-char bootxx[] = "/usr/mdec/bootsd";
 
 struct disklabel *avail_disklabels;
 int *avail_fds;
@@ -45,7 +46,9 @@ unsigned char **avail_disknames;
 unsigned char *scratch;
 unsigned char *errmsg;
 unsigned char *bootblocks;
-struct bootarea *bootarea;
+struct mbr *mbr;
+struct utsname utsname;
+unsigned char *title = utsname.sysname;
 
 struct sysinstall *sysinstall;
 struct sysinstall *sequence;
@@ -56,9 +59,9 @@ int inst_part = 0;
 int custom_install;
 int dialog_active = 0;
 
-void leave_sysinstall();
-void abort_task();
-void cleanup();
+void exit_sysinstall();
+void abort_installation(char *);
+void exit_prompt();
 void fatal(char *);
 extern char *part_type(int);
 extern int disk_size(int);
@@ -67,26 +70,22 @@ extern int disk_size(int);
 char selection[30];
 
 void
-abort_task(char *prompt)
+abort_installation(char *prompt)
 {
-	strcat(prompt,"\n\n Do you wish to abort the installation ?");
-	if (!dialog_yesno("ABORT",prompt,10,75))
-		leave_sysinstall();
+	strcpy(scratch, prompt);
+	strcat(scratch,"\n\n Do you wish to abort the installation ?");
+	if (!dialog_yesno("Abort installation ?",scratch,10,75))
+		exit_prompt();
+	clear();
 }
 
 void
-leave_sysinstall()
+exit_prompt()
 {
 	sprintf(scratch,"Are you sure you want to exit sysinstall?");
-	if (!dialog_yesno("Exit sysinstall",scratch,10,75)) {
-		if (getpid() == 1) {
-			if (reboot(RB_AUTOBOOT) == -1)
-				fatal("Reboot failed!");
-		} else {
-			cleanup();
-			exit(0);
-		}
-	}
+	if (!dialog_yesno("Exit sysinstall",scratch,10,75))
+		exit_sysinstall();
+	clear();
 }
 
 int
@@ -128,8 +127,8 @@ alloc_memory()
 			return(-1);
 	}
 
-	bootarea = (struct bootarea *) malloc(sizeof(struct bootarea));
-	if (!bootarea)
+	mbr = (struct mbr *) malloc(sizeof(struct mbr));
+	if (!mbr)
 		return(-1);
 
 	bootblocks = (char *) malloc(BBSIZE);
@@ -165,40 +164,42 @@ free_memory()
 		free(options[i]);
 	free(options);
 
-	free(bootarea);
+	free(mbr);
 	free(bootblocks);
 	free(sysinstall);
 	free(sequence);
 }
 
 void
-cleanup()
+exit_sysinstall()
 {
-	free_memory();
-	if (dialog_active)
-		end_dialog();
+	if (getpid() == 1) {
+		if (reboot(RB_AUTOBOOT) == -1)
+			if (dialog_active)
+				while (1)
+					dialog_msgbox("Exit sysinstall",
+					              "Reboot failed -- hit reset",
+				                 10, 75, 20);
+			else {
+				fprintf(stderr, "Reboot failed  -- hit reset");
+				while (1);
+			}
+	} else {
+		free_memory();
+		if (dialog_active)
+			end_dialog();
+		exit(0);
+	}
 }
 
 void
 fatal(char *errmsg)
 {
 	if (dialog_active)
-	dialog_msgbox("Fatal Error -- Aborting installation", errmsg, 10, 75, 20);
+		dialog_msgbox("Fatal Error -- Aborting installation", errmsg, 10, 75, 20);
 	else
 		fprintf(stderr, "Fatal Error -- Aborting installation:\n%s\n", errmsg);
-	if (getpid() == 1) {
-		if (reboot(RB_AUTOBOOT) == -1)
-			while (1)
-				if (dialog_active)
-				dialog_msgbox("Fatal Error -- Aborting installation",
-								  "Reboot failed after a fatal error -- hit reset", 10, 75, 20);
-				else
-					fprintf(stderr, "Fatal Error -- Aborting installation:\n%s\n",
-								  "Reboot failed after a fatal error -- hit reset");
-	} else {
-		cleanup();
-		exit(1);
-	}
+	exit_sysinstall();
 }
 
 void
@@ -210,6 +211,7 @@ query_disks()
 	struct stat st;
 	int fd;
 
+	no_disks = 0;
 	for (i=0;i<10;i++) {
 		sprintf(diskname,"wd%d",i);
 		sprintf(disk,"/dev/r%sd",diskname);
@@ -252,9 +254,10 @@ select_disk()
 
 		if (dialog_menu("FreeBSD Installation", scratch, 10, 75, 5, no_disks, options, selection)) {
 			sprintf(scratch,"You did not select a valid disk");
-			abort_task(scratch);
+			abort_installation(scratch);
 			valid = 0;
 		}
+		clear();
 	} while (!valid);
 	return(atoi(selection) - 1);
 }
@@ -264,22 +267,33 @@ select_partition(int disk)
 {
 	int valid;
 	int i;
+	int choice;
 
 	do {
 		valid = 1;
 
-		sprintf(scratch,"The following partitions were found on this disk");
-		for (i=0;i<4;i++) {
-			sprintf(options[(i*2)], "%d",i+1);
-			sprintf(options[(i*2)+1], "%s, (%ldMb)", 
-			part_type(bootarea->dospart[i].dp_typ),
-						 bootarea->dospart[i].dp_size * 512 / (1024 * 1024));
+		sprintf(scratch,"Select one of the following areas to install to:");
+		sprintf(options[0], "%d", 0);
+		sprintf(options[1], "%s, (%dMb)", "Install to entire disk",
+				  disk_size(disk));
+		for (i=0; i < NDOSPART; i++) {
+			sprintf(options[(i*2)+2], "%d",i+1);
+			sprintf(options[(i*2)+3], "%s, (%ldMb)", 
+			part_type(mbr->dospart[i].dp_typ),
+						 mbr->dospart[i].dp_size * 512 / (1024 * 1024));
 		}
-		if (dialog_menu("FreeBSD Installation", scratch, 10, 75, 5, 4, options, selection)) {
+		if (dialog_menu(title,
+			 scratch, 10, 75, 5, 5, options, selection)) {
 			sprintf(scratch,"You did not select a valid partition");
-			abort_task(scratch);
+			abort_installation(scratch);
 			valid = 0;
 		}
+		clear();
+		choice = atoi(selection);
+		if (!choice)
+			if (dialog_yesno(title, "Installing to the whole disk will erase all its present data.\n\nAre you sure you want to do this?", 10, 75))
+				valid = 0;
+		clear();
 	} while (!valid);
 	
 	return(atoi(selection) - 1);
@@ -492,34 +506,85 @@ void
 stage1()
 {
 	int i;
+	int ok = 0;
+	int ready = 0;
 	struct ufs_args ufsargs;
 
-	query_disks();
-	inst_disk = select_disk();
+	while (!ready) {
+		ready = 1;
 
-	if (read_bootarea(avail_fds[inst_disk]) == -1) {
-		/* Invalid boot area */
-		build_disklabel(&avail_disklabels[inst_disk],
-							 avail_disklabels[inst_disk].d_secperunit, 0);
-		build_bootblocks(&avail_disklabels[inst_disk]);
-		write_bootblocks(avail_fds[inst_disk], 0,
-							  avail_disklabels[inst_disk].d_bbsize);
-	} else {
+		query_disks();
+		inst_disk = select_disk();
+
+#ifdef DEBUG
+		read_mbr(avail_fds[inst_disk], mbr);
+		show_mbr(mbr);
+#endif
+
+		if (read_mbr(avail_fds[inst_disk], mbr) == -1) {
+			sprintf(scratch, "The following error occured will trying to read the master boot record:\n\n%s\n\nIn order to install FreeBSD a new master boot record will have to be written which will mean all current data on the hard disk will be lost.", errmsg);
+			ok = 0;
+			while (!ok) {	
+				abort_installation(scratch);
+				if (!dialog_yesno(title, "Are you sure you wish to proceed?",
+									  10, 75)) {
+					clear();
+					clear_mbr(mbr);
+					ok = 1;
+				}
+			}
+		}
+	
+		if (custom_install) 
+			if (!dialog_yesno(title, "Do you wish to edit the DOS partition table?",
+								  10, 75)) {
+				clear();
+				edit_mbr(mbr, &avail_disklabels[inst_disk]);
+			}
+
 		inst_part = select_partition(inst_disk);
-		/* Set partition to be FreeBSD and active */
-		for (i=0; i < NDOSPART; i++)
-				bootarea->dospart[i].dp_flag &= ~ACTIVE;
-		bootarea->dospart[inst_part].dp_typ = DOSPTYP_386BSD;
-		bootarea->dospart[inst_part].dp_flag = ACTIVE;
-		write_bootarea(avail_fds[inst_disk]);
-		build_disklabel(&avail_disklabels[inst_disk],
-							 bootarea->dospart[inst_part].dp_size,
-							 bootarea->dospart[inst_part].dp_start);
+
+		ok = 0;
+		while (!ok) {
+			if (build_mbr(mbr, &avail_disklabels[inst_disk]))
+				ok = 1;
+			else {
+				sprintf(scratch, "The DOS partition table is inconsistent.\n\n%s\n\nDo you wish to edit it by hand?", errmsg);
+				if (!dialog_yesno(title, scratch, 10, 75)) {
+					edit_mbr(mbr, &avail_disklabels[inst_disk]);
+					clear();
+				} else {
+					abort_installation("");
+					ok = 1;
+					ready = 0;
+				}
+			}
+		}
+
+		default_disklabel(&avail_disklabels[inst_disk],
+								mbr->dospart[inst_part].dp_size,
+								mbr->dospart[inst_part].dp_start);
 		build_bootblocks(&avail_disklabels[inst_disk]);
-		write_bootblocks(avail_fds[inst_disk],
-							  bootarea->dospart[inst_part].dp_start,
-							  avail_disklabels[inst_disk].d_bbsize);
+
+		if (ready) {
+			if (dialog_yesno(title, "We are now ready to format the hard disk for FreeBSD.\n\nSome or all of the disk will be overwritten during this process.\n\nAre you sure you wish to proceed ?", 10, 75)) {
+				abort_installation("");
+				ready = 0;
+			}
+			clear();
+		}
 	}
+
+	/* Write master boot record and bootblocks */
+	write_mbr(avail_fds[inst_disk], mbr);
+	write_bootblocks(avail_fds[inst_disk],
+						  mbr->dospart[inst_part].dp_start,
+						  avail_disklabels[inst_disk].d_bbsize);
+
+#ifdef DEBUG
+	read_mbr(avail_fds[inst_disk], mbr);
+	show_mbr(mbr);
+#endif
 
 	/* close all the open disks */
 	for (i=0; i < no_disks; i++)
@@ -676,12 +741,20 @@ main(int argc, char **argv)
 		setlogin("root");
 	}
 
-	/* /etc/termcap.small used, if TERM undefined */
 	if (set_termcap() == -1)
 		fatal("Can't find terminal entry\n");
+
 	if (alloc_memory() == -1)
 		fatal("Couldn't allocate memory\n");
+
+	if (uname(&utsname) == -1) {
+		/* Fake uname entry */
+		bcopy("FreeBSD", utsname.sysname, strlen("FreeBSD"));
+	}
+
+	/* XXX - libdialog has particularly bad return value checking */
 	init_dialog();
+	/* If we haven't crashed I guess dialog is running ! */
 	dialog_active = 1;
 
 	strcpy(scratch, "/etc/");
@@ -711,5 +784,5 @@ main(int argc, char **argv)
 		default:
 			fatal("Unknown installation status");
 	}
-	leave_sysinstall();
+	exit_sysinstall();
 }
