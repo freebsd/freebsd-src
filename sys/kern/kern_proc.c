@@ -153,6 +153,8 @@ proc_dtor(void *mem, int size, void *arg)
 #ifdef INVARIANTS
 	KASSERT((p->p_numthreads == 1),
 	    ("bad number of threads in exiting process"));
+	KASSERT((p->p_numksegrps == 1), ("free proc with > 1 ksegrp"));
+	td = FIRST_THREAD_IN_PROC(p);
 	KASSERT((td != NULL), ("proc_dtor: bad thread pointer"));
         kg = FIRST_KSEGRP_IN_PROC(p);
 	KASSERT((kg != NULL), ("proc_dtor: bad kg pointer"));
@@ -190,27 +192,14 @@ proc_init(void *mem, int size, int flags)
 }
 
 /*
- * Tear down type-stable parts of a proc (just before being discarded)
+ * UMA should ensure that this function is never called.
+ * Freeing a proc structure would violate type stability.
  */
 static void
 proc_fini(void *mem, int size)
 {
-	struct proc *p;
-	struct thread *td;
-	struct ksegrp *kg;
 
-	p = (struct proc *)mem;
-	KASSERT((p->p_numthreads == 1),
-	    ("bad number of threads in freeing process"));
-        td = FIRST_THREAD_IN_PROC(p);
-	KASSERT((td != NULL), ("proc_fini: bad thread pointer"));
-        kg = FIRST_KSEGRP_IN_PROC(p);
-	KASSERT((kg != NULL), ("proc_fini: bad kg pointer"));
-	vm_proc_dispose(p);
-	sched_destroyproc(p);
-	thread_free(td);
-	ksegrp_free(kg);
-	mtx_destroy(&p->p_mtx);
+	panic("proc reclaimed");
 }
 
 /*
