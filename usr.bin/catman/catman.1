@@ -24,10 +24,8 @@
 .\"
 .\" $FreeBSD$
 .\"
-.\" Note: The date here should be updated whenever a non-trivial
-.\" change is made to the manual page.
 .Dd May 11, 2002
-.Dt MAKEWHATIS 1
+.Dt CATMAN 1
 .Os
 .Sh NAME
 .Nm catman
@@ -35,41 +33,43 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl fnrvL
-.Op Ar directories  ...
+.Op Ar directories ...
 .Sh DESCRIPTION
 The
 .Nm
 utility preformats all the man pages in
 .Ar directories
 using the
-.Ic "nroff -man"
+.Nm nroff Fl man
 command.
 Directories may be separated by colons instead of spaces.
 If no
 .Ar directories
 are specified, the contents of the
 .Ev MANPATH
-environment variable is used or if that is not set the default directory
+environment variable is used, or if that is not set, the default directory
 .Pa /usr/share/man
 is processed.
 .Pp
 The options are as follows:
-.Bl -tag -width ".Fl L"
+.Bl -tag -width indent
 .It Fl f
-forces all man pages to be reformatted even if the corresponding cat page
+Force all man pages to be reformatted even if the corresponding cat page
 is newer.
 .It Fl L
 Process only localized subdirectories corresponding to the locale specified
 in the standard environment variables.
 .It Fl n
-prints out what would be done instead of performing any formatting.
+Print out what would be done instead of performing any formatting.
 .It Fl r
-scans for and removes "junk" files that are neither man pages nor their
+Scan for and remove
+.Dq junk
+files that are neither man pages nor their
 corresponding formatted cat pages.
 .It Fl v
-makes
+Cause
 .Nm
-more verbose about what it is doing.
+to be more verbose about what it is doing.
 .El
 .Sh ENVIRONMENT
 .Bl -tag -width ".Ev MANPATH" -compact
