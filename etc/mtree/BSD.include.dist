@@ -138,11 +138,11 @@
     rpcsvc
     ..
     security
-        lomac
-        ..
         mac_biba
         ..
         mac_bsdextended
+        ..
+        mac_lomac
         ..
         mac_mls
         ..
