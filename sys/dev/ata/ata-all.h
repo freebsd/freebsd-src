@@ -111,8 +111,8 @@
 #define ATA_IOSIZE			0x08
 #define ATA_OP_FINISHED			0x00
 #define ATA_OP_CONTINUES		0x01
-#define ATA_DEV(unit)			((unit == ATA_MASTER) ? 0 : 1)
-#define ATA_PARAM(scp, unit)		(scp->dev_param[ATA_DEV(unit)])
+#define ATA_DEV(device)			((device == ATA_MASTER) ? 0 : 1)
+#define ATA_PARAM(scp, device)		(scp->dev_param[ATA_DEV(device)])
 
 /* busmaster DMA related defines */
 #define ATA_BM_OFFSET1			0x08
@@ -276,7 +276,7 @@ struct ata_params {
 /* structure describing an ATA device */
 struct ata_softc {
     struct device		*dev;		/* device handle */
-    int				unit;		/* unit on this controller */
+    int				channel;	/* channel on this controller */
     struct resource		*r_io;		/* io addr resource handle */
     struct resource		*r_altio;	/* altio addr resource handle */
     struct resource		*r_bmio;	/* bmio addr resource handle */
@@ -308,6 +308,7 @@ struct ata_softc {
 #define		ATA_USE_16BIT		0x04
 #define		ATA_ATTACHED		0x08
 #define		ATA_QUEUED		0x10
+#define		ATA_RAID		0x20
 
     int				devices;	/* what is present */
 #define		ATA_ATA_MASTER		0x01
@@ -332,7 +333,7 @@ struct ata_softc {
     void			*running;	/* currently running request */
 };
 
-/* To convert unit numbers to devices */
+/* externs */
 extern devclass_t ata_devclass;
  
 /* public prototypes */

@@ -130,7 +130,7 @@ ata_isa_probe(device_t dev)
 			 ATA_ALTIOSIZE);
     }
     bus_release_resource(dev, SYS_RES_IOPORT, 0, port);
-    scp->unit = device_get_unit(dev);
+    scp->channel = 0;
     scp->flags |= ATA_USE_16BIT;
     return ata_probe(dev);
 }
@@ -177,7 +177,7 @@ ata_pccard_probe(device_t dev)
 			 rman_get_start(port) + ATA_ALTOFFSET, ATA_ALTIOSIZE);
     }
     bus_release_resource(dev, SYS_RES_IOPORT, 0, port);
-    scp->unit = device_get_unit(dev);
+    scp->channel = 0;
     scp->flags |= ATA_USE_16BIT;
     return ata_probe(dev);
 }
@@ -368,7 +368,6 @@ ata_pci_add_child(device_t dev, int unit)
 	if (!(child = device_add_child(dev, "ata", 2)))
 	    return ENOMEM;
     }
-    device_set_ivars(child, (void *)(uintptr_t) unit);
     return 0;
 }
 
@@ -394,8 +393,8 @@ ata_pci_attach(device_t dev)
 	rid = 0x20;
 	sc->bmio = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
 				      0, ~0, 1, RF_ACTIVE);
-	device_printf(dev, "Busmastering DMA %s\n", 
-		      sc->bmio ? "enabled" : "not supported");
+	if (!sc->bmio)
+	    device_printf(dev, "Busmastering DMA not supported\n");
     }
 
     /* do extra chipset specific setups */
@@ -492,14 +491,13 @@ static int
 ata_pci_print_child(device_t dev, device_t child)
 {
     struct ata_softc *scp = device_get_softc(child);
-    int unit = (uintptr_t) device_get_ivars(child);
     int retval = 0;
 
     retval += bus_print_child_header(dev, child);
     retval += printf(": at 0x%x", scp->ioaddr);
 
     if (ATA_MASTERDEV(dev))
-	retval += printf(" irq %d", 14 + unit);
+	retval += printf(" irq %d", 14 + scp->channel);
     
     retval += bus_print_child_footer(dev, child);
 
@@ -511,7 +509,7 @@ ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		       u_long start, u_long end, u_long count, u_int flags)
 {
     struct ata_pci_softc *sc = device_get_softc(dev);
-    int unit = (intptr_t)device_get_ivars(child);
+    int channel = ((struct ata_softc *)device_get_softc(child))->channel;
     int myrid;
 
     if (type == SYS_RES_IOPORT) {
@@ -519,29 +517,29 @@ ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	case ATA_IOADDR_RID:
 	    if (ATA_MASTERDEV(dev)) {
 		myrid = 0;
-		start = (unit == 0 ? IO_WD1 : IO_WD2);
+		start = (channel == 0 ? IO_WD1 : IO_WD2);
 		end = start + ATA_IOSIZE - 1;
 		count = ATA_IOSIZE;
 	    }
 	    else
-		myrid = 0x10 + 8 * unit;
+		myrid = 0x10 + 8 * channel;
 	    break;
 
 	case ATA_ALTADDR_RID:
 	    if (ATA_MASTERDEV(dev)) {
 		myrid = 0;
-		start = (unit == 0 ? IO_WD1 : IO_WD2) + ATA_ALTOFFSET;
+		start = (channel == 0 ? IO_WD1 : IO_WD2) + ATA_ALTOFFSET;
 		end = start + ATA_ALTIOSIZE - 1;
 		count = ATA_ALTIOSIZE;
 	    }
 	    else
-		myrid = 0x14 + 8 * unit;
+		myrid = 0x14 + 8 * channel;
 	    break;
 
 	case ATA_BMADDR_RID:
 	    /* the busmaster resource is shared between the two channels */
 	    if (sc->bmio) {
-		if (unit == 0) {
+		if (channel == 0) {
 		    sc->bmio_1 = *sc->bmio;
 		    sc->bmio_1.r_end = sc->bmio->r_start + ATA_BM_OFFSET1;
 		    return &sc->bmio_1;
@@ -576,9 +574,9 @@ ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 
 	if (ATA_MASTERDEV(dev)) {
 #ifdef __alpha__
-	    return alpha_platform_alloc_ide_intr(unit);
+	    return alpha_platform_alloc_ide_intr(channel);
 #else
-	    int irq = (unit == 0 ? 14 : 15);
+	    int irq = (channel == 0 ? 14 : 15);
 
 	    return BUS_ALLOC_RESOURCE(device_get_parent(dev), child,
 				      SYS_RES_IRQ, rid,
@@ -601,7 +599,7 @@ ata_pci_release_resource(device_t dev, device_t child, int type, int rid,
 			 struct resource *r)
 {
     struct ata_pci_softc *sc = device_get_softc(dev);
-    int unit = (uintptr_t) device_get_ivars(child);
+    int channel = ((struct ata_softc *)device_get_softc(child))->channel;
     int myrid = 0;
 
     if (type == SYS_RES_IOPORT) {
@@ -610,14 +608,14 @@ ata_pci_release_resource(device_t dev, device_t child, int type, int rid,
 	    if (ATA_MASTERDEV(dev))
 		myrid = 0;
 	    else
-		myrid = 0x10 + 8 * unit;
+		myrid = 0x10 + 8 * channel;
 	    break;
 
 	case ATA_ALTADDR_RID:
 	    if (ATA_MASTERDEV(dev))
 		myrid = 0;
 	    else
-		myrid = 0x14 + 8 * unit;
+		myrid = 0x14 + 8 * channel;
 	    break;
 
 	case ATA_BMADDR_RID:
@@ -642,7 +640,7 @@ ata_pci_release_resource(device_t dev, device_t child, int type, int rid,
 
 	if (ATA_MASTERDEV(dev)) {
 #ifdef __alpha__
-	    return alpha_platform_release_ide_intr(unit, r);
+	    return alpha_platform_release_ide_intr(channel, r);
 #else
 	    return BUS_RELEASE_RESOURCE(device_get_parent(dev),
 					child, SYS_RES_IRQ, rid, r);
@@ -723,10 +721,25 @@ static int
 ata_pcisub_probe(device_t dev)
 {
     struct ata_softc *scp = device_get_softc(dev);
+    device_t *list;
+    int count, i;
 
-    /* kids of pci ata chipsets has their physical unit number in ivars */
-    scp->unit = (uintptr_t) device_get_ivars(dev);
+    /* find channel number on this controller */
+    device_get_children(device_get_parent(dev), &list, &count);
+    for (i = 0; i < count; i++) {
+	if (list[i] == dev)
+	    scp->channel = i;
+    }
+
     scp->chiptype = pci_get_devid(device_get_parent(dev));
+
+    /* is this an ATA RAID setup ? */
+    if (((pci_get_subclass(device_get_parent(dev)) == PCIS_STORAGE_RAID) &&
+	 (scp->chiptype == 0x4d33105a || scp->chiptype == 0x4d38105a ||
+	  scp->chiptype == 0x4d30105a || scp->chiptype == 0x0d30105a)) ||
+	scp->chiptype == 0x00041103) {
+        scp->flags |= ATA_RAID;
+    }
     return ata_probe(dev);
 }
 
@@ -1082,7 +1095,7 @@ ata_intr(void *data)
     case 0x06481095:	/* CMD 648 */
     case 0x06491095:	/* CMD 649 */
         if (!(pci_read_config(device_get_parent(scp->dev), 0x71, 1) &
-	      (scp->unit ? 0x08 : 0x04)))
+	      (scp->channel ? 0x08 : 0x04)))
 	    return;
 	goto out;
          
@@ -1091,7 +1104,7 @@ ata_intr(void *data)
     case 0x4d30105a:	/* Promise Ultra/Fasttrak 100 */
     case 0x0d30105a:	/* Promise OEM ATA100 */
 	if (!(inl(rman_get_start(sc->bmio) + 0x1c) & 
-	      (scp->unit ? 0x00004000 : 0x00000400)))
+	      (scp->channel ? 0x00004000 : 0x00000400)))
 	    return;
     	/* FALLTHROUGH */
 out:
