@@ -36,10 +36,10 @@
 #include <string.h>
 
 int
-extattr_namespace_to_string(int namespace, char **string)
+extattr_namespace_to_string(int attrnamespace, char **string)
 {
 
-	switch(namespace) {
+	switch(attrnamespace) {
 	case EXTATTR_NAMESPACE_USER:
 		if (*string != NULL)
 			*string = strdup(EXTATTR_NAMESPACE_USER_STRING);
@@ -57,16 +57,16 @@ extattr_namespace_to_string(int namespace, char **string)
 }
 
 int
-extattr_string_to_namespace(const char *string, int *namespace)
+extattr_string_to_namespace(const char *string, int *attrnamespace)
 {
 
 	if (!strcmp(string, EXTATTR_NAMESPACE_USER_STRING)) {
-		if (namespace != NULL)
-			*namespace = EXTATTR_NAMESPACE_USER;
+		if (attrnamespace != NULL)
+			*attrnamespace = EXTATTR_NAMESPACE_USER;
 		return (0);
 	} else if (!strcmp(string, EXTATTR_NAMESPACE_SYSTEM_STRING)) {
-		if (namespace != NULL)
-			*namespace = EXTATTR_NAMESPACE_SYSTEM;
+		if (attrnamespace != NULL)
+			*attrnamespace = EXTATTR_NAMESPACE_SYSTEM;
 		return (0);
 	} else {
 		errno = EINVAL;
