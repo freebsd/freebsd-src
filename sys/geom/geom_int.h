@@ -94,6 +94,8 @@ void g_conftxt(void *);
 void g_event_init(void);
 void g_post_event(enum g_events ev, struct g_class *mp, struct g_geom *gp, struct g_provider *pp, struct g_consumer *cp);
 void g_run_events(void);
+void g_stall_events(void);
+void g_release_events(void);
 
 /* geom_subr.c */
 extern struct class_list_head g_classes;
