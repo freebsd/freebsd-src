@@ -357,6 +357,7 @@ int	device_is_quiet(device_t dev);
 int	device_print_prettyname(device_t dev);
 int	device_printf(device_t dev, const char *, ...) __printflike(2, 3);
 int	device_probe_and_attach(device_t dev);
+int	device_quiesce(device_t dev);
 void	device_quiet(device_t dev);
 void	device_set_desc(device_t dev, const char* desc);
 void	device_set_desc_copy(device_t dev, const char* desc);
@@ -388,6 +389,7 @@ void	devclass_set_parent(devclass_t dc, devclass_t pdc);
 devclass_t	devclass_get_parent(devclass_t dc);
 struct sysctl_ctx_list *devclass_get_sysctl_ctx(devclass_t dc);
 struct sysctl_oid *devclass_get_sysctl_tree(devclass_t dc);
+int	devclass_quiesce_driver(devclass_t dc, kobj_class_t driver);
 
 /*
  * Access functions for device resources.
