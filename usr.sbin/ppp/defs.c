@@ -230,6 +230,12 @@ static const struct speeds {
 #ifdef B230400
   { 230400, B230400, },
 #endif
+#ifdef B460800
+  { 460800, B460800, },
+#endif
+#ifdef B921600
+  { 921600, B921600, },
+#endif
 #ifdef EXTA
   { 19200, EXTA, },
 #endif
