@@ -36,12 +36,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_descrip.c	8.6 (Berkeley) 4/19/94
- * $Id: kern_descrip.c,v 1.15 1995/11/29 10:48:21 julian Exp $
+ * $Id: kern_descrip.c,v 1.16 1995/11/29 14:40:32 julian Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
+#include <sys/conf.h>
 #include <sys/filedesc.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_xxx.c	8.2 (Berkeley) 11/14/93
- * $Id: kern_xxx.c,v 1.19 1995/11/14 09:10:45 phk Exp $
+ * $Id: kern_xxx.c,v 1.20 1995/11/20 12:14:40 phk Exp $
  */
 
 #include <sys/param.h>
@@ -46,7 +46,7 @@
 #include <sys/signalvar.h>
 
 /* This implements a "TEXT_SET" for cleanup functions */
-
+static void	dummy_cleanup __P((void));
 static void
 dummy_cleanup() {}
 TEXT_SET(cleanup_set, dummy_cleanup);

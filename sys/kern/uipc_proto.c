@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_proto.c	8.1 (Berkeley) 6/10/93
- * $Id: uipc_proto.c,v 1.3 1995/05/11 00:13:05 wollman Exp $
+ * $Id: uipc_proto.c,v 1.4 1995/08/16 16:13:25 bde Exp $
  */
 
 #include <sys/param.h>
@@ -39,13 +39,13 @@
 #include <sys/protosw.h>
 #include <sys/domain.h>
 #include <sys/mbuf.h>
+#include <sys/un.h>
+
+#include <net/raw_cb.h>
 
 /*
  * Definitions of protocols supported in the LOCAL domain.
  */
-
-int	uipc_usrreq(), raw_usrreq();
-void	raw_init(),raw_input(),raw_ctlinput();
 
 struct protosw localsw[] = {
 { SOCK_STREAM,	&localdomain,	0,	PR_CONNREQUIRED|PR_WANTRCVD|PR_RIGHTS,
@@ -64,8 +64,6 @@ struct protosw localsw[] = {
   raw_init,	0,		0,		0,
 }
 };
-
-int	unp_externalize(), unp_dispose();
 
 struct domain localdomain =
     { AF_LOCAL, "local", 0, unp_externalize, unp_dispose,
