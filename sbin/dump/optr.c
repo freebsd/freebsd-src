@@ -289,9 +289,9 @@ quit(fmt, va_alist)
 
 struct fstab *
 allocfsent(fs)
-	register struct fstab *fs;
+	struct fstab *fs;
 {
-	register struct fstab *new;
+	struct fstab *new;
 
 	new = (struct fstab *)malloc(sizeof (*fs));
 	if (new == NULL ||
@@ -314,8 +314,8 @@ static	SLIST_HEAD(, pfstab) table;
 void
 getfstab()
 {
-	register struct fstab *fs;
-	register struct pfstab *pf;
+	struct fstab *fs;
+	struct pfstab *pf;
 
 	if (setfsent() == 0) {
 		msg("Can't open %s for dump table information: %s\n",
@@ -346,8 +346,8 @@ struct fstab *
 fstabsearch(key)
 	char *key;
 {
-	register struct pfstab *pf;
-	register struct fstab *fs;
+	struct pfstab *pf;
+	struct fstab *fs;
 	char *rn;
 
 	SLIST_FOREACH(pf, &table, pf_list) {
@@ -377,9 +377,9 @@ void
 lastdump(arg)
 	char	arg;	/* w ==> just what to do; W ==> most recent dumps */
 {
-	register int i;
-	register struct fstab *dt;
-	register struct dumpdates *dtwalk;
+	int i;
+	struct fstab *dt;
+	struct dumpdates *dtwalk;
 	char *lastname, *date;
 	int dumpme;
 	time_t tnow;

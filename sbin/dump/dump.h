@@ -195,17 +195,3 @@ extern int errno;
 #ifndef	_PATH_FSTAB
 #define	_PATH_FSTAB	"/etc/fstab"
 #endif
-
-#ifdef sunos
-extern char *calloc();
-extern char *malloc();
-extern long atol();
-extern char *strcpy();
-extern char *strncpy();
-extern char *strcat();
-extern time_t time();
-extern void endgrent();
-extern void exit();
-extern off_t lseek();
-extern const char *strerror();
-#endif
