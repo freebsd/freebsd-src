@@ -127,7 +127,8 @@ struct mtx;
 struct ithd;
 
 struct	proc {
-	TAILQ_ENTRY(proc) p_procq;	/* run/sleep queue. */
+	TAILQ_ENTRY(proc) p_procq;	/* run/mutex queue. */
+	TAILQ_ENTRY(proc) p_slpq;	/* sleep queue. */
 	LIST_ENTRY(proc) p_list;	/* List of all processes. */
 
 	/* substructures: */
