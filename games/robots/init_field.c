@@ -77,7 +77,7 @@ init_field()
 
 	Dead = FALSE;
 	Waiting = FALSE;
-	flushok(stdscr, TRUE);
+	/* flushok(stdscr, TRUE); */
 	Score = 0;
 
 	erase();

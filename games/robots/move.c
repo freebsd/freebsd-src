@@ -158,7 +158,7 @@ over:
 		  case 'W':
 			Waiting = TRUE;
 			leaveok(stdscr, TRUE);
-			flushok(stdscr, FALSE);
+			/* flushok(stdscr, FALSE); */
 			goto ret;
 		  case 't':
 		  case 'T':
