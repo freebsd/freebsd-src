@@ -251,12 +251,12 @@ cpu_fork(p1, p2, flags)
 		up->u_pcb.pcb_pfs = 0;
 
 		/*
-		 * Arrange for continuation at child_return(), which
+		 * Arrange for continuation at fork_return(), which
 		 * will return to exception_restore().  Note that the
 		 * child process doesn't stay in the kernel for long!
 		 *
 		 * We should really deal with the function descriptor
-		 * for child_return in switch_trampoline so that a
+		 * for fork_return() in switch_trampoline() so that a
 		 * kthread started from a loaded module can have the
 		 * right value for gp.
 		 */
