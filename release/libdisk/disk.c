@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: disk.c,v 1.4 1995/04/29 04:50:37 phk Exp $
+ * $Id: disk.c,v 1.5 1995/04/29 07:21:11 phk Exp $
  *
  */
 
@@ -40,21 +40,24 @@ Int_Open_Disk(char *name, u_long size)
 	struct disklabel dl;
 	char device[64];
 	struct disk *d;
+	struct dos_partition *dp;
+	void *p;
 
 	strcpy(device,"/dev/r");
 	strcat(device,name);
+
+	d = (struct disk *)malloc(sizeof *d);
+	if(!d) err(1,"malloc failed");
+	memset(d,0,sizeof *d);
 
 	fd = open(device,O_RDONLY);
 	if (fd < 0) {
 		warn("open(%s) failed",device);
 		return 0;
 	}
-	i = ioctl(fd,DIOCGDINFO,&dl);
-	if (i < 0) {
-		warn("DIOCGDINFO(%s) failed",device);
-		close(fd);
-		return 0;
-	}
+
+	memset(&dl,0,sizeof dl);
+	ioctl(fd,DIOCGDINFO,&dl);
 	i = ioctl(fd,DIOCGSLICEINFO,&ds);
 	if (i < 0) {
 		warn("DIOCGSLICEINFO(%s) failed",device);
@@ -62,18 +65,27 @@ Int_Open_Disk(char *name, u_long size)
 		return 0;
 	}
 
-	d = (struct disk *)malloc(sizeof *d);
-	if(!d) err(1,"malloc failed");
+	if (!size)
+		size = ds.dss_slices[WHOLE_DISK_SLICE].ds_size;
 
-	memset(d,0,sizeof *d);
+	p = read_block(fd,0);
+	dp = (struct dos_partition*)(p+DOSPARTOFF);
+	for(i=0;i<NDOSPART;i++) {
+		if (dp->dp_start >= size) continue;
+		if (dp->dp_start+dp->dp_size >= size) continue;
+		if (!dp->dp_size) continue;
+
+		if (dp->dp_typ == DOSPTYP_ONTRACK)
+			d->flags |= DISK_ON_TRACK;
+			
+	}
+	free(p);
 
 	d->bios_sect = dl.d_nsectors;
 	d->bios_hd = dl.d_ntracks;
 
 	d->name = strdup(name);
 
-	if (!size)
-		size = ds.dss_slices[WHOLE_DISK_SLICE].ds_size;
 
 	if (dl.d_ntracks && dl.d_nsectors)
 		d->bios_cyl = size/(dl.d_ntracks*dl.d_nsectors);
@@ -85,7 +97,7 @@ Int_Open_Disk(char *name, u_long size)
 		if (Add_Chunk(d, 0, 1, "-",reserved,0,0))
 			warn("Failed to add MBR chunk");
 	
-	for(i=BASE_SLICE;i<ds.dss_nslices;i++) {
+	for(i=BASE_SLICE;i < 12 &&  i<ds.dss_nslices;i++) {
 		char sname[20];
 		chunk_e ce;
 		u_long flags=0;
@@ -132,18 +144,21 @@ Int_Open_Disk(char *name, u_long size)
 					if (!dl->d_partitions[j].p_size)
 						continue;
 					if (Add_Chunk(d,
-						dl->d_partitions[j].p_offset,
+						dl->d_partitions[j].p_offset +
+						ds.dss_slices[i].ds_offset,
 						dl->d_partitions[j].p_size,
 						pname,part,0,0))
-						warn("Failed to add chunk for partition %c",j + 'a');
+						warn(
+	"Failed to add chunk for partition %c [%lu,%lu]",
+		j + 'a',dl->d_partitions[j].p_offset,dl->d_partitions[j].p_size);
 				}
 				sprintf(pname,"%sd",sname);
-				if (!dl->d_partitions[3].p_size)
-					continue;
-				Add_Chunk(d,
-					dl->d_partitions[3].p_offset,
-					dl->d_partitions[3].p_size,
-					pname,part,0,0);
+				if (dl->d_partitions[3].p_size)
+					Add_Chunk(d,
+						dl->d_partitions[3].p_offset +
+						ds.dss_slices[i].ds_offset,
+						dl->d_partitions[3].p_size,
+						pname,part,0,0);
 			}
 			free(dl);
 		}
@@ -159,6 +174,8 @@ Debug_Disk(struct disk *d)
 	printf("  flags=%lx",d->flags);
 	printf("  real_geom=%lu/%lu/%lu",d->real_cyl,d->real_hd,d->real_sect);
 	printf("  bios_geom=%lu/%lu/%lu\n",d->bios_cyl,d->bios_hd,d->bios_sect);
+	printf("  boot1=%p, boot2=%p, bootmgr=%p\n",
+		d->boot1,d->boot2,d->bootmgr);
 	Debug_Chunk(d->chunks);
 }
 
