@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.57 1994/10/14 21:58:09 ache Exp $
+# $Id: bsd.port.mk,v 1.58 1994/10/22 09:21:35 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -87,7 +87,7 @@
 # tree we are and thus can't go relative.  They can, of course, be overridden
 # by individual Makefiles.
 PORTSDIR?=		${DESTDIR}/usr/ports
-PREFIX?=		${DESTDIR}/usr/local
+PREFIX?=		/usr/local
 DISTDIR?=		${PORTSDIR}/distfiles
 PACKAGES?=		${PORTSDIR}/packages
 WRKDIR?=		${.CURDIR}/work
@@ -233,9 +233,9 @@ ${INSTALL_COOKIE}:
 	@echo "===>  Installing for ${DISTNAME}"
 	@${MAKE} ${.MAKEFLAGS} pre-install
 .if defined(USE_GMAKE)
-	@(cd ${WRKSRC}; ${GMAKE} ${MAKE_FLAGS} ${MAKEFILE} install)
+	@(cd ${WRKSRC}; ${GMAKE} PREFIX=${PREFIX} ${MAKE_FLAGS} ${MAKEFILE} install)
 .else defined(USE_GMAKE)
-	@(cd ${WRKSRC}; ${MAKE} ${MAKE_FLAGS} ${MAKEFILE} install)
+	@(cd ${WRKSRC}; ${MAKE} PREFIX=${PREFIX} ${MAKE_FLAGS} ${MAKEFILE} install)
 .if defined(USE_IMAKE)
 	@(cd ${WRKSRC}; ${MAKE} ${MAKE_FLAGS} ${MAKEFILE} install.man)
 .endif
