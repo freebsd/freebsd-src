@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)logwtmp.c	8.1 (Berkeley) 6/4/93";
 #else
 static const char rcsid[] =
-	"$Id: logwtmp.c,v 1.9 1999/04/07 08:27:04 brian Exp $";
+	"$Id: logwtmp.c,v 1.10 1999/04/07 14:03:31 brian Exp $";
 #endif
 #endif /* LIBC_SCCS and not lint */
 
@@ -65,7 +65,7 @@ trimdomain(char *fullhost, int hostsize)
         first = 0;
         if (gethostname(domain, sizeof(domain) - 1) == 0 &&
             (s = strchr(domain, '.')))
-            bcopy(s + 1, domain, strlen(s + 1) + 1);
+            memmove(domain, s + 1, strlen(s + 1) + 1);
         else
             domain[0] = '\0';
     }
