@@ -180,8 +180,6 @@ g_pc98_taste(struct g_class *mp, struct g_provider *pp, int flags)
 static struct g_class g_pc98_class = {
 	PC98_CLASS_NAME,
 	g_pc98_taste,
-	g_slice_access,
-	g_slice_orphan,
 	NULL,
 	G_CLASS_INITSTUFF
 };

@@ -123,10 +123,10 @@ g_orphan_register(struct g_provider *pp)
 	cp = LIST_FIRST(&pp->consumers);
 	while (cp != NULL) {
 		cp2 = LIST_NEXT(cp, consumers);
-		KASSERT(cp->geom->class->orphan != NULL,
-		    ("class %s has no orphan, geom %s",
-		    cp->geom->class->name, cp->geom->name));
-		cp->geom->class->orphan(cp);
+		KASSERT(cp->geom->orphan != NULL,
+		    ("geom %s has no orphan, class %s",
+		    cp->geom->name, cp->geom->class->name));
+		cp->geom->orphan(cp);
 		cp = cp2;
 	}
 }

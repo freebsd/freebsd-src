@@ -244,8 +244,6 @@ g_mbr_taste(struct g_class *mp, struct g_provider *pp, int insist)
 static struct g_class g_mbr_class	= {
 	MBR_CLASS_NAME,
 	g_mbr_taste,
-	g_slice_access,
-	g_slice_orphan,
 	NULL,
 	G_CLASS_INITSTUFF
 };
@@ -382,8 +380,6 @@ g_mbrext_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 static struct g_class g_mbrext_class	= {
 	MBREXT_CLASS_NAME,
 	g_mbrext_taste,
-	g_slice_access,
-	g_slice_orphan,
 	NULL,
 	G_CLASS_INITSTUFF
 };
