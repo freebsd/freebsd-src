@@ -241,7 +241,7 @@ dircheck(idesc, dp)
 	if (dp->d_reclen == 0 ||
 	    dp->d_reclen > spaceleft ||
 	    (dp->d_reclen & 0x3) != 0)
-		return (0);
+		goto bad;
 	if (dp->d_ino == 0)
 		return (1);
 	size = DIRSIZ(!newinofmt, dp);
@@ -261,13 +261,19 @@ dircheck(idesc, dp)
 	    idesc->id_filesize < size ||
 	    namlen > MAXNAMLEN ||
 	    type > 15)
-		return (0);
+		goto bad;
 	for (cp = dp->d_name, size = 0; size < namlen; size++)
 		if (*cp == '\0' || (*cp++ == '/'))
-			return (0);
+			goto bad;
 	if (*cp != '\0')
-		return (0);
+		goto bad;
 	return (1);
+bad:
+	if (debug)
+		printf("Bad dir: ino %d reclen %d namlen %d type %d name %s\n",
+		    dp->d_ino, dp->d_reclen, dp->d_namlen, dp->d_type,
+		    dp->d_name);
+	return (0);
 }
 
 void
