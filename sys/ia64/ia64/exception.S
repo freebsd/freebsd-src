@@ -1329,6 +1329,7 @@ ENTRY(do_syscall, 0)
 	mov	r31=sp			// point at args
 	mov	r20=ar.bsp		// record bsp before the cover
 	;;
+	add	sp=-16,sp		// reserve scratch space
 	cover				// preserve arguments
 	;;
 	mov	r22=cr.ifs		// record user's CFM
@@ -1350,7 +1351,6 @@ ENTRY(do_syscall, 0)
 	;;
 	st8	[r22]=r23
 	;;
-	add	sp=-16,sp		// reserve scratch space
 	alloc	r14=ar.pfs,0,3,3,0
 	mov	r13=ar.k4		// processor globals
 	;;
@@ -1450,14 +1450,20 @@ Lsaveargs:
 	extr.u	r31=sp,0,61		// physical address
 	;;
 	st8	[r31]=r32,8
+	;; 
 	st8	[r31]=r33,8
+	;; 
 	st8	[r31]=r34,8
+	;; 
 	st8	[r31]=r35,8
+	;; 
 	st8	[r31]=r36,8
+	;; 
 	st8	[r31]=r37,8
+	;; 
 	st8	[r31]=r38,8
+	;; 
 	st8	[r31]=r39
-	;;
 	br.ret.sptk.many b0
 
 END(do_syscall)
