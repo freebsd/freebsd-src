@@ -389,7 +389,13 @@ gif_ioctl(ifp, cmd, data)
 		sc->gif_pdst = sa;
 
 		ifp->if_flags |= (IFF_UP|IFF_RUNNING);
-		if_up(ifp);		/* send up RTM_IFINFO */
+		{
+			int s;
+
+			s = splnet();
+			if_up(ifp);		/* send up RTM_IFINFO */
+			splx(s);
+		}
 
 		break;
 
