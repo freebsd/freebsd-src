@@ -9,6 +9,9 @@
 #include <sys/sockio.h>
 #endif
 
+#ifdef _AIX32
+#include <sys/time.h>	/* for struct timeval in net/if.h */
+#endif
 #include <net/if.h>				/* for struct ifreq */
 #include <netinet/in.h>
 #include <arpa/inet.h>			/* inet_ntoa */
@@ -23,23 +26,26 @@
 int debug = 0;
 char *progname;
 
+void
 main(argc, argv)
+	int argc;
 	char **argv;
 {
 	struct hostent *hep;
-	struct sockaddr ea;			/* Ethernet address */
 	struct sockaddr_in *sip;	/* Interface address */
 	struct ifreq *ifr;
 	struct in_addr dst_addr;
 	struct in_addr *dap;
-	int i, s;
+	int s;
 
 	progname = argv[0];			/* for report */
 
 	dap = NULL;
 	if (argc > 1) {
 		dap = &dst_addr;
-		if (inet_aton(argv[1], &dst_addr) == 0) {
+		if (isdigit(argv[1][0]))
+			dst_addr.s_addr = inet_addr(argv[1]);
+		else {
 			hep = gethostbyname(argv[1]);
 			if (!hep) {
 				printf("gethostbyname(%s)\n", argv[1]);

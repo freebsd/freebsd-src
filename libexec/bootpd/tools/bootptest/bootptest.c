@@ -40,10 +40,15 @@ char *usage = "bootptest [-h] server-name [vendor-data-template-file]";
 #include <sys/file.h>
 #include <sys/time.h>
 #include <sys/stat.h>
+#include <sys/utsname.h>
 
 #include <net/if.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>			/* inet_ntoa */
+
+#ifndef	NO_UNISTD
+#include <unistd.h>
+#endif
 
 #include <stdlib.h>
 #include <signal.h>
@@ -57,7 +62,11 @@ char *usage = "bootptest [-h] server-name [vendor-data-template-file]";
 #include "bootp.h"
 #include "bootptest.h"
 #include "getif.h"
+#include "getether.h"
+
 #include "patchlevel.h"
+
+static void send_request();
 
 #define LOG_ERR 1
 #define BUFLEN 1024
@@ -94,9 +103,11 @@ u_char eaddr[16];				/* Ethernet address */
  */
 
 int debug = 1;					/* Debugging flag (level) */
-char hostname[64];
 char *sndbuf;					/* Send packet buffer */
 char *rcvbuf;					/* Receive packet buffer */
+
+struct utsname my_uname;
+char *hostname;
 
 /*
  * Vendor magic cookies for CMU and RFC1048
@@ -114,6 +125,7 @@ extern void bootp_print();
  * the receiver loop is started.  Die when interrupted.
  */
 
+void
 main(argc, argv)
 	int argc;
 	char **argv;
@@ -127,7 +139,7 @@ main(argc, argv)
 	char *bp_file = NULL;
 	int32 server_addr;			/* inet addr, network order */
 	int s;						/* Socket file descriptor */
-	int n, tolen, fromlen, recvcnt;
+	int n, fromlen, recvcnt;
 	int use_hwa = 0;
 	int32 vend_magic;
 	int32 xid;
@@ -148,6 +160,12 @@ main(argc, argv)
 	 * (Catch evil compilers that do struct padding.)
 	 */
 	assert(sizeof(struct bootp) == BP_MINPKTSZ);
+
+	if (uname(&my_uname) < 0) {
+		fprintf(stderr, "%s: can't get hostname\n", argv[0]);
+		exit(1);
+	}
+	hostname = my_uname.nodename;
 
 	sndbuf = malloc(BUFLEN);
 	rcvbuf = malloc(BUFLEN);
@@ -302,7 +320,7 @@ main(argc, argv)
 			printf("No interface for %s\n", servername);
 			exit(1);
 		}
-		if (getether(ifr->ifr_name, eaddr)) {
+		if (getether(ifr->ifr_name, (char*)eaddr)) {
 			printf("Can not get ether addr for %s\n", ifr->ifr_name);
 			exit(1);
 		}
@@ -312,7 +330,6 @@ main(argc, argv)
 		bcopy(eaddr, bp->bp_chaddr, bp->bp_hlen);
 	} else {
 		/* Fill in the client IP address. */
-		gethostname(hostname, sizeof(hostname));
 		hep = gethostbyname(hostname);
 		if (!hep) {
 			printf("Can not get my IP address\n");
@@ -422,6 +439,7 @@ main(argc, argv)
 	exit(1);
 }
 
+static void
 send_request(s)
 	int s;
 {
@@ -451,7 +469,7 @@ printfn(s, ep)
 	register u_char c;
 
 	putchar('"');
-	while (c = *s++) {
+	while ((c = *s++) != '\0') {
 		if (s > ep) {
 			putchar('"');
 			return (1);

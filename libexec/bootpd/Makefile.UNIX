@@ -44,9 +44,7 @@ CFLAGS= $(OPTDEFS) $(SYSDEFS) $(FILEDEFS) $(MOREDEFS)
 PROGS= bootpd bootpef bootpgw bootptest
 TESTS= trylook trygetif trygetea
 
-all: $(PROGS)
-
-tests: $(TESTS)
+all: $(PROGS) $(TESTS)
 
 system: install
 
@@ -76,7 +74,8 @@ distclean:
 	-rm -f *.BAK *.CKP *~ .emacs*
 
 #
-# Handy targets for individual systems:
+# Handy targets for systems needing special treatment:
+# (Most POSIX systems should work with just "make all")
 #
 
 # DEC/OSF1 on the Alpha
@@ -96,9 +95,13 @@ epix211:
 		SYSDEFS="-DSVR4" \
 		SYSLIBS="-lsocket -lnsl"
 
-# Silicon Graphics IRIX  (no <sys/sockio.h>, so not SVR4)
+# IRIX 5.X (Silicon Graphics)
 irix:
-	$(MAKE) SYSDEFS="-DSYSV -DIRIX"
+	$(MAKE) SYSDEFS= SYSLIBS=
+
+# Linux 1.1.80+ on [34]86
+linux:
+	$(MAKE) SYSDEFS="-O6 -Wall -fomit-frame-pointer"
 
 # SunOS 4.X
 sunos4:
@@ -110,9 +113,25 @@ sunos5:
 	$(MAKE) SYSDEFS="-DSVR4 -DETC_ETHERS" \
 		SYSLIBS="-lsocket -lnsl"
 
-# UNIX System V Rel. 4 (also: IRIX 5.X, others)
+# Solaris 2.X (i.e. SunOS 5.X) with GCC.  Note that GCC normally
+# defines __STDC__=1 which breaks many Solaris header files...
+sunos5gcc:
+	$(MAKE) SYSDEFS="-DSVR4 -DETC_ETHERS -D__STDC__=0" \
+		SYSLIBS="-lsocket -lnsl" CC="gcc -Wall"
+
+# UNIX System V Rel. 3
+svr3:
+	$(MAKE) SYSDEFS="-DSYSV"
+
+# UNIX System V Rel. 4
 svr4:
 	$(MAKE) SYSDEFS="-DSVR4" \
+		SYSLIBS="-lsocket -lnsl"
+
+# AT&T/GIS - Both AT&T StarServer and NCR 3000
+# may work for others using Wollongong's WIN-TCP
+wollongong gis :
+	$(MAKE) SYSDEFS="-DSVR4 -DWIN_TCP" \
 		SYSLIBS="-lsocket -lnsl"
 
 #

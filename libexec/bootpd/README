@@ -90,6 +90,7 @@ Pittsburgh, PA  15213
 
 Announce*	Text of release announcements
 Changes  	Change history, reverse chronological
+ConvOldTab.sh	Script to convert old (1.x) bootptab files
 Installation	Instructions for building and installing
 Makefile*	for "make"
 README		This file
@@ -111,6 +112,7 @@ dovend.c	Vendor Option builder (for bootpd, bootpef)
 dovend.h	 header for above
 dumptab.c	Implements debugging dump for bootpd
 getether.c	For bootptest (not used yet)
+getether.h	 header for above
 getif.c		Get network interface info.
 getif.h		 header for above
 hash.c		The hash table module

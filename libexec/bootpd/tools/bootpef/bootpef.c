@@ -20,11 +20,6 @@ ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 SOFTWARE.
 ************************************************************************/
 
-#ifndef lint
-static char rcsid[] = "$Id: bootpef.c,v 1.1.1.1 1994/09/10 14:44:54 csgr Exp $";
-#endif
-
-
 /*
  * bootpef - BOOTP Extension File generator
  *	Makes an "Extension File" for each host entry that
@@ -97,7 +92,6 @@ static char rcsid[] = "$Id: bootpef.c,v 1.1.1.1 1994/09/10 14:44:54 csgr Exp $";
 #define P(args) ()
 #endif
 
-static void dovend_rfc1048 P((struct bootp *, struct host *, int32));
 static void mktagfile P((struct host *));
 static void usage P((void));
 
@@ -291,7 +285,6 @@ mktagfile(hp)
 	FILE *fp;
 	int bytesleft, len;
 	byte *vp;
-	char *tmpstr;
 
 	if (!hp->flags.exten_file)
 		return;
@@ -332,7 +325,7 @@ mktagfile(hp)
 	}
 	fclose(fp);
 
-} /* dovend_rfc1048 */
+} /* mktagfile */
 
 /*
  * Local Variables:

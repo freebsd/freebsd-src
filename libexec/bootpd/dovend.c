@@ -56,7 +56,6 @@ dovend_rfc1497(hp, buf, len)
 {
 	int bytesleft = len;
 	byte *vp = buf;
-	char *tmpstr;
 
 	static char noroom[] = "%s: No room for \"%s\" option";
 #define	NEED(LEN, MSG) do                       \
@@ -220,7 +219,7 @@ dovend_rfc1497(hp, buf, len)
 			 * Not enough room for full (domain-qualified) hostname, try
 			 * stripping it down to just the first field (host).
 			 */
-			tmpstr = hp->hostname->string;
+			char *tmpstr = hp->hostname->string;
 			len = 0;
 			while (*tmpstr && (*tmpstr != '.')) {
 				tmpstr++;
