@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.312 1997/07/02 08:58:58 jkh Exp $
+#	$Id: Makefile,v 1.313 1997/07/09 12:45:17 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -85,10 +85,7 @@ BOOTSTRAPUTILS+= /usr/bin/cpio
 CRUNCH_TARGETS=	boot fixit
 .endif
 
-.if !defined(NOPORTS)
-EXTRAS+= ports.1
-.endif
-EXTRAS+= ftp.1 cdrom.1
+EXTRAS= cdrom.1 ftp.1
 
 .if !defined(NODOC)
 DOCREL= doc.1
@@ -511,20 +508,13 @@ cdrom.1:
 	cp ${.CURDIR}/sysinstall/help/install.hlp ${CD_DISC1}/INSTALL.TXT
 	cp ${.CURDIR}/sysinstall/help/relnotes.hlp ${CD_DISC1}/RELNOTES.TXT
 .if !defined(NOPORTS)
+	tar -cBf - -C /usr ports | tar xBpf - -C ${CD_DISC2} && \
+	  mkdir -p ${CD_DISC1}/ports && \
+	  tar -czf ${CD_DISC1}/ports/ports.tgz -C /usr ports && \
+	  cp ${.CURDIR}/scripts/ports-install.sh ${CD_DISC1}/ports/install.sh && \
+		(cd ${CD_DISC1}/ports; md5 * > CHECKSUM.MD5)
 	ln -s ../ports ${CD_DISC2}/usr/ports
 .endif
-#
-# --==## And finally, create the ports distribution & tarball ##==--
-#
-# NOTE: Both ftp.1 and cdrom.1 must be run before this target or it will die
-#       a quick and gruesome death.  We also expect the release engineer to
-#       manually populate ports/distfiles on the 2nd CDROM.
-
-ports.1:
-	tar -cBf - -C /usr ports | tar xBpf - -C ${CD_DISC2} && \
-		mkdir -p ${CD_DISC1}/ports && tar -czf ${CD_DISC1}/ports/ports.tgz -C /usr ports && \
-		cp ${.CURDIR}/scripts/ports-install.sh ${CD_DISC1}/ports/install.sh && \
-		(cd ${CD_DISC1}/ports; md5 * > CHECKSUM.MD5)
 
 doc.1:
 	cd /usr/doc && make all distribute DISTDIR=${RD}/trees
