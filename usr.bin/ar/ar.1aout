@@ -248,7 +248,7 @@ displays an ``ls -l'' style listing of information about the members of
 the archive.
 This listing consists of eight, white-space separated fields:
 the file permissions (see
-.Xr strmode 3 ),
+.Xr strmode 3 ) ,
 the decimal user and group ID's, separated by a single slash (``/''),
 the file size (in bytes), the file modification time (in the
 .Xr date 1
