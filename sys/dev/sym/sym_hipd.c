@@ -56,7 +56,7 @@
  * SUCH DAMAGE.
  */
 
-#define SYM_DRIVER_NAME	"sym-0.9.0-19991024"
+#define SYM_DRIVER_NAME	"sym-0.10.0-19991111"
 
 #include <pci.h>
 #include <stddef.h>	/* For offsetof */
@@ -137,10 +137,13 @@ typedef	u_int32_t u32;
  *  ensure that accesses from the CPU to the start and done 
  *  queues are not reordered by either the compiler or the 
  *  CPU and uses 'volatile' for this purpose.
- *  -> Only x86 architecture is supported, for now.
  */
 
+#ifdef	__alpha__
+#define MEMORY_BARRIER()	alpha_mb()
+#else /*__i386__*/
 #define MEMORY_BARRIER()	do { ; } while(0)
+#endif
 
 /*
  *  A la VMS/CAM-3 queue management.
@@ -359,14 +362,21 @@ static int sym_debug = 0;
 
 /*
  *  Virtual to bus address translation.
- *  Only x86 supported.
  */
+#ifdef	__alpha__
+#define	vtobus(p)	alpha_XXX_dmamap((vm_offset_t)(p))
+#else /*__i386__*/
 #define vtobus(p)	vtophys(p)
+#endif
 
 /*
  *  Copy from main memory to PCI memory space.
  */
+#ifdef	__alpha__
+#define memcpy_to_pci(d, s, n)	memcpy_toio((u32)(d), (void *)(s), (n))
+#else /*__i386__*/
 #define memcpy_to_pci(d, s, n)	bcopy((s), (void *)(d), (n))
+#endif
 
 /*
  *  Insert a delay in micro-seconds and milli-seconds.
@@ -637,8 +647,6 @@ struct sym_nvram {
  *  If SYMCONF_IOMAPPED is defined, the driver will use 
  *  normal IOs instead of the MEMORY MAPPED IO method  
  *  recommended by PCI specifications.
- *  For now, we only support flat memory model that should 
- *  limited support to x86 architecture.
  */
 
 /*
@@ -652,13 +660,25 @@ struct sym_nvram {
 #define io_write16(p, v) outw((p), cpu_to_scr(v))
 #define io_write32(p, v) outl((p), cpu_to_scr(v))
 
-#define mmio_read8(a)	 scr_to_cpu((*(volatile unsigned char *) (a)))
-#define mmio_read16(a)	 scr_to_cpu((*(volatile unsigned short *) (a)))
-#define mmio_read32(a)	 scr_to_cpu((*(volatile unsigned int *) (a)))
+#ifdef	__alpha__
 
-#define mmio_write8(a, b)  (*(volatile unsigned char *) (a)) = cpu_to_scr(b)
-#define mmio_write16(a, b) (*(volatile unsigned short *) (a)) = cpu_to_scr(b)
-#define mmio_write32(a, b) (*(volatile unsigned int *) (a)) = cpu_to_scr(b)
+#define mmio_read8(a)	     readb(a)
+#define mmio_read16(a)	     readw(a)
+#define mmio_read32(a)	     readl(a)
+#define mmio_write8(a, b)    writeb(a, b)
+#define mmio_write16(a, b)   writew(a, b)
+#define mmio_write32(a, b)   writel(a, b)
+
+#else /*__i386__*/
+
+#define mmio_read8(a)	     scr_to_cpu((*(volatile unsigned char *) (a)))
+#define mmio_read16(a)	     scr_to_cpu((*(volatile unsigned short *) (a)))
+#define mmio_read32(a)	     scr_to_cpu((*(volatile unsigned int *) (a)))
+#define mmio_write8(a, b)   (*(volatile unsigned char *) (a)) = cpu_to_scr(b)
+#define mmio_write16(a, b)  (*(volatile unsigned short *) (a)) = cpu_to_scr(b)
+#define mmio_write32(a, b)  (*(volatile unsigned int *) (a)) = cpu_to_scr(b)
+
+#endif
 
 /*
  *  Normal IO
@@ -672,7 +692,7 @@ struct sym_nvram {
 #define	OUTW_OFF(o, v)	io_write16(np->io_port + sym_offw(o), (v))
 
 #define	INL_OFF(o)	io_read32(np->io_port + (o))
-#define	OUTL_OFF(o, v)	io_write32(np->base_io + (o), (v))
+#define	OUTL_OFF(o, v)	io_write32(np->io_port + (o), (v))
 
 #else	/* Memory mapped IO */
 
@@ -9773,7 +9793,7 @@ sym_pci_attach2(pcici_t pci_tag, int unit)
 #else
 	if ((command & PCI_COMMAND_IO_ENABLE) != 0) {
 		pci_port_t io_port;
-		if (!pci_map_port (pci_tag, SYM_PCI_IO, &io_port))
+		if (!pci_map_port (pci_tag, SYM_PCI_IO, &io_port)) {
 			printf("%s: failed to map IO window\n", sym_name(np));
 			goto attach_failed;
 		}
@@ -9942,7 +9962,7 @@ sym_pci_attach2(pcici_t pci_tag, int unit)
 	np->scripth0->pm0_data_addr[0] = cpu_to_scr(SCRIPT_BA(np,pm0_data));
 	np->scripth0->pm1_data_addr[0] = cpu_to_scr(SCRIPT_BA(np,pm1_data));
 
-#ifdef	SYM_OPT_LED0
+
 	/*
 	 *  Still some for LED support.
 	 */
@@ -9954,7 +9974,7 @@ sym_pci_attach2(pcici_t pci_tag, int unit)
 		np->script0->start[0] =
 				cpu_to_scr(SCR_REG_REG(gpreg, SCR_AND, 0xfe));
 	}
-#endif
+
 	/*
 	 *  Load SCNTL4 on reselection for the C10.
 	 */
@@ -10218,6 +10238,19 @@ int sym_cam_attach(hcb_p np)
 		goto fail;
 	}
 	np->path = path;
+
+	/*
+	 *  Hmmm... This should be useful, but I donnot want to 
+	 *  know about.
+	 */
+#ifdef	__alpha__
+#ifdef	FreeBSD_4_Bus
+	alpha_register_pci_scsi(pci_get_bus(np->device),
+				pci_get_slot(np->device), np->sim);
+#else /*__i386__*/
+	alpha_register_pci_scsi(pci_tag->bus, pci_tag->slot, np->sim);
+#endif
+#endif
 
 #if 0
 	/*

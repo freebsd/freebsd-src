@@ -56,19 +56,22 @@
  * SUCH DAMAGE.
  */
 
-Status: (switched back to EXPERIMENTAL due to some heavy changes)
-   EXPERIMENTAL
+Status:
+   BETA-RELEASE
    This driver is currently developped under the following O/S:
          FreeBSD 4.0 SNAPSHOT July 5th 1999
+         FreeBSD 4.0 current  October 1999
    Starting with version 0.9.0, the driver contains conditionnal code 
    for using pre-4.0 BUS stuff for PCI. I have successfully tested driver 
    version 0.9.0 under:
          FreeBSD 3.2 RELEASE
-   Given that the old bus stuff is still supported under FreeBSD, the driver 
-   should also compile and work just fine under FreeBSD 3.3 RELEASE.
+         FreeBSD 3.3 RELEASE
 
 Latest revision:
-   sym-0.9.0-19991024
+   sym-0.10.0-19991111
+   Files to download:
+      SYM-0.9.0-19991024.tar.gz
+      PATCH-SYM-0.10.0-19991111.tar.gz
 
 Supported SCSI features:
   - Initiator mode
@@ -100,7 +103,7 @@ Others:
 Notes:
 (1) Only supported by the LSI53C1010 and not yet 
     tested due to lack of C1010 based controller.
-(2) Not yet checked. May not work as expected.
+(2) Not yet reported. May not work as expected.
    
 Files:
   README.sym		this file
@@ -125,8 +128,23 @@ Installation:
      If FreeBSD-3, apply the unified patch sym_sys_3.patch
          (patch -p0 <sym_sys_3.patch)
      Otherwise, leave here. ;)
-  5) Add sym0 to your kernel configuration as indicated in patched LINT file.
+  5) Change to /usr/src/sys/pci directory
+  6) Update to SYM-0.10.0-19991111
+     gzip -d <PATCH-SYM-0.10.0-19991111.gz | patch -p0
+  7) Add sym0 to your kernel configuration as indicated in patched LINT file.
      Configure and make your kernel.
+
+As seen from the shell history file (driver material assumed from /tmp), 
+installation should proceed as follow (modulo mistakes from me:)):
+
+cd /tmp
+tar zxvf SYM-0.9.0-19991024.tar.gz
+cp SYM-0.9.0-19991024/* /usr/src/sys/pci
+cd /usr/src/sys
+patch -p0 <pci/sym_sys.patch    # use sym_sys_3.patch if FreeBSD-3.X
+cd pci
+gzip -d </tmp/PATCH-SYM-0.10.0-19991111.gz | patch -p0
+
 
 Warnings:
 - This driver uses LOAD/STORE instructions from SCRIPTS and therefore does 
@@ -139,7 +157,10 @@ Versionning:
 - Incremental diff files are of the following pattern:
             PATCH-SYM-X.Y.Z-YYYYMMDD
   They must be applied from directory: /usr/src/sys/pci/
-- Version 1.0.0 will add support for the C1010 (Ultra-3 DT data transfers)
+- Version 1.0.0 will happen when the driver will be tested enough but this 
+  driver version will probably not officially support the C1010 (Ultra-3) 
+  since the testing hasn't started yet. Some 1.X.0 version will support the 
+  C1010 (DT data transfer). 
 - Version 2.0.0 is not planned for now, but will add support for host target 
   mode if it will ever exist.
 
@@ -183,7 +204,7 @@ Change log:
 * SYM-0.8.0-19991016  (diff file PATCH-SYM-0.8.0-19991016)
   Heavy rewrite/rewamping of the error handling code in order to conform 
   to FreeBSD-CAM expectation of commands having to be requeued and device 
-  queue to be freezed on any kind of error. Driver status switched back 
+  queue to be frozen on any kind of error. Driver status switched back 
   to EXPERIMENTAL due to these changes.
   Warn user about targets that are not flagged for SCAN AT BOOT in the 
   NVRAM, since the driver will not allow the corresponding devices to be 
@@ -197,4 +218,13 @@ Change log:
   Tested under RELENG_3_2_0_RELEASE, but should also be just fine for 3.3.
   Other changes against version 0.8.0 are only minor buglet fixes.
 
-October 24 1999.          "Gerard Roudier"<groudier@club-internet.fr>
+* SYM-0.10.0-19991111  (diff file PATCH-SYM-0.10.0-19991111)
+  Add support for Alpha - UNTESTED. Consists in some minor changes picked 
+  mostly from the ncr driver and some others as ahc_pci.c.
+  Fix the LED support through GPIO0 for pre-896 chips. In fact some code 
+  was wrongly conditionned by something that was never met.
+  Switch driver status to BETA-RELEASE given that this driver has been rock 
+  solid even if s small number of users seems to actually use it.
+
+
+November 11 1999.          "Gerard Roudier"<groudier@club-internet.fr>
