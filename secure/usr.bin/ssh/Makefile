@@ -1,24 +1,15 @@
 # $FreeBSD$
 #
 
-SSHSRC=	${.CURDIR}/../../../crypto/openssh
-
 PROG=	ssh
-BINOWN=	root
 .if defined(ENABLE_SUID_SSH)
 BINMODE=4555
 .endif
-MAN1=	ssh.1
 LINKS=	${BINDIR}/ssh ${BINDIR}/slogin
 MLINKS=	ssh.1 slogin.1
 
-SRCS=	ssh.c log-client.c readconf.c clientloop.c sshconnect.c \
-	sshconnect1.c sshconnect2.c
-
-.include <bsd.own.mk>
-
-.PATH:		${SSHSRC}
-.PATH:		${SSHSRC}/lib
+SRCS=	ssh.c readconf.c clientloop.c sshtty.c \
+	sshconnect.c sshconnect1.c sshconnect2.c
 
 .if defined(MAKE_KERBEROS4) && \
 	((${MAKE_KERBEROS4} == "yes") || (${MAKE_KERBEROS4} == "YES"))
@@ -40,7 +31,9 @@ DPADD+=	 ${LIBKRB5} ${LIBCOM_ERR} ${LIBASN1} ${LIBMD} ${LIBCRYPT}
 CFLAGS+= -DXAUTH_PATH=\"${X11BASE}/bin/xauth\"
 .endif
 
-LDADD+=	-L${.OBJDIR}/../../lib/libssh -lssh -lcrypto -lutil -lz
-DPADD+=	${LIBCRYPTO} ${LIBUTIL} ${LIBZ}
+LDADD+=	${LIBSSH} -lcrypto -lutil -lz
+DPADD+=	${LIBSSH} ${LIBCRYPTO} ${LIBUTIL} ${LIBZ}
 
 .include <bsd.prog.mk>
+
+.PATH:	${SSHDIR}

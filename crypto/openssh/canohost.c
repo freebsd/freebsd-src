@@ -12,12 +12,15 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: canohost.c,v 1.16 2000/10/21 17:04:22 markus Exp $");
+RCSID("$OpenBSD: canohost.c,v 1.26 2001/04/18 14:15:00 markus Exp $");
 RCSID("$FreeBSD$");
 
 #include "packet.h"
 #include "xmalloc.h"
-#include "ssh.h"
+#include "log.h"
+#include "canohost.h"
+
+void	check_ip_options(int socket, char *ipaddr);
 
 /*
  * Return the canonical name of the host at the other end of the socket. The
@@ -25,119 +28,122 @@ RCSID("$FreeBSD$");
  */
 
 char *
-get_remote_hostname(int socket)
+get_remote_hostname(int socket, int reverse_mapping_check)
 {
 	struct sockaddr_storage from;
 	int i;
 	socklen_t fromlen;
 	struct addrinfo hints, *ai, *aitop;
-	char name[MAXHOSTNAMELEN];
-	char ntop[NI_MAXHOST], ntop2[NI_MAXHOST];
+	char name[NI_MAXHOST], ntop[NI_MAXHOST], ntop2[NI_MAXHOST];
 
 	/* Get IP address of client. */
 	fromlen = sizeof(from);
 	memset(&from, 0, sizeof(from));
-	if (getpeername(socket, (struct sockaddr *) & from, &fromlen) < 0) {
+	if (getpeername(socket, (struct sockaddr *) &from, &fromlen) < 0) {
 		debug("getpeername failed: %.100s", strerror(errno));
 		fatal_cleanup();
 	}
+	if (from.ss_family == AF_INET)
+		check_ip_options(socket, ntop);
+
 	if (getnameinfo((struct sockaddr *)&from, fromlen, ntop, sizeof(ntop),
 	     NULL, 0, NI_NUMERICHOST) != 0)
 		fatal("get_remote_hostname: getnameinfo NI_NUMERICHOST failed");
 
+	debug3("Trying to reverse map address %.100s.", ntop);
 	/* Map the IP address to a host name. */
 	if (getnameinfo((struct sockaddr *)&from, fromlen, name, sizeof(name),
-	     NULL, 0, NI_NAMEREQD) == 0) {
-		/* Got host name. */
-		name[sizeof(name) - 1] = '\0';
-		/*
-		 * Convert it to all lowercase (which is expected by the rest
-		 * of this software).
-		 */
-		for (i = 0; name[i]; i++)
-			if (isupper(name[i]))
-				name[i] = tolower(name[i]);
-
-		/*
-		 * Map it back to an IP address and check that the given
-		 * address actually is an address of this host.  This is
-		 * necessary because anyone with access to a name server can
-		 * define arbitrary names for an IP address. Mapping from
-		 * name to IP address can be trusted better (but can still be
-		 * fooled if the intruder has access to the name server of
-		 * the domain).
-		 */
-		memset(&hints, 0, sizeof(hints));
-		hints.ai_family = from.ss_family;
-		hints.ai_socktype = SOCK_STREAM;
-		if (getaddrinfo(name, NULL, &hints, &aitop) != 0) {
-			log("reverse mapping checking getaddrinfo for %.700s failed - POSSIBLE BREAKIN ATTEMPT!", name);
-			strlcpy(name, ntop, sizeof name);
-			goto check_ip_options;
-		}
-		/* Look for the address from the list of addresses. */
-		for (ai = aitop; ai; ai = ai->ai_next) {
-			if (getnameinfo(ai->ai_addr, ai->ai_addrlen, ntop2,
-			    sizeof(ntop2), NULL, 0, NI_NUMERICHOST) == 0 &&
-			    (strcmp(ntop, ntop2) == 0))
-					break;
-		}
-		freeaddrinfo(aitop);
-		/* If we reached the end of the list, the address was not there. */
-		if (!ai) {
-			/* Address not found for the host name. */
-			log("Address %.100s maps to %.600s, but this does not map back to the address - POSSIBLE BREAKIN ATTEMPT!",
-			    ntop, name);
-			strlcpy(name, ntop, sizeof name);
-			goto check_ip_options;
-		}
-		/* Address was found for the host name.  We accept the host name. */
-	} else {
-		/* Host name not found.  Use ascii representation of the address. */
-		strlcpy(name, ntop, sizeof name);
-		log("Could not reverse map address %.100s.", name);
+	     NULL, 0, NI_NAMEREQD) != 0) {
+		/* Host name not found.  Use ip address. */
+		log("Could not reverse map address %.100s.", ntop);
+		return xstrdup(ntop);
 	}
 
-check_ip_options:
-
+	/* Got host name. */
+	name[sizeof(name) - 1] = '\0';
 	/*
-	 * If IP options are supported, make sure there are none (log and
-	 * disconnect them if any are found).  Basically we are worried about
-	 * source routing; it can be used to pretend you are somebody
-	 * (ip-address) you are not. That itself may be "almost acceptable"
-	 * under certain circumstances, but rhosts autentication is useless
-	 * if source routing is accepted. Notice also that if we just dropped
-	 * source routing here, the other side could use IP spoofing to do
-	 * rest of the interaction and could still bypass security.  So we
-	 * exit here if we detect any IP options.
+	 * Convert it to all lowercase (which is expected by the rest
+	 * of this software).
 	 */
-	/* IP options -- IPv4 only */
-	if (from.ss_family == AF_INET) {
-		unsigned char options[200], *ucp;
-		char text[1024], *cp;
-		socklen_t option_size;
-		int ipproto;
-		struct protoent *ip;
+	for (i = 0; name[i]; i++)
+		if (isupper(name[i]))
+			name[i] = tolower(name[i]);
 
-		if ((ip = getprotobyname("ip")) != NULL)
-			ipproto = ip->p_proto;
-		else
-			ipproto = IPPROTO_IP;
-		option_size = sizeof(options);
-		if (getsockopt(socket, ipproto, IP_OPTIONS, (char *) options,
-		    &option_size) >= 0 && option_size != 0) {
-			cp = text;
-			/* Note: "text" buffer must be at least 3x as big as options. */
-			for (ucp = options; option_size > 0; ucp++, option_size--, cp += 3)
-				sprintf(cp, " %2.2x", *ucp);
-			log("Connection from %.100s with IP options:%.800s",
-			    ntop, text);
-			packet_disconnect("Connection from %.100s with IP options:%.800s",
-					  ntop, text);
-		}
+	if (!reverse_mapping_check)
+		return xstrdup(name);
+	/*
+	 * Map it back to an IP address and check that the given
+	 * address actually is an address of this host.  This is
+	 * necessary because anyone with access to a name server can
+	 * define arbitrary names for an IP address. Mapping from
+	 * name to IP address can be trusted better (but can still be
+	 * fooled if the intruder has access to the name server of
+	 * the domain).
+	 */
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = from.ss_family;
+	hints.ai_socktype = SOCK_STREAM;
+	if (getaddrinfo(name, NULL, &hints, &aitop) != 0) {
+		log("reverse mapping checking getaddrinfo for %.700s "
+		    "failed - POSSIBLE BREAKIN ATTEMPT!", name);
+		return xstrdup(ntop);
 	}
-
+	/* Look for the address from the list of addresses. */
+	for (ai = aitop; ai; ai = ai->ai_next) {
+		if (getnameinfo(ai->ai_addr, ai->ai_addrlen, ntop2,
+		    sizeof(ntop2), NULL, 0, NI_NUMERICHOST) == 0 &&
+		    (strcmp(ntop, ntop2) == 0))
+				break;
+	}
+	freeaddrinfo(aitop);
+	/* If we reached the end of the list, the address was not there. */
+	if (!ai) {
+		/* Address not found for the host name. */
+		log("Address %.100s maps to %.600s, but this does not "
+		    "map back to the address - POSSIBLE BREAKIN ATTEMPT!",
+		    ntop, name);
+		return xstrdup(ntop);
+	}
 	return xstrdup(name);
+}
+
+/*
+ * If IP options are supported, make sure there are none (log and
+ * disconnect them if any are found).  Basically we are worried about
+ * source routing; it can be used to pretend you are somebody
+ * (ip-address) you are not. That itself may be "almost acceptable"
+ * under certain circumstances, but rhosts autentication is useless
+ * if source routing is accepted. Notice also that if we just dropped
+ * source routing here, the other side could use IP spoofing to do
+ * rest of the interaction and could still bypass security.  So we
+ * exit here if we detect any IP options.
+ */
+/* IPv4 only */
+void
+check_ip_options(int socket, char *ipaddr)
+{
+	u_char options[200];
+	char text[sizeof(options) * 3 + 1];
+	socklen_t option_size;
+	int i, ipproto;
+	struct protoent *ip;
+
+	if ((ip = getprotobyname("ip")) != NULL)
+		ipproto = ip->p_proto;
+	else
+		ipproto = IPPROTO_IP;
+	option_size = sizeof(options);
+	if (getsockopt(socket, ipproto, IP_OPTIONS, (void *)options,
+	    &option_size) >= 0 && option_size != 0) {
+		text[0] = '\0';
+		for (i = 0; i < option_size; i++)
+			snprintf(text + i*3, sizeof(text) - i*3,
+			    " %2.2x", options[i]);
+		log("Connection from %.100s with IP options:%.800s",
+		    ipaddr, text);
+		packet_disconnect("Connection from %.100s with IP options:%.800s",
+		    ipaddr, text);
+	}
 }
 
 /*
@@ -147,21 +153,85 @@ check_ip_options:
  */
 
 const char *
-get_canonical_hostname()
+get_canonical_hostname(int reverse_mapping_check)
 {
 	static char *canonical_host_name = NULL;
+	static int reverse_mapping_checked = 0;
 
-	/* Check if we have previously retrieved this same name. */
-	if (canonical_host_name != NULL)
-		return canonical_host_name;
+	/* Check if we have previously retrieved name with same option. */
+	if (canonical_host_name != NULL) {
+		if (reverse_mapping_checked != reverse_mapping_check)
+			xfree(canonical_host_name);
+		else
+			return canonical_host_name;
+	}
 
 	/* Get the real hostname if socket; otherwise return UNKNOWN. */
 	if (packet_connection_is_on_socket())
-		canonical_host_name = get_remote_hostname(packet_get_connection_in());
+		canonical_host_name = get_remote_hostname(
+		    packet_get_connection_in(), reverse_mapping_check);
 	else
 		canonical_host_name = xstrdup("UNKNOWN");
 
+	reverse_mapping_checked = reverse_mapping_check;
 	return canonical_host_name;
+}
+
+/*
+ * Returns the remote IP-address of socket as a string.  The returned
+ * string must be freed.
+ */
+char *
+get_socket_address(int socket, int remote, int flags)
+{
+	struct sockaddr_storage addr;
+	socklen_t addrlen;
+	char ntop[NI_MAXHOST];
+
+	/* Get IP address of client. */
+	addrlen = sizeof(addr);
+	memset(&addr, 0, sizeof(addr));
+
+	if (remote) {
+		if (getpeername(socket, (struct sockaddr *)&addr, &addrlen)
+		    < 0) {
+			debug("get_socket_ipaddr: getpeername failed: %.100s",
+			    strerror(errno));
+			return NULL;
+		}
+	} else {
+		if (getsockname(socket, (struct sockaddr *)&addr, &addrlen)
+		    < 0) {
+			debug("get_socket_ipaddr: getsockname failed: %.100s",
+			    strerror(errno));
+			return NULL;
+		}
+	}
+	/* Get the address in ascii. */
+	if (getnameinfo((struct sockaddr *)&addr, addrlen, ntop, sizeof(ntop),
+	     NULL, 0, flags) != 0) {
+		error("get_socket_ipaddr: getnameinfo %d failed", flags);
+		return NULL;
+	}
+	return xstrdup(ntop);
+}
+
+char *
+get_peer_ipaddr(int socket)
+{
+	return get_socket_address(socket, 1, NI_NUMERICHOST);
+}
+
+char *
+get_local_ipaddr(int socket)
+{
+	return get_socket_address(socket, 0, NI_NUMERICHOST);
+}
+
+char *
+get_local_name(int socket)
+{
+	return get_socket_address(socket, 0, NI_NAMEREQD);
 }
 
 /*
@@ -173,68 +243,31 @@ const char *
 get_remote_ipaddr()
 {
 	static char *canonical_host_ip = NULL;
-	struct sockaddr_storage from;
-	socklen_t fromlen;
-	int socket;
-	char ntop[NI_MAXHOST];
 
-	/* Check whether we have chached the name. */
-	if (canonical_host_ip != NULL)
-		return canonical_host_ip;
-
-	/* If not a socket, return UNKNOWN. */
-	if (!packet_connection_is_on_socket()) {
-		canonical_host_ip = xstrdup("UNKNOWN");
-		return canonical_host_ip;
+	/* Check whether we have cached the ipaddr. */
+	if (canonical_host_ip == NULL) {
+		if (packet_connection_is_on_socket()) {
+			canonical_host_ip =
+			    get_peer_ipaddr(packet_get_connection_in());
+			if (canonical_host_ip == NULL)
+				fatal_cleanup();
+		} else {
+			/* If not on socket, return UNKNOWN. */
+			canonical_host_ip = xstrdup("UNKNOWN");
+		}
 	}
-	/* Get client socket. */
-	socket = packet_get_connection_in();
-
-	/* Get IP address of client. */
-	fromlen = sizeof(from);
-	memset(&from, 0, sizeof(from));
-	if (getpeername(socket, (struct sockaddr *) & from, &fromlen) < 0) {
-		debug("getpeername failed: %.100s", strerror(errno));
-		fatal_cleanup();
-	}
-	/* Get the IP address in ascii. */
-	if (getnameinfo((struct sockaddr *)&from, fromlen, ntop, sizeof(ntop),
-	     NULL, 0, NI_NUMERICHOST) != 0)
-		fatal("get_remote_ipaddr: getnameinfo NI_NUMERICHOST failed");
-
-	canonical_host_ip = xstrdup(ntop);
-
-	/* Return ip address string. */
 	return canonical_host_ip;
 }
 
-/*
- * Returns the IP-address of the local host as a string.  The returned
- * string must be freed.
- */
-
 const char *
-get_ipaddr(int socket)
+get_remote_name_or_ip(u_int utmp_len, int reverse_mapping_check)
 {
-	static char *canonical_host_ip = NULL;
-	struct sockaddr_storage from;
-	socklen_t fromlen;
-	char ntop[NI_MAXHOST];
-
-	/* Get IP address of server. */
-	fromlen = sizeof(from);
-	memset(&from, 0, sizeof(from));
-	if (getsockname(socket, (struct sockaddr *)&from, &fromlen) < 0) {
-		debug("getsockname failed: %.100s", strerror(errno));
-		fatal_cleanup();
-	}
-	/* Get the IP address in ascii. */
-	if (getnameinfo((struct sockaddr *)&from, fromlen, ntop, sizeof(ntop),
-	     NULL, 0, NI_NUMERICHOST) != 0)
-		fatal("get_local_ipaddr: getnameinfo NI_NUMERICHOST failed");
-
-	/* Return ip address string. */
-	return xstrdup(ntop);
+	static const char *remote = "";
+	if (utmp_len > 0)
+		remote = get_canonical_hostname(reverse_mapping_check);
+	if (utmp_len == 0 || strlen(remote) > utmp_len)
+		remote = get_remote_ipaddr();
+	return remote;
 }
 
 /* Returns the local/remote port for the socket. */

@@ -8,11 +8,12 @@
 #include "includes.h"
 #ifdef USE_PAM
 
+#include "auth.h"
 #include <pwd.h> /* For struct passwd */
 
 void start_pam(struct passwd *pw);
 void finish_pam(void);
-int auth_pam_password(struct passwd *pw, const char *password);
+int auth_pam_password(Authctxt *authctxt, const char *password);
 char **fetch_pam_environment(void);
 int do_pam_account(char *username, char *remote_user);
 void do_pam_session(char *username, const char *ttyname);

@@ -10,11 +10,35 @@
  * incompatible with the protocol description in the RFC file, it must be
  * called by a name other than "ssh" or "Secure Shell".
  */
+/*
+ * Copyright (c) 2000 Markus Friedl.  All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
 
 #include "includes.h"
-RCSID("$OpenBSD: match.c,v 1.9 2000/09/07 20:27:52 deraadt Exp $");
+RCSID("$OpenBSD: match.c,v 1.12 2001/03/10 17:51:04 markus Exp $");
 
-#include "ssh.h"
+#include "match.h"
+#include "xmalloc.h"
 
 /*
  * Returns true if the given string matches the pattern (which may contain ?
@@ -87,12 +111,12 @@ match_pattern(const char *s, const char *pattern)
  */
 
 int
-match_hostname(const char *host, const char *pattern, unsigned int len)
+match_hostname(const char *host, const char *pattern, u_int len)
 {
 	char sub[1024];
 	int negated;
 	int got_positive;
-	unsigned int i, subi;
+	u_int i, subi;
 
 	got_positive = 0;
 	for (i = 0; i < len;) {
@@ -136,4 +160,47 @@ match_hostname(const char *host, const char *pattern, unsigned int len)
 	 * match, we have already returned -1 and never get here.
 	 */
 	return got_positive;
+}
+
+
+#define	MAX_PROP	20
+#define	SEP	","
+char *
+match_list(const char *client, const char *server, u_int *next)
+{
+	char *sproposals[MAX_PROP];
+	char *c, *s, *p, *ret, *cp, *sp;
+	int i, j, nproposals;
+
+	c = cp = xstrdup(client);
+	s = sp = xstrdup(server);
+
+	for ((p = strsep(&sp, SEP)), i=0; p && *p != '\0';
+	     (p = strsep(&sp, SEP)), i++) {
+		if (i < MAX_PROP)
+			sproposals[i] = p;
+		else
+			break;
+	}
+	nproposals = i;
+
+	for ((p = strsep(&cp, SEP)), i=0; p && *p != '\0';
+	     (p = strsep(&cp, SEP)), i++) {
+		for (j = 0; j < nproposals; j++) {
+			if (strcmp(p, sproposals[j]) == 0) {
+				ret = xstrdup(p);
+				if (next != NULL)
+					*next = (cp == NULL) ?
+					    strlen(c) : cp - c;
+				xfree(c);
+				xfree(s);
+				return ret;
+			}
+		}
+	}
+	if (next != NULL)
+		*next = strlen(c);
+	xfree(c);
+	xfree(s);
+	return NULL;
 }

@@ -35,11 +35,12 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: cipher.c,v 1.37 2000/10/23 19:31:54 markus Exp $");
+RCSID("$OpenBSD: cipher.c,v 1.43 2001/02/04 15:32:23 stevesk Exp $");
 RCSID("$FreeBSD$");
 
-#include "ssh.h"
 #include "xmalloc.h"
+#include "log.h"
+#include "cipher.h"
 
 #include <openssl/md5.h>
 
@@ -155,14 +156,9 @@ des3_ssh1_encrypt(CipherContext *cc, u_char *dest, const u_char *src,
 
 	memcpy(&iv1, iv2, 8);
 
-	des_cbc_encrypt(src, dest, len, cc->u.des3.key1, &iv1, DES_ENCRYPT);
-	memcpy(&iv1, dest + len - 8, 8);
-
-	des_cbc_encrypt(dest, dest, len, cc->u.des3.key2, iv2, DES_DECRYPT);
-	memcpy(iv2, &iv1, 8);	/* Note how iv1 == iv2 on entry and exit. */
-
-	des_cbc_encrypt(dest, dest, len, cc->u.des3.key3, iv3, DES_ENCRYPT);
-	memcpy(iv3, dest + len - 8, 8);
+	des_ncbc_encrypt(src,  dest, len, cc->u.des3.key1, &iv1, DES_ENCRYPT);
+	des_ncbc_encrypt(dest, dest, len, cc->u.des3.key2, iv2, DES_DECRYPT);
+	des_ncbc_encrypt(dest, dest, len, cc->u.des3.key3, iv3, DES_ENCRYPT);
 }
 void
 des3_ssh1_decrypt(CipherContext *cc, u_char *dest, const u_char *src,
@@ -174,22 +170,16 @@ des3_ssh1_decrypt(CipherContext *cc, u_char *dest, const u_char *src,
 
 	memcpy(&iv1, iv2, 8);
 
-	des_cbc_encrypt(src, dest, len, cc->u.des3.key3, iv3, DES_DECRYPT);
-	memcpy(iv3, src + len - 8, 8);
-
-	des_cbc_encrypt(dest, dest, len, cc->u.des3.key2, iv2, DES_ENCRYPT);
-	memcpy(iv2, dest + len - 8, 8);
-
-	des_cbc_encrypt(dest, dest, len, cc->u.des3.key1, &iv1, DES_DECRYPT);
-	/* memcpy(&iv1, iv2, 8); */
-	/* Note how iv1 == iv2 on entry and exit. */
+	des_ncbc_encrypt(src,  dest, len, cc->u.des3.key3, iv3, DES_DECRYPT);
+	des_ncbc_encrypt(dest, dest, len, cc->u.des3.key2, iv2, DES_ENCRYPT);
+	des_ncbc_encrypt(dest, dest, len, cc->u.des3.key1, &iv1, DES_DECRYPT);
 }
 
 /* Blowfish */
 void
 blowfish_setkey(CipherContext *cc, const u_char *key, u_int keylen)
 {
-	BF_set_key(&cc->u.bf.key, keylen, (unsigned char *)key);
+	BF_set_key(&cc->u.bf.key, keylen, (u_char *)key);
 }
 void
 blowfish_setiv(CipherContext *cc, const u_char *iv, u_int ivlen)
@@ -219,7 +209,7 @@ blowfish_cbc_decrypt(CipherContext *cc, u_char *dest, const u_char *src,
  * and after encryption/decryption. Thus the swap_bytes stuff (yuk).
  */
 static void
-swap_bytes(const unsigned char *src, unsigned char *dst, int n)
+swap_bytes(const u_char *src, u_char *dst, int n)
 {
 	char c[4];
 
@@ -272,12 +262,12 @@ arcfour_crypt(CipherContext *cc, u_char *dest, const u_char *src, u_int len)
 void
 cast_setkey(CipherContext *cc, const u_char *key, u_int keylen)
 {
-	CAST_set_key(&cc->u.cast.key, keylen, (unsigned char *) key);
+	CAST_set_key(&cc->u.cast.key, keylen, (u_char *) key);
 }
 void
 cast_setiv(CipherContext *cc, const u_char *iv, u_int ivlen)
 {
-	if (iv == NULL) 
+	if (iv == NULL)
 		fatal("no IV for %s.", cc->cipher->name);
 	memcpy(cc->u.cast.iv, (char *)iv, 8);
 }
@@ -306,7 +296,7 @@ rijndael_setkey(CipherContext *cc, const u_char *key, u_int keylen)
 void
 rijndael_setiv(CipherContext *cc, const u_char *iv, u_int ivlen)
 {
-	if (iv == NULL) 
+	if (iv == NULL)
 		fatal("no IV for %s.", cc->cipher->name);
 	memcpy((u_char *)cc->u.rijndael.iv, iv, RIJNDAEL_BLOCKSIZE);
 }
@@ -426,15 +416,15 @@ Cipher ciphers[] = {
 		SSH_CIPHER_SSH2, 16, 32,
 		rijndael_setkey, rijndael_setiv,
 		rijndael_cbc_encrypt, rijndael_cbc_decrypt },
-        { NULL, SSH_CIPHER_ILLEGAL, 0, 0, NULL, NULL, NULL, NULL }
+	{ NULL, SSH_CIPHER_ILLEGAL, 0, 0, NULL, NULL, NULL, NULL }
 };
 
 /*--*/
 
-unsigned int
+u_int
 cipher_mask_ssh1(int client)
 {
-	unsigned int mask = 0;
+	u_int mask = 0;
 	mask |= 1 << SSH_CIPHER_3DES;           /* Mandatory */
 	mask |= 1 << SSH_CIPHER_BLOWFISH;
 	if (client) {
@@ -553,7 +543,7 @@ cipher_set_key_string(CipherContext *cc, Cipher *cipher,
     const char *passphrase)
 {
 	MD5_CTX md;
-	unsigned char digest[16];
+	u_char digest[16];
 
 	MD5_Init(&md);
 	MD5_Update(&md, (const u_char *)passphrase, strlen(passphrase));

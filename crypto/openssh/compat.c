@@ -24,13 +24,14 @@
 
 #include "includes.h"
 RCSID("$FreeBSD$");
-RCSID("$OpenBSD: compat.c,v 1.27 2000/10/31 09:31:58 markus Exp $");
+RCSID("$OpenBSD: compat.c,v 1.47 2001/04/18 23:43:25 markus Exp $");
 
-#include "ssh.h"
+#include <regex.h>
+
 #include "packet.h"
 #include "xmalloc.h"
 #include "compat.h"
-#include <regex.h>
+#include "log.h"
 
 int compat13 = 0;
 int compat20 = 0;
@@ -59,22 +60,55 @@ compat_datafellows(const char *version)
 		char	*pat;
 		int	bugs;
 	} check[] = {
-		{ "^OpenSSH[-_]2\\.3",	0 },
-		{ "^OpenSSH[-_]2\\.[012]",	SSH_OLD_SESSIONID },
+		{ "^OpenSSH[-_]2\\.[012]",
+					SSH_OLD_SESSIONID|SSH_BUG_BANNER|
+					SSH_OLD_DHGEX|SSH_BUG_NOREKEY },
+		{ "^OpenSSH_2\\.3\\.0", SSH_BUG_BANNER|SSH_BUG_BIGENDIANAES|
+					SSH_OLD_DHGEX|SSH_BUG_NOREKEY},
+		{ "^OpenSSH_2\\.3\\.",  SSH_BUG_BIGENDIANAES|SSH_OLD_DHGEX|
+					SSH_BUG_NOREKEY},
+		{ "^OpenSSH_2\\.5\\.[01]p1",
+					SSH_BUG_BIGENDIANAES|SSH_OLD_DHGEX|
+					SSH_BUG_NOREKEY },
+		{ "^OpenSSH_2\\.5\\.[012]",
+					SSH_OLD_DHGEX|SSH_BUG_NOREKEY },
+		{ "^OpenSSH_2\\.5\\.3",
+					SSH_BUG_NOREKEY },
+		{ "^OpenSSH",		0 },
 		{ "MindTerm",		0 },
-		{ "^2\\.1\\.0 ",	SSH_BUG_SIGBLOB|SSH_BUG_HMAC|
-					SSH_OLD_SESSIONID },
+		{ "^2\\.1\\.0",		SSH_BUG_SIGBLOB|SSH_BUG_HMAC|
+					SSH_OLD_SESSIONID|SSH_BUG_DEBUG|
+					SSH_BUG_RSASIGMD5|SSH_BUG_HBSERVICE },
+		{ "^2\\.1 ",		SSH_BUG_SIGBLOB|SSH_BUG_HMAC|
+					SSH_OLD_SESSIONID|SSH_BUG_DEBUG|
+					SSH_BUG_RSASIGMD5|SSH_BUG_HBSERVICE },
+		{ "^2\\.0\\.1[3-9]",	SSH_BUG_SIGBLOB|SSH_BUG_HMAC|
+					SSH_OLD_SESSIONID|SSH_BUG_DEBUG|
+					SSH_BUG_PKSERVICE|SSH_BUG_X11FWD|
+					SSH_BUG_PKOK|SSH_BUG_RSASIGMD5|
+					SSH_BUG_HBSERVICE },
 		{ "^2\\.0\\.",		SSH_BUG_SIGBLOB|SSH_BUG_HMAC|
-					SSH_OLD_SESSIONID|
-					SSH_BUG_PUBKEYAUTH|SSH_BUG_X11FWD },
-		{ "^2\\.[23]\\.0 ",	SSH_BUG_HMAC},
+					SSH_OLD_SESSIONID|SSH_BUG_DEBUG|
+					SSH_BUG_PKSERVICE|SSH_BUG_X11FWD|
+					SSH_BUG_PKAUTH|SSH_BUG_PKOK|
+					SSH_BUG_RSASIGMD5 },
+		{ "^2\\.[23]\\.0",	SSH_BUG_HMAC|SSH_BUG_RSASIGMD5 },
+		{ "^2\\.3\\.",		SSH_BUG_RSASIGMD5 },
 		{ "^2\\.[2-9]\\.",	0 },
-		{ "^2\\.4$",		SSH_OLD_SESSIONID}, /* Van Dyke */
-		{ "^3\\.0 SecureCRT",	SSH_OLD_SESSIONID},
-		{ "^1\\.7 SecureFX",	SSH_OLD_SESSIONID},
-		{ "^1\\.2\\.1[89]",	SSH_BUG_IGNOREMSG},
-		{ "^1\\.2\\.2[012]",	SSH_BUG_IGNOREMSG},
-		{ "^2\\.",		SSH_BUG_HMAC},	/* XXX fallback */
+		{ "^2\\.4$",		SSH_OLD_SESSIONID },	/* Van Dyke */
+		{ "^3\\.0 SecureCRT",	SSH_OLD_SESSIONID },
+		{ "^1\\.7 SecureFX",	SSH_OLD_SESSIONID },
+		{ "^1\\.2\\.1[89]",	SSH_BUG_IGNOREMSG },
+		{ "^1\\.2\\.2[012]",	SSH_BUG_IGNOREMSG },
+		{ "^1\\.3\\.2",		SSH_BUG_IGNOREMSG },	/* f-secure */
+		{ "^SSH Compatible Server",			/* Netscreen */
+					SSH_BUG_PASSWORDPAD },
+		{ "^OSU_0",		SSH_BUG_PASSWORDPAD },
+		{ "^OSU_1\\.[0-4]",	SSH_BUG_PASSWORDPAD },
+		{ "^OSU_1\\.5alpha[1-3]",
+					SSH_BUG_PASSWORDPAD },
+		{ "^SSH_Version_Mapper",
+					SSH_BUG_SCANNER },
 		{ NULL,			0 }
 	};
 	/* process table, return first match */
@@ -89,7 +123,7 @@ compat_datafellows(const char *version)
 		ret = regexec(&reg, version, 0, NULL, 0);
 		regfree(&reg);
 		if (ret == 0) {
-			debug("match: %s pat %s\n", version, check[i].pat);
+			debug("match: %s pat %s", version, check[i].pat);
 			datafellows = check[i].bugs;
 			return;
 		}
@@ -124,4 +158,34 @@ proto_spec(const char *spec)
 	}
 	xfree(s);
 	return ret;
+}
+
+char *
+compat_cipher_proposal(char *cipher_prop)
+{
+	char *orig_prop, *fix_ciphers;
+	char *cp, *tmp;
+	size_t len;
+
+	if (!(datafellows & SSH_BUG_BIGENDIANAES))
+		return(cipher_prop);
+
+	len = strlen(cipher_prop) + 1;
+	fix_ciphers = xmalloc(len);
+	*fix_ciphers = '\0';
+	tmp = orig_prop = xstrdup(cipher_prop);
+	while((cp = strsep(&tmp, ",")) != NULL) {
+		if (strncmp(cp, "aes", 3) && strncmp(cp, "rijndael", 8)) {
+			if (*fix_ciphers)
+				strlcat(fix_ciphers, ",", len);
+			strlcat(fix_ciphers, cp, len);
+		}
+	}
+	xfree(orig_prop);
+	debug2("Original cipher proposal: %s", cipher_prop);
+	debug2("Compat cipher proposal: %s", fix_ciphers);
+	if (!*fix_ciphers)
+		fatal("No available ciphers found.");
+
+	return(fix_ciphers);
 }

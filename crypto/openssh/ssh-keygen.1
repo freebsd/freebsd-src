@@ -1,3 +1,5 @@
+.\"	$OpenBSD: ssh-keygen.1,v 1.40 2001/04/23 21:57:07 markus Exp $
+.\"
 .\"  -*- nroff -*-
 .\"
 .\" Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -11,9 +13,9 @@
 .\" called by a name other than "ssh" or "Secure Shell".
 .\"
 .\"
-.\" Copyright (c) 1999,2000 Markus Friedl. All rights reserved.
-.\" Copyright (c) 1999 Aaron Campbell. All rights reserved.
-.\" Copyright (c) 1999 Theo de Raadt. All rights reserved.
+.\" Copyright (c) 1999,2000 Markus Friedl.  All rights reserved.
+.\" Copyright (c) 1999 Aaron Campbell.  All rights reserved.
+.\" Copyright (c) 1999 Theo de Raadt.  All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -40,11 +42,12 @@
 .Os
 .Sh NAME
 .Nm ssh-keygen
-.Nd authentication key generation
+.Nd authentication key generation, management and conversion
 .Sh SYNOPSIS
 .Nm ssh-keygen
-.Op Fl dq
+.Op Fl q
 .Op Fl b Ar bits
+.Op Fl t Ar type
 .Op Fl N Ar new_passphrase
 .Op Fl C Ar comment
 .Op Fl f Ar output_keyfile
@@ -54,10 +57,10 @@
 .Op Fl N Ar new_passphrase
 .Op Fl f Ar keyfile
 .Nm ssh-keygen
-.Fl x
+.Fl i
 .Op Fl f Ar input_keyfile
 .Nm ssh-keygen
-.Fl X
+.Fl e
 .Op Fl f Ar input_keyfile
 .Nm ssh-keygen
 .Fl y
@@ -71,23 +74,25 @@
 .Fl l
 .Op Fl f Ar input_keyfile
 .Nm ssh-keygen
-.Fl R
+.Fl B
+.Op Fl f Ar input_keyfile
 .Sh DESCRIPTION
 .Nm
-generates and manages authentication keys for
+generates, manages and converts authentication keys for
 .Xr ssh 1 .
 .Nm
-defaults to generating an RSA key for use by protocols 1.3 and 1.5;
+defaults to generating a RSA1 key for use by SSH protocol version 1.
 specifying the
-.Fl d
-flag will create a DSA key instead for use by protocol 2.0.
+.Fl t
+option allows you to create a key for use by SSH protocol version 2.
 .Pp
 Normally each user wishing to use SSH
 with RSA or DSA authentication runs this once to create the authentication
 key in
-.Pa $HOME/.ssh/identity
+.Pa $HOME/.ssh/identity ,
+.Pa $HOME/.ssh/id_dsa
 or
-.Pa $HOME/.ssh/id_dsa .
+.Pa $HOME/.ssh/id_rsa .
 Additionally, the system administrator may use this to generate host keys,
 as seen in
 .Pa /etc/rc .
@@ -99,7 +104,7 @@ The public key is stored in a file with the same name but
 appended.
 The program also asks for a passphrase.
 The passphrase may be empty to indicate no passphrase
-(host keys must have empty passphrase), or it may be a string of
+(host keys must have an empty passphrase), or it may be a string of
 arbitrary length.
 Good passphrases are 10-30 characters long and are
 not simple sentences or otherwise easily guessable (English
@@ -114,7 +119,8 @@ If the passphrase is
 lost or forgotten, you will have to generate a new key and copy the
 corresponding public key to other machines.
 .Pp
-For RSA, there is also a comment field in the key file that is only for
+For RSA1 keys,
+there is also a comment field in the key file that is only for
 convenience to the user to help identify the key.
 The comment can tell what the key is for, or whatever is useful.
 The comment is initialized to
@@ -138,8 +144,24 @@ The default is 1024 bits.
 Requests changing the comment in the private and public key files.
 The program will prompt for the file containing the private keys, for
 passphrase if the key has one, and for the new comment.
+.It Fl e
+This option will read a private or public OpenSSH key file and
+print the key in a
+.Sq SECSH Public Key File Format
+to stdout.
+This option allows exporting keys for use by several commercial
+SSH implementations.
 .It Fl f
 Specifies the filename of the key file.
+.It Fl i
+This option will read an unencrypted private (or public) key file
+in SSH2-compatible format and print an OpenSSH compatible private
+(or public) key to stdout.
+.Nm
+also reads the
+.Sq SECSH Public Key File Format .
+This option allows importing keys from several commercial
+SSH implementations.
 .It Fl l
 Show fingerprint of specified private or public key file.
 .It Fl p
@@ -154,31 +176,33 @@ Silence
 Used by
 .Pa /etc/rc
 when creating a new key.
+.It Fl y
+This option will read a private
+OpenSSH format file and print an OpenSSH public key to stdout.
+.It Fl t Ar type
+Specifies the type of the key to create.
+The possible values are
+.Dq rsa1
+for protocol version 1 and
+.Dq rsa
+or
+.Dq dsa
+for protocol version 2.
+The default is
+.Dq rsa1 .
+.It Fl B
+Show the bubblebabble digest of specified private or public key file.
 .It Fl C Ar comment
 Provides the new comment.
 .It Fl N Ar new_passphrase
 Provides the new passphrase.
 .It Fl P Ar passphrase
 Provides the (old) passphrase.
-.It Fl R
-If RSA support is functional, immediately exits with code 0.  If RSA
-support is not functional, exits with code 1.  This flag will be
-removed once the RSA patent expires.
-.It Fl x
-This option will read a private
-OpenSSH DSA format file and print a SSH2-compatible public key to stdout.
-.It Fl X
-This option will read a unencrypted
-SSH2-compatible private (or public) key file and
-print an OpenSSH compatible private (or public) key to stdout.
-.It Fl y
-This option will read a private
-OpenSSH DSA format file and print an OpenSSH DSA public key to stdout.
 .El
 .Sh FILES
 .Bl -tag -width Ds
 .It Pa $HOME/.ssh/identity
-Contains the RSA authentication identity of the user.
+Contains the protocol version 1 RSA authentication identity of the user.
 This file should not be readable by anyone but the user.
 It is possible to
 specify a passphrase when generating the key; that passphrase will be
@@ -189,14 +213,14 @@ but it is offered as the default file for the private key.
 .Xr sshd 8
 will read this file when a login attempt is made.
 .It Pa $HOME/.ssh/identity.pub
-Contains the public key for authentication.
+Contains the protocol version 1 RSA public key for authentication.
 The contents of this file should be added to
 .Pa $HOME/.ssh/authorized_keys
 on all machines
 where you wish to log in using RSA authentication.
 There is no need to keep the contents of this file secret.
 .It Pa $HOME/.ssh/id_dsa
-Contains the DSA authentication identity of the user.
+Contains the protocol version 2 DSA authentication identity of the user.
 This file should not be readable by anyone but the user.
 It is possible to
 specify a passphrase when generating the key; that passphrase will be
@@ -207,42 +231,50 @@ but it is offered as the default file for the private key.
 .Xr sshd 8
 will read this file when a login attempt is made.
 .It Pa $HOME/.ssh/id_dsa.pub
-Contains the public key for authentication.
+Contains the protocol version 2 DSA public key for authentication.
 The contents of this file should be added to
 .Pa $HOME/.ssh/authorized_keys2
 on all machines
-where you wish to log in using DSA authentication.
+where you wish to log in using public key authentication.
+There is no need to keep the contents of this file secret.
+.It Pa $HOME/.ssh/id_rsa
+Contains the protocol version 2 RSA authentication identity of the user.
+This file should not be readable by anyone but the user.
+It is possible to
+specify a passphrase when generating the key; that passphrase will be
+used to encrypt the private part of this file using 3DES.
+This file is not automatically accessed by
+.Nm
+but it is offered as the default file for the private key.
+.Xr sshd 8
+will read this file when a login attempt is made.
+.It Pa $HOME/.ssh/id_rsa.pub
+Contains the protocol version 2 RSA public key for authentication.
+The contents of this file should be added to
+.Pa $HOME/.ssh/authorized_keys2
+on all machines
+where you wish to log in using public key authentication.
 There is no need to keep the contents of this file secret.
 .El
-.Sh AUTHOR
-Tatu Ylonen <ylo@cs.hut.fi>
-.Pp
-OpenSSH
-is a derivative of the original (free) ssh 1.2.12 release, but with bugs
-removed and newer features re-added.
-Rapidly after the 1.2.12 release,
-newer versions bore successively more restrictive licenses.
-This version of OpenSSH
-.Bl -bullet
-.It
-has all components of a restrictive nature (i.e., patents, see
-.Xr ssl 8 )
-directly removed from the source code; any licensed or patented components
-are chosen from
-external libraries.
-.It
-has been updated to support ssh protocol 1.5.
-.It
-contains added support for
-.Xr kerberos 8
-authentication and ticket passing.
-.It
-supports one-time password authentication with
-.Xr skey 1 .
-.El
+.Sh AUTHORS
+OpenSSH is a derivative of the original and free
+ssh 1.2.12 release by Tatu Ylonen.
+Aaron Campbell, Bob Beck, Markus Friedl, Niels Provos,
+Theo de Raadt and Dug Song
+removed many bugs, re-added newer features and
+created OpenSSH.
+Markus Friedl contributed the support for SSH
+protocol versions 1.5 and 2.0.
 .Sh SEE ALSO
 .Xr ssh 1 ,
 .Xr ssh-add 1 ,
 .Xr ssh-agent 1 ,
-.Xr sshd 8 ,
-.Xr ssl 8
+.Xr sshd 8
+.Rs
+.%A J. Galbraith
+.%A R. Thayer
+.%T "SECSH Public Key File Format"
+.%N draft-ietf-secsh-publickeyfile-01.txt
+.%D March 2001
+.%O work in progress material
+.Re

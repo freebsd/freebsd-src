@@ -1,3 +1,5 @@
+/*	$OpenBSD: includes.h,v 1.14 2001/01/29 01:58:16 niklas Exp $	*/
+
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
