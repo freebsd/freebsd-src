@@ -36,7 +36,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 16, 1999
+.Dd August 19, 2004
 .Dt UMODEM 4
 .Os
 .Sh NAME
@@ -62,6 +62,19 @@ The device is accessed through the
 .Xr ucom 4
 driver which makes it behave like a
 .Xr tty 4 .
+.Sh HARDWARE
+Devices supported by the
+.Nm
+driver include:
+.Pp
+.Bl -bullet -compact
+.It
+3Com 5605
+.It
+Metricom Ricochet GS USB wireless modem
+.It
+Yamaha Broadband Wireless Router RTW65b
+.El
 .Sh SEE ALSO
 .Xr tty 4 ,
 .Xr ucom 4 ,
