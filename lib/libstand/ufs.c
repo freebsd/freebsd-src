@@ -82,6 +82,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 static int	ufs_open(const char *path, struct open_file *f);
+static int	ufs_write(struct open_file *f, void *buf, size_t size, size_t *resid);
 static int	ufs_close(struct open_file *f);
 static int	ufs_read(struct open_file *f, void *buf, size_t size, size_t *resid);
 static off_t	ufs_seek(struct open_file *f, off_t offset, int where);
@@ -93,7 +94,7 @@ struct fs_ops ufs_fsops = {
 	ufs_open,
 	ufs_close,
 	ufs_read,
-	null_write,
+	ufs_write,
 	ufs_seek,
 	ufs_stat,
 	ufs_readdir
@@ -122,6 +123,7 @@ struct file {
 static int	read_inode(ino_t, struct open_file *);
 static int	block_map(struct open_file *, daddr_t, daddr_t *);
 static int	buf_read_file(struct open_file *, char **, size_t *);
+static int	buf_write_file(struct open_file *, char *, size_t *);
 static int	search_directory(char *, struct open_file *, ino_t *);
 #ifdef COMPAT_UFS
 static void	ffs_oldfscompat(struct fs *);
@@ -288,6 +290,82 @@ block_map(f, file_block, disk_block_p)
 }
 
 /*
+ * Write a portion of a file from an internal buffer.
+ */
+static int
+buf_write_file(f, buf_p, size_p)
+	struct open_file *f;
+	char *buf_p;
+	size_t *size_p;		/* out */
+{
+	register struct file *fp = (struct file *)f->f_fsdata;
+	register struct fs *fs = fp->f_fs;
+	long off;
+	register daddr_t file_block;
+	daddr_t	disk_block;
+	size_t block_size;
+	int rc;
+
+	/*
+	 * Calculate the starting block address and offset.
+	 */
+	off = blkoff(fs, fp->f_seekp);
+	file_block = lblkno(fs, fp->f_seekp);
+	block_size = dblksize(fs, &fp->f_di, file_block);
+
+	rc = block_map(f, file_block, &disk_block);
+	if (rc)
+		return (rc);
+
+ 	if (disk_block == 0)
+		return (EFBIG); /* Because we can't allocate space on the drive */
+
+	/*
+	 * Truncate buffer at end of file, and at the end of
+	 * this block.
+	 */
+	if (*size_p > fp->f_di.di_size - fp->f_seekp)
+		*size_p = fp->f_di.di_size - fp->f_seekp;
+	if (*size_p > block_size - off) 
+		*size_p = block_size - off;
+
+	/*
+	 * If we don't entirely occlude the block and it's not
+	 * in memory already, read it in first.
+	 */
+	if (((off > 0) || (*size_p + off < block_size)) &&
+	    (file_block != fp->f_buf_blkno)) {
+
+		if (fp->f_buf == (char *)0)
+			fp->f_buf = malloc(fs->fs_bsize);
+
+		twiddle();
+		rc = (f->f_dev->dv_strategy)(f->f_devdata, F_READ,
+			fsbtodb(fs, disk_block),
+			block_size, fp->f_buf, &fp->f_buf_size);
+		if (rc)
+			return (rc);
+
+		fp->f_buf_blkno = file_block;
+	}
+
+	/*
+	 *	Copy the user data into the cached block.
+	 */
+	bcopy(buf_p,fp->f_buf + off,*size_p);
+
+	/*
+	 *	Write the block out to storage.
+	 */
+
+	twiddle();
+	rc = (f->f_dev->dv_strategy)(f->f_devdata, F_WRITE,
+		fsbtodb(fs, disk_block),
+		block_size, fp->f_buf, &fp->f_buf_size);
+	return (rc);
+}
+
+/*
  * Read a portion of a file into an internal buffer.  Return
  * the location in the buffer and the amount in the buffer.
  */
@@ -310,12 +388,12 @@ buf_read_file(f, buf_p, size_p)
 	block_size = dblksize(fs, &fp->f_di, file_block);
 
 	if (file_block != fp->f_buf_blkno) {
+		if (fp->f_buf == (char *)0)
+			fp->f_buf = malloc(fs->fs_bsize);
+
 		rc = block_map(f, file_block, &disk_block);
 		if (rc)
 			return (rc);
-
-		if (fp->f_buf == (char *)0)
-			fp->f_buf = malloc(fs->fs_bsize);
 
 		if (disk_block == 0) {
 			bzero(fp->f_buf, block_size);
@@ -648,6 +726,43 @@ ufs_read(f, start, size, resid)
 			csize = buf_size;
 
 		bcopy(buf, addr, csize);
+
+		fp->f_seekp += csize;
+		addr += csize;
+		size -= csize;
+	}
+	if (resid)
+		*resid = size;
+	return (rc);
+}
+
+/*
+ * Write to a portion of an already allocated file.
+ * Cross block boundaries when necessary. Can not
+ * extend the file.
+ */
+static int
+ufs_write(f, start, size, resid)
+	struct open_file *f;
+	void *start;
+	size_t size;
+	size_t *resid;	/* out */
+{
+	register struct file *fp = (struct file *)f->f_fsdata;
+	size_t csize;
+	int rc = 0;
+	register char *addr = start;
+
+	csize = size;
+	while ((size != 0) && (csize != 0)) {
+		if (fp->f_seekp >= fp->f_di.di_size)
+			break;
+
+		if (csize >= 512) csize = 512; /* XXX */
+
+		rc = buf_write_file(f, addr, &csize);
+		if (rc)
+			break;
 
 		fp->f_seekp += csize;
 		addr += csize;
