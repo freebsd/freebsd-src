@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)jobs.c	8.5 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-	"$Id: jobs.c,v 1.21 1998/08/24 10:20:36 cracauer Exp $";
+	"$Id: jobs.c,v 1.22 1998/08/25 09:33:34 cracauer Exp $";
 #endif /* not lint */
 
 #include <fcntl.h>
@@ -88,6 +88,7 @@ int initialpgrp;		/* pgrp of shell on invocation */
 int curjob;			/* current job */
 #endif
 int in_waitcmd = 0;		/* are we in waitcmd()? */
+int in_dowait = 0;		/* are we in dowait()? */
 volatile sig_atomic_t breakwaitcmd = 0;	/* should wait be terminated? */
 
 #if JOBS
@@ -712,9 +713,9 @@ waitforjob(jp)
 
 	INTOFF;
 	TRACE(("waitforjob(%%%d) called\n", jp - jobtab + 1));
-	while (jp->state == 0) {
-		dowait(1, jp);
-	}
+	while (jp->state == 0)
+		if (dowait(1, jp) == -1)
+			dotrap();
 #if JOBS
 	if (jp->jobctl) {
 #ifdef OLD_TTY_DRIVER
@@ -771,11 +772,13 @@ dowait(block, job)
 	int core;
 	int sig;
 
+	in_dowait++;
 	TRACE(("dowait(%d) called\n", block));
 	do {
 		pid = waitproc(block, &status);
 		TRACE(("wait returns %d, status=%d\n", pid, status));
 	} while (pid == -1 && errno == EINTR && breakwaitcmd == 0);
+	in_dowait--;
 	if (breakwaitcmd != 0) {
 		breakwaitcmd = 0;
 		return -1;
