@@ -849,7 +849,6 @@ bge_init_rx_ring_jumbo(sc)
 {
 	int i;
 	struct bge_rcb *rcb;
-	struct bge_rcb_opaque *rcbo;
 
 	for (i = 0; i < BGE_JUMBO_RX_RING_CNT; i++) {
 		if (bge_newbuf_jumbo(sc, i, NULL) == ENOBUFS)
@@ -859,9 +858,8 @@ bge_init_rx_ring_jumbo(sc)
 	sc->bge_jumbo = i - 1;
 
 	rcb = &sc->bge_rdata->bge_info.bge_jumbo_rx_rcb;
-	rcbo = (struct bge_rcb_opaque *)rcb;
-	rcb->bge_flags = 0;
-	CSR_WRITE_4(sc, BGE_RX_JUMBO_RCB_MAXLEN_FLAGS, rcbo->bge_reg2);
+	rcb->bge_maxlen_flags = BGE_RCB_MAXLEN_FLAGS(0, 0);
+	CSR_WRITE_4(sc, BGE_RX_JUMBO_RCB_MAXLEN_FLAGS, rcb->bge_maxlen_flags);
 
 	CSR_WRITE_4(sc, BGE_MBX_RX_JUMBO_PROD_LO, sc->bge_jumbo);
 
@@ -1066,7 +1064,7 @@ bge_blockinit(sc)
 	struct bge_softc *sc;
 {
 	struct bge_rcb *rcb;
-	struct bge_rcb_opaque *rcbo;
+	volatile struct bge_rcb *vrcb;
 	int i;
 
 	/*
@@ -1137,17 +1135,15 @@ bge_blockinit(sc)
 	rcb = &sc->bge_rdata->bge_info.bge_std_rx_rcb;
 	BGE_HOSTADDR(rcb->bge_hostaddr) =
 	    vtophys(&sc->bge_rdata->bge_rx_std_ring);
-	rcb->bge_max_len = BGE_MAX_FRAMELEN;
+	rcb->bge_maxlen_flags = BGE_RCB_MAXLEN_FLAGS(BGE_MAX_FRAMELEN, 0);
 	if (sc->bge_extram)
 		rcb->bge_nicaddr = BGE_EXT_STD_RX_RINGS;
 	else
 		rcb->bge_nicaddr = BGE_STD_RX_RINGS;
-	rcb->bge_flags = 0;
-	rcbo = (struct bge_rcb_opaque *)rcb;
-	CSR_WRITE_4(sc, BGE_RX_STD_RCB_HADDR_HI, rcbo->bge_reg0);
-	CSR_WRITE_4(sc, BGE_RX_STD_RCB_HADDR_LO, rcbo->bge_reg1);
-	CSR_WRITE_4(sc, BGE_RX_STD_RCB_MAXLEN_FLAGS, rcbo->bge_reg2);
-	CSR_WRITE_4(sc, BGE_RX_STD_RCB_NICADDR, rcbo->bge_reg3);
+	CSR_WRITE_4(sc, BGE_RX_STD_RCB_HADDR_HI, rcb->bge_hostaddr.bge_addr_hi);
+	CSR_WRITE_4(sc, BGE_RX_STD_RCB_HADDR_LO, rcb->bge_hostaddr.bge_addr_lo);
+	CSR_WRITE_4(sc, BGE_RX_STD_RCB_MAXLEN_FLAGS, rcb->bge_maxlen_flags);
+	CSR_WRITE_4(sc, BGE_RX_STD_RCB_NICADDR, rcb->bge_nicaddr);
 
 	/*
 	 * Initialize the jumbo RX ring control block
@@ -1159,24 +1155,24 @@ bge_blockinit(sc)
 	rcb = &sc->bge_rdata->bge_info.bge_jumbo_rx_rcb;
 	BGE_HOSTADDR(rcb->bge_hostaddr) =
 	    vtophys(&sc->bge_rdata->bge_rx_jumbo_ring);
-	rcb->bge_max_len = BGE_MAX_FRAMELEN;
+	rcb->bge_maxlen_flags =
+	    BGE_RCB_MAXLEN_FLAGS(BGE_MAX_FRAMELEN, BGE_RCB_FLAG_RING_DISABLED);
 	if (sc->bge_extram)
 		rcb->bge_nicaddr = BGE_EXT_JUMBO_RX_RINGS;
 	else
 		rcb->bge_nicaddr = BGE_JUMBO_RX_RINGS;
-	rcb->bge_flags = BGE_RCB_FLAG_RING_DISABLED;
-
-	rcbo = (struct bge_rcb_opaque *)rcb;
-	CSR_WRITE_4(sc, BGE_RX_JUMBO_RCB_HADDR_HI, rcbo->bge_reg0);
-	CSR_WRITE_4(sc, BGE_RX_JUMBO_RCB_HADDR_LO, rcbo->bge_reg1);
-	CSR_WRITE_4(sc, BGE_RX_JUMBO_RCB_MAXLEN_FLAGS, rcbo->bge_reg2);
-	CSR_WRITE_4(sc, BGE_RX_JUMBO_RCB_NICADDR, rcbo->bge_reg3);
+	CSR_WRITE_4(sc, BGE_RX_JUMBO_RCB_HADDR_HI,
+	    rcb->bge_hostaddr.bge_addr_hi);
+	CSR_WRITE_4(sc, BGE_RX_JUMBO_RCB_HADDR_LO,
+	    rcb->bge_hostaddr.bge_addr_lo);
+	CSR_WRITE_4(sc, BGE_RX_JUMBO_RCB_MAXLEN_FLAGS, rcb->bge_maxlen_flags);
+	CSR_WRITE_4(sc, BGE_RX_JUMBO_RCB_NICADDR, rcb->bge_nicaddr);
 
 	/* Set up dummy disabled mini ring RCB */
 	rcb = &sc->bge_rdata->bge_info.bge_mini_rx_rcb;
-	rcb->bge_flags = BGE_RCB_FLAG_RING_DISABLED;
-	rcbo = (struct bge_rcb_opaque *)rcb;
-	CSR_WRITE_4(sc, BGE_RX_MINI_RCB_MAXLEN_FLAGS, rcbo->bge_reg2);
+	rcb->bge_maxlen_flags =
+	    BGE_RCB_MAXLEN_FLAGS(0, BGE_RCB_FLAG_RING_DISABLED);
+	CSR_WRITE_4(sc, BGE_RX_MINI_RCB_MAXLEN_FLAGS, rcb->bge_maxlen_flags);
 
 	/*
 	 * Set the BD ring replentish thresholds. The recommended
@@ -1191,37 +1187,37 @@ bge_blockinit(sc)
 	 * bit in the flags field of all the TX send ring control blocks.
 	 * These are located in NIC memory.
 	 */
-	rcb = (struct bge_rcb *)(sc->bge_vhandle + BGE_MEMWIN_START +
+	vrcb = (volatile struct bge_rcb *)(sc->bge_vhandle + BGE_MEMWIN_START +
 	    BGE_SEND_RING_RCB);
 	for (i = 0; i < BGE_TX_RINGS_EXTSSRAM_MAX; i++) {
-		rcb->bge_flags = BGE_RCB_FLAG_RING_DISABLED;
-		rcb->bge_max_len = 0;
-		rcb->bge_nicaddr = 0;
-		rcb++;
+		vrcb->bge_maxlen_flags =
+		    BGE_RCB_MAXLEN_FLAGS(0, BGE_RCB_FLAG_RING_DISABLED);
+		vrcb->bge_nicaddr = 0;
+		vrcb++;
 	}
 
 	/* Configure TX RCB 0 (we use only the first ring) */
-	rcb = (struct bge_rcb *)(sc->bge_vhandle + BGE_MEMWIN_START +
+	vrcb = (volatile struct bge_rcb *)(sc->bge_vhandle + BGE_MEMWIN_START +
 	    BGE_SEND_RING_RCB);
-	rcb->bge_hostaddr.bge_addr_hi = 0;
-	BGE_HOSTADDR(rcb->bge_hostaddr) =
+	vrcb->bge_hostaddr.bge_addr_hi = 0;
+	BGE_HOSTADDR(vrcb->bge_hostaddr) =
 	    vtophys(&sc->bge_rdata->bge_tx_ring);
-	rcb->bge_nicaddr = BGE_NIC_TXRING_ADDR(0, BGE_TX_RING_CNT);
-	rcb->bge_max_len = BGE_TX_RING_CNT;
-	rcb->bge_flags = 0;
+	vrcb->bge_nicaddr = BGE_NIC_TXRING_ADDR(0, BGE_TX_RING_CNT);
+	vrcb->bge_maxlen_flags = BGE_RCB_MAXLEN_FLAGS(BGE_TX_RING_CNT, 0);
 
 	/* Disable all unused RX return rings */
-	rcb = (struct bge_rcb *)(sc->bge_vhandle + BGE_MEMWIN_START +
+	vrcb = (volatile struct bge_rcb *)(sc->bge_vhandle + BGE_MEMWIN_START +
 	    BGE_RX_RETURN_RING_RCB);
 	for (i = 0; i < BGE_RX_RINGS_MAX; i++) {
-		rcb->bge_hostaddr.bge_addr_hi = 0;
-		rcb->bge_hostaddr.bge_addr_lo = 0;
-		rcb->bge_flags = BGE_RCB_FLAG_RING_DISABLED;
-		rcb->bge_max_len = BGE_RETURN_RING_CNT;
-		rcb->bge_nicaddr = 0;
+		vrcb->bge_hostaddr.bge_addr_hi = 0;
+		vrcb->bge_hostaddr.bge_addr_lo = 0;
+		vrcb->bge_maxlen_flags =
+		    BGE_RCB_MAXLEN_FLAGS(BGE_RETURN_RING_CNT,
+		    BGE_RCB_FLAG_RING_DISABLED);
+		vrcb->bge_nicaddr = 0;
 		CSR_WRITE_4(sc, BGE_MBX_RX_CONS0_LO +
 		    (i * (sizeof(u_int64_t))), 0);
-		rcb++;
+		vrcb++;
 	}
 
 	/* Initialize RX ring indexes */
@@ -1235,14 +1231,13 @@ bge_blockinit(sc)
 	 * The return rings live entirely within the host, so the
 	 * nicaddr field in the RCB isn't used.
 	 */
-	rcb = (struct bge_rcb *)(sc->bge_vhandle + BGE_MEMWIN_START +
+	vrcb = (volatile struct bge_rcb *)(sc->bge_vhandle + BGE_MEMWIN_START +
 	    BGE_RX_RETURN_RING_RCB);
-	rcb->bge_hostaddr.bge_addr_hi = 0;
-	BGE_HOSTADDR(rcb->bge_hostaddr) =
+	vrcb->bge_hostaddr.bge_addr_hi = 0;
+	BGE_HOSTADDR(vrcb->bge_hostaddr) =
 	    vtophys(&sc->bge_rdata->bge_rx_return_ring);
-	rcb->bge_nicaddr = 0x00000000;
-	rcb->bge_max_len = BGE_RETURN_RING_CNT;
-	rcb->bge_flags = 0;
+	vrcb->bge_nicaddr = 0x00000000;
+	vrcb->bge_maxlen_flags = BGE_RCB_MAXLEN_FLAGS(BGE_RETURN_RING_CNT, 0);
 
 	/* Set random backoff seed for TX */
 	CSR_WRITE_4(sc, BGE_TX_RANDOM_BACKOFF,
