@@ -92,6 +92,9 @@
 #define	KTR_COMPILE	(KTR_GEN)
 #endif
 
+/* Trace classes that can not be used with KTR_ALQ */
+#define	KTR_ALQ_MASK	(KTR_WITNESS)
+
 /*
  * Version number for ktr_entry struct.  Increment this when you break binary
  * compatibility.
