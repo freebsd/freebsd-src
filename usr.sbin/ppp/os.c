@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: os.c,v 1.39 1998/01/08 23:47:55 brian Exp $
+ * $Id: os.c,v 1.40 1998/01/11 17:53:25 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -82,7 +82,7 @@ SetIpDevice(struct in_addr myaddr,
   }
   if (how == SET_DOWN) {
     if (Enabled(ConfProxy))
-      cifproxyarp(s, oldhis.s_addr);
+      cifproxyarp(s, oldhis);
     if (oldmine.s_addr == 0 && oldhis.s_addr == 0) {
       close(s);
       return (0);
@@ -161,7 +161,7 @@ SetIpDevice(struct in_addr myaddr,
     oldhis.s_addr = hisaddr.s_addr;
     oldmine.s_addr = myaddr.s_addr;
     if (Enabled(ConfProxy))
-      sifproxyarp(s, hisaddr.s_addr);
+      sifproxyarp(s, hisaddr);
   }
   close(s);
   return (0);
