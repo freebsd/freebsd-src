@@ -139,7 +139,7 @@ main(int argc, char **argv)
 	    || (writemode && optind + 3 != argc)
 	    || (readmode && optind + 2 != argc)
 	    || (attachedmode && optind + 1 != argc)
-	    || (barmode && optind + 1 != argc)
+	    || (barmode && optind + 1 != argc))
 		usage();
 
 	if (listmode) {
@@ -515,7 +515,7 @@ dobar(const char *name)
 	 */
 	for (i = 0; i < NBAR; i++) {
 		if (bars[i] == 0)
-			next;
+			continue;
 		if (bars[i] & 1) {
 			/* I/O bar */
 		} else {
