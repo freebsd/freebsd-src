@@ -1,9 +1,9 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
-#	$Id: Makefile,v 1.32 1998/06/12 19:45:14 peter Exp $
+#	$Id: Makefile,v 1.33 1998/08/04 15:32:43 peter Exp $
 
 SUBDIR=	atrun bootpd comsat fingerd ftpd getNAME getty \
 	makekey mknetid revnetgroup rexecd rlogind \
-	rpc.rquotad \
+	rpc.rquotad rpc.rstatd \
 	rpc.rusersd rpc.rwalld rpc.sprayd rshd talkd tftpd uucpd \
 	xtend ypxfr
 
@@ -12,11 +12,11 @@ SUBDIR+=mail.local smrsh
 .endif
 
 .if ${MACHINE} == i386
-SUBDIR+=named-xfer rpc.rstatd
-.if ${BINFORMAT} == aout
+SUBDIR+=named-xfer
+.if ${OBJFORMAT} == aout
 SUBDIR+=rtld-aout
 .endif
-.if ${BINFORMAT} == elf
+.if ${OBJFORMAT} == elf
 SUBDIR+=rtld-elf
 .endif
 .endif
