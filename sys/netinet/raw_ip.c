@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_ip.c	8.7 (Berkeley) 5/15/95
- *	$Id: raw_ip.c,v 1.29 1996/03/13 08:02:45 pst Exp $
+ *	$Id: raw_ip.c,v 1.30 1996/03/26 19:16:46 fenner Exp $
  */
 
 #include <sys/param.h>
@@ -56,6 +56,13 @@
 #include <netinet/ip_mroute.h>
 
 #include <netinet/ip_fw.h>
+
+#if !defined(COMPAT_IPFW) || COMPAT_IPFW == 1
+#undef COMPAT_IPFW
+#define COMPAT_IPFW 1
+#else
+#undef COMPAT_IPFW
+#endif
 
 static struct inpcbhead ripcb;
 static struct inpcbinfo ripcbinfo;
@@ -224,6 +231,7 @@ rip_ctloutput(op, so, level, optname, m)
 		}
 		return (error);
 
+#ifdef COMPAT_IPFW
 	case IP_FW_GET:
 		if (ip_fw_ctl_ptr==NULL || op == PRCO_SETOPT) {
 			if (*m) (void)m_free(*m);
@@ -241,6 +249,7 @@ rip_ctloutput(op, so, level, optname, m)
 
 		return (*ip_fw_ctl_ptr)(optname, m); 
 		return(error);
+#endif
 
 	case IP_RSVP_ON:
 		return ip_rsvp_init(so);
