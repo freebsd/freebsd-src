@@ -1,11 +1,11 @@
-#	$Id: Makefile,v 1.11 1998/07/25 15:52:43 alex Exp $
+#	$Id: Makefile,v 1.12 1998/07/27 01:07:00 alex Exp $
 
-.PATH:	${.CURDIR}/../../sys/miscfs/procfs
-KMOD=	procfs_mod
+.PATH:	${.CURDIR}/../../miscfs/procfs
+KMOD=	procfs
 SRCS=	opt_vmpage.h procfs_ctl.c procfs_map.c procfs_note.c procfs_status.c \
 	procfs_subr.c procfs_type.c procfs_vfsops.c procfs_vnops.c
 NOMAN=
-VFS_LKM=
+VFS_KLD=
 CFLAGS+= -DPROCFS
 CLEANFILES+= opt_vmpage.h
 

@@ -1,7 +1,7 @@
-#	$Id: Makefile,v 1.10 1998/02/01 17:53:56 bde Exp $
+#	$Id: Makefile,v 1.11 1998/02/25 01:40:55 bde Exp $
 
-.PATH:          ${.CURDIR}/../../sys/i386/isa
-KMOD            = wcd_mod
+.PATH:          ${.CURDIR}/../../i386/isa
+KMOD            = wcd
 SRCS            = wcd.c wdc.h wcd.h opt_atapi.h opt_devfs.h
 NOMAN           =
 CFLAGS         += -DWCD_MODULE

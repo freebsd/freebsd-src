@@ -1,0 +1,3 @@
+# $Id$
+
+.include "../Makefile.inc"
