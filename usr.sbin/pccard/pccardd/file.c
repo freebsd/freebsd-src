@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: file.c,v 1.16 1998/04/25 18:10:10 hosokawa Exp $";
+	"$Id: file.c,v 1.17 1999/06/17 21:07:58 markm Exp $";
 #endif /* not lint */
 
 #include <stdio.h>
@@ -336,7 +336,7 @@ memblk_tok(int force)
 	struct allocblk *mem;
 	int     i, j;
 
-	if ((i = num_tok()) >= 0)
+	if ((i = num_tok()) >= 0) {
 		if ((j = num_tok()) < 0)
 			error("illegal memory block");
 		else {
@@ -353,6 +353,7 @@ memblk_tok(int force)
 			}
 			return (mem);
 		}
+	}
 	if (force)
 		error("illegal or missing memory block spec");
 	return (0);
