@@ -1,4 +1,4 @@
-$Id: majors.i386,v 1.68 1999/03/16 13:34:02 sos Exp $
+$Id: majors.i386,v 1.69 1999/03/21 21:53:09 jkh Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.
@@ -157,13 +157,13 @@ chrdev	name		comments
 105	iic		I2C bus generic i/o
 106	smb		System Management Bus generic i/o
 107	3dfx		3Dfx driver (shocking@prth.pgs.com)
-108	usb		Universal Serial Bus (nick.hibma@jrc.it)
+108	usb		Universal Serial Bus (hibma@skylink.it)
 109	id		Intelligent Disk [Array] (md@doc.ic.ac.uk)
 110	ses		SCSI Environmental Services driver (mjacob@feral.com)
-111	ums		USB Mouse (nick.hibma@jrc.it)
+111	ums		USB Mouse (hibma@skylink.it)
 112	kbd		keyboard
-113	ulpt		USB Printer (nick.hibma@jrc.it)
-114	ugen		USB Generic device (nick.hibma@jrc.it)
+113	ulpt		USB Printer (hibma@skylink.it)
+114	ugen		USB Generic device (hibma@skylink.it)
 115	dag		University of Waikato DAG network capture boards
 116	ad		ATA disks
 117	acd		ATAPI CDROM
