@@ -51,8 +51,9 @@ functions will return zero.
 Otherwise an error number will be returned to
 indicate the error.
 .Sh ERRORS
+The
 .Fn pthread_cancel
-will fail if:
+function will fail if:
 .Bl -tag -width Er
 .It Bq Er ESRCH
 No thread could be found corresponding to that specified by the given
@@ -67,8 +68,9 @@ thread ID.
 .Xr pthread_setcanceltype 3 ,
 .Xr pthread_testcancel 3
 .Sh STANDARDS
+The
 .Fn pthread_cancel
-conforms to
+function conforms to
 .St -p1003.1-96 .
 .Sh AUTHORS
 This man page was written by
