@@ -2932,10 +2932,12 @@ cpu	EV5</programlisting>
     </sect3>
 
     <sect3>
-      <title>Alpha Processor Inc. CS20</title>
+      <title>Alpha Processor Inc. CS20, Compaq DS20L</title>
 
       <para>The CS20 is a 19&quot;, 1U high rackmount server based 
-      on the 21264[ab] CPU. It can have a maximum of 2 CPUs.</para>
+      on the 21264[ab] CPU. It can have a maximum of 2 CPUs. Compaq
+      sells the CS20 rebranded as the AlphaServer DS20L. DS20L has
+      833MHz CPUs.</para>
 
       <para>Features:</para>
 	<itemizedlist>
