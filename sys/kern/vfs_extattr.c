@@ -84,6 +84,9 @@ static int setfmode __P((struct thread *td, struct vnode *, int));
 static int setfflags __P((struct thread *td, struct vnode *, int));
 static int setutimes __P((struct thread *td, struct vnode *,
     const struct timespec *, int));
+static int vpaccess __P((struct vnode *vp, int user_flags, struct ucred *cred,
+    struct thread *td));
+
 static int	usermount = 0;	/* if 1, non-root can mount fs. */
 
 int (*union_dircheckp) __P((struct thread *td, struct vnode **, struct file *));
@@ -1697,7 +1700,35 @@ olseek(td, uap)
 #endif /* COMPAT_43 */
 
 /*
- * Check access permissions.
+ * Check access permissions using passed credentials.
+ */
+static int
+vpaccess(vp, user_flags, cred, td)
+	struct vnode	*vp;
+	int		user_flags;
+	struct ucred	*cred;
+	struct thread	*td;
+{
+	int error, flags;
+
+	/* Flags == 0 means only check for existence. */
+	error = 0;
+	if (user_flags) {
+		flags = 0;
+		if (user_flags & R_OK)
+			flags |= VREAD;
+		if (user_flags & W_OK)
+			flags |= VWRITE;
+		if (user_flags & X_OK)
+			flags |= VEXEC;
+		if ((flags & VWRITE) == 0 || (error = vn_writechk(vp)) == 0)
+			error = VOP_ACCESS(vp, flags, cred, td);
+	}
+	return (error);
+}
+
+/*
+ * Check access permissions using "real" credentials.
  */
 #ifndef _SYS_SYSPROTO_H_
 struct access_args {
@@ -1715,7 +1746,7 @@ access(td, uap)
 {
 	struct ucred *cred, *tmpcred;
 	register struct vnode *vp;
-	int error, flags;
+	int error;
 	struct nameidata nd;
 
 	cred = td->td_proc->p_ucred;
@@ -1738,23 +1769,45 @@ access(td, uap)
 		goto out1;
 	vp = nd.ni_vp;
 
-	/* Flags == 0 means only check for existence. */
-	if (SCARG(uap, flags)) {
-		flags = 0;
-		if (SCARG(uap, flags) & R_OK)
-			flags |= VREAD;
-		if (SCARG(uap, flags) & W_OK)
-			flags |= VWRITE;
-		if (SCARG(uap, flags) & X_OK)
-			flags |= VEXEC;
-		if ((flags & VWRITE) == 0 || (error = vn_writechk(vp)) == 0)
-			error = VOP_ACCESS(vp, flags, tmpcred, td);
-	}
+	error = vpaccess(vp, SCARG(uap, flags), tmpcred, td);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vput(vp);
 out1:
 	td->td_proc->p_ucred = cred;
 	crfree(tmpcred);
+	return (error);
+}
+
+/*
+ * Check access permissions using "effective" credentials.
+ */
+#ifndef _SYS_SYSPROTO_H_
+struct eaccess_args {
+	char	*path;
+	int	flags;
+};
+#endif
+int
+eaccess(td, uap)
+	struct thread *td;
+	register struct eaccess_args /* {
+		syscallarg(char *) path;
+		syscallarg(int) flags;
+	} */ *uap;
+{
+	struct nameidata nd;
+	struct vnode *vp;
+	int error;
+
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | NOOBJ, UIO_USERSPACE,
+	    SCARG(uap, path), td);
+	if ((error = namei(&nd)) != 0)
+		return (error);
+	vp = nd.ni_vp;
+
+	error = vpaccess(vp, SCARG(uap, flags), td->td_proc->p_ucred, td);
+	NDFREE(&nd, NDF_ONLY_PNBUF);
+	vput(vp);
 	return (error);
 }
 
