@@ -66,8 +66,8 @@ cam/scsi/scsi_pass.c	optional pass
 cam/scsi/scsi_scan.c	optional scan
 cam/scsi/scsi_target.c	optional targ
 ddb/db_access.c		optional ddb
-ddb/db_kld.c		optional ddb db_kld_symbols
-ddb/db_elf.c		optional ddb db_elf_symbols
+ddb/db_kld.c		optional ddb
+ddb/db_elf.c		optional ddb
 ddb/db_aout.c		optional ddb
 ddb/db_break.c		optional ddb
 ddb/db_command.c	optional ddb
@@ -205,6 +205,7 @@ kern/kern_intr.c	standard
 kern/kern_module.c	standard
 kern/kern_linker.c	standard
 kern/link_aout.c	standard
+kern/link_elf.c		standard
 kern/kern_acct.c	standard
 kern/kern_clock.c	standard
 kern/kern_conf.c	standard
