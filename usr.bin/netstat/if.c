@@ -398,7 +398,7 @@ intpr(interval, ifnetaddr, pfunc)
 			} msa;
 			const char *fmt;
 
-			LIST_FOREACH(multiaddr, &ifnet.if_multiaddrs, ifma_link) {
+			TAILQ_FOREACH(multiaddr, &ifnet.if_multiaddrs, ifma_link) {
 				if (kread(*(u_long *)multiaddr, (char *)&ifma,
 					  sizeof ifma))
 					break;

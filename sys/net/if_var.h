@@ -83,7 +83,7 @@ struct	ether_header;
 TAILQ_HEAD(ifnethead, ifnet);	/* we use TAILQs so that the order of */
 TAILQ_HEAD(ifaddrhead, ifaddr);	/* instantiation is preserved in the list */
 TAILQ_HEAD(ifprefixhead, ifprefix);
-LIST_HEAD(ifmultihead, ifmultiaddr);
+TAILQ_HEAD(ifmultihead, ifmultiaddr);
 
 /*
  * Structure defining a queue for a network interface.
@@ -352,7 +352,7 @@ struct ifprefix {
  * address, not a count of pointers to this structure.
  */
 struct ifmultiaddr {
-	LIST_ENTRY(ifmultiaddr) ifma_link; /* queue macro glue */
+	TAILQ_ENTRY(ifmultiaddr) ifma_link; /* queue macro glue */
 	struct	sockaddr *ifma_addr; 	/* address this membership is for */
 	struct	sockaddr *ifma_lladdr;	/* link-layer translation, if any */
 	struct	ifnet *ifma_ifp;	/* back-pointer to interface */

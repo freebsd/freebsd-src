@@ -2060,7 +2060,7 @@ wlconfig(int unit)
     outw(PIOP1(base), AC_MCSETUP|AC_CW_EL);		/* ac_command */
     outw(PIOR1(base), OFFSET_CU + 8);
 #if defined(__FreeBSD__) && __FreeBSD_version >= 300000
-    LIST_FOREACH(ifma, &sc->wl_if.if_multiaddrs, ifma_link) {
+    TAILQ_FOREACH(ifma, &sc->wl_if.if_multiaddrs, ifma_link) {
 	if (ifma->ifma_addr->sa_family != AF_LINK)
 	    continue;
 	
