@@ -1,5 +1,5 @@
 #
-# $Id: Makefile.inc,v 1.16 1996/09/21 14:27:22 peter Exp $
+# $Id: Makefile.inc,v 1.17 1996/10/01 03:44:29 peter Exp $
 #
 
 # Sometimes this is .include'd several times...
@@ -15,18 +15,8 @@ OUT_FILE=	i386.c
 OUT_OBJ=	i386
 .PATH:		${GCCDIR}/config/i386
 
-# Pick aout for now. the elf config is not binary compatable.
-BINFORMAT=	aout
-#BINFORMAT=	elf
-
-.if ${BINFORMAT} == aout
 CFLAGS+=	-DFREEBSD_AOUT
 target=		i386-unknown-freebsd
-.endif
-.if ${BINFORMAT} == elf
-CFLAGS+=	-DFREEBSD_ELF
-target=		i386-unknown-freebsdelf
-.endif
 
 version!=	sed -e 's/.*\"\([^ \"]*\)[ \"].*/\1/' < ${GCCDIR}/version.c
 
