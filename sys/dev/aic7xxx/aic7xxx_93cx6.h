@@ -1,9 +1,9 @@
 /*
- * Interface to the 93C46 serial EEPROM that is used to store BIOS
+ * Interface to the 93C46/56 serial EEPROM that is used to store BIOS
  * settings for the aic7xxx based adaptec SCSI controllers.  It can
  * also be used for 93C26 and 93C06 serial EEPROMS.
  *
- * Copyright (c) 1994, 1995 Justin T. Gibbs.
+ * Copyright (c) 1994, 1995, 2000 Justin T. Gibbs.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,15 +30,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $Id$
+ *
  * $FreeBSD$
  */
-
-#include <sys/param.h>
-#if !defined(__NetBSD__)
-#include <sys/systm.h>
-#endif
-
-#ifdef _KERNEL
+#ifndef _AIC7XXX_93CX6_H_
+#define _AIC7XXX_93CX6_H_
 
 typedef enum {
 	C46 = 6,
@@ -46,11 +43,10 @@ typedef enum {
 } seeprom_chip_t;
 
 struct seeprom_descriptor {
-	bus_space_tag_t sd_tag;             
-	bus_space_handle_t sd_bsh;
-	bus_size_t sd_control_offset;
-	bus_size_t sd_status_offset;
-	bus_size_t sd_dataout_offset;
+	struct ahc_softc *sd_ahc;
+	u_int sd_control_offset;
+	u_int sd_status_offset;
+	u_int sd_dataout_offset;
 	seeprom_chip_t sd_chip;
 	uint16_t sd_MS;
 	uint16_t sd_RDY;
@@ -77,15 +73,20 @@ struct seeprom_descriptor {
  */
 
 #define	SEEPROM_INB(sd) \
-	bus_space_read_1(sd->sd_tag, sd->sd_bsh, sd->sd_control_offset)
-#define	SEEPROM_OUTB(sd, value) \
-	bus_space_write_1(sd->sd_tag, sd->sd_bsh, sd->sd_control_offset, value)
+	ahc_inb(sd->sd_ahc, sd->sd_control_offset)
+#define	SEEPROM_OUTB(sd, value)					\
+do {								\
+	ahc_outb(sd->sd_ahc, sd->sd_control_offset, value);	\
+	ahc_flush_device_writes(sd->sd_ahc);			\
+} while(0)
+
 #define	SEEPROM_STATUS_INB(sd) \
-	bus_space_read_1(sd->sd_tag, sd->sd_bsh, sd->sd_status_offset)
+	ahc_inb(sd->sd_ahc, sd->sd_status_offset)
 #define	SEEPROM_DATA_INB(sd) \
-	bus_space_read_1(sd->sd_tag, sd->sd_bsh, sd->sd_dataout_offset)
+	ahc_inb(sd->sd_ahc, sd->sd_dataout_offset)
 
 int read_seeprom(struct seeprom_descriptor *sd, uint16_t *buf,
-		 bus_size_t start_addr, bus_size_t count);
+		 u_int start_addr, u_int count);
+int verify_cksum(struct seeprom_config *sc);
 
-#endif /* _KERNEL */
+#endif /* _AIC7XXX_93CX6_H_ */
