@@ -1,4 +1,4 @@
-/* $Id: ccd.c,v 1.34 1998/07/04 20:45:29 julian Exp $ */
+/* $Id: ccd.c,v 1.35 1998/07/04 22:30:13 julian Exp $ */
 
 /*	$NetBSD: ccd.c,v 1.22 1995/12/08 19:13:26 thorpej Exp $	*/
 
@@ -905,6 +905,7 @@ ccdbuffer(cb, cs, bp, bn, addr, bcount)
 	cbp->cb_buf.b_proc = bp->b_proc;
 	cbp->cb_buf.b_dev = ci->ci_dev;		/* XXX */
 	cbp->cb_buf.b_blkno = cbn + cboff + CCD_OFFSET;
+	cbp->cb_buf.b_offset = dbtob(cbn + cboff + CCD_OFFSET);
 	cbp->cb_buf.b_data = addr;
 	cbp->cb_buf.b_vp = ci->ci_vp;
 	LIST_INIT(&cbp->cb_buf.b_dep);
