@@ -1044,8 +1044,6 @@ m3_init(struct sc_info *sc)
 		m3_wr_assp_data(sc, i, 0); /* zero entire dac/adc area */
 	}
 
-	m3_enable_ints(sc);
-
 	/* [m3_assp_continue] */
 	m3_wr_1(sc, DSP_PORT_CONTROL_REG_B, reset_state | REGB_ENABLE_RESET);
 
@@ -1324,6 +1322,8 @@ m3_pci_resume(device_t dev)
 	m3_wr_1(sc, DSP_PORT_CONTROL_REG_B, reset_state | REGB_ENABLE_RESET);
 
 	m3_amp_enable(sc);
+
+	m3_enable_ints(sc);
 
 	if (mixer_reinit(dev) == -1) {
 		device_printf(dev, "unable to reinitialize the mixer\n");
