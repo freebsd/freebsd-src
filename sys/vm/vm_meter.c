@@ -83,7 +83,7 @@ loadav(struct loadavg *avg)
 		case SSLEEP:
 			if (p->p_priority > PZERO || p->p_slptime != 0)
 				continue;
-			/* fall through */
+			/* FALLTHROUGH */
 		case SRUN:
 		case SIDL:
 			nrun++;

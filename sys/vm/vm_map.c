@@ -100,7 +100,7 @@
  *	Maps consist of an ordered doubly-linked list of simple
  *	entries; a single hint is used to speed up lookups.
  *
- *	Since portions of maps are specified by start/end addreses,
+ *	Since portions of maps are specified by start/end addresses,
  *	which may not align with existing map entries, all
  *	routines merely "clip" entries to these start/end values.
  *	[That is, an entry is split into two, bordering at a

@@ -951,7 +951,7 @@ rescan0:
 	while ((m != NULL) && (pcount-- > 0) && (page_shortage > 0)) {
 
 		/*
-		 * This is a consistancy check, and should likely be a panic
+		 * This is a consistency check, and should likely be a panic
 		 * or warning.
 		 */
 		if (m->queue != PQ_ACTIVE) {
@@ -975,7 +975,7 @@ rescan0:
 
 		/*
 		 * The count for pagedaemon pages is done after checking the
-		 * page for eligbility...
+		 * page for eligibility...
 		 */
 		cnt.v_pdpages++;
 
@@ -1140,7 +1140,7 @@ rescan0:
 /*
  * This routine tries to maintain the pseudo LRU active queue,
  * so that during long periods of time where there is no paging,
- * that some statistic accumlation still occurs.  This code
+ * that some statistic accumulation still occurs.  This code
  * helps the situation where paging just starts to occur.
  */
 static void

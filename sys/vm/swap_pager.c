@@ -682,7 +682,7 @@ swap_pager_copy(srcobject, dstobject, offset, destroysource)
 		/*
 		 * Reverting the type is not necessary, the caller is going
 		 * to destroy srcobject directly, but I'm doing it here
-		 * for consistancy since we've removed the object from its
+		 * for consistency since we've removed the object from its
 		 * queues.
 		 */
 		srcobject->type = OBJT_DEFAULT;
@@ -1539,7 +1539,7 @@ swp_pager_async_iodone(bp)
 				 * someone may be waiting for that.
 				 *
 				 * NOTE: for reads, m->dirty will probably
-				 * be overriden by the original caller of
+				 * be overridden by the original caller of
 				 * getpages so don't play cute tricks here.
 				 *
 				 * XXX it may not be legal to free the page
@@ -1574,7 +1574,7 @@ swp_pager_async_iodone(bp)
 			 * make sure the pmap modify bits are also cleared.
 			 *
 			 * NOTE: for reads, m->dirty will probably be 
-			 * overriden by the original caller of getpages so
+			 * overridden by the original caller of getpages so
 			 * we cannot set them in order to free the underlying
 			 * swap in a low-swap situation.  I don't think we'd
 			 * want to do that anyway, but it was an optimization
