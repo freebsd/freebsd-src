@@ -1053,6 +1053,7 @@ swap_pager_getpages(object, m, count, reqpage)
 	 * free pages outside our collection range.   Note: we never free
 	 * mreq, it must remain busy throughout.
 	 */
+	vm_page_lock_queues();
 	{
 		int k;
 
@@ -1061,6 +1062,7 @@ swap_pager_getpages(object, m, count, reqpage)
 		for (k = j; k < count; ++k)
 			vm_page_free(m[k]);
 	}
+	vm_page_unlock_queues();
 	splx(s);
 
 
