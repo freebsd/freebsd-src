@@ -37,12 +37,12 @@
 #include <dev/ieee488/ugpib.h>
 #include <dev/ieee488/ibfoo_int.h>
 
-int ibcnt, iberr;
+int ibcnt, iberr, ibsta;
 
 static int fd = -1;
 
 static int
-__ibsubmit(struct ibfoo_iocarg *ap)
+__ibsubmit(struct ibarg *ap)
 {
 	int i;
 
@@ -55,13 +55,14 @@ __ibsubmit(struct ibfoo_iocarg *ap)
 		err(1, "GPIB_IBFOO(%d, 0x%x) failed", ap->__ident, ap->__field);
 	ibcnt = ap->__ibcnt;
 	iberr = ap->__iberr;
+	ibsta = ap->__ibsta;
 	return (ap->__retval);
 }
 
 int
 ibask (int handle, int option, int * retval)
 {
-	struct ibfoo_iocarg io;
+	struct ibarg io;
 
 	io.__ident = __ID_IBASK;
 	io.handle = handle;
@@ -74,7 +75,7 @@ ibask (int handle, int option, int * retval)
 int
 ibbna (int handle, char * bdname)
 {
-	struct ibfoo_iocarg io;
+	struct ibarg io;
 
 	io.__ident = __ID_IBBNA;
 	io.handle = handle;
@@ -86,7 +87,7 @@ ibbna (int handle, char * bdname)
 int
 ibcac (int handle, int v)
 {
-	struct ibfoo_iocarg io;
+	struct ibarg io;
 
 	io.__ident = __ID_IBCAC;
 	io.handle = handle;
@@ -98,7 +99,7 @@ ibcac (int handle, int v)
 int
 ibclr (int handle)
 {
-	struct ibfoo_iocarg io;
+	struct ibarg io;
 
 	io.__ident = __ID_IBCLR;
 	io.handle = handle;
@@ -109,7 +110,7 @@ ibclr (int handle)
 int
 ibcmd (int handle, void * buffer, long cnt)
 {
-	struct ibfoo_iocarg io;
+	struct ibarg io;
 
 	io.__ident = __ID_IBCMD;
 	io.handle = handle;
@@ -122,7 +123,7 @@ ibcmd (int handle, void * buffer, long cnt)
 int
 ibcmda (int handle, void * buffer, long cnt)
 {
-	struct ibfoo_iocarg io;
+	struct ibarg io;
 
 	io.__ident = __ID_IBCMDA;
 	io.handle = handle;
@@ -135,7 +136,7 @@ ibcmda (int handle, void * buffer, long cnt)
 int
 ibconfig (int handle, int option, int value)
 {
-	struct ibfoo_iocarg io;
+	struct ibarg io;
 
 	io.__ident = __ID_IBCONFIG;
 	io.handle = handle;
@@ -148,7 +149,7 @@ ibconfig (int handle, int option, int value)
 int
 ibdev (int boardID, int pad, int sad, int tmo, int eot, int eos)
 {
-	struct ibfoo_iocarg io;
+	struct ibarg io;
 
 	io.__ident = __ID_IBDEV;
 	io.boardID = boardID;
@@ -164,7 +165,7 @@ ibdev (int boardID, int pad, int sad, int tmo, int eot, int eos)
 int
 ibdiag (int handle, void * buffer, long cnt)
 {
-	struct ibfoo_iocarg io;
+	struct ibarg io;
 
 	io.__ident = __ID_IBDIAG;
 	io.handle = handle;
@@ -177,7 +178,7 @@ ibdiag (int handle, void * buffer, long cnt)
 int
 ibdma (int handle, int v)
 {
-	struct ibfoo_iocarg io;
+	struct ibarg io;
 
 	io.__ident = __ID_IBDMA;
 	io.handle = handle;
@@ -189,7 +190,7 @@ ibdma (int handle, int v)
 int
 ibeos (int handle, int eos)
 {
-	struct ibfoo_iocarg io;
+	struct ibarg io;
 
 	io.__ident = __ID_IBEOS;
 	io.handle = handle;
@@ -201,7 +202,7 @@ ibeos (int handle, int eos)
 int
 ibeot (int handle, int eot)
 {
-	struct ibfoo_iocarg io;
+	struct ibarg io;
 
 	io.__ident = __ID_IBEOT;
 	io.handle = handle;
@@ -213,7 +214,7 @@ ibeot (int handle, int eot)
 int
 ibevent (int handle, short * event)
 {
-	struct ibfoo_iocarg io;
+	struct ibarg io;
 
 	io.__ident = __ID_IBEVENT;
 	io.handle = handle;
@@ -225,7 +226,7 @@ ibevent (int handle, short * event)
 int
 ibfind (char * bdname)
 {
-	struct ibfoo_iocarg io;
+	struct ibarg io;
 
 	io.__ident = __ID_IBFIND;
 	io.bdname = bdname;
@@ -236,7 +237,7 @@ ibfind (char * bdname)
 int
 ibgts (int handle, int v)
 {
-	struct ibfoo_iocarg io;
+	struct ibarg io;
 
 	io.__ident = __ID_IBGTS;
 	io.handle = handle;
@@ -248,7 +249,7 @@ ibgts (int handle, int v)
 int
 ibist (int handle, int v)
 {
-	struct ibfoo_iocarg io;
+	struct ibarg io;
 
 	io.__ident = __ID_IBIST;
 	io.handle = handle;
@@ -260,7 +261,7 @@ ibist (int handle, int v)
 int
 iblines (int handle, short * lines)
 {
-	struct ibfoo_iocarg io;
+	struct ibarg io;
 
 	io.__ident = __ID_IBLINES;
 	io.handle = handle;
@@ -272,7 +273,7 @@ iblines (int handle, short * lines)
 int
 ibllo (int handle)
 {
-	struct ibfoo_iocarg io;
+	struct ibarg io;
 
 	io.__ident = __ID_IBLLO;
 	io.handle = handle;
@@ -283,7 +284,7 @@ ibllo (int handle)
 int
 ibln (int handle, int padval, int sadval, short * listenflag)
 {
-	struct ibfoo_iocarg io;
+	struct ibarg io;
 
 	io.__ident = __ID_IBLN;
 	io.handle = handle;
@@ -297,7 +298,7 @@ ibln (int handle, int padval, int sadval, short * listenflag)
 int
 ibloc (int handle)
 {
-	struct ibfoo_iocarg io;
+	struct ibarg io;
 
 	io.__ident = __ID_IBLOC;
 	io.handle = handle;
@@ -308,7 +309,7 @@ ibloc (int handle)
 int
 ibonl (int handle, int v)
 {
-	struct ibfoo_iocarg io;
+	struct ibarg io;
 
 	io.__ident = __ID_IBONL;
 	io.handle = handle;
@@ -320,7 +321,7 @@ ibonl (int handle, int v)
 int
 ibpad (int handle, int v)
 {
-	struct ibfoo_iocarg io;
+	struct ibarg io;
 
 	io.__ident = __ID_IBPAD;
 	io.handle = handle;
@@ -332,7 +333,7 @@ ibpad (int handle, int v)
 int
 ibpct (int handle)
 {
-	struct ibfoo_iocarg io;
+	struct ibarg io;
 
 	io.__ident = __ID_IBPCT;
 	io.handle = handle;
@@ -343,7 +344,7 @@ ibpct (int handle)
 int
 ibpoke (int handle, int option, int value)
 {
-	struct ibfoo_iocarg io;
+	struct ibarg io;
 
 	io.__ident = __ID_IBPOKE;
 	io.handle = handle;
@@ -356,7 +357,7 @@ ibpoke (int handle, int option, int value)
 int
 ibppc (int handle, int v)
 {
-	struct ibfoo_iocarg io;
+	struct ibarg io;
 
 	io.__ident = __ID_IBPPC;
 	io.handle = handle;
@@ -368,7 +369,7 @@ ibppc (int handle, int v)
 int
 ibrd (int handle, void * buffer, long cnt)
 {
-	struct ibfoo_iocarg io;
+	struct ibarg io;
 
 	io.__ident = __ID_IBRD;
 	io.handle = handle;
@@ -381,7 +382,7 @@ ibrd (int handle, void * buffer, long cnt)
 int
 ibrda (int handle, void * buffer, long cnt)
 {
-	struct ibfoo_iocarg io;
+	struct ibarg io;
 
 	io.__ident = __ID_IBRDA;
 	io.handle = handle;
@@ -394,7 +395,7 @@ ibrda (int handle, void * buffer, long cnt)
 int
 ibrdf (int handle, char * flname)
 {
-	struct ibfoo_iocarg io;
+	struct ibarg io;
 
 	io.__ident = __ID_IBRDF;
 	io.handle = handle;
@@ -406,7 +407,7 @@ ibrdf (int handle, char * flname)
 int
 ibrdkey (int handle, void * buffer, int cnt)
 {
-	struct ibfoo_iocarg io;
+	struct ibarg io;
 
 	io.__ident = __ID_IBRDKEY;
 	io.handle = handle;
@@ -419,7 +420,7 @@ ibrdkey (int handle, void * buffer, int cnt)
 int
 ibrpp (int handle, char * ppr)
 {
-	struct ibfoo_iocarg io;
+	struct ibarg io;
 
 	io.__ident = __ID_IBRPP;
 	io.handle = handle;
@@ -431,7 +432,7 @@ ibrpp (int handle, char * ppr)
 int
 ibrsc (int handle, int v)
 {
-	struct ibfoo_iocarg io;
+	struct ibarg io;
 
 	io.__ident = __ID_IBRSC;
 	io.handle = handle;
@@ -443,7 +444,7 @@ ibrsc (int handle, int v)
 int
 ibrsp (int handle, char * spr)
 {
-	struct ibfoo_iocarg io;
+	struct ibarg io;
 
 	io.__ident = __ID_IBRSP;
 	io.handle = handle;
@@ -455,7 +456,7 @@ ibrsp (int handle, char * spr)
 int
 ibrsv (int handle, int v)
 {
-	struct ibfoo_iocarg io;
+	struct ibarg io;
 
 	io.__ident = __ID_IBRSV;
 	io.handle = handle;
@@ -467,7 +468,7 @@ ibrsv (int handle, int v)
 int
 ibsad (int handle, int v)
 {
-	struct ibfoo_iocarg io;
+	struct ibarg io;
 
 	io.__ident = __ID_IBSAD;
 	io.handle = handle;
@@ -479,7 +480,7 @@ ibsad (int handle, int v)
 int
 ibsgnl (int handle, int v)
 {
-	struct ibfoo_iocarg io;
+	struct ibarg io;
 
 	io.__ident = __ID_IBSGNL;
 	io.handle = handle;
@@ -491,7 +492,7 @@ ibsgnl (int handle, int v)
 int
 ibsic (int handle)
 {
-	struct ibfoo_iocarg io;
+	struct ibarg io;
 
 	io.__ident = __ID_IBSIC;
 	io.handle = handle;
@@ -502,7 +503,7 @@ ibsic (int handle)
 int
 ibsre (int handle, int v)
 {
-	struct ibfoo_iocarg io;
+	struct ibarg io;
 
 	io.__ident = __ID_IBSRE;
 	io.handle = handle;
@@ -514,7 +515,7 @@ ibsre (int handle, int v)
 int
 ibsrq (ibsrq_t * func)
 {
-	struct ibfoo_iocarg io;
+	struct ibarg io;
 
 	io.__ident = __ID_IBSRQ;
 	io.func = func;
@@ -525,7 +526,7 @@ ibsrq (ibsrq_t * func)
 int
 ibstop (int handle)
 {
-	struct ibfoo_iocarg io;
+	struct ibarg io;
 
 	io.__ident = __ID_IBSTOP;
 	io.handle = handle;
@@ -536,7 +537,7 @@ ibstop (int handle)
 int
 ibtmo (int handle, int tmo)
 {
-	struct ibfoo_iocarg io;
+	struct ibarg io;
 
 	io.__ident = __ID_IBTMO;
 	io.handle = handle;
@@ -548,7 +549,7 @@ ibtmo (int handle, int tmo)
 int
 ibtrap (int  mask, int mode)
 {
-	struct ibfoo_iocarg io;
+	struct ibarg io;
 
 	io.__ident = __ID_IBTRAP;
 	io.mask = mask;
@@ -560,7 +561,7 @@ ibtrap (int  mask, int mode)
 int
 ibtrg (int handle)
 {
-	struct ibfoo_iocarg io;
+	struct ibarg io;
 
 	io.__ident = __ID_IBTRG;
 	io.handle = handle;
@@ -571,7 +572,7 @@ ibtrg (int handle)
 int
 ibwait (int handle, int mask)
 {
-	struct ibfoo_iocarg io;
+	struct ibarg io;
 
 	io.__ident = __ID_IBWAIT;
 	io.handle = handle;
@@ -583,7 +584,7 @@ ibwait (int handle, int mask)
 int
 ibwrt (int handle, const void *buffer, long cnt)
 {
-	struct ibfoo_iocarg io;
+	struct ibarg io;
 
 	io.__ident = __ID_IBWRT;
 	io.handle = handle;
@@ -596,7 +597,7 @@ ibwrt (int handle, const void *buffer, long cnt)
 int
 ibwrta (int handle, const void * buffer, long cnt)
 {
-	struct ibfoo_iocarg io;
+	struct ibarg io;
 
 	io.__ident = __ID_IBWRTA;
 	io.handle = handle;
@@ -609,7 +610,7 @@ ibwrta (int handle, const void * buffer, long cnt)
 int
 ibwrtf (int handle, const char *flname)
 {
-	struct ibfoo_iocarg io;
+	struct ibarg io;
 
 	io.__ident = __ID_IBWRTF;
 	io.handle = handle;
@@ -621,7 +622,7 @@ ibwrtf (int handle, const char *flname)
 int
 ibwrtkey (int handle, const void *buffer, int cnt)
 {
-	struct ibfoo_iocarg io;
+	struct ibarg io;
 
 	io.__ident = __ID_IBWRTKEY;
 	io.handle = handle;
@@ -634,7 +635,7 @@ ibwrtkey (int handle, const void *buffer, int cnt)
 int
 ibxtrc (int handle, void * buffer, long cnt)
 {
-	struct ibfoo_iocarg io;
+	struct ibarg io;
 
 	io.__ident = __ID_IBXTRC;
 	io.handle = handle;

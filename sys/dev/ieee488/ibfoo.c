@@ -73,16 +73,20 @@ struct handle {
 };
 
 struct ibfoo {
-	struct upd7210		*upd7210;
+	struct upd7210		*u;
 	LIST_HEAD(,handle)	handles;
 	struct unrhdr		*unrhdr;
+	struct callout		callout;
+	struct handle		*h;
+	struct ibarg		*ap;
 
 	enum {
 		IDLE,
+		BUSY,
 		PIO_IDATA,
-		DMA_IDATA,
 		PIO_ODATA,
-		PIO_CMD
+		PIO_CMD,
+		DMA_IDATA
 	}			mode;
 
 	struct timeval		deadline;
@@ -95,6 +99,8 @@ struct ibfoo {
 	u_char			*buf;
 	u_int			buflen;
 };
+
+typedef int ibhandler_t(struct ibfoo *ib);
 
 static struct timeval timeouts[] = {
 	[TNONE] =	{    0,      0},
@@ -119,24 +125,41 @@ static struct timeval timeouts[] = {
 
 static const u_int max_timeouts = sizeof timeouts / sizeof timeouts[0];
 
+static int ibdebug;
+
 static int
-deadyet(struct ibfoo *ib)
+ib_set_error(struct ibarg *ap, int error)
 {
-	struct timeval tv;
 
-	if (!timevalisset(&ib->deadline))
-		return (0);
-
-	getmicrouptime(&tv);
-	if (timevalcmp(&ib->deadline, &tv, <)) {
-printf("DEADNOW\n");
-		return (1);
-	}
-
+	if (ap->__iberr == 0)
+		ap->__iberr = error;
+	ap->__ibsta |= ERR;
+	ap->__retval = ap->__ibsta;
 	return (0);
 }
 
-typedef int ibhandler_t(struct handle *h, struct upd7210 *u, struct ibfoo_iocarg *ap);
+static int
+ib_had_timeout(struct ibarg *ap)
+{
+
+	ib_set_error(ap, EABO);
+	ap->__ibsta |= TIMO;
+	ap->__retval = ap->__ibsta;
+	return (0);
+}
+
+static int
+ib_set_errno(struct ibarg *ap, int errno)
+{
+
+	if (ap->__iberr == 0) {
+		ap->__iberr = EDVR;
+		ap->__ibcnt = errno;
+	}
+	ap->__ibsta |= ERR;
+	ap->__retval = ap->__ibsta;
+	return (0);
+}
 
 static int
 gpib_ib_irq(struct upd7210 *u, int intr __unused)
@@ -145,6 +168,7 @@ gpib_ib_irq(struct upd7210 *u, int intr __unused)
 
 	ib = u->ibfoo;
 
+	mtx_assert(&u->mutex, MA_OWNED);
 	switch (ib->mode) {
 	case PIO_CMD:
 		if (!(u->rreg[ISR2] & IXR2_CO))
@@ -184,9 +208,69 @@ gpib_ib_irq(struct upd7210 *u, int intr __unused)
 	}
 	upd7210_wr(u, IMR1, 0);
 	upd7210_wr(u, IMR2, 0);
-	ib->mode = IDLE;
-	wakeup(ib);
+	ib->mode = BUSY;
+	wakeup(&ib->buflen);
 	return (1);
+}
+
+static void
+gpib_ib_timeout(void *arg)
+{
+	struct upd7210 *u;
+	struct ibfoo *ib;
+	struct timeval tv;
+
+	u = arg;
+	ib = u->ibfoo;
+	mtx_lock(&u->mutex);
+	if (ib->mode == DMA_IDATA && isa_dmatc(u->dmachan)) {
+		upd7210_wr(u, IMR1, 0);
+		upd7210_wr(u, IMR2, 0);
+		ib->mode = IDLE;
+		wakeup(&ib->buflen);
+	}
+	if (ib->mode > BUSY) {
+		upd7210_rd(u, ISR1);
+		upd7210_rd(u, ISR2);
+		gpib_ib_irq(u, 2);
+	}
+	if (ib->mode != IDLE && timevalisset(&ib->deadline)) {
+		getmicrouptime(&tv);
+		if (timevalcmp(&ib->deadline, &tv, <)) {
+			ib_had_timeout(ib->ap);
+			upd7210_wr(u, IMR1, 0);
+			upd7210_wr(u, IMR2, 0);
+			ib->mode = BUSY;
+			wakeup(&ib->buflen);
+		}
+	}
+	if (ib->mode != IDLE)
+		callout_reset(&ib->callout, hz / 100, gpib_ib_timeout, arg);
+	mtx_unlock(&u->mutex);
+}
+
+static void
+gpib_ib_wait_xfer(struct upd7210 *u, struct ibfoo *ib)
+{
+	int i;
+
+	mtx_assert(&u->mutex, MA_OWNED);
+	while (ib->mode > BUSY) {
+		i = msleep(&ib->buflen, &u->mutex,
+		    PZERO | PCATCH, "ibwxfr", 0);
+		if (i == EINTR) {
+			ib_set_errno(ib->ap, i);
+			break;
+		}
+		if (u->rreg[ISR1] & IXR1_ERR) {
+			ib_set_error(ib->ap, EABO);	/* XXX ? */
+			break;
+		}
+	}
+	ib->mode = BUSY;
+	ib->buf = NULL;
+	upd7210_wr(u, IMR1, 0);
+	upd7210_wr(u, IMR2, 0);
 }
 
 static void
@@ -212,7 +296,7 @@ config_eos(struct upd7210 *u, struct handle *h)
  * Look up the handle, and set the deadline if the handle has a timeout.
  */
 static int
-gethandle(struct upd7210 *u, struct ibfoo_iocarg *ap, struct handle **hp)
+gethandle(struct upd7210 *u, struct ibarg *ap, struct handle **hp)
 {
 	struct ibfoo *ib;
 	struct handle *h;
@@ -222,23 +306,16 @@ gethandle(struct upd7210 *u, struct ibfoo_iocarg *ap, struct handle **hp)
 	LIST_FOREACH(h, &ib->handles, list) {
 		if (h->handle == ap->handle) {
 			*hp = h;
-			if (timevalisset(&h->timeout)) {
-				getmicrouptime(&ib->deadline);
-				timevaladd(&ib->deadline, &h->timeout);
-			} else {
-				timevalclear(&ib->deadline);
-			}
 			return (0);
 		}
 	}
-	ap->__iberr = EARG;
+	ib_set_error(ap, EARG);
 	return (1);
 }
 
 static int
 pio_cmd(struct upd7210 *u, u_char *cmd, int len)
 {
-	int i;
 	struct ibfoo *ib;
 
 	ib = u->ibfoo;
@@ -256,26 +333,15 @@ pio_cmd(struct upd7210 *u, u_char *cmd, int len)
 
 	gpib_ib_irq(u, 1);
 
-	while (1) {
-		i = msleep(ib, &u->mutex, PZERO | PCATCH, "gpib_cmd", hz/10);
-		if (i == EINTR)
-			break;
-		if (u->rreg[ISR1] & IXR1_ERR)
-			break;
-		if (!ib->buflen)
-			break;
-		if (deadyet(ib))
-			break;
-	}
-	upd7210_wr(u, IMR2, 0);
+	gpib_ib_wait_xfer(u, ib);
+
 	mtx_unlock(&u->mutex);
-	return (0);
+	return (len - ib->buflen);
 }
 
 static int
 pio_odata(struct upd7210 *u, u_char *data, int len)
 {
-	int i;
 	struct ibfoo *ib;
 
 	ib = u->ibfoo;
@@ -290,20 +356,8 @@ pio_odata(struct upd7210 *u, u_char *data, int len)
 
 	gpib_ib_irq(u, 1);
 
-	while (1) {
-		i = msleep(ib, &u->mutex, PZERO | PCATCH, "gpib_out", hz/100);
-		if (i == EINTR || i == 0)
-			break;
-#if 0
-		if (u->rreg[ISR1] & IXR1_ERR)
-			break;
-#endif
-		if (deadyet(ib))
-			break;
-	}
-	ib->mode = IDLE;
-	upd7210_wr(u, IMR1, 0);
-	upd7210_wr(u, IMR2, 0);
+	gpib_ib_wait_xfer(u, ib);
+
 	mtx_unlock(&u->mutex);
 	return (len - ib->buflen);
 }
@@ -311,7 +365,6 @@ pio_odata(struct upd7210 *u, u_char *data, int len)
 static int
 pio_idata(struct upd7210 *u, u_char *data, int len)
 {
-	int i;
 	struct ibfoo *ib;
 
 	ib = u->ibfoo;
@@ -321,70 +374,34 @@ pio_idata(struct upd7210 *u, u_char *data, int len)
 	ib->buf = data;
 	ib->buflen = len;
 	upd7210_wr(u, IMR1, IXR1_DI);
-	while (1) {
-		i = msleep(ib, &u->mutex, PZERO | PCATCH,
-		    "ib_pioidata", hz/100);
-		if (i == EINTR || i == 0)
-			break;
-		if (deadyet(u->ibfoo))
-			break;
-	}
-	ib->mode = IDLE;
-	upd7210_wr(u, IMR1, 0);
-	upd7210_wr(u, IMR2, 0);
+
+	gpib_ib_wait_xfer(u, ib);
+
 	mtx_unlock(&u->mutex);
-	if (deadyet(u->ibfoo)) {
-		return (-1);
-	} else {
-		return (len - ib->buflen);
-	}
+	return (len - ib->buflen);
 }
 
 static int
 dma_idata(struct upd7210 *u, u_char *data, int len)
 {
-	int i1, i2, i, j;
+	int j;
 	struct ibfoo *ib;
 
 	ib = u->ibfoo;
 	ib->mode = DMA_IDATA;
-	upd7210_wr(u, IMR1, IXR1_ENDRX);
 	mtx_lock(&Giant);
 	isa_dmastart(ISADMA_READ, data, len, u->dmachan);
 	mtx_unlock(&Giant);
 	mtx_lock(&u->mutex);
+	upd7210_wr(u, IMR1, IXR1_ENDRX);
 	upd7210_wr(u, IMR2, IMR2_DMAI);
-	while (1) {
-		i = msleep(ib, &u->mutex, PZERO | PCATCH,
-		    "gpib_idata", hz/100);
-		if (i == EINTR)
-			break;
-		if (isa_dmatc(u->dmachan))
-			break;
-		if (i == EWOULDBLOCK) {
-			i1 = upd7210_rd(u, ISR1);
-			i2 = upd7210_rd(u, ISR2);
-		} else {
-			i1 = u->rreg[ISR1];
-			i2 = u->rreg[ISR2];
-		}
-		if (i1 & IXR1_ENDRX)
-			break;
-		if (deadyet(ib))
-			break;
-	}
-	upd7210_wr(u, IMR1, 0);
-	upd7210_wr(u, IMR2, 0);
+	gpib_ib_wait_xfer(u, ib);
 	mtx_unlock(&u->mutex);
 	mtx_lock(&Giant);
 	j = isa_dmastatus(u->dmachan);
 	isa_dmadone(ISADMA_READ, data, len, u->dmachan);
 	mtx_unlock(&Giant);
-	if (deadyet(ib)) {
-		return (-1);
-	} else {
-		return (len - j);
-	}
+	return (len - j);
 }
 
 #define ibask NULL
@@ -396,63 +413,49 @@ dma_idata(struct upd7210 *u, u_char *data, int len)
 #define ibconfig NULL
 
 static int
-ibdev(struct handle *h, struct upd7210 *u, struct ibfoo_iocarg *ap)
+ibdev(struct ibfoo *ib)
 {
-	struct ibfoo *ib;
+	struct handle *h;
 
-	if (ap->pad < 0 ||
-	    ap->pad > 30 ||
-	    (ap->sad != 0 && ap->sad < 0x60) ||
-	    ap->sad > 126) {
-		ap->__retval = -1;
-		ap->__iberr = EARG;
-		return (0);
-	}
-	
-	ib = u->ibfoo;
 	h = malloc(sizeof *h, M_IBFOO, M_ZERO | M_WAITOK);
 	h->handle = alloc_unr(ib->unrhdr);
+	h->pad = ib->ap->pad;
+	h->sad = ib->ap->sad;
+	h->timeout = timeouts[ib->ap->tmo];
+	h->eot = ib->ap->eot;
+	h->eos = ib->ap->eos;
+	mtx_lock(&ib->u->mutex);
 	LIST_INSERT_HEAD(&ib->handles, h, list);
-	h->pad = ap->pad;
-	h->sad = ap->sad;
-	h->timeout = timeouts[ap->tmo];
-	h->eot = ap->eot;
-	h->eos = ap->eos;
-	ap->__retval = h->handle;
+	mtx_unlock(&ib->u->mutex);
+	ib->ap->__retval = h->handle;
 	return (0);
 }
 
 #define ibdiag NULL
 
 static int
-ibdma(struct handle *h, struct upd7210 *u, struct ibfoo_iocarg *ap)
+ibdma(struct ibfoo *ib)
 {
 
-	h->dma = ap->v;
+	ib->h->dma = ib->ap->v;
 	return (0);
 }
 
 static int
-ibeos(struct handle *h, struct upd7210 *u, struct ibfoo_iocarg *ap)
+ibeos(struct ibfoo *ib)
 {
-	struct ibfoo *ib;
 
-	ib = u->ibfoo;
-	h->eos = ap->eos;
-	if (ib->rdh == h)
-		config_eos(u, h);
-	ap->__retval = 0;
+	ib->h->eos = ib->ap->eos;
+	if (ib->rdh == ib->h)
+		config_eos(ib->u, ib->h);
 	return (0);
 }
 
 static int
-ibeot(struct handle *h, struct upd7210 *u, struct ibfoo_iocarg *ap)
+ibeot(struct ibfoo *ib)
 {
-	struct ibfoo *ib;
 
-	ib = u->ibfoo;
-
-	h->eot = ap->eot;
+	ib->h->eot = ib->ap->eot;
 	return (0);
 }
 
@@ -471,56 +474,52 @@ ibeot(struct handle *h, struct upd7210 *u, struct ibfoo_iocarg *ap)
 #define ibppc NULL
 
 static int
-ibrd(struct handle *h, struct upd7210 *u, struct ibfoo_iocarg *ap)
+ibrd(struct ibfoo *ib)
 {
-	struct ibfoo *ib;
 	u_char buf[10], *bp;
 	int i, j, error, bl, bc;
 	u_char *dp;
 
-	ib = u->ibfoo;
-	bl = ap->cnt;
+	bl = ib->ap->cnt;
 	if (bl > PAGE_SIZE)
 		bl = PAGE_SIZE;
 	bp = malloc(bl, M_IBFOO, M_WAITOK);
 
-	if (ib->rdh != h) {
+	if (ib->rdh != ib->h) {
 		i = 0;
 		buf[i++] = UNT;
 		buf[i++] = UNL;
 		buf[i++] = LAD | 0;
-		buf[i++] = TAD | h->pad;
-		if (h->sad)
-			buf[i++] = h->sad;
-		i = pio_cmd(u, buf, i);
-		config_eos(u, h);
-		ib->rdh = h;
+		buf[i++] = TAD | ib->h->pad;
+		if (ib->h->sad)
+			buf[i++] = ib->h->sad;
+		i = pio_cmd(ib->u, buf, i);
+		config_eos(ib->u, ib->h);
+		ib->rdh = ib->h;
 		ib->wrh = NULL;
-		upd7210_goto_standby(u);
+		upd7210_goto_standby(ib->u);
 	}
-	ap->__ibcnt = 0;
-	dp = ap->buffer;
-	bc = ap->cnt;
+	dp = ib->ap->buffer;
+	bc = ib->ap->cnt;
 	error = 0;
-	while (bc > 0) {
+	while (bc > 0 && ib->ap->__iberr == 0) {
 		j = imin(bc, PAGE_SIZE);
-		if (h->dma)
-			i = dma_idata(u, bp, j);
+		if (ib->h->dma)
+			i = dma_idata(ib->u, bp, j);
 		else
-			i = pio_idata(u, bp, j);
+			i = pio_idata(ib->u, bp, j);
 		if (i <= 0)
 			break;
 		error = copyout(bp, dp , i);
 		if (error)
 			break;
-		ap->__ibcnt += i;
+		ib->ap->__ibcnt += i;
 		if (i != j)
 			break;
 		bc -= i;
 		dp += i;
 	}
 	free(bp, M_IBFOO);
-	ap->__retval = 0;
 	return (error);
 }
 
@@ -539,10 +538,10 @@ ibrd(struct handle *h, struct upd7210 *u, struct ibfoo_iocarg *ap)
 #define ibstop NULL
 
 static int
-ibtmo(struct handle *h, struct upd7210 *u, struct ibfoo_iocarg *ap)
+ibtmo(struct ibfoo *ib)
 {
 
-	h->timeout = timeouts[ap->tmo];
+	ib->h->timeout = timeouts[ib->ap->tmo];
 	return (0);
 }
 
@@ -551,37 +550,35 @@ ibtmo(struct handle *h, struct upd7210 *u, struct ibfoo_iocarg *ap)
 #define ibwait NULL
 
 static int
-ibwrt(struct handle *h, struct upd7210 *u, struct ibfoo_iocarg *ap)
+ibwrt(struct ibfoo *ib)
 {
-	struct ibfoo *ib;
 	u_char buf[10], *bp;
 	int i;
 
-	ib = u->ibfoo;
-	bp = malloc(ap->cnt, M_IBFOO, M_WAITOK);
-	i = copyin(ap->buffer, bp, ap->cnt);
+	bp = malloc(ib->ap->cnt, M_IBFOO, M_WAITOK);
+	/* XXX: bigger than PAGE_SIZE handling */
+	i = copyin(ib->ap->buffer, bp, ib->ap->cnt);
 	if (i) {
 		free(bp, M_IBFOO);
 		return (i);
 	}
-	if (ib->wrh != h) {
+	if (ib->wrh != ib->h) {
 		i = 0;
 		buf[i++] = UNT;
 		buf[i++] = UNL;
-		buf[i++] = LAD | h->pad;
-		if (h->sad)
-			buf[i++] = LAD | TAD | h->sad;
+		buf[i++] = LAD | ib->h->pad;
+		if (ib->h->sad)
+			buf[i++] = LAD | TAD | ib->h->sad;
 		buf[i++] = TAD | 0;
-		i = pio_cmd(u, buf, i);
+		i = pio_cmd(ib->u, buf, i);
 		ib->rdh = NULL;
-		ib->wrh = h;
-		upd7210_goto_standby(u);
-		config_eos(u, h);
+		ib->wrh = ib->h;
+		upd7210_goto_standby(ib->u);
+		config_eos(ib->u, ib->h);
 	}
-	ib->doeoi = h->eot;
-	i = pio_odata(u, bp, ap->cnt);
-	ap->__ibcnt = i;
-	ap->__retval = 0;
+	ib->doeoi = ib->h->eot;
+	i = pio_odata(ib->u, bp, ib->ap->cnt);
+	ib->ap->__ibcnt = i;
 	free(bp, M_IBFOO);
 	return (0);
 }
@@ -646,7 +643,28 @@ static struct ibhandler {
 	[__ID_IBXTRC] =		{ "ibxtrc",	ibxtrc,		__F_HANDLE | __F_BUFFER | __F_CNT },
 };
 
-static u_int max_ibhandler = sizeof ibhandlers / sizeof ibhandlers[0];
+static const u_int max_ibhandler = sizeof ibhandlers / sizeof ibhandlers[0];
+
+static void
+ib_dump_args(struct ibhandler *ih, struct ibarg *ap)
+{
+
+	if (ih->name != NULL)
+		printf("%s(", ih->name);
+	else
+		printf("ibinvalid(");
+	printf("[0x%x]", ap->__field);
+	if (ap->__field & __F_HANDLE)	printf(" handle=%d", ap->handle);
+	if (ap->__field & __F_EOS)	printf(" eos=%d", ap->eos);
+	if (ap->__field & __F_EOT)	printf(" eot=%d", ap->eot);
+	if (ap->__field & __F_TMO)	printf(" tmo=%d", ap->tmo);
+	if (ap->__field & __F_PAD)	printf(" pad=%d", ap->pad);
+	if (ap->__field & __F_SAD)	printf(" sad=%d", ap->sad);
+	if (ap->__field & __F_BUFFER)	printf(" buffer=%p", ap->buffer);
+	if (ap->__field & __F_CNT)	printf(" cnt=%ld", ap->cnt);
+	/* XXX more ... */
+	printf(")\n");
+}
 
 static int
 gpib_ib_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
@@ -682,9 +700,10 @@ gpib_ib_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 
 	ib = malloc(sizeof *ib, M_IBFOO, M_WAITOK | M_ZERO);
 	LIST_INIT(&ib->handles);
+	callout_init(&ib->callout, 1);
 	ib->unrhdr = new_unrhdr(0, INT_MAX);
 	dev->si_drv2 = ib;
-	ib->upd7210 = u;
+	ib->u = u;
 	u->ibfoo = ib;
 	u->irq = gpib_ib_irq;
 
@@ -742,17 +761,22 @@ gpib_ib_close(struct cdev *dev, int oflags, int devtype, struct thread *td)
 static int
 gpib_ib_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 {
-	struct ibfoo_iocarg *ap;
+	struct ibarg *ap;
 	struct ibhandler *ih;
 	struct handle *h;
 	struct upd7210 *u;
+	struct ibfoo *ib;
 	int error;
+	struct timeval deadline, tv;
 
 	u = dev->si_drv1;
+	ib = u->ibfoo;
 
+	/* We only support a single ioctl, everything else is a mistake */
 	if (cmd != GPIB_IBFOO)
 		return (ENOIOCTL);
 
+	/* Check the identifier and field-bitmap in the arguments.  */
 	ap = (void *)data;
 	if (ap->__ident < 0 || ap->__ident >= max_ibhandler)
 		return (EINVAL);
@@ -760,91 +784,98 @@ gpib_ib_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thre
 	if (ap->__field != ih->args)
 		return (EINVAL);
 
+	if (ibdebug)
+		ib_dump_args(ih, ap);
+
+	if (ih->func == NULL)
+		return (EOPNOTSUPP);
+
+	ap->__iberr = 0;
+	ap->__ibsta = 0;
+	ap->__ibcnt = 0;
+	ap->retval = 0;
+
 	if (ap->__field & __F_TMO) {
-		if (ap->tmo < 0 || ap->tmo >= max_timeouts) {
-			ap->__retval = -1;
-			ap->__iberr = EARG;
-			return (0);
-		}
+		if (ap->tmo < 0 || ap->tmo >= max_timeouts)
+			return (ib_set_error(ap, EARG));
 	}
 
 	if (ap->__field & __F_EOS) {
-		if (ap->eos & ~(REOS | XEOS | BIN | 0xff)) {
-			ap->__retval = -1;
-			ap->__iberr = EARG;
-			return (0);
-		}
-		if (ap->eos & (REOS | XEOS)) {
-			if ((ap->eos & (BIN | 0x80)) == 0x80) {
-				ap->__retval = -1;
-				ap->__iberr = EARG;
-				return (0);
-			}
-		} else if (ap->eos != 0) {
-			ap->__retval = -1;
-			ap->__iberr = EARG;
-			return (0);
-		}
+		if ((ap->eos & ~(REOS | XEOS | BIN | 0xff)) ||
+		    ((ap->eos & (BIN | 0x80)) == 0x80))
+			return (ib_set_error(ap, EARG));
 	}
+	if (ap->__field & __F_PAD) {
+		if (ap->pad < 0 || ap->pad > 30)
+			return (ib_set_error(ap, EARG));
+	}
+	if (ap->__field & __F_SAD) {
+		if (ap->sad != 0 && (ap->sad < 0x60 || ap->sad > 126))
+			return (ib_set_error(ap, EARG));
+	}
+	
 
 	mtx_lock(&u->mutex);
+
+	
+	/* Find the handle, if any */
+	h = NULL;
+	if ((ap->__field & __F_HANDLE) && gethandle(u, ap, &h)) {
+		mtx_unlock(&u->mutex);
+		return (0);
+	}
+
+	/* Set up handle and deadline */
+	if (h != NULL && timevalisset(&h->timeout)) {
+		getmicrouptime(&deadline);
+		timevaladd(&deadline, &h->timeout);
+	} else {
+		timevalclear(&deadline);
+	}
+
+	/* Wait for the card to be(come) available, respect deadline */
 	while(u->busy != 1) {
-		error = msleep(u->ibfoo, &u->mutex, PZERO | PCATCH,
-		    "gpib_ibioctl", 0);
-		if (error) {
-			mtx_unlock(&u->mutex);
-			return (EINTR);
+		error = msleep(ib, &u->mutex,
+		    PZERO | PCATCH, "gpib_ibioctl", hz / 10);
+		if (error == 0)
+			continue;
+		mtx_unlock(&u->mutex);
+		if (error == EINTR)
+			return(ib_set_error(ap, EABO));
+		if (error == EWOULDBLOCK && timevalisset(&deadline)) {
+			getmicrouptime(&tv);
+			if (timevalcmp(&deadline, &tv, <))
+				return(ib_had_timeout(ap));
 		}
+		mtx_lock(&u->mutex);
 	}
 	u->busy = 2;
 	mtx_unlock(&u->mutex);
 
-#ifdef IBDEBUG
-	if (ih->name != NULL)
-		printf("%s(", ih->name);
-	else
-		printf("ibinvalid(");
-	printf("[0x%x]", ap->__field);
-	if (ap->__field & __F_HANDLE)	printf(" handle=%d", ap->handle);
-	if (ap->__field & __F_EOS)	printf(" eos=%d", ap->eos);
-	if (ap->__field & __F_EOT)	printf(" eot=%d", ap->eot);
-	if (ap->__field & __F_TMO)	printf(" tmo=%d", ap->tmo);
-	if (ap->__field & __F_PAD)	printf(" pad=%d", ap->pad);
-	if (ap->__field & __F_SAD)	printf(" sad=%d", ap->sad);
-	if (ap->__field & __F_BUFFER)	printf(" buffer=%p", ap->buffer);
-	if (ap->__field & __F_CNT)	printf(" cnt=%ld", ap->cnt);
-	/* XXX more ... */
-	printf(")\n");
-#endif
+	/* Hand over deadline handling to the callout routine */
+	ib->ap = ap;
+	ib->h = h;
+	ib->mode = BUSY;
+	ib->deadline = deadline;
+	callout_reset(&ib->callout, hz / 100, gpib_ib_timeout, u);
 
-	if (ap->__field & __F_HANDLE) {
-		if (gethandle(u, ap, &h)) {
-			error = 0; /* XXX iberr */
-			goto bail;
-		}
-	} else	
-		h = NULL;
-	ap->__iberr = 0;
-	error = EOPNOTSUPP;
-	if (ih->func != NULL)
-		error = ih->func(h, u, ap);
-	if (error) {
-		ap->__retval = EDVR;
-		ap->__iberr = EDVR;
-		ap->__ibcnt = error;
-	} else if (ap->__iberr) {
-		ap->__retval = -1;
-	}
-#ifdef IBDEBUG
-	printf("%s(...) = %d (error=%d)\n", ih->name, ap->__retval, error);
-#endif
+	error = ih->func(ib);
 
-bail:
+	/* Release card */
+	ib->mode = IDLE;
+	ib->ap = NULL;
+	ib->h = NULL;
+	timevalclear(&deadline);
+	callout_stop(&ib->callout);
+
 	mtx_lock(&u->mutex);
 	u->busy = 1;
-	wakeup(u->ibfoo);
+	wakeup(ib);
 	mtx_unlock(&u->mutex);
-	return (error);
+
+	if (error) 
+		return(ib_set_errno(ap, error));
+	return (0);
 }
 
 struct cdevsw gpib_ib_cdevsw = {
