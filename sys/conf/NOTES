@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.358 1997/08/19 17:11:35 peter Exp $
+#	$Id: LINT,v 1.359 1997/08/28 12:18:07 jkh Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -226,6 +226,13 @@ options		SYSVMSG
 # various authentication and privacy uses.
 #
 options		"MD5"
+
+#
+# Allow processes to switch to vm86 mode, as well as enabling direct
+# user-mode access to the I/O port space.  This option is necessary for 
+# the doscmd emulator to run.
+#
+options		"VM86"
 
 
 #####################################################################
