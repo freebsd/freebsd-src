@@ -31,7 +31,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: alpha-fbsd.c,v 1.1 1998/10/03 00:43:05 sef Exp $";
 #endif /* not lint */
 
 /*
@@ -44,6 +44,7 @@ static const char rcsid[] =
  * This file is almost nothing more than a slightly-edited i386-fbsd.c.
  */
 
+#include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -112,7 +113,7 @@ clear_fsc() {
 void
 alpha_syscall_entry(int pid, int nargs) {
   char buf[32];
-  struct reg regs = { 0 };
+  struct reg regs = { { 0 } };
   int syscall;
   int i;
   unsigned int parm_offset;
