@@ -1,4 +1,4 @@
-*   Login code for S/KEY Authentication.  S/KEY is a trademark
+/*   Login code for S/KEY Authentication.  S/KEY is a trademark
  *   of Bellcore.
  *
  *   Mink is the former name of the S/KEY authentication system.
