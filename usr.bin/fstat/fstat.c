@@ -379,7 +379,7 @@ dofiles(struct kinfo_proc *kp)
 			continue;
 		}
 		if (file.f_type == DTYPE_VNODE)
-			vtrans(file.f_data, i, file.f_flag);
+			vtrans(file.f_vnode, i, file.f_flag);
 		else if (file.f_type == DTYPE_SOCKET) {
 			if (checkfile == 0)
 				socktrans(file.f_data, i);
@@ -393,7 +393,7 @@ dofiles(struct kinfo_proc *kp)
 #ifdef DTYPE_FIFO
 		else if (file.f_type == DTYPE_FIFO) {
 			if (checkfile == 0)
-				vtrans(file.f_data, i, file.f_flag);
+				vtrans(file.f_vnode, i, file.f_flag);
 		}
 #endif
 		else {
