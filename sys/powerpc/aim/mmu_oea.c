@@ -221,6 +221,11 @@ struct pmap kernel_pmap_store;
 extern struct pmap ofw_pmap;
 
 /*
+ * Lock for the pteg and pvo tables.
+ */
+struct mtx	pmap_table_mutex;
+
+/*
  * PTEG data.
  */
 static struct	pteg *pmap_pteg_table;
@@ -667,6 +672,12 @@ pmap_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
 		LIST_INIT(&pmap_pvo_table[i]);
 
 	/*
+	 * Initialize the lock that synchronizes access to the pteg and pvo
+	 * tables.
+	 */
+	mtx_init(&pmap_table_mutex, "pmap table", NULL, MTX_DEF);
+
+	/*
 	 * Allocate the message buffer.
 	 */
 	msgbuf_phys = pmap_bootstrap_alloc(MSGBUF_SIZE, 0);
@@ -967,10 +978,9 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		pvo_flags = PVO_MANAGED;
 		was_exec = 0;
 	}
-	if (pmap_bootstrapped) {
+	if (pmap_bootstrapped)
 		vm_page_lock_queues();
-		PMAP_LOCK(pmap);
-	}
+	PMAP_LOCK(pmap);
 
 	/*
 	 * If this is a managed page, and it's the first reference to the page,
@@ -1031,8 +1041,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 
 	/* XXX syncicache always until problems are sorted */
 	pmap_syncicache(VM_PAGE_TO_PHYS(m), PAGE_SIZE);
-	if (pmap_bootstrapped)
-		PMAP_UNLOCK(pmap);
+	PMAP_UNLOCK(pmap);
 }
 
 vm_page_t
@@ -1823,11 +1832,13 @@ pmap_pvo_enter(pmap_t pm, uma_zone_t zone, struct pvo_head *pvo_head,
 	 * Remove any existing mapping for this page.  Reuse the pvo entry if
 	 * there is a mapping.
 	 */
+	mtx_lock(&pmap_table_mutex);
 	LIST_FOREACH(pvo, &pmap_pvo_table[ptegidx], pvo_olink) {
 		if (pvo->pvo_pmap == pm && PVO_VADDR(pvo) == va) {
 			if ((pvo->pvo_pte.pte_lo & PTE_RPGN) == pa &&
 			    (pvo->pvo_pte.pte_lo & PTE_PP) ==
 			    (pte_lo & PTE_PP)) {
+				mtx_unlock(&pmap_table_mutex);
 				return (0);
 			}
 			pmap_pvo_remove(pvo, -1);
@@ -1852,6 +1863,7 @@ pmap_pvo_enter(pmap_t pm, uma_zone_t zone, struct pvo_head *pvo_head,
 	}
 
 	if (pvo == NULL) {
+		mtx_unlock(&pmap_table_mutex);
 		return (ENOMEM);
 	}
 
@@ -1893,6 +1905,7 @@ pmap_pvo_enter(pmap_t pm, uma_zone_t zone, struct pvo_head *pvo_head,
 		pmap_pte_overflow++;
 	}
 
+	mtx_unlock(&pmap_table_mutex);
 	return (first ? ENOENT : 0);
 }
 
@@ -1978,15 +1991,17 @@ pmap_pvo_find_va(pmap_t pm, vm_offset_t va, int *pteidx_p)
 	sr = va_to_sr(pm->pm_sr, va);
 	ptegidx = va_to_pteg(sr, va);
 
+	mtx_lock(&pmap_table_mutex);
 	LIST_FOREACH(pvo, &pmap_pvo_table[ptegidx], pvo_olink) {
 		if (pvo->pvo_pmap == pm && PVO_VADDR(pvo) == va) {
 			if (pteidx_p)
 				*pteidx_p = pmap_pvo_pte_index(pvo, ptegidx);
-			return (pvo);
+			break;
 		}
 	}
+	mtx_unlock(&pmap_table_mutex);
 
-	return (NULL);
+	return (pvo);
 }
 
 static struct pte *
@@ -2064,6 +2079,7 @@ pmap_pte_spill(vm_offset_t addr)
 	 * Use low bits of timebase as random generator.
 	 */
 	pteg = &pmap_pteg_table[ptegidx];
+	mtx_lock(&pmap_table_mutex);
 	__asm __volatile("mftb %0" : "=r"(i));
 	i &= 7;
 	pt = &pteg->pt[i];
@@ -2088,6 +2104,7 @@ pmap_pte_spill(vm_offset_t addr)
 				PVO_PTEGIDX_SET(pvo, j);
 				pmap_pte_overflow--;
 				PMAP_PVO_CHECK(pvo);
+				mtx_unlock(&pmap_table_mutex);
 				return (1);
 			}
 
@@ -2109,8 +2126,10 @@ pmap_pte_spill(vm_offset_t addr)
 		}
 	}
 
-	if (source_pvo == NULL)
+	if (source_pvo == NULL) {
+		mtx_unlock(&pmap_table_mutex);
 		return (0);
+	}
 
 	if (victim_pvo == NULL) {
 		if ((pt->pte_hi & PTE_HID) == 0)
@@ -2156,6 +2175,7 @@ pmap_pte_spill(vm_offset_t addr)
 	PMAP_PVO_CHECK(victim_pvo);
 	PMAP_PVO_CHECK(source_pvo);
 
+	mtx_unlock(&pmap_table_mutex);
 	return (1);
 }
 
