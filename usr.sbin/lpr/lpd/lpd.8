@@ -40,7 +40,7 @@
 .Nd line printer spooler daemon
 .Sh SYNOPSIS
 .Nm
-.Op Fl cdlpW46
+.Op Fl cdlpsW46
 .Op Ar port#
 .Sh DESCRIPTION
 .Nm Lpd
@@ -91,7 +91,16 @@ for debugging purposes.
 .It Fl p
 The
 .Fl p
-flag causes
+flag is a synonym for the
+.Fl s
+flag.
+It is being depreciated, and may be removed in a
+future version of
+.Nm .
+.It Fl s
+The
+.Fl s
+(secure) flag causes
 .Nm
 not to open an Internet listening socket.
 This means that
