@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_linker.c,v 1.17 1998/11/11 13:04:39 peter Exp $
+ *	$Id: kern_linker.c,v 1.18 1999/01/05 20:24:28 msmith Exp $
  */
 
 #include "opt_ddb.h"
@@ -237,7 +237,7 @@ linker_load_file(const char* filename, linker_file_t* result)
 {
     linker_class_t lc;
     linker_file_t lf;
-    int error = 0;
+    int foundfile, error = 0;
     char *koname = NULL;
 
     lf = linker_find_file_by_name(filename);
@@ -255,16 +255,20 @@ linker_load_file(const char* filename, linker_file_t* result)
     }
     sprintf(koname, "%s.ko", filename);
     lf = NULL;
+    foundfile = 0;
     for (lc = TAILQ_FIRST(&classes); lc; lc = TAILQ_NEXT(lc, link)) {
 	KLD_DPF(FILE, ("linker_load_file: trying to load %s as %s\n",
 		       filename, lc->desc));
-	error = lc->ops->load_file(koname, &lf);
-	if (lf == NULL && error && error != ENOENT)
-	    goto out;
-	if (lf == NULL)
-	    error = lc->ops->load_file(filename, &lf);
-	if (lf == NULL && error && error != ENOENT)
-	    goto out;
+
+	error = lc->ops->load_file(koname, &lf);	/* First with .ko */
+	if (lf == NULL && error == ENOENT)
+	    error = lc->ops->load_file(filename, &lf);	/* Then try without */
+	/*
+	 * If we got something other than ENOENT, then it exists but we cannot
+	 * load it for some other reason.
+	 */
+	if (error != ENOENT)
+	    foundfile = 1;
 	if (lf) {
 	    linker_file_sysinit(lf);
 
@@ -273,7 +277,14 @@ linker_load_file(const char* filename, linker_file_t* result)
 	    goto out;
 	}
     }
-    error = ENOEXEC;		/* format not recognised */
+    /*
+     * Less than ideal, but tells the user whether it failed to load or
+     * the module was not found.
+     */
+    if (foundfile)
+	error = ENOEXEC;	/* Format not recognised (or unloadable) */
+    else
+	error = ENOENT;		/* Nothing found */
 
 out:
     if (koname)
