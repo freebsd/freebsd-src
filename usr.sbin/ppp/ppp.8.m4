@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.171 1999/06/02 00:46:55 brian Exp $
+.\" $Id: ppp.8,v 1.172 1999/06/08 11:57:59 brian Exp $
 .Dd 20 September 1995
 .nr XX \w'\fC00'
 .Os FreeBSD
@@ -2355,6 +2355,15 @@ them.  The answer is taken from
 unless the
 .Dq set dns
 command is used as an override.
+.It enddisc
+Default: Enabled and Accepted.  This option allows control over whether we
+negotiate an endpoint discriminator.  We only send our discriminator if
+.Dq set enddisc
+is used and
+.Ar enddisc
+is enabled.  We reject the peers discriminator if
+.Ar enddisc
+is denied.
 .It LANMan|chap80lm
 Default: Disabled and Accepted.  The use of this authentication protocol
 is discouraged as it partially violates the authentication protocol by
@@ -3751,7 +3760,9 @@ word expansions as the
 command.
 .It set enddisc Op label|IP|MAC|magic|psn value
 This command sets our local endpoint discriminator.  If set prior to
-LCP negotiation,
+LCP negotiation, and if no
+.Dq disable enddisc
+command has been used,
 .Nm
 will send the information to the peer using the LCP endpoint discriminator
 option.  The following discriminators may be set:

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.74 1999/05/09 20:02:21 brian Exp $
+ * $Id: lcp.c,v 1.75 1999/06/02 15:59:02 brian Exp $
  *
  */
 
@@ -424,7 +424,8 @@ LcpSendConfigReq(struct fsm *fp)
   }
 
   mp = &lcp->fsm.bundle->ncp.mp;
-  if (mp->cfg.enddisc.class != 0 && !REJECTED(lcp, TY_ENDDISC)) {
+  if (mp->cfg.enddisc.class != 0 && IsEnabled(mp->cfg.negenddisc) &&
+      !REJECTED(lcp, TY_ENDDISC)) {
     *o->data = mp->cfg.enddisc.class;
     memcpy(o->data+1, mp->cfg.enddisc.address, mp->cfg.enddisc.len);
     INC_LCP_OPT(TY_ENDDISC, mp->cfg.enddisc.len + 3, o);
@@ -1059,7 +1060,9 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
         if (!p) {
           log_Printf(LogLCP, " ENDDISC rejected - not a physical link\n");
 	  goto reqreject;
-        } else if (length-3 < sizeof p->dl->peer.enddisc.address &&
+        } else if (!IsAccepted(mp->cfg.negenddisc))
+	  goto reqreject;
+        else if (length-3 < sizeof p->dl->peer.enddisc.address &&
                    cp[2] <= MAX_ENDDISC_CLASS) {
           p->dl->peer.enddisc.class = cp[2];
           p->dl->peer.enddisc.len = length-3;
@@ -1079,7 +1082,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
         }
 	break;
 
-      case MODE_NAK:	/* Treat this as a REJ, we don't vary our disc */
+      case MODE_NAK:	/* Treat this as a REJ, we don't vary our disc (yet) */
       case MODE_REJ:
 	lcp->his_reject |= (1 << type);
 	break;
