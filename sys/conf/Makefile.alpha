@@ -12,7 +12,7 @@
 # after which you should do
 #	 config machineid
 # Generic makefile changes should be made in
-#	/sys/alpha/conf/Makefile.alpha
+#	/sys/conf/Makefile.alpha
 # after which config should be rerun for all machines.
 #
 
