@@ -135,7 +135,7 @@ typedef struct {
 	uCHAR Reserved3;	     /* Reserved Field			     */
 	       } DptReadConfig_t;
 
-#if defined ( _DPT_SOLARIS )
+#if defined(_DPT_SOLARIS)
 
 #include <sys/types.h>
 #include <sys/ddidmareq.h>
@@ -209,7 +209,7 @@ typedef struct {
 /* Inform driver to reset adapter */
 #define I2ORESETCMD	_IO('D',78)
 
-#elif defined (SNI_MIPS)
+#elif defined(SNI_MIPS)
   /* Unix Ioctl Command definitions */
 
 #define EATAUSRCMD     (('D'<<8)|65)

@@ -112,8 +112,8 @@ typedef	   U32 BF;
 typedef unsigned char BOOL;
 #endif
 
-#if (!defined(__FAR__))
-# if (defined(__BORLANDC__))
+#if !defined(__FAR__))
+# if defined(__BORLANDC__)
 #  define __FAR__ far
 # else
 #  define __FAR__
@@ -122,12 +122,12 @@ typedef unsigned char BOOL;
 
 /* NULL */
 
-#if (!defined(NULL))
+#if !defined(NULL)
 # define NULL  ((VOID __FAR__ *)0L)
 #endif
 
 
-#if (defined(__SPARC__) || defined(__linux__))
+#if defined(__SPARC__) || defined(__linux__)
 typedef char		       CHAR;
 typedef char		       *pCHAR;
 typedef char		       INT8;
