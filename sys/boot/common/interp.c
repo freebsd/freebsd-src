@@ -23,10 +23,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: interp.c,v 1.1.1.1 1998/08/21 03:17:41 msmith Exp $
  */
 /*
- * Simple commandline interpreter.
+ * Simple commandline interpreter, toplevel and misc.
  *
  * XXX may be obsoleted by BootFORTH
  */
@@ -37,40 +37,9 @@
 
 #define	MAXARGS	20			/* maximum number of arguments allowed */
 
-static int	parse(char *buf, int *argcp, char **argvp[]);
-static void	prompt(void);
-/*
- * Parse the supplied text into argv/argc form.
- * XXX should perhaps learn about quotes, etc?
- * XXX can also do alias expansion, variable substitution, etc. here
- */
-static int
-parse(char *buf, int *argcp, char **argvp[])
-{
-    static int		argc;
-    static char		*argv[MAXARGS], *cp;
+extern int	parse(int *argc, char ***argv, char *str);	/* interp_parse.c */
 
-    argc = 0;
-    cp = buf;
-    while ((*cp != 0) && (argc < MAXARGS)) {
-	if (isspace(*cp)) {
-	    *(cp++) = 0;
-	} else {
-	    argv[argc++] = cp++;
-	    while ((*cp != 0) && !isspace(*cp))
-		cp++;
-	}
-    }
-    argv[argc] = NULL;
-    /* command too complex */
-    if (argc >= MAXARGS) {
-	printf("too many arguments\n");
-	return(1);
-    }
-    *argcp = argc;
-    *argvp = argv;
-    return(0);
-}
+static void	prompt(void);
 
 /*
  * Perform the command
@@ -118,9 +87,13 @@ interact(void)
 	input[0] = '\0';
 	prompt();
 	ngets(input, sizeof(input));
-	if (!parse(input, &argc, &argv) && 
-	    (perform(argc, argv) != 0))
+	if (!parse(&argc, &argv, input)) {
+	    if (perform(argc, argv))
 		printf("%s: %s\n", argv[0], command_errmsg);
+	    free(argv);
+	} else {
+	    printf("parse error\n");
+	}
     }
 }
 
@@ -164,10 +137,12 @@ source(char *filename)
 		printf("%s\n", input);
 	    }
 
-	    if (!parse(cp, &argc, &argv) && 
-		(argc > 0) &&
-		(perform(argc, argv) != 0))
+	    if (!parse(&argc, &argv, cp)) {
+		if ((argc > 0) &&
+		    (perform(argc, argv) != 0))
 		    printf("%s: %s\n", argv[0], command_errmsg);
+		free(argv);
+	    }
 	}
 	close(fd);
     }
