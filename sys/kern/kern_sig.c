@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sig.c	8.7 (Berkeley) 4/18/94
- * $Id: kern_sig.c,v 1.55 1999/04/28 11:36:59 phk Exp $
+ * $Id: kern_sig.c,v 1.56 1999/05/03 23:57:22 billf Exp $
  */
 
 #include "opt_compat.h"
@@ -126,9 +126,13 @@ sigaction(p, uap)
 		return (EINVAL);
 	sa = &vec;
 	if (uap->osa) {
-		sa->sa_handler = ps->ps_sigact[signum];
-		sa->sa_mask = ps->ps_catchmask[signum];
 		bit = sigmask(signum);
+		if ((ps->ps_siginfo & bit) != 0)
+			sa->sa_sigaction = 
+			    (__siginfohandler_t *)ps->ps_sigact[signum];
+		else
+			sa->sa_handler = ps->ps_sigact[signum];
+		sa->sa_mask = ps->ps_catchmask[signum];
 		sa->sa_flags = 0;
 		if ((ps->ps_sigonstack & bit) != 0)
 			sa->sa_flags |= SA_ONSTACK;
@@ -138,6 +142,8 @@ sigaction(p, uap)
 			sa->sa_flags |= SA_RESETHAND;
 		if ((ps->ps_signodefer & bit) != 0)
 			sa->sa_flags |= SA_NODEFER;
+		if ((ps->ps_siginfo & bit) != 0)
+			sa->sa_flags |= SA_SIGINFO;
 		if (signum == SIGCHLD && p->p_procsig->ps_flag & P_NOCLDSTOP)
 			sa->sa_flags |= SA_NOCLDSTOP;
 		if (signum == SIGCHLD && p->p_procsig->ps_flag & P_NOCLDWAIT)
@@ -151,7 +157,7 @@ sigaction(p, uap)
 		    sizeof (vec))))
 			return (error);
 		if ((signum == SIGKILL || signum == SIGSTOP) &&
-		    sa->sa_handler != SIG_DFL)
+		    ps->ps_sigact[signum] != SIG_DFL)
 			return (EINVAL);
 		setsigvec(p, signum, sa);
 	}
@@ -172,8 +178,14 @@ setsigvec(p, signum, sa)
 	 * Change setting atomically.
 	 */
 	(void) splhigh();
-	ps->ps_sigact[signum] = sa->sa_handler;
 	ps->ps_catchmask[signum] = sa->sa_mask &~ sigcantmask;
+	if (sa->sa_flags & SA_SIGINFO) {
+		ps->ps_sigact[signum] = sa->sa_handler;
+		ps->ps_siginfo |= bit;
+	} else {
+		ps->ps_sigact[signum] = (__sighandler_t *)sa->sa_sigaction;
+		ps->ps_siginfo &= ~bit;
+	}
 	if ((sa->sa_flags & SA_RESTART) == 0)
 		ps->ps_sigintr |= bit;
 	else
@@ -221,15 +233,15 @@ setsigvec(p, signum, sa)
 	 * However, don't put SIGCONT in p_sigignore,
 	 * as we have to restart the process.
 	 */
-	if (sa->sa_handler == SIG_IGN ||
-	    (sigprop[signum] & SA_IGNORE && sa->sa_handler == SIG_DFL)) {
+	if (ps->ps_sigact[signum] == SIG_IGN ||
+	    (sigprop[signum] & SA_IGNORE && ps->ps_sigact[signum] == SIG_DFL)) {
 		p->p_siglist &= ~bit;		/* never to be seen again */
 		if (signum != SIGCONT)
 			p->p_sigignore |= bit;	/* easier in psignal */
 		p->p_sigcatch &= ~bit;
 	} else {
 		p->p_sigignore &= ~bit;
-		if (sa->sa_handler == SIG_DFL)
+		if (ps->ps_sigact[signum] == SIG_DFL)
 			p->p_sigcatch &= ~bit;
 		else
 			p->p_sigcatch |= bit;
@@ -387,6 +399,8 @@ osigvec(p, uap)
 			sv->sv_flags |= SV_RESETHAND;
 		if ((ps->ps_signodefer & bit) != 0)
 			sv->sv_flags |= SV_NODEFER;
+		if ((ps->ps_siginfo & bit) != 0)
+			sv->sv_flags |= SV_SIGINFO;
 #ifndef COMPAT_SUNOS
 		if (signum == SIGCHLD && p->p_procsig->ps_flag & P_NOCLDSTOP)
 			sv->sv_flags |= SV_NOCLDSTOP;
