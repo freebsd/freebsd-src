@@ -53,7 +53,7 @@
 	     <para>Acerlabs Aladdin</para>
 	   </listitem>
 	   <listitem>
-	     <para>AMD 756</para>
+	     <para>AMD 756, 766</para>
 	   </listitem>
 	   <listitem>
 	     <para>CMD 646, 648 ATA66, and 649 ATA100</para>
@@ -71,7 +71,7 @@
 		<para>Intel PIIX, PIIX3, PIIX4</para>
 	   </listitem>
 	   <listitem>
-		<para>Intel ICH, ICH2</para>
+		<para>Intel ICH ATA66, ICH2 ATA100, ICH3 ATA100</para>
 	   </listitem>
 	   <listitem>
 		<para>Promise ATA100 OEM chip (pdc20265)</para>
@@ -89,7 +89,7 @@
 		<para>SiS 5591</para>
 	   </listitem>
 	   <listitem>
-		<para>VIA 82C586, 82C686a, 82C686b</para>
+		<para>VIA 82C586 ATA33, 82C686a ATA66, 82C686b ATA100</para>
 	   </listitem>
       </itemizedlist>
     </para>
