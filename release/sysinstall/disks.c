@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.31.2.6 1995/09/23 22:20:10 jkh Exp $
+ * $Id: disks.c,v 1.31.2.7 1995/10/03 23:36:39 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -138,9 +138,9 @@ diskPartition(Disk *d)
 
     clear();
     record_chunks(d);
-    print_command_summary();
     while (chunking) {
 	print_chunks(d);
+	print_command_summary();
 	if (msg) {
 	    standout(); mvprintw(23, 0, msg); standend();
 	    beep();
