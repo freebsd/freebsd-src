@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.105 1999/03/07 01:02:39 brian Exp $
+ * $Id: modem.c,v 1.106 1999/03/07 01:41:27 brian Exp $
  *
  *  TODO:
  */
@@ -593,6 +593,7 @@ modem_Open(struct physical *modem, struct bundle *bundle)
               waitpid(pid, &stat, 0);
               log_Printf(LogDEBUG, "Using descriptor %d for child\n",
                          modem->fd);
+              modem_Found(modem, bundle);
               break;
           }
         }
