@@ -41,7 +41,8 @@ COMMON_SRCS= b_exp.c b_log.c b_tgamma.c \
 	s_asinh.c s_asinhf.c s_atan.c s_atanf.c s_cbrt.c s_cbrtf.c \
 	s_ceil.c s_ceilf.c s_ceill.c \
 	s_copysign.c s_copysignf.c s_cos.c s_cosf.c s_erf.c s_erff.c \
-	s_expm1.c s_expm1f.c s_fabsf.c s_fdim.c s_finite.c s_finitef.c \
+	s_exp2.c s_exp2f.c s_expm1.c s_expm1f.c s_fabsf.c s_fdim.c \
+	s_finite.c s_finitef.c \
 	s_floor.c s_floorf.c s_floorl.c s_fma.c s_fmaf.c \
 	s_fmax.c s_fmaxf.c s_fmaxl.c s_fmin.c \
 	s_fminf.c s_fminl.c s_frexp.c s_frexpf.c s_ilogb.c s_ilogbf.c \
@@ -111,7 +112,7 @@ MLINKS+=cos.3 cosf.3
 MLINKS+=cosh.3 coshf.3
 MLINKS+=erf.3 erfc.3 erf.3 erff.3 erf.3 erfcf.3
 MLINKS+=exp.3 expm1.3 exp.3 log.3 exp.3 log10.3 exp.3 log1p.3 exp.3 pow.3 \
-	exp.3 expf.3 \
+	exp.3 exp2.3 exp.3 exp2f.3 exp.3 expf.3 \
 	exp.3 expm1f.3 exp.3 logf.3 exp.3 powf.3 \
 	exp.3 log10f.3 exp.3 log1pf.3
 MLINKS+=fabs.3 fabsf.3 fabs.3 fabsl.3
