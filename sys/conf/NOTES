@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.406 1998/02/11 20:47:42 dima Exp $
+#	$Id: LINT,v 1.407 1998/02/13 13:00:01 phk Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1380,6 +1380,12 @@ options		GATEWAY
 # If you want to disable loadable kernel modules (LKM), you
 # might want to use this option.
 options		NO_LKM
+
+#
+# Add tie-ins for a hardware watchdog.  This only enable the hooks;
+# the user must still supply the actual driver.
+#
+options		HW_WDOG
 
 # More undocumented options for linting.
 
