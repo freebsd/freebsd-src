@@ -89,13 +89,9 @@ Pa¼dziernik
 Listopad
 Grudzieñ
 #
-# Ef_fmt
+# md_order
 #
-%e %b
-#
-# EF_fmt
-#
-%e %B
+dm
 #
 # ampm_fmt
 #
