@@ -1048,9 +1048,7 @@ pmap_unuse_pt(pmap_t pmap, vm_offset_t va, pd_entry_t ptepde)
 
 	if (va >= VM_MAXUSER_ADDRESS)
 		return 0;
-/* XXX this should be an error, all cases should be caught now */
-	if (ptepde == 0)
-		ptepde = *pmap_pde(pmap, va);
+	KASSERT(ptepde != 0, ("pmap_unuse_pt: ptepde != 0"));
 	mpte = PHYS_TO_VM_PAGE(ptepde & PG_FRAME);
 	return pmap_unwire_pte_hold(pmap, va, mpte);
 }
