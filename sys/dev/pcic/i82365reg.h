@@ -320,6 +320,15 @@
 /* #define	PCIC_RESERVED			0x3E */
 /* #define	PCIC_RESERVED			0x3F */
 
+/* cardbus extensions - memory window page registers */
+
+#define	PCIC_MEMREG_WIN_SHIFT			24
+#define	PCIC_SYSMEM_ADDR0_WIN			0x40
+#define	PCIC_SYSMEM_ADDR1_WIN			0x41
+#define	PCIC_SYSMEM_ADDR2_WIN			0x42
+#define	PCIC_SYSMEM_ADDR3_WIN			0x43
+#define	PCIC_SYSMEM_ADDR4_WIN			0x44
+
 /* vendor-specific registers */
 
 #define	PCIC_INTEL_GLOBAL_CTL			0x1E	/* RW */
