@@ -1,5 +1,5 @@
 #	From: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.kmod.mk,v 1.1 1994/09/14 21:59:28 wollman Exp $
+#	$Id: bsd.kmod.mk,v 1.2 1994/09/21 03:49:59 wollman Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -145,13 +145,11 @@ unload:	${PROG}
 	/sbin/modunload -n ${KMOD}
 .endif
 
-.if defined(VFS_LKM)
 KERN=	${.CURDIR}/../../sys/kern
 
 vnode_if.h:	${KERN}/vnode_if.sh ${KERN}/vnode_if.src
 	sh ${KERN}/vnode_if.sh ${KERN}/vnode_if.src
 
 ./vnode_if.h:	vnode_if.h
-.endif
 
 .include <bsd.dep.mk>
