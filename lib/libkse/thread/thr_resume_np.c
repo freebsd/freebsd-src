@@ -45,8 +45,21 @@ pthread_resume_np(pthread_t thread)
 	if ((ret = _find_thread(thread)) == 0) {
 		/* The thread exists. Is it suspended? */
 		if (thread->state != PS_SUSPENDED) {
+			/*
+			 * Guard against preemption by a scheduling signal.
+			 * A change of thread state modifies the waiting
+			 * and priority queues.
+			 */
+			_thread_kern_sched_defer();
+
 			/* Allow the thread to run. */
 			PTHREAD_NEW_STATE(thread,PS_RUNNING);
+
+			/*
+			 * Reenable preemption and yield if a scheduling
+			 * signal occurred while in the critical region.
+			 */
+			_thread_kern_sched_undefer();
 		}
 	}
 	return(ret);
