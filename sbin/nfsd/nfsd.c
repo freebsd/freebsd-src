@@ -132,18 +132,13 @@ main(argc, argv, envp)
 	int bindhostc = 0, bindanyflag, rpcbreg, rpcbregcnt;
 	char **bindhost = NULL;
 	pid_t pid;
-	struct vfsconf vfc;
 	int error;
 
-	error = getvfsbyname("nfs", &vfc);
-	if (error && vfsisloadable("nfs")) {
-		if (vfsload("nfs"))
-			err(1, "vfsload(nfs)");
-		endvfsent();	/* flush cache */
-		error = getvfsbyname("nfs", &vfc);
+	if (modfind("nfsserver") < 0) {
+		/* Not present in kernel, try loading it */
+		if (kldload("nfsserver") < 0 || modfind("nfsserver") < 0)
+			errx(1, "NFS serveris not available");
 	}
-	if (error)
-		errx(1, "NFS is not available in the running kernel");
 
 	nfsdcnt = DEFNFSDCNT;
 	unregister = reregister = tcpflag = 0;
