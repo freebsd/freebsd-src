@@ -754,7 +754,7 @@ get_pv_entry(void)
 	 * cover this.
 	 */
 	if (!pvinit) {
-#define PV_BOOTSTRAP_NEEDED	512
+#define PV_BOOTSTRAP_NEEDED	2048
 		static struct pv_entry pvbootentries[PV_BOOTSTRAP_NEEDED];
 		static int pvbootnext = 0;
 
