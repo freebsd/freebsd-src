@@ -45,6 +45,14 @@ The file to use as boot parameter file instead of
 .Bl -tag -width /etc/bootparams -compact
 .It /etc/bootparams
 .El
+.Sh EXAMPLES
+When netbooting diskless SunOS/Xkernel SPARCstations the booted SunOS kernel
+also broadcasts to the all-0 address. The SunOS kernel hangs until it
+receives a reply. To accomodate this behaviour add an alias address 
+that responds to an all-0 broadcast. So, add something like 'ifconfig xl0
+192.168.200.254 netmask 255.255.255.255 broadcast 192.168.200.0 alias'
+on the relevant network interface on your bootparamd server. The alias
+address must of course be free for use.
 .Sh BUGS
 You may find the syslog loggings to be verbose.
 .Sh AUTHORS
