@@ -182,7 +182,6 @@ i386/isa/bs/bsfunc.c		optional	bs
 i386/isa/bs/bshw.c		optional	bs
 i386/isa/bs/bsif.c		optional	bs
 i386/isa/asc.c			optional	asc
-i386/isa/atapi-cd.c		optional	wcd
 pc98/pc98/atapi.c		optional	wdc
 pc98/pc98/clock.c		standard
 i386/isa/cronyx.c		optional	cx
@@ -321,6 +320,7 @@ dev/syscons/sysmouse.c		optional	sc
 i386/isa/tw.c			optional	tw
 pc98/pc98/wd.c			optional	wdc
 pc98/pc98/wd.c			optional	wd
+i386/isa/wd_cd.c		optional	wcd
 i386/isa/wfd.c			optional	wfd
 i386/isa/wst.c			optional	wst
 i386/isa/wt.c			optional	wt
