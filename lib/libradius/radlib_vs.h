@@ -69,14 +69,12 @@
 struct rad_handle;
 
 __BEGIN_DECLS
-int			 rad_put_vendor_addr(struct rad_handle *, int, int,
-			    struct in_addr);
-int			 rad_put_vendor_attr(struct rad_handle *, int, int,
-			    const void *, size_t);
-int			 rad_put_vendor_int(struct rad_handle *, int, int,
-			    u_int32_t);
-int			 rad_put_vendor_string(struct rad_handle *, int, int,
-			    const char *);
+int	rad_get_vendor_attr(u_int32_t *, const void **, size_t *);
+int	rad_put_vendor_addr(struct rad_handle *, int, int, struct in_addr);
+int	rad_put_vendor_attr(struct rad_handle *, int, int, const void *,
+	    size_t);
+int	rad_put_vendor_int(struct rad_handle *, int, int, u_int32_t);
+int	rad_put_vendor_string(struct rad_handle *, int, int, const char *);
 __END_DECLS
 
 #endif /* _RADLIB_VS_H_ */
