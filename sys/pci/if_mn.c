@@ -24,6 +24,10 @@
  * $FreeBSD$
  */
 
+#ifndef COMPAT_OLDPCI
+#error "The mn device requires the old pci compatibility shims"
+#endif
+
 /*
  * Stuff to describe the MUNIC32X and FALC54 chips.
  */
