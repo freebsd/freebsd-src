@@ -186,7 +186,7 @@ struct buf {
 #define	B_AGE		0x00000001	/* Move to age queue when I/O done. */
 #define	B_NEEDCOMMIT	0x00000002	/* Append-write in progress. */
 #define	B_ASYNC		0x00000004	/* Start I/O, do not wait. */
-#define	B_BAD		0x00000008	/* Bad block revectoring in progress. */
+#define	B_UNUSED0	0x00000008	/* Old B_BAD */
 #define	B_UNUSED1	0x00000010	/* Old B_BUSY */
 #define	B_CACHE		0x00000020	/* Bread found us in the cache. */
 #define	B_CALL		0x00000040	/* Call b_iodone from biodone. */
