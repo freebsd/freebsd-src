@@ -39,7 +39,7 @@ int	c_modes __P((const void *, const void *));
 int	csearch __P((char ***, struct info *));
 void	checkredirect __P((void));
 void	gprint __P((struct termios *, struct winsize *, int, int));
-void	gread __P((struct termios *, int *, char *));
+void	gread __P((struct info *, char *));
 int	ksearch __P((char ***, struct info *));
 int	msearch __P((char ***, struct info *));
 void	optlist __P((void));
