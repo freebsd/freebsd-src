@@ -14,6 +14,7 @@
 #		Gene Stark		Add xten power controler driver (tw)
 #		David Greenman		Add ethernet driver (SMC/WD/3COM) (ed)
 #		Rick Macklem		Add bus mouse driver (mse)
+# 29 Jul 93	Jordan Hubbard		Removed codrv
 #
 i386/i386/autoconf.c		standard		device-driver
 i386/i386/cons.c		standard
@@ -35,13 +36,6 @@ i386/isa/aha1742.c		optional	ahb	device-driver
 i386/isa/as.c			optional	as	device-driver
 i386/isa/bt742a.c		optional	bt	device-driver
 i386/isa/clock.c		standard
-i386/isa/codrv/co_cons.c	optional	co	device-driver
-i386/isa/codrv/co_kbd.c		optional	co	device-driver
-i386/isa/codrv/co_vga.c		optional	co	device-driver
-i386/isa/codrv/co_codrv1.c	optional	co	device-driver
-i386/isa/codrv/co_vty.c		optional	vty
-i386/isa/codrv/co_pc3.c		optional	vtemul
-i386/isa/codrv/co_mini.c	optional	vtemul
 i386/isa/com.c			optional	com	device-driver
 i386/isa/dcfclk.c		optional	dcfclk	device-driver
 i386/isa/fd.c			optional	fd	device-driver
