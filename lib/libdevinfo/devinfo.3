@@ -56,7 +56,7 @@
 .Fn devinfo_handle_to_rman "devinfo_handle_t handle"
 .Ft int
 .Fo devinfo_foreach_device_child
-.Fa "struct devinfo_dev *parent" 
+.Fa "struct devinfo_dev *parent"
 .Fa "int \*[lp]*fn\*[rp]\*[lp]struct devinfo_dev *child, void *arg\*[rp]"
 .Fa "void *arg"
 .Fc
@@ -141,7 +141,7 @@ must be called again before using any other functions.
 .Fn devinfo_handle_to_resource
 and
 .Fn devinfo_handle_to_rman
-return pointers to 
+return pointers to
 .Vt devinfo_dev ,
 .Vt devinfo_res
 and

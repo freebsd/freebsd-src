@@ -86,7 +86,7 @@ then
 .Nm
 will require that the super-user password be
 entered before the system will start a single-user shell.
-The password check is skipped if the 
+The password check is skipped if the
 .Em console
 is marked as
 .Dq secure .
@@ -103,7 +103,7 @@ This is the default initial value.
 Insecure mode \- immutable and append-only flags may be turned off.
 All devices may be read or written subject to their permissions.
 .It Ic 1
-Secure mode \- the system immutable and system append-only flags may not 
+Secure mode \- the system immutable and system append-only flags may not
 be turned off;
 disks for mounted filesystems,
 .Pa /dev/mem ,
@@ -150,11 +150,11 @@ it can be set before going multi-user, e.g., by the startup script
 .Xr rc 8 ,
 using
 .Xr sysctl 8
-to set the 
+to set the
 .Dq kern.securelevel
 variable to the required security level.
 .Pp
-In multi-user operation, 
+In multi-user operation,
 .Nm
 maintains
 processes for the terminal ports found in the file
@@ -232,7 +232,7 @@ file and are now on,
 executes the command specified in the second field.
 If the command or window field for a line is changed,
 the change takes effect at the end of the current
-login session (e.g., the next time 
+login session (e.g., the next time
 .Nm
 starts a process on the line).
 If a line is commented out or deleted from
@@ -389,10 +389,10 @@ Systems without
 .Xr sysctl
 behave as though they have security level \-1.
 .Pp
-Setting the security level above 1 too early in the boot sequence can 
-prevent 
-.Xr fsck 8 
-from repairing inconsistent filesystems.  The 
-preferred location to set the security level is at the end of 
-.Pa /etc/rc 
+Setting the security level above 1 too early in the boot sequence can
+prevent
+.Xr fsck 8
+from repairing inconsistent filesystems.  The
+preferred location to set the security level is at the end of
+.Pa /etc/rc
 after all multi-user startup actions are complete.

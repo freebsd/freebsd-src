@@ -59,7 +59,7 @@ The
 utility supports a limited number of general options,
 but a rich command language, enabling the user to specify
 any arbitrary request that could be delivered via the
-programmatic interface discussed in 
+programmatic interface discussed in
 .Xr route 4 .
 .Pp
 The following options are available:
@@ -113,9 +113,9 @@ The flush command has the syntax:
 .Op Ar family
 .Ed
 .Pp
-If the 
+If the
 .Cm flush
-command is specified, 
+command is specified,
 .Nm
 will ``flush'' the routing tables of all gateway entries.
 When the address family may is specified by any of the
@@ -153,7 +153,7 @@ The optional modifiers
 and
 .Fl host
 force the destination to be interpreted as a network or a host, respectively.
-Otherwise, if the 
+Otherwise, if the
 .Ar destination
 has a
 .Dq local address part
@@ -199,21 +199,21 @@ which is the default route.
 .Pp
 If the destination is directly reachable
 via an interface requiring
-no intermediary system to act as a gateway, the 
+no intermediary system to act as a gateway, the
 .Fl interface
 modifier should be specified;
 the gateway given is the address of this host on the common network,
 indicating the interface to be used for transmission.
 Alternately, if the interface is point to point the name of the interface
 itself may be given, in which case the route remains valid even
-if the local or remote addresses change. 
+if the local or remote addresses change.
 .Pp
 The optional modifiers
 .Fl xns ,
 .Fl osi ,
 .Fl atalk ,
 and
-.Fl link 
+.Fl link
 specify that all subsequent addresses are in the
 .Tn XNS ,
 .Tn OSI ,
@@ -253,8 +253,8 @@ specifies network mask of
 .Li ffff:ffff:0000:0000:0000:0000:0000:0000
 to be used.
 The default value of prefixlen is 64 to get along with
-the aggregatable address. 
-But 0 is assumed if 
+the aggregatable address.
+But 0 is assumed if
 .Cm default
 is specified.
 Note that the qualifier works only for
@@ -294,7 +294,7 @@ These may be individually locked by preceding each such modifier to
 be locked by
 the
 .Fl lock
-meta-modifier, or one can 
+meta-modifier, or one can
 specify that all ensuing metrics may be locked by the
 .Fl lockrest
 meta-modifier.
@@ -325,7 +325,7 @@ entry, as reported by
 .Pp
 All symbolic names specified for a
 .Ar destination
-or 
+or
 .Ar gateway
 are looked up first as a host name using
 .Xr gethostbyname 3 .
@@ -345,17 +345,17 @@ the routing tables.
 .It "add [host \&| network ] %s: gateway %s flags %x"
 The specified route is being added to the tables.  The
 values printed are from the routing table entry supplied
-in the 
+in the
 .Xr ioctl 2
 call.
 If the gateway address used was not the primary address of the gateway
 (the first one returned by
 .Xr gethostbyname 3 ) ,
 the gateway address is printed numerically as well as symbolically.
-.It "delete [ host \&| network ] %s: gateway %s flags %x" 
+.It "delete [ host \&| network ] %s: gateway %s flags %x"
 As above, but when deleting an entry.
 .It "%s %s done"
-When the 
+When the
 .Cm flush
 command is specified, each routing table entry deleted
 is indicated with a message of this form.

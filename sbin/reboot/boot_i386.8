@@ -120,7 +120,7 @@ the listing will be of the relevant subdirectory.)
 Specify boot file and flags.
 .Bl -tag -width indent
 .It Ar bios_drive
-The drive number as recognized by the BIOS. 
+The drive number as recognized by the BIOS.
 0 for the first drive, 1 for the second drive, etc.
 .It Ar interface
 The type of controller to boot from.  Note that the controller is required
@@ -179,14 +179,14 @@ commands present in the script.
 .It Fl D
 toggle single and dual console configurations.  In the single
 configuration the console will be either the internal display
-or the serial port, depending on the state of the 
+or the serial port, depending on the state of the
 .Fl h
-option below.  In the dual console configuration, 
-both the internal display and the serial port will become the console 
-at the same time, regardless of the state of the 
+option below.  In the dual console configuration,
+both the internal display and the serial port will become the console
+at the same time, regardless of the state of the
 .Fl h
 option.  However, the dual console configuration takes effect only during
-the boot prompt.  Once the kernel is loaded, the console specified 
+the boot prompt.  Once the kernel is loaded, the console specified
 by the
 .Fl h
 option becomes the only console.
@@ -197,14 +197,14 @@ as early as possible in kernel initialization.
 .It Fl g
 use the GDB remote debugging protocol.
 .It Fl h
-toggle internal and serial consoles.  You can use this to switch 
-console devices.  For instance, if you boot from the internal console, 
+toggle internal and serial consoles.  You can use this to switch
+console devices.  For instance, if you boot from the internal console,
 you can use the
 .Fl h
-option to force the kernel to use the serial port as its 
-console device.  Alternatively, if you boot from the serial port, 
-you can use this option to force the kernel to use the internal display 
-as the console instead.  
+option to force the kernel to use the serial port as its
+console device.  Alternatively, if you boot from the serial port,
+you can use this option to force the kernel to use the internal display
+as the console instead.
 The serial port driver
 .Xr sio 4
 has a flag to override this option.
@@ -212,7 +212,7 @@ If that flag is set, the serial port will always be used as the console,
 regardless of the
 .Fl h
 option described here.  See the man page for
-.Xr sio 4 
+.Xr sio 4
 for more details.
 .It Fl P
 probe the keyboard.  If no keyboard is found, the

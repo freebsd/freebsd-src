@@ -46,7 +46,7 @@
 .Lb libc
 .Sh SYNOPSIS
 .Fd #include <stdlib.h>
-.Ft long 
+.Ft long
 .Fn random void
 .Ft void
 .Fn srandom "unsigned long seed"
@@ -70,7 +70,7 @@ The period of this random number generator is very large, approximately
 .if n 16*((2**31)\(mi1).
 .Pp
 The
-.Fn random 
+.Fn random
 and
 .Fn srandom
 functions have (almost) the same calling sequence and initialization properties as the
@@ -94,7 +94,7 @@ Like
 will by default produce a sequence of numbers that can be duplicated
 by calling
 .Fn srandom
-with 
+with
 .Ql 1
 as the seed.
 .Pp
@@ -179,7 +179,7 @@ messages are printed on the standard error output.
 .Xr random 4
 .Sh HISTORY
 These
-functions appeared in 
+functions appeared in
 .Bx 4.2 .
 .Sh BUGS
 About 2/3 the speed of

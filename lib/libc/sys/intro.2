@@ -52,7 +52,7 @@ their error returns, and other common definitions and concepts.
 .Sh RETURN VALUES
 Nearly all of the system calls provide an error number referenced via
 the external identifier errno.
-This identifier is defined in 
+This identifier is defined in
 .Aq Pa sys/errno.h
 as
 .Pp
@@ -97,7 +97,7 @@ An attempt was made to perform an operation limited to processes
 with appropriate privileges or to the owner of a file or other
 resources.
 .It Er 2 ENOENT Em "No such file or directory" .
-A component of a specified pathname did not exist, or the 
+A component of a specified pathname did not exist, or the
 pathname was an empty string.
 .It Er 3 ESRCH Em "No such process" .
 No process could be found corresponding to that specified by the given
@@ -383,7 +383,7 @@ was supplied to a remove directory or rename call.
 .It Er 68 EUSERS Em "Too many users" .
 The quota system ran out of table entries.
 .It Er 69 EDQUOT Em "Disc quota exceeded" .
-A 
+A
 .Xr write 2
 to an ordinary file, the creation of a
 directory or symbolic link, or the creation of a directory
@@ -395,10 +395,10 @@ was exhausted.
 An attempt was made to access an open file (on an
 .Tn NFS
 filesystem)
-which is now unavailable as referenced by the file descriptor.  
+which is now unavailable as referenced by the file descriptor.
 This may indicate the file was deleted on the
-.Tn NFS 
-server or some 
+.Tn NFS
+server or some
 other catastrophic event occurred.
 .It Er 72 EBADRPC Em "RPC struct is bad" .
 Exchange of
@@ -412,7 +412,7 @@ the local version.
 .It Er 74 EPROGUNAVAIL Em "RPC prog. not avail" .
 The requested program is not registered on the remote host.
 .It Er 75 EPROGMISMATCH Em "Program version wrong" .
-The requested version of the program is not available 
+The requested version of the program is not available
 on the remote host
 .Pq Tn RPC .
 .It Er 76 EPROCUNAVAIL Em "Bad procedure for program" .
@@ -421,13 +421,13 @@ An
 call was attempted for a procedure which doesn't exist
 in the remote program.
 .It Er 77 ENOLCK Em "No locks available" .
-A system-imposed limit on the number of simultaneous file 
+A system-imposed limit on the number of simultaneous file
 locks was reached.
 .It Er 78 ENOSYS Em "Function not implemented" .
-Attempted a system call that is not available on this 
+Attempted a system call that is not available on this
 system.
 .It Er 79 EFTYPE Em "Inappropriate file type or format" .
-The file was the wrong type for the operation, or a data file had 
+The file was the wrong type for the operation, or a data file had
 the wrong format.
 .It Er 80 EAUTH Em "Authentication error" .
 Attempted to use an invalid authentication ticket to mount a
@@ -448,8 +448,8 @@ provided space.
 .It Er 85 ECANCELED Em "Operation canceled" .
 The scheduled operation was canceled.
 .It Er 86 EILSEQ Em "Illegal byte sequence" .
-While decoding a multibyte character the function came along an 
-invalid or an incomplete sequence of bytes or the given wide 
+While decoding a multibyte character the function came along an
+invalid or an incomplete sequence of bytes or the given wide
 character is invalid.
 .El
 .Sh DEFINITIONS
@@ -519,10 +519,10 @@ The process group of a session leader is orphaned by definition.
 Each user on the system is identified by a positive integer
 termed the real user ID.
 .Pp
-Each user is also a member of one or more groups. 
+Each user is also a member of one or more groups.
 One of these groups is distinguished from others and
 used in implementing accounting facilities.  The positive
-integer corresponding to this distinguished group is termed 
+integer corresponding to this distinguished group is termed
 the real group ID.
 .Pp
 All processes have a real user ID and real group ID.
@@ -653,13 +653,13 @@ These permissions are used in determining whether a process
 may perform a requested operation on the file (such as opening
 a file for writing).  Access permissions are established at the
 time a file is created.  They may be changed at some later time
-through the 
+through the
 .Xr chmod 2
-call. 
+call.
 .Pp
 File access is broken down according to whether a file may be: read,
 written, or executed.  Directory files use the execute
-permission to control if the directory may be searched. 
+permission to control if the directory may be searched.
 .Pp
 File access permissions are interpreted by the system as
 they apply to three different classes of users: the owner

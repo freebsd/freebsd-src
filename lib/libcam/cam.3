@@ -147,15 +147,15 @@ struct cam_device {
 						     * Unit number given by
 						     * the user.
 						     */
-	char		device_name[DEV_IDLEN+1];/* 
-						  * Name of the device, 
-						  * e.g. 'pass' 
+	char		device_name[DEV_IDLEN+1];/*
+						  * Name of the device,
+						  * e.g. 'pass'
 						  */
 	u_int32_t	dev_unit_num;	/* Unit number of the passthrough
 					 * device associated with this
 					 * particular device.
 					 */
-	
+
 	char		sim_name[SIM_IDLEN+1];/*
 					       * Controller name, e.g.'ahc'
 					       */
@@ -365,7 +365,7 @@ returns an allocated and partially initialized CCB, or NULL if allocation
 of the CCB failed.
 .Pp
 .Fn cam_send_ccb
-returns a value of -1 if an error occured, and 
+returns a value of -1 if an error occured, and
 .Va errno
 is set to indicate the error.
 .Pp
@@ -395,7 +395,7 @@ characters long.
 .Xr pass 4 ,
 .Xr camcontrol 8
 .Sh HISTORY
-The CAM library first appeared in 
+The CAM library first appeared in
 .Fx 3.0 .
 .Sh AUTHORS
 .An Kenneth Merry Aq ken@FreeBSD.org

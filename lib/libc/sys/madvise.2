@@ -66,7 +66,7 @@ The known behaviors are given in
 #define MADV_CORE	9 /* revert to including pages in a core file */
 .Ed
 .Pp
-.Bl -tag -width MADV_SEQUENTIAL 
+.Bl -tag -width MADV_SEQUENTIAL
 .It Dv MADV_NORMAL
 Tells the system to revert to the default paging
 behavior.
@@ -92,26 +92,26 @@ this address range will incur a page fault.
 .It Dv MADV_FREE
 Gives the VM system the freedom to free pages,
 and tells the system that information in the specified page range
-is no longer important.  This is an efficient way of allowing 
+is no longer important.  This is an efficient way of allowing
 .Xr malloc 3
 to free pages anywhere in the address space, while keeping the address space
 valid.  The next time that the page is referenced, the page might be demand
-zeroed, or might contain the data that was there before the 
+zeroed, or might contain the data that was there before the
 .Dv MADV_FREE
 call.
 References made to that address space range will not make the VM system
 page the information back in from backing store until the page is
 modified again.
 .It Dv MADV_NOSYNC
-Request that the system not flush the data associated with this map to 
+Request that the system not flush the data associated with this map to
 physical backing store unless it needs to.  Typically this prevents the
 filesystem update daemon from gratuitously writing pages dirtied
-by the VM system to physical disk.  Note that VM/filesystem coherency is 
+by the VM system to physical disk.  Note that VM/filesystem coherency is
 always maintained, this feature simply ensures that the mapped data is
 only flush when it needs to be, usually by the system pager.
 .Pp
 This feature is typically used when you want to use a file-backed shared
-memory area to communicate between processes (IPC) and do not particularly 
+memory area to communicate between processes (IPC) and do not particularly
 need the data being stored in that area to be physically written to disk.
 With this feature you get the equivalent performance with mmap that you
 would expect to get with SysV shared memory calls, but in a more controllable
@@ -146,7 +146,7 @@ function will fail if:
 .It Bq Er EINVAL
 The virtual address range specified by the
 .Fa addr
-and 
+and
 .Fa len
 arguments is not valid.
 .El

@@ -48,7 +48,7 @@ beginning at the offset
 .Fa iocb->aio_offset
 into the buffer pointed to by
 .Fa iocb->aio_buf .
-The call returns immediately after the read request has 
+The call returns immediately after the read request has
 been enqueued to the descriptor; the read may or may not have
 completed at the time the call returns.
 .Pp
@@ -90,7 +90,7 @@ for these objects is discouraged.
 .Pp
 The asynchronous I/O control buffer
 .Fa iocb
-should be zeroed before the 
+should be zeroed before the
 .Fn aio_read
 call to avoid passing bogus context information to the kernel.
 .Pp
@@ -195,6 +195,6 @@ This
 manual page was written by
 .An Terry Lambert Aq terry@whistle.com .
 .Sh BUGS
-Invalid information in 
+Invalid information in
 .Fa iocb->_aiocb_private
 may confuse the kernel.

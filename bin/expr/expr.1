@@ -42,7 +42,7 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility evaluates 
+utility evaluates
 .Ar expression
 and writes the result on standard output.
 .Pp
@@ -55,8 +55,8 @@ Operators are listed below in order of increasing precedence.
 Operators with equal precedence are grouped within { } symbols.
 .Bl -tag -width indent
 .It Ar expr1 Li | Ar expr2
-Return the evaluation of 
-.Ar expr1 
+Return the evaluation of
+.Ar expr1
 if it is neither an empty string nor zero;
 otherwise, returns the evaluation of
 .Ar expr2 .
@@ -66,7 +66,7 @@ Return the evaluation of
 if neither expression evaluates to an empty string or zero;
 otherwise, returns zero.
 .It Ar expr1 Li "{=, >, >=, <, <=, !=}" Ar expr2
-Return the results of integer comparison if both arguments are integers; 
+Return the results of integer comparison if both arguments are integers;
 otherwise, returns the results of string comparison using the locale-specific
 collation sequence.
 The result of each comparison is 1 if the specified relation is true,
@@ -76,23 +76,23 @@ Return the results of addition or subtraction of integer-valued arguments.
 .It Ar expr1 Li "{*, /, %}" Ar expr2
 Return the results of multiplication, integer division, or remainder of integer-valued arguments.
 .It Ar expr1 Li : Ar expr2
-The 
+The
 .Dq \&:
-operator matches 
-.Ar expr1 
-against 
+operator matches
+.Ar expr1
+against
 .Ar expr2 ,
 which must be a regular expression.  The regular expression is anchored
-to the beginning of  the string with an implicit 
+to the beginning of  the string with an implicit
 .Dq ^ .
 .Pp
 If the match succeeds and the pattern contains at least one regular
-expression subexpression 
-.Dq "\e(...\e)" , 
-the string corresponding to 
+expression subexpression
+.Dq "\e(...\e)" ,
+the string corresponding to
 .Dq "\e1"
 is returned;
-otherwise the matching operator returns the number of characters matched. 
+otherwise the matching operator returns the number of characters matched.
 If the match fails and the pattern contains a regular expression subexpression
 the null string is returned;
 otherwise 0.
@@ -101,7 +101,7 @@ otherwise 0.
 Parentheses are used for grouping in the usual manner.
 .Sh EXAMPLES
 .Bl -enum
-.It 
+.It
 The following example adds one to the variable a.
 .Dl a=`expr $a + 1`
 .It

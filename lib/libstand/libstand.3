@@ -35,13 +35,13 @@
 .Sh DESCRIPTION
 .Nm
 provides a set of supporting functions for standalone
-applications, mimicking where possible the standard BSD programming 
+applications, mimicking where possible the standard BSD programming
 environment.  The following sections group these functions by kind.
 Unless specifically described here, see the corresponding section 3
 manpages for the given functions.
 .Sh STRING FUNCTIONS
 String functions are available as documented in
-.Xr string 3 
+.Xr string 3
 and
 .Xr bstring 3 .
 .Sh MEMORY ALLOCATION
@@ -114,7 +114,7 @@ These functions behave similarly to their standard library counterparts.
 .Fn env_getenv "const char *name"
 .Xc
 .Pp
-Looks up a variable in the environment and returns its entire 
+Looks up a variable in the environment and returns its entire
 data structure.
 .It Xo
 .Ft int
@@ -123,7 +123,7 @@ data structure.
 .Pp
 Creates a new or sets an existing environment variable called
 .Fa name .
-If creating a new variable, the 
+If creating a new variable, the
 .Fa sethook
 and
 .Fa unsethook
@@ -140,7 +140,7 @@ again with EV_NOHOOK set to actually save the value.  The predefined function
 may be specified to refuse all attempts to set a variable.
 .Pp
 The unset hook is invoked when an attempt is made to unset a variable.
-If it 
+If it
 returns zero, the  variable will be unset.  The predefined function
 .Fa env_nounset
 may be used to prevent a variable being unset.
@@ -185,7 +185,7 @@ Requires
 .Pp
 Defined as
 .Fn _setjmp
-and 
+and
 .Fn _lonjmp
 respectively as there is no signal state to manipulate.  Requires
 .Fd #include <setjmp.h>
@@ -245,8 +245,8 @@ if successful, or -1 if a read error occurs.
 .Pp
 The *printf functions implement a subset of the standard
 .Fn printf
-family functionality and some extensions.  The following standard conversions 
-are supported: c,d,n,o,p,s,u,x.  The following modifiers are supported: 
+family functionality and some extensions.  The following standard conversions
+are supported: c,d,n,o,p,s,u,x.  The following modifiers are supported:
 +,-,#,*,0,field width,precision,l.
 .Pp
 The
@@ -254,9 +254,9 @@ The
 conversion is provided to decode error registers.  Its usage is:
 .Pp
 .Bd -ragged -offset indent
-printf( 
-.Qq reg=%b\en , 
-regval, 
+printf(
+.Qq reg=%b\en ,
+regval,
 .Qq <base><arg>*
 );
 .Ed
@@ -290,7 +290,7 @@ printf(
 .Qq %6D ,
 ptr,
 .Qq \&:
-);  gives  
+);  gives
 .Qq XX:XX:XX:XX:XX:XX
 .Ed
 .Bd -ragged -offset indent
@@ -299,7 +299,7 @@ printf(
 len,
 ptr,
 .Qq "\ "
-);  gives  
+);  gives
 .Qq XX XX XX ...
 .Ed
 .El
@@ -398,9 +398,9 @@ and
 .Fn fstat
 functions only fill out the following fields in the
 .Fa sb
-structure: st_mode,st_nlink,st_uid,st_gid,st_size.  The 
+structure: st_mode,st_nlink,st_uid,st_gid,st_size.  The
 .Nm tftp
-filesystem cannot provide meaningful values for this call, and the 
+filesystem cannot provide meaningful values for this call, and the
 .Nm cd9660
 filesystem always reports files having uid/gid of zero.
 .El
@@ -450,7 +450,7 @@ Returns -1 on error, 0 at EOF, or 1 if the user elects to quit while reading.
 .Fn twiddle void
 .Xc
 .Pp
-Successive calls emit the characters in the sequence |,/,-,\\ followed by a 
+Successive calls emit the characters in the sequence |,/,-,\\ followed by a
 backspace in order to provide reassurance to the user.
 .El
 .Sh REQUIRED LOW-LEVEL SUPPORT
@@ -464,9 +464,9 @@ functions can be invoked.  Stack requirements vary depending on the functions
 and filesystems used by the consumer and the support layer functions detailed
 below.
 .Pp
-The heap must be established before calling 
+The heap must be established before calling
 .Fn alloc
-or 
+or
 .Fn open
 by calling
 .Fn setheap .
@@ -474,7 +474,7 @@ Heap usage will vary depending on the number of simultaneously open files,
 as well as client behaviour.  Automatic decompression will allocate more
 than 64K of data per open file.
 .Pp
-Console access is performed via the 
+Console access is performed via the
 .Fn getchar ,
 .Fn putchar
 and
@@ -515,9 +515,9 @@ Returns nonzero if a character is waiting from the console.
 .Xc
 .Pp
 Write a character to the console, used by
-.Fn gets , 
-.Fn ngets , 
-.Fn *printf , 
+.Fn gets ,
+.Fn ngets ,
+.Fn *printf ,
 .Fn panic
 and
 .Fn twiddle
@@ -531,11 +531,11 @@ Open the appropriate device for the file named in
 .Fa name ,
 returning in
 .Fa file
-a pointer to the remaining body of 
+a pointer to the remaining body of
 .Fa name
 which does not refer to the device.  The
 .Va f_dev
-field in 
+field in
 .Fa of
 will be set to point to the
 .Vt devsw
@@ -612,7 +612,7 @@ The lack of detailed memory usage data is unhelpful.
 .Nm
 contains contributions from many sources, including:
 .Bl -bullet -compact
-.It 
+.It
 .Nm libsa
 from
 .Nx

@@ -47,7 +47,7 @@
 .Sh SYNOPSIS
 .Fd #include <netdb.h>
 .Ft struct servent *
-.Fn getservent 
+.Fn getservent
 .Ft struct servent *
 .Fn getservbyname "const char *name" "const char *proto"
 .Ft struct servent *
@@ -102,7 +102,7 @@ function
 opens and rewinds the file.  If the
 .Fa stayopen
 flag is non-zero,
-the net data base will not be closed after each call to 
+the net data base will not be closed after each call to
 .Fn getservbyname
 or
 .Fn getservbyport .
@@ -126,7 +126,7 @@ or until
 .Dv EOF
 is encountered.
 If a protocol name is also supplied (non-
-.Dv NULL ) , 
+.Dv NULL ) ,
 searches must also match the protocol.
 .Sh FILES
 .Bl -tag -width /etc/services -compact
@@ -148,7 +148,7 @@ The
 .Fn setservent ,
 and
 .Fn endservent
-functions appeared in 
+functions appeared in
 .Bx 4.2 .
 .Sh BUGS
 These functions use static data storage;

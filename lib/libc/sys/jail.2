@@ -58,9 +58,9 @@ the prison.  It is not possible to add a process to a preexisting prison.
 .Pp
 Inside the prison, the concept of "superuser" is very diluted.  In general,
 it can be assumed that nothing can be mangled from inside a prison which
-does not exist entirely inside that prison.  For instance the directory 
+does not exist entirely inside that prison.  For instance the directory
 tree below
-.Dq Li path 
+.Dq Li path
 can be manipulated all the ways a root can normally do it, including
 .Dq Li "rm -rf /*"
 but new device special nodes cannot be created because they reference

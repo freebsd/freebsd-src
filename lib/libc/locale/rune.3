@@ -119,7 +119,7 @@ will point to
 If there is an encoding error at the start of
 .Fa string ,
 .Dv _INVALID_RUNE
-is returned and 
+is returned and
 .Fa *result
 will point to the second character of
 .Fa string .
@@ -160,7 +160,7 @@ is not
 .Fa *result
 will be set to
 .Dv NULL .
-In all cases, 
+In all cases,
 .Fn sputrune
 will return the number of bytes which would be needed to store
 .Fa rune
@@ -170,7 +170,7 @@ The
 .Fn fgetrune
 function operates the same as
 .Fn sgetrune
-with the exception that it attempts to read enough bytes from 
+with the exception that it attempts to read enough bytes from
 .Fa stream
 to decode a single rune.  It returns either
 .Dv EOF
@@ -185,7 +185,7 @@ function pushes the multibyte encoding, as provided by
 of
 .Fa rune
 onto
-.Fa stream 
+.Fa stream
 such that the next
 .Fn fgetrune
 call will return
@@ -242,7 +242,7 @@ as a multibyte string.
 .Bl -tag -width /usr/share/locale/locale/LC_CTYPE -compact
 .It Pa $PATH_LOCALE/ Ns Em locale Ns /LC_CTYPE
 .It Pa /usr/share/locale/ Ns Em locale Ns /LC_CTYPE
-binary LC_CTYPE file for the locale 
+binary LC_CTYPE file for the locale
 .Em locale .
 .El
 .Sh SEE ALSO
