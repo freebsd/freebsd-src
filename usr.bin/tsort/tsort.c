@@ -37,13 +37,13 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1989, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)tsort.c	8.3 (Berkeley) 5/4/95";
+static const char sccsid[] = "@(#)tsort.c	8.3 (Berkeley) 5/4/95";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -108,6 +108,7 @@ int	 find_cycle __P((NODE *, NODE *, int, int));
 NODE	*get_node __P((char *));
 void	*grow_buf __P((void *, int));
 void	 remove_node __P((NODE *));
+void	 clear_cycle __P((void));
 void	 tsort __P((void));
 void	 usage __P((void));
 
