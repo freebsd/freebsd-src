@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id$
+ *	$Id: db_interface.c,v 1.2 1993/10/16 14:14:55 rgrimes Exp $
  */
 
 /*
@@ -40,6 +40,8 @@
 #include <setjmp.h>
 #include <sys/systm.h> /* just for boothowto --eichin */
 int	db_active = 0;
+
+db_regs_t ddb_regs;
 
 /*
  * Received keyboard interrupt sequence.

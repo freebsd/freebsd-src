@@ -36,9 +36,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.h	7.2 (Berkeley) 5/9/91
- *	$Id$
+ *	$Id: cons.h,v 1.2 1993/10/16 14:14:51 rgrimes Exp $
  */
 
+#ifndef _MACHINE_CONS_H_
+#define _MACHINE_CONS_H_ 1
 
 struct consdev {
 	int	(*cn_probe)();	/* probe hardware and fill in consdev info */
@@ -63,4 +65,8 @@ struct consdev {
 extern	struct consdev constab[];
 extern	struct consdev *cn_tab;
 extern	struct tty *cn_tty;
-#endif
+
+int pg(const char *, ...);
+
+#endif /* KERNEL */
+#endif /* _MACHINE_CONS_H_ */

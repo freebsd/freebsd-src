@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- *	$Id: cons.c,v 1.3 1993/10/16 14:14:49 rgrimes Exp $
+ *	$Id: cons.c,v 1.4 1993/10/18 14:21:48 davidg Exp $
  */
 
 
@@ -49,8 +49,9 @@
 #include "sys/tty.h"
 #include "sys/file.h"
 #include "sys/conf.h"
+#include "machine/stdarg.h"
 
-#include "cons.h"
+#include "machine/cons.h"
 
 /* XXX - all this could be autoconfig()ed */
 int pccnprobe(), pccninit(), pccngetc(), pccnputc();
@@ -197,10 +198,12 @@ cnputc(c)
 	}
 }
 
-pg(p,q,r,s,t,u,v,w,x,y,z) char *p; {
-	printf(p,q,r,s,t,u,v,w,x,y,z);
-	printf("\n>");
-	return(cngetc());
+int
+pg(const char *p, ...) {
+  va_list args;
+  va_start(args, p);
+  printf("%r\n>", p, args);
+  return(cngetc());
 }
 
 
