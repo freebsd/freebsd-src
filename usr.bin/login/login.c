@@ -210,7 +210,10 @@ main(argc, argv)
 			if (uid)
 				errx(1, "-h option: %s", strerror(EPERM));
 			hflag = 1;
-			strncpy(full_hostname, optarg, sizeof(full_hostname)-1);
+			if (strlcpy(full_hostname, optarg,
+			    sizeof(full_hostname)) >= sizeof(full_hostname))
+				errx(1, "-h option: %s: exceeds maximum "
+				    "hostname size", optarg);
 
 			trimdomain(optarg, UT_HOSTSIZE);
 
@@ -232,6 +235,11 @@ main(argc, argv)
 					    NI_NUMERICHOST|
 					    NI_WITHSCOPEID);
 					optarg = strdup(hostbuf);
+					if (optarg == NULL) {
+						syslog(LOG_NOTICE,
+						    "strdup(): %m");
+						sleepexit(1);
+					}
 				} else
 					optarg = "invalid hostname";
 				if (res != NULL)
@@ -304,8 +312,7 @@ main(argc, argv)
 			if (failures > (pwd ? 0 : 1))
 				badlogin(tbuf);
 		}
-		(void)strncpy(tbuf, username, sizeof tbuf-1);
-		tbuf[sizeof tbuf-1] = '\0';
+		(void)strlcpy(tbuf, username, sizeof(tbuf));
 
 		pwd = getpwnam(username);
 
@@ -466,7 +473,10 @@ main(argc, argv)
 				getnameinfo(res->ai_addr, res->ai_addrlen,
 				    hostbuf, sizeof(hostbuf), NULL, 0,
 				    NI_NUMERICHOST|NI_WITHSCOPEID);
-				optarg = strdup(hostbuf);
+				if ((optarg = strdup(hostbuf)) == NULL) {
+					syslog(LOG_NOTICE, "strdup(): %m");
+					sleepexit(1);
+				}
 			} else
 				optarg = NULL;
 			if (res != NULL)
@@ -487,7 +497,7 @@ main(argc, argv)
 	if (*shell == '\0')   /* Not overridden */
 		shell = pwd->pw_shell;
 	if ((shell = strdup(shell)) == NULL) {
-		syslog(LOG_NOTICE, "memory allocation error");
+		syslog(LOG_NOTICE, "strdup(): %m");
 		sleepexit(1);
 	}
 
@@ -530,8 +540,13 @@ main(argc, argv)
 	/*
 	 * Preserve TERM if it happens to be already set.
 	 */
-	if ((term = getenv("TERM")) != NULL)
-		term = strdup(term);
+	if ((term = getenv("TERM")) != NULL) {
+		if ((term = strdup(term)) == NULL) {
+			syslog(LOG_NOTICE,
+			    "strdup(): %m");
+			sleepexit(1);
+		}
+	}
 
 	/*
 	 * Exclude cons/vt/ptys only, assume dialup otherwise
@@ -673,10 +688,9 @@ main(argc, argv)
 		motd(cw);
 
 		cw = getenv("MAIL");	/* $MAIL may have been set by class */
-		if (cw != NULL) {
-			strncpy(tbuf, cw, sizeof(tbuf));
-			tbuf[sizeof(tbuf)-1] = '\0';
-		} else
+		if (cw != NULL)
+			strlcpy(tbuf, cw, sizeof(tbuf));
+		else
 			snprintf(tbuf, sizeof(tbuf), "%s/%s", _PATH_MAILDIR,
 			    pwd->pw_name);
 		if (stat(tbuf, &st) == 0 && st.st_size != 0)
@@ -699,9 +713,13 @@ main(argc, argv)
 	/*
 	 * Login shells have a leading '-' in front of argv[0]
 	 */
-	tbuf[0] = '-';
-	(void)strcpy(tbuf + 1,
-	    (p = strrchr(pwd->pw_shell, '/')) ? p + 1 : pwd->pw_shell);
+	if (snprintf(tbuf, sizeof(tbuf), "-%s",
+	    (p = strrchr(pwd->pw_shell, '/')) ? p + 1 : pwd->pw_shell) >=
+	    sizeof(tbuf)) {
+		syslog(LOG_ERR, "user: %s: shell exceeds maximum pathname size",
+		    username);
+		errx(1, "shell exceeds maximum pathname size");
+	}
 
 	execlp(shell, tbuf, (char *)0);
 	err(1, "%s", shell);
@@ -898,7 +916,7 @@ getloginname()
 	static char nbuf[NBUFSIZ];
 
 	for (;;) {
-		(void)printf(prompt);
+		(void)printf("%s", prompt);
 		for (p = nbuf; (ch = getchar()) != '\n'; ) {
 			if (ch == EOF) {
 				badlogin(username);
@@ -931,10 +949,9 @@ rootterm(ttyn)
 
 volatile int motdinterrupt;
 
-/* ARGSUSED */
 void
 sigint(signo)
-	int signo;
+	int signo __unused;
 {
 	motdinterrupt = 1;
 }
@@ -999,6 +1016,8 @@ dolastlog(quiet)
 			(void)strncpy(ll.ll_host, hostname, sizeof(ll.ll_host));
 		(void)write(fd, (char *)&ll, sizeof(ll));
 		(void)close(fd);
+	} else {
+		syslog(LOG_ERR, "cannot open %s: %m", _PATH_LASTLOG);
 	}
 }
 
@@ -1034,7 +1053,12 @@ stypeof(ttyid)
 {
 	struct ttyent *t;
 
-	return (ttyid && (t = getttynam(ttyid)) ? t->ty_type : UNKNOWN);
+	if (ttyid != NULL && *ttyid != '\0') {
+		t = getttynam(ttyid);
+		if (t != NULL && t->ty_type != NULL)
+			return (t->ty_type);
+	}
+	return (UNKNOWN);
 }
 
 void
