@@ -200,6 +200,8 @@ static char *rnames[] = {
     "sysmouse",
     "x10mouseremote",
     "kidspad",
+    "versapad",
+    "jogdial",
 #if notyet
     "mariqua",
 #endif
@@ -362,6 +364,7 @@ static unsigned short rodentcflags[] =
     (CS7	           | CREAD | CLOCAL | HUPCL ),	/* X10 MouseRemote */
     (CS8 | PARENB | PARODD | CREAD | CLOCAL | HUPCL ),	/* kidspad etc. */
     (CS8		   | CREAD | CLOCAL | HUPCL ),	/* VersaPad */
+    0,							/* JogDial */
 #if notyet
     (CS8 | CSTOPB	   | CREAD | CLOCAL | HUPCL ),	/* Mariqua */
 #endif
@@ -1082,6 +1085,7 @@ static unsigned char proto[][7] = {
     { 	0x40,	0x40,	0x40,	0x00,	3,   ~0x23,  0x00 }, /* X10 MouseRem */
     {	0x80,	0x80,	0x00,	0x00,	5,    0x00,  0xff }, /* KIDSPAD */
     {	0xc3,	0xc0,	0x00,	0x00,	6,    0x00,  0xff }, /* VersaPad */
+    {	0x00,	0x00,	0x00,	0x00,	1,    0x00,  0xff }, /* JogDial */
 #if notyet
     {	0xf8,	0x80,	0x00,	0x00,	5,   ~0x2f,  0x10 }, /* Mariqua */
 #endif
@@ -1361,6 +1365,8 @@ r_init(void)
 	}
 	break;
 
+    case MOUSE_PROTO_JOGDIAL:
+	break;
     case MOUSE_PROTO_MSC:
 	setmousespeed(1200, rodent.baudrate, rodentcflags[rodent.rtype]);
 	if (rodent.flags & ClearDTR) {
@@ -1618,6 +1624,8 @@ r_protocol(u_char rBuf, mousestatus_t *act)
 	     */
 	    break;
 #endif /* notyet */
+	case MOUSE_PROTO_JOGDIAL:
+	    break;
 
 	/*
 	 * IntelliMouse, NetMouse (including NetMouse Pro) and Mie Mouse
@@ -1716,7 +1724,18 @@ r_protocol(u_char rBuf, mousestatus_t *act)
 	act->dx =    (char)(pBuf[1]) + (char)(pBuf[3]);
 	act->dy = - ((char)(pBuf[2]) + (char)(pBuf[4]));
 	break;
-      
+
+    case MOUSE_PROTO_JOGDIAL:		/* JogDial */
+	    if (rBuf == 0x6c)
+	      act->dz=-1;
+	    if (rBuf == 0x72)
+	      act->dz=1;
+	    if (rBuf == 0x64)
+	      act->button = MOUSE_BUTTON1DOWN;
+	    if (rBuf == 0x75)
+	      act->button = 0;
+	break;
+
     case MOUSE_PROTO_HITTAB:		/* MM HitTablet */
 	act->button = butmaphit[pBuf[0] & 0x07];
 	act->dx = (pBuf[0] & MOUSE_MM_XPOSITIVE) ?   pBuf[1] : - pBuf[1];
