@@ -629,7 +629,7 @@ addelem_gid(struct listinfo *inf, const char *elem)
 	struct group *grp;
 	const char *nameorID;
 	char *endp;
-	intmax_t ltemp;
+	u_long bigtemp;
 
 	if (*elem == '\0' || strlen(elem) >= MAXLOGNAME) {
 		if (*elem == '\0')
@@ -652,10 +652,10 @@ addelem_gid(struct listinfo *inf, const char *elem)
 	grp = NULL;
 	nameorID = "named";
 	errno = 0;
-	ltemp = strtol(elem, &endp, 10);
-	if (errno == 0 && *endp == '\0' && ltemp >= 0 && ltemp <= GID_MAX) {
+	bigtemp = strtoul(elem, &endp, 10);
+	if (errno == 0 && *endp == '\0' && bigtemp <= GID_MAX) {
 		nameorID = "name or ID matches";
-		grp = getgrgid((gid_t)ltemp);
+		grp = getgrgid((gid_t)bigtemp);
 	}
 	if (grp == NULL)
 		grp = getgrnam(elem);
@@ -742,7 +742,7 @@ addelem_uid(struct listinfo *inf, const char *elem)
 {
 	struct passwd *pwd;
 	char *endp;
-	intmax_t ltemp;
+	u_long bigtemp;
 
 	if (*elem == '\0' || strlen(elem) >= MAXLOGNAME) {
 		if (*elem == '\0')
@@ -756,13 +756,12 @@ addelem_uid(struct listinfo *inf, const char *elem)
 	pwd = getpwnam(elem);
 	if (pwd == NULL) {
 		errno = 0;
-		ltemp = strtol(elem, &endp, 10);
-		if (errno != 0 || *endp != '\0' || ltemp < 0 ||
-		    ltemp > UID_MAX)
+		bigtemp = strtoul(elem, &endp, 10);
+		if (errno != 0 || *endp != '\0' || bigtemp > UID_MAX)
 			warnx("No %s named '%s'", inf->lname, elem);
 		else {
 			/* The string is all digits, so it might be a userID. */
-			pwd = getpwuid((uid_t)ltemp);
+			pwd = getpwuid((uid_t)bigtemp);
 			if (pwd == NULL)
 				warnx("No %s name or ID matches '%s'",
 				    inf->lname, elem);
