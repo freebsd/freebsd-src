@@ -521,6 +521,7 @@ hme_meminit(struct hme_softc *sc)
 		}
 		if ((td->htx_flags & HTXF_MAPPED) != 0)
 			bus_dmamap_unload(sc->sc_tdmatag, td->htx_dmamap);
+		td->htx_flags = 0;
 	}
 
 	/*
@@ -803,13 +804,9 @@ hme_txdma_callback(void *xsc, bus_dma_segment_t *segs, int nsegs, int error)
 			/* Adjust the offsets. */
 			addr += ta->hta_offs;
 			sz -= ta->hta_offs;
-		} else {
-			/*
-			 * Do not touch this otherwise; it is set by
-			 * hme_load_mbuf.
-			 */
+			td->htx_flags = HTXF_MAPPED;
+		} else
 			td->htx_flags = 0;
-		}
 		if (i == nsegs - 1) {
 			/* Subtract the pad. */
 			if (sz < ta->hta_pad) {
@@ -872,13 +869,16 @@ hme_load_mbuf(struct hme_softc *sc, struct mbuf *m0)
 	cba.hta_flags = HTAF_SOP;
 	cba.hta_m = m0;
 	for (; m != NULL && sum < totlen; m = n) {
+		if (sc->sc_rb.rb_td_nbusy == HME_NTXDESC) {
+			error = -1;
+			goto fail;
+		}
 		len = m->m_len;
 		n = m->m_next;
 		if (len == 0)
 			continue;
 		sum += len;
 		td = &sc->sc_rb.rb_txdesc[sc->sc_rb.rb_tdhead];
-		td->htx_flags = HTXF_MAPPED;
 		if (n == NULL || sum >= totlen)
 			cba.hta_flags |= HTAF_EOP;
 		/*
@@ -911,7 +911,7 @@ hme_load_mbuf(struct hme_softc *sc, struct mbuf *m0)
 
 		cba.hta_flags = 0;
 	}
-	/* Turn decriptor ownership to the hme, back to forth. */
+	/* Turn descriptor ownership to the hme, back to forth. */
 	ri = sc->sc_rb.rb_tdhead;
 	CTR2(KTR_HME, "hme_load_mbuf: next desc is %d (%#x)",
 	    ri, HME_XD_GETFLAGS(sc->sc_pci, sc->sc_rb.rb_txd, ri));
@@ -931,14 +931,14 @@ hme_load_mbuf(struct hme_softc *sc, struct mbuf *m0)
 	HME_ETX_WRITE_4(sc, HME_ETXI_PENDING, HME_ETX_TP_DMAWAKEUP);
 	return (0);
 fail:
-	for (; si != sc->sc_rb.rb_tdhead; si = (si + 1) % HME_NTXDESC) {
-		td = &sc->sc_rb.rb_txdesc[si];
+	for (ri = si; ri != sc->sc_rb.rb_tdhead; ri = (ri + 1) % HME_NTXDESC) {
+		td = &sc->sc_rb.rb_txdesc[ri];
 		if ((td->htx_flags & HTXF_MAPPED) != 0)
 			bus_dmamap_unload(sc->sc_tdmatag, td->htx_dmamap);
 		td->htx_flags = 0;
 		td->htx_m = NULL;
 		sc->sc_rb.rb_td_nbusy--;
-		HME_XD_SETFLAGS(sc->sc_pci, sc->sc_rb.rb_txd, si, 0);
+		HME_XD_SETFLAGS(sc->sc_pci, sc->sc_rb.rb_txd, ri, 0);
 	}
 	sc->sc_rb.rb_tdhead = si;
 	error = cba.hta_err != 0 ? cba.hta_err : error;
@@ -1018,6 +1018,7 @@ hme_start(struct ifnet *ifp)
 	if ((ifp->if_flags & (IFF_RUNNING | IFF_OACTIVE)) != IFF_RUNNING)
 		return;
 
+	error = 0;
 	for (;;) {
 		IF_DEQUEUE(&ifp->if_snd, m);
 		if (m == NULL)
@@ -1027,11 +1028,12 @@ hme_start(struct ifnet *ifp)
 		if (error != 0) {
 			ifp->if_flags |= IFF_OACTIVE;
 			IF_PREPEND(&ifp->if_snd, m);
+			break;
 		} else
 			enq = 1;
 	}
 
-	if (sc->sc_rb.rb_td_nbusy == HME_NTXDESC)
+	if (sc->sc_rb.rb_td_nbusy == HME_NTXDESC || error == -1)
 		ifp->if_flags |= IFF_OACTIVE;
 	/* Set watchdog timer if a packet was queued */
 	if (enq)
