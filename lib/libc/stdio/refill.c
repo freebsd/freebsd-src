@@ -109,7 +109,7 @@ __srefill(FILE *fp)
 		if (HASUB(fp)) {
 			FREEUB(fp);
 			if ((fp->_r = fp->_ur) != 0) {
-				fp->_p = fp->_up;
+				fp->_p = fp->_extra->_up;
 				return (0);
 			}
 		}
