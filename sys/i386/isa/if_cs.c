@@ -27,7 +27,7 @@
  */
 
 /*
- * $Id: if_cs.c,v 1.1 1998/07/20 20:00:42 msmith Exp $
+ * $Id: if_cs.c,v 1.2 1998/08/12 18:02:48 bde Exp $
  *
  * Device driver for Crystal Semiconductor CS8920 based ethernet
  *   adapters. By Maxim Bolotin and Oleg Sharoiko, 27-April-1997
@@ -258,6 +258,12 @@ send_test_pkt(struct cs_softc *sc)
 				0, 46,  /* A 46 in network order */
 				0, 0,   /* DSAP=0 & SSAP=0 fields */
 				0xf3, 0 /* Control (Test Req + P bit set) */ };
+	int i;
+	u_char ether_address_backup[ETHER_ADDR_LEN];
+
+	for (i = 0; i < ETHER_ADDR_LEN; i++) {
+		ether_address_backup[i] = sc->arpcom.ac_enaddr[i];
+	}
 
 	cs_writereg(sc->nic_addr, PP_LineCTL,
 		cs_readreg(sc->nic_addr, PP_LineCTL) | SERIAL_TX_ON );
@@ -270,15 +276,26 @@ send_test_pkt(struct cs_softc *sc)
 
 	/* Wait for chip to allocate memory */
 	DELAY(50000);
-	if (!(cs_readreg(sc->nic_addr, PP_BusST) & READY_FOR_TX_NOW))
+	if (!(cs_readreg(sc->nic_addr, PP_BusST) & READY_FOR_TX_NOW)) {
+		for (i = 0; i < ETHER_ADDR_LEN; i++) {
+			sc->arpcom.ac_enaddr[i] = ether_address_backup[i];
+		}
 		return 0;
+	}
 
 	outsw(sc->nic_addr + TX_FRAME_PORT, test_packet, sizeof(test_packet));
 
 	DELAY(30000);
 
-	if ((cs_readreg(sc->nic_addr,PP_TxEvent) & TX_SEND_OK_BITS) == TX_OK)
+	if ((cs_readreg(sc->nic_addr,PP_TxEvent) & TX_SEND_OK_BITS) == TX_OK) {
+		for (i = 0; i < ETHER_ADDR_LEN; i++) {
+			sc->arpcom.ac_enaddr[i] = ether_address_backup[i];
+		}
 		return 1;
+	}
+	for (i = 0; i < ETHER_ADDR_LEN; i++) {
+		sc->arpcom.ac_enaddr[i] = ether_address_backup[i];
+	}
 	return 0;
 }
 
@@ -647,7 +664,8 @@ cs_init(void *xsc)
 
 	/* Enable receiver and transmitter */
 	cs_writereg(sc->nic_addr, PP_LineCTL,
-		    sc->line_ctl | SERIAL_RX_ON | SERIAL_TX_ON);
+		cs_readreg( sc->nic_addr, PP_LineCTL ) |
+		SERIAL_RX_ON | SERIAL_TX_ON);
 
 	/* Configure the receiver mode */
 	cs_setmode(sc);
@@ -1164,20 +1182,16 @@ cs_mediastatus(struct ifnet *ifp, struct ifmediareq *ifmr)
 		if (line_status & LINK_OK)
 			ifmr->ifm_status |= IFM_ACTIVE;
 	} else {
-		/*
-		 * XXX I don't know if this is correct or not.
-		 * If AUI will be reported instead of BNC
-                 * then this is wrong.
-		 */
-		if (line_status & AUI_ON)
-			ifmr->ifm_active |= IFM_10_5;
-		else
-			ifmr->ifm_active |= IFM_10_2;
-#ifdef CS_BROKEN_BNC_DETECT
-		printf(CS_NAME"%d: PP_LineST: %02x PP_SelfST: %02x\n",
-				ifp->if_unit,line_status,
-				cs_readreg(sc->nic_addr,PP_SelfST));
-#endif
+		if (line_status & AUI_ON) {
+			cs_writereg(sc->nic_addr, PP_SelfCTL,
+				    cs_readreg(sc->nic_addr, PP_SelfCTL) |
+				    HCB1_ENBL);
+			if (((sc->adapter_cnf & A_CNF_DC_DC_POLARITY)!=0)^
+			    (cs_readreg(sc->nic_addr, PP_SelfCTL)&HCB1))
+				ifmr->ifm_active |= IFM_10_2;
+			else
+				ifmr->ifm_active |= IFM_10_5;
+		}
 	}
 }
 
