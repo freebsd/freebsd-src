@@ -1,15 +1,6 @@
 
 $FreeBSD$
 
-      Note: This is a modified README from the isdn4bsd 0.96.00 version. 
-
-      In December 1998, i4b was integrated into the FreeBSD sourcetree
-      and so the following parts about FreeBSD may not apply completely
-      anymore. 
-
-      For information of how isdn4bsd is integrated into FreeBSD now, please
-      read the file ROADMAP in this directory.
-
 --------------------------------------------------------------------------------
 
                                   isdn4bsd
@@ -25,7 +16,7 @@ $FreeBSD$
 
                            voice: +49 4101 473574
                             fax: +49 4101 473575
-                             email: hm@kts.org
+                           email: hm@freebsd.org
 
                                     -----
 
@@ -33,19 +24,20 @@ $FreeBSD$
 
      Copyright (c) 1997, 2001 by Hellmuth Michaelis. All rights reserved. 
 
-                      For details see the file LICENSE.
+        The standard FreeBSD license applies, for details see the file 
+                   /usr/share/examples/etc/bsd-style-copyright
 
                                     -----
 
                    isdn4bsd would not be what it is without
                       the help and support of many people,
-                           see file ACKNOWLEDGMENTS !
+                              see file ThankYou !
 
                                     -----
 
         Vote with your wallet: in case you want to buy new ISDN hardware,
           buy it from manufacturers who support the development of i4b,
-         for a list of supporters have a look at file ACKNOWLEDGMENTS!
+             for a list of supporters have a look at file ThankYou!
 
                                     -----
 
@@ -132,14 +124,8 @@ FreeBSD:
 	I4b was integrated into FreeBSD in January 1999, so it is part
 	of the base FreeBSD system since FreeBSD 3.x.
 
-	Usually i will commit a new i4b release as soon as possible to
-	FreeBSD-current, but not to FreeBSD-stable. In case you like to
-	run the latest i4b version on FreeBSD-stable, i suggest to 
-	upgrade via the scripts found in the FreeBSD directory of the
-	i4b ftp release.
+	Please take the time to read the available documentation carefully.
 
-	Please take the time to read the file FreeBSD/INSTALLATION and 
-	the other available documentation carefully. Thank you!
 
 NetBSD/i386:
 ------------
@@ -183,7 +169,7 @@ BSD/OS:
 -----------------------------------
 
 	For a list of supported ISDN cards, please have a look at
-	the file "Cards".
+	the file "SupportedCards".
 
 	Please have a look at the ReleaseNotes file !
 
@@ -195,41 +181,30 @@ BSD/OS:
   look at the ReleaseNotes file in the top level directory for major
   changes and improvements.
 
-- For installation instructions have a look under the the FreeBSD, NetBSD
-  and OpenBSD directories, each of these contains a file "INSTALLATION"
-  which describes the installation procedure for isdn4bsd on those operating
-  systems.
+- For installation instructions have a look at the isdn4bsd handbook
+  available online at http://people.freebsd.org/~hm/
 
 - isdn4bsd has a homepage at http://www.freebsd-support.de/i4b/ where i
   will try to maintain links to docs, updates and errata.
 
-- handbook/i4b.ps contains a handbook for isdn4bsd describing how i4b is
-  unpacked, configured, compiled and run on a FreeBSD system. With minor
-  differences this applies to the other supported Operating Systems as
-  well.
+- Every program and every driver has a man page.
+  Hint: try "apropos isdn4bsd", it displays all available manual pages.
 
-- Every program has a man page in the respective subdirectory and every 
-  driver has a man page in the "man" subdirectory. All the man pages are 
-  installed by running "make install" so its very easy to access them
-  (hint: try "apropos isdn4bsd" after you installed isdn4bsd, it displays
-   all available manual pages).
+- The file Overview contains a short technical overview of the inner 
+  workings of isdn4bsd.
 
-- misc/Overview contains a short technical overview of the inner workings 
-  of isdn4bsd.
-
-- misc/Resources contains URL's and ISBN's to more interesting ISDN related
-  stuff.
+- The file Resources contains URL's and ISBN's to more interesting ISDN 
+  related stuff.
 
 
 6. How do i install isdn4bsd ?
 ------------------------------
 
-Read the instructions in the file {FreeBSD|NetBSD|OpenBSD|BSDI}/INSTALLATION. 
+Read the installation instructions in the isdn4bsd handbook which is
+available online at http://people.freebsd.org/~hm/
 
 In case they are incomplete, unclear, wrong or outdated, please send me an 
 update for inclusion into a future distribution!
-
-The handbook contains detailed installation instructions for FreeBSD.
 
 
 7. Where do i get support for isdn4bsd ?
@@ -351,12 +326,10 @@ This mailing list is NOT (!) FreeBSD specific, everyone is welcome there!
 12. Where can i get isdn4bsd ?
 ------------------------------
 
-The isdn4bsd package is available from:
+The isdn4bsd package is part of FreeBSD since FreeBSD 3.0-RELEASE so you
+get isdn4bsd where you can get FreeBSD: http://www.freebsd.org
 
-	ftp://i4b.consol.de/pub
-
-
-Finally, i4b got an own web-page at 
+Isdn4bsd has its own homepage at
 
 	http://www.freebsd-support.de/i4b
 
