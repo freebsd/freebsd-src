@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: main.c,v 1.4 1993/09/04 05:06:33 jkh Exp $";
+static const char *rcsid = "$Id: main.c,v 1.4 1993/09/12 20:45:29 jkh Exp $";
 #endif
 
 /*
@@ -40,6 +40,14 @@ main(int argc, char **argv)
 	switch(ch) {
 	case 'v':
 	    Verbose = TRUE;
+	    break;
+
+	case 'N':
+	    AutoAnswer = NO;
+	    break;
+
+	case 'Y':
+	    AutoAnswer = YES;
 	    break;
 
 	case 'p':
