@@ -577,10 +577,10 @@ uhub_intr(usbd_xfer_handle xfer, usbd_private_handle addr, usbd_status status)
 	struct uhub_softc *sc = addr;
 
 	DPRINTFN(5,("uhub_intr: sc=%p\n", sc));
-	if (status != USBD_NORMAL_COMPLETION)
+	if (status == USBD_STALLED)
 		usbd_clear_endpoint_stall_async(sc->sc_ipipe);
-
-	usb_needs_explore(sc->sc_hub->bus);
+	else if (status == USBD_NORMAL_COMPLETION)
+		usb_needs_explore(sc->sc_hub->bus);
 }
 
 #if defined(__FreeBSD__)

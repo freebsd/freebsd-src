@@ -479,7 +479,8 @@ umodemwritecb(xfer, priv, status)
 
 	if (status != USBD_NORMAL_COMPLETION) {
 		DPRINTF(("umodemwritecb: status=%d\n", status));
-		usbd_clear_endpoint_stall_async(sc->sc_bulkin_pipe);
+		if (status == USBD_STALLED)
+		    usbd_clear_endpoint_stall_async(sc->sc_bulkin_pipe);
 		/* XXX we should restart after some delay. */
 		return;
 	}
@@ -753,7 +754,8 @@ umodemreadcb(xfer, p, status)
 
 	if (status != USBD_NORMAL_COMPLETION) {
 		DPRINTF(("umodemreadcb: status=%d\n", status));
-		usbd_clear_endpoint_stall_async(sc->sc_bulkin_pipe);
+		if (status == USBD_STALLED)
+		    usbd_clear_endpoint_stall_async(sc->sc_bulkin_pipe);
 		/* XXX we should restart after some delay. */
 		return;
 	}
