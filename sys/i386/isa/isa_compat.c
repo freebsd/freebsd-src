@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: isa_compat.c,v 1.3 1999/04/19 08:42:39 dfr Exp $
+ *	$Id: isa_compat.c,v 1.4 1999/04/19 18:03:51 peter Exp $
  */
 
 #include <sys/param.h>
@@ -160,6 +160,7 @@ isa_compat_probe(device_t dev)
 	if (dvp->id_driver->probe) {
 		int portsize;
 		void *maddr;
+
 		isa_compat_alloc_resources(dev, &res);
 		if (res.memory)
 			maddr = rman_get_virtual(res.memory);
@@ -168,22 +169,21 @@ isa_compat_probe(device_t dev)
 		dvp->id_maddr = maddr;
 		portsize = dvp->id_driver->probe(dvp);
 		isa_compat_release_resources(dev, &res);
-		if (portsize != 0) {
-			if (portsize > 0)
-				isa_set_portsize(dev, portsize);
-			if (dvp->id_iobase != isa_get_port(dev))
-				isa_set_port(dev, dvp->id_iobase);
-			if (dvp->id_irq != irqmask(isa_get_irq(dev)))
-				isa_set_irq(dev, ffs(dvp->id_irq) - 1);
-			if (dvp->id_drq != isa_get_drq(dev))
-				isa_set_drq(dev, dvp->id_drq);
-			if (dvp->id_maddr != maddr)
-				isa_set_maddr(dev,
-					      (int) dvp->id_maddr - KERNBASE);
-			if (dvp->id_msize != isa_get_msize(dev))
-				isa_set_msize(dev, dvp->id_msize);
+		/* isa_release_resource clobbers the hints - reset them! */
+		if (dvp->id_iobase > 0)
+			isa_set_port(dev, dvp->id_iobase);
+		if (portsize > 0)
+			isa_set_portsize(dev, portsize);
+		if (dvp->id_irq != 0)
+			isa_set_irq(dev, ffs(dvp->id_irq) - 1);
+		if (dvp->id_drq != -1)
+			isa_set_drq(dev, dvp->id_drq);
+		if (dvp->id_maddr != 0)
+			isa_set_maddr(dev, (int)kvtop(dvp->id_maddr)); /* XXX */
+		if (dvp->id_msize != 0)
+			isa_set_msize(dev, dvp->id_msize);
+		if (portsize != 0)
 			return 0;
-		}
 	}
 	return ENXIO;
 }
