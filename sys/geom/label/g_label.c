@@ -198,7 +198,7 @@ g_label_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	g_trace(G_T_TOPOLOGY, "%s(%s, %s)", __func__, mp->name, pp->name);
 	g_topology_assert();
 
-	G_LABEL_DEBUG(3, "Tasting %s.", pp->name);
+	G_LABEL_DEBUG(2, "Tasting %s.", pp->name);
 
 	if (strcmp(pp->geom->class->name, mp->name) == 0)
 		return (NULL);
