@@ -10,7 +10,7 @@
  * In return you should think about all the nice people who give away software.
  * Maybe you should write some free software too.
  *
- * $Id$
+ * $Id: ctm_smail.c,v 1.6 1996/07/01 20:54:11 gpalmer Exp $
  */
 
 #include <stdio.h>
@@ -422,7 +422,7 @@ open_sendmail()
     FILE *fp;
     char buf[100];
 
-    sprintf(buf, "%s -t", _PATH_SENDMAIL);
+    sprintf(buf, "%s -odq -t", _PATH_SENDMAIL);
     if ((fp = popen(buf, "w")) == NULL)
 	err("cannot start sendmail");
     return fp;

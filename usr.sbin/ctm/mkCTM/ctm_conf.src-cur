@@ -3,4 +3,6 @@
 set CTMname	src-cur
 set CTMref	/c/src
 set CTMdont	{\.core$|/CVS$|/CVS/|^/secure|^/eBones|/#cvs|/\.#}
-set CTMmail	ctm-src-cur@freebsd.org
+set CTMmail	ctm-src-cur-fast@freebsd.org
+set CTMqueue	/home/ctm/queue/ctm-src-cur
+set CTMqueuemail	ctm-src-cur@freebsd.org
