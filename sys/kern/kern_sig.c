@@ -1560,8 +1560,8 @@ issignal(p)
 			do {
 				mtx_lock_spin(&sched_lock);
 				stop(p);
-				PROC_UNLOCK_NOSWITCH(p);
-				DROP_GIANT_NOSWITCH();
+				PROC_UNLOCK(p);
+				DROP_GIANT();
 				p->p_stats->p_ru.ru_nivcsw++;
 				mi_switch();
 				mtx_unlock_spin(&sched_lock);
@@ -1639,8 +1639,8 @@ issignal(p)
 				}
 				mtx_lock_spin(&sched_lock);
 				stop(p);
-				PROC_UNLOCK_NOSWITCH(p);
-				DROP_GIANT_NOSWITCH();
+				PROC_UNLOCK(p);
+				DROP_GIANT();
 				p->p_stats->p_ru.ru_nivcsw++;
 				mi_switch();
 				mtx_unlock_spin(&sched_lock);

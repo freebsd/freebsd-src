@@ -78,7 +78,6 @@ struct lock_class {
  * Option flags passed to lock operations that witness also needs to know
  * about or that are generic across all locks.
  */
-#define	LOP_NOSWITCH	0x00000001	/* Lock doesn't switch on release. */
 #define	LOP_QUIET	0x00000002	/* Don't log locking operations. */
 #define	LOP_TRYLOCK	0x00000004	/* Don't check lock order. */
 #define	LOP_EXCLUSIVE	0x00000008	/* Exclusive lock. */

@@ -437,7 +437,9 @@ alpha_dispatch_intr(void *frame, unsigned long vector)
 	 */
 	ih = TAILQ_FIRST(&ithd->it_handlers);
 	if ((ih->ih_flags & IH_FAST) != 0) {
+		critical_enter();
 		ih->ih_handler(ih->ih_argument);
+		critical_exit();
 		return;
 	}
 
@@ -461,6 +463,7 @@ alpha_clock_interrupt(struct trapframe *framep)
 	intrcnt[INTRCNT_CLOCK]++;
 #endif
 	if (platform.clockintr) {
+		critical_enter();
 #ifdef SMP
 		/*
 		 * Only one processor drives the actual timer.
@@ -481,5 +484,6 @@ alpha_clock_interrupt(struct trapframe *framep)
 			mtx_unlock_spin(&sched_lock);
 		}
 #endif
+		critical_exit();
 	}
 }
