@@ -10,7 +10,7 @@ DPADD+=	${LIBUTIL}
 
 WARNS=	0
 # XXX hack for make's hash.[ch]
-CFLAGS+= -DORDER -I${.CURDIR}/../../usr.bin/make -I.
+CFLAGS+= -DORDER -I.
 
 SRCS+=	util.h
 CLEANFILES+=	util.h
