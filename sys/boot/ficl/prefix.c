@@ -104,7 +104,7 @@ int ficlParsePrefix(FICL_VM *pVM, STRINGINFO si)
 				vmSetTibIndex(pVM, si.cp + n - pVM->tib.cp );
                 vmExecute(pVM, pFW);
 
-                return FICL_TRUE;
+                return (int)FICL_TRUE;
             }
             pFW = pFW->link;
         }
