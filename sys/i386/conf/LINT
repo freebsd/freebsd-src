@@ -2619,6 +2619,12 @@ device		ums
 device		urio
 # USB scanners
 device		uscanner
+# USB com devices
+device		ucom
+device		uplcom
+device		uvscom
+device		uvisor
+
 #
 # ADMtek USB ethernet. Supports the LinkSys USB100TX,
 # the Billionton USB100, the Melco LU-ATX, the D-Link DSB-650TX
@@ -2639,17 +2645,7 @@ device		kue
 
 # debugging options for the USB subsystem
 #
-options 	UHCI_DEBUG
-options 	OHCI_DEBUG
 options 	USB_DEBUG
-
-options 	UGEN_DEBUG
-options 	UHID_DEBUG
-options 	UHUB_DEBUG
-options 	UKBD_DEBUG
-options 	ULPT_DEBUG
-options 	UMASS_DEBUG
-options 	UMS_DEBUG
 
 # options for ukbd:
 options 	UKBD_DFLT_KEYMAP	# specify the built-in keymap
