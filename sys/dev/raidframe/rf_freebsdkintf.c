@@ -1649,8 +1649,7 @@ InitBP(bp, b_vp, rw_flag, dev, startSect, numSect, buf, cbFunc, cbArg,
 	int logBytesPerSector;
 	struct proc *b_proc;
 {
-	/* bp->b_flags       = B_PHYS | rw_flag; */
-	bp->bio_cmd = rw_flag;	/* XXX need B_PHYS here too? */
+	bp->bio_cmd = rw_flag;
 	bp->bio_bcount = numSect << logBytesPerSector;
 #if 0	/* XXX */
 	bp->bio_bufsize = bp->bio_bcount;
@@ -1862,6 +1861,7 @@ raidread_component_label(dev, b_vp, clabel)
 
 	/* get our ducks in a row for the read */
 	bp->b_blkno = RF_COMPONENT_INFO_OFFSET / DEV_BSIZE;
+	bp->b_offset = RF_COMPONENT_INFO_OFFSET;
 	bp->b_bcount = RF_COMPONENT_INFO_SIZE;
 	bp->b_iocmd = BIO_READ;
  	bp->b_resid = RF_COMPONENT_INFO_SIZE / DEV_BSIZE;
@@ -1901,6 +1901,7 @@ raidwrite_component_label(dev, b_vp, clabel)
 	/* get our ducks in a row for the write */
 	bp->b_flags = 0;
 	bp->b_blkno = RF_COMPONENT_INFO_OFFSET / DEV_BSIZE;
+	bp->b_offset = RF_COMPONENT_INFO_OFFSET;
 	bp->b_bcount = RF_COMPONENT_INFO_SIZE;
 	bp->b_iocmd = BIO_WRITE;
  	bp->b_resid = RF_COMPONENT_INFO_SIZE / DEV_BSIZE;
