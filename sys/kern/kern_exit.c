@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id: kern_exit.c,v 1.54 1997/09/02 20:05:38 bde Exp $
+ * $Id: kern_exit.c,v 1.55 1997/09/13 19:42:10 joerg Exp $
  */
 
 #include "opt_ktrace.h"
@@ -176,7 +176,8 @@ exit1(p, rv)
 	p->p_flag |= P_WEXIT;
 	p->p_sigignore = ~0;
 	p->p_siglist = 0;
-	untimeout(realitexpire, (caddr_t)p);
+	if (timerisset(&p->p_realtimer.it_value))
+		untimeout(realitexpire, (caddr_t)p, p->p_ithandle);
 
 	/*
 	 * Close open files and release open-file table.

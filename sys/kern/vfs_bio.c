@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.126 1997/09/10 20:09:22 phk Exp $
+ * $Id: vfs_bio.c,v 1.127 1997/09/21 04:49:30 dyson Exp $
  */
 
 /*
@@ -383,40 +383,6 @@ bwrite(struct buf * bp)
 		curproc->p_stats->p_ru.ru_oublock++;
 	VOP_STRATEGY(bp);
 
-	/*
-	 * Handle ordered writes here.
-	 * If the write was originally flagged as ordered,
-	 * then we check to see if it was converted to async.
-	 * If it was converted to async, and is done now, then
-	 * we release the buffer.  Otherwise we clear the
-	 * ordered flag because it is not needed anymore.
-	 *
- 	 * Note that biodone has been modified so that it does
-	 * not release ordered buffers.  This allows us to have
-	 * a chance to determine whether or not the driver
-	 * has set the async flag in the strategy routine.  Otherwise
-	 * if biodone was not modified, then the buffer may have been
-	 * reused before we have had a chance to check the flag.
-	 */
-
-	if ((oldflags & B_ORDERED) == B_ORDERED) {
-		int s;
-		s = splbio();
-		if (bp->b_flags & B_ASYNC)  {
-			if ((bp->b_flags & B_DONE)) {
-				if ((bp->b_flags & (B_NOCACHE | B_INVAL | B_ERROR | B_RELBUF)) != 0)
-					brelse(bp);
-				else
-					bqrelse(bp);
-			}
-			splx(s);
-			return (0);
-		} else {
-			bp->b_flags &= ~B_ORDERED;
-		}
-		splx(s);
-	}
-
 	if ((oldflags & B_ASYNC) == 0) {
 		int rtval = biowait(bp);
 
@@ -489,7 +455,7 @@ bdwrite(struct buf * bp)
 	 * requesting a sync -- there might not be enough memory to do
 	 * the bmap then...  So, this is important to do.
 	 */
-	if( bp->b_lblkno == bp->b_blkno) {
+	if (bp->b_lblkno == bp->b_blkno) {
 		VOP_BMAP(bp->b_vp, bp->b_lblkno, NULL, &bp->b_blkno, NULL, NULL);
 	}
 
@@ -537,6 +503,11 @@ bawrite(struct buf * bp)
 int
 bowrite(struct buf * bp)
 {
+	/*
+	 * XXX Add in B_ASYNC once the SCSI
+	 *     layer can deal with ordered
+	 *     writes properly.
+	 */
 	bp->b_flags |= B_ORDERED;
 	return (VOP_BWRITE(bp));
 }
@@ -1355,10 +1326,10 @@ loop:
 		bremfree(bp);
 
 		/*
-		 * check for size inconsistancies (note that they shouldn't happen
-		 * but do when filesystems don't handle the size changes correctly.)
-		 * We are conservative on metadata and don't just extend the buffer
-		 * but write and re-constitute it.
+		 * check for size inconsistancies (note that they shouldn't
+		 * happen but do when filesystems don't handle the size changes
+		 * correctly.) We are conservative on metadata and don't just
+		 * extend the buffer but write and re-constitute it.
 		 */
 
 		if (bp->b_bcount != size) {
@@ -1901,12 +1872,10 @@ biodone(register struct buf * bp)
 	 */
 
 	if (bp->b_flags & B_ASYNC) {
-		if ((bp->b_flags & B_ORDERED) == 0) {
-			if ((bp->b_flags & (B_NOCACHE | B_INVAL | B_ERROR | B_RELBUF)) != 0)
-				brelse(bp);
-			else
-				bqrelse(bp);
-		}
+		if ((bp->b_flags & (B_NOCACHE | B_INVAL | B_ERROR | B_RELBUF)) != 0)
+			brelse(bp);
+		else
+			bqrelse(bp);
 	} else {
 		bp->b_flags &= ~B_WANTED;
 		wakeup(bp);
