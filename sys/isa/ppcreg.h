@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppcreg.h,v 1.3 1998/08/03 19:14:33 msmith Exp $
+ *	$Id: ppcreg.h,v 1.4 1998/09/13 18:26:44 nsouch Exp $
  *
  */
 #ifndef __PPCREG_H
@@ -32,16 +32,17 @@
 /*
  * Parallel Port Chipset type.
  */
-#define SMC_LIKE	0x0
-#define SMC_37C665GT	0x1
-#define SMC_37C666GT	0x2
-#define NS_PC87332	0x3
-#define NS_PC87306	0x4
-#define INTEL_820191AA	0x5	/* XXX not implemented */
-#define GENERIC		0x6
-#define WINB_W83877F	0x7
-#define WINB_W83877AF	0x8
-#define WINB_UNKNOWN	0x9
+#define SMC_LIKE	0
+#define SMC_37C665GT	1
+#define SMC_37C666GT	2
+#define NS_PC87332	3
+#define NS_PC87306	4
+#define INTEL_820191AA	5	/* XXX not implemented */
+#define GENERIC		6
+#define WINB_W83877F	7
+#define WINB_W83877AF	8
+#define WINB_UNKNOWN	9
+#define NS_PC87334	10
 
 /*
  * Generic structure to hold parallel port chipset info.
@@ -100,6 +101,8 @@ struct ppc_data {
 #define PC873_PTR	0x02
 #define PC873_CFGLOCK	(1<<6)
 #define PC873_EPPRDIR	(1<<7)
+#define PC873_EXTENDED	(1<<7)
+#define PC873_LPTBIRQ7	(1<<3)
 #define PC873_FCR	0x03
 #define PC873_ZWS	(1<<5)
 #define PC873_ZWSPWDN	(1<<6)
@@ -111,6 +114,9 @@ struct ppc_data {
 #define PC873_PMC	0x06
 #define PC873_TUP	0x07
 #define PC873_SID	0x08
+#define PC873_PNP0	0x1b
+#define PC873_PNP1	0x1c
+#define PC873_LPTBA	0x19
 
 /*
  * Register defines for the SMC FDC37C66xGT parts
