@@ -3,7 +3,7 @@
 PROG=		kadmind
 MAN8=		${KRB4DIR}/man/kadmind.8
 SRCS=		kadm_server.c kadm_funcs.c admin_server.c kadm_ser_wrap.c \
-		pw_check.c
+		pw_check.c ${KADMOBJDIR}/kadm_err.h ${KRBOBJDIR}/krb_err.h
 CFLAGS+=	-I${KRB4DIR}/include \
 		-I${KRB4DIR}/lib/roken \
 		-I${KRB4DIR}/lib/sl \
@@ -25,5 +25,3 @@ DPADD=		${LIBROKEN} ${LIBSL} ${LIBACL} ${LIBKADM} ${LIBKDB} ${LIBKRB} \
 .include <bsd.prog.mk>
 
 .PATH:	${KRB4DIR}/kadmin
-
-beforedepend all: ${KADMOBJDIR}/kadm_err.h ${KRBOBJDIR}/krb_err.h
