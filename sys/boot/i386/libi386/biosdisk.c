@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: biosdisk.c,v 1.13 1998/10/11 10:01:55 peter Exp $
+ *	$Id: biosdisk.c,v 1.14 1998/10/11 10:29:49 peter Exp $
  */
 
 /*
@@ -311,6 +311,7 @@ bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
 	error = ENOENT;
 	goto out;
     case 0:
+	sector = 0;
 	goto unsliced;
     default:
 	break;
