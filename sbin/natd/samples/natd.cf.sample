@@ -1,5 +1,5 @@
 #
-# $Id:$
+# $Id: natd.cf.sample,v 1.2 1998/07/04 12:07:03 brian Exp $
 #
 #
 # Configuration file for natd.
@@ -24,7 +24,7 @@ use_sockets	no
 # Avoid port changes if possible when altering outbound packets. Makes rlogin
 # work in most cases.
 #
-same_port	yes
+same_ports	yes
 #
 # Verbose mode. Enables dumping of packets and disables
 # forking to background.  Only set to yes for debugging.
