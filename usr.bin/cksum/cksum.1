@@ -32,8 +32,8 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)cksum.1		8.2 (Berkeley) 4/28/95
-.\"	$Id: cksum.1,v 1.3 1997/04/29 08:41:26 jmg Exp $
+.\"	@(#)cksum.1	8.2 (Berkeley) 4/28/95
+.\"	$Id: cksum.1,v 1.4 1997/06/25 07:02:00 charnier Exp $
 .\"
 .Dd April 28, 1995
 .Dt CKSUM 1
@@ -45,6 +45,8 @@
 .Nm cksum
 .Op Fl o Ar \&1 No \&| Ar \&2
 .Op Ar file ...
+.Nm sum
+.Op Ar file ...
 .Sh DESCRIPTION
 The
 .Nm cksum
@@ -55,6 +57,14 @@ These fields are a checksum
 the total number of octets in the file and the file name.
 If no file name is specified, the standard input is used and no file name
 is written.
+.Pp
+The
+.Nm sum
+utility is identical to the
+.Nm cksum
+utility, except that it defaults to using historic algorithm 1, as
+described below.
+It is provided for compatibility only.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
@@ -141,8 +151,10 @@ The bit sequence is complemented and the result is the CRC.
 .Ed
 .Pp
 The
-.Nm
-utility exits 0 on success, and >0 if an error occurs.
+.Nm cksum
+and
+.Nm sum
+utilities exit 0 on success, and >0 if an error occurs.
 .Sh SEE ALSO
 .Xr md5 1
 .Rs

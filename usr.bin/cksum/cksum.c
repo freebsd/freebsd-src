@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: cksum.c,v 1.3 1997/06/25 07:02:03 charnier Exp $
  */
 
 #ifndef lint
@@ -43,11 +43,12 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)cksum.c	8.1 (Berkeley) 6/6/93";
+static char sccsid[] = "@(#)cksum.c	8.2 (Berkeley) 4/28/95";
 #endif /* not lint */
 
 #include <sys/cdefs.h>
 #include <sys/types.h>
+
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -55,6 +56,7 @@ static char sccsid[] = "@(#)cksum.c	8.1 (Berkeley) 6/6/93";
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
 #include "extern.h"
 
 static void usage __P((void));
@@ -64,22 +66,31 @@ main(argc, argv)
 	int argc;
 	char **argv;
 {
-	extern int optind;
-	u_long len, val;
 	register int ch, fd, rval;
-	char *fn;
+	u_long len, val;
+	char *fn, *p;
 	int (*cfncn) __P((int, unsigned long *, unsigned long *));
 	void (*pfncn) __P((char *, unsigned long, unsigned long));
 
-	cfncn = crc;
-	pfncn = pcrc;
+	if ((p = rindex(argv[0], '/')) == NULL)
+		p = argv[0];
+	else
+		++p;
+	if (*p == 'c') {
+		cfncn = crc;
+		pfncn = pcrc;
+	} else {
+		cfncn = csum1;
+		pfncn = psum1;
+	}
+
 	while ((ch = getopt(argc, argv, "o:")) != -1)
-		switch(ch) {
+		switch (ch) {
 		case 'o':
-			if (*optarg == '1') {
+			if (!strcmp(optarg, "1")) {
 				cfncn = csum1;
 				pfncn = psum1;
-			} else if (*optarg == '2') {
+			} else if (!strcmp(optarg, "2")) {
 				cfncn = csum2;
 				pfncn = psum2;
 			} else {
