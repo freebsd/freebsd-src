@@ -32,7 +32,7 @@
 .\"     From: @(#)whois.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd November 17, 1999
+.Dd September 4, 2001
 .Dt WHOIS 1
 .Os
 .Sh NAME
@@ -41,7 +41,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl adgimpQrR6
-.Op Fl h Ar host
+.Op Fl c Ar country-code | Fl h Ar host
 .Ar name ...
 .Sh DESCRIPTION
 .Nm
@@ -65,6 +65,11 @@ to the NIC handle:
 .Pp
 .Dl "$ whois -a foo3-ARIN"
 .Pp
+.It Fl c Ar country-code
+This is the equivalent of using the
+.Fl h
+option with an argument of
+.Qq Ar country-code Ns Li .whois-servers.net .
 .It Fl d
 Use the US Department of Defense
 database.
