@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.34 1996/06/03 04:40:43 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.35 1996/06/20 18:33:33 jkh Exp $";
 #endif
 
 /*
@@ -209,7 +209,7 @@ pkg_do(char *pkg)
 
     /* See if we're already registered */
     sprintf(LogDir, "%s/%s", (tmp = getenv(PKG_DBDIR)) ? tmp : DEF_LOG_DIR, PkgName);
-    if (isdir(LogDir)) {
+    if (isdir(LogDir) && !Force) {
 	whinge("Package `%s' already recorded as installed.\n", PkgName);
 	code = 1;
 	goto success;	/* close enough for government work */
