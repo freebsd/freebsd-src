@@ -93,3 +93,4 @@ aliascmd	alias
 ulimitcmd	ulimit
 testcmd		test [
 bindcmd		bind
+wordexpcmd	wordexp
