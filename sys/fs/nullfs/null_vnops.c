@@ -711,6 +711,7 @@ null_reclaim(struct vop_reclaim_args *ap)
 	struct vnode *vp = ap->a_vp;
 	struct null_node *xp = VTONULL(vp);
 	struct vnode *lowervp = xp->null_lowervp;
+	struct lock *vnlock;
 
 	if (lowervp) {
 		null_hashrem(xp);
@@ -721,7 +722,11 @@ null_reclaim(struct vop_reclaim_args *ap)
 
 	vp->v_data = NULL;
 	vp->v_object = NULL;
+	vnlock = vp->v_vnlock;
+	lockmgr(&vp->v_lock, LK_EXCLUSIVE, NULL, curthread);
 	vp->v_vnlock = &vp->v_lock;
+	transferlockers(vnlock, vp->v_vnlock);
+	lockmgr(vnlock, LK_RELEASE, NULL, curthread);
 	FREE(xp, M_NULLFSNODE);
 
 	return (0);
