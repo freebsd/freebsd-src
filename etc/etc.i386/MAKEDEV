@@ -107,6 +107,7 @@
 #
 # Special purpose devices:
 #	apm	Advanced Power Management BIOS
+#	apmctl	APM BIOS control device
 #	bpf*	packet filter
 #	speaker	pc speaker
 #	tw*	xten power controller
@@ -128,7 +129,7 @@
 #	ipl	ipfilter control devices (ipl, ipnat, ipstate, ipauth)
 #	kbd	keyboard devices
 #
-#	$Id$
+#	$Id: MAKEDEV,v 1.183.2.12 1999/08/25 16:50:43 gehenna Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH
@@ -234,7 +235,7 @@ all)
 	sh MAKEDEV usb0 ums0 ulpt0 ugen0		# cdev, USB devices
 	sh MAKEDEV bpf0 ipl tun0			# cdev, network
 	sh MAKEDEV ch0 perfmon tw0			# cdev, miscellaneous
-	sh MAKEDEV apm card0 card1			# cdev, laptop
+	sh MAKEDEV apm apmctl card0 card1		# cdev, laptop
 	sh MAKEDEV pass4 xpt2				# cdev, CAM
 	sh MAKEDEV i4b i4bctl i4btrc0 i4btrc1		# cdev, ISDN
 	sh MAKEDEV i4brbch0 i4brbch1 i4btel0 i4btel1	# cdev, ISDN
@@ -1179,8 +1180,11 @@ gsc*)
 apm*)
 	chr=39
 	mknod apm c $chr 0
+	mknod apmctl c $chr 8
 	chgrp operator apm
+	chgrp operator apmctl
 	chmod 660 apm
+	chmod 660 apmctl
 	;;
 
 card*)

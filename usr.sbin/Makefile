@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.20 (Berkeley) 6/12/93
-#	$Id: Makefile,v 1.147.2.5 1999/05/22 21:08:30 wpaul Exp $
+#	$Id$
 
 # XXX MISSING:		mkproto
 SUBDIR=	IPXrouted \
@@ -114,6 +114,7 @@ SUBDIR+=mailstats \
 .if ${MACHINE_ARCH} == "i386"
 SUBDIR+=apm \
 	apmconf \
+	apmd \
 	bad144 \
 	boot0cfg \
 	btxld \

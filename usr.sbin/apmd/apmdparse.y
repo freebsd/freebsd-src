@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * 	$Id: apmdparse.y,v 1.1.3.5 1999/06/08 09:01:47 koie Exp $
+ * 	$Id: apmdparse.y,v 1.1.1.1 1999/07/10 17:39:35 iwasaki Exp $
  */
 
 #include <stdio.h>
