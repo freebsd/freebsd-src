@@ -32,17 +32,12 @@
 #include "bus_if.h"
 #include <sys/eventhandler.h>
 #include <sys/sysctl.h>
-#if __FreeBSD_version >= 500000
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#endif
+#include <sys/sx.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
-
-#if __FreeBSD_version < 500000
-typedef vm_offset_t vm_paddr_t;
-#endif
 
 struct acpi_softc {
     device_t		acpi_dev;
@@ -103,23 +98,40 @@ struct acpi_prw_data {
 /* Flags for each device defined in the AML namespace. */
 #define ACPI_FLAG_WAKE_ENABLED	0x1
 
-#if __FreeBSD_version < 500000
 /*
- * In 4.x, ACPI is protected by splhigh().
+ * Entry points to ACPI from above are global functions defined in this
+ * file, sysctls, and I/O on the control device.  Entry points from below
+ * are interrupts (the SCI), notifies, task queue threads, and the thermal
+ * zone polling thread.
+ *
+ * ACPI tables and global shared data are protected by a global lock
+ * (acpi_mutex).  
+ *
+ * Each ACPI device can have its own driver-specific mutex for protecting
+ * shared access to local data.  The ACPI_LOCK macros handle mutexes.
+ *
+ * Drivers that need to serialize access to functions (e.g., to route
+ * interrupts, get/set control paths, etc.) should use the sx lock macros
+ * (ACPI_SERIAL).
+ *
+ * ACPI-CA handles its own locking and should not be called with locks held.
+ *
+ * The most complicated path is:
+ *     GPE -> EC runs _Qxx -> _Qxx reads EC space -> GPE
  */
-# define ACPI_LOCK			s = splhigh()
-# define ACPI_UNLOCK			splx(s)
-# define ACPI_ASSERTLOCK
-# define ACPI_MSLEEP(a, b, c, d, e)	tsleep(a, c, d, e)
-# define ACPI_LOCK_DECL			int s
-# define kthread_create(a, b, c, d, e, f)	kthread_create(a, b, c, f)
-# define tc_init(a)			init_timecounter(a)
-#else
-# define ACPI_LOCK
-# define ACPI_UNLOCK
-# define ACPI_ASSERTLOCK
-# define ACPI_LOCK_DECL
-#endif
+extern struct mtx			acpi_mutex;
+#define ACPI_LOCK(sys)			mtx_lock(&sys##_mutex)
+#define ACPI_UNLOCK(sys)		mtx_unlock(&sys##_mutex)
+#define ACPI_LOCK_ASSERT(sys)		mtx_assert(&sys##_mutex, MA_OWNED);
+#define ACPI_LOCK_DECL(sys, name)				\
+	static struct mtx sys##_mutex;				\
+	MTX_SYSINIT(sys##_mutex, &sys##_mutex, name, MTX_DEF)
+#define ACPI_SERIAL_BEGIN(sys)		sx_xlock(&sys##_sxlock)
+#define ACPI_SERIAL_END(sys)		sx_xunlock(&sys##_sxlock)
+#define ACPI_SERIAL_ASSERT(sys)		sx_assert(&sys##_sxlock, SX_XLOCKED);
+#define ACPI_SERIAL_DECL(sys, name)				\
+	static struct sx sys##_sxlock;				\
+	SX_SYSINIT(sys##_sxlock, &sys##_sxlock, name)
 
 /*
  * ACPI CA does not define layers for non-ACPI CA drivers.
@@ -377,16 +389,9 @@ int		acpi_PkgGas(device_t dev, ACPI_OBJECT *res, int idx, int *rid,
 			    struct resource **dst);
 ACPI_HANDLE	acpi_GetReference(ACPI_HANDLE scope, ACPI_OBJECT *obj);
 
-#if __FreeBSD_version >= 500000
 #ifndef ACPI_MAX_THREADS
 #define ACPI_MAX_THREADS	3
 #endif
-#if ACPI_MAX_THREADS > 0
-#define ACPI_USE_THREADS
-#endif
-#endif
 
-#ifdef ACPI_USE_THREADS
 /* ACPI task kernel thread initialization. */
 int		acpi_task_thread_init(void);
-#endif
