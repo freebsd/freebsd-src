@@ -22,7 +22,7 @@
 \ ** OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 \ ** SUCH DAMAGE.
 \ **
-\ **      $Id: freebsd.fr,v 1.1 1999/02/04 17:13:49 dcs Exp $
+\ **      $Id: freebsd.fr,v 1.2 1999/02/28 02:10:14 dcs Exp $
 
 \ Words for use in scripts:
 \ % ignore errors here
@@ -30,7 +30,7 @@
 
 : tib> source >in @ tuck over >in ! - >r + r> ;
 : % tib> ['] evaluate catch drop ;
-: $ tib> 2dup type cr ['] evaluate catch throw ;
+: $ tib> 2dup type cr evaluate ;
 
 \ ** E N D   F R E E B S D . F R
 
