@@ -1,0 +1,139 @@
+.\" Copyright (c) 1995, 1996
+.\"	Bill Paul <wpaul@ctr.columbia.edu>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Bill Paul
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Bill Paul AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Bill Paul OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	$Id: yp_mkdb.8,v 1.1 1996/03/13 16:28:19 wpaul Exp wpaul $
+.\"
+.Dd March 12, 1996
+.Dt YP_MKDB 8
+.Os
+.Sh NAME
+.Nm yp_mkdb
+.Nd "generate the NIS databases"
+.Sh SYNOPSIS
+.Nm yp_mkdb
+.Fl c
+.Nm yp_mkdb
+.Fl u Ar dbname
+.Nm yp_mkdb
+.Op Fl c
+.Op Fl i Ar inputfile
+.Op Fl o Ar outputfile
+.Op Fl m Ar mastername
+.Ar inputfile
+.Ar dbname
+.Sh DESCRIPTION
+.Nm yp_mkdb
+creates
+.Xr db 3
+style databases for use with FreeBSD's NIS server.
+.Nm yp_mkdb
+reads data from
+.Nm inputfile ,
+and writes it to
+.Nm dbname
+in
+.Xr db 3
+format (using the hash table method).
+The input should be in 'key data' format, which is to say
+two fields of ASCII data separated by white space. The first field
+is assumed to be the key, and everything else is assumed to be
+the data.
+These databases are typically stored in
+.Nm /var/yp/[domainname]
+where
+.Nm domainname
+is the name of the NIS domain being served. 
+.Nm yp_mkdb
+is usually invoked by
+.Nm /var/yp/Makefile.
+.Nm yp_mkdb
+can also be used to dump an NIS database file so that its
+contents can be examined. For security reasons, all databases that
+.Nm yp_mkdb
+creates are readable and writable by owner only (and usually the
+owner is root).
+.Sh OPTIONS
+The
+.Nm yp_mkdb
+command supports the following flags and options:
+.Bl -tag -width flag
+.It Fl c
+Causes
+.Nm yp_mkdb
+to send a YPPROC_CLEAR request to
+.Xr ypserv 8
+on the local host. This signal tells the server to close any open
+database descriptors and flush out its database cache. If used alone,
+this flag signals the server and does nothing else. If used as part
+of a database creation command,
+.Nm yp_mkdb
+will send the signal only after the new database has been successfully
+created.
+.It Fl u Ar dbname
+.Pp
+Dump (or 'unwind') an NIS database. This option can be used to
+inspect the contents of an existing NIS database.
+.It Op Fl i Ar inputfile
+.Pp
+When generating an NIS map, encode
+.Nm inputfile
+as a special entry in the database with called
+.Nm YP_INPUT_FILE.
+.Pp
+.It Op Fl o Ar outputfile
+.Pp
+When generating an NIS map, encode
+.Nm outputfile
+as a special entry in the database with called
+.Nm YP_OUTPUT_FILE .
+.Pp
+.It Op Fl m Ar mastername
+.Pp
+When generating an NIS map encode
+.Nm mastername
+as a special entry in the database with called
+.Nm YP_MASTER_NAME .
+This entry in the database is frequently used by various NIS utilities
+to determine the name of an NIS master server for a domain. By default,
+.Nm yp_mkdb
+assumes that the local host is the NIS master; the
+.Ar m
+option is used to override this default.
+.Sh FILES
+.Bl -tag -width Pa -compact
+.It Pa /var/yp/Makefile
+The Makefile that calls
+.Nm yp_mkdb
+to build the NIS databases.
+.Sh SEE ALSO
+.Xr ypserv 8 ,
+.Xr db 3
+.Sh AUTHOR
+Bill Paul <wpaul@ctr.columbia.edu>
