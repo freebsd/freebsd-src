@@ -314,8 +314,7 @@ rulespec_intok(struct devfs_rule *dr, int ac __unused, char **av,
 	struct passwd *pw;
 	struct group *gr;
 	devfs_rnum rnum;
-	char *cp;
-	long l;
+	void *set;
 
 	memset(dr, '\0', sizeof(*dr));
 
@@ -367,10 +366,8 @@ rulespec_intok(struct devfs_rule *dr, int ac __unused, char **av,
 		} else
 			break;
 	}
-	for (;;) {
-		if (av[0] == NULL)
-			break;
-		else if (strcmp(av[0], "hide") == 0) {
+	while (av[0] != NULL) {
+		if (strcmp(av[0], "hide") == 0) {
 			dr->dr_iacts |= DRA_BACTS;
 			dr->dr_bacts |= DRB_HIDE;
 			++av;
@@ -402,11 +399,10 @@ rulespec_intok(struct devfs_rule *dr, int ac __unused, char **av,
 			if (av[1] == NULL)
 				errx(1, "expecting argument for mode");
 			dr->dr_iacts |= DRA_MODE;
-			l = strtol(av[1], &cp, 8);
-			if (l > (1 << (sizeof(dr->dr_mode) * 8)) - 1 ||
-			    *cp != '\0')
-				errx(1, "invalid mode: %s", av[1]);
-			dr->dr_mode = l;
+			set = setmode(av[1]);
+			if (set == NULL)
+				errx(1, "invald mode: %s", av[1]);
+			dr->dr_mode = getmode(set, 0);
 			av += 2;
 		} else if (strcmp(av[0], "include") == 0) {
 			if (av[1] == NULL)
