@@ -187,7 +187,7 @@ vm_object_zinit(void *mem, int size)
 }
 
 void
-_vm_object_allocate(objtype_t type, vm_size_t size, vm_object_t object)
+_vm_object_allocate(objtype_t type, vm_pindex_t size, vm_object_t object)
 {
 	static int object_hash_rand;
 	int exp, incr;
@@ -341,7 +341,7 @@ vm_object_pip_wait(vm_object_t object, char *waitid)
  *	Returns a new object with the given size.
  */
 vm_object_t
-vm_object_allocate(objtype_t type, vm_size_t size)
+vm_object_allocate(objtype_t type, vm_pindex_t size)
 {
 	vm_object_t result;
 
@@ -626,7 +626,7 @@ void
 vm_object_page_clean(vm_object_t object, vm_pindex_t start, vm_pindex_t end, int flags)
 {
 	vm_page_t p, np;
-	vm_offset_t tstart, tend;
+	vm_pindex_t tstart, tend;
 	vm_pindex_t pi;
 	struct vnode *vp;
 	int clearobjflags;
@@ -1697,7 +1697,7 @@ void
 vm_object_page_remove(vm_object_t object, vm_pindex_t start, vm_pindex_t end, boolean_t clean_only)
 {
 	vm_page_t p, next;
-	unsigned int size;
+	vm_pindex_t size;
 	int all;
 
 	if (object == NULL)

@@ -201,7 +201,7 @@ dev_pager_getpages(object, m, count, reqpage)
 	int count;
 	int reqpage;
 {
-	vm_offset_t offset;
+	vm_pindex_t offset;
 	vm_offset_t paddr;
 	vm_page_t page;
 	dev_t dev;
