@@ -1,6 +1,6 @@
 # ISO 3166 2-letter country codes
 #
-# @(#)iso3166.tab	1.8
+# @(#)iso3166.tab	1.9
 #
 # From Paul Eggert <eggert@twinsun.com> (1999-10-13):
 #
@@ -159,7 +159,7 @@ MK	Macedonia
 ML	Mali
 MM	Myanmar (Burma)
 MN	Mongolia
-MO	Macao
+MO	Macau
 MP	Northern Mariana Islands
 MQ	Martinique
 MR	Mauritania
