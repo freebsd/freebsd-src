@@ -32,7 +32,6 @@
 #include <sys/types.h>
 #include <sys/malloc.h>
 #include <sys/fcntl.h>
-#include <sys/stat.h>
 #include <sys/conf.h>
 #include <sys/errno.h>
 #include <sys/devicestat.h>
@@ -44,7 +43,6 @@
 #include <cam/cam_extend.h>
 #include <cam/cam_periph.h>
 #include <cam/cam_xpt_periph.h>
-#include <cam/cam_queue.h>
 #include <cam/cam_debug.h>
 
 #include <cam/scsi/scsi_all.h>
