@@ -1649,7 +1649,7 @@ rf_DispatchKernelIO(queue, req)
 			raidbp->rf_buf.b_vp->v_numoutput++;
 		}
 #endif
-		BIO_STRATEGY(&raidbp->rf_buf, 0);
+		BIO_STRATEGY(&raidbp->rf_buf);
 
 		break;
 
