@@ -153,6 +153,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/msgbuf.h>
 #include <sys/vmmeter.h>
@@ -334,7 +335,7 @@ static void pmap_insert_entry(pmap_t pmap, vm_offset_t va,
 
 static vm_page_t pmap_allocpte(pmap_t pmap, vm_offset_t va);
 
-static vm_page_t _pmap_allocpte(pmap_t pmap, unsigned ptepindex);
+static vm_page_t _pmap_allocpte(pmap_t pmap, unsigned ptepindex, int flags);
 static int _pmap_unwire_pte_hold(pmap_t pmap, vm_offset_t va, vm_page_t m);
 static int pmap_unuse_pt(pmap_t, vm_offset_t, vm_page_t);
 #ifdef SMP
@@ -1038,24 +1039,28 @@ pmap_pinit(pmap)
  * mapped correctly.
  */
 static vm_page_t
-_pmap_allocpte(pmap, ptepindex)
-	pmap_t	pmap;
-	unsigned ptepindex;
+_pmap_allocpte(pmap_t pmap, unsigned ptepindex, int flags)
 {
 	pt_entry_t* pte;
 	vm_offset_t ptepa;
 	vm_page_t m;
+
+	KASSERT((flags & (M_NOWAIT | M_WAITOK)) == M_NOWAIT ||
+	    (flags & (M_NOWAIT | M_WAITOK)) == M_WAITOK,
+	    ("_pmap_allocpte: flags is neither M_NOWAIT nor M_WAITOK"));
 
 	/*
 	 * Find or fabricate a new pagetable page
 	 */
 	if ((m = vm_page_alloc(NULL, ptepindex, VM_ALLOC_NOOBJ |
 	    VM_ALLOC_WIRED | VM_ALLOC_ZERO)) == NULL) {
-		PMAP_UNLOCK(pmap);
-		vm_page_unlock_queues();
-		VM_WAIT;
-		vm_page_lock_queues();
-		PMAP_LOCK(pmap);
+		if (flags & M_WAITOK) {
+			PMAP_UNLOCK(pmap);
+			vm_page_unlock_queues();
+			VM_WAIT;
+			vm_page_lock_queues();
+			PMAP_LOCK(pmap);
+		}
 
 		/*
 		 * Indicate the need to retry.  While waiting, the page table
@@ -1082,7 +1087,8 @@ _pmap_allocpte(pmap, ptepindex)
 		pt_entry_t* l1pte = &pmap->pm_lev1[l1index];
 		pt_entry_t* l2map;
 		if (!pmap_pte_v(l1pte)) {
-			if (_pmap_allocpte(pmap, NUSERLEV3MAPS + l1index) == NULL) {
+			if (_pmap_allocpte(pmap, NUSERLEV3MAPS + l1index,
+			    flags) == NULL) {
 				--m->wire_count;
 				vm_page_free(m);
 				return (NULL);
@@ -1146,7 +1152,7 @@ retry:
 		 * Here if the pte page isn't mapped, or if it has been
 		 * deallocated.
 		 */
-		m = _pmap_allocpte(pmap, ptepindex);
+		m = _pmap_allocpte(pmap, ptepindex, M_WAITOK);
 		if (m == NULL)
 			goto retry;
 	}
@@ -1842,9 +1848,20 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_page_t mpte)
 				}
 				mpte->wire_count++;
 			} else {
-				mpte = _pmap_allocpte(pmap, ptepindex);
-				if (mpte == NULL)
+				mpte = _pmap_allocpte(pmap, ptepindex,
+				    M_NOWAIT);
+				if (mpte == NULL) {
+					PMAP_UNLOCK(pmap);
+					vm_page_busy(m);
+					vm_page_unlock_queues();
+					VM_OBJECT_UNLOCK(m->object);
+					VM_WAIT;
+					VM_OBJECT_LOCK(m->object);
+					vm_page_lock_queues();
+					vm_page_wakeup(m);
+					PMAP_LOCK(pmap);
 					goto retry;
+				}
 			}
 		}
 	} else {

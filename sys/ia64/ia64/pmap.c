@@ -1631,9 +1631,13 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_page_t mpte)
 	while ((pte = pmap_find_pte(va)) == NULL) {
 		pmap_install(oldpmap);
 		PMAP_UNLOCK(pmap);
+		vm_page_busy(m);
 		vm_page_unlock_queues();
+		VM_OBJECT_UNLOCK(m->object);
 		VM_WAIT;
+		VM_OBJECT_LOCK(m->object);
 		vm_page_lock_queues();
+		vm_page_wakeup(m);
 		PMAP_LOCK(pmap);
 		oldpmap = pmap_install(pmap);
 	}
