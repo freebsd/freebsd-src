@@ -611,22 +611,7 @@ g_raid3_orphan(struct g_consumer *cp)
 	disk = cp->private;
 	if (disk == NULL)
 		return;
-	disk->d_softc->sc_bump_id = G_RAID3_BUMP_SYNCID_OFW;
-	g_raid3_event_send(disk, G_RAID3_DISK_STATE_DISCONNECTED,
-	    G_RAID3_EVENT_DONTWAIT);
-}
-
-static void
-g_raid3_spoiled(struct g_consumer *cp)
-{
-	struct g_raid3_disk *disk;
-
-	g_topology_assert();
-
-	disk = cp->private;
-	if (disk == NULL)
-		return;
-	disk->d_softc->sc_bump_id = G_RAID3_BUMP_SYNCID_IMM;
+	disk->d_softc->sc_bump_id = G_RAID3_BUMP_SYNCID;
 	g_raid3_event_send(disk, G_RAID3_DISK_STATE_DISCONNECTED,
 	    G_RAID3_EVENT_DONTWAIT);
 }
@@ -659,7 +644,7 @@ g_raid3_write_metadata(struct g_raid3_disk *disk, struct g_raid3_metadata *md)
 	g_topology_lock();
 	free(sector, M_RAID3);
 	if (error != 0) {
-		disk->d_softc->sc_bump_id = G_RAID3_BUMP_GENID_IMM;
+		disk->d_softc->sc_bump_id = G_RAID3_BUMP_GENID;
 		g_raid3_event_send(disk, G_RAID3_DISK_STATE_DISCONNECTED,
 		    G_RAID3_EVENT_DONTWAIT);
 	}
@@ -1093,7 +1078,7 @@ g_raid3_gather(struct bio *pbp)
 			 * Actually this is pointless to bump genid,
 			 * because whole device is fucked up.
 			 */
-			sc->sc_bump_id |= G_RAID3_BUMP_GENID_IMM;
+			sc->sc_bump_id |= G_RAID3_BUMP_GENID;
 			g_raid3_event_send(disk,
 			    G_RAID3_DISK_STATE_DISCONNECTED,
 			    G_RAID3_EVENT_DONTWAIT);
@@ -1256,8 +1241,7 @@ g_raid3_regular_request(struct bio *cbp)
 			if (cbp->bio_error != 0) {
 				disk = cbp->bio_caller2;
 				if (disk != NULL) {
-					sc->sc_bump_id |=
-					    G_RAID3_BUMP_GENID_IMM;
+					sc->sc_bump_id |= G_RAID3_BUMP_GENID;
 					g_raid3_event_send(disk,
 					    G_RAID3_DISK_STATE_DISCONNECTED,
 					    G_RAID3_EVENT_DONTWAIT);
@@ -1457,7 +1441,7 @@ g_raid3_sync_request(struct bio *bp)
 			    "Synchronization request failed (error=%d).",
 			    bp->bio_error);
 			g_destroy_bio(bp);
-			sc->sc_bump_id |= G_RAID3_BUMP_GENID_IMM;
+			sc->sc_bump_id |= G_RAID3_BUMP_GENID;
 			g_raid3_event_send(disk,
 			    G_RAID3_DISK_STATE_DISCONNECTED,
 			    G_RAID3_EVENT_DONTWAIT);
@@ -1657,7 +1641,7 @@ g_raid3_register_request(struct bio *pbp)
 		/*
 		 * Bump syncid on first write.
 		 */
-		if ((sc->sc_bump_id & G_RAID3_BUMP_SYNCID_OFW) != 0) {
+		if ((sc->sc_bump_id & G_RAID3_BUMP_SYNCID) != 0) {
 			sc->sc_bump_id &= ~G_RAID3_BUMP_SYNCID;
 			g_topology_lock();
 			g_raid3_bump_syncid(sc);
@@ -2248,7 +2232,7 @@ g_raid3_update_device(struct g_raid3_softc *sc, boolean_t force)
 		sc->sc_syncid = syncid;
 		if (force) {
 			/* Remember to bump syncid on first write. */
-			sc->sc_bump_id |= G_RAID3_BUMP_SYNCID_OFW;
+			sc->sc_bump_id |= G_RAID3_BUMP_SYNCID;
 		}
 		if (ndisks == sc->sc_ndisks)
 			state = G_RAID3_DEVICE_STATE_COMPLETE;
@@ -2265,20 +2249,15 @@ g_raid3_update_device(struct g_raid3_softc *sc, boolean_t force)
 			state = g_raid3_determine_state(disk);
 			g_raid3_event_send(disk, state, G_RAID3_EVENT_DONTWAIT);
 			if (state == G_RAID3_DISK_STATE_STALE)
-				sc->sc_bump_id |= G_RAID3_BUMP_SYNCID_OFW;
+				sc->sc_bump_id |= G_RAID3_BUMP_SYNCID;
 		}
 		break;
 	    }
 	case G_RAID3_DEVICE_STATE_DEGRADED:
 		/*
-		 * Bump syncid and/or genid here, if we need to do it
-		 * immediately.
+		 * Genid need to be bumped immediately, so do it here.
 		 */
-		if ((sc->sc_bump_id & G_RAID3_BUMP_SYNCID_IMM) != 0) {
-			sc->sc_bump_id &= ~G_RAID3_BUMP_SYNCID;
-			g_raid3_bump_syncid(sc);
-		}
-		if ((sc->sc_bump_id & G_RAID3_BUMP_GENID_IMM) != 0) {
+		if ((sc->sc_bump_id & G_RAID3_BUMP_GENID) != 0) {
 			sc->sc_bump_id &= ~G_RAID3_BUMP_GENID;
 			g_raid3_bump_genid(sc);
 		}
@@ -2306,14 +2285,9 @@ g_raid3_update_device(struct g_raid3_softc *sc, boolean_t force)
 		break;
 	case G_RAID3_DEVICE_STATE_COMPLETE:
 		/*
-		 * Bump syncid and/or genid here, if we need to do it
-		 * immediately.
+		 * Genid need to be bumped immediately, so do it here.
 		 */
-		if ((sc->sc_bump_id & G_RAID3_BUMP_SYNCID_IMM) != 0) {
-			sc->sc_bump_id &= ~G_RAID3_BUMP_SYNCID;
-			g_raid3_bump_syncid(sc);
-		}
-		if ((sc->sc_bump_id & G_RAID3_BUMP_GENID_IMM) != 0) {
+		if ((sc->sc_bump_id & G_RAID3_BUMP_GENID) != 0) {
 			sc->sc_bump_id &= ~G_RAID3_BUMP_GENID;
 			g_raid3_bump_genid(sc);
 		}
@@ -2510,7 +2484,7 @@ again:
 			 * Reset bumping syncid if disk disappeared in STARTING
 			 * state.
 			 */
-			if ((sc->sc_bump_id & G_RAID3_BUMP_SYNCID_OFW) != 0)
+			if ((sc->sc_bump_id & G_RAID3_BUMP_SYNCID) != 0)
 				sc->sc_bump_id &= ~G_RAID3_BUMP_SYNCID;
 #ifdef	INVARIANTS
 		} else {
@@ -2535,7 +2509,7 @@ again:
 }
 #undef	DISK_STATE_CHANGED
 
-static int
+int
 g_raid3_read_metadata(struct g_consumer *cp, struct g_raid3_metadata *md)
 {
 	struct g_provider *pp;
@@ -2663,7 +2637,7 @@ g_raid3_check_metadata(struct g_raid3_softc *sc, struct g_provider *pp,
 	return (0);
 }
 
-static int
+int
 g_raid3_add_disk(struct g_raid3_softc *sc, struct g_provider *pp,
     struct g_raid3_metadata *md)
 {
@@ -2766,7 +2740,6 @@ g_raid3_create(struct g_class *mp, const struct g_raid3_metadata *md)
 	sc->sc_disks = malloc(sizeof(struct g_raid3_disk) * md->md_all, M_RAID3,
 	    M_WAITOK | M_ZERO);
 	gp->start = g_raid3_start;
-	gp->spoiled = g_raid3_spoiled;
 	gp->orphan = g_raid3_orphan;
 	gp->access = g_raid3_access;
 	gp->dumpconf = g_raid3_dumpconf;
