@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.277 1997/12/04 14:35:39 jkh Exp $
+ *	$Id: machdep.c,v 1.278 1997/12/04 21:21:24 jmg Exp $
  */
 
 #include "apm.h"
@@ -149,6 +149,14 @@ int	bouncepages = 0;
 int	msgbufmapped = 0;		/* set when safe to use msgbuf */
 int _udatasel, _ucodesel;
 u_int	atdevbase;
+
+#if defined(SWTCH_OPTIM_STATS)
+extern int swtch_optim_stats;
+SYSCTL_INT(_debug, OID_AUTO, swtch_optim_stats,
+	CTLFLAG_RD, &swtch_optim_stats, 0, "");
+SYSCTL_INT(_debug, OID_AUTO, tlb_flush_count,
+	CTLFLAG_RD, &tlb_flush_count, 0, "");
+#endif
 
 
 int physmem = 0;
