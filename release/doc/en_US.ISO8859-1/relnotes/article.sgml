@@ -236,7 +236,8 @@
     <para>A kernel option <varname>ADAPTIVE_GIANT</varname>, which
       causes the Giant lock to also be treated in
       an adaptive fashion when adaptive mutexes are enabled,
-      has been added.  This improves performance of SMP machines.</para>
+      has been added.  This improves performance of SMP machines
+      and is enabled by default on i386.</para>
 
     <para arch="i386">The &man.acpi.asus.4; driver has been added
       to use ACPI-controlled hardware features, such as hot keys and
@@ -265,6 +266,9 @@
       be disabled automatically when the machine has a well-known broken BIOS.
       This behavior can be overridden by setting the loader tunable
       <varname>hint.acpi.0.disabled</varname> to <literal>0</literal>.</para>
+
+    <para arch="amd64">The &man.agp.4; driver now supports AMD64 graphics
+      aperture relocation table (GART).</para>
 
     <para>The &man.bus.dma.9; interface now supports transparently honoring
       the alignment and boundary constraints in the DMA tag
@@ -302,17 +306,20 @@
 
     <para>The &man.getvfsent.3; API has been removed.</para>
 
-    <para arch="sparc64">The &man.hme.4; driver now natively supports
+    <para>The &man.hme.4; driver now natively supports
       long frames, so it can be used for &man.vlan.4; with full Ethernet
       MTU size.</para>
 
-    <para arch="sparc64">The &man.hme.4; driver now supports
+    <para>The &man.hme.4; driver now supports
       TCP/UDP Transmit/Receive checksum offload.
       Since &man.hme.4; does not compensate the checksum
       for UDP datagram which can yield to 0x0, UDP transmit
       checksum offload is disabled by default.
       This can be reactivated by setting the special link
       option <option>link0</option> with &man.ifconfig.8;.</para>
+
+    <para>The <varname>hw.pci.allow_unsupported_io_range</varname>
+      loader tunable has been removed.</para>
 
     <para>&man.jail.2; now supports use of raw sockets from within a jail.
       This feature is disabled by default, and controlled using the
@@ -384,8 +391,17 @@
       One can enter the debugger by writing to the
       <varname>debug.kdb.enter</varname> sysctl.</para>
 
+    <para>A new sysctl <varname>debug.kdb.stop_cpus</varname> has been
+      added.  This controls whether or not IPI (Inter Processor Interrupts)
+      to other CPUs will be delivered when entering the debugger,
+      in order to stop them while in the debugger.</para>
+
     <para arch="amd64">Loadable kernel modules now work and are
       enabled in the amd64 build.</para>
+
+    <para arch="amd64">A preliminary support for running 32-bit
+      Linux binaries on amd64.  This is enabled with the
+      <option>COMPAT_LINUX32</option> kernel option.</para>
 
     <para arch="i386">The loran (Loran-C receiver) driver has been removed due to
       breakage and lack of maintainership.</para>
@@ -393,6 +409,16 @@
     <para>A new kernel option <literal>MAC_STATIC</literal> which
       disables internal MAC Framework synchronization protecting against
       dynamic load and unload of MAC policies, has been added.</para>
+
+    <para>The &man.mac.bsdextended.4; policy now supports to match and
+      apply on a first rule only in place of all rules match.
+      This feature can be enabled by setting a new sysctl
+      <varname>mac_bsdextended_firstmatch_enabled</varname>.</para>
+
+    <para>The &man.mac.bsdextended.4; policy now supports to log
+      failed attempts to syslog's <literal>AUTHPRIV</literal> facility.
+      This feature can be enabled by setting a new sysctl
+      <varname>mac_bsdextended_logging</varname>.</para>
 
     <para>mballoc has been replaced with mbuma, an Mbuf and Cluster
       allocator built on top of a number of extensions to the UMA framework.
@@ -411,6 +437,44 @@
 
     <para>A bug in &man.mmap.2; that pages marked as <literal>PROT_NONE</literal>
       may become readable under certain circumstances, has been fixed.  &merged;</para>
+
+    <para arch="i386,pc98">A new kernel option <literal>MP_WATCHDOG</literal> which
+      allows one of the logical CPUs on a system to be used as a dedicated
+      watchdog to cause a drop to the debugger and/or generate an NMI
+      to the boot processor if the kernel ceases to respond.
+      Several sysctls are available to enable the watchdog running out of the
+      processor's idle thread; a callout is launched to reset a timer
+      in the watchdog.  If the callout fails to reset the timer for ten seconds,
+      the timeout process will take place.  The sysctl allows to select
+      which CPU will run the watchdog.</para>
+
+    <para arch="i386,pc98">A sysctl <varname>debug.leak_schedlock</varname>
+      has been added.  This causes a sysctl to spin holding sched_lock
+      in order to trigger the watchdog provided by the
+      <literal>MP_WATCHDOG</literal> option.</para>
+
+    <para>A new loader tunable <varname>debug.mpsafenet</varname> has been
+      added and enabled by default.  This causes the &os; network stack
+      to operate without the Giant lock, resulting in performance
+      improvement by increasing parallelism and decreasing latency
+      in network processing.  Note that enabling one of Netgraph TTY,
+      KAME IPsec, and IPX/SPX subsystem results in a boot-time
+      restoration of Giant-enabled network operation, or run-time
+      warning on dynamic load as these components require Giant lock
+      for correct operation.</para>
+
+    <para>A new kernel option <varname>NET_WITH_GIANT</varname> has been
+      added.  This restores the default value of debug.mpsafenet to
+      <literal>0</literal>, and is intended for use on systems compiled with
+      known unsafe components, or where a more conservative configuration is
+      desired.</para>
+
+    <para>A new loader tunable <varname>debug.mpsafevm</varname> has been
+      added.  This currently results in almost
+      Giant-free execution of zero-fill page faults.</para>
+
+    <para arch="i386,amd64">A loader tunable <varname>debug.mpsafevm</varname>
+      has been enabled by default.</para>
 
     <para>&man.nmdm.4; has been rewritten to improve its reliability.</para>
 
@@ -478,6 +542,13 @@
       kernel locking continues, the scheduler will be able to make
       more efficient use of the available parallel resources.</para>
 
+    <para>A linear search algorthm used in
+      &man.vm.map.findspace.9; has been replaced with
+      an O(log n) algorithm built into the map entry splay tree.
+      This significantly reduces the overhead in &man.vm.map.findspace.9;
+      for applications that &man.mmap.2; many hundreds or thousands
+      of regions.</para>
+
     <!-- Above this line, sort kernel changes by manpage/keyword-->
 
     <para>The device driver infrastructure (as well as many drivers)
@@ -499,7 +570,7 @@
       not <devicename>stf0</devicename>, and does not print
       <devicename>stf0</devicename> to stdout.</para>
 
-    <para>The &os; dynamic linker now supports Thread Local Storage (TLS),
+    <para>The &os; dynamic and static linker now support Thread Local Storage (TLS),
       a GCC feature which allows to add a <literal>__thread</literal> modifier
       to the declaration of global and static variables.
       This extra modifier means that the variable's value is
@@ -724,8 +795,21 @@
 	<programlisting>deny ip from any to any not antispoof in</programlisting>
       </para>
 
+      <para>&man.ipfw.4; rules now support the <literal>jail</literal>
+        option to associate the rule with a specific prison ID.
+	For example:
+
+	<programlisting>count ip from any to any jail 2</programlisting>
+
+	Note that this rule currently applies for TCP and UDP packets only.
+      </para>
+
       <para>&man.ipfw.4; now supports lookup tables.  This feature is
         useful for handling large sparse address sets. &merged;</para>
+
+      <para>The &man.ipfw.4; <option>forward</option> rule has to be compiled
+	into the kernel with a kernel option <option>IPFIREWALL_FORWARD</option>
+	to enable it.</para>
 
       <para>A new sysctl <varname>net.inet.ip.process_options</varname>
 	to control the processing of IP options.  When this sysctl
@@ -746,11 +830,11 @@
 	This allows &man.natd.8; to be bound to
 	different network interfaces and sharing of load.</para>
 
-      <para>The <literal>PFIL_HOOKS</literal> option is now enabled by
-	default in the <filename>GENERIC</filename> kernel.  The most
-	notable effect of this change is to make
-	<application>IPFilter</application> work correctly when loaded
-	as a kernel module.</para>
+      <para><literal>PFIL_HOOKS</literal> has always been
+	compiled into the kernel, and the associated kernel compile
+	options are removed.  All of the packet filter subsystems
+	that &os; supports now use the <literal>PFIL_HOOKS</literal>
+	framework.</para>
 
       <para>The link state change notification of Ethernet media
 	support has been added to the routing socket.</para>
@@ -858,6 +942,9 @@
     <sect3 id="fs">
       <title>File Systems</title>
 
+      <para>The autofs(9) file system and the userland library
+	&man.libautofs.3; have been added.</para>
+
       <para>The EXT2FS file system code now includes partial support
 	for large (&gt; 4GB) files.  This support is partial in that
 	it will refuse to create large files on filesystems that have
@@ -875,6 +962,10 @@
 
       <para>A new <literal>GEOM_NOP</literal> geom class for various
 	testing purposes has been added.</para>
+
+      <para>A new <literal>GEOM_RAID3</literal> geom class for
+	RAID3 transformation and &man.graid3.8; userland utility
+	have been added.</para>
 
       <para>A new <literal>GEOM_STRIPE</literal>
 	geom class which implements RAID0 transformation has been added.
@@ -914,6 +1005,10 @@
 	which supports RAID1 functionality, has been added.
 	The &man.gmirror.8; utility can be used for control
 	of this class.</para>
+
+      <para>A new <literal>GEOM_UZIP</literal> geom class to implement
+	read-only compressed disks has been added.
+	This currently supports cloop V2.0 disk compression format.</para>
 
       <para>A new <literal>GEOM_VINUM</literal> geom class to support
 	cooperation between &man.vinum.4; and &man.geom.4;
@@ -980,6 +1075,10 @@
   <sect2 id="userland">
     <title>Userland Changes</title>
 
+    <para>&man.acpidump.8; now supports SSDT tables.  Dumping or
+      disassembling the DSDT will now include the contents if
+      there are any SSDT table as well.</para>
+
     <para>&man.bsdlabel.8; now supports a <option>-f</option> option
       to work on files instead of disk partitions.</para>
 
@@ -1024,6 +1123,10 @@
 
     <para>&man.daemon.8; now supports a <option>-p</option>
       option to create a PID file.</para>
+
+    <para>&man.dd.1; now supports a <option>fillchar</option> option
+      to specify an alternative padding character when using a conversion
+      mode, or when using noerror with sync and an input error occurs.</para>
 
     <para>&man.df.1; now supports a <option>-c</option> option to display
       a grand total of statistics for file systems.</para>
@@ -1128,6 +1231,14 @@
       run command as a user which exists only in the &man.jail.2;
       environment.</para>
 
+    <para>&man.jail.8; now supports a <option>-l</option> option to
+      clean the environment.  The environment variables are discarded
+      except for <varname>HOME</varname>, <varname>SHELL</varname>,
+      <varname>PATH</varname>, <varname>TERM</varname>, and
+      <varname>USER</varname> before running jailed program under
+      specific user's credentials as the &man.su.1; <option>-l</option>
+      option does.</para>
+
     <para>&man.join.1; now supports multibyte characters.</para>
 
     <para>&man.kgdb.1;, a kernel debugging utility which uses <filename>libgdb</filename>
@@ -1185,11 +1296,23 @@
 
     <para><filename>libpthread</filename> now supports
       a <varname>LIBPTHREAD_SYSTEM_SCOPE</varname> environment
-      variable to force 1:1 mode.  Note that
+      variable to force 1:1 mode (using system scope threads).  Note that
       building <filename>libpthread</filename> with
       <option>-DSYSTEM_SCOPE_ONLY</option> flag also forces 1:1 mode,
       and that this option is set by default for architectures that do not
-      support M:N mode yet.</para>
+      support M:N mode yet.
+      In addition, a <varname>LIBPTHREAD_PROCESS_SCOPE</varname> environment
+      variable can be used to force M:N mode (using process scope
+      threads).  For example:</para>
+
+    <screen>&prompt.user; <userinput>LIBPTHREAD_SYSTEM_SCOPE=yes <replaceable>threaded_app</replaceable></userinput></screen>
+
+    <para>forces the application <replaceable>threaded_app</replaceable> to use
+      system scope threads, and</para>
+
+    <screen>&prompt.user; <userinput>LIBPTHREAD_PROCESS_SCOPE=yes <replaceable>threaded_app</replaceable></userinput></screen>
+
+    <para>forces it to use process scope threads, respectively.</para>
 
     <para>A bug in the <option>-d</option> option of &man.look.1;
       has been fixed.  Also, &man.look.1; now works correctly in
@@ -1490,7 +1613,7 @@
       grep</application> 2.5.1.</para>
 
     <para><application>GNU sort</application> has been updated from
-      textutils 2.1 to coreutils 5.2.1.</para>
+      textutils 2.1 to a coreutils snapshot as of August 12, 2004.</para>
 
     <para>The <application>GNU tar</application> implementation in the
       base system is now called <filename>gtar</filename>.</para>
@@ -1499,14 +1622,14 @@
        updated from 0.6 to 0.6.1.</para>
 
     <para>The <application>ISC DHCP</application> client has been
-       updated from 3.0.1 RC10 to 3.0.1 RC14.</para>
+       updated from 3.0.1 RC10 to 3.0.1.</para>
 
     <para><application>libpcap</application> has been updated from
       version 0.7.1 to version 0.8.3.</para>
 
     <para><application>lukemftp</application>
       has been updated from a snapshot as of
-      November 3, 2003 to one as of April 26, 2004.</para>
+      November 3, 2003 to one as of August 9, 2004.</para>
 
     <para><application>NTP</application>
       has been updated from 4.1.1a to 4.2.0.</para>
@@ -1528,8 +1651,14 @@
     <para><application>OpenSSL</application> has been updated from
       0.9.7c to 0.9.7d.  &merged;</para>
 
+    <para><application>OpenSSL</application> VIA C3 Nehemiah
+      PadLock ACE (Advanced Cryptography Engine) crypto support,
+      which provides Advanced Encryption Standard (AES) encryption,
+      has been imported from a prerelease version
+      of <application>OpenSSL</application>.</para>
+
     <para><application>pf</application>, OpenBSD's packet filter as of
-      OpenBSD 3.5, has been imported into &os; source tree and is now installed
+      OpenBSD 3.5-stable, has been imported into &os; source tree and is now installed
       by default.  Two new users (<username>proxy</username> and
       <username>_pflogd</username>) and three new
       groups (<username>authpf</username>, <username>proxy</username>,
@@ -1687,6 +1816,12 @@
       has been added to the &os; Ports Collection.  This utility will read a database
       containing known ports vulnerabilities and report them to the
       administrator.</para>
+
+    <para>&os; now adopts <application>Xorg</application> instead of
+      <application>XFree86</application> as the default X Window System.
+      The supported release is <application>Xorg</application> X11R6.7.0.
+      Note that <application>XFree86</application> is also available in &os;
+      Ports Collection (<filename role="package">x11/XFree86-4</filename>).</para>
   </sect2>
 
   <sect2 id="doc">
