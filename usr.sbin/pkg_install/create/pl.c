@@ -102,7 +102,7 @@ trylink(const char *from, const char *to)
 		    strcat(where_args, "|tar xpf -"); \
 		    if (system(where_args)) { \
 			cleanup(0); \
-			errx(2, __FUNCTION__ ": can't invoke tar pipeline"); \
+			errx(2, "%s: can't invoke tar pipeline", __FUNCTION__); \
 		    } \
 		    memset(where_args, 0, maxargs); \
  		    last_chdir = NULL; \
@@ -134,7 +134,7 @@ copy_plist(const char *home, Package *plist)
     where_args = malloc(maxargs);
     if (!where_args) {
 	cleanup(0);
-	errx(2, __FUNCTION__ ": can't get argument list space");
+	errx(2, "%s: can't get argument list space", __FUNCTION__);
     }
 
     memset(where_args, 0, maxargs);
@@ -203,7 +203,7 @@ copy_plist(const char *home, Package *plist)
 		}
 		if (add_count < 0 || add_count > maxargs - where_count) {
 		    cleanup(0);
-		    errx(2, __FUNCTION__ ": oops, miscounted strings!");
+		    errx(2, "%s: oops, miscounted strings!", __FUNCTION__);
 		}
 		where_count += add_count;
 	    }
@@ -241,7 +241,7 @@ copy_plist(const char *home, Package *plist)
 					 p->name);
 		if (add_count < 0 || add_count > maxargs - where_count) {
 		    cleanup(0);
-		    errx(2, __FUNCTION__ ": oops, miscounted strings!");
+		    errx(2, "%s: oops, miscounted strings!", __FUNCTION__);
 		}
 		where_count += add_count;
 		last_chdir = (mythere ? mythere : where);

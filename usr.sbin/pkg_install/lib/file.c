@@ -300,18 +300,18 @@ fileGetContents(const char *fname)
 
     if (stat(fname, &sb) == FAIL) {
 	cleanup(0);
-	errx(2, __FUNCTION__ ": can't stat '%s'", fname);
+	errx(2, "%s: can't stat '%s'", __FUNCTION__, fname);
     }
 
     contents = (char *)malloc(sb.st_size + 1);
     fd = open(fname, O_RDONLY, 0);
     if (fd == FAIL) {
 	cleanup(0);
-	errx(2, __FUNCTION__ ": unable to open '%s' for reading", fname);
+	errx(2, "%s: unable to open '%s' for reading", __FUNCTION__, fname);
     }
     if (read(fd, contents, sb.st_size) != sb.st_size) {
 	cleanup(0);
-	errx(2, __FUNCTION__ ": short read on '%s' - did not get %qd bytes",
+	errx(2, "%s: short read on '%s' - did not get %qd bytes", __FUNCTION__,
 	     fname, (long long)sb.st_size);
     }
     close(fd);
@@ -364,16 +364,17 @@ write_file(const char *name, const char *str)
     fp = fopen(name, "w");
     if (!fp) {
 	cleanup(0);
-	errx(2, __FUNCTION__ ": cannot fopen '%s' for writing", name);
+	errx(2, "%s: cannot fopen '%s' for writing", __FUNCTION__, name);
     }
     len = strlen(str);
     if (fwrite(str, 1, len, fp) != len) {
 	cleanup(0);
-	errx(2, __FUNCTION__ ": short fwrite on '%s', tried to write %ld bytes", name, (long)len);
+	errx(2, "%s: short fwrite on '%s', tried to write %ld bytes",
+	    __FUNCTION__, name, (long)len);
     }
     if (fclose(fp)) {
 	cleanup(0);
-	errx(2, __FUNCTION__ ": failure to fclose '%s'", name);
+	errx(2, "%s: failure to fclose '%s'", __FUNCTION__, name);
     }
 }
 
@@ -388,7 +389,7 @@ copy_file(const char *dir, const char *fname, const char *to)
 	snprintf(cmd, FILENAME_MAX, "cp -r %s/%s %s", dir, fname, to);
     if (vsystem(cmd)) {
 	cleanup(0);
-	errx(2, __FUNCTION__ ": could not perform '%s'", cmd);
+	errx(2, "%s: could not perform '%s'", __FUNCTION__, cmd);
     }
 }
 
@@ -403,7 +404,7 @@ move_file(const char *dir, const char *fname, const char *to)
 	snprintf(cmd, FILENAME_MAX, "mv %s/%s %s", dir, fname, to);
     if (vsystem(cmd)) {
 	cleanup(0);
-	errx(2, __FUNCTION__ ": could not perform '%s'", cmd);
+	errx(2, "%s: could not perform '%s'", __FUNCTION__, cmd);
     }
 }
 
@@ -435,7 +436,7 @@ copy_hierarchy(const char *dir, const char *fname, Boolean to)
 #endif
     if (system(cmd)) {
 	cleanup(0);
-	errx(2, __FUNCTION__ ": could not perform '%s'", cmd);
+	errx(2, "%s: could not perform '%s'", __FUNCTION__, cmd);
     }
 }
 

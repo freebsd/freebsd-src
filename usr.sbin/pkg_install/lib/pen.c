@@ -59,10 +59,10 @@ find_play_pen(char *pen, off_t sz)
 	strcpy(pen, "/usr/tmp/instmp.XXXXXX");
     else {
 	cleanup(0);
-	errx(2, __FUNCTION__
-": can't find enough temporary space to extract the files, please set your\n"
+	errx(2,
+"%s: can't find enough temporary space to extract the files, please set your\n"
 "PKG_TMPDIR environment variable to a location with at least %ld bytes\n"
-"free", (long)sz);
+"free", __FUNCTION__, (long)sz);
 	return NULL;
     }
     return pen;
@@ -76,7 +76,7 @@ static void
 pushPen(const char *pen)
 {
     if (++pdepth == MAX_STACK)
-	errx(2, __FUNCTION__ ": stack overflow.\n");
+	errx(2, "%s: stack overflow.\n", __FUNCTION__);
     pstack[pdepth] = strdup(pen);
 }
 
@@ -103,11 +103,11 @@ make_playpen(char *pen, off_t sz)
 
     if (!mkdtemp(pen)) {
 	cleanup(0);
-	errx(2, __FUNCTION__ ": can't mktemp '%s'", pen);
+	errx(2, "%s: can't mktemp '%s'", __FUNCTION__, pen);
     }
     if (chmod(pen, 0700) == FAIL) {
 	cleanup(0);
-	errx(2, __FUNCTION__ ": can't mkdir '%s'", pen);
+	errx(2, "%s: can't mkdir '%s'", __FUNCTION__, pen);
     }
 
     if (Verbose) {
@@ -118,9 +118,9 @@ make_playpen(char *pen, off_t sz)
     if (min_free(pen) < sz) {
 	rmdir(pen);
 	cleanup(0);
-	errx(2, __FUNCTION__ ": not enough free space to create '%s'.\n"
+	errx(2, "%s: not enough free space to create '%s'.\n"
 	     "Please set your PKG_TMPDIR environment variable to a location\n"
-	     "with more space and\ntry the command again", pen);
+	     "with more space and\ntry the command again", __FUNCTION__, pen);
     }
 
     if (!getcwd(Previous, FILENAME_MAX)) {
@@ -130,7 +130,7 @@ make_playpen(char *pen, off_t sz)
 
     if (chdir(pen) == FAIL) {
 	cleanup(0);
-	errx(2, __FUNCTION__ ": can't chdir to '%s'", pen);
+	errx(2, "%s: can't chdir to '%s'", __FUNCTION__, pen);
     }
 
     if (PenLocation[0])
@@ -151,7 +151,7 @@ leave_playpen()
     if (Previous[0]) {
 	if (chdir(Previous) == FAIL) {
 	    cleanup(0);
-	    errx(2, __FUNCTION__ ": can't chdir back to '%s'", Previous);
+	    errx(2, "%s: can't chdir back to '%s'", __FUNCTION__, Previous);
 	}
 	Previous[0] = '\0';
     }

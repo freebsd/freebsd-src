@@ -140,7 +140,7 @@ pkg_do(char *pkg)
 
     if (!getcwd(home, FILENAME_MAX)) {
 	cleanup(0);
-	errx(2, __FUNCTION__ ": unable to get current working directory!");
+	errx(2, "%s: unable to get current working directory!", __FUNCTION__);
     }
 
     if (chdir(LogDir) == FAIL) {
@@ -240,7 +240,8 @@ pkg_do(char *pkg)
 
     if (chdir(home) == FAIL) {
 	cleanup(0);
-	errx(2, __FUNCTION__ ": unable to return to working directory %s!", home);
+	errx(2, "%s: unable to return to working directory %s!", __FUNCTION__,
+	    home);
     }
 
     /*
@@ -272,7 +273,8 @@ pkg_do(char *pkg)
 
     if (chdir(home) == FAIL) {
  	cleanup(0);
-	errx(2, __FUNCTION__ ": unable to return to working directory %s!", home);
+	errx(2, "%s: unable to return to working directory %s!", __FUNCTION__,
+	    home);
     }
 
     if (!Fake) {
@@ -299,7 +301,8 @@ sanity_check(char *pkg)
 {
     if (!fexists(CONTENTS_FNAME)) {
 	cleanup(0);
-	errx(2, __FUNCTION__ ": installed package %s has no %s file!", pkg, CONTENTS_FNAME);
+	errx(2, "%s: installed package %s has no %s file!", __FUNCTION__,
+	    pkg, CONTENTS_FNAME);
     }
 }
 
