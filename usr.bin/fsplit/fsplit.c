@@ -35,19 +35,25 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1983, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)fsplit.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <ctype.h>
+#include <err.h>
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 /*
  *	usage:		fsplit [-e efile] ... [file]
@@ -80,7 +86,6 @@ FILE *ifp;
 char 	x[]="zzz000.f",
 	mainp[]="main000.f",
 	blkp[]="blkdta000.f";
-char *look(), *skiplab(), *functs();
 
 #define TRUE 1
 #define FALSE 0
@@ -93,6 +98,18 @@ struct stat sbuf;
 
 #define trim(p)	while (*p == ' ' || *p == '\t') p++
 
+int   getline __P((void));
+void  get_name __P((char *, int));
+char *functs __P((char *));
+int   lend __P((void));
+int   lname __P((char *));
+char *look __P((char *, char *));
+int   saveit __P((char *));
+int   scan_name __P((char *, char *));
+char *skiplab __P((char *));
+static void usage __P((void));
+
+int
 main(argc, argv)
 char **argv;
 {
@@ -112,7 +129,8 @@ char **argv;
 		if(!*ptr) {
 			argc--;
 			argv++;
-			if(argc <= 1) badparms();
+			if(argc <= 1)
+				usage();
 			ptr = argv[1];
 		}
 		extrknt = extrknt + 1;
@@ -125,12 +143,10 @@ char **argv;
 	}
 
 	if (argc > 2)
-		badparms();
+		usage();
 	else if (argc == 2) {
-		if ((ifp = fopen(argv[1], "r")) == NULL) {
-			fprintf(stderr, "fsplit: cannot open %s\n", argv[1]);
-			exit(1);
-		}
+		if ((ifp = fopen(argv[1], "r")) == NULL)
+			errx(1, "cannot open %s", argv[1]);
 	}
 	else
 		ifp = stdin;
@@ -155,8 +171,7 @@ char **argv;
 		for ( i = 0; i <= extrknt; i++ )
 			if(!extrfnd[i]) {
 				retval = 1;
-				fprintf( stderr, "fsplit: %s not found\n",
-					extrnames[i]);
+				warnx("%s not found", extrnames[i]);
 			}
 		exit( retval );
 	}
@@ -184,12 +199,14 @@ char **argv;
     }
 }
 
-badparms()
+static void
+usage()
 {
-	fprintf(stderr, "fsplit: usage:  fsplit [-e efile] ... [file] \n");
+	fprintf(stderr, "usage: fsplit [-e efile] ... [file]\n");
 	exit(1);
 }
 
+int
 saveit(name)
 char *name;
 {
@@ -209,6 +226,7 @@ char *name;
 	return(0);
 }
 
+void
 get_name(name, letters)
 char *name;
 int letters;
@@ -222,13 +240,12 @@ int letters;
 				break;
 			*ptr = '0';
 		}
-		if(ptr < name + letters) {
-			fprintf( stderr, "fsplit: ran out of file names\n");
-			exit(1);
-		}
+		if(ptr < name + letters)
+			errx(1, "ran out of file names");
 	}
 }
 
+int
 getline()
 {
 	register char *ptr;
@@ -243,11 +260,12 @@ getline()
 		}
 	}
 	while (getc(ifp) != '\n' && feof(ifp) == 0) ;
-	fprintf(stderr, "line truncated to %d characters\n", BSZ);
+	warnx("line truncated to %d characters", BSZ);
 	return (1);
 }
 
 /* return 1 for 'end' alone on card (up to col. 72),  0 otherwise */
+int
 lend()
 {
 	register char *p;
@@ -273,11 +291,12 @@ lend()
 		return 0 if comment card, 1 if found
 		name and put in arg string. invent name for unnamed
 		block datas and main programs.		*/
+int
 lname(s)
 char *s;
 {
 #	define LINESIZE 80
-	register char *ptr, *p, *sptr;
+	register char *ptr, *p;
 	char	line[LINESIZE], *iptr = line;
 
 	/* first check for comment cards */
@@ -324,6 +343,7 @@ char *s;
 	return(1);
 }
 
+int
 scan_name(s, ptr)
 char *s, *ptr;
 {
