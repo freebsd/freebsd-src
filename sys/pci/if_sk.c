@@ -488,7 +488,7 @@ static void sk_vpd_read(sc)
 
 	pos += sizeof(res);
 	sc->sk_vpd_readonly = malloc(res.vr_len, M_DEVBUF, M_NOWAIT);
-	for (i = 0; i < res.vr_len + 1; i++)
+	for (i = 0; i < res.vr_len; i++)
 		sc->sk_vpd_readonly[i] = sk_vpd_readbyte(sc, i + pos);
 
 	return;
@@ -1499,6 +1499,7 @@ static int skc_attach(dev)
 	u_int32_t		command;
 	struct sk_softc		*sc;
 	int			unit, error = 0, rid, *port;
+	uint8_t			skrs;
 
 	s = splimp();
 
@@ -1613,9 +1614,10 @@ static int skc_attach(dev)
 	/* Read and save vital product data from EEPROM. */
 	sk_vpd_read(sc);
 
+	skrs = sk_win_read_1(sc, SK_EPROM0);
 	if (sc->sk_type == SK_GENESIS) {
 		/* Read and save RAM size and RAMbuffer offset */
-		switch(sk_win_read_1(sc, SK_EPROM0)) {
+		switch(skrs) {
 		case SK_RAMSIZE_512K_64:
 			sc->sk_ramsize = 0x80000;
 			sc->sk_rboff = SK_RBOFF_0;
@@ -1643,7 +1645,10 @@ static int skc_attach(dev)
 			break;
 		}
 	} else {
-		sc->sk_ramsize = 0x20000;
+		if (skrs == 0x00)
+			sc->sk_ramsize = 0x20000;
+		else
+			sc->sk_ramsize = skrs * (1<<12);
 		sc->sk_rboff = SK_RBOFF_0;
 	}
 
@@ -1832,11 +1837,13 @@ static void sk_start(ifp)
 	}
 
 	/* Transmit */
-	sc_if->sk_cdata.sk_tx_prod = idx;
-	CSR_WRITE_4(sc, sc_if->sk_tx_bmu, SK_TXBMU_TX_START);
+	if (idx != sc_if->sk_cdata.sk_tx_prod) {
+		sc_if->sk_cdata.sk_tx_prod = idx;
+		CSR_WRITE_4(sc, sc_if->sk_tx_bmu, SK_TXBMU_TX_START);
 
-	/* Set a timeout in case the chip goes out to lunch. */
-	ifp->if_timer = 5;
+		/* Set a timeout in case the chip goes out to lunch. */
+		ifp->if_timer = 5;
+	}
 
 	return;
 }
@@ -1946,10 +1953,12 @@ static void sk_rxeof(sc_if)
 static void sk_txeof(sc_if)
 	struct sk_if_softc	*sc_if;
 {
-	struct sk_tx_desc	*cur_tx = NULL;
+	struct sk_softc		*sc;
+	struct sk_tx_desc	*cur_tx;
 	struct ifnet		*ifp;
 	u_int32_t		idx;
 
+	sc = sc_if->sk_softc;
 	ifp = &sc_if->arpcom.ac_if;
 
 	/*
@@ -1969,15 +1978,17 @@ static void sk_txeof(sc_if)
 		}
 		sc_if->sk_cdata.sk_tx_cnt--;
 		SK_INC(idx, SK_TX_RING_CNT);
-		ifp->if_timer = 0;
 	}
 
-	sc_if->sk_cdata.sk_tx_cons = idx;
-
-	if (cur_tx != NULL)
+	if (sc_if->sk_cdata.sk_tx_cnt == 0)
+		ifp->if_timer = 0;
+	else /* nudge chip to keep tx ring moving */
+		CSR_WRITE_4(sc, sc_if->sk_tx_bmu, SK_TXBMU_TX_START);
+ 
+	if (sc_if->sk_cdata.sk_tx_cnt < SK_TX_RING_CNT - 2)
 		ifp->if_flags &= ~IFF_OACTIVE;
 
-	return;
+	sc_if->sk_cdata.sk_tx_cons = idx;
 }
 
 static void sk_tick(xsc_if)
@@ -2383,7 +2394,12 @@ static void sk_init_yukon(sc_if)
 {
 	u_int32_t		phy;
 	u_int16_t		reg;
+	struct sk_softc		*sc;
+	struct ifnet		*ifp;
 	int			i;
+
+	sc = sc_if->sk_softc;
+	ifp = &sc_if->arpcom.ac_if;
 
 	/* GMAC and GPHY Reset */
 	SK_IF_WRITE_4(sc_if, 0, SK_GPHY_CTRL, SK_GPHY_RESET_SET);
@@ -2436,8 +2452,10 @@ static void sk_init_yukon(sc_if)
 		      YU_TPR_JAM_IPG(0xb) | YU_TPR_JAM2DATA_IPG(0x1a) );
 
 	/* serial mode register */
-	SK_YU_WRITE_2(sc_if, YUKON_SMR, YU_SMR_DATA_BLIND(0x1c) |
-		      YU_SMR_MFL_VLAN | YU_SMR_IPG_DATA(0x1e));
+	reg = YU_SMR_DATA_BLIND(0x1c) | YU_SMR_MFL_VLAN | YU_SMR_IPG_DATA(0x1e);
+	if (ifp->if_mtu > (ETHERMTU + ETHER_HDR_LEN + ETHER_CRC_LEN))
+		reg |= YU_SMR_MFL_JUMBO;
+	SK_YU_WRITE_2(sc_if, YUKON_SMR, reg);
 
 	/* Setup Yukon's address */
 	for (i = 0; i < 3; i++) {
