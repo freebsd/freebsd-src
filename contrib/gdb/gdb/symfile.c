@@ -820,6 +820,7 @@ symfile_bfd_open (name)
       make_cleanup (free, name);
       perror_with_name (name);
     }
+  fcntl (desc, F_SETFD, 1);
   free (name);			/* Free 1st new malloc'd copy */
   name = absolute_name;		/* Keep 2nd malloc'd copy in bfd */
 				/* It'll be freed in free_objfile(). */
