@@ -17,6 +17,8 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
+/* $FreeBSD$ */
+
 #include "defs.h"
 #include <sys/wait.h>
 #include "frame.h"
@@ -24,6 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #include <stdio.h>
 #include <sys/param.h>
+#include <sys/lock.h>
 #include <dirent.h>
 #include <sys/user.h>
 #include <signal.h>
