@@ -1080,8 +1080,7 @@ dontblock:
 			sbfree(&so->so_rcv, m);
 			so->so_rcv.sb_mb = m_free(m);
 			m = so->so_rcv.sb_mb;
-			if (m != NULL)
-				m->m_nextpkt = nextrecord;
+			sockbuf_pushsync(&so->so_rcv, nextrecord);
 		}
 	}
 
@@ -1091,44 +1090,55 @@ dontblock:
 	 * just copy the data; if !MSG_PEEK, we call into the protocol to
 	 * perform externalization.
 	 */
-	while (m != NULL && m->m_type == MT_CONTROL && error == 0) {
-		if (flags & MSG_PEEK) {
-			if (controlp != NULL)
-				*controlp = m_copy(m, 0, m->m_len);
-			m = m->m_next;
-		} else {
-			sbfree(&so->so_rcv, m);
-			so->so_rcv.sb_mb = m->m_next;
-			m->m_next = NULL;
-			if (pr->pr_domain->dom_externalize) {
+	if (m != NULL && m->m_type == MT_CONTROL) {
+		struct mbuf *cm = NULL;
+		struct mbuf **cme = &cm;
+
+		do {
+			if (flags & MSG_PEEK) {
+				if (controlp != NULL) {
+					*controlp = m_copy(m, 0, m->m_len);
+					controlp = &(*controlp)->m_next;
+				}
+				m = m->m_next;
+			} else {
+				sbfree(&so->so_rcv, m);
+				so->so_rcv.sb_mb = m->m_next;
+				m->m_next = NULL;
+				if (controlp) {
+					/*
+					 * Collect mbufs for processing below.
+					 */
+					*cme = m;
+					cme = &(*cme)->m_next;
+				} else
+					m_free(m);
+				m = so->so_rcv.sb_mb;
+			}
+		} while (m != NULL && m->m_type == MT_CONTROL);
+		if ((flags & MSG_PEEK) == 0)
+			sockbuf_pushsync(&so->so_rcv, nextrecord);
+		if (cm != NULL) {
+			if (pr->pr_domain->dom_externalize != NULL) {
 				SOCKBUF_UNLOCK(&so->so_rcv);
 				error = (*pr->pr_domain->dom_externalize)
-				    (m, controlp);
+				    (cm, controlp);
 				SOCKBUF_LOCK(&so->so_rcv);
-			} else if (controlp != NULL)
-				*controlp = m;
-			else
-				m_freem(m);
-			m = so->so_rcv.sb_mb;
+			} else
+				m_freem(cm);
 		}
-		if (controlp != NULL) {
-			orig_resid = 0;
-			while (*controlp != NULL)
-				controlp = &(*controlp)->m_next;
-		}
+		nextrecord = so->so_rcv.sb_mb->m_nextpkt;
+		orig_resid = 0;
 	}
 	if (m != NULL) {
 		if ((flags & MSG_PEEK) == 0) {
-			m->m_nextpkt = nextrecord;
-			/*
-			 * If nextrecord == NULL (this is a single chain),
-			 * then sb_lastrecord may not be valid here if m
-			 * was changed earlier.
-			 */
+			KASSERT(m->m_nextpkt == nextrecord,
+			    ("soreceive: post-control, nextrecord !sync"));
 			if (nextrecord == NULL) {
 				KASSERT(so->so_rcv.sb_mb == m,
-					("receive tailq 1"));
-				so->so_rcv.sb_lastrecord = m;
+				    ("soreceive: post-control, sb_mb!=m"));
+				KASSERT(so->so_rcv.sb_lastrecord == m,
+				    ("soreceive: post-control, lastrecord!=m"));
 			}
 		}
 		type = m->m_type;
@@ -1136,9 +1146,12 @@ dontblock:
 			flags |= MSG_OOB;
 	} else {
 		if ((flags & MSG_PEEK) == 0) {
-			KASSERT(so->so_rcv.sb_mb == m,("receive tailq 2"));
-			so->so_rcv.sb_mb = nextrecord;
-			SB_EMPTY_FIXUP(&so->so_rcv);
+			KASSERT(so->so_rcv.sb_mb == nextrecord,
+			    ("soreceive: sb_mb != nextrecord"));
+			if (so->so_rcv.sb_mb == NULL) {
+				KASSERT(so->so_rcv.sb_lastrecord == NULL,
+				    ("soreceive: sb_lastercord != NULL"));
+			}
 		}
 	}
 	SOCKBUF_LOCK_ASSERT(&so->so_rcv);
