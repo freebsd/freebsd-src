@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_linux.c,v 1.9 1996/03/02 19:37:47 peter Exp $
+ *	$Id: imgact_linux.c,v 1.10 1996/03/10 08:42:49 sos Exp $
  */
 
 #include <sys/param.h>
@@ -146,7 +146,7 @@ exec_linux_imgact(imgp)
 			a_out->a_text + a_out->a_data);
 
 	vm_map_remove(kernel_map, buffer,
-		      round_page(a_out->a_text + a_out->a_data + file_offset));
+		      buffer + round_page(a_out->a_text + a_out->a_data + file_offset));
 
 	if (error)
 	    return error;
@@ -154,9 +154,11 @@ exec_linux_imgact(imgp)
 	/*
 	 * remove write enable on the 'text' part
 	 */
-	error = vm_map_protect(&vmspace->vm_map, vmaddr,
-		   	       a_out->a_text,
-		   	       VM_PROT_EXECUTE|VM_PROT_READ, TRUE);
+	error = vm_map_protect(&vmspace->vm_map,
+			       vmaddr,
+		   	       vmaddr + a_out->a_text,
+		   	       VM_PROT_EXECUTE|VM_PROT_READ,
+		   	       TRUE);
 	if (error)
 	    return error;
     }

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_misc.c,v 1.13 1996/03/02 19:37:57 peter Exp $
+ *  $Id: linux_misc.c,v 1.14 1996/03/04 21:03:07 peter Exp $
  */
 
 #include <sys/param.h>
@@ -344,7 +344,7 @@ printf("uselib: Non page aligned binary %d\n", file_offset);
 
 	/* release temporary kernel space */
 	vm_map_remove(kernel_map, buffer,
-		      round_page(a_out->a_text + a_out->a_data + file_offset));
+		      buffer + round_page(a_out->a_text + a_out->a_data + file_offset));
 
 	if (error)
 	    goto cleanup;
@@ -400,7 +400,7 @@ cleanup:
      * Release the kernel mapping.
      */
     if (a_out)
-	vm_map_remove(kernel_map, (vm_offset_t)a_out, PAGE_SIZE);
+	vm_map_remove(kernel_map, (vm_offset_t)a_out, (vm_offset_t)a_out + PAGE_SIZE);
 
     return error;
 }
