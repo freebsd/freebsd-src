@@ -7,8 +7,8 @@
 # To included legacy CSRG sccsid strings, add -DLIBC_SCCS and -DSYSLIBC_SCCS
 # (for system call stubs) to CFLAGS below.  -DSYSLIBC_SCCS affects just the
 # system call stubs.
-LIB=pthread
-SHLIB_MAJOR= 5
+LIB=kse
+SHLIB_MAJOR= 1
 CFLAGS+=-DPTHREAD_KERNEL -D_THREAD_SAFE 
 CFLAGS+=-I${.CURDIR}/../libc/include -I${.CURDIR}/thread \
 	-I${.CURDIR}/../../include
