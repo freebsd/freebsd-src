@@ -124,6 +124,7 @@ MALLOC_DECLARE(M_NFSREQ);
 MALLOC_DECLARE(M_NFSDIROFF);
 MALLOC_DECLARE(M_NFSBIGFH);
 MALLOC_DECLARE(M_NFSHASH);
+MALLOC_DECLARE(M_NFSDIRECTIO);
 #endif
 
 extern struct uma_zone *nfsmount_zone;
@@ -275,6 +276,7 @@ int	nfs_readdirrpc(struct vnode *, struct uio *, struct ucred *);
 int	nfs_nfsiodnew(void);
 int	nfs_asyncio(struct nfsmount *, struct buf *, struct ucred *, struct thread *);
 int	nfs_doio(struct vnode *, struct buf *, struct ucred *, struct thread *);
+void    nfs_doio_directwrite (struct buf *);
 void    nfs_up(struct nfsreq *, struct nfsmount *, struct thread *,
 	    const char *, int);
 void	nfs_down(struct nfsreq *, struct nfsmount *, struct thread *,

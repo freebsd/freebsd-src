@@ -211,6 +211,24 @@ static int	nfs_clean_pages_on_close = 1;
 SYSCTL_INT(_vfs_nfs, OID_AUTO, clean_pages_on_close, CTLFLAG_RW,
 	   &nfs_clean_pages_on_close, 0, "NFS clean dirty pages on close");
 
+int nfs_directio_enable = 1;
+SYSCTL_INT(_vfs_nfs, OID_AUTO, nfs_directio_enable, CTLFLAG_RW,
+	   &nfs_directio_enable, 0, "Enable NFS directio");
+
+/*
+ * This sysctl allows other processes to mmap a file that has been opened O_DIRECT 
+ * by a process. In general, having processes mmap the file while Direct IO is in 
+ * progress can lead to Data Inconsistencies. But, we allow this by default to 
+ * prevent DoS attacks - to prevent a malicious user from opening up files O_DIRECT 
+ * preventing other users from mmap'ing these files. "Protected" environments where 
+ * stricter consistency guarantees are required can disable this knob. 
+ * The process that opened the file O_DIRECT cannot mmap() the file, because 
+ * mmap'ed IO on an O_DIRECT open() is not meaningful.
+ */
+int nfs_directio_allow_mmap = 1;
+SYSCTL_INT(_vfs_nfs, OID_AUTO, nfs_directio_allow_mmap, CTLFLAG_RW,
+	   &nfs_directio_allow_mmap, 0, "Enable mmaped IO on file with O_DIRECT opens");
+
 #if 0
 SYSCTL_INT(_vfs_nfs, OID_AUTO, access_cache_hits, CTLFLAG_RD,
 	   &nfsstats.accesscache_hits, 0, "NFS ACCESS cache hit count");
@@ -401,6 +419,7 @@ nfs_open(struct vop_open_args *ap)
 	struct nfsnode *np = VTONFS(vp);
 	struct vattr vattr;
 	int error;
+	int fmode = ap->a_mode;
 
 	if (vp->v_type != VREG && vp->v_type != VDIR && vp->v_type != VLNK)
 		return (EOPNOTSUPP);
@@ -433,6 +452,18 @@ nfs_open(struct vop_open_args *ap)
 				return (error);
 			np->n_mtime = vattr.va_mtime;
 		}
+	}
+	/*
+	 * If the object has >= 1 O_DIRECT active opens, we disable caching.
+	 */
+	if (nfs_directio_enable && (fmode & O_DIRECT) && (vp->v_type == VREG)) {
+		if (np->n_directio_opens == 0) {
+			error = nfs_vinvalbuf(vp, V_SAVE, ap->a_cred, ap->a_td, 1);
+			if (error)
+				return (error);
+			np->n_flag |= NNONCACHE;
+		}
+		np->n_directio_opens++;
 	}
 	np->ra_expect_lbn = 0;
 	return (0);
@@ -472,6 +503,7 @@ nfs_close(struct vop_close_args *ap)
 	struct vnode *vp = ap->a_vp;
 	struct nfsnode *np = VTONFS(vp);
 	int error = 0;
+	int fmode = ap->a_fflag;
 
 	if (vp->v_type == VREG) {
 	    /*
@@ -519,6 +551,13 @@ nfs_close(struct vop_close_args *ap)
 		np->n_flag &= ~NWRITEERR;
 		error = np->n_error;
 	    }
+	}
+	if (nfs_directio_enable && (fmode & O_DIRECT) && (vp->v_type == VREG)) {
+		KASSERT((np->n_directio_opens > 0), 
+			("nfs_close: unexpectedly value (0) of n_directio_opens\n"));		
+		np->n_directio_opens--;
+		if (np->n_directio_opens == 0)
+			np->n_flag &= ~NNONCACHE;
 	}
 	return (error);
 }
