@@ -373,10 +373,8 @@ int main(int argc, unsigned char *argv[])
 
     dialog_update();
     if (!retval)
-    {
     	fputs(tresult, stderr);
-    	free(tresult);
-    }
+
     if (clear_screen)   /* clear screen before exit */
       dialog_clear();
     end_dialog();
