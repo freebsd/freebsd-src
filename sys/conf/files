@@ -1689,8 +1689,7 @@ ufs/ffs/ffs_alloc.c		optional ffs
 ufs/ffs/ffs_balloc.c		optional ffs
 ufs/ffs/ffs_inode.c		optional ffs
 ufs/ffs/ffs_snapshot.c		optional ffs
-ufs/ffs/ffs_softdep.c		optional softupdates ffs
-ufs/ffs/ffs_softdep_stub.c	optional ffs
+ufs/ffs/ffs_softdep.c		optional ffs
 ufs/ffs/ffs_subr.c		optional ffs
 ufs/ffs/ffs_tables.c		optional ffs
 ufs/ffs/ffs_vfsops.c		optional ffs
