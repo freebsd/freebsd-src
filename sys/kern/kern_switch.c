@@ -277,13 +277,14 @@ kse_reassign(struct kse *ke)
 	CTR1(KTR_RUNQ, "kse_reassign: ke%p idled", ke);
 }
 
+#if 0
 /*
  * Remove a thread from its KSEGRP's run queue.
  * This in turn may remove it from a KSE if it was already assigned
  * to one, possibly causing a new thread to be assigned to the KSE
  * and the KSE getting a new priority (unless it's a BOUND thread/KSE pair).
  */
-void
+static void
 remrunqueue(struct thread *td)
 {
 	struct thread *td2, *td3;
@@ -324,6 +325,51 @@ remrunqueue(struct thread *td)
 		ke->ke_thread = NULL;
 		kse_reassign(ke);
 	}
+}
+#endif
+
+/*
+ * Change the priority of a thread that is on the run queue.
+ */
+void
+adjustrunqueue( struct thread *td, int newpri) 
+{
+	struct ksegrp *kg;
+	struct kse *ke;
+
+	mtx_assert(&sched_lock, MA_OWNED);
+	KASSERT ((TD_ON_RUNQ(td)), ("adjustrunqueue: Bad state on run queue"));
+	/*
+	 * If it's a bound thread/KSE pair, take the shortcut. All non-KSE
+	 * threads are BOUND.
+	 */
+	ke = td->td_kse;
+	CTR1(KTR_RUNQ, "adjustrunqueue: td%p", td);
+	if ((td->td_flags & TDF_UNBOUND) == 0)  {
+		/* We only care about the kse in the run queue. */
+		if (ke->ke_rqindex != (newpri / RQ_PPQ)) {
+			sched_rem(ke);
+			td->td_priority = newpri;
+			sched_add(ke);
+		}
+		return;
+	}
+	/*
+	 * An unbound thread. This is not optimised yet.
+	 */
+	kg = td->td_ksegrp;
+	kg->kg_runnable--;
+	TD_SET_CAN_RUN(td);
+	if (ke) {
+		if (kg->kg_last_assigned == td) {
+			kg->kg_last_assigned =
+			    TAILQ_PREV(td, threadqueue, td_runq);
+		}
+		sched_rem(ke);
+	}
+	TAILQ_REMOVE(&kg->kg_runq, td, td_runq);
+	td->td_priority = newpri;
+	setrunqueue(td);
 }
 
 void
@@ -661,18 +707,6 @@ runq_remove(struct runq *rq, struct kse *ke)
 		runq_clrbit(rq, pri);
 	}
 }
-
-#if 0
-static void 
-runq_readjust(struct runq *rq, struct kse *ke)
-{
-
-	if (ke->ke_rqindex != (ke->ke_thread->td_priority / RQ_PPQ)) {
-		runq_remove(rq, ke);
-		runq_add(rq, ke);
-	}
-}
-#endif
 
 #if 0
 void
