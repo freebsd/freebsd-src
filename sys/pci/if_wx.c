@@ -1,5 +1,8 @@
 /* $FreeBSD$ */
 /*
+ * NOTE: THIS DRIVER IS SOON TO BE DEPRECATED AND REMOVED FROM FREEBSD
+ */
+/*
  * Principal Author: Matthew Jacob <mjacob@feral.com>
  * Copyright (c) 1999, 2001 by Traakan Software
  * All rights reserved.
@@ -1819,7 +1822,9 @@ wx_ioctl(struct ifnet *ifp, IOCTL_CMD_TYPE command, caddr_t data)
 		 * such as IFF_PROMISC are handled.
 		 */
 		if (ifp->if_flags & IFF_UP) {
-			error = wx_init(sc);
+			if ((ifp->if_flags & IFF_RUNNING) == 0) {
+				error = wx_init(sc);
+			}
 		} else {
 			if (ifp->if_flags & IFF_RUNNING) {
 				wx_stop(sc);
