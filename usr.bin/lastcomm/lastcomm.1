@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	From: @(#)lastcomm.1	8.1 (Berkeley) 6/6/93
-.\"	$Id$
+.\"	$Id: lastcomm.1,v 1.5 1997/02/22 19:55:32 peter Exp $
 .\"
 .Dd September 18, 1996
 .Dt LASTCOMM 1
@@ -39,7 +39,7 @@
 .Nm lastcomm
 .Nd show last commands executed in reverse order
 .Sh SYNOPSIS
-.Nm lastcomm
+.Nm
 .Op Fl EScesu
 .Op Fl f Ar file
 .Op Ar command ...
@@ -49,7 +49,7 @@
 .Nm Lastcomm
 gives information on previously executed commands.
 With no arguments,
-.Nm lastcomm
+.Nm
 prints information about all the commands recorded
 during the current accounting file's lifetime.
 .Pp
@@ -151,6 +151,6 @@ Default accounting file.
 .Xr core 5
 .Sh HISTORY
 The
-.Nm lastcomm
+.Nm
 command appeared in
 .Bx 3.0 .
