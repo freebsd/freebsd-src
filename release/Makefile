@@ -378,7 +378,7 @@ rerelease release:
 	AUTO_KEYBOARD_DETECT BOOT_CONFIG BUILDNAME \
 	CD_EXTRA_BITS DISTRIBUTIONS DOC_LANG DOMINIMALDOCPORTS \
 	EXTRA_SRC FIXCRYPTO KERNELS KERNEL_FLAGS \
-	MAKE_ISOS NODOC NOKERBEROS NOPORTS NOSHARED \
+	MAKE_ISOS NODOC NO_FLOPPIES NOKERBEROS NOPORTS NOSHARED \
 	NOSRC NO_SENDMAIL RELEASETAG \
 	RELNOTES_LANG TARGET TARGET_ARCH WORLD_FLAGS
 .if defined(${var})
@@ -652,7 +652,7 @@ release.9:
 	@echo "Making the regular boot floppy."
 	@tar --exclude CVS -cf - -C ${.CURDIR}/../usr.sbin/sysinstall help | \
 		tar xf - -C ${RD}/mfsfd/stand
-.if ${TARGET_ARCH} == "alpha"
+.if ${TARGET_ARCH} == "alpha" && !defined(NO_FLOPPIES)
 	rm -rf ${RD}/mfsfd/stand/help/*
 .endif
 .if defined(SMALLBOOTSIZE)
@@ -691,6 +691,9 @@ release.9:
 	sh -e ${.CURDIR}/scripts/doFS.sh -s mfsroot ${RD} ${MNT} \
 		${MFSSIZE} ${RD}/mfsfd ${MFSINODE} ${MFSLABEL}
 	@gzip -9vc mfsroot > mfsroot.gz
+	@mkdir -p ${RD}/mfsroot
+	@cp mfsroot.gz ${RD}/mfsroot
+.if !defined(NO_FLOPPIES)
 .if defined(BOOTSIZE)
 	@sh -e ${.CURDIR}/scripts/doFS.sh ${RD}/floppies/mfsroot.flp \
 		${RD} ${MNT} ${BOOTSIZE} mfsroot.gz ${BOOTINODE} ${BOOTLABEL}
@@ -702,6 +705,7 @@ release.9:
 .if defined(BIGBOOTSIZE)
 	@cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=boot FDSIZE=BIG
 .endif
+.endif
 	@rm mfsroot mfsroot.gz
 	@echo "Regular and MFS boot floppies made."
 	touch release.9
@@ -710,6 +714,7 @@ release.9:
 # --==## Create a fixit floppy ##==--
 #
 release.10:
+.if !defined(NO_FLOPPIES)
 	@echo "Making fixit floppy."
 	@rm -rf ${RD}/fixitfd
 	@mkdir ${RD}/fixitfd
@@ -735,6 +740,7 @@ release.10:
 	@(cd ${RD}/floppies; md5 README.TXT *.flp > CHECKSUM.MD5)
 .else
 	@(cd ${RD}/floppies; md5 *.flp > CHECKSUM.MD5)
+.endif
 .endif
 	touch release.10
 
@@ -805,16 +811,12 @@ cdrom.1:
 .endif
 .if ${TARGET} != "pc98"
 	@echo "Setting up /boot"
-	@rm -f ${CD_DISC1}/boot/mfsroot.gz
-	@rm -f ${CD_DISC2}/boot/mfsroot.gz
 	@rm -f ${CD_DISC2}/boot/loader.conf
+	@cp ${RD}/mfsroot/mfsroot.gz ${CD_DISC2}/boot/mfsroot.gz
+	@echo 'mfsroot_load="YES"' > ${CD_DISC2}/boot/loader.conf
+	@echo 'mfsroot_type="mfs_root"' >> ${CD_DISC2}/boot/loader.conf
+	@echo 'mfsroot_name="/boot/mfsroot"' >> ${CD_DISC2}/boot/loader.conf
 	@cp -Rp ${CD_DISC2}/boot ${CD_DISC1}
-	@ln -f ${RD}/image.boot/mfsroot.gz ${CD_DISC1}/boot/mfsroot.gz
-	@ln -f ${CD_DISC1}/boot/mfsroot.gz ${CD_DISC2}/boot/mfsroot.gz
-	@echo 'mfsroot_load="YES"' > ${CD_DISC1}/boot/loader.conf
-	@echo 'mfsroot_type="mfs_root"' >> ${CD_DISC1}/boot/loader.conf
-	@echo 'mfsroot_name="/boot/mfsroot"' >> ${CD_DISC1}/boot/loader.conf
-	@ln -f ${CD_DISC1}/boot/loader.conf ${CD_DISC2}/boot/loader.conf
 .endif
 .if ${TARGET} == "i386"
 	@mkdir -p ${CD_DISC2}/floppies
