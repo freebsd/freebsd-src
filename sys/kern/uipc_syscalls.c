@@ -54,6 +54,7 @@
 #include <sys/proc.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
+#include <sys/filio.h>
 #include <sys/mount.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
@@ -258,6 +259,7 @@ accept1(td, uap, compat)
 	int fd;
 	u_int fflag;
 	pid_t pgid;
+	int tmp;
 
 	mtx_lock(&Giant);
 	fdp = td->td_proc->p_fd;
@@ -346,6 +348,11 @@ accept1(td, uap, compat)
 	nfp->f_ops = &socketops;
 	nfp->f_type = DTYPE_SOCKET;
 	FILE_UNLOCK(nfp);
+	/* Sync socket nonblocking/async state with file flags */
+	tmp = fflag & FNONBLOCK;
+	(void) fo_ioctl(nfp, FIONBIO, &tmp, td->td_ucred, td);
+	tmp = fflag & FASYNC;
+	(void) fo_ioctl(nfp, FIOASYNC, &tmp, td->td_ucred, td);
 	sa = 0;
 	error = soaccept(so, &sa);
 	if (error) {
