@@ -1,0 +1,49 @@
+#
+# $Id: Makefile,v 1.2 1998/08/02 12:22:04 abial Exp $
+#
+SRC?=/usr/src
+
+all: crunch
+
+crunch:
+	@if [ ! -f .patched ]; then \
+		cat login.diff|(cd /usr/src/usr.bin/login; patch -p0); \
+		cat passwd.diff|(cd /usr/src/usr.bin/passwd; patch -p0); \
+		cat ppp.diff|(cd /usr/src/usr.sbin/ppp; patch -p0); \
+		touch .patched; \
+	fi
+	@cat crunch.conf|sed -e "s@/usr/src@${SRC}@" >crunch1.conf
+	@crunchgen ./crunch1.conf
+	@${MAKE} -f crunch1.mk all \
+	    "CFLAGS=${CFLAGS} -DCRUNCHED_BINARY -DNOSECURE -DNOCRYPT" 2>&1 >/dev/null
+
+clean:
+	@if [ -f .patched ]; then \
+		cat login.diff|(cd /usr/src/usr.bin/login; patch -R -p0); \
+		cat passwd.diff|(cd /usr/src/usr.bin/passwd; patch -R -p0); \
+		cat ppp.diff|(cd /usr/src/usr.sbin/ppp; patch -R -p0); \
+		rm .patched; \
+	fi
+	rm  -f *.o *.stub *.lo *_stub.c *.mk \
+		crunch.cache \
+		crunch.mk \
+		crunch.c \
+		crunch1* \
+		crunch \
+		.tmp_* \
+		*.gz
+
+install: 
+	cp crunch1 /mnt/stand/crunch
+	chmod 555 /mnt/stand/crunch
+	for i in `crunchgen -l crunch1.conf` ; \
+	do \
+		ln /mnt/stand/crunch /mnt/stand/$${i}; \
+	done
+	rm /mnt/stand/crunch
+	# Install the MIB files
+	mkdir -p /mnt/usr/local/share/snmp/mibs
+	cp mibs/*.txt /mnt/usr/local/share/snmp/mibs/
+
+
+.include <bsd.prog.mk>

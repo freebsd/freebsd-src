@@ -1,0 +1,56 @@
+#
+# $Id: mfs.mtree,v 1.1.1.1 1998/07/14 07:30:47 abial Exp $
+#
+/set type=dir uname=root gname=wheel mode=0755
+.              
+    dev            
+    ..
+    dos            
+    ..
+    etc            
+    ..
+    home           
+        user           
+        ..
+    ..
+    mnt            
+    ..
+    mnt1           
+    ..
+    mnt2           
+    ..
+    proc           
+    ..
+    root           
+    ..
+    stand          
+    ..
+    start_floppy   
+    ..
+    tftpboot       
+    ..
+    tmp            
+    ..
+    usr            
+        local          
+            lib            
+                snmp           
+                ..
+            ..
+        ..
+        share          
+            misc           
+            ..
+        ..
+    ..
+    var            
+        db             
+        ..
+        run            
+        ..
+        spool          
+            lock           
+            ..
+        ..
+    ..
+..

@@ -1,0 +1,71 @@
+#!/bin/sh
+#
+#	$Id: populate,v 1.6 1998/08/12 13:04:24 abial Exp $
+#
+
+pwd=`pwd`
+
+echo "-> Populating MFS tree..."
+cd ../${TYPE}/mfs.tree
+make
+if [ X"${RELENG_2_2}" != X"" ]
+then
+	make devnodes
+fi
+if [ "X$?" != "X0" ]
+then
+	echo "-> ERROR while making \"${TYPE}\" hierarchy in /mnt..."
+	echo "-> Aborting $0"
+	exit 10
+fi
+if [ "${TYPE}" = "router" ]
+then
+	cp ../lang/mfs.rc.${LANGUAGE} /mnt/etc/oinit.rc
+else
+	cp ../lang/mfs.rc.${LANGUAGE} /mnt/etc/rc
+	cp login.conf /mnt/etc/login.conf
+	cp ../lang/reboot.${LANGUAGE} /mnt/stand/reboot
+	ln -f /mnt/stand/reboot /mnt/stand/shutdown
+	cp ../lang/README.${LANGUAGE} /mnt/README
+fi
+cp ../lang/update.${LANGUAGE} /mnt/stand/update
+if [ "${TYPE}" = "dial" ]
+then
+	cp ../lang/login.${LANGUAGE} /mnt/stand/login
+	cp ../lang/dialup.${LANGUAGE} /mnt/stand/dialup
+	(cd ../../help; for i in `ls *.hlp.${LANGUAGE}`;\
+	do \
+		cp $i /mnt/help/`basename $i .${LANGUAGE}`;\
+		done)
+elif [ "${TYPE}" != "router" ]
+then
+	cp ../../build/kvm_kernel.db /mnt/var/db/kvm_kernel.db
+	rm ../../build/kvm_kernel.db
+fi
+
+echo "-> Making and installing crunch1..."
+cd ../crunch1
+make "SRC=${SRC}" && make install 2>&1 >/dev/null
+if [ "X$?" != "X0" ]
+then
+	echo "-> ERROR while building ../${TYPE}/crunch1..."
+	echo "-> Aborting $0"
+	exit 10
+fi
+
+cd ${pwd}
+
+echo "-> Preparing kernel symbols list..."
+if [ ! -f ../tools/dumpnlist/dumpnlist ]
+then
+	(cd ../tools/dumpnlist; make)
+fi
+../tools/dumpnlist/dumpnlist ./kernel >/mnt/stand/symbols
+
+echo "-> Preparing kernel config list..."
+if [ ! -f ../tinyware/kget/kget ]
+then
+	(cd ../tinyware/kget; make)
+fi
+../tinyware/kget/kget ./kernel /mnt/stand/vanilla
+(echo "-> Fixing permissions"; cd /mnt; chown -R root *)

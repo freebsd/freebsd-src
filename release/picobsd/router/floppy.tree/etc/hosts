@@ -1,0 +1,5 @@
+# $Id: hosts,v 1.4 1998/08/19 07:06:33 abial Exp $
+# This file should contain the addresses and aliases
+# for local hosts that share this file.
+127.0.0.1		localhost localhost.mydomain.org.pl
+127.0.0.1		pico.mydomain.org.pl

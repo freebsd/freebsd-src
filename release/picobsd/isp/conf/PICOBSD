@@ -1,0 +1,128 @@
+#
+# $Id: PICOBSD,v 1.2 1998/08/02 12:22:00 abial Exp $
+#
+
+machine		"i386"
+cpu		"I386_CPU"
+cpu		"I486_CPU"
+cpu		"I586_CPU"
+cpu		"I686_CPU"
+ident		PICOBSD
+maxusers	20
+
+options		MATH_EMULATE		#Support for x87 emulation
+options		INET			#InterNETworking
+options		FFS			#Berkeley Fast Filesystem
+options		NFS			#Network Filesystem
+options		BOOTP
+options		MFS
+options		MSDOSFS			#MSDOS Filesystem
+options		"CD9660"		#ISO 9660 Filesystem
+options		PROCFS			#Process filesystem
+options		"COMPAT_43"		#Compatible with BSD 4.3 [KEEP THIS!]
+options		USERCONFIG		#boot -c editor
+options		USERCONFIG_BOOT		#imply -c and parse info area
+options		VISUAL_USERCONFIG	#visual boot -c editor
+options		IPFIREWALL
+options		IPFIREWALL_DEFAULT_TO_ACCEPT
+options		IPDIVERT
+options		DEVFS
+options		SLICE
+options		PCI_QUIET
+
+config		kernel	root on fd0a
+
+controller	isa0
+controller	pci0
+
+controller	fdc0	at isa? port "IO_FD1" bio irq 6 drq 2 vector fdintr
+disk		fd0	at fdc0 drive 0
+#disk		fd1	at fdc0 drive 1
+
+options		"CMD640"	# work around CMD640 chip deficiency
+controller	wdc0	at isa? port "IO_WD1" bio irq 14 vector wdintr
+disk		wd0	at wdc0 drive 0
+disk		wd1	at wdc0 drive 1
+
+controller	wdc1	at isa? port "IO_WD2" bio irq 15 vector wdintr
+disk		wd2	at wdc1 drive 0
+disk		wd3	at wdc1 drive 1
+
+options		ATAPI		#Enable ATAPI support for IDE bus
+options		ATAPI_STATIC	#Don't do it as an LKM
+device		wcd0	#IDE CD-ROM
+
+# syscons is the default console driver, resembling an SCO console
+device		sc0	at isa? port "IO_KBD" tty irq 1 vector scintr
+
+device		npx0	at isa? port "IO_NPX" irq 13 vector npxintr
+
+device		sio0	at isa? port "IO_COM1" flags 0x10 tty irq 4 vector siointr
+device		sio1	at isa? port "IO_COM2" tty irq 3 vector siointr
+device		sio2	at isa? port "IO_COM3" tty irq 5 vector siointr
+device		sio3	at isa? port "IO_COM4" tty irq 9 vector siointr
+
+# Support for multiport serial cards
+
+options	"COM_MULTIPORT"
+
+# AST
+
+device		sio4	at isa? port 0x2a0 tty flags 0x701
+device		sio5	at isa? port 0x2a8 tty flags 0x701
+device		sio6	at isa? port 0x2b0 tty flags 0x701
+device		sio7	at isa? port 0x2b8 tty flags 0x701 irq 12 vector siointr
+
+# Boca Board. You must configure the ports above with -c to change the flags.
+
+device		sio8	at isa? port 0x120 tty flags 0xb05
+device		sio9	at isa? port 0x128 tty flags 0xb05
+device		sio10	at isa? port 0x130 tty flags 0xb05
+device		sio11	at isa? port 0x138 tty flags 0xb05 irq 12 vector siointr
+
+# Hayes ESP boards
+
+options	"COM_ESP"
+
+# Comtrol Rocketport
+# The PCI versions
+device	rp0
+device	rp1
+# The ISA versions
+device	rp0	at isa? port 0x100 tty
+device	rp1	at isa? port 0x180 tty
+
+# Cyclades Cyclom-Y serial driver
+device cy0	at isa? tty irq 10 iomem 0xd4000 iosiz 0x2000 vector cyintr
+device cy1	at isa? tty irq 11 iomem 0xd6000 iosiz 0x2000 vector cyintr
+
+device		lpt0	at isa? port? tty irq 7 vector lptintr
+
+# Order is important here due to intrusive probes, do *not* alphabetize
+# this list of network interfaces until the probes have been fixed.
+# Right now it appears that the ie0 must be probed before ep0. See
+# revision 1.20 of this file.
+device de0
+device de1
+device fxp0
+
+device ed0 at isa? port 0x280 net irq 10 iomem 0xd8000 vector edintr
+device ed1 at isa? port 0x300 net irq 5 iomem 0xd0000 vector edintr
+device ie0 at isa? port 0x300 net irq 10 iomem 0xd0000 vector ieintr
+device ep0 at isa? port 0x300 net irq 10 vector epintr
+device ep1 at isa? port 0x280 net irq 5 vector epintr
+#device ex0 at isa? port? net irq? vector exintr
+#device fe0 at isa? port 0x300 net irq ? vector feintr
+#device le0 at isa? port 0x300 net irq 5 iomem 0xd0000 vector le_intr
+device lnc0 at isa? port 0x280 net irq 10 drq 0 vector lncintr
+#device ze0 at isa? port 0x300 net irq 10 iomem 0xd8000 vector zeintr
+#device zp0 at isa? port 0x300 net irq 10 iomem 0xd8000 vector zpintr
+
+pseudo-device	loop
+pseudo-device	ether
+# iijppp uses tun instead of ppp device
+pseudo-device	ppp	8
+pseudo-device	tun	2
+#pseudo-device	vn
+pseudo-device	pty	16
+pseudo-device	gzip		# Exec gzipped a.out's

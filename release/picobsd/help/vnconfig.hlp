@@ -1,0 +1,9 @@
+[1mvnconfig[m	configure and enable vnode disks
+
+	Usage:
+
+	vnconfig [-acdefguv] [-s option] [-r option] [special-device file]
+
+	E.g. to enable swapping on a file called /dos/SWAP.swp:
+
+		vnconfig -e /dev/vn0b /dos/SWAP.swp swap
