@@ -318,7 +318,7 @@ dcphy_service(sc, mii, cmd)
 		 * since real Intel 21143 chips don't show valid link
 		 * status until autonegotiation is switched off, and
 		 * that only happens in dcphy_status().  Without this,
-		 * successful autonegotation is never recognised on
+		 * successful autonegotiation is never recognised on
 		 * these chips.
                  */
                 if (++sc->mii_ticks <= 50)
