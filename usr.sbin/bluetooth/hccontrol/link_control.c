@@ -157,7 +157,7 @@ hci_inquiry_response(int n, uint8_t **b)
 	fprintf(stdout, "\tPage Scan Mode: %#02x\n",
 		ir->page_scan_mode);
 	fprintf(stdout, "\tClass: %02x:%02x:%02x\n",
-		ir->class[2], ir->class[1], ir->class[0]);
+		ir->uclass[2], ir->uclass[1], ir->uclass[0]);
 	fprintf(stdout, "\tClock offset: %#04x\n",
 		le16toh(ir->clock_offset));
 
