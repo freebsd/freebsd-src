@@ -9,8 +9,8 @@ CFLAGS+=	-I${KRB4DIR}/include \
 		-I${KRB4DIR}/kadmin \
 		-I${KRBOBJDIR} \
 		-I${.CURDIR}/../include
-LDADD=		-L${ROKENOBJDIR} -lroken -L${KRBOBJDIR} -lkrb -ldes
-DPADD=		${LIBROKEN} ${LIBKRB} ${LIBDES}
+LDADD=		-L${ROKENOBJDIR} -lroken -L${KRBOBJDIR} -lkrb -ldes -lcrypt
+DPADD=		${LIBROKEN} ${LIBKRB} ${LIBDES} ${LIBCRYPT}
 
 .include <bsd.prog.mk>
 
