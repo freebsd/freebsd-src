@@ -28,7 +28,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: kbdcontrol.c,v 1.11 1997/09/19 06:28:57 charnier Exp $";
 #endif /* not lint */
 
 #include <ctype.h>
@@ -46,6 +46,18 @@ char ctrl_names[32][4] = {
 	"bs ", "ht ", "nl ", "vt ", "ff ", "cr ", "so ", "si ",
 	"dle", "dc1", "dc2", "dc3", "dc4", "nak", "syn", "etb",
 	"can", "em ", "sub", "esc", "fs ", "gs ", "rs ", "ns "
+	};
+
+char acc_names[15][5] = {
+	"dgra", "dacu", "dcir", "dtil", "dmac", "dbre", "ddot",
+	"duml", "dsla", "drin", "dced", "dapo", "ddac", "dogo", 
+	"dcar",
+	};
+
+char acc_names_u[15][5] = {
+	"DGRA", "DACU", "DCIR", "DTIL", "DMAC", "DBRE", "DDOT",
+	"DUML", "DSLA", "DRIN", "DCED", "DAPO", "DDAC", "DOGO", 
+	"DCAR",
 	};
 
 char fkey_table[96][MAXFK] = {
@@ -85,6 +97,7 @@ const int	nrepeats = (sizeof(repeats) / sizeof(int));
 int 		hex = 0;
 int 		number;
 char 		letter;
+int		token;
 
 static void usage __P((void));
 
@@ -128,7 +141,7 @@ mkfullname(const char *s1, const char *s2, const char *s3)
 int
 get_entry()
 {
-	switch (yylex()) {
+	switch ((token = yylex())) {
 	case TNOP:
 		return NOP | 0x100;
 	case TLSH:
@@ -165,6 +178,10 @@ get_entry()
 		return DBG | 0x100;
 	case TSUSP:
 		return SUSP | 0x100;
+	case TACC:
+		if (ACC(number) > L_ACC)
+			return -1;
+		return ACC(number) | 0x100;
 	case TFUNC:
 		if (F(number) > L_FN)
 			return -1;
@@ -184,17 +201,45 @@ get_entry()
 	}
 }
 
-
 int
-get_key_definition_line(FILE* fd, keymap_t *map)
+get_definition_line(FILE *fd, keymap_t *keymap, accentmap_t *accentmap)
 {
-	int i, def, scancode;
+	int c;
 
 	yyin = fd;
 
-	/* get scancode number */
-	if (yylex() != TNUM)
+	if (token < 0)
+		token = yylex();
+	switch (token) { 
+	case TNUM:
+		c = get_key_definition_line(keymap);
+		if (c < 0)
+			errx(1, "invalid key definition");
+		if (c > keymap->n_keys)
+			keymap->n_keys = c;
+		break;
+	case TACC:
+		c = get_accent_definition_line(accentmap);
+		if (c < 0)
+			errx(1, "invalid accent key definition");
+		if (c > accentmap->n_accs)
+			accentmap->n_accs = c;
+		break;
+	case 0:
+		/* EOF */
 		return -1;
+	default:
+		errx(1, "illegal definition line");
+	}
+	return c;
+}
+
+int
+get_key_definition_line(keymap_t *map)
+{
+	int i, def, scancode;
+
+	/* check scancode number */
 	if (number < 0 || number >= NUM_KEYS)
 		return -1;
 	scancode = number;
@@ -209,12 +254,73 @@ get_key_definition_line(FILE* fd, keymap_t *map)
 		map->key[scancode].map[i] = def & 0xFF;
 	}
 	/* get lock state key def */
-	if (yylex() != TFLAG)
+	if ((token = yylex()) != TFLAG)
 		return -1;
 	map->key[scancode].flgs = number;
-		return scancode;
+	token = yylex();
+	return (scancode + 1);
 }
 
+int
+get_accent_definition_line(accentmap_t *map)
+{
+	int accent;
+	int c1, c2;
+	int i;
+
+	if (ACC(number) < F_ACC || ACC(number) > L_ACC)
+		/* number out of range */
+		return -1;
+	accent = number;
+	if (map->acc[accent].accchar != 0) {
+		/* this entry has already been defined before! */
+		errx(1, "duplicated accent key definition");
+	}
+
+	switch ((token = yylex())) {
+	case TLET:
+		map->acc[accent].accchar = letter;
+		break;
+	case TNUM:
+		map->acc[accent].accchar = number;
+		break;
+	default:
+		return -1;
+	}
+
+	for (i = 0; (token = yylex()) == '(';) {
+		switch ((token = yylex())) {
+		case TLET:
+			c1 = letter;
+			break;
+		case TNUM:
+			c1 = number;
+			break;
+		default:
+			return -1;
+		}
+		switch ((token = yylex())) {
+		case TLET:
+			c2 = letter;
+			break;
+		case TNUM:
+			c2 = number;
+			break;
+		default:
+			return -1;
+		}
+		if ((token = yylex()) != ')')
+			return -1;
+		if (i >= NUM_ACCENTCHARS) {
+			warnx("too many accented characters, ignored");
+			continue;
+		}
+		map->acc[accent].map[i][0] = c1;
+		map->acc[accent].map[i][1] = c2;
+		++i;
+	}
+	return (accent + 1);
+}
 
 void
 print_entry(FILE *fp, int value)
@@ -273,16 +379,21 @@ print_entry(FILE *fp, int value)
 	case DBG | 0x100:
 		fprintf(fp, " debug ");
 		break;
+	case SUSP | 0x100:
+		fprintf(fp, " susp  ");
+		break;
 	default:
 		if (value & 0x100) {
 		 	if (val >= F_FN && val <= L_FN)
 				fprintf(fp, " fkey%02d", val - F_FN + 1);
 		 	else if (val >= F_SCR && val <= L_SCR)
 				fprintf(fp, " scr%02d ", val - F_SCR + 1);
+		 	else if (val >= F_ACC && val <= L_ACC)
+				fprintf(fp, " %-6s", acc_names[val - F_ACC]);
 			else if (hex)
 				fprintf(fp, " 0x%02x  ", val);
 			else
-				fprintf(fp, "  %3d  ", val);
+				fprintf(fp, " %3d   ", val);
 		}
 		else {
 			if (val < ' ')
@@ -336,14 +447,203 @@ print_key_definition_line(FILE *fp, int scancode, struct key_t *key)
 	}
 }
 
+void
+print_accent_definition_line(FILE *fp, int accent, struct acc_t *key)
+{
+	int c;
+	int i;
+
+	if (key->accchar == 0)
+		return;
+
+	/* print accent number */
+	fprintf(fp, "  %-6s", acc_names[accent]);
+	if (isascii(key->accchar) && isprint(key->accchar))
+		fprintf(fp, "'%c'  ", key->accchar);
+	else if (hex)
+		fprintf(fp, "0x%02x ", key->accchar);
+	else
+		fprintf(fp, "%03d  ", key->accchar);
+
+	for (i = 0; i < NUM_ACCENTCHARS; ++i) {
+		c = key->map[i][0];
+		if (c == 0)
+			break;
+		if ((i > 0) && ((i % 4) == 0))
+			fprintf(fp, "\n             ");
+		if (isascii(c) && isprint(c))
+			fprintf(fp, "( '%c' ", c);
+		else if (hex)
+			fprintf(fp, "(0x%02x ", c);
+		else
+			fprintf(fp, "( %03d ", c);
+		c = key->map[i][1];
+		if (isascii(c) && isprint(c))
+			fprintf(fp, "'%c' ) ", c);
+		else if (hex)
+			fprintf(fp, "0x%02x) ", c);
+		else
+			fprintf(fp, "%03d ) ", c);
+	}
+	fprintf(fp, "\n");
+}
+
+void
+dump_entry(int value)
+{
+	if (value & 0x100) {
+		value &= 0x00ff;
+		switch (value) {
+		case NOP:
+			printf("  NOP, ");
+			break;
+		case LSH:
+			printf("  LSH, ");
+			break;
+		case RSH:
+			printf("  RSH, ");
+			break;
+		case CLK:
+			printf("  CLK, ");
+			break;
+		case NLK:
+			printf("  NLK, ");
+			break;
+		case SLK:
+			printf("  SLK, ");
+			break;
+		case BTAB:
+			printf(" BTAB, ");
+			break;
+		case LALT:
+			printf(" LALT, ");
+			break;
+		case LCTR:
+			printf(" LCTR, ");
+			break;
+		case NEXT:
+			printf(" NEXT, ");
+			break;
+		case RCTR:
+			printf(" RCTR, ");
+			break;
+		case RALT:
+			printf(" RALT, ");
+			break;
+		case ALK:
+			printf("  ALK, ");
+			break;
+		case ASH:
+			printf("  ASH, ");
+			break;
+		case META:
+			printf(" META, ");
+			break;
+		case RBT:
+			printf("  RBT, ");
+			break;
+		case DBG:
+			printf("  DBG, ");
+			break;
+		case SUSP:
+			printf(" SUSP, ");
+			break;
+		default:
+	 		if (value >= F_FN && value <= L_FN)
+				printf(" F(%2d),", value - F_FN + 1);
+	 		else if (value >= F_SCR && value <= L_SCR)
+				printf(" S(%02d),", value - F_SCR + 1);
+	 		else if (value >= F_ACC && value <= L_ACC)
+				printf(" %-4s, ", acc_names_u[value - F_ACC]);
+			else
+				printf(" 0x%02X, ", value);
+			break;
+		}
+	} else if (value == '\'') {
+		printf(" '\\'', ");
+	} else if (value == '\\') {
+		printf(" '\\\\', ");
+	} else if (isascii(value) && isprint(value)) {
+		printf("  '%c', ", value);
+	} else {
+		printf(" 0x%02X, ", value);
+	}
+}
+
+void
+dump_key_definition(char *name, keymap_t *keymap)
+{
+	int	i, j;
+
+	printf("static keymap_t key_map_%s = { 0x%02x,\n",
+	       name, (unsigned)keymap->n_keys);
+	printf(
+"/*                                                            alt\n"
+" * scan                          cntrl          alt    alt   cntrl\n"
+" * code     base   shift  cntrl  shift   alt   shift  cntrl  shift  spcl  flgs\n"
+" * ---------------------------------------------------------------------------\n"
+" */\n");
+	for (i = 0; i < keymap->n_keys; i++) {
+		printf("/* sc=%02x */", i);
+		for (j = 0; j < NUM_STATES; j++) {
+			if (keymap->key[i].spcl & (0x80 >> j))
+				dump_entry(keymap->key[i].map[j] | 0x100);
+			else
+				dump_entry(keymap->key[i].map[j]);
+		}
+		printf(" 0x%02X, 0x%02X,\n",
+		       (unsigned)keymap->key[i].spcl, 
+		       (unsigned)keymap->key[i].flgs);
+	}
+	printf("};\n\n");
+}
+
+void
+dump_accent_definition(char *name, accentmap_t *accentmap)
+{
+	int i, j;
+	int c;
+
+	printf("static accentmap_t accent_map_%s = { %d,\n  {\n",
+		name, accentmap->n_accs); 
+	for (i = 0; i < NUM_DEADKEYS; i++) {
+		printf("    /* %s=%d */\n    {", acc_names[i], i);
+		c = accentmap->acc[i].accchar;
+		if (c == '\'')
+			printf(" '\\'', {");
+		else if (c == '\\')
+			printf(" '\\\\', {");
+		else if (isascii(c) && isprint(c))
+			printf("  '%c', {", c);
+		else if (c == 0) {
+			printf(" 0x00 }, \n");
+			continue;
+		} else
+			printf(" 0x%02x, {", c);
+		for (j = 0; j < NUM_ACCENTCHARS; j++) {
+			c = accentmap->acc[i].map[j][0]; 
+			if (c == 0)
+				break;
+			if ((j > 0) && ((j % 4) == 0))
+				printf("\n\t     ");
+			if (isascii(c) && isprint(c))
+				printf(" {  '%c',", c);
+			else
+				printf(" { 0x%02x,", c); 
+			printf("0x%02x },", accentmap->acc[i].map[j][1]);
+		}
+		printf(" }, },\n");
+	}
+	printf("  }\n};\n");
+}
 
 void
 load_keymap(char *opt, int dumponly)
 {
-	keymap_t map;
+	keymap_t keymap;
+	accentmap_t accentmap;
 	FILE	*fd;
-	int	scancode, i, j;
-	struct key_t *kp;
+	int	i;
 	char	*name, *cp;
 	char	*prefix[]  = {"", "", KEYMAP_PATH, NULL};
 	char	*postfix[] = {"", ".kbd", ".kbd"};
@@ -357,57 +657,62 @@ load_keymap(char *opt, int dumponly)
 		warn("keymap file not found");
 		return;
 	}
-	memset(&map, 0, sizeof(map));
+	memset(&keymap, 0, sizeof(keymap));
+	memset(&accentmap, 0, sizeof(accentmap));
+	token = -1;
 	while (1) {
-		if ((scancode = get_key_definition_line(fd, &map)) < 0)
+		if (get_definition_line(fd, &keymap, &accentmap) < 0)
 			break;
-		if (scancode > map.n_keys) map.n_keys = scancode;
     	}
 	if (dumponly) {
 		/* fix up the filename to make it a valid C identifier */
 		for (cp = opt; *cp; cp++)
 			if (!isalpha(*cp) && !isdigit(*cp)) *cp = '_';
-		printf("static const struct keymap keymap_%s = {\n"
-		       "/*\n * Automatically generated from %s.\n"
-		       " * DO NOT EDIT!\n */\n\n\t%u,\n{\n",
-		       opt, name, (unsigned)map.n_keys);
-		for (i = 0; i < map.n_keys; i++) {
-			kp = &map.key[i];
-
-			printf("\t{{ ");
-			for (j = 0; j < NUM_STATES; j++)
-				printf("0x%02x%c", (unsigned)kp->map[j],
-					j == NUM_STATES-1? '}': ',');
-			printf(", 0x%x, 0x%x },\n",
-			       (unsigned)kp->spcl, (unsigned)kp->flgs);
-		}
-		printf("}\n};\n\n");
+		printf("/*\n"
+		       " * Automatically generated from %s.\n"
+	               " * DO NOT EDIT!\n"
+		       " */\n", name);
+		dump_key_definition(opt, &keymap);
+		dump_accent_definition(opt, &accentmap);
 		return;
 	}
-	if (ioctl(0, PIO_KEYMAP, &map) < 0) {
+	if ((keymap.n_keys > 0) && (ioctl(0, PIO_KEYMAP, &keymap) < 0)) {
 		warn("setting keymap");
+		fclose(fd);
+		return;
+	}
+	if ((accentmap.n_accs > 0) 
+		&& (ioctl(0, PIO_DEADKEYMAP, &accentmap) < 0)) {
+		warn("setting accentmap");
 		fclose(fd);
 		return;
 	}
 }
 
-
 void
 print_keymap()
 {
-	keymap_t map;
+	keymap_t keymap;
+	accentmap_t accentmap;
 	int i;
 
-	if (ioctl(0, GIO_KEYMAP, &map) < 0)
+	if (ioctl(0, GIO_KEYMAP, &keymap) < 0)
 		err(1, "getting keymap");
+	if (ioctl(0, GIO_DEADKEYMAP, &accentmap) < 0)
+		memset(&accentmap, 0, sizeof(accentmap));
     	printf(
 "#                                                         alt\n"
 "# scan                       cntrl          alt    alt   cntrl lock\n"
 "# code  base   shift  cntrl  shift  alt    shift  cntrl  shift state\n"
 "# ------------------------------------------------------------------\n"
     	);
-	for (i=0; i<map.n_keys; i++)
-		print_key_definition_line(stdout, i, &map.key[i]);
+	for (i=0; i<keymap.n_keys; i++)
+		print_key_definition_line(stdout, i, &keymap.key[i]);
+
+	printf("\n");
+	for (i = 0; i < NUM_DEADKEYS; i++)
+		print_accent_definition_line(stdout, i, &accentmap.acc[i]);
+
 }
 
 

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: lex.l,v 1.5 1997/02/22 16:05:58 peter Exp $
  */
 
 %{
@@ -95,6 +95,23 @@ NS|ns		{ number = 31; return TNUM; }
 SP|sp		{ number = 32; return TNUM; }
 DEL|del		{ number = 127; return TNUM; }
 
+dgra|DGRA	{ number =  0; return TACC; }
+dacu|DACU	{ number =  1; return TACC; }
+dcir|DCIR	{ number =  2; return TACC; }
+dtil|DTIL	{ number =  3; return TACC; }
+dmac|DMAC	{ number =  4; return TACC; }
+dbre|DBRE	{ number =  5; return TACC; }
+ddot|DDOT	{ number =  6; return TACC; }
+duml|DUML	{ number =  7; return TACC; }
+ddia|DDIA	{ number =  7; return TACC; }
+dsla|DSLA	{ number =  8; return TACC; }
+drin|DRIN	{ number =  9; return TACC; }
+dced|DCED	{ number =  10; return TACC; }
+dapo|DAPO	{ number =  11; return TACC; }
+ddac|DDAC	{ number =  12; return TACC; }
+dogo|DOGO	{ number =  13; return TACC; }
+dcar|DCAR	{ number =  14; return TACC; }
+
 fkey{D}({D}*)		{ 
 				sscanf(yytext+4, "%d", &number); 
 				return TFUNC; 
@@ -115,3 +132,4 @@ scr{D}({D}*)		{
 				return TFLAG;
 			}
 [ \t\n]		{ /* ignore */ }
+.		{ return *yytext; }
