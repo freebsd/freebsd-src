@@ -6,13 +6,11 @@
 .if !defined(GCCDIR)
 GCCDIR=		${.CURDIR}/../../../../contrib/gcc
 
-TARGET_ARCH?=	${MACHINE_ARCH}
+.include "Makefile.tgt"
 
 # Machine description.
 MD_FILE=	${GCCDIR}/config/${TARGET_ARCH}/${TARGET_ARCH}.md
 target=		${TARGET_ARCH}-unknown-freebsd
-
-version!=	sed -n /version_string/p ${GCCDIR}/version.c | sed -e 's/.*\"\([^ \"]*\)[ \"].*/\1/'
 
 CFLAGS+=	-DIN_GCC -DHAVE_CONFIG_H
 CFLAGS+=	-DPREFIX=\"${TOOLS_PREFIX}/usr\"

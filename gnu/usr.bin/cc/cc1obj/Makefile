@@ -5,12 +5,10 @@
 .PATH: ../cc_tools ${GCCDIR}/objc ${GCCDIR}
 
 PROG=	cc1obj
-SRCS=	objc-parse.c c-parse.h objc-act.c
-# Ugh, compiled twice...
-SRCS+=	c-decl.c c-lex.c c-typeck.c
+SRCS=	objc-parse.c objc-act.c objc-lang.c main.c c-decl.c
 BINDIR=	/usr/libexec
 NOMAN=	1
-NOSHARED=yes
+NOSHARED?=yes
 
 CFLAGS+= -I${GCCDIR}/objc -I.
 
@@ -19,16 +17,18 @@ LDADD+=	${LIBCC_INT}
 
 #-----------------------------------------------------------------------
 # objc parser
-.ORDER: objc-parse.c c-parse.h
-objc-parse.c c-parse.h: c-parse.in
+.ORDER: objc-parse.c
+objc-parse.c: c-parse.in
 	sed -e "/^ifc$$/,/^end ifc$$/d" \
 	    -e "/^ifobjc$$/d" \
 	    -e "/^end ifobjc$$/d" \
-	    ${.ALLSRC} > objc-parse.y
-	${YACC} -d -o objc-parse.c objc-parse.y
-	mv objc-parse.h c-parse.h
+	    ${GCCDIR}/c-parse.in > objc-parse.y
+	${YACC} -o objc-parse.c.in objc-parse.y
+	sed -e "s/malloc/xmalloc/g" \
+	    -e "s/realloc/xrealloc/g" \
+	    objc-parse.c.in >objc-parse.c
 
-CLEANFILES+=	objc-parse.c c-parse.h objc-parse.y		# insurance
+CLEANFILES+=	objc-parse.c           objc-parse.y		# insurance
 
 #-----------------------------------------------------------------------
 

@@ -11,22 +11,16 @@
 # Prevent mkdep from using it, so that we don't have to give rules for
 # aliases of generated headers.
 
-CFLAGS+=	-DGENERATOR_FILE -I.
+CFLAGS+=	-I.
 
 .include "../Makefile.inc"
 
 .PATH: ${GCCDIR} ${GCCDIR}/cp
 
+CFLAGS+=	-static -DGENERATOR_FILE
+
 #-----------------------------------------------------------------------
 # insn-* gunk
-
-CLEANFILES+=	gensupport+%DIKED.c
-gensupport+%DIKED.c: gensupport.c
-	sed \
-	    -e 's/^xmalloc/DONT_xmalloc/g'	\
-	    -e 's/^xrealloc/DONT_xrealloc/g'	\
-	    -e 's/^xstrdup/DONT_xstrdup/g'	\
-	${.ALLSRC} > ${.TARGET}
 
 .for F in attr codes config flags
 insn-$F.h: gen$F ${MD_FILE}
@@ -41,8 +35,8 @@ gen-time-stamp: genattrtab genemit genextract genopinit genoutput genpeep genrec
 .for F in attr codes config emit extract flags opinit output peep recog
 build-tools: gen$F
 
-gen$F: gen$F.o rtl.o obstack.o print-rtl.o bitmap.o errors.o gensupport+%DIKED.o ggc-none.o hashtab.o #safe-ctype.o
-	${CC} -static ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
+gen$F: gen$F.o rtl.o obstack.o print-rtl.o bitmap.o errors.o gensupport.o        ggc-none.o hashtab.o read-rtl.o
+	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
 
 GENSRCS+=	gen$F.c
 CLEANFILES+=	gen$F
@@ -51,20 +45,20 @@ CLEANFILES+=	gen$F
 .for F in attrtab
 build-tools: gen$F
 
-gen$F: gen$F.o rtl.o print-rtl.o obstack.o bitmap.o errors.o gensupport+%DIKED.o ggc-none.o hashtab.o
-	${CC} -static ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
+gen$F: gen$F.o rtl.o print-rtl.o obstack.o bitmap.o errors.o gensupport.o        ggc-none.o hashtab.o read-rtl.o
+	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
 
 GENSRCS+=	gen$F.c
 CLEANFILES+=	gen$F
 .endfor
 
-SRCS+=		bitmap.c errors.c gensupport+%DIKED.c ggc-none.c hashtab.c obstack.c print-rtl.c regclass.c rtl.c rtlanal.c
+SRCS+=		bitmap.c errors.c gensupport.c        ggc-none.c hashtab.c obstack.c print-rtl.c regclass.c rtl.c rtlanal.c read-rtl.c
 
-.for F in check genrtl
+.for F in check genrtl preds
 build-tools: gen$F
 
 gen$F: gen$F.o
-	${CC} -static -DGENERATOR_FILE ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
+	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
 
 GENSRCS+=	gen$F.c
 CLEANFILES+=	gen$F
@@ -85,32 +79,30 @@ tree-check.h: gencheck
 GENSRCS+=	tree-check.h
 
 #-----------------------------------------------------------------------
+# Predicates stuff.
+
+tm-preds.h: genpreds
+	./genpreds > ${.TARGET}
+GENSRCS+=	tm-preds.h
+
+#-----------------------------------------------------------------------
 # the host/target compiler config.
 
-COMMONHDRS=	config.h hconfig.h multilib.h options.h specs.h tconfig.h tm.h \
+COMMONHDRS=	config.h hconfig.h multilib.h options.h specs.h tconfig.h \
 		tm_p.h configargs.h safe-ctype.h
 GENSRCS+=	${COMMONHDRS} gencheck.h
 
-${COMMONHDRS}: ${.CURDIR}/Makefile
+MFILE?=	${.CURDIR}/Makefile
+${COMMONHDRS}: ${MFILE}
 
 configargs.h:
 	echo 'static const char configuration_arguments[] ='	> ${.TARGET}
 	echo '	"FreeBSD/${TARGET_ARCH} system compiler";'		>> ${.TARGET}
 	echo 'static const char thread_model[] = "posix";'	>> ${.TARGET}
 
-config.h hconfig.h:
-	echo '#include "auto-host.h"'				> ${.TARGET}
-	echo '#include "gansidecl.h"'				>> ${.TARGET}
-	echo '#include "${TARGET_ARCH}/xm-${TARGET_ARCH}.h"'	>> ${.TARGET}
-	echo '#include "defaults.h"'				>> ${.TARGET}
-	echo '#include "hwint.h"'				>> ${.TARGET}
-	echo '#ifndef POSIX'					>> ${.TARGET}
-	echo '# define POSIX'					>> ${.TARGET}
-	echo '#endif'						>> ${.TARGET}
-	echo '#ifndef GENERATOR_FILE'				>> ${.TARGET}
-	echo '#include "insn-codes.h"'				>> ${.TARGET}
-	echo '#include "insn-flags.h"'				>> ${.TARGET}
-	echo '#endif'						>> ${.TARGET}
+hconfig.h:
+	echo '#include "auto-host.h"'			> ${.TARGET}
+	echo '#include <tconfig.h>'			>> ${.TARGET}
 
 gencheck.h:
 	echo '#include "cp/cp-tree.def"'		> ${.TARGET}
@@ -135,45 +127,73 @@ specs.h:
 	echo '#include "f/lang-specs.h"'		>> ${.TARGET}
 	echo '#include "objc/lang-specs.h"'		>> ${.TARGET}
 
-tconfig.h:
-	echo '#include "gansidecl.h"'				> ${.TARGET}
-	echo '#include "${TARGET_ARCH}/xm-${TARGET_ARCH}.h"'	>> ${.TARGET}
-	echo '#include "defaults.h"'				>> ${.TARGET}
-	echo '#ifndef GENERATOR_FILE'				>> ${.TARGET}
-	echo '#include "insn-codes.h"'				>> ${.TARGET}
-	echo '#include "insn-flags.h"'				>> ${.TARGET}
-	echo '#endif'						>> ${.TARGET}
-	echo '#define USING_SJLJ_EXCEPTIONS 0'			>> ${.TARGET}
+config.h:
+	echo '#include <hconfig.h>'			> ${.TARGET}
+	echo '#ifndef GENERATOR_FILE'			>> ${.TARGET}
+	echo '#include "insn-codes.h"'			>> ${.TARGET}
+	echo '#include "insn-flags.h"'			>> ${.TARGET}
+	echo '#endif'					>> ${.TARGET}
 
 #	KEEP THIS IN SYNC with src/gcc/lib/libgcc/Makefile !!
-tm.h:
-	echo '#include "gansidecl.h"'				> ${.TARGET}
-	echo '#include "${TARGET_ARCH}/${TARGET_ARCH}.h"'	>> ${.TARGET}
+tconfig.h:
+	echo '#ifdef IN_GCC'				> ${.TARGET}
+	echo 'struct rtx_def;'				>> ${.TARGET}
+	echo 'typedef struct rtx_def *rtx;'		>> ${.TARGET}
+	echo 'struct rtvec_def;'			>> ${.TARGET}
+	echo 'typedef struct rtvec_def *rtvec;'		>> ${.TARGET}
+	echo 'union tree_node;'				>> ${.TARGET}
+	echo 'typedef union tree_node *tree;'		>> ${.TARGET}
+	echo ''						>> ${.TARGET}
+	echo '#include "ansidecl.h"'			>> ${.TARGET}
+	echo '#include "${GCC_CPU}/${GCC_CPU}.h"'	>> ${.TARGET}
 .if ${TARGET_ARCH} == "i386"
-	echo '#include "${TARGET_ARCH}/att.h"'			>> ${.TARGET}
+	echo '#include "${GCC_CPU}/att.h"'		>> ${.TARGET}
 .endif
-	echo '#include <freebsd-native.h>'			>> ${.TARGET}
-	echo '#include <freebsd.h>'				>> ${.TARGET}
-.if exists(${GCCDIR}/config/${TARGET_ARCH}/elf.h)
-	echo '#include "${TARGET_ARCH}/elf.h"'			>> ${.TARGET}
+.if ${TARGET_ARCH} != "alpha"
+	echo '#include "dbxelf.h"'			>> ${.TARGET}
+	echo '#include "elfos.h"'			>> ${.TARGET}
 .endif
-	echo '#include "${TARGET_ARCH}/freebsd.h"'		>> ${.TARGET}
-.if ${TARGET_ARCH} == "i386"
-	echo '#include "${TARGET_ARCH}/perform.h"'		>> ${.TARGET}
+	echo '#include <freebsd-native.h>'		>> ${.TARGET}
+	echo '#include "freebsd-spec.h"'		>> ${.TARGET}
+	echo '#include "freebsd.h"'			>> ${.TARGET}
+.if ${TARGET_ARCH} == "alpha"
+	echo '#include "${GCC_CPU}/elf.h"'		>> ${.TARGET}
 .endif
-	echo '#include "defaults.h"'				>> ${.TARGET}
-	echo '#ifndef GENERATOR_FILE'				>> ${.TARGET}
-	echo '#include "insn-codes.h"'				>> ${.TARGET}
-	echo '#include "insn-flags.h"'				>> ${.TARGET}
-	echo '#endif'						>> ${.TARGET}
+.if ${TARGET_ARCH} != "i386"
+.if exists(${GCCDIR}/config/${GCC_CPU}/sysv4.h)
+	echo '#include "${GCC_CPU}/sysv4.h"'		>> ${.TARGET}
+.endif
+.endif
+	echo '#include "${GCC_CPU}/freebsd.h"'		>> ${.TARGET}
+	echo '#include "defaults.h"'			>> ${.TARGET}
+	echo '#ifndef POSIX'				>> ${.TARGET}
+	echo '# define POSIX'				>> ${.TARGET}
+	echo '#endif'					>> ${.TARGET}
+	echo '#define CONFIG_SJLJ_EXCEPTIONS 0'		>> ${.TARGET}
+	echo '#endif /* IN_GCC */'			>> ${.TARGET}
 
 tm_p.h:
-	echo '#include "${TARGET_ARCH}/${TARGET_ARCH}-protos.h"' > ${.TARGET}
-	echo '#include <freebsd-native.h>'			>> ${.TARGET}
-	echo '#ifndef GENERATOR_FILE'				>> ${.TARGET}
-	echo '#include "insn-codes.h"'				>> ${.TARGET}
-	echo '#include "insn-flags.h"'				>> ${.TARGET}
+	echo '#ifdef IN_GCC'					> ${.TARGET}
+	echo '#include "${GCC_CPU}/${GCC_CPU}-protos.h"'	>> ${.TARGET}
 	echo '#endif'						>> ${.TARGET}
+	echo '#include "tm-preds.h"'				>> ${.TARGET}
+
+safe-ctype.h: Makefile
+	echo '#include <ctype.h>'				> ${.TARGET}
+.for Z in TOUPPER TOLOWER ISDIGIT ISXDIGIT ISUPPER ISLOWER ISALPHA ISALNUM \
+    ISSPACE ISPUNCT ISGRAPH ISBLANK ISPRINT ISCNTRL
+	echo '#define ${Z}	${Z:L}'				>> ${.TARGET}
+.endfor
+	echo "#define ISIDST(x)		\
+		((x) == '_' || isalpha(x))"			>> ${.TARGET}
+	echo "#define ISIDNUM(x)	\
+		(isdigit(x) || ISIDST(x))"			>> ${.TARGET}
+	echo "#define IS_VSPACE(x)	\
+		((x) == '\n' || (x) == '\r')"			>> ${.TARGET}
+	echo "#define IS_NVSPACE(x)	\
+		(!IS_VSPACE(x) && (isspace(x) || (x) == '\0'))"	>> ${.TARGET}
+	echo "#define IS_SPACE_OR_NUL(x)	\
+		(isspace(x) || (x) == '\0')"			>> ${.TARGET}
 
 #-----------------------------------------------------------------------
 # General things.
@@ -200,7 +220,7 @@ OBJS+=		${SRCS:N*.h:R:S/$/.o/g}
 # all headers.  Filter out the objects that would cause problems (i.e.,
 # objects that will be used to create programs that will generate headers).
 #
-${OBJS:Nbitmap.o:Nerrors.o:Ngenattr.o:Ngencheck.o:Ngencodes.o:Ngenconfig.o:Ngenflags.o:Ngengenrtl.o:Ngensupport+%DIKED.o:Nggc-none.o:Nhashtab.o:Nobstack.o:Nprint-rtl.o:Nrtl.o}: ${SRCS:M*.h}
+${OBJS:Nbitmap.o:Nerrors.o:Ngenattr.o:Ngencheck.o:Ngencodes.o:Ngenconfig.o:Ngenflags.o:Ngengenrtl.o:Ngenpreds.o:Ngensupport.o:Nggc-none.o:Nhashtab.o:Nobstack.o:Nprint-rtl.o:Nread-rtl.o:Nrtl.o}: ${SRCS:M*.h}
 
 # Next, make each of the problematic objects depend on only most headers.
 # Filter out the headers that would cause problems (and a few more when it
@@ -210,17 +230,5 @@ bitmap.o genattr.o gencodes.o genconfig.o genflags.o obstack.o print-rtl.o \
     rtl.o: ${SRCS:M*.h:Ninsn-*.h}
 gencheck.o: gencheck.h ${SRCS:M*.h:Ngenrtl.h:Ntree-check.h:Ninsn-*.h}
 gengenrtl.o: ${SRCS:M*.h:Ngenrtl.h:Ninsn-*.h}
+genpreds.o: ${COMMONHDRS}
 .endif
-
-#GENSRCS+=	safe-ctype.h
-${OBJS} gensupport+%DIKED.o: safe-ctype.h
-safe-ctype.h: Makefile
-	echo '#include <ctype.h>'	> ${.TARGET}
-.for Z in TOUPPER TOLOWER ISDIGIT ISXDIGIT ISUPPER ISLOWER ISALPHA ISALNUM ISSPACE ISPUNCT ISGRAPH ISBLANK ISPRINT ISCNTRL
-	echo '#define	${Z}	${Z:L}'	>> ${.TARGET}
-.endfor
-	echo "#define	ISIDST(x)	((x) == '_' || isalpha(x))"	>> ${.TARGET}
-	echo "#define	ISIDNUM(x)	(isdigit(x) || ISIDST(x))"	>> ${.TARGET}
-	echo "#define	IS_VSPACE(x)	((x) == '\n' || (x) == '\r')"	>> ${.TARGET}
-	echo "#define	IS_NVSPACE(x)	(!IS_VSPACE(x) && (isspace(x) || (x) == '\0'))"	>> ${.TARGET}
-	echo "#define	IS_SPACE_OR_NUL(x)	(isspace(x) || (x) == '\0')"	>> ${.TARGET}
