@@ -1052,7 +1052,6 @@ options 	FB_INSTALL_CDEV		# install a CDEV entry in /dev
 device		splash			# Splash screen and screen saver support
 
 # Various screen savers.
-device		apm_saver		# Requires APM
 device		blank_saver
 device		daemon_saver
 device		fade_saver
@@ -1848,12 +1847,6 @@ hint.gusc.0.flags="0x13"
 device		joy			# PnP aware, hints for nonpnp only
 hint.joy.0.at="isa"
 hint.joy.0.port="0x201"
-device		cy	1
-options 	CY_PCI_FASTINTR		# Use with cy_pci unless irq is shared
-hint.cy.0.at="isa"
-hint.cy.0.irq="10"
-hint.cy.0.maddr="0xd4000"
-hint.cy.0.msize="0x2000"
 device		dgb	1
 options 	NDGBPORTS=17
 hint.dgb.0.at="isa"
