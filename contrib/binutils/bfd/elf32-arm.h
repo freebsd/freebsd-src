@@ -2188,7 +2188,7 @@ Warning: %s %s interworking, whereas %s %s"),
 			  bfd_get_filename (ibfd),
 	  in_flags & EF_INTERWORK ? _("supports") : _("does not support"),
 			  bfd_get_filename (obfd),
-		    out_flags & EF_INTERWORK ? _("does not") : _("does"));
+		    out_flags & EF_INTERWORK ? _("does") : _("does not"));
     }
 
   return flags_compatible;

@@ -1,3 +1,11 @@
+2001-07-16  Philip Blundell  <philb@gnu.org>
+
+	* arm-dis.c (print_insn_arm): Use decimal for offsets in LDR/STR.
+
+2001-07-03  Zoltan Hidvegi <hzoli@hzoli.2y.net>
+
+	* ppc-opc.c: Fix encoding of 'clf' instruction.
+
 2001-06-11  Alan Modra  <amodra@bigpond.net.au>
 
 	Merge from mainline.

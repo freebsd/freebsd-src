@@ -248,7 +248,8 @@ ALL_64_EMULATIONS = \
 	eelf64bmip.o \
 	eelf64btsmip.o \
 	eelf64ltsmip.o \
-	eelf64hppa.o
+	eelf64hppa.o \
+	ehppa64linux.o
 
 ALL_EMUL_EXTRA_OFILES = \
 	deffilep.o \
@@ -560,6 +561,9 @@ ehppalinux.c: $(srcdir)/emulparams/hppalinux.sh \
   $(srcdir)/emultempl/elf32.em $(srcdir)/emultempl/hppaelf.em \
   $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
 	${GENSCRIPTS} hppalinux "$(tdir_hppalinux)"
+ehppa64linux.c: $(srcdir)/emulparams/hppa64linux.sh \
+  $(srcdir)/emultempl/elf32.em $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
+	${GENSCRIPTS} hppa64linux "$(tdir_hppa64linux)"
 ei386aout.c: $(srcdir)/emulparams/i386aout.sh \
   $(srcdir)/emultempl/generic.em $(srcdir)/scripttempl/aout.sc ${GEN_DEPENDS}
 	${GENSCRIPTS} i386aout "$(tdir_i386aout)"
