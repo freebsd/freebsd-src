@@ -32,16 +32,10 @@ static const char rcsid[] = "$FreeBSD$";
 
 #include <machine/sysarch.h>
 
-struct parms {
-	unsigned int 	start;
-	unsigned int 	length;
-        int 		enable;
-};
-
 int
 i386_set_ioperm(unsigned int start, unsigned int length, int enable)
 {
-	struct parms p;
+	struct i386_ioperm_args p;
 
 	p.start = start;
 	p.length = length;
