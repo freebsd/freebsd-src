@@ -849,9 +849,9 @@ main(int argc, char **argv)
 	if (Lst_IsEmpty(&variables)) {
 		/*
 		 * Since the user has not requested that any variables
-		 * be printed, we can built targets.
+		 * be printed, we can build targets.
 		 *
-		 * Have red the entire graph and need to make a list of targets
+		 * Have read the entire graph and need to make a list of targets
 		 * to create. If none was given on the command line, we consult
 		 * the parsing module to find the main target(s) to create.
 		 */
