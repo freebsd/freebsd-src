@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vfsops.c	8.4 (Berkeley) 4/16/94
- * $Id: mfs_vfsops.c,v 1.15 1995/11/28 02:15:29 peter Exp $
+ * $Id: mfs_vfsops.c,v 1.16 1995/11/28 03:15:58 peter Exp $
  */
 
 #include <sys/param.h>
@@ -61,6 +61,8 @@
 
 #include <ufs/mfs/mfsnode.h>
 #include <ufs/mfs/mfs_extern.h>
+
+extern int	mfs_initminiroot __P((caddr_t base));
 
 caddr_t	mfs_rootbase;	/* address of mini-root in kernel virtual memory */
 u_long	mfs_rootsize;	/* size of mini-root in bytes */
