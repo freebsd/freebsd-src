@@ -37,7 +37,7 @@ static int wdtest = 0;
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.47 1994/10/01 02:56:21 davidg Exp $
+ *	$Id: wd.c,v 1.48 1994/10/02 17:41:44 phk Exp $
  */
 
 /* TODO:
@@ -299,6 +299,13 @@ wdattach(struct isa_device *dvp)
 		du->dk_unit = unit;
 		du->dk_lunit = lunit;
 		du->dk_port = dvp->id_iobase;
+		{
+		/* Initialize the badsect list to indicate no */
+		/* bad sectors. */
+		  int i;
+		  for (i = 0; i < 127; i++) 
+			du->dk_badsect[i] = -1;
+		}
 
 		/*
 		 * Print out description of drive.
