@@ -176,6 +176,7 @@ uint8_t bucket_size[BUCKET_ZONES];
 
 static void *obj_alloc(uma_zone_t, int, u_int8_t *, int);
 static void *page_alloc(uma_zone_t, int, u_int8_t *, int);
+static void *startup_alloc(uma_zone_t, int, u_int8_t *, int);
 static void page_free(void *, int, u_int8_t);
 static uma_slab_t slab_zalloc(uma_zone_t, int);
 static void cache_drain(uma_zone_t);
@@ -788,6 +789,42 @@ slab_zalloc(uma_zone_t zone, int wait)
 }
 
 /*
+ * This function is intended to be used early on in place of page_alloc() so
+ * that we may use the boot time page cache to satisfy allocations before
+ * the VM is ready.
+ */
+static void *
+startup_alloc(uma_zone_t zone, int bytes, u_int8_t *pflag, int wait)
+{
+	/*
+	 * Check our small startup cache to see if it has pages remaining.
+	 */
+	mtx_lock(&uma_mtx);
+	if (uma_boot_free != 0) {
+		uma_slab_t tmps;
+
+		tmps = LIST_FIRST(&uma_boot_pages);
+		LIST_REMOVE(tmps, us_link);
+		uma_boot_free--;
+		mtx_unlock(&uma_mtx);
+		*pflag = tmps->us_flags;
+		return (tmps->us_data);
+	}
+	mtx_unlock(&uma_mtx);
+	if (booted == 0)
+		panic("UMA: Increase UMA_BOOT_PAGES");
+	/*
+	 * Now that we've booted reset these users to their real allocator.
+	 */
+#ifdef UMA_MD_SMALL_ALLOC
+	zone->uz_allocf = uma_small_alloc;
+#else
+	zone->uz_allocf = page_alloc;
+#endif
+	return zone->uz_allocf(zone, bytes, pflag, wait);
+}
+
+/*
  * Allocates a number of pages from the system
  *
  * Arguments:
@@ -804,23 +841,6 @@ page_alloc(uma_zone_t zone, int bytes, u_int8_t *pflag, int wait)
 {
 	void *p;	/* Returned page */
 
-	/*
-	 * Check our small startup cache to see if it has pages remaining.
-	 */
-	if (uma_boot_free != 0 && bytes <= PAGE_SIZE) {
-		uma_slab_t tmps;
-
-		tmps = LIST_FIRST(&uma_boot_pages);
-		LIST_REMOVE(tmps, us_link);
-		uma_boot_free--;
-		*pflag = tmps->us_flags;
-		return (tmps->us_data);
-	} else if (booted == 0) {
-		if (bytes > PAGE_SIZE)
-			panic("UMA: Can't allocate multiple pages before vm "
-			    "has started.\n");
-		panic("UMA: Increase UMA_BOOT_PAGES");
-	}
 	*pflag = UMA_SLAB_KMEM;
 	p = (void *) kmem_malloc(kmem_map, bytes, wait);
   
@@ -1059,13 +1079,18 @@ zone_ctor(void *mem, int size, void *udata)
 		zone_large_init(zone);
 	else
 		zone_small_init(zone);
-#ifdef UMA_MD_SMALL_ALLOC_broken
+	/*
+	 * If we haven't booted yet we need allocations to go through the
+	 * startup cache until the vm is ready.
+	 */
 	if (zone->uz_ppera == 1) {
+#ifdef UMA_MD_SMALL_ALLOC
 		zone->uz_allocf = uma_small_alloc;
 		zone->uz_freef = uma_small_free;
+#endif
+		if (booted == 0)
+			zone->uz_allocf = startup_alloc;
 	}
-#endif	/* UMA_MD_SMALL_ALLOC */
-
 	if (arg->flags & UMA_ZONE_MTXCLASS)
 		privlc = 1;
 	else
@@ -1255,7 +1280,7 @@ uma_startup(void *bootmem)
 
 	bucket_init();
 
-#ifdef UMA_MD_SMALL_ALLOC_broken
+#ifdef UMA_MD_SMALL_ALLOC
 	booted = 1;
 #endif
 
