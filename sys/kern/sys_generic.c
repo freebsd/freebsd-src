@@ -74,12 +74,12 @@ static MALLOC_DEFINE(M_IOCTLOPS, "ioctlops", "ioctl data buffer");
 static MALLOC_DEFINE(M_SELECT, "select", "select() buffer");
 MALLOC_DEFINE(M_IOV, "iov", "large iov's");
 
-static int	pollscan __P((struct thread *, struct pollfd *, u_int));
-static int	selscan __P((struct thread *, fd_mask **, fd_mask **, int));
-static int	dofileread __P((struct thread *, struct file *, int, void *,
-		    size_t, off_t, int));
-static int	dofilewrite __P((struct thread *, struct file *, int,
-		    const void *, size_t, off_t, int));
+static int	pollscan(struct thread *, struct pollfd *, u_int);
+static int	selscan(struct thread *, fd_mask **, fd_mask **, int);
+static int	dofileread(struct thread *, struct file *, int, void *,
+		    size_t, off_t, int);
+static int	dofilewrite(struct thread *, struct file *, int,
+		    const void *, size_t, off_t, int);
 
 /*
  * Read system call.
