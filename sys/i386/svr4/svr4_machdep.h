@@ -71,6 +71,7 @@ typedef struct {
     long	f_weitek[33]; 	/* weitek */
 } svr4_fregset_t;
 
+struct proc;
 struct svr4_ucontext;
 
 void svr4_getcontext __P((struct proc *, struct svr4_ucontext *,
