@@ -158,8 +158,8 @@ is built with the --enable-threads configure-time option.}		\
 #if __FreeBSD_version >= 500016
 #define FBSD_LIB_SPEC "							\
   %{!shared:								\
-    %{!pg: %{pthread:-lc_r} -lc}					\
-    %{pg:  %{pthread:-lc_r_p} -lc_p}					\
+    %{!pg: %{pthread:-lpthread} -lc}					\
+    %{pg:  %{pthread:-lpthread_p} -lc_p}					\
   }"
 #else
 #define FBSD_LIB_SPEC "							\
