@@ -12,7 +12,7 @@
  *
  * Sep., 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm_setup.s,v 1.5 1995/02/17 02:22:23 phk Exp $
+ *	$Id: apm_setup.s,v 1.6 1996/03/11 06:48:48 nate Exp $
  */
 
 #include "apm.h"
@@ -166,9 +166,9 @@ _apm_setup:
 
 	movl	%eax, PADDR(_apm_version)
 	movl	%ebx, PADDR(_apm_cs_entry)
-	movw	%cx, PADDR(_apm_cs32_base)
-	shrl	$16, %ecx
 	movw	%cx, PADDR(_apm_cs16_base)
+	shrl	$16, %ecx
+	movw	%cx, PADDR(_apm_cs32_base)
 	movw	%dx, PADDR(_apm_ds_base)
 	movw	%si, PADDR(_apm_cs_limit)
 	shrl	$16, %esi
