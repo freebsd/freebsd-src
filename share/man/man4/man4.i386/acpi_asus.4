@@ -46,7 +46,7 @@ Hotkey events are passed to
 .Xr devd 8
 for easy handling in userspace.
 .Pp
-Currently, the following laptops are fully supported:
+Currently, the following Asus laptops are fully supported:
 .Pp
 .Bl -item -offset indent -compact
 .It
@@ -63,7 +63,17 @@ L8L
 M1A
 .It
 M2E
+.It
+M6N
 .El
+.Pp
+Additionally,
+.Nm
+also supports the Asus-compatible
+.Em ATK0100
+interface found in
+.Em Samsung P30/P35
+laptops.
 .Sh SYSCTLS
 The following sysctls are currently implemented:
 .Bl -tag -width indent
@@ -100,7 +110,7 @@ which is parsed at boot-time.
 .Xr sysctl.conf 5 ,
 .Xr sysctl 8
 .Rs
-.%T The Acpi4Asus Project
+.%T The acpi4asus Project
 .%O http://sourceforge.net/projects/acpi4asus/
 .Re
 .Sh HISTORY
