@@ -85,7 +85,6 @@
 #include <sys/tty.h>
 #include <sys/conf.h>
 #include <sys/uio.h>
-#include <sys/vnode.h>
 
 #ifdef PPP_FILTER
 #include <net/bpf.h>
@@ -332,7 +331,7 @@ pppread(tp, uio, flag)
 	    splx(s);
 	    return 0;		/* end of file */
 	}
-	if (tp->t_state & TS_ASYNC || flag & IO_NDELAY) {
+	if (tp->t_state & TS_ASYNC || flag & O_NONBLOCK) {
 	    splx(s);
 	    return (EWOULDBLOCK);
 	}
