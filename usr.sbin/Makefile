@@ -251,6 +251,10 @@ _usbd=		usbd
 _usbdevs=	usbdevs
 .endif
 
+.if ${MACHINE_ARCH} == "arm"
+_kgmon=		kgmon
+.endif
+
 .if ${MACHINE_ARCH} == "i386"
 .if !defined(NO_ACPI)
 _acpi=		acpi
