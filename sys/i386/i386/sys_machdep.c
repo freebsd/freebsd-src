@@ -579,7 +579,7 @@ again:
 		 * start scanning a bit up to leave room for NVidia and
 		 * Wine, which still user the "Blat" method of allocation.
 		 */
-		for (i = NLDT + 1; i < pldt->ldt_len; ++i) {
+		for (i = NLDT; i < pldt->ldt_len; ++i) {
 			if (dp->sd.sd_type == SDT_SYSNULL)
 				break;
 			dp++;
