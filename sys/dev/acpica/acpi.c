@@ -2015,12 +2015,11 @@ static struct debugtag	dbg_layer[] = {
 };
 
 static struct debugtag dbg_level[] = {
-    {"ACPI_LV_OK",		ACPI_LV_OK},
-    {"ACPI_LV_INFO",		ACPI_LV_INFO},
-    {"ACPI_LV_WARN",		ACPI_LV_WARN},
     {"ACPI_LV_ERROR",		ACPI_LV_ERROR},
-    {"ACPI_LV_FATAL",		ACPI_LV_FATAL},
+    {"ACPI_LV_WARN",		ACPI_LV_WARN},
+    {"ACPI_LV_INIT",		ACPI_LV_INIT},
     {"ACPI_LV_DEBUG_OBJECT",	ACPI_LV_DEBUG_OBJECT},
+    {"ACPI_LV_INFO",		ACPI_LV_INFO},
     {"ACPI_LV_ALL_EXCEPTIONS",	ACPI_LV_ALL_EXCEPTIONS},
 
     /* Trace verbosity level 1 [Standard Trace Level] */
@@ -2037,7 +2036,7 @@ static struct debugtag dbg_level[] = {
     {"ACPI_LV_RESOURCES",	ACPI_LV_RESOURCES},
     {"ACPI_LV_USER_REQUESTS",	ACPI_LV_USER_REQUESTS},
     {"ACPI_LV_PACKAGE",		ACPI_LV_PACKAGE},
-    {"ACPI_LV_INIT",		ACPI_LV_INIT},
+    {"ACPI_LV_INIT_NAMES",	ACPI_LV_INIT_NAMES},
     {"ACPI_LV_VERBOSITY1",	ACPI_LV_VERBOSITY1},
 
     /* Trace verbosity level 2 [Function tracing and memory allocation] */
