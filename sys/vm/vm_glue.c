@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.20.4.3 1996/01/29 12:11:30 davidg Exp $
+ * $Id: vm_glue.c,v 1.20.4.4 1996/02/22 11:10:08 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -505,6 +505,9 @@ swapout(p)
 
 	ptaddr = trunc_page((u_int) vtopte(kstack));
 	vm_map_pageable(map, ptaddr, ptaddr + NBPG, TRUE);
+
+	pmap_remove(vm_map_pmap(map), (vm_offset_t)kstack,
+	    (vm_offset_t)kstack + UPAGES * PAGE_SIZE);
 
 	p->p_flag &= ~P_SWAPPING;
 	p->p_swtime = 0;
