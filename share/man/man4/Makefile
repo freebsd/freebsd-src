@@ -170,6 +170,8 @@ MAN=	aac.4 \
 	ng_pptpgre.4 \
 	ng_rfc1490.4 \
 	ng_socket.4 \
+	ng_sscfu.4 \
+	ng_sscop.4 \
 	ng_tee.4 \
 	ng_tty.4 \
 	ng_ubt.4 \
