@@ -234,7 +234,7 @@ ef_start(struct ifnet *ifp)
 			break;
 		if (ifp->if_bpf)
 			bpf_mtap(ifp, m);
-		if (! IF_HANDOFF(&p->if_snd, m, NULL)) {
+		if (! IF_HANDOFF(&p->if_snd, m, p)) {
 			ifp->if_oerrors++;
 			continue;
 		}
@@ -320,7 +320,7 @@ static int
 ef_input(struct ifnet *ifp, struct ether_header *eh, struct mbuf *m)
 {
 	u_short ether_type;
-	int s, ft = -1;
+	int ft = -1;
 	struct ifqueue *inq;
 	struct efnet *efp;
 	struct ifnet *eifp;
