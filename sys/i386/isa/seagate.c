@@ -7,6 +7,7 @@
  * Copyright 1992, 1994 Drew Eckhardt (drew@colorado.edu)
  * Copyright 1994, Julian Elischer (julian@tfs.com)
  * Copyright 1994-1995, Serge Vakulenko (vak@cronyx.ru)
+ * Copyright 1995 Stephen Hocking (sysseh@devetir.qld.gov.au)
  *
  * Others that has contributed by example code is
  * 		Glen Overby (overby@cray.com)
@@ -45,8 +46,21 @@
  *               new asm fragments for data input/output, target-dependent
  *               delays, device flags, polling mode, generic cleanup
  * vak    950115 Added request-sense ops
+ * seh    950701 Fixed up Future Domain TMC-885 problems with disconnects,
+ *               weird phases and the like. (we could probably investigate
+ *               what the board's idea of the phases are, but that requires
+ *               doco that I don't have). Note that it is slower than the
+ *               2.0R driver with both SEA_BLINDTRANSFER & SEA_ASSEMBLER
+ *               defined by a factor of more than 2. I'll look at that later!
+ * seh    950712 The performance release 8^). Put in the blind transfer code
+ *               from the 2.0R source. Don't use it by commenting out the 
+ *               SEA_BLINDTRANSFER below. Note that it only kicks in during
+ *               DATAOUT or DATAIN and then only when the transfer is a
+ *               multiple of BLOCK_SIZE bytes (512). Most devices fit into
+ *               that category, with the possible exception of scanners and
+ *               some of the older MO drives.
  *
- * $Id: seagate.c,v 1.7 1995/04/12 20:48:03 wollman Exp $
+ * $Id: seagate.c,v 1.8 1995/05/30 08:03:04 rgrimes Exp $
  */
 
 /*
@@ -126,9 +140,9 @@
 #define SCB_TABLE_SIZE	8	/* start with 8 scb entries in table */
 #define BLOCK_SIZE	512	/* size of READ/WRITE areas on SCSI card */
 #define HOST_SCSI_ADDR  7       /* address of the adapter on the SCSI bus */
-
+#define SEA_BLINDTRANSFER	1	/* for quicker than quick xfers */
 /*
- * Defice config flags
+ * Define config flags
  */
 #define FLAG_NOPARITY   0x01    /* disable SCSI bus parity check */
 
@@ -285,6 +299,12 @@ adapter_t seadata[NSEA];
 	if (cnt == -1 && msg)\
 		printf ("sea: %s timeout\n", msg); }
 
+#define WAITFOR10(condition,message) {\
+	register u_long cnt = 1000000; char *msg = message;\
+	while (cnt-- && ! (condition)) continue;\
+	if (cnt == -1 && msg)\
+		printf ("sea: %s timeout\n", msg); }
+
 /*
  * Seagate adapter does not support in hardware
  * waiting for REQ deassert after transferring each data byte.
@@ -324,7 +344,7 @@ static void sea_information_transfer (adapter_t *z, scb_t *scb);
 static int sea_poll (adapter_t *z, scb_t *scb);
 static int sea_init (adapter_t *z);
 static int sea_reselect (adapter_t *z);
-static int sea_select (adapter_t *z, scb_t *scb);
+static int sea_select (volatile adapter_t *z, scb_t *scb);
 static int sea_abort (adapter_t *z, scb_t *scb);
 static void sea_send_abort (adapter_t *z);
 static u_char sea_msg_input (adapter_t *z);
@@ -347,6 +367,9 @@ static struct kern_devconf sea_kdc[NSEA] = {{
 	DC_UNCONFIGURED, sea_description,
 	DC_CLS_MISC		/* host adapters aren't special */
 } };
+
+/* FD TMC885's can't handle detach & re-attach */
+static int sea_select_cmd = CMD_DRVR_ENABLE | CMD_ATTN;
 
 /*
  * Check if the device can be found at the port given and if so,
@@ -421,6 +444,11 @@ int sea_detect (adapter_t *z, struct isa_device *dev)
 	z->CONTROL = z->addr + 0x1c00; /* TMC-885/TMC-950 reg. offsets */
 	z->STATUS  = z->addr + 0x1c00;
 	z->DATA    = z->addr + 0x1e00;
+	/* FD TMC885's can't handle detach & re-attach */
+	sea_select_cmd = CMD_DRVR_ENABLE;
+	/* FD TMC-885 is supposed to be at id 6. How strange. */
+	z->scsi_addr = HOST_SCSI_ADDR - 1;
+	z->scsi_id = 1 << z->scsi_addr;
 	if (sea_init (z) == 0)
 		return (1);
 
@@ -476,7 +504,7 @@ int sea_init (adapter_t *z)
 	}
 
 	/* Reset the scsi bus (I don't know if this is needed). */
-	*z->CONTROL = CMD_RST | CMD_DRVR_ENABLE;
+	*z->CONTROL = CMD_RST | CMD_DRVR_ENABLE | z->parity | CMD_INTR;
 	/* Hold reset for at least 25 microseconds. */
 	DELAY (25);
 	/* Check that status cleared. */
@@ -591,8 +619,8 @@ int32 sea_scsi_cmd (struct scsi_xfer *xs)
 	adapter_t *z = &seadata[unit];
 	scb_t *scb;
 
-	/* PRINT (("sea%d/%d/%d command 0x%x\n", unit, xs->sc_link->target,
-		xs->sc_link->lun, xs->cmd->opcode)); */
+	PRINT (("sea%d/%d/%d command 0x%x\n", unit, xs->sc_link->target,
+		xs->sc_link->lun, xs->cmd->opcode)); 
 	if (xs->bp)
 		flags |= SCSI_NOSLEEP;
 	if (flags & ITSDONE) {
@@ -680,9 +708,9 @@ int32 sea_scsi_cmd (struct scsi_xfer *xs)
 			 * this time there is no clock queue entry to remove. */
 			sea_timeout ((void*) scb);
 	}
-	/* PRINT (("sea%d/%d/%d command %s\n", unit,
+	PRINT (("sea%d/%d/%d command %s\n", unit,
 		xs->sc_link->target, xs->sc_link->lun,
-		xs->error ? "failed" : "done")); */
+		xs->error ? "failed" : "done")); 
 	return (xs->error ? HAD_ERROR : COMPLETE);
 }
 
@@ -781,10 +809,10 @@ static inline int sea_wait_for_req_deassert (adapter_t *z, int cnt, char *msg)
  * for IDENTIFY and queue messages.
  * Return 1 if selection succeded.
  */
-int sea_select (adapter_t *z, scb_t *scb)
+int sea_select (volatile adapter_t *z, scb_t *scb)
 {
 	/* Start arbitration. */
-	*z->CONTROL = z->parity;
+	*z->CONTROL = z->parity | CMD_INTR;
 	*z->DATA = z->scsi_id;
 	*z->CONTROL = CMD_START_ARB | z->parity;
 
@@ -801,11 +829,11 @@ int sea_select (adapter_t *z, scb_t *scb)
 		*z->CONTROL = CMD_INTR | z->parity;
 		return (0);
 	}
-	DELAY (2);
+	DELAY (1);
 
 	*z->DATA = (1 << scb->xfer->sc_link->target) | z->scsi_id;
-	*z->CONTROL = CMD_DRVR_ENABLE | CMD_SEL | CMD_ATTN | z->parity;
-	DELAY (1);
+	*z->CONTROL = sea_select_cmd | CMD_SEL | z->parity;
+	DELAY (2);
 
 	/* Wait for a bsy from target.
 	 * If the target is not present on the bus, we get
@@ -823,8 +851,13 @@ int sea_select (adapter_t *z, scb_t *scb)
 
 	/* Try to make the target to take a message from us.
 	 * Should start a MSGOUT phase. */
-	*z->CONTROL = CMD_DRVR_ENABLE | CMD_ATTN | z->parity;
-	DELAY (1);
+	*z->CONTROL = sea_select_cmd | z->parity;
+	DELAY (15);
+	WAITFOR (*z->STATUS & STAT_REQ, 0);
+
+	if (z->type == CTLR_FUTURE_DOMAIN)
+		*z->CONTROL = CMD_INTR | z->parity | CMD_DRVR_ENABLE;
+
 	WAITFOR (*z->STATUS & STAT_REQ, 0);
 	if (! (*z->STATUS & STAT_REQ)) {
 		PRINT (("sea%d/%d/%d timeout waiting for REQ\n",
@@ -835,8 +868,8 @@ int sea_select (adapter_t *z, scb_t *scb)
 		return (0);
 	}
 
-	/* Check for phase mismatch. */
-	if ((*z->STATUS & PHASE_MASK) != PHASE_MSGOUT) {
+	/* Check for phase mismatch. FD 885 always seems to get this wrong! */
+	if ((*z->STATUS & PHASE_MASK) != PHASE_MSGOUT && z->type != CTLR_FUTURE_DOMAIN) {
 		PRINT (("sea%d/%d/%d waiting for MSGOUT: invalid phase %s\n",
 			z->sc_link.adapter_unit, scb->xfer->sc_link->target,
 			scb->xfer->sc_link->lun,
@@ -846,10 +879,12 @@ int sea_select (adapter_t *z, scb_t *scb)
 		return (0);
 	}
 
-	/* Allow disconnects. */
-	*z->CONTROL = CMD_DRVR_ENABLE | z->parity;
-	*z->DATA = MSG_IDENTIFY (scb->xfer->sc_link->lun);
-	WAITREQ (&z->target[scb->xfer->sc_link->target], msgout, 1000);
+	/* Allow disconnects. (except for FD controllers) */
+	if (z->type == CTLR_SEAGATE) {
+		*z->CONTROL = CMD_DRVR_ENABLE | z->parity;
+		*z->DATA = MSG_IDENTIFY (scb->xfer->sc_link->lun);
+		WAITREQ (&z->target[scb->xfer->sc_link->target], msgout, 1000);
+	}
 	*z->CONTROL = CMD_INTR | CMD_DRVR_ENABLE | z->parity;
 
 	SET_BUSY (z, scb);
@@ -881,7 +916,7 @@ again:
 	/* Host responds by asserting the BSY signal. */
 	/* Target should respond by deasserting the SEL signal. */
 	target_mask &= ~z->scsi_id;
-	*z->CONTROL = CMD_DRVR_ENABLE | CMD_BSY | z->parity;
+	*z->CONTROL = CMD_DRVR_ENABLE | CMD_BSY | z->parity | CMD_INTR;
 	WAITFOR (! (*z->STATUS & STAT_SEL), "reselection acknowledge");
 
 	/* Remove the busy status. */
@@ -1037,24 +1072,43 @@ int sea_poll (adapter_t *z, scb_t *scb)
  */
 void sea_data_output (adapter_t *z, u_char **pdata, u_long *plen)
 {
-	u_char *data = *pdata;
-	u_long len = *plen;
+	volatile u_char *data = *pdata;
+	volatile u_long len = *plen;
 
-	asm ("cld
-	1:      movb (%%ebx), %%al
-		xorb $1, %%al
-		testb $0xf, %%al
-		jnz 2f
-		testb $0x10, %%al
-		jz 1b
-		lodsb
-		movb %%al, (%%edi)
-		loop 1b
-	2:"
-	: "=S" (data), "=c" (len)               /* output */
-	: "D" (z->DATA), "b" (z->STATUS),       /* input */
-		"0" (data), "1" (len)
-	: "eax", "ebx", "edi");                 /* clobbered */
+#ifdef SEA_BLINDTRANSFER
+	if (len && !(len % BLOCK_SIZE)) {
+		while (len) {
+			WAITFOR10 (*z->STATUS & STAT_REQ, "blind block read");
+	              asm("
+			shr $2, %%ecx;
+			cld;
+			rep;
+			movsl; " : :
+			"D" (z->DATA), "S" (data), "c" (BLOCK_SIZE) :
+			"cx", "si", "di" );
+       			data += BLOCK_SIZE;
+			len -= BLOCK_SIZE;
+		}
+	} else {
+#endif
+		asm ("cld
+		1:      movb (%%ebx), %%al
+			xorb $1, %%al
+			testb $0xf, %%al
+			jnz 2f
+			testb $0x10, %%al
+			jz 1b
+			lodsb
+			movb %%al, (%%edi)
+			loop 1b
+		2:"
+		: "=S" (data), "=c" (len)               /* output */
+		: "D" (z->DATA), "b" (z->STATUS),       /* input */
+			"0" (data), "1" (len)
+		: "eax", "ebx", "edi");                 /* clobbered */
+#ifdef SEA_BLINDTRANSFER
+	}
+#endif
 	PRINT (("sea (DATAOUT) send %ld bytes\n", *plen - len));
 	*plen = len;
 	*pdata = data;
@@ -1065,47 +1119,66 @@ void sea_data_output (adapter_t *z, u_char **pdata, u_long *plen)
  */
 void sea_data_input (adapter_t *z, u_char **pdata, u_long *plen)
 {
-	u_char *data = *pdata;
-	u_long len = *plen;
+	volatile u_char *data = *pdata;
+	volatile u_long len = *plen;
 
-	if (len >= 512) {
-		asm ("  cld
-		1:      movb (%%esi), %%al
-			xorb $5, %%al
-			testb $0xf, %%al
-			jnz 2f
-			testb $0x10, %%al
-			jz 1b
-			movb (%%ebx), %%al
-			stosb
-			loop 1b
-		2:"
-		: "=D" (data), "=c" (len)               /* output */
-		: "b" (z->DATA), "S" (z->STATUS),
-			"0" (data), "1" (len)           /* input */
-		: "eax", "ebx", "esi");                 /* clobbered */
+#ifdef SEA_BLINDTRANSFER
+	if (len && !(len % BLOCK_SIZE)) {
+		while (len) {
+			WAITFOR10 (*z->STATUS & STAT_REQ, "blind block read");
+	              asm("
+			shr $2, %%ecx;
+			cld;
+			rep;
+			movsl; " : :
+			"S" (z->DATA), "D" (data), "c" (BLOCK_SIZE) :
+			"cx", "si", "di" );
+       			data += BLOCK_SIZE;
+			len -= BLOCK_SIZE;
+		}
 	} else {
-		asm ("  cld
-		1:      movb (%%esi), %%al
-			xorb $5, %%al
-			testb $0xf, %%al
-			jnz 2f
-			testb $0x10, %%al
-			jz 1b
-			movb (%%ebx), %%al
-			stosb
-			movb $1000, %%al
-		3:      testb $0x10, (%%esi)
-			jz 4f
-			dec %%al
-			jnz 3b
-		4:      loop 1b
-		2:"
-		: "=D" (data), "=c" (len)               /* output */
-		: "b" (z->DATA), "S" (z->STATUS),
-			"0" (data), "1" (len)           /* input */
-		: "eax", "ebx", "esi");                 /* clobbered */
+#endif
+		if (len >= 512) {
+			asm ("  cld
+			1:      movb (%%esi), %%al
+				xorb $5, %%al
+				testb $0xf, %%al
+				jnz 2f
+				testb $0x10, %%al
+				jz 1b
+				movb (%%ebx), %%al
+				stosb
+				loop 1b
+			2:"
+			: "=D" (data), "=c" (len)               /* output */
+			: "b" (z->DATA), "S" (z->STATUS),
+				"0" (data), "1" (len)           /* input */
+			: "eax", "ebx", "esi");                 /* clobbered */
+		} else {
+			asm ("  cld
+			1:      movb (%%esi), %%al
+				xorb $5, %%al
+				testb $0xf, %%al
+				jnz 2f
+				testb $0x10, %%al
+				jz 1b
+				movb (%%ebx), %%al
+				stosb
+				movb $1000, %%al
+			3:      testb $0x10, (%%esi)
+				jz 4f
+				dec %%al
+				jnz 3b
+			4:      loop 1b
+			2:"
+			: "=D" (data), "=c" (len)               /* output */
+			: "b" (z->DATA), "S" (z->STATUS),
+				"0" (data), "1" (len)           /* input */
+			: "eax", "ebx", "esi");                 /* clobbered */
+		}
+#ifdef SEA_BLINDTRANSFER
 	}
+#endif
 	PRINT (("sea (DATAIN) got %ld bytes\n", *plen - len));
 	*plen = len;
 	*pdata = data;
@@ -1123,7 +1196,8 @@ void sea_cmd_output (target_t *t, u_char *cmd, int cmdlen)
 
 	PRINT (("%x", *cmd));
 	*z->DATA = *cmd++;
-	WAITREQ (t, cmdout1, 10000);
+	if (z->type == CTLR_SEAGATE)
+		WAITREQ (t, cmdout1, 10000);
 	--cmdlen;
 
 	while (cmdlen) {
@@ -1132,9 +1206,9 @@ void sea_cmd_output (target_t *t, u_char *cmd, int cmdlen)
 		if (! (sts & STAT_BSY))
 			break;
 
-		/* Check for phase mismatch. */
-		if ((sts & PHASE_MASK) != PHASE_CMDOUT) {
-			printf ("sea: sending command: invalid phase %s\n",
+		/* Check for phase mismatch. FD 885 seems to get this wrong! */
+		if ((sts & PHASE_MASK) != PHASE_CMDOUT && z->type != CTLR_FUTURE_DOMAIN) {
+			printf ("sea: sea_cmd_output: invalid phase %s\n",
 				PHASE_NAME (sts & PHASE_MASK));
 			return;
 		}
@@ -1145,7 +1219,8 @@ void sea_cmd_output (target_t *t, u_char *cmd, int cmdlen)
 
 		PRINT (("-%x", *cmd));
 		*z->DATA = *cmd++;
-		WAITREQ (t, cmdout, 1000);
+		if (z->type == CTLR_SEAGATE)
+			WAITREQ (t, cmdout, 1000);
 		--cmdlen;
 	}
 	PRINT (("\n"));
@@ -1197,7 +1272,7 @@ u_char sea_msg_input (adapter_t *z)
 	/* Check for phase mismatch.
 	 * Reached if the target decides that it has finished the transfer. */
 	if ((sts & PHASE_MASK) != PHASE_MSGIN) {
-		printf ("sea: sending message: invalid phase %s\n",
+		printf ("sea: sea_msg_input: invalid phase %s\n",
 			PHASE_NAME (sts & PHASE_MASK));
 		return (MSG_ABORT);
 	}
@@ -1343,7 +1418,8 @@ void sea_information_transfer (adapter_t *z, scb_t *scb)
 			break;
 		case PHASE_STATIN:
 			scb->xfer->status = *z->DATA;
-			WAITREQ (t, statin, 2000);
+			if (z->type == CTLR_SEAGATE)
+				WAITREQ (t, statin, 2000);
 			PRINT (("sea%d/%d/%d (STATIN) got 0x%x\n",
 				z->sc_link.adapter_unit,
 				scb->xfer->sc_link->target,
